@@ -7,9 +7,9 @@
 package path
 
 import (
-	"io/ioutil";
-	"os";
-	"strings";
+	"io/ioutil"
+	"os"
+	"strings"
 )
 
 // Clean returns the shortest path name equivalent to path
@@ -34,16 +34,16 @@ func Clean(path string) string {
 		return "."
 	}
 
-	rooted := path[0] == '/';
-	n := len(path);
+	rooted := path[0] == '/'
+	n := len(path)
 
 	// Invariants:
 	//	reading from path; r is index of next byte to process.
 	//	writing to buf; w is index of next byte to write.
 	//	dotdot is index in buf where .. must stop, either because
 	//		it is the leading slash or it is a leading ../../.. prefix.
-	buf := strings.Bytes(path);
-	r, w, dotdot := 0, 0, 0;
+	buf := strings.Bytes(path)
+	r, w, dotdot := 0, 0, 0
 	if rooted {
 		r, w, dotdot = 1, 1, 1
 	}
@@ -58,48 +58,48 @@ func Clean(path string) string {
 			r++
 		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || path[r+2] == '/'):
 			// .. element: remove to last /
-			r += 2;
+			r += 2
 			switch {
 			case w > dotdot:
 				// can backtrack
-				w--;
+				w--
 				for w > dotdot && buf[w] != '/' {
 					w--
 				}
 			case !rooted:
 				// cannot backtrack, but not rooted, so append .. element.
 				if w > 0 {
-					buf[w] = '/';
-					w++;
+					buf[w] = '/'
+					w++
 				}
-				buf[w] = '.';
-				w++;
-				buf[w] = '.';
-				w++;
-				dotdot = w;
+				buf[w] = '.'
+				w++
+				buf[w] = '.'
+				w++
+				dotdot = w
 			}
 		default:
 			// real path element.
 			// add slash if needed
 			if rooted && w != 1 || !rooted && w != 0 {
-				buf[w] = '/';
-				w++;
+				buf[w] = '/'
+				w++
 			}
 			// copy element
 			for ; r < n && path[r] != '/'; r++ {
-				buf[w] = path[r];
-				w++;
+				buf[w] = path[r]
+				w++
 			}
 		}
 	}
 
 	// Turn empty string into "."
 	if w == 0 {
-		buf[w] = '.';
-		w++;
+		buf[w] = '.'
+		w++
 	}
 
-	return string(buf[0:w]);
+	return string(buf[0:w])
 }
 
 // Split splits path immediately following the final slash,
@@ -112,7 +112,7 @@ func Split(path string) (dir, file string) {
 			return path[0 : i+1], path[i+1:]
 		}
 	}
-	return "", path;
+	return "", path
 }
 
 // Join joins dir and file into a single path, adding a separating
@@ -121,7 +121,7 @@ func Join(dir, file string) string {
 	if dir == "" {
 		return file
 	}
-	return Clean(dir + "/" + file);
+	return Clean(dir + "/" + file)
 }
 
 // Ext returns the file name extension used by path.
@@ -134,28 +134,28 @@ func Ext(path string) string {
 			return path[i:]
 		}
 	}
-	return "";
+	return ""
 }
 
 // Visitor methods are invoked for corresponding file tree entries
 // visited by Walk. The parameter path is the full path of d relative
 // to root.
 type Visitor interface {
-	VisitDir(path string, d *os.Dir) bool;
-	VisitFile(path string, d *os.Dir);
+	VisitDir(path string, d *os.Dir) bool
+	VisitFile(path string, d *os.Dir)
 }
 
 func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
 	if !d.IsDirectory() {
-		v.VisitFile(path, d);
-		return;
+		v.VisitFile(path, d)
+		return
 	}
 
 	if !v.VisitDir(path, d) {
-		return	// skip directory entries
+		return // skip directory entries
 	}
 
-	list, err := ioutil.ReadDir(path);
+	list, err := ioutil.ReadDir(path)
 	if err != nil {
 		if errors != nil {
 			errors <- err
@@ -175,12 +175,12 @@ func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
 // If errors != nil, Walk sends each directory read error
 // to the channel.  Otherwise Walk discards the error.
 func Walk(root string, v Visitor, errors chan<- os.Error) {
-	d, err := os.Lstat(root);
+	d, err := os.Lstat(root)
 	if err != nil {
 		if errors != nil {
 			errors <- err
 		}
-		return;	// can't progress
+		return // can't progress
 	}
-	walk(root, d, v, errors);
+	walk(root, d, v, errors)
 }

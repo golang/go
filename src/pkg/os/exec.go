@@ -5,7 +5,7 @@
 package os
 
 import (
-	"syscall";
+	"syscall"
 )
 
 // ForkExec forks the current process and invokes Exec with the file, arguments,
@@ -17,7 +17,7 @@ import (
 // If dir is not empty, the child chdirs into the directory before execing the program.
 func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
 	// Create array of integer (system) fds.
-	intfd := make([]int, len(fd));
+	intfd := make([]int, len(fd))
 	for i, f := range fd {
 		if f == nil {
 			intfd[i] = -1
@@ -26,11 +26,11 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
 		}
 	}
 
-	p, e := syscall.ForkExec(argv0, argv, envv, dir, intfd);
+	p, e := syscall.ForkExec(argv0, argv, envv, dir, intfd)
 	if e != 0 {
 		return 0, &PathError{"fork/exec", argv0, Errno(e)}
 	}
-	return p, nil;
+	return p, nil
 }
 
 // Exec replaces the current process with an execution of the program
@@ -41,11 +41,11 @@ func Exec(argv0 string, argv []string, envv []string) Error {
 	if envv == nil {
 		envv = Environ()
 	}
-	e := syscall.Exec(argv0, argv, envv);
+	e := syscall.Exec(argv0, argv, envv)
 	if e != 0 {
 		return &PathError{"exec", argv0, Errno(e)}
 	}
-	return nil;
+	return nil
 }
 
 // TODO(rsc): Should os implement its own syscall.WaitStatus
@@ -57,17 +57,17 @@ func Exec(argv0 string, argv []string, envv []string) Error {
 
 // Waitmsg stores the information about an exited process as reported by Wait.
 type Waitmsg struct {
-	Pid			int;			// The process's id.
-	syscall.WaitStatus;				// System-dependent status info.
-	Rusage			*syscall.Rusage;	// System-dependent resource usage info.
+	Pid                int             // The process's id.
+	syscall.WaitStatus                 // System-dependent status info.
+	Rusage             *syscall.Rusage // System-dependent resource usage info.
 }
 
 // Options for Wait.
 const (
-	WNOHANG		= syscall.WNOHANG;	// Don't wait if no process has exited.
-	WSTOPPED	= syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
-	WUNTRACED	= WSTOPPED;
-	WRUSAGE		= 1 << 20;	// Record resource usage.
+	WNOHANG   = syscall.WNOHANG  // Don't wait if no process has exited.
+	WSTOPPED  = syscall.WSTOPPED // If set, status of stopped subprocesses is also reported.
+	WUNTRACED = WSTOPPED
+	WRUSAGE   = 1 << 20 // Record resource usage.
 )
 
 // WRUSAGE must not be too high a bit, to avoid clashing with Linux's
@@ -78,21 +78,21 @@ const (
 // Waitmsg describing its status and an Error, if any. The options
 // (WNOHANG etc.) affect the behavior of the Wait call.
 func Wait(pid int, options int) (w *Waitmsg, err Error) {
-	var status syscall.WaitStatus;
-	var rusage *syscall.Rusage;
+	var status syscall.WaitStatus
+	var rusage *syscall.Rusage
 	if options&WRUSAGE != 0 {
-		rusage = new(syscall.Rusage);
-		options ^= WRUSAGE;
+		rusage = new(syscall.Rusage)
+		options ^= WRUSAGE
 	}
-	pid1, e := syscall.Wait4(pid, &status, options, rusage);
+	pid1, e := syscall.Wait4(pid, &status, options, rusage)
 	if e != 0 {
 		return nil, NewSyscallError("wait", e)
 	}
-	w = new(Waitmsg);
-	w.Pid = pid1;
-	w.WaitStatus = status;
-	w.Rusage = rusage;
-	return w, nil;
+	w = new(Waitmsg)
+	w.Pid = pid1
+	w.WaitStatus = status
+	w.Rusage = rusage
+	return w, nil
 }
 
 // Convert i to decimal string.
@@ -101,37 +101,37 @@ func itod(i int) string {
 		return "0"
 	}
 
-	u := uint64(i);
+	u := uint64(i)
 	if i < 0 {
 		u = -u
 	}
 
 	// Assemble decimal in reverse order.
-	var b [32]byte;
-	bp := len(b);
+	var b [32]byte
+	bp := len(b)
 	for ; u > 0; u /= 10 {
-		bp--;
-		b[bp] = byte(u%10) + '0';
+		bp--
+		b[bp] = byte(u%10) + '0'
 	}
 
 	if i < 0 {
-		bp--;
-		b[bp] = '-';
+		bp--
+		b[bp] = '-'
 	}
 
-	return string(b[bp:]);
+	return string(b[bp:])
 }
 
 func (w Waitmsg) String() string {
 	// TODO(austin) Use signal names when possible?
-	res := "";
+	res := ""
 	switch {
 	case w.Exited():
 		res = "exit status " + itod(w.ExitStatus())
 	case w.Signaled():
 		res = "signal " + itod(w.Signal())
 	case w.Stopped():
-		res = "stop signal " + itod(w.StopSignal());
+		res = "stop signal " + itod(w.StopSignal())
 		if w.StopSignal() == syscall.SIGTRAP && w.TrapCause() != 0 {
 			res += " (trap " + itod(w.TrapCause()) + ")"
 		}
@@ -141,11 +141,11 @@ func (w Waitmsg) String() string {
 	if w.CoreDump() {
 		res += " (core dumped)"
 	}
-	return res;
+	return res
 }
 
 // Getpid returns the process id of the caller.
-func Getpid() int	{ return syscall.Getpid() }
+func Getpid() int { return syscall.Getpid() }
 
 // Getppid returns the process id of the caller's parent.
-func Getppid() int	{ return syscall.Getppid() }
+func Getppid() int { return syscall.Getppid() }

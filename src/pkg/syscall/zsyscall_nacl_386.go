@@ -6,224 +6,224 @@ package syscall
 import "unsafe"
 
 func Chmod(path string, mode int) (errno int) {
-	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+	errno = int(e1)
+	return
 }
 
 func Clock() (clock int) {
-	r0, _, _ := Syscall(SYS_CLOCK, 0, 0, 0);
-	clock = int(r0);
-	return;
+	r0, _, _ := Syscall(SYS_CLOCK, 0, 0, 0)
+	clock = int(r0)
+	return
 }
 
 func Close(fd int) (errno int) {
-	_, _, e1 := Syscall(SYS_CLOSE, uintptr(fd), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_CLOSE, uintptr(fd), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func Exit(code int) {
-	Syscall(SYS_EXIT, uintptr(code), 0, 0);
-	return;
+	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+	return
 }
 
 func Fstat(fd int, stat *Stat_t) (errno int) {
-	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+	errno = int(e1)
+	return
 }
 
 func Getdents(fd int, buf []byte) (n int, errno int) {
-	var _p0 *byte;
+	var _p0 *byte
 	if len(buf) > 0 {
 		_p0 = &buf[0]
 	}
-	r0, _, e1 := Syscall(SYS_GETDENTS, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)));
-	n = int(r0);
-	errno = int(e1);
-	return;
+	r0, _, e1 := Syscall(SYS_GETDENTS, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
+	n = int(r0)
+	errno = int(e1)
+	return
 }
 
 func Getpid() (pid int) {
-	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0);
-	pid = int(r0);
-	return;
+	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0)
+	pid = int(r0)
+	return
 }
 
 func Gettimeofday(tv *Timeval) (errno int) {
-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func Open(path string, mode int, perm int) (fd int, errno int) {
-	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm));
-	fd = int(r0);
-	errno = int(e1);
-	return;
+	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+	fd = int(r0)
+	errno = int(e1)
+	return
 }
 
 func Read(fd int, p []byte) (n int, errno int) {
-	var _p0 *byte;
+	var _p0 *byte
 	if len(p) > 0 {
 		_p0 = &p[0]
 	}
-	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
-	n = int(r0);
-	errno = int(e1);
-	return;
+	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
+	n = int(r0)
+	errno = int(e1)
+	return
 }
 
 func read(fd int, buf *byte, nbuf int) (n int, errno int) {
-	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf));
-	n = int(r0);
-	errno = int(e1);
-	return;
+	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+	n = int(r0)
+	errno = int(e1)
+	return
 }
 
 func Stat(path string, stat *Stat_t) (errno int) {
-	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
+	errno = int(e1)
+	return
 }
 
 func Write(fd int, p []byte) (n int, errno int) {
-	var _p0 *byte;
+	var _p0 *byte
 	if len(p) > 0 {
 		_p0 = &p[0]
 	}
-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
-	n = int(r0);
-	errno = int(e1);
-	return;
+	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
+	n = int(r0)
+	errno = int(e1)
+	return
 }
 
 func MultimediaInit(subsys int) (errno int) {
-	_, _, e1 := Syscall(SYS_MULTIMEDIA_INIT, uintptr(subsys), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_MULTIMEDIA_INIT, uintptr(subsys), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func MultimediaShutdown() (errno int) {
-	_, _, e1 := Syscall(SYS_MULTIMEDIA_SHUTDOWN, 0, 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_MULTIMEDIA_SHUTDOWN, 0, 0, 0)
+	errno = int(e1)
+	return
 }
 
 func CondCreate() (cv int, errno int) {
-	r0, _, e1 := Syscall(SYS_COND_CREATE, 0, 0, 0);
-	cv = int(r0);
-	errno = int(e1);
-	return;
+	r0, _, e1 := Syscall(SYS_COND_CREATE, 0, 0, 0)
+	cv = int(r0)
+	errno = int(e1)
+	return
 }
 
 func CondWait(cv int, mutex int) (errno int) {
-	_, _, e1 := Syscall(SYS_COND_WAIT, uintptr(cv), uintptr(mutex), 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_COND_WAIT, uintptr(cv), uintptr(mutex), 0)
+	errno = int(e1)
+	return
 }
 
 func CondSignal(cv int) (errno int) {
-	_, _, e1 := Syscall(SYS_COND_SIGNAL, uintptr(cv), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_COND_SIGNAL, uintptr(cv), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func CondBroadcast(cv int) (errno int) {
-	_, _, e1 := Syscall(SYS_COND_BROADCAST, uintptr(cv), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_COND_BROADCAST, uintptr(cv), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func CondTimedWaitAbs(cv int, mutex int, abstime *Timespec) (errno int) {
-	_, _, e1 := Syscall(SYS_COND_TIMED_WAIT_ABS, uintptr(cv), uintptr(mutex), uintptr(unsafe.Pointer(abstime)));
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_COND_TIMED_WAIT_ABS, uintptr(cv), uintptr(mutex), uintptr(unsafe.Pointer(abstime)))
+	errno = int(e1)
+	return
 }
 
 func MutexCreate() (mutex int, errno int) {
-	r0, _, e1 := Syscall(SYS_MUTEX_CREATE, 0, 0, 0);
-	mutex = int(r0);
-	errno = int(e1);
-	return;
+	r0, _, e1 := Syscall(SYS_MUTEX_CREATE, 0, 0, 0)
+	mutex = int(r0)
+	errno = int(e1)
+	return
 }
 
 func MutexLock(mutex int) (errno int) {
-	_, _, e1 := Syscall(SYS_MUTEX_LOCK, uintptr(mutex), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_MUTEX_LOCK, uintptr(mutex), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func MutexUnlock(mutex int) (errno int) {
-	_, _, e1 := Syscall(SYS_MUTEX_UNLOCK, uintptr(mutex), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_MUTEX_UNLOCK, uintptr(mutex), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func MutexTryLock(mutex int) (errno int) {
-	_, _, e1 := Syscall(SYS_MUTEX_TRYLOCK, uintptr(mutex), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_MUTEX_TRYLOCK, uintptr(mutex), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func SemCreate() (sema int, errno int) {
-	r0, _, e1 := Syscall(SYS_SEM_CREATE, 0, 0, 0);
-	sema = int(r0);
-	errno = int(e1);
-	return;
+	r0, _, e1 := Syscall(SYS_SEM_CREATE, 0, 0, 0)
+	sema = int(r0)
+	errno = int(e1)
+	return
 }
 
 func SemWait(sema int) (errno int) {
-	_, _, e1 := Syscall(SYS_SEM_WAIT, uintptr(sema), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_SEM_WAIT, uintptr(sema), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func SemPost(sema int) (errno int) {
-	_, _, e1 := Syscall(SYS_SEM_POST, uintptr(sema), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_SEM_POST, uintptr(sema), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func VideoInit(dx int, dy int) (errno int) {
-	_, _, e1 := Syscall(SYS_VIDEO_INIT, uintptr(dx), uintptr(dy), 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_VIDEO_INIT, uintptr(dx), uintptr(dy), 0)
+	errno = int(e1)
+	return
 }
 
 func VideoUpdate(data *uint32) (errno int) {
-	_, _, e1 := Syscall(SYS_VIDEO_UPDATE, uintptr(unsafe.Pointer(data)), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_VIDEO_UPDATE, uintptr(unsafe.Pointer(data)), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func VideoPollEvent(ev *byte) (errno int) {
-	_, _, e1 := Syscall(SYS_VIDEO_POLL_EVENT, uintptr(unsafe.Pointer(ev)), 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_VIDEO_POLL_EVENT, uintptr(unsafe.Pointer(ev)), 0, 0)
+	errno = int(e1)
+	return
 }
 
 func VideoShutdown() (errno int) {
-	_, _, e1 := Syscall(SYS_VIDEO_SHUTDOWN, 0, 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_VIDEO_SHUTDOWN, 0, 0, 0)
+	errno = int(e1)
+	return
 }
 
 func AudioInit(fmt int, nreq int, data *int) (errno int) {
-	_, _, e1 := Syscall(SYS_AUDIO_INIT, uintptr(fmt), uintptr(nreq), uintptr(unsafe.Pointer(data)));
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_AUDIO_INIT, uintptr(fmt), uintptr(nreq), uintptr(unsafe.Pointer(data)))
+	errno = int(e1)
+	return
 }
 
 func AudioShutdown() (errno int) {
-	_, _, e1 := Syscall(SYS_AUDIO_SHUTDOWN, 0, 0, 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_AUDIO_SHUTDOWN, 0, 0, 0)
+	errno = int(e1)
+	return
 }
 
 func AudioStream(data *uint16, size *uintptr) (errno int) {
-	_, _, e1 := Syscall(SYS_AUDIO_STREAM, uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(size)), 0);
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_AUDIO_STREAM, uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(size)), 0)
+	errno = int(e1)
+	return
 }

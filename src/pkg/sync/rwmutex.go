@@ -14,9 +14,9 @@ package sync
 // Writers take priority over Readers: no new RLocks
 // are granted while a blocked Lock call is waiting.
 type RWMutex struct {
-	w		Mutex;	// held if there are pending readers or writers
-	r		Mutex;	// held if the w is being rd
-	readerCount	uint32;	// number of pending readers
+	w           Mutex  // held if there are pending readers or writers
+	r           Mutex  // held if the w is being rd
+	readerCount uint32 // number of pending readers
 }
 
 // RLock locks rw for reading.
@@ -32,13 +32,13 @@ func (rw *RWMutex) RLock() {
 	//   C: rw.RLock()  // granted
 	//   B: rw.RUnlock()
 	//   ... (new readers come and go indefinitely, W is starving)
-	rw.r.Lock();
+	rw.r.Lock()
 	if xadd(&rw.readerCount, 1) == 1 {
 		// The first reader locks rw.w, so writers will be blocked
 		// while the readers have the RLock.
 		rw.w.Lock()
 	}
-	rw.r.Unlock();
+	rw.r.Unlock()
 }
 
 // RUnlock undoes a single RLock call;
@@ -59,9 +59,9 @@ func (rw *RWMutex) RUnlock() {
 // a blocked Lock call excludes new readers from acquiring
 // the lock.
 func (rw *RWMutex) Lock() {
-	rw.r.Lock();
-	rw.w.Lock();
-	rw.r.Unlock();
+	rw.r.Lock()
+	rw.w.Lock()
+	rw.r.Unlock()
 }
 
 // Unlock unlocks rw for writing.
@@ -72,4 +72,4 @@ func (rw *RWMutex) Lock() {
 // a locked RWMutex is not associated with a particular goroutine.
 // It is allowed for one goroutine to RLock (Lock) an RWMutex and then
 // arrange for another goroutine to RUnlock (Unlock) it.
-func (rw *RWMutex) Unlock()	{ rw.w.Unlock() }
+func (rw *RWMutex) Unlock() { rw.w.Unlock() }

@@ -5,14 +5,14 @@
 package strconv_test
 
 import (
-	"os";
-	. "strconv";
-	"testing";
+	"os"
+	. "strconv"
+	"testing"
 )
 
 type quoteTest struct {
-	in	string;
-	out	string;
+	in  string
+	out string
 }
 
 var quotetests = []quoteTest{
@@ -26,7 +26,7 @@ var quotetests = []quoteTest{
 
 func TestQuote(t *testing.T) {
 	for i := 0; i < len(quotetests); i++ {
-		tt := quotetests[i];
+		tt := quotetests[i]
 		if out := Quote(tt.in); out != tt.out {
 			t.Errorf("Quote(%s) = %s, want %s", tt.in, out, tt.out)
 		}
@@ -34,8 +34,8 @@ func TestQuote(t *testing.T) {
 }
 
 type canBackquoteTest struct {
-	in	string;
-	out	bool;
+	in  string
+	out bool
 }
 
 var canbackquotetests = []canBackquoteTest{
@@ -49,7 +49,7 @@ var canbackquotetests = []canBackquoteTest{
 	canBackquoteTest{string(6), false},
 	canBackquoteTest{string(7), false},
 	canBackquoteTest{string(8), false},
-	canBackquoteTest{string(9), true},	// \t
+	canBackquoteTest{string(9), true}, // \t
 	canBackquoteTest{string(10), false},
 	canBackquoteTest{string(11), false},
 	canBackquoteTest{string(12), false},
@@ -81,7 +81,7 @@ var canbackquotetests = []canBackquoteTest{
 
 func TestCanBackquote(t *testing.T) {
 	for i := 0; i < len(canbackquotetests); i++ {
-		tt := canbackquotetests[i];
+		tt := canbackquotetests[i]
 		if out := CanBackquote(tt.in); out != tt.out {
 			t.Errorf("CanBackquote(%q) = %v, want %v", tt.in, out, tt.out)
 		}
@@ -147,7 +147,7 @@ var misquoted = []string{
 
 func TestUnquote(t *testing.T) {
 	for i := 0; i < len(unquotetests); i++ {
-		tt := unquotetests[i];
+		tt := unquotetests[i]
 		if out, err := Unquote(tt.in); err != nil && out != tt.out {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out)
 		}
@@ -155,14 +155,14 @@ func TestUnquote(t *testing.T) {
 
 	// run the quote tests too, backward
 	for i := 0; i < len(quotetests); i++ {
-		tt := quotetests[i];
+		tt := quotetests[i]
 		if in, err := Unquote(tt.out); in != tt.in {
 			t.Errorf("Unquote(%#q) = %q, %v, want %q, nil", tt.out, in, err, tt.in)
 		}
 	}
 
 	for i := 0; i < len(misquoted); i++ {
-		s := misquoted[i];
+		s := misquoted[i]
 		if out, err := Unquote(s); out != "" || err != os.EINVAL {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", os.EINVAL)
 		}

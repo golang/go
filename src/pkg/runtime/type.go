@@ -26,56 +26,56 @@ type Type interface{}
 // All types begin with a few common fields needed for
 // the interface runtime.
 type commonType struct {
-	size		uintptr;	// size in bytes
-	hash		uint32;		// hash of type; avoids computation in hash tables
-	alg		uint8;		// algorithm for copy+hash+cmp (../runtime/runtime.h:/AMEM)
-	align		uint8;		// alignment of variable with this type
-	fieldAlign	uint8;		// alignment of struct field with this type
-	kind		uint8;		// enumeration for C
-	string		*string;	// string form; unnecessary  but undeniably useful
-	*uncommonType;			// (relatively) uncommon fields
+	size          uintptr // size in bytes
+	hash          uint32  // hash of type; avoids computation in hash tables
+	alg           uint8   // algorithm for copy+hash+cmp (../runtime/runtime.h:/AMEM)
+	align         uint8   // alignment of variable with this type
+	fieldAlign    uint8   // alignment of struct field with this type
+	kind          uint8   // enumeration for C
+	string        *string // string form; unnecessary  but undeniably useful
+	*uncommonType         // (relatively) uncommon fields
 }
 
 // Values for commonType.kind.
 const (
-	kindBool	= 1 + iota;
-	kindInt;
-	kindInt8;
-	kindInt16;
-	kindInt32;
-	kindInt64;
-	kindUint;
-	kindUint8;
-	kindUint16;
-	kindUint32;
-	kindUint64;
-	kindUintptr;
-	kindFloat;
-	kindFloat32;
-	kindFloat64;
-	kindArray;
-	kindChan;
-	kindDotDotDot;
-	kindFunc;
-	kindInterface;
-	kindMap;
-	kindPtr;
-	kindSlice;
-	kindString;
-	kindStruct;
-	kindUnsafePointer;
+	kindBool = 1 + iota
+	kindInt
+	kindInt8
+	kindInt16
+	kindInt32
+	kindInt64
+	kindUint
+	kindUint8
+	kindUint16
+	kindUint32
+	kindUint64
+	kindUintptr
+	kindFloat
+	kindFloat32
+	kindFloat64
+	kindArray
+	kindChan
+	kindDotDotDot
+	kindFunc
+	kindInterface
+	kindMap
+	kindPtr
+	kindSlice
+	kindString
+	kindStruct
+	kindUnsafePointer
 
-	kindNoPointers	= 1 << 7;	// OR'ed into kind
+	kindNoPointers = 1 << 7 // OR'ed into kind
 )
 
 // Method on non-interface type
 type method struct {
-	hash	uint32;		// hash of name + pkg + typ
-	name	*string;	// name of method
-	pkgPath	*string;	// nil for exported Names; otherwise import path
-	typ	*Type;		// .(*FuncType) underneath
-	ifn	unsafe.Pointer;	// fn used in interface call (one-word receiver)
-	tfn	unsafe.Pointer;	// fn used for normal method call
+	hash    uint32         // hash of name + pkg + typ
+	name    *string        // name of method
+	pkgPath *string        // nil for exported Names; otherwise import path
+	typ     *Type          // .(*FuncType) underneath
+	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
+	tfn     unsafe.Pointer // fn used for normal method call
 }
 
 // uncommonType is present only for types with names or methods
@@ -83,9 +83,9 @@ type method struct {
 // Using a pointer to this struct reduces the overall size required
 // to describe an unnamed type with no methods.
 type uncommonType struct {
-	name	*string;	// name of type
-	pkgPath	*string;	// import path; nil for built-in types like int, string
-	methods	[]method;	// methods associated with type
+	name    *string  // name of type
+	pkgPath *string  // import path; nil for built-in types like int, string
+	methods []method // methods associated with type
 }
 
 // BoolType represents a boolean type.
@@ -145,91 +145,91 @@ type UnsafePointerType commonType
 
 // ArrayType represents a fixed array type.
 type ArrayType struct {
-	commonType;
-	elem	*Type;	// array element type
-	len	uintptr;
+	commonType
+	elem *Type // array element type
+	len  uintptr
 }
 
 // SliceType represents a slice type.
 type SliceType struct {
-	commonType;
-	elem	*Type;	// slice element type
+	commonType
+	elem *Type // slice element type
 }
 
 // ChanDir represents a channel type's direction.
 type ChanDir int
 
 const (
-	RecvDir		ChanDir	= 1 << iota;	// <-chan
-	SendDir;		// chan<-
-	BothDir			= RecvDir | SendDir;	// chan
+	RecvDir ChanDir = 1 << iota // <-chan
+	SendDir         // chan<-
+	BothDir         = RecvDir | SendDir // chan
 )
 
 // ChanType represents a channel type.
 type ChanType struct {
-	commonType;
-	elem	*Type;		// channel element type
-	dir	uintptr;	// channel direction (ChanDir)
+	commonType
+	elem *Type   // channel element type
+	dir  uintptr // channel direction (ChanDir)
 }
 
 // FuncType represents a function type.
 type FuncType struct {
-	commonType;
-	in	[]*Type;	// input parameter types
-	out	[]*Type;	// output parameter types
+	commonType
+	in  []*Type // input parameter types
+	out []*Type // output parameter types
 }
 
 // Method on interface type
 type imethod struct {
-	hash	uint32;		// hash of name + pkg + typ; same hash as method
-	perm	uint32;		// index of function pointer in interface map
-	name	*string;	// name of method
-	pkgPath	*string;	// nil for exported Names; otherwise import path
-	typ	*Type;		// .(*FuncType) underneath
+	hash    uint32  // hash of name + pkg + typ; same hash as method
+	perm    uint32  // index of function pointer in interface map
+	name    *string // name of method
+	pkgPath *string // nil for exported Names; otherwise import path
+	typ     *Type   // .(*FuncType) underneath
 }
 
 // InterfaceType represents an interface type.
 type InterfaceType struct {
-	commonType;
-	methods	[]imethod;	// sorted by hash
+	commonType
+	methods []imethod // sorted by hash
 }
 
 // MapType represents a map type.
 type MapType struct {
-	commonType;
-	key	*Type;	// map key type
-	elem	*Type;	// map element (value) type
+	commonType
+	key  *Type // map key type
+	elem *Type // map element (value) type
 }
 
 // PtrType represents a pointer type.
 type PtrType struct {
-	commonType;
-	elem	*Type;	// pointer element (pointed at) type
+	commonType
+	elem *Type // pointer element (pointed at) type
 }
 
 // Struct field
 type structField struct {
-	name	*string;	// nil for embedded fields
-	pkgPath	*string;	// nil for exported Names; otherwise import path
-	typ	*Type;		// type of field
-	tag	*string;	// nil if no tag
-	offset	uintptr;	// byte offset of field within struct
+	name    *string // nil for embedded fields
+	pkgPath *string // nil for exported Names; otherwise import path
+	typ     *Type   // type of field
+	tag     *string // nil if no tag
+	offset  uintptr // byte offset of field within struct
 }
 
 // StructType represents a struct type.
 type StructType struct {
-	commonType;
-	fields	[]structField;	// sorted by offset
+	commonType
+	fields []structField // sorted by offset
 }
 
 /*
  * Must match iface.c:/Itab and compilers.
  */
 type Itable struct {
-	Itype	*Type;	// (*tab.inter).(*InterfaceType) is the interface type
-	Type	*Type;
-	link	*Itable;
-	bad	int32;
-	unused	int32;
-	Fn	[100000]uintptr;	// bigger than we'll ever see
+	Itype  *Type // (*tab.inter).(*InterfaceType) is the interface type
+	Type   *Type
+	link   *Itable
+	bad    int32
+	unused int32
+	Fn     [100000]uintptr // bigger than we'll ever see
 }

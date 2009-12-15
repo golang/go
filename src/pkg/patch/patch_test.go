@@ -7,31 +7,31 @@ package patch
 // TODO(rsc): test Apply
 
 import (
-	"strings";
-	"testing";
+	"strings"
+	"testing"
 )
 
 type Test struct {
-	in	string;
-	out	string;
-	diff	string;
+	in   string
+	out  string
+	diff string
 }
 
 func TestFileApply(t *testing.T) {
 	for i, test := range tests {
-		set, err := Parse(strings.Bytes(test.diff));
+		set, err := Parse(strings.Bytes(test.diff))
 		if err != nil {
-			t.Errorf("#%d: Parse: %s", i, err);
-			continue;
+			t.Errorf("#%d: Parse: %s", i, err)
+			continue
 		}
 		if len(set.File) != 1 {
-			t.Errorf("#%d: Parse returned %d patches, want 1", i, len(set.File));
-			continue;
+			t.Errorf("#%d: Parse returned %d patches, want 1", i, len(set.File))
+			continue
 		}
-		new, err := set.File[0].Apply(strings.Bytes(test.in));
+		new, err := set.File[0].Apply(strings.Bytes(test.in))
 		if err != nil {
-			t.Errorf("#%d: Apply: %s", i, err);
-			continue;
+			t.Errorf("#%d: Apply: %s", i, err)
+			continue
 		}
 		if s := string(new); s != test.out {
 			t.Errorf("#%d:\n--- have\n%s--- want\n%s", i, s, test.out)

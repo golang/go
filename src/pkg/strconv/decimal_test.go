@@ -5,14 +5,14 @@
 package strconv_test
 
 import (
-	. "strconv";
-	"testing";
+	. "strconv"
+	"testing"
 )
 
 type shiftTest struct {
-	i	uint64;
-	shift	int;
-	out	string;
+	i     uint64
+	shift int
+	out   string
 }
 
 var shifttests = []shiftTest{
@@ -31,8 +31,8 @@ var shifttests = []shiftTest{
 
 func TestDecimalShift(t *testing.T) {
 	for i := 0; i < len(shifttests); i++ {
-		test := &shifttests[i];
-		s := NewDecimal(test.i).Shift(test.shift).String();
+		test := &shifttests[i]
+		s := NewDecimal(test.i).Shift(test.shift).String()
 		if s != test.out {
 			t.Errorf("Decimal %v << %v = %v, want %v\n",
 				test.i, test.shift, s, test.out)
@@ -41,10 +41,10 @@ func TestDecimalShift(t *testing.T) {
 }
 
 type roundTest struct {
-	i		uint64;
-	nd		int;
-	down, round, up	string;
-	int		uint64;
+	i               uint64
+	nd              int
+	down, round, up string
+	int             uint64
 }
 
 var roundtests = []roundTest{
@@ -67,18 +67,18 @@ var roundtests = []roundTest{
 
 func TestDecimalRound(t *testing.T) {
 	for i := 0; i < len(roundtests); i++ {
-		test := &roundtests[i];
-		s := NewDecimal(test.i).RoundDown(test.nd).String();
+		test := &roundtests[i]
+		s := NewDecimal(test.i).RoundDown(test.nd).String()
 		if s != test.down {
 			t.Errorf("Decimal %v RoundDown %d = %v, want %v\n",
 				test.i, test.nd, s, test.down)
 		}
-		s = NewDecimal(test.i).Round(test.nd).String();
+		s = NewDecimal(test.i).Round(test.nd).String()
 		if s != test.round {
 			t.Errorf("Decimal %v Round %d = %v, want %v\n",
 				test.i, test.nd, s, test.down)
 		}
-		s = NewDecimal(test.i).RoundUp(test.nd).String();
+		s = NewDecimal(test.i).RoundUp(test.nd).String()
 		if s != test.up {
 			t.Errorf("Decimal %v RoundUp %d = %v, want %v\n",
 				test.i, test.nd, s, test.up)
@@ -87,9 +87,9 @@ func TestDecimalRound(t *testing.T) {
 }
 
 type roundIntTest struct {
-	i	uint64;
-	shift	int;
-	int	uint64;
+	i     uint64
+	shift int
+	int   uint64
 }
 
 var roundinttests = []roundIntTest{
@@ -107,8 +107,8 @@ var roundinttests = []roundIntTest{
 
 func TestDecimalRoundedInteger(t *testing.T) {
 	for i := 0; i < len(roundinttests); i++ {
-		test := roundinttests[i];
-		int := NewDecimal(test.i).Shift(test.shift).RoundedInteger();
+		test := roundinttests[i]
+		int := NewDecimal(test.i).Shift(test.shift).RoundedInteger()
 		if int != test.int {
 			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
 				test.i, test.shift, int, test.int)

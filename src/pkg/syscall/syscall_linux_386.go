@@ -6,23 +6,23 @@ package syscall
 
 import "unsafe"
 
-func Getpagesize() int	{ return 4096 }
+func Getpagesize() int { return 4096 }
 
-func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
 
 func NsecToTimespec(nsec int64) (ts Timespec) {
-	ts.Sec = int32(nsec / 1e9);
-	ts.Nsec = int32(nsec % 1e9);
-	return;
+	ts.Sec = int32(nsec / 1e9)
+	ts.Nsec = int32(nsec % 1e9)
+	return
 }
 
-func TimevalToNsec(tv Timeval) int64	{ return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
+func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
 
 func NsecToTimeval(nsec int64) (tv Timeval) {
-	nsec += 999;	// round up to microsecond
-	tv.Sec = int32(nsec / 1e9);
-	tv.Usec = int32(nsec % 1e9 / 1e3);
-	return;
+	nsec += 999 // round up to microsecond
+	tv.Sec = int32(nsec / 1e9)
+	tv.Usec = int32(nsec % 1e9 / 1e3)
+	return
 }
 
 // 64-bit file system and 32-bit uid calls
@@ -64,102 +64,102 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 
 const (
 	// see linux/net.h
-	_SOCKET		= 1;
-	_BIND		= 2;
-	_CONNECT	= 3;
-	_LISTEN		= 4;
-	_ACCEPT		= 5;
-	_GETSOCKNAME	= 6;
-	_GETPEERNAME	= 7;
-	_SOCKETPAIR	= 8;
-	_SEND		= 9;
-	_RECV		= 10;
-	_SENDTO		= 11;
-	_RECVFROM	= 12;
-	_SHUTDOWN	= 13;
-	_SETSOCKOPT	= 14;
-	_GETSOCKOPT	= 15;
-	_SENDMSG	= 16;
-	_RECVMSG	= 17;
+	_SOCKET      = 1
+	_BIND        = 2
+	_CONNECT     = 3
+	_LISTEN      = 4
+	_ACCEPT      = 5
+	_GETSOCKNAME = 6
+	_GETPEERNAME = 7
+	_SOCKETPAIR  = 8
+	_SEND        = 9
+	_RECV        = 10
+	_SENDTO      = 11
+	_RECVFROM    = 12
+	_SHUTDOWN    = 13
+	_SETSOCKOPT  = 14
+	_GETSOCKOPT  = 15
+	_SENDMSG     = 16
+	_RECVMSG     = 17
 )
 
 func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
 
 func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
-	fd, errno = socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
-	return;
+	fd, errno = socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+	return
 }
 
 func getsockname(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
-	_, errno = socketcall(_GETSOCKNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
-	return;
+	_, errno = socketcall(_GETSOCKNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+	return
 }
 
 func getpeername(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
-	_, errno = socketcall(_GETPEERNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
-	return;
+	_, errno = socketcall(_GETPEERNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+	return
 }
 
 func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
-	_, errno = socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
-	return;
+	_, errno = socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+	return
 }
 
 func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
-	_, errno = socketcall(_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
-	return;
+	_, errno = socketcall(_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+	return
 }
 
 func socket(domain int, typ int, proto int) (fd int, errno int) {
-	fd, errno = socketcall(_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0);
-	return;
+	fd, errno = socketcall(_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0)
+	return
 }
 
 func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
-	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
-	return;
+	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+	return
 }
 
 func recvfrom(s int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
-	var base uintptr;
+	var base uintptr
 	if len(p) > 0 {
 		base = uintptr(unsafe.Pointer(&p[0]))
 	}
-	n, errno = socketcall(_RECVFROM, uintptr(s), base, uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
-	return;
+	n, errno = socketcall(_RECVFROM, uintptr(s), base, uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+	return
 }
 
 func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
-	var base uintptr;
+	var base uintptr
 	if len(p) > 0 {
 		base = uintptr(unsafe.Pointer(&p[0]))
 	}
-	_, errno = socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen));
-	return;
+	_, errno = socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen))
+	return
 }
 
 func Listen(s int, n int) (errno int) {
-	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
-	return;
+	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0)
+	return
 }
 
 func Shutdown(s, how int) (errno int) {
-	_, errno = socketcall(_SHUTDOWN, uintptr(s), uintptr(how), 0, 0, 0, 0);
-	return;
+	_, errno = socketcall(_SHUTDOWN, uintptr(s), uintptr(how), 0, 0, 0, 0)
+	return
 }
 
 func Fstatfs(fd int, buf *Statfs_t) (errno int) {
-	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)));
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)))
+	errno = int(e1)
+	return
 }
 
 func Statfs(path string, buf *Statfs_t) (errno int) {
-	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)));
-	errno = int(e1);
-	return;
+	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)))
+	errno = int(e1)
+	return
 }
 
-func (r *PtraceRegs) PC() uint64	{ return uint64(uint32(r.Eip)) }
+func (r *PtraceRegs) PC() uint64 { return uint64(uint32(r.Eip)) }
 
-func (r *PtraceRegs) SetPC(pc uint64)	{ r.Eip = int32(pc) }
+func (r *PtraceRegs) SetPC(pc uint64) { r.Eip = int32(pc) }

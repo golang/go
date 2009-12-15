@@ -5,12 +5,12 @@
 package path
 
 import (
-	"os";
-	"testing";
+	"os"
+	"testing"
 )
 
 type CleanTest struct {
-	path, clean string;
+	path, clean string
 }
 
 var cleantests = []CleanTest{
@@ -72,7 +72,7 @@ func TestClean(t *testing.T) {
 }
 
 type SplitTest struct {
-	path, dir, file string;
+	path, dir, file string
 }
 
 var splittests = []SplitTest{
@@ -92,7 +92,7 @@ func TestSplit(t *testing.T) {
 }
 
 type JoinTest struct {
-	dir, file, path string;
+	dir, file, path string
 }
 
 var jointests = []JoinTest{
@@ -114,7 +114,7 @@ func TestJoin(t *testing.T) {
 }
 
 type ExtTest struct {
-	path, ext string;
+	path, ext string
 }
 
 var exttests = []ExtTest{
@@ -134,9 +134,9 @@ func TestExt(t *testing.T) {
 }
 
 type Node struct {
-	name	string;
-	entries	[]*Node;	// nil if the entry is a file
-	mark	int;
+	name    string
+	entries []*Node // nil if the entry is a file
+	mark    int
 }
 
 var tree = &Node{
@@ -166,7 +166,7 @@ var tree = &Node{
 }
 
 func walkTree(n *Node, path string, f func(path string, n *Node)) {
-	f(path, n);
+	f(path, n)
 	for _, e := range n.entries {
 		walkTree(e, Join(path, e.name), f)
 	}
@@ -175,25 +175,25 @@ func walkTree(n *Node, path string, f func(path string, n *Node)) {
 func makeTree(t *testing.T) {
 	walkTree(tree, tree.name, func(path string, n *Node) {
 		if n.entries == nil {
-			fd, err := os.Open(path, os.O_CREAT, 0660);
+			fd, err := os.Open(path, os.O_CREAT, 0660)
 			if err != nil {
 				t.Errorf("makeTree: %v", err)
 			}
-			fd.Close();
+			fd.Close()
 		} else {
 			os.Mkdir(path, 0770)
 		}
 	})
 }
 
-func markTree(n *Node)	{ walkTree(n, "", func(path string, n *Node) { n.mark++ }) }
+func markTree(n *Node) { walkTree(n, "", func(path string, n *Node) { n.mark++ }) }
 
 func checkMarks(t *testing.T) {
 	walkTree(tree, tree.name, func(path string, n *Node) {
 		if n.mark != 1 {
 			t.Errorf("node %s mark = %d; expected 1", path, n.mark)
 		}
-		n.mark = 0;
+		n.mark = 0
 	})
 }
 
@@ -209,8 +209,8 @@ func mark(name string) {
 type TestVisitor struct{}
 
 func (v *TestVisitor) VisitDir(path string, d *os.Dir) bool {
-	mark(d.Name);
-	return true;
+	mark(d.Name)
+	return true
 }
 
 func (v *TestVisitor) VisitFile(path string, d *os.Dir) {
@@ -218,52 +218,52 @@ func (v *TestVisitor) VisitFile(path string, d *os.Dir) {
 }
 
 func TestWalk(t *testing.T) {
-	makeTree(t);
+	makeTree(t)
 
 	// 1) ignore error handling, expect none
-	v := &TestVisitor{};
-	Walk(tree.name, v, nil);
-	checkMarks(t);
+	v := &TestVisitor{}
+	Walk(tree.name, v, nil)
+	checkMarks(t)
 
 	// 2) handle errors, expect none
-	errors := make(chan os.Error, 64);
-	Walk(tree.name, v, errors);
+	errors := make(chan os.Error, 64)
+	Walk(tree.name, v, errors)
 	if err, ok := <-errors; ok {
 		t.Errorf("no error expected, found: s", err)
 	}
-	checkMarks(t);
+	checkMarks(t)
 
 	if os.Getuid() != 0 {
 		// introduce 2 errors: chmod top-level directories to 0
-		os.Chmod(Join(tree.name, tree.entries[1].name), 0);
-		os.Chmod(Join(tree.name, tree.entries[3].name), 0);
+		os.Chmod(Join(tree.name, tree.entries[1].name), 0)
+		os.Chmod(Join(tree.name, tree.entries[3].name), 0)
 		// mark respective subtrees manually
-		markTree(tree.entries[1]);
-		markTree(tree.entries[3]);
+		markTree(tree.entries[1])
+		markTree(tree.entries[3])
 		// correct double-marking of directory itself
-		tree.entries[1].mark--;
-		tree.entries[3].mark--;
+		tree.entries[1].mark--
+		tree.entries[3].mark--
 
 		// 3) handle errors, expect two
-		errors = make(chan os.Error, 64);
-		os.Chmod(Join(tree.name, tree.entries[1].name), 0);
-		Walk(tree.name, v, errors);
+		errors = make(chan os.Error, 64)
+		os.Chmod(Join(tree.name, tree.entries[1].name), 0)
+		Walk(tree.name, v, errors)
 		for i := 1; i <= 2; i++ {
 			if _, ok := <-errors; !ok {
-				t.Errorf("%d. error expected, none found", i);
-				break;
+				t.Errorf("%d. error expected, none found", i)
+				break
 			}
 		}
 		if err, ok := <-errors; ok {
 			t.Errorf("only two errors expected, found 3rd: %v", err)
 		}
 		// the inaccessible subtrees were marked manually
-		checkMarks(t);
+		checkMarks(t)
 	}
 
 	// cleanup
-	os.Chmod(Join(tree.name, tree.entries[1].name), 0770);
-	os.Chmod(Join(tree.name, tree.entries[3].name), 0770);
+	os.Chmod(Join(tree.name, tree.entries[1].name), 0770)
+	os.Chmod(Join(tree.name, tree.entries[3].name), 0770)
 	if err := os.RemoveAll(tree.name); err != nil {
 		t.Errorf("removeTree: %v", err)
 	}

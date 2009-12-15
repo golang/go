@@ -1,8 +1,8 @@
 package patch
 
 import (
-	"bytes";
-	"os";
+	"bytes"
+	"os"
 )
 
 type TextDiff []TextChunk
@@ -11,25 +11,25 @@ type TextDiff []TextChunk
 // the text beginning at Line, which should be exactly Old,
 // is to be replaced with New.
 type TextChunk struct {
-	Line	int;
-	Old	[]byte;
-	New	[]byte;
+	Line int
+	Old  []byte
+	New  []byte
 }
 
 func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 	// Copy raw so it is safe to keep references to slices.
-	_, chunks := sections(raw, "@@ -");
-	delta := 0;
-	diff := make(TextDiff, len(chunks));
+	_, chunks := sections(raw, "@@ -")
+	delta := 0
+	diff := make(TextDiff, len(chunks))
 	for i, raw := range chunks {
-		c := &diff[i];
+		c := &diff[i]
 
 		// Parse start line: @@ -oldLine,oldCount +newLine,newCount @@ junk
-		chunk := splitLines(raw);
-		chunkHeader := chunk[0];
-		var ok bool;
-		var oldLine, oldCount, newLine, newCount int;
-		s := chunkHeader;
+		chunk := splitLines(raw)
+		chunkHeader := chunk[0]
+		var ok bool
+		var oldLine, oldCount, newLine, newCount int
+		s := chunkHeader
 		if oldLine, s, ok = atoi(s, "@@ -", 10); !ok {
 		ErrChunkHdr:
 			return nil, SyntaxError("unexpected chunk header line: " + string(chunkHeader))
@@ -61,16 +61,16 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 		}
 
 		// Count lines in text
-		var dropOldNL, dropNewNL bool;
-		var nold, nnew int;
-		var lastch byte;
-		chunk = chunk[1:];
+		var dropOldNL, dropNewNL bool
+		var nold, nnew int
+		var lastch byte
+		chunk = chunk[1:]
 		for _, l := range chunk {
 			if nold == oldCount && nnew == newCount && (len(l) == 0 || l[0] != '\\') {
 				if len(bytes.TrimSpace(l)) != 0 {
 					return nil, SyntaxError("too many chunk lines")
 				}
-				continue;
+				continue
 			}
 			if len(l) == 0 {
 				return nil, SyntaxError("empty chunk line")
@@ -81,8 +81,8 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 			case '-':
 				nold++
 			case ' ':
-				nnew++;
-				nold++;
+				nnew++
+				nold++
 			case '\\':
 				if _, ok := skip(l, "\\ No newline at end of file"); ok {
 					switch lastch {
@@ -91,18 +91,18 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 					case '+':
 						dropNewNL = true
 					case ' ':
-						dropOldNL = true;
-						dropNewNL = true;
+						dropOldNL = true
+						dropNewNL = true
 					default:
 						return nil, SyntaxError("message `\\ No newline at end of file' out of context")
 					}
-					break;
+					break
 				}
-				fallthrough;
+				fallthrough
 			default:
 				return nil, SyntaxError("unexpected chunk line: " + string(l))
 			}
-			lastch = l[0];
+			lastch = l[0]
 		}
 
 		// Does it match the header?
@@ -112,31 +112,31 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 		if oldLine+delta != newLine {
 			return nil, SyntaxError("chunk delta is out of sync with previous chunks")
 		}
-		delta += nnew - nold;
-		c.Line = oldLine;
+		delta += nnew - nold
+		c.Line = oldLine
 
-		var old, new bytes.Buffer;
-		nold = 0;
-		nnew = 0;
+		var old, new bytes.Buffer
+		nold = 0
+		nnew = 0
 		for _, l := range chunk {
 			if nold == oldCount && nnew == newCount {
 				break
 			}
-			ch, l := l[0], l[1:];
+			ch, l := l[0], l[1:]
 			if ch == '\\' {
 				continue
 			}
 			if ch != '+' {
-				old.Write(l);
-				nold++;
+				old.Write(l)
+				nold++
 			}
 			if ch != '-' {
-				new.Write(l);
-				nnew++;
+				new.Write(l)
+				nnew++
 			}
 		}
-		c.Old = old.Bytes();
-		c.New = new.Bytes();
+		c.Old = old.Bytes()
+		c.New = new.Bytes()
 		if dropOldNL {
 			c.Old = c.Old[0 : len(c.Old)-1]
 		}
@@ -144,7 +144,7 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 			c.New = c.New[0 : len(c.New)-1]
 		}
 	}
-	return diff, nil;
+	return diff, nil
 }
 
 var ErrPatchFailure = os.NewError("patch did not apply cleanly")
@@ -152,20 +152,20 @@ var ErrPatchFailure = os.NewError("patch did not apply cleanly")
 // Apply applies the changes listed in the diff
 // to the data, returning the new version.
 func (d TextDiff) Apply(data []byte) ([]byte, os.Error) {
-	var buf bytes.Buffer;
-	line := 1;
+	var buf bytes.Buffer
+	line := 1
 	for _, c := range d {
-		var ok bool;
-		var prefix []byte;
-		prefix, data, ok = getLine(data, c.Line-line);
+		var ok bool
+		var prefix []byte
+		prefix, data, ok = getLine(data, c.Line-line)
 		if !ok || !bytes.HasPrefix(data, c.Old) {
 			return nil, ErrPatchFailure
 		}
-		buf.Write(prefix);
-		data = data[len(c.Old):];
-		buf.Write(c.New);
-		line = c.Line + bytes.Count(c.Old, newline);
+		buf.Write(prefix)
+		data = data[len(c.Old):]
+		buf.Write(c.New)
+		line = c.Line + bytes.Count(c.Old, newline)
 	}
-	buf.Write(data);
-	return buf.Bytes(), nil;
+	buf.Write(data)
+	return buf.Bytes(), nil
 }

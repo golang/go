@@ -16,8 +16,8 @@ func cas(val *uint32, old, new uint32) bool
 // Mutexes can be created as part of other structures;
 // the zero value for a Mutex is an unlocked mutex.
 type Mutex struct {
-	key	uint32;
-	sema	uint32;
+	key  uint32
+	sema uint32
 }
 
 // Add delta to *val, and return the new *val in a thread-safe way. If multiple
@@ -25,13 +25,13 @@ type Mutex struct {
 // serialized, and all the deltas will be added in an undefined order.
 func xadd(val *uint32, delta int32) (new uint32) {
 	for {
-		v := *val;
-		nv := v + uint32(delta);
+		v := *val
+		nv := v + uint32(delta)
 		if cas(val, v, nv) {
 			return nv
 		}
 	}
-	panic("unreached");
+	panic("unreached")
 }
 
 // Lock locks m.
@@ -42,7 +42,7 @@ func (m *Mutex) Lock() {
 		// changed from 0 to 1; we hold lock
 		return
 	}
-	runtime.Semacquire(&m.sema);
+	runtime.Semacquire(&m.sema)
 }
 
 // Unlock unlocks m.
@@ -56,5 +56,5 @@ func (m *Mutex) Unlock() {
 		// changed from 1 to 0; no contention
 		return
 	}
-	runtime.Semrelease(&m.sema);
+	runtime.Semrelease(&m.sema)
 }

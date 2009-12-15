@@ -18,13 +18,13 @@ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 // StringByteSlice returns a NUL-terminated slice of bytes
 // containing the text of s.
 func StringByteSlice(s string) []byte {
-	a := make([]byte, len(s)+1);
+	a := make([]byte, len(s)+1)
 	for i := 0; i < len(s); i++ {
 		a[i] = s[i]
 	}
-	return a;
+	return a
 }
 
 // StringBytePtr returns a pointer to a NUL-terminated array of bytes
 // containing the text of s.
-func StringBytePtr(s string) *byte	{ return &StringByteSlice(s)[0] }
+func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }

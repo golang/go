@@ -5,16 +5,16 @@
 package strconv_test
 
 import (
-	"os";
-	"reflect";
-	. "strconv";
-	"testing";
+	"os"
+	"reflect"
+	. "strconv"
+	"testing"
 )
 
 type atofTest struct {
-	in	string;
-	out	string;
-	err	os.Error;
+	in  string
+	out string
+	err os.Error
 }
 
 var atoftests = []atofTest{
@@ -96,7 +96,7 @@ func init() {
 	// The atof routines return NumErrors wrapping
 	// the error and the string.  Convert the table above.
 	for i := range atoftests {
-		test := &atoftests[i];
+		test := &atoftests[i]
 		if test.err != nil {
 			test.err = &NumError{test.in, test.err}
 		}
@@ -104,19 +104,19 @@ func init() {
 }
 
 func testAtof(t *testing.T, opt bool) {
-	oldopt := SetOptimize(opt);
+	oldopt := SetOptimize(opt)
 	for i := 0; i < len(atoftests); i++ {
-		test := &atoftests[i];
-		out, err := Atof64(test.in);
-		outs := Ftoa64(out, 'g', -1);
+		test := &atoftests[i]
+		out, err := Atof64(test.in)
+		outs := Ftoa64(out, 'g', -1)
 		if outs != test.out || !reflect.DeepEqual(err, test.err) {
 			t.Errorf("Atof64(%v) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err)
 		}
 
 		if float64(float32(out)) == out {
-			out32, err := Atof32(test.in);
-			outs := Ftoa32(out32, 'g', -1);
+			out32, err := Atof32(test.in)
+			outs := Ftoa32(out32, 'g', -1)
 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
 				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v\n",
 					test.in, out32, err, test.out, test.err, out)
@@ -124,20 +124,20 @@ func testAtof(t *testing.T, opt bool) {
 		}
 
 		if FloatSize == 64 || float64(float32(out)) == out {
-			outf, err := Atof(test.in);
-			outs := Ftoa(outf, 'g', -1);
+			outf, err := Atof(test.in)
+			outs := Ftoa(outf, 'g', -1)
 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
 				t.Errorf("Ftoa(%v) = %v, %v want %v, %v  # %v\n",
 					test.in, outf, err, test.out, test.err, out)
 			}
 		}
 	}
-	SetOptimize(oldopt);
+	SetOptimize(oldopt)
 }
 
-func TestAtof(t *testing.T)	{ testAtof(t, true) }
+func TestAtof(t *testing.T) { testAtof(t, true) }
 
-func TestAtofSlow(t *testing.T)	{ testAtof(t, false) }
+func TestAtofSlow(t *testing.T) { testAtof(t, false) }
 
 func BenchmarkAtofDecimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {

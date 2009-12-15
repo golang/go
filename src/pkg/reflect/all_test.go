@@ -5,27 +5,27 @@
 package reflect_test
 
 import (
-	"io";
-	"os";
-	. "reflect";
-	"testing";
-	"unsafe";
+	"io"
+	"os"
+	. "reflect"
+	"testing"
+	"unsafe"
 )
 
 type integer int
 type T struct {
-	a	int;
-	b	float64;
-	c	string;
-	d	*int;
+	a int
+	b float64
+	c string
+	d *int
 }
 
 type pair struct {
-	i	interface{};
-	s	string;
+	i interface{}
+	s string
 }
 
-func isDigit(c uint8) bool	{ return '0' <= c && c <= '9' }
+func isDigit(c uint8) bool { return '0' <= c && c <= '9' }
 
 func assert(t *testing.T, s, want string) {
 	if s != want {
@@ -33,7 +33,7 @@ func assert(t *testing.T, s, want string) {
 	}
 }
 
-func typestring(i interface{}) string	{ return Typeof(i).String() }
+func typestring(i interface{}) string { return Typeof(i).String() }
 
 var typeTests = []pair{
 	pair{struct{ x int }{}, "int"},
@@ -58,96 +58,96 @@ var typeTests = []pair{
 	pair{struct{ x (chan<- string) }{}, "chan<- string"},
 	pair{struct {
 		x struct {
-			c	chan *int32;
-			d	float32;
-		};
+			c chan *int32
+			d float32
+		}
 	}{},
 		"struct { c chan *int32; d float32 }",
 	},
 	pair{struct{ x (func(a int8, b int32)) }{}, "func(int8, int32)"},
 	pair{struct {
 		x struct {
-			c func(chan *integer, *int8);
-		};
+			c func(chan *integer, *int8)
+		}
 	}{},
 		"struct { c func(chan *reflect_test.integer, *int8) }",
 	},
 	pair{struct {
 		x struct {
-			a	int8;
-			b	int32;
-		};
+			a int8
+			b int32
+		}
 	}{},
 		"struct { a int8; b int32 }",
 	},
 	pair{struct {
 		x struct {
-			a	int8;
-			b	int8;
-			c	int32;
-		};
+			a int8
+			b int8
+			c int32
+		}
 	}{},
 		"struct { a int8; b int8; c int32 }",
 	},
 	pair{struct {
 		x struct {
-			a	int8;
-			b	int8;
-			c	int8;
-			d	int32;
-		};
+			a int8
+			b int8
+			c int8
+			d int32
+		}
 	}{},
 		"struct { a int8; b int8; c int8; d int32 }",
 	},
 	pair{struct {
 		x struct {
-			a	int8;
-			b	int8;
-			c	int8;
-			d	int8;
-			e	int32;
-		};
+			a int8
+			b int8
+			c int8
+			d int8
+			e int32
+		}
 	}{},
 		"struct { a int8; b int8; c int8; d int8; e int32 }",
 	},
 	pair{struct {
 		x struct {
-			a	int8;
-			b	int8;
-			c	int8;
-			d	int8;
-			e	int8;
-			f	int32;
-		};
+			a int8
+			b int8
+			c int8
+			d int8
+			e int8
+			f int32
+		}
 	}{},
 		"struct { a int8; b int8; c int8; d int8; e int8; f int32 }",
 	},
 	pair{struct {
 		x struct {
-			a int8 "hi there";
-		};
+			a int8 "hi there"
+		}
 	}{},
 		`struct { a int8 "hi there" }`,
 	},
 	pair{struct {
 		x struct {
-			a int8 "hi \x00there\t\n\"\\";
-		};
+			a int8 "hi \x00there\t\n\"\\"
+		}
 	}{},
 		`struct { a int8 "hi \x00there\t\n\"\\" }`,
 	},
 	pair{struct {
 		x struct {
-			f func(args ...);
-		};
+			f func(args ...)
+		}
 	}{},
 		"struct { f func(...) }",
 	},
 	pair{struct {
 		x (interface {
-			a(func(func(int) int) (func(func(int)) int));
-			b();
-		});
+			a(func(func(int) int) (func(func(int)) int))
+			b()
+		})
 	}{},
 		"interface { a (func(func(int) (int)) (func(func(int)) (int))); b () }",
 	},
@@ -173,34 +173,34 @@ var valueTests = []pair{
 	pair{(map[string]int32)(nil), "map[string] int32{<can't iterate on maps>}"},
 	pair{(chan<- string)(nil), "chan<- string"},
 	pair{(struct {
-		c	chan *int32;
-		d	float32;
+		c chan *int32
+		d float32
 	}){},
 		"struct { c chan *int32; d float32 }{chan *int32, 0}",
 	},
 	pair{(func(a int8, b int32))(nil), "func(int8, int32)(0)"},
 	pair{(struct {
-		c func(chan *integer, *int8);
+		c func(chan *integer, *int8)
 	}){},
 		"struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}",
 	},
 	pair{(struct {
-		a	int8;
-		b	int32;
+		a int8
+		b int32
 	}){},
 		"struct { a int8; b int32 }{0, 0}",
 	},
 	pair{(struct {
-		a	int8;
-		b	int8;
-		c	int32;
+		a int8
+		b int8
+		c int32
 	}){},
 		"struct { a int8; b int8; c int32 }{0, 0, 0}",
 	},
 }
 
 func testType(t *testing.T, i int, typ Type, want string) {
-	s := typ.String();
+	s := typ.String()
 	if s != want {
 		t.Errorf("#%d: have %#q, want %#q", i, s, want)
 	}
@@ -214,7 +214,7 @@ func TestTypes(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	for i, tt := range valueTests {
-		v := NewValue(tt.i);
+		v := NewValue(tt.i)
 		switch v := v.(type) {
 		case *IntValue:
 			v.Set(132)
@@ -247,7 +247,7 @@ func TestSet(t *testing.T) {
 		case *BoolValue:
 			v.Set(true)
 		}
-		s := valueToString(v);
+		s := valueToString(v)
 		if s != tt.s {
 			t.Errorf("#%d: have %#q, want %#q", i, s, tt.s)
 		}
@@ -256,7 +256,7 @@ func TestSet(t *testing.T) {
 
 func TestSetValue(t *testing.T) {
 	for i, tt := range valueTests {
-		v := NewValue(tt.i);
+		v := NewValue(tt.i)
 		switch v := v.(type) {
 		case *IntValue:
 			v.SetValue(NewValue(int(132)))
@@ -289,7 +289,7 @@ func TestSetValue(t *testing.T) {
 		case *BoolValue:
 			v.SetValue(NewValue(true))
 		}
-		s := valueToString(v);
+		s := valueToString(v)
 		if s != tt.s {
 			t.Errorf("#%d: have %#q, want %#q", i, s, tt.s)
 		}
@@ -313,7 +313,7 @@ var valueToStringTests = []pair{
 
 func TestValueToString(t *testing.T) {
 	for i, test := range valueToStringTests {
-		s := valueToString(NewValue(test.i));
+		s := valueToString(NewValue(test.i))
 		if s != test.s {
 			t.Errorf("#%d: have %#q, want %#q", i, s, test.s)
 		}
@@ -321,136 +321,136 @@ func TestValueToString(t *testing.T) {
 }
 
 func TestArrayElemSet(t *testing.T) {
-	v := NewValue([10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-	v.(*ArrayValue).Elem(4).(*IntValue).Set(123);
-	s := valueToString(v);
-	const want = "[10]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}";
+	v := NewValue([10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	v.(*ArrayValue).Elem(4).(*IntValue).Set(123)
+	s := valueToString(v)
+	const want = "[10]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}"
 	if s != want {
 		t.Errorf("[10]int: have %#q want %#q", s, want)
 	}
 
-	v = NewValue([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-	v.(*SliceValue).Elem(4).(*IntValue).Set(123);
-	s = valueToString(v);
-	const want1 = "[]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}";
+	v = NewValue([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	v.(*SliceValue).Elem(4).(*IntValue).Set(123)
+	s = valueToString(v)
+	const want1 = "[]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}"
 	if s != want1 {
 		t.Errorf("[]int: have %#q want %#q", s, want1)
 	}
 }
 
 func TestPtrPointTo(t *testing.T) {
-	var ip *int32;
-	var i int32 = 1234;
-	vip := NewValue(&ip);
-	vi := NewValue(i);
-	vip.(*PtrValue).Elem().(*PtrValue).PointTo(vi);
+	var ip *int32
+	var i int32 = 1234
+	vip := NewValue(&ip)
+	vi := NewValue(i)
+	vip.(*PtrValue).Elem().(*PtrValue).PointTo(vi)
 	if *ip != 1234 {
 		t.Errorf("got %d, want 1234", *ip)
 	}
 }
 
 func TestAll(t *testing.T) {
-	testType(t, 1, Typeof((int8)(0)), "int8");
-	testType(t, 2, Typeof((*int8)(nil)).(*PtrType).Elem(), "int8");
+	testType(t, 1, Typeof((int8)(0)), "int8")
+	testType(t, 2, Typeof((*int8)(nil)).(*PtrType).Elem(), "int8")
 
 	typ := Typeof((*struct {
-		c	chan *int32;
-		d	float32;
-	})(nil));
-	testType(t, 3, typ, "*struct { c chan *int32; d float32 }");
-	etyp := typ.(*PtrType).Elem();
-	testType(t, 4, etyp, "struct { c chan *int32; d float32 }");
-	styp := etyp.(*StructType);
-	f := styp.Field(0);
-	testType(t, 5, f.Type, "chan *int32");
+		c chan *int32
+		d float32
+	})(nil))
+	testType(t, 3, typ, "*struct { c chan *int32; d float32 }")
+	etyp := typ.(*PtrType).Elem()
+	testType(t, 4, etyp, "struct { c chan *int32; d float32 }")
+	styp := etyp.(*StructType)
+	f := styp.Field(0)
+	testType(t, 5, f.Type, "chan *int32")
 
-	f, present := styp.FieldByName("d");
+	f, present := styp.FieldByName("d")
 	if !present {
 		t.Errorf("FieldByName says present field is absent")
 	}
-	testType(t, 6, f.Type, "float32");
+	testType(t, 6, f.Type, "float32")
 
-	f, present = styp.FieldByName("absent");
+	f, present = styp.FieldByName("absent")
 	if present {
 		t.Errorf("FieldByName says absent field is present")
 	}
 
-	typ = Typeof([32]int32{});
-	testType(t, 7, typ, "[32]int32");
-	testType(t, 8, typ.(*ArrayType).Elem(), "int32");
+	typ = Typeof([32]int32{})
+	testType(t, 7, typ, "[32]int32")
+	testType(t, 8, typ.(*ArrayType).Elem(), "int32")
 
-	typ = Typeof((map[string]*int32)(nil));
-	testType(t, 9, typ, "map[string] *int32");
-	mtyp := typ.(*MapType);
-	testType(t, 10, mtyp.Key(), "string");
-	testType(t, 11, mtyp.Elem(), "*int32");
+	typ = Typeof((map[string]*int32)(nil))
+	testType(t, 9, typ, "map[string] *int32")
+	mtyp := typ.(*MapType)
+	testType(t, 10, mtyp.Key(), "string")
+	testType(t, 11, mtyp.Elem(), "*int32")
 
-	typ = Typeof((chan<- string)(nil));
-	testType(t, 12, typ, "chan<- string");
-	testType(t, 13, typ.(*ChanType).Elem(), "string");
+	typ = Typeof((chan<- string)(nil))
+	testType(t, 12, typ, "chan<- string")
+	testType(t, 13, typ.(*ChanType).Elem(), "string")
 
 	// make sure tag strings are not part of element type
 	typ = Typeof(struct {
-		d []uint32 "TAG";
-	}{}).(*StructType).Field(0).Type;
-	testType(t, 14, typ, "[]uint32");
+		d []uint32 "TAG"
+	}{}).(*StructType).Field(0).Type
+	testType(t, 14, typ, "[]uint32")
 }
 
 func TestInterfaceGet(t *testing.T) {
 	var inter struct {
-		e interface{};
+		e interface{}
 	}
-	inter.e = 123.456;
-	v1 := NewValue(&inter);
-	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0);
-	assert(t, v2.Type().String(), "interface { }");
-	i2 := v2.(*InterfaceValue).Interface();
-	v3 := NewValue(i2);
-	assert(t, v3.Type().String(), "float");
+	inter.e = 123.456
+	v1 := NewValue(&inter)
+	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0)
+	assert(t, v2.Type().String(), "interface { }")
+	i2 := v2.(*InterfaceValue).Interface()
+	v3 := NewValue(i2)
+	assert(t, v3.Type().String(), "float")
 }
 
 func TestInterfaceValue(t *testing.T) {
 	var inter struct {
-		e interface{};
+		e interface{}
 	}
-	inter.e = 123.456;
-	v1 := NewValue(&inter);
-	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0);
-	assert(t, v2.Type().String(), "interface { }");
-	v3 := v2.(*InterfaceValue).Elem();
-	assert(t, v3.Type().String(), "float");
+	inter.e = 123.456
+	v1 := NewValue(&inter)
+	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0)
+	assert(t, v2.Type().String(), "interface { }")
+	v3 := v2.(*InterfaceValue).Elem()
+	assert(t, v3.Type().String(), "float")
 
-	i3 := v2.Interface();
+	i3 := v2.Interface()
 	if _, ok := i3.(float); !ok {
 		t.Error("v2.Interface() did not return float, got ", Typeof(i3))
 	}
 }
 
 func TestFunctionValue(t *testing.T) {
-	v := NewValue(func() {});
+	v := NewValue(func() {})
 	if v.Interface() != v.Interface() {
 		t.Fatalf("TestFunction != itself")
 	}
-	assert(t, v.Type().String(), "func()");
+	assert(t, v.Type().String(), "func()")
 }
 
 func TestCopyArray(t *testing.T) {
-	a := []int{1, 2, 3, 4, 10, 9, 8, 7};
-	b := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44};
-	c := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44};
-	va := NewValue(&a);
-	vb := NewValue(&b);
+	a := []int{1, 2, 3, 4, 10, 9, 8, 7}
+	b := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44}
+	c := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44}
+	va := NewValue(&a)
+	vb := NewValue(&b)
 	for i := 0; i < len(b); i++ {
 		if b[i] != c[i] {
 			t.Fatalf("b != c before test")
 		}
 	}
-	aa := va.(*PtrValue).Elem().(*SliceValue);
-	ab := vb.(*PtrValue).Elem().(*SliceValue);
+	aa := va.(*PtrValue).Elem().(*SliceValue)
+	ab := vb.(*PtrValue).Elem().(*SliceValue)
 	for tocopy := 1; tocopy <= 7; tocopy++ {
-		aa.SetLen(tocopy);
-		ArrayCopy(ab, aa);
-		aa.SetLen(8);
+		aa.SetLen(tocopy)
+		ArrayCopy(ab, aa)
+		aa.SetLen(8)
 		for i := 0; i < tocopy; i++ {
 			if a[i] != b[i] {
 				t.Errorf("(i) tocopy=%d a[%d]=%d, b[%d]=%d",
@@ -474,39 +474,39 @@ func TestCopyArray(t *testing.T) {
 }
 
 func TestBigUnnamedStruct(t *testing.T) {
-	b := struct{ a, b, c, d int64 }{1, 2, 3, 4};
-	v := NewValue(b);
+	b := struct{ a, b, c, d int64 }{1, 2, 3, 4}
+	v := NewValue(b)
 	b1 := v.Interface().(struct {
-		a, b, c, d int64;
-	});
+		a, b, c, d int64
+	})
 	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d {
 		t.Errorf("NewValue(%v).Interface().(*Big) = %v", b, b1)
 	}
 }
 
 type big struct {
-	a, b, c, d, e int64;
+	a, b, c, d, e int64
 }
 
 func TestBigStruct(t *testing.T) {
-	b := big{1, 2, 3, 4, 5};
-	v := NewValue(b);
-	b1 := v.Interface().(big);
+	b := big{1, 2, 3, 4, 5}
+	v := NewValue(b)
+	b1 := v.Interface().(big)
 	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d || b1.e != b.e {
 		t.Errorf("NewValue(%v).Interface().(big) = %v", b, b1)
 	}
 }
 
 type Basic struct {
-	x	int;
-	y	float32;
+	x int
+	y float32
 }
 
 type NotBasic Basic
 
 type DeepEqualTest struct {
-	a, b	interface{};
-	eq	bool;
+	a, b interface{}
+	eq   bool
 }
 
 var deepEqualTests = []DeepEqualTest{
@@ -559,11 +559,11 @@ func TestDeepEqual(t *testing.T) {
 
 func TestTypeof(t *testing.T) {
 	for _, test := range deepEqualTests {
-		v := NewValue(test.a);
+		v := NewValue(test.a)
 		if v == nil {
 			continue
 		}
-		typ := Typeof(test.a);
+		typ := Typeof(test.a)
 		if typ != v.Type() {
 			t.Errorf("Typeof(%v) = %v, but NewValue(%v).Type() = %v", test.a, typ, test.a, v.Type())
 		}
@@ -571,43 +571,43 @@ func TestTypeof(t *testing.T) {
 }
 
 type Recursive struct {
-	x	int;
-	r	*Recursive;
+	x int
+	r *Recursive
 }
 
 func TestDeepEqualRecursiveStruct(t *testing.T) {
-	a, b := new(Recursive), new(Recursive);
-	*a = Recursive{12, a};
-	*b = Recursive{12, b};
+	a, b := new(Recursive), new(Recursive)
+	*a = Recursive{12, a}
+	*b = Recursive{12, b}
 	if !DeepEqual(a, b) {
 		t.Error("DeepEqual(recursive same) = false, want true")
 	}
 }
 
 type Complex struct {
-	a	int;
-	b	[3]*Complex;
-	c	*string;
-	d	map[float]float;
+	a int
+	b [3]*Complex
+	c *string
+	d map[float]float
 }
 
 func TestDeepEqualComplexStruct(t *testing.T) {
-	m := make(map[float]float);
-	stra, strb := "hello", "hello";
-	a, b := new(Complex), new(Complex);
-	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m};
-	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m};
+	m := make(map[float]float)
+	stra, strb := "hello", "hello"
+	a, b := new(Complex), new(Complex)
+	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m}
+	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m}
 	if !DeepEqual(a, b) {
 		t.Error("DeepEqual(complex same) = false, want true")
 	}
 }
 
 func TestDeepEqualComplexStructInequality(t *testing.T) {
-	m := make(map[float]float);
-	stra, strb := "hello", "helloo";	// Difference is here
-	a, b := new(Complex), new(Complex);
-	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m};
-	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m};
+	m := make(map[float]float)
+	stra, strb := "hello", "helloo" // Difference is here
+	a, b := new(Complex), new(Complex)
+	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m}
+	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m}
 	if DeepEqual(a, b) {
 		t.Error("DeepEqual(complex different) = true, want false")
 	}
@@ -615,8 +615,8 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
 
 
 func check2ndField(x interface{}, offs uintptr, t *testing.T) {
-	s := NewValue(x).(*StructValue);
-	f := s.Type().(*StructType).Field(1);
+	s := NewValue(x).(*StructValue)
+	f := s.Type().(*StructType).Field(1)
 	if f.Offset != offs {
 		t.Error("mismatched offsets in structure alignment:", f.Offset, offs)
 	}
@@ -626,40 +626,40 @@ func check2ndField(x interface{}, offs uintptr, t *testing.T) {
 // from the compiler itself.
 func TestAlignment(t *testing.T) {
 	type T1inner struct {
-		a int;
+		a int
 	}
 	type T1 struct {
-		T1inner;
-		f	int;
+		T1inner
+		f int
 	}
 	type T2inner struct {
-		a, b int;
+		a, b int
 	}
 	type T2 struct {
-		T2inner;
-		f	int;
+		T2inner
+		f int
 	}
 
-	x := T1{T1inner{2}, 17};
-	check2ndField(x, uintptr(unsafe.Pointer(&x.f))-uintptr(unsafe.Pointer(&x)), t);
+	x := T1{T1inner{2}, 17}
+	check2ndField(x, uintptr(unsafe.Pointer(&x.f))-uintptr(unsafe.Pointer(&x)), t)
 
-	x1 := T2{T2inner{2, 3}, 17};
-	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f))-uintptr(unsafe.Pointer(&x1)), t);
+	x1 := T2{T2inner{2, 3}, 17}
+	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f))-uintptr(unsafe.Pointer(&x1)), t)
 }
 
 type IsNiller interface {
-	IsNil() bool;
+	IsNil() bool
 }
 
 func Nil(a interface{}, t *testing.T) {
-	n := NewValue(a).(*StructValue).Field(0).(IsNiller);
+	n := NewValue(a).(*StructValue).Field(0).(IsNiller)
 	if !n.IsNil() {
 		t.Errorf("%v should be nil", a)
 	}
 }
 
 func NotNil(a interface{}, t *testing.T) {
-	n := NewValue(a).(*StructValue).Field(0).(IsNiller);
+	n := NewValue(a).(*StructValue).Field(0).(IsNiller)
 	if n.IsNil() {
 		t.Errorf("value of type %v should not be nil", NewValue(a).Type().String())
 	}
@@ -667,10 +667,10 @@ func NotNil(a interface{}, t *testing.T) {
 
 func TestIsNil(t *testing.T) {
 	// These do not implement IsNil
-	doNotNil := []interface{}{int(0), float32(0), struct{ a int }{}};
+	doNotNil := []interface{}{int(0), float32(0), struct{ a int }{}}
 	for _, ts := range doNotNil {
-		ty := Typeof(ts);
-		v := MakeZero(ty);
+		ty := Typeof(ts)
+		v := MakeZero(ty)
 		if _, ok := v.(IsNiller); ok {
 			t.Errorf("%s is nilable; should not be", ts)
 		}
@@ -685,10 +685,10 @@ func TestIsNil(t *testing.T) {
 		struct{ x func() bool }{},
 		struct{ x chan int }{},
 		struct{ x []string }{},
-	};
+	}
 	for _, ts := range doNil {
-		ty := Typeof(ts).(*StructType).Field(0).Type;
-		v := MakeZero(ty);
+		ty := Typeof(ts).(*StructType).Field(0).Type
+		v := MakeZero(ty)
 		if _, ok := v.(IsNiller); !ok {
 			t.Errorf("%s %T is not nilable; should be", ts, v)
 		}
@@ -696,55 +696,55 @@ func TestIsNil(t *testing.T) {
 
 	// Check the implementations
 	var pi struct {
-		x *int;
+		x *int
 	}
-	Nil(pi, t);
-	pi.x = new(int);
-	NotNil(pi, t);
+	Nil(pi, t)
+	pi.x = new(int)
+	NotNil(pi, t)
 
 	var si struct {
-		x []int;
+		x []int
 	}
-	Nil(si, t);
-	si.x = make([]int, 10);
-	NotNil(si, t);
+	Nil(si, t)
+	si.x = make([]int, 10)
+	NotNil(si, t)
 
 	var ci struct {
-		x chan int;
+		x chan int
 	}
-	Nil(ci, t);
-	ci.x = make(chan int);
-	NotNil(ci, t);
+	Nil(ci, t)
+	ci.x = make(chan int)
+	NotNil(ci, t)
 
 	var mi struct {
-		x map[int]int;
+		x map[int]int
 	}
-	Nil(mi, t);
-	mi.x = make(map[int]int);
-	NotNil(mi, t);
+	Nil(mi, t)
+	mi.x = make(map[int]int)
+	NotNil(mi, t)
 
 	var ii struct {
-		x interface{};
+		x interface{}
 	}
-	Nil(ii, t);
-	ii.x = 2;
-	NotNil(ii, t);
+	Nil(ii, t)
+	ii.x = 2
+	NotNil(ii, t)
 
 	var fi struct {
-		x func(t *testing.T);
+		x func(t *testing.T)
 	}
-	Nil(fi, t);
-	fi.x = TestIsNil;
-	NotNil(fi, t);
+	Nil(fi, t)
+	fi.x = TestIsNil
+	NotNil(fi, t)
 }
 
 func TestInterfaceExtraction(t *testing.T) {
 	var s struct {
-		w io.Writer;
+		w io.Writer
 	}
 
-	s.w = os.Stdout;
-	v := Indirect(NewValue(&s)).(*StructValue).Field(0).Interface();
+	s.w = os.Stdout
+	v := Indirect(NewValue(&s)).(*StructValue).Field(0).Interface()
 	if v != s.w.(interface{}) {
 		t.Error("Interface() on interface: ", v, s.w)
 	}
@@ -755,45 +755,45 @@ func TestInterfaceEditing(t *testing.T) {
 	// so the interface conversion allocates
 	// memory to hold a string and puts that
 	// pointer in the interface.
-	var i interface{} = "hello";
+	var i interface{} = "hello"
 
 	// if i pass the interface value by value
 	// to NewValue, i should get a fresh copy
 	// of the value.
-	v := NewValue(i);
+	v := NewValue(i)
 
 	// and setting that copy to "bye" should
 	// not change the value stored in i.
-	v.(*StringValue).Set("bye");
+	v.(*StringValue).Set("bye")
 	if i.(string) != "hello" {
 		t.Errorf(`Set("bye") changed i to %s`, i.(string))
 	}
 
 	// the same should be true of smaller items.
-	i = 123;
-	v = NewValue(i);
-	v.(*IntValue).Set(234);
+	i = 123
+	v = NewValue(i)
+	v.(*IntValue).Set(234)
 	if i.(int) != 123 {
 		t.Errorf("Set(234) changed i to %d", i.(int))
 	}
 }
 
 func TestNilPtrValueSub(t *testing.T) {
-	var pi *int;
+	var pi *int
 	if pv := NewValue(pi).(*PtrValue); pv.Elem() != nil {
 		t.Error("NewValue((*int)(nil)).(*PtrValue).Elem() != nil")
 	}
 }
 
 func TestMap(t *testing.T) {
-	m := map[string]int{"a": 1, "b": 2};
-	mv := NewValue(m).(*MapValue);
+	m := map[string]int{"a": 1, "b": 2}
+	mv := NewValue(m).(*MapValue)
 	if n := mv.Len(); n != len(m) {
 		t.Errorf("Len = %d, want %d", n, len(m))
 	}
-	keys := mv.Keys();
-	i := 0;
-	newmap := MakeMap(mv.Type().(*MapType));
+	keys := mv.Keys()
+	i := 0
+	newmap := MakeMap(mv.Type().(*MapType))
 	for k, v := range m {
 		// Check that returned Keys match keys in range.
 		// These aren't required to be in the same order,
@@ -804,36 +804,36 @@ func TestMap(t *testing.T) {
 		} else if kv := keys[i].(*StringValue); kv.Get() != k {
 			t.Errorf("Keys[%d] = %q, want %q", i, kv.Get(), k)
 		}
-		i++;
+		i++
 
 		// Check that value lookup is correct.
-		vv := mv.Elem(NewValue(k));
+		vv := mv.Elem(NewValue(k))
 		if vi := vv.(*IntValue).Get(); vi != v {
 			t.Errorf("Key %q: have value %d, want %d", vi, v)
 		}
 
 		// Copy into new map.
-		newmap.SetElem(NewValue(k), NewValue(v));
+		newmap.SetElem(NewValue(k), NewValue(v))
 	}
-	vv := mv.Elem(NewValue("not-present"));
+	vv := mv.Elem(NewValue("not-present"))
 	if vv != nil {
 		t.Errorf("Invalid key: got non-nil value %s", valueToString(vv))
 	}
 
-	newm := newmap.Interface().(map[string]int);
+	newm := newmap.Interface().(map[string]int)
 	if len(newm) != len(m) {
 		t.Errorf("length after copy: newm=%d, m=%d", newm, m)
 	}
 
 	for k, v := range newm {
-		mv, ok := m[k];
+		mv, ok := m[k]
 		if mv != v {
 			t.Errorf("newm[%q] = %d, but m[%q] = %d, %v", k, v, k, mv, ok)
 		}
 	}
 
-	newmap.SetElem(NewValue("a"), nil);
-	v, ok := newm["a"];
+	newmap.SetElem(NewValue("a"), nil)
+	v, ok := newm["a"]
 	if ok {
 		t.Errorf("newm[\"a\"] = %d after delete", v)
 	}
@@ -841,40 +841,40 @@ func TestMap(t *testing.T) {
 
 func TestChan(t *testing.T) {
 	for loop := 0; loop < 2; loop++ {
-		var c chan int;
-		var cv *ChanValue;
+		var c chan int
+		var cv *ChanValue
 
 		// check both ways to allocate channels
 		switch loop {
 		case 1:
-			c = make(chan int, 1);
-			cv = NewValue(c).(*ChanValue);
+			c = make(chan int, 1)
+			cv = NewValue(c).(*ChanValue)
 		case 0:
-			cv = MakeChan(Typeof(c).(*ChanType), 1);
-			c = cv.Interface().(chan int);
+			cv = MakeChan(Typeof(c).(*ChanType), 1)
+			c = cv.Interface().(chan int)
 		}
 
 		// Send
-		cv.Send(NewValue(2));
+		cv.Send(NewValue(2))
 		if i := <-c; i != 2 {
 			t.Errorf("reflect Send 2, native recv %d", i)
 		}
 
 		// Recv
-		c <- 3;
+		c <- 3
 		if i := cv.Recv().(*IntValue).Get(); i != 3 {
 			t.Errorf("native send 3, reflect Recv %d", i)
 		}
 
 		// TryRecv fail
-		val := cv.TryRecv();
+		val := cv.TryRecv()
 		if val != nil {
 			t.Errorf("TryRecv on empty chan: %s", valueToString(val))
 		}
 
 		// TryRecv success
-		c <- 4;
-		val = cv.TryRecv();
+		c <- 4
+		val = cv.TryRecv()
 		if val == nil {
 			t.Errorf("TryRecv on ready chan got nil")
 		} else if i := val.(*IntValue).Get(); i != 4 {
@@ -882,15 +882,15 @@ func TestChan(t *testing.T) {
 		}
 
 		// TrySend fail
-		c <- 100;
-		ok := cv.TrySend(NewValue(5));
-		i := <-c;
+		c <- 100
+		ok := cv.TrySend(NewValue(5))
+		i := <-c
 		if ok {
 			t.Errorf("TrySend on full chan succeeded: value %d", i)
 		}
 
 		// TrySend success
-		ok = cv.TrySend(NewValue(6));
+		ok = cv.TrySend(NewValue(6))
 		if !ok {
 			t.Errorf("TrySend on empty chan failed")
 		} else {
@@ -900,8 +900,8 @@ func TestChan(t *testing.T) {
 		}
 
 		// Close
-		c <- 123;
-		cv.Close();
+		c <- 123
+		cv.Close()
 		if cv.Closed() {
 			t.Errorf("closed too soon - 1")
 		}
@@ -920,9 +920,9 @@ func TestChan(t *testing.T) {
 	}
 
 	// check creation of unbuffered channel
-	var c chan int;
-	cv := MakeChan(Typeof(c).(*ChanType), 0);
-	c = cv.Interface().(chan int);
+	var c chan int
+	cv := MakeChan(Typeof(c).(*ChanType), 0)
+	c = cv.Interface().(chan int)
 	if cv.TrySend(NewValue(7)) {
 		t.Errorf("TrySend on sync chan succeeded")
 	}
@@ -931,8 +931,8 @@ func TestChan(t *testing.T) {
 	}
 
 	// len/cap
-	cv = MakeChan(Typeof(c).(*ChanType), 10);
-	c = cv.Interface().(chan int);
+	cv = MakeChan(Typeof(c).(*ChanType), 10)
+	c = cv.Interface().(chan int)
 	for i := 0; i < 3; i++ {
 		c <- i
 	}
@@ -949,35 +949,35 @@ func dummy(b byte, c int, d byte) (i byte, j int, k byte) {
 }
 
 func TestFunc(t *testing.T) {
-	ret := NewValue(dummy).(*FuncValue).Call([]Value{NewValue(byte(10)), NewValue(20), NewValue(byte(30))});
+	ret := NewValue(dummy).(*FuncValue).Call([]Value{NewValue(byte(10)), NewValue(20), NewValue(byte(30))})
 	if len(ret) != 3 {
 		t.Fatalf("Call returned %d values, want 3", len(ret))
 	}
 
-	i := ret[0].(*Uint8Value).Get();
-	j := ret[1].(*IntValue).Get();
-	k := ret[2].(*Uint8Value).Get();
+	i := ret[0].(*Uint8Value).Get()
+	j := ret[1].(*IntValue).Get()
+	k := ret[2].(*Uint8Value).Get()
 	if i != 10 || j != 20 || k != 30 {
 		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k)
 	}
 }
 
 type Point struct {
-	x, y int;
+	x, y int
 }
 
-func (p Point) Dist(scale int) int	{ return p.x*p.x*scale + p.y*p.y*scale }
+func (p Point) Dist(scale int) int { return p.x*p.x*scale + p.y*p.y*scale }
 
 func TestMethod(t *testing.T) {
 	// Non-curried method of type.
-	p := Point{3, 4};
-	i := Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].(*IntValue).Get();
+	p := Point{3, 4}
+	i := Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].(*IntValue).Get()
 	if i != 250 {
 		t.Errorf("Type Method returned %d; want 250", i)
 	}
 
 	// Curried method of value.
-	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
+	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
 	if i != 250 {
 		t.Errorf("Value Method returned %d; want 250", i)
 	}
@@ -988,53 +988,53 @@ func TestMethod(t *testing.T) {
 	// access the underlying Point, not the interface.
 	var s = struct {
 		x interface {
-			Dist(int) int;
-		};
-	}{p};
-	pv := NewValue(s).(*StructValue).Field(0);
-	i = pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
+			Dist(int) int
+		}
+	}{p}
+	pv := NewValue(s).(*StructValue).Field(0)
+	i = pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
 	if i != 250 {
 		t.Errorf("Interface Method returned %d; want 250", i)
 	}
 }
 
 func TestInterfaceSet(t *testing.T) {
-	p := &Point{3, 4};
+	p := &Point{3, 4}
 
 	var s struct {
-		I	interface{};
-		P	interface {
-			Dist(int) int;
-		};
+		I interface{}
+		P interface {
+			Dist(int) int
+		}
 	}
-	sv := NewValue(&s).(*PtrValue).Elem().(*StructValue);
-	sv.Field(0).(*InterfaceValue).Set(NewValue(p));
+	sv := NewValue(&s).(*PtrValue).Elem().(*StructValue)
+	sv.Field(0).(*InterfaceValue).Set(NewValue(p))
 	if q := s.I.(*Point); q != p {
 		t.Errorf("i: have %p want %p", q, p)
 	}
 
-	pv := sv.Field(1).(*InterfaceValue);
-	pv.Set(NewValue(p));
+	pv := sv.Field(1).(*InterfaceValue)
+	pv.Set(NewValue(p))
 	if q := s.P.(*Point); q != p {
 		t.Errorf("i: have %p want %p", q, p)
 	}
 
-	i := pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
+	i := pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
 	if i != 250 {
 		t.Errorf("Interface Method returned %d; want 250", i)
 	}
 }
 
 type T1 struct {
-	a	string;
-	int;
+	a string
+	int
 }
 
 func TestAnonymousFields(t *testing.T) {
-	var field StructField;
-	var ok bool;
-	var t1 T1;
-	type1 := Typeof(t1).(*StructType);
+	var field StructField
+	var ok bool
+	var t1 T1
+	type1 := Typeof(t1).(*StructType)
 	if field, ok = type1.FieldByName("int"); !ok {
 		t.Error("no field 'int'")
 	}
@@ -1044,53 +1044,53 @@ func TestAnonymousFields(t *testing.T) {
 }
 
 type FTest struct {
-	s	interface{};
-	name	string;
-	index	[]int;
-	value	int;
+	s     interface{}
+	name  string
+	index []int
+	value int
 }
 
 type D1 struct {
-	d int;
+	d int
 }
 type D2 struct {
-	d int;
+	d int
 }
 
 type S0 struct {
-	a, b, c	int;
-	D1;
-	D2;
+	a, b, c int
+	D1
+	D2
 }
 
 type S1 struct {
-	b	int;
-	S0;
+	b int
+	S0
 }
 
 type S2 struct {
-	a	int;
-	*S1;
+	a int
+	*S1
 }
 
 type S1x struct {
-	S1;
+	S1
 }
 
 type S1y struct {
-	S1;
+	S1
 }
 
 type S3 struct {
-	S1x;
-	S2;
-	d, e	int;
-	*S1y;
+	S1x
+	S2
+	d, e int
+	*S1y
 }
 
 type S4 struct {
-	*S4;
-	a	int;
+	*S4
+	a int
 }
 
 var fieldTests = []FTest{
@@ -1118,8 +1118,8 @@ var fieldTests = []FTest{
 
 func TestFieldByIndex(t *testing.T) {
 	for _, test := range fieldTests {
-		s := Typeof(test.s).(*StructType);
-		f := s.FieldByIndex(test.index);
+		s := Typeof(test.s).(*StructType)
+		f := s.FieldByIndex(test.index)
 		if f.Name != "" {
 			if test.index != nil {
 				if f.Name != test.name {
@@ -1133,7 +1133,7 @@ func TestFieldByIndex(t *testing.T) {
 		}
 
 		if test.value != 0 {
-			v := NewValue(test.s).(*StructValue).FieldByIndex(test.index);
+			v := NewValue(test.s).(*StructValue).FieldByIndex(test.index)
 			if v != nil {
 				if x, ok := v.Interface().(int); ok {
 					if x != test.value {
@@ -1151,8 +1151,8 @@ func TestFieldByIndex(t *testing.T) {
 
 func TestFieldByName(t *testing.T) {
 	for _, test := range fieldTests {
-		s := Typeof(test.s).(*StructType);
-		f, found := s.FieldByName(test.name);
+		s := Typeof(test.s).(*StructType)
+		f, found := s.FieldByName(test.name)
 		if found {
 			if test.index != nil {
 				// Verify field depth and index.
@@ -1173,7 +1173,7 @@ func TestFieldByName(t *testing.T) {
 		}
 
 		if test.value != 0 {
-			v := NewValue(test.s).(*StructValue).FieldByName(test.name);
+			v := NewValue(test.s).(*StructValue).FieldByName(test.name)
 			if v != nil {
 				if x, ok := v.Interface().(int); ok {
 					if x != test.value {

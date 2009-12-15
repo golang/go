@@ -5,14 +5,14 @@
 package strconv_test
 
 import (
-	. "strconv";
-	"testing";
+	. "strconv"
+	"testing"
 )
 
 type itob64Test struct {
-	in	int64;
-	base	uint;
-	out	string;
+	in   int64
+	base uint
+	out  string
 }
 
 var itob64tests = []itob64Test{
@@ -59,14 +59,14 @@ var itob64tests = []itob64Test{
 
 func TestItoa(t *testing.T) {
 	for _, test := range itob64tests {
-		s := Itob64(test.in, test.base);
+		s := Itob64(test.in, test.base)
 		if s != test.out {
 			t.Errorf("Itob64(%v, %v) = %v want %v\n",
 				test.in, test.base, s, test.out)
 		}
 
 		if test.in >= 0 {
-			s := Uitob64(uint64(test.in), test.base);
+			s := Uitob64(uint64(test.in), test.base)
 			if s != test.out {
 				t.Errorf("Uitob64(%v, %v) = %v want %v\n",
 					test.in, test.base, s, test.out)
@@ -74,14 +74,14 @@ func TestItoa(t *testing.T) {
 		}
 
 		if int64(int(test.in)) == test.in {
-			s := Itob(int(test.in), test.base);
+			s := Itob(int(test.in), test.base)
 			if s != test.out {
 				t.Errorf("Itob(%v, %v) = %v want %v\n",
 					test.in, test.base, s, test.out)
 			}
 
 			if test.in >= 0 {
-				s := Uitob(uint(test.in), test.base);
+				s := Uitob(uint(test.in), test.base)
 				if s != test.out {
 					t.Errorf("Uitob(%v, %v) = %v want %v\n",
 						test.in, test.base, s, test.out)
@@ -90,14 +90,14 @@ func TestItoa(t *testing.T) {
 		}
 
 		if test.base == 10 {
-			s := Itoa64(test.in);
+			s := Itoa64(test.in)
 			if s != test.out {
 				t.Errorf("Itoa64(%v) = %v want %v\n",
 					test.in, s, test.out)
 			}
 
 			if test.in >= 0 {
-				s := Uitob64(uint64(test.in), test.base);
+				s := Uitob64(uint64(test.in), test.base)
 				if s != test.out {
 					t.Errorf("Uitob64(%v, %v) = %v want %v\n",
 						test.in, test.base, s, test.out)
@@ -105,14 +105,14 @@ func TestItoa(t *testing.T) {
 			}
 
 			if int64(int(test.in)) == test.in {
-				s := Itoa(int(test.in));
+				s := Itoa(int(test.in))
 				if s != test.out {
 					t.Errorf("Itoa(%v) = %v want %v\n",
 						test.in, s, test.out)
 				}
 
 				if test.in >= 0 {
-					s := Uitoa(uint(test.in));
+					s := Uitoa(uint(test.in))
 					if s != test.out {
 						t.Errorf("Uitoa(%v) = %v want %v\n",
 							test.in, s, test.out)
@@ -124,9 +124,9 @@ func TestItoa(t *testing.T) {
 }
 
 type uitob64Test struct {
-	in	uint64;
-	base	uint;
-	out	string;
+	in   uint64
+	base uint
+	out  string
 }
 
 var uitob64tests = []uitob64Test{
@@ -139,14 +139,14 @@ var uitob64tests = []uitob64Test{
 
 func TestUitoa(t *testing.T) {
 	for _, test := range uitob64tests {
-		s := Uitob64(test.in, test.base);
+		s := Uitob64(test.in, test.base)
 		if s != test.out {
 			t.Errorf("Uitob64(%v, %v) = %v want %v\n",
 				test.in, test.base, s, test.out)
 		}
 
 		if uint64(uint(test.in)) == test.in {
-			s := Uitob(uint(test.in), test.base);
+			s := Uitob(uint(test.in), test.base)
 			if s != test.out {
 				t.Errorf("Uitob(%v, %v) = %v want %v\n",
 					test.in, test.base, s, test.out)
@@ -154,14 +154,14 @@ func TestUitoa(t *testing.T) {
 		}
 
 		if test.base == 10 {
-			s := Uitoa64(test.in);
+			s := Uitoa64(test.in)
 			if s != test.out {
 				t.Errorf("Uitoa64(%v) = %v want %v\n",
 					test.in, s, test.out)
 			}
 
 			if uint64(uint(test.in)) == test.in {
-				s := Uitoa(uint(test.in));
+				s := Uitoa(uint(test.in))
 				if s != test.out {
 					t.Errorf("Uitoa(%v) = %v want %v\n",
 						test.in, s, test.out)

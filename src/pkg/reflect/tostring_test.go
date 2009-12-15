@@ -9,18 +9,18 @@
 package reflect_test
 
 import (
-	. "reflect";
-	"strconv";
+	. "reflect"
+	"strconv"
 )
 
 // valueToString returns a textual representation of the reflection value val.
 // For debugging only.
 func valueToString(val Value) string {
-	var str string;
+	var str string
 	if val == nil {
 		return "<nil>"
 	}
-	typ := val.Type();
+	typ := val.Type()
 	switch val := val.(type) {
 	case *IntValue:
 		return strconv.Uitoa64(uint64(val.Get()))
@@ -61,57 +61,57 @@ func valueToString(val Value) string {
 			return "false"
 		}
 	case *PtrValue:
-		v := val;
-		str = typ.String() + "(";
+		v := val
+		str = typ.String() + "("
 		if v.IsNil() {
 			str += "0"
 		} else {
 			str += "&" + valueToString(v.Elem())
 		}
-		str += ")";
-		return str;
+		str += ")"
+		return str
 	case ArrayOrSliceValue:
-		v := val;
-		str += typ.String();
-		str += "{";
+		v := val
+		str += typ.String()
+		str += "{"
 		for i := 0; i < v.Len(); i++ {
 			if i > 0 {
 				str += ", "
 			}
-			str += valueToString(v.Elem(i));
+			str += valueToString(v.Elem(i))
 		}
-		str += "}";
-		return str;
+		str += "}"
+		return str
 	case *MapValue:
-		t := typ.(*MapType);
-		str = t.String();
-		str += "{";
-		str += "<can't iterate on maps>";
-		str += "}";
-		return str;
+		t := typ.(*MapType)
+		str = t.String()
+		str += "{"
+		str += "<can't iterate on maps>"
+		str += "}"
+		return str
 	case *ChanValue:
-		str = typ.String();
-		return str;
+		str = typ.String()
+		return str
 	case *StructValue:
-		t := typ.(*StructType);
-		v := val;
-		str += t.String();
-		str += "{";
+		t := typ.(*StructType)
+		v := val
+		str += t.String()
+		str += "{"
 		for i, n := 0, v.NumField(); i < n; i++ {
 			if i > 0 {
 				str += ", "
 			}
-			str += valueToString(v.Field(i));
+			str += valueToString(v.Field(i))
 		}
-		str += "}";
-		return str;
+		str += "}"
+		return str
 	case *InterfaceValue:
 		return typ.String() + "(" + valueToString(val.Elem()) + ")"
 	case *FuncValue:
-		v := val;
-		return typ.String() + "(" + strconv.Itoa64(int64(v.Get())) + ")";
+		v := val
+		return typ.String() + "(" + strconv.Itoa64(int64(v.Get())) + ")"
 	default:
 		panicln("valueToString: can't print type ", typ.String())
 	}
-	return "valueToString: can't happen";
+	return "valueToString: can't happen"
 }

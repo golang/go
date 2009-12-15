@@ -5,7 +5,7 @@
 package rand
 
 import (
-	"math";
+	"math"
 )
 
 /*
@@ -17,7 +17,7 @@ import (
  */
 
 const (
-	re = 7.69711747013104972;
+	re = 7.69711747013104972
 )
 
 // ExpFloat64 returns an exponentially distributed float64 in the range
@@ -30,9 +30,9 @@ const (
 //
 func (r *Rand) ExpFloat64() float64 {
 	for {
-		j := r.Uint32();
-		i := j & 0xFF;
-		x := float64(j) * float64(we[i]);
+		j := r.Uint32()
+		i := j & 0xFF
+		x := float64(j) * float64(we[i])
 		if j < ke[i] {
 			return x
 		}
@@ -43,7 +43,7 @@ func (r *Rand) ExpFloat64() float64 {
 			return x
 		}
 	}
-	panic("unreachable");
+	panic("unreachable")
 }
 
 var ke = [256]uint32{
