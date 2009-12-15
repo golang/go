@@ -94,6 +94,12 @@ init1(Node *n, NodeList **out)
 				init1(l->n, out);
 			*out = list(*out, n->defn);
 			break;
+		
+		case OAS2MAPR:
+			for(l=n->defn->rlist; l; l=l->next)
+				init1(l->n, out);
+			*out = list(*out, n->defn);
+			break;
 		}
 	}
 	l = initlist;
