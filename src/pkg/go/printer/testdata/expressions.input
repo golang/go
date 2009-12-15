@@ -302,6 +302,18 @@ const (
 )
 
 
+// Correct placement of operators and comments in multi-line expressions
+func _() {
+	_ = a  // comment
+		+ b +  // comment
+		c;
+	_ = "a"	// comment
+		"b"	// comment
+		"c";
+	_ = "ba0408" "7265717569726564"     // field 71, encoding 2, string "required"
+}
+
+
 func same(t, u *Time) bool {
 	// respect source lines in multi-line expressions
 	return t.Year == u.Year &&

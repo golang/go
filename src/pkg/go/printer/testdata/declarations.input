@@ -45,6 +45,27 @@ import _ // a comment
 	"foo"
 import // a comment
 	"bar"
+import "foo"  // a comment
+import "bar"  // a comment
+
+import (
+	_ // a comment
+	"foo"
+	// a comment
+	"bar"
+	"foo"  // a comment
+	"bar"  // a comment
+)
+
+// a case that caused problems in the past (comment placement)
+import (
+	. "fmt";
+	"io";
+	"malloc";	// for the malloc count test only
+	"math";
+	"strings";
+	"testing";
+)
 
 
 // at least one empty line between declarations of different kind

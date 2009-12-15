@@ -42,7 +42,28 @@ import _ "fmt"
 
 // make sure a comment doesn't cause semicolons to be inserted
 import _ "foo"	// a comment
+import		// a comment
+"bar"
+import "foo"	// a comment
 import "bar"	// a comment
+
+import (
+	_ "foo" +	// a comment
+		// a comment
+		"bar" +
+		"foo" +	// a comment
+		"bar";	// a comment
+)
+
+// a case that caused problems in the past (comment placement)
+import (
+	. "fmt";
+	"io";
+	"malloc";	// for the malloc count test only
+	"math";
+	"strings";
+	"testing";
+)
 
 
 // at least one empty line between declarations of different kind
@@ -471,9 +492,11 @@ func _() int		{ type T struct{} }
 // making function declarations safe for new semicolon rules
 func _() { /* one-line func */ }
 
-func _() { // opening "{" must move up /* one-line func */ }
+func _() {	// opening "{" must move up
+	/* one-line func */ }
 
-func _() {	// opening "{" must move up// multi-line func
+func _() {	// opening "{" must move up
+	// multi-line func
 
 	// in the following declarations, a comment must not
 	// introduce a newline and thus cause a semicolon to
