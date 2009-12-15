@@ -9,32 +9,32 @@ package big
 // An Int represents a signed multi-precision integer.
 // The zero value for an Int represents the value 0.
 type Int struct {
-	neg	bool;	// sign
-	abs	[]Word;	// absolute value of the integer
+	neg bool   // sign
+	abs []Word // absolute value of the integer
 }
 
 
 // New allocates and returns a new Int set to x.
 func (z *Int) New(x int64) *Int {
-	z.neg = false;
+	z.neg = false
 	if x < 0 {
-		z.neg = true;
-		x = -x;
+		z.neg = true
+		x = -x
 	}
-	z.abs = newN(z.abs, uint64(x));
-	return z;
+	z.abs = newN(z.abs, uint64(x))
+	return z
 }
 
 
 // NewInt allocates and returns a new Int set to x.
-func NewInt(x int64) *Int	{ return new(Int).New(x) }
+func NewInt(x int64) *Int { return new(Int).New(x) }
 
 
 // Set sets z to x.
 func (z *Int) Set(x *Int) *Int {
-	z.neg = x.neg;
-	z.abs = setN(z.abs, x.abs);
-	return z;
+	z.neg = x.neg
+	z.abs = setN(z.abs, x.abs)
+	return z
 }
 
 
@@ -43,23 +43,23 @@ func (z *Int) Add(x, y *Int) *Int {
 	if x.neg == y.neg {
 		// x + y == x + y
 		// (-x) + (-y) == -(x + y)
-		z.neg = x.neg;
-		z.abs = addNN(z.abs, x.abs, y.abs);
+		z.neg = x.neg
+		z.abs = addNN(z.abs, x.abs, y.abs)
 	} else {
 		// x + (-y) == x - y == -(y - x)
 		// (-x) + y == y - x == -(x - y)
 		if cmpNN(x.abs, y.abs) >= 0 {
-			z.neg = x.neg;
-			z.abs = subNN(z.abs, x.abs, y.abs);
+			z.neg = x.neg
+			z.abs = subNN(z.abs, x.abs, y.abs)
 		} else {
-			z.neg = !x.neg;
-			z.abs = subNN(z.abs, y.abs, x.abs);
+			z.neg = !x.neg
+			z.abs = subNN(z.abs, y.abs, x.abs)
 		}
 	}
 	if len(z.abs) == 0 {
-		z.neg = false	// 0 has no sign
+		z.neg = false // 0 has no sign
 	}
-	return z;
+	return z
 }
 
 
@@ -68,23 +68,23 @@ func (z *Int) Sub(x, y *Int) *Int {
 	if x.neg != y.neg {
 		// x - (-y) == x + y
 		// (-x) - y == -(x + y)
-		z.neg = x.neg;
-		z.abs = addNN(z.abs, x.abs, y.abs);
+		z.neg = x.neg
+		z.abs = addNN(z.abs, x.abs, y.abs)
 	} else {
 		// x - y == x - y == -(y - x)
 		// (-x) - (-y) == y - x == -(x - y)
 		if cmpNN(x.abs, y.abs) >= 0 {
-			z.neg = x.neg;
-			z.abs = subNN(z.abs, x.abs, y.abs);
+			z.neg = x.neg
+			z.abs = subNN(z.abs, x.abs, y.abs)
 		} else {
-			z.neg = !x.neg;
-			z.abs = subNN(z.abs, y.abs, x.abs);
+			z.neg = !x.neg
+			z.abs = subNN(z.abs, y.abs, x.abs)
 		}
 	}
 	if len(z.abs) == 0 {
-		z.neg = false	// 0 has no sign
+		z.neg = false // 0 has no sign
 	}
-	return z;
+	return z
 }
 
 
@@ -94,43 +94,43 @@ func (z *Int) Mul(x, y *Int) *Int {
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
-	z.abs = mulNN(z.abs, x.abs, y.abs);
-	z.neg = len(z.abs) > 0 && x.neg != y.neg;	// 0 has no sign
-	return z;
+	z.abs = mulNN(z.abs, x.abs, y.abs)
+	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
+	return z
 }
 
 
 // Div calculates q = (x-r)/y where 0 <= r < y. The receiver is set to q.
 func (z *Int) Div(x, y *Int) (q, r *Int) {
-	q = z;
-	r = new(Int);
-	div(q, r, x, y);
-	return;
+	q = z
+	r = new(Int)
+	div(q, r, x, y)
+	return
 }
 
 
 // Mod calculates q = (x-r)/y and returns r.
 func (z *Int) Mod(x, y *Int) (r *Int) {
-	q := new(Int);
-	r = z;
-	div(q, r, x, y);
-	return;
+	q := new(Int)
+	r = z
+	div(q, r, x, y)
+	return
 }
 
 
 func div(q, r, x, y *Int) {
-	q.neg = x.neg != y.neg;
-	r.neg = x.neg;
-	q.abs, r.abs = divNN(q.abs, r.abs, x.abs, y.abs);
-	return;
+	q.neg = x.neg != y.neg
+	r.neg = x.neg
+	q.abs, r.abs = divNN(q.abs, r.abs, x.abs, y.abs)
+	return
 }
 
 
 // Neg computes z = -x.
 func (z *Int) Neg(x *Int) *Int {
-	z.abs = setN(z.abs, x.abs);
-	z.neg = len(z.abs) > 0 && !x.neg;	// 0 has no sign
-	return z;
+	z.abs = setN(z.abs, x.abs)
+	z.neg = len(z.abs) > 0 && !x.neg // 0 has no sign
+	return z
 }
 
 
@@ -147,7 +147,7 @@ func (x *Int) Cmp(y *Int) (r int) {
 	// (-x) cmp (-y) == -(x cmp y)
 	switch {
 	case x.neg == y.neg:
-		r = cmpNN(x.abs, y.abs);
+		r = cmpNN(x.abs, y.abs)
 		if x.neg {
 			r = -r
 		}
@@ -156,16 +156,16 @@ func (x *Int) Cmp(y *Int) (r int) {
 	default:
 		r = 1
 	}
-	return;
+	return
 }
 
 
 func (z *Int) String() string {
-	s := "";
+	s := ""
 	if z.neg {
 		s = "-"
 	}
-	return s + stringN(z.abs, 10);
+	return s + stringN(z.abs, 10)
 }
 
 
@@ -173,7 +173,7 @@ func (z *Int) String() string {
 // If base is 0 then SetString attempts to detect the base by at the prefix of
 // s. '0x' implies base 16, '0' implies base 8. Otherwise base 10 is assumed.
 func (z *Int) SetString(s string, base int) (*Int, bool) {
-	var scanned int;
+	var scanned int
 
 	if base == 1 || base > 16 {
 		goto Error
@@ -184,83 +184,83 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 	}
 
 	if s[0] == '-' {
-		z.neg = true;
-		s = s[1:];
+		z.neg = true
+		s = s[1:]
 	} else {
 		z.neg = false
 	}
 
-	z.abs, _, scanned = scanN(z.abs, s, base);
+	z.abs, _, scanned = scanN(z.abs, s, base)
 	if scanned != len(s) {
 		goto Error
 	}
 
-	return z, true;
+	return z, true
 
 Error:
-	z.neg = false;
-	z.abs = nil;
-	return nil, false;
+	z.neg = false
+	z.abs = nil
+	return nil, false
 }
 
 
 // SetBytes interprets b as the bytes of a big-endian, unsigned integer and
 // sets x to that value.
 func (z *Int) SetBytes(b []byte) *Int {
-	s := int(_S);
-	z.abs = makeN(z.abs, (len(b)+s-1)/s, false);
-	z.neg = false;
+	s := int(_S)
+	z.abs = makeN(z.abs, (len(b)+s-1)/s, false)
+	z.neg = false
 
-	j := 0;
+	j := 0
 	for len(b) >= s {
-		var w Word;
+		var w Word
 
 		for i := s; i > 0; i-- {
-			w <<= 8;
-			w |= Word(b[len(b)-i]);
+			w <<= 8
+			w |= Word(b[len(b)-i])
 		}
 
-		z.abs[j] = w;
-		j++;
-		b = b[0 : len(b)-s];
+		z.abs[j] = w
+		j++
+		b = b[0 : len(b)-s]
 	}
 
 	if len(b) > 0 {
-		var w Word;
+		var w Word
 
 		for i := len(b); i > 0; i-- {
-			w <<= 8;
-			w |= Word(b[len(b)-i]);
+			w <<= 8
+			w |= Word(b[len(b)-i])
 		}
 
-		z.abs[j] = w;
+		z.abs[j] = w
 	}
 
-	z.abs = normN(z.abs);
+	z.abs = normN(z.abs)
 
-	return z;
+	return z
 }
 
 
 // Bytes returns the absolute value of x as a big-endian byte array.
 func (z *Int) Bytes() []byte {
-	s := int(_S);
-	b := make([]byte, len(z.abs)*s);
+	s := int(_S)
+	b := make([]byte, len(z.abs)*s)
 
 	for i, w := range z.abs {
-		wordBytes := b[(len(z.abs)-i-1)*s : (len(z.abs)-i)*s];
+		wordBytes := b[(len(z.abs)-i-1)*s : (len(z.abs)-i)*s]
 		for j := s - 1; j >= 0; j-- {
-			wordBytes[j] = byte(w);
-			w >>= 8;
+			wordBytes[j] = byte(w)
+			w >>= 8
 		}
 	}
 
-	i := 0;
+	i := 0
 	for i < len(b) && b[i] == 0 {
 		i++
 	}
 
-	return b[i:];
+	return b[i:]
 }
 
 
@@ -271,7 +271,7 @@ func (z *Int) Len() int {
 		return 0
 	}
 
-	return len(z.abs)*_W - int(leadingZeros(z.abs[len(z.abs)-1]));
+	return len(z.abs)*_W - int(leadingZeros(z.abs[len(z.abs)-1]))
 }
 
 
@@ -279,19 +279,19 @@ func (z *Int) Len() int {
 // See Knuth, volume 2, section 4.6.3.
 func (z *Int) Exp(x, y, m *Int) *Int {
 	if y.neg || len(y.abs) == 0 {
-		z.New(1);
-		z.neg = x.neg;
-		return z;
+		z.New(1)
+		z.neg = x.neg
+		return z
 	}
 
-	var mWords []Word;
+	var mWords []Word
 	if m != nil {
 		mWords = m.abs
 	}
 
-	z.abs = expNNN(z.abs, x.abs, y.abs, mWords);
-	z.neg = x.neg && y.abs[0]&1 == 1;
-	return z;
+	z.abs = expNNN(z.abs, x.abs, y.abs, mWords)
+	z.neg = x.neg && y.abs[0]&1 == 1
+	return z
 }
 
 
@@ -301,44 +301,44 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 // If either a or b is not positive, GcdInt sets d = x = y = 0.
 func GcdInt(d, x, y, a, b *Int) {
 	if a.neg || b.neg {
-		d.New(0);
+		d.New(0)
 		if x != nil {
 			x.New(0)
 		}
 		if y != nil {
 			y.New(0)
 		}
-		return;
+		return
 	}
 
-	A := new(Int).Set(a);
-	B := new(Int).Set(b);
+	A := new(Int).Set(a)
+	B := new(Int).Set(b)
 
-	X := new(Int);
-	Y := new(Int).New(1);
+	X := new(Int)
+	Y := new(Int).New(1)
 
-	lastX := new(Int).New(1);
-	lastY := new(Int);
+	lastX := new(Int).New(1)
+	lastY := new(Int)
 
-	q := new(Int);
-	temp := new(Int);
+	q := new(Int)
+	temp := new(Int)
 
 	for len(B.abs) > 0 {
-		q, r := q.Div(A, B);
+		q, r := q.Div(A, B)
 
-		A, B = B, r;
+		A, B = B, r
 
-		temp.Set(X);
-		X.Mul(X, q);
-		X.neg = !X.neg;
-		X.Add(X, lastX);
-		lastX.Set(temp);
+		temp.Set(X)
+		X.Mul(X, q)
+		X.neg = !X.neg
+		X.Add(X, lastX)
+		lastX.Set(temp)
 
-		temp.Set(Y);
-		Y.Mul(Y, q);
-		Y.neg = !Y.neg;
-		Y.Add(Y, lastY);
-		lastY.Set(temp);
+		temp.Set(Y)
+		Y.Mul(Y, q)
+		Y.neg = !Y.neg
+		Y.Add(Y, lastY)
+		lastY.Set(temp)
 	}
 
 	if x != nil {
@@ -349,22 +349,22 @@ func GcdInt(d, x, y, a, b *Int) {
 		*y = *lastY
 	}
 
-	*d = *A;
+	*d = *A
 }
 
 
 // ProbablyPrime performs n Miller-Rabin tests to check whether z is prime.
 // If it returns true, z is prime with probability 1 - 1/4^n.
 // If it returns false, z is not prime.
-func ProbablyPrime(z *Int, reps int) bool	{ return !z.neg && probablyPrime(z.abs, reps) }
+func ProbablyPrime(z *Int, reps int) bool { return !z.neg && probablyPrime(z.abs, reps) }
 
 
 // Rsh sets z = x >> s and returns z.
 func (z *Int) Rsh(x *Int, n int) *Int {
-	removedWords := n / _W;
-	z.abs = makeN(z.abs, len(x.abs)-removedWords, false);
-	z.neg = x.neg;
-	shiftRight(z.abs, x.abs[removedWords:], n%_W);
-	z.abs = normN(z.abs);
-	return z;
+	removedWords := n / _W
+	z.abs = makeN(z.abs, len(x.abs)-removedWords, false)
+	z.neg = x.neg
+	shiftRight(z.abs, x.abs[removedWords:], n%_W)
+	z.abs = normN(z.abs)
+	return z
 }

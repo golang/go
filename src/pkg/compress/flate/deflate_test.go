@@ -5,27 +5,27 @@
 package flate
 
 import (
-	"bytes";
-	"fmt";
-	"io/ioutil";
-	"os";
-	"testing";
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"testing"
 )
 
 type deflateTest struct {
-	in	[]byte;
-	level	int;
-	out	[]byte;
+	in    []byte
+	level int
+	out   []byte
 }
 
 type deflateInflateTest struct {
-	in []byte;
+	in []byte
 }
 
 type reverseBitsTest struct {
-	in		uint16;
-	bitCount	uint8;
-	out		uint16;
+	in       uint16
+	bitCount uint8
+	out      uint16
 }
 
 var deflateTests = []*deflateTest{
@@ -70,19 +70,19 @@ var reverseBitsTests = []*reverseBitsTest{
 }
 
 func getLargeDataChunk() []byte {
-	result := make([]byte, 100000);
+	result := make([]byte, 100000)
 	for i := range result {
 		result[i] = byte(int64(i) * int64(i) & 0xFF)
 	}
-	return result;
+	return result
 }
 
 func TestDeflate(t *testing.T) {
 	for _, h := range deflateTests {
-		buffer := bytes.NewBuffer([]byte{});
-		w := NewDeflater(buffer, h.level);
-		w.Write(h.in);
-		w.Close();
+		buffer := bytes.NewBuffer([]byte{})
+		w := NewDeflater(buffer, h.level)
+		w.Write(h.in)
+		w.Close()
 		if bytes.Compare(buffer.Bytes(), h.out) != 0 {
 			t.Errorf("buffer is wrong; level = %v, buffer.Bytes() = %v, expected output = %v",
 				h.level, buffer.Bytes(), h.out)
@@ -91,21 +91,21 @@ func TestDeflate(t *testing.T) {
 }
 
 func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.Error {
-	buffer := bytes.NewBuffer([]byte{});
-	w := NewDeflater(buffer, level);
-	w.Write(input);
-	w.Close();
-	inflater := NewInflater(buffer);
-	decompressed, err := ioutil.ReadAll(inflater);
+	buffer := bytes.NewBuffer([]byte{})
+	w := NewDeflater(buffer, level)
+	w.Write(input)
+	w.Close()
+	inflater := NewInflater(buffer)
+	decompressed, err := ioutil.ReadAll(inflater)
 	if err != nil {
-		t.Errorf("reading inflater: %s", err);
-		return err;
+		t.Errorf("reading inflater: %s", err)
+		return err
 	}
-	inflater.Close();
+	inflater.Close()
 	if bytes.Compare(input, decompressed) != 0 {
 		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name)
 	}
-	return nil;
+	return nil
 }
 
 func testToFrom(t *testing.T, input []byte, name string) {
@@ -130,8 +130,8 @@ func TestReverseBits(t *testing.T) {
 }
 
 func TestDeflateInflateString(t *testing.T) {
-	gold := bytes.NewBufferString(getEdata()).Bytes();
-	testToFromWithLevel(t, 1, gold, "2.718281828...");
+	gold := bytes.NewBufferString(getEdata()).Bytes()
+	testToFromWithLevel(t, 1, gold, "2.718281828...")
 }
 
 func getEdata() string {

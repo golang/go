@@ -5,7 +5,7 @@
 package list
 
 import (
-	"testing";
+	"testing"
 )
 
 func checkListPointers(t *testing.T, l *List, es []*Element) {
@@ -13,7 +13,7 @@ func checkListPointers(t *testing.T, l *List, es []*Element) {
 		if l.front != nil || l.back != nil {
 			t.Errorf("l.front/l.back = %v/%v should be nil/nil", l.front, l.back)
 		}
-		return;
+		return
 	}
 
 	if l.front != es[0] {
@@ -24,8 +24,8 @@ func checkListPointers(t *testing.T, l *List, es []*Element) {
 	}
 
 	for i := 0; i < len(es); i++ {
-		e := es[i];
-		var e_prev, e_next *Element = nil, nil;
+		e := es[i]
+		var e_prev, e_next *Element = nil, nil
 		if i > 0 {
 			e_prev = es[i-1]
 		}
@@ -48,74 +48,74 @@ func checkListLen(t *testing.T, l *List, n int) {
 }
 
 func TestList(t *testing.T) {
-	l := New();
-	checkListPointers(t, l, []*Element{});
-	checkListLen(t, l, 0);
+	l := New()
+	checkListPointers(t, l, []*Element{})
+	checkListLen(t, l, 0)
 
 	// Single element list
-	e := l.PushFront("a");
-	checkListLen(t, l, 1);
-	checkListPointers(t, l, []*Element{e});
-	l.MoveToFront(e);
-	checkListPointers(t, l, []*Element{e});
-	l.MoveToBack(e);
-	checkListPointers(t, l, []*Element{e});
-	checkListLen(t, l, 1);
-	l.Remove(e);
-	checkListPointers(t, l, []*Element{});
-	checkListLen(t, l, 0);
+	e := l.PushFront("a")
+	checkListLen(t, l, 1)
+	checkListPointers(t, l, []*Element{e})
+	l.MoveToFront(e)
+	checkListPointers(t, l, []*Element{e})
+	l.MoveToBack(e)
+	checkListPointers(t, l, []*Element{e})
+	checkListLen(t, l, 1)
+	l.Remove(e)
+	checkListPointers(t, l, []*Element{})
+	checkListLen(t, l, 0)
 
 	// Bigger list
-	e2 := l.PushFront(2);
-	e1 := l.PushFront(1);
-	e3 := l.PushBack(3);
-	e4 := l.PushBack("banana");
-	checkListPointers(t, l, []*Element{e1, e2, e3, e4});
-	checkListLen(t, l, 4);
+	e2 := l.PushFront(2)
+	e1 := l.PushFront(1)
+	e3 := l.PushBack(3)
+	e4 := l.PushBack("banana")
+	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
+	checkListLen(t, l, 4)
 
-	l.Remove(e2);
-	checkListPointers(t, l, []*Element{e1, e3, e4});
-	checkListLen(t, l, 3);
+	l.Remove(e2)
+	checkListPointers(t, l, []*Element{e1, e3, e4})
+	checkListLen(t, l, 3)
 
-	l.MoveToFront(e3);	// move from middle
-	checkListPointers(t, l, []*Element{e3, e1, e4});
+	l.MoveToFront(e3) // move from middle
+	checkListPointers(t, l, []*Element{e3, e1, e4})
 
-	l.MoveToFront(e1);
-	l.MoveToBack(e3);	// move from middle
-	checkListPointers(t, l, []*Element{e1, e4, e3});
+	l.MoveToFront(e1)
+	l.MoveToBack(e3) // move from middle
+	checkListPointers(t, l, []*Element{e1, e4, e3})
 
-	l.MoveToFront(e3);	// move from back
-	checkListPointers(t, l, []*Element{e3, e1, e4});
-	l.MoveToFront(e3);	// should be no-op
-	checkListPointers(t, l, []*Element{e3, e1, e4});
+	l.MoveToFront(e3) // move from back
+	checkListPointers(t, l, []*Element{e3, e1, e4})
+	l.MoveToFront(e3) // should be no-op
+	checkListPointers(t, l, []*Element{e3, e1, e4})
 
-	l.MoveToBack(e3);	// move from front
-	checkListPointers(t, l, []*Element{e1, e4, e3});
-	l.MoveToBack(e3);	// should be no-op
-	checkListPointers(t, l, []*Element{e1, e4, e3});
+	l.MoveToBack(e3) // move from front
+	checkListPointers(t, l, []*Element{e1, e4, e3})
+	l.MoveToBack(e3) // should be no-op
+	checkListPointers(t, l, []*Element{e1, e4, e3})
 
-	e2 = l.InsertBefore(2, e1);	// insert before front
-	checkListPointers(t, l, []*Element{e2, e1, e4, e3});
-	l.Remove(e2);
-	e2 = l.InsertBefore(2, e4);	// insert before middle
-	checkListPointers(t, l, []*Element{e1, e2, e4, e3});
-	l.Remove(e2);
-	e2 = l.InsertBefore(2, e3);	// insert before back
-	checkListPointers(t, l, []*Element{e1, e4, e2, e3});
-	l.Remove(e2);
+	e2 = l.InsertBefore(2, e1) // insert before front
+	checkListPointers(t, l, []*Element{e2, e1, e4, e3})
+	l.Remove(e2)
+	e2 = l.InsertBefore(2, e4) // insert before middle
+	checkListPointers(t, l, []*Element{e1, e2, e4, e3})
+	l.Remove(e2)
+	e2 = l.InsertBefore(2, e3) // insert before back
+	checkListPointers(t, l, []*Element{e1, e4, e2, e3})
+	l.Remove(e2)
 
-	e2 = l.InsertAfter(2, e1);	// insert after front
-	checkListPointers(t, l, []*Element{e1, e2, e4, e3});
-	l.Remove(e2);
-	e2 = l.InsertAfter(2, e4);	// insert after middle
-	checkListPointers(t, l, []*Element{e1, e4, e2, e3});
-	l.Remove(e2);
-	e2 = l.InsertAfter(2, e3);	// insert after back
-	checkListPointers(t, l, []*Element{e1, e4, e3, e2});
-	l.Remove(e2);
+	e2 = l.InsertAfter(2, e1) // insert after front
+	checkListPointers(t, l, []*Element{e1, e2, e4, e3})
+	l.Remove(e2)
+	e2 = l.InsertAfter(2, e4) // insert after middle
+	checkListPointers(t, l, []*Element{e1, e4, e2, e3})
+	l.Remove(e2)
+	e2 = l.InsertAfter(2, e3) // insert after back
+	checkListPointers(t, l, []*Element{e1, e4, e3, e2})
+	l.Remove(e2)
 
 	// Check standard iteration.
-	sum := 0;
+	sum := 0
 	for e := range l.Iter() {
 		if i, ok := e.(int); ok {
 			sum += i
@@ -126,11 +126,11 @@ func TestList(t *testing.T) {
 	}
 
 	// Clear all elements by iterating
-	var next *Element;
+	var next *Element
 	for e := l.Front(); e != nil; e = next {
-		next = e.Next();
-		l.Remove(e);
+		next = e.Next()
+		l.Remove(e)
 	}
-	checkListPointers(t, l, []*Element{});
-	checkListLen(t, l, 0);
+	checkListPointers(t, l, []*Element{})
+	checkListLen(t, l, 0)
 }

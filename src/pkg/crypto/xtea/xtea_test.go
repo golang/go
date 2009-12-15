@@ -5,7 +5,7 @@
 package xtea
 
 import (
-	"testing";
+	"testing"
 )
 
 // A sample test key for when we just want to initialise a cipher
@@ -14,20 +14,20 @@ var testKey = []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
 // Test that the block size for XTEA is correct
 func TestBlocksize(t *testing.T) {
 	if BlockSize != 8 {
-		t.Errorf("BlockSize constant - expected 8, got %d", BlockSize);
-		return;
+		t.Errorf("BlockSize constant - expected 8, got %d", BlockSize)
+		return
 	}
 
-	c, err := NewCipher(testKey);
+	c, err := NewCipher(testKey)
 	if err != nil {
-		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err);
-		return;
+		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err)
+		return
 	}
 
-	result := c.BlockSize();
+	result := c.BlockSize()
 	if result != 8 {
-		t.Errorf("BlockSize function - expected 8, gotr %d", result);
-		return;
+		t.Errorf("BlockSize function - expected 8, gotr %d", result)
+		return
 	}
 }
 
@@ -45,16 +45,16 @@ var testTable = []uint32{
 
 // Test that the cipher context is initialised correctly
 func TestCipherInit(t *testing.T) {
-	c, err := NewCipher(testKey);
+	c, err := NewCipher(testKey)
 	if err != nil {
-		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err);
-		return;
+		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err)
+		return
 	}
 
 	for i := 0; i < len(c.table); i++ {
 		if c.table[i] != testTable[i] {
-			t.Errorf("NewCipher() failed to initialise Cipher.table[%d] correctly. Expected %08X, got %08X", i, testTable[i], c.table[i]);
-			break;
+			t.Errorf("NewCipher() failed to initialise Cipher.table[%d] correctly. Expected %08X, got %08X", i, testTable[i], c.table[i])
+			break
 		}
 	}
 }
@@ -65,17 +65,17 @@ func TestInvalidKeySize(t *testing.T) {
 	key := []byte{
 		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF,
 		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF,
-	};
+	}
 
-	_, err := NewCipher(key);
+	_, err := NewCipher(key)
 	if err == nil {
 		t.Errorf("Invalid key size %d didn't result in an error.", len(key))
 	}
 
 	// Test a short key
-	key = []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77};
+	key = []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77}
 
-	_, err = NewCipher(key);
+	_, err = NewCipher(key)
 	if err == nil {
 		t.Errorf("Invalid key size %d didn't result in an error.", len(key))
 	}
@@ -83,51 +83,51 @@ func TestInvalidKeySize(t *testing.T) {
 
 // Test that we can correctly decode some bytes we have encoded
 func TestEncodeDecode(t *testing.T) {
-	original := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
-	input := original;
-	output := make([]byte, BlockSize);
+	original := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF}
+	input := original
+	output := make([]byte, BlockSize)
 
-	c, err := NewCipher(testKey);
+	c, err := NewCipher(testKey)
 	if err != nil {
-		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err);
-		return;
+		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err)
+		return
 	}
 
 	// Encrypt the input block
-	c.Encrypt(input, output);
+	c.Encrypt(input, output)
 
 	// Check that the output does not match the input
-	differs := false;
+	differs := false
 	for i := 0; i < len(input); i++ {
 		if output[i] != input[i] {
-			differs = true;
-			break;
+			differs = true
+			break
 		}
 	}
 	if differs == false {
-		t.Error("Cipher.Encrypt: Failed to encrypt the input block.");
-		return;
+		t.Error("Cipher.Encrypt: Failed to encrypt the input block.")
+		return
 	}
 
 	// Decrypt the block we just encrypted
-	input = output;
-	output = make([]byte, BlockSize);
-	c.Decrypt(input, output);
+	input = output
+	output = make([]byte, BlockSize)
+	c.Decrypt(input, output)
 
 	// Check that the output from decrypt matches our initial input
 	for i := 0; i < len(input); i++ {
 		if output[i] != original[i] {
-			t.Errorf("Decrypted byte %d differed. Expected %02X, got %02X\n", i, original[i], output[i]);
-			return;
+			t.Errorf("Decrypted byte %d differed. Expected %02X, got %02X\n", i, original[i], output[i])
+			return
 		}
 	}
 }
 
 // Test Vectors
 type CryptTest struct {
-	key		[]byte;
-	plainText	[]byte;
-	cipherText	[]byte;
+	key        []byte
+	plainText  []byte
+	cipherText []byte
 }
 
 var CryptTests = []CryptTest{
@@ -189,19 +189,19 @@ var CryptTests = []CryptTest{
 // Test encryption
 func TestCipherEncrypt(t *testing.T) {
 	for i, tt := range CryptTests {
-		c, err := NewCipher(tt.key);
+		c, err := NewCipher(tt.key)
 		if err != nil {
-			t.Errorf("NewCipher(%d bytes), vector %d = %s", len(tt.key), i, err);
-			continue;
+			t.Errorf("NewCipher(%d bytes), vector %d = %s", len(tt.key), i, err)
+			continue
 		}
 
-		out := make([]byte, len(tt.plainText));
-		c.Encrypt(tt.plainText, out);
+		out := make([]byte, len(tt.plainText))
+		c.Encrypt(tt.plainText, out)
 
 		for j := 0; j < len(out); j++ {
 			if out[j] != tt.cipherText[j] {
-				t.Errorf("Cipher.Encrypt %d: out[%d] = %02X, expected %02X", i, j, out[j], tt.cipherText[j]);
-				break;
+				t.Errorf("Cipher.Encrypt %d: out[%d] = %02X, expected %02X", i, j, out[j], tt.cipherText[j])
+				break
 			}
 		}
 	}
@@ -210,19 +210,19 @@ func TestCipherEncrypt(t *testing.T) {
 // Test decryption
 func TestCipherDecrypt(t *testing.T) {
 	for i, tt := range CryptTests {
-		c, err := NewCipher(tt.key);
+		c, err := NewCipher(tt.key)
 		if err != nil {
-			t.Errorf("NewCipher(%d bytes), vector %d = %s", len(tt.key), i, err);
-			continue;
+			t.Errorf("NewCipher(%d bytes), vector %d = %s", len(tt.key), i, err)
+			continue
 		}
 
-		out := make([]byte, len(tt.cipherText));
-		c.Decrypt(tt.cipherText, out);
+		out := make([]byte, len(tt.cipherText))
+		c.Decrypt(tt.cipherText, out)
 
 		for j := 0; j < len(out); j++ {
 			if out[j] != tt.plainText[j] {
-				t.Errorf("Cipher.Decrypt %d: out[%d] = %02X, expected %02X", i, j, out[j], tt.plainText[j]);
-				break;
+				t.Errorf("Cipher.Decrypt %d: out[%d] = %02X, expected %02X", i, j, out[j], tt.plainText[j])
+				break
 			}
 		}
 	}
@@ -230,17 +230,17 @@ func TestCipherDecrypt(t *testing.T) {
 
 // Test resetting the cipher context
 func TestReset(t *testing.T) {
-	c, err := NewCipher(testKey);
+	c, err := NewCipher(testKey)
 	if err != nil {
-		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err);
-		return;
+		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err)
+		return
 	}
 
-	c.Reset();
+	c.Reset()
 	for i := 0; i < len(c.table); i++ {
 		if c.table[i] != 0 {
-			t.Errorf("Cipher.Reset: Failed to clear Cipher.table[%d]. expected 0, got %08X", i, c.table[i]);
-			return;
+			t.Errorf("Cipher.Reset: Failed to clear Cipher.table[%d]. expected 0, got %08X", i, c.table[i])
+			return
 		}
 	}
 }

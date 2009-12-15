@@ -12,31 +12,31 @@ import "fmt"
 // Rational represents a quotient a/b of arbitrary precision.
 //
 type Rational struct {
-	a	*Integer;	// numerator
-	b	Natural;	// denominator
+	a *Integer // numerator
+	b Natural  // denominator
 }
 
 
 // MakeRat makes a rational number given a numerator a and a denominator b.
 //
 func MakeRat(a *Integer, b Natural) *Rational {
-	f := a.mant.Gcd(b);	// f > 0
+	f := a.mant.Gcd(b) // f > 0
 	if f.Cmp(Nat(1)) != 0 {
-		a = MakeInt(a.sign, a.mant.Div(f));
-		b = b.Div(f);
+		a = MakeInt(a.sign, a.mant.Div(f))
+		b = b.Div(f)
 	}
-	return &Rational{a, b};
+	return &Rational{a, b}
 }
 
 
 // Rat creates a small rational number with value a0/b0.
 //
 func Rat(a0 int64, b0 int64) *Rational {
-	a, b := Int(a0), Int(b0);
+	a, b := Int(a0), Int(b0)
 	if b.sign {
 		a = a.Neg()
 	}
-	return MakeRat(a, b.mant);
+	return MakeRat(a, b.mant)
 }
 
 
@@ -51,30 +51,30 @@ func (x *Rational) Value() (numerator *Integer, denominator Natural) {
 
 // IsZero returns true iff x == 0.
 //
-func (x *Rational) IsZero() bool	{ return x.a.IsZero() }
+func (x *Rational) IsZero() bool { return x.a.IsZero() }
 
 
 // IsNeg returns true iff x < 0.
 //
-func (x *Rational) IsNeg() bool	{ return x.a.IsNeg() }
+func (x *Rational) IsNeg() bool { return x.a.IsNeg() }
 
 
 // IsPos returns true iff x > 0.
 //
-func (x *Rational) IsPos() bool	{ return x.a.IsPos() }
+func (x *Rational) IsPos() bool { return x.a.IsPos() }
 
 
 // IsInt returns true iff x can be written with a denominator 1
 // in the form x == x'/1; i.e., if x is an integer value.
 //
-func (x *Rational) IsInt() bool	{ return x.b.Cmp(Nat(1)) == 0 }
+func (x *Rational) IsInt() bool { return x.b.Cmp(Nat(1)) == 0 }
 
 
 // Operations
 
 // Neg returns the negated value of x.
 //
-func (x *Rational) Neg() *Rational	{ return MakeRat(x.a.Neg(), x.b) }
+func (x *Rational) Neg() *Rational { return MakeRat(x.a.Neg(), x.b) }
 
 
 // Add returns the sum x + y.
@@ -93,19 +93,19 @@ func (x *Rational) Sub(y *Rational) *Rational {
 
 // Mul returns the product x * y.
 //
-func (x *Rational) Mul(y *Rational) *Rational	{ return MakeRat(x.a.Mul(y.a), x.b.Mul(y.b)) }
+func (x *Rational) Mul(y *Rational) *Rational { return MakeRat(x.a.Mul(y.a), x.b.Mul(y.b)) }
 
 
 // Quo returns the quotient x / y for y != 0.
 // If y == 0, a division-by-zero run-time error occurs.
 //
 func (x *Rational) Quo(y *Rational) *Rational {
-	a := x.a.MulNat(y.b);
-	b := y.a.MulNat(x.b);
+	a := x.a.MulNat(y.b)
+	b := y.a.MulNat(x.b)
 	if b.IsNeg() {
 		a = a.Neg()
 	}
-	return MakeRat(a, b.mant);
+	return MakeRat(a, b.mant)
 }
 
 
@@ -115,7 +115,7 @@ func (x *Rational) Quo(y *Rational) *Rational {
 //   == 0 if x == y
 //   >  0 if x >  y
 //
-func (x *Rational) Cmp(y *Rational) int	{ return (x.a.MulNat(y.b)).Cmp(y.a.MulNat(x.b)) }
+func (x *Rational) Cmp(y *Rational) int { return (x.a.MulNat(y.b)).Cmp(y.a.MulNat(x.b)) }
 
 
 // ToString converts x to a string for a given base, with 2 <= base <= 16.
@@ -123,24 +123,24 @@ func (x *Rational) Cmp(y *Rational) int	{ return (x.a.MulNat(y.b)).Cmp(y.a.MulNa
 // it is of form "n/d".
 //
 func (x *Rational) ToString(base uint) string {
-	s := x.a.ToString(base);
+	s := x.a.ToString(base)
 	if !x.IsInt() {
 		s += "/" + x.b.ToString(base)
 	}
-	return s;
+	return s
 }
 
 
 // String converts x to its decimal string representation.
 // x.String() is the same as x.ToString(10).
 //
-func (x *Rational) String() string	{ return x.ToString(10) }
+func (x *Rational) String() string { return x.ToString(10) }
 
 
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
 //
-func (x *Rational) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
+func (x *Rational) Format(h fmt.State, c int) { fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
 
 
 // RatFromString returns the rational number corresponding to the
@@ -164,35 +164,35 @@ func (x *Rational) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(
 //
 func RatFromString(s string, base uint) (*Rational, uint, int) {
 	// read numerator
-	a, abase, alen := IntFromString(s, base);
-	b := Nat(1);
+	a, abase, alen := IntFromString(s, base)
+	b := Nat(1)
 
 	// read denominator or fraction, if any
-	var blen int;
+	var blen int
 	if alen < len(s) {
-		ch := s[alen];
+		ch := s[alen]
 		if ch == '/' {
-			alen++;
-			b, base, blen = NatFromString(s[alen:], base);
+			alen++
+			b, base, blen = NatFromString(s[alen:], base)
 		} else if ch == '.' {
-			alen++;
-			b, base, blen = NatFromString(s[alen:], abase);
-			assert(base == abase);
-			f := Nat(uint64(base)).Pow(uint(blen));
-			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
-			b = f;
+			alen++
+			b, base, blen = NatFromString(s[alen:], abase)
+			assert(base == abase)
+			f := Nat(uint64(base)).Pow(uint(blen))
+			a = MakeInt(a.sign, a.mant.Mul(f).Add(b))
+			b = f
 		}
 	}
 
 	// read exponent, if any
-	rlen := alen + blen;
+	rlen := alen + blen
 	if rlen < len(s) {
-		ch := s[rlen];
+		ch := s[rlen]
 		if ch == 'e' || ch == 'E' {
-			rlen++;
-			e, _, elen := IntFromString(s[rlen:], 10);
-			rlen += elen;
-			m := Nat(10).Pow(uint(e.mant.Value()));
+			rlen++
+			e, _, elen := IntFromString(s[rlen:], 10)
+			rlen += elen
+			m := Nat(10).Pow(uint(e.mant.Value()))
 			if e.sign {
 				b = b.Mul(m)
 			} else {
@@ -201,5 +201,5 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 		}
 	}
 
-	return MakeRat(a, b), base, rlen;
+	return MakeRat(a, b), base, rlen
 }

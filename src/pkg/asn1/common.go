@@ -5,9 +5,9 @@
 package asn1
 
 import (
-	"reflect";
-	"strconv";
-	"strings";
+	"reflect"
+	"strconv"
+	"strings"
 )
 
 // ASN.1 objects have metadata preceeding them:
@@ -19,28 +19,28 @@ import (
 // Here are some standard tags and classes
 
 const (
-	tagBoolean		= 1;
-	tagInteger		= 2;
-	tagBitString		= 3;
-	tagOctetString		= 4;
-	tagOID			= 6;
-	tagSequence		= 16;
-	tagSet			= 17;
-	tagPrintableString	= 19;
-	tagIA5String		= 22;
-	tagUTCTime		= 23;
+	tagBoolean         = 1
+	tagInteger         = 2
+	tagBitString       = 3
+	tagOctetString     = 4
+	tagOID             = 6
+	tagSequence        = 16
+	tagSet             = 17
+	tagPrintableString = 19
+	tagIA5String       = 22
+	tagUTCTime         = 23
 )
 
 const (
-	classUniversal		= 0;
-	classApplication	= 1;
-	classContextSpecific	= 2;
-	classPrivate		= 3;
+	classUniversal       = 0
+	classApplication     = 1
+	classContextSpecific = 2
+	classPrivate         = 3
 )
 
 type tagAndLength struct {
-	class, tag, length	int;
-	isCompound		bool;
+	class, tag, length int
+	isCompound         bool
 }
 
 // ASN.1 has IMPLICIT and EXPLICIT tags, which can be translated as "instead
@@ -63,11 +63,11 @@ type tagAndLength struct {
 
 // fieldParameters is the parsed representation of tag string from a structure field.
 type fieldParameters struct {
-	optional	bool;	// true iff the field is OPTIONAL
-	explicit	bool;	// true iff and EXPLICIT tag is in use.
-	defaultValue	*int64;	// a default value for INTEGER typed fields (maybe nil).
-	tag		*int;	// the EXPLICIT or IMPLICIT tag (maybe nil).
-	stringType	int;	// the string tag to use when marshaling.
+	optional     bool   // true iff the field is OPTIONAL
+	explicit     bool   // true iff and EXPLICIT tag is in use.
+	defaultValue *int64 // a default value for INTEGER typed fields (maybe nil).
+	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
+	stringType   int    // the string tag to use when marshaling.
 
 	// Invariants:
 	//   if explicit is set, tag is non-nil.
@@ -82,30 +82,30 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 		case part == "optional":
 			ret.optional = true
 		case part == "explicit":
-			ret.explicit = true;
+			ret.explicit = true
 			if ret.tag == nil {
-				ret.tag = new(int);
-				*ret.tag = 0;
+				ret.tag = new(int)
+				*ret.tag = 0
 			}
 		case part == "ia5":
 			ret.stringType = tagIA5String
 		case part == "printable":
 			ret.stringType = tagPrintableString
 		case strings.HasPrefix(part, "default:"):
-			i, err := strconv.Atoi64(part[8:]);
+			i, err := strconv.Atoi64(part[8:])
 			if err == nil {
-				ret.defaultValue = new(int64);
-				*ret.defaultValue = i;
+				ret.defaultValue = new(int64)
+				*ret.defaultValue = i
 			}
 		case strings.HasPrefix(part, "tag:"):
-			i, err := strconv.Atoi(part[4:]);
+			i, err := strconv.Atoi(part[4:])
 			if err == nil {
-				ret.tag = new(int);
-				*ret.tag = i;
+				ret.tag = new(int)
+				*ret.tag = i
 			}
 		}
 	}
-	return;
+	return
 }
 
 // Given a reflected Go type, getUniversalType returns the default tag number
@@ -132,9 +132,9 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 		if _, ok := t.(*reflect.SliceType).Elem().(*reflect.Uint8Type); ok {
 			return tagOctetString, false, true
 		}
-		return tagSequence, true, true;
+		return tagSequence, true, true
 	case *reflect.StringType:
 		return tagPrintableString, false, true
 	}
-	return 0, false, false;
+	return 0, false, false
 }

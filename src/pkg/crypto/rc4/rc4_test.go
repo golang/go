@@ -5,11 +5,11 @@
 package rc4
 
 import (
-	"testing";
+	"testing"
 )
 
 type rc4Test struct {
-	key, keystream []byte;
+	key, keystream []byte
 }
 
 var golden = []rc4Test{
@@ -41,18 +41,18 @@ var golden = []rc4Test{
 
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
-		g := golden[i];
-		c, err := NewCipher(g.key);
+		g := golden[i]
+		c, err := NewCipher(g.key)
 		if err != nil {
-			t.Errorf("Failed to create cipher at golden index %d", i);
-			return;
+			t.Errorf("Failed to create cipher at golden index %d", i)
+			return
 		}
-		keystream := make([]byte, len(g.keystream));
-		c.XORKeyStream(keystream);
+		keystream := make([]byte, len(g.keystream))
+		c.XORKeyStream(keystream)
 		for j, v := range keystream {
 			if g.keystream[j] != v {
-				t.Errorf("Failed at golden index %d", i);
-				break;
+				t.Errorf("Failed at golden index %d", i)
+				break
 			}
 		}
 	}

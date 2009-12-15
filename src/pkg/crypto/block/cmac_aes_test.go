@@ -7,14 +7,14 @@
 package block
 
 import (
-	"crypto/aes";
-	"testing";
+	"crypto/aes"
+	"testing"
 )
 
 type cmacAESTest struct {
-	key	[]byte;
-	in	[]byte;
-	digest	[]byte;
+	key    []byte
+	in     []byte
+	digest []byte
 }
 
 var cmacAESTests = []cmacAESTest{
@@ -109,22 +109,22 @@ var cmacAESTests = []cmacAESTest{
 
 func TestCMAC_AES(t *testing.T) {
 	for i, tt := range cmacAESTests {
-		c, err := aes.NewCipher(tt.key);
+		c, err := aes.NewCipher(tt.key)
 		if err != nil {
-			t.Errorf("test %d: NewCipher: %s", i, err);
-			continue;
+			t.Errorf("test %d: NewCipher: %s", i, err)
+			continue
 		}
-		d := NewCMAC(c);
-		n, err := d.Write(tt.in);
+		d := NewCMAC(c)
+		n, err := d.Write(tt.in)
 		if err != nil || n != len(tt.in) {
-			t.Errorf("test %d: Write %d: %d, %s", i, len(tt.in), n, err);
-			continue;
+			t.Errorf("test %d: Write %d: %d, %s", i, len(tt.in), n, err)
+			continue
 		}
-		sum := d.Sum();
+		sum := d.Sum()
 		if !same(sum, tt.digest) {
-			x := d.(*cmac);
-			t.Errorf("test %d: digest mismatch\n\twant %x\n\thave %x\n\tk1 %x\n\tk2 %x", i, tt.digest, sum, x.k1, x.k2);
-			continue;
+			x := d.(*cmac)
+			t.Errorf("test %d: digest mismatch\n\twant %x\n\thave %x\n\tk1 %x\n\tk2 %x", i, tt.digest, sum, x.k1, x.k2)
+			continue
 		}
 	}
 }

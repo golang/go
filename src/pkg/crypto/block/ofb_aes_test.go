@@ -11,18 +11,18 @@
 package block
 
 import (
-	"bytes";
-	"crypto/aes";
-	"io";
-	"testing";
+	"bytes"
+	"crypto/aes"
+	"io"
+	"testing"
 )
 
 type ofbTest struct {
-	name	string;
-	key	[]byte;
-	iv	[]byte;
-	in	[]byte;
-	out	[]byte;
+	name string
+	key  []byte
+	iv   []byte
+	in   []byte
+	out  []byte
 }
 
 var ofbAESTests = []ofbTest{
@@ -67,20 +67,20 @@ var ofbAESTests = []ofbTest{
 
 func TestOFB_AES(t *testing.T) {
 	for _, tt := range ofbAESTests {
-		test := tt.name;
+		test := tt.name
 
-		c, err := aes.NewCipher(tt.key);
+		c, err := aes.NewCipher(tt.key)
 		if err != nil {
-			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
-			continue;
+			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
+			continue
 		}
 
 		for j := 0; j <= 5; j += 5 {
-			var crypt bytes.Buffer;
-			in := tt.in[0 : len(tt.in)-j];
-			w := NewOFBWriter(c, tt.iv, &crypt);
-			var r io.Reader = bytes.NewBuffer(in);
-			n, err := io.Copy(w, r);
+			var crypt bytes.Buffer
+			in := tt.in[0 : len(tt.in)-j]
+			w := NewOFBWriter(c, tt.iv, &crypt)
+			var r io.Reader = bytes.NewBuffer(in)
+			n, err := io.Copy(w, r)
 			if n != int64(len(in)) || err != nil {
 				t.Errorf("%s/%d: OFBWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in))
 			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
@@ -89,11 +89,11 @@ func TestOFB_AES(t *testing.T) {
 		}
 
 		for j := 0; j <= 7; j += 7 {
-			var plain bytes.Buffer;
-			out := tt.out[0 : len(tt.out)-j];
-			r := NewOFBReader(c, tt.iv, bytes.NewBuffer(out));
-			w := &plain;
-			n, err := io.Copy(w, r);
+			var plain bytes.Buffer
+			out := tt.out[0 : len(tt.out)-j]
+			r := NewOFBReader(c, tt.iv, bytes.NewBuffer(out))
+			w := &plain
+			n, err := io.Copy(w, r)
 			if n != int64(len(out)) || err != nil {
 				t.Errorf("%s/%d: OFBReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out))
 			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {

@@ -8,16 +8,16 @@ package tar
 // - catch more errors (no first header, write after close, etc.)
 
 import (
-	"io";
-	"os";
-	"strconv";
-	"strings";
+	"io"
+	"os"
+	"strconv"
+	"strings"
 )
 
 var (
-	ErrWriteTooLong		= os.NewError("write too long");
-	ErrFieldTooLong		= os.NewError("header field too long");
-	ErrWriteAfterClose	= os.NewError("write after close");
+	ErrWriteTooLong    = os.NewError("write too long")
+	ErrFieldTooLong    = os.NewError("header field too long")
+	ErrWriteAfterClose = os.NewError("write after close")
 )
 
 // A Writer provides sequential writing of a tar archive in POSIX.1 format.
@@ -36,32 +36,32 @@ var (
 //	io.Copy(tw, data);
 //	tw.Close();
 type Writer struct {
-	w		io.Writer;
-	err		os.Error;
-	nb		int64;	// number of unwritten bytes for current file entry
-	pad		int64;	// amount of padding to write after current file entry
-	closed		bool;
-	usedBinary	bool;	// whether the binary numeric field extension was used
+	w          io.Writer
+	err        os.Error
+	nb         int64 // number of unwritten bytes for current file entry
+	pad        int64 // amount of padding to write after current file entry
+	closed     bool
+	usedBinary bool // whether the binary numeric field extension was used
 }
 
 // NewWriter creates a new Writer writing to w.
-func NewWriter(w io.Writer) *Writer	{ return &Writer{w: w} }
+func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 
 // Flush finishes writing the current file (optional).
 func (tw *Writer) Flush() os.Error {
-	n := tw.nb + tw.pad;
+	n := tw.nb + tw.pad
 	for n > 0 && tw.err == nil {
-		nr := n;
+		nr := n
 		if nr > blockSize {
 			nr = blockSize
 		}
-		var nw int;
-		nw, tw.err = tw.w.Write(zeroBlock[0:nr]);
-		n -= int64(nw);
+		var nw int
+		nw, tw.err = tw.w.Write(zeroBlock[0:nr])
+		n -= int64(nw)
 	}
-	tw.nb = 0;
-	tw.pad = 0;
-	return tw.err;
+	tw.nb = 0
+	tw.pad = 0
+	return tw.err
 }
 
 // Write s into b, terminating it with a NUL if there is room.
@@ -70,7 +70,7 @@ func (tw *Writer) cString(b []byte, s string) {
 		if tw.err == nil {
 			tw.err = ErrFieldTooLong
 		}
-		return;
+		return
 	}
 	for i, ch := range strings.Bytes(s) {
 		b[i] = ch
@@ -82,29 +82,29 @@ func (tw *Writer) cString(b []byte, s string) {
 
 // Encode x as an octal ASCII string and write it into b with leading zeros.
 func (tw *Writer) octal(b []byte, x int64) {
-	s := strconv.Itob64(x, 8);
+	s := strconv.Itob64(x, 8)
 	// leading zeros, but leave room for a NUL.
 	for len(s)+1 < len(b) {
 		s = "0" + s
 	}
-	tw.cString(b, s);
+	tw.cString(b, s)
 }
 
 // Write x into b, either as octal or as binary (GNUtar/star extension).
 func (tw *Writer) numeric(b []byte, x int64) {
 	// Try octal first.
-	s := strconv.Itob64(x, 8);
+	s := strconv.Itob64(x, 8)
 	if len(s) < len(b) {
-		tw.octal(b, x);
-		return;
+		tw.octal(b, x)
+		return
 	}
 	// Too big: use binary (big-endian).
-	tw.usedBinary = true;
+	tw.usedBinary = true
 	for i := len(b) - 1; x > 0 && i >= 0; i-- {
-		b[i] = byte(x);
-		x >>= 8;
+		b[i] = byte(x)
+		x >>= 8
 	}
-	b[0] |= 0x80;	// highest bit indicates binary format
+	b[0] |= 0x80 // highest bit indicates binary format
 }
 
 // WriteHeader writes hdr and prepares to accept the file's contents.
@@ -121,28 +121,28 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 		return tw.err
 	}
 
-	tw.nb = int64(hdr.Size);
-	tw.pad = -tw.nb & (blockSize - 1);	// blockSize is a power of two
+	tw.nb = int64(hdr.Size)
+	tw.pad = -tw.nb & (blockSize - 1) // blockSize is a power of two
 
-	header := make([]byte, blockSize);
-	s := slicer(header);
+	header := make([]byte, blockSize)
+	s := slicer(header)
 
 	// TODO(dsymonds): handle names longer than 100 chars
-	copy(s.next(100), strings.Bytes(hdr.Name));
+	copy(s.next(100), strings.Bytes(hdr.Name))
 
-	tw.octal(s.next(8), hdr.Mode);			// 100:108
-	tw.numeric(s.next(8), hdr.Uid);			// 108:116
-	tw.numeric(s.next(8), hdr.Gid);			// 116:124
-	tw.numeric(s.next(12), hdr.Size);		// 124:136
-	tw.numeric(s.next(12), hdr.Mtime);		// 136:148
-	s.next(8);					// chksum (148:156)
-	s.next(1)[0] = hdr.Typeflag;			// 156:157
-	s.next(100);					// linkname (157:257)
-	copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
-	tw.cString(s.next(32), hdr.Uname);		// 265:297
-	tw.cString(s.next(32), hdr.Gname);		// 297:329
-	tw.numeric(s.next(8), hdr.Devmajor);		// 329:337
-	tw.numeric(s.next(8), hdr.Devminor);		// 337:345
+	tw.octal(s.next(8), hdr.Mode)                 // 100:108
+	tw.numeric(s.next(8), hdr.Uid)                // 108:116
+	tw.numeric(s.next(8), hdr.Gid)                // 116:124
+	tw.numeric(s.next(12), hdr.Size)              // 124:136
+	tw.numeric(s.next(12), hdr.Mtime)             // 136:148
+	s.next(8)                                     // chksum (148:156)
+	s.next(1)[0] = hdr.Typeflag                   // 156:157
+	s.next(100)                                   // linkname (157:257)
+	copy(s.next(8), strings.Bytes("ustar\x0000")) // 257:265
+	tw.cString(s.next(32), hdr.Uname)             // 265:297
+	tw.cString(s.next(32), hdr.Gname)             // 297:329
+	tw.numeric(s.next(8), hdr.Devmajor)           // 329:337
+	tw.numeric(s.next(8), hdr.Devminor)           // 337:345
 
 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
 	if tw.usedBinary {
@@ -151,18 +151,18 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 
 	// The chksum field is terminated by a NUL and a space.
 	// This is different from the other octal fields.
-	chksum, _ := checksum(header);
-	tw.octal(header[148:155], chksum);
-	header[155] = ' ';
+	chksum, _ := checksum(header)
+	tw.octal(header[148:155], chksum)
+	header[155] = ' '
 
 	if tw.err != nil {
 		// problem with header; probably integer too big for a field.
 		return tw.err
 	}
 
-	_, tw.err = tw.w.Write(header);
+	_, tw.err = tw.w.Write(header)
 
-	return tw.err;
+	return tw.err
 }
 
 // Write writes to the current entry in the tar archive.
@@ -170,22 +170,22 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 // hdr.Size bytes are written after WriteHeader.
 func (tw *Writer) Write(b []byte) (n int, err os.Error) {
 	if tw.closed {
-		err = ErrWriteTooLong;
-		return;
+		err = ErrWriteTooLong
+		return
 	}
-	overwrite := false;
+	overwrite := false
 	if int64(len(b)) > tw.nb {
-		b = b[0:tw.nb];
-		overwrite = true;
+		b = b[0:tw.nb]
+		overwrite = true
 	}
-	n, err = tw.w.Write(b);
-	tw.nb -= int64(n);
+	n, err = tw.w.Write(b)
+	tw.nb -= int64(n)
 	if err == nil && overwrite {
-		err = ErrWriteTooLong;
-		return;
+		err = ErrWriteTooLong
+		return
 	}
-	tw.err = err;
-	return;
+	tw.err = err
+	return
 }
 
 // Close closes the tar archive, flushing any unwritten
@@ -194,15 +194,15 @@ func (tw *Writer) Close() os.Error {
 	if tw.err != nil || tw.closed {
 		return tw.err
 	}
-	tw.Flush();
-	tw.closed = true;
+	tw.Flush()
+	tw.closed = true
 
 	// trailer: two zero blocks
 	for i := 0; i < 2; i++ {
-		_, tw.err = tw.w.Write(zeroBlock);
+		_, tw.err = tw.w.Write(zeroBlock)
 		if tw.err != nil {
 			break
 		}
 	}
-	return tw.err;
+	return tw.err
 }

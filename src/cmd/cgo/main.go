@@ -11,12 +11,12 @@
 package main
 
 import (
-	"fmt";
-	"go/ast";
-	"os";
+	"fmt"
+	"go/ast"
+	"os"
 )
 
-func usage()	{ fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n") }
+func usage() { fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n") }
 
 var ptrSizeMap = map[string]int64{
 	"386": 4,
@@ -35,29 +35,29 @@ var expandName = map[string]string{
 }
 
 func main() {
-	args := os.Args;
+	args := os.Args
 	if len(args) < 2 {
-		usage();
-		os.Exit(2);
+		usage()
+		os.Exit(2)
 	}
-	gccOptions := args[1 : len(args)-1];
-	input := args[len(args)-1];
+	gccOptions := args[1 : len(args)-1]
+	input := args[len(args)-1]
 
-	arch := os.Getenv("GOARCH");
+	arch := os.Getenv("GOARCH")
 	if arch == "" {
 		fatal("$GOARCH is not set")
 	}
-	ptrSize, ok := ptrSizeMap[arch];
+	ptrSize, ok := ptrSizeMap[arch]
 	if !ok {
 		fatal("unknown architecture %s", arch)
 	}
 
 	// Clear locale variables so gcc emits English errors [sic].
-	os.Setenv("LANG", "en_US.UTF-8");
-	os.Setenv("LC_ALL", "C");
-	os.Setenv("LC_CTYPE", "C");
+	os.Setenv("LANG", "en_US.UTF-8")
+	os.Setenv("LC_ALL", "C")
+	os.Setenv("LC_CTYPE", "C")
 
-	p := openProg(input);
+	p := openProg(input)
 	for _, cref := range p.Crefs {
 		// Convert C.ulong to C.unsigned long, etc.
 		if expand, ok := expandName[cref.Name]; ok {
@@ -65,42 +65,42 @@ func main() {
 		}
 	}
 
-	p.PtrSize = ptrSize;
-	p.Preamble = p.Preamble + "\n" + builtinProlog;
-	p.GccOptions = gccOptions;
-	p.loadDebugInfo();
-	p.Vardef = make(map[string]*Type);
-	p.Funcdef = make(map[string]*FuncType);
+	p.PtrSize = ptrSize
+	p.Preamble = p.Preamble + "\n" + builtinProlog
+	p.GccOptions = gccOptions
+	p.loadDebugInfo()
+	p.Vardef = make(map[string]*Type)
+	p.Funcdef = make(map[string]*FuncType)
 
 	for _, cref := range p.Crefs {
 		switch cref.Context {
 		case "call":
 			if !cref.TypeName {
 				// Is an actual function call.
-				*cref.Expr = &ast.Ident{Value: "_C_" + cref.Name};
-				p.Funcdef[cref.Name] = cref.FuncType;
-				break;
+				*cref.Expr = &ast.Ident{Value: "_C_" + cref.Name}
+				p.Funcdef[cref.Name] = cref.FuncType
+				break
 			}
-			*cref.Expr = cref.Type.Go;
+			*cref.Expr = cref.Type.Go
 		case "expr":
 			if cref.TypeName {
 				error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
 			}
 			// Reference to C variable.
 			// We declare a pointer and arrange to have it filled in.
-			*cref.Expr = &ast.StarExpr{X: &ast.Ident{Value: "_C_" + cref.Name}};
-			p.Vardef[cref.Name] = cref.Type;
+			*cref.Expr = &ast.StarExpr{X: &ast.Ident{Value: "_C_" + cref.Name}}
+			p.Vardef[cref.Name] = cref.Type
 		case "type":
 			if !cref.TypeName {
 				error((*cref.Expr).Pos(), "expression C.%s used as type", cref.Name)
 			}
-			*cref.Expr = cref.Type.Go;
+			*cref.Expr = cref.Type.Go
 		}
 	}
 	if nerrors > 0 {
 		os.Exit(2)
 	}
 
-	p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package;
-	p.writeOutput(input);
+	p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package
+	p.writeOutput(input)
 }

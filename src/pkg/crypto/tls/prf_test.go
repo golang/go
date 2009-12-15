@@ -5,12 +5,12 @@
 package tls
 
 import (
-	"encoding/hex";
-	"testing";
+	"encoding/hex"
+	"testing"
 )
 
 type testSplitPreMasterSecretTest struct {
-	in, out1, out2 string;
+	in, out1, out2 string
 }
 
 var testSplitPreMasterSecretTests = []testSplitPreMasterSecretTest{
@@ -23,10 +23,10 @@ var testSplitPreMasterSecretTests = []testSplitPreMasterSecretTest{
 
 func TestSplitPreMasterSecret(t *testing.T) {
 	for i, test := range testSplitPreMasterSecretTests {
-		in, _ := hex.DecodeString(test.in);
-		out1, out2 := splitPreMasterSecret(in);
-		s1 := hex.EncodeToString(out1);
-		s2 := hex.EncodeToString(out2);
+		in, _ := hex.DecodeString(test.in)
+		out1, out2 := splitPreMasterSecret(in)
+		s1 := hex.EncodeToString(out1)
+		s2 := hex.EncodeToString(out2)
 		if s1 != test.out1 || s2 != test.out2 {
 			t.Errorf("#%d: got: (%s, %s) want: (%s, %s)", i, s1, s2, test.out1, test.out2)
 		}
@@ -34,25 +34,25 @@ func TestSplitPreMasterSecret(t *testing.T) {
 }
 
 type testKeysFromTest struct {
-	preMasterSecret			string;
-	clientRandom, serverRandom	string;
-	masterSecret			string;
-	clientMAC, serverMAC		string;
-	clientKey, serverKey		string;
-	macLen, keyLen			int;
+	preMasterSecret            string
+	clientRandom, serverRandom string
+	masterSecret               string
+	clientMAC, serverMAC       string
+	clientKey, serverKey       string
+	macLen, keyLen             int
 }
 
 func TestKeysFromPreMasterSecret(t *testing.T) {
 	for i, test := range testKeysFromTests {
-		in, _ := hex.DecodeString(test.preMasterSecret);
-		clientRandom, _ := hex.DecodeString(test.clientRandom);
-		serverRandom, _ := hex.DecodeString(test.serverRandom);
-		master, clientMAC, serverMAC, clientKey, serverKey := keysFromPreMasterSecret11(in, clientRandom, serverRandom, test.macLen, test.keyLen);
-		masterString := hex.EncodeToString(master);
-		clientMACString := hex.EncodeToString(clientMAC);
-		serverMACString := hex.EncodeToString(serverMAC);
-		clientKeyString := hex.EncodeToString(clientKey);
-		serverKeyString := hex.EncodeToString(serverKey);
+		in, _ := hex.DecodeString(test.preMasterSecret)
+		clientRandom, _ := hex.DecodeString(test.clientRandom)
+		serverRandom, _ := hex.DecodeString(test.serverRandom)
+		master, clientMAC, serverMAC, clientKey, serverKey := keysFromPreMasterSecret11(in, clientRandom, serverRandom, test.macLen, test.keyLen)
+		masterString := hex.EncodeToString(master)
+		clientMACString := hex.EncodeToString(clientMAC)
+		serverMACString := hex.EncodeToString(serverMAC)
+		clientKeyString := hex.EncodeToString(clientKey)
+		serverKeyString := hex.EncodeToString(serverKey)
 		if masterString != test.masterSecret ||
 			clientMACString != test.clientMAC ||
 			serverMACString != test.serverMAC ||

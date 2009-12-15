@@ -6,7 +6,7 @@ package vector
 
 // StringVector is a specialization of Vector that hides the wrapping of Elements around strings.
 type StringVector struct {
-	Vector;
+	Vector
 }
 
 
@@ -16,34 +16,34 @@ type StringVector struct {
 // Resize adds "" elements. The capacity parameter is ignored unless the
 // new length or capacity is longer that the current capacity.
 func (p *StringVector) Resize(length, capacity int) *StringVector {
-	i := p.Len();
-	p.Vector.Resize(length, capacity);
+	i := p.Len()
+	p.Vector.Resize(length, capacity)
 	for a := p.a; i < len(a); i++ {
 		a[i] = ""
 	}
-	return p;
+	return p
 }
 
 
 // At returns the i'th element of the vector.
-func (p *StringVector) At(i int) string	{ return p.Vector.At(i).(string) }
+func (p *StringVector) At(i int) string { return p.Vector.At(i).(string) }
 
 
 // Set sets the i'th element of the vector to value x.
-func (p *StringVector) Set(i int, x string)	{ p.a[i] = x }
+func (p *StringVector) Set(i int, x string) { p.a[i] = x }
 
 
 // Last returns the element in the vector of highest index.
-func (p *StringVector) Last() string	{ return p.Vector.Last().(string) }
+func (p *StringVector) Last() string { return p.Vector.Last().(string) }
 
 
 // Data returns all the elements as a slice.
 func (p *StringVector) Data() []string {
-	arr := make([]string, p.Len());
+	arr := make([]string, p.Len())
 	for i, v := range p.a {
 		arr[i] = v.(string)
 	}
-	return arr;
+	return arr
 }
 
 
@@ -69,11 +69,11 @@ func (p *StringVector) Slice(i, j int) *StringVector {
 
 
 // Push appends x to the end of the vector.
-func (p *StringVector) Push(x string)	{ p.Vector.Push(x) }
+func (p *StringVector) Push(x string) { p.Vector.Push(x) }
 
 
 // Pop deletes and returns the last element of the vector.
-func (p *StringVector) Pop() string	{ return p.Vector.Pop().(string) }
+func (p *StringVector) Pop() string { return p.Vector.Pop().(string) }
 
 
 // AppendVector appends the entire StringVector x to the end of this vector.
@@ -84,7 +84,7 @@ func (p *StringVector) AppendVector(x *StringVector) {
 
 // sort.Interface support
 // Less returns a boolean denoting whether the i'th element is less than the j'th element.
-func (p *StringVector) Less(i, j int) bool	{ return p.At(i) < p.At(j) }
+func (p *StringVector) Less(i, j int) bool { return p.At(i) < p.At(j) }
 
 
 // Iterate over all elements; driver for range
@@ -92,13 +92,13 @@ func (p *StringVector) iterate(c chan<- string) {
 	for _, v := range p.a {
 		c <- v.(string)
 	}
-	close(c);
+	close(c)
 }
 
 
 // Channel iterator for range.
 func (p *StringVector) Iter() <-chan string {
-	c := make(chan string);
-	go p.iterate(c);
-	return c;
+	c := make(chan string)
+	go p.iterate(c)
+	return c
 }

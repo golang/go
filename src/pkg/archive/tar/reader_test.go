@@ -5,20 +5,20 @@
 package tar
 
 import (
-	"bytes";
-	"crypto/md5";
-	"fmt";
-	"io";
-	"os";
-	"reflect";
-	"strings";
-	"testing";
+	"bytes"
+	"crypto/md5"
+	"fmt"
+	"io"
+	"os"
+	"reflect"
+	"strings"
+	"testing"
 )
 
 type untarTest struct {
-	file	string;
-	headers	[]*Header;
-	cksums	[]string;
+	file    string
+	headers []*Header
+	cksums  []string
 }
 
 var gnuTarTest = &untarTest{
@@ -114,50 +114,50 @@ var untarTests = []*untarTest{
 func TestReader(t *testing.T) {
 testLoop:
 	for i, test := range untarTests {
-		f, err := os.Open(test.file, os.O_RDONLY, 0444);
+		f, err := os.Open(test.file, os.O_RDONLY, 0444)
 		if err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err);
-			continue;
+			t.Errorf("test %d: Unexpected error: %v", i, err)
+			continue
 		}
-		tr := NewReader(f);
+		tr := NewReader(f)
 		for j, header := range test.headers {
-			hdr, err := tr.Next();
+			hdr, err := tr.Next()
 			if err != nil || hdr == nil {
-				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err);
-				f.Close();
-				continue testLoop;
+				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err)
+				f.Close()
+				continue testLoop
 			}
 			if !reflect.DeepEqual(hdr, header) {
 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
 					i, j, *hdr, *header)
 			}
 		}
-		hdr, err := tr.Next();
+		hdr, err := tr.Next()
 		if err == os.EOF {
 			break
 		}
 		if hdr != nil || err != nil {
 			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err)
 		}
-		f.Close();
+		f.Close()
 	}
 }
 
 func TestPartialRead(t *testing.T) {
-	f, err := os.Open("testdata/gnu.tar", os.O_RDONLY, 0444);
+	f, err := os.Open("testdata/gnu.tar", os.O_RDONLY, 0444)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	defer f.Close();
+	defer f.Close()
 
-	tr := NewReader(f);
+	tr := NewReader(f)
 
 	// Read the first four bytes; Next() should skip the last byte.
-	hdr, err := tr.Next();
+	hdr, err := tr.Next()
 	if err != nil || hdr == nil {
 		t.Fatalf("Didn't get first file: %v", err)
 	}
-	buf := make([]byte, 4);
+	buf := make([]byte, 4)
 	if _, err := io.ReadFull(tr, buf); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -166,11 +166,11 @@ func TestPartialRead(t *testing.T) {
 	}
 
 	// Second file
-	hdr, err = tr.Next();
+	hdr, err = tr.Next()
 	if err != nil || hdr == nil {
 		t.Fatalf("Didn't get second file: %v", err)
 	}
-	buf = make([]byte, 6);
+	buf = make([]byte, 6)
 	if _, err := io.ReadFull(tr, buf); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -181,22 +181,22 @@ func TestPartialRead(t *testing.T) {
 
 
 func TestIncrementalRead(t *testing.T) {
-	test := gnuTarTest;
-	f, err := os.Open(test.file, os.O_RDONLY, 0444);
+	test := gnuTarTest
+	f, err := os.Open(test.file, os.O_RDONLY, 0444)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	defer f.Close();
+	defer f.Close()
 
-	tr := NewReader(f);
+	tr := NewReader(f)
 
-	headers := test.headers;
-	cksums := test.cksums;
-	nread := 0;
+	headers := test.headers
+	cksums := test.cksums
+	nread := 0
 
 	// loop over all files
 	for ; ; nread++ {
-		hdr, err := tr.Next();
+		hdr, err := tr.Next()
 		if hdr == nil || err == os.EOF {
 			break
 		}
@@ -209,22 +209,22 @@ func TestIncrementalRead(t *testing.T) {
 
 		// read file contents in little chunks EOF,
 		// checksumming all the way
-		h := md5.New();
-		rdbuf := make([]uint8, 8);
+		h := md5.New()
+		rdbuf := make([]uint8, 8)
 		for {
-			nr, err := tr.Read(rdbuf);
+			nr, err := tr.Read(rdbuf)
 			if err == os.EOF {
 				break
 			}
 			if err != nil {
-				t.Errorf("Read: unexpected error %v\n", err);
-				break;
+				t.Errorf("Read: unexpected error %v\n", err)
+				break
 			}
-			h.Write(rdbuf[0:nr]);
+			h.Write(rdbuf[0:nr])
 		}
 		// verify checksum
-		have := fmt.Sprintf("%x", h.Sum());
-		want := cksums[nread];
+		have := fmt.Sprintf("%x", h.Sum())
+		want := cksums[nread]
 		if want != have {
 			t.Errorf("Bad checksum on file %s:\nhave %+v\nwant %+v", hdr.Name, have, want)
 		}
@@ -235,35 +235,35 @@ func TestIncrementalRead(t *testing.T) {
 }
 
 func TestNonSeekable(t *testing.T) {
-	test := gnuTarTest;
-	f, err := os.Open(test.file, os.O_RDONLY, 0444);
+	test := gnuTarTest
+	f, err := os.Open(test.file, os.O_RDONLY, 0444)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	defer f.Close();
+	defer f.Close()
 
 	// pipe the data in
-	r, w, err := os.Pipe();
+	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("Unexpected error %s", err)
 	}
 	go func() {
-		rdbuf := make([]uint8, 1<<16);
+		rdbuf := make([]uint8, 1<<16)
 		for {
-			nr, err := f.Read(rdbuf);
-			w.Write(rdbuf[0:nr]);
+			nr, err := f.Read(rdbuf)
+			w.Write(rdbuf[0:nr])
 			if err == os.EOF {
 				break
 			}
 		}
-		w.Close();
-	}();
+		w.Close()
+	}()
 
-	tr := NewReader(r);
-	nread := 0;
+	tr := NewReader(r)
+	nread := 0
 
 	for ; ; nread++ {
-		hdr, err := tr.Next();
+		hdr, err := tr.Next()
 		if hdr == nil || err == os.EOF {
 			break
 		}

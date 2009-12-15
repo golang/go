@@ -8,21 +8,21 @@ func min(left int, right int) int {
 	if left < right {
 		return left
 	}
-	return right;
+	return right
 }
 
 func minInt32(left int32, right int32) int32 {
 	if left < right {
 		return left
 	}
-	return right;
+	return right
 }
 
 func max(left int, right int) int {
 	if left > right {
 		return left
 	}
-	return right;
+	return right
 }
 
 func fillInts(a []int, value int) {
@@ -56,17 +56,17 @@ func fillUint8s(a []uint8, value uint8) {
 }
 
 func copyInt8s(dst []int8, src []int8) int {
-	cnt := min(len(dst), len(src));
+	cnt := min(len(dst), len(src))
 	for i := 0; i < cnt; i++ {
 		dst[i] = src[i]
 	}
-	return cnt;
+	return cnt
 }
 
 func copyUint8s(dst []uint8, src []uint8) int {
-	cnt := min(len(dst), len(src));
+	cnt := min(len(dst), len(src))
 	for i := 0; i < cnt; i++ {
 		dst[i] = src[i]
 	}
-	return cnt;
+	return cnt
 }

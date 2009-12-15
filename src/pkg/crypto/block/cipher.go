@@ -14,27 +14,27 @@ package block
 // extend that capability to streams of blocks.
 type Cipher interface {
 	// BlockSize returns the cipher's block size.
-	BlockSize() int;
+	BlockSize() int
 
 	// Encrypt encrypts the first block in src into dst.
 	// Src and dst may point at the same memory.
-	Encrypt(src, dst []byte);
+	Encrypt(src, dst []byte)
 
 	// Decrypt decrypts the first block in src into dst.
 	// Src and dst may point at the same memory.
-	Decrypt(src, dst []byte);
+	Decrypt(src, dst []byte)
 }
 
 // Utility routines
 
 func shift1(src, dst []byte) byte {
-	var b byte;
+	var b byte
 	for i := len(src) - 1; i >= 0; i-- {
-		bb := src[i] >> 7;
-		dst[i] = src[i]<<1 | b;
-		b = bb;
+		bb := src[i] >> 7
+		dst[i] = src[i]<<1 | b
+		b = bb
 	}
-	return b;
+	return b
 }
 
 func same(p, q []byte) bool {
@@ -46,13 +46,13 @@ func same(p, q []byte) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 func copy(p []byte) []byte {
-	q := make([]byte, len(p));
+	q := make([]byte, len(p))
 	for i, b := range p {
 		q[i] = b
 	}
-	return q;
+	return q
 }

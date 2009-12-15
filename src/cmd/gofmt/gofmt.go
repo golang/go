@@ -5,65 +5,65 @@
 package main
 
 import (
-	"bytes";
-	oldParser "exp/parser";
-	"flag";
-	"fmt";
-	"go/ast";
-	"go/parser";
-	"go/printer";
-	"go/scanner";
-	"io/ioutil";
-	"os";
-	pathutil "path";
-	"strings";
+	"bytes"
+	oldParser "exp/parser"
+	"flag"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/printer"
+	"go/scanner"
+	"io/ioutil"
+	"os"
+	pathutil "path"
+	"strings"
 )
 
 
 var (
 	// main operation modes
-	list		= flag.Bool("l", false, "list files whose formatting differs from gofmt's");
-	write		= flag.Bool("w", false, "write result to (source) file instead of stdout");
-	rewriteRule	= flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')");
+	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
+	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
+	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
 
 	// debugging support
-	comments	= flag.Bool("comments", true, "print comments");
-	trace		= flag.Bool("trace", false, "print parse trace");
+	comments = flag.Bool("comments", true, "print comments")
+	trace    = flag.Bool("trace", false, "print parse trace")
 
 	// layout control
-	tabWidth	= flag.Int("tabwidth", 8, "tab width");
-	tabIndent	= flag.Bool("tabindent", false, "indent with tabs independent of -spaces");
-	useSpaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
+	tabWidth  = flag.Int("tabwidth", 8, "tab width")
+	tabIndent = flag.Bool("tabindent", true, "indent with tabs independent of -spaces")
+	useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
 
 	// semicolon transition
-	useOldParser	= flag.Bool("oldparser", true, "parse old syntax (required semicolons)");
-	useOldPrinter	= flag.Bool("oldprinter", true, "print old syntax (required semicolons)");
+	useOldParser  = flag.Bool("oldparser", false, "parse old syntax (required semicolons)")
+	useOldPrinter = flag.Bool("oldprinter", false, "print old syntax (required semicolons)")
 )
 
 
 var (
-	exitCode	= 0;
-	rewrite		func(*ast.File) *ast.File;
-	parserMode	uint;
-	printerMode	uint;
+	exitCode    = 0
+	rewrite     func(*ast.File) *ast.File
+	parserMode  uint
+	printerMode uint
 )
 
 
 func report(err os.Error) {
-	scanner.PrintError(os.Stderr, err);
-	exitCode = 2;
+	scanner.PrintError(os.Stderr, err)
+	exitCode = 2
 }
 
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [path ...]\n");
-	flag.PrintDefaults();
-	os.Exit(2);
+	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [path ...]\n")
+	flag.PrintDefaults()
+	os.Exit(2)
 }
 
 
 func initParserMode() {
-	parserMode = uint(0);
+	parserMode = uint(0)
 	if *comments {
 		parserMode |= parser.ParseComments
 	}
@@ -74,7 +74,7 @@ func initParserMode() {
 
 
 func initPrinterMode() {
-	printerMode = uint(0);
+	printerMode = uint(0)
 	if *tabIndent {
 		printerMode |= printer.TabIndent
 	}
@@ -94,12 +94,12 @@ func isGoFile(d *os.Dir) bool {
 
 
 func processFile(f *os.File) os.Error {
-	src, err := ioutil.ReadAll(f);
+	src, err := ioutil.ReadAll(f)
 	if err != nil {
 		return err
 	}
 
-	var file *ast.File;
+	var file *ast.File
 	if *useOldParser {
 		file, err = oldParser.ParseFile(f.Name(), src, parserMode)
 	} else {
@@ -113,8 +113,8 @@ func processFile(f *os.File) os.Error {
 		file = rewrite(file)
 	}
 
-	var res bytes.Buffer;
-	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, file);
+	var res bytes.Buffer
+	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, file)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func processFile(f *os.File) os.Error {
 			fmt.Fprintln(os.Stdout, f.Name())
 		}
 		if *write {
-			err = ioutil.WriteFile(f.Name(), res.Bytes(), 0);
+			err = ioutil.WriteFile(f.Name(), res.Bytes(), 0)
 			if err != nil {
 				return err
 			}
@@ -136,17 +136,17 @@ func processFile(f *os.File) os.Error {
 		_, err = os.Stdout.Write(res.Bytes())
 	}
 
-	return err;
+	return err
 }
 
 
 func processFileByName(filename string) (err os.Error) {
-	file, err := os.Open(filename, os.O_RDONLY, 0);
+	file, err := os.Open(filename, os.O_RDONLY, 0)
 	if err != nil {
 		return
 	}
-	defer file.Close();
-	return processFile(file);
+	defer file.Close()
+	return processFile(file)
 }
 
 
@@ -159,7 +159,7 @@ func (v fileVisitor) VisitDir(path string, d *os.Dir) bool {
 
 func (v fileVisitor) VisitFile(path string, d *os.Dir) {
 	if isGoFile(d) {
-		v <- nil;	// synchronize error handler
+		v <- nil // synchronize error handler
 		if err := processFileByName(path); err != nil {
 			v <- err
 		}
@@ -169,34 +169,34 @@ func (v fileVisitor) VisitFile(path string, d *os.Dir) {
 
 func walkDir(path string) {
 	// start an error handler
-	done := make(chan bool);
-	v := make(fileVisitor);
+	done := make(chan bool)
+	v := make(fileVisitor)
 	go func() {
 		for err := range v {
 			if err != nil {
 				report(err)
 			}
 		}
-		done <- true;
-	}();
+		done <- true
+	}()
 	// walk the tree
-	pathutil.Walk(path, v, v);
-	close(v);	// terminate error handler loop
-	<-done;		// wait for all errors to be reported
+	pathutil.Walk(path, v, v)
+	close(v) // terminate error handler loop
+	<-done   // wait for all errors to be reported
 }
 
 
 func main() {
-	flag.Usage = usage;
-	flag.Parse();
+	flag.Usage = usage
+	flag.Parse()
 	if *tabWidth < 0 {
-		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabWidth);
-		os.Exit(2);
+		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabWidth)
+		os.Exit(2)
 	}
 
-	initParserMode();
-	initPrinterMode();
-	initRewrite();
+	initParserMode()
+	initPrinterMode()
+	initRewrite()
 
 	if flag.NArg() == 0 {
 		if err := processFile(os.Stdin); err != nil {
@@ -205,7 +205,7 @@ func main() {
 	}
 
 	for i := 0; i < flag.NArg(); i++ {
-		path := flag.Arg(i);
+		path := flag.Arg(i)
 		switch dir, err := os.Stat(path); {
 		case err != nil:
 			report(err)
@@ -218,5 +218,5 @@ func main() {
 		}
 	}
 
-	os.Exit(exitCode);
+	os.Exit(exitCode)
 }

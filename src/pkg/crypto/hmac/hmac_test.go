@@ -5,17 +5,17 @@
 package hmac
 
 import (
-	"hash";
-	"fmt";
-	"strings";
-	"testing";
+	"hash"
+	"fmt"
+	"strings"
+	"testing"
 )
 
 type hmacTest struct {
-	hash	func([]byte) hash.Hash;
-	key	[]byte;
-	in	[]byte;
-	out	string;
+	hash func([]byte) hash.Hash
+	key  []byte
+	in   []byte
+	out  string
 }
 
 // Tests from US FIPS 198
@@ -78,20 +78,20 @@ var hmacTests = []hmacTest{
 
 func TestHMAC(t *testing.T) {
 	for i, tt := range hmacTests {
-		h := tt.hash(tt.key);
+		h := tt.hash(tt.key)
 		for j := 0; j < 2; j++ {
-			n, err := h.Write(tt.in);
+			n, err := h.Write(tt.in)
 			if n != len(tt.in) || err != nil {
-				t.Errorf("test %d.%d: Write(%d) = %d, %v", i, j, len(tt.in), n, err);
-				continue;
+				t.Errorf("test %d.%d: Write(%d) = %d, %v", i, j, len(tt.in), n, err)
+				continue
 			}
-			sum := fmt.Sprintf("%x", h.Sum());
+			sum := fmt.Sprintf("%x", h.Sum())
 			if sum != tt.out {
 				t.Errorf("test %d.%d: have %s want %s\n", i, j, sum, tt.out)
 			}
 
 			// Second iteration: make sure reset works.
-			h.Reset();
+			h.Reset()
 		}
 	}
 }

@@ -84,7 +84,7 @@ func sliceslice1(old []any, lb int, width int) (ary []any)
 func sliceslice(old []any, lb int, hb int, width int) (ary []any)
 func slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
 
-func closure()	// has args, but compiler fills in
+func closure() // has args, but compiler fills in
 
 // only used on 32-bit
 func int64div(int64, int64) int64

@@ -5,21 +5,21 @@
 package block
 
 import (
-	"bytes";
-	"crypto/aes";
-	"fmt";
-	"io";
-	"testing";
+	"bytes"
+	"crypto/aes"
+	"fmt"
+	"io"
+	"testing"
 )
 
 // Test vectors from http://www.cs.ucdavis.edu/~rogaway/papers/eax.pdf
 
 type eaxAESTest struct {
-	msg	[]byte;
-	key	[]byte;
-	nonce	[]byte;
-	header	[]byte;
-	cipher	[]byte;
+	msg    []byte
+	key    []byte
+	nonce  []byte
+	header []byte
+	cipher []byte
 }
 
 var eaxAESTests = []eaxAESTest{
@@ -96,20 +96,20 @@ var eaxAESTests = []eaxAESTest{
 }
 
 func TestEAXEncrypt_AES(t *testing.T) {
-	b := new(bytes.Buffer);
+	b := new(bytes.Buffer)
 	for i, tt := range eaxAESTests {
-		test := fmt.Sprintf("test %d", i);
-		c, err := aes.NewCipher(tt.key);
+		test := fmt.Sprintf("test %d", i)
+		c, err := aes.NewCipher(tt.key)
 		if err != nil {
 			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
 		}
-		b.Reset();
-		enc := NewEAXEncrypter(c, tt.nonce, tt.header, 16, b);
-		n, err := io.Copy(enc, bytes.NewBuffer(tt.msg));
+		b.Reset()
+		enc := NewEAXEncrypter(c, tt.nonce, tt.header, 16, b)
+		n, err := io.Copy(enc, bytes.NewBuffer(tt.msg))
 		if n != int64(len(tt.msg)) || err != nil {
 			t.Fatalf("%s: io.Copy into encrypter: %d, %s", test, n, err)
 		}
-		err = enc.Close();
+		err = enc.Close()
 		if err != nil {
 			t.Fatalf("%s: enc.Close: %s", test, err)
 		}
@@ -120,16 +120,16 @@ func TestEAXEncrypt_AES(t *testing.T) {
 }
 
 func TestEAXDecrypt_AES(t *testing.T) {
-	b := new(bytes.Buffer);
+	b := new(bytes.Buffer)
 	for i, tt := range eaxAESTests {
-		test := fmt.Sprintf("test %d", i);
-		c, err := aes.NewCipher(tt.key);
+		test := fmt.Sprintf("test %d", i)
+		c, err := aes.NewCipher(tt.key)
 		if err != nil {
 			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
 		}
-		b.Reset();
-		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, bytes.NewBuffer(tt.cipher));
-		n, err := io.Copy(b, dec);
+		b.Reset()
+		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, bytes.NewBuffer(tt.cipher))
+		n, err := io.Copy(b, dec)
 		if n != int64(len(tt.msg)) || err != nil {
 			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err)
 		}

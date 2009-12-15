@@ -10,44 +10,44 @@
 package main
 
 import (
-	"bytes";
-	"go/ast";
-	"go/printer";
-	"fmt";
-	"strings";
+	"bytes"
+	"go/ast"
+	"go/printer"
+	"fmt"
+	"strings"
 )
 
 
 type Snippet struct {
-	Line	int;
-	Text	string;
+	Line int
+	Text string
 }
 
 
 type snippetStyler struct {
-	Styler;				// defined in godoc.go
-	highlight	*ast.Ident;	// identifier to highlight
+	Styler               // defined in godoc.go
+	highlight *ast.Ident // identifier to highlight
 }
 
 
 func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
-	return	// no LineTag for snippets
+	return // no LineTag for snippets
 }
 
 
 func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
-	text = strings.Bytes(id.Value);
+	text = strings.Bytes(id.Value)
 	if s.highlight == id {
 		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
 	}
-	return;
+	return
 }
 
 
 func newSnippet(decl ast.Decl, id *ast.Ident) *Snippet {
-	var buf bytes.Buffer;
-	writeNode(&buf, decl, true, &snippetStyler{highlight: id});
-	return &Snippet{id.Pos().Line, buf.String()};
+	var buf bytes.Buffer
+	writeNode(&buf, decl, true, &snippetStyler{highlight: id})
+	return &Snippet{id.Pos().Line, buf.String()}
 }
 
 
@@ -70,32 +70,32 @@ func findSpec(list []ast.Spec, id *ast.Ident) ast.Spec {
 			}
 		}
 	}
-	return nil;
+	return nil
 }
 
 
 func genSnippet(d *ast.GenDecl, id *ast.Ident) *Snippet {
-	s := findSpec(d.Specs, id);
+	s := findSpec(d.Specs, id)
 	if s == nil {
-		return nil	//  declaration doesn't contain id - exit gracefully
+		return nil //  declaration doesn't contain id - exit gracefully
 	}
 
 	// only use the spec containing the id for the snippet
-	dd := &ast.GenDecl{d.Doc, d.Position, d.Tok, d.Lparen, []ast.Spec{s}, d.Rparen};
+	dd := &ast.GenDecl{d.Doc, d.Position, d.Tok, d.Lparen, []ast.Spec{s}, d.Rparen}
 
-	return newSnippet(dd, id);
+	return newSnippet(dd, id)
 }
 
 
 func funcSnippet(d *ast.FuncDecl, id *ast.Ident) *Snippet {
 	if d.Name != id {
-		return nil	//  declaration doesn't contain id - exit gracefully
+		return nil //  declaration doesn't contain id - exit gracefully
 	}
 
 	// only use the function signature for the snippet
-	dd := &ast.FuncDecl{d.Doc, d.Recv, d.Name, d.Type, nil};
+	dd := &ast.FuncDecl{d.Doc, d.Recv, d.Name, d.Type, nil}
 
-	return newSnippet(dd, id);
+	return newSnippet(dd, id)
 }
 
 
@@ -118,5 +118,5 @@ func NewSnippet(decl ast.Decl, id *ast.Ident) (s *Snippet) {
 			fmt.Sprintf(`could not generate a snippet for <span class="highlight">%s</span>`, id.Value),
 		}
 	}
-	return;
+	return
 }
