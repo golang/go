@@ -141,6 +141,27 @@ const (
 )
 
 
+// Obtain a (single) token position before the next comment.
+// Use this function to correct a token position such that the
+// token is placed before the next comment (which may be a line
+// comment introducing a newline and possibly introducing a
+// semicolon). Use moveCommentsAfter() to move a comment past
+// more than a single token. beforeComment() is preferable if
+// if can be used as it produces better results.
+//
+// Remove this after transitioning to new semicolon syntax and
+// some reasonable grace period (12/11/09).
+func (p *printer) beforeComment(pos token.Position) token.Position {
+	if p.comment != nil {
+		p := p.comment.List[0].Position;
+		if !pos.IsValid() || pos.Offset > p.Offset {
+			return p
+		}
+	}
+	return pos;
+}
+
+
 // Print a list of expressions. If the list spans multiple
 // source lines, the original line breaks are respected between
 // expressions. Sets multiLine to true if the list spans multiple
@@ -200,7 +221,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		line = x.Pos().Line;
 		if i > 0 {
 			if mode&plusSep != 0 {
-				p.print(blank, token.ADD)
+				p.print(blank, p.beforeComment(noPos), token.ADD)
 			}
 			if mode&commaSep != 0 {
 				p.print(token.COMMA)
@@ -583,7 +604,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
 	}
 	xline := p.pos.Line;	// before the operator (it may be on the next line!)
 	yline := x.Y.Pos().Line;
-	p.print(x.OpPos, x.Op);
+	p.print(p.beforeComment(x.OpPos), x.Op);
 	if xline != yline && xline > 0 && yline > 0 {
 		// at least one line break, but respect an extra empty line
 		// in the source
@@ -851,9 +872,11 @@ func (p *printer) moveCommentsAfter(pos token.Position) {
 // block prints an *ast.BlockStmt; it always spans at least two lines.
 func (p *printer) block(s *ast.BlockStmt, indent int, moveComments bool) {
 	if moveComments {
-		p.moveCommentsAfter(s.Pos())
+		p.print(p.beforeComment(s.Pos()))
+	} else {
+		p.print(s.Pos())
 	}
-	p.print(s.Pos(), token.LBRACE);
+	p.print(token.LBRACE);
 	p.stmtList(s.List, indent);
 	p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true);
 	p.print(s.Rbrace, token.RBRACE);
@@ -1116,8 +1139,8 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		if s.Name != nil {
 			p.expr(s.Name, multiLine);
 			p.print(blank);
+			p.moveCommentsAfter(s.Path[0].Pos());
 		}
-		p.moveCommentsAfter(s.Path[0].Pos());
 		p.expr(&ast.StringList{s.Path}, multiLine);
 		comment = s.Comment;
 
