@@ -134,6 +134,40 @@ func SplitAfter(s, sep string, n int) []string {
 	return genSplit(s, sep, len(sep), n)
 }
 
+// Fields splits the string s around each instance of one or more consecutive white space
+// characters, returning an array of substrings of s or an empty list if s contains only white space.
+func Fields(s string) []string {
+	n := 0
+	inField := false
+	for _, rune := range s {
+		wasInField := inField
+		inField = !unicode.IsSpace(rune)
+		if inField && !wasInField {
+			n++
+		}
+	}
+
+	a := make([]string, n)
+	na := 0
+	fieldStart := -1
+	for i, rune := range s {
+		if unicode.IsSpace(rune) {
+			if fieldStart >= 0 {
+				a[na] = s[fieldStart:i]
+				na++
+				fieldStart = -1
+			}
+		} else if fieldStart == -1 {
+			fieldStart = i
+		}
+	}
+	if fieldStart != -1 {
+		a[na] = s[fieldStart:]
+		na++
+	}
+	return a[0:na]
+}
+
 // Join concatenates the elements of a to create a single string.   The separator string
 // sep is placed between elements in the resulting string.
 func Join(a []string, sep string) string {
