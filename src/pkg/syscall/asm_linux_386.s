@@ -75,7 +75,6 @@ TEXT syscall·RawSyscall(SB),7,$0
 	MOVL	$0, 24(SP)	// r2
 	NEGL	AX
 	MOVL	AX, 28(SP)  // errno
-	CALL	runtime·exitsyscall(SB)
 	RET
 ok1:
 	MOVL	AX, 20(SP)	// r1
