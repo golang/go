@@ -1285,7 +1285,7 @@ indcl:
 	'(' oarg_type_list_ocomma ')' fnres
 	{
 		// without func keyword
-		$2 = checkarglist($2, 0);
+		$2 = checkarglist($2, 1);
 		$$ = nod(OTFUNC, fakethis(), N);
 		$$->list = $2;
 		$$->rlist = $4;
