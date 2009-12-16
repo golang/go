@@ -163,6 +163,44 @@ func SplitAfter(s, sep []byte, n int) [][]byte {
 	return genSplit(s, sep, len(sep), n)
 }
 
+// Fields splits the array s around each instance of one or more consecutive white space
+// characters, returning a slice of subarrays of s or an empty list if s contains only white space.
+func Fields(s []byte) [][]byte {
+	n := 0
+	inField := false
+	for i := 0; i < len(s); {
+		rune, size := utf8.DecodeRune(s[i:])
+		wasInField := inField
+		inField = !unicode.IsSpace(rune)
+		if inField && !wasInField {
+			n++
+		}
+		i += size
+	}
+
+	a := make([][]byte, n)
+	na := 0
+	fieldStart := -1
+	for i := 0; i <= len(s) && na < n; {
+		rune, size := utf8.DecodeRune(s[i:])
+		if fieldStart < 0 && size > 0 && !unicode.IsSpace(rune) {
+			fieldStart = i
+			i += size
+			continue
+		}
+		if fieldStart >= 0 && (size == 0 || unicode.IsSpace(rune)) {
+			a[na] = s[fieldStart:i]
+			na++
+			fieldStart = -1
+		}
+		if size == 0 {
+			break
+		}
+		i += size
+	}
+	return a[0:na]
+}
+
 // Join concatenates the elements of a to create a single byte array.   The separator
 // sep is placed between elements in the resulting array.
 func Join(a [][]byte, sep []byte) []byte {

@@ -254,6 +254,36 @@ func TestSplitAfter(t *testing.T) {
 	}
 }
 
+type FieldsTest struct {
+	s string
+	a []string
+}
+
+var fieldstests = []FieldsTest{
+	FieldsTest{"", []string{}},
+	FieldsTest{" ", []string{}},
+	FieldsTest{" \t ", []string{}},
+	FieldsTest{"  abc  ", []string{"abc"}},
+	FieldsTest{"1 2 3 4", []string{"1", "2", "3", "4"}},
+	FieldsTest{"1  2  3  4", []string{"1", "2", "3", "4"}},
+	FieldsTest{"1\t\t2\t\t3\t4", []string{"1", "2", "3", "4"}},
+	FieldsTest{"1\u20002\u20013\u20024", []string{"1", "2", "3", "4"}},
+	FieldsTest{"\u2000\u2001\u2002", []string{}},
+	FieldsTest{"\n™\t™\n", []string{"™", "™"}},
+	FieldsTest{faces, []string{faces}},
+}
+
+func TestFields(t *testing.T) {
+	for _, tt := range fieldstests {
+		a := Fields(strings.Bytes(tt.s))
+		result := arrayOfString(a)
+		if !eq(result, tt.a) {
+			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
+			continue
+		}
+	}
+}
+
 // Test case for any function which accepts and returns a byte array.
 // For ease of creation, we write the byte arrays as strings.
 type StringTest struct {
