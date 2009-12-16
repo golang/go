@@ -63,6 +63,7 @@ OFILES=\
 	rt0.$O\
 	sema.$O\
 	signal.$O\
+	sigqueue.$O\
 	slice.$O\
 	string.$O\
 	symtab.$O\
@@ -78,6 +79,7 @@ HFILES=\
 	malloc.h\
 	$(GOARCH)/asm.h\
 	$(GOOS)/os.h\
+	$(GOOS)/signals.h\
 	$(GOOS)/$(GOARCH)/defs.h\
 
 include ../../Make.pkg

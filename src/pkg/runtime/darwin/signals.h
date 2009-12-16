@@ -5,11 +5,12 @@
 #define C SigCatch
 #define I SigIgnore
 #define R SigRestart
+#define Q SigQueue
 
 static SigTab sigtab[] = {
 	/* 0 */	0, "SIGNONE: no trap",
-	/* 1 */	0, "SIGHUP: terminal line hangup",
-	/* 2 */	0, "SIGINT: interrupt",
+	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
+	/* 2 */	Q+R, "SIGINT: interrupt",
 	/* 3 */	C, "SIGQUIT: quit",
 	/* 4 */	C, "SIGILL: illegal instruction",
 	/* 5 */	C, "SIGTRAP: trace trap",	/* used by panic and array out of bounds, etc. */
@@ -21,27 +22,28 @@ static SigTab sigtab[] = {
 	/* 11 */	C, "SIGSEGV: segmentation violation",
 	/* 12 */	C, "SIGSYS: bad system call",
 	/* 13 */	I, "SIGPIPE: write to broken pipe",
-	/* 14 */	0, "SIGALRM: alarm clock",
-	/* 15 */	0, "SIGTERM: termination",
-	/* 16 */	0, "SIGURG: urgent condition on socket",
+	/* 14 */	Q+R, "SIGALRM: alarm clock",
+	/* 15 */	Q+R, "SIGTERM: termination",
+	/* 16 */	Q+R, "SIGURG: urgent condition on socket",
 	/* 17 */	0, "SIGSTOP: stop",
-	/* 18 */	0, "SIGTSTP: keyboard stop",
+	/* 18 */	Q+R, "SIGTSTP: keyboard stop",
 	/* 19 */	0, "SIGCONT: continue after stop",
 	/* 20 */	I+R, "SIGCHLD: child status has changed",
-	/* 21 */	0, "SIGTTIN: background read from tty",
-	/* 22 */	0, "SIGTTOU: background write to tty",
-	/* 23 */	0, "SIGIO: i/o now possible",
-	/* 24 */	0, "SIGXCPU: cpu limit exceeded",
-	/* 25 */	0, "SIGXFSZ: file size limit exceeded",
-	/* 26 */	0, "SIGVTALRM: virtual alarm clock",
-	/* 27 */	0, "SIGPROF: profiling alarm clock",
-	/* 28 */	I+R, "SIGWINCH: window size change",
-	/* 29 */	0, "SIGINFO: status request from keyboard",
-	/* 30 */	0, "SIGUSR1: user-defined signal 1",
-	/* 31 */	0, "SIGUSR2: user-defined signal 2",
+	/* 21 */	Q+R, "SIGTTIN: background read from tty",
+	/* 22 */	Q+R, "SIGTTOU: background write to tty",
+	/* 23 */	Q+R, "SIGIO: i/o now possible",
+	/* 24 */	Q+R, "SIGXCPU: cpu limit exceeded",
+	/* 25 */	Q+R, "SIGXFSZ: file size limit exceeded",
+	/* 26 */	Q+R, "SIGVTALRM: virtual alarm clock",
+	/* 27 */	Q+R, "SIGPROF: profiling alarm clock",
+	/* 28 */	Q+R, "SIGWINCH: window size change",
+	/* 29 */	Q+R, "SIGINFO: status request from keyboard",
+	/* 30 */	Q+R, "SIGUSR1: user-defined signal 1",
+	/* 31 */	Q+R, "SIGUSR2: user-defined signal 2",
 };
 #undef C
 #undef I
 #undef R
+#undef Q
 
 #define	NSIG 32

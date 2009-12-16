@@ -35,6 +35,14 @@ extern void sigtramp(void);
 extern void sigignore(void);	// just returns
 extern void sigreturn(void);	// calls sigreturn
 
+String
+signame(int32 sig)
+{
+	if(sig < 0 || sig >= NSIG)
+		return emptystring;
+	return gostring((byte*)sigtab[sig].name);
+}
+
 void sighandler(void) {}
 // void
 // sighandler(int32 sig, Siginfo* info, void* context)

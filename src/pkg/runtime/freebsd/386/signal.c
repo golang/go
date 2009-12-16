@@ -1,3 +1,7 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 #include "runtime.h"
 #include "defs.h"
 #include "signals.h"
@@ -32,11 +36,24 @@ dumpregs(Mcontext *r)
 	printf("gs      %x\n", r->mc_gs);
 }
 
+String
+signame(int32 sig)
+{
+	if(sig < 0 || sig >= NSIG)
+		return emptystring;
+	return gostring((byte*)sigtab[sig].name);
+}
+
 void
 sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
 	Mcontext *mc;
+
+	if(sigtab[sig].flags & SigQueue) {
+		sigsend(sig);
+		return;
+	}
 
 	if(panicking)	// traceback already printed
 		exit(2);
@@ -85,13 +102,15 @@ initsig(void)
 {
 	static Sigaction sa;
 
+	siginit();
+
 	int32 i;
 	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
 	sa.sa_mask = ~0x0ull;
 	
 	for(i = 0; i < NSIG; i++) {
 		if(sigtab[i].flags) {
-			if(sigtab[i].flags & SigCatch)
+			if(sigtab[i].flags & (SigCatch | SigQueue))
 				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
 			else
 				sa.__sigaction_u.__sa_sigaction = (void*) sigignore;

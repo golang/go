@@ -235,6 +235,7 @@ enum
 	SigCatch = 1<<0,
 	SigIgnore = 1<<1,
 	SigRestart = 1<<2,
+	SigQueue = 1<<3,
 };
 
 // (will be) shared with go; edit ../cmd/6g/sys.go too.
@@ -373,6 +374,10 @@ void	breakpoint(void);
 void	gosched(void);
 void	goexit(void);
 void	runcgo(void (*fn)(void*), void*);
+void	entersyscall(void);
+void	exitsyscall(void);
+void	siginit(void);
+void	sigsend(int32 sig);
 
 #pragma	varargck	argpos	printf	1
 
@@ -485,6 +490,8 @@ float64	ldexp(float64 d, int32 e);
 float64	modf(float64 d, float64 *ip);
 void	semacquire(uint32*);
 void	semrelease(uint32*);
+String	signame(int32 sig);
+
 
 void	mapassign(Hmap*, byte*, byte*);
 void	mapaccess(Hmap*, byte*, byte*, bool*);

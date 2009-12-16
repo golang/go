@@ -1,0 +1,90 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file implements runtime support for signal handling.
+//
+// Most synchronization primitives are not available from
+// the signal handler (it cannot block and cannot use locks)
+// so the handler communicates with a processing goroutine
+// via struct sig, below.
+//
+// Ownership for sig.Note passes back and forth between
+// the signal handler and the signal goroutine in rounds.
+// The initial state is that sig.note is cleared (setup by siginit).
+// At the beginning of each round, mask == 0.
+// The round goes through three stages:
+//
+// (In parallel)
+// 1a) One or more signals arrive and are handled
+// by sigsend using cas to set bits in sig.mask.
+// The handler that changes sig.mask from zero to non-zero
+// calls notewakeup(&sig).
+// 1b) Sigrecv calls notesleep(&sig) to wait for the wakeup.
+//
+// 2) Having received the wakeup, sigrecv knows that sigsend
+// will not send another wakeup, so it can noteclear(&sig)
+// to prepare for the next round. (Sigsend may still be adding
+// signals to sig.mask at this point, which is fine.)
+//
+// 3) Sigrecv uses cas to grab the current sig.mask and zero it,
+// triggering the next round.
+//
+// The signal handler takes ownership of the note by atomically
+// changing mask from a zero to non-zero value. It gives up
+// ownership by calling notewakeup. The signal goroutine takes
+// ownership by returning from notesleep (caused by the notewakeup)
+// and gives up ownership by clearing mask.
+
+package runtime
+#include "runtime.h"
+#include "defs.h"
+
+static struct {
+	Note;
+	uint32 mask;
+} sig;
+
+void
+siginit(void)
+{
+	noteclear(&sig);
+}
+
+// Called from sighandler to send a signal back out of the signal handling thread.
+void
+sigsend(int32 s)
+{
+	uint32 bit, mask;
+
+	bit = 1 << s;
+	for(;;) {
+		mask = sig.mask;
+		if(mask & bit)
+			return;		// signal already in queue
+		if(cas(&sig.mask, mask, mask|bit)) {
+			// Added to queue.
+			// Only send a wakeup for the first signal in each round.
+			if(mask == 0)
+				notewakeup(&sig);
+			return;
+		}
+	}
+}
+
+// Called to receive a bitmask of queued signals.
+func Sigrecv() (m uint32) {
+	runtime·entersyscall();
+	notesleep(&sig);
+	runtime·exitsyscall();
+	noteclear(&sig);
+	for(;;) {
+		m = sig.mask;
+		if(cas(&sig.mask, m, 0))
+			break;
+	}
+}
+
+func Signame(sig int32) (name String) {
+	name = signame(sig);
+}
