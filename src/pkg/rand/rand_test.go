@@ -327,3 +327,24 @@ func BenchmarkInt63Unthreadsafe(b *testing.B) {
 		r.Int63()
 	}
 }
+
+func BenchmarkIntn1000(b *testing.B) {
+	r := New(NewSource(1))
+	for n := b.N; n > 0; n-- {
+		r.Intn(1000)
+	}
+}
+
+func BenchmarkInt63n1000(b *testing.B) {
+	r := New(NewSource(1))
+	for n := b.N; n > 0; n-- {
+		r.Int63n(1000)
+	}
+}
+
+func BenchmarkInt31n1000(b *testing.B) {
+	r := New(NewSource(1))
+	for n := b.N; n > 0; n-- {
+		r.Int31n(1000)
+	}
+}
