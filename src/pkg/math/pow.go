@@ -4,23 +4,68 @@
 
 package math
 
+func isOddInt(x float64) bool {
+	xi, xf := Modf(x)
+	return xf == 0 && int64(xi)&1 == 1
+}
 
 // Pow returns x**y, the base-x exponential of y.
 func Pow(x, y float64) float64 {
-	// TODO: x or y NaN, ±Inf, maybe ±0.
+	// TODO:  maybe ±0.
+	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+	// when compiler does it for us
 	switch {
 	case y == 0:
 		return 1
 	case y == 1:
 		return x
-	case x == 0 && y > 0:
-		return 0
-	case x == 0 && y < 0:
-		return Inf(1)
 	case y == 0.5:
 		return Sqrt(x)
 	case y == -0.5:
 		return 1 / Sqrt(x)
+	case x != x || y != y: // IsNaN(x) || IsNaN(y):
+		return NaN()
+	case x == 0:
+		switch {
+		case y < 0:
+			return Inf(1)
+		case y > 0:
+			return 0
+		}
+	case y > MaxFloat64 || y < -MaxFloat64: // IsInf(y, 0):
+		switch {
+		case Fabs(x) == 1:
+			return NaN()
+		case Fabs(x) < 1:
+			switch {
+			case IsInf(y, -1):
+				return Inf(1)
+			case IsInf(y, 1):
+				return 0
+			}
+		case Fabs(x) > 1:
+			switch {
+			case IsInf(y, -1):
+				return 0
+			case IsInf(y, 1):
+				return Inf(1)
+			}
+		}
+	case x > MaxFloat64 || x < -MaxFloat64: // IsInf(x, 0):
+		switch {
+		case y < 0:
+			return 0
+		case y > 0:
+			switch {
+			case IsInf(x, -1):
+				if isOddInt(y) {
+					return Inf(-1)
+				}
+				return Inf(1)
+			case IsInf(x, 1):
+				return Inf(1)
+			}
+		}
 	}
 
 	absy := y

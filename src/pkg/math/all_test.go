@@ -154,6 +154,126 @@ var tanh = []float64{
 	9.4936501296239700e-01,
 	-9.9999994291374019e-01,
 }
+var vfsin = []float64{
+	NaN(),
+	Inf(-1),
+	0,
+	Inf(1),
+}
+var vfasin = []float64{
+	NaN(),
+	-Pi,
+	0,
+	Pi,
+}
+var vf1 = []float64{
+	NaN(),
+	Inf(-1),
+	-Pi,
+	-1,
+	0,
+	1,
+	Pi,
+	Inf(1),
+}
+var vfhypot = [][2]float64{
+	[2]float64{Inf(-1), 1},
+	[2]float64{Inf(1), 1},
+	[2]float64{1, Inf(-1)},
+	[2]float64{1, Inf(1)},
+	[2]float64{NaN(), Inf(-1)},
+	[2]float64{NaN(), Inf(1)},
+	[2]float64{1, NaN()},
+	[2]float64{NaN(), 1},
+}
+var vf2 = [][2]float64{
+	[2]float64{-Pi, Pi},
+	[2]float64{-Pi, -Pi},
+	[2]float64{Inf(-1), 3},
+	[2]float64{Inf(-1), Pi},
+	[2]float64{Inf(-1), -3},
+	[2]float64{Inf(-1), -Pi},
+	[2]float64{Inf(1), Pi},
+	[2]float64{0, -Pi},
+	[2]float64{Inf(1), -Pi},
+	[2]float64{0, Pi},
+	[2]float64{-1, Inf(-1)},
+	[2]float64{-1, Inf(1)},
+	[2]float64{1, Inf(-1)},
+	[2]float64{1, Inf(1)},
+	[2]float64{-1 / 2, Inf(1)},
+	[2]float64{1 / 2, Inf(1)},
+	[2]float64{-Pi, Inf(-1)},
+	[2]float64{Pi, Inf(-1)},
+	[2]float64{-1 / 2, Inf(-1)},
+	[2]float64{1 / 2, Inf(-1)},
+	[2]float64{-Pi, Inf(1)},
+	[2]float64{Pi, Inf(1)},
+	[2]float64{NaN(), -Pi},
+	[2]float64{NaN(), Pi},
+	[2]float64{Inf(-1), NaN()},
+	[2]float64{-Pi, NaN()},
+	[2]float64{0, NaN()},
+	[2]float64{Pi, NaN()},
+	[2]float64{Inf(1), NaN()},
+	[2]float64{NaN(), NaN()},
+	[2]float64{Inf(-1), 1},
+	[2]float64{-Pi, 1},
+	[2]float64{0, 1},
+	[2]float64{Pi, 1},
+	[2]float64{Inf(1), 1},
+	[2]float64{NaN(), 1},
+	[2]float64{Inf(-1), 0},
+	[2]float64{-Pi, 0},
+	[2]float64{0, 0},
+	[2]float64{Pi, 0},
+	[2]float64{Inf(1), 0},
+	[2]float64{NaN(), 0},
+}
+var pow2 = []float64{
+	NaN(),
+	NaN(),
+	Inf(-1),
+	Inf(1),
+	0,
+	0,
+	Inf(1),
+	Inf(1),
+	0,
+	0,
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	0,
+	0,
+	0,
+	0,
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	Inf(-1),
+	-Pi,
+	0,
+	Pi,
+	Inf(1),
+	NaN(),
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+}
 
 func tolerance(a, b, e float64) bool {
 	d := a - b
@@ -172,6 +292,19 @@ func tolerance(a, b, e float64) bool {
 func kindaclose(a, b float64) bool { return tolerance(a, b, 1e-8) }
 func close(a, b float64) bool      { return tolerance(a, b, 1e-14) }
 func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
+func alike(a, b float64) bool {
+	switch {
+	case IsNaN(a) && IsNaN(b):
+		return true
+	case IsInf(a, 1) && IsInf(b, 1):
+		return true
+	case IsInf(a, -1) && IsInf(b, -1):
+		return true
+	case a == b:
+		return true
+	}
+	return false
+}
 
 func TestAsin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
@@ -221,6 +354,11 @@ func TestPow(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Pow(10, vf[i]); !close(pow[i], f) {
 			t.Errorf("Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i])
+		}
+	}
+	for i := 0; i < len(vf2); i++ {
+		if f := Pow(vf2[i][0], vf2[i][1]); !alike(pow2[i], f) {
+			t.Errorf("Pow(%.17g, %.17g) = %.17g, want %.17g\n", vf2[i][0], vf2[i][1], f, pow2[i])
 		}
 	}
 }
@@ -334,5 +472,19 @@ func TestFloatMinMax(t *testing.T) {
 		if s != tt.str {
 			t.Errorf("Sprint(%v) = %s, want %s", tt.name, s, tt.str)
 		}
+	}
+}
+
+// Benchmarks
+
+func BenchmarkPowInt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Pow(2, 2)
+	}
+}
+
+func BenchmarkPowFrac(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Pow(2.5, 1.5)
 	}
 }
