@@ -19,6 +19,12 @@
 	Data items may be values or pointers; the interface hides the
 	indirection.
 
+	In the following, 'field' is one of several things, according to the data.
+	- the name of a field of a struct (result = data.field)
+	- the value stored in a map under that key (result = data[field])
+	- the result of invoking a niladic single-valued method with that name
+	   (result = data.field())
+
 	Major constructs ({} are metacharacters; [] marks optional elements):
 
 		{# comment }
@@ -604,8 +610,8 @@ func (st *state) findVar(s string) reflect.Value {
 		return st.data
 	}
 	data := st.data
-	elems := strings.Split(s, ".", 0)
-	for i := 0; i < len(elems); i++ {
+	for _, elem := range strings.Split(s, ".", 0) {
+		origData := data // for method lookup need value before indirection.
 		// Look up field; data must be a struct or map.
 		data = reflect.Indirect(data)
 		if data == nil {
@@ -614,18 +620,71 @@ func (st *state) findVar(s string) reflect.Value {
 
 		switch typ := data.Type().(type) {
 		case *reflect.StructType:
-			field, ok := typ.FieldByName(elems[i])
-			if !ok {
-				return nil
+			if field, ok := typ.FieldByName(elem); ok {
+				data = data.(*reflect.StructValue).FieldByIndex(field.Index)
+				continue
 			}
-			data = data.(*reflect.StructValue).FieldByIndex(field.Index)
 		case *reflect.MapType:
-			data = data.(*reflect.MapValue).Elem(reflect.NewValue(elems[i]))
-		default:
-			return nil
+			data = data.(*reflect.MapValue).Elem(reflect.NewValue(elem))
+			continue
 		}
+
+		// No luck with that name; is it a method?
+		if result, found := callMethod(origData, elem); found {
+			data = result
+			continue
+		}
+		return nil
 	}
 	return data
+}
+
+// See if name is a method of the value at some level of indirection.
+// The return values are the result of the call (which may be nil if
+// there's trouble) and whether a method of the right name exists with
+// any signature.
+func callMethod(data reflect.Value, name string) (result reflect.Value, found bool) {
+	found = false
+	// Method set depends on pointerness, and the value may be arbitrarily
+	// indirect.  Simplest approach is to walk down the pointer chain and
+	// see if we can find the method at each step.
+	// Most steps will see NumMethod() == 0.
+	for {
+		typ := data.Type()
+		if nMethod := data.Type().NumMethod(); nMethod > 0 {
+			for i := 0; i < nMethod; i++ {
+				method := typ.Method(i)
+				if method.Name == name {
+					found = true // we found the name regardless
+					// does receiver type match? (pointerness might be off)
+					if typ == method.Type.In(0) {
+						return call(data, method), found
+					}
+				}
+			}
+		}
+		if nd, ok := data.(*reflect.PtrValue); ok {
+			data = nd.Elem()
+		} else {
+			break
+		}
+	}
+	return
+}
+
+// Invoke the method. If its signature is wrong, return nil.
+func call(v reflect.Value, method reflect.Method) reflect.Value {
+	funcType := method.Type
+	// Method must take no arguments, meaning as a func it has one argument (the receiver)
+	if funcType.NumIn() != 1 {
+		return nil
+	}
+	// Method must return a single value.
+	if funcType.NumOut() != 1 {
+		return nil
+	}
+	// Result will be the zeroth element of the returned slice.
+	return method.Func.Call([]reflect.Value{v})[0]
 }
 
 // Is there no data to look at?
@@ -649,7 +708,7 @@ func empty(v reflect.Value) bool {
 	return true
 }
 
-// Look up a variable, up through the parent if necessary.
+// Look up a variable or method, up through the parent if necessary.
 func (t *Template) varValue(name string, st *state) reflect.Value {
 	field := st.findVar(name)
 	if field == nil {
