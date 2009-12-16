@@ -10,5 +10,6 @@ GOFILES=\
 	normal.go\
 	rand.go\
 	rng.go\
+	zipf.go\
 
 include ../../Make.pkg
