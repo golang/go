@@ -35,16 +35,18 @@ type Prog struct {
 	Typedef     map[string]ast.Expr
 	Vardef      map[string]*Type
 	Funcdef     map[string]*FuncType
+	Enumdef     map[string]int64
 	PtrSize     int64
 	GccOptions  []string
 }
 
 // A Type collects information about a type in both the C and Go worlds.
 type Type struct {
-	Size  int64
-	Align int64
-	C     string
-	Go    ast.Expr
+	Size       int64
+	Align      int64
+	C          string
+	Go         ast.Expr
+	EnumValues map[string]int64
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.
