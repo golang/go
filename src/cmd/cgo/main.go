@@ -71,6 +71,7 @@ func main() {
 	p.loadDebugInfo()
 	p.Vardef = make(map[string]*Type)
 	p.Funcdef = make(map[string]*FuncType)
+	p.Enumdef = make(map[string]int64)
 
 	for _, cref := range p.Crefs {
 		switch cref.Context {
@@ -85,6 +86,14 @@ func main() {
 		case "expr":
 			if cref.TypeName {
 				error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
+			}
+			// If the expression refers to an enumerated value, then
+			// place the identifier for the value and add it to Enumdef so
+			// it will be declared as a constant in the later stage.
+			if cref.Type.EnumValues != nil {
+				*cref.Expr = &ast.Ident{Value: cref.Name}
+				p.Enumdef[cref.Name] = cref.Type.EnumValues[cref.Name]
+				break
 			}
 			// Reference to C variable.
 			// We declare a pointer and arrange to have it filled in.

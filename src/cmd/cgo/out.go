@@ -69,6 +69,11 @@ func (p *Prog) writeOutput(srcfile string) {
 	}
 	fmt.Fprintf(fc, "\n")
 
+	for name, value := range p.Enumdef {
+		fmt.Fprintf(fgo2, "const %s = %d\n", name, value)
+	}
+	fmt.Fprintf(fgo2, "\n")
+
 	for name, def := range p.Funcdef {
 		// Go func declaration.
 		d := &ast.FuncDecl{

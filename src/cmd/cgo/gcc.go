@@ -120,6 +120,7 @@ func (p *Prog) loadDebugInfo() {
 
 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
 	types := make([]dwarf.Type, len(names))
+	enums := make([]dwarf.Offset, len(names))
 	r := d.Reader()
 	for {
 		e, err := r.Next()
@@ -129,32 +130,56 @@ func (p *Prog) loadDebugInfo() {
 		if e == nil {
 			break
 		}
-		if e.Tag != dwarf.TagVariable {
-			goto Continue
+		switch e.Tag {
+		case dwarf.TagEnumerationType:
+			offset := e.Offset
+			for {
+				e, err := r.Next()
+				if err != nil {
+					fatal("reading DWARF entry: %s", err)
+				}
+				if e.Tag == 0 {
+					break
+				}
+				if e.Tag == dwarf.TagEnumerator {
+					entryName := e.Val(dwarf.AttrName).(string)
+					i, ok := m[entryName]
+					if ok {
+						enums[i] = offset
+					}
+				}
+			}
+		case dwarf.TagVariable:
+			name, _ := e.Val(dwarf.AttrName).(string)
+			typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
+			if name == "" || typOff == 0 {
+				fatal("malformed DWARF TagVariable entry")
+			}
+			if !strings.HasPrefix(name, "__cgo__") {
+				break
+			}
+			typ, err := d.Type(typOff)
+			if err != nil {
+				fatal("loading DWARF type: %s", err)
+			}
+			t, ok := typ.(*dwarf.PtrType)
+			if !ok || t == nil {
+				fatal("internal error: %s has non-pointer type", name)
+			}
+			i, err := strconv.Atoi(name[7:])
+			if err != nil {
+				fatal("malformed __cgo__ name: %s", name)
+			}
+			if enums[i] != 0 {
+				t, err := d.Type(enums[i])
+				if err != nil {
+					fatal("loading DWARF type: %s", err)
+				}
+				types[i] = t
+			} else {
+				types[i] = t.Type
+			}
 		}
-		name, _ := e.Val(dwarf.AttrName).(string)
-		typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
-		if name == "" || typOff == 0 {
-			fatal("malformed DWARF TagVariable entry")
-		}
-		if !strings.HasPrefix(name, "__cgo__") {
-			goto Continue
-		}
-		typ, err := d.Type(typOff)
-		if err != nil {
-			fatal("loading DWARF type: %s", err)
-		}
-		t, ok := typ.(*dwarf.PtrType)
-		if !ok || t == nil {
-			fatal("internal error: %s has non-pointer type", name)
-		}
-		i, err := strconv.Atoi(name[7:])
-		if err != nil {
-			fatal("malformed __cgo__ name: %s", name)
-		}
-		types[i] = t.Type
-
-	Continue:
 		if e.Tag != dwarf.TagCompileUnit {
 			r.SkipChildren()
 		}
@@ -315,6 +340,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	t.Size = dtype.Size()
 	t.Align = -1
 	t.C = dtype.Common().Name
+	t.EnumValues = nil
 	c.m[dtype] = t
 	if t.Size < 0 {
 		// Unsized types are [0]byte
@@ -376,6 +402,10 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			t.Align = c.ptrSize
 		}
 		t.C = "enum " + dt.EnumName
+		t.EnumValues = make(map[string]int64)
+		for _, ev := range dt.Val {
+			t.EnumValues[ev.Name] = ev.Val
+		}
 
 	case *dwarf.FloatType:
 		switch t.Size {
