@@ -307,6 +307,7 @@ loop:
 
 	if(pres != nil) {
 		unlock(c);
+		c->elemalg->copy(c->elemsize, ep, nil);
 		*pres = false;
 		return;
 	}
@@ -335,6 +336,7 @@ asynch:
 
 		if(pres != nil) {
 			unlock(c);
+			c->elemalg->copy(c->elemsize, ep, nil);
 			*pres = false;
 			return;
 		}
