@@ -1,0 +1,105 @@
+<!-- Roadmap -->
+
+<h2 id="Roadmap">Go Roadmap</h2>
+
+This page lists features and ideas being developed or discussed by the
+Go team.  This list will be updated as work continues.
+
+<p>
+The roadmap should be discussed on
+the <a href="http://groups.google.com/group/golang-nuts">golang-nuts
+mailing list</a>.
+
+<h3 id="Language_roadmap">
+Language roadmap</h3>
+
+<p>
+This is a list of language changes that are being considered.
+Appearance on this list is no guarantee that the change will be
+accepted.
+
+<ul>
+<li>
+Adjust and simplify semicolon rules.
+<li>
+Adjust definition of <code>...</code> in parameter lists.
+<li>
+Add explicit conversions from <code>string</code>
+to <code>[]byte</code> and <code>[]int</code>.
+<li>
+Possibly rewrite restriction on goto across variable declarations.
+<li>
+Variant types.  A way to define a type as being the union of some set
+of types.
+<li>
+Generics.  An active topic of discussion.
+</ul>
+
+<h3 id="Implementation_roadmap">
+Implementation roadmap</h3>
+
+<ul>
+<li>
+Improved garbage collector, most likely a reference counting collector
+with a cycle detector running in a separate core.
+<li>
+Debugger.
+<li>
+Native Client (NaCl) support.
+<li>
+App Engine support.
+<li>
+Improved CGO including some mechanism for calling back from C to Go.
+<li>
+SWIG support.
+<li>
+Public continuous build and benchmark infrastructure.
+<li>
+Improved implementation documentation.
+<li>
+Package manager, possibly including a language change to the import
+statement.
+</ul>
+
+<h4 id="Gc_roadmap">
+Gc compiler roadmap</h4>
+
+<ul>
+<li>
+Method expressions.
+<li>
+Support multiple packages with the same name (but different import
+paths) in the same program.
+<li>
+Implement goto restrictions.
+<li>
+Safe compilation mode: generate code which is guaranteed not to obtain
+an invalid memory address other than via <code>import "unsafe"</code>.
+<li>
+Generate ELF debug info.
+<li>
+Improved optimization.
+<li>
+5g: Better floating point support.
+</ul>
+
+<h4 id = "Gccgo_roadmap">
+Gccgo compiler roadmap</h4>
+
+<ul>
+<li>
+Method expressions.
+<li>
+Support multiple packages with the same name (but different import
+paths) in the same program.
+<li>
+Implement goto restrictions.
+<li>
+Implement garbage collection.
+<li>
+Use goroutines rather than threads.
+<li>
+Separate gcc interface from frontend proper.
+<li>
+Use escape analysis to keep more data on stack.
+</ul>
