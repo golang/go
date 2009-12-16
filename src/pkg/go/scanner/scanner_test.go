@@ -392,6 +392,8 @@ var lines = []string{
 	"foo    $/*comment*/    \n",
 	"foo    $/*0*/ /*1*/ /*2*/    \n",
 	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa",
+
+	"package main$\n\nfunc main() {\n\tif {\n\t\treturn /* */ }$\n}$\n",
 }
 
 

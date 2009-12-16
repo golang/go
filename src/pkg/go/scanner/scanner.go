@@ -223,10 +223,10 @@ func (S *Scanner) findNewline(pos token.Position) bool {
 		}
 	}
 
-	// reset position
+	// reset position to where it was upon calling findNewline
 	S.pos = pos
 	S.offset = pos.Offset + 1
-	S.ch = '/'
+	S.next()
 
 	return newline
 }
@@ -577,6 +577,10 @@ scanAgain:
 			if S.ch == '/' || S.ch == '*' {
 				// comment
 				if S.insertSemi && S.findNewline(pos) {
+					// reset position to the beginning of the comment
+					S.pos = pos
+					S.offset = pos.Offset + 1
+					S.ch = '/'
 					S.insertSemi = false // newline consumed
 					return pos, token.SEMICOLON, semicolon
 				}
