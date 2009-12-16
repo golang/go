@@ -301,6 +301,19 @@ gives more detail about
 the process of building and testing Go programs.
 </p>
 
+<h2>Keeping up with releases</h2>
+
+<p>New releases are announced on the <a href="http://groups.google.com/group/golang-nuts">Go Nuts</a> mailing list.
+To update an existing tree to the latest release, you can run:
+</p>
+
+<pre>
+$ cd $GOROOT/src
+$ hg pull
+$ hg update release
+$ make all
+</pre>
+
 <h2>Community resources</h2>
 
 <p>
