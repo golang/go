@@ -77,8 +77,8 @@ declaration
 
 <pre>
 type T struct {
-    name string; // name of the object
-    value int; // its value
+    name string // name of the object
+    value int // its value
 }
 </pre>
 
@@ -88,8 +88,8 @@ type T struct {
 
 <pre>
 type T struct {
-    name    string; // name of the object
-    value   int;    // its value
+    name    string // name of the object
+    value   int    // its value
 }
 </pre>
 
@@ -103,26 +103,26 @@ Some formatting details remain.  Very briefly,
 </p>
 
 <dl>
-	<dt>Indentation</dt>
-	<dd>We use tabs for indentation and <code>gofmt</code> emits them by default.
-	Use spaces only if you must.
-	</dd>
-	<dt>Line length</dt>
-	<dd>
-	Go has no line length limit.  Don't worry about overflowing a punched card.
-	If a line feels too long, wrap it and indent with an extra tab.
-	</dd>
-	<dt>Parentheses</dt>
-	<dd>
-	Go needs fewer parentheses: control structures (<code>if</code>,
-	<code>for</code>, <code>switch</code>) do not require parentheses in
-	their syntax.
-	Also, the operator precedence hierarchy is shorter and clearer, so
+    <dt>Indentation</dt>
+    <dd>We use tabs for indentation and <code>gofmt</code> emits them by default.
+    Use spaces only if you must.
+    </dd>
+    <dt>Line length</dt>
+    <dd>
+    Go has no line length limit.  Don't worry about overflowing a punched card.
+    If a line feels too long, wrap it and indent with an extra tab.
+    </dd>
+    <dt>Parentheses</dt>
+    <dd>
+    Go needs fewer parentheses: control structures (<code>if</code>,
+    <code>for</code>, <code>switch</code>) do not require parentheses in
+    their syntax.
+    Also, the operator precedence hierarchy is shorter and clearer, so
 <pre>
 x&lt;&lt;8 + y&lt;&lt;16
 </pre>
-	means what the spacing implies.
-	</dd>
+    means what the spacing implies.
+    </dd>
 </dl>
 
 <h2 id="commentary">Commentary</h2>
@@ -158,24 +158,24 @@ should set up the detailed documentation that follows.
 
 <pre>
 /*
-	The regexp package implements a simple library for
-	regular expressions.
+    The regexp package implements a simple library for
+    regular expressions.
 
-	The syntax of the regular expressions accepted is:
+    The syntax of the regular expressions accepted is:
 
-	regexp:
-		concatenation { '|' concatenation }
-	concatenation:
-		{ closure }
-	closure:
-		term [ '*' | '+' | '?' ]
-	term:
-		'^'
-		'$'
-		'.'
-		character
-		'[' [ '^' ] character-ranges ']'
-		'(' regexp ')'
+    regexp:
+        concatenation { '|' concatenation }
+    concatenation:
+        { closure }
+    closure:
+        term [ '*' | '+' | '?' ]
+    term:
+        '^'
+        '$'
+        '.'
+        character
+        '[' [ '^' ] character-ranges ']'
+        '(' regexp ')'
 */
 package regexp
 </pre>
@@ -228,10 +228,10 @@ Since the whole declaration is presented, such a comment can often be perfunctor
 <pre>
 // Error codes returned by failures to parse an expression.
 var (
-	ErrInternal      = os.NewError("internal error");
-	ErrUnmatchedLpar = os.NewError("unmatched '('");
-	ErrUnmatchedRpar = os.NewError("unmatched ')'");
-	...
+    ErrInternal      = os.NewError("internal error")
+    ErrUnmatchedLpar = os.NewError("unmatched '('")
+    ErrUnmatchedRpar = os.NewError("unmatched ')'")
+    ...
 )
 </pre>
 
@@ -242,10 +242,10 @@ such as the fact that a set of variables is protected by a mutex.
 
 <pre>
 var (
-	countLock	sync.Mutex;
-	inputCount	uint32;
-	outputCount	uint32;
-	errorCount	uint32;
+    countLock   sync.Mutex
+    inputCount  uint32
+    outputCount uint32
+    errorCount uint32
 )
 </pre>
 
@@ -360,50 +360,65 @@ multiword names.
 <h2 id="semicolons">Semicolons</h2>
 
 <p>
-Go needs fewer semicolons between statements than do other C variants.
-Semicolons are never required at the top level.
-And they are separators, not terminators, so they
-can be left off the last element of a statement or declaration list,
-a convenience
-for one-line <code>funcs</code> and the like.
+Like C, Go's formal grammar uses semicolons to terminate statements;
+unlike C, those semicolons do not appear in the source.
+Instead the lexer uses a simple rule to insert semicolons automatically
+as it scans, so the input text is mostly free of them.
 </p>
 
+<p>
+The rule is this. If the last token before a newline is an identifier
+(which includes words like <code>int</code> and <code>float64</code>),
+a basic literal such as a number or string constant, or one of the
+tokens
+</p>
 <pre>
-func CopyInBackground(dst, src chan Item) {
+break continue fallthrough return ++ -- ) }
+</pre>
+<p>
+the lexer always inserts a semicolon after the token.
+This could be summarized as, &ldquo;if the newline comes
+after a token that could end a statement, add a semicolon&rdquo;.
+</p>
+
+<p>
+A semicolon can also be omitted immediately before a closing brace,
+so a statement such as
+</p>
+<pre>
     go func() { for { dst &lt;- &lt;-src } }()
-}
 </pre>
+<p>
+needs no semicolons.
+Idiomatic Go programs have semicolons only in places such as
+<code>for</code> loop clauses, to separate the initializer, condition, and
+continuation elements.  They are also necessary to separate multiple
+statements on a line, should you write code that way.
+</p>
 
 <p>
-In fact, semicolons can be omitted at the end of any "StatementList" in the
-grammar, which includes things like cases in <code>switch</code>
-statements.
+One caveat. You should never put the opening brace of a
+control structure (<code>if</code>, <code>for</code>, <code>switch</code>,
+or <code>select</code>) on the next line.  If you do, a semicolon
+will be inserted before the brace, which could cause unwanted
+effects.  Write them like this
 </p>
 
 <pre>
-switch {
-case a &lt; b:
-    return -1
-case a == b:
-    return 0
-case a &gt; b:
-    return 1
+if i < f() {
+    g()
 }
-
+</pre>
+<p>
+not like this
+</p>
+<pre>
+if i < f()  // wrong!
+{           // wrong!
+    g()
+}
 </pre>
 
-<p>
-The grammar accepts an empty statement after any statement list, which
-means a terminal semicolon is always OK.  As a result,
-it's fine to put semicolons everywhere you'd put them in a
-C program—they would be fine after those return statements,
-for instance—but they can often be omitted.
-By convention, they're always left off top-level declarations (for
-instance, they don't appear after the closing brace of <code>struct</code>
-declarations, or of <code>funcs</code> for that matter)
-and often left off one-liners.  But within functions, place them
-as you see fit.
-</p>
 
 <h2 id="control-structures">Control structures</h2>
 
@@ -448,8 +463,8 @@ statement, it's common to see one used to set up a local variable.
 
 <pre>
 if err := file.Chmod(0664); err != nil {
-    log.Stderr(err);
-    return err;
+    log.Stderr(err)
+    return err
 }
 </pre>
 
@@ -462,11 +477,11 @@ the body ends in <code>break</code>, <code>continue</code>,
 </p>
 
 <pre>
-f, err := os.Open(name, os.O_RDONLY, 0);
+f, err := os.Open(name, os.O_RDONLY, 0)
 if err != nil {
-    return err;
+    return err
 }
-codeUsing(f);
+codeUsing(f)
 </pre>
 
 <p>
@@ -478,15 +493,15 @@ statements, the resulting code needs no <code>else</code> statements.
 </p>
 
 <pre>
-f, err := os.Open(name, os.O_RDONLY, 0);
+f, err := os.Open(name, os.O_RDONLY, 0)
 if err != nil {
-    return err;
+    return err
 }
-d, err := f.Stat();
+d, err := f.Stat()
 if err != nil {
-    return err;
+    return err
 }
-codeUsing(f, d);
+codeUsing(f, d)
 </pre>
 
 
@@ -513,7 +528,7 @@ for { }
 Short declarations make it easy to declare the index variable right in the loop.
 </p>
 <pre>
-sum := 0;
+sum := 0
 for i := 0; i < 10; i++ {
     sum += i
 }
@@ -525,8 +540,8 @@ or reading from a channel, a <code>range</code> clause can
 manage the loop for you.
 </p>
 <pre>
-var m map[string]int;
-sum := 0;
+var m map[string]int
+sum := 0
 for _, value := range m {  // key is unused
     sum += value
 }
@@ -559,7 +574,7 @@ you should use parallel assignment.
 <pre>
 // Reverse a
 for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
-	a[i], a[j] = a[j], a[i]
+    a[i], a[j] = a[j], a[i]
 }
 </pre>
 
@@ -639,15 +654,15 @@ have the corresponding type in each clause.
 <pre>
 switch t := interfaceValue.(type) {
 default:
-	fmt.Printf("unexpected type %T", t);  // %T prints type
+    fmt.Printf("unexpected type %T", t)  // %T prints type
 case bool:
-	fmt.Printf("boolean %t\n", t);
+    fmt.Printf("boolean %t\n", t)
 case int:
-	fmt.Printf("integer %d\n", t);
+    fmt.Printf("integer %d\n", t)
 case *bool:
-	fmt.Printf("pointer to boolean %t\n", *t);
+    fmt.Printf("pointer to boolean %t\n", *t)
 case *int:
-	fmt.Printf("pointer to integer %d\n", *t);
+    fmt.Printf("pointer to integer %d\n", *t)
 }
 </pre>
 
@@ -693,13 +708,13 @@ and the next position.
 
 <pre>
 func nextInt(b []byte, i int) (int, int) {
-	for ; i < len(b) &amp;&amp; !isDigit(b[i]); i++ {
-	}
-	x := 0;
-	for ; i < len(b) &amp;&amp; isDigit(b[i]); i++ {
-		x = x*10 + int(b[i])-'0'
-	}
-	return x, i;
+    for ; i < len(b) &amp;&amp; !isDigit(b[i]); i++ {
+    }
+    x := 0
+    for ; i < len(b) &amp;&amp; isDigit(b[i]); i++ {
+        x = x*10 + int(b[i])-'0'
+    }
+    return x, i
 }
 </pre>
 
@@ -708,10 +723,10 @@ You could use it to scan the numbers in an input array <code>a</code> like this:
 </p>
 
 <pre>
-	for i := 0; i < len(a); {
-		x, i = nextInt(a, i);
-		fmt.Println(x);
-	}
+    for i := 0; i < len(a); {
+        x, i = nextInt(a, i)
+        fmt.Println(x)
+    }
 </pre>
 
 <h3 id="named-results">Named result parameters</h3>
@@ -745,13 +760,13 @@ of <code>io.ReadFull</code> that uses them well:
 
 <pre>
 func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
-	for len(buf) > 0 &amp;&amp; err == nil {
-		var nr int;
-		nr, err = r.Read(buf);
-		n += nr;
-		buf = buf[nr:len(buf)];
-	}
-	return;
+    for len(buf) > 0 &amp;&amp; err == nil {
+        var nr int
+        nr, err = r.Read(buf)
+        n += nr
+        buf = buf[nr:len(buf)]
+    }
+    return
 }
 </pre>
 
@@ -790,8 +805,8 @@ The zero-value-is-useful property works transitively. Consider this type declara
 
 <pre>
 type SyncedBuffer struct {
-	lock	sync.Mutex;
-	buffer	bytes.Buffer;
+    lock    sync.Mutex
+    buffer  bytes.Buffer
 }
 </pre>
 
@@ -802,8 +817,8 @@ correctly without further arrangement.
 </p>
 
 <pre>
-p := new(SyncedBuffer);  // type *SyncedBuffer
-var v SyncedBuffer;      // type  SyncedBuffer
+p := new(SyncedBuffer)  // type *SyncedBuffer
+var v SyncedBuffer      // type  SyncedBuffer
 </pre>
 
 <h3 id="composite_literals">Constructors and composite literals</h3>
@@ -816,15 +831,15 @@ package <code>os</code>.
 
 <pre>
 func NewFile(fd int, name string) *File {
-	if fd &lt; 0 {
-		return nil
-	}
-	f := new(File);
-	f.fd = fd;
-	f.name = name;
-	f.dirinfo = nil;
-	f.nepipe = 0;
-	return f;
+    if fd &lt; 0 {
+        return nil
+    }
+    f := new(File)
+    f.fd = fd
+    f.name = name
+    f.dirinfo = nil
+    f.nepipe = 0
+    return f
 }
 </pre>
 
@@ -838,11 +853,11 @@ new instance each time it is evaluated.
 
 <pre>
 func NewFile(fd int, name string) *File {
-	if fd &lt; 0 {
-		return nil
-	}
-	f := File{fd, name, nil, 0};
-	return &amp;f;
+    if fd &lt; 0 {
+        return nil
+    }
+    f := File{fd, name, nil, 0}
+    return &amp;f
 }
 </pre>
 
@@ -856,7 +871,7 @@ so we can combine these last two lines.
 </p>
 
 <pre>
-	return &amp;File{fd, name, nil, 0};
+    return &amp;File{fd, name, nil, 0}
 </pre>
 
 <p>
@@ -867,7 +882,7 @@ order, with the missing ones left as their respective zero values.  Thus we coul
 </p>
 
 <pre>
-	return &amp;File{fd: fd, name: name}
+    return &amp;File{fd: fd, name: name}
 </pre>
 
 <p>
@@ -883,9 +898,9 @@ In these examples, the initializations work regardless of the values of <code>En
 </p>
 
 <pre>
-a := [...]string   {Enone: "no error", Eio: "Eio", Einval: "invalid argument"};
-s := []string      {Enone: "no error", Eio: "Eio", Einval: "invalid argument"};
-m := map[int]string{Enone: "no error", Eio: "Eio", Einval: "invalid argument"};
+a := [...]string   {Enone: "no error", Eio: "Eio", Einval: "invalid argument"}
+s := []string      {Enone: "no error", Eio: "Eio", Einval: "invalid argument"}
+m := map[int]string{Enone: "no error", Eio: "Eio", Einval: "invalid argument"}
 </pre>
 
 <h3 id="allocation_make">Allocation with <code>make()</code></h3>
@@ -927,15 +942,15 @@ These examples illustrate the difference between <code>new()</code> and
 </p>
 
 <pre>
-var p *[]int = new([]int);       // allocates slice structure; *p == nil; rarely useful
-var v  []int = make([]int, 100); // v now refers to a new array of 100 ints
+var p *[]int = new([]int)       // allocates slice structure; *p == nil; rarely useful
+var v  []int = make([]int, 100) // v now refers to a new array of 100 ints
 
 // Unnecessarily complex:
-var p *[]int = new([]int);
-*p = make([]int, 100, 100);
+var p *[]int = new([]int)
+*p = make([]int, 100, 100)
 
 // Idiomatic:
-v := make([]int, 100);
+v := make([]int, 100)
 </pre>
 
 <p>
@@ -977,14 +992,14 @@ you can pass a pointer to the array.
 
 <pre>
 func Sum(a *[3]float) (sum float) {
-	for _, v := range *a {
-		sum += v
-	}
-	return
+    for _, v := range *a {
+        sum += v
+    }
+    return
 }
 
-array := [...]float{7.0, 8.5, 9.1};
-x := Sum(&amp;array);  // Note the explicit address-of operator
+array := [...]float{7.0, 8.5, 9.1}
+x := Sum(&amp;array)  // Note the explicit address-of operator
 </pre>
 
 <p>
@@ -1020,23 +1035,23 @@ any.  To read into the first 32 bytes of a larger buffer
 <code>b</code>, <i>slice</i> (here used as a verb) the buffer.
 </p>
 <pre>
-	n, err := f.Read(buf[0:32]);
+    n, err := f.Read(buf[0:32])
 </pre>
 <p>
 Such slicing is common and efficient.  In fact, leaving efficiency aside for
 the moment, this snippet would also read the first 32 bytes of the buffer.
 </p>
 <pre>
-	var n int;
-	var err os.Error;
-	for i := 0; i < 32; i++ {
-		nbytes, e := f.Read(buf[i:i+1]);  // Read one byte.
-		if nbytes == 0 || e != nil {
-			err = e;
-			break;
-		}
-		n += nbytes;
-	}
+    var n int
+    var err os.Error
+    for i := 0; i < 32; i++ {
+        nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
+        if nbytes == 0 || e != nil {
+            err = e
+            break
+        }
+        n += nbytes
+    }
 </pre>
 <p>
 The length of a slice may be changed as long as it still fits within
@@ -1051,21 +1066,21 @@ resulting slice is returned.  The function uses the fact that
 </p>
 <pre>
 func Append(slice, data[]byte) []byte {
-	l := len(slice);
-	if l + len(data) > cap(slice) {	// reallocate
-		// Allocate double what's needed, for future growth.
-		newSlice := make([]byte, (l+len(data))*2);
-		// Copy data (could use bytes.Copy()).
-		for i, c := range slice {
-			newSlice[i] = c
-		}
-		slice = newSlice;
-	}
-	slice = slice[0:l+len(data)];
-	for i, c := range data {
-		slice[l+i] = c
-	}
-	return slice;
+    l := len(slice)
+    if l + len(data) > cap(slice) {  // reallocate
+        // Allocate double what's needed, for future growth.
+        newSlice := make([]byte, (l+len(data))*2)
+        // Copy data (could use bytes.Copy()).
+        for i, c := range slice {
+            newSlice[i] = c
+        }
+        slice = newSlice
+    }
+    slice = slice[0:l+len(data)]
+    for i, c := range data {
+        slice[l+i] = c
+    }
+    return slice
 }
 </pre>
 <p>
@@ -1096,11 +1111,11 @@ so it's easy to build them during initialization.
 </p>
 <pre>
 var timeZone = map[string] int {
-	"UTC":  0*60*60,
-	"EST": -5*60*60,
-	"CST": -6*60*60,
-	"MST": -7*60*60,
-	"PST": -8*60*60,
+    "UTC":  0*60*60,
+    "EST": -5*60*60,
+    "CST": -6*60*60,
+    "MST": -7*60*60,
+    "PST": -8*60*60,
 }
 </pre>
 <p>
@@ -1111,8 +1126,8 @@ is not present in the map will cause the program to crash, but
 there is a way to do so safely using a multiple assignment.
 </p>
 <pre>
-var seconds int;
-var ok bool;
+var seconds int
+var ok bool
 seconds, ok = timeZone[tz]
 </pre>
 <p>
@@ -1125,11 +1140,11 @@ Here's a function that puts it together:
 </p>
 <pre>
 func offset(tz string) int {
-	if seconds, ok := timeZone[tz]; ok {
-		return seconds
-	}
-	log.Stderr("unknown time zone", tz);
-	return 0;
+    if seconds, ok := timeZone[tz]; ok {
+        return seconds
+    }
+    log.Stderr("unknown time zone", tz)
+    return 0
 }
 </pre>
 <p>
@@ -1140,7 +1155,7 @@ value discarded harmlessly.  For testing presence in a map, use the blank
 identifier in place of the usual variable for the value.
 </p>
 <pre>
-_, present := timeZone[tz];
+_, present := timeZone[tz]
 </pre>
 <p>
 To delete a map entry, turn the multiple assignment around by placing
@@ -1149,7 +1164,7 @@ is deleted. It's safe to do this even if the key is already absent
 from the map.
 </p>
 <pre>
-timeZone["PDT"] = 0, false;  // Now on Standard Time
+timeZone["PDT"] = 0, false  // Now on Standard Time
 </pre>
 <h3 id="printing">Printing</h3>
 
@@ -1170,9 +1185,9 @@ between arguments if neither is a string and appends a newline to the output.
 In this example each line produces the same output.
 </p>
 <pre>
-fmt.Printf("Hello %d\n", 23);
-fmt.Fprint(os.Stdout, "Hello ", 23, "\n");
-fmt.Println(fmt.Sprint("Hello ", 23));
+fmt.Printf("Hello %d\n", 23)
+fmt.Fprint(os.Stdout, "Hello ", 23, "\n")
+fmt.Println(fmt.Sprint("Hello ", 23))
 </pre>
 <p>
 As mentioned in
@@ -1187,8 +1202,8 @@ do not take flags for signedness or size; instead, the printing routines use the
 type of the argument to decide these properties.
 </p>
 <pre>
-var x uint64 = 1<<64 - 1;
-fmt.Printf("%d %x; %d %x\n", x, x, int64(x), int64(x));
+var x uint64 = 1<<64 - 1
+fmt.Printf("%d %x; %d %x\n", x, x, int64(x), int64(x))
 </pre>
 <p>
 prints
@@ -1204,7 +1219,7 @@ Moreover, that format can print <em>any</em> value, even arrays, structs, and
 maps.  Here is a print statement for the time zone map defined in the previous section.
 </p>
 <pre>
-fmt.Printf("%v\n", timeZone);  // or just fmt.Println(timeZone);
+fmt.Printf("%v\n", timeZone)  // or just fmt.Println(timeZone)
 </pre>
 <p>
 which gives output
@@ -1220,15 +1235,15 @@ format <code>%#v</code> prints the value in full Go syntax.
 </p>
 <pre>
 type T struct {
-	a int;
-	b float;
-	c string;
+    a int
+    b float
+    c string
 }
-t := &amp;T{ 7, -2.35, "abc\tdef" };
-fmt.Printf("%v\n", t);
-fmt.Printf("%+v\n", t);
-fmt.Printf("%#v\n", t);
-fmt.Printf("%#v\n", timeZone);
+t := &amp;T{ 7, -2.35, "abc\tdef" }
+fmt.Printf("%v\n", t)
+fmt.Printf("%+v\n", t)
+fmt.Printf("%#v\n", t)
+fmt.Printf("%#v\n", timeZone)
 </pre>
 <p>
 prints
@@ -1251,7 +1266,7 @@ a space in the format (<code>%&nbsp;x</code>) it puts spaces between the bytes.
 <p>
 Another handy format is <code>%T</code>, which prints the <em>type</em> of a value.
 <pre>
-fmt.Printf(&quot;%T\n&quot;, timeZone);
+fmt.Printf(&quot;%T\n&quot;, timeZone)
 </pre>
 <p>
 prints
@@ -1266,9 +1281,9 @@ For our simple type <code>T</code>, that might look like this.
 </p>
 <pre>
 func (t *T) String() string {
-	return fmt.Sprintf("%d/%g/%q", t.a, t.b, t.c);
+    return fmt.Sprintf("%d/%g/%q", t.a, t.b, t.c)
 }
-fmt.Printf("%v\n", t);
+fmt.Printf("%v\n", t)
 </pre>
 <p>
 to print in the format
@@ -1296,7 +1311,7 @@ function <code>log.Stderr</code> we used above. It passes its arguments directly
 <pre>
 // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
 func Stderr(v ...) {
-	stderr.Output(2, fmt.Sprintln(v));  // Output takes parameters (int, string)
+    stderr.Output(2, fmt.Sprintln(v))  // Output takes parameters (int, string)
 }
 </pre>
 <p>
@@ -1339,13 +1354,13 @@ sets of values.
 <pre>
 type ByteSize float64
 const (
-	_ = iota;	// ignore first value by assigning to blank identifier
-	KB ByteSize = 1<<(10*iota);
-	MB;
-	GB;
-	TB;
-	PB;
-	YB;
+    _ = iota  // ignore first value by assigning to blank identifier
+    KB ByteSize = 1<<(10*iota)
+    MB
+    GB
+    TB
+    PB
+    YB
 )
 </pre>
 <p>
@@ -1355,21 +1370,21 @@ automatically for printing, even as part of a general type.
 </p>
 <pre>
 func (b ByteSize) String() string {
-	switch {
-	case b >= YB:
-		return fmt.Sprintf("%.2fYB", b/YB)
-	case b >= PB:
-		return fmt.Sprintf("%.2fPB", b/PB)
-	case b >= TB:
-		return fmt.Sprintf("%.2fTB", b/TB)
-	case b >= GB:
-		return fmt.Sprintf("%.2fGB", b/GB)
-	case b >= MB:
-		return fmt.Sprintf("%.2fMB", b/MB)
-	case b >= KB:
-		return fmt.Sprintf("%.2fKB", b/KB)
-	}
-	return fmt.Sprintf("%.2fB", b)
+    switch {
+    case b >= YB:
+        return fmt.Sprintf("%.2fYB", b/YB)
+    case b >= PB:
+        return fmt.Sprintf("%.2fPB", b/PB)
+    case b >= TB:
+        return fmt.Sprintf("%.2fTB", b/TB)
+    case b >= GB:
+        return fmt.Sprintf("%.2fGB", b/GB)
+    case b >= MB:
+        return fmt.Sprintf("%.2fMB", b/MB)
+    case b >= KB:
+        return fmt.Sprintf("%.2fKB", b/KB)
+    }
+    return fmt.Sprintf("%.2fB", b)
 }
 </pre>
 <p>
@@ -1385,9 +1400,9 @@ initializer can be a general expression computed at run time.
 </p>
 <pre>
 var (
-	HOME = os.Getenv("HOME");
-	USER = os.Getenv("USER");
-	GOROOT = os.Getenv("GOROOT");
+    HOME = os.Getenv("HOME")
+    USER = os.Getenv("USER")
+    GOROOT = os.Getenv("GOROOT")
 )
 </pre>
 
@@ -1412,17 +1427,17 @@ correctness of the program state before real execution begins.
 
 <pre>
 func init() {
-	if USER == "" {
-		log.Exit("$USER not set")
-	}
-	if HOME == "" {
-		HOME = "/usr/" + USER
-	}
-	if GOROOT == "" {
-		GOROOT = HOME + "/go"
-	}
-	// GOROOT may be overridden by --goroot flag on command line.
-	flag.StringVar(&amp;GOROOT, "goroot", GOROOT, "Go root directory")
+    if USER == "" {
+        log.Exit("$USER not set")
+    }
+    if HOME == "" {
+        HOME = "/usr/" + USER
+    }
+    if GOROOT == "" {
+        GOROOT = HOME + "/go"
+    }
+    // GOROOT may be overridden by --goroot flag on command line.
+    flag.StringVar(&amp;GOROOT, "goroot", GOROOT, "Go root directory")
 }
 </pre>
 
@@ -1442,7 +1457,7 @@ then make the receiver for the method a value of that type.
 type ByteSlice []byte
 
 func (slice ByteSlice) Append(data []byte) []byte {
-	// Body exactly the same as above
+    // Body exactly the same as above
 }
 </pre>
 <p>
@@ -1453,9 +1468,9 @@ method can overwrite the caller's slice.
 </p>
 <pre>
 func (p *ByteSlice) Append(data []byte) {
-	slice := *p;
-	// Body as above, without the return.
-	*p = slice;
+    slice := *p
+    // Body as above, without the return.
+    *p = slice
 }
 </pre>
 <p>
@@ -1464,10 +1479,10 @@ like a standard <code>Write</code> method, like this,
 </p>
 <pre>
 func (p *ByteSlice) Write(data []byte) (n int, err os.Error) {
-	slice := *p;
-	// Again as above.
-	*p = slice;
-	return len(data), nil;
+    slice := *p
+    // Again as above.
+    *p = slice
+    return len(data), nil
 }
 </pre>
 <p>
@@ -1476,8 +1491,8 @@ then the type <code>*ByteSlice</code> satisfies the standard interface
 print into one.
 </p>
 <pre>
-	var b ByteSlice;
-	fmt.Fprintf(&amp;b, "This hour has %d days\n", 7);
+    var b ByteSlice
+    fmt.Fprintf(&amp;b, "This hour has %d days\n", 7)
 </pre>
 <p>
 We pass the address of a <code>ByteSlice</code>
@@ -1521,26 +1536,26 @@ type Sequence []int
 
 // Methods required by sort.Interface.
 func (s Sequence) Len() int {
-	return len(s)
+    return len(s)
 }
 func (s Sequence) Less(i, j int) bool {
-	return s[i] < s[j]
+    return s[i] < s[j]
 }
 func (s Sequence) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+    s[i], s[j] = s[j], s[i]
 }
 
 // Method for printing - sorts the elements before printing.
 func (s Sequence) String() string {
-	sort.Sort(s);
-	str := "[";
-	for i, elem := range s {
-		if i > 0 {
-			str += " "
-		}
-		str += fmt.Sprint(elem);
-	}
-	return str + "]";
+    sort.Sort(s)
+    str := "["
+    for i, elem := range s {
+        if i > 0 {
+            str += " "
+        }
+        str += fmt.Sprint(elem)
+    }
+    return str + "]"
 }
 </pre>
 
@@ -1554,8 +1569,8 @@ effort if we convert the <code>Sequence</code> to a plain
 </p>
 <pre>
 func (s Sequence) String() string {
-	sort.Sort(s);
-	return fmt.Sprint([]int(s));
+    sort.Sort(s)
+    return fmt.Sprint([]int(s))
 }
 </pre>
 <p>
@@ -1582,8 +1597,8 @@ type Sequence []int
 
 // Method for printing - sorts the elements before printing
 func (s Sequence) String() string {
-	sort.IntArray(s).Sort();
-	return fmt.Sprint([]int(s))
+    sort.IntArray(s).Sort()
+    return fmt.Sprint([]int(s))
 }
 </pre>
 <p>
@@ -1631,9 +1646,9 @@ The interface to <code>crypto/block</code> includes:
 </p>
 <pre>
 type Cipher interface {
-	BlockSize() int;
-	Encrypt(src, dst []byte);
-	Decrypt(src, dst []byte);
+    BlockSize() int
+    Encrypt(src, dst []byte)
+    Decrypt(src, dst []byte)
 }
 
 // NewECBDecrypter returns a reader that reads data
@@ -1665,7 +1680,7 @@ that implements <code>Handler</code> can serve HTTP requests.
 </p>
 <pre>
 type Handler interface {
-	ServeHTTP(*Conn, *Request);
+    ServeHTTP(*Conn, *Request)
 }
 </pre>
 <p>
@@ -1678,12 +1693,12 @@ page is visited.
 <pre>
 // Simple counter server.
 type Counter struct {
-	n int;
+    n int
 }
 
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
-	ctr.n++;
-	fmt.Fprintf(c, "counter = %d\n", ctr.n);
+    ctr.n++
+    fmt.Fprintf(c, "counter = %d\n", ctr.n)
 }
 </pre>
 <p>
@@ -1692,8 +1707,8 @@ For reference, here's how to attach such a server to a node on the URL tree.
 <pre>
 import "http"
 ...
-ctr := new(Counter);
-http.Handle("/counter", ctr);
+ctr := new(Counter)
+http.Handle("/counter", ctr)
 </pre>
 <p>
 But why make <code>Counter</code> a struct?  An integer is all that's needed.
@@ -1704,8 +1719,8 @@ But why make <code>Counter</code> a struct?  An integer is all that's needed.
 type Counter int
 
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
-	*ctr++;
-	fmt.Fprintf(c, "counter = %d\n", *ctr);
+    *ctr++
+    fmt.Fprintf(c, "counter = %d\n", *ctr)
 }
 </pre>
 <p>
@@ -1718,8 +1733,8 @@ has been visited?  Tie a channel to the web page.
 type Chan chan *http.Request
 
 func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
-	ch <- req;
-	fmt.Fprint(c, "notification sent");
+    ch <- req
+    fmt.Fprint(c, "notification sent")
 }
 </pre>
 <p>
@@ -1729,9 +1744,9 @@ It's easy to write a function to print the arguments.
 </p>
 <pre>
 func ArgServer() {
-	for i, s := range os.Args {
-		fmt.Println(s);
-	}
+    for i, s := range os.Args {
+        fmt.Println(s)
+    }
 }
 </pre>
 <p>
@@ -1750,7 +1765,7 @@ type HandlerFunc func(*Conn, *Request)
 
 // ServeHTTP calls f(c, req).
 func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
-	f(c, req);
+    f(c, req)
 }
 </pre>
 <p>
@@ -1767,9 +1782,9 @@ to have the right signature.
 <pre>
 // Argument server.
 func ArgServer(c *http.Conn, req *http.Request) {
-	for i, s := range os.Args {
-		fmt.Fprintln(c, s);
-	}
+    for i, s := range os.Args {
+        fmt.Fprintln(c, s)
+    }
 }
 </pre>
 <p>
@@ -1780,7 +1795,7 @@ to access <code>IntArray.Sort</code>.
 The code to set it up is concise:
 </p>
 <pre>
-http.Handle("/args", http.HandlerFunc(ArgServer));
+http.Handle("/args", http.HandlerFunc(ArgServer))
 </pre>
 <p>
 When someone visits the page <code>/args</code>,
@@ -1813,11 +1828,11 @@ here are their definitions.
 </p>
 <pre>
 type Reader interface {
-	Read(p []byte) (n int, err os.Error);
+    Read(p []byte) (n int, err os.Error)
 }
 
 type Writer interface {
-	Write(p []byte) (n int, err os.Error);
+    Write(p []byte) (n int, err os.Error)
 }
 </pre>
 <p>
@@ -1832,8 +1847,8 @@ to embed the two interfaces to form the new one, like this:
 <pre>
 // ReadWrite is the interface that groups the basic Read and Write methods.
 type ReadWriter interface {
-	Reader;
-	Writer;
+    Reader
+    Writer
 }
 </pre>
 <p>
@@ -1857,8 +1872,8 @@ but does not give them field names.
 // ReadWriter stores pointers to a Reader and a Writer.
 // It implements io.ReadWriter.
 type ReadWriter struct {
-	*Reader;
-	*Writer;
+    *Reader
+    *Writer
 }
 </pre>
 <p>
@@ -1866,8 +1881,8 @@ This struct could be written as
 </p>
 <pre>
 type ReadWriter struct {
-	reader *Reader;
-	writer *Writer;
+    reader *Reader
+    writer *Writer
 }
 </pre>
 <p>
@@ -1877,7 +1892,7 @@ to provide forwarding methods, like this:
 </p>
 <pre>
 func (rw *ReadWriter) Read(p []byte) (n int, err os.Error) {
-	return rw.reader.Read(p)
+    return rw.reader.Read(p)
 }
 </pre>
 <p>
@@ -1904,8 +1919,8 @@ This example shows an embedded field alongside a regular, named field.
 </p>
 <pre>
 type Job struct {
-	Command	string;
-	*log.Logger;
+    Command string
+    *log.Logger
 }
 </pre>
 <p>
@@ -1916,7 +1931,7 @@ a field name, of course, but it's not necessary to do so.  And now we can
 log to a <code>Job</code>:
 </p>
 <pre>
-job.Log("starting now...");
+job.Log("starting now...")
 </pre>
 <p>
 The <code>Logger</code> is a regular field of the struct and we can initialize
@@ -1924,7 +1939,7 @@ it in the usual way.
 </p>
 <pre>
 func NewJob(command string, logger *log.Logger) *Job {
-	return &amp;Job{command, logger}
+    return &amp;Job{command, logger}
 }
 </pre>
 <p>
@@ -1936,7 +1951,7 @@ This would be useful if we wanted to refine the methods of <code>Logger</code>.
 </p>
 <pre>
 func (job *Job) Logf(format string, args ...) {
-	job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args));
+    job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args))
 }
 </pre>
 <p>
@@ -2023,16 +2038,16 @@ exits, silently.  (The effect is similar to the Unix shell's
 background.)
 </p>
 <pre>
-go list.Sort();  // run list.Sort in parallel; don't wait for it. 
+go list.Sort()  // run list.Sort in parallel; don't wait for it. 
 </pre>
 <p>
 A function literal can be handy in a goroutine invocation.
 <pre>
 func Announce(message string, delay int64) {
-	go func() {
-		time.Sleep(delay);
-		fmt.Println(message);
-	}()  // Note the parentheses - must call the function.
+    go func() {
+        time.Sleep(delay)
+        fmt.Println(message)
+    }()  // Note the parentheses - must call the function.
 }
 </pre>
 <p>
@@ -2051,9 +2066,9 @@ If an optional integer parameter is provided, it sets the buffer size for the ch
 The default is zero, for an unbuffered or synchronous channel.
 </p>
 <pre>
-ci := make(chan int);            // unbuffered channel of integers
-cj := make(chan int, 0);         // unbuffered channel of integers
-cs := make(chan *os.File, 100);  // buffered channel of pointers to Files
+ci := make(chan int)            // unbuffered channel of integers
+cj := make(chan int, 0)         // unbuffered channel of integers
+cs := make(chan *os.File, 100)  // buffered channel of pointers to Files
 </pre>
 <p>
 Channels combine communication&mdash;the exchange of a value&mdash;with
@@ -2066,14 +2081,14 @@ In the previous section we launched a sort in the background. A channel
 can allow the launching goroutine to wait for the sort to complete.
 </p>
 <pre>
-c := make(chan int);  // Allocate a channel.
+c := make(chan int)  // Allocate a channel.
 // Start the sort in a goroutine; when it completes, signal on the channel.
 go func() {
-    list.Sort();
-    c &lt;- 1;  // Send a signal; value does not matter. 
-}();
-doSomethingForAWhile();
-&lt;-c;   // Wait for sort to finish; discard sent value.
+    list.Sort()
+    c &lt;- 1  // Send a signal; value does not matter. 
+}()
+doSomethingForAWhile()
+&lt;-c   // Wait for sort to finish; discard sent value.
 </pre>
 <p>
 Receivers always block until there is data to receive.
@@ -2095,15 +2110,15 @@ simultaneous calls to <code>process</code>.
 var sem = make(chan int, MaxOutstanding)
 
 func handle(r *Request) {
-    sem <- 1;    // Wait for active queue to drain.
-    process(r);  // May take a long time.
-    <-sem;       // Done; enable next request to run.
+    sem <- 1    // Wait for active queue to drain.
+    process(r)  // May take a long time.
+    <-sem       // Done; enable next request to run.
 }
 
 func Serve(queue chan *Request) {
     for {
-        req := <-queue;
-        go handle(req);  // Don't wait for handle to finish.
+        req := <-queue
+        go handle(req)  // Don't wait for handle to finish.
     }
 }
 </pre>
@@ -2119,17 +2134,17 @@ receiving from that channel.
 </p>
 <pre>
 func handle(queue chan *Request) {
-	for r := range queue {
-		process(r);
-	}
+    for r := range queue {
+        process(r)
+    }
 }
 
 func Serve(clientRequests chan *clientRequests, quit chan bool) {
-	// Start handlers
-	for i := 0; i < MaxOutstanding; i++ {
-		go handle(clientRequests)
-	}
-	<-quit;	// Wait to be told to exit.
+    // Start handlers
+    for i := 0; i < MaxOutstanding; i++ {
+        go handle(clientRequests)
+    }
+    <-quit  // Wait to be told to exit.
 }
 </pre>
 
@@ -2148,9 +2163,9 @@ Here's a schematic definition of type <code>Request</code>.
 </p>
 <pre>
 type Request struct {
-    args  []int;
-    f    func([]int) int;
-    resultChan	chan int;
+    args        []int
+    f           func([]int) int
+    resultChan  chan int
 }
 </pre>
 <p>
@@ -2159,26 +2174,26 @@ a channel inside the request object on which to receive the answer.
 </p>
 <pre>
 func sum(a []int) (s int) {
-	for _, v := range a {
-		s += v
-	}
-	return
+    for _, v := range a {
+        s += v
+    }
+    return
 }
 
 request := &amp;Request{[]int{3, 4, 5}, sum, make(chan int)}
 // Send request
-clientRequests <- request;
+clientRequests <- request
 // Wait for response.
-fmt.Printf("answer: %d\n", <-request.resultChan);
+fmt.Printf("answer: %d\n", <-request.resultChan)
 </pre>
 <p>
 On the server side, the handler function is the only thing that changes.
 </p>
 <pre>
 func handle(queue chan *Request) {
-	for req := range queue {
-		req.resultChan <- req.f(req.args);
-	}
+    for req := range queue {
+        req.resultChan <- req.f(req.args)
+    }
 }
 </pre>
 <p>
@@ -2207,7 +2222,7 @@ func (v Vector) DoSome(i, n int, u Vector, c chan int) {
     for ; i < n; i++ {
         v[i] += u.Op(v[i])
     }
-    c <- 1;    // signal that this piece is done
+    c <- 1    // signal that this piece is done
 }
 </pre>
 <p>
@@ -2217,12 +2232,12 @@ count the completion signals by draining the channel after
 launching all the goroutines.
 </p>
 <pre>
-const NCPU = 4	// number of CPU cores
+const NCPU = 4  // number of CPU cores
 
 func (v Vector) DoAll(u Vector) {
-    c := make(chan int, NCPU);  // Buffering optional but sensible.
+    c := make(chan int, NCPU)  // Buffering optional but sensible.
     for i := 0; i < NCPU; i++ {
-        go v.DoSome(i*len(v)/NCPU, (i+1)*len(v)/NCPU, u, c);
+        go v.DoSome(i*len(v)/NCPU, (i+1)*len(v)/NCPU, u, c)
     }
     // Drain the channel.
     for i := 0; i < NCPU; i++ {
@@ -2266,14 +2281,14 @@ var freeList = make(chan *Buffer, 100)
 var serverChan = make(chan *Buffer)
 
 func client() {
-	for {
-		b, ok := <-freeList;  // grab a buffer if available
-		if !ok {              // if not, allocate a new one
-			b = new(Buffer)
-		}
-		load(b);              // read next message from the net
-		serverChan <- b;      // send to server
-	}
+    for {
+        b, ok := <-freeList  // grab a buffer if available
+        if !ok {              // if not, allocate a new one
+            b = new(Buffer)
+        }
+        load(b)              // read next message from the net
+        serverChan <- b      // send to server
+    }
 }
 </pre>
 <p>
@@ -2282,11 +2297,11 @@ and returns the buffer to the free list.
 </p>
 <pre>
 func server() {
-	for {
-		b := <-serverChan;    // wait for work
-		process(b);
-		_ = freeList <- b;    // reuse buffer if room
-	}
+    for {
+        b := <-serverChan    // wait for work
+        process(b)
+        _ = freeList <- b    // reuse buffer if room
+    }
 }
 </pre>
 <p>
@@ -2316,7 +2331,7 @@ a simple interface.
 </p>
 <pre>
 type Error interface {
-    String() string;
+    String() string
 }
 </pre>
 <p>
@@ -2329,13 +2344,13 @@ For example, <code>os.Open</code> returns an <code>os.PathError</code>.
 // PathError records an error and the operation and
 // file path that caused it.
 type PathError struct {
-	Op string;    // "open", "unlink", etc.
-	Path string;  // The associated file.
-	Error Error;  // Returned by the system call.
+    Op string    // "open", "unlink", etc.
+    Path string  // The associated file.
+    Error Error  // Returned by the system call.
 }
 
 func (e *PathError) String() string {
-	return e.Op + " " + e.Path + ": " + e.Error.String();
+    return e.Op + " " + e.Path + ": " + e.Error.String()
 }
 </pre>
 <p>
@@ -2363,15 +2378,15 @@ field for recoverable failures.
 
 <pre>
 for try := 0; try < 2; try++ {
-	file, err = os.Open(filename, os.O_RDONLY, 0);
-	if err == nil {
-		return
-	}
-	if e, ok := err.(*os.PathError); ok &amp;&amp; e.Error == os.ENOSPC {
-		deleteTempFiles();  // Recover some space.
-		continue
-	}
-	return
+    file, err = os.Open(filename, os.O_RDONLY, 0)
+    if err == nil {
+        return
+    }
+    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Error == os.ENOSPC {
+        deleteTempFiles()  // Recover some space.
+        continue
+    }
+    return
 }
 </pre>
 
@@ -2400,36 +2415,36 @@ An explanation follows.
 package main
 
 import (
-	"flag";
-	"http";
-	"io";
-	"log";
-	"strings";
-	"template";
+    "flag"
+    "http"
+    "io"
+    "log"
+    "strings"
+    "template"
 )
 
 var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
 var fmap = template.FormatterMap{
-	"html": template.HTMLFormatter,
-	"url+html": UrlHtmlFormatter,
+    "html": template.HTMLFormatter,
+    "url+html": UrlHtmlFormatter,
 }
 var templ = template.MustParse(templateStr, fmap)
 
 func main() {
-	flag.Parse();
-	http.Handle("/", http.HandlerFunc(QR));
-	err := http.ListenAndServe(*addr, nil);
-	if err != nil {
-		log.Exit("ListenAndServe:", err);
-	}
+    flag.Parse()
+    http.Handle("/", http.HandlerFunc(QR))
+    err := http.ListenAndServe(*addr, nil)
+    if err != nil {
+        log.Exit("ListenAndServe:", err)
+    }
 }
 
 func QR(c *http.Conn, req *http.Request) {
-	templ.Execute(req.FormValue("s"), c);
+    templ.Execute(req.FormValue("s"), c)
 }
 
 func UrlHtmlFormatter(w io.Writer, v interface{}, fmt string) {
-	template.HTMLEscape(w, strings.Bytes(http.URLEscape(v.(string))));
+    template.HTMLEscape(w, strings.Bytes(http.URLEscape(v.(string))))
 }
 
 
@@ -2508,13 +2523,13 @@ Go is powerful enough to make a lot happen in a few lines.
 
 <!--
 TODO
-<pre>	
-verifying implementation	
-type Color uint32	
-	
-// Check that Color implements image.Color and image.Image	
-var _ image.Color = Black	
-var _ image.Image = Black	
-</pre>	
+<pre>
+verifying implementation
+type Color uint32
+    
+// Check that Color implements image.Color and image.Image
+var _ image.Color = Black
+var _ image.Image = Black
+</pre>
 -->
 
