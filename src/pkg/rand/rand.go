@@ -62,10 +62,25 @@ func (r *Rand) Int63n(n int64) int64 {
 }
 
 // Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
-func (r *Rand) Int31n(n int32) int32 { return int32(r.Int63n(int64(n))) }
+func (r *Rand) Int31n(n int32) int32 {
+	if n <= 0 {
+		return 0
+	}
+	max := int32((1 << 31) - 1 - (1<<31)%uint32(n))
+	v := r.Int31()
+	for v > max {
+		v = r.Int31()
+	}
+	return v % n
+}
 
 // Intn returns, as an int, a non-negative pseudo-random number in [0,n).
-func (r *Rand) Intn(n int) int { return int(r.Int63n(int64(n))) }
+func (r *Rand) Intn(n int) int {
+	if n <= 1<<31-1 {
+		return int(r.Int31n(int32(n)))
+	}
+	return int(r.Int63n(int64(n)))
+}
 
 // Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
 func (r *Rand) Float64() float64 { return float64(r.Int63()) / (1 << 63) }
