@@ -8,6 +8,7 @@ package http
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -117,6 +118,16 @@ func send(req *Request) (resp *Response, err os.Error) {
 	addr := req.URL.Host
 	if !hasPort(addr) {
 		addr += ":http"
+	}
+	info := req.URL.Userinfo
+	if len(info) > 0 {
+		enc := base64.URLEncoding
+		encoded := make([]byte, enc.EncodedLen(len(info)))
+		enc.Encode(encoded, strings.Bytes(info))
+		if req.Header == nil {
+			req.Header = make(map[string]string)
+		}
+		req.Header["Authorization"] = "Basic " + string(encoded)
 	}
 	conn, err := net.Dial("tcp", "", addr)
 	if err != nil {
