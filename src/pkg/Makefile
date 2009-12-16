@@ -82,6 +82,7 @@ DIRS=\
 	net\
 	once\
 	os\
+	os/signal\
 	patch\
 	path\
 	rand\

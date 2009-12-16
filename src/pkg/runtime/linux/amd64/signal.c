@@ -41,12 +41,25 @@ extern void sigtramp(void);
 extern void sigignore(void);	// just returns
 extern void sigreturn(void);	// calls sigreturn
 
+String
+signame(int32 sig)
+{
+	if(sig < 0 || sig >= NSIG)
+		return emptystring;
+	return gostring((byte*)sigtab[sig].name);
+}
+
 void
 sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
 	Mcontext *mc;
 	Sigcontext *sc;
+
+	if(sigtab[sig].flags & SigQueue) {
+		sigsend(sig);
+		return;
+	}
 
 	if(panicking)	// traceback already printed
 		exit(2);
@@ -91,13 +104,15 @@ initsig(void)
 {
 	static Sigaction sa;
 
+	siginit();
+
 	int32 i;
 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
 	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
 	sa.sa_restorer = (void*)sigreturn;
 	for(i = 0; i<NSIG; i++) {
 		if(sigtab[i].flags) {
-			if(sigtab[i].flags & SigCatch)
+			if(sigtab[i].flags & (SigCatch | SigQueue))
 				sa.sa_handler = (void*)sigtramp;
 			else
 				sa.sa_handler = (void*)sigignore;
@@ -109,4 +124,3 @@ initsig(void)
 		}
 	}
 }
-

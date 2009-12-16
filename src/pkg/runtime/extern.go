@@ -59,3 +59,10 @@ func Semacquire(s *uint32)
 // It is intended as a simple wakeup primitive for use by the synchronization
 // library and should not be used directly.
 func Semrelease(s *uint32)
+
+// Sigrecv returns a bitmask of signals that have arrived since the last call to Sigrecv.
+// It blocks until at least one signal arrives.
+func Sigrecv() uint32
+
+// Signame returns a string describing the signal, or "" if the signal is unknown.
+func Signame(sig int32) string

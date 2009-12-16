@@ -527,12 +527,9 @@ gosched(void)
 // Record that it's not using the cpu anymore.
 // This is called only from the go syscall library, not
 // from the low-level system calls used by the runtime.
-// The "arguments" are syscall.Syscall's stack frame
 void
-runtime·entersyscall(uint64 callerpc, int64 trap)
+runtime·entersyscall(void)
 {
-	USED(callerpc, trap);
-
 	lock(&sched);
 	if(sched.predawn) {
 		unlock(&sched);

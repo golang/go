@@ -25,12 +25,25 @@ dumpregs(Regs *r)
 	printf("gs      %x\n", r->gs);
 }
 
+String
+signame(int32 sig)
+{
+	if(sig < 0 || sig >= NSIG)
+		return emptystring;
+	return gostring((byte*)sigtab[sig].name);
+}
+
 void
 sighandler(int32 sig, Siginfo *info, void *context)
 {
 	Ucontext *uc;
 	Mcontext *mc;
 	Regs *r;
+
+	if(sigtab[sig].flags & SigQueue) {
+		sigsend(sig);
+		return;
+	}
 
 	if(panicking)	// traceback already printed
 		exit(2);
@@ -82,12 +95,14 @@ initsig(void)
 	int32 i;
 	static Sigaction sa;
 
+	siginit();
+
 	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
 	sa.sa_mask = 0xFFFFFFFFU;
 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
 	for(i = 0; i<NSIG; i++) {
 		if(sigtab[i].flags) {
-			if(sigtab[i].flags & SigCatch) {
+			if(sigtab[i].flags & (SigCatch | SigQueue)) {
 				sa.__sigaction_u.__sa_sigaction = sighandler;
 			} else {
 				sa.__sigaction_u.__sa_sigaction = sigignore;
@@ -100,4 +115,3 @@ initsig(void)
 		}
 	}
 }
-
