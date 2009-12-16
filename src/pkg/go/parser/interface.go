@@ -135,8 +135,7 @@ func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error
 // ParsePkgFile parses the file specified by filename and returns the
 // corresponding AST. If the file cannot be read, has syntax errors, or
 // does not belong to the package (i.e., pkgname != "" and the package
-// name in the file doesn't match pkkname), an error is returned. Mode
-// flags that control the amount of source text parsed are ignored.
+// name in the file doesn't match pkkname), an error is returned.
 //
 func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
 	src, err := ioutil.ReadFile(filename)
@@ -152,10 +151,12 @@ func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
 		if prog.Name.Value != pkgname {
 			return nil, os.NewError(fmt.Sprintf("multiple packages found: %s, %s", prog.Name.Value, pkgname))
 		}
+		if mode == PackageClauseOnly {
+			return prog, nil
+		}
 	}
 
-	// ignore flags that control partial parsing
-	return ParseFile(filename, src, mode&^(PackageClauseOnly|ImportsOnly))
+	return ParseFile(filename, src, mode)
 }
 
 
@@ -164,7 +165,6 @@ func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
 // restricted by providing a non-nil filter function; only the files with
 // os.Dir entries passing through the filter are considered.
 // If ParsePackage does not find exactly one package, it returns an error.
-// Mode flags that control the amount of source text parsed are ignored.
 //
 func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Package, os.Error) {
 	fd, err := os.Open(path, os.O_RDONLY, 0)
