@@ -29,8 +29,11 @@ func NaN() float64 { return Float64frombits(uvnan) }
 
 // IsNaN returns whether f is an IEEE 754 ``not-a-number'' value.
 func IsNaN(f float64) (is bool) {
-	x := Float64bits(f)
-	return uint32(x>>shift)&mask == mask && x != uvinf && x != uvneginf
+	// IEEE 754 says that only NaNs satisfy f != f.
+	// To avoid the floating-point hardware, could use:
+	//	x := Float64bits(f);
+	//	return uint32(x>>shift)&mask == mask && x != uvinf && x != uvneginf
+	return f != f
 }
 
 // IsInf returns whether f is an infinity, according to sign.
@@ -38,8 +41,11 @@ func IsNaN(f float64) (is bool) {
 // If sign < 0, IsInf returns whether f is negative infinity.
 // If sign == 0, IsInf returns whether f is either infinity.
 func IsInf(f float64, sign int) bool {
-	x := Float64bits(f)
-	return sign >= 0 && x == uvinf || sign <= 0 && x == uvneginf
+	// Test for infinity by comparing against maximum float.
+	// To avoid the floating-point hardware, could use:
+	//	x := Float64bits(f);
+	//	return sign >= 0 && x == uvinf || sign <= 0 && x == uvneginf;
+	return sign >= 0 && f > MaxFloat64 || sign <= 0 && f < -MaxFloat64
 }
 
 // Frexp breaks f into a normalized fraction
