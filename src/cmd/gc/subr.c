@@ -320,7 +320,7 @@ Sym*
 restrictlookup(char *name, char *pkg)
 {
 	if(!exportname(name) && strcmp(pkg, package) != 0)
-		yyerror("cannot refer to %s.%s", pkg, name);
+		yyerror("cannot refer to unexported name %s.%s", pkg, name);
 	return pkglookup(name, pkg);
 }
 
@@ -2870,6 +2870,10 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
 					*followptr = 1;
 					break;
 				}
+			}
+			if(m->type->etype != TFUNC || m->type->thistuple == 0) {
+				yyerror("%T.%S is a field, not a method", t, s);
+				return T;
 			}
 			return m;
 		}

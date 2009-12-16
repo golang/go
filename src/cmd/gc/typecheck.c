@@ -18,10 +18,10 @@
 
 static void	implicitstar(Node**);
 static int	onearg(Node*);
-static int	lookdot(Node*, Type*);
+static int	lookdot(Node*, Type*, int);
 static void	typecheckaste(int, Type*, NodeList*, char*);
 static int	exportassignok(Type*, char*);
-static Type*	lookdot1(Sym *s, Type *t, Type *f);
+static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
 static int	nokeys(NodeList*);
 static void	typecheckcomplit(Node**);
 static void	addrescapes(Node*);
@@ -102,7 +102,7 @@ reswitch:
 	 */
 	case OLITERAL:
 		ok |= Erv;
-		if(n->val.ctype == CTSTR)
+		if(n->type == T && n->val.ctype == CTSTR)
 			n->type = idealstring;
 		goto ret;
 
@@ -459,8 +459,11 @@ reswitch:
 			n->op = ODOTPTR;
 			checkwidth(t);
 		}
-		if(!lookdot(n, t)) {
-			yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
+		if(!lookdot(n, t, 0)) {
+			if(lookdot(n, t, 1))
+				yyerror("%#N undefined (cannot refer to unexported field %S)", n, n->right->sym);
+			else
+				yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
 			goto error;
 		}
 		switch(n->op) {
@@ -1168,12 +1171,14 @@ onearg(Node *n)
 }
 
 static Type*
-lookdot1(Sym *s, Type *t, Type *f)
+lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
 {
 	Type *r;
 
 	r = T;
 	for(; f!=T; f=f->down) {
+		if(dostrcmp && strcmp(f->sym->name, s->name) == 0)
+			return f;
 		if(f->sym != s)
 			continue;
 		if(r != T) {
@@ -1186,7 +1191,7 @@ lookdot1(Sym *s, Type *t, Type *f)
 }
 
 static int
-lookdot(Node *n, Type *t)
+lookdot(Node *n, Type *t, int dostrcmp)
 {
 	Type *f1, *f2, *tt, *rcvr;
 	Sym *s;
@@ -1196,11 +1201,11 @@ lookdot(Node *n, Type *t)
 	dowidth(t);
 	f1 = T;
 	if(t->etype == TSTRUCT || t->etype == TINTER)
-		f1 = lookdot1(s, t, t->type);
+		f1 = lookdot1(s, t, t->type, dostrcmp);
 
 	f2 = methtype(n->left->type);
 	if(f2 != T)
-		f2 = lookdot1(s, f2, f2->method);
+		f2 = lookdot1(s, f2, f2->method, dostrcmp);
 
 	if(f1 != T) {
 		if(f2 != T)
@@ -1793,7 +1798,7 @@ typecheckcomplit(Node **np)
 				}
 				l->left = newname(s);
 				l->left->typecheck = 1;
-				f = lookdot1(s, t, t->type);
+				f = lookdot1(s, t, t->type, 0);
 				typecheck(&l->right, Erv);
 				if(f == nil) {
 					yyerror("unknown %T field '%s' in struct literal", t, s->name);
