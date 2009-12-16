@@ -45,6 +45,10 @@ type S struct {
 	bytes         []byte
 }
 
+func (s *S) pointerMethod() string { return "ptrmethod!" }
+
+func (s S) valueMethod() string { return "valmethod!" }
+
 var t1 = T{"ItemNumber1", "ValueNumber1"}
 var t2 = T{"ItemNumber2", "ValueNumber2"}
 
@@ -93,6 +97,19 @@ var tests = []*Test{
 		in: "{header}={integer}\n",
 
 		out: "Header=77\n",
+	},
+
+	// Method at top level
+	&Test{
+		in: "ptrmethod={pointerMethod}\n",
+
+		out: "ptrmethod=ptrmethod!\n",
+	},
+
+	&Test{
+		in: "valmethod={valueMethod}\n",
+
+		out: "valmethod=valmethod!\n",
 	},
 
 	// Section
