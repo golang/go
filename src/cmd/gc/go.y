@@ -195,7 +195,7 @@ import_stmt:
 		}
 		my->def = pack;
 		my->lastlineno = $1;
-		import->block = 1;	// at top level
+		my->block = 1;	// at top level
 	}
 
 
