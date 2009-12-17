@@ -693,6 +693,9 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 	}
 
 	for _, f := range dt.Field {
+		if f.BitSize > 0 && f.BitSize != f.ByteSize*8 {
+			continue
+		}
 		if f.ByteOffset > off {
 			fld = c.pad(fld, f.ByteOffset-off)
 			off = f.ByteOffset
