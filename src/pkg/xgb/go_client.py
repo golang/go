@@ -187,9 +187,9 @@ def go_complex(self, fieldlist=None):
 		if field.type.is_pad:
 			continue
 		if field.wire and field.type.fixed_size():
-			go('	%s %s%s;', field.c_field_name, field.c_subscript, field.c_field_type)
+			go('	%s %s%s', field.c_field_name, field.c_subscript, field.c_field_type)
 		if field.wire and not field.type.fixed_size():
-			go('	%s []%s;', field.c_field_name, field.c_field_type)
+			go('	%s []%s', field.c_field_name, field.c_field_type)
 	go('}')
 	go('')
 
@@ -197,25 +197,25 @@ def go_get(dst, ofs, typename, typesize):
 	dst = "v." + dst
 	if typesize == 1:
 		if typename == 'byte':
-			go('%s = b[%s];', dst, ofs)
+			go('%s = b[%s]', dst, ofs)
 		else:
-			go('%s = %s(b[%s]);', dst, typename, ofs)
+			go('%s = %s(b[%s])', dst, typename, ofs)
 	elif typesize == 2:
 		if typename == 'uint16':
-			go('%s = get16(b[%s:]);', dst, ofs)
+			go('%s = get16(b[%s:])', dst, ofs)
 		else:
-			go('%s = %s(get16(b[%s:]));', dst, typename, ofs)
+			go('%s = %s(get16(b[%s:]))', dst, typename, ofs)
 	elif typesize == 4:
 		if typename == 'uint32':
-			go('%s = get32(b[%s:]);', dst, ofs)
+			go('%s = get32(b[%s:])', dst, ofs)
 		else:
-			go('%s = %s(get32(b[%s:]));', dst, typename, ofs)
+			go('%s = %s(get32(b[%s:]))', dst, typename, ofs)
 	else:
-		go('get%s(b[%s:], &%s);', typename, ofs, dst)
+		go('get%s(b[%s:], &%s)', typename, ofs, dst)
 
 def go_get_list(dst, ofs, typename, typesize, count):
 	if typesize == 1 and typename == 'byte':
-		go('copy(v.%s[0:%s], b[%s:]);', dst, count, ofs)
+		go('copy(v.%s[0:%s], b[%s:])', dst, count, ofs)
 	else:
 		go('for i := 0; i < %s; i++ {', count)
 		go_get(dst + "[i]", ofs + "+i*" + str(typesize), typename, typesize)
@@ -240,16 +240,16 @@ def go_complex_reader_help(self, fieldlist):
 			lenstr = go_accessor_expr(field.type.expr, 'v', False)
 			if firstvar:
 				firstvar = 0
-				go('offset := %d;', field.c_offset);
+				go('offset := %d', field.c_offset)
 			else:
-				go('offset = pad(offset);')
-			go('v.%s = make([]%s, %s);', fieldname, fieldtype, lenstr)
+				go('offset = pad(offset)')
+			go('v.%s = make([]%s, %s)', fieldname, fieldtype, lenstr)
 			if fieldtype in sizeoftab:
 				go_get_list(fieldname, "offset", fieldtype, sizeoftab[fieldtype], "len(v."+fieldname+")")
-				go('offset += len(v.%s) * %d;', fieldname, sizeoftab[fieldtype])
+				go('offset += len(v.%s) * %d', fieldname, sizeoftab[fieldtype])
 			else:
 				go('for i := 0; i < %s; i++ {', lenstr)
-				go('	offset += get%s(b[offset:], &v.%s[i]);', fieldtype, fieldname)
+				go('	offset += get%s(b[offset:], &v.%s[i])', fieldtype, fieldname)
 				go('}')
 	if not firstvar:
 		return 'offset'
@@ -257,7 +257,7 @@ def go_complex_reader_help(self, fieldlist):
 
 def go_complex_reader(self):
 	go('func get%s(b []byte, v *%s) int {', self.c_type, self.c_type)
-	go('	return %s;', go_complex_reader_help(self, self.fields))
+	go('	return %s', go_complex_reader_help(self, self.fields))
 	go('}')
 	go('')
 	
@@ -271,21 +271,21 @@ def structsize(fieldlist):
 def go_put(src, ofs, typename, typesize):
 	if typesize == 1:
 		if typename == 'byte':
-			go('b[%s] = %s;', ofs, src)
+			go('b[%s] = %s', ofs, src)
 		else:
-			go('b[%s] = byte(%s);', ofs, src)
+			go('b[%s] = byte(%s)', ofs, src)
 	elif typesize == 2:
 		if typename == 'uint16':
-			go('put16(b[%s:], %s);', ofs, src)
+			go('put16(b[%s:], %s)', ofs, src)
 		else:
-			go('put16(b[%s:], uint16(%s));', ofs, src)
+			go('put16(b[%s:], uint16(%s))', ofs, src)
 	elif typesize == 4:
 		if typename == 'uint32':
-			go('put32(b[%s:], %s);', ofs, src)
+			go('put32(b[%s:], %s)', ofs, src)
 		else:
-			go('put32(b[%s:], uint32(%s));', ofs, src)
+			go('put32(b[%s:], uint32(%s))', ofs, src)
 	else:
-		go('put%s(b[%s:], %s);', typename, ofs, src)
+		go('put%s(b[%s:], %s)', typename, ofs, src)
 
 
 def go_complex_writer_help(fieldlist, prefix=''):
@@ -305,9 +305,9 @@ def go_complex_writer_help(fieldlist, prefix=''):
 			if field.type.nmemb == 1:
 				go_put(fieldname, field.c_offset, fieldtype, field.type.size)
 			else:
-				go('	copy(b[%d:%d], %s);', field.c_offset, field.c_offset + field.type.nmemb, fieldname)
+				go('	copy(b[%d:%d], %s)', field.c_offset, field.c_offset + field.type.nmemb, fieldname)
 
-def go_complex_writer_arguments(param_fields):
+def go_complex_writer_arguments(param_fields, endstr):
 	out = []
 	for field in param_fields:
 		namestr = field.c_field_name
@@ -315,7 +315,7 @@ def go_complex_writer_arguments(param_fields):
 		if typestr == '[]byte' and namestr == 'Name':
 			typestr = 'string'
 		out.append(namestr + ' ' + typestr)
-	go('	' + ', '.join(out))
+	go('	' + ', '.join(out) + ')' + endstr)
 
 def go_complex_writer_arguments_names(param_fields):
 	out = []
@@ -340,38 +340,36 @@ def go_complex_writer(self, name, void):
 	
 	if void:
 		go('func (c *Conn) %s(', func_name)
-		go_complex_writer_arguments(param_fields)
-		go(') {')
+		go_complex_writer_arguments(param_fields, "{")
 	else:
 		go('func (c *Conn) %sRequest(', func_name)
-		go_complex_writer_arguments(param_fields)
-		go(') Cookie {')
+		go_complex_writer_arguments(param_fields, "Cookie {")
 	
 	fixedtotal = structsize(self.fields)
 	if fixedtotal <= 32:
-		go('	b := c.scratch[0:%d];', fixedtotal)
+		go('	b := c.scratch[0:%d]', fixedtotal)
 	else:
-		go('	b := make([]byte, %d);', fixedtotal)
+		go('	b := make([]byte, %d)', fixedtotal)
 	firstvar = 0
 	for field in wire_fields:
 		if not field.type.fixed_size():
 			if not firstvar:
 				firstvar = 1
-				go('	n := %d;', fixedtotal)
-			go('	n += pad(%s * %d);', go_accessor_expr(field.type.expr, '', True), field.type.size)
+				go('	n := %d', fixedtotal)
+			go('	n += pad(%s * %d)', go_accessor_expr(field.type.expr, '', True), field.type.size)
 	if not firstvar:
-		go('	put16(b[2:], %d);', fixedtotal / 4)
+		go('	put16(b[2:], %d)', fixedtotal / 4)
 	else:
-		go('	put16(b[2:], uint16(n / 4));')
-	go('	b[0] = %s;', self.opcode)
+		go('	put16(b[2:], uint16(n / 4))')
+	go('	b[0] = %s', self.opcode)
 	go_complex_writer_help(wire_fields)
 	if not void:
 		if firstvar:
-			go('	cookie := c.sendRequest(b);')
+			go('	cookie := c.sendRequest(b)')
 		else:
-			go('	return c.sendRequest(b);')
+			go('	return c.sendRequest(b)')
 	else:
-		go('	c.sendRequest(b);')
+		go('	c.sendRequest(b)')
 	
 	# send extra data
 	for field in param_fields:
@@ -381,25 +379,24 @@ def go_complex_writer(self, name, void):
 				lenstr = go_accessor_expr(field.type.expr, '', True)
 				if t(field.field_type) == 'byte':
 					if fieldname == 'Name':
-						go('	c.sendString(%s);', fieldname)
+						go('	c.sendString(%s)', fieldname)
 					else:
-						go('	c.sendBytes(%s[0:%s]);', fieldname, lenstr)
+						go('	c.sendBytes(%s[0:%s])', fieldname, lenstr)
 				elif t(field.field_type) == 'uint32':
-					go('	c.sendUInt32List(%s[0:%s]);', fieldname, lenstr)
+					go('	c.sendUInt32List(%s[0:%s])', fieldname, lenstr)
 				else:
-					go('	c.send%sList(%s, %s);', t(field.field_type), fieldname, lenstr)
+					go('	c.send%sList(%s, %s)', t(field.field_type), fieldname, lenstr)
 	
 	if not void and firstvar:
-		go('	return cookie;')
+		go('	return cookie')
 	go('}')
 	go('')
 	
 	if not void:
 		args = go_complex_writer_arguments_names(param_fields)
 		go('func (c *Conn) %s(', func_name)
-		go_complex_writer_arguments(param_fields)
-		go(') (*%s, os.Error) {', self.c_reply_type)
-		go('	return c.%sReply(c.%sRequest(%s));', func_name, func_name, args)
+		go_complex_writer_arguments(param_fields, '(*%s, os.Error) {' % self.c_reply_type)
+		go('	return c.%sReply(c.%sRequest(%s))', func_name, func_name, args)
 		go('}')
 		go('')
 
@@ -433,12 +430,12 @@ def go_struct(self, name):
 		return
 	
 	go('func (c *Conn) send%sList(list []%s, count int) {', self.c_type, self.c_type)
-	go('	b0 := make([]byte, %d * count);', structsize(self.fields))
+	go('	b0 := make([]byte, %d * count)', structsize(self.fields))
 	go('	for k := 0; k < count; k++ {')
-	go('	b := b0[k * %d:];', structsize(self.fields))
+	go('	b := b0[k * %d:]', structsize(self.fields))
 	go_complex_writer_help(self.fields, 'list[k]')
 	go('	}')
-	go('	c.sendBytes(b0);')
+	go('	c.sendBytes(b0)')
 	go('}')
 	go('')
 
@@ -468,11 +465,11 @@ def go_reply(self, name):
 	fields = replyfields(self.reply)
 	go_complex(self.reply, fields)
 	go('func (c *Conn) %s(cookie Cookie) (*%s, os.Error) {', self.c_reply_name, self.c_reply_type)
-	go('	b, error := c.waitForReply(cookie);')
+	go('	b, error := c.waitForReply(cookie)')
 	go('	if error != nil { return nil, error }')
-	go('	v := new(%s);', self.c_reply_type)
+	go('	v := new(%s)', self.c_reply_type)
 	go_complex_reader_help(self.reply, fields)
-	go('	return v, nil;')
+	go('	return v, nil')
 	go('}')
 	go('')
 
@@ -511,9 +508,9 @@ def dumpeventlist():
 	go('func parseEvent(buf []byte) (Event, os.Error) {')
 	go('	switch buf[0] {')
 	for event in eventlist:
-		go('	case %s: return get%sEvent(buf), nil;', event, event)
+		go('	case %s: return get%sEvent(buf), nil', event, event)
 	go('	}')
-	go('	return nil, os.NewError("unknown event type");')
+	go('	return nil, os.NewError("unknown event type")')
 	go('}')
 
 def go_event(self, name):
@@ -534,9 +531,9 @@ def go_event(self, name):
 		# Structure definition
 		go_complex(self, fields)
 		go('func get%s(b []byte) %s {', self.c_type, self.c_type)
-		go('	var v %s;', self.c_type)
+		go('	var v %s', self.c_type)
 		go_complex_reader_help(self, fields)
-		go('	return v;')
+		go('	return v')
 		go('}')
 		go('')
 	else:
@@ -544,7 +541,7 @@ def go_event(self, name):
 		go('type %s %s', n(name + ('Event',)), n(self.name + ('Event',)))
 		go('')
 		go('func get%s(b []byte) %s {', self.c_type, self.c_type)
-		go('	return (%s)(get%s(b));', n(name + ('Event',)), n(self.name + ('Event',)))
+		go('	return (%s)(get%s(b))', n(name + ('Event',)), n(self.name + ('Event',)))
 		go('}')
 		go('')
 
@@ -594,7 +591,7 @@ def go_enum(self, name):
 			s = name[1] + "".join([x.capitalize() for x in enam.split("_")])
 		else:
 			s = n(name + (enam,))
-		go('	%s = %s;', s, eval)
+		go('	%s = %s', s, eval)
 	go(')')
 	go('')
 
