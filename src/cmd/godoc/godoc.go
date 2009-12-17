@@ -454,15 +454,83 @@ func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
 
 
 // ----------------------------------------------------------------------------
+// Tab conversion
+
+var spaces = strings.Bytes("                ") // 16 spaces seems like a good number
+
+const (
+	indenting = iota
+	collecting
+)
+
+// A tconv is an io.Writer filter for converting leading tabs into spaces.
+type tconv struct {
+	output io.Writer
+	state  int // indenting or collecting
+	indent int // valid if state == indenting
+}
+
+
+func (p *tconv) writeIndent(n int) (err os.Error) {
+	i := n * *tabwidth
+	for i > len(spaces) {
+		i -= len(spaces)
+		if _, err = p.output.Write(spaces); err != nil {
+			return
+		}
+	}
+	_, err = p.output.Write(spaces[0:i])
+	return
+}
+
+
+func (p *tconv) Write(data []byte) (n int, err os.Error) {
+	pos := 0 // valid if p.state == collecting
+	var b byte
+	for n, b = range data {
+		switch p.state {
+		case indenting:
+			if b == '\t' {
+				p.indent++
+			} else {
+				p.state = collecting
+				pos = n
+				if err = p.writeIndent(p.indent); err != nil {
+					return
+				}
+			}
+		case collecting:
+			if b == '\n' {
+				p.state = indenting
+				p.indent = 0
+				if _, err = p.output.Write(data[pos : n+1]); err != nil {
+					return
+				}
+			}
+		}
+	}
+	n = len(data)
+	if p.state == collecting {
+		_, err = p.output.Write(data[pos:])
+	}
+	return
+}
+
+
+// ----------------------------------------------------------------------------
 // Templates
 
 // Write an AST-node to w; optionally html-escaped.
 func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
-	mode := printer.UseSpaces | printer.NoSemis
+	mode := printer.TabIndent | printer.UseSpaces | printer.NoSemis
 	if html {
 		mode |= printer.GenHTML
 	}
-	(&printer.Config{mode, *tabwidth, styler}).Fprint(w, node)
+	// convert trailing tabs into spaces using a tconv filter
+	// to ensure a good outcome in most browsers (there may still
+	// be tabs in comments and strings, but converting those into
+	// the right number of spaces is much harder)
+	(&printer.Config{mode, *tabwidth, styler}).Fprint(&tconv{output: w}, node)
 }
 
 
