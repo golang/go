@@ -101,6 +101,27 @@ func TestSecondsToUTCAndBack(t *testing.T) {
 	}
 }
 
+type TimeFormatTest struct {
+	time           Time
+	formattedValue string
+}
+
+var iso8601Formats = []TimeFormatTest{
+	TimeFormatTest{Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}, "2008-09-17T20:04:26Z"},
+	TimeFormatTest{Time{1994, 9, 17, 20, 4, 26, Wednesday, -18000, "EST"}, "1994-09-17T20:04:26-0500"},
+	TimeFormatTest{Time{2000, 12, 26, 1, 15, 6, Wednesday, 15600, "OTO"}, "2000-12-26T01:15:06+0420"},
+}
+
+func TestISO8601Conversion(t *testing.T) {
+	for _, f := range iso8601Formats {
+		if f.time.ISO8601() != f.formattedValue {
+			t.Error("ISO8601():")
+			t.Errorf("  want=%+v", f.formattedValue)
+			t.Errorf("  have=%+v", f.time.ISO8601())
+		}
+	}
+}
+
 func BenchmarkSeconds(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Seconds()
