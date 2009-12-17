@@ -134,6 +134,9 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 
 	p := reflect.Indirect(pattern)
 	v := reflect.Indirect(val)
+	if p == nil || v == nil {
+		return p == nil && v == nil
+	}
 
 	switch p := p.(type) {
 	case *reflect.SliceValue:
