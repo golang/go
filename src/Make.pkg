@@ -36,18 +36,21 @@ INSTALLFILES=$(pkgdir)/$(TARG).a
 
 # The rest of the cgo rules are below, but these variable updates
 # must be done here so they apply to the main rules.
+ifdef CGOFILES
 GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
-GOFILES+=$(patsubst %.go,%.cgo2.go,$(CGOFILES))
-OFILES+=$(patsubst %.go,%.cgo3.$O,$(CGOFILES))
-INSTALLFILES+=$(patsubst %.go,$(pkgdir)/$(dir)/$(elem)_%.so,$(CGOFILES))
+GOFILES+=_cgo_gotypes.go
+OFILES+=_cgo_defun.$O
+GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
+INSTALLFILES+=$(pkgdir)/$(dir)/$(TARG).so
 PREREQ+=$(patsubst %,%.make,$(DEPS))
+endif
 
 coverage:
 	$(QUOTED_GOBIN)/gotest
 	$(QUOTED_GOBIN)/6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
 clean:
-	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go $(CLEANFILES)
+	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go *.so _obj _test _testmain.go $(CLEANFILES)
 
 test:
 	$(QUOTED_GOBIN)/gotest
@@ -91,32 +94,42 @@ dir:
 
 # To use cgo in a Go package, add a line
 #
-#	CGOFILES=x.go
+#	CGOFILES=x.go y.go
 #
-# to the main Makefile.  This signals that cgo should process x.go.
+# to the main Makefile.  This signals that cgo should process x.go
+# and y.go when building the package.
 # There are two optional variables to set, CGO_CFLAGS and CGO_LDFLAGS,
 # which specify compiler and linker flags to use when compiling
-# (using gcc) the C support for x.go.
+# (using gcc) the C support for x.go and y.go.
 
-# Cgo translates each x.go file listed in $(CGOFILES) into
+# Cgo translates each x.go file listed in $(CGOFILES) into a basic
+# translation of x.go, called x.cgo1.go. Additionally, three other
+# files are created:
 #
-#	x.cgo1.go - basic translation of x.go
-#	x.cgo2.go - declarations needed for x.cgo1.go; imports "unsafe"
-#	x.cgo3.c - C trampoline code to be compiled with 6c and linked into the package
-#	x.cgo4.c - C implementations compiled with gcc to create dynamic library
+#	_cgo_gotypes.go	- declarations needed for all .go files in the package; imports "unsafe"
+#	_cgo_defun.c	- C trampoline code to be compiled with 6c and linked into the package
+#	x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
 #
-%.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
-	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $*.go
 
-# The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
-# added x.cgo3.$O to $OFILES, and added the installed copy of
-# package_x.so (built from x.cgo4.c) to $(INSTALLFILES).
+_cgo_defun.c _cgo_gotypes.go: $(CGOFILES)
+	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $(CGOFILES)
 
-# Compile x.cgo3.c with 6c; needs access to the runtime headers.
+# Ugly but necessary
+%.cgo1.go: _cgo_defun.c _cgo_gotypes.go
+	@true
+
+%.cgo2.c: _cgo_defun.c _cgo_gotypes.go
+	@true
+
+%.cgo2.o: %.cgo2.c
+	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
+
+# The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
+# added _cgo_defun.$O to $OFILES, and added the installed copy of
+# package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
+
 RUNTIME_CFLAGS_amd64=-D_64BIT
 RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime" $(RUNTIME_CFLAGS_$(GOARCH))
-%.cgo3.$O: %.cgo3.c
-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
 
 # Have to run gcc with the right size argument on hybrid 32/64 machines.
 _CGO_CFLAGS_386=-m32
@@ -127,15 +140,17 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
 
 
 # Compile x.cgo4.c with gcc to make package_x.so.
-%.cgo4.o: %.cgo4.c
-	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
 
-$(elem)_%.so: %.cgo4.o
-	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $*.cgo4.o $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+# Compile _cgo_defun.c with 6c; needs access to the runtime headers.
+_cgo_defun.$O: _cgo_defun.c
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
 
-$(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
+_cgo_.so: $(GCC_OFILES)
+	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+
+$(pkgdir)/$(dir)/$(TARG).so: _cgo_.so
 	@test -d $(QUOTED_GOROOT/pkg && mkdir -p $(pkgdir)/$(dir)
-	cp $(elem)_$*.so "$@"
+	cp _cgo_.so "$@"
 
 # Generic build rules.
 # These come last so that the rules above can override them

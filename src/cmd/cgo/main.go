@@ -14,9 +14,10 @@ import (
 	"fmt"
 	"go/ast"
 	"os"
+	"strings"
 )
 
-func usage() { fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n") }
+func usage() { fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go ...\n") }
 
 var ptrSizeMap = map[string]int64{
 	"386": 4,
@@ -40,8 +41,19 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
-	gccOptions := args[1 : len(args)-1]
-	input := args[len(args)-1]
+
+	// Find first arg that looks like a go file and assume everything before
+	// that are options to pass to gcc.
+	var i int
+	for i = len(args) - 1; i > 0; i-- {
+		if !strings.HasSuffix(args[i], ".go") {
+			break
+		}
+	}
+
+	i += 1
+
+	gccOptions, goFiles := args[1:i], args[i:]
 
 	arch := os.Getenv("GOARCH")
 	if arch == "" {
@@ -57,59 +69,66 @@ func main() {
 	os.Setenv("LC_ALL", "C")
 	os.Setenv("LC_CTYPE", "C")
 
-	p := openProg(input)
-	for _, cref := range p.Crefs {
-		// Convert C.ulong to C.unsigned long, etc.
-		if expand, ok := expandName[cref.Name]; ok {
-			cref.Name = expand
-		}
-	}
+	p := new(Prog)
 
 	p.PtrSize = ptrSize
-	p.Preamble = p.Preamble + "\n" + builtinProlog
 	p.GccOptions = gccOptions
-	p.loadDebugInfo()
 	p.Vardef = make(map[string]*Type)
 	p.Funcdef = make(map[string]*FuncType)
 	p.Enumdef = make(map[string]int64)
+	p.OutDefs = make(map[string]bool)
 
-	for _, cref := range p.Crefs {
-		switch cref.Context {
-		case "call":
-			if !cref.TypeName {
-				// Is an actual function call.
-				*cref.Expr = &ast.Ident{Value: "_C_" + cref.Name}
-				p.Funcdef[cref.Name] = cref.FuncType
-				break
+	for _, input := range goFiles {
+		// Reset p.Preamble so that we don't end up with conflicting headers / defines
+		p.Preamble = builtinProlog
+		openProg(input, p)
+		for _, cref := range p.Crefs {
+			// Convert C.ulong to C.unsigned long, etc.
+			if expand, ok := expandName[cref.Name]; ok {
+				cref.Name = expand
 			}
-			*cref.Expr = cref.Type.Go
-		case "expr":
-			if cref.TypeName {
-				error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
-			}
-			// If the expression refers to an enumerated value, then
-			// place the identifier for the value and add it to Enumdef so
-			// it will be declared as a constant in the later stage.
-			if cref.Type.EnumValues != nil {
-				*cref.Expr = &ast.Ident{Value: cref.Name}
-				p.Enumdef[cref.Name] = cref.Type.EnumValues[cref.Name]
-				break
-			}
-			// Reference to C variable.
-			// We declare a pointer and arrange to have it filled in.
-			*cref.Expr = &ast.StarExpr{X: &ast.Ident{Value: "_C_" + cref.Name}}
-			p.Vardef[cref.Name] = cref.Type
-		case "type":
-			if !cref.TypeName {
-				error((*cref.Expr).Pos(), "expression C.%s used as type", cref.Name)
-			}
-			*cref.Expr = cref.Type.Go
 		}
-	}
-	if nerrors > 0 {
-		os.Exit(2)
+		p.loadDebugInfo()
+		for _, cref := range p.Crefs {
+			switch cref.Context {
+			case "call":
+				if !cref.TypeName {
+					// Is an actual function call.
+					*cref.Expr = &ast.Ident{Value: "_C_" + cref.Name}
+					p.Funcdef[cref.Name] = cref.FuncType
+					break
+				}
+				*cref.Expr = cref.Type.Go
+			case "expr":
+				if cref.TypeName {
+					error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
+				}
+				// If the expression refers to an enumerated value, then
+				// place the identifier for the value and add it to Enumdef so
+				// it will be declared as a constant in the later stage.
+				if cref.Type.EnumValues != nil {
+					*cref.Expr = &ast.Ident{Value: cref.Name}
+					p.Enumdef[cref.Name] = cref.Type.EnumValues[cref.Name]
+					break
+				}
+				// Reference to C variable.
+				// We declare a pointer and arrange to have it filled in.
+				*cref.Expr = &ast.StarExpr{X: &ast.Ident{Value: "_C_" + cref.Name}}
+				p.Vardef[cref.Name] = cref.Type
+			case "type":
+				if !cref.TypeName {
+					error((*cref.Expr).Pos(), "expression C.%s used as type", cref.Name)
+				}
+				*cref.Expr = cref.Type.Go
+			}
+		}
+		if nerrors > 0 {
+			os.Exit(2)
+		}
+
+		p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package
+		p.writeOutput(input)
 	}
 
-	p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package
-	p.writeOutput(input)
+	p.writeDefs()
 }
