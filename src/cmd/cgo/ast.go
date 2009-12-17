@@ -38,6 +38,7 @@ type Prog struct {
 	Enumdef     map[string]int64
 	PtrSize     int64
 	GccOptions  []string
+	OutDefs     map[string]bool
 }
 
 // A Type collects information about a type in both the C and Go worlds.
@@ -56,8 +57,7 @@ type FuncType struct {
 	Go     *ast.FuncType
 }
 
-func openProg(name string) *Prog {
-	p := new(Prog)
+func openProg(name string, p *Prog) {
 	var err os.Error
 	p.AST, err = parser.ParsePkgFile("", name, parser.ParseComments)
 	if err != nil {
@@ -120,7 +120,6 @@ func openProg(name string) *Prog {
 	// Accumulate pointers to uses of C.x.
 	p.Crefs = make([]*Cref, 0, 8)
 	walk(p.AST, p, "prog")
-	return p
 }
 
 func walk(x interface{}, p *Prog, context string) {
