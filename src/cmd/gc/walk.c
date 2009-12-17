@@ -231,6 +231,8 @@ walkdef(Node *n)
 		t->printed = 0;
 		t->method = nil;
 		t->nod = N;
+		t->printed = 0;
+		t->deferwidth = 0;
 
 		// double-check use of type as map key
 		// TODO(rsc): also use of type as receiver?
