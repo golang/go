@@ -319,6 +319,9 @@ func format(t *Time, fmt string) string {
 			case 'M': // %M minute 00-59
 				decimal(buf[bp:bp+2], t.Minute)
 				bp += 2
+			case 'm': // %m month 01-12
+				decimal(buf[bp:bp+2], t.Month)
+				bp += 2
 			case 'S': // %S second 00-59
 				decimal(buf[bp:bp+2], t.Second)
 				bp += 2
@@ -328,6 +331,20 @@ func format(t *Time, fmt string) string {
 			case 'y': // %y year 08
 				decimal(buf[bp:bp+2], int(t.Year%100))
 				bp += 2
+			case 'z': // %z tz in the form -0500
+				if t.ZoneOffset == 0 {
+					bp = addString(buf, bp, "Z")
+				} else if t.ZoneOffset < 0 {
+					bp = addString(buf, bp, "-")
+					decimal(buf[bp:bp+2], -t.ZoneOffset/3600)
+					decimal(buf[bp+2:bp+4], (-t.ZoneOffset%3600)/60)
+					bp += 4
+				} else {
+					bp = addString(buf, bp, "+")
+					decimal(buf[bp:bp+2], t.ZoneOffset/3600)
+					decimal(buf[bp+2:bp+4], (t.ZoneOffset%3600)/60)
+					bp += 4
+				}
 			case 'Z':
 				bp = addString(buf, bp, t.Zone)
 			default:
@@ -355,6 +372,10 @@ func (t *Time) RFC850() string { return format(t, "%A, %d-%b-%y %H:%M:%S %Z") }
 // RFC 1123: Sun, 06 Nov 1994 08:49:37 UTC
 func (t *Time) RFC1123() string { return format(t, "%a, %d %b %Y %H:%M:%S %Z") }
 
+// ISO8601 formats the parsed time value in the style of
+// ISO 8601: 1994-11-06T08:49:37Z
+func (t *Time) ISO8601() string { return format(t, "%Y-%m-%dT%H:%M:%S%z") }
+
 // String formats the parsed time value in the style of
-// date(1) - Sun Nov  6 08:49:37 UTC 1994
+// date(1): Sun Nov  6 08:49:37 UTC 1994
 func (t *Time) String() string { return format(t, "%a %b %e %H:%M:%S %Z %Y") }
