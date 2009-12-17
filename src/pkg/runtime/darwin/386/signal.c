@@ -41,8 +41,9 @@ sighandler(int32 sig, Siginfo *info, void *context)
 	Regs *r;
 
 	if(sigtab[sig].flags & SigQueue) {
-		sigsend(sig);
-		return;
+		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+			return;
+		exit(2);	// SIGINT, SIGTERM, etc
 	}
 
 	if(panicking)	// traceback already printed

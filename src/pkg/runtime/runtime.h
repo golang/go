@@ -374,10 +374,10 @@ void	breakpoint(void);
 void	gosched(void);
 void	goexit(void);
 void	runcgo(void (*fn)(void*), void*);
-void	entersyscall(void);
-void	exitsyscall(void);
+void	runtime·entersyscall(void);
+void	runtime·exitsyscall(void);
 void	siginit(void);
-void	sigsend(int32 sig);
+bool	sigsend(int32 sig);
 
 #pragma	varargck	argpos	printf	1
 
