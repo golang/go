@@ -43,6 +43,7 @@ package runtime
 static struct {
 	Note;
 	uint32 mask;
+	bool inuse;
 } sig;
 
 void
@@ -52,24 +53,27 @@ siginit(void)
 }
 
 // Called from sighandler to send a signal back out of the signal handling thread.
-void
+bool
 sigsend(int32 s)
 {
 	uint32 bit, mask;
 
+	if(!sig.inuse)
+		return false;
 	bit = 1 << s;
 	for(;;) {
 		mask = sig.mask;
 		if(mask & bit)
-			return;		// signal already in queue
+			break;		// signal already in queue
 		if(cas(&sig.mask, mask, mask|bit)) {
 			// Added to queue.
 			// Only send a wakeup for the first signal in each round.
 			if(mask == 0)
 				notewakeup(&sig);
-			return;
+			break;
 		}
 	}
+	return true;
 }
 
 // Called to receive a bitmask of queued signals.
@@ -87,4 +91,8 @@ func Sigrecv() (m uint32) {
 
 func Signame(sig int32) (name String) {
 	name = signame(sig);
+}
+
+func Siginit() {
+	sig.inuse = true;	// enable reception of signals; cannot disable
 }

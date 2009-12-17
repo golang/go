@@ -41,6 +41,7 @@ func process(ch chan<- Signal) {
 }
 
 func init() {
+	runtime.Siginit()
 	ch := make(chan Signal) // Done here so Incoming can have type <-chan Signal
 	Incoming = ch
 	go process(ch)

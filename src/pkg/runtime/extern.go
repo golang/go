@@ -66,3 +66,7 @@ func Sigrecv() uint32
 
 // Signame returns a string describing the signal, or "" if the signal is unknown.
 func Signame(sig int32) string
+
+// Siginit enables receipt of signals via Sigrecv.  It should typically
+// be called during initialization.
+func Siginit()
