@@ -271,10 +271,11 @@ func (S *Scanner) scanMantissa(base int) {
 }
 
 
-func (S *Scanner) scanNumber(seen_decimal_point bool) token.Token {
+func (S *Scanner) scanNumber(pos token.Position, seenDecimalPoint bool) token.Token {
+	// digitVal(S.ch) < 10
 	tok := token.INT
 
-	if seen_decimal_point {
+	if seenDecimalPoint {
 		tok = token.FLOAT
 		S.scanMantissa(10)
 		goto exponent
@@ -289,23 +290,29 @@ func (S *Scanner) scanNumber(seen_decimal_point bool) token.Token {
 			S.scanMantissa(16)
 		} else {
 			// octal int or float
+			seenDecimalDigit := false
 			S.scanMantissa(8)
-			if digitVal(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
-				// float
-				tok = token.FLOAT
-				goto mantissa
+			if S.ch == '8' || S.ch == '9' {
+				// illegal octal int or float
+				seenDecimalDigit = true
+				S.scanMantissa(10)
+			}
+			if S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
+				goto fraction
 			}
 			// octal int
+			if seenDecimalDigit {
+				S.error(pos, "illegal octal number")
+			}
 		}
 		goto exit
 	}
 
-mantissa:
 	// decimal int or float
 	S.scanMantissa(10)
 
+fraction:
 	if S.ch == '.' {
-		// float
 		tok = token.FLOAT
 		S.next()
 		S.scanMantissa(10)
@@ -313,7 +320,6 @@ mantissa:
 
 exponent:
 	if S.ch == 'e' || S.ch == 'E' {
-		// float
 		tok = token.FLOAT
 		S.next()
 		if S.ch == '-' || S.ch == '+' {
@@ -503,7 +509,7 @@ scanAgain:
 		}
 	case digitVal(ch) < 10:
 		insertSemi = true
-		tok = S.scanNumber(false)
+		tok = S.scanNumber(pos, false)
 	default:
 		S.next() // always make progress
 		switch ch {
@@ -532,7 +538,7 @@ scanAgain:
 		case '.':
 			if digitVal(S.ch) < 10 {
 				insertSemi = true
-				tok = S.scanNumber(true)
+				tok = S.scanNumber(pos, true)
 			} else if S.ch == '.' {
 				S.next()
 				if S.ch == '.' {

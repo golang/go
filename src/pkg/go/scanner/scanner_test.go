@@ -164,16 +164,16 @@ var tokens = [...]elt{
 
 const whitespace = "  \t  \n\n\n" // to separate tokens
 
-type TestErrorHandler struct {
+type testErrorHandler struct {
 	t *testing.T
 }
 
-func (h *TestErrorHandler) Error(pos token.Position, msg string) {
+func (h *testErrorHandler) Error(pos token.Position, msg string) {
 	h.t.Errorf("Error() called (msg = %s)", msg)
 }
 
 
-func NewlineCount(s string) int {
+func newlineCount(s string) int {
 	n := 0
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\n' {
@@ -207,12 +207,12 @@ func TestScan(t *testing.T) {
 	for _, e := range tokens {
 		src += e.lit + whitespace
 	}
-	whitespace_linecount := NewlineCount(whitespace)
+	whitespace_linecount := newlineCount(whitespace)
 
 	// verify scan
 	index := 0
 	epos := token.Position{"", 0, 1, 1}
-	nerrors := Tokenize("", strings.Bytes(src), &TestErrorHandler{t}, ScanComments,
+	nerrors := Tokenize("", strings.Bytes(src), &testErrorHandler{t}, ScanComments,
 		func(pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special}
 			if index < len(tokens) {
@@ -234,7 +234,7 @@ func TestScan(t *testing.T) {
 				t.Errorf("bad class for %q: got %d, expected %d", lit, tokenclass(tok), e.class)
 			}
 			epos.Offset += len(lit) + len(whitespace)
-			epos.Line += NewlineCount(lit) + whitespace_linecount
+			epos.Line += newlineCount(lit) + whitespace_linecount
 			if tok == token.COMMENT && litb[1] == '/' {
 				// correct for unaccounted '/n' in //-style comment
 				epos.Offset++
@@ -246,11 +246,6 @@ func TestScan(t *testing.T) {
 	if nerrors != 0 {
 		t.Errorf("found %d errors", nerrors)
 	}
-}
-
-
-func getTok(_ token.Position, tok token.Token, _ []byte) token.Token {
-	return tok
 }
 
 
@@ -485,7 +480,7 @@ func TestIllegalChars(t *testing.T) {
 	var s Scanner
 
 	const src = "*?*$*@*"
-	s.Init("", strings.Bytes(src), &TestErrorHandler{t}, AllowIllegalChars)
+	s.Init("", strings.Bytes(src), &testErrorHandler{t}, AllowIllegalChars)
 	for offs, ch := range src {
 		pos, tok, lit := s.Scan()
 		if pos.Offset != offs {
@@ -538,5 +533,76 @@ func TestStdErrorHander(t *testing.T) {
 
 	if v.ErrorCount() != nerrors {
 		t.Errorf("found %d errors, expected %d", v.ErrorCount(), nerrors)
+	}
+}
+
+
+type errorCollector struct {
+	cnt int            // number of errors encountered
+	msg string         // last error message encountered
+	pos token.Position // last error position encountered
+}
+
+
+func (h *errorCollector) Error(pos token.Position, msg string) {
+	h.cnt++
+	h.msg = msg
+	h.pos = pos
+}
+
+
+func checkError(t *testing.T, src string, tok token.Token, err string) {
+	var s Scanner
+	var h errorCollector
+	s.Init("", strings.Bytes(src), &h, ScanComments)
+	_, tok0, _ := s.Scan()
+	_, tok1, _ := s.Scan()
+	if tok0 != tok {
+		t.Errorf("%q: got %s, expected %s", src, tok0, tok)
+	}
+	if tok1 != token.EOF {
+		t.Errorf("%q: got %s, expected EOF", src, tok1)
+	}
+	cnt := 0
+	if err != "" {
+		cnt = 1
+	}
+	if h.cnt != cnt {
+		t.Errorf("%q: got cnt %d, expected %d", src, h.cnt, cnt)
+	}
+	if h.msg != err {
+		t.Errorf("%q: got msg %q, expected %q", src, h.msg, err)
+	}
+	if h.pos.Offset != 0 {
+		t.Errorf("%q: got offset %d, expected 0", src, h.pos.Offset)
+	}
+}
+
+
+type srcerr struct {
+	src string
+	tok token.Token
+	err string
+}
+
+var errors = []srcerr{
+	srcerr{"\"\"", token.STRING, ""},
+	srcerr{"\"", token.STRING, "string not terminated"},
+	srcerr{"/**/", token.COMMENT, ""},
+	srcerr{"/*", token.COMMENT, "comment not terminated"},
+	srcerr{"//\n", token.COMMENT, ""},
+	srcerr{"//", token.COMMENT, "comment not terminated"},
+	srcerr{"077", token.INT, ""},
+	srcerr{"078.", token.FLOAT, ""},
+	srcerr{"07801234567.", token.FLOAT, ""},
+	srcerr{"078e0", token.FLOAT, ""},
+	srcerr{"078", token.INT, "illegal octal number"},
+	srcerr{"07800000009", token.INT, "illegal octal number"},
+}
+
+
+func TestScanErrors(t *testing.T) {
+	for _, e := range errors {
+		checkError(t, e.src, e.tok, e.err)
 	}
 }
