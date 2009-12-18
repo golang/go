@@ -94,7 +94,8 @@ func main() {
 			case "call":
 				if !cref.TypeName {
 					// Is an actual function call.
-					*cref.Expr = &ast.Ident{Value: "_C_" + cref.Name}
+					pos := (*cref.Expr).Pos()
+					*cref.Expr = &ast.Ident{Position: pos, Value: "_C_" + cref.Name}
 					p.Funcdef[cref.Name] = cref.FuncType
 					break
 				}
