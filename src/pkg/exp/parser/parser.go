@@ -1284,9 +1284,6 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		pos, tok := p.pos, p.tok
 		p.next()
 		y := p.parseExprList()
-		if len(x) > 1 && len(y) > 1 && len(x) != len(y) {
-			p.Error(x[0].Pos(), "arity of lhs doesn't match rhs")
-		}
 		return &ast.AssignStmt{x, pos, tok, y}
 	}
 
