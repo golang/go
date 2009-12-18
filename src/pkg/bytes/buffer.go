@@ -19,8 +19,7 @@ func copyString(dst []byte, doff int, str string) {
 	}
 }
 
-// A Buffer is a variable-sized buffer of bytes
-// with Read and Write methods.
+// A Buffer is a variable-sized buffer of bytes with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
 	buf       []byte   // contents are the bytes buf[off : len(buf)]
@@ -29,8 +28,10 @@ type Buffer struct {
 	bootstrap [64]byte // memory to hold first slice; helps small buffers (Printf) avoid allocation.
 }
 
-// Bytes returns the contents of the unread portion of the buffer;
-// len(b.Bytes()) == b.Len().
+// Bytes returns a slice of the contents of the unread portion of the buffer;
+// len(b.Bytes()) == b.Len().  If the caller changes the contents of the
+// returned slice, the contents of the buffer will change provided there
+// are no intervening method calls on the Buffer.
 func (b *Buffer) Bytes() []byte { return b.buf[b.off:] }
 
 // String returns the contents of the unread portion of the buffer
@@ -219,12 +220,15 @@ func (b *Buffer) ReadByte() (c byte, err os.Error) {
 	return c, nil
 }
 
-// NewBuffer creates and initializes a new Buffer
-// using buf as its initial contents.
+// NewBuffer creates and initializes a new Buffer using buf as its initial
+// contents.  It is intended to prepare a Buffer to read existing data.  It
+// can also be used to to size the internal buffer for writing.  To do that,
+// buf should have the desired capacity but a length of zero.
 func NewBuffer(buf []byte) *Buffer { return &Buffer{buf: buf} }
 
-// NewBufferString creates and initializes a new Buffer
-// using string s as its initial contents.
+// NewBufferString creates and initializes a new Buffer using string s as its
+// initial contents.  It is intended to prepare a buffer to read an existing
+// string.
 func NewBufferString(s string) *Buffer {
 	buf := make([]byte, len(s))
 	copyString(buf, 0, s)
