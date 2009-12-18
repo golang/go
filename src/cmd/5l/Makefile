@@ -17,6 +17,7 @@ OFILES=\
 	optab.$O\
 	pass.$O\
 	thumb.$O\
+	softfloat.$O\
 	span.$O\
 	go.$O\
 

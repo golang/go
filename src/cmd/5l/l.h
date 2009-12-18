@@ -451,6 +451,7 @@ void	putsymb(char*, int, int32, int);
 int32	regoff(Adr*);
 int	relinv(int);
 int32	rnd(int32, int32);
+void	softfloat(void);
 void	span(void);
 void	strnput(char*, int);
 void	undef(void);

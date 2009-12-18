@@ -77,6 +77,8 @@ void	usage(void);
 void	ldobj1(Biobuf *f, int64 len, char *pn);
 void	ldobj(Biobuf*, int64, char*);
 void	ldpkg(Biobuf*, int64, char*);
+void	mark(Sym *s);
+
 
 int	pathchar(void);
 void*	mal(uint32);
