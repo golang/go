@@ -73,7 +73,7 @@ TEXT mainstart(SB),7,$4
 	MOVW	R0, (R1)	// fail hard
 	RET
 
-// TODO(kaib): remove these once linker works properly
+// TODO(kaib): remove these once i actually understand how the linker removes symbols
 // pull in dummy dependencies
 TEXT _dep_dummy(SB),7,$0
 	BL	_div(SB)
@@ -81,6 +81,7 @@ TEXT _dep_dummy(SB),7,$0
 	BL	_mod(SB)
 	BL	_modu(SB)
 	BL	_modu(SB)
+	BL	_sfloat(SB)
 
 TEXT	breakpoint(SB),7,$0
 	BL	abort(SB)

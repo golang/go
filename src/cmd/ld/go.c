@@ -364,7 +364,6 @@ err:
 	nerrors++;
 }
 
-static void mark(Sym*);
 static int markdepth;
 
 static void
@@ -408,7 +407,7 @@ marktext(Prog *p)
 	markdepth--;
 }
 
-static void
+void
 mark(Sym *s)
 {
 	if(s == S || s->reachable)

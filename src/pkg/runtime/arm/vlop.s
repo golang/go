@@ -165,3 +165,20 @@ TEXT	_modu(SB), 7, $16
 out:
 	BL	rest<>(SB)
 	B	out
+
+// trampoline for _sfloat2. passes LR as arg0 and
+// saves registers R0-R11 on the stack for mutation
+// by _sfloat2
+TEXT	_sfloat(SB), 7, $52 // 4 arg + 12*4 saved regs
+	MOVW	R14, 4(R13)
+	MOVW	R0, 8(R13)
+	MOVW	$12(R13), R0
+	MOVM.IA.W	[R1-R11], (R0)
+	BL	_sfloat2(SB)
+	MOVW	R0, 0(R13)
+	MOVW	$12(R13), R0
+	MOVM.IA.W	(R0), [R1-R11]
+	MOVW	8(R13), R0
+	RET
+			
+

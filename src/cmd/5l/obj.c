@@ -71,6 +71,12 @@ isobjfile(char *f)
 	return v;
 }
 
+static char*
+linkername[] =
+{
+	"runtime·softfloat",
+};
+
 void
 usage(void)
 {
@@ -81,7 +87,7 @@ usage(void)
 void
 main(int argc, char *argv[])
 {
-	int c;
+	int c, i;
 
 	Binit(&bso, 1, OWRITE);
 	cout = -1;
@@ -257,6 +263,10 @@ main(int argc, char *argv[])
 	if(!debug['l'])
 		loadlib();
 
+	// mark some functions that are only referenced after linker code editing
+	// TODO(kaib): this doesn't work, the prog can't be found in runtime
+	for(i=0; i<nelem(linkername); i++)
+		mark(lookup(linkername[i], 0));
 	deadcode();
 
 	firstp = firstp->link;
@@ -294,6 +304,7 @@ main(int argc, char *argv[])
 	follow();
 	if(firstp == P)
 		goto out;
+	softfloat();
 	noops();
 	span();
 	asmb();

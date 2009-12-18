@@ -34,6 +34,7 @@ GOARM?=6
 OFILES_arm=\
 	cas$(GOARM).$O\
 	memset.$O\
+	softfloat.$O\
 	vlop.$O\
 	vlrt.$O\
 
