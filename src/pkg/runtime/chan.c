@@ -24,7 +24,7 @@ typedef	struct	Scase	Scase;
 struct	SudoG
 {
 	G*	g;		// g and selgen constitute
-	int32	selgen;		// a weak pointer to g
+	uint32	selgen;		// a weak pointer to g
 	int16	offset;		// offset of case number
 	int8	isfree;		// offset of case number
 	SudoG*	link;
@@ -982,14 +982,12 @@ loop:
 	q->first = sgp->link;
 
 	// if sgp is stale, ignore it
-	if(sgp->selgen != sgp->g->selgen) {
+	if(!cas(&sgp->g->selgen, sgp->selgen, sgp->selgen + 1)) {
 		//prints("INVALID PSEUDOG POINTER\n");
 		freesg(c, sgp);
 		goto loop;
 	}
 
-	// invalidate any others
-	sgp->g->selgen++;
 	return sgp;
 }
 

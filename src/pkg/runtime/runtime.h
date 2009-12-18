@@ -167,7 +167,7 @@ struct	G
 	void*	param;		// passed parameter on wakeup
 	int16	status;
 	int32	goid;
-	int32	selgen;		// valid sudog pointer
+	uint32	selgen;		// valid sudog pointer
 	G*	schedlink;
 	bool	readyonstop;
 	M*	m;		// for debuggers, but offset not hard-coded

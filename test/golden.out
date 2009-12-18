@@ -75,6 +75,9 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
 == chan/
 
+=========== chan/doubleselect.go
+PASS
+
 =========== chan/nonblock.go
 PASS
 
