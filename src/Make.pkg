@@ -41,7 +41,7 @@ GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
 GOFILES+=_cgo_gotypes.go
 OFILES+=_cgo_defun.$O
 GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
-INSTALLFILES+=$(pkgdir)/$(dir)/$(TARG).so
+INSTALLFILES+=$(pkgdir)/$(TARG).so
 PREREQ+=$(patsubst %,%.make,$(DEPS))
 endif
 
@@ -148,7 +148,7 @@ _cgo_defun.$O: _cgo_defun.c
 _cgo_.so: $(GCC_OFILES)
 	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
 
-$(pkgdir)/$(dir)/$(TARG).so: _cgo_.so
+$(pkgdir)/$(TARG).so: _cgo_.so
 	@test -d $(QUOTED_GOROOT/pkg && mkdir -p $(pkgdir)/$(dir)
 	cp _cgo_.so "$@"
 
