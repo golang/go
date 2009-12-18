@@ -19,11 +19,7 @@ var stmtTests = []test{
 	Val2("a, b := 1, 2", "a", 1, "b", 2),
 	Val2("a, i := 1, 2", "a", 1, "i", 2),
 	CErr("a, i := 1, f", opTypes),
-	// TODO(austin) The parser produces an error message for this
-	// one that's inconsistent with the errors I give for other
-	// things
-	//CErr("a, b := 1, 2, 3", "too many"),
-	CErr("a, b := 1, 2, 3", "arity"),
+	CErr("a, b := 1, 2, 3", "too many"),
 	CErr("a := 1, 2", "too many"),
 	CErr("a, b := 1", "not enough"),
 	// Mixed declarations
