@@ -20,6 +20,12 @@ func main() {
 	var i I;
 	i = t;
 	if i.Len() != 5 {
-		panicln("length", i.Len());
+		panicln("i.Len", i.Len());
+	}
+	if T.Len(t) != 5 {
+		panicln("T.Len", T.Len(t));
+	}
+	if (*T).Len(&t) != 5 {
+		panicln("(*T).Len", (*T).Len(&t));
 	}
 }

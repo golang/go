@@ -36,11 +36,18 @@ func main() {
 	var pt *T1;
 
 	if s.val() != 1 { panicln("s.val:", s.val()) }
+	if S.val(s) != 1 { panicln("S.val(s):", S.val(s)) }
+	if (*S).val(&s) != 1 { panicln("(*S).val(s):", (*S).val(&s)) }
 	if ps.val() != 2 { panicln("ps.val:", ps.val()) }
+	if (*S1).val(ps) != 2 { panicln("(*S1).val(ps):", (*S1).val(ps)) }
 	if i.val() != 3 { panicln("i.val:", i.val()) }
+	if I.val(i) != 3 { panicln("I.val(i):", I.val(i)) }
+	if (*I).val(&i) != 3 { panicln("(*I).val(&i):", (*I).val(&i)) }
 	if pi.val() != 4 { panicln("pi.val:", pi.val()) }
+	if (*I1).val(pi) != 4 { panicln("(*I1).val(pi):", (*I1).val(pi)) }
 //	if t.val() != 7 { panicln("t.val:", t.val()) }
 	if pt.val() != 8 { panicln("pt.val:", pt.val()) }
+	if (*T1).val(pt) != 8 { panicln("(*T1).val(pt):", (*T1).val(pt)) }
 
 	if val(s) != 1 { panicln("s.val:", val(s)) }
 	if val(ps) != 2 { panicln("ps.val:", val(ps)) }
@@ -48,5 +55,6 @@ func main() {
 	if val(pi) != 4 { panicln("pi.val:", val(pi)) }
 //	if val(t) != 7 { panicln("t.val:", val(t)) }
 	if val(pt) != 8 { panicln("pt.val:", val(pt)) }
-
+	
+//	if Val.val(i) != 3 { panicln("Val.val(i):", Val.val(i)) }
 }

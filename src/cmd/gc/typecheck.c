@@ -54,6 +54,7 @@ typecheck(Node **np, int top)
 	NodeList *args;
 	int lno, ok, ntop;
 	Type *t;
+	Sym *sym;
 
 	// cannot type check until all the source has been parsed
 	if(!typecheckok)
@@ -445,7 +446,7 @@ reswitch:
 		n->op = ODOT;
 		// fall through
 	case ODOT:
-		l = typecheck(&n->left, Erv);
+		l = typecheck(&n->left, Erv|Etype);
 		if((t = l->type) == T)
 			goto error;
 		if(n->right->op != ONAME) {
@@ -459,12 +460,32 @@ reswitch:
 			n->op = ODOTPTR;
 			checkwidth(t);
 		}
+		sym = n->right->sym;
 		if(!lookdot(n, t, 0)) {
 			if(lookdot(n, t, 1))
 				yyerror("%#N undefined (cannot refer to unexported field %S)", n, n->right->sym);
 			else
 				yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
 			goto error;
+		}
+		if(l->op == OTYPE) {
+			if(n->type->etype != TFUNC || n->type->thistuple != 1) {
+				yyerror("type %T has no method %s", n->left->type, sym);
+				n->type = T;
+				goto error;
+			}
+			if(t->etype == TINTER) {
+				yyerror("method expression on interface not implemented");
+				n->type = T;
+				goto error;
+			}
+			n->op = ONAME;
+			n->sym = methodsym(sym, l->type);
+			n->type = methodfunc(n->type);
+			getinargx(n->type)->type->type = l->type;	// fix up receiver
+			n->class = PFUNC;
+			ok = Erv;
+			goto ret;
 		}
 		switch(n->op) {
 		case ODOTINTER:
@@ -1227,16 +1248,15 @@ lookdot(Node *n, Type *t, int dostrcmp)
 		tt = n->left->type;
 		dowidth(tt);
 		rcvr = getthisx(f2->type)->type->type;
-		if(!eqtype(rcvr, tt)) {
+		if(n->left->op != OTYPE && !eqtype(rcvr, tt)) {
 			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
-				typecheck(&n->left, Erv);
 				checklvalue(n->left, "call pointer method on");
 				addrescapes(n->left);
 				n->left = nod(OADDR, n->left, N);
-				typecheck(&n->left, Erv);
+				typecheck(&n->left, Etype|Erv);
 			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
 				n->left = nod(OIND, n->left, N);
-				typecheck(&n->left, Erv);
+				typecheck(&n->left, Etype|Erv);
 			} else {
 				// method is attached to wrong type?
 				fatal("method mismatch: %T for %T", rcvr, tt);

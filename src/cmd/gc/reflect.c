@@ -88,7 +88,7 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
  * f is method type, with receiver.
  * return function type, receiver as first argument.
  */
-static Type*
+Type*
 methodfunc(Type *f)
 {
 	NodeList *in, *out;
@@ -98,17 +98,17 @@ methodfunc(Type *f)
 	in = nil;
 	if(!isifacemethod(f)) {
 		d = nod(ODCLFIELD, N, N);
-		d->type = getthisx(f->type)->type->type;
+		d->type = getthisx(f)->type->type;
 		in = list(in, d);
 	}
-	for(t=getinargx(f->type)->type; t; t=t->down) {
+	for(t=getinargx(f)->type; t; t=t->down) {
 		d = nod(ODCLFIELD, N, N);
 		d->type = t->type;
 		in = list(in, d);
 	}
 
 	out = nil;
-	for(t=getoutargx(f->type)->type; t; t=t->down) {
+	for(t=getoutargx(f)->type; t; t=t->down) {
 		d = nod(ODCLFIELD, N, N);
 		d->type = t->type;
 		out = list(out, d);
@@ -164,7 +164,7 @@ methods(Type *t)
 		if(isptr[this->etype] && this->type == t)
 			continue;
 		if(isptr[this->etype] && !isptr[t->etype]
-		&& f->embedded != 2 && !isifacemethod(f))
+		&& f->embedded != 2 && !isifacemethod(f->type))
 			continue;
 
 		b = mal(sizeof(*b));
@@ -180,7 +180,7 @@ methods(Type *t)
 		a->perm = o++;
 		a->isym = methodsym(method, it);
 		a->tsym = methodsym(method, t);
-		a->type = methodfunc(f);
+		a->type = methodfunc(f->type);
 
 		if(!(a->isym->flags & SymSiggen)) {
 			a->isym->flags |= SymSiggen;
@@ -192,7 +192,7 @@ methods(Type *t)
 				// using genembedtramp if all that is necessary
 				// is a pointer adjustment and a JMP.
 				if(isptr[it->etype] && isptr[this->etype]
-				&& f->embedded && !isifacemethod(f))
+				&& f->embedded && !isifacemethod(f->type))
 					genembedtramp(it, f, a->isym);
 				else
 					genwrapper(it, f, a->isym);
@@ -205,7 +205,7 @@ methods(Type *t)
 				if(oldlist == nil)
 					oldlist = pc;
 				if(isptr[t->etype] && isptr[this->etype]
-				&& f->embedded && !isifacemethod(f))
+				&& f->embedded && !isifacemethod(f->type))
 					genembedtramp(t, f, a->tsym);
 				else
 					genwrapper(t, f, a->tsym);
@@ -255,7 +255,7 @@ imethods(Type *t)
 		}
 		a->perm = o++;
 		a->offset = 0;
-		a->type = methodfunc(f);
+		a->type = methodfunc(f->type);
 	}
 
 	return lsort(a, sigcmp);
