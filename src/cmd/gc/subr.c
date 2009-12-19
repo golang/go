@@ -2531,7 +2531,7 @@ adddot(Node *n)
 	Sym *s;
 	int c, d;
 
-	typecheck(&n->left, Erv);
+	typecheck(&n->left, Etype|Erv);
 	t = n->left->type;
 	if(t == T)
 		goto ret;
@@ -2913,7 +2913,7 @@ ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
 		// if pointer receiver in method,
 		// the method does not exist for value types.
 		rcvr = getthisx(tm->type)->type->type;
-		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr && !isifacemethod(tm)) {
+		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr && !isifacemethod(tm->type)) {
 			if(debug['r'])
 				yyerror("interface pointer mismatch");
 			*m = im;

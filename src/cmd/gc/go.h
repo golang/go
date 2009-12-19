@@ -925,6 +925,7 @@ int	structcount(Type*);
 void	addmethod(Sym*, Type*, int);
 Node*	methodname(Node*, Type*);
 Node*	methodname1(Node*, Node*);
+Type*	methodfunc(Type*);
 Sym*	methodsym(Sym*, Type*);
 Type*	functype(Node*, NodeList*, NodeList*);
 char*	thistypenam(Node*);

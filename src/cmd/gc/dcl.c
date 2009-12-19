@@ -1048,7 +1048,7 @@ isifacemethod(Type *f)
 	Type *rcvr;
 	Type *t;
 
-	rcvr = getthisx(f->type)->type;
+	rcvr = getthisx(f)->type;
 	if(rcvr->sym != S)
 		return 0;
 	t = rcvr->type;
@@ -1146,7 +1146,7 @@ methodsym(Sym *nsym, Type *t0)
 	return pkglookup(buf, s->package);
 
 bad:
-	yyerror("illegal <this> type: %T", t);
+	yyerror("illegal receiver type: %T", t0);
 	return S;
 }
 
