@@ -239,6 +239,9 @@ regopt(Prog *firstp)
 		case ACMPB:
 		case ACMPL:
 		case ACMPW:
+		case ATESTB:
+		case ATESTL:
+		case ATESTW:
 			for(z=0; z<BITS; z++)
 				r->use2.b[z] |= bit.b[z];
 			break;
