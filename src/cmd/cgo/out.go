@@ -24,6 +24,10 @@ func creat(name string) *os.File {
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
 func (p *Prog) writeDefs() {
 	pkgroot := os.Getenv("GOROOT") + "/pkg/" + os.Getenv("GOOS") + "_" + os.Getenv("GOARCH")
+	path := p.PackagePath
+	if !strings.HasPrefix(path, "/") {
+		path = pkgroot + "/" + path
+	}
 
 	fgo2 := creat("_cgo_gotypes.go")
 	fc := creat("_cgo_defun.c")
@@ -46,7 +50,7 @@ func (p *Prog) writeDefs() {
 	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot, p.Package, p.Package)
 
 	for name, def := range p.Vardef {
-		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s/%s.so\"\n", p.Package, name, name, pkgroot, p.PackagePath)
+		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s.so\"\n", p.Package, name, name, path)
 		fmt.Fprintf(fgo2, "var _C_%s ", name)
 		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
 		fmt.Fprintf(fgo2, "\n")
@@ -121,7 +125,7 @@ func (p *Prog) writeDefs() {
 
 		// C wrapper calls into gcc, passing a pointer to the argument frame.
 		// Also emit #pragma to get a pointer to the gcc wrapper.
-		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s/%s.so\"\n", name, name, pkgroot, p.PackagePath)
+		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s.so\"\n", name, name, path)
 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
 		fmt.Fprintf(fc, "\n")
 		fmt.Fprintf(fc, "void\n")

@@ -126,8 +126,11 @@ func main() {
 		if nerrors > 0 {
 			os.Exit(2)
 		}
-
-		p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package
+		pkg := p.Package
+		if dir := os.Getenv("CGOPKGPATH"); dir != "" {
+			pkg = dir + "/" + pkg
+		}
+		p.PackagePath = pkg
 		p.writeOutput(input)
 	}
 

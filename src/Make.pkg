@@ -23,7 +23,11 @@ endif
 TARG_words=$(subst /, ,$(TARG))
 elem=$(word $(words $(TARG_words)),$(TARG_words))
 
-dir=$(patsubst %/$(elem),%,./$(TARG))
+ifeq ($(elem),$(TARG))
+dir=
+else
+dir=$(patsubst %/$(elem),%,$(TARG))
+endif
 
 # ugly hack to deal with whitespaces in $GOROOT
 nullstring :=
