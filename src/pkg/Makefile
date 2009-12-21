@@ -57,6 +57,7 @@ DIRS=\
 	exp/exception\
 	exp/iterable\
 	exp/parser\
+	exp/vector\
 	expvar\
 	flag\
 	fmt\
