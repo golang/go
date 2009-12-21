@@ -41,7 +41,7 @@ apply1() {
 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
-	bug226.go ) ;;
+	bug226.go | bug228.go ) ;;
 	* ) "$1" "$2"; count "$F";;
 	esac
 }
