@@ -217,6 +217,11 @@ var fmttests = []fmtTest{
 	fmtTest{"%+v", B{1, 2}, `{i:<1> j:2}`},
 	fmtTest{"%+v", C{1, B{2, 3}}, `{i:1 B:{i:<2> j:3}}`},
 
+	// %p on non-pointers
+	fmtTest{"%p", make(chan int), "PTR"},
+	fmtTest{"%p", make(map[int]int), "PTR"},
+	fmtTest{"%p", make([]int, 1), "PTR"},
+
 	// go syntax
 	fmtTest{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
 	fmtTest{"%#v", &b, "(*uint8)(PTR)"},
@@ -233,7 +238,7 @@ func TestSprintf(t *testing.T) {
 			j := i + 2
 			for ; j < len(s); j++ {
 				c := s[j]
-				if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+				if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
 					break
 				}
 			}
