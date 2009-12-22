@@ -19,7 +19,7 @@ import (
 // of Go data types.  The data return value may be one of float64, string,
 // bool, nil, []interface{} or map[string]interface{}.  The array and map
 // elements may in turn contain any of the types listed above and so on.
-
+//
 // If Decode encounters a syntax error, it returns with err set to an
 // instance of ParseError.  See ParseError documentation for details.
 func Decode(s string) (data interface{}, err os.Error) {
