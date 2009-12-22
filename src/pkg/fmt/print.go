@@ -380,14 +380,6 @@ func getFloat64(v reflect.Value) (val float64, ok bool) {
 	return
 }
 
-func getPtr(v reflect.Value) (val uintptr, ok bool) {
-	switch v := v.(type) {
-	case *reflect.PtrValue:
-		return uintptr(v.Get()), true
-	}
-	return
-}
-
 // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
 
 func parsenum(s string, start, end int) (n int, got bool, newi int) {
@@ -808,16 +800,16 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 				goto badtype
 			}
 
-		// pointer
+		// pointer, including addresses of reference types.
 		case 'p':
-			if v, ok := getPtr(field); ok {
-				if v == 0 {
-					p.buf.Write(nilAngleBytes)
-				} else {
-					p.fmt.fmt_s("0x")
-					p.fmt.fmt_uX64(uint64(v))
-				}
-			} else {
+			switch v := field.(type) {
+			case *reflect.PtrValue:
+				p.fmt.fmt_s("0x")
+				p.fmt.fmt_uX64(uint64(v.Get()))
+			case *reflect.ChanValue, *reflect.MapValue, *reflect.SliceValue:
+				p.fmt.fmt_s("0x")
+				p.fmt.fmt_uX64(uint64(field.Addr()))
+			default:
 				goto badtype
 			}
 
