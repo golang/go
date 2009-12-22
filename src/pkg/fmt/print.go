@@ -136,6 +136,12 @@ type GoStringer interface {
 	GoString() string
 }
 
+// getter is implemented by any value that has a Get() method,
+// which means the object contains a pointer.  Used by %p.
+type getter interface {
+	Get() uintptr
+}
+
 const allocSize = 32
 
 type pp struct {
@@ -803,12 +809,9 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		// pointer, including addresses of reference types.
 		case 'p':
 			switch v := field.(type) {
-			case *reflect.PtrValue:
+			case getter:
 				p.fmt.fmt_s("0x")
 				p.fmt.fmt_uX64(uint64(v.Get()))
-			case *reflect.ChanValue, *reflect.MapValue, *reflect.SliceValue:
-				p.fmt.fmt_s("0x")
-				p.fmt.fmt_uX64(uint64(field.Addr()))
 			default:
 				goto badtype
 			}
