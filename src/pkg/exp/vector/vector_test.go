@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package vector
+// CAUTION: If this file is not vector_test.go, it was generated
+// automatically from vector_test.go - DO NOT EDIT in that case!
 
+package vector
 
 import "testing"
 
