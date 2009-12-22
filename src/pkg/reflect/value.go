@@ -567,6 +567,14 @@ func (v *SliceValue) Set(x *SliceValue) {
 // Set sets v to the value x.
 func (v *SliceValue) SetValue(x Value) { v.Set(x.(*SliceValue)) }
 
+// Get returns the uintptr address of the v.Cap()'th element.  This gives
+// the same result for all slices of the same array.
+// It is mainly useful for printing.
+func (v *SliceValue) Get() uintptr {
+	typ := v.typ.(*SliceType)
+	return uintptr(v.addr()) + uintptr(v.Cap())*typ.Elem().Size()
+}
+
 // Slice returns a sub-slice of the slice v.
 func (v *SliceValue) Slice(beg, end int) *SliceValue {
 	cap := v.Cap()
@@ -969,6 +977,10 @@ func (v *MapValue) Set(x *MapValue) {
 
 // Set sets v to the value x.
 func (v *MapValue) SetValue(x Value) { v.Set(x.(*MapValue)) }
+
+// Get returns the uintptr value of v.
+// It is mainly useful for printing.
+func (v *MapValue) Get() uintptr { return *(*uintptr)(v.addr) }
 
 // implemented in ../pkg/runtime/reflect.cgo
 func mapaccess(m, key, val *byte) bool
