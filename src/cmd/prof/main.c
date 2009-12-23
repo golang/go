@@ -8,7 +8,12 @@
 #include <bio.h>
 #include <ctype.h>
 
-#include <ureg_amd64.h>
+#define Ureg Ureg_amd64
+	#include <ureg_amd64.h>
+#undef Ureg
+#define Ureg Ureg_x86
+	#include <ureg_x86.h>
+#undef Ureg
 #include <mach.h>
 
 char* file = "6.out";
@@ -16,7 +21,8 @@ static Fhdr fhdr;
 int have_syms;
 int fd;
 Map	*symmap;
-struct Ureg ureg;
+struct Ureg_amd64 ureg_amd64;
+struct Ureg_x86 ureg_x86;
 int total_sec = 0;
 int delta_msec = 100;
 int nsample;
@@ -63,35 +69,181 @@ enum {
 
 PC *counters[Ncounters];
 
+// Set up by setarch() to make most of the code architecture-independent.
+typedef struct Arch Arch;
+struct Arch {
+	char*	name;
+	void	(*regprint)(void);
+	int	(*getregs)(Map*);
+	int	(*getPC)(Map*);
+	int	(*getSP)(Map*);
+	uvlong	(*uregPC)(void);
+	uvlong	(*uregSP)(void);
+};
+
 void
-regprint(void)
+amd64_regprint(void)
 {
-	fprint(2, "ax\t0x%llux\n", ureg.ax);
-	fprint(2, "bx\t0x%llux\n", ureg.bx);
-	fprint(2, "cx\t0x%llux\n", ureg.cx);
-	fprint(2, "dx\t0x%llux\n", ureg.dx);
-	fprint(2, "si\t0x%llux\n", ureg.si);
-	fprint(2, "di\t0x%llux\n", ureg.di);
-	fprint(2, "bp\t0x%llux\n", ureg.bp);
-	fprint(2, "r8\t0x%llux\n", ureg.r8);
-	fprint(2, "r9\t0x%llux\n", ureg.r9);
-	fprint(2, "r10\t0x%llux\n", ureg.r10);
-	fprint(2, "r11\t0x%llux\n", ureg.r11);
-	fprint(2, "r12\t0x%llux\n", ureg.r12);
-	fprint(2, "r13\t0x%llux\n", ureg.r13);
-	fprint(2, "r14\t0x%llux\n", ureg.r14);
-	fprint(2, "r15\t0x%llux\n", ureg.r15);
-	fprint(2, "ds\t0x%llux\n", ureg.ds);
-	fprint(2, "es\t0x%llux\n", ureg.es);
-	fprint(2, "fs\t0x%llux\n", ureg.fs);
-	fprint(2, "gs\t0x%llux\n", ureg.gs);
-	fprint(2, "type\t0x%llux\n", ureg.type);
-	fprint(2, "error\t0x%llux\n", ureg.error);
-	fprint(2, "pc\t0x%llux\n", ureg.ip);
-	fprint(2, "cs\t0x%llux\n", ureg.cs);
-	fprint(2, "flags\t0x%llux\n", ureg.flags);
-	fprint(2, "sp\t0x%llux\n", ureg.sp);
-	fprint(2, "ss\t0x%llux\n", ureg.ss);
+	fprint(2, "ax\t0x%llux\n", ureg_amd64.ax);
+	fprint(2, "bx\t0x%llux\n", ureg_amd64.bx);
+	fprint(2, "cx\t0x%llux\n", ureg_amd64.cx);
+	fprint(2, "dx\t0x%llux\n", ureg_amd64.dx);
+	fprint(2, "si\t0x%llux\n", ureg_amd64.si);
+	fprint(2, "di\t0x%llux\n", ureg_amd64.di);
+	fprint(2, "bp\t0x%llux\n", ureg_amd64.bp);
+	fprint(2, "r8\t0x%llux\n", ureg_amd64.r8);
+	fprint(2, "r9\t0x%llux\n", ureg_amd64.r9);
+	fprint(2, "r10\t0x%llux\n", ureg_amd64.r10);
+	fprint(2, "r11\t0x%llux\n", ureg_amd64.r11);
+	fprint(2, "r12\t0x%llux\n", ureg_amd64.r12);
+	fprint(2, "r13\t0x%llux\n", ureg_amd64.r13);
+	fprint(2, "r14\t0x%llux\n", ureg_amd64.r14);
+	fprint(2, "r15\t0x%llux\n", ureg_amd64.r15);
+	fprint(2, "ds\t0x%llux\n", ureg_amd64.ds);
+	fprint(2, "es\t0x%llux\n", ureg_amd64.es);
+	fprint(2, "fs\t0x%llux\n", ureg_amd64.fs);
+	fprint(2, "gs\t0x%llux\n", ureg_amd64.gs);
+	fprint(2, "type\t0x%llux\n", ureg_amd64.type);
+	fprint(2, "error\t0x%llux\n", ureg_amd64.error);
+	fprint(2, "pc\t0x%llux\n", ureg_amd64.ip);
+	fprint(2, "cs\t0x%llux\n", ureg_amd64.cs);
+	fprint(2, "flags\t0x%llux\n", ureg_amd64.flags);
+	fprint(2, "sp\t0x%llux\n", ureg_amd64.sp);
+	fprint(2, "ss\t0x%llux\n", ureg_amd64.ss);
+}
+
+int
+amd64_getregs(Map *map)
+{
+	int i;
+
+	for(i = 0; i < sizeof ureg_amd64; i+=8) {
+		if(get8(map, (uvlong)i, &((uvlong*)&ureg_amd64)[i/4]) < 0)
+		return -1;
+	}
+	return 0;
+}
+
+int
+amd64_getPC(Map *map)
+{
+	return get8(map, offsetof(struct Ureg_amd64, ip), (uvlong*)&ureg_amd64.ip);
+}
+
+int
+amd64_getSP(Map *map)
+{
+	return get8(map, offsetof(struct Ureg_amd64, sp), (uvlong*)&ureg_amd64.sp);
+}
+
+uvlong
+amd64_uregPC(void)
+{
+	return ureg_amd64.ip;
+}
+
+uvlong
+amd64_uregSP(void) {
+	return ureg_amd64.sp;
+}
+
+void
+x86_regprint(void)
+{
+	fprint(2, "ax\t0x%llux\n", ureg_x86.ax);
+	fprint(2, "bx\t0x%llux\n", ureg_x86.bx);
+	fprint(2, "cx\t0x%llux\n", ureg_x86.cx);
+	fprint(2, "dx\t0x%llux\n", ureg_x86.dx);
+	fprint(2, "si\t0x%llux\n", ureg_x86.si);
+	fprint(2, "di\t0x%llux\n", ureg_x86.di);
+	fprint(2, "bp\t0x%llux\n", ureg_x86.bp);
+	fprint(2, "ds\t0x%llux\n", ureg_x86.ds);
+	fprint(2, "es\t0x%llux\n", ureg_x86.es);
+	fprint(2, "fs\t0x%llux\n", ureg_x86.fs);
+	fprint(2, "gs\t0x%llux\n", ureg_x86.gs);
+	fprint(2, "cs\t0x%llux\n", ureg_x86.cs);
+	fprint(2, "flags\t0x%llux\n", ureg_x86.flags);
+	fprint(2, "pc\t0x%llux\n", ureg_x86.pc);
+	fprint(2, "sp\t0x%llux\n", ureg_x86.sp);
+	fprint(2, "ss\t0x%llux\n", ureg_x86.ss);
+}
+
+int
+x86_getregs(Map *map)
+{
+	int i;
+
+	for(i = 0; i < sizeof ureg_x86; i+=4) {
+		if(get4(map, (uvlong)i, &((uint32*)&ureg_x86)[i/4]) < 0)
+		return -1;
+	}
+	return 0;
+}
+
+int
+x86_getPC(Map* map)
+{
+	return get4(map, offsetof(struct Ureg_x86, pc), &ureg_x86.pc);
+}
+
+int
+x86_getSP(Map* map)
+{
+	return get4(map, offsetof(struct Ureg_x86, sp), &ureg_x86.sp);
+}
+
+uvlong
+x86_uregPC(void)
+{
+	return (uvlong)ureg_x86.pc;
+}
+
+uvlong
+x86_uregSP(void)
+{
+	return (uvlong)ureg_x86.sp;
+}
+
+Arch archtab[] = {
+	{
+		"amd64",
+		amd64_regprint,
+		amd64_getregs,
+		amd64_getPC,
+		amd64_getSP,
+		amd64_uregPC,
+		amd64_uregSP,
+	},
+	{
+		"386",
+		x86_regprint,
+		x86_getregs,
+		x86_getPC,
+		x86_getSP,
+		x86_uregPC,
+		x86_uregSP,
+	},
+	{
+		nil
+	}
+};
+
+Arch *arch;
+
+int
+setarch(void)
+{
+	int i;
+
+	if(mach != nil) {
+		for(i = 0; archtab[i].name != nil; i++) {
+			if (strcmp(mach->name, archtab[i].name) == 0) {
+				arch = &archtab[i];
+				return 0;
+			}
+		}
+	}
+	return -1;
 }
 
 int
@@ -152,20 +304,17 @@ getthreads(void)
 int
 sample(Map *map)
 {
-	int i;
 	static int n;
 
 	n++;
 	if(registers) {
-		for(i = 0; i < sizeof ureg; i+=8) {
-			if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0)
-				goto bad;
-		}
+		if(arch->getregs(map) < 0)
+			goto bad;
 	} else {
 		// we need only two registers
-		if(get8(map, offsetof(struct Ureg, ip), (uvlong*)&ureg.ip) < 0)
+		if(arch->getPC(map) < 0)
 			goto bad;
-		if(get8(map, offsetof(struct Ureg, sp), (uvlong*)&ureg.sp) < 0)
+		if(arch->getSP(map) < 0)
 			goto bad;
 	}
 	return 1;
@@ -243,7 +392,7 @@ printpc(Map *map, uvlong pc, uvlong sp)
 {
 	char buf[1024];
 	if(registers)
-		regprint();
+		arch->regprint();
 	if(have_syms > 0 && linenums &&  fileline(buf, sizeof buf, pc))
 		fprint(2, "%s\n", buf);
 	if(have_syms > 0 && functions) {
@@ -277,7 +426,7 @@ samples(void)
 				ctlproc(pid, "start");
 				return;
 			}
-			printpc(map[i], ureg.ip, ureg.sp);
+			printpc(map[i], arch->uregPC(), arch->uregSP());
 			ctlproc(pid, "start");
 		}
 		nanosleep(&req, NULL);
@@ -487,6 +636,11 @@ main(int argc, char *argv[])
 	if(pid <= 0)
 		pid = startprocess(argv);
 	attachproc(pid, &fhdr);	// initializes thread list
+	if(setarch() < 0) {
+		detach();
+		fprint(2, "prof: can't identify binary architecture for pid %d\n", pid);
+		exit(1);
+	}
 	if(getthreads() <= 0) {
 		detach();
 		fprint(2, "prof: can't find threads for pid %d\n", pid);
