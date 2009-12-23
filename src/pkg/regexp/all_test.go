@@ -454,6 +454,34 @@ func TestAllMatches(t *testing.T) {
 	}
 }
 
+type numSubexpCase struct {
+	input    string
+	expected int
+}
+
+var numSubexpCases = []numSubexpCase{
+	numSubexpCase{``, 0},
+	numSubexpCase{`.*`, 0},
+	numSubexpCase{`abba`, 0},
+	numSubexpCase{`ab(b)a`, 1},
+	numSubexpCase{`ab(.*)a`, 1},
+	numSubexpCase{`(.*)ab(.*)a`, 2},
+	numSubexpCase{`(.*)(ab)(.*)a`, 3},
+	numSubexpCase{`(.*)((a)b)(.*)a`, 4},
+	numSubexpCase{`(.*)(\(ab)(.*)a`, 3},
+	numSubexpCase{`(.*)(\(a\)b)(.*)a`, 3},
+}
+
+func TestNumSubexp(t *testing.T) {
+	for _, c := range numSubexpCases {
+		re, _ := Compile(c.input)
+		n := re.NumSubexp()
+		if n != c.expected {
+			t.Errorf("NumSubexp for %q returned %d, expected %d", c.input, n, c.expected)
+		}
+	}
+}
+
 func BenchmarkLiteral(b *testing.B) {
 	x := strings.Repeat("x", 50)
 	b.StopTimer()
