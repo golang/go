@@ -2,309 +2,390 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// CAUTION: If this file is not vector_test.go, it was generated
+// automatically from vector_test.go - DO NOT EDIT in that case!
+
 package vector
 
 import "testing"
-import "sort"
-import "fmt"
 
 
-func TestZeroLen(t *testing.T) {
+func TestZeroLenExp(t *testing.T) {
 	a := new(Vector)
 	if a.Len() != 0 {
-		t.Errorf("B) expected 0, got %d", a.Len())
+		t.Errorf("%T: B1) expected 0, got %d", a, a.Len())
+	}
+	if len(*a) != 0 {
+		t.Errorf("%T: B2) expected 0, got %d", a, len(*a))
+	}
+	var b Vector
+	if b.Len() != 0 {
+		t.Errorf("%T: B3) expected 0, got %d", b, b.Len())
+	}
+	if len(b) != 0 {
+		t.Errorf("%T: B4) expected 0, got %d", b, len(b))
 	}
 }
 
 
-type VectorInterface interface {
-	Len() int
-	Cap() int
-}
-
-
-func checkSize(t *testing.T, v VectorInterface, len, cap int) {
-	if v.Len() != len {
-		t.Errorf("expected len = %d; found %d", len, v.Len())
-	}
-	if v.Cap() < cap {
-		t.Errorf("expected cap >= %d; found %d", cap, v.Cap())
-	}
-}
-
-
-func TestResize(t *testing.T) {
+func TestResizeExp(t *testing.T) {
 	var a Vector
-	checkSize(t, &a, 0, 0)
-	checkSize(t, a.Resize(0, 5), 0, 5)
-	checkSize(t, a.Resize(1, 0), 1, 5)
-	checkSize(t, a.Resize(10, 0), 10, 10)
-	checkSize(t, a.Resize(5, 0), 5, 10)
-	checkSize(t, a.Resize(3, 8), 3, 10)
-	checkSize(t, a.Resize(0, 100), 0, 100)
-	checkSize(t, a.Resize(11, 100), 11, 100)
+	checkSizeExp(t, &a, 0, 0)
+	checkSizeExp(t, a.Resize(0, 5), 0, 5)
+	checkSizeExp(t, a.Resize(1, 0), 1, 5)
+	checkSizeExp(t, a.Resize(10, 0), 10, 10)
+	checkSizeExp(t, a.Resize(5, 0), 5, 10)
+	checkSizeExp(t, a.Resize(3, 8), 3, 10)
+	checkSizeExp(t, a.Resize(0, 100), 0, 100)
+	checkSizeExp(t, a.Resize(11, 100), 11, 100)
 }
 
 
-func TestIntResize(t *testing.T) {
-	var a IntVector
-	checkSize(t, &a, 0, 0)
-	a.Push(1)
-	a.Push(2)
-	a.Push(3)
-	a.Push(4)
-	checkSize(t, &a, 4, 4)
-	checkSize(t, a.Resize(10, 0), 10, 10)
+func TestResize2Exp(t *testing.T) {
+	var a Vector
+	checkSizeExp(t, &a, 0, 0)
+	a.Push(int2Value(1))
+	a.Push(int2Value(2))
+	a.Push(int2Value(3))
+	a.Push(int2Value(4))
+	checkSizeExp(t, &a, 4, 4)
+	checkSizeExp(t, a.Resize(10, 0), 10, 10)
 	for i := 4; i < a.Len(); i++ {
-		if a.At(i) != 0 {
-			t.Errorf("expected a.At(%d) == 0; found %d", i, a.At(i))
+		if a.At(i) != zero {
+			t.Errorf("%T: expected a.At(%d) == %v; found %v!", a, i, zero, a.At(i))
+		}
+	}
+	for i := 4; i < len(a); i++ {
+		if a[i] != zero {
+			t.Errorf("%T: expected a[%d] == %v; found %v", a, i, zero, a[i])
 		}
 	}
 }
 
 
-func TestStringResize(t *testing.T) {
-	var a StringVector
-	checkSize(t, &a, 0, 0)
-	a.Push("1")
-	a.Push("2")
-	a.Push("3")
-	a.Push("4")
-	checkSize(t, &a, 4, 4)
-	checkSize(t, a.Resize(10, 0), 10, 10)
-	for i := 4; i < a.Len(); i++ {
-		if a.At(i) != "" {
-			t.Errorf("expected a.At(%d) == "+"; found %s", i, a.At(i))
-		}
-	}
-}
-
-
-func checkNil(t *testing.T, a *Vector, i int) {
+func checkZeroExp(t *testing.T, a *Vector, i int) {
 	for j := 0; j < i; j++ {
-		if a.At(j) == nil {
-			t.Errorf("expected a.At(%d) == %d; found %v", j, j, a.At(j))
+		if a.At(j) == zero {
+			t.Errorf("%T: 1 expected a.At(%d) == %d; found %v", a, j, j, a.At(j))
+		}
+		if (*a)[j] == zero {
+			t.Errorf("%T: 2 expected (*a)[%d] == %d; found %v", a, j, j, (*a)[j])
 		}
 	}
 	for ; i < a.Len(); i++ {
-		if a.At(i) != nil {
-			t.Errorf("expected a.At(%d) == nil; found %v", i, a.At(i))
+		if a.At(i) != zero {
+			t.Errorf("%T: 3 expected a.At(%d) == %v; found %v", a, i, zero, a.At(i))
+		}
+		if (*a)[i] != zero {
+			t.Errorf("%T: 4 expected (*a)[%d] == %v; found %v", a, i, zero, (*a)[i])
 		}
 	}
 }
 
 
-func TestTrailingElements(t *testing.T) {
+func TestTrailingElementsExp(t *testing.T) {
 	var a Vector
 	for i := 0; i < 10; i++ {
-		a.Push(i)
+		a.Push(int2Value(i + 1))
 	}
-	checkNil(t, &a, 10)
-	checkSize(t, &a, 10, 16)
-	checkSize(t, a.Resize(5, 0), 5, 16)
-	checkSize(t, a.Resize(10, 0), 10, 16)
-	checkNil(t, &a, 5)
+	checkZeroExp(t, &a, 10)
+	checkSizeExp(t, &a, 10, 16)
+	checkSizeExp(t, a.Resize(5, 0), 5, 16)
+	checkSizeExp(t, a.Resize(10, 0), 10, 16)
+	checkZeroExp(t, &a, 5)
 }
 
 
-func val(i int) int { return i*991 - 1234 }
-
-
-func TestAccess(t *testing.T) {
+func TestAccessExp(t *testing.T) {
 	const n = 100
 	var a Vector
 	a.Resize(n, 0)
 	for i := 0; i < n; i++ {
-		a.Set(i, val(i))
+		a.Set(i, int2Value(valExp(i)))
 	}
 	for i := 0; i < n; i++ {
-		if a.At(i).(int) != val(i) {
+		if elem2Value(a.At(i)) != int2Value(valExp(i)) {
+			t.Error(i)
+		}
+	}
+	var b Vector
+	b.Resize(n, 0)
+	for i := 0; i < n; i++ {
+		b[i] = int2Value(valExp(i))
+	}
+	for i := 0; i < n; i++ {
+		if elem2Value(b[i]) != int2Value(valExp(i)) {
 			t.Error(i)
 		}
 	}
 }
 
 
-func TestInsertDeleteClear(t *testing.T) {
+func TestInsertDeleteClearExp(t *testing.T) {
 	const n = 100
 	var a Vector
 
 	for i := 0; i < n; i++ {
 		if a.Len() != i {
-			t.Errorf("A) wrong len %d (expected %d)", a.Len(), i)
+			t.Errorf("T%: A) wrong Len() %d (expected %d)", a, a.Len(), i)
 		}
-		a.Insert(0, val(i))
-		if a.Last().(int) != val(0) {
-			t.Error("B")
+		if len(a) != i {
+			t.Errorf("T%: A) wrong len() %d (expected %d)", a, len(a), i)
+		}
+		a.Insert(0, int2Value(valExp(i)))
+		if elem2Value(a.Last()) != int2Value(valExp(0)) {
+			t.Error("T%: B", a)
 		}
 	}
 	for i := n - 1; i >= 0; i-- {
-		if a.Last().(int) != val(0) {
-			t.Error("C")
+		if elem2Value(a.Last()) != int2Value(valExp(0)) {
+			t.Error("T%: C", a)
 		}
-		if a.At(0).(int) != val(i) {
-			t.Error("D")
+		if elem2Value(a.At(0)) != int2Value(valExp(i)) {
+			t.Error("T%: D", a)
+		}
+		if elem2Value(a[0]) != int2Value(valExp(i)) {
+			t.Error("T%: D2", a)
 		}
 		a.Delete(0)
 		if a.Len() != i {
-			t.Errorf("E) wrong len %d (expected %d)", a.Len(), i)
+			t.Errorf("T%: E) wrong Len() %d (expected %d)", a, a.Len(), i)
+		}
+		if len(a) != i {
+			t.Errorf("T%: E) wrong len() %d (expected %d)", a, len(a), i)
 		}
 	}
 
 	if a.Len() != 0 {
-		t.Errorf("F) wrong len %d (expected 0)", a.Len())
+		t.Errorf("T%: F) wrong Len() %d (expected 0)", a, a.Len())
+	}
+	if len(a) != 0 {
+		t.Errorf("T%: F) wrong len() %d (expected 0)", a, len(a))
 	}
 	for i := 0; i < n; i++ {
-		a.Push(val(i))
+		a.Push(int2Value(valExp(i)))
 		if a.Len() != i+1 {
-			t.Errorf("G) wrong len %d (expected %d)", a.Len(), i+1)
+			t.Errorf("T%: G) wrong Len() %d (expected %d)", a, a.Len(), i+1)
 		}
-		if a.Last().(int) != val(i) {
-			t.Error("H")
+		if len(a) != i+1 {
+			t.Errorf("T%: G) wrong len() %d (expected %d)", a, len(a), i+1)
+		}
+		if elem2Value(a.Last()) != int2Value(valExp(i)) {
+			t.Error("T%: H", a)
 		}
 	}
 	a.Resize(0, 0)
 	if a.Len() != 0 {
-		t.Errorf("I wrong len %d (expected 0)", a.Len())
+		t.Errorf("T%: I wrong Len() %d (expected 0)", a, a.Len())
+	}
+	if len(a) != 0 {
+		t.Errorf("T%: I wrong len() %d (expected 0)", a, len(a))
 	}
 
 	const m = 5
 	for j := 0; j < m; j++ {
-		a.Push(j)
+		a.Push(int2Value(j))
 		for i := 0; i < n; i++ {
-			x := val(i)
-			a.Push(x)
-			if a.Pop().(int) != x {
-				t.Error("J")
+			x := valExp(i)
+			a.Push(int2Value(x))
+			if elem2Value(a.Pop()) != int2Value(x) {
+				t.Error("T%: J", a)
 			}
 			if a.Len() != j+1 {
-				t.Errorf("K) wrong len %d (expected %d)", a.Len(), j+1)
+				t.Errorf("T%: K) wrong Len() %d (expected %d)", a, a.Len(), j+1)
+			}
+			if len(a) != j+1 {
+				t.Errorf("T%: K) wrong len() %d (expected %d)", a, len(a), j+1)
 			}
 		}
 	}
 	if a.Len() != m {
-		t.Errorf("L) wrong len %d (expected %d)", a.Len(), m)
+		t.Errorf("T%: L) wrong Len() %d (expected %d)", a, a.Len(), m)
+	}
+	if len(a) != m {
+		t.Errorf("T%: L) wrong len() %d (expected %d)", a, len(a), m)
 	}
 }
 
 
-func verify_slice(t *testing.T, x *Vector, elt, i, j int) {
+func verify_sliceExp(t *testing.T, x *Vector, elt, i, j int) {
 	for k := i; k < j; k++ {
-		if x.At(k).(int) != elt {
-			t.Errorf("M) wrong [%d] element %d (expected %d)", k, x.At(k).(int), elt)
+		if elem2Value(x.At(k)) != int2Value(elt) {
+			t.Errorf("T%: M) wrong [%d] element %v (expected %v)", x, k, elem2Value(x.At(k)), int2Value(elt))
 		}
 	}
 
 	s := x.Slice(i, j)
 	for k, n := 0, j-i; k < n; k++ {
-		if s.At(k).(int) != elt {
-			t.Errorf("N) wrong [%d] element %d (expected %d)", k, x.At(k).(int), elt)
+		if elem2Value(s.At(k)) != int2Value(elt) {
+			t.Errorf("T%: N) wrong [%d] element %v (expected %v)", x, k, elem2Value(x.At(k)), int2Value(elt))
 		}
 	}
 }
 
 
-func verify_pattern(t *testing.T, x *Vector, a, b, c int) {
+func verify_patternExp(t *testing.T, x *Vector, a, b, c int) {
 	n := a + b + c
 	if x.Len() != n {
-		t.Errorf("O) wrong len %d (expected %d)", x.Len(), n)
+		t.Errorf("T%: O) wrong Len() %d (expected %d)", x, x.Len(), n)
 	}
-	verify_slice(t, x, 0, 0, a)
-	verify_slice(t, x, 1, a, a+b)
-	verify_slice(t, x, 0, a+b, n)
+	if len(*x) != n {
+		t.Errorf("T%: O) wrong len() %d (expected %d)", x, len(*x), n)
+	}
+	verify_sliceExp(t, x, 0, 0, a)
+	verify_sliceExp(t, x, 1, a, a+b)
+	verify_sliceExp(t, x, 0, a+b, n)
 }
 
 
-func make_vector(elt, len int) *Vector {
+func make_vectorExp(elt, len int) *Vector {
 	x := new(Vector).Resize(len, 0)
 	for i := 0; i < len; i++ {
-		x.Set(i, elt)
+		x.Set(i, int2Value(elt))
 	}
 	return x
 }
 
 
-func TestInsertVector(t *testing.T) {
+func TestInsertVectorExp(t *testing.T) {
 	// 1
-	a := make_vector(0, 0)
-	b := make_vector(1, 10)
+	a := make_vectorExp(0, 0)
+	b := make_vectorExp(1, 10)
 	a.InsertVector(0, b)
-	verify_pattern(t, a, 0, 10, 0)
+	verify_patternExp(t, a, 0, 10, 0)
 	// 2
-	a = make_vector(0, 10)
-	b = make_vector(1, 0)
+	a = make_vectorExp(0, 10)
+	b = make_vectorExp(1, 0)
 	a.InsertVector(5, b)
-	verify_pattern(t, a, 5, 0, 5)
+	verify_patternExp(t, a, 5, 0, 5)
 	// 3
-	a = make_vector(0, 10)
-	b = make_vector(1, 3)
+	a = make_vectorExp(0, 10)
+	b = make_vectorExp(1, 3)
 	a.InsertVector(3, b)
-	verify_pattern(t, a, 3, 3, 7)
+	verify_patternExp(t, a, 3, 3, 7)
 	// 4
-	a = make_vector(0, 10)
-	b = make_vector(1, 1000)
+	a = make_vectorExp(0, 10)
+	b = make_vectorExp(1, 1000)
 	a.InsertVector(8, b)
-	verify_pattern(t, a, 8, 1000, 2)
+	verify_patternExp(t, a, 8, 1000, 2)
 }
 
 
-// This also tests IntVector and StringVector
-func TestSorting(t *testing.T) {
-	const n = 100
-
-	a := new(IntVector).Resize(n, 0)
-	for i := n - 1; i >= 0; i-- {
-		a.Set(i, n-1-i)
-	}
-	if sort.IsSorted(a) {
-		t.Error("int vector not sorted")
-	}
-
-	b := new(StringVector).Resize(n, 0)
-	for i := n - 1; i >= 0; i-- {
-		b.Set(i, fmt.Sprint(n-1-i))
-	}
-	if sort.IsSorted(b) {
-		t.Error("string vector not sorted")
-	}
-}
-
-
-func TestDo(t *testing.T) {
+func TestDoExp(t *testing.T) {
 	const n = 25
 	const salt = 17
-	a := new(IntVector).Resize(n, 0)
+	a := new(Vector).Resize(n, 0)
 	for i := 0; i < n; i++ {
-		a.Set(i, salt*i)
+		a.Set(i, int2Value(salt*i))
 	}
 	count := 0
 	a.Do(func(e interface{}) {
-		i := e.(int)
-		if i != count*salt {
-			t.Error("value at", count, "should be", count*salt, "not", i)
+		i := intf2Value(e)
+		if i != int2Value(count*salt) {
+			t.Error(tname(a), "value at", count, "should be", count*salt, "not", i)
 		}
 		count++
 	})
 	if count != n {
-		t.Error("should visit", n, "values; did visit", count)
+		t.Error(tname(a), "should visit", n, "values; did visit", count)
 	}
+
+	b := new(Vector).Resize(n, 0)
+	for i := 0; i < n; i++ {
+		(*b)[i] = int2Value(salt * i)
+	}
+	count = 0
+	b.Do(func(e interface{}) {
+		i := intf2Value(e)
+		if i != int2Value(count*salt) {
+			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", i)
+		}
+		count++
+	})
+	if count != n {
+		t.Error(tname(b), "b) should visit", n, "values; did visit", count)
+	}
+
+	var c Vector
+	c.Resize(n, 0)
+	for i := 0; i < n; i++ {
+		c[i] = int2Value(salt * i)
+	}
+	count = 0
+	c.Do(func(e interface{}) {
+		i := intf2Value(e)
+		if i != int2Value(count*salt) {
+			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", i)
+		}
+		count++
+	})
+	if count != n {
+		t.Error(tname(c), "c) should visit", n, "values; did visit", count)
+	}
+
 }
 
 
-func TestIter(t *testing.T) {
+func TestIterExp(t *testing.T) {
 	const Len = 100
 	x := new(Vector).Resize(Len, 0)
 	for i := 0; i < Len; i++ {
-		x.Set(i, i*i)
+		x.Set(i, int2Value(i*i))
 	}
 	i := 0
 	for v := range x.Iter() {
-		if v.(int) != i*i {
-			t.Error("Iter expected", i*i, "got", v.(int))
+		if elem2Value(v) != int2Value(i*i) {
+			t.Error(tname(x), "Iter expected", i*i, "got", elem2Value(v))
 		}
 		i++
 	}
 	if i != Len {
-		t.Error("Iter stopped at", i, "not", Len)
+		t.Error(tname(x), "Iter stopped at", i, "not", Len)
+	}
+	y := new(Vector).Resize(Len, 0)
+	for i := 0; i < Len; i++ {
+		(*y)[i] = int2Value(i * i)
+	}
+	i = 0
+	for v := range y.Iter() {
+		if elem2Value(v) != int2Value(i*i) {
+			t.Error(tname(y), "y, Iter expected", i*i, "got", elem2Value(v))
+		}
+		i++
+	}
+	if i != Len {
+		t.Error(tname(y), "y, Iter stopped at", i, "not", Len)
+	}
+	var z Vector
+	z.Resize(Len, 0)
+	for i := 0; i < Len; i++ {
+		z[i] = int2Value(i * i)
+	}
+	i = 0
+	for v := range z.Iter() {
+		if elem2Value(v) != int2Value(i*i) {
+			t.Error(tname(z), "z, Iter expected", i*i, "got", elem2Value(v))
+		}
+		i++
+	}
+	if i != Len {
+		t.Error(tname(z), "z, Iter stopped at", i, "not", Len)
+	}
+}
+
+func TestVectorData(t *testing.T) {
+	// verify Data() returns a slice of a copy, not a slice of the original vector
+	const Len = 10
+	var src Vector
+	for i := 0; i < Len; i++ {
+		src.Push(int2Value(i * i))
+	}
+	dest := src.Data()
+	for i := 0; i < Len; i++ {
+		src[i] = int2Value(-1)
+		v := elem2Value(dest[i])
+		if v != int2Value(i*i) {
+			t.Error(tname(src), "expected", i*i, "got", v)
+		}
 	}
 }
