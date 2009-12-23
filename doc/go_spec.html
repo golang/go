@@ -3611,7 +3611,7 @@ in the type assertion.
 
 <pre class="ebnf">
 TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
-TypeSwitchGuard = [ identifier ":=" ] Expression "." "(" "type" ")" .
+TypeSwitchGuard = [ identifier ":=" ] PrimaryExpr "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" { Statement ";" } .
 TypeSwitchCase  = "case" TypeList | "default" .
 TypeList        = Type { "," Type } .
