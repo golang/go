@@ -28,19 +28,19 @@ generate: vector.go vector_test.go
 	| gofmt -r='elem2Value -> elem2IntValue'\
 	| gofmt -r='intf2Value -> intf2IntValue'\
 	| gofmt -r='int2Value -> int2IntValue'\
-	| gofmt -r='TestZeroLenExp -> TestIntZeroLenExp'\
-	| gofmt -r='TestResizeExp -> TestIntResizeExp'\
-	| gofmt -r='TestResize2Exp -> TestIntResize2Exp'\
-	| gofmt -r='checkZeroExp -> checkIntZeroExp'\
-	| gofmt -r='TestTrailingElementsExp -> TestIntTrailingElementsExp'\
-	| gofmt -r='TestAccessExp -> TestIntAccessExp'\
-	| gofmt -r='TestInsertDeleteClearExp -> TestIntInsertDeleteClearExp'\
-	| gofmt -r='verify_sliceExp -> verify_sliceIntExp'\
-	| gofmt -r='verify_patternExp -> verify_patternIntExp'\
-	| gofmt -r='make_vectorExp -> make_vectorIntExp'\
-	| gofmt -r='TestInsertVectorExp -> TestIntInsertVectorExp'\
-	| gofmt -r='TestDoExp -> TestIntDoExp'\
-	| gofmt -r='TestIterExp -> TestIntIterExp'\
+	| gofmt -r='TestZeroLen -> TestIntZeroLen'\
+	| gofmt -r='TestResize -> TestIntResize'\
+	| gofmt -r='TestResize2 -> TestIntResize2'\
+	| gofmt -r='checkZero -> checkIntZero'\
+	| gofmt -r='TestTrailingElements -> TestIntTrailingElements'\
+	| gofmt -r='TestAccess -> TestIntAccess'\
+	| gofmt -r='TestInsertDeleteClear -> TestIntInsertDeleteClear'\
+	| gofmt -r='verify_slice -> verify_sliceInt'\
+	| gofmt -r='verify_pattern -> verify_patternInt'\
+	| gofmt -r='make_vector -> make_vectorInt'\
+	| gofmt -r='TestInsertVector -> TestIntInsertVector'\
+	| gofmt -r='TestDo -> TestIntDo'\
+	| gofmt -r='TestIter -> TestIntIter'\
 	| gofmt -r='TestVectorData -> TestIntVectorData'\
 	> intvector_test.go\
 	
@@ -50,19 +50,19 @@ generate: vector.go vector_test.go
 	| gofmt -r='int2Value -> int2StrValue'\
 	| gofmt -r='intf2Value -> intf2StrValue'\
 	| gofmt -r='elem2Value -> elem2StrValue'\
-	| gofmt -r='TestZeroLenExp -> TestStrZeroLenExp'\
-	| gofmt -r='TestResizeExp -> TestStrResizeExp'\
-	| gofmt -r='TestResize2Exp -> TestStrResize2Exp'\
-	| gofmt -r='checkZeroExp -> checkStrZeroExp'\
-	| gofmt -r='TestTrailingElementsExp -> TestStrTrailingElementsExp'\
-	| gofmt -r='TestAccessExp -> TestStrAccessExp'\
-	| gofmt -r='TestInsertDeleteClearExp -> TestStrInsertDeleteClearExp'\
-	| gofmt -r='verify_sliceExp -> verify_sliceStrExp'\
-	| gofmt -r='verify_patternExp -> verify_patternStrExp'\
-	| gofmt -r='make_vectorExp -> make_vectorStrExp'\
-	| gofmt -r='TestInsertVectorExp -> TestStrInsertVectorExp'\
-	| gofmt -r='TestDoExp -> TestStrDoExp'\
-	| gofmt -r='TestIterExp -> TestStrIterExp'\
+	| gofmt -r='TestZeroLen -> TestStrZeroLen'\
+	| gofmt -r='TestResize -> TestStrResize'\
+	| gofmt -r='TestResize2 -> TestStrResize2'\
+	| gofmt -r='checkZero -> checkStrZero'\
+	| gofmt -r='TestTrailingElements -> TestStrTrailingElements'\
+	| gofmt -r='TestAccess -> TestStrAccess'\
+	| gofmt -r='TestInsertDeleteClear -> TestStrInsertDeleteClear'\
+	| gofmt -r='verify_slice -> verify_sliceStr'\
+	| gofmt -r='verify_pattern -> verify_patternStr'\
+	| gofmt -r='make_vector -> make_vectorStr'\
+	| gofmt -r='TestInsertVector -> TestStrInsertVector'\
+	| gofmt -r='TestDo -> TestStrDo'\
+	| gofmt -r='TestIter -> TestStrIter'\
 	| gofmt -r='TestVectorData -> TestStrVectorData'\
 	> stringvector_test.go
 

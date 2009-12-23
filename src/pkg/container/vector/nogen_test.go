@@ -33,13 +33,13 @@ func intf2IntValue(x interface{}) int    { return x.(int) }
 func intf2StrValue(x interface{}) string { return x.(string) }
 
 
-type VectorInterfaceExp interface {
+type VectorInterface interface {
 	Len() int
 	Cap() int
 }
 
 
-func checkSizeExp(t *testing.T, v VectorInterfaceExp, len, cap int) {
+func checkSize(t *testing.T, v VectorInterface, len, cap int) {
 	if v.Len() != len {
 		t.Errorf("%T expected len = %d; found %d", v, len, v.Len())
 	}
@@ -49,10 +49,10 @@ func checkSizeExp(t *testing.T, v VectorInterfaceExp, len, cap int) {
 }
 
 
-func valExp(i int) int { return i*991 - 1234 }
+func val(i int) int { return i*991 - 1234 }
 
 
-func TestSortingExp(t *testing.T) {
+func TestSorting(t *testing.T) {
 	const n = 100
 
 	a := new(IntVector).Resize(n, 0)
