@@ -42,6 +42,7 @@ type S struct {
 	false         bool
 	mp            map[string]string
 	innermap      U
+	stringmap     map[string]string
 	bytes         []byte
 }
 
@@ -314,11 +315,23 @@ var tests = []*Test{
 
 		out: "Ahoy!\n",
 	},
-
 	&Test{
 		in: "{innermap.mp.innerkey}\n",
 
 		out: "55\n",
+	},
+	&Test{
+		in: "{stringmap.stringkey1}\n",
+
+		out: "stringresult\n",
+	},
+	&Test{
+		in: "{.repeated section stringmap}\n" +
+			"{@}\n" +
+			"{.end}",
+
+		out: "stringresult\n" +
+			"stringresult\n",
 	},
 }
 
@@ -342,6 +355,9 @@ func TestAll(t *testing.T) {
 	s.mp["mapkey"] = "Ahoy!"
 	s.innermap.mp = make(map[string]int)
 	s.innermap.mp["innerkey"] = 55
+	s.stringmap = make(map[string]string)
+	s.stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
+	s.stringmap["stringkey2"] = "stringresult"
 	s.bytes = strings.Bytes("hello")
 
 	var buf bytes.Buffer

@@ -833,21 +833,27 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	}
 	first := true
 
-	if array, ok := field.(reflect.ArrayOrSliceValue); ok {
-		for j := 0; j < array.Len(); j++ {
-			newst := st.clone(array.Elem(j))
-
-			// .alternates between elements
-			if !first && r.altstart >= 0 {
-				for i := r.altstart; i < r.altend; {
-					i = t.executeElement(i, newst)
-				}
-			}
-			first = false
-
-			for i := start; i < end; {
+	// Code common to all the loops.
+	loopBody := func(newst *state) {
+		// .alternates between elements
+		if !first && r.altstart >= 0 {
+			for i := r.altstart; i < r.altend; {
 				i = t.executeElement(i, newst)
 			}
+		}
+		first = false
+		for i := start; i < end; {
+			i = t.executeElement(i, newst)
+		}
+	}
+
+	if array, ok := field.(reflect.ArrayOrSliceValue); ok {
+		for j := 0; j < array.Len(); j++ {
+			loopBody(st.clone(array.Elem(j)))
+		}
+	} else if m, ok := field.(*reflect.MapValue); ok {
+		for _, key := range m.Keys() {
+			loopBody(st.clone(m.Elem(key)))
 		}
 	} else if ch := iter(field); ch != nil {
 		for {
@@ -855,19 +861,7 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 			if ch.Closed() {
 				break
 			}
-			newst := st.clone(e)
-
-			// .alternates between elements
-			if !first && r.altstart >= 0 {
-				for i := r.altstart; i < r.altend; {
-					i = t.executeElement(i, newst)
-				}
-			}
-			first = false
-
-			for i := start; i < end; {
-				i = t.executeElement(i, newst)
-			}
+			loopBody(st.clone(e))
 		}
 	} else {
 		t.execError(st, r.linenum, ".repeated: cannot repeat %s (type %s)",
