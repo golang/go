@@ -118,7 +118,9 @@ func openProg(name string, p *Prog) {
 	}
 
 	// Accumulate pointers to uses of C.x.
-	p.Crefs = make([]*Cref, 0, 8)
+	if p.Crefs == nil {
+		p.Crefs = make([]*Cref, 0, 8)
+	}
 	walk(p.AST, p, "prog")
 }
 
