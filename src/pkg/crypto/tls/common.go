@@ -41,6 +41,7 @@ const (
 	typeServerHelloDone   uint8 = 14
 	typeClientKeyExchange uint8 = 16
 	typeFinished          uint8 = 20
+	typeNextProtocol      uint8 = 67 // Not IANA assigned
 )
 
 // TLS cipher suites.
@@ -53,10 +54,17 @@ var (
 	compressionNone uint8 = 0
 )
 
+// TLS extension numbers
+var (
+	extensionServerName   uint16 = 0
+	extensionNextProtoNeg uint16 = 13172 // not IANA assigned
+)
+
 type ConnectionState struct {
-	HandshakeComplete bool
-	CipherSuite       string
-	Error             alertType
+	HandshakeComplete  bool
+	CipherSuite        string
+	Error              alertType
+	NegotiatedProtocol string
 }
 
 // A Config structure is used to configure a TLS client or server. After one
@@ -68,6 +76,9 @@ type Config struct {
 	Time         func() int64
 	Certificates []Certificate
 	RootCAs      *CASet
+	// NextProtos is a list of supported, application level protocols.
+	// Currently only server-side handling is supported.
+	NextProtos []string
 }
 
 type Certificate struct {

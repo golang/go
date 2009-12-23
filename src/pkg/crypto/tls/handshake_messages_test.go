@@ -14,9 +14,11 @@ import (
 var tests = []interface{}{
 	&clientHelloMsg{},
 	&serverHelloMsg{},
+
 	&certificateMsg{},
 	&clientKeyExchangeMsg{},
 	&finishedMsg{},
+	&nextProtoMsg{},
 }
 
 type testMessage interface {
@@ -40,21 +42,26 @@ func TestMarshalUnmarshal(t *testing.T) {
 			marshaled := m1.marshal()
 			m2 := iface.(testMessage)
 			if !m2.unmarshal(marshaled) {
-				t.Errorf("#%d failed to unmarshal %#v", i, m1)
+				t.Errorf("#%d failed to unmarshal %#v %x", i, m1, marshaled)
 				break
 			}
 			m2.marshal() // to fill any marshal cache in the message
 
 			if !reflect.DeepEqual(m1, m2) {
-				t.Errorf("#%d got:%#v want:%#v", i, m1, m2)
+				t.Errorf("#%d got:%#v want:%#v %x", i, m2, m1, marshaled)
 				break
 			}
 
-			// Now check that all prefixes are invalid.
-			for j := 0; j < len(marshaled); j++ {
-				if m2.unmarshal(marshaled[0:j]) {
-					t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
-					break
+			if i >= 2 {
+				// The first two message types (ClientHello and
+				// ServerHello) are allowed to have parsable
+				// prefixes because the extension data is
+				// optional.
+				for j := 0; j < len(marshaled); j++ {
+					if m2.unmarshal(marshaled[0:j]) {
+						t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
+						break
+					}
 				}
 			}
 		}
@@ -83,6 +90,11 @@ func randomBytes(n int, rand *rand.Rand) []byte {
 	return r
 }
 
+func randomString(n int, rand *rand.Rand) string {
+	b := randomBytes(n, rand)
+	return string(b)
+}
+
 func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &clientHelloMsg{}
 	m.major = uint8(rand.Intn(256))
@@ -94,6 +106,12 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.cipherSuites[i] = uint16(rand.Int31())
 	}
 	m.compressionMethods = randomBytes(rand.Intn(63)+1, rand)
+	if rand.Intn(10) > 5 {
+		m.nextProtoNeg = true
+	}
+	if rand.Intn(10) > 5 {
+		m.serverName = randomString(rand.Intn(255), rand)
+	}
 
 	return reflect.NewValue(m)
 }
@@ -106,6 +124,17 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m.sessionId = randomBytes(rand.Intn(32), rand)
 	m.cipherSuite = uint16(rand.Int31())
 	m.compressionMethod = uint8(rand.Intn(256))
+
+	if rand.Intn(10) > 5 {
+		m.nextProtoNeg = true
+
+		n := rand.Intn(10)
+		m.nextProtos = make([]string, n)
+		for i := 0; i < n; i++ {
+			m.nextProtos[i] = randomString(20, rand)
+		}
+	}
+
 	return reflect.NewValue(m)
 }
 
@@ -128,5 +157,11 @@ func (*clientKeyExchangeMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 func (*finishedMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &finishedMsg{}
 	m.verifyData = randomBytes(12, rand)
+	return reflect.NewValue(m)
+}
+
+func (*nextProtoMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &nextProtoMsg{}
+	m.proto = randomString(rand.Intn(255), rand)
 	return reflect.NewValue(m)
 }

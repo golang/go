@@ -108,6 +108,10 @@ func (h *serverHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 		return
 	}
 	hello.compressionMethod = compressionNone
+	if clientHello.nextProtoNeg {
+		hello.nextProtoNeg = true
+		hello.nextProtos = config.NextProtos
+	}
 
 	finishedHash.Write(hello.marshal())
 	writeChan <- writerSetVersion{major, minor}
@@ -165,6 +169,17 @@ func (h *serverHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 	cipher, _ := rc4.NewCipher(clientKey)
 	controlChan <- &newCipherSpec{cipher, hmac.New(sha1.New(), clientMAC)}
 
+	clientProtocol := ""
+	if hello.nextProtoNeg {
+		nextProto, ok := h.readHandshakeMsg().(*nextProtoMsg)
+		if !ok {
+			h.error(alertUnexpectedMessage)
+			return
+		}
+		finishedHash.Write(nextProto.marshal())
+		clientProtocol = nextProto.proto
+	}
+
 	clientFinished, ok := h.readHandshakeMsg().(*finishedMsg)
 	if !ok {
 		h.error(alertUnexpectedMessage)
@@ -178,7 +193,7 @@ func (h *serverHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 		return
 	}
 
-	controlChan <- ConnectionState{true, "TLS_RSA_WITH_RC4_128_SHA", 0}
+	controlChan <- ConnectionState{true, "TLS_RSA_WITH_RC4_128_SHA", 0, clientProtocol}
 
 	finishedHash.Write(clientFinished.marshal())
 
@@ -228,7 +243,7 @@ func (h *serverHandshake) error(e alertType) {
 			for _ = range h.msgChan {
 			}
 		}()
-		h.controlChan <- ConnectionState{false, "", e}
+		h.controlChan <- ConnectionState{false, "", e, ""}
 		close(h.controlChan)
 		h.writeChan <- alert{alertLevelError, e}
 	}
