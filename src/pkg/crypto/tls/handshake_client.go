@@ -184,7 +184,7 @@ func (h *clientHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 		return
 	}
 
-	controlChan <- ConnectionState{true, "TLS_RSA_WITH_RC4_128_SHA", 0}
+	controlChan <- ConnectionState{HandshakeComplete: true, CipherSuite: "TLS_RSA_WITH_RC4_128_SHA"}
 
 	// This should just block forever.
 	_ = h.readHandshakeMsg()
@@ -218,7 +218,7 @@ func (h *clientHandshake) error(e alertType) {
 			for _ = range h.msgChan {
 			}
 		}()
-		h.controlChan <- ConnectionState{false, "", e}
+		h.controlChan <- ConnectionState{Error: e}
 		close(h.controlChan)
 		h.writeChan <- alert{alertLevelError, e}
 	}

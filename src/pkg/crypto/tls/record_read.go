@@ -21,7 +21,7 @@ func recordReader(c chan<- *record, source io.Reader) {
 
 	for {
 		var header [5]byte
-		n, _ := buf.Read(header[0:])
+		n, _ := buf.Read(&header)
 		if n != 5 {
 			return
 		}

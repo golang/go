@@ -291,6 +291,8 @@ func parseHandshakeMsg(data []byte) (interface{}, bool) {
 		m = new(serverHelloDoneMsg)
 	case typeClientKeyExchange:
 		m = new(clientKeyExchangeMsg)
+	case typeNextProtocol:
+		m = new(nextProtoMsg)
 	default:
 		return nil, false
 	}

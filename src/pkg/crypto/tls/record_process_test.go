@@ -36,7 +36,7 @@ func TestNullConnectionState(t *testing.T) {
 	// Test a simple request for the connection state.
 	replyChan := make(chan ConnectionState)
 	sendReq := script.NewEvent("send request", nil, script.Send{requestChan, getConnectionState{replyChan}})
-	getReply := script.NewEvent("get reply", []*script.Event{sendReq}, script.Recv{replyChan, ConnectionState{false, "", 0}})
+	getReply := script.NewEvent("get reply", []*script.Event{sendReq}, script.Recv{replyChan, ConnectionState{false, "", 0, ""}})
 
 	err := script.Perform(0, []*script.Event{sendReq, getReply})
 	if err != nil {
@@ -55,9 +55,9 @@ func TestWaitConnectionState(t *testing.T) {
 	sendReq := script.NewEvent("send request", nil, script.Send{requestChan, waitConnectionState{replyChan}})
 	replyChan2 := make(chan ConnectionState)
 	sendReq2 := script.NewEvent("send request 2", []*script.Event{sendReq}, script.Send{requestChan, getConnectionState{replyChan2}})
-	getReply2 := script.NewEvent("get reply 2", []*script.Event{sendReq2}, script.Recv{replyChan2, ConnectionState{false, "", 0}})
-	sendState := script.NewEvent("send state", []*script.Event{getReply2}, script.Send{controlChan, ConnectionState{true, "test", 1}})
-	getReply := script.NewEvent("get reply", []*script.Event{sendState}, script.Recv{replyChan, ConnectionState{true, "test", 1}})
+	getReply2 := script.NewEvent("get reply 2", []*script.Event{sendReq2}, script.Recv{replyChan2, ConnectionState{false, "", 0, ""}})
+	sendState := script.NewEvent("send state", []*script.Event{getReply2}, script.Send{controlChan, ConnectionState{true, "test", 1, ""}})
+	getReply := script.NewEvent("get reply", []*script.Event{sendState}, script.Recv{replyChan, ConnectionState{true, "test", 1, ""}})
 
 	err := script.Perform(0, []*script.Event{sendReq, sendReq2, getReply2, sendState, getReply})
 	if err != nil {
@@ -108,7 +108,7 @@ func TestApplicationData(t *testing.T) {
 	// Test that the application data is forwarded after a successful Finished message.
 	send1 := script.NewEvent("send 1", nil, script.Send{recordChan, &record{recordTypeHandshake, 0, 0, fromHex("1400000c000000000000000000000000")}})
 	recv1 := script.NewEvent("recv finished", []*script.Event{send1}, script.Recv{handshakeChan, &finishedMsg{fromHex("1400000c000000000000000000000000"), fromHex("000000000000000000000000")}})
-	send2 := script.NewEvent("send connState", []*script.Event{recv1}, script.Send{controlChan, ConnectionState{true, "", 0}})
+	send2 := script.NewEvent("send connState", []*script.Event{recv1}, script.Send{controlChan, ConnectionState{true, "", 0, ""}})
 	send3 := script.NewEvent("send 2", []*script.Event{send2}, script.Send{recordChan, &record{recordTypeApplicationData, 0, 0, fromHex("0102")}})
 	recv2 := script.NewEvent("recv data", []*script.Event{send3}, script.Recv{appDataChan, []byte{0x01, 0x02}})
 
@@ -126,7 +126,7 @@ func TestInvalidChangeCipherSpec(t *testing.T) {
 
 	send1 := script.NewEvent("send 1", nil, script.Send{recordChan, &record{recordTypeChangeCipherSpec, 0, 0, []byte{1}}})
 	recv1 := script.NewEvent("recv 1", []*script.Event{send1}, script.Recv{handshakeChan, changeCipherSpec{}})
-	send2 := script.NewEvent("send 2", []*script.Event{recv1}, script.Send{controlChan, ConnectionState{false, "", 42}})
+	send2 := script.NewEvent("send 2", []*script.Event{recv1}, script.Send{controlChan, ConnectionState{false, "", 42, ""}})
 	close := script.NewEvent("close 1", []*script.Event{send2}, script.Closed{appDataChan})
 	close2 := script.NewEvent("close 2", []*script.Event{send2}, script.Closed{handshakeChan})
 
