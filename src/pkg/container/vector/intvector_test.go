@@ -10,7 +10,7 @@ package vector
 import "testing"
 
 
-func TestIntZeroLenExp(t *testing.T) {
+func TestIntZeroLen(t *testing.T) {
 	a := new(IntVector)
 	if a.Len() != 0 {
 		t.Errorf("%T: B1) expected 0, got %d", a, a.Len())
@@ -28,28 +28,28 @@ func TestIntZeroLenExp(t *testing.T) {
 }
 
 
-func TestIntResizeExp(t *testing.T) {
+func TestIntResize(t *testing.T) {
 	var a IntVector
-	checkSizeExp(t, &a, 0, 0)
-	checkSizeExp(t, a.Resize(0, 5), 0, 5)
-	checkSizeExp(t, a.Resize(1, 0), 1, 5)
-	checkSizeExp(t, a.Resize(10, 0), 10, 10)
-	checkSizeExp(t, a.Resize(5, 0), 5, 10)
-	checkSizeExp(t, a.Resize(3, 8), 3, 10)
-	checkSizeExp(t, a.Resize(0, 100), 0, 100)
-	checkSizeExp(t, a.Resize(11, 100), 11, 100)
+	checkSize(t, &a, 0, 0)
+	checkSize(t, a.Resize(0, 5), 0, 5)
+	checkSize(t, a.Resize(1, 0), 1, 5)
+	checkSize(t, a.Resize(10, 0), 10, 10)
+	checkSize(t, a.Resize(5, 0), 5, 10)
+	checkSize(t, a.Resize(3, 8), 3, 10)
+	checkSize(t, a.Resize(0, 100), 0, 100)
+	checkSize(t, a.Resize(11, 100), 11, 100)
 }
 
 
-func TestIntResize2Exp(t *testing.T) {
+func TestIntResize2(t *testing.T) {
 	var a IntVector
-	checkSizeExp(t, &a, 0, 0)
+	checkSize(t, &a, 0, 0)
 	a.Push(int2IntValue(1))
 	a.Push(int2IntValue(2))
 	a.Push(int2IntValue(3))
 	a.Push(int2IntValue(4))
-	checkSizeExp(t, &a, 4, 4)
-	checkSizeExp(t, a.Resize(10, 0), 10, 10)
+	checkSize(t, &a, 4, 4)
+	checkSize(t, a.Resize(10, 0), 10, 10)
 	for i := 4; i < a.Len(); i++ {
 		if a.At(i) != intzero {
 			t.Errorf("%T: expected a.At(%d) == %v; found %v!", a, i, intzero, a.At(i))
@@ -63,7 +63,7 @@ func TestIntResize2Exp(t *testing.T) {
 }
 
 
-func checkIntZeroExp(t *testing.T, a *IntVector, i int) {
+func checkIntZero(t *testing.T, a *IntVector, i int) {
 	for j := 0; j < i; j++ {
 		if a.At(j) == intzero {
 			t.Errorf("%T: 1 expected a.At(%d) == %d; found %v", a, j, j, a.At(j))
@@ -83,45 +83,45 @@ func checkIntZeroExp(t *testing.T, a *IntVector, i int) {
 }
 
 
-func TestIntTrailingElementsExp(t *testing.T) {
+func TestIntTrailingElements(t *testing.T) {
 	var a IntVector
 	for i := 0; i < 10; i++ {
 		a.Push(int2IntValue(i + 1))
 	}
-	checkIntZeroExp(t, &a, 10)
-	checkSizeExp(t, &a, 10, 16)
-	checkSizeExp(t, a.Resize(5, 0), 5, 16)
-	checkSizeExp(t, a.Resize(10, 0), 10, 16)
-	checkIntZeroExp(t, &a, 5)
+	checkIntZero(t, &a, 10)
+	checkSize(t, &a, 10, 16)
+	checkSize(t, a.Resize(5, 0), 5, 16)
+	checkSize(t, a.Resize(10, 0), 10, 16)
+	checkIntZero(t, &a, 5)
 }
 
 
-func TestIntAccessExp(t *testing.T) {
+func TestIntAccess(t *testing.T) {
 	const n = 100
 	var a IntVector
 	a.Resize(n, 0)
 	for i := 0; i < n; i++ {
-		a.Set(i, int2IntValue(valExp(i)))
+		a.Set(i, int2IntValue(val(i)))
 	}
 	for i := 0; i < n; i++ {
-		if elem2IntValue(a.At(i)) != int2IntValue(valExp(i)) {
+		if elem2IntValue(a.At(i)) != int2IntValue(val(i)) {
 			t.Error(i)
 		}
 	}
 	var b IntVector
 	b.Resize(n, 0)
 	for i := 0; i < n; i++ {
-		b[i] = int2IntValue(valExp(i))
+		b[i] = int2IntValue(val(i))
 	}
 	for i := 0; i < n; i++ {
-		if elem2IntValue(b[i]) != int2IntValue(valExp(i)) {
+		if elem2IntValue(b[i]) != int2IntValue(val(i)) {
 			t.Error(i)
 		}
 	}
 }
 
 
-func TestIntInsertDeleteClearExp(t *testing.T) {
+func TestIntInsertDeleteClear(t *testing.T) {
 	const n = 100
 	var a IntVector
 
@@ -132,19 +132,19 @@ func TestIntInsertDeleteClearExp(t *testing.T) {
 		if len(a) != i {
 			t.Errorf("T%: A) wrong len() %d (expected %d)", a, len(a), i)
 		}
-		a.Insert(0, int2IntValue(valExp(i)))
-		if elem2IntValue(a.Last()) != int2IntValue(valExp(0)) {
+		a.Insert(0, int2IntValue(val(i)))
+		if elem2IntValue(a.Last()) != int2IntValue(val(0)) {
 			t.Error("T%: B", a)
 		}
 	}
 	for i := n - 1; i >= 0; i-- {
-		if elem2IntValue(a.Last()) != int2IntValue(valExp(0)) {
+		if elem2IntValue(a.Last()) != int2IntValue(val(0)) {
 			t.Error("T%: C", a)
 		}
-		if elem2IntValue(a.At(0)) != int2IntValue(valExp(i)) {
+		if elem2IntValue(a.At(0)) != int2IntValue(val(i)) {
 			t.Error("T%: D", a)
 		}
-		if elem2IntValue(a[0]) != int2IntValue(valExp(i)) {
+		if elem2IntValue(a[0]) != int2IntValue(val(i)) {
 			t.Error("T%: D2", a)
 		}
 		a.Delete(0)
@@ -163,14 +163,14 @@ func TestIntInsertDeleteClearExp(t *testing.T) {
 		t.Errorf("T%: F) wrong len() %d (expected 0)", a, len(a))
 	}
 	for i := 0; i < n; i++ {
-		a.Push(int2IntValue(valExp(i)))
+		a.Push(int2IntValue(val(i)))
 		if a.Len() != i+1 {
 			t.Errorf("T%: G) wrong Len() %d (expected %d)", a, a.Len(), i+1)
 		}
 		if len(a) != i+1 {
 			t.Errorf("T%: G) wrong len() %d (expected %d)", a, len(a), i+1)
 		}
-		if elem2IntValue(a.Last()) != int2IntValue(valExp(i)) {
+		if elem2IntValue(a.Last()) != int2IntValue(val(i)) {
 			t.Error("T%: H", a)
 		}
 	}
@@ -186,7 +186,7 @@ func TestIntInsertDeleteClearExp(t *testing.T) {
 	for j := 0; j < m; j++ {
 		a.Push(int2IntValue(j))
 		for i := 0; i < n; i++ {
-			x := valExp(i)
+			x := val(i)
 			a.Push(int2IntValue(x))
 			if elem2IntValue(a.Pop()) != int2IntValue(x) {
 				t.Error("T%: J", a)
@@ -208,7 +208,7 @@ func TestIntInsertDeleteClearExp(t *testing.T) {
 }
 
 
-func verify_sliceIntExp(t *testing.T, x *IntVector, elt, i, j int) {
+func verify_sliceInt(t *testing.T, x *IntVector, elt, i, j int) {
 	for k := i; k < j; k++ {
 		if elem2IntValue(x.At(k)) != int2IntValue(elt) {
 			t.Errorf("T%: M) wrong [%d] element %v (expected %v)", x, k, elem2IntValue(x.At(k)), int2IntValue(elt))
@@ -224,7 +224,7 @@ func verify_sliceIntExp(t *testing.T, x *IntVector, elt, i, j int) {
 }
 
 
-func verify_patternIntExp(t *testing.T, x *IntVector, a, b, c int) {
+func verify_patternInt(t *testing.T, x *IntVector, a, b, c int) {
 	n := a + b + c
 	if x.Len() != n {
 		t.Errorf("T%: O) wrong Len() %d (expected %d)", x, x.Len(), n)
@@ -232,13 +232,13 @@ func verify_patternIntExp(t *testing.T, x *IntVector, a, b, c int) {
 	if len(*x) != n {
 		t.Errorf("T%: O) wrong len() %d (expected %d)", x, len(*x), n)
 	}
-	verify_sliceIntExp(t, x, 0, 0, a)
-	verify_sliceIntExp(t, x, 1, a, a+b)
-	verify_sliceIntExp(t, x, 0, a+b, n)
+	verify_sliceInt(t, x, 0, 0, a)
+	verify_sliceInt(t, x, 1, a, a+b)
+	verify_sliceInt(t, x, 0, a+b, n)
 }
 
 
-func make_vectorIntExp(elt, len int) *IntVector {
+func make_vectorInt(elt, len int) *IntVector {
 	x := new(IntVector).Resize(len, 0)
 	for i := 0; i < len; i++ {
 		x.Set(i, int2IntValue(elt))
@@ -247,31 +247,31 @@ func make_vectorIntExp(elt, len int) *IntVector {
 }
 
 
-func TestIntInsertVectorExp(t *testing.T) {
+func TestIntInsertVector(t *testing.T) {
 	// 1
-	a := make_vectorIntExp(0, 0)
-	b := make_vectorIntExp(1, 10)
+	a := make_vectorInt(0, 0)
+	b := make_vectorInt(1, 10)
 	a.InsertVector(0, b)
-	verify_patternIntExp(t, a, 0, 10, 0)
+	verify_patternInt(t, a, 0, 10, 0)
 	// 2
-	a = make_vectorIntExp(0, 10)
-	b = make_vectorIntExp(1, 0)
+	a = make_vectorInt(0, 10)
+	b = make_vectorInt(1, 0)
 	a.InsertVector(5, b)
-	verify_patternIntExp(t, a, 5, 0, 5)
+	verify_patternInt(t, a, 5, 0, 5)
 	// 3
-	a = make_vectorIntExp(0, 10)
-	b = make_vectorIntExp(1, 3)
+	a = make_vectorInt(0, 10)
+	b = make_vectorInt(1, 3)
 	a.InsertVector(3, b)
-	verify_patternIntExp(t, a, 3, 3, 7)
+	verify_patternInt(t, a, 3, 3, 7)
 	// 4
-	a = make_vectorIntExp(0, 10)
-	b = make_vectorIntExp(1, 1000)
+	a = make_vectorInt(0, 10)
+	b = make_vectorInt(1, 1000)
 	a.InsertVector(8, b)
-	verify_patternIntExp(t, a, 8, 1000, 2)
+	verify_patternInt(t, a, 8, 1000, 2)
 }
 
 
-func TestIntDoExp(t *testing.T) {
+func TestIntDo(t *testing.T) {
 	const n = 25
 	const salt = 17
 	a := new(IntVector).Resize(n, 0)
@@ -326,7 +326,7 @@ func TestIntDoExp(t *testing.T) {
 }
 
 
-func TestIntIterExp(t *testing.T) {
+func TestIntIter(t *testing.T) {
 	const Len = 100
 	x := new(IntVector).Resize(Len, 0)
 	for i := 0; i < Len; i++ {
