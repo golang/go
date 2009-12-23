@@ -2217,7 +2217,7 @@ as in this idealized example.
 <pre>
 type Vector []float64
 
-// Apply the operation to n elements of v starting at i.
+// Apply the operation to v[i], v[i+1] ... up to v[n-1].
 func (v Vector) DoSome(i, n int, u Vector, c chan int) {
     for ; i < n; i++ {
         v[i] += u.Op(v[i])
