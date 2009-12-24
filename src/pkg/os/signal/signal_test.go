@@ -14,6 +14,6 @@ func TestSignal(t *testing.T) {
 	syscall.Syscall(syscall.SYS_KILL, uintptr(syscall.Getpid()), syscall.SIGHUP, 0)
 
 	if sig := (<-Incoming).(UnixSignal); sig != 1 {
-		t.Error("signal was %v, want %v", sig, 1)
+		t.Errorf("signal was %v, want %v", sig, 1)
 	}
 }
