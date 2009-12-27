@@ -30,7 +30,6 @@ unsafenmagic(Node *fn, NodeList *args)
 	}
 	r = args->n;
 
-	n = nod(OLITERAL, N, N);
 	if(strcmp(s->name, "Sizeof") == 0) {
 		typecheck(&r, Erv);
 		tr = r->type;
