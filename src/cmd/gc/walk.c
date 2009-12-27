@@ -1072,7 +1072,7 @@ ret:
 	*np = n;
 }
 
-Node*
+static Node*
 makenewvar(Type *t, NodeList **init, Node **nstar)
 {
 	Node *nvar, *nas;

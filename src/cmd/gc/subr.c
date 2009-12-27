@@ -2085,7 +2085,7 @@ frame(int context)
 		case ONAME:
 			if(flag)
 				print("--- %s frame ---\n", p);
-			print("%O %S G%ld T\n", n->op, n->sym, n->vargen, n->type);
+			print("%O %S G%ld %T\n", n->op, n->sym, n->vargen, n->type);
 			flag = 0;
 			break;
 

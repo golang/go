@@ -584,7 +584,7 @@ typename(Type *t)
 	return n;
 }
 
-Sym*
+static Sym*
 dtypesym(Type *t)
 {
 	int ot, n;
