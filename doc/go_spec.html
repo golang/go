@@ -151,12 +151,13 @@ Comments do not nest.
 
 <p>
 Tokens form the vocabulary of the Go language.
-There are four classes: identifiers, keywords, operators
-and delimiters, and literals.  <i>White space</i>, formed from
+There are four classes: <i>identifiers</i>, <i>keywords</i>, <i>operators
+and delimiters</i>, and <i>literals</i>.  <i>White space</i>, formed from
 spaces (U+0020), horizontal tabs (U+0009),
 carriage returns (U+000D), and newlines (U+000A),
 is ignored except as it separates tokens
-that would otherwise combine into a single token.
+that would otherwise combine into a single token. Also, a newline
+may trigger the insertion of a <a href="#Semicolons">semicolon</a>.
 While breaking the input into tokens,
 the next token is the longest sequence of characters that form a
 valid token.
