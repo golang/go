@@ -162,7 +162,7 @@ type Listener struct {
 	config   *Config
 }
 
-func (l Listener) Accept() (c net.Conn, err os.Error) {
+func (l *Listener) Accept() (c net.Conn, err os.Error) {
 	c, err = l.listener.Accept()
 	if err != nil {
 		return
@@ -172,13 +172,14 @@ func (l Listener) Accept() (c net.Conn, err os.Error) {
 	return
 }
 
-func (l Listener) Close() os.Error { return l.listener.Close() }
+func (l *Listener) Close() os.Error { return l.listener.Close() }
 
-func (l Listener) Addr() net.Addr { return l.listener.Addr() }
+func (l *Listener) Addr() net.Addr { return l.listener.Addr() }
 
 // NewListener creates a Listener which accepts connections from an inner
 // Listener and wraps each connection with Server.
-func NewListener(listener net.Listener, config *Config) (l Listener) {
+func NewListener(listener net.Listener, config *Config) (l *Listener) {
+	l = new(Listener)
 	l.listener = listener
 	l.config = config
 	return
