@@ -170,9 +170,9 @@ func (p *parser) consumeCommentGroup() int {
 	}
 
 	// convert list
-	group := make([]*ast.Comment, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		group[i] = list.At(i).(*ast.Comment)
+	group := make([]*ast.Comment, len(list))
+	for i, x := range list {
+		group[i] = x.(*ast.Comment)
 	}
 
 	// add comment group to the comments list
@@ -321,9 +321,9 @@ func (p *parser) parseIdentList() []*ast.Ident {
 	}
 
 	// convert vector
-	idents := make([]*ast.Ident, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		idents[i] = list.At(i).(*ast.Ident)
+	idents := make([]*ast.Ident, len(list))
+	for i, x := range list {
+		idents[i] = x.(*ast.Ident)
 	}
 
 	return idents
@@ -331,9 +331,9 @@ func (p *parser) parseIdentList() []*ast.Ident {
 
 
 func makeExprList(list *vector.Vector) []ast.Expr {
-	exprs := make([]ast.Expr, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		exprs[i] = list.At(i).(ast.Expr)
+	exprs := make([]ast.Expr, len(*list))
+	for i, x := range *list {
+		exprs[i] = x.(ast.Expr)
 	}
 	return exprs
 }
@@ -421,11 +421,11 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
 
 
 func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
-	idents := make([]*ast.Ident, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		ident, isIdent := list.At(i).(*ast.Ident)
+	idents := make([]*ast.Ident, len(*list))
+	for i, x := range *list {
+		ident, isIdent := x.(*ast.Ident)
 		if !isIdent {
-			pos := list.At(i).(ast.Expr).Pos()
+			pos := x.(ast.Expr).Pos()
 			p.errorExpected(pos, "identifier")
 			idents[i] = &ast.Ident{pos, ""}
 		}
@@ -471,7 +471,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 		idents = p.makeIdentList(&list)
 	} else {
 		// Type (anonymous field)
-		if list.Len() == 1 {
+		if len(list) == 1 {
 			// TODO(gri): check that this looks like a type
 			typ = list.At(0).(ast.Expr)
 		} else {
@@ -500,9 +500,9 @@ func (p *parser) parseStructType() *ast.StructType {
 	rbrace := p.expect(token.RBRACE)
 
 	// convert vector
-	fields := make([]*ast.Field, list.Len())
-	for i := list.Len() - 1; i >= 0; i-- {
-		fields[i] = list.At(i).(*ast.Field)
+	fields := make([]*ast.Field, len(list))
+	for i, x := range list {
+		fields[i] = x.(*ast.Field)
 	}
 
 	return &ast.StructType{pos, lbrace, fields, rbrace, false}
@@ -597,15 +597,15 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 	} else {
 		// Type { "," Type } (anonymous parameters)
 		// convert list of types into list of *Param
-		for i := 0; i < list.Len(); i++ {
-			list.Set(i, &ast.Field{Type: list.At(i).(ast.Expr)})
+		for i, x := range *list {
+			list.Set(i, &ast.Field{Type: x.(ast.Expr)})
 		}
 	}
 
 	// convert list
-	params := make([]*ast.Field, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		params[i] = list.At(i).(*ast.Field)
+	params := make([]*ast.Field, len(*list))
+	for i, x := range *list {
+		params[i] = x.(*ast.Field)
 	}
 
 	return params
@@ -710,9 +710,9 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	rbrace := p.expect(token.RBRACE)
 
 	// convert vector
-	methods := make([]*ast.Field, list.Len())
-	for i := list.Len() - 1; i >= 0; i-- {
-		methods[i] = list.At(i).(*ast.Field)
+	methods := make([]*ast.Field, len(list))
+	for i, x := range list {
+		methods[i] = x.(*ast.Field)
 	}
 
 	return &ast.InterfaceType{pos, lbrace, methods, rbrace, false}
@@ -796,9 +796,9 @@ func (p *parser) tryType() ast.Expr { return p.tryRawType(false) }
 // Blocks
 
 func makeStmtList(list *vector.Vector) []ast.Stmt {
-	stats := make([]ast.Stmt, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		stats[i] = list.At(i).(ast.Stmt)
+	stats := make([]ast.Stmt, len(*list))
+	for i, x := range *list {
+		stats[i] = x.(ast.Stmt)
 	}
 	return stats
 }
@@ -1792,9 +1792,9 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	}
 
 	// convert vector
-	specs := make([]ast.Spec, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		specs[i] = list.At(i).(ast.Spec)
+	specs := make([]ast.Spec, len(list))
+	for i, x := range list {
+		specs[i] = x.(ast.Spec)
 	}
 
 	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen}
@@ -1898,9 +1898,9 @@ func (p *parser) parseDeclList() []ast.Decl {
 	}
 
 	// convert vector
-	decls := make([]ast.Decl, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		decls[i] = list.At(i).(ast.Decl)
+	decls := make([]ast.Decl, len(list))
+	for i, x := range list {
+		decls[i] = x.(ast.Decl)
 	}
 
 	return decls
@@ -1944,9 +1944,9 @@ func (p *parser) parseFile() *ast.File {
 		}
 
 		// convert declaration list
-		decls = make([]ast.Decl, list.Len())
-		for i := 0; i < list.Len(); i++ {
-			decls[i] = list.At(i).(ast.Decl)
+		decls = make([]ast.Decl, len(list))
+		for i, x := range list {
+			decls[i] = x.(ast.Decl)
 		}
 	}
 
