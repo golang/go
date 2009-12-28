@@ -254,3 +254,23 @@ func TestArray(t *testing.T) {
 		t.Error("should fail with mismatched array sizes")
 	}
 }
+
+// Regression test for bug: must send zero values inside arrays
+func TestDefaultsInArray(t *testing.T) {
+	type Type7 struct {
+		b []bool
+		i []int
+		s []string
+		f []float
+	}
+	t7 := Type7{
+		[]bool{false, false, true},
+		[]int{0, 0, 1},
+		[]string{"hi", "", "there"},
+		[]float{0, 0, 1},
+	}
+	var t7p Type7
+	if err := encAndDec(t7, &t7p); err != nil {
+		t.Error(err)
+	}
+}

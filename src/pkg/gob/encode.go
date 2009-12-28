@@ -21,7 +21,8 @@ const uint64Size = unsafe.Sizeof(uint64(0))
 // 0 terminates the structure.
 type encoderState struct {
 	b        *bytes.Buffer
-	err      os.Error             // error encountered during encoding;
+	err      os.Error             // error encountered during encoding.
+	inArray  bool                 // encoding an array element
 	fieldnum int                  // the last field number written.
 	buf      [1 + uint64Size]byte // buffer used by the encoder; here to avoid allocation.
 }
@@ -102,15 +103,19 @@ func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 
 func encBool(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	b := *(*bool)(p)
-	if b {
+	if b || state.inArray {
 		state.update(i)
-		encodeUint(state, 1)
+		if b {
+			encodeUint(state, 1)
+		} else {
+			encodeUint(state, 0)
+		}
 	}
 }
 
 func encInt(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeInt(state, v)
 	}
@@ -118,7 +123,7 @@ func encInt(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encUint(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeUint(state, v)
 	}
@@ -126,7 +131,7 @@ func encUint(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encInt8(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int8)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeInt(state, v)
 	}
@@ -134,7 +139,7 @@ func encInt8(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encUint8(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint8)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeUint(state, v)
 	}
@@ -142,7 +147,7 @@ func encUint8(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encInt16(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int16)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeInt(state, v)
 	}
@@ -150,7 +155,7 @@ func encInt16(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encUint16(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint16)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeUint(state, v)
 	}
@@ -158,7 +163,7 @@ func encUint16(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encInt32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int32)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeInt(state, v)
 	}
@@ -166,7 +171,7 @@ func encInt32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encUint32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint32)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeUint(state, v)
 	}
@@ -174,7 +179,7 @@ func encUint32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encInt64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := *(*int64)(p)
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeInt(state, v)
 	}
@@ -182,7 +187,7 @@ func encInt64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encUint64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := *(*uint64)(p)
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeUint(state, v)
 	}
@@ -190,7 +195,7 @@ func encUint64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encUintptr(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uintptr)(p))
-	if v != 0 {
+	if v != 0 || state.inArray {
 		state.update(i)
 		encodeUint(state, v)
 	}
@@ -214,7 +219,7 @@ func floatBits(f float64) uint64 {
 
 func encFloat(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	f := float(*(*float)(p))
-	if f != 0 {
+	if f != 0 || state.inArray {
 		v := floatBits(float64(f))
 		state.update(i)
 		encodeUint(state, v)
@@ -223,7 +228,7 @@ func encFloat(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encFloat32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	f := float32(*(*float32)(p))
-	if f != 0 {
+	if f != 0 || state.inArray {
 		v := floatBits(float64(f))
 		state.update(i)
 		encodeUint(state, v)
@@ -232,7 +237,7 @@ func encFloat32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 func encFloat64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	f := *(*float64)(p)
-	if f != 0 {
+	if f != 0 || state.inArray {
 		state.update(i)
 		v := floatBits(f)
 		encodeUint(state, v)
@@ -242,7 +247,7 @@ func encFloat64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 // Byte arrays are encoded as an unsigned count followed by the raw bytes.
 func encUint8Array(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	b := *(*[]byte)(p)
-	if len(b) > 0 {
+	if len(b) > 0 || state.inArray {
 		state.update(i)
 		encodeUint(state, uint64(len(b)))
 		state.b.Write(b)
@@ -252,7 +257,7 @@ func encUint8Array(i *encInstr, state *encoderState, p unsafe.Pointer) {
 // Strings are encoded as an unsigned count followed by the raw bytes.
 func encString(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	s := *(*string)(p)
-	if len(s) > 0 {
+	if len(s) > 0 || state.inArray {
 		state.update(i)
 		encodeUint(state, uint64(len(s)))
 		io.WriteString(state.b, s)
@@ -296,6 +301,7 @@ func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length i
 	state := new(encoderState)
 	state.b = b
 	state.fieldnum = -1
+	state.inArray = true
 	encodeUint(state, uint64(length))
 	for i := 0; i < length && state.err == nil; i++ {
 		elemp := p
