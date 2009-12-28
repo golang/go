@@ -68,8 +68,8 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	n := _Block(d, p)
 	p = p[n:]
 	if len(p) > 0 {
-		for i := 0; i < len(p); i++ {
-			d.x[i] = p[i]
+		for i, x := range p {
+			d.x[i] = x
 		}
 		d.nx = len(p)
 	}
@@ -100,16 +100,12 @@ func (d *digest) Sum() []byte {
 
 	p := make([]byte, 16)
 	j := 0
-	for i := 0; i < 4; i++ {
-		s := d.s[i]
-		p[j] = byte(s)
-		j++
-		p[j] = byte(s >> 8)
-		j++
-		p[j] = byte(s >> 16)
-		j++
-		p[j] = byte(s >> 24)
-		j++
+	for _, s := range d.s {
+		p[j+0] = byte(s >> 0)
+		p[j+1] = byte(s >> 8)
+		p[j+2] = byte(s >> 16)
+		p[j+3] = byte(s >> 24)
+		j += 4
 	}
 	return p
 }
