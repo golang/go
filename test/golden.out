@@ -151,3 +151,11 @@ BUG: bug219
 
 =========== bugs/bug238.go
 BUG: errchk: command succeeded unexpectedly
+
+=========== bugs/bug239.go
+bugs/bug239.go:11: imported and not used: unsafe
+bugs/bug239.go:15: undefined: Sizeof
+BUG: bug239
+
+=========== bugs/bug240.go
+BUG: errchk: command succeeded unexpectedly
