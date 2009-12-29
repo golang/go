@@ -471,8 +471,8 @@ type tconv struct {
 }
 
 
-func (p *tconv) writeIndent(n int) (err os.Error) {
-	i := n * *tabwidth
+func (p *tconv) writeIndent() (err os.Error) {
+	i := p.indent
 	for i > len(spaces) {
 		i -= len(spaces)
 		if _, err = p.output.Write(spaces); err != nil {
@@ -490,12 +490,20 @@ func (p *tconv) Write(data []byte) (n int, err os.Error) {
 	for n, b = range data {
 		switch p.state {
 		case indenting:
-			if b == '\t' {
+			switch b {
+			case '\t', '\v':
+				p.indent += *tabwidth
+			case '\n':
+				p.indent = 0
+				if _, err = p.output.Write(data[n : n+1]); err != nil {
+					return
+				}
+			case ' ':
 				p.indent++
-			} else {
+			default:
 				p.state = collecting
 				pos = n
-				if err = p.writeIndent(p.indent); err != nil {
+				if err = p.writeIndent(); err != nil {
 					return
 				}
 			}
