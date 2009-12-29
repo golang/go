@@ -13,3 +13,11 @@ GOFILES=\
 	type.go\
 
 include ../../Make.pkg
+
+# Help for debugging. Requires adding debug.go to the gob package as well.
+
+dump:	dump.$O
+	$(LD) -o dump $<
+
+dump.$O:	dump.go
+	$(GC) $<
