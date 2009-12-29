@@ -148,3 +148,6 @@ panic PC=xxx
 =========== bugs/bug219.go
 bugs/bug219.go:16: syntax error near if
 BUG: bug219
+
+=========== bugs/bug238.go
+BUG: errchk: command succeeded unexpectedly
