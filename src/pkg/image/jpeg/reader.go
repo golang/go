@@ -55,6 +55,9 @@ const (
 	dhtMarker   = 0xc4 // Define Huffman Table.
 	dqtMarker   = 0xdb // Define Quantization Table.
 	sosMarker   = 0xda // Start Of Scan.
+	driMarker   = 0xdd // Define Restart Interval.
+	rst0Marker  = 0xd0 // ReSTart (0).
+	rst7Marker  = 0xd7 // ReSTart (7).
 	app0Marker  = 0xe0 // APPlication specific (0).
 	app15Marker = 0xef // APPlication specific (15).
 	comMarker   = 0xfe // COMment.
@@ -82,6 +85,7 @@ type decoder struct {
 	r             Reader
 	width, height int
 	image         *image.RGBA
+	ri            int // Restart Interval.
 	comps         [nComponent]component
 	huff          [maxTc + 1][maxTh + 1]huffman
 	quant         [maxTq + 1][blockSize]int
@@ -265,6 +269,7 @@ func (d *decoder) processSOS(n int) os.Error {
 	mxx := (d.width + 8*int(h0) - 1) / (8 * int(h0))
 	myy := (d.height + 8*int(v0) - 1) / (8 * int(v0))
 
+	mcu, expectedRST := 0, uint8(rst0Marker)
 	var allZeroes [blockSize]int
 	var dc [nComponent]int
 	for my := 0; my < myy; my++ {
@@ -319,9 +324,44 @@ func (d *decoder) processSOS(n int) os.Error {
 				} // for j
 			} // for i
 			d.convertMCU(mx, my, int(d.comps[0].h), int(d.comps[0].v))
+			mcu++
+			if d.ri > 0 && mcu%d.ri == 0 && mcu < mxx*myy {
+				// A more sophisticated decoder could use RST[0-7] markers to resynchronize from corrupt input,
+				// but this one assumes well-formed input, and hence the restart marker follows immediately.
+				_, err := io.ReadFull(d.r, d.tmp[0:2])
+				if err != nil {
+					return err
+				}
+				if d.tmp[0] != 0xff || d.tmp[1] != expectedRST {
+					return FormatError("bad RST marker")
+				}
+				expectedRST++
+				if expectedRST == rst7Marker+1 {
+					expectedRST = rst0Marker
+				}
+				// Reset the Huffman decoder.
+				d.b = bits{}
+				// Reset the DC components, as per section F.2.1.3.1.
+				for i := 0; i < nComponent; i++ {
+					dc[i] = 0
+				}
+			}
 		} // for mx
 	} // for my
 
+	return nil
+}
+
+// Specified in section B.2.4.4.
+func (d *decoder) processDRI(n int) os.Error {
+	if n != 2 {
+		return FormatError("DRI has wrong length")
+	}
+	_, err := io.ReadFull(d.r, d.tmp[0:2])
+	if err != nil {
+		return err
+	}
+	d.ri = int(d.tmp[0])<<8 + int(d.tmp[1])
 	return nil
 }
 
@@ -379,6 +419,8 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 			err = d.processDQT(n)
 		case marker == sosMarker: // Start Of Scan.
 			err = d.processSOS(n)
+		case marker == driMarker: // Define Restart Interval.
+			err = d.processDRI(n)
 		case marker >= app0Marker && marker <= app15Marker || marker == comMarker: // APPlication specific, or COMment.
 			err = d.ignore(n)
 		default:
