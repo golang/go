@@ -76,12 +76,22 @@
 			Words = (
 				"...",
 				".",
+				"*",
+				",",
 				":",
  			);
 			Type = "xcode.syntax.plain";
 		};
 	},
 
+	{
+		Identifier = "xcode.lang.go.rawstring";
+		Syntax = {
+			Start = "`";
+			End = "`";
+			Type = "xcode.syntax.string";
+		};
+	},
 
 // ----------------------------------------------------------------------------
 // Syntax Coloring
@@ -112,6 +122,7 @@
 				"xcode.lang.go.comment.singleline",
 				"xcode.lang.string",
 				"xcode.lang.character",
+				"xcode.lang.go.rawstring",
 				"xcode.lang.go.identifier",
 				"xcode.lang.number",
 				"xcode.lang.go.interestingOperators",
@@ -127,10 +138,27 @@
 				"xcode.lang.go.comment.singleline",
 				"xcode.lang.string",
 				"xcode.lang.character",
+				"xcode.lang.go.rawstring",
 				"xcode.lang.go.type.declaration",
+				"xcode.lang.go.method.declaration",
+				"xcode.lang.go.function.declaration",
 				"xcode.lang.go.identifier",
 				"xcode.lang.number",
 			);
+		};
+	},
+
+	{
+		Identifier = "xcode.lang.go.method.declaration";
+		Syntax = {
+			Tokenizer = "xcode.lang.go.lexer";
+			Rules = (
+				"func",
+				"xcode.lang.go.parenexpr",
+				"xcode.lang.go.identifier",
+				"xcode.lang.go.parenexpr",
+			);
+			Type = "xcode.syntax.declaration.method";
 		};
 	},
 
@@ -142,15 +170,27 @@
 				"type",
 				"xcode.lang.go.identifier",
 			);
-			Type = "xcode.syntax.name.partial";
+			Type = "xcode.syntax.typedef";
 		};
 	},
 
+	{
+		Identifier = "xcode.lang.go.function.declaration";
+		Syntax = {
+			Tokenizer = "xcode.lang.go.lexer";
+			Rules = (
+				"func",
+				"xcode.lang.go.identifier",
+				"xcode.lang.go.parenexpr",
+			);
+			Type = "xcode.syntax.declaration.function";
+		};
+	},
 
 // ----------------------------------------------------------------------------
 // Blocks
 
- {
+	{
 		Identifier = "xcode.lang.go.block";
 		Syntax = {
 			Tokenizer = "xcode.lang.go.lexer";
@@ -174,6 +214,7 @@
 			Recursive = YES;
 			IncludeRules = (
 				"xcode.lang.go.bracketexpr",
+				"xcode.lang.go.block",
 			);
 		};
 	},
