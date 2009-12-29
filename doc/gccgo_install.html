@@ -44,20 +44,46 @@ run).
 </p>
 
 <p>
+On x86 GNU/Linux systems the <code>gccgo</code> compiler is able to
+use a small discontiguous stack for goroutines.  This permits programs
+to run many more goroutines, since each goroutine can use a relatively
+small stack.  Doing this requires using a development version of
+the <code>gold</code> linker.  The easiest way to do this is to build
+the GNU binutils, using <code>--enable-gold</code> when you run
+the <code>configure</code> script, and to
+use <code>--with-ld=GOLD_BINARY</code> when you
+configure <code>gccgo</code>.  A typical sequence would look like
+this (you can replace <code>/opt/gold</code> with any directory to
+which you have write access):
+</p>
+
+<pre>
+cvs -z 9 -d :pserver:anoncvs@sourceware.org:/cvs/src login
+[password is "anoncvs"]
+cvs -z 9 -d :pserver:anoncvs@sourceware.org:/cvs/src co binutils
+mkdir binutils-objdir
+cd binutils-objdir
+../src/configure --enable-gold --prefix=/opt/gold
+make
+make install
+</pre>
+
+<p>
 A number of prerequisites are required to build <code>gcc</code>, as
-described on the <code>gcc</code> web site.  If those are all
-available, then a typical build and install sequence would look like
-this:
+described on the <a href="http://gcc.gnu.org/">gcc web site</a>.  If
+those are all available, then a typical build and install sequence
+would look like this (only use the <code>--with-ld</code> option if
+you built and installed the gold linker as described above):
+</p>
 
 <pre>
 svn checkout svn://gcc.gnu.org/svn/gcc/branches/gccgo gccgo
 mkdir objdir
 cd objdir
-../gccgo/configure --enable-languages=c,c++,go
+../gccgo/configure --enable-languages=c,c++,go --with-ld=/opt/gold/bin/ld
 make
 make install
 </pre>
-</p>
 
 <h2 id="Using_gccgo">Using gccgo</h2>
 
