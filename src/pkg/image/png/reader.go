@@ -164,6 +164,33 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	return nil
 }
 
+func (d *decoder) parsetRNS(r io.Reader, crc hash.Hash32, length uint32) os.Error {
+	if length > 256 {
+		return FormatError("bad tRNS length")
+	}
+	n, err := io.ReadFull(r, d.tmp[0:length])
+	if err != nil {
+		return err
+	}
+	crc.Write(d.tmp[0:n])
+	switch d.colorType {
+	case ctTrueColor:
+		return UnsupportedError("TrueColor transparency")
+	case ctPaletted:
+		p := d.image.(*image.Paletted).Palette
+		if n > len(p) {
+			return FormatError("bad tRNS length")
+		}
+		for i := 0; i < n; i++ {
+			rgba := p[i].(image.RGBAColor)
+			p[i] = image.RGBAColor{rgba.R, rgba.G, rgba.B, d.tmp[i]}
+		}
+	case ctTrueColorAlpha:
+		return FormatError("tRNS, color type mismatch")
+	}
+	return nil
+}
+
 // The Paeth filter function, as per the PNG specification.
 func paeth(a, b, c uint8) uint8 {
 	p := int(a) + int(b) - int(c)
@@ -353,6 +380,11 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 		}
 		d.stage = dsSeenPLTE
 		err = d.parsePLTE(r, crc, length)
+	case "tRNS":
+		if d.stage != dsSeenPLTE {
+			return chunkOrderError
+		}
+		err = d.parsetRNS(r, crc, length)
 	case "IDAT":
 		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.colorType == ctPaletted && d.stage == dsSeenIHDR) {
 			return chunkOrderError
