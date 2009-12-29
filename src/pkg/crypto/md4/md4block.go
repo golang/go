@@ -25,9 +25,10 @@ func _Block(dig *digest, p []byte) int {
 	for len(p) >= _Chunk {
 		aa, bb, cc, dd := a, b, c, d
 
+		j := 0
 		for i := 0; i < 16; i++ {
-			j := i * 4
 			X[i] = uint32(p[j]) | uint32(p[j+1])<<8 | uint32(p[j+2])<<16 | uint32(p[j+3])<<24
+			j += 4
 		}
 
 		// If this needs to be made faster in the future,
@@ -37,9 +38,12 @@ func _Block(dig *digest, p []byte) int {
 		// with suitable variable renaming in each
 		// unrolled body, delete the a, b, c, d = d, a, b, c
 		// (or you can let the optimizer do the renaming).
+		//
+		// The index variables are uint so that % by a power
+		// of two can be optimized easily by a compiler.
 
 		// Round 1.
-		for i := 0; i < 16; i++ {
+		for i := uint(0); i < 16; i++ {
 			x := i
 			s := shift1[i%4]
 			f := ((c ^ d) & b) ^ d
@@ -49,7 +53,7 @@ func _Block(dig *digest, p []byte) int {
 		}
 
 		// Round 2.
-		for i := 0; i < 16; i++ {
+		for i := uint(0); i < 16; i++ {
 			x := xIndex2[i]
 			s := shift2[i%4]
 			g := (b & c) | (b & d) | (c & d)
@@ -59,7 +63,7 @@ func _Block(dig *digest, p []byte) int {
 		}
 
 		// Round 3.
-		for i := 0; i < 16; i++ {
+		for i := uint(0); i < 16; i++ {
 			x := xIndex3[i]
 			s := shift3[i%4]
 			h := b ^ c ^ d
