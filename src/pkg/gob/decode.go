@@ -630,33 +630,11 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 		return false
 	case *reflect.BoolType:
 		return fw == tBool
-	case *reflect.IntType:
+	case *reflect.IntType, *reflect.Int8Type, *reflect.Int16Type, *reflect.Int32Type, *reflect.Int64Type:
 		return fw == tInt
-	case *reflect.Int8Type:
-		return fw == tInt
-	case *reflect.Int16Type:
-		return fw == tInt
-	case *reflect.Int32Type:
-		return fw == tInt
-	case *reflect.Int64Type:
-		return fw == tInt
-	case *reflect.UintType:
+	case *reflect.UintType, *reflect.Uint8Type, *reflect.Uint16Type, *reflect.Uint32Type, *reflect.Uint64Type, *reflect.UintptrType:
 		return fw == tUint
-	case *reflect.Uint8Type:
-		return fw == tUint
-	case *reflect.Uint16Type:
-		return fw == tUint
-	case *reflect.Uint32Type:
-		return fw == tUint
-	case *reflect.Uint64Type:
-		return fw == tUint
-	case *reflect.UintptrType:
-		return fw == tUint
-	case *reflect.FloatType:
-		return fw == tFloat
-	case *reflect.Float32Type:
-		return fw == tFloat
-	case *reflect.Float64Type:
+	case *reflect.FloatType, *reflect.Float32Type, *reflect.Float64Type:
 		return fw == tFloat
 	case *reflect.StringType:
 		return fw == tString
