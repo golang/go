@@ -261,4 +261,33 @@
 		};
 	},
 
+	// This rule recognizes special comments markers and adds them
+	// to the list of file markers at the top of the editor window.
+	// This overrides the markers specified in
+	// /Developer/Library/PrivateFrameworks/XcodeEdit.framework/Versions/A/Resources/BaseSupport.xclangspec
+	// and appears to apply them to all languages. Thus, for now
+	// "inherit" the existing markers here for backward-compatibility.
+	{
+		Identifier = "xcode.lang.comment.mark";
+		Syntax = {
+			StartChars = "BMTF!?";
+			Match = (
+				// Go-specific markers
+				"^\(BUG.*$\)$",			// inlude "BUG" in the markers list
+				"^\(TODO.*$\)$",		// inlude "TODO" in the markers list
+				// inherited markers
+				"^MARK:[ \t]+\(.*\)$",
+				"^\(TODO:[ \t]+.*\)$",		// include "TODO: " in the markers list
+				"^\(FIXME:[ \t]+.*\)$",		// include "FIXME: " in the markers list
+				"^\(!!!:.*\)$",			// include "!!!:" in the markers list
+				"^\(\\?\\?\\?:.*\)$"		// include "???:" in the markers list
+			);
+			// This is the order of captures. All of the match strings above need the same order.
+			CaptureTypes = (
+				"xcode.syntax.mark"
+			);
+			Type = "xcode.syntax.comment";
+		};
+	},
+
 )
