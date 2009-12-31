@@ -240,11 +240,12 @@ func TestValueError(t *testing.T) {
 func TestArray(t *testing.T) {
 	type Type5 struct {
 		a [3]string
+		b [3]byte
 	}
 	type Type6 struct {
 		a [2]string // can't hold t5.a
 	}
-	t5 := Type5{[3]string{"hello", ",", "world"}}
+	t5 := Type5{[3]string{"hello", ",", "world"}, [3]byte{1, 2, 3}}
 	var t5p Type5
 	if err := encAndDec(t5, &t5p); err != nil {
 		t.Error(err)
