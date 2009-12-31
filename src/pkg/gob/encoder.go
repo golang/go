@@ -249,20 +249,22 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	// Drill down to the base type.
 	rt, _ := indirect(origt)
 
-	// We only send structs - everything else is basic or an error
 	switch rt := rt.(type) {
 	default:
 		// Basic types do not need to be described.
 		return
-	case reflect.ArrayOrSliceType:
+	case *reflect.SliceType:
 		// If it's []uint8, don't send; it's considered basic.
 		if _, ok := rt.Elem().(*reflect.Uint8Type); ok {
 			return
 		}
 		// Otherwise we do send.
 		break
-	// Struct types are not sent, only their element types.
+	case *reflect.ArrayType:
+		// arrays must be sent so we know their lengths and element types.
+		break
 	case *reflect.StructType:
+		// structs must be sent so we know their fields.
 		break
 	case *reflect.ChanType, *reflect.FuncType, *reflect.MapType, *reflect.InterfaceType:
 		// Probably a bad field in a struct.
@@ -337,7 +339,6 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 		// No, so send it.
 		enc.sendType(rt)
 		if enc.state.err != nil {
-			enc.countState.b.Reset()
 			return enc.state.err
 		}
 	}
