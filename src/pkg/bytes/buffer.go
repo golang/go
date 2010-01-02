@@ -70,11 +70,8 @@ func (b *Buffer) resize(n int) {
 	if b.buf == nil && n <= len(b.bootstrap) {
 		buf = &b.bootstrap
 	} else {
-		buf = b.buf
-		if len(b.buf)+n > cap(b.buf) {
-			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf)+n)
-		}
+		// not enough space anywhere
+		buf = make([]byte, 2*cap(b.buf)+n)
 		copy(buf, b.buf[b.off:])
 	}
 	b.buf = buf
