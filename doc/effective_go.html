@@ -1360,6 +1360,8 @@ const (
     GB
     TB
     PB
+    EB
+    ZB
     YB
 )
 </pre>
@@ -1373,6 +1375,10 @@ func (b ByteSize) String() string {
     switch {
     case b &gt;= YB:
         return fmt.Sprintf("%.2fYB", b/YB)
+    case b &gt;= ZB:
+        return fmt.Sprintf("%.2fZB", b/ZB)
+    case b &gt;= EB:
+        return fmt.Sprintf("%.2fEB", b/EB)
     case b &gt;= PB:
         return fmt.Sprintf("%.2fPB", b/PB)
     case b &gt;= TB:
