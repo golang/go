@@ -357,7 +357,12 @@ func IsExported(name string) bool {
 // (i.e., whether it begins with an uppercase letter).
 func (name *Ident) IsExported() bool { return IsExported(name.Value) }
 
-func (name *Ident) String() string { return name.Value }
+func (name *Ident) String() string {
+	if name != nil {
+		return name.Value
+	}
+	return "<nil>"
+}
 
 
 // ----------------------------------------------------------------------------
@@ -598,7 +603,7 @@ type (
 	TypeSpec struct {
 		Doc     *CommentGroup // associated documentation; or nil
 		Name    *Ident        // type name
-		Type    Expr
+		Type    Expr          // *ArrayType, *StructType, *FuncType, *InterfaceType, *MapType, *ChanType or *Ident
 		Comment *CommentGroup // line comments; or nil
 	}
 )
