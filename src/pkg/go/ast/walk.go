@@ -41,7 +41,7 @@ func walkBlockStmt(v Visitor, b *BlockStmt) {
 // followed by a call of w.Visit(nil).
 //
 // Walk may be called with any of the named ast node types. It also
-// accepts arguments of type []*Field, []*Ident, []Expr and []Stmt;
+// accepts arguments of type []*Field, []*Ident, []Expr, []Stmt and []Decl;
 // the respective children are the slice elements.
 //
 func Walk(v Visitor, node interface{}) {
@@ -291,9 +291,7 @@ func Walk(v Visitor, node interface{}) {
 	case *File:
 		walkCommentGroup(v, n.Doc)
 		walkIdent(v, n.Name)
-		for _, d := range n.Decls {
-			Walk(v, d)
-		}
+		Walk(v, n.Decls)
 		walkCommentGroup(v, n.Comments)
 
 	case *Package:
@@ -317,6 +315,11 @@ func Walk(v Visitor, node interface{}) {
 		}
 
 	case []Stmt:
+		for _, x := range n {
+			Walk(v, x)
+		}
+
+	case []Decl:
 		for _, x := range n {
 			Walk(v, x)
 		}
