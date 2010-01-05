@@ -366,7 +366,11 @@ func writeStruct(w io.Writer, val *reflect.StructValue) os.Error {
 	for i := 0; i < val.NumField(); i++ {
 		fieldValue := val.Field(i)
 		fmt.Fprintf(w, "%q:", typ.Field(i).Name)
-		writeValue(w, fieldValue)
+
+		if err := writeValue(w, fieldValue); err != nil {
+			return err
+		}
+
 		if i < val.NumField()-1 {
 			fmt.Fprint(w, ",")
 		}
