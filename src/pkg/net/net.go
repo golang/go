@@ -134,7 +134,11 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 				goto Error
 			}
 		}
-		return DialTCP(net, la, ra)
+		c, err := DialTCP(net, la, ra)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
 	case "udp", "udp4", "upd6":
 		var la, ra *UDPAddr
 		if laddr != "" {
@@ -147,7 +151,11 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 				goto Error
 			}
 		}
-		return DialUDP(net, la, ra)
+		c, err := DialUDP(net, la, ra)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
 	case "unix", "unixgram":
 		var la, ra *UnixAddr
 		if raddr != "" {
@@ -160,7 +168,11 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 				goto Error
 			}
 		}
-		return DialUnix(net, la, ra)
+		c, err = DialUnix(net, la, ra)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
 	}
 	err = UnknownNetworkError(net)
 Error:
