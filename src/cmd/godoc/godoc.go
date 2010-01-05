@@ -1021,10 +1021,18 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
 	}
 
 	// get package AST
-	pkg, err := parser.ParsePackage(dirname, filter, parser.ParseComments)
+	pkgs, err := parser.ParseDir(dirname, filter, parser.ParseComments)
 	if err != nil {
-		// TODO: parse errors should be shown instead of an empty directory
-		log.Stderrf("parser.parsePackage: %s", err)
+		// TODO: errors should be shown instead of an empty directory
+		log.Stderrf("parser.parseDir: %s", err)
+	}
+	if len(pkgs) != 1 {
+		// TODO: should handle multiple packages
+		log.Stderrf("parser.parseDir: found %d packages", len(pkgs))
+	}
+	var pkg *ast.Package
+	for _, pkg = range pkgs {
+		break // take the first package found
 	}
 
 	// compute package documentation

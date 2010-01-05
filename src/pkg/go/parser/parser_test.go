@@ -78,12 +78,17 @@ func dirFilter(d *os.Dir) bool { return nameFilter(d.Name) }
 
 func TestParse4(t *testing.T) {
 	path := "."
-	pkg, err := ParsePackage(path, dirFilter, 0)
+	pkgs, err := ParseDir(path, dirFilter, 0)
 	if err != nil {
-		t.Fatalf("ParsePackage(%s): %v", path, err)
+		t.Fatalf("ParseDir(%s): %v", path, err)
 	}
-	if pkg.Name != "parser" {
-		t.Errorf("incorrect package name: %s", pkg.Name)
+	if len(pkgs) != 1 {
+		t.Errorf("incorrect number of packages: %d", len(pkgs))
+	}
+	pkg, found := pkgs["parser"]
+	if pkg == nil || !found {
+		t.Errorf(`package "parser" not found`)
+		return
 	}
 	for filename, _ := range pkg.Files {
 		if !nameFilter(filename) {

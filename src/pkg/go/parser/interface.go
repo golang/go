@@ -8,7 +8,6 @@ package parser
 
 import (
 	"bytes"
-	"fmt"
 	"go/ast"
 	"go/scanner"
 	"io"
@@ -132,41 +131,16 @@ func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error
 }
 
 
-// ParsePkgFile parses the file specified by filename and returns the
-// corresponding AST. If the file cannot be read, has syntax errors, or
-// does not belong to the package (i.e., pkgname != "" and the package
-// name in the file doesn't match pkkname), an error is returned.
+// ParseDir calls ParseFile for the files in the directory specified by path and
+// returns a map of package name -> package AST with all the packages found. If
+// filter != nil, only the files with os.Dir entries passing through the filter
+// are considered. The mode bits are passed to ParseFile unchanged.
 //
-func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
-	src, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	if pkgname != "" {
-		prog, err := ParseFile(filename, src, PackageClauseOnly)
-		if err != nil {
-			return nil, err
-		}
-		if prog.Name.Value != pkgname {
-			return nil, os.NewError(fmt.Sprintf("multiple packages found: %s, %s", prog.Name.Value, pkgname))
-		}
-		if mode == PackageClauseOnly {
-			return prog, nil
-		}
-	}
-
-	return ParseFile(filename, src, mode)
-}
-
-
-// ParsePackage parses all files in the directory specified by path and
-// returns an AST representing the package found. The set of files may be
-// restricted by providing a non-nil filter function; only the files with
-// os.Dir entries passing through the filter are considered.
-// If ParsePackage does not find exactly one package, it returns an error.
+// If the directory couldn't be read, a nil map and the respective error are
+// returned. If a parse error occured, a non-nil but incomplete map and the
+// error are returned.
 //
-func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Package, os.Error) {
+func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*ast.Package, os.Error) {
 	fd, err := os.Open(path, os.O_RDONLY, 0)
 	if err != nil {
 		return nil, err
@@ -178,25 +152,23 @@ func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Packa
 		return nil, err
 	}
 
-	name := ""
-	files := make(map[string]*ast.File)
+	pkgs := make(map[string]*ast.Package)
 	for i := 0; i < len(list); i++ {
 		entry := &list[i]
 		if filter == nil || filter(entry) {
-			src, err := ParsePkgFile(name, pathutil.Join(path, entry.Name), mode)
+			src, err := ParseFile(pathutil.Join(path, entry.Name), nil, mode)
 			if err != nil {
-				return nil, err
+				return pkgs, err
 			}
-			files[entry.Name] = src
-			if name == "" {
-				name = src.Name.Value
+			name := src.Name.Value
+			pkg, found := pkgs[name]
+			if !found {
+				pkg = &ast.Package{name, path, make(map[string]*ast.File)}
+				pkgs[name] = pkg
 			}
+			pkg.Files[entry.Name] = src
 		}
 	}
 
-	if len(files) == 0 {
-		return nil, os.NewError(path + ": no package found")
-	}
-
-	return &ast.Package{name, path, files}, nil
+	return pkgs, nil
 }
