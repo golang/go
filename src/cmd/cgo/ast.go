@@ -59,7 +59,7 @@ type FuncType struct {
 
 func openProg(name string, p *Prog) {
 	var err os.Error
-	p.AST, err = parser.ParsePkgFile("", name, parser.ParseComments)
+	p.AST, err = parser.ParseFile(name, nil, parser.ParseComments)
 	if err != nil {
 		if list, ok := err.(scanner.ErrorList); ok {
 			// If err is a scanner.ErrorList, its String will print just
