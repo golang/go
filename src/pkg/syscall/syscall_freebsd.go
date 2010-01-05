@@ -520,6 +520,7 @@ func SysctlUint32(name string) (value uint32, errno int) {
 //sys	Mkdir(path string, mode int) (errno int)
 //sys	Mkfifo(path string, mode int) (errno int)
 //sys	Mknod(path string, mode int, dev int) (errno int)
+//sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
 //sys	Open(path string, mode int, perm int) (fd int, errno int)
 //sys	Pathconf(path string, name int) (val int, errno int)
 //sys	Pread(fd int, p []byte, offset int64) (n int, errno int)
