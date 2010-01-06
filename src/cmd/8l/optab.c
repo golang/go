@@ -602,13 +602,17 @@ Optab optab[] =
 	{ AFCOMDPP,	ycompp,	Px, 0xde,(03) },
 	{ AFCOMF,	yfmvx,	Px, 0xd8,(02) },
 	{ AFCOMFP,	yfmvx,	Px, 0xd8,(03) },
+	{ AFCOMI,	yfmvx,	Px, 0xdb,(06) },
+	{ AFCOMIP,	yfmvx,	Px, 0xdf,(06) },
 	{ AFCOML,	yfmvx,	Px, 0xda,(02) },
 	{ AFCOMLP,	yfmvx,	Px, 0xda,(03) },
 	{ AFCOMW,	yfmvx,	Px, 0xde,(02) },
 	{ AFCOMWP,	yfmvx,	Px, 0xde,(03) },
 
 	{ AFUCOM,	ycompp,	Px, 0xdd,(04) },
-	{ AFUCOMP,	ycompp, Px, 0xdd,(05) },
+	{ AFUCOMI,	ycompp,	Px, 0xdb,(05) },
+	{ AFUCOMIP,	ycompp,	Px, 0xdf,(05) },
+	{ AFUCOMP,	ycompp,	Px, 0xdd,(05) },
 	{ AFUCOMPP,	ycompp,	Px, 0xda,(13) },
 
 	{ AFADDDP,	yfaddp,	Px, 0xde,(00) },
