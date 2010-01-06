@@ -160,6 +160,11 @@ func (req *Request) Write(w io.Writer) os.Error {
 	// Response.{GetHeader,AddHeader} and string constants for "Host",
 	// "User-Agent" and "Referer".
 	for k, v := range req.Header {
+		// Host, User-Agent, and Referer were sent from structure fields
+		// above; ignore them if they also appear in req.Header.
+		if k == "Host" || k == "User-Agent" || k == "Referer" {
+			continue
+		}
 		io.WriteString(w, k+": "+v+"\r\n")
 	}
 
@@ -497,8 +502,11 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	GET http://www.google.com/index.html HTTP/1.1
 	//	Host: doesntmatter
 	// the same.  In the second case, any Host line is ignored.
-	if v, present := req.Header["Host"]; present && req.URL.Host == "" {
-		req.Host = v
+	if v, present := req.Header["Host"]; present {
+		if req.URL.Host == "" {
+			req.Host = v
+		}
+		req.Header["Host"] = "", false
 	}
 
 	// RFC2616: Should treat
@@ -525,9 +533,11 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	// Pull out useful fields as a convenience to clients.
 	if v, present := req.Header["Referer"]; present {
 		req.Referer = v
+		req.Header["Referer"] = "", false
 	}
 	if v, present := req.Header["User-Agent"]; present {
 		req.UserAgent = v
+		req.Header["User-Agent"] = "", false
 	}
 
 	// TODO: Parse specific header values:
