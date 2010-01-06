@@ -463,8 +463,8 @@ functions, and some types.  It also provides indentation that is
   ;; Remove stale text properties
   (save-restriction
     (widen)
-    (remove-list-of-text-properties 1 (+ (buffer-size) 1)
-                                    '(go-mode-cs go-mode-nesting)))
+    (remove-text-properties 1 (+ (buffer-size) 1)
+                            '(go-mode-cs nil go-mode-nesting nil)))
 
   ;; Reset the syntax mark caches
   (setq go-mode-mark-cs-end      1
