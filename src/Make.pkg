@@ -6,13 +6,17 @@ all: package
 package: _obj/$(TARG).a
 testpackage: _test/$(TARG).a
 
+ifndef GOBIN
 nullstring :=
 space := $(nullstring) # a space at the end
-ifndef GOBIN
 QUOTED_HOME=$(subst $(space),\ ,$(HOME))
 GOBIN=$(QUOTED_HOME)/bin
-endif
 QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+else
+nullstring :=
+space := $(nullstring) # a space at the end
+QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+endif
 
 # GNU Make 3.80 has a bug in lastword
 # elem=$(lastword $(subst /, ,$(TARG)))
@@ -26,6 +30,8 @@ dir=$(patsubst %/$(elem),%,$(TARG))
 endif
 
 # ugly hack to deal with whitespaces in $GOROOT
+nullstring :=
+space := $(nullstring) # a space at the end
 QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
 
 pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
