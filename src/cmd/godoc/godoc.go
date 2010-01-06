@@ -943,6 +943,12 @@ func serveFile(c *http.Conn, r *http.Request) {
 		return
 
 	case ext == ".html":
+		if strings.HasSuffix(path, "/index.html") {
+			// We'll show index.html for the directory.
+			// Use the dir/ version as canonical instead of dir/index.html.
+			http.Redirect(c, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
+			return
+		}
 		serveHTMLDoc(c, r, path)
 		return
 
@@ -958,6 +964,10 @@ func serveFile(c *http.Conn, r *http.Request) {
 	}
 
 	if dir != nil && dir.IsDirectory() {
+		if index := path + "/index.html"; isTextFile(index) {
+			serveHTMLDoc(c, r, index)
+			return
+		}
 		serveDirectory(c, r, path)
 		return
 	}
