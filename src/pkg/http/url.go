@@ -67,6 +67,63 @@ func shouldEscape(c byte) bool {
 	return false
 }
 
+// CanonicalPath applies the algorithm specified in RFC 2396 to
+// simplify the path, removing unnecessary  . and .. elements.
+func CanonicalPath(path string) string {
+	buf := strings.Bytes(path)
+	a := buf[0:0]
+	// state helps to find /.. ^.. ^. and /. patterns.
+	// state == 1 - prev char is '/' or beginning of the string.
+	// state > 1  - prev state > 0 and prev char was '.'
+	// state == 0 - otherwise
+	state := 1
+	cnt := 0
+	for _, v := range buf {
+		switch v {
+		case '/':
+			s := state
+			state = 1
+			switch s {
+			case 2:
+				a = a[0 : len(a)-1]
+				continue
+			case 3:
+				if cnt > 0 {
+					i := len(a) - 4
+					for ; i >= 0 && a[i] != '/'; i-- {
+					}
+					a = a[0 : i+1]
+					cnt--
+					continue
+				}
+			default:
+				if len(a) > 0 {
+					cnt++
+				}
+			}
+		case '.':
+			if state > 0 {
+				state++
+			}
+		default:
+			state = 0
+		}
+		l := len(a)
+		a = a[0 : l+1]
+		a[l] = v
+	}
+	switch {
+	case state == 2:
+		a = a[0 : len(a)-1]
+	case state == 3 && cnt > 0:
+		i := len(a) - 4
+		for ; i >= 0 && a[i] != '/'; i-- {
+		}
+		a = a[0 : i+1]
+	}
+	return string(a)
+}
+
 // URLUnescape unescapes a URL-encoded string,
 // converting %AB into the byte 0xAB and '+' into ' ' (space).
 // It returns an error if any % is not followed
@@ -221,13 +278,6 @@ func split(s string, c byte, cutc bool) (string, string) {
 	return s, ""
 }
 
-// TODO(rsc): The BUG comment is supposed to appear in the godoc output
-// in a BUGS section, but that got lost in the transition to godoc.
-
-// BUG(rsc): ParseURL should canonicalize the path,
-// removing unnecessary . and .. elements.
-
-
 // ParseURL parses rawurl into a URL structure.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
@@ -264,8 +314,6 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 		url.Userinfo, url.Host = split(url.Authority, '@', true)
 	}
 
-	// What's left is the path.
-	// TODO: Canonicalize (remove . and ..)?
 	if url.Path, err = URLUnescape(path); err != nil {
 		goto Error
 	}
