@@ -596,6 +596,9 @@ func powersOfTwoDecompose(n []Word) (q []Word, k Word) {
 // possible. n is the bit length of limit.
 func randomN(z []Word, rand *rand.Rand, limit []Word, n int) []Word {
 	bitLengthOfMSW := uint(n % _W)
+	if bitLengthOfMSW == 0 {
+		bitLengthOfMSW = _W
+	}
 	mask := Word((1 << bitLengthOfMSW) - 1)
 	z = makeN(z, len(limit), false)
 
@@ -616,7 +619,7 @@ func randomN(z []Word, rand *rand.Rand, limit []Word, n int) []Word {
 		}
 	}
 
-	return z
+	return normN(z)
 }
 
 
@@ -702,8 +705,8 @@ const (
 var bigOne = []Word{1}
 var bigTwo = []Word{2}
 
-// ProbablyPrime performs n Miller-Rabin tests to check whether n is prime.
-// If it returns true, n is prime with probability 1 - 1/4^n.
+// ProbablyPrime performs reps Miller-Rabin tests to check whether n is prime.
+// If it returns true, n is prime with probability 1 - 1/4^reps.
 // If it returns false, n is not prime.
 func probablyPrime(n []Word, reps int) bool {
 	if len(n) == 0 {

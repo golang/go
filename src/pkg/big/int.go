@@ -356,7 +356,7 @@ func GcdInt(d, x, y, a, b *Int) {
 // ProbablyPrime performs n Miller-Rabin tests to check whether z is prime.
 // If it returns true, z is prime with probability 1 - 1/4^n.
 // If it returns false, z is not prime.
-func ProbablyPrime(z *Int, reps int) bool { return !z.neg && probablyPrime(z.abs, reps) }
+func ProbablyPrime(z *Int, n int) bool { return !z.neg && probablyPrime(z.abs, n) }
 
 
 // Rsh sets z = x >> s and returns z.
