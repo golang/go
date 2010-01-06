@@ -39,7 +39,7 @@ import (
 //		Email []Email;
 //	}
 //
-//	var result = Result{ "name", "phone", nil }
+//	result := Result{ Name: "name", Phone: "phone", Email: nil }
 //
 // unmarshalling the XML input
 //
