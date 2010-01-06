@@ -1,0 +1,149 @@
+<!-- Release History -->
+
+<h2 id="Releases">Release History</h2>
+
+<p>This page summarizes the changes between tagged releases of Go.
+For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+
+<h3 id="2010-01-05">2010-01-05</h3>
+
+<pre>
+This release is mainly bug fixes.  There are no language changes.
+
+6prof: now works on 386
+8a, 8l: add FCOMI, FCOMIP, FUCOMI, and FUCOMIP (thanks Evan Shaw)
+big: fix ProbablyPrime on small numbers
+container/vector: faster []-based implementation (thanks Jan Mercl)
+crypto/tls: extensions and Next Protocol Negotiation
+gob: one encoding bug fix, one decoding bug fix
+image/jpeg: support for RST markers
+image/png: support for transparent paletted images
+misc/xcode: improved support (thanks Ken Friedenbach)
+net: return nil Conn on error from Dial (thanks Roger Peppe)
+regexp: add Regexp.NumSubexp (thanks Peter Froehlich)
+syscall: add Nanosleep on FreeBSD (thanks Devon H. O'Dell)
+template: can use map in .repeated section
+
+There is now a public road map, in the repository and online
+at <a href="http://golang.org/doc/devel/roadmap.html">http://golang.org/doc/devel/roadmap.html</a>.
+</pre>
+
+<h3 id="2009-12-22">2009-12-22</h3>
+
+<pre>
+Since the last release there has been one large syntactic change to
+the language, already discussed extensively on this list: semicolons
+are now implied between statement-ending tokens and newline characters.
+See http://groups.google.com/group/golang-nuts/t/5ee32b588d10f2e9 for
+details.
+
+By default, gofmt now parses and prints the new lighter weight syntax.
+To convert programs written in the old syntax, you can use:
+
+	gofmt -oldparser -w *.go
+
+Since everything was being reformatted anyway, we took the opportunity to
+change the way gofmt does alignment.  Now gofmt uses tabs at the start
+of a line for basic code alignment, but it uses spaces for alignment of
+interior columns.  Thus, in an editor with a fixed-width font, you can
+choose your own tab size to change the indentation, and no matter what
+tab size you choose, columns will be aligned properly.
+
+
+In addition to the syntax and formatting changes, there have been many
+smaller fixes and updates:
+
+6g,8g,5g: many bug fixes, better registerization,
+   build process fix involving mkbuiltin (thanks Yongjian Xu),
+   method expressions for concrete types
+8l: support for Windows PE files (thanks Hector Chu)
+bytes: more efficient Buffer handling
+bytes, strings: new function Fields (thanks Andrey Mirtchovski)
+cgo: handling of enums (thanks Moriyoshi Koizumi),
+    handling of structs with bit fields, multiple files (thanks Devon H. O'Dell),
+    installation of .so to non-standard locations
+crypto/sha256: new package for SHA 256 (thanks Andy Davis)
+encoding/binary: support for slices of fixed-size values (thanks Maxim Ushakov)
+exp/vector: experimental alternate vector representation (thanks Jan Mercl)
+fmt: %p for chan, map, slice types
+gob: a couple more bug fixes
+http: support for basic authentication (thanks Ivan Krasin)
+image/jpeg: basic JPEG decoder
+math: correct handling of Inf and NaN in Pow (thanks Charles Dorian)
+misc/bash: completion file for bash (thanks Alex Ray)
+os/signal: support for handling Unix signals (thanks David Symonds)
+rand: Zipf-distributed random values (thanks William Josephson)
+syscall: correct error return bug on 32-bit machines (thanks Christopher Wedgwood)
+syslog: new package for writing to Unix syslog daemon (thanks Yves Junqueira)
+template: will automatically invoke niladic methods
+time: new ISO8601 format generator (thanks Ben Olive)
+xgb: converted generator to new syntax (thanks Tor Andersson)
+xml: better mapping of tag names to Go identifiers (thanks Kei Son),
+    better handling of unexpected EOF (thanks Arvindh Rajesh Tamilmani)
+</pre>
+
+<h3 id="2009-12-09">2009-12-09</h3>
+
+<pre>
+Since the last release there are two changes to the language: 
+
+* new builtin copy(dst, src) copies n = min(len(dst), len(src)) 
+  elements to dst from src and returns n.  It works correctly 
+  even if dst and src overlap.  bytes.Copy is gone. 
+  Convert your programs using: 
+      gofmt -w -r 'bytes.Copy(d, s) -&gt; copy(d, s)' *.go 
+
+* new syntax x[lo:] is shorthand for x[lo:len(x)]. 
+  Convert your programs using: 
+      gofmt -w -r 'a[b:len(a)] -&gt; a[b:]' *.go 
+
+In addition, there have been many smaller fixes and updates: 
+
+* 6g/8g/5g: many bug fixes 
+* 8g: fix 386 floating point stack bug (thanks Charles Dorian) 
+* all.bash: now works even when $GOROOT has spaces (thanks Sergio Luis O. B. Correia), 
+    starting to make build work with mingw (thanks Hector Chu), 
+    FreeBSD support (thanks Devon O'Dell) 
+* big: much faster on 386. 
+* bytes: new function IndexByte, implemented in assembly 
+    new function Runes (thanks Peter Froehlich), 
+    performance tuning in bytes.Buffer. 
+* codereview: various bugs fixed 
+* container/vector: New is gone; just declare a Vector instead. 
+    call Resize to set len and cap. 
+* cgo: many bug fixes (thanks Eden Li) 
+* crypto: added MD4 (thanks Chris Lennert), 
+    added XTEA (thanks Adrian O'Grady). 
+* crypto/tls: basic client 
+* exp/iterable: new functions (thanks Michael Elkins) 
+* exp/nacl: native client tree builds again 
+* fmt: preliminary performance tuning 
+* go/ast: more powerful Visitor (thanks Roger Peppe) 
+* gob: a few bug fixes 
+* gofmt: better handling of standard input, error reporting (thanks Fazlul Shahriar) 
+    new -r flag for rewriting programs 
+* gotest: support for Benchmark functions (thanks Trevor Strohman) 
+* io: ReadFile, WriteFile, ReadDir now in separate package io/ioutil. 
+* json: new Marshal function (thanks Michael Hoisie), 
+    better white space handling (thanks Andrew Skiba), 
+    decoding into native data structures (thanks Sergey Gromov), 
+    handling of nil interface values (thanks Ross Light). 
+* math: correct handling of sin/cos of large angles 
+* net: better handling of Close (thanks Devon O'Dell and Christopher Wedgwood) 
+    support for UDP broadcast (thanks Jonathan Wills), 
+    support for empty packets 
+* rand: top-level functions now safe to call from multiple goroutines 
+(thanks Roger Peppe). 
+* regexp: a few easy optimizations 
+* rpc: better error handling, a few bug fixes 
+* runtime: better signal handling on OS X, malloc fixes, 
+    global channel lock is gone. 
+* sync: RWMutex now allows concurrent readers (thanks Péter Szabó) 
+* template: can use maps as data (thanks James Meneghello) 
+* unicode: updated to Unicode 5.2. 
+* websocket: new package (thanks Fumitoshi Ukai) 
+* xgb: preliminary X Go Bindings (thanks Tor Andersson) 
+* xml: fixed crash (thanks Vish Subramanian) 
+* misc: bbedit config (thanks Anthony Starks), 
+    kate config (thanks Evan Shaw) 
+</pre>
