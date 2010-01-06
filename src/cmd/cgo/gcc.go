@@ -229,6 +229,7 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 		"-Werror", // warnings are errors
 		"-o" + tmp, // write object to tmp
 		"-gdwarf-2", // generate DWARF v2 debugging symbols
+		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
 		"-c", // do not link
 		"-xc", // input language is C
 		"-", // read input from standard input
