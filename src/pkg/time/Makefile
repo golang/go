@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
 
 TARG=time
 GOFILES=\
+	format.go \
 	sleep.go\
 	tick.go\
 	time.go\

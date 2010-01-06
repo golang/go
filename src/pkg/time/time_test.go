@@ -114,10 +114,38 @@ var iso8601Formats = []TimeFormatTest{
 
 func TestISO8601Conversion(t *testing.T) {
 	for _, f := range iso8601Formats {
-		if f.time.ISO8601() != f.formattedValue {
-			t.Error("ISO8601():")
+		if f.time.Format(ISO8601) != f.formattedValue {
+			t.Error("ISO8601:")
 			t.Errorf("  want=%+v", f.formattedValue)
-			t.Errorf("  have=%+v", f.time.ISO8601())
+			t.Errorf("  have=%+v", f.time.Format(ISO8601))
+		}
+	}
+}
+
+type FormatTest struct {
+	name   string
+	format string
+	result string
+}
+
+var formatTests = []FormatTest{
+	FormatTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010"},
+	FormatTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010"},
+	FormatTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST"},
+	FormatTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST"},
+	FormatTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800"},
+	FormatTest{"Kitchen", Kitchen, "9:00PM"},
+	FormatTest{"am/pm", "3pm", "9pm"},
+	FormatTest{"AM/PM", "3PM", "9PM"},
+}
+
+func TestFormat(t *testing.T) {
+	// The numeric time represents Thu Feb  4 21:00:57 EST 2010
+	time := SecondsToLocalTime(1265346057)
+	for _, test := range formatTests {
+		result := time.Format(test.format)
+		if result != test.result {
+			t.Errorf("%s expected %q got %q", test.name, test.result, result)
 		}
 	}
 }
