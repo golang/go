@@ -355,3 +355,41 @@ func TestURLEscape(t *testing.T) {
 		}
 	}
 }
+
+type CanonicalPathTest struct {
+	in  string
+	out string
+}
+
+var canonicalTests = []CanonicalPathTest{
+	CanonicalPathTest{"", ""},
+	CanonicalPathTest{"/", "/"},
+	CanonicalPathTest{".", ""},
+	CanonicalPathTest{"./", ""},
+	CanonicalPathTest{"/a/", "/a/"},
+	CanonicalPathTest{"a/", "a/"},
+	CanonicalPathTest{"a/./", "a/"},
+	CanonicalPathTest{"./a", "a"},
+	CanonicalPathTest{"/a/../b", "/b"},
+	CanonicalPathTest{"a/../b", "b"},
+	CanonicalPathTest{"a/../../b", "../b"},
+	CanonicalPathTest{"a/.", "a/"},
+	CanonicalPathTest{"../.././a", "../../a"},
+	CanonicalPathTest{"/../.././a", "/../../a"},
+	CanonicalPathTest{"a/b/g/../..", "a/"},
+	CanonicalPathTest{"a/b/..", "a/"},
+	CanonicalPathTest{"a/b/.", "a/b/"},
+	CanonicalPathTest{"a/b/../../../..", "../.."},
+	CanonicalPathTest{"a./", "a./"},
+	CanonicalPathTest{"/../a/b/../../../", "/../../"},
+	CanonicalPathTest{"../a/b/../../../", "../../"},
+}
+
+func TestCanonicalPath(t *testing.T) {
+	for _, tt := range canonicalTests {
+		actual := CanonicalPath(tt.in)
+		if tt.out != actual {
+			t.Errorf("CanonicalPath(%q) = %q, want %q", tt.in, actual, tt.out)
+		}
+	}
+}
