@@ -366,11 +366,9 @@ func writeStruct(w io.Writer, val *reflect.StructValue) os.Error {
 	for i := 0; i < val.NumField(); i++ {
 		fieldValue := val.Field(i)
 		fmt.Fprintf(w, "%q:", typ.Field(i).Name)
-
 		if err := writeValue(w, fieldValue); err != nil {
 			return err
 		}
-
 		if i < val.NumField()-1 {
 			fmt.Fprint(w, ",")
 		}
@@ -398,14 +396,19 @@ func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
 	case *reflect.StructValue:
 		err = writeStruct(w, v)
 	case *reflect.ChanValue,
-		*reflect.PtrValue,
 		*reflect.UnsafePointerValue:
 		err = &MarshalError{val.Type()}
 	case *reflect.InterfaceValue:
 		if v.IsNil() {
 			fmt.Fprint(w, "null")
 		} else {
-			err = &MarshalError{val.Type()}
+			err = writeValue(w, v.Elem())
+		}
+	case *reflect.PtrValue:
+		if v.IsNil() {
+			fmt.Fprint(w, "null")
+		} else {
+			err = writeValue(w, v.Elem())
 		}
 	default:
 		value := val.(reflect.Value)

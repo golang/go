@@ -175,6 +175,12 @@ type marshalTest struct {
 	out string
 }
 
+type MTE string
+
+type OneField struct {
+	a int
+}
+
 var marshalTests = []marshalTest{
 	// basic string
 	marshalTest{nil, "null"},
@@ -201,6 +207,9 @@ var marshalTests = []marshalTest{
 		`{"a":1,"b":"hello"}`,
 	},
 	marshalTest{map[string][]int{"3": []int{1, 2, 3}}, `{"3":[1,2,3]}`},
+	marshalTest{map[string]*MTE{"hi": nil}, `{"hi":null}`},
+	marshalTest{map[string]interface{}{"hi": 3}, `{"hi":3}`},
+	marshalTest{&OneField{3}, `{"a":3}`},
 }
 
 func TestMarshal(t *testing.T) {
@@ -224,11 +233,14 @@ type marshalErrorTest struct {
 	error string
 }
 
-type MTE string
+type ChanVal struct {
+	C chan int
+}
 
 var marshalErrorTests = []marshalErrorTest{
 	marshalErrorTest{map[chan int]string{make(chan int): "one"}, "json cannot encode value of type map[chan int] string"},
-	marshalErrorTest{map[string]*MTE{"hi": nil}, "json cannot encode value of type *json.MTE"},
+	marshalErrorTest{make(chan int, 100), "json cannot encode value of type chan int"},
+	marshalErrorTest{new(ChanVal), "json cannot encode value of type chan int"},
 }
 
 func TestMarshalError(t *testing.T) {
