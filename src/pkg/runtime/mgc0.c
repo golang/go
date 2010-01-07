@@ -73,12 +73,8 @@ scanstack(G *gp)
 {
 	Stktop *stk;
 	byte *sp;
-	// TODO(rsc): Change 8g not to assume that extern register
-	// variables are directly addressable.  Declaring the
-	// local variable here works around the bug.
-	G* gg = g;
 
-	if(gp == gg)
+	if(gp == g)
 		sp = (byte*)&gp;
 	else
 		sp = gp->sched.sp;
@@ -93,11 +89,7 @@ scanstack(G *gp)
 static void
 mark(void)
 {
-	G* gp;
-	// TODO(rsc): Change 8g not to assume that extern register
-	// variables are directly addressable.  Declaring the
-	// local variable here works around the bug.
-	G* gg = g;
+	G *gp;
 
 	// mark data+bss.
 	// skip mheap itself, which has no interesting pointers
@@ -114,7 +106,7 @@ mark(void)
 		case Gdead:
 			break;
 		case Grunning:
-			if(gp != gg)
+			if(gp != g)
 				throw("mark - world not stopped");
 			scanstack(gp);
 			break;
