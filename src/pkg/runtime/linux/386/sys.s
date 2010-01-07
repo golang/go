@@ -40,9 +40,10 @@ TEXT rt_sigaction(SB),7,$0
 	RET
 
 TEXT sigtramp(SB),7,$0
-	MOVL	m, BP
+	get_tls(CX)
+	MOVL	m(CX), BP
 	MOVL	m_gsignal(BP), AX
-	MOVL	AX, g
+	MOVL	AX, g(CX)
 	JMP	sighandler(SB)
 
 TEXT sigignore(SB),7,$0
@@ -50,9 +51,10 @@ TEXT sigignore(SB),7,$0
 
 TEXT sigreturn(SB),7,$0
 	// g = m->curg
-	MOVL	m, BP
+	get_tls(CX)
+	MOVL	m(CX), BP
 	MOVL	m_curg(BP), BP
-	MOVL	BP, g
+	MOVL	BP, g(CX)
 	MOVL	$173, AX	// rt_sigreturn
 	INT $0x80
 	INT $3	// not reached
@@ -149,8 +151,9 @@ TEXT clone(SB),7,$0
 	MOVW	DI, GS
 
 	// Now segment is established.  Initialize m, g.
-	MOVL	DX, g
-	MOVL	BX, m
+	get_tls(AX)
+	MOVL	DX, g(AX)
+	MOVL	BX, m(AX)
 
 	CALL	stackcheck(SB)	// smashes AX
 	MOVL	0(DX), DX	// paranoia; check they are not nil

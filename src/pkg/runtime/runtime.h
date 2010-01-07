@@ -109,7 +109,11 @@ enum
 struct	Lock
 {
 	uint32	key;
+#ifdef __MINGW__
+	void*	event;
+#else
 	uint32	sema;	// for OS X
+#endif
 };
 struct	Usema
 {
@@ -204,6 +208,11 @@ struct	M
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache	*mcache;
 	G*	lockedg;
+#ifdef __MINGW__
+	void*	return_address;	// saved return address and stack
+	void*	stack_pointer;	// pointer for Windows stdcall
+	void*	os_stack_pointer;
+#endif
 };
 struct	Stktop
 {
@@ -314,6 +323,7 @@ int8*	goos;
  */
 int32	strcmp(byte*, byte*);
 int32	findnull(byte*);
+int32	findnullw(uint16*);
 void	dump(byte*, int32);
 int32	runetochar(byte*, int32);
 int32	charntorune(int32*, uint8*, int32);
@@ -339,6 +349,7 @@ void	memmove(void*, void*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(String, String);
 String	gostring(byte*);
+String	gostringw(uint16*);
 void	initsig(void);
 int32	gotraceback(void);
 void	traceback(uint8 *pc, uint8 *sp, G* gp);
@@ -346,6 +357,8 @@ void	tracebackothers(G*);
 int32	open(byte*, int32, ...);
 int32	write(int32, void*, int32);
 bool	cas(uint32*, uint32, uint32);
+bool	casp(void**, void*, void*);
+uint32	xadd(uint32 volatile*, int32);
 void	jmpdefer(byte*, void*);
 void	exit1(int32);
 void	ready(G*);

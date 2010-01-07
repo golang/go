@@ -165,6 +165,20 @@ goargs(void)
 	os·Envs.cap = envc;
 }
 
+// Atomic add and return new value.
+uint32
+xadd(uint32 volatile *val, int32 delta)
+{
+	uint32 oval, nval;
+
+	for(;;){
+		oval = *val;
+		nval = oval + delta;
+		if(cas(val, oval, nval))
+			return nval;
+	}
+}
+
 byte*
 getenv(int8 *s)
 {

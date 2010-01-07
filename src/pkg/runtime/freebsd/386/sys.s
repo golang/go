@@ -33,8 +33,10 @@ TEXT thr_start(SB),7,$0
 	POPL	AX
 	POPL	AX
 	POPAL
-	MOVL	BX, g
-	MOVL	AX, m
+	get_tls(CX)
+	MOVL	BX, g(CX)
+	
+	MOVL	AX, m(CX)
 	CALL	stackcheck(SB)		// smashes AX
 	CALL	mstart(SB)
 	MOVL	0, AX			// crash (not reached)
@@ -80,9 +82,10 @@ TEXT sigaction(SB),7,$-4
 
 TEXT sigtramp(SB),7,$40
 	// g = m->gsignal
-	MOVL	m, BP
+	get_tls(DX)
+	MOVL	m(DX), BP
 	MOVL	m_gsignal(BP), BP
-	MOVL	BP, g
+	MOVL	BP, g(DX)
 
 	MOVL	signo+0(FP), AX
 	MOVL	siginfo+4(FP), BX
@@ -94,9 +97,10 @@ TEXT sigtramp(SB),7,$40
 	CALL	sighandler(SB)
 
 	// g = m->curg
-	MOVL	m, BP
+	get_tls(DX)
+	MOVL	m(DX), BP
 	MOVL	m_curg(BP), BP
-	MOVL	BP, g
+	MOVL	BP, g(DX)
 
 	MOVL	context+8(FP), AX
 

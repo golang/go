@@ -18,8 +18,18 @@ case "$GOARCH" in
 	#	../../cmd/8l/pass.c:/D_GS
 	#	../../libcgo/linux_386.c:/^start
 	#	../../libcgo/darwin_386.c:/^start
-	echo '#define	g	0(GS)'
-	echo '#define	m	4(GS)'
+	case "$GOOS" in
+	mingw)
+		echo '#define	get_tls(r)	MOVL 0x2c(FS), r'
+		echo '#define	g(r)	0(r)'
+		echo '#define	m(r)	4(r)'
+		;;
+	*)
+		echo '#define	get_tls(r)'
+		echo '#define	g(r)	0(GS)'
+		echo '#define	m(r)	4(GS)'
+		;;
+	esac
 	;;
 amd64)
 	# These registers are also known to:
