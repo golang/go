@@ -130,7 +130,7 @@ func IsSpace(rune int) bool {
 	return Is(White_Space, rune)
 }
 
-// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase
+// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
 func To(_case int, rune int) int {
 	if _case < 0 || MaxCase <= _case {
 		return ReplacementChar // as reasonable an error as any
@@ -167,7 +167,7 @@ func To(_case int, rune int) int {
 	return rune
 }
 
-// ToUpper maps the rune to upper case
+// ToUpper maps the rune to upper case.
 func ToUpper(rune int) int {
 	if rune < 0x80 { // quick ASCII check
 		if 'a' <= rune && rune <= 'z' {
@@ -178,7 +178,7 @@ func ToUpper(rune int) int {
 	return To(UpperCase, rune)
 }
 
-// ToLower maps the rune to lower case
+// ToLower maps the rune to lower case.
 func ToLower(rune int) int {
 	if rune < 0x80 { // quick ASCII check
 		if 'A' <= rune && rune <= 'Z' {
@@ -189,7 +189,7 @@ func ToLower(rune int) int {
 	return To(LowerCase, rune)
 }
 
-// ToTitle maps the rune to title case
+// ToTitle maps the rune to title case.
 func ToTitle(rune int) int {
 	if rune < 0x80 { // quick ASCII check
 		if 'a' <= rune && rune <= 'z' { // title case is upper case for ASCII
