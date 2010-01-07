@@ -13,6 +13,8 @@
 // and figure out exactly what we want.
 
 #include "runtime.h"
+#include "defs.h"
+#include "os.h"
 
 // TODO(rsc): Move this *under* the text segment.
 // Then define names for these addresses instead of hard-coding magic ones.
@@ -45,8 +47,13 @@ walksymtab(void (*fn)(Sym*))
 	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
 		return;
 
+#ifdef __MINGW__
+	v = get_symdat_addr();
+	p = (byte*)v+8;
+#else
 	v = SYMCOUNTS;
 	p = SYMDATA;
+#endif
 	ep = p + v[0];
 	while(p < ep) {
 		if(p + 7 > ep)
@@ -246,8 +253,13 @@ splitpcln(void)
 		return;
 
 	// pc/ln table bounds
+#ifdef __MINGW__
+	v = get_symdat_addr();
+	p = (byte*)v+8;
+#else
 	v = SYMCOUNTS;
 	p = SYMDATA;
+#endif
 	p += v[0];
 	ep = p+v[1];
 

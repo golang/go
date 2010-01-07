@@ -17,7 +17,8 @@ CFLAGS_64=-D_64BIT
 # TODO(kaib): fix register allocation to honor extern register so we
 # can enable optimizations again.
 CFLAGS_arm=-N
-CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH))
+CFLAGS_mingw=-D__MINGW__
+CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
 
 GOFILES=\
 	extern.go\
@@ -118,4 +119,4 @@ cgo2c: cgo2c.c
 
 # for discovering offsets inside structs when debugging
 runtime.acid.$(GOARCH): runtime.h proc.c
-	$(QUOTED_GOBIN)/$(CC) -a proc.c >$@
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) -a proc.c >$@

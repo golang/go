@@ -26,17 +26,19 @@ TEXT _rt0_386(SB),7,$0
 	CALL	ldt0setup(SB)
 
 	// store through it, to make sure it works
-	MOVL	$0x123, 0(GS)
+	get_tls(BX)
+	MOVL	$0x123, g(BX)
 	MOVL	tls0(SB), AX
 	CMPL	AX, $0x123
 	JEQ	ok
 	MOVL	AX, 0	// abort
 ok:
 	// set up m and g "registers"
+	get_tls(BX)
 	LEAL	g0(SB), CX
-	MOVL	CX, g
+	MOVL	CX, g(BX)
 	LEAL	m0(SB), AX
-	MOVL	AX, m
+	MOVL	AX, m(BX)
 
 	// save m->g0 = g0
 	MOVL	CX, m_g0(AX)
@@ -100,7 +102,8 @@ TEXT gosave(SB), 7, $0
 	MOVL	BX, gobuf_sp(AX)
 	MOVL	0(SP), BX		// caller's PC
 	MOVL	BX, gobuf_pc(AX)
-	MOVL	g, BX
+	get_tls(CX)
+	MOVL	g(CX), BX
 	MOVL	BX, gobuf_g(AX)
 	MOVL	$0, AX			// return 0
 	RET
@@ -112,7 +115,8 @@ TEXT gogo(SB), 7, $0
 	MOVL	4(SP), BX		// gobuf
 	MOVL	gobuf_g(BX), DX
 	MOVL	0(DX), CX		// make sure g != nil
-	MOVL	DX, g
+	get_tls(CX)
+	MOVL	DX, g(CX)
 	MOVL	gobuf_sp(BX), SP	// restore SP
 	MOVL	gobuf_pc(BX), BX
 	JMP	BX
@@ -124,7 +128,8 @@ TEXT gogocall(SB), 7, $0
 	MOVL	8(SP), AX		// fn
 	MOVL	4(SP), BX		// gobuf
 	MOVL	gobuf_g(BX), DX
-	MOVL	DX, g
+	get_tls(CX)
+	MOVL	DX, g(CX)
 	MOVL	0(DX), CX		// make sure g != nil
 	MOVL	gobuf_sp(BX), SP	// restore SP
 	MOVL	gobuf_pc(BX), BX
@@ -139,9 +144,10 @@ TEXT gogocall(SB), 7, $0
 // Called during function prolog when more stack is needed.
 TEXT runtime·morestack(SB),7,$0
 	// Cannot grow scheduler stack (m->g0).
-	MOVL	m, BX
+	get_tls(CX)
+	MOVL	m(CX), BX
 	MOVL	m_g0(BX), SI
-	CMPL	g, SI
+	CMPL	g(CX), SI
 	JNE	2(PC)
 	INT	$3
 
@@ -158,7 +164,8 @@ TEXT runtime·morestack(SB),7,$0
 	LEAL	8(SP), CX	// f's caller's SP
 	MOVL	CX, (m_morebuf+gobuf_sp)(BX)
 	MOVL	CX, (m_morefp)(BX)
-	MOVL	g, SI
+	get_tls(CX)
+	MOVL	g(CX), SI
 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
 
 	// Set m->morepc to f's PC.
@@ -167,7 +174,7 @@ TEXT runtime·morestack(SB),7,$0
 
 	// Call newstack on m's scheduling stack.
 	MOVL	m_g0(BX), BP
-	MOVL	BP, g
+	MOVL	BP, g(CX)
 	MOVL	(m_sched+gobuf_sp)(BX), SP
 	CALL	newstack(SB)
 	MOVL	$0, 0x1003	// crash if newstack returns
@@ -179,7 +186,8 @@ TEXT runtime·morestack(SB),7,$0
 //
 // func call(fn *byte, arg *byte, argsize uint32).
 TEXT reflect·call(SB), 7, $0
-	MOVL	m, BX
+	get_tls(CX)
+	MOVL	m(CX), BX
 
 	// Save our caller's state as the PC and SP to
 	// restore when returning from f.
@@ -187,7 +195,7 @@ TEXT reflect·call(SB), 7, $0
 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAL	4(SP), AX	// our caller's SP
 	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
-	MOVL	g, AX
+	MOVL	g(CX), AX
 	MOVL	AX, (m_morebuf+gobuf_g)(BX)
 
 	// Set up morestack arguments to call f on a new stack.
@@ -207,7 +215,8 @@ TEXT reflect·call(SB), 7, $0
 
 	// Call newstack on m's scheduling stack.
 	MOVL	m_g0(BX), BP
-	MOVL	BP, g
+	get_tls(CX)
+	MOVL	BP, g(CX)
 	MOVL	(m_sched+gobuf_sp)(BX), SP
 	CALL	newstack(SB)
 	MOVL	$0, 0x1103	// crash if newstack returns
@@ -217,12 +226,13 @@ TEXT reflect·call(SB), 7, $0
 // Return point when leaving stack.
 TEXT runtime·lessstack(SB), 7, $0
 	// Save return value in m->cret
-	MOVL	m, BX
+	get_tls(CX)
+	MOVL	m(CX), BX
 	MOVL	AX, m_cret(BX)
 
 	// Call oldstack on m's scheduling stack.
 	MOVL	m_g0(BX), DX
-	MOVL	DX, g
+	MOVL	DX, g(CX)
 	MOVL	(m_sched+gobuf_sp)(BX), SP
 	CALL	oldstack(SB)
 	MOVL	$0, 0x1004	// crash if oldstack returns
@@ -237,6 +247,25 @@ TEXT runtime·lessstack(SB), 7, $0
 //	}else
 //		return 0;
 TEXT cas(SB), 7, $0
+	MOVL	4(SP), BX
+	MOVL	8(SP), AX
+	MOVL	12(SP), CX
+	LOCK
+	CMPXCHGL	CX, 0(BX)
+	JZ 3(PC)
+	MOVL	$0, AX
+	RET
+	MOVL	$1, AX
+	RET
+
+// bool casp(void **p, void *old, void *new)
+// Atomically:
+//	if(*p == old){
+//		*p = new;
+//		return 1;
+//	}else
+//		return 0;
+TEXT casp(SB), 7, $0
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	MOVL	12(SP), CX
@@ -308,9 +337,10 @@ TEXT	runcgo(SB),7,$16
 	MOVL	SP, CX
 
 	// Figure out if we need to switch to m->g0 stack.
-	MOVL	m, DX
+	get_tls(DI)
+	MOVL	m(DI), DX
 	MOVL	m_g0(DX), SI
-	CMPL	g, SI
+	CMPL	g(DI), SI
 	JEQ	2(PC)
 	MOVL	(m_sched+gobuf_sp)(DX), SP
 
@@ -325,7 +355,8 @@ TEXT	runcgo(SB),7,$16
 
 // check that SP is in range [g->stackbase, g->stackguard)
 TEXT stackcheck(SB), 7, $0
-	MOVL g, AX
+	get_tls(CX)
+	MOVL g(CX), AX
 	CMPL g_stackbase(AX), SP
 	JHI 2(PC)
 	INT $3

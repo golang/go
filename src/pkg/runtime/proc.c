@@ -3,7 +3,9 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "defs.h"
 #include "malloc.h"
+#include "os.h"
 
 typedef struct Sched Sched;
 
@@ -386,7 +388,12 @@ starttheworld(void)
 void
 mstart(void)
 {
-	if(g != m->g0)
+	// TODO(rsc): Change 8g not to assume that extern register
+	// variables are directly addressable.  Declaring the
+	// local variable here works around the bug.
+	G* gg = g;
+
+	if(gg != m->g0)
 		throw("bad mstart");
 	if(m->mcache == nil)
 		m->mcache = allocmcache();
@@ -517,7 +524,12 @@ scheduler(void)
 void
 gosched(void)
 {
-	if(g == m->g0)
+	// TODO(rsc): Change 8g not to assume that extern register
+	// variables are directly addressable.  Declaring the
+	// local variable here works around the bug.
+	G* gg = g;
+
+	if(gg == m->g0)
 		throw("gosched of g0");
 	if(gosave(&g->sched) == 0)
 		gogo(&m->sched, 1);

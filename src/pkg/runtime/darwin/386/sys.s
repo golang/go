@@ -64,9 +64,10 @@ TEXT sigtramp(SB),7,$40
 	MOVW	BX, GS
 
 	// g = m->gsignal
-	MOVL	m, BP
+	get_tls(CX)
+	MOVL	m(CX), BP
 	MOVL	m_gsignal(BP), BP
-	MOVL	BP, g
+	MOVL	BP, g(CX)
 
 	MOVL	handler+0(FP), DI
 	// 4(FP) is sigstyle
@@ -80,9 +81,10 @@ TEXT sigtramp(SB),7,$40
 	CALL	DI
 
 	// g = m->curg
-	MOVL	m, BP
+	get_tls(CX)
+	MOVL	m(CX), BP
 	MOVL	m_curg(BP), BP
-	MOVL	BP, g
+	MOVL	BP, g(CX)
 
 	MOVL	context+16(FP), CX
 	MOVL	style+4(FP), BX
@@ -150,8 +152,9 @@ TEXT bsdthread_start(SB),7,$0
 	POPAL
 
 	// Now segment is established.  Initialize m, g.
-	MOVL	AX, g
-	MOVL	DX, m
+	get_tls(BP)
+	MOVL	AX, g(BP)
+	MOVL	DX, m(BP)
 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
 	CALL	stackcheck(SB)		// smashes AX
 	CALL	CX	// fn()

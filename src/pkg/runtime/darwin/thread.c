@@ -36,21 +36,6 @@ initsema(uint32 *psema)
 }
 
 
-// Atomic add and return new value.
-static uint32
-xadd(uint32 volatile *val, int32 delta)
-{
-	uint32 oval, nval;
-
-	for(;;){
-		oval = *val;
-		nval = oval + delta;
-		if(cas(val, oval, nval))
-			return nval;
-	}
-}
-
-
 // Blocking locks.
 
 // Implement Locks, using semaphores.
