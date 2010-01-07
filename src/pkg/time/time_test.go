@@ -161,3 +161,10 @@ func BenchmarkNanoseconds(b *testing.B) {
 		Nanoseconds()
 	}
 }
+
+func BenchmarkFormat(b *testing.B) {
+	time := SecondsToLocalTime(1265346057)
+	for i := 0; i < b.N; i++ {
+		time.Format("Mon Jan  2 15:04:05 2006")
+	}
+}
