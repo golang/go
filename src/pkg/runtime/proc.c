@@ -388,12 +388,7 @@ starttheworld(void)
 void
 mstart(void)
 {
-	// TODO(rsc): Change 8g not to assume that extern register
-	// variables are directly addressable.  Declaring the
-	// local variable here works around the bug.
-	G* gg = g;
-
-	if(gg != m->g0)
+	if(g != m->g0)
 		throw("bad mstart");
 	if(m->mcache == nil)
 		m->mcache = allocmcache();
@@ -524,12 +519,7 @@ scheduler(void)
 void
 gosched(void)
 {
-	// TODO(rsc): Change 8g not to assume that extern register
-	// variables are directly addressable.  Declaring the
-	// local variable here works around the bug.
-	G* gg = g;
-
-	if(gg == m->g0)
+	if(g == m->g0)
 		throw("gosched of g0");
 	if(gosave(&g->sched) == 0)
 		gogo(&m->sched, 1);
