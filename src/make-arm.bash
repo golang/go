@@ -44,8 +44,6 @@ linux)
 	exit 1
 esac
 
-bash clean.bash
-
 rm -f "$GOBIN"/quietgcc
 cp quietgcc.bash "$GOBIN"/quietgcc
 chmod +x "$GOBIN"/quietgcc
@@ -58,7 +56,12 @@ fi
 (echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >"$GOBIN"/gomake
 chmod +x "$GOBIN"/gomake
 
-bash clean.bash
+(
+	cd "$GOROOT"/src/pkg;
+	bash deps.bash	# do this here so clean.bash will work in the pkg directory
+)
+bash "$GOROOT"/src/clean.bash
+
 
 # TODO(kaib): converge with normal build
 #for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
