@@ -414,3 +414,87 @@ chameneos 6000000
 	gcc -O2 chameneosredux.c -lpthread	18.00u 303.29s 83.64r
 	gc chameneosredux	12.10u 0.00s 12.10r  # 2.22X faster
 
+Jan 6, 2009
+
+# Long-overdue update.  All numbers included in this complete run.
+# Some programs (e.g. reverse-complement) rewritten for speed.
+# Regular expressions much faster in common cases (although still far behind PCRE)
+# Bignum stuff improved
+# Better (but sometimes slower) locking in channels.
+
+fasta -n 25000000
+	gcc -O2 fasta.c	5.99u 0.01s 6.00r
+	gc fasta	9.11u 0.00s 9.12r	# -11%
+	gc_B fasta	8.60u 0.00s 8.62r	# +12% ??
+
+reverse-complement < output-of-fasta-25000000
+	gcc -O2 reverse-complement.c	2.00u 0.80s 9.54r
+	gccgo -O2 reverse-complement.go	4.57u 0.35s 4.94r	# 33% faster
+	gc reverse-complement	2.01u 0.38s 2.40r	# 3.3X faster
+	gc_B reverse-complement	1.88u 0.36s 2.24r	# 3.2X faster
+GOGC=off
+	gc reverse-complement	2.01u 0.35s 2.37r
+	gc_B reverse-complement	1.86u 0.32s 2.19r
+
+nbody -n 50000000
+	gcc -O2 nbody.c	21.28u 0.00s 21.31r
+	gccgo -O2 nbody.go	80.02u 0.00s 80.05r	# 33% faster
+	gc nbody	30.13u 0.00s 30.13r
+	gc_B nbody	29.89u 0.01s 29.91r
+
+binary-tree 15 # too slow to use 20
+	gcc -O2 binary-tree.c -lm	0.86u 0.00s 0.87r
+	gccgo -O2 binary-tree.go	4.82u 0.41s 5.24r	# 2.5X slower
+	gccgo -O2 binary-tree-freelist.go	0.00u 0.00s 0.00r
+	gc binary-tree	7.23u 0.01s 7.25r	# # -19%
+	gc binary-tree-freelist	0.43u 0.00s 0.44r	# -9%
+
+fannkuch 12
+	gcc -O2 fannkuch.c	60.17u 0.00s 60.17r
+	gccgo -O2 fannkuch.go	78.47u 0.01s 78.49r
+	gc fannkuch	128.86u 0.00s 128.96r
+	gc_B fannkuch	90.17u 0.00s 90.21r
+
+regex-dna 100000
+	gcc -O2 regex-dna.c -lpcre	0.90u 0.00s 0.92r
+	gc regex-dna	9.48u 0.01s 9.50r	# 3.1X faster
+	gc_B regex-dna	9.08u 0.00s 9.10r	# 3.6X faster
+
+spectral-norm 5500
+	gcc -O2 spectral-norm.c -lm	11.48u 0.00s 11.48r
+	gccgo -O2 spectral-norm.go	11.68u 0.00s 11.70r
+	gc spectral-norm	23.98u 0.00s 23.99r
+	gc_B spectral-norm	23.68u 0.00s 23.69r
+
+k-nucleotide 1000000
+	gcc -O2 k-nucleotide.c	10.85u 0.04s 10.90r
+	gccgo -O2 k-nucleotide.go	25.26u 0.87s 26.14r
+	gc k-nucleotide	15.28u 0.06s 15.37r	# restored; mysterious variation continues
+	gc_B k-nucleotide	15.97u 0.03s 16.00r
+
+mandelbrot 16000
+	gcc -O2 mandelbrot.c	56.12u 0.01s 56.15r
+	gccgo -O2 mandelbrot.go	56.86u 0.01s 56.89r
+	gc mandelbrot	66.05u 0.00s 66.07r	# -3%
+	gc_B mandelbrot	66.06u 0.00s 66.07r	# -3%
+
+meteor 16000
+	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
+	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.12r
+	gc meteor-contest	0.17u 0.00s 0.17r
+	gc_B meteor-contest	0.15u 0.00s 0.16r
+
+pidigits 10000
+	gcc -O2 pidigits.c -lgmp	2.57u 0.00s 2.59r
+	gc pidigits	38.27u 0.02s 38.30r	# 1.5X faster
+	gc_B pidigits	38.27u 0.02s 38.31r	# 1.5X faster
+
+threadring 50000000
+	gcc -O2 threadring.c	37.11u 170.59s 212.75r
+	gccgo -O2 threadring.go	89.67u 447.56s 442.55r	# -6.5%
+	gc threadring	36.08u 0.04s 36.15r	# +10%
+
+chameneos 6000000
+	gcc -O2 chameneosredux.c -lpthread	19.02u 331.08s 90.79r
+	gc chameneosredux	12.54u 0.00s 12.55r
+
