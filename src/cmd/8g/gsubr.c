@@ -1350,15 +1350,11 @@ gmove(Node *f, Node *t)
 
 		// if 0 > v { answer = 0 }
 		gmove(&zerof, &f0);
-		gins(AFUCOMP, &f0, &f1);
-		gins(AFSTSW, N, &ax);
-		gins(ASAHF, N, N);
+		gins(AFUCOMIP, &f0, &f1);
 		p1 = gbranch(optoas(OGT, types[tt]), T);
 		// if 1<<64 <= v { answer = 0 too }
 		gmove(&two64f, &f0);
-		gins(AFUCOMP, &f0, &f1);
-		gins(AFSTSW, N, &ax);
-		gins(ASAHF, N, N);
+		gins(AFUCOMIP, &f0, &f1);
 		p2 = gbranch(optoas(OGT, types[tt]), T);
 		patch(p1, pc);
 		gins(AFMOVVP, &f0, t);	// don't care about t, but will pop the stack
@@ -1382,9 +1378,7 @@ gmove(Node *f, Node *t)
 
 		// actual work
 		gmove(&two63f, &f0);
-		gins(AFUCOMP, &f0, &f1);
-		gins(AFSTSW, N, &ax);
-		gins(ASAHF, N, N);
+		gins(AFUCOMIP, &f0, &f1);
 		p2 = gbranch(optoas(OLE, types[tt]), T);
 		gins(AFMOVVP, &f0, t);
 		p3 = gbranch(AJMP, T);
