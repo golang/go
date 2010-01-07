@@ -1,6 +1,7 @@
 package time
 
 import (
+	"bytes"
 	"strconv"
 )
 
@@ -12,16 +13,17 @@ const (
 
 // These are predefined layouts for use in Time.Format.
 // The standard time used in the layouts is:
-//	Mon Jan  2 15:04:05 PST 2006  (PST is GMT-0800)
+//	Mon Jan  2 15:04:05 MST 2006  (MST is GMT-0700)
 // which is Unix time 1136243045.
+// (Think of it as 01/02 03:04:05PM '06 -0700.)
 const (
 	ANSIC    = "Mon Jan  2 15:04:05 2006"
-	UnixDate = "Mon Jan  2 15:04:05 PST 2006"
-	RFC850   = "Monday, 02-Jan-06 15:04:05 PST"
-	RFC1123  = "Mon, 02 Jan 2006 15:04:05 PST"
+	UnixDate = "Mon Jan  2 15:04:05 MST 2006"
+	RFC850   = "Monday, 02-Jan-06 15:04:05 MST"
+	RFC1123  = "Mon, 02 Jan 2006 15:04:05 MST"
 	Kitchen  = "3:04PM"
 	// Special case: use Z to get the time zone formatted according to ISO 8601,
-	// which is -0800 or Z for UTC
+	// which is -0700 or Z for UTC
 	ISO8601 = "2006-01-02T15:04:05Z"
 )
 
@@ -46,7 +48,7 @@ const (
 	stdZulu        = "1504"
 	stdPM          = "PM"
 	stdpm          = "pm"
-	stdTZ          = "PST"
+	stdTZ          = "MST"
 	stdISO8601TZ   = "Z"
 )
 
@@ -112,26 +114,6 @@ func charType(c uint8) int {
 	return separator
 }
 
-func pieces(s string) []string {
-	p := make([]string, 20)
-	i := 0
-	// Each iteration generates one piece
-	for n := range p {
-		if i >= len(s) {
-			p = p[0:n]
-			break
-		}
-		start := i
-		c := s[i]
-		pieceType := charType(c)
-		for i < len(s) && charType(s[i]) == pieceType {
-			i++
-		}
-		p[n] = s[start:i]
-	}
-	return p
-}
-
 func zeroPad(i int) string {
 	s := strconv.Itoa(i)
 	if i < 10 {
@@ -146,9 +128,17 @@ func zeroPad(i int) string {
 // the time to be formatted.  Predefined layouts ANSIC, UnixDate,
 // ISO8601 and others describe standard representations.
 func (t *Time) Format(layout string) string {
-	pc := pieces(layout)
-	s := ""
-	for _, p := range pc {
+	b := new(bytes.Buffer)
+	// Each iteration generates one piece
+	for len(layout) > 0 {
+		c := layout[0]
+		pieceType := charType(c)
+		i := 0
+		for i < len(layout) && charType(layout[i]) == pieceType {
+			i++
+		}
+		p := layout[0:i]
+		layout = layout[i:]
 		switch p {
 		case stdYear:
 			p = strconv.Itoa64(t.Year % 100)
@@ -218,9 +208,9 @@ func (t *Time) Format(layout string) string {
 		case stdTZ:
 			p = t.Zone
 		}
-		s += p
+		b.WriteString(p)
 	}
-	return s
+	return b.String()
 }
 
 // String returns a Unix-style representation of the time value.
