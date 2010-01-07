@@ -55,6 +55,12 @@ cgen(Node *n, Node *nn)
 	l = n->left;
 	r = n->right;
 	o = n->op;
+
+	if(n->op == OEXREG || (nn != Z && nn->op == OEXREG)) {
+		gmove(n, nn);
+		return;
+	}
+
 	if(n->addable >= INDEXED) {
 		if(nn == Z) {
 			switch(o) {

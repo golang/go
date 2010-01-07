@@ -98,6 +98,7 @@ indexshift(Node *n)
  *		(20) * (X) ==> 7	multiplier in indexing
  *		(X,7) + (13,1) ==> 8	adder in indexing (addresses)
  *		(8) ==> &9(OINDEX)	index, almost addressable
+ *		100					extern register
  *
  *	calculate complexity (number of registers)
  */
@@ -125,7 +126,7 @@ xcom(Node *n)
 		break;
 
 	case OEXREG:
-		n->addable = 10;
+		n->addable = 0;
 		break;
 
 	case OREGISTER:
