@@ -1014,6 +1014,8 @@ static Optable optabDB[8+64] =
 [0x03]	0,0,		"FMOVLP	F0,%e",
 [0x05]	0,0,		"FMOVX	%e,F0",
 [0x07]	0,0,		"FMOVXP	F0,%e",
+[0x0d]	0,0,		"FUCOMI	F0,%f",
+[0x0e]	0,0,		"FCOMI	F0,%f",
 [0x2a]	0,0,		"FCLEX",
 [0x2b]	0,0,		"FINIT",
 };
@@ -1080,6 +1082,8 @@ static Optable optabDF[8+8] =
 [0x06]	0,0,		"FBSTP	%e",
 [0x07]	0,0,		"FMOVLP	F0,%e",
 [0x0c]	R0,0,		"FSTSW	%OAX",
+[0x0d]	0,0,		"FUCOMIP	F0,%f",
+[0x0e]	0,0,		"FCOMIP	F0,%f",
 };
 
 static Optable optabF6[8] =
