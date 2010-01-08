@@ -180,8 +180,11 @@ walkdef(Node *n)
 			goto ret;
 		}
 		t = n->type;
-		if(t != T)
+		if(t != T) {
 			convlit(&e, t);
+			if(!isint[t->etype] && !isfloat[t->etype] && t->etype != TSTRING)
+				yyerror("invalid constant type %T", t);
+		}
 		n->val = e->val;
 		n->type = e->type;
 		break;
