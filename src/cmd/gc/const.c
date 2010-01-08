@@ -186,6 +186,10 @@ convlit1(Node **np, Type *t, int explicit)
 	return;
 
 bad:
+	if(!n->diag) {
+		yyerror("cannot convert %#N to type %T", n, t);
+		n->diag = 1;
+	}
 	if(isideal(n->type)) {
 		defaultlit(&n, T);
 		*np = n;
