@@ -54,7 +54,7 @@ var urltests = []URLTest{
 			"www.google.com", "", "www.google.com",
 			"/file one&two", "", "",
 		},
-		"http://www.google.com/file+one%26two",
+		"http://www.google.com/file%20one%26two",
 	},
 	// user
 	URLTest{
@@ -76,7 +76,7 @@ var urltests = []URLTest{
 			"john doe@www.google.com", "john doe", "www.google.com",
 			"/", "", "",
 		},
-		"ftp://john+doe@www.google.com/",
+		"ftp://john%20doe@www.google.com/",
 	},
 	// query
 	URLTest{
@@ -100,6 +100,17 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// %20 outside query
+	URLTest{
+		"http://www.google.com/a%20b?q=c+d",
+		&URL{
+			"http://www.google.com/a%20b?q=c+d",
+			"http", "//www.google.com/a%20b?q=c+d",
+			"www.google.com", "", "www.google.com",
+			"/a b", "q=c+d", "",
+		},
+		"",
+	},
 	// path without /, so no query parsing
 	URLTest{
 		"http:www.google.com/?q=go+language",
@@ -107,9 +118,9 @@ var urltests = []URLTest{
 			"http:www.google.com/?q=go+language",
 			"http", "www.google.com/?q=go+language",
 			"", "", "",
-			"www.google.com/?q=go language", "", "",
+			"www.google.com/?q=go+language", "", "",
 		},
-		"http:www.google.com/%3fq%3dgo+language",
+		"http:www.google.com/%3fq%3dgo%2blanguage",
 	},
 	// non-authority
 	URLTest{
