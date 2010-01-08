@@ -1,0 +1,84 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>Go build</title>
+
+    <style>
+      td.revision {
+        font-family: monospace;
+      }
+      table.alternate {
+          white-space: nowrap;
+      }
+
+      table.alternate tr td {
+        padding-right: 10px;
+      }
+      table.alternate tr td:last-child {
+        padding-right: 0;
+      }
+      table.alternate tr:nth-child(2n) {
+        background-color: #eef;
+      }
+      td.user {
+        font-family: monospace;
+      }
+      td.date {
+        font-size: 0.8em;
+      }
+      td.result {
+        text-align: center;
+      }
+      td.desc {
+        font-size: 0.9em;
+        font-family: sans-serif;
+      }
+      th.builder {
+        font-variant: small-caps;
+        font-size: 1.2em;
+        color: #966;
+        padding-right: 1em;
+      }
+      span.ok {
+        color: green;
+      }
+    </style>
+  </head>
+
+  <body>
+    <table class="alternate" cellpadding="0" cellspacing="0">
+      <tr>
+        {% for b in builders %}
+          <th class="builder">{{b}}</th>
+        {% endfor %}
+        <th></th>
+        <th></th>
+        <th></th>
+        <th></th>
+      </tr>
+
+      {% for r in revs %}
+      <tr>
+        {% for b in r.builds %}
+          <td class="result">
+          {% if b.ok %}
+            <span class="ok">☺</span>
+          {% else %}
+            {% if b.log %}
+              <a href="/log/{{b.log}}">failed</a>
+            {% else %}
+              <span/>
+            {% endif %}
+          {% endif %}
+          </td>
+        {% endfor %}
+
+        <td class="revision"><a href="https://code.google.com/p/go/source/detail?r={{r.node}}">{{r.node|slice:":12"}}</a></td>
+        <td class="user">{{r.user|escape}}</td>
+        <td class="date">{{r.date|escape}}</td>
+        <td class="desc">{{r.desc|escape}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>
