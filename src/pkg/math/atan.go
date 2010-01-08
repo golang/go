@@ -4,7 +4,6 @@
 
 package math
 
-
 /*
  *	floating-point arctangent
  *
@@ -52,7 +51,7 @@ func satan(arg float64) float64 {
 }
 
 /*
- *	atan makes its argument positive and
+ *	Atan makes its argument positive and
  *	calls the inner routine satan.
  */
 

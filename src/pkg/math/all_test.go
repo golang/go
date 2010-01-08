@@ -22,6 +22,18 @@ var vf = []float64{
 	1.8253080916808550e+00,
 	-8.6859247685756013e+00,
 }
+var acos = []float64{
+	1.0496193546107222e+00,
+	6.858401281366443e-01,
+	1.598487871457716e+00,
+	2.095619936147586e+00,
+	2.7053008467824158e-01,
+	1.2738121680361776e+00,
+	1.0205369421140630e+00,
+	1.2945003481781246e+00,
+	1.3872364345374451e+00,
+	2.6231510803970464e+00,
+}
 var asin = []float64{
 	5.2117697218417440e-01,
 	8.8495619865825236e-01,
@@ -154,39 +166,26 @@ var tanh = []float64{
 	9.4936501296239700e-01,
 	-9.9999994291374019e-01,
 }
-var vfsin = []float64{
-	NaN(),
-	Inf(-1),
-	0,
-	Inf(1),
-}
-var vfasin = []float64{
+
+// arguments and expected results for special cases
+var vfasinSC = []float64{
 	NaN(),
 	-Pi,
-	0,
 	Pi,
 }
-var vf1 = []float64{
+var asinSC = []float64{
 	NaN(),
-	Inf(-1),
-	-Pi,
-	-1,
-	0,
-	1,
-	Pi,
-	Inf(1),
+	NaN(),
+	NaN(),
 }
-var vfhypot = [][2]float64{
-	[2]float64{Inf(-1), 1},
-	[2]float64{Inf(1), 1},
-	[2]float64{1, Inf(-1)},
-	[2]float64{1, Inf(1)},
-	[2]float64{NaN(), Inf(-1)},
-	[2]float64{NaN(), Inf(1)},
-	[2]float64{1, NaN()},
-	[2]float64{NaN(), 1},
+
+var vfatanSC = []float64{
+	NaN(),
 }
-var vf2 = [][2]float64{
+var atanSC = []float64{
+	NaN(),
+}
+var vfpowSC = [][2]float64{
 	[2]float64{-Pi, Pi},
 	[2]float64{-Pi, -Pi},
 	[2]float64{Inf(-1), 3},
@@ -230,7 +229,7 @@ var vf2 = [][2]float64{
 	[2]float64{Inf(1), 0},
 	[2]float64{NaN(), 0},
 }
-var pow2 = []float64{
+var powSC = []float64{
 	NaN(),
 	NaN(),
 	Inf(-1),
@@ -306,10 +305,29 @@ func alike(a, b float64) bool {
 	return false
 }
 
+func TestAcos(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		//		if f := Acos(vf[i] / 10); !veryclose(acos[i], f) {
+		if f := Acos(vf[i] / 10); !close(acos[i], f) {
+			t.Errorf("Acos(%g) = %g, want %g\n", vf[i]/10, f, acos[i])
+		}
+	}
+	for i := 0; i < len(vfasinSC); i++ {
+		if f := Acos(vfasinSC[i]); !alike(asinSC[i], f) {
+			t.Errorf("Acos(%g) = %g, want %g\n", vfasinSC[i], f, asinSC[i])
+		}
+	}
+}
+
 func TestAsin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Asin(vf[i] / 10); !veryclose(asin[i], f) {
 			t.Errorf("Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i])
+		}
+	}
+	for i := 0; i < len(vfasinSC); i++ {
+		if f := Asin(vfasinSC[i]); !alike(asinSC[i], f) {
+			t.Errorf("Asin(%g) = %g, want %g\n", vfasinSC[i], f, asinSC[i])
 		}
 	}
 }
@@ -318,6 +336,11 @@ func TestAtan(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Atan(vf[i]); !veryclose(atan[i], f) {
 			t.Errorf("Atan(%g) = %g, want %g\n", vf[i], f, atan[i])
+		}
+	}
+	for i := 0; i < len(vfatanSC); i++ {
+		if f := Atan(vfatanSC[i]); !alike(atanSC[i], f) {
+			t.Errorf("Atan(%g) = %g, want %g\n", vfatanSC[i], f, atanSC[i])
 		}
 	}
 }
@@ -356,9 +379,9 @@ func TestPow(t *testing.T) {
 			t.Errorf("Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i])
 		}
 	}
-	for i := 0; i < len(vf2); i++ {
-		if f := Pow(vf2[i][0], vf2[i][1]); !alike(pow2[i], f) {
-			t.Errorf("Pow(%.17g, %.17g) = %.17g, want %.17g\n", vf2[i][0], vf2[i][1], f, pow2[i])
+	for i := 0; i < len(vfpowSC); i++ {
+		if f := Pow(vfpowSC[i][0], vfpowSC[i][1]); !alike(powSC[i], f) {
+			t.Errorf("Pow(%.17g, %.17g) = %.17g, want %.17g\n", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
 		}
 	}
 }
@@ -421,7 +444,7 @@ func TestLargeSin(t *testing.T) {
 		f1 := Sin(vf[i])
 		f2 := Sin(vf[i] + large)
 		if !kindaclose(f1, f2) {
-			t.Errorf("Sin(%g) = %g, want %g\n", vf[i]+large, f1, f2)
+			t.Errorf("Sin(%g) = %g, want %g\n", vf[i]+large, f2, f1)
 		}
 	}
 }
@@ -432,7 +455,7 @@ func TestLargeCos(t *testing.T) {
 		f1 := Cos(vf[i])
 		f2 := Cos(vf[i] + large)
 		if !kindaclose(f1, f2) {
-			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f1, f2)
+			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f2, f1)
 		}
 	}
 }
@@ -444,7 +467,7 @@ func TestLargeTan(t *testing.T) {
 		f1 := Tan(vf[i])
 		f2 := Tan(vf[i] + large)
 		if !kindaclose(f1, f2) {
-			t.Errorf("Tan(%g) = %g, want %g\n", vf[i]+large, f1, f2)
+			t.Errorf("Tan(%g) = %g, want %g\n", vf[i]+large, f2, f1)
 		}
 	}
 }
@@ -486,5 +509,23 @@ func BenchmarkPowInt(b *testing.B) {
 func BenchmarkPowFrac(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Pow(2.5, 1.5)
+	}
+}
+
+func BenchmarkAtan(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atan(.5)
+	}
+}
+
+func BenchmarkAsin(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Asin(.5)
+	}
+}
+
+func BenchmarkAcos(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Acos(.5)
 	}
 }
