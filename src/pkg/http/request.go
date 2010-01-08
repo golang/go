@@ -134,7 +134,7 @@ const defaultUserAgent = "Go http package"
 //
 // If Body is present, "Transfer-Encoding: chunked" is forced as a header.
 func (req *Request) Write(w io.Writer) os.Error {
-	uri := URLEscape(req.URL.Path)
+	uri := urlEscape(req.URL.Path, false)
 	if req.URL.RawQuery != "" {
 		uri += "?" + req.URL.RawQuery
 	}
