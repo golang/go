@@ -6,6 +6,7 @@ package time_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"testing/quick"
 	. "time"
@@ -140,12 +141,119 @@ var formatTests = []FormatTest{
 }
 
 func TestFormat(t *testing.T) {
-	// The numeric time represents Thu Feb  4 21:00:57 EST 2010
+	// The numeric time represents Thu Feb  4 21:00:57 PST 2010
 	time := SecondsToLocalTime(1265346057)
 	for _, test := range formatTests {
 		result := time.Format(test.format)
 		if result != test.result {
 			t.Errorf("%s expected %q got %q", test.name, test.result, result)
+		}
+	}
+}
+
+type ParseTest struct {
+	name   string
+	format string
+	value  string
+	hasTZ  bool // contains a time zone
+	hasWD  bool // contains a weekday
+}
+
+var parseTests = []ParseTest{
+	ParseTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true},
+	ParseTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true},
+	ParseTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true},
+	ParseTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true},
+	ParseTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800", true, false},
+}
+
+func TestParse(t *testing.T) {
+	for _, test := range parseTests {
+		time, err := Parse(test.format, test.value)
+		if err != nil {
+			t.Errorf("%s error: %v", test.name, err)
+		} else {
+			checkTime(time, &test, t)
+		}
+	}
+}
+
+func checkTime(time *Time, test *ParseTest, t *testing.T) {
+	// The time should be Thu Feb  4 21:00:57 PST 2010
+	if time.Year != 2010 {
+		t.Errorf("%s: bad year: %d not %d\n", test.name, time.Year, 2010)
+	}
+	if time.Month != 2 {
+		t.Errorf("%s: bad month: %d not %d\n", test.name, time.Month, 2)
+	}
+	if time.Day != 4 {
+		t.Errorf("%s: bad day: %d not %d\n", test.name, time.Day, 4)
+	}
+	if time.Hour != 21 {
+		t.Errorf("%s: bad hour: %d not %d\n", test.name, time.Hour, 21)
+	}
+	if time.Minute != 0 {
+		t.Errorf("%s: bad minute: %d not %d\n", test.name, time.Minute, 0)
+	}
+	if time.Second != 57 {
+		t.Errorf("%s: bad second: %d not %d\n", test.name, time.Second, 57)
+	}
+	if test.hasTZ && time.ZoneOffset != -28800 {
+		t.Errorf("%s: bad tz offset: %d not %d\n", test.name, time.ZoneOffset, -28800)
+	}
+	if test.hasWD && time.Weekday != 4 {
+		t.Errorf("%s: bad weekday: %d not %d\n", test.name, time.Weekday, 4)
+	}
+}
+
+func TestFormatAndParse(t *testing.T) {
+	const fmt = "Mon MST " + ISO8601 // all fields
+	f := func(sec int64) bool {
+		t1 := SecondsToLocalTime(sec)
+		t2, err := Parse(fmt, t1.Format(fmt))
+		if err != nil {
+			t.Errorf("error: %s", err)
+			return false
+		}
+		if !same(t1, t2) {
+			t.Errorf("different: %q %q", t1, t2)
+			return false
+		}
+		return true
+	}
+	f32 := func(sec int32) bool { return f(int64(sec)) }
+	cfg := &quick.Config{MaxCount: 10000}
+
+	// Try a reasonable date first, then the huge ones.
+	if err := quick.Check(f32, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := quick.Check(f, cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type ParseErrorTest struct {
+	format string
+	value  string
+	expect string // must appear within the error
+}
+
+var parseErrorTests = []ParseErrorTest{
+	ParseErrorTest{ANSIC, "Feb  4 21:00:60 2010", "parse"}, // cannot parse Feb as Mon
+	ParseErrorTest{ANSIC, "Thu Feb  4 21:00:57 @2010", "format"},
+	ParseErrorTest{ANSIC, "Thu Feb  4 21:00:60 2010", "second out of range"},
+	ParseErrorTest{ANSIC, "Thu Feb  4 21:61:57 2010", "minute out of range"},
+	ParseErrorTest{ANSIC, "Thu Feb  4 24:00:60 2010", "hour out of range"},
+}
+
+func TestParseErrors(t *testing.T) {
+	for _, test := range parseErrorTests {
+		_, err := Parse(test.format, test.value)
+		if err == nil {
+			t.Errorf("expected error for %q %q\n", test.format, test.value)
+		} else if strings.Index(err.String(), test.expect) < 0 {
+			t.Errorf("expected error with %q for %q %q; got %s\n", test.expect, test.format, test.value, err)
 		}
 	}
 }
@@ -166,5 +274,11 @@ func BenchmarkFormat(b *testing.B) {
 	time := SecondsToLocalTime(1265346057)
 	for i := 0; i < b.N; i++ {
 		time.Format("Mon Jan  2 15:04:05 2006")
+	}
+}
+
+func BenchmarkParse(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Parse(ANSIC, "Mon Jan  2 15:04:05 2006")
 	}
 }
