@@ -25,9 +25,9 @@ func Asin(x float64) float64 {
 
 	temp := Sqrt(1 - x*x)
 	if x > 0.7 {
-		temp = Pi/2 - Atan(temp/x)
+		temp = Pi/2 - satan(temp/x)
 	} else {
-		temp = Atan(x / temp)
+		temp = satan(x / temp)
 	}
 
 	if sign {
@@ -37,9 +37,4 @@ func Asin(x float64) float64 {
 }
 
 // Acos returns the arc cosine of x.
-func Acos(x float64) float64 {
-	if x > 1 || x < -1 {
-		return NaN()
-	}
-	return Pi/2 - Asin(x)
-}
+func Acos(x float64) float64 { return Pi/2 - Asin(x) }
