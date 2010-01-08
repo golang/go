@@ -446,7 +446,9 @@ reswitch:
 		n->op = ODOT;
 		// fall through
 	case ODOT:
-		l = typecheck(&n->left, Erv|Etype);
+		typecheck(&n->left, Erv|Etype);
+		defaultlit(&n->left, T);
+		l = n->left;
 		if((t = l->type) == T)
 			goto error;
 		if(n->right->op != ONAME) {
