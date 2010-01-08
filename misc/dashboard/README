@@ -1,0 +1,33 @@
+The files in this directory constitute the continuous builder:
+
+godashboard/: An AppEngine which acts as a server
+builder.sh, buildcontrol.sh: used by the build slaves
+
+If you wish to run a Go builder, please email golang-dev@googlegroups.com
+
+
+Setting up a Go builder:
+
+* (Optional) create a new user 'gobuild'
+* Edit ~gobuild/.bash_profile and add the following:
+
+export GOROOT=/gobuild/go
+export GOARCH=XXX
+export GOOS=XXX
+export GOBIN=/gobuild/bin
+export PATH=$PATH:/gobuild/bin
+export BUILDER=XXX
+export BUILDHOST=godashboard.appspot.com
+
+* Write ~gobuild/.gobuildkey (you need to get it from someone who knows it)
+
+* sudo apt-get install bison gcc libc6-dev ed make
+* cd ~gobuild
+* mkdir bin
+* hg clone https://go.googlecode.com/hg/ $GOROOT
+* copy builder.sh and buildcontrol.py to ~gobuild
+* chmod a+x ./builder.sh ./buildcontrol.py
+* cd go
+* ../buildcontrol.py next $BUILDER  (just to check that things are ok)
+* cd ..
+* ./builder.sh (You probably want to run this in a screen long term.)
