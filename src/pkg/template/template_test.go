@@ -86,6 +86,7 @@ var formatters = FormatterMap{
 var tests = []*Test{
 	// Simple
 	&Test{"", "", ""},
+	&Test{"abc", "abc", ""},
 	&Test{"abc\ndef\n", "abc\ndef\n", ""},
 	&Test{" {.meta-left}   \n", "{", ""},
 	&Test{" {.meta-right}   \n", "}", ""},
@@ -173,6 +174,7 @@ var tests = []*Test{
 		out: "Header=77\n" +
 			"Header=77\n",
 	},
+
 	&Test{
 		in: "{.section data}{.end} {header}\n",
 
@@ -225,6 +227,17 @@ var tests = []*Test{
 			"ItemNumber2\n",
 	},
 	&Test{
+		in: "{.repeated section pdata }\n" +
+			"{item}\n" +
+			"{.alternates with}\n" +
+			"is\nover\nmultiple\nlines\n" +
+			" {.end}\n",
+
+		out: "ItemNumber1\n" +
+			"is\nover\nmultiple\nlines\n" +
+			"ItemNumber2\n",
+	},
+	&Test{
 		in: "{.section pdata }\n" +
 			"{.repeated section @ }\n" +
 			"{item}={value}\n" +
@@ -245,6 +258,13 @@ var tests = []*Test{
 
 		out: "elt1\n" +
 			"elt2\n",
+	},
+	// Same but with a space before {.end}: was a bug.
+	&Test{
+		in: "{.repeated section vec }\n" +
+			"{@} {.end}\n",
+
+		out: "elt1 elt2 \n",
 	},
 	&Test{
 		in: "{.repeated section integer}{.end}",
@@ -374,7 +394,9 @@ func TestAll(t *testing.T) {
 				t.Error("unexpected execute error:", err)
 			}
 		} else {
-			if err == nil || err.String() != test.err {
+			if err == nil {
+				t.Errorf("expected execute error %q, got nil", test.err)
+			} else if err.String() != test.err {
 				t.Errorf("expected execute error %q, got %q", test.err, err.String())
 			}
 		}
