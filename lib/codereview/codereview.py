@@ -123,12 +123,14 @@ class CL(object):
 		self.local = False
 		self.web = False
 		self.original_author = None	# None means current user
+		self.mailed = False
 
 	def DiskText(self):
 		cl = self
 		s = ""
 		if cl.original_author:
 			s += "Author: " + cl.original_author + "\n\n"
+		s += "Mailed: " + str(self.mailed) + "\n"
 		s += "Description:\n"
 		s += Indent(cl.desc, "\t")
 		s += "Files:\n"
@@ -260,6 +262,20 @@ class CL(object):
 		self.Flush(ui, repo)
 		return
 
+	def Mail(self, ui,repo):
+		pmsg = "Hello " + JoinComma(self.reviewer)
+		if self.cc:
+			pmsg += " (cc: %s)" % (', '.join(self.cc),)
+		pmsg += ",\n"
+		pmsg += "\n"
+		if not self.mailed:
+			pmsg += "I'd like you to review this change.\n"
+		else:
+			pmsg += "Please take another look.\n"
+		PostMessage(ui, self.name, pmsg, subject=self.Subject())
+		self.mailed = True
+		self.Flush(ui, repo)
+
 def GoodCLName(name):
 	return re.match("^[0-9]+$", name)
 
@@ -273,6 +289,7 @@ def ParseCL(text, name):
 		'URL': '',
 		'Reviewer': '',
 		'CC': '',
+		'Mailed': '',
 	}
 	for line in text.split('\n'):
 		lineno += 1
@@ -312,8 +329,14 @@ def ParseCL(text, name):
 	cl.reviewer = SplitCommaSpace(sections['Reviewer'])
 	cl.cc = SplitCommaSpace(sections['CC'])
 	cl.url = sections['URL']
+	if sections['Mailed'] != 'False':
+		# Odd default, but avoids spurious mailings when
+		# reading old CLs that do not have a Mailed: line.
+		# CLs created with this update will always have 
+		# Mailed: False on disk.
+		cl.mailed = True
 	if cl.desc == '<enter description here>':
-		cl.desc = '';
+		cl.desc = ''
 	return cl, 0, ''
 
 def SplitCommaSpace(s):
@@ -928,13 +951,7 @@ def mail(ui, repo, *pats, **opts):
 	cl.Upload(ui, repo, gofmt_just_warn=True)
 	if not cl.reviewer and not cl.cc:
 		return "no reviewers listed in CL"
-	pmsg = "Hello " + JoinComma(cl.reviewer)
-	if cl.cc:
-		pmsg += " (cc: %s)" % (', '.join(cl.cc),)
-	pmsg += ",\n"
-	pmsg += "\n"
-	pmsg += "I'd like you to review the following change.\n"
-	PostMessage(ui, cl.name, pmsg, subject=cl.Subject())
+	cl.Mail(ui, repo)
 
 def nocommit(ui, repo, *pats, **opts):
 	"""(disabled when using this extension)"""
@@ -1004,7 +1021,7 @@ def submit(ui, repo, *pats, **opts):
 	if not opts["no_incoming"] and Incoming(ui, repo, opts):
 		return "local repository out of date; must sync before submit"
 
-	cl, err = CommandLineCL(ui, repo, pats, opts)
+	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
 	if err != "":
 		return err
 
@@ -1041,6 +1058,9 @@ def submit(ui, repo, *pats, **opts):
 
 	if cl.original_author:
 		about += "\nCommitter: " + CheckContributor(ui, repo, None) + "\n"
+
+	if not cl.mailed:		# in case this is TBR
+		cl.Mail(ui, repo)
 
 	# submit changes locally
 	date = opts.get('date')
