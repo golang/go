@@ -2,6 +2,7 @@ package time
 
 import (
 	"bytes"
+	"os"
 	"strconv"
 )
 
@@ -102,6 +103,15 @@ var longMonthNames = []string{
 	"October",
 	"November",
 	"December",
+}
+
+func lookup(tab []string, val string) (int, os.Error) {
+	for i, v := range tab {
+		if v == val {
+			return i, nil
+		}
+	}
+	return -1, errBad
 }
 
 func charType(c uint8) int {
@@ -215,3 +225,223 @@ func (t *Time) Format(layout string) string {
 
 // String returns a Unix-style representation of the time value.
 func (t *Time) String() string { return t.Format(UnixDate) }
+
+var errBad = os.ErrorString("bad") // just a marker; not returned to user
+
+// ParseError describes a problem parsing a time string.
+type ParseError struct {
+	Layout     string
+	Value      string
+	LayoutElem string
+	ValueElem  string
+	Message    string
+}
+
+// String is the string representation of a ParseError.
+func (e *ParseError) String() string {
+	if e.Message == "" {
+		return "parsing time " +
+			strconv.Quote(e.Value) + " as " +
+			strconv.Quote(e.Layout) + ": cannot parse " +
+			strconv.Quote(e.ValueElem) + " as " +
+			strconv.Quote(e.LayoutElem)
+	}
+	return "parsing time " +
+		strconv.Quote(e.Value) + e.Message
+}
+
+// Parse parses a formatted string and returns the time value it represents.
+// The layout defines the format by showing the representation of a standard
+// time, which is then used to describe the string to be parsed.  Predefined
+// layouts ANSIC, UnixDate, ISO8601 and others describe standard
+// representations.
+//
+// Only those elements present in the value will be set in the returned time
+// structure.  Also, if the input string represents an inconsistent time
+// (such as having the wrong day of the week), the returned value will also
+// be inconsistent.  In any case, the elements of the returned time will be
+// sane: hours in 0..23, minutes in 0..59, day of month in 0..31, etc.
+func Parse(alayout, avalue string) (*Time, os.Error) {
+	var t Time
+	const formatErr = ": different format from "
+	rangeErrString := "" // set if a value is out of range
+	pmSet := false       // do we need to add 12 to the hour?
+	// Each iteration steps along one piece
+	nextIsYear := false // whether next item is a Year; means we saw a minus sign.
+	layout, value := alayout, avalue
+	for len(layout) > 0 && len(value) > 0 {
+		c := layout[0]
+		pieceType := charType(c)
+		var i int
+		for i = 0; i < len(layout) && charType(layout[i]) == pieceType; i++ {
+		}
+		reference := layout[0:i]
+		layout = layout[i:]
+		if reference == "Z" {
+			// Special case for ISO8601 time zone: "Z" or "-0800"
+			if value[0] == 'Z' {
+				i = 1
+			} else if len(value) >= 5 {
+				i = 5
+			} else {
+				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
+			}
+		} else {
+			c = value[0]
+			if charType(c) != pieceType {
+				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
+			}
+			for i = 0; i < len(value) && charType(value[i]) == pieceType; i++ {
+			}
+		}
+		p := value[0:i]
+		value = value[i:]
+		// Separators must match except possibly for a following minus sign (for negative years)
+		if pieceType == separator {
+			if len(p) != len(reference) {
+				// must be exactly a following minus sign
+				if len(p) != len(reference)+1 || p[len(p)-1] != '-' {
+					return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
+				}
+				nextIsYear = true
+				continue
+			}
+		}
+		var err os.Error
+		switch reference {
+		case stdYear:
+			t.Year, err = strconv.Atoi64(p)
+			if t.Year >= 69 { // Unix time starts Dec 31 1969 in some time zones
+				t.Year += 1900
+			} else {
+				t.Year += 2000
+			}
+		case stdLongYear:
+			t.Year, err = strconv.Atoi64(p)
+			if nextIsYear {
+				t.Year = -t.Year
+				nextIsYear = false
+			}
+		case stdMonth:
+			t.Month, err = lookup(shortMonthNames, p)
+		case stdLongMonth:
+			t.Month, err = lookup(longMonthNames, p)
+		case stdNumMonth, stdZeroMonth:
+			t.Month, err = strconv.Atoi(p)
+			if t.Month <= 0 || 12 < t.Month {
+				rangeErrString = "month"
+			}
+		case stdWeekDay:
+			t.Weekday, err = lookup(shortDayNames, p)
+		case stdLongWeekDay:
+			t.Weekday, err = lookup(longDayNames, p)
+		case stdDay, stdZeroDay:
+			t.Day, err = strconv.Atoi(p)
+			if t.Day < 0 || 31 < t.Day {
+				// TODO: be more thorough in date check?
+				rangeErrString = "day"
+			}
+		case stdHour:
+			t.Hour, err = strconv.Atoi(p)
+			if t.Hour < 0 || 24 <= t.Hour {
+				rangeErrString = "hour"
+			}
+		case stdHour12, stdZeroHour12:
+			t.Hour, err = strconv.Atoi(p)
+			if t.Hour < 0 || 12 < t.Hour {
+				rangeErrString = "hour"
+			}
+		case stdMinute, stdZeroMinute:
+			t.Minute, err = strconv.Atoi(p)
+			if t.Minute < 0 || 60 <= t.Minute {
+				rangeErrString = "minute"
+			}
+		case stdSecond, stdZeroSecond:
+			t.Second, err = strconv.Atoi(p)
+			if t.Second < 0 || 60 <= t.Second {
+				rangeErrString = "second"
+			}
+		case stdZulu:
+			if len(p) != 4 {
+				err = os.ErrorString("HHMM value must be 4 digits")
+				break
+			}
+			t.Hour, err = strconv.Atoi(p[0:2])
+			if err != nil {
+				t.Minute, err = strconv.Atoi(p[2:4])
+			}
+		case stdISO8601TZ:
+			if p == "Z" {
+				t.Zone = "UTC"
+				break
+			}
+			// len(p) known to be 5: "-0800"
+			var hr, min int
+			hr, err = strconv.Atoi(p[1:3])
+			if err != nil {
+				min, err = strconv.Atoi(p[3:5])
+			}
+			t.ZoneOffset = (hr*60 + min) * 60 // offset is in seconds
+			switch p[0] {
+			case '+':
+			case '-':
+				t.ZoneOffset = -t.ZoneOffset
+			default:
+				err = errBad
+			}
+		case stdPM:
+			if p == "PM" {
+				pmSet = true
+			} else if p != "AM" {
+				err = errBad
+			}
+		case stdpm:
+			if p == "pm" {
+				pmSet = true
+			} else if p != "am" {
+				err = errBad
+			}
+		case stdTZ:
+			// Does it look like a time zone?
+			if p == "UTC" {
+				t.Zone = p
+				break
+			}
+			// All other time zones look like XXT or XXXT.
+			if len(p) != 3 && len(p) != 4 || p[len(p)-1] != 'T' {
+				err = errBad
+			}
+			for i := 0; i < len(p); i++ {
+				if p[i] < 'A' || 'Z' < p[i] {
+					err = errBad
+				}
+			}
+			if err != nil {
+				break
+			}
+			// It's a valid format.
+			t.Zone = p
+			// Can we find it in the table?
+			for _, z := range zones {
+				if p == z.zone.name {
+					t.ZoneOffset = z.zone.utcoff
+					break
+				}
+			}
+		}
+		if nextIsYear {
+			// Means we didn't see a year when we were expecting one
+			return nil, &ParseError{Layout: alayout, Value: value, Message: formatErr + alayout}
+		}
+		if rangeErrString != "" {
+			return nil, &ParseError{alayout, avalue, reference, p, ": " + rangeErrString + " out of range"}
+		}
+		if err != nil {
+			return nil, &ParseError{alayout, avalue, reference, p, ""}
+		}
+	}
+	if pmSet && t.Hour < 12 {
+		t.Hour += 12
+	}
+	return &t, nil
+}
