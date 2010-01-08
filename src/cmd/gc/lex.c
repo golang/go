@@ -358,7 +358,6 @@ cannedimports(char *file, char *cp)
 	curio.cp = cp;
 	curio.nlsemi = 0;
 
-	pkgmyname = S;
 	typecheckok = 1;
 	incannedimport = 1;
 }
@@ -379,6 +378,12 @@ isfrog(int c)
 	return 0;
 }
 
+typedef struct Loophack Loophack;
+struct Loophack {
+	int v;
+	Loophack *next;
+};
+
 static int32
 _yylex(void)
 {
@@ -387,6 +392,8 @@ _yylex(void)
 	char *cp;
 	Rune rune;
 	Sym *s;
+	static Loophack *lstk;
+	Loophack *h;
 
 	prevlineno = lineno;
 
@@ -718,18 +725,27 @@ l0:
 	 * non-parenthesized '{' becomes an LBODY.
 	 * loophack is normally 0.
 	 * a keyword makes it go up to 1.
-	 * parens increment and decrement when loophack > 0.
+	 * parens push loophack onto a stack and go back to 0.
 	 * a '{' with loophack == 1 becomes LBODY and disables loophack.
 	 *
 	 * i said it was clumsy.
 	 */
 	case '(':
-		if(loophack > 0)
-			loophack++;
+		if(loophack || lstk != nil) {
+			h = malloc(sizeof *h);
+			h->v = loophack;
+			h->next = lstk;
+			lstk = h;
+			loophack = 0;
+		}
 		goto lx;
 	case ')':
-		if(loophack > 0)
-			loophack--;
+		if(lstk != nil) {
+			h = lstk;
+			loophack = h->v;
+			lstk = h->next;
+			free(h);
+		}
 		goto lx;
 	case '{':
 		if(loophack == 1) {
