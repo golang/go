@@ -224,63 +224,69 @@ func equal(s []byte, n int, t []byte) bool {
 // Action tokens on a line by themselves drop the white space on
 // either side, up to and including the newline.
 func (t *Template) nextItem() []byte {
-	sawLeft := false // are we waiting for an opening delimiter?
 	special := false // is this a {.foo} directive, which means trim white space?
 	// Delete surrounding white space if this {.foo} is the only thing on the line.
-	trim_white := t.p == 0 || t.buf[t.p-1] == '\n'
-	only_white := true // we have seen only white space so far
-	var i int
+	trimSpace := t.p == 0 || t.buf[t.p-1] == '\n'
 	start := t.p
-Loop:
-	for i = t.p; i < len(t.buf); i++ {
-		switch {
-		case t.buf[i] == '\n':
-			t.linenum++
-			i++
-			break Loop
-		case white(t.buf[i]):
-			// white space, do nothing
-		case !sawLeft && equal(t.buf, i, t.ldelim): // sawLeft checked because delims may be equal
-			// anything interesting already on the line?
-			if !only_white {
-				break Loop
-			}
-			// is it a directive or comment?
-			j := i + len(t.ldelim) // position after delimiter
-			if j+1 < len(t.buf) && (t.buf[j] == '.' || t.buf[j] == '#') {
-				special = true
-				if trim_white && only_white {
-					start = i
-				}
-			} else if i > t.p { // have some text accumulated so stop before delimiter
-				break Loop
-			}
-			sawLeft = true
-			i = j - 1
-		case equal(t.buf, i, t.rdelim):
-			if !sawLeft {
-				t.parseError("unmatched closing delimiter")
-				return nil
-			}
-			sawLeft = false
-			i += len(t.rdelim)
-			break Loop
-		default:
-			only_white = false
+	var i int
+	newline := func() {
+		t.linenum++
+		i++
+	}
+	// Leading white space up to but not including newline
+	for i = start; i < len(t.buf); i++ {
+		if t.buf[i] == '\n' || !white(t.buf[i]) {
+			break
 		}
 	}
-	if sawLeft {
+	if trimSpace {
+		start = i
+	} else if i > start {
+		// white space is valid text
+		t.p = i
+		return t.buf[start:i]
+	}
+	// What's left is nothing, newline, delimited string, or plain text
+Switch:
+	switch {
+	case i == len(t.buf):
+		// EOF; nothing to do
+	case t.buf[i] == '\n':
+		newline()
+	case equal(t.buf, i, t.ldelim):
+		i += len(t.ldelim) // position after delimiter
+		if i+1 < len(t.buf) && (t.buf[i] == '.' || t.buf[i] == '#') {
+			special = true
+		}
+		for ; i < len(t.buf); i++ {
+			if t.buf[i] == '\n' {
+				break
+			}
+			if equal(t.buf, i, t.rdelim) {
+				i += len(t.rdelim)
+				break Switch
+			}
+		}
 		t.parseError("unmatched opening delimiter")
 		return nil
+	default:
+		for ; i < len(t.buf); i++ {
+			if t.buf[i] == '\n' {
+				newline()
+				break
+			}
+			if equal(t.buf, i, t.ldelim) {
+				break
+			}
+		}
 	}
 	item := t.buf[start:i]
-	if special && trim_white {
+	if special && trimSpace {
 		// consume trailing white space
 		for ; i < len(t.buf) && white(t.buf[i]); i++ {
 			if t.buf[i] == '\n' {
-				t.linenum++
-				i++
-				break // stop after newline
+				newline()
+				break // stop before newline
 			}
 		}
 	}
