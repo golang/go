@@ -744,6 +744,9 @@ mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
 {
 	byte *res;
 
+	if(gcwaiting)
+		gosched();
+
 	res = nil;
 	if(hash_lookup(h, ak, (void**)&res)) {
 		*pres = true;
@@ -811,6 +814,9 @@ mapassign(Hmap *h, byte *ak, byte *av)
 {
 	byte *res;
 	int32 hit;
+
+	if(gcwaiting)
+		gosched();
 
 	res = nil;
 	if(av == nil) {
@@ -908,6 +914,9 @@ mapiterinit(Hmap *h)
 void
 runtime·mapiternext(struct hash_iter *it)
 {
+	if(gcwaiting)
+		gosched();
+
 	it->data = hash_next(it);
 	if(debug) {
 		prints("runtime·mapiternext: iter=");

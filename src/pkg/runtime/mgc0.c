@@ -244,7 +244,7 @@ gc(int32 force)
 		sweep();
 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
 	}
-	starttheworld();
 	m->gcing = 0;
 	semrelease(&gcsema);
+	starttheworld();
 }

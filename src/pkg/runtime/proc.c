@@ -14,6 +14,8 @@ G	g0;	// idle goroutine for m0
 
 static	int32	debug	= 0;
 
+int32	gcwaiting;
+
 // Go scheduler
 //
 // The go scheduler's job is to match ready-to-run goroutines (`g's)
@@ -362,6 +364,7 @@ void
 stoptheworld(void)
 {
 	lock(&sched);
+	gcwaiting = 1;
 	sched.mcpumax = 1;
 	while(sched.mcpu > 1) {
 		noteclear(&sched.stopped);
@@ -379,6 +382,7 @@ void
 starttheworld(void)
 {
 	lock(&sched);
+	gcwaiting = 0;
 	sched.mcpumax = sched.gomaxprocs;
 	matchmg();
 	unlock(&sched);

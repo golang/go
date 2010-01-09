@@ -316,6 +316,7 @@ extern	int32	gomaxprocs;
 extern	int32	panicking;
 extern	int32	maxround;
 extern	int32	fd;	// usually 1; set to 2 when panicking
+extern	int32	gcwaiting;		// gc is waiting to run
 int8*	goos;
 
 /*
