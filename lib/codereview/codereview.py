@@ -122,14 +122,14 @@ class CL(object):
 		self.url = ''
 		self.local = False
 		self.web = False
-		self.original_author = None	# None means current user
+		self.copied_from = None	# None means current user
 		self.mailed = False
 
 	def DiskText(self):
 		cl = self
 		s = ""
-		if cl.original_author:
-			s += "Author: " + cl.original_author + "\n\n"
+		if cl.copied_from:
+			s += "Author: " + cl.copied_from + "\n\n"
 		s += "Mailed: " + str(self.mailed) + "\n"
 		s += "Description:\n"
 		s += Indent(cl.desc, "\t")
@@ -142,8 +142,8 @@ class CL(object):
 		cl = self
 		s = _change_prolog
 		s += "\n"
-		if cl.original_author:
-			s += "Author: " + cl.original_author + "\n"
+		if cl.copied_from:
+			s += "Author: " + cl.copied_from + "\n"
 		if cl.url != '':
 			s += 'URL: ' + cl.url + '	# cannot edit\n\n'
 		s += "Reviewer: " + JoinComma(cl.reviewer) + "\n"
@@ -167,8 +167,8 @@ class CL(object):
 		s = cl.name + ":" + "\n"
 		s += Indent(cl.desc, "\t")
 		s += "\n"
-		if cl.original_author:
-			s += "\tAuthor: " + cl.original_author + "\n"
+		if cl.copied_from:
+			s += "\tAuthor: " + cl.copied_from + "\n"
 		s += "\tReviewer: " + JoinComma(cl.reviewer) + "\n"
 		s += "\tCC: " + JoinComma(cl.cc) + "\n"
 		s += "\tFiles:\n"
@@ -187,7 +187,7 @@ class CL(object):
 		if sys.platform == "win32" and os.path.isfile(path):
 			os.remove(path)
 		os.rename(path+'!', path)
-		if self.web and not self.original_author:
+		if self.web and not self.copied_from:
 			EditDesc(self.name, desc=self.desc,
 				reviewers=JoinComma(self.reviewer), cc=JoinComma(self.cc))
 
@@ -317,7 +317,7 @@ def ParseCL(text, name):
 
 	cl = CL(name)
 	if sections['Author']:
-		cl.original_author = sections['Author']
+		cl.copied_from = sections['Author']
 	cl.desc = sections['Description']
 	for line in sections['Files'].split('\n'):
 		i = line.find('#')
@@ -390,7 +390,7 @@ def LoadCL(ui, repo, name, web=True):
 			return None, "malformed response loading CL data from code review server"
 		cl.reviewer = SplitCommaSpace(f['reviewers'])
 		cl.cc = SplitCommaSpace(f['cc'])
-		if cl.local and cl.original_author and cl.desc:
+		if cl.local and cl.copied_from and cl.desc:
 			# local copy of CL written by someone else
 			# and we saved a description.  use that one,
 			# so that committers can edit the description
@@ -754,7 +754,7 @@ def change(ui, repo, *pats, **opts):
 		if not cl.local:
 			return "cannot change non-local CL " + name
 		if opts["delete"]:
-			if cl.original_author:
+			if cl.copied_from:
 				return "original author must delete CL; hg change -D will remove locally"
 			PostMessage(ui, cl.name, "*** Abandoned ***")
 			EditDesc(cl.name, closed="checked")
@@ -1026,8 +1026,8 @@ def submit(ui, repo, *pats, **opts):
 		return err
 
 	user = None
-	if cl.original_author:
-		user = cl.original_author
+	if cl.copied_from:
+		user = cl.copied_from
 	userline = CheckContributor(ui, repo, user)
 
 	about = ""
@@ -1047,7 +1047,7 @@ def submit(ui, repo, *pats, **opts):
 		return "cannot submit non-local CL"
 
 	# upload, to sync current patch and also get change number if CL is new.
-	if not cl.original_author:
+	if not cl.copied_from:
 		cl.Upload(ui, repo, gofmt_just_warn=True)
 
 	# check gofmt for real; allowed upload to warn in order to save CL.
@@ -1056,10 +1056,10 @@ def submit(ui, repo, *pats, **opts):
 
 	about += "%s%s\n" % (server_url_base, cl.name)
 
-	if cl.original_author:
+	if cl.copied_from:
 		about += "\nCommitter: " + CheckContributor(ui, repo, None) + "\n"
 
-	if not cl.mailed:		# in case this is TBR
+	if not cl.mailed and not cl.copied_from:		# in case this is TBR
 		cl.Mail(ui, repo)
 
 	# submit changes locally
@@ -1119,7 +1119,7 @@ def submit(ui, repo, *pats, **opts):
 	# so that the issue stops showing up in their "My Issues" page.
 	PostMessage(ui, cl.name, pmsg, reviewers="", cc=JoinComma(cl.reviewer+cl.cc))
 
-	if not cl.original_author:
+	if not cl.copied_from:
 		EditDesc(cl.name, closed="checked")
 	cl.Delete(ui, repo)
 
@@ -1166,7 +1166,7 @@ def sync_changes(ui, repo):
 				if err != "":
 					ui.warn("loading CL %s: %s\n" % (clname, err))
 					continue
-				if not cl.original_author:
+				if not cl.copied_from:
 					EditDesc(cl.name, closed="checked")
 				cl.Delete(ui, repo)
 
@@ -1421,7 +1421,7 @@ def DownloadCL(ui, repo, clname):
 		data = MySend(url, force_auth=False)
 	except:
 		ui.warn("error looking up %s: %s\n" % (nick, ExceptionDetail()))
-		cl.original_author = nick+"@needtofix"
+		cl.copied_from = nick+"@needtofix"
 		return cl, diffdata, ""
 	match = re.match(r"<b>(.*) \((.*)\)</b>", data)
 	if not match:
@@ -1437,7 +1437,7 @@ def DownloadCL(ui, repo, clname):
 
 	# Print warning if email is not in CONTRIBUTORS file.
 	FindContributor(ui, repo, email)
-	cl.original_author = email
+	cl.copied_from = email
 
 	return cl, diffdata, ""
 
