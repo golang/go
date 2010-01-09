@@ -174,6 +174,9 @@ chansend(Hchan *c, byte *ep, bool *pres)
 	SudoG *sg;
 	G* gp;
 
+	if(gcwaiting)
+		gosched();
+
 	if(debug) {
 		prints("chansend: chan=");
 		runtime·printpointer(c);
@@ -276,6 +279,9 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 {
 	SudoG *sg;
 	G *gp;
+
+	if(gcwaiting)
+		gosched();
 
 	if(debug) {
 		prints("chanrecv: chan=");
@@ -631,6 +637,9 @@ runtime·selectgo(Select *sel)
 	G *gp;
 	byte *as;
 
+	if(gcwaiting)
+		gosched();
+
 	if(debug) {
 		prints("selectgo: sel=");
 		runtime·printpointer(sel);
@@ -907,6 +916,9 @@ runtime·closechan(Hchan *c)
 {
 	SudoG *sg;
 	G* gp;
+
+	if(gcwaiting)
+		gosched();
 
 	lock(c);
 	incerr(c);

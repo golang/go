@@ -27,10 +27,11 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
 	void *v;
 	uint32 *ref;
 
+	if(gcwaiting && g != m->g0)
+		gosched();
 	if(m->mallocing)
 		throw("malloc/free - deadlock");
 	m->mallocing = 1;
-
 	if(size == 0)
 		size = 1;
 
