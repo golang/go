@@ -529,3 +529,9 @@ func BenchmarkAcos(b *testing.B) {
 		Acos(.5)
 	}
 }
+
+func BenchmarkSqrt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Sqrt(10)
+	}
+}
