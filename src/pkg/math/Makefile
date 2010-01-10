@@ -9,6 +9,9 @@ TARG=math
 OFILES_amd64=\
 	sqrt_amd64.$O\
 
+OFILES_386=\
+	sqrt_386.$O\
+
 OFILES=\
 	$(OFILES_$(GOARCH))
 
@@ -29,6 +32,7 @@ ALLGOFILES=\
 	sin.go\
 	sinh.go\
 	sqrt.go\
+	sqrt_port.go\
 	tan.go\
 	tanh.go\
 	unsafe.go\
