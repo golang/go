@@ -114,7 +114,7 @@ func (p *printer) identList(list []*ast.Ident, multiLine *bool) {
 	for i, x := range list {
 		xlist[i] = x
 	}
-	p.exprList(noPos, xlist, 1, commaSep, multiLine)
+	p.exprList(noPos, xlist, 1, commaSep, multiLine, noPos)
 }
 
 
@@ -125,7 +125,7 @@ func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
 	for i, x := range list {
 		xlist[i] = x
 	}
-	p.exprList(noPos, xlist, 1, plusSep, multiLine)
+	p.exprList(noPos, xlist, 1, plusSep, multiLine, noPos)
 }
 
 
@@ -136,7 +136,7 @@ const (
 	blankEnd                // print a blank after a non-empty list
 	plusSep                 // elements are separared by + operators
 	commaSep                // elements are separated by commas
-	commaTerm               // elements are terminated by comma
+	commaTerm               // list is optionally terminated by a comma
 	noIndent                // no extra indentation in multi-line lists
 )
 
@@ -166,7 +166,7 @@ func (p *printer) beforeComment(pos token.Position) token.Position {
 // source lines, the original line breaks are respected between
 // expressions. Sets multiLine to true if the list spans multiple
 // lines.
-func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode exprListMode, multiLine *bool) {
+func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode exprListMode, multiLine *bool, next token.Position) {
 	if len(list) == 0 {
 		return
 	}
@@ -175,11 +175,14 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		p.print(blank)
 	}
 
-	// TODO(gri): endLine may be incorrect as it is really the beginning
-	//            of the last list entry. There may be only one, very long
-	//            entry in which case line == endLine.
 	line := list[0].Pos().Line
-	endLine := list[len(list)-1].Pos().Line
+	endLine := next.Line
+	if endLine == 0 {
+		// TODO(gri): endLine may be incorrect as it is really the beginning
+		//            of the last list entry. There may be only one, very long
+		//            entry in which case line == endLine.
+		endLine = list[len(list)-1].Pos().Line
+	}
 
 	if prev.IsValid() && prev.Line == line && line == endLine {
 		// all list entries on a single line
@@ -238,7 +241,8 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		p.expr0(x, depth, multiLine)
 	}
 
-	if mode&commaTerm != 0 {
+	if mode&commaTerm != 0 && next.IsValid() && p.pos.Line < next.Line {
+		// print a terminating comma if the next token is on a new line
 		p.print(token.COMMA)
 		if ws == ignore && mode&noIndent == 0 {
 			// unindent if we indented
@@ -304,8 +308,6 @@ func identListSize(list []*ast.Ident, maxSize int) (size int) {
 	for i, x := range list {
 		if i > 0 {
 			size += 2 // ", "
-
-
 		}
 		size += len(x.Value)
 		if size >= maxSize {
@@ -329,8 +331,6 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 	namesSize := identListSize(f.Names, maxSize)
 	if namesSize > 0 {
 		namesSize = 1 // blank between names and types
-
-
 	}
 	typeSize := p.nodeSize(f.Type, maxSize)
 	return namesSize+typeSize <= maxSize
@@ -743,7 +743,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		}
 		p.expr1(x.Fun, token.HighestPrec, depth, 0, multiLine)
 		p.print(x.Lparen, token.LPAREN)
-		p.exprList(x.Lparen, x.Args, depth, commaSep, multiLine)
+		mode := commaSep
+		if p.Mode&NoSemis != 0 {
+			mode |= commaTerm
+		}
+		p.exprList(x.Lparen, x.Args, depth, mode, multiLine, x.Rparen)
 		p.print(x.Rparen, token.RPAREN)
 
 	case *ast.CompositeLit:
@@ -762,7 +766,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 			}
 		}
 		p.print(x.Lbrace, token.LBRACE)
-		p.exprList(x.Lbrace, x.Elts, 1, mode, multiLine)
+		p.exprList(x.Lbrace, x.Elts, 1, mode, multiLine, x.Rbrace)
 		p.print(x.Rbrace, token.RBRACE)
 
 	case *ast.Ellipsis:
@@ -969,9 +973,9 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		if len(s.Lhs) > 1 && len(s.Rhs) > 1 {
 			depth++
 		}
-		p.exprList(s.Pos(), s.Lhs, depth, commaSep, multiLine)
+		p.exprList(s.Pos(), s.Lhs, depth, commaSep, multiLine, s.TokPos)
 		p.print(blank, s.TokPos, s.Tok)
-		p.exprList(s.TokPos, s.Rhs, depth, blankStart|commaSep, multiLine)
+		p.exprList(s.TokPos, s.Rhs, depth, blankStart|commaSep, multiLine, noPos)
 
 	case *ast.GoStmt:
 		p.print(token.GO, blank)
@@ -984,7 +988,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 	case *ast.ReturnStmt:
 		p.print(token.RETURN)
 		if s.Results != nil {
-			p.exprList(s.Pos(), s.Results, 1, blankStart|commaSep, multiLine)
+			p.exprList(s.Pos(), s.Results, 1, blankStart|commaSep, multiLine, noPos)
 		}
 
 	case *ast.BranchStmt:
@@ -1020,7 +1024,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 	case *ast.CaseClause:
 		if s.Values != nil {
 			p.print(token.CASE)
-			p.exprList(s.Pos(), s.Values, 1, blankStart|commaSep, multiLine)
+			p.exprList(s.Pos(), s.Values, 1, blankStart|commaSep, multiLine, s.Colon)
 		} else {
 			p.print(token.DEFAULT)
 		}
@@ -1038,7 +1042,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 	case *ast.TypeCaseClause:
 		if s.Types != nil {
 			p.print(token.CASE)
-			p.exprList(s.Pos(), s.Types, 1, blankStart|commaSep, multiLine)
+			p.exprList(s.Pos(), s.Types, 1, blankStart|commaSep, multiLine, s.Colon)
 		} else {
 			p.print(token.DEFAULT)
 		}
@@ -1159,7 +1163,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 			}
 			if s.Values != nil {
 				p.print(blank, token.ASSIGN)
-				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine)
+				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
 				optSemi = false
 			}
 		} else {
@@ -1174,7 +1178,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 			if s.Values != nil {
 				p.print(vtab)
 				p.print(token.ASSIGN)
-				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine)
+				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
 				optSemi = false
 				extraTabs = 0
 			}

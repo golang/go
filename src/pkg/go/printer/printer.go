@@ -745,7 +745,7 @@ func (p *printer) print(args ...) {
 			// escape all literals so they pass through unchanged
 			// (note that valid Go programs cannot contain esc ('\xff')
 			// bytes since they do not appear in legal UTF-8 sequences)
-			// TODO(gri): this this more efficiently.
+			// TODO(gri): do this more efficiently.
 			data = strings.Bytes("\xff" + string(data) + "\xff")
 		case token.Token:
 			if p.Styler != nil {

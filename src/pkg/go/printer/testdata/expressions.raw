@@ -221,7 +221,7 @@ func _() {
 
 
 func _() {
-	// not not add extra indentation to multi-line string lists
+	// do not add extra indentation to multi-line string lists
 	_ = "foo" + "bar";
 	_ = "foo" +
 		"bar" +
@@ -306,6 +306,32 @@ func _() {
 		"b" +	// comment
 		"c";
 	_ = "ba0408" + "7265717569726564";	// field 71, encoding 2, string "required"
+}
+
+
+// Correct placement of terminating comma/closing parentheses in multi-line calls.
+func _() {
+	f(1,
+		2,
+		3);
+	f(1,
+		2,
+		3);
+	// TODO(gri) the cases below are not correct yet
+	f(1,
+		2,
+		3);	// comment
+	f(1,
+		2,
+		3	// comment
+	);
+	f(1,
+		2,
+		3);	// comment
+	f(1,
+		2,
+		3	// comment
+	);
 }
 
 
