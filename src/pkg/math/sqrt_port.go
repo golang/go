@@ -4,6 +4,10 @@
 
 package math
 
+/*
+	Floating-point square root.
+*/
+
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
 // came with this notice.  The go code is a simplified

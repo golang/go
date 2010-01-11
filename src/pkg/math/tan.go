@@ -6,8 +6,8 @@ package math
 
 
 /*
- *	floating point tangent
- */
+	Floating point tangent.
+*/
 
 // Tan returns the tangent of x.
 func Tan(x float64) float64 {

@@ -5,8 +5,13 @@
 package math
 
 
+/*
+	Floating-point sine and cosine.
+
+	Coefficients are #5077 from Hart & Cheney. (18.80D)
+*/
+
 func sinus(x float64, quad int) float64 {
-	// Coefficients are #3370 from Hart & Cheney (18.80D).
 	const (
 		P0 = .1357884097877375669092680e8
 		P1 = -.4942908100902844161158627e7

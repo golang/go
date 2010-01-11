@@ -5,12 +5,13 @@
 package math
 
 /*
- *	hypot -- sqrt(p*p + q*q), but overflows only if the result does.
- *	See Cleve Moler and Donald Morrison,
- *	Replacing Square Roots by Pythagorean Sums
- *	IBM Journal of Research and Development,
- *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
- */
+	Hypot -- sqrt(p*p + q*q), but overflows only if the result does.
+	See:
+		Cleve Moler and Donald Morrison,
+		Replacing Square Roots by Pythagorean Sums
+		IBM Journal of Research and Development,
+		Vol. 27, Number 6, pp. 577-581, Nov. 1983
+*/
 
 // Hypot computes Sqrt(p*p + q*q), taking care to avoid
 // unnecessary overflow and underflow.

@@ -6,12 +6,11 @@ package math
 
 
 /*
- *	tanh(x) computes the hyperbolic tangent of its floating
- *	point argument.
- *
- *	sinh and cosh are called except for large arguments, which
- *	would cause overflow improperly.
- */
+	Floating-point hyperbolic tangent.
+
+	Sinh and Cosh are called except for large arguments, which
+	would cause overflow improperly.
+*/
 
 // Tanh computes the hyperbolic tangent of x.
 func Tanh(x float64) float64 {

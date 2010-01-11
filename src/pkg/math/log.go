@@ -4,6 +4,9 @@
 
 package math
 
+/*
+	Floating-point logarithm.
+*/
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/e_log.c
