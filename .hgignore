@@ -20,6 +20,7 @@ src/cmd/gc/mkbuiltin1
 src/cmd/gc/opnames.h
 src/pkg/Make.deps
 src/pkg/exp/ogle/ogle
+src/pkg/os/signal/unix.go
 src/pkg/runtime/cgo2c
 src/pkg/runtime/*/asm.h
 src/pkg/runtime/runtime.acid.*
