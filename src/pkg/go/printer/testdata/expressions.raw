@@ -5,233 +5,233 @@
 package expressions
 
 type T struct {
-	x, y, z int;
+	x, y, z int
 }
 
 var (
-	a, b, c, d, e	int;
-	under_bar	int;
-	longIdentifier1, longIdentifier2, longIdentifier3	int;
-	t0, t1, t2	T;
-	s	string;
-	p	*int;
+	a, b, c, d, e	int
+	under_bar	int
+	longIdentifier1, longIdentifier2, longIdentifier3	int
+	t0, t1, t2	T
+	s	string
+	p	*int
 )
 
 
 func _() {
 	// no spaces around simple or parenthesized expressions
-	_ = a + b;
-	_ = a + b + c;
-	_ = a + b - c;
-	_ = a - b - c;
-	_ = a + (b * c);
-	_ = a + (b / c);
-	_ = a - (b % c);
-	_ = 1 + a;
-	_ = a + 1;
-	_ = a + b + 1;
-	_ = s[1:2];
-	_ = s[a:b];
-	_ = s[0:len(s)];
-	_ = s[0] << 1;
-	_ = (s[0] << 1) & 0xf;
-	_ = s[0]<<2 | s[1]>>4;
-	_ = "foo" + s;
-	_ = s + "foo";
-	_ = 'a' + 'b';
-	_ = len(s) / 2;
-	_ = len(t0.x) / a;
+	_ = a + b
+	_ = a + b + c
+	_ = a + b - c
+	_ = a - b - c
+	_ = a + (b * c)
+	_ = a + (b / c)
+	_ = a - (b % c)
+	_ = 1 + a
+	_ = a + 1
+	_ = a + b + 1
+	_ = s[1:2]
+	_ = s[a:b]
+	_ = s[0:len(s)]
+	_ = s[0] << 1
+	_ = (s[0] << 1) & 0xf
+	_ = s[0]<<2 | s[1]>>4
+	_ = "foo" + s
+	_ = s + "foo"
+	_ = 'a' + 'b'
+	_ = len(s) / 2
+	_ = len(t0.x) / a
 
 	// spaces around expressions of different precedence or expressions containing spaces
-	_ = a + -b;
-	_ = a - ^b;
-	_ = a / *p;
-	_ = a + b*c;
-	_ = 1 + b*c;
-	_ = a + 2*c;
-	_ = a + c*2;
-	_ = 1 + 2*3;
-	_ = s[1 : 2*3];
-	_ = s[a : b-c];
-	_ = s[0:];
-	_ = s[a+b];
-	_ = s[a+b:];
-	_ = a[a<<b+1];
-	_ = a[a<<b+1:];
-	_ = s[a+b : len(s)];
-	_ = s[len(s):-a];
-	_ = s[a : len(s)+1];
-	_ = s[a:len(s)+1] + s;
+	_ = a + -b
+	_ = a - ^b
+	_ = a / *p
+	_ = a + b*c
+	_ = 1 + b*c
+	_ = a + 2*c
+	_ = a + c*2
+	_ = 1 + 2*3
+	_ = s[1 : 2*3]
+	_ = s[a : b-c]
+	_ = s[0:]
+	_ = s[a+b]
+	_ = s[a+b:]
+	_ = a[a<<b+1]
+	_ = a[a<<b+1:]
+	_ = s[a+b : len(s)]
+	_ = s[len(s):-a]
+	_ = s[a : len(s)+1]
+	_ = s[a:len(s)+1] + s
 
 	// spaces around operators with equal or lower precedence than comparisons
-	_ = a == b;
-	_ = a != b;
-	_ = a > b;
-	_ = a >= b;
-	_ = a < b;
-	_ = a <= b;
-	_ = a < b && c > d;
-	_ = a < b || c > d;
+	_ = a == b
+	_ = a != b
+	_ = a > b
+	_ = a >= b
+	_ = a < b
+	_ = a <= b
+	_ = a < b && c > d
+	_ = a < b || c > d
 
 	// spaces around "long" operands
-	_ = a + longIdentifier1;
-	_ = longIdentifier1 + a;
-	_ = longIdentifier1 + longIdentifier2*longIdentifier3;
-	_ = s + "a longer string";
+	_ = a + longIdentifier1
+	_ = longIdentifier1 + a
+	_ = longIdentifier1 + longIdentifier2*longIdentifier3
+	_ = s + "a longer string"
 
 	// some selected cases
-	_ = a + t0.x;
-	_ = a + t0.x + t1.x*t2.x;
-	_ = a + b + c + d + e + 2*3;
-	_ = a + b + c + 2*3 + d + e;
-	_ = (a + b + c) * 2;
-	_ = a - b + c - d + (a + b + c) + d&e;
-	_ = under_bar - 1;
-	_ = Open(dpath+"/file", O_WRONLY|O_CREAT, 0666);
-	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx);
+	_ = a + t0.x
+	_ = a + t0.x + t1.x*t2.x
+	_ = a + b + c + d + e + 2*3
+	_ = a + b + c + 2*3 + d + e
+	_ = (a + b + c) * 2
+	_ = a - b + c - d + (a + b + c) + d&e
+	_ = under_bar - 1
+	_ = Open(dpath+"/file", O_WRONLY|O_CREAT, 0666)
+	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx)
 }
 
 
 func _() {
-	a + b;
-	a + b + c;
-	a + b*c;
-	a + (b * c);
-	(a + b) * c;
-	a + (b * c * d);
-	a + (b*c + d);
+	a + b
+	a + b + c
+	a + b*c
+	a + (b * c)
+	(a + b) * c
+	a + (b * c * d)
+	a + (b*c + d)
 
-	1 << x;
-	-1 << x;
-	1<<x - 1;
-	-1<<x - 1;
+	1 << x
+	-1 << x
+	1<<x - 1
+	-1<<x - 1
 
-	f(a + b);
-	f(a + b + c);
-	f(a + b*c);
-	f(a + (b * c));
-	f(1<<x-1, 1<<x-2);
+	f(a + b)
+	f(a + b + c)
+	f(a + b*c)
+	f(a + (b * c))
+	f(1<<x-1, 1<<x-2)
 
-	1<<d.logWindowSize - 1;
+	1<<d.logWindowSize - 1
 
-	buf = make(x, 2*cap(b.buf)+n);
+	buf = make(x, 2*cap(b.buf)+n)
 
-	dst[i*3+2] = dbuf[0] << 2;
-	dst[i*3+2] = dbuf[0]<<2 | dbuf[1]>>4;
+	dst[i*3+2] = dbuf[0] << 2
+	dst[i*3+2] = dbuf[0]<<2 | dbuf[1]>>4
 
-	b.buf = b.buf[0 : b.off+m+n];
-	b.buf = b.buf[0 : b.off+m*n];
-	f(b.buf[0 : b.off+m+n]);
+	b.buf = b.buf[0 : b.off+m+n]
+	b.buf = b.buf[0 : b.off+m*n]
+	f(b.buf[0 : b.off+m+n])
 
-	signed += ' ' * 8;
-	tw.octal(header[148:155], chksum);
+	signed += ' ' * 8
+	tw.octal(header[148:155], chksum)
 
-	x > 0 && i >= 0;
+	x > 0 && i >= 0
 
-	x1, x0 := x>>w2, x&m2;
-	z0 = t1<<w2 + t0;
-	z1 = (t1 + t0>>w2) >> w2;
-	q1, r1 := x1/d1, x1%d1;
-	r1 = r1*b2 | x0>>w2;
-	x1 = (x1 << z) | (x0 >> (uint(w) - z));
-	x1 = x1<<z | x0>>(uint(w)-z);
+	x1, x0 := x>>w2, x&m2
+	z0 = t1<<w2 + t0
+	z1 = (t1 + t0>>w2) >> w2
+	q1, r1 := x1/d1, x1%d1
+	r1 = r1*b2 | x0>>w2
+	x1 = (x1 << z) | (x0 >> (uint(w) - z))
+	x1 = x1<<z | x0>>(uint(w)-z)
 
-	buf[0 : len(buf)+1];
-	buf[0 : n+1];
+	buf[0 : len(buf)+1]
+	buf[0 : n+1]
 
-	a, b = b, a;
-	a = b + c;
-	a = b*c + d;
-	a*b + c;
-	a - b - c;
-	a - (b - c);
-	a - b*c;
-	a - (b * c);
-	a * b / c;
-	a / *b;
-	x[a|^b];
-	x[a / *b];
-	a & ^b;
-	a + +b;
-	a - -b;
-	x[a*-b];
-	x[a + +b];
-	x ^ y ^ z;
-	b[a>>24] ^ b[(a>>16)&0xFF] ^ b[(a>>8)&0xFF] ^ b[a&0xFF];
-	len(longVariableName) * 2;
+	a, b = b, a
+	a = b + c
+	a = b*c + d
+	a*b + c
+	a - b - c
+	a - (b - c)
+	a - b*c
+	a - (b * c)
+	a * b / c
+	a / *b
+	x[a|^b]
+	x[a / *b]
+	a & ^b
+	a + +b
+	a - -b
+	x[a*-b]
+	x[a + +b]
+	x ^ y ^ z
+	b[a>>24] ^ b[(a>>16)&0xFF] ^ b[(a>>8)&0xFF] ^ b[a&0xFF]
+	len(longVariableName) * 2
 
-	token(matchType + xlength<<lengthShift + xoffset);
+	token(matchType + xlength<<lengthShift + xoffset)
 }
 
 
 func _() {
-	_ = T{};
-	_ = struct{}{};
-	_ = [10]T{};
-	_ = [...]T{};
-	_ = []T{};
-	_ = map[int]T{};
+	_ = T{}
+	_ = struct{}{}
+	_ = [10]T{}
+	_ = [...]T{}
+	_ = []T{}
+	_ = map[int]T{}
 
-	_ = (T){};
-	_ = (struct{}){};
-	_ = ([10]T){};
-	_ = ([...]T){};
-	_ = ([]T){};
-	_ = (map[int]T){};
+	_ = (T){}
+	_ = (struct{}){}
+	_ = ([10]T){}
+	_ = ([...]T){}
+	_ = ([]T){}
+	_ = (map[int]T){}
 }
 
 
 // one-line structs/interfaces in composite literals (up to a threshold)
 func _() {
-	_ = struct{}{};
-	_ = struct{ x int }{0};
-	_ = struct{ x, y, z int }{0, 1, 2};
-	_ = struct{ int }{0};
+	_ = struct{}{}
+	_ = struct{ x int }{0}
+	_ = struct{ x, y, z int }{0, 1, 2}
+	_ = struct{ int }{0}
 	_ = struct {
 		s struct {
-			int;
-		};
-	}{struct{ int }{0}};	// compositeLit context not propagated => multiLine result
+			int
+		}
+	}{struct{ int }{0}}	// compositeLit context not propagated => multiLine result
 }
 
 
 func _() {
 	// do not modify literals
-	_ = "tab1	tab2	tab3	end";	// string contains 3 tabs
-	_ = "tab1 tab2 tab3 end";	// same string with 3 blanks - may be unaligned because editors see tabs in strings
-	_ = "";	// this comment should be aligned with the one on the previous line
-	_ = ``;
+	_ = "tab1	tab2	tab3	end"	// string contains 3 tabs
+	_ = "tab1 tab2 tab3 end"	// same string with 3 blanks - may be unaligned because editors see tabs in strings
+	_ = ""	// this comment should be aligned with the one on the previous line
+	_ = ``
 	_ = `
-`;
+`
 	_ = `foo
-		bar`;
+		bar`
 }
 
 
 func _() {
 	// one-line function literals
-	_ = func() {};
-	_ = func() int { return 0 };
-	_ = func(x, y int) bool { return x < y };
+	_ = func() {}
+	_ = func() int { return 0 }
+	_ = func(x, y int) bool { return x < y }
 
-	f(func() {});
-	f(func() int { return 0 });
-	f(func(x, y int) bool { return x < y });
+	f(func() {})
+	f(func() int { return 0 })
+	f(func(x, y int) bool { return x < y })
 }
 
 
 func _() {
 	// do not add extra indentation to multi-line string lists
-	_ = "foo" + "bar";
+	_ = "foo" + "bar"
 	_ = "foo" +
 		"bar" +
-		"bah";
+		"bah"
 	_ = []string{
 		"abc" +
 			"def",
 		"foo" +
 			"bar",
-	};
+	}
 }
 
 
@@ -257,18 +257,18 @@ func _() {
 	_ = F1 +
 		`string = "%s";` +
 		`ptr = *;` +
-		`datafmt.T2 = s ["-" p "-"];`;
+		`datafmt.T2 = s ["-" p "-"];`
 
 	_ =
 		`datafmt "datafmt";` +
 			`default = "%v";` +
 			`array = *;` +
-			`datafmt.T3 = s  {" " a a / ","};`;
+			`datafmt.T3 = s  {" " a a / ","};`
 
 	_ = `datafmt "datafmt";` +
 		`default = "%v";` +
 		`array = *;` +
-		`datafmt.T3 = s  {" " a a / ","};`;
+		`datafmt.T3 = s  {" " a a / ","};`
 }
 
 
@@ -276,24 +276,24 @@ func _() {
 	// respect source lines in multi-line expressions
 	_ = a +
 		b +
-		c;
+		c
 	_ = a < b ||
-		b < a;
+		b < a
 	_ = "933262154439441526816992388562667004907159682643816214685929" +
 		"638952175999932299156089414639761565182862536979208272237582" +
-		"51185210916864000000000000000000000000";	// 100!
-	_ = "170141183460469231731687303715884105727";	// prime
+		"51185210916864000000000000000000000000"	// 100!
+	_ = "170141183460469231731687303715884105727"	// prime
 }
 
 
 // Alignment after overlong lines
 const (
-	_		= "991";
-	_		= "2432902008176640000";	// 20!
+	_		= "991"
+	_		= "2432902008176640000"	// 20!
 	_		= "933262154439441526816992388562667004907159682643816214685929" +
 		"638952175999932299156089414639761565182862536979208272237582" +
-		"51185210916864000000000000000000000000";	// 100!
-	_		= "170141183460469231731687303715884105727";	// prime
+		"51185210916864000000000000000000000000"	// 100!
+	_		= "170141183460469231731687303715884105727"	// prime
 )
 
 
@@ -301,11 +301,11 @@ const (
 func _() {
 	_ = a +	// comment
 		b +	// comment
-		c;
+		c
 	_ = "a" +	// comment
 		"b" +	// comment
-		"c";
-	_ = "ba0408" + "7265717569726564";	// field 71, encoding 2, string "required"
+		"c"
+	_ = "ba0408" + "7265717569726564"	// field 71, encoding 2, string "required"
 }
 
 
@@ -313,25 +313,27 @@ func _() {
 func _() {
 	f(1,
 		2,
-		3);
+		3)
 	f(1,
 		2,
-		3);
+		3,
+	)
 	// TODO(gri) the cases below are not correct yet
 	f(1,
 		2,
-		3);	// comment
+		3)	// comment
 	f(1,
 		2,
-		3	// comment
-	);
+		3,	// comment
+	)
 	f(1,
 		2,
-		3);	// comment
+		3)	// comment
 	f(1,
 		2,
-		3	// comment
-	);
+		3 // comment
+		,
+	)
 }
 
 
@@ -353,8 +355,8 @@ func (p *parser) charClass() {
 	// respect source lines in multi-line expressions
 	if cc.negate && len(cc.ranges) == 2 &&
 		cc.ranges[0] == '\n' && cc.ranges[1] == '\n' {
-		nl := new(_NotNl);
-		p.re.add(nl);
+		nl := new(_NotNl)
+		p.re.add(nl)
 	}
 }
 

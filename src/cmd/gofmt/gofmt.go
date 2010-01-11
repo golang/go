@@ -36,8 +36,7 @@ var (
 	useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
 
 	// semicolon transition
-	useOldParser  = flag.Bool("oldparser", false, "parse old syntax (required semicolons)")
-	useOldPrinter = flag.Bool("oldprinter", false, "print old syntax (required semicolons)")
+	useOldParser = flag.Bool("oldparser", false, "parse old syntax (required semicolons)")
 )
 
 
@@ -80,9 +79,6 @@ func initPrinterMode() {
 	}
 	if *useSpaces {
 		printerMode |= printer.UseSpaces
-	}
-	if !*useOldPrinter {
-		printerMode |= printer.NoSemis
 	}
 }
 

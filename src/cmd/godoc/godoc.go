@@ -530,7 +530,7 @@ func (p *tconv) Write(data []byte) (n int, err os.Error) {
 
 // Write an AST-node to w; optionally html-escaped.
 func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
-	mode := printer.TabIndent | printer.UseSpaces | printer.NoSemis
+	mode := printer.TabIndent | printer.UseSpaces
 	if html {
 		mode |= printer.GenHTML
 	}
