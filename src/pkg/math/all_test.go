@@ -307,7 +307,6 @@ func alike(a, b float64) bool {
 
 func TestAcos(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		//		if f := Acos(vf[i] / 10); !veryclose(acos[i], f) {
 		if f := Acos(vf[i] / 10); !close(acos[i], f) {
 			t.Errorf("Acos(%g) = %g, want %g\n", vf[i]/10, f, acos[i])
 		}
@@ -405,8 +404,12 @@ func TestSinh(t *testing.T) {
 func TestSqrt(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(vf[i])
-		if f := Sqrt(a); !veryclose(sqrt[i], f) {
-			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, floor[i])
+		if f := SqrtGo(a); sqrt[i] != f {
+			t.Errorf("sqrtGo(%g) = %g, want %g\n", a, f, sqrt[i])
+		}
+		a = Fabs(vf[i])
+		if f := Sqrt(a); sqrt[i] != f {
+			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, sqrt[i])
 		}
 	}
 }
@@ -430,7 +433,7 @@ func TestTanh(t *testing.T) {
 func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(tanh[i] * Sqrt(2))
-		if f := Hypot(tanh[i], tanh[i]); !veryclose(a, f) {
+		if f := Hypot(tanh[i], tanh[i]); a != f {
 			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
 		}
 	}

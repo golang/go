@@ -15,7 +15,7 @@ package math
 
 var pow10tab [70]float64
 
-// Pow10 returns 10**x, the base-10 exponential of x.
+// Pow10 returns 10**e, the base-10 exponential of e.
 func Pow10(e int) float64 {
 	if e < 0 {
 		return 1 / Pow10(-e)
