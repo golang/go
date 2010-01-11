@@ -57,6 +57,10 @@ func (p *Prog) writeDefs() {
 	}
 	fmt.Fprintf(fc, "\n")
 
+	for name, value := range p.Constdef {
+		fmt.Fprintf(fgo2, "const %s = %s\n", name, value)
+	}
+
 	for name, value := range p.Enumdef {
 		fmt.Fprintf(fgo2, "const %s = %d\n", name, value)
 	}
