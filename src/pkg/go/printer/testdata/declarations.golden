@@ -7,22 +7,22 @@ package imports
 import "io"
 
 import (
-	_ "io";
+	_ "io"
 )
 
 import _ "io"
 
 import (
-	"io";
-	"io";
-	"io";
+	"io"
+	"io"
+	"io"
 )
 
 import (
-	"io";
-	aLongRename "io";
+	"io"
+	aLongRename "io"
 
-	b "io";
+	b "io"
 )
 
 // no newlines between consecutive single imports, but
@@ -52,17 +52,17 @@ import (
 		// a comment
 		"bar" +
 		"foo" +	// a comment
-		"bar";	// a comment
+		"bar"	// a comment
 )
 
 // a case that caused problems in the past (comment placement)
 import (
-	. "fmt";
-	"io";
-	"malloc";	// for the malloc count test only
-	"math";
-	"strings";
-	"testing";
+	. "fmt"
+	"io"
+	"malloc"	// for the malloc count test only
+	"math"
+	"strings"
+	"testing"
 )
 
 
@@ -74,19 +74,19 @@ var _ int
 
 func _() {
 	// the following decls need a semicolon at the end
-	type _ int;
-	type _ *int;
-	type _ []int;
-	type _ map[string]int;
-	type _ chan int;
-	type _ func() int;
+	type _ int
+	type _ *int
+	type _ []int
+	type _ map[string]int
+	type _ chan int
+	type _ func() int
 
-	var _ int;
-	var _ *int;
-	var _ []int;
-	var _ map[string]int;
-	var _ chan int;
-	var _ func() int;
+	var _ int
+	var _ *int
+	var _ []int
+	var _ map[string]int
+	var _ chan int
+	var _ func() int
 
 	// the following decls don't need a semicolon at the end
 	type _ struct{}
@@ -121,116 +121,116 @@ func _() {
 
 // don't lose blank lines in grouped declarations
 const (
-	_	int	= 0;
-	_	float	= 1;
+	_	int	= 0
+	_	float	= 1
 
-	_	string	= "foo";
+	_	string	= "foo"
 
-	_	= iota;
-	_;
+	_	= iota
+	_
 
 	// a comment
-	_;
+	_
 
-	_;
+	_
 )
 
 
 type (
-	_	int;
-	_	struct{};
+	_	int
+	_	struct{}
 
-	_	interface{};
+	_	interface{}
 
 	// a comment
-	_	map[string]int;
+	_	map[string]int
 )
 
 
 var (
-	_	int	= 0;
-	_	float	= 1;
+	_	int	= 0
+	_	float	= 1
 
-	_	string	= "foo";
+	_	string	= "foo"
 
-	_	bool;
+	_	bool
 
 	// a comment
-	_	bool;
+	_	bool
 )
 
 
 // don't lose blank lines in this struct
 type _ struct {
 	String	struct {
-		Str, Len int;
-	};
+		Str, Len int
+	}
 	Slice	struct {
-		Array, Len, Cap int;
-	};
+		Array, Len, Cap int
+	}
 	Eface	struct {
-		Typ, Ptr int;
-	};
+		Typ, Ptr int
+	}
 
 	UncommonType	struct {
-		Name, PkgPath int;
-	};
+		Name, PkgPath int
+	}
 	CommonType	struct {
-		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int;
-	};
+		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int
+	}
 	Type	struct {
-		Typ, Ptr int;
-	};
+		Typ, Ptr int
+	}
 	StructField	struct {
-		Name, PkgPath, Typ, Tag, Offset int;
-	};
+		Name, PkgPath, Typ, Tag, Offset int
+	}
 	StructType	struct {
-		Fields int;
-	};
+		Fields int
+	}
 	PtrType	struct {
-		Elem int;
-	};
+		Elem int
+	}
 	SliceType	struct {
-		Elem int;
-	};
+		Elem int
+	}
 	ArrayType	struct {
-		Elem, Len int;
-	};
+		Elem, Len int
+	}
 
 	Stktop	struct {
-		Stackguard, Stackbase, Gobuf int;
-	};
+		Stackguard, Stackbase, Gobuf int
+	}
 	Gobuf	struct {
-		Sp, Pc, G int;
-	};
+		Sp, Pc, G int
+	}
 	G	struct {
-		Stackbase, Sched, Status, Alllink int;
-	};
+		Stackbase, Sched, Status, Alllink int
+	}
 }
 
 
 // no tabs for single or ungrouped decls
 func _() {
-	const xxxxxx = 0;
-	type x int;
-	var xxx int;
-	var yyyy float = 3.14;
-	var zzzzz = "bar";
+	const xxxxxx = 0
+	type x int
+	var xxx int
+	var yyyy float = 3.14
+	var zzzzz = "bar"
 
 	const (
-		xxxxxx = 0;
+		xxxxxx = 0
 	)
 	type (
-		x int;
+		x int
 	)
 	var (
-		xxx int;
+		xxx int
 	)
 	var (
-		yyyy float = 3.14;
+		yyyy float = 3.14
 	)
 	var (
-		zzzzz = "bar";
+		zzzzz = "bar"
 	)
 }
 
@@ -238,79 +238,79 @@ func _() {
 func _() {
 	// no entry has a type
 	const (
-		zzzzzz	= 1;
-		z	= 2;
-		zzz	= 3;
+		zzzzzz	= 1
+		z	= 2
+		zzz	= 3
 	)
 	// some entries have a type
 	const (
-		xxxxxx			= 1;
-		x			= 2;
-		xxx			= 3;
-		yyyyyyyy	float	= iota;
-		yyyy			= "bar";
-		yyy;
-		yy	= 2;
+		xxxxxx			= 1
+		x			= 2
+		xxx			= 3
+		yyyyyyyy	float	= iota
+		yyyy			= "bar"
+		yyy
+		yy	= 2
 	)
 }
 
 func _() {
 	// no entry has a type
 	var (
-		zzzzzz	= 1;
-		z	= 2;
-		zzz	= 3;
+		zzzzzz	= 1
+		z	= 2
+		zzz	= 3
 	)
 	// no entry has a value
 	var (
-		_	int;
-		_	float;
-		_	string;
+		_	int
+		_	float
+		_	string
 
-		_	int;	// comment
-		_	float;	// comment
-		_	string;	// comment
+		_	int	// comment
+		_	float	// comment
+		_	string	// comment
 	)
 	// some entries have a type
 	var (
-		xxxxxx		int;
-		x		float;
-		xxx		string;
-		yyyyyyyy	int	= 1234;
-		y		float	= 3.14;
-		yyyy			= "bar";
-		yyy		string	= "foo";
+		xxxxxx		int
+		x		float
+		xxx		string
+		yyyyyyyy	int	= 1234
+		y		float	= 3.14
+		yyyy			= "bar"
+		yyy		string	= "foo"
 	)
 	// mixed entries - all comments should be aligned
 	var (
-		a, b, c			int;
-		x				= 10;
-		d			int;	// comment
-		y				= 20;		// comment
-		f, ff, fff, ffff	int	= 0, 1, 2, 3;	// comment
+		a, b, c			int
+		x				= 10
+		d			int	// comment
+		y				= 20		// comment
+		f, ff, fff, ffff	int	= 0, 1, 2, 3	// comment
 	)
 	// respect original line breaks
 	var _ = []T{
 		T{0x20, "Telugu"},
-	};
+	}
 	var _ = []T{
 		// respect original line breaks
 		T{0x20, "Telugu"},
-	};
+	}
 }
 
 func _() {
 	type (
-		xxxxxx	int;
-		x	float;
-		xxx	string;
-		xxxxx	[]x;
-		xx	struct{};
+		xxxxxx	int
+		x	float
+		xxx	string
+		xxxxx	[]x
+		xx	struct{}
 		xxxxxxx	struct {
-			_, _	int;
-			_	float;
-		};
-		xxxx	chan<- string;
+			_, _	int
+			_	float
+		}
+		xxxx	chan<- string
 	)
 }
 
@@ -325,59 +325,59 @@ type _ struct {
 }
 
 type _ struct {	// this comment must not change indentation
-	f			int;
-	f, ff, fff, ffff	int;
+	f			int
+	f, ff, fff, ffff	int
 }
 
 type _ struct {
-	string;
+	string
 }
 
 type _ struct {
-	string;	// comment
+	string	// comment
 }
 
 type _ struct {
-	string "tag";
+	string "tag"
 }
 
 type _ struct {
-	string "tag";	// comment
+	string "tag"	// comment
 }
 
 type _ struct {
-	f int;
+	f int
 }
 
 type _ struct {
-	f int;	// comment
+	f int	// comment
 }
 
 type _ struct {
-	f int "tag";
+	f int "tag"
 }
 
 type _ struct {
-	f int "tag";	// comment
+	f int "tag"	// comment
 }
 
 type _ struct {
-	bool;
-	a, b, c			int;
-	int			"tag";
-	ES;				// comment
-	float			"tag";	// comment
-	f			int;	// comment
-	f, ff, fff, ffff	int;	// comment
-	g			float	"tag";
-	h			float	"tag";	// comment
+	bool
+	a, b, c			int
+	int			"tag"
+	ES				// comment
+	float			"tag"	// comment
+	f			int	// comment
+	f, ff, fff, ffff	int	// comment
+	g			float	"tag"
+	h			float	"tag"	// comment
 }
 
 
 // difficult cases
 type _ struct {
-	bool;		// comment
-	text	[]byte;	// comment
+	bool		// comment
+	text	[]byte	// comment
 }
 
 
@@ -385,41 +385,41 @@ type _ struct {
 type EI interface{}
 
 type _ interface {
-	EI;
+	EI
 }
 
 type _ interface {
-	f();
-	fffff();
+	f()
+	fffff()
 }
 
 type _ interface {
-	EI;
-	f();
-	fffffg();
+	EI
+	f()
+	fffffg()
 }
 
 type _ interface {	// this comment must not change indentation
-	EI;				// here's a comment
-	f();				// no blank between identifier and ()
-	fffff();			// no blank between identifier and ()
-	gggggggggggg(x, y, z int);	// hurray
+	EI				// here's a comment
+	f()				// no blank between identifier and ()
+	fffff()				// no blank between identifier and ()
+	gggggggggggg(x, y, z int)	// hurray
 }
 
 // formatting of variable declarations
 func _() {
 	type day struct {
-		n		int;
-		short, long	string;
+		n		int
+		short, long	string
 	}
 	var (
-		Sunday		= day{0, "SUN", "Sunday"};
-		Monday		= day{1, "MON", "Monday"};
-		Tuesday		= day{2, "TUE", "Tuesday"};
-		Wednesday	= day{3, "WED", "Wednesday"};
-		Thursday	= day{4, "THU", "Thursday"};
-		Friday		= day{5, "FRI", "Friday"};
-		Saturday	= day{6, "SAT", "Saturday"};
+		Sunday		= day{0, "SUN", "Sunday"}
+		Monday		= day{1, "MON", "Monday"}
+		Tuesday		= day{2, "TUE", "Tuesday"}
+		Wednesday	= day{3, "WED", "Wednesday"}
+		Thursday	= day{4, "THU", "Thursday"}
+		Friday		= day{5, "FRI", "Friday"}
+		Saturday	= day{6, "SAT", "Saturday"}
 	)
 }
 
@@ -464,14 +464,14 @@ func _() {
 			"print": nil,
 			"println": nil,
 		},
-	};
+	}
 }
 
 
 func _() {
 	var _ = T{
 		a,	// must introduce trailing comma
-	};
+	}
 }
 
 
@@ -501,13 +501,10 @@ func _() {	// opening "{" must move up
 	// in the following declarations, a comment must not
 	// introduce a newline and thus cause a semicolon to
 	// be inserted
-	const _ T = x // comment
-	;
-	const _ = x // comment
-	;
+	const _ T = x	// comment
+	const _ = x	// comment
 
-	type _ T // comment
-	;
+	type _ T	// comment
 	type _ struct // comment
 	{
 
@@ -517,20 +514,18 @@ func _() {	// opening "{" must move up
 
 	}
 	type _ * // comment
-	T;
+	T
 	type _ [ // comment
-	]T;
+	]T
 	type _ [ // comment
-	10]T;
+	10]T
 	type _ chan // comment
-	T;
+	T
 	type _ map // comment
-	[T]T;
+	[T]T
 
-	var _ T // comment
-	;
-	var _ T = x // comment
-	;
+	var _ T		// comment
+	var _ T = x	// comment
 	var _ struct // comment
 	{
 
@@ -540,16 +535,15 @@ func _() {	// opening "{" must move up
 
 	}
 	var _ * // comment
-	T;
+	T
 	var _ [ // comment
-	]T;
+	]T
 	var _ [ // comment
-	10]T;
+	10]T
 	var _ chan // comment
-	T;
+	T
 	var _ map // comment
-	[T]T;
+	[T]T
 
-	var _ = x // comment
-	;
+	var _ = x	// comment
 }

@@ -64,16 +64,16 @@ func _() {
 
 	switch x := 0; x {
 	case 1:
-		use(x);
-		use(x);	// followed by an empty line
+		use(x)
+		use(x)	// followed by an empty line
 
 	case 2:	// followed by an empty line
 
 		use(x)	// followed by an empty line
 
 	case 3:	// no empty lines
-		use(x);
-		use(x);
+		use(x)
+		use(x)
 	}
 
 	switch x {
@@ -152,20 +152,20 @@ func _() {
 // line at a time.
 func _() {
 
-	const _ = 0;
+	const _ = 0
 
-	const _ = 1;
-	type _ int;
-	type _ float;
+	const _ = 1
+	type _ int
+	type _ float
 
-	var _ = 0;
-	var x = 1;
+	var _ = 0
+	var x = 1
 
 	// Each use(x) call below should have at most one empty line before and after.
 
 
 
-	use(x);
+	use(x)
 
 	if x < x {
 
@@ -206,9 +206,9 @@ L:	_ = 0
 
 func _() {
 	for {
-	L1:	_ = 0;
+	L1:	_ = 0
 	L2:
-		_ = 0;
+		_ = 0
 	}
 }
 
@@ -216,9 +216,9 @@ func _() {
 func _() {
 	// this comment should be indented
 	for {
-	L1:	_ = 0;
+	L1:	_ = 0
 	L2:
-		_ = 0;
+		_ = 0
 	}
 }
 
@@ -227,14 +227,14 @@ func _() {
 	if {
 		_ = 0
 	}
-	_ = 0;	// the indentation here should not be affected by the long label name
+	_ = 0	// the indentation here should not be affected by the long label name
 AnOverlongLabel:
-	_ = 0;
+	_ = 0
 
 	if {
 		_ = 0
 	}
-	_ = 0;
+	_ = 0
 
-L:	_ = 0;
+L:	_ = 0
 }

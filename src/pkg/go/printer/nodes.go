@@ -282,9 +282,8 @@ func (p *printer) parameters(list []*ast.Field, multiLine *bool) {
 }
 
 
-// Returns true if a separating semicolon is optional.
 // Sets multiLine to true if the signature spans multiple lines.
-func (p *printer) signature(params, result []*ast.Field, multiLine *bool) (optSemi bool) {
+func (p *printer) signature(params, result []*ast.Field, multiLine *bool) {
 	p.parameters(params, multiLine)
 	if result != nil {
 		p.print(blank)
@@ -293,7 +292,7 @@ func (p *printer) signature(params, result []*ast.Field, multiLine *bool) (optSe
 			// single anonymous result; no ()'s unless it's a function type
 			f := result[0]
 			if _, isFtyp := f.Type.(*ast.FuncType); !isFtyp {
-				optSemi = p.expr(f.Type, multiLine)
+				p.expr(f.Type, multiLine)
 				return
 			}
 		}
@@ -400,9 +399,6 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				p.expr(&ast.StringList{f.Tag}, &ml)
 				extraTabs = 0
 			}
-			if p.Mode&NoSemis == 0 {
-				p.print(token.SEMICOLON)
-			}
 			if f.Comment != nil {
 				for ; extraTabs > 0; extraTabs-- {
 					p.print(vtab)
@@ -434,9 +430,6 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			} else {
 				// embedded interface
 				p.expr(f.Type, &ml)
-			}
-			if p.Mode&NoSemis == 0 {
-				p.print(token.SEMICOLON)
 			}
 			p.lineComment(f.Comment)
 		}
@@ -630,9 +623,8 @@ func isBinary(expr ast.Expr) bool {
 }
 
 
-// Returns true if a separating semicolon is optional.
 // Sets multiLine to true if the expression spans multiple lines.
-func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multiLine *bool) (optSemi bool) {
+func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multiLine *bool) {
 	p.print(expr.Pos())
 
 	switch x := expr.(type) {
@@ -660,12 +652,12 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 			// parenthesis needed
 			p.print(token.LPAREN)
 			p.print(token.MUL)
-			optSemi = p.expr(x.X, multiLine)
+			p.expr(x.X, multiLine)
 			p.print(token.RPAREN)
 		} else {
 			// no parenthesis needed
 			p.print(token.MUL)
-			optSemi = p.expr(x.X, multiLine)
+			p.expr(x.X, multiLine)
 		}
 
 	case *ast.UnaryExpr:
@@ -743,11 +735,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		}
 		p.expr1(x.Fun, token.HighestPrec, depth, 0, multiLine)
 		p.print(x.Lparen, token.LPAREN)
-		mode := commaSep
-		if p.Mode&NoSemis != 0 {
-			mode |= commaTerm
-		}
-		p.exprList(x.Lparen, x.Args, depth, mode, multiLine, x.Rparen)
+		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
 		p.print(x.Rparen, token.RPAREN)
 
 	case *ast.CompositeLit:
@@ -778,27 +766,25 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 			p.expr(x.Len, multiLine)
 		}
 		p.print(token.RBRACK)
-		optSemi = p.expr(x.Elt, multiLine)
+		p.expr(x.Elt, multiLine)
 
 	case *ast.StructType:
 		p.print(token.STRUCT)
 		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, ctxt|structType)
-		optSemi = true
 
 	case *ast.FuncType:
 		p.print(token.FUNC)
-		optSemi = p.signature(x.Params, x.Results, multiLine)
+		p.signature(x.Params, x.Results, multiLine)
 
 	case *ast.InterfaceType:
 		p.print(token.INTERFACE)
 		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, ctxt)
-		optSemi = true
 
 	case *ast.MapType:
 		p.print(token.MAP, token.LBRACK)
 		p.expr(x.Key, multiLine)
 		p.print(token.RBRACK)
-		optSemi = p.expr(x.Value, multiLine)
+		p.expr(x.Value, multiLine)
 
 	case *ast.ChanType:
 		switch x.Dir {
@@ -810,7 +796,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 			p.print(token.CHAN, token.ARROW)
 		}
 		p.print(blank)
-		optSemi = p.expr(x.Value, multiLine)
+		p.expr(x.Value, multiLine)
 
 	default:
 		panic("unreachable")
@@ -820,16 +806,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 }
 
 
-func (p *printer) expr0(x ast.Expr, depth int, multiLine *bool) (optSemi bool) {
-	return p.expr1(x, token.LowestPrec, depth, 0, multiLine)
+func (p *printer) expr0(x ast.Expr, depth int, multiLine *bool) {
+	p.expr1(x, token.LowestPrec, depth, 0, multiLine)
 }
 
 
-// Returns true if a separating semicolon is optional.
 // Sets multiLine to true if the expression spans multiple lines.
-func (p *printer) expr(x ast.Expr, multiLine *bool) (optSemi bool) {
+func (p *printer) expr(x ast.Expr, multiLine *bool) {
 	const depth = 1
-	return p.expr1(x, token.LowestPrec, depth, 0, multiLine)
+	p.expr1(x, token.LowestPrec, depth, 0, multiLine)
 }
 
 
@@ -852,9 +837,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 		// in those cases each clause is a new section
 		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, ignore, i == 0 || _indent == 0 || multiLine)
 		multiLine = false
-		if !p.stmt(s, &multiLine) && len(list) > 1 && p.Mode&NoSemis == 0 {
-			p.print(token.SEMICOLON)
-		}
+		p.stmt(s, &multiLine)
 	}
 	if _indent > 0 {
 		p.print(unindent)
@@ -933,9 +916,8 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 }
 
 
-// Returns true if a separating semicolon is optional.
 // Sets multiLine to true if the statements spans multiple lines.
-func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
+func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 	p.print(stmt.Pos())
 
 	switch s := stmt.(type) {
@@ -944,7 +926,6 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 
 	case *ast.DeclStmt:
 		p.decl(s.Decl, inStmtList, multiLine)
-		optSemi = true // decl prints terminating semicolon if necessary
 
 	case *ast.EmptyStmt:
 		// nothing to do
@@ -957,7 +938,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		p.expr(s.Label, multiLine)
 		p.print(token.COLON, vtab, indent)
 		p.linebreak(s.Stmt.Pos().Line, 0, 1, ignore, true)
-		optSemi = p.stmt(s.Stmt, multiLine)
+		p.stmt(s.Stmt, multiLine)
 
 	case *ast.ExprStmt:
 		const depth = 1
@@ -1001,19 +982,17 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 	case *ast.BlockStmt:
 		p.block(s, 1, false)
 		*multiLine = true
-		optSemi = true
 
 	case *ast.IfStmt:
 		p.print(token.IF)
 		p.controlClause(false, s.Init, s.Cond, nil)
 		p.block(s.Body, 1, true)
 		*multiLine = true
-		optSemi = true
 		if s.Else != nil {
 			p.print(blank, token.ELSE, blank)
 			switch s.Else.(type) {
 			case *ast.BlockStmt, *ast.IfStmt:
-				optSemi = p.stmt(s.Else, ignoreMultiLine)
+				p.stmt(s.Else, ignoreMultiLine)
 			default:
 				p.print(token.LBRACE, indent, formfeed)
 				p.stmt(s.Else, ignoreMultiLine)
@@ -1030,14 +1009,12 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		}
 		p.print(s.Colon, token.COLON)
 		p.stmtList(s.Body, 1)
-		optSemi = true // "block" without {}'s
 
 	case *ast.SwitchStmt:
 		p.print(token.SWITCH)
 		p.controlClause(false, s.Init, s.Tag, nil)
 		p.block(s.Body, 0, true)
 		*multiLine = true
-		optSemi = true
 
 	case *ast.TypeCaseClause:
 		if s.Types != nil {
@@ -1048,7 +1025,6 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		}
 		p.print(s.Colon, token.COLON)
 		p.stmtList(s.Body, 1)
-		optSemi = true // "block" without {}'s
 
 	case *ast.TypeSwitchStmt:
 		p.print(token.SWITCH)
@@ -1062,7 +1038,6 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		p.print(blank)
 		p.block(s.Body, 0, true)
 		*multiLine = true
-		optSemi = true
 
 	case *ast.CommClause:
 		if s.Rhs != nil {
@@ -1077,20 +1052,17 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		}
 		p.print(s.Colon, token.COLON)
 		p.stmtList(s.Body, 1)
-		optSemi = true // "block" without {}'s
 
 	case *ast.SelectStmt:
 		p.print(token.SELECT, blank)
 		p.block(s.Body, 0, false)
 		*multiLine = true
-		optSemi = true
 
 	case *ast.ForStmt:
 		p.print(token.FOR)
 		p.controlClause(true, s.Init, s.Cond, s.Post)
 		p.block(s.Body, 1, true)
 		*multiLine = true
-		optSemi = true
 
 	case *ast.RangeStmt:
 		p.print(token.FOR, blank)
@@ -1104,7 +1076,6 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		p.print(blank)
 		p.block(s.Body, 1, true)
 		*multiLine = true
-		optSemi = true
 
 	default:
 		panic("unreachable")
@@ -1132,7 +1103,6 @@ const (
 //
 func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *bool) {
 	var (
-		optSemi   bool              // true if a semicolon is optional
 		comment   *ast.CommentGroup // a line comment, if any
 		extraTabs int               // number of extra tabs before comment, if any
 	)
@@ -1159,12 +1129,11 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		if n == 1 {
 			if s.Type != nil {
 				p.print(blank)
-				optSemi = p.expr(s.Type, multiLine)
+				p.expr(s.Type, multiLine)
 			}
 			if s.Values != nil {
 				p.print(blank, token.ASSIGN)
 				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
-				optSemi = false
 			}
 		} else {
 			extraTabs = 2
@@ -1172,14 +1141,13 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 				p.print(vtab)
 			}
 			if s.Type != nil {
-				optSemi = p.expr(s.Type, multiLine)
+				p.expr(s.Type, multiLine)
 				extraTabs = 1
 			}
 			if s.Values != nil {
 				p.print(vtab)
 				p.print(token.ASSIGN)
 				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
-				optSemi = false
 				extraTabs = 0
 			}
 		}
@@ -1194,15 +1162,11 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		} else {
 			p.print(vtab)
 		}
-		optSemi = p.expr(s.Type, multiLine)
+		p.expr(s.Type, multiLine)
 		comment = s.Comment
 
 	default:
 		panic("unreachable")
-	}
-
-	if (context == inGroup || context == inStmtList && !optSemi) && p.Mode&NoSemis == 0 {
-		p.print(token.SEMICOLON)
 	}
 
 	if comment != nil {
