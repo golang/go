@@ -76,6 +76,7 @@ func main() {
 	p.Vardef = make(map[string]*Type)
 	p.Funcdef = make(map[string]*FuncType)
 	p.Enumdef = make(map[string]int64)
+	p.Constdef = make(map[string]string)
 	p.OutDefs = make(map[string]bool)
 
 	for _, input := range goFiles {
@@ -91,6 +92,10 @@ func main() {
 		p.loadDebugInfo()
 		for _, cref := range p.Crefs {
 			switch cref.Context {
+			case "const":
+				// This came from a #define and we'll output it later.
+				*cref.Expr = &ast.Ident{Value: cref.Name}
+				break
 			case "call":
 				if !cref.TypeName {
 					// Is an actual function call.

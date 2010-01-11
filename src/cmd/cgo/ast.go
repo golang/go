@@ -19,7 +19,7 @@ import (
 type Cref struct {
 	Name     string
 	Expr     *ast.Expr
-	Context  string // "type", "expr", or "call"
+	Context  string // "type", "expr", "const", or "call"
 	TypeName bool   // whether xxx is a C type name
 	Type     *Type  // the type of xxx
 	FuncType *FuncType
@@ -36,6 +36,7 @@ type Prog struct {
 	Vardef      map[string]*Type
 	Funcdef     map[string]*FuncType
 	Enumdef     map[string]int64
+	Constdef    map[string]string
 	PtrSize     int64
 	GccOptions  []string
 	OutDefs     map[string]bool

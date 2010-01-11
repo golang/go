@@ -14,6 +14,7 @@ import (
 	"debug/macho"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"os"
 	"strconv"
@@ -21,9 +22,51 @@ import (
 )
 
 func (p *Prog) loadDebugInfo() {
+	var b bytes.Buffer
+
+	b.WriteString(p.Preamble)
+	stdout := p.gccPostProc(b.Bytes())
+	defines := make(map[string]string)
+	for _, line := range strings.Split(stdout, "\n", 0) {
+		if len(line) < 9 || line[0:7] != "#define" {
+			continue
+		}
+
+		line = strings.TrimSpace(line[8:])
+
+		var key, val string
+		spaceIndex := strings.Index(line, " ")
+		tabIndex := strings.Index(line, "\t")
+
+		if spaceIndex == -1 && tabIndex == -1 {
+			continue
+		} else if tabIndex == -1 || (spaceIndex != -1 && spaceIndex < tabIndex) {
+			key = line[0:spaceIndex]
+			val = strings.TrimSpace(line[spaceIndex:])
+		} else {
+			key = line[0:tabIndex]
+			val = strings.TrimSpace(line[tabIndex:])
+		}
+
+		defines[key] = val
+	}
+
 	// Construct a slice of unique names from p.Crefs.
 	m := make(map[string]int)
 	for _, c := range p.Crefs {
+		// If we've already found this name as a define, it is not a Cref.
+		if val, ok := defines[c.Name]; ok {
+			_, err := parser.ParseExpr("", val)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "The value in C.%s does not parse as a Go expression; cannot use.\n", c.Name)
+				os.Exit(2)
+			}
+
+			c.Context = "const"
+			c.TypeName = false
+			p.Constdef[c.Name] = val
+			continue
+		}
 		m[c.Name] = -1
 	}
 	names := make([]string, 0, len(m))
@@ -46,7 +89,7 @@ func (p *Prog) loadDebugInfo() {
 	//	x.c:2: error: 'name' undeclared (first use in this function)
 	// A line number directive causes the line number to
 	// correspond to the index in the names array.
-	var b bytes.Buffer
+	b.Reset()
 	b.WriteString(p.Preamble)
 	b.WriteString("void f(void) {\n")
 	b.WriteString("#line 0 \"cgo-test\"\n")
@@ -189,7 +232,13 @@ func (p *Prog) loadDebugInfo() {
 	var conv typeConv
 	conv.Init(p.PtrSize)
 	for _, c := range p.Crefs {
-		i := m[c.Name]
+		i, ok := m[c.Name]
+		if !ok {
+			if _, ok := p.Constdef[c.Name]; !ok {
+				fatal("Cref %s is no longer around", c.Name)
+			}
+			continue
+		}
 		c.TypeName = kind[c.Name] == "type"
 		f, fok := types[i].(*dwarf.FuncType)
 		if c.Context == "call" && !c.TypeName && fok {
@@ -255,6 +304,21 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 		fatal("cannot load DWARF debug information from %s: %s", tmp, err)
 	}
 	return d, ""
+}
+
+func (p *Prog) gccPostProc(stdin []byte) string {
+	machine := "-m32"
+	if p.PtrSize == 8 {
+		machine = "-m64"
+	}
+
+	base := []string{"gcc", machine, "-E", "-dM", "-xc", "-"}
+	stdout, stderr, ok := run(stdin, concat(base, p.GccOptions))
+	if !ok {
+		return string(stderr)
+	}
+
+	return string(stdout)
 }
 
 // A typeConv is a translator from dwarf types to Go types
