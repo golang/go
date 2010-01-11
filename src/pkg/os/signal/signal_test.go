@@ -13,7 +13,7 @@ func TestSignal(t *testing.T) {
 	// Send this process a SIGHUP.
 	syscall.Syscall(syscall.SYS_KILL, uintptr(syscall.Getpid()), syscall.SIGHUP, 0)
 
-	if sig := (<-Incoming).(UnixSignal); sig != 1 {
-		t.Errorf("signal was %v, want %v", sig, 1)
+	if sig := (<-Incoming).(UnixSignal); sig != SIGHUP {
+		t.Errorf("signal was %v, want %v", sig, SIGHUP)
 	}
 }
