@@ -4,15 +4,8 @@
 
 package math
 
-/*
- * this table might overflow 127-bit exponent representations.
- * in that case, truncate it after 1.0e38.
- * it is important to get all one can from this
- * routine since it is used in atof to scale numbers.
- * the presumption is that GO converts fp numbers better
- * than multipication of lower powers of 10.
- */
-
+// This table might overflow 127-bit exponent representations.
+// In that case, truncate it after 1.0e38.
 var pow10tab [70]float64
 
 // Pow10 returns 10**e, the base-10 exponential of e.

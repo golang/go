@@ -5,18 +5,16 @@
 package math
 
 /*
- *	floating-point arctangent
- *
- *	atan returns the value of the arctangent of its
- *	argument in the range [-pi/2,pi/2].
- *	there are no error returns.
- *	coefficients are #5077 from Hart & Cheney. (19.56D)
- */
+	Floating-point arctangent.
 
-/*
- *	xatan evaluates a series valid in the
- *	range [-0.414...,+0.414...]. (tan(pi/8))
- */
+	Atan returns the value of the arctangent of its
+	argument in the range [-pi/2,pi/2].
+	There are no error returns.
+	Coefficients are #5077 from Hart & Cheney. (19.56D)
+*/
+
+// xatan evaluates a series valid in the
+// range [-0.414...,+0.414...]. (tan(pi/8))
 func xatan(arg float64) float64 {
 	const (
 		P4 = .161536412982230228262e2
@@ -36,10 +34,8 @@ func xatan(arg float64) float64 {
 	return value * arg
 }
 
-/*
- *	satan reduces its argument (known to be positive)
- *	to the range [0,0.414...] and calls xatan.
- */
+// satan reduces its argument (known to be positive)
+// to the range [0,0.414...] and calls xatan.
 func satan(arg float64) float64 {
 	if arg < Sqrt2-1 {
 		return xatan(arg)
@@ -50,12 +46,7 @@ func satan(arg float64) float64 {
 	return Pi/4 + xatan((arg-1)/(arg+1))
 }
 
-/*
- *	Atan makes its argument positive and
- *	calls the inner routine satan.
- */
-
-// Atan returns the arc tangent of x.
+// Atan returns the arctangent of x.
 func Atan(x float64) float64 {
 	if x > 0 {
 		return satan(x)

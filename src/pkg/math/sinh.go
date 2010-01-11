@@ -6,16 +6,16 @@ package math
 
 
 /*
- *	Sinh(x) returns the hyperbolic sine of x
- *
- *	The exponential func is called for arguments
- *	greater in magnitude than 0.5.
- *
- *	A series is used for arguments smaller in magnitude than 0.5.
- *
- *	Cosh(x) is computed from the exponential func for
- *	all arguments.
- */
+	Floating-point hyperbolic sine and cosine.
+
+	The exponential func is called for arguments
+	greater in magnitude than 0.5.
+
+	A series is used for arguments smaller in magnitude than 0.5.
+
+	Cosh(x) is computed from the exponential func for
+	all arguments.
+*/
 
 // Sinh returns the hyperbolic sine of x.
 func Sinh(x float64) float64 {

@@ -6,8 +6,8 @@ package math
 
 
 /*
- *	floating-point mod func without infinity or NaN checking
- */
+	Floating-point mod func without infinity or NaN checking
+*/
 
 // Fmod returns the floating-point remainder of x/y.
 func Fmod(x, y float64) float64 {
