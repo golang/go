@@ -736,7 +736,6 @@ dumppprof()
 	}
 	// Write file.
 	// See http://code.google.com/p/google-perftools/source/browse/trunk/doc/cpuprofile-fileformat.html
-	// BUG: assumes little endian.
 	// 1) Header
 	arch->ppword(0);	// must be zero
 	arch->ppword(3);	// 3 words follow in header
