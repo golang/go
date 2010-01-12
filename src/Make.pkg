@@ -53,6 +53,9 @@ clean:
 test:
 	$(QUOTED_GOBIN)/gotest
 
+bench:
+	$(QUOTED_GOBIN)/gotest -benchmarks=. -match="Do not run tests"
+
 nuke: clean
 	rm -f $(pkgdir)/$(TARG).a
 

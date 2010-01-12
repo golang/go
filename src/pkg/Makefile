@@ -134,13 +134,20 @@ NOTEST=\
 	testing/iotest\
 	xgb\
 
+NOBENCH=\
+	container/vector\
+
 TEST=\
 	$(filter-out $(NOTEST),$(DIRS))
+
+BENCH=\
+	$(filter-out $(NOBENCH),$(TEST))
 
 clean.dirs: $(addsuffix .clean, $(DIRS))
 install.dirs: $(addsuffix .install, $(DIRS))
 nuke.dirs: $(addsuffix .nuke, $(DIRS))
 test.dirs: $(addsuffix .test, $(TEST))
+bench.dirs: $(addsuffix .bench, $(BENCH))
 
 %.clean:
 	+cd $* && $(QUOTED_GOBIN)/gomake clean
@@ -154,11 +161,16 @@ test.dirs: $(addsuffix .test, $(TEST))
 %.test:
 	+cd $* && $(QUOTED_GOBIN)/gomake test
 
+%.bench:
+	+cd $* && $(QUOTED_GOBIN)/gomake bench
+
 clean: clean.dirs
 
 install: install.dirs
 
 test:	test.dirs
+
+bench:	bench.dirs
 
 nuke: nuke.dirs
 	rm -rf "$(GOROOT)"/pkg/*
