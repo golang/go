@@ -64,6 +64,7 @@
       <item> close </item>
       <item> closed </item>
       <item> convert </item>
+      <item> copy </item>
       <item> len </item>
       <item> make </item>
       <item> new </item>
@@ -77,6 +78,7 @@
         <DetectSpaces />
         <keyword attribute="Keyword" context="#stay" String="keywords"/>
         <keyword attribute="Data Type" context="#stay" String="types"/>
+        <keyword attribute="Builtin Function" context="#stay" String="functions"/>
         <DetectIdentifier />
         <DetectChar attribute="Symbol" context="#stay" char="{" beginRegion="Brace1" />
         <DetectChar attribute="Symbol" context="#stay" char="}" endRegion="Brace1" />
@@ -84,8 +86,9 @@
         <HlCHex attribute="Hex" context="#stay"/>
         <HlCChar attribute="Char" context="#stay"/>
         <DetectChar attribute="String" context="String" char="&quot;"/>
-        <Detect2Chars attribute="Comment" context="Commentar 1" char="/" char1="/"/>
-        <Detect2Chars attribute="Comment" context="Commentar 2" char="/" char1="*" beginRegion="Comment"/>
+        <DetectChar attribute="Multiline String" context="Multiline String" char="`"/>
+        <Detect2Chars attribute="Comment" context="Comment 1" char="/" char1="/"/>
+        <Detect2Chars attribute="Comment" context="Comment 2" char="/" char1="*" beginRegion="Comment"/>
         <AnyChar attribute="Symbol" context="#stay" String=":!%&amp;()+,-/.*&lt;=&gt;?[]|~^&#59;"/>
       </context>
 
@@ -95,17 +98,24 @@
         <DetectChar attribute="String" context="#pop" char="&quot;"/>
       </context>
 
-      <context attribute="Comment" lineEndContext="#pop" name="Commentar 1">
+      <context attribute="String" lineEndContext="#stay" name="Multiline String">
+        <LineContinue attribute="String" context="#stay"/>
+        <HlCStringChar attribute="String Char" context="#stay"/>
+        <DetectChar attribute="String" context="#pop" char="`"/>
+      </context>
+
+      <context attribute="Comment" lineEndContext="#pop" name="Comment 1">
         <LineContinue attribute="Comment" context="#stay"/>
       </context>
 
-      <context attribute="Comment" lineEndContext="#stay" name="Commentar 2">
+      <context attribute="Comment" lineEndContext="#stay" name="Comment 2">
         <Detect2Chars attribute="Comment" context="#pop" char="*" char1="/" endRegion="Comment"/>
       </context>
     </contexts>
     <itemDatas>
       <itemData name="Normal Text"  defStyleNum="dsNormal" spellChecking="false"/>
       <itemData name="Keyword"      defStyleNum="dsKeyword" spellChecking="false"/>
+      <itemData name="Builtin Function" defStyleNum="dsDataType" spellChecking="false"/>
       <itemData name="Data Type"    defStyleNum="dsDataType" spellChecking="false"/>
       <itemData name="Decimal"      defStyleNum="dsDecVal" spellChecking="false"/>
       <itemData name="Octal"        defStyleNum="dsBaseN" spellChecking="false"/>
