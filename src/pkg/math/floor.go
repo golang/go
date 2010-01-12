@@ -6,7 +6,15 @@ package math
 
 
 // Floor returns the greatest integer value less than or equal to x.
+//
+// Special cases are:
+//	Floor(+Inf) = +Inf
+//	Floor(-Inf) = -Inf
+//	Floor(NaN) = NaN
 func Floor(x float64) float64 {
+	if x != x || x > MaxFloat64 || x < -MaxFloat64 { // IsNaN(x) || IsInf(x, 0)
+		return x
+	}
 	if x < 0 {
 		d, fract := Modf(-x)
 		if fract != 0.0 {
@@ -19,4 +27,9 @@ func Floor(x float64) float64 {
 }
 
 // Ceil returns the least integer value greater than or equal to x.
+//
+// Special cases are:
+//	Ceil(+Inf) = +Inf
+//	Ceil(-Inf) = -Inf
+//	Ceil(NaN) = NaN
 func Ceil(x float64) float64 { return -Floor(-x) }
