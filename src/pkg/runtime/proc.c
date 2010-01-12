@@ -523,6 +523,8 @@ scheduler(void)
 void
 gosched(void)
 {
+	if(m->locks != 0)
+		throw("gosched holding locks");
 	if(g == m->g0)
 		throw("gosched of g0");
 	if(gosave(&g->sched) == 0)
