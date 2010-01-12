@@ -129,7 +129,7 @@ runtest() {
 
 
 runtests() {
-	if [ "$@" = "" ]; then
+	if [ $# = 0 ]; then
 		runtest apply
 		# verify the pretty-printed files can be compiled with $GC again
 		# do it in local directory only because of the prerequisites required
@@ -146,7 +146,7 @@ runtests() {
 
 
 # run over all .go files
-runtests "$*"
+runtests "$@"
 cleanup
 
 # done
