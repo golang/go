@@ -704,7 +704,6 @@ dumppprof()
 			continue;
 		ntrace++;
 	}
-	print("%d traces\n", ntrace);
 	if(ntrace <= 0)
 		return;
 	// Allocate and link the traces together.
@@ -722,14 +721,6 @@ dumppprof()
 		p += n;
 	}
 	trace[ntrace-1].next = nil;
-if(0)
-	for(tp = trace; tp != nil; tp = tp->next) {
-		print("%d: ", tp->npc);
-		for(i = 0; i < tp->npc; i++) {
-			print("%llx ", tp->pc[i]);
-		}
-		print("\n");
-	}
 	// Eliminate duplicates.  Lousy algorithm, although not as bad as it looks because
 	// the list collapses fast.
 	for(tp = trace; tp != nil; tp = tp->next) {
@@ -742,13 +733,6 @@ if(0)
 				prev = up;
 			}
 		}
-	}
-	for(tp = trace; tp != nil; tp = tp->next) {
-		print("[%d] %d: ", tp->count, tp->npc);
-		for(i = 0; i < tp->npc; i++) {
-			print("%llx ", tp->pc[i]);
-		}
-		print("\n");
 	}
 	// Write file.
 	// See http://code.google.com/p/google-perftools/source/browse/trunk/doc/cpuprofile-fileformat.html
