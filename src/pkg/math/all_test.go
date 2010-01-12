@@ -118,6 +118,18 @@ var log = []float64{
 	6.0174879014578053e-01,
 	2.1617038728473527e+00,
 }
+var log10 = []float64{
+	6.9714316642508291e-01,
+	8.8867769017393205e-01,
+	-5.5770832400658930e-01,
+	6.9989004768229943e-01,
+	9.8391002850684232e-01,
+	4.6633031029295153e-01,
+	7.1842557117242328e-01,
+	4.3583479968917772e-01,
+	2.6133617905227037e-01,
+	9.3881606348649405e-01,
+}
 var pow = []float64{
 	9.5282232631648415e+04,
 	5.4811599352999900e+07,
@@ -210,6 +222,28 @@ var atanSC = []float64{
 	NaN(),
 }
 
+var vfceilSC = []float64{
+	Inf(-1),
+	Inf(1),
+	NaN(),
+}
+var ceilSC = []float64{
+	Inf(-1),
+	Inf(1),
+	NaN(),
+}
+
+var vfexpSC = []float64{
+	Inf(-1),
+	Inf(1),
+	NaN(),
+}
+var expSC = []float64{
+	0,
+	Inf(1),
+	NaN(),
+}
+
 var vffmodSC = [][2]float64{
 	[2]float64{Inf(-1), Inf(-1)},
 	[2]float64{Inf(-1), -Pi},
@@ -272,6 +306,21 @@ var fmodSC = []float64{
 	NaN(),
 	NaN(),
 	NaN(),
+	NaN(),
+}
+
+var vflogSC = []float64{
+	Inf(-1),
+	-Pi,
+	0,
+	Inf(1),
+	NaN(),
+}
+var logSC = []float64{
+	NaN(),
+	NaN(),
+	Inf(-1),
+	Inf(1),
 	NaN(),
 }
 
@@ -440,6 +489,11 @@ func TestCeil(t *testing.T) {
 			t.Errorf("Ceil(%g) = %g, want %g\n", vf[i], f, ceil[i])
 		}
 	}
+	for i := 0; i < len(vfceilSC); i++ {
+		if f := Ceil(vfceilSC[i]); !alike(ceilSC[i], f) {
+			t.Errorf("Ceil(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
+		}
+	}
 }
 
 func TestExp(t *testing.T) {
@@ -448,12 +502,22 @@ func TestExp(t *testing.T) {
 			t.Errorf("Exp(%g) = %g, want %g\n", vf[i], f, exp[i])
 		}
 	}
+	for i := 0; i < len(vfexpSC); i++ {
+		if f := Exp(vfexpSC[i]); !alike(expSC[i], f) {
+			t.Errorf("Exp(%g) = %g, want %g\n", vfexpSC[i], f, expSC[i])
+		}
+	}
 }
 
 func TestFloor(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Floor(vf[i]); floor[i] != f {
 			t.Errorf("Floor(%g) = %g, want %g\n", vf[i], f, floor[i])
+		}
+	}
+	for i := 0; i < len(vfceilSC); i++ {
+		if f := Floor(vfceilSC[i]); !alike(ceilSC[i], f) {
+			t.Errorf("Floor(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
 		}
 	}
 }
@@ -479,7 +543,29 @@ func TestLog(t *testing.T) {
 		}
 	}
 	if f := Log(10); f != Ln10 {
-		t.Errorf("Log(%g) = %g, want %g\n", 10, f, Ln10)
+		t.Errorf("Log(%g) = %g, want %g\n", 10.0, f, Ln10)
+	}
+	for i := 0; i < len(vflogSC); i++ {
+		if f := Log(vflogSC[i]); !alike(logSC[i], f) {
+			t.Errorf("Log(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
+		}
+	}
+}
+
+func TestLog10(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		a := Fabs(vf[i])
+		if f := Log10(a); !veryclose(log10[i], f) {
+			t.Errorf("Log10(%g) = %g, want %g\n", a, f, log10[i])
+		}
+	}
+	if f := Log10(E); f != Log10E {
+		t.Errorf("Log10(%g) = %g, want %g\n", E, f, Log10E)
+	}
+	for i := 0; i < len(vflogSC); i++ {
+		if f := Log10(vflogSC[i]); !alike(logSC[i], f) {
+			t.Errorf("Log10(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
+		}
 	}
 }
 
