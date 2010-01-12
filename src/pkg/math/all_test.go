@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2009-2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -58,6 +58,18 @@ var atan = []float64{
 	1.0696031952318783e+00,
 	-1.4561721938838085e+00,
 }
+var ceil = []float64{
+	5.0000000000000000e+00,
+	8.0000000000000000e+00,
+	0.0000000000000000e+00,
+	-5.0000000000000000e+00,
+	1.0000000000000000e+01,
+	3.0000000000000000e+00,
+	6.0000000000000000e+00,
+	3.0000000000000000e+00,
+	2.0000000000000000e+00,
+	-8.0000000000000000e+00,
+}
 var exp = []float64{
 	1.4533071302642137e+02,
 	2.2958822575694450e+03,
@@ -81,6 +93,18 @@ var floor = []float64{
 	2.0000000000000000e+00,
 	1.0000000000000000e+00,
 	-9.0000000000000000e+00,
+}
+var fmod = []float64{
+	4.1976150232653000e-02,
+	2.2611275254218955e+00,
+	3.2317941087942760e-02,
+	4.9893963817289251e+00,
+	3.6370629280158270e-01,
+	1.2208682822681062e+00,
+	4.7709165685406934e+00,
+	1.8161802686919694e+00,
+	8.7345954159572500e-01,
+	1.3140752314243987e+00,
 }
 var log = []float64{
 	1.6052314626930630e+00,
@@ -185,6 +209,72 @@ var vfatanSC = []float64{
 var atanSC = []float64{
 	NaN(),
 }
+
+var vffmodSC = [][2]float64{
+	[2]float64{Inf(-1), Inf(-1)},
+	[2]float64{Inf(-1), -Pi},
+	[2]float64{Inf(-1), 0},
+	[2]float64{Inf(-1), Pi},
+	[2]float64{Inf(-1), Inf(1)},
+	[2]float64{Inf(-1), NaN()},
+	[2]float64{-Pi, Inf(-1)},
+	[2]float64{-Pi, 0},
+	[2]float64{-Pi, Inf(1)},
+	[2]float64{-Pi, NaN()},
+	[2]float64{0, Inf(-1)},
+	[2]float64{0, 0},
+	[2]float64{0, Inf(1)},
+	[2]float64{0, NaN()},
+	[2]float64{Pi, Inf(-1)},
+	[2]float64{Pi, 0},
+	[2]float64{Pi, Inf(1)},
+	[2]float64{Pi, NaN()},
+	[2]float64{Inf(1), Inf(-1)},
+	[2]float64{Inf(1), -Pi},
+	[2]float64{Inf(1), 0},
+	[2]float64{Inf(1), Pi},
+	[2]float64{Inf(1), Inf(1)},
+	[2]float64{Inf(1), NaN()},
+	[2]float64{NaN(), Inf(-1)},
+	[2]float64{NaN(), -Pi},
+	[2]float64{NaN(), 0},
+	[2]float64{NaN(), Pi},
+	[2]float64{NaN(), Inf(1)},
+	[2]float64{NaN(), NaN()},
+}
+var fmodSC = []float64{
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	-Pi,
+	NaN(),
+	-Pi,
+	NaN(),
+	0,
+	NaN(),
+	0,
+	NaN(),
+	Pi,
+	NaN(),
+	Pi,
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+}
+
 var vfpowSC = [][2]float64{
 	[2]float64{-Pi, Pi},
 	[2]float64{-Pi, -Pi},
@@ -344,6 +434,14 @@ func TestAtan(t *testing.T) {
 	}
 }
 
+func TestCeil(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Ceil(vf[i]); ceil[i] != f {
+			t.Errorf("Ceil(%g) = %g, want %g\n", vf[i], f, ceil[i])
+		}
+	}
+}
+
 func TestExp(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Exp(vf[i]); !veryclose(exp[i], f) {
@@ -356,6 +454,19 @@ func TestFloor(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Floor(vf[i]); floor[i] != f {
 			t.Errorf("Floor(%g) = %g, want %g\n", vf[i], f, floor[i])
+		}
+	}
+}
+
+func TestFmod(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Fmod(10, vf[i]); !close(fmod[i], f) {
+			t.Errorf("Fmod(10, %.17g) = %.17g, want %.17g\n", vf[i], f, fmod[i])
+		}
+	}
+	for i := 0; i < len(vffmodSC); i++ {
+		if f := Fmod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
+			t.Errorf("Fmod(%.17g, %.17g) = %.17g, want %.17g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
 	}
 }
