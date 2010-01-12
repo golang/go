@@ -20,7 +20,6 @@ char* file = "6.out";
 static Fhdr fhdr;
 int have_syms;
 int fd;
-Map	*symmap;
 struct Ureg_amd64 ureg_amd64;
 struct Ureg_x86 ureg_x86;
 int total_sec = 0;
@@ -28,7 +27,17 @@ int delta_msec = 100;
 int nsample;
 int nsamplethread;
 
+// pprof data, stored as sequences of N followed by N PC values.
+// See http://code.google.com/p/google-perftools .
+uvlong	*ppdata;	// traces
+Biobuf*	pproffd;	// file descriptor to write trace info
+long	ppstart;	// start position of current trace
+long	nppdata;	// length of data
+long	ppalloc;	// size of allocated data
+char	ppmapdata[10*1024];	// the map information for the output file
+
 // output formats
+int pprof;	// print pprof output to named file
 int functions;	// print functions
 int histograms;	// print histograms
 int linenums;	// print file and line numbers rather than function names
@@ -46,6 +55,7 @@ Usage(void)
 {
 	fprint(2, "Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]\n");
 	fprint(2, "\tformats (default -h):\n");
+	fprint(2, "\t\t-c file.prof: write [c]pprof output to file.prof\n");
 	fprint(2, "\t\t-h: histograms\n");
 	fprint(2, "\t\t-f: dynamic functions\n");
 	fprint(2, "\t\t-l: dynamic file and line numbers\n");
@@ -79,6 +89,7 @@ struct Arch {
 	int	(*getSP)(Map*);
 	uvlong	(*uregPC)(void);
 	uvlong	(*uregSP)(void);
+	void	(*ppword)(uvlong w);
 };
 
 void
@@ -116,24 +127,39 @@ int
 amd64_getregs(Map *map)
 {
 	int i;
+	union {
+		uvlong regs[1];
+		struct Ureg_amd64 ureg;
+	} u;
 
 	for(i = 0; i < sizeof ureg_amd64; i+=8) {
-		if(get8(map, (uvlong)i, &((uvlong*)&ureg_amd64)[i/4]) < 0)
-		return -1;
+		if(get8(map, (uvlong)i, &u.regs[i/8]) < 0)
+			return -1;
 	}
+	ureg_amd64 = u.ureg;
 	return 0;
 }
 
 int
 amd64_getPC(Map *map)
 {
-	return get8(map, offsetof(struct Ureg_amd64, ip), (uvlong*)&ureg_amd64.ip);
+	uvlong x;
+	int r;
+
+	r = get8(map, offsetof(struct Ureg_amd64, ip), &x);
+	ureg_amd64.ip = x;
+	return r;
 }
 
 int
 amd64_getSP(Map *map)
 {
-	return get8(map, offsetof(struct Ureg_amd64, sp), (uvlong*)&ureg_amd64.sp);
+	uvlong x;
+	int r;
+
+	r = get8(map, offsetof(struct Ureg_amd64, sp), &x);
+	ureg_amd64.sp = x;
+	return r;
 }
 
 uvlong
@@ -145,6 +171,22 @@ amd64_uregPC(void)
 uvlong
 amd64_uregSP(void) {
 	return ureg_amd64.sp;
+}
+
+void
+amd64_ppword(uvlong w)
+{
+	uchar buf[8];
+
+	buf[0] = w;
+	buf[1] = w >> 8;
+	buf[2] = w >> 16;
+	buf[3] = w >> 24;
+	buf[4] = w >> 32;
+	buf[5] = w >> 40;
+	buf[6] = w >> 48;
+	buf[7] = w >> 56;
+	Bwrite(pproffd, buf, 8);
 }
 
 void
@@ -175,7 +217,7 @@ x86_getregs(Map *map)
 
 	for(i = 0; i < sizeof ureg_x86; i+=4) {
 		if(get4(map, (uvlong)i, &((uint32*)&ureg_x86)[i/4]) < 0)
-		return -1;
+			return -1;
 	}
 	return 0;
 }
@@ -204,6 +246,18 @@ x86_uregSP(void)
 	return (uvlong)ureg_x86.sp;
 }
 
+void
+x86_ppword(uvlong w)
+{
+	uchar buf[4];
+
+	buf[0] = w;
+	buf[1] = w >> 8;
+	buf[2] = w >> 16;
+	buf[3] = w >> 24;
+	Bwrite(pproffd, buf, 4);
+}
+
 Arch archtab[] = {
 	{
 		"amd64",
@@ -213,6 +267,7 @@ Arch archtab[] = {
 		amd64_getSP,
 		amd64_uregPC,
 		amd64_uregSP,
+		amd64_ppword,
 	},
 	{
 		"386",
@@ -222,6 +277,7 @@ Arch archtab[] = {
 		x86_getSP,
 		x86_uregPC,
 		x86_uregSP,
+		x86_ppword,
 	},
 	{
 		nil
@@ -345,6 +401,36 @@ addtohistogram(uvlong pc, uvlong callerpc, uvlong sp)
 	counters[h] = x;
 }
 
+void
+addppword(uvlong pc)
+{
+	if(pc == 0) {
+		return;
+	}
+	if(nppdata == ppalloc) {
+		ppalloc = (1000+nppdata)*2;
+		ppdata = realloc(ppdata, ppalloc * sizeof ppdata[0]);
+		if(ppdata == nil) {
+			fprint(2, "prof: realloc failed: %r\n");
+			exit(2);
+		}
+	}
+	ppdata[nppdata++] = pc;
+}
+
+void
+startpptrace()
+{
+	ppstart = nppdata;
+	addppword(~0);
+}
+
+void
+endpptrace()
+{
+	ppdata[ppstart] = nppdata-ppstart-1;
+}
+
 uvlong nextpc;
 
 void
@@ -357,17 +443,22 @@ xptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
 	}
 	if(histograms)
 		addtohistogram(nextpc, pc, sp);
-	if(!histograms || stacks > 1) {
+	if(!histograms || stacks > 1 || pprof) {
 		if(nextpc == 0)
 			nextpc = sym->value;
-		fprint(2, "%s(", sym->name);
-		fprint(2, ")");
-		if(nextpc != sym->value)
-			fprint(2, "+%#llux ", nextpc - sym->value);
-		if(have_syms && linenums && fileline(buf, sizeof buf, pc)) {
-			fprint(2, " %s", buf);
+		if(stacks){
+			fprint(2, "%s(", sym->name);
+			fprint(2, ")");
+			if(nextpc != sym->value)
+				fprint(2, "+%#llux ", nextpc - sym->value);
+			if(have_syms && linenums && fileline(buf, sizeof buf, pc)) {
+				fprint(2, " %s", buf);
+			}
+			fprint(2, "\n");
 		}
-		fprint(2, "\n");
+		if (pprof) {
+			addppword(nextpc);
+		}
 	}
 	nextpc = pc;
 }
@@ -376,14 +467,20 @@ void
 stacktracepcsp(Map *map, uvlong pc, uvlong sp)
 {
 	nextpc = pc;
+	if(pprof){
+		startpptrace();
+	}
 	if(machdata->ctrace==nil)
 		fprint(2, "no machdata->ctrace\n");
 	else if(machdata->ctrace(map, pc, sp, 0, xptrace) <= 0)
 		fprint(2, "no stack frame: pc=%#p sp=%#p\n", pc, sp);
 	else {
 		addtohistogram(nextpc, 0, sp);
-		if(!histograms || stacks > 1)
+		if(stacks)
 			fprint(2, "\n");
+	}
+	if(pprof){
+		endpptrace();
 	}
 }
 
@@ -399,7 +496,7 @@ printpc(Map *map, uvlong pc, uvlong sp)
 		symoff(buf, sizeof(buf), pc, CANY);
 		fprint(2, "%s\n", buf);
 	}
-	if(stacks){
+	if(stacks || pprof){
 		stacktracepcsp(map, pc, sp);
 	}
 	else if(histograms){
@@ -408,13 +505,55 @@ printpc(Map *map, uvlong pc, uvlong sp)
 }
 
 void
+ppmaps(void)
+{
+	int fd, n;
+	char tmp[100];
+	Seg *seg;
+
+	// If it's Linux, the info is in /proc/$pid/maps
+	snprint(tmp, sizeof tmp, "/proc/%d/maps", pid);
+	fd = open(tmp, 0);
+	if(fd >= 0) {
+		n = read(fd, ppmapdata, sizeof ppmapdata - 1);
+		close(fd);
+		if(n < 0) {
+			fprint(2, "prof: can't read %s: %r\n", tmp);
+			exit(2);
+		}
+		ppmapdata[n] = 0;
+		return;
+	}
+
+	// It's probably a mac. Synthesize an entry for the text file.
+	// The register segment may come first but it has a zero offset, so grab the first non-zero offset segment.
+	for(n = 0; n < 3; n++){
+		seg = &map[0]->seg[n];
+		if(seg->b == 0) {
+			continue;
+		}
+		snprint(ppmapdata, sizeof ppmapdata,
+			"%.16x-%.16x r-xp %d 00:00 34968549                           %s\n",
+			seg->b, seg->e, seg->f, "/home/r/6.out"
+		);
+		return;
+	}
+	fprint(2, "prof: no text segment in maps for %s\n", file);
+	exit(2);
+}
+
+void
 samples(void)
 {
 	int i, pid, msec;
 	struct timespec req;
+	int getmaps;
 
 	req.tv_sec = delta_msec/1000;
 	req.tv_nsec = 1000000*(delta_msec % 1000);
+	getmaps = 0;
+	if(pprof)
+		getmaps= 1;
 	for(msec = 0; total_sec <= 0 || msec < 1000*total_sec; msec += delta_msec) {
 		nsample++;
 		nsamplethread += nthread;
@@ -433,6 +572,10 @@ samples(void)
 		getthreads();
 		if(nthread == 0)
 			break;
+		if(getmaps) {
+			getmaps = 0;
+			ppmaps();
+		}
 	}
 }
 
@@ -534,6 +677,106 @@ dumphistogram()
 	}
 }
 
+typedef struct Trace Trace;
+struct Trace {
+	int	count;
+	int	npc;
+	uvlong	*pc;
+	Trace	*next;
+};
+
+void
+dumppprof()
+{
+	uvlong i, n, *p, *e;
+	int ntrace;
+	Trace *trace, *tp, *up, *prev;
+
+	if(!pprof)
+		return;
+	e = ppdata + nppdata;
+	// Create list of traces.  First, count the traces
+	ntrace = 0;
+	for(p = ppdata; p < e;) {
+		n = *p++;
+		p += n;
+		if(n == 0)
+			continue;
+		ntrace++;
+	}
+	print("%d traces\n", ntrace);
+	if(ntrace <= 0)
+		return;
+	// Allocate and link the traces together.
+	trace = malloc(ntrace * sizeof(Trace));
+	tp = trace;
+	for(p = ppdata; p < e;) {
+		n = *p++;
+		if(n == 0)
+			continue;
+		tp->count = 1;
+		tp->npc = n;
+		tp->pc = p;
+		tp->next = tp+1;
+		tp++;
+		p += n;
+	}
+	trace[ntrace-1].next = nil;
+if(0)
+	for(tp = trace; tp != nil; tp = tp->next) {
+		print("%d: ", tp->npc);
+		for(i = 0; i < tp->npc; i++) {
+			print("%llx ", tp->pc[i]);
+		}
+		print("\n");
+	}
+	// Eliminate duplicates.  Lousy algorithm, although not as bad as it looks because
+	// the list collapses fast.
+	for(tp = trace; tp != nil; tp = tp->next) {
+		prev = tp;
+		for(up = tp->next; up != nil; up = up->next) {
+			if(up->npc == tp->npc && memcmp(up->pc, tp->pc, up->npc*sizeof up->pc[0]) == 0) {
+				tp->count++;
+				prev->next = up->next;
+			} else {
+				prev = up;
+			}
+		}
+	}
+	for(tp = trace; tp != nil; tp = tp->next) {
+		print("[%d] %d: ", tp->count, tp->npc);
+		for(i = 0; i < tp->npc; i++) {
+			print("%llx ", tp->pc[i]);
+		}
+		print("\n");
+	}
+	// Write file.
+	// See http://code.google.com/p/google-perftools/source/browse/trunk/doc/cpuprofile-fileformat.html
+	// BUG: assumes little endian.
+	// 1) Header
+	arch->ppword(0);	// must be zero
+	arch->ppword(3);	// 3 words follow in header
+	arch->ppword(0);	// must be zero
+	arch->ppword(delta_msec * 1000);	// sampling period in microseconds
+	arch->ppword(0);	// must be zero (padding)
+	// 2) One record for each trace.
+	for(tp = trace; tp != nil; tp = tp->next) {
+		arch->ppword(tp->count);
+		arch->ppword(tp->npc);
+		for(i = 0; i < tp->npc; i++) {
+			arch->ppword(tp->pc[i]);
+		}
+	}
+	// 3) Binary trailer
+	arch->ppword(0);	// must be zero
+	arch->ppword(1);	// must be one
+	arch->ppword(0);	// must be zero
+	// 4) Mapped objects.
+	Bwrite(pproffd, ppmapdata, strlen(ppmapdata));
+	// 5) That's it.
+	Bterm(pproffd);
+}
+
 int
 startprocess(char **argv)
 {
@@ -574,8 +817,18 @@ int
 main(int argc, char *argv[])
 {
 	int i;
+	char *ppfile;
 
 	ARGBEGIN{
+	case 'P':
+		pprof =1;
+		ppfile = EARGF(Usage());
+		pproffd = Bopen(ppfile, OWRITE);
+		if(pproffd == nil) {
+			fprint(2, "prof: cannot open %s: %r\n", ppfile);
+			exit(2);
+		}
+		break;
 	case 'd':
 		delta_msec = atoi(EARGF(Usage()));
 		break;
@@ -600,10 +853,12 @@ main(int argc, char *argv[])
 	case 's':
 		stacks++;
 		break;
+	default:
+		Usage();
 	}ARGEND
 	if(pid <= 0 && argc == 0)
 		Usage();
-	if(functions+linenums+registers+stacks == 0)
+	if(functions+linenums+registers+stacks+pprof == 0)
 		histograms = 1;
 	if(!machbyname("amd64")) {
 		fprint(2, "prof: no amd64 support\n", pid);
@@ -651,5 +906,6 @@ main(int argc, char *argv[])
 	samples();
 	detach();
 	dumphistogram();
+	dumppprof();
 	exit(0);
 }

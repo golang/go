@@ -19,10 +19,15 @@ statistics.
 
 Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]
 
-The formats (default -h) are:
+The output modes (default -h) are:
 
+	-P file.prof:
+		Write the profile information to file.prof, in the format used by pprof.
+		At the moment, this only works on Linux amd64 binaries and requires that the
+		binary be written using 6l -e to produce ELF debug info.
+		See http://code.google.com/p/google-perftools for details.
 	-h: histograms
-		How many times a sample occurred at each location
+		How many times a sample occurred at each location.
 	-f: dynamic functions
 		At each sample period, print the name of the executing function.
 	-l: dynamic file and line numbers
