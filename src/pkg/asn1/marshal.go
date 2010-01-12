@@ -29,6 +29,9 @@ func newForkableWriter() *forkableWriter {
 }
 
 func (f *forkableWriter) fork() (pre, post *forkableWriter) {
+	if f.pre != nil || f.post != nil {
+		panic("have already forked")
+	}
 	f.pre = newForkableWriter()
 	f.post = newForkableWriter()
 	return f.pre, f.post
@@ -61,7 +64,7 @@ func (f *forkableWriter) writeTo(out io.Writer) (n int, err os.Error) {
 		}
 	}
 
-	if f.pre != nil {
+	if f.post != nil {
 		nn, err = f.post.writeTo(out)
 		n += nn
 	}
@@ -297,7 +300,9 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 	case *reflect.StructValue:
 		t := v.Type().(*reflect.StructType)
 		for i := 0; i < t.NumField(); i++ {
-			err = marshalField(out, v.Field(i), parseFieldParameters(t.Field(i).Tag))
+			var pre *forkableWriter
+			pre, out = out.fork()
+			err = marshalField(pre, v.Field(i), parseFieldParameters(t.Field(i).Tag))
 			if err != nil {
 				return
 			}

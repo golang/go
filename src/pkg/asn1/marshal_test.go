@@ -15,6 +15,11 @@ type intStruct struct {
 	A int
 }
 
+type twoIntStruct struct {
+	A int
+	B int
+}
+
 type nestedStruct struct {
 	A intStruct
 }
@@ -48,6 +53,7 @@ func setPST(t *time.Time) *time.Time {
 var marshalTests = []marshalTest{
 	marshalTest{10, "02010a"},
 	marshalTest{intStruct{64}, "3003020140"},
+	marshalTest{twoIntStruct{64, 65}, "3006020140020141"},
 	marshalTest{nestedStruct{intStruct{127}}, "3005300302017f"},
 	marshalTest{[]byte{1, 2, 3}, "0403010203"},
 	marshalTest{implicitTagTest{64}, "3003850140"},
