@@ -721,7 +721,6 @@ mywhatsys(void)
 	char *s;
 
 	goroot = getenv("GOROOT");
-	goarch = getenv("GOARCH");
 	goos = getenv("GOOS");
 
 	if(goroot == nil) {
@@ -732,9 +731,7 @@ mywhatsys(void)
 		strcpy(goroot, s);
 		strcat(goroot, "/go");
 	}
-	if(goarch == nil) {
-		goarch = "amd64";
-	}
+	goarch = thestring;	// ignore $GOARCH - we know who we are
 	if(goos == nil) {
 		goos = "linux";
 	}
