@@ -350,6 +350,10 @@ TEXT	runcgo(SB),7,$16
 	MOVL	CX, 4(SP)
 	MOVL	BX, 0(SP)
 	CALL	AX
+	
+	// Back; switch to original stack, re-establish
+	// "DF is clear" invariant.
+	CLD
 	MOVL	4(SP), SP
 	RET
 
