@@ -66,7 +66,4 @@ generate: vector.go vector_test.go
 	| gofmt -r='TestVectorData -> TestStrVectorData'\
 	> stringvector_test.go
 
-bench:
-	gotest -v -match Nums -benchmarks Nums
-
 include ../../../Make.pkg
