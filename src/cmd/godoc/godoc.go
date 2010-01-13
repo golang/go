@@ -694,6 +694,14 @@ func timeFmt(w io.Writer, x interface{}, format string) {
 }
 
 
+// Template formatter for "dir/" format.
+func dirslashFmt(w io.Writer, x interface{}, format string) {
+	if x.(*os.Dir).IsDirectory() {
+		w.Write([]byte{'/'})
+	}
+}
+
+
 var fmap = template.FormatterMap{
 	"": textFmt,
 	"html": htmlFmt,
@@ -705,6 +713,7 @@ var fmap = template.FormatterMap{
 	"infoSnippet": infoSnippetFmt,
 	"padding": paddingFmt,
 	"time": timeFmt,
+	"dir/": dirslashFmt,
 }
 
 
@@ -799,6 +808,13 @@ func serveHTMLDoc(c *http.Conn, r *http.Request, path string) {
 	if err != nil {
 		log.Stderrf("%v", err)
 		http.NotFound(c, r)
+		return
+	}
+
+	// if it begins with "<!DOCTYPE " assume it is standalone
+	// html that doesn't need the template wrapping.
+	if bytes.HasPrefix(src, strings.Bytes("<!DOCTYPE ")) {
+		c.Write(src)
 		return
 	}
 
@@ -915,6 +931,12 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
 	if err != nil {
 		http.NotFound(c, r)
 		return
+	}
+
+	for _, d := range list {
+		if d.IsDirectory() {
+			d.Size = 0
+		}
 	}
 
 	var buf bytes.Buffer
