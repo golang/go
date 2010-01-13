@@ -99,6 +99,7 @@ DIRS=\
 	regexp\
 	rpc\
 	runtime\
+	scanner\
 	sort\
 	strconv\
 	strings\
