@@ -14,7 +14,7 @@
 	<p>
 	<span class="alert" style="font-size:120%">Did you mean: </span>
 	{.repeated section Alts}
-		<a href="search?q={@|html}" style="font-size:120%">{@|html}</a>
+		<a href="search?q={@|html-esc}" style="font-size:120%">{@|html}</a>
 	{.end}
 	</p>
 {.end}
@@ -26,7 +26,7 @@
 			{.repeated section Files}
 				{.repeated section Groups}
 					{.repeated section Infos}
-						<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
+						<a href="{File.Path|html-esc}?h={Query|html-esc}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
 						<pre>{@|infoSnippet}</pre>
 					{.end}
 				{.end}
@@ -38,7 +38,7 @@
 		{.repeated section @}
 			<h3 id="Local_{Pak.Path|path}">package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
 			{.repeated section Files}
-				<a href="{File.Path|html}?h={Query|html}">{File.Path|html}</a>
+				<a href="{File.Path|html-esc}?h={Query|html-esc}">{File.Path|html}</a>
 				<table class="layout">
 				{.repeated section Groups}
 					<tr>
@@ -47,7 +47,7 @@
 					<td align="left" width="4"></td>
 					<td>
 					{.repeated section Infos}
-						<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{@|infoLine}</a>
+						<a href="{File.Path|html-esc}?h={Query|html-esc}#L{@|infoLine}">{@|infoLine}</a>
 					{.end}
 					</td>
 					</tr>

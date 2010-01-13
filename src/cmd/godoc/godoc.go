@@ -587,6 +587,14 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
 }
 
 
+// Template formatter for "html-esc" format.
+func htmlEscFmt(w io.Writer, x interface{}, format string) {
+	var buf bytes.Buffer
+	writeAny(&buf, x, false)
+	template.HTMLEscape(w, buf.Bytes())
+}
+
+
 // Template formatter for "html-comment" format.
 func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 	var buf bytes.Buffer
@@ -705,6 +713,7 @@ func dirslashFmt(w io.Writer, x interface{}, format string) {
 var fmap = template.FormatterMap{
 	"": textFmt,
 	"html": htmlFmt,
+	"html-esc": htmlEscFmt,
 	"html-comment": htmlCommentFmt,
 	"path": pathFmt,
 	"link": linkFmt,
