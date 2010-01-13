@@ -3783,7 +3783,12 @@ string or array element or map value.
 The types of the array or slice index (always <code>int</code>)
 and element, or of the map key and value respectively,
 must be <a href="#Assignment_compatibility">assignment compatible</a> with
-the type of the iteration variables.
+the type of the iteration variables.  The expression on the right hand
+side is evaluated once before beginning the loop.  At each iteration
+of the loop, the values produced by the range clause are assigned to
+the left hand side as in an <a href="#Assignments">assignment
+statement</a>.  Function calls on the left hand side will be evaluated
+exactly once per iteration.
 </p>
 <p>
 For strings, the "range" clause iterates over the Unicode code points
