@@ -329,6 +329,7 @@ type typeConv struct {
 	typedef map[string]ast.Expr
 
 	// Predeclared types.
+	bool                                   ast.Expr
 	byte                                   ast.Expr // denotes padding
 	int8, int16, int32, int64              ast.Expr
 	uint8, uint16, uint32, uint64, uintptr ast.Expr
@@ -346,6 +347,7 @@ func (c *typeConv) Init(ptrSize int64) {
 	c.ptrSize = ptrSize
 	c.m = make(map[dwarf.Type]*Type)
 	c.typedef = make(map[string]ast.Expr)
+	c.bool = c.Ident("bool")
 	c.byte = c.Ident("byte")
 	c.int8 = c.Ident("int8")
 	c.int16 = c.Ident("int16")
@@ -442,6 +444,10 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		t.Align = sub.Align
 		gt.Elt = sub.Go
 		t.C = fmt.Sprintf("typeof(%s[%d])", sub.C, dt.Count)
+
+	case *dwarf.BoolType:
+		t.Go = c.bool
+		t.Align = c.ptrSize
 
 	case *dwarf.CharType:
 		if t.Size != 1 {
@@ -613,7 +619,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	}
 
 	switch dtype.(type) {
-	case *dwarf.AddrType, *dwarf.CharType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
+	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
 		s := dtype.Common().Name
 		if s != "" {
 			if ss, ok := cnameMap[s]; ok {
