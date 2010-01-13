@@ -37,6 +37,7 @@ type typeId int32
 
 var nextId typeId       // incremented for each new type we build
 var typeLock sync.Mutex // set while building a type
+const firstUserId = 64  // lowest id number granted to user
 
 type gobType interface {
 	id() typeId
@@ -101,6 +102,7 @@ var tString = bootstrapType("string", "", 6)
 var tWireType = mustGetTypeInfo(reflect.Typeof(wireType{})).id
 
 func init() {
+	// Some magic numbers to make sure there are no surprises.
 	checkId(7, tWireType)
 	checkId(9, mustGetTypeInfo(reflect.Typeof(commonType{})).id)
 	checkId(11, mustGetTypeInfo(reflect.Typeof(structType{})).id)
@@ -109,6 +111,12 @@ func init() {
 	for k, v := range idToType {
 		builtinIdToType[k] = v
 	}
+	// Move the id space upwards to allow for growth in the predefined world
+	// without breaking existing files.
+	if nextId > firstUserId {
+		panicln("nextId too large:", nextId)
+	}
+	nextId = firstUserId
 }
 
 // Array type
