@@ -179,14 +179,16 @@ marked from the beginning up to this point.")
   "An after-change-function that clears the comment/string and
 nesting caches from the modified point on."
 
-  (when (< b go-mode-mark-cs-end)
-    (remove-text-properties b (min go-mode-mark-cs-end (buffer-size)) '(go-mode-cs nil))
-    (setq go-mode-mark-cs-end b
-          go-mode-mark-cs-state nil))
+  (save-restriction
+    (widen)
+    (when (< b go-mode-mark-cs-end)
+      (remove-text-properties b (min go-mode-mark-cs-end (point-max)) '(go-mode-cs nil))
+      (setq go-mode-mark-cs-end b
+            go-mode-mark-cs-state nil))
 
-  (when (< b go-mode-mark-nesting-end)
-    (remove-text-properties b (min go-mode-mark-nesting-end (buffer-size)) '(go-mode-nesting nil))
-    (setq go-mode-mark-nesting-end b)))
+    (when (< b go-mode-mark-nesting-end)
+      (remove-text-properties b (min go-mode-mark-nesting-end (point-max)) '(go-mode-nesting nil))
+      (setq go-mode-mark-nesting-end b))))
 
 (defmacro go-mode-parser (&rest body)
   "Evaluate BODY in an environment set up for parsers that use
@@ -463,7 +465,7 @@ functions, and some types.  It also provides indentation that is
   ;; Remove stale text properties
   (save-restriction
     (widen)
-    (remove-text-properties 1 (+ (buffer-size) 1)
+    (remove-text-properties 1 (point-max)
                             '(go-mode-cs nil go-mode-nesting nil)))
 
   ;; Reset the syntax mark caches
