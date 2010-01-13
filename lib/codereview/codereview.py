@@ -89,10 +89,9 @@ if __name__ == "__main__":
 	print >>sys.stderr, "This is a Mercurial extension and should not be invoked directly."
 	sys.exit(2)
 
-
 server = "codereview.appspot.com"
 server_url_base = None
-defaultcc = [ "golang-dev@googlegroups.com" ]
+defaultcc = None
 
 #######################################################################
 # Change list parsing.
@@ -340,7 +339,10 @@ def ParseCL(text, name):
 	return cl, 0, ''
 
 def SplitCommaSpace(s):
-	return s.replace(",", " ").split()
+	s = s.strip()
+	if s == "":
+		return []
+	return re.split(", *", s)
 
 def CutDomain(s):
 	i = s.find('@')
@@ -1430,11 +1432,6 @@ def DownloadCL(ui, repo, clname):
 		return None, None, "error looking up %s: got info for %s, %s" % (nick, match.group(1), match.group(2))
 	email = match.group(1)
 
-	# Temporary hack until we move to the public code review server.
-	email1, _ = FindContributor(ui, repo, email, warn=False)
-	if email1 == "":
-		email = re.sub("@google.com$", "@golang.org", email)
-
 	# Print warning if email is not in CONTRIBUTORS file.
 	FindContributor(ui, repo, email)
 	cl.copied_from = email
@@ -1593,7 +1590,16 @@ class opt(object):
 	pass
 
 def RietveldSetup(ui, repo):
-	global upload_options, rpc, server, server_url_base, force_google_account, verbosity
+	global defaultcc, upload_options, rpc, server, server_url_base, force_google_account, verbosity
+
+	# Read repository-specific options from lib/codereview/codereview.cfg
+	try:
+		f = open(repo.root + '/lib/codereview/codereview.cfg')
+		for line in f:
+			if line.startswith('defaultcc: '):
+				defaultcc = SplitCommaSpace(line[10:])
+	except:
+		pass
 
 	# TODO(rsc): If the repository config has no codereview section,
 	# do not enable the extension.  This allows users to
@@ -1617,11 +1623,6 @@ def RietveldSetup(ui, repo):
 	if x is not None:
 		email = x
 
-	cc = None
-	x = ui.config("codereview", "cc")
-	if x is not None:
-		cc = x
-
 	server_url_base = "http://" + server + "/"
 
 	testing = ui.config("codereview", "testing")
@@ -1634,7 +1635,7 @@ def RietveldSetup(ui, repo):
 	upload_options.description = None
 	upload_options.description_file = None
 	upload_options.reviewers = None
-	upload_options.cc = cc
+	upload_options.cc = None
 	upload_options.message = None
 	upload_options.issue = None
 	upload_options.download_base = False
