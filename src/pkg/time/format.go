@@ -2,6 +2,7 @@ package time
 
 import (
 	"bytes"
+	"once"
 	"os"
 	"strconv"
 )
@@ -14,12 +15,16 @@ const (
 
 // These are predefined layouts for use in Time.Format.
 // The standard time used in the layouts is:
-//	Mon Jan  2 15:04:05 MST 2006  (MST is GMT-0700)
+//	Mon Jan 2 15:04:05 MST 2006  (MST is GMT-0700)
 // which is Unix time 1136243045.
 // (Think of it as 01/02 03:04:05PM '06 -0700.)
+// An underscore _ represents a space that
+// may be replaced by a digit if the following number
+// (a day) has two digits; for compatibility with
+// fixed-width Unix time formats.
 const (
-	ANSIC    = "Mon Jan  2 15:04:05 2006"
-	UnixDate = "Mon Jan  2 15:04:05 MST 2006"
+	ANSIC    = "Mon Jan _2 15:04:05 2006"
+	UnixDate = "Mon Jan _2 15:04:05 MST 2006"
 	RFC850   = "Monday, 02-Jan-06 15:04:05 MST"
 	RFC1123  = "Mon, 02 Jan 2006 15:04:05 MST"
 	Kitchen  = "3:04PM"
@@ -36,6 +41,7 @@ const (
 	stdLongWeekDay = "Monday"
 	stdWeekDay     = "Mon"
 	stdDay         = "2"
+	stdUnderDay    = "_2"
 	stdZeroDay     = "02"
 	stdHour        = "15"
 	stdHour12      = "3"
@@ -118,19 +124,23 @@ func charType(c uint8) int {
 	switch {
 	case '0' <= c && c <= '9':
 		return numeric
+	case c == '_': // underscore; treated like a number when printing
+		return numeric
 	case 'a' <= c && c < 'z', 'A' <= c && c <= 'Z':
 		return alphabetic
 	}
 	return separator
 }
 
-func zeroPad(i int) string {
+func pad(i int, padding string) string {
 	s := strconv.Itoa(i)
 	if i < 10 {
-		s = "0" + s
+		s = padding + s
 	}
 	return s
 }
+
+func zeroPad(i int) string { return pad(i, "0") }
 
 // Format returns a textual representation of the time value formatted
 // according to layout.  The layout defines the format by showing the
@@ -168,6 +178,8 @@ func (t *Time) Format(layout string) string {
 			p = longDayNames[t.Weekday]
 		case stdDay:
 			p = strconv.Itoa(t.Day)
+		case stdUnderDay:
+			p = pad(t.Day, " ")
 		case stdZeroDay:
 			p = zeroPad(t.Day)
 		case stdHour:
@@ -250,6 +262,21 @@ func (e *ParseError) String() string {
 		strconv.Quote(e.Value) + e.Message
 }
 
+// To simplify comparison, collapse an initial run of spaces into a single space.
+func collapseSpaces(s string) string {
+	if len(s) <= 1 || s[0] != ' ' {
+		return s
+	}
+	var i int
+	for i = 1; i < len(s); i++ {
+		if s[i] != ' ' {
+			return s[i-1:]
+		}
+	}
+	return " "
+}
+
+
 // Parse parses a formatted string and returns the time value it represents.
 // The layout defines the format by showing the representation of a standard
 // time, which is then used to describe the string to be parsed.  Predefined
@@ -296,15 +323,21 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 		}
 		p := value[0:i]
 		value = value[i:]
-		// Separators must match except possibly for a following minus sign (for negative years)
+		// Separators must match but:
+		// - initial run of spaces is treated as a single space
+		// - there could be a following minus sign for negative years
 		if pieceType == separator {
 			if len(p) != len(reference) {
 				// must be exactly a following minus sign
-				if len(p) != len(reference)+1 || p[len(p)-1] != '-' {
-					return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
+				pp := collapseSpaces(p)
+				rr := collapseSpaces(reference)
+				if pp != rr {
+					if len(pp) != len(rr)+1 || p[len(pp)-1] != '-' {
+						return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
+					}
+					nextIsYear = true
+					continue
 				}
-				nextIsYear = true
-				continue
 			}
 		}
 		var err os.Error
@@ -335,7 +368,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			t.Weekday, err = lookup(shortDayNames, p)
 		case stdLongWeekDay:
 			t.Weekday, err = lookup(longDayNames, p)
-		case stdDay, stdZeroDay:
+		case stdDay, stdUnderDay, stdZeroDay:
 			t.Day, err = strconv.Atoi(p)
 			if t.Day < 0 || 31 < t.Day {
 				// TODO: be more thorough in date check?
@@ -422,6 +455,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			// It's a valid format.
 			t.Zone = p
 			// Can we find it in the table?
+			once.Do(setupZone)
 			for _, z := range zones {
 				if p == z.zone.name {
 					t.ZoneOffset = z.zone.utcoff
