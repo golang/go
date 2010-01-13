@@ -225,7 +225,7 @@ findpkg(Strlit *name)
 	if(goroot == nil) {
 		goroot = getenv("GOROOT");
 		goos = getenv("GOOS");
-		goarch = getenv("GOARCH");
+		goarch = thestring;
 	}
 
 	if(islocalname(name)) {

@@ -52,6 +52,7 @@ EXTERN	uchar	inuxi4[4];
 EXTERN	uchar	inuxi8[8];
 EXTERN	char*	outfile;
 EXTERN	int32	nsymbol;
+EXTERN	char*	thestring;
 
 void	addlib(char *src, char *obj);
 void	copyhistfrog(char *buf, int nbuf);
