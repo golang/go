@@ -165,6 +165,9 @@ var parseTests = []ParseTest{
 	ParseTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true},
 	ParseTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true},
 	ParseTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800", true, false},
+	// Amount of white space should not matter.
+	ParseTest{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true},
+	ParseTest{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true},
 }
 
 func TestParse(t *testing.T) {
