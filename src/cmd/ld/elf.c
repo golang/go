@@ -13,6 +13,8 @@
  */
 #define	NSECT	32
 
+int	iself;
+
 static	int	elf64;
 static	ElfEhdr	hdr;
 static	ElfPhdr	*phdr[NSECT];
@@ -26,6 +28,8 @@ static	char	*interp;
 void
 elfinit(void)
 {
+	iself = 1;
+
 	switch(thechar) {
 	// 64-bit architectures
 	case '6':

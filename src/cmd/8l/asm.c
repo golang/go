@@ -275,7 +275,7 @@ doelf(void)
 	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
 	int h, nsym, t;
 
-	if(HEADTYPE != 7 && HEADTYPE != 8 && HEADTYPE != 9)
+	if(!iself)
 		return;
 
 	/* predefine strings we need for section headers */
@@ -504,6 +504,8 @@ asmb(void)
 
 	switch(HEADTYPE) {
 	default:
+		if(iself)
+			goto Elfseek;
 		diag("unknown header type %d", HEADTYPE);
 	case 0:
 		seek(cout, rnd(HEADR+textsize, 8192), 0);
@@ -529,9 +531,7 @@ asmb(void)
 		}
 		cflush();
 		break;
-	case 7:
-	case 8:
-	case 9:
+	Elfseek:
 	case 10:
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
@@ -570,6 +570,8 @@ asmb(void)
 		Bflush(&bso);
 		switch(HEADTYPE) {
 		default:
+			if(iself)
+				goto Elfsym;
 		case 0:
 			seek(cout, rnd(HEADR+textsize, 8192)+datsize, 0);
 			break;
@@ -587,9 +589,7 @@ asmb(void)
 		case 6:
 			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
 			break;
-		case 7:
-		case 8:
-		case 9:
+		Elfsym:
 		case 10:
 			symo = rnd(HEADR+textsize, INITRND)+datsize;
 			symo = rnd(symo, INITRND);
@@ -627,6 +627,8 @@ asmb(void)
 	seek(cout, 0L, 0);
 	switch(HEADTYPE) {
 	default:
+		if(iself)
+			goto Elfput;
 	case 0:	/* garbage */
 		lput(0x160L<<16);		/* magic and sections */
 		lput(0L);			/* time and date */
@@ -760,11 +762,9 @@ asmb(void)
 		asmbmacho(symdatva, symo);
 		break;
 
-	case 7:
-	case 8:
-	case 9:
+	Elfput:
 		/* elf 386 */
-		if(HEADTYPE == 8)
+		if(HEADTYPE == 8 || HEADTYPE == 11)
 			debug['d'] = 1;
 
 		eh = getElfEhdr();
@@ -833,7 +833,7 @@ asmb(void)
 		ph->memsz = w+bsssize;
 		ph->align = INITRND;
 
-		if(!debug['s'] && HEADTYPE != 8) {
+		if(!debug['s'] && HEADTYPE != 8 && HEADTYPE != 11) {
 			ph = newElfPhdr();
 			ph->type = PT_LOAD;
 			ph->flags = PF_W+PF_R;

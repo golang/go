@@ -24,6 +24,9 @@ GOFILES=\
 	extern.go\
 	type.go\
 
+GOFILES_pchw=\
+	pchw/io.go\
+
 # 386-specific object files
 OFILES_386=\
 	vlop.$O\

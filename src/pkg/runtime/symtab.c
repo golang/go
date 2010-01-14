@@ -46,6 +46,8 @@ walksymtab(void (*fn)(Sym*))
 	// TODO(rsc): Remove once TODO at top of file is done.
 	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
 		return;
+	if(goos != nil && strcmp((uint8*)goos, (uint8*)"pchw") == 0)
+		return;
 
 #ifdef __MINGW__
 	v = get_symdat_addr();
@@ -250,6 +252,8 @@ splitpcln(void)
 
 	// TODO(rsc): Remove once TODO at top of file is done.
 	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
+		return;
+	if(goos != nil && strcmp((uint8*)goos, (uint8*)"pchw") == 0)
 		return;
 
 	// pc/ln table bounds
