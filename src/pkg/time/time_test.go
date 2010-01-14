@@ -186,6 +186,26 @@ func TestParse(t *testing.T) {
 	}
 }
 
+var rubyTests = []ParseTest{
+	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
+	// Ignore the time zone in the test. If it parses, it'll be OK.
+	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0000 2010", false, true, 1},
+	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +0000 2010", false, true, 1},
+	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +1130 2010", false, true, 1},
+}
+
+// Problematic time zone format needs special tests.
+func TestRubyParse(t *testing.T) {
+	for _, test := range rubyTests {
+		time, err := Parse(test.format, test.value)
+		if err != nil {
+			t.Errorf("%s error: %v", test.name, err)
+		} else {
+			checkTime(time, &test, t)
+		}
+	}
+}
+
 func checkTime(time *Time, test *ParseTest, t *testing.T) {
 	// The time should be Thu Feb  4 21:00:57 PST 2010
 	if test.yearSign*time.Year != 2010 {
