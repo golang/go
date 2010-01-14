@@ -146,9 +146,6 @@ TEXT clone(SB),7,$0
 	POPL	AX
 	POPL	AX
 	POPAL
-	SHLL	$3, DI	// segment# is ldt*8 + 7 (different 7 than above)
-	ADDL	$7, DI
-	MOVW	DI, GS
 
 	// Now segment is established.  Initialize m, g.
 	get_tls(AX)
