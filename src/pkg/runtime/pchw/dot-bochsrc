@@ -1,0 +1,18 @@
+romimage: file=$BXSHARE/BIOS-bochs-latest
+cpu: count=1, ips=100000000, reset_on_triple_fault=0
+megs: 32
+vgaromimage: file=/usr/share/vgabios/vgabios.bin
+vga: extension=none
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
+ata2: enabled=0, ioaddr1=0x1e8, ioaddr2=0x3e0, irq=11
+ata3: enabled=0, ioaddr1=0x168, ioaddr2=0x360, irq=9
+ata0-master: type=disk, mode=flat, path="disk", cylinders=100, heads=10, spt=10
+boot: disk
+panic: action=ask
+error: action=report
+info: action=report
+debug: action=ignore
+debugger_log: -
+config_interface: wx
+display_library: wx

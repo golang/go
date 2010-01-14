@@ -165,6 +165,9 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "mingw") == 0)
 			HEADTYPE = 10;
 		else
+		if(strcmp(goos, "pchw") == 0)
+			HEADTYPE = 11;
+		else
 			print("goos is not known: %s\n", goos);
 	}
 
@@ -282,6 +285,17 @@ main(int argc, char *argv[])
 			INITDAT = 0;
 		if(INITRND == -1)
 			INITRND = PEALIGN;
+		break;
+	case 11:
+		tlsoffset = 0;
+		elfinit();
+		HEADR = ELFRESERVE;
+		if(INITTEXT == -1)
+			INITTEXT = 0x100000+HEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 4096;
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)

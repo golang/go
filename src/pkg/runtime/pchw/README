@@ -1,0 +1,53 @@
+This directory contains a simple example of how one might
+start Go running on bare hardware.  It is very primitive but
+can run go/test/sieve.go, the concurrent prime sieve, on a
+uniprocessor.  It has only been tested using the Bochs emulator.
+
+To run, first build the tools by running all.bash with GOARCH=386
+and GOOS set to your normal GOOS (linux, darwin).  Then:
+
+	export GOOS=pchw
+	cd $GOROOT/src/pkg/runtime
+	make clean
+	make install
+	cd pchw
+	8g $GOROOT/test/sieve.go
+	8l sieve.8
+	8l -a sieve.8 >sieve.asm	# can consult sieve.asm for debugging
+	dd if=/dev/zero of=disk count=10000
+	cat bootblock 8.out | dd of=disk conv=notrunc
+	bochs
+
+You may have to tweak the .bochsrc depending on your system,
+and you may need to install the Bochs emulator.
+
+
+
+The bootblock is from MIT's xv6 project and carries this notice:
+
+    The xv6 software is:
+    
+    Copyright (c) 2006-2009 Frans Kaashoek, Robert Morris, Russ Cox,
+                            Massachusetts Institute of Technology
+    
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+    
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+    
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+http://pdos.csail.mit.edu/6.828/xv6/
+
