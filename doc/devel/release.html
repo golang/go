@@ -5,6 +5,43 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-01-13">2010-01-13</h2>
+
+<pre>
+build: $GOBIN should no longer be required in $PATH (thanks Devon H. O'Dell),
+	new package target "make bench" to run benchmarks
+8g: faster float -> uint64 conversion (thanks Evan Shaw)
+5g, 6g, 8g:
+	clean opnames.h to avoid stale errors (thanks Yongjian Xu),
+	a handful of small compiler fixes
+5g, 6g, 8g, 5l, 6l, 8l: ignore $GOARCH, which is implied by name of tool
+6prof: support for writing input files for google-perftools's pprof
+asn1: fix a few structure-handling bugs
+cgo: many bug fixes (thanks Devon H. O'Dell)
+codereview: repeated "hg mail" sends "please take another look"
+gob: reserve ids for future expansion
+godoc: distinguish HTML generation from plain text HTML escaping (thanks Roger Peppe)
+gofmt: minor bug fixes, removed -oldprinter flag
+http: add CanonicalPath (thanks Ivan Krasin),
+	avoid header duplication in Response.Write,
+	correctly escape/unescape URL sections
+io: new interface ReadByter
+json: better error, pointer handling in Marshal (thanks Ivan Krasin)
+libmach: disassembly of FUCOMI, etc (thanks Evan Shaw)
+math: special cases for most functions and 386 hardware Sqrt (thanks Charles Dorian)
+misc/dashboard: beginning of a build dashboard at godashboard.appspot.com.
+misc/emacs: handling of new semicolon rules (thanks Austin Clements),
+	empty buffer bug fix (thanks Kevin Ballard)
+misc/kate: highlighting improvements (tahnks Evan Shaw)
+os/signal: add signal names: signal.SIGHUP, etc (thanks David Symonds)
+runtime: preliminary Windows support (thanks Hector Chu),
+	preemption polling to reduce garbage collector pauses
+scanner: new lightweight scanner package
+template: bug fix involving spaces before a delimited block
+test/bench: updated timings
+time: new Format, Parse functions
+</pre>
+
 <h3 id="2010-01-05">2010-01-05</h3>
 
 <pre>
