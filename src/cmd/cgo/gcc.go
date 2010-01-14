@@ -48,7 +48,13 @@ func (p *Prog) loadDebugInfo() {
 			val = strings.TrimSpace(line[tabIndex:])
 		}
 
-		defines[key] = val
+		// Only allow string, character, and numeric constants. Ignoring #defines for
+		// symbols allows those symbols to be referenced in Go, as they will be
+		// translated by gcc later.
+		_, err := strconv.Atoi(string(val[0]))
+		if err == nil || val[0] == '\'' || val[0] == '"' {
+			defines[key] = val
+		}
 	}
 
 	// Construct a slice of unique names from p.Crefs.
