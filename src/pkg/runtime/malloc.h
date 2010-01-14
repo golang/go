@@ -303,6 +303,10 @@ void*	mallocgc(uintptr size, uint32 flag, int32 dogc);
 int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
 void	gc(int32 force);
 
+void*	SysAlloc(uintptr);
+void	SysUnused(void*, uintptr);
+void	SysFree(void*, uintptr);
+
 enum
 {
 	RefcountOverhead = 4,	// one uint32 per object

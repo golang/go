@@ -62,6 +62,7 @@ OFILES=\
 	reflect.$O\
 	rune.$O\
 	runtime.$O\
+	runtime1.$O\
 	rt0.$O\
 	sema.$O\
 	signal.$O\
@@ -73,6 +74,7 @@ OFILES=\
 	thread.$O\
 	traceback.$O\
 	$(OFILES_$(GOARCH))\
+	$(OFILES_$(GOOS))\
 
 HFILES=\
 	cgocall.h\
@@ -83,6 +85,8 @@ HFILES=\
 	$(GOOS)/os.h\
 	$(GOOS)/signals.h\
 	$(GOOS)/$(GOARCH)/defs.h\
+
+GOFILES+=$(GOFILES_$(GOOS))
 
 include ../../Make.pkg
 

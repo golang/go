@@ -11,6 +11,8 @@ void *get_proc_addr(void *library, void *name);
 void *stdcall(void *fn, ...);
 void *stdcall_raw(void *fn, ...);
 
+extern void *VirtualAlloc;
+
 #define goargs mingw_goargs
 void mingw_goargs(void);
 
