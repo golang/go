@@ -326,9 +326,9 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 		prevLayout := layout
 		layout = layout[i:]
 		// Ugly time zone handling.
-		if reference == "Z" || reference == "z" {
+		if reference == "Z" {
 			// Special case for ISO8601 time zone: "Z" or "-0800"
-			if reference == "Z" && value[0] == 'Z' {
+			if value[0] == 'Z' {
 				i = 1
 			} else if len(value) >= 5 {
 				i = 5
@@ -338,11 +338,19 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 		} else {
 			c = value[0]
 			if charType(c) != pieceType {
-				// could be a minus sign introducing a negative year
+				// Ugly management of signs.  Reference and data might differ.
+				// 1. Could be a minus sign introducing a negative year.
 				if c == '-' && pieceType != minus {
 					value = value[1:]
-					sign = "-"
 					layout = prevLayout // don't consume reference item
+					sign = "-"
+					continue
+				}
+				// 2. Could be a plus sign for a +0100 time zone, represented by -0700 in the standard.
+				if c == '+' && pieceType == minus {
+					value = value[1:]
+					layout = prevLayout[1:] // absorb sign in both value and layout
+					sign = "+"
 					continue
 				}
 				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
