@@ -15,13 +15,13 @@ void *ExitProcess;
 void *GetStdHandle;
 void *SetEvent;
 void *WriteFile;
+void *VirtualAlloc;
 
 static void *CreateEvent;
 static void *CreateThread;
 static void *GetModuleHandle;
 static void *GetProcAddress;
 static void *LoadLibraryEx;
-static void *VirtualAlloc;
 static void *WaitForSingleObject;
 
 static void*
@@ -146,14 +146,6 @@ write(int32 fd, void *buf, int32 n)
 	}
 	stdcall(WriteFile, handle, buf, n, &written, 0);
 	return written;
-}
-
-uint8*
-runtime_mmap(byte *addr, uint32 len, int32 prot,
-	int32 flags, int32 fd, uint32 off)
-{
-	USED(prot, flags, fd, off);
-	return stdcall(VirtualAlloc, addr, len, 0x3000, 0x40);
 }
 
 void*

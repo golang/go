@@ -31,7 +31,7 @@ findnullw(uint16 *s)
 	return l;
 }
 
-int32 maxstring;
+int32 maxstring = 256;
 
 String
 gostringsize(int32 l)
