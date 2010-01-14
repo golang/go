@@ -132,6 +132,7 @@ type FormatTest struct {
 var formatTests = []FormatTest{
 	FormatTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010"},
 	FormatTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010"},
+	FormatTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010"},
 	FormatTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST"},
 	FormatTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST"},
 	FormatTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800"},
@@ -152,22 +153,26 @@ func TestFormat(t *testing.T) {
 }
 
 type ParseTest struct {
-	name   string
-	format string
-	value  string
-	hasTZ  bool // contains a time zone
-	hasWD  bool // contains a weekday
+	name     string
+	format   string
+	value    string
+	hasTZ    bool  // contains a time zone
+	hasWD    bool  // contains a weekday
+	yearSign int64 // sign of year
 }
 
 var parseTests = []ParseTest{
-	ParseTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true},
-	ParseTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true},
-	ParseTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true},
-	ParseTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true},
-	ParseTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800", true, false},
+	ParseTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true, 1},
+	ParseTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true, 1},
+	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
+	ParseTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1},
+	ParseTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1},
+	ParseTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800", true, false, 1},
+	// Negative year
+	ParseTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 -2010", false, true, -1},
 	// Amount of white space should not matter.
-	ParseTest{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true},
-	ParseTest{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true},
+	ParseTest{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1},
+	ParseTest{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1},
 }
 
 func TestParse(t *testing.T) {
@@ -183,7 +188,7 @@ func TestParse(t *testing.T) {
 
 func checkTime(time *Time, test *ParseTest, t *testing.T) {
 	// The time should be Thu Feb  4 21:00:57 PST 2010
-	if time.Year != 2010 {
+	if test.yearSign*time.Year != 2010 {
 		t.Errorf("%s: bad year: %d not %d\n", test.name, time.Year, 2010)
 	}
 	if time.Month != 2 {

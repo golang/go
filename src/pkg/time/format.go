@@ -11,6 +11,8 @@ const (
 	numeric = iota
 	alphabetic
 	separator
+	plus
+	minus
 )
 
 // These are predefined layouts for use in Time.Format.
@@ -25,6 +27,7 @@ const (
 const (
 	ANSIC    = "Mon Jan _2 15:04:05 2006"
 	UnixDate = "Mon Jan _2 15:04:05 MST 2006"
+	RubyDate = "Mon Jan 02 15:04:05 -0700 2006"
 	RFC850   = "Monday, 02-Jan-06 15:04:05 MST"
 	RFC1123  = "Mon, 02 Jan 2006 15:04:05 MST"
 	Kitchen  = "3:04PM"
@@ -56,7 +59,8 @@ const (
 	stdPM          = "PM"
 	stdpm          = "pm"
 	stdTZ          = "MST"
-	stdISO8601TZ   = "Z"
+	stdISO8601TZ   = "Z"    // prints Z for UTC
+	stdNumTZ       = "0700" // always numeric
 )
 
 var longDayNames = []string{
@@ -126,8 +130,12 @@ func charType(c uint8) int {
 		return numeric
 	case c == '_': // underscore; treated like a number when printing
 		return numeric
-	case 'a' <= c && c < 'z', 'A' <= c && c <= 'Z':
+	case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z':
 		return alphabetic
+	case c == '+':
+		return plus
+	case c == '-':
+		return minus
 	}
 	return separator
 }
@@ -198,19 +206,31 @@ func (t *Time) Format(layout string) string {
 			p = zeroPad(t.Second)
 		case stdZulu:
 			p = zeroPad(t.Hour) + zeroPad(t.Minute)
-		case stdISO8601TZ:
-			// Rather ugly special case, required because the time zone is too broken down
-			// in this format to recognize easily.  We cheat and take "Z" to mean "the time
+		case stdISO8601TZ, stdNumTZ:
+			// Ugly special case.  We cheat and take "Z" to mean "the time
 			// zone as formatted for ISO 8601".
-			if t.ZoneOffset == 0 {
+			zone := t.ZoneOffset / 60 // conver to minutes
+			if p == stdISO8601TZ && t.ZoneOffset == 0 {
 				p = "Z"
 			} else {
-				zone := t.ZoneOffset / 60 // minutes
-				if zone < 0 {
-					p = "-"
-					zone = -zone
+				// If the reference time is stdNumTZ (0700), the sign has already been
+				// emitted but may be wrong.  For stdISO8601TZ we must print it.
+				if p == stdNumTZ && b.Len() > 0 {
+					soFar := b.Bytes()
+					if soFar[len(soFar)-1] == '-' && zone >= 0 {
+						// fix the sign
+						soFar[len(soFar)-1] = '+'
+					} else {
+						zone = -zone
+					}
+					p = ""
 				} else {
-					p = "+"
+					if zone < 0 {
+						p = "-"
+						zone = -zone
+					} else {
+						p = "+"
+					}
 				}
 				p += zeroPad(zone / 60)
 				p += zeroPad(zone % 60)
@@ -294,8 +314,8 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 	rangeErrString := "" // set if a value is out of range
 	pmSet := false       // do we need to add 12 to the hour?
 	// Each iteration steps along one piece
-	nextIsYear := false // whether next item is a Year; means we saw a minus sign.
 	layout, value := alayout, avalue
+	sign := "" // pending + or - from previous iteration
 	for len(layout) > 0 && len(value) > 0 {
 		c := layout[0]
 		pieceType := charType(c)
@@ -303,10 +323,12 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 		for i = 0; i < len(layout) && charType(layout[i]) == pieceType; i++ {
 		}
 		reference := layout[0:i]
+		prevLayout := layout
 		layout = layout[i:]
-		if reference == "Z" {
+		// Ugly time zone handling.
+		if reference == "Z" || reference == "z" {
 			// Special case for ISO8601 time zone: "Z" or "-0800"
-			if value[0] == 'Z' {
+			if reference == "Z" && value[0] == 'Z' {
 				i = 1
 			} else if len(value) >= 5 {
 				i = 5
@@ -316,6 +338,13 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 		} else {
 			c = value[0]
 			if charType(c) != pieceType {
+				// could be a minus sign introducing a negative year
+				if c == '-' && pieceType != minus {
+					value = value[1:]
+					sign = "-"
+					layout = prevLayout // don't consume reference item
+					continue
+				}
 				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
 			}
 			for i = 0; i < len(value) && charType(value[i]) == pieceType; i++ {
@@ -323,21 +352,17 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 		}
 		p := value[0:i]
 		value = value[i:]
-		// Separators must match but:
-		// - initial run of spaces is treated as a single space
-		// - there could be a following minus sign for negative years
-		if pieceType == separator {
-			if len(p) != len(reference) {
-				// must be exactly a following minus sign
-				pp := collapseSpaces(p)
-				rr := collapseSpaces(reference)
-				if pp != rr {
-					if len(pp) != len(rr)+1 || p[len(pp)-1] != '-' {
-						return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
-					}
-					nextIsYear = true
-					continue
-				}
+		switch pieceType {
+		case separator:
+			// Separators must match but initial run of spaces is treated as a single space.
+			if collapseSpaces(p) != collapseSpaces(reference) {
+				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
+			}
+			continue
+		case plus, minus:
+			if len(p) == 1 { // ++ or -- don't count as signs.
+				sign = p
+				continue
 			}
 		}
 		var err os.Error
@@ -351,9 +376,8 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			}
 		case stdLongYear:
 			t.Year, err = strconv.Atoi64(p)
-			if nextIsYear {
+			if sign == "-" {
 				t.Year = -t.Year
-				nextIsYear = false
 			}
 		case stdMonth:
 			t.Month, err = lookup(shortMonthNames, p)
@@ -403,19 +427,25 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			if err != nil {
 				t.Minute, err = strconv.Atoi(p[2:4])
 			}
-		case stdISO8601TZ:
-			if p == "Z" {
-				t.Zone = "UTC"
-				break
+		case stdISO8601TZ, stdNumTZ:
+			if reference == stdISO8601TZ {
+				if p == "Z" {
+					t.Zone = "UTC"
+					break
+				}
+				// len(p) known to be 5: "-0800"
+				sign = p[0:1]
+				p = p[1:]
+			} else {
+				// len(p) known to be 4: "0800" and sign is set
 			}
-			// len(p) known to be 5: "-0800"
 			var hr, min int
-			hr, err = strconv.Atoi(p[1:3])
+			hr, err = strconv.Atoi(p[0:2])
 			if err != nil {
-				min, err = strconv.Atoi(p[3:5])
+				min, err = strconv.Atoi(p[2:4])
 			}
 			t.ZoneOffset = (hr*60 + min) * 60 // offset is in seconds
-			switch p[0] {
+			switch sign[0] {
 			case '+':
 			case '-':
 				t.ZoneOffset = -t.ZoneOffset
@@ -463,16 +493,13 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 				}
 			}
 		}
-		if nextIsYear {
-			// Means we didn't see a year when we were expecting one
-			return nil, &ParseError{Layout: alayout, Value: value, Message: formatErr + alayout}
-		}
 		if rangeErrString != "" {
 			return nil, &ParseError{alayout, avalue, reference, p, ": " + rangeErrString + " out of range"}
 		}
 		if err != nil {
 			return nil, &ParseError{alayout, avalue, reference, p, ""}
 		}
+		sign = ""
 	}
 	if pmSet && t.Hour < 12 {
 		t.Hour += 12
