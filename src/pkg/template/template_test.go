@@ -44,6 +44,7 @@ type S struct {
 	innermap      U
 	stringmap     map[string]string
 	bytes         []byte
+	iface         interface{}
 }
 
 func (s *S) pointerMethod() string { return "ptrmethod!" }
@@ -353,6 +354,24 @@ var tests = []*Test{
 		out: "stringresult\n" +
 			"stringresult\n",
 	},
+
+	// Interface values
+
+	&Test{
+		in: "{iface}",
+
+		out: "[1 2 3]",
+	},
+	&Test{
+		in: "{.repeated section iface}{@}{.alternates with} {.end}",
+
+		out: "1 2 3",
+	},
+	&Test{
+		in: "{.section iface}{@}{.end}",
+
+		out: "[1 2 3]",
+	},
 }
 
 func TestAll(t *testing.T) {
@@ -379,6 +398,7 @@ func TestAll(t *testing.T) {
 	s.stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
 	s.stringmap["stringkey2"] = "stringresult"
 	s.bytes = strings.Bytes("hello")
+	s.iface = []int{1, 2, 3}
 
 	var buf bytes.Buffer
 	for _, test := range tests {

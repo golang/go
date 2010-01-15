@@ -723,6 +723,9 @@ func (t *Template) varValue(name string, st *state) reflect.Value {
 		}
 		return t.varValue(name, st.parent)
 	}
+	if iface, ok := field.(*reflect.InterfaceValue); ok && !iface.IsNil() {
+		field = iface.Elem()
+	}
 	return field
 }
 
