@@ -1,0 +1,10 @@
+255.255.255.255	broadcasthost
+127.0.0.2	odin
+127.0.0.3	odin  # inline comment 
+::2             odin
+127.1.1.1	thor
+# Bogus entries that must be ignored.
+123.123.123	loki
+321.321.321.321
+# TODO(yvesj): Should we be able to parse this? From a Darwin system.
+fe80::1%lo0	localhost

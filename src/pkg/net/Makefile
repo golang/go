@@ -11,6 +11,7 @@ GOFILES=\
 	dnsmsg.go\
 	fd.go\
 	fd_$(GOOS).go\
+	hosts.go\
 	ip.go\
 	ipsock.go\
 	net.go\
