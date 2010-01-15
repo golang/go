@@ -144,3 +144,8 @@ throw: interface conversion
 panic PC=xxx
 
 == bugs/
+
+=========== bugs/bug242.go
+bad map check 13 false false
+panic PC=xxx
+BUG: tuple evaluation order
