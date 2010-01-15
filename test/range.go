@@ -53,7 +53,41 @@ func testarray() {
 	}
 }
 
+// test that range evaluates the index and value expressions
+// exactly once per iteration.
+
+var ncalls = 0
+func getvar(p *int) *int {
+	ncalls++
+	return p
+}
+
+func testcalls() {
+	var i, v int
+	si := 0
+	sv := 0
+	for *getvar(&i), *getvar(&v) = range [2]int{1, 2} {
+		si += i
+		sv += v
+	}
+	if ncalls != 4 {
+		panicln("wrong number of calls:", ncalls, "!= 4")
+	}
+	if si != 1 || sv != 3 {
+		panicln("wrong sum in testcalls", si, sv)
+	}
+
+	ncalls = 0
+	for *getvar(&i), *getvar(&v) = range [0]int{} {
+		panicln("loop ran on empty array")
+	}
+	if ncalls != 0 {
+		panicln("wrong number of calls:", ncalls, "!= 0")
+	}
+}
+
 func main() {
 	testchan();
 	testarray();
+	testcalls();
 }
