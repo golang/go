@@ -10,7 +10,15 @@ OFILES_amd64=\
 	sqrt_amd64.$O\
 
 OFILES_386=\
+	asin_386.$O\
+	atan_386.$O\
+	exp_386.$O\
+	fabs_386.$O\
+	floor_386.$O\
+	log_386.$O\
+	sin_386.$O\
 	sqrt_386.$O\
+	tan_386.$O\
 
 OFILES=\
 	$(OFILES_$(GOARCH))
