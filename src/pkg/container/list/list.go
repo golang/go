@@ -191,3 +191,25 @@ func (l *List) Iter() <-chan interface{} {
 	go l.iterate(c)
 	return c
 }
+
+// PushBackList inserts each element of ol at the back of the list.
+func (l *List) PushBackList(ol *List) {
+	last := ol.Back()
+	for e := ol.Front(); e != nil; e = e.Next() {
+		l.PushBack(e.Value)
+		if e == last {
+			break
+		}
+	}
+}
+
+// PushFrontList inserts each element of ol at the front of the list. The ordering of the passed list is preserved.
+func (l *List) PushFrontList(ol *List) {
+	first := ol.Front()
+	for e := ol.Back(); e != nil; e = e.Prev() {
+		l.PushFront(e.Value)
+		if e == first {
+			break
+		}
+	}
+}

@@ -134,3 +134,62 @@ func TestList(t *testing.T) {
 	checkListPointers(t, l, []*Element{})
 	checkListLen(t, l, 0)
 }
+
+func checkList(t *testing.T, l *List, es []interface{}) {
+	if l.Len() != len(es) {
+		t.Errorf("list has len=%v, want %v", l.Len(), len(es))
+		return
+	}
+	i := 0
+	for le := range l.Iter() {
+		if le != es[i] {
+			t.Errorf("elt #%d has value=%v, want %v", i, le, es[i])
+		}
+		i++
+	}
+}
+
+func TestExtending(t *testing.T) {
+	l1 := New()
+	l2 := New()
+
+	l1.PushBack(1)
+	l1.PushBack(2)
+	l1.PushBack(3)
+
+	l2.PushBack(4)
+	l2.PushBack(5)
+
+	l3 := New()
+	l3.PushBackList(l1)
+	checkList(t, l3, []interface{}{1, 2, 3})
+	l3.PushBackList(l2)
+	checkList(t, l3, []interface{}{1, 2, 3, 4, 5})
+
+	l3 = New()
+	l3.PushFrontList(l2)
+	checkList(t, l3, []interface{}{4, 5})
+	l3.PushFrontList(l1)
+	checkList(t, l3, []interface{}{1, 2, 3, 4, 5})
+
+	checkList(t, l1, []interface{}{1, 2, 3})
+	checkList(t, l2, []interface{}{4, 5})
+
+	l3 = New()
+	l3.PushBackList(l1)
+	checkList(t, l3, []interface{}{1, 2, 3})
+	l3.PushBackList(l3)
+	checkList(t, l3, []interface{}{1, 2, 3, 1, 2, 3})
+
+	l3 = New()
+	l3.PushFrontList(l1)
+	checkList(t, l3, []interface{}{1, 2, 3})
+	l3.PushFrontList(l3)
+	checkList(t, l3, []interface{}{1, 2, 3, 1, 2, 3})
+
+	l3 = New()
+	l1.PushBackList(l3)
+	checkList(t, l1, []interface{}{1, 2, 3})
+	l1.PushFrontList(l3)
+	checkList(t, l1, []interface{}{1, 2, 3})
+}
