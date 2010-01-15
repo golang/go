@@ -571,7 +571,7 @@ agen(Node *n, Node *res)
 				n1.xoffset = Array_array;
 				gmove(&n1, &n3);
 			} else
-			if(!debug['B']) {
+			if(!debug['B'] && !n->etype) {
 				if(v < 0)
 					yyerror("out of bounds on array");
 				else
