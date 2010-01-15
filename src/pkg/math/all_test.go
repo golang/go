@@ -309,6 +309,41 @@ var fmodSC = []float64{
 	NaN(),
 }
 
+var vfhypotSC = [][2]float64{
+	[2]float64{Inf(-1), Inf(-1)},
+	[2]float64{Inf(-1), 0},
+	[2]float64{Inf(-1), Inf(1)},
+	[2]float64{Inf(-1), NaN()},
+	[2]float64{0, Inf(-1)},
+	[2]float64{0, Inf(1)},
+	[2]float64{0, NaN()},
+	[2]float64{Inf(1), Inf(-1)},
+	[2]float64{Inf(1), 0},
+	[2]float64{Inf(1), Inf(1)},
+	[2]float64{Inf(1), NaN()},
+	[2]float64{NaN(), Inf(-1)},
+	[2]float64{NaN(), 0},
+	[2]float64{NaN(), Inf(1)},
+	[2]float64{NaN(), NaN()},
+}
+var hypotSC = []float64{
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	NaN(),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	NaN(),
+	Inf(1),
+	NaN(),
+}
+
 var vflogSC = []float64{
 	Inf(-1),
 	-Pi,
@@ -411,6 +446,19 @@ var powSC = []float64{
 	1,
 	1,
 	1,
+}
+
+var vfsqrtSC = []float64{
+	Inf(-1),
+	-Pi,
+	Inf(1),
+	NaN(),
+}
+var sqrtSC = []float64{
+	NaN(),
+	NaN(),
+	Inf(1),
+	NaN(),
 }
 
 func tolerance(a, b, e float64) bool {
@@ -525,12 +573,26 @@ func TestFloor(t *testing.T) {
 func TestFmod(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Fmod(10, vf[i]); !close(fmod[i], f) {
-			t.Errorf("Fmod(10, %.17g) = %.17g, want %.17g\n", vf[i], f, fmod[i])
+			t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
 		}
 	}
 	for i := 0; i < len(vffmodSC); i++ {
 		if f := Fmod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
-			t.Errorf("Fmod(%.17g, %.17g) = %.17g, want %.17g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
+			t.Errorf("Fmod(%g, %g) = %g, want %g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
+		}
+	}
+}
+
+func TestHypot(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		a := Fabs(tanh[i] * Sqrt(2))
+		if f := Hypot(tanh[i], tanh[i]); a != f {
+			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
+		}
+	}
+	for i := 0; i < len(vfhypotSC); i++ {
+		if f := Hypot(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
+			t.Errorf("Hypot(%g, %g) = %g, want %g\n", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
 		}
 	}
 }
@@ -572,12 +634,12 @@ func TestLog10(t *testing.T) {
 func TestPow(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Pow(10, vf[i]); !close(pow[i], f) {
-			t.Errorf("Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i])
+			t.Errorf("Pow(10, %g) = %g, want %g\n", vf[i], f, pow[i])
 		}
 	}
 	for i := 0; i < len(vfpowSC); i++ {
 		if f := Pow(vfpowSC[i][0], vfpowSC[i][1]); !alike(powSC[i], f) {
-			t.Errorf("Pow(%.17g, %.17g) = %.17g, want %.17g\n", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
+			t.Errorf("Pow(%g, %g) = %g, want %g\n", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
 		}
 	}
 }
@@ -609,6 +671,11 @@ func TestSqrt(t *testing.T) {
 			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, sqrt[i])
 		}
 	}
+	for i := 0; i < len(vfsqrtSC); i++ {
+		if f := Log10(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
+			t.Errorf("Sqrt(%g) = %g, want %g\n", vfsqrtSC[i], f, sqrtSC[i])
+		}
+	}
 }
 
 func TestTan(t *testing.T) {
@@ -623,15 +690,6 @@ func TestTanh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Tanh(vf[i]); !veryclose(tanh[i], f) {
 			t.Errorf("Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i])
-		}
-	}
-}
-
-func TestHypot(t *testing.T) {
-	for i := 0; i < len(vf); i++ {
-		a := Fabs(tanh[i] * Sqrt(2))
-		if f := Hypot(tanh[i], tanh[i]); a != f {
-			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
 		}
 	}
 }
@@ -700,18 +758,6 @@ func TestFloatMinMax(t *testing.T) {
 
 // Benchmarks
 
-func BenchmarkPowInt(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Pow(2, 2)
-	}
-}
-
-func BenchmarkPowFrac(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Pow(2.5, 1.5)
-	}
-}
-
 func BenchmarkAtan(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Atan(.5)
@@ -727,6 +773,18 @@ func BenchmarkAsin(b *testing.B) {
 func BenchmarkAcos(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Acos(.5)
+	}
+}
+
+func BenchmarkPowInt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Pow(2, 2)
+	}
+}
+
+func BenchmarkPowFrac(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Pow(2.5, 1.5)
 	}
 }
 
