@@ -32,8 +32,8 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
 		if dx > mask.Width() {
 			dx = mask.Width()
 		}
-		if dy > mask.Width() {
-			dy = mask.Width()
+		if dy > mask.Height() {
+			dy = mask.Height()
 		}
 	}
 	dx -= pt.X
