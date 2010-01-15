@@ -308,7 +308,7 @@ func identListSize(list []*ast.Ident, maxSize int) (size int) {
 		if i > 0 {
 			size += 2 // ", "
 		}
-		size += len(x.Value)
+		size += len(x.Name())
 		if size >= maxSize {
 			break
 		}

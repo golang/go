@@ -452,10 +452,10 @@ func (x *Indexer) visitComment(c *ast.CommentGroup) {
 
 func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 	if id != nil {
-		lists, found := x.words[id.Value]
+		lists, found := x.words[id.Name()]
 		if !found {
 			lists = new(IndexResult)
-			x.words[id.Value] = lists
+			x.words[id.Name()] = lists
 		}
 
 		if kind == Use || x.decl == nil {
@@ -606,7 +606,7 @@ func (x *Indexer) VisitFile(path string, d *os.Dir) {
 	}
 
 	dir, _ := pathutil.Split(path)
-	pak := Pak{dir, file.Name.Value}
+	pak := Pak{dir, file.Name.Name()}
 	x.file = &File{path, pak}
 	ast.Walk(x, file)
 }

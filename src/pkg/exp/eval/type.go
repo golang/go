@@ -764,7 +764,7 @@ func typeListString(ts []Type, ns []*ast.Ident) string {
 			s += ", "
 		}
 		if ns != nil && ns[i] != nil {
-			s += ns[i].Value + " "
+			s += ns[i].Name() + " "
 		}
 		if t == nil {
 			// Some places use nil types to represent errors
@@ -808,7 +808,7 @@ type FuncDecl struct {
 func (t *FuncDecl) String() string {
 	s := "func"
 	if t.Name != nil {
-		s += " " + t.Name.Value
+		s += " " + t.Name.Name()
 	}
 	s += funcTypeString(t.Type, t.InNames, t.OutNames)
 	return s

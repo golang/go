@@ -4,89 +4,78 @@
 
 package ast
 
-// A Scope maintains the set of identifiers visible
-// in the scope and a link to the immediately surrounding
-// (outer) scope.
+import "go/token"
+
+type ObjKind int
+
+// The list of possible Object kinds.
+const (
+	Err ObjKind = iota // object kind unknown (forward reference or error)
+	Pkg         // package
+	Con         // constant
+	Typ         // type
+	Var         // variable
+	Fun         // function or method
+)
+
+
+// An Object describes a language entity such as a package,
+// constant, type, variable, or function (incl. methods).
 //
-//	NOTE: WORK IN PROGRESS
+type Object struct {
+	Kind  ObjKind
+	Pos   token.Position // declaration position
+	Name  string         // declared name
+	Scope *Scope         // scope in which the Object is declared
+}
+
+
+func NewObj(kind ObjKind, pos token.Position, name string) *Object {
+	return &Object{kind, pos, name, nil}
+}
+
+
+// IsExported returns whether obj is exported.
+func (obj *Object) IsExported() bool { return IsExported(obj.Name) }
+
+
+// A Scope maintains the set of named language entities visible
+// in the scope and a link to the immediately surrounding (outer)
+// scope.
 //
 type Scope struct {
-	Outer *Scope
-	Names map[string]*Ident
+	Outer   *Scope
+	Objects map[string]*Object
 }
 
 
 // NewScope creates a new scope nested in the outer scope.
-func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Ident)} }
+func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Object)} }
 
 
-// Declare inserts an identifier into the scope s. If the
-// declaration succeeds, the result is true, if the identifier
-// exists already in the scope, the result is false.
-//
-func (s *Scope) Declare(ident *Ident) bool {
-	if _, found := s.Names[ident.Value]; found {
-		return false
+// Declare attempts to insert a named object into the scope s.
+// If the scope does not contain an object with that name yet,
+// Declare inserts the object, and the result is true. Otherwise,
+// the scope remains unchanged and the result is false.
+func (s *Scope) Declare(obj *Object) bool {
+	if obj.Name != "_" {
+		if _, found := s.Objects[obj.Name]; found {
+			return false
+		}
+		s.Objects[obj.Name] = obj
 	}
-	s.Names[ident.Value] = ident
 	return true
 }
 
 
-// Lookup looks up an identifier in the current scope chain.
-// If the identifier is found, it is returned; otherwise the
-// result is nil.
+// Lookup looks up an object in the current scope chain.
+// The result is nil if the object is not found.
 //
-func (s *Scope) Lookup(name string) *Ident {
+func (s *Scope) Lookup(name string) *Object {
 	for ; s != nil; s = s.Outer {
-		if ident, found := s.Names[name]; found {
-			return ident
+		if obj, found := s.Objects[name]; found {
+			return obj
 		}
 	}
 	return nil
 }
-
-
-// TODO(gri) Uncomment once this code is needed.
-/*
-var Universe = Scope {
-	Names: map[string]*Ident {
-		// basic types
-		"bool": nil,
-		"byte": nil,
-		"int8": nil,
-		"int16": nil,
-		"int32": nil,
-		"int64": nil,
-		"uint8": nil,
-		"uint16": nil,
-		"uint32": nil,
-		"uint64": nil,
-		"float32": nil,
-		"float64": nil,
-		"string": nil,
-
-		// convenience types
-		"int": nil,
-		"uint": nil,
-		"uintptr": nil,
-		"float": nil,
-
-		// constants
-		"false": nil,
-		"true": nil,
-		"iota": nil,
-		"nil": nil,
-
-		// functions
-		"cap": nil,
-		"len": nil,
-		"new": nil,
-		"make": nil,
-		"panic": nil,
-		"panicln": nil,
-		"print": nil,
-		"println": nil,
-	}
-}
-*/

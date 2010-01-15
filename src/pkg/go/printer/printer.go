@@ -734,7 +734,7 @@ func (p *printer) print(args ...) {
 			if p.Styler != nil {
 				data, tag = p.Styler.Ident(x)
 			} else {
-				data = strings.Bytes(x.Value)
+				data = strings.Bytes(x.Name())
 			}
 		case *ast.BasicLit:
 			if p.Styler != nil {

@@ -126,7 +126,7 @@ func pkgName(filename string) string {
 	if err != nil || file == nil {
 		return ""
 	}
-	return file.Name.Value
+	return file.Name.Name()
 }
 
 
@@ -215,7 +215,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 					// (left-over) "documentation" package somewhere in a package
 					// directory of different name, but this is very unlikely and
 					// against current conventions.
-					(file.Name.Value == name || file.Name.Value == fakePkgName) &&
+					(file.Name.Name() == name || file.Name.Name() == fakePkgName) &&
 					file.Doc != nil {
 					// found documentation; extract a synopsys
 					text = firstSentence(doc.CommentText(file.Doc))
@@ -439,8 +439,8 @@ func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
 
 
 func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
-	text = strings.Bytes(id.Value)
-	if s.highlight == id.Value {
+	text = strings.Bytes(id.Name())
+	if s.highlight == id.Name() {
 		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
 	}
 	return

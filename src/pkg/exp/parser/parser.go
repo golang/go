@@ -268,43 +268,17 @@ func (p *parser) expect(tok token.Token) token.Position {
 
 
 // ----------------------------------------------------------------------------
-// Scope support
-
-func openScope(p *parser) *parser {
-	p.topScope = ast.NewScope(p.topScope)
-	return p
-}
-
-
-// Usage pattern: defer close(openScope(p));
-func close(p *parser) { p.topScope = p.topScope.Outer }
-
-
-func (p *parser) declare(ident *ast.Ident) {
-	if !p.topScope.Declare(ident) {
-		p.Error(p.pos, "'"+ident.Value+"' declared already")
-	}
-}
-
-
-func (p *parser) declareList(idents []*ast.Ident) {
-	for _, ident := range idents {
-		p.declare(ident)
-	}
-}
-
-
-// ----------------------------------------------------------------------------
 // Common productions
 
 func (p *parser) parseIdent() *ast.Ident {
+	obj := ast.NewObj(ast.Err, p.pos, "")
 	if p.tok == token.IDENT {
-		x := &ast.Ident{p.pos, string(p.lit)}
+		obj.Name = string(p.lit)
 		p.next()
-		return x
+	} else {
+		p.expect(token.IDENT) // use expect() error handling
 	}
-	p.expect(token.IDENT) // use expect() error handling
-	return &ast.Ident{p.pos, ""}
+	return &ast.Ident{obj.Pos, obj}
 }
 
 
@@ -424,7 +398,7 @@ func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
 		if !isIdent {
 			pos := list.At(i).(ast.Expr).Pos()
 			p.errorExpected(pos, "identifier")
-			idents[i] = &ast.Ident{pos, ""}
+			idents[i] = &ast.Ident{pos, ast.NewObj(ast.Err, pos, "")}
 		}
 		idents[i] = ident
 	}
@@ -834,8 +808,6 @@ func (p *parser) parseBlockStmt(idents []*ast.Ident) *ast.BlockStmt {
 	if p.trace {
 		defer un(trace(p, "BlockStmt"))
 	}
-
-	defer close(openScope(p))
 
 	lbrace := p.expect(token.LBRACE)
 	list := p.parseStmtList()
@@ -1421,9 +1393,6 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 		defer un(trace(p, "IfStmt"))
 	}
 
-	// IfStmt block
-	defer close(openScope(p))
-
 	pos := p.expect(token.IF)
 	s1, s2, _ := p.parseControlClause(false)
 	body := p.parseBlockStmt(nil)
@@ -1441,9 +1410,6 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 	if p.trace {
 		defer un(trace(p, "CaseClause"))
 	}
-
-	// CaseClause block
-	defer close(openScope(p))
 
 	// SwitchCase
 	pos := p.pos
@@ -1489,9 +1455,6 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 		defer un(trace(p, "TypeCaseClause"))
 	}
 
-	// TypeCaseClause block
-	defer close(openScope(p))
-
 	// TypeSwitchCase
 	pos := p.pos
 	var types []ast.Expr
@@ -1528,9 +1491,6 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		defer un(trace(p, "SwitchStmt"))
 	}
 
-	// SwitchStmt block
-	defer close(openScope(p))
-
 	pos := p.expect(token.SWITCH)
 	s1, s2, _ := p.parseControlClause(false)
 
@@ -1564,9 +1524,6 @@ func (p *parser) parseCommClause() *ast.CommClause {
 	if p.trace {
 		defer un(trace(p, "CommClause"))
 	}
-
-	// CommClause block
-	defer close(openScope(p))
 
 	// CommCase
 	pos := p.pos
@@ -1627,9 +1584,6 @@ func (p *parser) parseForStmt() ast.Stmt {
 	if p.trace {
 		defer un(trace(p, "ForStmt"))
 	}
-
-	// ForStmt block
-	defer close(openScope(p))
 
 	pos := p.expect(token.FOR)
 	s1, s2, s3 := p.parseControlClause(true)
@@ -1745,7 +1699,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.S
 
 	var ident *ast.Ident
 	if p.tok == token.PERIOD {
-		ident = &ast.Ident{p.pos, "."}
+		ident = &ast.Ident{p.pos, ast.NewObj(ast.Err, p.pos, ".")}
 		p.next()
 	} else if p.tok == token.IDENT {
 		ident = p.parseIdent()
@@ -1973,9 +1927,6 @@ func (p *parser) parseFile() *ast.File {
 	if p.trace {
 		defer un(trace(p, "File"))
 	}
-
-	// file block
-	defer close(openScope(p))
 
 	// package clause
 	doc := p.leadComment

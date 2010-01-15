@@ -27,6 +27,7 @@ var (
 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
 
 	// debugging support
+	checks   = flag.Bool("checks", false, "do semantic checks")
 	comments = flag.Bool("comments", true, "print comments")
 	trace    = flag.Bool("trace", false, "print parse trace")
 
@@ -63,6 +64,9 @@ func usage() {
 
 func initParserMode() {
 	parserMode = uint(0)
+	if *checks {
+		parserMode |= parser.CheckSemantics
+	}
 	if *comments {
 		parserMode |= parser.ParseComments
 	}

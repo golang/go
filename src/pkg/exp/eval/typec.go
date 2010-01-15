@@ -26,17 +26,17 @@ type typeCompiler struct {
 }
 
 func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
-	_, _, def := a.block.Lookup(x.Value)
+	_, _, def := a.block.Lookup(x.Name())
 	if def == nil {
-		a.diagAt(x, "%s: undefined", x.Value)
+		a.diagAt(x, "%s: undefined", x.Name())
 		return nil
 	}
 	switch def := def.(type) {
 	case *Constant:
-		a.diagAt(x, "constant %v used as type", x.Value)
+		a.diagAt(x, "constant %v used as type", x.Name())
 		return nil
 	case *Variable:
-		a.diagAt(x, "variable %v used as type", x.Value)
+		a.diagAt(x, "variable %v used as type", x.Name())
 		return nil
 	case *NamedType:
 		if !allowRec && def.incomplete {
@@ -51,7 +51,7 @@ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
 	case Type:
 		return def
 	}
-	log.Crashf("name %s has unknown type %T", x.Value, def)
+	log.Crashf("name %s has unknown type %T", x.Name(), def)
 	return nil
 }
 
@@ -147,7 +147,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 		// Compute field name and check anonymous fields
 		var name string
 		if names[i] != nil {
-			name = names[i].Value
+			name = names[i].Name()
 		} else {
 			if ts[i] == nil {
 				continue
@@ -247,7 +247,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
 		}
 
 		if names[i] != nil {
-			name := names[i].Value
+			name := names[i].Name()
 			methods[nm].Name = name
 			methods[nm].Type = ts[i].(*FuncType)
 			nm++
@@ -380,7 +380,7 @@ func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool {
 	for _, spec := range decl.Specs {
 		spec := spec.(*ast.TypeSpec)
 		// Create incomplete type for this type
-		nt := b.DefineType(spec.Name.Value, spec.Name.Pos(), nil)
+		nt := b.DefineType(spec.Name.Name(), spec.Name.Pos(), nil)
 		if nt != nil {
 			nt.(*NamedType).incomplete = true
 		}

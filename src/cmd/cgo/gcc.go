@@ -559,7 +559,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		t.Go = name // publish before recursive calls
 		switch dt.Kind {
 		case "union", "class":
-			c.typedef[name.Value] = c.Opaque(t.Size)
+			c.typedef[name.Name()] = c.Opaque(t.Size)
 			if t.C == "" {
 				t.C = fmt.Sprintf("typeof(unsigned char[%d])", t.Size)
 			}
@@ -569,7 +569,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 				t.C = csyntax
 			}
 			t.Align = align
-			c.typedef[name.Value] = g
+			c.typedef[name.Name()] = g
 		}
 
 	case *dwarf.TypedefType:
@@ -588,8 +588,8 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		sub := c.Type(dt.Type)
 		t.Size = sub.Size
 		t.Align = sub.Align
-		if _, ok := c.typedef[name.Value]; !ok {
-			c.typedef[name.Value] = sub.Go
+		if _, ok := c.typedef[name.Name()]; !ok {
+			c.typedef[name.Name()] = sub.Go
 		}
 
 	case *dwarf.UcharType:
@@ -633,7 +633,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			}
 			s = strings.Join(strings.Split(s, " ", 0), "") // strip spaces
 			name := c.Ident("_C_" + s)
-			c.typedef[name.Value] = t.Go
+			c.typedef[name.Name()] = t.Go
 			t.Go = name
 		}
 	}
@@ -710,7 +710,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
 }
 
 // Identifier
-func (c *typeConv) Ident(s string) *ast.Ident { return &ast.Ident{Value: s} }
+func (c *typeConv) Ident(s string) *ast.Ident { return ast.NewIdent(s) }
 
 // Opaque type of n bytes.
 func (c *typeConv) Opaque(n int64) ast.Expr {

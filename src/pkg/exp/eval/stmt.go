@@ -210,15 +210,15 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) {
  */
 
 func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
-	v, prev := a.block.DefineVar(ident.Value, ident.Pos(), t)
+	v, prev := a.block.DefineVar(ident.Name(), ident.Pos(), t)
 	if prev != nil {
 		// TODO(austin) It's silly that we have to capture
 		// Pos() in a variable.
 		pos := prev.Pos()
 		if pos.IsValid() {
-			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Value, &pos)
+			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Name(), &pos)
 		} else {
-			a.diagAt(ident, "variable %s redeclared in this block", ident.Value)
+			a.diagAt(ident, "variable %s redeclared in this block", ident.Name())
 		}
 		return nil
 	}
@@ -381,13 +381,13 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 		}
 		// Declare and initialize v before compiling func
 		// so that body can refer to itself.
-		c, prev := a.block.DefineConst(d.Name.Value, a.pos, decl.Type, decl.Type.Zero())
+		c, prev := a.block.DefineConst(d.Name.Name(), a.pos, decl.Type, decl.Type.Zero())
 		if prev != nil {
 			pos := prev.Pos()
 			if pos.IsValid() {
-				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Value, &pos)
+				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Name(), &pos)
 			} else {
-				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Value)
+				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Name())
 			}
 		}
 		fn := a.compileFunc(a.block, decl, d.Body)
@@ -416,14 +416,14 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 
 func (a *stmtCompiler) compileLabeledStmt(s *ast.LabeledStmt) {
 	// Define label
-	l, ok := a.labels[s.Label.Value]
+	l, ok := a.labels[s.Label.Name()]
 	if ok {
 		if l.resolved.IsValid() {
-			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Value, &l.resolved)
+			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Name(), &l.resolved)
 		}
 	} else {
 		pc := badPC
-		l = &label{name: s.Label.Value, gotoPC: &pc}
+		l = &label{name: s.Label.Name(), gotoPC: &pc}
 		a.labels[l.name] = l
 	}
 	l.desc = "regular label"
@@ -562,7 +562,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			}
 
 			// Is this simply an assignment?
-			if _, ok := a.block.defs[ident.Value]; ok {
+			if _, ok := a.block.defs[ident.Name()]; ok {
 				ident = nil
 				break
 			}
@@ -861,7 +861,7 @@ func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool,
 		if name == nil && pred(l) {
 			return l
 		}
-		if name != nil && l.name == name.Value {
+		if name != nil && l.name == name.Name() {
 			if !pred(l) {
 				a.diag("cannot %s to %s %s", errOp, l.desc, l.name)
 				return nil
@@ -872,7 +872,7 @@ func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool,
 	if name == nil {
 		a.diag("%s outside %s", errOp, errCtx)
 	} else {
-		a.diag("%s label %s not defined", errOp, name.Value)
+		a.diag("%s label %s not defined", errOp, name.Name())
 	}
 	return nil
 }
@@ -896,10 +896,10 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
 		pc = l.continuePC
 
 	case token.GOTO:
-		l, ok := a.labels[s.Label.Value]
+		l, ok := a.labels[s.Label.Name()]
 		if !ok {
 			pc := badPC
-			l = &label{name: s.Label.Value, desc: "unresolved label", gotoPC: &pc, used: s.Pos()}
+			l = &label{name: s.Label.Name(), desc: "unresolved label", gotoPC: &pc, used: s.Pos()}
 			a.labels[l.name] = l
 		}
 
@@ -1235,14 +1235,14 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 	defer bodyScope.exit()
 	for i, t := range decl.Type.In {
 		if decl.InNames[i] != nil {
-			bodyScope.DefineVar(decl.InNames[i].Value, decl.InNames[i].Pos(), t)
+			bodyScope.DefineVar(decl.InNames[i].Name(), decl.InNames[i].Pos(), t)
 		} else {
 			bodyScope.DefineTemp(t)
 		}
 	}
 	for i, t := range decl.Type.Out {
 		if decl.OutNames[i] != nil {
-			bodyScope.DefineVar(decl.OutNames[i].Value, decl.OutNames[i].Pos(), t)
+			bodyScope.DefineVar(decl.OutNames[i].Name(), decl.OutNames[i].Pos(), t)
 		} else {
 			bodyScope.DefineTemp(t)
 		}

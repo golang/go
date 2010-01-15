@@ -160,7 +160,7 @@ func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*as
 			if err != nil {
 				return pkgs, err
 			}
-			name := src.Name.Value
+			name := src.Name.Name()
 			pkg, found := pkgs[name]
 			if !found {
 				pkg = &ast.Package{name, path, make(map[string]*ast.File)}
