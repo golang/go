@@ -224,7 +224,7 @@ func isDomainName(s string) bool {
 	return ok
 }
 
-// LookupHost looks up the host name using the local DNS resolver.
+// LookupHost looks for name using the local hosts file and DNS resolver.
 // It returns the canonical name for the host and an array of that
 // host's addresses.
 func LookupHost(name string) (cname string, addrs []string, err os.Error) {
@@ -236,7 +236,12 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 		err = dnserr
 		return
 	}
-
+	// Use entries from /etc/hosts if they match.
+	addrs = lookupStaticHost(name)
+	if len(addrs) > 0 {
+		cname = name
+		return
+	}
 	// If name is rooted (trailing dot) or has enough dots,
 	// try it by itself first.
 	rooted := len(name) > 0 && name[len(name)-1] == '.'

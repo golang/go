@@ -278,6 +278,10 @@ func parseIPv4(s string) IP {
 	var p [IPv4len]byte
 	i := 0
 	for j := 0; j < IPv4len; j++ {
+		if i >= len(s) {
+			// Missing octets.
+			return nil
+		}
 		if j > 0 {
 			if s[i] != '.' {
 				return nil
