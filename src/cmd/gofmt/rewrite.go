@@ -109,7 +109,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 	// times in the pattern, it must match the same expression
 	// each time.
 	if m != nil && pattern.Type() == identType {
-		name := pattern.Interface().(*ast.Ident).Value
+		name := pattern.Interface().(*ast.Ident).Name()
 		if isWildcard(name) {
 			if old, ok := m[name]; ok {
 				return match(nil, old, val)
@@ -184,7 +184,7 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 
 	// Wildcard gets replaced with map value.
 	if m != nil && pattern.Type() == identType {
-		name := pattern.Interface().(*ast.Ident).Value
+		name := pattern.Interface().(*ast.Ident).Name()
 		if isWildcard(name) {
 			if old, ok := m[name]; ok {
 				return subst(nil, old, nil)

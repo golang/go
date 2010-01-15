@@ -74,7 +74,7 @@ func openProg(name string, p *Prog) {
 		}
 		fatal("parsing %s: %s", name, err)
 	}
-	p.Package = p.AST.Name.Value
+	p.Package = p.AST.Name.Name()
 
 	// Find the import "C" line and get any extra C preamble.
 	// Delete the import "C" line along the way.
@@ -134,7 +134,7 @@ func walk(x interface{}, p *Prog, context string) {
 			// The parser should take care of scoping in the future,
 			// so that we will be able to distinguish a "top-level C"
 			// from a local C.
-			if l, ok := sel.X.(*ast.Ident); ok && l.Value == "C" {
+			if l, ok := sel.X.(*ast.Ident); ok && l.Name() == "C" {
 				i := len(p.Crefs)
 				if i >= cap(p.Crefs) {
 					new := make([]*Cref, 2*i)
@@ -145,7 +145,7 @@ func walk(x interface{}, p *Prog, context string) {
 				}
 				p.Crefs = p.Crefs[0 : i+1]
 				p.Crefs[i] = &Cref{
-					Name: sel.Sel.Value,
+					Name: sel.Sel.Name(),
 					Expr: n,
 					Context: context,
 				}

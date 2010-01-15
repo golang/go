@@ -69,7 +69,7 @@ func (p *Prog) writeDefs() {
 	for name, def := range p.Funcdef {
 		// Go func declaration.
 		d := &ast.FuncDecl{
-			Name: &ast.Ident{Value: "_C_" + name},
+			Name: ast.NewIdent("_C_" + name),
 			Type: def.Go,
 		}
 		printer.Fprint(fgo2, d)

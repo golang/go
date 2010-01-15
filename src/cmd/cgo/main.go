@@ -94,13 +94,13 @@ func main() {
 			switch cref.Context {
 			case "const":
 				// This came from a #define and we'll output it later.
-				*cref.Expr = &ast.Ident{Value: cref.Name}
+				*cref.Expr = ast.NewIdent(cref.Name)
 				break
 			case "call":
 				if !cref.TypeName {
 					// Is an actual function call.
 					pos := (*cref.Expr).Pos()
-					*cref.Expr = &ast.Ident{Position: pos, Value: "_C_" + cref.Name}
+					*cref.Expr = &ast.Ident{Position: pos, Obj: ast.NewObj(ast.Err, pos, "_C_"+cref.Name)}
 					p.Funcdef[cref.Name] = cref.FuncType
 					break
 				}
@@ -113,13 +113,13 @@ func main() {
 				// place the identifier for the value and add it to Enumdef so
 				// it will be declared as a constant in the later stage.
 				if cref.Type.EnumValues != nil {
-					*cref.Expr = &ast.Ident{Value: cref.Name}
+					*cref.Expr = ast.NewIdent(cref.Name)
 					p.Enumdef[cref.Name] = cref.Type.EnumValues[cref.Name]
 					break
 				}
 				// Reference to C variable.
 				// We declare a pointer and arrange to have it filled in.
-				*cref.Expr = &ast.StarExpr{X: &ast.Ident{Value: "_C_" + cref.Name}}
+				*cref.Expr = &ast.StarExpr{X: ast.NewIdent("_C_" + cref.Name)}
 				p.Vardef[cref.Name] = cref.Type
 			case "type":
 				if !cref.TypeName {

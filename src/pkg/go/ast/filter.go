@@ -249,5 +249,5 @@ func MergePackageFiles(pkg *Package) *File {
 	// TODO(gri) Should collect comments as well. For that the comment
 	//           list should be changed back into a []*CommentGroup,
 	//           otherwise need to modify the existing linked list.
-	return &File{doc, noPos, &Ident{noPos, pkg.Name}, decls, nil}
+	return &File{doc, noPos, NewIdent(pkg.Name), decls, nil}
 }
