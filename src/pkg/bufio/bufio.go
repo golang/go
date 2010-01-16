@@ -387,7 +387,7 @@ func (b *Writer) Buffered() int { return b.n }
 
 // Write writes the contents of p into the buffer.
 // It returns the number of bytes written.
-// If nn < len(p), also returns an error explaining
+// If nn < len(p), it also returns an error explaining
 // why the write is short.
 func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 	if b.err != nil {
@@ -438,9 +438,12 @@ func (b *Writer) WriteByte(c byte) os.Error {
 }
 
 // WriteString writes a string.
-func (b *Writer) WriteString(s string) os.Error {
+// It returns the number of bytes written.
+// If the count is less than len(s), it also returns an error explaining
+// why the write is short.
+func (b *Writer) WriteString(s string) (int, os.Error) {
 	if b.err != nil {
-		return b.err
+		return 0, b.err
 	}
 	// Common case, worth making fast.
 	if b.Available() >= len(s) || len(b.buf) >= len(s) && b.Flush() == nil {
@@ -448,12 +451,15 @@ func (b *Writer) WriteString(s string) os.Error {
 			b.buf[b.n] = s[i]
 			b.n++
 		}
-		return nil
+		return len(s), nil
 	}
 	for i := 0; i < len(s); i++ { // loop over bytes, not runes.
 		b.WriteByte(s[i])
+		if b.err != nil {
+			return i, b.err
+		}
 	}
-	return b.err
+	return len(s), nil
 }
 
 // buffered input and output
