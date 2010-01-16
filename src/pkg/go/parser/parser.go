@@ -357,7 +357,7 @@ func (p *parser) findIdent() *ast.Ident {
 	if obj == nil {
 		obj = ast.NewObj(ast.Err, pos, name)
 	}
-	return &ast.Ident{obj.Pos, obj}
+	return &ast.Ident{pos, obj}
 }
 
 
