@@ -508,6 +508,16 @@ not <code>int32</code> or <code>string</code>.
 </p>
 
 <p>
+There are no constants denoting the IEEE-754 infinity and not-a-number values,
+but the <a href="/pkg/math/"><code>math</code> package</a>'s
+<a href="/pkg/math/#Inf">Inf</a>,
+<a href="/pkg/math/#NaN">NaN</a>,
+<a href="/pkg/math/#IsInf">IsInf</a>, and
+<a href="/pkg/math/#IsNaN">IsNaN</a>
+functions return and test for those values at run time.
+</p>
+
+<p>
 Implementation restriction: A compiler may implement numeric constants by choosing
 an internal representation with at least twice as many bits as any machine type;
 for floating-point values, both the mantissa and exponent must be twice as large.
@@ -4681,7 +4691,7 @@ value and returns both the type and the address of the copy.
 <code>Unreflect</code> inverts <code>Reflect</code>,
 creating an
 interface value from a type and address.
-The <code>reflect</code> package built on these primitives
+The <a href="/pkg/reflect/"><code>reflect</code> package</a> built on these primitives
 provides a safe, more convenient way to inspect interface values.
 </p>
 
