@@ -35,6 +35,9 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 	// Allow reuse of recently-used addresses.
 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 
+	// Allow broadcast.
+	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+
 	if la != nil {
 		e = syscall.Bind(s, la)
 		if e != 0 {
