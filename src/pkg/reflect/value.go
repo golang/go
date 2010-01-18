@@ -829,15 +829,19 @@ func (fv *FuncValue) Call(in []Value) []Value {
 	if size < 8 {
 		size = 8
 	}
-	args := make([]byte, size)
-	ptr := uintptr(unsafe.Pointer(&args[0]))
+
+	// round to pointer size
+	size = (size + ptrSize - 1) &^ (ptrSize - 1)
 
 	// Copy into args.
 	//
 	// TODO(rsc): revisit when reference counting happens.
-	// This one may be fine.  The values are holding up the
-	// references for us, so maybe this can be treated
-	// like any stack-to-stack copy.
+	// The values are holding up the in references for us,
+	// but something must be done for the out references.
+	// For now make everything look like a pointer by pretending
+	// to allocate a []*int.
+	args := make([]*int, size/ptrSize)
+	ptr := uintptr(unsafe.Pointer(&args[0]))
 	off := uintptr(0)
 	delta := 0
 	if v := fv.first; v != nil {
