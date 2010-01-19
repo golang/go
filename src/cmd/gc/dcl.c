@@ -325,8 +325,10 @@ variter(NodeList *vl, Node *t, NodeList *el)
 			declare(v, dclcontext);
 			v->ntype = t;
 			v->defn = as2;
+			if(funcdepth > 0)
+				init = list(init, nod(ODCL, v, N));
 		}
-		return list1(as2);
+		return list(init, as2);
 	}
 	
 	for(; vl; vl=vl->next) {
