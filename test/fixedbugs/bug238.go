@@ -15,5 +15,8 @@ const d chan int = 4    // ERROR "convert|wrong|incompatible"
 const e func() = 5      // ERROR "convert|wrong|incompatible"
 const f struct{} = 6    // ERROR "convert|wrong|incompatible"
 const g interface{} = 7 // ERROR "constant|wrong|incompatible"
+const h bool = false
+const i int = 2
+const j float = 5
 
 func main() { println(a, b, c, d, e, f, g) }
