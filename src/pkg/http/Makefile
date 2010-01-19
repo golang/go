@@ -6,9 +6,11 @@ include ../../Make.$(GOARCH)
 
 TARG=http
 GOFILES=\
+	chunked.go\
 	client.go\
 	fs.go\
 	request.go\
+	response.go\
 	server.go\
 	status.go\
 	url.go\
