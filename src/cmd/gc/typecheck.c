@@ -1715,7 +1715,7 @@ typecheckcomplit(Node **np)
 
 	memset(hash, 0, sizeof hash);
 
-	l = typecheck(&n->right /* sic */, Etype /* TODO | Edotarray */);
+	l = typecheck(&n->right /* sic */, Etype);
 	if((t = l->type) == T)
 		goto error;
 	nerr = nerrors;

@@ -322,6 +322,7 @@ slicelit(Node *n, Node *var, NodeList **init)
 	t = shallow(n->type);
 	t->bound = mpgetfix(n->right->val.u.xval);
 	t->width = 0;
+	t->sym = nil;
 	dowidth(t);
 
 	// make static initialized array
@@ -688,6 +689,7 @@ initctxt:
 		t = shallow(t);
 		t->bound = mpgetfix(n->right->right->val.u.xval);
 		t->width = 0;
+		t->sym = nil;
 		dowidth(t);
 
 		// make static initialized array
