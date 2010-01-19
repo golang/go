@@ -353,6 +353,7 @@ importdot(Sym *opkg, Node *pack)
 				continue;
 			}
 			s1->def = s->def;
+			s1->block = s->block;
 			s1->def->pack = pack;
 			n++;
 		}
