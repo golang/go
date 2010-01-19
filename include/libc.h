@@ -286,6 +286,10 @@ extern	Waitmsg*	waitnohang(void);
 extern	int	p9waitpid(void);
 extern	ulong	rendezvous(ulong, ulong);
 
+extern	char*	getgoos(void);
+extern	char*	getgoarch(void);
+extern	char*	getgoroot(void);
+
 #ifdef __MINGW32__
 extern int fork();
 extern int pread(int fd, void *buf, int n, int off);
