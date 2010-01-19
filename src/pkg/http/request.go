@@ -34,9 +34,12 @@ type ProtocolError struct {
 }
 
 var (
-	ErrLineTooLong   = &ProtocolError{"header line too long"}
-	ErrHeaderTooLong = &ProtocolError{"header too long"}
-	ErrShortBody     = &ProtocolError{"entity body too short"}
+	ErrLineTooLong          = &ProtocolError{"header line too long"}
+	ErrHeaderTooLong        = &ProtocolError{"header too long"}
+	ErrShortBody            = &ProtocolError{"entity body too short"}
+	ErrNotSupported         = &ProtocolError{"feature not supported"}
+	ErrUnexpectedTrailer    = &ProtocolError{"trailer header without chunked transfer encoding"}
+	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
 )
 
 type badStringError struct {

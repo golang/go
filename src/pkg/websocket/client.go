@@ -90,7 +90,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
 	}
 	bw.WriteString("\r\n")
 	bw.Flush()
-	resp, err := http.ReadResponse(br)
+	resp, err := http.ReadResponse(br, "GET")
 	if err != nil {
 		return
 	}
