@@ -84,7 +84,11 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	return
 }
 
-func (d *digest) Sum() []byte {
+func (d0 *digest) Sum() []byte {
+	// Make a copy of d0 so that caller can keep writing and summing.
+	d := new(digest)
+	*d = *d0
+
 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
 	len := d.len
 	var tmp [64]byte
