@@ -149,9 +149,14 @@ testdclstack(void)
 void
 redeclare(Sym *s, char *where)
 {
-	yyerror("%S redeclared %s\n"
-		"\tprevious declaration at %L",
-		s, where, s->lastlineno);
+	if(s->lastlineno == 0)
+		yyerror("%S redeclared %s\n"
+			"\tprevious declaration during import",
+			s, where);
+	else
+		yyerror("%S redeclared %s\n"
+			"\tprevious declaration at %L",
+			s, where, s->lastlineno);
 }
 
 /*

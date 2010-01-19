@@ -1470,9 +1470,9 @@ mkpackage(char* pkg)
 				if(s->def->op == OPACK) {
 					// throw away top-level package name leftover
 					// from previous file.
-					// TODO(rsc): remember that there was a package
-					// name, so that the name cannot be redeclared
-					// as a non-package in other files.
+					// leave s->block set to cause redeclaration
+					// errors if a conflicting top-level name is
+					// introduced by a different file.
 					if(!s->def->used && !nsyntaxerrors)
 						yyerrorl(s->def->lineno, "imported and not used: %s", s->def->sym->name);
 					s->def = N;
