@@ -223,8 +223,8 @@ findpkg(Strlit *name)
 	Idir *p;
 
 	if(goroot == nil) {
-		goroot = getenv("GOROOT");
-		goos = getenv("GOOS");
+		goroot = getgoroot();
+		goos = getgoos();
 		goarch = thestring;
 	}
 

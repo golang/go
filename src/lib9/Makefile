@@ -69,6 +69,7 @@ LIB9OFILES=\
 	getenv.$O\
 	getfields.$O\
 	getwd.$O\
+	goos.$O\
 	main.$O\
 	nan.$O\
 	nulldir.$O\
@@ -114,6 +115,9 @@ $(LIB): $(OFILES)
 
 %.$O: utf/%.c
 	$(CC) -c $(CFLAGS) $<
+
+goos.$O: goos.c
+	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT)"' $<
 
 clean:
 	rm -f *.$O *.6 6.out $(LIB)

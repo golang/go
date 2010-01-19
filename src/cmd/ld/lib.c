@@ -720,21 +720,9 @@ mywhatsys(void)
 {
 	char *s;
 
-	goroot = getenv("GOROOT");
-	goos = getenv("GOOS");
-
-	if(goroot == nil) {
-		s = getenv("HOME");
-		if(s == nil)
-			s = "/home/ken";
-		goroot = mal(strlen(s) + 10);
-		strcpy(goroot, s);
-		strcat(goroot, "/go");
-	}
+	goroot = getgoroot();
+	goos = getgoos();
 	goarch = thestring;	// ignore $GOARCH - we know who we are
-	if(goos == nil) {
-		goos = "linux";
-	}
 }
 
 int
