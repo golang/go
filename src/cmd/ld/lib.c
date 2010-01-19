@@ -718,8 +718,6 @@ Bget4(Biobuf *f)
 void
 mywhatsys(void)
 {
-	char *s;
-
 	goroot = getgoroot();
 	goos = getgoos();
 	goarch = thestring;	// ignore $GOARCH - we know who we are
