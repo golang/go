@@ -810,12 +810,19 @@ reswitch:
 			goto error;
 		toslice(&n->left);
 		toslice(&n->right);
+		defaultlit(&n->left, T);
+		defaultlit(&n->right, T);
 		if(!isslice(n->left->type) || !isslice(n->right->type)) {
-			yyerror("arguments to copy must be slices or array pointers");
+			if(!isslice(n->left->type) && !isslice(n->right->type))
+				yyerror("arguments to copy must be array pointer or slice; have %lT, %lT", n->left->type, n->right->type);
+			else if(!isslice(n->left->type))
+				yyerror("first argument to copy should be array pointer or slice; have %lT", n->left->type);
+			else
+				yyerror("second argument to copy should be array pointer or slice; have %lT", n->right->type);
 			goto error;
 		}
 		if(!eqtype(n->left->type, n->right->type)) {
-			yyerror("arguments to copy must have the same type element type");
+			yyerror("arguments to copy have different element types %lT and %lT", n->left->type, n->right->type);
 			goto error;
 		}
 		goto ret;
