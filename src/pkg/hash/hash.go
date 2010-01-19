@@ -7,13 +7,20 @@ package hash
 import "io"
 
 // Hash is the common interface implemented by all hash functions.
-// The Write method never returns an error.
-// Sum returns the bytes of integer hash codes in big-endian order.
 type Hash interface {
+	// Write adds more data to the running hash.
+	// It never returns an error.
 	io.Writer
+
+	// Sum returns the current hash, without changing the
+	// underlying hash state.
 	Sum() []byte
+
+	// Reset resets the hash to one with zero bytes written.
 	Reset()
-	Size() int // number of bytes Sum returns
+
+	// Size returns the number of bytes Sum will return.
+	Size() int
 }
 
 // Hash32 is the common interface implemented by all 32-bit hash functions.

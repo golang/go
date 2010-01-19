@@ -55,12 +55,17 @@ func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
 		c := New()
-		for j := 0; j < 2; j++ {
-			io.WriteString(c, g.in)
+		for j := 0; j < 3; j++ {
+			if j < 2 {
+				io.WriteString(c, g.in)
+			} else {
+				io.WriteString(c, g.in[0:len(g.in)/2])
+				c.Sum()
+				io.WriteString(c, g.in[len(g.in)/2:])
+			}
 			s := fmt.Sprintf("%x", c.Sum())
 			if s != g.out {
-				t.Errorf("sha256[%d](%s) = %s want %s", j, g.in, s, g.out)
-				t.FailNow()
+				t.Fatalf("sha256[%d](%s) = %s want %s", j, g.in, s, g.out)
 			}
 			c.Reset()
 		}
