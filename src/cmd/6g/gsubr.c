@@ -1880,7 +1880,17 @@ oindex_const:
 	// can check statically and
 	// can multiply by width statically
 
-	if((o & ODynam) == 0)
+	v = mpgetfix(r->val.u.xval);
+	if(!debug['B'] && (o & ODynam) == 0) {
+		// array indexed by a constant bounds check
+		if(v < 0) {
+			yyerror("out of bounds on array");
+		} else
+		if(v >= l->type->bound) {
+			yyerror("out of bounds on array");
+		}
+	}
+
 	if(sudoaddable(as, l, a))
 		goto oindex_const_sudo;
 
@@ -1893,7 +1903,6 @@ oindex_const:
 	regalloc(reg, types[tptr], N);
 	agen(l, reg);
 
-	v = mpgetfix(r->val.u.xval);
 	if(o & ODynam) {
 		if(!debug['B'] && !n->etype) {
 			n1 = *reg;
@@ -1913,14 +1922,6 @@ oindex_const:
 		n1.xoffset = Array_array;
 		gmove(&n1, reg);
 
-	} else
-	if(!debug['B']) {
-		if(v < 0) {
-			yyerror("out of bounds on array");
-		} else
-		if(v >= l->type->bound) {
-			yyerror("out of bounds on array");
-		}
 	}
 
 	n2 = *reg;
@@ -1932,14 +1933,38 @@ oindex_const:
 	goto yes;
 
 oindex_const_sudo:
-	v = mpgetfix(r->val.u.xval);
-	if(v < 0) {
-		yyerror("out of bounds on array");
-	} else
-	if(v >= l->type->bound) {
-		yyerror("out of bounds on array");
+	if((o & ODynam) == 0) {
+		// array indexed by a constant
+		a->offset += v*w;
+		goto yes;
 	}
-	a->offset += v*w;
+
+	// slice indexed by a constant
+	if(!debug['B'] && !n->etype) {
+		a->offset += Array_nel;
+		nodconst(&n2, types[TUINT64], v);
+		p1 = gins(optoas(OCMP, types[TUINT32]), N, &n2);
+		p1->from = *a;
+		p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+		ginscall(throwindex, 0);
+		patch(p1, pc);
+		a->offset -= Array_nel;
+	}
+
+	a->offset += Array_array;
+	reg = &clean[cleani-1];
+	if(reg->op == OEMPTY)
+		regalloc(reg, types[tptr], N);
+
+	p1 = gins(AMOVQ, N, reg);
+	p1->from = *a;
+
+	n2 = *reg;
+	n2.op = OINDREG;
+	n2.xoffset = v*w;
+	a->type = D_NONE;
+	a->index = D_NONE;
+	naddr(&n2, a, 1);
 	goto yes;
 
 yes:
