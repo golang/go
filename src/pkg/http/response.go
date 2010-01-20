@@ -130,26 +130,37 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
 		return nil, err
 	}
 
-	// Prepare body reader.  ContentLength < 0 means chunked encoding,
-	// since multipart is not supported yet
-	if resp.ContentLength < 0 {
-		resp.Body = &body{newChunkedReader(r), resp, r}
-	} else {
-		resp.Body = &body{io.LimitReader(r, resp.ContentLength), nil, nil}
+	// Prepare body reader.  ContentLength < 0 means chunked encoding
+	// or close connection when finished, since multipart is not supported yet
+	switch {
+	case chunked(resp.TransferEncoding):
+		resp.Body = &body{Reader: newChunkedReader(r), resp: resp, r: r, closing: resp.Close}
+	case resp.ContentLength >= 0:
+		resp.Body = &body{Reader: io.LimitReader(r, resp.ContentLength), closing: resp.Close}
+	default:
+		resp.Body = &body{Reader: r, closing: resp.Close}
 	}
 
 	return resp, nil
 }
 
-// ffwdClose (fast-forward close) adds a Close method to a Reader which skips
-// ahead until EOF
+// body turns a Reader into a ReadCloser.
+// Close ensures that the body has been fully read
+// and then reads the trailer if necessary.
 type body struct {
 	io.Reader
-	resp *Response     // non-nil value means read trailer
-	r    *bufio.Reader // underlying wire-format reader for the trailer
+	resp    *Response     // non-nil value means read trailer
+	r       *bufio.Reader // underlying wire-format reader for the trailer
+	closing bool          // is the connection to be closed after reading body?
 }
 
 func (b *body) Close() os.Error {
+	if b.resp == nil && b.closing {
+		// no trailer and closing the connection next.
+		// no point in reading to EOF.
+		return nil
+	}
+
 	trashBuf := make([]byte, 1024) // local for thread safety
 	for {
 		_, err := b.Read(trashBuf)
