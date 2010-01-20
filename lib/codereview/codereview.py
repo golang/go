@@ -77,6 +77,15 @@ if hgversion < '1.3':
 		msg += linuxMessage
 	raise util.Abort(msg)
 
+def promptyesno(ui, msg):
+	# Arguments to ui.prompt changed between 1.3 and 1.3.1.
+	# Even so, some 1.3.1 distributions seem to have the old prompt!?!?
+	# What a terrible way to maintain software.
+	try:
+		return ui.promptchoice(msg, ["&yes", "&no"], 0) == 0
+	except AttributeError:
+		return ui.prompt(msg, ["&yes", "&no"], "y") != "n"
+
 # To experiment with Mercurial in the python interpreter:
 #    >>> repo = hg.repository(ui.ui(), path = ".")
 
@@ -590,7 +599,7 @@ def EditCL(ui, repo, cl):
 		s = ui.edit(s, ui.username())
 		clx, line, err = ParseCL(s, cl.name)
 		if err != '':
-			if ui.prompt("error parsing change list: line %d: %s\nre-edit (y/n)?" % (line, err), ["&yes", "&no"], "y") == "n":
+			if not promptyesno(ui, "error parsing change list: line %d: %s\nre-edit (y/n)?" % (line, err)):
 				return "change list not modified"
 			continue
 		cl.desc = clx.desc;
@@ -598,7 +607,7 @@ def EditCL(ui, repo, cl):
 		cl.cc = clx.cc
 		cl.files = clx.files
 		if cl.desc == '':
-			if ui.prompt("change list should have description\nre-edit (y/n)?", ["&yes", "&no"], "y") != "n":
+			if promptyesno(ui, "change list should have description\nre-edit (y/n)?"):
 				continue
 		break
 	return ""
