@@ -1709,11 +1709,6 @@ sudoaddable(int as, Node *n, Addr *a)
 		goto odot;
 
 	case OINDEX:
-		cleani += 2;
-		reg = &clean[cleani-1];
-		reg1 = &clean[cleani-2];
-		reg->op = OEMPTY;
-		reg1->op = OEMPTY;
 		goto oindex;
 	}
 	return 0;
@@ -1782,7 +1777,7 @@ oindex:
 	l = n->left;
 	r = n->right;
 	if(l->ullman >= UINF && r->ullman >= UINF)
-		goto no;
+		return 0;
 
 	// set o to type of array
 	o = 0;
@@ -1799,13 +1794,22 @@ oindex:
 
 	switch(w) {
 	default:
-		goto no;
+		return 0;
 	case 1:
 	case 2:
 	case 4:
 	case 8:
 		break;
 	}
+
+//	if(sudoaddable(as, l, a))
+//		goto oindex_sudo;
+
+	cleani += 2;
+	reg = &clean[cleani-1];
+	reg1 = &clean[cleani-2];
+	reg->op = OEMPTY;
+	reg1->op = OEMPTY;
 
 	// load the array (reg)
 	if(l->ullman > r->ullman) {
@@ -1876,12 +1880,21 @@ oindex_const:
 	// can check statically and
 	// can multiply by width statically
 
+	if((o & ODynam) == 0)
+	if(sudoaddable(as, l, a))
+		goto oindex_const_sudo;
+
+	cleani += 2;
+	reg = &clean[cleani-1];
+	reg1 = &clean[cleani-2];
+	reg->op = OEMPTY;
+	reg1->op = OEMPTY;
+
 	regalloc(reg, types[tptr], N);
 	agen(l, reg);
 
 	v = mpgetfix(r->val.u.xval);
 	if(o & ODynam) {
-
 		if(!debug['B'] && !n->etype) {
 			n1 = *reg;
 			n1.op = OINDREG;
@@ -1916,6 +1929,17 @@ oindex_const:
 	a->type = D_NONE;
 	a->index = D_NONE;
 	naddr(&n2, a, 1);
+	goto yes;
+
+oindex_const_sudo:
+	v = mpgetfix(r->val.u.xval);
+	if(v < 0) {
+		yyerror("out of bounds on array");
+	} else
+	if(v >= l->type->bound) {
+		yyerror("out of bounds on array");
+	}
+	a->offset += v*w;
 	goto yes;
 
 yes:
