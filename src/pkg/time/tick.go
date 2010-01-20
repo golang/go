@@ -24,12 +24,26 @@ package time
 // at intervals.
 type Ticker struct {
 	C        <-chan int64 // The channel on which the ticks are delivered.
+	done     chan bool
 	ns       int64
 	shutdown bool
 }
 
-// Stop turns off a ticker.  After Stop, no more ticks will be delivered.
-func (t *Ticker) Stop() { t.shutdown = true }
+// Stop turns off a ticker.  After Stop, no more ticks will be sent.
+func (t *Ticker) Stop() {
+	t.shutdown = true
+	go t.drain()
+}
+
+func (t *Ticker) drain() {
+	for {
+		select {
+		case <-t.C:
+		case <-t.done:
+			return
+		}
+	}
+}
 
 func (t *Ticker) ticker(c chan<- int64) {
 	now := Nanoseconds()
@@ -47,13 +61,23 @@ func (t *Ticker) ticker(c chan<- int64) {
 			when += t.ns
 		}
 
-		Sleep(when - now)
-		now = Nanoseconds()
+		for !t.shutdown && when > now {
+			// limit individual sleeps so that stopped
+			// long-term tickers don't pile up.
+			const maxSleep = 1e9
+			if when-now > maxSleep {
+				Sleep(maxSleep)
+			} else {
+				Sleep(when - now)
+			}
+			now = Nanoseconds()
+		}
 		if t.shutdown {
-			return
+			break
 		}
 		c <- now
 	}
+	t.done <- true
 }
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking
@@ -73,7 +97,7 @@ func NewTicker(ns int64) *Ticker {
 		return nil
 	}
 	c := make(chan int64)
-	t := &Ticker{c, ns, false}
+	t := &Ticker{c, make(chan bool), ns, false}
 	go t.ticker(c)
 	return t
 }
