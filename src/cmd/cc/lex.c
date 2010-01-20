@@ -403,6 +403,17 @@ lookup(void)
 	uint32 h;
 	char *p;
 	int c, n;
+	char *r, *w;
+
+	// turn · into .
+	for(r=w=symb; *r; r++) {
+		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
+			*w++ = '.';
+			r++;
+		}else
+			*w++ = *r;
+	}
+	*w = '\0';
 
 	h = 0;
 	for(p=symb; *p;) {

@@ -226,6 +226,7 @@ dumpexport(void)
 
 	lno = lineno;
 
+	packagequotes = 1;
 	Bprint(bout, "   import\n");
 	Bprint(bout, "\n$$  // exports\n");
 
@@ -244,6 +245,7 @@ dumpexport(void)
 	}
 
 	Bprint(bout, "\n$$\n");
+	packagequotes = 0;
 
 	lineno = lno;
 }

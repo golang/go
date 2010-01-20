@@ -74,7 +74,7 @@ isobjfile(char *f)
 static char*
 linkername[] =
 {
-	"runtime·softfloat",
+	"runtime.softfloat",
 };
 
 void

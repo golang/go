@@ -454,20 +454,20 @@ sweeplist(Prog **first, Prog **last)
 static char*
 morename[] =
 {
-	"runtime·morestack",
-	"runtime·morestackx",
+	"runtime.morestack",
+	"runtime.morestackx",
 
-	"runtime·morestack00",
-	"runtime·morestack10",
-	"runtime·morestack01",
-	"runtime·morestack11",
+	"runtime.morestack00",
+	"runtime.morestack10",
+	"runtime.morestack01",
+	"runtime.morestack11",
 
-	"runtime·morestack8",
-	"runtime·morestack16",
-	"runtime·morestack24",
-	"runtime·morestack32",
-	"runtime·morestack40",
-	"runtime·morestack48",
+	"runtime.morestack8",
+	"runtime.morestack16",
+	"runtime.morestack24",
+	"runtime.morestack32",
+	"runtime.morestack40",
+	"runtime.morestack48",
 };
 
 void

@@ -254,34 +254,9 @@ stringhash(char *p)
 }
 
 Sym*
-lookup(char *p)
+lookup(char *name)
 {
-	Sym *s;
-	uint32 h;
-	int c;
-
-	h = stringhash(p) % NHASH;
-	c = p[0];
-
-	for(s = hash[h]; s != S; s = s->link) {
-		if(s->name[0] != c)
-			continue;
-		if(strcmp(s->name, p) == 0)
-			if(s->package && strcmp(s->package, package) == 0)
-				return s;
-	}
-
-	s = mal(sizeof(*s));
-	s->name = mal(strlen(p)+1);
-	s->package = package;
-	s->lexical = LNAME;
-
-	strcpy(s->name, p);
-
-	s->link = hash[h];
-	hash[h] = s;
-
-	return s;
+	return pkglookup(name, package);
 }
 
 Sym*
@@ -306,8 +281,14 @@ pkglookup(char *name, char *pkg)
 	strcpy(s->name, name);
 
 	// botch - should probably try to reuse the pkg string
-	s->package = mal(strlen(pkg)+1);
-	strcpy(s->package, pkg);
+	if(pkg == package)
+		s->package = package;
+	else {
+		s->package = mal(strlen(pkg)+1);
+		strcpy(s->package, pkg);
+	}
+
+	s->packagename = s->package;
 
 	s->link = hash[h];
 	hash[h] = s;
@@ -1013,15 +994,22 @@ Sconv(Fmt *fp)
 	pkg = "<nil>";
 	nam = pkg;
 
-	if(s->package != nil)
-		pkg = s->package;
+	if(s->packagename != nil)
+		pkg = s->packagename;
+	else
+		abort();
 	if(s->name != nil)
 		nam = s->name;
 
-	if(!(fp->flags & FmtShort))
-	if(strcmp(pkg, package) != 0 || (fp->flags & FmtLong)) {
-		fmtprint(fp, "%s.%s", pkg, nam);
-		return 0;
+	if(!(fp->flags & FmtShort)) {
+		if((fp->flags & FmtLong) && packagequotes) {
+			fmtprint(fp, "\"%s\".%s", s->package, nam);
+			return 0;
+		}
+		if((fp->flags & FmtLong) || strcmp(s->package, package) != 0) {
+			fmtprint(fp, "%s.%s", pkg, nam);
+			return 0;
+		}
 	}
 	fmtstrcpy(fp, nam);
 	return 0;
@@ -3389,4 +3377,17 @@ ngotype(Node *n)
 	if(n->type->etype != TSTRUCT || n->type->funarg == 0)
 		return typename(n->type)->left->sym;
 	return S;
+}
+
+char*
+toimportpath(Strlit *s)
+{
+	char *p;
+
+//PGNS: Do better once these are import paths
+// rather than package names in disguise.
+	p = mal(s->len+1);
+	memmove(p, s->s, s->len);
+	p[s->len] = '\0';
+	return p;
 }

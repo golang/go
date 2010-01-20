@@ -33,19 +33,12 @@
 void
 zname(Biobuf *b, Sym *s, int t)
 {
-	char *n;
-
 	Bputc(b, ANAME);	/* as */
 	Bputc(b, ANAME>>8);	/* as */
 	Bputc(b, t);		/* type */
 	Bputc(b, s->sym);	/* sym */
 
-	for(n=s->package; *n; n++)
-		Bputc(b, *n);
-	Bputdot(b);
-	for(n=s->name; *n; n++)
-		Bputc(b, *n);
-	Bputc(b, 0);
+	Bputname(b, s);
 }
 
 void
