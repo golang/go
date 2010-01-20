@@ -60,12 +60,12 @@ lock(Lock *l)
 		throw("lock count");
 	m->locks++;
 
-	// Allocate semaphore if needed.
-	if(l->sema == 0)
-		initsema(&l->sema);
-
-	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
+	if(xadd(&l->key, 1) > 1) {	// someone else has it; wait
+		// Allocate semaphore if needed.
+		if(l->sema == 0)
+			initsema(&l->sema);
 		mach_semacquire(l->sema);
+	}
 }
 
 void
@@ -75,8 +75,12 @@ unlock(Lock *l)
 	if(m->locks < 0)
 		throw("lock count");
 
-	if(xadd(&l->key, -1) > 0)	// someone else is waiting
+	if(xadd(&l->key, -1) > 0) {	// someone else is waiting
+		// Allocate semaphore if needed.
+		if(l->sema == 0)
+			initsema(&l->sema);
 		mach_semrelease(l->sema);
+	}
 }
 
 
@@ -87,15 +91,21 @@ unlock(Lock *l)
 void
 usemacquire(Usema *s)
 {
-	if((int32)xadd(&s->u, -1) < 0)
+	if((int32)xadd(&s->u, -1) < 0) {
+		if(s->k == 0)
+			initsema(&s->k);
 		mach_semacquire(s->k);
+	}
 }
 
 void
 usemrelease(Usema *s)
 {
-	if((int32)xadd(&s->u, 1) <= 0)
+	if((int32)xadd(&s->u, 1) <= 0) {
+		if(s->k == 0)
+			initsema(&s->k);
 		mach_semrelease(s->k);
+	}
 }
 
 
@@ -109,8 +119,6 @@ noteclear(Note *n)
 void
 notesleep(Note *n)
 {
-	if(n->sema.k == 0)
-		initsema(&n->sema.k);
 	while(!n->wakeup)
 		usemacquire(&n->sema);
 }
@@ -118,8 +126,6 @@ notesleep(Note *n)
 void
 notewakeup(Note *n)
 {
-	if(n->sema.k == 0)
-		initsema(&n->sema.k);
 	n->wakeup = 1;
 	usemrelease(&n->sema);
 }
