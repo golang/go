@@ -128,7 +128,7 @@ noops(void)
 	Bflush(&bso);
 
 	pmorestack = P;
-	symmorestack = lookup("runtime·morestack", 0);
+	symmorestack = lookup("runtime.morestack", 0);
 
 	if(symmorestack->type == STEXT)
 	for(p = firstp; p != P; p = p->link) {
@@ -361,7 +361,7 @@ noops(void)
 				// MOVW.LO		$autosize, R1
 				// MOVW.LO		$args, R2
 				// MOVW.LO		R14, R3
-				// BL.LO			runtime·morestack(SB) // modifies LR
+				// BL.LO			runtime.morestack(SB) // modifies LR
 				// MOVW.W		R14,$-autosize(SP)
 
 				// TODO(kaib): add more trampolines
@@ -412,7 +412,7 @@ noops(void)
 				p->to.type = D_REG;
 				p->to.reg = 3;
 
-				// BL.LO		runtime·morestack(SB) // modifies LR
+				// BL.LO		runtime.morestack(SB) // modifies LR
 				p = appendp(p);
 				p->as = ABL;
 				p->scond = C_SCOND_LO;
@@ -433,7 +433,7 @@ noops(void)
 				// MOVW		$autosize, R1
 				// MOVW		$args, R2
 				// MOVW		R14, R3
-				// BL			runtime·morestack(SB) // modifies LR
+				// BL			runtime.morestack(SB) // modifies LR
 				// MOVW.W		R14,$-autosize(SP)
 
 				// MOVW		$autosize, R1
@@ -461,7 +461,7 @@ noops(void)
 				p->to.type = D_REG;
 				p->to.reg = 3;
 
-				// BL		runtime·morestack(SB) // modifies LR
+				// BL		runtime.morestack(SB) // modifies LR
 				p = appendp(p);
 				p->as = ABL;
  				p->to.type = D_BRANCH;

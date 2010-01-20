@@ -291,7 +291,8 @@ struct	Sym
 	Sym*	link;
 
 	// saved and restored by dcopy
-	char*	package;	// package name
+	char*	packagename;	// package name
+	char*	package;	// import path
 	char*	name;		// variable name
 	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
 	int32	block;		// blocknumber to catch redeclaration
@@ -712,6 +713,7 @@ EXTERN	int	noargnames;
 
 EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
+EXTERN	int	packagequotes;
 
 /*
  *	y.tab.c
@@ -912,6 +914,8 @@ void	umagic(Magic*);
 
 void	redeclare(Sym*, char*);
 Sym*	ngotype(Node*);
+
+char*	toimportpath(Strlit*);
 
 /*
  *	dcl.c
@@ -1144,7 +1148,7 @@ Plist*	newplist(void);
 /*
  *	obj.c
  */
-void	Bputdot(Biobuf *b);
+void	Bputname(Biobuf*, Sym*);
 void	dumpglobls(void);
 void	dumpobj(void);
 void	ieeedtod(uint64 *ieee, double native);

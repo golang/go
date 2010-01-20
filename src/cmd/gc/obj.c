@@ -61,11 +61,13 @@ dumpglobls(void)
 }
 
 void
-Bputdot(Biobuf *b)
+Bputname(Biobuf *b, Sym *s)
 {
-	// put out middle dot ·
-	Bputc(b, 0xc2);
-	Bputc(b, 0xb7);
+// PGNS: Uncomment next line.
+//	if(strcmp(s->package, package) != 0)
+		Bwrite(b, s->package, strlen(s->package));
+	Bputc(b, '.');
+	Bwrite(b, s->name, strlen(s->name)+1);
 }
 
 void

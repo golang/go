@@ -142,7 +142,10 @@ package:
  */
 loadsys:
 	{
-		cannedimports("runtime.builtin", runtimeimport);
+		if(debug['A'])
+			cannedimports("runtime.builtin", "package runtime\n\n$$\n\n");
+		else
+			cannedimports("runtime.builtin", runtimeimport);
 	}
 	import_package
 	import_there
@@ -1546,8 +1549,17 @@ oliteral:
  * an output package
  */
 hidden_import:
-	LPACKAGE sym ';'
-	/* variables */
+	LIMPORT sym LLITERAL
+	{
+		// Informational: record package name
+		// associated with import path, for use in
+		// human-readable messages.
+
+		Sym *s;
+
+		s = pkglookup("", toimportpath($3.u.sval));
+		s->packagename = $2->name;
+	}
 |	LVAR hidden_pkg_importsym hidden_type ';'
 	{
 		importvar($2, $3, PEXTERN);
@@ -1753,9 +1765,9 @@ hidden_constant:
 	}
 
 hidden_importsym:
-	sym '.' sym
+	LLITERAL '.' sym
 	{
-		$$ = pkglookup($3->name, $1->name);
+		$$ = pkglookup($3->name, toimportpath($1.u.sval));
 	}
 
 hidden_pkg_importsym:

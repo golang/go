@@ -10,6 +10,8 @@
 #include <ctype.h>
 #include <errno.h>
 
+void esc(char*);
+
 int
 main(int argc, char **argv)
 {
@@ -61,12 +63,13 @@ begin:
 		printf("\t\"");
 		while(q = strstr(p, "PACKAGE")) {
 			*q = 0;
-			printf("%s", p);	// up to the substitution
+			esc(p);	// up to the substitution
 			printf("%s", name);	// the sub name
 			p = q+7;		// continue with rest
 		}
 
-		printf("%s\\n\"\n", p);
+		esc(p);
+		printf("\\n\"\n", p);
 	}
 	fprintf(stderr, "did not find end of imports\n");
 	exit(1);
@@ -74,4 +77,14 @@ begin:
 end:
 	printf("\t\"$$\\n\";\n");
 	return 0;
+}
+
+void
+esc(char *p)
+{
+	for(; *p; p++) {
+		if(*p == '\\' || *p == '\"')
+			printf("\\");
+		putchar(*p);
+	}
 }

@@ -27,6 +27,7 @@ static	Sym*	dclstack;
 void
 dcopy(Sym *a, Sym *b)
 {
+	a->packagename = b->packagename;
 	a->package = b->package;
 	a->name = b->name;
 	a->def = b->def;

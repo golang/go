@@ -8,7 +8,7 @@
 # tests.
 # If files are named on the command line, use them instead of test*.go.
 
-# Makes egrep,grep work better with · if we put them
+# Makes egrep,grep work better in general if we put them
 # in ordinary C mode instead of what the current language is.
 unset LANG
 export LC_ALL=C
@@ -115,14 +115,14 @@ importpath=$("$GOBIN"/gomake -s importpath)
 	# the grep -v eliminates methods and other special names
 	# that have multiple dots.
 	pattern='Test([^a-z].*)?'
-	tests=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+	tests=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*\.'$pattern'$' | sed 's/.* //; /\..*\./d')
 	if [ "x$tests" = x ]; then
 		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
 		exit 2
 	fi
 	# benchmarks are named BenchmarkFoo.
 	pattern='Benchmark([^a-z].*)?'
-	benchmarks=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+	benchmarks=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*\.'$pattern'$' | sed 's/.* //; /\..*\./d')
 
 	# package spec
 	echo 'package main'
