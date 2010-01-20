@@ -8,6 +8,7 @@ package main
 
 import "os"
 import "runtime"
+import "sync"
 
 var	randx	int;
 
@@ -28,15 +29,25 @@ type	Chan struct {
 var
 (
 	nproc		int;
+	nprocLock	sync.Mutex;
 	cval		int;
 	end		int	= 10000;
 	totr,tots	int;
+	totLock		sync.Mutex;
 	nc		*Chan;
 )
 
 func
 init() {
 	nc = new(Chan);
+}
+
+func changeNproc(adjust int) int {
+	nprocLock.Lock()
+	nproc += adjust
+	ret := nproc
+	nprocLock.Unlock()
+	return ret
 }
 
 func
@@ -67,7 +78,9 @@ expect(v, v0 int) (newv int) {
 
 func (c *Chan) send() bool {
 //	print("send ", c.sv, "\n");
+	totLock.Lock();
 	tots++;
+	totLock.Unlock();
 	c.sv = expect(c.sv, c.sv);
 	if c.sv == end {
 		c.sc = nil;
@@ -78,7 +91,6 @@ func (c *Chan) send() bool {
 
 func
 send(c *Chan) {
-	nproc++;	// total goroutines running
 	for {
 		for r:=nrand(10); r>=0; r-- {
 			runtime.Gosched();
@@ -88,12 +100,14 @@ send(c *Chan) {
 			break;
 		}
 	}
-	nproc--;
+	changeNproc(-1)
 }
 
 func (c *Chan) recv(v int) bool {
 //	print("recv ", v, "\n");
+	totLock.Lock();
 	totr++;
+	totLock.Unlock();
 	c.rv = expect(c.rv, v);
 	if c.rv == end {
 		c.rc = nil;
@@ -106,7 +120,6 @@ func
 recv(c *Chan) {
 	var v int;
 
-	nproc++;	// total goroutines running
 	for {
 		for r:=nrand(10); r>=0; r-- {
 			runtime.Gosched();
@@ -116,14 +129,13 @@ recv(c *Chan) {
 			break;
 		}
 	}
-	nproc--;
+	changeNproc(-1);
 }
 
 func
 sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan) {
 	var v int;
 
-	nproc++;	// total goroutines running
 	a := 0;		// local chans running
 
 	if r0.rc != nil { a++ }
@@ -178,12 +190,13 @@ sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan) {
 			break;
 		}
 	}
-	nproc--;
+	changeNproc(-1);
 }
 
 // direct send to direct recv
 func
 test1(c *Chan) {
+	changeNproc(2)
 	go send(c);
 	go recv(c);
 }
@@ -193,11 +206,13 @@ func
 test2(c int) {
 	ca := mkchan(c,4);
 
+	changeNproc(4)
 	go send(ca[0]);
 	go send(ca[1]);
 	go send(ca[2]);
 	go send(ca[3]);
 
+	changeNproc(1)
 	go sel(ca[0],ca[1],ca[2],ca[3], nc,nc,nc,nc);
 }
 
@@ -206,11 +221,13 @@ func
 test3(c int) {
 	ca := mkchan(c,4);
 
+	changeNproc(4)
 	go recv(ca[0]);
 	go recv(ca[1]);
 	go recv(ca[2]);
 	go recv(ca[3]);
 
+	changeNproc(1)
 	go sel(nc,nc,nc,nc, ca[0],ca[1],ca[2],ca[3]);
 }
 
@@ -219,6 +236,7 @@ func
 test4(c int) {
 	ca := mkchan(c,4);
 
+	changeNproc(2)
 	go sel(nc,nc,nc,nc, ca[0],ca[1],ca[2],ca[3]);
 	go sel(ca[0],ca[1],ca[2],ca[3], nc,nc,nc,nc);
 }
@@ -227,6 +245,7 @@ func
 test5(c int) {
 	ca := mkchan(c,8);
 
+	changeNproc(2)
 	go sel(ca[4],ca[5],ca[6],ca[7], ca[0],ca[1],ca[2],ca[3]);
 	go sel(ca[0],ca[1],ca[2],ca[3], ca[4],ca[5],ca[6],ca[7]);
 }
@@ -235,16 +254,19 @@ func
 test6(c int) {
 	ca := mkchan(c,12);
 
+	changeNproc(4)
 	go send(ca[4]);
 	go send(ca[5]);
 	go send(ca[6]);
 	go send(ca[7]);
 
+	changeNproc(4)
 	go recv(ca[8]);
 	go recv(ca[9]);
 	go recv(ca[10]);
 	go recv(ca[11]);
 
+	changeNproc(2)
 	go sel(ca[4],ca[5],ca[6],ca[7], ca[0],ca[1],ca[2],ca[3]);
 	go sel(ca[0],ca[1],ca[2],ca[3], ca[8],ca[9],ca[10],ca[11]);
 }
@@ -253,7 +275,7 @@ test6(c int) {
 func
 wait() {
 	runtime.Gosched();
-	for nproc != 0 {
+	for changeNproc(0) != 0 {
 		runtime.Gosched();
 	}
 }
