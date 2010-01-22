@@ -12,7 +12,7 @@ import (
 func TestInt(t *testing.T) {
 	reqs := NewInt("requests")
 	if reqs.i != 0 {
-		t.Errorf("reqs.i = %v, want 4", reqs.i)
+		t.Errorf("reqs.i = %v, want 0", reqs.i)
 	}
 	if reqs != Get("requests").(*Int) {
 		t.Errorf("Get() failed.")
