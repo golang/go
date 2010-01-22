@@ -1157,7 +1157,7 @@ type SearchResult struct {
 }
 
 func search(c *http.Conn, r *http.Request) {
-	query := r.FormValue("q")
+	query := strings.TrimSpace(r.FormValue("q"))
 	var result SearchResult
 
 	if index, timestamp := searchIndex.get(); index != nil {
