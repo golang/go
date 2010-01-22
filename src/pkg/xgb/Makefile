@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
 
 TARG=xgb
 GOFILES=\
+	auth.go\
 	xgb.go\
 	xproto.go\
 
