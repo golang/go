@@ -3,6 +3,11 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+# Generate builtin.c and builtin.c.boot from $* (runtime.go and unsafe.go).
+# Run this after changing runtime.go and unsafe.go
+# or after changing the export metadata format in the compiler.
+# Either way, you need to have a working compiler binary first.
+
 set -e
 
 GOBIN="${GOBIN:-$HOME/bin}"
@@ -22,19 +27,7 @@ do
 done
 
 # If _builtin.c has changed vs builtin.c.boot,
-# check in the new change if being run by
-# one of the people who tends to work on
-# the compiler.  This makes sure that changes
-# don't get forgotten, without causing problems
-# in end user Go repositories.
-case "$USER" in
-ken | r | rsc)
-	if ! cmp _builtin.c builtin.c.boot >/dev/null 2>/dev/null
-	then
-		PATH=$PATH:/usr/local/bin	# find p4 on OS X
-		p4 open builtin.c.boot >/dev/null 2>/dev/null || true	# if p4 is missing, so be it
-		cp _builtin.c builtin.c.boot
-	fi
-esac
+# check in the new change.
+cmp -s _builtin.c builtin.c.boot || cp _builtin.c builtin.c.boot
 
 mv _builtin.c builtin.c
