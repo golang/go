@@ -385,7 +385,7 @@ main(int argc, char *argv[])
 	lastp = firstp;
 
 	while(*argv)
-		objfile(*argv++);
+		objfile(*argv++, "main");
 
 	if(!debug['l'])
 		loadlib();
@@ -523,7 +523,7 @@ nopout(Prog *p)
 }
 
 void
-ldobj1(Biobuf *f, int64 len, char *pn)
+ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
 {
 	int32 ipc;
 	Prog *p, *t;
@@ -532,7 +532,7 @@ ldobj1(Biobuf *f, int64 len, char *pn)
 	uint32 sig;
 	int ntext;
 	int32 eof;
-	char *name;
+	char *name, *x;
 	char src[1024];
 
 	ntext = 0;
@@ -580,7 +580,11 @@ loop:
 			}
 			goto eof;
 		}
-		s = lookup(name, r);
+		x = expandpkg(name, pkg);
+		s = lookup(x, r);
+		if(x != name)
+			free(x);
+		name = nil;
 
 		if(debug['S'] && r == 0)
 			sig = 1729;

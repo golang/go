@@ -136,6 +136,7 @@ struct	Val
 	} u;
 };
 
+typedef	struct	Pkg Pkg;
 typedef	struct	Sym	Sym;
 typedef	struct	Node	Node;
 typedef	struct	NodeList	NodeList;
@@ -258,6 +259,9 @@ struct	Node
 	Node*	outer;	// outer PPARAMREF in nested closure
 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
 
+	// OPACK
+	Pkg*	pkg;
+
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
 	int32	lineno;
@@ -278,9 +282,8 @@ enum
 	SymExport	= 1<<0,
 	SymPackage	= 1<<1,
 	SymExported	= 1<<2,
-	SymImported	= 1<<3,
-	SymUniq		= 1<<4,
-	SymSiggen	= 1<<5,
+	SymUniq		= 1<<3,
+	SymSiggen	= 1<<4,
 };
 
 struct	Sym
@@ -291,14 +294,22 @@ struct	Sym
 	Sym*	link;
 
 	// saved and restored by dcopy
-	char*	packagename;	// package name
-	char*	package;	// import path
+	Pkg*	pkg;
 	char*	name;		// variable name
 	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
 	int32	block;		// blocknumber to catch redeclaration
 	int32	lastlineno;	// last declaration for diagnostic
 };
 #define	S	((Sym*)0)
+
+struct	Pkg
+{
+	char*	name;
+	Strlit*	path;
+	char*	prefix;
+	Pkg*	link;
+	int	exported;
+};
 
 typedef	struct	Iter	Iter;
 struct	Iter
@@ -530,10 +541,10 @@ struct	Typedef
 extern	Typedef	typedefs[];
 
 typedef	struct	Sig	Sig;
-struct Sig
+struct	Sig
 {
 	char*	name;
-	char*	package;
+	Pkg*	pkg;
 	Sym*	isym;
 	Sym*	tsym;
 	Type*	type;
@@ -631,7 +642,6 @@ EXTERN	Hist*	ehist;
 
 EXTERN	char*	infile;
 EXTERN	char*	outfile;
-EXTERN	char*	package;
 EXTERN	Biobuf*	bout;
 EXTERN	int	nerrors;
 EXTERN	int	nsyntaxerrors;
@@ -639,8 +649,16 @@ EXTERN	char	namebuf[NSYMB];
 EXTERN	char	lexbuf[NSYMB];
 EXTERN	char	debug[256];
 EXTERN	Sym*	hash[NHASH];
-EXTERN	Sym*	pkgmyname;	// my name for package
-EXTERN	Sym*	pkgimportname;	// package name from imported package
+EXTERN	Sym*	importmyname;	// my name for package
+EXTERN	Pkg*	localpkg;	// package being compiled
+EXTERN	Pkg*	importpkg;	// package being imported
+EXTERN	Pkg*	structpkg;	// package that declared struct, during import
+EXTERN	Pkg*	builtinpkg;	// fake package for builtins
+EXTERN	Pkg*	gostringpkg;	// fake pkg for Go strings
+EXTERN	Pkg*	runtimepkg;	// package runtime
+EXTERN	Pkg*	stringpkg;	// fake package for C strings
+EXTERN	Pkg*	typepkg;	// fake package for runtime type info
+EXTERN	Pkg*	unsafepkg;	// package unsafe
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	runtimeimport;
 extern	char*	unsafeimport;
@@ -701,7 +719,6 @@ EXTERN	int	widthptr;
 EXTERN	Node*	typesw;
 EXTERN	Node*	nblank;
 
-EXTERN	char*	structpkg;
 extern	int	thechar;
 extern	char*	thestring;
 EXTERN	char*	hunk;
@@ -805,9 +822,11 @@ void*	remal(void*, int32, int32);
 void	errorexit(void);
 uint32	stringhash(char*);
 Sym*	lookup(char*);
-Sym*	pkglookup(char*, char*);
-Sym*	restrictlookup(char*, char*);
-void	importdot(Sym*, Node*);
+Sym*	pkglookup(char*, Pkg*);
+Sym*	restrictlookup(char*, Pkg*);
+Pkg*	mkpkg(Strlit*);
+Strlit*	strlit(char*);
+void	importdot(Pkg*, Node*);
 void	yyerror(char*, ...);
 void	yyerrorl(int, char*, ...);
 void	flusherrors(void);
@@ -915,7 +934,6 @@ void	umagic(Magic*);
 void	redeclare(Sym*, char*);
 Sym*	ngotype(Node*);
 
-char*	toimportpath(Strlit*);
 
 /*
  *	dcl.c

@@ -174,8 +174,8 @@ methods(Type *t)
 		a->name = method->name;
 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
 		if(!exportname(a->name)) {
-			a->package = method->package;
-			a->hash += PRIME10*stringhash(a->package);
+			a->pkg = method->pkg;
+			a->hash += PRIME10*stringhash(a->pkg->name);
 		}
 		a->perm = o++;
 		a->isym = methodsym(method, it);
@@ -250,8 +250,8 @@ imethods(Type *t)
 		a->name = f->sym->name;
 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
 		if(!exportname(a->name)) {
-			a->package = f->sym->package;
-			a->hash += PRIME10*stringhash(a->package);
+			a->pkg = f->sym->pkg;
+			a->hash += PRIME10*stringhash(a->pkg->name);
 		}
 		a->perm = o++;
 		a->offset = 0;
@@ -260,6 +260,19 @@ imethods(Type *t)
 
 	return lsort(a, sigcmp);
 }
+
+static int
+dgopkgpath(Sym *s, int ot, Pkg *pkg)
+{
+	if(pkg == nil)
+		return dgostringptr(s, ot, nil);
+
+	// PGNS: This needs to be import path instead of pkg->name,
+	// but we need to figure out how to fill it in during 6l when
+	// trying to refer to localpkg.
+	return dgostringptr(s, ot, pkg->name);
+}
+
 
 /*
  * uncommonType
@@ -283,13 +296,13 @@ dextratype(Type *t)
 		n++;
 	}
 
-	p = smprint("%#-T", t);
-	s = pkglookup(p, "extratype");
+	p = smprint("_.%#T", t);
+	s = pkglookup(p, typepkg);
 	ot = 0;
 	if(t->sym) {
 		ot = dgostringptr(s, ot, t->sym->name);
 		if(t != types[t->etype])
-			ot = dgostringptr(s, ot, t->sym->package);
+			ot = dgopkgpath(s, ot, t->sym->pkg);
 		else
 			ot = dgostringptr(s, ot, nil);
 	} else {
@@ -309,7 +322,7 @@ dextratype(Type *t)
 		ot = duint32(s, ot, a->hash);
 		ot = rnd(ot, widthptr);
 		ot = dgostringptr(s, ot, a->name);
-		ot = dgostringptr(s, ot, a->package);
+		ot = dgopkgpath(s, ot, a->pkg);
 		ot = dsymptr(s, ot, dtypesym(a->type), 0);
 		if(a->isym)
 			ot = dsymptr(s, ot, a->isym, 0);
@@ -435,7 +448,7 @@ typestruct(Type *t)
 	if(isptr[et] && t->type->etype == TANY)
 		name = "*runtime.UnsafePointerType";
 
-	return pkglookup(name, "type");
+	return pkglookup(name, typepkg);
 }
 
 static int
@@ -550,7 +563,7 @@ typesym(Type *t)
 	Sym *s;
 
 	p = smprint("%#-T", t);
-	s = pkglookup(p, "type");
+	s = pkglookup(p, typepkg);
 	free(p);
 	return s;
 }
@@ -613,7 +626,8 @@ dtypesym(Type *t)
 	else
 		tsym = t->sym;
 
-	if(strcmp(package, "runtime") == 0) {
+	// PGNS: Fixme
+	if(strcmp(localpkg->name, "runtime") == 0) {
 		if(t == types[t->etype])
 			goto ok;
 		if(t1 && t1 == types[t1->etype])
@@ -702,7 +716,7 @@ ok:
 			ot = duint32(s, ot, a->hash);
 			ot = duint32(s, ot, a->perm);
 			ot = dgostringptr(s, ot, a->name);
-			ot = dgostringptr(s, ot, a->package);
+			ot = dgopkgpath(s, ot, a->pkg);
 			ot = dsymptr(s, ot, dtypesym(a->type), 0);
 		}
 		break;
@@ -747,7 +761,7 @@ ok:
 				if(exportname(t1->sym->name))
 					ot = dgostringptr(s, ot, nil);
 				else
-					ot = dgostringptr(s, ot, t1->sym->package);
+					ot = dgopkgpath(s, ot, t1->sym->pkg);
 			} else {
 				ot = dgostringptr(s, ot, nil);
 				ot = dgostringptr(s, ot, nil);
@@ -796,11 +810,11 @@ dumptypestructs(void)
 	// so this is as good as any.
 	// another possible choice would be package main,
 	// but using runtime means fewer copies in .6 files.
-	if(strcmp(package, "runtime") == 0) {
+	if(strcmp(localpkg->name, "runtime") == 0) {	// PGNS: fixme
 		for(i=1; i<=TBOOL; i++)
 			dtypesym(ptrto(types[i]));
 		dtypesym(ptrto(types[TSTRING]));
 		dtypesym(typ(TDDD));
-		dtypesym(ptrto(pkglookup("Pointer", "unsafe")->def->type));
+		dtypesym(ptrto(pkglookup("Pointer", unsafepkg)->def->type));
 	}
 }

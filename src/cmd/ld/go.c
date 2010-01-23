@@ -65,13 +65,13 @@ ilookup(char *name)
 	return x;
 }
 
-static void loadpkgdata(char*, char*, int);
+static void loadpkgdata(char*, char*, char*, int);
 static void loaddynld(char*, char*, int);
 static int parsemethod(char**, char*, char**);
-static int parsepkgdata(char*, char**, char*, char**, char**, char**);
+static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
 
 void
-ldpkg(Biobuf *f, int64 len, char *filename)
+ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 {
 	char *data, *p0, *p1;
 
@@ -115,8 +115,7 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 			p0++;
 		while(*p0 != ' ' && *p0 != '\t' && *p0 != '\n')
 			p0++;
-
-		loadpkgdata(filename, p0, p1 - p0);
+		loadpkgdata(filename, pkg, p0, p1 - p0);
 	}
 
 	// local types begin where exports end.
@@ -132,7 +131,8 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 		return;
 	}
 
-	loadpkgdata(filename, p0, p1 - p0);
+	// PGNS: Should be using import path, not pkg.
+	loadpkgdata(filename, pkg, p0, p1 - p0);
 
 	// look for dynld section
 	p0 = strstr(p1, "\n$$  // dynld");
@@ -153,38 +153,16 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 	}
 }
 
-/*
- * a and b don't match.
- * is one a forward declaration and the other a valid completion?
- * if so, return the one to keep.
- */
-char*
-forwardfix(char *a, char *b)
-{
-	char *t;
-
-	if(strlen(a) > strlen(b)) {
-		t = a;
-		a = b;
-		b = t;
-	}
-	if(strcmp(a, "struct") == 0 && strncmp(b, "struct ", 7) == 0)
-		return b;
-	if(strcmp(a, "interface") == 0 && strncmp(b, "interface ", 10) == 0)
-		return b;
-	return nil;
-}
-
 static void
-loadpkgdata(char *file, char *data, int len)
+loadpkgdata(char *file, char *pkg, char *data, int len)
 {
-	char *p, *ep, *prefix, *name, *def, *ndef;
+	char *p, *ep, *prefix, *name, *def;
 	Import *x;
 
 	file = strdup(file);
 	p = data;
 	ep = data + len;
-	while(parsepkgdata(file, &p, ep, &prefix, &name, &def) > 0) {
+	while(parsepkgdata(file, pkg, &p, ep, &prefix, &name, &def) > 0) {
 		x = ilookup(name);
 		if(x->prefix == nil) {
 			x->prefix = prefix;
@@ -195,11 +173,7 @@ loadpkgdata(char *file, char *data, int len)
 			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
 			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
 			nerrors++;
-		} else if(strcmp(x->def, def) == 0) {
-			// fine
-		} else if((ndef = forwardfix(x->def, def)) != nil) {
-			x->def = ndef;
-		} else {
+		} else if(strcmp(x->def, def) != 0) {
 			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
 			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
@@ -208,14 +182,44 @@ loadpkgdata(char *file, char *data, int len)
 	}
 }
 
+// replace all "". with pkg.
+char*
+expandpkg(char *t0, char *pkg)
+{
+	int n;
+	char *p;
+	char *w, *w0, *t;
+	
+	n = 0;
+	for(p=t0; (p=strstr(p, "\"\".")) != nil; p+=3)
+		n++;
+
+	if(n == 0)
+		return t0;
+
+	// use malloc, not mal, so that caller can free
+	w0 = malloc(strlen(t0) + strlen(pkg)*n);
+	w = w0;
+	for(p=t=t0; (p=strstr(p, "\"\".")) != nil; p=t) {
+		memmove(w, t, p - t);
+		w += p-t;
+		strcpy(w, pkg);
+		w += strlen(pkg);
+		t = p+2;
+	}
+	strcpy(w, t);
+	return w0;
+}
+
 static int
-parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char **defp)
+parsepkgdata(char *file, char *pkg, char **pp, char *ep, char **prefixp, char **namep, char **defp)
 {
 	char *p, *prefix, *name, *def, *edef, *meth;
 	int n;
 
 	// skip white space
 	p = *pp;
+loop:
 	while(p < ep && (*p == ' ' || *p == '\t' || *p == '\n'))
 		p++;
 	if(p == ep || strncmp(p, "$$\n", 3) == 0)
@@ -223,7 +227,7 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
 
 	// prefix: (var|type|func|const)
 	prefix = p;
-	if(p + 6 > ep)
+	if(p + 7 > ep)
 		return -1;
 	if(strncmp(p, "var ", 4) == 0)
 		p += 4;
@@ -233,6 +237,12 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
 		p += 5;
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
+	else if(strncmp(p, "import ", 7) == 0) {
+		p += 7;
+		while(p < ep && *p != '\n')
+			p++;
+		goto loop;
+	}
 	else {
 		fprint(2, "%s: confused in pkg data near <<%.40s>>\n", argv0, prefix);
 		nerrors++;
@@ -277,6 +287,9 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
 		memmove(edef, meth, n);
 		edef += n;
 	}
+	
+	name = expandpkg(name, pkg);
+	def = expandpkg(def, pkg);
 
 	// done
 	*pp = p;

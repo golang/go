@@ -28,6 +28,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+typedef struct Library Library;
+struct Library
+{
+	char *objref;	// object where we found the reference
+	char *srcref;	// src file where we found the reference
+	char *file;		// object file
+	char *pkg;	// import path
+};
+
 extern	char	symname[];
 extern	char	*libdir[];
 extern	int	nlibdir;
@@ -36,8 +45,7 @@ extern	int	cout;
 EXTERN	char*	INITENTRY;
 EXTERN	char	thechar;
 EXTERN	char*	thestring;
-EXTERN	char**	library;
-EXTERN	char**	libraryobj;
+EXTERN	Library*	library;
 EXTERN	int	libraryp;
 EXTERN	int	nlibrary;
 EXTERN	Sym*	hash[NHASH];
@@ -71,15 +79,16 @@ void	readundefs(char *f, int t);
 int32	Bget4(Biobuf *f);
 void	loadlib(void);
 void	errorexit(void);
-void	objfile(char *file);
+void	objfile(char *file, char *pkg);
 void	libinit(void);
 void	Lflag(char *arg);
 void	usage(void);
-void	ldobj1(Biobuf *f, int64 len, char *pn);
-void	ldobj(Biobuf*, int64, char*);
-void	ldpkg(Biobuf*, int64, char*);
+void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
+void	ldobj(Biobuf*, char*, int64, char*);
+void	ldpkg(Biobuf*, char*, int64, char*);
 void	mark(Sym *s);
-
+char*	expandpkg(char*, char*);
+void	deadcode(void);
 
 int	pathchar(void);
 void*	mal(uint32);

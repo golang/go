@@ -32,6 +32,8 @@
 #include	"lib.h"
 #include	<ar.h>
 
+int iconv(Fmt*);
+
 char	symname[]	= SYMDEF;
 char*	libdir[16] = { "." };
 int	nlibdir = 1;
@@ -54,6 +56,7 @@ Lflag(char *arg)
 void
 libinit(void)
 {
+	fmtinstall('i', iconv);
 	mywhatsys();	// get goroot, goarch, goos
 	if(strcmp(goarch, thestring) != 0)
 		print("goarch is not known: %s\n", goarch);
@@ -91,6 +94,7 @@ addlib(char *src, char *obj)
 {
 	char name[1024], pname[1024], comp[256], *p;
 	int i, search;
+	Library *l;
 
 	if(histfrogp <= 0)
 		return;
@@ -133,9 +137,11 @@ addlib(char *src, char *obj)
 			diag("library component too long");
 			return;
 		}
-		strcat(name, "/");
+		if(i > 0 || !search)
+			strcat(name, "/");
 		strcat(name, comp);
 	}
+	cleanname(name);
 
 	if(search) {
 		// try dot, -L "libdir", and then goroot.
@@ -144,28 +150,42 @@ addlib(char *src, char *obj)
 			if(access(pname, AEXIST) >= 0)
 				break;
 		}
-		strcpy(name, pname);
-	}
-	cleanname(name);
+	}else
+		strcpy(pname, name);
+	cleanname(pname);
+	
+	/* runtime.a -> runtime */
+	if(strlen(name) > 2 && name[strlen(name)-2] == '.')
+		name[strlen(name)-2] = '\0';
+
 	if(debug['v'])
-		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
+		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, pname);
 
 	for(i=0; i<libraryp; i++)
-		if(strcmp(name, library[i]) == 0)
+		if(strcmp(pname, library[i].file) == 0)
 			return;
 	if(libraryp == nlibrary){
 		nlibrary = 50 + 2*libraryp;
 		library = realloc(library, sizeof library[0] * nlibrary);
-		libraryobj = realloc(libraryobj, sizeof libraryobj[0] * nlibrary);
 	}
+
+	l = &library[libraryp++];
+
+	p = mal(strlen(obj) + 1);
+	strcpy(p, obj);
+	l->objref = p;
+
+	p = mal(strlen(src) + 1);
+	strcpy(p, src);
+	l->srcref = p;
+
+	p = mal(strlen(pname) + 1);
+	strcpy(p, pname);
+	l->file = p;
 
 	p = mal(strlen(name) + 1);
 	strcpy(p, name);
-	library[libraryp] = p;
-	p = mal(strlen(obj) + 1);
-	strcpy(p, obj);
-	libraryobj[libraryp] = p;
-	libraryp++;
+	l->pkg = p;
 }
 
 void
@@ -180,8 +200,8 @@ loop:
 	xrefresolv = 0;
 	for(i=0; i<libraryp; i++) {
 		if(debug['v'])
-			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i], libraryobj[i]);
-		objfile(library[i]);
+			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
+		objfile(library[i].file, library[i].pkg);
 	}
 	if(xrefresolv)
 	for(h=0; h<nelem(hash); h++)
@@ -192,11 +212,11 @@ loop:
 	i = strlen(goroot)+strlen(goarch)+strlen(goos)+20;
 	a = mal(i);
 	snprint(a, i, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
-	objfile(a);
+	objfile(a, "runtime");
 }
 
 void
-objfile(char *file)
+objfile(char *file, char *pkg)
 {
 	int32 off, esym, cnt, l;
 	int work;
@@ -205,7 +225,9 @@ objfile(char *file)
 	char magbuf[SARMAG];
 	char name[100], pname[150];
 	struct ar_hdr arhdr;
-	char *e, *start, *stop;
+	char *e, *start, *stop, *x;
+	
+	pkg = smprint("%i", pkg);
 
 	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
 		if(debug['9'])
@@ -217,7 +239,7 @@ objfile(char *file)
 		file = name;
 	}
 	if(debug['v'])
-		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
+		Bprint(&bso, "%5.2f ldobj: %s (%s)\n", cputime(), file, pkg);
 	Bflush(&bso);
 	f = Bopen(file, 0);
 	if(f == nil) {
@@ -229,7 +251,7 @@ objfile(char *file)
 		/* load it as a regular file */
 		l = Bseek(f, 0L, 2);
 		Bseek(f, 0L, 0);
-		ldobj(f, l, file);
+		ldobj(f, pkg, l, file);
 		Bterm(f);
 		return;
 	}
@@ -268,7 +290,10 @@ objfile(char *file)
 		Bflush(&bso);
 		work = 0;
 		for(e = start; e < stop; e = strchr(e+5, 0) + 1) {
-			s = lookup(e+5, 0);
+			x = expandpkg(e+5, pkg);
+			s = lookup(x, 0);
+			if(x != e+5)
+				free(x);
 			if(s->type != SXREF)
 				continue;
 			sprint(pname, "%s(%s)", file, s->name);
@@ -290,7 +315,7 @@ objfile(char *file)
 				l--;
 			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
 			l = atolwhex(arhdr.size);
-			ldobj(f, l, pname);
+			ldobj(f, pkg, l, pname);
 			if(s->type == SXREF) {
 				diag("%s: failed to load: %s", file, s->name);
 				errorexit();
@@ -308,7 +333,7 @@ out:
 }
 
 void
-ldobj(Biobuf *f, int64 len, char *pn)
+ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
 {
 	static int files;
 	static char **filen;
@@ -362,10 +387,11 @@ ldobj(Biobuf *f, int64 len, char *pn)
 	import1 = Boffset(f);
 
 	Bseek(f, import0, 0);
-	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+	ldpkg(f, pkg, import1 - import0 - 2, pn);	// -2 for !\n
 	Bseek(f, import1, 0);
 
-	ldobj1(f, eof - Boffset(f), pn);
+	// PGNS: Should be using import path, not pkg.
+	ldobj1(f, pkg, eof - Boffset(f), pn);
 	return;
 
 eof:
@@ -757,3 +783,56 @@ mal(uint32 n)
 	memset(v, 0, n);
 	return v;
 }
+
+// Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
+/*
+ * Convert raw string to the prefix that will be used in the symbol table.
+ * Invalid bytes turn into %xx.  Right now the only bytes that need
+ * escaping are %, ., and ", but we escape all control characters too.
+ */
+static char*
+pathtoprefix(char *s)
+{
+	static char hex[] = "0123456789abcdef";
+	char *p, *r, *w;
+	int n;
+
+	// check for chars that need escaping
+	n = 0;
+	for(r=s; *r; r++)
+		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"')
+			n++;
+
+	// quick exit
+	if(n == 0)
+		return s;
+
+	// escape
+	p = mal((r-s)+1+2*n);
+	for(r=s, w=p; *r; r++) {
+		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"') {
+			*w++ = '%';
+			*w++ = hex[(*r>>4)&0xF];
+			*w++ = hex[*r&0xF];
+		} else
+			*w++ = *r;
+	}
+	*w = '\0';
+	return p;
+}
+
+int
+iconv(Fmt *fp)
+{
+	char *p;
+
+	p = va_arg(fp->args, char*);
+	if(p == nil) {
+		fmtstrcpy(fp, "<nil>");
+		return 0;
+	}
+	p = pathtoprefix(p);
+	fmtstrcpy(fp, p);
+	return 0;
+}
+

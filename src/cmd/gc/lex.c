@@ -8,8 +8,8 @@
 #include <ar.h>
 
 extern int yychar;
-char nopackage[] = "____";
 void lexfini(void);
+static char *goos, *goarch, *goroot;
 
 #define	DBG	if(!debug['x']);else print
 enum
@@ -23,8 +23,22 @@ main(int argc, char *argv[])
 	int i, c;
 	NodeList *l;
 
+	localpkg = mkpkg(strlit(""));
+	localpkg->prefix = "\"\"";
+
+	builtinpkg = mkpkg(strlit("go.builtin"));
+	gostringpkg = mkpkg(strlit("go.string"));
+	gostringpkg->prefix = "go.string";
+	runtimepkg = mkpkg(strlit("runtime"));
+	stringpkg = mkpkg(strlit("string"));
+	typepkg = mkpkg(strlit("type"));
+	unsafepkg = mkpkg(strlit("unsafe"));
+
+	goroot = getgoroot();
+	goos = getgoos();
+	goarch = thestring;
+
 	outfile = nil;
-	package = nopackage;
 	ARGBEGIN {
 	default:
 		c = ARGC();
@@ -34,10 +48,6 @@ main(int argc, char *argv[])
 
 	case 'o':
 		outfile = ARGF();
-		break;
-
-	case 'k':
-		package = ARGF();
 		break;
 
 	case 'I':
@@ -98,7 +108,7 @@ main(int argc, char *argv[])
 			Bterm(curio.bin);
 	}
 	testdclstack();
-	mkpackage(package);	// final import not used checks
+	mkpackage(localpkg->name);	// final import not used checks
 	lexfini();
 
 	typecheckok = 1;
@@ -140,7 +150,6 @@ usage:
 	print("  -e no limit on number of errors printed\n");
 	print("  -f print stack frame structure\n");
 	print("  -h panic on an error\n");
-	print("  -k name specify package name\n");
 	print("  -o file specify output file\n");
 	print("  -S print the assembly language\n");
 	print("  -w print the parse tree after typing\n");
@@ -219,14 +228,7 @@ islocalname(Strlit *name)
 int
 findpkg(Strlit *name)
 {
-	static char *goroot, *goos, *goarch;
 	Idir *p;
-
-	if(goroot == nil) {
-		goroot = getgoroot();
-		goos = getgoos();
-		goarch = thestring;
-	}
 
 	if(islocalname(name)) {
 		// try .a before .6.  important for building libraries:
@@ -267,21 +269,39 @@ importfile(Val *f, int line)
 	char *file, *p;
 	int32 c;
 	int len;
+	Strlit *path;
+	char cleanbuf[1024];
 
 	// TODO(rsc): don't bother reloading imports more than once
+
+	// PGNS: canonicalize import path for ./ imports in findpkg.
 
 	if(f->ctype != CTSTR) {
 		yyerror("import statement not a string");
 		return;
 	}
 
+	if(strlen(f->u.sval->s) != f->u.sval->len)
+		fatal("import path contains NUL");
+
 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
+		importpkg = mkpkg(f->u.sval);
 		cannedimports("unsafe.6", unsafeimport);
 		return;
 	}
 
 	if(!findpkg(f->u.sval))
 		fatal("can't find import: %Z", f->u.sval);
+
+	path = f->u.sval;
+	if(islocalname(path)) {
+		snprint(cleanbuf, sizeof cleanbuf, "%s/%s", pathname, path->s);
+		cleanname(cleanbuf);
+		path = strlit(cleanbuf);
+	}
+
+	importpkg = mkpkg(path);
+
 	imp = Bopen(namebuf, OREAD);
 	if(imp == nil)
 		fatal("can't open import: %Z", f->u.sval);
@@ -1286,7 +1306,7 @@ lexinit(void)
 					dowidth(t);
 				types[etype] = t;
 			}
-			s1 = pkglookup(syms[i].name, "/builtin/");	// impossible pkg name for builtins
+			s1 = pkglookup(syms[i].name, builtinpkg);
 			s1->lexical = LNAME;
 			s1->def = typenod(t);
 			continue;
@@ -1307,12 +1327,12 @@ lexinit(void)
 	idealstring = typ(TSTRING);
 	idealbool = typ(TBOOL);
 
-	s = pkglookup("true", "/builtin/");
+	s = pkglookup("true", builtinpkg);
 	s->def = nodbool(1);
 	s->def->sym = lookup("true");
 	s->def->type = idealbool;
 
-	s = pkglookup("false", "/builtin/");
+	s = pkglookup("false", builtinpkg);
 	s->def = nodbool(0);
 	s->def->sym = lookup("false");
 	s->def->type = idealbool;
@@ -1444,28 +1464,22 @@ lexname(int lex)
 }
 
 void
-mkpackage(char* pkg)
+mkpackage(char* pkgname)
 {
 	Sym *s;
 	int32 h;
 	char *p;
 
-	if(package == nopackage) {
-		if(strcmp(pkg, "_") == 0)
+	if(localpkg->name == nil) {
+		if(strcmp(pkgname, "_") == 0)
 			yyerror("invalid package name _");
-
-		// redefine all names to be this package.
-		for(h=0; h<NHASH; h++)
-			for(s = hash[h]; s != S; s = s->link)
-				if(s->package == nopackage)
-					s->package = pkg;
-		package = pkg;
+		localpkg->name = pkgname;
 	} else {
-		if(strcmp(pkg, package) != 0)
-			yyerror("package %s; expected %s", pkg, package);
+		if(strcmp(pkgname, localpkg->name) != 0)
+			yyerror("package %s; expected %s", pkgname, localpkg->name);
 		for(h=0; h<NHASH; h++) {
 			for(s = hash[h]; s != S; s = s->link) {
-				if(s->def == N || s->package != package)
+				if(s->def == N || s->pkg != localpkg)
 					continue;
 				if(s->def->op == OPACK) {
 					// throw away top-level package name leftover

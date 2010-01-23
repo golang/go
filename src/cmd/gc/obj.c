@@ -17,7 +17,7 @@ dumpobj(void)
 
 	Bprint(bout, "%s\n", thestring);
 	Bprint(bout, "  exports automatically generated from\n");
-	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, package);
+	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, localpkg->name);
 	dumpexport();
 	Bprint(bout, "\n!\n");
 
@@ -51,7 +51,7 @@ dumpglobls(void)
 			fatal("external %#N nil type\n", n);
 		if(n->class == PFUNC)
 			continue;
-		if(n->sym->package != package)
+		if(n->sym->pkg != localpkg)
 			continue;
 		dowidth(n->type);
 
@@ -63,9 +63,7 @@ dumpglobls(void)
 void
 Bputname(Biobuf *b, Sym *s)
 {
-// PGNS: Uncomment next line.
-//	if(strcmp(s->package, package) != 0)
-		Bwrite(b, s->package, strlen(s->package));
+	Bprint(b, "%s", s->pkg->prefix);
 	Bputc(b, '.');
 	Bwrite(b, s->name, strlen(s->name)+1);
 }

@@ -256,11 +256,11 @@ stringhash(char *p)
 Sym*
 lookup(char *name)
 {
-	return pkglookup(name, package);
+	return pkglookup(name, localpkg);
 }
 
 Sym*
-pkglookup(char *name, char *pkg)
+pkglookup(char *name, Pkg *pkg)
 {
 	Sym *s;
 	uint32 h;
@@ -269,26 +269,17 @@ pkglookup(char *name, char *pkg)
 	h = stringhash(name) % NHASH;
 	c = name[0];
 	for(s = hash[h]; s != S; s = s->link) {
-		if(s->name[0] != c)
+		if(s->name[0] != c || s->pkg != pkg)
 			continue;
 		if(strcmp(s->name, name) == 0)
-			if(s->package && strcmp(s->package, pkg) == 0)
-				return s;
+			return s;
 	}
 
 	s = mal(sizeof(*s));
 	s->name = mal(strlen(name)+1);
 	strcpy(s->name, name);
 
-	// botch - should probably try to reuse the pkg string
-	if(pkg == package)
-		s->package = package;
-	else {
-		s->package = mal(strlen(pkg)+1);
-		strcpy(s->package, pkg);
-	}
-
-	s->packagename = s->package;
+	s->pkg = pkg;
 
 	s->link = hash[h];
 	hash[h] = s;
@@ -298,9 +289,9 @@ pkglookup(char *name, char *pkg)
 }
 
 Sym*
-restrictlookup(char *name, char *pkg)
+restrictlookup(char *name, Pkg *pkg)
 {
-	if(!exportname(name) && strcmp(pkg, package) != 0)
+	if(!exportname(name) && pkg != localpkg)
 		yyerror("cannot refer to unexported name %s.%s", pkg, name);
 	return pkglookup(name, pkg);
 }
@@ -309,24 +300,18 @@ restrictlookup(char *name, char *pkg)
 // find all the exported symbols in package opkg
 // and make them available in the current package
 void
-importdot(Sym *opkg, Node *pack)
+importdot(Pkg *opkg, Node *pack)
 {
 	Sym *s, *s1;
 	uint32 h;
-	int c, n;
-
-	if(strcmp(opkg->name, package) == 0)
-		return;
+	int n;
 
 	n = 0;
-	c = opkg->name[0];
 	for(h=0; h<NHASH; h++) {
 		for(s = hash[h]; s != S; s = s->link) {
-			if(s->package[0] != c)
+			if(s->pkg != opkg)
 				continue;
 			if(!exportname(s->name) || utfrune(s->name, 0xb7))	// 0xb7 = center dot
-				continue;
-			if(strcmp(s->package, opkg->name) != 0)
 				continue;
 			s1 = lookup(s->name);
 			if(s1->def != N) {
@@ -983,27 +968,41 @@ int
 Sconv(Fmt *fp)
 {
 	Sym *s;
-	char *pkg, *nam;
 
 	s = va_arg(fp->args, Sym*);
 	if(s == S) {
 		fmtstrcpy(fp, "<S>");
 		return 0;
 	}
+	
+	if(fp->flags & FmtShort)
+		goto shrt;
 
-	pkg = "<nil>";
-	nam = pkg;
+	if(exporting || (fp->flags & FmtSharp)) {
+		if(packagequotes)
+			fmtprint(fp, "\"%Z\"", s->pkg->path);
+		else {
+			// PGNS: Should be s->pkg->prefix
+			fmtprint(fp, "%s", s->pkg->name);
+		}
+		fmtprint(fp, ".%s", s->name);
+		return 0;
+	}
 
-	if(s->packagename != nil)
-		pkg = s->packagename;
-	else
-		abort();
-	if(s->name != nil)
-		nam = s->name;
+	if(s->pkg != localpkg || (fp->flags & FmtLong)) {
+		fmtprint(fp, "%s.%s", s->pkg->name, s->name);
+		return 0;
+	}
+
+shrt:
+	fmtstrcpy(fp, s->name);
+	return 0;
+
+	/*
 
 	if(!(fp->flags & FmtShort)) {
 		if((fp->flags & FmtLong) && packagequotes) {
-			fmtprint(fp, "\"%s\".%s", s->package, nam);
+			fmtprint(fp, "\"%Z\".%s", s->pkg->path, nam);
 			return 0;
 		}
 		if((fp->flags & FmtLong) || strcmp(s->package, package) != 0) {
@@ -1012,6 +1011,7 @@ Sconv(Fmt *fp)
 		}
 	}
 	fmtstrcpy(fp, nam);
+	*/
 	return 0;
 }
 
@@ -1057,10 +1057,8 @@ Tpretty(Fmt *fp, Type *t)
 			if(fp->flags & FmtShort)
 				fmtprint(fp, "%hS", s);
 			else
-				fmtprint(fp, "%lS", s);
-			if(strcmp(s->package, package) != 0)
-				return 0;
-			if(s->flags & SymImported)
+				fmtprint(fp, "%S", s);
+			if(s->pkg != localpkg)
 				return 0;
 			if(t->vargen)
 				fmtprint(fp, "·%d", t->vargen);
@@ -1537,13 +1535,13 @@ isselect(Node *n)
 	if(n == N)
 		return 0;
 	n = n->left;
-	s = pkglookup("selectsend", "runtime");
+	s = pkglookup("selectsend", runtimepkg);
 	if(s == n->sym)
 		return 1;
-	s = pkglookup("selectrecv", "runtime");
+	s = pkglookup("selectrecv", runtimepkg);
 	if(s == n->sym)
 		return 1;
-	s = pkglookup("selectdefault", "runtime");
+	s = pkglookup("selectdefault", runtimepkg);
 	if(s == n->sym)
 		return 1;
 	return 0;
@@ -1959,7 +1957,7 @@ syslook(char *name, int copy)
 	Sym *s;
 	Node *n;
 
-	s = pkglookup(name, "runtime");
+	s = pkglookup(name, runtimepkg);
 	if(s == S || s->def == N)
 		fatal("looksys: cant find runtime.%s", name);
 
@@ -2585,7 +2583,7 @@ expand0(Type *t, int followptr)
 
 	if(u->etype == TINTER) {
 		for(f=u->type; f!=T; f=f->down) {
-			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
+			if(!exportname(f->sym->name) && f->sym->pkg != localpkg)
 				continue;
 			if(f->sym->flags & SymUniq)
 				continue;
@@ -2602,7 +2600,7 @@ expand0(Type *t, int followptr)
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down) {
-			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
+			if(!exportname(f->sym->name) && f->sym->pkg != localpkg)
 				continue;
 			if(f->sym->flags & SymUniq)
 				continue;
@@ -3379,15 +3377,74 @@ ngotype(Node *n)
 	return S;
 }
 
-char*
-toimportpath(Strlit *s)
+/*
+ * Convert raw string to the prefix that will be used in the symbol table.
+ * Invalid bytes turn into %xx.  Right now the only bytes that need
+ * escaping are %, ., and ", but we escape all control characters too.
+ */
+static char*
+pathtoprefix(char *s)
 {
-	char *p;
+	static char hex[] = "0123456789abcdef";
+	char *p, *r, *w;
+	int n;
 
-//PGNS: Do better once these are import paths
-// rather than package names in disguise.
-	p = mal(s->len+1);
-	memmove(p, s->s, s->len);
-	p[s->len] = '\0';
+	// check for chars that need escaping
+	n = 0;
+	for(r=s; *r; r++)
+		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"')
+			n++;
+
+	// quick exit
+	if(n == 0)
+		return s;
+
+	// escape
+	p = mal((r-s)+1+2*n);
+	for(r=s, w=p; *r; r++) {
+		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"') {
+			*w++ = '%';
+			*w++ = hex[(*r>>4)&0xF];
+			*w++ = hex[*r&0xF];
+		} else
+			*w++ = *r;
+	}
+	*w = '\0';
 	return p;
 }
+
+static Pkg *phash[128];
+
+Pkg*
+mkpkg(Strlit *path)
+{
+	Pkg *p;
+	int h;
+	
+	if(strlen(path->s) != path->len)
+		fatal("import path contains NUL byte");
+	
+	h = stringhash(path->s) & (nelem(phash)-1);
+	for(p=phash[h]; p; p=p->link)
+		if(p->path->len == path->len && memcmp(path->s, p->path->s, path->len) == 0)
+			return p;
+
+	p = mal(sizeof *p);
+	p->path = path;
+	p->prefix = pathtoprefix(path->s);
+	p->link = phash[h];
+	phash[h] = p;
+	return p;
+}
+
+Strlit*
+strlit(char *s)
+{
+	Strlit *t;
+	
+	t = mal(sizeof *t + strlen(s));
+	strcpy(t->s, s);
+	t->len = strlen(s);
+	return t;
+}
+

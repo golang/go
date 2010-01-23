@@ -63,7 +63,7 @@ func TestLineFromAline(t *testing.T) {
 	tab := getTable(t)
 
 	// Find the sym package
-	pkg := tab.LookupFunc("gosym.TestLineFromAline").Obj
+	pkg := tab.LookupFunc("debug/gosym.TestLineFromAline").Obj
 	if pkg == nil {
 		t.Fatalf("nil pkg")
 	}

@@ -70,6 +70,15 @@ autoexport(Node *n, int ctxt)
 }
 
 void
+dumppkg(Pkg *p)
+{
+	if(p == nil || p == localpkg || p->exported)
+		return;
+	p->exported = 1;
+	Bprint(bout, "\timport %s \"%Z\"\n", p->name, p->path);
+}
+
+void
 dumpprereq(Type *t)
 {
 	if(t == T)
@@ -79,8 +88,11 @@ dumpprereq(Type *t)
 		return;
 	t->printed = 1;
 
-	if(t->sym != S && t->etype != TFIELD)
-		dumpsym(t->sym);
+	if(t->sym != S) {
+		dumppkg(t->sym->pkg);
+		if(t->etype != TFIELD)
+			dumpsym(t->sym);
+	}
 	dumpprereq(t->type);
 	dumpprereq(t->down);
 }
@@ -101,7 +113,7 @@ dumpexportconst(Sym *s)
 		dumpprereq(t);
 
 	Bprint(bout, "\t");
-	Bprint(bout, "const %lS", s);
+	Bprint(bout, "const %#S", s);
 	if(t != T && !isideal(t))
 		Bprint(bout, " %#T", t);
 	Bprint(bout, " = ");
@@ -145,9 +157,9 @@ dumpexportvar(Sym *s)
 
 	Bprint(bout, "\t");
 	if(t->etype == TFUNC && n->class == PFUNC)
-		Bprint(bout, "func %lS %#hhT", s, t);
+		Bprint(bout, "func %#S %#hhT", s, t);
 	else
-		Bprint(bout, "var %lS %#T", s, t);
+		Bprint(bout, "var %#S %#T", s, t);
 	Bprint(bout, "\n");
 }
 
@@ -180,6 +192,9 @@ dumpsym(Sym *s)
 		yyerror("unknown export symbol: %S", s);
 		return;
 	}
+	
+	dumppkg(s->pkg);
+
 	switch(s->def->op) {
 	default:
 		yyerror("unexpected export symbol: %O %S", s->def->op, s);
@@ -227,10 +242,9 @@ dumpexport(void)
 	lno = lineno;
 
 	packagequotes = 1;
-	Bprint(bout, "   import\n");
 	Bprint(bout, "\n$$  // exports\n");
 
-	Bprint(bout, "    package %s\n", package);
+	Bprint(bout, "    package %s\n", localpkg->name);
 
 	for(l=exportlist; l; l=l->next) {
 		lineno = l->n->lineno;
@@ -269,7 +283,6 @@ importsym(Sym *s, int op)
 			s->flags |= SymExport;
 		else
 			s->flags |= SymPackage;	// package scope
-		s->flags |= SymImported;
 	}
 	return s;
 }
@@ -298,8 +311,7 @@ mypackage(Sym *s)
 {
 	// we import all definitions for runtime.
 	// lowercase ones can only be used by the compiler.
-	return strcmp(s->package, package) == 0
-		|| strcmp(s->package, "runtime") == 0;
+	return s->pkg == localpkg || s->pkg == runtimepkg;
 }
 
 void

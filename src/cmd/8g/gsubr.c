@@ -1691,8 +1691,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 		if(n->method) {
 			if(n->type != T)
 			if(n->type->sym != S)
-			if(n->type->sym->package != nil)
-				a->sym = pkglookup(a->sym->name, n->type->sym->package);
+			if(n->type->sym->pkg != nil)
+				a->sym = pkglookup(a->sym->name, n->type->sym->pkg);
 		}
 
 		switch(n->class) {

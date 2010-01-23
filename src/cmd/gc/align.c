@@ -531,7 +531,7 @@ typeinit(void)
 	/* pick up the backend typedefs */
 	for(i=0; typedefs[i].name; i++) {
 		s = lookup(typedefs[i].name);
-		s1 = pkglookup(typedefs[i].name, "/builtin/");
+		s1 = pkglookup(typedefs[i].name, builtinpkg);
 
 		etype = typedefs[i].etype;
 		if(etype < 0 || etype >= nelem(types))

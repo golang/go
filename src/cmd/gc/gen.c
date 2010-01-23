@@ -14,7 +14,7 @@ sysfunc(char *name)
 {
 	Node *n;
 
-	n = newname(pkglookup(name, "runtime"));
+	n = newname(pkglookup(name, runtimepkg));
 	n->class = PFUNC;
 	return n;
 }
