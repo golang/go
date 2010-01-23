@@ -109,20 +109,41 @@ trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
 MAKEFLAGS=
 MAKELEVEL=
 
+# usage: nmgrep pattern file...
+nmgrep() {
+	pat="$1"
+	shift
+	for i
+	do
+		# Package symbol "".Foo is pkg.Foo when imported in Go.
+		# Figure out pkg.
+		case "$i" in
+		*.a)
+			pkg=$(gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 1q)
+			;;
+		*)
+			pkg=$(sed -n 's/^ .* in package "\(.*\)".*/\1/p' $i | sed 1q)
+			;;
+		esac
+		"$GOBIN"/6nm -s "$i" | egrep ' T .*\.'"$pat"'$' |
+		sed 's/.* //; /\..*\./d; s/""\./'"$pkg"'./g'
+	done
+}
+
 importpath=$("$GOBIN"/gomake -s importpath)
 {
 	# test functions are named TestFoo
 	# the grep -v eliminates methods and other special names
 	# that have multiple dots.
 	pattern='Test([^a-z].*)?'
-	tests=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*\.'$pattern'$' | sed 's/.* //; /\..*\./d')
+	tests=$(nmgrep $pattern _test/$importpath.a $xofile)
 	if [ "x$tests" = x ]; then
 		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
 		exit 2
 	fi
 	# benchmarks are named BenchmarkFoo.
 	pattern='Benchmark([^a-z].*)?'
-	benchmarks=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*\.'$pattern'$' | sed 's/.* //; /\..*\./d')
+	benchmarks=$(nmgrep $pattern _test/$importpath.a $xofile)
 
 	# package spec
 	echo 'package main'

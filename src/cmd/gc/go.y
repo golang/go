@@ -142,6 +142,8 @@ package:
  */
 loadsys:
 	{
+		importpkg = runtimepkg;
+
 		if(debug['A'])
 			cannedimports("runtime.builtin", "package runtime\n\n$$\n\n");
 		else
@@ -150,7 +152,7 @@ loadsys:
 	import_package
 	import_there
 	{
-		pkgimportname = S;
+		importpkg = nil;
 	}
 
 imports:
@@ -164,25 +166,25 @@ import:
 import_stmt:
 	import_here import_package import_there
 	{
-		Sym *import, *my;
+		Pkg *ipkg;
+		Sym *my;
 		Node *pack;
+		
+		ipkg = importpkg;
+		my = importmyname;
+		importpkg = nil;
+		importmyname = S;
 
-		import = pkgimportname;
-		my = pkgmyname;
-		pkgmyname = S;
-		pkgimportname = S;
-
-		if(import == S)
-			break;
+		if(my == nil)
+			my = lookup(ipkg->name);
 
 		pack = nod(OPACK, N, N);
-		pack->sym = import;
+		pack->sym = my;
+		pack->pkg = ipkg;
 		pack->lineno = $1;
 
-		if(my == S)
-			my = import;
 		if(my->name[0] == '.') {
-			importdot(import, pack);
+			importdot(ipkg, pack);
 			break;
 		}
 		if(my->name[0] == '_' && my->name[1] == '\0')
@@ -211,50 +213,40 @@ import_here:
 	{
 		// import with original name
 		$$ = parserline();
-		pkgimportname = S;
-		pkgmyname = S;
+		importmyname = S;
 		importfile(&$1, $$);
 	}
 |	sym LLITERAL
 	{
 		// import with given name
 		$$ = parserline();
-		pkgimportname = S;
-		pkgmyname = $1;
+		importmyname = $1;
 		importfile(&$2, $$);
 	}
 |	'.' LLITERAL
 	{
 		// import into my name space
 		$$ = parserline();
-		pkgmyname = lookup(".");
+		importmyname = lookup(".");
 		importfile(&$2, $$);
 	}
 
 import_package:
 	LPACKAGE sym ';'
 	{
-		pkgimportname = $2;
+		importpkg->name = $2->name;
+
+		// PGNS: fixme
 		if(strcmp($2->name, "main") == 0)
 			yyerror("cannot import package main");
 
-		// TODO(rsc): This should go away once we get
+		// PGNS: This should go away once we get
 		// rid of the global package name space.
-		if(strcmp($2->name, package) == 0 && strcmp(package, "runtime") != 0)
+		if(localpkg->name && strcmp($2->name, localpkg->name) == 0 && strcmp($2->name, "runtime") != 0)
 			yyerror("package cannot import itself");
 	}
 
 import_there:
-	{
-		defercheckwidth();
-	}
-	hidden_import_list '$' '$'
-	{
-		resumecheckwidth();
-		checkimports();
-		unimportfile();
-	}
-|	LIMPORT '$' '$'
 	{
 		defercheckwidth();
 	}
@@ -786,7 +778,7 @@ pexpr:
 	{
 		if($1->op == OPACK) {
 			Sym *s;
-			s = restrictlookup($3->name, $1->sym->name);
+			s = restrictlookup($3->name, $1->pkg);
 			$1->used = 1;
 			$$ = oldname(s);
 			break;
@@ -977,7 +969,7 @@ dotname:
 	{
 		if($1->op == OPACK) {
 			Sym *s;
-			s = restrictlookup($3->name, $1->sym->name);
+			s = restrictlookup($3->name, $1->pkg);
 			$1->used = 1;
 			$$ = oldname(s);
 			break;
@@ -1256,14 +1248,14 @@ packname:
 	}
 |	LNAME '.' sym
 	{
-		char *pkg;
+		Pkg *pkg;
 
 		if($1->def == N || $1->def->op != OPACK) {
 			yyerror("%S is not a package", $1);
-			pkg = $1->name;
+			pkg = localpkg;
 		} else {
 			$1->def->used = 1;
-			pkg = $1->def->sym->name;
+			pkg = $1->def->pkg;
 		}
 		$$ = restrictlookup($3->name, pkg);
 	}
@@ -1549,16 +1541,15 @@ oliteral:
  * an output package
  */
 hidden_import:
-	LIMPORT sym LLITERAL
+	LIMPORT sym LLITERAL ';'
 	{
 		// Informational: record package name
 		// associated with import path, for use in
 		// human-readable messages.
+		Pkg *p;
 
-		Sym *s;
-
-		s = pkglookup("", toimportpath($3.u.sval));
-		s->packagename = $2->name;
+		p = mkpkg($3.u.sval);
+		p->name = $2->name;
 	}
 |	LVAR hidden_pkg_importsym hidden_type ';'
 	{
@@ -1617,7 +1608,7 @@ hidden_type_misc:
 |	LNAME
 	{
 		// predefined name like uint8
-		$1 = pkglookup($1->name, "/builtin/");
+		$1 = pkglookup($1->name, builtinpkg);
 		if($1->def == N || $1->def->op != OTYPE) {
 			yyerror("%s is not a type", $1->name);
 			$$ = T;
@@ -1709,7 +1700,7 @@ hidden_structdcl:
 		s = $2->sym;
 		if(s == S && isptr[$2->etype])
 			s = $2->type->sym;
-		if(s && strcmp(s->package, "/builtin/") == 0)
+		if(s && s->pkg == builtinpkg)
 			s = lookup(s->name);
 		$$ = embedded(s);
 		$$->right = typenod($2);
@@ -1759,7 +1750,7 @@ hidden_constant:
 	}
 |	sym
 	{
-		$$ = oldname(pkglookup($1->name, "/builtin/"));
+		$$ = oldname(pkglookup($1->name, builtinpkg));
 		if($$->op != OLITERAL)
 			yyerror("bad constant %S", $$->sym);
 	}
@@ -1767,14 +1758,20 @@ hidden_constant:
 hidden_importsym:
 	LLITERAL '.' sym
 	{
-		$$ = pkglookup($3->name, toimportpath($1.u.sval));
+		Pkg *p;
+
+		if($1.u.sval->len == 0)
+			p = importpkg;
+		else
+			p = mkpkg($1.u.sval);
+		$$ = pkglookup($3->name, p);
 	}
 
 hidden_pkg_importsym:
 	hidden_importsym
 	{
 		$$ = $1;
-		structpkg = $$->package;
+		structpkg = $$->pkg;
 	}
 
 hidden_import_list:

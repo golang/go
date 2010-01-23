@@ -21,7 +21,7 @@ unsafenmagic(Node *fn, NodeList *args)
 
 	if(fn == N || fn->op != ONAME || (s = fn->sym) == S)
 		goto no;
-	if(strcmp(s->package, "unsafe") != 0)
+	if(s->pkg != unsafepkg)
 		goto no;
 
 	if(args == nil) {

@@ -364,7 +364,7 @@ datastring(char *s, int len, Addr *a)
 		tmp.lit.s[len] = '\0';
 		len++;
 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp.lit);
-		ao.sym = pkglookup(namebuf, "string");
+		ao.sym = pkglookup(namebuf, stringpkg);
 		ao.type = D_EXTERN;
 	}
 	*a = ao;
@@ -445,7 +445,7 @@ datagostring(Strlit *sval, Addr *a)
 		// so that multiple modules using the same string
 		// can share it.
 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", sval);
-		ao.sym = pkglookup(namebuf, "go.string");
+		ao.sym = pkglookup(namebuf, gostringpkg);
 		ao.type = D_EXTERN;
 	}
 

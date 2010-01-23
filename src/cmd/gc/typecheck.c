@@ -1567,7 +1567,7 @@ exportassignok(Type *t, char *desc)
 			s = f->sym;
 			// s == nil doesn't happen for embedded fields (they get the type symbol).
 			// it only happens for fields in a ... struct.
-			if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0) {
+			if(s != nil && !exportname(s->name) && s->pkg != localpkg) {
 				char *prefix;
 				
 				prefix = "";
@@ -1800,7 +1800,7 @@ typecheckcomplit(Node **np)
 					continue;
 				}
 				s = f->sym;
-				if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0)
+				if(s != nil && !exportname(s->name) && s->pkg != localpkg)
 					yyerror("implicit assignment of %T field '%s' in struct literal", t, s->name);
 				ll->n = typecheckconv(nil, ll->n, f->type, 0, "field value");
 				ll->n = nod(OKEY, newname(f->sym), ll->n);

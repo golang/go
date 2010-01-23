@@ -405,6 +405,13 @@ lookup(void)
 	int c, n;
 	char *r, *w;
 
+	if(symb[0] == 0xc2 && symb[1] == 0xb7) {
+		// turn leading · into ""·
+		memmove(symb+2, symb, w-symb);
+		symb[0] = '"';
+		symb[1] = '"';
+	}
+
 	// turn · into .
 	for(r=w=symb; *r; r++) {
 		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
@@ -413,7 +420,7 @@ lookup(void)
 		}else
 			*w++ = *r;
 	}
-	*w = '\0';
+	*w++ = '\0';
 
 	h = 0;
 	for(p=symb; *p;) {

@@ -479,11 +479,4 @@ void	linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
 	vlong size, uint32 link, uint32 info, vlong align, vlong entsize);
 int	linuxstrtable(void);
 
-/*
- *	go.c
- */
-void	deadcode(void);
-char*	gotypefor(char *name);
-void	ldpkg(Biobuf *f, int64 len, char *filename);
-
 #endif

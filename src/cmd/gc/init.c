@@ -70,7 +70,7 @@ anyinit(NodeList *n)
 	}
 
 	// is this main
-	if(strcmp(package, "main") == 0)
+	if(strcmp(localpkg->name, "main") == 0)
 		return 1;
 
 	// is there an explicit init function
@@ -103,7 +103,7 @@ fninit(NodeList *n)
 	uint32 h;
 	Sym *s, *initsym;
 
-	if(strcmp(package, "PACKAGE") == 0) {
+	if(debug['A']) {
 		// sys.go or unsafe.go during compiler build
 		return;
 	}
@@ -126,7 +126,7 @@ fninit(NodeList *n)
 
 	// this is a botch since we need a known name to
 	// call the top level init function out of rt0
-	if(strcmp(package, "main") == 0)
+	if(strcmp(localpkg->name, "main") == 0)
 		snprint(namebuf, sizeof(namebuf), "init");
 
 	fn = nod(ODCLFUNC, N, N);

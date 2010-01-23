@@ -27,8 +27,7 @@ static	Sym*	dclstack;
 void
 dcopy(Sym *a, Sym *b)
 {
-	a->packagename = b->packagename;
-	a->package = b->package;
+	a->pkg = b->pkg;
 	a->name = b->name;
 	a->def = b->def;
 	a->block = b->block;
@@ -69,7 +68,7 @@ popdcl(void)
 	for(d=dclstack; d!=S; d=d->link) {
 		if(d->name == nil)
 			break;
-		s = pkglookup(d->name, d->package);
+		s = pkglookup(d->name, d->pkg);
 		dcopy(s, d);
 		if(dflag())
 			print("\t%L pop %S %p\n", lineno, s, s->def);
@@ -88,7 +87,7 @@ poptodcl(void)
 	for(d=dclstack; d!=S; d=d->link) {
 		if(d->name == nil)
 			break;
-		s = pkglookup(d->name, d->package);
+		s = pkglookup(d->name, d->pkg);
 		dcopy(s, d);
 		if(dflag())
 			print("\t%L pop %S\n", lineno, s);
@@ -129,7 +128,7 @@ dumpdcl(char *st)
 			continue;
 		}
 		print(" '%s'", d->name);
-		s = pkglookup(d->name, d->package);
+		s = pkglookup(d->name, d->pkg);
 		print(" %lS\n", s);
 	}
 }
@@ -883,7 +882,7 @@ stotype(NodeList *l, int et, Type **t)
 			f->nname = n->left;
 			f->embedded = n->embedded;
 			f->sym = f->nname->sym;
-			if(pkgimportname != S && !exportname(f->sym->name))
+			if(importpkg && !exportname(f->sym->name))
 				f->sym = pkglookup(f->sym->name, structpkg);
 			if(f->sym && !isblank(f->nname)) {
 				for(t1=*t0; t1!=T; t1=t1->down) {
@@ -1151,7 +1150,7 @@ methodsym(Sym *nsym, Type *t0)
 		t0 = ptrto(t);
 
 	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
-	return pkglookup(buf, s->package);
+	return pkglookup(buf, s->pkg);
 
 bad:
 	yyerror("illegal receiver type: %T", t0);
@@ -1183,7 +1182,7 @@ methodname1(Node *n, Node *t)
 	if(t->sym == S || isblank(n))
 		return newname(n->sym);
 	snprint(buf, sizeof(buf), "%s%S·%S", star, t->sym, n->sym);
-	return newname(pkglookup(buf, t->sym->package));
+	return newname(pkglookup(buf, t->sym->pkg));
 }
 
 /*
@@ -1217,8 +1216,8 @@ addmethod(Sym *sf, Type *t, int local)
 	}
 
 	pa = f;
-	if(pkgimportname != S && !exportname(sf->name))
-		sf = pkglookup(sf->name, pkgimportname->name);
+	if(importpkg && !exportname(sf->name))
+		sf = pkglookup(sf->name, importpkg);
 
 	n = nod(ODCLFIELD, newname(sf), N);
 	n->type = t;

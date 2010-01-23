@@ -1500,40 +1500,34 @@ ilookup(char *name)
 	return x;
 }
 
-/*
- * a and b don't match.
- * is one a forward declaration and the other a valid completion?
- * if so, return the one to keep.
- */
-char*
-forwardfix(char *a, char *b)
-{
-	char *t;
-
-	if(strlen(a) > strlen(b)) {
-		t = a;
-		a = b;
-		b = t;
-	}
-	if(strcmp(a, "struct") == 0 && strncmp(b, "struct ", 7) == 0)
-		return b;
-	if(strcmp(a, "interface") == 0 && strncmp(b, "interface ", 10) == 0)
-		return b;
-	return nil;
-}
-
 int parsemethod(char**, char*, char**);
 int parsepkgdata(char**, char*, char**, char**, char**);
 
 void
 loadpkgdata(char *data, int len)
 {
-	char *p, *ep, *prefix, *name, *def, *ndef;
+	char *p, *ep, *prefix, *name, *def;
 	Import *x;
 
 	p = data;
 	ep = data + len;
 	while(parsepkgdata(&p, ep, &prefix, &name, &def) > 0) {
+		if(strcmp(prefix, "import") == 0) {
+			// backwards from the rest: def is unique, name is not.
+			x = ilookup(def);
+			if(x->prefix == nil) {
+				x->prefix = prefix;
+				x->def = name;
+				x->file = file;
+			} else if(strcmp(x->def, name) != 0) {
+				fprint(2, "gopack: conflicting package names for %s\n", def);
+				fprint(2, "%s:\t%s\n", x->file, x->def);
+				fprint(2, "%s:\t%s\n", file, name);
+				errors++;
+			}
+			continue;
+		}
+				
 		x = ilookup(name);
 		if(x->prefix == nil) {
 			x->prefix = prefix;
@@ -1544,11 +1538,7 @@ loadpkgdata(char *data, int len)
 			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
 			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
 			errors++;
-		} else if(strcmp(x->def, def) == 0) {
-			// fine
-		} else if((ndef = forwardfix(x->def, def)) != nil) {
-			x->def = ndef;
-		} else {
+		} else if(strcmp(x->def, def) != 0) {
 			fprint(2, "gopack: conflicting definitions for %s\n", name);
 			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
@@ -1574,7 +1564,7 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
 	prefix = p;
 
 	prefix = p;
-	if(p + 6 > ep)
+	if(p + 7 > ep)
 		return -1;
 	if(strncmp(p, "var ", 4) == 0)
 		p += 4;
@@ -1584,6 +1574,8 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
 		p += 5;
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
+	else if(strncmp(p, "import ", 7) == 0)
+		p += 7;
 	else {
 		fprint(2, "gopack: confused in pkg data near <<%.20s>>\n", p);
 		errors++;
@@ -1745,6 +1737,16 @@ getpkgdef(char **datap, int *lenp)
 	p = strappend(p, "\n");
 	for(i=0; i<nimport; i++) {
 		x = all[i];
+		if(strcmp(x->prefix, "import") == 0) {
+			// prefix def name\n
+			p = strappend(p, x->prefix);
+			p = strappend(p, " ");
+			p = strappend(p, x->def);
+			p = strappend(p, " ");
+			p = strappend(p, x->name);
+			p = strappend(p, "\n");
+			continue;
+		}
 		// prefix name def\n
 		p = strappend(p, x->prefix);
 		p = strappend(p, " ");
