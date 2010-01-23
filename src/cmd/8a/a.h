@@ -169,6 +169,7 @@ EXTERN	char*	thestring;
 EXTERN	int32	thunk;
 EXTERN	Biobuf	obuf;
 
+void*   alloc(int32);
 void*	allocn(void*, int32, int32);
 void	errorexit(void);
 void	pushio(void);

@@ -139,9 +139,10 @@ main(int argc, char *argv[])
 int
 assemble(char *file)
 {
-	char ofile[100], incfile[20], *p;
+	char *ofile, incfile[20], *p;
 	int i, of;
 
+	ofile = alloc(strlen(file)+3); // +3 for .x\0 (x=thechar)
 	strcpy(ofile, file);
 	p = utfrrune(ofile, '/');
 	if(p) {
