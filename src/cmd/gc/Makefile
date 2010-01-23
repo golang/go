@@ -54,9 +54,8 @@ y.tab.h: $(YFILES)
 y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
 
-builtin.c:	runtime.go unsafe.go mkbuiltin1.c mkbuiltin
-	./mkbuiltin || \
-	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
+builtin.c: builtin.c.boot
+	cp builtin.c.boot builtin.c
 
 subr.$O: opnames.h
 
