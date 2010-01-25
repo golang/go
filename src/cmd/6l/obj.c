@@ -692,6 +692,12 @@ loop:
 		if(s != S) {
 			p->dlink = s->data;
 			s->data = p;
+			if(s->file == nil)
+				s->file = pn;
+			else if(s->file != pn) {
+				diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+				errorexit();
+			}
 		}
 		if(edatap == P)
 			datap = p;
