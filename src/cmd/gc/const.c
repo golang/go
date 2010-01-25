@@ -330,7 +330,7 @@ evconst(Node *n)
 	int32 len;
 	Strlit *str;
 	int wl, wr, lno, et;
-	Val v;
+	Val v, rv;
 	Mpint b;
 
 	// pick off just the opcodes that can be
@@ -424,13 +424,15 @@ evconst(Node *n)
 	if(wl == TIDEAL)
 		v = copyval(v);
 
+	rv = nr->val;
+
 	// since wl == wr,
 	// the only way v.ctype != nr->val.ctype
 	// is when one is CTINT and the other CTFLT.
 	// make both CTFLT.
 	if(v.ctype != nr->val.ctype) {
 		v = toflt(v);
-		nr->val = toflt(nr->val);
+		rv = toflt(rv);
 	}
 
 	// run op
@@ -445,65 +447,65 @@ evconst(Node *n)
 		return;
 
 	case TUP(OADD, CTINT):
-		mpaddfixfix(v.u.xval, nr->val.u.xval);
+		mpaddfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(OSUB, CTINT):
-		mpsubfixfix(v.u.xval, nr->val.u.xval);
+		mpsubfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(OMUL, CTINT):
-		mpmulfixfix(v.u.xval, nr->val.u.xval);
+		mpmulfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(ODIV, CTINT):
-		if(mpcmpfixc(nr->val.u.xval, 0) == 0) {
+		if(mpcmpfixc(rv.u.xval, 0) == 0) {
 			yyerror("division by zero");
 			mpmovecfix(v.u.xval, 1);
 			break;
 		}
-		mpdivfixfix(v.u.xval, nr->val.u.xval);
+		mpdivfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(OMOD, CTINT):
-		if(mpcmpfixc(nr->val.u.xval, 0) == 0) {
+		if(mpcmpfixc(rv.u.xval, 0) == 0) {
 			yyerror("division by zero");
 			mpmovecfix(v.u.xval, 1);
 			break;
 		}
-		mpmodfixfix(v.u.xval, nr->val.u.xval);
+		mpmodfixfix(v.u.xval, rv.u.xval);
 		break;
 
 	case TUP(OLSH, CTINT):
-		mplshfixfix(v.u.xval, nr->val.u.xval);
+		mplshfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(ORSH, CTINT):
-		mprshfixfix(v.u.xval, nr->val.u.xval);
+		mprshfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(OOR, CTINT):
-		mporfixfix(v.u.xval, nr->val.u.xval);
+		mporfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(OAND, CTINT):
-		mpandfixfix(v.u.xval, nr->val.u.xval);
+		mpandfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(OANDNOT, CTINT):
-		mpandnotfixfix(v.u.xval, nr->val.u.xval);
+		mpandnotfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(OXOR, CTINT):
-		mpxorfixfix(v.u.xval, nr->val.u.xval);
+		mpxorfixfix(v.u.xval, rv.u.xval);
 		break;
 	case TUP(OADD, CTFLT):
-		mpaddfltflt(v.u.fval, nr->val.u.fval);
+		mpaddfltflt(v.u.fval, rv.u.fval);
 		break;
 	case TUP(OSUB, CTFLT):
-		mpsubfltflt(v.u.fval, nr->val.u.fval);
+		mpsubfltflt(v.u.fval, rv.u.fval);
 		break;
 	case TUP(OMUL, CTFLT):
-		mpmulfltflt(v.u.fval, nr->val.u.fval);
+		mpmulfltflt(v.u.fval, rv.u.fval);
 		break;
 	case TUP(ODIV, CTFLT):
-		if(mpcmpfltc(nr->val.u.fval, 0) == 0) {
+		if(mpcmpfltc(rv.u.fval, 0) == 0) {
 			yyerror("division by zero");
 			mpmovecflt(v.u.fval, 1.0);
 			break;
 		}
-		mpdivfltflt(v.u.fval, nr->val.u.fval);
+		mpdivfltflt(v.u.fval, rv.u.fval);
 		break;
 
 	case TUP(OEQ, CTNIL):
@@ -512,52 +514,52 @@ evconst(Node *n)
 		goto setfalse;
 
 	case TUP(OEQ, CTINT):
-		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) == 0)
+		if(mpcmpfixfix(v.u.xval, rv.u.xval) == 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(ONE, CTINT):
-		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) != 0)
+		if(mpcmpfixfix(v.u.xval, rv.u.xval) != 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OLT, CTINT):
-		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) < 0)
+		if(mpcmpfixfix(v.u.xval, rv.u.xval) < 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OLE, CTINT):
-		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) <= 0)
+		if(mpcmpfixfix(v.u.xval, rv.u.xval) <= 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OGE, CTINT):
-		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) >= 0)
+		if(mpcmpfixfix(v.u.xval, rv.u.xval) >= 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OGT, CTINT):
-		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) > 0)
+		if(mpcmpfixfix(v.u.xval, rv.u.xval) > 0)
 			goto settrue;
 		goto setfalse;
 
 	case TUP(OEQ, CTFLT):
-		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) == 0)
+		if(mpcmpfltflt(v.u.fval, rv.u.fval) == 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(ONE, CTFLT):
-		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) != 0)
+		if(mpcmpfltflt(v.u.fval, rv.u.fval) != 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OLT, CTFLT):
-		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) < 0)
+		if(mpcmpfltflt(v.u.fval, rv.u.fval) < 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OLE, CTFLT):
-		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) <= 0)
+		if(mpcmpfltflt(v.u.fval, rv.u.fval) <= 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OGE, CTFLT):
-		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) >= 0)
+		if(mpcmpfltflt(v.u.fval, rv.u.fval) >= 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OGT, CTFLT):
-		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) > 0)
+		if(mpcmpfltflt(v.u.fval, rv.u.fval) > 0)
 			goto settrue;
 		goto setfalse;
 
@@ -586,29 +588,29 @@ evconst(Node *n)
 			goto settrue;
 		goto setfalse;
 	case TUP(OADDSTR, CTSTR):
-		len = v.u.sval->len + nr->val.u.sval->len;
+		len = v.u.sval->len + rv.u.sval->len;
 		str = mal(sizeof(*str) + len);
 		str->len = len;
 		memcpy(str->s, v.u.sval->s, v.u.sval->len);
-		memcpy(str->s+v.u.sval->len, nr->val.u.sval->s, nr->val.u.sval->len);
+		memcpy(str->s+v.u.sval->len, rv.u.sval->s, rv.u.sval->len);
 		str->len = len;
 		v.u.sval = str;
 		break;
 
 	case TUP(OOROR, CTBOOL):
-		if(v.u.bval || nr->val.u.bval)
+		if(v.u.bval || rv.u.bval)
 			goto settrue;
 		goto setfalse;
 	case TUP(OANDAND, CTBOOL):
-		if(v.u.bval && nr->val.u.bval)
+		if(v.u.bval && rv.u.bval)
 			goto settrue;
 		goto setfalse;
 	case TUP(OEQ, CTBOOL):
-		if(v.u.bval == nr->val.u.bval)
+		if(v.u.bval == rv.u.bval)
 			goto settrue;
 		goto setfalse;
 	case TUP(ONE, CTBOOL):
-		if(v.u.bval != nr->val.u.bval)
+		if(v.u.bval != rv.u.bval)
 			goto settrue;
 		goto setfalse;
 	}
