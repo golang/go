@@ -24,6 +24,12 @@ var hosttests = []hostTest{
 		IPv4(127, 1, 1, 1),
 	}},
 	hostTest{"loki", []IP{}},
+	hostTest{"ullr", []IP{
+		IPv4(127, 1, 1, 2),
+	}},
+	hostTest{"ullrhost", []IP{
+		IPv4(127, 1, 1, 2),
+	}},
 }
 
 func TestLookupStaticHost(t *testing.T) {
