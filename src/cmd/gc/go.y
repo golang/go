@@ -235,6 +235,7 @@ import_package:
 	LPACKAGE sym ';'
 	{
 		importpkg->name = $2->name;
+		importpkg->direct = 1;
 
 		// PGNS: fixme
 		if(strcmp($2->name, "main") == 0)
@@ -242,7 +243,7 @@ import_package:
 
 		// PGNS: This should go away once we get
 		// rid of the global package name space.
-		if(localpkg->name && strcmp($2->name, localpkg->name) == 0 && strcmp($2->name, "runtime") != 0)
+		if(localpkg->name && strcmp($2->name, localpkg->name) == 0 && !compiling_runtime)
 			yyerror("package cannot import itself");
 	}
 

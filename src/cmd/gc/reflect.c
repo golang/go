@@ -267,12 +267,42 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
 	if(pkg == nil)
 		return dgostringptr(s, ot, nil);
 
-	// PGNS: This needs to be import path instead of pkg->name,
-	// but we need to figure out how to fill it in during 6l when
-	// trying to refer to localpkg.
+	// Emit reference to go.importpath.""., which 6l will
+	// rewrite using the correct import path.  Every package
+	// that imports this one directly defines the symbol.
+	if(pkg == localpkg) {
+		static Sym *ns;
+		
+		if(ns == nil)
+			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
+		return dsymptr(s, ot, ns, 0);
+	}
+
 	return dgostringptr(s, ot, pkg->name);
 }
 
+static void
+dimportpath(Pkg *p)
+{
+	static Pkg *gopkg;
+	char *nam;
+	Node *n;
+	
+	if(gopkg == nil) {
+		gopkg = mkpkg(strlit("go"));
+		gopkg->name = "go";
+	}
+	nam = smprint("importpath.%s.", p->prefix);
+
+	n = nod(ONAME, N, N);
+	n->sym = pkglookup(nam, gopkg);
+	free(nam);
+	n->class = PEXTERN;
+	n->xoffset = 0;
+	
+	gdatastring(n, p->path);
+	ggloblsym(n->sym, types[TSTRING]->width, 1);
+}
 
 /*
  * uncommonType
@@ -626,8 +656,7 @@ dtypesym(Type *t)
 	else
 		tsym = t->sym;
 
-	// PGNS: Fixme
-	if(strcmp(localpkg->name, "runtime") == 0) {
+	if(compiling_runtime) {
 		if(t == types[t->etype])
 			goto ok;
 		if(t1 && t1 == types[t1->etype])
@@ -784,6 +813,7 @@ dumptypestructs(void)
 	NodeList *l;
 	Node *n;
 	Type *t;
+	Pkg *p;
 
 	// copy types from externdcl list to signatlist
 	for(l=externdcl; l; l=l->next) {
@@ -804,17 +834,27 @@ dumptypestructs(void)
 			dtypesym(ptrto(t));
 	}
 
+	// generate import strings for imported packages
+	for(i=0; i<nelem(phash); i++)
+		for(p=phash[i]; p; p=p->link)
+			if(p->direct)
+				dimportpath(p);
+
 	// do basic types if compiling package runtime.
 	// they have to be in at least one package,
-	// and reflect is always loaded implicitly,
+	// and runtime is always loaded implicitly,
 	// so this is as good as any.
 	// another possible choice would be package main,
 	// but using runtime means fewer copies in .6 files.
-	if(strcmp(localpkg->name, "runtime") == 0) {	// PGNS: fixme
+	if(compiling_runtime) {
 		for(i=1; i<=TBOOL; i++)
 			dtypesym(ptrto(types[i]));
 		dtypesym(ptrto(types[TSTRING]));
 		dtypesym(typ(TDDD));
 		dtypesym(ptrto(pkglookup("Pointer", unsafepkg)->def->type));
+		
+		// add paths for runtime and main, which 6l imports implicitly.
+		dimportpath(runtimepkg);
+		dimportpath(mkpkg(strlit("main")));
 	}
 }

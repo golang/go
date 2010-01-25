@@ -91,6 +91,9 @@ HFILES=\
 
 GOFILES+=$(GOFILES_$(GOOS))
 
+# special, out of the way compiler flag that means "add runtime metadata to output"
+GC+= -+
+
 include ../../Make.pkg
 
 clean: clean-local

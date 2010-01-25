@@ -308,7 +308,8 @@ struct	Pkg
 	Strlit*	path;
 	char*	prefix;
 	Pkg*	link;
-	int	exported;
+	char	exported;	// import line written in export data
+	char	direct;	// imported directly
 };
 
 typedef	struct	Iter	Iter;
@@ -659,6 +660,7 @@ EXTERN	Pkg*	runtimepkg;	// package runtime
 EXTERN	Pkg*	stringpkg;	// fake package for C strings
 EXTERN	Pkg*	typepkg;	// fake package for runtime type info
 EXTERN	Pkg*	unsafepkg;	// package unsafe
+EXTERN	Pkg*	phash[128];
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	runtimeimport;
 extern	char*	unsafeimport;
@@ -731,6 +733,8 @@ EXTERN	int	noargnames;
 EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 EXTERN	int	packagequotes;
+
+EXTERN	int	compiling_runtime;
 
 /*
  *	y.tab.c
