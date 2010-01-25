@@ -7,8 +7,8 @@ include ../../../Make.$(GOARCH)
 TARG=go/ast
 GOFILES=\
 	ast.go\
-	scope.go\
 	filter.go\
+	scope.go\
 	walk.go\
 
 include ../../../Make.pkg
