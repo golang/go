@@ -1025,7 +1025,6 @@ void	importconst(Sym *s, Type *t, Node *v);
 void	importmethod(Sym *s, Type *t);
 void	importtype(Type *s, Type *t);
 void	importvar(Sym *s, Type *t, int ctxt);
-void	checkimports(void);
 Type*	pkgtype(Sym*);
 Sym*	importsym(Sym*, int);
 
