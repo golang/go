@@ -40,9 +40,11 @@ func readHosts() {
 			if len(f) < 2 || ParseIP(f[0]) == nil {
 				continue
 			}
-			h := f[1]
-			old, _ := hs[h]
-			hs[h] = appendHost(old, f[0])
+			for i := 1; i < len(f); i++ {
+				h := f[i]
+				old, _ := hs[h]
+				hs[h] = appendHost(old, f[0])
+			}
 		}
 		// Update the data cache.
 		hosts.time, _, _ = os.Time()
