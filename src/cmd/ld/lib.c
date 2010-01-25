@@ -338,12 +338,20 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
 	static int files;
 	static char **filen;
 	char **nfilen, *line;
-	int n, c1, c2, c3;
+	int i, n, c1, c2, c3;
 	vlong import0, import1, eof;
 	char src[1024];
 
 	eof = Boffset(f) + len;
 	src[0] = '\0';
+
+	// don't load individual object more than once.
+	// happens with import of .6 files because of loop in xresolv.
+	// doesn't happen with .a because SYMDEF is consulted
+	// first to decide whether each individual object file is needed.
+	for(i=0; i<files; i++)
+		if(strcmp(filen[i], pn) == 0)
+			return;
 
 	if((files&15) == 0){
 		nfilen = malloc((files+16)*sizeof(char*));
@@ -353,7 +361,6 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
 	}
 	pn = strdup(pn);
 	filen[files++] = pn;
-
 
 	/* check the header */
 	line = Brdline(f, '\n');
@@ -390,7 +397,6 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
 	ldpkg(f, pkg, import1 - import0 - 2, pn);	// -2 for !\n
 	Bseek(f, import1, 0);
 
-	// PGNS: Should be using import path, not pkg.
 	ldobj1(f, pkg, eof - Boffset(f), pn);
 	return;
 
