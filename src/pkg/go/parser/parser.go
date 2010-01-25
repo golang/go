@@ -1221,14 +1221,27 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 	}
 
 	switch p.tok {
-	case token.ADD, token.SUB, token.NOT, token.XOR, token.ARROW, token.AND, token.RANGE:
+	case token.ADD, token.SUB, token.NOT, token.XOR, token.AND, token.RANGE:
 		pos, op := p.pos, p.tok
 		p.next()
 		x := p.parseUnaryExpr()
 		return &ast.UnaryExpr{pos, op, p.checkExpr(x)}
 
+	case token.ARROW:
+		// channel type or receive expression
+		pos := p.pos
+		p.next()
+		if p.tok == token.CHAN {
+			p.next()
+			value := p.parseType()
+			return &ast.ChanType{pos, ast.RECV, value}
+		}
+
+		x := p.parseUnaryExpr()
+		return &ast.UnaryExpr{pos, token.ARROW, p.checkExpr(x)}
+
 	case token.MUL:
-		// unary "*" expression or pointer type
+		// pointer type or unary "*" expression
 		pos := p.pos
 		p.next()
 		x := p.parseUnaryExpr()
