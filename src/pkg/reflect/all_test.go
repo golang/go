@@ -5,6 +5,7 @@
 package reflect_test
 
 import (
+	"container/vector"
 	"io"
 	"os"
 	. "reflect"
@@ -1186,5 +1187,11 @@ func TestFieldByName(t *testing.T) {
 				t.Errorf("%s.%s value not found", s.Name(), test.name)
 			}
 		}
+	}
+}
+
+func TestImportPath(t *testing.T) {
+	if path := Typeof(vector.Vector{}).PkgPath(); path != "container/vector" {
+		t.Errorf("Typeof(vector.Vector{}).PkgPath() = %q, want \"container/vector\"", path)
 	}
 }

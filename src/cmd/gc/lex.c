@@ -68,6 +68,9 @@ main(int argc, char *argv[])
 	if(argc < 1)
 		goto usage;
 
+	// special flag to detect compilation of package runtime
+	compiling_runtime = debug['+'];
+
 	pathname = mal(1000);
 	if(getwd(pathname, 999) == 0)
 		strcpy(pathname, "/???");

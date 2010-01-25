@@ -3413,8 +3413,6 @@ pathtoprefix(char *s)
 	return p;
 }
 
-static Pkg *phash[128];
-
 Pkg*
 mkpkg(Strlit *path)
 {
