@@ -25,3 +25,18 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Subject to the terms and conditions of this License, Google hereby
+// grants to You a perpetual, worldwide, non-exclusive, no-charge,
+// royalty-free, irrevocable (except as stated in this section) patent
+// license to make, have made, use, offer to sell, sell, import, and
+// otherwise transfer this implementation of Go, where such license
+// applies only to those patent claims licensable by Google that are
+// necessarily infringed by use of this implementation of Go. If You
+// institute patent litigation against any entity (including a
+// cross-claim or counterclaim in a lawsuit) alleging that this
+// implementation of Go or a Contribution incorporated within this
+// implementation of Go constitutes direct or contributory patent
+// infringement, then any patent licenses granted to You under this
+// License for this implementation of Go shall terminate as of the date
+// such litigation is filed.
