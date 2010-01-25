@@ -32,6 +32,8 @@ var validPrograms = []interface{}{
 	`package main;`,
 	`package main; import "fmt"; func main() { fmt.Println("Hello, World!") }` + "\n",
 	`package main; func main() { if f(T{}) {} }` + "\n",
+	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
+	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
 }
 
 
