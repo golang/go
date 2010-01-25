@@ -253,7 +253,6 @@ import_there:
 	hidden_import_list '$' '$'
 	{
 		resumecheckwidth();
-		checkimports();
 		unimportfile();
 	}
 

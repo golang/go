@@ -27,12 +27,22 @@ main(int argc, char *argv[])
 	localpkg->prefix = "\"\"";
 
 	builtinpkg = mkpkg(strlit("go.builtin"));
+
 	gostringpkg = mkpkg(strlit("go.string"));
-	gostringpkg->prefix = "go.string";
+	gostringpkg->name = "go.string";
+	gostringpkg->prefix = "go.string";	// not go%2estring
+
 	runtimepkg = mkpkg(strlit("runtime"));
+	runtimepkg->name = "runtime";
+
 	stringpkg = mkpkg(strlit("string"));
+	stringpkg->name = "string";
+
 	typepkg = mkpkg(strlit("type"));
+	typepkg->name = "type";
+
 	unsafepkg = mkpkg(strlit("unsafe"));
+	unsafepkg->name = "unsafe";
 
 	goroot = getgoroot();
 	goos = getgoos();
