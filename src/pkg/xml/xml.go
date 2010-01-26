@@ -1479,3 +1479,38 @@ var htmlAutoClose = []string{
 	"base",
 	"meta",
 }
+
+var (
+	esc_quot = strings.Bytes("&#34;") // shorter than "&quot;"
+	esc_apos = strings.Bytes("&#39;") // shorter than "&apos;"
+	esc_amp  = strings.Bytes("&amp;")
+	esc_lt   = strings.Bytes("&lt;")
+	esc_gt   = strings.Bytes("&gt;")
+)
+
+// Escape writes to w the properly escaped XML equivalent
+// of the plain text data s.
+func Escape(w io.Writer, s []byte) {
+	var esc []byte
+	last := 0
+	for i, c := range s {
+		switch c {
+		case '"':
+			esc = esc_quot
+		case '\'':
+			esc = esc_apos
+		case '&':
+			esc = esc_amp
+		case '<':
+			esc = esc_lt
+		case '>':
+			esc = esc_gt
+		default:
+			continue
+		}
+		w.Write(s[last:i])
+		w.Write(esc)
+		last = i + 1
+	}
+	w.Write(s[last:])
+}
