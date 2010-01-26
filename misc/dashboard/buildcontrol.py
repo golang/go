@@ -6,8 +6,10 @@
 
 # This is a utility script for implementing a Go build slave.
 
+import binascii
 import httplib
 import os
+import struct
 import subprocess
 import sys
 import time
@@ -42,10 +44,14 @@ def main(args):
         return doInit(args)
     elif args[1] == 'hwget':
         return doHWGet(args)
+    elif args[1] == 'hwset':
+        return doHWSet(args)
     elif args[1] == 'next':
         return doNext(args)
     elif args[1] == 'record':
         return doRecord(args)
+    elif args[1] == 'benchmarks':
+        return doBenchmarks(args)
     else:
         return usage(args[0])
 
@@ -55,8 +61,10 @@ def usage(name):
 Commands:
   init <rev>: init the build bot with the given commit as the first in history
   hwget <builder>: get the most recent revision built by the given builder
+  hwset <builder> <rev>: get the most recent revision built by the given builder
   next <builder>: get the next revision number to by built by the given builder
   record <builder> <rev> <ok|log file>: record a build result
+  benchmarks <builder> <rev> <log file>: record benchmark numbers
 ''' % name)
     return 1
 
@@ -78,10 +86,20 @@ def doHWGet(args, retries = 0):
     if reply.status == 200:
         print reply.read()
     elif reply.status == 500 and retries < 3:
+        time.sleep(3)
         return doHWGet(args, retries = retries + 1)
     else:
         raise Failed('get-hw returned %d' % reply.status)
     return 0
+
+def doHWSet(args):
+    if len(args) != 4:
+        return usage(args[0])
+    c = getCommit(args[3])
+    if c is None:
+        fatal('Cannot get commit %s' % args[3])
+
+    return command('hw-set', {'builder': args[2], 'hw': c.node})
 
 def doNext(args):
     if len(args) != 3:
@@ -96,7 +114,7 @@ def doNext(args):
 
     c = getCommit(rev)
     next = getCommit(str(c.num + 1))
-    if next is not None:
+    if next is not None and next.parent == c.node:
         print c.num + 1
     else:
         print "<none>"
@@ -117,8 +135,32 @@ def doRecord(args):
         log = file(logfile, 'r').read()
     return command('build', {'node': c.node, 'parent': c.parent, 'date': c.date, 'user': c.user, 'desc': c.desc, 'log': log, 'builder': builder})
 
-if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+def doBenchmarks(args):
+    if len(args) != 5:
+        return usage(args[0])
+    builder = args[2]
+    rev = args[3]
+    c = getCommit(rev)
+    if c is None:
+        print >>sys.stderr, "Bad revision:", rev
+        return 1
+
+    benchmarks = {}
+    for line in file(args[4], 'r').readlines():
+        if 'Benchmark' in line and 'ns/op' in line:
+            parts = line.split()
+            if parts[3] == 'ns/op':
+                benchmarks[parts[0]] = (parts[1], parts[2])
+
+    e = []
+    for (name, (a, b)) in benchmarks.items():
+        e.append(struct.pack('>H', len(name)))
+        e.append(name)
+        e.append(struct.pack('>H', len(a)))
+        e.append(a)
+        e.append(struct.pack('>H', len(b)))
+        e.append(b)
+    return command('benchmarks', {'node': c.node, 'builder': builder, 'benchmarkdata': binascii.b2a_base64(''.join(e))})
 
 def encodeMultipartFormdata(fields, files):
     """fields is a sequence of (name, value) elements for regular form fields.
@@ -191,3 +233,6 @@ def command(cmd, args, retries = 0):
         return command(cmd, args, retries = retries + 1)
     if reply.status != 200:
         raise Failed('Command "%s" returned %d' % (cmd, reply.status))
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

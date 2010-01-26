@@ -6,4 +6,3 @@
 # builds). It's tranmitted in the clear but, given the low value of the target,
 # this should be sufficient.
 accessKey = "this is not the real key"
-
