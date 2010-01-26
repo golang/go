@@ -23,7 +23,7 @@ SysAlloc(uintptr ask)
 
 	q = p;
 	p += ask;
-	runtime·memclr(q, ask);
+	·memclr(q, ask);
 	return q;
 }
 

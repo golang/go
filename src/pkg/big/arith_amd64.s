@@ -8,7 +8,7 @@
 // TODO(gri) - experiment with unrolled loops for faster execution
 
 // func addVV_s(z, x, y *Word, n int) (c Word)
-TEXT big·addVV_s(SB),7,$0
+TEXT ·addVV_s(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
@@ -33,7 +33,7 @@ E1:	CMPQ BX, R11		// i < n
 
 // func subVV_s(z, x, y *Word, n int) (c Word)
 // (same as addVV_s except for SBBQ instead of ADCQ and label names)
-TEXT big·subVV_s(SB),7,$0
+TEXT ·subVV_s(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
@@ -57,7 +57,7 @@ E2:	CMPQ BX, R11        // i < n
 
 
 // func addVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT big·addVW_s(SB),7,$0
+TEXT ·addVW_s(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), AX   // c = y
@@ -79,7 +79,7 @@ E3:	CMPQ BX, R11        // i < n
 
 
 // func subVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT big·subVW_s(SB),7,$0
+TEXT ·subVW_s(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), AX   // c = y
@@ -102,7 +102,7 @@ E4:	CMPQ BX, R11         // i < n
 
 
 // func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
-TEXT big·mulAddVWW_s(SB),7,$0
+TEXT ·mulAddVWW_s(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
@@ -127,7 +127,7 @@ E5:	CMPQ BX, R11        // i < n
 
 
 // func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT big·addMulVVW_s(SB),7,$0
+TEXT ·addMulVVW_s(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
@@ -154,7 +154,7 @@ E6:	CMPQ BX, R11        // i < n
 
 
 // divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
-TEXT big·divWVW_s(SB),7,$0
+TEXT ·divWVW_s(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ xn+8(FP), DX   // r = xn
 	MOVQ x+16(FP), R8

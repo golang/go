@@ -36,7 +36,7 @@ TEXT	write(SB),7,$0-24
 	SYSCALL
 	RET
 
-TEXT	runtime·write(SB),7,$0-24
+TEXT	·write(SB),7,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -69,7 +69,7 @@ TEXT sigreturn(SB),7,$0
 	SYSCALL
 	INT $3	// not reached
 
-TEXT	runtime·mmap(SB),7,$0-32
+TEXT	·mmap(SB),7,$0-32
 	MOVQ	8(SP), DI
 	MOVQ	$0, SI
 	MOVL	16(SP), SI
@@ -91,7 +91,7 @@ TEXT	notok(SB),7,$0
 	MOVQ	BP, (BP)
 	RET
 
-TEXT	runtime·memclr(SB),7,$0-16
+TEXT	·memclr(SB),7,$0-16
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), CX		// arg 2 count (cannot be zero)
 	ADDL	$7, CX
@@ -102,12 +102,12 @@ TEXT	runtime·memclr(SB),7,$0-16
 	STOSQ
 	RET
 
-TEXT	runtime·getcallerpc+0(SB),7,$0
+TEXT	·getcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	-8(AX),AX		// get calling pc
 	RET
 
-TEXT	runtime·setcallerpc+0(SB),7,$0
+TEXT	·setcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	x+8(FP), BX
 	MOVQ	BX, -8(AX)		// set calling pc

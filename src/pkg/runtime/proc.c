@@ -536,7 +536,7 @@ gosched(void)
 // This is called only from the go syscall library, not
 // from the low-level system calls used by the runtime.
 void
-runtime·entersyscall(void)
+·entersyscall(void)
 {
 	lock(&sched);
 	if(sched.predawn) {
@@ -564,7 +564,7 @@ runtime·entersyscall(void)
 // This is called only from the go syscall library, not
 // from the low-level system calls used by the runtime.
 void
-runtime·exitsyscall(void)
+·exitsyscall(void)
 {
 	lock(&sched);
 	if(sched.predawn) {
@@ -732,7 +732,7 @@ newstack(void)
 	// Continue as if lessstack had just called m->morepc
 	// (the PC that decided to grow the stack).
 	label.sp = sp;
-	label.pc = (byte*)runtime·lessstack;
+	label.pc = (byte*)·lessstack;
 	label.g = m->curg;
 	gogocall(&label, m->morepc);
 
@@ -764,7 +764,7 @@ malg(int32 stacksize)
  */
 #pragma textflag 7
 void
-runtime·newproc(int32 siz, byte* fn, byte* arg0)
+·newproc(int32 siz, byte* fn, byte* arg0)
 {
 	byte *stk, *sp;
 	G *newg;
@@ -773,7 +773,7 @@ runtime·newproc(int32 siz, byte* fn, byte* arg0)
 
 	siz = (siz+7) & ~7;
 	if(siz > 1024)
-		throw("runtime·newproc: too many args");
+		throw("runtime.newproc: too many args");
 
 	lock(&sched);
 
@@ -812,7 +812,7 @@ runtime·newproc(int32 siz, byte* fn, byte* arg0)
 
 #pragma textflag 7
 void
-runtime·deferproc(int32 siz, byte* fn, byte* arg0)
+·deferproc(int32 siz, byte* fn, byte* arg0)
 {
 	Defer *d;
 
@@ -828,7 +828,7 @@ runtime·deferproc(int32 siz, byte* fn, byte* arg0)
 
 #pragma textflag 7
 void
-runtime·deferreturn(uintptr arg0)
+·deferreturn(uintptr arg0)
 {
 	Defer *d;
 	byte *sp, *fn;
@@ -847,25 +847,25 @@ runtime·deferreturn(uintptr arg0)
   }
 
 void
-runtime·Breakpoint(void)
+·Breakpoint(void)
 {
 	breakpoint();
 }
 
 void
-runtime·Goexit(void)
+·Goexit(void)
 {
 	goexit();
 }
 
 void
-runtime·Gosched(void)
+·Gosched(void)
 {
 	gosched();
 }
 
 void
-runtime·LockOSThread(void)
+·LockOSThread(void)
 {
 	if(sched.predawn)
 		throw("cannot wire during init");
@@ -875,7 +875,7 @@ runtime·LockOSThread(void)
 
 // delete when scheduler is stronger
 void
-runtime·GOMAXPROCS(int32 n)
+·GOMAXPROCS(int32 n)
 {
 	if(n < 1)
 		n = 1;
@@ -897,7 +897,7 @@ runtime·GOMAXPROCS(int32 n)
 }
 
 void
-runtime·UnlockOSThread(void)
+·UnlockOSThread(void)
 {
 	m->lockedg = nil;
 	g->lockedm = nil;
@@ -905,7 +905,7 @@ runtime·UnlockOSThread(void)
 
 // for testing of wire, unwire
 void
-runtime·mid(uint32 ret)
+·mid(uint32 ret)
 {
 	ret = m->id;
 	FLUSH(&ret);

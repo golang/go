@@ -9,7 +9,7 @@
 //		return true;
 //	}else
 //		return false;
-TEXT sync·cas(SB), 7, $0
+TEXT ·cas(SB), 7, $0
 	MOVQ	8(SP), BX
 	MOVL	16(SP), AX
 	MOVL	20(SP), CX

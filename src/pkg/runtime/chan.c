@@ -95,7 +95,7 @@ makechan(Type *elem, uint32 hint)
 
 	if(elem->alg >= nelem(algarray)) {
 		printf("chan(alg=%d)\n", elem->alg);
-		throw("runtime·makechan: unsupported elem type");
+		throw("runtime.makechan: unsupported elem type");
 	}
 
 	c = mal(sizeof(*c));
@@ -126,15 +126,15 @@ makechan(Type *elem, uint32 hint)
 
 	if(debug) {
 		prints("makechan: chan=");
-		runtime·printpointer(c);
+		·printpointer(c);
 		prints("; elemsize=");
-		runtime·printint(elem->size);
+		·printint(elem->size);
 		prints("; elemalg=");
-		runtime·printint(elem->alg);
+		·printint(elem->alg);
 		prints("; elemalign=");
-		runtime·printint(elem->align);
+		·printint(elem->align);
 		prints("; dataqsiz=");
-		runtime·printint(c->dataqsiz);
+		·printint(c->dataqsiz);
 		prints("\n");
 	}
 
@@ -143,7 +143,7 @@ makechan(Type *elem, uint32 hint)
 
 // makechan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
 void
-runtime·makechan(Type *elem, uint32 hint, Hchan *ret)
+·makechan(Type *elem, uint32 hint, Hchan *ret)
 {
 	ret = makechan(elem, hint);
 	FLUSH(&ret);
@@ -179,7 +179,7 @@ chansend(Hchan *c, byte *ep, bool *pres)
 
 	if(debug) {
 		prints("chansend: chan=");
-		runtime·printpointer(c);
+		·printpointer(c);
 		prints("; elem=");
 		c->elemalg->print(c->elemsize, ep);
 		prints("\n");
@@ -285,7 +285,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 
 	if(debug) {
 		prints("chanrecv: chan=");
-		runtime·printpointer(c);
+		·printpointer(c);
 		prints("\n");
 	}
 
@@ -385,7 +385,7 @@ closed:
 
 // chansend1(hchan *chan any, elem any);
 void
-runtime·chansend1(Hchan* c, ...)
+·chansend1(Hchan* c, ...)
 {
 	int32 o;
 	byte *ae;
@@ -397,7 +397,7 @@ runtime·chansend1(Hchan* c, ...)
 
 // chansend2(hchan *chan any, elem any) (pres bool);
 void
-runtime·chansend2(Hchan* c, ...)
+·chansend2(Hchan* c, ...)
 {
 	int32 o;
 	byte *ae, *ap;
@@ -412,7 +412,7 @@ runtime·chansend2(Hchan* c, ...)
 
 // chanrecv1(hchan *chan any) (elem any);
 void
-runtime·chanrecv1(Hchan* c, ...)
+·chanrecv1(Hchan* c, ...)
 {
 	int32 o;
 	byte *ae;
@@ -425,7 +425,7 @@ runtime·chanrecv1(Hchan* c, ...)
 
 // chanrecv2(hchan *chan any) (elem any, pres bool);
 void
-runtime·chanrecv2(Hchan* c, ...)
+·chanrecv2(Hchan* c, ...)
 {
 	int32 o;
 	byte *ae, *ap;
@@ -440,7 +440,7 @@ runtime·chanrecv2(Hchan* c, ...)
 
 // newselect(size uint32) (sel *byte);
 void
-runtime·newselect(int32 size, ...)
+·newselect(int32 size, ...)
 {
 	int32 n, o;
 	Select **selp;
@@ -459,16 +459,16 @@ runtime·newselect(int32 size, ...)
 	*selp = sel;
 	if(debug) {
 		prints("newselect s=");
-		runtime·printpointer(sel);
+		·printpointer(sel);
 		prints(" size=");
-		runtime·printint(size);
+		·printint(size);
 		prints("\n");
 	}
 }
 
 // selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
 void
-runtime·selectsend(Select *sel, Hchan *c, ...)
+·selectsend(Select *sel, Hchan *c, ...)
 {
 	int32 i, eo;
 	Scase *cas;
@@ -485,7 +485,7 @@ runtime·selectsend(Select *sel, Hchan *c, ...)
 	cas = mal(sizeof *cas + c->elemsize - sizeof(cas->u.elem));
 	sel->scase[i] = cas;
 
-	cas->pc = runtime·getcallerpc(&sel);
+	cas->pc = ·getcallerpc(&sel);
 	cas->chan = c;
 
 	eo = rnd(sizeof(sel), sizeof(c));
@@ -498,22 +498,22 @@ runtime·selectsend(Select *sel, Hchan *c, ...)
 
 	if(debug) {
 		prints("selectsend s=");
-		runtime·printpointer(sel);
+		·printpointer(sel);
 		prints(" pc=");
-		runtime·printpointer(cas->pc);
+		·printpointer(cas->pc);
 		prints(" chan=");
-		runtime·printpointer(cas->chan);
+		·printpointer(cas->chan);
 		prints(" so=");
-		runtime·printint(cas->so);
+		·printint(cas->so);
 		prints(" send=");
-		runtime·printint(cas->send);
+		·printint(cas->send);
 		prints("\n");
 	}
 }
 
 // selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
 void
-runtime·selectrecv(Select *sel, Hchan *c, ...)
+·selectrecv(Select *sel, Hchan *c, ...)
 {
 	int32 i, eo;
 	Scase *cas;
@@ -528,7 +528,7 @@ runtime·selectrecv(Select *sel, Hchan *c, ...)
 	sel->ncase = i+1;
 	cas = mal(sizeof *cas);
 	sel->scase[i] = cas;
-	cas->pc = runtime·getcallerpc(&sel);
+	cas->pc = ·getcallerpc(&sel);
 	cas->chan = c;
 
 	eo = rnd(sizeof(sel), sizeof(c));
@@ -539,15 +539,15 @@ runtime·selectrecv(Select *sel, Hchan *c, ...)
 
 	if(debug) {
 		prints("selectrecv s=");
-		runtime·printpointer(sel);
+		·printpointer(sel);
 		prints(" pc=");
-		runtime·printpointer(cas->pc);
+		·printpointer(cas->pc);
 		prints(" chan=");
-		runtime·printpointer(cas->chan);
+		·printpointer(cas->chan);
 		prints(" so=");
-		runtime·printint(cas->so);
+		·printint(cas->so);
 		prints(" send=");
-		runtime·printint(cas->send);
+		·printint(cas->send);
 		prints("\n");
 	}
 }
@@ -555,7 +555,7 @@ runtime·selectrecv(Select *sel, Hchan *c, ...)
 
 // selectdefaul(sel *byte) (selected bool);
 void
-runtime·selectdefault(Select *sel, ...)
+·selectdefault(Select *sel, ...)
 {
 	int32 i;
 	Scase *cas;
@@ -566,7 +566,7 @@ runtime·selectdefault(Select *sel, ...)
 	sel->ncase = i+1;
 	cas = mal(sizeof *cas);
 	sel->scase[i] = cas;
-	cas->pc = runtime·getcallerpc(&sel);
+	cas->pc = ·getcallerpc(&sel);
 	cas->chan = nil;
 
 	cas->so = rnd(sizeof(sel), Structrnd);
@@ -575,13 +575,13 @@ runtime·selectdefault(Select *sel, ...)
 
 	if(debug) {
 		prints("selectdefault s=");
-		runtime·printpointer(sel);
+		·printpointer(sel);
 		prints(" pc=");
-		runtime·printpointer(cas->pc);
+		·printpointer(cas->pc);
 		prints(" so=");
-		runtime·printint(cas->so);
+		·printint(cas->so);
 		prints(" send=");
-		runtime·printint(cas->send);
+		·printint(cas->send);
 		prints("\n");
 	}
 }
@@ -628,7 +628,7 @@ selunlock(Select *sel)
 
 // selectgo(sel *byte);
 void
-runtime·selectgo(Select *sel)
+·selectgo(Select *sel)
 {
 	uint32 p, o, i, j;
 	Scase *cas, *dfl;
@@ -642,7 +642,7 @@ runtime·selectgo(Select *sel)
 
 	if(debug) {
 		prints("selectgo: sel=");
-		runtime·printpointer(sel);
+		·printpointer(sel);
 		prints("\n");
 	}
 
@@ -807,15 +807,15 @@ loop:
 
 	if(debug) {
 		prints("wait-return: sel=");
-		runtime·printpointer(sel);
+		·printpointer(sel);
 		prints(" c=");
-		runtime·printpointer(c);
+		·printpointer(c);
 		prints(" cas=");
-		runtime·printpointer(cas);
+		·printpointer(cas);
 		prints(" send=");
-		runtime·printint(cas->send);
+		·printint(cas->send);
 		prints(" o=");
-		runtime·printint(o);
+		·printint(o);
 		prints("\n");
 	}
 
@@ -857,11 +857,11 @@ gotr:
 	// recv path to wakeup the sender (sg)
 	if(debug) {
 		prints("gotr: sel=");
-		runtime·printpointer(sel);
+		·printpointer(sel);
 		prints(" c=");
-		runtime·printpointer(c);
+		·printpointer(c);
 		prints(" o=");
-		runtime·printint(o);
+		·printint(o);
 		prints("\n");
 	}
 	if(cas->u.elemp != nil)
@@ -882,11 +882,11 @@ gots:
 	// send path to wakeup the receiver (sg)
 	if(debug) {
 		prints("gots: sel=");
-		runtime·printpointer(sel);
+		·printpointer(sel);
 		prints(" c=");
-		runtime·printpointer(c);
+		·printpointer(c);
 		prints(" o=");
-		runtime·printint(o);
+		·printint(o);
 		prints("\n");
 	}
 	if(c->closed & Wclosed)
@@ -904,7 +904,7 @@ sclose:
 retc:
 	selunlock(sel);
 
-	runtime·setcallerpc(&sel, cas->pc);
+	·setcallerpc(&sel, cas->pc);
 	as = (byte*)&sel + cas->so;
 	freesel(sel);
 	*as = true;
@@ -912,7 +912,7 @@ retc:
 
 // closechan(sel *byte);
 void
-runtime·closechan(Hchan *c)
+·closechan(Hchan *c)
 {
 	SudoG *sg;
 	G* gp;
@@ -952,7 +952,7 @@ runtime·closechan(Hchan *c)
 void
 chanclose(Hchan *c)
 {
-	runtime·closechan(c);
+	·closechan(c);
 }
 
 bool
@@ -976,7 +976,7 @@ chancap(Hchan *c)
 
 // closedchan(sel *byte) bool;
 void
-runtime·closedchan(Hchan *c, bool closed)
+·closedchan(Hchan *c, bool closed)
 {
 	closed = chanclosed(c);
 	FLUSH(&closed);

@@ -6,7 +6,7 @@
 // arithmetic operations on vectors implemented in arith.go.
 
 // func addVV_s(z, x, y *Word, n int) (c Word)
-TEXT big·addVV_s(SB),7,$0
+TEXT ·addVV_s(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), CX
@@ -31,7 +31,7 @@ E1:	CMPL BX, BP		// i < n
 
 // func subVV_s(z, x, y *Word, n int) (c Word)
 // (same as addVV_s except for SBBL instead of ADCL and label names)
-TEXT big·subVV_s(SB),7,$0
+TEXT ·subVV_s(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), CX
@@ -55,7 +55,7 @@ E2:	CMPL BX, BP        // i < n
 
 
 // func addVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT big·addVW_s(SB),7,$0
+TEXT ·addVW_s(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), AX   // c = y
@@ -77,7 +77,7 @@ E3:	CMPL BX, BP        // i < n
 
 
 // func subVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT big·subVW_s(SB),7,$0
+TEXT ·subVW_s(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), AX   // c = y
@@ -100,7 +100,7 @@ E4:	CMPL BX, BP         // i < n
 
 
 // func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
-TEXT big·mulAddVWW_s(SB),7,$0
+TEXT ·mulAddVWW_s(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), BP
@@ -127,7 +127,7 @@ E5:	CMPL BX, $0        // i < 0
 
 
 // func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT big·addMulVVW_s(SB),7,$0
+TEXT ·addMulVVW_s(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), BP
@@ -156,7 +156,7 @@ E6:	CMPL BX, $0        // i < 0
 
 
 // divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
-TEXT big·divWVW_s(SB),7,$0
+TEXT ·divWVW_s(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL xn+4(FP), DX   // r = xn
 	MOVL x+8(FP), SI

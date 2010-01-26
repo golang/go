@@ -9,7 +9,7 @@
 // func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 // Trap # in AX, args in BX CX DX SI DI, return in AX
 
-TEXT	syscall·Syscall(SB),7,$0
+TEXT	·Syscall(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
@@ -35,7 +35,7 @@ ok:
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
-TEXT	syscall·Syscall6(SB),7,$0
+TEXT	·Syscall6(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
@@ -61,7 +61,7 @@ ok6:
 	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-TEXT syscall·RawSyscall(SB),7,$0
+TEXT ·RawSyscall(SB),7,$0
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
 	MOVL	12(SP), CX
@@ -86,7 +86,7 @@ ok1:
 
 // func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
 // Kernel interface gets call sub-number and pointer to a0.
-TEXT syscall·socketcall(SB),7,$0
+TEXT ·socketcall(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
 	MOVL	4(SP), BX	// socket call number
@@ -114,7 +114,7 @@ oksock:
 // taking the address of the return value newoffset.
 // Underlying system call is
 //	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
-TEXT syscall·Seek(SB),7,$0
+TEXT ·Seek(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVL	$SYS__LLSEEK, AX	// syscall entry
 	MOVL	4(SP), BX	// fd

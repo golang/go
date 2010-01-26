@@ -98,11 +98,11 @@ prbounds(int8* s, int32 a, int32 b, int32 c)
 {
 	prints(s);
 	prints(" ");
-	runtime·printint(a);
+	·printint(a);
 	prints("<");
-	runtime·printint(b);
+	·printint(b);
 	prints(">");
-	runtime·printint(c);
+	·printint(c);
 	prints("\n");
 	throw("string bounds");
 }
@@ -158,7 +158,7 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
 
 	if(lindex < 0 || lindex > si.len ||
 	   hindex < lindex || hindex > si.len) {
-		runtime·printpc(&si);
+		·printpc(&si);
 		prints(" ");
 		prbounds("slice", lindex, si.len, hindex);
 	}
@@ -176,7 +176,7 @@ func slicestring1(si String, lindex int32) (so String) {
 	int32 l;
 
 	if(lindex < 0 || lindex > si.len) {
-		runtime·printpc(&si);
+		·printpc(&si);
 		prints(" ");
 		prbounds("slice", lindex, si.len, si.len);
 	}
@@ -192,7 +192,7 @@ func slicestring1(si String, lindex int32) (so String) {
 
 func indexstring(s String, i int32) (b byte) {
 	if(i < 0 || i >= s.len) {
-		runtime·printpc(&s);
+		·printpc(&s);
 		prints(" ");
 		prbounds("index", 0, i, s.len);
 	}

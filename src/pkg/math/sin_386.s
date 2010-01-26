@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // func Cos(x float64) float64
-TEXT math·Cos(SB),7,$0
+TEXT ·Cos(SB),7,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FCOS                 // F0=cos(x) if -2**63 < x < 2**63
 	FSTSW   AX           // AX=status word
@@ -24,7 +24,7 @@ TEXT math·Cos(SB),7,$0
 	RET
 	
 // func Sin(x float64) float64
-TEXT math·Sin(SB),7,$0
+TEXT ·Sin(SB),7,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FSIN                 // F0=sin(x) if -2**63 < x < 2**63
 	FSTSW   AX           // AX=status word

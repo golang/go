@@ -66,7 +66,7 @@ TEXT	notok(SB),7,$0
 	MOVL	$0xf1, 0xf1
 	RET
 
-TEXT runtime·mmap(SB),7,$-4
+TEXT ·mmap(SB),7,$-4
 	MOVL	$477, AX
 	INT	$0x80
 	JAE	2(PC)

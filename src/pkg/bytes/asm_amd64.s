@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT bytes·IndexByte(SB),7,$0
+TEXT ·IndexByte(SB),7,$0
 	MOVQ	p+0(FP), SI
 	MOVL	len+8(FP), CX
 	MOVB	b+16(FP), AL

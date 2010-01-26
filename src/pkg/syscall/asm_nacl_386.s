@@ -11,7 +11,7 @@
 // func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 // Trap # in AX, args in BX CX DX SI DI, return in AX
 
-TEXT	syscall·Syscall(SB),7,$20
+TEXT	·Syscall(SB),7,$20
 	CALL	runtime·entersyscall(SB)
 	MOVL	trap+0(FP), AX	// syscall entry
 	MOVL	a1+4(FP), BX
@@ -47,7 +47,7 @@ ok:
 	RET
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
-TEXT	syscall·Syscall6(SB),7,$24
+TEXT	·Syscall6(SB),7,$24
 	CALL	runtime·entersyscall(SB)
 	MOVL	a1+4(FP), BX
 	MOVL	a2+8(FP), CX
@@ -85,7 +85,7 @@ ok6:
 	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-TEXT syscall·RawSyscall(SB),7,$20
+TEXT ·RawSyscall(SB),7,$20
 	MOVL	trap+0(FP), AX	// syscall entry
 	MOVL	a1+4(FP), BX
 	MOVL	a2+8(FP), CX

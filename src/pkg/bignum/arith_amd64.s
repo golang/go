@@ -8,7 +8,7 @@
 // func Mul128(x, y uint64) (z1, z0 uint64)
 // z1<<64 + z0 = x*y
 //
-TEXT bignum·Mul128(SB),7,$0
+TEXT ·Mul128(SB),7,$0
 	MOVQ a+0(FP), AX
 	MULQ a+8(FP)
 	MOVQ DX, a+16(FP)
@@ -19,7 +19,7 @@ TEXT bignum·Mul128(SB),7,$0
 // func MulAdd128(x, y, c uint64) (z1, z0 uint64)
 // z1<<64 + z0 = x*y + c
 //
-TEXT bignum·MulAdd128(SB),7,$0
+TEXT ·MulAdd128(SB),7,$0
 	MOVQ a+0(FP), AX
 	MULQ a+8(FP)
 	ADDQ a+16(FP), AX
@@ -32,7 +32,7 @@ TEXT bignum·MulAdd128(SB),7,$0
 // func Div128(x1, x0, y uint64) (q, r uint64)
 // q = (x1<<64 + x0)/y + r
 //
-TEXT bignum·Div128(SB),7,$0
+TEXT ·Div128(SB),7,$0
 	MOVQ a+0(FP), DX
 	MOVQ a+8(FP), AX
 	DIVQ a+16(FP)

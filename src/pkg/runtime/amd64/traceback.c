@@ -24,7 +24,7 @@ traceback(byte *pc0, byte *sp, G *g)
 
 	stk = (Stktop*)g->stackbase;
 	for(n=0; n<100; n++) {
-		if(pc == (uint64)runtime·lessstack) {
+		if(pc == (uint64)·lessstack) {
 			// pop to earlier stack block
 			// printf("-- stack jump %p => %p\n", sp, stk->gobuf.sp);
 			pc = (uintptr)stk->gobuf.pc;
@@ -65,7 +65,7 @@ traceback(byte *pc0, byte *sp, G *g)
 		for(i = 0; i < f->args; i++) {
 			if(i != 0)
 				prints(", ");
-			runtime·printhex(((uint32*)sp)[i]);
+			·printhex(((uint32*)sp)[i]);
 			if(i >= 4) {
 				prints(", ...");
 				break;
@@ -82,7 +82,7 @@ traceback(byte *pc0, byte *sp, G *g)
 
 // func caller(n int) (pc uint64, file string, line int, ok bool)
 void
-runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbool)
+·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbool)
 {
 	uint64 pc;
 	byte *sp;
@@ -109,7 +109,7 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
 	// now unwind n levels
 	stk = (Stktop*)g->stackbase;
 	while(n-- > 0) {
-		while(pc == (uintptr)runtime·lessstack) {
+		while(pc == (uintptr)·lessstack) {
 			pc = (uintptr)stk->gobuf.pc;
 			sp = stk->gobuf.sp;
 			stk = (Stktop*)stk->stackbase;
