@@ -19,10 +19,10 @@ Major changes include:
 Original options are listed in the link above.
 
 Options new in this version:
+
 -L dir1,dir2,..
 	Search for libraries (package files) in the comma-separated list of directories.
 	The default is the single location $GOROOT/pkg/$GOOS_arm.
-
 
 */
 package documentation
