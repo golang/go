@@ -679,12 +679,12 @@ makemap(Type *key, Type *val, uint32 hint)
 
 	if(keyalg >= nelem(algarray) || algarray[keyalg].hash == nohash) {
 		printf("map(keyalg=%d)\n", keyalg);
-		throw("runtime·makemap: unsupported map key type");
+		throw("runtime.makemap: unsupported map key type");
 	}
 
 	if(valalg >= nelem(algarray)) {
 		printf("map(valalg=%d)\n", valalg);
-		throw("runtime·makemap: unsupported map value type");
+		throw("runtime.makemap: unsupported map value type");
 	}
 
 	h = mal(sizeof(*h));
@@ -733,7 +733,7 @@ makemap(Type *key, Type *val, uint32 hint)
 
 // makemap(key, val *Type, hint uint32) (hmap *map[any]any);
 void
-runtime·makemap(Type *key, Type *val, uint32 hint, Hmap *ret)
+·makemap(Type *key, Type *val, uint32 hint, Hmap *ret)
 {
 	ret = makemap(key, val, hint);
 	FLUSH(&ret);
@@ -759,7 +759,7 @@ mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
 
 // mapaccess1(hmap *map[any]any, key any) (val any);
 void
-runtime·mapaccess1(Hmap *h, ...)
+·mapaccess1(Hmap *h, ...)
 {
 	byte *ak, *av;
 	bool pres;
@@ -769,24 +769,24 @@ runtime·mapaccess1(Hmap *h, ...)
 
 	mapaccess(h, ak, av, &pres);
 	if(!pres)
-		throw("runtime·mapaccess1: key not in map");
+		throw("runtime.mapaccess1: key not in map");
 
 	if(debug) {
-		prints("runtime·mapaccess1: map=");
-		runtime·printpointer(h);
+		prints("runtime.mapaccess1: map=");
+		·printpointer(h);
 		prints("; key=");
 		h->keyalg->print(h->keysize, ak);
 		prints("; val=");
 		h->valalg->print(h->valsize, av);
 		prints("; pres=");
-		runtime·printbool(pres);
+		·printbool(pres);
 		prints("\n");
 	}
 }
 
 // mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
 void
-runtime·mapaccess2(Hmap *h, ...)
+·mapaccess2(Hmap *h, ...)
 {
 	byte *ak, *av, *ap;
 
@@ -797,14 +797,14 @@ runtime·mapaccess2(Hmap *h, ...)
 	mapaccess(h, ak, av, ap);
 
 	if(debug) {
-		prints("runtime·mapaccess2: map=");
-		runtime·printpointer(h);
+		prints("runtime.mapaccess2: map=");
+		·printpointer(h);
 		prints("; key=");
 		h->keyalg->print(h->keysize, ak);
 		prints("; val=");
 		h->valalg->print(h->valsize, av);
 		prints("; pres=");
-		runtime·printbool(*ap);
+		·printbool(*ap);
 		prints("\n");
 	}
 }
@@ -830,22 +830,22 @@ mapassign(Hmap *h, byte *ak, byte *av)
 
 	if(debug) {
 		prints("mapassign: map=");
-		runtime·printpointer(h);
+		·printpointer(h);
 		prints("; key=");
 		h->keyalg->print(h->keysize, ak);
 		prints("; val=");
 		h->valalg->print(h->valsize, av);
 		prints("; hit=");
-		runtime·printint(hit);
+		·printint(hit);
 		prints("; res=");
-		runtime·printpointer(res);
+		·printpointer(res);
 		prints("\n");
 	}
 }
 
 // mapassign1(hmap *map[any]any, key any, val any);
 void
-runtime·mapassign1(Hmap *h, ...)
+·mapassign1(Hmap *h, ...)
 {
 	byte *ak, *av;
 
@@ -857,7 +857,7 @@ runtime·mapassign1(Hmap *h, ...)
 
 // mapassign2(hmap *map[any]any, key any, val any, pres bool);
 void
-runtime·mapassign2(Hmap *h, ...)
+·mapassign2(Hmap *h, ...)
 {
 	byte *ak, *av, *ap;
 
@@ -872,7 +872,7 @@ runtime·mapassign2(Hmap *h, ...)
 
 	if(debug) {
 		prints("mapassign2: map=");
-		runtime·printpointer(h);
+		·printpointer(h);
 		prints("; key=");
 		h->keyalg->print(h->keysize, ak);
 		prints("\n");
@@ -881,7 +881,7 @@ runtime·mapassign2(Hmap *h, ...)
 
 // mapiterinit(hmap *map[any]any, hiter *any);
 void
-runtime·mapiterinit(Hmap *h, struct hash_iter *it)
+·mapiterinit(Hmap *h, struct hash_iter *it)
 {
 	if(h == nil) {
 		it->data = nil;
@@ -890,12 +890,12 @@ runtime·mapiterinit(Hmap *h, struct hash_iter *it)
 	hash_iter_init(h, it);
 	it->data = hash_next(it);
 	if(debug) {
-		prints("runtime·mapiterinit: map=");
-		runtime·printpointer(h);
+		prints("runtime.mapiterinit: map=");
+		·printpointer(h);
 		prints("; iter=");
-		runtime·printpointer(it);
+		·printpointer(it);
 		prints("; data=");
-		runtime·printpointer(it->data);
+		·printpointer(it->data);
 		prints("\n");
 	}
 }
@@ -906,23 +906,23 @@ mapiterinit(Hmap *h)
 	struct hash_iter *it;
 
 	it = mal(sizeof *it);
-	runtime·mapiterinit(h, it);
+	·mapiterinit(h, it);
 	return it;
 }
 
 // mapiternext(hiter *any);
 void
-runtime·mapiternext(struct hash_iter *it)
+·mapiternext(struct hash_iter *it)
 {
 	if(gcwaiting)
 		gosched();
 
 	it->data = hash_next(it);
 	if(debug) {
-		prints("runtime·mapiternext: iter=");
-		runtime·printpointer(it);
+		prints("runtime.mapiternext: iter=");
+		·printpointer(it);
 		prints("; data=");
-		runtime·printpointer(it->data);
+		·printpointer(it->data);
 		prints("\n");
 	}
 }
@@ -930,12 +930,12 @@ runtime·mapiternext(struct hash_iter *it)
 void
 mapiternext(struct hash_iter *it)
 {
-	runtime·mapiternext(it);
+	·mapiternext(it);
 }
 
 // mapiter1(hiter *any) (key any);
 void
-runtime·mapiter1(struct hash_iter *it, ...)
+·mapiter1(struct hash_iter *it, ...)
 {
 	Hmap *h;
 	byte *ak, *res;
@@ -945,15 +945,15 @@ runtime·mapiter1(struct hash_iter *it, ...)
 
 	res = it->data;
 	if(res == nil)
-		throw("runtime·mapiter2: key:val nil pointer");
+		throw("runtime.mapiter2: key:val nil pointer");
 
 	h->keyalg->copy(h->keysize, ak, res);
 
 	if(debug) {
 		prints("mapiter2: iter=");
-		runtime·printpointer(it);
+		·printpointer(it);
 		prints("; map=");
-		runtime·printpointer(h);
+		·printpointer(h);
 		prints("\n");
 	}
 }
@@ -974,7 +974,7 @@ mapiterkey(struct hash_iter *it, void *ak)
 
 // mapiter2(hiter *any) (key any, val any);
 void
-runtime·mapiter2(struct hash_iter *it, ...)
+·mapiter2(struct hash_iter *it, ...)
 {
 	Hmap *h;
 	byte *ak, *av, *res;
@@ -985,16 +985,16 @@ runtime·mapiter2(struct hash_iter *it, ...)
 
 	res = it->data;
 	if(res == nil)
-		throw("runtime·mapiter2: key:val nil pointer");
+		throw("runtime.mapiter2: key:val nil pointer");
 
 	h->keyalg->copy(h->keysize, ak, res);
 	h->valalg->copy(h->valsize, av, res+h->datavo);
 
 	if(debug) {
 		prints("mapiter2: iter=");
-		runtime·printpointer(it);
+		·printpointer(it);
 		prints("; map=");
-		runtime·printpointer(h);
+		·printpointer(h);
 		prints("\n");
 	}
 }

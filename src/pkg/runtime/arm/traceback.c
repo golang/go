@@ -65,7 +65,7 @@ traceback(byte *pc0, byte *sp, G *g)
 // 		for(i = 0; i < f->args; i++) {
 // 			if(i != 0)
 // 				prints(", ");
-// 			runtime·printhex(((uint32*)sp)[i]);
+// 			·printhex(((uint32*)sp)[i]);
 // 			if(i >= 4) {
 // 				prints(", ...");
 // 				break;
@@ -82,7 +82,7 @@ traceback(byte *pc0, byte *sp, G *g)
 
 // func caller(n int) (pc uintptr, file string, line int, ok bool)
 void
-runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retbool)
+·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retbool)
 {
 // 	uintptr pc;
 // 	byte *sp;

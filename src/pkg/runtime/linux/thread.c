@@ -49,11 +49,11 @@ futexsleep(uint32 *addr, uint32 val)
 		return;
 
 	prints("futexsleep addr=");
-	runtime·printpointer(addr);
+	·printpointer(addr);
 	prints(" val=");
-	runtime·printint(val);
+	·printint(val);
 	prints(" returned ");
-	runtime·printint(ret);
+	·printint(ret);
 	prints("\n");
 	*(int32*)0x1005 = 0x1005;
 }
@@ -74,9 +74,9 @@ futexwakeup(uint32 *addr)
 	// safe to loop and call futex again.
 
 	prints("futexwakeup addr=");
-	runtime·printpointer(addr);
+	·printpointer(addr);
 	prints(" returned ");
-	runtime·printint(ret);
+	·printint(ret);
 	prints("\n");
 	*(int32*)0x1006 = 0x1006;
 }

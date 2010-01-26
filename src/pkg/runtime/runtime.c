@@ -20,7 +20,7 @@ gotraceback(void)
 }
 
 void
-runtime·panicl(int32 lno)
+·panicl(int32 lno)
 {
 	uint8 *sp;
 
@@ -34,7 +34,7 @@ runtime·panicl(int32 lno)
 	printf("\npanic PC=%X\n", (uint64)(uintptr)&lno);
 	sp = (uint8*)&lno;
 	if(gotraceback()){
-		traceback(runtime·getcallerpc(&lno), sp, g);
+		traceback(·getcallerpc(&lno), sp, g);
 		tracebackothers(g);
 	}
 	breakpoint();  // so we can grab it in a debugger
@@ -42,25 +42,25 @@ runtime·panicl(int32 lno)
 }
 
 void
-runtime·throwindex(void)
+·throwindex(void)
 {
 	throw("index out of range");
 }
 
 void
-runtime·throwslice(void)
+·throwslice(void)
 {
 	throw("slice out of range");
 }
 
 void
-runtime·throwreturn(void)
+·throwreturn(void)
 {
 	throw("no return at end of a typed function");
 }
 
 void
-runtime·throwinit(void)
+·throwinit(void)
 {
 	throw("recursive call during initialization");
 }
@@ -70,7 +70,7 @@ throw(int8 *s)
 {
 	fd = 2;
 	printf("throw: %s\n", s);
-	runtime·panicl(-1);
+	·panicl(-1);
 	*(int32*)0 = 0;	// not reached
 	exit(1);	// even more not reached
 }
@@ -324,7 +324,7 @@ memprint(uint32 s, void *a)
 		v = *(uint64*)a;
 		break;
 	}
-	runtime·printint(v);
+	·printint(v);
 }
 
 static void
@@ -362,7 +362,7 @@ static void
 strprint(uint32 s, String *a)
 {
 	USED(s);
-	runtime·printstring(*a);
+	·printstring(*a);
 }
 
 static uintptr
@@ -376,7 +376,7 @@ static void
 interprint(uint32 s, Iface *a)
 {
 	USED(s);
-	runtime·printiface(*a);
+	·printiface(*a);
 }
 
 static uint32
@@ -397,7 +397,7 @@ static void
 nilinterprint(uint32 s, Eface *a)
 {
 	USED(s);
-	runtime·printeface(*a);
+	·printeface(*a);
 }
 
 static uint32

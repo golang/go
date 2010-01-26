@@ -47,7 +47,7 @@ extern void cacheflush(byte* start, byte* end);
 
 #pragma textflag 7
 void
-runtime·closure(int32 siz, byte *fn, byte *arg0)
+·closure(int32 siz, byte *fn, byte *arg0)
 {
 	byte *p, *q, **ret;
 	uint32 *pc;

@@ -10,7 +10,7 @@
 //	}else
 //		return false;
 
-TEXT	sync·cas(SB),7,$0
+TEXT	·cas(SB),7,$0
 	MOVW	0(FP), R1	// *val
 	MOVW	4(FP), R2	// old
 	MOVW	8(FP), R3	// new

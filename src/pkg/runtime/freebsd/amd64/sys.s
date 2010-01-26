@@ -76,7 +76,7 @@ TEXT	sigtramp(SB),7,$24-16
 	CALL	sighandler(SB)
 	RET
 
-TEXT	runtime·mmap(SB),7,$-8
+TEXT	·mmap(SB),7,$-8
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), SI		// arg 2 len
 	MOVL	20(SP), DX		// arg 3 prot
@@ -94,7 +94,7 @@ TEXT	notok(SB),7,$-8
 	MOVQ	BP, (BP)
 	RET
 
-TEXT	runtime·memclr(SB),7,$-8
+TEXT	·memclr(SB),7,$-8
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), CX		// arg 2 count
 	ADDL	$7, CX
@@ -105,12 +105,12 @@ TEXT	runtime·memclr(SB),7,$-8
 	STOSQ
 	RET
 
-TEXT	runtime·getcallerpc+0(SB),7,$0
+TEXT	·getcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	-8(AX),AX		// get calling pc
 	RET
 
-TEXT	runtime·setcallerpc+0(SB),7,$0
+TEXT	·setcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	x+8(FP), BX
 	MOVQ	BX, -8(AX)		// set calling pc

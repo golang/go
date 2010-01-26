@@ -236,7 +236,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 		prints("send:\t");
 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
 			prints(" ");
-			runtime·printpointer((void*)p[i]);
+			·printpointer((void*)p[i]);
 			if(i%8 == 7)
 				prints("\n\t");
 		}
@@ -249,7 +249,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	if(ret != 0){
 		if(DebugMach){
 			prints("mach_msg error ");
-			runtime·printint(ret);
+			·printint(ret);
 			prints("\n");
 		}
 		return ret;
@@ -260,7 +260,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 		prints("recv:\t");
 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
 			prints(" ");
-			runtime·printpointer((void*)p[i]);
+			·printpointer((void*)p[i]);
 			if(i%8 == 7)
 				prints("\n\t");
 		}
@@ -271,9 +271,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	if(h->msgh_id != id+Reply){
 		if(DebugMach){
 			prints("mach_msg reply id mismatch ");
-			runtime·printint(h->msgh_id);
+			·printint(h->msgh_id);
 			prints(" != ");
-			runtime·printint(id+Reply);
+			·printint(id+Reply);
 			prints("\n");
 		}
 		return -303;	// MIG_REPLY_MISMATCH
@@ -290,7 +290,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	&& !(h->msgh_bits & MACH_MSGH_BITS_COMPLEX)){
 		if(DebugMach){
 			prints("mig result ");
-			runtime·printint(c->code);
+			·printint(c->code);
 			prints("\n");
 		}
 		return c->code;
@@ -299,9 +299,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	if(h->msgh_size != rxsize){
 		if(DebugMach){
 			prints("mach_msg reply size mismatch ");
-			runtime·printint(h->msgh_size);
+			·printint(h->msgh_size);
 			prints(" != ");
-			runtime·printint(rxsize);
+			·printint(rxsize);
 			prints("\n");
 		}
 		return -307;	// MIG_ARRAY_TOO_LARGE

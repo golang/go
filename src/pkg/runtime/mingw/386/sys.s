@@ -14,7 +14,7 @@ TEXT get_kernel_module(SB),7,$0
 
 // TODO(rsc,hectorchu): Switch to m stack before call.
 TEXT stdcall(SB),7,$0
-	CALL	runtime·entersyscall(SB)
+	CALL	·entersyscall(SB)
 	get_tls(CX)
 	MOVL	m(CX), CX
 	POPL	m_return_address(CX)	// save return address
@@ -26,7 +26,7 @@ TEXT stdcall(SB),7,$0
 	MOVL	m_stack_pointer(CX), SP
 	PUSHL	AX
 	PUSHL	m_return_address(CX)
-	CALL	runtime·exitsyscall(SB)
+	CALL	·exitsyscall(SB)
 	MOVL	4(SP), AX
 	RET
 

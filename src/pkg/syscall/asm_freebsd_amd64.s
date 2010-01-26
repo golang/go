@@ -10,7 +10,7 @@
 // func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
 // Trap # in AX, args in DI SI DX, return in AX DX
 
-TEXT	syscall·Syscall(SB),7,$0
+TEXT	·Syscall(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -33,7 +33,7 @@ ok:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	syscall·Syscall6(SB),7,$0
+TEXT	·Syscall6(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -56,7 +56,7 @@ ok6:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT syscall·RawSyscall(SB),7,$0
+TEXT ·RawSyscall(SB),7,$0
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX

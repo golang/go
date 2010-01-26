@@ -12,8 +12,8 @@ dump(byte *p, int32 n)
 	int32 i;
 
 	for(i=0; i<n; i++) {
-		runtime·printpointer((byte*)(p[i]>>4));
-		runtime·printpointer((byte*)(p[i]&0xf));
+		·printpointer((byte*)(p[i]>>4));
+		·printpointer((byte*)(p[i]&0xf));
 		if((i&15) == 15)
 			prints("\n");
 		else
@@ -73,25 +73,25 @@ printf(int8 *s, ...)
 		}
 		switch(*p) {
 		case 'd':
-			runtime·printint(*(int32*)arg);
+			·printint(*(int32*)arg);
 			break;
 		case 'D':
-			runtime·printint(*(int64*)arg);
+			·printint(*(int64*)arg);
 			break;
 		case 'x':
-			runtime·printhex(*(uint32*)arg);
+			·printhex(*(uint32*)arg);
 			break;
 		case 'X':
-			runtime·printhex(*(uint64*)arg);
+			·printhex(*(uint64*)arg);
 			break;
 		case 'p':
-			runtime·printpointer(*(void**)arg);
+			·printpointer(*(void**)arg);
 			break;
 		case 's':
 			prints(*(int8**)arg);
 			break;
 		case 'S':
-			runtime·printstring(*(String*)arg);
+			·printstring(*(String*)arg);
 			break;
 		}
 		arg = narg;
@@ -105,14 +105,14 @@ printf(int8 *s, ...)
 
 
 void
-runtime·printpc(void *p)
+·printpc(void *p)
 {
 	prints("PC=");
-	runtime·printhex((uint64)runtime·getcallerpc(p));
+	·printhex((uint64)·getcallerpc(p));
 }
 
 void
-runtime·printbool(bool v)
+·printbool(bool v)
 {
 	if(v) {
 		write(fd, (byte*)"true", 4);
@@ -122,7 +122,7 @@ runtime·printbool(bool v)
 }
 
 void
-runtime·printfloat(float64 v)
+·printfloat(float64 v)
 {
 	byte buf[20];
 	int32 e, s, i, n;
@@ -200,7 +200,7 @@ runtime·printfloat(float64 v)
 }
 
 void
-runtime·printuint(uint64 v)
+·printuint(uint64 v)
 {
 	byte buf[100];
 	int32 i;
@@ -215,17 +215,17 @@ runtime·printuint(uint64 v)
 }
 
 void
-runtime·printint(int64 v)
+·printint(int64 v)
 {
 	if(v < 0) {
 		write(fd, "-", 1);
 		v = -v;
 	}
-	runtime·printuint(v);
+	·printuint(v);
 }
 
 void
-runtime·printhex(uint64 v)
+·printhex(uint64 v)
 {
 	static int8 *dig = "0123456789abcdef";
 	byte buf[100];
@@ -242,13 +242,13 @@ runtime·printhex(uint64 v)
 }
 
 void
-runtime·printpointer(void *p)
+·printpointer(void *p)
 {
-	runtime·printhex((uint64)p);
+	·printhex((uint64)p);
 }
 
 void
-runtime·printstring(String v)
+·printstring(String v)
 {
 	extern int32 maxstring;
 
@@ -261,13 +261,13 @@ runtime·printstring(String v)
 }
 
 void
-runtime·printsp(void)
+·printsp(void)
 {
 	write(fd, " ", 1);
 }
 
 void
-runtime·printnl(void)
+·printnl(void)
 {
 	write(fd, "\n", 1);
 }

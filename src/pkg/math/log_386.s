@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // func Log(x float64) float64
-TEXT math·Log(SB),7,$0
+TEXT ·Log(SB),7,$0
 	FLDLN2               // F0=log(2)
 	FMOVD   x+0(FP), F0  // F0=x, F1=log(2)
 	FYL2X                // F0=log(x)=log2(x)*log(2)
@@ -11,7 +11,7 @@ TEXT math·Log(SB),7,$0
 	RET
 	
 // func Log10(x float64) float64
-TEXT math·Log10(SB),7,$0
+TEXT ·Log10(SB),7,$0
 	FLDLG2               // F0=log10(2)
 	FMOVD   x+0(FP), F0  // F0=x, F1=log10(2)
 	FYL2X                // F0=log10(x)=log2(x)*log10(2)

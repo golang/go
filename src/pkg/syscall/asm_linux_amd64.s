@@ -11,7 +11,7 @@
 // Note that this differs from "standard" ABI convention, which
 // would pass 4th arg in CX, not R10.
 
-TEXT	syscall·Syscall(SB),7,$0
+TEXT	·Syscall(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -36,7 +36,7 @@ ok:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT syscall·Syscall6(SB),7,$0
+TEXT ·Syscall6(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -61,7 +61,7 @@ ok6:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT syscall·RawSyscall(SB),7,$0
+TEXT ·RawSyscall(SB),7,$0
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX

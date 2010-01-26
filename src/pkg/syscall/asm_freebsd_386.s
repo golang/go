@@ -10,7 +10,7 @@
 // func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
 // Trap # in AX, args on stack above caller pc.
 
-TEXT	syscall·Syscall(SB),7,$0
+TEXT	·Syscall(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -34,7 +34,7 @@ ok:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	syscall·Syscall6(SB),7,$0
+TEXT	·Syscall6(SB),7,$0
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -61,7 +61,7 @@ ok6:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT syscall·RawSyscall(SB),7,$0
+TEXT ·RawSyscall(SB),7,$0
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI

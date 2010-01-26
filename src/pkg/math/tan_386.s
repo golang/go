@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // func Tan(x float64) float64
-TEXT math·Tan(SB),7,$0
+TEXT ·Tan(SB),7,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FPTAN                // F0=1, F1=tan(x) if -2**63 < x < 2**63
 	FSTSW   AX           // AX=status word

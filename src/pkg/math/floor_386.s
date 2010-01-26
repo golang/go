@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // func Ceil(x float64) float64
-TEXT math·Ceil(SB),7,$0
+TEXT ·Ceil(SB),7,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FSTCW   -2(SP)       // save old Control Word
 	MOVW    -2(SP), AX
@@ -17,7 +17,7 @@ TEXT math·Ceil(SB),7,$0
 	RET
 
 // func Floor(x float64) float64
-TEXT math·Floor(SB),7,$0
+TEXT ·Floor(SB),7,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FSTCW   -2(SP)       // save old Control Word
 	MOVW    -2(SP), AX

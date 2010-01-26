@@ -49,7 +49,7 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW.W	R0, -4(R13)
 	MOVW	$0, R0
 	MOVW.W	R0, -4(R13)	// push $0 as guard
-	BL	runtime·newproc(SB)
+	BL	·newproc(SB)
 	MOVW	$12(R13), R13	// pop args and LR
 
 	// start this M
@@ -136,7 +136,7 @@ TEXT gogocall(SB), 7, $-4
 // NB. we do not save R0 because the we've forced 5c to pass all arguments
 // on the stack.
 // using frame size $-4 means do not save LR on stack.
-TEXT runtime·morestack(SB),7,$-4
+TEXT ·morestack(SB),7,$-4
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	m_g0(m), R4
 	CMP	g, R4
@@ -197,7 +197,7 @@ TEXT reflect·call(SB), 7, $-4
 
 // Return point when leaving stack.
 // using frame size $-4 means do not save LR on stack.
-TEXT runtime·lessstack(SB), 7, $-4
+TEXT ·lessstack(SB), 7, $-4
 	// Save return value in m->cret
 	MOVW	R0, m_cret(m)
 
@@ -219,7 +219,7 @@ TEXT jmpdefer(SB), 7, $0
 	MOVW	$-4(R1), SP	// correct for sp pointing to arg0, past stored lr
 	B		(R0)
 
-TEXT	runtime·memclr(SB),7,$20
+TEXT	·memclr(SB),7,$20
 	MOVW	0(FP), R0
 	MOVW	$0, R1		// c = 0
 	MOVW	R1, -16(SP)
@@ -232,11 +232,11 @@ TEXT	runtime·memclr(SB),7,$20
 	MOVW	-4(SP), g
 	RET
 
-TEXT	runtime·getcallerpc+0(SB),7,$-4
+TEXT	·getcallerpc+0(SB),7,$-4
 	MOVW	0(SP), R0
 	RET
 
-TEXT	runtime·setcallerpc+0(SB),7,$-4
+TEXT	·setcallerpc+0(SB),7,$-4
 	MOVW	x+4(FP), R0
 	MOVW	R0, 0(SP)
 	RET

@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // func Asin(x float64) float64
-TEXT math·Asin(SB),7,$0
+TEXT ·Asin(SB),7,$0
 	FMOVD   x+0(FP), F0  // F0=sin(x)
 	FMOVD   F0, F1       // F0=sin(x), F1=sin(x)
 	FMULD   F0, F0       // F0=sin(x)*sin(x), F1=sin(x)
@@ -15,7 +15,7 @@ TEXT math·Asin(SB),7,$0
 	RET
 
 // func Acos(x float64) float64
-TEXT math·Acos(SB),7,$0
+TEXT ·Acos(SB),7,$0
 	FMOVD   x+0(FP), F0  // F0=cos(x)
 	FMOVD   F0, F1       // F0=cos(x), F1=cos(x)
 	FMULD   F0, F0       // F0=cos(x)*cos(x), F1=cos(x)

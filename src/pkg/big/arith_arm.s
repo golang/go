@@ -6,24 +6,24 @@
 // arithmetic operations on vectors implemented in arith.go.
 
 // TODO(gri) Implement these routines.
-TEXT big·addVV_s(SB),7,$0
-	B big·addVV_g(SB)
+TEXT ·addVV_s(SB),7,$0
+	B ·addVV_g(SB)
 
-TEXT big·subVV_s(SB),7,$0
-	B big·subVV_g(SB)
+TEXT ·subVV_s(SB),7,$0
+	B ·subVV_g(SB)
 
-TEXT big·addVW_s(SB),7,$0
-	B big·addVW_g(SB)
+TEXT ·addVW_s(SB),7,$0
+	B ·addVW_g(SB)
 
-TEXT big·subVW_s(SB),7,$0
-	B big·subVW_g(SB)
+TEXT ·subVW_s(SB),7,$0
+	B ·subVW_g(SB)
 
-TEXT big·mulAddVWW_s(SB),7,$0
-	B big·mulAddVWW_g(SB)
+TEXT ·mulAddVWW_s(SB),7,$0
+	B ·mulAddVWW_g(SB)
 
-TEXT big·addMulVVW_s(SB),7,$0
-	B big·addMulVVW_g(SB)
+TEXT ·addMulVVW_s(SB),7,$0
+	B ·addMulVVW_g(SB)
 
-TEXT big·divWVW_s(SB),7,$0
-	B big·divWVW_g(SB)
+TEXT ·divWVW_s(SB),7,$0
+	B ·divWVW_g(SB)
 

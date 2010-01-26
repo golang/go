@@ -7,8 +7,8 @@
 
 void *initcgo;	/* filled in by dynamic linker when Cgo is available */
 int64 ncgocall;
-void runtime·entersyscall(void);
-void runtime·exitsyscall(void);
+void ·entersyscall(void);
+void ·exitsyscall(void);
 
 void
 cgocall(void (*fn)(void*), void *arg)
@@ -24,14 +24,14 @@ cgocall(void (*fn)(void*), void *arg)
 	 * M to run goroutines while we are in the
 	 * foreign code.
 	 */
-	runtime·entersyscall();
+	·entersyscall();
 	runcgo(fn, arg);
-	runtime·exitsyscall();
+	·exitsyscall();
 	return;
 }
 
 void
-runtime·Cgocalls(int64 ret)
+·Cgocalls(int64 ret)
 {
 	ret = ncgocall;
 	FLUSH(&ret);

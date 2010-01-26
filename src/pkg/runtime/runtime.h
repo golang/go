@@ -335,7 +335,7 @@ int32	charntorune(int32*, uint8*, int32);
 void	gogo(Gobuf*, uintptr);
 void	gogocall(Gobuf*, void(*)(void));
 uintptr	gosave(Gobuf*);
-void	runtime·lessstack(void);
+void	·lessstack(void);
 void	goargs(void);
 void	FLUSH(void*);
 void*	getu(void);
@@ -388,8 +388,8 @@ void	breakpoint(void);
 void	gosched(void);
 void	goexit(void);
 void	runcgo(void (*fn)(void*), void*);
-void	runtime·entersyscall(void);
-void	runtime·exitsyscall(void);
+void	·entersyscall(void);
+void	·exitsyscall(void);
 void	siginit(void);
 bool	sigsend(int32 sig);
 
@@ -441,21 +441,21 @@ void	notewakeup(Note*);
  * UTF-8 characters in identifiers.
  */
 #ifndef __GNUC__
-#define runtime_memclr runtime·memclr
-#define runtime_getcallerpc runtime·getcallerpc
-#define runtime_mmap runtime·mmap
-#define runtime_printslice runtime·printslice
-#define runtime_printbool runtime·printbool
-#define runtime_printfloat runtime·printfloat
-#define runtime_printhex runtime·printhex
-#define runtime_printint runtime·printint
-#define runtime_printiface runtime·printiface
-#define runtime_printeface runtime·printeface
-#define runtime_printpc runtime·printpc
-#define runtime_printpointer runtime·printpointer
-#define runtime_printstring runtime·printstring
-#define runtime_printuint runtime·printuint
-#define runtime_setcallerpc runtime·setcallerpc
+#define runtime_memclr ·memclr
+#define runtime_getcallerpc ·getcallerpc
+#define runtime_mmap ·mmap
+#define runtime_printslice ·printslice
+#define runtime_printbool ·printbool
+#define runtime_printfloat ·printfloat
+#define runtime_printhex ·printhex
+#define runtime_printint ·printint
+#define runtime_printiface ·printiface
+#define runtime_printeface ·printeface
+#define runtime_printpc ·printpc
+#define runtime_printpointer ·printpointer
+#define runtime_printstring ·printstring
+#define runtime_printuint ·printuint
+#define runtime_setcallerpc ·setcallerpc
 #endif
 
 /*

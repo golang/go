@@ -78,9 +78,9 @@ sigsend(int32 s)
 
 // Called to receive a bitmask of queued signals.
 func Sigrecv() (m uint32) {
-	runtime·entersyscall();
+	·entersyscall();
 	notesleep(&sig);
-	runtime·exitsyscall();
+	·exitsyscall();
 	noteclear(&sig);
 	for(;;) {
 		m = sig.mask;

@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // func Exp(x float64) float64
-TEXT math·Exp(SB),7,$0
+TEXT ·Exp(SB),7,$0
 // test bits for not-finite
 	MOVL    x+4(FP), AX
 	ANDL    $0x7ff00000, AX

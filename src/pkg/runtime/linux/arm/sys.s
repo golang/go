@@ -49,7 +49,7 @@ TEXT exit1(SB),7,$-4
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT runtime·mmap(SB),7,$0
+TEXT ·mmap(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
