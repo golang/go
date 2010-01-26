@@ -50,6 +50,14 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
 }
 
 
+// TODO(gri) Simplify parser interface by splitting these functions
+//           into two parts: a single Init and a respective xParse
+//           function. The Init function can be shared.
+//
+// - the Init function will take a scope
+// - if a scope is provided, the parser tracks declarations, otherwise it won't
+
+
 // ParseExpr parses a Go expression and returns the corresponding
 // AST node. The filename and src arguments have the same interpretation
 // as for ParseFile. If there is an error, the result expression
@@ -62,7 +70,7 @@ func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
 	}
 
 	var p parser
-	p.init(filename, data, 0)
+	p.init(filename, data, nil, 0)
 	return p.parseExpr(), p.GetError(scanner.Sorted)
 }
 
@@ -79,7 +87,7 @@ func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
 	}
 
 	var p parser
-	p.init(filename, data, 0)
+	p.init(filename, data, nil, 0)
 	return p.parseStmtList(), p.GetError(scanner.Sorted)
 }
 
@@ -96,7 +104,7 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
 	}
 
 	var p parser
-	p.init(filename, data, 0)
+	p.init(filename, data, nil, 0)
 	return p.parseDeclList(), p.GetError(scanner.Sorted)
 }
 
@@ -126,7 +134,13 @@ func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error
 	}
 
 	var p parser
-	p.init(filename, data, mode)
+	// TODO(gri) Remove CheckSemantics flag and code below once
+	//           scope is provided via Init.
+	var scope *ast.Scope
+	if mode&CheckSemantics != 0 {
+		scope = ast.NewScope(nil)
+	}
+	p.init(filename, data, scope, mode)
 	return p.parseFile(), p.GetError(scanner.NoMultiples)
 }
 
