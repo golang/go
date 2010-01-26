@@ -80,7 +80,7 @@ type Request struct {
 	Header map[string]string
 
 	// The message body.
-	Body io.Reader
+	Body io.ReadCloser
 
 	// Whether to close the connection after replying to this request.
 	Close bool
@@ -135,7 +135,8 @@ const defaultUserAgent = "Go http package"
 //	Header
 //	Body
 //
-// If Body is present, "Transfer-Encoding: chunked" is forced as a header.
+// If Body is present, Write forces "Transfer-Encoding: chunked" as a header
+// and then closes Body when finished sending it.
 func (req *Request) Write(w io.Writer) os.Error {
 	uri := urlEscape(req.URL.Path, false)
 	if req.URL.RawQuery != "" {
@@ -198,6 +199,7 @@ func (req *Request) Write(w io.Writer) os.Error {
 				return io.ErrShortWrite
 			}
 		}
+		req.Body.Close()
 		// last-chunk CRLF
 		fmt.Fprint(w, "0\r\n\r\n")
 	}
@@ -572,19 +574,14 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	// A message body exists when either Content-Length or Transfer-Encoding
 	// headers are present. Transfer-Encoding trumps Content-Length.
 	if v, present := req.Header["Transfer-Encoding"]; present && v == "chunked" {
-		req.Body = newChunkedReader(b)
+		req.Body = &body{Reader: newChunkedReader(b), th: req, r: b, closing: req.Close}
 	} else if v, present := req.Header["Content-Length"]; present {
-		length, err := strconv.Btoui64(v, 10)
+		length, err := strconv.Btoi64(v, 10)
 		if err != nil {
 			return nil, &badStringError{"invalid Content-Length", v}
 		}
 		// TODO: limit the Content-Length. This is an easy DoS vector.
-		raw := make([]byte, length)
-		n, err := b.Read(raw)
-		if err != nil || uint64(n) < length {
-			return nil, ErrShortBody
-		}
-		req.Body = bytes.NewBuffer(raw)
+		req.Body = &body{Reader: io.LimitReader(b, length), closing: req.Close}
 	}
 
 	return req, nil
