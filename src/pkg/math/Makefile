@@ -15,6 +15,7 @@ OFILES_386=\
 	exp_386.$O\
 	fabs_386.$O\
 	floor_386.$O\
+	hypot_386.$O\
 	log_386.$O\
 	sin_386.$O\
 	sqrt_386.$O\

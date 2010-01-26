@@ -585,9 +585,9 @@ func TestFmod(t *testing.T) {
 
 func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(tanh[i] * Sqrt(2))
-		if f := Hypot(tanh[i], tanh[i]); a != f {
-			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
+		a := Fabs(1e200 * tanh[i] * Sqrt(2))
+		if f := Hypot(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
+			t.Errorf("Hypot(%g, %g) = %g, want %g\n", 1e200*tanh[i], 1e200*tanh[i], f, a)
 		}
 	}
 	for i := 0; i < len(vfhypotSC); i++ {
