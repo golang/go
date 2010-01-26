@@ -73,7 +73,7 @@
 
 %type	<node>	convtype dotdotdot
 %type	<node>	indcl interfacetype structtype ptrtype
-%type	<node>	chantype non_chan_type othertype non_fn_type fntype
+%type	<node>	recvchantype non_recvchantype othertype fnret_type fntype
 
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
@@ -86,8 +86,8 @@
 %type	<list>	hidden_structdcl_list ohidden_structdcl_list
 
 %type	<type>	hidden_type hidden_type_misc hidden_pkgtype
-%type	<type>	hidden_type_func hidden_type_non_func
-%type	<type>	hidden_type_chan hidden_type_non_chan
+%type	<type>	hidden_type_func
+%type	<type>	hidden_type_recv_chan hidden_type_non_recv_chan
 
 %left		LOROR
 %left		LANDAND
@@ -923,7 +923,7 @@ dotdotdot:
 	}
 
 ntype:
-	chantype
+	recvchantype
 |	fntype
 |	othertype
 |	ptrtype
@@ -934,19 +934,15 @@ ntype:
 	}
 
 non_expr_type:
-	chantype
+	recvchantype
 |	fntype
 |	othertype
 |	'*' non_expr_type
 	{
 		$$ = nod(OIND, $2, N);
 	}
-|	'(' non_expr_type ')'
-	{
-		$$ = $2;
-	}
 
-non_chan_type:
+non_recvchantype:
 	fntype
 |	othertype
 |	ptrtype
@@ -956,8 +952,9 @@ non_chan_type:
 		$$ = $2;
 	}
 
-non_fn_type:
-	chantype
+fnret_type:
+	recvchantype
+|	fntype
 |	othertype
 |	ptrtype
 |	dotname
@@ -986,12 +983,12 @@ othertype:
 		// array literal of nelem
 		$$ = nod(OTARRAY, $2, $4);
 	}
-|	LCOMM LCHAN ntype
+|	LCHAN non_recvchantype
 	{
-		$$ = nod(OTCHAN, $3, N);
-		$$->etype = Crecv;
+		$$ = nod(OTCHAN, $2, N);
+		$$->etype = Cboth;
 	}
-|	LCHAN LCOMM non_chan_type
+|	LCHAN LCOMM ntype
 	{
 		$$ = nod(OTCHAN, $3, N);
 		$$->etype = Csend;
@@ -1009,11 +1006,11 @@ ptrtype:
 		$$ = nod(OIND, $2, N);
 	}
 
-chantype:
-	LCHAN ntype
+recvchantype:
+	LCOMM LCHAN ntype
 	{
-		$$ = nod(OTCHAN, $2, N);
-		$$->etype = Cboth;
+		$$ = nod(OTCHAN, $3, N);
+		$$->etype = Crecv;
 	}
 
 structtype:
@@ -1132,7 +1129,7 @@ fnres:
 	{
 		$$ = nil;
 	}
-|	non_fn_type
+|	fnret_type
 	{
 		$$ = list1(nod(ODCLFIELD, N, $1));
 	}
@@ -1588,16 +1585,12 @@ hidden_pkgtype:
 
 hidden_type:
 	hidden_type_misc
-|	hidden_type_chan
+|	hidden_type_recv_chan
 |	hidden_type_func
 
-hidden_type_non_chan:
+hidden_type_non_recv_chan:
 	hidden_type_misc
 |	hidden_type_func
-
-hidden_type_non_func:
-	hidden_type_misc
-|	hidden_type_chan
 
 hidden_type_misc:
 	hidden_importsym
@@ -1639,22 +1632,22 @@ hidden_type_misc:
 	{
 		$$ = ptrto($2);
 	}
-|	LCOMM LCHAN hidden_type
+|	LCHAN hidden_type_non_recv_chan
+	{
+		$$ = typ(TCHAN);
+		$$->type = $2;
+		$$->chan = Cboth;
+	}
+|	LCHAN '(' hidden_type_recv_chan ')'
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
-		$$->chan = Crecv;
+		$$->chan = Cboth;
 	}
-|	LCHAN LCOMM hidden_type_non_chan
+|	LCHAN LCOMM hidden_type
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
-		$$->chan = Csend;
-	}
-|	LCHAN LCOMM '(' hidden_type_chan ')'
-	{
-		$$ = typ(TCHAN);
-		$$->type = $4;
 		$$->chan = Csend;
 	}
 |	LDDD
@@ -1662,12 +1655,12 @@ hidden_type_misc:
 		$$ = typ(TDDD);
 	}
 
-hidden_type_chan:
-	LCHAN hidden_type
+hidden_type_recv_chan:
+	LCOMM LCHAN hidden_type
 	{
 		$$ = typ(TCHAN);
-		$$->type = $2;
-		$$->chan = Cboth;
+		$$->type = $3;
+		$$->chan = Crecv;
 	}
 
 hidden_type_func:
@@ -1723,7 +1716,7 @@ hidden_funres:
 	{
 		$$ = $2;
 	}
-|	hidden_type_non_func
+|	hidden_type
 	{
 		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
 	}

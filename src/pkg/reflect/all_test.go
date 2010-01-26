@@ -150,7 +150,7 @@ var typeTests = []pair{
 			b()
 		})
 	}{},
-		"interface { a (func(func(int) (int)) (func(func(int)) (int))); b () }",
+		"interface { a(func(func(int) int) func(func(int)) int); b() }",
 	},
 }
 
