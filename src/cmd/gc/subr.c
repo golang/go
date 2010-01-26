@@ -292,7 +292,7 @@ Sym*
 restrictlookup(char *name, Pkg *pkg)
 {
 	if(!exportname(name) && pkg != localpkg)
-		yyerror("cannot refer to unexported name %s.%s", pkg, name);
+		yyerror("cannot refer to unexported name %s.%s", pkg->name, name);
 	return pkglookup(name, pkg);
 }
 
@@ -1105,10 +1105,10 @@ Tpretty(Fmt *fp, Type *t)
 		case Crecv:
 			return fmtprint(fp, "<-chan %T", t->type);
 		case Csend:
-			if(t->type != T && t->type->etype == TCHAN)
-				return fmtprint(fp, "chan<- (%T)", t->type);
 			return fmtprint(fp, "chan<- %T", t->type);
 		}
+		if(t->type != T && t->type->etype == TCHAN && t->type->chan == Crecv)
+			return fmtprint(fp, "chan (%T)", t->type);
 		return fmtprint(fp, "chan %T", t->type);
 
 	case TMAP:
@@ -1150,8 +1150,12 @@ Tpretty(Fmt *fp, Type *t)
 				fmtprint(fp, " ?unknown-type?");
 				break;
 			}
-			if(t1->etype != TFIELD && t1->etype != TFUNC) {
+			if(t1->etype != TFIELD) {
 				fmtprint(fp, " %T", t1);
+				break;
+			}
+			if(t1->sym == S) {
+				fmtprint(fp, " %T", t1->type);
 				break;
 			}
 		default:
@@ -1180,7 +1184,7 @@ Tpretty(Fmt *fp, Type *t)
 	case TINTER:
 		fmtprint(fp, "interface {");
 		for(t1=t->type; t1!=T; t1=t1->down) {
-			fmtprint(fp, " %hS %hhT", t1->sym, t1->type);
+			fmtprint(fp, " %hS%hhT", t1->sym, t1->type);
 			if(t1->down)
 				fmtprint(fp, ";");
 		}

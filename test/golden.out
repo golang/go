@@ -154,10 +154,3 @@ BUG: tuple evaluation order
 bugs/bug246.go:17: cannot convert 0 to type unsafe.Pointer
 bugs/bug246.go:17: cannot convert 0 (type uintptr) to type *int in conversion
 BUG: bug246
-
-=========== bugs/bug249.go
-BUG: errchk: bugs/bug249.go:15: missing expected error: 'chan'
-errchk: bugs/bug249.go: unmatched error messages:
-==================================================
-bugs/bug249.go:14: cannot use c2 (type chan<- (chan int)) as type chan <-chan int in assignment
-==================================================

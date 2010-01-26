@@ -7,7 +7,6 @@
 enum
 {
 	PFIXME = 0,
-	PCHAN = 0,
 };
 
 void
@@ -173,7 +172,12 @@ exprfmt(Fmt *f, Node *n, int prec)
 			exprfmt(f, n->left, 0);
 		} else {
 			fmtprint(f, " ");
-			exprfmt(f, n->left, PCHAN);
+			if(n->left->op == OTCHAN && n->left->etype == Crecv) {
+				fmtprint(f, "(");
+				exprfmt(f, n->left, 0);
+				fmtprint(f, ")");
+			} else
+				exprfmt(f, n->left, 0);
 		}
 		break;
 
