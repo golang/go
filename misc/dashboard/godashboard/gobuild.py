@@ -9,15 +9,17 @@ from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
+import binascii
 import datetime
 import hashlib
 import logging
 import os
 import re
+import struct
 
 import key
 
-# The main class of state are commit objects. One of these exists for each of
+# The majority of our state are commit objects. One of these exists for each of
 # the commits known to the build system. Their key names are of the form
 # <commit number (%08x)> "-" <hg hash>. This means that a sorting by the key
 # name is sufficient to order the commits.
@@ -38,6 +40,15 @@ class Commit(db.Model):
     # name> "`" <log hash>. If the log hash is empty, then the build was
     # successful.
     builds = db.StringListProperty()
+
+class Benchmark(db.Model):
+    name = db.StringProperty()
+
+class BenchmarkResult(db.Model):
+    num = db.IntegerProperty()
+    builder = db.StringProperty()
+    iterations = db.IntegerProperty()
+    nsperop = db.IntegerProperty()
 
 # A Log contains the textual build log of a failed build. The key name is the
 # hex digest of the SHA256 hash of the contents.
@@ -95,6 +106,25 @@ class GetHighwater(webapp.RequestHandler):
 
         self.response.set_status(200)
         self.response.out.write(hw.commit)
+
+class SetHighwater(webapp.RequestHandler):
+    def post(self):
+        if self.request.get('key') != key.accessKey:
+            self.response.set_status(403)
+            return
+
+        builder = self.request.get('builder')
+        newhw = self.request.get('hw')
+        q = Commit.all()
+        q.filter('node =', newhw)
+        c = q.get()
+        if c is None:
+            self.response.set_status(404)
+            return
+
+        hw = Highwater(key_name = 'hw-%s' % builder)
+        hw.commit = c.node
+        hw.put()
 
 class LogHandler(webapp.RequestHandler):
     def get(self):
@@ -163,6 +193,7 @@ class Build(webapp.RequestHandler):
         q.filter('node =', parent)
         p = q.get()
         if p is None:
+            logging.error('Cannot find parent %s of node %s' % (parent, node))
             self.response.set_status(404)
             return
         parentnum, _ = p.key().name().split('-', 1)
@@ -197,6 +228,110 @@ class Build(webapp.RequestHandler):
         hw.put()
 
         self.response.set_status(200)
+
+class Benchmarks(webapp.RequestHandler):
+    def get(self):
+        q = Benchmark.all()
+        bs = q.fetch(10000)
+
+        self.response.set_status(200)
+        self.response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        self.response.out.write('{"benchmarks": [\n')
+
+        first = True
+        for b in bs:
+            if not first:
+                self.response.out.write(',"' + b.name + '"\n')
+            else:
+                self.response.out.write('"' + b.name + '"\n')
+                first = False
+        self.response.out.write(']}\n')
+
+    def post(self):
+        if self.request.get('key') != key.accessKey:
+            self.response.set_status(403)
+            return
+
+        builder = self.request.get('builder')
+        node = self.request.get('node')
+        if not validNode(node):
+            logging.error("Not valid node ('%s')", node)
+            self.response.set_status(500)
+            return
+
+        benchmarkdata = self.request.get('benchmarkdata')
+        benchmarkdata = binascii.a2b_base64(benchmarkdata)
+
+        def get_string(i):
+            l, = struct.unpack('>H', i[:2])
+            s = i[2:2+l]
+            if len(s) != l:
+                return None, None
+            return s, i[2+l:]
+
+        benchmarks = {}
+        while len(benchmarkdata) > 0:
+            name, benchmarkdata = get_string(benchmarkdata)
+            iterations_str, benchmarkdata = get_string(benchmarkdata)
+            time_str, benchmarkdata = get_string(benchmarkdata)
+            iterations = int(iterations_str)
+            time = int(time_str)
+
+            benchmarks[name] = (iterations, time)
+
+        q = Commit.all()
+        q.filter('node =', node)
+        n = q.get()
+        if n is None:
+            logging.error('Client asked for unknown commit while uploading benchmarks')
+            self.response.set_status(404)
+            return
+
+        for (benchmark, (iterations, time)) in benchmarks.items():
+            b = Benchmark.get_or_insert(benchmark.encode('base64'), name = benchmark)
+            r = BenchmarkResult(key_name = '%08x/builder' % n.num, parent = b, num = n.num, iterations = iterations, nsperop = time, builder = builder)
+            r.put()
+
+        self.response.set_status(200)
+
+class GetBenchmarks(webapp.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        benchmark = self.request.path[12:].decode('hex').encode('base64')
+
+        b = Benchmark.get_by_key_name(benchmark)
+        if b is None:
+            self.response.set_status(404)
+            return
+
+        q = BenchmarkResult.all()
+        q.ancestor(b)
+        q.order('-__key__')
+        results = q.fetch(10000)
+
+        if len(results) == 0:
+            self.response.set_status(404)
+            return
+
+        max = -1
+        min = 2000000000
+        builders = set()
+        for r in results:
+            if max < r.num:
+                max = r.num
+            if min > r.num:
+                min = r.num
+            builders.add(r.builder)
+
+        res = {}
+        for b in builders:
+            res[b] = [[-1] * ((max - min) + 1), [-1] * ((max - min) + 1)]
+
+        for r in results:
+            res[r.builder][0][r.num - min] = r.iterations
+            res[r.builder][1][r.num - min] = r.nsperop
+
+        self.response.out.write(str(res))
 
 class FixedOffset(datetime.tzinfo):
     """Fixed offset in minutes east from UTC."""
@@ -273,9 +408,12 @@ application = webapp.WSGIApplication(
                                      [('/', MainPage),
                                       ('/log/.*', LogHandler),
                                       ('/hw-get', GetHighwater),
+                                      ('/hw-set', SetHighwater),
 
                                       ('/init', Init),
                                       ('/build', Build),
+                                      ('/benchmarks', Benchmarks),
+                                      ('/benchmarks/.*', GetBenchmarks),
                                      ])
 
 def main():

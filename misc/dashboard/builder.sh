@@ -5,7 +5,7 @@
 # license that can be found in the LICENSE file.
 
 fatal() {
-    echo $1
+    echo $0: $1 1>&2
     exit 1
 }
 
@@ -14,19 +14,19 @@ if [ ! -d go ] ; then
 fi
 
 if [ ! -f buildcontrol.py ] ; then
-    fatal "Please include buildcontrol.py in this directory"
+    fatal 'Please include buildcontrol.py in this directory'
 fi
 
 if [ "x$BUILDER" == "x" ] ; then
-    fatal "Please set \$BUILDER to the name of this builder"
+    fatal 'Please set $BUILDER to the name of this builder'
 fi
 
 if [ "x$BUILDHOST" == "x" ] ; then
-    fatal "Please set \$BUILDHOST to the hostname of the gobuild server"
+    fatal 'Please set $BUILDHOST to the hostname of the gobuild server'
 fi
 
 if [ "x$GOARCH" == "x" -o "x$GOOS" == "x" ] ; then
-    fatal "Please set $GOARCH and $GOOS"
+    fatal 'Please set $GOARCH and $GOOS'
 fi
 
 export PATH=$PATH:`pwd`/candidate/bin
@@ -59,6 +59,13 @@ while true ; do
     else
         echo "Recording success for $rev"
         python ../../buildcontrol.py record $BUILDER $rev ok || fatal "Cannot record result"
+        echo "Running benchmarks"
+        cd pkg || fatal "failed to cd to pkg"
+        make bench > ../../benchmarks 2>&1
+        if [ $? -eq 0 ] ; then
+            python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
+        fi
+        cd .. || fatal "failed to cd out of pkg"
     fi
     cd ../.. || fatal "Cannot cd up"
 done

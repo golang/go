@@ -1,6 +1,10 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 The files in this directory constitute the continuous builder:
 
-godashboard/: An AppEngine which acts as a server
+godashboard/: An AppEngine that acts as a server
 builder.sh, buildcontrol.sh: used by the build slaves
 
 If you wish to run a Go builder, please email golang-dev@googlegroups.com
@@ -19,7 +23,8 @@ export PATH=$PATH:/gobuild/bin
 export BUILDER=XXX
 export BUILDHOST=godashboard.appspot.com
 
-* Write ~gobuild/.gobuildkey (you need to get it from someone who knows it)
+* Write the key ~gobuild/.gobuildkey (you need to get it from someone who knows
+                                      the key)
 
 * sudo apt-get install bison gcc libc6-dev ed make
 * cd ~gobuild
