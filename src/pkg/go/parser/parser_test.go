@@ -34,6 +34,7 @@ var validPrograms = []interface{}{
 	`package main; func main() { if f(T{}) {} }` + "\n",
 	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
 	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
+	`package main; func f(func() (func() int))` + "\n",
 }
 
 
