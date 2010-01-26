@@ -90,7 +90,7 @@ func TestPostContentTypeParsing(t *testing.T) {
 		req := &Request{
 			Method: "POST",
 			Header: test.contentType,
-			Body: bytes.NewBufferString("body"),
+			Body: nopCloser{bytes.NewBufferString("body")},
 		}
 		err := req.ParseForm()
 		if !test.error && err != nil {

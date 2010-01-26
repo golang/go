@@ -137,7 +137,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
 	var req Request
 	req.Method = "POST"
-	req.Body = body
+	req.Body = nopCloser{body}
 	req.Header = map[string]string{
 		"Content-Type": bodyType,
 		"Transfer-Encoding": "chunked",
@@ -150,3 +150,9 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 
 	return send(&req)
 }
+
+type nopCloser struct {
+	io.Reader
+}
+
+func (nopCloser) Close() os.Error { return nil }
