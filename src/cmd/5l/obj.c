@@ -80,7 +80,7 @@ linkername[] =
 void
 usage(void)
 {
-	fprint(2, "usage: 5l [-options] objects\n");
+	fprint(2, "usage: 5l [-options] main.5\n");
 	errorexit();
 }
 
@@ -144,7 +144,7 @@ main(int argc, char *argv[])
 
 	USED(argc);
 
-	if(*argv == 0)
+	if(argc != 1)
 		usage();
 
 	libinit();
@@ -258,8 +258,8 @@ main(int argc, char *argv[])
 	firstp = prg();
 	lastp = firstp;
 
-	while(*argv)
-		objfile(*argv++, "main");
+	objfile(argv[0], "main");
+
 	if(!debug['l'])
 		loadlib();
 

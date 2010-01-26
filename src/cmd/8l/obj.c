@@ -81,7 +81,7 @@ isobjfile(char *f)
 void
 usage(void)
 {
-	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] files...\n");
+	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] main.8\n");
 	exits("usage");
 }
 
@@ -142,8 +142,8 @@ main(int argc, char *argv[])
 			readundefs(ARGF(), SIMPORT);
 		break;
 	} ARGEND
-	USED(argc);
-	if(*argv == 0)
+
+	if(argc != 1)
 		usage();
 
 	mywhatsys();	// get goos
@@ -384,8 +384,7 @@ main(int argc, char *argv[])
 	firstp = prg();
 	lastp = firstp;
 
-	while(*argv)
-		objfile(*argv++, "main");
+	objfile(argv[0], "main");
 
 	if(!debug['l'])
 		loadlib();
