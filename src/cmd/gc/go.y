@@ -237,14 +237,13 @@ import_package:
 		importpkg->name = $2->name;
 		importpkg->direct = 1;
 
-		// PGNS: fixme
+		// NOTE(rsc): This is no longer a technical restriction:
+		// the 6g tool chain would work just fine without giving
+		// special meaning to a package being named main.
+		// Other implementations might need the restriction
+		// (gccgo does), so it stays in the language and the compiler.
 		if(strcmp($2->name, "main") == 0)
 			yyerror("cannot import package main");
-
-		// PGNS: This should go away once we get
-		// rid of the global package name space.
-		if(localpkg->name && strcmp($2->name, localpkg->name) == 0 && !compiling_runtime)
-			yyerror("package cannot import itself");
 	}
 
 import_there:
