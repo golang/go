@@ -111,7 +111,7 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 			return;
 		}
 		p0 += 8;
-		while(p0 < p1 && *p0 == ' ' || *p0 == '\t' || *p0 == '\n')
+		while(p0 < p1 && (*p0 == ' ' || *p0 == '\t' || *p0 == '\n'))
 			p0++;
 		name = p0;
 		while(p0 < p1 && *p0 != ' ' && *p0 != '\t' && *p0 != '\n')
