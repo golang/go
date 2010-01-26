@@ -80,7 +80,7 @@ linkername[] =
 void
 usage(void)
 {
-	fprint(2, "usage: 5l [-options] main.5\n");
+	fprint(2, "usage: 5l [-E entry] [-H head] [-L dir] [-T text] [-D data] [-R rnd] [-o out] main.5\n");
 	errorexit();
 }
 
@@ -221,7 +221,7 @@ main(int argc, char *argv[])
 	case 6:	/* arm elf */
 		HEADR = linuxheadr();
 		if(INITTEXT == -1)
-			INITTEXT = 0x8000+HEADR;
+			INITTEXT = 0x8000;
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)

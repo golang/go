@@ -301,13 +301,14 @@ asmb(void)
 			wputl(5);			/* # of Shdrs */
 		wputl(4);			/* Shdr with strings */
 
-		fo = 0;
-		va = INITTEXT & ~((vlong)INITRND - 1);
-		w = HEADR+textsize;
+		fo = HEADR;
+		va = rnd(INITTEXT, INITRND);
+
+		w = textsize;
 
 		linuxphdr(1,			/* text - type = PT_LOAD */
 			1L+4L,			/* text - flags = PF_X+PF_R */
-			0,			/* file offset */
+			fo,			/* file offset */
 			va,			/* vaddr */
 			va,			/* paddr */
 			w,			/* file size */
@@ -360,7 +361,7 @@ asmb(void)
 
 		stroffset = 1;  /* 0 means no name, so start at 1 */
 		fo = HEADR;
-		va = (INITTEXT & ~((vlong)INITRND - 1)) + HEADR;
+		va = rnd(INITTEXT, INITRND);
 		w = textsize;
 
 		linuxshdr(".text",		/* name */
