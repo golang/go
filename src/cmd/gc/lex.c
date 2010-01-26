@@ -285,9 +285,7 @@ importfile(Val *f, int line)
 	Strlit *path;
 	char cleanbuf[1024];
 
-	// TODO(rsc): don't bother reloading imports more than once
-
-	// PGNS: canonicalize import path for ./ imports in findpkg.
+	// TODO(rsc): don't bother reloading imports more than once?
 
 	if(f->ctype != CTSTR) {
 		yyerror("import statement not a string");

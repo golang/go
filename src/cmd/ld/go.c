@@ -73,7 +73,7 @@ static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
 void
 ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 {
-	char *data, *p0, *p1;
+	char *data, *p0, *p1, *name;
 
 	if(debug['g'])
 		return;
@@ -111,10 +111,18 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 			return;
 		}
 		p0 += 8;
-		while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
+		while(p0 < p1 && *p0 == ' ' || *p0 == '\t' || *p0 == '\n')
 			p0++;
-		while(*p0 != ' ' && *p0 != '\t' && *p0 != '\n')
+		name = p0;
+		while(p0 < p1 && *p0 != ' ' && *p0 != '\t' && *p0 != '\n')
 			p0++;
+		if(p0 < p1) {
+			*p0++ = '\0';
+			if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
+				fprint(2, "%s: %s: not package main (package %s)\n", argv0, filename, name);
+			else if(strcmp(pkg, "main") != 0 && strcmp(name, "main") == 0)
+				fprint(2, "%s: %s: importing %s, found package main", argv0, filename, pkg);
+		}
 		loadpkgdata(filename, pkg, p0, p1 - p0);
 	}
 
@@ -131,7 +139,6 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 		return;
 	}
 
-	// PGNS: Should be using import path, not pkg.
 	loadpkgdata(filename, pkg, p0, p1 - p0);
 
 	// look for dynld section
