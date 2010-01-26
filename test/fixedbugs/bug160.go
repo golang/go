@@ -1,4 +1,4 @@
-// $G $D/bug160.dir/x.go && $G $D/bug160.dir/y.go && $L y.$A x.$A && ./$A.out
+// $G $D/bug160.dir/x.go && $G $D/bug160.dir/y.go && $L y.$A && ./$A.out
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
