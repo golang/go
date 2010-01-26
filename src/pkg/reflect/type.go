@@ -45,9 +45,9 @@ type commonType struct {
 }
 
 type method struct {
-	hash    uint32
 	name    *string
 	pkgPath *string
+	mtyp    *runtime.Type
 	typ     *runtime.Type
 	ifn     unsafe.Pointer
 	tfn     unsafe.Pointer
@@ -182,8 +182,6 @@ type FuncType struct {
 
 // Method on interface type
 type imethod struct {
-	hash    uint32
-	perm    uint32
 	name    *string
 	pkgPath *string
 	typ     *runtime.Type

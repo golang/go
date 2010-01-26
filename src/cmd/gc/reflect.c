@@ -14,7 +14,18 @@ static	Sym*	dtypesym(Type*);
 static int
 sigcmp(Sig *a, Sig *b)
 {
-	return strcmp(a->name, b->name);
+	int i;
+	
+	i = strcmp(a->name, b->name);
+	if(i != 0)
+		return i;
+	if(a->pkg == b->pkg)
+		return 0;
+	if(a->pkg == nil)
+		return -1;
+	if(b->pkg == nil)
+		return +1;
+	return strcmp(a->pkg->path->s, b->pkg->path->s);
 }
 
 static Sig*
@@ -86,17 +97,17 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
 
 /*
  * f is method type, with receiver.
- * return function type, receiver as first argument.
+ * return function type, receiver as first argument (or not).
  */
 Type*
-methodfunc(Type *f)
+methodfunc(Type *f, int use_receiver)
 {
 	NodeList *in, *out;
 	Node *d;
 	Type *t;
 
 	in = nil;
-	if(!isifacemethod(f)) {
+	if(use_receiver) {
 		d = nod(ODCLFIELD, N, N);
 		d->type = getthisx(f)->type->type;
 		in = list(in, d);
@@ -118,8 +129,7 @@ methodfunc(Type *f)
 }
 
 /*
- * return methods of non-interface type t,
- * sorted by hash.
+ * return methods of non-interface type t, sorted by name.
  * generates stub functions as needed.
  */
 static Sig*
@@ -172,15 +182,10 @@ methods(Type *t)
 		a = b;
 
 		a->name = method->name;
-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
-		if(!exportname(a->name)) {
-			a->pkg = method->pkg;
-			a->hash += PRIME10*stringhash(a->pkg->name);
-		}
-		a->perm = o++;
 		a->isym = methodsym(method, it);
 		a->tsym = methodsym(method, t);
-		a->type = methodfunc(f->type);
+		a->type = methodfunc(f->type, 1);
+		a->mtype = methodfunc(f->type, 0);
 
 		if(!(a->isym->flags & SymSiggen)) {
 			a->isym->flags |= SymSiggen;
@@ -227,38 +232,39 @@ methods(Type *t)
 }
 
 /*
- * return methods of interface type t, sorted by hash.
+ * return methods of interface type t, sorted by name.
  */
 Sig*
 imethods(Type *t)
 {
-	Sig *a, *b;
+	Sig *a, *all, *last;
 	int o;
 	Type *f;
 
-	a = nil;
+	all = nil;
+	last = nil;
 	o = 0;
 	for(f=t->type; f; f=f->down) {
 		if(f->etype != TFIELD)
 			fatal("imethods: not field");
 		if(f->type->etype != TFUNC || f->sym == nil)
 			continue;
-		b = mal(sizeof(*b));
-		b->link = a;
-		a = b;
-
+		a = mal(sizeof(*a));
 		a->name = f->sym->name;
-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
-		if(!exportname(a->name)) {
+		if(!exportname(f->sym->name))
 			a->pkg = f->sym->pkg;
-			a->hash += PRIME10*stringhash(a->pkg->name);
-		}
-		a->perm = o++;
+		a->mtype = f->type;
 		a->offset = 0;
-		a->type = methodfunc(f->type);
+		a->type = methodfunc(f->type, 0);
+		if(last && sigcmp(last, a) >= 0)
+			fatal("sigcmp vs sortinter %s %s", last->name, a->name);
+		if(last == nil)
+			all = a;
+		else
+			last->link = a;
+		last = a;
 	}
-
-	return lsort(a, sigcmp);
+	return all;
 }
 
 static int
@@ -349,10 +355,9 @@ dextratype(Type *t)
 	for(a=m; a; a=a->link) {
 		// method
 		// ../../pkg/runtime/type.go:/method
-		ot = duint32(s, ot, a->hash);
-		ot = rnd(ot, widthptr);
 		ot = dgostringptr(s, ot, a->name);
 		ot = dgopkgpath(s, ot, a->pkg);
+		ot = dsymptr(s, ot, dtypesym(a->mtype), 0);
 		ot = dsymptr(s, ot, dtypesym(a->type), 0);
 		if(a->isym)
 			ot = dsymptr(s, ot, a->isym, 0);
@@ -575,7 +580,9 @@ dcommontype(Sym *s, int ot, Type *t)
 	if(!haspointers(t))
 		i |= KindNoPointers;
 	ot = duint8(s, ot, i);
-	p = smprint("%#-T", t);
+	longsymnames = 1;
+	p = smprint("%-T", t);
+	longsymnames = 0;
 	ot = dgostringptr(s, ot, p);	// string
 	free(p);
 	if(s1)
@@ -742,8 +749,6 @@ ok:
 		ot = duint32(s, ot, n);
 		for(a=m; a; a=a->link) {
 			// ../../pkg/runtime/type.go:/imethod
-			ot = duint32(s, ot, a->hash);
-			ot = duint32(s, ot, a->perm);
 			ot = dgostringptr(s, ot, a->name);
 			ot = dgopkgpath(s, ot, a->pkg);
 			ot = dsymptr(s, ot, dtypesym(a->type), 0);

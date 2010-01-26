@@ -163,6 +163,13 @@ typecmp(Case *c1, Case *c2)
 		return +1;
 	if(c1->hash < c2->hash)
 		return -1;
+
+	// sort by ordinal so duplicate error
+	// happens on later case.
+	if(c1->ordinal > c2->ordinal)
+		return +1;
+	if(c1->ordinal < c2->ordinal)
+		return -1;
 	return 0;
 }
 
@@ -336,7 +343,7 @@ Case*
 mkcaselist(Node *sw, int arg)
 {
 	Node *n;
-	Case *c, *c1;
+	Case *c, *c1, *c2;
 	NodeList *l;
 	int ord;
 
@@ -395,11 +402,16 @@ mkcaselist(Node *sw, int arg)
 	switch(arg) {
 	case Stype:
 		c = csort(c, typecmp);
-		for(c1=c; c1->link!=C; c1=c1->link) {
-			if(typecmp(c1, c1->link) != 0)
-				continue;
-			setlineno(c1->link->node);
-			yyerror("duplicate case in switch\n\tprevious case at %L", c1->node->lineno);
+		for(c1=c; c1!=C; c1=c1->link) {
+			for(c2=c1->link; c2!=C && c2->hash==c1->hash; c2=c2->link) {
+				if(c1->type == Ttypenil || c1->type == Tdefault)
+					break;
+				if(c2->type == Ttypenil || c2->type == Tdefault)
+					break;
+				if(!eqtype(c1->node->left->type, c2->node->left->type))
+					continue;
+				yyerrorl(c2->node->lineno, "duplicate case in switch\n\tprevious case at %L", c1->node->lineno);
+			}
 		}
 		break;
 	case Snorm:
@@ -604,38 +616,19 @@ typebsw(Case *c0, int ncase)
 	Node *a, *n;
 	Case *c;
 	int i, half;
-	Val v;
 
 	cas = nil;
 
 	if(ncase < Ncase) {
 		for(i=0; i<ncase; i++) {
 			n = c0->node;
-
-			switch(c0->type) {
-
-			case Ttypenil:
-				v.ctype = CTNIL;
-				a = nod(OIF, N, N);
-				a->ntest = nod(OEQ, facename, nodlit(v));
-				typecheck(&a->ntest, Erv);
-				a->nbody = list1(n->right);		// if i==nil { goto l }
-				cas = list(cas, a);
-				break;
-
-			case Ttypevar:
-				a = typeone(n);
-				cas = list(cas, a);
-				break;
-
-			case Ttypeconst:
-				a = nod(OIF, N, N);
-				a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
-				typecheck(&a->ntest, Erv);
-				a->nbody = list1(typeone(n));
-				cas = list(cas, a);
-				break;
-			}
+			if(c0->type != Ttypeconst)
+				fatal("typebsw");
+			a = nod(OIF, N, N);
+			a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
+			typecheck(&a->ntest, Erv);
+			a->nbody = list1(n->right);
+			cas = list(cas, a);
 			c0 = c0->link;
 		}
 		return liststmt(cas);
@@ -663,11 +656,12 @@ void
 typeswitch(Node *sw)
 {
 	Node *def;
-	NodeList *cas;
-	Node *a;
+	NodeList *cas, *hash;
+	Node *a, *n;
 	Case *c, *c0, *c1;
 	int ncase;
 	Type *t;
+	Val v;
 
 	if(sw->ntest == nil)
 		return;
@@ -722,43 +716,80 @@ typeswitch(Node *sw)
 	} else {
 		def = nod(OBREAK, N, N);
 	}
+	
+	/*
+	 * insert if statement into each case block
+	 */
+	for(c=c0; c!=C; c=c->link) {
+		n = c->node;
+		switch(c->type) {
 
-loop:
-	if(c0 == C) {
-		cas = list(cas, def);
-		sw->nbody = concat(cas, sw->nbody);
-		sw->list = nil;
-		walkstmtlist(sw->nbody);
-		return;
-	}
-
-	// deal with the variables one-at-a-time
-	if(c0->type != Ttypeconst) {
-		a = typebsw(c0, 1);
-		cas = list(cas, a);
-		c0 = c0->link;
-		goto loop;
-	}
-
-	// do binary search on run of constants
-	ncase = 1;
-	for(c=c0; c->link!=C; c=c->link) {
-		if(c->link->type != Ttypeconst)
+		case Ttypenil:
+			v.ctype = CTNIL;
+			a = nod(OIF, N, N);
+			a->ntest = nod(OEQ, facename, nodlit(v));
+			typecheck(&a->ntest, Erv);
+			a->nbody = list1(n->right);		// if i==nil { goto l }
+			n->right = a;
 			break;
-		ncase++;
+		
+		case Ttypevar:
+		case Ttypeconst:
+			n->right = typeone(n);
+			break;
+		}
 	}
 
-	// break the chain at the count
-	c1 = c->link;
-	c->link = C;
+	/*
+	 * generate list of if statements, binary search for constant sequences
+	 */
+	while(c0 != C) {
+		if(c0->type != Ttypeconst) {
+			n = c0->node;
+			cas = list(cas, n->right);
+			c0=c0->link;
+			continue;
+		}
+		
+		// identify run of constants
+		c1 = c = c0;
+		while(c->link!=C && c->link->type==Ttypeconst)
+			c = c->link;
+		c0 = c->link;
+		c->link = nil;
 
-	// sort and compile constants
-	c0 = csort(c0, typecmp);
-	a = typebsw(c0, ncase);
-	cas = list(cas, a);
+		// sort by hash
+		c1 = csort(c1, typecmp);
+		
+		// for debugging: linear search
+		if(0) {
+			for(c=c1; c!=C; c=c->link) {
+				n = c->node;
+				cas = list(cas, n->right);
+			}
+			continue;
+		}
 
-	c0 = c1;
-	goto loop;
+		// combine adjacent cases with the same hash
+		ncase = 0;
+		for(c=c1; c!=C; c=c->link) {
+			ncase++;
+			hash = list1(c->node->right);
+			while(c->link != C && c->link->hash == c->hash) {
+				hash = list(hash, c->link->node->right);
+				c->link = c->link->link;
+			}
+			c->node->right = liststmt(hash);
+		}
+		
+		// binary search among cases to narrow by hash
+		cas = list(cas, typebsw(c1, ncase));
+	}
+	
+	cas = list(cas, def);
+	sw->nbody = concat(cas, sw->nbody);
+	sw->list = nil;
+	walkstmtlist(sw->nbody);
 }
 
 void

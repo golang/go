@@ -483,7 +483,7 @@ reswitch:
 			}
 			n->op = ONAME;
 			n->sym = methodsym(sym, l->type);
-			n->type = methodfunc(n->type);
+			n->type = methodfunc(n->type, 1);
 			getinargx(n->type)->type->type = l->type;	// fix up receiver
 			n->class = PFUNC;
 			ok = Erv;
