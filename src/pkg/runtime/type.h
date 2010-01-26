@@ -60,9 +60,9 @@ enum {
 
 struct Method
 {
-	uint32 hash;
 	String *name;
 	String *pkgPath;
+	Type	*mtyp;
 	Type *typ;
 	void (*ifn)(void);
 	void (*tfn)(void);
@@ -85,8 +85,6 @@ struct Type
 
 struct IMethod
 {
-	uint32 hash;
-	uint32 perm;
 	String *name;
 	String *pkgPath;
 	Type *type;

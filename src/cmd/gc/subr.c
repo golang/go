@@ -462,10 +462,48 @@ typ(int et)
 	return t;
 }
 
+static int
+methcmp(const void *va, const void *vb)
+{
+	Type *a, *b;
+	int i;
+	
+	a = *(Type**)va;
+	b = *(Type**)vb;
+	i = strcmp(a->sym->name, b->sym->name);
+	if(i != 0)
+		return i;
+	if(!exportname(a->sym->name)) {
+		i = strcmp(a->sym->pkg->path->s, b->sym->pkg->path->s);
+		if(i != 0)
+			return i;
+	}
+	return 0;
+}
 
 Type*
 sortinter(Type *t)
 {
+	Type *f;
+	int i;
+	Type **a;
+	
+	if(t->type == nil || t->type->down == nil)
+		return t;
+
+	i=0;
+	for(f=t->type; f; f=f->down)
+		i++;
+	a = mal(i*sizeof f);
+	i = 0;
+	for(f=t->type; f; f=f->down)
+		a[i++] = f;
+	qsort(a, i, sizeof a[0], methcmp);
+	while(i-- > 0) {
+		a[i]->down = f;
+		f = a[i];
+	}
+	t->type = f;
 	return t;
 }
 
@@ -974,44 +1012,26 @@ Sconv(Fmt *fp)
 		fmtstrcpy(fp, "<S>");
 		return 0;
 	}
-	
+
 	if(fp->flags & FmtShort)
 		goto shrt;
 
 	if(exporting || (fp->flags & FmtSharp)) {
 		if(packagequotes)
 			fmtprint(fp, "\"%Z\"", s->pkg->path);
-		else {
-			// PGNS: Should be s->pkg->prefix
-			fmtprint(fp, "%s", s->pkg->name);
-		}
+		else
+			fmtprint(fp, "%s", s->pkg->prefix);
 		fmtprint(fp, ".%s", s->name);
 		return 0;
 	}
 
-	if(s->pkg != localpkg || (fp->flags & FmtLong)) {
+	if(s->pkg != localpkg || longsymnames || (fp->flags & FmtLong)) {
 		fmtprint(fp, "%s.%s", s->pkg->name, s->name);
 		return 0;
 	}
 
 shrt:
 	fmtstrcpy(fp, s->name);
-	return 0;
-
-	/*
-
-	if(!(fp->flags & FmtShort)) {
-		if((fp->flags & FmtLong) && packagequotes) {
-			fmtprint(fp, "\"%Z\".%s", s->pkg->path, nam);
-			return 0;
-		}
-		if((fp->flags & FmtLong) || strcmp(s->package, package) != 0) {
-			fmtprint(fp, "%s.%s", pkg, nam);
-			return 0;
-		}
-	}
-	fmtstrcpy(fp, nam);
-	*/
 	return 0;
 }
 
@@ -2008,7 +2028,7 @@ eqargs(Type *t1, Type *t2)
  * compute a hash value for type t.
  * if t is a method type, ignore the receiver
  * so that the hash can be used in interface checks.
- * %#-T (which calls Tpretty, above) already contains
+ * %-T (which calls Tpretty, above) already contains
  * all the necessary logic to generate a representation
  * of the type that completely describes it.
  * using smprint here avoids duplicating that code.
@@ -2022,13 +2042,15 @@ typehash(Type *t)
 	char *p;
 	MD5 d;
 
+	longsymnames = 1;
 	if(t->thistuple) {
 		// hide method receiver from Tpretty
 		t->thistuple = 0;
-		p = smprint("%#-T", t);
+		p = smprint("%-T", t);
 		t->thistuple = 1;
 	}else
-		p = smprint("%#-T", t);
+		p = smprint("%-T", t);
+	longsymnames = 0;
 	md5reset(&d);
 	md5write(&d, (uchar*)p, strlen(p));
 	free(p);
@@ -2873,8 +2895,8 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
 int
 ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
 {
-	Type *t, *im, *tm, *rcvr;
-	int imhash, followptr;
+	Type *t, *im, *tm, *rcvr, *imtype;
+	int followptr;
 
 	t = methtype(t0);
 
@@ -2882,17 +2904,10 @@ ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
 	// could sort these first
 	// and then do one loop.
 
-	// could also do full type compare
-	// instead of using hash, but have to
-	// avoid checking receivers, and
-	// typehash already does that for us.
-	// also, it's what the runtime will do,
-	// so we can both be wrong together.
-
 	for(im=iface->type; im; im=im->down) {
-		imhash = typehash(im->type);
+		imtype = methodfunc(im->type, 0);
 		tm = ifacelookdot(im->sym, t, &followptr);
-		if(tm == T || typehash(tm->type) != imhash) {
+		if(tm == T || !eqtype(methodfunc(tm->type, 0), imtype)) {
 			*m = im;
 			*samename = tm;
 			return 0;
@@ -2923,7 +2938,7 @@ ifaceokI2I(Type *i1, Type *i2, Type **m)
 
 	for(m2=i2->type; m2; m2=m2->down) {
 		for(m1=i1->type; m1; m1=m1->down)
-			if(m1->sym == m2->sym && typehash(m1) == typehash(m2))
+			if(m1->sym == m2->sym && eqtype(m1, m2))
 				goto found;
 		*m = m2;
 		return 0;

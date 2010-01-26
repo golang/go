@@ -41,10 +41,11 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	int32 ni;
 	Method *t, *et;
 	IMethod *i, *ei;
-	uint32 ihash, h;
+	uint32 h;
 	String *iname;
 	Itab *m;
 	UncommonType *x;
+	Type *itype;
 
 	if(inter->mhdr.len == 0)
 		throw("internal error - misuse of itab");
@@ -97,7 +98,8 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	m->type = type;
 
 search:
-	// both inter and type have method sorted by hash,
+	// both inter and type have method sorted by name,
+	// and interface names are unique,
 	// so can iterate over both in lock step;
 	// the loop is O(ni+nt) not O(ni*nt).
 	i = inter->m;
@@ -105,7 +107,7 @@ search:
 	t = x->m;
 	et = t + x->mhdr.len;
 	for(; i < ei; i++) {
-		ihash = i->hash;
+		itype = i->type;
 		iname = i->name;
 		for(;; t++) {
 			if(t >= et) {
@@ -120,11 +122,11 @@ search:
 				m->bad = 1;
 				goto out;
 			}
-			if(t->hash == ihash && t->name == iname)
+			if(t->mtyp == itype && t->name == iname)
 				break;
 		}
 		if(m)
-			m->fun[i->perm] = t->ifn;
+			m->fun[i - inter->m] = t->ifn;
 	}
 
 out:

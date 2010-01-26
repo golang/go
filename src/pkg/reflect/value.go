@@ -952,7 +952,7 @@ func (v *InterfaceValue) Method(i int) *FuncValue {
 	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr) + ptrSize), true}
 
 	// Function pointer is at p.perm in the table.
-	fn := tab.Fn[p.perm]
+	fn := tab.Fn[i]
 	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), true}, first: data, isInterface: true}
 	return fv
 }

@@ -34,15 +34,6 @@ enum
 	HISTSZ		= 10,
 
 	PRIME1		= 3,
-	PRIME2		= 10007,
-	PRIME3		= 10009,
-	PRIME4		= 10037,
-	PRIME5		= 10039,
-	PRIME6		= 10061,
-	PRIME7		= 10067,
-	PRIME8		= 10079,
-	PRIME9		= 10091,
-	PRIME10		= 10093,
 
 	AUNK		= 100,
 
@@ -549,8 +540,7 @@ struct	Sig
 	Sym*	isym;
 	Sym*	tsym;
 	Type*	type;
-	uint32	hash;
-	int32	perm;
+	Type*	mtype;
 	int32	offset;
 	Sig*	link;
 };
@@ -733,7 +723,7 @@ EXTERN	int	noargnames;
 EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 EXTERN	int	packagequotes;
-
+EXTERN	int	longsymnames;
 EXTERN	int	compiling_runtime;
 
 /*
@@ -951,7 +941,7 @@ int	structcount(Type*);
 void	addmethod(Sym*, Type*, int);
 Node*	methodname(Node*, Type*);
 Node*	methodname1(Node*, Node*);
-Type*	methodfunc(Type*);
+Type*	methodfunc(Type*, int);
 Sym*	methodsym(Sym*, Type*);
 Type*	functype(Node*, NodeList*, NodeList*);
 char*	thistypenam(Node*);

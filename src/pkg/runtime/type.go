@@ -70,10 +70,10 @@ const (
 
 // Method on non-interface type
 type method struct {
-	hash    uint32         // hash of name + pkg + typ
 	name    *string        // name of method
 	pkgPath *string        // nil for exported Names; otherwise import path
-	typ     *Type          // .(*FuncType) underneath
+	mtyp    *Type          // method type (without receiver)
+	typ     *Type          // .(*FuncType) underneath (with receiver)
 	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
 	tfn     unsafe.Pointer // fn used for normal method call
 }
@@ -181,8 +181,6 @@ type FuncType struct {
 
 // Method on interface type
 type imethod struct {
-	hash    uint32  // hash of name + pkg + typ; same hash as method
-	perm    uint32  // index of function pointer in interface map
 	name    *string // name of method
 	pkgPath *string // nil for exported Names; otherwise import path
 	typ     *Type   // .(*FuncType) underneath
