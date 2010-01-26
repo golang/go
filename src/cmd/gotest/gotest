@@ -119,7 +119,7 @@ nmgrep() {
 		# Figure out pkg.
 		case "$i" in
 		*.a)
-			pkg=$(gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 1q)
+			pkg=$("$GOBIN"/gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 1q)
 			;;
 		*)
 			pkg=$(sed -n 's/^ .* in package "\(.*\)".*/\1/p' $i | sed 1q)
