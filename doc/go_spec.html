@@ -909,7 +909,7 @@ must either all be present or all be absent. If present, each name
 stands for one item (parameter or result) of the specified type; if absent, each
 type stands for one item of that type.  Parameter and result
 lists are always parenthesized except that if there is exactly
-one unnamed result that is not a function type it may written as an unparenthesized type.
+one unnamed result it may written as an unparenthesized type.
 </p>
 <p>
 For the last parameter only, instead of a type one may write
@@ -919,15 +919,15 @@ type.
 </p>
 
 <pre>
-func ()
-func (x int)
-func () int
-func (string, float, ...)
-func (a, b int, z float) bool
-func (a, b int, z float) (bool)
-func (a, b int, z float, opt ...) (success bool)
-func (int, int, float) (float, *[]int)
-func (n int) (func (p* T))
+func()
+func(x int)
+func() int
+func(string, float, ...)
+func(a, b int, z float) bool
+func(a, b int, z float) (bool)
+func(a, b int, z float, opt ...) (success bool)
+func(int, int, float) (float, *[]int)
+func(n int) func(p *T)
 </pre>
 
 
@@ -1210,8 +1210,8 @@ type (
 	T1 []string
 	T2 struct { a, b int }
 	T3 struct { a, c int }
-	T4 func (int, float) *T0
-	T5 func (x int, y float) *[]string
+	T4 func(int, float) *T0
+	T5 func(x int, y float) *[]string
 )
 </pre>
 
@@ -1223,7 +1223,7 @@ these types are identical:
 T0 and T0
 []int and []int
 struct { a, b *T5 } and struct { a, b *T5 }
-func (x int, y float) *[]string and func (int, float) (result *[]string)
+func(x int, y float) *[]string and func(int, float) (result *[]string)
 </pre>
 
 <p>
@@ -1239,7 +1239,7 @@ These types are compatible:
 T0 and T0
 T0 and []string
 T3 and struct { a int; c int }
-T4 and func (x int, y float) *[]string
+T4 and func(x int, y float) *[]string
 </pre>
 
 <p>
@@ -2128,7 +2128,7 @@ FunctionLit = FunctionType Body .
 </pre>
 
 <pre>
-func (a, b int, z float) bool { return a*b &lt; int(z) }
+func(a, b int, z float) bool { return a*b &lt; int(z) }
 </pre>
 
 <p>
@@ -3049,7 +3049,7 @@ with an explicit receiver as its first argument; it has signature
 </p>
 
 <pre>
-func (tv T, a int) int
+func(tv T, a int) int
 </pre>
 
 <p>
@@ -3076,7 +3076,7 @@ yields a function value representing <code>Mp</code> with signature
 </p>
 
 <pre>
-func (tp *T, f float) float
+func(tp *T, f float) float
 </pre>
 
 <p>
@@ -3093,7 +3093,7 @@ yields a function value representing <code>Mv</code> with signature
 </p>
 
 <pre>
-func (tv *T, a int) int
+func(tv *T, a int) int
 </pre>
 
 <p>
