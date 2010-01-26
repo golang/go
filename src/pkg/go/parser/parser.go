@@ -464,7 +464,7 @@ func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
 		if !isIdent {
 			pos := x.(ast.Expr).Pos()
 			p.errorExpected(pos, "identifier")
-			idents[i] = &ast.Ident{pos, ast.NewObj(ast.Err, pos, "")}
+			ident = &ast.Ident{pos, ast.NewObj(ast.Err, pos, "_")}
 		}
 		idents[i] = ident
 	}
