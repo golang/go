@@ -677,7 +677,7 @@ func (p *parser) parseResult(scope *ast.Scope) []*ast.Field {
 	var results []*ast.Field
 	if p.tok == token.LPAREN {
 		results = p.parseParameters(scope, false)
-	} else if p.tok != token.FUNC {
+	} else {
 		typ := p.tryType()
 		if typ != nil {
 			results = make([]*ast.Field, 1)
