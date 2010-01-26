@@ -196,7 +196,8 @@ compile(char *file, char **defs, int ndef)
 	int i, c, fd[2];
 	static int first = 1;
 
-	ofile = strdup(file);
+	ofile = alloc(strlen(file)+10);
+	strcpy(ofile, file);
 	p = utfrrune(ofile, pathchar());
 	if(p) {
 		*p++ = 0;
@@ -405,9 +406,9 @@ lookup(void)
 	int c, n;
 	char *r, *w;
 
-	if(symb[0] == 0xc2 && symb[1] == 0xb7) {
+	if((uchar)symb[0] == 0xc2 && (uchar)symb[1] == 0xb7) {
 		// turn leading · into ""·
-		memmove(symb+2, symb, w-symb);
+		memmove(symb+2, symb, strlen(symb)+1);
 		symb[0] = '"';
 		symb[1] = '"';
 	}

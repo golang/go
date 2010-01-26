@@ -223,6 +223,13 @@ lookup(void)
 	int c, l;
 	char *r, *w;
 
+	if((uchar)symb[0] == 0xc2 && (uchar)symb[1] == 0xb7) {
+		// turn leading · into ""·
+		memmove(symb+2, symb, strlen(symb)+1);
+		symb[0] = '"';
+		symb[1] = '"';
+	}
+
 	// turn · into .
 	for(r=w=symb; *r; r++) {
 		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
@@ -232,12 +239,6 @@ lookup(void)
 			*w++ = *r;
 	}
 	*w++ = '\0';
-	if(symb[0] == '.') {
-		// turn leading . into "".
-		memmove(symb+2, symb, w-symb);
-		symb[0] = '"';
-		symb[1] = '"';
-	}
 
 	h = 0;
 	for(p=symb; c = *p; p++)
