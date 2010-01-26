@@ -42,7 +42,6 @@ type parser struct {
 
 	// Tracing/debugging
 	mode   uint // parsing mode
-	check  bool // == (mode & CheckSemantics != 0)
 	trace  bool // == (mode & Trace != 0)
 	indent uint // indentation used for tracing output
 
@@ -61,6 +60,7 @@ type parser struct {
 	exprLev int // < 0: in control clause, >= 0: in expression
 
 	// Scopes
+	checkDecl bool // if set, check declarations
 	pkgScope  *ast.Scope
 	fileScope *ast.Scope
 	funcScope *ast.Scope
@@ -77,13 +77,16 @@ func scannerMode(mode uint) uint {
 }
 
 
-func (p *parser) init(filename string, src []byte, mode uint) {
+func (p *parser) init(filename string, src []byte, scope *ast.Scope, mode uint) {
 	p.scanner.Init(filename, src, p, scannerMode(mode))
 	p.mode = mode
-	p.trace = mode&Trace != 0          // for convenience (p.trace is used frequently)
-	p.check = mode&CheckSemantics != 0 // for convenience (p.check is used frequently)
-	p.pkgScope = ast.NewScope(nil)     // TODO(gri) should probably provide the pkgScope from outside
-	p.fileScope = ast.NewScope(p.pkgScope)
+	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
+	if scope != nil {
+		p.checkDecl = true
+	} else {
+		scope = ast.NewScope(nil) // provide a dummy scope
+	}
+	p.pkgScope = scope
 	p.next()
 }
 
@@ -320,7 +323,7 @@ func (p *parser) parseIdentList(kind ast.ObjKind) []*ast.Ident {
 
 func (p *parser) declIdent(scope *ast.Scope, id *ast.Ident) {
 	ok := scope.Declare(id.Obj)
-	if p.check && !ok {
+	if p.checkDecl && !ok {
 		p.Error(id.Pos(), "'"+id.Name()+"' declared already")
 	}
 }
@@ -342,7 +345,7 @@ func (p *parser) declFieldList(scope *ast.Scope, list []*ast.Field) {
 
 func (p *parser) findIdent() *ast.Ident {
 	pos := p.pos
-	name := ""
+	name := "_"
 	var obj *ast.Object
 	if p.tok == token.IDENT {
 		name = string(p.lit)
@@ -2033,6 +2036,7 @@ func (p *parser) parseFile() *ast.File {
 	ident := p.parseIdent(ast.Pkg) // package name is in no scope
 	p.expectSemi()
 
+	p.fileScope = ast.NewScope(p.pkgScope)
 	var decls []ast.Decl
 
 	// Don't bother parsing the rest if we had errors already.
