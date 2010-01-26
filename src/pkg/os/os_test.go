@@ -647,13 +647,18 @@ func run(t *testing.T, cmd []string) string {
 
 func TestHostname(t *testing.T) {
 	// Check internal Hostname() against the output of /bin/hostname.
+	// Allow that the internal Hostname returns a Fully Qualified Domain Name
+	// and the /bin/hostname only returns the first component
 	hostname, err := Hostname()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	want := run(t, []string{"/bin/hostname"})
 	if hostname != want {
-		t.Errorf("Hostname() = %q, want %q", hostname, want)
+		i := strings.Index(hostname, ".")
+		if i < 0 || hostname[0:i] != want {
+			t.Errorf("Hostname() = %q, want %q", hostname, want)
+		}
 	}
 }
 
