@@ -35,10 +35,13 @@ def main(args):
         buildport = int(os.environ['BUILDPORT'])
 
     try:
-        buildkey = file('%s/.gobuildkey' % os.environ['HOME'], 'r').read().strip()
+        buildkey = file('%s/.gobuildkey' % os.environ['GOROOT'], 'r').read().strip()
     except IOError:
-        print >>sys.stderr, "Need key in ~/.gobuildkey"
-        return
+        try:
+            buildkey = file('%s/.gobuildkey' % os.environ['HOME'], 'r').read().strip()
+        except IOError:
+            print >>sys.stderr, "Need key in $GOROOT/.gobuildkey or ~/.gobuildkey"
+            return
 
     if args[1] == 'init':
         return doInit(args)
