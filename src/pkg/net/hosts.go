@@ -30,7 +30,9 @@ func readHosts() {
 	if len(hosts.data) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
 		hs := make(map[string][]string)
 		var file *file
-		file, _ = open(hp)
+		if file, _ = open(hp); file == nil {
+			return
+		}
 		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 			if i := byteIndex(line, '#'); i >= 0 {
 				// Discard comments.
