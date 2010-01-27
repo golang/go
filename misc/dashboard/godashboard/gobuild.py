@@ -12,6 +12,7 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 import binascii
 import datetime
 import hashlib
+import hmac
 import logging
 import os
 import re
@@ -70,21 +71,29 @@ class MainPage(webapp.RequestHandler):
         results = q.fetch(30)
 
         revs = [toRev(r) for r in results]
-        allbuilders = set()
+        builders = {}
 
         for r in revs:
             for b in r['builds']:
-                allbuilders.add(b['builder'])
+                f = b['builder'].split('-', 3)
+                goos = f[0]
+                goarch = f[1]
+                note = ""
+                if len(f) > 2:
+                    note = f[2]
+                builders[b['builder']] = {'goos': goos, 'goarch': goarch, 'note': note}
+
         for r in revs:
             have = set(x['builder'] for x in r['builds'])
-            need = allbuilders.difference(have)
+            need = set(builders.keys()).difference(have)
             for n in need:
                 r['builds'].append({'builder': n, 'log':'', 'ok': False})
             r['builds'].sort(cmp = byBuilder)
+            r['shortdesc'] = r['desc'].split('\n', 2)[0]
 
-        builders = list(allbuilders)
+        builders = list(builders.items())
         builders.sort()
-        values = {"revs": revs, "builders": builders}
+        values = {"revs": revs, "builders": [v for k,v in builders]}
 
         path = os.path.join(os.path.dirname(__file__), 'main.html')
         self.response.out.write(template.render(path, values))
@@ -107,9 +116,13 @@ class GetHighwater(webapp.RequestHandler):
         self.response.set_status(200)
         self.response.out.write(hw.commit)
 
+def auth(req):
+    k = req.get('key')
+    return k == hmac.new(key.accessKey, req.get('builder')).hexdigest() or k == key.accessKey
+    
 class SetHighwater(webapp.RequestHandler):
     def post(self):
-        if self.request.get('key') != key.accessKey:
+        if not auth(self.request):
             self.response.set_status(403)
             return
 
@@ -141,7 +154,7 @@ class LogHandler(webapp.RequestHandler):
 # it cannot be created by Build.
 class Init(webapp.RequestHandler):
     def post(self):
-        if self.request.get('key') != key.accessKey:
+        if not auth(self.request):
             self.response.set_status(403)
             return
 
@@ -167,7 +180,7 @@ class Init(webapp.RequestHandler):
 # Build is the main command: it records the result of a new build.
 class Build(webapp.RequestHandler):
     def post(self):
-        if self.request.get('key') != key.accessKey:
+        if not auth(self.request):
             self.response.set_status(403)
             return
 
@@ -248,7 +261,7 @@ class Benchmarks(webapp.RequestHandler):
         self.response.out.write(']}\n')
 
     def post(self):
-        if self.request.get('key') != key.accessKey:
+        if not auth(self.request):
             self.response.set_status(403)
             return
 
@@ -414,7 +427,7 @@ application = webapp.WSGIApplication(
                                       ('/build', Build),
                                       ('/benchmarks', Benchmarks),
                                       ('/benchmarks/.*', GetBenchmarks),
-                                     ])
+                                     ], debug=True)
 
 def main():
     run_wsgi_app(application)

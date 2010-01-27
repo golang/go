@@ -1,16 +1,20 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <title>Go build</title>
+    <title>Go dashboard</title>
 
     <style>
-      td.revision {
-        font-family: monospace;
+      h1 {
+          font-size: 1em;
+          font-weight: bold;
+      }
+      h2 {
+          font-size: 1em;
+          font-weight: bold;
       }
       table.alternate {
           white-space: nowrap;
       }
-
       table.alternate tr td {
         padding-right: 10px;
       }
@@ -18,40 +22,50 @@
         padding-right: 0;
       }
       table.alternate tr:nth-child(2n) {
-        background-color: #eef;
+        background-color: #f8f8f8;
+      }
+      td.revision {
+      }
+      span.hash {
+        font-family: monospace;
+        font-size: small;
+        color: #aaa;
+      }
+      span.nodeseq {
       }
       td.user {
-        font-family: monospace;
+        font-size: small;
       }
       td.date {
-        font-size: 0.8em;
+        color: #aaa;
+        font-size: small;
       }
       td.result {
         text-align: center;
       }
+      span.ok {
+      }
       td.desc {
-        font-size: 0.9em;
+        font-size: small;
         font-family: sans-serif;
       }
       th.builder {
-        font-variant: small-caps;
-        font-size: 1.2em;
-        color: #966;
-        padding-right: 1em;
-      }
-      span.ok {
-        color: green;
+        font-weight: bold;
+        padding-right: 0.5em;
       }
     </style>
   </head>
 
   <body>
+    <h1>Go dashboard</h1>
+    
+    <h2>Build status</h2>
     <table class="alternate" cellpadding="0" cellspacing="0">
       <tr>
-        {% for b in builders %}
-          <th class="builder">{{b}}</th>
-        {% endfor %}
         <th></th>
+        {% for b in builders %}
+          <th class="builder">{{b.goos}}<br>{{b.goarch}}<br>{{b.note}}</th>
+        {% endfor %}
         <th></th>
         <th></th>
         <th></th>
@@ -59,13 +73,15 @@
 
       {% for r in revs %}
       <tr>
+        <td class="revision"><span class="hash"><a href="https://code.google.com/p/go/source/detail?r={{r.node}}">{{r.node|slice:":12"}}</a></span></td>
+
         {% for b in r.builds %}
           <td class="result">
           {% if b.ok %}
-            <span class="ok">☺</span>
+            <span class="ok">ok</span>
           {% else %}
             {% if b.log %}
-              <a href="/log/{{b.log}}">failed</a>
+              <a href="/log/{{b.log}}">fail</a>
             {% else %}
               <span/>
             {% endif %}
@@ -73,10 +89,9 @@
           </td>
         {% endfor %}
 
-        <td class="revision"><a href="https://code.google.com/p/go/source/detail?r={{r.node}}">{{r.node|slice:":12"}}</a></td>
         <td class="user">{{r.user|escape}}</td>
         <td class="date">{{r.date|escape}}</td>
-        <td class="desc">{{r.desc|escape}}</td>
+        <td class="desc">{{r.shortdesc|escape}}</td>
       </tr>
       {% endfor %}
     </table>
