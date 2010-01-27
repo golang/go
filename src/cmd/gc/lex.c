@@ -279,7 +279,7 @@ void
 importfile(Val *f, int line)
 {
 	Biobuf *imp;
-	char *file, *p;
+	char *file;
 	int32 c;
 	int len;
 	Strlit *path;
@@ -301,15 +301,15 @@ importfile(Val *f, int line)
 		return;
 	}
 
-	if(!findpkg(f->u.sval))
-		fatal("can't find import: %Z", f->u.sval);
-
 	path = f->u.sval;
 	if(islocalname(path)) {
 		snprint(cleanbuf, sizeof cleanbuf, "%s/%s", pathname, path->s);
 		cleanname(cleanbuf);
 		path = strlit(cleanbuf);
 	}
+
+	if(!findpkg(path))
+		fatal("can't find import: %Z", f->u.sval);
 
 	importpkg = mkpkg(path);
 
@@ -322,16 +322,11 @@ importfile(Val *f, int line)
 	if(len > 2 && namebuf[len-2] == '.' && namebuf[len-1] == 'a') {
 		if(!skiptopkgdef(imp))
 			fatal("import not package file: %s", namebuf);
-
-		// assume .a files move (get installed)
-		// so don't record the full path.
-		p = file + len - f->u.sval->len - 2;
-		linehist(p, -1, 1);	// acts as #pragma lib
-	} else {
-		// assume .6 files don't move around
-		// so do record the full path
-		linehist(file, -1, 0);
 	}
+
+	// assume files move (get installed)
+	// so don't record the full path.
+	linehist(file + len - path->len - 2, -1, 1);	// acts as #pragma lib
 
 	/*
 	 * position the input right
