@@ -62,13 +62,15 @@ class Log(db.Model):
 class Highwater(db.Model):
     commit = db.StringProperty()
 
+N = 30
+
 class MainPage(webapp.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
 
         q = Commit.all()
         q.order('-__key__')
-        results = q.fetch(30)
+        results = q.fetch(N)
 
         revs = [toRev(r) for r in results]
         builders = {}
@@ -104,17 +106,29 @@ class GetHighwater(webapp.RequestHandler):
 
         hw = Highwater.get_by_key_name('hw-%s' % builder)
         if hw is None:
-            # If no highwater has been recorded for this builder, we find the
-            # initial commit and return that.
+            # If no highwater has been recorded for this builder,
+            # we go back N+1 commits and return that.
             q = Commit.all()
-            q.filter('num =', 0)
-            commitzero = q.get()
+            q.order('-__key__')
+            c = q.fetch(N+1)[-1]
             self.response.set_status(200)
-            self.response.out.write(commitzero.node)
+            self.response.out.write(c.node)
             return
 
+        # if the proposed hw is too old, bump it forward
+        node = hw.commit
+        found = False
+        q = Commit.all()
+        q.order('-__key__')
+        recent = q.fetch(N+1)
+        for c in recent:
+            if c.node == node:
+                found = True
+                break
+        if not found:
+            node = recent[-1].node
         self.response.set_status(200)
-        self.response.out.write(hw.commit)
+        self.response.out.write(node)
 
 def auth(req):
     k = req.get('key')
@@ -134,6 +148,18 @@ class SetHighwater(webapp.RequestHandler):
         if c is None:
             self.response.set_status(404)
             return
+        
+        # if the proposed hw is too old, bump it forward
+        found = False
+        q = Commit.all()
+        q.order('-__key__')
+        recent = q.fetch(N+1)
+        for c in head:
+            if c.node == newhw:
+                found = True
+                break
+        if not found:
+            c = recent[-1]
 
         hw = Highwater(key_name = 'hw-%s' % builder)
         hw.commit = c.node

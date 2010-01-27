@@ -6,11 +6,15 @@ The files in this directory constitute the continuous builder:
 
 godashboard/: An AppEngine that acts as a server
 builder.sh, buildcontrol.sh: used by the build slaves
+buildcron.sh: a build loop that can be run regularly via cron
 
 If you wish to run a Go builder, please email golang-dev@googlegroups.com
 
 
-Setting up a Go builder:
+To set up a Go builder automatically, run buildcron.sh
+(you might want to read it first to see what it does).
+
+To set up a Go builder by hand:
 
 * (Optional) create a new user 'gobuild'
 * Edit ~gobuild/.bash_profile and add the following:

@@ -52,20 +52,28 @@ while true ; do
     mkdir -p candidate/bin || fatal "Cannot create candidate/bin"
     cd candidate/src || fatal "Cannot cd into candidate/src"
     echo "Building revision $rev"
-    ./all.bash > ../log 2>&1
+    ALL=all.bash
+    if [ -f all-$GOOS.bash ]; then
+        ALL=all-$GOOS.bash
+    elif [ -f all-$GOARCH.bash ]; then
+        ALL=all-$GOARCH.bash
+    fi
+    ./$ALL > ../log 2>&1
     if [ $? -ne 0 ] ; then
         echo "Recording failure for $rev"
         python ../../buildcontrol.py record $BUILDER $rev ../log || fatal "Cannot record result"
     else
         echo "Recording success for $rev"
         python ../../buildcontrol.py record $BUILDER $rev ok || fatal "Cannot record result"
-        echo "Running benchmarks"
-        cd pkg || fatal "failed to cd to pkg"
-        make bench > ../../benchmarks 2>&1
-        if [ $? -eq 0 ] ; then
-            python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
+        if [ "$ALL" = "all.bash" ]; then
+            echo "Running benchmarks"
+            cd pkg || fatal "failed to cd to pkg"
+            make bench > ../../benchmarks 2>&1
+            if [ $? -eq 0 ] ; then
+                python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
+            fi
+            cd .. || fatal "failed to cd out of pkg"
         fi
-        cd .. || fatal "failed to cd out of pkg"
     fi
     cd ../.. || fatal "Cannot cd up"
 done
