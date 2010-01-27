@@ -1108,6 +1108,19 @@ RecvChannel   = "&lt;-" "chan" ElementType .
 </pre>
 
 <p>
+To avoid a parsing ambiguity in cases such as <code>chan&lt;- chan int</code>,
+the Channel production's ElementType cannot be a RecvChannel.
+To construct such a type, parenthesize the RecvChannel first.
+</p>
+
+<pre>
+chan&lt;- chan int     // same as chan&lt;- (chan int)
+chan&lt;- &lt;-chan int   // same as chan&lt;- (&lt;-chan int)
+&lt;-chan &lt;-chan int   // same as &lt;-chan (&lt;-chan int)
+chan (&lt;-chan int)
+</pre>
+
+<p>
 Upon creation, a channel can be used both to send and to receive values.
 By conversion or assignment, a channel may be constrained only to send or
 to receive. This constraint is called a channel's <i>direction</i>; either
@@ -1125,7 +1138,6 @@ The value of an uninitialized channel is <code>nil</code>. A new, initialized ch
 value can be made using the built-in function <code>make</code>,
 which takes the channel type and an optional capacity as arguments:
 </p>
-
 
 <pre>
 make(chan int, 100)
