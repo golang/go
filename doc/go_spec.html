@@ -900,7 +900,7 @@ Signature      = Parameters [ Result ] .
 Result         = Parameters | Type .
 Parameters     = "(" [ ParameterList [ "," ] ] ")" .
 ParameterList  = ParameterDecl { "," ParameterDecl } .
-ParameterDecl  = [ IdentifierList ] ( Type | "..." ) .
+ParameterDecl  = [ IdentifierList ] ( Type | "..." [ Type ] ) .
 </pre>
 
 <p>
@@ -913,9 +913,12 @@ one unnamed result it may written as an unparenthesized type.
 </p>
 <p>
 For the last parameter only, instead of a type one may write
-<code>...</code> to indicate that the function may be invoked with
-zero or more additional arguments of any
-type.
+<code>...</code> or <code>...  T</code> to indicate that the function
+may be invoked with zero or more additional arguments.  If the type
+<code>T</code> is present in the parameter declaration, the additional
+arguments must all be
+<a href="#Assignment_compatibility">assignment compatible</a>
+with type <code>T</code>; otherwise they may be of any type.
 </p>
 
 <pre>
@@ -923,6 +926,7 @@ func()
 func(x int)
 func() int
 func(string, float, ...)
+func(prefix string, values ... int)
 func(a, b int, z float) bool
 func(a, b int, z float) (bool)
 func(a, b int, z float, opt ...) (success bool)
@@ -1189,7 +1193,9 @@ identical types. In detail:
 
 	<li>Two function types are identical if they have the same number of parameters
 	    and result values and if corresponding parameter and result types are
-	    identical. All "..." parameters are defined to have identical type.
+	    identical. All "..." parameters without a specified type are defined to have
+	    identical type.  All "..." parameters with specified identical type
+	    <code>T</code> are defined to have identical type.
 	    Parameter and result names are not required to match.</li>
 
 	<li>Two interface types are identical if they have the same set of methods
@@ -2596,15 +2602,15 @@ parameter.
 </p>
 
 <p>
-Within <code>f</code>, the <code>...</code> parameter has static
-type <code>interface{}</code> (the empty interface). For each call,
-its dynamic type is a structure whose sequential fields are the
-trailing arguments of the call.  That is, the actual arguments
-provided for a <code>...</code> parameter are wrapped into a struct
-that is passed to the function instead of the actual arguments.
-Using the <a href="#Package_unsafe">reflection</a> interface, <code>f</code> may
-unpack the elements of the dynamic type to recover the actual
-arguments.
+Within <code>f</code>, a <code>...</code> parameter with no
+specified type has static type <code>interface{}</code> (the empty
+interface). For each call, its dynamic type is a structure whose
+sequential fields are the trailing arguments of the call.  That is,
+the actual arguments provided for a <code>...</code> parameter are
+wrapped into a struct that is passed to the function instead of the
+actual arguments.  Using the <a href="#Package_unsafe">reflection</a>
+interface, <code>f</code> may unpack the elements of the dynamic
+type to recover the actual arguments.
 </p>
 
 <p>
@@ -2621,12 +2627,40 @@ call will be, schematically,
 <code> struct { string; int }</code>.
 </p>
 
+<p>
+If the final parameter of <code>f</code> has type <code>... T</code>,
+within the function it is equivalent to a parameter of type
+<code>[]T</code>.  At each call of <code>f</code>, the actual
+arguments provided for the <code>... T</code> parameter are placed
+into a new slice of type <code>[]T</code> whose successive elements are
+the actual arguments.  The length of the slice is therefore the
+number of arguments bound to the <code>... T</code> parameter and
+may differ for each call site.
+</p>
 
 <p>
-As a special case, if a function passes its own <code>...</code> parameter as the argument
-for a <code>...</code> in a call to another function with a <code>...</code> parameter,
+Given the function and call
+</p>
+<pre>
+func Greeting(prefix string, who ... string)
+Greeting("hello:", "Joe", "Anna", "Eileen")
+</pre>
+
+<p>
+Within <code>Greeting</code>, <code>who</code> will have value
+<code>[]string{"Joe", "Anna", "Eileen")</code>
+</p>
+
+
+<p>
+As a special case, if a function passes its own <code>...</code> parameter,
+with or without specified type, as the argument
+for a <code>...</code> in a call to another function with a <code>...</code> parameter
+of identical type,
 the parameter is not wrapped again but passed directly. In short, a formal <code>...</code>
-parameter is passed unchanged as an actual <code>...</code> parameter.
+parameter is passed unchanged as an actual <code>...</code> parameter provided the
+types match.
+</p>
 
 <h3 id="Operators">Operators</h3>
 
