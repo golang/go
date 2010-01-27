@@ -53,6 +53,17 @@ var tests = []Test{
 	Test{
 		"hello, world\n",
 		"goodbye, world\n",
+		"Index: a\n" +
+			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f\n" +
+			"--- a/a\n" +
+			"+++ b/b\n" +
+			"@@ -1 +1 @@\n" +
+			"-hello, world\n" +
+			"+goodbye, world\n",
+	},
+	Test{
+		"hello, world\n",
+		"goodbye, world\n",
 		"diff a/a b/b\n" +
 			"--- a/a\n" +
 			"+++ b/b\n" +

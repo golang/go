@@ -207,13 +207,16 @@ func Parse(text []byte) (*Set, os.Error) {
 				p.Diff = diff
 				break
 			}
-			if hasPrefix(l, "index ") || hasPrefix(l, "GIT binary patch") {
+			if hasPrefix(l, "GIT binary patch") || (hasPrefix(l, "index ") && !hasPrefix(raw, "--- ")) {
 				diff, err := ParseGitBinary(oldraw)
 				if err != nil {
 					return nil, err
 				}
 				p.Diff = diff
 				break
+			}
+			if hasPrefix(l, "index ") {
+				continue
 			}
 			return nil, SyntaxError("unexpected patch header line: " + string(l))
 		}
