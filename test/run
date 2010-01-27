@@ -48,7 +48,7 @@ ulimit -c 0
 
 true >pass.out >times.out
 
-for dir in . ken chan interface nilptr fixedbugs bugs
+for dir in . ken chan interface nilptr syntax fixedbugs bugs
 do
 	echo
 	echo '==' $dir'/'

@@ -36,13 +36,12 @@
 %token	<lint>	LASOP
 %token	<sym>	LBREAK LCASE LCHAN LCOLAS LCONST LCONTINUE LDDD
 %token	<sym>	LDEFAULT LDEFER LELSE LFALL LFOR LFUNC LGO LGOTO
-%token	<sym>	LIF LIMPORT LINTERFACE LMAKE LMAP LNAME LNEW
+%token	<sym>	LIF LIMPORT LINTERFACE LMAP LNAME
 %token	<sym>	LPACKAGE LRANGE LRETURN LSELECT LSTRUCT LSWITCH
 %token	<sym>	LTYPE LVAR
 
 %token		LANDAND LANDNOT LBODY LCOMM LDEC LEQ LGE LGT
 %token		LIGNORE LINC LLE LLSH LLT LNE LOROR LRSH
-%token		LSEMIBRACE
 
 %type	<lint>	lbrace import_here
 %type	<sym>	sym packname
@@ -111,6 +110,8 @@
 
 %left		')'
 %left		PreferToRightParen
+
+%error-verbose
 
 %%
 file:
@@ -800,12 +801,12 @@ pexpr:
 	{
 		$$ = nod(OINDEX, $1, $3);
 	}
-|	pexpr '[' expr ':' ']'
+|	pexpr '[' oexpr ':' oexpr ']'
 	{
-		$$ = nod(OSLICE, $1, nod(OKEY, $3, N));
-	}
-|	pexpr '[' expr ':' expr ']'
-	{
+		if($3 == N) {
+			yyerror("missing lower bound in slice expression");
+			$3 = nodintconst(0);
+		}
 		$$ = nod(OSLICE, $1, nod(OKEY, $3, $5));
 	}
 |	pseudocall

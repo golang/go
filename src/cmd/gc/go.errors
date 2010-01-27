@@ -1,0 +1,46 @@
+// Copyright 2010 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Example-based syntax error messages.
+// See bisonerrors, Makefile, go.y.
+
+static struct {
+	int yystate;
+	int yychar;
+	char *msg;
+} yymsg[] = {
+	// Each line of the form % token list
+	// is converted by bisonerrors into the yystate and yychar caused
+	// by that token list.
+	
+	% loadsys package LIMPORT '(' LLITERAL import_package import_there ','
+	"unexpected , during import block",
+	
+	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header ';'
+	"unexpected ; or newline before {",
+	
+	% loadsys package imports LFUNC LNAME '(' ')' '{' LSWITCH if_header ';'
+	"unexpected ; or newline before {",
+	
+	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR for_header ';'
+	"unexpected ; or newline before {",
+	
+	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR ';' LBODY
+	"unexpected ; or newline before {",
+	
+	% loadsys package imports LFUNC LNAME '(' ')' ';' '{'
+	"unexpected ; or newline before {",
+	
+	% loadsys package imports LTYPE LNAME ';'
+	"unexpected ; or newline in type declaration",
+	
+	% loadsys package imports LFUNC LNAME '(' ')' '{' if_stmt ';' LELSE
+	"unexpected ; or newline before else",
+	
+	% loadsys package imports LTYPE LNAME LINTERFACE '{' LNAME ',' LNAME
+	"name list not allowed in interface type",
+	
+	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR LVAR LNAME '=' LNAME
+	"var declaration not allowed in for initializer",
+};

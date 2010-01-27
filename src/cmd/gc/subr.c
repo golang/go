@@ -6,6 +6,7 @@
 #include	"md5.h"
 #include	"y.tab.h"
 #include	"opnames.h"
+#include	"yerr.h"
 
 typedef struct Error Error;
 struct Error
@@ -120,14 +121,47 @@ yyerrorl(int line, char *fmt, ...)
 		fatal("too many errors");
 }
 
+extern int yystate, yychar;
+
 void
 yyerror(char *fmt, ...)
 {
+	int i;
+	static int lastsyntax;
 	va_list arg;
 
-	if(strcmp(fmt, "syntax error") == 0) {
-		yyerrorl(lexlineno, "syntax error near %s", lexbuf);
+	if(strncmp(fmt, "syntax error", 12) == 0) {
 		nsyntaxerrors++;
+		
+		if(debug['x'])	
+			print("yyerror: yystate=%d yychar=%d\n", yystate, yychar);
+
+		// only one syntax error per line
+		if(lastsyntax == lexlineno)
+			return;
+		lastsyntax = lexlineno;
+		
+		// look for parse state-specific errors in list (see go.errors).
+		for(i=0; i<nelem(yymsg); i++) {
+			if(yymsg[i].yystate == yystate && yymsg[i].yychar == yychar) {
+				yyerrorl(lexlineno, "syntax error: %s", yymsg[i].msg);
+				return;
+			}
+		}
+		
+		// plain "syntax error" gets "near foo" added
+		if(strcmp(fmt, "syntax error") == 0) {
+			yyerrorl(lexlineno, "syntax error near %s", lexbuf);
+			return;
+		}
+		
+		// if bison says "syntax error, more info"; print "syntax error: more info".
+		if(fmt[12] == ',') {
+			yyerrorl(lexlineno, "syntax error:%s", fmt+13);
+			return;
+		}
+
+		yyerrorl(lexlineno, "%s", fmt);
 		return;
 	}
 

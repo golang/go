@@ -1,0 +1,124 @@
+#!/usr/bin/awk -f
+# Copyright 2010 The Go Authors.  All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# This program implements the core idea from
+#
+#	Clinton L. Jeffery, Generating LR syntax error messages from examples,
+#	ACM TOPLAS 25(5) (September 2003).  http://doi.acm.org/10.1145/937563.937566
+# 
+# It reads Bison's summary of a grammar followed by a file
+# like go.errors, replacing lines beginning with % by the 
+# yystate and yychar that will be active when an error happens
+# while parsing that line.  
+#
+# Unlike the system described in the paper, the lines in go.errors
+# give grammar symbol name lists, not actual program fragments.
+# This is a little less programmer-friendly but doesn't require being
+# able to run the text through lex.c.
+
+BEGIN{
+	bison = 1
+	grammar = 0
+	states = 0
+}
+
+# In Grammar section of y.output,
+# record lhs and length of rhs for each rule.
+bison && /^Grammar/ { grammar = 1 }
+bison && /^(Terminals|state 0)/ { grammar = 0 }
+grammar && NF>0 {
+	if($2 != "|") {
+		r = $2
+		sub(/:$/, "", r)
+	}
+	rulelhs[$1] = r
+	rulesize[$1] = NF-2
+	if(rulesize[$1] == 3 && $3 $4 $5 == "/*empty*/") {
+		rulesize[$1] = 0
+	}
+}
+
+# In state dumps, record shift/reduce actions.
+bison && /^state 0/ { grammar = 0; states = 1 }
+
+states && /^state / { state = $2 }
+states { statetext[state] = statetext[state] $0 "\n" }
+
+states && / shift, and go to state/ {
+	n = nshift[state]++
+	shift[state,n] = $7
+	shifttoken[state,n] = $1
+	next
+}
+states && / go to state/ {
+	n = nshift[state]++
+	shift[state,n] = $5
+	shifttoken[state,n] = $1
+	next
+}
+states && / reduce using rule/ {
+	n = nreduce[state]++
+	reduce[state,n] = $5
+	reducetoken[state,n] = $1
+	next
+}	
+
+# First // comment marks the beginning of the pattern file.
+/^\/\// { bison = 0; grammar = 0; state = 0 }
+bison { next }
+
+# Treat % as first field on line as introducing a pattern (token sequence).
+# Run it through the LR machine and print the induced "yystate, yychar,"
+# at the point where the error happens.
+$1 == "%" {
+	nstack = 0
+	state = 0
+	f = 2
+	tok = ""
+	for(;;) {
+		if(tok == "" && f <= NF) {
+			tok = $f
+			f++
+		}
+		found = 0
+		for(j=0; j<nshift[state]; j++) {
+			if(shifttoken[state,j] == tok) {
+				# print "SHIFT " tok " " state " -> " shift[state,j]
+				stack[nstack++] = state
+				state = shift[state,j]
+				found = 1
+				tok = ""
+				break
+			}
+		}
+		if(found)
+			continue
+		for(j=0; j<nreduce[state]; j++) {
+			if(reducetoken[state,j] == tok || reducetoken[state,j] == "$default") {
+				stack[nstack++] = state
+				rule = reduce[state,j]
+				nstack -= rulesize[rule]
+				state = stack[--nstack]
+				lhs = rulelhs[rule]
+				if(tok != "")
+					--f
+				tok = rulelhs[rule]
+				# print "REDUCE " nstack " " state " " tok " rule " rule " size " rulesize[rule]
+				found = 1
+				break
+			}
+		}
+		if(found)
+			continue
+
+		# No shift or reduce applied - found the error.
+		printf("\t%s, %s,\n", state, tok);
+		break
+	}
+	next
+}
+
+# Print other lines verbatim.
+{print}
