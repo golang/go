@@ -94,7 +94,7 @@ xsymname(Sym *s)
 int
 Dconv(Fmt *fp)
 {
-	char str[200], s[200];
+	char str[STRINGSZ], s[STRINGSZ];
 	Adr *a;
 	int i;
 
@@ -259,7 +259,7 @@ char*	regstr[] =
 int
 Rconv(Fmt *fp)
 {
-	char str[20];
+	char str[STRINGSZ];
 	int r;
 
 	r = va_arg(fp->args, int);
@@ -275,7 +275,7 @@ int
 Sconv(Fmt *fp)
 {
 	int i, c;
-	char str[100], *p, *a;
+	char str[STRINGSZ], *p, *a;
 
 	a = va_arg(fp->args, char*);
 	p = str;
