@@ -255,15 +255,15 @@ func main() {
 	<h2>Use explicit messages to communicate and synchronize.</h2>
 	
 <pre>
-func computeAndSend(c chan int, x, y, z int) {
-	c <- expensiveComputation(x, y, z)
+func computeAndSend(ch chan int, x, y, z int) {
+	ch <- expensiveComputation(x, y, z)
 }
 
 func main() {
-	c := make(chan int)
-	go computeAndSend(c, x, y, z)
+	ch := make(chan int)
+	go computeAndSend(ch, x, y, z)
 	v2 := anotherExpensiveComputation(a, b, c)
-	v1 := <-c
+	v1 := <-ch
 	fmt.Println(v1, v2)
 }
 </pre>
