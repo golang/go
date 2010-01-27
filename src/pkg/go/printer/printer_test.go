@@ -51,7 +51,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 	if mode&oldSyntax != 0 {
 		prog, err = oldParser.ParseFile(source, nil, parser.ParseComments)
 	} else {
-		prog, err = parser.ParseFile(source, nil, parser.ParseComments)
+		prog, err = parser.ParseFile(source, nil, nil, parser.ParseComments)
 	}
 	if err != nil {
 		t.Error(err)

@@ -30,7 +30,6 @@ const (
 	PackageClauseOnly uint = 1 << iota // parsing stops after package clause
 	ImportsOnly            // parsing stops after import declarations
 	ParseComments          // parse comments and add them to AST
-	CheckSemantics         // do semantic checks (only declarations for now)
 	Trace                  // print a trace of parsed productions
 )
 
@@ -322,9 +321,15 @@ func (p *parser) parseIdentList(kind ast.ObjKind) []*ast.Ident {
 
 
 func (p *parser) declIdent(scope *ast.Scope, id *ast.Ident) {
-	ok := scope.Declare(id.Obj)
-	if p.checkDecl && !ok {
-		p.Error(id.Pos(), "'"+id.Name()+"' declared already")
+	decl := scope.Declare(id.Obj)
+	if p.checkDecl && decl != id.Obj {
+		if decl.Kind == ast.Err {
+			// declared object is a forward declaration - update it
+			*decl = *id.Obj
+			id.Obj = decl
+			return
+		}
+		p.Error(id.Pos(), "'"+id.Name()+"' declared already at "+decl.Pos.String())
 	}
 }
 
@@ -355,9 +360,36 @@ func (p *parser) findIdent() *ast.Ident {
 		p.expect(token.IDENT) // use expect() error handling
 	}
 	if obj == nil {
-		// TODO(gri) These identifiers need to be tracked as
-		//           unresolved identifiers in the package
-		//           scope so that they can be resolved later.
+		// No declaration found: either we are outside any function
+		// (p.funcScope == nil) or the identifier is not declared
+		// in any function. Try the file and package scope.
+		obj = p.fileScope.Lookup(name) // file scope is nested in package scope
+		if obj == nil {
+			// No declaration found anywhere: track as
+			// unresolved identifier in the package scope.
+			obj = ast.NewObj(ast.Err, pos, name)
+			p.pkgScope.Declare(obj)
+		}
+	}
+	return &ast.Ident{pos, obj}
+}
+
+
+func (p *parser) findIdentInScope(scope *ast.Scope) *ast.Ident {
+	pos := p.pos
+	name := "_"
+	var obj *ast.Object
+	if p.tok == token.IDENT {
+		name = string(p.lit)
+		obj = scope.Lookup(name)
+		p.next()
+	} else {
+		p.expect(token.IDENT) // use expect() error handling
+	}
+	if obj == nil {
+		// TODO(gri) At the moment we always arrive here because
+		//           we don't track the lookup scope (and sometimes
+		//           we can't). Just create a useable ident for now.
 		obj = ast.NewObj(ast.Err, pos, name)
 	}
 	return &ast.Ident{pos, obj}
@@ -421,7 +453,7 @@ func (p *parser) parseQualifiedIdent() ast.Expr {
 	if p.tok == token.PERIOD {
 		// first identifier is a package identifier
 		p.next()
-		sel := p.findIdent()
+		sel := p.findIdentInScope(nil)
 		x = &ast.SelectorExpr{x, sel}
 	}
 	return x
@@ -970,7 +1002,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 	p.expect(token.PERIOD)
 	if p.tok == token.IDENT {
 		// selector
-		sel := p.findIdent()
+		sel := p.findIdentInScope(nil)
 		return &ast.SelectorExpr{x, sel}
 	}
 
@@ -1403,7 +1435,7 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 	s := &ast.BranchStmt{p.pos, tok, nil}
 	p.expect(tok)
 	if tok != token.FALLTHROUGH && p.tok == token.IDENT {
-		s.Label = p.findIdent()
+		s.Label = p.findIdentInScope(nil)
 	}
 	p.expectSemi()
 
@@ -1943,7 +1975,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.Field {
 }
 
 
-func (p *parser) parseFunctionDecl() *ast.FuncDecl {
+func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	if p.trace {
 		defer un(trace(p, "FunctionDecl"))
 	}
@@ -1988,7 +2020,7 @@ func (p *parser) parseDecl() ast.Decl {
 		f = parseVarSpec
 
 	case token.FUNC:
-		return p.parseFunctionDecl()
+		return p.parseFuncDecl()
 
 	default:
 		pos := p.pos

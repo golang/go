@@ -600,7 +600,7 @@ func (x *Indexer) VisitFile(path string, d *os.Dir) {
 		return
 	}
 
-	file, err := parser.ParseFile(path, nil, parser.ParseComments)
+	file, err := parser.ParseFile(path, nil, nil, parser.ParseComments)
 	if err != nil {
 		return // ignore files with (parse) errors
 	}

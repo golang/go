@@ -122,7 +122,7 @@ func isPkgDir(dir *os.Dir) bool {
 
 
 func pkgName(filename string) string {
-	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
+	file, err := parser.ParseFile(filename, nil, nil, parser.PackageClauseOnly)
 	if err != nil || file == nil {
 		return ""
 	}
@@ -207,7 +207,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 			nfiles++
 			if text == "" {
 				// no package documentation yet; take the first found
-				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
+				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil, nil,
 					parser.ParseComments|parser.PackageClauseOnly)
 				if err == nil &&
 					// Also accept fakePkgName, so we get synopses for commmands.
@@ -845,7 +845,7 @@ func serveGoSource(c *http.Conn, r *http.Request, path string) {
 		Error  string
 	}
 
-	file, err := parser.ParseFile(path, nil, parser.ParseComments)
+	file, err := parser.ParseFile(path, nil, nil, parser.ParseComments)
 	info.Source = StyledNode{file, &Styler{linetags: true, highlight: r.FormValue("h")}}
 	if err != nil {
 		info.Error = err.String()

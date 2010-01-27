@@ -27,8 +27,8 @@ var (
 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
 
 	// debugging support
-	checks   = flag.Bool("checks", false, "do semantic checks")
 	comments = flag.Bool("comments", true, "print comments")
+	debug    = flag.Bool("debug", false, "print debugging information")
 	trace    = flag.Bool("trace", false, "print parse trace")
 
 	// layout control
@@ -64,9 +64,6 @@ func usage() {
 
 func initParserMode() {
 	parserMode = uint(0)
-	if *checks {
-		parserMode |= parser.CheckSemantics
-	}
 	if *comments {
 		parserMode |= parser.ParseComments
 	}
@@ -103,7 +100,11 @@ func processFile(f *os.File) os.Error {
 	if *useOldParser {
 		file, err = oldParser.ParseFile(f.Name(), src, parserMode)
 	} else {
-		file, err = parser.ParseFile(f.Name(), src, parserMode)
+		var scope *ast.Scope
+		if *debug {
+			scope = ast.NewScope(nil)
+		}
+		file, err = parser.ParseFile(f.Name(), src, scope, parserMode)
 	}
 	if err != nil {
 		return err
