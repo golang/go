@@ -97,6 +97,8 @@ panic PC=xxx
 
 == nilptr/
 
+== syntax/
+
 == fixedbugs/
 
 =========== fixedbugs/bug016.go

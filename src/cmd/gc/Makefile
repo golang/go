@@ -41,7 +41,7 @@ OFILES=\
 	typecheck.$O\
 	unsafe.$O\
 	walk.$O\
-	y.tab.$O\
+	y1.tab.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)
@@ -49,10 +49,18 @@ $(LIB): $(OFILES)
 $(OFILES): $(HFILES)
 
 y.tab.h: $(YFILES)
-	bison -y $(YFLAGS) $(YFILES)
+	bison -v -y $(YFLAGS) $(YFILES)
 
 y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
+
+y1.tab.c: y.tab.c	# make yystate global, yytname mutable
+	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/' >y1.tab.c
+
+yerr.h: bisonerrors go.errors y.tab.h	# y.tab.h rule generates y.output too
+	awk -f bisonerrors y.output go.errors >yerr.h
+
+subr.$O: yerr.h
 
 builtin.c: builtin.c.boot
 	cp builtin.c.boot builtin.c
@@ -63,6 +71,6 @@ opnames.h:	mkopnames go.h
 	./mkopnames go.h >opnames.h
 
 clean:
-	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c opnames.h
+	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c y1.tab.c y.output yerr.h $(LIB) mkbuiltin1 builtin.c _builtin.c opnames.h
 
 install: $(LIB)
