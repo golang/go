@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"go/ast"
 	"go/scanner"
+	"go/token"
 	"io"
 	"io/ioutil"
 	"os"
@@ -50,62 +51,60 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
 }
 
 
-// TODO(gri) Simplify parser interface by splitting these functions
-//           into two parts: a single Init and a respective xParse
-//           function. The Init function can be shared.
-//
-// - the Init function will take a scope
-// - if a scope is provided, the parser tracks declarations, otherwise it won't
+func (p *parser) parseEOF() os.Error {
+	p.expect(token.EOF)
+	return p.GetError(scanner.Sorted)
+}
 
 
 // ParseExpr parses a Go expression and returns the corresponding
-// AST node. The filename and src arguments have the same interpretation
+// AST node. The filename, src, and scope arguments have the same interpretation
 // as for ParseFile. If there is an error, the result expression
 // may be nil or contain a partial AST.
 //
-func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
+func ParseExpr(filename string, src interface{}, scope *ast.Scope) (ast.Expr, os.Error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p parser
-	p.init(filename, data, nil, 0)
-	return p.parseExpr(), p.GetError(scanner.Sorted)
+	p.init(filename, data, scope, 0)
+	return p.parseExpr(), p.parseEOF()
 }
 
 
 // ParseStmtList parses a list of Go statements and returns the list
-// of corresponding AST nodes. The filename and src arguments have the same
+// of corresponding AST nodes. The filename, src, and scope arguments have the same
 // interpretation as for ParseFile. If there is an error, the node
 // list may be nil or contain partial ASTs.
 //
-func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
+func ParseStmtList(filename string, src interface{}, scope *ast.Scope) ([]ast.Stmt, os.Error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p parser
-	p.init(filename, data, nil, 0)
-	return p.parseStmtList(), p.GetError(scanner.Sorted)
+	p.init(filename, data, scope, 0)
+	return p.parseStmtList(), p.parseEOF()
 }
 
 
 // ParseDeclList parses a list of Go declarations and returns the list
-// of corresponding AST nodes.  The filename and src arguments have the same
+// of corresponding AST nodes.  The filename, src, and scope arguments have the same
 // interpretation as for ParseFile. If there is an error, the node
 // list may be nil or contain partial ASTs.
 //
-func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+func ParseDeclList(filename string, src interface{}, scope *ast.Scope) ([]ast.Decl, os.Error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p parser
-	p.init(filename, data, nil, 0)
-	return p.parseDeclList(), p.GetError(scanner.Sorted)
+	p.init(filename, data, scope, 0)
+	return p.parseDeclList(), p.parseEOF()
 }
 
 
@@ -118,6 +117,11 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
 //
 // If src == nil, ParseFile parses the file specified by filename.
 //
+// If scope != nil, it is the immediately surrounding scope for the file
+// (the package scope) and it is used to lookup and declare identifiers.
+// When parsing multiple files belonging to a package, the same scope should
+// be provided to all files.
+//
 // The mode parameter controls the amount of source text parsed and other
 // optional parser functionality.
 //
@@ -127,21 +131,15 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by file position.
 //
-func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error) {
+func ParseFile(filename string, src interface{}, scope *ast.Scope, mode uint) (*ast.File, os.Error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p parser
-	// TODO(gri) Remove CheckSemantics flag and code below once
-	//           scope is provided via Init.
-	var scope *ast.Scope
-	if mode&CheckSemantics != 0 {
-		scope = ast.NewScope(nil)
-	}
 	p.init(filename, data, scope, mode)
-	return p.parseFile(), p.GetError(scanner.NoMultiples)
+	return p.parseFile(), p.GetError(scanner.NoMultiples) // parseFile() reads to EOF
 }
 
 
@@ -166,18 +164,19 @@ func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*as
 		return nil, err
 	}
 
+	scope := ast.NewScope(nil)
 	pkgs := make(map[string]*ast.Package)
 	for i := 0; i < len(list); i++ {
 		entry := &list[i]
 		if filter == nil || filter(entry) {
-			src, err := ParseFile(pathutil.Join(path, entry.Name), nil, mode)
+			src, err := ParseFile(pathutil.Join(path, entry.Name), nil, scope, mode)
 			if err != nil {
 				return pkgs, err
 			}
 			name := src.Name.Name()
 			pkg, found := pkgs[name]
 			if !found {
-				pkg = &ast.Package{name, path, make(map[string]*ast.File)}
+				pkg = &ast.Package{name, path, scope, make(map[string]*ast.File)}
 				pkgs[name] = pkg
 			}
 			pkg.Files[entry.Name] = src

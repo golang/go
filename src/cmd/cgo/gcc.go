@@ -62,7 +62,7 @@ func (p *Prog) loadDebugInfo() {
 	for _, c := range p.Crefs {
 		// If we've already found this name as a define, it is not a Cref.
 		if val, ok := defines[c.Name]; ok {
-			_, err := parser.ParseExpr("", val)
+			_, err := parser.ParseExpr("", val, nil)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "The value in C.%s does not parse as a Go expression; cannot use.\n", c.Name)
 				os.Exit(2)

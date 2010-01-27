@@ -23,15 +23,14 @@ const (
 // constant, type, variable, or function (incl. methods).
 //
 type Object struct {
-	Kind  ObjKind
-	Pos   token.Position // declaration position
-	Name  string         // declared name
-	Scope *Scope         // scope in which the Object is declared
+	Kind ObjKind
+	Pos  token.Position // declaration position
+	Name string         // declared name
 }
 
 
 func NewObj(kind ObjKind, pos token.Position, name string) *Object {
-	return &Object{kind, pos, name, nil}
+	return &Object{kind, pos, name}
 }
 
 
@@ -55,16 +54,16 @@ func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Objec
 
 // Declare attempts to insert a named object into the scope s.
 // If the scope does not contain an object with that name yet,
-// Declare inserts the object, and the result is true. Otherwise,
-// the scope remains unchanged and the result is false.
-func (s *Scope) Declare(obj *Object) bool {
-	if obj.Name != "_" {
-		if _, found := s.Objects[obj.Name]; found {
-			return false
-		}
+// Declare inserts the object, and returns it. Otherwise, the
+// scope remains unchanged and Declare returns the object found
+// in the scope instead.
+func (s *Scope) Declare(obj *Object) *Object {
+	decl, found := s.Objects[obj.Name]
+	if !found {
 		s.Objects[obj.Name] = obj
+		decl = obj
 	}
-	return true
+	return decl
 }
 
 

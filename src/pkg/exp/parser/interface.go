@@ -198,5 +198,5 @@ func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Packa
 		return nil, os.NewError(path + ": no package found")
 	}
 
-	return &ast.Package{name, path, files}, nil
+	return &ast.Package{name, path, nil, files}, nil
 }
