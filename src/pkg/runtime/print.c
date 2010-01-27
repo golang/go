@@ -6,6 +6,8 @@
 
 //static Lock debuglock;
 
+static void vprintf(int8*, byte*);
+
 void
 dump(byte *p, int32 n)
 {
@@ -29,18 +31,35 @@ prints(int8 *s)
 	write(fd, s, findnull((byte*)s));
 }
 
-// Very simple printf.  Only for debugging prints.
-// Do not add to this without checking with Rob.
+#pragma textflag 7
 void
 printf(int8 *s, ...)
 {
+	byte *arg;
+
+	arg = (byte*)(&s+1);
+	vprintf(s, arg);
+}
+
+static byte*
+vrnd(byte *p, int32 x)
+{
+	if((uint32)(uintptr)p&(x-1))
+		p += x - ((uint32)(uintptr)p&(x-1));
+	return p;
+}
+
+// Very simple printf.  Only for debugging prints.
+// Do not add to this without checking with Rob.
+static void
+vprintf(int8 *s, byte *arg)
+{
 	int8 *p, *lp;
-	byte *arg, *narg;
+	byte *narg;
 
 //	lock(&debuglock);
 
 	lp = p = s;
-	arg = (byte*)(&s+1);
 	for(; *p; p++) {
 		if(*p != '%')
 			continue;
@@ -49,40 +68,58 @@ printf(int8 *s, ...)
 		p++;
 		narg = nil;
 		switch(*p) {
+		case 't':
+			narg = arg + 1;
+			break;
 		case 'd':	// 32-bit
 		case 'x':
+			arg = vrnd(arg, 4);
 			narg = arg + 4;
 			break;
 		case 'D':	// 64-bit
+		case 'U':
 		case 'X':
-			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
-				arg += 4;
+		case 'f':
+			arg = vrnd(arg, sizeof(uintptr));
 			narg = arg + 8;
 			break;
 		case 'p':	// pointer-sized
 		case 's':
-			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
-				arg += 4;
+			arg = vrnd(arg, sizeof(uintptr));
 			narg = arg + sizeof(uintptr);
 			break;
 		case 'S':	// pointer-aligned but bigger
-			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
-				arg += 4;
+			arg = vrnd(arg, sizeof(uintptr));
 			narg = arg + sizeof(String);
+			break;
+		case 'a':	// pointer-aligned but bigger
+			arg = vrnd(arg, sizeof(uintptr));
+			narg = arg + sizeof(Slice);
+			break;
+		case 'i':	// pointer-aligned but bigger
+		case 'e':
+			arg = vrnd(arg, sizeof(uintptr));
+			narg = arg + sizeof(Eface);
 			break;
 		}
 		switch(*p) {
+		case 'a':
+			·printslice(*(Slice*)arg);
+			break;
 		case 'd':
 			·printint(*(int32*)arg);
 			break;
 		case 'D':
 			·printint(*(int64*)arg);
 			break;
-		case 'x':
-			·printhex(*(uint32*)arg);
+		case 'e':
+			·printeface(*(Eface*)arg);
 			break;
-		case 'X':
-			·printhex(*(uint64*)arg);
+		case 'f':
+			·printfloat(*(float64*)arg);
+			break;
+		case 'i':
+			·printiface(*(Iface*)arg);
 			break;
 		case 'p':
 			·printpointer(*(void**)arg);
@@ -93,6 +130,20 @@ printf(int8 *s, ...)
 		case 'S':
 			·printstring(*(String*)arg);
 			break;
+		case 't':
+			·printbool(*(bool*)arg);
+			break;
+		case 'U':
+			·printuint(*(uint64*)arg);
+			break;
+		case 'x':
+			·printhex(*(uint32*)arg);
+			break;
+		case 'X':
+			·printhex(*(uint64*)arg);
+			break;
+		case '!':
+			·panicl(-1);
 		}
 		arg = narg;
 		lp = p+1;
@@ -103,6 +154,14 @@ printf(int8 *s, ...)
 //	unlock(&debuglock);
 }
 
+void
+·printf(String s, ...)
+{
+	// Can assume s has terminating NUL because only
+	// the Go compiler generates calls to ·printf, using
+	// string constants, and all the string constants have NULs.
+	vprintf((int8*)s.str, (byte*)(&s+1));
+}
 
 void
 ·printpc(void *p)

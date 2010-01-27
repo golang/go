@@ -27,6 +27,7 @@ func printeface(any)
 func printslice(any)
 func printnl()
 func printsp()
+func printf()
 
 func catstring(string, string) string
 func cmpstring(string, string) int
