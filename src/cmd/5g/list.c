@@ -213,7 +213,7 @@ char*	strcond[16] =
 int
 Cconv(Fmt *fp)
 {
-	char s[20];
+	char s[STRINGSZ];
 	int c;
 
 	c = va_arg(fp->args, int);
@@ -233,7 +233,7 @@ int
 Yconv(Fmt *fp)
 {
 	int i, c;
-	char str[100], *p, *a;
+	char str[STRINGSZ], *p, *a;
 
 	a = va_arg(fp->args, char*);
 	p = str;
@@ -278,7 +278,7 @@ int
 Rconv(Fmt *fp)
 {
 	int r;
-	char str[30];
+	char str[STRINGSZ];
 
 	r = va_arg(fp->args, int);
 	snprint(str, sizeof(str), "R%d", r);

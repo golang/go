@@ -73,7 +73,7 @@ Pconv(Fmt *fp)
 int
 Dconv(Fmt *fp)
 {
-	char str[100], s[100];
+	char str[STRINGSZ], s[STRINGSZ];
 	Addr *a;
 	int i;
 	uint32 d1, d2;
@@ -313,7 +313,7 @@ int
 Yconv(Fmt *fp)
 {
 	int i, c;
-	char str[100], *p, *a;
+	char str[STRINGSZ], *p, *a;
 
 	a = va_arg(fp->args, char*);
 	p = str;
