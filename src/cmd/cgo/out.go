@@ -47,10 +47,10 @@ func (p *Prog) writeDefs() {
 	}
 	fmt.Fprintf(fgo2, "type _C_void [0]byte\n")
 
-	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot, p.Package, p.Package)
+	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot)
 
 	for name, def := range p.Vardef {
-		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s.so\"\n", p.Package, name, name, path)
+		fmt.Fprintf(fc, "#pragma dynld ·_C_%s %s \"%s.so\"\n", name, name, path)
 		fmt.Fprintf(fgo2, "var _C_%s ", name)
 		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
 		fmt.Fprintf(fgo2, "\n")
@@ -133,7 +133,7 @@ func (p *Prog) writeDefs() {
 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
 		fmt.Fprintf(fc, "\n")
 		fmt.Fprintf(fc, "void\n")
-		fmt.Fprintf(fc, "%s·_C_%s(struct{uint8 x[%d];}p)\n", p.Package, name, argSize)
+		fmt.Fprintf(fc, "·_C_%s(struct{uint8 x[%d];}p)\n", name, argSize)
 		fmt.Fprintf(fc, "{\n")
 		fmt.Fprintf(fc, "\tcgocall(_cgo_%s, &p);\n", name)
 		fmt.Fprintf(fc, "}\n")
@@ -279,14 +279,14 @@ const cProlog = `
 #pragma dynld _cgo_free free "%s/libcgo.so"
 
 void
-%s·_C_GoString(int8 *p, String s)
+·_C_GoString(int8 *p, String s)
 {
 	s = gostring((byte*)p);
 	FLUSH(&s);
 }
 
 void
-%s·_C_CString(String s, int8 *p)
+·_C_CString(String s, int8 *p)
 {
 	p = cmalloc(s.len+1);
 	mcpy((byte*)p, s.str, s.len);
