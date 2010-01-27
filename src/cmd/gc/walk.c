@@ -4,7 +4,7 @@
 
 #include	"go.h"
 
-static	Node*	walkprint(Node*, NodeList**);
+static	Node*	walkprint(Node*, NodeList**, int);
 static	Node*	conv(Node*, Type*);
 static	Node*	mapfn(char*, Type*);
 static	Node*	makenewvar(Type*, NodeList**, Node**);
@@ -355,7 +355,18 @@ walkstmt(Node **np)
 
 	case ODEFER:
 		hasdefer = 1;
-		walkexpr(&n->left, &n->ninit);
+		switch(n->left->op) {
+		case OPRINT:
+		case OPRINTN:
+		case OPANIC:
+		case OPANICN:
+			walkexprlist(n->left->list, &n->ninit);
+			n->left = walkprint(n->left, &n->ninit, 1);
+			break;
+		default:
+			walkexpr(&n->left, &n->ninit);
+			break;
+		}
 		break;
 
 	case OFOR:
@@ -539,7 +550,7 @@ walkexpr(Node **np, NodeList **init)
 	case OPANIC:
 	case OPANICN:
 		walkexprlist(n->list, init);
-		n = walkprint(n, init);
+		n = walkprint(n, init, 0);
 		goto ret;
 
 	case OLITERAL:
@@ -1510,7 +1521,7 @@ ret:
 
 // generate code for print
 static Node*
-walkprint(Node *nn, NodeList **init)
+walkprint(Node *nn, NodeList **init, int defer)
 {
 	Node *r;
 	Node *n;
@@ -1518,16 +1529,32 @@ walkprint(Node *nn, NodeList **init)
 	Node *on;
 	Type *t;
 	int notfirst, et, op;
-	NodeList *calls;
+	NodeList *calls, *intypes, *args;
+	Fmt fmt;
 
+	on = nil;
 	op = nn->op;
 	all = nn->list;
 	calls = nil;
 	notfirst = 0;
+	intypes = nil;
+	args = nil;
+
+	memset(&fmt, 0, sizeof fmt);
+	if(defer) {
+		// defer print turns into defer printf with format string
+		fmtstrinit(&fmt);
+		intypes = list(intypes, nod(ODCLFIELD, N, typenod(types[TSTRING])));
+		args = list1(nod(OXXX, N, N));
+	}
 
 	for(l=all; l; l=l->next) {
-		if(notfirst)
-			calls = list(calls, mkcall("printsp", T, init));
+		if(notfirst) {
+			if(defer)
+				fmtprint(&fmt, " ");
+			else
+				calls = list(calls, mkcall("printsp", T, init));
+		}
 		notfirst = op == OPRINTN || op == OPANICN;
 
 		n = l->n;
@@ -1548,62 +1575,121 @@ walkprint(Node *nn, NodeList **init)
 		if(n->type == T || n->type->etype == TFORW)
 			continue;
 
+		t = n->type;
 		et = n->type->etype;
 		if(isinter(n->type)) {
-			if(isnilinter(n->type))
-				on = syslook("printeface", 1);
-			else
-				on = syslook("printiface", 1);
-			argtype(on, n->type);		// any-1
+			if(defer) {
+				if(isnilinter(n->type))
+					fmtprint(&fmt, "%%e");
+				else
+					fmtprint(&fmt, "%%i");
+			} else {
+				if(isnilinter(n->type))
+					on = syslook("printeface", 1);
+				else
+					on = syslook("printiface", 1);
+				argtype(on, n->type);		// any-1
+			}
 		} else if(isptr[et] || et == TCHAN || et == TMAP || et == TFUNC) {
-			on = syslook("printpointer", 1);
-			argtype(on, n->type);	// any-1
+			if(defer) {
+				fmtprint(&fmt, "%%p");
+			} else {
+				on = syslook("printpointer", 1);
+				argtype(on, n->type);	// any-1
+			}
 		} else if(isslice(n->type)) {
-			on = syslook("printslice", 1);
-			argtype(on, n->type);	// any-1
+			if(defer) {
+				fmtprint(&fmt, "%%a");
+			} else {
+				on = syslook("printslice", 1);
+				argtype(on, n->type);	// any-1
+			}
 		} else if(isint[et]) {
-			if(et == TUINT64)
-				on = syslook("printuint", 0);
-			else
-				on = syslook("printint", 0);
+			if(defer) {
+				if(et == TUINT64)
+					fmtprint(&fmt, "%%U");
+				else {
+					fmtprint(&fmt, "%%D");
+					t = types[TINT64];
+				}
+			} else {
+				if(et == TUINT64)
+					on = syslook("printuint", 0);
+				else
+					on = syslook("printint", 0);
+			}
 		} else if(isfloat[et]) {
-			on = syslook("printfloat", 0);
+			if(defer) {
+				fmtprint(&fmt, "%%f");
+				t = types[TFLOAT64];
+			} else
+				on = syslook("printfloat", 0);
 		} else if(et == TBOOL) {
-			on = syslook("printbool", 0);
+			if(defer)
+				fmtprint(&fmt, "%%t");
+			else
+				on = syslook("printbool", 0);
 		} else if(et == TSTRING) {
-			on = syslook("printstring", 0);
+			if(defer)
+				fmtprint(&fmt, "%%S");
+			else
+				on = syslook("printstring", 0);
 		} else {
 			badtype(OPRINT, n->type, T);
 			continue;
 		}
 
-		t = *getinarg(on->type);
-		if(t != nil)
-			t = t->type;
-		if(t != nil)
-			t = t->type;
+		if(!defer) {
+			t = *getinarg(on->type);
+			if(t != nil)
+				t = t->type;
+			if(t != nil)
+				t = t->type;
+		}
 
 		if(!eqtype(t, n->type)) {
 			n = nod(OCONV, n, N);
 			n->type = t;
 		}
-		r = nod(OCALL, on, N);
-		r->list = list1(n);
-		calls = list(calls, r);
+		
+		if(defer) {
+			intypes = list(intypes, nod(ODCLFIELD, N, typenod(t)));
+			args = list(args, n);
+		} else {
+			r = nod(OCALL, on, N);
+			r->list = list1(n);
+			calls = list(calls, r);
+		}
 	}
 
-	if(op == OPRINTN)
-		calls = list(calls, mkcall("printnl", T, nil));
-	typechecklist(calls, Etop);
-	walkexprlist(calls, init);
-
-	if(op == OPANIC || op == OPANICN)
-		r = mkcall("panicl", T, nil);
-	else
-		r = nod(OEMPTY, N, N);
-	typecheck(&r, Etop);
-	walkexpr(&r, init);
-	r->ninit = calls;
+	if(defer) {
+		if(op == OPRINTN)
+			fmtprint(&fmt, "\n");
+		if(op == OPANIC || op == OPANICN)
+			fmtprint(&fmt, "%%!");
+		on = syslook("printf", 1);
+		on->type = functype(nil, intypes, nil);
+		args->n = nod(OLITERAL, N, N);
+		args->n->val.ctype = CTSTR;
+		args->n->val.u.sval = strlit(fmtstrflush(&fmt));
+		r = nod(OCALL, on, N);
+		r->list = args;
+		typecheck(&r, Etop);
+		walkexpr(&r, init);
+	} else {
+		if(op == OPRINTN)
+			calls = list(calls, mkcall("printnl", T, nil));
+		typechecklist(calls, Etop);
+		walkexprlist(calls, init);
+	
+		if(op == OPANIC || op == OPANICN)
+			r = mkcall("panicl", T, nil);
+		else
+			r = nod(OEMPTY, N, N);
+		typecheck(&r, Etop);
+		walkexpr(&r, init);
+		r->ninit = calls;
+	}
 	return r;
 }
 

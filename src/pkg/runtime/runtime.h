@@ -487,6 +487,7 @@ void	runtime_printpointer(void*);
 void	runtime_printuint(uint64);
 void	runtime_printhex(uint64);
 void	runtime_printslice(Slice);
+void	·panicl(int32);
 
 /*
  * wrapped for go users
