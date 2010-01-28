@@ -9,32 +9,34 @@ import (
 	"io"
 )
 
-// Handler is a interface that use a WebSocket.
-//
-// A trivial example server is:
-//
-//  package main
-//
-//  import (
-//     "http"
-//     "io"
-//     "websocket"
-//  )
-//
-//  // echo back the websocket.
-//  func EchoServer(ws *websocket.Conn) {
-//       io.Copy(ws, ws);
-//  }
-//
-//  func main() {
-//    http.Handle("/echo", websocket.Handler(EchoServer));
-//    err := http.ListenAndServe(":12345", nil);
-//    if err != nil {
-//        panic("ListenAndServe: ", err.String())
-//    }
-//  }
+/*
+	Handler is an interface to a WebSocket.
+	A trivial example server is:
+
+	package main
+
+	import (
+		"http"
+		"io"
+		"websocket"
+	)
+
+	// Echo the data received on the Web Socket.
+	func EchoServer(ws *websocket.Conn) {
+		io.Copy(ws, ws);
+	}
+
+	func main() {
+		http.Handle("/echo", websocket.Handler(EchoServer));
+		err := http.ListenAndServe(":12345", nil);
+		if err != nil {
+			panic("ListenAndServe: ", err.String())
+		}
+	}
+*/
 type Handler func(*Conn)
 
+// ServeHTTP implements the http.Handler interface for a Web Socket.
 func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 	if req.Method != "GET" || req.Proto != "HTTP/1.1" ||
 		req.Header["Upgrade"] != "WebSocket" ||
