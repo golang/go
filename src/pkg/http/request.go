@@ -574,7 +574,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	// A message body exists when either Content-Length or Transfer-Encoding
 	// headers are present. Transfer-Encoding trumps Content-Length.
 	if v, present := req.Header["Transfer-Encoding"]; present && v == "chunked" {
-		req.Body = &body{Reader: newChunkedReader(b), th: req, r: b, closing: req.Close}
+		req.Body = &body{Reader: newChunkedReader(b), hdr: req, r: b, closing: req.Close}
 	} else if v, present := req.Header["Content-Length"]; present {
 		length, err := strconv.Btoi64(v, 10)
 		if err != nil {

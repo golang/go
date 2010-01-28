@@ -112,6 +112,7 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
 
 	fixPragmaCacheControl(resp.Header)
 
+	// Transfer encoding, content length
 	resp.TransferEncoding, err = fixTransferEncoding(resp.Header)
 	if err != nil {
 		return nil, err
@@ -123,8 +124,10 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
 		return nil, err
 	}
 
+	// Closing
 	resp.Close = shouldClose(resp.ProtoMajor, resp.ProtoMinor, resp.Header)
 
+	// Trailer
 	resp.Trailer, err = fixTrailer(resp.Header, resp.TransferEncoding)
 	if err != nil {
 		return nil, err
@@ -134,7 +137,7 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
 	// or close connection when finished, since multipart is not supported yet
 	switch {
 	case chunked(resp.TransferEncoding):
-		resp.Body = &body{Reader: newChunkedReader(r), th: resp, r: r, closing: resp.Close}
+		resp.Body = &body{Reader: newChunkedReader(r), hdr: resp, r: r, closing: resp.Close}
 	case resp.ContentLength >= 0:
 		resp.Body = &body{Reader: io.LimitReader(r, resp.ContentLength), closing: resp.Close}
 	default:
@@ -149,13 +152,13 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
 // and then reads the trailer if necessary.
 type body struct {
 	io.Reader
-	th      interface{}   // non-nil (Response or Request) value means read trailer
+	hdr     interface{}   // non-nil (Response or Request) value means read trailer
 	r       *bufio.Reader // underlying wire-format reader for the trailer
 	closing bool          // is the connection to be closed after reading body?
 }
 
 func (b *body) Close() os.Error {
-	if b.th == nil && b.closing {
+	if b.hdr == nil && b.closing {
 		// no trailer and closing the connection next.
 		// no point in reading to EOF.
 		return nil
@@ -172,7 +175,7 @@ func (b *body) Close() os.Error {
 		}
 		return err
 	}
-	if b.th == nil { // not reading trailer
+	if b.hdr == nil { // not reading trailer
 		return nil
 	}
 
@@ -378,7 +381,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //
 func (resp *Response) Write(w io.Writer) os.Error {
 
-	// RequestMethod should be lower-case
+	// RequestMethod should be upper-case
 	resp.RequestMethod = strings.ToUpper(resp.RequestMethod)
 
 	// Status line
@@ -404,13 +407,7 @@ func (resp *Response) Write(w io.Writer) os.Error {
 		}
 		if chunked(resp.TransferEncoding) {
 			resp.ContentLength = -1
-		} else if resp.Body != nil {
-			// For safety, consider sending a 0-length body an
-			// error
-			if resp.ContentLength <= 0 {
-				return &ProtocolError{"zero body length"}
-			}
-		} else { // no chunking, no body
+		} else if resp.Body == nil { // no chunking, no body
 			resp.ContentLength = 0
 		}
 	}
@@ -421,8 +418,10 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	if chunked(resp.TransferEncoding) {
 		io.WriteString(w, "Transfer-Encoding: chunked\r\n")
 	} else {
-		io.WriteString(w, "Content-Length: ")
-		io.WriteString(w, strconv.Itoa64(resp.ContentLength)+"\r\n")
+		if resp.ContentLength > 0 || resp.RequestMethod == "HEAD" {
+			io.WriteString(w, "Content-Length: ")
+			io.WriteString(w, strconv.Itoa64(resp.ContentLength)+"\r\n")
+		}
 	}
 	if resp.Header != nil {
 		resp.Header["Content-Length"] = "", false
@@ -476,6 +475,9 @@ func (resp *Response) Write(w io.Writer) os.Error {
 			_, err = io.Copy(w, io.LimitReader(resp.Body, resp.ContentLength))
 		}
 		if err != nil {
+			return err
+		}
+		if err = resp.Body.Close(); err != nil {
 			return err
 		}
 	}
