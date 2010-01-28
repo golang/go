@@ -164,7 +164,7 @@ func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*as
 		return nil, err
 	}
 
-	scope := ast.NewScope(nil)
+	var scope *ast.Scope = nil // for now tracking of declarations is disabled
 	pkgs := make(map[string]*ast.Package)
 	for i := 0; i < len(list); i++ {
 		entry := &list[i]

@@ -759,6 +759,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 
 	case *ast.Ellipsis:
 		p.print(token.ELLIPSIS)
+		if x.Elt != nil {
+			p.expr(x.Elt, multiLine)
+		}
 
 	case *ast.ArrayType:
 		p.print(token.LBRACK)
