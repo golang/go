@@ -7,7 +7,7 @@
 package main
 
 func main() {
-	if x; y	// ERROR "unexpected ; or newline before {"
+	if x; y	// ERROR "unexpected semicolon or newline before {"
 	{
 		z
 

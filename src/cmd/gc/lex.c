@@ -1523,6 +1523,10 @@ struct
 	"LRSH",	">>",
 	"LOROR",	"||",
 	"LNE",	"!=",
+	
+	// spell out to avoid confusion with punctuation in error messages
+	"';'",	"semicolon or newline",
+	"','",	"comma",
 };
 
 void
@@ -1535,21 +1539,21 @@ yytinit(void)
 	for(i=0; yytname[i] != nil; i++) {
 		s = yytname[i];
 		
+		// apply yytfix if possible
+		for(j=0; j<nelem(yytfix); j++) {
+			if(strcmp(s, yytfix[j].have) == 0) {
+				yytname[i] = yytfix[j].want;
+				goto loop;
+			}
+		}
+
 		// turn 'x' into x.
 		if(s[0] == '\'') {
 			t = strdup(s+1);
 			t[strlen(t)-1] = '\0';
 			yytname[i] = t;
-			continue;
 		}
-		
-		// apply yytfix to the rest
-		for(j=0; j<nelem(yytfix); j++) {
-			if(strcmp(s, yytfix[j].have) == 0) {
-				yytname[i] = yytfix[j].want;
-				break;
-			}
-		}
+	loop:;
 	}		
 }
 

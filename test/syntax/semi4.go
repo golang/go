@@ -8,7 +8,7 @@ package main
 
 func main() {
 	for x
-	{	// ERROR "unexpected ; or newline before {"
+	{	// ERROR "unexpected semicolon or newline before {"
 		z
 
 

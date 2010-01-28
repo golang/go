@@ -49,7 +49,7 @@ $(LIB): $(OFILES)
 $(OFILES): $(HFILES)
 
 y.tab.h: $(YFILES)
-	bison -v -y $(YFLAGS) $(YFILES)
+	LANG=C bison -v -y $(YFLAGS) $(YFILES)
 
 y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
