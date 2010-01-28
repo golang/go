@@ -5,9 +5,52 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-01-27">2010-01-27</h3>
+
+<pre>
+There are two small language changes: the meaning of chan <- chan int
+is now defined, and functions returning functions do not need to 
+parenthesize the result type.
+
+There is one significant implementation change: the compilers can
+handle multiple packages using the same name in a single binary.
+In the gc compilers, this comes at the cost of ensuring that you
+always import a particular package using a consistent import path.
+In the gccgo compiler, the cost is that you must use the -fgo-prefix
+flag to pass a unique prefix (like the eventual import path).
+
+5a/6a/8a: avoid use of fixed-size buffers (thanks Dean Prichard)
+5g, 6g, 8g: many minor bug fixes
+bufio: give Writer.WriteString same signature as bytes.Buffer.WriteString.
+container/list: PushFrontList, PushBackList (thanks Jan Hosang)
+godoc: trim spaces from search query (thanks Christopher Wedgwood)
+hash: document that Sum does not change state, fix crypto hashes
+http: bug fixes, revision of Request/Response (thanks Petar Maymounkov)
+math: more handling of IEEE 754 special cases (thanks Charles Dorian)
+misc/dashboard: new build dashboard
+net: allow UDP broadcast,
+	use /etc/hosts to resolve names (thanks Yves Junqueira, Michael Hoisie)
+netchan: beginnings of new package for connecting channels across a network
+os: allow FQDN in Hostname test (thanks Icarus Sparry)
+reflect: garbage collection bug in Call
+runtime: demo of Go on raw (emulated) hw in runtime/pchw,
+	performance fix on OS X
+spec: clarify meaning of chan <- chan int,
+	func() func() int is allowed now,
+	define ... T (not yet implemented)
+template: can use interface values
+time: fix for +0000 time zone,
+	more robust tick.Stop.
+xgb: support for authenticated connections (thanks Firmansyah Adiputra)
+xml: add Escape (thanks Stephen Weinberg)
+</pre>
+
 <h3 id="2010-01-13">2010-01-13</h3>
 
 <pre>
+This release is mainly bug fixes with a little new code.
+There are no language changes.
+
 build: $GOBIN should no longer be required in $PATH (thanks Devon H. O'Dell),
 	new package target "make bench" to run benchmarks
 8g: faster float -> uint64 conversion (thanks Evan Shaw)
