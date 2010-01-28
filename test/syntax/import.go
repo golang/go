@@ -7,7 +7,7 @@
 package main
 
 import (
-	"io",	// ERROR "unexpected ,"
+	"io",	// ERROR "unexpected comma"
 	"os"
 )
 

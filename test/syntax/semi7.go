@@ -8,7 +8,7 @@ package main
 
 func main() {
 	if x { }
-	else { }	// ERROR "unexpected ; or newline before else"
+	else { }	// ERROR "unexpected semicolon or newline before else"
 }
 
 
