@@ -81,7 +81,10 @@ func (p *parser) init(filename string, src []byte, scope *ast.Scope, mode uint) 
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 	if scope != nil {
-		p.checkDecl = true
+		// Disabled for now.  Causes error with "godoc http":
+		//    parser.parseDir: src/pkg/http/server.go:159:16: 'Write' declared already at src/pkg/http/request.go:140:21 (and 4 more errors)
+
+		// p.checkDecl = true
 	} else {
 		scope = ast.NewScope(nil) // provide a dummy scope
 	}
