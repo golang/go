@@ -960,8 +960,16 @@ def mail(ui, repo, *pats, **opts):
 	if err != "":
 		return err
 	cl.Upload(ui, repo, gofmt_just_warn=True)
-	if not cl.reviewer and not cl.cc:
-		return "no reviewers listed in CL"
+	if not cl.reviewer:
+		# If no reviewer is listed, assign the review to defaultcc.
+		# This makes sure that it appears in the 
+		# codereview.appspot.com/user/defaultcc
+		# page, so that it doesn't get dropped on the floor.
+		if not defaultcc:
+			return "no reviewers listed in CL"
+		cl.cc = Sub(cl.cc, defaultcc)
+		cl.reviewer = defaultcc
+		cl.Flush(ui, repo)		
 	cl.Mail(ui, repo)
 
 def nocommit(ui, repo, *pats, **opts):
