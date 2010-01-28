@@ -5,6 +5,7 @@
 package xml
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"reflect"
@@ -210,5 +211,20 @@ func TestSyntax(t *testing.T) {
 		if _, ok := err.(SyntaxError); !ok {
 			t.Fatalf(`xmlInput "%s": expected SyntaxError not received`, xmlInput[i])
 		}
+	}
+}
+
+type item struct {
+	Field_a string
+}
+
+func TestIssue569(t *testing.T) {
+	data := `<item><field_a>abcd</field_a></item>`
+	var i item
+	buf := bytes.NewBufferString(data)
+	err := Unmarshal(buf, &i)
+
+	if err != nil || i.Field_a != "abcd" {
+		t.Fatalf("Expecting abcd")
 	}
 }

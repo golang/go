@@ -149,14 +149,20 @@ func (p *Parser) Unmarshal(val interface{}, start *StartElement) os.Error {
 // to create a valid Go struct name.  It also converts the
 // name to lower case letters.
 func fieldName(original string) string {
+
+	var i int
+	//remove leading underscores
+	for i = 0; i < len(original) && original[i] == '_'; i++ {
+	}
+
 	return strings.Map(
 		func(x int) int {
-			if unicode.IsDigit(x) || unicode.IsLetter(x) {
+			if x == '_' || unicode.IsDigit(x) || unicode.IsLetter(x) {
 				return unicode.ToLower(x)
 			}
 			return -1
 		},
-		original)
+		original[i:])
 }
 
 // Unmarshal a single XML element into val.
