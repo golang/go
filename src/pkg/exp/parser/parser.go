@@ -379,7 +379,7 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
 	lbrack := p.expect(token.LBRACK)
 	var len ast.Expr
 	if ellipsisOk && p.tok == token.ELLIPSIS {
-		len = &ast.Ellipsis{p.pos}
+		len = &ast.Ellipsis{p.pos, nil}
 		p.next()
 	} else if p.tok != token.RBRACK {
 		len = p.parseExpr()
@@ -499,11 +499,11 @@ func (p *parser) tryParameterType(ellipsisOk bool) ast.Expr {
 	if ellipsisOk && p.tok == token.ELLIPSIS {
 		pos := p.pos
 		p.next()
+		typ := p.tryType()
 		if p.tok != token.RPAREN {
-			// "..." always must be at the very end of a parameter list
-			p.Error(pos, "expected type, found '...'")
+			p.Error(pos, "can use '...' for last parameter only")
 		}
-		return &ast.Ellipsis{pos}
+		return &ast.Ellipsis{pos, typ}
 	}
 	return p.tryType()
 }

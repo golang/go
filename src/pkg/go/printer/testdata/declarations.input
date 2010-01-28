@@ -551,3 +551,27 @@ func _()  // opening "{" must move up
 	var _  // comment
 	= x;
 }
+
+
+// ellipsis parameters
+func _(...)
+func _(...int)
+func _(...*int)
+func _(...[]int)
+func _(...struct{})
+func _(bool, ...interface{})
+func _(bool, ...func())
+func _(bool, ...func(...))
+func _(bool, ...map[string]int)
+func _(bool, ...chan int)
+
+func _(b bool, x ...)
+func _(b bool, x ...int)
+func _(b bool, x ...*int)
+func _(b bool, x ...[]int)
+func _(b bool, x ...struct{})
+func _(x ...interface{})
+func _(x ...func())
+func _(x ...func(...))
+func _(x ...map[string]int)
+func _(x ...chan int)

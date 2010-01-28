@@ -125,7 +125,8 @@ type (
 	// parameter list or the "..." length in an array type.
 	//
 	Ellipsis struct {
-		token.Position // position of "..."
+		token.Position      // position of "..."
+		Elt            Expr // ellipsis element type (parameter lists only)
 	}
 
 	// A BasicLit node represents a literal of basic type.

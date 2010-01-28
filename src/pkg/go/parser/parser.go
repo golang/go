@@ -81,10 +81,7 @@ func (p *parser) init(filename string, src []byte, scope *ast.Scope, mode uint) 
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 	if scope != nil {
-		// Disabled for now.  Causes error with "godoc http":
-		//    parser.parseDir: src/pkg/http/server.go:159:16: 'Write' declared already at src/pkg/http/request.go:140:21 (and 4 more errors)
-
-		// p.checkDecl = true
+		p.checkDecl = true
 	} else {
 		scope = ast.NewScope(nil) // provide a dummy scope
 	}
@@ -480,7 +477,7 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
 	lbrack := p.expect(token.LBRACK)
 	var len ast.Expr
 	if ellipsisOk && p.tok == token.ELLIPSIS {
-		len = &ast.Ellipsis{p.pos}
+		len = &ast.Ellipsis{p.pos, nil}
 		p.next()
 	} else if p.tok != token.RBRACK {
 		len = p.parseExpr()
@@ -600,11 +597,11 @@ func (p *parser) tryParameterType(ellipsisOk bool) ast.Expr {
 	if ellipsisOk && p.tok == token.ELLIPSIS {
 		pos := p.pos
 		p.next()
+		typ := p.tryType()
 		if p.tok != token.RPAREN {
-			// "..." always must be at the very end of a parameter list
-			p.Error(pos, "expected type, found '...'")
+			p.Error(pos, "can use '...' for last parameter only")
 		}
-		return &ast.Ellipsis{pos}
+		return &ast.Ellipsis{pos, typ}
 	}
 	return p.tryType()
 }
@@ -1824,6 +1821,9 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 		p.next()
 	} else if p.tok == token.IDENT {
 		ident = p.parseIdent(ast.Pkg)
+		// TODO(gri) Make sure the ident is not already declared in the
+		//           package scope. Also, cannot add the same name to
+		//           the package scope later.
 		p.declIdent(p.fileScope, ident)
 	}
 
