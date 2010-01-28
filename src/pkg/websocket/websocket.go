@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The websocket package implements Web Socket protocol server.
+// The websocket package implements a client and server for the Web Socket protocol.
+// The protocol is defined at http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
 package websocket
-
-// References:
-//   The Web Socket protocol: http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
 
 // TODO(ukai):
 //   better logging.
@@ -18,19 +16,23 @@ import (
 	"os"
 )
 
+// WebSocketAddr is an implementation of net.Addr for Web Sockets.
 type WebSocketAddr string
 
+// Network returns the network type for a Web Socket, "websocket".
 func (addr WebSocketAddr) Network() string { return "websocket" }
 
+// String returns the network address for a Web Socket.
 func (addr WebSocketAddr) String() string { return string(addr) }
 
-// Conn is an channels to communicate over Web Socket.
+// Conn is a channel to communicate to a Web Socket.
+// It implements the net.Conn interface.
 type Conn struct {
-	// An origin URI of the Web Socket.
+	// The origin URI for the Web Socket.
 	Origin string
-	// A location URI of the Web Socket.
+	// The location URI for the Web Socket.
 	Location string
-	// A subprotocol of the Web Socket.
+	// The subprotocol for the Web Socket.
 	Protocol string
 
 	buf *bufio.ReadWriter
@@ -48,6 +50,7 @@ func newConn(origin, location, protocol string, buf *bufio.ReadWriter, rwc io.Re
 	return ws
 }
 
+// Read implements the io.Reader interface for a Conn.
 func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
 	for {
 		frameByte, err := ws.buf.ReadByte()
@@ -100,6 +103,7 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
 	panic("unreachable")
 }
 
+// Write implements the io.Writer interface for a Conn.
 func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
 	ws.buf.WriteByte(0)
 	ws.buf.Write(msg)
@@ -108,12 +112,16 @@ func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
 	return len(msg), err
 }
 
+// Close implements the io.Closer interface for a Conn.
 func (ws *Conn) Close() os.Error { return ws.rwc.Close() }
 
+// LocalAddr returns the WebSocket Origin for the connection.
 func (ws *Conn) LocalAddr() net.Addr { return WebSocketAddr(ws.Origin) }
 
+// RemoteAddr returns the WebSocket locations for the connection.
 func (ws *Conn) RemoteAddr() net.Addr { return WebSocketAddr(ws.Location) }
 
+// SetTimeout sets the connection's network timeout in nanoseconds.
 func (ws *Conn) SetTimeout(nsec int64) os.Error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
 		return conn.SetTimeout(nsec)
@@ -121,6 +129,7 @@ func (ws *Conn) SetTimeout(nsec int64) os.Error {
 	return os.EINVAL
 }
 
+// SetReadTimeout sets the connection's network read timeout in nanoseconds.
 func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
 		return conn.SetReadTimeout(nsec)
@@ -128,6 +137,7 @@ func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
 	return os.EINVAL
 }
 
+// SeWritetTimeout sets the connection's network write timeout in nanoseconds.
 func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
 		return conn.SetWriteTimeout(nsec)
