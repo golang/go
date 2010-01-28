@@ -9,6 +9,7 @@ GOFILES=\
 	chunked.go\
 	client.go\
 	fs.go\
+	lex.go\
 	request.go\
 	response.go\
 	server.go\
