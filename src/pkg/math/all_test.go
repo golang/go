@@ -546,7 +546,7 @@ func TestCeil(t *testing.T) {
 
 func TestExp(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Exp(vf[i]); !veryclose(exp[i], f) {
+		if f := Exp(vf[i]); !close(exp[i], f) {
 			t.Errorf("Exp(%g) = %g, want %g\n", vf[i], f, exp[i])
 		}
 	}
@@ -654,7 +654,7 @@ func TestSin(t *testing.T) {
 
 func TestSinh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Sinh(vf[i]); !veryclose(sinh[i], f) {
+		if f := Sinh(vf[i]); !close(sinh[i], f) {
 			t.Errorf("Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i])
 		}
 	}
