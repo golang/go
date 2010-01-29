@@ -39,7 +39,7 @@ func (p *pipe) Read(data []byte) (n int, err os.Error) {
 		if !p.wclosed {
 			p.wpend = <-p.cr
 		}
-		if p.wpend == nil {
+		if p.wclosed {
 			return 0, p.werr
 		}
 		p.wtot = 0
