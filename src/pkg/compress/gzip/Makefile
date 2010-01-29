@@ -7,5 +7,6 @@ include ../../../Make.$(GOARCH)
 TARG=compress/gzip
 GOFILES=\
 	gunzip.go\
+	gzip.go\
 
 include ../../../Make.pkg

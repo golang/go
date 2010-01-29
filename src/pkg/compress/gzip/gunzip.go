@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The gzip package implements reading (and eventually writing) of
+// The gzip package implements reading and writing of
 // gzip format compressed files, as specified in RFC 1952.
 package gzip
 
@@ -14,6 +14,9 @@ import (
 	"io"
 	"os"
 )
+
+// BUG(nigeltao): Comments and Names don't properly map UTF-8 character codes outside of
+// the 0x00-0x7f range to ISO 8859-1 (Latin-1).
 
 const (
 	gzipID1     = 0x1f
@@ -36,10 +39,18 @@ func makeReader(r io.Reader) flate.Reader {
 var HeaderError os.Error = os.ErrorString("invalid gzip header")
 var ChecksumError os.Error = os.ErrorString("gzip checksum error")
 
+// The gzip file stores a header giving metadata about the compressed file.
+// That header is exposed as the fields of the Deflater and Inflater structs.
+type Header struct {
+	Comment string // comment
+	Extra   []byte // "extra data"
+	Mtime   uint32 // modification time (seconds since January 1, 1970)
+	Name    string // file name
+	OS      byte   // operating system type
+}
+
 // An Inflater is an io.Reader that can be read to retrieve
 // uncompressed data from a gzip-format compressed file.
-// The gzip file stores a header giving metadata about the compressed file.
-// That header is exposed as the fields of the Inflater struct.
 //
 // In general, a gzip file can be a concatenation of gzip files,
 // each with its own header.  Reads from the Inflater
@@ -53,12 +64,7 @@ var ChecksumError os.Error = os.ErrorString("gzip checksum error")
 // returned by Read as tentative until they receive the successful
 // (zero length, nil error) Read marking the end of the data.
 type Inflater struct {
-	Comment string // comment
-	Extra   []byte // "extra data"
-	Mtime   uint32 // modification time (seconds since January 1, 1970)
-	Name    string // file name
-	OS      byte   // operating system type
-
+	Header
 	r        flate.Reader
 	inflater io.ReadCloser
 	digest   hash.Hash32
@@ -66,7 +72,6 @@ type Inflater struct {
 	flg      byte
 	buf      [512]byte
 	err      os.Error
-	eof      bool
 }
 
 // NewInflater creates a new Inflater reading the given reader.
@@ -99,6 +104,8 @@ func (z *Inflater) readString() (string, os.Error) {
 			return "", err
 		}
 		if z.buf[i] == 0 {
+			// GZIP (RFC 1952) specifies that strings are null-terminated ISO 8859-1 (Latin-1).
+			// TODO(nigeltao): Convert from ISO 8859-1 (Latin-1) to UTF-8.
 			return string(z.buf[0:i]), nil
 		}
 	}
@@ -106,7 +113,7 @@ func (z *Inflater) readString() (string, os.Error) {
 }
 
 func (z *Inflater) read2() (uint32, os.Error) {
-	_, err := z.r.Read(z.buf[0:2])
+	_, err := io.ReadFull(z.r, z.buf[0:2])
 	if err != nil {
 		return 0, err
 	}
@@ -183,7 +190,7 @@ func (z *Inflater) Read(p []byte) (n int, err os.Error) {
 	if z.err != nil {
 		return 0, z.err
 	}
-	if z.eof || len(p) == 0 {
+	if len(p) == 0 {
 		return 0, nil
 	}
 

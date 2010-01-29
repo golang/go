@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-type gzipTest struct {
+type gunzipTest struct {
 	name string
 	desc string
 	raw  string
@@ -19,8 +19,8 @@ type gzipTest struct {
 	err  os.Error
 }
 
-var gzipTests = []gzipTest{
-	gzipTest{ // has 1 empty fixed-huffman block
+var gunzipTests = []gunzipTest{
+	gunzipTest{ // has 1 empty fixed-huffman block
 		"empty.txt",
 		"empty.txt",
 		"",
@@ -32,7 +32,7 @@ var gzipTests = []gzipTest{
 		},
 		nil,
 	},
-	gzipTest{ // has 1 non-empty fixed huffman block
+	gunzipTest{ // has 1 non-empty fixed huffman block
 		"hello.txt",
 		"hello.txt",
 		"hello world\n",
@@ -46,7 +46,7 @@ var gzipTests = []gzipTest{
 		},
 		nil,
 	},
-	gzipTest{ // concatenation
+	gunzipTest{ // concatenation
 		"hello.txt",
 		"hello.txt x2",
 		"hello world\n" +
@@ -67,7 +67,7 @@ var gzipTests = []gzipTest{
 		},
 		nil,
 	},
-	gzipTest{ // has a fixed huffman block with some length-distance pairs
+	gunzipTest{ // has a fixed huffman block with some length-distance pairs
 		"shesells.txt",
 		"shesells.txt",
 		"she sells seashells by the seashore\n",
@@ -83,7 +83,7 @@ var gzipTests = []gzipTest{
 		},
 		nil,
 	},
-	gzipTest{ // has dynamic huffman blocks
+	gunzipTest{ // has dynamic huffman blocks
 		"gettysburg",
 		"gettysburg",
 		"  Four score and seven years ago our fathers brought forth on\n" +
@@ -221,7 +221,7 @@ var gzipTests = []gzipTest{
 		},
 		nil,
 	},
-	gzipTest{ // has 1 non-empty fixed huffman block then garbage
+	gunzipTest{ // has 1 non-empty fixed huffman block then garbage
 		"hello.txt",
 		"hello.txt + garbage",
 		"hello world\n",
@@ -235,7 +235,7 @@ var gzipTests = []gzipTest{
 		},
 		HeaderError,
 	},
-	gzipTest{ // has 1 non-empty fixed huffman block not enough header
+	gunzipTest{ // has 1 non-empty fixed huffman block not enough header
 		"hello.txt",
 		"hello.txt + garbage",
 		"hello world\n",
@@ -249,7 +249,7 @@ var gzipTests = []gzipTest{
 		},
 		io.ErrUnexpectedEOF,
 	},
-	gzipTest{ // has 1 non-empty fixed huffman block but corrupt checksum
+	gunzipTest{ // has 1 non-empty fixed huffman block but corrupt checksum
 		"hello.txt",
 		"hello.txt + corrupt checksum",
 		"hello world\n",
@@ -263,7 +263,7 @@ var gzipTests = []gzipTest{
 		},
 		ChecksumError,
 	},
-	gzipTest{ // has 1 non-empty fixed huffman block but corrupt size
+	gunzipTest{ // has 1 non-empty fixed huffman block but corrupt size
 		"hello.txt",
 		"hello.txt + corrupt size",
 		"hello world\n",
@@ -281,7 +281,7 @@ var gzipTests = []gzipTest{
 
 func TestInflater(t *testing.T) {
 	b := new(bytes.Buffer)
-	for _, tt := range gzipTests {
+	for _, tt := range gunzipTests {
 		in := bytes.NewBuffer(tt.gzip)
 		gzip, err := NewInflater(in)
 		if err != nil {
