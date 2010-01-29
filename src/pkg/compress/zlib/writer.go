@@ -34,7 +34,7 @@ func NewDeflater(w io.Writer) (io.WriteCloser, os.Error) {
 	return NewDeflaterLevel(w, DefaultCompression)
 }
 
-// NewDeflater creates a new io.WriteCloser that satisfies writes by compressing data written to w.
+// NewDeflaterLevel creates a new io.WriteCloser that satisfies writes by compressing data written to w.
 // It is the caller's responsibility to call Close on the WriteCloser when done.
 // level is the compression level, which can be DefaultCompression, NoCompression,
 // or any integer value between BestSpeed and BestCompression (inclusive).
