@@ -236,3 +236,25 @@ func TestPipeWriteClose(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteEmpty(t *testing.T) {
+	r, w := Pipe()
+	go func() {
+		w.Write([]byte{})
+		w.Close()
+	}()
+	var b [2]byte
+	ReadFull(r, b[0:2])
+	r.Close()
+}
+
+func TestWriteNil(t *testing.T) {
+	r, w := Pipe()
+	go func() {
+		w.Write(nil)
+		w.Close()
+	}()
+	var b [2]byte
+	ReadFull(r, b[0:2])
+	r.Close()
+}
