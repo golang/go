@@ -282,6 +282,11 @@ func (v *Int64Value) Set(x int64) {
 func (v *Int64Value) SetValue(x Value) { v.Set(x.(*Int64Value).Get()) }
 
 // StringValue represents a string value.
+// runtime representation of slice
+type StringHeader struct {
+	Data uintptr
+	Len  int
+}
 type StringValue struct {
 	value
 }
