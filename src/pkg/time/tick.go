@@ -47,6 +47,7 @@ func (a *alarmer) set(ns int64) {
 		}
 		a.wakeMeAt = make(chan int64, 10)
 		go wakeLoop(a.wakeMeAt, a.wakeUp)
+		a.wakeTime = ns
 		a.wakeMeAt <- ns
 	}
 }
@@ -117,7 +118,7 @@ func tickerLoop() {
 					}
 					continue
 				}
-				if tickers.nextTick <= now {
+				if t.nextTick <= now {
 					if len(t.c) == 0 {
 						// Only send if there's room.  We must not block.
 						// The channel is allocated with a one-element
@@ -130,9 +131,9 @@ func tickerLoop() {
 						// Still behind; advance in one big step.
 						t.nextTick += (now - t.nextTick + t.ns) / t.ns * t.ns
 					}
-					if t.nextTick > now && t.nextTick < wakeTime {
-						wakeTime = t.nextTick
-					}
+				}
+				if t.nextTick < wakeTime {
+					wakeTime = t.nextTick
 				}
 				prev = t
 			}
