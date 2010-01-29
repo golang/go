@@ -57,6 +57,8 @@ main(int argc, char *argv[])
 
 	thechar = '5';
 	thestring = "arm";
+
+	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
 	cinit();
 	outfile = 0;
