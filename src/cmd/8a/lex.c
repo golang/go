@@ -60,6 +60,8 @@ main(int argc, char *argv[])
 
 	thechar = '8';
 	thestring = "386";
+
+	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
 	cinit();
 	outfile = 0;

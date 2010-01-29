@@ -85,6 +85,7 @@ main(int argc, char *argv[])
 	char *defs[50], *p;
 	int nproc, nout, i, c, ndef;
 
+	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
 	tinit();
 	cinit();
@@ -392,7 +393,7 @@ newfile(char *s, int f)
 Sym*
 slookup(char *s)
 {
-
+	ensuresymb(strlen(s));
 	strcpy(symb, s);
 	return lookup();
 }
@@ -408,7 +409,9 @@ lookup(void)
 
 	if((uchar)symb[0] == 0xc2 && (uchar)symb[1] == 0xb7) {
 		// turn leading · into ""·
-		memmove(symb+2, symb, strlen(symb)+1);
+		h = strlen(symb);
+		ensuresymb(h+2);
+		memmove(symb+2, symb, h+1);
 		symb[0] = '"';
 		symb[1] = '"';
 	}
@@ -1583,4 +1586,18 @@ allocn(void *p, int32 n, int32 d)
 	if(d > 0)
 		memset((char*)p+n, 0, d);
 	return p;
+}
+
+void
+ensuresymb(int32 n)
+{
+	if(symb == nil) {
+		symb = alloc(NSYMB+1);
+		nsymb = NSYMB;
+	}	
+
+	if(n > nsymb) {
+		symb = allocn(symb, nsymb, n+1-nsymb);
+		nsymb = n;
+	}
 }

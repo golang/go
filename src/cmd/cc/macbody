@@ -140,6 +140,7 @@ dodefine(char *cp)
 	char *p;
 	int32 l;
 
+	ensuresymb(strlen(cp));
 	strcpy(symb, cp);
 	p = strchr(symb, '=');
 	if(p) {
@@ -574,6 +575,7 @@ macinc(void)
 	for(i=0; i<ninclude; i++) {
 		if(i == 0 && c0 == '>')
 			continue;
+		ensuresymb(strlen(include[i])+strlen(str)+2);
 		strcpy(symb, include[i]);
 		strcat(symb, "/");
 		if(strcmp(symb, "./") == 0)
