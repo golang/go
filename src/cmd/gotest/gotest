@@ -42,10 +42,10 @@ xarm)
 esac
 
 # Allow overrides
-GC=${_GC:-$GC}
-GL=${GL:-$LD}
-GC="$GC -I _test"
-GL="$GL -L _test"
+GC="$GOBIN/${_GC:-$GC} -I _test"
+GL="$GOBIN/${GL:-$LD} -L _test"
+CC="$GOBIN/$CC"
+LD="$GOBIN/$LD"
 export GC GL O AS CC LD
 
 gofiles=""
@@ -99,7 +99,7 @@ set -e
 "$GOBIN"/gomake testpackage-clean
 "$GOBIN"/gomake testpackage "GOTESTFILES=$gofiles"
 if $havex; then
-	"$GOBIN"/$GC -o $xofile $xgofiles
+	$GC -o $xofile $xgofiles
 fi
 
 # They all compile; now generate the code to call them.
@@ -182,6 +182,6 @@ importpath=$("$GOBIN"/gomake -s importpath)
 	echo '}'
 }>_testmain.go
 
-"$GOBIN"/$GC _testmain.go
-"$GOBIN"/$GL _testmain.$O
+$GC _testmain.go
+$GL _testmain.$O
 $E ./$O.out "$@"
