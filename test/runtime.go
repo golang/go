@@ -16,5 +16,5 @@ package main
 import "runtime"
 
 func main() {
-	runtime.printbool(true);	// ERROR "cannot refer|undefined identifier"
+	runtime.printbool(true);	// ERROR "unexported"
 }
