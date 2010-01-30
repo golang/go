@@ -17,6 +17,6 @@ func main() {
 	var i I
 	
 	i = m
-	i = t	// ERROR "not a method"
+	i = t	// ERROR "not a method|has no methods"
 	_ = i
 }
