@@ -14,6 +14,6 @@ func h(x, y ...)		// ERROR "[.][.][.]"
 
 func i(x int, y ..., z float)	// ERROR "[.][.][.]"
 
-var x ...;		// ERROR "[.][.][.]|syntax"
+var x ...;		// ERROR "[.][.][.]|syntax|type"
 
-type T ...;		// ERROR "[.][.][.]|syntax"
+type T ...;		// ERROR "[.][.][.]|syntax|type"
