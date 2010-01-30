@@ -81,14 +81,14 @@ easily from left to right.
 
 <pre>
 <b>Go                           C++</b>
-var v1 int;               // int v1;
-var v2 string;            // const std::string v2;  (approximately)
-var v3 [10]int;           // int v3[10];
-var v4 []int;             // int* v4;  (approximately)
-var v5 struct { f int };  // struct { int f; } v5;
-var v6 *int;              // int* v6;  (but no pointer arithmetic)
-var v7 map[string]int;    // unordered_map&lt;string, int&gt;* v7;  (approximately)
-var v8 func(a int) int;   // int (*v8)(int a);
+var v1 int                // int v1;
+var v2 string             // const std::string v2;  (approximately)
+var v3 [10]int            // int v3[10];
+var v4 []int              // int* v4;  (approximately)
+var v5 struct { f int }   // struct { int f; } v5;
+var v6 *int               // int* v6;  (but no pointer arithmetic)
+var v7 map[string]int     // unordered_map&lt;string, int&gt;* v7;  (approximately)
+var v8 func(a int) int    // int (*v8)(int a);
 </pre>
 
 <p>
@@ -106,7 +106,7 @@ parentheses.
 
 <pre>
 var (
-    i int;
+    i int
     m float
 )
 </pre>
@@ -117,7 +117,7 @@ or not provide a name for any parameter; you can't omit some names
 and provide others.  You may group several names with the same type:
 
 <pre>
-func f(i, j, k int, s, t string);
+func f(i, j, k int, s, t string)
 </pre>
 
 <p>
@@ -127,7 +127,7 @@ not specified, the type of the variable is the type of the
 initialization expression.
 
 <pre>
-var v = *p;
+var v = *p
 </pre>
 
 <p>
@@ -142,21 +142,21 @@ Within a function, a short declaration syntax is available with
 <code>:=</code> .
 
 <pre>
-v1 := v2;
+v1 := v2
 </pre>
 
 <p>
 This is equivalent to
 
 <pre>
-var v1 = v2;
+var v1 = v2
 </pre>
 
 <p>
 Go permits multiple assignments, which are done in parallel.
 
 <pre>
-i, j = j, i;   // Swap i and j.
+i, j = j, i    // Swap i and j.
 </pre>
 
 <p>
@@ -165,19 +165,49 @@ parentheses.  The returned values can be stored by assignment
 to a list of variables.
 
 <pre>
-func f() (i int, j int);
-v1, v2 = f();
+func f() (i int, j int) { ... }
+v1, v2 = f()
 </pre>
 
 <p>
-Go treats semicolons as separators, not terminators.  Moreover,
-semicolons may be omitted after the closing parenthesis of a declaration
-block or after a closing brace that is not part of an expression
-(e.g., <code>var s struct {}</code> or <code>{ x++ }</code>).
-Semicolons are never required at the
-top level of a file (between global declarations). However, they are
-always <em>permitted</em> at
-the end of a statement, so you can continue using them as in C++.
+Go code uses very few semicolons in practice.  Technically, all Go
+statements are terminated by a semicolon.  However, Go treats the end
+of a non-blank line as a semicolon unless the line is clearly
+incomplete (the exact rules are
+in <a href="go_spec.html#Semicolons">the language specification</a>).
+A consequence of this is that in some cases Go does not permit you to
+use a line break.  For example, you may not write
+<pre>
+func g()
+{                  // INVALID
+}
+</pre>
+A semicolon will be inserted after <code>g()</code>, causing it to be
+a function declaration rather than a function definition.  Similarly,
+you may not write
+<pre>
+if x {
+}
+else {             // INVALID
+}
+</pre>
+A semicolon will be inserted after the <code>}</code> preceding
+the <code>else</code>, causing a syntax error.
+
+<p>
+Since semicolons do end statements, you may continue using them as in
+C++.  However, that is not the recommended style.  Idiomatic Go code
+omits unnecessary semicolons, which in practice is all of them other
+than the initial <for> loop clause and cases where you want several
+short statements on a single line.
+
+<p>
+While we're on the topic, we recommend that rather than worry about
+semicolons and brace placement, you format your code with
+the <code>gofmt</code> program.  That will produce a single standard
+Go style, and let you worry about your code rather than your
+formatting.  While the style may initially seem odd, it is as good as
+any other style, and familiarity will lead to comfort.
 
 <p>
 When using a pointer to a struct, you use <code>.</code> instead
@@ -187,8 +217,8 @@ are used in the same way.
 
 <pre>
 type myStruct struct { i int }
-var v9 myStruct;             // v9 has structure type
-var p9 *myStruct;            // p9 is a pointer to a structure
+var v9 myStruct              // v9 has structure type
+var p9 *myStruct             // p9 is a pointer to a structure
 f(v9.i, p9.i)
 </pre>
 
@@ -199,11 +229,11 @@ statement, or the expressions of a <code>for</code> statement, or the value of a
 around the body of an <code>if</code> or <code>for</code> statement.
 
 <pre>
-if a &lt; b { f() }          // Valid
-if (a &lt; b) { f() }        // Valid (condition is a parenthesized expression)
-if (a &lt; b) f();           // INVALID
-for i = 0; i < 10; i++ {}    // Valid
-for (i = 0; i < 10; i++) {}  // INVALID
+if a &lt; b { f() }             // Valid
+if (a &lt; b) { f() }           // Valid (condition is a parenthesized expression)
+if (a &lt; b) f()               // INVALID
+for i = 0; i &lt; 10; i++ {}    // Valid
+for (i = 0; i &lt; 10; i++) {}  // INVALID
 </pre>
 
 <p>
@@ -272,8 +302,8 @@ The <code>defer</code> statement may be used to call a function after
 the function containing the <code>defer</code> statement returns.
 
 <pre>
-fd := open("filename");
-defer close(fd);        // fd will be closed when this function returns.
+fd := open("filename")
+defer close(fd)         // fd will be closed when this function returns.
 </pre>
 
 <h2 id="Constants">Constants </h2>
@@ -289,7 +319,7 @@ requires a typed value. This permits constants to be used relatively
 freely without requiring general implicit type conversion.
 
 <pre>
-var a uint;
+var a uint
 f(a + 1)  // untyped numeric constant "1" becomes typed as uint
 </pre>
 
@@ -299,7 +329,7 @@ numeric constant or constant expression. A limit is only applied when
 a constant is used where a type is required.
 
 <pre>
-const huge = 1 &lt;&lt; 100;
+const huge = 1 &lt;&lt; 100
 f(huge &gt;&gt; 98)
 </pre>
 
@@ -312,8 +342,8 @@ it reuses the preceding expression.
 
 <pre>
 const (
-    red = iota;  // red == 0
-    blue;        // blue == 1
+    red = iota   // red == 0
+    blue         // blue == 1
     green        // green == 2
 )
 </pre>
@@ -344,7 +374,7 @@ capacity of the new slice is simply the capacity of <code>a</code> minus
 <code>I</code>.  The capacity
 of an array is the length of the array.  You may also assign an array pointer
 to a variable of slice type; given <code>var s []int; var a[10] int</code>,
-the assignment <code>s = &amp;a</code> is equivalent to
+the assignment <code>s = &ampa</code> is equivalent to
 <code>s = a[0:len(a)]</code>.
 
 <p>
@@ -452,8 +482,8 @@ Given this interface:
 
 <pre>
 type myInterface interface {
-	get() int;
-	set(i int);
+	get() int
+	set(i int)
 }
 </pre>
 
@@ -472,8 +502,8 @@ variable of type <code>*myType</code>.
 <pre>
 func getAndSet(x myInterface) {}
 func f1() {
-	var p myType;
-	getAndSet(&amp;p);
+	var p myType
+	getAndSet(&amp;p)
 }
 </pre>
 
@@ -499,7 +529,7 @@ This effectively implements <code>myChildType</code> as a child of
 
 <pre>
 func f2() {
-	var p myChildType;
+	var p myChildType
 	getAndSet(&amp;p)
 }
 </pre>
@@ -531,7 +561,7 @@ not need to be any declared relationship between the two interfaces.
 
 <pre>
 type myPrintInterface interface {
-  print();
+  print()
 }
 func f3(x myInterface) {
 	x.(myPrintInterface).print()  // type assertion to myPrintInterface
@@ -563,10 +593,10 @@ at runtime, but all operations will involve a function call.
 
 <pre>
 type iterator interface {
-	get() Any;
-	set(v Any);
-	increment();
-	equal(arg *iterator) bool;
+	get() Any
+	set(v Any)
+	increment()
+	equal(arg *iterator) bool
 }
 </pre>
 
@@ -587,12 +617,12 @@ about these details.
 <pre>
 func server(i int) {
     for {
-        print(i);
+        print(i)
         sys.sleep(10)
     }
 }
-go server(1);
-go server(2);
+go server(1)
+go server(2)
 </pre>
 
 <p>
@@ -607,12 +637,12 @@ Function literals (which Go implements as closures)
 can be useful with the <code>go</code> statement.
 
 <pre>
-var g int;
+var g int
 go func(i int) {
 	s := 0
 	for j := 0; j &lt; i; j++ { s += j }
-	g = s;
-}(1000); // Passes argument 1000 to the function literal.
+	g = s
+}(1000)  // Passes argument 1000 to the function literal.
 </pre>
 
 <h2 id="Channels">Channels</h2>
@@ -635,10 +665,10 @@ single value.
 <pre>
 type cmd struct { get bool; val int }
 func manager(ch chan cmd) {
-	var val int = 0;
+	var val int = 0
 	for {
 		c := &lt;- ch
-		if c.get { c.val = val; ch &lt;- c }
+		if c.get { c.val = val ch &lt;- c }
 		else { val = c.val }
 	}
 }
@@ -653,9 +683,9 @@ instead.
 A solution is to pass in a channel.
 
 <pre>
-type cmd2 struct { get bool; val int; ch &lt;- chan int; }
+type cmd2 struct { get bool; val int; ch &lt;- chan int }
 func manager2(ch chan cmd2) {
-	var val int = 0;
+	var val int = 0
 	for {
 		c := &lt;- ch
 		if c.get { c.ch &lt;- val }
@@ -669,9 +699,9 @@ To use <code>manager2</code>, given a channel to it:
 
 <pre>
 func f4(ch &lt;- chan cmd2) int {
-	myCh := make(chan int);
-	c := cmd2{ true, 0, myCh };  // Composite literal syntax.
-	ch &lt;- c;
-	return &lt;-myCh;
+	myCh := make(chan int)
+	c := cmd2{ true, 0, myCh }   // Composite literal syntax.
+	ch &lt;- c
+	return &lt;-myCh
 }
 </pre>
