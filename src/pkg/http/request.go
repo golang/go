@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	maxLineLength  = 1024 // assumed < bufio.DefaultBufSize
-	maxValueLength = 1024
+	maxLineLength  = 4096 // assumed <= bufio.defaultBufSize
+	maxValueLength = 4096
 	maxHeaderLines = 1024
 	chunkSize      = 4 << 10 // 4 KB chunks
 )
@@ -128,6 +128,7 @@ const defaultUserAgent = "Go http package"
 
 // Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of req:
+//      Host
 //	URL
 //	Method (defaults to "GET")
 //	UserAgent (defaults to defaultUserAgent)
@@ -138,13 +139,18 @@ const defaultUserAgent = "Go http package"
 // If Body is present, Write forces "Transfer-Encoding: chunked" as a header
 // and then closes Body when finished sending it.
 func (req *Request) Write(w io.Writer) os.Error {
+	host := req.Host
+	if host == "" {
+		host = req.URL.Host
+	}
+
 	uri := urlEscape(req.URL.Path, false)
 	if req.URL.RawQuery != "" {
 		uri += "?" + req.URL.RawQuery
 	}
 
 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
-	fmt.Fprintf(w, "Host: %s\r\n", req.URL.Host)
+	fmt.Fprintf(w, "Host: %s\r\n", host)
 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent))
 
 	if req.Referer != "" {
@@ -507,8 +513,9 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	GET http://www.google.com/index.html HTTP/1.1
 	//	Host: doesntmatter
 	// the same.  In the second case, any Host line is ignored.
+	req.Host = req.URL.Host
 	if v, present := req.Header["Host"]; present {
-		if req.URL.Host == "" {
+		if req.Host == "" {
 			req.Host = v
 		}
 		req.Header["Host"] = "", false
