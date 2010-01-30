@@ -85,11 +85,11 @@ func (z *Deflater) writeBytes(b []byte) os.Error {
 
 // writeString writes a string (in ISO 8859-1 (Latin-1) format) to z.w.
 func (z *Deflater) writeString(s string) os.Error {
-	// GZIP (RFC 1952) specifies that strings are null-terminated ISO 8859-1 (Latin-1).
+	// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
 	// TODO(nigeltao): Convert from UTF-8 to ISO 8859-1 (Latin-1).
 	for _, v := range s {
-		if v > 0x7f {
-			return os.NewError("gzip.Write: Comment/Name character code was outside the 0x00-0x7f range")
+		if v == 0 || v > 0x7f {
+			return os.NewError("gzip.Write: non-ASCII header string")
 		}
 	}
 	_, err := io.WriteString(z.w, s)
