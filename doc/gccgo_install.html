@@ -27,6 +27,15 @@ is a branch of the main <code>gcc</code> code
 repository: <code>svn://gcc.gnu.org/svn/gcc/branches/gccgo</code>.
 </p>
 
+<p>
+Note that although <code>gcc.gnu.org</code> is the most convenient way
+to get the source code for the compiler, that is not where the master
+sources live.  If you want to contribute changes to the gccgo
+compiler, see <a href="gccgo_contribute.html">Contributing to
+gccgo</a>.
+</p>
+
+
 <h2 id="Building">Building</h2>
 
 <p>
@@ -139,6 +148,32 @@ future the requirement of explicitly specifying
 may be removed.
 
 
+<h2 id="Options">Options</h2>
+
+<p>
+The <code>gccgo</code> compiler supports all <code>gcc</code> options
+that are language independent, notably the <code>-O</code>
+and <code>-g</code> options.
+
+<p>
+The <code>-fgo-prefix=PREFIX</code> option may be used to set a unique
+prefix for the package being compiled.  This option is intended for
+use with large programs that contain many packages, in order to allow
+multiple packages to use the same identifier as the package name.
+The <code>PREFIX</code> may be any string; a good choice for the
+string is the directory where the package will be installed.
+
+<p>
+The <code>-fno-require-return-statement</code> option may be used to
+disable the compiler error about functions missing return statements.
+Note that there is no way to disable this error in <code>6g</code>.
+
+<p>
+The <code>-I</code> and <code>-L</code> options, which are synonyms
+for the compiler, may be used to set the search path for finding
+imports.
+
+
 <h2 id="Imports">Imports</h2>
 
 <p>
@@ -195,8 +230,10 @@ Some Go features are not yet implemented in <code>gccgo</code>.  As of
 <li>Garbage collection is not implemented. There is no way to free memory.
     Thus long running programs are not supported.
 
-<li>goroutines are implemented as NPTL threads with a fixed stack size.
-    The number of goroutines that may be created at one time is limited.
+<li>goroutines are implemented as NPTL threads.  If you can not use
+    the gold linker as described above, they are created with a fixed
+    stack size, and the number of goroutines that may be created at
+    one time is limited.
 </ul>
 
 <h2 id="Debugging">Debugging</h2>
