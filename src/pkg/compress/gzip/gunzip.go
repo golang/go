@@ -104,7 +104,7 @@ func (z *Inflater) readString() (string, os.Error) {
 			return "", err
 		}
 		if z.buf[i] == 0 {
-			// GZIP (RFC 1952) specifies that strings are null-terminated ISO 8859-1 (Latin-1).
+			// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
 			// TODO(nigeltao): Convert from ISO 8859-1 (Latin-1) to UTF-8.
 			return string(z.buf[0:i]), nil
 		}
