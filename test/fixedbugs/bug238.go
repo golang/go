@@ -8,13 +8,13 @@
 
 package main
 
-const a *int = 1        // ERROR "convert|wrong|incompatible"
-const b [2]int = 2      // ERROR "convert|wrong|incompatible"
-const c map[int]int = 3 // ERROR "convert|wrong|incompatible"
-const d chan int = 4    // ERROR "convert|wrong|incompatible"
-const e func() = 5      // ERROR "convert|wrong|incompatible"
-const f struct{} = 6    // ERROR "convert|wrong|incompatible"
-const g interface{} = 7 // ERROR "constant|wrong|incompatible"
+const a *int = 1        // ERROR "convert|wrong|invalid"
+const b [2]int = 2      // ERROR "convert|wrong|invalid"
+const c map[int]int = 3 // ERROR "convert|wrong|invalid"
+const d chan int = 4    // ERROR "convert|wrong|invalid"
+const e func() = 5      // ERROR "convert|wrong|invalid"
+const f struct{} = 6    // ERROR "convert|wrong|invalid"
+const g interface{} = 7 // ERROR "constant|wrong|invalid"
 const h bool = false
 const i int = 2
 const j float = 5
