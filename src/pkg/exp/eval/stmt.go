@@ -27,7 +27,7 @@ type stmtCompiler struct {
 	stmtLabel *label
 }
 
-func (a *stmtCompiler) diag(format string, args ...) {
+func (a *stmtCompiler) diag(format string, args ...interface{}) {
 	a.diagAt(&a.pos, format, args)
 }
 

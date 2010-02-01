@@ -76,7 +76,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 }
 
 // Die with an error message.
-func fatal(msg string, args ...) {
+func fatal(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args)
 	os.Exit(2)
 }
@@ -84,7 +84,7 @@ func fatal(msg string, args ...) {
 var nerrors int
 var noPos token.Position
 
-func error(pos token.Position, msg string, args ...) {
+func error(pos token.Position, msg string, args ...interface{}) {
 	nerrors++
 	if pos.IsValid() {
 		fmt.Fprintf(os.Stderr, "%s: ", pos)

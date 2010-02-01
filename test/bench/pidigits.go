@@ -92,7 +92,7 @@ func eliminate_digit(d int64) {
 	bignum.Iscale(numer, 10)
 }
 
-func printf(s string, arg ...) {
+func printf(s string, arg ...interface{}) {
 	if !*silent {
 		fmt.Printf(s, arg)
 	}

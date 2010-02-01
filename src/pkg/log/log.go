@@ -149,31 +149,33 @@ func (l *Logger) Output(calldepth int, s string) os.Error {
 }
 
 // Logf is analogous to Printf() for a Logger.
-func (l *Logger) Logf(format string, v ...) { l.Output(2, fmt.Sprintf(format, v)) }
+func (l *Logger) Logf(format string, v ...interface{}) {
+	l.Output(2, fmt.Sprintf(format, v))
+}
 
 // Log is analogous to Print() for a Logger.
-func (l *Logger) Log(v ...) { l.Output(2, fmt.Sprintln(v)) }
+func (l *Logger) Log(v ...interface{}) { l.Output(2, fmt.Sprintln(v)) }
 
 // Stdout is a helper function for easy logging to stdout. It is analogous to Print().
-func Stdout(v ...) { stdout.Output(2, fmt.Sprint(v)) }
+func Stdout(v ...interface{}) { stdout.Output(2, fmt.Sprint(v)) }
 
 // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
-func Stderr(v ...) { stderr.Output(2, fmt.Sprintln(v)) }
+func Stderr(v ...interface{}) { stderr.Output(2, fmt.Sprintln(v)) }
 
 // Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().
-func Stdoutf(format string, v ...) { stdout.Output(2, fmt.Sprintf(format, v)) }
+func Stdoutf(format string, v ...interface{}) { stdout.Output(2, fmt.Sprintf(format, v)) }
 
 // Stderrf is a helper function for easy formatted logging to stderr. It is analogous to Fprintf(os.Stderr).
-func Stderrf(format string, v ...) { stderr.Output(2, fmt.Sprintf(format, v)) }
+func Stderrf(format string, v ...interface{}) { stderr.Output(2, fmt.Sprintf(format, v)) }
 
 // Exit is equivalent to Stderr() followed by a call to os.Exit(1).
-func Exit(v ...) { exit.Output(2, fmt.Sprintln(v)) }
+func Exit(v ...interface{}) { exit.Output(2, fmt.Sprintln(v)) }
 
 // Exitf is equivalent to Stderrf() followed by a call to os.Exit(1).
-func Exitf(format string, v ...) { exit.Output(2, fmt.Sprintf(format, v)) }
+func Exitf(format string, v ...interface{}) { exit.Output(2, fmt.Sprintf(format, v)) }
 
 // Crash is equivalent to Stderr() followed by a call to panic().
-func Crash(v ...) { crash.Output(2, fmt.Sprintln(v)) }
+func Crash(v ...interface{}) { crash.Output(2, fmt.Sprintln(v)) }
 
 // Crashf is equivalent to Stderrf() followed by a call to panic().
-func Crashf(format string, v ...) { crash.Output(2, fmt.Sprintf(format, v)) }
+func Crashf(format string, v ...interface{}) { crash.Output(2, fmt.Sprintf(format, v)) }

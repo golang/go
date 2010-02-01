@@ -58,7 +58,7 @@ func (a *exprInfo) newExpr(t Type, desc string) *expr {
 	return &expr{exprInfo: a, t: t, desc: desc}
 }
 
-func (a *exprInfo) diag(format string, args ...) {
+func (a *exprInfo) diag(format string, args ...interface{}) {
 	a.diagAt(&a.pos, format, args)
 }
 

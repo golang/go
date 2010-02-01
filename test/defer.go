@@ -10,9 +10,7 @@ import "fmt"
 
 var result string
 
-func addInt(i int) {
-	result += fmt.Sprint(i)
-}
+func addInt(i int) { result += fmt.Sprint(i) }
 
 func test1helper() {
 	for i := 0; i < 10; i++ {
@@ -21,16 +19,14 @@ func test1helper() {
 }
 
 func test1() {
-	result = "";
-	test1helper();
+	result = ""
+	test1helper()
 	if result != "9876543210" {
-		fmt.Printf("test1: bad defer result (should be 9876543210): %q\n", result);
+		fmt.Printf("test1: bad defer result (should be 9876543210): %q\n", result)
 	}
 }
 
-func addDotDotDot(v ...) {
-	result += fmt.Sprint(v)
-}
+func addDotDotDot(v ...interface{}) { result += fmt.Sprint(v) }
 
 func test2helper() {
 	for i := 0; i < 10; i++ {
@@ -39,14 +35,14 @@ func test2helper() {
 }
 
 func test2() {
-	result = "";
-	test2helper();
+	result = ""
+	test2helper()
 	if result != "9876543210" {
-		fmt.Printf("test2: bad defer result (should be 9876543210): %q\n", result);
+		fmt.Printf("test2: bad defer result (should be 9876543210): %q\n", result)
 	}
 }
 
 func main() {
-	test1();
-	test2();
+	test1()
+	test2()
 }

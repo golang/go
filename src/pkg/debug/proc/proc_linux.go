@@ -282,7 +282,7 @@ func (t *thread) ptraceDetach() os.Error {
 
 var logLock sync.Mutex
 
-func (t *thread) logTrace(format string, args ...) {
+func (t *thread) logTrace(format string, args ...interface{}) {
 	if !trace {
 		return
 	}
@@ -301,7 +301,7 @@ func (t *thread) logTrace(format string, args ...) {
 	fmt.Fprint(os.Stderr, "\n")
 }
 
-func (t *thread) warn(format string, args ...) {
+func (t *thread) warn(format string, args ...interface{}) {
 	logLock.Lock()
 	defer logLock.Unlock()
 	fmt.Fprintf(os.Stderr, "Thread %d: WARNING ", t.tid)
@@ -309,7 +309,7 @@ func (t *thread) warn(format string, args ...) {
 	fmt.Fprint(os.Stderr, "\n")
 }
 
-func (p *process) logTrace(format string, args ...) {
+func (p *process) logTrace(format string, args ...interface{}) {
 	if !trace {
 		return
 	}
