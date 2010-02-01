@@ -55,7 +55,6 @@ const (
 	kindFloat64
 	kindArray
 	kindChan
-	kindDotDotDot
 	kindFunc
 	kindInterface
 	kindMap
@@ -136,10 +135,6 @@ type StringType commonType
 // UintptrType represents a uintptr type.
 type UintptrType commonType
 
-// DotDotDotType represents the ... that can
-// be used as the type of the final function parameter.
-type DotDotDotType commonType
-
 // UnsafePointerType represents an unsafe.Pointer type.
 type UnsafePointerType commonType
 
@@ -175,8 +170,9 @@ type ChanType struct {
 // FuncType represents a function type.
 type FuncType struct {
 	commonType
-	in  []*Type // input parameter types
-	out []*Type // output parameter types
+	dotdotdot bool    // last input parameter is ...
+	in        []*Type // input parameter types
+	out       []*Type // output parameter types
 }
 
 // Method on interface type

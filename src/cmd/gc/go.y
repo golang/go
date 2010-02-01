@@ -76,7 +76,7 @@
 
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
-%type	<node>	hidden_constant hidden_dcl hidden_interfacedcl hidden_structdcl
+%type	<node>	hidden_constant hidden_dcl hidden_interfacedcl hidden_structdcl hidden_opt_sym
 
 %type	<list>	hidden_funres
 %type	<list>	ohidden_funres
@@ -896,10 +896,10 @@ convtype:
 		// array literal
 		$$ = nod(OTARRAY, $2, $4);
 	}
-|	'[' dotdotdot ']' ntype
+|	'[' LDDD ']' ntype
 	{
 		// array literal of nelem
-		$$ = nod(OTARRAY, $2, $4);
+		$$ = nod(OTARRAY, nod(ODDD, N, N), $4);
 	}
 |	LMAP '[' ntype ']' ntype
 	{
@@ -920,7 +920,11 @@ convtype:
 dotdotdot:
 	LDDD
 	{
-		$$ = typenod(typ(TDDD));
+		$$ = nod(ODDD, N, N);
+	}
+|	LDDD ntype
+	{
+		$$ = nod(ODDD, $2, N);
 	}
 
 ntype:
@@ -979,10 +983,10 @@ othertype:
 	{
 		$$ = nod(OTARRAY, $2, $4);
 	}
-|	'[' dotdotdot ']' ntype
+|	'[' LDDD ']' ntype
 	{
 		// array literal of nelem
-		$$ = nod(OTARRAY, $2, $4);
+		$$ = nod(OTARRAY, nod(ODDD, N, N), $4);
 	}
 |	LCHAN non_recvchantype
 	{
@@ -1651,10 +1655,6 @@ hidden_type_misc:
 		$$->type = $3;
 		$$->chan = Csend;
 	}
-|	LDDD
-	{
-		$$ = typ(TDDD);
-	}
 
 hidden_type_recv_chan:
 	LCOMM LCHAN hidden_type
@@ -1670,14 +1670,35 @@ hidden_type_func:
 		$$ = functype(nil, $3, $5);
 	}
 
-hidden_dcl:
-	sym hidden_type
+hidden_opt_sym:
+	sym
 	{
-		$$ = nod(ODCLFIELD, newname($1), typenod($2));
+		$$ = newname($1);
 	}
-|	'?' hidden_type
+|	'?'
 	{
-		$$ = nod(ODCLFIELD, N, typenod($2));
+		$$ = N;
+	}
+
+hidden_dcl:
+	hidden_opt_sym hidden_type
+	{
+		$$ = nod(ODCLFIELD, $1, typenod($2));
+	}
+|	hidden_opt_sym LDDD
+	{
+		$$ = nod(ODCLFIELD, $1, typenod(typ(TINTER)));
+		$$->isddd = 1;
+	}
+|	hidden_opt_sym LDDD hidden_type
+	{
+		Type *t;
+		
+		t = typ(TARRAY);
+		t->bound = -1;
+		t->type = $3;
+		$$ = nod(ODCLFIELD, $1, typenod(t));
+		$$->isddd = 1;
 	}
 
 hidden_structdcl:

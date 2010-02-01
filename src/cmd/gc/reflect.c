@@ -391,7 +391,6 @@ enum {
 	KindFloat64,
 	KindArray,
 	KindChan,
-	KindDotDotDot,
 	KindFunc,
 	KindInterface,
 	KindMap,
@@ -423,7 +422,6 @@ kinds[] =
 	[TFLOAT64]	= KindFloat64,
 	[TBOOL]		= KindBool,
 	[TSTRING]		= KindString,
-	[TDDD]		= KindDotDotDot,
 	[TPTR32]		= KindPtr,
 	[TPTR64]		= KindPtr,
 	[TSTRUCT]	= KindStruct,
@@ -453,7 +451,6 @@ structnames[] =
 	[TFLOAT64]	= "*runtime.Float64Type",
 	[TBOOL]		= "*runtime.BoolType",
 	[TSTRING]		= "*runtime.StringType",
-	[TDDD]		= "*runtime.DotDotDotType",
 
 	[TPTR32]		= "*runtime.PtrType",
 	[TPTR64]		= "*runtime.PtrType",
@@ -518,7 +515,6 @@ haspointers(Type *t)
 				return 1;
 		return 0;
 	case TSTRING:
-	case TDDD:
 	case TPTR32:
 	case TPTR64:
 	case TINTER:
@@ -637,7 +633,7 @@ typename(Type *t)
 static Sym*
 dtypesym(Type *t)
 {
-	int ot, n;
+	int ot, n, isddd;
 	Sym *s, *s1, *s2;
 	Sig *a, *m;
 	Type *t1;
@@ -709,14 +705,19 @@ ok:
 	case TFUNC:
 		for(t1=getthisx(t)->type; t1; t1=t1->down)
 			dtypesym(t1->type);
-		for(t1=getinargx(t)->type; t1; t1=t1->down)
+		isddd = 0;
+		for(t1=getinargx(t)->type; t1; t1=t1->down) {
+			isddd = t1->isddd;
 			dtypesym(t1->type);
+		}
 		for(t1=getoutargx(t)->type; t1; t1=t1->down)
 			dtypesym(t1->type);
 
 		ot = dcommontype(s, ot, t);
+		ot = duint8(s, ot, isddd);
 
 		// two slice headers: in and out.
+		ot = rnd(ot, widthptr);
 		ot = dsymptr(s, ot, s, ot+2*(widthptr+2*4));
 		n = t->thistuple + t->intuple;
 		ot = duint32(s, ot, n);
@@ -855,7 +856,6 @@ dumptypestructs(void)
 		for(i=1; i<=TBOOL; i++)
 			dtypesym(ptrto(types[i]));
 		dtypesym(ptrto(types[TSTRING]));
-		dtypesym(typ(TDDD));
 		dtypesym(ptrto(pkglookup("Pointer", unsafepkg)->def->type));
 		
 		// add paths for runtime and main, which 6l imports implicitly.

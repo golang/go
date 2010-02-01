@@ -139,12 +139,6 @@ type UintptrType struct {
 	commonType
 }
 
-// DotDotDotType represents the ... that can
-// be used as the type of the final function parameter.
-type DotDotDotType struct {
-	commonType
-}
-
 // UnsafePointerType represents an unsafe.Pointer type.
 type UnsafePointerType struct {
 	commonType
@@ -176,8 +170,9 @@ type ChanType struct {
 // FuncType represents a function type.
 type FuncType struct {
 	commonType
-	in  []*runtime.Type
-	out []*runtime.Type
+	dotdotdot bool
+	in        []*runtime.Type
+	out       []*runtime.Type
 }
 
 // Method on interface type
@@ -377,6 +372,19 @@ func (t *FuncType) In(i int) Type {
 	return toType(*t.in[i])
 }
 
+// DotDotDot returns true if the final function input parameter
+// is a "..." parameter.  If so, the parameter's underlying static
+// type - either interface{} or []T - is returned by t.In(t.NumIn() - 1).
+//
+// For concreteness, if t is func(x int, y ... float), then
+//
+//	t.NumIn() == 2
+//	t.In(0) is the reflect.Type for "int"
+//	t.In(1) is the reflect.Type for "[]float"
+//	t.DotDotDot() == true
+//
+func (t *FuncType) DotDotDot() bool { return t.dotdotdot }
+
 // NumIn returns the number of input parameters.
 func (t *FuncType) NumIn() int { return len(t.in) }
 
@@ -571,8 +579,6 @@ func toType(i interface{}) Type {
 		return nil
 	case *runtime.BoolType:
 		return (*BoolType)(unsafe.Pointer(v))
-	case *runtime.DotDotDotType:
-		return (*DotDotDotType)(unsafe.Pointer(v))
 	case *runtime.FloatType:
 		return (*FloatType)(unsafe.Pointer(v))
 	case *runtime.Float32Type:

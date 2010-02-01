@@ -140,6 +140,9 @@ reswitch:
 			n = n->right;
 		goto redo;
 
+	case ODDD:
+		break;
+
 	/*
 	 * types (OIND is with exprs)
 	 */
@@ -157,7 +160,8 @@ reswitch:
 		if(l == nil) {
 			t->bound = -1;
 		} else {
-			typecheck(&l, Erv | Etype);
+			if(l->op != ODDD)
+				typecheck(&l, Erv | Etype);
 			switch(l->op) {
 			default:
 				yyerror("invalid array bound %#N", l);
@@ -173,13 +177,7 @@ reswitch:
 				}
 				break;
 
-			case OTYPE:
-				if(l->type == T)
-					goto error;
-				if(l->type->etype != TDDD) {
-					yyerror("invalid array bound %T", l->type);
-					goto error;
-				}
+			case ODDD:
 				t->bound = -100;
 				break;
 			}
@@ -1496,12 +1494,18 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
 		tn = n->type->type;
 		for(tl=tstruct->type; tl; tl=tl->down) {
 			int xx, yy;
+			if(tl->isddd) {
+				// TODO(rsc): delete if (but not body) in DDD cleanup.
+				if(tl->type->etype != TINTER)
+					for(; tn; tn=tn->down)
+						if(checkconv(tn->type, tl->type->type, 0, &xx, &yy, desc) < 0)
+							yyerror("cannot use %T as type %T in %s", tn->type, tl->type->type, desc);
+				goto out;
+			}
 			if(tn == T) {
 				yyerror("not enough arguments to %#O", op);
 				goto out;
 			}
-			if(isddd(tl->type))
-				goto out;
 			if(checkconv(tn->type, tl->type, 0, &xx, &yy, desc) < 0)
 				yyerror("cannot use type %T as type %T in %s", tn->type, tl->type, desc);
 			tn = tn->down;
@@ -1513,10 +1517,17 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
 
 	for(tl=tstruct->type; tl; tl=tl->down) {
 		t = tl->type;
-		if(isddd(t)) {
+		if(tl->isddd) {
+			if(nl != nil && nl->next == nil && nl->n->isddd && eqtype(nl->n->type, t))
+				goto out;
 			for(; nl; nl=nl->next) {
+				int xx, yy;
 				setlineno(nl->n);
-				defaultlit(&nl->n, T);
+				defaultlit(&nl->n, t->type);
+				// TODO(rsc): drop first if in DDD cleanup
+				if(t->etype != TINTER)
+				if(checkconv(nl->n->type, t->type, 0, &xx, &yy, desc) < 0)
+					yyerror("cannot use %#N as type %T in %s", nl->n, t->type, desc);					
 			}
 			goto out;
 		}
