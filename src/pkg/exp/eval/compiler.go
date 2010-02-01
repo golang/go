@@ -27,7 +27,7 @@ type compiler struct {
 	silentErrors int
 }
 
-func (a *compiler) diagAt(pos positioned, format string, args ...) {
+func (a *compiler) diagAt(pos positioned, format string, args ...interface{}) {
 	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args))
 	a.numErrors++
 }

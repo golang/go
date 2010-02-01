@@ -101,7 +101,7 @@ func (p *printer) init(output io.Writer, cfg *Config) {
 }
 
 
-func (p *printer) internalError(msg ...) {
+func (p *printer) internalError(msg ...interface{}) {
 	if debug {
 		fmt.Print(p.pos.String() + ": ")
 		fmt.Println(msg)
