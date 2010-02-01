@@ -995,6 +995,9 @@ func serveFile(c *http.Conn, r *http.Request) {
 	}
 
 	if dir != nil && dir.IsDirectory() {
+		if redirect(c, r) {
+			return
+		}
 		if index := path + "/index.html"; isTextFile(index) {
 			serveHTMLDoc(c, r, index)
 			return
