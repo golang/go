@@ -14,7 +14,7 @@ var (
 	_ = sum(1.0, 2.0)
 	_ = sum(1.5)      // ERROR "integer"
 	_ = sum("hello")  // ERROR "convert"
-	_ = sum([]int{1}) // ERROR "slice literal as type int"
+	_ = sum([]int{1}) // ERROR "slice literal.*as type int"
 )
 
 type T []T

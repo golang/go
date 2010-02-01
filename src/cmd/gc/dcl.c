@@ -501,6 +501,7 @@ oldname(Sym *s)
 			c = nod(ONAME, N, N);
 			c->sym = s;
 			c->class = PPARAMREF;
+			c->isddd = n->isddd;
 			c->defn = n;
 			c->addable = 0;
 			c->ullman = 2;

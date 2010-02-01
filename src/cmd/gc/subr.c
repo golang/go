@@ -1004,6 +1004,9 @@ Jconv(Fmt *fp)
 	if(n->dodata != 0)
 		fmtprint(fp, " dd(%d)", n->dodata);
 
+	if(n->isddd != 0)
+		fmtprint(fp, " isddd(%d)", n->isddd);
+
 	return 0;
 }
 
@@ -2585,6 +2588,9 @@ adddot(Node *n)
 	t = n->left->type;
 	if(t == T)
 		goto ret;
+	
+	if(n->left->op == OTYPE)
+		goto ret;
 
 	if(n->right->op != ONAME)
 		goto ret;
@@ -2783,6 +2789,9 @@ structargs(Type **tl, int mustname)
 			n = newname(lookup(buf));
 		}
 		a = nod(ODCLFIELD, n, typenod(t->type));
+		a->isddd = t->isddd;
+		if(n != N)
+			n->isddd = t->isddd;
 		args = list(args, a);
 	}
 	return args;
