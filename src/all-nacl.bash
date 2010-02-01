@@ -18,18 +18,22 @@ xcd() {
 }
 
 (xcd pkg/exp/nacl/srpc
+make clean
 make install
 ) || exit $?
 
 (xcd pkg/exp/nacl/av
+make clean
 make install
 ) || exit $?
 
 (xcd pkg/exp/4s
+make clean
 make
 ) || exit $?
 
 (xcd pkg/exp/spacewar
+make clean
 make
 ) || exit $?
 

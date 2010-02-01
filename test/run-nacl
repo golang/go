@@ -7,7 +7,12 @@ case X"$GOARCH" in
 X386)
 	# After downloading the Native Client binary distribution,
 	# copy build/native_client/scons-out/opt-*/obj/src/trusted/service_runtime/sel_ldr
-	# into your path as "nacl"
+	# into your path as "nacl".  You might need to wrap it to get rid of the
+	# 'Exit syscall handler' print.  To do that, install the binary as nacl.bin and
+	# make this script nacl: 
+	#	#!/bin/sh
+	#	nacl.bin "$@" 2>&1 | grep -v 'Exit syscall handler: 0'
+	#	exit 0
 	export A=8
 	export E=nacl
 	;;
