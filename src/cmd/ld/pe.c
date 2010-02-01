@@ -31,7 +31,7 @@ new_section(char *name, int size, int noraw)
 		errorexit();
 	}
 	h = &sh[nsect++];
-	strncpy(h->Name, name, sizeof(h->Name));
+	strncpy((char*)h->Name, name, sizeof(h->Name));
 	h->VirtualSize = size;
 	if(!sect_virt_begin)
 		sect_virt_begin = 0x1000;

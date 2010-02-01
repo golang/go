@@ -73,8 +73,7 @@ start:
 		if(debug['v'])
 			Bprint(&bso, "%5.2f span %d\n", cputime(), n);
 		Bflush(&bso);
-		if(n > 500) {
-			// TODO(rsc): figure out why nacl takes so long to converge.
+		if(n > 50) {
 			print("span must be looping - %d\n", textsize);
 			errorexit();
 		}
@@ -1183,10 +1182,13 @@ found:
 		q = p->pcond;
 		if(q) {
 			v = q->pc - p->pc - 2;
-			if(v >= -128 && v <= 127) {
+			if(q->pc == 0)
+				v = 0;
+			if(v >= -128 && v <= 127 && !p->bigjmp) {
 				*andptr++ = op;
 				*andptr++ = v;
 			} else {
+				p->bigjmp = 1;
 				v -= 6-2;
 				*andptr++ = 0x0f;
 				*andptr++ = o->op[z+1];
@@ -1230,10 +1232,13 @@ found:
 		q = p->pcond;
 		if(q) {
 			v = q->pc - p->pc - 2;
-			if(v >= -128 && v <= 127) {
+			if(q->pc == 0)
+				v = 0;
+			if(v >= -128 && v <= 127 && !p->bigjmp) {
 				*andptr++ = op;
 				*andptr++ = v;
 			} else {
+				p->bigjmp = 1;
 				v -= 5-2;
 				*andptr++ = o->op[z+1];
 				*andptr++ = v;

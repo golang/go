@@ -102,6 +102,7 @@ struct	Prog
 	char	tt;
 	uchar	mark;	/* work on these */
 	uchar	back;
+	uchar	bigjmp;
 
 };
 struct	Auto
