@@ -67,20 +67,26 @@ func main() {
 		a[i] = ' '
 	}
 
+      // 0     1     2     3        4        5
 	*f(), *f(), *f() = gbyte(), gbyte(), gbyte()
 
+      // 6     7     8
 	*f(), *f() = x()
 
 	m := make(map[byte]byte)
 	m[10] = 'A'
 	var p1, p2 bool
+      // 9           10
 	*f(), p1 = m[gint()]
+      // 11          12
 	*f(), p2 = m[gint()]
+	a[11] += '0'
 	if !p1 || p2 {
 		panicln("bad map check", i, p1, p2)
 	}
 
 	m[13] = 'B'
+      //  13        14
 	m[gint()] = gbyte(), false
 	if _, present := m[13]; present {
 		panicln("bad map removal")
@@ -88,8 +94,11 @@ func main() {
 
 	c := make(chan byte, 1)
 	c <- 'C'
+      // 15          16
 	*f(), p1 = <-e1(c, 16)
+      // 17          18
 	*f(), p2 = <-e1(c, 18)
+	a[17] += '0'
 	if !p1 || p2 {
 		panicln("bad chan check", i, p1, p2)
 	}
@@ -97,14 +106,16 @@ func main() {
 	s1 := S1{'D'}
 	s2 := S2{'E'}
 	var iv I
+      // 19                20
 	*e3(&iv, 19), p1 = e2(s1, 20).(I)
+      // 21                22
 	*e3(&iv, 21), p2 = e2(s2, 22).(I)
 	if !p1 || p2 {
 		panicln("bad interface check", i, p1, p2)
 	}
 
 	s := string(a[0:i])
-	if s != "def   ii A     C       " {
+	if s != "def   ii A 0   C 0     " {
 		panicln("bad array results:", s)
 	}
 }
