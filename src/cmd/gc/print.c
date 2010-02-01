@@ -243,7 +243,19 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case OCOMPLIT:
-		fmtprint(f, "<compos>");
+		fmtprint(f, "composite literal");
+		break;
+	
+	case OARRAYLIT:
+		fmtprint(f, "slice literal");
+		break;
+	
+	case OMAPLIT:
+		fmtprint(f, "map literal");
+		break;
+	
+	case OSTRUCTLIT:
+		fmtprint(f, "struct literal");
 		break;
 
 	case ODOT:
@@ -338,9 +350,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OMAKEMAP:
 		fmtprint(f, "make(%#T)", n->type);
 		break;
-
-	case OMAPLIT:
-		fmtprint(f, "map literal");
 	}
 
 	if(prec > nprec)

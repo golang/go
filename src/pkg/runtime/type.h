@@ -45,7 +45,6 @@ enum {
 	KindFloat64,
 	KindArray,
 	KindChan,
-	KindDotDotDot,
 	KindFunc,
 	KindInterface,
 	KindMap,
@@ -116,4 +115,3 @@ struct SliceType
 	Type;
 	Type *elem;
 };
-

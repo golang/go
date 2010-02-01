@@ -877,6 +877,7 @@ stotype(NodeList *l, int et, Type **t)
 		f->type = n->type;
 		f->note = note;
 		f->width = BADWIDTH;
+		f->isddd = n->isddd;
 
 		if(n->left != N && n->left->op == ONAME) {
 			f->nname = n->left;
@@ -1022,11 +1023,23 @@ checkarglist(NodeList *all, int input)
 		if(n != N)
 			n = newname(n->sym);
 		n = nod(ODCLFIELD, n, t);
-		if(n->right != N && n->right->op == OTYPE && isddd(n->right->type)) {
+		if(n->right != N && n->right->op == ODDD) {
 			if(!input)
 				yyerror("cannot use ... in output argument list");
 			else if(l->next != nil)
 				yyerror("can only use ... as final argument in list");
+			if(n->right->left == N) {
+				// TODO(rsc): Delete with DDD cleanup.
+				n->right->op = OTYPE;
+				n->right->type = typ(TINTER);
+			} else {
+				n->right->op = OTARRAY;
+				n->right->right = n->right->left;
+				n->right->left = N;
+			}
+			n->isddd = 1;
+			if(n->left != N)
+				n->left->isddd = 1;
 		}
 		l->n = n;
 	}

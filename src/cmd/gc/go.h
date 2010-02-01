@@ -147,6 +147,7 @@ struct	Type
 	uchar	local;		// created in this file
 	uchar	deferwidth;
 	uchar	broke;
+	uchar	isddd;	// TFIELD is ... argument
 
 	Node*	nod;		// canonical OTYPE node
 	int		lineno;
@@ -205,6 +206,7 @@ struct	Node
 	uchar	dodata;		// compile literal assignment as data statement
 	uchar	used;
 	uchar	oldref;
+	uchar	isddd;
 
 	// most nodes
 	Node*	left;
@@ -401,6 +403,9 @@ enum
 	OTINTER,
 	OTFUNC,
 	OTARRAY,
+	
+	// misc
+	ODDD,
 
 	// for back ends
 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
@@ -425,21 +430,20 @@ enum
 
 	TPTR32, TPTR64,		// 16
 
-	TDDD,			// 18
-	TFUNC,
+	TFUNC,		// 18
 	TARRAY,
 	T_old_DARRAY,
-	TSTRUCT,		// 22
+	TSTRUCT,		// 21
 	TCHAN,
 	TMAP,
-	TINTER,			// 25
+	TINTER,			// 24
 	TFORW,
 	TFIELD,
 	TANY,
 	TSTRING,
 
 	// pseudo-types for literals
-	TIDEAL,			// 30
+	TIDEAL,			// 29
 	TNIL,
 	TBLANK,
 	
@@ -844,7 +848,6 @@ int	isfixedarray(Type*);
 int	isslice(Type*);
 int	isinter(Type*);
 int	isnilinter(Type*);
-int	isddd(Type*);
 int	isideal(Type*);
 int	isblank(Node*);
 Type*	maptype(Type*, Type*);

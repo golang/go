@@ -415,8 +415,6 @@ func typename(typ reflect.Type) string {
 		return "array"
 	case *reflect.ChanType:
 		return "chan"
-	case *reflect.DotDotDotType:
-		return "ellipsis"
 	case *reflect.FuncType:
 		return "func"
 	case *reflect.InterfaceType:

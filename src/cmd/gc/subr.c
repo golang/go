@@ -941,7 +941,6 @@ etnames[] =
 	[TBOOL]		= "BOOL",
 	[TPTR32]	= "PTR32",
 	[TPTR64]	= "PTR64",
-	[TDDD]		= "DDD",
 	[TFUNC]		= "FUNC",
 	[TARRAY]	= "ARRAY",
 	[TSTRUCT]	= "STRUCT",
@@ -1088,7 +1087,6 @@ basicnames[] =
 	[TFLOAT64]	= "float64",
 	[TBOOL]		= "bool",
 	[TANY]		= "any",
-	[TDDD]		= "...",
 	[TSTRING]		= "string",
 	[TNIL]		= "nil",
 	[TIDEAL]		= "ideal",
@@ -1166,9 +1164,16 @@ Tpretty(Fmt *fp, Type *t)
 			fmtprint(fp, "func");
 		fmtprint(fp, "(");
 		for(t1=getinargx(t)->type; t1; t1=t1->down) {
-			if(noargnames && t1->etype == TFIELD)
-				fmtprint(fp, "%T", t1->type);
-			else
+			if(noargnames && t1->etype == TFIELD) {
+				if(t1->isddd) {
+					// TODO(rsc): Delete with DDD cleanup.
+					if(t1->type->etype == TINTER)
+						fmtprint(fp, "...");
+					else
+						fmtprint(fp, "... %T", t1->type->type);
+				} else
+					fmtprint(fp, "%T", t1->type);
+			} else
 				fmtprint(fp, "%T", t1);
 			if(t1->down)
 				fmtprint(fp, ", ");
@@ -1246,9 +1251,16 @@ Tpretty(Fmt *fp, Type *t)
 		if(t->sym == S || t->embedded) {
 			if(exporting)
 				fmtprint(fp, "? ");
-			fmtprint(fp, "%T", t->type);
 		} else
-			fmtprint(fp, "%hS %T", t->sym, t->type);
+			fmtprint(fp, "%hS ", t->sym);
+		if(t->isddd) {
+			// TODO(rsc): delete with DDD cleanup.
+			if(t->type->etype == TINTER)
+				fmtprint(fp, "...");
+			else
+				fmtprint(fp, "... %T", t->type->type);
+		} else
+			fmtprint(fp, "%T", t->type);
 		if(t->note)
 			fmtprint(fp, " \"%Z\"", t->note);
 		return 0;
@@ -1608,13 +1620,7 @@ isselect(Node *n)
 int
 isinter(Type *t)
 {
-	if(t != T) {
-		if(t->etype == TINTER)
-			return 1;
-		if(t->etype == TDDD)
-			return 1;
-	}
-	return 0;
+	return t != T && t->etype == TINTER;
 }
 
 int
@@ -1625,14 +1631,6 @@ isnilinter(Type *t)
 	if(t->type != T)
 		return 0;
 	return 1;
-}
-
-int
-isddd(Type *t)
-{
-	if(t != T && t->etype == TDDD)
-		return 1;
-	return 0;
 }
 
 int
@@ -1756,7 +1754,7 @@ eqtype1(Type *t1, Type *t2, int d, int names)
 			while(ta != tb) {
 				if(ta == T || tb == T)
 					return 0;
-				if(ta->etype != TFIELD || tb->etype != TFIELD)
+				if(ta->etype != TFIELD || tb->etype != TFIELD || ta->isddd != tb->isddd)
 					return 0;
 				if(!eqtype1(ta->type, tb->type, d+1, names))
 					return 0;
@@ -2193,19 +2191,24 @@ out:
 void
 badtype(int o, Type *tl, Type *tr)
 {
-	yyerror("illegal types for operand: %O", o);
+	Fmt fmt;
+	char *s;
+	
+	fmtstrinit(&fmt);
 	if(tl != T)
-		print("	%T\n", tl);
+		fmtprint(&fmt, "\n	%T", tl);
 	if(tr != T)
-		print("	%T\n", tr);
+		fmtprint(&fmt, "\n	%T", tr);
 
 	// common mistake: *struct and *interface.
 	if(tl && tr && isptr[tl->etype] && isptr[tr->etype]) {
 		if(tl->type->etype == TSTRUCT && tr->type->etype == TINTER)
-			print("	(*struct vs *interface)\n");
+			fmtprint(&fmt, "\n	(*struct vs *interface)");
 		else if(tl->type->etype == TINTER && tr->type->etype == TSTRUCT)
-			print("	(*interface vs *struct)\n");
+			fmtprint(&fmt, "\n	(*interface vs *struct)");
 	}
+	s = fmtstrflush(&fmt);
+	yyerror("illegal types for operand: %O%s", o, s);
 }
 
 /*

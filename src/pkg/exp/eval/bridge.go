@@ -75,12 +75,9 @@ func TypeFromNative(t reflect.Type) Type {
 	case *reflect.FuncType:
 		nin := t.NumIn()
 		// Variadic functions have DotDotDotType at the end
-		varidic := false
-		if nin > 0 {
-			if _, ok := t.In(nin - 1).(*reflect.DotDotDotType); ok {
-				varidic = true
-				nin--
-			}
+		variadic := t.DotDotDot()
+		if variadic {
+			nin--
 		}
 		in := make([]Type, nin)
 		for i := range in {
@@ -90,7 +87,7 @@ func TypeFromNative(t reflect.Type) Type {
 		for i := range out {
 			out[i] = TypeFromNative(t.Out(i))
 		}
-		et = NewFuncType(in, varidic, out)
+		et = NewFuncType(in, variadic, out)
 	case *reflect.InterfaceType:
 		log.Crashf("%T not implemented", t)
 	case *reflect.MapType:

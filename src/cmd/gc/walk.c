@@ -1368,6 +1368,31 @@ mkdotargs(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
 	return nn;
 }
 
+ /*
+ * package all the arguments that match a ... T parameter into a []T.
+ */
+NodeList*
+mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
+{
+	Node *a, *n;
+	Type *tslice;
+	
+	tslice = typ(TARRAY);
+	tslice->type = l->type->type;
+	tslice->bound = -1;
+	
+	n = nod(OCOMPLIT, N, typenod(tslice));
+	n->list = lr0;
+	typecheck(&n, Erv);
+	if(n->type == T)
+		fatal("mkdotargslice: typecheck failed");
+	walkexpr(&n, init);
+	
+	a = nod(OAS, nodarg(l, fp), n);
+	nn = list(nn, convas(a, init));
+	return nn;
+}
+
 /*
  * helpers for shape errors
  */
@@ -1466,7 +1491,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
 	}
 
 loop:
-	if(l != T && isddd(l->type)) {
+	if(l != T && l->isddd) {
 		// the ddd parameter must be last
 		ll = structnext(&savel);
 		if(ll != T)
@@ -1476,7 +1501,7 @@ loop:
 		// only if we are assigning a single ddd
 		// argument to a ddd parameter then it is
 		// passed thru unencapsulated
-		if(r != N && lr->next == nil && isddd(r->type)) {
+		if(r != N && lr->next == nil && r->isddd && eqtype(l->type, r->type)) {
 			a = nod(OAS, nodarg(l, fp), r);
 			a = convas(a, init);
 			nn = list(nn, a);
@@ -1486,7 +1511,11 @@ loop:
 		// normal case -- make a structure of all
 		// remaining arguments and pass a pointer to
 		// it to the ddd parameter (empty interface)
-		nn = mkdotargs(lr, nn, l, fp, init);
+		// TODO(rsc): delete in DDD cleanup.
+		if(l->type->etype == TINTER)
+			nn = mkdotargs(lr, nn, l, fp, init);
+		else
+			nn = mkdotargslice(lr, nn, l, fp, init);
 		goto ret;
 	}
 

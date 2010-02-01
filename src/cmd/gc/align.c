@@ -176,9 +176,6 @@ dowidth(Type *t)
 		w = 8;
 		checkwidth(t->type);
 		break;
-	case TDDD:
-		w = 2*widthptr;
-		break;
 	case TINTER:		// implemented as 2 pointers
 		w = 2*widthptr;
 		offmod(t);
