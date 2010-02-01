@@ -470,7 +470,7 @@ reswitch:
 		}
 		if(l->op == OTYPE) {
 			if(n->type->etype != TFUNC || n->type->thistuple != 1) {
-				yyerror("type %T has no method %s", n->left->type, sym);
+				yyerror("type %T has no method %hS", n->left->type, sym);
 				n->type = T;
 				goto error;
 			}
@@ -1527,7 +1527,7 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
 				// TODO(rsc): drop first if in DDD cleanup
 				if(t->etype != TINTER)
 				if(checkconv(nl->n->type, t->type, 0, &xx, &yy, desc) < 0)
-					yyerror("cannot use %#N as type %T in %s", nl->n, t->type, desc);					
+					yyerror("cannot use %+N as type %T in %s", nl->n, t->type, desc);					
 			}
 			goto out;
 		}

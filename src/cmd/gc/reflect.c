@@ -115,6 +115,7 @@ methodfunc(Type *f, int use_receiver)
 	for(t=getinargx(f)->type; t; t=t->down) {
 		d = nod(ODCLFIELD, N, N);
 		d->type = t->type;
+		d->isddd = t->isddd;
 		in = list(in, d);
 	}
 

@@ -11,7 +11,7 @@
 void
 closurehdr(Node *ntype)
 {
-	Node *n, *name;
+	Node *n, *name, *a;
 	NodeList *l;
 
 	n = nod(OCLOSURE, N, N);
@@ -33,7 +33,11 @@ closurehdr(Node *ntype)
 		name = l->n->left;
 		if(name)
 			name = newname(name->sym);
-		ntype->list = list(ntype->list, nod(ODCLFIELD, name, l->n->right));
+		a = nod(ODCLFIELD, name, l->n->right);
+		a->isddd = l->n->isddd;
+		if(name)
+			name->isddd = a->isddd;
+		ntype->list = list(ntype->list, a);
 	}
 	for(l=n->rlist; l; l=l->next) {
 		name = l->n->left;
