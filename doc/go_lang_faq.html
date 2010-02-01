@@ -175,6 +175,36 @@ with the STL, a library for a language whose name contains, ironically, a
 postfix increment.
 </p>
 
+<h3 id="semicolons">
+Why are there braces but no semicolons? And why can't I put the opening
+brace on the next line?</h3>
+<p>
+Go uses brace brackets for statement grouping, a syntax familiar to
+programmers who have worked with any language in the C family.
+Semicolons, however, are for parsers, not for people, and we wanted to
+eliminate them as much as possible.  To achieve this goal, Go borrows
+a trick from BCPL: the semicolons that separate statements are in the
+formal grammar but are injected automatically, without lookahead, by
+the lexer at the end of any line that could be the end of a statement.
+This works very well in practice but has the effect that it forces a
+brace style.  For instance, the opening brace of a function cannot
+appear on a line by itself.
+</p>
+<p>
+Some have argued that the lexer should do lookahead to permit the
+brace to live on the next line.  We disagree.  Since Go code is meant
+to be formatted automatically by
+<a href="http://golang.org/cmd/gofmt/"><code>gofmt</code></a>,
+<i>some</i> style must be chosen.  That style may differ from what
+you've used in C or Java, but Go is a new language and
+<code>gofmt</code>'s style is as good as any other.  More
+important&mdash;much more important&mdash;the advantages of a single,
+programmatically mandated format for all Go programs greatly outweigh
+any perceived disadvantages of the particular style.
+Note too that Go's style means that an interactive implementation of
+Go can use the standard syntax one line at a time without special rules.
+</p>
+
 <h3 id="garbage_collection">
 Why do garbage collection?  Won't it be too expensive?</h3>
 <p>
