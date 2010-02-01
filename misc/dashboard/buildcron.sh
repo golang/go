@@ -21,8 +21,10 @@ export GOARCH=$2
 # Check if we are already running.
 # First command must not be pipeline, to avoid seeing extra processes in ps.
 all=$(ps axwwu)
-pid=$(echo "$all" | grep "buildcron.sh $1 $2" | grep -v $$ | awk '{print $2}')
+pid=$(echo "$all" | grep "buildcron.sh $1 $2" | grep -v "sh -c" | grep -v $$ | awk '{print $2}')
 if [ "$pid" != "" ]; then
+	#echo already running buildcron.sh $1 $2
+	#echo "$all" | grep "buildcron.sh $1 $2" | grep -v "sh -c" | grep -v $$
 	exit 0
 fi
 
