@@ -4,7 +4,7 @@
 
 package statements
 
-var expr bool;
+var expr bool
 
 func use(x interface{}) {}
 
@@ -44,34 +44,34 @@ func _() {
 
 	switch x := 0; x {
 	case 1:
-		use(x);
-		use(x);  // followed by an empty line
+		use(x)
+		use(x)  // followed by an empty line
 
 	case 2:  // followed by an empty line
 
-		use(x);  // followed by an empty line
+		use(x)  // followed by an empty line
 
 	case 3:  // no empty lines
-		use(x);
-		use(x);
+		use(x)
+		use(x)
 	}
 
 	switch x {
 	case 0:
-		use(x);
+		use(x)
 	case 1:  // this comment should have no effect on the previous or next line
-		use(x);
+		use(x)
 	}
 
 	switch x := 0; x {
 	case 1:
-		x = 0;
+		x = 0
 		// this comment should be indented
 	case 2:
-		x = 0;
+		x = 0
 	// this comment should not be indented, it is aligned with the next case
 	case 3:
-		x = 0;
+		x = 0
 		/* indented comment
 		   aligned
 		   aligned
@@ -79,7 +79,7 @@ func _() {
 		// bla
 		/* and more */
 	case 4:
-		x = 0;
+		x = 0
 	/* not indented comment
 	   aligned
 	   aligned
@@ -115,28 +115,28 @@ func _() {
 // line at a time.
 func _() {
 
-	const _ = 0;
+	const _ = 0
 
-	const _ = 1;
-	type _ int;
-	type _ float;
+	const _ = 1
+	type _ int
+	type _ float
 
-	var _ = 0;
-	var x = 1;
+	var _ = 0
+	var x = 1
 
 	// Each use(x) call below should have at most one empty line before and after.
 
 
 
-	use(x);
+	use(x)
 
 	if x < x {
 
-		use(x);
+		use(x)
 
 	} else {
 
-		use(x);
+		use(x)
 
 	}
 }
@@ -155,21 +155,21 @@ func _() {
 
 
 func _() {
-	L: _ = 0;
+	L: _ = 0
 }
 
 
 func _() {
 	// this comment should be indented
-	L: _ = 0;
+	L: _ = 0
 }
 
 
 func _() {
 	for {
-	L1: _ = 0;
+	L1: _ = 0
 	L2:
-		_ = 0;
+		_ = 0
 	}
 }
 
@@ -177,25 +177,25 @@ func _() {
 func _() {
 		// this comment should be indented
 	for {
-	L1: _ = 0;
+	L1: _ = 0
 	L2:
-		_ = 0;
+		_ = 0
 	}
 }
 
 
 func _() {
 	if {
-		_ = 0;
+		_ = 0
 	}
-	_ = 0;  // the indentation here should not be affected by the long label name
+	_ = 0  // the indentation here should not be affected by the long label name
 AnOverlongLabel:
-	_ = 0;
+	_ = 0
 	
 	if {
-		_ = 0;
+		_ = 0
 	}
-	_ = 0;
+	_ = 0
 
-L:	_ = 0;
+L:	_ = 0
 }
