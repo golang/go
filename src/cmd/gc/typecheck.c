@@ -1517,6 +1517,11 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
 	for(tl=tstruct->type; tl; tl=tl->down) {
 		t = tl->type;
 		if(tl->isddd) {
+			if(nl != nil && nl->n->isddd && !eqtype(nl->n->type, t)) {
+				// TODO(rsc): This is not actually illegal but will
+				// help catch bugs.
+				yyerror("cannot pass %+N as %T (... mismatch)", nl->n, tl);
+			}
 			if(nl != nil && nl->next == nil && nl->n->isddd && eqtype(nl->n->type, t))
 				goto out;
 			for(; nl; nl=nl->next) {
