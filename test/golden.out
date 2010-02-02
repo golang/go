@@ -150,8 +150,3 @@ throw: interface conversion
 panic PC=xxx
 
 == bugs/
-
-=========== bugs/bug246.go
-bugs/bug246.go:17: cannot convert 0 to type unsafe.Pointer
-bugs/bug246.go:17: cannot convert 0 (type uintptr) to type *int in conversion
-BUG: bug246

@@ -680,6 +680,7 @@ EXTERN	uchar	okforbool[NTYPE];
 EXTERN	uchar	okforcap[NTYPE];
 EXTERN	uchar	okforlen[NTYPE];
 EXTERN	uchar	okforarith[NTYPE];
+EXTERN	uchar	okforconst[NTYPE];
 EXTERN	uchar*	okfor[OEND];
 EXTERN	uchar	iscmp[OEND];
 

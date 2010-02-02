@@ -1,4 +1,4 @@
-// $G $D/$F.go || echo BUG: bug246
+// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug246
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -10,9 +10,13 @@ import "unsafe"
 
 func main() {
 	// works
-	addr := uintptr(0)
-	_ = (*int)(unsafe.Pointer(addr))
+	addr := uintptr(0x234)
+	x1 := (*int)(unsafe.Pointer(addr))
 
 	// fails
-	_ = (*int)(unsafe.Pointer(uintptr(0)))
+	x2 := (*int)(unsafe.Pointer(uintptr(0x234)))
+	
+	if x1 != x2 {
+		panicln("mismatch", x1, x2)
+	}
 }
