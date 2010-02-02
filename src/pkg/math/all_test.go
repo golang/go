@@ -832,7 +832,7 @@ func TestCos(t *testing.T) {
 
 func TestCosh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Cosh(vf[i]); !veryclose(cosh[i], f) {
+		if f := Cosh(vf[i]); !close(cosh[i], f) {
 			t.Errorf("Cosh(%g) = %g, want %g\n", vf[i], f, cosh[i])
 		}
 	}
