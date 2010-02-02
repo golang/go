@@ -122,10 +122,61 @@ walkdeflist(NodeList *l)
 		walkdef(l->n);
 }
 
+static NodeList *deftypequeue;
+static int intypedef;
+
+static void
+walkdeftype(Node *n)
+{
+	int maplineno, embedlineno, lno;
+	Type *t;
+
+	lno = lineno;
+	setlineno(n);
+	n->type->sym = n->sym;
+	n->typecheck = 1;
+	typecheck(&n->ntype, Etype);
+	if((t = n->ntype->type) == T) {
+		n->diag = 1;
+		goto ret;
+	}
+
+	// copy new type and clear fields
+	// that don't come along
+	maplineno = n->type->maplineno;
+	embedlineno = n->type->embedlineno;
+	*n->type = *t;
+	t = n->type;
+	t->sym = n->sym;
+	t->local = n->local;
+	t->vargen = n->vargen;
+	t->siggen = 0;
+	t->printed = 0;
+	t->method = nil;
+	t->nod = N;
+	t->printed = 0;
+	t->deferwidth = 0;
+
+	// double-check use of type as map key
+	// TODO(rsc): also use of type as receiver?
+	if(maplineno) {
+		lineno = maplineno;
+		maptype(n->type, types[TBOOL]);
+	}
+	if(embedlineno) {
+		lineno = embedlineno;
+		if(isptr[t->etype])
+			yyerror("embedded type cannot be a pointer");
+	}
+
+ret:
+	lineno = lno;
+}
+
 void
 walkdef(Node *n)
 {
-	int lno, maplineno, embedlineno;
+	int lno;
 	NodeList *init;
 	Node *e;
 	Type *t;
@@ -214,40 +265,21 @@ walkdef(Node *n)
 		n->walkdef = 1;
 		n->type = typ(TFORW);
 		n->type->sym = n->sym;
-		n->typecheck = 1;
-		typecheck(&n->ntype, Etype);
-		if((t = n->ntype->type) == T) {
-			n->diag = 1;
-			goto ret;
+		intypedef++;
+		if(intypedef > 1)
+			deftypequeue = list(deftypequeue, n);
+		else {
+			walkdeftype(n);
+			while(deftypequeue != nil) {
+				NodeList *l;
+				
+				l = deftypequeue;
+				deftypequeue = nil;
+				for(; l; l=l->next)
+					walkdeftype(l->n);
+			}
 		}
-
-		// copy new type and clear fields
-		// that don't come along
-		maplineno = n->type->maplineno;
-		embedlineno = n->type->embedlineno;
-		*n->type = *t;
-		t = n->type;
-		t->sym = n->sym;
-		t->local = n->local;
-		t->vargen = n->vargen;
-		t->siggen = 0;
-		t->printed = 0;
-		t->method = nil;
-		t->nod = N;
-		t->printed = 0;
-		t->deferwidth = 0;
-
-		// double-check use of type as map key
-		// TODO(rsc): also use of type as receiver?
-		if(maplineno) {
-			lineno = maplineno;
-			maptype(n->type, types[TBOOL]);
-		}
-		if(embedlineno) {
-			lineno = embedlineno;
-			if(isptr[t->etype])
-				yyerror("embedded type cannot be a pointer");
-		}
+		intypedef--;
 		break;
 
 	case OPACK:

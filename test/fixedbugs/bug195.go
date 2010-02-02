@@ -19,9 +19,9 @@ type I4 interface {
 }
 
 type I5 interface {
-	I6
+	I6	// ERROR "interface"
 }
 
 type I6 interface {
-	I5	// ERROR "interface"
+	I5
 }
