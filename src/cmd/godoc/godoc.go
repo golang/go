@@ -1036,12 +1036,13 @@ type httpHandler struct {
 }
 
 
-// getPageInfo returns the PageInfo for a given package directory.
+// getPageInfo returns the PageInfo for a package directory path. If the
+// parameter try is true, no errors are logged if getPageInfo fails.
 // If there is no corresponding package in the directory,
 // PageInfo.PDoc is nil. If there are no subdirectories,
 // PageInfo.Dirs is nil.
 //
-func (h *httpHandler) getPageInfo(path string) PageInfo {
+func (h *httpHandler) getPageInfo(path string, try bool) PageInfo {
 	// the path is relative to h.fsroot
 	dirname := pathutil.Join(h.fsRoot, path)
 
@@ -1066,11 +1067,11 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
 
 	// get package AST
 	pkgs, err := parser.ParseDir(dirname, filter, parser.ParseComments)
-	if err != nil {
+	if err != nil && !try {
 		// TODO: errors should be shown instead of an empty directory
 		log.Stderrf("parser.parseDir: %s", err)
 	}
-	if len(pkgs) != 1 {
+	if len(pkgs) != 1 && !try {
 		// TODO: should handle multiple packages
 		log.Stderrf("parser.parseDir: found %d packages", len(pkgs))
 	}
@@ -1110,7 +1111,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 
 	path := r.URL.Path
 	path = path[len(h.pattern):]
-	info := h.getPageInfo(path)
+	info := h.getPageInfo(path, false)
 
 	var buf bytes.Buffer
 	if r.FormValue("f") == "text" {
