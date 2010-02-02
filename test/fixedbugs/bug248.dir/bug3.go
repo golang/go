@@ -34,14 +34,14 @@ func (t1) M(p1.T) {}
 var i0 I0 = t0(0) // ok
 var i1 I1 = t1(0) // ok
 
-var i2 I0 = t1(0) // ERROR "is not"
-var i3 I1 = t0(0) // ERROR "is not"
+var i2 I0 = t1(0) // ERROR "is not|incompatible"
+var i3 I1 = t0(0) // ERROR "is not|incompatible"
 
 var p0i p0.I = t0(0) // ok
 var p1i p1.I = t1(0) // ok
 
-var p0i1 p0.I = t1(0) // ERROR "is not"
-var p0i2 p1.I = t0(0) // ERROR "is not"
+var p0i1 p0.I = t1(0) // ERROR "is not|incompatible"
+var p0i2 p1.I = t0(0) // ERROR "is not|incompatible"
 
 func main() {
 	// check that cannot assign one to the other,
@@ -52,14 +52,14 @@ func main() {
 	v0 = p0.T(v1)
 	v1 = p1.T(v0)
 
-	i0 = i1   // ERROR "need type assertion"
-	i1 = i0   // ERROR "need type assertion"
-	p0i = i1  // ERROR "need type assertion"
-	p1i = i0  // ERROR "need type assertion"
-	i0 = p1i  // ERROR "need type assertion"
-	i1 = p0i  // ERROR "need type assertion"
-	p0i = p1i // ERROR "need type assertion"
-	p1i = p0i // ERROR "need type assertion"
+	i0 = i1   // ERROR "need type assertion|incompatible"
+	i1 = i0   // ERROR "need type assertion|incompatible"
+	p0i = i1  // ERROR "need type assertion|incompatible"
+	p1i = i0  // ERROR "need type assertion|incompatible"
+	i0 = p1i  // ERROR "need type assertion|incompatible"
+	i1 = p0i  // ERROR "need type assertion|incompatible"
+	p0i = p1i // ERROR "need type assertion|incompatible"
+	p1i = p0i // ERROR "need type assertion|incompatible"
 
 	i0 = p0i
 	p0i = i0
