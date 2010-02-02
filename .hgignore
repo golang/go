@@ -18,6 +18,9 @@ src/cmd/?l/enam.c
 src/cmd/gc/builtin.c
 src/cmd/gc/mkbuiltin1
 src/cmd/gc/opnames.h
+src/cmd/gc/y.output
+src/cmd/gc/y1.tab.c
+src/cmd/gc/yerr.h
 src/pkg/Make.deps
 src/pkg/exp/ogle/ogle
 src/pkg/os/signal/unix.go
