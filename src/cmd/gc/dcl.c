@@ -853,7 +853,10 @@ stotype(NodeList *l, int et, Type **t)
 		if(et == TINTER && n->left == N) {
 			// embedded interface - inline the methods
 			if(n->type->etype != TINTER) {
-				yyerror("interface contains embedded non-interface %T", n->type);
+				if(n->type->etype == TFORW)
+					yyerror("interface type loop involving %T", n->type);
+				else
+					yyerror("interface contains embedded non-interface %T", n->type);
 				continue;
 			}
 			for(t1=n->type->type; t1!=T; t1=t1->down) {
