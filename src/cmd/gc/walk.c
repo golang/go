@@ -182,7 +182,7 @@ walkdef(Node *n)
 		t = n->type;
 		if(t != T) {
 			convlit(&e, t);
-			if(!isint[t->etype] && !isfloat[t->etype] && t->etype != TSTRING && t->etype != TBOOL)
+			if(!okforconst[t->etype])
 				yyerror("invalid constant type %T", t);
 		}
 		n->val = e->val;

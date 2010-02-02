@@ -410,6 +410,7 @@ typeinit(void)
 			okforarith[i] = 1;
 			okforadd[i] = 1;
 			okforand[i] = 1;
+			okforconst[i] = 1;
 			issimple[i] = 1;
 			minintval[i] = mal(sizeof(*minintval[i]));
 			maxintval[i] = mal(sizeof(*maxintval[i]));
@@ -419,6 +420,7 @@ typeinit(void)
 			okforcmp[i] = 1;
 			okforadd[i] = 1;
 			okforarith[i] = 1;
+			okforconst[i] = 1;
 			issimple[i] = 1;
 			minfltval[i] = mal(sizeof(*minfltval[i]));
 			maxfltval[i] = mal(sizeof(*maxfltval[i]));
@@ -433,6 +435,9 @@ typeinit(void)
 
 	okforcap[TARRAY] = 1;
 	okforcap[TCHAN] = 1;
+
+	okforconst[TBOOL] = 1;
+	okforconst[TSTRING] = 1;
 
 	okforlen[TARRAY] = 1;
 	okforlen[TCHAN] = 1;
