@@ -6,13 +6,16 @@ package math
 
 
 /*
-	Floating-point sine and cosine.
+	Floating-point arcsine and arccosine.
 
 	They are implemented by computing the arctangent
 	after appropriate range reduction.
 */
 
 // Asin returns the arcsine of x.
+//
+// Special case is:
+//	Asin(x) = NaN if x < -1 or x > 1
 func Asin(x float64) float64 {
 	sign := false
 	if x < 0 {
@@ -37,4 +40,7 @@ func Asin(x float64) float64 {
 }
 
 // Acos returns the arccosine of x.
+//
+// Special case is:
+//	Acos(x) = NaN if x < -1 or x > 1
 func Acos(x float64) float64 { return Pi/2 - Asin(x) }

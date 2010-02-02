@@ -5,6 +5,11 @@
 package math
 
 // Fabs returns the absolute value of x.
+//
+// Special cases are:
+//	Fabs(+Inf) = +Inf
+//	Fabs(-Inf) = +Inf
+//	Fabs(NaN) = NaN
 func Fabs(x float64) float64 {
 	if x < 0 {
 		return -x

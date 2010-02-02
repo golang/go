@@ -23,7 +23,7 @@ TEXT ·Hypot(SB),7,$0
 	FTST                 // compare F0 to 0
 	FSTSW	AX
 	ANDW    $0x4000, AX
-	JNE		10(PC)       // jump if F0 = 0
+	JNE     10(PC)       // jump if F0 = 0
 	FXCHD   F0, F1       // F0=y (smaller), F1=x (larger)
 	FDIVD   F1, F0       // F0=y(=y/x), F1=x
 	FMULD   F0, F0       // F0=y*y, F1=x

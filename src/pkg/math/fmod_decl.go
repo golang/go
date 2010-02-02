@@ -4,6 +4,4 @@
 
 package math
 
-func Ceil(x float64) float64
-func Floor(x float64) float64
-func Trunc(x float64) float64
+func Fmod(x, y float64) float64

@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2009-2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,6 +12,8 @@ package math
 //	Floor(-Inf) = -Inf
 //	Floor(NaN) = NaN
 func Floor(x float64) float64 {
+	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+	// when compiler does it for us
 	if x != x || x > MaxFloat64 || x < -MaxFloat64 { // IsNaN(x) || IsInf(x, 0)
 		return x
 	}
@@ -33,3 +35,19 @@ func Floor(x float64) float64 {
 //	Ceil(-Inf) = -Inf
 //	Ceil(NaN) = NaN
 func Ceil(x float64) float64 { return -Floor(-x) }
+
+// Trunc returns the integer value of x.
+//
+// Special cases are:
+//	Trunc(+Inf) = +Inf
+//	Trunc(-Inf) = -Inf
+//	Trunc(NaN) = NaN
+func Trunc(x float64) float64 {
+	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+	// when compiler does it for us
+	if x != x || x > MaxFloat64 || x < -MaxFloat64 { // IsNaN(x) || IsInf(x, 0)
+		return x
+	}
+	d, _ := Modf(x)
+	return d
+}
