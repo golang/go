@@ -2182,6 +2182,8 @@ paramstoheap(Type **argin)
 			continue;
 
 		// generate allocation & copying code
+		if(v->alloc == nil)
+			v->alloc = callnew(v->type);
 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
 		nn = list(nn, nod(OAS, v, v->stackparam));
 	}

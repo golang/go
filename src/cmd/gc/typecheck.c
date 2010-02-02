@@ -1907,7 +1907,6 @@ addrescapes(Node *n)
 			n->class |= PHEAP;
 			n->addable = 0;
 			n->ullman = 2;
-			n->alloc = callnew(n->type);
 			n->xoffset = 0;
 
 			// create stack variable to hold pointer to heap

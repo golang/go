@@ -18,13 +18,11 @@ func sumC(args ...int) int {
 	return func() int { return sum(args) } ()
 }
 
-/* TODO(rsc)
 var sumD = func(args ...int) int { return sum(args) }
 
 var sumE = func() func(...int) int { return func(args ...int) int { return sum(args) } } ()
 
 var sumF = func(args ...int) func() int { return func() int { return sum(args) } }
-*/
 
 func sumA(args []int) int {
 	s := 0
@@ -76,7 +74,6 @@ func main() {
 	if x := sumC(4, 5, 6); x != 15 {
 		panicln("sumC 15", x)
 	}
-/* TODO(rsc)
 	if x := sumD(4, 5, 7); x != 16 {
 		panicln("sumD 16", x)
 	}
@@ -86,7 +83,6 @@ func main() {
 	if x := sumF(4, 5, 9)(); x != 18 {
 		panicln("sumF 18", x)
 	}
-*/
 	if x := sum2(1, 2, 3); x != 2*6 {
 		panicln("sum 6", x)
 	}
