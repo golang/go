@@ -135,6 +135,36 @@ func NewNRGBA64(w, h int) *NRGBA64 {
 	return &NRGBA64{pixel}
 }
 
+// An Alpha is an in-memory image backed by a 2-D slice of AlphaColor values.
+type Alpha struct {
+	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
+	Pixel [][]AlphaColor
+}
+
+func (p *Alpha) ColorModel() ColorModel { return AlphaColorModel }
+
+func (p *Alpha) Width() int {
+	if len(p.Pixel) == 0 {
+		return 0
+	}
+	return len(p.Pixel[0])
+}
+
+func (p *Alpha) Height() int { return len(p.Pixel) }
+
+func (p *Alpha) At(x, y int) Color { return p.Pixel[y][x] }
+
+func (p *Alpha) Set(x, y int, c Color) { p.Pixel[y][x] = toAlphaColor(c).(AlphaColor) }
+
+// NewAlpha returns a new Alpha with the given width and height.
+func NewAlpha(w, h int) *Alpha {
+	pixel := make([][]AlphaColor, h)
+	for y := 0; y < h; y++ {
+		pixel[y] = make([]AlphaColor, w)
+	}
+	return &Alpha{pixel}
+}
+
 // A PalettedColorModel represents a fixed palette of colors.
 type PalettedColorModel []Color
 

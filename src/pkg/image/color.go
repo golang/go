@@ -100,6 +100,18 @@ func (c NRGBA64Color) RGBA() (r, g, b, a uint32) {
 	return
 }
 
+// An AlphaColor represents an 8-bit alpha.
+type AlphaColor struct {
+	A uint8
+}
+
+func (c AlphaColor) RGBA() (r, g, b, a uint32) {
+	a = uint32(c.A)
+	a |= a << 8
+	a |= a << 16
+	return a, a, a, a
+}
+
 // A ColorModel can convert foreign Colors, with a possible loss of precision, to a Color
 // from its own color model.
 type ColorModel interface {
@@ -176,6 +188,14 @@ func toNRGBA64Color(c Color) Color {
 	return NRGBA64Color{uint16(r), uint16(g), uint16(b), uint16(a)}
 }
 
+func toAlphaColor(c Color) Color {
+	if _, ok := c.(AlphaColor); ok { // no-op conversion
+		return c
+	}
+	_, _, _, a := c.RGBA()
+	return AlphaColor{uint8(a >> 24)}
+}
+
 // The ColorModel associated with RGBAColor.
 var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor)
 
@@ -187,3 +207,6 @@ var NRGBAColorModel ColorModel = ColorModelFunc(toNRGBAColor)
 
 // The ColorModel associated with NRGBA64Color.
 var NRGBA64ColorModel ColorModel = ColorModelFunc(toNRGBA64Color)
+
+// The ColorModel associated with AlphaColor.
+var AlphaColorModel ColorModel = ColorModelFunc(toAlphaColor)
