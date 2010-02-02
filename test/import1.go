@@ -8,10 +8,10 @@
 
 package main
 
-import "bufio"	// GCCGO_ERROR "previous"
+import "bufio"	// GCCGO_ERROR "previous|not used"
 import bufio "os"	// ERROR "redeclared|redefinition|incompatible"
 
 import (
-	"fmt";	// GCCGO_ERROR "previous"
+	"fmt";	// GCCGO_ERROR "previous|not used"
 	fmt "math";	// ERROR "redeclared|redefinition|incompatible"
 )
