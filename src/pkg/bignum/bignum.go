@@ -565,16 +565,18 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 				t := c + digit(x[i+j]) - digit(y[j])*q
 				c, x[i+j] = digit(int64(t)>>_W2), digit2(t&_M2) // requires arithmetic shift!
 			}
+			x[k] = digit2((c + digit(x[k])) & _M2)
 
 			// correct if trial digit was too large
-			if c+digit(x[k]) != 0 {
+			if x[k] != 0 {
 				// add y
 				c := digit(0)
 				for j := 0; j < m; j++ {
 					t := c + digit(x[i+j]) + digit(y[j])
 					c, x[i+j] = t>>_W2, digit2(t&_M2)
 				}
-				assert(c+digit(x[k]) == 0)
+				x[k] = digit2((c + digit(x[k])) & _M2)
+				assert(x[k] == 0)
 				// correct trial digit
 				q--
 			}
