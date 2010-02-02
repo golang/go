@@ -7,7 +7,7 @@
 package main
 
 var c1 chan <- chan int = (chan<- (chan int))(nil)
-var c2 chan <- chan int = (chan (<-chan int))(nil)  // ERROR "chan"
+var c2 chan <- chan int = (chan (<-chan int))(nil)  // ERROR "chan|incompatible"
 var c3 <- chan chan int = (<-chan (chan int))(nil)
 var c4 chan chan <- int = (chan (chan<- int))(nil)
 
@@ -23,7 +23,7 @@ var c12 chan chan <- <- chan int = (chan (chan<- (<-chan int)))(nil)
 var c13 chan chan <- chan <- int = (chan (chan<- (chan<- int)))(nil)
 
 var r1 chan<- (chan int) = (chan <- chan int)(nil)
-var r2 chan (<-chan int) = (chan <- chan int)(nil)  // ERROR "chan"
+var r2 chan (<-chan int) = (chan <- chan int)(nil)  // ERROR "chan|incompatible"
 var r3 <-chan (chan int) = (<- chan chan int)(nil)
 var r4 chan (chan<- int) = (chan chan <- int)(nil)
 
