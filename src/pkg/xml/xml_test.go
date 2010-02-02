@@ -214,6 +214,76 @@ func TestSyntax(t *testing.T) {
 	}
 }
 
+type allScalars struct {
+	Bool    bool
+	Int     int
+	Int8    int8
+	Int16   int16
+	Int32   int32
+	Int64   int64
+	Uint    int
+	Uint8   uint8
+	Uint16  uint16
+	Uint32  uint32
+	Uint64  uint64
+	Uintptr uintptr
+	Float   float
+	Float32 float32
+	Float64 float64
+	String  string
+}
+
+var all = allScalars{
+	Bool: true,
+	Int: 1,
+	Int8: -2,
+	Int16: 3,
+	Int32: -4,
+	Int64: 5,
+	Uint: 6,
+	Uint8: 7,
+	Uint16: 8,
+	Uint32: 9,
+	Uint64: 10,
+	Uintptr: 11,
+	Float: 12.0,
+	Float32: 13.0,
+	Float64: 14.0,
+	String: "15",
+}
+
+const testScalarsInput = `<allscalars>
+	<bool/>
+	<int>1</int>
+	<int8>-2</int8>
+	<int16>3</int16>
+	<int32>-4</int32>
+	<int64>5</int64>
+	<uint>6</uint>
+	<uint8>7</uint8>
+	<uint16>8</uint16>
+	<uint32>9</uint32>
+	<uint64>10</uint64>
+	<uintptr>11</uintptr>
+	<float>12.0</float>
+	<float32>13.0</float32>
+	<float64>14.0</float64>
+	<string>15</string>
+</allscalars>`
+
+func TestAllScalars(t *testing.T) {
+	var a allScalars
+	buf := bytes.NewBufferString(testScalarsInput)
+	err := Unmarshal(buf, &a)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a, all) {
+		t.Errorf("expected %+v got %+v", a, all)
+	}
+}
+
 type item struct {
 	Field_a string
 }
