@@ -663,3 +663,9 @@ func TestNatPop(t *testing.T) {
 		test(i, nat_one.Shl(i).Sub(nat_one).Pop() == i)
 	}
 }
+
+
+func TestIssue571(t *testing.T) {
+	const min_float = "4.940656458412465441765687928682213723651e-324"
+	RatFromString(min_float, 10) // this must not crash
+}
