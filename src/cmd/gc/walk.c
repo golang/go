@@ -458,6 +458,15 @@ walkexprlist(NodeList *l, NodeList **init)
 }
 
 void
+walkexprlistsafe(NodeList *l, NodeList **init)
+{
+	for(; l; l=l->next) {
+		l->n = safeexpr(l->n, init);
+		walkexpr(&l->n, init);
+	}
+}
+
+void
 walkexpr(Node **np, NodeList **init)
 {
 	Node *r, *l;
@@ -610,6 +619,7 @@ walkexpr(Node **np, NodeList **init)
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		walkexpr(&n->left, init);
+		n->left = safeexpr(n->left, init);
 		if(oaslit(n, init))
 			goto ret;
 		walkexpr(&n->right, init);
@@ -626,8 +636,8 @@ walkexpr(Node **np, NodeList **init)
 	as2:
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
-		walkexprlist(n->list, init);
-		walkexprlist(n->rlist, init);
+		walkexprlistsafe(n->list, init);
+		walkexprlistsafe(n->rlist, init);
 		ll = ascompatee(OAS, n->list, n->rlist, init);
 		ll = reorder3(ll);
 		n = liststmt(ll);
@@ -639,7 +649,7 @@ walkexpr(Node **np, NodeList **init)
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		r = n->rlist->n;
-		walkexprlist(n->list, init);
+		walkexprlistsafe(n->list, init);
 		walkexpr(&r, init);
 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
 		n = liststmt(concat(list1(r), ll));
@@ -650,7 +660,7 @@ walkexpr(Node **np, NodeList **init)
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		r = n->rlist->n;
-		walkexprlist(n->list, init);
+		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
 		fn = chanfn("chanrecv2", 2, r->left->type);
 		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
@@ -663,7 +673,7 @@ walkexpr(Node **np, NodeList **init)
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		r = n->rlist->n;
-		walkexprlist(n->list, init);
+		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
 		fn = mapfn("mapaccess2", r->left->type);
 		r = mkcall1(fn, getoutargx(fn->type), init, r->left, r->right);
@@ -676,7 +686,7 @@ walkexpr(Node **np, NodeList **init)
 		// a,b = m[i];
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
-		walkexprlist(n->list, init);
+		walkexprlistsafe(n->list, init);
 		l = n->list->n;
 		t = l->left->type;
 		n = mkcall1(mapfn("mapassign2", t), T, init, l->left, l->right, n->rlist->n, n->rlist->next->n);
@@ -687,7 +697,7 @@ walkexpr(Node **np, NodeList **init)
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		r = n->rlist->n;
-		walkexprlist(n->list, init);
+		walkexprlistsafe(n->list, init);
 		walkdottype(r, init);
 		et = ifaceas1(r->type, r->left->type, 1);
 		switch(et) {
@@ -744,6 +754,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OASOP:
+		n->left = safeexpr(n->left, init);
 		walkexpr(&n->left, init);
 		l = n->left;
 		if(l->op == OINDEXMAP)
@@ -761,7 +772,7 @@ walkexpr(Node **np, NodeList **init)
 		 */
 		et = n->left->type->etype;
 		if(widthptr == 4 && (et == TUINT64 || et == TINT64)) {
-			l = saferef(n->left, init);
+			l = safeexpr(n->left, init);
 			r = nod(OAS, l, nod(n->etype, l, n->right));
 			typecheck(&r, Etop);
 			walkexpr(&r, init);
@@ -1183,6 +1194,13 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
 	 * a expression list. called in
 	 *	expr-list = expr-list
 	 */
+
+	// ensure order of evaluation for function calls
+	for(ll=nl; ll; ll=ll->next)
+		ll->n = safeexpr(ll->n, init);
+	for(lr=nr; lr; lr=lr->next)
+		lr->n = safeexpr(lr->n, init);
+
 	nn = nil;
 	for(ll=nl, lr=nr; ll && lr; ll=ll->next, lr=lr->next)
 		nn = list(nn, ascompatee1(op, ll->n, lr->n, init));
@@ -1766,8 +1784,8 @@ mapop(Node *n, NodeList **init)
 		// into tmpi := index; map[tmpi] = map[tmpi] op right
 
 		// make it ok to double-evaluate map[tmpi]
-		n->left->left = safeval(n->left->left, init);
-		n->left->right = safeval(n->left->right, init);
+		n->left->left = safeexpr(n->left->left, init);
+		n->left->right = safeexpr(n->left->right, init);
 
 		a = nod(OXXX, N, N);
 		*a = *n->left;		// copy of map[tmpi]

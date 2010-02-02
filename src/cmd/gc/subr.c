@@ -2410,10 +2410,11 @@ staticname(Type *t)
 }
 
 /*
- * return side effect-free, assignable n, appending side effects to init.
+ * return side effect-free appending side effects to init.
+ * result is assignable if n is.
  */
 Node*
-saferef(Node *n, NodeList **init)
+safeexpr(Node *n, NodeList **init)
 {
 	Node *l;
 	Node *r;
@@ -2421,9 +2422,11 @@ saferef(Node *n, NodeList **init)
 
 	switch(n->op) {
 	case ONAME:
+	case OLITERAL:
 		return n;
+
 	case ODOT:
-		l = saferef(n->left, init);
+		l = safeexpr(n->left, init);
 		if(l == n->left)
 			return n;
 		r = nod(OXXX, N, N);
@@ -2433,41 +2436,34 @@ saferef(Node *n, NodeList **init)
 		walkexpr(&r, init);
 		return r;
 
-	case OINDEX:
 	case ODOTPTR:
 	case OIND:
-		l = nod(OXXX, N, N);
-		tempname(l, ptrto(n->type));
-		a = nod(OAS, l, nod(OADDR, n, N));
-		typecheck(&a, Etop);
+		l = safeexpr(n->left, init);
+		if(l == n->left)
+			return n;
+		a = nod(OXXX, N, N);
+		*a = *n;
+		a->left = l;
 		walkexpr(&a, init);
-		*init = list(*init, a);
-		r = nod(OIND, l, N);
-		typecheck(&r, Erv);
-		walkexpr(&r, init);
-		return r;
+		return a;
+
+	case OINDEX:
+	case OINDEXMAP:
+		l = safeexpr(n->left, init);
+		r = safeexpr(n->right, init);
+		if(l == n->left && r == n->right)
+			return n;
+		a = nod(OXXX, N, N);
+		*a = *n;
+		a->left = l;
+		a->right = r;
+		walkexpr(&a, init);
+		return a;
 	}
-	fatal("saferef %N", n);
-	return N;
-}
 
-/*
- * return side effect-free n, appending side effects to init.
- */
-Node*
-safeval(Node *n, NodeList **init)
-{
-	Node *l;
-	Node *a;
-
-	// is this a local variable or a dot of a local variable?
-	for(l=n; l->op == ODOT; l=l->left)
-		if(l->left->type != T && isptr[l->left->type->etype])
-			goto copy;
-	if(l->op == ONAME && (l->class == PAUTO || l->class == PPARAM))
-		return n;
-
-copy:
+	// make a copy; must not be used as an lvalue
+	if(islvalue(n))
+		fatal("missing lvalue case in safeexpr: %N", n);
 	l = nod(OXXX, N, N);
 	tempname(l, n->type);
 	a = nod(OAS, l, n);
