@@ -302,7 +302,7 @@ func _() {
 	_ = a +	// comment
 		b +	// comment
 		c
-	_ = "a" +	// comment
+	_ = "a" +
 		"b" +	// comment
 		"c"
 	_ = "ba0408" + "7265717569726564"	// field 71, encoding 2, string "required"

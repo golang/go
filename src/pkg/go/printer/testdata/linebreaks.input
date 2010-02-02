@@ -5,23 +5,23 @@
 package linebreaks
 
 import (
-	"bytes";
-	"fmt";
-	"io";
-	"os";
-	"reflect";
-	"strings";
-	"testing";
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+	"reflect"
+	"strings"
+	"testing"
 )
 
 type writerTestEntry struct {
-	header *Header;
-	contents string;
+	header *Header
+	contents string
 }
 
 type writerTest struct {
-	file string;  // filename of expected output
-	entries []*writerTestEntry;
+	file string  // filename of expected output
+	entries []*writerTestEntry
 }
 
 var writerTests = []*writerTest{
@@ -83,8 +83,8 @@ var writerTests = []*writerTest{
 }
 
 type untarTest struct {
-	file string;
-	headers []*Header;
+	file string
+	headers []*Header
 }
 
 var untarTests = []*untarTest{
@@ -186,36 +186,36 @@ func usage() {
 	fmt.Fprintf(os.Stderr,
 		// TODO(gri): the 2nd string of this string list should not be indented
 		"usage: godoc package [name ...]\n" +
-		"	godoc -http=:6060\n");
-	flag.PrintDefaults();
-	os.Exit(2);
+		"	godoc -http=:6060\n")
+	flag.PrintDefaults()
+	os.Exit(2)
 }
 
 func TestReader(t *testing.T) {
 testLoop:
 	for i, test := range untarTests {
-		f, err := os.Open(test.file, os.O_RDONLY, 0444);
+		f, err := os.Open(test.file, os.O_RDONLY, 0444)
 		if err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err);
+			t.Errorf("test %d: Unexpected error: %v", i, err)
 			continue
 		}
-		tr := NewReader(f);
+		tr := NewReader(f)
 		for j, header := range test.headers {
-			hdr, err := tr.Next();
+			hdr, err := tr.Next()
 			if err != nil || hdr == nil {
-				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err);
-				f.Close();
+				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err)
+				f.Close()
 				continue testLoop
 			}
 			if !reflect.DeepEqual(hdr, header) {
 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
-					 i, j, *hdr, *header);
+					 i, j, *hdr, *header)
 			}
 		}
-		hdr, err := tr.Next();
+		hdr, err := tr.Next()
 		if hdr != nil || err != nil {
-			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err);
+			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err)
 		}
-		f.Close();
+		f.Close()
 	}
 }
