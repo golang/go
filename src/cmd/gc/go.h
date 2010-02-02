@@ -875,8 +875,7 @@ int	isselect(Node*);
 Node*	staticname(Type*);
 int	iscomposite(Type*);
 Node*	callnew(Type*);
-Node*	saferef(Node*, NodeList**);
-Node*	safeval(Node*, NodeList**);
+Node*	safeexpr(Node*, NodeList**);
 int	is64(Type*);
 int	noconv(Type*, Type*);
 NodeList*	list1(Node*);
@@ -1073,6 +1072,7 @@ void	typecheckrange(Node*);
 Node*	typecheckconv(Node*, Node*, Type*, int, char*);
 int	checkconv(Type*, Type*, int, int*, int*, char*);
 Node*	typecheck(Node**, int);
+int	islvalue(Node*);
 
 /*
  *	const.c

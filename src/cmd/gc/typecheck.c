@@ -31,7 +31,6 @@ static void	typecheckfunc(Node*);
 static void	checklvalue(Node*, char*);
 static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
-static int	islvalue(Node*);
 static void	toslice(Node**);
 
 void
@@ -1940,7 +1939,7 @@ addrescapes(Node *n)
 /*
  * lvalue etc
  */
-static int
+int
 islvalue(Node *n)
 {
 	switch(n->op) {
