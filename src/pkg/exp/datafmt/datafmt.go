@@ -721,7 +721,8 @@ func (f Format) Sprint(args ...) string {
 	var buf bytes.Buffer
 	_, err := f.Fprint(&buf, nil, args)
 	if err != nil {
-		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err)
+		var i interface{} = args
+		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(i), err)
 	}
 	return buf.String()
 }

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -34,11 +33,8 @@ var pairs = []testpair{
 
 var bigtest = pairs[len(pairs)-1]
 
-func testEqual(t *testing.T, msg string, args ...) bool {
-	v := reflect.NewValue(args).(*reflect.StructValue)
-	v1 := v.Field(v.NumField() - 2)
-	v2 := v.Field(v.NumField() - 1)
-	if v1.Interface() != v2.Interface() {
+func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+	if args[len(args)-2] != args[len(args)-1] {
 		t.Errorf(msg, args)
 		return false
 	}
