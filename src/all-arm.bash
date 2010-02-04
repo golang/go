@@ -4,7 +4,11 @@
 # license that can be found in the LICENSE file.
 
 set -e
-bash make-arm.bash
+
+export GOOS=linux
+export GOARCH=arm
+
+bash make.bash
 
 # TODO(kaib): add in proper tests
 #bash run.bash

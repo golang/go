@@ -83,8 +83,8 @@ bash "$GOROOT"/src/clean.bash
 
 for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
 do
-	case "$i-$GOOS" in
-	libcgo-nacl | cmd/*-nacl)
+	case "$i-$GOOS-$GOARCH" in
+	libcgo-nacl-* | cmd/*-nacl-* | libcgo-linux-arm)
 		;;
 	*)
 		# The ( ) here are to preserve the current directory
