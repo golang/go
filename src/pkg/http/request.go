@@ -128,7 +128,7 @@ const defaultUserAgent = "Go http package"
 
 // Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of req:
-//      Host
+//	Host
 //	URL
 //	Method (defaults to "GET")
 //	UserAgent (defaults to defaultUserAgent)
@@ -181,33 +181,21 @@ func (req *Request) Write(w io.Writer) os.Error {
 	io.WriteString(w, "\r\n")
 
 	if req.Body != nil {
-		buf := make([]byte, chunkSize)
-	Loop:
-		for {
-			var nr, nw int
-			var er, ew os.Error
-			if nr, er = req.Body.Read(buf); nr > 0 {
-				if er == nil || er == os.EOF {
-					fmt.Fprintf(w, "%x\r\n", nr)
-					nw, ew = w.Write(buf[0:nr])
-					fmt.Fprint(w, "\r\n")
-				}
-			}
-			switch {
-			case er != nil:
-				if er == os.EOF {
-					break Loop
-				}
-				return er
-			case ew != nil:
-				return ew
-			case nw < nr:
-				return io.ErrShortWrite
-			}
+		cw := NewChunkedWriter(w)
+		if _, err := io.Copy(cw, req.Body); err != nil {
+			return err
 		}
-		req.Body.Close()
-		// last-chunk CRLF
-		fmt.Fprint(w, "0\r\n\r\n")
+		if err := cw.Close(); err != nil {
+			return err
+		}
+		// TODO(petar): Write trailer here and append \r\n. For now, we
+		// simply send the final \r\n:
+		if _, err := fmt.Fprint(w, "\r\n"); err != nil {
+			return err
+		}
+		if err := req.Body.Close(); err != nil {
+			return err
+		}
 	}
 
 	return nil
