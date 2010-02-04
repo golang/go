@@ -144,7 +144,7 @@ func TestLineAline(t *testing.T) {
 }
 
 // gotest: if [ "$(uname)-$(uname -m)" = Linux-x86_64 ]; then
-// gotest:    mkdir -p _test && $AS pclinetest.s && $LD -E main -l -o _test/pclinetest pclinetest.$O
+// gotest:    mkdir -p _test && $AS pclinetest.s && $LD -E main -o _test/pclinetest pclinetest.$O
 // gotest: fi
 func TestPCLine(t *testing.T) {
 	if !dotest() {
