@@ -168,6 +168,8 @@ struct MStats
 	uint64	nmalloc;	// unprotected (approximate)
 	bool	enablegc;
 };
+
+#define mstats ·MemStats	/* name shared with Go */
 extern MStats mstats;
 
 
@@ -307,6 +309,9 @@ void*	SysAlloc(uintptr);
 void	SysUnused(void*, uintptr);
 void	SysFree(void*, uintptr);
 
+void	addfinalizer(void*, void*);
+void*	getfinalizer(void*, bool);
+
 enum
 {
 	RefcountOverhead = 4,	// one uint32 per object
@@ -315,5 +320,6 @@ enum
 	RefStack,		// stack segment - don't free and don't scan for pointers
 	RefNone,		// no references
 	RefSome,		// some references
+	RefFinalize,	// ready to be finalized
 	RefNoPointers = 0x80000000U,	// flag - no pointers here     
 };

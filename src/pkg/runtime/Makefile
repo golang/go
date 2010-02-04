@@ -55,6 +55,7 @@ OFILES=\
 	mcentral.$O\
 	mem.$O\
 	memmove.$O\
+	mfinal.$O\
 	mfixalloc.$O\
 	mgc0.$O\
 	mheap.$O\

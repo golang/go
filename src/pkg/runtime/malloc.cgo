@@ -6,10 +6,11 @@
 //
 // TODO(rsc): double-check stats.
 
-package malloc
+package runtime
 #include "runtime.h"
 #include "malloc.h"
 #include "defs.h"
+#include "type.h"
 
 MHeap mheap;
 MStats mstats;
@@ -96,8 +97,10 @@ free(void *v)
 		throw("malloc/free - deadlock");
 	m->mallocing = 1;
 
-	if(!mlookup(v, nil, nil, &ref))
+	if(!mlookup(v, nil, nil, &ref)) {
+		printf("free %p: not an allocated block\n", v);
 		throw("free mlookup");
+	}
 	*ref = RefFree;
 
 	// Find size class for v.
@@ -274,10 +277,41 @@ func Lookup(p *byte) (base *byte, size uintptr) {
 	mlookup(p, &base, &size, nil);
 }
 
-func GetStats() (s *MStats) {
-	s = &mstats;
-}
-
 func GC() {
 	gc(1);
+}
+
+func SetFinalizer(obj Eface, finalizer Eface) {
+	byte *base;
+	uintptr size;
+	FuncType *ft;
+	
+	if(obj.type == nil) {
+		printf("runtime.SetFinalizer: first argument is nil interface\n");
+	throw:
+		throw("runtime.SetFinalizer");
+	}
+	if(obj.type->kind != KindPtr) {
+		printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
+		goto throw;
+	}
+	if(!mlookup(obj.data, &base, &size, nil) || obj.data != base) {
+		printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
+		goto throw;
+	}
+	if(finalizer.type != nil) {
+		if(finalizer.type->kind != KindFunc) {
+		badfunc:
+			printf("runtime.SetFinalizer: second argument is %S, not func(%S)\n", *finalizer.type->string, *obj.type->string);
+			goto throw;
+		}
+		ft = (FuncType*)finalizer.type;
+		if(ft->dotdotdot || ft->out.len != 0 || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
+			goto badfunc;
+		if(getfinalizer(obj.data, 0)) {
+			printf("runtime.SetFinalizer: finalizer already set");
+			goto throw;
+		}
+	}
+	addfinalizer(obj.data, finalizer.data);
 }

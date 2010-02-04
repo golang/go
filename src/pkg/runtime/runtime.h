@@ -390,6 +390,7 @@ void	goexit(void);
 void	runcgo(void (*fn)(void*), void*);
 void	·entersyscall(void);
 void	·exitsyscall(void);
+void	·newproc(int32, byte*, byte*);
 void	siginit(void);
 bool	sigsend(int32 sig);
 

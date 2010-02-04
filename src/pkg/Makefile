@@ -86,7 +86,6 @@ DIRS=\
 	io/ioutil\
 	json\
 	log\
-	malloc\
 	math\
 	net\
 	once\
@@ -128,7 +127,6 @@ NOTEST=\
 	hash\
 	image\
 	image/jpeg\
-	malloc\
 	rand\
 	runtime\
 	syscall\
