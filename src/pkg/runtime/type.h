@@ -14,6 +14,7 @@ typedef struct IMethod IMethod;
 typedef struct MapType MapType;
 typedef struct ChanType ChanType;
 typedef struct SliceType SliceType;
+typedef struct FuncType FuncType;
 
 struct CommonType
 {
@@ -114,4 +115,12 @@ struct SliceType
 {
 	Type;
 	Type *elem;
+};
+
+struct FuncType
+{
+	Type;
+	bool dotdotdot;
+	Slice in;
+	Slice out;
 };

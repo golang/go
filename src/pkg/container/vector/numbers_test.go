@@ -6,7 +6,7 @@ package vector
 
 import (
 	"fmt"
-	"malloc"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -35,16 +35,16 @@ func s(n uint64) string {
 func TestVectorNums(t *testing.T) {
 	var v Vector
 	c := int(0)
-	malloc.GC()
-	m0 := *malloc.GetStats()
+	runtime.GC()
+	m0 := runtime.MemStats
 	v.Resize(memTestN, memTestN)
 	for i := 0; i < memTestN; i++ {
 		v.Set(i, c)
 	}
-	malloc.GC()
-	m := *malloc.GetStats()
+	runtime.GC()
+	m := runtime.MemStats
 	v.Resize(0, 0)
-	malloc.GC()
+	runtime.GC()
 	n := m.Alloc - m0.Alloc
 	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
 }
@@ -53,16 +53,16 @@ func TestVectorNums(t *testing.T) {
 func TestIntVectorNums(t *testing.T) {
 	var v IntVector
 	c := int(0)
-	malloc.GC()
-	m0 := *malloc.GetStats()
+	runtime.GC()
+	m0 := runtime.MemStats
 	v.Resize(memTestN, memTestN)
 	for i := 0; i < memTestN; i++ {
 		v.Set(i, c)
 	}
-	malloc.GC()
-	m := *malloc.GetStats()
+	runtime.GC()
+	m := runtime.MemStats
 	v.Resize(0, 0)
-	malloc.GC()
+	runtime.GC()
 	n := m.Alloc - m0.Alloc
 	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
 }
@@ -71,16 +71,16 @@ func TestIntVectorNums(t *testing.T) {
 func TestStringVectorNums(t *testing.T) {
 	var v StringVector
 	c := ""
-	malloc.GC()
-	m0 := *malloc.GetStats()
+	runtime.GC()
+	m0 := runtime.MemStats
 	v.Resize(memTestN, memTestN)
 	for i := 0; i < memTestN; i++ {
 		v.Set(i, c)
 	}
-	malloc.GC()
-	m := *malloc.GetStats()
+	runtime.GC()
+	m := runtime.MemStats
 	v.Resize(0, 0)
-	malloc.GC()
+	runtime.GC()
 	n := m.Alloc - m0.Alloc
 	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
 }
@@ -90,7 +90,7 @@ func BenchmarkVectorNums(b *testing.B) {
 	c := int(0)
 	var v Vector
 	b.StopTimer()
-	malloc.GC()
+	runtime.GC()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		v.Push(c)
@@ -102,7 +102,7 @@ func BenchmarkIntVectorNums(b *testing.B) {
 	c := int(0)
 	var v IntVector
 	b.StopTimer()
-	malloc.GC()
+	runtime.GC()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		v.Push(c)
@@ -114,7 +114,7 @@ func BenchmarkStringVectorNums(b *testing.B) {
 	c := ""
 	var v StringVector
 	b.StopTimer()
-	malloc.GC()
+	runtime.GC()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		v.Push(c)

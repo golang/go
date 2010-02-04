@@ -9,18 +9,18 @@
 package main
 
 import (
-	"flag";
-	"fmt";
-	"malloc";
+	"flag"
+	"fmt"
+	"runtime"
 	"strconv"
 )
 
-var chatty = flag.Bool("v", false, "chatty");
-var reverse = flag.Bool("r", false, "reverse");
-var longtest = flag.Bool("l", false, "long test");
+var chatty = flag.Bool("v", false, "chatty")
+var reverse = flag.Bool("r", false, "reverse")
+var longtest = flag.Bool("l", false, "long test")
 
-var b []*byte;
-var stats = malloc.GetStats();
+var b []*byte
+var stats = &runtime.MemStats
 
 func OkAmount(size, n uintptr) bool {
 	if n < size {
@@ -40,86 +40,86 @@ func OkAmount(size, n uintptr) bool {
 
 func AllocAndFree(size, count int) {
 	if *chatty {
-		fmt.Printf("size=%d count=%d ...\n", size, count);
+		fmt.Printf("size=%d count=%d ...\n", size, count)
 	}
-	n1 := stats.Alloc;
+	n1 := stats.Alloc
 	for i := 0; i < count; i++ {
-		b[i] = malloc.Alloc(uintptr(size));
-		base, n := malloc.Lookup(b[i]);
+		b[i] = runtime.Alloc(uintptr(size))
+		base, n := runtime.Lookup(b[i])
 		if base != b[i] || !OkAmount(uintptr(size), n) {
-			panicln("lookup failed: got", base, n, "for", b[i]);
+			panicln("lookup failed: got", base, n, "for", b[i])
 		}
-		if malloc.GetStats().Sys > 1e9 {
-			panicln("too much memory allocated");
+		if runtime.MemStats.Sys > 1e9 {
+			panicln("too much memory allocated")
 		}
 	}
-	n2 := stats.Alloc;
+	n2 := stats.Alloc
 	if *chatty {
-		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
+		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats)
 	}
-	n3 := stats.Alloc;
+	n3 := stats.Alloc
 	for j := 0; j < count; j++ {
-		i := j;
+		i := j
 		if *reverse {
-			i = count - 1 - j;
+			i = count - 1 - j
 		}
-		alloc := uintptr(stats.Alloc);
-		base, n := malloc.Lookup(b[i]);
+		alloc := uintptr(stats.Alloc)
+		base, n := runtime.Lookup(b[i])
 		if base != b[i] || !OkAmount(uintptr(size), n) {
-			panicln("lookup failed: got", base, n, "for", b[i]);
+			panicln("lookup failed: got", base, n, "for", b[i])
 		}
-		malloc.Free(b[i]);
-		if stats.Alloc != uint64(alloc - n) {
-			panicln("free alloc got", stats.Alloc, "expected", alloc - n, "after free of", n);
+		runtime.Free(b[i])
+		if stats.Alloc != uint64(alloc-n) {
+			panicln("free alloc got", stats.Alloc, "expected", alloc-n, "after free of", n)
 		}
-		if malloc.GetStats().Sys > 1e9 {
-			panicln("too much memory allocated");
+		if runtime.MemStats.Sys > 1e9 {
+			panicln("too much memory allocated")
 		}
 	}
-	n4 := stats.Alloc;
+	n4 := stats.Alloc
 
 	if *chatty {
-		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
+		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats)
 	}
 	if n2-n1 != n3-n4 {
-		panicln("wrong alloc count: ", n2-n1, n3-n4);
+		panicln("wrong alloc count: ", n2-n1, n3-n4)
 	}
 }
 
 func atoi(s string) int {
-	i, _ := strconv.Atoi(s);
+	i, _ := strconv.Atoi(s)
 	return i
 }
 
 func main() {
-	flag.Parse();
-	b = make([]*byte, 10000);
+	flag.Parse()
+	b = make([]*byte, 10000)
 	if flag.NArg() > 0 {
-		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)));
-		return;
+		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)))
+		return
 	}
-	maxb := 1<<22;
+	maxb := 1 << 22
 	if !*longtest {
-		maxb = 1<<19;
+		maxb = 1 << 19
 	}
-	for j := 1; j <= maxb; j<<=1 {
-		n := len(b);
-		max := uintptr(1<<28);
+	for j := 1; j <= maxb; j <<= 1 {
+		n := len(b)
+		max := uintptr(1 << 28)
 		if !*longtest {
-			max = uintptr(maxb);
+			max = uintptr(maxb)
 		}
 		if uintptr(j)*uintptr(n) > max {
-			n = int(max / uintptr(j));
+			n = int(max / uintptr(j))
 		}
 		if n < 10 {
-			n = 10;
+			n = 10
 		}
 		for m := 1; m <= n; {
-			AllocAndFree(j, m);
+			AllocAndFree(j, m)
 			if m == n {
 				break
 			}
-			m = 5*m/4;
+			m = 5 * m / 4
 			if m < 4 {
 				m++
 			}

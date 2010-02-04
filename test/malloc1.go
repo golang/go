@@ -9,17 +9,16 @@
 package main
 
 import (
-	"flag";
-	"fmt";
-	"malloc";
+	"flag"
+	"fmt"
+	"runtime"
 )
 
-var chatty = flag.Bool("v", false, "chatty");
+var chatty = flag.Bool("v", false, "chatty")
 
 func main() {
-	malloc.Free(malloc.Alloc(1));
+	runtime.Free(runtime.Alloc(1))
 	if *chatty {
-		fmt.Printf("%+v %v\n", *malloc.GetStats(), uint64(0));
+		fmt.Printf("%+v %v\n", runtime.MemStats, uint64(0))
 	}
 }
-

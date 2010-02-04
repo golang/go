@@ -70,3 +70,71 @@ func Signame(sig int32) string
 // Siginit enables receipt of signals via Sigrecv.  It should typically
 // be called during initialization.
 func Siginit()
+
+// MemStats holds statistics about the memory system.
+// The statistics are only approximate, as they are not interlocked on update.
+var MemStats struct {
+	Alloc      uint64
+	Sys        uint64
+	Stacks     uint64
+	InusePages uint64
+	NextGC     uint64
+	Lookups    uint64
+	Mallocs    uint64
+	EnableGC   bool
+}
+
+// Alloc allocates a block of the given size.
+// FOR TESTING AND DEBUGGING ONLY.
+func Alloc(uintptr) *byte
+
+// Free frees the block starting at the given pointer.
+// FOR TESTING AND DEBUGGING ONLY.
+func Free(*byte)
+
+// Lookup returns the base and size of the block containing the given pointer.
+// FOR TESTING AND DEBUGGING ONLY.
+func Lookup(*byte) (*byte, uintptr)
+
+// GC runs a garbage collection.
+func GC()
+
+// SetFinalizer sets the finalizer associated with x to f.
+// When the garbage collector finds an unreachable block
+// with an associated finalizer, it clears the association and creates
+// a new goroutine running f(x).  Creating the new goroutine makes
+// x reachable again, but now without an associated finalizer.
+// Assuming that SetFinalizer is not called again, the next time
+// the garbage collector sees that x is unreachable, it will free x.
+//
+// SetFinalizer(x, nil) clears any finalizer associated with f.
+//
+// The argument x must be a pointer to an object allocated by
+// calling new or by taking the address of a composite literal.
+// The argument f must be a function that takes a single argument
+// of x's type and returns no arguments.  If either of these is not
+// true, SetFinalizer aborts the program.
+//
+// Finalizers are run in dependency order: if A points at B, both have
+// finalizers, and they are otherwise unreachable, only the finalizer
+// for A runs; once A is freed, the finalizer for B can run.
+// If a cyclic structure includes a block with a finalizer, that
+// cycle is not guaranteed to be garbage collected and the finalizer
+// is not guaranteed to run, because there is no ordering that
+// respects the dependencies.
+//
+// The finalizer for x is scheduled to run at some arbitrary time after
+// x becomes unreachable.
+// There is no guarantee that finalizers will run before a program exits,
+// so typically they are useful only for releasing non-memory resources
+// associated with an object during a long-running program.
+// For example, an os.File object could use a finalizer to close the
+// associated operating system file descriptor when a program discards
+// an os.File without calling Close, but it would be a mistake
+// to depend on a finalizer to flush an in-memory I/O buffer such as a
+// bufio.Writer, because the buffer would not be flushed at program exit.
+//
+// TODO(rsc): make os.File use SetFinalizer
+// TODO(rsc): allow f to have (ignored) return values
+//
+func SetFinalizer(x, f interface{})
