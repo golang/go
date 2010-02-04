@@ -28,7 +28,7 @@ static SigTab sigtab[] = {
 	/* 17 */	0, "SIGSTOP: stop",
 	/* 18 */	Q+I+R, "SIGTSTP: keyboard stop",
 	/* 19 */	0, "SIGCONT: continue after stop",
-	/* 20 */	I+R, "SIGCHLD: child status has changed",
+	/* 20 */	Q+I+R, "SIGCHLD: child status has changed",
 	/* 21 */	Q+I+R, "SIGTTIN: background read from tty",
 	/* 22 */	Q+I+R, "SIGTTOU: background write to tty",
 	/* 23 */	Q+I+R, "SIGIO: i/o now possible",

@@ -25,7 +25,7 @@ static SigTab sigtab[] = {
 	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
 	/* 15 */	Q+R, "SIGTERM: termination",
 	/* 16 */	C, "SIGSTKFLT: stack fault",
-	/* 17 */	I+R, "SIGCHLD: child status has changed",
+	/* 17 */	Q+I+R, "SIGCHLD: child status has changed",
 	/* 18 */	0, "SIGCONT: continue",
 	/* 19 */	0, "SIGSTOP: stop, unblockable",
 	/* 20 */	Q+I+R, "SIGTSTP: keyboard stop",
