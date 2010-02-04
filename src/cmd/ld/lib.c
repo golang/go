@@ -94,7 +94,6 @@ addlib(char *src, char *obj)
 {
 	char name[1024], pname[1024], comp[256], *p;
 	int i, search;
-	Library *l;
 
 	if(histfrogp <= 0)
 		return;
@@ -160,9 +159,26 @@ addlib(char *src, char *obj)
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, pname);
+	
+	addlibpath(src, obj, pname, name);
+}
+
+/*
+ * add library to library list.
+ *	srcref: src file referring to package
+ *	objref: object file referring to package
+ *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
+ *	pkg: package import path, e.g. container/vector
+ */
+void
+addlibpath(char *srcref, char *objref, char *file, char *pkg)
+{
+	int i;
+	Library *l;
+	char *p;
 
 	for(i=0; i<libraryp; i++)
-		if(strcmp(pname, library[i].file) == 0)
+		if(strcmp(file, library[i].file) == 0)
 			return;
 	if(libraryp == nlibrary){
 		nlibrary = 50 + 2*libraryp;
@@ -171,20 +187,20 @@ addlib(char *src, char *obj)
 
 	l = &library[libraryp++];
 
-	p = mal(strlen(obj) + 1);
-	strcpy(p, obj);
+	p = mal(strlen(objref) + 1);
+	strcpy(p, objref);
 	l->objref = p;
 
-	p = mal(strlen(src) + 1);
-	strcpy(p, src);
+	p = mal(strlen(srcref) + 1);
+	strcpy(p, srcref);
 	l->srcref = p;
 
-	p = mal(strlen(pname) + 1);
-	strcpy(p, pname);
+	p = mal(strlen(file) + 1);
+	strcpy(p, file);
 	l->file = p;
 
-	p = mal(strlen(name) + 1);
-	strcpy(p, name);
+	p = mal(strlen(pkg) + 1);
+	strcpy(p, pkg);
 	l->pkg = p;
 }
 
@@ -196,6 +212,11 @@ loadlib(void)
 	Sym *s;
 	char *a;
 
+	i = strlen(goroot)+strlen(goarch)+strlen(goos)+20;
+	a = mal(i);
+	snprint(a, i, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
+	addlibpath("internal", "internal", a, "runtime");
+
 loop:
 	xrefresolv = 0;
 	for(i=0; i<libraryp; i++) {
@@ -203,16 +224,13 @@ loop:
 			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
 		objfile(library[i].file, library[i].pkg);
 	}
+
 	if(xrefresolv)
 	for(h=0; h<nelem(hash); h++)
 	for(s = hash[h]; s != S; s = s->link)
 		if(s->type == SXREF)
 			goto loop;
 
-	i = strlen(goroot)+strlen(goarch)+strlen(goos)+20;
-	a = mal(i);
-	snprint(a, i, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
-	objfile(a, "runtime");
 }
 
 void
