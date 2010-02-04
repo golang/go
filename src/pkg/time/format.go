@@ -28,9 +28,12 @@ const (
 	ANSIC    = "Mon Jan _2 15:04:05 2006"
 	UnixDate = "Mon Jan _2 15:04:05 MST 2006"
 	RubyDate = "Mon Jan 02 15:04:05 -0700 2006"
-	RFC850   = "Monday, 02-Jan-06 15:04:05 MST"
-	RFC1123  = "Mon, 02 Jan 2006 15:04:05 MST"
-	Kitchen  = "3:04PM"
+	RFC822   = "02 Jan 06 1504 MST"
+	// RFC822 with Zulu time.
+	RFC822Z = "02 Jan 06 1504 -0700"
+	RFC850  = "Monday, 02-Jan-06 15:04:05 MST"
+	RFC1123 = "Mon, 02 Jan 2006 15:04:05 MST"
+	Kitchen = "3:04PM"
 	// Special case: use Z to get the time zone formatted according to ISO 8601,
 	// which is -0700 or Z for UTC
 	ISO8601 = "2006-01-02T15:04:05Z"
@@ -209,7 +212,7 @@ func (t *Time) Format(layout string) string {
 		case stdISO8601TZ, stdNumTZ:
 			// Ugly special case.  We cheat and take "Z" to mean "the time
 			// zone as formatted for ISO 8601".
-			zone := t.ZoneOffset / 60 // conver to minutes
+			zone := t.ZoneOffset / 60 // convert to minutes
 			if p == stdISO8601TZ && t.ZoneOffset == 0 {
 				p = "Z"
 			} else {
@@ -248,7 +251,21 @@ func (t *Time) Format(layout string) string {
 				p = "am"
 			}
 		case stdTZ:
-			p = t.Zone
+			if t.Zone != "" {
+				p = t.Zone
+			} else {
+				// No time zone known for this time, but we must print one.
+				// Use the -0700 format.
+				zone := t.ZoneOffset / 60 // convert to minutes
+				if zone < 0 {
+					p = "-"
+					zone = -zone
+				} else {
+					p = "+"
+				}
+				p += zeroPad(zone / 60)
+				p += zeroPad(zone % 60)
+			}
 		}
 		b.WriteString(p)
 	}

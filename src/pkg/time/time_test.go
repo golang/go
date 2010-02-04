@@ -133,6 +133,7 @@ var formatTests = []FormatTest{
 	FormatTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010"},
 	FormatTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010"},
 	FormatTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010"},
+	FormatTest{"RFC822", RFC822, "04 Feb 10 2100 PST"},
 	FormatTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST"},
 	FormatTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST"},
 	FormatTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800"},
@@ -283,6 +284,20 @@ func TestParseErrors(t *testing.T) {
 		} else if strings.Index(err.String(), test.expect) < 0 {
 			t.Errorf("expected error with %q for %q %q; got %s\n", test.expect, test.format, test.value, err)
 		}
+	}
+}
+
+// Check that a time without a Zone still produces a (numeric) time zone
+// when formatted with MST as a requested zone.
+func TestMissingZone(t *testing.T) {
+	time, err := Parse(RubyDate, "Tue Feb 02 16:10:03 -0500 2006")
+	if err != nil {
+		t.Fatal("error parsing date:", err)
+	}
+	expect := "Tue Feb  2 16:10:03 -0500 2006" // -0500 not EST
+	str := time.Format(UnixDate)               // uses MST as its time zone
+	if str != expect {
+		t.Errorf("expected %q got %q", expect, str)
 	}
 }
 
