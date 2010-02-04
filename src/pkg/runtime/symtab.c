@@ -18,13 +18,8 @@
 
 // TODO(rsc): Move this *under* the text segment.
 // Then define names for these addresses instead of hard-coding magic ones.
-#ifdef _64BIT
-#define SYMCOUNTS ((int32*)(0x99LL<<32))	// known to 6l
-#define SYMDATA ((byte*)(0x99LL<<32) + 8)
-#else
-#define SYMCOUNTS ((int32*)(0x99LL<<24))	// known to 8l
+#define SYMCOUNTS ((int32*)(0x99LL<<24))   // known to 6l, 8l; see src/cmd/ld/lib.h
 #define SYMDATA ((byte*)(0x99LL<<24) + 8)
-#endif
 
 typedef struct Sym Sym;
 struct Sym
