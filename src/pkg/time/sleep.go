@@ -11,5 +11,16 @@ import (
 
 // Sleep pauses the current goroutine for at least ns nanoseconds. Higher resolution
 // sleeping may be provided by syscall.Nanosleep on some operating systems.
-// Sleep returns os.EINTR if interrupted.
-func Sleep(ns int64) os.Error { return os.NewSyscallError("sleep", syscall.Sleep(ns)) }
+func Sleep(ns int64) os.Error {
+	// TODO(cw): use monotonic-time once it's available
+	t := Nanoseconds()
+	end := t + ns
+	for t < end {
+		errno := syscall.Sleep(end - t)
+		if errno != 0 && errno != syscall.EINTR {
+			return os.NewSyscallError("sleep", errno)
+		}
+		t = Nanoseconds()
+	}
+	return nil
+}
