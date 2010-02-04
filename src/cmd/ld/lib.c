@@ -35,8 +35,8 @@
 int iconv(Fmt*);
 
 char	symname[]	= SYMDEF;
-char*	libdir[16] = { "." };
-int	nlibdir = 1;
+char*	libdir[16];
+int	nlibdir = 0;
 int	cout = -1;
 
 char*	goroot;
@@ -180,6 +180,11 @@ addlibpath(char *srcref, char *objref, char *file, char *pkg)
 	for(i=0; i<libraryp; i++)
 		if(strcmp(file, library[i].file) == 0)
 			return;
+
+	if(debug['v'])
+		Bprint(&bso, "%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s\n",
+		cputime(), srcref, objref, file, pkg);
+
 	if(libraryp == nlibrary){
 		nlibrary = 50 + 2*libraryp;
 		library = realloc(library, sizeof library[0] * nlibrary);
@@ -207,15 +212,24 @@ addlibpath(char *srcref, char *objref, char *file, char *pkg)
 void
 loadlib(void)
 {
-	int i;
+	char pname[1024];
+	int i, found;
 	int32 h;
 	Sym *s;
 	char *a;
 
-	i = strlen(goroot)+strlen(goarch)+strlen(goos)+20;
-	a = mal(i);
-	snprint(a, i, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
-	addlibpath("internal", "internal", a, "runtime");
+	found = 0;
+	for(i=0; i<nlibdir; i++) {
+		snprint(pname, sizeof pname, "%s/runtime.a", libdir[i]);
+		if(debug['v'])
+			Bprint(&bso, "searching for runtime.a in %s\n", pname);
+		if(access(pname, AEXIST) >= 0) {
+			addlibpath("internal", "internal", pname, "runtime");
+			found = 1;
+			break;
+		}
+	}
+	if(!found) Bprint(&bso, "warning: unable to find runtime.a\n");
 
 loop:
 	xrefresolv = 0;

@@ -105,7 +105,9 @@ main(int argc, char *argv[])
 	ARGBEGIN {
 	default:
 		c = ARGC();
-		if(c >= 0 && c < sizeof(debug))
+		if(c == 'l')
+			usage();
+ 		if(c >= 0 && c < sizeof(debug))
 			debug[c]++;
 		break;
 	case 'o': /* output to (next arg) */
@@ -137,7 +139,6 @@ main(int argc, char *argv[])
 		break;
 	case 'u':	/* produce dynamically loadable module */
 		dlm = 1;
-		debug['l']++;
 		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
 			readundefs(ARGF(), SIMPORT);
 		break;
@@ -385,9 +386,7 @@ main(int argc, char *argv[])
 	lastp = firstp;
 
 	addlibpath("command line", "command line", argv[0], "main");
-
-	if(!debug['l'])
-		loadlib();
+	loadlib();
 
 	deadcode();
 
