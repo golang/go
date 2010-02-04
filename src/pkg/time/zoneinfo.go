@@ -221,6 +221,7 @@ func setupZone() {
 	}
 }
 
+// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
 func lookupTimezone(sec int64) (zone string, offset int) {
 	once.Do(setupZone)
 	if len(zones) == 0 {
