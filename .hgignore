@@ -1,4 +1,5 @@
 syntax:glob
+.DS_Store
 .git
 *.[568ao]
 *.ao
