@@ -8,5 +8,6 @@ TARG=image
 GOFILES=\
 	color.go\
 	image.go\
+	names.go\
 
 include ../../Make.pkg
