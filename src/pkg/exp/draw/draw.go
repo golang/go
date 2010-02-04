@@ -12,32 +12,37 @@ package draw
 
 import "image"
 
+// A Porter-Duff compositing operator.
+type Op int
+
+const SoverD Op = 0
+
 // A draw.Image is an image.Image with a Set method to change a single pixel.
 type Image interface {
 	image.Image
 	Set(x, y int, c image.Color)
 }
 
-// Draw aligns r.Min in dst with pt in src and mask
-// and then replaces the rectangle r in dst with the
-// result of the Porter-Duff compositing operation
-// ``(src in mask) over dst.''  If mask is nil, the operation
-// simplifies to ``src over dst.''
-// The implementation is simple and slow.
-func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
-	// Plenty of room for optimizations here.
+// Draw calls DrawMask with a nil mask and an SoverD op.
+func Draw(dst Image, r Rectangle, src image.Image, sp Point) {
+	DrawMask(dst, r, src, sp, nil, ZP, SoverD)
+}
 
-	dx, dy := src.Width(), src.Height()
+// DrawMask aligns r.Min in dst with sp in src and mp in mask and then replaces the rectangle r
+// in dst with the result of a Porter-Duff composition. For the SoverD operator, the result
+// is ``(src in mask) over dst''. If mask is nil, this simplifies to ``src over dst''.
+// The implementation is simple and slow.
+// TODO(nigeltao): Optimize this.
+func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
+	dx, dy := src.Width()-sp.X, src.Height()-sp.Y
 	if mask != nil {
-		if dx > mask.Width() {
-			dx = mask.Width()
+		if dx > mask.Width()-mp.X {
+			dx = mask.Width() - mp.X
 		}
-		if dy > mask.Height() {
-			dy = mask.Height()
+		if dy > mask.Height()-mp.Y {
+			dy = mask.Height() - mp.Y
 		}
 	}
-	dx -= pt.X
-	dy -= pt.Y
 	if r.Dx() > dx {
 		r.Max.X = r.Min.X + dx
 	}
@@ -45,26 +50,31 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
 		r.Max.Y = r.Min.Y + dy
 	}
 
+	// TODO(nigeltao): Clip r to dst's bounding box, and handle the case when sp or mp has negative X or Y.
+
 	x0, x1, dx := r.Min.X, r.Max.X, 1
 	y0, y1, dy := r.Min.Y, r.Max.Y, 1
-	if image.Image(dst) == src && r.Overlaps(r.Add(pt.Sub(r.Min))) {
+	if image.Image(dst) == src && r.Overlaps(r.Add(sp.Sub(r.Min))) {
 		// Rectangles overlap: process backward?
-		if pt.Y < r.Min.Y || pt.Y == r.Min.Y && pt.X < r.Min.X {
+		if sp.Y < r.Min.Y || sp.Y == r.Min.Y && sp.X < r.Min.X {
 			x0, x1, dx = x1-1, x0-1, -1
 			y0, y1, dy = y1-1, y0-1, -1
 		}
 	}
 
 	var out *image.RGBA64Color
-	for y := y0; y != y1; y += dy {
-		for x := x0; x != x1; x += dx {
-			sx := pt.X + x - r.Min.X
-			sy := pt.Y + y - r.Min.Y
+	sy := sp.Y + y0 - r.Min.Y
+	my := mp.Y + y0 - r.Min.Y
+	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+		sx := sp.X + x0 - r.Min.X
+		mx := mp.X + x0 - r.Min.X
+		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
+			// TODO(nigeltao): Check that op == SoverD.
 			if mask == nil {
 				dst.Set(x, y, src.At(sx, sy))
 				continue
 			}
-			_, _, _, ma := mask.At(sx, sy).RGBA()
+			_, _, _, ma := mask.At(mx, my).RGBA()
 			switch ma {
 			case 0:
 				continue
@@ -109,17 +119,17 @@ func Border(dst Image, r Rectangle, w int, src image.Image, sp Point) {
 	i := w
 	if i > 0 {
 		// inside r
-		Draw(dst, Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, nil, sp)                          // top
-		Draw(dst, Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, nil, sp.Add(Pt(0, i)))        // left
-		Draw(dst, Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, nil, sp.Add(Pt(r.Dx()-i, i))) // right
-		Draw(dst, Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, nil, sp.Add(Pt(0, r.Dy()-i)))     // bottom
+		Draw(dst, Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, sp)                          // top
+		Draw(dst, Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, sp.Add(Pt(0, i)))        // left
+		Draw(dst, Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, sp.Add(Pt(r.Dx()-i, i))) // right
+		Draw(dst, Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, sp.Add(Pt(0, r.Dy()-i)))     // bottom
 		return
 	}
 
 	// outside r;
 	i = -i
-	Draw(dst, Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, nil, sp.Add(Pt(-i, -i))) // top
-	Draw(dst, Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, nil, sp.Add(Pt(-i, 0)))      // left
-	Draw(dst, Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, nil, sp.Add(Pt(r.Dx(), 0)))  // right
-	Draw(dst, Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, nil, sp.Add(Pt(-i, 0)))  // bottom
+	Draw(dst, Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, sp.Add(Pt(-i, -i))) // top
+	Draw(dst, Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, sp.Add(Pt(-i, 0)))      // left
+	Draw(dst, Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, sp.Add(Pt(r.Dx(), 0)))  // right
+	Draw(dst, Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, sp.Add(Pt(-i, 0)))  // bottom
 }

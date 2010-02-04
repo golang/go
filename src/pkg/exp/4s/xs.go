@@ -226,8 +226,8 @@ func collider(pt, pmax draw.Point) bool {
 }
 
 func setpiece(p *Piece) {
-	draw.Draw(bb, bbr, draw.White, nil, draw.ZP)
-	draw.Draw(bbmask, bbr, draw.Transparent, nil, draw.ZP)
+	draw.Draw(bb, bbr, draw.White, draw.ZP)
+	draw.Draw(bbmask, bbr, draw.Transparent, draw.ZP)
 	br = draw.Rect(0, 0, 0, 0)
 	br2 = br
 	piece = p
@@ -243,13 +243,13 @@ func setpiece(p *Piece) {
 		r.Max.X = r.Min.X + pcsz
 		r.Max.Y = r.Min.Y + pcsz
 		if i == 0 {
-			draw.Draw(bb, r, draw.Black, nil, draw.ZP)
-			draw.Draw(bb, r.Inset(1), txpix[piece.tx], nil, draw.ZP)
-			draw.Draw(bbmask, r, draw.Opaque, nil, draw.ZP)
+			draw.Draw(bb, r, draw.Black, draw.ZP)
+			draw.Draw(bb, r.Inset(1), txpix[piece.tx], draw.ZP)
+			draw.Draw(bbmask, r, draw.Opaque, draw.ZP)
 			op = r.Min
 		} else {
-			draw.Draw(bb, r, bb, nil, op)
-			draw.Draw(bbmask, r, bbmask, nil, op)
+			draw.Draw(bb, r, bb, op)
+			draw.Draw(bbmask, r, bbmask, op)
 		}
 		if br.Max.X < r.Max.X {
 			br.Max.X = r.Max.X
@@ -263,17 +263,17 @@ func setpiece(p *Piece) {
 	br2.Max = br.Max.Add(delta)
 	r = br.Add(bb2r.Min)
 	r2 := br2.Add(bb2r.Min)
-	draw.Draw(bb2, r2, draw.White, nil, draw.ZP)
-	draw.Draw(bb2, r.Add(delta), bb, nil, bbr.Min)
-	draw.Draw(bb2mask, r2, draw.Transparent, nil, draw.ZP)
-	draw.Draw(bb2mask, r, draw.Opaque, bbmask, bbr.Min)
-	draw.Draw(bb2mask, r.Add(delta), draw.Opaque, bbmask, bbr.Min)
+	draw.Draw(bb2, r2, draw.White, draw.ZP)
+	draw.Draw(bb2, r.Add(delta), bb, bbr.Min)
+	draw.Draw(bb2mask, r2, draw.Transparent, draw.ZP)
+	draw.DrawMask(bb2mask, r, draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.SoverD)
+	draw.DrawMask(bb2mask, r.Add(delta), draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.SoverD)
 }
 
 func drawpiece() {
-	draw.Draw(screen, br.Add(pos), bb, bbmask, bbr.Min)
+	draw.DrawMask(screen, br.Add(pos), bb, bbr.Min, bbmask, draw.ZP, draw.SoverD)
 	if suspended {
-		draw.Draw(screen, br.Add(pos), draw.White, whitemask, draw.ZP)
+		draw.DrawMask(screen, br.Add(pos), draw.White, draw.ZP, whitemask, draw.ZP, draw.SoverD)
 	}
 }
 
@@ -282,7 +282,7 @@ func undrawpiece() {
 	if collider(pos, br.Max) {
 		mask = bbmask
 	}
-	draw.Draw(screen, br.Add(pos), draw.White, mask, bbr.Min)
+	draw.DrawMask(screen, br.Add(pos), draw.White, bbr.Min, mask, bbr.Min, draw.SoverD)
 }
 
 func rest() {
@@ -323,7 +323,7 @@ func canfit(p *Piece) bool {
 func score(p int) {
 	points += p
 	//	snprint(buf, sizeof(buf), "%.6ld", points);
-	//	draw.Draw(screen, draw.Rpt(pscore, pscore.Add(scoresz)), draw.White, nil, draw.ZP);
+	//	draw.Draw(screen, draw.Rpt(pscore, pscore.Add(scoresz)), draw.White, draw.ZP);
 	//	string(screen, pscore, draw.Black, draw.ZP, font, buf);
 }
 
@@ -332,14 +332,14 @@ func drawsq(b draw.Image, p draw.Point, ptx int) {
 	r.Min = p
 	r.Max.X = r.Min.X + pcsz
 	r.Max.Y = r.Min.Y + pcsz
-	draw.Draw(b, r, draw.Black, nil, draw.ZP)
-	draw.Draw(b, r.Inset(1), txpix[ptx], nil, draw.ZP)
+	draw.Draw(b, r, draw.Black, draw.ZP)
+	draw.Draw(b, r.Inset(1), txpix[ptx], draw.ZP)
 }
 
 func drawboard() {
 	draw.Border(screen, rboard.Inset(-2), 2, draw.Black, draw.ZP)
 	draw.Draw(screen, draw.Rect(rboard.Min.X, rboard.Min.Y-2, rboard.Max.X, rboard.Min.Y),
-		draw.White, nil, draw.ZP)
+		draw.White, draw.ZP)
 	for i := 0; i < NY; i++ {
 		for j := 0; j < NX; j++ {
 			if board[i][j] != 0 {
@@ -349,7 +349,7 @@ func drawboard() {
 	}
 	score(0)
 	if suspended {
-		draw.Draw(screen, screenr, draw.White, whitemask, draw.ZP)
+		draw.DrawMask(screen, screenr, draw.White, draw.ZP, whitemask, draw.ZP, draw.SoverD)
 	}
 }
 
@@ -375,7 +375,7 @@ func movepiece() bool {
 	if collider(pos, br2.Max) {
 		mask = bb2mask
 	}
-	draw.Draw(screen, br2.Add(pos), bb2, mask, bb2r.Min)
+	draw.DrawMask(screen, br2.Add(pos), bb2, bb2r.Min, mask, bb2r.Min, draw.SoverD)
 	pos.Y += DY
 	display.FlushImage()
 	return true
@@ -444,7 +444,7 @@ func horiz() bool {
 	for j := 0; j < h; j++ {
 		r.Min.Y = rboard.Min.Y + lev[j]*pcsz
 		r.Max.Y = r.Min.Y + pcsz
-		draw.Draw(screen, r, draw.White, whitemask, draw.ZP)
+		draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.SoverD)
 		display.FlushImage()
 	}
 	PlaySound(whoosh)
@@ -457,7 +457,7 @@ func horiz() bool {
 		for j := 0; j < h; j++ {
 			r.Min.Y = rboard.Min.Y + lev[j]*pcsz
 			r.Max.Y = r.Min.Y + pcsz
-			draw.Draw(screen, r, draw.White, whitemask, draw.ZP)
+			draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.SoverD)
 		}
 		display.FlushImage()
 	}
@@ -467,9 +467,9 @@ func horiz() bool {
 		score(250 + 10*i*i)
 		r.Min.Y = rboard.Min.Y
 		r.Max.Y = rboard.Min.Y + lev[j]*pcsz
-		draw.Draw(screen, r.Add(draw.Pt(0, pcsz)), screen, nil, r.Min)
+		draw.Draw(screen, r.Add(draw.Pt(0, pcsz)), screen, r.Min)
 		r.Max.Y = rboard.Min.Y + pcsz
-		draw.Draw(screen, r, draw.White, nil, draw.ZP)
+		draw.Draw(screen, r, draw.White, draw.ZP)
 		for k := lev[j] - 1; k >= 0; k-- {
 			board[k+1] = board[k]
 		}
@@ -703,7 +703,7 @@ func redraw(new bool) {
 	bb2r = draw.Rect(0, 0, N*pcsz, N*pcsz+DY)
 	bb2 = image.NewRGBA(bb2r.Dx(), bb2r.Dy())
 	bb2mask = image.NewRGBA(bb2r.Dx(), bb2r.Dy()) // actually just a bitmap
-	draw.Draw(screen, screenr, draw.White, nil, draw.ZP)
+	draw.Draw(screen, screenr, draw.White, draw.ZP)
 	drawboard()
 	setpiece(piece)
 	if piece != nil {
