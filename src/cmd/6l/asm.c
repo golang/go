@@ -439,7 +439,7 @@ asmb(void)
 	int a, dynsym;
 	uchar *op1;
 	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
-	vlong symdatva = 0x99LL<<32;
+	vlong symdatva = SYMDATVA;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;

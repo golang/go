@@ -68,7 +68,7 @@ asmb(void)
 	int np;
 	vlong va, fo, w, symo;
 	int strtabsize;
-	vlong symdatva = 0x99LL<<24;
+	vlong symdatva = SYMDATVA;
 	Optab *o;
 
 	strtabsize = 0;
