@@ -370,8 +370,8 @@ func Issetugid() (tainted bool) {
 	return
 }
 
-func kill(pid int, signum int, posix int) (errno int) {
-	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+func Kill(pid int, signum int) (errno int) {
+	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), 0)
 	errno = int(e1)
 	return
 }
