@@ -384,7 +384,7 @@ main(int argc, char *argv[])
 	firstp = prg();
 	lastp = firstp;
 
-	objfile(argv[0], "main");
+	addlibpath("command line", "command line", argv[0], "main");
 
 	if(!debug['l'])
 		loadlib();

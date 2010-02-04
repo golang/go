@@ -63,6 +63,7 @@ EXTERN	int32	nsymbol;
 EXTERN	char*	thestring;
 
 void	addlib(char *src, char *obj);
+void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
 void	copyhistfrog(char *buf, int nbuf);
 void	addhist(int32 line, int type);
 void	histtoauto(void);
