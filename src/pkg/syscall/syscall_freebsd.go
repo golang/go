@@ -454,10 +454,6 @@ func SysctlUint32(name string) (value uint32, errno int) {
 	return *(*uint32)(unsafe.Pointer(&buf[0])), 0
 }
 
-//sys	kill(pid int, signum int, posix int) (errno int)
-
-func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
-
 // TODO: wrap
 //	Acct(name nil-string) (errno int)
 //	Futimes(fd int, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
@@ -515,6 +511,7 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
 //sys	Gettimeofday(tv *Timeval) (errno int)
 //sys	Getuid() (uid int)
 //sys	Issetugid() (tainted bool)
+//sys	Kill(pid int, signum int) (errno int)
 //sys	Kqueue() (fd int, errno int)
 //sys	Lchown(path string, uid int, gid int) (errno int)
 //sys	Link(path string, link string) (errno int)
