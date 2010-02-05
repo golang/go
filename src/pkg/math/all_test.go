@@ -100,6 +100,18 @@ var atanh = []float64{
 	1.8459947964298794318714228e-01,
 	-1.3273186910532645867272502e+00,
 }
+var atan2 = []float64{
+	1.1088291730037004444527075e+00,
+	9.1218183188715804018797795e-01,
+	1.5984772603216203736068915e+00,
+	2.0352918654092086637227327e+00,
+	8.0391819139044720267356014e-01,
+	1.2861075249894661588866752e+00,
+	1.0889904479131695712182587e+00,
+	1.3044821793397925293797357e+00,
+	1.3902530903455392306872261e+00,
+	2.2859857424479142655411058e+00,
+}
 var ceil = []float64{
 	5.0000000000000000e+00,
 	8.0000000000000000e+00,
@@ -424,6 +436,64 @@ var atanhSC = []float64{
 	NaN(),
 	Inf(-1),
 	Inf(1),
+	NaN(),
+	NaN(),
+}
+var vfatan2SC = [][2]float64{
+	[2]float64{Inf(-1), Inf(-1)},
+	[2]float64{Inf(-1), -Pi},
+	[2]float64{Inf(-1), 0},
+	[2]float64{Inf(-1), +Pi},
+	[2]float64{Inf(-1), Inf(1)},
+	[2]float64{Inf(-1), NaN()},
+	[2]float64{-Pi, Inf(-1)},
+	[2]float64{-Pi, 0},
+	[2]float64{-Pi, Inf(1)},
+	[2]float64{-Pi, NaN()},
+	[2]float64{0, Inf(-1)},
+	[2]float64{0, -Pi},
+	[2]float64{0, 0},
+	[2]float64{0, +Pi},
+	[2]float64{0, Inf(1)},
+	[2]float64{0, NaN()},
+	[2]float64{+Pi, Inf(-1)},
+	[2]float64{+Pi, 0},
+	[2]float64{+Pi, Inf(1)},
+	[2]float64{+Pi, NaN()},
+	[2]float64{Inf(1), Inf(-1)},
+	[2]float64{Inf(1), -Pi},
+	[2]float64{Inf(1), 0},
+	[2]float64{Inf(1), +Pi},
+	[2]float64{Inf(1), Inf(1)},
+	[2]float64{Inf(1), NaN()},
+	[2]float64{NaN(), NaN()},
+}
+var atan2SC = []float64{
+	-3 * Pi / 4,
+	-Pi / 2,
+	-Pi / 2,
+	-Pi / 2,
+	-Pi / 4,
+	NaN(),
+	-Pi,
+	-Pi / 2,
+	-0,
+	NaN(),
+	Pi,
+	Pi,
+	0,
+	0,
+	0,
+	NaN(),
+	Pi,
+	Pi / 2,
+	0,
+	NaN(),
+	3 * Pi / 4,
+	Pi / 2,
+	Pi / 2,
+	Pi / 2,
+	Pi / 4,
 	NaN(),
 	NaN(),
 }
@@ -851,6 +921,19 @@ func TestAtanh(t *testing.T) {
 	}
 }
 
+func TestAtan2(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Atan2(10, vf[i]); !veryclose(atan2[i], f) {
+			t.Errorf("Atan2(10, %g) = %g, want %g\n", vf[i], f, atan2[i])
+		}
+	}
+	for i := 0; i < len(vfatan2SC); i++ {
+		if f := Atan2(vfatan2SC[i][0], vfatan2SC[i][1]); !alike(atan2SC[i], f) {
+			t.Errorf("Atan2(%g, %g) = %g, want %g\n", vfatan2SC[i][0], vfatan2SC[i][1], f, atan2SC[i])
+		}
+	}
+}
+
 func TestCeil(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Ceil(vf[i]); ceil[i] != f {
@@ -1251,6 +1334,12 @@ func BenchmarkAtan(b *testing.B) {
 func BenchmarkAtanh(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Atanh(.5)
+	}
+}
+
+func BenchmarkAtan2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atan2(.5, 1)
 	}
 }
 
