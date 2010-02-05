@@ -475,7 +475,7 @@ EXTERN	Decl*	firstdcl;
 EXTERN	int	fperror;
 EXTERN	Sym*	hash[NHASH];
 EXTERN	char*	hunk;
-EXTERN	char*	include[20];
+EXTERN	char**	include;
 EXTERN	Io*	iofree;
 EXTERN	Io*	ionext;
 EXTERN	Io*	iostack;

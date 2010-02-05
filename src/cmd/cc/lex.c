@@ -82,7 +82,7 @@ pathchar(void)
 void
 main(int argc, char *argv[])
 {
-	char *defs[50], *p;
+	char **defs, *p;
 	int nproc, nout, i, c, ndef;
 
 	ensuresymb(NSYMB);
@@ -94,8 +94,9 @@ main(int argc, char *argv[])
 
 	tufield = simplet((1L<<tfield->etype) | BUNSIGNED);
 	ndef = 0;
+	defs = nil;
 	outfile = 0;
-	include[ninclude++] = ".";
+	setinclude(".");
 	ARGBEGIN {
 	default:
 		c = ARGC();
@@ -119,6 +120,9 @@ main(int argc, char *argv[])
 	case 'D':
 		p = ARGF();
 		if(p) {
+			if(ndef%8 == 0)
+				defs = allocn(defs, ndef*sizeof(char *), 
+					8*sizeof(char *));
 			defs[ndef++] = p;
 			dodefine(p);
 		}
@@ -193,7 +197,7 @@ int
 compile(char *file, char **defs, int ndef)
 {
 	char *ofile, incfile[20];
-	char *p, *av[100], opt[256];
+	char *p, **av, opt[256];
 	int i, c, fd[2];
 	static int first = 1;
 
@@ -283,6 +287,7 @@ compile(char *file, char **defs, int ndef)
 			close(fd[0]);
 			dup(fd[1], 1);
 			close(fd[1]);
+			av = alloc((ndef+ninclude+5)*sizeof(char *));
 			av[0] = CPP;
 			i = 1;
 			if(debug['.']){
@@ -1548,14 +1553,10 @@ setinclude(char *p)
 			if(strcmp(p, include[i]) == 0)
 				return;
 
-		if(i >= ninclude)
-			include[ninclude++] = p;
-
-		if(ninclude > nelem(include)) {
-			diag(Z, "ninclude too small %d", nelem(include));
-			exits("ninclude");
-		}
-
+		if(ninclude%8 == 0)
+			include = allocn(include, ninclude*sizeof(char *), 
+				8*sizeof(char *));
+		include[ninclude++] = p;
 	}
 }
 

@@ -65,7 +65,7 @@ main(int argc, char *argv[])
 	memset(debug, 0, sizeof(debug));
 	cinit();
 	outfile = 0;
-	include[ninclude++] = ".";
+	setinclude(".");
 	ARGBEGIN {
 	default:
 		c = ARGC();
@@ -79,8 +79,12 @@ main(int argc, char *argv[])
 
 	case 'D':
 		p = ARGF();
-		if(p)
+		if(p) {
+			if (nDlist%8 == 0)
+				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
+					8*sizeof(char *));
 			Dlist[nDlist++] = p;
+		}
 		break;
 
 	case 'I':
