@@ -23,7 +23,7 @@ func NewCASet() *CASet {
 }
 
 func nameToKey(name *x509.Name) string {
-	return name.Country + "/" + name.OrganizationalUnit + "/" + name.OrganizationalUnit + "/" + name.CommonName
+	return name.Country + "/" + name.Organization + "/" + name.OrganizationalUnit + "/" + name.CommonName
 }
 
 // FindParent attempts to find the certificate in s which signs the given
