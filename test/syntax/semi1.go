@@ -7,8 +7,8 @@
 package main
 
 func main() {
-	if x; y	// ERROR "unexpected semicolon or newline before {"
+	if x; y		// ERROR "unexpected semicolon or newline before .?{.?|undefined"
 	{
-		z
+		z	// GCCGO_ERROR "undefined"
 
 
