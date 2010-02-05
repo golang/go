@@ -68,6 +68,7 @@ type fieldParameters struct {
 	defaultValue *int64 // a default value for INTEGER typed fields (maybe nil).
 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
 	stringType   int    // the string tag to use when marshaling.
+	set          bool   // true iff this should be encoded as a SET
 
 	// Invariants:
 	//   if explicit is set, tag is non-nil.
@@ -103,6 +104,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 				ret.tag = new(int)
 				*ret.tag = i
 			}
+		case part == "set":
+			ret.set = true
 		}
 	}
 	return
@@ -131,6 +134,9 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 	case *reflect.SliceType:
 		if _, ok := t.(*reflect.SliceType).Elem().(*reflect.Uint8Type); ok {
 			return tagOctetString, false, true
+		}
+		if strings.HasSuffix(t.Name(), "SET") {
+			return tagSet, true, true
 		}
 		return tagSequence, true, true
 	case *reflect.StringType:

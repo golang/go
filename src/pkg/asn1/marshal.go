@@ -71,23 +71,27 @@ func (f *forkableWriter) writeTo(out io.Writer) (n int, err os.Error) {
 	return
 }
 
-func marshalBase128Int(out *forkableWriter, i int64) (err os.Error) {
-	if i == 0 {
+func marshalBase128Int(out *forkableWriter, n int64) (err os.Error) {
+	if n == 0 {
 		err = out.WriteByte(0)
 		return
 	}
 
-	for i > 0 {
-		next := i >> 7
-		o := byte(i & 0x7f)
-		if next > 0 {
+	l := 0
+	for i := n; i > 0; i >>= 7 {
+		l++
+	}
+
+	for i := l - 1; i >= 0; i-- {
+		o := byte(n >> uint(i*7))
+		o &= 0x7f
+		if i != 0 {
 			o |= 0x80
 		}
 		err = out.WriteByte(o)
 		if err != nil {
 			return
 		}
-		i = next
 	}
 
 	return nil
@@ -101,6 +105,32 @@ func base128Length(i int) (numBytes int) {
 	for i > 0 {
 		numBytes++
 		i >>= 7
+	}
+
+	return
+}
+
+func marshalInt64(out *forkableWriter, i int64) (err os.Error) {
+	n := int64Length(i)
+
+	for ; n > 0; n-- {
+		err = out.WriteByte(byte(i >> uint((n-1)*8)))
+		if err != nil {
+			return
+		}
+	}
+
+	return nil
+}
+
+func int64Length(i int64) (numBytes int) {
+	if i == 0 {
+		return 1
+	}
+
+	for i > 0 {
+		numBytes++
+		i >>= 8
 	}
 
 	return
@@ -130,11 +160,12 @@ func marshalTagAndLength(out *forkableWriter, t tagAndLength) (err os.Error) {
 	}
 
 	if t.length >= 128 {
-		err = out.WriteByte(byte(base128Length(t.length)))
+		l := int64Length(int64(t.length))
+		err = out.WriteByte(0x80 | byte(l))
 		if err != nil {
 			return
 		}
-		err = marshalBase128Int(out, int64(t.length))
+		err = marshalInt64(out, int64(t.length))
 		if err != nil {
 			return
 		}
@@ -276,6 +307,14 @@ func marshalUTCTime(out *forkableWriter, t *time.Time) (err os.Error) {
 	return
 }
 
+func stripTagAndLength(in []byte) []byte {
+	_, offset, err := parseTagAndLength(in, 0)
+	if err != nil {
+		return in
+	}
+	return in[offset:]
+}
+
 func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameters) (err os.Error) {
 	switch value.Type() {
 	case timeType:
@@ -294,12 +333,35 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 			return out.WriteByte(0)
 		}
 	case *reflect.IntValue:
-		return marshalBase128Int(out, int64(v.Get()))
+		return marshalInt64(out, int64(v.Get()))
 	case *reflect.Int64Value:
-		return marshalBase128Int(out, v.Get())
+		return marshalInt64(out, v.Get())
 	case *reflect.StructValue:
 		t := v.Type().(*reflect.StructType)
-		for i := 0; i < t.NumField(); i++ {
+
+		startingField := 0
+
+		// If the first element of the structure is a non-empty
+		// RawContents, then we don't bother serialising the rest.
+		if t.NumField() > 0 && t.Field(0).Type == rawContentsType {
+			s := v.Field(0).(*reflect.SliceValue)
+			if s.Len() > 0 {
+				bytes := make([]byte, s.Len())
+				for i := 0; i < s.Len(); i++ {
+					bytes[i] = s.Elem(i).(*reflect.Uint8Value).Get()
+				}
+				/* The RawContents will contain the tag and
+				 * length fields but we'll also be writing
+				 * those outselves, so we strip them out of
+				 * bytes */
+				_, err = out.Write(stripTagAndLength(bytes))
+				return
+			} else {
+				startingField = 1
+			}
+		}
+
+		for i := startingField; i < t.NumField(); i++ {
 			var pre *forkableWriter
 			pre, out = out.fork()
 			err = marshalField(pre, v.Field(i), parseFieldParameters(t.Field(i).Tag))
@@ -321,7 +383,9 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 
 		var params fieldParameters
 		for i := 0; i < v.Len(); i++ {
-			err = marshalField(out, v.Elem(i), params)
+			var pre *forkableWriter
+			pre, out = out.fork()
+			err = marshalField(pre, v.Elem(i), params)
 			if err != nil {
 				return
 			}
@@ -340,6 +404,25 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 }
 
 func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) (err os.Error) {
+	// If the field is an interface{} then recurse into it.
+	if v, ok := v.(*reflect.InterfaceValue); ok && v.Type().(*reflect.InterfaceType).NumMethod() == 0 {
+		return marshalField(out, v.Elem(), params)
+	}
+
+	if v.Type() == rawValueType {
+		rv := v.Interface().(RawValue)
+		err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
+		if err != nil {
+			return
+		}
+		_, err = out.Write(rv.Bytes)
+		return
+	}
+
+	if params.optional && reflect.DeepEqual(v.Interface(), reflect.MakeZero(v.Type()).Interface()) {
+		return
+	}
+
 	tag, isCompound, ok := getUniversalType(v.Type())
 	if !ok {
 		err = StructuralError{fmt.Sprintf("unknown Go type: %v", v.Type())}
@@ -352,6 +435,13 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 			return StructuralError{"Explicit string type given to non-string member"}
 		}
 		tag = params.stringType
+	}
+
+	if params.set {
+		if tag != tagSequence {
+			return StructuralError{"Non sequence tagged as set"}
+		}
+		tag = tagSet
 	}
 
 	tags, body := out.fork()
@@ -402,4 +492,14 @@ func Marshal(out io.Writer, val interface{}) os.Error {
 	}
 	_, err = f.writeTo(out)
 	return err
+}
+
+// MarshalToMemory performs the same actions as Marshal, but returns the result
+// as a byte slice.
+func MarshalToMemory(val interface{}) ([]byte, os.Error) {
+	var out bytes.Buffer
+	if err := Marshal(&out, val); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
 }

@@ -95,9 +95,9 @@ type algorithmIdentifier struct {
 	Algorithm asn1.ObjectIdentifier
 }
 
-type rdnSequence []relativeDistinguishedName
+type rdnSequence []relativeDistinguishedNameSET
 
-type relativeDistinguishedName []attributeTypeAndValue
+type relativeDistinguishedNameSET []attributeTypeAndValue
 
 type attributeTypeAndValue struct {
 	Type  asn1.ObjectIdentifier
