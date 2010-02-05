@@ -12,6 +12,7 @@ OFILES_amd64=\
 OFILES_386=\
 	asin_386.$O\
 	atan_386.$O\
+	atan2_386.$O\
 	exp_386.$O\
 	fabs_386.$O\
 	floor_386.$O\
