@@ -92,23 +92,39 @@ func TestSplit(t *testing.T) {
 }
 
 type JoinTest struct {
-	dir, file, path string
+	elem []string
+	path string
 }
 
 var jointests = []JoinTest{
-	JoinTest{"a", "b", "a/b"},
-	JoinTest{"a", "", "a"},
-	JoinTest{"", "b", "b"},
-	JoinTest{"/", "a", "/a"},
-	JoinTest{"/", "", "/"},
-	JoinTest{"a/", "b", "a/b"},
-	JoinTest{"a/", "", "a"},
+	// zero parameters
+	JoinTest{[]string{}, ""},
+
+	// one parameter
+	JoinTest{[]string{""}, ""},
+	JoinTest{[]string{"a"}, "a"},
+
+	// two parameters
+	JoinTest{[]string{"a", "b"}, "a/b"},
+	JoinTest{[]string{"a", ""}, "a"},
+	JoinTest{[]string{"", "b"}, "b"},
+	JoinTest{[]string{"/", "a"}, "/a"},
+	JoinTest{[]string{"/", ""}, "/"},
+	JoinTest{[]string{"a/", "b"}, "a/b"},
+	JoinTest{[]string{"a/", ""}, "a"},
+	JoinTest{[]string{"", ""}, ""},
+}
+
+// join takes a []string and passes it to Join.
+func join(elem []string, args ...string) string {
+	args = elem
+	return Join(args)
 }
 
 func TestJoin(t *testing.T) {
 	for _, test := range jointests {
-		if p := Join(test.dir, test.file); p != test.path {
-			t.Errorf("Join(%q, %q) = %q, want %q", test.dir, test.file, p, test.path)
+		if p := join(test.elem); p != test.path {
+			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
 		}
 	}
 }

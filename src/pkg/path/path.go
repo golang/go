@@ -115,13 +115,15 @@ func Split(path string) (dir, file string) {
 	return "", path
 }
 
-// Join joins dir and file into a single path, adding a separating
-// slash if necessary.  If dir is empty, it returns file.
-func Join(dir, file string) string {
-	if dir == "" {
-		return file
+// Join joins any number of path elemets into a single path, adding a
+// separating slash if necessary.  All empty strings are ignored.
+func Join(elem ...string) string {
+	for i, e := range elem {
+		if e != "" {
+			return Clean(strings.Join(elem[i:], "/"))
+		}
 	}
-	return Clean(dir + "/" + file)
+	return ""
 }
 
 // Ext returns the file name extension used by path.
