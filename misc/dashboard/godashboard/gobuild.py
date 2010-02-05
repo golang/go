@@ -5,6 +5,7 @@
 # This is the server part of the continuous build system for Go. It must be run
 # by AppEngine.
 
+from google.appengine.api import memcache
 from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
@@ -18,6 +19,7 @@ import os
 import re
 import struct
 
+# local imports
 import key
 
 # The majority of our state are commit objects. One of these exists for each of
@@ -44,6 +46,7 @@ class Commit(db.Model):
 
 class Benchmark(db.Model):
     name = db.StringProperty()
+    version = db.IntegerProperty()
 
 class BenchmarkResult(db.Model):
     num = db.IntegerProperty()
@@ -64,6 +67,15 @@ class Highwater(db.Model):
 
 N = 30
 
+def builderInfo(b):
+    f = b.split('-', 3)
+    goos = f[0]
+    goarch = f[1]
+    note = ""
+    if len(f) > 2:
+        note = f[2]
+    return {'name': b, 'goos': goos, 'goarch': goarch, 'note': note}
+
 class MainPage(webapp.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
@@ -77,13 +89,7 @@ class MainPage(webapp.RequestHandler):
 
         for r in revs:
             for b in r['builds']:
-                f = b['builder'].split('-', 3)
-                goos = f[0]
-                goarch = f[1]
-                note = ""
-                if len(f) > 2:
-                    note = f[2]
-                builders[b['builder']] = {'goos': goos, 'goarch': goarch, 'note': note}
+                builders[b['builder']] = builderInfo(b['builder'])
 
         for r in revs:
             have = set(x['builder'] for x in r['builds'])
@@ -91,7 +97,6 @@ class MainPage(webapp.RequestHandler):
             for n in need:
                 r['builds'].append({'builder': n, 'log':'', 'ok': False})
             r['builds'].sort(cmp = byBuilder)
-            r['shortdesc'] = r['desc'].split('\n', 2)[0]
 
         builders = list(builders.items())
         builders.sort()
@@ -269,22 +274,131 @@ class Build(webapp.RequestHandler):
         self.response.set_status(200)
 
 class Benchmarks(webapp.RequestHandler):
-    def get(self):
+    def json(self):
         q = Benchmark.all()
+        q.filter('__key__ >', Benchmark.get_or_insert('v002.').key())
         bs = q.fetch(10000)
 
         self.response.set_status(200)
-        self.response.headers['Content-Type'] = 'application/json; charset=utf-8'
-        self.response.out.write('{"benchmarks": [\n')
+        self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+        self.response.out.write('{"benchmarks": [')
 
         first = True
+        sep = "\n\t"
         for b in bs:
-            if not first:
-                self.response.out.write(',"' + b.name + '"\n')
-            else:
-                self.response.out.write('"' + b.name + '"\n')
-                first = False
-        self.response.out.write(']}\n')
+            self.response.out.write('%s"%s"' % (sep, b.name))
+            sep = ",\n\t"
+        self.response.out.write('\n]}\n')
+
+    def get(self):
+        if self.request.get('fmt') == 'json':
+            return self.json()
+        self.response.set_status(200)
+        self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        q = Commit.all()
+        q.order('-__key__')
+        n = q.fetch(1)[0]
+        key = "bench(%d)" % n.num
+        page = None # memcache.get(key)
+        if not page:
+            page = self.compute()
+            memcache.set(key, page, 3600)
+        self.response.out.write(page)
+    
+    def compute(self):
+        q = Benchmark.all()
+        q.filter('__key__ >', Benchmark.get_or_insert('v002.').key())
+        bs = q.fetch(10000)
+        
+        # Collect table giving all the data we need.
+        builders = {}
+        data = {}
+        for b in bs:
+            # TODO(rsc): Will want to limit benchmarks to a certain
+            # number of commits eventually, but there aren't enough
+            # commits yet to worry.
+            q = BenchmarkResult.all()
+            q.ancestor(b)
+            q.order('-__key__')
+            results = q.fetch(10000)
+            m = {}
+            revs = {}
+            for r in results:
+                if r.builder not in m:
+                    m[r.builder] = {}
+                m[r.builder][r.num] = r.nsperop
+                revs[r.num] = 0
+                builders[r.builder] = 0
+            data[b.name] = m
+
+        builders = list(builders.keys())
+        builders.sort()
+
+        revs = list(revs.keys())
+        revs.sort()
+        first = revs[0]
+        last = revs[-1]
+        if len(revs) > 80:   # At most 80 commits back
+            last = revs[-80]
+
+        names = list(data.keys())
+        names.sort()
+
+        # Build list of rows, one per benchmark
+        benchmarks = []
+        for name in names:
+            # Build list of cells, one per builder.
+            m = data[name]
+            builds = []
+            for builder in builders:
+                # Build cell: a URL for the chart server or an empty string.
+                if builder not in m:
+                    builds.append({"url":""})
+                    continue
+                d = m[builder]
+                max = 0
+                tot = 0
+                ntot = 0
+                for i in range(first, last+1):
+                    if i not in d:
+                        continue
+                    val = d[i]
+                    if max < val:
+                        max = val
+                    tot += val
+                    ntot += 1
+                if max == 0:
+                    builds.append({"url":""})
+                    continue
+                avg = tot / ntot
+                if 2*avg > max:
+                    max = 2*avg
+                # Encoding is 0-61, which is fine enough granularity for our tiny graphs.  _ means missing.
+                encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                s = ""
+                for i in range(first, last+1):
+                    if i not in d:
+                        s += "_"
+                        continue
+                    val = d[i]
+                    s += encoding[int((len(encoding)-1)*val/max)]
+                builds.append({"url": "http://chart.apis.google.com/chart?cht=ls&chd=s:"+s})
+            benchmarks.append({"name": name, "builds": builds})
+
+        bs = []
+        for b in builders:
+            f = b.split('-', 3)
+            goos = f[0]
+            goarch = f[1]
+            note = ""
+            if len(f) > 2:
+                note = f[2]
+            bs.append({'goos': goos, 'goarch': goarch, 'note': note})
+
+        values = {"benchmarks": benchmarks, "builders": bs}
+
+        path = os.path.join(os.path.dirname(__file__), 'benchmarks.html')
+        return template.render(path, values)
 
     def post(self):
         if not auth(self.request):
@@ -327,24 +441,29 @@ class Benchmarks(webapp.RequestHandler):
             return
 
         for (benchmark, (iterations, time)) in benchmarks.items():
-            b = Benchmark.get_or_insert(benchmark.encode('base64'), name = benchmark)
-            r = BenchmarkResult(key_name = '%08x/builder' % n.num, parent = b, num = n.num, iterations = iterations, nsperop = time, builder = builder)
+            b = Benchmark.get_or_insert('v002.' + benchmark.encode('base64'), name = benchmark, version = 2)
+            r = BenchmarkResult(key_name = '%08x/%s' % (n.num, builder), parent = b, num = n.num, iterations = iterations, nsperop = time, builder = builder)
             r.put()
-
+        key = "bench(%d)" % n.num
+        memcache.delete(key)
         self.response.set_status(200)
+
+def node(num):
+    q = Commit.all()
+    q.filter('num =', num)
+    n = q.get()
+    return n
 
 class GetBenchmarks(webapp.RequestHandler):
     def get(self):
-        self.response.headers['Content-Type'] = 'application/json; charset=utf-8'
-        benchmark = self.request.path[12:].decode('hex').encode('base64')
-
-        b = Benchmark.get_by_key_name(benchmark)
-        if b is None:
+        benchmark = self.request.path[12:]
+        bm = Benchmark.get_by_key_name('v002.' + benchmark.encode('base64'))
+        if bm is None:
             self.response.set_status(404)
             return
 
         q = BenchmarkResult.all()
-        q.ancestor(b)
+        q.ancestor(bm)
         q.order('-__key__')
         results = q.fetch(10000)
 
@@ -352,26 +471,86 @@ class GetBenchmarks(webapp.RequestHandler):
             self.response.set_status(404)
             return
 
-        max = -1
-        min = 2000000000
+        maxv = -1
+        minv = 2000000000
         builders = set()
         for r in results:
-            if max < r.num:
-                max = r.num
-            if min > r.num:
-                min = r.num
+            if maxv < r.num:
+                maxv = r.num
+            if minv > r.num:
+                minv = r.num
             builders.add(r.builder)
 
         res = {}
         for b in builders:
-            res[b] = [[-1] * ((max - min) + 1), [-1] * ((max - min) + 1)]
+            res[b] = [[-1] * ((maxv - minv) + 1), [-1] * ((maxv - minv) + 1)]
 
         for r in results:
-            res[r.builder][0][r.num - min] = r.iterations
-            res[r.builder][1][r.num - min] = r.nsperop
+            res[r.builder][0][r.num - minv] = r.iterations
+            res[r.builder][1][r.num - minv] = r.nsperop
+        
+        minhash = node(minv).node
+        maxhash = node(maxv).node
+        if self.request.get('fmt') == 'json':
+            self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+            self.response.out.write('{"min": "%s", "max": "%s", "data": {' % (minhash, maxhash))
+            sep = "\n\t"
+            for b in builders:
+                self.response.out.write('%s"%s": {"iterations": %s, "nsperop": %s}' % (sep, b, str(res[b][0]).replace("L", ""), str(res[b][1]).replace("L", "")))
+                sep = ",\n\t"
+            self.response.out.write("\n}}\n")
+            return
 
-        self.response.out.write(str(res))
-
+        def bgraph(builder):
+            data = res[builder][1]
+            encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-"
+            m = max(data)  # max ns timing
+            if m == -1:
+                return ""
+            tot = 0
+            ntot = 0
+            for d in data:
+                if d < 0:
+                    continue
+                tot += d
+                ntot += 1
+            avg = tot / ntot
+            if 2*avg > m:
+                m = 2*avg
+            s = ""
+            for d in data:
+                if d < 0:
+                    s += "__"
+                    continue
+                val = int(d*4095.0/m)
+                s += encoding[val/64] + encoding[val%64]
+            return "http://chart.apis.google.com/chart?cht=lc&chxt=x,y&chxl=0:|%s|%s|1:|0|%g ns|%g ns&chd=e:%s" % (minhash[0:12], maxhash[0:12], m/2, m, s)
+            
+        graphs = []
+        for b in builders:
+            graphs.append({"builder": b, "url": bgraph(b)})
+        
+        revs = []
+        for i in range(minv, maxv+1):
+            r = nodeInfo(node(i))
+            ns = []
+            for b in builders:
+                t = res[b][1][i - minv]
+                if t < 0:
+                    t = None
+                ns.append(t)
+            r["ns_by_builder"] = ns
+            revs.append(r)
+        
+        path = os.path.join(os.path.dirname(__file__), 'benchmark1.html')
+        data = {
+            "benchmark": bm.name,
+            "builders": [builderInfo(b) for b in builders],
+            "graphs": graphs,
+            "revs": revs
+        }
+        self.response.out.write(template.render(path, data))
+        
 class FixedOffset(datetime.tzinfo):
     """Fixed offset in minutes east from UTC."""
 
@@ -430,13 +609,19 @@ def parseBuild(build):
     [builder, logblob] = build.split('`')
     return {'builder': builder, 'log': logblob, 'ok': len(logblob) == 0}
 
+def nodeInfo(c):
+    return {
+        "node": c.node,
+        "user": toUsername(c.user),
+        "date": dateToShortStr(c.date),
+        "desc": c.desc,
+        "shortdesc": c.desc.split('\n', 2)[0]
+    }
+
 def toRev(c):
-        b = { "node": c.node,
-              "user": toUsername(c.user),
-              "date": dateToShortStr(c.date),
-              "desc": c.desc}
-        b['builds'] = [parseBuild(build) for build in c.builds]
-        return b
+    b = nodeInfo(c)
+    b['builds'] = [parseBuild(build) for build in c.builds]
+    return b
 
 def byBuilder(x, y):
     return cmp(x['builder'], y['builder'])

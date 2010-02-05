@@ -69,9 +69,7 @@ while true ; do
             echo "Running benchmarks"
             cd pkg || fatal "failed to cd to pkg"
             make bench > ../../benchmarks 2>&1
-            if [ $? -eq 0 ] ; then
-                python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
-            fi
+            python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
             cd .. || fatal "failed to cd out of pkg"
         fi
     fi
