@@ -5,6 +5,40 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-02-04">2010-02-04</h3>
+
+<pre>
+There is one language change: support for ...T parameters:
+	http://golang.org/doc/go_spec.html#Function_types
+
+You can now check build status on various platforms at the Go Dashboard: 
+	http://godashboard.appspot.com
+
+* 5l/6l/8l: several minor fixes
+* 5a/6a/8a/5l/6l/8l: avoid overflow of symb buffer (thanks Dean Prichard)
+* compress/gzip: gzip deflater (i.e., writer)
+* debug/proc: add mingw specific build stubs (thanks Joe Poirier)
+* exp/draw: separate the source-point and mask-point in Draw
+* fmt: handle nils safely in Printf
+* gccgo: error messages now match those of gc
+* godoc: several fixes
+* http: bug fixes, revision of Request/Response (thanks Petar Maymounkov)
+* image: new image.A type to represent anti-aliased font glyphs
+	add named colors (e.g. image.Blue), suitable for exp/draw
+* io: fixed bugs in Pipe
+* malloc: merge into package runtime
+* math: fix tests on FreeBSD (thanks Devon H. O'Dell)
+	add functions; update tests and special cases (thanks Charles L. Dorian)
+* os/signal: send SIGCHLDs to Incoming (thanks Chris Wedgwood)
+* reflect: add StringHeader to reflect
+* runtime: add SetFinalizer
+* time: Sleep through interruptions (thanks Chris Wedgwood)
+	add RFC822 formats
+	experimental implemenation of Ticker using two goroutines for all tickers
+* xml: allow underscores in XML element names (thanks Michael Hoisie)
+	allow any scalar type in xml.Unmarshal
+</pre>
+
 <h3 id="2010-01-27">2010-01-27</h3>
 
 <pre>
