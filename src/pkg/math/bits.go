@@ -53,7 +53,14 @@ func IsInf(f float64, sign int) bool {
 // It returns frac and exp satisfying f == frac × 2<sup>exp</sup>,
 // with the absolute value of frac in the interval [½, 1).
 func Frexp(f float64) (frac float64, exp int) {
-	if f == 0 {
+	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+	// when compiler does it for us
+	// special cases
+	switch {
+	case f == 0:
+		return
+	case f < -MaxFloat64 || f > MaxFloat64 || f != f: // IsInf(f, 0) || IsNaN(f):
+		frac = f
 		return
 	}
 	x := Float64bits(f)
@@ -67,6 +74,12 @@ func Frexp(f float64) (frac float64, exp int) {
 // Ldexp is the inverse of Frexp.
 // It returns frac × 2<sup>exp</sup>.
 func Ldexp(frac float64, exp int) float64 {
+	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+	// when compiler does it for us
+	// special cases
+	if frac != frac { // IsNaN(frac)
+		return NaN()
+	}
 	x := Float64bits(frac)
 	exp += int(x>>shift) & mask
 	if exp <= 0 {
@@ -81,28 +94,4 @@ func Ldexp(frac float64, exp int) float64 {
 	x &^= mask << shift
 	x |= uint64(exp) << shift
 	return Float64frombits(x)
-}
-
-// Modf returns integer and fractional floating-point numbers
-// that sum to f.
-// Integer and frac have the same sign as f.
-func Modf(f float64) (int float64, frac float64) {
-	if f < 1 {
-		if f < 0 {
-			int, frac = Modf(-f)
-			return -int, -frac
-		}
-		return 0, f
-	}
-
-	x := Float64bits(f)
-	e := uint(x>>shift)&mask - bias
-
-	// Keep the top 11+e bits, the integer part; clear the rest.
-	if e < 64-11 {
-		x &^= 1<<(64-11-e) - 1
-	}
-	int = Float64frombits(x)
-	frac = f - int
-	return
 }
