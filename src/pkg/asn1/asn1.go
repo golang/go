@@ -410,11 +410,6 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 		}
 	}
 
-	// We magically map SET and SET OF to SEQUENCE and SEQUENCE OF
-	// because we treat everything as ordered.
-	if ret.tag == tagSet {
-		ret.tag = tagSequence
-	}
 	return
 }
 

@@ -24,9 +24,9 @@ type nestedStruct struct {
 	A intStruct
 }
 
-type marshalTest struct {
-	in  interface{}
-	out string // hex encoded
+type rawContentsStruct struct {
+	Raw RawContent
+	A   int
 }
 
 type implicitTagTest struct {
@@ -45,9 +45,16 @@ type printableStringTest struct {
 	A string "printable"
 }
 
+type testSET []int
+
 func setPST(t *time.Time) *time.Time {
 	t.ZoneOffset = -28800
 	return t
+}
+
+type marshalTest struct {
+	in  interface{}
+	out string // hex encoded
 }
 
 var marshalTests = []marshalTest{
@@ -64,9 +71,14 @@ var marshalTests = []marshalTest{
 	marshalTest{BitString{[]byte{0x80}, 1}, "03020780"},
 	marshalTest{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
 	marshalTest{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},
+	marshalTest{ObjectIdentifier([]int{1, 2, 840, 133549, 1, 1, 5}), "06092a864888932d010105"},
 	marshalTest{"test", "130474657374"},
 	marshalTest{ia5StringTest{"test"}, "3006160474657374"},
 	marshalTest{printableStringTest{"test"}, "3006130474657374"},
+	marshalTest{rawContentsStruct{nil, 64}, "3003020140"},
+	marshalTest{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
+	marshalTest{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},
+	marshalTest{testSET([]int{10}), "310302010a"},
 }
 
 func TestMarshal(t *testing.T) {
