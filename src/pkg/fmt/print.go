@@ -378,6 +378,9 @@ func getInt(a interface{}) (val int64, signed, ok bool) {
 }
 
 func getString(a interface{}) (val string, ok bool) {
+	if a == nil {
+		return "<nil>", ok
+	}
 	// Is it a regular string or []byte type?
 	switch s := a.(type) {
 	case string:
@@ -941,8 +944,10 @@ func (p *pp) doprintf(format string, a []interface{}) {
 			p.buf.WriteByte('%')
 			p.add(c)
 			p.buf.WriteByte('(')
-			p.buf.WriteString(reflect.Typeof(field).String())
-			p.buf.WriteByte('=')
+			if field != nil {
+				p.buf.WriteString(reflect.Typeof(field).String())
+				p.buf.WriteByte('=')
+			}
 			p.printField(field, false, false, 0)
 			p.buf.WriteByte(')')
 		}

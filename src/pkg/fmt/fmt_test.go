@@ -229,6 +229,11 @@ var fmttests = []fmtTest{
 	fmtTest{"%#v", make(chan int), "(chan int)(PTR)"},
 	fmtTest{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
 	fmtTest{"%#v", 1000000000, "1000000000"},
+
+	// erroneous things
+	fmtTest{"%d", "hello", "%d(string=hello)"},
+	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
+	fmtTest{"%s", nil, "%s(<nil>)"},
 }
 
 func TestSprintf(t *testing.T) {
