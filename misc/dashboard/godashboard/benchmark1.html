@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <title>Go dashboard</title>
+    <title>Go benchmarks</title>
 
     <style>
       h1 {
@@ -57,11 +57,25 @@
   </head>
 
   <body>
-    <h1>Go dashboard</h1>
+    <h1>Go dashboard - {{benchmark}}</h1>
     
-    <a href="benchmarks">benchmarks</a>
+    <a href="/">build status</a> <br>
+    <a href="/benchmarks">benchmarks</a>
+
+    <h2>{{benchmark}}</h2>
+    <a href="{{benchmark}}?fmt=json">json</a>
+
+    {% for g in graphs %}
+      <h3>{{g.builder}}</h3>
+      {% if g.url %}
+        <img src="{{g.url}}&chs=600x150&chf=bg,s,00000000&chco=000000ff&chls=1,1,0">
+      {% else %}
+        (no data available)
+      {% endif %}
+    {% endfor %}
     
-    <h2>Build status</h2>
+    <br><br>
+    
     <table class="alternate" cellpadding="0" cellspacing="0">
       <tr>
         <th></th>
@@ -77,25 +91,17 @@
       <tr>
         <td class="revision"><span class="hash"><a href="https://code.google.com/p/go/source/detail?r={{r.node}}">{{r.node|slice:":12"}}</a></span></td>
 
-        {% for b in r.builds %}
+        {% for ns in r.ns_by_builder %}
           <td class="result">
-          {% if b.ok %}
-            <span class="ok">ok</span>
-          {% else %}
-            {% if b.log %}
-              <a href="/log/{{b.log}}">fail</a>
-            {% else %}
-              <span/>
-            {% endif %}
+          {% if ns %}
+            {{ns}}
           {% endif %}
           </td>
         {% endfor %}
-
         <td class="user">{{r.user|escape}}</td>
         <td class="date">{{r.date|escape}}</td>
         <td class="desc">{{r.shortdesc|escape}}</td>
       </tr>
       {% endfor %}
-    </table>
   </body>
 </html>
