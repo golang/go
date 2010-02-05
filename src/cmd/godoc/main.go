@@ -47,6 +47,9 @@ var (
 
 	// layout control
 	html = flag.Bool("html", false, "print HTML in command-line mode")
+
+	// --- Hack to remember current directory
+	workingDir string
 )
 
 
@@ -151,6 +154,13 @@ func main() {
 	if *tabwidth < 0 {
 		log.Exitf("negative tabwidth %d", *tabwidth)
 	}
+
+	// ---  Start of hack.
+	// Remember where we were, so "." works as a directory name.
+	// Error's not worth worrying about; we just check for empty string
+	// when we need it.
+	workingDir, _ = os.Getwd()
+	// --- End of hack.
 
 	if err := os.Chdir(goroot); err != nil {
 		log.Exitf("chdir %s: %v", goroot, err)

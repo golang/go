@@ -1043,8 +1043,20 @@ type httpHandler struct {
 // PageInfo.Dirs is nil.
 //
 func (h *httpHandler) getPageInfo(path string, try bool) PageInfo {
-	// the path is relative to h.fsroot
-	dirname := pathutil.Join(h.fsRoot, path)
+	var dirname string
+	// If the path starts with a slash or ., ignore $GOROOT.
+	// It would be nice to handle "./dir" too, but godoc chdirs to $GOROOT. TODO: fix.
+	if len(path) > 0 && path[0] == '/' {
+		dirname = path
+		// --- Start of hack
+	} else if len(path) > 0 && path[0] == '.' && workingDir != "" {
+		path = pathutil.Join(workingDir, path)
+		dirname = path
+		// --- End of hack
+	} else {
+		// the path is relative to h.fsroot
+		dirname = pathutil.Join(h.fsRoot, path)
+	}
 
 	// the package name is the directory name within its parent
 	// (use dirname instead of path because dirname is clean; i.e. has no trailing '/')
@@ -1053,6 +1065,20 @@ func (h *httpHandler) getPageInfo(path string, try bool) PageInfo {
 	// filter function to select the desired .go files
 	filter := func(d *os.Dir) bool {
 		if isPkgFile(d) {
+
+			// --- Start of hack.
+			// An ugly special case: If the path is rooted, just say
+			// yes in the hope we'll get some output from a directory
+			// outside $GOROOT.  Ugly but effective for command-line
+			// output but may not find everything if there are multiple
+			// packages in the directory, since godoc assumes one
+			// package per directory.
+			// TODO: Do this better.
+			if len(path) > 0 && path[0] == '/' {
+				return true
+			}
+			// --- End of hack.
+
 			// Some directories contain main packages: Only accept
 			// files that belong to the expected package so that
 			// parser.ParsePackage doesn't return "multiple packages
