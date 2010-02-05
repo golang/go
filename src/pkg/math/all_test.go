@@ -1,4 +1,4 @@
-// Copyright 2009-2010 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -220,6 +220,25 @@ var fmod = []float64{
 	8.734595415957246977711748e-01,
 	1.314075231424398637614104e+00,
 }
+
+type fi struct {
+	f float64
+	i int
+}
+
+var frexp = []fi{
+	fi{6.2237649061045918750e-01, 3},
+	fi{9.6735905932226306250e-01, 3},
+	fi{-5.5376011438400318000e-01, -1},
+	fi{-6.2632545228388436250e-01, 3},
+	fi{6.02268356699901081250e-01, 4},
+	fi{7.3159430981099115000e-01, 2},
+	fi{6.5363542893241332500e-01, 3},
+	fi{6.8198497760900255000e-01, 2},
+	fi{9.1265404584042750000e-01, 1},
+	fi{-5.4287029803597508250e-01, 4},
+}
+
 var log = []float64{
 	1.605231462693062999102599e+00,
 	2.0462560018708770653153909e+00,
@@ -255,6 +274,18 @@ var log1p = []float64{
 	2.6913947602193238458458594e-02,
 	1.8088493239630770262045333e-02,
 	-9.0865245631588989681559268e-02,
+}
+var modf = [][2]float64{
+	[2]float64{4.0000000000000000e+00, 9.7901192488367350108546816e-01},
+	[2]float64{7.0000000000000000e+00, 7.3887247457810456552351752e-01},
+	[2]float64{0.0000000000000000e+00, -2.7688005719200159404635997e-01},
+	[2]float64{-5.0000000000000000e+00, -1.060361827107492160848778e-02},
+	[2]float64{9.0000000000000000e+00, 6.3629370719841737980004837e-01},
+	[2]float64{2.0000000000000000e+00, 9.2637723924396464525443662e-01},
+	[2]float64{5.0000000000000000e+00, 2.2908343145930665230025625e-01},
+	[2]float64{2.0000000000000000e+00, 7.2793991043601025126008608e-01},
+	[2]float64{1.0000000000000000e+00, 8.2530809168085506044576505e-01},
+	[2]float64{-8.0000000000000000e+00, -6.8592476857560136238589621e-01},
 }
 var pow = []float64{
 	9.5282232631648411840742957e+04,
@@ -516,6 +547,19 @@ var fmodSC = []float64{
 	NaN(),
 }
 
+var vffrexpSC = []float64{
+	Inf(-1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var frexpSC = []fi{
+	fi{Inf(-1), 0},
+	fi{0, 0},
+	fi{Inf(1), 0},
+	fi{NaN(), 0},
+}
+
 var vfhypotSC = [][2]float64{
 	[2]float64{Inf(-1), Inf(-1)},
 	[2]float64{Inf(-1), 0},
@@ -579,6 +623,17 @@ var log1pSC = []float64{
 	Inf(-1),
 	Inf(1),
 	NaN(),
+}
+
+var vfmodfSC = []float64{
+	Inf(-1),
+	Inf(1),
+	NaN(),
+}
+var modfSC = [][2]float64{
+	[2]float64{Inf(-1), NaN()},
+	[2]float64{Inf(1), NaN()},
+	[2]float64{NaN(), NaN()},
 }
 
 var vfpowSC = [][2]float64{
@@ -919,6 +974,19 @@ func TestFmod(t *testing.T) {
 	}
 }
 
+func TestFrexp(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f, j := Frexp(vf[i]); !veryclose(frexp[i].f, f) || frexp[i].i != j {
+			t.Errorf("Frexp(%g) = %g, %d, want %g, %d\n", vf[i], f, j, frexp[i].f, frexp[i].i)
+		}
+	}
+	for i := 0; i < len(vffrexpSC); i++ {
+		if f, j := Frexp(vffrexpSC[i]); !alike(frexpSC[i].f, f) || frexpSC[i].i != j {
+			t.Errorf("Frexp(%g) = %g, %d, want %g, %d\n", vffrexpSC[i], f, j, frexpSC[i].f, frexpSC[i].i)
+		}
+	}
+}
+
 func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(1e200 * tanh[i] * Sqrt(2))
@@ -929,6 +997,19 @@ func TestHypot(t *testing.T) {
 	for i := 0; i < len(vfhypotSC); i++ {
 		if f := Hypot(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
 			t.Errorf("Hypot(%g, %g) = %g, want %g\n", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
+		}
+	}
+}
+
+func TestLdexp(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Ldexp(frexp[i].f, frexp[i].i); !veryclose(vf[i], f) {
+			t.Errorf("Ldexp(%g, %d) = %g, want %g\n", frexp[i].f, frexp[i].i, f, vf[i])
+		}
+	}
+	for i := 0; i < len(vffrexpSC); i++ {
+		if f := Ldexp(frexpSC[i].f, frexpSC[i].i); !alike(vffrexpSC[i], f) {
+			t.Errorf("Ldexp(%g, %d) = %g, want %g\n", frexpSC[i].f, frexpSC[i].i, f, vffrexpSC[i])
 		}
 	}
 }
@@ -981,6 +1062,19 @@ func TestLog1p(t *testing.T) {
 	for i := 0; i < len(vflogSC); i++ {
 		if f := Log1p(vflog1pSC[i]); !alike(log1pSC[i], f) {
 			t.Errorf("Log1p(%g) = %g, want %g\n", vflog1pSC[i], f, log1pSC[i])
+		}
+	}
+}
+
+func TestModf(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f, g := Modf(vf[i]); !veryclose(modf[i][0], f) || !veryclose(modf[i][1], g) {
+			t.Errorf("Modf(%g) = %g, %g, want %g, %g\n", vf[i], f, g, modf[i][0], modf[i][1])
+		}
+	}
+	for i := 0; i < len(vfmodfSC); i++ {
+		if f, g := Modf(vfmodfSC[i]); !alike(modfSC[i][0], f) || !alike(modfSC[i][1], g) {
+			t.Errorf("Modf(%g) = %g, %g, want %g, %g\n", vfmodfSC[i], f, g, modfSC[i][0], modfSC[i][1])
 		}
 	}
 }
@@ -1220,9 +1314,21 @@ func BenchmarkFmod(b *testing.B) {
 	}
 }
 
+func BenchmarkFrexp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Frexp(8)
+	}
+}
+
 func BenchmarkHypot(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Hypot(3, 4)
+	}
+}
+
+func BenchmarkLdexp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Ldexp(.5, 2)
 	}
 }
 
@@ -1241,6 +1347,12 @@ func BenchmarkLog10(b *testing.B) {
 func BenchmarkLog1p(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Log1p(.5)
+	}
+}
+
+func BenchmarkModf(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Modf(1.5)
 	}
 }
 

@@ -18,6 +18,7 @@ OFILES_386=\
 	fmod_386.$O\
 	hypot_386.$O\
 	log_386.$O\
+	modf_386.$O\
 	sin_386.$O\
 	sqrt_386.$O\
 	tan_386.$O\
@@ -44,6 +45,7 @@ ALLGOFILES=\
 	hypot.go\
 	log.go\
 	log1p.go\
+	modf.go\
 	pow.go\
 	pow10.go\
 	sin.go\
