@@ -618,6 +618,19 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 	q->neg = ns^ds;
 }
 
+int
+iszero(Mpint *a)
+{
+	long *a1;
+	int i;
+	a1 = &a->a[0] + Mpprec;
+	for(i=0; i<Mpprec; i++) {
+		if(*--a1 != 0)
+			return 0;
+	}
+	return 1;
+}
+
 void
 mpdivfract(Mpint *a, Mpint *b)
 {
@@ -632,13 +645,13 @@ mpdivfract(Mpint *a, Mpint *b)
 	neg = n.neg ^ d.neg;
 	n.neg = 0;
 	d.neg = 0;
-
 	for(i=0; i<Mpprec; i++) {
 		x = 0;
 		for(j=0; j<Mpscale; j++) {
 			x <<= 1;
 			if(mpcmp(&d, &n) <= 0) {
-				x |= 1;
+				if(!iszero(&d))
+					x |= 1;
 				mpsubfixfix(&n, &d);
 			}
 			mprsh(&d);
