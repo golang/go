@@ -6,4 +6,4 @@
 
 package main
 
-var x = y[:z]	// ERROR "missing lower bound in slice expression"
+var x = y[:z]	// ERROR "missing lower bound in slice expression|undefined"

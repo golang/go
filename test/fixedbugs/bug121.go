@@ -9,7 +9,7 @@ package main
 type T func()
 
 type I interface {
-	f, g ();	// ERROR "syntax|signature"
+	f, g ();	// ERROR "name list not allowed"
 }
 
 type J interface {

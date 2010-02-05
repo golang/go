@@ -7,7 +7,7 @@
 package main
 
 func main()
-{	// ERROR "unexpected semicolon or newline before {"
+{	// ERROR "unexpected semicolon or newline before .?{.?"
 
 
 
