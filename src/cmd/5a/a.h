@@ -54,7 +54,6 @@ typedef	struct	Hist	Hist;
 #define	NSYMB		8192
 #define	BUFSIZ		8192
 #define	HISTSZ		20
-#define	NINCLUDE	10
 #define	NHUNK		10000
 #define	EOF		(-1)
 #define	IGN		(-2)
@@ -128,13 +127,13 @@ enum
 
 EXTERN	char	debug[256];
 EXTERN	Sym*	hash[NHASH];
-EXTERN	char*	Dlist[30];
+EXTERN	char**	Dlist;
 EXTERN	int	nDlist;
 EXTERN	Hist*	ehist;
 EXTERN	int	newflag;
 EXTERN	Hist*	hist;
 EXTERN	char*	hunk;
-EXTERN	char*	include[NINCLUDE];
+EXTERN	char**	include;
 EXTERN	Io*	iofree;
 EXTERN	Io*	ionext;
 EXTERN	Io*	iostack;

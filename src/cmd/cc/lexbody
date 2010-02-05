@@ -149,11 +149,10 @@ setinclude(char *p)
 	for(i=1; i < ninclude; i++)
 		if(strcmp(p, include[i]) == 0)
 			return;
-
-	if(ninclude >= nelem(include)) {
-		yyerror("ninclude too small %d", nelem(include));
-		exits("ninclude");
-	}
+	
+	if(ninclude%8 == 0)
+		include = allocn(include, ninclude*sizeof(char *), 
+			8*sizeof(char *));
 	include[ninclude++] = p;
 }
 
