@@ -51,6 +51,26 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 	}
 
 	// TODO(nigeltao): Clip r to dst's bounding box, and handle the case when sp or mp has negative X or Y.
+	// TODO(nigeltao): Ensure that r is well formed, i.e. r.Max.X >= r.Min.X and likewise for Y.
+
+	// Fast paths for special cases. If none of them apply, then we fall back to a general but slow implementation.
+	if dst0, ok := dst.(*image.RGBA); ok && op == SoverD {
+		if mask == nil {
+			if src0, ok := src.(image.ColorImage); ok {
+				drawFill(dst0, r, src0)
+				return
+			}
+			if src0, ok := src.(*image.RGBA); ok {
+				if dst0 == src0 && r.Overlaps(r.Add(sp.Sub(r.Min))) {
+					// TODO(nigeltao): Implement a fast path for the overlapping case.
+				} else {
+					drawCopy(dst0, r, src0, sp)
+					return
+				}
+			}
+		}
+		// TODO(nigeltao): Implement a fast path for font glyphs (i.e. when mask is an image.Alpha).
+	}
 
 	x0, x1, dx := r.Min.X, r.Max.X, 1
 	y0, y1, dy := r.Min.Y, r.Max.Y, 1
@@ -108,6 +128,36 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 				dst.Set(x, y, out)
 			}
 		}
+	}
+}
+
+func drawFill(dst *image.RGBA, r Rectangle, src image.ColorImage) {
+	if r.Dy() < 1 {
+		return
+	}
+	cr, cg, cb, ca := src.RGBA()
+	color := image.RGBAColor{uint8(cr >> 24), uint8(cg >> 24), uint8(cb >> 24), uint8(ca >> 24)}
+	// The built-in copy function is faster than a straightforward for loop to fill the destination with
+	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
+	// then use the first row as the slice source for the remaining rows.
+	dx0, dx1 := r.Min.X, r.Max.X
+	dy0, dy1 := r.Min.Y, r.Max.Y
+	firstRow := dst.Pixel[dy0]
+	for x := dx0; x < dx1; x++ {
+		firstRow[x] = color
+	}
+	copySrc := firstRow[dx0:dx1]
+	for y := dy0 + 1; y < dy1; y++ {
+		copy(dst.Pixel[y][dx0:dx1], copySrc)
+	}
+}
+
+func drawCopy(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
+	dx0, dx1 := r.Min.X, r.Max.X
+	dy0, dy1 := r.Min.Y, r.Max.Y
+	sx0, sx1 := sp.X, sp.X+dx1-dx0
+	for y, sy := dy0, sp.Y; y < dy1; y, sy = y+1, sy+1 {
+		copy(dst.Pixel[y][dx0:dx1], src.Pixel[sy][sx0:sx1])
 	}
 }
 
