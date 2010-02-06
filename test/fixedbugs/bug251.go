@@ -8,7 +8,7 @@ package main
 
 type I1 interface {
 	m() I2
-	I2	// ERROR "loop"
+	I2	// ERROR "loop|interface"
 }
 
 type I2 interface {
