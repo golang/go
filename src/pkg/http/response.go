@@ -8,11 +8,15 @@ package http
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
+
+var respExcludeHeader = map[string]int{}
 
 // Response represents the response from an HTTP request.
 //
@@ -455,9 +459,7 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	}
 
 	// Rest of header
-	for k, v := range resp.Header {
-		io.WriteString(w, k+": "+v+"\r\n")
-	}
+	writeSortedKeyValue(w, resp.Header, respExcludeHeader)
 
 	// End-of-header
 	io.WriteString(w, "\r\n")
@@ -490,4 +492,20 @@ func (resp *Response) Write(w io.Writer) os.Error {
 
 	// Success
 	return nil
+}
+
+func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]int) {
+	kva := make([]string, len(kvm))
+	i := 0
+	for k, v := range kvm {
+		if _, exc := exclude[k]; !exc {
+			kva[i] = fmt.Sprint(k + ": " + v + "\r\n")
+			i++
+		}
+	}
+	kva = kva[0:i]
+	sort.SortStrings(kva)
+	for _, l := range kva {
+		io.WriteString(w, l)
+	}
 }

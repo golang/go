@@ -49,6 +49,8 @@ type badStringError struct {
 
 func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e.str) }
 
+var reqExcludeHeader = map[string]int{"Host": 0, "User-Agent": 0, "Referer": 0}
+
 // A Request represents a parsed HTTP request header.
 type Request struct {
 	Method     string // GET, POST, PUT, etc.
@@ -169,14 +171,7 @@ func (req *Request) Write(w io.Writer) os.Error {
 	// from Request, and introduce Request methods along the lines of
 	// Response.{GetHeader,AddHeader} and string constants for "Host",
 	// "User-Agent" and "Referer".
-	for k, v := range req.Header {
-		// Host, User-Agent, and Referer were sent from structure fields
-		// above; ignore them if they also appear in req.Header.
-		if k == "Host" || k == "User-Agent" || k == "Referer" {
-			continue
-		}
-		io.WriteString(w, k+": "+v+"\r\n")
-	}
+	writeSortedKeyValue(w, req.Header, reqExcludeHeader)
 
 	io.WriteString(w, "\r\n")
 
