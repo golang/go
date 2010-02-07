@@ -10,6 +10,8 @@ package pem
 import (
 	"bytes"
 	"encoding/base64"
+	"io"
+	"os"
 	"strings"
 )
 
@@ -158,4 +160,100 @@ Error:
 		rest = data
 	}
 	return
+}
+
+const pemLineLength = 64
+
+type lineBreaker struct {
+	line [pemLineLength]byte
+	used int
+	out  io.Writer
+}
+
+func (l *lineBreaker) Write(b []byte) (n int, err os.Error) {
+	if l.used+len(b) < pemLineLength {
+		copy(l.line[l.used:], b)
+		l.used += len(b)
+		return len(b), nil
+	}
+
+	n, err = l.out.Write(l.line[0:l.used])
+	if err != nil {
+		return
+	}
+	excess := pemLineLength - l.used
+	l.used = 0
+
+	n, err = l.out.Write(b[0:excess])
+	if err != nil {
+		return
+	}
+
+	n, err = l.out.Write([]byte{'\n'})
+	if err != nil {
+		return
+	}
+
+	return l.Write(b[excess:])
+}
+
+func (l *lineBreaker) Close() (err os.Error) {
+	if l.used > 0 {
+		_, err = l.out.Write(l.line[0:l.used])
+		if err != nil {
+			return
+		}
+		_, err = l.out.Write([]byte{'\n'})
+	}
+
+	return
+}
+
+func Encode(out io.Writer, b *Block) (err os.Error) {
+	_, err = out.Write(pemStart[1:])
+	if err != nil {
+		return
+	}
+	_, err = out.Write(strings.Bytes(b.Type + "-----\n"))
+	if err != nil {
+		return
+	}
+
+	for k, v := range b.Headers {
+		_, err = out.Write(strings.Bytes(k + ": " + v + "\n"))
+		if err != nil {
+			return
+		}
+	}
+
+	if len(b.Headers) > 1 {
+		_, err = out.Write([]byte{'\n'})
+		if err != nil {
+			return
+		}
+	}
+
+	var breaker lineBreaker
+	breaker.out = out
+
+	b64 := base64.NewEncoder(base64.StdEncoding, &breaker)
+	_, err = b64.Write(b.Bytes)
+	if err != nil {
+		return
+	}
+	b64.Close()
+	breaker.Close()
+
+	_, err = out.Write(pemEnd[1:])
+	if err != nil {
+		return
+	}
+	_, err = out.Write(strings.Bytes(b.Type + "-----\n"))
+	return
+}
+
+func EncodeToMemory(b *Block) []byte {
+	buf := bytes.NewBuffer(nil)
+	Encode(buf, b)
+	return buf.Bytes()
 }
