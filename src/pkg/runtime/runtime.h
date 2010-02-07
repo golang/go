@@ -74,7 +74,7 @@ typedef	struct	Hchan		Hchan;
  *
  * amd64: allocated downwards from R15
  * x86: allocated upwards from 0(FS)
- * arm: allocated upwards from R9
+ * arm: allocated downwards from R10
  *
  * every C file linked into a Go program must include runtime.h
  * so that the C compiler knows to avoid other uses of these registers.
