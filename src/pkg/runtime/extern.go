@@ -71,9 +71,7 @@ func Signame(sig int32) string
 // be called during initialization.
 func Siginit()
 
-// MemStats holds statistics about the memory system.
-// The statistics are only approximate, as they are not interlocked on update.
-var MemStats struct {
+type MemStatsType struct {
 	Alloc      uint64
 	Sys        uint64
 	Stacks     uint64
@@ -83,6 +81,10 @@ var MemStats struct {
 	Mallocs    uint64
 	EnableGC   bool
 }
+
+// MemStats holds statistics about the memory system.
+// The statistics are only approximate, as they are not interlocked on update.
+var MemStats MemStatsType
 
 // Alloc allocates a block of the given size.
 // FOR TESTING AND DEBUGGING ONLY.
