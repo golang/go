@@ -73,13 +73,22 @@ func Siginit()
 
 type MemStatsType struct {
 	Alloc      uint64
+	TotalAlloc uint64
 	Sys        uint64
 	Stacks     uint64
 	InusePages uint64
 	NextGC     uint64
 	Lookups    uint64
 	Mallocs    uint64
+	PauseNs    uint64
+	NumGC      uint32
 	EnableGC   bool
+	DebugGC    bool
+	BySize     [67]struct {
+		Size    uint32
+		Mallocs uint64
+		Frees   uint64
+	}
 }
 
 // MemStats holds statistics about the memory system.

@@ -156,17 +156,26 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
 
 
 // Statistics.
-// Shared with Go: if you edit this structure, also edit ../malloc/malloc.go.
+// Shared with Go: if you edit this structure, also edit extern.go.
 struct MStats
 {
 	uint64	alloc;
+	uint64	total_alloc;
 	uint64	sys;
 	uint64	stacks;
 	uint64	inuse_pages;	// protected by mheap.Lock
 	uint64	next_gc;	// protected by mheap.Lock
 	uint64	nlookup;	// unprotected (approximate)
 	uint64	nmalloc;	// unprotected (approximate)
+	uint64	pause_ns;
+	uint32	numgc;
 	bool	enablegc;
+	bool	debuggc;
+	struct {
+		uint32 size;
+		uint64 nmalloc;
+		uint64 nfree;
+	} by_size[NumSizeClasses];
 };
 
 #define mstats ·MemStats	/* name shared with Go */

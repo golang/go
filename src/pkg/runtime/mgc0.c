@@ -240,6 +240,7 @@ static int32 gcpercent = -2;
 void
 gc(int32 force)
 {
+	int64 t0, t1;
 	byte *p;
 	void **fp;
 
@@ -268,6 +269,7 @@ gc(int32 force)
 
 //printf("gc...\n");
 	semacquire(&gcsema);
+	t0 = nanotime();
 	m->gcing = 1;
 	stoptheworld();
 	if(mheap.Lock.key != 0)
@@ -289,6 +291,11 @@ gc(int32 force)
 	pfinq = finq;
 	m->locks--;
 
+	t1 = nanotime();
+	mstats.numgc++;
+	mstats.pause_ns += t1 - t0;
+	if(mstats.debuggc)
+		printf("pause %D\n", t1-t0);
 	semrelease(&gcsema);
 	starttheworld();
 }

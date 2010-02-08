@@ -44,6 +44,21 @@ TEXT	·write(SB),7,$0-24
 	SYSCALL
 	RET
 
+TEXT gettime(SB), 7, $32
+	LEAQ	8(SP), DI
+	MOVQ	$0, SI
+	MOVQ	$0xffffffffff600000, AX
+	CALL	AX
+
+	MOVQ	8(SP), BX	// sec
+	MOVQ	sec+0(FP), DI
+	MOVQ	BX, (DI)
+
+	MOVL	16(SP), BX	// usec
+	MOVQ	usec+8(FP), DI
+	MOVL	BX, (DI)
+	RET
+
 TEXT	rt_sigaction(SB),7,$0-32
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI

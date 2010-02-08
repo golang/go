@@ -30,6 +30,23 @@ TEXT write(SB),7,$0
 	INT	$0x80
 	RET
 
+TEXT	gettime(SB), 7, $32
+	MOVL	$78, AX			// syscall - gettimeofday
+	LEAL	8(SP), BX
+	MOVL	$0, CX
+	MOVL	$0, DX
+	INT	$0x80
+
+	MOVL	8(SP), BX	// sec
+	MOVL	sec+0(FP), DI
+	MOVL	BX, (DI)
+	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
+
+	MOVL	12(SP), BX	// usec
+	MOVL	usec+4(FP), DI
+	MOVL	BX, (DI)
+	RET
+
 TEXT rt_sigaction(SB),7,$0
 	MOVL	$174, AX		// syscall - rt_sigaction
 	MOVL	4(SP), BX

@@ -58,6 +58,21 @@ TEXT	write(SB),7,$-8
 	CALL	notok(SB)
 	RET
 
+TEXT gettime(SB), 7, $32
+	MOVL	$116, AX
+	LEAQ	8(SP), DI
+	SYSCALL
+
+	MOVQ	8(SP), BX	// sec
+	MOVQ	sec+0(FP), DI
+	MOVQ	BX, (DI)
+
+	MOVL	16(SP), BX	// usec
+	MOVQ	usec+8(FP), DI
+	MOVL	BX, (DI)
+	RET
+
+
 TEXT	sigaction(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act

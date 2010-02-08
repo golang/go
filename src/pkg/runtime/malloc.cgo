@@ -46,6 +46,8 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
 		if(v == nil)
 			throw("out of memory");
 		mstats.alloc += size;
+		mstats.total_alloc += size;
+		mstats.by_size[sizeclass].nmalloc++;
 	} else {
 		// TODO(rsc): Report tracebacks for very large allocations.
 
@@ -57,6 +59,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
 		if(s == nil)
 			throw("out of memory");
 		mstats.alloc += npages<<PageShift;
+		mstats.total_alloc += npages<<PageShift;
 		v = (void*)(s->start << PageShift);
 	}
 
@@ -127,6 +130,7 @@ free(void *v)
 	size = class_to_size[sizeclass];
 	runtime_memclr(v, size);
 	mstats.alloc -= size;
+	mstats.by_size[sizeclass].nfree++;
 	MCache_Free(c, v, sizeclass, size);
 
 out:
