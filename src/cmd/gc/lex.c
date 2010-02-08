@@ -65,6 +65,9 @@ main(int argc, char *argv[])
 	case 'I':
 		addidir(ARGF());
 		break;
+	case 'V':
+		print("%cg version %s\n", thechar, getgoversion());
+		errorexit();
 	} ARGEND
 
 	if(argc < 1)
@@ -168,6 +171,7 @@ usage:
 	print("  -h panic on an error\n");
 	print("  -o file specify output file\n");
 	print("  -S print the assembly language\n");
+	print("  -V print the compiler version\n");
 	print("  -w print the parse tree after typing\n");
 	print("  -x print lex tokens\n");
 	exit(0);

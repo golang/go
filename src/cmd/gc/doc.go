@@ -38,6 +38,8 @@ Flags:
 		disable optimization
 	-S
 		write assembly language text to standard output
+	-V
+		print the compiler version
 
 There are also a number of debugging flags; run the command with no arguments
 to get a usage message.

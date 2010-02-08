@@ -117,7 +117,7 @@ $(LIB): $(OFILES)
 	$(CC) -c $(CFLAGS) $<
 
 goos.$O: goos.c
-	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT)"' $<
+	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
 
 clean:
 	rm -f *.$O *.6 6.out $(LIB)

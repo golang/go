@@ -33,3 +33,9 @@ getgoroot(void)
 {
 	return defgetenv("GOROOT", GOROOT);
 }
+
+char*
+getgoversion(void)
+{
+	return GOVERSION;
+}

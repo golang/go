@@ -136,6 +136,9 @@ main(int argc, char *argv[])
 		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
 			readundefs(ARGF(), SIMPORT);
 		break;
+	case 'V':
+		print("%cl version %s\n", thechar, getgoversion());
+		errorexit();
 	} ARGEND
 
 	if(argc != 1)
