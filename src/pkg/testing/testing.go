@@ -6,7 +6,7 @@
 // It is intended to be used in concert with the ``gotest'' utility, which automates
 // execution of any function of the form
 //     func TestXxx(*testing.T)
-// where Xxx can by any alphanumeric string (but the first letter must not be in
+// where Xxx can be any alphanumeric string (but the first letter must not be in
 // [a-z]) and serves to identify the test routine.
 // These TestXxx routines should be declared within the package they are testing.
 //
