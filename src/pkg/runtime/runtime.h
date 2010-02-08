@@ -393,6 +393,8 @@ void	·exitsyscall(void);
 void	·newproc(int32, byte*, byte*);
 void	siginit(void);
 bool	sigsend(int32 sig);
+void	gettime(int64*, int32*);
+int64	nanotime(void);
 
 #pragma	varargck	argpos	printf	1
 

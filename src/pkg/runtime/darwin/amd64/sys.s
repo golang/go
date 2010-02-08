@@ -37,6 +37,18 @@ TEXT	write(SB),7,$0
 	CALL	notok(SB)
 	RET
 
+// void gettime(int64 *sec, int32 *usec)
+TEXT gettime(SB), 7, $32
+	MOVQ	SP, DI	// must be non-nil, unused
+	MOVQ	$0, SI
+	MOVQ	$(0x2000000+116), AX
+	SYSCALL
+	MOVQ	sec+0(FP), DI
+	MOVQ	AX, (DI)
+	MOVQ	usec+8(FP), DI
+	MOVL	DX, (DI)
+	RET
+
 TEXT	sigaction(SB),7,$0
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act
@@ -226,4 +238,3 @@ TEXT mach_semaphore_signal_all(SB),7,$0
 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
 	SYSCALL
 	RET
-

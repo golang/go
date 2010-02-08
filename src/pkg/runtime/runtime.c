@@ -461,3 +461,14 @@ FLUSH(void *v)
 	USED(v);
 }
 
+int64
+nanotime(void)
+{
+	int64 sec;
+	int32 usec;
+	
+	sec = 0;
+	usec = 0;
+	gettime(&sec, &usec);
+	return sec*1000000000 + (int64)usec*1000;
+}

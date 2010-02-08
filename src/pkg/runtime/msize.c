@@ -134,6 +134,10 @@ InitSizes(void)
 		}
 	}
 
+	// Copy out for statistics table.
+	for(i=0; i<nelem(class_to_size); i++)
+		mstats.by_size[i].size = class_to_size[i];
+
 	// Initialize the class_to_transfercount table.
 	for(sizeclass = 1; sizeclass < NumSizeClasses; sizeclass++) {
 		n = 64*1024 / class_to_size[sizeclass];

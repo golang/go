@@ -73,6 +73,23 @@ TEXT ·mmap(SB),7,$-4
 	CALL	notok(SB)
 	RET
 
+TEXT	gettime(SB), 7, $32
+	MOVL	$116, AX
+	LEAL	12(SP), BX
+	MOVL	BX, 4(SP)
+	MOVL	$0, 8(SP)
+	INT	$0x80
+
+	MOVL	12(SP), BX	// sec
+	MOVL	sec+0(FP), DI
+	MOVL	BX, (DI)
+	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
+
+	MOVL	16(SP), BX	// usec
+	MOVL	usec+4(FP), DI
+	MOVL	BX, (DI)
+	RET
+
 TEXT sigaction(SB),7,$-4
 	MOVL	$416, AX
 	INT	$0x80

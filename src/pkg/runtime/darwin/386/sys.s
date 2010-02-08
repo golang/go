@@ -42,6 +42,22 @@ TEXT ·mmap(SB),7,$0
 	CALL	notok(SB)
 	RET
 
+// void gettime(int64 *sec, int32 *usec)
+TEXT gettime(SB), 7, $32
+	LEAL	12(SP), AX	// must be non-nil, unused
+	MOVL	AX, 4(SP)
+	MOVL	$0, 8(SP)	// time zone pointer
+	MOVL	$116, AX
+	INT	$0x80
+
+	MOVL	sec+0(FP), DI
+	MOVL	AX, (DI)
+	MOVL	$0, 4(DI)	// zero extend 32 -> 64
+
+	MOVL	usec+4(FP), DI
+	MOVL	DX, (DI)
+	RET
+
 TEXT sigaction(SB),7,$0
 	MOVL	$46, AX
 	INT	$0x80
