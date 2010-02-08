@@ -289,6 +289,7 @@ extern	ulong	rendezvous(ulong, ulong);
 extern	char*	getgoos(void);
 extern	char*	getgoarch(void);
 extern	char*	getgoroot(void);
+extern	char*	getgoversion(void);
 
 #ifdef __MINGW32__
 extern int fork();
