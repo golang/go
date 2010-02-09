@@ -18,7 +18,7 @@ TEXT ·Hypot(SB),7,$0
 	FMOVD   y+8(FP), F0  // F0=y, F1=|x|
 	FABS                 // F0=|y|, F1=|x|
 	FUCOMI  F0, F1       // compare F0 to F1
-	JCC     2(PC)        // jump if F0 < F1
+	JCC     2(PC)        // jump if F0 >= F1
 	FXCHD   F0, F1       // F0=|x| (larger), F1=|y| (smaller)
 	FTST                 // compare F0 to 0
 	FSTSW	AX

@@ -41,12 +41,14 @@ ALLGOFILES=\
 	exp.go\
 	expm1.go\
 	fabs.go\
+	fdim.go\
 	floor.go\
 	fmod.go\
 	hypot.go\
 	log.go\
 	log1p.go\
 	modf.go\
+	nextafter.go\
 	pow.go\
 	pow10.go\
 	sin.go\
