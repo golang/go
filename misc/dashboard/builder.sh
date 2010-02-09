@@ -74,4 +74,5 @@ while true ; do
         fi
     fi
     cd ../.. || fatal "Cannot cd up"
+    sleep 10
 done

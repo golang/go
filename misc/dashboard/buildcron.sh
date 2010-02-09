@@ -41,6 +41,9 @@ fi
 if [ ! -d $GOROOT ]; then
 	mkdir -p $GOROOT
 	hg clone https://go.googlecode.com/hg/ $GOROOT
+else
+	cd $GOROOT
+	hg pull -u || exit 1
 fi
 mkdir -p $GOROOT/bin
 
