@@ -15,6 +15,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 )
 
 func isGoFile(dir *os.Dir) bool {
@@ -66,26 +67,31 @@ func parseDir(dirpath string) map[string]*ast.Package {
 
 func main() {
 	st := &runtime.MemStats
-	n := flag.Int("n", 10, "iterations")
+	n := flag.Int("n", 4, "iterations")
 	p := flag.Int("p", len(packages), "# of packages to keep in memory")
 	flag.BoolVar(&st.DebugGC, "d", st.DebugGC, "print GC debugging info (pause times)")
 	flag.Parse()
 
+	var t0 int64
 	pkgroot := os.Getenv("GOROOT") + "/src/pkg/"
-	for i := -1; i < *n; i++ {
-		parsed := make([]map[string]*ast.Package, *p)
-		for j := range parsed {
-			parsed[j] = parseDir(pkgroot + packages[j%len(packages)])
+	for pass := 0; pass < 2; pass++ {
+		// Once the heap is grown to full size, reset counters.
+		// This hides the start-up pauses, which are much smaller
+		// than the normal pauses and would otherwise make
+		// the average look much better than it actually is.
+		st.NumGC = 0
+		st.PauseNs = 0
+		t0 = time.Nanoseconds()
+
+		for i := 0; i < *n; i++ {
+			parsed := make([]map[string]*ast.Package, *p)
+			for j := range parsed {
+				parsed[j] = parseDir(pkgroot + packages[j%len(packages)])
+			}
 		}
-		if i == -1 {
-			// Now that heap is grown to full size, reset counters.
-			// This hides the start-up pauses, which are much smaller
-			// than the normal pauses and would otherwise make
-			// the average look much better than it actually is.
-			st.NumGC = 0
-			st.PauseNs = 0
-		}
+		runtime.GC()
 	}
+	t1 := time.Nanoseconds()
 
 	fmt.Printf("Alloc=%d/%d Heap=%d/%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
 		st.Alloc, st.TotalAlloc,
@@ -97,6 +103,10 @@ func main() {
 	for _, s := range st.BySize {
 		fmt.Printf("%10d %10d %10d\n", s.Size, s.Mallocs, s.Frees)
 	}
+
+	// Standard gotest benchmark output, collected by build dashboard.
+	fmt.Printf("garbage.BenchmarkParser %d %d ns/op\n", *n, (t1-t0)/int64(*n))
+	fmt.Printf("garbage.BenchmarkParserPause %d %d ns/op\n", st.NumGC, int64(st.PauseNs)/int64(st.NumGC))
 }
 
 
