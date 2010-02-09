@@ -23,9 +23,17 @@ extern byte data[];
 extern byte etext[];
 extern byte end[];
 
-static void *finq[128];	// finalizer queue - two elements per entry
-static void **pfinq = finq;
-static void **efinq = finq+nelem(finq);
+typedef struct Finq Finq;
+struct Finq
+{
+	void (*fn)(void*);
+	void *p;
+	int32 nret;
+};
+
+static Finq finq[128];	// finalizer queue - two elements per entry
+static Finq *pfinq = finq;
+static Finq *efinq = finq+nelem(finq);
 
 static void sweepblock(byte*, int64, uint32*, int32);
 
@@ -172,7 +180,7 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
 		break;
 	case RefNone:
 	case RefNone|RefNoPointers:
-		if(pass == 0 && getfinalizer(p, 0)) {
+		if(pass == 0 && getfinalizer(p, 0, nil)) {
 			// Tentatively mark as finalizable.
 			// Make sure anything it points at will not be collected.
 			if(Debug > 0)
@@ -192,8 +200,12 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
 		if(pfinq < efinq) {
 			if(Debug > 0)
 				printf("finalize %p+%D\n", p, n);
-			*pfinq++ = getfinalizer(p, 1);
-			*pfinq++ = p;
+			pfinq->p = p;
+			pfinq->nret = 0;
+			pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
+			if(pfinq->fn == nil)
+				throw("getfinalizer inconsistency");
+			pfinq++;
 		}
 		// Reset for next mark+sweep.
 		*gcrefp = RefNone | (gcref&RefNoPointers);
@@ -242,7 +254,7 @@ gc(int32 force)
 {
 	int64 t0, t1;
 	byte *p;
-	void **fp;
+	Finq *fp;
 
 	// The gc is turned off (via enablegc) until
 	// the bootstrap has completed.
@@ -283,10 +295,10 @@ gc(int32 force)
 	
 	// kick off goroutines to run queued finalizers
 	m->locks++;	// disable gc during the mallocs in newproc
-	for(fp=finq; fp<pfinq; fp+=2) {
-		·newproc(sizeof(void*), fp[0], fp[1]);
-		fp[0] = nil;
-		fp[1] = nil;
+	for(fp=finq; fp<pfinq; fp++) {
+		newproc1((byte*)fp->fn, (byte*)&fp->p, sizeof(fp->p), fp->nret);
+		fp->fn = nil;
+		fp->p = nil;
 	}
 	pfinq = finq;
 	m->locks--;

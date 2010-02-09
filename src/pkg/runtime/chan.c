@@ -86,6 +86,7 @@ static	void	freesg(Hchan*, SudoG*);
 static	uint32	gcd(uint32, uint32);
 static	uint32	fastrand1(void);
 static	uint32	fastrand2(void);
+static	void	destroychan(Hchan*);
 
 Hchan*
 makechan(Type *elem, uint32 hint)
@@ -99,6 +100,7 @@ makechan(Type *elem, uint32 hint)
 	}
 
 	c = mal(sizeof(*c));
+	addfinalizer(c, destroychan, 0);
 
 	c->elemsize = elem->size;
 	c->elemalg = &algarray[elem->alg];
@@ -140,6 +142,13 @@ makechan(Type *elem, uint32 hint)
 
 	return c;
 }
+
+static void
+destroychan(Hchan *c)
+{
+	destroylock(&c->Lock);
+}
+
 
 // makechan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
 void

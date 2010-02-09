@@ -16,14 +16,17 @@ typedef struct Fintab Fintab;
 struct Fintab
 {
 	void **key;
-	void **val;
+	struct {
+		void *fn;
+		int32 nret;
+	} *val;
 	int32 nkey;	// number of non-nil entries in key
 	int32 ndead;	// number of dead (-1) entries in key
 	int32 max;	// size of key, val allocations
 };
 
 static void
-addfintab(Fintab *t, void *k, void *v)
+addfintab(Fintab *t, void *k, void *fn, int32 nret)
 {
 	int32 i, j;
 	
@@ -46,11 +49,12 @@ addfintab(Fintab *t, void *k, void *v)
 
 ret:
 	t->key[i] = k;
-	t->val[i] = v;
+	t->val[i].fn = fn;
+	t->val[i].nret = nret;
 }
 
 static void*
-lookfintab(Fintab *t, void *k, bool del)
+lookfintab(Fintab *t, void *k, bool del, int32 *nret)
 {
 	int32 i, j;
 	void *v;
@@ -62,10 +66,13 @@ lookfintab(Fintab *t, void *k, bool del)
 		if(t->key[i] == nil)
 			return nil;
 		if(t->key[i] == k) {
-			v = t->val[i];
+			v = t->val[i].fn;
+			if(nret)
+				*nret = t->val[i].nret;
 			if(del) {
 				t->key[i] = (void*)-1;
-				t->val[i] = nil;
+				t->val[i].fn = nil;
+				t->val[i].nret = 0;
 				t->ndead++;
 			}
 			return v;
@@ -83,7 +90,7 @@ static Fintab fintab;
 
 // add finalizer; caller is responsible for making sure not already in table
 void
-addfinalizer(void *p, void *f)
+addfinalizer(void *p, void (*f)(void*), int32 nret)
 {
 	Fintab newtab;
 	int32 i;
@@ -110,18 +117,18 @@ addfinalizer(void *p, void *f)
 			
 			k = fintab.key[i];
 			if(k != nil && k != (void*)-1)
-				addfintab(&newtab, k, fintab.val[i]);
+				addfintab(&newtab, k, fintab.val[i].fn, fintab.val[i].nret);
 		}
 		free(fintab.key);
 		free(fintab.val);
 		fintab = newtab;
 	}
 	
-	addfintab(&fintab, p, f);		
+	addfintab(&fintab, p, f, nret);		
 }
 
 void*
-getfinalizer(void *p, bool del)
+getfinalizer(void *p, bool del, int32 *nret)
 {
-	return lookfintab(&fintab, p, del);
+	return lookfintab(&fintab, p, del, nret);
 }

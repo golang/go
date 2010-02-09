@@ -99,6 +99,11 @@ unlock(Lock *l)
 	umtx_unlock(l);
 }
 
+void
+destroylock(Lock *l)
+{
+}
+
 // Event notifications.
 void
 noteclear(Note *n)

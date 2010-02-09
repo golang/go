@@ -48,10 +48,6 @@ initsema(uint32 *psema)
 // be >0, so it will increment the semaphore to wake up
 // one of the others.  This is the same algorithm used
 // in Plan 9's user-level locks.
-//
-// Note that semaphores are never destroyed (the kernel
-// will clean up when the process exits).  We assume for now
-// that Locks are only used for long-lived structures like M and G.
 
 void
 lock(Lock *l)
@@ -83,6 +79,14 @@ unlock(Lock *l)
 	}
 }
 
+void
+destroylock(Lock *l)
+{
+	if(l->sema != 0) {
+		mach_semdestroy(l->sema);
+		l->sema = 0;
+	}
+}
 
 // User-level semaphore implementation:
 // try to do the operations in user space on u,

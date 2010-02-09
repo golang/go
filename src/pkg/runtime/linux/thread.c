@@ -174,6 +174,11 @@ unlock(Lock *l)
 	futexunlock(l);
 }
 
+void
+destroylock(Lock *l)
+{
+}
+
 
 // One-time notifications.
 //
