@@ -383,6 +383,7 @@ uintptr	nohash(uint32, void*);
 uint32	noequal(uint32, void*, void*);
 void*	malloc(uintptr size);
 void	free(void *v);
+void	addfinalizer(void*, void(*fn)(void*), int32);
 void	exit(int32);
 void	breakpoint(void);
 void	gosched(void);
@@ -390,7 +391,7 @@ void	goexit(void);
 void	runcgo(void (*fn)(void*), void*);
 void	·entersyscall(void);
 void	·exitsyscall(void);
-void	·newproc(int32, byte*, byte*);
+void	newproc1(byte*, byte*, int32, int32);
 void	siginit(void);
 bool	sigsend(int32 sig);
 void	gettime(int64*, int32*);
@@ -425,6 +426,7 @@ void	starttheworld(void);
  */
 void	lock(Lock*);
 void	unlock(Lock*);
+void	destroylock(Lock*);
 
 /*
  * sleep and wakeup on one-time events.

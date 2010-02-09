@@ -766,11 +766,18 @@ malg(int32 stacksize)
 void
 ·newproc(int32 siz, byte* fn, byte* arg0)
 {
+	newproc1(fn, (byte*)&arg0, siz, 0);
+}
+
+void
+newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+{
 	byte *stk, *sp;
 	G *newg;
+	int32 siz;
 
-//printf("newproc siz=%d fn=%p", siz, fn);
-
+//printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
+	siz = narg + nret;
 	siz = (siz+7) & ~7;
 	if(siz > 1024)
 		throw("runtime.newproc: too many args");
@@ -793,7 +800,7 @@ void
 	newg->stackbase = sp;
 
 	sp -= siz;
-	mcpy(sp, (byte*)&arg0, siz);
+	mcpy(sp, argp, narg);
 
 	newg->sched.sp = sp;
 	newg->sched.pc = (byte*)goexit;

@@ -318,8 +318,7 @@ void*	SysAlloc(uintptr);
 void	SysUnused(void*, uintptr);
 void	SysFree(void*, uintptr);
 
-void	addfinalizer(void*, void*);
-void*	getfinalizer(void*, bool);
+void*	getfinalizer(void*, bool, int32*);
 
 enum
 {

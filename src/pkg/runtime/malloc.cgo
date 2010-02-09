@@ -289,6 +289,8 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 	byte *base;
 	uintptr size;
 	FuncType *ft;
+	int32 i, nret;
+	Type *t;
 	
 	if(obj.type == nil) {
 		printf("runtime.SetFinalizer: first argument is nil interface\n");
@@ -303,6 +305,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
 		goto throw;
 	}
+	nret = 0;
 	if(finalizer.type != nil) {
 		if(finalizer.type->kind != KindFunc) {
 		badfunc:
@@ -310,12 +313,21 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 			goto throw;
 		}
 		ft = (FuncType*)finalizer.type;
-		if(ft->dotdotdot || ft->out.len != 0 || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
+		if(ft->dotdotdot || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
 			goto badfunc;
-		if(getfinalizer(obj.data, 0)) {
+		
+		// compute size needed for return parameters
+		for(i=0; i<ft->out.len; i++) {
+			t = ((Type**)ft->out.array)[i];
+			nret = (nret + t->align - 1) & ~(t->align - 1);
+			nret += t->size;
+		}
+		nret = (nret + sizeof(void*)-1) & ~(sizeof(void*)-1);
+
+		if(getfinalizer(obj.data, 0, nil)) {
 			printf("runtime.SetFinalizer: finalizer already set");
 			goto throw;
 		}
 	}
-	addfinalizer(obj.data, finalizer.data);
+	addfinalizer(obj.data, finalizer.data, nret);
 }
