@@ -118,8 +118,8 @@ package math
 // It is more accurate than Exp(x) - 1 when x is near zero.
 //
 // Special cases are:
-//      Expm1(+Inf) = +Inf
-//      Expm1(-Inf) = -1
+//	Expm1(+Inf) = +Inf
+//	Expm1(-Inf) = -1
 //	Expm1(NaN) = NaN
 // Very large values overflow to -1 or +Inf.
 func Expm1(x float64) float64 {

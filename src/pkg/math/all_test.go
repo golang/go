@@ -208,6 +208,18 @@ var expm1 = []float64{
 	1.842068661871398836913874273e-02,
 	-8.3193870863553801814961137573e-02,
 }
+var fdim = []float64{
+	4.9790119248836735e+00,
+	7.7388724745781045e+00,
+	0.0000000000000000e+00,
+	0.0000000000000000e+00,
+	9.6362937071984173e+00,
+	2.9263772392439646e+00,
+	5.2290834314593066e+00,
+	2.7279399104360102e+00,
+	1.8253080916808550e+00,
+	0.0000000000000000e+00,
+}
 var floor = []float64{
 	4.0000000000000000e+00,
 	7.0000000000000000e+00,
@@ -287,6 +299,18 @@ var log1p = []float64{
 	1.8088493239630770262045333e-02,
 	-9.0865245631588989681559268e-02,
 }
+var log2 = []float64{
+	2.3158594707062190618898251e+00,
+	2.9521233862883917703341018e+00,
+	-1.8526669502700329984917062e+00,
+	2.3249844127278861543568029e+00,
+	3.268478366538305087466309e+00,
+	1.5491157592596970278166492e+00,
+	2.3865580889631732407886495e+00,
+	1.447811865817085365540347e+00,
+	8.6813999540425116282815557e-01,
+	3.118679457227342224364709e+00,
+}
 var modf = [][2]float64{
 	[2]float64{4.0000000000000000e+00, 9.7901192488367350108546816e-01},
 	[2]float64{7.0000000000000000e+00, 7.3887247457810456552351752e-01},
@@ -298,6 +322,18 @@ var modf = [][2]float64{
 	[2]float64{2.0000000000000000e+00, 7.2793991043601025126008608e-01},
 	[2]float64{1.0000000000000000e+00, 8.2530809168085506044576505e-01},
 	[2]float64{-8.0000000000000000e+00, -6.8592476857560136238589621e-01},
+}
+var nextafter = []float64{
+	4.97901192488367438926388786e+00,
+	7.73887247457810545370193722e+00,
+	-2.7688005719200153853520874e-01,
+	-5.01060361827107403343006808e+00,
+	9.63629370719841915615688777e+00,
+	2.92637723924396508934364647e+00,
+	5.22908343145930754047867595e+00,
+	2.72793991043601069534929593e+00,
+	1.82530809168085528249036997e+00,
+	-8.68592476857559958602905681e+00,
 }
 var pow = []float64{
 	9.5282232631648411840742957e+04,
@@ -706,6 +742,17 @@ var modfSC = [][2]float64{
 	[2]float64{NaN(), NaN()},
 }
 
+var vfnextafterSC = [][2]float64{
+	[2]float64{0, NaN()},
+	[2]float64{NaN(), 0},
+	[2]float64{NaN(), NaN()},
+}
+var nextafterSC = []float64{
+	NaN(),
+	NaN(),
+	NaN(),
+}
+
 var vfpowSC = [][2]float64{
 	[2]float64{-Pi, Pi},
 	[2]float64{-Pi, -Pi},
@@ -1031,6 +1078,14 @@ func TestExpm1(t *testing.T) {
 	}
 }
 
+func TestFdim(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Fdim(vf[i], 0); fdim[i] != f {
+			t.Errorf("Fdim(%g, %g) = %g, want %g\n", vf[i], 0.0, f, fdim[i])
+		}
+	}
+}
+
 func TestFloor(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Floor(vf[i]); floor[i] != f {
@@ -1040,6 +1095,22 @@ func TestFloor(t *testing.T) {
 	for i := 0; i < len(vfceilSC); i++ {
 		if f := Floor(vfceilSC[i]); !alike(ceilSC[i], f) {
 			t.Errorf("Floor(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
+		}
+	}
+}
+
+func TestFmax(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Fmax(vf[i], ceil[i]); ceil[i] != f {
+			t.Errorf("Fmax(%g, %g) = %g, want %g\n", vf[i], ceil[i], f, ceil[i])
+		}
+	}
+}
+
+func TestFmin(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Fmin(vf[i], floor[i]); floor[i] != f {
+			t.Errorf("Fmin(%g, %g) = %g, want %g\n", vf[i], floor[i], f, floor[i])
 		}
 	}
 }
@@ -1149,6 +1220,23 @@ func TestLog1p(t *testing.T) {
 	}
 }
 
+func TestLog2(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		a := Fabs(vf[i])
+		if f := Log2(a); !veryclose(log2[i], f) {
+			t.Errorf("Log2(%g) = %g, want %g\n", a, f, log2[i])
+		}
+	}
+	if f := Log2(E); f != Log2E {
+		t.Errorf("Log2(%g) = %g, want %g\n", E, f, Log2E)
+	}
+	for i := 0; i < len(vflogSC); i++ {
+		if f := Log2(vflogSC[i]); !alike(logSC[i], f) {
+			t.Errorf("Log2(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
+		}
+	}
+}
+
 func TestModf(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f, g := Modf(vf[i]); !veryclose(modf[i][0], f) || !veryclose(modf[i][1], g) {
@@ -1158,6 +1246,19 @@ func TestModf(t *testing.T) {
 	for i := 0; i < len(vfmodfSC); i++ {
 		if f, g := Modf(vfmodfSC[i]); !alike(modfSC[i][0], f) || !alike(modfSC[i][1], g) {
 			t.Errorf("Modf(%g) = %g, %g, want %g, %g\n", vfmodfSC[i], f, g, modfSC[i][0], modfSC[i][1])
+		}
+	}
+}
+
+func TestNextafter(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Nextafter(vf[i], 10); nextafter[i] != f {
+			t.Errorf("Nextafter(%g, %g) = %g want %g\n", vf[i], 10.0, f, nextafter[i])
+		}
+	}
+	for i := 0; i < len(vfmodfSC); i++ {
+		if f := Nextafter(vfnextafterSC[i][0], vfnextafterSC[i][1]); !alike(nextafterSC[i], f) {
+			t.Errorf("Nextafter(%g, %g) = %g want %g\n", vfnextafterSC[i][0], vfnextafterSC[i][1], f, nextafterSC[i])
 		}
 	}
 }
@@ -1309,7 +1410,7 @@ func BenchmarkAcos(b *testing.B) {
 
 func BenchmarkAcosh(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Acosh(.5)
+		Acosh(1.5)
 	}
 }
 
@@ -1397,6 +1498,24 @@ func BenchmarkFloor(b *testing.B) {
 	}
 }
 
+func BenchmarkFdim(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Fdim(10, 3)
+	}
+}
+
+func BenchmarkFmax(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Fmax(10, 3)
+	}
+}
+
+func BenchmarkFmin(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Fmin(10, 3)
+	}
+}
+
 func BenchmarkFmod(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Fmod(10, 3)
@@ -1439,9 +1558,21 @@ func BenchmarkLog1p(b *testing.B) {
 	}
 }
 
+func BenchmarkLog2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Log2(.5)
+	}
+}
+
 func BenchmarkModf(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Modf(1.5)
+	}
+}
+
+func BenchmarkNextafter(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Nextafter(.5, 1)
 	}
 }
 
