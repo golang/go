@@ -1,6 +1,7 @@
 syntax:glob
 .DS_Store
 .git
+.gitignore
 *.[568ao]
 *.ao
 *.so
@@ -31,6 +32,9 @@ src/pkg/runtime/runtime.acid.*
 test/pass.out
 test/run.out
 test/times.out
+test/garbage/parser
+test/garbage/peano
+test/garbage/tree
 
 syntax:regexp
 ^pkg/
