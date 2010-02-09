@@ -16,7 +16,7 @@ rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
 rm -f "$GOROOT"/lib/*.a
 for i in lib9 libbio libcgo libmach cmd pkg \
 	../misc/cgo/gmp ../misc/cgo/stdio \
-	../test/bench
+	../test/bench ../test/garbage
 do(
 	cd "$GOROOT"/src/$i || exit 1
 	if test -f clean.bash; then
