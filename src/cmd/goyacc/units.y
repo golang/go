@@ -389,7 +389,7 @@ rdigit(c int) bool {
 }
 
 func
-Error(s string, v ...) {
+Error(s string, v ...interface{}) {
 
 	/*
 	 * hack to intercept message from yaccpar
