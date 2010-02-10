@@ -139,79 +139,115 @@ mark(void)
 	}
 }
 
+// pass 0: mark RefNone with finalizer as RefFinalize and trace
 static void
-sweepspan(MSpan *s, int32 pass)
+sweepspan0(MSpan *s)
 {
-	int32 i, n, npages, size;
 	byte *p;
-
-	if(s->state != MSpanInUse)
-		return;
+	uint32 ref, *gcrefp, *gcrefep;
+	int32 n, size, npages;
 
 	p = (byte*)(s->start << PageShift);
 	if(s->sizeclass == 0) {
 		// Large block.
-		sweepblock(p, (uint64)s->npages<<PageShift, &s->gcref0, pass);
+		ref = s->gcref0;
+		if((ref&~RefNoPointers) == (RefNone|RefHasFinalizer)) {
+			// Mark as finalizable.
+			s->gcref0 = RefFinalize | RefHasFinalizer | (ref&RefNoPointers);
+			if(!(ref & RefNoPointers))
+				scanblock(100, p, s->npages<<PageShift);
+		}
 		return;
 	}
 
 	// Chunk full of small blocks.
-	// Must match computation in MCentral_Grow.
-	size = class_to_size[s->sizeclass];
-	npages = class_to_allocnpages[s->sizeclass];
-	n = (npages << PageShift) / (size + RefcountOverhead);
-	for(i=0; i<n; i++)
-		sweepblock(p+i*size, size, &s->gcref[i], pass);
-}
+	MGetSizeClassInfo(s->sizeclass, &size, &npages, &n);
+	gcrefp = s->gcref;
+	gcrefep = s->gcref + n;
+	for(; gcrefp < gcrefep; gcrefp++) {
+		ref = *gcrefp;
+		if((ref&~RefNoPointers) == (RefNone|RefHasFinalizer)) {
+			// Mark as finalizable.
+			*gcrefp = RefFinalize | RefHasFinalizer | (ref&RefNoPointers);
+			if(!(ref & RefNoPointers))
+				scanblock(100, p+(gcrefp-s->gcref)*size, size);
+		}
+	}
+}	
 
+// pass 1: free RefNone, queue RefFinalize, reset RefSome
 static void
-sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
+sweepspan1(MSpan *s)
 {
-	uint32 gcref;
+	int32 n, npages, size;
+	byte *p;
+	uint32 ref, *gcrefp, *gcrefep;
+	MCache *c;
 
-	gcref = *gcrefp;
-	switch(gcref & ~(RefNoPointers|RefHasFinalizer)) {
-	default:
-		throw("bad 'ref count'");
-	case RefFree:
-	case RefStack:
-		break;
-	case RefNone:
-		if(pass == 0 && (gcref & RefHasFinalizer)) {
-			// Tentatively mark as finalizable.
-			// Make sure anything it points at will not be collected.
-			if(Debug > 0)
-				printf("maybe finalize %p+%D\n", p, n);
-			*gcrefp = RefFinalize | RefHasFinalizer | (gcref&RefNoPointers);
-			scanblock(100, p, n);
-		} else if(pass == 1) {
-			if(Debug > 0)
-				printf("free %p+%D\n", p, n);
-			free(p);
+	p = (byte*)(s->start << PageShift);
+	if(s->sizeclass == 0) {
+		// Large block.
+		ref = s->gcref0;
+		switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
+		case RefNone:
+			// Free large object.
+			mstats.alloc -= s->npages<<PageShift;
+			runtime_memclr(p, s->npages<<PageShift);
+			s->gcref0 = RefFree;
+			MHeap_Free(&mheap, s);
+			break;
+		case RefFinalize:
+			if(pfinq < efinq) {
+				pfinq->p = p;
+				pfinq->nret = 0;
+				pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
+				ref &= ~RefHasFinalizer;
+				if(pfinq->fn == nil)
+					throw("finalizer inconsistency");
+				pfinq++;
+			}
+			// fall through
+		case RefSome:
+			s->gcref0 = RefNone | (ref&(RefNoPointers|RefHasFinalizer));
+			break;
 		}
-		break;
-	case RefFinalize:
-		if(pass != 1)
-			throw("sweepspan pass 0 RefFinalize");
-		if(pfinq < efinq) {
-			if(Debug > 0)
-				printf("finalize %p+%D\n", p, n);
-			pfinq->p = p;
-			pfinq->nret = 0;
-			pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
-			gcref &= ~RefHasFinalizer;
-			if(pfinq->fn == nil)
-				throw("getfinalizer inconsistency");
-			pfinq++;
+		return;
+	}
+
+	// Chunk full of small blocks.
+	MGetSizeClassInfo(s->sizeclass, &size, &npages, &n);
+	gcrefp = s->gcref;
+	gcrefep = s->gcref + n;
+	for(; gcrefp < gcrefep; gcrefp++, p += size) {
+		ref = *gcrefp;
+		if(ref < RefNone)	// RefFree or RefStack
+			continue;
+		switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
+		case RefNone:
+			// Free small object.
+			*gcrefp = RefFree;
+			c = m->mcache;
+			if(size > sizeof(uintptr))
+				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
+			mstats.alloc -= size;
+			mstats.by_size[s->sizeclass].nfree++;
+			MCache_Free(c, p, s->sizeclass, size);
+			break;
+		case RefFinalize:
+			if(pfinq < efinq) {
+				pfinq->p = p;
+				pfinq->nret = 0;
+				pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
+				ref &= ~RefHasFinalizer;
+				if(pfinq->fn == nil)	
+					throw("finalizer inconsistency");
+				pfinq++;
+			}
+			// fall through
+		case RefSome:
+			*gcrefp = RefNone | (ref&(RefNoPointers|RefHasFinalizer));
+			break;
 		}
-		// Reset for next mark+sweep.
-		*gcrefp = RefNone | (gcref&(RefNoPointers|RefHasFinalizer));
-		break;
-	case RefSome:
-		// Reset for next mark+sweep.
-		if(pass == 1)
-			*gcrefp = RefNone | (gcref&(RefNoPointers|RefHasFinalizer));
-		break;
 	}
 }
 
@@ -222,11 +258,13 @@ sweep(void)
 
 	// Sweep all the spans marking blocks to be finalized.
 	for(s = mheap.allspans; s != nil; s = s->allnext)
-		sweepspan(s, 0);
+		if(s->state == MSpanInUse)
+			sweepspan0(s);
 
 	// Sweep again queueing finalizers and freeing the others.
 	for(s = mheap.allspans; s != nil; s = s->allnext)
-		sweepspan(s, 1);
+		if(s->state == MSpanInUse)
+			sweepspan1(s);
 }
 
 // Semaphore, not Lock, so that the goroutine

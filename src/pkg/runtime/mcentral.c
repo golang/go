@@ -157,6 +157,19 @@ MCentral_Free(MCentral *c, void *v)
 	}
 }
 
+void
+MGetSizeClassInfo(int32 sizeclass, int32 *sizep, int32 *npagesp, int32 *nobj)
+{
+	int32 size;
+	int32 npages;
+
+	npages = class_to_allocnpages[sizeclass];
+	size = class_to_size[sizeclass];
+	*npagesp = npages;
+	*sizep = size;
+	*nobj = (npages << PageShift) / (size + RefcountOverhead);
+}
+
 // Fetch a new span from the heap and
 // carve into objects for the free list.
 static bool
@@ -168,7 +181,7 @@ MCentral_Grow(MCentral *c)
 	MSpan *s;
 
 	unlock(c);
-	npages = class_to_allocnpages[c->sizeclass];
+	MGetSizeClassInfo(c->sizeclass, &size, &npages, &n);
 	s = MHeap_Alloc(&mheap, npages, c->sizeclass);
 	if(s == nil) {
 		// TODO(rsc): Log out of memory
@@ -179,8 +192,6 @@ MCentral_Grow(MCentral *c)
 	// Carve span into sequence of blocks.
 	tailp = &s->freelist;
 	p = (byte*)(s->start << PageShift);
-	size = class_to_size[c->sizeclass];
-	n = (npages << PageShift) / (size + RefcountOverhead);
 	s->gcref = (uint32*)(p + size*n);
 	for(i=0; i<n; i++) {
 		v = (MLink*)p;
