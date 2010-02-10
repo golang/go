@@ -801,7 +801,19 @@ tcoma(Node *l, Node *n, Type *t, int f)
 				n->type, t, l);
 			return 1;
 		}
-		switch(t->etype) {
+//		switch(t->etype) {
+//		case TCHAR:
+//		case TSHORT:
+//			t = types[TINT];
+//			break;
+//
+//		case TUCHAR:
+//		case TUSHORT:
+//			t = types[TUINT];
+//			break;
+//		}
+	} else {
+		switch(n->type->etype) {
 		case TCHAR:
 		case TSHORT:
 			t = types[TINT];
@@ -811,23 +823,12 @@ tcoma(Node *l, Node *n, Type *t, int f)
 		case TUSHORT:
 			t = types[TUINT];
 			break;
+
+		case TFLOAT:
+			t = types[TDOUBLE];
 		}
-	} else
-	switch(n->type->etype)
-	{
-	case TCHAR:
-	case TSHORT:
-		t = types[TINT];
-		break;
-
-	case TUCHAR:
-	case TUSHORT:
-		t = types[TUINT];
-		break;
-
-	case TFLOAT:
-		t = types[TDOUBLE];
 	}
+
 	if(t != T && !sametype(t, n->type)) {
 		n1 = new1(OXXX, Z, Z);
 		*n1 = *n;
