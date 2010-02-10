@@ -87,6 +87,10 @@ unlock(Lock *l)
 	xunlock(l->sema>>1);
 }
 
+void
+destroylock(Lock *l)
+{
+}
 
 // One-time notifications.
 //

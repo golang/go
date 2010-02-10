@@ -19,6 +19,7 @@
 #define SYS_mutex_create 70
 #define SYS_mutex_lock  71
 #define SYS_mutex_unlock 73
+#define SYS_gettimeofday 40
 
 #define SYSCALL(x)	$(0x10000+SYS_/**/x * 32)
 
@@ -77,6 +78,22 @@ TEXT ·mmap(SB),7,$24
 	MOVL	$12, 8(SP)	// "mmap failed\n"
 	CALL	SYSCALL(write)
 	INT $3
+	RET
+
+TEXT gettime(SB),7,$32
+	LEAL	8(SP), BX
+	MOVL	BX, 0(SP)
+	MOVL	$0, 4(SP)
+	CALL	SYSCALL(gettimeofday)
+	
+	MOVL	8(SP), BX	// sec
+	MOVL	sec+0(FP), DI
+	MOVL	BX, (DI)
+	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
+
+	MOVL	12(SP), BX	// usec
+	MOVL	usec+4(FP), DI
+	MOVL	BX, (DI)
 	RET
 
 // setldt(int entry, int address, int limit)
