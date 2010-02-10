@@ -216,7 +216,6 @@ loadlib(void)
 	int i, found;
 	int32 h;
 	Sym *s;
-	char *a;
 
 	found = 0;
 	for(i=0; i<nlibdir; i++) {
