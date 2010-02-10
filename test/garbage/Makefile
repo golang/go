@@ -23,5 +23,5 @@ all: $(addsuffix .out, $(ALL))
 bench: $(addsuffix .bench, $(ALL))
 
 clean:
-	rm -f *.[$(OS)] $(ALL)
+	rm -f *.[$(OS)] $(addsuffix .out, $(ALL))
 
