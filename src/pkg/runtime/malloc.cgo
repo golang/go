@@ -130,7 +130,6 @@ free(void *v)
 	size = class_to_size[sizeclass];
 	if(size > sizeof(uintptr))
 		((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
-	runtime_memclr(v, size);
 	mstats.alloc -= size;
 	mstats.by_size[sizeclass].nfree++;
 	MCache_Free(c, v, sizeclass, size);
