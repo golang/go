@@ -9,16 +9,16 @@ ALL=\
 	peano\
 	tree\
 
-all: $(ALL)
+all: $(addsuffix .out, $(ALL))
 
 %.$O: %.go
 	$(GC) $*.go
 
-%: %.$O
+%.out: %.$O
 	$(LD) -o $@ $*.$O
 
-%.bench: %
-	./$*
+%.bench: %.out
+	./$*.out
 
 bench: $(addsuffix .bench, $(ALL))
 
