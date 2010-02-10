@@ -9,22 +9,12 @@ package http
 import (
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"path"
 	"strings"
 	"utf8"
 )
-
-// TODO this should be in a mime package somewhere
-var contentByExt = map[string]string{
-	".css": "text/css",
-	".gif": "image/gif",
-	".html": "text/html; charset=utf-8",
-	".jpg": "image/jpeg",
-	".js": "application/x-javascript",
-	".pdf": "application/pdf",
-	".png": "image/png",
-}
 
 // Heuristic: b is text if it is valid UTF-8 and doesn't
 // contain any unprintable ASCII or Unicode characters.
@@ -136,7 +126,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 	// serve file
 	// use extension to find content type.
 	ext := path.Ext(name)
-	if ctype, ok := contentByExt[ext]; ok {
+	if ctype := mime.TypeByExtension(ext); ctype != "" {
 		c.SetHeader("Content-Type", ctype)
 	} else {
 		// read first chunk to decide between utf-8 text and binary

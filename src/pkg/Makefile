@@ -87,6 +87,7 @@ DIRS=\
 	json\
 	log\
 	math\
+	mime\
 	net\
 	once\
 	os\
