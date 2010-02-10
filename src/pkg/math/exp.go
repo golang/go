@@ -139,3 +139,8 @@ func Exp(x float64) float64 {
 	// TODO(rsc): make sure Ldexp can handle boundary k
 	return Ldexp(y, k)
 }
+
+// Exp2 returns 2^x, the base-2 exponential of x.
+//
+// Special cases are the same as Exp.
+func Exp2(x float64) float64 { return Exp(x * Ln2) }
