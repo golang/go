@@ -14,11 +14,13 @@ OFILES_386=\
 	atan_386.$O\
 	atan2_386.$O\
 	exp_386.$O\
+	exp2_386.$O\
 	fabs_386.$O\
 	floor_386.$O\
 	fmod_386.$O\
 	hypot_386.$O\
 	log_386.$O\
+	log1p_386.$O\
 	modf_386.$O\
 	sin_386.$O\
 	sqrt_386.$O\

@@ -208,6 +208,18 @@ var expm1 = []float64{
 	1.842068661871398836913874273e-02,
 	-8.3193870863553801814961137573e-02,
 }
+var exp2 = []float64{
+	3.1537839463286288034313104e+01,
+	2.1361549283756232296144849e+02,
+	8.2537402562185562902577219e-01,
+	3.1021158628740294833424229e-02,
+	7.9581744110252191462569661e+02,
+	7.6019905892596359262696423e+00,
+	3.7506882048388096973183084e+01,
+	6.6250893439173561733216375e+00,
+	3.5438267900243941544605339e+00,
+	2.4281533133513300984289196e-03,
+}
 var fdim = []float64{
 	4.9790119248836735e+00,
 	7.7388724745781045e+00,
@@ -1078,6 +1090,19 @@ func TestExpm1(t *testing.T) {
 	}
 }
 
+func TestExp2(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Exp2(vf[i]); !close(exp2[i], f) {
+			t.Errorf("Exp2(%g) = %g, want %g\n", vf[i], f, exp2[i])
+		}
+	}
+	for i := 0; i < len(vfexpSC); i++ {
+		if f := Exp2(vfexpSC[i]); !alike(expSC[i], f) {
+			t.Errorf("Exp2(%g) = %g, want %g\n", vfexpSC[i], f, expSC[i])
+		}
+	}
+}
+
 func TestFdim(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Fdim(vf[i], 0); fdim[i] != f {
@@ -1489,6 +1514,12 @@ func BenchmarkExp(b *testing.B) {
 func BenchmarkExpm1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Expm1(.5)
+	}
+}
+
+func BenchmarkExp2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Exp(.5)
 	}
 }
 
