@@ -95,6 +95,78 @@ dope(void)
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 }
 
+static void
+strput(char *s)
+{
+	while(*s)
+		cput(*s++);
+	cput('\0');
+}
+
+static void
+add_import_table(void)
+{
+	IMAGE_IMPORT_DESCRIPTOR ds[2], *d;
+	char *dllname = "kernel32.dll";
+	struct {
+		char *name;
+		uint32 thunk;
+	} *f, fs[] = {
+		{ "GetProcAddress", 0 },
+		{ "LoadLibraryExA", 0 },
+		{ 0, 0 }
+	};
+
+	uint32 size = 0;
+	memset(ds, 0, sizeof(ds));
+	size += sizeof(ds);
+	ds[0].Name = size;
+	size += strlen(dllname) + 1;
+	for(f=fs; f->name; f++) {
+		f->thunk = size;
+		size += sizeof(uint16) + strlen(f->name) + 1;
+	}
+	ds[0].FirstThunk = size;
+	for(f=fs; f->name; f++)
+		size += sizeof(fs[0].thunk);
+
+	IMAGE_SECTION_HEADER *isect;
+	isect = new_section(".idata", size, 0);
+	isect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
+		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+	
+	uint32 va = isect->VirtualAddress;
+	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = va;
+	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect->VirtualSize;
+
+	ds[0].Name += va;
+	ds[0].FirstThunk += va;
+	for(f=fs; f->name; f++)
+		f->thunk += va;
+
+	vlong off = seek(cout, 0, 1);
+	seek(cout, 0, 2);
+	for(d=ds; ; d++) {
+		lputl(d->OriginalFirstThunk);
+		lputl(d->TimeDateStamp);
+		lputl(d->ForwarderChain);
+		lputl(d->Name);
+		lputl(d->FirstThunk);
+		if(!d->Name) 
+			break;
+	}
+	strput(dllname);
+	for(f=fs; f->name; f++) {
+		wputl(0);
+		strput(f->name);
+	}
+	for(f=fs; f->name; f++)
+		lputl(f->thunk);
+	strnput("", isect->SizeOfRawData - size);
+	cflush();
+	seek(cout, off, 0);
+}
+
 void
 asmbpe(void)
 {
@@ -116,6 +188,8 @@ asmbpe(void)
 		symsect->Characteristics = IMAGE_SCN_MEM_READ|
 			IMAGE_SCN_CNT_INITIALIZED_DATA;
 	}
+
+	add_import_table();
 
 	fh.NumberOfSections = nsect;
 	fh.TimeDateStamp = time(0);
