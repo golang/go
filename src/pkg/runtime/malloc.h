@@ -321,6 +321,7 @@ MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass);
 void	MHeap_Free(MHeap *h, MSpan *s);
 MSpan*	MHeap_Lookup(MHeap *h, PageID p);
 MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
+void	MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
 
 void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
 int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
