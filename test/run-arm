@@ -13,7 +13,7 @@ X386)
 	;;
 Xarm)
 	export A=5
-	export E="qemu-arm -cpu cortex-a8 "
+	export E="${GORUN:-qemu-arm -cpu cortex-a8}"
 	;;
 *)
 	echo 1>&2 run: unsupported '$GOARCH'
@@ -42,20 +42,18 @@ do
 	dir=$(dirname $i)
 	export D=$dir
 	sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
-	if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
+	if ! sh $RUNFILE >$TMP1FILE 2>&1
 	then
 		echo
 		echo "===========" $i
 		cat $TMP1FILE
-		cat $TMP2FILE
 		echo >&2 fail: $i
 		touch $FAILEDFILE
-	elif test -s $TMP1FILE || test -s $TMP2FILE
+	elif test -s $TMP1FILE
 	then
 		echo
 		echo "===========" $i
 		cat $TMP1FILE
-		cat $TMP2FILE
 	elif [ $dir = "bugs" ]
 	then
 		echo $i succeeded with no output.
@@ -68,16 +66,27 @@ done | # clean up some stack noise
 		s/^pc: 0x[0-9a-f]*/pc: xxx/
 		/^Trace\/breakpoint trap/d
 		/^Trace\/BPT trap/d
+		s!'$GOROOT'!$GOROOT!g
 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
 failed=0
-if test -f $FAILEDFILE; then
+rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+diffmsg=""
+if ! diff run.out golden-arm.out
+then
+	diffmsg="; test output differs"
 	failed=1
-	rm -f $FAILEDFILE
 fi
 
-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+notinbugs=$(sed '/^== bugs/q' run.out | grep -c '^BUG')
+inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
+
+echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs$diffmsg
+
+if [ "$failed" != "0" ]; then
+	echo FAILED
+fi
 
 exit $failed

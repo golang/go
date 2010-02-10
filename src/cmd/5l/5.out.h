@@ -232,10 +232,10 @@ enum	as
 
 #define	D_SHIFT		(D_NONE+19)
 #define	D_FPCR		(D_NONE+20)
-#define D_REGREG	(D_NONE+21)
-#define D_ADDR		(D_NONE+22)
+#define	D_REGREG	(D_NONE+21)
+#define	D_ADDR		(D_NONE+22)
 
-#define D_SBIG		(D_NONE+23)
+#define	D_SBIG		(D_NONE+23)
 #define	D_CONST2	(D_NONE+24)
 
 /* name */
@@ -243,6 +243,9 @@ enum	as
 #define	D_STATIC	(D_NONE+4)
 #define	D_AUTO		(D_NONE+5)
 #define	D_PARAM		(D_NONE+6)
+
+/* internal only */
+#define	D_SIZE		(D_NONE+40)
 
 /*
  * this is the ranlib header

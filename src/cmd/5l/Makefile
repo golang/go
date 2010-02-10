@@ -9,6 +9,7 @@ TARG=\
 
 OFILES=\
 	asm.$O\
+	elf.$O\
 	enam.$O\
 	lib.$O\
 	list.$O\
@@ -24,6 +25,7 @@ OFILES=\
 HFILES=\
 	l.h\
 	../5l/5.out.h\
+	../ld/elf.h\
 
 $(TARG): $(OFILES)
 	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9

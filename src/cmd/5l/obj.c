@@ -31,6 +31,7 @@
 #define	EXTERN
 #include	"l.h"
 #include	"../ld/lib.h"
+#include	"../ld/elf.h"
 #include	<ar.h>
 
 #ifndef	DEFAULT
@@ -223,9 +224,11 @@ main(int argc, char *argv[])
 			INITRND = 1024;
 		break;
 	case 6:	/* arm elf */
-		HEADR = linuxheadr();
+		debug['d'] = 1;	// no dynamic linking
+		elfinit();
+		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
-			INITTEXT = 0x8000;
+			INITTEXT = 0x8000 + HEADR;
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
@@ -300,12 +303,15 @@ main(int argc, char *argv[])
 			doprof2();
 	if(debug['u'])
 		reachable();
+	doelf();
 	dodata();
 	if(seenthumb && debug['f'])
 		fnptrs();
 	follow();
-	if(firstp == P)
-		goto out;
+	if(firstp == P) {
+		diag("no code");
+		errorexit();
+	}
 	softfloat();
 	noops();
 	span();

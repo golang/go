@@ -133,7 +133,6 @@ fixedbugs/bug120.go
 fixedbugs/bug121.go
 fixedbugs/bug122.go
 fixedbugs/bug123.go
-fixedbugs/bug125.go
 fixedbugs/bug126.go
 fixedbugs/bug127.go
 fixedbugs/bug128.go
@@ -171,7 +170,6 @@ fixedbugs/bug161.go
 fixedbugs/bug163.go
 fixedbugs/bug164.go
 fixedbugs/bug165.go
-fixedbugs/bug166.go
 fixedbugs/bug167.go
 fixedbugs/bug168.go
 fixedbugs/bug169.go
@@ -287,7 +285,6 @@ method3.go
 named1.go
 nil.go
 parentype.go
-peano.go
 printbig.go
 range.go
 rename1.go
@@ -304,4 +301,3 @@ turing.go
 utf.go
 varinit.go
 vectors.go
-x.go

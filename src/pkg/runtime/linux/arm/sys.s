@@ -16,6 +16,7 @@
 
 #define SYS_exit (SYS_BASE + 1)
 #define SYS_write (SYS_BASE + 4)
+#define SYS_gettimeofday (SYS_BASE + 78)
 #define SYS_clone (SYS_BASE + 120)
 #define SYS_mmap2 (SYS_BASE + 192)
 #define SYS_gettid (SYS_BASE + 224)
@@ -58,6 +59,33 @@ TEXT ·mmap(SB),7,$0
 	MOVW	20(FP), R5
 	MOVW	$SYS_mmap2, R7
 	SWI	$0
+	RET
+
+TEXT gettime(SB),7,$32
+	/* dummy version - return 0,0 */
+	MOVW	$0, R1
+	MOVW	0(FP), R0
+	MOVW	R1, 0(R0)
+	MOVW	R1, 4(R0)
+	MOVW	4(FP), R0
+	MOVW	R1, 0(R0)
+
+/*
+	attempt at real version - seg faults
+
+	MOVW	$8(SP), R0
+	MOVW	$0, R1
+	MOVW	$SYS_gettimeofday, R7
+	SWI	$0
+
+	MOVW	0(FP), R0	// sec
+	MOVW	8(SP), R1
+	MOVW	R1, 0(R0)
+
+	MOVW	4(FP), R0	// usec
+	MOVW	12(SP), R1
+	MOVW	R1, 0(R0)
+*/
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
