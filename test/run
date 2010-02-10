@@ -89,10 +89,6 @@ done | # clean up some stack noise
 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
-case $failed in
-1)
-	echo FAIL
-esac
 rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
 diffmsg=""
 if ! diff run.out golden.out
@@ -105,5 +101,9 @@ notinbugs=$(sed '/^== bugs/q' run.out | grep -c '^BUG')
 inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
 
 echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs$diffmsg
+
+if [ "$failed" != "0" ]; then
+	echo FAILED
+fi
 
 exit $failed

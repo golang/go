@@ -127,6 +127,7 @@ struct	Sym
 	uchar	reachable;
 	int32	value;
 	int32	sig;
+	int32	size;
 	uchar	used;
 	uchar	thumb;	// thumb code
 	uchar	foreign;	// called by arm if thumb, by thumb if arm
@@ -470,13 +471,20 @@ int	fninc(Sym *);
 void	thumbcount(void);
 void reachable(void);
 void fnptrs(void);
+void	doelf(void);
 
-uint32	linuxheadr(void);
-void	linuxphdr(int type, int flags, vlong foff,
-	vlong vaddr, vlong paddr,
-	vlong filesize, vlong memsize, vlong align);
-void	linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
-	vlong size, uint32 link, uint32 info, vlong align, vlong entsize);
-int	linuxstrtable(void);
+vlong		addaddr(Sym *s, Sym *t);
+vlong		addsize(Sym *s, Sym *t);
+vlong		addstring(Sym *s, char *str);
+vlong		adduint16(Sym *s, uint16 v);
+vlong		adduint32(Sym *s, uint32 v);
+vlong		adduint64(Sym *s, uint64 v);
+vlong		adduint8(Sym *s, uint8 v);
+vlong		adduintxx(Sym *s, uint64 v, int wid);
+
+/* Native is little-endian */
+#define	LPUT(a)	lputl(a)
+#define	WPUT(a)	wputl(a)
+#define	VPUT(a)	abort()
 
 #endif

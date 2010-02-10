@@ -1,0 +1,141 @@
+
+=========== 64bit.go
+BUG: 64bit
+
+=========== chan/nonblock.go
+PASS
+
+=========== cmp2.go
+comparing uncomparable type []int
+throw: interface compare
+
+panic PC=xxx
+[1]   Segmentation fault      "${@}"
+
+=========== cmp3.go
+comparing uncomparable type []int
+throw: interface compare
+
+panic PC=xxx
+[1]   Segmentation fault      "${@}"
+
+=========== cmp4.go
+hash of unhashable type []int
+throw: interface hash
+
+panic PC=xxx
+[1]   Segmentation fault      "${@}"
+
+=========== cmp5.go
+hash of unhashable type []int
+throw: interface hash
+
+panic PC=xxx
+[1]   Segmentation fault      "${@}"
+
+=========== fixedbugs/bug016.go
+fixedbugs/bug016.go:11: constant -3 overflows uint
+
+=========== fixedbugs/bug027.go
+hi
+0 44444
+1 3333
+2 222
+3 11
+4 0
+0 44444
+1 3333
+2 222
+3 11
+4 0
+
+=========== fixedbugs/bug067.go
+ok
+
+=========== fixedbugs/bug070.go
+outer loop top k 0
+inner loop top i 0
+do break
+broke
+
+=========== fixedbugs/bug081.go
+fixedbugs/bug081.go:9: fatal error: typecheck loop
+
+=========== fixedbugs/bug093.go
+M
+
+=========== fixedbugs/bug113.go
+interface is int, not int32
+throw: interface conversion
+
+panic PC=xxx
+[1]   Segmentation fault      "${@}"
+
+=========== fixedbugs/bug120.go
+Bad float64 const: 123.5 want 123.5 got %¤
+[1]   Segmentation fault      "${@}"
+BUG: bug120
+
+=========== fixedbugs/bug148.go
+2 3
+interface is main.T, not main.T
+throw: interface conversion
+
+panic PC=xxx
+[1]   Segmentation fault      "${@}"
+
+=========== fixedbugs/bug154.go
+??none??: $GOROOT/pkg/linux_arm/strconv.a: failed to load: os.ERANGE
+BUG: should not panic
+
+=========== fixedbugs/bug206.go
+??none??: $GOROOT/pkg/linux_arm/strconv.a: failed to load: os.ERANGE
+BUG: bug206
+
+=========== helloworld.go
+hello, world
+
+=========== interface/fail.go
+*main.S is not main.I: missing method Foo
+throw: interface conversion
+
+panic PC=xxx
+[1]   Segmentation fault      "${@}"
+
+=========== interface/returntype.go
+*main.S is not main.I2: missing method Name
+throw: interface conversion
+
+panic PC=xxx
+[1]   Segmentation fault      "${@}"
+
+=========== ken/intervar.go
+ print 1 bio 2 file 3 -- abc
+
+=========== ken/label.go
+100
+
+=========== ken/rob1.go
+9876543210
+
+=========== ken/rob2.go
+(defn foo (add 12 34))
+
+=========== ken/simpprint.go
+hello world
+
+=========== ken/simpswitch.go
+0out01out12out2aout34out4fiveout56out6aout78out89out9
+
+=========== ken/string.go
+abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+
+=========== printbig.go
+-9223372036854775808
+9223372036854775807
+
+=========== sigchld.go
+survived SIGCHLD
+
+=========== turing.go
+Hello World!

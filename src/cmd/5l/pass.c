@@ -92,6 +92,7 @@ dodata(void)
 		}
 		while(v & 3)
 			v++;
+		s->size = v;
 		s->value = v;
 		if(v > MINSIZ)
 			continue;
@@ -113,6 +114,7 @@ dodata(void)
 			continue;
 		}
 		v = s->value;
+		s->size = v;
 		s->value = orig;
 		orig += v;
 	}
@@ -130,6 +132,7 @@ dodata(void)
 		if(s->type != SBSS)
 			continue;
 		v = s->value;
+		s->size = v;
 		s->value = orig;
 		orig += v;
 	}
