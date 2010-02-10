@@ -459,7 +459,10 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	}
 
 	// Rest of header
-	writeSortedKeyValue(w, resp.Header, respExcludeHeader)
+	err := writeSortedKeyValue(w, resp.Header, respExcludeHeader)
+	if err != nil {
+		return err
+	}
 
 	// End-of-header
 	io.WriteString(w, "\r\n")
@@ -494,7 +497,7 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	return nil
 }
 
-func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]int) {
+func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]int) os.Error {
 	kva := make([]string, len(kvm))
 	i := 0
 	for k, v := range kvm {
@@ -506,6 +509,9 @@ func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]
 	kva = kva[0:i]
 	sort.SortStrings(kva)
 	for _, l := range kva {
-		io.WriteString(w, l)
+		if _, err := io.WriteString(w, l); err != nil {
+			return err
+		}
 	}
+	return nil
 }

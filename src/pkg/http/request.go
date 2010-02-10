@@ -171,7 +171,10 @@ func (req *Request) Write(w io.Writer) os.Error {
 	// from Request, and introduce Request methods along the lines of
 	// Response.{GetHeader,AddHeader} and string constants for "Host",
 	// "User-Agent" and "Referer".
-	writeSortedKeyValue(w, req.Header, reqExcludeHeader)
+	err := writeSortedKeyValue(w, req.Header, reqExcludeHeader)
+	if err != nil {
+		return err
+	}
 
 	io.WriteString(w, "\r\n")
 
