@@ -61,6 +61,7 @@ TEXT	write(SB),7,$-8
 TEXT gettime(SB), 7, $32
 	MOVL	$116, AX
 	LEAQ	8(SP), DI
+	MOVQ	$0, SI
 	SYSCALL
 
 	MOVQ	8(SP), BX	// sec
