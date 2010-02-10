@@ -29,7 +29,7 @@ static void
 addfintab(Fintab *t, void *k, void *fn, int32 nret)
 {
 	int32 i, j;
-	
+
 	i = (uintptr)k % (uintptr)t->max;
 	for(j=0; j<t->max; j++) {
 		if(t->key[i] == nil) {
@@ -58,7 +58,7 @@ lookfintab(Fintab *t, void *k, bool del, int32 *nret)
 {
 	int32 i, j;
 	void *v;
-	
+
 	if(t->max == 0)
 		return nil;
 	i = (uintptr)k % (uintptr)t->max;
@@ -94,11 +94,27 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 {
 	Fintab newtab;
 	int32 i;
+	uint32 *ref;
+	byte *base;
+
+	if(!mlookup(p, &base, nil, &ref) || p != base)
+		throw("addfinalizer on invalid pointer");
+	if(f == nil) {
+		if(*ref & RefHasFinalizer) {
+			getfinalizer(p, 1, nil);
+			*ref &= ~RefHasFinalizer;
+		}
+		return;
+	}
+
+	if(*ref & RefHasFinalizer)
+		throw("double finalizer");
+	*ref |= RefHasFinalizer;
 
 	if(fintab.nkey >= fintab.max/2+fintab.max/4) {
 		// keep table at most 3/4 full:
 		// allocate new table and rehash.
-		
+
 		runtime_memclr((byte*)&newtab, sizeof newtab);
 		newtab.max = fintab.max;
 		if(newtab.max == 0)
@@ -108,13 +124,13 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 			// otherwise just rehash into table of same size.
 			newtab.max *= 3;
 		}
-		
-		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0);
-		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0);
-		
+
+		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1);
+		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
+
 		for(i=0; i<fintab.max; i++) {
 			void *k;
-			
+
 			k = fintab.key[i];
 			if(k != nil && k != (void*)-1)
 				addfintab(&newtab, k, fintab.val[i].fn, fintab.val[i].nret);
@@ -123,10 +139,12 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 		free(fintab.val);
 		fintab = newtab;
 	}
-	
-	addfintab(&fintab, p, f, nret);		
+
+	addfintab(&fintab, p, f, nret);
 }
 
+// get finalizer; if del, delete finalizer.
+// caller is responsible for updating RefHasFinalizer bit.
 void*
 getfinalizer(void *p, bool del, int32 *nret)
 {

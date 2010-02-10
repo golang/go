@@ -434,23 +434,20 @@ matchmg(void)
 			// when it is just in a register (R14 on amd64).
 			m->alllink = allm;
 			allm = m;
-			m->g0 = malg(8192);
 			m->id = sched.mcount++;
 
 			if(libcgo_thread_start != nil) {
 				CgoThreadStart ts;
-				// pthread_create will make us a stack,
-				// so free the one malg made.
-				stackfree(m->g0->stack0);
-				m->g0->stack0 = nil;
-				m->g0->stackguard = nil;
-				m->g0->stackbase = nil;
+				// pthread_create will make us a stack.
+				m->g0 = malg(-1);
 				ts.m = m;
 				ts.g = m->g0;
 				ts.fn = mstart;
 				runcgo(libcgo_thread_start, &ts);
-			} else
+			} else {
+				m->g0 = malg(8192);
 				newosproc(m, m->g0, m->g0->stackbase, mstart);
+			}
 		}
 		mnextg(m, g);
 	}
@@ -682,7 +679,7 @@ oldstack(void)
 		mcpy(top->fp, sp, args);
 	}
 
-	stackfree((byte*)g1->stackguard - StackGuard);
+	stackfree(g1->stackguard - StackGuard);
 	g1->stackbase = old.stackbase;
 	g1->stackguard = old.stackguard;
 
@@ -709,6 +706,7 @@ newstack(void)
 		frame = StackBig;
 	frame += 1024;	// for more functions, Stktop.
 	stk = stackalloc(frame);
+
 
 //printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
 
@@ -746,10 +744,13 @@ malg(int32 stacksize)
 	byte *stk;
 
 	g = malloc(sizeof(G));
-	stk = stackalloc(stacksize + StackGuard);
-	g->stack0 = stk;
-	g->stackguard = stk + StackGuard;
-	g->stackbase = stk + StackGuard + stacksize;
+	if(stacksize >= 0) {
+		stk = stackalloc(stacksize + StackGuard);
+		g->stack0 = stk;
+		g->stackguard = stk + StackGuard;
+		g->stackbase = stk + StackGuard + stacksize - sizeof(Stktop);
+		runtime_memclr(g->stackbase, sizeof(Stktop));
+	}
 	return g;
 }
 
@@ -772,7 +773,7 @@ void
 void
 newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 {
-	byte *stk, *sp;
+	byte *sp;
 	G *newg;
 	int32 siz;
 
@@ -792,13 +793,8 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 		newg->alllink = allg;
 		allg = newg;
 	}
-	stk = newg->stack0;
 
-	newg->stackguard = stk+StackGuard;
-
-	sp = stk + 4096 - 4*8;
-	newg->stackbase = sp;
-
+	sp = newg->stackbase;
 	sp -= siz;
 	mcpy(sp, argp, narg);
 

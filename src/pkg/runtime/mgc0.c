@@ -47,7 +47,7 @@ scanblock(int32 depth, byte *b, int64 n)
 	int32 off;
 	void *obj;
 	uintptr size;
-	uint32 *ref;
+	uint32 *refp, ref;
 	void **vp;
 	int64 i;
 
@@ -65,24 +65,22 @@ scanblock(int32 depth, byte *b, int64 n)
 		obj = vp[i];
 		if(obj == nil || (byte*)obj < mheap.min || (byte*)obj >= mheap.max)
 			continue;
-		if(mlookup(obj, &obj, &size, &ref)) {
-			if(*ref == RefFree || *ref == RefStack)
-				continue;
-
-			// If marked for finalization already, some other finalization-ready
-			// object has a pointer: turn off finalization until that object is gone.
-			// This means that cyclic finalizer loops never get collected,
-			// so don't do that.
-
-			if(*ref == (RefNone|RefNoPointers) || *ref == (RefFinalize|RefNoPointers)) {
-				*ref = RefSome|RefNoPointers;
-				continue;
-			}
-			if(*ref == RefNone || *ref == RefFinalize) {
+		if(mlookup(obj, &obj, &size, &refp)) {
+			ref = *refp;
+			switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
+			case RefFinalize:
+				// If marked for finalization already, some other finalization-ready
+				// object has a pointer: turn off finalization until that object is gone.
+				// This means that cyclic finalizer loops never get collected,
+				// so don't do that.
+				/* fall through */
+			case RefNone:
 				if(Debug > 1)
 					printf("%d found at %p: ", depth, &vp[i]);
-				*ref = RefSome;
-				scanblock(depth+1, obj, size);
+				*refp = RefSome | (ref & (RefNoPointers|RefHasFinalizer));
+				if(!(ref & RefNoPointers))
+					scanblock(depth+1, obj, size);
+				break;
 			}
 		}
 	}
@@ -172,20 +170,19 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
 	uint32 gcref;
 
 	gcref = *gcrefp;
-	switch(gcref) {
+	switch(gcref & ~(RefNoPointers|RefHasFinalizer)) {
 	default:
 		throw("bad 'ref count'");
 	case RefFree:
 	case RefStack:
 		break;
 	case RefNone:
-	case RefNone|RefNoPointers:
-		if(pass == 0 && getfinalizer(p, 0, nil)) {
+		if(pass == 0 && (gcref & RefHasFinalizer)) {
 			// Tentatively mark as finalizable.
 			// Make sure anything it points at will not be collected.
 			if(Debug > 0)
 				printf("maybe finalize %p+%D\n", p, n);
-			*gcrefp = RefFinalize | (gcref&RefNoPointers);
+			*gcrefp = RefFinalize | RefHasFinalizer | (gcref&RefNoPointers);
 			scanblock(100, p, n);
 		} else if(pass == 1) {
 			if(Debug > 0)
@@ -194,7 +191,6 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
 		}
 		break;
 	case RefFinalize:
-	case RefFinalize|RefNoPointers:
 		if(pass != 1)
 			throw("sweepspan pass 0 RefFinalize");
 		if(pfinq < efinq) {
@@ -203,18 +199,18 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
 			pfinq->p = p;
 			pfinq->nret = 0;
 			pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
+			gcref &= ~RefHasFinalizer;
 			if(pfinq->fn == nil)
 				throw("getfinalizer inconsistency");
 			pfinq++;
 		}
 		// Reset for next mark+sweep.
-		*gcrefp = RefNone | (gcref&RefNoPointers);
+		*gcrefp = RefNone | (gcref&(RefNoPointers|RefHasFinalizer));
 		break;
 	case RefSome:
-	case RefSome|RefNoPointers:
 		// Reset for next mark+sweep.
 		if(pass == 1)
-			*gcrefp = RefNone | (gcref&RefNoPointers);
+			*gcrefp = RefNone | (gcref&(RefNoPointers|RefHasFinalizer));
 		break;
 	}
 }
@@ -227,7 +223,7 @@ sweep(void)
 	// Sweep all the spans marking blocks to be finalized.
 	for(s = mheap.allspans; s != nil; s = s->allnext)
 		sweepspan(s, 0);
-		
+
 	// Sweep again queueing finalizers and freeing the others.
 	for(s = mheap.allspans; s != nil; s = s->allnext)
 		sweepspan(s, 1);
@@ -292,7 +288,7 @@ gc(int32 force)
 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
 	}
 	m->gcing = 0;
-	
+
 	// kick off goroutines to run queued finalizers
 	m->locks++;	// disable gc during the mallocs in newproc
 	for(fp=finq; fp<pfinq; fp++) {

@@ -67,9 +67,21 @@
 // Allocating and freeing a large object uses the page heap
 // directly, bypassing the MCache and MCentral free lists.
 //
+// The small objects on the MCache and MCentral free lists
+// may or may not be zeroed.  They are zeroed if and only if
+// the second word of the object is zero.  The spans in the
+// page heap are always zeroed.  When a span full of objects
+// is returned to the page heap, the objects that need to be
+// are zeroed first.  There are two main benefits to delaying the
+// zeroing this way:
+//
+//	1. stack frames allocated from the small object lists
+//	   can avoid zeroing altogether.
+//	2. the cost of zeroing when reusing a small object is
+//	   charged to the mutator, not the garbage collector.
+//
 // This C code was written with an eye toward translating to Go
 // in the future.  Methods have the form Type_Method(Type *t, ...).
-
 
 typedef struct FixAlloc	FixAlloc;
 typedef struct MCentral	MCentral;
@@ -218,7 +230,7 @@ struct MCache
 	uint64 size;
 };
 
-void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size);
+void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed);
 void	MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
 
 
@@ -285,7 +297,7 @@ struct MHeap
 	// span lookup
 	MHeapMap map;
 	MHeapMapCache mapcache;
-	
+
 	// range of addresses we might see in the heap
 	byte *min;
 	byte *max;
@@ -310,7 +322,7 @@ void	MHeap_Free(MHeap *h, MSpan *s);
 MSpan*	MHeap_Lookup(MHeap *h, PageID p);
 MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
 
-void*	mallocgc(uintptr size, uint32 flag, int32 dogc);
+void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
 int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
 void	gc(int32 force);
 
@@ -329,5 +341,6 @@ enum
 	RefNone,		// no references
 	RefSome,		// some references
 	RefFinalize,	// ready to be finalized
-	RefNoPointers = 0x80000000U,	// flag - no pointers here     
+	RefNoPointers = 0x80000000U,	// flag - no pointers here
+	RefHasFinalizer = 0x40000000U,	// flag - has finalizer
 };

@@ -23,14 +23,14 @@ void
 	ret.cap = cap;
 
 	if((t->elem->kind&KindNoPointers))
-		ret.array = mallocgc(size, RefNoPointers, 1);
+		ret.array = mallocgc(size, RefNoPointers, 1, 1);
 	else
 		ret.array = mal(size);
 
 	FLUSH(&ret);
 
 	if(debug) {
-		printf("makeslice(%S, %d, %d); ret=", 
+		printf("makeslice(%S, %d, %d); ret=",
 			*t->string, nel, cap);
  		·printslice(ret);
 	}
