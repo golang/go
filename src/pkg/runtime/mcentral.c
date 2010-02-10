@@ -115,6 +115,7 @@ MCentral_Free(MCentral *c, void *v)
 	MSpan *s;
 	PageID page;
 	MLink *p, *next;
+	int32 size;
 
 	// Find span for v.
 	page = (uintptr)v >> PageShift;
@@ -136,15 +137,20 @@ MCentral_Free(MCentral *c, void *v)
 
 	// If s is completely freed, return it to the heap.
 	if(--s->ref == 0) {
+		size = class_to_size[c->sizeclass];
 		MSpanList_Remove(s);
-		// Freed blocks are zeroed except for the link pointer.
-		// Zero the link pointers so that the page is all zero.
+		// The second word of each freed block indicates
+		// whether it needs to be zeroed.  The first word
+		// is the link pointer and must always be cleared.
 		for(p=s->freelist; p; p=next) {
 			next = p->next;
-			p->next = nil;
+			if(size > sizeof(uintptr) && ((uintptr*)p)[1] != 0)
+				runtime_memclr((byte*)p, size);
+			else
+				p->next = nil;
 		}
 		s->freelist = nil;
-		c->nfree -= (s->npages << PageShift) / class_to_size[c->sizeclass];
+		c->nfree -= (s->npages << PageShift) / size;
 		unlock(c);
 		MHeap_Free(&mheap, s);
 		lock(c);

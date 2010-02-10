@@ -19,7 +19,7 @@ MStats mstats;
 // Small objects are allocated from the per-thread cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 void*
-mallocgc(uintptr size, uint32 refflag, int32 dogc)
+mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 {
 	int32 sizeclass;
 	MCache *c;
@@ -42,7 +42,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
 		sizeclass = SizeToClass(size);
 		size = class_to_size[sizeclass];
 		c = m->mcache;
-		v = MCache_Alloc(c, sizeclass, size);
+		v = MCache_Alloc(c, sizeclass, size, zeroed);
 		if(v == nil)
 			throw("out of memory");
 		mstats.alloc += size;
@@ -80,7 +80,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
 void*
 malloc(uintptr size)
 {
-	return mallocgc(size, 0, 0);
+	return mallocgc(size, 0, 0, 1);
 }
 
 // Free the object whose base pointer is v.
@@ -128,6 +128,8 @@ free(void *v)
 	// Small object.
 	c = m->mcache;
 	size = class_to_size[sizeclass];
+	if(size > sizeof(uintptr))
+		((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
 	runtime_memclr(v, size);
 	mstats.alloc -= size;
 	mstats.by_size[sizeclass].nfree++;
@@ -180,14 +182,18 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 		*base = p + i*n;
 	if(size)
 		*size = n;
-	nobj = (s->npages << PageShift) / (n + RefcountOverhead);
-	if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
-		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
-			s->state, s, p, s->sizeclass, (uint64)nobj, (uint64)n, (uint64)s->npages);
-		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
-			s->sizeclass, v, p, s->gcref, (uint64)s->npages<<PageShift,
-			(uint64)nobj, (uint64)n, s->gcref + nobj, p+(s->npages<<PageShift));
-		throw("bad gcref");
+
+	// good for error checking, but expensive
+	if(0) {
+		nobj = (s->npages << PageShift) / (n + RefcountOverhead);
+		if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
+			printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
+				s->state, s, p, s->sizeclass, (uint64)nobj, (uint64)n, (uint64)s->npages);
+			printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
+				s->sizeclass, v, p, s->gcref, (uint64)s->npages<<PageShift,
+				(uint64)nobj, (uint64)n, s->gcref + nobj, p+(s->npages<<PageShift));
+			throw("bad gcref");
+		}
 	}
 	if(ref)
 		*ref = &s->gcref[i];
@@ -217,7 +223,7 @@ mallocinit(void)
 void*
 mal(uint32 n)
 {
-	return mallocgc(n, 0, 1);
+	return mallocgc(n, 0, 1, 1);
 }
 
 // Stack allocator uses malloc/free most of the time,
@@ -250,7 +256,7 @@ stackalloc(uint32 n)
 		unlock(&stacks);
 		return v;
 	}
-	v = malloc(n);
+	v = mallocgc(n, 0, 0, 0);
 	if(!mlookup(v, nil, nil, &ref))
 		throw("stackalloc mlookup");
 	*ref = RefStack;
@@ -291,7 +297,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 	FuncType *ft;
 	int32 i, nret;
 	Type *t;
-	
+
 	if(obj.type == nil) {
 		printf("runtime.SetFinalizer: first argument is nil interface\n");
 	throw:
@@ -315,7 +321,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		ft = (FuncType*)finalizer.type;
 		if(ft->dotdotdot || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
 			goto badfunc;
-		
+
 		// compute size needed for return parameters
 		for(i=0; i<ft->out.len; i++) {
 			t = ((Type**)ft->out.array)[i];

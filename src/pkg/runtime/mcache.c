@@ -10,7 +10,7 @@
 #include "malloc.h"
 
 void*
-MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
+MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
 {
 	MCacheList *l;
 	MLink *first, *v;
@@ -36,6 +36,16 @@ MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
 	// v is zeroed except for the link pointer
 	// that we used above; zero that.
 	v->next = nil;
+	if(zeroed) {
+		// block is zeroed iff second word is zero ...
+		if(size > sizeof(uintptr) && ((uintptr*)v)[1] != 0)
+			runtime_memclr((byte*)v, size);
+		else {
+			// ... except for the link pointer
+			// that we used above; zero that.
+			v->next = nil;
+		}
+	}
 	return v;
 }
 
