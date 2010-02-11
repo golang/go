@@ -121,7 +121,6 @@ DIRS=\
 
 NOTEST=\
 	debug/proc\
-	exp/draw\
 	go/ast\
 	go/doc\
 	go/token\
