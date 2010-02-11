@@ -79,6 +79,10 @@ regopt(Prog *p)
 		Reg*	p;
 	} log5[6], *lp;
 
+	// TODO(kaib): optimizer disabled because it smashes R8 when running out of registers
+	// the disable is unconventionally here because the call is in common code shared by 5c/6c/8c
+	return;
+
 	firstr = R;
 	lastr = R;
 	nvar = 0;
@@ -1147,7 +1151,7 @@ int32
 RtoB(int r)
 {
 
-	if(r < 2 || r >= REGTMP)
+	if(r < 2 || r >= REGTMP-2)	// excluded R9 and R10 for m and g
 		return 0;
 	return 1L << r;
 }
@@ -1155,7 +1159,7 @@ RtoB(int r)
 int
 BtoR(int32 b)
 {
-	b &= 0x07fcL;
+	b &= 0x01fcL;	// excluded R9 and R10 for m and g
 	if(b == 0)
 		return 0;
 	return bitno(b);
