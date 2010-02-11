@@ -17,6 +17,8 @@ package net
 import (
 	"once"
 	"os"
+	"rand"
+	"time"
 )
 
 // DNSError represents a DNS lookup error.
@@ -44,7 +46,7 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 		return nil, &DNSError{"name too long", name, ""}
 	}
 	out := new(_DNS_Msg)
-	out.id = 0x1234
+	out.id = uint16(rand.Int()) ^ uint16(time.Nanoseconds())
 	out.question = []_DNS_Question{
 		_DNS_Question{name, _DNS_TypeA, _DNS_ClassINET},
 	}
