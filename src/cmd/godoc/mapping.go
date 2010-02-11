@@ -141,21 +141,6 @@ func split(path string) (head, tail string) {
 // string is returned.
 //
 func (m *Mapping) ToAbsolute(path string) string {
-	for _, e := range m.list {
-		if strings.HasPrefix(path, e.path) {
-			// /absolute/prefix/foo -> prefix/foo
-			return pathutil.Join(e.prefix, path[len(e.path):]) // Join will remove a trailing '/'
-		}
-	}
-	return "" // no match
-}
-
-
-// ToRelative maps an absolute path to a relative path using the Mapping
-// specified by the receiver. If the path cannot be mapped, the empty
-// string is returned.
-//
-func (m *Mapping) ToRelative(path string) string {
 	prefix, tail := split(path)
 	for _, e := range m.list {
 		switch {
@@ -172,5 +157,20 @@ func (m *Mapping) ToRelative(path string) string {
 		}
 	}
 
+	return "" // no match
+}
+
+
+// ToRelative maps an absolute path to a relative path using the Mapping
+// specified by the receiver. If the path cannot be mapped, the empty
+// string is returned.
+//
+func (m *Mapping) ToRelative(path string) string {
+	for _, e := range m.list {
+		if strings.HasPrefix(path, e.path) {
+			// /absolute/prefix/foo -> prefix/foo
+			return pathutil.Join(e.prefix, path[len(e.path):]) // Join will remove a trailing '/'
+		}
+	}
 	return "" // no match
 }
