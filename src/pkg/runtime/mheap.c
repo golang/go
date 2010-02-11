@@ -108,27 +108,11 @@ HaveSpan:
 		MHeap_FreeLocked(h, t);
 	}
 
-	// If span is being used for small objects, cache size class.
-	// No matter what, cache span info, because gc needs to be
+	// Record span info, because gc needs to be
 	// able to map interior pointer to containing span.
 	s->sizeclass = sizeclass;
 	for(n=0; n<npage; n++)
 		MHeapMap_Set(&h->map, s->start+n, s);
-	if(sizeclass == 0) {
-		uintptr tmp;
-
-		// If there are entries for this span, invalidate them,
-		// but don't blow out cache entries about other spans.
-		for(n=0; n<npage; n++)
-			if(MHeapMapCache_GET(&h->mapcache, s->start+n, tmp) != 0)
-				MHeapMapCache_SET(&h->mapcache, s->start+n, 0);
-	} else {
-		// Save cache entries for this span.
-		// If there's a size class, there aren't that many pages.
-		for(n=0; n<npage; n++)
-			MHeapMapCache_SET(&h->mapcache, s->start+n, sizeclass);
-	}
-
 	return s;
 }
 

@@ -48,6 +48,12 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 		mstats.alloc += size;
 		mstats.total_alloc += size;
 		mstats.by_size[sizeclass].nmalloc++;
+
+		if(!mlookup(v, nil, nil, nil, &ref)) {
+			printf("malloc %D; mlookup failed\n", (uint64)size);
+			throw("malloc mlookup");
+		}
+		*ref = RefNone | refflag;
 	} else {
 		// TODO(rsc): Report tracebacks for very large allocations.
 
@@ -61,14 +67,10 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 		mstats.alloc += npages<<PageShift;
 		mstats.total_alloc += npages<<PageShift;
 		v = (void*)(s->start << PageShift);
-	}
 
-	// setup for mark sweep
-	if(!mlookup(v, nil, nil, &ref)) {
-		printf("malloc %D; mlookup failed\n", (uint64)size);
-		throw("malloc mlookup");
+		// setup for mark sweep
+		s->gcref0 = RefNone | refflag;
 	}
-	*ref = RefNone | refflag;
 
 	m->mallocing = 0;
 
@@ -88,7 +90,6 @@ void
 free(void *v)
 {
 	int32 sizeclass, size;
-	uintptr page, tmp;
 	MSpan *s;
 	MCache *c;
 	uint32 *ref;
@@ -100,46 +101,34 @@ free(void *v)
 		throw("malloc/free - deadlock");
 	m->mallocing = 1;
 
-	if(!mlookup(v, nil, nil, &ref)) {
+	if(!mlookup(v, nil, nil, &s, &ref)) {
 		printf("free %p: not an allocated block\n", v);
 		throw("free mlookup");
 	}
 	*ref = RefFree;
 
 	// Find size class for v.
-	page = (uintptr)v >> PageShift;
-	sizeclass = MHeapMapCache_GET(&mheap.mapcache, page, tmp);
+	sizeclass = s->sizeclass;
 	if(sizeclass == 0) {
-		// Missed in cache.
-		s = MHeap_Lookup(&mheap, page);
-		if(s == nil)
-			throw("free - invalid pointer");
-		sizeclass = s->sizeclass;
-		if(sizeclass == 0) {
-			// Large object.
-			mstats.alloc -= s->npages<<PageShift;
-			runtime_memclr(v, s->npages<<PageShift);
-			MHeap_Free(&mheap, s);
-			goto out;
-		}
-		MHeapMapCache_SET(&mheap.mapcache, page, sizeclass);
+		// Large object.
+		mstats.alloc -= s->npages<<PageShift;
+		runtime_memclr(v, s->npages<<PageShift);
+		MHeap_Free(&mheap, s);
+	} else {
+		// Small object.
+		c = m->mcache;
+		size = class_to_size[sizeclass];
+		if(size > sizeof(uintptr))
+			((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
+		mstats.alloc -= size;
+		mstats.by_size[sizeclass].nfree++;
+		MCache_Free(c, v, sizeclass, size);
 	}
-
-	// Small object.
-	c = m->mcache;
-	size = class_to_size[sizeclass];
-	if(size > sizeof(uintptr))
-		((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
-	mstats.alloc -= size;
-	mstats.by_size[sizeclass].nfree++;
-	MCache_Free(c, v, sizeclass, size);
-
-out:
 	m->mallocing = 0;
 }
 
 int32
-mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
+mlookup(void *v, byte **base, uintptr *size, MSpan **sp, uint32 **ref)
 {
 	uintptr n, nobj, i;
 	byte *p;
@@ -147,6 +136,8 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 
 	mstats.nlookup++;
 	s = MHeap_LookupMaybe(&mheap, (uintptr)v>>PageShift);
+	if(sp)
+		*sp = s;
 	if(s == nil) {
 		if(base)
 			*base = nil;
@@ -256,7 +247,7 @@ stackalloc(uint32 n)
 		return v;
 	}
 	v = mallocgc(n, 0, 0, 0);
-	if(!mlookup(v, nil, nil, &ref))
+	if(!mlookup(v, nil, nil, nil, &ref))
 		throw("stackalloc mlookup");
 	*ref = RefStack;
 	return v;
@@ -283,7 +274,7 @@ func Free(p *byte) {
 }
 
 func Lookup(p *byte) (base *byte, size uintptr) {
-	mlookup(p, &base, &size, nil);
+	mlookup(p, &base, &size, nil, nil);
 }
 
 func GC() {
@@ -306,7 +297,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
 		goto throw;
 	}
-	if(!mlookup(obj.data, &base, &size, nil) || obj.data != base) {
+	if(!mlookup(obj.data, &base, &size, nil, nil) || obj.data != base) {
 		printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
 		goto throw;
 	}
