@@ -20,8 +20,6 @@
 //	MHeap: the malloc heap, managed at page (4096-byte) granularity.
 //	MSpan: a run of pages managed by the MHeap.
 //	MHeapMap: a mapping from page IDs to MSpans.
-//	MHeapMapCache: a small cache of MHeapMap mapping page IDs
-//		to size classes for pages used for small objects.
 //	MCentral: a shared free list for a given size class.
 //	MCache: a per-thread (in Go, per-M) cache for small objects.
 //	MStats: allocation statistics.
@@ -87,7 +85,6 @@ typedef struct FixAlloc	FixAlloc;
 typedef struct MCentral	MCentral;
 typedef struct MHeap	MHeap;
 typedef struct MHeapMap	MHeapMap;
-typedef struct MHeapMapCache	MHeapMapCache;
 typedef struct MSpan	MSpan;
 typedef struct MStats	MStats;
 typedef struct MLink	MLink;
@@ -296,7 +293,6 @@ struct MHeap
 
 	// span lookup
 	MHeapMap map;
-	MHeapMapCache mapcache;
 
 	// range of addresses we might see in the heap
 	byte *min;
@@ -324,7 +320,7 @@ MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
 void	MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
 
 void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
-int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
+int32	mlookup(void *v, byte **base, uintptr *size, MSpan **s, uint32 **ref);
 void	gc(int32 force);
 
 void*	SysAlloc(uintptr);

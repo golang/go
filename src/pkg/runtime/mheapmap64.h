@@ -58,39 +58,3 @@ MSpan*	MHeapMap_GetMaybe(MHeapMap *m, PageID k);
 void	MHeapMap_Set(MHeapMap *m, PageID k, MSpan *v);
 
 
-// Much of the time, free(v) needs to know only the size class for v,
-// not which span it came from.  The MHeapMap finds the size class
-// by looking up the span.
-//
-// An MHeapMapCache is a simple direct-mapped cache translating
-// page numbers to size classes.  It avoids the expensive MHeapMap
-// lookup for hot pages.
-//
-// The cache entries are 64 bits, with the page number in the low part
-// and the value at the top.
-//
-// NOTE(rsc): On a machine with 32-bit addresses (= 20-bit page numbers),
-// we can use a 16-bit cache entry by not storing the redundant 12 bits
-// of the key that are used as the entry index.  Here in 64-bit land,
-// that trick won't work unless the hash table has 2^28 entries.
-enum
-{
-	MHeapMapCache_HashBits = 12
-};
-
-struct MHeapMapCache
-{
-	uintptr array[1<<MHeapMapCache_HashBits];
-};
-
-// All macros for speed (sorry).
-#define HMASK	((1<<MHeapMapCache_HashBits)-1)
-#define KBITS	MHeapMap_TotalBits
-#define KMASK	((1LL<<KBITS)-1)
-
-#define MHeapMapCache_SET(cache, key, value) \
-	((cache)->array[(key) & HMASK] = (key) | ((uintptr)(value) << KBITS))
-
-#define MHeapMapCache_GET(cache, key, tmp) \
-	(tmp = (cache)->array[(key) & HMASK], \
-	 (tmp & KMASK) == (key) ? (tmp >> KBITS) : 0)

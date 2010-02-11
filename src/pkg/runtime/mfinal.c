@@ -97,7 +97,7 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 	uint32 *ref;
 	byte *base;
 
-	if(!mlookup(p, &base, nil, &ref) || p != base)
+	if(!mlookup(p, &base, nil, nil, &ref) || p != base)
 		throw("addfinalizer on invalid pointer");
 	if(f == nil) {
 		if(*ref & RefHasFinalizer) {

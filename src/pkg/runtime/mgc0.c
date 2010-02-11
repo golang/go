@@ -65,7 +65,7 @@ scanblock(int32 depth, byte *b, int64 n)
 		obj = vp[i];
 		if(obj == nil || (byte*)obj < mheap.min || (byte*)obj >= mheap.max)
 			continue;
-		if(mlookup(obj, &obj, &size, &refp)) {
+		if(mlookup(obj, &obj, &size, nil, &refp)) {
 			ref = *refp;
 			switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
 			case RefFinalize:
