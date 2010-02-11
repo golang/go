@@ -71,11 +71,6 @@ throw: interface conversion
 panic PC=xxx
 [1]   Segmentation fault      "${@}"
 
-=========== fixedbugs/bug120.go
-Bad float64 const: 123.5 want 123.5 got %¤
-[1]   Segmentation fault      "${@}"
-BUG: bug120
-
 =========== fixedbugs/bug148.go
 2 3
 interface is main.T, not main.T

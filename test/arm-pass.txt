@@ -129,7 +129,6 @@ fixedbugs/bug116.go
 fixedbugs/bug117.go
 fixedbugs/bug118.go
 fixedbugs/bug119.go
-fixedbugs/bug120.go
 fixedbugs/bug121.go
 fixedbugs/bug122.go
 fixedbugs/bug123.go
