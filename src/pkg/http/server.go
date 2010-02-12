@@ -32,6 +32,11 @@ var (
 // Objects implementing the Handler interface can be
 // registered to serve a particular path or subtree
 // in the HTTP server.
+//
+// ServeHTTP should write reply headers and data to the Conn
+// and then return.  Returning signals that the request is finished
+// and that the HTTP server can move on to the next request on
+// the connection.
 type Handler interface {
 	ServeHTTP(*Conn, *Request)
 }
