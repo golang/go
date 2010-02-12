@@ -51,9 +51,10 @@ typecheck(Node **np, int top)
 	int et, op;
 	Node *n, *l, *r;
 	NodeList *args;
-	int lno, ok, ntop;
+	int lno, ok, ntop, ct;
 	Type *t;
 	Sym *sym;
+	Val v;
 
 	// cannot type check until all the source has been parsed
 	if(!typecheckok)
@@ -157,29 +158,28 @@ reswitch:
 		l = n->left;
 		r = n->right;
 		if(l == nil) {
-			t->bound = -1;
+			t->bound = -1;	// slice
+		} else if(l->op == ODDD) {
+			t->bound = -100;	// to be filled in
 		} else {
-			if(l->op != ODDD)
-				typecheck(&l, Erv | Etype);
-			switch(l->op) {
+			l = typecheck(&n->left, Erv);
+			switch(consttype(l)) {
+			case CTINT:
+				v = l->val;
+				break;
+			case CTFLT:
+				v = toint(l->val);
+				break;
 			default:
 				yyerror("invalid array bound %#N", l);
 				goto error;
-
-			case OLITERAL:
-				if(consttype(l) == CTINT) {
-					t->bound = mpgetfix(l->val.u.xval);
-					if(t->bound < 0) {
-						yyerror("array bound must be non-negative");
-						goto error;
-					}
-				}
-				break;
-
-			case ODDD:
-				t->bound = -100;
-				break;
 			}
+			t->bound = mpgetfix(v.u.xval);
+			if(t->bound < 0) {
+				yyerror("array bound must be non-negative");
+				goto error;
+			} else
+				overflow(v, types[TINT]);
 		}
 		typecheck(&r, Etype);
 		if(r->type == T)

@@ -1088,6 +1088,8 @@ int	consttype(Node*);
 int	isconst(Node*, int);
 Mpflt*	truncfltlit(Mpflt*, Type*);
 void	convconst(Node*, Type*, Val*);
+Val	toint(Val);
+void	overflow(Val, Type*);
 
 /*
  *	align.c
