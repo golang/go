@@ -6,9 +6,7 @@
 #define	TUP(x,y)	(((x)<<16)|(y))
 
 static Val toflt(Val);
-static Val toint(Val);
 static Val tostr(Val);
-static void overflow(Val, Type*);
 static Val copyval(Val);
 
 /*
@@ -236,7 +234,7 @@ toflt(Val v)
 	return v;
 }
 
-static Val
+Val
 toint(Val v)
 {
 	Mpint *i;
@@ -251,7 +249,7 @@ toint(Val v)
 	return v;
 }
 
-static void
+void
 overflow(Val v, Type *t)
 {
 	// v has already been converted
