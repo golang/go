@@ -33,17 +33,22 @@ error() {
 
 # apply to one file
 apply1() {
-	#echo $1 $2
-	case `basename "$F"` in
 	# the following files are skipped because they are test cases
 	# for syntax errors and thus won't parse in the first place:
+	case `basename "$F"` in
 	func3.go | const2.go | \
 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
-	bug226.go | bug228.go | bug248.go ) ;;
-	* ) "$1" "$2"; count "$F";;
+	bug226.go | bug228.go | bug248.go ) return ;;
 	esac
+	# the following directories are skipped because they contain test
+	# cases for syntax errors and thus won't parse in the first place:
+	case `dirname "$F"` in
+	$GOROOT/test/syntax ) return ;;
+	esac
+	#echo $1 $2
+	"$1" "$2"; count "$F"
 }
 
 
