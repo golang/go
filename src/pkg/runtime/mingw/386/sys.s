@@ -85,3 +85,12 @@ TEXT setldt(SB),7,$0
 	MOVL	address+4(FP), CX
 	MOVL	CX, 0x2c(FS)
 	RET
+
+// for now, return 0,0.  only used for internal performance monitoring.
+TEXT gettime(SB),7,$0
+	MOVL	sec+0(FP), DI
+	MOVL	$0, (DI)
+	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
+	MOVL	usec+4(FP), DI
+	MOVL	$0, (DI)
+	RET
