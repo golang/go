@@ -100,7 +100,7 @@ var (
 )
 
 
-func initRoots() {
+func init() {
 	goroot = os.Getenv("GOROOT")
 	if goroot == "" {
 		goroot = pathutil.Join(os.Getenv("HOME"), "go")
