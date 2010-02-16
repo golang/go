@@ -30,7 +30,6 @@ var good_re = []string{
 	`[^\n]`,
 }
 
-// TODO: nice to do this with a map
 type stringError struct {
 	re  string
 	err os.Error
@@ -97,6 +96,10 @@ var matches = []tester{
 	tester{`[.]`, ".", vec{0, 1}},
 	tester{`/$`, "/abc/", vec{4, 5}},
 	tester{`/$`, "/abc", vec{}},
+
+	// fixed bugs
+	tester{`ab$`, "cab", vec{1, 3}},
+	tester{`axxb$`, "axxcb", vec{}},
 }
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
