@@ -107,6 +107,7 @@ func _() {
 	}
 	for x := expr;expr;expr = false { use(x) }
 	for x := range []int{} { use(x) }
+	for x := range (([]int{})) { use(x) }  // no parens printed
 }
 
 

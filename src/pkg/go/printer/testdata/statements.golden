@@ -144,6 +144,9 @@ func _() {
 	for x := range []int{} {
 		use(x)
 	}
+	for x := range []int{} {
+		use(x)
+	}	// no parens printed
 }
 
 

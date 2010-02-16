@@ -671,6 +671,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 			// no parenthesis needed
 			p.print(x.Op)
 			if x.Op == token.RANGE {
+				// TODO(gri) Remove this code if it cannot be reached.
 				p.print(blank)
 			}
 			p.expr1(x.X, prec, depth, 0, multiLine)
@@ -1075,7 +1076,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 			p.expr(s.Value, multiLine)
 		}
 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
-		p.expr(s.X, multiLine)
+		p.expr(stripParens(s.X), multiLine)
 		p.print(blank)
 		p.block(s.Body, 1, true)
 		*multiLine = true
