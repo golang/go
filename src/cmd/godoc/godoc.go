@@ -84,7 +84,7 @@ var (
 	tmplroot string
 
 	// additional file system roots to consider
-	path = flag.String("path", "", "additional pkg directories")
+	path = flag.String("path", "", "additional package directories (colon-separated)")
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width")

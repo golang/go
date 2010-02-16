@@ -25,12 +25,14 @@ The flags are:
 		verbose mode
 	-tabwidth=4
 		width of tabs in units of spaces
-	-cmdroot="src/cmd"
-		root command source directory (if unrooted, relative to -goroot)
-	-tmplroot="lib/godoc"
-		root template directory (if unrooted, relative to -goroot)
-	-pkgroot="src/pkg"
-		root package source directory (if unrooted, relative to -goroot)
+	-path=""
+		additional package directories (colon-separated)
+	-cmdroot="/goroot/src/cmd"
+		command source directory under -goroot (if unrooted, relative to cwd)
+	-tmplroot="/goroot/lib/godoc"
+		template directory under -goroot (if unrooted, relative to cwd)
+	-pkgroot="/goroot/src/pkg"
+		package source directory under -goroot (if unrooted, relative to cwd)
 	-html
 		print HTML in command-line mode
 	-goroot=$GOROOT
@@ -44,8 +46,22 @@ The flags are:
 	-sync_minutes=0
 		sync interval in minutes; sync is disabled if <= 0
 
+The -path flag accepts a list of colon-separated paths; unrooted paths are relative
+to the current working directory. Each path is considered as an additional root for
+packages in order of appearance. The last (absolute) path element is the prefix for
+the package path. For instance, given the flag value:
+
+	path=".:/home/bar:/public"
+
+for a godoc started in /home/user/godoc, absolute paths are mapped to package paths
+as follows:
+
+	/home/user/godoc/x -> godoc/x
+	/home/bar/x        -> bar/x
+	/public/x          -> public/x
+
 When godoc runs as a web server, it creates a search index from all .go files
-under $GOROOT (excluding files starting with .). The index is created at startup
+under -goroot (excluding files starting with .). The index is created at startup
 and is automatically updated every time the -sync command terminates with exit
 status 0, indicating that files have changed.
 
