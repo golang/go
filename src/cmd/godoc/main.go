@@ -47,9 +47,6 @@ var (
 
 	// layout control
 	html = flag.Bool("html", false, "print HTML in command-line mode")
-
-	// --- Hack to remember current directory
-	workingDir string
 )
 
 
@@ -112,7 +109,7 @@ func dosync(c *http.Conn, r *http.Request) {
 		// TODO(gri): The directory tree may be temporarily out-of-sync.
 		//            Consider keeping separate time stamps so the web-
 		//            page can indicate this discrepancy.
-		fsTree.set(newDirectory(".", maxDirDepth))
+		fsTree.set(newDirectory(goroot, maxDirDepth))
 		fallthrough
 	case 1:
 		// sync failed because no files changed;
@@ -155,17 +152,7 @@ func main() {
 		log.Exitf("negative tabwidth %d", *tabwidth)
 	}
 
-	// ---  Start of hack.
-	// Remember where we were, so "." works as a directory name.
-	// Error's not worth worrying about; we just check for empty string
-	// when we need it.
-	workingDir, _ = os.Getwd()
-	// --- End of hack.
-
-	if err := os.Chdir(goroot); err != nil {
-		log.Exitf("chdir %s: %v", goroot, err)
-	}
-
+	initRoots()
 	readTemplates()
 
 	if *httpaddr != "" {
@@ -175,10 +162,14 @@ func main() {
 			log.Stderrf("Go Documentation Server\n")
 			log.Stderrf("address = %s\n", *httpaddr)
 			log.Stderrf("goroot = %s\n", goroot)
-			log.Stderrf("cmdroot = %s\n", *cmdroot)
-			log.Stderrf("pkgroot = %s\n", *pkgroot)
-			log.Stderrf("tmplroot = %s\n", *tmplroot)
+			log.Stderrf("cmdroot = %s\n", cmdroot)
+			log.Stderrf("pkgroot = %s\n", pkgroot)
+			log.Stderrf("tmplroot = %s\n", tmplroot)
 			log.Stderrf("tabwidth = %d\n", *tabwidth)
+			if !fsMap.IsEmpty() {
+				log.Stderr("user-defined mapping:")
+				fsMap.Fprint(os.Stderr)
+			}
 			handler = loggingHandler(handler)
 		}
 
@@ -192,7 +183,7 @@ func main() {
 		// 1) set timestamp right away so that the indexer is kicked on
 		fsTree.set(nil)
 		// 2) compute initial directory tree in a goroutine so that launch is quick
-		go func() { fsTree.set(newDirectory(".", maxDirDepth)) }()
+		go func() { fsTree.set(newDirectory(goroot, maxDirDepth)) }()
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {

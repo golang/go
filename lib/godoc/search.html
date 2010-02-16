@@ -22,11 +22,11 @@
 	{.section Decls}
 		<h2 id="Global">Package-level declarations</h2>
 		{.repeated section @}
-			<h3 id="Global_{Pak.Path|path}">package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
+			<h3 id="Global_{Pak.Path|url-pkg}">package <a href="{Pak.Path|url-pkg}">{Pak.Name|html}</a></h3>
 			{.repeated section Files}
 				{.repeated section Groups}
 					{.repeated section Infos}
-						<a href="{File.Path|html-esc}?h={Query|html-esc}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
+						<a href="{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
 						<pre>{@|infoSnippet}</pre>
 					{.end}
 				{.end}
@@ -36,9 +36,9 @@
 	{.section Others}
 		<h2 id="Local">Local declarations and uses</h2>
 		{.repeated section @}
-			<h3 id="Local_{Pak.Path|path}">package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
+			<h3 id="Local_{Pak.Path|url-pkg}">package <a href="{Pak.Path|url-pkg}">{Pak.Name|html}</a></h3>
 			{.repeated section Files}
-				<a href="{File.Path|html-esc}?h={Query|html-esc}">{File.Path|html}</a>
+				<a href="{File.Path|url-src}?h={Query|html-esc}">{File.Path|html}</a>
 				<table class="layout">
 				{.repeated section Groups}
 					<tr>
@@ -47,7 +47,7 @@
 					<td align="left" width="4"></td>
 					<td>
 					{.repeated section Infos}
-						<a href="{File.Path|html-esc}?h={Query|html-esc}#L{@|infoLine}">{@|infoLine}</a>
+						<a href="{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{@|infoLine}</a>
 					{.end}
 					</td>
 					</tr>

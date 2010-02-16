@@ -9,6 +9,7 @@ GOFILES=\
 	godoc.go\
 	index.go\
 	main.go\
+	mapping.go\
 	snippet.go\
 	spec.go\
 
