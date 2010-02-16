@@ -152,7 +152,6 @@ func main() {
 		log.Exitf("negative tabwidth %d", *tabwidth)
 	}
 
-	initRoots()
 	readTemplates()
 
 	if *httpaddr != "" {
