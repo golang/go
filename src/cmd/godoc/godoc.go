@@ -111,10 +111,12 @@ func init() {
 	flag.StringVar(&cmdroot, "cmdroot", pathutil.Join(goroot, "src/cmd"), "command source directory")
 	flag.StringVar(&pkgroot, "pkgroot", pathutil.Join(goroot, "src/pkg"), "package source directory")
 	flag.StringVar(&tmplroot, "tmplroot", pathutil.Join(goroot, "lib/godoc"), "template directory")
+}
 
+
+func initHandlers() {
 	fsMap.Init(*path)
 	fileServer = http.FileServer(goroot, "")
-
 	cmdHandler = httpHandler{"/cmd/", cmdroot, false}
 	pkgHandler = httpHandler{"/pkg/", pkgroot, true}
 }
