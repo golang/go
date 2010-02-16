@@ -420,7 +420,7 @@ struct Loophack {
 static int32
 _yylex(void)
 {
-	int c, c1, clen, escflag;
+	int c, c1, clen, escflag, ncp;
 	vlong v;
 	char *cp;
 	Rune rune;
@@ -490,20 +490,22 @@ l0:
 	case '"':
 		/* "..." */
 		strcpy(lexbuf, "\"<string>\"");
-		cp = mal(sizeof(int32));
+		cp = mal(8);
 		clen = sizeof(int32);
+		ncp = 8;
 
 		for(;;) {
+			if(clen+UTFmax > ncp) {
+				cp = remal(cp, ncp, ncp);
+				ncp += ncp;
+			}
 			if(escchar('"', &escflag, &v))
 				break;
 			if(v < Runeself || escflag) {
-				cp = remal(cp, clen, 1);
 				cp[clen++] = v;
 			} else {
-				// botch - this limits size of runes
 				rune = v;
 				c = runelen(rune);
-				cp = remal(cp, clen, c);
 				runetochar(cp+clen, &rune);
 				clen += c;
 			}
@@ -513,10 +515,15 @@ l0:
 	case '`':
 		/* `...` */
 		strcpy(lexbuf, "`<string>`");
-		cp = mal(sizeof(int32));
+		cp = mal(8);
 		clen = sizeof(int32);
+		ncp = 8;
 
 		for(;;) {
+			if(clen == ncp) {
+				cp = remal(cp, clen, ncp);
+				ncp += ncp;
+			}
 			c = getc();
 			if(c == EOF) {
 				yyerror("eof in string");
@@ -524,14 +531,12 @@ l0:
 			}
 			if(c == '`')
 				break;
-			cp = remal(cp, clen, 1);
 			cp[clen++] = c;
 		}
 
 	strlit:
 		*(int32*)cp = clen-sizeof(int32);	// length
 		do {
-			cp = remal(cp, clen, 1);
 			cp[clen++] = 0;
 		} while(clen & MAXALIGN);
 		yylval.val.u.sval = (Strlit*)cp;
