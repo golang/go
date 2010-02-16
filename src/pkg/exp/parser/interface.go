@@ -183,11 +183,12 @@ func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Packa
 	for i := 0; i < len(list); i++ {
 		entry := &list[i]
 		if filter == nil || filter(entry) {
-			src, err := ParsePkgFile(name, pathutil.Join(path, entry.Name), mode)
+			filename := pathutil.Join(path, entry.Name)
+			src, err := ParsePkgFile(name, filename, mode)
 			if err != nil {
 				return nil, err
 			}
-			files[entry.Name] = src
+			files[filename] = src
 			if name == "" {
 				name = src.Name.Name()
 			}
@@ -198,5 +199,5 @@ func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Packa
 		return nil, os.NewError(path + ": no package found")
 	}
 
-	return &ast.Package{name, path, nil, files}, nil
+	return &ast.Package{name, nil, files}, nil
 }

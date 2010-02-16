@@ -722,7 +722,6 @@ type File struct {
 //
 type Package struct {
 	Name  string           // package name
-	Path  string           // package path
 	Scope *Scope           // package scope
-	Files map[string]*File // path-relative filenames
+	Files map[string]*File // Go source files by filename
 }
