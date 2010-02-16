@@ -552,7 +552,7 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
 //sys	Symlink(path string, link string) (errno int)
 //sys	Sync() (errno int)
 //sys	Truncate(path string, length int64) (errno int)
-//sys	Umask(newmask int) (errno int)
+//sys	Umask(newmask int) (oldmask int)
 //sys	Undelete(path string) (errno int)
 //sys	Unlink(path string) (errno int)
 //sys	Unmount(path string, flags int) (errno int)

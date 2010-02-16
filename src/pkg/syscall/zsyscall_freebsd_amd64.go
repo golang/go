@@ -623,9 +623,9 @@ func Truncate(path string, length int64) (errno int) {
 	return
 }
 
-func Umask(newmask int) (errno int) {
-	_, _, e1 := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
-	errno = int(e1)
+func Umask(newmask int) (oldmask int) {
+	r0, _, _ := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
+	oldmask = int(r0)
 	return
 }
 
