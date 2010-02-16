@@ -412,7 +412,7 @@ func getFloat32(a interface{}) (val float32, ok bool) {
 		}
 	}
 	// Must be a renamed floating-point type.
-	switch f := a.(type) {
+	switch f := reflect.NewValue(a).(type) {
 	case *reflect.Float32Value:
 		return float32(f.Get()), true
 	case *reflect.FloatValue:
@@ -434,7 +434,7 @@ func getFloat64(a interface{}) (val float64, ok bool) {
 		}
 	}
 	// Must be a renamed floating-point type.
-	switch f := a.(type) {
+	switch f := reflect.NewValue(a).(type) {
 	case *reflect.Float64Value:
 		return float64(f.Get()), true
 	case *reflect.FloatValue:
@@ -476,7 +476,7 @@ func (p *pp) unknownType(v interface{}) {
 }
 
 func (p *pp) printField(field interface{}, plus, sharp bool, depth int) (was_string bool) {
-	if field != nil {
+	if field != nil && depth >= 0 {
 		switch {
 		default:
 			if stringer, ok := field.(Stringer); ok {
@@ -948,7 +948,7 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				p.buf.WriteString(reflect.Typeof(field).String())
 				p.buf.WriteByte('=')
 			}
-			p.printField(field, false, false, 0)
+			p.printField(field, false, false, -1)
 			p.buf.WriteByte(')')
 		}
 	}
