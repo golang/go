@@ -293,7 +293,7 @@ func NewFileDoc(file *ast.File) *PackageDoc {
 	var r docReader
 	r.init(file.Name.Name())
 	r.addFile(file)
-	return r.newDoc("", "", nil)
+	return r.newDoc("", nil)
 }
 
 
@@ -307,7 +307,7 @@ func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
 		filenames[i] = filename
 		i++
 	}
-	return r.newDoc(importpath, pkg.Path, filenames)
+	return r.newDoc(importpath, filenames)
 }
 
 
@@ -511,7 +511,6 @@ func makeBugDocs(v *vector.Vector) []string {
 type PackageDoc struct {
 	PackageName string
 	ImportPath  string
-	FilePath    string
 	Filenames   []string
 	Doc         string
 	Consts      []*ValueDoc
@@ -524,11 +523,10 @@ type PackageDoc struct {
 
 // newDoc returns the accumulated documentation for the package.
 //
-func (doc *docReader) newDoc(importpath, filepath string, filenames []string) *PackageDoc {
+func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc {
 	p := new(PackageDoc)
 	p.PackageName = doc.pkgName
 	p.ImportPath = importpath
-	p.FilePath = filepath
 	sort.SortStrings(filenames)
 	p.Filenames = filenames
 	p.Doc = CommentText(doc.doc)
