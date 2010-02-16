@@ -32,7 +32,7 @@
 #include	"y.tab.h"
 
 #ifndef	CPP
-#define	CPP	"/bin/cpp"
+#define	CPP	"cpp"
 #endif
 
 int
