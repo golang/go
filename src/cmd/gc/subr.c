@@ -364,7 +364,7 @@ importdot(Pkg *opkg, Node *pack)
 	}
 }
 
-void
+static void
 gethunk(void)
 {
 	char *h;
@@ -374,7 +374,7 @@ gethunk(void)
 	if(thunk >= 10L*NHUNK)
 		nh = 10L*NHUNK;
 	h = (char*)malloc(nh);
-	if(h == (char*)-1) {
+	if(h == nil) {
 		flusherrors();
 		yyerror("out of memory");
 		errorexit();
@@ -389,11 +389,22 @@ mal(int32 n)
 {
 	void *p;
 
+	if(n >= NHUNK) {
+		p = malloc(n);
+		if(p == nil) {
+			flusherrors();
+			yyerror("out of memory");
+			errorexit();
+		}
+		memset(p, 0, n);
+		return p;
+	}
+
 	while((uintptr)hunk & MAXALIGN) {
 		hunk++;
 		nhunk--;
 	}
-	while(nhunk < n)
+	if(nhunk < n)
 		gethunk();
 
 	p = hunk;
@@ -410,7 +421,12 @@ remal(void *p, int32 on, int32 n)
 
 	q = (uchar*)p + on;
 	if(q != hunk || nhunk < n) {
-		while(nhunk < on+n)
+		if(on+n >= NHUNK) {
+			q = mal(on+n);
+			memmove(q, p, on);
+			return q;
+		}
+		if(nhunk < on+n)
 			gethunk();
 		memmove(hunk, p, on);
 		p = hunk;
