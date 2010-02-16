@@ -75,8 +75,9 @@ type Regexp struct {
 	prefix      string // initial plain text string
 	prefixBytes []byte // initial plain text bytes
 	inst        *vector.Vector
-	start       instr
-	nbra        int // number of brackets in expression, for subexpressions
+	start       instr // first instruction of machine
+	prefixStart instr // where to start if there is a prefix
+	nbra        int   // number of brackets in expression, for subexpressions
 }
 
 const (
@@ -650,8 +651,8 @@ Loop:
 		b = bytes.Add(b, utf[0:n])
 		i = inst.next().index()
 	}
-	// point start instruction to first non-CHAR
-	re.inst.At(0).(instr).setNext(re.inst.At(i).(instr))
+	// point prefixStart instruction to first non-CHAR after prefix
+	re.prefixStart = re.inst.At(i).(instr)
 	re.prefixBytes = b
 	re.prefix = string(b)
 }
@@ -807,6 +808,7 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 		end = len(bytestr)
 	}
 	// fast check for initial plain substring
+	prefixed := false // has this iteration begun by skipping a prefix?
 	if re.prefix != "" {
 		var advance int
 		if bytestr == nil {
@@ -818,6 +820,7 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 			return []int{}
 		}
 		pos += advance + len(re.prefix)
+		prefixed = true
 	}
 	arena := &matchArena{nil, 2 * (re.nbra + 1)}
 	for pos <= end {
@@ -825,7 +828,12 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 			// prime the pump if we haven't seen a match yet
 			match := arena.noMatch()
 			match.m[0] = pos
-			s[out] = arena.addState(s[out], re.start.next(), match, pos, end)
+			if prefixed {
+				s[out] = arena.addState(s[out], re.prefixStart, match, pos, end)
+				prefixed = false // next iteration should start at beginning of machine.
+			} else {
+				s[out] = arena.addState(s[out], re.start.next(), match, pos, end)
+			}
 			arena.free(match) // if addState saved it, ref was incremented
 		}
 		in, out = out, in // old out state is new in state
