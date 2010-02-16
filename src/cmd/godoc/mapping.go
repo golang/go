@@ -27,13 +27,13 @@ import (
 // until a valid mapping is found. For instance, for the mapping:
 //
 //	user   -> /home/user
-//      public -> /home/user/public
+//	public -> /home/user/public
 //	public -> /home/build/public
 //
 // the relative paths below are mapped to absolute paths as follows:
 //
 //	user/foo                -> /home/user/foo
-//      public/net/rpc/file1.go -> /home/user/public/net/rpc/file1.go
+//	public/net/rpc/file1.go -> /home/user/public/net/rpc/file1.go
 //
 // If there is no /home/user/public/net/rpc/file2.go, the next public
 // mapping entry is used to map the relative path to:
@@ -43,7 +43,8 @@ import (
 // (assuming that file exists).
 //
 type Mapping struct {
-	list []mapping
+	list     []mapping
+	prefixes []string
 }
 
 
@@ -71,7 +72,7 @@ type mapping struct {
 // leads to the following mapping:
 //
 //	user   -> /home/user
-//      public -> /home/build/public
+//	public -> /home/build/public
 //
 func (m *Mapping) Init(paths string) {
 	cwd, _ := os.Getwd() // ignore errors
@@ -105,7 +106,7 @@ func (m *Mapping) Init(paths string) {
 		// add mapping if it is new
 		if i >= n {
 			_, prefix := pathutil.Split(path)
-			list[i] = mapping{prefix, path}
+			list[n] = mapping{prefix, path}
 			n++
 		}
 	}
@@ -116,6 +117,45 @@ func (m *Mapping) Init(paths string) {
 
 // IsEmpty returns true if there are no mappings specified.
 func (m *Mapping) IsEmpty() bool { return len(m.list) == 0 }
+
+
+// PrefixList returns a list of all prefixes, with duplicates removed.
+// For instance, for the mapping:
+//
+//	user   -> /home/user
+//	public -> /home/user/public
+//	public -> /home/build/public
+//
+// the prefix list is:
+//
+//	user, public
+//
+func (m *Mapping) PrefixList() []string {
+	// compute the list lazily
+	if m.prefixes == nil {
+		list := make([]string, len(m.list))
+		n := 0 // nuber of prefixes
+
+		for _, e := range m.list {
+			// check if prefix exists already
+			var i int
+			for i = 0; i < n; i++ {
+				if e.prefix == list[i] {
+					break
+				}
+			}
+
+			// add prefix if it is new
+			if i >= n {
+				list[n] = e.prefix
+				n++
+			}
+		}
+		m.prefixes = list[0:n]
+	}
+
+	return m.prefixes
+}
 
 
 // Fprint prints the mapping.
