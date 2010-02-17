@@ -34,3 +34,12 @@ func TestTicker(t *testing.T) {
 		t.Fatalf("Ticker did not shut down")
 	}
 }
+
+// Test that a bug tearing down a ticker has been fixed.  This routine should not deadlock.
+func TestTeardown(t *testing.T) {
+	for i := 0; i < 3; i++ {
+		ticker := NewTicker(1e8)
+		<-ticker.C
+		ticker.Stop()
+	}
+}
