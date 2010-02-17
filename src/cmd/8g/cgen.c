@@ -848,7 +848,7 @@ bgen(Node *n, int true, Prog *to)
 		}
 
 		if(isslice(nl->type)) {
-			// only valid to cmp darray to literal nil
+			// front end should only leave cmp to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
 				yyerror("illegal array comparison");
 				break;
@@ -867,7 +867,7 @@ bgen(Node *n, int true, Prog *to)
 		}
 
 		if(isinter(nl->type)) {
-			// front end shold only leave cmp to literal nil
+			// front end should only leave cmp to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
 				yyerror("illegal interface comparison");
 				break;
@@ -899,10 +899,16 @@ bgen(Node *n, int true, Prog *to)
 			nodreg(&ax, types[TUINT16], D_AX);
 			et = simsimtype(nr->type);
 			if(et == TFLOAT64) {
-				// easy - do in FPU
-				cgen(nr, &tmp);
-				cgen(nl, &tmp);
-				gins(AFUCOMPP, &tmp, &n2);
+				if(nl->ullman > nr->ullman) {
+					cgen(nl, &tmp);
+					cgen(nr, &tmp);
+					gins(AFXCHD, &tmp, &n2);
+				} else {
+					cgen(nr, &tmp);
+					cgen(nl, &tmp);
+				}
+				gins(AFUCOMIP, &tmp, &n2);
+				gins(AFMOVDP, &tmp, &tmp);	// annoying pop but still better than STSW+SAHF
 			} else {
 				// TODO(rsc): The moves back and forth to memory
 				// here are for truncating the value to 32 bits.
@@ -916,9 +922,9 @@ bgen(Node *n, int true, Prog *to)
 				cgen(nl, &t2);
 				gmove(&t2, &tmp);
 				gins(AFCOMFP, &t1, &tmp);
+				gins(AFSTSW, N, &ax);
+				gins(ASAHF, N, N);
 			}
-			gins(AFSTSW, N, &ax);
-			gins(ASAHF, N, N);
 			if(a == OEQ) {
 				// neither NE nor P
 				p1 = gbranch(AJNE, T);
