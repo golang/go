@@ -1539,7 +1539,7 @@ Zconv(Fmt *fp)
 		switch(r) {
 		case Runeerror:
 			if(n == 1) {
-				fmtprint(fp, "\\x%02x", *(s-1));
+				fmtprint(fp, "\\x%02x", (uchar)*(s-1));
 				break;
 			}
 			// fall through
