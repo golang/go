@@ -520,18 +520,19 @@ l0:
 		ncp = 8;
 
 		for(;;) {
-			if(clen == ncp) {
-				cp = remal(cp, clen, ncp);
+			if(clen+UTFmax > ncp) {
+				cp = remal(cp, ncp, ncp);
 				ncp += ncp;
 			}
-			c = getc();
+			c = getr();
 			if(c == EOF) {
 				yyerror("eof in string");
 				break;
 			}
 			if(c == '`')
 				break;
-			cp[clen++] = c;
+			rune = c;
+			clen += runetochar(cp+clen, &rune);
 		}
 
 	strlit:
@@ -821,28 +822,16 @@ talph:
 	 */
 	for(;;) {
 		if(c >= Runeself) {
-			for(c1=0;;) {
-				cp[c1++] = c;
-				if(fullrune(cp, c1)) {
-					chartorune(&rune, cp);
-					if(isfrog(rune)) {
-						yyerror("illegal character 0x%ux", rune);
-						goto l0;
-					}
-					// 0xb7 · is used for internal names
-					if(!isalpharune(rune) && !isdigitrune(rune) && rune != 0xb7)
-						yyerror("invalid identifier character 0x%ux", rune);
-					break;
-				}
-				c = getc();
-			}
-			cp += c1;
-			c = getc();
-			continue;
-		}
-		if(!isalnum(c) && c != '_')
+			ungetc(c);
+			rune = getr();
+			// 0xb7 · is used for internal names
+			if(!isalpharune(rune) && !isdigitrune(rune) && rune != 0xb7)
+				yyerror("invalid identifier character 0x%ux", rune);
+			cp += runetochar(cp, &rune);
+		} else if(!isalnum(c) && c != '_')
 			break;
-		*cp++ = c;
+		else
+			*cp++ = c;
 		c = getc();
 	}
 	*cp = 0;
@@ -1054,8 +1043,10 @@ getc(void)
 
 	switch(c) {
 	case 0:
-		if(curio.bin != nil)
+		if(curio.bin != nil) {
+			yyerror("illegal NUL byte");
 			break;
+		}
 	case EOF:
 		return EOF;
 
@@ -1097,10 +1088,11 @@ loop:
 	c = chartorune(&rune, str);
 	if(rune == Runeerror && c == 1) {
 		lineno = lexlineno;
-		yyerror("illegal UTF-8 sequence in comment or string");
+		yyerror("illegal UTF-8 sequence");
 		flusherrors();
+		print("\t");
 		for(c=0; c<i; c++)
-			print(" %.2x", *(uchar*)(str+c));
+			print("%s%.2x", c > 0 ? " " : "", *(uchar*)(str+c));
 		print("\n");
 	}
 	return rune;
@@ -1209,11 +1201,11 @@ oct:
 			l = l*8 + c-'0';
 			continue;
 		}
-		yyerror("non-oct character in escape sequence: %c", c);
+		yyerror("non-octal character in escape sequence: %c", c);
 		ungetc(c);
 	}
 	if(l > 255)
-		yyerror("oct escape value > 255: %d", l);
+		yyerror("octal escape value > 255: %d", l);
 
 	*val = l;
 	return 0;
