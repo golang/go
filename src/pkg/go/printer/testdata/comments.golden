@@ -217,6 +217,80 @@ func _() {
 		aligned line */
 }
 
+func _() {
+	/* freestanding comment
+	   aligned line
+	*/
+}
+
+func _() {
+	/* freestanding comment
+	   aligned line
+	*/
+}
+
+func _() {
+	/* freestanding comment
+	   aligned line */
+}
+
+func _() {
+	/*	freestanding comment
+		aligned line
+	*/
+}
+
+func _() {
+	/*	freestanding comment
+		aligned line
+	*/
+}
+
+func _() {
+	/*	freestanding comment
+		aligned line */
+}
+
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned line
+	*/
+}
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned line
+	*/
+}
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned line */
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned line
+	*/
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned line
+	*/
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned line */
+}
 
 /*
  * line
@@ -231,6 +305,24 @@ func _() {
 /*	and another line
  *	of
  *	stars */
+
+/* a line of
+ * stars */
+
+/*	and another line of
+ *	stars */
+
+/* a line of stars
+ */
+
+/*	and another line of
+ */
+
+/* a line of stars
+ */
+
+/*	and another line of
+ */
 
 /*
 aligned in middle
