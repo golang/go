@@ -266,14 +266,14 @@ func setpiece(p *Piece) {
 	draw.Draw(bb2, r2, draw.White, draw.ZP)
 	draw.Draw(bb2, r.Add(delta), bb, bbr.Min)
 	draw.Draw(bb2mask, r2, draw.Transparent, draw.ZP)
-	draw.DrawMask(bb2mask, r, draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.SoverD)
-	draw.DrawMask(bb2mask, r.Add(delta), draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.SoverD)
+	draw.DrawMask(bb2mask, r, draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.Over)
+	draw.DrawMask(bb2mask, r.Add(delta), draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.Over)
 }
 
 func drawpiece() {
-	draw.DrawMask(screen, br.Add(pos), bb, bbr.Min, bbmask, draw.ZP, draw.SoverD)
+	draw.DrawMask(screen, br.Add(pos), bb, bbr.Min, bbmask, draw.ZP, draw.Over)
 	if suspended {
-		draw.DrawMask(screen, br.Add(pos), draw.White, draw.ZP, whitemask, draw.ZP, draw.SoverD)
+		draw.DrawMask(screen, br.Add(pos), draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
 	}
 }
 
@@ -282,7 +282,7 @@ func undrawpiece() {
 	if collider(pos, br.Max) {
 		mask = bbmask
 	}
-	draw.DrawMask(screen, br.Add(pos), draw.White, bbr.Min, mask, bbr.Min, draw.SoverD)
+	draw.DrawMask(screen, br.Add(pos), draw.White, bbr.Min, mask, bbr.Min, draw.Over)
 }
 
 func rest() {
@@ -349,7 +349,7 @@ func drawboard() {
 	}
 	score(0)
 	if suspended {
-		draw.DrawMask(screen, screenr, draw.White, draw.ZP, whitemask, draw.ZP, draw.SoverD)
+		draw.DrawMask(screen, screenr, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
 	}
 }
 
@@ -375,7 +375,7 @@ func movepiece() bool {
 	if collider(pos, br2.Max) {
 		mask = bb2mask
 	}
-	draw.DrawMask(screen, br2.Add(pos), bb2, bb2r.Min, mask, bb2r.Min, draw.SoverD)
+	draw.DrawMask(screen, br2.Add(pos), bb2, bb2r.Min, mask, bb2r.Min, draw.Over)
 	pos.Y += DY
 	display.FlushImage()
 	return true
@@ -444,7 +444,7 @@ func horiz() bool {
 	for j := 0; j < h; j++ {
 		r.Min.Y = rboard.Min.Y + lev[j]*pcsz
 		r.Max.Y = r.Min.Y + pcsz
-		draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.SoverD)
+		draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
 		display.FlushImage()
 	}
 	PlaySound(whoosh)
@@ -457,7 +457,7 @@ func horiz() bool {
 		for j := 0; j < h; j++ {
 			r.Min.Y = rboard.Min.Y + lev[j]*pcsz
 			r.Max.Y = r.Min.Y + pcsz
-			draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.SoverD)
+			draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
 		}
 		display.FlushImage()
 	}

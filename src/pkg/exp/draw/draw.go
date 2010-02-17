@@ -15,7 +15,14 @@ import "image"
 // A Porter-Duff compositing operator.
 type Op int
 
-const SoverD Op = 0
+const (
+	// Over specifies ``(src in mask) over dst''.
+	Over Op = iota
+	// Src specifies ``src in mask''.
+	Src
+)
+
+var zeroColor image.Color = image.AlphaColor{0}
 
 // A draw.Image is an image.Image with a Set method to change a single pixel.
 type Image interface {
@@ -23,14 +30,13 @@ type Image interface {
 	Set(x, y int, c image.Color)
 }
 
-// Draw calls DrawMask with a nil mask and an SoverD op.
+// Draw calls DrawMask with a nil mask and an Over op.
 func Draw(dst Image, r Rectangle, src image.Image, sp Point) {
-	DrawMask(dst, r, src, sp, nil, ZP, SoverD)
+	DrawMask(dst, r, src, sp, nil, ZP, Over)
 }
 
 // DrawMask aligns r.Min in dst with sp in src and mp in mask and then replaces the rectangle r
-// in dst with the result of a Porter-Duff composition. For the SoverD operator, the result
-// is ``(src in mask) over dst''. If mask is nil, this simplifies to ``src over dst''.
+// in dst with the result of a Porter-Duff composition. A nil mask is treated as opaque.
 // The implementation is simple and slow.
 // TODO(nigeltao): Optimize this.
 func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
@@ -54,22 +60,25 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 	// TODO(nigeltao): Ensure that r is well formed, i.e. r.Max.X >= r.Min.X and likewise for Y.
 
 	// Fast paths for special cases. If none of them apply, then we fall back to a general but slow implementation.
-	if dst0, ok := dst.(*image.RGBA); ok && op == SoverD {
-		if mask == nil {
-			if src0, ok := src.(image.ColorImage); ok {
-				drawFill(dst0, r, src0)
-				return
-			}
-			if src0, ok := src.(*image.RGBA); ok {
-				if dst0 == src0 && r.Overlaps(r.Add(sp.Sub(r.Min))) {
-					// TODO(nigeltao): Implement a fast path for the overlapping case.
-				} else {
-					drawCopy(dst0, r, src0, sp)
+	if dst0, ok := dst.(*image.RGBA); ok {
+		if op == Over {
+			// TODO(nigeltao): Implement a fast path for font glyphs (i.e. when mask is an image.Alpha).
+		} else {
+			if mask == nil {
+				if src0, ok := src.(image.ColorImage); ok {
+					drawFill(dst0, r, src0)
 					return
+				}
+				if src0, ok := src.(*image.RGBA); ok {
+					if dst0 == src0 && r.Overlaps(r.Add(sp.Sub(r.Min))) {
+						// TODO(nigeltao): Implement a fast path for the overlapping case.
+					} else {
+						drawCopy(dst0, r, src0, sp)
+						return
+					}
 				}
 			}
 		}
-		// TODO(nigeltao): Implement a fast path for font glyphs (i.e. when mask is an image.Alpha).
 	}
 
 	x0, x1, dx := r.Min.X, r.Max.X, 1
@@ -89,42 +98,49 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 		sx := sp.X + x0 - r.Min.X
 		mx := mp.X + x0 - r.Min.X
 		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
-			// TODO(nigeltao): Check that op == SoverD.
-			if mask == nil {
-				dst.Set(x, y, src.At(sx, sy))
-				continue
+			// A nil mask is equivalent to a fully opaque, infinitely large mask.
+			// We work in 16-bit color, so that multiplying two values does not overflow a uint32.
+			const M = 1<<16 - 1
+			ma := uint32(M)
+			if mask != nil {
+				_, _, _, ma = mask.At(mx, my).RGBA()
+				ma >>= 16
 			}
-			_, _, _, ma := mask.At(mx, my).RGBA()
-			switch ma {
-			case 0:
-				continue
-			case 0xFFFFFFFF:
+			switch {
+			case ma == 0:
+				if op == Over {
+					// No-op.
+				} else {
+					dst.Set(x, y, zeroColor)
+				}
+			case ma == M && op == Src:
 				dst.Set(x, y, src.At(sx, sy))
 			default:
-				dr, dg, db, da := dst.At(x, y).RGBA()
-				dr >>= 16
-				dg >>= 16
-				db >>= 16
-				da >>= 16
 				sr, sg, sb, sa := src.At(sx, sy).RGBA()
 				sr >>= 16
 				sg >>= 16
 				sb >>= 16
 				sa >>= 16
-				ma >>= 16
-				const M = 1<<16 - 1
-				a := sa * ma / M
-				dr = (dr*(M-a) + sr*ma) / M
-				dg = (dg*(M-a) + sg*ma) / M
-				db = (db*(M-a) + sb*ma) / M
-				da = (da*(M-a) + sa*ma) / M
 				if out == nil {
 					out = new(image.RGBA64Color)
 				}
-				out.R = uint16(dr)
-				out.G = uint16(dg)
-				out.B = uint16(db)
-				out.A = uint16(da)
+				if op == Over {
+					dr, dg, db, da := dst.At(x, y).RGBA()
+					dr >>= 16
+					dg >>= 16
+					db >>= 16
+					da >>= 16
+					a := M - (sa * ma / M)
+					out.R = uint16((dr*a + sr*ma) / M)
+					out.G = uint16((dg*a + sg*ma) / M)
+					out.B = uint16((db*a + sb*ma) / M)
+					out.A = uint16((da*a + sa*ma) / M)
+				} else {
+					out.R = uint16(sr * ma / M)
+					out.G = uint16(sg * ma / M)
+					out.B = uint16(sb * ma / M)
+					out.A = uint16(sa * ma / M)
+				}
 				dst.Set(x, y, out)
 			}
 		}
