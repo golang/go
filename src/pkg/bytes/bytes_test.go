@@ -170,7 +170,7 @@ var explodetests = []ExplodeTest{
 }
 
 func TestExplode(t *testing.T) {
-	for _, tt := range (explodetests) {
+	for _, tt := range explodetests {
 		a := Split(strings.Bytes(tt.s), nil, tt.n)
 		result := arrayOfString(a)
 		if !eq(result, tt.a) {
