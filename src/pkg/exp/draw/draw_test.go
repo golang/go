@@ -57,31 +57,47 @@ type drawTest struct {
 	desc     string
 	src      image.Image
 	mask     image.Image
+	op       Op
 	expected image.Color
 }
 
 var drawTests = []drawTest{
-	// Uniform mask (0% opaque) mask.
-	drawTest{"nop", vgradGreen(255), fillAlpha(0), image.RGBAColor{136, 0, 0, 255}},
-	// Uniform mask (100%, 75%, nil) and vertical-gradient source.
-	drawTest{"copy", vgradGreen(90), fillAlpha(255), image.RGBAColor{0, 48, 0, 90}},
-	drawTest{"copyAlpha", vgradGreen(90), fillAlpha(192), image.RGBAColor{100, 36, 0, 255}},
-	drawTest{"copyNil", vgradGreen(90), nil, image.RGBAColor{0, 48, 0, 90}},
+	// Uniform mask (0% opaque).
+	drawTest{"nop", vgradGreen(255), fillAlpha(0), Over, image.RGBAColor{136, 0, 0, 255}},
+	drawTest{"clear", vgradGreen(255), fillAlpha(0), Src, image.RGBAColor{0, 0, 0, 0}},
 	// Uniform mask (100%, 75%, nil) and uniform source.
-	drawTest{"fill", fillBlue(90), fillAlpha(255), image.RGBAColor{0, 0, 90, 90}},
-	drawTest{"fillAlpha", fillBlue(90), fillAlpha(192), image.RGBAColor{100, 0, 68, 255}},
-	drawTest{"fillNil", fillBlue(90), nil, image.RGBAColor{0, 0, 90, 90}},
-	// Variable mask. In detail, at (x, y) == (8, 8):
+	// At (x, y) == (8, 8):
+	// The destination pixel is {136, 0, 0, 255}.
+	// The source pixel is {0, 0, 90, 90}.
+	drawTest{"fill", fillBlue(90), fillAlpha(255), Over, image.RGBAColor{88, 0, 90, 255}},
+	drawTest{"fillSrc", fillBlue(90), fillAlpha(255), Src, image.RGBAColor{0, 0, 90, 90}},
+	drawTest{"fillAlpha", fillBlue(90), fillAlpha(192), Over, image.RGBAColor{100, 0, 68, 255}},
+	drawTest{"fillAlphaSrc", fillBlue(90), fillAlpha(192), Src, image.RGBAColor{0, 0, 68, 68}},
+	drawTest{"fillNil", fillBlue(90), nil, Over, image.RGBAColor{88, 0, 90, 255}},
+	drawTest{"fillNilSrc", fillBlue(90), nil, Src, image.RGBAColor{0, 0, 90, 90}},
+	// Uniform mask (100%, 75%, nil) and variable source.
+	// At (x, y) == (8, 8):
+	// The destination pixel is {136, 0, 0, 255}.
+	// The source pixel is {0, 48, 0, 90}.
+	drawTest{"copy", vgradGreen(90), fillAlpha(255), Over, image.RGBAColor{88, 48, 0, 255}},
+	drawTest{"copySrc", vgradGreen(90), fillAlpha(255), Src, image.RGBAColor{0, 48, 0, 90}},
+	drawTest{"copyAlpha", vgradGreen(90), fillAlpha(192), Over, image.RGBAColor{100, 36, 0, 255}},
+	drawTest{"copyAlphaSrc", vgradGreen(90), fillAlpha(192), Src, image.RGBAColor{0, 36, 0, 68}},
+	drawTest{"copyNil", vgradGreen(90), nil, Over, image.RGBAColor{88, 48, 0, 255}},
+	drawTest{"copyNilSrc", vgradGreen(90), nil, Src, image.RGBAColor{0, 48, 0, 90}},
+	// Variable mask and variable source.
+	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 0, 255, 255}.
 	// The mask pixel's alpha is 102, or 40%.
-	drawTest{"generic", fillBlue(255), vgradAlpha(192), image.RGBAColor{81, 0, 102, 255}},
+	drawTest{"generic", fillBlue(255), vgradAlpha(192), Over, image.RGBAColor{81, 0, 102, 255}},
+	drawTest{"genericSrc", fillBlue(255), vgradAlpha(192), Src, image.RGBAColor{0, 0, 102, 102}},
 }
 
 func TestDraw(t *testing.T) {
 	for _, test := range drawTests {
 		dst := hgradRed(255)
-		DrawMask(dst, Rect(0, 0, 16, 16), test.src, ZP, test.mask, ZP, SoverD)
+		DrawMask(dst, Rect(0, 0, 16, 16), test.src, ZP, test.mask, ZP, test.op)
 		if !eq(dst.At(8, 8), test.expected) {
 			t.Errorf("draw %s: %v versus %v", test.desc, dst.At(8, 8), test.expected)
 		}
