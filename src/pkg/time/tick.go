@@ -39,16 +39,23 @@ type alarmer struct {
 
 // Set alarm to go off at time ns, if not already set earlier.
 func (a *alarmer) set(ns int64) {
-	// If there's no wakeLoop or the next tick we expect is too late, start a new wakeLoop
-	if a.wakeMeAt == nil || a.wakeTime > ns {
-		// Stop previous wakeLoop.
-		if a.wakeMeAt != nil {
-			a.wakeMeAt <- -1
-		}
+	switch {
+	case a.wakeTime > ns:
+		// Next tick we expect is too late; shut down the late runner
+		// and (after fallthrough) start a new wakeLoop.
+		a.wakeMeAt <- -1
+		fallthrough
+	case a.wakeMeAt == nil:
+		// There's no wakeLoop, start one.
 		a.wakeMeAt = make(chan int64, 10)
 		go wakeLoop(a.wakeMeAt, a.wakeUp)
+		fallthrough
+	case a.wakeTime == 0:
+		// Nobody else is waiting; it's just us.
 		a.wakeTime = ns
 		a.wakeMeAt <- ns
+	default:
+		// There's already someone scheduled.
 	}
 }
 
@@ -141,6 +148,8 @@ func tickerLoop() {
 				// Please send wakeup at earliest required time.
 				// If there are no tickers, don't bother.
 				alarm.wakeMeAt <- wakeTime
+			} else {
+				alarm.wakeTime = 0
 			}
 		}
 		prevTime = now
