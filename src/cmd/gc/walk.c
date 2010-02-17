@@ -122,9 +122,6 @@ walkdeflist(NodeList *l)
 		walkdef(l->n);
 }
 
-static NodeList *deftypequeue;
-static int intypedef;
-
 static void
 walkdeftype(Node *n)
 {
@@ -265,21 +262,7 @@ walkdef(Node *n)
 		n->walkdef = 1;
 		n->type = typ(TFORW);
 		n->type->sym = n->sym;
-		intypedef++;
-		if(intypedef > 1)
-			deftypequeue = list(deftypequeue, n);
-		else {
-			walkdeftype(n);
-			while(deftypequeue != nil) {
-				NodeList *l;
-				
-				l = deftypequeue;
-				deftypequeue = nil;
-				for(; l; l=l->next)
-					walkdeftype(l->n);
-			}
-		}
-		intypedef--;
+		walkdeftype(n);
 		break;
 
 	case OPACK:
