@@ -429,6 +429,7 @@ func stripCommonPrefix(lines [][]byte) {
 	if len(lines) < 2 {
 		return // at most one line - nothing to do
 	}
+	// len(lines) >= 2
 
 	// The heuristic in this function tries to handle a few
 	// common patterns of /*-style comments: Comments where
@@ -441,18 +442,28 @@ func stripCommonPrefix(lines [][]byte) {
 	// Compute maximum common white prefix of all but the first,
 	// last, and blank lines, and replace blank lines with empty
 	// lines (the first line starts with /* and has no prefix).
+	// In case of two-line comments, consider the last line for
+	// the prefix computation since otherwise the prefix would
+	// be empty.
+	//
+	// Note that the first and last line are never empty (they
+	// contain the opening /* and closing */ respectively) and
+	// thus they can be ignored by the blank line check.
 	var prefix []byte
-	for i, line := range lines {
-		switch {
-		case i == 0 || i == len(lines)-1:
-			// ignore
-		case isBlank(line):
-			lines[i] = nil
-		case prefix == nil:
-			prefix = commonPrefix(line, line)
-		default:
-			prefix = commonPrefix(prefix, line)
+	if len(lines) > 2 {
+		for i, line := range lines[1 : len(lines)-1] {
+			switch {
+			case isBlank(line):
+				lines[i+1] = nil
+			case prefix == nil:
+				prefix = commonPrefix(line, line)
+			default:
+				prefix = commonPrefix(prefix, line)
+			}
 		}
+	} else { // len(lines) == 2
+		line := lines[1]
+		prefix = commonPrefix(line, line)
 	}
 
 	/*
