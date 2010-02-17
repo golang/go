@@ -1525,6 +1525,7 @@ Zconv(Fmt *fp)
 	Rune r;
 	Strlit *sp;
 	char *s, *se;
+	int n;
 
 	sp = va_arg(fp->args, Strlit*);
 	if(sp == nil)
@@ -1533,8 +1534,15 @@ Zconv(Fmt *fp)
 	s = sp->s;
 	se = s + sp->len;
 	while(s < se) {
-		s += chartorune(&r, s);
+		n = chartorune(&r, s);
+		s += n;
 		switch(r) {
+		case Runeerror:
+			if(n == 1) {
+				fmtprint(fp, "\\x%02x", *(s-1));
+				break;
+			}
+			// fall through
 		default:
 			if(r < ' ') {
 				fmtprint(fp, "\\x%02x", r);
