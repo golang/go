@@ -551,7 +551,7 @@ func (h *errorCollector) Error(pos token.Position, msg string) {
 }
 
 
-func checkError(t *testing.T, src string, tok token.Token, err string) {
+func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
 	var s Scanner
 	var h errorCollector
 	s.Init("", strings.Bytes(src), &h, ScanComments)
@@ -573,8 +573,8 @@ func checkError(t *testing.T, src string, tok token.Token, err string) {
 	if h.msg != err {
 		t.Errorf("%q: got msg %q, expected %q", src, h.msg, err)
 	}
-	if h.pos.Offset != 0 {
-		t.Errorf("%q: got offset %d, expected 0", src, h.pos.Offset)
+	if h.pos.Offset != pos {
+		t.Errorf("%q: got offset %d, expected %d", src, h.pos.Offset, pos)
 	}
 }
 
@@ -582,27 +582,30 @@ func checkError(t *testing.T, src string, tok token.Token, err string) {
 type srcerr struct {
 	src string
 	tok token.Token
+	pos int
 	err string
 }
 
 var errors = []srcerr{
-	srcerr{"\"\"", token.STRING, ""},
-	srcerr{"\"", token.STRING, "string not terminated"},
-	srcerr{"/**/", token.COMMENT, ""},
-	srcerr{"/*", token.COMMENT, "comment not terminated"},
-	srcerr{"//\n", token.COMMENT, ""},
-	srcerr{"//", token.COMMENT, "comment not terminated"},
-	srcerr{"077", token.INT, ""},
-	srcerr{"078.", token.FLOAT, ""},
-	srcerr{"07801234567.", token.FLOAT, ""},
-	srcerr{"078e0", token.FLOAT, ""},
-	srcerr{"078", token.INT, "illegal octal number"},
-	srcerr{"07800000009", token.INT, "illegal octal number"},
+	srcerr{"\"\"", token.STRING, 0, ""},
+	srcerr{"\"", token.STRING, 0, "string not terminated"},
+	srcerr{"/**/", token.COMMENT, 0, ""},
+	srcerr{"/*", token.COMMENT, 0, "comment not terminated"},
+	srcerr{"//\n", token.COMMENT, 0, ""},
+	srcerr{"//", token.COMMENT, 0, "comment not terminated"},
+	srcerr{"077", token.INT, 0, ""},
+	srcerr{"078.", token.FLOAT, 0, ""},
+	srcerr{"07801234567.", token.FLOAT, 0, ""},
+	srcerr{"078e0", token.FLOAT, 0, ""},
+	srcerr{"078", token.INT, 0, "illegal octal number"},
+	srcerr{"07800000009", token.INT, 0, "illegal octal number"},
+	srcerr{"\"abc\x00def\"", token.STRING, 4, "illegal character NUL"},
+	srcerr{"\"abc\x80def\"", token.STRING, 4, "illegal UTF-8 encoding"},
 }
 
 
 func TestScanErrors(t *testing.T) {
 	for _, e := range errors {
-		checkError(t, e.src, e.tok, e.err)
+		checkError(t, e.src, e.tok, e.pos, e.err)
 	}
 }

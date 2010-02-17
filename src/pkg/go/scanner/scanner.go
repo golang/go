@@ -48,12 +48,17 @@ func (S *Scanner) next() {
 		S.pos.Column++
 		r, w := int(S.src[S.offset]), 1
 		switch {
+		case r == 0:
+			S.error(S.pos, "illegal character NUL")
 		case r == '\n':
 			S.pos.Line++
 			S.pos.Column = 0
 		case r >= 0x80:
 			// not ASCII
 			r, w = utf8.DecodeRune(S.src[S.offset:])
+			if r == utf8.RuneError && w == 1 {
+				S.error(S.pos, "illegal UTF-8 encoding")
+			}
 		}
 		S.offset += w
 		S.ch = r
