@@ -5,6 +5,37 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-02-17">2010-02-17</h3>
+
+<pre>
+There are two small language changes:
+* NUL bytes may be rejected in souce files, and the tools do reject them.
+* Conversions from string to []int and []byte are defined but not yet implemented.
+
+Other changes and fixes:
+* 5a/6a/8a/5c/6c/8c: remove fixed-size arrays for -I and -D options (thanks Dean Prichard)
+* 5c/6c/8c/5l/6l/8l: add -V flag to display version number
+* 5c/6c/8c: use "cpp" not "/bin/cpp" for external preprocessor (thanks Giles Lean)
+* 8a/8l: Added CMOVcc instructions (thanks Evan Shaw)
+* 8l: pe executable building code changed to include import table for kernel32.dll functions (thanks Alex Brainman)
+* 5g/6g/8g: bug fixes
+* asn1: bug fixes and additions (incl marshalling)
+* build: fix build for Native Client, Linux/ARM
+* dashboard: show benchmarks, add garbage collector benchmarks
+* encoding/pem: add marshalling support
+* exp/draw: fast paths for a nil mask
+* godoc: support for directories outside $GOROOT
+* http: sort header keys when writing Response or Request to wire (thanks Petar Maymounkov)
+* math: special cases and new functions (thanks Charles Dorian)
+* mime: new package, used in http (thanks Michael Hoisie)
+* net: dns bug fix - use random request id
+* os: finalize File, to close fd.
+* path: make Join variadic (thanks Stephen Weinberg)
+* regexp: optimization bug fix
+* runtime: misc fixes and optimizations
+* syscall: make signature of Umask on OS X, FreeBSD match Linux. (thanks Giles Lean)
+</pre>
+
 <h3 id="2010-02-04">2010-02-04</h3>
 
 <pre>
