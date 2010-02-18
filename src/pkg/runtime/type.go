@@ -99,6 +99,15 @@ type Float64Type commonType
 // FloatType represents a float type.
 type FloatType commonType
 
+// Complex64Type represents a complex64 type.
+type Complex64Type commonType
+
+// Complex128Type represents a complex32 type.
+type Complex128Type commonType
+
+// ComplexType represents a complex type.
+type ComplexType commonType
+
 // Int16Type represents an int16 type.
 type Int16Type commonType
 

@@ -5,6 +5,7 @@
 #include	"go.h"
 #define	TUP(x,y)	(((x)<<16)|(y))
 
+static Val tocplx(Val);
 static Val toflt(Val);
 static Val tostr(Val);
 static Val copyval(Val);
@@ -165,24 +166,51 @@ convlit1(Node **np, Type *t, int explicit)
 
 	case CTINT:
 	case CTFLT:
+	case CTCPLX:
 		ct = n->val.ctype;
 		if(isint[et]) {
-			if(ct == CTFLT)
+			switch(ct) {
+			default:
+			case CTCPLX:
+			case CTFLT:
 				n->val = toint(n->val);
-			else if(ct != CTINT)
-				goto bad;
-			overflow(n->val, t);
-		} else if(isfloat[et]) {
-			if(ct == CTINT)
+				// flowthrough
+			case CTINT:
+				overflow(n->val, t);
+				break;
+			}
+		} else
+		if(isfloat[et]) {
+			switch(ct) {
+			default:
+			case CTCPLX:
+			case CTINT:
 				n->val = toflt(n->val);
-			else if(ct != CTFLT)
+				// flowthrough
+			case CTFLT:
+				overflow(n->val, t);
+				n->val.u.fval = truncfltlit(n->val.u.fval, t);
+				break;
+			}
+		} else
+		if(iscomplex[et]) {
+			switch(ct) {
+			default:
 				goto bad;
-			overflow(n->val, t);
-			n->val.u.fval = truncfltlit(n->val.u.fval, t);
-		} else if(et == TSTRING && ct == CTINT && explicit)
+			case CTFLT:
+			case CTINT:
+				n->val = tocplx(n->val);
+				break;
+			case CTCPLX:
+				overflow(n->val, t);
+				break;
+			}
+		} else
+		if(et == TSTRING && ct == CTINT && explicit)
 			n->val = tostr(n->val);
 		else
 			goto bad;
+		break;
 	}
 	n->type = t;
 	return;
@@ -204,6 +232,7 @@ copyval(Val v)
 {
 	Mpint *i;
 	Mpflt *f;
+	Mpcplx *c;
 
 	switch(v.ctype) {
 	case CTINT:
@@ -216,6 +245,36 @@ copyval(Val v)
 		mpmovefltflt(f, v.u.fval);
 		v.u.fval = f;
 		break;
+	case CTCPLX:
+		c = mal(sizeof(*c));
+		mpmovefltflt(&c->real, &v.u.cval->real);
+		mpmovefltflt(&c->imag, &v.u.cval->imag);
+		v.u.cval = c;
+		break;
+	}
+	return v;
+}
+
+static Val
+tocplx(Val v)
+{
+	Mpcplx *c;
+
+	switch(v.ctype) {
+	case CTINT:
+		c = mal(sizeof(*c));
+		mpmovefixflt(&c->real, v.u.xval);
+		mpmovecflt(&c->imag, 0.0);
+		v.ctype = CTCPLX;
+		v.u.cval = c;
+		break;
+	case CTFLT:
+		c = mal(sizeof(*c));
+		mpmovefltflt(&c->real, v.u.fval);
+		mpmovecflt(&c->imag, 0.0);
+		v.ctype = CTCPLX;
+		v.u.cval = c;
+		break;
 	}
 	return v;
 }
@@ -225,11 +284,21 @@ toflt(Val v)
 {
 	Mpflt *f;
 
-	if(v.ctype == CTINT) {
+	switch(v.ctype) {
+	case CTINT:
 		f = mal(sizeof(*f));
 		mpmovefixflt(f, v.u.xval);
 		v.ctype = CTFLT;
 		v.u.fval = f;
+		break;
+	case CTCPLX:
+		f = mal(sizeof(*f));
+		mpmovefltflt(f, &v.u.cval->real);
+		if(mpcmpfltc(&v.u.cval->imag, 0) != 0)
+			yyerror("constant %#F truncated to real", v.u.fval);
+		v.ctype = CTFLT;
+		v.u.fval = f;
+		break;
 	}
 	return v;
 }
@@ -239,12 +308,23 @@ toint(Val v)
 {
 	Mpint *i;
 
-	if(v.ctype == CTFLT) {
+	switch(v.ctype) {
+	case CTFLT:
 		i = mal(sizeof(*i));
 		if(mpmovefltfix(i, v.u.fval) < 0)
 			yyerror("constant %#F truncated to integer", v.u.fval);
 		v.ctype = CTINT;
 		v.u.xval = i;
+		break;
+	case CTCPLX:
+		i = mal(sizeof(*i));
+		if(mpmovefltfix(i, &v.u.cval->real) < 0)
+			yyerror("constant %#F truncated to integer", v.u.fval);
+		if(mpcmpfltc(&v.u.cval->imag, 0) != 0)
+			yyerror("constant %#F truncated to real", v.u.fval);
+		v.ctype = CTINT;
+		v.u.xval = i;
+		break;
 	}
 	return v;
 }
@@ -260,15 +340,24 @@ overflow(Val v, Type *t)
 	case CTINT:
 		if(!isint[t->etype])
 			fatal("overflow: %T integer constant", t);
-		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0
-		|| mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
+		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0 ||
+		   mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
 			yyerror("constant %B overflows %T", v.u.xval, t);
 		break;
 	case CTFLT:
 		if(!isfloat[t->etype])
 			fatal("overflow: %T floating-point constant", t);
-		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) <= 0
-		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) >= 0)
+		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) <= 0 ||
+		   mpcmpfltflt(v.u.fval, maxfltval[t->etype]) >= 0)
+			yyerror("constant %#F overflows %T", v.u.fval, t);
+		break;
+	case CTCPLX:
+		if(!iscomplex[t->etype])
+			fatal("overflow: %T complex constant", t);
+		if(mpcmpfltflt(&v.u.cval->real, minfltval[t->etype]) <= 0 ||
+		   mpcmpfltflt(&v.u.cval->real, maxfltval[t->etype]) >= 0 ||
+		   mpcmpfltflt(&v.u.cval->imag, minfltval[t->etype]) <= 0 ||
+		   mpcmpfltflt(&v.u.cval->imag, maxfltval[t->etype]) >= 0)
 			yyerror("constant %#F overflows %T", v.u.fval, t);
 		break;
 	}
@@ -283,8 +372,8 @@ tostr(Val v)
 
 	switch(v.ctype) {
 	case CTINT:
-		if(mpcmpfixfix(v.u.xval, minintval[TINT]) < 0
-		|| mpcmpfixfix(v.u.xval, maxintval[TINT]) > 0)
+		if(mpcmpfixfix(v.u.xval, minintval[TINT]) < 0 ||
+		   mpcmpfixfix(v.u.xval, maxintval[TINT]) > 0)
 			yyerror("overflow in int -> string");
 		rune = mpgetfix(v.u.xval);
 		l = runelen(rune);
@@ -380,7 +469,7 @@ evconst(Node *n)
 	if(consttype(nl) < 0)
 		return;
 	wl = nl->type->etype;
-	if(isint[wl] || isfloat[wl])
+	if(isint[wl] || isfloat[wl] || iscomplex[wl])
 		wl = TIDEAL;
 
 	nr = n->right;
@@ -391,7 +480,7 @@ evconst(Node *n)
 	if(consttype(nr) < 0)
 		return;
 	wr = nr->type->etype;
-	if(isint[wr] || isfloat[wr])
+	if(isint[wr] || isfloat[wr] || iscomplex[wr])
 		wr = TIDEAL;
 
 	// check for compatible general types (numeric, string, etc)
@@ -433,11 +522,12 @@ evconst(Node *n)
 
 	rv = nr->val;
 
-	// since wl == wr,
-	// the only way v.ctype != nr->val.ctype
-	// is when one is CTINT and the other CTFLT.
-	// make both CTFLT.
-	if(v.ctype != nr->val.ctype) {
+	// convert to common ideal
+	if(v.ctype == CTCPLX || rv.ctype == CTCPLX) {
+		v = tocplx(v);
+		rv = tocplx(rv);
+	}
+	if(v.ctype == CTFLT || rv.ctype == CTFLT) {
 		v = toflt(v);
 		rv = toflt(rv);
 	}
@@ -513,6 +603,20 @@ evconst(Node *n)
 			break;
 		}
 		mpdivfltflt(v.u.fval, rv.u.fval);
+		break;
+
+	case TUP(OADD, CTCPLX):
+		mpaddfltflt(&v.u.cval->real, &rv.u.cval->real);
+		mpaddfltflt(&v.u.cval->imag, &rv.u.cval->imag);
+		break;
+	case TUP(OSUB, CTCPLX):
+		mpsubfltflt(&v.u.cval->real, &rv.u.cval->real);
+		mpsubfltflt(&v.u.cval->imag, &rv.u.cval->imag);
+		break;
+	case TUP(OMUL, CTCPLX):
+		goto illegal;	// TODO
+	case TUP(ODIV, CTCPLX):
+		goto illegal;	// TODO
 		break;
 
 	case TUP(OEQ, CTNIL):
@@ -737,6 +841,7 @@ nodlit(Val v)
 		break;
 	case CTINT:
 	case CTFLT:
+	case CTCPLX:
 		n->type = types[TIDEAL];
 		break;
 	case CTNIL:
@@ -815,7 +920,8 @@ defaultlit(Node **np, Type *t)
 		if(t != T) {
 			if(isint[t->etype])
 				n->type = t;
-			else if(isfloat[t->etype]) {
+			else
+			if(isfloat[t->etype]) {
 				n->type = t;
 				n->val = toflt(n->val);
 			}
@@ -827,7 +933,25 @@ defaultlit(Node **np, Type *t)
 		if(t != T) {
 			if(isfloat[t->etype])
 				n->type = t;
-			else if(isint[t->etype]) {
+			else
+			if(isint[t->etype]) {
+				n->type = t;
+				n->val = toint(n->val);
+			}
+		}
+		overflow(n->val, n->type);
+		break;
+	case CTCPLX:
+		n->type = types[TCOMPLEX];
+		if(t != T) {
+			if(iscomplex[t->etype])
+				n->type = t;
+			else
+			if(isfloat[t->etype]) {
+				n->type = t;
+				n->val = toflt(n->val);
+			} else
+			if(isint[t->etype]) {
 				n->type = t;
 				n->val = toint(n->val);
 			}
@@ -862,6 +986,11 @@ defaultlit2(Node **lp, Node **rp, int force)
 	}
 	if(!force)
 		return;
+	if(isconst(l, CTCPLX) || isconst(r, CTCPLX)) {
+		convlit(lp, types[TCOMPLEX]);
+		convlit(rp, types[TCOMPLEX]);
+		return;
+	}
 	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
 		convlit(lp, types[TFLOAT]);
 		convlit(rp, types[TFLOAT]);
@@ -1013,19 +1142,25 @@ convconst(Node *con, Type *t, Val *val)
 	}
 
 	if(isfloat[tt]) {
-		if(con->val.ctype == CTINT) {
-			con->val.ctype = CTFLT;
-			con->val.u.fval = mal(sizeof *con->val.u.fval);
-			mpmovefixflt(con->val.u.fval, val->u.xval);
-		}
-		if(con->val.ctype != CTFLT)
-			fatal("convconst ctype=%d %T", con->val.ctype, t);
-		if(!isfloat[tt]) {
-			// easy to handle, but can it happen?
-			fatal("convconst CTINT %T", t);
-		}
+		con->val = toflt(con->val);
+//		if(con->val.ctype == CTINT) {
+//			con->val.ctype = CTFLT;
+//			con->val.u.fval = mal(sizeof *con->val.u.fval);
+//			mpmovefixflt(con->val.u.fval, val->u.xval);
+//		}
+//		if(con->val.ctype != CTFLT)
+//			fatal("convconst ctype=%d %T", con->val.ctype, t);
 		if(tt == TFLOAT32)
 			con->val.u.fval = truncfltlit(con->val.u.fval, t);
+		return;
+	}
+
+	if(iscomplex[tt]) {
+		con->val = tocplx(con->val);
+		if(tt == TCOMPLEX64) {
+			con->val.u.cval->real = *truncfltlit(&con->val.u.cval->real, types[TFLOAT32]);
+			con->val.u.cval->imag = *truncfltlit(&con->val.u.cval->imag, types[TFLOAT32]);
+		}
 		return;
 	}
 

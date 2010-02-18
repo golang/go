@@ -166,7 +166,11 @@ dowidth(Type *t)
 	case TINT64:
 	case TUINT64:
 	case TFLOAT64:
+	case TCOMPLEX64:
 		w = 8;
+		break;
+	case TCOMPLEX128:
+		w = 16;
 		break;
 	case TPTR32:
 		w = 4;
@@ -385,9 +389,13 @@ typeinit(void)
 	isint[TUINT] = 1;
 	isint[TUINTPTR] = 1;
 
-	for(i=TFLOAT32; i<=TFLOAT64; i++)
-		isfloat[i] = 1;
+	isfloat[TFLOAT32] = 1;
+	isfloat[TFLOAT64] = 1;
 	isfloat[TFLOAT] = 1;
+
+	iscomplex[TCOMPLEX64] = 1;
+	iscomplex[TCOMPLEX128] = 1;
+	iscomplex[TCOMPLEX] = 1;
 
 	isptr[TPTR32] = 1;
 	isptr[TPTR64] = 1;
@@ -424,6 +432,13 @@ typeinit(void)
 			issimple[i] = 1;
 			minfltval[i] = mal(sizeof(*minfltval[i]));
 			maxfltval[i] = mal(sizeof(*maxfltval[i]));
+		}
+		if(iscomplex[i]) {
+			okforeq[i] = 1;
+			okforadd[i] = 1;
+			okforarith[i] = 1;
+			okforconst[i] = 1;
+//			issimple[i] = 1;
 		}
 	}
 
@@ -517,6 +532,11 @@ typeinit(void)
 	mpatoflt(minfltval[TFLOAT32], "-33554431p103");
 	mpatoflt(maxfltval[TFLOAT64], "18014398509481983p970");	/* 2^53-1 p (1023-52) + 1/2 ulp */
 	mpatoflt(minfltval[TFLOAT64], "-18014398509481983p970");
+
+	maxfltval[TCOMPLEX64] = maxfltval[TFLOAT32];
+	minfltval[TCOMPLEX64] = minfltval[TFLOAT32];
+	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64];
+	minfltval[TCOMPLEX128] = minfltval[TFLOAT64];
 
 	/* for walk to use in error messages */
 	types[TFUNC] = functype(N, nil, nil);

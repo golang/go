@@ -113,6 +113,13 @@ struct	Mpflt
 	short	exp;
 };
 
+typedef	struct	Mpcplx	Mpcplx;
+struct	Mpcplx
+{
+	Mpflt	real;
+	Mpflt	imag;
+};
+
 typedef	struct	Val	Val;
 struct	Val
 {
@@ -123,6 +130,7 @@ struct	Val
 		short	bval;		// bool value CTBOOL
 		Mpint*	xval;		// int CTINT
 		Mpflt*	fval;		// float CTFLT
+		Mpcplx*	cval;		// float CTCPLX
 		Strlit*	sval;		// string CTSTR
 	} u;
 };
@@ -422,28 +430,32 @@ enum
 	TINT64,	TUINT64,
 	TINT, TUINT, TUINTPTR,
 
-	TFLOAT32,		// 12
+	TCOMPLEX64,		// 12
+	TCOMPLEX128,
+	TCOMPLEX,
+
+	TFLOAT32,		// 15
 	TFLOAT64,
 	TFLOAT,
 
-	TBOOL,			// 15
+	TBOOL,			// 18
 
-	TPTR32, TPTR64,		// 16
+	TPTR32, TPTR64,		// 19
 
-	TFUNC,		// 18
+	TFUNC,			// 21
 	TARRAY,
 	T_old_DARRAY,
-	TSTRUCT,		// 21
+	TSTRUCT,		// 24
 	TCHAN,
 	TMAP,
-	TINTER,			// 24
+	TINTER,			// 27
 	TFORW,
 	TFIELD,
 	TANY,
 	TSTRING,
 
 	// pseudo-types for literals
-	TIDEAL,			// 29
+	TIDEAL,			// 32
 	TNIL,
 	TBLANK,
 	
@@ -459,6 +471,7 @@ enum
 
 	CTINT,
 	CTFLT,
+	CTCPLX,
 	CTSTR,
 	CTBOOL,
 	CTNIL,
@@ -668,6 +681,7 @@ EXTERN	uchar	isptr[NTYPE];
 EXTERN	uchar	isforw[NTYPE];
 EXTERN	uchar	isint[NTYPE];
 EXTERN	uchar	isfloat[NTYPE];
+EXTERN	uchar	iscomplex[NTYPE];
 EXTERN	uchar	issigned[NTYPE];
 EXTERN	uchar	issimple[NTYPE];
 

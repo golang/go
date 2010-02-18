@@ -954,6 +954,9 @@ etnames[] =
 	[TFLOAT]	= "FLOAT",
 	[TFLOAT32]	= "FLOAT32",
 	[TFLOAT64]	= "FLOAT64",
+	[TCOMPLEX]	= "COMPLEX",
+	[TCOMPLEX64]	= "COMPLEX64",
+	[TCOMPLEX128]	= "COMPLEX128",
 	[TBOOL]		= "BOOL",
 	[TPTR32]	= "PTR32",
 	[TPTR64]	= "PTR64",
@@ -1106,10 +1109,10 @@ basicnames[] =
 	[TFLOAT64]	= "float64",
 	[TBOOL]		= "bool",
 	[TANY]		= "any",
-	[TSTRING]		= "string",
+	[TSTRING]	= "string",
 	[TNIL]		= "nil",
-	[TIDEAL]		= "ideal",
-	[TBLANK]		= "blank",
+	[TIDEAL]	= "ideal",
+	[TBLANK]	= "blank",
 };
 
 int
@@ -1453,6 +1456,11 @@ Nconv(Fmt *fp)
 		case CTFLT:
 			snprint(buf1, sizeof(buf1), "F%g", mpgetflt(n->val.u.fval));
 			break;
+		case CTCPLX:
+			snprint(buf1, sizeof(buf1), "(F%g+F%gi)",
+				mpgetflt(&n->val.u.cval->real),
+				mpgetflt(&n->val.u.cval->imag));
+			break;
 		case CTSTR:
 			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.u.sval);
 			break;
@@ -1665,7 +1673,14 @@ isideal(Type *t)
 {
 	if(t == T)
 		return 0;
-	return t == idealstring || t == idealbool || t->etype == TNIL || t->etype == TIDEAL;
+	if(t == idealstring || t == idealbool)
+		return 1;
+	switch(t->etype) {
+	case TNIL:
+	case TIDEAL:
+		return 1;
+	}
+	return 0;
 }
 
 /*

@@ -900,6 +900,8 @@ tnum:
 		goto casedot;
 	if(c == 'e' || c == 'E')
 		goto casee;
+	if(c == 'i')
+		goto casei;
 	if(c1)
 		yyerror("malformed octal constant");
 	goto ncu;
@@ -911,6 +913,8 @@ dc:
 		goto casee;
 	if(c == 'p' || c == 'P')
 		goto casep;
+	if(c == 'i')
+		goto casei;
 
 ncu:
 	*cp = 0;
@@ -933,6 +937,8 @@ casedot:
 		if(!isdigit(c))
 			break;
 	}
+	if(c == 'i')
+		goto casei;
 	if(c != 'e' && c != 'E')
 		goto caseout;
 
@@ -949,6 +955,8 @@ casee:
 		*cp++ = c;
 		c = getc();
 	}
+	if(c == 'i')
+		goto casei;
 	goto caseout;
 
 casep:
@@ -964,7 +972,23 @@ casep:
 		*cp++ = c;
 		c = getc();
 	}
+	if(c == 'i')
+		goto casei;
 	goto caseout;
+
+casei:
+	// imaginary constant
+	*cp = 0;
+	yylval.val.u.cval = mal(sizeof(*yylval.val.u.cval));
+	mpmovecflt(&yylval.val.u.cval->real, 0.0);
+	mpatoflt(&yylval.val.u.cval->imag, lexbuf);
+	if(yylval.val.u.cval->imag.val.ovf) {
+		yyerror("overflow in imaginary constant");
+		mpmovecflt(&yylval.val.u.cval->real, 0.0);
+	}
+	yylval.val.ctype = CTCPLX;
+	DBG("lex: imaginary literal\n");
+	return LLITERAL;
 
 caseout:
 	*cp = 0;
@@ -1234,6 +1258,9 @@ static	struct
 
 	"float32",	LNAME,		TFLOAT32,	OXXX,
 	"float64",	LNAME,		TFLOAT64,	OXXX,
+
+	"complex64",	LNAME,		TCOMPLEX64,	OXXX,
+	"complex128",	LNAME,		TCOMPLEX128,	OXXX,
 
 	"bool",		LNAME,		TBOOL,		OXXX,
 	"byte",		LNAME,		TUINT8,		OXXX,
