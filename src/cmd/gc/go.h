@@ -851,6 +851,7 @@ void	linehist(char*, int32, int);
 int32	setlineno(Node*);
 Node*	nod(int, Node*, Node*);
 Node*	nodlit(Val);
+Node*	nodcplxlit(Val, Val);
 Type*	typ(int);
 int	algtype(Type*);
 void	dodump(Node*, int);

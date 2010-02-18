@@ -133,6 +133,9 @@ dumpexportconst(Sym *s)
 	case CTFLT:
 		Bprint(bout, "%F\n", n->val.u.fval);
 		break;
+	case CTCPLX:
+		Bprint(bout, "(%F+%F)\n", &n->val.u.cval->real, &n->val.u.cval->imag);
+		break;
 	case CTSTR:
 		Bprint(bout, "\"%Z\"\n", n->val.u.sval);
 		break;

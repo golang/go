@@ -851,6 +851,26 @@ nodlit(Val v)
 	return n;
 }
 
+Node*
+nodcplxlit(Val r, Val i)
+{
+	Node *n;
+	Mpcplx *c;
+
+	c = mal(sizeof(*c));
+	n = nod(OLITERAL, N, N);
+	n->type = types[TIDEAL];
+	n->val.u.cval = c;
+	n->val.ctype = CTCPLX;
+
+	if(r.ctype != CTFLT || i.ctype != CTFLT)
+		fatal("nodcplxlit ctype %d/%d", r.ctype, i.ctype);
+
+	mpmovefltflt(&c->real, r.u.fval);
+	mpmovefltflt(&c->imag, i.u.fval);
+	return n;
+}
+
 // TODO(rsc): combine with convlit
 void
 defaultlit(Node **np, Type *t)
