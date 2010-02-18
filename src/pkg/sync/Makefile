@@ -9,7 +9,21 @@ GOFILES=\
 	mutex.go\
 	rwmutex.go\
 
+# 386-specific object files
+OFILES_386=\
+	asm_386.$O\
+
+# amd64-specific object files
+OFILES_amd64=\
+	asm_amd64.$O\
+
+GOARM?=6
+
+# arm-specific object files
+OFILES_arm=\
+	asm_arm$(GOARM).$O\
+
 OFILES=\
-	asm_$(GOARCH).$O\
+	$(OFILES_$(GOARCH))\
 
 include ../../Make.pkg
