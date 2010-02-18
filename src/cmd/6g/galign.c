@@ -18,6 +18,7 @@ Typedef	typedefs[] =
 	"uint",		TUINT,		TUINT32,
 	"uintptr",	TUINTPTR,	TUINT64,
 	"float",	TFLOAT,		TFLOAT32,
+	"complex",	TCOMPLEX,	TCOMPLEX64,
 	0
 };
 

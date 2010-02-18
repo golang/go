@@ -129,6 +129,11 @@ exprfmt(Fmt *f, Node *n, int prec)
 			else
 				fmtprint(f, "false");
 			break;
+		case CTCPLX:
+			fmtprint(f, "%.17g+%.17gi",
+				mpgetflt(&n->val.u.cval->real),
+				mpgetflt(&n->val.u.cval->imag));
+			break;
 		case CTFLT:
 			fmtprint(f, "%.17g", mpgetflt(n->val.u.fval));
 			break;
