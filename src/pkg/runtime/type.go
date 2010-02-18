@@ -102,7 +102,7 @@ type FloatType commonType
 // Complex64Type represents a complex64 type.
 type Complex64Type commonType
 
-// Complex128Type represents a complex32 type.
+// Complex128Type represents a complex128 type.
 type Complex128Type commonType
 
 // ComplexType represents a complex type.

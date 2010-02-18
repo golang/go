@@ -1724,6 +1724,12 @@ walkprint(Node *nn, NodeList **init, int defer)
 				t = types[TFLOAT64];
 			} else
 				on = syslook("printfloat", 0);
+		} else if(iscomplex[et]) {
+			if(defer) {
+				fmtprint(&fmt, "%%f");
+				t = types[TFLOAT64];
+			} else
+				on = syslook("printcomplex", 0);
 		} else if(et == TBOOL) {
 			if(defer)
 				fmtprint(&fmt, "%%t");

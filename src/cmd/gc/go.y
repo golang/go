@@ -76,7 +76,8 @@
 
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
-%type	<node>	hidden_constant hidden_dcl hidden_interfacedcl hidden_structdcl hidden_opt_sym
+%type	<node>	hidden_constant hidden_literal hidden_dcl
+%type	<node>	hidden_interfacedcl hidden_structdcl hidden_opt_sym
 
 %type	<list>	hidden_funres
 %type	<list>	ohidden_funres
@@ -1743,7 +1744,7 @@ hidden_funres:
 		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
 	}
 
-hidden_constant:
+hidden_literal:
 	LLITERAL
 	{
 		$$ = nodlit($1);
@@ -1767,6 +1768,13 @@ hidden_constant:
 		$$ = oldname(pkglookup($1->name, builtinpkg));
 		if($$->op != OLITERAL)
 			yyerror("bad constant %S", $$->sym);
+	}
+
+hidden_constant:
+	hidden_literal
+|	'(' hidden_literal '+' hidden_literal ')'
+	{
+		$$ = nodcplxlit($2->val, $4->val);
 	}
 
 hidden_importsym:
