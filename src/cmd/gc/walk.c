@@ -115,11 +115,25 @@ gettype(Node **np, NodeList **init)
 		dump("after gettype", *np);
 }
 
-void
-walkdeflist(NodeList *l)
+static int nwalkdeftype;
+static NodeList *methodqueue;
+
+static void
+domethod(Node *n)
 {
-	for(; l; l=l->next)
-		walkdef(l->n);
+	Node *nt;
+	
+	nt = n->type->nod;
+	typecheck(&nt, Etype);
+	if(nt->type == T) {
+		// type check failed; leave empty func
+		n->type->etype = TFUNC;
+		n->type->nod = N;
+		return;
+	}
+	*n->type = *nt->type;
+	n->type->nod = N;
+	checkwidth(n->type);
 }
 
 static void
@@ -127,7 +141,9 @@ walkdeftype(Node *n)
 {
 	int maplineno, embedlineno, lno;
 	Type *t;
-
+	NodeList *l;
+	
+	nwalkdeftype++;
 	lno = lineno;
 	setlineno(n);
 	n->type->sym = n->sym;
@@ -168,6 +184,28 @@ walkdeftype(Node *n)
 
 ret:
 	lineno = lno;
+	
+	// if there are no type definitions going on, it's safe to
+	// try to resolve the method types for the interfaces
+	// we just read.
+	if(nwalkdeftype == 1) {
+		while((l = methodqueue) != nil) {
+			methodqueue = nil;
+			for(; l; l=l->next)
+				domethod(l->n);
+		}
+	}
+	nwalkdeftype--;
+}
+
+void
+queuemethod(Node *n)
+{
+	if(nwalkdeftype == 0) {
+		domethod(n);
+		return;
+	}
+	methodqueue = list(methodqueue, n);
 }
 
 void

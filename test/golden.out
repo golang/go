@@ -150,17 +150,3 @@ throw: interface conversion
 panic PC=xxx
 
 == bugs/
-
-=========== bugs/bug250.go
-bugs/bug250.go:14: interface type loop involving I1
-bugs/bug250.go:17: need type assertion to use I2 as I1
-	missing m() I2
-BUG: bug250
-
-=========== bugs/bug251.go
-BUG: errchk: bugs/bug251.go:11: missing expected error: 'loop|interface'
-errchk: bugs/bug251.go: unmatched error messages:
-==================================================
-bugs/bug251.go:15: interface type loop involving I1
-bugs/bug251.go:19: need type assertion to use I2 as I1
-==================================================

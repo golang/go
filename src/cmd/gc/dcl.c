@@ -809,23 +809,33 @@ stotype(NodeList *l, int et, Type **t)
 		if(n->op != ODCLFIELD)
 			fatal("stotype: oops %N\n", n);
 		if(n->right != N) {
-			typecheck(&n->right, Etype);
-			n->type = n->right->type;
-			if(n->type == T) {
-				*t0 = T;
-				return t0;
-			}
-			if(n->left != N)
-				n->left->type = n->type;
-			n->right = N;
-			if(n->embedded && n->type != T) {
-				t1 = n->type;
-				if(t1->sym == S && isptr[t1->etype])
-					t1 = t1->type;
-				if(isptr[t1->etype])
-					yyerror("embedded type cannot be a pointer");
-				else if(t1->etype == TFORW && t1->embedlineno == 0)
-					t1->embedlineno = lineno;
+			if(et == TINTER && n->left != N) {
+				// queue resolution of method type for later.
+				// right now all we need is the name list.
+				// avoids cycles for recursive interface types.
+				n->type = typ(TINTERMETH);
+				n->type->nod = n->right;
+				n->right = N;
+				queuemethod(n);
+			} else {
+				typecheck(&n->right, Etype);
+				n->type = n->right->type;
+				if(n->type == T) {
+					*t0 = T;
+					return t0;
+				}
+				if(n->left != N)
+					n->left->type = n->type;
+				n->right = N;
+				if(n->embedded && n->type != T) {
+					t1 = n->type;
+					if(t1->sym == S && isptr[t1->etype])
+						t1 = t1->type;
+					if(isptr[t1->etype])
+						yyerror("embedded type cannot be a pointer");
+					else if(t1->etype == TFORW && t1->embedlineno == 0)
+						t1->embedlineno = lineno;
+				}
 			}
 		}
 

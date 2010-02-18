@@ -462,6 +462,7 @@ enum
 	// pseudo-type for frame layout
 	TFUNCARGS,
 	TCHANARGS,
+	TINTERMETH,
 
 	NTYPE,
 };
@@ -1088,6 +1089,7 @@ Node*	typecheckconv(Node*, Node*, Type*, int, char*);
 int	checkconv(Type*, Type*, int, int*, int*, char*);
 Node*	typecheck(Node**, int);
 int	islvalue(Node*);
+void	queuemethod(Node*);
 
 /*
  *	const.c

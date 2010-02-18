@@ -51,7 +51,7 @@ typecheck(Node **np, int top)
 	int et, op;
 	Node *n, *l, *r;
 	NodeList *args;
-	int lno, ok, ntop, ct;
+	int lno, ok, ntop;
 	Type *t;
 	Sym *sym;
 	Val v;
