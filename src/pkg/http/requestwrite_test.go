@@ -70,9 +70,10 @@ var reqWriteTests = []reqWriteTest{
 				Path: "/search",
 			},
 			ProtoMajor: 1,
-			ProtoMinor: 0,
+			ProtoMinor: 1,
 			Header: map[string]string{},
 			Body: nopCloser{bytes.NewBufferString("abcdef")},
+			TransferEncoding: []string{"chunked"},
 		},
 
 		"GET /search HTTP/1.1\r\n" +
@@ -83,9 +84,6 @@ var reqWriteTests = []reqWriteTest{
 	},
 }
 
-// FIXME(petar): The write order of keys in Request.Header depends on the
-// map[string]string iterator. Since this isn't defined in Go's semantics, we
-// should eventually fix Request.Write()
 func TestRequestWrite(t *testing.T) {
 	for i := range reqWriteTests {
 		tt := &reqWriteTests[i]

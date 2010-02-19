@@ -49,7 +49,14 @@ type badStringError struct {
 
 func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e.str) }
 
-var reqExcludeHeader = map[string]int{"Host": 0, "User-Agent": 0, "Referer": 0}
+var reqExcludeHeader = map[string]int{
+	"Host": 0,
+	"User-Agent": 0,
+	"Referer": 0,
+	"Content-Length": 0,
+	"Transfer-Encoding": 0,
+	"Trailer": 0,
+}
 
 // A Request represents a parsed HTTP request header.
 type Request struct {
@@ -84,6 +91,15 @@ type Request struct {
 	// The message body.
 	Body io.ReadCloser
 
+	// ContentLength records the length of the associated content.
+	// The value -1 indicates that the length is unknown.
+	// Values >= 0 indicate that the given number of bytes may be read from Body.
+	ContentLength int64
+
+	// TransferEncoding lists the transfer encodings from outermost to innermost.
+	// An empty list denotes the "identity" encoding.
+	TransferEncoding []string
+
 	// Whether to close the connection after replying to this request.
 	Close bool
 
@@ -109,6 +125,11 @@ type Request struct {
 
 	// The parsed form. Only available after ParseForm is called.
 	Form map[string][]string
+
+	// Trailer maps trailer keys to values.  Like for Header, if the
+	// response has multiple trailer lines with the same key, they will be
+	// concatenated, delimited by commas.
+	Trailer map[string]string
 }
 
 // ProtoAtLeast returns whether the HTTP protocol used
@@ -152,16 +173,22 @@ func (req *Request) Write(w io.Writer) os.Error {
 	}
 
 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
+
+	// Header lines
 	fmt.Fprintf(w, "Host: %s\r\n", host)
 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent))
-
 	if req.Referer != "" {
 		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer)
 	}
 
-	if req.Body != nil {
-		// Force chunked encoding
-		req.Header["Transfer-Encoding"] = "chunked"
+	// Process Body,ContentLength,Close,Trailer
+	tw, err := newTransferWriter(req)
+	if err != nil {
+		return err
+	}
+	err = tw.WriteHeader(w)
+	if err != nil {
+		return err
 	}
 
 	// TODO: split long values?  (If so, should share code with Conn.Write)
@@ -171,29 +198,17 @@ func (req *Request) Write(w io.Writer) os.Error {
 	// from Request, and introduce Request methods along the lines of
 	// Response.{GetHeader,AddHeader} and string constants for "Host",
 	// "User-Agent" and "Referer".
-	err := writeSortedKeyValue(w, req.Header, reqExcludeHeader)
+	err = writeSortedKeyValue(w, req.Header, reqExcludeHeader)
 	if err != nil {
 		return err
 	}
 
 	io.WriteString(w, "\r\n")
 
-	if req.Body != nil {
-		cw := NewChunkedWriter(w)
-		if _, err := io.Copy(cw, req.Body); err != nil {
-			return err
-		}
-		if err := cw.Close(); err != nil {
-			return err
-		}
-		// TODO(petar): Write trailer here and append \r\n. For now, we
-		// simply send the final \r\n:
-		if _, err := fmt.Fprint(w, "\r\n"); err != nil {
-			return err
-		}
-		if err := req.Body.Close(); err != nil {
-			return err
-		}
+	// Write body and trailer
+	err = tw.WriteBody(w)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -507,26 +522,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 		req.Header["Host"] = "", false
 	}
 
-	// RFC2616: Should treat
-	//	Pragma: no-cache
-	// like
-	//	Cache-Control: no-cache
-	if v, present := req.Header["Pragma"]; present && v == "no-cache" {
-		if _, presentcc := req.Header["Cache-Control"]; !presentcc {
-			req.Header["Cache-Control"] = "no-cache"
-		}
-	}
-
-	// Determine whether to hang up after sending the reply.
-	if req.ProtoMajor < 1 || (req.ProtoMajor == 1 && req.ProtoMinor < 1) {
-		req.Close = true
-	} else if v, present := req.Header["Connection"]; present {
-		// TODO: Should split on commas, toss surrounding white space,
-		// and check each field.
-		if v == "close" {
-			req.Close = true
-		}
-	}
+	fixPragmaCacheControl(req.Header)
 
 	// Pull out useful fields as a convenience to clients.
 	if v, present := req.Header["Referer"]; present {
@@ -564,17 +560,9 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	Via
 	//	Warning
 
-	// A message body exists when either Content-Length or Transfer-Encoding
-	// headers are present. Transfer-Encoding trumps Content-Length.
-	if v, present := req.Header["Transfer-Encoding"]; present && v == "chunked" {
-		req.Body = &body{Reader: newChunkedReader(b), hdr: req, r: b, closing: req.Close}
-	} else if v, present := req.Header["Content-Length"]; present {
-		length, err := strconv.Btoi64(v, 10)
-		if err != nil {
-			return nil, &badStringError{"invalid Content-Length", v}
-		}
-		// TODO: limit the Content-Length. This is an easy DoS vector.
-		req.Body = &body{Reader: io.LimitReader(b, length), closing: req.Close}
+	err = readTransfer(req, b)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil

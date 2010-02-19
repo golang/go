@@ -60,6 +60,7 @@ var reqTests = []reqTest{
 				"Content-Length": "7",
 			},
 			Close: false,
+			ContentLength: 7,
 			Host: "www.techcrunch.com",
 			Referer: "",
 			UserAgent: "Fake",
