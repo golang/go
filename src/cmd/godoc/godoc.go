@@ -1100,14 +1100,12 @@ type httpHandler struct {
 }
 
 
-// getPageInfo returns the PageInfo for a package directory path. If
+// getPageInfo returns the PageInfo for a package directory dirname. If
 // the parameter try is true, no errors are logged if getPageInfo fails.
 // If there is no corresponding package in the directory, PageInfo.PDoc
 // is nil. If there are no subdirectories, PageInfo.Dirs is nil.
 //
-func (h *httpHandler) getPageInfo(relpath string, try bool) PageInfo {
-	dirname := absolutePath(relpath, h.fsRoot)
-
+func (h *httpHandler) getPageInfo(dirname, relpath string, try bool) PageInfo {
 	// filter function to select the desired .go files
 	filter := func(d *os.Dir) bool {
 		// If we are looking at cmd documentation, only accept
@@ -1129,9 +1127,7 @@ func (h *httpHandler) getPageInfo(relpath string, try bool) PageInfo {
 
 	// Get the best matching package: either the first one, or the
 	// first one whose package name matches the directory name.
-	// The package name is the directory name within its parent
-	// (use dirname instead of path because dirname is clean; i.e.
-	// has no trailing '/').
+	// The package name is the directory name within its parent.
 	_, pkgname := pathutil.Split(dirname)
 	var pkg *ast.Package
 	for _, p := range pkgs {
@@ -1177,7 +1173,8 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	}
 
 	relpath := r.URL.Path[len(h.pattern):]
-	info := h.getPageInfo(relpath, false)
+	abspath := absolutePath(relpath, h.fsRoot)
+	info := h.getPageInfo(abspath, relpath, false)
 
 	if r.FormValue("f") == "text" {
 		contents := applyTemplate(packageText, "packageText", info)
