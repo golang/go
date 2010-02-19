@@ -37,8 +37,6 @@ offmod(Type *t)
 	for(f=t->type; f!=T; f=f->down) {
 		if(f->etype != TFIELD)
 			fatal("widstruct: not TFIELD: %lT", f);
-		if(f->type->etype != TFUNC)
-			continue;
 		f->width = o;
 		o += widthptr;
 	}

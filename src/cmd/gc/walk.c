@@ -123,7 +123,7 @@ domethod(Node *n)
 {
 	Node *nt;
 	
-	nt = n->type->nod;
+	nt = n->type->nname;
 	typecheck(&nt, Etype);
 	if(nt->type == T) {
 		// type check failed; leave empty func
@@ -164,7 +164,6 @@ walkdeftype(Node *n)
 	t->local = n->local;
 	t->vargen = n->vargen;
 	t->siggen = 0;
-	t->printed = 0;
 	t->method = nil;
 	t->nod = N;
 	t->printed = 0;

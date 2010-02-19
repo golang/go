@@ -814,8 +814,9 @@ stotype(NodeList *l, int et, Type **t)
 				// right now all we need is the name list.
 				// avoids cycles for recursive interface types.
 				n->type = typ(TINTERMETH);
-				n->type->nod = n->right;
+				n->type->nname = n->right;
 				n->right = N;
+				n->left->type = n->type;
 				queuemethod(n);
 			} else {
 				typecheck(&n->right, Etype);

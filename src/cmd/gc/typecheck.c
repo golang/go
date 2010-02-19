@@ -1239,6 +1239,8 @@ lookdot(Node *n, Type *t, int dostrcmp)
 		if(f2 != T)
 			yyerror("ambiguous DOT reference %S as both field and method",
 				n->right->sym);
+		if(f1->width == BADWIDTH)
+			fatal("lookdot badwidth %T %p", f1, f1);
 		n->xoffset = f1->width;
 		n->type = f1->type;
 		if(t->etype == TINTER) {

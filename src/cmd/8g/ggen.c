@@ -220,6 +220,8 @@ cgen_callinter(Node *n, Node *res, int proc)
 	nodo.xoffset -= widthptr;
 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
 
+	if(n->left->xoffset == BADWIDTH)
+		fatal("cgen_callinter: badwidth");
 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
 
