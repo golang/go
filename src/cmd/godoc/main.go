@@ -224,11 +224,11 @@ func main() {
 		packageText = packageHTML
 	}
 
-	info := pkgHandler.getPageInfo(flag.Arg(0), true)
+	info := pkgHandler.getPageInfo(flag.Arg(0), flag.Arg(0), true)
 
 	if info.PDoc == nil && info.Dirs == nil {
 		// try again, this time assume it's a command
-		info = cmdHandler.getPageInfo(flag.Arg(0), false)
+		info = cmdHandler.getPageInfo(flag.Arg(0), flag.Arg(0), false)
 	}
 
 	if info.PDoc != nil && flag.NArg() > 1 {
