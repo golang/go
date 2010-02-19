@@ -346,12 +346,12 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 	// fmt.Fprintf(os.Stderr, "%v\n", argv);
 	var cmd *exec.Cmd
 	if len(input) == 0 {
-		cmd, err = exec.Run(prog, argv, os.Environ(), exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+		cmd, err = exec.Run(prog, argv, os.Environ(), "", exec.DevNull, exec.Pipe, exec.MergeWithStdout)
 		if err != nil {
 			goto Error
 		}
 	} else {
-		cmd, err = exec.Run(prog, argv, os.Environ(), exec.Pipe, exec.Pipe, exec.MergeWithStdout)
+		cmd, err = exec.Run(prog, argv, os.Environ(), "", exec.Pipe, exec.Pipe, exec.MergeWithStdout)
 		if err != nil {
 			goto Error
 		}
