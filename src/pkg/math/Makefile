@@ -17,12 +17,15 @@ OFILES_386=\
 	exp2_386.$O\
 	fabs_386.$O\
 	floor_386.$O\
+	frexp_386.$O\
 	fmod_386.$O\
 	hypot_386.$O\
+	ldexp_386.$O\
 	log_386.$O\
 	log1p_386.$O\
 	modf_386.$O\
 	sin_386.$O\
+	sincos_386.$O\
 	sqrt_386.$O\
 	tan_386.$O\
 
@@ -37,6 +40,7 @@ ALLGOFILES=\
 	atanh.go\
 	atan2.go\
 	bits.go\
+	cbrt.go\
 	const.go\
 	copysign.go\
 	erf.go\
@@ -46,7 +50,9 @@ ALLGOFILES=\
 	fdim.go\
 	floor.go\
 	fmod.go\
+	frexp.go\
 	hypot.go\
+	ldexp.go\
 	log.go\
 	log1p.go\
 	modf.go\
@@ -54,6 +60,7 @@ ALLGOFILES=\
 	pow.go\
 	pow10.go\
 	sin.go\
+	sincos.go\
 	sinh.go\
 	sqrt.go\
 	sqrt_port.go\
