@@ -78,7 +78,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 // If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
 // of the returned Cmd is the other end of the pipe.
 // Otherwise the field in Cmd is nil.
-func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
+func Run(argv0 string, argv, envv []string, dir string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
 	p = new(Cmd)
 	var fd [3]*os.File
 
@@ -89,13 +89,13 @@ func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, 
 		goto Error
 	}
 	if stderr == MergeWithStdout {
-		p.Stderr = p.Stdout
+		fd[2] = fd[1]
 	} else if fd[2], p.Stderr, err = modeToFiles(stderr, 2); err != nil {
 		goto Error
 	}
 
 	// Run command.
-	p.Pid, err = os.ForkExec(argv0, argv, envv, "", &fd)
+	p.Pid, err = os.ForkExec(argv0, argv, envv, dir, &fd)
 	if err != nil {
 		goto Error
 	}

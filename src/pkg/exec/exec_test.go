@@ -11,39 +11,76 @@ import (
 )
 
 func TestRunCat(t *testing.T) {
-	cmd, err := Run("/bin/cat", []string{"cat"}, nil,
+	cmd, err := Run("/bin/cat", []string{"cat"}, nil, "",
 		Pipe, Pipe, DevNull)
 	if err != nil {
-		t.Fatalf("opencmd /bin/cat: %v", err)
+		t.Fatal("run:", err)
 	}
 	io.WriteString(cmd.Stdin, "hello, world\n")
 	cmd.Stdin.Close()
 	buf, err := ioutil.ReadAll(cmd.Stdout)
 	if err != nil {
-		t.Fatalf("reading from /bin/cat: %v", err)
+		t.Fatal("read:", err)
 	}
 	if string(buf) != "hello, world\n" {
-		t.Fatalf("reading from /bin/cat: got %q", buf)
+		t.Fatalf("read: got %q", buf)
 	}
 	if err = cmd.Close(); err != nil {
-		t.Fatalf("closing /bin/cat: %v", err)
+		t.Fatal("close:", err)
 	}
 }
 
 func TestRunEcho(t *testing.T) {
-	cmd, err := Run("/bin/echo", []string{"echo", "hello", "world"}, nil,
+	cmd, err := Run("/bin/echo", []string{"echo", "hello", "world"}, nil, "",
 		DevNull, Pipe, DevNull)
 	if err != nil {
-		t.Fatalf("opencmd /bin/echo: %v", err)
+		t.Fatal("run:", err)
 	}
 	buf, err := ioutil.ReadAll(cmd.Stdout)
 	if err != nil {
-		t.Fatalf("reading from /bin/echo: %v", err)
+		t.Fatal("read:", err)
 	}
 	if string(buf) != "hello world\n" {
-		t.Fatalf("reading from /bin/echo: got %q", buf)
+		t.Fatalf("read: got %q", buf)
 	}
 	if err = cmd.Close(); err != nil {
-		t.Fatalf("closing /bin/echo: %v", err)
+		t.Fatal("close:", err)
+	}
+}
+
+func TestStderr(t *testing.T) {
+	cmd, err := Run("/bin/sh", []string{"sh", "-c", "echo hello world 1>&2"}, nil, "",
+		DevNull, DevNull, Pipe)
+	if err != nil {
+		t.Fatal("run:", err)
+	}
+	buf, err := ioutil.ReadAll(cmd.Stderr)
+	if err != nil {
+		t.Fatal("read:", err)
+	}
+	if string(buf) != "hello world\n" {
+		t.Fatalf("read: got %q", buf)
+	}
+	if err = cmd.Close(); err != nil {
+		t.Fatal("close:", err)
+	}
+}
+
+
+func TestMergeWithStdout(t *testing.T) {
+	cmd, err := Run("/bin/sh", []string{"sh", "-c", "echo hello world 1>&2"}, nil, "",
+		DevNull, Pipe, MergeWithStdout)
+	if err != nil {
+		t.Fatal("run:", err)
+	}
+	buf, err := ioutil.ReadAll(cmd.Stdout)
+	if err != nil {
+		t.Fatal("read:", err)
+	}
+	if string(buf) != "hello world\n" {
+		t.Fatalf("read: got %q", buf)
+	}
+	if err = cmd.Close(); err != nil {
+		t.Fatal("close:", err)
 	}
 }
