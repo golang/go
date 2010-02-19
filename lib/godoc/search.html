@@ -26,7 +26,7 @@
 			{.repeated section Files}
 				{.repeated section Groups}
 					{.repeated section Infos}
-						<a href="{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
+						<a href="{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{File.Path|url-src}:{@|infoLine}</a>
 						<pre>{@|infoSnippet}</pre>
 					{.end}
 				{.end}
@@ -38,7 +38,7 @@
 		{.repeated section @}
 			<h3 id="Local_{Pak.Path|url-pkg}">package <a href="{Pak.Path|url-pkg}">{Pak.Name|html}</a></h3>
 			{.repeated section Files}
-				<a href="{File.Path|url-src}?h={Query|html-esc}">{File.Path|html}</a>
+				<a href="{File.Path|url-src}?h={Query|html-esc}">{File.Path|url-src}</a>
 				<table class="layout">
 				{.repeated section Groups}
 					<tr>
