@@ -1370,6 +1370,10 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
 	if(isint[nt->etype] || isfloat[nt->etype])
 		return 1;
 
+	// between versions of complex
+	if(iscomplex[t->etype] || iscomplex[nt->etype])
+		return 1;
+
 	// to string
 	if(istype(t, TSTRING)) {
 		// integer rune
