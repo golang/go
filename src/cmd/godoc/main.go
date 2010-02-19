@@ -50,6 +50,12 @@ var (
 )
 
 
+func serveError(c *http.Conn, r *http.Request, relpath string, err os.Error) {
+	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
+	servePage(c, "File "+relpath, "", contents)
+}
+
+
 func exec(c *http.Conn, args []string) (status int) {
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -162,9 +168,6 @@ func main() {
 			log.Stderrf("Go Documentation Server\n")
 			log.Stderrf("address = %s\n", *httpaddr)
 			log.Stderrf("goroot = %s\n", goroot)
-			log.Stderrf("cmdroot = %s\n", cmdroot)
-			log.Stderrf("pkgroot = %s\n", pkgroot)
-			log.Stderrf("tmplroot = %s\n", tmplroot)
 			log.Stderrf("tabwidth = %d\n", *tabwidth)
 			if !fsMap.IsEmpty() {
 				log.Stderr("user-defined mapping:")

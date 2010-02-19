@@ -198,6 +198,19 @@ span.highlight {
   background-color: #ffffa0;
 }
 
+/* same style as for gettingStarted */
+#menu {
+  margin-top: 1.5em;
+  margin-left: 1.75em;
+  margin-right: 0em;
+  float: right;
+  background-color: #fffff0;
+  padding-left: 1em;
+  padding-right: 1em;
+  padding-bottom: 0.75em;
+  border: 2px solid #ba9836;
+}
+
 
 /* ------------------------------------------------------------------------- */
 /* Styles for the frontpage */
