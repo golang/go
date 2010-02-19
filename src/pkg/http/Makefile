@@ -10,6 +10,7 @@ GOFILES=\
 	client.go\
 	fs.go\
 	lex.go\
+	persist.go\
 	request.go\
 	response.go\
 	server.go\
