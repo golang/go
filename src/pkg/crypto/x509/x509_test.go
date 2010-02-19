@@ -9,9 +9,11 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/pem"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParsePKCS1PrivateKey(t *testing.T) {
@@ -142,3 +144,51 @@ var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be13
 	"e9e83994dcab72792f06bfab8170c4a8edea5334edef1e53d906c7562bd15cf4d18a8eb42bb137" +
 	"9048084225c53e8acb7feb6f04d16dc574a2f7a27c7b603c77cd0ece48027f012fb69b37e02a2a" +
 	"36dcd585d6ace53f546f961e05af"
+
+func TestCreateSelfSignedCertificate(t *testing.T) {
+	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
+	if err != nil {
+		t.Errorf("failed to open /dev/urandom")
+	}
+
+	block, _ := pem.Decode(strings.Bytes(pemPrivateKey))
+	priv, err := ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		t.Errorf("Failed to parse private key: %s", err)
+		return
+	}
+
+	template := Certificate{
+		SerialNumber: []byte{1},
+		Subject: Name{
+			CommonName: "test.example.com",
+			Organization: "Acme Co",
+		},
+		NotBefore: time.SecondsToUTC(1000),
+		NotAfter: time.SecondsToUTC(100000),
+
+		SubjectKeyId: []byte{1, 2, 3, 4},
+		KeyUsage: KeyUsageCertSign,
+
+		BasicConstraintsValid: true,
+		IsCA: true,
+		DNSNames: []string{"test.example.com"},
+	}
+
+	derBytes, err := CreateCertificate(urandom, &template, &template, priv)
+	if err != nil {
+		t.Errorf("Failed to create certificate: %s", err)
+		return
+	}
+
+	cert, err := ParseCertificate(derBytes)
+	if err != nil {
+		t.Errorf("Failed to parse certificate: %s", err)
+		return
+	}
+	err = cert.CheckSignatureFrom(cert)
+	if err != nil {
+		t.Errorf("Signature verification failed: %s", err)
+		return
+	}
+}
