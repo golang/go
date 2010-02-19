@@ -302,6 +302,11 @@ uchar	yfmvp[] =
 	Yf0,	Ym,	Zo_m,	2,
 	0
 };
+uchar	yfcmv[] =
+{
+	Yrf,	Yf0,	Zm_o,	2,
+	0
+};
 uchar	yfadd[] =
 {
 	Ym,	Yf0,	Zm_o,	2,
@@ -730,5 +735,15 @@ Optab optab[] =
 	{ ACMOVWPC,	yml_rl,	Pq, 0x4b },
 	{ ACMOVWPL,	yml_rl,	Pq, 0x49 },
 	{ ACMOVWPS,	yml_rl,	Pq, 0x4a },
+
+	{ AFCMOVCC,	yfcmv,	Px, 0xdb,(00) },
+	{ AFCMOVCS,	yfcmv,	Px, 0xda,(00) },
+	{ AFCMOVEQ,	yfcmv,	Px, 0xda,(01) },
+	{ AFCMOVHI,	yfcmv,	Px, 0xdb,(02) },
+	{ AFCMOVLS,	yfcmv,	Px, 0xda,(02) },
+	{ AFCMOVNE,	yfcmv,	Px, 0xdb,(01) },
+	{ AFCMOVNU,	yfcmv,	Px, 0xdb,(03) },
+	{ AFCMOVUN,	yfcmv,	Px, 0xda,(03) },
+
 	0
 };

@@ -1004,6 +1004,10 @@ static Optable optabDA[8+8] =
 [0x05]	0,0,		"FSUBRL	%e,F0",
 [0x06]	0,0,		"FDIVL	%e,F0",
 [0x07]	0,0,		"FDIVRL	%e,F0",
+[0x08]	0,0,		"FCMOVCS	%f,F0",
+[0x09]	0,0,		"FCMOVEQ	%f,F0",
+[0x0a]	0,0,		"FCMOVLS	%f,F0",
+[0x0b]	0,0,		"FCMOVUN	%f,F0",
 [0x0d]	R1,0,		"FUCOMPP",
 };
 
@@ -1014,6 +1018,10 @@ static Optable optabDB[8+64] =
 [0x03]	0,0,		"FMOVLP	F0,%e",
 [0x05]	0,0,		"FMOVX	%e,F0",
 [0x07]	0,0,		"FMOVXP	F0,%e",
+[0x08]	0,0,		"FCMOVCC	%f,F0",
+[0x09]	0,0,		"FCMOVNE	%f,F0",
+[0x0a]	0,0,		"FCMOVHI	%f,F0",
+[0x0b]	0,0,		"FCMOVNU	%f,F0",
 [0x0d]	0,0,		"FUCOMI	F0,%f",
 [0x0e]	0,0,		"FCOMI	F0,%f",
 [0x2a]	0,0,		"FCLEX",
