@@ -589,14 +589,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return nil, p.err
 		}
 		p.space()
-		if b, ok = p.mustgetc(); !ok {
-			return nil, p.err
-		}
-		if b != '"' && b != '\'' {
-			p.err = SyntaxError("unquoted or missing attribute value in element")
-			return nil, p.err
-		}
-		data := p.text(int(b), false)
+		data := p.attrval()
 		if data == nil {
 			return nil, p.err
 		}
@@ -608,6 +601,40 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		p.toClose = name
 	}
 	return StartElement{name, attr}, nil
+}
+
+func (p *Parser) attrval() []byte {
+	b, ok := p.mustgetc()
+	if !ok {
+		return nil
+	}
+	// Handle quoted attribute values
+	if b == '"' || b == '\'' {
+		return p.text(int(b), false)
+	}
+	// Handle unquoted attribute values for strict parsers
+	if p.Strict {
+		p.err = SyntaxError("unquoted or missing attribute value in element")
+		return nil
+	}
+	// Handle unquoted attribute values for unstrict parsers
+	p.ungetc(b)
+	p.buf.Reset()
+	for {
+		b, ok = p.mustgetc()
+		if !ok {
+			return nil
+		}
+		// http://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2
+		if 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' ||
+			'0' <= b && b <= '9' || b == '_' || b == ':' || b == '-' {
+			p.buf.WriteByte(b)
+		} else {
+			p.ungetc(b)
+			break
+		}
+	}
+	return p.buf.Bytes()
 }
 
 // Skip spaces if any
