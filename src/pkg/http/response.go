@@ -398,11 +398,12 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	io.WriteString(w, strconv.Itoa(resp.StatusCode)+" "+text+"\r\n")
 
 	// Sanitize the field triple (Body, ContentLength, TransferEncoding)
+	contentLength := resp.ContentLength
 	if noBodyExpected(resp.RequestMethod) {
 		resp.Body = nil
 		resp.TransferEncoding = nil
 		// resp.ContentLength is expected to hold Content-Length
-		if resp.ContentLength < 0 {
+		if contentLength < 0 {
 			return ErrMissingContentLength
 		}
 	} else {
@@ -410,9 +411,9 @@ func (resp *Response) Write(w io.Writer) os.Error {
 			resp.TransferEncoding = nil
 		}
 		if chunked(resp.TransferEncoding) {
-			resp.ContentLength = -1
+			contentLength = -1
 		} else if resp.Body == nil { // no chunking, no body
-			resp.ContentLength = 0
+			contentLength = 0
 		}
 	}
 
@@ -422,9 +423,9 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	if chunked(resp.TransferEncoding) {
 		io.WriteString(w, "Transfer-Encoding: chunked\r\n")
 	} else {
-		if resp.ContentLength > 0 || resp.RequestMethod == "HEAD" {
+		if contentLength > 0 || resp.RequestMethod == "HEAD" {
 			io.WriteString(w, "Content-Length: ")
-			io.WriteString(w, strconv.Itoa64(resp.ContentLength)+"\r\n")
+			io.WriteString(w, strconv.Itoa64(contentLength)+"\r\n")
 		}
 	}
 	if resp.Header != nil {
@@ -477,7 +478,7 @@ func (resp *Response) Write(w io.Writer) os.Error {
 				err = cw.Close()
 			}
 		} else {
-			_, err = io.Copy(w, io.LimitReader(resp.Body, resp.ContentLength))
+			_, err = io.Copy(w, io.LimitReader(resp.Body, contentLength))
 		}
 		if err != nil {
 			return err
