@@ -6,6 +6,7 @@ package websocket
 
 import (
 	"bytes"
+	"fmt"
 	"http"
 	"io"
 	"log"
@@ -58,4 +59,18 @@ func TestEcho(t *testing.T) {
 		t.Errorf("Echo: expected %q got %q", msg, actual_msg)
 	}
 	ws.Close()
+}
+
+func TestHTTP(t *testing.T) {
+	once.Do(startServer)
+
+	r, _, err := http.Get(fmt.Sprintf("http://%s/echo", serverAddr))
+	if err != nil {
+		t.Errorf("Get: error %v", err)
+		return
+	}
+	if r.StatusCode != http.StatusBadRequest {
+		t.Errorf("Get: got status %d", r.StatusCode)
+		return
+	}
 }
