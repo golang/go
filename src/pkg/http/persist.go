@@ -45,6 +45,8 @@ func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
 // called before Read has signaled the end of the keep-alive logic. The user
 // should not call Close while Read or Write is in progress.
 func (sc *ServerConn) Close() (c net.Conn, r *bufio.Reader) {
+	sc.lk.Lock()
+	defer sc.lk.Unlock()
 	c = sc.c
 	r = sc.r
 	sc.c = nil
@@ -109,6 +111,14 @@ func (sc *ServerConn) Read() (req *Request, err os.Error) {
 		return req, sc.re
 	}
 	return
+}
+
+// Pending returns the number of unanswered requests
+// that have been received on the connection.
+func (sc *ServerConn) Pending() int {
+	sc.lk.Lock()
+	defer sc.lk.Unlock()
+	return sc.nread - sc.nwritten
 }
 
 // Write writes a repsonse. To close the connection gracefully, set the
@@ -176,11 +186,11 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 // called before the user or Read have signaled the end of the keep-alive
 // logic. The user should not call Close while Read or Write is in progress.
 func (cc *ClientConn) Close() (c net.Conn, r *bufio.Reader) {
+	cc.lk.Lock()
 	c = cc.c
 	r = cc.r
 	cc.c = nil
 	cc.r = nil
-	cc.lk.Lock()
 	cc.reqm.Init()
 	cc.lk.Unlock()
 	return
@@ -226,6 +236,14 @@ func (cc *ClientConn) Write(req *Request) os.Error {
 	cc.lk.Unlock()
 
 	return nil
+}
+
+// Pending returns the number of unanswered requests
+// that have been sent on the connection.
+func (cc *ClientConn) Pending() int {
+	cc.lk.Lock()
+	defer cc.lk.Unlock()
+	return cc.nwritten - cc.nread
 }
 
 // Read reads the next response from the wire. A valid response might be
