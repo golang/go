@@ -969,7 +969,6 @@ etnames[] =
 	[TFORW]		= "FORW",
 	[TFIELD]	= "FIELD",
 	[TSTRING]	= "STRING",
-	[TCHAN]		= "CHAN",
 	[TANY]		= "ANY",
 };
 
