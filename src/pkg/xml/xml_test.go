@@ -298,3 +298,23 @@ func TestIssue569(t *testing.T) {
 		t.Fatalf("Expecting abcd")
 	}
 }
+
+func TestUnquotedAttrs(t *testing.T) {
+	data := "<tag attr=azAZ09:-_\t>"
+	p := NewParser(StringReader(data))
+	p.Strict = false
+	token, err := p.Token()
+	if _, ok := err.(SyntaxError); ok {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if token.(StartElement).Name.Local != "tag" {
+		t.Errorf("Unexpected tag name: %v", token.(StartElement).Name.Local)
+	}
+	attr := token.(StartElement).Attr[0]
+	if attr.Value != "azAZ09:-_" {
+		t.Errorf("Unexpected attribute value: %v", attr.Value)
+	}
+	if attr.Name.Local != "attr" {
+		t.Errorf("Unexpected attribute name: %v", attr.Name.Local)
+	}
+}
