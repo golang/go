@@ -8,6 +8,7 @@ TARG=http
 GOFILES=\
 	chunked.go\
 	client.go\
+	dump.go\
 	fs.go\
 	lex.go\
 	persist.go\
