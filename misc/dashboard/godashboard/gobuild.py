@@ -6,6 +6,7 @@
 # by AppEngine.
 
 from google.appengine.api import memcache
+from google.appengine.runtime import DeadlineExceededError
 from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
@@ -76,6 +77,15 @@ def builderInfo(b):
         note = f[2]
     return {'name': b, 'goos': goos, 'goarch': goarch, 'note': note}
 
+def builderset():
+    q = Commit.all()
+    q.order('-__key__')
+    results = q.fetch(N)
+    builders = set()
+    for c in results:
+        builders.update(set(parseBuild(build)['builder'] for build in c.builds))
+    return builders
+    
 class MainPage(webapp.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
@@ -108,30 +118,32 @@ class MainPage(webapp.RequestHandler):
 class GetHighwater(webapp.RequestHandler):
     def get(self):
         builder = self.request.get('builder')
-
-        hw = Highwater.get_by_key_name('hw-%s' % builder)
-        if hw is None:
-            # If no highwater has been recorded for this builder,
-            # we go back N+1 commits and return that.
-            q = Commit.all()
-            q.order('-__key__')
-            c = q.fetch(N+1)[-1]
-            self.response.set_status(200)
-            self.response.out.write(c.node)
-            return
-
-        # if the proposed hw is too old, bump it forward
-        node = hw.commit
-        found = False
-        q = Commit.all()
-        q.order('-__key__')
-        recent = q.fetch(N+1)
-        for c in recent:
-            if c.node == node:
-                found = True
-                break
-        if not found:
-            node = recent[-1].node
+        
+        key = 'hw-%s' % builder
+        node = memcache.get(key)
+        if node is None:
+            hw = Highwater.get_by_key_name('hw-%s' % builder)
+            if hw is None:
+                # If no highwater has been recorded for this builder,
+                # we go back N+1 commits and return that.
+                q = Commit.all()
+                q.order('-__key__')
+                c = q.fetch(N+1)[-1]
+                node = c.node
+            else:
+                # if the proposed hw is too old, bump it forward
+                node = hw.commit
+                found = False
+                q = Commit.all()
+                q.order('-__key__')
+                recent = q.fetch(N+1)
+                for c in recent:
+                    if c.node == node:
+                        found = True
+                        break
+                if not found:
+                    node = recent[-1].node
+            memcache.set(key, node, 3600)
         self.response.set_status(200)
         self.response.out.write(node)
 
@@ -166,7 +178,9 @@ class SetHighwater(webapp.RequestHandler):
         if not found:
             c = recent[-1]
 
-        hw = Highwater(key_name = 'hw-%s' % builder)
+        key = 'hw-%s' % builder
+        memcache.delete(key)
+        hw = Highwater(key_name = key)
         hw.commit = c.node
         hw.put()
 
@@ -270,6 +284,8 @@ class Build(webapp.RequestHandler):
             hw = Highwater(key_name = 'hw-%s' % builder)
         hw.commit = node
         hw.put()
+        memcache.delete('hw')
+        memcache.delete('bench')
 
         self.response.set_status(200)
 
@@ -295,95 +311,91 @@ class Benchmarks(webapp.RequestHandler):
             return self.json()
         self.response.set_status(200)
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        q = Commit.all()
-        q.order('-__key__')
-        n = q.fetch(1)[0]
-        key = "bench(%d)" % n.num
-        page = None # memcache.get(key)
+        page = memcache.get('bench')
         if not page:
-            page = self.compute()
-            memcache.set(key, page, 3600)
+            num = memcache.get('hw')
+            if num is None:
+                q = Commit.all()
+                q.order('-__key__')
+                n = q.fetch(1)[0]
+                memcache.set('hw', num)
+            page, full = self.compute(n.num)
+            if full:
+                memcache.set('bench', page, 3600)
         self.response.out.write(page)
     
-    def compute(self):
+    def compute(self, num):
         q = Benchmark.all()
         q.filter('__key__ >', Benchmark.get_or_insert('v002.').key())
-        bs = q.fetch(10000)
-        
-        # Collect table giving all the data we need.
-        builders = {}
-        data = {}
-        for b in bs:
-            # TODO(rsc): Will want to limit benchmarks to a certain
-            # number of commits eventually, but there aren't enough
-            # commits yet to worry.
-            q = BenchmarkResult.all()
-            q.ancestor(b)
-            q.order('-__key__')
-            results = q.fetch(10000)
-            m = {}
-            revs = {}
-            for r in results:
-                if r.builder not in m:
-                    m[r.builder] = {}
-                m[r.builder][r.num] = r.nsperop
-                revs[r.num] = 0
-                builders[r.builder] = 0
-            data[b.name] = m
+        benchmarks = q.fetch(10000)
 
-        builders = list(builders.keys())
+        # Which builders have sent benchmarks recently?
+        builders = set()
+        q = BenchmarkResult.all()
+        q.ancestor(benchmarks[0])
+        q.order('-__key__')
+        for r in q.fetch(50):
+            builders.add(r.builder)
+        builders = list(builders)
         builders.sort()
-
-        revs = list(revs.keys())
-        revs.sort()
-        first = revs[0]
-        last = revs[-1]
-        if len(revs) > 80:   # At most 80 commits back
-            last = revs[-80]
-
-        names = list(data.keys())
-        names.sort()
-
+        
+        NB = 80
+        last = num
+        first = num+1 - NB
+        
         # Build list of rows, one per benchmark
-        benchmarks = []
-        for name in names:
-            # Build list of cells, one per builder.
-            m = data[name]
-            builds = []
-            for builder in builders:
-                # Build cell: a URL for the chart server or an empty string.
-                if builder not in m:
-                    builds.append({"url":""})
-                    continue
-                d = m[builder]
-                max = 0
-                tot = 0
-                ntot = 0
-                for i in range(first, last+1):
-                    if i not in d:
+        rows = [{"name": bm.name, "builds": [{"url": ""} for b in builders]} for bm in benchmarks]
+
+        full = True
+        try:
+            for i in range(len(rows)):
+                data = None
+                bm = benchmarks[i]
+                builds = rows[i]["builds"]
+                all = None
+                for j in range(len(builders)):
+                    cell = builds[j]
+                    b = builders[j]
+                    # Build cell: a URL for the chart server or an empty string.
+                    # Cache individual graphs because they're so damn expensive.
+                    key = "bench(%s,%s,%d)" % (bm.name, b, num)
+                    url = memcache.get(key)
+                    if url is not None:
+                        cell["url"] = url
                         continue
-                    val = d[i]
-                    if max < val:
-                        max = val
-                    tot += val
-                    ntot += 1
-                if max == 0:
-                    builds.append({"url":""})
-                    continue
-                avg = tot / ntot
-                if 2*avg > max:
-                    max = 2*avg
-                # Encoding is 0-61, which is fine enough granularity for our tiny graphs.  _ means missing.
-                encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-                s = ""
-                for i in range(first, last+1):
-                    if i not in d:
-                        s += "_"
+                    
+                    # Page in all data for benchmark for all builders,
+                    # on demand.  It might be faster to ask for just the
+                    # builder that we need, but q.filter('builder = ', b) is
+                    # broken right now (the index is corrupt).
+                    if all is None:
+                        q = BenchmarkResult.all()
+                        q.ancestor(bm)
+                        q.order('-__key__')
+                        all = q.fetch(1000)
+
+                    data = [-1 for x in range(first, last+1)]
+                    for r in all:
+                        if r.builder == b and first <= r.num and r.num <= last:
+                            data[r.num - first] = r.nsperop
+                    present = [x for x in data if x >= 0]
+                    if len(present) == 0:
+                        memcache.set(key, "", 3600)
                         continue
-                    val = d[i]
-                    s += encoding[int((len(encoding)-1)*val/max)]
-                builds.append({"url": "http://chart.apis.google.com/chart?cht=ls&chd=s:"+s})
-            benchmarks.append({"name": name, "builds": builds})
+                    avg = sum(present) / len(present)
+                    maxval = max(2*avg, max(present))
+                    # Encoding is 0-61, which is fine enough granularity for our tiny graphs.  _ means missing.
+                    encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                    s = ''.join([x < 0 and "_" or encoding[int((len(encoding)-1)*x/maxval)] for x in data])
+                    url = "http://chart.apis.google.com/chart?cht=ls&chd=s:"+s
+                    memcache.set(key, url, 3600)
+                    cell["url"] = url
+        except DeadlineExceededError:
+            # forge ahead with partial benchmark results
+            # the url caches above should make the next page quicker to compute
+            full = False
+
+        names = [bm.name for bm in benchmarks]
 
         bs = []
         for b in builders:
@@ -395,10 +407,10 @@ class Benchmarks(webapp.RequestHandler):
                 note = f[2]
             bs.append({'goos': goos, 'goarch': goarch, 'note': note})
 
-        values = {"benchmarks": benchmarks, "builders": bs}
+        values = {"benchmarks": rows, "builders": bs}
 
         path = os.path.join(os.path.dirname(__file__), 'benchmarks.html')
-        return template.render(path, values)
+        return template.render(path, values), full
 
     def post(self):
         if not auth(self.request):
@@ -444,8 +456,10 @@ class Benchmarks(webapp.RequestHandler):
             b = Benchmark.get_or_insert('v002.' + benchmark.encode('base64'), name = benchmark, version = 2)
             r = BenchmarkResult(key_name = '%08x/%s' % (n.num, builder), parent = b, num = n.num, iterations = iterations, nsperop = time, builder = builder)
             r.put()
-        key = "bench(%d)" % n.num
-        memcache.delete(key)
+            key = "bench(%s,%s,%d)" % (benchmark, builder, n.num)
+            memcache.delete(key)
+
+        memcache.delete('bench')
         self.response.set_status(200)
 
 def node(num):
@@ -480,6 +494,9 @@ class GetBenchmarks(webapp.RequestHandler):
             if minv > r.num:
                 minv = r.num
             builders.add(r.builder)
+
+        builders = list(builders)
+        builders.sort()
 
         res = {}
         for b in builders:
