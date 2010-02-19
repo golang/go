@@ -1,16 +1,22 @@
 This directory contains a simple example of how one might
-start Go running on bare hardware.  It is very primitive but
-can run go/test/sieve.go, the concurrent prime sieve, on a
-uniprocessor.  It has only been tested using the Bochs emulator.
+start Go running on bare hardware. There is currently code
+for 386 and arm.
+
+
+386
+
+It is very primitive but can run go/test/sieve.go, the concurrent
+prime sieve, on a uniprocessor.  It has only been tested using the
+Bochs emulator.
 
 To run, first build the tools by running all.bash with GOARCH=386
 and GOOS set to your normal GOOS (linux, darwin).  Then:
 
-	export GOOS=pchw
+	export GOOS=tiny
 	cd $GOROOT/src/pkg/runtime
 	make clean
 	make install
-	cd pchw
+	cd tiny
 	8g $GOROOT/test/sieve.go
 	8l sieve.8
 	8l -a sieve.8 >sieve.asm	# can consult sieve.asm for debugging
@@ -22,8 +28,43 @@ You may have to tweak the .bochsrc depending on your system,
 and you may need to install the Bochs emulator.
 
 
+ARM
 
-The bootblock is from MIT's xv6 project and carries this notice:
+First build the toolchain using GOARCH=arm and GOOS=linux. When
+you build your embedded code set GOARCH=tiny.
+
+	export GOOS=tiny
+	cd $GOROOT/src/pkg/runtime
+	make clean
+	make install
+
+On arm the tiny runtime doesn't define a low level write function. You can either
+define a stub if you don't need debug output, or more usefully, define it to
+print to some debug serial port. Here is a sample function that prints to
+the DBGU on an at91sam7s:
+
+#define DBGU_CSR  ((uint32*)   0xFFFFF214) // (DBGU) Channel Status Register
+#define US_TXRDY        ((uint32) 0x1 <<  1) // (DBGU) TXRDY Interrupt
+#define DBGU_THR  ((uint32*)   0xFFFFF21C) // (DBGU) Transmitter Holding Register
+
+int32
+write(int32 fd, void* b, int32 n)
+{
+	uint32 i;
+	uint8* s = (uint8*)b;
+
+	for (i = 0; i < n; i++) {
+		while ((*DBGU_CSR & US_TXRDY) == 0) {
+		}
+		*DBGU_THR = *s;
+		s++;
+	}
+	return n;
+}
+
+
+
+The 386 bootblock is from MIT's xv6 project and carries this notice:
 
     The xv6 software is:
     
