@@ -112,6 +112,18 @@ var atan2 = []float64{
 	1.3902530903455392306872261e+00,
 	2.2859857424479142655411058e+00,
 }
+var cbrt = []float64{
+	1.7075799841925094446722675e+00,
+	1.9779982212970353936691498e+00,
+	-6.5177429017779910853339447e-01,
+	-1.7111838886544019873338113e+00,
+	2.1279920909827937423960472e+00,
+	1.4303536770460741452312367e+00,
+	1.7357021059106154902341052e+00,
+	1.3972633462554328350552916e+00,
+	1.2221149580905388454977636e+00,
+	-2.0556003730500069110343596e+00,
+}
 var ceil = []float64{
 	5.0000000000000000e+00,
 	8.0000000000000000e+00,
@@ -543,6 +555,17 @@ var atan2SC = []float64{
 	Pi / 2,
 	Pi / 4,
 	NaN(),
+	NaN(),
+}
+
+var vfcbrtSC = []float64{
+	Inf(-1),
+	Inf(1),
+	NaN(),
+}
+var cbrtSC = []float64{
+	Inf(-1),
+	Inf(1),
 	NaN(),
 }
 
@@ -993,6 +1016,19 @@ func TestAtan2(t *testing.T) {
 	}
 }
 
+func TestCbrt(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Cbrt(vf[i]); !veryclose(cbrt[i], f) {
+			t.Errorf("Cbrt(%g) = %g, want %g\n", vf[i], f, cbrt[i])
+		}
+	}
+	for i := 0; i < len(vfcbrtSC); i++ {
+		if f := Cbrt(vfcbrtSC[i]); !alike(cbrtSC[i], f) {
+			t.Errorf("Cbrt(%g) = %g, want %g\n", vfcbrtSC[i], f, cbrtSC[i])
+		}
+	}
+}
+
 func TestCeil(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Ceil(vf[i]); ceil[i] != f {
@@ -1309,6 +1345,14 @@ func TestSin(t *testing.T) {
 	}
 }
 
+func TestSincos(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if s, c := Sincos(vf[i]); !close(sin[i], s) || !close(cos[i], c) {
+			t.Errorf("Sincos(%g) = %g, %g want %g, %g\n", vf[i], s, c, sin[i], cos[i])
+		}
+	}
+}
+
 func TestSinh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Sinh(vf[i]); !close(sinh[i], f) {
@@ -1366,6 +1410,17 @@ func TestTrunc(t *testing.T) {
 
 // Check that math functions of high angle values
 // return similar results to low angle values
+func TestLargeCos(t *testing.T) {
+	large := float64(100000 * Pi)
+	for i := 0; i < len(vf); i++ {
+		f1 := Cos(vf[i])
+		f2 := Cos(vf[i] + large)
+		if !kindaclose(f1, f2) {
+			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f2, f1)
+		}
+	}
+}
+
 func TestLargeSin(t *testing.T) {
 	large := float64(100000 * Pi)
 	for i := 0; i < len(vf); i++ {
@@ -1377,13 +1432,13 @@ func TestLargeSin(t *testing.T) {
 	}
 }
 
-func TestLargeCos(t *testing.T) {
+func TestLargeSincos(t *testing.T) {
 	large := float64(100000 * Pi)
 	for i := 0; i < len(vf); i++ {
-		f1 := Cos(vf[i])
-		f2 := Cos(vf[i] + large)
-		if !kindaclose(f1, f2) {
-			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f2, f1)
+		f1, g1 := Sincos(vf[i])
+		f2, g2 := Sincos(vf[i] + large)
+		if !kindaclose(f1, f2) || !kindaclose(g1, g2) {
+			t.Errorf("Sincos(%g) = %g, %g, want %g, %g\n", vf[i]+large, f2, g2, f1, g1)
 		}
 	}
 }
@@ -1466,6 +1521,12 @@ func BenchmarkAtanh(b *testing.B) {
 func BenchmarkAtan2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Atan2(.5, 1)
+	}
+}
+
+func BenchmarkCbrt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Cbrt(10)
 	}
 }
 
@@ -1622,6 +1683,12 @@ func BenchmarkPowFrac(b *testing.B) {
 func BenchmarkSin(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Sin(.5)
+	}
+}
+
+func BenchmarkSincos(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Sincos(.5)
 	}
 }
 
