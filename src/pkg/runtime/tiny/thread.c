@@ -4,7 +4,7 @@
 
 #include "runtime.h"
 
-int8 *goos = "embedded";
+int8 *goos = "tiny";
 
 void
 minit(void)
