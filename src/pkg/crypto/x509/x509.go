@@ -12,6 +12,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"hash"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -69,6 +70,21 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	return
 }
 
+// MarshalPKCS1PrivateKey converts a private key to ASN.1 DER encoded form.
+func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+	priv := pkcs1PrivateKey{
+		Version: 1,
+		N: asn1.RawValue{Tag: 2, Bytes: key.PublicKey.N.Bytes()},
+		E: key.PublicKey.E,
+		D: asn1.RawValue{Tag: 2, Bytes: key.D.Bytes()},
+		P: asn1.RawValue{Tag: 2, Bytes: key.P.Bytes()},
+		Q: asn1.RawValue{Tag: 2, Bytes: key.Q.Bytes()},
+	}
+
+	b, _ := asn1.MarshalToMemory(priv)
+	return b
+}
+
 // These structures reflect the ASN.1 structure of X.509 certificates.:
 
 type certificate struct {
@@ -86,8 +102,8 @@ type tbsCertificate struct {
 	Validity           validity
 	Subject            rdnSequence
 	PublicKey          publicKeyInfo
-	UniqueId           asn1.BitString "optional,explicit,tag:1"
-	SubjectUniqueId    asn1.BitString "optional,explicit,tag:2"
+	UniqueId           asn1.BitString "optional,tag:1"
+	SubjectUniqueId    asn1.BitString "optional,tag:2"
 	Extensions         []extension    "optional,explicit,tag:3"
 }
 
@@ -186,6 +202,64 @@ func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
 			}
 		}
 	}
+}
+
+var (
+	oidCountry            = []int{2, 5, 4, 6}
+	oidOrganization       = []int{2, 5, 4, 10}
+	oidOrganizationalUnit = []int{2, 5, 4, 11}
+	oidCommonName         = []int{2, 5, 4, 3}
+	oidSerialNumber       = []int{2, 5, 4, 5}
+	oidLocatity           = []int{2, 5, 4, 7}
+	oidProvince           = []int{2, 5, 4, 8}
+	oidStreetAddress      = []int{2, 5, 4, 9}
+	oidPostalCode         = []int{2, 5, 4, 17}
+)
+
+func (n Name) toRDNSequence() (ret rdnSequence) {
+	ret = make([]relativeDistinguishedNameSET, 9 /* maximum number of elements */ )
+	i := 0
+	if len(n.Country) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidCountry, n.Country}}
+		i++
+	}
+	if len(n.Organization) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidOrganization, n.Organization}}
+		i++
+	}
+	if len(n.OrganizationalUnit) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidOrganizationalUnit, n.OrganizationalUnit}}
+		i++
+	}
+	if len(n.CommonName) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidCommonName, n.CommonName}}
+		i++
+	}
+	if len(n.SerialNumber) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidSerialNumber, n.SerialNumber}}
+		i++
+	}
+	if len(n.Locality) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidLocatity, n.Locality}}
+		i++
+	}
+	if len(n.Province) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidProvince, n.Province}}
+		i++
+	}
+	if len(n.StreetAddress) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidStreetAddress, n.StreetAddress}}
+		i++
+	}
+	if len(n.PostalCode) > 0 {
+		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidPostalCode, n.PostalCode}}
+		i++
+	}
+
+	// Adding another RDN here? Remember to update the maximum number of
+	// elements in the make() at the top of the function.
+
+	return ret[0:i]
 }
 
 func getSignatureAlgorithmFromOID(oid []int) SignatureAlgorithm {
@@ -588,4 +662,158 @@ func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
 	}
 
 	return ret, nil
+}
+
+func reverseBitsInAByte(in byte) byte {
+	b1 := in>>4 | in<<4
+	b2 := b1>>2&0x33 | b1<<2&0xcc
+	b3 := b2>>1&0x55 | b2<<1&0xaa
+	return b3
+}
+
+var (
+	oidExtensionSubjectKeyId     = []int{2, 5, 29, 14}
+	oidExtensionKeyUsage         = []int{2, 5, 29, 15}
+	oidExtensionAuthorityKeyId   = []int{2, 5, 29, 35}
+	oidExtensionBasicConstraints = []int{2, 5, 29, 19}
+	oidExtensionSubjectAltName   = []int{2, 5, 29, 17}
+)
+
+func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
+	ret = make([]extension, 5 /* maximum number of elements. */ )
+	n := 0
+
+	if template.KeyUsage != 0 {
+		ret[n].Id = oidExtensionKeyUsage
+		ret[n].Critical = true
+
+		var a [2]byte
+		a[0] = reverseBitsInAByte(byte(template.KeyUsage))
+		a[1] = reverseBitsInAByte(byte(template.KeyUsage >> 8))
+
+		l := 1
+		if a[1] != 0 {
+			l = 2
+		}
+
+		ret[n].Value, err = asn1.MarshalToMemory(asn1.BitString{Bytes: a[0:l], BitLength: l * 8})
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	if template.BasicConstraintsValid {
+		ret[n].Id = oidExtensionBasicConstraints
+		ret[n].Value, err = asn1.MarshalToMemory(basicConstraints{template.IsCA, template.MaxPathLen})
+		ret[n].Critical = true
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	if len(template.SubjectKeyId) > 0 {
+		ret[n].Id = oidExtensionSubjectKeyId
+		ret[n].Value, err = asn1.MarshalToMemory(template.SubjectKeyId)
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	if len(template.AuthorityKeyId) > 0 {
+		ret[n].Id = oidExtensionAuthorityKeyId
+		ret[n].Value, err = asn1.MarshalToMemory(authKeyId{template.AuthorityKeyId})
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	if len(template.DNSNames) > 0 {
+		ret[n].Id = oidExtensionSubjectAltName
+		rawValues := make([]asn1.RawValue, len(template.DNSNames))
+		for i, name := range template.DNSNames {
+			rawValues[i] = asn1.RawValue{Tag: 2, Class: 2, Bytes: strings.Bytes(name)}
+		}
+		ret[n].Value, err = asn1.MarshalToMemory(rawValues)
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	// Adding another extension here? Remember to update the maximum number
+	// of elements in the make() at the top of the function.
+
+	return ret[0:n], nil
+}
+
+var (
+	oidSHA1WithRSA = []int{1, 2, 840, 113549, 1, 1, 5}
+	oidRSA         = []int{1, 2, 840, 113549, 1, 1, 1}
+)
+
+// CreateSelfSignedCertificate creates a new certificate based on
+// a template. The following members of template are used: SerialNumber,
+// Subject, NotBefore, NotAfter, KeyUsage, BasicConstraintsValid, IsCA,
+// MaxPathLen, SubjectKeyId, DNSNames.
+//
+// The certificate is signed by parent. If parent is equal to template then the
+// certificate is self-signed.
+//
+// The returned slice is the certificate in DER encoding.
+func CreateCertificate(rand io.Reader, template, parent *Certificate, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
+	asn1PublicKey, err := asn1.MarshalToMemory(rsaPublicKey{
+		N: asn1.RawValue{Tag: 2, Bytes: priv.PublicKey.N.Bytes()},
+		E: priv.PublicKey.E,
+	})
+	if err != nil {
+		return
+	}
+
+	if len(template.SubjectKeyId) > 0 && len(parent.SubjectKeyId) > 0 {
+		template.AuthorityKeyId = parent.SubjectKeyId
+	}
+
+	extensions, err := buildExtensions(template)
+	if err != nil {
+		return
+	}
+
+	encodedPublicKey := asn1.BitString{BitLength: len(asn1PublicKey) * 8, Bytes: asn1PublicKey}
+	c := tbsCertificate{
+		Version: 3,
+		SerialNumber: asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
+		SignatureAlgorithm: algorithmIdentifier{oidSHA1WithRSA},
+		Issuer: parent.Subject.toRDNSequence(),
+		Validity: validity{template.NotBefore, template.NotAfter},
+		Subject: template.Subject.toRDNSequence(),
+		PublicKey: publicKeyInfo{algorithmIdentifier{oidRSA}, encodedPublicKey},
+		Extensions: extensions,
+	}
+
+	tbsCertContents, err := asn1.MarshalToMemory(c)
+	if err != nil {
+		return
+	}
+
+	c.Raw = tbsCertContents
+
+	h := sha1.New()
+	h.Write(tbsCertContents)
+	digest := h.Sum()
+
+	signature, err := rsa.SignPKCS1v15(rand, priv, rsa.HashSHA1, digest)
+	if err != nil {
+		return
+	}
+
+	cert, err = asn1.MarshalToMemory(certificate{
+		c,
+		algorithmIdentifier{oidSHA1WithRSA},
+		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
+	})
+	return
 }
