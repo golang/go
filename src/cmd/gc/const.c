@@ -5,10 +5,12 @@
 #include	"go.h"
 #define	TUP(x,y)	(((x)<<16)|(y))
 
-static Val tocplx(Val);
-static Val toflt(Val);
-static Val tostr(Val);
-static Val copyval(Val);
+static	Val	tocplx(Val);
+static	Val	toflt(Val);
+static	Val	tostr(Val);
+static	Val	copyval(Val);
+static	void	cmplxmpy(Mpcplx *v, Mpcplx *rv);
+static	void	cmplxdiv(Mpcplx *v, Mpcplx *rv);
 
 /*
  * truncate float literal fv to 32-bit or 64-bit precision
@@ -614,9 +616,10 @@ evconst(Node *n)
 		mpsubfltflt(&v.u.cval->imag, &rv.u.cval->imag);
 		break;
 	case TUP(OMUL, CTCPLX):
-		goto illegal;	// TODO
+		cmplxmpy(v.u.cval, rv.u.cval);
+		break;
 	case TUP(ODIV, CTCPLX):
-		goto illegal;	// TODO
+		cmplxdiv(v.u.cval, rv.u.cval);
 		break;
 
 	case TUP(OEQ, CTNIL):
@@ -791,6 +794,13 @@ unary:
 		break;
 	case TUP(OMINUS, CTFLT):
 		mpnegflt(v.u.fval);
+		break;
+
+	case TUP(OPLUS, CTCPLX):
+		break;
+	case TUP(OMINUS, CTCPLX):
+		mpnegflt(&v.u.cval->real);
+		mpnegflt(&v.u.cval->imag);
 		break;
 
 	case TUP(ONOT, CTBOOL):
@@ -1186,4 +1196,66 @@ convconst(Node *con, Type *t, Val *val)
 
 	fatal("convconst %lT constant", t);
 
+}
+
+// complex multiply v *= rv
+//	(a, b) * (c, d) = (a*c - b*d, b*c + a*d)
+static void
+cmplxmpy(Mpcplx *v, Mpcplx *rv)
+{
+	Mpflt ac, bd, bc, ad;
+
+	mpmovefltflt(&ac, &v->real);
+	mpmulfltflt(&ac, &rv->real);	// ac
+
+	mpmovefltflt(&bd, &v->imag);
+	mpmulfltflt(&bd, &rv->imag);	// bd
+
+	mpmovefltflt(&bc, &v->imag);
+	mpmulfltflt(&bc, &rv->real);	// bc
+
+	mpmovefltflt(&ad, &v->real);
+	mpmulfltflt(&ad, &rv->imag);	// ad
+
+	mpmovefltflt(&v->real, &ac);
+	mpsubfltflt(&v->real, &bd);	// ac-bd
+
+	mpmovefltflt(&v->imag, &bc);
+	mpaddfltflt(&v->imag, &ad);	// bc+ad
+}
+
+// complex divide v /= rv
+//	(a, b) / (c, d) = ((a*c + b*d), (b*c - a*d))/(c*c + d*d)
+static void
+cmplxdiv(Mpcplx *v, Mpcplx *rv)
+{
+	Mpflt ac, bd, bc, ad, cc_plus_dd;
+
+	mpmovefltflt(&cc_plus_dd, &rv->real);
+	mpmulfltflt(&cc_plus_dd, &rv->real);	// cc
+
+	mpmovefltflt(&ac, &rv->imag);
+	mpmulfltflt(&ac, &rv->imag);		// dd
+
+	mpaddfltflt(&cc_plus_dd, &ac);		// cc+dd
+
+	mpmovefltflt(&ac, &v->real);
+	mpmulfltflt(&ac, &rv->real);		// ac
+
+	mpmovefltflt(&bd, &v->imag);
+	mpmulfltflt(&bd, &rv->imag);		// bd
+
+	mpmovefltflt(&bc, &v->imag);
+	mpmulfltflt(&bc, &rv->real);		// bc
+
+	mpmovefltflt(&ad, &v->real);
+	mpmulfltflt(&ad, &rv->imag);		// ad
+
+	mpmovefltflt(&v->real, &ac);
+	mpaddfltflt(&v->real, &bd);		// ac+bd
+	mpdivfltflt(&v->real, &cc_plus_dd);	// (ac+bd)/(cc+dd)
+
+	mpmovefltflt(&v->imag, &bc);
+	mpsubfltflt(&v->imag, &ad);		// bc-ad
+	mpdivfltflt(&v->imag, &cc_plus_dd);	// (bc+ad)/(cc+dd)
 }

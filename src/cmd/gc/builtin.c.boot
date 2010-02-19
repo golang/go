@@ -9,6 +9,7 @@ char *runtimeimport =
 	"func \"\".printfloat (? float64)\n"
 	"func \"\".printint (? int64)\n"
 	"func \"\".printuint (? uint64)\n"
+	"func \"\".printcomplex (? complex128)\n"
 	"func \"\".printstring (? string)\n"
 	"func \"\".printpointer (? any)\n"
 	"func \"\".printiface (? any)\n"

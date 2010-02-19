@@ -794,11 +794,13 @@ walkexpr(Node **np, NodeList **init)
 	case OCONV:
 	case OCONVNOP:
 		if(thechar == '5') {
-			if(isfloat[n->left->type->etype] && (n->type->etype == TINT64 || n->type->etype == TUINT64)) {
+			if(isfloat[n->left->type->etype] &&
+			   (n->type->etype == TINT64 || n->type->etype == TUINT64)) {
 				n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
 				goto ret;
 			}
-			if((n->left->type->etype == TINT64 || n->left->type->etype == TUINT64) && isfloat[n->type->etype]) {
+			if((n->left->type->etype == TINT64 || n->left->type->etype == TUINT64) &&
+			   isfloat[n->type->etype]) {
 				n = mkcall("int64tofloat64", n->type, init, conv(n->left, types[TINT64]));
 				goto ret;
 			}
@@ -1727,7 +1729,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 		} else if(iscomplex[et]) {
 			if(defer) {
 				fmtprint(&fmt, "%%f");
-				t = types[TFLOAT64];
+				t = types[TCOMPLEX128];
 			} else
 				on = syslook("printcomplex", 0);
 		} else if(et == TBOOL) {
@@ -2036,8 +2038,10 @@ convas(Node *n, NodeList **init)
 	if(lt == T || rt == T)
 		goto out;
 
-	if(isblank(n->left))
+	if(isblank(n->left)) {
+		defaultlit(&n->right, T);
 		goto out;
+	}
 
 	if(n->left->op == OINDEXMAP) {
 		n = mkcall1(mapfn("mapassign1", n->left->left->type), T, init,
