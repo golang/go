@@ -77,14 +77,9 @@ func (dt *delayTime) backoff(max int) {
 var (
 	verbose = flag.Bool("v", false, "verbose mode")
 
-	// "fixed" file system roots
-	goroot   string
-	cmdroot  string
-	pkgroot  string
-	tmplroot string
-
-	// additional file system roots to consider
-	path = flag.String("path", "", "additional package directories (colon-separated)")
+	// file system roots
+	goroot string
+	path   = flag.String("path", "", "additional package directories (colon-separated)")
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width")
@@ -106,19 +101,14 @@ func init() {
 		goroot = pathutil.Join(os.Getenv("HOME"), "go")
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory")
-
-	// other flags/variables that depend on goroot
-	flag.StringVar(&cmdroot, "cmdroot", pathutil.Join(goroot, "src/cmd"), "command source directory")
-	flag.StringVar(&pkgroot, "pkgroot", pathutil.Join(goroot, "src/pkg"), "package source directory")
-	flag.StringVar(&tmplroot, "tmplroot", pathutil.Join(goroot, "lib/godoc"), "template directory")
 }
 
 
 func initHandlers() {
 	fsMap.Init(*path)
 	fileServer = http.FileServer(goroot, "")
-	cmdHandler = httpHandler{"/cmd/", cmdroot, false}
-	pkgHandler = httpHandler{"/pkg/", pkgroot, true}
+	cmdHandler = httpHandler{"/cmd/", pathutil.Join(goroot, "src/cmd"), false}
+	pkgHandler = httpHandler{"/pkg/", pathutil.Join(goroot, "src/pkg"), true}
 }
 
 
@@ -790,7 +780,7 @@ var fmap = template.FormatterMap{
 
 
 func readTemplate(name string) *template.Template {
-	path := pathutil.Join(tmplroot, name)
+	path := pathutil.Join(goroot, "lib/godoc/"+name)
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Exitf("ReadFile %s: %v", path, err)
@@ -813,7 +803,7 @@ var (
 )
 
 func readTemplates() {
-	// have to delay until after flags processing, so that tmplroot is known
+	// have to delay until after flags processing since paths depend on goroot
 	dirlistHTML = readTemplate("dirlist.html")
 	errorHTML = readTemplate("error.html")
 	godocHTML = readTemplate("godoc.html")
@@ -832,6 +822,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 		PkgRoots  []string
 		Timestamp uint64 // int64 to be compatible with os.Dir.Mtime_ns
 		Query     string
+		Menu      []byte
 		Content   []byte
 	}
 
@@ -841,6 +832,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 		PkgRoots: fsMap.PrefixList(),
 		Timestamp: uint64(ts) * 1e9, // timestamp in ns
 		Query: query,
+		Menu: nil,
 		Content: content,
 	}
 
@@ -872,12 +864,6 @@ func commentText(src []byte) (text string) {
 		text = string(bytes.TrimSpace(src[i+len(tagBegin) : j]))
 	}
 	return
-}
-
-
-func serveError(c *http.Conn, r *http.Request, relpath string, err os.Error) {
-	contents := applyTemplate(errorHTML, "errorHTML", err)
-	servePage(c, "File "+relpath, "", contents)
 }
 
 
@@ -1066,7 +1052,7 @@ func serveFile(c *http.Conn, r *http.Request) {
 	dir, err := os.Lstat(abspath)
 	if err != nil {
 		log.Stderr(err)
-		serveError(c, r, abspath, err)
+		serveError(c, r, relpath, err)
 		return
 	}
 
@@ -1136,8 +1122,9 @@ func (h *httpHandler) getPageInfo(relpath string, try bool) PageInfo {
 		log.Stderrf("parser.parseDir: %s", err)
 	}
 	if len(pkgs) != 1 && !try {
-		// TODO: should handle multiple packages
-		log.Stderrf("parser.parseDir: found %d packages", len(pkgs))
+		// TODO: should handle multiple packages,
+		//       error reporting disabled for now
+		// log.Stderrf("parser.parseDir: found %d packages", len(pkgs))
 	}
 
 	// Get the best matching package: either the first one, or the
@@ -1166,7 +1153,7 @@ func (h *httpHandler) getPageInfo(relpath string, try bool) PageInfo {
 
 	// get directory information
 	var dir *Directory
-	if tree, _ := fsTree.get(); tree != nil {
+	if tree, _ := fsTree.get(); tree != nil && tree.(*Directory) != nil {
 		// directory tree is present; lookup respective directory
 		// (may still fail if the file system was updated and the
 		// new directory tree has not yet been computed)

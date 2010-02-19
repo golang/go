@@ -27,12 +27,6 @@ The flags are:
 		width of tabs in units of spaces
 	-path=""
 		additional package directories (colon-separated)
-	-cmdroot="/goroot/src/cmd"
-		command source directory under -goroot (if unrooted, relative to cwd)
-	-tmplroot="/goroot/lib/godoc"
-		template directory under -goroot (if unrooted, relative to cwd)
-	-pkgroot="/goroot/src/pkg"
-		package source directory under -goroot (if unrooted, relative to cwd)
 	-html
 		print HTML in command-line mode
 	-goroot=$GOROOT
