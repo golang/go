@@ -526,11 +526,10 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	typ := p.tryType()
 
 	// optional tag
-	var tag []*ast.BasicLit
+	var tag *ast.BasicLit
 	if p.tok == token.STRING {
-		x := &ast.BasicLit{p.pos, p.tok, p.lit}
+		tag = &ast.BasicLit{p.pos, p.tok, p.lit}
 		p.next()
-		tag = []*ast.BasicLit{x}
 	}
 
 	// analyze case
@@ -1129,7 +1128,6 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.BasicLit:
-	case *ast.StringList:
 	case *ast.FuncLit:
 	case *ast.CompositeLit:
 	case *ast.ParenExpr:
@@ -1827,11 +1825,10 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 		p.declIdent(p.fileScope, ident)
 	}
 
-	var path []*ast.BasicLit
+	var path *ast.BasicLit
 	if p.tok == token.STRING {
-		x := &ast.BasicLit{p.pos, p.tok, p.lit}
+		path = &ast.BasicLit{p.pos, p.tok, p.lit}
 		p.next()
-		path = []*ast.BasicLit{x}
 	} else {
 		p.expect(token.STRING) // use expect() error handling
 	}

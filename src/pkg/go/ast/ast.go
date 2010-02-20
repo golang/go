@@ -90,7 +90,7 @@ type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
 	Names   []*Ident      // field/method/parameter names; or nil if anonymous field
 	Type    Expr          // field/method/parameter type
-	Tag     []*BasicLit   // field tag; or nil
+	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
 
@@ -134,17 +134,6 @@ type (
 		token.Position             // literal position
 		Kind           token.Token //  token.INT, token.FLOAT, token.CHAR, or token.STRING
 		Value          []byte      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
-	}
-
-	// A StringList node represents a sequence of adjacent string literals.
-	// A single string literal (common case) is represented by a BasicLit
-	// node; StringList nodes are used only if there are two or more string
-	// literals in a sequence.
-	// TODO(gri) Deprecated. StringLists are only created by exp/parser;
-	//           Remove when exp/parser is removed.
-	//
-	StringList struct {
-		Strings []*BasicLit // list of strings, len(Strings) > 1
 	}
 
 	// A FuncLit node represents a function literal.
@@ -309,7 +298,6 @@ type (
 // Pos() implementations for expression/type where the position
 // corresponds to the position of a sub-node.
 //
-func (x *StringList) Pos() token.Position     { return x.Strings[0].Pos() }
 func (x *FuncLit) Pos() token.Position        { return x.Type.Pos() }
 func (x *CompositeLit) Pos() token.Position   { return x.Type.Pos() }
 func (x *SelectorExpr) Pos() token.Position   { return x.X.Pos() }
@@ -327,7 +315,6 @@ func (x *BadExpr) exprNode()        {}
 func (x *Ident) exprNode()          {}
 func (x *Ellipsis) exprNode()       {}
 func (x *BasicLit) exprNode()       {}
-func (x *StringList) exprNode()     {}
 func (x *FuncLit) exprNode()        {}
 func (x *CompositeLit) exprNode()   {}
 func (x *ParenExpr) exprNode()      {}
@@ -604,7 +591,7 @@ type (
 	ImportSpec struct {
 		Doc     *CommentGroup // associated documentation; or nil
 		Name    *Ident        // local package name (including "."); or nil
-		Path    []*BasicLit   // package path
+		Path    *BasicLit     // package path
 		Comment *CommentGroup // line comments; or nil
 	}
 
@@ -634,7 +621,7 @@ func (s *ImportSpec) Pos() token.Position {
 	if s.Name != nil {
 		return s.Name.Pos()
 	}
-	return s.Path[0].Pos()
+	return s.Path.Pos()
 }
 
 func (s *ValueSpec) Pos() token.Position { return s.Names[0].Pos() }

@@ -90,14 +90,14 @@ func openProg(name string, p *Prog) {
 		ws := 0
 		for _, spec := range d.Specs {
 			s, ok := spec.(*ast.ImportSpec)
-			if !ok || len(s.Path) != 1 || string(s.Path[0].Value) != `"C"` {
+			if !ok || string(s.Path.Value) != `"C"` {
 				d.Specs[ws] = spec
 				ws++
 				continue
 			}
 			sawC = true
 			if s.Name != nil {
-				error(s.Path[0].Pos(), `cannot rename import "C"`)
+				error(s.Path.Pos(), `cannot rename import "C"`)
 			}
 			if s.Doc != nil {
 				p.Preamble += doc.CommentText(s.Doc) + "\n"
@@ -168,7 +168,6 @@ func walk(x interface{}, p *Prog, context string) {
 	case *ast.Ident:
 	case *ast.Ellipsis:
 	case *ast.BasicLit:
-	case *ast.StringList:
 	case *ast.FuncLit:
 		walk(n.Type, p, "type")
 		walk(n.Body, p, "stmt")

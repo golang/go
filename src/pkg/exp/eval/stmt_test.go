@@ -202,8 +202,8 @@ var stmtTests = []test{
 	Run("fn1 := func() int { L: goto L; i = 2 }"),
 	Run("fn1 := func() int { return 1; L: goto L }"),
 	// Scope checking
-	Run("fn1 := func() { { L: x:=1 } goto L }"),
-	CErr("fn1 := func() { { x:=1; L: } goto L }", "into scope"),
+	Run("fn1 := func() { { L: x:=1 }; goto L }"),
+	CErr("fn1 := func() { { x:=1; L: }; goto L }", "into scope"),
 	CErr("fn1 := func() { goto L; x:=1; L: }", "into scope"),
 	Run("fn1 := func() { goto L; { L: x:=1 } }"),
 	CErr("fn1 := func() { goto L; { x:=1; L: } }", "into scope"),
@@ -279,10 +279,10 @@ var stmtTests = []test{
 	// Scoping
 	Val2("for i := 2; true; { i2 = i; i := 3; break }", "i", 1, "i2", 2),
 	// Labeled break/continue
-	Val1("L1: for { L2: for { i+=2; break L1; i+=4 } i+=8 }", "i", 1+2),
-	Val1("L1: for { L2: for { i+=2; break L2; i+=4 } i+=8; break; i+=16 }", "i", 1+2+8),
+	Val1("L1: for { L2: for { i+=2; break L1; i+=4 }; i+=8 }", "i", 1+2),
+	Val1("L1: for { L2: for { i+=2; break L2; i+=4 }; i+=8; break; i+=16 }", "i", 1+2+8),
 	CErr("L1: { for { break L1 } }", "break.*not defined"),
-	CErr("L1: for {} for { break L1 }", "break.*not defined"),
+	CErr("L1: for {}; for { break L1 }", "break.*not defined"),
 	CErr("L1:; for { break L1 }", "break.*not defined"),
 	Val2("L1: for i = 0; i < 2; i++ { L2: for { i2++; continue L1; i2++ } }", "i", 2, "i2", 4),
 	CErr("L1: { for { continue L1 } }", "continue.*not defined"),
@@ -294,7 +294,7 @@ var stmtTests = []test{
 	CErr("fn1 := func() int{ for {break} }", "return"),
 	Run("fn1 := func() int{ for { for {break} } }"),
 	CErr("fn1 := func() int{ L1: for { for {break L1} } }", "return"),
-	Run("fn1 := func() int{ for true {} return 1 }"),
+	Run("fn1 := func() int{ for true {}; return 1 }"),
 
 	// Selectors
 	Val1("var x struct { a int; b int }; x.a = 42; i = x.a", "i", 42),
@@ -305,7 +305,7 @@ var stmtTests = []test{
 	CErr("type T struct { x int }; type U struct { x int }; var y struct { T; U }; y.x = 42", "ambiguous.*\tT\\.x\n\tU\\.x"),
 	CErr("type T struct { *T }; var x T; x.foo", "no field"),
 
-	Val1("fib := func(int) int{return 0;}; fib = func(v int) int { if v < 2 { return 1 } return fib(v-1)+fib(v-2) }; i = fib(20)", "i", 10946),
+	Val1("fib := func(int) int{return 0;}; fib = func(v int) int { if v < 2 { return 1 }; return fib(v-1)+fib(v-2) }; i = fib(20)", "i", 10946),
 
 	// Make slice
 	Val2("x := make([]int, 2); x[0] = 42; i, i2 = x[0], x[1]", "i", 42, "i2", 0),
@@ -335,7 +335,7 @@ var stmtTests = []test{
 	RErr("x := make(map[int] int); i = x[1]", "key '1' not found"),
 
 	// Functions
-	Val2("func fib(n int) int { if n <= 2 { return n } return fib(n-1) + fib(n-2) }", "fib(4)", 5, "fib(10)", 89),
+	Val2("func fib(n int) int { if n <= 2 { return n }; return fib(n-1) + fib(n-2) }", "fib(4)", 5, "fib(10)", 89),
 	Run("func f1(){}"),
 	Run2("func f1(){}", "f1()"),
 }

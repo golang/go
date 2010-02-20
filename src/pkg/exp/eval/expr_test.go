@@ -51,9 +51,6 @@ var exprTests = []test{
 	CErr("\"\\z\"", illegalEscape),
 	CErr("\"abc", "string not terminated"),
 
-	Val("\"abc\" \"def\"", "abcdef"),
-	CErr("\"abc\" \"\\z\"", illegalEscape),
-
 	Val("(i)", 1),
 
 	Val("ai[0]", 1),

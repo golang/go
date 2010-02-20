@@ -627,20 +627,6 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 		}
 		return ei.compileStarExpr(v)
 
-	case *ast.StringList:
-		strings := make([]*expr, len(x.Strings))
-		bad := false
-		for i, s := range x.Strings {
-			strings[i] = a.compile(s, false)
-			if strings[i] == nil {
-				bad = true
-			}
-		}
-		if bad {
-			return nil
-		}
-		return ei.compileStringList(strings)
-
 	case *ast.StructType:
 		goto notimpl
 
