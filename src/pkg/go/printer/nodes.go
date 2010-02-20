@@ -88,7 +88,7 @@ func (p *printer) commentList(list []*ast.Comment) {
 // Print a lead comment followed by a newline.
 func (p *printer) leadComment(d *ast.CommentGroup) {
 	// Ignore the comment if we have comments interspersed (p.comment != nil).
-	if p.comment == nil && d != nil {
+	if p.comments == nil && d != nil {
 		p.commentList(d.List)
 		p.print(newline)
 	}
@@ -100,7 +100,7 @@ func (p *printer) leadComment(d *ast.CommentGroup) {
 // the comment may be a //-style comment.
 func (p *printer) lineComment(d *ast.CommentGroup) {
 	// Ignore the comment if we have comments interspersed (p.comment != nil).
-	if p.comment == nil && d != nil {
+	if p.comments == nil && d != nil {
 		p.print(vtab)
 		p.commentList(d.List)
 	}
@@ -152,8 +152,8 @@ const (
 // Remove this after transitioning to new semicolon syntax and
 // some reasonable grace period (12/11/09).
 func (p *printer) beforeComment(pos token.Position) token.Position {
-	if p.comment != nil {
-		p := p.comment.List[0].Position
+	if p.cindex < len(p.comments) {
+		p := p.comments[p.cindex].List[0].Position
 		if !pos.IsValid() || pos.Offset > p.Offset {
 			return p
 		}
@@ -852,7 +852,7 @@ func (p *printer) moveCommentsAfter(pos token.Position) {
 	//            Remove this after transitioning to new semicolon
 	//            syntax and some reasonable grace period (12/11/09).
 	if p.commentBefore(pos) {
-		p.comment.List[0].Position = pos
+		p.comments[p.cindex].List[0].Position = pos
 	}
 }
 

@@ -107,8 +107,6 @@ func filterSpec(spec Spec) bool {
 			return true
 		}
 	case *TypeSpec:
-		// TODO(gri) consider stripping forward declarations
-		//           of structs, interfaces, functions, and methods
 		if s.Name.IsExported() {
 			filterType(s.Type)
 			return true
@@ -136,9 +134,6 @@ func filterDecl(decl Decl) bool {
 		d.Specs = filterSpecList(d.Specs)
 		return len(d.Specs) > 0
 	case *FuncDecl:
-		// TODO consider removing function declaration altogether if
-		//      forward declaration (i.e., if d.Body == nil) because
-		//      in that case the actual declaration will come later.
 		d.Body = nil // strip body
 		return d.Name.IsExported()
 	}
@@ -230,7 +225,7 @@ func MergePackageFiles(pkg *Package) *File {
 				}
 			}
 		}
-		doc = &CommentGroup{list, nil}
+		doc = &CommentGroup{list}
 	}
 
 	// Collect declarations from all package files.
@@ -246,8 +241,6 @@ func MergePackageFiles(pkg *Package) *File {
 		}
 	}
 
-	// TODO(gri) Should collect comments as well. For that the comment
-	//           list should be changed back into a []*CommentGroup,
-	//           otherwise need to modify the existing linked list.
+	// TODO(gri) Should collect comments as well.
 	return &File{doc, noPos, NewIdent(pkg.Name), decls, nil}
 }

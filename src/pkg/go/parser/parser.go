@@ -45,7 +45,7 @@ type parser struct {
 	indent uint // indentation used for tracing output
 
 	// Comments
-	comments    *ast.CommentGroup // list of collected comments
+	comments    vector.Vector     // list of *CommentGroup
 	lastComment *ast.CommentGroup // last comment in the comments list
 	leadComment *ast.CommentGroup // the last lead comment
 	lineComment *ast.CommentGroup // the last line comment
@@ -183,12 +183,8 @@ func (p *parser) consumeCommentGroup() int {
 	}
 
 	// add comment group to the comments list
-	g := &ast.CommentGroup{group, nil}
-	if p.lastComment != nil {
-		p.lastComment.Next = g
-	} else {
-		p.comments = g
-	}
+	g := &ast.CommentGroup{group}
+	p.comments.Push(g)
 	p.lastComment = g
 
 	return endline
@@ -2095,5 +2091,11 @@ func (p *parser) parseFile() *ast.File {
 		}
 	}
 
-	return &ast.File{doc, pos, ident, decls, p.comments}
+	// convert comments list
+	comments := make([]*ast.CommentGroup, len(p.comments))
+	for i, x := range p.comments {
+		comments[i] = x.(*ast.CommentGroup)
+	}
+
+	return &ast.File{doc, pos, ident, decls, comments}
 }

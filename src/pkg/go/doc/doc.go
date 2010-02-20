@@ -272,7 +272,7 @@ func (doc *docReader) addFile(src *ast.File) {
 	}
 
 	// collect BUG(...) comments
-	for c := src.Comments; c != nil; c = c.Next {
+	for _, c := range src.Comments {
 		text := c.List[0].Text
 		cstr := string(text)
 		if m := bug_markers.ExecuteString(cstr); len(m) > 0 {
@@ -281,7 +281,7 @@ func (doc *docReader) addFile(src *ast.File) {
 				// non-empty BUG comment; collect comment without BUG prefix
 				list := copyCommentList(c.List)
 				list[0].Text = text[m[1]:]
-				doc.bugs.Push(&ast.CommentGroup{list, nil})
+				doc.bugs.Push(&ast.CommentGroup{list})
 			}
 		}
 	}
