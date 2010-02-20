@@ -53,18 +53,12 @@ mpaddfltflt(Mpflt *a, Mpflt *b)
 		print("\n%F + %F", a, b);
 
 	sa = sigfig(a);
-	sb = sigfig(b);
-
 	if(sa == 0) {
-		if(sb == 0) {
-			// zero
-			a->exp = 0;
-			a->val.neg = 0;
-			return;
-		}
 		mpmovefltflt(a, b);
 		goto out;
 	}
+
+	sb = sigfig(b);
 	if(sb == 0)
 		goto out;
 
@@ -100,12 +94,17 @@ mpmulfltflt(Mpflt *a, Mpflt *b)
 		print("%F\n * %F\n", a, b);
 
 	sa = sigfig(a);
-	sb = sigfig(b);
-
-	if(sa == 0 || sb == 0) {
+	if(sa == 0) {
 		// zero
 		a->exp = 0;
 		a->val.neg = 0;
+		return;
+	}
+
+	sb = sigfig(b);
+	if(sb == 0) {
+		// zero
+		mpmovefltflt(a, b);
 		return;
 	}
 
@@ -126,9 +125,7 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
 	if(Mpdebug)
 		print("%F\n / %F\n", a, b);
 
-	sa = sigfig(a);
 	sb = sigfig(b);
-
 	if(sb == 0) {
 		// zero and ovfl
 		a->exp = 0;
@@ -137,6 +134,8 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
 		yyerror("mpdivfltflt divide by zero");
 		return;
 	}
+
+	sa = sigfig(a);
 	if(sa == 0) {
 		// zero
 		a->exp = 0;

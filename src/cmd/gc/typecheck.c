@@ -1367,13 +1367,9 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
 		return 1;
 	}
 
-	// simple fix-float
-	if(isint[t->etype] || isfloat[t->etype])
-	if(isint[nt->etype] || isfloat[nt->etype])
-		return 1;
-
-	// between versions of complex
-	if(iscomplex[t->etype] || iscomplex[nt->etype])
+	// simple fix-float-complex
+	if(isint[t->etype] || isfloat[t->etype] || iscomplex[t->etype])
+	if(isint[nt->etype] || isfloat[nt->etype] || iscomplex[nt->etype])
 		return 1;
 
 	// to string

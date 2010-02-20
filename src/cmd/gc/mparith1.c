@@ -206,7 +206,7 @@ void
 mpatoflt(Mpflt *a, char *as)
 {
 	Mpflt b;
-	int dp, c, f, ef, ex, eb, zer;
+	int dp, c, f, ef, ex, eb;
 	char *s;
 
 	s = as;
@@ -214,7 +214,6 @@ mpatoflt(Mpflt *a, char *as)
 	f = 0;		/* sign */
 	ex = 0;		/* exponent */
 	eb = 0;		/* binary point */
-	zer = 1;	/* zero */
 
 	mpmovecflt(a, 0.0);
 	for(;;) {
@@ -243,8 +242,6 @@ mpatoflt(Mpflt *a, char *as)
 		case '7':
 		case '8':
 		case '9':
-			zer = 0;
-
 		case '0':
 			mpmulcflt(a, 10);
 			mpaddcflt(a, c-'0');

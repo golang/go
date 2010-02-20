@@ -9,8 +9,8 @@ static	Val	tocplx(Val);
 static	Val	toflt(Val);
 static	Val	tostr(Val);
 static	Val	copyval(Val);
-static	void	cmplxmpy(Mpcplx *v, Mpcplx *rv);
-static	void	cmplxdiv(Mpcplx *v, Mpcplx *rv);
+static	void	cmplxmpy(Mpcplx*, Mpcplx*);
+static	void	cmplxdiv(Mpcplx*, Mpcplx*);
 
 /*
  * truncate float literal fv to 32-bit or 64-bit precision
@@ -589,6 +589,7 @@ evconst(Node *n)
 	case TUP(OXOR, CTINT):
 		mpxorfixfix(v.u.xval, rv.u.xval);
 		break;
+
 	case TUP(OADD, CTFLT):
 		mpaddfltflt(v.u.fval, rv.u.fval);
 		break;
@@ -619,6 +620,13 @@ evconst(Node *n)
 		cmplxmpy(v.u.cval, rv.u.cval);
 		break;
 	case TUP(ODIV, CTCPLX):
+		if(mpcmpfltc(&rv.u.cval->real, 0) == 0 &&
+		   mpcmpfltc(&rv.u.cval->imag, 0) == 0) {
+			yyerror("complex division by zero");
+			mpmovecflt(&rv.u.cval->real, 1.0);
+			mpmovecflt(&rv.u.cval->imag, 0.0);
+			break;
+		}
 		cmplxdiv(v.u.cval, rv.u.cval);
 		break;
 
@@ -674,6 +682,17 @@ evconst(Node *n)
 		goto setfalse;
 	case TUP(OGT, CTFLT):
 		if(mpcmpfltflt(v.u.fval, rv.u.fval) > 0)
+			goto settrue;
+		goto setfalse;
+
+	case TUP(OEQ, CTCPLX):
+		if(mpcmpfltflt(&v.u.cval->real, &rv.u.cval->real) == 0 &&
+		   mpcmpfltflt(&v.u.cval->imag, &rv.u.cval->imag) == 0)
+			goto settrue;
+		goto setfalse;
+	case TUP(ONE, CTCPLX):
+		if(mpcmpfltflt(&v.u.cval->real, &rv.u.cval->real) != 0 ||
+		   mpcmpfltflt(&v.u.cval->imag, &rv.u.cval->imag) != 0)
 			goto settrue;
 		goto setfalse;
 

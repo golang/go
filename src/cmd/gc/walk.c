@@ -1727,7 +1727,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 				on = syslook("printfloat", 0);
 		} else if(iscomplex[et]) {
 			if(defer) {
-				fmtprint(&fmt, "%%f");
+				fmtprint(&fmt, "%%C");
 				t = types[TCOMPLEX128];
 			} else
 				on = syslook("printcomplex", 0);
