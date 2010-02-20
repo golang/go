@@ -75,7 +75,6 @@ type Comment struct {
 //
 type CommentGroup struct {
 	List []*Comment
-	Next *CommentGroup // next comment group in source order
 }
 
 
@@ -695,12 +694,16 @@ func (d *FuncDecl) declNode() {}
 
 // A File node represents a Go source file.
 //
+// The Comments list contains all comments in the source file in order of
+// appearance, including the comments that are pointed to from other nodes
+// via Doc and Comment fields.
+//
 type File struct {
-	Doc            *CommentGroup // associated documentation; or nil
-	token.Position               // position of "package" keyword
-	Name           *Ident        // package name
-	Decls          []Decl        // top-level declarations
-	Comments       *CommentGroup // list of all comments in the source file
+	Doc            *CommentGroup   // associated documentation; or nil
+	token.Position                 // position of "package" keyword
+	Name           *Ident          // package name
+	Decls          []Decl          // top-level declarations
+	Comments       []*CommentGroup // list of all comments in the source file
 }
 
 

@@ -88,8 +88,9 @@ type printer struct {
 	// HTML support
 	lastTaggedLine int // last line for which a line tag was written
 
-	// The list of comments; or nil.
-	comment *ast.CommentGroup
+	// The list of all source comments, in order of appearance.
+	comments []*ast.CommentGroup // may be nil
+	cindex   int                 // current comment index
 }
 
 
@@ -624,8 +625,8 @@ func (p *printer) intersperseComments(next token.Position, isKeyword bool) {
 	isFirst := true
 	needsLinebreak := false
 	var last *ast.Comment
-	for ; p.commentBefore(next); p.comment = p.comment.Next {
-		for _, c := range p.comment.List {
+	for ; p.commentBefore(next); p.cindex++ {
+		for _, c := range p.comments[p.cindex].List {
 			p.writeCommentPrefix(c.Pos(), next, isFirst, isKeyword)
 			isFirst = false
 			p.writeComment(c)
@@ -792,7 +793,7 @@ func (p *printer) print(args ...) {
 // before the next position in the source code.
 //
 func (p *printer) commentBefore(next token.Position) bool {
-	return p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset
+	return p.cindex < len(p.comments) && p.comments[p.cindex].List[0].Pos().Offset < next.Offset
 }
 
 
@@ -981,7 +982,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 		case ast.Decl:
 			p.decl(n, atTop, ignoreMultiLine)
 		case *ast.File:
-			p.comment = n.Comments
+			p.comments = n.Comments
 			p.file(n)
 		default:
 			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n))
