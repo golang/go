@@ -19,6 +19,7 @@ OFILES=\
 	galign.$O\
 	ggen.$O\
 	cgen.$O\
+	cplx.$O\
 	gsubr.$O\
 	peep.$O\
 	reg.$O\

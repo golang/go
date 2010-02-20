@@ -118,6 +118,9 @@ vprintf(int8 *s, byte *arg)
 		case 'f':
 			·printfloat(*(float64*)arg);
 			break;
+		case 'C':
+			·printcomplex(*(Complex128*)arg);
+			break;
 		case 'i':
 			·printiface(*(Iface*)arg);
 			break;
@@ -256,6 +259,16 @@ void
 	buf[n+5] = (e/10)%10 + '0';
 	buf[n+6] = (e%10) + '0';
 	write(fd, buf, n+7);
+}
+
+void
+·printcomplex(Complex128 v)
+{
+	write(fd, "(", 1);
+	·printfloat(v.real);
+	write(fd, ",", 1);
+	·printfloat(v.imag);
+	write(fd, "i)", 2);
 }
 
 void

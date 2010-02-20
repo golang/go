@@ -59,11 +59,13 @@ typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
 typedef	struct	Iface		Iface;
 typedef	struct	Itab		Itab;
-typedef	struct	Eface	Eface;
+typedef	struct	Eface		Eface;
 typedef	struct	Type		Type;
 typedef	struct	Defer		Defer;
 typedef	struct	hash		Hmap;
 typedef	struct	Hchan		Hchan;
+typedef	struct	Complex64	Complex64;
+typedef	struct	Complex128	Complex128;
 
 /*
  * per-cpu declaration.
@@ -144,6 +146,16 @@ struct Eface
 {
 	Type*	type;
 	void*	data;
+};
+struct Complex64
+{
+	float32	real;
+	float32	imag;
+};
+struct Complex128
+{
+	float64	real;
+	float64	imag;
 };
 
 struct	Slice
@@ -460,6 +472,7 @@ void	notewakeup(Note*);
 #define runtime_printpointer ·printpointer
 #define runtime_printstring ·printstring
 #define runtime_printuint ·printuint
+#define runtime_printcomplex ·printcomplex
 #define runtime_setcallerpc ·setcallerpc
 #endif
 
@@ -492,6 +505,7 @@ void	runtime_printpointer(void*);
 void	runtime_printuint(uint64);
 void	runtime_printhex(uint64);
 void	runtime_printslice(Slice);
+void	runtime_printcomplex(Complex128);
 void	·panicl(int32);
 
 /*

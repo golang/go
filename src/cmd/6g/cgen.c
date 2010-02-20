@@ -134,6 +134,13 @@ cgen(Node *n, Node *res)
 		goto ret;
 	}
 
+	// complex ops are special.
+	if(iscomplex[n->type->etype] || iscomplex[res->type->etype] ||
+	   n->left != N && iscomplex[n->left->type->etype]) {
+		complexgen(n, res);
+		goto ret;
+	}
+
 	a = optoas(OAS, n->type);
 	if(sudoaddable(a, n, &addr)) {
 		if(res->op == OREGISTER) {
@@ -222,6 +229,7 @@ cgen(Node *n, Node *res)
 		regalloc(&n1, nl->type, res);
 		regalloc(&n2, n->type, &n1);
 		cgen(nl, &n1);
+
 		// if we do the conversion n1 -> n2 here
 		// reusing the register, then gmove won't
 		// have to allocate its own register.
