@@ -64,9 +64,8 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
 				if err != nil {
 					return n, err
 				}
-				if (c & 0x80) == 0x80 {
-					length = length*128 + int(c&0x7f)
-				} else {
+				length = length*128 + int(c&0x7f)
+				if (c & 0x80) == 0 {
 					break
 				}
 			}
