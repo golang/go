@@ -43,7 +43,7 @@ func runTests(t *testing.T, baseName string, tests []test) {
 func (a test) run(t *testing.T, name string) {
 	w := newTestWorld()
 	for _, j := range a {
-		src := j.code
+		src := j.code + ";" // trailing semicolon to finish statement
 		if noisy {
 			println("code:", src)
 		}

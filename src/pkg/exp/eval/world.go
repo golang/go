@@ -9,7 +9,7 @@ package eval
 
 import (
 	"go/ast"
-	parser "exp/parser"
+	"go/parser"
 	"go/scanner"
 	"go/token"
 	"os"
@@ -136,13 +136,13 @@ func (e *exprCode) Run() (Value, os.Error) {
 }
 
 func (w *World) Compile(text string) (Code, os.Error) {
-	stmts, err := parser.ParseStmtList("input", text)
+	stmts, err := parser.ParseStmtList("input", text, nil)
 	if err == nil {
 		return w.CompileStmtList(stmts)
 	}
 
 	// Otherwise try as DeclList.
-	decls, err1 := parser.ParseDeclList("input", text)
+	decls, err1 := parser.ParseDeclList("input", text, nil)
 	if err1 == nil {
 		return w.CompileDeclList(decls)
 	}

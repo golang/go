@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	oldParser "exp/parser"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -35,9 +34,6 @@ var (
 	tabWidth  = flag.Int("tabwidth", 8, "tab width")
 	tabIndent = flag.Bool("tabindent", true, "indent with tabs independent of -spaces")
 	useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
-
-	// semicolon transition
-	useOldParser = flag.Bool("oldparser", false, "parse old syntax (required semicolons)")
 )
 
 
@@ -96,16 +92,12 @@ func processFile(f *os.File) os.Error {
 		return err
 	}
 
-	var file *ast.File
-	if *useOldParser {
-		file, err = oldParser.ParseFile(f.Name(), src, parserMode)
-	} else {
-		var scope *ast.Scope
-		if *debug {
-			scope = ast.NewScope(nil)
-		}
-		file, err = parser.ParseFile(f.Name(), src, scope, parserMode)
+	var scope *ast.Scope
+	if *debug {
+		scope = ast.NewScope(nil)
 	}
+	file, err := parser.ParseFile(f.Name(), src, scope, parserMode)
+
 	if err != nil {
 		return err
 	}

@@ -74,19 +74,12 @@ func Walk(v Visitor, node interface{}) {
 		walkCommentGroup(v, n.Doc)
 		Walk(v, n.Names)
 		Walk(v, n.Type)
-		for _, x := range n.Tag {
-			Walk(v, x)
-		}
+		Walk(v, n.Tag)
 		walkCommentGroup(v, n.Comment)
 
 	// Expressions
 	case *BadExpr, *Ident, *Ellipsis, *BasicLit:
 		// nothing to do
-
-	case *StringList:
-		for _, x := range n.Strings {
-			Walk(v, x)
-		}
 
 	case *FuncLit:
 		if n != nil {
@@ -249,9 +242,7 @@ func Walk(v Visitor, node interface{}) {
 	case *ImportSpec:
 		walkCommentGroup(v, n.Doc)
 		walkIdent(v, n.Name)
-		for _, x := range n.Path {
-			Walk(v, x)
-		}
+		Walk(v, n.Path)
 		walkCommentGroup(v, n.Comment)
 
 	case *ValueSpec:

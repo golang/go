@@ -396,7 +396,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 					p.print(sep)
 				}
 				p.print(sep)
-				p.expr(&ast.StringList{f.Tag}, &ml)
+				p.expr(f.Tag, &ml)
 				extraTabs = 0
 			}
 			if f.Comment != nil {
@@ -679,9 +679,6 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 
 	case *ast.BasicLit:
 		p.print(x)
-
-	case *ast.StringList:
-		p.stringList(x.Strings, multiLine)
 
 	case *ast.FuncLit:
 		p.expr(x.Type, multiLine)
@@ -1117,9 +1114,9 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		if s.Name != nil {
 			p.expr(s.Name, multiLine)
 			p.print(blank)
-			p.moveCommentsAfter(s.Path[0].Pos())
+			p.moveCommentsAfter(s.Path.Pos())
 		}
-		p.expr(&ast.StringList{s.Path}, multiLine)
+		p.expr(s.Path, multiLine)
 		comment = s.Comment
 
 	case *ast.ValueSpec:

@@ -479,9 +479,7 @@ func (x *Indexer) visitSpec(spec ast.Spec, isVarDecl bool) {
 	case *ast.ImportSpec:
 		x.visitComment(n.Doc)
 		x.visitIdent(ImportDecl, n.Name)
-		for _, s := range n.Path {
-			ast.Walk(x, s)
-		}
+		ast.Walk(x, n.Path)
 		x.visitComment(n.Comment)
 
 	case *ast.ValueSpec:
@@ -524,9 +522,7 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
 			x.visitIdent(VarDecl, m)
 		}
 		ast.Walk(x, n.Type)
-		for _, s := range n.Tag {
-			ast.Walk(x, s)
-		}
+		ast.Walk(x, n.Tag)
 		x.visitComment(n.Comment)
 
 	case *ast.DeclStmt:

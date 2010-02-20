@@ -29,14 +29,6 @@ The flags are:
 	-tabwidth=8
 		tab width in spaces.
 
-Flags to aid the transition to the new semicolon-free syntax (these flags will be
-removed eventually):
-
-	-oldparser=true
-		parse old syntax (required semicolons).
-	-oldprinter=true
-		print old syntax (required semicolons).
-
 Debugging flags:
 
 	-trace
