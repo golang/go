@@ -33,6 +33,7 @@ import (
 	"io"
 	"log"
 	"os"
+	pathutil "path"
 	"time"
 )
 
@@ -224,11 +225,29 @@ func main() {
 		packageText = packageHTML
 	}
 
-	info := pkgHandler.getPageInfo(flag.Arg(0), flag.Arg(0), true)
+	// determine paths
+	path := flag.Arg(0)
+	if len(path) > 0 && path[0] == '.' {
+		// assume cwd; don't assume -goroot
+		cwd, _ := os.Getwd() // ignore errors
+		path = pathutil.Join(cwd, path)
+	}
+	relpath := path
+	abspath := path
+	if len(path) > 0 && path[0] != '/' {
+		abspath = absolutePath(path, pkgHandler.fsRoot)
+	} else {
+		relpath = relativePath(path)
+	}
+
+	info := pkgHandler.getPageInfo(abspath, relpath, true)
 
 	if info.PDoc == nil && info.Dirs == nil {
 		// try again, this time assume it's a command
-		info = cmdHandler.getPageInfo(flag.Arg(0), flag.Arg(0), false)
+		if len(path) > 0 && path[0] != '/' {
+			abspath = absolutePath(path, cmdHandler.fsRoot)
+		}
+		info = cmdHandler.getPageInfo(abspath, relpath, false)
 	}
 
 	if info.PDoc != nil && flag.NArg() > 1 {
