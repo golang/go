@@ -173,6 +173,7 @@ convlit1(Node **np, Type *t, int explicit)
 		if(isint[et]) {
 			switch(ct) {
 			default:
+				goto bad;
 			case CTCPLX:
 			case CTFLT:
 				n->val = toint(n->val);
@@ -185,6 +186,7 @@ convlit1(Node **np, Type *t, int explicit)
 		if(isfloat[et]) {
 			switch(ct) {
 			default:
+				goto bad;
 			case CTCPLX:
 			case CTINT:
 				n->val = toflt(n->val);
@@ -966,43 +968,28 @@ defaultlit(Node **np, Type *t)
 		break;
 	case CTINT:
 		n->type = types[TINT];
-		if(t != T) {
-			if(isint[t->etype])
-				n->type = t;
-			else
-			if(isfloat[t->etype]) {
-				n->type = t;
-				n->val = toflt(n->val);
-			}
-		}
-		overflow(n->val, n->type);
-		break;
+		goto num;
 	case CTFLT:
 		n->type = types[TFLOAT];
+		goto num;
+	case CTCPLX:
+		n->type = types[TCOMPLEX];
+		goto num;
+	num:
 		if(t != T) {
-			if(isfloat[t->etype])
-				n->type = t;
-			else
 			if(isint[t->etype]) {
 				n->type = t;
 				n->val = toint(n->val);
 			}
-		}
-		overflow(n->val, n->type);
-		break;
-	case CTCPLX:
-		n->type = types[TCOMPLEX];
-		if(t != T) {
-			if(iscomplex[t->etype])
-				n->type = t;
 			else
 			if(isfloat[t->etype]) {
 				n->type = t;
 				n->val = toflt(n->val);
-			} else
-			if(isint[t->etype]) {
+			}
+			else
+			if(iscomplex[t->etype]) {
 				n->type = t;
-				n->val = toint(n->val);
+				n->val = tocplx(n->val);
 			}
 		}
 		overflow(n->val, n->type);
@@ -1015,6 +1002,7 @@ defaultlit(Node **np, Type *t)
  * defaultlit on both nodes simultaneously;
  * if they're both ideal going in they better
  * get the same type going out.
+ * force means must assign concrete (non-ideal) type.
  */
 void
 defaultlit2(Node **lp, Node **rp, int force)
@@ -1192,13 +1180,8 @@ convconst(Node *con, Type *t, Val *val)
 
 	if(isfloat[tt]) {
 		con->val = toflt(con->val);
-//		if(con->val.ctype == CTINT) {
-//			con->val.ctype = CTFLT;
-//			con->val.u.fval = mal(sizeof *con->val.u.fval);
-//			mpmovefixflt(con->val.u.fval, val->u.xval);
-//		}
-//		if(con->val.ctype != CTFLT)
-//			fatal("convconst ctype=%d %T", con->val.ctype, t);
+		if(con->val.ctype != CTFLT)
+			fatal("convconst ctype=%d %T", con->val.ctype, t);
 		if(tt == TFLOAT32)
 			con->val.u.fval = truncfltlit(con->val.u.fval, t);
 		return;
