@@ -226,7 +226,7 @@ var tokenList = []token{
 	token{String, "`" + f100 + "`"},
 
 	token{Comment, "// individual characters\n"},
-	token{'\x00', "\x00"},
+	// NUL character is not allowed
 	token{'\x01', "\x01"},
 	token{' ' - 1, string(' ' - 1)},
 	token{'+', "+"},
@@ -390,7 +390,8 @@ func TestScanNext(t *testing.T) {
 func TestScanWhitespace(t *testing.T) {
 	var buf bytes.Buffer
 	var ws uint64
-	for ch := byte(0); ch < ' '; ch++ {
+	// start at 1, NUL character is not allowed
+	for ch := byte(1); ch < ' '; ch++ {
 		buf.WriteByte(ch)
 		ws |= 1 << ch
 	}
@@ -442,6 +443,8 @@ func TestError(t *testing.T) {
 	testError(t, "`abc", "literal not terminated", String)
 	testError(t, `//`, "comment not terminated", EOF)
 	testError(t, `/*/`, "comment not terminated", EOF)
+	testError(t, `"abc`+"\x00"+`def"`, "illegal character NUL", String)
+	testError(t, `"abc`+"\xff"+`def"`, "illegal UTF-8 encoding", String)
 }
 
 
