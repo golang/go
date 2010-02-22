@@ -215,7 +215,10 @@ func TestSyntax(t *testing.T) {
 }
 
 type allScalars struct {
-	Bool    bool
+	True1   bool
+	True2   bool
+	False1  bool
+	False2  bool
 	Int     int
 	Int8    int8
 	Int16   int16
@@ -234,7 +237,10 @@ type allScalars struct {
 }
 
 var all = allScalars{
-	Bool: true,
+	True1: true,
+	True2: true,
+	False1: false,
+	False2: false,
 	Int: 1,
 	Int8: -2,
 	Int16: 3,
@@ -253,7 +259,10 @@ var all = allScalars{
 }
 
 const testScalarsInput = `<allscalars>
-	<bool/>
+	<true1>true</true1>
+	<true2>1</true2>
+	<false1>false</false1>
+	<false2>0</false2>
 	<int>1</int>
 	<int8>-2</int8>
 	<int16>3</int16>
@@ -280,7 +289,7 @@ func TestAllScalars(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(a, all) {
-		t.Errorf("expected %+v got %+v", a, all)
+		t.Errorf("expected %+v got %+v", all, a)
 	}
 }
 
