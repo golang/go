@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A general-purpose scanner for text. Takes an io.Reader
-// providing the source which then can be tokenized through
-// repeated calls to the Scan function.
+// A general-purpose scanner for UTF-8 encoded text. Takes an io.Reader
+// providing the source which then can be tokenized through repeated
+// calls to the Scan function. For compatibility with existing tools,
+// the NUL character is not allowed (implementation restriction).
 //
 // By default, a Scanner skips white space and comments and
 // recognizes literals as defined by the Go language spec.
@@ -245,13 +246,20 @@ func (s *Scanner) next() int {
 			// uncommon case: not ASCII
 			var width int
 			ch, width = utf8.DecodeRune(s.srcBuf[s.srcPos:s.srcEnd])
+			if ch == utf8.RuneError && width == 1 {
+				s.error("illegal UTF-8 encoding")
+			}
 			s.srcPos += width - 1
 		}
 	}
 
 	s.srcPos++
 	s.column++
-	if ch == '\n' {
+	switch ch {
+	case 0:
+		// implementation restriction for compatibility with other tools
+		s.error("illegal character NUL")
+	case '\n':
 		s.line++
 		s.column = 0
 	}
