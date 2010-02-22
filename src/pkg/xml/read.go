@@ -105,7 +105,8 @@ import (
 // Unmarshal maps an XML element to a slice by extending the length
 // of the slice and mapping the element to the newly created value.
 //
-// Unmarshal maps an XML element to a bool by setting the bool to true.
+// Unmarshal maps an XML element to a bool by setting it true if the
+// string value is "true" or "1", or false otherwise.
 //
 // Unmarshal maps an XML element to an integer or floating-point
 // field by setting the field to the result of interpreting the string
@@ -208,9 +209,6 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	default:
 		return os.ErrorString("unknown type " + v.Type().String())
 
-	case *reflect.BoolValue:
-		v.Set(true)
-
 	case *reflect.SliceValue:
 		typ := v.Type().(*reflect.SliceType)
 		if _, ok := typ.Elem().(*reflect.Uint8Type); ok {
@@ -244,7 +242,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		*reflect.IntValue, *reflect.UintValue, *reflect.UintptrValue,
 		*reflect.Int8Value, *reflect.Int16Value, *reflect.Int32Value, *reflect.Int64Value,
 		*reflect.Uint8Value, *reflect.Uint16Value, *reflect.Uint32Value, *reflect.Uint64Value,
-		*reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value:
+		*reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value, *reflect.BoolValue:
 		saveData = v
 
 	case *reflect.StructValue:
@@ -474,6 +472,9 @@ Loop:
 			return err
 		}
 		t.Set(ftmp)
+	case *reflect.BoolValue:
+		btmp := strings.TrimSpace(string(data))
+		t.Set(strings.ToLower(btmp) == "true" || btmp == "1")
 	case *reflect.StringValue:
 		t.Set(string(data))
 	case *reflect.SliceValue:
