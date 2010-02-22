@@ -137,11 +137,13 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
 	var req Request
 	req.Method = "POST"
+	req.ProtoMajor = 1
+	req.ProtoMinor = 1
 	req.Body = nopCloser{body}
 	req.Header = map[string]string{
 		"Content-Type": bodyType,
-		"Transfer-Encoding": "chunked",
 	}
+	req.TransferEncoding = []string{"chunked"}
 
 	req.URL, err = ParseURL(url)
 	if err != nil {
