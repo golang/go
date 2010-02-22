@@ -167,7 +167,7 @@ func (req *Request) Write(w io.Writer) os.Error {
 		host = req.URL.Host
 	}
 
-	uri := urlEscape(req.URL.Path, false)
+	uri := valueOrDefault(urlEscape(req.URL.Path, false), "/")
 	if req.URL.RawQuery != "" {
 		uri += "?" + req.URL.RawQuery
 	}
