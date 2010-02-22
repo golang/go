@@ -181,6 +181,18 @@ type OneField struct {
 	a int
 }
 
+type ScalarWithString int
+
+const (
+	AA ScalarWithString = iota
+	BB
+	CC
+)
+
+var scalarStrings = []string{"AA", "BB", "CC"}
+
+func (x ScalarWithString) String() string { return scalarStrings[x] }
+
 var marshalTests = []marshalTest{
 	// basic string
 	marshalTest{nil, "null"},
@@ -210,6 +222,17 @@ var marshalTests = []marshalTest{
 	marshalTest{map[string]*MTE{"hi": nil}, `{"hi":null}`},
 	marshalTest{map[string]interface{}{"hi": 3}, `{"hi":3}`},
 	marshalTest{&OneField{3}, `{"a":3}`},
+	marshalTest{"\x05\x06", `"\u0005\u0006"`},
+	marshalTest{uintptr(50000), "50000"},
+	marshalTest{uint64(50000), "50000"},
+	marshalTest{uint32(50000), "50000"},
+	marshalTest{uint16(50000), "50000"},
+	marshalTest{uint8(50), "50"},
+	marshalTest{int64(50000), "50000"},
+	marshalTest{int32(50000), "50000"},
+	marshalTest{int16(10000), "10000"},
+	marshalTest{int8(50), "50"},
+	marshalTest{BB, "1"},
 }
 
 func TestMarshal(t *testing.T) {
