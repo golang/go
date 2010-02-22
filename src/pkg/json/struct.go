@@ -317,76 +317,94 @@ type MarshalError struct {
 func (e *MarshalError) String() string {
 	return "json cannot encode value of type " + e.T.String()
 }
-func writeArrayOrSlice(w io.Writer, val reflect.ArrayOrSliceValue) os.Error {
-	fmt.Fprint(w, "[")
+
+func writeArrayOrSlice(w io.Writer, val reflect.ArrayOrSliceValue) (err os.Error) {
+	if _, err = fmt.Fprint(w, "["); err != nil {
+		return
+	}
 
 	for i := 0; i < val.Len(); i++ {
-		if err := writeValue(w, val.Elem(i)); err != nil {
-			return err
+		if err = writeValue(w, val.Elem(i)); err != nil {
+			return
 		}
 
 		if i < val.Len()-1 {
-			fmt.Fprint(w, ",")
+			if _, err = fmt.Fprint(w, ","); err != nil {
+				return
+			}
 		}
 	}
 
-	fmt.Fprint(w, "]")
-	return nil
+	_, err = fmt.Fprint(w, "]")
+	return
 }
 
-func writeMap(w io.Writer, val *reflect.MapValue) os.Error {
+func writeMap(w io.Writer, val *reflect.MapValue) (err os.Error) {
 	key := val.Type().(*reflect.MapType).Key()
 	if _, ok := key.(*reflect.StringType); !ok {
 		return &MarshalError{val.Type()}
 	}
 
 	keys := val.Keys()
-	fmt.Fprint(w, "{")
-	for i := 0; i < len(keys); i++ {
-		fmt.Fprintf(w, "%q:", keys[i].(*reflect.StringValue).Get())
+	if _, err = fmt.Fprint(w, "{"); err != nil {
+		return
+	}
 
-		if err := writeValue(w, val.Elem(keys[i])); err != nil {
-			return err
+	for i := 0; i < len(keys); i++ {
+		if _, err = fmt.Fprintf(w, "%s:", Quote(keys[i].(*reflect.StringValue).Get())); err != nil {
+			return
+		}
+
+		if err = writeValue(w, val.Elem(keys[i])); err != nil {
+			return
 		}
 
 		if i < len(keys)-1 {
-			fmt.Fprint(w, ",")
+			if _, err = fmt.Fprint(w, ","); err != nil {
+				return
+			}
 		}
 	}
 
-	fmt.Fprint(w, "}")
-	return nil
+	_, err = fmt.Fprint(w, "}")
+	return
 }
 
-func writeStruct(w io.Writer, val *reflect.StructValue) os.Error {
-	fmt.Fprint(w, "{")
+func writeStruct(w io.Writer, val *reflect.StructValue) (err os.Error) {
+	if _, err = fmt.Fprint(w, "{"); err != nil {
+		return
+	}
 
 	typ := val.Type().(*reflect.StructType)
 
 	for i := 0; i < val.NumField(); i++ {
 		fieldValue := val.Field(i)
-		fmt.Fprintf(w, "%q:", typ.Field(i).Name)
-		if err := writeValue(w, fieldValue); err != nil {
-			return err
+		if _, err = fmt.Fprintf(w, "%s:", Quote(typ.Field(i).Name)); err != nil {
+			return
+		}
+		if err = writeValue(w, fieldValue); err != nil {
+			return
 		}
 		if i < val.NumField()-1 {
-			fmt.Fprint(w, ",")
+			if _, err = fmt.Fprint(w, ","); err != nil {
+				return
+			}
 		}
 	}
 
-	fmt.Fprint(w, "}")
-	return nil
+	_, err = fmt.Fprint(w, "}")
+	return
 }
 
 func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
 	if val == nil {
-		fmt.Fprint(w, "null")
+		_, err = fmt.Fprint(w, "null")
 		return
 	}
 
 	switch v := val.(type) {
 	case *reflect.StringValue:
-		fmt.Fprintf(w, "%q", v.Get())
+		_, err = fmt.Fprint(w, Quote(v.Get()))
 	case *reflect.ArrayValue:
 		err = writeArrayOrSlice(w, v)
 	case *reflect.SliceValue:
@@ -396,27 +414,42 @@ func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
 	case *reflect.StructValue:
 		err = writeStruct(w, v)
 	case *reflect.ChanValue,
-		*reflect.UnsafePointerValue:
+		*reflect.UnsafePointerValue,
+		*reflect.FuncValue:
 		err = &MarshalError{val.Type()}
 	case *reflect.InterfaceValue:
 		if v.IsNil() {
-			fmt.Fprint(w, "null")
+			_, err = fmt.Fprint(w, "null")
 		} else {
 			err = writeValue(w, v.Elem())
 		}
 	case *reflect.PtrValue:
 		if v.IsNil() {
-			fmt.Fprint(w, "null")
+			_, err = fmt.Fprint(w, "null")
 		} else {
 			err = writeValue(w, v.Elem())
 		}
+	case *reflect.UintptrValue:
+		_, err = fmt.Fprintf(w, "%d", v.Get())
+	case *reflect.Uint64Value:
+		_, err = fmt.Fprintf(w, "%d", v.Get())
+	case *reflect.Uint32Value:
+		_, err = fmt.Fprintf(w, "%d", v.Get())
+	case *reflect.Uint16Value:
+		_, err = fmt.Fprintf(w, "%d", v.Get())
+	case *reflect.Uint8Value:
+		_, err = fmt.Fprintf(w, "%d", v.Get())
 	default:
 		value := val.(reflect.Value)
-		fmt.Fprint(w, value.Interface())
+		_, err = fmt.Fprintf(w, "%#v", value.Interface())
 	}
 	return
 }
 
+// Marshal writes the JSON encoding of val to w.
+//
+// Due to limitations in JSON, val cannot include cyclic data
+// structures, channels, functions, or maps.
 func Marshal(w io.Writer, val interface{}) os.Error {
 	return writeValue(w, reflect.NewValue(val))
 }
