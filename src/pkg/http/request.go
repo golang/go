@@ -152,7 +152,7 @@ const defaultUserAgent = "Go http package"
 // Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of req:
 //	Host
-//	URL
+//	RawURL, if non-empty, or else URL
 //	Method (defaults to "GET")
 //	UserAgent (defaults to defaultUserAgent)
 //	Referer
@@ -167,9 +167,12 @@ func (req *Request) Write(w io.Writer) os.Error {
 		host = req.URL.Host
 	}
 
-	uri := valueOrDefault(urlEscape(req.URL.Path, false), "/")
-	if req.URL.RawQuery != "" {
-		uri += "?" + req.URL.RawQuery
+	uri := req.RawURL
+	if uri == "" {
+		uri = valueOrDefault(urlEscape(req.URL.Path, false), "/")
+		if req.URL.RawQuery != "" {
+			uri += "?" + req.URL.RawQuery
+		}
 	}
 
 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)

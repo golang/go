@@ -50,7 +50,7 @@ var reqWriteTests = []reqWriteTest{
 			Form: map[string][]string{},
 		},
 
-		"GET / HTTP/1.1\r\n" +
+		"GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
 			"Host: www.techcrunch.com\r\n" +
 			"User-Agent: Fake\r\n" +
 			"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n" +
