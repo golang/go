@@ -134,7 +134,7 @@ void	nodfconst(Node*, Type*, Mpflt*);
 /*
  * cplx.c
  */
-void	complexmove(Node*, Node*);
+void	complexmove(Node*, Node*, int);
 void	complexgen(Node*, Node*);
 
 /*

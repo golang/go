@@ -476,7 +476,7 @@ gmove(Node *f, Node *t)
 	cvt = t->type;
 
 	if(iscomplex[ft] || iscomplex[tt]) {
-		complexmove(f, t);
+		complexmove(f, t, 0);
 		return;
 	}
 
@@ -495,7 +495,7 @@ gmove(Node *f, Node *t)
 			// float constants come from memory.
 			if(isfloat[tt])
 				goto hard;
-			// complex constants take double move.
+
 			// 64-bit immediates are really 32-bit sign-extended
 			// unless moving into a register.
 			if(isint[tt]) {
@@ -1978,30 +1978,4 @@ yes:
 no:
 	sudoclean();
 	return 0;
-}
-
-int
-cplxsubtype(int et)
-{
-	if(et == TCOMPLEX64)
-		return TFLOAT32;
-	if(et == TCOMPLEX128)
-		return TFLOAT64;
-	fatal("cplxsubtype: %E\n", et);
-	return 0;
-}
-
-void
-nodfconst(Node *n, Type *t, Mpflt* fval)
-{
-	memset(n, 0, sizeof(*n));
-	n->op = OLITERAL;
-	n->addable = 1;
-	ullmancalc(n);
-	n->val.u.fval = fval;
-	n->val.ctype = CTFLT;
-	n->type = t;
-
-	if(!isfloat[t->etype])
-		fatal("nodfconst: bad type %T", t);
 }
