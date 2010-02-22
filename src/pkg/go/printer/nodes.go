@@ -15,19 +15,11 @@ import (
 )
 
 
-// Disabled formatting - enable eventually and remove the flag.
-const (
-	compositeLitBlank = false
-)
-
-
 // Other formatting issues:
-// - replacement of expression spacing algorithm with rsc's algorithm
 // - better comment formatting for /*-style comments at the end of a line (e.g. a declaration)
 //   when the comment spans multiple lines; if such a comment is just two lines, formatting is
 //   not idempotent
-// - formatting of expression lists; especially for string lists
-// - blank after { and before } in one-line composite literals probably looks better
+// - formatting of expression lists
 // - should use blank instead of tab to separate one-line function bodies from
 //   the function header unless there is a group of consecutive one-liners
 
@@ -141,27 +133,6 @@ const (
 )
 
 
-// Obtain a (single) token position before the next comment.
-// Use this function to correct a token position such that the
-// token is placed before the next comment (which may be a line
-// comment introducing a newline and possibly introducing a
-// semicolon). Use moveCommentsAfter() to move a comment past
-// more than a single token. beforeComment() is preferable if
-// if can be used as it produces better results.
-//
-// Remove this after transitioning to new semicolon syntax and
-// some reasonable grace period (12/11/09).
-func (p *printer) beforeComment(pos token.Position) token.Position {
-	if p.cindex < len(p.comments) {
-		p := p.comments[p.cindex].List[0].Position
-		if !pos.IsValid() || pos.Offset > p.Offset {
-			return p
-		}
-	}
-	return pos
-}
-
-
 // Print a list of expressions. If the list spans multiple
 // source lines, the original line breaks are respected between
 // expressions. Sets multiLine to true if the list spans multiple
@@ -224,7 +195,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		line = x.Pos().Line
 		if i > 0 {
 			if mode&plusSep != 0 {
-				p.print(blank, p.beforeComment(noPos), token.ADD)
+				p.print(blank, token.ADD)
 			}
 			if mode&commaSep != 0 {
 				p.print(token.COMMA)
@@ -597,7 +568,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
 	}
 	xline := p.pos.Line // before the operator (it may be on the next line!)
 	yline := x.Y.Pos().Line
-	p.print(p.beforeComment(x.OpPos), x.Op)
+	p.print(x.OpPos, x.Op)
 	if xline != yline && xline > 0 && yline > 0 {
 		// at least one line break, but respect an extra empty line
 		// in the source
@@ -738,21 +709,8 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 
 	case *ast.CompositeLit:
 		p.expr1(x.Type, token.HighestPrec, depth, compositeLit, multiLine)
-		mode := commaSep | commaTerm
-		if compositeLitBlank {
-			// add blank padding around composite literal
-			// contents for a less dense look
-			mode |= blankStart | blankEnd
-			if x.Lbrace.Line < x.Rbrace.Line {
-				// add a blank before the opening { for multi-line composites
-				// TODO(gri): for now this decision is made by looking at the
-				//            source code - it may not be correct if the source
-				//            code was badly misformatted in the first place
-				p.print(blank)
-			}
-		}
 		p.print(x.Lbrace, token.LBRACE)
-		p.exprList(x.Lbrace, x.Elts, 1, mode, multiLine, x.Rbrace)
+		p.exprList(x.Lbrace, x.Elts, 1, commaSep|commaTerm, multiLine, x.Rbrace)
 		p.print(x.Rbrace, token.RBRACE)
 
 	case *ast.Ellipsis:
@@ -846,25 +804,9 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 }
 
 
-func (p *printer) moveCommentsAfter(pos token.Position) {
-	// TODO(gri): Make sure a comment doesn't accidentally introduce
-	//            a newline and thus cause a semicolon to be inserted.
-	//            Remove this after transitioning to new semicolon
-	//            syntax and some reasonable grace period (12/11/09).
-	if p.commentBefore(pos) {
-		p.comments[p.cindex].List[0].Position = pos
-	}
-}
-
-
 // block prints an *ast.BlockStmt; it always spans at least two lines.
-func (p *printer) block(s *ast.BlockStmt, indent int, moveComments bool) {
-	if moveComments {
-		p.print(p.beforeComment(s.Pos()))
-	} else {
-		p.print(s.Pos())
-	}
-	p.print(token.LBRACE)
+func (p *printer) block(s *ast.BlockStmt, indent int) {
+	p.print(s.Pos(), token.LBRACE)
 	p.stmtList(s.List, indent)
 	p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true)
 	p.print(s.Rbrace, token.RBRACE)
@@ -981,13 +923,13 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 		}
 
 	case *ast.BlockStmt:
-		p.block(s, 1, false)
+		p.block(s, 1)
 		*multiLine = true
 
 	case *ast.IfStmt:
 		p.print(token.IF)
 		p.controlClause(false, s.Init, s.Cond, nil)
-		p.block(s.Body, 1, true)
+		p.block(s.Body, 1)
 		*multiLine = true
 		if s.Else != nil {
 			p.print(blank, token.ELSE, blank)
@@ -1014,7 +956,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 	case *ast.SwitchStmt:
 		p.print(token.SWITCH)
 		p.controlClause(false, s.Init, s.Tag, nil)
-		p.block(s.Body, 0, true)
+		p.block(s.Body, 0)
 		*multiLine = true
 
 	case *ast.TypeCaseClause:
@@ -1037,7 +979,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 		p.print(blank)
 		p.stmt(s.Assign, ignoreMultiLine)
 		p.print(blank)
-		p.block(s.Body, 0, true)
+		p.block(s.Body, 0)
 		*multiLine = true
 
 	case *ast.CommClause:
@@ -1056,13 +998,13 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 
 	case *ast.SelectStmt:
 		p.print(token.SELECT, blank)
-		p.block(s.Body, 0, false)
+		p.block(s.Body, 0)
 		*multiLine = true
 
 	case *ast.ForStmt:
 		p.print(token.FOR)
 		p.controlClause(true, s.Init, s.Cond, s.Post)
-		p.block(s.Body, 1, true)
+		p.block(s.Body, 1)
 		*multiLine = true
 
 	case *ast.RangeStmt:
@@ -1075,7 +1017,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
 		p.expr(stripParens(s.X), multiLine)
 		p.print(blank)
-		p.block(s.Body, 1, true)
+		p.block(s.Body, 1)
 		*multiLine = true
 
 	default:
@@ -1114,7 +1056,6 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		if s.Name != nil {
 			p.expr(s.Name, multiLine)
 			p.print(blank)
-			p.moveCommentsAfter(s.Path.Pos())
 		}
 		p.expr(s.Path, multiLine)
 		comment = s.Comment
@@ -1122,11 +1063,6 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 	case *ast.ValueSpec:
 		p.leadComment(s.Doc)
 		p.identList(s.Names, multiLine) // always present
-		if s.Values != nil {
-			p.moveCommentsAfter(s.Values[0].Pos())
-		} else if s.Type != nil {
-			p.moveCommentsAfter(s.Type.Pos())
-		}
 		if n == 1 {
 			if s.Type != nil {
 				p.print(blank)
@@ -1157,7 +1093,6 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 	case *ast.TypeSpec:
 		p.leadComment(s.Doc)
 		p.expr(s.Name, multiLine)
-		p.moveCommentsAfter(s.Type.Pos())
 		if n == 1 {
 			p.print(blank)
 		} else {
@@ -1272,7 +1207,7 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 	}
 
 	p.print(blank)
-	p.block(b, 1, true)
+	p.block(b, 1)
 	*multiLine = true
 }
 
