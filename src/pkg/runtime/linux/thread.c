@@ -42,20 +42,12 @@ static Timespec longtime =
 static void
 futexsleep(uint32 *addr, uint32 val)
 {
-	int32 ret;
-
-	ret = futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
-	if(ret >= 0 || ret == -EAGAIN || ret == -EINTR)
-		return;
-
-	prints("futexsleep addr=");
-	·printpointer(addr);
-	prints(" val=");
-	·printint(val);
-	prints(" returned ");
-	·printint(ret);
-	prints("\n");
-	*(int32*)0x1005 = 0x1005;
+	// Some Linux kernels have a bug where futex of
+	// FUTEX_WAIT returns an internal error code
+	// as an errno.  Libpthread ignores the return value
+	// here, and so can we: as it says a few lines up,
+	// spurious wakeups are allowed.
+	futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
 }
 
 // If any procs are sleeping on addr, wake up at least one.
