@@ -190,7 +190,8 @@ the send on that channel completes.
 </p>
 
 <p>
-This program:
+This program (as above, but with the send and receive statements swapped and
+using an unbuffered channel):
 </p>
 
 <pre>
@@ -222,7 +223,7 @@ before the <code>print</code>.
 If the channel were buffered (e.g., <code>c = make(chan int, 1)</code>)
 then the program would not be guaranteed to print
 <code>"hello, world"</code>.  (It might print the empty string;
-it cannot print <code>"hello, sailor"</code>, nor can it crash.)
+it cannot print <code>"goodbye, universe"</code>, nor can it crash.)
 </p>
 
 <h3>Locks</h3>
