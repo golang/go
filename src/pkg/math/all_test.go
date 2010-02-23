@@ -286,7 +286,18 @@ var frexp = []fi{
 	fi{9.1265404584042750000e-01, 1},
 	fi{-5.4287029803597508250e-01, 4},
 }
-
+var lgamma = []fi{
+	fi{3.146492141244545774319734e+00, 1},
+	fi{8.003414490659126375852113e+00, 1},
+	fi{1.517575735509779707488106e+00, -1},
+	fi{-2.588480028182145853558748e-01, 1},
+	fi{1.1989897050205555002007985e+01, 1},
+	fi{6.262899811091257519386906e-01, 1},
+	fi{3.5287924899091566764846037e+00, 1},
+	fi{4.5725644770161182299423372e-01, 1},
+	fi{-6.363667087767961257654854e-02, 1},
+	fi{-1.077385130910300066425564e+01, -1},
+}
 var log = []float64{
 	1.605231462693062999102599e+00,
 	2.0462560018708770653153909e+00,
@@ -734,6 +745,21 @@ var hypotSC = []float64{
 	NaN(),
 	Inf(1),
 	NaN(),
+}
+
+var vflgammaSC = []float64{
+	Inf(-1),
+	-3,
+	0,
+	Inf(1),
+	NaN(),
+}
+var lgammaSC = []fi{
+	fi{Inf(-1), 1},
+	fi{Inf(1), 1},
+	fi{Inf(1), 1},
+	fi{Inf(1), 1},
+	fi{NaN(), 1},
 }
 
 var vflogSC = []float64{
@@ -1229,6 +1255,19 @@ func TestLdexp(t *testing.T) {
 	}
 }
 
+func TestLgamma(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f, s := Lgamma(vf[i]); !close(lgamma[i].f, f) || lgamma[i].i != s {
+			t.Errorf("Lgamma(%g) = %g, %d, want %g, %d\n", vf[i], f, s, lgamma[i].f, lgamma[i].i)
+		}
+	}
+	for i := 0; i < len(vflgammaSC); i++ {
+		if f, s := Lgamma(vflgammaSC[i]); !alike(lgammaSC[i].f, f) || lgammaSC[i].i != s {
+			t.Errorf("Lgamma(%g) = %g, %d, want %g, %d\n", vflgammaSC[i], f, s, lgammaSC[i].f, lgammaSC[i].i)
+		}
+	}
+}
+
 func TestLog(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(vf[i])
@@ -1629,6 +1668,12 @@ func BenchmarkHypot(b *testing.B) {
 func BenchmarkLdexp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Ldexp(.5, 2)
+	}
+}
+
+func BenchmarkLgamma(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Lgamma(2.5)
 	}
 }
 

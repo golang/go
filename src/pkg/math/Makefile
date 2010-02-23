@@ -52,6 +52,7 @@ ALLGOFILES=\
 	fmod.go\
 	frexp.go\
 	hypot.go\
+	lgamma.go\
 	ldexp.go\
 	log.go\
 	log1p.go\
