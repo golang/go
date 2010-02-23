@@ -32,7 +32,7 @@ func main() {
 	fmt.Printf("atom = %d\n", atom.Atom)
 
 	points := make([]xgb.Point, 2)
-	points[1] = xgb.Point{5, 5}
+	points[0] = xgb.Point{5, 5}
 	points[1] = xgb.Point{100, 120}
 
 	hosts, _ := c.ListHosts()
