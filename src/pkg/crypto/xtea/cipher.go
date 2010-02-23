@@ -47,14 +47,14 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 }
 
 // BlockSize returns the XTEA block size, 8 bytes.
-// It is necessary to satisfy the Key interface in the
-// package "crypto/modes".
+// It is necessary to satisfy the Cipher interface in the
+// package "crypto/block".
 func (c *Cipher) BlockSize() int { return BlockSize }
 
 // Encrypt encrypts the 8 byte buffer src using the key and stores the result in dst.
 // Note that for amounts of data larger than a block,
 // it is not safe to just call Encrypt on successive blocks;
-// instead, use an encryption mode like XTEACBC (see modes.go).
+// instead, use an encryption mode like CBC (see crypto/block/cbc.go).
 func (c *Cipher) Encrypt(src, dst []byte) { encryptBlock(c, src, dst) }
 
 // Decrypt decrypts the 8 byte buffer src using the key k and stores the result in dst.
