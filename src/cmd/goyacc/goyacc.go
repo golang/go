@@ -1352,13 +1352,31 @@ loop:
 			return
 
 		case '/':
+			nc := getrune(finput)
+			if nc != '/' && nc != '*' {
+				ungetrune(finput, nc)
+				break
+			}
 			// a comment
 			putrune(ftable, c)
+			putrune(ftable, nc)
 			c = getrune(finput)
 			for c != EOF {
-				if c == '\n' {
+				switch {
+				case c == '\n':
 					lineno++
-					break swt
+					if nc == '/' { // end of // comment
+						break swt
+					}
+				case c == '*' && nc == '*': // end of /* comment?
+					nnc := getrune(finput)
+					if nnc == '/' {
+						putrune(ftable, '*')
+						putrune(ftable, '/')
+						c = getrune(finput)
+						break swt
+					}
+					ungetrune(finput, nnc)
 				}
 				putrune(ftable, c)
 				c = getrune(finput)
