@@ -59,6 +59,15 @@ type I2 interface {
 	G(x float) float	// exported method
 }
 
+// The S3 struct; all comments except for the last one must appear in the export.
+type S3 struct {
+	// lead comment for F1
+	F1	int	// line comment for F1
+	// lead comment for F2
+	F2	int	// line comment for F2
+	f3	int	// f3 is not exported
+}
+
 // This comment group should be separated
 // with a newline from the next comment
 // group.

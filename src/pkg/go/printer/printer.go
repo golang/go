@@ -89,8 +89,9 @@ type printer struct {
 	lastTaggedLine int // last line for which a line tag was written
 
 	// The list of all source comments, in order of appearance.
-	comments []*ast.CommentGroup // may be nil
-	cindex   int                 // current comment index
+	comments        []*ast.CommentGroup // may be nil
+	cindex          int                 // current comment index
+	useNodeComments bool                // if not set, ignore lead and line comments of nodes
 }
 
 
@@ -246,7 +247,10 @@ func (p *printer) writeTaggedItem(data []byte, tag HTMLTag) {
 // immediately following the data.
 //
 func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
-	p.pos = pos
+	if pos.IsValid() {
+		// continue with previous position if we don't have a valid pos
+		p.pos = pos
+	}
 	if debug {
 		// do not update p.pos - use write0
 		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
@@ -734,14 +738,6 @@ func (p *printer) print(args ...) {
 			}
 			p.buffer = p.buffer[0 : i+1]
 			p.buffer[i] = x
-		case []byte:
-			// TODO(gri): remove this case once commentList
-			//            handles comments correctly
-			data = x
-		case string:
-			// TODO(gri): remove this case once fieldList
-			//            handles comments correctly
-			data = strings.Bytes(x)
 		case *ast.Ident:
 			if p.Styler != nil {
 				data, tag = p.Styler.Ident(x)
@@ -976,13 +972,17 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:
+			p.useNodeComments = true
 			p.expr(n, ignoreMultiLine)
 		case ast.Stmt:
+			p.useNodeComments = true
 			p.stmt(n, ignoreMultiLine)
 		case ast.Decl:
+			p.useNodeComments = true
 			p.decl(n, atTop, ignoreMultiLine)
 		case *ast.File:
 			p.comments = n.Comments
+			p.useNodeComments = n.Comments == nil
 			p.file(n)
 		default:
 			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n))
