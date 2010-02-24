@@ -4,8 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This version generates up to 100 and checks the results.
-// With a channel, of course.
+// Generate primes up to 100 using channels, checking the results.
+// This sieve consists of a linear chain of divisibility filters,
+// equivalent to trial-dividing each n by all primes p ≤ n.
 
 package main
 
