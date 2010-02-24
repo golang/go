@@ -303,7 +303,7 @@ func (a *assignCompiler) allowMapForms(nls int) {
 // a function that expects an l-value and the frame in which to
 // evaluate the RHS expressions.  The l-value must have exactly the
 // type given by lt.  Returns nil if type checking fails.
-func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
+func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
 	lmt, isMT := lt.(*MultiType)
 	rmt, isUnpack := a.rmt, a.isUnpack
 
@@ -446,7 +446,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
 // compileAssign compiles an assignment operation without the full
 // generality of an assignCompiler.  See assignCompiler for a
 // description of the arguments.
-func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*expr, errOp, errPosName string) (func(Value, *Thread)) {
+func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*expr, errOp, errPosName string) func(Value, *Thread) {
 	ac, ok := a.checkAssign(pos, rs, errOp, errPosName)
 	if !ok {
 		return nil
@@ -836,8 +836,8 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 	// TODO(austin) Now that the expression compiler works on
 	// semantic values instead of AST's, there should be a much
 	// better way of doing this.
-	var find func(Type, int, string) (func(*expr) *expr)
-	find = func(t Type, depth int, pathName string) (func(*expr) *expr) {
+	var find func(Type, int, string) func(*expr) *expr
+	find = func(t Type, depth int, pathName string) func(*expr) *expr {
 		// Don't bother looking if we've found something shallower
 		if bestDepth != -1 && bestDepth < depth {
 			return nil

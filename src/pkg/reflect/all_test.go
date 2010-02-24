@@ -146,7 +146,7 @@ var typeTests = []pair{
 	},
 	pair{struct {
 		x (interface {
-			a(func(func(int) int) (func(func(int)) int))
+			a(func(func(int) int) func(func(int)) int)
 			b()
 		})
 	}{},
