@@ -5,6 +5,32 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+
+<h3 id="2010-02-23">2010-02-23</h3>
+
+<pre>
+This release is mainly bug fixes and a little new code.
+There are no language changes.
+
+6g/5g/8g: bug fixes
+8a/8l: Added FCMOVcc instructions (thanks Evan Shaw and Charles Dorian)
+crypto/x509: support certificate creation
+dashboard: caching to avoid datastore queries
+exec: add dir argument to Run
+godoc: bug fixes and code cleanups
+http: continued implementation and bug fixes (thanks Petar Maymounkov)
+json: fix quoted strings in Marshal (thanks Sergei Skorobogatov)
+math: more functions, test cases, and benchmarks (thanks Charles L. Dorian)
+misc/bbedit: treat predeclared identifiers as "keywords" (thanks Anthony Starks)
+net: disable UDP server test (flaky on various architectures)
+runtime: work around Linux kernel bug in futex,
+	pchw is now tiny
+sync: fix to work on armv5 (thanks Dean Prichard)
+websocket: fix binary frame size decoding (thanks Timo Savola)
+xml: allow unquoted attribute values in non-Strict mode (thanks Amrut Joshi)
+	treat bool as value in Unmarshal (thanks Michael Hoisie) 
+</pre>
+
 <h3 id="2010-02-17">2010-02-17</h3>
 
 <pre>
