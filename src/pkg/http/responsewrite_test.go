@@ -42,10 +42,11 @@ var respWriteTests = []respWriteTest{
 			Body: nopCloser{bytes.NewBufferString("abcdef")},
 			ContentLength: 6,
 			TransferEncoding: []string{"chunked"},
-			Close: true, // TODO(petar): "Connection: close" is not written
+			Close: true,
 		},
 
 		"HTTP/1.1 200 OK\r\n" +
+			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			"6\r\nabcdef\r\n0\r\n\r\n",
 	},

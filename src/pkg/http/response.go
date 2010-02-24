@@ -188,9 +188,13 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	resp.RequestMethod = strings.ToUpper(resp.RequestMethod)
 
 	// Status line
-	text, ok := statusText[resp.StatusCode]
-	if !ok {
-		text = "status code " + strconv.Itoa(resp.StatusCode)
+	text := resp.Status
+	if text == "" {
+		var ok bool
+		text, ok = statusText[resp.StatusCode]
+		if !ok {
+			text = "status code " + strconv.Itoa(resp.StatusCode)
+		}
 	}
 	io.WriteString(w, "HTTP/"+strconv.Itoa(resp.ProtoMajor)+".")
 	io.WriteString(w, strconv.Itoa(resp.ProtoMinor)+" ")
