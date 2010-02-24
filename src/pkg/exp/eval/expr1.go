@@ -12,40 +12,36 @@ import (
  * "As" functions.  These retrieve evaluator functions from an
  * expr, panicking if the requested evaluator has the wrong type.
  */
-func (a *expr) asBool() (func(*Thread) bool) { return a.eval.(func(*Thread) bool) }
-func (a *expr) asUint() (func(*Thread) uint64) {
-	return a.eval.(func(*Thread) uint64)
-}
-func (a *expr) asInt() (func(*Thread) int64) { return a.eval.(func(*Thread) int64) }
-func (a *expr) asIdealInt() (func() *bignum.Integer) {
+func (a *expr) asBool() func(*Thread) bool   { return a.eval.(func(*Thread) bool) }
+func (a *expr) asUint() func(*Thread) uint64 { return a.eval.(func(*Thread) uint64) }
+func (a *expr) asInt() func(*Thread) int64   { return a.eval.(func(*Thread) int64) }
+func (a *expr) asIdealInt() func() *bignum.Integer {
 	return a.eval.(func() *bignum.Integer)
 }
-func (a *expr) asFloat() (func(*Thread) float64) {
+func (a *expr) asFloat() func(*Thread) float64 {
 	return a.eval.(func(*Thread) float64)
 }
-func (a *expr) asIdealFloat() (func() *bignum.Rational) {
+func (a *expr) asIdealFloat() func() *bignum.Rational {
 	return a.eval.(func() *bignum.Rational)
 }
-func (a *expr) asString() (func(*Thread) string) {
+func (a *expr) asString() func(*Thread) string {
 	return a.eval.(func(*Thread) string)
 }
-func (a *expr) asArray() (func(*Thread) ArrayValue) {
+func (a *expr) asArray() func(*Thread) ArrayValue {
 	return a.eval.(func(*Thread) ArrayValue)
 }
-func (a *expr) asStruct() (func(*Thread) StructValue) {
+func (a *expr) asStruct() func(*Thread) StructValue {
 	return a.eval.(func(*Thread) StructValue)
 }
-func (a *expr) asPtr() (func(*Thread) Value) { return a.eval.(func(*Thread) Value) }
-func (a *expr) asFunc() (func(*Thread) Func) { return a.eval.(func(*Thread) Func) }
-func (a *expr) asSlice() (func(*Thread) Slice) {
-	return a.eval.(func(*Thread) Slice)
-}
-func (a *expr) asMap() (func(*Thread) Map) { return a.eval.(func(*Thread) Map) }
-func (a *expr) asMulti() (func(*Thread) []Value) {
+func (a *expr) asPtr() func(*Thread) Value   { return a.eval.(func(*Thread) Value) }
+func (a *expr) asFunc() func(*Thread) Func   { return a.eval.(func(*Thread) Func) }
+func (a *expr) asSlice() func(*Thread) Slice { return a.eval.(func(*Thread) Slice) }
+func (a *expr) asMap() func(*Thread) Map     { return a.eval.(func(*Thread) Map) }
+func (a *expr) asMulti() func(*Thread) []Value {
 	return a.eval.(func(*Thread) []Value)
 }
 
-func (a *expr) asInterface() (func(*Thread) interface{}) {
+func (a *expr) asInterface() func(*Thread) interface{} {
 	switch sf := a.eval.(type) {
 	case func(t *Thread) bool:
 		return func(t *Thread) interface{} { return sf(t) }
@@ -1871,7 +1867,7 @@ func (a *expr) genBinOpNeq(l, r *expr) {
 	}
 }
 
-func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
+func genAssign(lt Type, r *expr) func(lv Value, t *Thread) {
 	switch lt.lit().(type) {
 	case *boolType:
 		rf := r.asBool()

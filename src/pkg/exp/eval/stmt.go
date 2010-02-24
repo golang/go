@@ -1226,7 +1226,7 @@ func (a *blockCompiler) exit() { a.block.exit() }
  * Function compiler
  */
 
-func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func(*Thread) Func) {
+func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) func(*Thread) Func {
 	// Create body scope
 	//
 	// The scope of a parameter or result is the body of the

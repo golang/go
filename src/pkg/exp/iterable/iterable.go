@@ -18,7 +18,7 @@ type Iterable interface {
 	Iter() <-chan interface{}
 }
 
-func not(f func(interface{}) bool) (func(interface{}) bool) {
+func not(f func(interface{}) bool) func(interface{}) bool {
 	return func(e interface{}) bool { return !f(e) }
 }
 

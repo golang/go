@@ -241,19 +241,13 @@ func (p *printer) signature(params, result []*ast.Field, multiLine *bool) {
 	p.parameters(params, multiLine)
 	if result != nil {
 		p.print(blank)
-
 		if len(result) == 1 && result[0].Names == nil {
-			// single anonymous result; no ()'s unless it's a function type
-			f := result[0]
-			if _, isFtyp := f.Type.(*ast.FuncType); !isFtyp {
-				p.expr(f.Type, multiLine)
-				return
-			}
+			// single anonymous result; no ()'s
+			p.expr(result[0].Type, multiLine)
+			return
 		}
-
 		p.parameters(result, multiLine)
 	}
-	return
 }
 
 

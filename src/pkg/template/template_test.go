@@ -72,7 +72,7 @@ func plus1(v interface{}) string {
 	return fmt.Sprint(i + 1)
 }
 
-func writer(f func(interface{}) string) (func(io.Writer, interface{}, string)) {
+func writer(f func(interface{}) string) func(io.Writer, interface{}, string) {
 	return func(w io.Writer, v interface{}, format string) {
 		io.WriteString(w, f(v))
 	}

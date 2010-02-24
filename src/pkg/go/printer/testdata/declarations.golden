@@ -471,6 +471,13 @@ func _() {
 }
 
 
+// formatting of function results
+func _() func()				{}
+func _() func(int)			{ return nil }
+func _() func(int) int			{ return nil }
+func _() func(int) func(int) func()	{ return nil }
+
+
 // formatting of consecutive single-line functions
 func _()	{}
 func _()	{}
