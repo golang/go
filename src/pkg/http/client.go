@@ -139,6 +139,7 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 	req.Method = "POST"
 	req.ProtoMajor = 1
 	req.ProtoMinor = 1
+	req.Close = true
 	req.Body = nopCloser{body}
 	req.Header = map[string]string{
 		"Content-Type": bodyType,

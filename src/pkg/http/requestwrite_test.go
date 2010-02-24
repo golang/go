@@ -82,6 +82,43 @@ var reqWriteTests = []reqWriteTest{
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			"6\r\nabcdef\r\n0\r\n\r\n",
 	},
+	// HTTP/1.1 POST => chunked coding; body; empty trailer
+	reqWriteTest{
+		Request{
+			Method: "POST",
+			URL: &URL{
+				Scheme: "http",
+				Host: "www.google.com",
+				Path: "/search",
+			},
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Header: map[string]string{},
+			Close: true,
+			Body: nopCloser{bytes.NewBufferString("abcdef")},
+			TransferEncoding: []string{"chunked"},
+		},
+
+		"POST /search HTTP/1.1\r\n" +
+			"Host: www.google.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Connection: close\r\n" +
+			"Transfer-Encoding: chunked\r\n\r\n" +
+			"6\r\nabcdef\r\n0\r\n\r\n",
+	},
+	// default to HTTP/1.1
+	reqWriteTest{
+		Request{
+			Method: "GET",
+			RawURL: "/search",
+			Host: "www.google.com",
+		},
+
+		"GET /search HTTP/1.1\r\n" +
+			"Host: www.google.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"\r\n",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {

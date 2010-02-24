@@ -79,19 +79,27 @@ func noBodyExpected(requestMethod string) bool {
 }
 
 func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
+	if t.Close {
+		_, err = io.WriteString(w, "Connection: close\r\n")
+		if err != nil {
+			return
+		}
+	}
+
 	// Write Content-Length and/or Transfer-Encoding whose values are a
 	// function of the sanitized field triple (Body, ContentLength,
 	// TransferEncoding)
 	if chunked(t.TransferEncoding) {
 		_, err = io.WriteString(w, "Transfer-Encoding: chunked\r\n")
-	} else {
-		if t.ContentLength > 0 || t.ResponseToHEAD {
-			io.WriteString(w, "Content-Length: ")
-			_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
+		if err != nil {
+			return
 		}
-	}
-	if err != nil {
-		return
+	} else if t.ContentLength > 0 || t.ResponseToHEAD {
+		io.WriteString(w, "Content-Length: ")
+		_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
+		if err != nil {
+			return
+		}
 	}
 
 	// Write Trailer header
@@ -182,6 +190,11 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 		// Responses with status code 200, responding to a GET method
 		t.StatusCode = 200
 		t.RequestMethod = "GET"
+	}
+
+	// Default to HTTP/1.1
+	if t.ProtoMajor == 0 && t.ProtoMinor == 0 {
+		t.ProtoMajor, t.ProtoMinor = 1, 1
 	}
 
 	// Transfer encoding, content length
@@ -347,6 +360,7 @@ func shouldClose(major, minor int, header map[string]string) bool {
 		// TODO: Should split on commas, toss surrounding white space,
 		// and check each field.
 		if v == "close" {
+			header["Connection"] = "", false
 			return true
 		}
 	}
