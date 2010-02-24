@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"go/ast"
 	"go/token"
+	"strings"
 )
 
 
@@ -59,43 +60,25 @@ func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool) 
 }
 
 
-// TODO(gri): The code for printing lead and line comments
-//            should be eliminated in favor of reusing the
-//            comment intersperse mechanism above somehow.
-
-// Print a list of individual comments.
-func (p *printer) commentList(list []*ast.Comment) {
-	for i, c := range list {
-		t := c.Text
-		// TODO(gri): this needs to be styled like normal comments
-		p.print(c.Pos(), t)
-		if t[1] == '/' && i+1 < len(list) {
-			//-style comment which is not at the end; print a newline
-			p.print(newline)
-		}
+// setComment sets g as the next comment if g != nil and if node comments
+// are enabled - this mode is used when printing source code fragments such
+// as exports only. It assumes that there are no other pending comments to
+// intersperse.
+func (p *printer) setComment(g *ast.CommentGroup) {
+	if g == nil || !p.useNodeComments {
+		return
 	}
-}
-
-
-// Print a lead comment followed by a newline.
-func (p *printer) leadComment(d *ast.CommentGroup) {
-	// Ignore the comment if we have comments interspersed (p.comment != nil).
-	if p.comments == nil && d != nil {
-		p.commentList(d.List)
-		p.print(newline)
+	if p.comments == nil {
+		// initialize p.comments lazily
+		p.comments = make([]*ast.CommentGroup, 1)
+	} else if p.cindex < len(p.comments) {
+		// for some reason there are pending comments; this
+		// should never happen - handle gracefully and flush
+		// all comments up to g, ignore anything after that
+		p.flush(g.List[0].Pos(), false)
 	}
-}
-
-
-// Print a tab followed by a line comment.
-// A newline must be printed afterwards since
-// the comment may be a //-style comment.
-func (p *printer) lineComment(d *ast.CommentGroup) {
-	// Ignore the comment if we have comments interspersed (p.comment != nil).
-	if p.comments == nil && d != nil {
-		p.print(vtab)
-		p.commentList(d.List)
-	}
+	p.comments[0] = g
+	p.cindex = 0
 }
 
 
@@ -307,6 +290,11 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 }
 
 
+func (p *printer) setLineComment(text string) {
+	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{noPos, strings.Bytes(text)}}})
+}
+
+
 func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete bool, ctxt exprContext) {
 	if !isIncomplete && !p.commentBefore(rbrace) {
 		// possibly a one-line struct/interface
@@ -350,7 +338,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			}
 			ml = false
 			extraTabs := 0
-			p.leadComment(f.Doc)
+			p.setComment(f.Doc)
 			if len(f.Names) > 0 {
 				// named fields
 				p.identList(f.Names, &ml)
@@ -372,17 +360,17 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			}
 			if f.Comment != nil {
 				for ; extraTabs > 0; extraTabs-- {
-					p.print(vtab)
+					p.print(sep)
 				}
-				p.lineComment(f.Comment)
+				p.setComment(f.Comment)
 			}
 		}
 		if isIncomplete {
 			if len(list) > 0 {
 				p.print(formfeed)
 			}
-			// TODO(gri): this needs to be styled like normal comments
-			p.print("// contains unexported fields")
+			p.flush(rbrace, false) // make sure we don't loose the last line comment
+			p.setLineComment("// contains unexported fields")
 		}
 
 	} else { // interface
@@ -393,7 +381,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				p.linebreak(f.Pos().Line, 1, 2, ignore, ml)
 			}
 			ml = false
-			p.leadComment(f.Doc)
+			p.setComment(f.Doc)
 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
 				// method
 				p.expr(f.Names[0], &ml)
@@ -402,14 +390,14 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				// embedded interface
 				p.expr(f.Type, &ml)
 			}
-			p.lineComment(f.Comment)
+			p.setComment(f.Comment)
 		}
 		if isIncomplete {
 			if len(list) > 0 {
 				p.print(formfeed)
 			}
-			// TODO(gri): this needs to be styled like normal comments
-			p.print("// contains unexported methods")
+			p.flush(rbrace, false) // make sure we don't loose the last line comment
+			p.setLineComment("// contains unexported methods")
 		}
 
 	}
@@ -1052,7 +1040,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
-		p.leadComment(s.Doc)
+		p.setComment(s.Doc)
 		if s.Name != nil {
 			p.expr(s.Name, multiLine)
 			p.print(blank)
@@ -1061,7 +1049,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		comment = s.Comment
 
 	case *ast.ValueSpec:
-		p.leadComment(s.Doc)
+		p.setComment(s.Doc)
 		p.identList(s.Names, multiLine) // always present
 		if n == 1 {
 			if s.Type != nil {
@@ -1091,7 +1079,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		comment = s.Comment
 
 	case *ast.TypeSpec:
-		p.leadComment(s.Doc)
+		p.setComment(s.Doc)
 		p.expr(s.Name, multiLine)
 		if n == 1 {
 			p.print(blank)
@@ -1109,14 +1097,14 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		for ; extraTabs > 0; extraTabs-- {
 			p.print(vtab)
 		}
-		p.lineComment(comment)
+		p.setComment(comment)
 	}
 }
 
 
 // Sets multiLine to true if the declaration spans multiple lines.
 func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) {
-	p.leadComment(d.Doc)
+	p.setComment(d.Doc)
 	p.print(d.Pos(), d.Tok, blank)
 
 	if d.Lparen.IsValid() {
@@ -1225,7 +1213,7 @@ func distance(from, to token.Position) int {
 
 // Sets multiLine to true if the declaration spans multiple lines.
 func (p *printer) funcDecl(d *ast.FuncDecl, multiLine *bool) {
-	p.leadComment(d.Doc)
+	p.setComment(d.Doc)
 	p.print(d.Pos(), token.FUNC, blank)
 	if recv := d.Recv; recv != nil {
 		// method: print receiver
@@ -1276,7 +1264,7 @@ func declToken(decl ast.Decl) (tok token.Token) {
 
 
 func (p *printer) file(src *ast.File) {
-	p.leadComment(src.Doc)
+	p.setComment(src.Doc)
 	p.print(src.Pos(), token.PACKAGE, blank)
 	p.expr(src.Name, ignoreMultiLine)
 
