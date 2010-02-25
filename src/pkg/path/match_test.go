@@ -64,6 +64,7 @@ var matchTests = []MatchTest{
 	MatchTest{"[-x]", "a", false, ErrBadPattern},
 	MatchTest{"\\", "a", false, ErrBadPattern},
 	MatchTest{"[a-b-c]", "a", false, ErrBadPattern},
+	MatchTest{"*x", "xxx", true, nil},
 }
 
 func TestMatch(t *testing.T) {
