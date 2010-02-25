@@ -297,7 +297,7 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	return c.WriteToUnix(b, a)
 }
 
-// DialUDP connects to the remote address raddr on the network net,
+// DialUnix connects to the remote address raddr on the network net,
 // which must be "unix" or "unixdgram".  If laddr is not nil, it is used
 // as the local address for the connection.
 func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
