@@ -281,6 +281,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 			c := line.At(j).(cell)
 
 			if j > 0 && b.flags&Debug != 0 {
+				// indicate column break
 				if err = b.write0(vbar); err != nil {
 					return
 				}
@@ -496,6 +497,8 @@ func (b *Writer) Flush() os.Error {
 }
 
 
+var hbar = []byte{'-', '-', '-', '\n'}
+
 // Write writes buf to the writer b.
 // The only errors returned are ones encountered
 // while writing to the underlying output stream.
@@ -524,6 +527,12 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 						// Writer contents.
 						if err = b.Flush(); err != nil {
 							return
+						}
+						if ch == '\f' && b.flags&Debug != 0 {
+							// indicate section break
+							if err = b.write0(hbar); err != nil {
+								return
+							}
 						}
 					}
 				}
