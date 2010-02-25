@@ -105,8 +105,11 @@ func _() {
 }
 
 
-func abs(x int) int {
+func _(x int) int {
 	if x < 0 {  // the tab printed before this comment's // must not affect the remaining lines
+		return -x  // this statement should be properly indented
+	}
+	if x < 0 {  /* the tab printed before this comment's /* must not affect the remaining lines */
 		return -x  // this statement should be properly indented
 	}
 	return x
@@ -389,6 +392,8 @@ func _() {
 }
 
 func (/* comment1 */ T /* comment2 */) _() {}
+
+func _() { /* one-liner */ }
 
 
 // Line comments with tabs

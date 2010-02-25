@@ -1205,7 +1205,7 @@ func TestFmin(t *testing.T) {
 func TestFmod(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Fmod(10, vf[i]); fmod[i] != f { /*!close(fmod[i], f)*/
-							t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
+			t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
 		}
 	}
 	for i := 0; i < len(vffmodSC); i++ {
