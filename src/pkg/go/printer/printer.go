@@ -205,22 +205,16 @@ func (p *printer) write(data []byte) {
 }
 
 
-func (p *printer) writeNewlines(n int) {
+func (p *printer) writeNewlines(n int, useFF bool) {
 	if n > 0 {
 		if n > maxNewlines {
 			n = maxNewlines
 		}
-		p.write(newlines[0:n])
-	}
-}
-
-
-func (p *printer) writeFormfeeds(n int) {
-	if n > 0 {
-		if n > maxNewlines {
-			n = maxNewlines
+		if useFF {
+			p.write(formfeeds[0:n])
+		} else {
+			p.write(newlines[0:n])
 		}
-		p.write(formfeeds[0:n])
 	}
 }
 
@@ -360,7 +354,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 		// use formfeeds to break columns before a comment;
 		// this is analogous to using formfeeds to separate
 		// individual lines of /*-style comments
-		p.writeFormfeeds(pos.Line - p.last.Line)
+		p.writeNewlines(pos.Line-p.last.Line, true)
 	}
 }
 
@@ -591,9 +585,10 @@ func (p *printer) writeComment(comment *ast.Comment) {
 // writeCommentSuffix writes a line break after a comment if indicated
 // and processes any leftover indentation information. If a line break
 // is needed, the kind of break (newline vs formfeed) depends on the
-// pending whitespace.
+// pending whitespace. writeCommentSuffix returns true if a pending
+// formfeed was dropped from the whitespace buffer.
 //
-func (p *printer) writeCommentSuffix(needsLinebreak bool) {
+func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 	for i, ch := range p.buffer {
 		switch ch {
 		case blank, vtab:
@@ -603,9 +598,13 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
 			// don't loose indentation information
 		case newline, formfeed:
 			// if we need a line break, keep exactly one
+			// but remember if we dropped any formfeeds
 			if needsLinebreak {
 				needsLinebreak = false
 			} else {
+				if ch == formfeed {
+					droppedFF = true
+				}
 				p.buffer[i] = ignore
 			}
 		}
@@ -616,6 +615,8 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
 	if needsLinebreak {
 		p.write([]byte{'\n'})
 	}
+
+	return
 }
 
 
@@ -623,9 +624,10 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
 // and prints it together with the buffered whitespace (i.e., the whitespace
 // that needs to be written before the next token). A heuristic is used to mix
 // the comments and whitespace. The isKeyword parameter indicates if the next
-// token is a keyword or not.
+// token is a keyword or not. intersperseComments returns true if a pending
+// formfeed was dropped from the whitespace buffer.
 //
-func (p *printer) intersperseComments(next token.Position, isKeyword bool) {
+func (p *printer) intersperseComments(next token.Position, isKeyword bool) (droppedFF bool) {
 	isFirst := true
 	needsLinebreak := false
 	var last *ast.Comment
@@ -643,7 +645,7 @@ func (p *printer) intersperseComments(next token.Position, isKeyword bool) {
 		// follows on the same line: separate with an extra blank
 		p.write([]byte{' '})
 	}
-	p.writeCommentSuffix(needsLinebreak)
+	return p.writeCommentSuffix(needsLinebreak)
 }
 
 
@@ -772,12 +774,13 @@ func (p *printer) print(args ...) {
 		p.pos = next
 
 		if data != nil {
-			p.flush(next, isKeyword)
+			droppedFF := p.flush(next, isKeyword)
 
 			// intersperse extra newlines if present in the source
 			// (don't do this in flush as it will cause extra newlines
-			// at the end of a file)
-			p.writeNewlines(next.Line - p.pos.Line)
+			// at the end of a file) - use formfeeds if we dropped one
+			// before
+			p.writeNewlines(next.Line-p.pos.Line, droppedFF)
 
 			p.writeItem(next, data, tag)
 		}
@@ -794,15 +797,19 @@ func (p *printer) commentBefore(next token.Position) bool {
 
 
 // Flush prints any pending comments and whitespace occuring
-// textually before the position of the next item.
+// textually before the position of the next item. Flush returns
+// true if a pending formfeed character was dropped from the
+// whitespace buffer as a result of interspersing comments.
 //
-func (p *printer) flush(next token.Position, isKeyword bool) {
-	// if there are comments before the next item, intersperse them
+func (p *printer) flush(next token.Position, isKeyword bool) (droppedFF bool) {
 	if p.commentBefore(next) {
-		p.intersperseComments(next, isKeyword)
+		// if there are comments before the next item, intersperse them
+		droppedFF = p.intersperseComments(next, isKeyword)
+	} else {
+		// otherwise, write any leftover whitespace
+		p.writeWhitespace(len(p.buffer))
 	}
-	// write any leftover whitespace
-	p.writeWhitespace(len(p.buffer))
+	return
 }
 
 
