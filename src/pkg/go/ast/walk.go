@@ -72,6 +72,11 @@ func Walk(v Visitor, node interface{}) {
 		Walk(v, n.Tag)
 		walkCommentGroup(v, n.Comment)
 
+	case *FieldList:
+		for _, f := range n.List {
+			Walk(v, f)
+		}
+
 	// Expressions
 	case *BadExpr, *Ident, *Ellipsis, *BasicLit:
 		// nothing to do
@@ -134,7 +139,9 @@ func Walk(v Visitor, node interface{}) {
 
 	case *FuncType:
 		Walk(v, n.Params)
-		Walk(v, n.Results)
+		if n.Results != nil {
+			Walk(v, n.Results)
+		}
 
 	case *InterfaceType:
 		Walk(v, n.Methods)
@@ -285,11 +292,6 @@ func Walk(v Visitor, node interface{}) {
 	case *Package:
 		for _, f := range n.Files {
 			Walk(v, f)
-		}
-
-	case []*Field:
-		for _, x := range n {
-			Walk(v, x)
 		}
 
 	case []*Ident:

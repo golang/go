@@ -102,6 +102,30 @@ func (f *Field) Pos() token.Position {
 }
 
 
+// A FieldList represents a list of Fields, enclosed by parentheses or braces.
+type FieldList struct {
+	Opening token.Position // position of opening parenthesis/brace
+	List    []*Field       // field list
+	Closing token.Position // position of closing parenthesis/brace
+}
+
+
+// NumFields returns the number of (named and anonymous fields) in a FieldList.
+func (f *FieldList) NumFields() int {
+	n := 0
+	if f != nil {
+		for _, g := range f.List {
+			m := len(g.Names)
+			if m == 0 {
+				m = 1 // anonymous field
+			}
+			n += m
+		}
+	}
+	return n
+}
+
+
 // An expression is represented by a tree consisting of one
 // or more of the following concrete expression nodes.
 //
@@ -253,29 +277,25 @@ type (
 
 	// A StructType node represents a struct type.
 	StructType struct {
-		token.Position                // position of "struct" keyword
-		Lbrace         token.Position // position of "{"
-		Fields         []*Field       // list of field declarations
-		Rbrace         token.Position // position of "}"
-		Incomplete     bool           // true if (source) fields are missing in the Fields list
+		token.Position            // position of "struct" keyword
+		Fields         *FieldList // list of field declarations
+		Incomplete     bool       // true if (source) fields are missing in the Fields list
 	}
 
 	// Pointer types are represented via StarExpr nodes.
 
 	// A FuncType node represents a function type.
 	FuncType struct {
-		token.Position          // position of "func" keyword
-		Params         []*Field // (incoming) parameters
-		Results        []*Field // (outgoing) results
+		token.Position            // position of "func" keyword
+		Params         *FieldList // (incoming) parameters
+		Results        *FieldList // (outgoing) results
 	}
 
 	// An InterfaceType node represents an interface type.
 	InterfaceType struct {
-		token.Position                // position of "interface" keyword
-		Lbrace         token.Position // position of "{"
-		Methods        []*Field       // list of methods
-		Rbrace         token.Position // position of "}"
-		Incomplete     bool           // true if (source) methods are missing in the Methods list
+		token.Position            // position of "interface" keyword
+		Methods        *FieldList // list of methods
+		Incomplete     bool       // true if (source) methods are missing in the Methods list
 	}
 
 	// A MapType node represents a map type.
@@ -669,7 +689,7 @@ type (
 	// A FuncDecl node represents a function declaration.
 	FuncDecl struct {
 		Doc  *CommentGroup // associated documentation; or nil
-		Recv *Field        // receiver (methods); or nil (functions)
+		Recv *FieldList    // receiver (methods); or nil (functions)
 		Name *Ident        // function/method name
 		Type *FuncType     // position of Func keyword, parameters and results
 		Body *BlockStmt    // function body; or nil (forward declaration)

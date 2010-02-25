@@ -703,8 +703,8 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
 		Params: p,
 		Result: r,
 		Go: &ast.FuncType{
-			Params: gp,
-			Results: gr,
+			Params: &ast.FieldList{List: gp},
+			Results: &ast.FieldList{List: gr},
 		},
 	}
 }
@@ -796,6 +796,6 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 		fatal("struct size calculation error")
 	}
 	csyntax += "}"
-	expr = &ast.StructType{Fields: fld}
+	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
 	return
 }

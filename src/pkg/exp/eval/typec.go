@@ -86,43 +86,33 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
 	return NewArrayType(l, elem)
 }
 
-func countFields(fs []*ast.Field) int {
-	n := 0
-	for _, f := range fs {
-		if f.Names == nil {
-			n++
-		} else {
-			n += len(f.Names)
-		}
-	}
-	return n
-}
-
-func (a *typeCompiler) compileFields(fs []*ast.Field, allowRec bool) ([]Type, []*ast.Ident, []token.Position, bool) {
-	n := countFields(fs)
+func (a *typeCompiler) compileFields(fields *ast.FieldList, allowRec bool) ([]Type, []*ast.Ident, []token.Position, bool) {
+	n := fields.NumFields()
 	ts := make([]Type, n)
 	ns := make([]*ast.Ident, n)
 	ps := make([]token.Position, n)
-
 	bad := false
-	i := 0
-	for _, f := range fs {
-		t := a.compileType(f.Type, allowRec)
-		if t == nil {
-			bad = true
-		}
-		if f.Names == nil {
-			ns[i] = nil
-			ts[i] = t
-			ps[i] = f.Type.Pos()
-			i++
-			continue
-		}
-		for _, n := range f.Names {
-			ns[i] = n
-			ts[i] = t
-			ps[i] = n.Pos()
-			i++
+
+	if fields != nil {
+		i := 0
+		for _, f := range fields.List {
+			t := a.compileType(f.Type, allowRec)
+			if t == nil {
+				bad = true
+			}
+			if f.Names == nil {
+				ns[i] = nil
+				ts[i] = t
+				ps[i] = f.Type.Pos()
+				i++
+				continue
+			}
+			for _, n := range f.Names {
+				ns[i] = n
+				ts[i] = t
+				ps[i] = n.Pos()
+				i++
+			}
 		}
 	}
 

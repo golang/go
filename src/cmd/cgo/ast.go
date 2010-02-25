@@ -164,6 +164,10 @@ func walk(x interface{}, p *Prog, context string) {
 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
 	case *ast.Field:
 		walk(&n.Type, p, "type")
+	case *ast.FieldList:
+		for _, f := range n.List {
+			walk(f, p, context)
+		}
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.Ellipsis:
@@ -211,7 +215,9 @@ func walk(x interface{}, p *Prog, context string) {
 		walk(n.Fields, p, "field")
 	case *ast.FuncType:
 		walk(n.Params, p, "field")
-		walk(n.Results, p, "field")
+		if n.Results != nil {
+			walk(n.Results, p, "field")
+		}
 	case *ast.InterfaceType:
 		walk(n.Methods, p, "field")
 	case *ast.MapType:
@@ -312,10 +318,6 @@ func walk(x interface{}, p *Prog, context string) {
 	case []ast.Expr:
 		for i := range n {
 			walk(&n[i], p, context)
-		}
-	case []*ast.Field:
-		for _, f := range n {
-			walk(f, p, context)
 		}
 	case []ast.Stmt:
 		for _, s := range n {
