@@ -5,6 +5,11 @@
 # This is the server part of the continuous build system for Go. It must be run
 # by AppEngine.
 
+# TODO(rsc):
+#	Delete old Benchmark and BenchmarkResult models once
+#	BenchmarkResults has been working okay for a few days.
+#	Delete conversion code at bottom of file at same time.
+
 from google.appengine.api import memcache
 from google.appengine.runtime import DeadlineExceededError
 from google.appengine.ext import db
@@ -19,6 +24,7 @@ import logging
 import os
 import re
 import struct
+import time
 
 # local imports
 import key
@@ -55,6 +61,15 @@ class BenchmarkResult(db.Model):
     iterations = db.IntegerProperty()
     nsperop = db.IntegerProperty()
 
+class BenchmarkResults(db.Model):
+    builder = db.StringProperty()
+    benchmark = db.StringProperty()
+    data = db.ListProperty(long)	# encoded as [-1, num, iterations, nsperop]*
+
+class Cache(db.Model):
+    data = db.BlobProperty()
+    expire = db.IntegerProperty()
+
 # A Log contains the textual build log of a failed build. The key name is the
 # hex digest of the SHA256 hash of the contents.
 class Log(db.Model):
@@ -67,6 +82,23 @@ class Highwater(db.Model):
     commit = db.StringProperty()
 
 N = 30
+
+def cache_get(key):
+    c = Cache.get_by_key_name(key)
+    if c is None or c.expire < time.time():
+        return None
+    return c.data
+
+def cache_set(key, val, timeout):
+    c = Cache(key_name = key)
+    c.data = val
+    c.expire = int(time.time() + timeout)
+    c.put()
+
+def cache_del(key):
+    c = Cache.get_by_key_name(key)
+    if c is not None:
+        c.delete()
 
 def builderInfo(b):
     f = b.split('-', 3)
@@ -279,13 +311,14 @@ class Build(webapp.RequestHandler):
 
         db.run_in_transaction(add_build)
 
-        hw = Highwater.get_by_key_name('hw-%s' % builder)
+        key = 'hw-%s' % builder
+        hw = Highwater.get_by_key_name(key)
         if hw is None:
-            hw = Highwater(key_name = 'hw-%s' % builder)
+            hw = Highwater(key_name = key)
         hw.commit = node
         hw.put()
+        memcache.delete(key)
         memcache.delete('hw')
-        memcache.delete('bench')
 
         self.response.set_status(200)
 
@@ -309,108 +342,52 @@ class Benchmarks(webapp.RequestHandler):
     def get(self):
         if self.request.get('fmt') == 'json':
             return self.json()
+
         self.response.set_status(200)
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
         page = memcache.get('bench')
         if not page:
-            num = memcache.get('hw')
-            if num is None:
-                q = Commit.all()
-                q.order('-__key__')
-                n = q.fetch(1)[0]
-                memcache.set('hw', num)
-            page, full = self.compute(n.num)
-            if full:
-                memcache.set('bench', page, 3600)
+            # use datastore as cache to avoid computation even
+            # if memcache starts dropping things on the floor
+            logging.error("memcache dropped bench")
+            page = cache_get('bench')
+            if not page:
+                logging.error("cache dropped bench")
+                num = memcache.get('hw')
+                if num is None:
+                    q = Commit.all()
+                    q.order('-__key__')
+                    n = q.fetch(1)[0]
+                    num = n.num
+                    memcache.set('hw', num)
+                page = self.compute(num)
+                cache_set('bench', page, 600)
+            memcache.set('bench', page, 600)
         self.response.out.write(page)
-    
+
     def compute(self, num):
-        q = Benchmark.all()
-        q.filter('__key__ >', Benchmark.get_or_insert('v002.').key())
-        benchmarks = q.fetch(10000)
+        benchmarks, builders = benchmark_list()
+                
+        # Build empty grid, to be filled in.
+        rows = [{"name": bm, "builds": [{"url": ""} for b in builders]} for bm in benchmarks]
 
-        # Which builders have sent benchmarks recently?
-        builders = set()
-        q = BenchmarkResult.all()
-        q.ancestor(benchmarks[0])
-        q.order('-__key__')
-        for r in q.fetch(50):
-            builders.add(r.builder)
-        builders = list(builders)
-        builders.sort()
-        
-        NB = 80
-        last = num
-        first = num+1 - NB
-        
-        # Build list of rows, one per benchmark
-        rows = [{"name": bm.name, "builds": [{"url": ""} for b in builders]} for bm in benchmarks]
-
-        full = True
-        try:
-            for i in range(len(rows)):
-                data = None
-                bm = benchmarks[i]
-                builds = rows[i]["builds"]
-                all = None
-                for j in range(len(builders)):
-                    cell = builds[j]
-                    b = builders[j]
-                    # Build cell: a URL for the chart server or an empty string.
-                    # Cache individual graphs because they're so damn expensive.
-                    key = "bench(%s,%s,%d)" % (bm.name, b, num)
-                    url = memcache.get(key)
-                    if url is not None:
-                        cell["url"] = url
-                        continue
-                    
-                    # Page in all data for benchmark for all builders,
-                    # on demand.  It might be faster to ask for just the
-                    # builder that we need, but q.filter('builder = ', b) is
-                    # broken right now (the index is corrupt).
-                    if all is None:
-                        q = BenchmarkResult.all()
-                        q.ancestor(bm)
-                        q.order('-__key__')
-                        all = q.fetch(1000)
-
-                    data = [-1 for x in range(first, last+1)]
-                    for r in all:
-                        if r.builder == b and first <= r.num and r.num <= last:
-                            data[r.num - first] = r.nsperop
-                    present = [x for x in data if x >= 0]
-                    if len(present) == 0:
-                        memcache.set(key, "", 3600)
-                        continue
-                    avg = sum(present) / len(present)
-                    maxval = max(2*avg, max(present))
-                    # Encoding is 0-61, which is fine enough granularity for our tiny graphs.  _ means missing.
-                    encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-                    s = ''.join([x < 0 and "_" or encoding[int((len(encoding)-1)*x/maxval)] for x in data])
-                    url = "http://chart.apis.google.com/chart?cht=ls&chd=s:"+s
-                    memcache.set(key, url, 3600)
-                    cell["url"] = url
-        except DeadlineExceededError:
-            # forge ahead with partial benchmark results
-            # the url caches above should make the next page quicker to compute
-            full = False
-
-        names = [bm.name for bm in benchmarks]
-
-        bs = []
-        for b in builders:
-            f = b.split('-', 3)
-            goos = f[0]
-            goarch = f[1]
-            note = ""
-            if len(f) > 2:
-                note = f[2]
-            bs.append({'goos': goos, 'goarch': goarch, 'note': note})
-
-        values = {"benchmarks": rows, "builders": bs}
+        for i in range(len(rows)):
+            benchmark = benchmarks[i]
+            builds = rows[i]["builds"]
+            minr, maxr, bybuilder = benchmark_data(benchmark)
+            for j in range(len(builders)):
+                builder = builders[j]
+                cell = builds[j]
+                if len(bybuilder) > 0 and builder == bybuilder[0][0]:
+                    cell["url"] = benchmark_sparkline(bybuilder[0][2])
+                    bybuilder = bybuilder[1:]
 
         path = os.path.join(os.path.dirname(__file__), 'benchmarks.html')
-        return template.render(path, values), full
+        data = {
+            "benchmarks": rows,
+            "builders": [builderInfo(b) for b in builders]
+        }
+        return template.render(path, data)
 
     def post(self):
         if not auth(self.request):
@@ -456,10 +433,14 @@ class Benchmarks(webapp.RequestHandler):
             b = Benchmark.get_or_insert('v002.' + benchmark.encode('base64'), name = benchmark, version = 2)
             r = BenchmarkResult(key_name = '%08x/%s' % (n.num, builder), parent = b, num = n.num, iterations = iterations, nsperop = time, builder = builder)
             r.put()
+            key = '%s;%s' % (builder, benchmark)
+            r1 = BenchmarkResults.get_by_key_name(key)
+            if r1 is not None and (len(r1.data) < 4 or r1.data[-4] != -1 or r1.data[-3] != n.num):
+                r1.data += [-1L, long(n.num), long(iterations), long(time)]
+                r1.put()            
             key = "bench(%s,%s,%d)" % (benchmark, builder, n.num)
             memcache.delete(key)
 
-        memcache.delete('bench')
         self.response.set_status(200)
 
 def node(num):
@@ -468,105 +449,131 @@ def node(num):
     n = q.get()
     return n
 
+def benchmark_data(benchmark):
+    q = BenchmarkResults.all()
+    q.order('__key__')
+    q.filter('benchmark =', benchmark)
+    results = q.fetch(100)
+
+    minr = 100000000
+    maxr = 0
+    for r in results:
+        if r.benchmark != benchmark:
+            continue
+        # data is [-1, num, iters, nsperop, -1, num, iters, nsperop, ...]
+        d = r.data
+        if not d:
+            continue
+        if [x for x in d[::4] if x != -1]:
+            # unexpected data framing
+            logging.error("bad framing for data in %s;%s" % (r.builder, r.benchmark))
+            continue
+        revs = d[1::4]
+        minr = min(minr, min(revs))
+        maxr = max(maxr, max(revs))
+    if minr > maxr:
+        return 0, 0, []
+
+    bybuilder = []
+    for r in results:
+        if r.benchmark != benchmark:
+            continue
+        d = r.data
+        if not d:
+            continue
+        nsbyrev = [-1 for x in range(minr, maxr+1)]
+        iterbyrev = [-1 for x in range(minr, maxr+1)]
+        for num, iter, ns in zip(d[1::4], d[2::4], d[3::4]):
+            iterbyrev[num - minr] = iter
+            nsbyrev[num - minr] = ns
+        bybuilder.append((r.builder, iterbyrev, nsbyrev))
+
+    return minr, maxr, bybuilder
+
+def benchmark_graph(builder, minhash, maxhash, ns):
+    valid = [x for x in ns if x >= 0]
+    if not valid:
+        return ""
+    m = max(max(valid), 2*sum(valid)/len(valid))
+    s = ""
+    encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-"
+    for val in ns:
+        if val < 0:
+            s += "__"
+            continue
+        val = int(val*4095.0/m)
+        s += encoding[val/64] + encoding[val%64]
+    return ("http://chart.apis.google.com/chart?cht=lc&chxt=x,y&chxl=0:|%s|%s|1:|0|%g ns|%g ns&chd=e:%s" %
+        (minhash[0:12], maxhash[0:12], m/2, m, s))
+
+def benchmark_sparkline(ns):
+    valid = [x for x in ns if x >= 0]
+    if not valid:
+        return ""
+    m = max(max(valid), 2*sum(valid)/len(valid))
+    # Encoding is 0-61, which is fine enough granularity for our tiny graphs.  _ means missing.
+    encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    s = ''.join([x < 0 and "_" or encoding[int((len(encoding)-1)*x/m)] for x in ns])
+    url = "http://chart.apis.google.com/chart?cht=ls&chd=s:"+s
+    return url
+
+def benchmark_list():
+    q = BenchmarkResults.all()
+    q.order('__key__')
+    q.filter('builder = ', u'darwin-amd64')
+    benchmarks = [r.benchmark for r in q.fetch(1000)]
+    
+    q = BenchmarkResults.all()
+    q.order('__key__')
+    q.filter('benchmark =', u'math_test.BenchmarkSqrt')
+    builders = [r.builder for r in q.fetch(100)]
+    
+    return benchmarks, builders
+    
 class GetBenchmarks(webapp.RequestHandler):
     def get(self):
         benchmark = self.request.path[12:]
-        bm = Benchmark.get_by_key_name('v002.' + benchmark.encode('base64'))
-        if bm is None:
-            self.response.set_status(404)
-            return
+        minr, maxr, bybuilder = benchmark_data(benchmark)
+        minhash = node(minr).node
+        maxhash = node(maxr).node
 
-        q = BenchmarkResult.all()
-        q.ancestor(bm)
-        q.order('-__key__')
-        results = q.fetch(10000)
-
-        if len(results) == 0:
-            self.response.set_status(404)
-            return
-
-        maxv = -1
-        minv = 2000000000
-        builders = set()
-        for r in results:
-            if maxv < r.num:
-                maxv = r.num
-            if minv > r.num:
-                minv = r.num
-            builders.add(r.builder)
-
-        builders = list(builders)
-        builders.sort()
-
-        res = {}
-        for b in builders:
-            res[b] = [[-1] * ((maxv - minv) + 1), [-1] * ((maxv - minv) + 1)]
-
-        for r in results:
-            res[r.builder][0][r.num - minv] = r.iterations
-            res[r.builder][1][r.num - minv] = r.nsperop
-        
-        minhash = node(minv).node
-        maxhash = node(maxv).node
         if self.request.get('fmt') == 'json':
             self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-            self.response.out.write('{"min": "%s", "max": "%s", "data": {' % (minhash, maxhash))
+            self.response.out.write('{ "min": "%s", "max": "%s", "data": {' % (minhash, maxhash))
             sep = "\n\t"
-            for b in builders:
-                self.response.out.write('%s"%s": {"iterations": %s, "nsperop": %s}' % (sep, b, str(res[b][0]).replace("L", ""), str(res[b][1]).replace("L", "")))
+            for builder, iter, ns in bybuilder:
+                self.response.out.write('%s{ "builder": "%s", "iterations": %s, "nsperop": %s }' %
+                    (sep, builder, str(iter).replace("L", ""), str(nsperop).replace("L", "")))
                 sep = ",\n\t"
-            self.response.out.write("\n}}\n")
+            self.response.out.write('\n}\n')
             return
-
-        def bgraph(builder):
-            data = res[builder][1]
-            encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-"
-            m = max(data)  # max ns timing
-            if m == -1:
-                return ""
-            tot = 0
-            ntot = 0
-            for d in data:
-                if d < 0:
-                    continue
-                tot += d
-                ntot += 1
-            avg = tot / ntot
-            if 2*avg > m:
-                m = 2*avg
-            s = ""
-            for d in data:
-                if d < 0:
-                    s += "__"
-                    continue
-                val = int(d*4095.0/m)
-                s += encoding[val/64] + encoding[val%64]
-            return "http://chart.apis.google.com/chart?cht=lc&chxt=x,y&chxl=0:|%s|%s|1:|0|%g ns|%g ns&chd=e:%s" % (minhash[0:12], maxhash[0:12], m/2, m, s)
-            
-        graphs = []
-        for b in builders:
-            graphs.append({"builder": b, "url": bgraph(b)})
         
+        graphs = []
+        for builder, iter, ns in bybuilder:
+            graphs.append({"builder": builder, "url": benchmark_graph(builder, minhash, maxhash, ns)})
+
         revs = []
-        for i in range(minv, maxv+1):
+        for i in range(minr, maxr+1):
             r = nodeInfo(node(i))
-            ns = []
-            for b in builders:
-                t = res[b][1][i - minv]
+            x = []
+            for _, _, ns in bybuilder:
+                t = ns[i - minr]
                 if t < 0:
                     t = None
-                ns.append(t)
-            r["ns_by_builder"] = ns
+                x.append(t)
+            r["ns_by_builder"] = x
             revs.append(r)
+        revs.reverse()  # same order as front page
         
         path = os.path.join(os.path.dirname(__file__), 'benchmark1.html')
         data = {
-            "benchmark": bm.name,
-            "builders": [builderInfo(b) for b in builders],
+            "benchmark": benchmark,
+            "builders": [builderInfo(b) for b,_,_ in bybuilder],
             "graphs": graphs,
-            "revs": revs
+            "revs": revs,
         }
         self.response.out.write(template.render(path, data))
+        
         
 class FixedOffset(datetime.tzinfo):
     """Fixed offset in minutes east from UTC."""
@@ -662,3 +669,50 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# TODO(rsc): Delete once no longer needed.
+# old benchmark conversion handler
+#
+#     def convert(self):
+#         try:
+#             self.response.set_status(200)
+#             self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+#             q = Benchmark.all()
+#             q.filter('__key__ >', Benchmark.get_or_insert('v002.').key())
+#             benchmarks = q.fetch(10000)
+#             
+#             # Which builders have sent benchmarks recently?
+#             builders = set()
+#             q = BenchmarkResult.all()
+#             q.ancestor(benchmarks[0])
+#             q.order('-__key__')
+#             for r in q.fetch(50):
+#                 builders.add(r.builder)
+#             builders = list(builders)
+#             builders.sort()
+#             
+#             for bm in benchmarks:
+#                 all = None
+# 
+#                 for b in builders:
+#                     key = "%s;%s" % (b, bm.name)
+#                     ra = BenchmarkResults.get_by_key_name(key)
+#                     if ra is not None:
+#                         continue
+#                     data = []
+#                     if all is None:
+#                         q = BenchmarkResult.all()
+#                         q.ancestor(bm)
+#                         q.order('__key__')
+#                         all = q.fetch(1000)
+#                     for r in all:
+#                         if r.builder == b:
+#                             data += [-1L, long(r.num), long(r.iterations), long(r.nsperop)]
+#                     ra = BenchmarkResults(key_name = key, builder = b, benchmark = bm.name, data = data)
+#                     ra.put()
+#                     self.response.out.write(key + '\n')
+# 
+#             self.response.out.write('done')
+#         except DeadlineExceededError:
+#             pass

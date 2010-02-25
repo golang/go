@@ -13,6 +13,11 @@ indexes:
   - name: __key__
     direction: desc
 
+- kind: BenchmarkResults
+  properties:
+  - name: builder
+  - name: benchmark
+
 - kind: Commit
   properties:
   - name: __key__
