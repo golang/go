@@ -302,7 +302,7 @@ func (S *Scanner) scanNumber(pos token.Position, seenDecimalPoint bool) token.To
 				seenDecimalDigit = true
 				S.scanMantissa(10)
 			}
-			if S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
+			if S.ch == '.' || S.ch == 'e' || S.ch == 'E' || S.ch == 'i' {
 				goto fraction
 			}
 			// octal int
@@ -331,6 +331,11 @@ exponent:
 			S.next()
 		}
 		S.scanMantissa(10)
+	}
+
+	if S.ch == 'i' {
+		tok = token.IMAG
+		S.next()
 	}
 
 exit:

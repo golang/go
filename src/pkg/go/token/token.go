@@ -30,6 +30,7 @@ const (
 	IDENT  // main
 	INT    // 12345
 	FLOAT  // 123.45
+	IMAG   // 123.45i
 	CHAR   // 'a'
 	STRING // "abc"
 	literal_end
@@ -140,6 +141,7 @@ var tokens = map[Token]string{
 	IDENT: "IDENT",
 	INT: "INT",
 	FLOAT: "FLOAT",
+	IMAG: "IMAG",
 	CHAR: "CHAR",
 	STRING: "STRING",
 

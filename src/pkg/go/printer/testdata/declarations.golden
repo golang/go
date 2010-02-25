@@ -68,6 +68,48 @@ import _ "io"
 var _ int
 
 
+// printing of constant literals
+const (
+	_	= "foobar"
+	_	= "a۰۱۸"
+	_	= "foo६४"
+	_	= "bar９８７６"
+	_	= 0
+	_	= 1
+	_	= 123456789012345678890
+	_	= 01234567
+	_	= 0xcafebabe
+	_	= 0.
+	_	= .0
+	_	= 3.14159265
+	_	= 1e0
+	_	= 1e+100
+	_	= 1e-100
+	_	= 2.71828e-1000
+	_	= 0i
+	_	= 1i
+	_	= 012345678901234567889i
+	_	= 123456789012345678890i
+	_	= 0.i
+	_	= .0i
+	_	= 3.14159265i
+	_	= 1e0i
+	_	= 1e+100i
+	_	= 1e-100i
+	_	= 2.71828e-1000i
+	_	= 'a'
+	_	= '\000'
+	_	= '\xFF'
+	_	= '\uff16'
+	_	= '\U0000ff16'
+	_	= `foobar`
+	_	= `foo
+---
+---
+bar`
+)
+
+
 func _() {
 	// the following decls need a semicolon at the end
 	type _ int
