@@ -572,7 +572,7 @@ func (p *parser) parseStructType() *ast.StructType {
 	// TODO(gri) The struct scope shouldn't get lost.
 	p.declFieldList(ast.NewScope(nil), fields)
 
-	return &ast.StructType{pos, lbrace, fields, rbrace, false}
+	return &ast.StructType{pos, &ast.FieldList{lbrace, fields, rbrace}, false}
 }
 
 
@@ -679,44 +679,44 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 }
 
 
-func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) []*ast.Field {
+func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldList {
 	if p.trace {
 		defer un(trace(p, "Parameters"))
 	}
 
 	var params []*ast.Field
-	p.expect(token.LPAREN)
+	lparen := p.expect(token.LPAREN)
 	if p.tok != token.RPAREN {
 		params = p.parseParameterList(ellipsisOk)
 		p.declFieldList(scope, params)
 	}
-	p.expect(token.RPAREN)
+	rparen := p.expect(token.RPAREN)
 
-	return params
+	return &ast.FieldList{lparen, params, rparen}
 }
 
 
-func (p *parser) parseResult(scope *ast.Scope) []*ast.Field {
+func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
 	if p.trace {
 		defer un(trace(p, "Result"))
 	}
 
-	var results []*ast.Field
 	if p.tok == token.LPAREN {
-		results = p.parseParameters(scope, false)
-	} else {
-		typ := p.tryType()
-		if typ != nil {
-			results = make([]*ast.Field, 1)
-			results[0] = &ast.Field{Type: typ}
-		}
+		return p.parseParameters(scope, false)
 	}
 
-	return results
+	typ := p.tryType()
+	if typ != nil {
+		list := make([]*ast.Field, 1)
+		list[0] = &ast.Field{Type: typ}
+		return &ast.FieldList{List: list}
+	}
+
+	return nil
 }
 
 
-func (p *parser) parseSignature(scope *ast.Scope) (params []*ast.Field, results []*ast.Field) {
+func (p *parser) parseSignature(scope *ast.Scope) (params, results *ast.FieldList) {
 	if p.trace {
 		defer un(trace(p, "Signature"))
 	}
@@ -787,7 +787,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	// TODO(gri) The interface scope shouldn't get lost.
 	p.declFieldList(ast.NewScope(nil), methods)
 
-	return &ast.InterfaceType{pos, lbrace, methods, rbrace, false}
+	return &ast.InterfaceType{pos, &ast.FieldList{lbrace, methods, rbrace}, false}
 }
 
 
@@ -1942,7 +1942,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 }
 
 
-func (p *parser) parseReceiver(scope *ast.Scope) *ast.Field {
+func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
 	if p.trace {
 		defer un(trace(p, "Receiver"))
 	}
@@ -1951,12 +1951,12 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.Field {
 	par := p.parseParameters(scope, false)
 
 	// must have exactly one receiver
-	if len(par) != 1 || len(par) == 1 && len(par[0].Names) > 1 {
+	if par.NumFields() != 1 {
 		p.errorExpected(pos, "exactly one receiver")
-		return &ast.Field{Type: &ast.BadExpr{noPos}}
+		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{noPos}}}
 	}
 
-	recv := par[0]
+	recv := par.List[0]
 
 	// recv type must be TypeName or *TypeName
 	base := recv.Type
@@ -1967,7 +1967,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.Field {
 		p.errorExpected(base.Pos(), "type name")
 	}
 
-	return recv
+	return par
 }
 
 
@@ -1980,7 +1980,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	pos := p.expect(token.FUNC)
 	scope := ast.NewScope(p.funcScope)
 
-	var recv *ast.Field
+	var recv *ast.FieldList
 	if p.tok == token.LPAREN {
 		recv = p.parseReceiver(scope)
 	}

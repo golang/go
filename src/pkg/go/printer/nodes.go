@@ -218,10 +218,10 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 
 
 // Sets multiLine to true if the the parameter list spans multiple lines.
-func (p *printer) parameters(list []*ast.Field, multiLine *bool) {
-	p.print(token.LPAREN)
-	if len(list) > 0 {
-		for i, par := range list {
+func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
+	p.print(fields.Opening, token.LPAREN)
+	if len(fields.List) > 0 {
+		for i, par := range fields.List {
 			if i > 0 {
 				p.print(token.COMMA, blank)
 			}
@@ -232,18 +232,19 @@ func (p *printer) parameters(list []*ast.Field, multiLine *bool) {
 			p.expr(par.Type, multiLine)
 		}
 	}
-	p.print(token.RPAREN)
+	p.print(fields.Closing, token.RPAREN)
 }
 
 
 // Sets multiLine to true if the signature spans multiple lines.
-func (p *printer) signature(params, result []*ast.Field, multiLine *bool) {
+func (p *printer) signature(params, result *ast.FieldList, multiLine *bool) {
 	p.parameters(params, multiLine)
-	if result != nil {
+	n := result.NumFields()
+	if n > 0 {
 		p.print(blank)
-		if len(result) == 1 && result[0].Names == nil {
+		if n == 1 && result.List[0].Names == nil {
 			// single anonymous result; no ()'s
-			p.expr(result[0].Type, multiLine)
+			p.expr(result.List[0].Type, multiLine)
 			return
 		}
 		p.parameters(result, multiLine)
@@ -289,7 +290,11 @@ func (p *printer) setLineComment(text string) {
 }
 
 
-func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete bool, ctxt exprContext) {
+func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprContext) {
+	lbrace := fields.Opening
+	list := fields.List
+	rbrace := fields.Closing
+
 	if !isIncomplete && !p.commentBefore(rbrace) {
 		// possibly a one-line struct/interface
 		if len(list) == 0 {
@@ -711,7 +716,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 
 	case *ast.StructType:
 		p.print(token.STRUCT)
-		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, ctxt|structType)
+		p.fieldList(x.Fields, x.Incomplete, ctxt|structType)
 
 	case *ast.FuncType:
 		p.print(token.FUNC)
@@ -719,7 +724,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 
 	case *ast.InterfaceType:
 		p.print(token.INTERFACE)
-		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, ctxt)
+		p.fieldList(x.Methods, x.Incomplete, ctxt)
 
 	case *ast.MapType:
 		p.print(token.MAP, token.LBRACK)
@@ -1209,15 +1214,9 @@ func distance(from, to token.Position) int {
 func (p *printer) funcDecl(d *ast.FuncDecl, multiLine *bool) {
 	p.setComment(d.Doc)
 	p.print(d.Pos(), token.FUNC, blank)
-	if recv := d.Recv; recv != nil {
-		// method: print receiver
-		p.print(token.LPAREN)
-		if len(recv.Names) > 0 {
-			p.expr(recv.Names[0], multiLine)
-			p.print(blank)
-		}
-		p.expr(recv.Type, multiLine)
-		p.print(token.RPAREN, blank)
+	if d.Recv != nil {
+		p.parameters(d.Recv, multiLine) // method: print receiver
+		p.print(blank)
 	}
 	p.expr(d.Name, multiLine)
 	p.signature(d.Type.Params, d.Type.Results, multiLine)

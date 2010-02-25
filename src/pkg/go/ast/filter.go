@@ -36,7 +36,11 @@ func isExportedType(typ Expr) bool {
 }
 
 
-func filterFieldList(list []*Field, incomplete *bool) []*Field {
+func filterFieldList(fields *FieldList, incomplete *bool) {
+	if fields == nil {
+		return
+	}
+	list := fields.List
 	j := 0
 	for _, f := range list {
 		exported := false
@@ -65,12 +69,15 @@ func filterFieldList(list []*Field, incomplete *bool) []*Field {
 	if j < len(list) {
 		*incomplete = true
 	}
-	return list[0:j]
+	fields.List = list[0:j]
 }
 
 
-func filterParamList(list []*Field) {
-	for _, f := range list {
+func filterParamList(fields *FieldList) {
+	if fields == nil {
+		return
+	}
+	for _, f := range fields.List {
 		filterType(f.Type)
 	}
 }
@@ -83,12 +90,12 @@ func filterType(typ Expr) {
 	case *ArrayType:
 		filterType(t.Elt)
 	case *StructType:
-		t.Fields = filterFieldList(t.Fields, &t.Incomplete)
+		filterFieldList(t.Fields, &t.Incomplete)
 	case *FuncType:
 		filterParamList(t.Params)
 		filterParamList(t.Results)
 	case *InterfaceType:
-		t.Methods = filterFieldList(t.Methods, &t.Incomplete)
+		filterFieldList(t.Methods, &t.Incomplete)
 	case *MapType:
 		filterType(t.Key)
 		filterType(t.Value)

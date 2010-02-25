@@ -381,6 +381,14 @@ func _() {
 // Some interesting interspersed comments
 func _( /* this */ x /* is */ /* an */ int)	{}
 
+func _( /* no params */ )	{}
+
+func _() {
+	f( /* no args */ )
+}
+
+func ( /* comment1 */ T /* comment2 */ ) _()	{}
+
 
 // Line comments with tabs
 func _() {

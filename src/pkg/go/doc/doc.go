@@ -153,7 +153,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	// determine if it should be associated with a type
 	if fun.Recv != nil {
 		// method
-		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.Type))
+		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.List[0].Type))
 		if typ != nil {
 			// exported receiver type
 			typ.methods[name] = fun
@@ -168,8 +168,8 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 
 	// perhaps a factory function
 	// determine result type, if any
-	if len(fun.Type.Results) >= 1 {
-		res := fun.Type.Results[0]
+	if fun.Type.Results.NumFields() >= 1 {
+		res := fun.Type.Results.List[0]
 		if len(res.Names) <= 1 {
 			// exactly one (named or anonymous) result associated
 			// with the first type in result signature (there may
@@ -398,7 +398,7 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 		doc.Doc = CommentText(f.Doc)
 		f.Doc = nil // doc consumed - remove from ast.FuncDecl node
 		if f.Recv != nil {
-			doc.Recv = f.Recv.Type
+			doc.Recv = f.Recv.List[0].Type
 		}
 		doc.Name = f.Name.Name()
 		doc.Decl = f
