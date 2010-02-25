@@ -65,8 +65,9 @@ func Index(s, sep string) int {
 		}
 		return -1
 	}
+	// n > 1
 	for i := 0; i+n <= len(s); i++ {
-		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
+		if s[i] == c && s[i:i+n] == sep {
 			return i
 		}
 	}
@@ -89,8 +90,9 @@ func LastIndex(s, sep string) int {
 		}
 		return -1
 	}
+	// n > 1
 	for i := len(s) - n; i >= 0; i-- {
-		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
+		if s[i] == c && s[i:i+n] == sep {
 			return i
 		}
 	}
