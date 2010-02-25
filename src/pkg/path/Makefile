@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
 
 TARG=path
 GOFILES=\
+	match.go\
 	path.go\
 
 include ../../Make.pkg
