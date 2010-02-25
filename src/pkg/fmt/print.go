@@ -912,6 +912,13 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				goto badtype
 			}
 		case 'q':
+			if field != nil {
+				// if object implements String, use the result.
+				if stringer, ok := field.(Stringer); ok {
+					p.fmt.fmt_q(stringer.String())
+					break
+				}
+			}
 			if v, ok := getString(field); ok {
 				p.fmt.fmt_q(v)
 			} else {

@@ -41,7 +41,7 @@ func (v TF) String() string   { return Sprintf("F: %f", v) }
 func (v TF32) String() string { return Sprintf("F32: %f", v) }
 func (v TF64) String() string { return Sprintf("F64: %f", v) }
 func (v TB) String() string   { return Sprintf("B: %t", v) }
-func (v TS) String() string   { return Sprintf("S: %q", v) }
+func (v TS) String() string   { return Sprintf("S: %q", string(v)) }
 
 func check(t *testing.T, got, want string) {
 	if got != want {

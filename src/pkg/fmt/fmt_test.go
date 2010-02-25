@@ -217,6 +217,9 @@ var fmttests = []fmtTest{
 	fmtTest{"%+v", B{1, 2}, `{i:<1> j:2}`},
 	fmtTest{"%+v", C{1, B{2, 3}}, `{i:1 B:{i:<2> j:3}}`},
 
+	// q on Stringable items
+	fmtTest{"%q", I(23), `"<23>"`},
+
 	// %p on non-pointers
 	fmtTest{"%p", make(chan int), "PTR"},
 	fmtTest{"%p", make(map[int]int), "PTR"},
