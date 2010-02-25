@@ -243,7 +243,7 @@ func (b *Writer) writeN(src []byte, n int) os.Error {
 
 var (
 	newline = []byte{'\n'}
-	tabs    = []byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'}
+	tabs    = []byte("\t\t\t\t\t\t\t\t")
 )
 
 
@@ -497,7 +497,7 @@ func (b *Writer) Flush() os.Error {
 }
 
 
-var hbar = []byte{'-', '-', '-', '\n'}
+var hbar = []byte("---\n")
 
 // Write writes buf to the writer b.
 // The only errors returned are ones encountered
