@@ -32,6 +32,7 @@ static void	checklvalue(Node*, char*);
 static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
 static void	toslice(Node**);
+static void stringtoarraylit(Node**);
 
 void
 typechecklist(NodeList *l, int top)
@@ -835,6 +836,13 @@ reswitch:
 		n = typecheckconv(n, n->left, n->type, 1, "conversion");
 		if(n->type == T)
 			goto error;
+		switch(n->op) {
+		case OSTRARRAYBYTE:
+		case OSTRARRAYRUNE:
+			if(n->left->op == OLITERAL)
+				stringtoarraylit(&n);
+			break;
+		}
 		goto ret;
 
 	case OMAKE:
@@ -1406,6 +1414,18 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
 		}
 	}
 
+	// from string
+	if(istype(nt, TSTRING) && isslice(t) && t->sym == S) {
+		switch(t->type->etype) {
+		case TUINT8:
+			*op = OSTRARRAYBYTE;
+			return 1;
+		case TINT:
+			*op = OSTRARRAYRUNE;
+			return 1;
+		}
+	}
+
 	// convert to unsafe pointer
 	if(isptrto(t, TANY)
 	&& (isptr[nt->etype] || nt->etype == TUINTPTR))
@@ -1534,7 +1554,7 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
 				// TODO(rsc): drop first if in DDD cleanup
 				if(t->etype != TINTER)
 				if(checkconv(nl->n->type, t->type, 0, &xx, &yy, desc) < 0)
-					yyerror("cannot use %+N as type %T in %s", nl->n, t->type, desc);					
+					yyerror("cannot use %+N as type %T in %s", nl->n, t->type, desc);
 			}
 			goto out;
 		}
@@ -1587,7 +1607,7 @@ exportassignok(Type *t, char *desc)
 			// it only happens for fields in a ... struct.
 			if(s != nil && !exportname(s->name) && s->pkg != localpkg) {
 				char *prefix;
-				
+
 				prefix = "";
 				if(desc != nil)
 					prefix = " in ";
@@ -2163,4 +2183,40 @@ typecheckfunc(Node *n)
 	rcvr = getthisx(t)->type;
 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
 		addmethod(n->shortname->sym, t, 1);
+}
+
+static void
+stringtoarraylit(Node **np)
+{
+	int32 i;
+	NodeList *l;
+	Strlit *s;
+	char *p, *ep;
+	Rune r;
+	Node *nn, *n;
+
+	n = *np;
+	if(n->left->op != OLITERAL || n->left->val.ctype != CTSTR)
+		fatal("stringtoarraylit %N", n);
+
+	s = n->left->val.u.sval;
+	l = nil;
+	p = s->s;
+	ep = s->s + s->len;
+	i = 0;
+	if(n->type->type->etype == TUINT8) {
+		// raw []byte
+		while(p < ep)
+			l = list(l, nod(OKEY, nodintconst(i++), nodintconst((uchar)*p++)));
+	} else {
+		// utf-8 []int
+		while(p < ep) {
+			p += chartorune(&r, p);
+			l = list(l, nod(OKEY, nodintconst(i++), nodintconst(r)));
+		}
+	}
+	nn = nod(OCOMPLIT, N, typenod(n->type));
+	nn->list = l;
+	typecheck(&nn, Erv);
+	*np = nn;
 }

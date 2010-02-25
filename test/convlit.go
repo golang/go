@@ -35,3 +35,30 @@ var good2 int = 1.0;
 var good3 int = 1e9;
 var good4 float = 1e20;
 
+// explicit conversion of string is okay
+var _ = []int("abc")
+var _ = []byte("abc")
+
+// implicit is not
+var _ []int = "abc"	// ERROR "cannot use|incompatible|invalid"
+var _ []byte = "abc"	// ERROR "cannot use|incompatible|invalid"
+
+// named string is okay
+type Tstring string
+var ss Tstring = "abc"
+var _ = []int(ss)
+var _ = []byte(ss)
+
+// implicit is still not
+var _ []int = ss	// ERROR "cannot use|incompatible|invalid"
+var _ []byte = ss	// ERROR "cannot use|incompatible|invalid"
+
+// named slice is not
+type Tint []int
+type Tbyte []byte
+var _ = Tint("abc")	// ERROR "convert|incompatible|invalid"
+var _ = Tbyte("abc")	// ERROR "convert|incompatible|invalid"
+
+// implicit is still not
+var _ Tint = "abc"	// ERROR "cannot use|incompatible|invalid"
+var _ Tbyte = "abc"	// ERROR "cannot use|incompatible|invalid"

@@ -8,6 +8,7 @@ static	Node*	walkprint(Node*, NodeList**, int);
 static	Node*	conv(Node*, Type*);
 static	Node*	mapfn(char*, Type*);
 static	Node*	makenewvar(Type*, NodeList**, Node**);
+
 enum
 {
 	Inone,
@@ -122,7 +123,7 @@ static void
 domethod(Node *n)
 {
 	Node *nt;
-	
+
 	nt = n->type->nname;
 	typecheck(&nt, Etype);
 	if(nt->type == T) {
@@ -142,7 +143,7 @@ walkdeftype(Node *n)
 	int maplineno, embedlineno, lno;
 	Type *t;
 	NodeList *l;
-	
+
 	nwalkdeftype++;
 	lno = lineno;
 	setlineno(n);
@@ -183,7 +184,7 @@ walkdeftype(Node *n)
 
 ret:
 	lineno = lno;
-	
+
 	// if there are no type definitions going on, it's safe to
 	// try to resolve the method types for the interfaces
 	// we just read.
@@ -868,7 +869,7 @@ walkexpr(Node **np, NodeList **init)
 	case OINDEX:
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
-		
+
 		// if range of type cannot exceed static array bound,
 		// disable bounds check
 		if(!isslice(n->left->type))
@@ -1092,8 +1093,18 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OARRAYRUNESTR:
-		// sliceinttostring([]byte) string;
+		// sliceinttostring([]int) string;
 		n = mkcall("sliceinttostring", n->type, init, n->left);
+		goto ret;
+
+	case OSTRARRAYBYTE:
+		// stringtoslicebyte(string) []byte;
+		n = mkcall("stringtoslicebyte", n->type, init, n->left);
+		goto ret;
+
+	case OSTRARRAYRUNE:
+		// stringtosliceint(string) []int
+		n = mkcall("stringtosliceint", n->type, init, n->left);
 		goto ret;
 
 	case OCMPIFACE:
@@ -1117,6 +1128,7 @@ walkexpr(Node **np, NodeList **init)
 	case OARRAYLIT:
 	case OMAPLIT:
 	case OSTRUCTLIT:
+	arraylit:
 		nvar = nod(OXXX, N, N);
 		tempname(nvar, n->type);
 		anylit(n, nvar, init);
@@ -1448,18 +1460,18 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
 {
 	Node *a, *n;
 	Type *tslice;
-	
+
 	tslice = typ(TARRAY);
 	tslice->type = l->type->type;
 	tslice->bound = -1;
-	
+
 	n = nod(OCOMPLIT, N, typenod(tslice));
 	n->list = lr0;
 	typecheck(&n, Erv);
 	if(n->type == T)
 		fatal("mkdotargslice: typecheck failed");
 	walkexpr(&n, init);
-	
+
 	a = nod(OAS, nodarg(l, fp), n);
 	nn = list(nn, convas(a, init));
 	return nn;
@@ -1758,7 +1770,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 			n = nod(OCONV, n, N);
 			n->type = t;
 		}
-		
+
 		if(defer) {
 			intypes = list(intypes, nod(ODCLFIELD, N, typenod(t)));
 			args = list(args, n);
@@ -1788,7 +1800,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 			calls = list(calls, mkcall("printnl", T, nil));
 		typechecklist(calls, Etop);
 		walkexprlist(calls, init);
-	
+
 		if(op == OPANIC || op == OPANICN)
 			r = mkcall("panicl", T, nil);
 		else

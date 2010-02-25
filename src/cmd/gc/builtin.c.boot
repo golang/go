@@ -26,6 +26,8 @@ char *runtimeimport =
 	"func \"\".intstring (? int64) string\n"
 	"func \"\".slicebytetostring (? []uint8) string\n"
 	"func \"\".sliceinttostring (? []int) string\n"
+	"func \"\".stringtoslicebyte (? string) []uint8\n"
+	"func \"\".stringtosliceint (? string) []int\n"
 	"func \"\".stringiter (? string, ? int) int\n"
 	"func \"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
 	"func \"\".slicecopy (to any, fr any, wid uint32) int\n"
