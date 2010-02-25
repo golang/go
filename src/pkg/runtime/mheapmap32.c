@@ -10,7 +10,7 @@
 
 // 3-level radix tree mapping page ids to Span*.
 void
-MHeapMap_Init(MHeapMap *m, void *(*allocator)(size_t))
+MHeapMap_Init(MHeapMap *m, void *(*allocator)(uintptr))
 {
 	m->allocator = allocator;
 }
