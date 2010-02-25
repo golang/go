@@ -34,6 +34,19 @@ func assert(a, b, c string) {
 	}
 }
 
+const (
+	gx1 = "aä本☺"
+	gx2 = "aä\xFF\xFF本☺"
+	gx2fix = "aä\uFFFD\uFFFD本☺"
+)
+
+var (
+	gr1 = []int(gx1)
+	gr2 = []int(gx2)
+	gb1 = []byte(gx1)
+	gb2 = []byte(gx2)
+)
+
 func main() {
 	ecode = 0;
 	s :=
@@ -86,5 +99,22 @@ func main() {
 	r = 0x10ffff + 1;
 	s = string(r);
 	assert(s, "\xef\xbf\xbd", "too-large rune");
+
+	assert(string(gr1), gx1, "global ->[]int")
+	assert(string(gr2), gx2fix, "global invalid ->[]int")
+	assert(string(gb1), gx1, "->[]byte")
+	assert(string(gb2), gx2, "global invalid ->[]byte")
+
+	var (
+		r1 = []int(gx1)
+		r2 = []int(gx2)
+		b1 = []byte(gx1)
+		b2 = []byte(gx2)
+	)
+	assert(string(r1), gx1, "->[]int")
+	assert(string(r2), gx2fix, "invalid ->[]int")
+	assert(string(b1), gx1, "->[]byte")
+	assert(string(b2), gx2, "invalid ->[]byte")
+
 	os.Exit(ecode);
 }

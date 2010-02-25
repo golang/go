@@ -38,6 +38,8 @@ func indexstring(string, int) byte
 func intstring(int64) string
 func slicebytetostring([]byte) string
 func sliceinttostring([]int) string
+func stringtoslicebyte(string) []byte
+func stringtosliceint(string) []int
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv int)
 func slicecopy(to any, fr any, wid uint32) int

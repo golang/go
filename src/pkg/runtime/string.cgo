@@ -4,6 +4,7 @@
 
 package runtime
 #include "runtime.h"
+#include "malloc.h"
 
 String	emptystring;
 
@@ -210,6 +211,12 @@ func slicebytetostring(b Slice) (s String) {
 	mcpy(s.str, b.array, s.len);
 }
 
+func stringtoslicebyte(s String) (b Slice) {
+	b.array = mallocgc(s.len, RefNoPointers, 1, 1);
+	b.len = s.len;
+	b.cap = s.len;
+	mcpy(b.array, s.str, s.len);
+}
 
 func sliceinttostring(b Slice) (s String) {
 	int32 siz1, siz2, i;
@@ -231,6 +238,30 @@ func sliceinttostring(b Slice) (s String) {
 		siz2 += runetochar(s.str+siz2, a[i]);
 	}
 	s.len = siz2;
+}
+
+func stringtosliceint(s String) (b Slice) {
+	int32 n;
+	int32 dum, *r;
+	uint8 *p, *ep;
+
+	// two passes.
+	// unlike sliceinttostring, no race because strings are immutable.
+	p = s.str;
+	ep = s.str+s.len;
+	n = 0;
+	while(p < ep) {
+		p += charntorune(&dum, p, ep-p);
+		n++;
+	}
+
+	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1);
+	b.len = n;
+	b.cap = n;
+	p = s.str;
+	r = (int32*)b.array;
+	while(p < ep)
+		p += charntorune(r++, p, ep-p);
 }
 
 enum
