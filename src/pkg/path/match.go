@@ -41,7 +41,10 @@ Pattern:
 		}
 		// Look for match at current position.
 		t, ok, err := matchChunk(chunk, name)
-		if ok {
+		// if we're the last chunk, make sure we've exhausted the name
+		// otherwise we'll give a false result even if we could still match
+		// using the star
+		if ok && (len(t) == 0 || len(pattern) > 0) {
 			name = t
 			continue
 		}
@@ -54,6 +57,10 @@ Pattern:
 			for i := 0; i < len(name) && name[i] != '/'; i++ {
 				t, ok, err := matchChunk(chunk, name[i+1:])
 				if ok {
+					// if we're the last chunk, make sure we exhausted the name
+					if len(pattern) == 0 && len(t) > 0 {
+						continue
+					}
 					name = t
 					continue Pattern
 				}
