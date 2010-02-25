@@ -959,7 +959,7 @@ func (p *parser) parseOperand() ast.Expr {
 	case token.IDENT:
 		return p.findIdent()
 
-	case token.INT, token.FLOAT, token.CHAR, token.STRING:
+	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
 		x := &ast.BasicLit{p.pos, p.tok, p.lit}
 		p.next()
 		return x
