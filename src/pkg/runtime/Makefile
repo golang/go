@@ -92,10 +92,17 @@ HFILES=\
 
 GOFILES+=$(GOFILES_$(GOOS))
 
+# For use by cgo.
+INSTALLFILES=$(pkgdir)/runtime.h $(pkgdir)/cgocall.h
+
 # special, out of the way compiler flag that means "add runtime metadata to output"
 GC+= -+
 
 include ../../Make.pkg
+
+$(pkgdir)/%.h: %.h
+	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
+	cp $< $@
 
 clean: clean-local
 

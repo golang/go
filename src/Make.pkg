@@ -30,7 +30,7 @@ QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
 
 pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
 
-INSTALLFILES=$(pkgdir)/$(TARG).a
+INSTALLFILES+=$(pkgdir)/$(TARG).a
 
 # The rest of the cgo rules are below, but these variable updates
 # must be done here so they apply to the main rules.
@@ -150,7 +150,7 @@ _cgo_.so: $(GCC_OFILES)
 	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
 
 $(pkgdir)/$(TARG).so: _cgo_.so
-	@test -d $(QUOTED_GOROOT/pkg && mkdir -p $(pkgdir)/$(dir)
+	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
 	cp _cgo_.so "$@"
 
 # Generic build rules.
