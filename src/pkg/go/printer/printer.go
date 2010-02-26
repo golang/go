@@ -40,9 +40,9 @@ const (
 var (
 	esc       = []byte{tabwriter.Escape}
 	htab      = []byte{'\t'}
-	htabs     = [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'}
-	newlines  = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'} // more than maxNewlines
-	formfeeds = [...]byte{'\f', '\f', '\f', '\f', '\f', '\f', '\f', '\f'} // more than maxNewlines
+	htabs     = []byte("\t\t\t\t\t\t\t\t")
+	newlines  = []byte("\n\n\n\n\n\n\n\n") // more than maxNewlines
+	formfeeds = []byte("\f\f\f\f\f\f\f\f") // more than maxNewlines
 
 	esc_quot = []byte("&#34;") // shorter than "&quot;"
 	esc_apos = []byte("&#39;") // shorter than "&apos;"
@@ -147,7 +147,7 @@ func (p *printer) write(data []byte) {
 				// must not be discarded by the tabwriter
 				j := p.indent
 				for ; j > len(htabs); j -= len(htabs) {
-					p.write0(&htabs)
+					p.write0(htabs)
 				}
 				p.write0(htabs[0:j])
 
@@ -526,7 +526,7 @@ func stripCommonPrefix(lines [][]byte) {
 	// with the opening /*, otherwise align the text with the other
 	// lines.
 	last := lines[len(lines)-1]
-	closing := []byte{'*', '/'}
+	closing := []byte("*/")
 	i := bytes.Index(last, closing)
 	if isBlank(last[0:i]) {
 		// last line only contains closing */

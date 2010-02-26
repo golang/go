@@ -431,8 +431,8 @@ var segments = []seg{
 	seg{"\n//line File2.go:200\n  line200", "File2.go", 200},
 	seg{"\n//line :1\n  line1", "", 1},
 	seg{"\n//line foo:42\n  line42", "foo", 42},
-	seg{"\n //line foo:42\n  line44", "foo", 44}, // bad line comment, ignored
-	seg{"\n//line foo 42\n  line46", "foo", 46}, // bad line comment, ignored
+	seg{"\n //line foo:42\n  line44", "foo", 44},           // bad line comment, ignored
+	seg{"\n//line foo 42\n  line46", "foo", 46},            // bad line comment, ignored
 	seg{"\n//line foo:42 extra text\n  line48", "foo", 48}, // bad line comment, ignored
 	seg{"\n//line foo:42\n  line42", "foo", 42},
 	seg{"\n//line foo:42\n  line42", "foo", 42},

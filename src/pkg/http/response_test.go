@@ -60,7 +60,7 @@ var respTests = []respTest{
 			ProtoMinor: 0,
 			RequestMethod: "GET",
 			Header: map[string]string{
-				"Connection": "close", // TODO(rsc): Delete?
+				"Connection": "close",  // TODO(rsc): Delete?
 				"Content-Length": "10", // TODO(rsc): Delete?
 			},
 			Close: true,

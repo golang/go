@@ -341,6 +341,21 @@ func _() {
 }
 
 
+// Align comments in multi-line lists of single-line expressions.
+var txpix = [NCOL]draw.Color{
+	draw.Yellow, // yellow
+	draw.Cyan, // cyan
+	draw.Green, // lime green
+	draw.GreyBlue, // slate
+	draw.Red, /* red */
+	draw.GreyGreen, /* olive green */
+	draw.Blue, /* blue */
+	draw.Color(0xFF55AAFF), /* pink */
+	draw.Color(0xFFAAFFFF), /* lavender */
+	draw.Color(0xBB005DFF), /* maroon */
+}
+
+
 func same(t, u *Time) bool {
 	// respect source lines in multi-line expressions
 	return t.Year == u.Year &&
