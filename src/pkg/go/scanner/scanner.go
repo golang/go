@@ -46,13 +46,15 @@ func (S *Scanner) next() {
 	if S.offset < len(S.src) {
 		S.pos.Offset = S.offset
 		S.pos.Column++
+		if S.ch == '\n' {
+			// next character starts a new line
+			S.pos.Line++
+			S.pos.Column = 1
+		}
 		r, w := int(S.src[S.offset]), 1
 		switch {
 		case r == 0:
 			S.error(S.pos, "illegal character NUL")
-		case r == '\n':
-			S.pos.Line++
-			S.pos.Column = 0
 		case r >= 0x80:
 			// not ASCII
 			r, w = utf8.DecodeRune(S.src[S.offset:])
@@ -168,7 +170,7 @@ func (S *Scanner) scanComment(pos token.Position) {
 								// valid //line filename:line comment;
 								// update scanner position
 								S.pos.Filename = string(text[len(prefix):i])
-								S.pos.Line = line
+								S.pos.Line = line - 1 // -1 since the '\n' has not been consumed yet
 							}
 						}
 					}
@@ -211,7 +213,7 @@ func (S *Scanner) findNewline(pos token.Position) bool {
 			newline = true
 			break
 		}
-		S.skipWhitespace()
+		S.skipWhitespace() // S.insertSemi is set
 		if S.ch == '\n' {
 			newline = true
 			break
@@ -526,7 +528,7 @@ scanAgain:
 		case -1:
 			tok = token.EOF
 		case '\n':
-			// we only reach here of S.insertSemi was
+			// we only reach here if S.insertSemi was
 			// set in the first place and exited early
 			// from S.skipWhitespace()
 			S.insertSemi = false // newline consumed
