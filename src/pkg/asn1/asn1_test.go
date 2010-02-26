@@ -276,7 +276,7 @@ var unmarshalTestData []unmarshalTest = []unmarshalTest{
 	unmarshalTest{[]byte{0x02, 0x01, 0x10}, newInt(16)},
 	unmarshalTest{[]byte{0x13, 0x04, 't', 'e', 's', 't'}, newString("test")},
 	unmarshalTest{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, newString("test")},
-	unmarshalTest{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte{'t', 'e', 's', 't'}}},
+	unmarshalTest{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte("test")}},
 	unmarshalTest{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}}},
 	unmarshalTest{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
 	unmarshalTest{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1, 2}},

@@ -87,15 +87,15 @@ import (
 // Some constants in the form of bytes, to avoid string overhead.
 // Needlessly fastidious, I suppose.
 var (
-	trueBytes       = []byte{'t', 'r', 'u', 'e'}
-	falseBytes      = []byte{'f', 'a', 'l', 's', 'e'}
-	commaSpaceBytes = []byte{',', ' '}
-	nilAngleBytes   = []byte{'<', 'n', 'i', 'l', '>'}
-	nilParenBytes   = []byte{'(', 'n', 'i', 'l', ')'}
-	nilBytes        = []byte{'n', 'i', 'l'}
-	mapBytes        = []byte{'m', 'a', 'p', '['}
-	missingBytes    = []byte{'m', 'i', 's', 's', 'i', 'n', 'g'}
-	extraBytes      = []byte{'?', '(', 'e', 'x', 't', 'r', 'a', ' '}
+	trueBytes       = []byte("true")
+	falseBytes      = []byte("false")
+	commaSpaceBytes = []byte(", ")
+	nilAngleBytes   = []byte("<nil>")
+	nilParenBytes   = []byte("(nil)")
+	nilBytes        = []byte("nil")
+	mapBytes        = []byte("map[")
+	missingBytes    = []byte("missing")
+	extraBytes      = []byte("?(extra ")
 )
 
 // State represents the printer state passed to custom formatters.

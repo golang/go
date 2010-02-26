@@ -145,7 +145,7 @@ func (S *Scanner) expect(ch int) {
 }
 
 
-var prefix = []byte{'l', 'i', 'n', 'e', ' '} // "line "
+var prefix = []byte("line ")
 
 func (S *Scanner) scanComment(pos token.Position) {
 	// first '/' already consumed
