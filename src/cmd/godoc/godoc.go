@@ -935,7 +935,7 @@ func redirect(c *http.Conn, r *http.Request) (redirected bool) {
 // textExt[x] is true if the extension x indicates a text file, and false otherwise.
 var textExt = map[string]bool{
 	".css": false, // must be served raw
-	".js": false, // must be served raw
+	".js": false,  // must be served raw
 }
 
 

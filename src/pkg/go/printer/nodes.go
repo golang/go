@@ -92,27 +92,22 @@ func (p *printer) identList(list []*ast.Ident, multiLine *bool) {
 }
 
 
-// Sets multiLine to true if the string list spans multiple lines.
-func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
-	// convert into an expression list so we can re-use exprList formatting
-	xlist := make([]ast.Expr, len(list))
-	for i, x := range list {
-		xlist[i] = x
-	}
-	p.exprList(noPos, xlist, 1, plusSep, multiLine, noPos)
-}
-
-
 type exprListMode uint
 
 const (
 	blankStart exprListMode = 1 << iota // print a blank before a non-empty list
 	blankEnd                // print a blank after a non-empty list
-	plusSep                 // elements are separared by + operators
 	commaSep                // elements are separated by commas
 	commaTerm               // list is optionally terminated by a comma
 	noIndent                // no extra indentation in multi-line lists
 )
+
+
+// isOneLineExpr returns true if x is "small enough" to fit onto a single line.
+func (p *printer) isOneLineExpr(x ast.Expr) bool {
+	const maxSize = 60 // aproximate value, excluding space for comments
+	return p.nodeSize(x, maxSize) <= maxSize
+}
 
 
 // Print a list of expressions. If the list spans multiple
@@ -141,9 +136,6 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		// all list entries on a single line
 		for i, x := range list {
 			if i > 0 {
-				if mode&plusSep != 0 {
-					p.print(blank, token.ADD)
-				}
 				if mode&commaSep != 0 {
 					p.print(token.COMMA)
 				}
@@ -167,31 +159,42 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		ws = indent
 	}
 
+	// the first linebreak is always a formfeed since this section must not
+	// depend on any previous formatting
 	if prev.IsValid() && prev.Line < line && p.linebreak(line, 1, 2, ws, true) {
 		ws = ignore
 		*multiLine = true
 	}
 
+	oneLiner := false // true if the previous expression fit on a single line
+	prevBreak := 0    // index of last expression that was followed by a linebreak
 	for i, x := range list {
 		prev := line
 		line = x.Pos().Line
 		if i > 0 {
-			if mode&plusSep != 0 {
-				p.print(blank, token.ADD)
-			}
 			if mode&commaSep != 0 {
 				p.print(token.COMMA)
 			}
 			if prev < line && prev > 0 && line > 0 {
-				if p.linebreak(line, 1, 2, ws, true) {
+				// lines are broken using newlines so comments remain aligned,
+				// but if an expression is not a "one-line" expression, or if
+				// multiple expressions are on the same line, the section is
+				// broken with a formfeed
+				if p.linebreak(line, 1, 2, ws, !oneLiner || prevBreak+1 < i) {
 					ws = ignore
 					*multiLine = true
+					prevBreak = i
 				}
 			} else {
 				p.print(blank)
 			}
 		}
 		p.expr0(x, depth, multiLine)
+		// determine if x satisfies the "one-liner" criteria
+		// TODO(gri): determine if the multiline information returned
+		//            from p.expr0 is precise enough so it could be
+		//            used instead
+		oneLiner = p.isOneLineExpr(x)
 	}
 
 	if mode&commaTerm != 0 && next.IsValid() && p.pos.Line < next.Line {
