@@ -219,11 +219,12 @@ func TestScan(t *testing.T) {
 	for _, e := range tokens {
 		src += e.lit + whitespace
 	}
+	src_linecount := newlineCount(src)
 	whitespace_linecount := newlineCount(whitespace)
 
 	// verify scan
 	index := 0
-	epos := token.Position{"", 0, 1, 1}
+	epos := token.Position{"", 0, 1, 1} // expected position
 	nerrors := Tokenize("", []byte(src), &testErrorHandler{t}, ScanComments,
 		func(pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special}
@@ -233,7 +234,8 @@ func TestScan(t *testing.T) {
 			lit := string(litb)
 			if tok == token.EOF {
 				lit = "<EOF>"
-				epos.Column = 0
+				epos.Line = src_linecount
+				epos.Column = 1
 			}
 			checkPos(t, lit, pos, epos)
 			if tok != e.tok {
