@@ -215,14 +215,9 @@ cgen(Node *n, Node *res)
 			break;
 		}
 		mgen(nl, &n1, res);
-		if(n->type->width > widthptr)
-			tempname(&n2, n->type);
-		else
-			regalloc(&n2, n->type, res);
+		tempname(&n2, n->type);
 		gmove(&n1, &n2);
 		gmove(&n2, res);
-		if(n2.op == OREGISTER)
-			regfree(&n2);
 		mfree(&n1);
 		break;
 
