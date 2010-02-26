@@ -46,7 +46,6 @@ type parser struct {
 
 	// Comments
 	comments    vector.Vector     // list of *CommentGroup
-	lastComment *ast.CommentGroup // last comment in the comments list
 	leadComment *ast.CommentGroup // the last lead comment
 	lineComment *ast.CommentGroup // the last line comment
 
@@ -163,13 +162,13 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 
 
 // Consume a group of adjacent comments, add it to the parser's
-// comments list, and return the line of which the last comment
-// in the group ends. An empty line or non-comment token terminates
-// a comment group.
+// comments list, and return it together with the line at which
+// the last comment in the group ends. An empty line or non-comment
+// token terminates a comment group.
 //
-func (p *parser) consumeCommentGroup() int {
+func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int) {
 	var list vector.Vector
-	endline := p.pos.Line
+	endline = p.pos.Line
 	for p.tok == token.COMMENT && endline+1 >= p.pos.Line {
 		var comment *ast.Comment
 		comment, endline = p.consumeComment()
@@ -183,11 +182,10 @@ func (p *parser) consumeCommentGroup() int {
 	}
 
 	// add comment group to the comments list
-	g := &ast.CommentGroup{group}
-	p.comments.Push(g)
-	p.lastComment = g
+	comments = &ast.CommentGroup{group}
+	p.comments.Push(comments)
 
-	return endline
+	return
 }
 
 
@@ -213,27 +211,30 @@ func (p *parser) next() {
 	p.next0()
 
 	if p.tok == token.COMMENT {
+		var comment *ast.CommentGroup
+		var endline int
+
 		if p.pos.Line == line {
 			// The comment is on same line as previous token; it
 			// cannot be a lead comment but may be a line comment.
-			endline := p.consumeCommentGroup()
+			comment, endline = p.consumeCommentGroup()
 			if p.pos.Line != endline {
 				// The next token is on a different line, thus
 				// the last comment group is a line comment.
-				p.lineComment = p.lastComment
+				p.lineComment = comment
 			}
 		}
 
 		// consume successor comments, if any
-		endline := -1
+		endline = -1
 		for p.tok == token.COMMENT {
-			endline = p.consumeCommentGroup()
+			comment, endline = p.consumeCommentGroup()
 		}
 
-		if endline >= 0 && endline+1 == p.pos.Line {
+		if endline+1 == p.pos.Line {
 			// The next token is following on the line immediately after the
 			// comment group, thus the last comment group is a lead comment.
-			p.leadComment = p.lastComment
+			p.leadComment = comment
 		}
 	}
 }
