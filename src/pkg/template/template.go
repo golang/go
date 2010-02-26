@@ -623,6 +623,9 @@ func (st *state) findVar(s string) reflect.Value {
 		if data == nil {
 			return nil
 		}
+		if intf, ok := data.(*reflect.InterfaceValue); ok {
+			data = intf.Elem()
+		}
 
 		switch typ := data.Type().(type) {
 		case *reflect.StructType:
@@ -705,6 +708,8 @@ func empty(v reflect.Value) bool {
 	case *reflect.StringValue:
 		return v.Get() == ""
 	case *reflect.StructValue:
+		return false
+	case *reflect.MapValue:
 		return false
 	case *reflect.ArrayValue:
 		return v.Len() == 0
