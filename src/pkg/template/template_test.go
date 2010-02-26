@@ -9,6 +9,7 @@ import (
 	"container/vector"
 	"fmt"
 	"io"
+	"json"
 	"testing"
 )
 
@@ -40,6 +41,7 @@ type S struct {
 	true          bool
 	false         bool
 	mp            map[string]string
+	json          interface{}
 	innermap      U
 	stringmap     map[string]string
 	bytes         []byte
@@ -341,6 +343,16 @@ var tests = []*Test{
 		out: "55\n",
 	},
 	&Test{
+		in: "{.section innermap}{.section mp}{innerkey}{.end}{.end}\n",
+
+		out: "55\n",
+	},
+	&Test{
+		in: "{.section json}{.repeated section maps}{a}{b}{.end}{.end}\n",
+
+		out: "1234\n",
+	},
+	&Test{
 		in: "{stringmap.stringkey1}\n",
 
 		out: "stringresult\n",
@@ -391,6 +403,7 @@ func TestAll(t *testing.T) {
 	s.false = false
 	s.mp = make(map[string]string)
 	s.mp["mapkey"] = "Ahoy!"
+	s.json, _ = json.Decode("{\"maps\":[{\"a\":1,\"b\":2},{\"a\":3,\"b\":4}]}")
 	s.innermap.mp = make(map[string]int)
 	s.innermap.mp["innerkey"] = 55
 	s.stringmap = make(map[string]string)
