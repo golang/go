@@ -398,6 +398,8 @@ doelf(void)
 		elfwritedynentsym(s, DT_REL, lookup(".rel", 0));
 		elfwritedynentsymsize(s, DT_RELSZ, lookup(".rel", 0));
 		elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
+		if(rpath)
+			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
 		elfwritedynent(s, DT_NULL, 0);
 	}
 }

@@ -333,6 +333,7 @@ EXTERN	Oprang	thumboprange[ALAST];
 EXTERN	char*	outfile;
 EXTERN	int32	pc;
 EXTERN	uchar	repop[ALAST];
+EXTERN	char*	rpath;
 EXTERN	uint32	stroffset;
 EXTERN	int32	symsize;
 EXTERN	Prog*	textp;

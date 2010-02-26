@@ -295,6 +295,7 @@ EXTERN	int	maxop;
 EXTERN	int	nerrors;
 EXTERN	char*	noname;
 EXTERN	int32	pc;
+EXTERN	char*	rpath;
 EXTERN	int32	spsize;
 EXTERN	Sym*	symlist;
 EXTERN	int32	symsize;
