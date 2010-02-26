@@ -6,10 +6,7 @@ package patch
 
 // TODO(rsc): test Apply
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 type Test struct {
 	in   string
@@ -19,7 +16,7 @@ type Test struct {
 
 func TestFileApply(t *testing.T) {
 	for i, test := range tests {
-		set, err := Parse(strings.Bytes(test.diff))
+		set, err := Parse([]byte(test.diff))
 		if err != nil {
 			t.Errorf("#%d: Parse: %s", i, err)
 			continue
@@ -28,7 +25,7 @@ func TestFileApply(t *testing.T) {
 			t.Errorf("#%d: Parse returned %d patches, want 1", i, len(set.File))
 			continue
 		}
-		new, err := set.File[0].Apply(strings.Bytes(test.in))
+		new, err := set.File[0].Apply([]byte(test.in))
 		if err != nil {
 			t.Errorf("#%d: Apply: %s", i, err)
 			continue

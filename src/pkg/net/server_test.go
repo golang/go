@@ -65,7 +65,7 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 
 	var b []byte
 	if !isEmpty {
-		b = strings.Bytes("hello, world\n")
+		b = []byte("hello, world\n")
 	}
 	var b1 [100]byte
 

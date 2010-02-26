@@ -532,7 +532,7 @@ func calc_rows() {
 
 
 /* Calculate islands while solving the board.
-*/
+ */
 func boardHasIslands(cell int8) int8 {
 	/* Too low on board, don't bother checking */
 	if cell >= 40 {

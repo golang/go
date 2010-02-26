@@ -14,7 +14,6 @@ import (
 	"go/ast"
 	"go/printer"
 	"fmt"
-	"strings"
 )
 
 
@@ -36,7 +35,7 @@ func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
 
 
 func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
-	text = strings.Bytes(id.Name())
+	text = []byte(id.Name())
 	if s.highlight == id {
 		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
 	}

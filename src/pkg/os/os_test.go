@@ -468,7 +468,7 @@ func TestTruncate(t *testing.T) {
 	}
 
 	checkSize(t, Path, 0)
-	fd.Write(strings.Bytes("hello, world\n"))
+	fd.Write([]byte("hello, world\n"))
 	checkSize(t, Path, 13)
 	fd.Truncate(10)
 	checkSize(t, Path, 10)
@@ -476,7 +476,7 @@ func TestTruncate(t *testing.T) {
 	checkSize(t, Path, 1024)
 	fd.Truncate(0)
 	checkSize(t, Path, 0)
-	fd.Write(strings.Bytes("surprise!"))
+	fd.Write([]byte("surprise!"))
 	checkSize(t, Path, 13+9) // wrote at offset past where hello, world was.
 	fd.Close()
 	Remove(Path)
@@ -688,7 +688,7 @@ func TestWriteAt(t *testing.T) {
 	const data = "hello, world\n"
 	io.WriteString(f, data)
 
-	n, err := f.WriteAt(strings.Bytes("WORLD"), 7)
+	n, err := f.WriteAt([]byte("WORLD"), 7)
 	if err != nil || n != 5 {
 		t.Fatalf("WriteAt 7: %d, %v", n, err)
 	}

@@ -11,13 +11,12 @@ import (
 	"encoding/pem"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 )
 
 func TestParsePKCS1PrivateKey(t *testing.T) {
-	block, _ := pem.Decode(strings.Bytes(pemPrivateKey))
+	block, _ := pem.Decode([]byte(pemPrivateKey))
 	priv, err := ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		t.Errorf("Failed to parse private key: %s", err)
@@ -151,7 +150,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		t.Errorf("failed to open /dev/urandom")
 	}
 
-	block, _ := pem.Decode(strings.Bytes(pemPrivateKey))
+	block, _ := pem.Decode([]byte(pemPrivateKey))
 	priv, err := ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		t.Errorf("Failed to parse private key: %s", err)

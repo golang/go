@@ -4,10 +4,6 @@
 
 package testing
 
-import (
-	"strings"
-)
-
 var good_re = []string{
 	``,
 	`.`,
@@ -179,7 +175,7 @@ func executeTest(t *T, expr string, str string, match []int) {
 		printVec(t, match)
 	}
 	// now try bytes
-	m = re.Execute(strings.Bytes(str))
+	m = re.Execute([]byte(str))
 	if !equal(m, match) {
 		t.Error("Execute failure on `", expr, "` matching `", str, "`:")
 		printVec(t, m)
@@ -217,7 +213,7 @@ func matchTest(t *T, expr string, str string, match []int) {
 		t.Error("MatchString failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0)
 	}
 	// now try bytes
-	m = re.Match(strings.Bytes(str))
+	m = re.Match([]byte(str))
 	if m != (len(match) > 0) {
 		t.Error("Match failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0)
 	}
@@ -247,7 +243,7 @@ func matchStringsTest(t *T, expr string, str string, match []int) {
 		printStrings(t, strs)
 	}
 	// now try bytes
-	s := re.MatchSlices(strings.Bytes(str))
+	s := re.MatchSlices([]byte(str))
 	if !equalBytes(s, strs) {
 		t.Error("MatchSlices failure on `", expr, "` matching `", str, "`:")
 		printBytes(t, s)

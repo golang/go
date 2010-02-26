@@ -735,7 +735,7 @@ func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
 		ret[n].Id = oidExtensionSubjectAltName
 		rawValues := make([]asn1.RawValue, len(template.DNSNames))
 		for i, name := range template.DNSNames {
-			rawValues[i] = asn1.RawValue{Tag: 2, Class: 2, Bytes: strings.Bytes(name)}
+			rawValues[i] = asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)}
 		}
 		ret[n].Value, err = asn1.MarshalToMemory(rawValues)
 		if err != nil {

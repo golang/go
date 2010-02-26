@@ -9,7 +9,6 @@ import (
 	"container/vector"
 	"fmt"
 	"io"
-	"strings"
 	"testing"
 )
 
@@ -397,7 +396,7 @@ func TestAll(t *testing.T) {
 	s.stringmap = make(map[string]string)
 	s.stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
 	s.stringmap["stringkey2"] = "stringresult"
-	s.bytes = strings.Bytes("hello")
+	s.bytes = []byte("hello")
 	s.iface = []int{1, 2, 3}
 
 	var buf bytes.Buffer

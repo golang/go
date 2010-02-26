@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"go/ast"
 	"go/token"
-	"strings"
 )
 
 
@@ -286,7 +285,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 
 
 func (p *printer) setLineComment(text string) {
-	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{noPos, strings.Bytes(text)}}})
+	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{noPos, []byte(text)}}})
 }
 
 

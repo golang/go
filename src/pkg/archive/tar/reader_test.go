@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -161,7 +160,7 @@ func TestPartialRead(t *testing.T) {
 	if _, err := io.ReadFull(tr, buf); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if expected := strings.Bytes("Kilt"); !bytes.Equal(buf, expected) {
+	if expected := []byte("Kilt"); !bytes.Equal(buf, expected) {
 		t.Errorf("Contents = %v, want %v", buf, expected)
 	}
 
@@ -174,7 +173,7 @@ func TestPartialRead(t *testing.T) {
 	if _, err := io.ReadFull(tr, buf); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if expected := strings.Bytes("Google"); !bytes.Equal(buf, expected) {
+	if expected := []byte("Google"); !bytes.Equal(buf, expected) {
 		t.Errorf("Contents = %v, want %v", buf, expected)
 	}
 }

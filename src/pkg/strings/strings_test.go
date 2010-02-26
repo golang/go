@@ -444,16 +444,16 @@ var RunesTests = []RunesTest{
 
 func TestRunes(t *testing.T) {
 	for _, tt := range RunesTests {
-		a := Runes(tt.in)
+		a := []int(tt.in)
 		if !runesEqual(a, tt.out) {
-			t.Errorf("Runes(%q) = %v; want %v", tt.in, a, tt.out)
+			t.Errorf("[]int(%q) = %v; want %v", tt.in, a, tt.out)
 			continue
 		}
 		if !tt.lossy {
 			// can only test reassembly if we didn't lose information
 			s := string(a)
 			if s != tt.in {
-				t.Errorf("string(Runes(%q)) = %x; want %x", tt.in, s, tt.in)
+				t.Errorf("string([]int(%q)) = %x; want %x", tt.in, s, tt.in)
 			}
 		}
 	}

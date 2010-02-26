@@ -161,7 +161,7 @@ func executeTest(t *testing.T, expr string, str string, match []int) {
 		printVec(t, match)
 	}
 	// now try bytes
-	m = re.Execute(strings.Bytes(str))
+	m = re.Execute([]byte(str))
 	if !equal(m, match) {
 		t.Errorf("Execute failure on %#q matching %q:", expr, str)
 		printVec(t, m)
@@ -199,7 +199,7 @@ func matchTest(t *testing.T, expr string, str string, match []int) {
 		t.Errorf("MatchString failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
 	}
 	// now try bytes
-	m = re.Match(strings.Bytes(str))
+	m = re.Match([]byte(str))
 	if m != (len(match) > 0) {
 		t.Errorf("Match failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
 	}
@@ -315,7 +315,7 @@ func TestReplaceAll(t *testing.T) {
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
 		// now try bytes
-		actual = string(re.ReplaceAll(strings.Bytes(tc.input), strings.Bytes(tc.replacement)))
+		actual = string(re.ReplaceAll([]byte(tc.input), []byte(tc.replacement)))
 		if actual != tc.output {
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
@@ -419,7 +419,7 @@ func TestAllMatches(t *testing.T) {
 		case "matchit":
 			result = make([]string, len(c.input)+1)
 			i := 0
-			b := strings.Bytes(c.input)
+			b := []byte(c.input)
 			for match := range re.AllMatchesIter(b, c.n) {
 				result[i] = string(match)
 				i++
@@ -435,7 +435,7 @@ func TestAllMatches(t *testing.T) {
 			result = result[0:i]
 		case "match":
 			result = make([]string, len(c.input)+1)
-			b := strings.Bytes(c.input)
+			b := []byte(c.input)
 			i := 0
 			for _, match := range re.AllMatches(b, c.n) {
 				result[i] = string(match)

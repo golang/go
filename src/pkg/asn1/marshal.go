@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"reflect"
-	"strings"
 	"time"
 )
 
@@ -209,7 +208,7 @@ func marshalObjectIdentifier(out *forkableWriter, oid []int) (err os.Error) {
 }
 
 func marshalPrintableString(out *forkableWriter, s string) (err os.Error) {
-	b := strings.Bytes(s)
+	b := []byte(s)
 	for _, c := range b {
 		if !isPrintable(c) {
 			return StructuralError{"PrintableString contains invalid character"}
@@ -221,7 +220,7 @@ func marshalPrintableString(out *forkableWriter, s string) (err os.Error) {
 }
 
 func marshalIA5String(out *forkableWriter, s string) (err os.Error) {
-	b := strings.Bytes(s)
+	b := []byte(s)
 	for _, c := range b {
 		if c > 127 {
 			return StructuralError{"IA5String contains invalid character"}

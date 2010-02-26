@@ -173,7 +173,7 @@ func (c *Conn) sendBytes(buf []byte) {
 	c.sendPadding(len(buf))
 }
 
-func (c *Conn) sendString(str string) { c.sendBytes(strings.Bytes(str)) }
+func (c *Conn) sendString(str string) { c.sendBytes([]byte(str)) }
 
 // sendUInt32s sends a list of 32-bit integers as variable length data.
 func (c *Conn) sendUInt32List(list []uint32) {
@@ -318,7 +318,7 @@ func Dial(display string) (*Conn, os.Error) {
 	put16(buf[6:], uint16(len(authName)))
 	put16(buf[8:], uint16(len(authData)))
 	put16(buf[10:], 0)
-	copy(buf[12:], strings.Bytes(authName))
+	copy(buf[12:], []byte(authName))
 	copy(buf[12+pad(len(authName)):], authData)
 	if _, err = c.conn.Write(buf); err != nil {
 		return nil, err

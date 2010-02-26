@@ -12,7 +12,6 @@ import (
 	"encoding/base64"
 	"io"
 	"os"
-	"strings"
 )
 
 // A Block represents a PEM encoded structure.
@@ -65,9 +64,9 @@ func removeWhitespace(data []byte) []byte {
 	return result[0:n]
 }
 
-var pemStart = strings.Bytes("\n-----BEGIN ")
-var pemEnd = strings.Bytes("\n-----END ")
-var pemEndOfLine = strings.Bytes("-----")
+var pemStart = []byte("\n-----BEGIN ")
+var pemEnd = []byte("\n-----END ")
+var pemEndOfLine = []byte("-----")
 
 // Decode will find the next PEM formatted block (certificate, private key
 // etc) in the input. It returns that block and the remainder of the input. If
@@ -214,13 +213,13 @@ func Encode(out io.Writer, b *Block) (err os.Error) {
 	if err != nil {
 		return
 	}
-	_, err = out.Write(strings.Bytes(b.Type + "-----\n"))
+	_, err = out.Write([]byte(b.Type + "-----\n"))
 	if err != nil {
 		return
 	}
 
 	for k, v := range b.Headers {
-		_, err = out.Write(strings.Bytes(k + ": " + v + "\n"))
+		_, err = out.Write([]byte(k + ": " + v + "\n"))
 		if err != nil {
 			return
 		}
@@ -248,7 +247,7 @@ func Encode(out io.Writer, b *Block) (err os.Error) {
 	if err != nil {
 		return
 	}
-	_, err = out.Write(strings.Bytes(b.Type + "-----\n"))
+	_, err = out.Write([]byte(b.Type + "-----\n"))
 	return
 }
 

@@ -10,7 +10,6 @@ import (
 	"crypto/sha1"
 	"hash"
 	"os"
-	"strings"
 )
 
 // Split a premaster secret in two as specified in RFC 4346, section 5.
@@ -70,10 +69,10 @@ const (
 	finishedVerifyLength = 12 // Length of verify_data in a Finished message.
 )
 
-var masterSecretLabel = strings.Bytes("master secret")
-var keyExpansionLabel = strings.Bytes("key expansion")
-var clientFinishedLabel = strings.Bytes("client finished")
-var serverFinishedLabel = strings.Bytes("server finished")
+var masterSecretLabel = []byte("master secret")
+var keyExpansionLabel = []byte("key expansion")
+var clientFinishedLabel = []byte("client finished")
+var serverFinishedLabel = []byte("server finished")
 
 // keysFromPreMasterSecret generates the connection keys from the pre master
 // secret, given the lengths of the MAC and cipher keys, as defined in RFC

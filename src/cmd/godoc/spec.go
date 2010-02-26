@@ -16,7 +16,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"io"
-	"strings"
 )
 
 
@@ -166,8 +165,8 @@ func (p *ebnfParser) parse(out io.Writer, src []byte) {
 
 // Markers around EBNF sections
 var (
-	openTag  = strings.Bytes(`<pre class="ebnf">`)
-	closeTag = strings.Bytes(`</pre>`)
+	openTag  = []byte(`<pre class="ebnf">`)
+	closeTag = []byte(`</pre>`)
 )
 
 

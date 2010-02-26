@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 )
 
 
@@ -29,8 +28,8 @@ func usage() {
 
 // Markers around EBNF sections in .html files
 var (
-	open  = strings.Bytes(`<pre class="ebnf">`)
-	close = strings.Bytes(`</pre>`)
+	open  = []byte(`<pre class="ebnf">`)
+	close = []byte(`</pre>`)
 )
 
 

@@ -152,7 +152,7 @@ func pkgName(filename string) string {
 
 func htmlEscape(s string) string {
 	var buf bytes.Buffer
-	template.HTMLEscape(&buf, strings.Bytes(s))
+	template.HTMLEscape(&buf, []byte(s))
 	return buf.String()
 }
 
@@ -476,7 +476,7 @@ func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
 
 
 func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
-	text = strings.Bytes(id.Name())
+	text = []byte(id.Name())
 	if s.highlight == id.Name() {
 		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
 	}
@@ -485,7 +485,7 @@ func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
 
 
 func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
-	text = strings.Bytes(tok.String())
+	text = []byte(tok.String())
 	return
 }
 
@@ -493,7 +493,7 @@ func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
 // ----------------------------------------------------------------------------
 // Tab conversion
 
-var spaces = strings.Bytes("                ") // 16 spaces seems like a good number
+var spaces = []byte("                ") // 16 spaces seems like a good number
 
 const (
 	indenting = iota
@@ -595,7 +595,7 @@ func writeAny(w io.Writer, x interface{}, html bool) {
 	case []byte:
 		writeText(w, v, html)
 	case string:
-		writeText(w, strings.Bytes(v), html)
+		writeText(w, []byte(v), html)
 	case ast.Decl, ast.Expr, ast.Stmt, *ast.File:
 		writeNode(w, x, html, &defaultStyler)
 	default:
@@ -674,13 +674,13 @@ func urlFmt(w io.Writer, x interface{}, format string) {
 		if strings.HasPrefix(relpath, "src/pkg/") {
 			relpath = relpath[len("src/pkg/"):]
 		}
-		template.HTMLEscape(w, strings.Bytes(pkgHandler.pattern+relpath))
+		template.HTMLEscape(w, []byte(pkgHandler.pattern+relpath))
 	case "url-src":
-		template.HTMLEscape(w, strings.Bytes("/"+relpath))
+		template.HTMLEscape(w, []byte("/"+relpath))
 	case "url-pos":
 		// line id's in html-printed source are of the
 		// form "L%d" where %d stands for the line number
-		template.HTMLEscape(w, strings.Bytes("/"+relpath))
+		template.HTMLEscape(w, []byte("/"+relpath))
 		fmt.Fprintf(w, "#L%d", line)
 	}
 }
@@ -742,7 +742,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
 // Template formatter for "time" format.
 func timeFmt(w io.Writer, x interface{}, format string) {
 	// note: os.Dir.Mtime_ns is in uint64 in ns!
-	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64)/1e9)).String()))
+	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(int64(x.(uint64)/1e9)).String()))
 }
 
 
@@ -757,7 +757,7 @@ func dirslashFmt(w io.Writer, x interface{}, format string) {
 // Template formatter for "localname" format.
 func localnameFmt(w io.Writer, x interface{}, format string) {
 	_, localname := pathutil.Split(x.(string))
-	template.HTMLEscape(w, strings.Bytes(localname))
+	template.HTMLEscape(w, []byte(localname))
 }
 
 
@@ -852,8 +852,8 @@ func serveText(c *http.Conn, text []byte) {
 // Files
 
 var (
-	tagBegin = strings.Bytes("<!--")
-	tagEnd   = strings.Bytes("-->")
+	tagBegin = []byte("<!--")
+	tagEnd   = []byte("-->")
 )
 
 // commentText returns the text of the first HTML comment in src.
@@ -878,7 +878,7 @@ func serveHTMLDoc(c *http.Conn, r *http.Request, abspath, relpath string) {
 
 	// if it begins with "<!DOCTYPE " assume it is standalone
 	// html that doesn't need the template wrapping.
-	if bytes.HasPrefix(src, strings.Bytes("<!DOCTYPE ")) {
+	if bytes.HasPrefix(src, []byte("<!DOCTYPE ")) {
 		c.Write(src)
 		return
 	}

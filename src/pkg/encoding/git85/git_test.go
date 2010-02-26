@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -61,7 +60,7 @@ var gitBigtest = gitPairs[len(gitPairs)-1]
 func TestEncode(t *testing.T) {
 	for _, p := range gitPairs {
 		buf := make([]byte, EncodedLen(len(p.decoded)))
-		n := Encode(buf, strings.Bytes(p.decoded))
+		n := Encode(buf, []byte(p.decoded))
 		if n != len(buf) {
 			t.Errorf("EncodedLen does not agree with Encode")
 		}
@@ -74,14 +73,14 @@ func TestEncoder(t *testing.T) {
 	for _, p := range gitPairs {
 		bb := &bytes.Buffer{}
 		encoder := NewEncoder(bb)
-		encoder.Write(strings.Bytes(p.decoded))
+		encoder.Write([]byte(p.decoded))
 		encoder.Close()
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded)
 	}
 }
 
 func TestEncoderBuffering(t *testing.T) {
-	input := strings.Bytes(gitBigtest.decoded)
+	input := []byte(gitBigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
 		bb := &bytes.Buffer{}
 		encoder := NewEncoder(bb)
@@ -103,7 +102,7 @@ func TestEncoderBuffering(t *testing.T) {
 func TestDecode(t *testing.T) {
 	for _, p := range gitPairs {
 		dbuf := make([]byte, 4*len(p.encoded))
-		ndst, err := Decode(dbuf, strings.Bytes(p.encoded))
+		ndst, err := Decode(dbuf, []byte(p.encoded))
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil))
 		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded))
 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded)
@@ -151,7 +150,7 @@ func TestDecodeCorrupt(t *testing.T) {
 
 	for _, e := range examples {
 		dbuf := make([]byte, 2*len(e.e))
-		_, err := Decode(dbuf, strings.Bytes(e.e))
+		_, err := Decode(dbuf, []byte(e.e))
 		switch err := err.(type) {
 		case CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p)

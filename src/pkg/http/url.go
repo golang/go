@@ -70,7 +70,7 @@ func shouldEscape(c byte) bool {
 // CanonicalPath applies the algorithm specified in RFC 2396 to
 // simplify the path, removing unnecessary  . and .. elements.
 func CanonicalPath(path string) string {
-	buf := strings.Bytes(path)
+	buf := []byte(path)
 	a := buf[0:0]
 	// state helps to find /.. ^.. ^. and /. patterns.
 	// state == 1 - prev char is '/' or beginning of the string.

@@ -696,7 +696,7 @@ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
 
 func isIdentifier(s string) bool {
 	var S scanner.Scanner
-	S.Init("", strings.Bytes(s), nil, 0)
+	S.Init("", []byte(s), nil, 0)
 	if _, tok, _ := S.Scan(); tok == token.IDENT {
 		_, tok, _ := S.Scan()
 		return tok == token.EOF

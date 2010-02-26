@@ -298,7 +298,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// bytes == []uint8
 	{
 		b.Reset()
-		data := struct{ a []byte }{strings.Bytes("hello")}
+		data := struct{ a []byte }{[]byte("hello")}
 		instr := &encInstr{encUint8Array, 6, 0, 0}
 		state := newencoderState(b)
 		instr.op(instr, state, unsafe.Pointer(&data))
@@ -587,7 +587,7 @@ func TestEndToEnd(t *testing.T) {
 		strs: &[2]string{s1, s2},
 		int64s: &[]int64{77, 89, 123412342134},
 		s: "Now is the time",
-		y: strings.Bytes("hello, sailor"),
+		y: []byte("hello, sailor"),
 		t: &T2{"this is T2"},
 	}
 	b := new(bytes.Buffer)
@@ -935,7 +935,7 @@ func TestIgnoredFields(t *testing.T) {
 	it0.ignore_e[2] = 3.0
 	it0.ignore_f = true
 	it0.ignore_g = "pay no attention"
-	it0.ignore_h = strings.Bytes("to the curtain")
+	it0.ignore_h = []byte("to the curtain")
 	it0.ignore_i = &RT1{3.1, "hi", 7, "hello"}
 
 	b := new(bytes.Buffer)

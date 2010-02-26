@@ -41,7 +41,6 @@ import (
 	"bufio"
 	"flag"
 	"os"
-	"strings"
 )
 
 var out *bufio.Writer
@@ -161,7 +160,7 @@ func main() {
 	AccumulateProbabilities(iub)
 	AccumulateProbabilities(homosapiens)
 
-	alu := strings.Bytes(
+	alu := []byte(
 		"GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG" +
 			"GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA" +
 			"CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT" +

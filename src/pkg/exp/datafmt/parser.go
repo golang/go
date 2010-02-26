@@ -137,7 +137,7 @@ func (p *parser) parseString() string {
 
 
 func (p *parser) parseLiteral() literal {
-	s := strings.Bytes(p.parseString())
+	s := []byte(p.parseString())
 
 	// A string literal may contain %-format specifiers. To simplify
 	// and speed up printing of the literal, split it into segments

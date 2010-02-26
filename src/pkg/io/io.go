@@ -8,10 +8,7 @@
 // abstract the functionality, plus some other related primitives.
 package io
 
-import (
-	"os"
-	"strings"
-)
+import "os"
 
 // Error represents an unexpected I/O behavior.
 type Error struct {
@@ -160,7 +157,7 @@ type ReadByter interface {
 
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
 func WriteString(w Writer, s string) (n int, err os.Error) {
-	return w.Write(strings.Bytes(s))
+	return w.Write([]byte(s))
 }
 
 // ReadAtLeast reads from r into buf until it has read at least min bytes.

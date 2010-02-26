@@ -40,7 +40,6 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
-	"strings"
 )
 
 var variants = []string{
@@ -101,7 +100,7 @@ func main() {
 		fmt.Printf("%s %d\n", s, countMatches(s, bytes))
 	}
 	for _, sub := range substs {
-		bytes = regexp.MustCompile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl))
+		bytes = regexp.MustCompile(sub.pat).ReplaceAll(bytes, []byte(sub.repl))
 	}
 	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes))
 }

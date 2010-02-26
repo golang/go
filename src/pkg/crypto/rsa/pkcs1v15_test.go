@@ -12,14 +12,13 @@ import (
 	"encoding/hex"
 	"os"
 	"io"
-	"strings"
 	"testing"
 	"testing/quick"
 )
 
 func decodeBase64(in string) []byte {
 	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
-	n, err := base64.StdEncoding.Decode(out, strings.Bytes(in))
+	n, err := base64.StdEncoding.Decode(out, []byte(in))
 	if err != nil {
 		return nil
 	}
@@ -56,7 +55,7 @@ func TestDecryptPKCS1v15(t *testing.T) {
 		if err != nil {
 			t.Errorf("#%d error decrypting", i)
 		}
-		want := strings.Bytes(test.out)
+		want := []byte(test.out)
 		if bytes.Compare(out, want) != 0 {
 			t.Errorf("#%d got:%#v want:%#v", i, out, want)
 		}
@@ -125,12 +124,12 @@ var decryptPKCS1v15SessionKeyTests = []DecryptPKCS1v15Test{
 
 func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 	for i, test := range decryptPKCS1v15SessionKeyTests {
-		key := strings.Bytes("FAIL")
+		key := []byte("FAIL")
 		err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, decodeBase64(test.in), key)
 		if err != nil {
 			t.Errorf("#%d error decrypting", i)
 		}
-		want := strings.Bytes(test.out)
+		want := []byte(test.out)
 		if bytes.Compare(key, want) != 0 {
 			t.Errorf("#%d got:%#v want:%#v", i, key, want)
 		}
@@ -169,7 +168,7 @@ var signPKCS1v15Tests = []signPKCS1v15Test{
 func TestSignPKCS1v15(t *testing.T) {
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
-		h.Write(strings.Bytes(test.in))
+		h.Write([]byte(test.in))
 		digest := h.Sum()
 
 		s, err := SignPKCS1v15(nil, rsaPrivateKey, HashSHA1, digest)
@@ -187,7 +186,7 @@ func TestSignPKCS1v15(t *testing.T) {
 func TestVerifyPKCS1v15(t *testing.T) {
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
-		h.Write(strings.Bytes(test.in))
+		h.Write([]byte(test.in))
 		digest := h.Sum()
 
 		sig, _ := hex.DecodeString(test.out)

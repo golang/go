@@ -32,7 +32,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 	"./pdp1"
 )
@@ -53,7 +52,7 @@ func main() {
 	var m SpacewarPDP1
 	m.Init(w)
 	m.PC = 4
-	f := bytes.NewBuffer(strings.Bytes(spacewarCode))
+	f := bytes.NewBuffer([]byte(spacewarCode))
 	if err = m.Load(f); err != nil {
 		log.Exitf("loading %s: %s", "spacewar.lst", err)
 	}
