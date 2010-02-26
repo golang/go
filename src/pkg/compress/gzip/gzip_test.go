@@ -7,7 +7,6 @@ package gzip
 import (
 	"io"
 	"io/ioutil"
-	"strings"
 	"testing"
 )
 
@@ -53,10 +52,10 @@ func TestWriter(t *testing.T) {
 	pipe(t,
 		func(deflater *Deflater) {
 			deflater.Comment = "comment"
-			deflater.Extra = strings.Bytes("extra")
+			deflater.Extra = []byte("extra")
 			deflater.Mtime = 1e8
 			deflater.Name = "name"
-			_, err := deflater.Write(strings.Bytes("payload"))
+			_, err := deflater.Write([]byte("payload"))
 			if err != nil {
 				t.Fatalf("%v", err)
 			}

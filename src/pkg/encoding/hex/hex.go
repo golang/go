@@ -8,7 +8,6 @@ package hex
 import (
 	"os"
 	"strconv"
-	"strings"
 )
 
 const hextable = "0123456789abcdef"
@@ -92,7 +91,7 @@ func EncodeToString(src []byte) string {
 
 // DecodeString returns the bytes represented by the hexadecimal string s.
 func DecodeString(s string) ([]byte, os.Error) {
-	src := strings.Bytes(s)
+	src := []byte(s)
 	dst := make([]byte, DecodedLen(len(src)))
 	_, err := Decode(dst, src)
 	if err != nil {

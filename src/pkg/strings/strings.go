@@ -302,23 +302,3 @@ func TrimSpace(s string) string {
 	}
 	return s[start:end]
 }
-
-// Bytes returns a new slice containing the bytes in s.
-func Bytes(s string) []byte {
-	b := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		b[i] = s[i]
-	}
-	return b
-}
-
-// Runes returns a slice of runes (Unicode code points) equivalent to the string s.
-func Runes(s string) []int {
-	t := make([]int, utf8.RuneCountInString(s))
-	i := 0
-	for _, r := range s {
-		t[i] = r
-		i++
-	}
-	return t
-}

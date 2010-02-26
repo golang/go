@@ -7,7 +7,6 @@ package asn1
 import (
 	"bytes"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 )
@@ -165,7 +164,7 @@ var timeTestData = []timeTest{
 
 func TestTime(t *testing.T) {
 	for i, test := range timeTestData {
-		ret, err := parseUTCTime(strings.Bytes(test.in))
+		ret, err := parseUTCTime([]byte(test.in))
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}

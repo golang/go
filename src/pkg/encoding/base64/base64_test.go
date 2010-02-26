@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -58,7 +57,7 @@ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
 func TestEncode(t *testing.T) {
 	for _, p := range pairs {
 		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)))
-		StdEncoding.Encode(buf, strings.Bytes(p.decoded))
+		StdEncoding.Encode(buf, []byte(p.decoded))
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded)
 	}
 }
@@ -67,14 +66,14 @@ func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
 		bb := &bytes.Buffer{}
 		encoder := NewEncoder(StdEncoding, bb)
-		encoder.Write(strings.Bytes(p.decoded))
+		encoder.Write([]byte(p.decoded))
 		encoder.Close()
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded)
 	}
 }
 
 func TestEncoderBuffering(t *testing.T) {
-	input := strings.Bytes(bigtest.decoded)
+	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
 		bb := &bytes.Buffer{}
 		encoder := NewEncoder(StdEncoding, bb)
@@ -96,7 +95,7 @@ func TestEncoderBuffering(t *testing.T) {
 func TestDecode(t *testing.T) {
 	for _, p := range pairs {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
-		count, end, err := StdEncoding.decode(dbuf, strings.Bytes(p.encoded))
+		count, end, err := StdEncoding.decode(dbuf, []byte(p.encoded))
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil))
 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded))
 		if len(p.encoded) > 0 {
@@ -153,7 +152,7 @@ func TestDecodeCorrupt(t *testing.T) {
 
 	for _, e := range examples {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)))
-		_, err := StdEncoding.Decode(dbuf, strings.Bytes(e.e))
+		_, err := StdEncoding.Decode(dbuf, []byte(e.e))
 		switch err := err.(type) {
 		case CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p)

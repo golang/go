@@ -724,7 +724,7 @@ func (c *typeConv) Opaque(n int64) ast.Expr {
 func (c *typeConv) intExpr(n int64) ast.Expr {
 	return &ast.BasicLit{
 		Kind: token.INT,
-		Value: strings.Bytes(strconv.Itoa64(n)),
+		Value: []byte(strconv.Itoa64(n)),
 	}
 }
 
@@ -755,7 +755,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 		used[f.Name] = true
 	}
 	for cid, goid := range ident {
-		if token.Lookup(strings.Bytes(goid)).IsKeyword() {
+		if token.Lookup([]byte(goid)).IsKeyword() {
 			// Avoid keyword
 			goid = "_" + goid
 

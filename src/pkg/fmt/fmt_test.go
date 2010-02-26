@@ -66,12 +66,12 @@ var fmttests = []fmtTest{
 	fmtTest{"%q", "abc", `"abc"`},
 
 	// basic bytes
-	fmtTest{"%s", strings.Bytes("abc"), "abc"},
-	fmtTest{"%x", strings.Bytes("abc"), "616263"},
-	fmtTest{"% x", strings.Bytes("abc"), "61 62 63"},
-	fmtTest{"%x", strings.Bytes("xyz"), "78797a"},
-	fmtTest{"%X", strings.Bytes("xyz"), "78797A"},
-	fmtTest{"%q", strings.Bytes("abc"), `"abc"`},
+	fmtTest{"%s", []byte("abc"), "abc"},
+	fmtTest{"%x", []byte("abc"), "616263"},
+	fmtTest{"% x", []byte("abc"), "61 62 63"},
+	fmtTest{"%x", []byte("xyz"), "78797a"},
+	fmtTest{"%X", []byte("xyz"), "78797A"},
+	fmtTest{"%q", []byte("abc"), `"abc"`},
 
 	// escaped strings
 	fmtTest{"%#q", `abc`, "`abc`"},

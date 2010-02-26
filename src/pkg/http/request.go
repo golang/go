@@ -376,7 +376,7 @@ func CanonicalHeaderKey(s string) string {
 	// and upper case after each dash.
 	// (Host, User-Agent, If-Modified-Since).
 	// HTTP headers are ASCII only, so no Unicode issues.
-	a := strings.Bytes(s)
+	a := []byte(s)
 	upper := true
 	for i, v := range a {
 		if upper && 'a' <= v && v <= 'z' {

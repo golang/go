@@ -296,7 +296,7 @@ var errorWriterTests = []errorWriterTest{
 func TestWriteErrors(t *testing.T) {
 	for _, w := range errorWriterTests {
 		buf := NewWriter(w)
-		_, e := buf.Write(strings.Bytes("hello world"))
+		_, e := buf.Write([]byte("hello world"))
 		if e != nil {
 			t.Errorf("Write hello to %v: %v", w, e)
 			continue

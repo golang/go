@@ -6,7 +6,6 @@ package bytes_test
 
 import (
 	. "bytes"
-	"strings"
 	"testing"
 	"unicode"
 )
@@ -60,8 +59,8 @@ var comparetests = []BinOpTest{
 
 func TestCompare(t *testing.T) {
 	for _, tt := range comparetests {
-		a := strings.Bytes(tt.a)
-		b := strings.Bytes(tt.b)
+		a := []byte(tt.a)
+		b := []byte(tt.b)
 		cmp := Compare(a, b)
 		eql := Equal(a, b)
 		if cmp != tt.i {
@@ -94,8 +93,8 @@ var indextests = []BinOpTest{
 
 func TestIndex(t *testing.T) {
 	for _, tt := range indextests {
-		a := strings.Bytes(tt.a)
-		b := strings.Bytes(tt.b)
+		a := []byte(tt.a)
+		b := []byte(tt.b)
 		pos := Index(a, b)
 		if pos != tt.i {
 			t.Errorf(`Index(%q, %q) = %v`, tt.a, tt.b, pos)
@@ -108,7 +107,7 @@ func TestIndexByte(t *testing.T) {
 		if len(tt.b) != 1 {
 			continue
 		}
-		a := strings.Bytes(tt.a)
+		a := []byte(tt.a)
 		b := tt.b[0]
 		pos := IndexByte(a, b)
 		if pos != tt.i {
@@ -171,7 +170,7 @@ var explodetests = []ExplodeTest{
 
 func TestExplode(t *testing.T) {
 	for _, tt := range explodetests {
-		a := Split(strings.Bytes(tt.s), nil, tt.n)
+		a := Split([]byte(tt.s), nil, tt.n)
 		result := arrayOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a)
@@ -210,13 +209,13 @@ var splittests = []SplitTest{
 
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
-		a := Split(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n)
+		a := Split([]byte(tt.s), []byte(tt.sep), tt.n)
 		result := arrayOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
 		}
-		s := Join(a, strings.Bytes(tt.sep))
+		s := Join(a, []byte(tt.sep))
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
@@ -241,7 +240,7 @@ var splitaftertests = []SplitTest{
 
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
-		a := SplitAfter(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n)
+		a := SplitAfter([]byte(tt.s), []byte(tt.sep), tt.n)
 		result := arrayOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
@@ -275,7 +274,7 @@ var fieldstests = []FieldsTest{
 
 func TestFields(t *testing.T) {
 	for _, tt := range fieldstests {
-		a := Fields(strings.Bytes(tt.s))
+		a := Fields([]byte(tt.s))
 		result := arrayOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
@@ -434,7 +433,7 @@ func TestAdd(t *testing.T) {
 		for i := 0; i < len(test.s); i++ {
 			b[i] = test.s[i]
 		}
-		b = Add(b, strings.Bytes(test.t))
+		b = Add(b, []byte(test.t))
 		if string(b) != test.s+test.t {
 			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))
 		}
@@ -474,8 +473,8 @@ var RepeatTests = []RepeatTest{
 
 func TestRepeat(t *testing.T) {
 	for _, tt := range RepeatTests {
-		tin := strings.Bytes(tt.in)
-		tout := strings.Bytes(tt.out)
+		tin := []byte(tt.in)
+		tout := []byte(tt.out)
 		a := Repeat(tin, tt.count)
 		if !Equal(a, tout) {
 			t.Errorf("Repeat(%q, %d) = %q; want %q", tin, tt.count, a, tout)
@@ -514,7 +513,7 @@ var RunesTests = []RunesTest{
 
 func TestRunes(t *testing.T) {
 	for _, tt := range RunesTests {
-		tin := strings.Bytes(tt.in)
+		tin := []byte(tt.in)
 		a := Runes(tin)
 		if !runesEqual(a, tt.out) {
 			t.Errorf("Runes(%q) = %v; want %v", tin, a, tt.out)

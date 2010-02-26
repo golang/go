@@ -12,7 +12,6 @@ import (
 	"log"
 	"net"
 	"once"
-	"strings"
 	"testing"
 )
 
@@ -45,7 +44,7 @@ func TestEcho(t *testing.T) {
 		t.Errorf("WebSocket handshake error", err)
 		return
 	}
-	msg := strings.Bytes("hello, world\n")
+	msg := []byte("hello, world\n")
 	if _, err := ws.Write(msg); err != nil {
 		t.Errorf("Write: error %v", err)
 	}

@@ -7,7 +7,6 @@ package ioutil_test
 import (
 	. "io/ioutil"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -43,7 +42,7 @@ func TestWriteFile(t *testing.T) {
 		"build bigger and better idiot-proof programs, and the Universe trying " +
 		"to produce bigger and better idiots. So far, the Universe is winning."
 
-	if err := WriteFile(filename, strings.Bytes(data), 0644); err != nil {
+	if err := WriteFile(filename, []byte(data), 0644); err != nil {
 		t.Fatalf("WriteFile %s: %v", filename, err)
 	}
 

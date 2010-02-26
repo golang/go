@@ -7,7 +7,6 @@ package scanner
 import (
 	"go/token"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -225,7 +224,7 @@ func TestScan(t *testing.T) {
 	// verify scan
 	index := 0
 	epos := token.Position{"", 0, 1, 1}
-	nerrors := Tokenize("", strings.Bytes(src), &testErrorHandler{t}, ScanComments,
+	nerrors := Tokenize("", []byte(src), &testErrorHandler{t}, ScanComments,
 		func(pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special}
 			if index < len(tokens) {
@@ -264,7 +263,7 @@ func TestScan(t *testing.T) {
 
 func checkSemi(t *testing.T, line string, mode uint) {
 	var S Scanner
-	S.Init("TestSemis", strings.Bytes(line), nil, mode)
+	S.Init("TestSemis", []byte(line), nil, mode)
 	pos, tok, lit := S.Scan()
 	for tok != token.EOF {
 		if tok == token.ILLEGAL {
@@ -451,7 +450,7 @@ func TestLineComments(t *testing.T) {
 
 	// verify scan
 	var S Scanner
-	S.Init("TestLineComments", strings.Bytes(src), nil, 0)
+	S.Init("TestLineComments", []byte(src), nil, 0)
 	for _, s := range segments {
 		pos, _, lit := S.Scan()
 		checkPos(t, string(lit), pos, token.Position{s.filename, pos.Offset, s.line, pos.Column})
@@ -468,7 +467,7 @@ func TestInit(t *testing.T) {
 	var s Scanner
 
 	// 1st init
-	s.Init("", strings.Bytes("if true { }"), nil, 0)
+	s.Init("", []byte("if true { }"), nil, 0)
 	s.Scan()              // if
 	s.Scan()              // true
 	_, tok, _ := s.Scan() // {
@@ -477,7 +476,7 @@ func TestInit(t *testing.T) {
 	}
 
 	// 2nd init
-	s.Init("", strings.Bytes("go true { ]"), nil, 0)
+	s.Init("", []byte("go true { ]"), nil, 0)
 	_, tok, _ = s.Scan() // go
 	if tok != token.GO {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO)
@@ -493,7 +492,7 @@ func TestIllegalChars(t *testing.T) {
 	var s Scanner
 
 	const src = "*?*$*@*"
-	s.Init("", strings.Bytes(src), &testErrorHandler{t}, AllowIllegalChars)
+	s.Init("", []byte(src), &testErrorHandler{t}, AllowIllegalChars)
 	for offs, ch := range src {
 		pos, tok, lit := s.Scan()
 		if pos.Offset != offs {
@@ -521,7 +520,7 @@ func TestStdErrorHander(t *testing.T) {
 		"@ @ @" // original file, line 1 again
 
 	v := new(ErrorVector)
-	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
+	nerrors := Tokenize("File1", []byte(src), v, 0,
 		func(pos token.Position, tok token.Token, litb []byte) bool {
 			return tok != token.EOF
 		})
@@ -567,7 +566,7 @@ func (h *errorCollector) Error(pos token.Position, msg string) {
 func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
 	var s Scanner
 	var h errorCollector
-	s.Init("", strings.Bytes(src), &h, ScanComments)
+	s.Init("", []byte(src), &h, ScanComments)
 	_, tok0, _ := s.Scan()
 	_, tok1, _ := s.Scan()
 	if tok0 != tok {

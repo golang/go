@@ -4,8 +4,6 @@
 
 package tls
 
-import "strings"
-
 type clientHelloMsg struct {
 	raw                []byte
 	major, minor       uint8
@@ -100,7 +98,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[1] = 1
 		z[3] = byte(len(m.serverName) >> 8)
 		z[4] = byte(len(m.serverName))
-		copy(z[5:], strings.Bytes(m.serverName))
+		copy(z[5:], []byte(m.serverName))
 		z = z[l:]
 	}
 
@@ -280,7 +278,7 @@ func (m *serverHelloMsg) marshal() []byte {
 				l = 255
 			}
 			z[0] = byte(l)
-			copy(z[1:], strings.Bytes(v[0:l]))
+			copy(z[1:], []byte(v[0:l]))
 			z = z[1+l:]
 		}
 	}
@@ -548,7 +546,7 @@ func (m *nextProtoMsg) marshal() []byte {
 
 	y := x[4:]
 	y[0] = byte(l)
-	copy(y[1:], strings.Bytes(m.proto[0:l]))
+	copy(y[1:], []byte(m.proto[0:l]))
 	y = y[1+l:]
 	y[0] = byte(padding)
 

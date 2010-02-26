@@ -6,13 +6,12 @@ package datafmt
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 )
 
 
 func parse(t *testing.T, form string, fmap FormatterMap) Format {
-	f, err := Parse("", strings.Bytes(form), fmap)
+	f, err := Parse("", []byte(form), fmap)
 	if err != nil {
 		t.Errorf("Parse(%s): %v", form, err)
 		return nil
@@ -52,7 +51,7 @@ func formatter(s *State, value interface{}, rule_name string) bool {
 	case "nil":
 		return false
 	case "testing.T":
-		s.Write(strings.Bytes("testing.T"))
+		s.Write([]byte("testing.T"))
 		return true
 	}
 	panic("unreachable")

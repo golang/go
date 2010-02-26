@@ -14,7 +14,6 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strings"
 	"tabwriter"
 )
 
@@ -45,11 +44,11 @@ var (
 	newlines  = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'} // more than maxNewlines
 	formfeeds = [...]byte{'\f', '\f', '\f', '\f', '\f', '\f', '\f', '\f'} // more than maxNewlines
 
-	esc_quot = strings.Bytes("&#34;") // shorter than "&quot;"
-	esc_apos = strings.Bytes("&#39;") // shorter than "&apos;"
-	esc_amp  = strings.Bytes("&amp;")
-	esc_lt   = strings.Bytes("&lt;")
-	esc_gt   = strings.Bytes("&gt;")
+	esc_quot = []byte("&#34;") // shorter than "&quot;"
+	esc_apos = []byte("&#39;") // shorter than "&apos;"
+	esc_amp  = []byte("&amp;")
+	esc_lt   = []byte("&lt;")
+	esc_gt   = []byte("&gt;")
 )
 
 
@@ -223,12 +222,12 @@ func (p *printer) writeTaggedItem(data []byte, tag HTMLTag) {
 	// write start tag, if any
 	// (no html-escaping and no p.pos update for tags - use write0)
 	if tag.Start != "" {
-		p.write0(strings.Bytes(tag.Start))
+		p.write0([]byte(tag.Start))
 	}
 	p.write(data)
 	// write end tag, if any
 	if tag.End != "" {
-		p.write0(strings.Bytes(tag.End))
+		p.write0([]byte(tag.End))
 	}
 }
 
@@ -247,7 +246,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
 	}
 	if debug {
 		// do not update p.pos - use write0
-		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
+		p.write0([]byte(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
 	}
 	if p.Mode&GenHTML != 0 {
 		// write line tag if on a new line
@@ -744,7 +743,7 @@ func (p *printer) print(args ...) {
 			if p.Styler != nil {
 				data, tag = p.Styler.Ident(x)
 			} else {
-				data = strings.Bytes(x.Name())
+				data = []byte(x.Name())
 			}
 		case *ast.BasicLit:
 			if p.Styler != nil {
@@ -756,12 +755,12 @@ func (p *printer) print(args ...) {
 			// (note that valid Go programs cannot contain esc ('\xff')
 			// bytes since they do not appear in legal UTF-8 sequences)
 			// TODO(gri): do this more efficiently.
-			data = strings.Bytes("\xff" + string(data) + "\xff")
+			data = []byte("\xff" + string(data) + "\xff")
 		case token.Token:
 			if p.Styler != nil {
 				data, tag = p.Styler.Token(x)
 			} else {
-				data = strings.Bytes(x.String())
+				data = []byte(x.String())
 			}
 			isKeyword = x.IsKeyword()
 		case token.Position:

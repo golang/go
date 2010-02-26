@@ -123,7 +123,7 @@ func pallmall(cols []int) {
 	fmt.Println(msg)
 	tot := 0
 	// wait for all results
-	for _ = range (cols) {
+	for _ = range cols {
 		result := <-ended
 		tot += result.met
 		fmt.Printf("%v%v\n", result.met, spell(result.same, true))

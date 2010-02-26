@@ -6,7 +6,6 @@ package ebnf
 
 import (
 	"io/ioutil"
-	"strings"
 	"testing"
 )
 
@@ -53,7 +52,7 @@ func check(t *testing.T, filename string, src []byte) {
 
 func TestGrammars(t *testing.T) {
 	for _, src := range grammars {
-		check(t, "", strings.Bytes(src))
+		check(t, "", []byte(src))
 	}
 }
 

@@ -7,7 +7,6 @@ package hmac
 import (
 	"hash"
 	"fmt"
-	"strings"
 	"testing"
 )
 
@@ -33,7 +32,7 @@ var hmacTests = []hmacTest{
 			0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
 			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
 		},
-		strings.Bytes("Sample #1"),
+		[]byte("Sample #1"),
 		"4f4ca3d5d68ba7cc0a1208c9c61e9c5da0403c0a",
 	},
 	hmacTest{
@@ -43,7 +42,7 @@ var hmacTests = []hmacTest{
 			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
 			0x40, 0x41, 0x42, 0x43,
 		},
-		strings.Bytes("Sample #2"),
+		[]byte("Sample #2"),
 		"0922d3405faa3d194f82a45830737d5cc6c75d24",
 	},
 	hmacTest{
@@ -63,15 +62,15 @@ var hmacTests = []hmacTest{
 			0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
 			0xb0, 0xb1, 0xb2, 0xb3,
 		},
-		strings.Bytes("Sample #3"),
+		[]byte("Sample #3"),
 		"bcf41eab8bb2d802f3d05caf7cb092ecf8d1a3aa",
 	},
 
 	// Test from Plan 9.
 	hmacTest{
 		NewMD5,
-		strings.Bytes("Jefe"),
-		strings.Bytes("what do ya want for nothing?"),
+		[]byte("Jefe"),
+		[]byte("what do ya want for nothing?"),
 		"750c783e6ab0b503eaa86e310a5db738",
 	},
 }

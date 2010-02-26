@@ -15,7 +15,6 @@ import (
 	"io/ioutil"
 	"os"
 	pathutil "path"
-	"strings"
 )
 
 
@@ -27,7 +26,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
 	if src != nil {
 		switch s := src.(type) {
 		case string:
-			return strings.Bytes(s), nil
+			return []byte(s), nil
 		case []byte:
 			return s, nil
 		case *bytes.Buffer:
