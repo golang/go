@@ -192,7 +192,7 @@ func PackageExports(pkg *Package) bool {
 // separator is an empty //-style comment that is interspersed between
 // different comment groups when they are concatenated into a single group
 //
-var separator = &Comment{noPos, []byte{'/', '/'}}
+var separator = &Comment{noPos, []byte("//")}
 
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
