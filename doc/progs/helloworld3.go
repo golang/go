@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'}
+	hello := []byte("hello, world\n")
 	file.Stdout.Write(hello)
 	file, err := file.Open("/does/not/exist",  0,  0)
 	if file == nil {
