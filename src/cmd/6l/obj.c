@@ -76,7 +76,7 @@ isobjfile(char *f)
 void
 usage(void)
 {
-	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] main.6\n");
+	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.6\n");
 	exits("usage");
 }
 
@@ -125,6 +125,9 @@ main(int argc, char *argv[])
 		break;
 	case 'R':
 		INITRND = atolwhex(EARGF(usage()));
+		break;
+	case 'r':
+		rpath = EARGF(usage());
 		break;
 	case 'x':	/* produce export table */
 		doexp = 1;

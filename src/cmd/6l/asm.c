@@ -408,6 +408,8 @@ doelf(void)
 		elfwritedynentsym(s, DT_RELA, lookup(".rela", 0));
 		elfwritedynentsymsize(s, DT_RELASZ, lookup(".rela", 0));
 		elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
+		if(rpath)
+			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
 		elfwritedynent(s, DT_NULL, 0);
 	}
 }

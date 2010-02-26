@@ -81,7 +81,7 @@ linkername[] =
 void
 usage(void)
 {
-	fprint(2, "usage: 5l [-E entry] [-H head] [-L dir] [-T text] [-D data] [-R rnd] [-o out] main.5\n");
+	fprint(2, "usage: 5l [-E entry] [-H head] [-L dir] [-T text] [-D data] [-R rnd] [-r path] [-o out] main.5\n");
 	errorexit();
 }
 
@@ -127,6 +127,9 @@ main(int argc, char *argv[])
 		break;
 	case 'R':
 		INITRND = atolwhex(EARGF(usage()));
+		break;
+	case 'r':
+		rpath = EARGF(usage());
 		break;
 	case 'H':
 		HEADTYPE = atolwhex(EARGF(usage()));
