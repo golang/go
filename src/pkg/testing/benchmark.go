@@ -78,6 +78,13 @@ func min(x, y int) int {
 	return x
 }
 
+func max(x, y int) int {
+	if x < y {
+		return y
+	}
+	return x
+}
+
 // roundDown10 rounds a number down to the nearest power of 10.
 func roundDown10(n int) int {
 	var tens = 0
@@ -125,7 +132,8 @@ func (b *B) run() {
 		}
 		// Run more iterations than we think we'll need for a second (1.5x).
 		// Don't grow too fast in case we had timing errors previously.
-		n = min(int(1.5*float(n)), 100*last)
+		// Be sure to run at least one more than last time.
+		n = max(min(n+n/2, 100*last), last+1)
 		// Round up to something easy to read.
 		n = roundUp(n)
 		b.runN(n)
