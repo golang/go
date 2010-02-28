@@ -43,7 +43,9 @@
 	For numeric values, the width and precision flags control
 	formatting; width sets the width of the field, precision the
 	number of places after the decimal, if appropriate.  The
-	format %6.2f prints 123.45.
+	format %6.2f prints 123.45. The width of a field is the number
+	of Unicode code points in the string. This differs from C's printf where
+	the field width is the number of bytes.
 
 	Other flags:
 		+	always print a sign for numeric values
