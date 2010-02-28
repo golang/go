@@ -86,6 +86,7 @@ var fmttests = []fmtTest{
 
 	// width
 	fmtTest{"%5s", "abc", "  abc"},
+	fmtTest{"%2s", "\u263a", " \u263a"},
 	fmtTest{"%-5s", "abc", "abc  "},
 	fmtTest{"%05s", "abc", "00abc"},
 

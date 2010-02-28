@@ -7,6 +7,7 @@ package fmt
 import (
 	"bytes"
 	"strconv"
+	"utf8"
 )
 
 const (
@@ -127,7 +128,7 @@ func (f *fmt) padString(s string) {
 	var padding []byte
 	var left, right int
 	if f.widPresent && f.wid != 0 {
-		padding, left, right = f.computePadding(len(s))
+		padding, left, right = f.computePadding(utf8.RuneCountInString(s))
 	}
 	if left > 0 {
 		f.writePadding(left, padding)
