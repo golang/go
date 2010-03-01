@@ -44,6 +44,7 @@ esac
 # Allow overrides
 GC="$GOBIN/${_GC:-$GC} -I _test"
 GL="$GOBIN/${GL:-$LD} -L _test"
+AS="$GOBIN/$AS"
 CC="$GOBIN/$CC"
 LD="$GOBIN/$LD"
 export GC GL O AS CC LD
