@@ -17,9 +17,9 @@ import (
 )
 
 var respExcludeHeader = map[string]int{
-	"Content-Length":    0,
+	"Content-Length": 0,
 	"Transfer-Encoding": 0,
-	"Trailer":           0,
+	"Trailer": 0,
 }
 
 // Response represents the response from an HTTP request.
@@ -152,11 +152,10 @@ func (r *Response) AddHeader(key, value string) {
 	}
 }
 
-// GetHeader returns the value of the response header with the given
-// key, and true.  If there were multiple headers with this key, their
-// values are concatenated, with a comma delimiter.  If there were no
-// response headers with the given key, it returns the empty string and
-// false.  Keys are not case sensitive.
+// GetHeader returns the value of the response header with the given key.
+// If there were multiple headers with this key, their values are concatenated,
+// with a comma delimiter.  If there were no response headers with the given
+// key, GetHeader returns an empty string.  Keys are not case sensitive.
 func (r *Response) GetHeader(key string) (value string) {
 	value, _ = r.Header[CanonicalHeaderKey(key)]
 	return
