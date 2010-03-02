@@ -57,7 +57,7 @@ func newClient(resourceName, host, origin, location, protocol string, rwc io.Rea
 	 	if err != nil {
 			panic("Dial: ", err.String())
 		}
-		if _, err := ws.Write(strings.Bytes("hello, world!\n")); err != nil {
+		if _, err := ws.Write([]byte("hello, world!\n")); err != nil {
 			panic("Write: ", err.String())
 		}
 		var msg = make([]byte, 512);
