@@ -470,9 +470,9 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 
 	if params.explicit {
 		err = marshalTagAndLength(explicitTag, tagAndLength{
-			class: classContextSpecific,
-			tag: *params.tag,
-			length: bodyLen + tags.Len(),
+			class:      classContextSpecific,
+			tag:        *params.tag,
+			length:     bodyLen + tags.Len(),
 			isCompound: true,
 		})
 	}

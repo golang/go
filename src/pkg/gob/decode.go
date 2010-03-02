@@ -486,26 +486,26 @@ func ignoreSlice(state *decodeState, elemOp decOp) os.Error {
 }
 
 var decOpMap = map[reflect.Type]decOp{
-	valueKind(false): decBool,
-	valueKind(int8(0)): decInt8,
-	valueKind(int16(0)): decInt16,
-	valueKind(int32(0)): decInt32,
-	valueKind(int64(0)): decInt64,
-	valueKind(uint8(0)): decUint8,
-	valueKind(uint16(0)): decUint16,
-	valueKind(uint32(0)): decUint32,
-	valueKind(uint64(0)): decUint64,
+	valueKind(false):      decBool,
+	valueKind(int8(0)):    decInt8,
+	valueKind(int16(0)):   decInt16,
+	valueKind(int32(0)):   decInt32,
+	valueKind(int64(0)):   decInt64,
+	valueKind(uint8(0)):   decUint8,
+	valueKind(uint16(0)):  decUint16,
+	valueKind(uint32(0)):  decUint32,
+	valueKind(uint64(0)):  decUint64,
 	valueKind(float32(0)): decFloat32,
 	valueKind(float64(0)): decFloat64,
-	valueKind("x"): decString,
+	valueKind("x"):        decString,
 }
 
 var decIgnoreOpMap = map[typeId]decOp{
-	tBool: ignoreUint,
-	tInt: ignoreUint,
-	tUint: ignoreUint,
-	tFloat: ignoreUint,
-	tBytes: ignoreUint8Array,
+	tBool:   ignoreUint,
+	tInt:    ignoreUint,
+	tUint:   ignoreUint,
+	tFloat:  ignoreUint,
+	tBytes:  ignoreUint8Array,
 	tString: ignoreUint8Array,
 }
 

@@ -51,16 +51,16 @@ func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
 	cc := &compiler{errors, 0, 0}
 	cb := newCodeBuf()
 	fc := &funcCompiler{
-		compiler: cc,
-		fnType: nil,
+		compiler:     cc,
+		fnType:       nil,
 		outVarsNamed: false,
-		codeBuf: cb,
-		flow: newFlowBuf(cb),
-		labels: make(map[string]*label),
+		codeBuf:      cb,
+		flow:         newFlowBuf(cb),
+		labels:       make(map[string]*label),
 	}
 	bc := &blockCompiler{
 		funcCompiler: fc,
-		block: w.scope.block,
+		block:        w.scope.block,
 	}
 	nerr := cc.numError()
 	for _, stmt := range stmts {

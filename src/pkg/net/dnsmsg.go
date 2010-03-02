@@ -246,16 +246,16 @@ func (rr *_DNS_RR_A) Header() *_DNS_RR_Header { return &rr.Hdr }
 var rr_mk = map[int]func() _DNS_RR{
 	_DNS_TypeCNAME: func() _DNS_RR { return new(_DNS_RR_CNAME) },
 	_DNS_TypeHINFO: func() _DNS_RR { return new(_DNS_RR_HINFO) },
-	_DNS_TypeMB: func() _DNS_RR { return new(_DNS_RR_MB) },
-	_DNS_TypeMG: func() _DNS_RR { return new(_DNS_RR_MG) },
+	_DNS_TypeMB:    func() _DNS_RR { return new(_DNS_RR_MB) },
+	_DNS_TypeMG:    func() _DNS_RR { return new(_DNS_RR_MG) },
 	_DNS_TypeMINFO: func() _DNS_RR { return new(_DNS_RR_MINFO) },
-	_DNS_TypeMR: func() _DNS_RR { return new(_DNS_RR_MR) },
-	_DNS_TypeMX: func() _DNS_RR { return new(_DNS_RR_MX) },
-	_DNS_TypeNS: func() _DNS_RR { return new(_DNS_RR_NS) },
-	_DNS_TypePTR: func() _DNS_RR { return new(_DNS_RR_PTR) },
-	_DNS_TypeSOA: func() _DNS_RR { return new(_DNS_RR_SOA) },
-	_DNS_TypeTXT: func() _DNS_RR { return new(_DNS_RR_TXT) },
-	_DNS_TypeA: func() _DNS_RR { return new(_DNS_RR_A) },
+	_DNS_TypeMR:    func() _DNS_RR { return new(_DNS_RR_MR) },
+	_DNS_TypeMX:    func() _DNS_RR { return new(_DNS_RR_MX) },
+	_DNS_TypeNS:    func() _DNS_RR { return new(_DNS_RR_NS) },
+	_DNS_TypePTR:   func() _DNS_RR { return new(_DNS_RR_PTR) },
+	_DNS_TypeSOA:   func() _DNS_RR { return new(_DNS_RR_SOA) },
+	_DNS_TypeTXT:   func() _DNS_RR { return new(_DNS_RR_TXT) },
+	_DNS_TypeA:     func() _DNS_RR { return new(_DNS_RR_A) },
 }
 
 // Pack a domain name s into msg[off:].

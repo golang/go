@@ -138,10 +138,10 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		return nil
 	}
 	e := &Entry{
-		Offset: off,
-		Tag: a.tag,
+		Offset:   off,
+		Tag:      a.tag,
 		Children: a.children,
-		Field: make([]Field, len(a.field)),
+		Field:    make([]Field, len(a.field)),
 	}
 	for i := range e.Field {
 		e.Field[i].Attr = a.field[i].attr

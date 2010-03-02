@@ -92,7 +92,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 
 	p = &Block{
 		Headers: make(map[string]string),
-		Type: string(typeLine),
+		Type:    string(typeLine),
 	}
 
 	for {

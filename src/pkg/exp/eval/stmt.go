@@ -742,11 +742,11 @@ var assignOpToOp = map[token.Token]token.Token{
 	token.QUO_ASSIGN: token.QUO,
 	token.REM_ASSIGN: token.REM,
 
-	token.AND_ASSIGN: token.AND,
-	token.OR_ASSIGN: token.OR,
-	token.XOR_ASSIGN: token.XOR,
-	token.SHL_ASSIGN: token.SHL,
-	token.SHR_ASSIGN: token.SHR,
+	token.AND_ASSIGN:     token.AND,
+	token.OR_ASSIGN:      token.OR,
+	token.XOR_ASSIGN:     token.XOR,
+	token.SHL_ASSIGN:     token.SHL,
+	token.SHR_ASSIGN:     token.SHR,
 	token.AND_NOT_ASSIGN: token.AND_NOT,
 }
 
@@ -1215,8 +1215,8 @@ func (a *blockCompiler) enterChild() *blockCompiler {
 	block := a.block.enterChild()
 	return &blockCompiler{
 		funcCompiler: a.funcCompiler,
-		block: block,
-		parent: a,
+		block:        block,
+		parent:       a,
 	}
 }
 
@@ -1252,15 +1252,15 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) fu
 	cb := newCodeBuf()
 	fc := &funcCompiler{
 		compiler: a,
-		fnType: decl.Type,
+		fnType:   decl.Type,
 		outVarsNamed: len(decl.OutNames) > 0 && decl.OutNames[0] != nil,
 		codeBuf: cb,
-		flow: newFlowBuf(cb),
-		labels: make(map[string]*label),
+		flow:    newFlowBuf(cb),
+		labels:  make(map[string]*label),
 	}
 	bc := &blockCompiler{
 		funcCompiler: fc,
-		block: bodyScope.block,
+		block:        bodyScope.block,
 	}
 
 	// Compile body

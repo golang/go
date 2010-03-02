@@ -39,9 +39,9 @@ func newUniverse() *Scope {
 	sc := &Scope{nil, 0}
 	sc.block = &block{
 		offset: 0,
-		scope: sc,
+		scope:  sc,
 		global: true,
-		defs: make(map[string]Def),
+		defs:   make(map[string]Def),
 	}
 	return sc
 }

@@ -116,12 +116,12 @@ type Time string
 
 var rssFeed = Feed{
 	XMLName: Name{"http://www.w3.org/2005/Atom", "feed"},
-	Title: "Code Review - My issues",
+	Title:   "Code Review - My issues",
 	Link: []Link{
 		Link{Rel: "alternate", Href: "http://codereview.appspot.com/"},
 		Link{Rel: "self", Href: "http://codereview.appspot.com/rss/mine/rsc"},
 	},
-	Id: "http://codereview.appspot.com/",
+	Id:      "http://codereview.appspot.com/",
 	Updated: "2009-10-04T01:35:58+00:00",
 	Author: Person{
 		Name: "rietveld",

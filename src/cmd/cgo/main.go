@@ -20,18 +20,18 @@ import (
 func usage() { fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go ...\n") }
 
 var ptrSizeMap = map[string]int64{
-	"386": 4,
+	"386":   4,
 	"amd64": 8,
-	"arm": 4,
+	"arm":   4,
 }
 
 var expandName = map[string]string{
-	"schar": "signed char",
-	"uchar": "unsigned char",
-	"ushort": "unsigned short",
-	"uint": "unsigned int",
-	"ulong": "unsigned long",
-	"longlong": "long long",
+	"schar":     "signed char",
+	"uchar":     "unsigned char",
+	"ushort":    "unsigned short",
+	"uint":      "unsigned int",
+	"ulong":     "unsigned long",
+	"longlong":  "long long",
 	"ulonglong": "unsigned long long",
 }
 

@@ -107,8 +107,8 @@ type FormatterMap map[string]func(io.Writer, interface{}, string)
 // Built-in formatters.
 var builtins = FormatterMap{
 	"html": HTMLFormatter,
-	"str": StringFormatter,
-	"": StringFormatter,
+	"str":  StringFormatter,
+	"":     StringFormatter,
 }
 
 // The parsed state of a template is a vector of xxxElement structs.

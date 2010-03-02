@@ -97,14 +97,14 @@ const (
 
 
 var tokenString = map[int]string{
-	EOF: "EOF",
-	Ident: "Ident",
-	Int: "Int",
-	Float: "Float",
-	Char: "Char",
-	String: "String",
+	EOF:       "EOF",
+	Ident:     "Ident",
+	Int:       "Int",
+	Float:     "Float",
+	Char:      "Char",
+	String:    "String",
 	RawString: "RawString",
-	Comment: "Comment",
+	Comment:   "Comment",
 }
 
 

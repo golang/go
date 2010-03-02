@@ -34,11 +34,11 @@ func (h *clientHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 	finishedHash := newFinishedHash()
 
 	hello := &clientHelloMsg{
-		major: defaultMajor,
-		minor: defaultMinor,
-		cipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA},
+		major:              defaultMajor,
+		minor:              defaultMinor,
+		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		compressionMethods: []uint8{compressionNone},
-		random: make([]byte, 32),
+		random:             make([]byte, 32),
 	}
 
 	currentTime := uint32(config.Time())

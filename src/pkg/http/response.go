@@ -17,9 +17,9 @@ import (
 )
 
 var respExcludeHeader = map[string]int{
-	"Content-Length": 0,
+	"Content-Length":    0,
 	"Transfer-Encoding": 0,
-	"Trailer": 0,
+	"Trailer":           0,
 }
 
 // Response represents the response from an HTTP request.

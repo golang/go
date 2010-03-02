@@ -259,15 +259,15 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 			}
 			names[i] = sh.Name
 			s.SectionHeader = SectionHeader{
-				Type: SectionType(sh.Type),
-				Flags: SectionFlag(sh.Flags),
-				Addr: uint64(sh.Addr),
-				Offset: uint64(sh.Off),
-				Size: uint64(sh.Size),
-				Link: uint32(sh.Link),
-				Info: uint32(sh.Info),
+				Type:      SectionType(sh.Type),
+				Flags:     SectionFlag(sh.Flags),
+				Addr:      uint64(sh.Addr),
+				Offset:    uint64(sh.Off),
+				Size:      uint64(sh.Size),
+				Link:      uint32(sh.Link),
+				Info:      uint32(sh.Info),
 				Addralign: uint64(sh.Addralign),
-				Entsize: uint64(sh.Entsize),
+				Entsize:   uint64(sh.Entsize),
 			}
 		case ELFCLASS64:
 			sh := new(Section64)
@@ -276,15 +276,15 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 			}
 			names[i] = sh.Name
 			s.SectionHeader = SectionHeader{
-				Type: SectionType(sh.Type),
-				Flags: SectionFlag(sh.Flags),
-				Offset: uint64(sh.Off),
-				Size: uint64(sh.Size),
-				Addr: uint64(sh.Addr),
-				Link: uint32(sh.Link),
-				Info: uint32(sh.Info),
+				Type:      SectionType(sh.Type),
+				Flags:     SectionFlag(sh.Flags),
+				Offset:    uint64(sh.Off),
+				Size:      uint64(sh.Size),
+				Addr:      uint64(sh.Addr),
+				Link:      uint32(sh.Link),
+				Info:      uint32(sh.Info),
 				Addralign: uint64(sh.Addralign),
-				Entsize: uint64(sh.Entsize),
+				Entsize:   uint64(sh.Entsize),
 			}
 		}
 		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.Size))

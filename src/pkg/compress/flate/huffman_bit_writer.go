@@ -98,13 +98,13 @@ type WrongValueError struct {
 
 func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 	return &huffmanBitWriter{
-		w: w,
-		literalFreq: make([]int32, maxLit),
-		offsetFreq: make([]int32, extendedOffsetCodeCount),
-		codegen: make([]uint8, maxLit+extendedOffsetCodeCount+1),
-		codegenFreq: make([]int32, codegenCodeCount),
+		w:               w,
+		literalFreq:     make([]int32, maxLit),
+		offsetFreq:      make([]int32, extendedOffsetCodeCount),
+		codegen:         make([]uint8, maxLit+extendedOffsetCodeCount+1),
+		codegenFreq:     make([]int32, codegenCodeCount),
 		literalEncoding: newHuffmanEncoder(maxLit),
-		offsetEncoding: newHuffmanEncoder(extendedOffsetCodeCount),
+		offsetEncoding:  newHuffmanEncoder(extendedOffsetCodeCount),
 		codegenEncoding: newHuffmanEncoder(codegenCodeCount),
 	}
 }

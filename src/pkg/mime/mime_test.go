@@ -9,8 +9,8 @@ package mime
 import "testing"
 
 var typeTests = map[string]string{
-	".t1": "application/test",
-	".t2": "text/test; charset=utf-8",
+	".t1":  "application/test",
+	".t2":  "text/test; charset=utf-8",
 	".png": "image/png",
 }
 

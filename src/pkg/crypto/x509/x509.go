@@ -74,11 +74,11 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 	priv := pkcs1PrivateKey{
 		Version: 1,
-		N: asn1.RawValue{Tag: 2, Bytes: key.PublicKey.N.Bytes()},
-		E: key.PublicKey.E,
-		D: asn1.RawValue{Tag: 2, Bytes: key.D.Bytes()},
-		P: asn1.RawValue{Tag: 2, Bytes: key.P.Bytes()},
-		Q: asn1.RawValue{Tag: 2, Bytes: key.Q.Bytes()},
+		N:       asn1.RawValue{Tag: 2, Bytes: key.PublicKey.N.Bytes()},
+		E:       key.PublicKey.E,
+		D:       asn1.RawValue{Tag: 2, Bytes: key.D.Bytes()},
+		P:       asn1.RawValue{Tag: 2, Bytes: key.P.Bytes()},
+		Q:       asn1.RawValue{Tag: 2, Bytes: key.Q.Bytes()},
 	}
 
 	b, _ := asn1.MarshalToMemory(priv)
@@ -787,9 +787,9 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, priv *rsa.
 		Version: 3,
 		SerialNumber: asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
 		SignatureAlgorithm: algorithmIdentifier{oidSHA1WithRSA},
-		Issuer: parent.Subject.toRDNSequence(),
-		Validity: validity{template.NotBefore, template.NotAfter},
-		Subject: template.Subject.toRDNSequence(),
+		Issuer:             parent.Subject.toRDNSequence(),
+		Validity:           validity{template.NotBefore, template.NotAfter},
+		Subject:            template.Subject.toRDNSequence(),
 		PublicKey: publicKeyInfo{algorithmIdentifier{oidRSA}, encodedPublicKey},
 		Extensions: extensions,
 	}

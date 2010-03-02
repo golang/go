@@ -160,18 +160,18 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	template := Certificate{
 		SerialNumber: []byte{1},
 		Subject: Name{
-			CommonName: "test.example.com",
+			CommonName:   "test.example.com",
 			Organization: "Acme Co",
 		},
 		NotBefore: time.SecondsToUTC(1000),
-		NotAfter: time.SecondsToUTC(100000),
+		NotAfter:  time.SecondsToUTC(100000),
 
 		SubjectKeyId: []byte{1, 2, 3, 4},
-		KeyUsage: KeyUsageCertSign,
+		KeyUsage:     KeyUsageCertSign,
 
 		BasicConstraintsValid: true,
-		IsCA: true,
-		DNSNames: []string{"test.example.com"},
+		IsCA:                  true,
+		DNSNames:              []string{"test.example.com"},
 	}
 
 	derBytes, err := CreateCertificate(urandom, &template, &template, priv)

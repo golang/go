@@ -141,13 +141,13 @@ type rt1G struct {
 }
 
 var rt1GStatus = runtimeGStatus{
-	Gidle: 0,
+	Gidle:     0,
 	Grunnable: 1,
-	Grunning: 2,
-	Gsyscall: 3,
-	Gwaiting: 4,
+	Grunning:  2,
+	Gsyscall:  3,
+	Gwaiting:  4,
 	Gmoribund: 5,
-	Gdead: 6,
+	Gdead:     6,
 }
 
 // runtimeIndexes stores the indexes of fields in the runtime

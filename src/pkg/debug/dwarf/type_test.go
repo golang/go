@@ -12,15 +12,15 @@ import (
 )
 
 var typedefTests = map[string]string{
-	"t_ptr_volatile_int": "*volatile int",
-	"t_ptr_const_char": "*const char",
-	"t_long": "long int",
-	"t_ushort": "short unsigned int",
-	"t_func_int_of_float_double": "func(float, double) int",
+	"t_ptr_volatile_int":             "*volatile int",
+	"t_ptr_const_char":               "*const char",
+	"t_long":                         "long int",
+	"t_ushort":                       "short unsigned int",
+	"t_func_int_of_float_double":     "func(float, double) int",
 	"t_ptr_func_int_of_float_double": "*func(float, double) int",
 	"t_func_ptr_int_of_char_schar_uchar": "func(char, signed char, unsigned char) *int",
-	"t_func_void_of_char": "func(char) void",
-	"t_func_void_of_void": "func() void",
+	"t_func_void_of_char":          "func(char) void",
+	"t_func_void_of_void":          "func() void",
 	"t_func_void_of_ptr_char_dots": "func(*char, ...) void",
 	"t_my_struct": "struct my_struct {vi volatile int@0; x char@4 : 1@7; y int@4 : 4@27; array [40]long long int@8}",
 	"t_my_union": "union my_union {vi volatile int@0; x char@0 : 1@7; y int@0 : 4@28; array [40]long long int@0}",

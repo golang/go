@@ -77,9 +77,9 @@ func (b *block) enterChild() *block {
 		log.Crash("Failed to exit child block before entering another child")
 	}
 	sub := &block{
-		outer: b,
-		scope: b.scope,
-		defs: make(map[string]Def),
+		outer:  b,
+		scope:  b.scope,
+		defs:   make(map[string]Def),
 		offset: b.offset + b.numVars,
 	}
 	b.inner = sub

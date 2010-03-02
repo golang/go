@@ -28,16 +28,16 @@ var respTests = []respTest{
 			"Body here\n",
 
 		Response{
-			Status: "200 OK",
-			StatusCode: 200,
-			Proto: "HTTP/1.0",
-			ProtoMajor: 1,
-			ProtoMinor: 0,
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.0",
+			ProtoMajor:    1,
+			ProtoMinor:    0,
 			RequestMethod: "GET",
 			Header: map[string]string{
 				"Connection": "close", // TODO(rsc): Delete?
 			},
-			Close: true,
+			Close:         true,
 			ContentLength: -1,
 		},
 
@@ -53,17 +53,17 @@ var respTests = []respTest{
 			"Body here\n",
 
 		Response{
-			Status: "200 OK",
-			StatusCode: 200,
-			Proto: "HTTP/1.0",
-			ProtoMajor: 1,
-			ProtoMinor: 0,
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.0",
+			ProtoMajor:    1,
+			ProtoMinor:    0,
 			RequestMethod: "GET",
 			Header: map[string]string{
-				"Connection": "close",  // TODO(rsc): Delete?
-				"Content-Length": "10", // TODO(rsc): Delete?
+				"Connection":     "close", // TODO(rsc): Delete?
+				"Content-Length": "10",    // TODO(rsc): Delete?
 			},
-			Close: true,
+			Close:         true,
 			ContentLength: 10,
 		},
 
@@ -81,15 +81,15 @@ var respTests = []respTest{
 			"\r\n",
 
 		Response{
-			Status: "200 OK",
-			StatusCode: 200,
-			Proto: "HTTP/1.0",
-			ProtoMajor: 1,
-			ProtoMinor: 0,
-			RequestMethod: "GET",
-			Header: map[string]string{},
-			Close: true,
-			ContentLength: -1,
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.0",
+			ProtoMajor:       1,
+			ProtoMinor:       0,
+			RequestMethod:    "GET",
+			Header:           map[string]string{},
+			Close:            true,
+			ContentLength:    -1,
 			TransferEncoding: []string{"chunked"},
 		},
 
@@ -108,15 +108,15 @@ var respTests = []respTest{
 			"\r\n",
 
 		Response{
-			Status: "200 OK",
-			StatusCode: 200,
-			Proto: "HTTP/1.0",
-			ProtoMajor: 1,
-			ProtoMinor: 0,
-			RequestMethod: "GET",
-			Header: map[string]string{},
-			Close: true,
-			ContentLength: -1, // TODO(rsc): Fix?
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.0",
+			ProtoMajor:       1,
+			ProtoMinor:       0,
+			RequestMethod:    "GET",
+			Header:           map[string]string{},
+			Close:            true,
+			ContentLength:    -1, // TODO(rsc): Fix?
 			TransferEncoding: []string{"chunked"},
 		},
 

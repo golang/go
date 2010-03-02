@@ -106,14 +106,14 @@ type Process struct {
 // process, an architecture, and a symbol table.
 func NewProcess(tproc proc.Process, arch Arch, syms *gosym.Table) (*Process, os.Error) {
 	p := &Process{
-		Arch: arch,
-		proc: tproc,
-		syms: syms,
-		types: make(map[proc.Word]*remoteType),
-		breakpointHooks: make(map[proc.Word]*breakpointHook),
+		Arch:                arch,
+		proc:                tproc,
+		syms:                syms,
+		types:               make(map[proc.Word]*remoteType),
+		breakpointHooks:     make(map[proc.Word]*breakpointHook),
 		goroutineCreateHook: new(goroutineCreateHook),
-		goroutineExitHook: new(goroutineExitHook),
-		goroutines: make(map[proc.Word]*Goroutine),
+		goroutineExitHook:   new(goroutineExitHook),
+		goroutines:          make(map[proc.Word]*Goroutine),
 	}
 
 	// Fill in remote runtime

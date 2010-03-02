@@ -158,7 +158,7 @@ func NewExporter(network, localaddr string) (*Exporter, os.Error) {
 	}
 	e := &Exporter{
 		listener: listener,
-		chans: make(map[string]*exportChan),
+		chans:    make(map[string]*exportChan),
 	}
 	go e.listen()
 	return e, nil

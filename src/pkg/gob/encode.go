@@ -320,22 +320,22 @@ func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length i
 }
 
 var encOpMap = map[reflect.Type]encOp{
-	valueKind(false): encBool,
-	valueKind(int(0)): encInt,
-	valueKind(int8(0)): encInt8,
-	valueKind(int16(0)): encInt16,
-	valueKind(int32(0)): encInt32,
-	valueKind(int64(0)): encInt64,
-	valueKind(uint(0)): encUint,
-	valueKind(uint8(0)): encUint8,
-	valueKind(uint16(0)): encUint16,
-	valueKind(uint32(0)): encUint32,
-	valueKind(uint64(0)): encUint64,
+	valueKind(false):      encBool,
+	valueKind(int(0)):     encInt,
+	valueKind(int8(0)):    encInt8,
+	valueKind(int16(0)):   encInt16,
+	valueKind(int32(0)):   encInt32,
+	valueKind(int64(0)):   encInt64,
+	valueKind(uint(0)):    encUint,
+	valueKind(uint8(0)):   encUint8,
+	valueKind(uint16(0)):  encUint16,
+	valueKind(uint32(0)):  encUint32,
+	valueKind(uint64(0)):  encUint64,
 	valueKind(uintptr(0)): encUintptr,
-	valueKind(float(0)): encFloat,
+	valueKind(float(0)):   encFloat,
 	valueKind(float32(0)): encFloat32,
 	valueKind(float64(0)): encFloat64,
-	valueKind("x"): encString,
+	valueKind("x"):        encString,
 }
 
 // Return the encoding op for the base type under rt and
