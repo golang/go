@@ -12,7 +12,7 @@ to a buffer:
 
 	var b bytes.Buffer
 	w, err := zlib.NewDeflater(&b)
-	w.Write(strings.Bytes("hello, world\n"))
+	w.Write([]byte("hello, world\n"))
 	w.Close()
 
 and to read that data back:

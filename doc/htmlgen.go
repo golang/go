@@ -15,22 +15,21 @@ import (
 	"bytes";
 	"log";
 	"os";
-	"strings";
 )
 
 var (
 	lines = make([][]byte, 0, 10000);	// assume big enough
 	linebuf = make([]byte, 10000);		// assume big enough
 
-	empty = strings.Bytes("");
-	newline = strings.Bytes("\n");
-	tab = strings.Bytes("\t");
-	quote = strings.Bytes(`"`);
+	empty = []byte("");
+	newline = []byte("\n");
+	tab = []byte("\t");
+	quote = []byte(`"`);
 
-	sectionMarker = strings.Bytes("----\n");
-	preStart = strings.Bytes("<pre>");
-	preEnd = strings.Bytes("</pre>\n");
-	pp = strings.Bytes("<p>\n");
+	sectionMarker = []byte("----\n");
+	preStart = []byte("<pre>");
+	preEnd = []byte("</pre>\n");
+	pp = []byte("<p>\n");
 );
 
 func main() {
@@ -119,7 +118,7 @@ func headings() {
 	b := bufio.NewWriter(os.Stdout);
 	for i, l := range lines {
 		if i > 0 && bytes.Equal(l, sectionMarker) {
-			lines[i-1] = strings.Bytes("<h2>" + string(trim(lines[i-1])) + "</h2>\n");
+			lines[i-1] = []byte("<h2>" + string(trim(lines[i-1])) + "</h2>\n");
 			lines[i] = empty;
 		}
 	}

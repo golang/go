@@ -2435,7 +2435,6 @@ import (
     "http"
     "io"
     "log"
-    "strings"
     "template"
 )
 
@@ -2460,7 +2459,7 @@ func QR(c *http.Conn, req *http.Request) {
 }
 
 func UrlHtmlFormatter(w io.Writer, v interface{}, fmt string) {
-    template.HTMLEscape(w, strings.Bytes(http.URLEscape(v.(string))))
+    template.HTMLEscape(w, []byte(http.URLEscape(v.(string))))
 }
 
 
