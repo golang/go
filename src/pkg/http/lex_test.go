@@ -16,29 +16,29 @@ type lexTest struct {
 
 var lexTests = []lexTest{
 	lexTest{
-		Raw: `"abc"def,:ghi`,
+		Raw:    `"abc"def,:ghi`,
 		Parsed: 13,
 		Result: []string{"abcdef", "ghi"},
 	},
 	// My understanding of the RFC is that escape sequences outside of
 	// quotes are not interpreted?
 	lexTest{
-		Raw: `"\t"\t"\t"`,
+		Raw:    `"\t"\t"\t"`,
 		Parsed: 10,
 		Result: []string{"\t", "t\t"},
 	},
 	lexTest{
-		Raw: `"\yab"\r\n`,
+		Raw:    `"\yab"\r\n`,
 		Parsed: 10,
 		Result: []string{"?ab", "r", "n"},
 	},
 	lexTest{
-		Raw: "ab\f",
+		Raw:    "ab\f",
 		Parsed: 3,
 		Result: []string{"ab?"},
 	},
 	lexTest{
-		Raw: "\"ab \" c,de f, gh, ij\n\t\r",
+		Raw:    "\"ab \" c,de f, gh, ij\n\t\r",
 		Parsed: 23,
 		Result: []string{"ab ", "c", "de", "f", "gh", "ij"},
 	},

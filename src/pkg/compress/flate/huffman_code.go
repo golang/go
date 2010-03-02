@@ -207,11 +207,11 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 		// For every level, the first two items are the first two characters.
 		// We initialize the levels as if we had already figured this out.
 		top = &levelInfo{
-			level: level,
-			lastChain: chain2,
+			level:        level,
+			lastChain:    chain2,
 			nextCharFreq: list[2].freq,
 			nextPairFreq: list[0].freq + list[1].freq,
-			down: top,
+			down:         top,
 		}
 		top.down.up = top
 		if level == 1 {

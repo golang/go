@@ -249,10 +249,10 @@ type assignCompiler struct {
 // fail and these expressions given a nil type.
 func (a *compiler) checkAssign(pos token.Position, rs []*expr, errOp, errPosName string) (*assignCompiler, bool) {
 	c := &assignCompiler{
-		compiler: a,
-		pos: pos,
-		rs: rs,
-		errOp: errOp,
+		compiler:   a,
+		pos:        pos,
+		rs:         rs,
+		errOp:      errOp,
 		errPosName: errPosName,
 	}
 

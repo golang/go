@@ -18,12 +18,12 @@ var respWriteTests = []respWriteTest{
 	// HTTP/1.0, identity coding; no trailer
 	respWriteTest{
 		Response{
-			StatusCode: 503,
-			ProtoMajor: 1,
-			ProtoMinor: 0,
+			StatusCode:    503,
+			ProtoMajor:    1,
+			ProtoMinor:    0,
 			RequestMethod: "GET",
-			Header: map[string]string{},
-			Body: nopCloser{bytes.NewBufferString("abcdef")},
+			Header:        map[string]string{},
+			Body:          nopCloser{bytes.NewBufferString("abcdef")},
 			ContentLength: 6,
 		},
 
@@ -34,15 +34,15 @@ var respWriteTests = []respWriteTest{
 	// HTTP/1.1, chunked coding; empty trailer; close
 	respWriteTest{
 		Response{
-			StatusCode: 200,
-			ProtoMajor: 1,
-			ProtoMinor: 1,
-			RequestMethod: "GET",
-			Header: map[string]string{},
-			Body: nopCloser{bytes.NewBufferString("abcdef")},
-			ContentLength: 6,
+			StatusCode:       200,
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			RequestMethod:    "GET",
+			Header:           map[string]string{},
+			Body:             nopCloser{bytes.NewBufferString("abcdef")},
+			ContentLength:    6,
 			TransferEncoding: []string{"chunked"},
-			Close: true,
+			Close:            true,
 		},
 
 		"HTTP/1.1 200 OK\r\n" +

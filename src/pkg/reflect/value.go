@@ -611,8 +611,8 @@ func (v *SliceValue) Elem(i int) Value {
 func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
 	s := &SliceHeader{
 		Data: uintptr(unsafe.NewArray(typ.Elem(), cap)),
-		Len: len,
-		Cap: cap,
+		Len:  len,
+		Cap:  cap,
 	}
 	return newValue(typ, addr(s), true).(*SliceValue)
 }

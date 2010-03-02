@@ -50,12 +50,12 @@ type badStringError struct {
 func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e.str) }
 
 var reqExcludeHeader = map[string]int{
-	"Host": 0,
-	"User-Agent": 0,
-	"Referer": 0,
-	"Content-Length": 0,
+	"Host":              0,
+	"User-Agent":        0,
+	"Referer":           0,
+	"Content-Length":    0,
 	"Transfer-Encoding": 0,
-	"Trailer": 0,
+	"Trailer":           0,
 }
 
 // A Request represents a parsed HTTP request header.

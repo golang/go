@@ -19,15 +19,15 @@ type parseTest struct {
 var parseTests = []parseTest{
 	parseTest{
 		query: "a=1&b=2",
-		out: stringMultimap{"a": []string{"1"}, "b": []string{"2"}},
+		out:   stringMultimap{"a": []string{"1"}, "b": []string{"2"}},
 	},
 	parseTest{
 		query: "a=1&a=2&a=banana",
-		out: stringMultimap{"a": []string{"1", "2", "banana"}},
+		out:   stringMultimap{"a": []string{"1", "2", "banana"}},
 	},
 	parseTest{
 		query: "ascii=%3Ckey%3A+0x90%3E",
-		out: stringMultimap{"ascii": []string{"<key: 0x90>"}},
+		out:   stringMultimap{"ascii": []string{"<key: 0x90>"}},
 	},
 }
 
@@ -90,7 +90,7 @@ func TestPostContentTypeParsing(t *testing.T) {
 		req := &Request{
 			Method: "POST",
 			Header: test.contentType,
-			Body: nopCloser{bytes.NewBufferString("body")},
+			Body:   nopCloser{bytes.NewBufferString("body")},
 		}
 		err := req.ParseForm()
 		if !test.error && err != nil {

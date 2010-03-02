@@ -689,13 +689,13 @@ func urlFmt(w io.Writer, x interface{}, format string) {
 // The strings in infoKinds must be properly html-escaped.
 var infoKinds = [nKinds]string{
 	PackageClause: "package&nbsp;clause",
-	ImportDecl: "import&nbsp;decl",
-	ConstDecl: "const&nbsp;decl",
-	TypeDecl: "type&nbsp;decl",
-	VarDecl: "var&nbsp;decl",
-	FuncDecl: "func&nbsp;decl",
-	MethodDecl: "method&nbsp;decl",
-	Use: "use",
+	ImportDecl:    "import&nbsp;decl",
+	ConstDecl:     "const&nbsp;decl",
+	TypeDecl:      "type&nbsp;decl",
+	VarDecl:       "var&nbsp;decl",
+	FuncDecl:      "func&nbsp;decl",
+	MethodDecl:    "method&nbsp;decl",
+	Use:           "use",
 }
 
 
@@ -762,20 +762,20 @@ func localnameFmt(w io.Writer, x interface{}, format string) {
 
 
 var fmap = template.FormatterMap{
-	"": textFmt,
-	"html": htmlFmt,
-	"html-esc": htmlEscFmt,
+	"":             textFmt,
+	"html":         htmlFmt,
+	"html-esc":     htmlEscFmt,
 	"html-comment": htmlCommentFmt,
-	"url-pkg": urlFmt,
-	"url-src": urlFmt,
-	"url-pos": urlFmt,
-	"infoKind": infoKindFmt,
-	"infoLine": infoLineFmt,
-	"infoSnippet": infoSnippetFmt,
-	"padding": paddingFmt,
-	"time": timeFmt,
-	"dir/": dirslashFmt,
-	"localname": localnameFmt,
+	"url-pkg":      urlFmt,
+	"url-src":      urlFmt,
+	"url-pos":      urlFmt,
+	"infoKind":     infoKindFmt,
+	"infoLine":     infoLineFmt,
+	"infoSnippet":  infoSnippetFmt,
+	"padding":      paddingFmt,
+	"time":         timeFmt,
+	"dir/":         dirslashFmt,
+	"localname":    localnameFmt,
 }
 
 
@@ -828,12 +828,12 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 
 	_, ts := fsTree.get()
 	d := Data{
-		Title: title,
-		PkgRoots: fsMap.PrefixList(),
+		Title:     title,
+		PkgRoots:  fsMap.PrefixList(),
 		Timestamp: uint64(ts) * 1e9, // timestamp in ns
-		Query: query,
-		Menu: nil,
-		Content: content,
+		Query:     query,
+		Menu:      nil,
+		Content:   content,
 	}
 
 	if err := godocHTML.Execute(&d, c); err != nil {
@@ -935,7 +935,7 @@ func redirect(c *http.Conn, r *http.Request) (redirected bool) {
 // textExt[x] is true if the extension x indicates a text file, and false otherwise.
 var textExt = map[string]bool{
 	".css": false, // must be served raw
-	".js": false,  // must be served raw
+	".js":  false, // must be served raw
 }
 
 

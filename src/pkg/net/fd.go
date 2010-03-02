@@ -301,12 +301,12 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err 
 		return nil, &OpError{"setnonblock", net, laddr, os.Errno(e)}
 	}
 	f = &netFD{
-		sysfd: fd,
+		sysfd:  fd,
 		family: family,
-		proto: proto,
-		net: net,
-		laddr: laddr,
-		raddr: raddr,
+		proto:  proto,
+		net:    net,
+		laddr:  laddr,
+		raddr:  raddr,
 	}
 	var ls, rs string
 	if laddr != nil {

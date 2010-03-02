@@ -1249,13 +1249,13 @@ func (p *process) attachAllThreads() os.Error {
 // newProcess creates a new process object and starts its monitor thread.
 func newProcess(pid int) *process {
 	p := &process{
-		pid: pid,
-		threads: make(map[int]*thread),
-		breakpoints: make(map[uintptr]*breakpoint),
-		ready: make(chan bool, 1),
-		debugEvents: make(chan *debugEvent),
-		debugReqs: make(chan *debugReq),
-		stopReq: make(chan os.Error),
+		pid:                pid,
+		threads:            make(map[int]*thread),
+		breakpoints:        make(map[uintptr]*breakpoint),
+		ready:              make(chan bool, 1),
+		debugEvents:        make(chan *debugEvent),
+		debugReqs:          make(chan *debugReq),
+		stopReq:            make(chan os.Error),
 		transitionHandlers: new(vector.Vector),
 	}
 

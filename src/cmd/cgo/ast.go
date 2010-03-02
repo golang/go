@@ -145,8 +145,8 @@ func walk(x interface{}, p *Prog, context string) {
 				}
 				p.Crefs = p.Crefs[0 : i+1]
 				p.Crefs[i] = &Cref{
-					Name: sel.Sel.Name(),
-					Expr: n,
+					Name:    sel.Sel.Name(),
+					Expr:    n,
 					Context: context,
 				}
 				break

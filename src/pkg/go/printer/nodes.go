@@ -159,15 +159,17 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		ws = indent
 	}
 
+	oneLiner := false // true if the previous expression fit on a single line
+	prevBreak := -1   // index of last expression that was followed by a linebreak
+
 	// the first linebreak is always a formfeed since this section must not
 	// depend on any previous formatting
 	if prev.IsValid() && prev.Line < line && p.linebreak(line, 1, 2, ws, true) {
 		ws = ignore
 		*multiLine = true
+		prevBreak = 0
 	}
 
-	oneLiner := false // true if the previous expression fit on a single line
-	prevBreak := 0    // index of last expression that was followed by a linebreak
 	for i, x := range list {
 		prev := line
 		line = x.Pos().Line
@@ -189,12 +191,20 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 				p.print(blank)
 			}
 		}
-		p.expr0(x, depth, multiLine)
 		// determine if x satisfies the "one-liner" criteria
 		// TODO(gri): determine if the multiline information returned
 		//            from p.expr0 is precise enough so it could be
 		//            used instead
 		oneLiner = p.isOneLineExpr(x)
+		if t, isPair := x.(*ast.KeyValueExpr); isPair && oneLiner && len(list) > 1 {
+			// we have a key:value expression that fits onto one line, and
+			// is a list with more then one entry: align all the values
+			p.expr(t.Key, multiLine)
+			p.print(t.Colon, token.COLON, vtab)
+			p.expr(t.Value, multiLine)
+		} else {
+			p.expr0(x, depth, multiLine)
+		}
 	}
 
 	if mode&commaTerm != 0 && next.IsValid() && p.pos.Line < next.Line {

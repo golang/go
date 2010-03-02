@@ -52,9 +52,9 @@ func NewClient(fd int) (c *Client, err os.Error) {
 	// service discovery request
 	m := &msg{
 		protocol: protocol,
-		isReq: true,
-		Ret: []interface{}{[]byte(nil)},
-		Size: []int{4000},
+		isReq:    true,
+		Ret:      []interface{}{[]byte(nil)},
+		Size:     []int{4000},
 	}
 	m.packRequest()
 	c.s.send(m)

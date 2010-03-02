@@ -389,14 +389,14 @@ func base(dt dwarf.Type) dwarf.Type {
 
 // Map from dwarf text names to aliases we use in package "C".
 var cnameMap = map[string]string{
-	"long int": "long",
-	"long unsigned int": "ulong",
-	"unsigned int": "uint",
-	"short unsigned int": "ushort",
-	"short int": "short",
-	"long long int": "longlong",
+	"long int":               "long",
+	"long unsigned int":      "ulong",
+	"unsigned int":           "uint",
+	"short unsigned int":     "ushort",
+	"short int":              "short",
+	"long long int":          "longlong",
 	"long long unsigned int": "ulonglong",
-	"signed char": "schar",
+	"signed char":            "schar",
 }
 
 // Type returns a *Type with the same memory layout as
@@ -654,10 +654,10 @@ func (c *typeConv) FuncArg(dtype dwarf.Type) *Type {
 		// Arrays are passed implicitly as pointers in C.
 		// In Go, we must be explicit.
 		return &Type{
-			Size: c.ptrSize,
+			Size:  c.ptrSize,
 			Align: c.ptrSize,
-			Go: &ast.StarExpr{X: t.Go},
-			C: t.C + "*",
+			Go:    &ast.StarExpr{X: t.Go},
+			C:     t.C + "*",
 		}
 	case *dwarf.TypedefType:
 		// C has much more relaxed rules than Go for
@@ -703,7 +703,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
 		Params: p,
 		Result: r,
 		Go: &ast.FuncType{
-			Params: &ast.FieldList{List: gp},
+			Params:  &ast.FieldList{List: gp},
 			Results: &ast.FieldList{List: gr},
 		},
 	}
@@ -723,7 +723,7 @@ func (c *typeConv) Opaque(n int64) ast.Expr {
 // Expr for integer n.
 func (c *typeConv) intExpr(n int64) ast.Expr {
 	return &ast.BasicLit{
-		Kind: token.INT,
+		Kind:  token.INT,
 		Value: []byte(strconv.Itoa64(n)),
 	}
 }

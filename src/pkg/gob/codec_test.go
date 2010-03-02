@@ -580,15 +580,15 @@ func TestEndToEnd(t *testing.T) {
 		t       *T2
 	}
 	t1 := &T1{
-		a: 17,
-		b: 18,
-		c: -5,
-		n: &[3]float{1.5, 2.5, 3.5},
-		strs: &[2]string{s1, s2},
+		a:      17,
+		b:      18,
+		c:      -5,
+		n:      &[3]float{1.5, 2.5, 3.5},
+		strs:   &[2]string{s1, s2},
 		int64s: &[]int64{77, 89, 123412342134},
-		s: "Now is the time",
-		y: []byte("hello, sailor"),
-		t: &T2{"this is T2"},
+		s:      "Now is the time",
+		y:      []byte("hello, sailor"),
+		t:      &T2{"this is T2"},
 	}
 	b := new(bytes.Buffer)
 	err := NewEncoder(b).Encode(t1)

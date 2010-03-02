@@ -34,19 +34,19 @@ const (
 )
 
 var errstr = [...]string{
-	OK - OK: "ok",
-	ErrBreak - OK: "break",
-	ErrMessageTruncated - OK: "message truncated",
-	ErrNoMemory - OK: "out of memory",
-	ErrProtocolMismatch - OK: "protocol mismatch",
-	ErrBadRPCNumber - OK: "invalid RPC method number",
-	ErrBadArgType - OK: "unexpected argument type",
-	ErrTooFewArgs - OK: "too few arguments",
-	ErrTooManyArgs - OK: "too many arguments",
-	ErrInArgTypeMismatch - OK: "input argument type mismatch",
+	OK - OK:                    "ok",
+	ErrBreak - OK:              "break",
+	ErrMessageTruncated - OK:   "message truncated",
+	ErrNoMemory - OK:           "out of memory",
+	ErrProtocolMismatch - OK:   "protocol mismatch",
+	ErrBadRPCNumber - OK:       "invalid RPC method number",
+	ErrBadArgType - OK:         "unexpected argument type",
+	ErrTooFewArgs - OK:         "too few arguments",
+	ErrTooManyArgs - OK:        "too many arguments",
+	ErrInArgTypeMismatch - OK:  "input argument type mismatch",
 	ErrOutArgTypeMismatch - OK: "output argument type mismatch",
-	ErrInternalError - OK: "internal error",
-	ErrAppError - OK: "application error",
+	ErrInternalError - OK:      "internal error",
+	ErrAppError - OK:           "application error",
 }
 
 func (e Errno) String() string {

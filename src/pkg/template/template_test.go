@@ -82,7 +82,7 @@ func writer(f func(interface{}) string) func(io.Writer, interface{}, string) {
 
 var formatters = FormatterMap{
 	"uppercase": writer(uppercase),
-	"+1": writer(plus1),
+	"+1":        writer(plus1),
 }
 
 var tests = []*Test{

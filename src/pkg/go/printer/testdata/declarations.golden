@@ -463,44 +463,56 @@ func _() {
 
 
 func _() {
+	var privateKey2 = &Block{Type:	"RSA PRIVATE KEY",
+		Headers:	map[string]string{},
+		Bytes: []uint8{0x30, 0x82, 0x1, 0x3a, 0x2, 0x1, 0x0, 0x2,
+			0x41, 0x0, 0xb2, 0x99, 0xf, 0x49, 0xc4, 0x7d, 0xfa, 0x8c,
+			0xd4, 0x0, 0xae, 0x6a, 0x4d, 0x1b, 0x8a, 0x3b, 0x6a, 0x13,
+			0x64, 0x2b, 0x23, 0xf2, 0x8b, 0x0, 0x3b, 0xfb, 0x97, 0x79,
+		},
+	}
+}
+
+
+func _() {
 	var Universe = Scope{
 		Names: map[string]*Ident{
 			// basic types
-			"bool": nil,
-			"byte": nil,
-			"int8": nil,
-			"int16": nil,
-			"int32": nil,
-			"int64": nil,
-			"uint8": nil,
-			"uint16": nil,
-			"uint32": nil,
-			"uint64": nil,
-			"float32": nil,
-			"float64": nil,
-			"string": nil,
+			"bool":		nil,
+			"byte":		nil,
+			"int8":		nil,
+			"int16":	nil,
+			"int32":	nil,
+			"int64":	nil,
+			"uint8":	nil,
+			"uint16":	nil,
+			"uint32":	nil,
+			"uint64":	nil,
+			"float32":	nil,
+			"float64":	nil,
+			"string":	nil,
 
 			// convenience types
-			"int": nil,
-			"uint": nil,
-			"uintptr": nil,
-			"float": nil,
+			"int":		nil,
+			"uint":		nil,
+			"uintptr":	nil,
+			"float":	nil,
 
 			// constants
-			"false": nil,
-			"true": nil,
-			"iota": nil,
-			"nil": nil,
+			"false":	nil,
+			"true":		nil,
+			"iota":		nil,
+			"nil":		nil,
 
 			// functions
-			"cap": nil,
-			"len": nil,
-			"new": nil,
-			"make": nil,
-			"panic": nil,
-			"panicln": nil,
-			"print": nil,
-			"println": nil,
+			"cap":		nil,
+			"len":		nil,
+			"new":		nil,
+			"make":		nil,
+			"panic":	nil,
+			"panicln":	nil,
+			"print":	nil,
+			"println":	nil,
 		},
 	}
 }

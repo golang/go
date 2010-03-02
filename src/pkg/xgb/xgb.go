@@ -216,9 +216,9 @@ func (c *Conn) readNextReply() os.Error {
 		err := &Error{
 			Detail: buf[1],
 			Cookie: Cookie(get16(buf[2:])),
-			Id: Id(get32(buf[4:])),
-			Minor: get16(buf[8:]),
-			Major: buf[10],
+			Id:     Id(get32(buf[4:])),
+			Minor:  get16(buf[8:]),
+			Major:  buf[10],
 		}
 		fmt.Fprintf(os.Stderr, "x protocol error: %s\n", err)
 		return err

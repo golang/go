@@ -647,7 +647,7 @@ func NewIndex(root string) *Index {
 		decls := reduce(&h.Decls)
 		others := reduce(&h.Others)
 		words[w] = &LookupResult{
-			Decls: decls,
+			Decls:  decls,
 			Others: others,
 		}
 		wlist.Push(&wordPair{canonical(w), w})
