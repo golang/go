@@ -583,7 +583,7 @@ def getremote(ui, repo, opts):
 	# save $http_proxy; creating the HTTP repo object will
 	# delete it in an attempt to "help"
 	proxy = os.environ.get('http_proxy')
-	source, _, _ = hg.parseurl(ui.expandpath("default"), None)
+	source = hg.parseurl(ui.expandpath("default"), None)[0]
 	other = hg.repository(cmdutil.remoteui(repo, opts), source)
 	if proxy is not None:
 		os.environ['http_proxy'] = proxy
