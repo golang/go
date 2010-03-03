@@ -554,6 +554,12 @@ cgen_as(Node *nl, Node *nr)
 			nr->val.ctype = CTNIL;
 			break;
 
+		case TCOMPLEX64:
+		case TCOMPLEX128:
+			nr->val.u.cval = mal(sizeof(*nr->val.u.cval));
+			mpmovecflt(&nr->val.u.cval->real, 0.0);
+			mpmovecflt(&nr->val.u.cval->imag, 0.0);
+			break;
 		}
 		nr->op = OLITERAL;
 		nr->type = tl;

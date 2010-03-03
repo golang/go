@@ -288,6 +288,11 @@ regalloc(Node *n, Type *t, Node *o)
 				goto out;
 		yyerror("out of floating registers");
 		goto err;
+
+	case TCOMPLEX64:
+	case TCOMPLEX128:
+		tempname(n, t);
+		return;
 	}
 	yyerror("regalloc: unknown type %T", t);
 
@@ -305,6 +310,8 @@ regfree(Node *n)
 {
 	int i;
 
+	if(n->op == ONAME && iscomplex[n->type->etype])
+		return;
 	if(n->op != OREGISTER && n->op != OINDREG)
 		fatal("regfree: not a register");
 	i = n->val.u.reg;

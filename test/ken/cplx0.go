@@ -1,0 +1,28 @@
+// $G $D/$F.go && $L $F.$A && ./$A.out
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+const (
+	R = 5
+	I = 6i
+
+	C1 = R + I // ADD(5,6)
+)
+
+func doprint(c complex) { println(c) }
+
+func main() {
+
+	// constants
+	println(C1)
+	doprint(C1)
+
+	// variables
+	c1 := C1
+	println(c1)
+	doprint(c1)
+}

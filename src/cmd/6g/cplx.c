@@ -26,7 +26,7 @@ complexmove(Node *f, Node *t, int perm)
 	int ft, tt;
 	Node n1, n2, n3, n4, nc;
 
-	if(1||debug['g']) {
+	if(debug['g']) {
 		dump("\ncomplex-f", f);
 		dump("complex-t", t);
 	}
@@ -113,6 +113,28 @@ complexmove(Node *f, Node *t, int perm)
 	}
 }
 
+int
+complexop(Node *n, Node *res)
+{
+	if(n != N && n->type != T)
+	if(iscomplex[n->type->etype]) {
+		switch(n->op) {
+		case OCONV:
+		case OADD:
+		case OSUB:
+		case OMUL:
+		case ODIV:
+		case OMINUS:
+			goto yes;
+		}
+//dump("complexop no", n);
+	}
+	return 0;
+
+yes:
+	return 1;
+}
+
 void
 complexgen(Node *n, Node *res)
 {
@@ -121,7 +143,7 @@ complexgen(Node *n, Node *res)
 	Node ra, rb, rc, rd;
 	int tl, tr;
 
-	if(1||debug['g']) {
+	if(debug['g']) {
 		dump("\ncomplex-n", n);
 		dump("complex-res", res);
 	}
@@ -257,8 +279,102 @@ complexgen(Node *n, Node *res)
 			complexmove(nl, res, 2);
 			break;
 		}
-		fatal("opcode %O", n->op);
+
+		subnode(&n1, &n2, nl);
+		subnode(&n3, &n4, nr);
+		subnode(&n5, &n6, res);
+
+		regalloc(&ra, n5.type, N);
+		regalloc(&rb, n5.type, N);
+		regalloc(&rc, n6.type, N);
+		regalloc(&rd, n6.type, N);
+
+		gmove(&n1, &ra);
+		gmove(&n3, &rc);
+		gins(optoas(OMUL, n5.type), &rc, &ra);	// ra = a*c
+		
+		gmove(&n2, &rb);
+		gmove(&n4, &rd);
+		gins(optoas(OMUL, n5.type), &rd, &rb);	// rb = b*d
+		gins(optoas(OADD, n5.type), &rb, &ra);	// ra = (a*c + b*d)
+
+		gins(optoas(OMUL, n5.type), &n2, &rc);	// rc = b*c
+		gins(optoas(OMUL, n5.type), &n1, &rd);	// rd = a*d
+		gins(optoas(OSUB, n5.type), &rd, &rc);	// rc = (b*c - a*d)
+
+		gmove(&n3, &rb);
+		gins(optoas(OMUL, n5.type), &rb, &rb);	// rb = c*c
+		gmove(&n4, &rd);
+		gins(optoas(OMUL, n5.type), &rd, &rd);	// rd = d*d
+		gins(optoas(OADD, n5.type), &rd, &rb);	// rb = (c*c + d*d)
+
+		gins(optoas(ODIV, n5.type), &rb, &ra);	// ra = (a*c + b*d)/(c*c + d*d)
+		gins(optoas(ODIV, n5.type), &rb, &rc);	// rc = (b*c - a*d)/(c*c + d*d)
+
+		gmove(&ra, &n5);
+		gmove(&rc, &n6);
+
+		regfree(&ra);
+		regfree(&rb);
+		regfree(&rc);
+		regfree(&rd);
+		break;
 	}
+}
+
+void
+complexbool(int op, Node *nl, Node *nr, int true, Prog *to)
+{
+	Node n1, n2, n3, n4;
+	Node na, nb, nc;
+
+	// make both sides addable in ullman order
+	if(nr != N) {
+		if(nl->ullman > nr->ullman && !nl->addable) {
+			tempname(&n1, nl->type);
+			complexgen(nl, &n1);
+			nl = &n1;
+		}
+		if(!nr->addable) {
+			tempname(&n2, nr->type);
+			complexgen(nr, &n2);
+			nr = &n2;
+		}
+	}
+	if(!nl->addable) {
+		tempname(&n1, nl->type);
+		complexgen(nl, &n1);
+		nl = &n1;
+	}
+
+	// build tree
+	// real(l) == real(r) && imag(l) == imag(r)
+
+	subnode(&n1, &n2, nl);
+	subnode(&n3, &n4, nr);
+
+	memset(&na, 0, sizeof(na));
+	na.op = OANDAND;
+	na.left = &nb;
+	na.right = &nc;
+	na.type = types[TBOOL];
+
+	memset(&nb, 0, sizeof(na));
+	nb.op = OEQ;
+	nb.left = &n1;
+	nb.right = &n3;
+	nb.type = types[TBOOL];
+
+	memset(&nc, 0, sizeof(na));
+	nc.op = OEQ;
+	nc.left = &n2;
+	nc.right = &n4;
+	nc.type = types[TBOOL];
+
+	if(op == ONE)
+		true = !true;
+
+	bgen(&na, true, to);
 }
 
 int
