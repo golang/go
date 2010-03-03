@@ -32,8 +32,8 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
 	conf.servers = make([]string, 3)[0:0] // small, but the standard limit
 	conf.search = make([]string, 0)
 	conf.ndots = 1
-	conf.timeout = 1
-	conf.attempts = 1
+	conf.timeout = 5
+	conf.attempts = 2
 	conf.rotate = false
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		f := getFields(line)
