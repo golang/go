@@ -81,17 +81,6 @@ func (p *printer) setComment(g *ast.CommentGroup) {
 }
 
 
-// Sets multiLine to true if the identifier list spans multiple lines.
-func (p *printer) identList(list []*ast.Ident, multiLine *bool) {
-	// convert into an expression list so we can re-use exprList formatting
-	xlist := make([]ast.Expr, len(list))
-	for i, x := range list {
-		xlist[i] = x
-	}
-	p.exprList(noPos, xlist, 1, commaSep, multiLine, noPos)
-}
-
-
 type exprListMode uint
 
 const (
@@ -101,6 +90,23 @@ const (
 	commaTerm               // list is optionally terminated by a comma
 	noIndent                // no extra indentation in multi-line lists
 )
+
+
+// Sets multiLine to true if the identifier list spans multiple lines.
+// If ident is set, a multi-line identifier list is indented after the
+// first linebreak encountered.
+func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
+	// convert into an expression list so we can re-use exprList formatting
+	xlist := make([]ast.Expr, len(list))
+	for i, x := range list {
+		xlist[i] = x
+	}
+	mode := commaSep
+	if !indent {
+		mode |= noIndent
+	}
+	p.exprList(noPos, xlist, 1, mode, multiLine, noPos)
+}
 
 
 // isOneLineExpr returns true if x is "small enough" to fit onto a single line.
@@ -238,7 +244,7 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
 				p.print(token.COMMA, blank)
 			}
 			if len(par.Names) > 0 {
-				p.identList(par.Names, multiLine)
+				p.identList(par.Names, false, multiLine)
 				p.print(blank)
 			}
 			p.expr(par.Type, multiLine)
@@ -352,7 +358,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
 			p.setComment(f.Doc)
 			if len(f.Names) > 0 {
 				// named fields
-				p.identList(f.Names, &ml)
+				p.identList(f.Names, false, &ml)
 				p.print(sep)
 				p.expr(f.Type, &ml)
 				extraTabs = 1
@@ -1040,10 +1046,11 @@ const (
 
 // The parameter n is the number of specs in the group; context specifies
 // the surroundings of the declaration. Separating semicolons are printed
-// depending on the context. Sets multiLine to true if the spec spans
-// multiple lines.
+// depending on the context. If indent is set, a multi-line identifier lists
+// in the spec are indented when the first linebreak is encountered. Sets
+// multiLine to true if the spec spans multiple lines.
 //
-func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *bool) {
+func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, multiLine *bool) {
 	var (
 		comment   *ast.CommentGroup // a line comment, if any
 		extraTabs int               // number of extra tabs before comment, if any
@@ -1061,7 +1068,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 
 	case *ast.ValueSpec:
 		p.setComment(s.Doc)
-		p.identList(s.Names, multiLine) // always present
+		p.identList(s.Names, indent, multiLine) // always present
 		if n == 1 {
 			if s.Type != nil {
 				p.print(blank)
@@ -1129,7 +1136,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 					p.linebreak(s.Pos().Line, 1, 2, ignore, ml)
 				}
 				ml = false
-				p.spec(s, len(d.Specs), inGroup, &ml)
+				p.spec(s, len(d.Specs), inGroup, false, &ml)
 			}
 			p.print(unindent, formfeed)
 			*multiLine = true
@@ -1138,7 +1145,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 
 	} else {
 		// single declaration
-		p.spec(d.Specs[0], 1, context, multiLine)
+		p.spec(d.Specs[0], 1, context, true, multiLine)
 	}
 }
 

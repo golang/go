@@ -795,11 +795,11 @@ func readTemplate(name string) *template.Template {
 
 var (
 	dirlistHTML,
-		errorHTML,
-		godocHTML,
-		packageHTML,
-		packageText,
-		searchHTML *template.Template
+	errorHTML,
+	godocHTML,
+	packageHTML,
+	packageText,
+	searchHTML *template.Template
 )
 
 func readTemplates() {
