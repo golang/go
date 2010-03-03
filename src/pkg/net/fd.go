@@ -228,7 +228,7 @@ func (s *pollServer) Run() {
 		var t = s.deadline
 		if t > 0 {
 			t = t - s.Now()
-			if t < 0 {
+			if t <= 0 {
 				s.CheckDeadlines()
 				continue
 			}
