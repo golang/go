@@ -62,7 +62,7 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 			return nil, err
 		}
 
-		c.SetReadTimeout(1e9) // nanoseconds
+		c.SetReadTimeout(int64(cfg.timeout) * 1e9) // nanoseconds
 
 		buf := make([]byte, 2000) // More than enough.
 		n, err = c.Read(buf)
