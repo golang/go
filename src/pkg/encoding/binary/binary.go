@@ -128,7 +128,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 	case *reflect.SliceValue:
 		v = d
 	default:
-		return os.NewError("binary.Read: invalid type " + v.Type().String())
+		return os.NewError("binary.Read: invalid type " + d.Type().String())
 	}
 	size := TotalSize(v)
 	if size < 0 {
