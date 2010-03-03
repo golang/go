@@ -410,13 +410,19 @@ type _ struct {
 	h float "tag"  // comment
 }
 
+type _ struct { a, b,
+c, d int  // this line should be indented
+u, v, w, x float // this line should be indented
+p, q,
+r, s float // this line should be indented
+}
+
 
 // difficult cases
 type _ struct {
 	bool  // comment
 	text []byte  // comment
 }
-
 
 
 // formatting of interfaces
@@ -444,6 +450,7 @@ type _ interface {  // this comment must not change indentation
 	gggggggggggg(x, y, z int) ()  // hurray
 }
 
+
 // formatting of variable declarations
 func _() {
 	type day struct { n int; short, long string }
@@ -457,6 +464,18 @@ func _() {
 		Saturday = day{ 6, "SAT", "Saturday" }
 	)
 }
+
+
+// formatting of multi-line variable declarations
+var a1, b1, c1 int  // all on one line
+
+var a2, b2,
+c2 int  // this line should be indented
+
+var (a3, b3,
+c3, d3 int  // this line should be indented
+a4, b4, c4 int  // this line should be indented
+)
 
 
 func _() {
