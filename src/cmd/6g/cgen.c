@@ -116,6 +116,11 @@ cgen(Node *n, Node *res)
 		break;
 	}
 
+	if(complexop(n, res)) {
+		complexgen(n, res);
+		goto ret;
+	}
+
 	if(n->addable) {
 		gmove(n, res);
 		goto ret;
@@ -131,13 +136,6 @@ cgen(Node *n, Node *res)
 		n2 = *n;
 		n2.left = &n1;
 		cgen(&n2, res);
-		goto ret;
-	}
-
-	// complex ops are special.
-	if(iscomplex[n->type->etype] || iscomplex[res->type->etype] ||
-	   n->left != N && iscomplex[n->left->type->etype]) {
-		complexgen(n, res);
 		goto ret;
 	}
 
@@ -802,6 +800,7 @@ bgen(Node *n, int true, Prog *to)
 				goto ret;
 			}				
 			a = brcom(a);
+			true = !true;
 		}
 
 		// make simplest on right
@@ -847,6 +846,10 @@ bgen(Node *n, int true, Prog *to)
 			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
 			patch(gbranch(a, types[tptr]), to);
 			regfree(&n1);
+			break;
+		}
+		if(iscomplex[nl->type->etype]) {
+			complexbool(a, nl, nr, true, to);
 			break;
 		}
 
