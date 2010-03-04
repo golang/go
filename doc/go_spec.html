@@ -4,6 +4,8 @@
 Todo
 [ ] clarify: two equal lowercase identifiers from different packages denote different objects
 [ ] need language about function/method calls and parameter passing rules
+[ ] last paragraph of #Assignments (constant promotion) should be elsewhere
+    and mention assignment to empty interface.
 [ ] need to say something about "scope" of selectors?
 [ ] clarify what a field name is in struct declarations
     (struct{T} vs struct {T T} vs struct {t T})
@@ -301,12 +303,39 @@ exponent  = ( "e" | "E" ) [ "+" | "-" ] decimals .
 
 <pre>
 0.
+72.40
+072.40  // == 72.40
 2.71828
 1.e+0
 6.67428e-11
 1E6
 .25
 .12345E+5
+</pre>
+
+<h3 id="Imaginary_literals">Imaginary literals</h3>
+<p>
+An imaginary literal is a decimal representation of the imaginary part of a
+<a href="#Constants">complex constant</a>.
+It consists of a
+<a href="#Floating-point_literals">floating-point literal</a>
+or decimal integer followed
+by the lower-case letter <code>i</code>.
+</p>
+<pre class="ebnf">
+imaginary_lit = (decimals | float_lit) "i" .
+</pre>
+
+<pre>
+0i
+011i  // == 11i
+0.i
+2.71828i
+1.e+0i
+6.67428e-11i
+1E6i
+.25i
+.12345E+5i
 </pre>
 
 
@@ -465,8 +494,10 @@ literal.
 
 <h2 id="Constants">Constants</h2>
 
-<p>There are <i>boolean constants</i>, <i>integer constants</i>, <i>floating-point constants</i>,
-and <i>string constants</i>. Integer and floating-point constants are
+<p>There are <i>boolean constants</i>, <i>integer constants</i>,
+<i>floating-point constants</i>, <i>complex constants</i>,
+and <i>string constants</i>. Integer, floating-point,
+and complex constants are
 collectively called <i>numeric constants</i>.
 </p>
 
@@ -474,16 +505,25 @@ collectively called <i>numeric constants</i>.
 A constant value is represented by an
 <a href="#Integer_literals">integer</a>,
 <a href="#Floating-point_literals">floating-point</a>,
+<a href="#Imaginary_literals">imaginary</a>,
 <a href="#Character_literals">character</a>, or
 <a href="#String_literals">string</a> literal,
 an identifier denoting a constant,
 a <a href="#Constant_expressions">constant expression</a>, or
 the result value of some built-in functions such as <code>unsafe.Sizeof</code>
 and <code>cap</code> or <code>len</code> applied to an array,
-or <code>len</code> applied to a string constant.
+<code>len</code> applied to a string constant,
+<code>real</code> and <code>imag</code> applied to a complex constant
+and <code>cmplx</code> applied to numeric constants.
 The boolean truth values are represented by the predeclared constants
 <code>true</code> and <code>false</code>. The predeclared identifier
 <a href="#Iota">iota</a> denotes an integer constant.
+</p>
+
+<p>
+In general, complex constants are a form of
+<a href="#Constant_expressions">constant expression</a>
+and are discussed in that section.
 </p>
 
 <p>
@@ -590,18 +630,21 @@ The predeclared architecture-independent numeric types are:
 </p>
 
 <pre class="grammar">
-uint8    the set of all unsigned  8-bit integers (0 to 255)
-uint16   the set of all unsigned 16-bit integers (0 to 65535)
-uint32   the set of all unsigned 32-bit integers (0 to 4294967295)
-uint64   the set of all unsigned 64-bit integers (0 to 18446744073709551615)
+uint8       the set of all unsigned  8-bit integers (0 to 255)
+uint16      the set of all unsigned 16-bit integers (0 to 65535)
+uint32      the set of all unsigned 32-bit integers (0 to 4294967295)
+uint64      the set of all unsigned 64-bit integers (0 to 18446744073709551615)
 
-int8     the set of all signed  8-bit integers (-128 to 127)
-int16    the set of all signed 16-bit integers (-32768 to 32767)
-int32    the set of all signed 32-bit integers (-2147483648 to 2147483647)
-int64    the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
+int8        the set of all signed  8-bit integers (-128 to 127)
+int16       the set of all signed 16-bit integers (-32768 to 32767)
+int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
+int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
 
-float32  the set of all IEEE-754 32-bit floating-point numbers
-float64  the set of all IEEE-754 64-bit floating-point numbers
+float32     the set of all IEEE-754 32-bit floating-point numbers
+float64     the set of all IEEE-754 64-bit floating-point numbers
+
+complex64   the set of all complex numbers with float32 real and imaginary parts
+complex128  the set of all complex numbers with float64 real and imaginary parts
 
 byte     familiar alias for uint8
 </pre>
@@ -619,6 +662,7 @@ There is also a set of predeclared numeric types with implementation-specific si
 uint     either 32 or 64 bits
 int      either 32 or 64 bits
 float    either 32 or 64 bits
+complex  real and imaginary parts have type float
 uintptr  an unsigned integer large enough to store the uninterpreted bits of a pointer value
 </pre>
 
@@ -1502,7 +1546,8 @@ Zero value:
 	nil
 
 Functions:
-	cap close closed copy len make new panic panicln print println
+	cap close closed cmplx copy imag len make
+	new panic panicln print println real
 </pre>
 
 
@@ -1938,7 +1983,7 @@ Operands denote the elementary values in an expression.
 <pre class="ebnf">
 Operand    = Literal | QualifiedIdent | MethodExpr | "(" Expression ")" .
 Literal    = BasicLit | CompositeLit | FunctionLit .
-BasicLit   = int_lit | float_lit | char_lit | string_lit .
+BasicLit   = int_lit | float_lit | imaginary_lit | char_lit | string_lit .
 </pre>
 
 
@@ -2771,16 +2816,16 @@ x == y+1 &amp;&amp; &lt;-chan_ptr > 0
 <p>
 Arithmetic operators apply to numeric values and yield a result of the same
 type as the first operand. The four standard arithmetic operators (<code>+</code>,
-<code>-</code>,  <code>*</code>, <code>/</code>) apply to integer and
-floating-point types; <code>+</code> also applies
+<code>-</code>,  <code>*</code>, <code>/</code>) apply to integer,
+floating-point, and complex types; <code>+</code> also applies
 to strings. All other arithmetic operators apply to integers only.
 </p>
 
 <pre class="grammar">
-+    sum                    integers, floats, strings
--    difference             integers, floats
-*    product                integers, floats
-/    quotient               integers, floats
++    sum                    integers, floats, complex values, strings
+-    difference             integers, floats, complex values
+*    product                integers, floats, complex values
+/    quotient               integers, floats, complex values
 %    remainder              integers
 
 &amp;    bitwise and            integers
@@ -2894,9 +2939,10 @@ not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is alw
 
 <p>
 Comparison operators yield a value of type <code>bool</code>.
-The operators <code>==</code> and <code>!=</code> apply, at least in some cases,
+The operators <code>==</code> and <code>!=</code> apply
 to operands of all types except arrays and structs.
-All other comparison operators apply only to numeric and string values.
+All other comparison operators apply only to integer, floating-point
+and string values.
 </p>
 
 <pre class="grammar">
@@ -3208,15 +3254,19 @@ For example, if <code>x := uint16(0x10F0)</code>, then <code>uint32(int8(x)) == 
 The conversion always yields a valid value; there is no indication of overflow.
 </p>
 
-<h4>Conversions involving floating point types</h4>
+<h4>Conversions involving floating point and complex types</h4>
 <ol>
 <li>
 When converting a floating-point number to an integer, the fraction is discarded
 (truncation towards zero).
 </li>
 <li>
-When converting a number to a floating-point type, the result value is rounded
-to the precision specified by the floating point type.
+A value of complex type may be converted to a different complex type,
+but there is no conversion between complex and any other type.
+<li>
+When converting a number to a floating-point or complex type,
+the result value is rounded
+to the precision specified by the destination type.
 For instance, the value of a variable <code>x</code> of type <code>float32</code>
 may be stored using additional precision beyond that of an IEEE-754 32-bit number,
 but float32(x) represents the result of rounding <code>x</code>'s value to
@@ -3226,8 +3276,9 @@ of precision, <code>but float32(x + 0.1)</code> does not.
 </ol>
 
 <p>
-In all conversions involving floating-point values, if the result type cannot
-represent the value the conversion succeeds but the result value is
+In all conversions involving floating-point or complex values,
+if the result type cannot represent the value the conversion
+succeeds but the result value is
 implementation-dependent.
 </p>
 
@@ -3310,15 +3361,38 @@ respectively. Except for shift operations, if the operands of a binary operation
 are an untyped integer constant and an untyped floating-point constant,
 the integer constant is converted to an untyped floating-point constant
 (relevant for <code>/</code> and <code>%</code>).
+Similarly,
+untyped integer or floating-point constants may be used as operands
+wherever it is legal to use an operand of complex type;
+the integer or floating point constant is converted to a
+complex constant with a zero imaginary part.
 </p>
 
 <p>
 Applying an operator to untyped constants results in an untyped
-constant of the same kind (that is, a boolean, integer, floating-point, or
-string constant), except for
-<a href="#Comparison_operators">comparison operators</a> which result in
+constant of the same kind (that is, a boolean, integer, floating-point,
+complex, or string constant), except for
+<a href="#Comparison_operators">comparison operators</a>, which result in
 a constant of type <code>bool</code>.
 </p>
+
+<p>
+Imaginary literals are untyped complex constants (with zero real part)
+and may be combined in binary
+operations with untyped integer and floating-point constants; the
+result is an untyped complex constant.
+Complex constants are always constructed from
+constant expressions involving imaginary
+literals or constants derived from them, or calls of the
+<a href="#Built-in_functions">built-in function</a> <code>cmplx</code>.
+</p>
+
+<pre>
+const Σ = 1 - 0.707i
+const Δ = Σ + 2.0e-4 - 1/i
+const Φ = iota * 1i
+const iΓ = cmplx(0, Γ)
+</pre>
 
 <p>
 Constant expressions are always evaluated exactly; intermediate values and the
@@ -3567,9 +3641,10 @@ In assignments, each value must be
 <a href="#Assignment_compatibility">assignment compatible</a> with the type of the
 operand to which it is assigned. If an untyped <a href="#Constants">constant</a>
 is assigned to a variable of interface type, the constant is <a href="#Conversions">converted</a>
-to type <code>bool</code>, <code>int</code>, <code>float</code>, or <code>string</code>
+to type <code>bool</code>, <code>int</code>, <code>float</code>,
+<code>complex</code> or <code>string</code>
 respectively, depending on whether the value is a boolean, integer, floating-point,
-or string constant.
+complex, or string constant.
 </p>
 
 
@@ -4219,7 +4294,7 @@ for i := 0; i &lt;= 3; i++ {
 <h2 id="Built-in_functions">Built-in functions</h2>
 
 <p>
-A small number of built-in functions are
+Built-in functions are
 <a href="#Predeclared_identifiers">predeclared</a>.
 They are called like any other function but some of them
 accept a type instead of an expression as the first argument.
@@ -4376,6 +4451,49 @@ var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
 var s = make([]int, 6)
 n1 := copy(s, &amp;a)     // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
 n2 := copy(s, s[2:])  // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
+</pre>
+
+<h3 id="Complex_numbers">Assembling and disassembling complex numbers</h3>
+
+<p>
+Three functions assemble and disassemble complex numbers.
+The built-in function <code>cmplx</code> constructs a complex
+value from a floating-point real and imaginary part, while
+<code>real</code> and <code>imag</code>
+extract the real and imaginary parts of a complex value.
+</p>
+
+<pre class="grammar">
+cmplx(realPart, imaginaryPart floatT) complexT
+real(complexT) floatT
+imag(complexT) floatT
+</pre>
+
+<p>
+The type of the arguments and return value correspond.
+For <code>cmplx</code>, the two arguments must be of the same
+floating-point type and the return type is the complex type
+with the corresponding floating-point constituents:
+<code>complex</code> for <code>float</code>,
+<code>complex64</code> for <code>float32</code>,
+<code>complex128</code> for <code>float64</code>.
+The <code>real</code> and <code>imag</code> functions
+together form the inverse, so for a complex value <code>z</code>,
+<code>z</code> <code>==</code> <code>cmplx(real(z),</code> <code>imag(z))</code>.
+</p>
+
+<p>
+If the operands of these functions are all constants, the return
+value is a constant.
+</p>
+
+<pre>
+var a = cmplx(2, -2)  // has type complex
+var b = cmplx(1.0, -1.4)  // has type complex
+x := float32(math.Cos(math.Pi/2))
+var c64 = cmplx(5, -x)  // has type complex64
+var im = imag(b)  // has type float
+var rl = real(c64)  // type float32
 </pre>
 
 
@@ -4808,6 +4926,6 @@ The following minimal alignment properties are guaranteed:
 <ul>
 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
 	<li><span class="alert">Method expressions are not implemented.</span></li>
-	<li><span class="alert">Conversions from strings to <code>[]int</code> and <code>[]byte</code> are not implemented..</span></li>
+	<li><span class="alert">The implementation of complex numbers is incomplete.</span></li>
 	<li><span class="alert">Gccgo allows only one init() function per source file.</span></li>
 </ul>
