@@ -1610,7 +1610,7 @@ mkpackage(char* pkgname)
 					// errors if a conflicting top-level name is
 					// introduced by a different file.
 					if(!s->def->used && !nsyntaxerrors)
-						yyerrorl(s->def->lineno, "imported and not used: %s", s->def->sym->name);
+						yyerrorl(s->def->lineno, "imported and not used: %Z", s->def->pkg->path);
 					s->def = N;
 					continue;
 				}
@@ -1618,7 +1618,7 @@ mkpackage(char* pkgname)
 					// throw away top-level name left over
 					// from previous import . "x"
 					if(s->def->pack != N && !s->def->pack->used && !nsyntaxerrors) {
-						yyerrorl(s->def->pack->lineno, "imported and not used: %s", s->def->pack->sym->name);
+						yyerrorl(s->def->pack->lineno, "imported and not used: %Z", s->def->pack->pkg->path);
 						s->def->pack->used = 1;
 					}
 					s->def = N;
