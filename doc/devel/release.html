@@ -5,6 +5,34 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-03-04">2010-03-04</h3>
+
+<pre>
+There is one language change: the ability to convert a string to []byte or 
+[]int.  This deprecates the strings.Bytes and strings.Runes functions.
+You can convert your existing sources using these gofmt commands:
+	gofmt -r 'strings.Bytes(x) -> []byte(x)' -w file-or-directory-list
+	gofmt -r 'strings.Runes(x) -> []int(x)' -w file-or-directory-list
+After running these you might need to delete unused imports of the "strings" 
+package.
+
+Other changes and fixes:
+* 6l/8l/5l: add -r option
+* 8g: make a[byte(x)] truncate x
+* codereview.py: fix for compatibility with hg >=1.4.3
+* crypto/blowfish: new package (thanks Raif S. Naffah)
+* dashboard: more performance tuning
+* fmt: use String method in %q to get the value to quote.
+* gofmt: several cosmetic changes
+* http: fix handling of Connection: close, bug in http.Post
+* net: correct DNS configuration,
+	fix network timeout boundary condition,
+	put [ ] around IPv6 addresses for Dial.
+* path: add Match,
+	fix bug in Match with non-greedy stars (thanks Kevin Ballard)
+* strings: delete Bytes, Runes (see above)
+* tests: an Eratosthenesque concurrent prime sieve (thanks Anh Hai Trinh) 
+</pre>
 
 <h3 id="2010-02-23">2010-02-23</h3>
 
