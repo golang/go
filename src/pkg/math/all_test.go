@@ -310,6 +310,18 @@ var log = []float64{
 	6.0174879014578057187016475e-01,
 	2.161703872847352815363655e+00,
 }
+var logb = []float64{
+	3.0000000000000000e+00,
+	3.0000000000000000e+00,
+	-1.0000000000000000e+00,
+	3.0000000000000000e+00,
+	4.0000000000000000e+00,
+	2.0000000000000000e+00,
+	3.0000000000000000e+00,
+	2.0000000000000000e+00,
+	1.0000000000000000e+00,
+	4.0000000000000000e+00,
+}
 var log10 = []float64{
 	6.9714316642508290997617083e-01,
 	8.886776901739320576279124e-01,
@@ -381,6 +393,18 @@ var pow = []float64{
 	5.3449040147551939075312879e+02,
 	6.688182138451414936380374e+01,
 	2.0609869004248742886827439e-09,
+}
+var remainder = []float64{
+	4.197615023265299782906368e-02,
+	2.261127525421895434476482e+00,
+	3.231794108794261433104108e-02,
+	-2.120723654214984321697556e-02,
+	3.637062928015826201999516e-01,
+	1.220868282268106064236690e+00,
+	-4.581668629186133046005125e-01,
+	-9.117596417440410050403443e-01,
+	8.734595415957246977711748e-01,
+	1.314075231424398637614104e+00,
 }
 var sin = []float64{
 	-9.6466616586009283766724726e-01,
@@ -747,6 +771,19 @@ var hypotSC = []float64{
 	NaN(),
 }
 
+var vfilogbSC = []float64{
+	Inf(-1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var ilogbSC = []int{
+	MaxInt32,
+	MinInt32,
+	MaxInt32,
+	MaxInt32,
+}
+
 var vflgammaSC = []float64{
 	Inf(-1),
 	-3,
@@ -772,6 +809,19 @@ var vflogSC = []float64{
 var logSC = []float64{
 	NaN(),
 	NaN(),
+	Inf(-1),
+	Inf(1),
+	NaN(),
+}
+
+var vflogbSC = []float64{
+	Inf(-1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var logbSC = []float64{
+	Inf(1),
 	Inf(-1),
 	Inf(1),
 	NaN(),
@@ -1204,7 +1254,7 @@ func TestFmin(t *testing.T) {
 
 func TestFmod(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Fmod(10, vf[i]); fmod[i] != f { /*!close(fmod[i], f)*/
+		if f := Fmod(10, vf[i]); fmod[i] != f {
 			t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
 		}
 	}
@@ -1238,6 +1288,19 @@ func TestHypot(t *testing.T) {
 	for i := 0; i < len(vfhypotSC); i++ {
 		if f := Hypot(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
 			t.Errorf("Hypot(%g, %g) = %g, want %g\n", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
+		}
+	}
+}
+
+func TestIlogb(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if e := Ilogb(vf[i]); frexp[i].i != e {
+			t.Errorf("Ilogb(%g) = %d, want %d\n", vf[i], e, frexp[i].i)
+		}
+	}
+	for i := 0; i < len(vflogbSC); i++ {
+		if e := Ilogb(vflogbSC[i]); ilogbSC[i] != e {
+			t.Errorf("Ilogb(%g) = %d, want %d\n", vflogbSC[i], e, ilogbSC[i])
 		}
 	}
 }
@@ -1281,6 +1344,19 @@ func TestLog(t *testing.T) {
 	for i := 0; i < len(vflogSC); i++ {
 		if f := Log(vflogSC[i]); !alike(logSC[i], f) {
 			t.Errorf("Log(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
+		}
+	}
+}
+
+func TestLogb(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Logb(vf[i]); logb[i] != f {
+			t.Errorf("Logb(%g) = %g, want %g\n", vf[i], f, logb[i])
+		}
+	}
+	for i := 0; i < len(vflogbSC); i++ {
+		if f := Logb(vflogbSC[i]); !alike(logbSC[i], f) {
+			t.Errorf("Logb(%g) = %g, want %g\n", vflogbSC[i], f, logbSC[i])
 		}
 	}
 }
@@ -1372,6 +1448,19 @@ func TestPow(t *testing.T) {
 	for i := 0; i < len(vfpowSC); i++ {
 		if f := Pow(vfpowSC[i][0], vfpowSC[i][1]); !alike(powSC[i], f) {
 			t.Errorf("Pow(%g, %g) = %g, want %g\n", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
+		}
+	}
+}
+
+func TestRemainder(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Remainder(10, vf[i]); remainder[i] != f {
+			t.Errorf("Remainder(10, %g) = %g, want %g\n", vf[i], f, remainder[i])
+		}
+	}
+	for i := 0; i < len(vffmodSC); i++ {
+		if f := Remainder(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
+			t.Errorf("Remainder(%g, %g) = %g, want %g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
 	}
 }
@@ -1665,6 +1754,12 @@ func BenchmarkHypot(b *testing.B) {
 	}
 }
 
+func BenchmarkIlogb(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Ilogb(.5)
+	}
+}
+
 func BenchmarkLdexp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Ldexp(.5, 2)
@@ -1680,6 +1775,12 @@ func BenchmarkLgamma(b *testing.B) {
 func BenchmarkLog(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Log(.5)
+	}
+}
+
+func BenchmarkLogb(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Logb(.5)
 	}
 }
 
@@ -1722,6 +1823,12 @@ func BenchmarkPowInt(b *testing.B) {
 func BenchmarkPowFrac(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Pow(2.5, 1.5)
+	}
+}
+
+func BenchmarkRemainder(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Remainder(10, 3)
 	}
 }
 

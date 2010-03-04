@@ -2,8 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// func Exp(x float64) float64
-TEXT ·Exp(SB),7,$0
+// func Expm1(x float64) float64
+TEXT ·Expm1(SB),7,$0
+	FLDLN2               // F0=log(2) = 1/log2(e) ~ 0.693147
+	FMOVD   x+0(FP), F0  // F0=x, F1=1/log2(e)
+	FABS                 // F0=|x|, F1=1/log2(e) 
+	FUCOMPP F0, F1       // compare F0 to F1
+	FSTSW   AX
+	SAHF
+	JCC     use_exp      // jump if F0 >= F1
+	FLDL2E                // F0=log2(e)
+	FMULD   x+0(FP), F0   // F0=x*log2(e) (-1<F0<1)
+	F2XM1                 // F0=e**x-1 = 2**(x*log2(e))-1
+	FMOVDP  F0, r+8(FP)
+	RET
+use_exp:
 // test bits for not-finite
 	MOVL    x+4(FP), AX
 	ANDL    $0x7ff00000, AX
@@ -20,6 +33,8 @@ TEXT ·Exp(SB),7,$0
 	FADDDP  F0, F1        // F0=2**(x*log2(e)-int(x*log2(e))), F1=int(x*log2(e))
 	FSCALE                // F0=e**x, F1=int(x*log2(e))
 	FMOVDP  F0, F1        // F0=e**x
+	FLD1                  // F0=1, F1=e**x
+	FSUBDP  F0, F1        // F0=e**x-1 
 	FMOVDP  F0, r+8(FP)
 	RET
 not_finite:
@@ -30,7 +45,8 @@ not_finite:
 	JNE     not_neginf
 	CMPL    CX, $0
 	JNE     not_neginf
-	FLDZ                  // F0=0
+	FLD1                 // F0=1
+	FCHS                 // F0=-1
 	FMOVDP  F0, r+8(FP)
 	RET
 not_neginf:

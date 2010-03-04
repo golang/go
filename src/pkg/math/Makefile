@@ -15,6 +15,7 @@ OFILES_386=\
 	atan2_386.$O\
 	exp_386.$O\
 	exp2_386.$O\
+	expm1_386.$O\
 	fabs_386.$O\
 	floor_386.$O\
 	frexp_386.$O\
@@ -24,6 +25,7 @@ OFILES_386=\
 	log_386.$O\
 	log1p_386.$O\
 	modf_386.$O\
+	remainder_386.$O\
 	sin_386.$O\
 	sincos_386.$O\
 	sqrt_386.$O\
@@ -52,6 +54,7 @@ ALLGOFILES=\
 	fmod.go\
 	frexp.go\
 	hypot.go\
+	logb.go\
 	lgamma.go\
 	ldexp.go\
 	log.go\
@@ -60,6 +63,7 @@ ALLGOFILES=\
 	nextafter.go\
 	pow.go\
 	pow10.go\
+	remainder.go\
 	sin.go\
 	sincos.go\
 	sinh.go\
