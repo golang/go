@@ -1,0 +1,271 @@
+<!-- Programming FAQ -->
+
+<h2 id="Pointers">Pointers and Allocation</h2>
+
+<h3 id="pass_by_value">
+When are function paramters passed by value?</h3>
+
+<p>
+Everything in Go is passed by value.  A function always gets a copy of the
+thing being passed, as if there were an assignment statement assigning the
+value to the parameter.  For instance, copying a pointer value makes a copy of
+the pointer, not the data it points to. 
+</p>
+
+<p>
+Map and slice values behave like pointers; they are descriptors that
+contain pointers to the underlying map or slice data.  Copying a map or
+slice value doesn't copy the data it points to.  Copying an interface value
+makes a copy of the thing stored in the interface value.  If the interface
+value holds a struct, copying the interface value makes a copy of the
+struct.  If the interface value holds a pointer, copying the interface value
+makes a copy of the pointer, but again not the data it points to. 
+</p>
+
+<h3 id="methods_on_values_or_pointers">
+Should I define methods on values or pointers?</h3>
+
+<pre>
+func (s *MyStruct) someMethod() { } // method on pointer
+func (s MyStruct) someMethod() { }  // method on value
+</pre>
+
+<p>
+When defining a method on a type, the receiver (<code>s</code> in the above
+example) behaves exactly is if it were an argument to the method. Define the
+method on a pointer type if you need the method to modify the data the receiver
+points to. Otherwise, it is often cleaner to define the method on a value type.
+</p>
+
+<h3 id="new_and_make">
+What's the difference between new and make?</h3>
+
+<p>
+In short: <code>new</code> allocates memory, <code>make</code> initializes
+the slice, map, and channel types.
+</p>
+
+<p>
+See the <a href="/doc/effective_go.html#allocation_new">relevant section
+of Effective Go</a> for more details.
+</p>
+
+<h3 id="64bit_machine_32bit_int">
+Why is <code>int</code> 32 bits on 64 bit machines?</h3>
+
+<p>
+The size of <code>int</code> and <code>float</code> is implementation-specific.
+The 64 bit Go compilers (both 6g and gccgo) use a 32 bit representation for
+both <code>int</code> and <code>float</code>.  Code that relies on a particular
+size of value should use an explicitly sized type, like <code>int64</code> or
+<code>float64</code>.
+</p>
+
+<h2 id="Concurrent_programming">Concurrent programming</h2>
+
+<h3 id="What_operations_are_atomic_What_about_mutexes">
+What operations are atomic? What about mutexes?</h3>
+
+<p>
+We haven't fully defined it all yet, but some details about atomicity are
+available in the <a href="go_mem.html">Go Memory Model specification</a>.
+Also, some concurrency questions are answered in more detail in the <a
+href="go_lang_faq.html">language design FAQ</a>.
+</p>
+
+<p>
+Regarding mutexes, the <a href="/pkg/sync">sync</a>
+package implements them, but we hope Go programming style will
+encourage people to try higher-level techniques. In particular, consider
+structuring your program so that only one goroutine at a time is ever
+responsible for a particular piece of data.
+</p>
+
+<p>
+Do not communicate by sharing memory. Instead, share memory by communicating.
+</p>
+
+<h3 id="Why_no_multi_CPU">
+Why doesn't my multi-goroutine program use multiple CPUs?</h3>
+
+<p>
+Under the gc compilers you must set <code>GOMAXPROCS</code> to allow the
+runtime to utilise more than one OS thread. Under <code>gccgo</code> an OS
+thread will be created for each goroutine, and <code>GOMAXPROCS</code> is
+effectively equal to the number of running goroutines.  
+</p>
+
+<p>
+Programs that perform concurrent computation should benefit from an increase in
+<code>GOMAXPROCS</code>. (See the <a
+href="http://golang.org/pkg/runtime/#GOMAXPROCS">runtime package
+documentation</a>.)
+</p>
+
+<h3 id="Why_GOMAXPROCS">
+Why does using <code>GOMAXPROCS</code> &gt; 1 sometimes make my program
+slower?</h3>
+
+<p>
+(This is specific to the gc compilers. See above.)
+</p>
+
+<p>
+It depends on the nature of your program. 
+Programs that contain several goroutines that spend a lot of time
+communicating on channels will experience performance degradation when using
+multiple OS threads. This is because of the significant context-switching
+penalty involved in sending data between threads.
+</p>
+
+<p>
+The Go runtime's scheduler is not as good as it needs to be. In future, it
+should recognise such cases and optimize its use of OS threads. For now,
+<code>GOMAXPROCS</code> should be set on a per-application basis.
+</p>
+
+
+<h2 id="Closures">Closures</h2>
+
+<h3 id="closures_and_goroutines">
+Why am I confused by the way my closures behave as goroutines?</h3>
+
+<p>
+Some confusion may arise when using closures with concurrency.
+Consider the following program:
+</p>
+
+<pre>
+func main() {
+	done := make(chan bool)
+
+	values = []string{ "a", "b", "c" }
+	for _, v := range values {
+		go func() {
+			fmt.Println(v)
+			done &lt;- true
+		}()
+	}
+
+	// wait for all goroutines to complete before exiting
+	for i := range values {
+		&lt;-done 
+	}
+}
+</pre>
+
+<p>
+One might mistakenly expect to see <code>a, b, c</code> as the output. 
+What you'll probably see instead is <code>c, c, c</code>.  This is because 
+each closure shares the same variable <code>v</code>. Each closure prints the 
+value of <code>v</code> at the time <code>fmt.Println</code> is executed, 
+rather than the value of <code>v</code> when the goroutine was launched. 
+</p>
+
+<p>
+To bind the value of <code>v</code> to each closure as they are launched, one
+could modify the inner loop to read:
+</p>
+
+<pre>
+	for _, v := range values {
+		go func(<b>u</b>) {
+			fmt.Println(<b>u</b>)
+			done &lt;- true
+		}(<b>v</b>)
+	}
+</pre>
+
+<p>
+In this example, the value of <code>v</code> is passed as an argument to the 
+anonymous function. That value is then accessible inside the function as
+the variable <code>u</code>.
+</p>
+
+<h2 id="Control_flow">Control flow</h2>
+
+<h3 id="Does_Go_have_a_ternary_form">
+Does Go have the <code>?:</code> operator?</h3>
+
+<p>
+There is no ternary form in Go. You may use the following to achieve the same
+result:
+</p>
+
+<pre>
+if expr {
+	n = trueVal
+} else {
+	n = falseVal
+}
+</pre>
+
+<h2 id="Packages_Testing">Packages and Testing</h2>
+
+<h3 id="How_do_I_create_a_multifile_package">
+How do I create a multifile package?</h3>
+
+<p>
+Put all the source files for the package in a directory by themselves.
+Source files can refer to items from different files at will; there is
+no need for forward declarations or a header file.
+</p>
+
+<p>
+Other than being split into multiple files, the package will compile and test
+just like a single-file package.
+</p>
+
+<h3 id="How_do_I_write_a_unit_test">
+How do I write a unit test?</h3>
+
+<p>
+Create a new file ending in <code>_test.go</code> in the same directory
+as your package sources. Inside that file, <code>import "testing"</code>
+and write functions of the form
+</p>
+
+<pre>
+func TestFoo(t *testing.T) {
+    ...
+}
+</pre>
+
+<p>
+Run <code>gotest</code> in that directory.
+That script finds the <code>Test</code> functions,
+builds a test binary, and runs it.
+</p>
+
+
+<h2 id="Data_structures">Data Structures</h2>
+
+<h3 id="nested_array_verbose"
+>Why does the syntax for nested array literals seem overly verbose?</h3>
+
+<p>
+In Go, you must specify a 2-dimensional array literal like this:
+</p>
+
+<pre>
+var intArray = [4][4]int{
+	[4]int{1, 2, 3, 4},
+	[4]int{2, 4, 8, 16},
+	[4]int{3, 9, 27, 81},
+	[4]int{4, 16, 64, 256},
+}
+</pre>
+
+<p>
+It seems that the <code>[4]int</code> could be inferred, but in general it's
+hard to get this sort of thing right.
+</p>
+
+<p>
+Some of Go's designers had worked on other languages that derived types
+automatically in such expressions, but the special cases that arise can
+be messy, especially when interfaces, nil, constant conversions, and
+such are involved. It seemed better to require the full type
+information. That way there will be no surprises.
+</p>
+
