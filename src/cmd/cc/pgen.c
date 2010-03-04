@@ -43,6 +43,7 @@ argsize(void)
 		case TVOID:
 			break;
 		case TDOT:
+			yyerror("function takes ... without textflag NOSPLIT");
 			s += 64;
 			break;
 		default:

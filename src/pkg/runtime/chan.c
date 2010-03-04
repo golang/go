@@ -393,6 +393,7 @@ closed:
 }
 
 // chansend1(hchan *chan any, elem any);
+#pragma textflag 7
 void
 ·chansend1(Hchan* c, ...)
 {
@@ -405,6 +406,7 @@ void
 }
 
 // chansend2(hchan *chan any, elem any) (pres bool);
+#pragma textflag 7
 void
 ·chansend2(Hchan* c, ...)
 {
@@ -420,6 +422,7 @@ void
 }
 
 // chanrecv1(hchan *chan any) (elem any);
+#pragma textflag 7
 void
 ·chanrecv1(Hchan* c, ...)
 {
@@ -433,6 +436,7 @@ void
 }
 
 // chanrecv2(hchan *chan any) (elem any, pres bool);
+#pragma textflag 7
 void
 ·chanrecv2(Hchan* c, ...)
 {
@@ -448,6 +452,7 @@ void
 }
 
 // newselect(size uint32) (sel *byte);
+#pragma textflag 7
 void
 ·newselect(int32 size, ...)
 {
@@ -476,6 +481,7 @@ void
 }
 
 // selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+#pragma textflag 7
 void
 ·selectsend(Select *sel, Hchan *c, ...)
 {
@@ -521,6 +527,7 @@ void
 }
 
 // selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+#pragma textflag 7
 void
 ·selectrecv(Select *sel, Hchan *c, ...)
 {
@@ -563,6 +570,7 @@ void
 
 
 // selectdefaul(sel *byte) (selected bool);
+#pragma textflag 7
 void
 ·selectdefault(Select *sel, ...)
 {
