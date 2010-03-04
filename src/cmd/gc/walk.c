@@ -1128,7 +1128,6 @@ walkexpr(Node **np, NodeList **init)
 	case OARRAYLIT:
 	case OMAPLIT:
 	case OSTRUCTLIT:
-	arraylit:
 		nvar = nod(OXXX, N, N);
 		tempname(nvar, n->type);
 		anylit(n, nvar, init);
