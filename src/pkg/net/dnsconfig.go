@@ -49,7 +49,11 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
 				// just an IP address.  Otherwise we need DNS
 				// to look it up.
 				name := f[1]
-				if len(ParseIP(name)) != 0 {
+				switch len(ParseIP(name)) {
+				case 16:
+					name = "[" + name + "]"
+					fallthrough
+				case 4:
 					a = a[0 : n+1]
 					a[n] = name
 					conf.servers = a
