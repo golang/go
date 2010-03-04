@@ -12,10 +12,11 @@ import (
 
 func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 	fd, err := Dial(network, "", addr)
-	defer fd.Close()
 	if err != nil {
 		t.Errorf("dial %s %s failed: %v", network, addr, err)
+		return
 	}
+	defer fd.Close()
 	t0 := time.Nanoseconds()
 	fd.SetReadTimeout(1e8) // 100ms
 	var b [100]byte
