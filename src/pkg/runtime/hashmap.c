@@ -758,6 +758,7 @@ mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
 }
 
 // mapaccess1(hmap *map[any]any, key any) (val any);
+#pragma textflag 7
 void
 ·mapaccess1(Hmap *h, ...)
 {
@@ -785,6 +786,7 @@ void
 }
 
 // mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+#pragma textflag 7
 void
 ·mapaccess2(Hmap *h, ...)
 {
@@ -844,6 +846,7 @@ mapassign(Hmap *h, byte *ak, byte *av)
 }
 
 // mapassign1(hmap *map[any]any, key any, val any);
+#pragma textflag 7
 void
 ·mapassign1(Hmap *h, ...)
 {
@@ -856,6 +859,7 @@ void
 }
 
 // mapassign2(hmap *map[any]any, key any, val any, pres bool);
+#pragma textflag 7
 void
 ·mapassign2(Hmap *h, ...)
 {
@@ -934,6 +938,7 @@ mapiternext(struct hash_iter *it)
 }
 
 // mapiter1(hiter *any) (key any);
+#pragma textflag 7
 void
 ·mapiter1(struct hash_iter *it, ...)
 {
@@ -973,6 +978,7 @@ mapiterkey(struct hash_iter *it, void *ak)
 }
 
 // mapiter2(hiter *any) (key any, val any);
+#pragma textflag 7
 void
 ·mapiter2(struct hash_iter *it, ...)
 {

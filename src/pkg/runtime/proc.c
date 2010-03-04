@@ -666,6 +666,7 @@ oldstack(void)
 	uint32 args;
 	byte *sp;
 	G *g1;
+	static int32 goid;
 
 //printf("oldstack m->cret=%p\n", m->cret);
 
@@ -678,6 +679,7 @@ oldstack(void)
 		sp -= args;
 		mcpy(top->fp, sp, args);
 	}
+	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
 
 	stackfree(g1->stackguard - StackGuard);
 	g1->stackbase = old.stackbase;
@@ -765,9 +767,9 @@ malg(int32 stacksize)
  */
 #pragma textflag 7
 void
-·newproc(int32 siz, byte* fn, byte* arg0)
+·newproc(int32 siz, byte* fn, ...)
 {
-	newproc1(fn, (byte*)&arg0, siz, 0);
+	newproc1(fn, (byte*)(&fn+1), siz, 0);
 }
 
 void
@@ -815,13 +817,13 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 
 #pragma textflag 7
 void
-·deferproc(int32 siz, byte* fn, byte* arg0)
+·deferproc(int32 siz, byte* fn, ...)
 {
 	Defer *d;
 
 	d = malloc(sizeof(*d) + siz - sizeof(d->args));
 	d->fn = fn;
-	d->sp = (byte*)&arg0;
+	d->sp = (byte*)(&fn+1);
 	d->siz = siz;
 	mcpy(d->args, d->sp, d->siz);
 

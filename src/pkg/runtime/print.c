@@ -157,6 +157,7 @@ vprintf(int8 *s, byte *arg)
 //	unlock(&debuglock);
 }
 
+#pragma textflag 7
 void
 ·printf(String s, ...)
 {
