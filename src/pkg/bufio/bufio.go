@@ -437,6 +437,35 @@ func (b *Writer) WriteByte(c byte) os.Error {
 	return nil
 }
 
+// WriteRune writes a single Unicode code point, returning
+// the number of bytes written and any error.
+func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
+	if rune < utf8.RuneSelf {
+		err = b.WriteByte(byte(rune))
+		if err != nil {
+			return 0, err
+		}
+		return 1, nil
+	}
+	if b.err != nil {
+		return 0, b.err
+	}
+	n := b.Available()
+	if n < utf8.UTFMax {
+		if b.Flush(); b.err != nil {
+			return 0, b.err
+		}
+		n = b.Available()
+		if n < utf8.UTFMax {
+			// Can only happen if buffer is silly small.
+			return b.WriteString(string(rune))
+		}
+	}
+	size = utf8.EncodeRune(rune, b.buf[b.n:])
+	b.n += size
+	return size, nil
+}
+
 // WriteString writes a string.
 // It returns the number of bytes written.
 // If the count is less than len(s), it also returns an error explaining

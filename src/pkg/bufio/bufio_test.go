@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+	"utf8"
 )
 
 // Reads from a reader and rot13s the result.
@@ -222,6 +223,35 @@ var segmentList = [][]string{
 func TestReadRune(t *testing.T) {
 	for _, s := range segmentList {
 		readRuneSegments(t, s)
+	}
+}
+
+func TestReadWriteRune(t *testing.T) {
+	const NRune = 1000
+	byteBuf := new(bytes.Buffer)
+	w := NewWriter(byteBuf)
+	// Write the runes out using WriteRune
+	buf := make([]byte, utf8.UTFMax)
+	for rune := 0; rune < NRune; rune++ {
+		size := utf8.EncodeRune(rune, buf)
+		nbytes, err := w.WriteRune(rune)
+		if err != nil {
+			t.Fatalf("WriteRune(0x%x) error: %s", rune, err)
+		}
+		if nbytes != size {
+			t.Fatalf("WriteRune(0x%x) expected %d, got %d", rune, size, nbytes)
+		}
+	}
+	w.Flush()
+
+	r := NewReader(byteBuf)
+	// Read them back with ReadRune
+	for rune := 0; rune < NRune; rune++ {
+		size := utf8.EncodeRune(rune, buf)
+		nr, nbytes, err := r.ReadRune()
+		if nr != rune || nbytes != size || err != nil {
+			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
+		}
 	}
 }
 

@@ -277,7 +277,7 @@ func TestRuneIO(t *testing.T) {
 			t.Fatalf("WriteRune(0x%x) error: %s", r, err)
 		}
 		if nbytes != size {
-			t.Fatalf("WriteRune(0x%x) expected %d, got %d", size, nbytes)
+			t.Fatalf("WriteRune(0x%x) expected %d, got %d", r, size, nbytes)
 		}
 		n += size
 	}
