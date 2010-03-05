@@ -20,7 +20,10 @@ bash mkenam
 "$GOBIN"/gomake enam.o
 cd ..
 
-for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack nm cov godefs prof gotest
+# Note: commands written in Go are not listed here.
+# They are in ../make.bash so that they can be built
+# after the Go libraries on which they depend.
+for i in cc ${O}l ${O}a ${O}c gc ${O}g cov godefs gopack gotest nm prof
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
