@@ -81,7 +81,7 @@ var parseContentTypeTests = []parseContentTypeTest{
 	parseContentTypeTest{contentType: stringMap{"Content-Type": "text/plain; boundary="}},
 	parseContentTypeTest{
 		contentType: stringMap{"Content-Type": "application/unknown"},
-		error: true,
+		error:       true,
 	},
 }
 

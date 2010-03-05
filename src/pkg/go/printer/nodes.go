@@ -109,10 +109,15 @@ func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
 }
 
 
-// isOneLineExpr returns true if x is "small enough" to fit onto a single line.
-func (p *printer) isOneLineExpr(x ast.Expr) bool {
-	const maxSize = 60 // aproximate value, excluding space for comments
-	return p.nodeSize(x, maxSize) <= maxSize
+// Compute the key size of a key:value expression.
+// Returns 0 if the expression doesn't fit onto a single line.
+func (p *printer) keySize(pair *ast.KeyValueExpr) int {
+	const infinity = 1e6 // larger than any source line
+	if p.nodeSize(pair, infinity) <= infinity {
+		// entire expression fits on one line - return key size
+		return p.nodeSize(pair.Key, infinity)
+	}
+	return 0
 }
 
 
@@ -120,6 +125,10 @@ func (p *printer) isOneLineExpr(x ast.Expr) bool {
 // source lines, the original line breaks are respected between
 // expressions. Sets multiLine to true if the list spans multiple
 // lines.
+//
+// TODO(gri) Consider rewriting this to be independent of []ast.Expr
+//           so that we can use the algorithm for any kind of list
+//           (e.g., pass list via a channel over which to range).
 func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode exprListMode, multiLine *bool, next token.Position) {
 	if len(list) == 0 {
 		return
@@ -165,30 +174,69 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		ws = indent
 	}
 
-	oneLiner := false // true if the previous expression fit on a single line
-	prevBreak := -1   // index of last expression that was followed by a linebreak
-
 	// the first linebreak is always a formfeed since this section must not
 	// depend on any previous formatting
+	prevBreak := -1 // index of last expression that was followed by a linebreak
 	if prev.IsValid() && prev.Line < line && p.linebreak(line, 1, 2, ws, true) {
 		ws = ignore
 		*multiLine = true
 		prevBreak = 0
 	}
 
+	// initialize expression/key size: a zero value indicates expr/key doesn't fit on a single line
+	size := 0
+
+	// print all list elements
 	for i, x := range list {
-		prev := line
+		prevLine := line
 		line = x.Pos().Line
+
+		// determine if the next linebreak, if any, needs to use formfeed:
+		// in general, use the entire node size to make the decision; for
+		// key:value expressions, use the key size
+		// TODO(gri) for a better result, should probably incorporate both
+		//           the key and the node size into the decision process
+		useFF := true
+
+		// determine size
+		prevSize := size
+		const infinity = 1e6 // larger than any source line
+		size = p.nodeSize(x, infinity)
+		pair, isPair := x.(*ast.KeyValueExpr)
+		if size <= infinity {
+			// x fits on a single line
+			if isPair {
+				size = p.nodeSize(pair.Key, infinity) // size <= infinity
+			}
+		} else {
+			size = 0
+		}
+
+		// if the previous line and the current line had single-
+		// line-expressions and the key sizes are small or the
+		// the ratio between the key sizes does not exceed a
+		// threshold, align columns and do not use formfeed
+		if prevSize > 0 && size > 0 {
+			const smallSize = 20
+			if prevSize <= smallSize && size <= smallSize {
+				useFF = false
+			} else {
+				const r = 4 // threshold
+				ratio := float(size) / float(prevSize)
+				useFF = ratio <= 1/r || r <= ratio
+			}
+		}
+
 		if i > 0 {
 			if mode&commaSep != 0 {
 				p.print(token.COMMA)
 			}
-			if prev < line && prev > 0 && line > 0 {
-				// lines are broken using newlines so comments remain aligned,
-				// but if an expression is not a "one-line" expression, or if
-				// multiple expressions are on the same line, the section is
+			if prevLine < line && prevLine > 0 && line > 0 {
+				// lines are broken using newlines so comments remain aligned
+				// unless forceFF is set or there are multiple expressions on
+				// the same line in which case formfeed is used
 				// broken with a formfeed
-				if p.linebreak(line, 1, 2, ws, !oneLiner || prevBreak+1 < i) {
+				if p.linebreak(line, 1, 2, ws, useFF || prevBreak+1 < i) {
 					ws = ignore
 					*multiLine = true
 					prevBreak = i
@@ -197,17 +245,14 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 				p.print(blank)
 			}
 		}
-		// determine if x satisfies the "one-liner" criteria
-		// TODO(gri): determine if the multiline information returned
-		//            from p.expr0 is precise enough so it could be
-		//            used instead
-		oneLiner = p.isOneLineExpr(x)
-		if t, isPair := x.(*ast.KeyValueExpr); isPair && oneLiner && len(list) > 1 {
-			// we have a key:value expression that fits onto one line, and
-			// is a list with more then one entry: align all the values
-			p.expr(t.Key, multiLine)
-			p.print(t.Colon, token.COLON, vtab)
-			p.expr(t.Value, multiLine)
+
+		if isPair && size > 0 && len(list) > 1 {
+			// we have a key:value expression that fits onto one line and
+			// is in a list with more then one entry: use a column for the
+			// key such that consecutive entries can align if possible
+			p.expr(pair.Key, multiLine)
+			p.print(pair.Colon, token.COLON, vtab)
+			p.expr(pair.Value, multiLine)
 		} else {
 			p.expr0(x, depth, multiLine)
 		}

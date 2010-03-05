@@ -1251,12 +1251,12 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) fu
 	// Create block context
 	cb := newCodeBuf()
 	fc := &funcCompiler{
-		compiler: a,
-		fnType:   decl.Type,
+		compiler:     a,
+		fnType:       decl.Type,
 		outVarsNamed: len(decl.OutNames) > 0 && decl.OutNames[0] != nil,
-		codeBuf: cb,
-		flow:    newFlowBuf(cb),
-		labels:  make(map[string]*label),
+		codeBuf:      cb,
+		flow:         newFlowBuf(cb),
+		labels:       make(map[string]*label),
 	}
 	bc := &blockCompiler{
 		funcCompiler: fc,

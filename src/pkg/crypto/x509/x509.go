@@ -784,14 +784,14 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, priv *rsa.
 
 	encodedPublicKey := asn1.BitString{BitLength: len(asn1PublicKey) * 8, Bytes: asn1PublicKey}
 	c := tbsCertificate{
-		Version: 3,
-		SerialNumber: asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
+		Version:            3,
+		SerialNumber:       asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
 		SignatureAlgorithm: algorithmIdentifier{oidSHA1WithRSA},
 		Issuer:             parent.Subject.toRDNSequence(),
 		Validity:           validity{template.NotBefore, template.NotAfter},
 		Subject:            template.Subject.toRDNSequence(),
-		PublicKey: publicKeyInfo{algorithmIdentifier{oidRSA}, encodedPublicKey},
-		Extensions: extensions,
+		PublicKey:          publicKeyInfo{algorithmIdentifier{oidRSA}, encodedPublicKey},
+		Extensions:         extensions,
 	}
 
 	tbsCertContents, err := asn1.MarshalToMemory(c)
