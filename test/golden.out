@@ -152,6 +152,5 @@ panic PC=xxx
 == bugs/
 
 =========== bugs/bug260.go
-FAIL: alignment should be 1, is 8
-FAIL: alignment should be 2, is 8
-FAIL: alignment should be 4, is 8
+FAIL
+BUG: bug260 failed
