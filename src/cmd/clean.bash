@@ -5,7 +5,7 @@
 
 GOBIN="${GOBIN:-$HOME/bin}"
 
-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt gotest goyacc hgpatch prof
+for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt goinstall gotest goyacc hgpatch prof
 do
 	cd $i
 	"$GOBIN"/gomake clean

@@ -4,5 +4,8 @@ runtime: python
 api_version: 1
 
 handlers:
+- url: /package.*
+  script: package.py
+
 - url: /.*
   script: gobuild.py
