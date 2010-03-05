@@ -8,6 +8,7 @@ import (
 	. "bytes"
 	"rand"
 	"testing"
+	"utf8"
 )
 
 
@@ -260,5 +261,39 @@ func TestWriteTo(t *testing.T) {
 		var b Buffer
 		buf.WriteTo(&b)
 		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)))
+	}
+}
+
+func TestRuneIO(t *testing.T) {
+	const NRune = 1000
+	// Built a test array while we write the data
+	b := make([]byte, utf8.UTFMax*NRune)
+	var buf Buffer
+	n := 0
+	for r := 0; r < NRune; r++ {
+		size := utf8.EncodeRune(r, b[n:])
+		nbytes, err := buf.WriteRune(r)
+		if err != nil {
+			t.Fatalf("WriteRune(0x%x) error: %s", r, err)
+		}
+		if nbytes != size {
+			t.Fatalf("WriteRune(0x%x) expected %d, got %d", size, nbytes)
+		}
+		n += size
+	}
+	b = b[0:n]
+
+	// Check the resulting bytes
+	if !Equal(buf.Bytes(), b) {
+		t.Fatalf("incorrect result from WriteRune: %q not %q", buf.Bytes(), b)
+	}
+
+	// Read it back with ReadRune
+	for r := 0; r < NRune; r++ {
+		size := utf8.EncodeRune(r, b)
+		nr, nbytes, err := buf.ReadRune()
+		if nr != r || nbytes != size || err != nil {
+			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
+		}
 	}
 }

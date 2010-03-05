@@ -9,6 +9,7 @@ package bytes
 import (
 	"io"
 	"os"
+	"utf8"
 )
 
 // Copy from string to byte array at offset doff.  Assume there's room.
@@ -22,10 +23,10 @@ func copyString(dst []byte, doff int, str string) {
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-	buf       []byte   // contents are the bytes buf[off : len(buf)]
-	off       int      // read at &buf[off], write at &buf[len(buf)]
-	oneByte   [1]byte  // avoid allocation of slice on each WriteByte
-	bootstrap [64]byte // memory to hold first slice; helps small buffers (Printf) avoid allocation.
+	buf       []byte            // contents are the bytes buf[off : len(buf)]
+	off       int               // read at &buf[off], write at &buf[len(buf)]
+	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each WriteByte or Rune
+	bootstrap [64]byte          // memory to hold first slice; helps small buffers (Printf) avoid allocation.
 }
 
 // Bytes returns a slice of the contents of the unread portion of the buffer;
@@ -176,9 +177,23 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
 // The returned error is always nil, but is included
 // to match bufio.Writer's WriteByte.
 func (b *Buffer) WriteByte(c byte) os.Error {
-	b.oneByte[0] = c
-	b.Write(&b.oneByte)
+	b.runeBytes[0] = c
+	b.Write(b.runeBytes[0:1])
 	return nil
+}
+
+// WriteRune appends the UTF-8 encoding of Unicode
+// code point r to the buffer, returning its length and
+// an error, which is always nil but is included
+// to match bufio.Writer's WriteRune.
+func (b *Buffer) WriteRune(r int) (n int, err os.Error) {
+	if r < utf8.RuneSelf {
+		b.WriteByte(byte(r))
+		return 1, nil
+	}
+	n = utf8.EncodeRune(r, &b.runeBytes)
+	b.Write(b.runeBytes[0:n])
+	return n, nil
 }
 
 // Read reads the next len(p) bytes from the buffer or until the buffer
@@ -215,6 +230,27 @@ func (b *Buffer) ReadByte() (c byte, err os.Error) {
 	c = b.buf[b.off]
 	b.off++
 	return c, nil
+}
+
+// ReadRune reads and returns the next UTF-8-encoded
+// Unicode code point from the buffer.
+// If no bytes are available, the error returned is os.EOF.
+// If the bytes are an erroneous UTF-8 encoding, it
+// consumes one byte and returns U+FFFD, 1.
+func (b *Buffer) ReadRune() (r int, size int, err os.Error) {
+	if b.off >= len(b.buf) {
+		// Buffer is empty, reset to recover space.
+		b.Truncate(0)
+		return 0, 0, os.EOF
+	}
+	c := b.buf[b.off]
+	if c < utf8.RuneSelf {
+		b.off++
+		return int(c), 1, nil
+	}
+	r, n := utf8.DecodeRune(b.buf[b.off:])
+	b.off += n
+	return r, n, nil
 }
 
 // NewBuffer creates and initializes a new Buffer using buf as its initial
