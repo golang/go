@@ -13,24 +13,21 @@ import (
 // explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n <= 0 means no limit).
 // Invalid UTF-8 sequences become correct encodings of U+FFF8.
 func explode(s string, n int) []string {
-	if n <= 0 {
-		n = len(s)
+	l := utf8.RuneCountInString(s)
+	if n <= 0 || n > l {
+		n = l
 	}
 	a := make([]string, n)
 	var size, rune int
-	na := 0
-	for len(s) > 0 {
-		if na+1 >= n {
-			a[na] = s
-			na++
-			break
-		}
-		rune, size = utf8.DecodeRuneInString(s)
-		s = s[size:]
-		a[na] = string(rune)
-		na++
+	i, cur := 0, 0
+	for ; i+1 < n; i++ {
+		rune, size = utf8.DecodeRuneInString(s[cur:])
+		a[i] = string(rune)
+		cur += size
 	}
-	return a[0:na]
+	// add the rest
+	a[i] = s[cur:]
+	return a
 }
 
 // Count counts the number of non-overlapping instances of sep in s.
@@ -39,11 +36,21 @@ func Count(s, sep string) int {
 		return utf8.RuneCountInString(s) + 1
 	}
 	c := sep[0]
+	l := len(sep)
 	n := 0
-	for i := 0; i+len(sep) <= len(s); i++ {
-		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+	if l == 1 {
+		// special case worth making fast
+		for i := 0; i < len(s); i++ {
+			if s[i] == c {
+				n++
+			}
+		}
+		return n
+	}
+	for i := 0; i+l <= len(s); i++ {
+		if s[i] == c && s[i:i+l] == sep {
 			n++
-			i += len(sep) - 1
+			i += l - 1
 		}
 	}
 	return n
