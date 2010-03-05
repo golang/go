@@ -147,6 +147,24 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 }
 
 
+// Helper function to set the table entry for function f. Makes sure that
+// at least one f with associated documentation is stored in table, if there
+// are multiple f's with the same name.
+func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
+	name := f.Name.Name()
+	if g, exists := table[name]; exists && g.Doc != nil {
+		// a function with the same name has already been registered;
+		// since it has documentation, assume f is simply another
+		// implementation and ignore it
+		// TODO(gri) consider collecting all functions, or at least
+		//           all comments
+		return
+	}
+	// function doesn't exist or has no documentation; use f
+	table[name] = f
+}
+
+
 func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	name := fun.Name.Name()
 
@@ -156,7 +174,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.List[0].Type))
 		if typ != nil {
 			// exported receiver type
-			typ.methods[name] = fun
+			setFunc(typ.methods, fun)
 		}
 		// otherwise don't show the method
 		// TODO(gri): There may be exported methods of non-exported types
@@ -187,18 +205,18 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 				if doc.pkgName == "os" && tname == "Error" &&
 					name != "NewError" && name != "NewSyscallError" {
 					// not a factory function for os.Error
-					doc.funcs[name] = fun // treat as ordinary function
+					setFunc(doc.funcs, fun) // treat as ordinary function
 					return
 				}
 
-				typ.factories[name] = fun
+				setFunc(typ.factories, fun)
 				return
 			}
 		}
 	}
 
 	// ordinary function
-	doc.funcs[name] = fun
+	setFunc(doc.funcs, fun)
 }
 
 
