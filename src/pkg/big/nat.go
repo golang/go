@@ -586,6 +586,7 @@ func powersOfTwoDecompose(n []Word) (q []Word, k Word) {
 
 	q = makeN(nil, len(n)-zeroWords, false)
 	shiftRight(q, n[zeroWords:], x)
+	q = normN(q)
 
 	k = Word(_W*zeroWords + x)
 	return
@@ -705,7 +706,7 @@ const (
 var bigOne = []Word{1}
 var bigTwo = []Word{2}
 
-// ProbablyPrime performs reps Miller-Rabin tests to check whether n is prime.
+// probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
 // If it returns true, n is prime with probability 1 - 1/4^reps.
 // If it returns false, n is not prime.
 func probablyPrime(n []Word, reps int) bool {
@@ -714,6 +715,10 @@ func probablyPrime(n []Word, reps int) bool {
 	}
 
 	if len(n) == 1 {
+		if n[0] < 2 {
+			return false
+		}
+
 		if n[0]%2 == 0 {
 			return n[0] == 2
 		}
@@ -761,7 +766,7 @@ func probablyPrime(n []Word, reps int) bool {
 NextRandom:
 	for i := 0; i < reps; i++ {
 		x = randomN(x, rand, nm3, nm3Len)
-		addNN(x, x, bigTwo)
+		x = addNN(x, x, bigTwo)
 		y = expNNN(y, x, q, n)
 		if cmpNN(y, bigOne) == 0 || cmpNN(y, nm1) == 0 {
 			continue

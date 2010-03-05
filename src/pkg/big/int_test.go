@@ -480,6 +480,9 @@ var primes = []string{
 	"10953742525620032441",
 	"17908251027575790097",
 
+	// http://code.google.com/p/go/issues/detail?id=638
+	"18699199384836356663",
+
 	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
 	"94560208308847015747498523884063394671606671904944666360068158221458669711639",
 
@@ -503,14 +506,14 @@ func TestProbablyPrime(t *testing.T) {
 	for i, s := range primes {
 		p, _ := new(Int).SetString(s, 10)
 		if !ProbablyPrime(p, 20) {
-			t.Errorf("#%d prime found to be non-prime", i)
+			t.Errorf("#%d prime found to be non-prime (%s)", i, s)
 		}
 	}
 
 	for i, s := range composites {
 		c, _ := new(Int).SetString(s, 10)
 		if ProbablyPrime(c, 20) {
-			t.Errorf("#%d composite found to be prime", i)
+			t.Errorf("#%d composite found to be prime (%s)", i, s)
 		}
 	}
 }
