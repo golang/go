@@ -471,21 +471,34 @@ cgen_asop(Node *n)
 	}
 
 hard:
-	tempname(&n2, nr->type);
-	cgen(nr, &n2);
-
-	igen(nl, &n1, N);
+	n2.op = 0;
+	n1.op = 0;
+	if(nr->ullman >= nl->ullman || nl->addable) {
+		mgen(nr, &n2, N);
+		nr = &n2;
+		nr = &n2;
+	} else {
+		tempname(&n2, nr->type);
+		cgen(nr, &n2);
+		nr = &n2;
+	}
+	if(!nl->addable) {
+		igen(nl, &n1, N);
+		nl = &n1;
+	}
 
 	n3 = *n;
-	n3.left = &n1;
-	n3.right = &n2;
+	n3.left = nl;
+	n3.right = nr;
 	n3.op = n->etype;
 
-	tempname(&n4, nl->type);
-	cgen(&n3, &n4);
-	gmove(&n4, &n1);
+	mgen(&n3, &n4, N);
+	gmove(&n4, nl);
 
-	regfree(&n1);
+	if(n1.op)
+		regfree(&n1);
+	mfree(&n2);
+	mfree(&n4);
 
 ret:
 	;

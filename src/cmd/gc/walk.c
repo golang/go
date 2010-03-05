@@ -823,10 +823,13 @@ walkexpr(Node **np, NodeList **init)
 		}
 
 		/*
-		 * on 32-bit arch, rewrite 64-bit ops into l = l op r
+		 * on 32-bit arch, rewrite 64-bit ops into l = l op r.
+		 * on 386, rewrite float ops into l = l op r.
+		 * TODO(rsc): Maybe this rewrite should be done always?
 		 */
 		et = n->left->type->etype;
-		if(widthptr == 4 && (et == TUINT64 || et == TINT64)) {
+		if((widthptr == 4 && (et == TUINT64 || et == TINT64)) ||
+		   (thechar == '8' && isfloat[et])) {
 			l = safeexpr(n->left, init);
 			r = nod(OAS, l, nod(n->etype, l, n->right));
 			typecheck(&r, Etop);

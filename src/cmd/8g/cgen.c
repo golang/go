@@ -18,7 +18,7 @@ mgen(Node *n, Node *n1, Node *rg)
 			reg[n->val.u.reg]++;
 		return;
 	}
-	if(n->type->width > widthptr)
+	if(n->type->width > widthptr && !isfloat[n->type->etype])
 		tempname(n1, n->type);
 	else
 		regalloc(n1, n->type, rg);
