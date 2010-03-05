@@ -6,7 +6,7 @@ package math
 
 // Frexp breaks f into a normalized fraction
 // and an integral power of two.
-// It returns frac and exp satisfying f == frac × 2<sup>exp</sup>,
+// It returns frac and exp satisfying f == frac × 2^exp,
 // with the absolute value of frac in the interval [½, 1).
 func Frexp(f float64) (frac float64, exp int) {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
