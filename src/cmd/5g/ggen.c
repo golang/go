@@ -479,27 +479,35 @@ cgen_asop(Node *n)
 	}
 
 hard:
-	if(nr->ullman > nl->ullman) {
+	n2.op = 0;
+	n1.op = 0;
+	if(nr->ullman >= nl->ullman || nl->addable) {
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
-		igen(nl, &n1, N);
+		nr = &n2;
 	} else {
-		igen(nl, &n1, N);
-		regalloc(&n2, nr->type, N);
+		tempname(&n2, nr->type);
 		cgen(nr, &n2);
+		nr = &n2;
+	}
+	if(!nl->addable) {
+		igen(nl, &n1, N);
+		nl = &n1;
 	}
 
 	n3 = *n;
-	n3.left = &n1;
-	n3.right = &n2;
+	n3.left = nl;
+	n3.right = nr;
 	n3.op = n->etype;
 
 	regalloc(&n4, nl->type, N);
 	cgen(&n3, &n4);
-	gmove(&n4, &n1);
+	gmove(&n4, nl);
 
-	regfree(&n1);
-	regfree(&n2);
+	if(n1.op)
+		regfree(&n1);
+	if(n2.op == OREGISTER)
+		regfree(&n2);
 	regfree(&n4);
 	goto ret;
 
