@@ -534,6 +534,30 @@ func _() {
 }
 
 
+// alignment of map composite entries
+var _ = map[int]int{
+	// small key sizes: always align even if size ratios are large
+	a: a,
+	abcdefghabcdefgh: a,
+	ab: a,
+	abc: a,
+	abcdefgabcdefg: a,
+	abcd: a,
+	abcde: a,
+	abcdef: a,
+
+	// mixed key sizes: align when key sizes change within accepted ratio
+	abcdefgh: a,
+	abcdefghabcdefg: a,
+	abcdefghij: a,
+	abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij: a, // outlier - do not align with previous line
+	abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij: a, // align with previous line
+
+	ab: a, // do not align with previous line
+	abcde: a, // align with previous line
+}
+
+
 func _() {
 	var _ = T{
 		a,	// must introduce trailing comma
