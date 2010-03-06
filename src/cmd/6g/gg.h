@@ -128,7 +128,6 @@ void	sudoclean(void);
 int	sudoaddable(int, Node*, Addr*);
 void	afunclit(Addr*);
 void	datagostring(Strlit*, Addr*);
-int	cplxsubtype(int);
 void	nodfconst(Node*, Type*, Mpflt*);
 
 /*

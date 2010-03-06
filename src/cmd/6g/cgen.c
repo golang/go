@@ -68,6 +68,11 @@ cgen(Node *n, Node *res)
 		if(res->ullman >= UINF)
 			goto gen;
 
+		if(complexop(n, res)) {
+			complexgen(n, res);
+			goto ret;
+		}
+
 		f = 1;	// gen thru register
 		switch(n->op) {
 		case OLITERAL:
@@ -79,20 +84,22 @@ cgen(Node *n, Node *res)
 			break;
 		}
 
-		a = optoas(OAS, res->type);
-		if(sudoaddable(a, res, &addr)) {
-			if(f) {
-				regalloc(&n2, res->type, N);
-				cgen(n, &n2);
-				p1 = gins(a, &n2, N);
-				regfree(&n2);
-			} else
-				p1 = gins(a, n, N);
-			p1->to = addr;
-			if(debug['g'])
-				print("%P [ignore previous line]\n", p1);
-			sudoclean();
-			goto ret;
+		if(!iscomplex[n->type->etype]) {
+			a = optoas(OAS, res->type);
+			if(sudoaddable(a, res, &addr)) {
+				if(f) {
+					regalloc(&n2, res->type, N);
+					cgen(n, &n2);
+					p1 = gins(a, &n2, N);
+					regfree(&n2);
+				} else
+					p1 = gins(a, n, N);
+				p1->to = addr;
+				if(debug['g'])
+					print("%P [ignore previous line]\n", p1);
+				sudoclean();
+				goto ret;
+			}
 		}
 
 	gen:
@@ -139,20 +146,22 @@ cgen(Node *n, Node *res)
 		goto ret;
 	}
 
-	a = optoas(OAS, n->type);
-	if(sudoaddable(a, n, &addr)) {
-		if(res->op == OREGISTER) {
-			p1 = gins(a, N, res);
-			p1->from = addr;
-		} else {
-			regalloc(&n2, n->type, N);
-			p1 = gins(a, N, &n2);
-			p1->from = addr;
-			gins(a, &n2, res);
-			regfree(&n2);
+	if(!iscomplex[n->type->etype]) {
+		a = optoas(OAS, n->type);
+		if(sudoaddable(a, n, &addr)) {
+			if(res->op == OREGISTER) {
+				p1 = gins(a, N, res);
+				p1->from = addr;
+			} else {
+				regalloc(&n2, n->type, N);
+				p1 = gins(a, N, &n2);
+				p1->from = addr;
+				gins(a, &n2, res);
+				regfree(&n2);
+			}
+			sudoclean();
+			goto ret;
 		}
-		sudoclean();
-		goto ret;
 	}
 
 	switch(n->op) {

@@ -799,6 +799,7 @@ goopnames[] =
 	[OCASE]		= "case",
 	[OCLOSED]	= "closed",
 	[OCLOSE]	= "close",
+	[OCMPLX]	= "cmplx",
 	[OCOM]		= "^",
 	[OCONTINUE]	= "continue",
 	[OCOPY]		= "copy",
@@ -812,6 +813,7 @@ goopnames[] =
 	[OGOTO]		= "goto",
 	[OGT]		= ">",
 	[OIF]		= "if",
+	[OIMAG]		= "imag",
 	[OINC]		= "++",
 	[OIND]		= "*",
 	[OLEN]		= "len",
@@ -833,6 +835,7 @@ goopnames[] =
 	[OPRINTN]	= "println",
 	[OPRINT]	= "print",
 	[ORANGE]	= "range",
+	[OREAL]		= "real",
 	[ORECV]		= "<-",
 	[ORETURN]	= "return",
 	[ORSH]		= ">>",
@@ -1724,6 +1727,21 @@ methtype(Type *t)
 	}
 
 	return t;
+}
+
+int
+cplxsubtype(int et)
+{
+	switch(et) {
+	case TCOMPLEX:
+		return TFLOAT;
+	case TCOMPLEX64:
+		return TFLOAT32;
+	case TCOMPLEX128:
+		return TFLOAT64;
+	}
+	fatal("cplxsubtype: %E\n", et);
+	return 0;
 }
 
 int

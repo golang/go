@@ -384,6 +384,7 @@ enum
 	ORUNESTR,
 	OSELRECV,
 	OIOTA,
+	OREAL, OIMAG, OCMPLX,
 
 	// stmts
 	OBLOCK,
@@ -892,6 +893,7 @@ NodeList*	listtreecopy(NodeList*);
 int	isselect(Node*);
 Node*	staticname(Type*);
 int	iscomposite(Type*);
+int	cplxsubtype(int);
 Node*	callnew(Type*);
 Node*	safeexpr(Node*, NodeList**);
 int	is64(Type*);

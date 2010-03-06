@@ -55,6 +55,12 @@ cgen(Node *n, Node *res)
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
+	// TODO compile complex
+	if(n != N && n->type != T && iscomplex[n->type->etype])
+		return;
+	if(res != N && res->type != T && iscomplex[res->type->etype])
+		return;
+
 	while(n->op == OCONVNOP)
 		n = n->left;
 
@@ -185,6 +191,12 @@ cgen(Node *n, Node *res)
 		dump("cgen", n);
 		fatal("cgen: unknown op %N", n);
 		break;
+
+	case OREAL:
+	case OIMAG:
+	case OCMPLX:
+		// TODO compile complex
+		return;
 
 	// these call bgen to get a bool value
 	case OOROR:
@@ -786,6 +798,12 @@ bgen(Node *n, int true, Prog *to)
 
 	nl = n->left;
 	nr = n->right;
+
+	// TODO compile complex
+	if(nl != N && nl->type != T && iscomplex[nl->type->etype])
+		return;
+	if(nr != N && nr->type != T && iscomplex[nr->type->etype])
+		return;
 
 	if(n->type == T) {
 		convlit(&n, types[TBOOL]);

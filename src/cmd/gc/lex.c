@@ -1297,7 +1297,9 @@ static	struct
 	"cap",		LNAME,		Txxx,		OCAP,
 	"close",	LNAME,		Txxx,		OCLOSE,
 	"closed",	LNAME,		Txxx,		OCLOSED,
+	"cmplx",	LNAME,		Txxx,		OCMPLX,
 	"copy",		LNAME,		Txxx,		OCOPY,
+	"imag",		LNAME,		Txxx,		OIMAG,
 	"len",		LNAME,		Txxx,		OLEN,
 	"make",		LNAME,		Txxx,		OMAKE,
 	"new",		LNAME,		Txxx,		ONEW,
@@ -1305,6 +1307,7 @@ static	struct
 	"panicln",	LNAME,		Txxx,		OPANICN,
 	"print",	LNAME,		Txxx,		OPRINT,
 	"println",	LNAME,		Txxx,		OPRINTN,
+	"real",		LNAME,		Txxx,		OREAL,
 
 	"notwithstanding",		LIGNORE,	Txxx,		OXXX,
 	"thetruthofthematter",		LIGNORE,	Txxx,		OXXX,

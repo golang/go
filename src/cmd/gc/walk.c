@@ -579,6 +579,8 @@ walkexpr(Node **np, NodeList **init)
 	case OCOM:
 	case OLEN:
 	case OCAP:
+	case OREAL:
+	case OIMAG:
 	case ODOT:
 	case ODOTPTR:
 	case ODOTMETH:
@@ -603,6 +605,7 @@ walkexpr(Node **np, NodeList **init)
 	case OGE:
 	case OGT:
 	case OADD:
+	case OCMPLX:
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
 		goto ret;
