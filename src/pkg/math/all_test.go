@@ -1754,6 +1754,12 @@ func BenchmarkHypot(b *testing.B) {
 	}
 }
 
+func BenchmarkHypotGo(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		HypotGo(3, 4)
+	}
+}
+
 func BenchmarkIlogb(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Ilogb(.5)
