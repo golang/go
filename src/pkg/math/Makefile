@@ -54,6 +54,7 @@ ALLGOFILES=\
 	fmod.go\
 	frexp.go\
 	hypot.go\
+	hypot_port.go\
 	logb.go\
 	lgamma.go\
 	ldexp.go\
