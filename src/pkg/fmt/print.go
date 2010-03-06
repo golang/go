@@ -927,7 +927,6 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				p.fmt.fmt_c64(v, 'e')
 			} else if v, ok := getComplex128(field); ok {
 				p.fmt.fmt_c128(v, 'e')
-
 			} else {
 				goto badtype
 			}
