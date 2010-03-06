@@ -83,6 +83,10 @@ vprintf(int8 *s, byte *arg)
 			arg = vrnd(arg, sizeof(uintptr));
 			narg = arg + 8;
 			break;
+		case 'C':
+			arg = vrnd(arg, sizeof(uintptr));
+			narg = arg + 16;
+			break;
 		case 'p':	// pointer-sized
 		case 's':
 			arg = vrnd(arg, sizeof(uintptr));
@@ -267,7 +271,6 @@ void
 {
 	write(fd, "(", 1);
 	·printfloat(v.real);
-	write(fd, ",", 1);
 	·printfloat(v.imag);
 	write(fd, "i)", 2);
 }

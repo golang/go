@@ -84,7 +84,7 @@ type Complex64Type struct {
 	commonType
 }
 
-// Complex128Type represents acomplex128 type.
+// Complex128Type represents a complex128 type.
 type Complex128Type struct {
 	commonType
 }

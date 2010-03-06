@@ -18,6 +18,7 @@
 
 static void	implicitstar(Node**);
 static int	onearg(Node*);
+static int	twoarg(Node*);
 static int	lookdot(Node*, Type*, int);
 static void	typecheckaste(int, Type*, NodeList*, char*);
 static int	exportassignok(Type*, char*);
@@ -736,6 +737,8 @@ reswitch:
 
 	case OCAP:
 	case OLEN:
+	case OREAL:
+	case OIMAG:
 		ok |= Erv;
 		if(onearg(n) < 0)
 			goto error;
@@ -743,7 +746,8 @@ reswitch:
 		defaultlit(&n->left, T);
 		implicitstar(&n->left);
 		l = n->left;
-		if((t = l->type) == T)
+		t = l->type;
+		if(t == T)
 			goto error;
 		switch(n->op) {
 		case OCAP:
@@ -754,6 +758,12 @@ reswitch:
 			if(!okforlen[t->etype])
 				goto badcall1;
 			break;
+		case OREAL:
+		case OIMAG:
+			if(!iscomplex[t->etype])
+				goto badcall1;
+			n->type = types[cplxsubtype(t->etype)];
+			goto ret;
 		}
 		// might be constant
 		switch(t->etype) {
@@ -767,6 +777,62 @@ reswitch:
 			break;
 		}
 		n->type = types[TINT];
+		goto ret;
+
+	case OCMPLX:
+		ok |= Erv;
+		if(twoarg(n) < 0)
+			goto error;
+		l = typecheck(&n->left, Erv | (top & Eiota));
+		r = typecheck(&n->right, Erv | (top & Eiota));
+		if(l->type == T || r->type == T)
+			goto error;
+		defaultlit2(&l, &r, 0);
+		if(l->op == OLITERAL && r->op == OLITERAL) {
+			// make it a complex literal
+			switch(l->type->etype) {
+			default:
+				yyerror("real and imag parts must be the floating");
+				goto error;
+			case TIDEAL:
+				convlit(&l, types[TFLOAT]);
+				convlit(&r, types[TFLOAT]);
+				t = types[TIDEAL];
+				// fallthrough
+			case TFLOAT:
+				t = types[TCOMPLEX];
+				break;
+			case TFLOAT32:
+				t = types[TCOMPLEX64];
+				break;
+			case TFLOAT64:
+				t = types[TCOMPLEX128];
+				break;
+			}
+			n = nodcplxlit(l->val, r->val);
+			n->type = t;
+			goto ret;
+		}
+		n->left = l;
+		n->right = r;
+		if(l->type->etype != l->type->etype) {
+			yyerror("real and imag parts must be the same type");
+			goto error;
+		}
+		switch(l->type->etype) {
+		default:
+			yyerror("real and imag parts must be the floating");
+			goto error;
+		case TFLOAT:
+			n->type = types[TCOMPLEX];
+			break;
+		case TFLOAT32:
+			n->type = types[TCOMPLEX64];
+			break;
+		case TFLOAT64:
+			n->type = types[TCOMPLEX128];
+			break;
+		}
 		goto ret;
 
 	case OCLOSED:
@@ -1202,6 +1268,31 @@ onearg(Node *n)
 		n->list = nil;
 		return -1;
 	}
+	n->list = nil;
+	return 0;
+}
+
+static int
+twoarg(Node *n)
+{
+	if(n->left != N)
+		return 0;
+	if(n->list == nil) {
+		yyerror("missing argument to %#O - %#N", n->op, n);
+		return -1;
+	}
+	n->left = n->list->n;
+	if(n->list->next == nil) {
+		yyerror("missing argument to %#O - %#N", n->op, n);
+		n->list = nil;
+		return -1;
+	}
+	if(n->list->next->next != nil) {
+		yyerror("too many arguments to %#O", n->op);
+		n->list = nil;
+		return -1;
+	}
+	n->right = n->list->next->n;
 	n->list = nil;
 	return 0;
 }

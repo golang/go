@@ -98,6 +98,7 @@ var (
 	mapBytes        = []byte("map[")
 	missingBytes    = []byte("missing")
 	extraBytes      = []byte("?(extra ")
+	irparenBytes    = []byte("i)")
 )
 
 // State represents the printer state passed to custom formatters.
@@ -447,6 +448,52 @@ func getFloat64(a interface{}) (val float64, ok bool) {
 	return
 }
 
+var complexBits = reflect.Typeof(complex(0i)).Size() * 8
+
+func getComplex64(a interface{}) (val complex64, ok bool) {
+	// Is it a regular complex type?
+	switch c := a.(type) {
+	case complex64:
+		return c, true
+	case complex:
+		if complexBits == 64 {
+			return complex64(c), true
+		}
+	}
+	// Must be a renamed complex type.
+	switch c := reflect.NewValue(a).(type) {
+	case *reflect.Complex64Value:
+		return complex64(c.Get()), true
+	case *reflect.ComplexValue:
+		if complexBits == 64 {
+			return complex64(c.Get()), true
+		}
+	}
+	return
+}
+
+func getComplex128(a interface{}) (val complex128, ok bool) {
+	// Is it a regular complex type?
+	switch c := a.(type) {
+	case complex128:
+		return c, true
+	case complex:
+		if complexBits == 128 {
+			return complex128(c), true
+		}
+	}
+	// Must be a renamed complex type.
+	switch c := reflect.NewValue(a).(type) {
+	case *reflect.Complex128Value:
+		return complex128(c.Get()), true
+	case *reflect.ComplexValue:
+		if complexBits == 128 {
+			return complex128(c.Get()), true
+		}
+	}
+	return
+}
+
 // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
 
 func parsenum(s string, start, end int) (n int, got bool, newi int) {
@@ -511,6 +558,19 @@ func (p *pp) printField(field interface{}, plus, sharp bool, depth int) (was_str
 			p.fmt.fmt_g64(float64(f))
 		}
 		return false
+		//	case complex64:
+		//		p.fmt.fmt_c64(f)
+		//		return false
+		//	case complex128:
+		//		p.fmt.fmt_c128(f)
+		//		return false
+		//	case complex:
+		//		if complexBits == 128 {
+		//			p.fmt.fmt_c128(complex128(f))
+		//		} else {
+		//			p.fmt.fmt_c64(complex64(f))
+		//		}
+		//		return false
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr:
 		v, signed, ok := getInt(field)
 		if !ok {
@@ -863,6 +923,18 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				p.fmt.fmt_e32(v)
 			} else if v, ok := getFloat64(field); ok {
 				p.fmt.fmt_e64(v)
+			} else if v, ok := getComplex64(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_e32(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_e32(imag(v))
+				p.buf.Write(irparenBytes)
+			} else if v, ok := getComplex128(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_e64(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_e64(imag(v))
+				p.buf.Write(irparenBytes)
 			} else {
 				goto badtype
 			}
@@ -871,6 +943,18 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				p.fmt.fmt_E32(v)
 			} else if v, ok := getFloat64(field); ok {
 				p.fmt.fmt_E64(v)
+			} else if v, ok := getComplex64(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_E32(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_E32(imag(v))
+				p.buf.Write(irparenBytes)
+			} else if v, ok := getComplex128(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_E64(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_E64(imag(v))
+				p.buf.Write(irparenBytes)
 			} else {
 				goto badtype
 			}
@@ -879,6 +963,18 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				p.fmt.fmt_f32(v)
 			} else if v, ok := getFloat64(field); ok {
 				p.fmt.fmt_f64(v)
+			} else if v, ok := getComplex64(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_f32(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_f32(imag(v))
+				p.buf.Write(irparenBytes)
+			} else if v, ok := getComplex128(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_f64(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_f64(imag(v))
+				p.buf.Write(irparenBytes)
 			} else {
 				goto badtype
 			}
@@ -887,6 +983,18 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				p.fmt.fmt_g32(v)
 			} else if v, ok := getFloat64(field); ok {
 				p.fmt.fmt_g64(v)
+			} else if v, ok := getComplex64(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_g32(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_g32(imag(v))
+				p.buf.Write(irparenBytes)
+			} else if v, ok := getComplex128(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_g64(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_g64(imag(v))
+				p.buf.Write(irparenBytes)
 			} else {
 				goto badtype
 			}
@@ -895,6 +1003,18 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				p.fmt.fmt_G32(v)
 			} else if v, ok := getFloat64(field); ok {
 				p.fmt.fmt_G64(v)
+			} else if v, ok := getComplex64(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_G32(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_G32(imag(v))
+				p.buf.Write(irparenBytes)
+			} else if v, ok := getComplex128(field); ok {
+				p.buf.WriteByte('(')
+				p.fmt.fmt_G64(real(v))
+				p.fmt.plus = true
+				p.fmt.fmt_G64(imag(v))
+				p.buf.Write(irparenBytes)
 			} else {
 				goto badtype
 			}

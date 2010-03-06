@@ -27,12 +27,12 @@ complexmove(Node *f, Node *t, int perm)
 	Node n1, n2, n3, n4, nc;
 
 	if(debug['g']) {
-		dump("\ncomplex-f", f);
-		dump("complex-t", t);
+		dump("\ncomplexmove-f", f);
+		dump("complexmove-t", t);
 	}
 
 	if(!t->addable)
-		fatal("to no addable");
+		fatal("complexmove: to not addable");
 
 	ft = simsimtype(f->type);
 	tt = simsimtype(t->type);
@@ -118,34 +118,90 @@ complexop(Node *n, Node *res)
 {
 	if(n != N && n->type != T)
 	if(iscomplex[n->type->etype]) {
-		switch(n->op) {
-		case OCONV:
-		case OADD:
-		case OSUB:
-		case OMUL:
-		case ODIV:
-		case OMINUS:
-			goto yes;
-		}
-//dump("complexop no", n);
+		goto yes;
 	}
+	if(res != N && res->type != T)
+	if(iscomplex[res->type->etype]) {
+		goto yes;
+	}
+
+	if(n->op == OREAL || n->op == OIMAG)
+		return 1;
+
 	return 0;
 
 yes:
-	return 1;
+	switch(n->op) {
+	case OCONV:	// implemented ops
+	case OADD:
+	case OSUB:
+	case OMUL:
+	case ODIV:
+	case OMINUS:
+	case OCMPLX:
+	case OREAL:
+	case OIMAG:
+		return 1;
+
+	case ODOT:	// sudoaddr
+	case ODOTPTR:
+	case OINDEX:
+	case OIND:
+	case ONAME:
+		return 1;
+	}
+
+	return 0;
 }
 
 void
 complexgen(Node *n, Node *res)
 {
 	Node *nl, *nr;
+	Node tnl, tnr;
 	Node n1, n2, n3, n4, n5, n6;
 	Node ra, rb, rc, rd;
 	int tl, tr;
 
 	if(debug['g']) {
-		dump("\ncomplex-n", n);
-		dump("complex-res", res);
+		dump("\ncomplexgen-n", n);
+		dump("complexgen-res", res);
+	}
+
+	// pick off float/complex opcodes
+	switch(n->op) {
+	case OCMPLX:
+		tempname(&tnr, n->type);
+		tr = simsimtype(n->type);
+		tr = cplxsubtype(tr);
+
+		n1 = tnr;
+		n1.type = types[tr];
+
+		n2 = tnr;
+		n2.type = types[tr];
+		n2.xoffset += n2.type->width;
+
+		cgen(n->left, &n1);
+		cgen(n->right, &n2);
+		cgen(&tnr, res);
+		return;
+
+	case OREAL:
+		n = n->left;
+		tr = simsimtype(n->type);
+		tr = cplxsubtype(tr);
+		subnode(&n1, &n2, n);
+		cgen(&n1, res);
+		return;
+
+	case OIMAG:
+		n = n->left;
+		tr = simsimtype(n->type);
+		tr = cplxsubtype(tr);
+		subnode(&n1, &n2, n);
+		cgen(&n2, res);
+		return;
 	}
 
 	// perform conversion from n to res
@@ -163,6 +219,44 @@ complexgen(Node *n, Node *res)
 		return;
 	}
 
+	if(!res->addable) {
+		igen(res, &n1, N);
+		cgen(n, &n1);
+		regfree(&n1);
+		return;
+	}
+	if(n->addable) {
+		complexmove(n, res, 0);
+		return;
+	}
+
+	switch(n->op) {
+	default:
+		dump("complexgen: unknown op", n);
+		fatal("complexgen: unknown op %O", n->op);
+
+	case ODOT:
+	case ODOTPTR:
+	case OINDEX:
+	case OIND:
+	case ONAME:	// PHEAP or PPARAMREF var
+		igen(n, &n1, res);
+		complexmove(&n1, res, 0);
+		regfree(&n1);
+		return;
+
+	case OCONV:
+	case OADD:
+	case OSUB:
+	case OMUL:
+	case ODIV:
+	case OMINUS:
+	case OCMPLX:
+	case OREAL:
+	case OIMAG:
+		break;
+	}
+
 	nl = n->left;
 	if(nl == N)
 		return;
@@ -171,25 +265,25 @@ complexgen(Node *n, Node *res)
 	// make both sides addable in ullman order
 	if(nr != N) {
 		if(nl->ullman > nr->ullman && !nl->addable) {
-			tempname(&n1, nl->type);
-			complexgen(nl, &n1);
-			nl = &n1;
+			tempname(&tnl, nl->type);
+			cgen(nl, &tnl);
+			nl = &tnl;
 		}
 		if(!nr->addable) {
-			tempname(&n2, nr->type);
-			complexgen(nr, &n2);
-			nr = &n2;
+			tempname(&tnr, nr->type);
+			cgen(nr, &tnr);
+			nr = &tnr;
 		}
 	}
 	if(!nl->addable) {
-		tempname(&n1, nl->type);
-		complexgen(nl, &n1);
-		nl = &n1;
+		tempname(&tnl, nl->type);
+		cgen(nl, &tnl);
+		nl = &tnl;
 	}
 
 	switch(n->op) {
 	default:
-		fatal("opcode %O", n->op);
+		fatal("complexgen: unknown op %O", n->op);
 		break;
 
 	case OCONV:
@@ -325,26 +419,27 @@ complexgen(Node *n, Node *res)
 void
 complexbool(int op, Node *nl, Node *nr, int true, Prog *to)
 {
+	Node tnl, tnr;
 	Node n1, n2, n3, n4;
 	Node na, nb, nc;
 
 	// make both sides addable in ullman order
 	if(nr != N) {
 		if(nl->ullman > nr->ullman && !nl->addable) {
-			tempname(&n1, nl->type);
-			complexgen(nl, &n1);
-			nl = &n1;
+			tempname(&tnl, nl->type);
+			cgen(nl, &tnl);
+			nl = &tnl;
 		}
 		if(!nr->addable) {
-			tempname(&n2, nr->type);
-			complexgen(nr, &n2);
-			nr = &n2;
+			tempname(&tnr, nr->type);
+			cgen(nr, &tnr);
+			nr = &tnr;
 		}
 	}
 	if(!nl->addable) {
-		tempname(&n1, nl->type);
-		complexgen(nl, &n1);
-		nl = &n1;
+		tempname(&tnl, nl->type);
+		cgen(nl, &tnl);
+		nl = &tnl;
 	}
 
 	// build tree
@@ -375,17 +470,6 @@ complexbool(int op, Node *nl, Node *nr, int true, Prog *to)
 		true = !true;
 
 	bgen(&na, true, to);
-}
-
-int
-cplxsubtype(int et)
-{
-	if(et == TCOMPLEX64)
-		return TFLOAT32;
-	if(et == TCOMPLEX128)
-		return TFLOAT64;
-	fatal("cplxsubtype: %E\n", et);
-	return 0;
 }
 
 void
