@@ -1078,7 +1078,7 @@ walkexpr(Node **np, NodeList **init)
 		t = n->type;
 		fn = syslook("makeslice", 1);
 		argtype(fn, t->type);			// any-1
-		n = mkcall1(fn, n->type, nil,
+		n = mkcall1(fn, n->type, init,
 			typename(n->type),
 			conv(n->left, types[TINT]),
 			conv(n->right, types[TINT]));
