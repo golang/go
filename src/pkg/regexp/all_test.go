@@ -5,12 +5,9 @@
 package regexp
 
 import (
-	"bytes"
-	"io"
 	"os"
 	"strings"
 	"testing"
-	"utf8"
 )
 
 var good_re = []string{
