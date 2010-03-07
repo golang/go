@@ -5,9 +5,12 @@
 package regexp
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"strings"
 	"testing"
+	"utf8"
 )
 
 var good_re = []string{
@@ -302,6 +305,18 @@ var replaceTests = []ReplaceTest{
 	ReplaceTest{"[a-c]*", "x", "abcbcdcdedef", "xdxdxexdxexfx"},
 }
 
+type ReplaceFuncTest struct {
+	pattern       string
+	replacement   func(string) string
+	input, output string
+}
+
+var replaceFuncTests = []ReplaceFuncTest{
+	ReplaceFuncTest{"[a-c]", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxayxbyxcydef"},
+	ReplaceFuncTest{"[a-c]+", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxabcydef"},
+	ReplaceFuncTest{"[a-c]*", func(s string) string { return "x" + s + "y" }, "defabcdef", "xydxyexyfxabcydxyexyfxy"},
+}
+
 func TestReplaceAll(t *testing.T) {
 	for _, tc := range replaceTests {
 		re, err := Compile(tc.pattern)
@@ -318,6 +333,27 @@ func TestReplaceAll(t *testing.T) {
 		actual = string(re.ReplaceAll([]byte(tc.input), []byte(tc.replacement)))
 		if actual != tc.output {
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+		}
+	}
+}
+
+func TestReplaceAllFunc(t *testing.T) {
+	for _, tc := range replaceFuncTests {
+		re, err := Compile(tc.pattern)
+		if err != nil {
+			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
+			continue
+		}
+		actual := re.ReplaceAllStringFunc(tc.input, tc.replacement)
+		if actual != tc.output {
+			t.Errorf("%q.ReplaceFunc(%q,%q) = %q; want %q",
+				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+		}
+		// now try bytes
+		actual = string(re.ReplaceAllFunc([]byte(tc.input), func(s []byte) []byte { return []byte(tc.replacement(string(s))) }))
+		if actual != tc.output {
+			t.Errorf("%q.ReplaceFunc(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
 	}
@@ -508,5 +544,15 @@ func BenchmarkNotLiteral(b *testing.B) {
 			println("no match!")
 			break
 		}
+	}
+}
+
+func BenchmarkReplaceAll(b *testing.B) {
+	x := "abcdefghijklmnopqrstuvwxyz"
+	b.StopTimer()
+	re, _ := Compile("[cjrw]")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.ReplaceAllString(x, "")
 	}
 }
