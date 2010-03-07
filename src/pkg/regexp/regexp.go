@@ -1006,6 +1006,14 @@ func Match(pattern string, b []byte) (matched bool, error os.Error) {
 // have been replaced by repl.  No support is provided for expressions
 // (e.g. \1 or $1) in the replacement string.
 func (re *Regexp) ReplaceAllString(src, repl string) string {
+	return re.ReplaceAllStringFunc(src, func(string) string { return repl })
+}
+
+// ReplaceAllStringFunc returns a copy of src in which all matches for the
+// Regexp have been replaced by the return value of of function repl (whose
+// first argument is the matched string).  No support is provided for
+// expressions (e.g. \1 or $1) in the replacement string.
+func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
 	lastMatchEnd := 0 // end position of the most recent match
 	searchPos := 0    // position where we next look for a match
 	buf := new(bytes.Buffer)
@@ -1023,7 +1031,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 		// (Otherwise, we get double replacement for patterns that
 		// match both empty and nonempty strings.)
 		if a[1] > lastMatchEnd || a[0] == 0 {
-			io.WriteString(buf, repl)
+			io.WriteString(buf, repl(src[a[0]:a[1]]))
 		}
 		lastMatchEnd = a[1]
 
@@ -1050,6 +1058,14 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 // have been replaced by repl.  No support is provided for expressions
 // (e.g. \1 or $1) in the replacement text.
 func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+	return re.ReplaceAllFunc(src, func([]byte) []byte { return repl })
+}
+
+// ReplaceAllFunc returns a copy of src in which all matches for the
+// Regexp have been replaced by the return value of of function repl (whose
+// first argument is the matched []byte).  No support is provided for
+// expressions (e.g. \1 or $1) in the replacement string.
+func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
 	lastMatchEnd := 0 // end position of the most recent match
 	searchPos := 0    // position where we next look for a match
 	buf := new(bytes.Buffer)
@@ -1067,7 +1083,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 		// (Otherwise, we get double replacement for patterns that
 		// match both empty and nonempty strings.)
 		if a[1] > lastMatchEnd || a[0] == 0 {
-			buf.Write(repl)
+			buf.Write(repl(src[a[0]:a[1]]))
 		}
 		lastMatchEnd = a[1]
 
