@@ -53,14 +53,19 @@ MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
 // Allocate a new span of npage pages from the heap
 // and record its size class in the HeapMap and HeapMapCache.
 MSpan*
-MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass)
+MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
 {
 	MSpan *s;
 
 	lock(h);
+	mstats.heap_alloc += m->mcache->local_alloc;
+	m->mcache->local_alloc = 0;
 	s = MHeap_AllocLocked(h, npage, sizeclass);
-	if(s != nil)
+	if(s != nil) {
 		mstats.inuse_pages += npage;
+		if(acct)
+			mstats.heap_alloc += npage<<PageShift;
+	}
 	unlock(h);
 	return s;
 }
@@ -225,10 +230,14 @@ MHeap_LookupMaybe(MHeap *h, PageID p)
 
 // Free the span back into the heap.
 void
-MHeap_Free(MHeap *h, MSpan *s)
+MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 {
 	lock(h);
+	mstats.heap_alloc += m->mcache->local_alloc;
+	m->mcache->local_alloc = 0;
 	mstats.inuse_pages -= s->npages;
+	if(acct)
+		mstats.heap_alloc -= s->npages<<PageShift;
 	MHeap_FreeLocked(h, s);
 	unlock(h);
 }
