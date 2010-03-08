@@ -309,6 +309,26 @@ exprfmt(Fmt *f, Node *n, int prec)
 		fmtprint(f, ")");
 		break;
 
+	case OCMPLX:
+		fmtprint(f, "cmplx(");
+		exprfmt(f, n->left, 0);
+		fmtprint(f, ", ");
+		exprfmt(f, n->right, 0);
+		fmtprint(f, ")");
+		break;
+
+	case OREAL:
+		fmtprint(f, "real(");
+		exprfmt(f, n->left, 0);
+		fmtprint(f, ")");
+		break;
+
+	case OIMAG:
+		fmtprint(f, "imag(");
+		exprfmt(f, n->left, 0);
+		fmtprint(f, ")");
+		break;
+
 	case OCONV:
 	case OCONVNOP:
 	case OCONVSLICE:

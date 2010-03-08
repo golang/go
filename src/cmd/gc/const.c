@@ -888,6 +888,9 @@ nodcplxlit(Val r, Val i)
 	Node *n;
 	Mpcplx *c;
 
+	r = toflt(r);
+	i = toflt(i);
+
 	c = mal(sizeof(*c));
 	n = nod(OLITERAL, N, N);
 	n->type = types[TIDEAL];

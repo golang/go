@@ -788,51 +788,34 @@ reswitch:
 		if(l->type == T || r->type == T)
 			goto error;
 		defaultlit2(&l, &r, 0);
-		if(l->op == OLITERAL && r->op == OLITERAL) {
-			// make it a complex literal
-			switch(l->type->etype) {
-			default:
-				yyerror("real and imag parts must be the floating");
-				goto error;
-			case TIDEAL:
-				convlit(&l, types[TFLOAT]);
-				convlit(&r, types[TFLOAT]);
-				t = types[TIDEAL];
-				// fallthrough
-			case TFLOAT:
-				t = types[TCOMPLEX];
-				break;
-			case TFLOAT32:
-				t = types[TCOMPLEX64];
-				break;
-			case TFLOAT64:
-				t = types[TCOMPLEX128];
-				break;
-			}
-			n = nodcplxlit(l->val, r->val);
-			n->type = t;
-			goto ret;
-		}
 		n->left = l;
 		n->right = r;
 		if(l->type->etype != l->type->etype) {
-			yyerror("real and imag parts must be the same type");
+		badcmplx:
+			yyerror("invalid operation: %#N (cmplx of types %T, %T)", n, l->type, r->type);
 			goto error;
 		}
 		switch(l->type->etype) {
 		default:
-			yyerror("real and imag parts must be the floating");
-			goto error;
+			goto badcmplx;
+		case TIDEAL:
+			t = types[TIDEAL];
+			break;
 		case TFLOAT:
-			n->type = types[TCOMPLEX];
+			t = types[TCOMPLEX];
 			break;
 		case TFLOAT32:
-			n->type = types[TCOMPLEX64];
+			t = types[TCOMPLEX64];
 			break;
 		case TFLOAT64:
-			n->type = types[TCOMPLEX128];
+			t = types[TCOMPLEX128];
 			break;
 		}
+		if(l->op == OLITERAL && r->op == OLITERAL) {
+			// make it a complex literal
+			n = nodcplxlit(l->val, r->val);
+		}
+		n->type = t;
 		goto ret;
 
 	case OCLOSED:
