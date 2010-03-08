@@ -900,8 +900,11 @@ walkexpr(Node **np, NodeList **init)
 
 	case OSLICE:
 		walkexpr(&n->left, init);
+		n->left = safeexpr(n->left, init);
 		walkexpr(&n->right->left, init);
+		n->right->left = safeexpr(n->right->left, init);
 		walkexpr(&n->right->right, init);
+		n->right->right = safeexpr(n->right->right, init);
 		// dynamic slice
 		// sliceslice(old []any, lb int, hb int, width int) (ary []any)
 		// sliceslice1(old []any, lb int, width int) (ary []any)
@@ -928,8 +931,11 @@ walkexpr(Node **np, NodeList **init)
 
 	case OSLICEARR:
 		walkexpr(&n->left, init);
+		n->left = safeexpr(n->left, init);
 		walkexpr(&n->right->left, init);
+		n->right->left = safeexpr(n->right->left, init);
 		walkexpr(&n->right->right, init);
+		n->right->right = safeexpr(n->right->right, init);
 		// static slice
 		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
 		t = n->type;
