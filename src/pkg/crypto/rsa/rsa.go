@@ -18,16 +18,15 @@ import (
 var bigZero = big.NewInt(0)
 var bigOne = big.NewInt(1)
 
-// randomSafePrime returns a number, p, of the given size, such that p and
-// (p-1)/2 are both prime with high probability.
-func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
+// randomPrime returns a number, p, of the given size, such that p is prime
+// with high probability.
+func randomPrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
 	if bits < 1 {
 		err = os.EINVAL
 	}
 
 	bytes := make([]byte, (bits+7)/8)
 	p = new(big.Int)
-	p2 := new(big.Int)
 
 	for {
 		_, err = io.ReadFull(rand, bytes)
@@ -42,10 +41,7 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
 
 		p.SetBytes(bytes)
 		if big.ProbablyPrime(p, 20) {
-			p2.Rsh(p, 1) // p2 = (p - 1)/2
-			if big.ProbablyPrime(p2, 20) {
-				return
-			}
+			return
 		}
 	}
 
@@ -157,12 +153,12 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 	totient := new(big.Int)
 
 	for {
-		p, err := randomSafePrime(rand, bits/2)
+		p, err := randomPrime(rand, bits/2)
 		if err != nil {
 			return nil, err
 		}
 
-		q, err := randomSafePrime(rand, bits/2)
+		q, err := randomPrime(rand, bits/2)
 		if err != nil {
 			return nil, err
 		}
