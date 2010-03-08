@@ -168,12 +168,13 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
 // Shared with Go: if you edit this structure, also edit extern.go.
 struct MStats
 {
-	uint64	alloc;
-	uint64	total_alloc;
+	uint64	alloc;	// unprotected (approximate)
+	uint64	total_alloc;	// unprotected (approximate)
 	uint64	sys;
 	uint64	stacks;
 	uint64	inuse_pages;	// protected by mheap.Lock
 	uint64	next_gc;	// protected by mheap.Lock
+	uint64	heap_alloc;	// protected by mheap.Lock
 	uint64	nlookup;	// unprotected (approximate)
 	uint64	nmalloc;	// unprotected (approximate)
 	uint64	pause_ns;
@@ -225,11 +226,12 @@ struct MCache
 {
 	MCacheList list[NumSizeClasses];
 	uint64 size;
+	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
 };
 
 void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed);
 void	MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
-
+void	MCache_ReleaseAll(MCache *c);
 
 // An MSpan is a run of pages.
 enum
@@ -313,8 +315,8 @@ struct MHeap
 extern MHeap mheap;
 
 void	MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
-MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass);
-void	MHeap_Free(MHeap *h, MSpan *s);
+MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct);
+void	MHeap_Free(MHeap *h, MSpan *s, int32 acct);
 MSpan*	MHeap_Lookup(MHeap *h, PageID p);
 MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
 void	MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);

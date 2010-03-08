@@ -61,7 +61,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 		npages = size >> PageShift;
 		if((size & PageMask) != 0)
 			npages++;
-		s = MHeap_Alloc(&mheap, npages, 0);
+		s = MHeap_Alloc(&mheap, npages, 0, 1);
 		if(s == nil)
 			throw("out of memory");
 		mstats.alloc += npages<<PageShift;
@@ -74,7 +74,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 
 	m->mallocing = 0;
 
-	if(dogc && mstats.inuse_pages > mstats.next_gc)
+	if(dogc && mstats.heap_alloc >= mstats.next_gc)
 		gc(0);
 	return v;
 }
@@ -113,7 +113,7 @@ free(void *v)
 		// Large object.
 		mstats.alloc -= s->npages<<PageShift;
 		runtime_memclr(v, s->npages<<PageShift);
-		MHeap_Free(&mheap, s);
+		MHeap_Free(&mheap, s, 1);
 	} else {
 		// Small object.
 		c = m->mcache;

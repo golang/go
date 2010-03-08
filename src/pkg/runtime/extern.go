@@ -78,6 +78,7 @@ type MemStatsType struct {
 	Stacks     uint64
 	InusePages uint64
 	NextGC     uint64
+	HeapAlloc  uint64
 	Lookups    uint64
 	Mallocs    uint64
 	PauseNs    uint64

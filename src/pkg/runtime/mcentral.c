@@ -152,7 +152,7 @@ MCentral_Free(MCentral *c, void *v)
 		s->freelist = nil;
 		c->nfree -= (s->npages << PageShift) / size;
 		unlock(c);
-		MHeap_Free(&mheap, s);
+		MHeap_Free(&mheap, s, 0);
 		lock(c);
 	}
 }
@@ -182,7 +182,7 @@ MCentral_Grow(MCentral *c)
 
 	unlock(c);
 	MGetSizeClassInfo(c->sizeclass, &size, &npages, &n);
-	s = MHeap_Alloc(&mheap, npages, c->sizeclass);
+	s = MHeap_Alloc(&mheap, npages, c->sizeclass, 0);
 	if(s == nil) {
 		// TODO(rsc): Log out of memory
 		lock(c);

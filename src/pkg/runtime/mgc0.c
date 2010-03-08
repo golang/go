@@ -194,7 +194,7 @@ sweepspan1(MSpan *s)
 			mstats.alloc -= s->npages<<PageShift;
 			runtime_memclr(p, s->npages<<PageShift);
 			s->gcref0 = RefFree;
-			MHeap_Free(&mheap, s);
+			MHeap_Free(&mheap, s, 1);
 			break;
 		case RefFinalize:
 			if(pfinq < efinq) {
@@ -283,6 +283,15 @@ static uint32 gcsema = 1;
 // extra memory used).
 static int32 gcpercent = -2;
 
+static void
+stealcache(void)
+{
+	M *m;
+	
+	for(m=allm; m; m=m->alllink)
+		MCache_ReleaseAll(m->mcache);
+}
+
 void
 gc(int32 force)
 {
@@ -313,17 +322,17 @@ gc(int32 force)
 	if(gcpercent < 0)
 		return;
 
-//printf("gc...\n");
 	semacquire(&gcsema);
 	t0 = nanotime();
 	m->gcing = 1;
 	stoptheworld();
 	if(mheap.Lock.key != 0)
 		throw("mheap locked during gc");
-	if(force || mstats.inuse_pages >= mstats.next_gc) {
+	if(force || mstats.heap_alloc >= mstats.next_gc) {
 		mark();
 		sweep();
-		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
+		stealcache();
+		mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
 	}
 	m->gcing = 0;
 
