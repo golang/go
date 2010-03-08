@@ -109,6 +109,8 @@ void	naddr(Node*, Addr*, int);
 void	cgen_aret(Node*, Node*);
 int	cgen_inline(Node*, Node*);
 Node*	ncon(uint32);
+void	mgen(Node*, Node*, Node*);
+void	mfree(Node*);
 
 /*
  * cgen64.c

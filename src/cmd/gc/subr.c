@@ -2476,6 +2476,9 @@ safeexpr(Node *n, NodeList **init)
 	Node *r;
 	Node *a;
 
+	if(n == N)
+		return N;
+
 	switch(n->op) {
 	case ONAME:
 	case OLITERAL:

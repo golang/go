@@ -810,9 +810,9 @@ int
 cgen_inline(Node *n, Node *res)
 {
 	Node nodes[5];
-	Node n1, n2, n3, nres, nnode0, ntemp;
+	Node n1, n2, n3, nres, ntemp;
 	vlong v;
-	int i, narg, bad;
+	int i, narg;
 
 	if(n->op != OCALLFUNC)
 		goto no;
@@ -926,47 +926,39 @@ slicearray:
 	return 1;
 
 sliceslice:
-	getargs(n->list, nodes, narg);
+	ntemp.op = OXXX;
+	if(!sleasy(n->list->n->right)) {
+		Node *n0;
+		
+		n0 = n->list->n->right;
+		tempname(&ntemp, res->type);
+		cgen(n0, &ntemp);
+		n->list->n->right = &ntemp;
+		getargs(n->list, nodes, narg);
+		n->list->n->right = n0;
+	} else
+		getargs(n->list, nodes, narg);
 
 	nres = *res;		// result
-	nnode0 = nodes[0];	// input slice
-	if(!sleasy(res) || !sleasy(&nodes[0])) {
-		bad = 0;
-		if(res->ullman >= UINF)
-			bad = 1;
-		for(i=0; i<narg; i++) {
-			if(nodes[i].ullman >= UINF)
-				bad = 1;
-			if(nodes[i].op == OREGISTER)
-				regfree(&nodes[i]);
-		}
-
-		if(bad)
-			goto no;
-
-		tempname(&ntemp, res->type);
-		if(!sleasy(&nodes[0])) {
-			cgen(&nodes[0], &ntemp);
-			nnode0 = ntemp;
-		}
-		getargs(n->list, nodes, narg);
-		if(!sleasy(res))
-			nres = ntemp;
+	if(!sleasy(res)) {
+		if(ntemp.op == OXXX)
+			tempname(&ntemp, res->type);
+		nres = ntemp;
 	}
-	
+
 	if(narg == 3) {	// old[lb:]
 		// move width to where it would be for old[lb:hb]
 		nodes[3] = nodes[2];
 		nodes[2].op = OXXX;
 		
 		// if(lb[1] > old.nel[0]) goto throw;
-		n2 = nnode0;
+		n2 = nodes[0];
 		n2.xoffset += Array_nel;
 		n2.type = types[TUINT32];
 		cmpandthrow(&nodes[1], &n2);
 
 		// ret.nel = old.nel[0]-lb[1];
-		n2 = nnode0;
+		n2 = nodes[0];
 		n2.type = types[TUINT32];
 		n2.xoffset += Array_nel;
 	
@@ -982,7 +974,7 @@ sliceslice:
 		regfree(&n1);
 	} else {	// old[lb:hb]
 		// if(hb[2] > old.cap[0]) goto throw;
-		n2 = nnode0;
+		n2 = nodes[0];
 		n2.xoffset += Array_cap;
 		n2.type = types[TUINT32];
 		cmpandthrow(&nodes[2], &n2);
@@ -1011,7 +1003,7 @@ sliceslice:
 	}
 
 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
-	n2 = nnode0;
+	n2 = nodes[0];
 	n2.type = types[TUINT32];
 	n2.xoffset += Array_cap;
 
@@ -1027,7 +1019,7 @@ sliceslice:
 	regfree(&n1);
 
 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
-	n2 = nnode0;
+	n2 = nodes[0];
 	n2.type = types[tptr];
 	n2.xoffset += Array_array;
 	regalloc(&n3, types[tptr], N);
