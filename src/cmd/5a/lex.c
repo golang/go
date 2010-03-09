@@ -46,9 +46,6 @@ systemtype(int sys)
 	return sys&Plan9;
 }
 
-void*	alloc(int32);
-void*	allocn(void*, int32, int32);
-
 void
 main(int argc, char *argv[])
 {
