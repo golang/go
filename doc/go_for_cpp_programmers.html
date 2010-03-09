@@ -374,7 +374,7 @@ capacity of the new slice is simply the capacity of <code>a</code> minus
 <code>I</code>.  The capacity
 of an array is the length of the array.  You may also assign an array pointer
 to a variable of slice type; given <code>var s []int; var a[10] int</code>,
-the assignment <code>s = &ampa</code> is equivalent to
+the assignment <code>s = &amp;a</code> is equivalent to
 <code>s = a[0:len(a)]</code>.
 
 <p>
