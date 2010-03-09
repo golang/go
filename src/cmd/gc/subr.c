@@ -79,7 +79,7 @@ errcmp(const void *va, const void *vb)
 		return a->lineno - b->lineno;
 	if(a->seq != b->seq)
 		return a->seq - b->seq;
-	return 0;
+	return strcmp(a->msg, b->msg);
 }
 
 void
@@ -91,7 +91,8 @@ flusherrors(void)
 		return;
 	qsort(err, nerr, sizeof err[0], errcmp);
 	for(i=0; i<nerr; i++)
-		print("%s", err[i].msg);
+		if(i==0 || strcmp(err[i].msg, err[i-1].msg) != 0)
+			print("%s", err[i].msg);
 	nerr = 0;
 }
 
@@ -3082,11 +3083,19 @@ runifacechecks(void)
 			needexplicit = 1;
 		}
 		if(wrong) {
-			if(samename)
-				yyerror("%T is not %T\n\tmissing %S%hhT\n\tdo have %S%hhT",
-					t, iface, m->sym, m->type, samename->sym, samename->type);
-			else
-				yyerror("%T is not %T\n\tmissing %S%hhT", t, iface, m->sym, m->type);
+			if(p->explicit) {
+				if(samename)
+					yyerror("%T cannot contain %T\n\tmissing %S%hhT\n\tdo have %S%hhT",
+						iface, t, m->sym, m->type, samename->sym, samename->type);
+				else
+					yyerror("%T cannot contain %T\n\tmissing %S%hhT", iface, t, m->sym, m->type);
+			} else {
+				if(samename)
+					yyerror("%T is not %T\n\tmissing %S%hhT\n\tdo have %S%hhT",
+						t, iface, m->sym, m->type, samename->sym, samename->type);
+				else
+					yyerror("%T is not %T\n\tmissing %S%hhT", t, iface, m->sym, m->type);
+			}
 		}
 		else if(!p->explicit && needexplicit) {
 			if(m) {
