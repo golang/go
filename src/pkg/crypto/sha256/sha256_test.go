@@ -51,6 +51,40 @@ var golden = []sha256Test{
 	sha256Test{"4f9b189a13d030838269dce846b16a1ce9ce81fe63e65de2f636863336a98fe6", "How can you write a big system without C++?  -Paul Glick"},
 }
 
+var golden224 = []sha256Test{
+	sha256Test{"d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f", ""},
+	sha256Test{"abd37534c7d9a2efb9465de931cd7055ffdb8879563ae98078d6d6d5", "a"},
+	sha256Test{"db3cda86d4429a1d39c148989566b38f7bda0156296bd364ba2f878b", "ab"},
+	sha256Test{"23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7", "abc"},
+	sha256Test{"a76654d8e3550e9a2d67a0eeb6c67b220e5885eddd3fde135806e601", "abcd"},
+	sha256Test{"bdd03d560993e675516ba5a50638b6531ac2ac3d5847c61916cfced6", "abcde"},
+	sha256Test{"7043631cb415556a275a4ebecb802c74ee9f6153908e1792a90b6a98", "abcdef"},
+	sha256Test{"d1884e711701ad81abe0c77a3b0ea12e19ba9af64077286c72fc602d", "abcdefg"},
+	sha256Test{"17eb7d40f0356f8598e89eafad5f6c759b1f822975d9c9b737c8a517", "abcdefgh"},
+	sha256Test{"aeb35915346c584db820d2de7af3929ffafef9222a9bcb26516c7334", "abcdefghi"},
+	sha256Test{"d35e1e5af29ddb0d7e154357df4ad9842afee527c689ee547f753188", "abcdefghij"},
+	sha256Test{"19297f1cef7ddc8a7e947f5c5a341e10f7245045e425db67043988d7", "Discard medicine more than two years old."},
+	sha256Test{"0f10c2eb436251f777fbbd125e260d36aecf180411726c7c885f599a", "He who has a shady past knows that nice guys finish last."},
+	sha256Test{"4d1842104919f314cad8a3cd20b3cba7e8ed3e7abed62b57441358f6", "I wouldn't marry him with a ten foot pole."},
+	sha256Test{"a8ba85c6fe0c48fbffc72bbb2f03fcdbc87ae2dc7a56804d1590fb3b", "Free! Free!/A trip/to Mars/for 900/empty jars/Burma Shave"},
+	sha256Test{"5543fbab26e67e8885b1a852d567d1cb8b9bfe42e0899584c50449a9", "The days of the digital watch are numbered.  -Tom Stoppard"},
+	sha256Test{"65ca107390f5da9efa05d28e57b221657edc7e43a9a18fb15b053ddb", "Nepal premier won't resign."},
+	sha256Test{"84953962be366305a9cc9b5cd16ed019edc37ac96c0deb3e12cca116", "For every action there is an equal and opposite government program."},
+	sha256Test{"35a189ce987151dfd00b3577583cc6a74b9869eecf894459cb52038d", "His money is twice tainted: 'taint yours and 'taint mine."},
+	sha256Test{"2fc333713983edfd4ef2c0da6fb6d6415afb94987c91e4069eb063e6", "There is no reason for any individual to have a computer in their home. -Ken Olsen, 1977"},
+	sha256Test{"cbe32d38d577a1b355960a4bc3c659c2dc4670859a19777a875842c4", "It's a tiny change to the code and not completely disgusting. - Bob Manchek"},
+	sha256Test{"a2dc118ce959e027576413a7b440c875cdc8d40df9141d6ef78a57e1", "size:  a.out:  bad magic"},
+	sha256Test{"d10787e24052bcff26dc484787a54ed819e4e4511c54890ee977bf81", "The major problem is with sendmail.  -Mark Horton"},
+	sha256Test{"62efcf16ab8a893acdf2f348aaf06b63039ff1bf55508c830532c9fb", "Give me a rock, paper and scissors and I will move the world.  CCFestoon"},
+	sha256Test{"3e9b7e4613c59f58665104c5fa86c272db5d3a2ff30df5bb194a5c99", "If the enemy is within range, then so are you."},
+	sha256Test{"5999c208b8bdf6d471bb7c359ac5b829e73a8211dff686143a4e7f18", "It's well we cannot hear the screams/That we create in others' dreams."},
+	sha256Test{"3b2d67ff54eabc4ef737b14edf87c64280ef582bcdf2a6d56908b405", "You remind me of a TV show, but that's all right: I watch it anyway."},
+	sha256Test{"d0733595d20e4d3d6b5c565a445814d1bbb2fd08b9a3b8ffb97930c6", "C is as portable as Stonehedge!!"},
+	sha256Test{"43fb8aeed8a833175c9295c1165415f98c866ef08a4922959d673507", "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley"},
+	sha256Test{"ec18e66e93afc4fb1604bc2baedbfd20b44c43d76e65c0996d7851c6", "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"},
+	sha256Test{"86ed2eaa9c75ba98396e5c9fb2f679ecf0ea2ed1e0ee9ceecb4a9332", "How can you write a big system without C++?  -Paul Glick"},
+}
+
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
@@ -66,6 +100,24 @@ func TestGolden(t *testing.T) {
 			s := fmt.Sprintf("%x", c.Sum())
 			if s != g.out {
 				t.Fatalf("sha256[%d](%s) = %s want %s", j, g.in, s, g.out)
+			}
+			c.Reset()
+		}
+	}
+	for i := 0; i < len(golden224); i++ {
+		g := golden224[i]
+		c := New224()
+		for j := 0; j < 3; j++ {
+			if j < 2 {
+				io.WriteString(c, g.in)
+			} else {
+				io.WriteString(c, g.in[0:len(g.in)/2])
+				c.Sum()
+				io.WriteString(c, g.in[len(g.in)/2:])
+			}
+			s := fmt.Sprintf("%x", c.Sum())
+			if s != g.out {
+				t.Fatalf("sha224[%d](%s) = %s want %s", j, g.in, s, g.out)
 			}
 			c.Reset()
 		}
