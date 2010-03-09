@@ -1,0 +1,37 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package syscall
+#include "runtime.h"
+#include "os.h"
+
+func loadlibraryex(filename uintptr) (handle uint32) {
+	handle = (uint32)stdcall(LoadLibraryEx, filename, 0, 0);
+}
+
+func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
+	proc = (uintptr)stdcall(GetProcAddress, handle, procname);
+}
+
+func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	·entersyscall();
+	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
+	r2 = 0;
+	err = (uintptr)stdcall_raw(GetLastError);
+	·exitsyscall();
+}
+
+func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	·entersyscall();
+	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6);
+	r2 = 0;
+	err = (uintptr)stdcall_raw(GetLastError);
+	·exitsyscall();
+}
+
+func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
+	r2 = 0;
+	err = (uintptr)stdcall_raw(GetLastError);
+}
