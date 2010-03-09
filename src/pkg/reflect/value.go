@@ -848,7 +848,7 @@ type tiny struct {
 	b byte
 }
 
-// Call calls the function v with input parameters in.
+// Call calls the function fv with input parameters in.
 // It returns the function's output parameters as Values.
 func (fv *FuncValue) Call(in []Value) []Value {
 	var structAlign = Typeof((*tiny)(nil)).(*PtrType).Elem().Size()
