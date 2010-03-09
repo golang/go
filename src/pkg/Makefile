@@ -40,6 +40,7 @@ DIRS=\
 	crypto/md4\
 	crypto/md5\
 	crypto/rc4\
+	crypto/ripemd160\
 	crypto/rsa\
 	crypto/sha1\
 	crypto/sha256\
