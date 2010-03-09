@@ -134,12 +134,12 @@ void	nodfconst(Node*, Type*, Mpflt*);
  * cplx.c
  */
 int	complexop(Node*, Node*);
-void	complexmove(Node*, Node*, int);
+void	complexmove(Node*, Node*);
 void	complexgen(Node*, Node*);
 void	complexbool(int, Node*, Node*, int, Prog*);
 
 /*
- * obj.c
+ * gobj.c
  */
 void	datastring(char*, int, Addr*);
 

@@ -1059,6 +1059,11 @@ gmove(Node *f, Node *t)
 	tt = simsimtype(t->type);
 	cvt = t->type;
 
+	if(iscomplex[ft] || iscomplex[tt]) {
+		complexmove(f, t);
+		return;
+	}
+
 	// cannot have two integer memory operands;
 	// except 64-bit, which always copies via registers anyway.
 	if(isint[ft] && isint[tt] && !is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
@@ -1489,13 +1494,13 @@ gmove(Node *f, Node *t)
 		// on the floating point stack.  So toss it away here.
 		// Also, F0 is the *only* register we ever evaluate
 		// into, so we should only see register/register as F0/F0.
+		if(ismem(f) && ismem(t))
+			goto hard;
 		if(f->op == OREGISTER && t->op == OREGISTER) {
 			if(f->val.u.reg != D_F0 || t->val.u.reg != D_F0)
 				goto fatal;
 			return;
 		}
-		if(ismem(f) && ismem(t))
-			goto hard;
 		a = AFMOVF;
 		if(ft == TFLOAT64)
 			a = AFMOVD;
@@ -1509,6 +1514,8 @@ gmove(Node *f, Node *t)
 		break;
 
 	case CASE(TFLOAT32, TFLOAT64):
+		if(ismem(f) && ismem(t))
+			goto hard;
 		if(f->op == OREGISTER && t->op == OREGISTER) {
 			if(f->val.u.reg != D_F0 || t->val.u.reg != D_F0)
 				goto fatal;
@@ -1521,6 +1528,8 @@ gmove(Node *f, Node *t)
 		return;
 
 	case CASE(TFLOAT64, TFLOAT32):
+		if(ismem(f) && ismem(t))
+			goto hard;
 		if(f->op == OREGISTER && t->op == OREGISTER) {
 			tempname(&r1, types[TFLOAT32]);
 			gins(AFMOVFP, f, &r1);

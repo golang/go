@@ -483,7 +483,7 @@ gmove(Node *f, Node *t)
 	cvt = t->type;
 
 	if(iscomplex[ft] || iscomplex[tt]) {
-		complexmove(f, t, 0);
+		complexmove(f, t);
 		return;
 	}
 

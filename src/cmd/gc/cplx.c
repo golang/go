@@ -4,10 +4,12 @@
 
 #include "gg.h"
 
-static void	subnode(Node *nr, Node *ni, Node *nc);
-static void	negate(Node *n);
-static void	zero(Node *n);
-static int	isimag1i(Node*);
+static	void	subnode(Node *nr, Node *ni, Node *nc);
+static	void	zero(Node *n);
+static	void	minus(Node *nl, Node *res);
+	void	complexminus(Node*, Node*);
+	void	complexadd(int op, Node*, Node*, Node*);
+	void	complexmul(Node*, Node*, Node*);
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
 
@@ -15,16 +17,12 @@ static int	isimag1i(Node*);
  * generate:
  *	res = n;
  * simplifies and calls gmove.
- * perm is
- *	0 (r,i) -> (r,i)
- *	1 (r,i) -> (-i,r)   *1i
- *	2 (r,i) -> (i,-r)   /1i
  */
 void
-complexmove(Node *f, Node *t, int perm)
+complexmove(Node *f, Node *t)
 {
 	int ft, tt;
-	Node n1, n2, n3, n4, nc;
+	Node n1, n2, n3, n4;
 
 	if(debug['g']) {
 		dump("\ncomplexmove-f", f);
@@ -50,65 +48,27 @@ complexmove(Node *f, Node *t, int perm)
 		// make from addable
 		if(!f->addable) {
 			tempname(&n1, f->type);
-			complexmove(f, &n1, 0);
+			complexmove(f, &n1);
 			f = &n1;
 		}
 
 		subnode(&n1, &n2, f);
 		subnode(&n3, &n4, t);
 
-		// perform the permutations.
-		switch(perm) {
-		case 0:	// r,i => r,i
-			gmove(&n1, &n3);
-			gmove(&n2, &n4);
-			break;
-		case 1: // r,i => -i,r
-			regalloc(&nc, n3.type, N);
-			gmove(&n2, &nc);
-			negate(&nc);
-			gmove(&n1, &n4);
-			gmove(&nc, &n3);
-			regfree(&nc);
-			break;
-		case 2: // r,i => i,-r
-			regalloc(&nc, n4.type, N);
-			gmove(&n1, &nc);
-			negate(&nc);
-			gmove(&n2, &n3);
-			gmove(&nc, &n4);
-			regfree(&nc);
-			break;
-		}
+		cgen(&n1, &n3);
+		cgen(&n2, &n4);
 		break;
 
+	// these are depricated
 	case CASE(TFLOAT32,TCOMPLEX64):
 	case CASE(TFLOAT32,TCOMPLEX128):
 	case CASE(TFLOAT64,TCOMPLEX64):
 	case CASE(TFLOAT64,TCOMPLEX128):
 		// float to complex goes to real part
 
-		regalloc(&n1, types[ft], N);
+		subnode(&n1, &n2, t);
 		cgen(f, &n1);
-		subnode(&n3, &n4, t);
-
-		// perform the permutations.
-		switch(perm) {
-		case 0:	// no permutations
-			gmove(&n1, &n3);
-			zero(&n4);
-			break;
-		case 1:
-			gmove(&n1, &n4);
-			zero(&n3);
-			break;
-		case 2:
-			negate(&n1);
-			gmove(&n1, &n4);
-			zero(&n3);
-			break;
-		}
-		regfree(&n1);
+		zero(&n2);
 		break;
 	}
 }
@@ -118,40 +78,44 @@ complexop(Node *n, Node *res)
 {
 	if(n != N && n->type != T)
 	if(iscomplex[n->type->etype]) {
-		goto yes;
+		goto maybe;
 	}
 	if(res != N && res->type != T)
 	if(iscomplex[res->type->etype]) {
-		goto yes;
+		goto maybe;
 	}
 
 	if(n->op == OREAL || n->op == OIMAG)
-		return 1;
+		goto yes;
 
-	return 0;
+	goto no;
 
-yes:
+maybe:
 	switch(n->op) {
 	case OCONV:	// implemented ops
 	case OADD:
 	case OSUB:
 	case OMUL:
-	case ODIV:
 	case OMINUS:
 	case OCMPLX:
 	case OREAL:
 	case OIMAG:
-		return 1;
+		goto yes;
 
-	case ODOT:	// sudoaddr
+	case ODOT:
 	case ODOTPTR:
 	case OINDEX:
 	case OIND:
 	case ONAME:
-		return 1;
+		goto yes;
 	}
 
+no:
+//dump("\ncomplex-no", n);
 	return 0;
+yes:
+//dump("\ncomplex-yes", n);
+	return 1;
 }
 
 void
@@ -159,8 +123,7 @@ complexgen(Node *n, Node *res)
 {
 	Node *nl, *nr;
 	Node tnl, tnr;
-	Node n1, n2, n3, n4, n5, n6;
-	Node ra, rb, rc, rd;
+	Node n1, n2;
 	int tl, tr;
 
 	if(debug['g']) {
@@ -171,35 +134,18 @@ complexgen(Node *n, Node *res)
 	// pick off float/complex opcodes
 	switch(n->op) {
 	case OCMPLX:
-		tempname(&tnr, n->type);
-		tr = simsimtype(n->type);
-		tr = cplxsubtype(tr);
-
-		n1 = tnr;
-		n1.type = types[tr];
-
-		n2 = tnr;
-		n2.type = types[tr];
-		n2.xoffset += n2.type->width;
-
+		subnode(&n1, &n2, res);
 		cgen(n->left, &n1);
 		cgen(n->right, &n2);
-		cgen(&tnr, res);
 		return;
 
 	case OREAL:
-		n = n->left;
-		tr = simsimtype(n->type);
-		tr = cplxsubtype(tr);
-		subnode(&n1, &n2, n);
+		subnode(&n1, &n2, n->left);
 		cgen(&n1, res);
 		return;
 
 	case OIMAG:
-		n = n->left;
-		tr = simsimtype(n->type);
-		tr = cplxsubtype(tr);
-		subnode(&n1, &n2, n);
+		subnode(&n1, &n2, n->left);
 		cgen(&n2, res);
 		return;
 	}
@@ -212,10 +158,10 @@ complexgen(Node *n, Node *res)
 	if(tl != tr) {
 		if(!n->addable) {
 			tempname(&n1, n->type);
-			complexmove(n, &n1, 0);
+			complexmove(n, &n1);
 			n = &n1;
 		}
-		complexmove(n, res, 0);
+		complexmove(n, res);
 		return;
 	}
 
@@ -226,7 +172,7 @@ complexgen(Node *n, Node *res)
 		return;
 	}
 	if(n->addable) {
-		complexmove(n, res, 0);
+		complexmove(n, res);
 		return;
 	}
 
@@ -241,7 +187,7 @@ complexgen(Node *n, Node *res)
 	case OIND:
 	case ONAME:	// PHEAP or PPARAMREF var
 		igen(n, &n1, res);
-		complexmove(&n1, res, 0);
+		complexmove(&n1, res);
 		regfree(&n1);
 		return;
 
@@ -249,7 +195,6 @@ complexgen(Node *n, Node *res)
 	case OADD:
 	case OSUB:
 	case OMUL:
-	case ODIV:
 	case OMINUS:
 	case OCMPLX:
 	case OREAL:
@@ -287,132 +232,22 @@ complexgen(Node *n, Node *res)
 		break;
 
 	case OCONV:
-		complexmove(nl, res, 0);
+		complexmove(nl, res);
 		break;
 
 	case OMINUS:
-		subnode(&n1, &n2, nl);
-		subnode(&n5, &n6, res);
-
-		regalloc(&ra, n5.type, N);
-		gmove(&n1, &ra);
-		negate(&ra);
-		gmove(&ra, &n5);
-		regfree(&ra);
-
-		regalloc(&ra, n5.type, N);
-		gmove(&n2, &ra);
-		negate(&ra);
-		gmove(&ra, &n6);
-		regfree(&ra);
+		complexminus(nl, res);
 		break;
 
 	case OADD:
 	case OSUB:
-
-		subnode(&n1, &n2, nl);
-		subnode(&n3, &n4, nr);
-		subnode(&n5, &n6, res);
-
-		regalloc(&ra, n5.type, N);
-		gmove(&n1, &ra);
-		gins(optoas(n->op, n5.type), &n3, &ra);
-		gmove(&ra, &n5);
-		regfree(&ra);
-
-		regalloc(&ra, n6.type, N);
-		gmove(&n2, &ra);
-		gins(optoas(n->op, n6.type), &n4, &ra);
-		gmove(&ra, &n6);
-		regfree(&ra);
+		complexadd(n->op, nl, nr, res);
 		break;
 
 	case OMUL:
-		if(isimag1i(nr)) {
-			complexmove(nl, res, 1);
-			break;
-		}
-		if(isimag1i(nl)) {
-			complexmove(nr, res, 1);
-			break;
-		}
-
-		subnode(&n1, &n2, nl);
-		subnode(&n3, &n4, nr);
-		subnode(&n5, &n6, res);
-
-		regalloc(&ra, n5.type, N);
-		regalloc(&rb, n5.type, N);
-		regalloc(&rc, n6.type, N);
-		regalloc(&rd, n6.type, N);
-
-		gmove(&n1, &ra);
-		gmove(&n3, &rc);
-		gins(optoas(OMUL, n5.type), &rc, &ra);	// ra = a*c
-		
-		gmove(&n2, &rb);
-		gmove(&n4, &rd);
-		gins(optoas(OMUL, n5.type), &rd, &rb);	// rb = b*d
-		gins(optoas(OSUB, n5.type), &rb, &ra);	// ra = (a*c - b*d)
-
-		gins(optoas(OMUL, n5.type), &n2, &rc);	// rc = b*c
-		gins(optoas(OMUL, n5.type), &n1, &rd);	// rd = a*d
-		gins(optoas(OADD, n5.type), &rd, &rc);	// rc = (b*c + a*d)
-
-		gmove(&ra, &n5);
-		gmove(&rc, &n6);
-
-		regfree(&ra);
-		regfree(&rb);
-		regfree(&rc);
-		regfree(&rd);
+		complexmul(nl, nr, res);
 		break;
-
-	case ODIV:
-		if(isimag1i(nr)) {
-			complexmove(nl, res, 2);
-			break;
-		}
-
-		subnode(&n1, &n2, nl);
-		subnode(&n3, &n4, nr);
-		subnode(&n5, &n6, res);
-
-		regalloc(&ra, n5.type, N);
-		regalloc(&rb, n5.type, N);
-		regalloc(&rc, n6.type, N);
-		regalloc(&rd, n6.type, N);
-
-		gmove(&n1, &ra);
-		gmove(&n3, &rc);
-		gins(optoas(OMUL, n5.type), &rc, &ra);	// ra = a*c
-		
-		gmove(&n2, &rb);
-		gmove(&n4, &rd);
-		gins(optoas(OMUL, n5.type), &rd, &rb);	// rb = b*d
-		gins(optoas(OADD, n5.type), &rb, &ra);	// ra = (a*c + b*d)
-
-		gins(optoas(OMUL, n5.type), &n2, &rc);	// rc = b*c
-		gins(optoas(OMUL, n5.type), &n1, &rd);	// rd = a*d
-		gins(optoas(OSUB, n5.type), &rd, &rc);	// rc = (b*c - a*d)
-
-		gmove(&n3, &rb);
-		gins(optoas(OMUL, n5.type), &rb, &rb);	// rb = c*c
-		gmove(&n4, &rd);
-		gins(optoas(OMUL, n5.type), &rd, &rd);	// rd = d*d
-		gins(optoas(OADD, n5.type), &rd, &rb);	// rb = (c*c + d*d)
-
-		gins(optoas(ODIV, n5.type), &rb, &ra);	// ra = (a*c + b*d)/(c*c + d*d)
-		gins(optoas(ODIV, n5.type), &rb, &rc);	// rc = (b*c - a*d)/(c*c + d*d)
-
-		gmove(&ra, &n5);
-		gmove(&rc, &n6);
-
-		regfree(&ra);
-		regfree(&rb);
-		regfree(&rc);
-		regfree(&rd);
-		break;
+	// ODIV call a runtime function
 	}
 }
 
@@ -487,18 +322,6 @@ nodfconst(Node *n, Type *t, Mpflt* fval)
 		fatal("nodfconst: bad type %T", t);
 }
 
-static int
-isimag1i(Node *n)
-{
-	if(n != N)
-	if(n->op == OLITERAL)
-	if(n->val.ctype == CTCPLX)
-	if(mpgetflt(&n->val.u.cval->real) == 0.0)
-	if(mpgetflt(&n->val.u.cval->imag) == 1.0)
-		return 1;
-	return 0;
-}
-
 // break addable nc-complex into nr-real and ni-imaginary
 static void
 subnode(Node *nr, Node *ni, Node *nc)
@@ -527,25 +350,6 @@ subnode(Node *nr, Node *ni, Node *nc)
 	ni->xoffset += t->width;
 }
 
-// generate code to negate register nr
-static void
-negate(Node *nr)
-{
-	Node nc;
-	Mpflt fval;
-
-	memset(&nc, 0, sizeof(nc));
-	nc.op = OLITERAL;
-	nc.addable = 1;
-	ullmancalc(&nc);
-	nc.val.u.fval = &fval;
-	nc.val.ctype = CTFLT;
-	nc.type = nr->type;
-
-	mpmovecflt(nc.val.u.fval, -1.0);
-	gins(optoas(OMUL, nr->type), &nc, nr);
-}
-
 // generate code to zero addable dest nr
 static void
 zero(Node *nr)
@@ -563,5 +367,116 @@ zero(Node *nr)
 
 	mpmovecflt(nc.val.u.fval, 0.0);
 
-	gmove(&nc, nr);
+	cgen(&nc, nr);
+}
+
+// generate code res = -nl
+static void
+minus(Node *nl, Node *res)
+{
+	Node ra;
+
+	memset(&ra, 0, sizeof(ra));
+	ra.op = OMINUS;
+	ra.left = nl;
+	ra.type = nl->type;
+	cgen(&ra, res);
+}
+
+// build and execute tree
+//	real(res) = -real(nl)
+//	imag(res) = -imag(nl)
+void
+complexminus(Node *nl, Node *res)
+{
+	Node n1, n2, n5, n6;
+
+	subnode(&n1, &n2, nl);
+	subnode(&n5, &n6, res);
+
+	minus(&n1, &n5);
+	minus(&n2, &n6);
+}
+
+
+// build and execute tree
+//	real(res) = real(nl) op real(nr)
+//	imag(res) = imag(nl) op imag(nr)
+void
+complexadd(int op, Node *nl, Node *nr, Node *res)
+{
+	Node n1, n2, n3, n4, n5, n6;
+	Node ra;
+
+	subnode(&n1, &n2, nl);
+	subnode(&n3, &n4, nr);
+	subnode(&n5, &n6, res);
+
+	memset(&ra, 0, sizeof(ra));
+	ra.op = op;
+	ra.left = &n1;
+	ra.right = &n3;
+	ra.type = n1.type;
+	cgen(&ra, &n5);
+
+	memset(&ra, 0, sizeof(ra));
+	ra.op = op;
+	ra.left = &n2;
+	ra.right = &n4;
+	ra.type = n2.type;
+	cgen(&ra, &n6);
+}
+
+// build and execute tree
+//	real(res) = real(nl)*real(nr) - imag(nl)*imag(nr)
+//	imag(res) = real(nl)*imag(nr) + imag(nl)*real(nr)
+void
+complexmul(Node *nl, Node *nr, Node *res)
+{
+	Node n1, n2, n3, n4, n5, n6;
+	Node rm1, rm2, ra;
+
+	subnode(&n1, &n2, nl);
+	subnode(&n3, &n4, nr);
+	subnode(&n5, &n6, res);
+
+	// real part
+	memset(&rm1, 0, sizeof(ra));
+	rm1.op = OMUL;
+	rm1.left = &n1;
+	rm1.right = &n3;
+	rm1.type = n1.type;
+
+	memset(&rm2, 0, sizeof(ra));
+	rm2.op = OMUL;
+	rm2.left = &n2;
+	rm2.right = &n4;
+	rm2.type = n2.type;
+
+	memset(&ra, 0, sizeof(ra));
+	ra.op = OSUB;
+	ra.left = &rm1;
+	ra.right = &rm2;
+	ra.type = rm1.type;
+	cgen(&ra, &n5);
+
+	// imag part
+	memset(&rm1, 0, sizeof(ra));
+	rm1.op = OMUL;
+	rm1.left = &n1;
+	rm1.right = &n4;
+	rm1.type = n1.type;
+
+	memset(&rm2, 0, sizeof(ra));
+	rm2.op = OMUL;
+	rm2.left = &n2;
+	rm2.right = &n3;
+	rm2.type = n2.type;
+
+	memset(&ra, 0, sizeof(ra));
+	ra.op = OADD;
+	ra.left = &rm1;
+	ra.right = &rm2;
+	ra.type = rm1.type;
+	cgen(&ra, &n6);
 }
