@@ -123,7 +123,7 @@ complexgen(Node *n, Node *res)
 {
 	Node *nl, *nr;
 	Node tnl, tnr;
-	Node n1, n2;
+	Node n1, n2, tmp;
 	int tl, tr;
 
 	if(debug['g']) {
@@ -135,8 +135,10 @@ complexgen(Node *n, Node *res)
 	switch(n->op) {
 	case OCMPLX:
 		subnode(&n1, &n2, res);
-		cgen(n->left, &n1);
+		tempname(&tmp, n1.type);
+		cgen(n->left, &tmp);
 		cgen(n->right, &n2);
+		cgen(&tmp, &n1);
 		return;
 
 	case OREAL:
@@ -428,19 +430,21 @@ complexadd(int op, Node *nl, Node *nr, Node *res)
 }
 
 // build and execute tree
-//	real(res) = real(nl)*real(nr) - imag(nl)*imag(nr)
+//	tmp       = real(nl)*real(nr) - imag(nl)*imag(nr)
 //	imag(res) = real(nl)*imag(nr) + imag(nl)*real(nr)
+//	real(res) = tmp
 void
 complexmul(Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, n3, n4, n5, n6;
-	Node rm1, rm2, ra;
+	Node rm1, rm2, ra, tmp;
 
 	subnode(&n1, &n2, nl);
 	subnode(&n3, &n4, nr);
 	subnode(&n5, &n6, res);
+	tempname(&tmp, n5.type);
 
-	// real part
+	// real part -> tmp
 	memset(&rm1, 0, sizeof(ra));
 	rm1.op = OMUL;
 	rm1.left = &n1;
@@ -458,7 +462,7 @@ complexmul(Node *nl, Node *nr, Node *res)
 	ra.left = &rm1;
 	ra.right = &rm2;
 	ra.type = rm1.type;
-	cgen(&ra, &n5);
+	cgen(&ra, &tmp);
 
 	// imag part
 	memset(&rm1, 0, sizeof(ra));
@@ -479,4 +483,7 @@ complexmul(Node *nl, Node *nr, Node *res)
 	ra.right = &rm2;
 	ra.type = rm1.type;
 	cgen(&ra, &n6);
+
+	// tmp ->real part
+	cgen(&tmp, &n5);
 }
