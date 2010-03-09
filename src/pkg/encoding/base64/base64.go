@@ -324,6 +324,6 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 	return &decoder{enc: enc, r: r}
 }
 
-// DecodeLen returns the maximum length in bytes of the decoded data
+// DecodedLen returns the maximum length in bytes of the decoded data
 // corresponding to n bytes of base64-encoded data.
 func (enc *Encoding) DecodedLen(n int) int { return n / 4 * 3 }
