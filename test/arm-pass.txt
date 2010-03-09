@@ -8,7 +8,8 @@ chan/perm.go
 chan/powser1.go
 chan/powser2.go
 chan/select.go
-chan/sieve.go
+chan/sieve1.go
+chan/sieve2.go
 chancap.go
 char_lit.go
 closedchan.go

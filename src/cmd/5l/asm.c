@@ -195,8 +195,8 @@ vlong elfstr[NElfStr];
 void
 doelf(void)
 {
-	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
-	int h, nsym, t;
+	Sym *s, *shstrtab, *dynamic, *dynstr;
+	int h, nsym;
 
 	if(!iself)
 		return;
