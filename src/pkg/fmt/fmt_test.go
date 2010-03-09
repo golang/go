@@ -119,7 +119,6 @@ var fmttests = []fmtTest{
 	fmtTest{"% .3g", -1.0, "-1"},
 	fmtTest{"% .3g", 1.0, " 1"},
 
-	/* TODO: Enable when complex support is in all compilers
 	// complex values
 	fmtTest{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
 	fmtTest{"%+.3f", 0i, "(+0.000+0.000i)"},
@@ -139,7 +138,6 @@ var fmttests = []fmtTest{
 	fmtTest{"% .3E", -1 - 2i, "(-1.000E+00-2.000E+00i)"},
 	fmtTest{"%+.3g", complex64(1 + 2i), "(+1+2i)"},
 	fmtTest{"%+.3g", complex128(1 + 2i), "(+1+2i)"},
-	*/
 
 	// erroneous formats
 	fmtTest{"", 2, "?(extra int=2)"},
@@ -232,12 +230,10 @@ var fmttests = []fmtTest{
 	fmtTest{"%v", &array, "&[1 2 3 4 5]"},
 	fmtTest{"%v", &iarray, "&[1 hello 2.5 <nil>]"},
 
-	/* TODO: Enable when complex support is in all compilers
 	// complexes with %v
 	fmtTest{"%v", 1 + 2i, "(1+2i)"},
 	fmtTest{"%v", complex64(1 + 2i), "(1+2i)"},
 	fmtTest{"%v", complex128(1 + 2i), "(1+2i)"},
-	*/
 
 	// structs
 	fmtTest{"%v", A{1, 2, "a", []int{1, 2}}, `{1 2 a [1 2]}`},
