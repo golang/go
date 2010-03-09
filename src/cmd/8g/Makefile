@@ -22,6 +22,7 @@ OFILES=\
 	gsubr.$O\
 	cgen.$O\
 	cgen64.$O\
+	cplx.$O\
 	peep.$O\
 	reg.$O\
 
@@ -38,3 +39,6 @@ clean:
 
 install: $(TARG)
 	cp $(TARG) "$(GOBIN)"/$(TARG)
+
+%.$O: ../gc/%.c
+	$(CC) $(CFLAGS) -c -I. -o $@ ../gc/$*.c

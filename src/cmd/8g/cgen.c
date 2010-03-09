@@ -57,12 +57,6 @@ cgen(Node *n, Node *res)
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
-	// TODO compile complex
-	if(n != N && n->type != T && iscomplex[n->type->etype])
-		return;
-	if(res != N && res->type != T && iscomplex[res->type->etype])
-		return;
-
 	// inline slices
 	if(cgen_inline(n, res))
 		return;
@@ -96,6 +90,12 @@ cgen(Node *n, Node *res)
 		if(isslice(n->left->type))
 			n->addable = n->left->addable;
 		break;
+	}
+
+	// complex types
+	if(complexop(n, res)) {
+		complexgen(n, res);
+		return;
 	}
 
 	// if both are addressable, move
@@ -741,12 +741,6 @@ bgen(Node *n, int true, Prog *to)
 	nl = n->left;
 	nr = n->right;
 
-	// TODO compile complex
-	if(nl != N && nl->type != T && iscomplex[nl->type->etype])
-		return;
-	if(nr != N && nr->type != T && iscomplex[nr->type->etype])
-		return;
-
 	if(n->type == T) {
 		convlit(&n, types[TBOOL]);
 		if(n->type == T)
@@ -857,6 +851,7 @@ bgen(Node *n, int true, Prog *to)
 				break;
 			}				
 			a = brcom(a);
+			true = !true;
 		}
 
 		// make simplest on right
@@ -958,6 +953,10 @@ bgen(Node *n, int true, Prog *to)
 				patch(gbranch(AJPS, T), to);
 			} else
 				patch(gbranch(optoas(a, nr->type), T), to);
+			break;
+		}
+		if(iscomplex[nl->type->etype]) {
+			complexbool(a, nl, nr, true, to);
 			break;
 		}
 

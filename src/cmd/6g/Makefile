@@ -38,3 +38,6 @@ clean:
 
 install: $(TARG)
 	cp $(TARG) "$(GOBIN)"/$(TARG)
+
+%.$O: ../gc/%.c
+	$(CC) $(CFLAGS) -c -I. -o $@ ../gc/$*.c

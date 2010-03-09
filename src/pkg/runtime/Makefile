@@ -48,6 +48,7 @@ OFILES=\
 	chan.$O\
 	closure.$O\
 	float.$O\
+	complex.$O\
 	hashmap.$O\
 	iface.$O\
 	malloc.$O\

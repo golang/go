@@ -1,6 +1,6 @@
-// true
+// $G $D/$F.go && $L $F.$A && ./$A.out
 
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -20,7 +20,7 @@ var complexBits = reflect.Typeof(complex(0i)).Size() * 8
 
 func main() {
 	c0 := C1
-	c0 = (c0+c0+c0) / (c0+c0)
+	c0 = (c0+c0+c0) / (c0+c0+3i)
 	println(c0)
 
 	c := *(*complex)(unsafe.Pointer(&c0))
