@@ -16,12 +16,13 @@ void *GetStdHandle;
 void *SetEvent;
 void *WriteFile;
 void *VirtualAlloc;
+void *LoadLibraryEx;
+void *GetProcAddress;
+void *GetLastError;
 
 static void *CreateEvent;
 static void *CreateThread;
 static void *GetModuleHandle;
-static void *GetProcAddress;
-static void *LoadLibraryEx;
 static void *WaitForSingleObject;
 
 static void*
@@ -65,6 +66,7 @@ osinit(void)
 	VirtualAlloc = get_proc_addr("kernel32.dll", "VirtualAlloc");
 	WaitForSingleObject = get_proc_addr("kernel32.dll", "WaitForSingleObject");
 	WriteFile = get_proc_addr("kernel32.dll", "WriteFile");
+	GetLastError = get_proc_addr("kernel32.dll", "GetLastError");
 }
 
 // The arguments are strings.

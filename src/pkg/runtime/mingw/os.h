@@ -12,6 +12,9 @@ void *stdcall(void *fn, ...);
 void *stdcall_raw(void *fn, ...);
 
 extern void *VirtualAlloc;
+extern void *LoadLibraryEx;
+extern void *GetProcAddress;
+extern void *GetLastError;
 
 #define goargs mingw_goargs
 void mingw_goargs(void);

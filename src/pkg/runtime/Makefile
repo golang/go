@@ -27,6 +27,9 @@ GOFILES=\
 GOFILES_pchw=\
 	pchw/io.go\
 
+OFILES_mingw=\
+	syscall.$O\
+
 # 386-specific object files
 OFILES_386=\
 	vlop.$O\

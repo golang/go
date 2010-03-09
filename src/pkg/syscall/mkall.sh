@@ -144,6 +144,13 @@ linux_arm)
 	mktypes="godefs -gsyscall -carm-gcc"
 	mkerrors="mkerrors.sh"
 	;;
+mingw_386)
+	# TODO(brainman): create proper mksyscall / mksysnum / mktypes
+	mksyscall="mksyscall.sh -l32"
+	mksysnum="XXXXXX_mksysnum.sh"
+	mktypes="XXXXXX_godefs -gsyscall -f-m32"
+	exit 1
+	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
 	exit 1
