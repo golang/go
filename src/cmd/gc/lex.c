@@ -290,7 +290,7 @@ importfile(Val *f, int line)
 	int32 c;
 	int len;
 	Strlit *path;
-	char cleanbuf[1024];
+	char *cleanbuf;
 
 	// TODO(rsc): don't bother reloading imports more than once?
 
@@ -310,7 +310,8 @@ importfile(Val *f, int line)
 
 	path = f->u.sval;
 	if(islocalname(path)) {
-		snprint(cleanbuf, sizeof cleanbuf, "%s/%s", pathname, path->s);
+		cleanbuf = mal(strlen(pathname) + strlen(path->s) + 2);
+		sprint(cleanbuf, "%s/%s", pathname, path->s);
 		cleanname(cleanbuf);
 		path = strlit(cleanbuf);
 	}
