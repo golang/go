@@ -92,12 +92,6 @@ cgen(Node *n, Node *res)
 		break;
 	}
 
-	// complex types
-	if(complexop(n, res)) {
-		complexgen(n, res);
-		return;
-	}
-
 	// if both are addressable, move
 	if(n->addable && res->addable) {
 		gmove(n, res);
@@ -120,6 +114,12 @@ cgen(Node *n, Node *res)
 		igen(res, &n1, N);
 		cgen(n, &n1);
 		regfree(&n1);
+		return;
+	}
+
+	// complex types
+	if(complexop(n, res)) {
+		complexgen(n, res);
 		return;
 	}
 
