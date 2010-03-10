@@ -66,6 +66,7 @@ import (
 	"container/vector"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime"
@@ -965,6 +966,19 @@ func Parse(s string, fmap FormatterMap) (t *Template, err os.Error) {
 	return
 }
 
+// ParseFile is a wrapper function that creates a Template with default
+// parameters (such as {} for // metacharacters).  The filename identfies
+// a file containing the template text, while the formatter map fmap, which
+// may be nil, defines auxiliary functions for formatting variables.
+// The template is returned. If any errors occur, err will be non-nil.
+func ParseFile(filename string, fmap FormatterMap) (t *Template, err os.Error) {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(string(b), fmap)
+}
+
 // MustParse is like Parse but panics if the template cannot be parsed.
 func MustParse(s string, fmap FormatterMap) *Template {
 	t, err := Parse(s, fmap)
@@ -972,4 +986,14 @@ func MustParse(s string, fmap FormatterMap) *Template {
 		panic("template parse error: ", err.String())
 	}
 	return t
+}
+
+// MustParseFile is like ParseFile but panics if the file cannot be read
+// or the template cannot be parsed.
+func MustParseFile(filename string, fmap FormatterMap) *Template {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic("template parse error: ", err.String())
+	}
+	return MustParse(string(b), fmap)
 }
