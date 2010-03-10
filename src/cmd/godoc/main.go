@@ -47,7 +47,8 @@ var (
 	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')")
 
 	// layout control
-	html = flag.Bool("html", false, "print HTML in command-line mode")
+	html   = flag.Bool("html", false, "print HTML in command-line mode")
+	genAST = flag.Bool("x", false, "print exported source in command-line mode")
 )
 
 
@@ -240,14 +241,14 @@ func main() {
 		relpath = relativePath(path)
 	}
 
-	info := pkgHandler.getPageInfo(abspath, relpath, true)
+	info := pkgHandler.getPageInfo(abspath, relpath, *genAST, true)
 
-	if info.PDoc == nil && info.Dirs == nil {
+	if info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
 		// try again, this time assume it's a command
 		if len(path) > 0 && path[0] != '/' {
 			abspath = absolutePath(path, cmdHandler.fsRoot)
 		}
-		info = cmdHandler.getPageInfo(abspath, relpath, false)
+		info = cmdHandler.getPageInfo(abspath, relpath, false, false)
 	}
 
 	if info.PDoc != nil && flag.NArg() > 1 {

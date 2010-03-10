@@ -1087,8 +1087,9 @@ const fakePkgName = "documentation"
 
 type PageInfo struct {
 	Dirname string          // directory containing the package
-	PDoc    *doc.PackageDoc // nil if no package found
-	Dirs    *DirList        // nil if no directory information found
+	PAst    *ast.File       // nil if no AST with package exports
+	PDoc    *doc.PackageDoc // nil if no package documentation
+	Dirs    *DirList        // nil if no directory information
 	IsPkg   bool            // false if this is not documenting a real package
 }
 
@@ -1100,12 +1101,15 @@ type httpHandler struct {
 }
 
 
-// getPageInfo returns the PageInfo for a package directory dirname. If
-// the parameter try is true, no errors are logged if getPageInfo fails.
-// If there is no corresponding package in the directory, PageInfo.PDoc
-// is nil. If there are no subdirectories, PageInfo.Dirs is nil.
+// getPageInfo returns the PageInfo for a package directory dirname. If the
+// parameter genAST is set, an AST containing only the package exports is
+// computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
+// is extracted from the AST. If the parameter try is set, no errors are
+// logged if getPageInfo fails. If there is no corresponding package in the
+// directory, PageInfo.PDoc and PageInfo.PExp are nil. If there are no sub-
+// directories, PageInfo.Dirs is nil.
 //
-func (h *httpHandler) getPageInfo(dirname, relpath string, try bool) PageInfo {
+func (h *httpHandler) getPageInfo(dirname, relpath string, genAST, try bool) PageInfo {
 	// filter function to select the desired .go files
 	filter := func(d *os.Dir) bool {
 		// If we are looking at cmd documentation, only accept
@@ -1141,10 +1145,15 @@ func (h *httpHandler) getPageInfo(dirname, relpath string, try bool) PageInfo {
 	}
 
 	// compute package documentation
+	var past *ast.File
 	var pdoc *doc.PackageDoc
 	if pkg != nil {
 		ast.PackageExports(pkg)
-		pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(relpath)) // no trailing '/' in importpath
+		if genAST {
+			past = ast.MergePackageFiles(pkg)
+		} else {
+			pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(relpath)) // no trailing '/' in importpath
+		}
 	}
 
 	// get directory information
@@ -1163,7 +1172,7 @@ func (h *httpHandler) getPageInfo(dirname, relpath string, try bool) PageInfo {
 		dir = newDirectory(dirname, 1)
 	}
 
-	return PageInfo{dirname, pdoc, dir.listing(true), h.isPkg}
+	return PageInfo{dirname, past, pdoc, dir.listing(true), h.isPkg}
 }
 
 
@@ -1174,7 +1183,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 
 	relpath := r.URL.Path[len(h.pattern):]
 	abspath := absolutePath(relpath, h.fsRoot)
-	info := h.getPageInfo(abspath, relpath, false)
+	info := h.getPageInfo(abspath, relpath, r.FormValue("m") == "src", false)
 
 	if r.FormValue("f") == "text" {
 		contents := applyTemplate(packageText, "packageText", info)
@@ -1183,7 +1192,10 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	}
 
 	var title string
-	if info.PDoc != nil {
+	switch {
+	case info.PAst != nil:
+		title = "Package " + info.PAst.Name.Name()
+	case info.PDoc != nil:
 		switch {
 		case h.isPkg:
 			title = "Package " + info.PDoc.PackageName
@@ -1194,7 +1206,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 		default:
 			title = "Command " + info.PDoc.PackageName
 		}
-	} else {
+	default:
 		title = "Directory " + relativePath(info.Dirname)
 	}
 
