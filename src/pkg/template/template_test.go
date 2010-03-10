@@ -9,7 +9,9 @@ import (
 	"container/vector"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"json"
+	"os"
 	"testing"
 )
 
@@ -386,6 +388,16 @@ var tests = []*Test{
 }
 
 func TestAll(t *testing.T) {
+	// Parse
+	testAll(t, func(test *Test) (*Template, os.Error) { return Parse(test.in, formatters) })
+	// ParseFile
+	testAll(t, func(test *Test) (*Template, os.Error) {
+		ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
+		return ParseFile("_test/test.tmpl", formatters)
+	})
+}
+
+func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	s := new(S)
 	// initialized by hand for clarity.
 	s.header = "Header"
@@ -415,7 +427,7 @@ func TestAll(t *testing.T) {
 	var buf bytes.Buffer
 	for _, test := range tests {
 		buf.Reset()
-		tmpl, err := Parse(test.in, formatters)
+		tmpl, err := parseFunc(test)
 		if err != nil {
 			t.Error("unexpected parse error:", err)
 			continue
