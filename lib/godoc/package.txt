@@ -1,3 +1,6 @@
+{.section PAst}
+{@}
+{.end}
 {.section PDoc}
 {.section IsPkg}
 PACKAGE
