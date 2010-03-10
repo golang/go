@@ -58,18 +58,6 @@ complexmove(Node *f, Node *t)
 		cgen(&n1, &n3);
 		cgen(&n2, &n4);
 		break;
-
-	// these are depricated
-	case CASE(TFLOAT32,TCOMPLEX64):
-	case CASE(TFLOAT32,TCOMPLEX128):
-	case CASE(TFLOAT64,TCOMPLEX64):
-	case CASE(TFLOAT64,TCOMPLEX128):
-		// float to complex goes to real part
-
-		subnode(&n1, &n2, t);
-		cgen(f, &n1);
-		zero(&n2);
-		break;
 	}
 }
 

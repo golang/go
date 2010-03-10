@@ -15,9 +15,7 @@ const (
 	C1 = R + I // ADD(5,6)
 )
 
-func doprint(c complex) {
-	fmt.Printf("c = %f\n", c)
-}
+func doprint(c complex) { fmt.Printf("c = %f\n", c) }
 
 func main() {
 

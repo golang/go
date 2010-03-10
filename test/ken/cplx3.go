@@ -20,7 +20,7 @@ var complexBits = reflect.Typeof(complex(0i)).Size() * 8
 
 func main() {
 	c0 := C1
-	c0 = (c0+c0+c0) / (c0+c0+3i)
+	c0 = (c0 + c0 + c0) / (c0 + c0 + 3i)
 	println(c0)
 
 	c := *(*complex)(unsafe.Pointer(&c0))
@@ -32,11 +32,11 @@ func main() {
 	switch c := reflect.NewValue(a).(type) {
 	case *reflect.Complex64Value:
 		v := c.Get()
-		_,_ = complex64(v), true
+		_, _ = complex64(v), true
 	case *reflect.ComplexValue:
 		if complexBits == 64 {
 			v := c.Get()
-			_,_ = complex64(v), true
+			_, _ = complex64(v), true
 		}
 	}
 }
