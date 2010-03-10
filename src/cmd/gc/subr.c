@@ -458,7 +458,8 @@ algtype(Type *t)
 {
 	int a;
 
-	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP)
+	if(issimple[t->etype] || isptr[t->etype] || iscomplex[t->etype] ||
+	   t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP)
 		a = AMEM;	// just bytes (int, ptr, etc)
 	else if(t->etype == TSTRING)
 		a = ASTRING;	// string
@@ -475,6 +476,7 @@ Type*
 maptype(Type *key, Type *val)
 {
 	Type *t;
+
 
 	if(key != nil && key->etype != TANY && algtype(key) == ANOEQ) {
 		if(key->etype == TFORW) {

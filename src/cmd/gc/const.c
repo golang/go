@@ -76,14 +76,12 @@ convlit1(Node **np, Type *t, int explicit)
 	if(!explicit && !isideal(n->type))
 		return;
 
-//dump("convlit1", n);
 	if(n->op == OLITERAL) {
 		nn = nod(OXXX, N, N);
 		*nn = *n;
 		n = nn;
 		*np = n;
 	}
-//dump("convlit2", n);
 
 	switch(n->op) {
 	default:
@@ -203,6 +201,8 @@ convlit1(Node **np, Type *t, int explicit)
 				goto bad;
 			case CTFLT:
 			case CTINT:
+				if(explicit)
+					goto bad;
 				n->val = tocplx(n->val);
 				break;
 			case CTCPLX:
