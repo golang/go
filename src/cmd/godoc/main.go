@@ -48,7 +48,7 @@ var (
 
 	// layout control
 	html   = flag.Bool("html", false, "print HTML in command-line mode")
-	genAST = flag.Bool("x", false, "print exported source in command-line mode")
+	genAST = flag.Bool("src", false, "print exported source in command-line mode")
 )
 
 

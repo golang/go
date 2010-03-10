@@ -23,6 +23,8 @@ Usage:
 The flags are:
 	-v
 		verbose mode
+	-src
+		print exported source in command-line mode
 	-tabwidth=4
 		width of tabs in units of spaces
 	-path=""
