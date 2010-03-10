@@ -646,7 +646,7 @@ float64     the set of all IEEE-754 64-bit floating-point numbers
 complex64   the set of all complex numbers with float32 real and imaginary parts
 complex128  the set of all complex numbers with float64 real and imaginary parts
 
-byte     familiar alias for uint8
+byte        familiar alias for uint8
 </pre>
 
 <p>
@@ -3383,13 +3383,13 @@ operations with untyped integer and floating-point constants; the
 result is an untyped complex constant.
 Complex constants are always constructed from
 constant expressions involving imaginary
-literals or constants derived from them, or calls of the
-<a href="#Built-in_functions">built-in function</a> <code>cmplx</code>.
+literals or constants derived from them, or calls of the built-in function
+<a href="#Complex_numbers"><code>cmplx</code></a>.
 </p>
 
 <pre>
 const Σ = 1 - 0.707i
-const Δ = Σ + 2.0e-4 - 1/i
+const Δ = Σ + 2.0e-4 - 1/1i
 const Φ = iota * 1i
 const iΓ = cmplx(0, Γ)
 </pre>
