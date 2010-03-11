@@ -262,9 +262,9 @@ func Erf(x float64) float64 {
 // Erfc(x) returns the complementary error function of x.
 //
 // Special cases are:
-//	Erf(+Inf) = 0
-//	Erf(-Inf) = 2
-//	Erf(NaN) = NaN
+//	Erfc(+Inf) = 0
+//	Erfc(-Inf) = 2
+//	Erfc(NaN) = NaN
 func Erfc(x float64) float64 {
 	const Tiny = 1.0 / (1 << 56) // 2^-56
 	// special cases
