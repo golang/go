@@ -174,6 +174,23 @@ See the separate <a href="gccgo_install.html"><code>gccgo</code> document</a>
 for details about that compiler and environment.
 </p>
 
+<h2>Install C tools, if needed</h2>
+
+<p>The Go tool chain is written in C.  To build it, you need
+to have GCC, the standard C libraries, the parser generator Bison,
+<tt>make</tt>, <tt>awk</tt>, and the text editor <tt>ed</tt> installed.  On OS X, they can be
+installed as part of
+<a href="http://developer.apple.com/TOOLS/Xcode/">Xcode</a>.  On Linux, use
+</p>
+
+<pre>
+$ sudo apt-get install bison gcc libc6-dev ed gawk make
+</pre>
+
+<p>
+(or the equivalent on your Linux distribution).
+</p>
+
 <h2>Fetch the repository</h2>
 
 <p>
@@ -197,21 +214,6 @@ $ hg clone -r release https://go.googlecode.com/hg/ $GOROOT
 </pre>
 
 <h2>Install Go</h2>
-
-<p>The Go tool chain is written in C.  To build it, you need
-to have GCC, the standard C libraries, the parser generator Bison,
-<tt>make</tt>, <tt>awk</tt>, and the text editor <tt>ed</tt> installed.  On OS X, they can be
-installed as part of
-<a href="http://developer.apple.com/TOOLS/Xcode/">Xcode</a>.  On Linux,
-</p>
-
-<pre>
-$ sudo apt-get install bison gcc libc6-dev ed gawk make
-</pre>
-
-<p>
-(or the equivalent on your Linux distribution).
-</p>
 
 <p>
 To build the Go distribution, run
