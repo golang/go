@@ -20,6 +20,7 @@ var (
 
 func _() {
 	// no spaces around simple or parenthesized expressions
+	_ = (a+0)
 	_ = a+b
 	_ = a+b+c
 	_ = a+b-c
