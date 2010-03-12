@@ -293,7 +293,7 @@ func MergePackageFiles(pkg *Package, complete bool) *File {
 						name := f.Name.Name()
 						if j, exists := funcs[name]; exists {
 							// function declared already
-							if decls[j].(*FuncDecl).Doc == nil {
+							if decls[j] != nil && decls[j].(*FuncDecl).Doc == nil {
 								// existing declaration has no documentation;
 								// ignore the existing declaration
 								decls[j] = nil
