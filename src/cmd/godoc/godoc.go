@@ -1150,7 +1150,7 @@ func (h *httpHandler) getPageInfo(dirname, relpath string, genAST, try bool) Pag
 	if pkg != nil {
 		ast.PackageExports(pkg)
 		if genAST {
-			past = ast.MergePackageFiles(pkg)
+			past = ast.MergePackageFiles(pkg, false)
 		} else {
 			pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(relpath)) // no trailing '/' in importpath
 		}

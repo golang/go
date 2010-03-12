@@ -195,18 +195,46 @@ func PackageExports(pkg *Package) bool {
 var separator = &Comment{noPos, []byte("//")}
 
 
+// lineAfterComment computes the position of the beginning
+// of the line immediately following a comment.
+func lineAfterComment(c *Comment) token.Position {
+	pos := c.Pos()
+	line := pos.Line
+	text := c.Text
+	if text[1] == '*' {
+		/*-style comment - determine endline */
+		for _, ch := range text {
+			if ch == '\n' {
+				line++
+			}
+		}
+	}
+	pos.Offset += len(text) + 1 // +1 for newline
+	pos.Line = line + 1         // line after comment
+	pos.Column = 1              // beginning of line
+	return pos
+}
+
+
 // MergePackageFiles creates a file AST by merging the ASTs of the
-// files belonging to a package.
+// files belonging to a package. If complete is set, the package
+// files are assumed to contain the complete, unfiltered package
+// information. In this case, MergePackageFiles collects all entities
+// and all comments. Otherwise (complete == false), MergePackageFiles
+// excludes duplicate entries and does not collect comments that are
+// not attached to AST nodes.
 //
-func MergePackageFiles(pkg *Package) *File {
-	// Count the number of package comments and declarations across
+func MergePackageFiles(pkg *Package, complete bool) *File {
+	// Count the number of package docs, comments and declarations across
 	// all package files.
+	ndocs := 0
 	ncomments := 0
 	ndecls := 0
 	for _, f := range pkg.Files {
 		if f.Doc != nil {
-			ncomments += len(f.Doc.List) + 1 // +1 for separator
+			ndocs += len(f.Doc.List) + 1 // +1 for separator
 		}
+		ncomments += len(f.Comments)
 		ndecls += len(f.Decls)
 	}
 
@@ -216,8 +244,9 @@ func MergePackageFiles(pkg *Package) *File {
 	// a package comment; but it's better to collect extra comments
 	// than drop them on the floor.
 	var doc *CommentGroup
-	if ncomments > 0 {
-		list := make([]*Comment, ncomments-1) // -1: no separator before first group
+	var pos token.Position
+	if ndocs > 0 {
+		list := make([]*Comment, ndocs-1) // -1: no separator before first group
 		i := 0
 		for _, f := range pkg.Files {
 			if f.Doc != nil {
@@ -230,6 +259,12 @@ func MergePackageFiles(pkg *Package) *File {
 					list[i] = c
 					i++
 				}
+				end := lineAfterComment(f.Doc.List[len(f.Doc.List)-1])
+				if end.Offset > pos.Offset {
+					// Keep the maximum end position as
+					// position for the package clause.
+					pos = end
+				}
 			}
 		}
 		doc = &CommentGroup{list}
@@ -239,15 +274,70 @@ func MergePackageFiles(pkg *Package) *File {
 	var decls []Decl
 	if ndecls > 0 {
 		decls = make([]Decl, ndecls)
-		i := 0
+		funcs := make(map[string]int) // map of global function name -> decls index
+		i := 0                        // current index
+		n := 0                        // number of filtered entries
 		for _, f := range pkg.Files {
 			for _, d := range f.Decls {
+				if !complete {
+					// A language entity may be declared multiple
+					// times in different package files; only at
+					// build time declarations must be unique.
+					// For now, exclude multiple declarations of
+					// functions - keep the one with documentation.
+					//
+					// TODO(gri): Expand this filtering to other
+					//            entities (const, type, vars) if
+					//            multiple declarations are common.
+					if f, isFun := d.(*FuncDecl); isFun {
+						name := f.Name.Name()
+						if j, exists := funcs[name]; exists {
+							// function declared already
+							if decls[j].(*FuncDecl).Doc == nil {
+								// existing declaration has no documentation;
+								// ignore the existing declaration
+								decls[j] = nil
+							} else {
+								// ignore the new declaration
+								d = nil
+							}
+							n++ // filtered an entry
+						} else {
+							funcs[name] = i
+						}
+					}
+				}
 				decls[i] = d
 				i++
 			}
 		}
+
+		// Eliminate nil entries from the decls list if entries were
+		// filtered. We do this using a 2nd pass in order to not disturb
+		// the original declaration order in the source (otherwise, this
+		// would also invalidate the monotonically increasing position
+		// info within a single file).
+		if n > 0 {
+			i = 0
+			for _, d := range decls {
+				if d != nil {
+					decls[i] = d
+					i++
+				}
+			}
+			decls = decls[0:i]
+		}
 	}
 
-	// TODO(gri) Should collect comments as well.
-	return &File{doc, noPos, NewIdent(pkg.Name), decls, nil}
+	// Collect comments from all package files.
+	var comments []*CommentGroup
+	if complete {
+		comments = make([]*CommentGroup, ncomments)
+		i := 0
+		for _, f := range pkg.Files {
+			i += copy(comments[i:], f.Comments)
+		}
+	}
+
+	return &File{doc, pos, NewIdent(pkg.Name), decls, comments}
 }
