@@ -53,8 +53,9 @@ var (
 )
 
 
-// Use noPos when a position is needed but not known.
-var noPos token.Position
+// Special positions
+var noPos token.Position                                      // use noPos when a position is needed but not known
+var infinity = token.Position{Offset: 1 << 30, Line: 1 << 30} // use infinity to indicate the end of the source
 
 
 // Use ignoreMultiLine if the multiLine information is not important.
@@ -78,7 +79,7 @@ type printer struct {
 	// The (possibly estimated) position in the generated output;
 	// in AST space (i.e., pos is set whenever a token position is
 	// known accurately, and updated dependending on what has been
-	// written)
+	// written).
 	pos token.Position
 
 	// The value of pos immediately after the last item has been
@@ -278,7 +279,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
 
 // writeCommentPrefix writes the whitespace before a comment.
 // If there is any pending whitespace, it consumes as much of
-// it as is likely to help the comment position properly.
+// it as is likely to help position the comment nicely.
 // pos is the comment position, next the position of the item
 // after all pending comments, isFirst indicates if this is the
 // first comment in a group of comments, and isKeyword indicates
@@ -647,24 +648,30 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 // formfeed was dropped from the whitespace buffer.
 //
 func (p *printer) intersperseComments(next token.Position, isKeyword bool) (droppedFF bool) {
-	isFirst := true
-	needsLinebreak := false
 	var last *ast.Comment
 	for ; p.commentBefore(next); p.cindex++ {
 		for _, c := range p.comments[p.cindex].List {
-			p.writeCommentPrefix(c.Pos(), next, isFirst, isKeyword)
-			isFirst = false
+			p.writeCommentPrefix(c.Pos(), next, last == nil, isKeyword)
 			p.writeComment(c)
-			needsLinebreak = c.Text[1] == '/'
 			last = c
 		}
 	}
-	if last != nil && !needsLinebreak && last.Pos().Line == next.Line {
-		// the last comment is a /*-style comment and the next item
-		// follows on the same line: separate with an extra blank
-		p.write([]byte{' '})
+
+	if last != nil {
+		if last.Text[1] == '*' && last.Pos().Line == next.Line {
+			// the last comment is a /*-style comment and the next item
+			// follows on the same line: separate with an extra blank
+			p.write([]byte{' '})
+		}
+		// ensure that there is a newline after a //-style comment
+		// or if we are at the end of a file after a /*-style comment
+		return p.writeCommentSuffix(last.Text[1] == '/' || next.Offset == infinity.Offset)
 	}
-	return p.writeCommentSuffix(needsLinebreak)
+
+	// no comment was written - we should never reach here since
+	// intersperseComments should not be called in that case
+	p.internalError("intersperseComments called without pending comments")
+	return false
 }
 
 
@@ -885,7 +892,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 				}
 				m = -1
 			}
-			// collect whitespace but discard tabrwiter.Escapes.
+			// collect whitespace but discard tabwriter.Escapes.
 			if b != tabwriter.Escape {
 				p.buf.WriteByte(b) // WriteByte returns no errors
 			}
@@ -1019,8 +1026,8 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n))
 			runtime.Goexit()
 		}
-		p.flush(token.Position{Offset: 1 << 30, Line: 1 << 30}, false) // flush to "infinity"
-		p.errors <- nil                                                // no errors
+		p.flush(infinity, false)
+		p.errors <- nil // no errors
 	}()
 	err := <-p.errors // wait for completion of goroutine
 

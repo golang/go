@@ -219,3 +219,5 @@ testLoop:
 		f.Close()
 	}
 }
+
+// There should be exactly one linebreak after this comment.

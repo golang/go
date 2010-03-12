@@ -408,4 +408,4 @@ func _() {
 }
 
 
-// This comment is the last entry in this file. It must be printed.
+/* This comment is the last entry in this file. It must be printed and should be followed by a newline */
