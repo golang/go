@@ -562,6 +562,15 @@ func diffPrec(expr ast.Expr, prec int) int {
 }
 
 
+func reduceDepth(depth int) int {
+	depth--
+	if depth < 1 {
+		depth = 1
+	}
+	return depth
+}
+
+
 // Format the binary expression: decide the cutoff and then format.
 // Let's call depth == 1 Normal mode, and depth > 1 Compact mode.
 // (Algorithm suggestion by Russ Cox.)
@@ -604,7 +613,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
 		// Note: The parser inserts an ast.ParenExpr node; thus this case
 		//       can only occur if the AST is created in a different way.
 		p.print(token.LPAREN)
-		p.expr0(x, depth-1, multiLine) // parentheses undo one level of depth
+		p.expr0(x, reduceDepth(depth), multiLine) // parentheses undo one level of depth
 		p.print(token.RPAREN)
 		return
 	}
@@ -707,7 +716,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 
 	case *ast.ParenExpr:
 		p.print(token.LPAREN)
-		p.expr0(x.X, depth-1, multiLine) // parentheses undo one level of depth
+		p.expr0(x.X, reduceDepth(depth), multiLine) // parentheses undo one level of depth
 		p.print(x.Rparen, token.RPAREN)
 
 	case *ast.SelectorExpr:
@@ -925,7 +934,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 
 	case *ast.LabeledStmt:
 		// a "correcting" unindent immediately following a line break
-		// is applied before the line break  if there is no comment
+		// is applied before the line break if there is no comment
 		// between (see writeWhitespace)
 		p.print(unindent)
 		p.expr(s.Label, multiLine)

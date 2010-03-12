@@ -1002,6 +1002,11 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 			p.expr(n, ignoreMultiLine)
 		case ast.Stmt:
 			p.useNodeComments = true
+			// A labeled statement will un-indent to position the
+			// label. Set indent to 1 so we don't get indent "underflow".
+			if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
+				p.indent = 1
+			}
 			p.stmt(n, ignoreMultiLine)
 		case ast.Decl:
 			p.useNodeComments = true
