@@ -115,7 +115,7 @@ func Split(path string) (dir, file string) {
 	return "", path
 }
 
-// Join joins any number of path elemets into a single path, adding a
+// Join joins any number of path elements into a single path, adding a
 // separating slash if necessary.  All empty strings are ignored.
 func Join(elem ...string) string {
 	for i, e := range elem {
