@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"path"
 	"reflect"
 	"runtime"
 	"tabwriter"
@@ -240,19 +241,30 @@ func (p *printer) writeTaggedItem(data []byte, tag HTMLTag) {
 // immediately following the data.
 //
 func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
+	fileChanged := false
 	if pos.IsValid() {
 		// continue with previous position if we don't have a valid pos
+		if p.last.IsValid() && p.last.Filename != pos.Filename {
+			// the file has changed - reset state
+			// (used when printing merged ASTs of different files
+			// e.g., the result of ast.MergePackageFiles)
+			p.indent = 0
+			p.escape = false
+			p.buffer = p.buffer[0:0]
+			fileChanged = true
+		}
 		p.pos = pos
 	}
 	if debug {
 		// do not update p.pos - use write0
-		p.write0([]byte(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
+		_, filename := path.Split(pos.Filename)
+		p.write0([]byte(fmt.Sprintf("[%s:%d:%d]", filename, pos.Line, pos.Column)))
 	}
 	if p.Mode&GenHTML != 0 {
 		// write line tag if on a new line
 		// TODO(gri): should write line tags on each line at the start
 		//            will be more useful (e.g. to show line numbers)
-		if p.Styler != nil && pos.Line > p.lastTaggedLine {
+		if p.Styler != nil && (pos.Line != p.lastTaggedLine || fileChanged) {
 			p.writeTaggedItem(p.Styler.LineTag(pos.Line))
 			p.lastTaggedLine = pos.Line
 		}
@@ -279,7 +291,13 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 		return
 	}
 
-	if pos.Line == p.last.Line {
+	if pos.IsValid() && pos.Filename != p.last.Filename {
+		// comment in a different file - separate with newlines
+		p.writeNewlines(maxNewlines, true)
+		return
+	}
+
+	if pos.IsValid() && pos.Line == p.last.Line {
 		// comment on the same line as last item:
 		// separate with at least one separator
 		hasSep := false
@@ -353,6 +371,8 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 		// use formfeeds to break columns before a comment;
 		// this is analogous to using formfeeds to separate
 		// individual lines of /*-style comments
+		// (if !pos.IsValid(), pos.Line == 0, and this will
+		// print no newlines)
 		p.writeNewlines(pos.Line-p.last.Line, true)
 	}
 }
