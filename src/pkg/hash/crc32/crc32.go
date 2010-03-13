@@ -74,10 +74,15 @@ func (d *digest) Reset() { d.crc = 0 }
 
 func update(crc uint32, tab *Table, p []byte) uint32 {
 	crc = ^crc
-	for i := 0; i < len(p); i++ {
-		crc = tab[byte(crc)^p[i]] ^ (crc >> 8)
+	for _, v := range p {
+		crc = tab[byte(crc)^v] ^ (crc >> 8)
 	}
 	return ^crc
+}
+
+// Update returns the result of adding the bytes in p to the crc.
+func Update(crc uint32, tab *Table, p []byte) uint32 {
+	return update(crc, tab, p)
 }
 
 func (d *digest) Write(p []byte) (n int, err os.Error) {
