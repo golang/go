@@ -75,6 +75,14 @@ BUGS
 {.end}
 {.end}
 {.end}
+{.section PList}
+
+OTHER PACKAGES
+
+{.repeated section @}
+{@}
+{.end}
+{.end}
 {.section Dirs}
 {.section Dirs}
 
