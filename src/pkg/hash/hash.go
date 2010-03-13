@@ -28,3 +28,9 @@ type Hash32 interface {
 	Hash
 	Sum32() uint32
 }
+
+// Hash64 is the common interface implemented by all 64-bit hash functions.
+type Hash64 interface {
+	Hash
+	Sum64() uint64
+}
