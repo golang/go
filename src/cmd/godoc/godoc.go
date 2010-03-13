@@ -1087,8 +1087,9 @@ const fakePkgName = "documentation"
 
 type PageInfo struct {
 	Dirname string          // directory containing the package
-	PAst    *ast.File       // nil if no AST with package exports
-	PDoc    *doc.PackageDoc // nil if no package documentation
+	PList   []string        // list of package names found
+	PAst    *ast.File       // nil if no single AST with package exports
+	PDoc    *doc.PackageDoc // nil if no single package documentation
 	Dirs    *DirList        // nil if no directory information
 	IsPkg   bool            // false if this is not documenting a real package
 }
@@ -1101,7 +1102,7 @@ type httpHandler struct {
 }
 
 
-// getPageInfo returns the PageInfo for a package directory dirname. If the
+// getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
 // is extracted from the AST. If the parameter try is set, no errors are
@@ -1109,7 +1110,7 @@ type httpHandler struct {
 // directory, PageInfo.PDoc and PageInfo.PExp are nil. If there are no sub-
 // directories, PageInfo.Dirs is nil.
 //
-func (h *httpHandler) getPageInfo(dirname, relpath string, genAST, try bool) PageInfo {
+func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, genAST, try bool) PageInfo {
 	// filter function to select the desired .go files
 	filter := func(d *os.Dir) bool {
 		// If we are looking at cmd documentation, only accept
@@ -1118,30 +1119,64 @@ func (h *httpHandler) getPageInfo(dirname, relpath string, genAST, try bool) Pag
 	}
 
 	// get package ASTs
-	pkgs, err := parser.ParseDir(dirname, filter, parser.ParseComments)
+	pkgs, err := parser.ParseDir(abspath, filter, parser.ParseComments)
 	if err != nil && !try {
 		// TODO: errors should be shown instead of an empty directory
 		log.Stderrf("parser.parseDir: %s", err)
 	}
-	if len(pkgs) != 1 && !try {
-		// TODO: should handle multiple packages,
-		//       error reporting disabled for now
-		// log.Stderrf("parser.parseDir: found %d packages", len(pkgs))
-	}
 
-	// Get the best matching package: either the first one, or the
-	// first one whose package name matches the directory name.
-	// The package name is the directory name within its parent.
-	_, pkgname := pathutil.Split(dirname)
-	var pkg *ast.Package
-	for _, p := range pkgs {
-		switch {
-		case pkg == nil:
+	// select package
+	var pkg *ast.Package // selected package
+	var plist []string   // list of other package (names), if any
+	if len(pkgs) == 1 {
+		// Exactly one package - select it.
+		for _, p := range pkgs {
 			pkg = p
-		case p.Name == pkgname:
-			pkg = p
-			break
 		}
+
+	} else if len(pkgs) > 1 {
+		// Multiple packages - select the best matching package: The
+		// 1st choice is the package with pkgname, the 2nd choice is
+		// the package with dirname, and the 3rd choice is a package
+		// that is not called "main" if there is exactly one such
+		// package. Otherwise, don't select a package.
+		dirpath, dirname := pathutil.Split(abspath)
+
+		// If the dirname is "go" we might be in a sub-directory for
+		// .go files - use the outer directory name instead for better
+		// results.
+		if dirname == "go" {
+			_, dirname = pathutil.Split(pathutil.Clean(dirpath))
+		}
+
+		var choice3 *ast.Package
+	loop:
+		for _, p := range pkgs {
+			switch {
+			case p.Name == pkgname:
+				pkg = p
+				break loop // 1st choice; we are done
+			case p.Name == dirname:
+				pkg = p // 2nd choice
+			case p.Name != "main":
+				choice3 = p
+			}
+		}
+		if pkg == nil && len(pkgs) == 2 {
+			pkg = choice3
+		}
+
+		// Compute the list of other packages
+		// (excluding the selected package, if any).
+		plist = make([]string, len(pkgs))
+		i := 0
+		for name, _ := range pkgs {
+			if pkg == nil || name != pkg.Name {
+				plist[i] = name
+				i++
+			}
+		}
+		plist = plist[0:i]
 	}
 
 	// compute package documentation
@@ -1163,16 +1198,16 @@ func (h *httpHandler) getPageInfo(dirname, relpath string, genAST, try bool) Pag
 		// (may still fail if the file system was updated and the
 		// new directory tree has not yet been computed)
 		// TODO(gri) Need to build directory tree for fsMap entries
-		dir = tree.(*Directory).lookup(dirname)
+		dir = tree.(*Directory).lookup(abspath)
 	}
 	if dir == nil {
 		// no directory tree present (either early after startup
 		// or command-line mode, or we don't build a tree for the
 		// directory; e.g. google3); compute one level for this page
-		dir = newDirectory(dirname, 1)
+		dir = newDirectory(abspath, 1)
 	}
 
-	return PageInfo{dirname, past, pdoc, dir.listing(true), h.isPkg}
+	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), h.isPkg}
 }
 
 
@@ -1183,7 +1218,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 
 	relpath := r.URL.Path[len(h.pattern):]
 	abspath := absolutePath(relpath, h.fsRoot)
-	info := h.getPageInfo(abspath, relpath, r.FormValue("m") == "src", false)
+	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), r.FormValue("m") == "src", false)
 
 	if r.FormValue("f") == "text" {
 		contents := applyTemplate(packageText, "packageText", info)

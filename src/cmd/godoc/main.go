@@ -241,14 +241,16 @@ func main() {
 		relpath = relativePath(path)
 	}
 
-	info := pkgHandler.getPageInfo(abspath, relpath, *genAST, true)
+	// TODO(gri): Provide a mechanism (flag?) to select a package
+	//            if there are multiple packages in a directory.
+	info := pkgHandler.getPageInfo(abspath, relpath, "", *genAST, true)
 
 	if info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
 		// try again, this time assume it's a command
 		if len(path) > 0 && path[0] != '/' {
 			abspath = absolutePath(path, cmdHandler.fsRoot)
 		}
-		info = cmdHandler.getPageInfo(abspath, relpath, false, false)
+		info = cmdHandler.getPageInfo(abspath, relpath, "", false, false)
 	}
 
 	if info.PDoc != nil && flag.NArg() > 1 {
