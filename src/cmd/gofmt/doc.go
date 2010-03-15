@@ -41,8 +41,8 @@ The rewrite rule specified with the -r flag must be a string of the form:
 	pattern -> replacement
 
 Both pattern and replacement must be valid Go expressions.
-In the pattern, single-character lowercase identifers serve as
-wildcards matching arbitrary subexpressions; those expressions
+In the pattern, single-character lowercase identifiers serve as
+wildcards matching arbitrary sub-expressions; those expressions
 will be substituted for the same identifiers in the replacement.
 
 
