@@ -46,7 +46,7 @@ func parseExpr(s string, what string) ast.Expr {
 }
 
 
-// rewriteFile applys the rewrite rule pattern -> replace to an entire file.
+// rewriteFile applies the rewrite rule 'pattern -> replace' to an entire file.
 func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 	m := make(map[string]reflect.Value)
 	pat := reflect.NewValue(pattern)
@@ -127,9 +127,19 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		return false
 	}
 
-	// Token positions need not match.
-	if pattern.Type() == positionType {
+	// Special cases.
+	switch pattern.Type() {
+	case positionType:
+		// token positions don't need to match
 		return true
+	case identType:
+		// For identifiers, only the names need to match
+		// (and none of the other *ast.Object information).
+		// This is a common case, handle it all here instead
+		// of recursing down any further via reflection.
+		p := pattern.Interface().(*ast.Ident)
+		v := val.Interface().(*ast.Ident)
+		return p == nil && v == nil || p != nil && v != nil && p.Name() == v.Name()
 	}
 
 	p := reflect.Indirect(pattern)
