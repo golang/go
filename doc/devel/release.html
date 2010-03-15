@@ -5,6 +5,44 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-03-15">2010-03-15</h3>
+
+<pre>
+This release includes a language change: support for complex numbers.
+	http://golang.org/doc/go_spec.html#Imaginary_literals
+	http://golang.org/doc/go_spec.html#Complex_numbers
+There is no library support as yet.
+
+This release also includes the goinstall command-line tool. 
+	http://golang.org/cmd/goinstall/
+	http://groups.google.com/group/golang-nuts/t/f091704771128e32
+
+* 5g/6g/8g: fix double function call in slice.
+* arm: cleanup build warnings. (thanks Dean Prichard)
+* big: fix mistakes with probablyPrime.
+* bufio: add WriteRune.
+* bytes: add ReadRune and WriteRune to bytes.Buffer.
+* cc: stack split bug fix.
+* crypto: add SHA-224 to sha256, add sha512 package. (thanks Conrad Meyer)
+* crypto/ripemd160: new package. (thanks Raif S. Naffah)
+* crypto/rsa: don't use safe primes.
+* gc: avoid fixed length buffer cleanbuf. (thanks Dean Prichard)
+	better compilation of floating point +=
+	fix crash on complicated arg to make slice.
+	remove duplicate errors, give better error for I.(T)
+* godoc: support for multiple packages in a directory, other fixes.
+* gofmt: bug fixes.
+* hash: add Sum64 interface.
+* hash/crc32: add Update function.
+* hash/crc64: new package implementing 64-bit CRC.
+* math: add ilogb, logb, remainder. (thanks Charles L. Dorian) 
+* regexp: add ReplaceAllFunc, ReplaceAllStringFunc.
+* runtime: clock garbage collection on bytes allocated, not pages in use.
+* strings: make Split(s, "", n) faster. (thanks Spring Mc)
+* syscall: minimal mingw version of syscall. (thanks Alex Brainman)
+* template: add ParseFile, MustParseFile.
+</pre>
+
 <h3 id="2010-03-04">2010-03-04</h3>
 
 <pre>
