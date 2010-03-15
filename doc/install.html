@@ -19,9 +19,9 @@ compiler using the GCC back end, see
 
 <h2>Environment variables</h2>
 
-<p>The Go compilation environment depends on three environment
-variables that you should set in your <code>.bashrc</code> or equivalent,
-plus one optional variable:</p>
+<p>
+The Go compilation environment depends on three environment variables plus one optional variable:
+</p>
 
 <dl>
 <dt>
@@ -106,7 +106,9 @@ In effect, you are always cross-compiling.
 </p>
 
 <p>
-Set these variables in your <code>.bashrc</code>.  For example:
+Set these variables in your shell profile (<code>$HOME/.bashrc</code>,
+<code>$HOME/.profile</code>, or equivalent). The settings might look 
+something like this:
 </p>
 
 <pre>
@@ -116,7 +118,8 @@ export GOOS=linux
 </pre>
 
 <p>
-Double-check them by listing your environment.
+Double-check them by listing your environment. (You will need to launch
+a new shell or terminal window for the changes to take effect.)
 </p>
 
 <pre>
