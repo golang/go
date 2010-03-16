@@ -5,6 +5,8 @@
 #include "runtime.h"
 #include "malloc.h"
 
+Lock finlock;
+
 // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
 // Table size is power of 3 so that hash can be key % max.
 // Key[i] == (void*)-1 denotes free but formerly occupied entry
@@ -97,18 +99,24 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 	uint32 *ref;
 	byte *base;
 
-	if(!mlookup(p, &base, nil, nil, &ref) || p != base)
+	lock(&finlock);
+	if(!mlookup(p, &base, nil, nil, &ref) || p != base) {
+		unlock(&finlock);
 		throw("addfinalizer on invalid pointer");
+	}
 	if(f == nil) {
 		if(*ref & RefHasFinalizer) {
-			getfinalizer(p, 1, nil);
+			lookfintab(&fintab, p, 1, nil);
 			*ref &= ~RefHasFinalizer;
 		}
+		unlock(&finlock);
 		return;
 	}
 
-	if(*ref & RefHasFinalizer)
+	if(*ref & RefHasFinalizer) {
+		unlock(&finlock);
 		throw("double finalizer");
+	}
 	*ref |= RefHasFinalizer;
 
 	if(fintab.nkey >= fintab.max/2+fintab.max/4) {
@@ -141,6 +149,7 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 	}
 
 	addfintab(&fintab, p, f, nret);
+	unlock(&finlock);
 }
 
 // get finalizer; if del, delete finalizer.
@@ -148,5 +157,10 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 void*
 getfinalizer(void *p, bool del, int32 *nret)
 {
-	return lookfintab(&fintab, p, del, nret);
+	void *f;
+	
+	lock(&finlock);
+	f = lookfintab(&fintab, p, del, nret);
+	unlock(&finlock);
+	return f;
 }
