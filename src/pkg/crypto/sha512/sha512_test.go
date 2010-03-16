@@ -51,6 +51,40 @@ var golden = []sha512Test{
 	sha512Test{"833f9248ab4a3b9e5131f745fda1ffd2dd435b30e965957e78291c7ab73605fd1912b0794e5c233ab0a12d205a39778d19b83515d6a47003f19cdee51d98c7e0", "How can you write a big system without C++?  -Paul Glick"},
 }
 
+var golden384 = []sha512Test{
+	sha512Test{"38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b", ""},
+	sha512Test{"54a59b9f22b0b80880d8427e548b7c23abd873486e1f035dce9cd697e85175033caa88e6d57bc35efae0b5afd3145f31", "a"},
+	sha512Test{"c7be03ba5bcaa384727076db0018e99248e1a6e8bd1b9ef58a9ec9dd4eeebb3f48b836201221175befa74ddc3d35afdd", "ab"},
+	sha512Test{"cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7", "abc"},
+	sha512Test{"1165b3406ff0b52a3d24721f785462ca2276c9f454a116c2b2ba20171a7905ea5a026682eb659c4d5f115c363aa3c79b", "abcd"},
+	sha512Test{"4c525cbeac729eaf4b4665815bc5db0c84fe6300068a727cf74e2813521565abc0ec57a37ee4d8be89d097c0d2ad52f0", "abcde"},
+	sha512Test{"c6a4c65b227e7387b9c3e839d44869c4cfca3ef583dea64117859b808c1e3d8ae689e1e314eeef52a6ffe22681aa11f5", "abcdef"},
+	sha512Test{"9f11fc131123f844c1226f429b6a0a6af0525d9f40f056c7fc16cdf1b06bda08e302554417a59fa7dcf6247421959d22", "abcdefg"},
+	sha512Test{"9000cd7cada59d1d2eb82912f7f24e5e69cc5517f68283b005fa27c285b61e05edf1ad1a8a9bded6fd29eb87d75ad806", "abcdefgh"},
+	sha512Test{"ef54915b60cf062b8dd0c29ae3cad69abe6310de63ac081f46ef019c5c90897caefd79b796cfa81139788a260ded52df", "abcdefghi"},
+	sha512Test{"a12070030a02d86b0ddacd0d3a5b598344513d0a051e7355053e556a0055489c1555399b03342845c4adde2dc44ff66c", "abcdefghij"},
+	sha512Test{"86f58ec2d74d1b7f8eb0c2ff0967316699639e8d4eb129de54bdf34c96cdbabe200d052149f2dd787f43571ba74670d4", "Discard medicine more than two years old."},
+	sha512Test{"ae4a2b639ca9bfa04b1855d5a05fe7f230994f790891c6979103e2605f660c4c1262a48142dcbeb57a1914ba5f7c3fa7", "He who has a shady past knows that nice guys finish last."},
+	sha512Test{"40ae213df6436eca952aa6841886fcdb82908ef1576a99c8f49bb9dd5023169f7c53035abdda0b54c302f4974e2105e7", "I wouldn't marry him with a ten foot pole."},
+	sha512Test{"e7cf8b873c9bc950f06259aa54309f349cefa72c00d597aebf903e6519a50011dfe355afff064a10701c705693848df9", "Free! Free!/A trip/to Mars/for 900/empty jars/Burma Shave"},
+	sha512Test{"c3d4f0f4047181c7d39d34703365f7bf70207183caf2c2f6145f04da895ef69124d9cdeb635da636c3a474e61024e29b", "The days of the digital watch are numbered.  -Tom Stoppard"},
+	sha512Test{"a097aab567e167d5cf93676ed73252a69f9687cb3179bb2d27c9878119e94bf7b7c4b58dc90582edfaf66e11388ed714", "Nepal premier won't resign."},
+	sha512Test{"5026ca45c41fc64712eb65065da92f6467541c78f8966d3fe2c8e3fb769a3ec14215f819654b47bd64f7f0eac17184f3", "For every action there is an equal and opposite government program."},
+	sha512Test{"ac1cc0f5ac8d5f5514a7b738ac322b7fb52a161b449c3672e9b6a6ad1a5e4b26b001cf3bad24c56598676ca17d4b445a", "His money is twice tainted: 'taint yours and 'taint mine."},
+	sha512Test{"722d10c5de371ec0c8c4b5247ac8a5f1d240d68c73f8da13d8b25f0166d6f309bf9561979a111a0049405771d201941a", "There is no reason for any individual to have a computer in their home. -Ken Olsen, 1977"},
+	sha512Test{"dc2d3ea18bfa10549c63bf2b75b39b5167a80c12aff0e05443168ea87ff149fb0eda5e0bd234eb5d48c7d02ffc5807f1", "It's a tiny change to the code and not completely disgusting. - Bob Manchek"},
+	sha512Test{"1d67c969e2a945ae5346d2139760261504d4ba164c522443afe19ef3e29b152a4c52445489cfc9d7215e5a450e8e1e4e", "size:  a.out:  bad magic"},
+	sha512Test{"5ff8e075e465646e7b73ef36d812c6e9f7d60fa6ea0e533e5569b4f73cde53cdd2cc787f33540af57cca3fe467d32fe0", "The major problem is with sendmail.  -Mark Horton"},
+	sha512Test{"5bd0a997a67c9ae1979a894eb0cde403dde003c9b6f2c03cf21925c42ff4e1176e6df1ca005381612ef18457b9b7ec3b", "Give me a rock, paper and scissors and I will move the world.  CCFestoon"},
+	sha512Test{"1eee6da33e7e54fc5be52ae23b94b16ba4d2a947ae4505c6a3edfc7401151ea5205ac01b669b56f27d8ef7f175ed7762", "If the enemy is within range, then so are you."},
+	sha512Test{"76b06e9dea66bfbb1a96029426dc0dfd7830bd297eb447ff5358d94a87cd00c88b59df2493fef56ecbb5231073892ea9", "It's well we cannot hear the screams/That we create in others' dreams."},
+	sha512Test{"12acaf21452cff586143e3f5db0bfdf7802c057e1adf2a619031c4e1b0ccc4208cf6cef8fe722bbaa2fb46a30d9135d8", "You remind me of a TV show, but that's all right: I watch it anyway."},
+	sha512Test{"0fc23d7f4183efd186f0bc4fc5db867e026e2146b06cb3d52f4bdbd57d1740122caa853b41868b197b2ac759db39df88", "C is as portable as Stonehedge!!"},
+	sha512Test{"bc805578a7f85d34a86a32976e1c34fe65cf815186fbef76f46ef99cda10723f971f3f1464d488243f5e29db7488598d", "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley"},
+	sha512Test{"b23918399a12ebf4431559eec3813eaf7412e875fd7464f16d581e473330842d2e96c6be49a7ce3f9bb0b8bc0fcbe0fe", "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"},
+	sha512Test{"1764b700eb1ead52a2fc33cc28975c2180f1b8faa5038d94cffa8d78154aab16e91dd787e7b0303948ebed62561542c8", "How can you write a big system without C++?  -Paul Glick"},
+}
+
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
@@ -66,6 +100,24 @@ func TestGolden(t *testing.T) {
 			s := fmt.Sprintf("%x", c.Sum())
 			if s != g.out {
 				t.Fatalf("sha512[%d](%s) = %s want %s", j, g.in, s, g.out)
+			}
+			c.Reset()
+		}
+	}
+	for i := 0; i < len(golden384); i++ {
+		g := golden384[i]
+		c := New384()
+		for j := 0; j < 3; j++ {
+			if j < 2 {
+				io.WriteString(c, g.in)
+			} else {
+				io.WriteString(c, g.in[0:len(g.in)/2])
+				c.Sum()
+				io.WriteString(c, g.in[len(g.in)/2:])
+			}
+			s := fmt.Sprintf("%x", c.Sum())
+			if s != g.out {
+				t.Fatalf("sha384[%d](%s) = %s want %s", j, g.in, s, g.out)
 			}
 			c.Reset()
 		}
