@@ -71,11 +71,13 @@ syn keyword     goType              chan map bool string
 syn keyword     goSignedInts        int int8 int16 int32 int64
 syn keyword     goUnsignedInts      byte uint uint8 uint16 uint32 uint64 uintptr
 syn keyword     goFloats            float float32 float64
+syn keyword     goComplexes         complex complex64 complex128
 
 hi def link     goType              Type
 hi def link     goSignedInts        Type
 hi def link     goUnsignedInts      Type
 hi def link     goFloats            Type
+hi def link     goComplexes         Type
 
 " Treat func specially: it's a declaration at the start of a line, but a type
 " elsewhere. Order matters here.
@@ -83,7 +85,8 @@ syn match       goType              /\<func\>/
 syn match       goDeclaration       /^func\>/
 
 " Predefined functions and values
-syn keyword     goBuiltins          cap close closed convert copy len make new panic panicln print println
+syn keyword     goBuiltins          cap close closed cmplx copy imag len make
+syn keyword     goBuiltins          new panic panicln print println real
 syn keyword     goConstants         iota true false nil
 
 hi def link     goBuiltins          Keyword
@@ -146,9 +149,17 @@ hi def link     Integer             Number
 " Floating point
 syn match       goFloat             "\<\d\+\.\d*\([Ee][-+]\d\+\)\?\>"
 syn match       goFloat             "\<\.\d\+\([Ee][-+]\d\+\)\?\>"
-syn match       goFloat             "\<\d\+[Ee][-+]\d\+"
+syn match       goFloat             "\<\d\+[Ee][-+]\d\+\>"
 
 hi def link     goFloat             Float
+
+" Imaginary literals
+syn match       goImaginary         "\<\d\+i\>"
+syn match       goImaginary         "\<\d\+\.\d*\([Ee][-+]\d\+\)\?i\>"
+syn match       goImaginary         "\<\.\d\+\([Ee][-+]\d\+\)\?i\>"
+syn match       goImaginary         "\<\d\+[Ee][-+]\d\+i\>"
+
+hi def link     goImaginary         Number
 
 " Spaces after "[]"
 if go_highlight_array_whitespace_error != 0
