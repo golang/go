@@ -1,0 +1,23 @@
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+
+<script src="http://www.google.com/jsapi"></script>
+<script src="/doc/popups.js"></script>
+<script>
+var popup_data = [
+{.repeated section Data}
+	'{@|popupInfo}',
+{.end}
+]
+
+google.load("jquery", "1");
+google.setOnLoadCallback(function() {.meta-left}
+        godocs_bindPopups(popup_data);
+{.meta-right});
+</script>
+
+{# Source is HTML-escaped elsewhere}
+<pre>{Source}</pre>

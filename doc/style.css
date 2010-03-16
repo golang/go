@@ -211,6 +211,19 @@ span.highlight {
   border: 2px solid #ba9836;
 }
 
+/* same color scheme as for gettingStarted */
+#content .popup {
+  position: absolute;
+  border: 1px solid #ba9836;
+  background-color: #fffff0;
+  margin-top: 3em;
+  padding: 3px;
+}
+
+#content .identifier,
+#content .type {
+  color: #008;
+}
 
 /* ------------------------------------------------------------------------- */
 /* Styles for the frontpage */

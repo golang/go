@@ -441,6 +441,36 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 type Styler struct {
 	linetags  bool
 	highlight string
+	objmap    map[*ast.Object]int
+	count     int
+}
+
+
+func newStyler(highlight string) *Styler {
+	return &Styler{true, highlight, make(map[*ast.Object]int), 0}
+}
+
+
+func (s *Styler) id(obj *ast.Object) int {
+	n, found := s.objmap[obj]
+	if !found {
+		n = s.count
+		s.objmap[obj] = n
+		s.count++
+	}
+	return n
+}
+
+
+func (s *Styler) mapping() []*ast.Object {
+	if s.objmap == nil {
+		return nil
+	}
+	m := make([]*ast.Object, s.count)
+	for obj, i := range s.objmap {
+		m[i] = obj
+	}
+	return m
 }
 
 
@@ -477,8 +507,15 @@ func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
 
 func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
 	text = []byte(id.Name())
+	var str string
+	if s.objmap != nil {
+		str = fmt.Sprintf(` id="%d"`, s.id(id.Obj))
+	}
 	if s.highlight == id.Name() {
-		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
+		str += ` class="highlight"`
+	}
+	if str != "" {
+		tag = printer.HTMLTag{"<span" + str + ">", "</span>"}
 	}
 	return
 }
@@ -761,6 +798,19 @@ func localnameFmt(w io.Writer, x interface{}, format string) {
 }
 
 
+// Template formatter for "popupInfo" format.
+func popupInfoFmt(w io.Writer, x interface{}, format string) {
+	obj := x.(*ast.Object)
+	// for now, show object kind and name; eventually
+	// do something more interesting (show declaration,
+	// for instance)
+	if obj.Kind != ast.Err {
+		fmt.Fprintf(w, "%s ", obj.Kind)
+	}
+	template.HTMLEscape(w, []byte(obj.Name))
+}
+
+
 var fmap = template.FormatterMap{
 	"":             textFmt,
 	"html":         htmlFmt,
@@ -776,6 +826,7 @@ var fmap = template.FormatterMap{
 	"time":         timeFmt,
 	"dir/":         dirslashFmt,
 	"localname":    localnameFmt,
+	"popupInfo":    popupInfoFmt,
 }
 
 
@@ -799,7 +850,8 @@ var (
 	godocHTML,
 	packageHTML,
 	packageText,
-	searchHTML *template.Template
+	searchHTML,
+	sourceHTML *template.Template
 )
 
 func readTemplates() {
@@ -810,6 +862,7 @@ func readTemplates() {
 	packageHTML = readTemplate("package.html")
 	packageText = readTemplate("package.txt")
 	searchHTML = readTemplate("search.html")
+	sourceHTML = readTemplate("source.html")
 }
 
 
@@ -913,11 +966,17 @@ func serveGoSource(c *http.Conn, r *http.Request, abspath, relpath string) {
 	}
 
 	var buf bytes.Buffer
-	fmt.Fprintln(&buf, "<pre>")
-	writeNode(&buf, file, true, &Styler{linetags: true, highlight: r.FormValue("h")})
-	fmt.Fprintln(&buf, "</pre>")
+	styler := newStyler(r.FormValue("h"))
+	writeNode(&buf, file, true, styler)
 
-	servePage(c, "Source file "+relpath, "", buf.Bytes())
+	type SourceInfo struct {
+		Source []byte
+		Data   []*ast.Object
+	}
+	info := &SourceInfo{buf.Bytes(), styler.mapping()}
+
+	contents := applyTemplate(sourceHTML, "sourceHTML", info)
+	servePage(c, "Source file "+relpath, "", contents)
 }
 
 
