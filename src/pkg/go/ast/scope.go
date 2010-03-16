@@ -11,11 +11,11 @@ type ObjKind int
 // The list of possible Object kinds.
 const (
 	Err ObjKind = iota // object kind unknown (forward reference or error)
-	Pkg         // package
-	Con         // constant
-	Typ         // type
-	Var         // variable
-	Fun         // function or method
+	Pkg                // package
+	Con                // constant
+	Typ                // type
+	Var                // variable
+	Fun                // function or method
 )
 
 

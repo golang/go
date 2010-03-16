@@ -39,8 +39,8 @@ import (
 
 var (
 	// periodic sync
-	syncCmd             = flag.String("sync", "", "sync command; disabled if empty")
-	syncMin             = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
+	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
+	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
 	syncDelay delayTime // actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
 
 	// server control

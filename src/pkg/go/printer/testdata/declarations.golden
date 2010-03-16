@@ -282,11 +282,11 @@ func _() {
 	)
 	// some entries have a type
 	const (
-		xxxxxx			= 1
-		x			= 2
-		xxx			= 3
+		xxxxxx		= 1
+		x		= 2
+		xxx		= 3
 		yyyyyyyy	float	= iota
-		yyyy			= "bar"
+		yyyy		= "bar"
 		yyy
 		yy	= 2
 	)
@@ -316,15 +316,15 @@ func _() {
 		xxx		string
 		yyyyyyyy	int	= 1234
 		y		float	= 3.14
-		yyyy			= "bar"
+		yyyy		= "bar"
 		yyy		string	= "foo"
 	)
 	// mixed entries - all comments should be aligned
 	var (
 		a, b, c			int
-		x				= 10
-		d			int	// comment
-		y				= 20		// comment
+		x			= 10
+		d			int			// comment
+		y			= 20			// comment
 		f, ff, fff, ffff	int	= 0, 1, 2, 3	// comment
 	)
 	// respect original line breaks

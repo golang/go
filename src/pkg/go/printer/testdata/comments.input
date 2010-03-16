@@ -14,6 +14,35 @@ const (
 	c2  // c2
 )
 
+// Alignment of comments in declarations>
+const (
+	_ T = iota  // comment
+	_  // comment
+	_  // comment
+	_ = iota+10
+	_  // comments
+
+	_ = 10  // comment
+	_ T = 20  // comment
+)
+
+const (
+	_____ = iota // foo
+	_ // bar
+	_  = 0    // bal
+	_ // bat
+)
+
+const (
+	_ T = iota // comment
+	_ // comment
+	_ // comment
+	_ = iota + 10
+	_ // comment
+	_ = 10
+	_ = 20 // comment
+	_ T = 0 // comment
+)
 
 // The SZ struct; it is empty.
 type SZ struct {}

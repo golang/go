@@ -28,9 +28,9 @@ var noPos token.Position
 //
 const (
 	PackageClauseOnly uint = 1 << iota // parsing stops after package clause
-	ImportsOnly            // parsing stops after import declarations
-	ParseComments          // parse comments and add them to AST
-	Trace                  // print a trace of parsed productions
+	ImportsOnly                        // parsing stops after import declarations
+	ParseComments                      // parse comments and add them to AST
+	Trace                              // print a trace of parsed productions
 )
 
 
