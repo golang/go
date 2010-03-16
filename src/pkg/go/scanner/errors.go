@@ -112,8 +112,8 @@ func (p ErrorList) String() string {
 //
 const (
 	Raw         = iota // leave error list unchanged
-	Sorted      // sort error list by file, line, and column number
-	NoMultiples // sort error list and leave only the first error per line
+	Sorted             // sort error list by file, line, and column number
+	NoMultiples        // sort error list and leave only the first error per line
 )
 
 

@@ -932,9 +932,9 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 // General printing is controlled with these Config.Mode flags.
 const (
 	GenHTML   uint = 1 << iota // generate HTML
-	RawFormat      // do not use a tabwriter; if set, UseSpaces is ignored
-	TabIndent      // use tabs for indentation independent of UseSpaces
-	UseSpaces      // use spaces instead of tabs for alignment
+	RawFormat                  // do not use a tabwriter; if set, UseSpaces is ignored
+	TabIndent                  // use tabs for indentation independent of UseSpaces
+	UseSpaces                  // use spaces instead of tabs for alignment
 )
 
 

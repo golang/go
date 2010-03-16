@@ -164,9 +164,9 @@ type SliceType struct {
 type ChanDir int
 
 const (
-	RecvDir ChanDir = 1 << iota // <-chan
-	SendDir         // chan<-
-	BothDir         = RecvDir | SendDir // chan
+	RecvDir ChanDir             = 1 << iota // <-chan
+	SendDir                                 // chan<-
+	BothDir = RecvDir | SendDir             // chan
 )
 
 // ChanType represents a channel type.

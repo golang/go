@@ -85,10 +85,10 @@ type exprListMode uint
 
 const (
 	blankStart exprListMode = 1 << iota // print a blank before a non-empty list
-	blankEnd                // print a blank after a non-empty list
-	commaSep                // elements are separated by commas
-	commaTerm               // list is optionally terminated by a comma
-	noIndent                // no extra indentation in multi-line lists
+	blankEnd                            // print a blank after a non-empty list
+	commaSep                            // elements are separated by commas
+	commaTerm                           // list is optionally terminated by a comma
+	noIndent                            // no extra indentation in multi-line lists
 )
 
 
@@ -1105,11 +1105,6 @@ const (
 // multiLine to true if the spec spans multiple lines.
 //
 func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, multiLine *bool) {
-	var (
-		comment   *ast.CommentGroup // a line comment, if any
-		extraTabs int               // number of extra tabs before comment, if any
-	)
-
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		p.setComment(s.Doc)
@@ -1118,7 +1113,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, m
 			p.print(blank)
 		}
 		p.expr(s.Path, multiLine)
-		comment = s.Comment
+		p.setComment(s.Comment)
 
 	case *ast.ValueSpec:
 		p.setComment(s.Doc)
@@ -1132,23 +1127,27 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, m
 				p.print(blank, token.ASSIGN)
 				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
 			}
+			p.setComment(s.Comment)
+
 		} else {
-			extraTabs = 2
-			if s.Type != nil || s.Values != nil {
-				p.print(vtab)
-			}
+			extraTabs := 3
 			if s.Type != nil {
+				p.print(vtab)
 				p.expr(s.Type, multiLine)
-				extraTabs = 1
+				extraTabs--
 			}
 			if s.Values != nil {
-				p.print(vtab)
-				p.print(token.ASSIGN)
+				p.print(vtab, token.ASSIGN)
 				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
-				extraTabs = 0
+				extraTabs--
+			}
+			if s.Comment != nil {
+				for ; extraTabs > 0; extraTabs-- {
+					p.print(vtab)
+				}
+				p.setComment(s.Comment)
 			}
 		}
-		comment = s.Comment
 
 	case *ast.TypeSpec:
 		p.setComment(s.Doc)
@@ -1159,17 +1158,10 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, m
 			p.print(vtab)
 		}
 		p.expr(s.Type, multiLine)
-		comment = s.Comment
+		p.setComment(s.Comment)
 
 	default:
 		panic("unreachable")
-	}
-
-	if comment != nil {
-		for ; extraTabs > 0; extraTabs-- {
-			p.print(vtab)
-		}
-		p.setComment(comment)
 	}
 }
 

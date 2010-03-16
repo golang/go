@@ -77,17 +77,17 @@ type Regexp struct {
 
 const (
 	_START     = iota // beginning of program
-	_END       // end of program: success
-	_BOT       // '^' beginning of text
-	_EOT       // '$' end of text
-	_CHAR      // 'a' regular character
-	_CHARCLASS // [a-z] character class
-	_ANY       // '.' any character including newline
-	_NOTNL     // [^\n] special case: any character but newline
-	_BRA       // '(' parenthesized expression
-	_EBRA      // ')'; end of '(' parenthesized expression
-	_ALT       // '|' alternation
-	_NOP       // do nothing; makes it easy to link without patching
+	_END              // end of program: success
+	_BOT              // '^' beginning of text
+	_EOT              // '$' end of text
+	_CHAR             // 'a' regular character
+	_CHARCLASS        // [a-z] character class
+	_ANY              // '.' any character including newline
+	_NOTNL            // [^\n] special case: any character but newline
+	_BRA              // '(' parenthesized expression
+	_EBRA             // ')'; end of '(' parenthesized expression
+	_ALT              // '|' alternation
+	_NOP              // do nothing; makes it easy to link without patching
 )
 
 // --- START start of program

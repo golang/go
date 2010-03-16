@@ -76,8 +76,8 @@ func (S *Scanner) next() {
 //
 const (
 	ScanComments      = 1 << iota // return comments as COMMENT tokens
-	AllowIllegalChars // do not report an error for illegal chars
-	InsertSemis       // automatically insert semicolons
+	AllowIllegalChars             // do not report an error for illegal chars
+	InsertSemis                   // automatically insert semicolons
 )
 
 
