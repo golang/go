@@ -375,7 +375,7 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 	}
 
 	// Check for the Start Of Image marker.
-	_, err := io.ReadFull(r, d.tmp[0:2])
+	_, err := io.ReadFull(d.r, d.tmp[0:2])
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +385,7 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 
 	// Process the remaining segments until the End Of Image marker.
 	for {
-		_, err := io.ReadFull(r, d.tmp[0:2])
+		_, err := io.ReadFull(d.r, d.tmp[0:2])
 		if err != nil {
 			return nil, err
 		}
@@ -399,7 +399,7 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 
 		// Read the 16-bit length of the segment. The value includes the 2 bytes for the
 		// length itself, so we subtract 2 to get the number of remaining bytes.
-		_, err = io.ReadFull(r, d.tmp[0:2])
+		_, err = io.ReadFull(d.r, d.tmp[0:2])
 		if err != nil {
 			return nil, err
 		}
