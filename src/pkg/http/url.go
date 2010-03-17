@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Parse URLs (actually URIs, but that seems overly pedantic).
-// RFC 2396
+// RFC 3986
 
 package http
 
@@ -239,10 +239,10 @@ func urlEscape(s string, doPlus bool) string {
 type URL struct {
 	Raw       string // the original string
 	Scheme    string // scheme
-	RawPath   string // //[userinfo@]host/path[?query][#fragment]
 	Authority string // [userinfo@]host
 	Userinfo  string // userinfo
 	Host      string // host
+	RawPath   string // /path[?query][#fragment]
 	Path      string // /path
 	RawQuery  string // query
 	Fragment  string // fragment
@@ -306,18 +306,22 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	if url.Scheme, path, err = getscheme(rawurl); err != nil {
 		goto Error
 	}
-	url.RawPath = path
 
 	// RFC 2396: a relative URI (no scheme) has a ?query,
 	// but absolute URIs only have query if path begins with /
+	var query string
 	if url.Scheme == "" || len(path) > 0 && path[0] == '/' {
-		path, url.RawQuery = split(path, '?', true)
+		path, query = split(path, '?', false)
+		if len(query) > 1 {
+			url.RawQuery = query[1:]
+		}
 	}
 
 	// Maybe path is //authority/path
 	if len(path) > 2 && path[0:2] == "//" {
 		url.Authority, path = split(path[2:], '/', false)
 	}
+	url.RawPath = path + query
 
 	// If there's no @, split's default is wrong.  Check explicitly.
 	if strings.Index(url.Authority, "@") < 0 {
@@ -357,12 +361,17 @@ Error:
 // ParseURLReference is like ParseURL but allows a trailing #fragment.
 func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 	// Cut off #frag.
-	rawurl, frag := split(rawurlref, '#', true)
+	rawurl, frag := split(rawurlref, '#', false)
 	if url, err = ParseURL(rawurl); err != nil {
 		return nil, err
 	}
-	if url.Fragment, err = urlUnescape(frag, false); err != nil {
-		return nil, &URLError{"parse", rawurl, err}
+	url.Raw += frag
+	url.RawPath += frag
+	if len(frag) > 1 {
+		frag = frag[1:]
+		if url.Fragment, err = urlUnescape(frag, false); err != nil {
+			return nil, &URLError{"parse", rawurl, err}
+		}
 	}
 	return url, nil
 }
