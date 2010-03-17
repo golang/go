@@ -10,10 +10,16 @@ if ! hg version > /dev/null 2>&1; then
 fi
 
 # Get numerical revision
-VERSION="`hg identify -n`"
+VERSION=$(hg identify -n 2>/dev/null)
+if [ $? = 0 ]; then
+	TAG=$(hg identify -t | sed 's!/release!!')
+else
+	OLD=$(hg identify | sed 1q)
+	VERSION=$(echo $OLD | awk '{print $1}')
+	TAG=$(echo $OLD | awk '{print $2}' | sed 's!/release!!')
+fi
 
 # Append tag if not 'tip'
-TAG=$(hg identify -t | sed 's!/release!!')
 if [[ "$TAG" != "tip" ]]; then
 	VERSION="$VERSION $TAG"
 fi
