@@ -23,6 +23,7 @@ CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $
 GOFILES=\
 	extern.go\
 	type.go\
+	version.go\
 
 GOFILES_pchw=\
 	pchw/io.go\
@@ -111,7 +112,7 @@ $(pkgdir)/%.h: %.h
 clean: clean-local
 
 clean-local:
-	rm -f cgo2c */asm.h runtime.acid.*
+	rm -f cgo2c mkversion version.go */asm.h runtime.acid.*
 
 $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 	./mkasmh.sh >$@.x
@@ -119,6 +120,12 @@ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 
 cgo2c: cgo2c.c
 	$(QUOTED_GOBIN)/quietgcc -o $@ $<
+
+mkversion: mkversion.c
+	$(QUOTED_GOBIN)/quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+
+version.go: mkversion
+	mkversion >version.go
 
 %.c:	%.cgo cgo2c
 	./cgo2c $< > $@.tmp
