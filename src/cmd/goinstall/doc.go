@@ -58,7 +58,7 @@ After a successful download and installation of a publicly accessible
 remote package, goinstall reports the installation to godashboard.appspot.com,
 which increments a count associated with the package and the time
 of its most recent installation.  This mechanism powers the package list
-at http://godashboard.appspot.com/packages, allowing Go programmers
+at http://godashboard.appspot.com/package, allowing Go programmers
 to learn about popular packages that might be worth looking at.
 The -dashboard=false flag disables this reporting.
 
