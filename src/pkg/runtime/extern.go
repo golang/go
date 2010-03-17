@@ -150,3 +150,23 @@ func GC()
 // TODO(rsc): allow f to have (ignored) return values
 //
 func SetFinalizer(x, f interface{})
+
+func getgoroot() string
+
+// GOROOT returns the root of the Go tree.
+// It uses the GOROOT environment variable, if set,
+// or else the root used during the Go build.
+func GOROOT() string {
+	s := getgoroot()
+	if s != "" {
+		return s
+	}
+	return defaultGoroot
+}
+
+// Version returns the Go tree's version string.
+// It is either a sequence number or, when possible,
+// a release tag like "release.2010-03-04".
+// A trailing + indicates that the tree had local modifications
+// at the time of the build.
+func Version() string { return defaultVersion }

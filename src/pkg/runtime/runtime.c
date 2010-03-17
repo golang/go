@@ -206,6 +206,15 @@ getenv(int8 *s)
 	return nil;
 }
 
+void
+·getgoroot(String out)
+{
+	byte *p;
+	
+	p = getenv("GOROOT");
+	out = gostring(p);
+	FLUSH(&out);
+}
 
 int32
 atoi(byte *p)
