@@ -145,11 +145,10 @@ linux_arm)
 	mkerrors="mkerrors.sh"
 	;;
 mingw_386)
-	# TODO(brainman): create proper mksyscall / mksysnum / mktypes
-	mksyscall="mksyscall.sh -l32"
-	mksysnum="XXXXXX_mksysnum.sh"
-	mktypes="XXXXXX_godefs -gsyscall -f-m32"
-	exit 1
+	mksyscall="mksyscall_mingw.sh -l32"
+	mksysnum=
+	mktypes=
+	mkerrors=
 	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
@@ -158,8 +157,8 @@ mingw_386)
 esac
 
 (
-	echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"
-	echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
-	echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"
-	echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"
+	if [ -n "$mkerrors" ]; then echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"; fi
+	if [ -n "$mksyscall" ]; then echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
+	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
+	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"; fi
 ) | $run

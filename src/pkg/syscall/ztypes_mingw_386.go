@@ -25,6 +25,16 @@ const (
 	SizeofCmsghdr       = 0xc
 )
 
+const (
+	FORMAT_MESSAGE_ALLOCATE_BUFFER = 256
+	FORMAT_MESSAGE_IGNORE_INSERTS  = 512
+	FORMAT_MESSAGE_FROM_STRING     = 1024
+	FORMAT_MESSAGE_FROM_HMODULE    = 2048
+	FORMAT_MESSAGE_FROM_SYSTEM     = 4096
+	FORMAT_MESSAGE_ARGUMENT_ARRAY  = 8192
+	FORMAT_MESSAGE_MAX_WIDTH_MASK  = 255
+)
+
 // Types
 
 type _C_short int16
@@ -34,9 +44,6 @@ type _C_int int32
 type _C_long int32
 
 type _C_long_long int64
-
-type Bool uint32
-type Module uint32
 
 type Timeval struct {
 	Sec  int32
