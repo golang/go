@@ -246,7 +246,98 @@ func TestMarshal(t *testing.T) {
 
 		s := buf.String()
 		if s != tt.out {
-			t.Errorf("Marshal(%T) = %q, want %q\n", tt.val, tt.out, s)
+			t.Errorf("Marshal(%T) = %q, want %q\n", tt.val, s, tt.out)
+		}
+	}
+}
+
+type marshalIndentTest struct {
+	val    interface{}
+	indent string
+	out    string
+}
+
+const marshalIndentTest1 = `[
+  1,
+  2,
+  3,
+  4
+]
+`
+const marshalIndentTest2 = `[
+[
+1,
+2
+],
+[
+3,
+4
+]
+]
+`
+const marshalIndentTest3 = `[
+ [
+  1,
+  2
+ ],
+ [
+  3,
+  4
+ ]
+]
+`
+const marshalIndentTest4 = `[
+  [
+    1,
+    2
+  ],
+  [
+    3,
+    4
+  ]
+]
+`
+const marshalIndentTest5 = `{
+   "a":1,
+   "b":"hello"
+}
+`
+const marshalIndentTest6 = `{
+ "3":[
+  1,
+  2,
+  3
+ ]
+}
+`
+
+var marshalIndentTests = []marshalIndentTest{
+	marshalIndentTest{[]int{1, 2, 3, 4}, "  ", marshalIndentTest1},
+	marshalIndentTest{[][]int{[]int{1, 2}, []int{3, 4}}, "", marshalIndentTest2},
+	marshalIndentTest{[][]int{[]int{1, 2}, []int{3, 4}}, " ", marshalIndentTest3},
+	marshalIndentTest{[][]int{[]int{1, 2}, []int{3, 4}}, "  ", marshalIndentTest4},
+	marshalIndentTest{struct {
+		a int
+		b string
+	}{1, "hello"},
+		"   ",
+		marshalIndentTest5,
+	},
+	marshalIndentTest{map[string][]int{"3": []int{1, 2, 3}}, " ", marshalIndentTest6},
+}
+
+func TestMarshalIndent(t *testing.T) {
+	for _, tt := range marshalIndentTests {
+		var buf bytes.Buffer
+
+		err := MarshalIndent(&buf, tt.val, tt.indent)
+		if err != nil {
+			t.Fatalf("MarshalIndent(%v): %s", tt.val, err)
+		}
+
+		s := buf.String()
+		if s != tt.out {
+			t.Errorf("MarshalIndent(%v) = %q, want %q\n", tt.val, s, tt.out)
 		}
 	}
 }

@@ -8,6 +8,7 @@
 package json
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -318,131 +319,160 @@ func (e *MarshalError) String() string {
 	return "json cannot encode value of type " + e.T.String()
 }
 
-func writeArrayOrSlice(w io.Writer, val reflect.ArrayOrSliceValue) (err os.Error) {
-	if _, err = fmt.Fprint(w, "["); err != nil {
-		return
+type writeState struct {
+	bytes.Buffer
+	indent   string
+	newlines bool
+	depth    int
+}
+
+func (s *writeState) descend(bra byte) {
+	s.depth++
+	s.WriteByte(bra)
+}
+
+func (s *writeState) ascend(ket byte) {
+	s.depth--
+	s.writeIndent()
+	s.WriteByte(ket)
+}
+
+func (s *writeState) writeIndent() {
+	if s.newlines {
+		s.WriteByte('\n')
 	}
+	for i := 0; i < s.depth; i++ {
+		s.WriteString(s.indent)
+	}
+}
+
+func (s *writeState) writeArrayOrSlice(val reflect.ArrayOrSliceValue) (err os.Error) {
+	s.descend('[')
 
 	for i := 0; i < val.Len(); i++ {
-		if err = writeValue(w, val.Elem(i)); err != nil {
+		s.writeIndent()
+
+		if err = s.writeValue(val.Elem(i)); err != nil {
 			return
 		}
 
 		if i < val.Len()-1 {
-			if _, err = fmt.Fprint(w, ","); err != nil {
-				return
-			}
+			s.WriteByte(',')
 		}
 	}
 
-	_, err = fmt.Fprint(w, "]")
+	s.ascend(']')
 	return
 }
 
-func writeMap(w io.Writer, val *reflect.MapValue) (err os.Error) {
+func (s *writeState) writeMap(val *reflect.MapValue) (err os.Error) {
 	key := val.Type().(*reflect.MapType).Key()
 	if _, ok := key.(*reflect.StringType); !ok {
 		return &MarshalError{val.Type()}
 	}
 
+	s.descend('{')
+
 	keys := val.Keys()
-	if _, err = fmt.Fprint(w, "{"); err != nil {
-		return
-	}
-
 	for i := 0; i < len(keys); i++ {
-		if _, err = fmt.Fprintf(w, "%s:", Quote(keys[i].(*reflect.StringValue).Get())); err != nil {
-			return
-		}
+		s.writeIndent()
 
-		if err = writeValue(w, val.Elem(keys[i])); err != nil {
+		fmt.Fprintf(s, "%s:", Quote(keys[i].(*reflect.StringValue).Get()))
+
+		if err = s.writeValue(val.Elem(keys[i])); err != nil {
 			return
 		}
 
 		if i < len(keys)-1 {
-			if _, err = fmt.Fprint(w, ","); err != nil {
-				return
-			}
+			s.WriteByte(',')
 		}
 	}
 
-	_, err = fmt.Fprint(w, "}")
+	s.ascend('}')
 	return
 }
 
-func writeStruct(w io.Writer, val *reflect.StructValue) (err os.Error) {
-	if _, err = fmt.Fprint(w, "{"); err != nil {
-		return
-	}
+func (s *writeState) writeStruct(val *reflect.StructValue) (err os.Error) {
+	s.descend('{')
 
 	typ := val.Type().(*reflect.StructType)
 
 	for i := 0; i < val.NumField(); i++ {
+		s.writeIndent()
+
 		fieldValue := val.Field(i)
-		if _, err = fmt.Fprintf(w, "%s:", Quote(typ.Field(i).Name)); err != nil {
-			return
-		}
-		if err = writeValue(w, fieldValue); err != nil {
+		fmt.Fprintf(s, "%s:", Quote(typ.Field(i).Name))
+		if err = s.writeValue(fieldValue); err != nil {
 			return
 		}
 		if i < val.NumField()-1 {
-			if _, err = fmt.Fprint(w, ","); err != nil {
-				return
-			}
+			s.WriteByte(',')
 		}
 	}
 
-	_, err = fmt.Fprint(w, "}")
+	s.ascend('}')
 	return
 }
 
-func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
+func (s *writeState) writeValue(val reflect.Value) (err os.Error) {
 	if val == nil {
-		_, err = fmt.Fprint(w, "null")
+		fmt.Fprint(s, "null")
 		return
 	}
 
 	switch v := val.(type) {
 	case *reflect.StringValue:
-		_, err = fmt.Fprint(w, Quote(v.Get()))
+		fmt.Fprint(s, Quote(v.Get()))
 	case *reflect.ArrayValue:
-		err = writeArrayOrSlice(w, v)
+		err = s.writeArrayOrSlice(v)
 	case *reflect.SliceValue:
-		err = writeArrayOrSlice(w, v)
+		err = s.writeArrayOrSlice(v)
 	case *reflect.MapValue:
-		err = writeMap(w, v)
+		err = s.writeMap(v)
 	case *reflect.StructValue:
-		err = writeStruct(w, v)
+		err = s.writeStruct(v)
 	case *reflect.ChanValue,
 		*reflect.UnsafePointerValue,
 		*reflect.FuncValue:
 		err = &MarshalError{val.Type()}
 	case *reflect.InterfaceValue:
 		if v.IsNil() {
-			_, err = fmt.Fprint(w, "null")
+			fmt.Fprint(s, "null")
 		} else {
-			err = writeValue(w, v.Elem())
+			err = s.writeValue(v.Elem())
 		}
 	case *reflect.PtrValue:
 		if v.IsNil() {
-			_, err = fmt.Fprint(w, "null")
+			fmt.Fprint(s, "null")
 		} else {
-			err = writeValue(w, v.Elem())
+			err = s.writeValue(v.Elem())
 		}
 	case *reflect.UintptrValue:
-		_, err = fmt.Fprintf(w, "%d", v.Get())
+		fmt.Fprintf(s, "%d", v.Get())
 	case *reflect.Uint64Value:
-		_, err = fmt.Fprintf(w, "%d", v.Get())
+		fmt.Fprintf(s, "%d", v.Get())
 	case *reflect.Uint32Value:
-		_, err = fmt.Fprintf(w, "%d", v.Get())
+		fmt.Fprintf(s, "%d", v.Get())
 	case *reflect.Uint16Value:
-		_, err = fmt.Fprintf(w, "%d", v.Get())
+		fmt.Fprintf(s, "%d", v.Get())
 	case *reflect.Uint8Value:
-		_, err = fmt.Fprintf(w, "%d", v.Get())
+		fmt.Fprintf(s, "%d", v.Get())
 	default:
 		value := val.(reflect.Value)
-		_, err = fmt.Fprintf(w, "%#v", value.Interface())
+		fmt.Fprintf(s, "%#v", value.Interface())
 	}
+	return
+}
+
+func (s *writeState) marshal(w io.Writer, val interface{}) (err os.Error) {
+	err = s.writeValue(reflect.NewValue(val))
+	if err != nil {
+		return
+	}
+	if s.newlines {
+		s.WriteByte('\n')
+	}
+	_, err = s.WriteTo(w)
 	return
 }
 
@@ -451,5 +481,16 @@ func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
 // Due to limitations in JSON, val cannot include cyclic data
 // structures, channels, functions, or maps.
 func Marshal(w io.Writer, val interface{}) os.Error {
-	return writeValue(w, reflect.NewValue(val))
+	s := &writeState{indent: "", newlines: false, depth: 0}
+	return s.marshal(w, val)
+}
+
+// MarshalIndent writes the JSON encoding of val to w,
+// indenting nested values using the indent string.
+//
+// Due to limitations in JSON, val cannot include cyclic data
+// structures, channels, functions, or maps.
+func MarshalIndent(w io.Writer, val interface{}, indent string) os.Error {
+	s := &writeState{indent: indent, newlines: true, depth: 0}
+	return s.marshal(w, val)
 }
