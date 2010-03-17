@@ -125,7 +125,7 @@ mkversion: mkversion.c
 	$(QUOTED_GOBIN)/quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
 
 version.go: mkversion
-	mkversion >version.go
+	./mkversion >version.go
 
 %.c:	%.cgo cgo2c
 	./cgo2c $< > $@.tmp
