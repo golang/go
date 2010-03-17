@@ -117,6 +117,7 @@ DIRS=\
 	testing/script\
 	time\
 	unicode\
+	utf16\
 	utf8\
 	websocket\
 	xgb\
