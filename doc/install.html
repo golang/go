@@ -129,12 +129,7 @@ $ env | grep '^GO'
 <h2>Ports</h2>
 
 <p>
-Go compilers support two operating systems (Linux, Mac OS X) and
-three instruction sets.
-The versions for Linux and Mac are equally capable except that the ARM port
-does not run on OS X (yet).
-</p>
-<p>
+The Go compilers support three instruction sets.
 There are important differences in the quality of the compilers for the different
 architectures.
 </p>
@@ -160,8 +155,9 @@ architectures.
 	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
 </dt>
 <dd>
-	It's got a couple of outstanding bugs but is improving. Tested against QEMU
-	and an android phone.
+	It's got a couple of outstanding bugs but is improving.
+	Tested against QEMU and an android phone.
+	Only supports Linux binaries.
 </dd>
 </dl>
 
