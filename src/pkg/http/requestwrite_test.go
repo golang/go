@@ -23,7 +23,7 @@ var reqWriteTests = []reqWriteTest{
 			URL: &URL{
 				Raw:       "http://www.techcrunch.com/",
 				Scheme:    "http",
-				RawPath:   "//www.techcrunch.com/",
+				RawPath:   "http://www.techcrunch.com/",
 				Authority: "www.techcrunch.com",
 				Userinfo:  "",
 				Host:      "www.techcrunch.com",
