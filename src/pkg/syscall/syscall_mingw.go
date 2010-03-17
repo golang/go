@@ -6,7 +6,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"unsafe"
+	"utf16"
+)
 
 const OS = "mingw"
 
@@ -20,6 +23,10 @@ import (
 	"syscall"
 )
 
+func abort(funcname string, err int) {
+	panic(funcname+" failed: (", err, ") ", syscall.GetErrstr(err), "\n")
+}
+
 func print_version(v uint32) {
 	major := byte(v)
 	minor := uint8(v >> 8)
@@ -30,69 +37,90 @@ func print_version(v uint32) {
 func main() {
 	h, err := syscall.LoadLibrary("kernel32.dll")
 	if err != 0 {
-		panic("failed to LoadLibrary #", err, "\n")
+		abort("LoadLibrary", err)
 	}
 	defer syscall.FreeLibrary(h)
 	proc, err := syscall.GetProcAddress(h, "GetVersion")
 	if err != 0 {
-		panic("could not GetProcAddress #", err, "\n")
+		abort("GetProcAddress", err)
 	}
-	r, _, e := syscall.Syscall(uintptr(proc), 0, 0, 0)
-	err = int(e)
-	if err != 0 {
-		panic("GetVersion failed #", err, "\n")
-	}
+	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0)
 	print_version(uint32(r))
 }
 
 */
 
-//sys	GetLastError() (lasterrno int)
+// StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
+// with a terminating NUL added.
+func StringToUTF16(s string) []uint16 { return utf16.Encode([]int(s + "\x00")) }
 
-// TODO(brainman): probably should use LoadLibraryW here instead
-//sys	LoadLibraryA(libname string) (handle Module, errno int)
-
-func LoadLibrary(libname string) (handle Module, errno int) {
-	h, e := LoadLibraryA(libname)
-	if int(h) != 0 {
-		return h, 0
+// UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
+// with a terminating NUL removed.
+func UTF16ToString(s []uint16) string {
+	if n := len(s); n > 0 && s[n-1] == 0 {
+		s = s[0 : n-1]
 	}
-	return h, e
+	return string(utf16.Decode(s))
 }
 
-// TODO(brainman): should handle errors like in LoadLibrary, otherwise will be returning 'old' errors
-//sys	FreeLibrary(handle Module) (ok Bool, errno int)
-//sys	GetProcAddress(module Module, procname string) (proc uint32, errno int)
-//sys	GetVersion() (ver uint32, errno int)
+// StringToUTF16Ptr returns pointer to the UTF-16 encoding of
+// the UTF-8 string s, with a terminating NUL added.
+func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 // dll helpers
 
 // implemented in ../pkg/runtime/mingw/syscall.cgo
+func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, lasterr uintptr)
 func loadlibraryex(filename uintptr) (handle uint32)
 func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
 
-func loadDll(fname string) Module {
+func loadDll(fname string) uint32 {
 	m := loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(fname))))
 	if m == 0 {
 		panic("syscall: could not LoadLibraryEx ", fname)
 	}
-	return Module(m)
+	return m
 }
 
-func getSysProcAddr(m Module, pname string) uintptr {
-	p := getprocaddress(uint32(m), uintptr(unsafe.Pointer(StringBytePtr(pname))))
+func getSysProcAddr(m uint32, pname string) uintptr {
+	p := getprocaddress(m, uintptr(unsafe.Pointer(StringBytePtr(pname))))
 	if p == 0 {
 		panic("syscall: could not GetProcAddress for ", pname)
 	}
 	return p
 }
 
+// windows api calls
+
+//sys	GetLastError() (lasterrno int)
+//sys	LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryW
+//sys	FreeLibrary(handle uint32) (ok bool, errno int)
+//sys	GetProcAddress(module uint32, procname string) (proc uint32, errno int)
+//sys	GetVersion() (ver uint32, errno int)
+//sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
+
+// TODO(brainman): maybe GetErrstr should replace Errstr alltogether
+
+func GetErrstr(errno int) string {
+	if errno == EMINGW {
+		return errors[errno]
+	}
+	var b = make([]uint16, 300)
+	n, err := FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ARGUMENT_ARRAY, 0, uint32(errno), 0, b, nil)
+	if err != 0 {
+		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
+	}
+	return UTF16ToString(b[0 : n-1])
+}
+
 // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
 
 func Pipe(p []int) (errno int) { return EMINGW }
 
-//sys	Close(fd int) (errno int)
-//sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
+func Close(fd int) (errno int) { return EMINGW }
+func read(fd int, buf *byte, nbuf int) (n int, errno int) {
+	return 0, EMINGW
+}
 
 func fcntl(fd, cmd, arg int) (val int, errno int) {
 	return 0, EMINGW

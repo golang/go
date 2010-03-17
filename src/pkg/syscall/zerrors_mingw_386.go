@@ -6,7 +6,11 @@ package syscall
 // TODO(brainman): populate errors in zerrors_mingw.go
 
 const (
-	EMINGW = 99 /* otherwise unused */
+	ERROR_INSUFFICIENT_BUFFER = 122
+	ERROR_MOD_NOT_FOUND       = 126
+	ERROR_PROC_NOT_FOUND      = 127
+	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
+	EMINGW = 99999 /* otherwise unused */
 )
 
 // Error table
