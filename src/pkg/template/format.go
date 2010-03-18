@@ -61,7 +61,11 @@ func HTMLEscape(w io.Writer, s []byte) {
 
 // HTMLFormatter formats arbitrary values for HTML
 func HTMLFormatter(w io.Writer, value interface{}, format string) {
-	var b bytes.Buffer
-	fmt.Fprint(&b, value)
-	HTMLEscape(w, b.Bytes())
+	b, ok := value.([]byte)
+	if !ok {
+		var buf bytes.Buffer
+		fmt.Fprint(&buf, value)
+		b = buf.Bytes()
+	}
+	HTMLEscape(w, b)
 }
