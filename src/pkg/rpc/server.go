@@ -53,53 +53,53 @@
 		type Arith int
 
 		func (t *Arith) Multiply(args *Args, reply *Reply) os.Error {
-			reply.C = args.A * args.B;
+			reply.C = args.A * args.B
 			return nil
 		}
 
 		func (t *Arith) Divide(args *Args, reply *Reply) os.Error {
 			if args.B == 0 {
-				return os.ErrorString("divide by zero");
+				return os.ErrorString("divide by zero")
 			}
-			reply.C = args.A / args.B;
+			reply.C = args.A / args.B
 			return nil
 		}
 
 	The server calls (for HTTP service):
 
-		arith := new(Arith);
-		rpc.Register(arith);
-		rpc.HandleHTTP();
-		l, e := net.Listen("tcp", ":1234");
+		arith := new(Arith)
+		rpc.Register(arith)
+		rpc.HandleHTTP()
+		l, e := net.Listen("tcp", ":1234")
 		if e != nil {
-			log.Exit("listen error:", e);
+			log.Exit("listen error:", e)
 		}
-		go http.Serve(l, nil);
+		go http.Serve(l, nil)
 
 	At this point, clients can see a service "Arith" with methods "Arith.Multiply" and
 	"Arith.Divide".  To invoke one, a client first dials the server:
 
-		client, err := rpc.DialHTTP("tcp", serverAddress + ":1234");
+		client, err := rpc.DialHTTP("tcp", serverAddress + ":1234")
 		if err != nil {
-			log.Exit("dialing:", err);
+			log.Exit("dialing:", err)
 		}
 
 	Then it can make a remote call:
 
 		// Synchronous call
-		args := &server.Args{7,8};
-		reply := new(server.Reply);
-		err = client.Call("Arith.Multiply", args, reply);
+		args := &server.Args{7,8}
+		reply := new(server.Reply)
+		err = client.Call("Arith.Multiply", args, reply)
 		if err != nil {
-			log.Exit("arith error:", err);
+			log.Exit("arith error:", err)
 		}
-		fmt.Printf("Arith: %d*%d=%d", args.A, args.B, reply.C);
+		fmt.Printf("Arith: %d*%d=%d", args.A, args.B, reply.C)
 
 	or
 
 		// Asynchronous call
-		divCall := client.Go("Arith.Divide", args, reply, nil);
-		replyCall := <-divCall.Done;	// will be equal to divCall
+		divCall := client.Go("Arith.Divide", args, reply, nil)
+		replyCall := <-divCall.Done	// will be equal to divCall
 		// check errors, print, etc.
 
 	A server implementation will often provide a simple, type-safe wrapper for the
