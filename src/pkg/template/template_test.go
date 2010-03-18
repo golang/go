@@ -565,3 +565,14 @@ func TestVarIndirection(t *testing.T) {
 		t.Errorf("for %q: expected %q got %q", input, expect, buf.String())
 	}
 }
+
+func TestHTMLFormatterWithByte(t *testing.T) {
+	s := "Test string."
+	b := []byte(s)
+	var buf bytes.Buffer
+	HTMLFormatter(&buf, b, "")
+	bs := buf.String()
+	if bs != s {
+		t.Errorf("munged []byte, expected: %s got: %s", s, bs)
+	}
+}
