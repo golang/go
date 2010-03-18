@@ -76,8 +76,8 @@
 GOOSARCH="${GOOS}_${GOARCH}"
 
 # defaults
-mksyscall="mksyscall.sh"
-mkerrors="mkerrors.sh"
+mksyscall="./mksyscall.sh"
+mkerrors="./mkerrors.sh"
 run="sh"
 
 case "$1" in
@@ -100,52 +100,52 @@ _* | *_ | _)
 	exit 1
 	;;
 freebsd_386)
-	mksyscall="mksyscall.sh -l32"
-	mksysnum="mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
+	mksyscall="./mksyscall.sh -l32"
+	mksysnum="./mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m32"
 	;;
 freebsd_amd64)
-	mksysnum="mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
+	mksysnum="./mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m64"
 	;;
 darwin_386)
-	mksyscall="mksyscall.sh -l32"
-	mksysnum="mksysnum_darwin.sh /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
+	mksyscall="./mksyscall.sh -l32"
+	mksysnum="./mksysnum_darwin.sh /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m32"
 	;;
 darwin_amd64)
-	mksysnum="mksysnum_darwin.sh /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
+	mksysnum="./mksysnum_darwin.sh /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m64"
-	mkerrors="mkerrors.sh"
+	mkerrors="./mkerrors.sh"
 	;;
 linux_386)
-	mksyscall="mksyscall.sh -l32"
-	mksysnum="mksysnum_linux.sh /usr/include/asm/unistd_32.h"
+	mksyscall="./mksyscall.sh -l32"
+	mksysnum="./mksysnum_linux.sh /usr/include/asm/unistd_32.h"
 	mktypes="godefs -gsyscall -f-m32"
 	;;
 linux_amd64)
-	mksysnum="mksysnum_linux.sh /usr/include/asm/unistd_64.h"
+	mksysnum="./mksysnum_linux.sh /usr/include/asm/unistd_64.h"
 	mktypes="godefs -gsyscall -f-m64"
 	;;
 nacl_386)
 	NACL="/home/rsc/pub/nacl/native_client"
 	NACLRUN="$NACL/src/trusted/service_runtime"
 	NACLSDK="$NACL/src/third_party/nacl_sdk/linux/sdk/nacl-sdk/nacl"
-	mksyscall="mksyscall.sh -l32"
-	mksysnum="mksysnum_nacl.sh $NACLRUN/include/bits/nacl_syscalls.h"
+	mksyscall="./mksyscall.sh -l32"
+	mksysnum="./mksysnum_nacl.sh $NACLRUN/include/bits/nacl_syscalls.h"
 	mktypes="godefs -gsyscall -f-m32 -f-I$NACLSDK/include -f-I$NACL"
-	mkerrors="mkerrors_nacl.sh $NACLRUN/include/sys/errno.h"
+	mkerrors="./mkerrors_nacl.sh $NACLRUN/include/sys/errno.h"
 	;;
 linux_arm)
 	ARM="/home/kaib/public/linux-2.6.28"
-	mksyscall="mksyscall.sh -l32"
-	mksysnum="mksysnum_linux.sh $ARM/arch/arm/include/asm/unistd.h"
+	mksyscall="./mksyscall.sh -l32"
+	mksysnum="./mksysnum_linux.sh $ARM/arch/arm/include/asm/unistd.h"
 //	mktypes="godefs -gsyscall -carm-gcc -f-I$ARM/arch/arm/include -f-I$ARM/include -f-D__deprecated='' -f-I$ARM/arch/arm/mach-at91/include -f-DCONFIG_ARCH_AT91SAM9260 "
 	mktypes="godefs -gsyscall -carm-gcc"
-	mkerrors="mkerrors.sh"
+	mkerrors="./mkerrors.sh"
 	;;
 mingw_386)
-	mksyscall="mksyscall_mingw.sh -l32"
+	mksyscall="./mksyscall_mingw.sh -l32"
 	mksysnum=
 	mktypes=
 	mkerrors=
