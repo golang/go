@@ -60,6 +60,23 @@ func TestEcho(t *testing.T) {
 	ws.Close()
 }
 
+func TestWithQuery(t *testing.T) {
+	once.Do(startServer)
+
+	client, err := net.Dial("tcp", "", serverAddr)
+	if err != nil {
+		t.Fatal("dialing", err)
+	}
+
+	ws, err := newClient("/echo?q=v", "localhost", "http://localhost",
+		"ws://localhost/echo?q=v", "", client)
+	if err != nil {
+		t.Errorf("WebSocket handshake error", err)
+		return
+	}
+	ws.Close()
+}
+
 func TestHTTP(t *testing.T) {
 	once.Do(startServer)
 

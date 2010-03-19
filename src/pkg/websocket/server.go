@@ -66,7 +66,7 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 		return
 	}
 	defer rwc.Close()
-	location := "ws://" + req.Host + req.URL.Path
+	location := "ws://" + req.Host + req.URL.RawPath
 
 	// TODO(ukai): verify origin,location,protocol.
 
