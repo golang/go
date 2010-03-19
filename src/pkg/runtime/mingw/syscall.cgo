@@ -6,18 +6,6 @@ package syscall
 #include "runtime.h"
 #include "os.h"
 
-static uintptr
-stdcallerr(uintptr *lasterr, uintptr trap, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9)
-{
-	uintptr r;
-
-	·entersyscall();
-	r = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
-	*lasterr = (uintptr)stdcall_raw(GetLastError);
-	·exitsyscall();
-	return r;
-}
-
 func loadlibraryex(filename uintptr) (handle uint32) {
 	handle = (uint32)stdcall(LoadLibraryEx, filename, 0, 0);
 }
@@ -27,18 +15,27 @@ func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
 }
 
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	r1 = stdcallerr(&err, trap, a1, a2, a3, 0, 0, 0, 0, 0, 0);
+	·entersyscall();
+	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
 	r2 = 0;
+	err = (uintptr)stdcall_raw(GetLastError);
+	·exitsyscall();
 }
 
 func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	r1 = stdcallerr(&err, trap, a1, a2, a3, a4, a5, a6, 0, 0, 0);
+	·entersyscall();
+	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6);
 	r2 = 0;
+	err = (uintptr)stdcall_raw(GetLastError);
+	·exitsyscall();
 }
 
 func Syscall9(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
-	r1 = stdcallerr(&lasterr, trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+	·entersyscall();
+	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 	r2 = 0;
+	lasterr = (uintptr)stdcall_raw(GetLastError);
+	·exitsyscall();
 }
 
 func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {

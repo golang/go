@@ -16,13 +16,13 @@ var (
 )
 
 func GetLastError() (lasterrno int) {
-	r0, _, _ := Syscall9(procGetLastError, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	r0, _, _ := Syscall(procGetLastError, 0, 0, 0)
 	lasterrno = int(r0)
 	return
 }
 
 func LoadLibrary(libname string) (handle uint32, errno int) {
-	r0, _, e1 := Syscall9(procLoadLibraryW, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0, 0, 0, 0, 0, 0, 0)
+	r0, _, e1 := Syscall(procLoadLibraryW, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0)
 	handle = uint32(r0)
 	if uint32(r0) == 0 {
 		errno = int(e1)
@@ -33,7 +33,7 @@ func LoadLibrary(libname string) (handle uint32, errno int) {
 }
 
 func FreeLibrary(handle uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall9(procFreeLibrary, uintptr(handle), 0, 0, 0, 0, 0, 0, 0, 0)
+	r0, _, e1 := Syscall(procFreeLibrary, uintptr(handle), 0, 0)
 	ok = bool(r0 != 0)
 	if uint32(r0) == 0 {
 		errno = int(e1)
@@ -44,7 +44,7 @@ func FreeLibrary(handle uint32) (ok bool, errno int) {
 }
 
 func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
-	r0, _, e1 := Syscall9(procGetProcAddress, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, e1 := Syscall(procGetProcAddress, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
 	proc = uint32(r0)
 	if uint32(r0) == 0 {
 		errno = int(e1)
@@ -55,7 +55,7 @@ func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
 }
 
 func GetVersion() (ver uint32, errno int) {
-	r0, _, e1 := Syscall9(procGetVersion, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	r0, _, e1 := Syscall(procGetVersion, 0, 0, 0)
 	ver = uint32(r0)
 	if uint32(r0) == 0 {
 		errno = int(e1)
