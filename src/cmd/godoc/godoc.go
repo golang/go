@@ -665,7 +665,9 @@ func htmlEscFmt(w io.Writer, x interface{}, format string) {
 func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 	var buf bytes.Buffer
 	writeAny(&buf, x, false)
-	doc.ToHTML(w, buf.Bytes()) // does html-escaping
+	// TODO(gri) Provide list of words (e.g. function parameters)
+	//           to be emphasized by ToHTML.
+	doc.ToHTML(w, buf.Bytes(), nil) // does html-escaping
 }
 
 
