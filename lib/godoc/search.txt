@@ -1,0 +1,52 @@
+QUERY = {Query}
+
+{.section Accurate}
+{.or}
+INDEXING IN PROGRESS - RESULT MAY BE INACCURATE
+
+{.end}
+{.section Alt}
+DID YOU MEAN
+{.repeated section Alts}
+	{@}
+{.end}
+
+{.end}
+{.section Hit}
+{.section Decls}
+PACKAGE-LEVEL DECLARATIONS
+
+{.repeated section @}
+package {Pak.Name}
+{.repeated section Files}
+{.repeated section Groups}
+{.repeated section Infos}
+	{File.Path|url-src}
+{.end}
+{.end}
+{.end}
+
+{.end}
+{.end}
+{.section Others}
+LOCAL DECLARATIONS AND USES
+
+{.repeated section @}
+package {Pak.Name}
+{.repeated section Files}
+{.repeated section Groups}
+{.repeated section Infos}
+	{File.Path|url-src}
+{.end}
+{.end}
+{.end}
+
+{.end}
+{.end}
+{.end}
+{.section Illegal}
+ILLEGAL QUERY SYNTAX
+
+A legal query is a single identifier (such as ToLower)
+or a qualified identifier (such as math.Sin).
+{.end}
