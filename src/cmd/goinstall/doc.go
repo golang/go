@@ -6,7 +6,7 @@
 
 Goinstall is an experiment in automatic package installation.
 It installs packages, possibly downloading them from the internet.
-It maintains a list of public Go packages at http://godashboard.appspot.com/packages.
+It maintains a list of public Go packages at http://godashboard.appspot.com/package.
 
 Usage:
 	goinstall [flags] importpath...
