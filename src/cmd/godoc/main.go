@@ -35,6 +35,7 @@ import (
 	"os"
 	pathutil "path"
 	"rpc"
+	"runtime"
 	"time"
 )
 
@@ -80,7 +81,7 @@ func exec(c *http.Conn, args []string) (status int) {
 	if *verbose {
 		log.Stderrf("executing %v", args)
 	}
-	pid, err := os.ForkExec(bin, args, os.Environ(), goroot, fds)
+	pid, err := os.ForkExec(bin, args, os.Environ(), *goroot, fds)
 	defer r.Close()
 	w.Close()
 	if err != nil {
@@ -127,7 +128,7 @@ func dosync(c *http.Conn, r *http.Request) {
 		// TODO(gri): The directory tree may be temporarily out-of-sync.
 		//            Consider keeping separate time stamps so the web-
 		//            page can indicate this discrepancy.
-		fsTree.set(newDirectory(goroot, maxDirDepth))
+		fsTree.set(newDirectory(*goroot, maxDirDepth))
 		fallthrough
 	case 1:
 		// sync failed because no files changed;
@@ -208,8 +209,9 @@ func main() {
 		var handler http.Handler = http.DefaultServeMux
 		if *verbose {
 			log.Stderrf("Go Documentation Server\n")
+			log.Stderrf("version = %s\n", runtime.Version())
 			log.Stderrf("address = %s\n", *httpAddr)
-			log.Stderrf("goroot = %s\n", goroot)
+			log.Stderrf("goroot = %s\n", *goroot)
 			log.Stderrf("tabwidth = %d\n", *tabwidth)
 			if !fsMap.IsEmpty() {
 				log.Stderr("user-defined mapping:")
@@ -228,7 +230,7 @@ func main() {
 		// 1) set timestamp right away so that the indexer is kicked on
 		fsTree.set(nil)
 		// 2) compute initial directory tree in a goroutine so that launch is quick
-		go func() { fsTree.set(newDirectory(goroot, maxDirDepth)) }()
+		go func() { fsTree.set(newDirectory(*goroot, maxDirDepth)) }()
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {

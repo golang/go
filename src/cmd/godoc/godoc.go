@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	pathutil "path"
+	"runtime"
 	"strings"
 	"sync"
 	"template"
@@ -78,7 +79,7 @@ var (
 	verbose = flag.Bool("v", false, "verbose mode")
 
 	// file system roots
-	goroot string
+	goroot = flag.String("goroot", runtime.GOROOT(), "Go root directory")
 	path   = flag.String("path", "", "additional package directories (colon-separated)")
 
 	// layout control
@@ -95,20 +96,11 @@ var (
 )
 
 
-func init() {
-	goroot = os.Getenv("GOROOT")
-	if goroot == "" {
-		goroot = pathutil.Join(os.Getenv("HOME"), "go")
-	}
-	flag.StringVar(&goroot, "goroot", goroot, "Go root directory")
-}
-
-
 func initHandlers() {
 	fsMap.Init(*path)
-	fileServer = http.FileServer(goroot, "")
-	cmdHandler = httpHandler{"/cmd/", pathutil.Join(goroot, "src/cmd"), false}
-	pkgHandler = httpHandler{"/pkg/", pathutil.Join(goroot, "src/pkg"), true}
+	fileServer = http.FileServer(*goroot, "")
+	cmdHandler = httpHandler{"/cmd/", pathutil.Join(*goroot, "src/cmd"), false}
+	pkgHandler = httpHandler{"/pkg/", pathutil.Join(*goroot, "src/pkg"), true}
 }
 
 
@@ -205,9 +197,9 @@ func absolutePath(path, defaultRoot string) string {
 
 func relativePath(path string) string {
 	relpath := fsMap.ToRelative(path)
-	if relpath == "" && strings.HasPrefix(path, goroot+"/") {
+	if relpath == "" && strings.HasPrefix(path, *goroot+"/") {
 		// no user-defined mapping found; use default mapping
-		relpath = path[len(goroot)+1:]
+		relpath = path[len(*goroot)+1:]
 	}
 	// Only if path is an invalid absolute path is relpath == ""
 	// at this point. This should never happen since absolute paths
@@ -746,17 +738,18 @@ func infoKindFmt(w io.Writer, x interface{}, format string) {
 
 // Template formatter for "infoLine" format.
 func infoLineFmt(w io.Writer, x interface{}, format string) {
-	// TODO(gri) The code below won't work when invoked
-	//           as part of a command-line search where
-	//           there is no index (and thus Snippets).
-	//           At the moment, the search.txt template
-	//           is not using this formatter and cannot
-	//           show line numbers.
 	info := x.(SpotInfo)
 	line := info.Lori()
 	if info.IsIndex() {
 		index, _ := searchIndex.get()
-		line = index.(*Index).Snippet(line).Line
+		if index != nil {
+			line = index.(*Index).Snippet(line).Line
+		} else {
+			// no line information available because
+			// we don't have an index
+			// TODO(gri) Fix this for remote search
+			line = 0
+		}
 	}
 	fmt.Fprintf(w, "%d", line)
 }
@@ -839,7 +832,7 @@ var fmap = template.FormatterMap{
 
 
 func readTemplate(name string) *template.Template {
-	path := pathutil.Join(goroot, "lib/godoc/"+name)
+	path := pathutil.Join(*goroot, "lib/godoc/"+name)
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Exitf("ReadFile %s: %v", path, err)
@@ -885,6 +878,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 		PkgRoots  []string
 		Timestamp uint64 // int64 to be compatible with os.Dir.Mtime_ns
 		Query     string
+		Version   string
 		Menu      []byte
 		Content   []byte
 	}
@@ -895,6 +889,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 		PkgRoots:  fsMap.PrefixList(),
 		Timestamp: uint64(ts) * 1e9, // timestamp in ns
 		Query:     query,
+		Version:   runtime.Version(),
 		Menu:      nil,
 		Content:   content,
 	}
@@ -1088,12 +1083,12 @@ func serveDirectory(c *http.Conn, r *http.Request, abspath, relpath string) {
 
 func serveFile(c *http.Conn, r *http.Request) {
 	relpath := r.URL.Path[1:] // serveFile URL paths start with '/'
-	abspath := absolutePath(relpath, goroot)
+	abspath := absolutePath(relpath, *goroot)
 
 	// pick off special cases and hand the rest to the standard file server
 	switch r.URL.Path {
 	case "/":
-		serveHTMLDoc(c, r, pathutil.Join(goroot, "doc/root.html"), "doc/root.html")
+		serveHTMLDoc(c, r, pathutil.Join(*goroot, "doc/root.html"), "doc/root.html")
 		return
 
 	case "/doc/root.html":
@@ -1372,7 +1367,7 @@ func indexer() {
 			// from the sync goroutine, but this solution is
 			// more decoupled, trivial, and works well enough)
 			start := time.Nanoseconds()
-			index := NewIndex(goroot)
+			index := NewIndex(*goroot)
 			stop := time.Nanoseconds()
 			searchIndex.set(index)
 			if *verbose {
