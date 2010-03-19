@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+all: $(TARG)
 
 # ugly hack to deal with whitespaces in $GOROOT
 nullstring :=
@@ -11,8 +12,6 @@ QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
 include $(QUOTED_GOROOT)/src/Make.common
 
 PREREQ+=$(patsubst %,%.make,$(DEPS))
-
-all: $(TARG)
 
 $(TARG): _go_.$O $(OFILES)
 	$(QUOTED_GOBIN)/$(LD) -o $@ _go_.$O $(OFILES)
