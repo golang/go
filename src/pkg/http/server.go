@@ -328,12 +328,15 @@ func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
 
 // Helper handlers
 
-// NotFound replies to the request with an HTTP 404 not found error.
-func NotFound(c *Conn, req *Request) {
+// Error replies to the request with the specified error message and HTTP code.
+func Error(c *Conn, error string, code int) {
 	c.SetHeader("Content-Type", "text/plain; charset=utf-8")
-	c.WriteHeader(StatusNotFound)
-	io.WriteString(c, "404 page not found\n")
+	c.WriteHeader(code)
+	fmt.Fprintln(c, error)
 }
+
+// NotFound replies to the request with an HTTP 404 not found error.
+func NotFound(c *Conn, req *Request) { Error(c, "404 page not found", StatusNotFound) }
 
 // NotFoundHandler returns a simple request handler
 // that replies to each request with a ``404 page not found'' reply.
