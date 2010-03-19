@@ -24,7 +24,7 @@ import (
 )
 
 func abort(funcname string, err int) {
-	panic(funcname+" failed: (", err, ") ", syscall.GetErrstr(err), "\n")
+	panic(funcname+" failed: (", err, ") ", syscall.Errstr(err), "\n")
 }
 
 func print_version(v uint32) {
@@ -99,11 +99,9 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	GetVersion() (ver uint32, errno int)
 //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
 
-// TODO(brainman): maybe GetErrstr should replace Errstr alltogether
-
-func GetErrstr(errno int) string {
+func Errstr(errno int) string {
 	if errno == EMINGW {
-		return errors[errno]
+		return "not supported by windows"
 	}
 	var b = make([]uint16, 300)
 	n, err := FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ARGUMENT_ARRAY, 0, uint32(errno), 0, b, nil)

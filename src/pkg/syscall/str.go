@@ -4,7 +4,6 @@
 
 package syscall
 
-
 func str(val int) string { // do it here rather than with fmt to avoid dependency
 	if val < 0 {
 		return "-" + str(-val)
@@ -18,11 +17,4 @@ func str(val int) string { // do it here rather than with fmt to avoid dependenc
 	}
 	buf[i] = byte(val + '0')
 	return string(buf[i:])
-}
-
-func Errstr(errno int) string {
-	if errno < 0 || errno >= int(len(errors)) {
-		return "error " + str(errno)
-	}
-	return errors[errno]
 }
