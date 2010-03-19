@@ -53,6 +53,7 @@ ALLGOFILES=\
 	floor.go\
 	fmod.go\
 	frexp.go\
+	gamma.go\
 	hypot.go\
 	hypot_port.go\
 	logb.go\

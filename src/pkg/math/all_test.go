@@ -286,6 +286,18 @@ var frexp = []fi{
 	fi{9.1265404584042750000e-01, 1},
 	fi{-5.4287029803597508250e-01, 4},
 }
+var gamma = []float64{
+	2.3254348370739963835386613898e+01,
+	2.991153837155317076427529816e+03,
+	-4.561154336726758060575129109e+00,
+	7.719403468842639065959210984e-01,
+	1.6111876618855418534325755566e+05,
+	1.8706575145216421164173224946e+00,
+	3.4082787447257502836734201635e+01,
+	1.579733951448952054898583387e+00,
+	9.3834586598354592860187267089e-01,
+	-2.093995902923148389186189429e-05,
+}
 var lgamma = []fi{
 	fi{3.146492141244545774319734e+00, 1},
 	fi{8.003414490659126375852113e+00, 1},
@@ -734,6 +746,21 @@ var frexpSC = []fi{
 	fi{0, 0},
 	fi{Inf(1), 0},
 	fi{NaN(), 0},
+}
+
+var vfgammaSC = []float64{
+	Inf(-1),
+	-3,
+	0,
+	Inf(1),
+	NaN(),
+}
+var gammaSC = []float64{
+	Inf(-1),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	NaN(),
 }
 
 var vfhypotSC = [][2]float64{
@@ -1278,6 +1305,19 @@ func TestFrexp(t *testing.T) {
 	}
 }
 
+func TestGamma(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Gamma(vf[i]); !close(gamma[i], f) {
+			t.Errorf("Gamma(%g) = %g, want %g\n", vf[i], f, gamma[i])
+		}
+	}
+	for i := 0; i < len(vfgammaSC); i++ {
+		if f := Gamma(vfgammaSC[i]); !alike(gammaSC[i], f) {
+			t.Errorf("Gamma(%g) = %g, want %g\n", vfgammaSC[i], f, gammaSC[i])
+		}
+	}
+}
+
 func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(1e200 * tanh[i] * Sqrt(2))
@@ -1745,6 +1785,12 @@ func BenchmarkFmod(b *testing.B) {
 func BenchmarkFrexp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Frexp(8)
+	}
+}
+
+func BenchmarkGamma(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Gamma(2.5)
 	}
 }
 
