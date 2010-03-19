@@ -19,6 +19,8 @@ for dir in $dirs; do (
 	cd $dir || exit 1
 
 	sources=$(sed -n 's/\.go[ \t]*\\/.go/p' Makefile)
+	sources=$(echo $sources | sed 's/\$(GOOS)/'$GOOS'/g')
+	sources=$(echo $sources | sed 's/\$(GOARCH)/'$GOARCH'/g')
 	sources=$(ls $sources 2> /dev/null)  # remove .s, .c, etc.
 
 	deps=$(
