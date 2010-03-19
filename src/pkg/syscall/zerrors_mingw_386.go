@@ -12,8 +12,3 @@ const (
 	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
 	EMINGW = 99999 /* otherwise unused */
 )
-
-// Error table
-var errors = [...]string{
-	EMINGW: "not supported by windows",
-}
