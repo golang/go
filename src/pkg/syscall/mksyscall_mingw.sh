@@ -109,7 +109,7 @@ while(<>) {
 	# Go function header.
 	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
 
-	# Prepare arguments to Syscall9.
+	# Prepare arguments to Syscall.
 	my @args = ();
 	my $n = 0;
 	foreach my $p (@in) {
@@ -138,8 +138,18 @@ while(<>) {
 	}
 
 	# Determine which form to use; pad args with zeros.
-	my $asm = "Syscall9";
-	if(@args <= 9) {
+	my $asm = "Syscall";
+	if(@args <= 3) {
+		while(@args < 3) {
+			push @args, "0";
+		}
+	} elsif(@args <= 6) {
+		$asm = "Syscall6";
+		while(@args < 6) {
+			push @args, "0";
+		}
+	} elsif(@args <= 9) {
+		$asm = "Syscall9";
 		while(@args < 9) {
 			push @args, "0";
 		}
