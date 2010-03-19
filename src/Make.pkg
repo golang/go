@@ -6,13 +6,12 @@ all: package
 package: _obj/$(TARG).a
 testpackage: _test/$(TARG).a
 
+# ugly hack to deal with whitespaces in $GOROOT
 nullstring :=
 space := $(nullstring) # a space at the end
-ifndef GOBIN
-QUOTED_HOME=$(subst $(space),\ ,$(HOME))
-GOBIN=$(QUOTED_HOME)/bin
-endif
-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
+
+include $(QUOTED_GOROOT)/src/Make.common
 
 # GNU Make 3.80 has a bug in lastword
 # elem=$(lastword $(subst /, ,$(TARG)))
@@ -24,9 +23,6 @@ dir=
 else
 dir=$(patsubst %/$(elem),%,$(TARG))
 endif
-
-# ugly hack to deal with whitespaces in $GOROOT
-QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
 
 pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
 
@@ -40,15 +36,15 @@ GOFILES+=_cgo_gotypes.go
 OFILES+=_cgo_defun.$O
 GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
 INSTALLFILES+=$(pkgdir)/$(TARG).so
-PREREQ+=$(patsubst %,%.make,$(DEPS))
 endif
+
+PREREQ+=$(patsubst %,%.make,$(DEPS))
 
 coverage:
 	$(QUOTED_GOBIN)/gotest
 	$(QUOTED_GOBIN)/6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
-clean:
-	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go *.so _obj _test _testmain.go $(CLEANFILES)
+CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go *.so _obj _test _testmain.go
 
 test:
 	$(QUOTED_GOBIN)/gotest
@@ -89,9 +85,6 @@ importpath:
 
 dir:
 	@echo $(dir)
-
-%.make:
-	(cd $* && $(QUOTED_GOBIN)/gomake)
 
 # To use cgo in a Go package, add a line
 #
