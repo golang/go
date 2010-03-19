@@ -34,7 +34,13 @@ import (
 	"log"
 	"os"
 	pathutil "path"
+	"rpc"
 	"time"
+)
+
+const (
+	defaultAddr = ":6060" // default webserver address
+	golangAddr  = "golang.org:http"
 )
 
 var (
@@ -43,12 +49,16 @@ var (
 	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
 	syncDelay delayTime // actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
 
-	// server control
-	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')")
+	// network
+	httpAddr   = flag.String("http", "", "HTTP service address (e.g., '"+defaultAddr+"')")
+	serverAddr = flag.String("server", "", "webserver address for command line searches")
 
 	// layout control
 	html   = flag.Bool("html", false, "print HTML in command-line mode")
 	genAST = flag.Bool("src", false, "print exported source in command-line mode")
+
+	// command-line searches
+	query = flag.Bool("q", false, "arguments are considered search queries")
 )
 
 
@@ -133,7 +143,7 @@ func dosync(c *http.Conn, r *http.Request) {
 func usage() {
 	fmt.Fprintf(os.Stderr,
 		"usage: godoc package [name ...]\n"+
-			"	godoc -http=:6060\n")
+			"	godoc -http="+defaultAddr+"\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
@@ -147,12 +157,42 @@ func loggingHandler(h http.Handler) http.Handler {
 }
 
 
+func remoteLookup(query string) (result *SearchResult, err os.Error) {
+	var client *rpc.Client
+	if *serverAddr != "" {
+		// try server only
+		client, err = rpc.DialHTTP("tcp", *serverAddr)
+		if err != nil {
+			return
+		}
+	} else {
+		// try local default client first, followed by golang.org
+		client, err = rpc.DialHTTP("tcp", defaultAddr)
+		if err != nil {
+			log.Stderrf("trying %s (no local webserver found at %s)", golangAddr, defaultAddr)
+			client, err = rpc.Dial("tcp", golangAddr)
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	result = new(SearchResult)
+	err = client.Call("IndexServer.Lookup", &Query{query}, result)
+	if err != nil {
+		return nil, err
+	}
+
+	return
+}
+
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
 
 	// Check usage: either server and no args, or command line and args
-	if (*httpaddr != "") != (flag.NArg() == 0) {
+	if (*httpAddr != "") != (flag.NArg() == 0) {
 		usage()
 	}
 
@@ -163,12 +203,12 @@ func main() {
 	initHandlers()
 	readTemplates()
 
-	if *httpaddr != "" {
+	if *httpAddr != "" {
 		// HTTP server mode.
 		var handler http.Handler = http.DefaultServeMux
 		if *verbose {
 			log.Stderrf("Go Documentation Server\n")
-			log.Stderrf("address = %s\n", *httpaddr)
+			log.Stderrf("address = %s\n", *httpAddr)
 			log.Stderrf("goroot = %s\n", goroot)
 			log.Stderrf("tabwidth = %d\n", *tabwidth)
 			if !fsMap.IsEmpty() {
@@ -214,16 +254,36 @@ func main() {
 		// TODO(gri): Do we still need this?
 		time.Sleep(1e9)
 
+		// Register index server.
+		rpc.Register(new(IndexServer))
+		rpc.HandleHTTP()
+
 		// Start http server.
-		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
-			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
+		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
+			log.Exitf("ListenAndServe %s: %v", *httpAddr, err)
 		}
+
 		return
 	}
 
 	// Command line mode.
 	if *html {
 		packageText = packageHTML
+		searchText = packageHTML
+	}
+
+	if *query {
+		// Command-line queries.
+		for i := 0; i < flag.NArg(); i++ {
+			result, err := remoteLookup(flag.Arg(i))
+			if err != nil {
+				log.Exitf("remoteLookup: %s", err)
+			}
+			if err := searchText.Execute(result, os.Stdout); err != nil {
+				log.Exitf("searchText.Execute: %s", err)
+			}
+		}
+		return
 	}
 
 	// determine paths

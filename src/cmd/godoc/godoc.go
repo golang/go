@@ -744,6 +744,12 @@ func infoKindFmt(w io.Writer, x interface{}, format string) {
 
 // Template formatter for "infoLine" format.
 func infoLineFmt(w io.Writer, x interface{}, format string) {
+	// TODO(gri) The code below won't work when invoked
+	//           as part of a command-line search where
+	//           there is no index (and thus Snippets).
+	//           At the moment, the search.txt template
+	//           is not using this formatter and cannot
+	//           show line numbers.
 	info := x.(SpotInfo)
 	line := info.Lori()
 	if info.IsIndex() {
@@ -851,6 +857,7 @@ var (
 	packageHTML,
 	packageText,
 	searchHTML,
+	searchText,
 	sourceHTML *template.Template
 )
 
@@ -862,6 +869,7 @@ func readTemplates() {
 	packageHTML = readTemplate("package.html")
 	packageText = readTemplate("package.txt")
 	searchHTML = readTemplate("search.html")
+	searchText = readTemplate("search.txt")
 	sourceHTML = readTemplate("source.html")
 }
 
@@ -1322,16 +1330,21 @@ type SearchResult struct {
 	Accurate bool
 }
 
-func search(c *http.Conn, r *http.Request) {
-	query := strings.TrimSpace(r.FormValue("q"))
-	var result SearchResult
 
+func lookup(query string) (result SearchResult) {
+	result.Query = query
 	if index, timestamp := searchIndex.get(); index != nil {
-		result.Query = query
 		result.Hit, result.Alt, result.Illegal = index.(*Index).Lookup(query)
 		_, ts := fsTree.get()
 		result.Accurate = timestamp >= ts
 	}
+	return
+}
+
+
+func search(c *http.Conn, r *http.Request) {
+	query := strings.TrimSpace(r.FormValue("q"))
+	result := lookup(query)
 
 	var title string
 	if result.Hit != nil {
@@ -1368,4 +1381,21 @@ func indexer() {
 		}
 		time.Sleep(1 * 60e9) // try once a minute
 	}
+}
+
+
+// ----------------------------------------------------------------------------
+// IndexServer
+
+type Query struct {
+	Query string
+}
+
+
+type IndexServer struct{}
+
+
+func (s *IndexServer) Lookup(query *Query, result *SearchResult) os.Error {
+	*result = lookup(query.Query)
+	return nil
 }

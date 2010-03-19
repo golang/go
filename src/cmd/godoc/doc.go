@@ -8,12 +8,22 @@ Godoc extracts and generates documentation for Go programs.
 
 It has two modes.
 
-Without the -http flag, it prints plain text documentation to standard output and exits.
+Without the -http flag, it runs in command-line mode and prints plain text
+documentation to standard output and exits.
 
 	godoc fmt
 	godoc fmt Printf
 
-With the -http flag, it runs as a web server and presents the documentation as a web page.
+In command-line mode, the -q flag enables search queries against a godoc running
+as a webserver. If no explicit server address is specified with the -server flag,
+godoc first tries localhost:6060 and then http://golang.org.
+
+	godoc -q Reader Writer
+	godoc -q math.Sin
+	godoc -server=:6666 -q sin
+
+With the -http flag, it runs as a web server and presents the documentation as a
+web page.
 
 	godoc -http=:6060
 
@@ -23,6 +33,10 @@ Usage:
 The flags are:
 	-v
 		verbose mode
+	-q
+		arguments are considered search queries: a legal query is a
+		single identifier (such as ToLower) or a qualified identifier
+		(such as math.Sin).
 	-src
 		print exported source in command-line mode
 	-tabwidth=4
@@ -33,8 +47,10 @@ The flags are:
 		print HTML in command-line mode
 	-goroot=$GOROOT
 		Go root directory
-	-http=
+	-http=addr
 		HTTP service address (e.g., '127.0.0.1:6060' or just ':6060')
+	-server=addr
+		webserver address for command line searches
 	-sync="command"
 		if this and -sync_minutes are set, run the argument as a
 		command every sync_minutes; it is intended to update the
