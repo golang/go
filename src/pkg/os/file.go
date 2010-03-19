@@ -97,6 +97,9 @@ func (file *File) Close() Error {
 		err = &PathError{"close", file.name, Errno(e)}
 	}
 	file.fd = -1 // so it can't be closed again
+
+	// no need for a finalizer anymore
+	runtime.SetFinalizer(file, nil)
 	return err
 }
 
