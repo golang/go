@@ -24,6 +24,7 @@ OFILES=\
 	mul.$O\
 	reg.$O\
 	peep.$O\
+	machcap.$O\
 	../6l/enam.$O\
 
 LIB=\
