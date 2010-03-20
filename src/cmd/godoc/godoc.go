@@ -1394,5 +1394,29 @@ type IndexServer struct{}
 
 func (s *IndexServer) Lookup(query *Query, result *SearchResult) os.Error {
 	*result = lookup(query.Query)
+	if hit := result.Hit; hit != nil {
+		// the hitlists contain absolute server file paths;
+		// convert them into relative paths on the server
+		// because the client usually has a different file
+		// mapping
+		mapHitList(hit.Decls)
+		mapHitList(hit.Others)
+	}
 	return nil
+}
+
+
+func mapHitList(list HitList) {
+	for _, prun := range list {
+		for _, frun := range prun.Files {
+			// convert absolute file paths to relative paths
+			f := frun.File
+			if f != nil && len(f.Path) > 0 && f.Path[0] == '/' {
+				f.Path = relativePath(f.Path)
+			}
+			// TODO(gri) convert SpotInfos containing snippets
+			//           so that the line number is available
+			//           on the client side
+		}
+	}
 }
