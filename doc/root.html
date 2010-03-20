@@ -7,6 +7,22 @@
   document.getElementById('nav').style.display = 'none';
 </script>
 
+<!-- begin blog post widget JS/styles -->
+<script src="http://www.google.com/jsapi/?key=ABQIAAAA4TEcjQ5y1r35xLDoRydN_RQJvypqxg_hbbvOIUrMXndwfI6kkBStplaG-3V8WLePPIt0A4nJSKKJdA" type="text/javascript"></script>
+<script src="http://www.google.com/uds/solutions/dynamicfeed/gfdynamicfeedcontrol.js" type="text/javascript"></script>
+<script type="text/javascript">
+function loadFeedControl() {
+	var feed  = "http://blog.golang.org/feeds/posts/default"
+	var fg = new GFdynamicFeedControl(feed, "feedControl", {
+		numResults: 5,
+		displayTime: 5000
+	});
+}
+google.load("feeds", "1");
+google.setOnLoadCallback(loadFeedControl);
+</script>
+<!-- end blog post widget JS/styles -->
+
 <div id="gettingStarted">
   <h1>Getting started</h1>
 
@@ -33,6 +49,12 @@
     </tr>
   </table>
 </div>
+
+<div id="blog">
+	<h1>From the <a href="http://blog.golang.org">Go Blog</a>:</h1>
+	<div id="feedControl">Loading...</div>
+</div>
+
 
 <div id="frontpage">
 
