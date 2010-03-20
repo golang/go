@@ -1,4 +1,5 @@
-QUERY = {Query}
+QUERY
+{Query}
 
 {.section Accurate}
 {.or}

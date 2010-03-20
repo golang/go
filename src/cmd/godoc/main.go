@@ -158,7 +158,7 @@ func loggingHandler(h http.Handler) http.Handler {
 }
 
 
-func remoteLookup(query string) (result *SearchResult, err os.Error) {
+func remoteLookup(query string) (result *Result, err os.Error) {
 	var client *rpc.Client
 	if *serverAddr != "" {
 		// try server only
@@ -178,7 +178,7 @@ func remoteLookup(query string) (result *SearchResult, err os.Error) {
 		}
 	}
 
-	result = new(SearchResult)
+	result = new(Result)
 	err = client.Call("IndexServer.Lookup", &Query{query}, result)
 	if err != nil {
 		return nil, err
@@ -281,9 +281,7 @@ func main() {
 			if err != nil {
 				log.Exitf("remoteLookup: %s", err)
 			}
-			if err := searchText.Execute(result, os.Stdout); err != nil {
-				log.Exitf("searchText.Execute: %s", err)
-			}
+			os.Stdout.Write(result.Result)
 		}
 		return
 	}

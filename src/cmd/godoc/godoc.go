@@ -746,8 +746,9 @@ func infoLineFmt(w io.Writer, x interface{}, format string) {
 			line = index.(*Index).Snippet(line).Line
 		} else {
 			// no line information available because
-			// we don't have an index
-			// TODO(gri) Fix this for remote search
+			// we don't have an index - this should
+			// never happen; be conservative and don't
+			// crash
 			line = 0
 		}
 	}
@@ -1392,10 +1393,15 @@ type Query struct {
 }
 
 
+type Result struct {
+	Result []byte
+}
+
+
 type IndexServer struct{}
 
 
-func (s *IndexServer) Lookup(query *Query, result *SearchResult) os.Error {
-	*result = lookup(query.Query)
+func (s *IndexServer) Lookup(query *Query, result *Result) os.Error {
+	result.Result = applyTemplate(searchText, "searchText", lookup(query.Query))
 	return nil
 }
