@@ -1,5 +1,4 @@
-QUERY
-{Query}
+QUERY = {Query}
 
 {.section Accurate}
 {.or}
@@ -22,7 +21,7 @@ package {Pak.Name}
 {.repeated section Files}
 {.repeated section Groups}
 {.repeated section Infos}
-	{File.Path}:{@|infoLine}
+	{File.Path|url-src}:{@|infoLine}
 {.end}
 {.end}
 {.end}
@@ -37,7 +36,7 @@ package {Pak.Name}
 {.repeated section Files}
 {.repeated section Groups}
 {.repeated section Infos}
-	{File.Path}:{@|infoLine}
+	{File.Path|url-src}:{@|infoLine}
 {.end}
 {.end}
 {.end}
