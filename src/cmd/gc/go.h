@@ -1218,6 +1218,7 @@ void	cgen(Node*, Node*);
 void	gused(Node*);
 void	gdata(Node*, Node*, int);
 void	gdatastring(Node*, Strlit*);
+void	gdatacomplex(Node*, Mpcplx*);
 void	dumptypestructs(void);
 void	dumpfuncs(void);
 void	dumpdata(void);
