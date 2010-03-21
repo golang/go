@@ -9,6 +9,7 @@ package main
 import (
 	"http"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -130,7 +131,8 @@ func vcsCheckout(vcs *vcs, dst, repo, dashpath string) os.Error {
 		return os.ErrorString("not a directory: " + dst)
 	}
 	if err != nil {
-		if err := os.MkdirAll(dst, 0777); err != nil {
+		parent, _ := path.Split(dst)
+		if err := os.MkdirAll(parent, 0777); err != nil {
 			return err
 		}
 		if err := run("/", nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
