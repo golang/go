@@ -156,7 +156,7 @@ me(kern_return_t r)
 
 	for(i=0; i<nelem(macherr); i++){
 		if(r == macherr[i].code){
-			werrstr("%s", macherr[i].name);
+			werrstr("mach: %s", macherr[i].name);
 			return -1;
 		}
 	}
@@ -408,8 +408,10 @@ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 	if(isr){
 		vm_size_t nn;
 		nn = n;
-		if(me(vm_read_overwrite(task, addr, n, (uintptr)v, &nn)) < 0)
+		if(me(vm_read_overwrite(task, addr, n, (uintptr)v, &nn)) < 0) {
+			fprint(2, "vm_read_overwrite %#llux %d to %p: %r\n", addr, n, v);
 			return -1;
+		}
 		return nn;
 	}else{
 		r = vm_write(task, addr, (uintptr)v, n);
