@@ -488,6 +488,27 @@ gdata(Node *nam, Node *nr, int wid)
 }
 
 void
+gdatacomplex(Node *nam, Mpcplx *cval)
+{
+	Prog *p;
+	int w;
+
+	w = cplxsubtype(nam->type->etype);
+	w = types[w]->width;
+
+	p = gins(ADATA, nam, N);
+	p->from.scale = w;
+	p->to.type = D_FCONST;
+	p->to.dval = mpgetflt(&cval->real);
+
+	p = gins(ADATA, nam, N);
+	p->from.scale = w;
+	p->from.offset += w;
+	p->to.type = D_FCONST;
+	p->to.dval = mpgetflt(&cval->imag);
+}
+
+void
 gdatastring(Node *nam, Strlit *sval)
 {
 	Prog *p;
@@ -505,7 +526,6 @@ gdatastring(Node *nam, Strlit *sval)
 	p->from.scale = types[TINT32]->width;
 	p->from.offset += types[tptr]->width;
 }
-
 
 int
 dstringptr(Sym *s, int off, char *str)

@@ -5,7 +5,6 @@
 #include "gg.h"
 
 static	void	subnode(Node *nr, Node *ni, Node *nc);
-static	void	zero(Node *n);
 static	void	minus(Node *nl, Node *res);
 	void	complexminus(Node*, Node*);
 	void	complexadd(int op, Node*, Node*, Node*);
@@ -338,26 +337,6 @@ subnode(Node *nr, Node *ni, Node *nc)
 	*ni = *nc;
 	ni->type = t;
 	ni->xoffset += t->width;
-}
-
-// generate code to zero addable dest nr
-static void
-zero(Node *nr)
-{
-	Node nc;
-	Mpflt fval;
-
-	memset(&nc, 0, sizeof(nc));
-	nc.op = OLITERAL;
-	nc.addable = 1;
-	ullmancalc(&nc);
-	nc.val.u.fval = &fval;
-	nc.val.ctype = CTFLT;
-	nc.type = nr->type;
-
-	mpmovecflt(nc.val.u.fval, 0.0);
-
-	cgen(&nc, nr);
 }
 
 // generate code res = -nl
