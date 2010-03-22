@@ -1018,6 +1018,9 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 		case ast.Decl:
 			p.useNodeComments = true
 			p.decl(n, atTop, ignoreMultiLine)
+		case ast.Spec:
+			p.useNodeComments = true
+			p.spec(n, 1, atTop, false, ignoreMultiLine)
 		case *ast.File:
 			p.comments = n.Comments
 			p.useNodeComments = n.Comments == nil
