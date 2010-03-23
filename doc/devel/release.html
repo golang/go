@@ -5,6 +5,41 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-03-22">2010-03-22</h3>
+
+<pre>
+With this release we announce the launch of the Go Blog:
+	http://blog.golang.org/
+The first post is a brief update covering what has happened since the launch.
+
+This release contains some new packages and functionality, and many fixes:
+* 6g/8g: fix issues with complex data types, other bug fixes.
+* Makefiles: refactored to make writing external Makefiles easier.
+* crypto/rand: new package.
+* godoc: implemented command-line search via RPC,
+	improved comment formatting: recognize URLs.
+* gofmt: more consistent formatting of const/var decls.
+* http: add Error helper function,
+	add ParseQuery (thanks Petar Maymounkov),
+	change RawPath to mean raw path, not raw everything-after-scheme.
+* image/jpeg: fix typos.
+* json: add MarshalIndent (accepts user-specified indent string).
+* math: add Gamma function (thanks Charles L. Dorian).
+* misc/bbedit: support for cmplx, real, imag (thanks Anthony Starks).
+* misc/vim: add new complex types, functions and literals.
+* net: fix IPMask.String not to crash on all-0xff mask.
+* os: drop File finalizer after normal Close.
+* runtime: add GOROOT and Version,
+	lock finalizer table accesses.
+* sha512: add sha384 (truncated version) (thanks Conrad Meyer).
+* syscall: add const ARCH, analogous to OS.
+* syscall: further additions to mingw port (thanks Alex Brainman).
+* template: fixed html formatter []byte input bug.
+* utf16: new package.
+* version.bash: cope with ancient Mercurial.
+* websocket: use URL.RawPath to construct WebSocket-Location: header.
+</pre>
+
 <h3 id="2010-03-15">2010-03-15</h3>
 
 <pre>
