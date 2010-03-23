@@ -346,12 +346,12 @@ doelf(void)
 		dynamic = s;
 
 		/*
-		 * relocation entries for dynld symbols
+		 * relocation entries for dynimport symbols
 		 */
 		nsym = 1;	// sym 0 is reserved
 		for(h=0; h<NHASH; h++) {
 			for(s=hash[h]; s!=S; s=s->link) {
-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
+				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
 					continue;
 
 				d = lookup(".rela", 0);
@@ -361,7 +361,7 @@ doelf(void)
 				nsym++;
 
 				d = lookup(".dynsym", 0);
-				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
+				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
 				t = STB_GLOBAL << 4;
 				t |= STT_OBJECT;	// works for func too, empirically
 				adduint8(d, t);
@@ -370,8 +370,8 @@ doelf(void)
 				adduint64(d, 0);	/* value */
 				adduint64(d, 0);	/* size of object */
 
-				if(needlib(s->dynldlib))
-					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
+				if(needlib(s->dynimplib))
+					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
 			}
 		}
 

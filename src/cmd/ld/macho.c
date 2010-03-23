@@ -281,7 +281,7 @@ domacho(void)
 	nsym = 0;
 	for(h=0; h<NHASH; h++) {
 		for(s=hash[h]; s!=S; s=s->link) {
-			if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
+			if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
 				continue;
 			if(debug['d']) {
 				diag("cannot use dynamic loading and -d");
@@ -292,9 +292,9 @@ domacho(void)
 
 			/* symbol table entry - darwin still puts _ prefixes on all C symbols */
 			x = nstrtab;
-			p = grow(&strtab, &nstrtab, &mstrtab, 1+strlen(s->dynldname)+1);
+			p = grow(&strtab, &nstrtab, &mstrtab, 1+strlen(s->dynimpname)+1);
 			*p++ = '_';
-			strcpy(p, s->dynldname);
+			strcpy(p, s->dynimpname);
 
 			dat = grow(&linkdata, &nlinkdata, &mlinkdata, 8+ptrsize);
 			dat[0] = x;
@@ -303,7 +303,7 @@ domacho(void)
 			dat[3] = x>>24;
 			dat[4] = 0x01;	// type: N_EXT - external symbol
 
-			if(needlib(s->dynldlib)) {
+			if(needlib(s->dynimplib)) {
 				if(ndylib%32 == 0) {
 					dylib = realloc(dylib, (ndylib+32)*sizeof dylib[0]);
 					if(dylib == nil) {
@@ -311,7 +311,7 @@ domacho(void)
 						errorexit();
 					}
 				}
-				dylib[ndylib++] = s->dynldlib;
+				dylib[ndylib++] = s->dynimplib;
 			}
 			nsym++;
 		}

@@ -131,8 +131,8 @@ struct	Sym
 	Prog*	data;
 	Sym*	gotype;
 	char*	file;
-	char*	dynldname;
-	char*	dynldlib;
+	char*	dynimpname;
+	char*	dynimplib;
 };
 struct	Optab
 {

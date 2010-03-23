@@ -56,7 +56,7 @@ typedef	struct	Hist	Hist;
 typedef	struct	Term	Term;
 typedef	struct	Init	Init;
 typedef	struct	Bits	Bits;
-typedef	struct	Dynld	Dynld;
+typedef	struct	Dynimp	Dynimp;
 
 #define	NHUNK		50000L
 #define	BUFSIZ		8192
@@ -444,15 +444,15 @@ struct	Funct
 	Sym*	castfr[NTYPE];
 };
 
-struct	Dynld
+struct	Dynimp
 {
 	char*	local;
 	char*	remote;
 	char*	path;
 };
 
-EXTERN	Dynld	*dynld;
-EXTERN	int	ndynld;
+EXTERN	Dynimp	*dynimp;
+EXTERN	int	ndynimp;
 
 EXTERN struct
 {
@@ -760,7 +760,7 @@ void	pragpack(void);
 void	pragfpround(void);
 void	pragtextflag(void);
 void	pragincomplete(void);
-void	pragdynld(void);
+void	pragdynimport(void);
 
 /*
  * calls to machine depend part

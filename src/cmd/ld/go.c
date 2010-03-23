@@ -66,7 +66,7 @@ ilookup(char *name)
 }
 
 static void loadpkgdata(char*, char*, char*, int);
-static void loaddynld(char*, char*, int);
+static void loaddynimport(char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
 
@@ -141,22 +141,22 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 
 	loadpkgdata(filename, pkg, p0, p1 - p0);
 
-	// look for dynld section
-	p0 = strstr(p1, "\n$$  // dynld");
+	// look for dynimport section
+	p0 = strstr(p1, "\n$$  // dynimport");
 	if(p0 != nil) {
 		p0 = strchr(p0+1, '\n');
 		if(p0 == nil) {
-			fprint(2, "%s: found $$ // dynld but no newline in %s\n", argv0, filename);
+			fprint(2, "%s: found $$ // dynimport but no newline in %s\n", argv0, filename);
 			return;
 		}
 		p1 = strstr(p0, "\n$$");
 		if(p1 == nil)
 			p1 = strstr(p0, "\n!\n");
 		if(p1 == nil) {
-			fprint(2, "%s: cannot find end of // dynld section in %s\n", argv0, filename);
+			fprint(2, "%s: cannot find end of // dynimport section in %s\n", argv0, filename);
 			return;
 		}
-		loaddynld(filename, p0 + 1, p1 - p0);
+		loaddynimport(filename, p0 + 1, p1 - p0);
 	}
 }
 
@@ -337,7 +337,7 @@ parsemethod(char **pp, char *ep, char **methp)
 }
 
 static void
-loaddynld(char *file, char *p, int n)
+loaddynimport(char *file, char *p, int n)
 {
 	char *next, *name, *def, *p0, *lib;
 	Sym *s;
@@ -352,9 +352,9 @@ loaddynld(char *file, char *p, int n)
 		else
 			*next++ = '\0';
 		p0 = p;
-		if(strncmp(p, "dynld ", 6) != 0)
+		if(strncmp(p, "dynimport ", 10) != 0)
 			goto err;
-		p += 6;
+		p += 10;
 		name = p;
 		p = strchr(name, ' ');
 		if(p == nil)
@@ -374,13 +374,13 @@ loaddynld(char *file, char *p, int n)
 		*strchr(def, ' ') = 0;
 
 		s = lookup(name, 0);
-		s->dynldlib = lib;
-		s->dynldname = def;
+		s->dynimplib = lib;
+		s->dynimpname = def;
 	}
 	return;
 
 err:
-	fprint(2, "%s: invalid dynld line: %s\n", argv0, p0);
+	fprint(2, "%s: invalid dynimport line: %s\n", argv0, p0);
 	nerrors++;
 }
 
