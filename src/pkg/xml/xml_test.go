@@ -328,3 +328,29 @@ func TestUnquotedAttrs(t *testing.T) {
 		t.Errorf("Unexpected attribute name: %v", attr.Name.Local)
 	}
 }
+
+func TestCopyTokenCharData(t *testing.T) {
+	data := []byte("same data")
+	var tok1 Token = CharData(data)
+	tok2 := CopyToken(tok1)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(CharData) != CharData")
+	}
+	data[1] = 'o'
+	if reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(CharData) uses same buffer.")
+	}
+}
+
+func TestCopyTokenStartElement(t *testing.T) {
+	elt := StartElement{Name{"", "hello"}, []Attr{Attr{Name{"", "lang"}, "en"}}}
+	var tok1 Token = elt
+	tok2 := CopyToken(tok1)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(StartElement) != StartElement")
+	}
+	elt.Attr[0] = Attr{Name{"", "lang"}, "de"}
+	if reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(CharData) uses same buffer.")
+	}
+}

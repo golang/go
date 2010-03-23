@@ -55,6 +55,13 @@ type StartElement struct {
 	Attr []Attr
 }
 
+func (e StartElement) Copy() StartElement {
+	attrs := make([]Attr, len(e.Attr))
+	copy(e.Attr, attrs)
+	e.Attr = attrs
+	return e
+}
+
 // An EndElement represents an XML end element.
 type EndElement struct {
 	Name Name
@@ -98,6 +105,23 @@ func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
 
 type readByter interface {
 	ReadByte() (b byte, err os.Error)
+}
+
+// CopyToken returns a copy of a Token.
+func CopyToken(t Token) Token {
+	switch v := t.(type) {
+	case CharData:
+		return v.Copy()
+	case Comment:
+		return v.Copy()
+	case Directive:
+		return v.Copy()
+	case ProcInst:
+		return v.Copy()
+	case StartElement:
+		return v.Copy()
+	}
+	return t
 }
 
 // A Parser represents an XML parser reading a particular input stream.
@@ -180,8 +204,8 @@ func NewParser(r io.Reader) *Parser {
 //
 // Slices of bytes in the returned token data refer to the
 // parser's internal buffer and remain valid only until the next
-// call to Token.  To acquire a copy of the bytes, call the token's
-// Copy method.
+// call to Token.  To acquire a copy of the bytes, call CopyToken
+// or the token's Copy method.
 //
 // Token expands self-closing elements such as <br/>
 // into separate start and end elements returned by successive calls.
