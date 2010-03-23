@@ -138,8 +138,8 @@ struct	Sym
 	Prog*	data;
 	Sym*	gotype;
 	char*	file;
-	char*	dynldname;
-	char*	dynldlib;
+	char*	dynimpname;
+	char*	dynimplib;
 };
 
 #define SIGNINTERN	(1729*325*1729)

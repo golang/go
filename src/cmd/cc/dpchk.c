@@ -533,11 +533,11 @@ out:
 }
 
 void
-pragdynld(void)
+pragdynimport(void)
 {
 	Sym *local, *remote;
 	char *path;
-	Dynld *f;
+	Dynimp *f;
 
 	local = getsym();
 	if(local == nil)
@@ -551,16 +551,16 @@ pragdynld(void)
 	if(path == nil)
 		goto err;
 
-	if(ndynld%32 == 0)
-		dynld = realloc(dynld, (ndynld+32)*sizeof dynld[0]);
-	f = &dynld[ndynld++];
+	if(ndynimp%32 == 0)
+		dynimp = realloc(dynimp, (ndynimp+32)*sizeof dynimp[0]);
+	f = &dynimp[ndynimp++];
 	f->local = local->name;
 	f->remote = remote->name;
 	f->path = path;
 	goto out;
 
 err:
-	yyerror("usage: #pragma dynld local remote \"path\"");
+	yyerror("usage: #pragma dynimport local remote \"path\"");
 
 out:
 	while(getnsc() != '\n')

@@ -374,6 +374,17 @@ outcode(void)
 	}
 
 	Bprint(&outbuf, "%s\n", thestring);
+	if(ndynimp > 0) {
+		int i;
+
+		Bprint(&outbuf, "\n");
+		Bprint(&outbuf, "$$  // exports\n\n");
+		Bprint(&outbuf, "$$  // local types\n\n");
+		Bprint(&outbuf, "$$  // dynimport\n", thestring);
+		for(i=0; i<ndynimp; i++)
+			Bprint(&outbuf, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+		Bprint(&outbuf, "$$\n\n");
+	}
 	Bprint(&outbuf, "!\n");
 
 	outhist(&outbuf);

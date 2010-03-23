@@ -50,7 +50,7 @@ func (p *Prog) writeDefs() {
 	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot)
 
 	for name, def := range p.Vardef {
-		fmt.Fprintf(fc, "#pragma dynld ·_C_%s %s \"%s.so\"\n", name, name, path)
+		fmt.Fprintf(fc, "#pragma dynimport ·_C_%s %s \"%s.so\"\n", name, name, path)
 		fmt.Fprintf(fgo2, "var _C_%s ", name)
 		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
 		fmt.Fprintf(fgo2, "\n")
@@ -129,7 +129,7 @@ func (p *Prog) writeDefs() {
 
 		// C wrapper calls into gcc, passing a pointer to the argument frame.
 		// Also emit #pragma to get a pointer to the gcc wrapper.
-		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s.so\"\n", name, name, path)
+		fmt.Fprintf(fc, "#pragma dynimport _cgo_%s _cgo_%s \"%s.so\"\n", name, name, path)
 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
 		fmt.Fprintf(fc, "\n")
 		fmt.Fprintf(fc, "void\n")
@@ -273,10 +273,10 @@ const cProlog = `
 #include "runtime.h"
 #include "cgocall.h"
 
-#pragma dynld initcgo initcgo "%s/libcgo.so"
-#pragma dynld libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
-#pragma dynld _cgo_malloc _cgo_malloc "%s/libcgo.so"
-#pragma dynld _cgo_free free "%s/libcgo.so"
+#pragma dynimport initcgo initcgo "%s/libcgo.so"
+#pragma dynimport libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
+#pragma dynimport _cgo_malloc _cgo_malloc "%s/libcgo.so"
+#pragma dynimport _cgo_free free "%s/libcgo.so"
 
 void
 ·_C_GoString(int8 *p, String s)
