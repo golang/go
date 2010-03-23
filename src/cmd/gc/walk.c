@@ -354,7 +354,6 @@ walkstmt(Node **np)
 		dump("nottop", n);
 		break;
 
-	case OAPPENDSTR:
 	case OASOP:
 	case OAS:
 	case OAS2:
@@ -522,8 +521,8 @@ walkexprlistsafe(NodeList *l, NodeList **init)
 void
 walkexpr(Node **np, NodeList **init)
 {
-	Node *r, *l;
-	NodeList *ll, *lr;
+	Node *r, *l, *var, *a;
+	NodeList *ll, *lr, *lpost;
 	Type *t;
 	int et;
 	int32 lno;
@@ -707,8 +706,35 @@ walkexpr(Node **np, NodeList **init)
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r, init);
+		l = n->list->n;
+		
+		// all the really hard stuff - explicit function calls and so on -
+		// is gone, but map assignments remain.
+		// if there are map assignments here, assign via
+		// temporaries, because ascompatet assumes
+		// the targets can be addressed without function calls
+		// and map index has an implicit one.
+		lpost = nil;
+		if(l->op == OINDEXMAP) {
+			var = nod(OXXX, N, N);
+			tempname(var, l->type);
+			n->list->n = var;
+			a = nod(OAS, l, var);
+			typecheck(&a, Etop);
+			lpost = list(lpost, a);
+		}
+		l = n->list->next->n;
+		if(l->op == OINDEXMAP) {
+			var = nod(OXXX, N, N);
+			tempname(var, l->type);
+			n->list->next->n = var;
+			a = nod(OAS, l, var);
+			typecheck(&a, Etop);
+			lpost = list(lpost, a);
+		}
 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
-		n = liststmt(concat(list1(r), ll));
+		walkexprlist(lpost, init);
+		n = liststmt(concat(concat(list1(r), ll), lpost));
 		goto ret;
 
 	case OAS2RECV:
@@ -815,26 +841,35 @@ walkexpr(Node **np, NodeList **init)
 		n->left = safeexpr(n->left, init);
 		walkexpr(&n->left, init);
 		l = n->left;
-		if(l->op == OINDEXMAP)
-			n = mapop(n, init);
 		walkexpr(&n->right, init);
 		if(n->etype == OANDNOT) {
 			n->etype = OAND;
 			n->right = nod(OCOM, n->right, N);
 			typecheck(&n->right, Erv);
-			goto ret;
 		}
 
 		/*
 		 * on 32-bit arch, rewrite 64-bit ops into l = l op r.
 		 * on 386, rewrite float ops into l = l op r.
+		 * everywhere, rewrite map ops into l = l op r.
+		 * everywhere, rewrite string += into l = l op r.
 		 * TODO(rsc): Maybe this rewrite should be done always?
 		 */
 		et = n->left->type->etype;
 		if((widthptr == 4 && (et == TUINT64 || et == TINT64)) ||
-		   (thechar == '8' && isfloat[et])) {
+		   (thechar == '8' && isfloat[et]) ||
+		   l->op == OINDEXMAP ||
+		   et == TSTRING) {
 			l = safeexpr(n->left, init);
-			r = nod(OAS, l, nod(n->etype, l, n->right));
+			a = l;
+			if(a->op == OINDEXMAP) {
+				// map index has "lhs" bit set in a->etype.
+				// make a copy so we can clear it on the rhs.
+				a = nod(OXXX, N, N);
+				*a = *l;
+				a->etype = 0;
+			}
+			r = nod(OAS, l, nod(n->etype, a, n->right));
 			typecheck(&r, Etop);
 			walkexpr(&r, init);
 			n = r;
@@ -1014,17 +1049,6 @@ walkexpr(Node **np, NodeList **init)
 		n = mkcall("catstring", n->type, init,
 			conv(n->left, types[TSTRING]),
 			conv(n->right, types[TSTRING]));
-		goto ret;
-
-	case OAPPENDSTR:
-		// s1 = sys_catstring(s1, s2)
-		if(n->etype != OADD)
-			fatal("walkasopstring: not add");
-		r = mkcall("catstring", n->left->type, init,
-			conv(n->left, types[TSTRING]),
-			conv(n->right, types[TSTRING]));
-		r = nod(OAS, n->left, r);
-		n = r;
 		goto ret;
 
 	case OSLICESTR:
@@ -1366,7 +1390,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 		yyerror("assignment count mismatch: %d = %d",
 			count(nl), structcount(*nr));
 	if(ucount)
-		yyerror("reorder2: too many function calls evaluating parameters");
+		fatal("reorder2: too many function calls evaluating parameters");
 	return concat(nn, mm);
 }
 
@@ -1860,35 +1884,6 @@ fixchan(Type *t)
 bad:
 	yyerror("not a channel: %lT", t);
 	return T;
-}
-
-Node*
-mapop(Node *n, NodeList **init)
-{
-	Node *r, *a;
-
-	r = n;
-	switch(n->op) {
-	default:
-		fatal("mapop: unknown op %O", n->op);
-	case OASOP:
-		// rewrite map[index] op= right
-		// into tmpi := index; map[tmpi] = map[tmpi] op right
-
-		// make it ok to double-evaluate map[tmpi]
-		n->left->left = safeexpr(n->left->left, init);
-		n->left->right = safeexpr(n->left->right, init);
-
-		a = nod(OXXX, N, N);
-		*a = *n->left;		// copy of map[tmpi]
-		a->etype = 0;
-		a = nod(n->etype, a, n->right);		// m[tmpi] op right
-		r = nod(OAS, n->left, a);		// map[tmpi] = map[tmpi] op right
-		typecheck(&r, Etop);
-		walkexpr(&r, init);
-		break;
-	}
-	return r;
 }
 
 /*
