@@ -159,7 +159,7 @@ do break
 broke
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:9: fatal error: typecheck loop
+fixedbugs/bug081.go:9: typechecking loop
 
 =========== fixedbugs/bug093.go
 M

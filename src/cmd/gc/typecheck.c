@@ -80,8 +80,10 @@ typecheck(Node **np, int top)
 		}
 	}
 
-	if(n->typecheck == 2)
-		fatal("typecheck loop");
+	if(n->typecheck == 2) {
+		yyerror("typechecking loop");
+		return n;
+	}
 	n->typecheck = 2;
 
 redo:
@@ -355,9 +357,7 @@ reswitch:
 			if(iscmp[n->op]) {
 				n->etype = n->op;
 				n->op = OCMPSTR;
-			} else if(n->op == OASOP)
-				n->op = OAPPENDSTR;
-			else if(n->op == OADD)
+			} else if(n->op == OADD)
 				n->op = OADDSTR;
 		}
 		if(et == TINTER) {

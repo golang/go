@@ -348,7 +348,6 @@ enum
 	OADD, OSUB, OOR, OXOR, OADDSTR,
 	OADDR,
 	OANDAND,
-	OAPPENDSTR,
 	OARRAY,
 	OARRAYBYTESTR, OARRAYRUNESTR,
 	OSTRARRAYBYTE, OSTRARRAYRUNE,
@@ -1066,7 +1065,6 @@ Node*	ascompatee1(int, Node*, Node*, NodeList**);
 NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
 NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
 NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
-Node*	mapop(Node*, NodeList**);
 Type*	fixchan(Type*);
 Node*	ifacecvt(Type*, Node*, int, NodeList**);
 int	ifaceas(Type*, Type*, int);
