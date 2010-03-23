@@ -67,8 +67,12 @@ ilookup(char *name)
 
 static void loadpkgdata(char*, char*, char*, int);
 static void loaddynimport(char*, char*, int);
+static void loaddynexport(char*, char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
+
+static int ndynexp;
+static Sym **dynexp;
 
 void
 ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
@@ -156,7 +160,25 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 			fprint(2, "%s: cannot find end of // dynimport section in %s\n", argv0, filename);
 			return;
 		}
-		loaddynimport(filename, p0 + 1, p1 - p0);
+		loaddynimport(filename, p0 + 1, p1 - (p0+1));
+	}
+
+	// look for dynexp section
+	p0 = strstr(p1, "\n$$  // dynexport");
+	if(p0 != nil) {
+		p0 = strchr(p0+1, '\n');
+		if(p0 == nil) {
+			fprint(2, "%s: found $$ // dynexporg but no newline in %s\n", argv0, filename);
+			return;
+		}
+		p1 = strstr(p0, "\n$$");
+		if(p1 == nil)
+			p1 = strstr(p0, "\n!\n");
+		if(p1 == nil) {
+			fprint(2, "%s: cannot find end of // dynexporg section in %s\n", argv0, filename);
+			return;
+		}
+		loaddynexport(filename, pkg, p0 + 1, p1 - (p0+1));
 	}
 }
 
@@ -339,13 +361,12 @@ parsemethod(char **pp, char *ep, char **methp)
 static void
 loaddynimport(char *file, char *p, int n)
 {
-	char *next, *name, *def, *p0, *lib;
+	char *pend, *next, *name, *def, *p0, *lib;
 	Sym *s;
 
-	p[n] = '\0';
-
+	pend = p + n;
 	p0 = p;
-	for(; *p; p=next) {
+	for(; p<pend; p=next) {
 		next = strchr(p, '\n');
 		if(next == nil)
 			next = "";
@@ -381,6 +402,59 @@ loaddynimport(char *file, char *p, int n)
 
 err:
 	fprint(2, "%s: invalid dynimport line: %s\n", argv0, p0);
+	nerrors++;
+}
+
+static void
+loaddynexport(char *file, char *pkg, char *p, int n)
+{
+	char *pend, *next, *local, *elocal, *remote, *p0;
+	Sym *s;
+
+	pend = p + n;
+	p0 = p;
+	for(; p<pend; p=next) {
+		next = strchr(p, '\n');
+		if(next == nil)
+			next = "";
+		else
+			*next++ = '\0';
+		p0 = p;
+		if(strncmp(p, "dynexport ", 10) != 0)
+			goto err;
+		p += 10;
+		local = p;
+		p = strchr(local, ' ');
+		if(p == nil)
+			goto err;
+		while(*p == ' ')
+			p++;
+		remote = p;
+
+		// successful parse: now can edit the line
+		*strchr(local, ' ') = 0;
+
+		elocal = expandpkg(local, pkg);
+
+		s = lookup(elocal, 0);
+		if(s->dynimplib != nil) {
+			fprint(2, "%s: symbol is both dynimport and dynexport %s\n", argv0, local);
+			nerrors++;
+		}
+		s->dynimpname = remote;
+		s->dynexport = 1;
+
+		if(ndynexp%32 == 0)
+			dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+		dynexp[ndynexp++] = s;
+
+		if (elocal != local)
+			free(elocal);
+	}
+	return;
+
+err:
+	fprint(2, "%s: invalid dynexport line: %s\n", argv0, p0);
 	nerrors++;
 }
 
@@ -501,6 +575,9 @@ deadcode(void)
 	mark(lookup(INITENTRY, 0));
 	for(i=0; i<nelem(morename); i++)
 		mark(lookup(morename[i], 0));
+
+	for(i=0; i<ndynexp; i++)
+		mark(dynexp[i]);
 
 	// remove dead data
 	sweeplist(&datap, &edatap);

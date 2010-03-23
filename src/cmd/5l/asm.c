@@ -192,11 +192,27 @@ enum {
 
 vlong elfstr[NElfStr];
 
+static int
+needlib(char *name)
+{
+	char *p;
+	Sym *s;
+
+	/* reuse hash code in symbol table */
+	p = smprint(".dynlib.%s", name);
+	s = lookup(p, 0);
+	if(s->type == 0) {
+		s->type = 100;	// avoid SDATA, etc.
+		return 1;
+	}
+	return 0;
+}
+
 void
 doelf(void)
 {
-	Sym *s, *shstrtab, *dynamic, *dynstr;
-	int h, nsym;
+	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
+	int h, nsym, t;
 
 	if(!iself)
 		return;
@@ -267,48 +283,62 @@ doelf(void)
 			for(s=hash[h]; s!=S; s=s->link) {
 				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
 					continue;
-			#if 0
-				d = lookup(".rel", 0);
-				addaddr(d, s);
-				adduint32(d, ELF32_R_INFO(nsym, R_386_32));
+
+				if(!s->dynexport) {
+					d = lookup(".rel", 0);
+					addaddr(d, s);
+					adduint32(d, ELF32_R_INFO(nsym, R_ARM_ABS32));
+				}
+
 				nsym++;
 
 				d = lookup(".dynsym", 0);
 				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
-				adduint32(d, 0);	/* value */
-				adduint32(d, 0);	/* size of object */
-				t = STB_GLOBAL << 4;
-				t |= STT_OBJECT;	// works for func too, empirically
-				adduint8(d, t);
-				adduint8(d, 0);	/* reserved */
-				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+				/* value */
+				if(!s->dynexport)
+					adduint32(d, 0);
+				else
+					addaddr(d, s);
 
-				if(needlib(s->dynimplib))
+				/* size of object */
+				adduint32(d, 0);
+
+				/* type */
+				t = STB_GLOBAL << 4;
+				if(s->dynexport && s->type == STEXT)
+					t |= STT_FUNC;
+				else
+					t |= STT_OBJECT;
+				adduint8(d, t);
+
+				/* reserved */
+				adduint8(d, 0);
+
+				/* section where symbol is defined */
+				if(!s->dynexport)
+					adduint16(d, SHN_UNDEF);
+				else {
+					switch(s->type) {
+					default:
+					case STEXT:
+						t = 9;
+						break;
+					case SDATA:
+						t = 10;
+						break;
+					case SBSS:
+						t = 11;
+						break;
+					}
+					adduint16(d, t);
+				}
+
+				if(!s->dynexport && needlib(s->dynimplib))
 					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
-			#endif
 			}
 		}
 
-		/*
-		 * hash table.
-		 * only entries that other objects need to find when
-		 * linking us need to be in the table.  right now that is
-		 * no entries.
-		 *
-		 * freebsd insists on having chains enough for all
-		 * the local symbols, though.  for now, we just lay
-		 * down a trivial hash table with 1 bucket and a long chain,
-		 * because no one is actually looking for our symbols.
-		 */
-		s = lookup(".hash", 0);
-		s->type = SDATA;	// TODO: rodata
-		s->reachable = 1;
-		adduint32(s, 1);	// nbucket
-		adduint32(s, nsym);	// nchain
-		adduint32(s, nsym-1);	// bucket 0
-		adduint32(s, 0);	// chain 0
-		for(h=1; h<nsym; h++)	// chain nsym-1 -> nsym-2 -> ... -> 2 -> 1 -> 0
-			adduint32(s, h-1);
+		elfdynhash(nsym);
 
 		/*
 		 * .dynamic table

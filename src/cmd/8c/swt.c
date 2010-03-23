@@ -231,7 +231,7 @@ outcode(void)
 	Binit(&b, f, OWRITE);
 
 	Bprint(&b, "%s\n", thestring);
-	if(ndynimp > 0) {
+	if(ndynimp > 0 || ndynexp > 0) {
 		int i;
 
 		Bprint(&b, "\n");
@@ -240,7 +240,10 @@ outcode(void)
 		Bprint(&b, "$$  // dynimport\n", thestring);
 		for(i=0; i<ndynimp; i++)
 			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
-		Bprint(&b, "$$\n\n");
+		Bprint(&b, "\n$$  // dynexport\n", thestring);
+		for(i=0; i<ndynexp; i++)
+			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+		Bprint(&b, "\n$$\n\n");
 	}
 	Bprint(&b, "!\n");
 

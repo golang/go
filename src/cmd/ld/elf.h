@@ -964,6 +964,7 @@ extern	int	numelfshdr;
 extern	int	iself;
 int	elfwriteinterp(void);
 void	elfinterp(ElfShdr*, uint64, char*);
+void	elfdynhash(int);
 
 /*
  * Total amount of space to reserve at the start of the file

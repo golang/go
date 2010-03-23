@@ -374,7 +374,7 @@ outcode(void)
 	}
 
 	Bprint(&outbuf, "%s\n", thestring);
-	if(ndynimp > 0) {
+	if(ndynimp > 0 || ndynexp > 0) {
 		int i;
 
 		Bprint(&outbuf, "\n");
@@ -383,7 +383,10 @@ outcode(void)
 		Bprint(&outbuf, "$$  // dynimport\n", thestring);
 		for(i=0; i<ndynimp; i++)
 			Bprint(&outbuf, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
-		Bprint(&outbuf, "$$\n\n");
+		Bprint(&outbuf, "\n$$  // dynexport\n", thestring);
+		for(i=0; i<ndynexp; i++)
+			Bprint(&outbuf, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+		Bprint(&outbuf, "\n$$\n\n");
 	}
 	Bprint(&outbuf, "!\n");
 

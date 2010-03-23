@@ -57,6 +57,7 @@ typedef	struct	Term	Term;
 typedef	struct	Init	Init;
 typedef	struct	Bits	Bits;
 typedef	struct	Dynimp	Dynimp;
+typedef	struct	Dynexp	Dynexp;
 
 #define	NHUNK		50000L
 #define	BUFSIZ		8192
@@ -454,6 +455,15 @@ struct	Dynimp
 EXTERN	Dynimp	*dynimp;
 EXTERN	int	ndynimp;
 
+struct	Dynexp
+{
+	char*	local;
+	char*	remote;
+};
+
+EXTERN	Dynexp	*dynexp;
+EXTERN	int	ndynexp;
+
 EXTERN struct
 {
 	Type*	tenum;		/* type of entire enum */
@@ -761,6 +771,7 @@ void	pragfpround(void);
 void	pragtextflag(void);
 void	pragincomplete(void);
 void	pragdynimport(void);
+void	pragdynexporg(void);
 
 /*
  * calls to machine depend part
