@@ -2394,9 +2394,10 @@ where <code>A</code> is an <a href="#Array_types">array type</a>,
 or for <code>a</code> of type <code>S</code> where <code>S</code> is a <a href="#Slice_types">slice type</a>:
 </p>
 <ul>
-	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
+	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code></li>
 	<li><code>a[x]</code> is the array element at index <code>x</code> and the type of
-	  <code>a[x]</code> is the element type of <code>A</code>
+	  <code>a[x]</code> is the element type of <code>A</code></li>
+	<li>if the index <code>x</code> is out of range, a run-time exception occurs</li>
 </ul>
 
 <p>
@@ -2404,10 +2405,11 @@ For <code>a</code> of type <code>T</code>
 where <code>T</code> is a <a href="#String_types">string type</a>:
 </p>
 <ul>
-	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
+	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code></li>
 	<li><code>a[x]</code> is the byte at index <code>x</code> and the type of
-	  <code>a[x]</code> is <code>byte</code>
+	  <code>a[x]</code> is <code>byte</code></li>
 	<li><code>a[x]</code> may not be assigned to
+	<li>if the index <code>x</code> is out of range, a run-time exception occurs</li>
 </ul>
 
 <p>
@@ -2415,38 +2417,38 @@ For <code>a</code> of type <code>M</code>
 where <code>M</code> is a <a href="#Map_types">map type</a>:
 </p>
 <ul>
-	<li><code>x</code>'s type must be compatible with the key type of <code>M</code>
-	  and the map must contain an entry with key <code>x</code> (but see special forms below)
-	<li><code>a[x]</code> is the map value with key <code>x</code>
-	  and the type of <code>a[x]</code> is the value type of <code>M</code>
+	<li><code>x</code>'s type must be
+	<a href="#Assignment_compatibility">assignment compatible</a>
+	with the key type of <code>M</code></li>
+	<li>if the map contains an entry with key <code>x</code>,
+	  <code>a[x]</code> is the map value with key <code>x</code>
+	  and the type of <code>a[x]</code> is the value type of <code>M</code></li>
+	<li>if the map does not contain such an entry,
+	  <code>a[x]</code> is the <a href="#The_zero_value">zero value</a>
+	  for the value type of <code>M</code></li>
 </ul>
 
 <p>
-Otherwise <code>a[x]</code> is illegal.  If the index or key is out of range evaluating
-an otherwise legal index expression, a run-time exception occurs.
+Otherwise <code>a[x]</code> is illegal.
 </p>
 
 <p>
-However, if an index expression on a map <code>a</code> of type <code>map[K] V</code>
-is used in an assignment or initialization of the form
+An index expression on a map <code>a</code> of type <code>map[K]V</code>
+may be used in an assignment or initialization of the special form
 </p>
 
 <pre>
-r, ok = a[x]
-r, ok := a[x]
-var r, ok = a[x]
+v, ok = a[x]
+v, ok := a[x]
+var v, ok = a[x]
 </pre>
 
 <p>
-the result of the index expression is a pair of values with types
-<code>(V, bool)</code>.
-If the key is present in the map,
-the expression returns the pair <code>(a[x], true)</code>;
-otherwise it returns <code>(Z, false)</code> where <code>Z</code> is
-the <a href="#The_zero_value">zero value</a> for <code>V</code>.
-No run-time exception occurs in this case.
-The index expression in this construct thus acts like a function call
-returning a value and a boolean indicating success.  (§<a href="#Assignments">Assignments</a>)
+where the result of the index expression is a pair of values with types
+<code>(V, bool)</code>. In this form, the value of <code>ok</code> is
+<code>true</code> if the key <code>x</code> is present in the map, and
+<code>false</code> otherwise. The value of <code>v</code> is the value
+<code>a[x]</code> as in the single-result form.
 </p>
 
 <p>
@@ -2454,7 +2456,7 @@ Similarly, if an assignment to a map has the special form
 </p>
 
 <pre>
-a[x] = r, ok
+a[x] = v, ok
 </pre>
 
 <p>
@@ -2463,6 +2465,7 @@ the entry for key <code>x</code> is deleted from the map; if
 <code>ok</code> is <code>true</code>, the construct acts like
 a regular assignment to an element of the map.
 </p>
+
 
 <h3 id="Slices">Slices</h3>
 
