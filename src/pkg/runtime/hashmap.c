@@ -769,8 +769,10 @@ void
 	av = (byte*)&h + h->vo1;
 
 	mapaccess(h, ak, av, &pres);
-	if(!pres)
-		throw("runtime.mapaccess1: key not in map");
+
+// new spec -- all elements have "zero" value
+//	if(!pres)
+//		throw("runtime.mapaccess1: key not in map");
 
 	if(debug) {
 		prints("runtime.mapaccess1: map=");
