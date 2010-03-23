@@ -739,16 +739,13 @@ func (p *printer) writeWhitespace(n int) {
 // space for best comment placement. Then, any leftover whitespace is
 // printed, followed by the actual token.
 //
-func (p *printer) print(args ...) {
-	v := reflect.NewValue(args).(*reflect.StructValue)
-	for i := 0; i < v.NumField(); i++ {
-		f := v.Field(i)
-
+func (p *printer) print(args ...interface{}) {
+	for _, f := range args {
 		next := p.pos // estimated position of next item
 		var data []byte
 		var tag HTMLTag
 		isKeyword := false
-		switch x := f.Interface().(type) {
+		switch x := f.(type) {
 		case whiteSpace:
 			if x == ignore {
 				// don't add ignore's to the buffer; they
@@ -795,7 +792,8 @@ func (p *printer) print(args ...) {
 				next = x // accurate position of next item
 			}
 		default:
-			panicln("print: unsupported argument type", f.Type().String())
+			fmt.Fprintf(os.Stderr, "print: unsupported argument type %T\n", f)
+			panic()
 		}
 		p.pos = next
 
