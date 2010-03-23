@@ -123,6 +123,7 @@ struct	Sym
 	uchar	subtype;
 	uchar	dupok;
 	uchar	reachable;
+	uchar	dynexport;
 	int32	value;
 	int32	size;
 	int32	sig;

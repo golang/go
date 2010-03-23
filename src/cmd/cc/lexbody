@@ -54,6 +54,13 @@ pragdynimport(void)
 }
 
 void
+pragdynexport(void)
+{
+	while(getnsc() != '\n')
+		;
+}
+
+void
 pragfpround(void)
 {
 	while(getnsc() != '\n')

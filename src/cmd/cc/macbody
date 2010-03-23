@@ -743,6 +743,10 @@ macprag(void)
 		pragdynimport();
 		return;
 	}
+	if(s && strcmp(s->name, "dynexport") == 0) {
+		pragdynexport();
+		return;
+	}
 	while(getnsc() != '\n')
 		;
 	return;

@@ -566,3 +566,32 @@ out:
 	while(getnsc() != '\n')
 		;
 }
+
+void
+pragdynexport(void)
+{
+	Sym *local, *remote;
+	Dynexp *f;
+
+	local = getsym();
+	if(local == nil)
+		goto err;
+
+	remote = getsym();
+	if(remote == nil)
+		goto err;
+
+	if(ndynexp%32 == 0)
+		dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+	f = &dynexp[ndynexp++];
+	f->local = local->name;
+	f->remote = remote->name;
+	goto out;
+
+err:
+	yyerror("usage: #pragma dynexport local remote");
+
+out:
+	while(getnsc() != '\n')
+		;
+}

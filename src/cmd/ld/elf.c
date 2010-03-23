@@ -309,3 +309,59 @@ elfinterp(ElfShdr *sh, uint64 startva, char *p)
 	sh->off = ELFRESERVE - n;
 	sh->size = n;
 }
+
+void
+elfdynhash(int nsym)
+{
+	Sym *s, *sy;
+	int i, h, nbucket, b;
+	uchar *pc;
+	uint32 hc, g;
+	uint32 *chain, *buckets;
+
+	s = lookup(".hash", 0);
+	s->type = SDATA;	// TODO: rodata
+	s->reachable = 1;
+
+	i = nsym;
+	nbucket = 1;
+	while(i > 0) {
+		++nbucket;
+		i >>= 1;
+	}
+
+	chain = malloc(nsym * sizeof(uint32));
+	memset(chain, 0, nsym * sizeof(uint32));
+	buckets = malloc(nbucket * sizeof(uint32));
+	memset(buckets, 0, nbucket * sizeof(uint32));
+	i = 1;
+	for(h = 0; h<NHASH; h++) {
+		for(sy=hash[h]; sy!=S; sy=sy->link) {
+			if (!sy->reachable || (sy->type != STEXT && sy->type != SDATA && sy->type != SBSS) || sy->dynimpname == nil)
+				continue;
+
+			hc = 0;
+			for(pc = (uchar*)sy->dynimpname; *pc; pc++) {
+				hc = (hc<<4) + *pc;
+				g = hc & 0xf0000000;
+				hc ^= g >> 24;
+				hc &= ~g;
+			}
+
+			b = hc % nbucket;
+			chain[i] = buckets[b];
+			buckets[b] = i;
+			i++;
+		}
+	}
+
+	adduint32(s, nbucket);
+	adduint32(s, nsym);
+	for(i = 0; i<nbucket; i++)
+		adduint32(s, buckets[i]);
+	for(i = 0; i<nsym; i++)
+		adduint32(s, chain[i]);
+
+	free(chain);
+	free(buckets);
+}
