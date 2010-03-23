@@ -12,7 +12,6 @@ package xml
 
 // TODO(rsc):
 //	Test error handling.
-//	Expose parser line number in errors.
 
 import (
 	"bufio"
@@ -26,9 +25,14 @@ import (
 )
 
 // A SyntaxError represents a syntax error in the XML input stream.
-type SyntaxError string
+type SyntaxError struct {
+	Msg  string
+	Line int
+}
 
-func (e SyntaxError) String() string { return "XML syntax error: " + string(e) }
+func (e *SyntaxError) String() string {
+	return "XML syntax error on line " + strconv.Itoa(e.Line) + ": " + e.Msg
+}
 
 // A Name represents an XML name (Local) annotated
 // with a name space identifier (Space).
@@ -344,6 +348,11 @@ func (p *Parser) pushNs(local string, url string, ok bool) {
 	s.ok = ok
 }
 
+// Creates a SyntaxError with the current line number.
+func (p *Parser) syntaxError(msg string) os.Error {
+	return &SyntaxError{Msg: msg, Line: p.line}
+}
+
 // Record that we are ending an element with the given name.
 // The name must match the record at the top of the stack,
 // which must be a pushElement record.
@@ -355,7 +364,7 @@ func (p *Parser) popElement(t *EndElement) bool {
 	name := t.Name
 	switch {
 	case s == nil || s.kind != stkStart:
-		p.err = SyntaxError("unexpected end element </" + name.Local + ">")
+		p.err = p.syntaxError("unexpected end element </" + name.Local + ">")
 		return false
 	case s.name.Local != name.Local:
 		if !p.Strict {
@@ -364,10 +373,10 @@ func (p *Parser) popElement(t *EndElement) bool {
 			t.Name = s.name
 			return true
 		}
-		p.err = SyntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">")
+		p.err = p.syntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">")
 		return false
 	case s.name.Space != name.Space:
-		p.err = SyntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
+		p.err = p.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
 			"closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
@@ -442,7 +451,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		var name Name
 		if name, ok = p.nsname(); !ok {
 			if p.err == nil {
-				p.err = SyntaxError("expected element name after </")
+				p.err = p.syntaxError("expected element name after </")
 			}
 			return nil, p.err
 		}
@@ -451,7 +460,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return nil, p.err
 		}
 		if b != '>' {
-			p.err = SyntaxError("invalid characters between </" + name.Local + " and >")
+			p.err = p.syntaxError("invalid characters between </" + name.Local + " and >")
 			return nil, p.err
 		}
 		return EndElement{name}, nil
@@ -463,7 +472,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		var target string
 		if target, ok = p.name(); !ok {
 			if p.err == nil {
-				p.err = SyntaxError("expected target name after <?")
+				p.err = p.syntaxError("expected target name after <?")
 			}
 			return nil, p.err
 		}
@@ -496,7 +505,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 				return nil, p.err
 			}
 			if b != '-' {
-				p.err = SyntaxError("invalid sequence <!- not part of <!--")
+				p.err = p.syntaxError("invalid sequence <!- not part of <!--")
 				return nil, p.err
 			}
 			// Look for terminator.
@@ -523,7 +532,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 					return nil, p.err
 				}
 				if b != "CDATA["[i] {
-					p.err = SyntaxError("invalid <![ sequence")
+					p.err = p.syntaxError("invalid <![ sequence")
 					return nil, p.err
 				}
 			}
@@ -561,7 +570,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 	)
 	if name, ok = p.nsname(); !ok {
 		if p.err == nil {
-			p.err = SyntaxError("expected element name after <")
+			p.err = p.syntaxError("expected element name after <")
 		}
 		return nil, p.err
 	}
@@ -578,7 +587,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 				return nil, p.err
 			}
 			if b != '>' {
-				p.err = SyntaxError("expected /> in element")
+				p.err = p.syntaxError("expected /> in element")
 				return nil, p.err
 			}
 			break
@@ -600,7 +609,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		a := &attr[n]
 		if a.Name, ok = p.nsname(); !ok {
 			if p.err == nil {
-				p.err = SyntaxError("expected attribute name in element")
+				p.err = p.syntaxError("expected attribute name in element")
 			}
 			return nil, p.err
 		}
@@ -609,7 +618,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return nil, p.err
 		}
 		if b != '=' {
-			p.err = SyntaxError("attribute name without = in element")
+			p.err = p.syntaxError("attribute name without = in element")
 			return nil, p.err
 		}
 		p.space()
@@ -638,7 +647,7 @@ func (p *Parser) attrval() []byte {
 	}
 	// Handle unquoted attribute values for strict parsers
 	if p.Strict {
-		p.err = SyntaxError("unquoted or missing attribute value in element")
+		p.err = p.syntaxError("unquoted or missing attribute value in element")
 		return nil
 	}
 	// Handle unquoted attribute values for unstrict parsers
@@ -707,7 +716,7 @@ func (p *Parser) getc() (b byte, ok bool) {
 func (p *Parser) mustgetc() (b byte, ok bool) {
 	if b, ok = p.getc(); !ok {
 		if p.err == os.EOF {
-			p.err = SyntaxError("unexpected EOF")
+			p.err = p.syntaxError("unexpected EOF")
 		}
 	}
 	return
@@ -751,14 +760,14 @@ Input:
 				trunc = 2
 				break Input
 			}
-			p.err = SyntaxError("unescaped ]]> not in CDATA section")
+			p.err = p.syntaxError("unescaped ]]> not in CDATA section")
 			return nil
 		}
 
 		// Stop reading text if we see a <.
 		if b == '<' && !cdata {
 			if quote >= 0 {
-				p.err = SyntaxError("unescaped < inside quoted string")
+				p.err = p.syntaxError("unescaped < inside quoted string")
 				return nil
 			}
 			p.ungetc('<')
@@ -779,7 +788,7 @@ Input:
 				p.tmp[i], p.err = p.r.ReadByte()
 				if p.err != nil {
 					if p.err == os.EOF {
-						p.err = SyntaxError("unexpected EOF")
+						p.err = p.syntaxError("unexpected EOF")
 					}
 					return nil
 				}
@@ -804,7 +813,7 @@ Input:
 					p.buf.Write(p.tmp[0:i])
 					continue Input
 				}
-				p.err = SyntaxError("character entity expression &" + s + "... too long")
+				p.err = p.syntaxError("character entity expression &" + s + "... too long")
 				return nil
 			}
 			var haveText bool
@@ -836,7 +845,7 @@ Input:
 					p.buf.Write(p.tmp[0:i])
 					continue Input
 				}
-				p.err = SyntaxError("invalid character entity &" + s + ";")
+				p.err = p.syntaxError("invalid character entity &" + s + ";")
 				return nil
 			}
 			p.buf.Write([]byte(text))
@@ -913,7 +922,7 @@ func (p *Parser) name() (s string, ok bool) {
 	s = p.buf.String()
 	for i, c := range s {
 		if !unicode.Is(first, c) && (i == 0 || !unicode.Is(second, c)) {
-			p.err = SyntaxError("invalid XML name: " + s)
+			p.err = p.syntaxError("invalid XML name: " + s)
 			return "", false
 		}
 	}

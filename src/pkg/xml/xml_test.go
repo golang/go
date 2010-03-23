@@ -209,7 +209,7 @@ func TestSyntax(t *testing.T) {
 		var err os.Error
 		for _, err = p.Token(); err == nil; _, err = p.Token() {
 		}
-		if _, ok := err.(SyntaxError); !ok {
+		if _, ok := err.(*SyntaxError); !ok {
 			t.Fatalf(`xmlInput "%s": expected SyntaxError not received`, xmlInput[i])
 		}
 	}
@@ -314,7 +314,7 @@ func TestUnquotedAttrs(t *testing.T) {
 	p := NewParser(StringReader(data))
 	p.Strict = false
 	token, err := p.Token()
-	if _, ok := err.(SyntaxError); ok {
+	if _, ok := err.(*SyntaxError); ok {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	if token.(StartElement).Name.Local != "tag" {
@@ -352,5 +352,20 @@ func TestCopyTokenStartElement(t *testing.T) {
 	elt.Attr[0] = Attr{Name{"", "lang"}, "de"}
 	if reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(CharData) uses same buffer.")
+	}
+}
+
+func TestSyntaxErrorLineNum(t *testing.T) {
+	testInput := "<P>Foo<P>\n\n<P>Bar</>\n"
+	p := NewParser(StringReader(testInput))
+	var err os.Error
+	for _, err = p.Token(); err == nil; _, err = p.Token() {
+	}
+	synerr, ok := err.(*SyntaxError)
+	if !ok {
+		t.Error("Expected SyntaxError.")
+	}
+	if synerr.Line != 3 {
+		t.Error("SyntaxError didn't have correct line number.")
 	}
 }
