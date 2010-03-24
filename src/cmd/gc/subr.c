@@ -832,7 +832,6 @@ goopnames[] =
 	[ONOT]		= "!",
 	[OOROR]		= "||",
 	[OOR]		= "|",
-	[OPANICN]	= "panicln",
 	[OPANIC]	= "panic",
 	[OPLUS]		= "+",
 	[OPRINTN]	= "println",

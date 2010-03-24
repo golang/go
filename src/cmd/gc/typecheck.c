@@ -1013,7 +1013,6 @@ reswitch:
 		goto ret;
 
 	case OPANIC:
-	case OPANICN:
 	case OPRINT:
 	case OPRINTN:
 		ok |= Etop;

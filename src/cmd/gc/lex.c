@@ -1305,7 +1305,6 @@ static	struct
 	"make",		LNAME,		Txxx,		OMAKE,
 	"new",		LNAME,		Txxx,		ONEW,
 	"panic",	LNAME,		Txxx,		OPANIC,
-	"panicln",	LNAME,		Txxx,		OPANICN,
 	"print",	LNAME,		Txxx,		OPRINT,
 	"println",	LNAME,		Txxx,		OPRINTN,
 	"real",		LNAME,		Txxx,		OREAL,
