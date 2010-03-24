@@ -702,7 +702,6 @@ var (
 	makeType    = &FuncType{builtin: "make"}
 	newType     = &FuncType{builtin: "new"}
 	panicType   = &FuncType{builtin: "panic"}
-	paniclnType = &FuncType{builtin: "panicln"}
 	printType   = &FuncType{builtin: "print"}
 	printlnType = &FuncType{builtin: "println"}
 )
@@ -1237,7 +1236,6 @@ func init() {
 	universe.DefineConst("make", universePos, makeType, nil)
 	universe.DefineConst("new", universePos, newType, nil)
 	universe.DefineConst("panic", universePos, panicType, nil)
-	universe.DefineConst("panicln", universePos, paniclnType, nil)
 	universe.DefineConst("print", universePos, printType, nil)
 	universe.DefineConst("println", universePos, printlnType, nil)
 }

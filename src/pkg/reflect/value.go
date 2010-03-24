@@ -503,7 +503,7 @@ func (v *UnsafePointerValue) SetValue(x Value) {
 
 func typesMustMatch(t1, t2 Type) {
 	if t1 != t2 {
-		panicln("type mismatch:", t1.String(), "!=", t2.String())
+		panic("type mismatch: " + t1.String() + " != " + t2.String())
 	}
 }
 
@@ -612,7 +612,7 @@ func (v *SliceValue) addr() addr { return addr(v.slice().Data) }
 func (v *SliceValue) SetLen(n int) {
 	s := v.slice()
 	if n < 0 || n > int(s.Cap) {
-		panicln("SetLen", n, "with capacity", s.Cap)
+		panic("reflect: slice length out of range in SetLen")
 	}
 	s.Len = n
 }
@@ -657,7 +657,7 @@ func (v *SliceValue) Elem(i int) Value {
 	typ := v.typ.(*SliceType).Elem()
 	n := v.Len()
 	if i < 0 || i >= n {
-		panicln("index", i, "in array of length", n)
+		panic("reflect: slice index out of range")
 	}
 	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size())
 	return newValue(typ, p, v.canSet)
@@ -1346,7 +1346,7 @@ func newValue(typ Type, addr addr, canSet bool) Value {
 	case *UnsafePointerType:
 		return (*UnsafePointerValue)(v)
 	}
-	panicln("newValue", typ.String())
+	panic("newValue" + typ.String())
 }
 
 // MakeZero returns a zero Value for the specified Type.

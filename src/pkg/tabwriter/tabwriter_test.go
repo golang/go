@@ -31,7 +31,7 @@ func (b *buffer) Write(buf []byte) (written int, err os.Error) {
 			b.a[n+i] = buf[i]
 		}
 	} else {
-		panicln("buffer.Write: buffer too small", n, m, cap(b.a))
+		panic("buffer.Write: buffer too small")
 	}
 	return len(buf), nil
 }

@@ -96,7 +96,7 @@ func myatof32(s string) (f float32, ok bool) {
 func TestFp(t *testing.T) {
 	f, err := os.Open("testfp.txt", os.O_RDONLY, 0)
 	if err != nil {
-		panicln("testfp: open testfp.txt:", err.String())
+		t.Fatal("testfp: open testfp.txt:", err.String())
 	}
 	defer f.Close()
 
@@ -109,7 +109,7 @@ func TestFp(t *testing.T) {
 			break
 		}
 		if err2 != nil {
-			panicln("testfp: read testfp.txt:", err2.String())
+			t.Fatal("testfp: read testfp.txt: " + err2.String())
 		}
 		line = line[0 : len(line)-1]
 		lineno++

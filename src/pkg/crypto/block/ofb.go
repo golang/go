@@ -13,6 +13,7 @@
 package block
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -26,7 +27,7 @@ func newOFBStream(c Cipher, iv []byte) *ofbStream {
 	x.c = c
 	n := len(iv)
 	if n != c.BlockSize() {
-		panicln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize())
+		panic(fmt.Sprintln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize()))
 	}
 	x.iv = copy(iv)
 	return x

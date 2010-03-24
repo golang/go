@@ -3090,7 +3090,7 @@ func ungetrune(f *bufio.Reader, c int) {
 }
 
 func write(f *bufio.Writer, b []byte, n int) int {
-	println("write")
+	panic("write")
 	return 0
 }
 

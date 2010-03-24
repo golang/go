@@ -7,19 +7,21 @@
 package main
 
 type S struct {
-	a []int;
+	a []int
 }
+
 var s = &S{make([]int, 10)}
 
 func main() {
-	s.a[f()] = 1	// 6g used to call f twice here
+	s.a[f()] = 1 // 6g used to call f twice here
 }
 
 var n int
-func f() int{
+
+func f() int {
 	if n++; n > 1 {
-		panicln("f twice");
+		println("f twice")
+		panic("fail")
 	}
 	return 0
 }
-

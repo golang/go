@@ -7,21 +7,23 @@
 package main
 
 func main() {
-	c := make(chan int, 10);
+	c := make(chan int, 10)
 	if len(c) != 0 || cap(c) != 10 {
-		panicln("chan len/cap ", len(c), cap(c), " want 0 10");
+		println("chan len/cap ", len(c), cap(c), " want 0 10")
+		panic("fail")
 	}
 
 	for i := 0; i < 3; i++ {
-		c <- i;
+		c <- i
 	}
 	if len(c) != 3 || cap(c) != 10 {
-		panicln("chan len/cap ", len(c), cap(c), " want 3 10");
+		println("chan len/cap ", len(c), cap(c), " want 3 10")
+		panic("fail")
 	}
-	
-	c = make(chan int);
+
+	c = make(chan int)
 	if len(c) != 0 || cap(c) != 0 {
-		panicln("chan len/cap ", len(c), cap(c), " want 0 0");
+		println("chan len/cap ", len(c), cap(c), " want 0 0")
+		panic("fail")
 	}
 }
-

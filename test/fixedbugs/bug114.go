@@ -7,17 +7,20 @@
 package main
 
 const B32 = 1<<32 - 1
-const C32 = (-1) & ((1<<32) - 1)
+const C32 = (-1) & ((1 << 32) - 1)
 const D32 = ^0
 
 func main() {
 	if B32 != 0xFFFFFFFF {
-		panicln("1<<32 - 1 is", B32, "should be", 0xFFFFFFFF)
+		println("1<<32 - 1 is", B32, "should be", 0xFFFFFFFF)
+		panic("fail")
 	}
 	if C32 != 0xFFFFFFFF {
-		panicln("(-1) & ((1<<32) - 1) is", C32, "should be", 0xFFFFFFFF)
+		println("(-1) & ((1<<32) - 1) is", C32, "should be", 0xFFFFFFFF)
+		panic("fail")
 	}
 	if D32 != -1 {
-		panicln("^0 is", D32, "should be", -1)
+		println("^0 is", D32, "should be", -1)
+		panic("fail")
 	}
 }

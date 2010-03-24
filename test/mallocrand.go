@@ -27,7 +27,8 @@ func bigger() {
 			println("Footprint", footprint, " for ", allocated)
 		}
 		if footprint > 1e9 {
-			panicln("too big")
+			println("too big")
+			panic("fail")
 		}
 	}
 }
@@ -77,7 +78,8 @@ func main() {
 		//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2);
 		//	obj, size, ref, ok := allocator.find(ptr);
 		//	if obj != base || *ref != 0 || !ok {
-		//		panicln("find", siz, obj, ref, ok);
+		//		println("find", siz, obj, ref, ok)
+		//		panic("fail")
 		//	}
 		blocks[b].base = base
 		blocks[b].siz = siz

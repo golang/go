@@ -6,12 +6,11 @@
 
 package main
 
-func shift(x int) int {
-	return 1<<(1<<(1<<(uint(x))));
-}
+func shift(x int) int { return 1 << (1 << (1 << (uint(x)))) }
 
 func main() {
 	if n := shift(2); n != 1<<(1<<(1<<2)) {
-		panicln("bad shift", n);
+		println("bad shift", n)
+		panic("fail")
 	}
 }

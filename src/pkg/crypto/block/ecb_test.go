@@ -24,10 +24,10 @@ func (c *IncCipher) BlockSize() int { return c.blockSize }
 
 func (c *IncCipher) Encrypt(src, dst []byte) {
 	if !c.encrypting {
-		panicln("encrypt: not encrypting")
+		panic("encrypt: not encrypting")
 	}
 	if len(src) != c.blockSize || len(dst) != c.blockSize {
-		panicln("encrypt: wrong block size", c.blockSize, len(src), len(dst))
+		panic(fmt.Sprintln("encrypt: wrong block size", c.blockSize, len(src), len(dst)))
 	}
 	c.delta++
 	for i, b := range src {
@@ -37,10 +37,10 @@ func (c *IncCipher) Encrypt(src, dst []byte) {
 
 func (c *IncCipher) Decrypt(src, dst []byte) {
 	if c.encrypting {
-		panicln("decrypt: not decrypting")
+		panic("decrypt: not decrypting")
 	}
 	if len(src) != c.blockSize || len(dst) != c.blockSize {
-		panicln("decrypt: wrong block size", c.blockSize, len(src), len(dst))
+		panic(fmt.Sprintln("decrypt: wrong block size ", c.blockSize, " ", len(src), " ", len(dst)))
 	}
 	c.delta--
 	for i, b := range src {

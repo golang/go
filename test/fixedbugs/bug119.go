@@ -7,13 +7,18 @@
 package main
 
 func foo(a []int) int {
-	return a[0]  // this seems to do the wrong thing
+	return a[0] // this seems to do the wrong thing
 }
 
 func main() {
-	a := &[]int{12};
-	if x := (*a)[0]; x != 12 { panicln(2) }
-	if x := foo(*a) ; x != 12 { panicln(3) }  // fails (x is incorrect)
+	a := &[]int{12}
+	if x := (*a)[0]; x != 12 {
+		panic(2)
+	}
+	if x := foo(*a); x != 12 {
+		// fails (x is incorrect)
+		panic(3)
+	}
 }
 
 /*

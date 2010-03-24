@@ -32,7 +32,7 @@ func crash() {
 	// these uses of nil pointers
 	// would crash but should type check
 	println("crash",
-		len(a1) + cap(a1));
+		len(a1)+cap(a1))
 }
 
 func nocrash() {
@@ -42,41 +42,44 @@ func nocrash() {
 	// it decides there are type errors.
 	// it might also help in the traceback.
 	x :=
-		len(m0)+
-		len(m3);
+		len(m0) +
+			len(m3)
 	if x != 1 {
-		panicln("wrong maplen");
+		println("wrong maplen")
+		panic("fail")
 	}
 
 	x =
-		len(s0)+
-		len(s3);
+		len(s0) +
+			len(s3)
 	if x != 1 {
-		panicln("wrong stringlen");
+		println("wrong stringlen")
+		panic("fail")
 	}
 
 	x =
-		len(a0)+
-		len(a2);
+		len(a0) +
+			len(a2)
 	if x != 20 {
-		panicln("wrong arraylen");
+		println("wrong arraylen")
+		panic("fail")
 	}
 
 	x =
-		len(b0)+
-		len(b3);
+		len(b0) +
+			len(b3)
 	if x != 3 {
-		panicln("wrong slicelen");
+		println("wrong slicelen")
+		panic("fail")
 	}
 
 	x =
-		cap(b0)+
-		cap(b3);
+		cap(b0) +
+			cap(b3)
 	if x != 3 {
-		panicln("wrong slicecap");
+		println("wrong slicecap")
+		panic("fail")
 	}
 }
 
-func main() {
-	nocrash();
-}
+func main() { nocrash() }

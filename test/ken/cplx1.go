@@ -19,22 +19,26 @@ func main() {
 	// constants
 	b = (5 + 6i) == C1
 	if !b {
-		panicln("const bool 1", b)
+		println("const bool 1", b)
+		panic("fail")
 	}
 
 	b = (5 + 6i) != C1
 	if b {
-		panicln("const bool 2", b)
+		println("const bool 2", b)
+		panic("fail")
 	}
 
 	b = C1 == (5 + 6i)
 	if !b {
-		panicln("const bool 3", b)
+		println("const bool 3", b)
+		panic("fail")
 	}
 
 	b = C1 != (5 + 6i)
 	if b {
-		panicln("const bool 4", b)
+		println("const bool 4", b)
+		panic("fail")
 	}
 
 	// vars passed through parameters
@@ -49,37 +53,45 @@ func booltest(a complex, r bool) {
 
 	b = a == C1
 	if b != r {
-		panicln("param bool 1", a, b, r)
+		println("param bool 1", a, b, r)
+		panic("fail")
 	}
 
 	b = a != C1
 	if b == r {
-		panicln("param bool 2", a, b, r)
+		println("param bool 2", a, b, r)
+		panic("fail")
 	}
 
 	b = C1 == a
 	if b != r {
-		panicln("param bool 3", a, b, r)
+		println("param bool 3", a, b, r)
+		panic("fail")
 	}
 
 	b = C1 != a
 	if b == r {
-		panicln("param bool 4", a, b, r)
+		println("param bool 4", a, b, r)
+		panic("fail")
 	}
 
 	if r {
 		if a != C1 {
-			panicln("param bool 5", a, b, r)
+			println("param bool 5", a, b, r)
+			panic("fail")
 		}
 		if C1 != a {
-			panicln("param bool 6", a, b, r)
+			println("param bool 6", a, b, r)
+			panic("fail")
 		}
 	} else {
 		if a == C1 {
-			panicln("param bool 6", a, b, r)
+			println("param bool 6", a, b, r)
+			panic("fail")
 		}
 		if C1 == a {
-			panicln("param bool 7", a, b, r)
+			println("param bool 7", a, b, r)
+			panic("fail")
 		}
 	}
 }

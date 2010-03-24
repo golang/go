@@ -111,7 +111,7 @@ func valueToString(val Value) string {
 		v := val
 		return typ.String() + "(" + strconv.Itoa64(int64(v.Get())) + ")"
 	default:
-		panicln("valueToString: can't print type ", typ.String())
+		panic("valueToString: can't print type " + typ.String())
 	}
 	return "valueToString: can't happen"
 }

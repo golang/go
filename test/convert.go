@@ -8,40 +8,37 @@ package main
 
 import "reflect"
 
-func typeof(x interface{}) string {
-	return reflect.Typeof(x).String();
-}
+func typeof(x interface{}) string { return reflect.Typeof(x).String() }
 
-func f() int {
-	return 0;
-}
+func f() int { return 0 }
 
-func g() int {
-	return 0;
-}
+func g() int { return 0 }
 
 type T func() int
 
-var m = map[string] T { "f": f }
+var m = map[string]T{"f": f}
 
 type A int
 type B int
 
-var a A = 1;
-var b B = 2;
-var x int;
+var a A = 1
+var b B = 2
+var x int
 
 func main() {
-	want := typeof(g);
+	want := typeof(g)
 	if t := typeof(f); t != want {
-		panicln("type of f is", t, "want", want);
+		println("type of f is", t, "want", want)
+		panic("fail")
 	}
 
-	want = typeof(a);
+	want = typeof(a)
 	if t := typeof(+a); t != want {
-		panicln("type of +a is", t, "want", want);
+		println("type of +a is", t, "want", want)
+		panic("fail")
 	}
-	if t := typeof(a+0); t != want {
-		panicln("type of a+0 is", t, "want", want);
+	if t := typeof(a + 0); t != want {
+		println("type of a+0 is", t, "want", want)
+		panic("fail")
 	}
 }

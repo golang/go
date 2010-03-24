@@ -649,7 +649,7 @@ func toType(i interface{}) Type {
 	case *runtime.StructType:
 		return (*StructType)(unsafe.Pointer(v))
 	}
-	panicln("toType", i)
+	panic("toType")
 }
 
 // ArrayOrSliceType is the common interface implemented

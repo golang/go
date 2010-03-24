@@ -11,6 +11,7 @@ var b [1e1]int
 
 func main() {
 	if len(a) != 10 || len(b) != 10 {
-		panicln("len", len(a), len(b))
+		println("len", len(a), len(b))
+		panic("fail")
 	}
 }

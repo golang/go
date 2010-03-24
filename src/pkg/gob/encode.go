@@ -399,7 +399,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
 	srt, ok := rt.(*reflect.StructType)
 	if !ok {
-		panicln("can't happen: non-struct")
+		panic("can't happen: non-struct")
 	}
 	engine := new(encEngine)
 	engine.instr = make([]encInstr, srt.NumField()+1) // +1 for terminator

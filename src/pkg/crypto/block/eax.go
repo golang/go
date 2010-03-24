@@ -36,7 +36,7 @@ func (e *EAXTagError) String() string {
 func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac hash.Hash) {
 	n := len(iv)
 	if n != c.BlockSize() {
-		panicln("crypto/block: EAX: iv length", n, "!=", c.BlockSize())
+		panic(fmt.Sprintln("crypto/block: EAX: iv length", n, "!=", c.BlockSize()))
 	}
 	buf := make([]byte, n) // zeroed
 

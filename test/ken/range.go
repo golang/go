@@ -6,105 +6,114 @@
 
 package main
 
-const	size	= 16;
+const size = 16
 
-var	a	[size]byte;
-var	p	[]byte;
-var	m	map[int]byte;
+var a [size]byte
+var p []byte
+var m map[int]byte
 
-func
-f(k int) byte {
-	return byte(k*10007 % size);
+func f(k int) byte {
+	return byte(k * 10007 % size)
 }
 
-func
-init() {
-	p = make([]byte, size);
-	m = make(map[int]byte);
-	for k:=0; k<size; k++ {
-		v := f(k);
-		a[k] = v;
-		p[k] = v;
-		m[k] = v;
+func init() {
+	p = make([]byte, size)
+	m = make(map[int]byte)
+	for k := 0; k < size; k++ {
+		v := f(k)
+		a[k] = v
+		p[k] = v
+		m[k] = v
 	}
 }
 
-func
-main() {
-	var i int;
+func main() {
+	var i int
 
 	/*
 	 * key only
 	 */
-	i = 0;
+	i = 0
 	for k := range a {
-		v := a[k];
+		v := a[k]
 		if v != f(k) {
-			panicln("key array range", k, v, a[k]);
+			println("key array range", k, v, a[k])
+			panic("fail")
 		}
-		i++;
+		i++
 	}
 	if i != size {
-		panicln("key array size", i);
+		println("key array size", i)
+		panic("fail")
 	}
 
-	i = 0;
+	i = 0
 	for k := range p {
-		v := p[k];
+		v := p[k]
 		if v != f(k) {
-			panicln("key pointer range", k, v, p[k]);
+			println("key pointer range", k, v, p[k])
+			panic("fail")
 		}
-		i++;
+		i++
 	}
 	if i != size {
-		panicln("key pointer size", i);
+		println("key pointer size", i)
+		panic("fail")
 	}
 
-	i = 0;
+	i = 0
 	for k := range m {
-		v := m[k];
+		v := m[k]
 		if v != f(k) {
-			panicln("key map range", k, v, m[k]);
+			println("key map range", k, v, m[k])
+			panic("fail")
 		}
-		i++;
+		i++
 	}
 	if i != size {
-		panicln("key map size", i);
+		println("key map size", i)
+		panic("fail")
 	}
 
 	/*
 	 * key,value
 	 */
-	i = 0;
-	for k,v := range a {
+	i = 0
+	for k, v := range a {
 		if v != f(k) {
-			panicln("key:value array range", k, v, a[k]);
+			println("key:value array range", k, v, a[k])
+			panic("fail")
 		}
-		i++;
+		i++
 	}
 	if i != size {
-		panicln("key:value array size", i);
+		println("key:value array size", i)
+		panic("fail")
 	}
 
-	i = 0;
-	for k,v := range p {
+	i = 0
+	for k, v := range p {
 		if v != f(k) {
-			panicln("key:value pointer range", k, v, p[k]);
+			println("key:value pointer range", k, v, p[k])
+			panic("fail")
 		}
-		i++;
+		i++
 	}
 	if i != size {
-		panicln("key:value pointer size", i);
+		println("key:value pointer size", i)
+		panic("fail")
 	}
 
-	i = 0;
-	for k,v := range m {
+	i = 0
+	for k, v := range m {
 		if v != f(k) {
-			panicln("key:value map range", k, v, m[k]);
+			println("key:value map range", k, v, m[k])
+			panic("fail")
 		}
-		i++;
+		i++
 	}
 	if i != size {
-		panicln("key:value map size", i);
+		println("key:value map size", i)
+		panic("fail")
 	}
 }

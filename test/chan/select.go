@@ -10,43 +10,47 @@ var counter uint
 var shift uint
 
 func GetValue() uint {
-	counter++;
+	counter++
 	return 1 << shift
 }
 
 func Send(a, b chan uint) int {
-	var i int;
+	var i int
 
 LOOP:
 	for {
 		select {
 		case a <- GetValue():
-			i++;
-			a = nil;
+			i++
+			a = nil
 		case b <- GetValue():
-			i++;
-			b = nil;
+			i++
+			b = nil
 		default:
-			break LOOP;
+			break LOOP
 		}
-		shift++;
+		shift++
 	}
-	return i;
+	return i
 }
 
 func main() {
-	a := make(chan uint, 1);
-	b := make(chan uint, 1);
+	a := make(chan uint, 1)
+	b := make(chan uint, 1)
 	if v := Send(a, b); v != 2 {
-		panicln("Send returned", v, "!= 2");
+		println("Send returned", v, "!= 2")
+		panic("fail")
 	}
-	if av, bv := <- a, <- b; av | bv != 3 {
-		panicln("bad values", av, bv);
+	if av, bv := <-a, <-b; av|bv != 3 {
+		println("bad values", av, bv)
+		panic("fail")
 	}
 	if v := Send(a, nil); v != 1 {
-		panicln("Send returned", v, "!= 1");
+		println("Send returned", v, "!= 1")
+		panic("fail")
 	}
 	if counter != 10 {
-		panicln("counter is", counter, "!= 10");
+		println("counter is", counter, "!= 10")
+		panic("fail")
 	}
 }

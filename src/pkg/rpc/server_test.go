@@ -49,7 +49,7 @@ func (t *Arith) Div(args *Args, reply *Reply) os.Error {
 }
 
 func (t *Arith) Error(args *Args, reply *Reply) os.Error {
-	panicln("ERROR")
+	panic("ERROR")
 }
 
 func startServer() {

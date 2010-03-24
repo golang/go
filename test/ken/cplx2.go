@@ -30,66 +30,79 @@ func main() {
 
 	r := 5 + 0i
 	if r != R {
-		panicln("opcode 1", r, R)
+		println("opcode 1", r, R)
+		panic("fail")
 	}
 
 	i := 6i
 	if i != I {
-		panicln("opcode 2", i, I)
+		println("opcode 2", i, I)
+		panic("fail")
 	}
 
 	c1 := r + i
 	if c1 != C1 {
-		panicln("opcode x", c1, C1)
+		println("opcode x", c1, C1)
+		panic("fail")
 	}
 
 	c2 := r - i
 	if c2 != C2 {
-		panicln("opcode x", c2, C2)
+		println("opcode x", c2, C2)
+		panic("fail")
 	}
 
 	c3 := -(r + i)
 	if c3 != C3 {
-		panicln("opcode x", c3, C3)
+		println("opcode x", c3, C3)
+		panic("fail")
 	}
 
 	c4 := -(r - i)
 	if c4 != C4 {
-		panicln("opcode x", c4, C4)
+		println("opcode x", c4, C4)
+		panic("fail")
 	}
 
 	c5 := c1 + r
 	if c5 != C5 {
-		panicln("opcode x", c5, C5)
+		println("opcode x", c5, C5)
+		panic("fail")
 	}
 
 	c6 := c1 + i
 	if c6 != C6 {
-		panicln("opcode x", c6, C6)
+		println("opcode x", c6, C6)
+		panic("fail")
 	}
 
 	ca := c5 + c6
 	if ca != Ca {
-		panicln("opcode x", ca, Ca)
+		println("opcode x", ca, Ca)
+		panic("fail")
 	}
 
 	cb := c5 - c6
 	if cb != Cb {
-		panicln("opcode x", cb, Cb)
+		println("opcode x", cb, Cb)
+		panic("fail")
 	}
 
 	cc := c5 * c6
 	if cc != Cc {
-		panicln("opcode x", cc, Cc)
+		println("opcode x", cc, Cc)
+		panic("fail")
 	}
 
 	cd := c5 / c6
 	if cd != Cd {
-		panicln("opcode x", cd, Cd)
+		println("opcode x", cd, Cd)
+		panic("fail")
 	}
 
 	ce := cd * c6
 	if ce != Ce {
-		panicln("opcode x", ce, Ce)
+		println("opcode x", ce, Ce)
+		panic("fail")
 	}
 }

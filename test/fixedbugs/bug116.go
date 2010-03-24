@@ -7,28 +7,29 @@
 package main
 
 func main() {
-	bad := false;
-	if (-5>>1) != -3 {
-		println("-5>>1 =", -5>>1, "want -3");
-		bad = true;
+	bad := false
+	if (-5 >> 1) != -3 {
+		println("-5>>1 =", -5>>1, "want -3")
+		bad = true
 	}
-	if (-4>>1) != -2 {
-		println("-4>>1 =", -4>>1, "want -2");
-		bad = true;
+	if (-4 >> 1) != -2 {
+		println("-4>>1 =", -4>>1, "want -2")
+		bad = true
 	}
-	if (-3>>1) != -2 {
-		println("-3>>1 =", -3>>1, "want -2");
-		bad = true;
+	if (-3 >> 1) != -2 {
+		println("-3>>1 =", -3>>1, "want -2")
+		bad = true
 	}
-	if (-2>>1) != -1 {
-		println("-2>>1 =", -2>>1, "want -1");
-		bad = true;
+	if (-2 >> 1) != -1 {
+		println("-2>>1 =", -2>>1, "want -1")
+		bad = true
 	}
-	if (-1>>1) != -1 {
-		println("-1>>1 =", -1>>1, "want -1");
-		bad = true;
+	if (-1 >> 1) != -1 {
+		println("-1>>1 =", -1>>1, "want -1")
+		bad = true
 	}
 	if bad {
-		panicln("errors");
+		println("errors")
+		panic("fail")
 	}
 }

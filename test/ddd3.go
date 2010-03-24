@@ -10,15 +10,19 @@ import "./ddd2"
 
 func main() {
 	if x := ddd.Sum(1, 2, 3); x != 6 {
-		panicln("ddd.Sum 6", x)
+		println("ddd.Sum 6", x)
+		panic("fail")
 	}
 	if x := ddd.Sum(); x != 0 {
-		panicln("ddd.Sum 0", x)
+		println("ddd.Sum 0", x)
+		panic("fail")
 	}
 	if x := ddd.Sum(10); x != 10 {
-		panicln("ddd.Sum 10", x)
+		println("ddd.Sum 10", x)
+		panic("fail")
 	}
 	if x := ddd.Sum(1, 8); x != 9 {
-		panicln("ddd.Sum 9", x)
+		println("ddd.Sum 9", x)
+		panic("fail")
 	}
 }
