@@ -771,7 +771,7 @@ void	pragfpround(void);
 void	pragtextflag(void);
 void	pragincomplete(void);
 void	pragdynimport(void);
-void	pragdynexporg(void);
+void	pragdynexport(void);
 
 /*
  * calls to machine depend part
