@@ -1344,6 +1344,12 @@ func search(c *http.Conn, r *http.Request) {
 	query := strings.TrimSpace(r.FormValue("q"))
 	result := lookup(query)
 
+	if r.FormValue("f") == "text" {
+		contents := applyTemplate(searchText, "searchText", result)
+		serveText(c, contents)
+		return
+	}
+
 	var title string
 	if result.Hit != nil {
 		title = fmt.Sprintf(`Results for query %q`, query)
@@ -1382,26 +1388,4 @@ func indexer() {
 		}
 		time.Sleep(1 * 60e9) // try once a minute
 	}
-}
-
-
-// ----------------------------------------------------------------------------
-// IndexServer
-
-type Query struct {
-	Query string
-}
-
-
-type Result struct {
-	Result []byte
-}
-
-
-type IndexServer struct{}
-
-
-func (s *IndexServer) Lookup(query *Query, result *Result) os.Error {
-	result.Result = applyTemplate(searchText, "searchText", lookup(query.Query))
-	return nil
 }

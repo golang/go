@@ -34,15 +34,11 @@ import (
 	"log"
 	"os"
 	pathutil "path"
-	"rpc"
 	"runtime"
 	"time"
 )
 
-const (
-	defaultAddr = ":6060" // default webserver address
-	golangAddr  = "golang.org:http"
-)
+const defaultAddr = ":6060" // default webserver address
 
 var (
 	// periodic sync
@@ -158,30 +154,32 @@ func loggingHandler(h http.Handler) http.Handler {
 }
 
 
-func remoteLookup(query string) (result *Result, err os.Error) {
-	var client *rpc.Client
+func remoteSearch(query string) (res *http.Response, err os.Error) {
+	search := "/search?f=text&q=" + http.URLEscape(query)
+
+	// list of addresses to try
+	var addrs []string
 	if *serverAddr != "" {
-		// try server only
-		client, err = rpc.DialHTTP("tcp", *serverAddr)
-		if err != nil {
-			return
-		}
+		// explicit server address - only try this one
+		addrs = []string{*serverAddr}
 	} else {
-		// try local default client first, followed by golang.org
-		client, err = rpc.DialHTTP("tcp", defaultAddr)
-		if err != nil {
-			log.Stderrf("trying %s (no local webserver found at %s)", golangAddr, defaultAddr)
-			client, err = rpc.Dial("tcp", golangAddr)
-			if err != nil {
-				return
-			}
+		addrs = []string{
+			defaultAddr,
+			"golang.org",
 		}
 	}
 
-	result = new(Result)
-	err = client.Call("IndexServer.Lookup", &Query{query}, result)
-	if err != nil {
-		return nil, err
+	// remote search
+	for _, addr := range addrs {
+		url := "http://" + addr + search
+		res, _, err = http.Get(url)
+		if err == nil && res.StatusCode == http.StatusOK {
+			break
+		}
+	}
+
+	if err == nil && res.StatusCode != http.StatusOK {
+		err = os.NewError(res.Status)
 	}
 
 	return
@@ -256,10 +254,6 @@ func main() {
 		// TODO(gri): Do we still need this?
 		time.Sleep(1e9)
 
-		// Register index server.
-		rpc.Register(new(IndexServer))
-		rpc.HandleHTTP()
-
 		// Start http server.
 		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
 			log.Exitf("ListenAndServe %s: %v", *httpAddr, err)
@@ -277,11 +271,11 @@ func main() {
 	if *query {
 		// Command-line queries.
 		for i := 0; i < flag.NArg(); i++ {
-			result, err := remoteLookup(flag.Arg(i))
+			res, err := remoteSearch(flag.Arg(i))
 			if err != nil {
-				log.Exitf("remoteLookup: %s", err)
+				log.Exitf("remoteSearch: %s", err)
 			}
-			os.Stdout.Write(result.Result)
+			io.Copy(os.Stdout, res.Body)
 		}
 		return
 	}
