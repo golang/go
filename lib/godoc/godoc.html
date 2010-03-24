@@ -4,7 +4,7 @@
 <head>
 
   <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  <title>{Title|html}</title>
+  <title>{Title|html-esc}</title>
 
   <link rel="stylesheet" type="text/css" href="/doc/style.css">
   <script type="text/javascript" src="/doc/godocs.js"></script>
@@ -121,7 +121,7 @@
     <li class="blank">&nbsp;</li>
     <li class="navhead">Last update</li>
 	<li>{Timestamp|time}</li>
-	<li>Build version {Version|html}</li>
+	<li>Build version {Version|html-esc}</li>
   </ul>
 </div>
 
@@ -133,7 +133,7 @@
     </div>
   {.end}
 
-  <h1 id="generatedHeader">{Title|html}</h1>
+  <h1 id="generatedHeader">{Title|html-esc}</h1>
 
   <!-- The Table of Contents is automatically inserted in this <div>.
        Do not delete this <div>. -->
