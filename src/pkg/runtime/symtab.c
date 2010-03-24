@@ -299,6 +299,7 @@ splitpcln(void)
 
 // Return actual file line number for targetpc in func f.
 // (Source file is f->src.)
+// NOTE(rsc): If you edit this function, also edit extern.go:/FileLine
 int32
 funcline(Func *f, uint64 targetpc)
 {
@@ -333,6 +334,12 @@ buildfuncs(void)
 
 	if(func != nil)
 		return;
+
+	// Memory profiling uses this code;
+	// can deadlock if the profiler ends
+	// up back here.
+	m->nomemprof++;
+
 	// count funcs, fnames
 	nfunc = 0;
 	nfname = 0;
@@ -350,6 +357,8 @@ buildfuncs(void)
 
 	// record src file and line info for each func
 	walksymtab(dosrcline);
+
+	m->nomemprof--;
 }
 
 Func*

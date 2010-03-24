@@ -11,8 +11,6 @@ package runtime
 #include "defs.h"
 #include "type.h"
 
-int32 malloc_profile = MProf_None;	// no sampling during bootstrap
-
 // NOTE(rsc): Everything here could use cas if contention became an issue.
 static Lock proflock;
 
@@ -58,7 +56,7 @@ stkbucket(uintptr *stk, int32 nstk)
 	}
 	h += h<<3;
 	h ^= h>>11;
-	
+
 	i = h%BuckHashSize;
 	for(b = buckhash[i]; b; b=b->next)
 		if(b->hash == h && b->nstk == nstk &&
@@ -162,7 +160,7 @@ getaddrbucket(uintptr addr)
 	AddrHash *ah;
 	AddrEntry *e, **l;
 	Bucket *b;
-	
+
 	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
 	for(ah=addrhash[h]; ah; ah=ah->next)
 		if(ah->addr == (addr>>20))
@@ -191,6 +189,10 @@ MProf_Malloc(int32 skip, void *p, uintptr size)
 	uintptr stk[32];
 	Bucket *b;
 
+	if(m->nomemprof > 0)
+		return;
+
+	m->nomemprof++;
 	nstk = callers(1+skip, stk, 32);
 	lock(&proflock);
 	b = stkbucket(stk, nstk);
@@ -198,6 +200,7 @@ MProf_Malloc(int32 skip, void *p, uintptr size)
 	b->alloc_bytes += size;
 	setaddrbucket((uintptr)p, b);
 	unlock(&proflock);
+	m->nomemprof--;
 }
 
 // Called when freeing a profiled block.
@@ -206,6 +209,10 @@ MProf_Free(void *p, uintptr size)
 {
 	Bucket *b;
 
+	if(m->nomemprof > 0)
+		return;
+
+	m->nomemprof++;
 	lock(&proflock);
 	b = getaddrbucket((uintptr)p);
 	if(b != nil) {
@@ -213,13 +220,53 @@ MProf_Free(void *p, uintptr size)
 		b->free_bytes += size;
 	}
 	unlock(&proflock);
+	m->nomemprof--;
 }
 
 
 // Go interface to profile data.  (Declared in extern.go)
 // Assumes Go sizeof(int) == sizeof(int32)
 
-func SetMemProfileKind(kind int32) {
-	malloc_profile = kind;
+// Must match MemProfileRecord in extern.go.
+typedef struct Record Record;
+struct Record {
+	int64 alloc_bytes, free_bytes;
+	int64 alloc_objects, free_objects;
+	uintptr stk[32];
+};
+
+// Write b's data to r.
+static void
+record(Record *r, Bucket *b)
+{
+	int32 i;
+
+	r->alloc_bytes = b->alloc_bytes;
+	r->free_bytes = b->free_bytes;
+	r->alloc_objects = b->allocs;
+	r->free_objects = b->frees;
+	for(i=0; i<b->nstk && i<nelem(r->stk); i++)
+		r->stk[i] = b->stk[i];
+	for(; i<nelem(r->stk); i++)
+		r->stk[i] = 0;
 }
 
+func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
+	Bucket *b;
+	Record *r;
+
+	lock(&proflock);
+	n = 0;
+	for(b=buckets; b; b=b->allnext)
+		if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+			n++;
+	ok = false;
+	if(n <= p.len) {
+		ok = true;
+		r = (Record*)p.array;
+		for(b=buckets; b; b=b->allnext)
+			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+				record(r++, b);
+	}
+	unlock(&proflock);
+}

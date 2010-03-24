@@ -83,6 +83,7 @@ DIRS=\
 	hash/crc32\
 	hash/crc64\
 	http\
+	http/pprof\
 	image\
 	image/jpeg\
 	image/png\
@@ -103,6 +104,7 @@ DIRS=\
 	regexp\
 	rpc\
 	runtime\
+	runtime/pprof\
 	scanner\
 	sort\
 	strconv\
@@ -130,10 +132,12 @@ NOTEST=\
 	go/doc\
 	go/token\
 	hash\
+	http/pprof\
 	image\
 	image/jpeg\
 	rand\
 	runtime\
+	runtime/pprof\
 	syscall\
 	testing/iotest\
 	xgb\

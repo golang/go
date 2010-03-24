@@ -15,6 +15,8 @@ package runtime
 MHeap mheap;
 MStats mstats;
 
+extern volatile int32 ·MemProfileRate;
+
 // Same algorithm from chan.c, but a different
 // instance of the static uint32 x.
 // Not protected by a lock - let the threads use
@@ -36,7 +38,7 @@ fastrand1(void)
 void*
 mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_depth)
 {
-	int32 sizeclass;
+	int32 sizeclass, rate;
 	MCache *c;
 	uintptr npages;
 	MSpan *s;
@@ -91,19 +93,19 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_dept
 
 	m->mallocing = 0;
 
-	if(!(refflag & RefNoProfiling) && malloc_profile != MProf_None) {
-		switch(malloc_profile) {
-		case MProf_Sample:
-			if(m->mcache->next_sample > size) {
-				m->mcache->next_sample -= size;
-				break;
-			}
-			m->mcache->next_sample = fastrand1() & (256*1024 - 1);	// sample every 128 kB allocated, on average
-			// fall through
-		case MProf_All:
+	if(!(refflag & RefNoProfiling) && (rate = ·MemProfileRate) > 0) {
+		if(size >= rate)
+			goto profile;
+		if(m->mcache->next_sample > size)
+			m->mcache->next_sample -= size;
+		else {
+			// pick next profile time
+			if(rate > 0x3fffffff)	// make 2*rate not overflow
+				rate = 0x3fffffff;
+			m->mcache->next_sample = fastrand1() % (2*rate);
+		profile:
 			*ref |= RefProfiled;
 			MProf_Malloc(skip_depth+1, v, size);
-			break;
 		}
 	}
 
