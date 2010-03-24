@@ -2996,8 +2996,6 @@ which must be <i>addressable</i>,
 that is, either a variable, pointer indirection, array or slice indexing
 operation,
 or a field selector of an addressable struct operand.
-A function result variable is not addressable.
-<!--- (<span class="alert">TODO: remove this restriction.</span>) --->
 Given an operand of pointer type, the pointer indirection
 operator <code>*</code> retrieves the value pointed
 to by the operand.
@@ -4281,7 +4279,12 @@ executes, the parameters to the function call are evaluated and saved anew but t
 function is not invoked.
 Deferred function calls are executed in LIFO order
 immediately before the surrounding function returns,
-but after the return values, if any, have been evaluated.
+after the return values, if any, have been evaluated, but before they
+are returned to the caller. For instance, if the deferred function is
+a <a href="#Function_literals">function literal<a/> and the surrounding
+function has <a href="#Function_types">named result parameters</a> that
+are in scope within the literal, the deferred function may access and modify
+the result parameters before they are returned.
 </p>
 
 <pre>
@@ -4291,6 +4294,14 @@ defer unlock(l)  // unlocking happens before surrounding function returns
 // prints 3 2 1 0 before surrounding function returns
 for i := 0; i &lt;= 3; i++ {
 	defer fmt.Print(i)
+}
+
+// f returns 1
+func f() (result int) {
+	defer func() {
+		result++
+	}()
+	return 0
 }
 </pre>
 
@@ -4928,7 +4939,8 @@ The following minimal alignment properties are guaranteed:
 <h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
 <ul>
 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
-	<li><span class="alert">Method expressions are not implemented.</span></li>
-	<li><span class="alert">The implementation of complex numbers is incomplete.</span></li>
+	<li><span class="alert">Method expressions are partially implemented.</span></li>
 	<li><span class="alert">Gccgo allows only one init() function per source file.</span></li>
+	<li><span class="alert">Deferred functions cannot access the surrounding function's result parameters.</span></li>
+	<li><span class="alert">Function results are not addressable.</span></li>
 </ul>
