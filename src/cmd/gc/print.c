@@ -48,7 +48,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OMAKE:
 	case ONEW:
 	case OPANIC:
-	case OPANICN:
 	case OPRINT:
 	case OPRINTN:
 	case OCALL:
@@ -351,7 +350,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OMAKE:
 	case ONEW:
 	case OPANIC:
-	case OPANICN:
 	case OPRINT:
 	case OPRINTN:
 		fmtprint(f, "%#O(", n->op);

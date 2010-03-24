@@ -54,7 +54,6 @@ loop:
 	case OGOTO:
 	case ORETURN:
 	case OPANIC:
-	case OPANICN:
 		return 0;
 		break;
 	}
@@ -374,7 +373,6 @@ walkstmt(Node **np)
 	case OPRINT:
 	case OPRINTN:
 	case OPANIC:
-	case OPANICN:
 	case OEMPTY:
 		if(n->typecheck == 0)
 			fatal("missing typecheck");
@@ -411,7 +409,6 @@ walkstmt(Node **np)
 		case OPRINT:
 		case OPRINTN:
 		case OPANIC:
-		case OPANICN:
 			walkexprlist(n->left->list, &n->ninit);
 			n->left = walkprint(n->left, &n->ninit, 1);
 			break;
@@ -612,7 +609,6 @@ walkexpr(Node **np, NodeList **init)
 	case OPRINT:
 	case OPRINTN:
 	case OPANIC:
-	case OPANICN:
 		walkexprlist(n->list, init);
 		n = walkprint(n, init, 0);
 		goto ret;
@@ -1712,7 +1708,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 			else
 				calls = list(calls, mkcall("printsp", T, init));
 		}
-		notfirst = op == OPRINTN || op == OPANICN;
+		notfirst = op == OPRINTN;
 
 		n = l->n;
 		if(n->op == OLITERAL) {
@@ -1828,7 +1824,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 	if(defer) {
 		if(op == OPRINTN)
 			fmtprint(&fmt, "\n");
-		if(op == OPANIC || op == OPANICN)
+		if(op == OPANIC)
 			fmtprint(&fmt, "%%!");
 		on = syslook("printf", 1);
 		on->type = functype(nil, intypes, nil);
@@ -1845,7 +1841,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 		typechecklist(calls, Etop);
 		walkexprlist(calls, init);
 
-		if(op == OPANIC || op == OPANICN)
+		if(op == OPANIC)
 			r = mkcall("panicl", T, nil);
 		else
 			r = nod(OEMPTY, N, N);
