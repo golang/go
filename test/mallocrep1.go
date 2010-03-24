@@ -92,6 +92,7 @@ func atoi(s string) int {
 }
 
 func main() {
+	runtime.MemProfileRate = 0 // disable profiler
 	flag.Parse()
 	b = make([]*byte, 10000)
 	if flag.NArg() > 0 {

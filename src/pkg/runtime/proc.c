@@ -102,6 +102,7 @@ schedinit(void)
 	byte *p;
 
 	allm = m;
+	m->nomemprof++;
 
 	mallocinit();
 	goargs();
@@ -118,6 +119,8 @@ schedinit(void)
 	sched.mcpumax = sched.gomaxprocs;
 	sched.mcount = 1;
 	sched.predawn = 1;
+
+	m->nomemprof--;
 }
 
 // Called after main·init_function; main·main will be called on return.

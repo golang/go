@@ -30,8 +30,9 @@ func bigger() {
 }
 
 func main() {
-	flag.Parse()
+	runtime.MemProfileRate = 0 // disable profiler
 	runtime.MemStats.Alloc = 0 // ignore stacks
+	flag.Parse()
 	for i := 0; i < 1<<7; i++ {
 		for j := 1; j <= 1<<22; j <<= 1 {
 			if i == 0 && *chatty {

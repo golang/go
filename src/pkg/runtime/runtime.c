@@ -210,7 +210,7 @@ void
 ·getgoroot(String out)
 {
 	byte *p;
-	
+
 	p = getenv("GOROOT");
 	out = gostring(p);
 	FLUSH(&out);
@@ -475,7 +475,7 @@ nanotime(void)
 {
 	int64 sec;
 	int32 usec;
-	
+
 	sec = 0;
 	usec = 0;
 	gettime(&sec, &usec);
@@ -506,4 +506,11 @@ void
 {
 	retn = callers(skip, (uintptr*)pc.array, pc.len);
 	FLUSH(&retn);
+}
+
+void
+·FuncForPC(uintptr pc, void *retf)
+{
+	retf = findfunc(pc);
+	FLUSH(&retf);
 }

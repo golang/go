@@ -212,6 +212,7 @@ struct	M
 	int32	mallocing;
 	int32	gcing;
 	int32	locks;
+	int32	nomemprof;
 	int32	waitnextg;
 	Note	havenextg;
 	G*	nextg;
@@ -259,20 +260,18 @@ enum
 	SigQueue = 1<<3,
 };
 
-// (will be) shared with go; edit ../cmd/6g/sys.go too.
-// should move out of sys.go eventually.
-// also eventually, the loaded symbol table should
-// be closer to this form.
+// NOTE(rsc): keep in sync with extern.go:/type.Func.
+// Eventually, the loaded symbol table should be closer to this form.
 struct	Func
 {
 	String	name;
 	String	type;	// go type string
 	String	src;	// src file name
-	uint64	entry;	// entry pc
-	int64	frame;	// stack frame size
 	Slice	pcln;	// pc/ln tab for this func
-	int64	pc0;	// starting pc, ln for table
+	uintptr	entry;	// entry pc
+	uintptr	pc0;	// starting pc, ln for table
 	int32	ln0;
+	int32	frame;	// stack frame size
 	int32	args;	// number of 32-bit in/out args
 	int32	locals;	// number of 32-bit locals
 };
