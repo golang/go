@@ -28,7 +28,6 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
