@@ -21,11 +21,17 @@ func Goexit()
 func Breakpoint()
 
 // Caller reports file and line number information about function invocations on
-// the calling goroutine's stack.  The argument is the number of stack frames to
+// the calling goroutine's stack.  The argument skip is the number of stack frames to
 // ascend, with 0 identifying the the caller of Caller.  The return values report the
 // program counter, file name, and line number within the file of the corresponding
 // call.  The boolean ok is false if it was not possible to recover the information.
-func Caller(n int) (pc uintptr, file string, line int, ok bool)
+func Caller(skip int) (pc uintptr, file string, line int, ok bool)
+
+// Callers fills the slice pc with the program counters of function invocations
+// on the calling goroutine's stack.  The argument skip is the number of stack frames
+// to skip before recording in pc, with 0 starting at the caller of Caller.
+// It returns the number of entries written to pc.
+func Callers(skip int, pc []int) int
 
 // mid returns the current os thread (m) id.
 func mid() uint32
@@ -168,3 +174,19 @@ func GOROOT() string {
 // A trailing + indicates that the tree had local modifications
 // at the time of the build.
 func Version() string { return defaultVersion }
+
+// MemProfileKind specifies how frequently to record
+// memory allocations in the memory profiler.
+type MemProfileKind int
+
+const (
+	MemProfileNone   MemProfileKind = iota // no profiling
+	MemProfileSample                       // profile random sample
+	MemProfileAll                          // profile every allocation
+)
+
+// SetMemProfileKind sets the fraction of memory allocations
+// that are recorded and reported in the memory profile.
+// Profiling an allocation has a small overhead, so the default
+// is to profile only a random sample, weighted by block size.
+func SetMemProfileKind(kind MemProfileKind)

@@ -23,7 +23,7 @@ void
 	ret.cap = cap;
 
 	if((t->elem->kind&KindNoPointers))
-		ret.array = mallocgc(size, RefNoPointers, 1, 1);
+		ret.array = mallocgc(size, RefNoPointers, 1, 1, 1);
 	else
 		ret.array = mal(size);
 

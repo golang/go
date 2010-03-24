@@ -15,11 +15,26 @@ package runtime
 MHeap mheap;
 MStats mstats;
 
+// Same algorithm from chan.c, but a different
+// instance of the static uint32 x.
+// Not protected by a lock - let the threads use
+// the same random number if they like.
+static uint32
+fastrand1(void)
+{
+	static uint32 x = 0x49f6428aUL;
+
+	x += x;
+	if(x & 0x80000000L)
+		x ^= 0x88888eefUL;
+	return x;
+}
+
 // Allocate an object of at least size bytes.
 // Small objects are allocated from the per-thread cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 void*
-mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
+mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_depth)
 {
 	int32 sizeclass;
 	MCache *c;
@@ -64,15 +79,33 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 		s = MHeap_Alloc(&mheap, npages, 0, 1);
 		if(s == nil)
 			throw("out of memory");
-		mstats.alloc += npages<<PageShift;
-		mstats.total_alloc += npages<<PageShift;
+		size = npages<<PageShift;
+		mstats.alloc += size;
+		mstats.total_alloc += size;
 		v = (void*)(s->start << PageShift);
 
 		// setup for mark sweep
 		s->gcref0 = RefNone | refflag;
+		ref = &s->gcref0;
 	}
 
 	m->mallocing = 0;
+
+	if(!(refflag & RefNoProfiling) && malloc_profile != MProf_None) {
+		switch(malloc_profile) {
+		case MProf_Sample:
+			if(m->mcache->next_sample > size) {
+				m->mcache->next_sample -= size;
+				break;
+			}
+			m->mcache->next_sample = fastrand1() & (256*1024 - 1);	// sample every 128 kB allocated, on average
+			// fall through
+		case MProf_All:
+			*ref |= RefProfiled;
+			MProf_Malloc(skip_depth+1, v, size);
+			break;
+		}
+	}
 
 	if(dogc && mstats.heap_alloc >= mstats.next_gc)
 		gc(0);
@@ -82,7 +115,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 void*
 malloc(uintptr size)
 {
-	return mallocgc(size, 0, 0, 1);
+	return mallocgc(size, 0, 0, 1, 1);
 }
 
 // Free the object whose base pointer is v.
@@ -92,7 +125,7 @@ free(void *v)
 	int32 sizeclass, size;
 	MSpan *s;
 	MCache *c;
-	uint32 *ref;
+	uint32 prof, *ref;
 
 	if(v == nil)
 		return;
@@ -105,12 +138,15 @@ free(void *v)
 		printf("free %p: not an allocated block\n", v);
 		throw("free mlookup");
 	}
+	prof = *ref & RefProfiled;
 	*ref = RefFree;
 
 	// Find size class for v.
 	sizeclass = s->sizeclass;
 	if(sizeclass == 0) {
 		// Large object.
+		if(prof)
+			MProf_Free(v, s->npages<<PageShift);
 		mstats.alloc -= s->npages<<PageShift;
 		runtime_memclr(v, s->npages<<PageShift);
 		MHeap_Free(&mheap, s, 1);
@@ -120,6 +156,8 @@ free(void *v)
 		size = class_to_size[sizeclass];
 		if(size > sizeof(uintptr))
 			((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
+		if(prof)
+			MProf_Free(v, size);
 		mstats.alloc -= size;
 		mstats.by_size[sizeclass].nfree++;
 		MCache_Free(c, v, sizeclass, size);
@@ -211,9 +249,15 @@ mallocinit(void)
 // Runtime stubs.
 
 void*
-mal(uint32 n)
+mal(uintptr n)
 {
-	return mallocgc(n, 0, 1, 1);
+	return mallocgc(n, 0, 1, 1, 2);
+}
+
+void*
+malx(uintptr n, int32 skip_delta)
+{
+	return mallocgc(n, 0, 1, 1, 2+skip_delta);
 }
 
 // Stack allocator uses malloc/free most of the time,
@@ -246,7 +290,7 @@ stackalloc(uint32 n)
 		unlock(&stacks);
 		return v;
 	}
-	v = mallocgc(n, 0, 0, 0);
+	v = mallocgc(n, RefNoProfiling, 0, 0, 0);
 	if(!mlookup(v, nil, nil, nil, &ref))
 		throw("stackalloc mlookup");
 	*ref = RefStack;
