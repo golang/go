@@ -298,6 +298,18 @@ var gamma = []float64{
 	9.3834586598354592860187267089e-01,
 	-2.093995902923148389186189429e-05,
 }
+var j0 = []float64{
+	-1.8444682230601672018219338e-01,
+	2.27353668906331975435892e-01,
+	9.809259936157051116270273e-01,
+	-1.741170131426226587841181e-01,
+	-2.1389448451144143352039069e-01,
+	-2.340905848928038763337414e-01,
+	-1.0029099691890912094586326e-01,
+	-1.5466726714884328135358907e-01,
+	3.252650187653420388714693e-01,
+	-8.72218484409407250005360235e-03,
+}
 var lgamma = []fi{
 	fi{3.146492141244545774319734e+00, 1},
 	fi{8.003414490659126375852113e+00, 1},
@@ -489,6 +501,18 @@ var trunc = []float64{
 	2.0000000000000000e+00,
 	1.0000000000000000e+00,
 	-8.0000000000000000e+00,
+}
+var y0 = []float64{
+	-3.053399153780788357534855e-01,
+	1.7437227649515231515503649e-01,
+	-8.6221781263678836910392572e-01,
+	-3.100664880987498407872839e-01,
+	1.422200649300982280645377e-01,
+	4.000004067997901144239363e-01,
+	-3.3340749753099352392332536e-01,
+	4.5399790746668954555205502e-01,
+	4.8290004112497761007536522e-01,
+	2.7036697826604756229601611e-01,
 }
 
 // arguments and expected results for special cases
@@ -811,6 +835,19 @@ var ilogbSC = []int{
 	MaxInt32,
 }
 
+var vfj0SC = []float64{
+	Inf(-1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var j0SC = []float64{
+	0,
+	1,
+	0,
+	NaN(),
+}
+
 var vflgammaSC = []float64{
 	Inf(-1),
 	-3,
@@ -993,6 +1030,19 @@ var sqrtSC = []float64{
 	NaN(),
 }
 
+var vfy0SC = []float64{
+	Inf(-1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var y0SC = []float64{
+	NaN(),
+	Inf(-1),
+	0,
+	NaN(),
+}
+
 func tolerance(a, b, e float64) bool {
 	d := a - b
 	if d < 0 {
@@ -1010,6 +1060,7 @@ func tolerance(a, b, e float64) bool {
 func kindaclose(a, b float64) bool { return tolerance(a, b, 1e-8) }
 func close(a, b float64) bool      { return tolerance(a, b, 1e-14) }
 func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
+func soclose(a, b, e float64) bool { return tolerance(a, b, e) }
 func alike(a, b float64) bool {
 	switch {
 	case IsNaN(a) && IsNaN(b):
@@ -1345,6 +1396,19 @@ func TestIlogb(t *testing.T) {
 	}
 }
 
+func TestJ0(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := J0(vf[i]); !soclose(j0[i], f, 4e-14) {
+			t.Errorf("J0(%g) = %g, want %g\n", vf[i], f, j0[i])
+		}
+	}
+	for i := 0; i < len(vfj0SC); i++ {
+		if f := J0(vfj0SC[i]); !alike(j0SC[i], f) {
+			t.Errorf("J0(%g) = %g, want %g\n", vfj0SC[i], f, j0SC[i])
+		}
+	}
+}
+
 func TestLdexp(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Ldexp(frexp[i].f, frexp[i].i); !veryclose(vf[i], f) {
@@ -1572,6 +1636,20 @@ func TestTrunc(t *testing.T) {
 	for i := 0; i < len(vfceilSC); i++ {
 		if f := Trunc(vfceilSC[i]); !alike(ceilSC[i], f) {
 			t.Errorf("Trunc(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
+		}
+	}
+}
+
+func TestY0(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		a := Fabs(vf[i])
+		if f := Y0(a); !close(y0[i], f) {
+			t.Errorf("Y0(%g) = %g, want %g\n", a, f, y0[i])
+		}
+	}
+	for i := 0; i < len(vfy0SC); i++ {
+		if f := Y0(vfy0SC[i]); !alike(y0SC[i], f) {
+			t.Errorf("Y0(%g) = %g, want %g\n", vfy0SC[i], f, y0SC[i])
 		}
 	}
 }
@@ -1812,6 +1890,12 @@ func BenchmarkIlogb(b *testing.B) {
 	}
 }
 
+func BenchmarkJ0(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		J0(2.5)
+	}
+}
+
 func BenchmarkLdexp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Ldexp(.5, 2)
@@ -1928,5 +2012,11 @@ func BenchmarkTanh(b *testing.B) {
 func BenchmarkTrunc(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Trunc(.5)
+	}
+}
+
+func BenchmarkY0(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Y0(2.5)
 	}
 }

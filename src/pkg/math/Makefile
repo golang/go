@@ -56,6 +56,7 @@ ALLGOFILES=\
 	gamma.go\
 	hypot.go\
 	hypot_port.go\
+	j0.go\
 	logb.go\
 	lgamma.go\
 	ldexp.go\
