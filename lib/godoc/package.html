@@ -12,7 +12,7 @@
 {.section PDoc}
 	<!-- PackageName is printed as title by the top-level template -->
 	{.section IsPkg}
-		<p><code>import "{ImportPath|html}"</code></p>
+		<p><code>import "{ImportPath|html-esc}"</code></p>
 	{.end}
 	{Doc|html-comment}
 	{.section IsPkg}
@@ -21,7 +21,7 @@
 			<h4>Package files</h4>
 			<span style="font-size:90%">
 			{.repeated section @}
-				<a href="{@|url-src}">{@|localname}</a>
+				<a href="/{@|url-src}">{@|localname}</a>
 			{.end}
 			</span>
 			</p>
@@ -43,14 +43,14 @@
 	{.end}
 	{.section Funcs}
 		{.repeated section @}
-			<h2 id="{Name|html-esc}">func <a href="{Decl|url-pos}">{Name|html}</a></h2>
+			<h2 id="{Name|html-esc}">func <a href="/{Decl|url-pos}">{Name|html-esc}</a></h2>
 			<p><code>{Decl|html}</code></p>
 			{Doc|html-comment}
 		{.end}
 	{.end}
 	{.section Types}
 		{.repeated section @}
-			<h2 id="{Type.Name|html-esc}">type <a href="{Decl|url-pos}">{Type.Name|html}</a></h2>
+			<h2 id="{Type.Name|html-esc}">type <a href="/{Decl|url-pos}">{Type.Name|html-esc}</a></h2>
 			{Doc|html-comment}
 			<p><pre>{Decl|html}</pre></p>
 			{.repeated section Consts}
@@ -62,12 +62,12 @@
 				<pre>{Decl|html}</pre>
 			{.end}
 			{.repeated section Factories}
-				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func <a href="{Decl|url-pos}">{Name|html}</a></h3>
+				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func <a href="/{Decl|url-pos}">{Name|html-esc}</a></h3>
 				<p><code>{Decl|html}</code></p>
 				{Doc|html-comment}
 			{.end}
 			{.repeated section Methods}
-				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func ({Recv|html}) <a href="{Decl|url-pos}">{Name|html}</a></h3>
+				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func ({Recv|html}) <a href="/{Decl|url-pos}">{Name|html-esc}</a></h3>
 				<p><code>{Decl|html}</code></p>
 				{Doc|html-comment}
 			{.end}
@@ -103,9 +103,9 @@
 	{.repeated section List}
 		<tr>
 		{Depth|padding}
-		<td align="left" colspan="{Height|html-esc}"><a href="{Path|html-esc}">{Name|html}<a></td>
+		<td align="left" colspan="{Height|html-esc}"><a href="{Path|html-esc}">{Name|html-esc}<a></td>
 		<td></td>
-		<td align="left">{Synopsis|html}</td>
+		<td align="left">{Synopsis|html-esc}</td>
 		</tr>
 	{.end}
 	</table>

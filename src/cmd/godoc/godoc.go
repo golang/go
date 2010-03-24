@@ -692,7 +692,8 @@ func urlFmt(w io.Writer, x interface{}, format string) {
 	// map path
 	relpath := relativePath(path)
 
-	// convert to URL
+	// convert to relative URLs so that they can also
+	// be used as relative file names in .txt templates
 	switch format {
 	default:
 		// we should never reach here, but be resilient
@@ -705,13 +706,13 @@ func urlFmt(w io.Writer, x interface{}, format string) {
 		if strings.HasPrefix(relpath, "src/pkg/") {
 			relpath = relpath[len("src/pkg/"):]
 		}
-		template.HTMLEscape(w, []byte(pkgHandler.pattern+relpath))
+		template.HTMLEscape(w, []byte(pkgHandler.pattern[1:]+relpath)) // remove trailing '/' for relative URL
 	case "url-src":
-		template.HTMLEscape(w, []byte("/"+relpath))
+		template.HTMLEscape(w, []byte(relpath))
 	case "url-pos":
 		// line id's in html-printed source are of the
 		// form "L%d" where %d stands for the line number
-		template.HTMLEscape(w, []byte("/"+relpath))
+		template.HTMLEscape(w, []byte(relpath))
 		fmt.Fprintf(w, "#L%d", line)
 	}
 }
