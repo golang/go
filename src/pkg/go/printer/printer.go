@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"reflect"
 	"runtime"
 	"tabwriter"
 )
