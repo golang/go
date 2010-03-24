@@ -1,0 +1,225 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Malloc profiling.
+// Patterned after tcmalloc's algorithms; shorter code.
+
+package runtime
+#include "runtime.h"
+#include "malloc.h"
+#include "defs.h"
+#include "type.h"
+
+int32 malloc_profile = MProf_None;	// no sampling during bootstrap
+
+// NOTE(rsc): Everything here could use cas if contention became an issue.
+static Lock proflock;
+
+// Per-call-stack allocation information.
+// Lookup by hashing call stack into a linked-list hash table.
+typedef struct Bucket Bucket;
+struct Bucket
+{
+	Bucket	*next;	// next in hash list
+	Bucket	*allnext;	// next in list of all buckets
+	uintptr	allocs;
+	uintptr	frees;
+	uintptr	alloc_bytes;
+	uintptr	free_bytes;
+	uintptr	hash;
+	uintptr	nstk;
+	uintptr	stk[1];
+};
+enum {
+	BuckHashSize = 179999,
+};
+static Bucket **buckhash;
+static Bucket *buckets;
+static uintptr bucketmem;
+
+// Return the bucket for stk[0:nstk], allocating new bucket if needed.
+static Bucket*
+stkbucket(uintptr *stk, int32 nstk)
+{
+	int32 i;
+	uintptr h;
+	Bucket *b;
+
+	if(buckhash == nil)
+		buckhash = SysAlloc(BuckHashSize*sizeof buckhash[0]);
+
+	// Hash stack.
+	h = 0;
+	for(i=0; i<nstk; i++) {
+		h += stk[i];
+		h += h<<10;
+		h ^= h>>6;
+	}
+	h += h<<3;
+	h ^= h>>11;
+	
+	i = h%BuckHashSize;
+	for(b = buckhash[i]; b; b=b->next)
+		if(b->hash == h && b->nstk == nstk &&
+		   mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
+			return b;
+
+	b = mallocgc(sizeof *b + nstk*sizeof stk[0], RefNoProfiling, 0, 1, 0);
+	bucketmem += sizeof *b + nstk*sizeof stk[0];
+	memmove(b->stk, stk, nstk*sizeof stk[0]);
+	b->hash = h;
+	b->nstk = nstk;
+	b->next = buckhash[i];
+	buckhash[i] = b;
+	b->allnext = buckets;
+	buckets = b;
+	return b;
+}
+
+// Map from pointer to Bucket* that allocated it.
+// Three levels:
+//	Linked-list hash table for top N-20 bits.
+//	Array index for next 13 bits.
+//	Linked list for next 7 bits.
+// This is more efficient than using a general map,
+// because of the typical clustering of the pointer keys.
+
+typedef struct AddrHash AddrHash;
+typedef struct AddrEntry AddrEntry;
+
+struct AddrHash
+{
+	AddrHash *next;	// next in top-level hash table linked list
+	uintptr addr;	// addr>>20
+	AddrEntry *dense[1<<13];
+};
+
+struct AddrEntry
+{
+	AddrEntry *next;	// next in bottom-level linked list
+	uint32 addr;
+	Bucket *b;
+};
+
+enum {
+	AddrHashBits = 12	// 1MB per entry, so good for 4GB of used address space
+};
+static AddrHash *addrhash[1<<AddrHashBits];
+static AddrEntry *addrfree;
+static uintptr addrmem;
+
+// Multiplicative hash function:
+// hashMultiplier is the bottom 32 bits of int((sqrt(5)-1)/2 * (1<<32)).
+// This is a good multiplier as suggested in CLR, Knuth.  The hash
+// value is taken to be the top AddrHashBits bits of the bottom 32 bits
+// of the muliplied value.
+enum {
+	HashMultiplier = 2654435769U
+};
+
+// Set the bucket associated with addr to b.
+static void
+setaddrbucket(uintptr addr, Bucket *b)
+{
+	int32 i;
+	uint32 h;
+	AddrHash *ah;
+	AddrEntry *e;
+
+	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
+	for(ah=addrhash[h]; ah; ah=ah->next)
+		if(ah->addr == (addr>>20))
+			goto found;
+
+	ah = mallocgc(sizeof *ah, RefNoProfiling, 0, 1, 0);
+	addrmem += sizeof *ah;
+	ah->next = addrhash[h];
+	ah->addr = addr>>20;
+	addrhash[h] = ah;
+
+found:
+	if((e = addrfree) == nil) {
+		e = mallocgc(64*sizeof *e, RefNoProfiling, 0, 0, 0);
+		addrmem += 64*sizeof *e;
+		for(i=0; i+1<64; i++)
+			e[i].next = &e[i+1];
+		e[63].next = nil;
+	}
+	addrfree = e->next;
+	e->addr = (uint32)~(addr & ((1<<20)-1));
+	e->b = b;
+	h = (addr>>7)&(nelem(ah->dense)-1);	// entry in dense is top 13 bits of low 20.
+	e->next = ah->dense[h];
+	ah->dense[h] = e;
+}
+
+// Get the bucket associated with addr and clear the association.
+static Bucket*
+getaddrbucket(uintptr addr)
+{
+	uint32 h;
+	AddrHash *ah;
+	AddrEntry *e, **l;
+	Bucket *b;
+	
+	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
+	for(ah=addrhash[h]; ah; ah=ah->next)
+		if(ah->addr == (addr>>20))
+			goto found;
+	return nil;
+
+found:
+	h = (addr>>7)&(nelem(ah->dense)-1);	// entry in dense is top 13 bits of low 20.
+	for(l=&ah->dense[h]; (e=*l) != nil; l=&e->next) {
+		if(e->addr == (uint32)~(addr & ((1<<20)-1))) {
+			*l = e->next;
+			b = e->b;
+			e->next = addrfree;
+			addrfree = e;
+			return b;
+		}
+	}
+	return nil;
+}
+
+// Called by malloc to record a profiled block.
+void
+MProf_Malloc(int32 skip, void *p, uintptr size)
+{
+	int32 nstk;
+	uintptr stk[32];
+	Bucket *b;
+
+	nstk = callers(1+skip, stk, 32);
+	lock(&proflock);
+	b = stkbucket(stk, nstk);
+	b->allocs++;
+	b->alloc_bytes += size;
+	setaddrbucket((uintptr)p, b);
+	unlock(&proflock);
+}
+
+// Called when freeing a profiled block.
+void
+MProf_Free(void *p, uintptr size)
+{
+	Bucket *b;
+
+	lock(&proflock);
+	b = getaddrbucket((uintptr)p);
+	if(b != nil) {
+		b->frees++;
+		b->free_bytes += size;
+	}
+	unlock(&proflock);
+}
+
+
+// Go interface to profile data.  (Declared in extern.go)
+// Assumes Go sizeof(int) == sizeof(int32)
+
+func SetMemProfileKind(kind int32) {
+	malloc_profile = kind;
+}
+

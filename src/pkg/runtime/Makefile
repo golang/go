@@ -65,6 +65,7 @@ OFILES=\
 	mgc0.$O\
 	mheap.$O\
 	mheapmap$(SIZE).$O\
+	mprof.$O\
 	msize.$O\
 	print.$O\
 	proc.$O\

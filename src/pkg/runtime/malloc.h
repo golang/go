@@ -227,6 +227,7 @@ struct MCache
 	MCacheList list[NumSizeClasses];
 	uint64 size;
 	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
+	int32 next_sample;	// trigger heap sample after allocating this many bytes
 };
 
 void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed);
@@ -321,7 +322,7 @@ MSpan*	MHeap_Lookup(MHeap *h, PageID p);
 MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
 void	MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
 
-void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
+void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed, int32 skip_depth);
 int32	mlookup(void *v, byte **base, uintptr *size, MSpan **s, uint32 **ref);
 void	gc(int32 force);
 
@@ -342,4 +343,19 @@ enum
 	RefFinalize,	// ready to be finalized
 	RefNoPointers = 0x80000000U,	// flag - no pointers here
 	RefHasFinalizer = 0x40000000U,	// flag - has finalizer
+	RefProfiled = 0x20000000U,	// flag - is in profiling table
+	RefNoProfiling = 0x10000000U,	// flag - must not profile
+	RefFlags = 0xFFFF0000U,
 };
+
+void	MProf_Malloc(int32, void*, uintptr);
+void	MProf_Free(void*, uintptr);
+
+// Malloc profiling settings.
+// Must match definition in extern.go.
+enum {
+	MProf_None = 0,
+	MProf_Sample = 1,
+	MProf_All = 2,
+};
+extern int32 malloc_profile;

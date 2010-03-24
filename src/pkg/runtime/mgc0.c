@@ -67,7 +67,7 @@ scanblock(int32 depth, byte *b, int64 n)
 			continue;
 		if(mlookup(obj, &obj, &size, nil, &refp)) {
 			ref = *refp;
-			switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
+			switch(ref & ~RefFlags) {
 			case RefFinalize:
 				// If marked for finalization already, some other finalization-ready
 				// object has a pointer: turn off finalization until that object is gone.
@@ -77,7 +77,7 @@ scanblock(int32 depth, byte *b, int64 n)
 			case RefNone:
 				if(Debug > 1)
 					printf("%d found at %p: ", depth, &vp[i]);
-				*refp = RefSome | (ref & (RefNoPointers|RefHasFinalizer));
+				*refp = RefSome | (ref & RefFlags);
 				if(!(ref & RefNoPointers))
 					scanblock(depth+1, obj, size);
 				break;
@@ -151,9 +151,9 @@ sweepspan0(MSpan *s)
 	if(s->sizeclass == 0) {
 		// Large block.
 		ref = s->gcref0;
-		if((ref&~RefNoPointers) == (RefNone|RefHasFinalizer)) {
+		if((ref&~(RefFlags^RefHasFinalizer)) == (RefNone|RefHasFinalizer)) {
 			// Mark as finalizable.
-			s->gcref0 = RefFinalize | RefHasFinalizer | (ref&RefNoPointers);
+			s->gcref0 = RefFinalize | RefHasFinalizer | (ref&(RefFlags^RefHasFinalizer));
 			if(!(ref & RefNoPointers))
 				scanblock(100, p, s->npages<<PageShift);
 		}
@@ -166,9 +166,9 @@ sweepspan0(MSpan *s)
 	gcrefep = s->gcref + n;
 	for(; gcrefp < gcrefep; gcrefp++) {
 		ref = *gcrefp;
-		if((ref&~RefNoPointers) == (RefNone|RefHasFinalizer)) {
+		if((ref&~(RefFlags^RefHasFinalizer)) == (RefNone|RefHasFinalizer)) {
 			// Mark as finalizable.
-			*gcrefp = RefFinalize | RefHasFinalizer | (ref&RefNoPointers);
+			*gcrefp = RefFinalize | RefHasFinalizer | (ref&(RefFlags^RefHasFinalizer));
 			if(!(ref & RefNoPointers))
 				scanblock(100, p+(gcrefp-s->gcref)*size, size);
 		}
@@ -188,11 +188,13 @@ sweepspan1(MSpan *s)
 	if(s->sizeclass == 0) {
 		// Large block.
 		ref = s->gcref0;
-		switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
+		switch(ref & ~RefFlags) {
 		case RefNone:
 			// Free large object.
 			mstats.alloc -= s->npages<<PageShift;
 			runtime_memclr(p, s->npages<<PageShift);
+			if(ref & RefProfiled)
+				MProf_Free(p, s->npages<<PageShift);
 			s->gcref0 = RefFree;
 			MHeap_Free(&mheap, s, 1);
 			break;
@@ -208,7 +210,7 @@ sweepspan1(MSpan *s)
 			}
 			// fall through
 		case RefSome:
-			s->gcref0 = RefNone | (ref&(RefNoPointers|RefHasFinalizer));
+			s->gcref0 = RefNone | (ref&RefFlags);
 			break;
 		}
 		return;
@@ -222,9 +224,11 @@ sweepspan1(MSpan *s)
 		ref = *gcrefp;
 		if(ref < RefNone)	// RefFree or RefStack
 			continue;
-		switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
+		switch(ref & ~RefFlags) {
 		case RefNone:
 			// Free small object.
+			if(ref & RefProfiled)
+				MProf_Free(p, size);
 			*gcrefp = RefFree;
 			c = m->mcache;
 			if(size > sizeof(uintptr))
@@ -245,7 +249,7 @@ sweepspan1(MSpan *s)
 			}
 			// fall through
 		case RefSome:
-			*gcrefp = RefNone | (ref&(RefNoPointers|RefHasFinalizer));
+			*gcrefp = RefNone | (ref&RefFlags);
 			break;
 		}
 	}

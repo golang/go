@@ -41,7 +41,7 @@ gostringsize(int32 l)
 
 	if(l == 0)
 		return emptystring;
-	s.str = mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
+	s.str = malx(l+1, 1);	// leave room for NUL for C runtime (e.g., callers of getenv)
 	s.len = l;
 	if(l > maxstring)
 		maxstring = l;
@@ -212,7 +212,7 @@ func slicebytetostring(b Slice) (s String) {
 }
 
 func stringtoslicebyte(s String) (b Slice) {
-	b.array = mallocgc(s.len, RefNoPointers, 1, 1);
+	b.array = mallocgc(s.len, RefNoPointers, 1, 1, 1);
 	b.len = s.len;
 	b.cap = s.len;
 	mcpy(b.array, s.str, s.len);
@@ -255,7 +255,7 @@ func stringtosliceint(s String) (b Slice) {
 		n++;
 	}
 
-	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1);
+	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1, 1);
 	b.len = n;
 	b.cap = n;
 	p = s.str;
