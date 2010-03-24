@@ -149,3 +149,11 @@ version.go: mkversion
 # for discovering offsets inside structs when debugging
 runtime.acid.$(GOARCH): runtime.h proc.c
 	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) -a proc.c >$@
+
+# 386 traceback is really amd64 traceback
+ifeq ($(GOARCH),386)
+
+traceback.$O:	amd64/traceback.c
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+
+endif

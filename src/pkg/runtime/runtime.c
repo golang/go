@@ -481,3 +481,29 @@ nanotime(void)
 	gettime(&sec, &usec);
 	return sec*1000000000 + (int64)usec*1000;
 }
+
+void
+·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
+{
+	Func *f;
+
+	if(callers(skip, &retpc, 1) == 0 || (f = findfunc(retpc-1)) == nil) {
+		retfile = emptystring;
+		retline = 0;
+		retbool = false;
+	} else {
+		retfile = f->src;
+		retline = funcline(f, retpc-1);
+		retbool = true;
+	}
+	FLUSH(&retfile);
+	FLUSH(&retline);
+	FLUSH(&retbool);
+}
+
+void
+·Callers(int32 skip, Slice pc, int32 retn)
+{
+	retn = callers(skip, (uintptr*)pc.array, pc.len);
+	FLUSH(&retn);
+}

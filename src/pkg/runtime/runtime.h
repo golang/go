@@ -407,6 +407,7 @@ void	newproc1(byte*, byte*, int32, int32);
 void	siginit(void);
 bool	sigsend(int32 sig);
 void	gettime(int64*, int32*);
+int32	callers(int32, uintptr*, int32);
 int64	nanotime(void);
 
 #pragma	varargck	argpos	printf	1
