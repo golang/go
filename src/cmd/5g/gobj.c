@@ -498,12 +498,12 @@ gdatacomplex(Node *nam, Mpcplx *cval)
 	w = types[w]->width;
 
 	p = gins(ADATA, nam, N);
-	p->from.scale = w;
+	p->reg = w;
 	p->to.type = D_FCONST;
 	p->to.dval = mpgetflt(&cval->real);
 
 	p = gins(ADATA, nam, N);
-	p->from.scale = w;
+	p->reg = w;
 	p->from.offset += w;
 	p->to.type = D_FCONST;
 	p->to.dval = mpgetflt(&cval->imag);

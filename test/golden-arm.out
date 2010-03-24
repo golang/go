@@ -59,7 +59,7 @@ do break
 broke
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:9: fatal error: typecheck loop
+fixedbugs/bug081.go:9: typechecking loop
 
 =========== fixedbugs/bug093.go
 M
@@ -80,11 +80,10 @@ panic PC=xxx
 [1]   Segmentation fault      "${@}"
 
 =========== fixedbugs/bug154.go
-??none??: $GOROOT/pkg/linux_arm/strconv.a: failed to load: os.ERANGE
+[1]   Segmentation fault      "${@}"
 BUG: should not panic
 
 =========== fixedbugs/bug206.go
-??none??: $GOROOT/pkg/linux_arm/strconv.a: failed to load: os.ERANGE
 BUG: bug206
 
 =========== helloworld.go
