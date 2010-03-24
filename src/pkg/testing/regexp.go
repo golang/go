@@ -624,7 +624,7 @@ func CompileRegexp(str string) (regexp *Regexp, error string) {
 func MustCompile(str string) *Regexp {
 	regexp, error := CompileRegexp(str)
 	if error != "" {
-		panicln(`regexp: compiling "`, str, `": `, error)
+		panic(`regexp: compiling "` + str + `": ` + error)
 	}
 	return regexp
 }

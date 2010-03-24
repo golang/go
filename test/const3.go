@@ -9,21 +9,21 @@ package main
 import "fmt"
 
 type T int
-func (t T) String() string {
-	return fmt.Sprintf("T%d", t);
-}
+
+func (t T) String() string { return fmt.Sprintf("T%d", t) }
 
 const (
-	A T = 1<<(1<<iota);
-	B;
-	C;
-	D;
-	E;
+	A T = 1 << (1 << iota)
+	B
+	C
+	D
+	E
 )
 
 func main() {
-	s := fmt.Sprintf("%v %v %v %v %v", A, B, C, D, E);
+	s := fmt.Sprintf("%v %v %v %v %v", A, B, C, D, E)
 	if s != "T2 T4 T16 T256 T65536" {
-		panicln("type info didn't propagate in const: got", s);
+		println("type info didn't propagate in const: got", s)
+		panic("fail")
 	}
 }

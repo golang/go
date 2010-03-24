@@ -6,6 +6,7 @@ package eval
 
 import (
 	"bignum"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"log"
@@ -340,7 +341,7 @@ func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
 		temp := b.DefineTemp(a.rmt)
 		tempIdx := temp.Index
 		if tempIdx < 0 {
-			panicln("tempidx", tempIdx)
+			panic(fmt.Sprintln("tempidx", tempIdx))
 		}
 		if a.isMapUnpack {
 			rf := a.rs[0].evalMapValue
@@ -1374,12 +1375,12 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 		expr.eval = func(*Thread) Value { return t.Zero() }
 		return expr
 
-	case panicType, paniclnType, printType, printlnType:
+	case panicType, printType, printlnType:
 		evals := make([]func(*Thread) interface{}, len(as))
 		for i, x := range as {
 			evals[i] = x.asInterface()
 		}
-		spaces := ft == paniclnType || ft == printlnType
+		spaces := ft == printlnType
 		newline := ft != printType
 		printer := func(t *Thread) {
 			for i, eval := range evals {
@@ -1413,7 +1414,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 		}
 		expr := a.newExpr(EmptyType, "print")
 		expr.exec = printer
-		if ft == panicType || ft == paniclnType {
+		if ft == panicType {
 			expr.exec = func(t *Thread) {
 				printer(t)
 				t.Abort(os.NewError("panic"))

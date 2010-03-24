@@ -9,61 +9,64 @@
 
 package main
 
-type T [20] int;
+type T [20]int
 
 func g(c chan int, t T) {
-	s := 0;
+	s := 0
 	for i := 0; i < len(t); i++ {
-		s += t[i];
+		s += t[i]
 	}
-	c <- s;
+	c <- s
 }
 
 func d(t T) {
-	s := 0;
+	s := 0
 	for i := 0; i < len(t); i++ {
-		s += t[i];
+		s += t[i]
 	}
 	if s != len(t) {
-		panicln("bad defer", s);
+		println("bad defer", s)
+		panic("fail")
 	}
 }
 
-var c = make(chan int);
-var t T;
-var b = []byte{1,2,3,4,5,6,7,8,9,10};
+var c = make(chan int)
+var t T
+var b = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
 func recur(n int) {
-	ss := string(b);
+	ss := string(b)
 	if len(ss) != len(b) {
-		panic("bad []byte -> string");
+		panic("bad []byte -> string")
 	}
-	go g(c, t);
-	s := <-c;
+	go g(c, t)
+	s := <-c
 	if s != len(t) {
-		panicln("bad go", s);
+		println("bad go", s)
+		panic("fail")
 	}
 	f := func(t T) int {
-		s := 0;
+		s := 0
 		for i := 0; i < len(t); i++ {
-			s += t[i];
+			s += t[i]
 		}
-		s += n;
-		return s;
-	};
-	s = f(t);
-	if s != len(t) + n {
-		panicln("bad func", s, "at level", n);
+		s += n
+		return s
+	}
+	s = f(t)
+	if s != len(t)+n {
+		println("bad func", s, "at level", n)
+		panic("fail")
 	}
 	if n > 0 {
-		recur(n-1);
+		recur(n - 1)
 	}
-	defer d(t);
+	defer d(t)
 }
 
 func main() {
 	for i := 0; i < len(t); i++ {
-		t[i] = 1;
+		t[i] = 1
 	}
-	recur(10000);
+	recur(10000)
 }

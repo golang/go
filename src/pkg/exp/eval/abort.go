@@ -14,7 +14,7 @@ import (
 // causing the innermost Try to return err.
 func (t *Thread) Abort(err os.Error) {
 	if t.abort == nil {
-		panicln("abort:", err.String())
+		panic("abort: " + err.String())
 	}
 	t.abort <- err
 	runtime.Goexit()

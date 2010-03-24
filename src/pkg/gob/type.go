@@ -114,7 +114,7 @@ func init() {
 	// Move the id space upwards to allow for growth in the predefined world
 	// without breaking existing files.
 	if nextId > firstUserId {
-		panicln("nextId too large:", nextId)
+		panic(fmt.Sprintln("nextId too large:", nextId))
 	}
 	nextId = firstUserId
 }
@@ -303,7 +303,7 @@ func getType(name string, rt reflect.Type) (gobType, os.Error) {
 
 func checkId(want, got typeId) {
 	if want != got {
-		panicln("bootstrap type wrong id:", got.Name(), got, "not", want)
+		panic("bootstrap type wrong id: " + got.Name() + " " + got.string() + " not " + want.string())
 	}
 }
 
@@ -312,7 +312,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 	rt := reflect.Typeof(e)
 	_, present := types[rt]
 	if present {
-		panicln("bootstrap type already present:", name)
+		panic("bootstrap type already present: " + name)
 	}
 	typ := &commonType{name: name}
 	types[rt] = typ
@@ -356,7 +356,7 @@ var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
 // typeLock must be held.
 func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 	if _, ok := rt.(*reflect.PtrType); ok {
-		panicln("pointer type in getTypeInfo:", rt.String())
+		panic("pointer type in getTypeInfo: " + rt.String())
 	}
 	info, ok := typeInfoMap[rt]
 	if !ok {
@@ -388,7 +388,7 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 	t, err := getTypeInfo(rt)
 	if err != nil {
-		panicln("getTypeInfo:", err.String())
+		panic("getTypeInfo: " + err.String())
 	}
 	return t
 }

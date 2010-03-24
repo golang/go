@@ -8,7 +8,8 @@
 
 package main
 
-type T [] int
+type T []int
+
 func (t T) Len() int { return len(t) }
 
 type I interface {
@@ -16,16 +17,19 @@ type I interface {
 }
 
 func main() {
-	var t T = T{0,1,2,3,4};
-	var i I;
-	i = t;
+	var t T = T{0, 1, 2, 3, 4}
+	var i I
+	i = t
 	if i.Len() != 5 {
-		panicln("i.Len", i.Len());
+		println("i.Len", i.Len())
+		panic("fail")
 	}
 	if T.Len(t) != 5 {
-		panicln("T.Len", T.Len(t));
+		println("T.Len", T.Len(t))
+		panic("fail")
 	}
 	if (*T).Len(&t) != 5 {
-		panicln("(*T).Len", (*T).Len(&t));
+		println("(*T).Len", (*T).Len(&t))
+		panic("fail")
 	}
 }

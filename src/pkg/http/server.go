@@ -511,7 +511,7 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
 // Handle registers the handler for the given pattern.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if pattern == "" || pattern[0] != '/' {
-		panicln("http: invalid pattern", pattern)
+		panic("http: invalid pattern " + pattern)
 	}
 
 	mux.m[pattern] = handler

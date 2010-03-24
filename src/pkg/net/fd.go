@@ -128,7 +128,7 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 		return
 	}
 	if err := s.poll.AddFD(intfd, mode, false); err != nil {
-		panicln("pollServer AddFD ", intfd, ": ", err.String(), "\n")
+		panic("pollServer AddFD " + err.String())
 		return
 	}
 

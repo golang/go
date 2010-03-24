@@ -24,7 +24,8 @@ func bigger() {
 			println(st.Sys, " system bytes for ", st.Alloc, " Go bytes")
 		}
 		if st.Sys > 1e9 {
-			panicln("too big")
+			println("too big")
+			panic("fail")
 		}
 	}
 }
@@ -39,7 +40,8 @@ func main() {
 				println("First alloc:", j)
 			}
 			if a := runtime.MemStats.Alloc; a != 0 {
-				panicln("no allocations but stats report", a, "bytes allocated")
+				println("no allocations but stats report", a, "bytes allocated")
+				panic("fail")
 			}
 			b := runtime.Alloc(uintptr(j))
 			during := runtime.MemStats.Alloc

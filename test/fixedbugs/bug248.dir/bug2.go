@@ -39,27 +39,33 @@ func main() {
 
 	// path is full (rooted) path name.  check suffix for gc, prefix for gccgo
 	if s := reflect.Typeof(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") && !strings.HasPrefix(s, "bug0") {
-		panicln("bad v0 path", len(s), s)
+		println("bad v0 path", len(s), s)
+		panic("fail")
 	}
 	if s := reflect.Typeof(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") && !strings.HasPrefix(s, "bug1") {
-		panicln("bad v1 path", s)
+		println("bad v1 path", s)
+		panic("fail")
 	}
 
 	// check that dynamic interface check doesn't get confused
 	var i interface{} = t0(0)
 	if _, ok := i.(I1); ok {
-		panicln("used t0 as i1")
+		println("used t0 as i1")
+		panic("fail")
 	}
 	if _, ok := i.(p1.I); ok {
-		panicln("used t0 as p1.I")
+		println("used t0 as p1.I")
+		panic("fail")
 	}
 
 	i = t1(1)
 	if _, ok := i.(I0); ok {
-		panicln("used t1 as i0")
+		println("used t1 as i0")
+		panic("fail")
 	}
 	if _, ok := i.(p0.I); ok {
-		panicln("used t1 as p0.I")
+		println("used t1 as p0.I")
+		panic("fail")
 	}
 
 	// check that type switch works.
@@ -77,15 +83,18 @@ func main() {
 		switch k := i.(type) {
 		case p0.T:
 			if j != 0 {
-				panicln("type switch p0.T")
+				println("type switch p0.T")
+				panic("fail")
 			}
 		case p1.T:
 			if j != 1 {
-				panicln("type switch p1.T")
+				println("type switch p1.T")
+				panic("fail")
 			}
 		default:
 			if j != 2 {
-				panicln("type switch default", j)
+				println("type switch default", j)
+				panic("fail")
 			}
 		}
 	}

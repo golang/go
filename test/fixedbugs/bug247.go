@@ -15,6 +15,7 @@ func main() {
 	var i interface{} = Count
 	j := i.(int)
 	if j != Count {
-		panicln("j=", j)
+		println("j=", j)
+		panic("fail")
 	}
 }

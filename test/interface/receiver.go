@@ -10,6 +10,7 @@
 package main
 
 type T int
+
 var nv, np int
 
 func (t T) V() {
@@ -26,87 +27,94 @@ func (t *T) P() {
 	np++
 }
 
-type V interface { V() }
-type P interface { P(); V() }
+type V interface {
+	V()
+}
+type P interface {
+	P()
+	V()
+}
 
 type S struct {
-	T;
+	T
 }
 
 type SP struct {
-	*T;
+	*T
 }
 
 func main() {
-	var t T;
-	var v V;
-	var p P;
+	var t T
+	var v V
+	var p P
 
-	t = 42;
+	t = 42
 
-	t.P();
-	t.V();
+	t.P()
+	t.V()
 
-	v = t;
-	v.V();
+	v = t
+	v.V()
 
-	p = &t;
-	p.P();
-	p.V();
+	p = &t
+	p.P()
+	p.V()
 
-	v = &t;
-	v.V();
+	v = &t
+	v.V()
 
-//	p = t;	// ERROR
-	var i interface{} = t;
+	//	p = t;	// ERROR
+	var i interface{} = t
 	if _, ok := i.(P); ok {
-		panicln("dynamic i.(P) succeeded incorrectly");
+		println("dynamic i.(P) succeeded incorrectly")
+		panic("fail")
 	}
 
-//	println("--struct--");
-	var s S;
-	s.T = 42;
-	s.P();
-	s.V();
+	//	println("--struct--");
+	var s S
+	s.T = 42
+	s.P()
+	s.V()
 
-	v = s;
-	s.V();
+	v = s
+	s.V()
 
-	p = &s;
-	p.P();
-	p.V();
+	p = &s
+	p.P()
+	p.V()
 
-	v = &s;
-	v.V();
+	v = &s
+	v.V()
 
-//	p = s;	// ERROR
-	var j interface{} = s;
+	//	p = s;	// ERROR
+	var j interface{} = s
 	if _, ok := j.(P); ok {
-		panicln("dynamic j.(P) succeeded incorrectly");
+		println("dynamic j.(P) succeeded incorrectly")
+		panic("fail")
 	}
 
-//	println("--struct pointer--");
-	var sp SP;
-	sp.T = &t;
-	sp.P();
-	sp.V();
+	//	println("--struct pointer--");
+	var sp SP
+	sp.T = &t
+	sp.P()
+	sp.V()
 
-	v = sp;
-	sp.V();
+	v = sp
+	sp.V()
 
-	p = &sp;
-	p.P();
-	p.V();
+	p = &sp
+	p.P()
+	p.V()
 
-	v = &sp;
-	v.V();
+	v = &sp
+	v.V()
 
-	p = sp;	// not error
-	p.P();
-	p.V();
+	p = sp // not error
+	p.P()
+	p.V()
 
 	if nv != 13 || np != 7 {
-		panicln("bad count", nv, np)
+		println("bad count", nv, np)
+		panic("fail")
 	}
 }
-

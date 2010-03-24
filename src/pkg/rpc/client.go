@@ -61,7 +61,7 @@ func (client *Client) send(c *Call) {
 	client.enc.Encode(request)
 	err := client.enc.Encode(c.Args)
 	if err != nil {
-		panicln("rpc: client encode error:", err.String())
+		panic("rpc: client encode error: " + err.String())
 	}
 	client.sending.Unlock()
 }

@@ -9,45 +9,41 @@ package main
 import "fmt"
 
 type Buffer int
-func (*Buffer) Read() {
+
+func (*Buffer) Read() {}
+
+type Reader interface {
+	Read()
 }
 
-type Reader interface { Read() }
-
-func f() *Buffer {
-	return nil
-}
+func f() *Buffer { return nil }
 
 func g() Reader {
 	// implicit interface conversion in assignment during return
 	return f()
 }
 
-func h() (b *Buffer, ok bool) {
-	return
-}
+func h() (b *Buffer, ok bool) { return }
 
 func i() (r Reader, ok bool) {
 	// implicit interface conversion in multi-assignment during return
-	return h();
+	return h()
 }
 
-func fmter() (s string, i int, t string) {
-	return "%#x %q", 100, "hello"
-}
+func fmter() (s string, i int, t string) { return "%#x %q", 100, "hello" }
 
 func main() {
-	b := g();
-	bb, ok := b.(*Buffer);
-	_, _, _ = b, bb, ok;
+	b := g()
+	bb, ok := b.(*Buffer)
+	_, _, _ = b, bb, ok
 
-	b, ok = i();
-	bb, ok = b.(*Buffer);
-	_, _, _ = b, bb, ok;
+	b, ok = i()
+	bb, ok = b.(*Buffer)
+	_, _, _ = b, bb, ok
 
-	s := fmt.Sprintf(fmter());
+	s := fmt.Sprintf(fmter())
 	if s != "0x64 \"hello\"" {
-		panicln(s);
+		println(s)
+		panic("fail")
 	}
 }
-

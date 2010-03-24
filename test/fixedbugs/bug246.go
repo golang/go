@@ -15,8 +15,9 @@ func main() {
 
 	// fails
 	x2 := (*int)(unsafe.Pointer(uintptr(0x234)))
-	
+
 	if x1 != x2 {
-		panicln("mismatch", x1, x2)
+		println("mismatch", x1, x2)
+		panic("fail")
 	}
 }

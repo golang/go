@@ -143,7 +143,7 @@ func (d0 *digest) Sum() []byte {
 	d.Write(tmp[0:16])
 
 	if d.nx != 0 {
-		panicln("oops")
+		panic("d.nx != 0")
 	}
 
 	p := make([]byte, 64)

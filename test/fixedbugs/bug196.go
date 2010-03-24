@@ -6,46 +6,45 @@
 
 package main
 
-var m = map[int]int{ 0: 0, 1: 0 }
+var m = map[int]int{0: 0, 1: 0}
 var nf = 0
 var i int
 
-func multi() (int, int) {
-	return 1,2
-}
+func multi() (int, int) { return 1, 2 }
 
 func xxx() {
-	var c chan int;
-	x, ok := <-c;
+	var c chan int
+	x, ok := <-c
 
-	var m map[int]int;
-	x, ok = m[1];
+	var m map[int]int
+	x, ok = m[1]
 
-	var i interface{};
-	var xx int;
-	xx, ok = i.(int);
+	var i interface{}
+	var xx int
+	xx, ok = i.(int)
 
-	a,b := multi();
+	a, b := multi()
 
-	_, _, _, _, _ = x, ok, xx, a, b;
+	_, _, _, _, _ = x, ok, xx, a, b
 }
 
 func f() map[int]int {
-	nf++;
-	return m;
+	nf++
+	return m
 }
 
 func g() *int {
-	nf++;
+	nf++
 	return &i
 }
 
 func main() {
-	f()[0]++;
-	f()[1] += 2;
-	*g() %= 2;
+	f()[0]++
+	f()[1] += 2
+	*g() %= 2
 	if nf != 3 {
-		panicln("too many calls:", nf);
+		println("too many calls:", nf)
+		panic("fail")
 	}
 
 }
