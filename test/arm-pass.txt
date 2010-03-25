@@ -1,5 +1,4 @@
 235.go
-64bit.go
 assign.go
 blank1.go
 chan/fifo.go
@@ -220,7 +219,6 @@ func3.go
 func4.go
 func5.go
 gc.go
-gc1.go
 hashmap.go
 helloworld.go
 if.go
@@ -251,7 +249,6 @@ interface/returntype.go
 interface/struct.go
 iota.go
 ken/array.go
-ken/chan.go
 ken/chan1.go
 ken/complit.go
 ken/divmod.go
@@ -292,7 +289,6 @@ runtime.go
 sieve.go
 sigchld.go
 simassign.go
-stack.go
 string_lit.go
 switch.go
 switch1.go

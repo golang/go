@@ -1,7 +1,4 @@
 
-=========== 64bit.go
-BUG: 64bit
-
 =========== chan/nonblock.go
 PASS
 
