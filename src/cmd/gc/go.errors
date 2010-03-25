@@ -13,34 +13,40 @@ static struct {
 	// Each line of the form % token list
 	// is converted by bisonerrors into the yystate and yychar caused
 	// by that token list.
-	
+
 	% loadsys package LIMPORT '(' LLITERAL import_package import_there ','
 	"unexpected comma during import block",
-	
+
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header ';'
 	"unexpected semicolon or newline before {",
-	
+
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LSWITCH if_header ';'
 	"unexpected semicolon or newline before {",
-	
+
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR for_header ';'
 	"unexpected semicolon or newline before {",
-	
+
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR ';' LBODY
 	"unexpected semicolon or newline before {",
-	
+
 	% loadsys package imports LFUNC LNAME '(' ')' ';' '{'
 	"unexpected semicolon or newline before {",
-	
+
 	% loadsys package imports LTYPE LNAME ';'
 	"unexpected semicolon or newline in type declaration",
-	
+
 	% loadsys package imports LFUNC LNAME '(' ')' '{' if_stmt ';' LELSE
 	"unexpected semicolon or newline before else",
-	
+
 	% loadsys package imports LTYPE LNAME LINTERFACE '{' LNAME ',' LNAME
 	"name list not allowed in interface type",
-	
+
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR LVAR LNAME '=' LNAME
 	"var declaration not allowed in for initializer",
+
+	% loadsys package imports LVAR LNAME '[' ']' LNAME '{'
+	"var declaration missing = before initial value",
+
+	% loadsys package imports LFUNC LNAME '(' ')' '{' LVAR LNAME '[' ']' LNAME '{'
+	"var declaration missing = before initial value",
 };
