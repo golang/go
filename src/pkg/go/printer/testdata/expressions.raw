@@ -210,14 +210,31 @@ func _() {
 
 
 func _() {
-	// one-line function literals
+	// one-line function literals (body is on a single line)
 	_ = func() {}
 	_ = func() int { return 0 }
-	_ = func(x, y int) bool { return x < y }
+	_ = func(x, y int) bool { m := (x + y) / 2; return m < 0 }
 
-	f(func() {})
-	f(func() int { return 0 })
-	f(func(x, y int) bool { return x < y })
+	// multi-line function literals (body is not on one line)
+	_ = func() {
+	}
+	_ = func() int {
+		return 0
+	}
+	_ = func(x, y int) bool {
+		m := (x + y) / 2
+		return x < y
+	}
+
+	f(func() {
+	})
+	f(func() int {
+		return 0
+	})
+	f(func(x, y int) bool {
+		m := (x + y) / 2
+		return x < y
+	})
 }
 
 

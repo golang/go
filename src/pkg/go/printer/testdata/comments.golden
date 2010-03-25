@@ -411,7 +411,8 @@ func _() {
 
 
 // Some interesting interspersed comments
-func _( /* this */ x /* is */ /* an */ int)	{}
+func _( /* this */ x /* is */ /* an */ int) {
+}
 
 func _( /* no params */ )	{}
 
@@ -421,7 +422,13 @@ func _() {
 
 func ( /* comment1 */ T /* comment2 */ ) _()	{}
 
-func _() { /* one-liner */ }
+func _() { /* one-liner */
+}
+
+func _() {
+	_ = 0
+	/* closing curly brace should be on new line */
+}
 
 
 // Line comments with tabs
