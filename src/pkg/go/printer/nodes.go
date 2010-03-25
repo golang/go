@@ -74,7 +74,7 @@ func (p *printer) setComment(g *ast.CommentGroup) {
 		// for some reason there are pending comments; this
 		// should never happen - handle gracefully and flush
 		// all comments up to g, ignore anything after that
-		p.flush(g.List[0].Pos(), false)
+		p.flush(g.List[0].Pos(), token.ILLEGAL)
 	}
 	p.comments[0] = g
 	p.cindex = 0
@@ -112,7 +112,6 @@ func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
 // Compute the key size of a key:value expression.
 // Returns 0 if the expression doesn't fit onto a single line.
 func (p *printer) keySize(pair *ast.KeyValueExpr) int {
-	const infinity = 1e6 // larger than any source line
 	if p.nodeSize(pair, infinity) <= infinity {
 		// entire expression fits on one line - return key size
 		return p.nodeSize(pair.Key, infinity)
@@ -431,7 +430,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
 			if len(list) > 0 {
 				p.print(formfeed)
 			}
-			p.flush(rbrace, false) // make sure we don't loose the last line comment
+			p.flush(rbrace, token.RBRACE) // make sure we don't loose the last line comment
 			p.setLineComment("// contains unexported fields")
 		}
 
@@ -458,7 +457,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
 			if len(list) > 0 {
 				p.print(formfeed)
 			}
-			p.flush(rbrace, false) // make sure we don't loose the last line comment
+			p.flush(rbrace, token.RBRACE) // make sure we don't loose the last line comment
 			p.setLineComment("// contains unexported methods")
 		}
 
@@ -1224,16 +1223,26 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 
 
 func (p *printer) isOneLineFunc(b *ast.BlockStmt, headerSize int) bool {
-	const maxSize = 90 // adjust as appropriate, this is an approximate value
-	bodySize := 0
-	switch {
-	case len(b.List) > 1 || p.commentBefore(b.Rbrace):
-		return false // too many statements or there is a comment - all bets are off
-	case len(b.List) == 1:
-		bodySize = p.nodeSize(b.List[0], maxSize)
+	pos1 := b.Pos()
+	pos2 := b.Rbrace
+	if pos1.IsValid() && pos2.IsValid() && pos1.Line != pos2.Line {
+		// opening and closing brace are on different lines - don't make it a one-liner
+		return false
 	}
-	// require both headers and overall size to be not "too large"
-	return headerSize <= maxSize/2 && headerSize+bodySize <= maxSize
+	if len(b.List) > 5 || p.commentBefore(pos2) {
+		// too many statements or there is a comment inside - don't make it a one-liner
+		return false
+	}
+	// otherwise, estimate body size
+	const maxSize = 100
+	bodySize := 0
+	for i, s := range b.List {
+		if i > 0 {
+			bodySize += 2 // space for a semicolon and blank
+		}
+		bodySize += p.nodeSize(s, maxSize)
+	}
+	return headerSize+bodySize <= maxSize
 }
 
 
@@ -1248,13 +1257,18 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 		if isLit {
 			sep = blank
 		}
+		p.print(sep, b.Pos(), token.LBRACE)
 		if len(b.List) > 0 {
-			p.print(sep, b.Pos(), token.LBRACE, blank)
-			p.stmt(b.List[0], ignoreMultiLine)
-			p.print(blank, b.Rbrace, token.RBRACE)
-		} else {
-			p.print(sep, b.Pos(), token.LBRACE, b.Rbrace, token.RBRACE)
+			p.print(blank)
+			for i, s := range b.List {
+				if i > 0 {
+					p.print(token.SEMICOLON, blank)
+				}
+				p.stmt(s, ignoreMultiLine)
+			}
+			p.print(blank)
 		}
+		p.print(b.Rbrace, token.RBRACE)
 		return
 	}
 
@@ -1266,12 +1280,12 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 
 // distance returns the column difference between from and to if both
 // are on the same line; if they are on different lines (or unknown)
-// the result is infinity (1<<30).
+// the result is infinity.
 func distance(from, to token.Position) int {
 	if from.IsValid() && to.IsValid() && from.Line == to.Line {
 		return to.Column - from.Column
 	}
-	return 1 << 30
+	return infinity
 }
 
 

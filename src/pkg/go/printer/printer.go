@@ -53,8 +53,8 @@ var (
 
 
 // Special positions
-var noPos token.Position                                      // use noPos when a position is needed but not known
-var infinity = token.Position{Offset: 1 << 30, Line: 1 << 30} // use infinity to indicate the end of the source
+var noPos token.Position // use noPos when a position is needed but not known
+var infinity = 1 << 30
 
 
 // Use ignoreMultiLine if the multiLine information is not important.
@@ -640,17 +640,16 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 
 
 // intersperseComments consumes all comments that appear before the next token
-// and prints it together with the buffered whitespace (i.e., the whitespace
+// tok and prints it together with the buffered whitespace (i.e., the whitespace
 // that needs to be written before the next token). A heuristic is used to mix
-// the comments and whitespace. The isKeyword parameter indicates if the next
-// token is a keyword or not. intersperseComments returns true if a pending
+// the comments and whitespace. intersperseComments returns true if a pending
 // formfeed was dropped from the whitespace buffer.
 //
-func (p *printer) intersperseComments(next token.Position, isKeyword bool) (droppedFF bool) {
+func (p *printer) intersperseComments(next token.Position, tok token.Token) (droppedFF bool) {
 	var last *ast.Comment
 	for ; p.commentBefore(next); p.cindex++ {
 		for _, c := range p.comments[p.cindex].List {
-			p.writeCommentPrefix(c.Pos(), next, last == nil, isKeyword)
+			p.writeCommentPrefix(c.Pos(), next, last == nil, tok.IsKeyword())
 			p.writeComment(c)
 			last = c
 		}
@@ -663,8 +662,8 @@ func (p *printer) intersperseComments(next token.Position, isKeyword bool) (drop
 			p.write([]byte{' '})
 		}
 		// ensure that there is a newline after a //-style comment
-		// or if we are at the end of a file after a /*-style comment
-		return p.writeCommentSuffix(last.Text[1] == '/' || next.Offset == infinity.Offset)
+		// or if we are before a closing '}' or at the end of a file
+		return p.writeCommentSuffix(last.Text[1] == '/' || tok == token.RBRACE || tok == token.EOF)
 	}
 
 	// no comment was written - we should never reach here since
@@ -743,7 +742,7 @@ func (p *printer) print(args ...interface{}) {
 		next := p.pos // estimated position of next item
 		var data []byte
 		var tag HTMLTag
-		isKeyword := false
+		var tok token.Token
 		switch x := f.(type) {
 		case whiteSpace:
 			if x == ignore {
@@ -785,7 +784,7 @@ func (p *printer) print(args ...interface{}) {
 			} else {
 				data = []byte(x.String())
 			}
-			isKeyword = x.IsKeyword()
+			tok = x
 		case token.Position:
 			if x.IsValid() {
 				next = x // accurate position of next item
@@ -797,7 +796,7 @@ func (p *printer) print(args ...interface{}) {
 		p.pos = next
 
 		if data != nil {
-			droppedFF := p.flush(next, isKeyword)
+			droppedFF := p.flush(next, tok)
 
 			// intersperse extra newlines if present in the source
 			// (don't do this in flush as it will cause extra newlines
@@ -820,14 +819,15 @@ func (p *printer) commentBefore(next token.Position) bool {
 
 
 // Flush prints any pending comments and whitespace occuring
-// textually before the position of the next item. Flush returns
-// true if a pending formfeed character was dropped from the
-// whitespace buffer as a result of interspersing comments.
+// textually before the position of the next token tok. Flush
+// returns true if a pending formfeed character was dropped
+// from the whitespace buffer as a result of interspersing
+// comments.
 //
-func (p *printer) flush(next token.Position, isKeyword bool) (droppedFF bool) {
+func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
 	if p.commentBefore(next) {
 		// if there are comments before the next item, intersperse them
-		droppedFF = p.intersperseComments(next, isKeyword)
+		droppedFF = p.intersperseComments(next, tok)
 	} else {
 		// otherwise, write any leftover whitespace
 		p.writeWhitespace(len(p.buffer))
@@ -1026,7 +1026,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n))
 			runtime.Goexit()
 		}
-		p.flush(infinity, false)
+		p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
 		p.errors <- nil // no errors
 	}()
 	err := <-p.errors // wait for completion of goroutine

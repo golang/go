@@ -356,7 +356,8 @@ func _() {
 // formatting of structs
 type _ struct{}
 
-type _ struct { /* this comment should be visible */ }
+type _ struct { /* this comment should be visible */
+}
 
 type _ struct {
 	// this comment should be visible and properly indented
@@ -588,15 +589,31 @@ func _()	{}
 func _()	{}
 
 func _()		{ f(1, 2, 3) }
-func _(x int) int	{ return x + 1 }
-func _() int		{ type T struct{} }
+func _(x int) int	{ y := x; return y + 1 }
+func _() int		{ type T struct{}; var x T; return x }
+
+// these must remain multi-line since they are multi-line in the source
+func _() {
+	f(1, 2, 3)
+}
+func _(x int) int {
+	y := x
+	return y + 1
+}
+func _() int {
+	type T struct{}
+	var x T
+	return x
+}
 
 
 // making function declarations safe for new semicolon rules
-func _() { /* one-line func */ }
+func _() { /* multi-line func because of comment */
+}
 
 func _() {
-	/* one-line func */ }
+	/* multi-line func because block is on multiple lines */
+}
 
 
 // ellipsis parameters
