@@ -53,17 +53,6 @@ import (
 	"strconv"
 )
 
-// TODO(r): BUG: atob belongs elsewhere
-func atob(str string) (value bool, ok bool) {
-	switch str {
-	case "1", "t", "T", "true", "TRUE", "True":
-		return true, true
-	case "0", "f", "F", "false", "FALSE", "False":
-		return false, true
-	}
-	return false, false
-}
-
 // -- Bool Value
 type boolValue struct {
 	p *bool
@@ -75,9 +64,9 @@ func newBoolValue(val bool, p *bool) *boolValue {
 }
 
 func (b *boolValue) set(s string) bool {
-	v, ok := atob(s)
+	v, err := strconv.Atob(s)
 	*b.p = v
-	return ok
+	return err == nil
 }
 
 func (b *boolValue) String() string { return fmt.Sprintf("%v", *b.p) }

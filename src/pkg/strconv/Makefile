@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
 
 TARG=strconv
 GOFILES=\
+	atob.go\
 	atof.go\
 	atoi.go\
 	decimal.go\
