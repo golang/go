@@ -54,7 +54,7 @@ func main() {
 		runtime.GC()
 		runtime.Gosched()
 	}
-	if nfinal < N*9/10 {
+	if nfinal < N*8/10 {
 		panic("not enough finalizing:", nfinal, "/", N)
 	}
 }
