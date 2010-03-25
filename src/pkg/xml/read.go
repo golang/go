@@ -105,8 +105,8 @@ import (
 // Unmarshal maps an XML element to a slice by extending the length
 // of the slice and mapping the element to the newly created value.
 //
-// Unmarshal maps an XML element to a bool by setting it true if the
-// string value is "true" or "1", or false otherwise.
+// Unmarshal maps an XML element to a bool by setting it to the boolean
+// value represented by the string.
 //
 // Unmarshal maps an XML element to an integer or floating-point
 // field by setting the field to the result of interpreting the string
@@ -473,8 +473,11 @@ Loop:
 		}
 		t.Set(ftmp)
 	case *reflect.BoolValue:
-		btmp := strings.TrimSpace(string(data))
-		t.Set(strings.ToLower(btmp) == "true" || btmp == "1")
+		value, err := strconv.Atob(strings.TrimSpace(string(data)))
+		if err != nil {
+			return err
+		}
+		t.Set(value)
 	case *reflect.StringValue:
 		t.Set(string(data))
 	case *reflect.SliceValue:
