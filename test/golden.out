@@ -189,5 +189,6 @@ bar
 bar
 bal
 bal
-BUG: barCount != 1
+barCount != 1
 panic PC=xxx
+BUG

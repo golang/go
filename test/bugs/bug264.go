@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG
 
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -38,12 +38,12 @@ var _, _ = bal() // bal is called twice
 
 func main() {
 	if fooCount != 1 {
-		panic("BUG: fooCount != 1")
+		panic("fooCount != 1")
 	}
 	if barCount != 1 {
-		panic("BUG: barCount != 1")
+		panic("barCount != 1")
 	}
 	if balCount != 1 {
-		panic("BUG: balCount != 1")
+		panic("balCount != 1")
 	}
 }
