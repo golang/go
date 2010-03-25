@@ -121,6 +121,12 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
 	return
 }
 
+func kill(pid int, signum int, posix int) (errno int) {
+	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+	errno = int(e1)
+	return
+}
+
 func fcntl(fd int, cmd int, arg int) (val int, errno int) {
 	r0, _, e1 := Syscall(SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg))
 	val = int(r0)
@@ -367,12 +373,6 @@ func Getuid() (uid int) {
 func Issetugid() (tainted bool) {
 	r0, _, _ := Syscall(SYS_ISSETUGID, 0, 0, 0)
 	tainted = bool(r0 != 0)
-	return
-}
-
-func kill(pid int, signum int, posix int) (errno int) {
-	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
-	errno = int(e1)
 	return
 }
 
