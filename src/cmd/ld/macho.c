@@ -105,6 +105,14 @@ static uchar *strtab;
 static uint32 nstrtab;
 static uint32 mstrtab;
 
+struct	Expsym
+{
+	int	off;
+	Sym*	s;
+} *expsym;
+static int nexpsym;
+static int nimpsym;
+
 static char **dylib;
 static int ndylib;
 
@@ -264,11 +272,12 @@ needlib(char *name)
 void
 domacho(void)
 {
-	int h, nsym, ptrsize;
+	int h, ptrsize, t;
 	char *p;
 	uchar *dat;
 	uint32 x;
 	Sym *s;
+	Sym **impsym;
 
 	ptrsize = 4;
 	if(macho64)
@@ -278,17 +287,26 @@ domacho(void)
 	if(!debug['d'])
 		*(char*)grow(&strtab, &nstrtab, &mstrtab, 2) = ' ';
 
-	nsym = 0;
+	impsym = nil;
 	for(h=0; h<NHASH; h++) {
 		for(s=hash[h]; s!=S; s=s->link) {
-			if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
+			if(!s->reachable || (s->type != STEXT && s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
 				continue;
 			if(debug['d']) {
 				diag("cannot use dynamic loading and -d");
 				errorexit();
 			}
-			s->type = SMACHO;
-			s->value = nsym*ptrsize;
+			if(!s->dynexport) {
+				if(nimpsym%32 == 0) {
+					impsym = realloc(impsym, (nimpsym+32)*sizeof impsym[0]);
+					if(impsym == nil) {
+						diag("out of memory");
+						errorexit();
+					}
+				}
+				impsym[nimpsym++] = s;
+				continue;
+			}
 
 			/* symbol table entry - darwin still puts _ prefixes on all C symbols */
 			x = nstrtab;
@@ -301,21 +319,65 @@ domacho(void)
 			dat[1] = x>>8;
 			dat[2] = x>>16;
 			dat[3] = x>>24;
-			dat[4] = 0x01;	// type: N_EXT - external symbol
 
-			if(needlib(s->dynimplib)) {
-				if(ndylib%32 == 0) {
-					dylib = realloc(dylib, (ndylib+32)*sizeof dylib[0]);
-					if(dylib == nil) {
-						diag("out of memory");
-						errorexit();
-					}
-				}
-				dylib[ndylib++] = s->dynimplib;
+			dat[4] = 0x0f;	// type: N_SECT | N_EXT - external, defined in sect
+			switch(s->type) {
+			default:
+			case STEXT:
+				t = 1;
+				break;
+			case SDATA:
+				t = 2;
+				break;
+			case SBSS:
+				t = 4;
+				break;
 			}
-			nsym++;
+			dat[5] = t;	// sect: section number
+
+			if (nexpsym%32 == 0) {
+				expsym = realloc(expsym, (nexpsym+32)*sizeof expsym[0]);
+				if (expsym == nil) {
+					diag("out of memory");
+					errorexit();
+				}
+			}
+			expsym[nexpsym].off = nlinkdata - ptrsize;
+			expsym[nexpsym++].s = s;
 		}
 	}
+
+	for(h=0; h<nimpsym; h++) {
+		s = impsym[h];
+		s->type = SMACHO;
+		s->value = (nexpsym+h) * ptrsize;
+
+		/* symbol table entry - darwin still puts _ prefixes on all C symbols */
+		x = nstrtab;
+		p = grow(&strtab, &nstrtab, &mstrtab, 1+strlen(s->dynimpname)+1);
+		*p++ = '_';
+		strcpy(p, s->dynimpname);
+
+		dat = grow(&linkdata, &nlinkdata, &mlinkdata, 8+ptrsize);
+		dat[0] = x;
+		dat[1] = x>>8;
+		dat[2] = x>>16;
+		dat[3] = x>>24;
+
+		dat[4] = 0x01;	// type: N_EXT - external symbol
+
+		if(needlib(s->dynimplib)) {
+			if(ndylib%32 == 0) {
+				dylib = realloc(dylib, (ndylib+32)*sizeof dylib[0]);
+				if(dylib == nil) {
+					diag("out of memory");
+					errorexit();
+				}
+			}
+			dylib[ndylib++] = s->dynimplib;
+		}
+	}
+	free(impsym);
 
 	/*
 	 * list of symbol table indexes.
@@ -323,7 +385,7 @@ domacho(void)
 	 * to order the symbol table differently from
 	 * this list, so it is boring: 0 1 2 3 4 ...
 	 */
-	for(x=0; x<nsym; x++) {
+	for(x=0; x<nexpsym+nimpsym; x++) {
 		dat = grow(&linkdata, &nlinkdata, &mlinkdata, 4);
 		dat[0] = x;
 		dat[1] = x>>8;
@@ -331,16 +393,42 @@ domacho(void)
 		dat[3] = x>>24;
 	}
 
-	dynptrsize = nsym*ptrsize;
+	dynptrsize = (nexpsym+nimpsym) * ptrsize;
 }
 
 vlong
 domacholink(void)
 {
+	int i;
+	uchar *p;
+	Sym *s;
+	uint64 val;
+
 	linkoff = 0;
 	if(nlinkdata > 0) {
 		linkoff = rnd(HEADR+textsize, INITRND) + rnd(datsize, INITRND);
 		seek(cout, linkoff, 0);
+
+		for(i = 0; i<nexpsym; ++i) {
+			s = expsym[i].s;
+			val = s->value;
+			if(s->type == SUNDEF)
+				diag("export of undefined symbol %s", s->name);
+			if (s->type != STEXT)
+				val += INITDAT;
+			p = linkdata+expsym[i].off;
+			p[0] = val;
+			p[1] = val >> 8;
+			p[2] = val >> 16;
+			p[3] = val >> 24;
+			if (macho64) {
+				p[4] = val >> 32;
+				p[5] = val >> 40;
+				p[6] = val >> 48;
+				p[7] = val >> 56;
+			}
+		}
+
 		write(cout, linkdata, nlinkdata);
 		write(cout, strtab, nstrtab);
 	}
@@ -476,9 +564,9 @@ asmbmacho(vlong symdatva, vlong symo)
 		ml->data[0] = 0;	/* ilocalsym */
 		ml->data[1] = 0;	/* nlocalsym */
 		ml->data[2] = 0;	/* iextdefsym */
-		ml->data[3] = 0;	/* nextdefsym */
-		ml->data[4] = 0;	/* iundefsym */
-		ml->data[5] = nsym;	/* nundefsym */
+		ml->data[3] = nexpsym;	/* nextdefsym */
+		ml->data[4] = nexpsym;	/* iundefsym */
+		ml->data[5] = nimpsym;	/* nundefsym */
 		ml->data[6] = 0;	/* tocoffset */
 		ml->data[7] = 0;	/* ntoc */
 		ml->data[8] = 0;	/* modtaboff */
