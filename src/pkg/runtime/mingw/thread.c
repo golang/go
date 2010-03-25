@@ -218,6 +218,11 @@ unlock(Lock *l)
 }
 
 void
+destroylock(Lock *l)
+{
+}
+
+void
 noteclear(Note *n)
 {
 	eventlock(&n->lock);
