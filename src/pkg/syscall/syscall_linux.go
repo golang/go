@@ -365,6 +365,10 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
 }
 
+func SetsockoptString(fd, level, opt int, s string) (errno int) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), len(s))
+}
+
 func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
