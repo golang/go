@@ -541,7 +541,7 @@ align(int32 i, Type *t, int op)
 		}
 		break;
 
-	case Aarg1:	/* initial allign of parameter */
+	case Aarg1:	/* initial align of parameter */
 		w = ewidth[t->etype];
 		if(w <= 0 || w >= SZ_LONG) {
 			w = SZ_LONG;
@@ -552,7 +552,9 @@ align(int32 i, Type *t, int op)
 
 	case Aarg2:	/* width of a parameter */
 		o += t->width;
-		w = SZ_LONG;
+		w = t->width;
+		if(w > SZ_LONG)
+			w = SZ_LONG;
 		break;
 
 	case Aaut3:	/* total allign of automatic */
