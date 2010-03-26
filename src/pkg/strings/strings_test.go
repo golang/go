@@ -72,6 +72,20 @@ var lastIndexTests = []IndexTest{
 	IndexTest{"abcABCabc", "a", 6},
 }
 
+var indexAnyTests = []IndexTest{
+	IndexTest{"", "", -1},
+	IndexTest{"", "a", -1},
+	IndexTest{"", "abc", -1},
+	IndexTest{"a", "", -1},
+	IndexTest{"a", "a", 0},
+	IndexTest{"aaa", "a", 0},
+	IndexTest{"abc", "xyz", -1},
+	IndexTest{"abc", "xcz", 2},
+	IndexTest{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
+	IndexTest{"aRegExp*", ".(|)*+?^$[]", 7},
+	IndexTest{dots + dots + dots, " ", -1},
+}
+
 // Execute f on each test case.  funcName should be the name of f; it's used
 // in failure reports.
 func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, testCases []IndexTest) {
@@ -83,10 +97,9 @@ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, tes
 	}
 }
 
-func TestIndex(t *testing.T) { runIndexTests(t, Index, "Index", indexTests) }
-
+func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
 func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
-
+func TestIndexAny(t *testing.T)  { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
 
 type ExplodeTest struct {
 	s string

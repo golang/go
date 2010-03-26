@@ -125,6 +125,21 @@ func LastIndex(s, sep []byte) int {
 	return -1
 }
 
+// IndexAny returns the index of the first instance of any byte
+// from bytes in s, or -1 if no byte from bytes is present in s.
+func IndexAny(s, bytes []byte) int {
+	if len(bytes) > 0 {
+		for i, b := range s {
+			for _, m := range bytes {
+				if b == m {
+					return i
+				}
+			}
+		}
+	}
+	return -1
+}
+
 // Generic split: splits after each instance of sep,
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep []byte, sepSave, n int) [][]byte {
