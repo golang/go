@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/token"
 	"regexp"
+	"strings"
 	"sort"
 )
 
@@ -564,15 +565,7 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc 
 
 // Does s look like a regular expression?
 func isRegexp(s string) bool {
-	metachars := ".(|)*+?^$[]"
-	for _, c := range s {
-		for _, m := range metachars {
-			if c == m {
-				return true
-			}
-		}
-	}
-	return false
+	return strings.IndexAny(s, ".(|)*+?^$[]") >= 0
 }
 
 

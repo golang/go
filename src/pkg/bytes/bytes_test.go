@@ -72,16 +72,19 @@ func TestCompare(t *testing.T) {
 	}
 }
 
-var indextests = []BinOpTest{
+var indexTests = []BinOpTest{
 	BinOpTest{"", "", 0},
-	BinOpTest{"a", "", 0},
 	BinOpTest{"", "a", -1},
-	BinOpTest{"abc", "abc", 0},
-	BinOpTest{"ab", "abc", -1},
-	BinOpTest{"abc", "bc", 1},
-	BinOpTest{"x", "ab", -1},
-	// one-byte tests for IndexByte
-	BinOpTest{"ab", "x", -1},
+	BinOpTest{"", "foo", -1},
+	BinOpTest{"fo", "foo", -1},
+	BinOpTest{"foo", "foo", 0},
+	BinOpTest{"oofofoofooo", "f", 2},
+	BinOpTest{"oofofoofooo", "foo", 4},
+	BinOpTest{"barfoobarfoo", "foo", 3},
+	BinOpTest{"foo", "", 0},
+	BinOpTest{"foo", "o", 1},
+	BinOpTest{"abcABCabc", "A", 3},
+	// cases with one byte strings - test IndexByte and special case in Index()
 	BinOpTest{"", "a", -1},
 	BinOpTest{"x", "a", -1},
 	BinOpTest{"x", "x", 0},
@@ -91,19 +94,54 @@ var indextests = []BinOpTest{
 	BinOpTest{"abc", "x", -1},
 }
 
-func TestIndex(t *testing.T) {
-	for _, tt := range indextests {
-		a := []byte(tt.a)
-		b := []byte(tt.b)
-		pos := Index(a, b)
-		if pos != tt.i {
-			t.Errorf(`Index(%q, %q) = %v`, tt.a, tt.b, pos)
+var lastIndexTests = []BinOpTest{
+	BinOpTest{"", "", 0},
+	BinOpTest{"", "a", -1},
+	BinOpTest{"", "foo", -1},
+	BinOpTest{"fo", "foo", -1},
+	BinOpTest{"foo", "foo", 0},
+	BinOpTest{"foo", "f", 0},
+	BinOpTest{"oofofoofooo", "f", 7},
+	BinOpTest{"oofofoofooo", "foo", 7},
+	BinOpTest{"barfoobarfoo", "foo", 9},
+	BinOpTest{"foo", "", 3},
+	BinOpTest{"foo", "o", 2},
+	BinOpTest{"abcABCabc", "A", 3},
+	BinOpTest{"abcABCabc", "a", 6},
+}
+
+var indexAnyTests = []BinOpTest{
+	BinOpTest{"", "", -1},
+	BinOpTest{"", "a", -1},
+	BinOpTest{"", "abc", -1},
+	BinOpTest{"a", "", -1},
+	BinOpTest{"a", "a", 0},
+	BinOpTest{"aaa", "a", 0},
+	BinOpTest{"abc", "xyz", -1},
+	BinOpTest{"abc", "xcz", 2},
+	BinOpTest{"aRegExp*", ".(|)*+?^$[]", 7},
+	BinOpTest{dots + dots + dots, " ", -1},
+}
+
+// Execute f on each test case.  funcName should be the name of f; it's used
+// in failure reports.
+func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, testCases []BinOpTest) {
+	for _, test := range testCases {
+		a := []byte(test.a)
+		b := []byte(test.b)
+		actual := f(a, b)
+		if actual != test.i {
+			t.Errorf("%s(%q,%q) = %v; want %v", funcName, a, b, actual, test.i)
 		}
 	}
 }
 
+func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
+func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
+func TestIndexAny(t *testing.T)  { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
+
 func TestIndexByte(t *testing.T) {
-	for _, tt := range indextests {
+	for _, tt := range indexTests {
 		if len(tt.b) != 1 {
 			continue
 		}

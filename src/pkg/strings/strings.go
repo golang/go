@@ -106,6 +106,21 @@ func LastIndex(s, sep string) int {
 	return -1
 }
 
+// IndexAny returns the index of the first instance of any Unicode code point
+// from chars in s, or -1 if no Unicode code point from chars is present in s.
+func IndexAny(s, chars string) int {
+	if len(chars) > 0 {
+		for i, c := range s {
+			for _, m := range chars {
+				if c == m {
+					return i
+				}
+			}
+		}
+	}
+	return -1
+}
+
 // Generic split: splits after each instance of sep,
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep string, sepSave, n int) []string {
