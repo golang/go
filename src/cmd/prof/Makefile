@@ -36,4 +36,4 @@ install-default: $(TARG)
 $(OFILES): $(HFILES)
 
 install-pprof: gopprof
-	cp $(TARG) "$(GOBIN)"/gopprof
+	cp gopprof "$(GOBIN)"/gopprof
