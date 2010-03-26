@@ -18,9 +18,11 @@ GOFILES=\
 	ztypes_$(GOOS)_$(GOARCH).go\
 
 GOFILES_freebsd=\
+	syscall_bsd.go\
 	syscall_unix.go\
 
 GOFILES_darwin=\
+	syscall_bsd.go\
 	syscall_unix.go\
 
 GOFILES_linux=\
