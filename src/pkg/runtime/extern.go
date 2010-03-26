@@ -31,7 +31,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool)
 // on the calling goroutine's stack.  The argument skip is the number of stack frames
 // to skip before recording in pc, with 0 starting at the caller of Caller.
 // It returns the number of entries written to pc.
-func Callers(skip int, pc []int) int
+func Callers(skip int, pc []uintptr) int
 
 // FuncForPC returns a *Func describing the function that contains the
 // given program counter address, or else nil.
@@ -207,6 +207,10 @@ func GC()
 // an os.File without calling Close, but it would be a mistake
 // to depend on a finalizer to flush an in-memory I/O buffer such as a
 // bufio.Writer, because the buffer would not be flushed at program exit.
+//
+// A single goroutine runs all finalizers for a program, sequentially.
+// If a finalizer must run for a long time, it should do so by starting
+// a new goroutine.
 //
 // TODO(rsc): make os.File use SetFinalizer
 // TODO(rsc): allow f to have (ignored) return values

@@ -775,7 +775,7 @@ void
 	newproc1(fn, (byte*)(&fn+1), siz, 0);
 }
 
-void
+G*
 newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 {
 	byte *sp;
@@ -815,6 +815,7 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 	newprocreadylocked(newg);
 	unlock(&sched);
 
+	return newg;
 //printf(" goid=%d\n", newg->goid);
 }
 

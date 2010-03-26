@@ -23,19 +23,10 @@ extern byte data[];
 extern byte etext[];
 extern byte end[];
 
-typedef struct Finq Finq;
-struct Finq
-{
-	void (*fn)(void*);
-	void *p;
-	int32 nret;
-};
-
-static Finq finq[128];	// finalizer queue - two elements per entry
-static Finq *pfinq = finq;
-static Finq *efinq = finq+nelem(finq);
-
+static G *fing;
+static Finalizer *finq;
 static void sweepblock(byte*, int64, uint32*, int32);
+static void runfinq(void);
 
 enum {
 	PtrSize = sizeof(void*)
@@ -68,12 +59,6 @@ scanblock(int32 depth, byte *b, int64 n)
 		if(mlookup(obj, &obj, &size, nil, &refp)) {
 			ref = *refp;
 			switch(ref & ~RefFlags) {
-			case RefFinalize:
-				// If marked for finalization already, some other finalization-ready
-				// object has a pointer: turn off finalization until that object is gone.
-				// This means that cyclic finalizer loops never get collected,
-				// so don't do that.
-				/* fall through */
 			case RefNone:
 				if(Debug > 1)
 					printf("%d found at %p: ", depth, &vp[i]);
@@ -107,6 +92,21 @@ scanstack(G *gp)
 }
 
 static void
+markfin(void *v)
+{
+	uintptr size;
+	uint32 *refp;
+
+	size = 0;
+	refp = nil;
+	if(!mlookup(v, &v, &size, nil, &refp) || !(*refp & RefHasFinalizer))
+		throw("mark - finalizer inconsistency");
+	
+	// do not mark the finalizer block itself.  just mark the things it points at.
+	scanblock(1, v, size);
+}
+
+static void
 mark(void)
 {
 	G *gp;
@@ -137,58 +137,26 @@ mark(void)
 			break;
 		}
 	}
+
+	// mark things pointed at by objects with finalizers
+	walkfintab(markfin);
 }
 
-// pass 0: mark RefNone with finalizer as RefFinalize and trace
+// free RefNone, free & queue finalizers for RefNone|RefHasFinalizer, reset RefSome
 static void
-sweepspan0(MSpan *s)
-{
-	byte *p;
-	uint32 ref, *gcrefp, *gcrefep;
-	int32 n, size, npages;
-
-	p = (byte*)(s->start << PageShift);
-	if(s->sizeclass == 0) {
-		// Large block.
-		ref = s->gcref0;
-		if((ref&~(RefFlags^RefHasFinalizer)) == (RefNone|RefHasFinalizer)) {
-			// Mark as finalizable.
-			s->gcref0 = RefFinalize | RefHasFinalizer | (ref&(RefFlags^RefHasFinalizer));
-			if(!(ref & RefNoPointers))
-				scanblock(100, p, s->npages<<PageShift);
-		}
-		return;
-	}
-
-	// Chunk full of small blocks.
-	MGetSizeClassInfo(s->sizeclass, &size, &npages, &n);
-	gcrefp = s->gcref;
-	gcrefep = s->gcref + n;
-	for(; gcrefp < gcrefep; gcrefp++) {
-		ref = *gcrefp;
-		if((ref&~(RefFlags^RefHasFinalizer)) == (RefNone|RefHasFinalizer)) {
-			// Mark as finalizable.
-			*gcrefp = RefFinalize | RefHasFinalizer | (ref&(RefFlags^RefHasFinalizer));
-			if(!(ref & RefNoPointers))
-				scanblock(100, p+(gcrefp-s->gcref)*size, size);
-		}
-	}
-}	
-
-// pass 1: free RefNone, queue RefFinalize, reset RefSome
-static void
-sweepspan1(MSpan *s)
+sweepspan(MSpan *s)
 {
 	int32 n, npages, size;
 	byte *p;
 	uint32 ref, *gcrefp, *gcrefep;
 	MCache *c;
+	Finalizer *f;
 
 	p = (byte*)(s->start << PageShift);
 	if(s->sizeclass == 0) {
 		// Large block.
 		ref = s->gcref0;
-		switch(ref & ~RefFlags) {
+		switch(ref & ~(RefFlags^RefHasFinalizer)) {
 		case RefNone:
 			// Free large object.
 			mstats.alloc -= s->npages<<PageShift;
@@ -198,18 +166,17 @@ sweepspan1(MSpan *s)
 			s->gcref0 = RefFree;
 			MHeap_Free(&mheap, s, 1);
 			break;
-		case RefFinalize:
-			if(pfinq < efinq) {
-				pfinq->p = p;
-				pfinq->nret = 0;
-				pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
-				ref &= ~RefHasFinalizer;
-				if(pfinq->fn == nil)
-					throw("finalizer inconsistency");
-				pfinq++;
-			}
+		case RefNone|RefHasFinalizer:
+			f = getfinalizer(p, 1);
+			if(f == nil)
+				throw("finalizer inconsistency");
+			f->arg = p;
+			f->next = finq;
+			finq = f;
+			ref &= ~RefHasFinalizer;
 			// fall through
 		case RefSome:
+		case RefSome|RefHasFinalizer:
 			s->gcref0 = RefNone | (ref&RefFlags);
 			break;
 		}
@@ -224,7 +191,7 @@ sweepspan1(MSpan *s)
 		ref = *gcrefp;
 		if(ref < RefNone)	// RefFree or RefStack
 			continue;
-		switch(ref & ~RefFlags) {
+		switch(ref & ~(RefFlags^RefHasFinalizer)) {
 		case RefNone:
 			// Free small object.
 			if(ref & RefProfiled)
@@ -237,18 +204,17 @@ sweepspan1(MSpan *s)
 			mstats.by_size[s->sizeclass].nfree++;
 			MCache_Free(c, p, s->sizeclass, size);
 			break;
-		case RefFinalize:
-			if(pfinq < efinq) {
-				pfinq->p = p;
-				pfinq->nret = 0;
-				pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
-				ref &= ~RefHasFinalizer;
-				if(pfinq->fn == nil)	
-					throw("finalizer inconsistency");
-				pfinq++;
-			}
+		case RefNone|RefHasFinalizer:
+			f = getfinalizer(p, 1);
+			if(f == nil)
+				throw("finalizer inconsistency");
+			f->arg = p;
+			f->next = finq;
+			finq = f;
+			ref &= ~RefHasFinalizer;
 			// fall through
 		case RefSome:
+		case RefSome|RefHasFinalizer:
 			*gcrefp = RefNone | (ref&RefFlags);
 			break;
 		}
@@ -260,15 +226,9 @@ sweep(void)
 {
 	MSpan *s;
 
-	// Sweep all the spans marking blocks to be finalized.
 	for(s = mheap.allspans; s != nil; s = s->allnext)
 		if(s->state == MSpanInUse)
-			sweepspan0(s);
-
-	// Sweep again queueing finalizers and freeing the others.
-	for(s = mheap.allspans; s != nil; s = s->allnext)
-		if(s->state == MSpanInUse)
-			sweepspan1(s);
+			sweepspan(s);
 }
 
 // Semaphore, not Lock, so that the goroutine
@@ -301,7 +261,7 @@ gc(int32 force)
 {
 	int64 t0, t1;
 	byte *p;
-	Finq *fp;
+	Finalizer *fp;
 
 	// The gc is turned off (via enablegc) until
 	// the bootstrap has completed.
@@ -340,14 +300,15 @@ gc(int32 force)
 	}
 	m->gcing = 0;
 
-	// kick off goroutines to run queued finalizers
 	m->locks++;	// disable gc during the mallocs in newproc
-	for(fp=finq; fp<pfinq; fp++) {
-		newproc1((byte*)fp->fn, (byte*)&fp->p, sizeof(fp->p), fp->nret);
-		fp->fn = nil;
-		fp->p = nil;
+	fp = finq;
+	if(fp != nil) {
+		// kick off or wake up goroutine to run queued finalizers
+		if(fing == nil)
+			fing = newproc1((byte*)runfinq, nil, 0, 0);
+		else if(fing->status == Gwaiting)
+			ready(fing);
 	}
-	pfinq = finq;
 	m->locks--;
 
 	t1 = nanotime();
@@ -357,4 +318,42 @@ gc(int32 force)
 		printf("pause %D\n", t1-t0);
 	semrelease(&gcsema);
 	starttheworld();
+	
+	// give the queued finalizers, if any, a chance to run
+	if(fp != nil)
+		gosched();
+}
+
+static void
+runfinq(void)
+{
+	Finalizer *f, *next;
+	byte *frame;
+
+	for(;;) {
+		// There's no need for a lock in this section
+		// because it only conflicts with the garbage
+		// collector, and the garbage collector only
+		// runs when everyone else is stopped, and
+		// runfinq only stops at the gosched() or
+		// during the calls in the for loop.
+		f = finq;
+		finq = nil;
+		if(f == nil) {
+			g->status = Gwaiting;
+			gosched();
+			continue;
+		}
+		for(; f; f=next) {
+			next = f->next;
+			frame = mal(sizeof(uintptr) + f->nret);
+			*(void**)frame = f->arg;
+			reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
+			free(frame);
+			f->fn = nil;
+			f->arg = nil;
+			f->next = nil;
+		}
+		gc(1);	// trigger another gc to clean up the finalized objects, if possible
+	}
 }
