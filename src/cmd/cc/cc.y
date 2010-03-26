@@ -1034,7 +1034,7 @@ complex:
 		if($$->link != T)
 			diag(Z, "redeclare tag: %s", $2->name);
 		$$->link = $4;
-		suallign($$);
+		sualign($$);
 	}
 |	LSTRUCT sbody
 	{
@@ -1042,7 +1042,7 @@ complex:
 		sprint(symb, "_%d_", taggen);
 		$$ = dotag(lookup(), TSTRUCT, autobn);
 		$$->link = $2;
-		suallign($$);
+		sualign($$);
 	}
 |	LUNION ltag
 	{
@@ -1059,7 +1059,7 @@ complex:
 		if($$->link != T)
 			diag(Z, "redeclare tag: %s", $2->name);
 		$$->link = $4;
-		suallign($$);
+		sualign($$);
 	}
 |	LUNION sbody
 	{
@@ -1067,7 +1067,7 @@ complex:
 		sprint(symb, "_%d_", taggen);
 		$$ = dotag(lookup(), TUNION, autobn);
 		$$->link = $2;
-		suallign($$);
+		sualign($$);
 	}
 |	LENUM ltag
 	{

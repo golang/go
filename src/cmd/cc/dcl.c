@@ -549,7 +549,7 @@ newlist(Node *l, Node *r)
 }
 
 void
-suallign(Type *t)
+sualign(Type *t)
 {
 	Type *l;
 	int32 o, w;
@@ -611,7 +611,7 @@ suallign(Type *t)
 		return;
 
 	default:
-		diag(Z, "unknown type in suallign: %T", t);
+		diag(Z, "unknown type in sualign: %T", t);
 		break;
 	}
 }

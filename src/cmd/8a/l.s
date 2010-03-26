@@ -251,7 +251,7 @@ TEXT	mode32bit(SB),$0
 	 *  16 meg of physical memory
 	 */
 	LEAL	tpt-KZERO(SB),AX	/* get phys addr of temporary page table */
-	ADDL	$(BY2PG-1),AX		/* must be page alligned */
+	ADDL	$(BY2PG-1),AX		/* must be page aligned */
 	ANDL	$(~(BY2PG-1)),AX	/* ... */
 	MOVL	$(4*1024),CX		/* pte's per page */
 	MOVL	$((((4*1024)-1)<<PGSHIFT)|PTEVALID|PTEKERNEL|PTEWRITE),BX
