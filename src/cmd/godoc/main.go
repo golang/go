@@ -30,6 +30,7 @@ import (
 	"flag"
 	"fmt"
 	"http"
+	_ "http/pprof"
 	"io"
 	"log"
 	"os"
