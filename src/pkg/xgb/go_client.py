@@ -8,6 +8,7 @@ from os.path import basename, exists
 import getopt
 import sys
 import re
+import math
 
 _ns = None
 
@@ -345,20 +346,22 @@ def go_complex_writer(self, name, void):
 		go('func (c *Conn) %sRequest(', func_name)
 		go_complex_writer_arguments(param_fields, "Cookie {")
 	
-	fixedtotal = structsize(self.fields)
-	if fixedtotal <= 32:
-		go('	b := c.scratch[0:%d]', fixedtotal)
+	fixedlength = math.ceil(float(structsize(self.fields)) / float(4))
+	fixedsize = fixedlength * 4
+	
+	if fixedsize <= 32:
+		go('	b := c.scratch[0:%d]', fixedsize)
 	else:
-		go('	b := make([]byte, %d)', fixedtotal)
+		go('	b := make([]byte, %d)', fixedsize)
 	firstvar = 0
 	for field in wire_fields:
 		if not field.type.fixed_size():
 			if not firstvar:
 				firstvar = 1
-				go('	n := %d', fixedtotal)
+				go('	n := %d', fixedsize)
 			go('	n += pad(%s * %d)', go_accessor_expr(field.type.expr, '', True), field.type.size)
 	if not firstvar:
-		go('	put16(b[2:], %d)', fixedtotal / 4)
+		go('	put16(b[2:], %d)', fixedlength)
 	else:
 		go('	put16(b[2:], uint16(n / 4))')
 	go('	b[0] = %s', self.opcode)
@@ -662,7 +665,7 @@ output = {'open'	: go_open,
 		  'enum'	: go_enum,
 		  'struct'	: go_struct,
 		  'union'	: go_union,
-		  'request' : go_request,
+		  'request'	: go_request,
 		  'event'	: go_event,
 		  'error'	: go_error
 		  }
