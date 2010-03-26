@@ -22,7 +22,7 @@ $(TARG): $(OFILES)
 clean:
 	rm -f *.$O $(TARG)
 
-install: install-$(shell uname | tr A-Z a-z)
+install: install-$(shell uname | tr A-Z a-z) install-pprof
 install-linux: install-default
 install-freebsd: install-default
 
@@ -34,3 +34,6 @@ install-default: $(TARG)
 	cp $(TARG) "$(GOBIN)"/$(TARG)
 
 $(OFILES): $(HFILES)
+
+install-pprof: gopprof
+	cp $(TARG) "$(GOBIN)"/gopprof
