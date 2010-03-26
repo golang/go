@@ -664,6 +664,9 @@ func Compile(str string) (regexp *Regexp, error os.Error) {
 	regexp.expr = str
 	regexp.inst = new(vector.Vector)
 	error = regexp.doParse()
+	if error != nil {
+		regexp = nil
+	}
 	return
 }
 
