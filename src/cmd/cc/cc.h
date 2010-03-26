@@ -658,7 +658,7 @@ int	rsametype(Type*, Type*, int, int);
 int	sametype(Type*, Type*);
 uint32	sign(Sym*);
 uint32	signature(Type*);
-void	suallign(Type*);
+void	sualign(Type*);
 void	tmerge(Type*, Sym*);
 void	walkparam(Node*, int);
 void	xdecl(int, Type*, Sym*);

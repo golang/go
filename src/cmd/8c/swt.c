@@ -520,7 +520,7 @@ align(int32 i, Type *t, int op)
 			w = packflg;
 		break;
 
-	case Ael1:	/* initial allign of struct element */
+	case Ael1:	/* initial align of struct element */
 		for(v=t; v->etype==TARRAY; v=v->link)
 			;
 		w = ewidth[v->etype];
@@ -557,7 +557,7 @@ align(int32 i, Type *t, int op)
 			w = SZ_LONG;
 		break;
 
-	case Aaut3:	/* total allign of automatic */
+	case Aaut3:	/* total align of automatic */
 		o = align(o, t, Ael1);
 		o = align(o, t, Ael2);
 		break;

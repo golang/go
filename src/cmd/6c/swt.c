@@ -559,7 +559,7 @@ align(int32 i, Type *t, int op)
 			w = SZ_VLONG;
 		break;
 
-	case Aaut3:	/* total allign of automatic */
+	case Aaut3:	/* total align of automatic */
 		o = align(o, t, Ael1);
 		o = align(o, t, Ael2);
 		break;
