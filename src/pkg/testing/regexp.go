@@ -615,7 +615,7 @@ func CompileRegexp(str string) (regexp *Regexp, error string) {
 	regexp.expr = str
 	regexp.inst = make([]instr, 0, 20)
 	error = regexp.doParse()
-	if error != nil {
+	if error != "" {
 		regexp = nil
 	}
 	return
