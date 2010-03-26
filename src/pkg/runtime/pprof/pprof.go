@@ -69,5 +69,29 @@ func WriteHeapProfile(w io.Writer) os.Error {
 		}
 		fmt.Fprintf(b, "\n")
 	}
+
+	// Print memstats information too.
+	// Pprof will ignore, but useful for people.
+	s := &runtime.MemStats
+	fmt.Fprintf(b, "\n# runtime.MemStats\n")
+	fmt.Fprintf(b, "# Alloc = %d\n", s.Alloc)
+	fmt.Fprintf(b, "# TotalAlloc = %d\n", s.TotalAlloc)
+	fmt.Fprintf(b, "# Sys = %d\n", s.Sys)
+	fmt.Fprintf(b, "# Stacks = %d\n", s.Stacks)
+	fmt.Fprintf(b, "# InusePages = %d\n", s.InusePages)
+	fmt.Fprintf(b, "# NextGC = %d\n", s.NextGC)
+	fmt.Fprintf(b, "# HeapAlloc = %d\n", s.HeapAlloc)
+	fmt.Fprintf(b, "# Lookups = %d\n", s.Lookups)
+	fmt.Fprintf(b, "# Mallocs = %d\n", s.Mallocs)
+	fmt.Fprintf(b, "# PauseNs = %d\n", s.PauseNs)
+	fmt.Fprintf(b, "# NumGC = %d\n", s.NumGC)
+	fmt.Fprintf(b, "# EnableGC = %v\n", s.EnableGC)
+	fmt.Fprintf(b, "# DebugGC = %v\n", s.DebugGC)
+	fmt.Fprintf(b, "# BySize = Size * (Active = Mallocs - Frees)\n")
+	for _, t := range s.BySize {
+		if t.Mallocs > 0 {
+			fmt.Fprintf(b, "#   %d * (%d = %d - %d)\n", t.Size, t.Mallocs-t.Frees, t.Mallocs, t.Frees)
+		}
+	}
 	return b.Flush()
 }
