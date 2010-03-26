@@ -330,8 +330,6 @@ void*	SysAlloc(uintptr);
 void	SysUnused(void*, uintptr);
 void	SysFree(void*, uintptr);
 
-void*	getfinalizer(void*, bool, int32*);
-
 enum
 {
 	RefcountOverhead = 4,	// one uint32 per object
@@ -340,7 +338,6 @@ enum
 	RefStack,		// stack segment - don't free and don't scan for pointers
 	RefNone,		// no references
 	RefSome,		// some references
-	RefFinalize,	// ready to be finalized
 	RefNoPointers = 0x80000000U,	// flag - no pointers here
 	RefHasFinalizer = 0x40000000U,	// flag - has finalizer
 	RefProfiled = 0x20000000U,	// flag - is in profiling table
@@ -359,3 +356,14 @@ enum {
 	MProf_All = 2,
 };
 extern int32 malloc_profile;
+
+typedef struct Finalizer Finalizer;
+struct Finalizer
+{
+	Finalizer *next;	// for use by caller of getfinalizer
+	void (*fn)(void*);
+	void *arg;
+	int32 nret;
+};
+
+Finalizer*	getfinalizer(void*, bool);

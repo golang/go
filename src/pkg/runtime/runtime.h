@@ -396,6 +396,8 @@ uint32	noequal(uint32, void*, void*);
 void*	malloc(uintptr size);
 void	free(void *v);
 void	addfinalizer(void*, void(*fn)(void*), int32);
+void	walkfintab(void (*fn)(void*));
+
 void	exit(int32);
 void	breakpoint(void);
 void	gosched(void);
@@ -403,7 +405,7 @@ void	goexit(void);
 void	runcgo(void (*fn)(void*), void*);
 void	·entersyscall(void);
 void	·exitsyscall(void);
-void	newproc1(byte*, byte*, int32, int32);
+G*	newproc1(byte*, byte*, int32, int32);
 void	siginit(void);
 bool	sigsend(int32 sig);
 void	gettime(int64*, int32*);
@@ -508,6 +510,7 @@ void	runtime_printhex(uint64);
 void	runtime_printslice(Slice);
 void	runtime_printcomplex(Complex128);
 void	·panicl(int32);
+void	reflect·call(byte*, byte*, uint32);
 
 /*
  * wrapped for go users

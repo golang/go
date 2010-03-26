@@ -8,7 +8,10 @@
 
 package main
 
-import "runtime"
+import (
+	"runtime"
+	"time"
+)
 
 const N = 250
 
@@ -25,12 +28,14 @@ var i int
 var nfinal int
 var final [N]int
 
-func finalA(a *A) {
+// the unused return is to test finalizers with return values
+func finalA(a *A) (unused [N]int) {
 	if final[a.n] != 0 {
 		println("finalA", a.n, final[a.n])
 		panic("fail")
 	}
 	final[a.n] = 1
+	return
 }
 
 func finalB(b *B) {
@@ -53,6 +58,7 @@ func main() {
 	for i := 0; i < N; i++ {
 		runtime.GC()
 		runtime.Gosched()
+		time.Sleep(1e6);
 	}
 	if nfinal < N*8/10 {
 		panic("not enough finalizing:", nfinal, "/", N)

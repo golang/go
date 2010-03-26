@@ -366,7 +366,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		}
 		nret = (nret + sizeof(void*)-1) & ~(sizeof(void*)-1);
 
-		if(getfinalizer(obj.data, 0, nil)) {
+		if(getfinalizer(obj.data, 0)) {
 			printf("runtime.SetFinalizer: finalizer already set");
 			goto throw;
 		}
