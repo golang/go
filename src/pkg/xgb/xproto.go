@@ -2427,8 +2427,8 @@ func (c *Conn) ListFontsWithInfoReply(cookie Cookie) (*ListFontsWithInfoReply, o
 }
 
 func (c *Conn) SetFontPath(FontQty uint16, Path []byte) {
-	b := c.scratch[0:6]
-	n := 6
+	b := c.scratch[0:8]
+	n := 8
 	n += pad(len(Path) * 1)
 	put16(b[2:], uint16(n/4))
 	b[0] = 51
@@ -3553,8 +3553,8 @@ func (c *Conn) ListExtensionsReply(cookie Cookie) (*ListExtensionsReply, os.Erro
 }
 
 func (c *Conn) ChangeKeyboardMapping(KeycodeCount byte, FirstKeycode byte, KeysymsPerKeycode byte, Keysyms []Keysym) {
-	b := c.scratch[0:6]
-	n := 6
+	b := c.scratch[0:8]
+	n := 8
 	n += pad((int(KeycodeCount) * int(KeysymsPerKeycode)) * 4)
 	put16(b[2:], uint16(n/4))
 	b[0] = 100
@@ -3566,8 +3566,8 @@ func (c *Conn) ChangeKeyboardMapping(KeycodeCount byte, FirstKeycode byte, Keysy
 }
 
 func (c *Conn) GetKeyboardMappingRequest(FirstKeycode byte, Count byte) Cookie {
-	b := c.scratch[0:6]
-	put16(b[2:], 1)
+	b := c.scratch[0:8]
+	put16(b[2:], 2)
 	b[0] = 101
 	b[4] = FirstKeycode
 	b[5] = Count
@@ -3733,8 +3733,8 @@ const (
 )
 
 func (c *Conn) SetScreenSaver(Timeout int16, Interval int16, PreferBlanking byte, AllowExposures byte) {
-	b := c.scratch[0:10]
-	put16(b[2:], 2)
+	b := c.scratch[0:12]
+	put16(b[2:], 3)
 	b[0] = 107
 	put16(b[4:], uint16(Timeout))
 	put16(b[6:], uint16(Interval))
