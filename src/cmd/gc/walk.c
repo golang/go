@@ -2288,7 +2288,29 @@ paramstoheap(Type **argin)
 		if(v->alloc == nil)
 			v->alloc = callnew(v->type);
 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
-		nn = list(nn, nod(OAS, v, v->stackparam));
+		if((v->class & ~PHEAP) != PPARAMOUT)
+			nn = list(nn, nod(OAS, v, v->stackparam));
+	}
+	return nn;
+}
+
+/*
+ * walk through argout parameters copying back to stack
+ */
+NodeList*
+returnsfromheap(Type **argin)
+{
+	Type *t;
+	Iter savet;
+	Node *v;
+	NodeList *nn;
+
+	nn = nil;
+	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
+		v = t->nname;
+		if(v == N || v->class != (PHEAP|PPARAMOUT))
+			continue;
+		nn = list(nn, nod(OAS, v->stackparam, v));
 	}
 	return nn;
 }
@@ -2305,7 +2327,9 @@ heapmoves(void)
 
 	nn = paramstoheap(getthis(curfn->type));
 	nn = concat(nn, paramstoheap(getinarg(curfn->type)));
+	nn = concat(nn, paramstoheap(getoutarg(curfn->type)));
 	curfn->enter = concat(curfn->enter, nn);
+	curfn->exit = returnsfromheap(getoutarg(curfn->type));
 }
 
 static Node*

@@ -1988,17 +1988,15 @@ addrescapes(Node *n)
 		if(n->noescape)
 			break;
 		switch(n->class) {
-		case PPARAMOUT:
-			yyerror("cannot take address of out parameter %s", n->sym->name);
-			break;
 		case PAUTO:
 		case PPARAM:
+		case PPARAMOUT:
 			// if func param, need separate temporary
 			// to hold heap pointer.
 			// the function type has already been checked
 			// (we're in the function body)
 			// so the param already has a valid xoffset.
-			if(n->class == PPARAM) {
+			if(n->class == PPARAM || n->class == PPARAMOUT) {
 				// expression to refer to stack copy
 				n->stackparam = nod(OPARAM, n, N);
 				n->stackparam->type = n->type;
