@@ -27,7 +27,6 @@ convlit1.go
 declbad.go
 empty.go
 escape.go
-escape1.go
 fixedbugs/bug000.go
 fixedbugs/bug001.go
 fixedbugs/bug002.go
