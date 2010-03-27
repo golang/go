@@ -141,6 +141,24 @@ func for_escapes2(x int, y int) (*int, *int) {
 	return p[0], p[1]
 }
 
+func out_escapes(i int) (x int, p *int) {
+	x = i
+	p = &x;	// ERROR "address of out parameter"
+	return;
+}
+
+func out_escapes_2(i int) (x int, p *int) {
+	x = i
+	return x, &x;	// ERROR "address of out parameter"
+}
+
+func defer1(i int) (x int) {
+	c := make(chan int)
+	go func() { x = i; c <- 1 }()
+	<-c
+	return
+}
+
 func main() {
 	p, q := i_escapes(1), i_escapes(2);
 	chk(p, q, 1, "i_escapes");
@@ -168,6 +186,20 @@ func main() {
 
 	p, q = for_escapes2(103, 104);
 	chkalias(p, q, 103, "for_escapes2");
+
+	_, p = out_escapes(15)
+	_, q = out_escapes(16);
+	chk(p, q, 15, "out_escapes");
+
+	_, p = out_escapes_2(17)
+	_, q = out_escapes_2(18);
+	chk(p, q, 17, "out_escapes_2");
+
+	x := defer1(20)
+	if x != 20 {
+		println("defer failed", x)
+		bad = true
+	}
 
 	if bad {
 		panic("BUG: no escape");

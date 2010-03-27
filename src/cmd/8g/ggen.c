@@ -7,6 +7,8 @@
 #include "gg.h"
 #include "opt.h"
 
+static Prog *pret;
+
 void
 compile(Node *fn)
 {
@@ -66,6 +68,16 @@ compile(Node *fn)
 
 	ginit();
 	genlist(curfn->enter);
+
+	pret = nil;
+	if(hasdefer || curfn->exit) {
+		Prog *p1;
+
+		p1 = gjmp(nil);
+		pret = gjmp(nil);
+		patch(p1, pc);
+	}
+
 	genlist(curfn->nbody);
 	gclean();
 	checklabels();
@@ -75,6 +87,14 @@ compile(Node *fn)
 	if(curfn->type->outtuple != 0)
 		ginscall(throwreturn, 0);
 
+	if(pret)
+		patch(pret, pc);
+	ginit();
+	if(curfn->exit)
+		genlist(curfn->exit);
+	gclean();
+	if(nerrors != 0)
+		goto ret;
 	if(hasdefer)
 		ginscall(deferreturn, 0);
 	pc->as = ARET;	// overwrite AEND
@@ -362,9 +382,10 @@ void
 cgen_ret(Node *n)
 {
 	genlist(n->list);		// copy out args
-	if(hasdefer)
-		ginscall(deferreturn, 0);
-	gins(ARET, N, N);
+	if(pret)
+		gjmp(pret);
+	else
+		gins(ARET, N, N);
 }
 
 /*
