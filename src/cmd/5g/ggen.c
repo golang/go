@@ -87,10 +87,8 @@ compile(Node *fn)
 
 	if(pret)
 		patch(pret, pc);
-	ginit();
 	if(curfn->exit)
 		genlist(curfn->exit);
-	gclean();
 	if(nerrors != 0)
 		goto ret;
 	if(hasdefer)
@@ -427,9 +425,10 @@ void
 cgen_ret(Node *n)
 {
 	genlist(n->list);		// copy out args
-	if(hasdefer)
-		ginscall(deferreturn, 0);
-	gins(ARET, N, N);
+	if(hasdefer || curfn->exit)
+		gjmp(pret);
+	else
+		gins(ARET, N, N);
 }
 
 /*
