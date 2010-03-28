@@ -524,9 +524,20 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	}
 }
 
+// HandleFunc registers the handler function for the given pattern.
+func (mux *ServeMux) HandleFunc(pattern string, handler func(*Conn, *Request)) {
+	mux.Handle(pattern, HandlerFunc(handler))
+}
+
 // Handle registers the handler for the given pattern
 // in the DefaultServeMux.
 func Handle(pattern string, handler Handler) { DefaultServeMux.Handle(pattern, handler) }
+
+// HandleFunc registers the handler function for the given pattern
+// in the DefaultServeMux.
+func HandleFunc(pattern string, handler func(*Conn, *Request)) {
+	DefaultServeMux.HandleFunc(pattern, handler)
+}
 
 // Serve accepts incoming HTTP connections on the listener l,
 // creating a new service thread for each.  The service threads
