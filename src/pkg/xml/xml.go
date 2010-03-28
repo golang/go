@@ -107,10 +107,6 @@ type Directive []byte
 
 func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
 
-type readByter interface {
-	ReadByte() (b byte, err os.Error)
-}
-
 // CopyToken returns a copy of a Token.
 func CopyToken(t Token) Token {
 	switch v := t.(type) {
@@ -167,7 +163,7 @@ type Parser struct {
 	//
 	Entity map[string]string
 
-	r         readByter
+	r         io.ReadByter
 	buf       bytes.Buffer
 	stk       *stack
 	free      *stack
@@ -194,7 +190,7 @@ func NewParser(r io.Reader) *Parser {
 	// Assume that if reader has its own
 	// ReadByte, it's efficient enough.
 	// Otherwise, use bufio.
-	if rb, ok := r.(readByter); ok {
+	if rb, ok := r.(io.ReadByter); ok {
 		p.r = rb
 	} else {
 		p.r = bufio.NewReader(r)
