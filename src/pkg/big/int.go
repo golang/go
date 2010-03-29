@@ -205,7 +205,7 @@ Error:
 
 
 // SetBytes interprets b as the bytes of a big-endian, unsigned integer and
-// sets x to that value.
+// sets z to that value.
 func (z *Int) SetBytes(b []byte) *Int {
 	s := int(_S)
 	z.abs = makeN(z.abs, (len(b)+s-1)/s, false)
@@ -264,8 +264,8 @@ func (z *Int) Bytes() []byte {
 }
 
 
-// Len returns the length of the absolute value of x in bits. Zero is
-// considered to have a length of one.
+// Len returns the length of the absolute value of z in bits. Zero is
+// considered to have a length of zero.
 func (z *Int) Len() int {
 	if len(z.abs) == 0 {
 		return 0
