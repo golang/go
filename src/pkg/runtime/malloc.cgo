@@ -234,7 +234,12 @@ mlookup(void *v, byte **base, uintptr *size, MSpan **sp, uint32 **ref)
 MCache*
 allocmcache(void)
 {
-	return FixAlloc_Alloc(&mheap.cachealloc);
+	MCache *c;
+
+	c = FixAlloc_Alloc(&mheap.cachealloc);
+	mstats.mcache_inuse = mheap.cachealloc.inuse;
+	mstats.mcache_sys = mheap.cachealloc.sys;
+	return c;
 }
 
 void
@@ -289,6 +294,8 @@ stackalloc(uint32 n)
 			throw("stackalloc");
 		}
 		v = FixAlloc_Alloc(&stacks);
+		mstats.stacks_inuse = stacks.inuse;
+		mstats.stacks_sys = stacks.sys;
 		unlock(&stacks);
 		return v;
 	}
@@ -305,6 +312,8 @@ stackfree(void *v)
 	if(m->mallocing || m->gcing) {
 		lock(&stacks);
 		FixAlloc_Free(&stacks, v);
+		mstats.stacks_inuse = stacks.inuse;
+		mstats.stacks_sys = stacks.sys;
 		unlock(&stacks);
 		return;
 	}

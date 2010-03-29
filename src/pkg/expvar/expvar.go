@@ -5,13 +5,28 @@
 // The expvar package provides a standardized interface to public variables,
 // such as operation counters in servers. It exposes these variables via
 // HTTP at /debug/vars in JSON format.
+//
+// In addition to adding the HTTP handler, this package registers the
+// following variables:
+//
+//	cmdline   os.Args
+//	memstats  runtime.Memstats
+//
+// The package is sometimes only imported for the side effect of
+// registering its HTTP handler and the above variables.  To use it
+// this way, simply link this package into your program:
+//	import _ "expvar"
+//
 package expvar
 
 import (
 	"bytes"
 	"fmt"
 	"http"
+	"json"
 	"log"
+	"os"
+	"runtime"
 	"strconv"
 	"sync"
 )
@@ -128,6 +143,12 @@ type IntFunc func() int64
 
 func (v IntFunc) String() string { return strconv.Itoa64(v()) }
 
+// StringFunc wraps a func() string to create value that satisfies the Var interface.
+// The function will be called each time the Var is evaluated.
+type StringFunc func() string
+
+func (f StringFunc) String() string { return f() }
+
 
 // All published variables.
 var vars map[string]Var = make(map[string]Var)
@@ -204,9 +225,26 @@ func expvarHandler(c *http.Conn, req *http.Request) {
 			fmt.Fprintf(c, ",\n")
 		}
 		first = false
-		fmt.Fprintf(c, "  %q: %s", name, value)
+		fmt.Fprintf(c, "%q: %s", name, value)
 	}
 	fmt.Fprintf(c, "\n}\n")
 }
 
-func init() { http.Handle("/debug/vars", http.HandlerFunc(expvarHandler)) }
+func memstats() string {
+	var buf bytes.Buffer
+	json.MarshalIndent(&buf, &runtime.MemStats, "    ")
+	s := buf.String()
+	return s[0 : len(s)-1] // chop final \n
+}
+
+func cmdline() string {
+	var buf bytes.Buffer
+	json.Marshal(&buf, os.Args)
+	return buf.String()
+}
+
+func init() {
+	http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
+	Publish("cmdline", StringFunc(cmdline))
+	Publish("memstats", StringFunc(memstats))
+}

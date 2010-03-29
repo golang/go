@@ -157,6 +157,8 @@ struct FixAlloc
 	MLink *list;
 	byte *chunk;
 	uint32 nchunk;
+	uintptr inuse;	// in-use bytes now
+	uintptr sys;	// bytes obtained from system
 };
 
 void	FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(void*, byte*), void *arg);
@@ -168,19 +170,39 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
 // Shared with Go: if you edit this structure, also edit extern.go.
 struct MStats
 {
-	uint64	alloc;	// unprotected (approximate)
-	uint64	total_alloc;	// unprotected (approximate)
-	uint64	sys;
-	uint64	stacks;
-	uint64	inuse_pages;	// protected by mheap.Lock
-	uint64	next_gc;	// protected by mheap.Lock
-	uint64	heap_alloc;	// protected by mheap.Lock
-	uint64	nlookup;	// unprotected (approximate)
-	uint64	nmalloc;	// unprotected (approximate)
+	// General statistics.  No locking; approximate.
+	uint64	alloc;		// bytes allocated and still in use
+	uint64	total_alloc;	// bytes allocated (even if freed)
+	uint64	sys;		// bytes obtained from system (should be sum of xxx_sys below)
+	uint64	nlookup;	// number of pointer lookups
+	uint64	nmalloc;	// number of mallocs
+	
+	// Statistics about malloc heap.
+	// protected by mheap.Lock
+	uint64	heap_alloc;	// bytes allocated and still in use
+	uint64	heap_sys;	// bytes obtained from system
+	uint64	heap_idle;	// bytes in idle spans
+	uint64	heap_inuse;	// bytes in non-idle spans
+
+	// Statistics about allocation of low-level fixed-size structures.
+	// Protected by FixAlloc locks.
+	uint64	stacks_inuse;	// bootstrap stacks
+	uint64	stacks_sys;
+	uint64	mspan_inuse;	// MSpan structures
+	uint64	mspan_sys;
+	uint64	mcache_inuse;	// MCache structures
+	uint64	mcache_sys;
+	
+	// Statistics about garbage collector.
+	// Protected by stopping the world during GC.
+	uint64	next_gc;	// next GC (in heap_alloc time)
 	uint64	pause_ns;
 	uint32	numgc;
 	bool	enablegc;
 	bool	debuggc;
+	
+	// Statistics about allocation size classes.
+	// No locking; approximate.
 	struct {
 		uint32 size;
 		uint64 nmalloc;

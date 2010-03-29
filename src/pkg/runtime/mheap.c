@@ -62,7 +62,7 @@ MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
 	m->mcache->local_alloc = 0;
 	s = MHeap_AllocLocked(h, npage, sizeclass);
 	if(s != nil) {
-		mstats.inuse_pages += npage;
+		mstats.heap_inuse += npage<<PageShift;
 		if(acct)
 			mstats.heap_alloc += npage<<PageShift;
 	}
@@ -104,6 +104,8 @@ HaveSpan:
 	if(s->npages > npage) {
 		// Trim extra and put it back in the heap.
 		t = FixAlloc_Alloc(&h->spanalloc);
+		mstats.mspan_inuse = h->spanalloc.inuse;
+		mstats.mspan_sys = h->spanalloc.sys;
 		MSpan_Init(t, s->start + npage, s->npages - npage);
 		s->npages = npage;
 		MHeapMap_Set(&h->map, t->start - 1, s);
@@ -191,6 +193,8 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	// Create a fake "in use" span and free it, so that the
 	// right coalescing happens.
 	s = FixAlloc_Alloc(&h->spanalloc);
+	mstats.mspan_inuse = h->spanalloc.inuse;
+	mstats.mspan_sys = h->spanalloc.sys;
 	MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
 	MHeapMap_Set(&h->map, s->start, s);
 	MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
@@ -235,7 +239,7 @@ MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 	lock(h);
 	mstats.heap_alloc += m->mcache->local_alloc;
 	m->mcache->local_alloc = 0;
-	mstats.inuse_pages -= s->npages;
+	mstats.heap_inuse -= s->npages<<PageShift;
 	if(acct)
 		mstats.heap_alloc -= s->npages<<PageShift;
 	MHeap_FreeLocked(h, s);
@@ -262,6 +266,8 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		MSpanList_Remove(t);
 		t->state = MSpanDead;
 		FixAlloc_Free(&h->spanalloc, t);
+		mstats.mspan_inuse = h->spanalloc.inuse;
+		mstats.mspan_sys = h->spanalloc.sys;
 	}
 	if((t = MHeapMap_Get(&h->map, s->start + s->npages)) != nil && t->state != MSpanInUse) {
 		s->npages += t->npages;
@@ -269,6 +275,8 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		MSpanList_Remove(t);
 		t->state = MSpanDead;
 		FixAlloc_Free(&h->spanalloc, t);
+		mstats.mspan_inuse = h->spanalloc.inuse;
+		mstats.mspan_sys = h->spanalloc.sys;
 	}
 
 	// Insert s into appropriate list.

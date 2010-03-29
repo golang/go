@@ -77,16 +77,24 @@ func WriteHeapProfile(w io.Writer) os.Error {
 	fmt.Fprintf(b, "# Alloc = %d\n", s.Alloc)
 	fmt.Fprintf(b, "# TotalAlloc = %d\n", s.TotalAlloc)
 	fmt.Fprintf(b, "# Sys = %d\n", s.Sys)
-	fmt.Fprintf(b, "# Stacks = %d\n", s.Stacks)
-	fmt.Fprintf(b, "# InusePages = %d\n", s.InusePages)
-	fmt.Fprintf(b, "# NextGC = %d\n", s.NextGC)
-	fmt.Fprintf(b, "# HeapAlloc = %d\n", s.HeapAlloc)
 	fmt.Fprintf(b, "# Lookups = %d\n", s.Lookups)
 	fmt.Fprintf(b, "# Mallocs = %d\n", s.Mallocs)
+
+	fmt.Fprintf(b, "# HeapAlloc = %d\n", s.HeapAlloc)
+	fmt.Fprintf(b, "# HeapSys = %d\n", s.HeapSys)
+	fmt.Fprintf(b, "# HeapIdle = %d\n", s.HeapIdle)
+	fmt.Fprintf(b, "# HeapInuse = %d\n", s.HeapInuse)
+
+	fmt.Fprintf(b, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
+	fmt.Fprintf(b, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
+	fmt.Fprintf(b, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
+
+	fmt.Fprintf(b, "# NextGC = %d\n", s.NextGC)
 	fmt.Fprintf(b, "# PauseNs = %d\n", s.PauseNs)
 	fmt.Fprintf(b, "# NumGC = %d\n", s.NumGC)
 	fmt.Fprintf(b, "# EnableGC = %v\n", s.EnableGC)
 	fmt.Fprintf(b, "# DebugGC = %v\n", s.DebugGC)
+
 	fmt.Fprintf(b, "# BySize = Size * (Active = Mallocs - Frees)\n")
 	for _, t := range s.BySize {
 		if t.Mallocs > 0 {
