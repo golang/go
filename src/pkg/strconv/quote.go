@@ -239,7 +239,7 @@ func Unquote(s string) (t string, err os.Error) {
 		return s, nil
 	}
 	if quote != '"' && quote != '\'' {
-		return "", err
+		return "", os.EINVAL
 	}
 
 	var buf bytes.Buffer
