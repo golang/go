@@ -192,6 +192,3 @@ bal
 barCount != 1
 panic PC=xxx
 BUG
-
-=========== bugs/bug265.go
-BUG
