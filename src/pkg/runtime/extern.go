@@ -134,20 +134,40 @@ func Signame(sig int32) string
 func Siginit()
 
 type MemStatsType struct {
-	Alloc      uint64
-	TotalAlloc uint64
-	Sys        uint64
-	Stacks     uint64
-	InusePages uint64
-	NextGC     uint64
-	HeapAlloc  uint64
-	Lookups    uint64
-	Mallocs    uint64
-	PauseNs    uint64
-	NumGC      uint32
-	EnableGC   bool
-	DebugGC    bool
-	BySize     [67]struct {
+	// General statistics.
+	// Not locked during update; approximate.
+	Alloc      uint64 // bytes allocated and still in use
+	TotalAlloc uint64 // bytes allocated (even if freed)
+	Sys        uint64 // bytes obtained from system (should be sum of XxxSys below)
+	Lookups    uint64 // number of pointer lookups
+	Mallocs    uint64 // number of mallocs
+
+	// Main allocation heap statistics.
+	HeapAlloc uint64 // bytes allocated and still in use
+	HeapSys   uint64 // bytes obtained from system
+	HeapIdle  uint64 // bytes in idle spans
+	HeapInuse uint64 // bytes in non-idle span
+
+	// Low-level fixed-size structure allocator statistics.
+	//	Inuse is bytes used now.
+	//	Sys is bytes obtained from system.
+	StackInuse  uint64 // bootstrap stacks
+	StackSys    uint64
+	MSpanInuse  uint64 // mspan structures
+	MSpanSys    uint64
+	MCacheInuse uint64 // mcache structures
+	MCacheSys   uint64
+
+	// Garbage collector statistics.
+	NextGC   uint64
+	PauseNs  uint64
+	NumGC    uint32
+	EnableGC bool
+	DebugGC  bool
+
+	// Per-size allocation statistics.
+	// Not locked during update; approximate.
+	BySize [67]struct {
 		Size    uint32
 		Mallocs uint64
 		Frees   uint64

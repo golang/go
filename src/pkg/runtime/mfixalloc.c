@@ -21,6 +21,8 @@ FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(
 	f->list = nil;
 	f->chunk = nil;
 	f->nchunk = 0;
+	f->inuse = 0;
+	f->sys = 0;
 }
 
 void*
@@ -31,9 +33,11 @@ FixAlloc_Alloc(FixAlloc *f)
 	if(f->list) {
 		v = f->list;
 		f->list = *(void**)f->list;
+		f->inuse += f->size;
 		return v;
 	}
 	if(f->nchunk < f->size) {
+		f->sys += FixAllocChunk;
 		f->chunk = f->alloc(FixAllocChunk);
 		if(f->chunk == nil)
 			throw("out of memory (FixAlloc)");
@@ -44,12 +48,14 @@ FixAlloc_Alloc(FixAlloc *f)
 		f->first(f->arg, v);
 	f->chunk += f->size;
 	f->nchunk -= f->size;
+	f->inuse += f->size;
 	return v;
 }
 
 void
 FixAlloc_Free(FixAlloc *f, void *p)
 {
+	f->inuse -= f->size;
 	*(void**)p = f->list;
 	f->list = p;
 }

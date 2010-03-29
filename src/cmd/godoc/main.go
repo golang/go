@@ -29,8 +29,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	_ "expvar" // to serve /debug/vars
 	"http"
-	_ "http/pprof"
+	_ "http/pprof" // to serve /debug/pprof/*
 	"io"
 	"log"
 	"os"
