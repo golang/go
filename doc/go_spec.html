@@ -3754,7 +3754,7 @@ case 0, 1, 2, 3: s1()
 case 4, 5, 6, 7: s2()
 }
 
-switch x := f() {  // missing switch expression means "true"
+switch x := f(); {  // missing switch expression means "true"
 case x &lt; 0: return -x
 default: return x
 }
