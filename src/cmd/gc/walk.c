@@ -328,6 +328,23 @@ samelist(NodeList *a, NodeList *b)
 	return a == b;
 }
 
+static int
+paramoutheap(Node *fn)
+{
+	NodeList *l;
+	
+	for(l=fn->dcl; l; l=l->next) {
+		switch(l->n->class) {
+		case PPARAMOUT|PHEAP:
+			return 1;
+		case PAUTO:
+		case PAUTO|PHEAP:
+			// stop early - parameters are over
+			return 0;
+		}
+	}
+	return 0;
+}
 
 void
 walkstmt(Node **np)
@@ -441,11 +458,9 @@ walkstmt(Node **np)
 
 	case ORETURN:
 		walkexprlist(n->list, &n->ninit);
-		if(curfn->type->outnamed && count(n->list) != 1) {
-			if(n->list == nil) {
-				// print("special return\n");
-				break;
-			}
+		if(n->list == nil)
+			break;
+		if((curfn->type->outnamed && count(n->list) > 1) || paramoutheap(curfn)) {
 			// assign to the function out parameters,
 			// so that reorder3 can fix up conflicts
 			rl = nil;
