@@ -1383,9 +1383,9 @@ func indexer() {
 				nwords, nspots := index.Size()
 				log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots)
 			}
-			log.Stderrf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.InusePages<<12)
+			log.Stderrf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 			runtime.GC()
-			log.Stderrf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.InusePages<<12)
+			log.Stderrf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 		}
 		time.Sleep(1 * 60e9) // try once a minute
 	}
