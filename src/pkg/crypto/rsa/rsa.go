@@ -400,7 +400,7 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 
 	lHash2 := db[0:hash.Size()]
 
-	// We have to validate the plaintext in contanst time in order to avoid
+	// We have to validate the plaintext in constant time in order to avoid
 	// attacks like: J. Manger. A Chosen Ciphertext Attack on RSA Optimal
 	// Asymmetric Encryption Padding (OAEP) as Standardized in PKCS #1
 	// v2.0. In J. Kilian, editor, Advances in Cryptology.
