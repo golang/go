@@ -78,3 +78,22 @@ func TestEverything(t *testing.T) {
 		}
 	}
 }
+
+// Declare a user-defined flag.
+// TODO: do the work to make this test better by resetting flag state
+// and manipulating os.Args.
+type flagVar []string
+
+func (f *flagVar) String() string {
+	return "foo"
+}
+
+func (f *flagVar) Set(value string) bool {
+	return true
+}
+
+var v flagVar
+
+func init() {
+	Var(&v, "testV", "usage")
+}
