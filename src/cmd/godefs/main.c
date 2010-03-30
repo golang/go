@@ -294,8 +294,14 @@ Continue:
 	Bprint(bout, "// Constants\n");
 	if(ncon > 0) {
 		Bprint(bout, lang->constbegin);
-		for(i=0; i<ncon; i++)
-			Bprint(bout, lang->constfmt, con[i].name, con[i].value & 0xFFFFFFFF);
+		for(i=0; i<ncon; i++) {
+			// Go can handle negative constants,
+			// but C enums may not be able to.
+			if(lang == &go)
+				Bprint(bout, lang->constfmt, con[i].name, con[i].value);
+			else
+				Bprint(bout, lang->constfmt, con[i].name, con[i].value & 0xFFFFFFFF);
+		}
 		Bprint(bout, lang->constend);
 	}
 	Bprint(bout, "\n");
