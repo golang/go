@@ -239,6 +239,7 @@ struct	Stktop
 	// fp == gobuf.sp except in the case of a reflected
 	// function call, which uses an off-stack argument frame.
 	uint8*	fp;
+	bool	free;	// call stackfree for this frame?
 };
 struct	Alg
 {

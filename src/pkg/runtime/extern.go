@@ -15,6 +15,7 @@ package runtime
 func Gosched()
 
 // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
+// Goexit runs all deferred calls before terminating the goroutine.
 func Goexit()
 
 // Breakpoint() executes a breakpoint trap.

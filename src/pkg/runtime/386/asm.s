@@ -199,11 +199,11 @@ TEXT reflect·call(SB), 7, $0
 	MOVL	AX, (m_morebuf+gobuf_g)(BX)
 
 	// Set up morestack arguments to call f on a new stack.
-	// We set f's frame size to zero, meaning
-	// allocate a standard sized stack segment.
-	// If it turns out that f needs a larger frame than this,
-	// f's usual stack growth prolog will allocate
-	// a new segment (and recopy the arguments).
+	// We set f's frame size to 1, as a hint to newstack
+	// that this is a call from reflect·call.
+	// If it turns out that f needs a larger frame than
+	// the default stack, f's usual stack growth prolog will
+	// allocate a new segment (and recopy the arguments).
 	MOVL	4(SP), AX	// fn
 	MOVL	8(SP), DX	// arg frame
 	MOVL	12(SP), CX	// arg size
@@ -211,7 +211,7 @@ TEXT reflect·call(SB), 7, $0
 	MOVL	AX, m_morepc(BX)	// f's PC
 	MOVL	DX, m_morefp(BX)	// argument frame pointer
 	MOVL	CX, m_moreargs(BX)	// f's argument size
-	MOVL	$0, m_moreframe(BX)	// f's frame size
+	MOVL	$1, m_moreframe(BX)	// f's frame size
 
 	// Call newstack on m's scheduling stack.
 	MOVL	m_g0(BX), BP

@@ -7,6 +7,8 @@
 #include "malloc.h"
 #include "os.h"
 
+static void unwindstack(G*, byte*);
+
 typedef struct Sched Sched;
 
 M	m0;
@@ -221,26 +223,6 @@ mget(G *g)
 		sched.mwait--;
 	}
 	return m;
-}
-
-// Put on gfree list.  Sched must be locked.
-static void
-gfput(G *g)
-{
-	g->schedlink = sched.gfree;
-	sched.gfree = g;
-}
-
-// Get from gfree list.  Sched must be locked.
-static G*
-gfget(void)
-{
-	G *g;
-
-	g = sched.gfree;
-	if(g)
-		sched.gfree = g->schedlink;
-	return g;
 }
 
 // Mark g ready to run.
@@ -494,6 +476,7 @@ scheduler(void)
 				gp->lockedm = nil;
 				m->lockedg = nil;
 			}
+			unwindstack(gp, nil);
 			gfput(gp);
 			if(--sched.gcount == 0)
 				exit(0);
@@ -684,7 +667,8 @@ oldstack(void)
 	}
 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
 
-	stackfree(g1->stackguard - StackGuard);
+	if(old.free)
+		stackfree(g1->stackguard - StackGuard);
 	g1->stackbase = old.stackbase;
 	g1->stackguard = old.stackguard;
 
@@ -699,29 +683,42 @@ newstack(void)
 	byte *stk, *sp;
 	G *g1;
 	Gobuf label;
+	bool free;
 
 	frame = m->moreframe;
 	args = m->moreargs;
-
-	// Round up to align things nicely.
-	// This is sufficient for both 32- and 64-bit machines.
-	args = (args+7) & ~7;
-
-	if(frame < StackBig)
-		frame = StackBig;
-	frame += 1024;	// for more functions, Stktop.
-	stk = stackalloc(frame);
-
+	g1 = m->curg;
+	
+	if(frame == 1 && args > 0 && m->morebuf.sp - sizeof(Stktop) - args - 32 > g1->stackguard) {
+		// special case: called from reflect.call (frame == 1)
+		// to call code with an arbitrary argument size,
+		// and we have enough space on the current stack.
+		// the new Stktop* is necessary to unwind, but
+		// we don't need to create a new segment.
+		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
+		stk = g1->stackguard - StackGuard;
+		free = false;
+	} else {
+		// allocate new segment.
+		if(frame == 1)	// failed reflect.call hint
+			frame = 0;
+		frame += args;
+		if(frame < StackBig)
+			frame = StackBig;
+		frame += 1024;	// room for more functions, Stktop.
+		stk = stackalloc(frame);
+		top = (Stktop*)(stk+frame-sizeof(*top));
+		free = true;
+	}
 
 //printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
 
-	g1 = m->curg;
-	top = (Stktop*)(stk+frame-sizeof(*top));
 	top->stackbase = g1->stackbase;
 	top->stackguard = g1->stackguard;
 	top->gobuf = m->morebuf;
 	top->fp = m->morefp;
 	top->args = args;
+	top->free = free;
 
 	g1->stackbase = (byte*)top;
 	g1->stackguard = stk + StackGuard;
@@ -792,6 +789,8 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 
 	if((newg = gfget()) != nil){
 		newg->status = Gwaiting;
+		if(newg->stackguard - StackGuard != newg->stack0)
+			throw("invalid stack in newg");
 	} else {
 		newg = malg(4096);
 		newg->status = Gwaiting;
@@ -853,7 +852,63 @@ void
 	fn = d->fn;
 	free(d);
 	jmpdefer(fn, sp);
-  }
+}
+
+static void
+rundefer(void)
+{	
+	Defer *d;
+	
+	while((d = g->defer) != nil) {
+		g->defer = d->link;
+		reflect·call(d->fn, d->args, d->siz);
+		free(d);
+	}
+}
+
+// Free stack frames until we hit the last one
+// or until we find the one that contains the sp.
+static void
+unwindstack(G *gp, byte *sp)
+{
+	Stktop *top;
+	byte *stk;
+	
+	// Must be called from a different goroutine, usually m->g0.
+	if(g == gp)
+		throw("unwindstack on self");
+
+	while((top = (Stktop*)gp->stackbase) != nil && top->stackbase != nil) {
+		stk = gp->stackguard - StackGuard;
+		if(stk <= sp && sp < gp->stackbase)
+			break;
+		gp->stackbase = top->stackbase;
+		gp->stackguard = top->stackguard;
+		free(stk);
+	}
+}
+
+// Put on gfree list.  Sched must be locked.
+static void
+gfput(G *g)
+{
+	if(g->stackguard - StackGuard != g->stack0)
+		throw("invalid stack in gfput");
+	g->schedlink = sched.gfree;
+	sched.gfree = g;
+}
+
+// Get from gfree list.  Sched must be locked.
+static G*
+gfget(void)
+{
+	G *g;
+
+	g = sched.gfree;
+	if(g)
+		sched.gfree = g->schedlink;
+	return g;
+}
 
 void
 ·Breakpoint(void)
@@ -864,6 +919,7 @@ void
 void
 ·Goexit(void)
 {
+	rundefer();
 	goexit();
 }
 
