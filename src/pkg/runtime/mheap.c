@@ -176,6 +176,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
 		if(v == nil)
 			return false;
 	}
+	mstats.heap_sys += ask;
 
 	if((byte*)v < h->min || h->min == nil)
 		h->min = v;

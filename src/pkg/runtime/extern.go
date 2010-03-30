@@ -157,6 +157,8 @@ type MemStatsType struct {
 	MSpanSys    uint64
 	MCacheInuse uint64 // mcache structures
 	MCacheSys   uint64
+	MHeapMapSys uint64 // heap map
+	BuckHashSys uint64 // profiling bucket hash table
 
 	// Garbage collector statistics.
 	NextGC   uint64

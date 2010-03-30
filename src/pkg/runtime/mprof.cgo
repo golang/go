@@ -44,8 +44,10 @@ stkbucket(uintptr *stk, int32 nstk)
 	uintptr h;
 	Bucket *b;
 
-	if(buckhash == nil)
+	if(buckhash == nil) {
 		buckhash = SysAlloc(BuckHashSize*sizeof buckhash[0]);
+		mstats.buckhash_sys += BuckHashSize*sizeof buckhash[0];
+	}
 
 	// Hash stack.
 	h = 0;

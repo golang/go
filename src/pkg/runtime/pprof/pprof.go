@@ -88,6 +88,8 @@ func WriteHeapProfile(w io.Writer) os.Error {
 	fmt.Fprintf(b, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
 	fmt.Fprintf(b, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
 	fmt.Fprintf(b, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
+	fmt.Fprintf(b, "# MHeapMapSys = %d\n", s.MHeapMapSys)
+	fmt.Fprintf(b, "# BuckHashSys = %d\n", s.BuckHashSys)
 
 	fmt.Fprintf(b, "# NextGC = %d\n", s.NextGC)
 	fmt.Fprintf(b, "# PauseNs = %d\n", s.PauseNs)
@@ -96,6 +98,7 @@ func WriteHeapProfile(w io.Writer) os.Error {
 	fmt.Fprintf(b, "# DebugGC = %v\n", s.DebugGC)
 
 	fmt.Fprintf(b, "# BySize = Size * (Active = Mallocs - Frees)\n")
+	fmt.Fprintf(b, "# (Excluding large blocks.)\n")
 	for _, t := range s.BySize {
 		if t.Mallocs > 0 {
 			fmt.Fprintf(b, "#   %d * (%d = %d - %d)\n", t.Size, t.Mallocs-t.Frees, t.Mallocs, t.Frees)
