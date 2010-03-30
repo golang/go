@@ -25,7 +25,4 @@ while(<>){
 
 print <<EOF;
 )
-
-func _darwin_system_call_conflict() {
-}
 EOF
