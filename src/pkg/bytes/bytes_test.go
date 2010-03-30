@@ -188,7 +188,8 @@ func bmIndex(b *testing.B, index func([]byte, byte) int, n int) {
 	for i := 0; i < b.N; i++ {
 		j := index(buf, 'x')
 		if j != n-1 {
-			panic("bad index", j)
+			println("bad index", j)
+			panic("bad index")
 		}
 	}
 	buf[n-1] = '0'

@@ -75,7 +75,7 @@ func NewReader(rd io.Reader) *Reader {
 	b, err := NewReaderSize(rd, defaultBufSize)
 	if err != nil {
 		// cannot happen - defaultBufSize is a valid size
-		panic("bufio: NewReader: ", err.String())
+		panic(err)
 	}
 	return b
 }
@@ -353,7 +353,7 @@ func NewWriter(wr io.Writer) *Writer {
 	b, err := NewWriterSize(wr, defaultBufSize)
 	if err != nil {
 		// cannot happen - defaultBufSize is valid size
-		panic("bufio: NewWriter: ", err.String())
+		panic(err)
 	}
 	return b
 }

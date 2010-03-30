@@ -6,74 +6,72 @@
 
 package main
 
-var	a,b,c,d,e,f,g,h,i int;
+var a, b, c, d, e, f, g, h, i int
 
-func
-printit() {
-	println(a,b,c,d,e,f,g,h,i);
+func printit() {
+	println(a, b, c, d, e, f, g, h, i)
 }
 
-func
-testit(permuteok bool) bool {
+func testit(permuteok bool) bool {
 	if a+b+c+d+e+f+g+h+i != 45 {
-		print("sum does not add to 45\n");
-		printit();
-		return false;
+		print("sum does not add to 45\n")
+		printit()
+		return false
 	}
-	return	permuteok ||
+	return permuteok ||
 		a == 1 &&
-		b == 2 &&
-		c == 3 &&
-		d == 4 &&
-		e == 5 &&
-		f == 6 &&
-		g == 7 &&
-		h == 8 &&
-		i == 9;
+			b == 2 &&
+			c == 3 &&
+			d == 4 &&
+			e == 5 &&
+			f == 6 &&
+			g == 7 &&
+			h == 8 &&
+			i == 9
 }
 
-func
-swap(x, y int) (u, v int) {
+func swap(x, y int) (u, v int) {
 	return y, x
 }
 
-func
-main() {
-	a = 1;
-	b = 2;
-	c = 3;
-	d = 4;
-	e = 5;
-	f = 6;
-	g = 7;
-	h = 8;
-	i = 9;
+func main() {
+	a = 1
+	b = 2
+	c = 3
+	d = 4
+	e = 5
+	f = 6
+	g = 7
+	h = 8
+	i = 9
 
-	if !testit(false) { panic("init val\n"); }
+	if !testit(false) {
+		panic("init val\n")
+	}
 
-	for z:=0; z<100; z++ {
-		a,b,c,d, e,f,g,h,i = b,c,d,a, i,e,f,g,h;
+	for z := 0; z < 100; z++ {
+		a, b, c, d, e, f, g, h, i = b, c, d, a, i, e, f, g, h
 
 		if !testit(z%20 != 19) {
-			print("on ", z, "th iteration\n");
-			printit();
-			panic();
+			print("on ", z, "th iteration\n")
+			printit()
+			panic("fail")
 		}
 	}
 
 	if !testit(false) {
-		print("final val\n");
-		printit();
-		panic();
+		print("final val\n")
+		printit()
+		panic("fail")
 	}
 
-	a, b = swap(1, 2);
+	a, b = swap(1, 2)
 	if a != 2 || b != 1 {
-		panic("bad swap");
+		panic("bad swap")
 	}
 
-	a, b = swap(swap(a, b));
+	a, b = swap(swap(a, b))
 	if a != 2 || b != 1 {
-		panic("bad swap");
+		panic("bad swap")
 	}
 }

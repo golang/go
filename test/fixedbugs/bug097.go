@@ -6,16 +6,22 @@
 
 package main
 
-type A []int;
+type A []int
 
 func main() {
-	var a [3]A;
+	var a [3]A
 	for i := 0; i < 3; i++ {
-		a[i] = A{i};
+		a[i] = A{i}
 	}
-	if a[0][0] != 0 { panic(); }
-	if a[1][0] != 1 { panic(); }
-	if a[2][0] != 2 { panic(); }
+	if a[0][0] != 0 {
+		panic("fail a[0][0]")
+	}
+	if a[1][0] != 1 {
+		panic("fail a[1][0]")
+	}
+	if a[2][0] != 2 {
+		panic("fail a[2][0]")
+	}
 }
 
 /*
@@ -41,7 +47,7 @@ pc: 0x4558
 */
 
 /* An array composite literal needs to be created freshly every time.
-	 It is a "construction" of an array after all. If I pass the address
-	 of the array to some function, it may store it globally. Same applies
-	 to struct literals.
+It is a "construction" of an array after all. If I pass the address
+of the array to some function, it may store it globally. Same applies
+to struct literals.
 */

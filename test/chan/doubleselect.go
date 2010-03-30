@@ -56,7 +56,8 @@ func recver(in <-chan int) {
 			break
 		}
 		if _, ok := seen[v]; ok {
-			panic("got duplicate value: ", v)
+			println("got duplicate value: ", v)
+			panic("fail")
 		}
 		seen[v] = true
 	}

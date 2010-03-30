@@ -7,18 +7,21 @@
 package main
 
 type Service struct {
-	rpc [2]int;
+	rpc [2]int
 }
 
 func (s *Service) Serve(a int64) {
-	if a != 1234 { panic(a, " not 1234\n") }
+	if a != 1234 {
+		print(a, " not 1234\n")
+		panic("fail")
+	}
 }
 
 var arith Service
 
 func main() {
-	c := make(chan string);
-	a := new(Service);
-	go a.Serve(1234);
-	_ = c;
+	c := make(chan string)
+	a := new(Service)
+	go a.Serve(1234)
+	_ = c
 }

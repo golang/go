@@ -58,9 +58,10 @@ func main() {
 	for i := 0; i < N; i++ {
 		runtime.GC()
 		runtime.Gosched()
-		time.Sleep(1e6);
+		time.Sleep(1e6)
 	}
 	if nfinal < N*8/10 {
-		panic("not enough finalizing:", nfinal, "/", N)
+		println("not enough finalizing:", nfinal, "/", N)
+		panic("fail")
 	}
 }

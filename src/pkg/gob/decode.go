@@ -777,7 +777,7 @@ func init() {
 	case unsafe.Sizeof(float64(0)):
 		op = decFloat64
 	default:
-		panic("gob: unknown size of float", unsafe.Sizeof(float(0)))
+		panic("gob: unknown size of float")
 	}
 	decOpMap[valueKind(float(0))] = op
 
@@ -791,7 +791,7 @@ func init() {
 		op = decInt64
 		uop = decUint64
 	default:
-		panic("gob: unknown size of int/uint", unsafe.Sizeof(int(0)))
+		panic("gob: unknown size of int/uint")
 	}
 	decOpMap[valueKind(int(0))] = op
 	decOpMap[valueKind(uint(0))] = uop
@@ -803,7 +803,7 @@ func init() {
 	case unsafe.Sizeof(uint64(0)):
 		uop = decUint64
 	default:
-		panic("gob: unknown size of uintptr", unsafe.Sizeof(uintptr(0)))
+		panic("gob: unknown size of uintptr")
 	}
 	decOpMap[valueKind(uintptr(0))] = uop
 }

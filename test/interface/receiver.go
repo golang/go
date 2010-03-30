@@ -22,7 +22,8 @@ func (t T) V() {
 
 func (t *T) P() {
 	if *t != 42 {
-		panic(t, *t)
+		println(t, *t)
+		panic("fail")
 	}
 	np++
 }

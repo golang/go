@@ -983,7 +983,7 @@ func ParseFile(filename string, fmap FormatterMap) (t *Template, err os.Error) {
 func MustParse(s string, fmap FormatterMap) *Template {
 	t, err := Parse(s, fmap)
 	if err != nil {
-		panic("template parse error: ", err.String())
+		panic("template.MustParse error: " + err.String())
 	}
 	return t
 }
@@ -993,7 +993,7 @@ func MustParse(s string, fmap FormatterMap) *Template {
 func MustParseFile(filename string, fmap FormatterMap) *Template {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
-		panic("template parse error: ", err.String())
+		panic("template.MustParseFile error: " + err.String())
 	}
 	return MustParse(string(b), fmap)
 }

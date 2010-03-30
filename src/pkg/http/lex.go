@@ -10,20 +10,16 @@ func isSeparator(c byte) bool {
 	switch c {
 	case '(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', '{', '}', ' ', '\t':
 		return true
-	default:
-		return false
 	}
-	panic()
+	return false
 }
 
 func isSpace(c byte) bool {
 	switch c {
 	case ' ', '\t', '\r', '\n':
 		return true
-	default:
-		return false
 	}
-	panic()
+	return false
 }
 
 func isCtl(c byte) bool { return (0 <= c && c <= 31) || c == 127 }

@@ -70,6 +70,7 @@ func main() {
 	m[ic] = 1
 	m[id] = 2
 	if m[ic] != 2 {
-		panic("m[ic] = ", m[ic])
+		println("m[ic] = ", m[ic])
+		panic("bad m[ic]")
 	}
 }

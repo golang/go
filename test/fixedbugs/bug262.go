@@ -40,13 +40,15 @@ func main() {
 	m := make(map[string]int)
 	m[f()], *g() = strconv.Atoi(h())
 	if m["abc"] != 123 || trace != "fgh" {
-		panic("BUG", m["abc"], trace)
+		println("BUG", m["abc"], trace)
+		panic("fail")
 	}
 	mm := make(map[string]os.Error)
 	trace = ""
 	mm["abc"] = os.EINVAL
 	*i(), mm[f()] = strconv.Atoi(h())
 	if mm["abc"] != nil || trace != "ifh" {
-		panic("BUG1", mm["abc"], trace)
+		println("BUG1", mm["abc"], trace)
+		panic("fail")
 	}
 }

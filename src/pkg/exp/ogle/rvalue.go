@@ -232,7 +232,7 @@ func (v remoteFloat) aGet(a aborter) float64 {
 	case 8:
 		return v.r.p.ToFloat64(bits)
 	}
-	panic("Unexpected float size ", v.size)
+	panic("Unexpected float size")
 }
 
 func (v remoteFloat) Set(t *eval.Thread, x float64) {
@@ -247,7 +247,7 @@ func (v remoteFloat) aSet(a aborter, x float64) {
 	case 8:
 		bits = v.r.p.FromFloat64(x)
 	default:
-		panic("Unexpected float size ", v.size)
+		panic("Unexpected float size")
 	}
 	v.r.Set(a, v.size, bits)
 }

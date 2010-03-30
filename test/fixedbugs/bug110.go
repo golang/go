@@ -14,6 +14,7 @@ func f() {
 
 func main() {
 	if a != 0 {
-		panic("a=", a)
+		println("a=", a)
+		panic("fail")
 	}
 }

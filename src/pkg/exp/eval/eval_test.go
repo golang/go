@@ -196,7 +196,7 @@ func toValue(val interface{}) Value {
 		return &funcV{val}
 	}
 	log.Crashf("toValue(%T) not implemented", val)
-	panic()
+	panic("unreachable")
 }
 
 /*

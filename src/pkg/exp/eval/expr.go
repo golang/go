@@ -642,7 +642,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 		return ei.compileUnaryExpr(x.Op, v)
 	}
 	log.Crashf("unexpected ast node type %T", x)
-	panic()
+	panic("unreachable")
 
 typeexpr:
 	if !callCtx {
@@ -704,7 +704,7 @@ func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name stri
 		return nil
 	}
 	log.Crashf("name %s has unknown type %T", name, def)
-	panic()
+	panic("unreachable")
 }
 
 func (a *exprInfo) compileVariable(level int, v *Variable) *expr {
@@ -1424,7 +1424,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 	}
 
 	log.Crashf("unexpected built-in function '%s'", ft.builtin)
-	panic()
+	panic("unreachable")
 }
 
 func (a *exprInfo) compileStarExpr(v *expr) *expr {

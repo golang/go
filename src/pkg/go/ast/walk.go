@@ -316,7 +316,7 @@ func Walk(v Visitor, node interface{}) {
 
 	default:
 		fmt.Printf("ast.Walk: unexpected type %T", n)
-		panic()
+		panic("ast.Walk")
 	}
 
 	v.Visit(nil)

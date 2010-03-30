@@ -15,7 +15,7 @@ import (
 func Seconds() int64 {
 	sec, _, err := os.Time()
 	if err != nil {
-		panic("time: os.Time: ", err.String())
+		panic(err)
 	}
 	return sec
 }
@@ -25,7 +25,7 @@ func Seconds() int64 {
 func Nanoseconds() int64 {
 	sec, nsec, err := os.Time()
 	if err != nil {
-		panic("time: os.Time: ", err.String())
+		panic(err)
 	}
 	return sec*1e9 + nsec
 }

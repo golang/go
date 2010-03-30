@@ -11,6 +11,7 @@ import (
 	"os"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // Network file descriptor.
@@ -176,12 +177,7 @@ func (s *pollServer) WakeFD(fd *netFD, mode int) {
 }
 
 func (s *pollServer) Now() int64 {
-	sec, nsec, err := os.Time()
-	if err != nil {
-		panic("net: os.Time: ", err.String())
-	}
-	nsec += sec * 1e9
-	return nsec
+	return time.Nanoseconds()
 }
 
 func (s *pollServer) CheckDeadlines() {

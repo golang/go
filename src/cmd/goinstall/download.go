@@ -55,7 +55,7 @@ func download(pkg string) (string, os.Error) {
 			v = &svn
 		default:
 			// regexp only allows hg, svn to get through
-			panic("missing case in download: ", pkg)
+			panic("missing case in download: " + pkg)
 		}
 		if err := vcsCheckout(v, root+m[1], "http://"+m[1], m[1]); err != nil {
 			return "", err

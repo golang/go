@@ -20,9 +20,10 @@ type S4 struct {
 	S3
 	S1
 }
+
 func main() {
 	var s4 S4
-	if s4.i != 0 {	// .i refers to s4.S1.i, unambiguously
-		panic()
+	if s4.i != 0 { // .i refers to s4.S1.i, unambiguously
+		panic("fail")
 	}
 }

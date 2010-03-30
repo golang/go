@@ -571,7 +571,7 @@ func (v *ArrayValue) Elem(i int) Value {
 	typ := v.typ.(*ArrayType).Elem()
 	n := v.Len()
 	if i < 0 || i >= n {
-		panic("index", i, "in array len", n)
+		panic("array index out of bounds")
 	}
 	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size())
 	return newValue(typ, p, v.canSet)
@@ -642,7 +642,7 @@ func (v *SliceValue) Get() uintptr {
 func (v *SliceValue) Slice(beg, end int) *SliceValue {
 	cap := v.Cap()
 	if beg < 0 || end < beg || end > cap {
-		panic("slice bounds [", beg, ":", end, "] with capacity ", cap)
+		panic("slice index out of bounds")
 	}
 	typ := v.typ.(*SliceType)
 	s := new(SliceHeader)
