@@ -149,9 +149,9 @@ func TestRemove2(t *testing.T) {
 	}
 	h.verify(t, 0)
 
-	m := make(map[int]int)
+	m := make(map[int]bool)
 	for h.Len() > 0 {
-		m[Remove(h, (h.Len()-1)/2).(int)] = 1
+		m[Remove(h, (h.Len()-1)/2).(int)] = true
 		h.verify(t, 0)
 	}
 
@@ -159,7 +159,7 @@ func TestRemove2(t *testing.T) {
 		t.Errorf("len(m) = %d; want %d", len(m), N)
 	}
 	for i := 0; i < len(m); i++ {
-		if _, exists := m[i]; !exists {
+		if !m[i] {
 			t.Errorf("m[%d] doesn't exist", i)
 		}
 	}

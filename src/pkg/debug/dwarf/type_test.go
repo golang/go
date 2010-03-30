@@ -87,7 +87,7 @@ func testTypedefs(t *testing.T, d *Data) {
 			}
 
 			if want, ok := typedefTests[t1.Name]; ok {
-				if _, ok := seen[t1.Name]; ok {
+				if seen[t1.Name] {
 					t.Errorf("multiple definitions for %s", t1.Name)
 				}
 				seen[t1.Name] = true
@@ -102,7 +102,7 @@ func testTypedefs(t *testing.T, d *Data) {
 	}
 
 	for k := range typedefTests {
-		if _, ok := seen[k]; !ok {
+		if !seen[k] {
 			t.Errorf("missing %s", k)
 		}
 	}

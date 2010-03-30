@@ -44,8 +44,7 @@ func readHosts() {
 			}
 			for i := 1; i < len(f); i++ {
 				h := f[i]
-				old, _ := hs[h]
-				hs[h] = appendHost(old, f[0])
+				hs[h] = appendHost(hs[h], f[0])
 			}
 		}
 		// Update the data cache.

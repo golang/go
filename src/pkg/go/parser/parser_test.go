@@ -91,8 +91,8 @@ func TestParse4(t *testing.T) {
 	if len(pkgs) != 1 {
 		t.Errorf("incorrect number of packages: %d", len(pkgs))
 	}
-	pkg, found := pkgs["parser"]
-	if pkg == nil || !found {
+	pkg := pkgs["parser"]
+	if pkg == nil {
 		t.Errorf(`package "parser" not found`)
 		return
 	}

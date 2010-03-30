@@ -539,10 +539,7 @@ type evalMap map[interface{}]Value
 func (m evalMap) Len(t *Thread) int64 { return int64(len(m)) }
 
 func (m evalMap) Elem(t *Thread, key interface{}) Value {
-	if v, ok := m[key]; ok {
-		return v
-	}
-	return nil
+	return m[key]
 }
 
 func (m evalMap) SetElem(t *Thread, key interface{}, val Value) {

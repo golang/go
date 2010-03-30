@@ -239,11 +239,7 @@ func Visit(fn func(*Flag)) {
 
 // Lookup returns the Flag structure of the named flag, returning nil if none exists.
 func Lookup(name string) *Flag {
-	f, ok := flags.formal[name]
-	if !ok {
-		return nil
-	}
-	return f
+	return flags.formal[name]
 }
 
 // Set sets the value of the named flag.  It returns true if the set succeeded; false if

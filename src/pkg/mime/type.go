@@ -78,6 +78,5 @@ func initMime() {
 // When ext has no associated type, TypeByExtension returns "".
 func TypeByExtension(ext string) string {
 	once.Do(initMime)
-	typ, _ := mimeTypes[ext]
-	return typ
+	return mimeTypes[ext]
 }

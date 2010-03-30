@@ -49,13 +49,13 @@ type badStringError struct {
 
 func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e.str) }
 
-var reqExcludeHeader = map[string]int{
-	"Host":              0,
-	"User-Agent":        0,
-	"Referer":           0,
-	"Content-Length":    0,
-	"Transfer-Encoding": 0,
-	"Trailer":           0,
+var reqExcludeHeader = map[string]bool{
+	"Host":              true,
+	"User-Agent":        true,
+	"Referer":           true,
+	"Content-Length":    true,
+	"Transfer-Encoding": true,
+	"Trailer":           true,
 }
 
 // A Request represents a parsed HTTP request header.
@@ -518,24 +518,19 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	Host: doesntmatter
 	// the same.  In the second case, any Host line is ignored.
 	req.Host = req.URL.Host
-	if v, present := req.Header["Host"]; present {
-		if req.Host == "" {
-			req.Host = v
-		}
-		req.Header["Host"] = "", false
+	if req.Host == "" {
+		req.Host = req.Header["Host"]
 	}
+	req.Header["Host"] = "", false
 
 	fixPragmaCacheControl(req.Header)
 
 	// Pull out useful fields as a convenience to clients.
-	if v, present := req.Header["Referer"]; present {
-		req.Referer = v
-		req.Header["Referer"] = "", false
-	}
-	if v, present := req.Header["User-Agent"]; present {
-		req.UserAgent = v
-		req.Header["User-Agent"] = "", false
-	}
+	req.Referer = req.Header["Referer"]
+	req.Header["Referer"] = "", false
+
+	req.UserAgent = req.Header["User-Agent"]
+	req.Header["User-Agent"] = "", false
 
 	// TODO: Parse specific header values:
 	//	Accept
@@ -572,7 +567,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 }
 
 func ParseQuery(query string) (m map[string][]string, err os.Error) {
-	data := make(map[string]*vector.StringVector)
+	m = make(map[string][]string)
 	for _, kv := range strings.Split(query, "&", 0) {
 		kvPair := strings.Split(kv, "=", 2)
 
@@ -586,17 +581,9 @@ func ParseQuery(query string) (m map[string][]string, err os.Error) {
 			err = e
 		}
 
-		vec, ok := data[key]
-		if !ok {
-			vec = new(vector.StringVector)
-			data[key] = vec
-		}
+		vec := vector.StringVector(m[key])
 		vec.Push(value)
-	}
-
-	m = make(map[string][]string)
-	for k, vec := range data {
-		m[k] = vec.Data()
+		m[key] = vec
 	}
 
 	return
@@ -618,7 +605,7 @@ func (r *Request) ParseForm() (err os.Error) {
 			r.Form = make(map[string][]string)
 			return os.ErrorString("missing form body")
 		}
-		ct, _ := r.Header["Content-Type"]
+		ct := r.Header["Content-Type"]
 		switch strings.Split(ct, ";", 2)[0] {
 		case "text/plain", "application/x-www-form-urlencoded", "":
 			var b []byte
@@ -643,7 +630,7 @@ func (r *Request) FormValue(key string) string {
 	if r.Form == nil {
 		r.ParseForm()
 	}
-	if vs, ok := r.Form[key]; ok && len(vs) > 0 {
+	if vs := r.Form[key]; len(vs) > 0 {
 		return vs[0]
 	}
 	return ""

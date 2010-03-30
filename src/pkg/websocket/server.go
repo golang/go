@@ -75,14 +75,11 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 	}
 	// HTTP version can be safely ignored.
 
-	if v, found := req.Header["Upgrade"]; !found ||
-		strings.ToLower(v) != "websocket" {
+	if strings.ToLower(req.Header["Upgrade"]) != "websocket" ||
+		strings.ToLower(req.Header["Connection"]) != "upgrade" {
 		return
 	}
-	if v, found := req.Header["Connection"]; !found ||
-		strings.ToLower(v) != "upgrade" {
-		return
-	}
+
 	// TODO(ukai): check Host
 	origin, found := req.Header["Origin"]
 	if !found {
@@ -181,12 +178,12 @@ func (f Draft75Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 		io.WriteString(c, "Unexpected request")
 		return
 	}
-	if v, found := req.Header["Upgrade"]; !found || v != "WebSocket" {
+	if req.Header["Upgrade"] != "WebSocket" {
 		c.WriteHeader(http.StatusBadRequest)
 		io.WriteString(c, "missing Upgrade: WebSocket header")
 		return
 	}
-	if v, found := req.Header["Connection"]; !found || v != "Upgrade" {
+	if req.Header["Connection"] != "Upgrade" {
 		c.WriteHeader(http.StatusBadRequest)
 		io.WriteString(c, "missing Connection: Upgrade header")
 		return

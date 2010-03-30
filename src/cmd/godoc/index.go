@@ -682,8 +682,8 @@ func (x *Index) Size() (nwords int, nspots int) {
 
 
 func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
-	match, _ = x.words[w]
-	alt, _ = x.alts[canonical(w)]
+	match = x.words[w]
+	alt = x.alts[canonical(w)]
 	// remove current spelling from alternatives
 	// (if there is no match, the alternatives do
 	// not contain the current spelling)

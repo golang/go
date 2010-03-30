@@ -845,7 +845,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 		}
 
 		// Don't check the same type twice and avoid loops
-		if _, ok := visited[t]; ok {
+		if visited[t] {
 			return nil
 		}
 		visited[t] = true

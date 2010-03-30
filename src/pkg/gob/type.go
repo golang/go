@@ -133,7 +133,7 @@ func newArrayType(name string, elem gobType, length int) *arrayType {
 }
 
 func (a *arrayType) safeString(seen map[typeId]bool) string {
-	if _, ok := seen[a._id]; ok {
+	if seen[a._id] {
 		return a.name
 	}
 	seen[a._id] = true
@@ -155,7 +155,7 @@ func newSliceType(name string, elem gobType) *sliceType {
 }
 
 func (s *sliceType) safeString(seen map[typeId]bool) string {
-	if _, ok := seen[s._id]; ok {
+	if seen[s._id] {
 		return s.name
 	}
 	seen[s._id] = true

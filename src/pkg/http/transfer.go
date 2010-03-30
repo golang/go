@@ -340,11 +340,8 @@ func fixLength(status int, requestMethod string, header map[string]string, te []
 	// Logic based on media type. The purpose of the following code is just
 	// to detect whether the unsupported "multipart/byteranges" is being
 	// used. A proper Content-Type parser is needed in the future.
-	if ct, present := header["Content-Type"]; present {
-		ct = strings.ToLower(ct)
-		if strings.Index(ct, "multipart/byteranges") >= 0 {
-			return -1, ErrNotSupported
-		}
+	if strings.Index(strings.ToLower(header["Content-Type"]), "multipart/byteranges") >= 0 {
+		return -1, ErrNotSupported
 	}
 
 	// Body-EOF logic based on other methods (like closing, or chunked coding)

@@ -29,18 +29,10 @@ func nameToKey(name *x509.Name) string {
 // FindParent attempts to find the certificate in s which signs the given
 // certificate. If no such certificate can be found, it returns nil.
 func (s *CASet) FindParent(cert *x509.Certificate) (parent *x509.Certificate) {
-	var ok bool
-
 	if len(cert.AuthorityKeyId) > 0 {
-		parent, ok = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
-	} else {
-		parent, ok = s.byName[nameToKey(&cert.Issuer)]
+		return s.bySubjectKeyId[string(cert.AuthorityKeyId)]
 	}
-
-	if !ok {
-		return nil
-	}
-	return parent
+	return s.byName[nameToKey(&cert.Issuer)]
 }
 
 // SetFromPEM attempts to parse a series of PEM encoded root certificates. It

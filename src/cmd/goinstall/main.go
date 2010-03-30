@@ -85,7 +85,7 @@ func printDeps(pkg string) {
 // install installs the package named by path, which is needed by parent.
 func install(pkg, parent string) {
 	// Make sure we're not already trying to install pkg.
-	switch v, _ := visit[pkg]; v {
+	switch visit[pkg] {
 	case done:
 		return
 	case visiting:

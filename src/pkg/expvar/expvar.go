@@ -87,10 +87,7 @@ func (v *Map) Init() *Map {
 func (v *Map) Get(key string) Var {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	if av, ok := v.m[key]; ok {
-		return av
-	}
-	return nil
+	return v.m[key]
 }
 
 func (v *Map) Set(key string, av Var) {
@@ -168,10 +165,7 @@ func Publish(name string, v Var) {
 
 // Get retrieves a named exported variable.
 func Get(name string) Var {
-	if v, ok := vars[name]; ok {
-		return v
-	}
-	return nil
+	return vars[name]
 }
 
 // RemoveAll removes all exported variables.

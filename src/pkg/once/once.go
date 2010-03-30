@@ -38,8 +38,8 @@ var joblock sync.Mutex
 // func each time f runs, and each of those funcs is run once.
 func Do(f func()) {
 	joblock.Lock()
-	j, present := jobs[f]
-	if !present {
+	j := jobs[f]
+	if j == nil {
 		// run it
 		j = new(job)
 		j.Lock()
