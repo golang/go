@@ -472,7 +472,7 @@ func stripCommonPrefix(lines [][]byte) {
 		for i, line := range lines[1 : len(lines)-1] {
 			switch {
 			case isBlank(line):
-				lines[i+1] = nil
+				lines[1+i] = nil // range starts at line 1
 			case prefix == nil:
 				prefix = commonPrefix(line, line)
 			default:
@@ -521,7 +521,7 @@ func stripCommonPrefix(lines [][]byte) {
 		} else {
 			// comment text on the first line
 			suffix := make([]byte, len(first))
-			n := 2
+			n := 2 // start after opening /*
 			for n < len(first) && first[n] <= ' ' {
 				suffix[n] = first[n]
 				n++
@@ -563,9 +563,9 @@ func stripCommonPrefix(lines [][]byte) {
 	}
 
 	// Remove the common prefix from all but the first and empty lines.
-	for i, line := range lines {
-		if i > 0 && len(line) != 0 {
-			lines[i] = line[len(prefix):]
+	for i, line := range lines[1:] {
+		if len(line) != 0 {
+			lines[1+i] = line[len(prefix):] // range starts at line 1
 		}
 	}
 }

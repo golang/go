@@ -260,7 +260,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 			} else if mode&periodSep == 0 {
 				p.print(blank)
 			}
-			// period-separadet list elements don't need a blank
+			// period-separated list elements don't need a blank
 		}
 
 		if isPair && size > 0 && len(list) > 1 {
@@ -676,8 +676,6 @@ func isBinary(expr ast.Expr) bool {
 // type assertions, all of which may be found in selector chains, to make them
 // parts of the chain.
 func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
-	// Rewrite call and index expressions to be a part of the selector chain so
-	// that their multiline arguments get indented correctly.
 	switch x := expr.(type) {
 	case *ast.SelectorExpr:
 		body, suffix = x.X, x.Sel
@@ -714,7 +712,8 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
 
 // Convert an expression into an expression list split at the periods of
 // selector expressions.
-func selectorExprList(expr ast.Expr) (result []ast.Expr) {
+func selectorExprList(expr ast.Expr) []ast.Expr {
+	// split expression
 	var list vector.Vector
 	for expr != nil {
 		var suffix ast.Expr
@@ -722,13 +721,14 @@ func selectorExprList(expr ast.Expr) (result []ast.Expr) {
 		list.Push(suffix)
 	}
 
-	result = make([]ast.Expr, len(list))
+	// convert expression list
+	result := make([]ast.Expr, len(list))
 	i := len(result)
 	for _, x := range list {
 		i--
 		result[i] = x.(ast.Expr)
 	}
-	return
+	return result
 }
 
 

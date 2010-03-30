@@ -423,19 +423,19 @@ func _() {
 		1).foo(2)
 
 	_ = Array[3 +
-		4]
+4]
 
 	_ = Method(1, 2,
 		3)
 
 	_ = new(T).
-	foo().
-	bar().(*Type)
+   foo().
+   bar() . (*Type)
 
 	_ = new(T).
-	foo().
-	bar().(*Type).
-	baz()
+foo().
+bar().(*Type).
+baz()
 
 	_ = new(T).
 	foo().
@@ -443,7 +443,7 @@ func _() {
 
 	_ = new(T).
 	foo().
-	bar()["idx"].
+	bar()["idx"]	.
 	baz()
 
 	_ = new(T).
@@ -459,10 +459,32 @@ func _() {
 		Field.
 		Array[3+
        		4].
-		Table["foo"].
-		Blob.(*Type).
-		Slices[1:4].
-		Method(1, 2,
-		3).
+		Table ["foo"].
+		Blob. (*Type).
+	Slices[1:4].
+	Method(1, 2,
+	3).
 		Thingy
+
+	_ = a.b.c
+	_ = a.
+	b.
+	c
+	_ = a.b().c
+	_ = a.
+	b().
+	c
+	_ = a.b[0].c
+	_ = a.
+	b[0].
+	c
+	_ = a.b[0:].c
+	_ = a.
+	b[0:].
+	c
+	_ = a.b.(T).c
+	_ = a.
+	b.
+	(T).
+	c
 }
