@@ -15,6 +15,10 @@
 		func init() {
 			flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
 		}
+	Or you can create custom flags that satisfy the Value interface (with
+	pointer receivers) and couple them to flag parsing by
+		flag.Var(&flagVal, "name", "help message for flagname")
+	For such flags, the default value is just the initial value of the variable.
 
 	2) After all flags are defined, call
 		flag.Parse()
@@ -63,7 +67,7 @@ func newBoolValue(val bool, p *bool) *boolValue {
 	return &boolValue{p}
 }
 
-func (b *boolValue) set(s string) bool {
+func (b *boolValue) Set(s string) bool {
 	v, err := strconv.Atob(s)
 	*b.p = v
 	return err == nil
@@ -81,7 +85,7 @@ func newIntValue(val int, p *int) *intValue {
 	return &intValue{p}
 }
 
-func (i *intValue) set(s string) bool {
+func (i *intValue) Set(s string) bool {
 	v, err := strconv.Atoi(s)
 	*i.p = int(v)
 	return err == nil
@@ -99,7 +103,7 @@ func newInt64Value(val int64, p *int64) *int64Value {
 	return &int64Value{p}
 }
 
-func (i *int64Value) set(s string) bool {
+func (i *int64Value) Set(s string) bool {
 	v, err := strconv.Atoi64(s)
 	*i.p = v
 	return err == nil
@@ -117,7 +121,7 @@ func newUintValue(val uint, p *uint) *uintValue {
 	return &uintValue{p}
 }
 
-func (i *uintValue) set(s string) bool {
+func (i *uintValue) Set(s string) bool {
 	v, err := strconv.Atoui(s)
 	*i.p = uint(v)
 	return err == nil
@@ -135,7 +139,7 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
 	return &uint64Value{p}
 }
 
-func (i *uint64Value) set(s string) bool {
+func (i *uint64Value) Set(s string) bool {
 	v, err := strconv.Atoui64(s)
 	*i.p = uint64(v)
 	return err == nil
@@ -153,7 +157,7 @@ func newStringValue(val string, p *string) *stringValue {
 	return &stringValue{p}
 }
 
-func (s *stringValue) set(val string) bool {
+func (s *stringValue) Set(val string) bool {
 	*s.p = val
 	return true
 }
@@ -170,7 +174,7 @@ func newFloatValue(val float, p *float) *floatValue {
 	return &floatValue{p}
 }
 
-func (f *floatValue) set(s string) bool {
+func (f *floatValue) Set(s string) bool {
 	v, err := strconv.Atof(s)
 	*f.p = v
 	return err == nil
@@ -188,7 +192,7 @@ func newFloat64Value(val float64, p *float64) *float64Value {
 	return &float64Value{p}
 }
 
-func (f *float64Value) set(s string) bool {
+func (f *float64Value) Set(s string) bool {
 	v, err := strconv.Atof64(s)
 	*f.p = v
 	return err == nil
@@ -196,19 +200,19 @@ func (f *float64Value) set(s string) bool {
 
 func (f *float64Value) String() string { return fmt.Sprintf("%v", *f.p) }
 
-// FlagValue is the interface to the dynamic value stored in a flag.
+// Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
-type FlagValue interface {
+type Value interface {
 	String() string
-	set(string) bool
+	Set(string) bool
 }
 
 // A Flag represents the state of a flag.
 type Flag struct {
-	Name     string    // name as it appears on command line
-	Usage    string    // help message
-	Value    FlagValue // value as set
-	DefValue string    // default value (as text); for usage message
+	Name     string // name as it appears on command line
+	Usage    string // help message
+	Value    Value  // value as set
+	DefValue string // default value (as text); for usage message
 }
 
 type allFlags struct {
@@ -249,7 +253,7 @@ func Set(name, value string) bool {
 	if !ok {
 		return false
 	}
-	ok = f.Value.set(value)
+	ok = f.Value.Set(value)
 	if !ok {
 		return false
 	}
@@ -294,21 +298,10 @@ func NArg() int { return len(os.Args) - flags.first_arg }
 // Args returns the non-flag command-line arguments.
 func Args() []string { return os.Args[flags.first_arg:] }
 
-func add(name string, value FlagValue, usage string) {
-	// Remember the default value as a string; it won't change.
-	f := &Flag{name, usage, value, value.String()}
-	_, alreadythere := flags.formal[name]
-	if alreadythere {
-		fmt.Fprintln(os.Stderr, "flag redefined:", name)
-		panic("flag redefinition") // Happens only if flags are declared with identical names
-	}
-	flags.formal[name] = f
-}
-
 // BoolVar defines a bool flag with specified name, default value, and usage string.
 // The argument p points to a bool variable in which to store the value of the flag.
 func BoolVar(p *bool, name string, value bool, usage string) {
-	add(name, newBoolValue(value, p), usage)
+	Var(newBoolValue(value, p), name, usage)
 }
 
 // Bool defines a bool flag with specified name, default value, and usage string.
@@ -322,7 +315,7 @@ func Bool(name string, value bool, usage string) *bool {
 // IntVar defines an int flag with specified name, default value, and usage string.
 // The argument p points to an int variable in which to store the value of the flag.
 func IntVar(p *int, name string, value int, usage string) {
-	add(name, newIntValue(value, p), usage)
+	Var(newIntValue(value, p), name, usage)
 }
 
 // Int defines an int flag with specified name, default value, and usage string.
@@ -336,7 +329,7 @@ func Int(name string, value int, usage string) *int {
 // Int64Var defines an int64 flag with specified name, default value, and usage string.
 // The argument p points to an int64 variable in which to store the value of the flag.
 func Int64Var(p *int64, name string, value int64, usage string) {
-	add(name, newInt64Value(value, p), usage)
+	Var(newInt64Value(value, p), name, usage)
 }
 
 // Int64 defines an int64 flag with specified name, default value, and usage string.
@@ -350,7 +343,7 @@ func Int64(name string, value int64, usage string) *int64 {
 // UintVar defines a uint flag with specified name, default value, and usage string.
 // The argument p points to a uint variable in which to store the value of the flag.
 func UintVar(p *uint, name string, value uint, usage string) {
-	add(name, newUintValue(value, p), usage)
+	Var(newUintValue(value, p), name, usage)
 }
 
 // Uint defines a uint flag with specified name, default value, and usage string.
@@ -364,7 +357,7 @@ func Uint(name string, value uint, usage string) *uint {
 // Uint64Var defines a uint64 flag with specified name, default value, and usage string.
 // The argument p points to a uint64 variable in which to store the value of the flag.
 func Uint64Var(p *uint64, name string, value uint64, usage string) {
-	add(name, newUint64Value(value, p), usage)
+	Var(newUint64Value(value, p), name, usage)
 }
 
 // Uint64 defines a uint64 flag with specified name, default value, and usage string.
@@ -378,7 +371,7 @@ func Uint64(name string, value uint64, usage string) *uint64 {
 // StringVar defines a string flag with specified name, default value, and usage string.
 // The argument p points to a string variable in which to store the value of the flag.
 func StringVar(p *string, name, value string, usage string) {
-	add(name, newStringValue(value, p), usage)
+	Var(newStringValue(value, p), name, usage)
 }
 
 // String defines a string flag with specified name, default value, and usage string.
@@ -392,7 +385,7 @@ func String(name, value string, usage string) *string {
 // FloatVar defines a float flag with specified name, default value, and usage string.
 // The argument p points to a float variable in which to store the value of the flag.
 func FloatVar(p *float, name string, value float, usage string) {
-	add(name, newFloatValue(value, p), usage)
+	Var(newFloatValue(value, p), name, usage)
 }
 
 // Float defines a float flag with specified name, default value, and usage string.
@@ -406,7 +399,7 @@ func Float(name string, value float, usage string) *float {
 // Float64Var defines a float64 flag with specified name, default value, and usage string.
 // The argument p points to a float64 variable in which to store the value of the flag.
 func Float64Var(p *float64, name string, value float64, usage string) {
-	add(name, newFloat64Value(value, p), usage)
+	Var(newFloat64Value(value, p), name, usage)
 }
 
 // Float64 defines a float64 flag with specified name, default value, and usage string.
@@ -415,6 +408,19 @@ func Float64(name string, value float64, usage string) *float64 {
 	p := new(float64)
 	Float64Var(p, name, value, usage)
 	return p
+}
+
+// Var defines a user-typed flag with specified name, default value, and usage string.
+// The argument p points to a Value variable in which to store the value of the flag.
+func Var(value Value, name string, usage string) {
+	// Remember the default value as a string; it won't change.
+	f := &Flag{name, usage, value, value.String()}
+	_, alreadythere := flags.formal[name]
+	if alreadythere {
+		fmt.Fprintln(os.Stderr, "flag redefined:", name)
+		panic("flag redefinition") // Happens only if flags are declared with identical names
+	}
+	flags.formal[name] = f
 }
 
 
@@ -455,14 +461,8 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 			break
 		}
 	}
-	flag, alreadythere := flags.actual[name]
-	if alreadythere {
-		fmt.Fprintf(os.Stderr, "flag specified twice: -%s\n", name)
-		Usage()
-		os.Exit(2)
-	}
 	m := flags.formal
-	flag, alreadythere = m[name] // BUG
+	flag, alreadythere := m[name] // BUG
 	if !alreadythere {
 		fmt.Fprintf(os.Stderr, "flag provided but not defined: -%s\n", name)
 		Usage()
@@ -470,13 +470,13 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	}
 	if f, ok := flag.Value.(*boolValue); ok { // special case: doesn't need an arg
 		if has_value {
-			if !f.set(value) {
+			if !f.Set(value) {
 				fmt.Fprintf(os.Stderr, "invalid boolean value %t for flag: -%s\n", value, name)
 				Usage()
 				os.Exit(2)
 			}
 		} else {
-			f.set("true")
+			f.Set("true")
 		}
 	} else {
 		// It must have a value, which might be the next argument.
@@ -491,7 +491,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 			Usage()
 			os.Exit(2)
 		}
-		ok = flag.Value.set(value)
+		ok = flag.Value.Set(value)
 		if !ok {
 			fmt.Fprintf(os.Stderr, "invalid value %s for flag: -%s\n", value, name)
 			Usage()
