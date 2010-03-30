@@ -9,10 +9,14 @@ Godoc extracts and generates documentation for Go programs.
 It has two modes.
 
 Without the -http flag, it runs in command-line mode and prints plain text
-documentation to standard output and exits.
+documentation to standard output and exits. If the -src flag is specified,
+godoc prints the exported interface of a package in Go source form, or the
+implementation of a specific exported language entity:
 
-	godoc fmt
-	godoc fmt Printf
+	godoc fmt                # documentation for package fmt
+	godoc fmt Printf         # documentation for fmt.Printf
+	godoc -src fmt           # fmt package interface in Go source form
+	godoc -src fmt Printf    # implementation of fmt.Printf
 
 In command-line mode, the -q flag enables search queries against a godoc running
 as a webserver. If no explicit server address is specified with the -server flag,
@@ -38,7 +42,7 @@ The flags are:
 		single identifier (such as ToLower) or a qualified identifier
 		(such as math.Sin).
 	-src
-		print exported source in command-line mode
+		print (exported) source in command-line mode
 	-tabwidth=4
 		width of tabs in units of spaces
 	-path=""

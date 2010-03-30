@@ -1150,6 +1150,14 @@ func serveFile(c *http.Conn, r *http.Request) {
 const fakePkgFile = "doc.go"
 const fakePkgName = "documentation"
 
+type PageInfoMode uint
+
+const (
+	exportsOnly PageInfoMode = 1 << iota // only keep exported stuff
+	genDoc                               // generate documentation
+	tryMode                              // don't log errors
+)
+
 
 type PageInfo struct {
 	Dirname string          // directory containing the package
@@ -1176,7 +1184,7 @@ type httpHandler struct {
 // directory, PageInfo.PDoc and PageInfo.PExp are nil. If there are no sub-
 // directories, PageInfo.Dirs is nil.
 //
-func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, genAST, try bool) PageInfo {
+func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
 	// filter function to select the desired .go files
 	filter := func(d *os.Dir) bool {
 		// If we are looking at cmd documentation, only accept
@@ -1186,7 +1194,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, genAST, try 
 
 	// get package ASTs
 	pkgs, err := parser.ParseDir(abspath, filter, parser.ParseComments)
-	if err != nil && !try {
+	if err != nil && mode&tryMode != 0 {
 		// TODO: errors should be shown instead of an empty directory
 		log.Stderrf("parser.parseDir: %s", err)
 	}
@@ -1249,11 +1257,13 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, genAST, try 
 	var past *ast.File
 	var pdoc *doc.PackageDoc
 	if pkg != nil {
-		ast.PackageExports(pkg)
-		if genAST {
-			past = ast.MergePackageFiles(pkg, false)
-		} else {
+		if mode&exportsOnly != 0 {
+			ast.PackageExports(pkg)
+		}
+		if mode&genDoc != 0 {
 			pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(relpath)) // no trailing '/' in importpath
+		} else {
+			past = ast.MergePackageFiles(pkg, false)
 		}
 	}
 
@@ -1284,7 +1294,11 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 
 	relpath := r.URL.Path[len(h.pattern):]
 	abspath := absolutePath(relpath, h.fsRoot)
-	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), r.FormValue("m") == "src", false)
+	mode := exportsOnly
+	if r.FormValue("m") != "src" {
+		mode |= genDoc
+	}
+	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
 
 	if r.FormValue("f") == "text" {
 		contents := applyTemplate(packageText, "packageText", info)

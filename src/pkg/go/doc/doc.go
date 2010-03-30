@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/token"
 	"regexp"
-	"strings"
 	"sort"
 )
 
@@ -563,38 +562,20 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc 
 // ----------------------------------------------------------------------------
 // Filtering by name
 
-// Does s look like a regular expression?
-func isRegexp(s string) bool {
-	return strings.IndexAny(s, ".(|)*+?^$[]") >= 0
-}
+type Filter func(string) bool
 
 
-func match(s string, names []string) bool {
-	for _, t := range names {
-		if isRegexp(t) {
-			if matched, _ := regexp.MatchString(t, s); matched {
-				return true
-			}
-		}
-		if s == t {
-			return true
-		}
-	}
-	return false
-}
-
-
-func matchDecl(d *ast.GenDecl, names []string) bool {
+func matchDecl(d *ast.GenDecl, f Filter) bool {
 	for _, d := range d.Specs {
 		switch v := d.(type) {
 		case *ast.ValueSpec:
 			for _, name := range v.Names {
-				if match(name.Name(), names) {
+				if f(name.Name()) {
 					return true
 				}
 			}
 		case *ast.TypeSpec:
-			if match(v.Name.Name(), names) {
+			if f(v.Name.Name()) {
 				return true
 			}
 		}
@@ -603,10 +584,10 @@ func matchDecl(d *ast.GenDecl, names []string) bool {
 }
 
 
-func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
+func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
 	w := 0
 	for _, vd := range a {
-		if matchDecl(vd.Decl, names) {
+		if matchDecl(vd.Decl, f) {
 			a[w] = vd
 			w++
 		}
@@ -615,10 +596,10 @@ func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
 }
 
 
-func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
+func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
 	w := 0
 	for _, fd := range a {
-		if match(fd.Name, names) {
+		if f(fd.Name) {
 			a[w] = fd
 			w++
 		}
@@ -627,18 +608,18 @@ func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 }
 
 
-func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
+func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
 	w := 0
 	for _, td := range a {
 		n := 0 // number of matches
-		if matchDecl(td.Decl, names) {
+		if matchDecl(td.Decl, f) {
 			n = 1
 		} else {
 			// type name doesn't match, but we may have matching consts, vars, factories or methods
-			td.Consts = filterValueDocs(td.Consts, names)
-			td.Vars = filterValueDocs(td.Vars, names)
-			td.Factories = filterFuncDocs(td.Factories, names)
-			td.Methods = filterFuncDocs(td.Methods, names)
+			td.Consts = filterValueDocs(td.Consts, f)
+			td.Vars = filterValueDocs(td.Vars, f)
+			td.Factories = filterFuncDocs(td.Factories, f)
+			td.Methods = filterFuncDocs(td.Methods, f)
 			n += len(td.Consts) + len(td.Vars) + len(td.Factories) + len(td.Methods)
 		}
 		if n > 0 {
@@ -650,15 +631,13 @@ func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 }
 
 
-// Filter eliminates information from d that is not
-// about one of the given names.
+// Filter eliminates documentation for names that don't pass through the filter f.
 // TODO: Recognize "Type.Method" as a name.
-// TODO(r): maybe precompile the regexps.
 //
-func (p *PackageDoc) Filter(names []string) {
-	p.Consts = filterValueDocs(p.Consts, names)
-	p.Vars = filterValueDocs(p.Vars, names)
-	p.Types = filterTypeDocs(p.Types, names)
-	p.Funcs = filterFuncDocs(p.Funcs, names)
+func (p *PackageDoc) Filter(f Filter) {
+	p.Consts = filterValueDocs(p.Consts, f)
+	p.Vars = filterValueDocs(p.Vars, f)
+	p.Types = filterTypeDocs(p.Types, f)
+	p.Funcs = filterFuncDocs(p.Funcs, f)
 	p.Doc = "" // don't show top-level package doc
 }
