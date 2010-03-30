@@ -53,6 +53,8 @@ includes='
 #include <dirent.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <errno.h>
 #include <sys/signal.h>
@@ -76,7 +78,7 @@ includes='
 
 		$2 ~ /^E[A-Z0-9_]+$/ ||
 		$2 ~ /^SIG[^_]/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|TCP|EVFILT|EV|SHUT|PROT|MAP)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP)_/ ||
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||
 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
