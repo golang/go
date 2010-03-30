@@ -74,14 +74,14 @@ func newClient(resourceName, host, origin, location, protocol string, rwc io.Rea
 	func main() {
 	 	ws, err := websocket.Dial("ws://localhost/ws", "", "http://localhost/");
 	 	if err != nil {
-			panic("Dial: ", err.String())
+			panic("Dial: " + err.String())
 		}
 		if _, err := ws.Write([]byte("hello, world!\n")); err != nil {
-			panic("Write: ", err.String())
+			panic("Write: " + err.String())
 		}
 		var msg = make([]byte, 512);
 		if n, err := ws.Read(msg); err != nil {
-			panic("Read: ", err.String())
+			panic("Read: " + err.String())
 		}
 		// use msg[0:n]
 	}

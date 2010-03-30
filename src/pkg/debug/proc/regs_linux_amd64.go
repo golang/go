@@ -124,7 +124,7 @@ func (r *amd64Regs) Get(i int) Word {
 	case 23:
 		return Word(r.Gs)
 	}
-	panic("invalid register index ", strconv.Itoa(i))
+	panic("invalid register index " + strconv.Itoa(i))
 }
 
 func (r *amd64Regs) Set(i int, val Word) os.Error {
@@ -178,7 +178,7 @@ func (r *amd64Regs) Set(i int, val Word) os.Error {
 	case 23:
 		r.Gs = uint64(val)
 	default:
-		panic("invalid register index ", strconv.Itoa(i))
+		panic("invalid register index " + strconv.Itoa(i))
 	}
 	return r.setter(&r.PtraceRegs)
 }
