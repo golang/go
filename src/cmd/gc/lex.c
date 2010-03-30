@@ -158,6 +158,7 @@ main(int argc, char *argv[])
 	if(nerrors)
 		errorexit();
 
+	flusherrors();
 	exit(0);
 	return 0;
 
