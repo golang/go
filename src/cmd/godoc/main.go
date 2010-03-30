@@ -355,7 +355,18 @@ func main() {
 		switch {
 		case info.PAst != nil:
 			ast.FilterFile(info.PAst, filter)
-			info.PAst.Doc = nil // don't show package comment in this case
+			// Special case: Don't use templates for printing
+			// so we only get the filtered declarations without
+			// package clause or extra whitespace.
+			for i, d := range info.PAst.Decls {
+				if i > 0 {
+					fmt.Println()
+				}
+				writeAny(os.Stdout, d, *html)
+				fmt.Println()
+			}
+			return
+
 		case info.PDoc != nil:
 			info.PDoc.Filter(filter)
 		}
