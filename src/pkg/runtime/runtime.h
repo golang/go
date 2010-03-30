@@ -344,6 +344,7 @@ int32	charntorune(int32*, uint8*, int32);
 /*
  * very low level c-called
  */
+void	callString(void(*fn)(void), void *arg, String *out);
 void	gogo(Gobuf*, uintptr);
 void	gogocall(Gobuf*, void(*)(void));
 uintptr	gosave(Gobuf*);
@@ -354,6 +355,7 @@ void*	getu(void);
 void	throw(int8*);
 uint32	rnd(uint32, uint32);
 void	prints(int8*);
+void	printany(Eface);
 void	printf(int8*, ...);
 byte*	mchr(byte*, byte, byte*);
 void	mcpy(byte*, byte*, uint32);
@@ -510,7 +512,7 @@ void	runtime_printuint(uint64);
 void	runtime_printhex(uint64);
 void	runtime_printslice(Slice);
 void	runtime_printcomplex(Complex128);
-void	·panicl(int32);
+void	panic(int32);
 void	reflect·call(byte*, byte*, uint32);
 
 /*

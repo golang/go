@@ -14,7 +14,9 @@ func mal(int32) *any
 func throwindex()
 func throwreturn()
 func throwinit()
-func panicl()
+
+func panic(interface{})
+func recover() interface{}
 
 func printbool(bool)
 func printfloat(float64)

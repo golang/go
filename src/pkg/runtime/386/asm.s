@@ -360,15 +360,28 @@ TEXT	runcgo(SB),7,$16
 // check that SP is in range [g->stackbase, g->stackguard)
 TEXT stackcheck(SB), 7, $0
 	get_tls(CX)
-	MOVL g(CX), AX
-	CMPL g_stackbase(AX), SP
-	JHI 2(PC)
-	INT $3
-	CMPL SP, g_stackguard(AX)
-	JHI 2(PC)
-	INT $3
+	MOVL	g(CX), AX
+	CMPL	g_stackbase(AX), SP
+	JHI	2(PC)
+	INT	$3
+	CMPL	SP, g_stackguard(AX)
+	JHI	2(PC)
+	INT	$3
 	RET
 
+// callString(f, arg, out)
+// call Go f(arg), which returns a string, and store in out
+TEXT callString(SB), 7, $24
+	MOVL	arg+4(FP), BX
+	MOVL	f+0(FP), CX
+	MOVL	BX, 0(SP)
+	CALL	*CX
+	MOVL	out+8(FP), DI
+	LEAL	4(SP), SI
+	MOVSL
+	MOVSL
+	MOVSL
+	RET
 
 GLOBL m0(SB), $1024
 GLOBL g0(SB), $1024

@@ -20,7 +20,7 @@ gotraceback(void)
 }
 
 void
-·panicl(int32 lno)
+panic(int32 unused)
 {
 	uint8 *sp;
 
@@ -31,14 +31,23 @@ void
 	}
 	panicking++;
 
-	printf("\npanic PC=%X\n", (uint64)(uintptr)&lno);
-	sp = (uint8*)&lno;
+	printf("\npanic PC=%X\n", (uint64)(uintptr)&unused);
+	sp = (uint8*)&unused;
 	if(gotraceback()){
-		traceback(·getcallerpc(&lno), sp, g);
+		traceback(·getcallerpc(&unused), sp, g);
 		tracebackothers(g);
 	}
 	breakpoint();  // so we can grab it in a debugger
 	exit(2);
+}
+
+void
+·panic(Eface e)
+{
+	fd = 2;
+	printf("panic: ");
+	printany(e);
+	panic(0);
 }
 
 void
@@ -70,7 +79,7 @@ throw(int8 *s)
 {
 	fd = 2;
 	printf("throw: %s\n", s);
-	·panicl(-1);
+	panic(-1);
 	*(int32*)0 = 0;	// not reached
 	exit(1);	// even more not reached
 }

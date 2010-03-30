@@ -1012,11 +1012,29 @@ reswitch:
 		n->type = ptrto(t);
 		goto ret;
 
-	case OPANIC:
 	case OPRINT:
 	case OPRINTN:
 		ok |= Etop;
 		typechecklist(n->list, Erv);
+		goto ret;
+
+	case OPANIC:
+		ok |= Etop;
+		if(onearg(n) < 0)
+			goto error;
+		typecheck(&n->left, Erv);
+		defaultlit(&n->left, types[TINTER]);
+		if(n->left->type == T)
+			goto error;
+		goto ret;
+	
+	case ORECOVER:
+		ok |= Erv|Etop;
+		if(n->list != nil) {
+			yyerror("too many arguments to recover");
+			goto error;
+		}
+		n->type = types[TINTER];
 		goto ret;
 
 	case OCLOSURE:

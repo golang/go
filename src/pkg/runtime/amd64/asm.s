@@ -303,11 +303,24 @@ TEXT runcgo(SB),7,$32
 
 // check that SP is in range [g->stackbase, g->stackguard)
 TEXT stackcheck(SB), 7, $0
-	CMPQ g_stackbase(g), SP
-	JHI 2(PC)
-	INT $3
-	CMPQ SP, g_stackguard(g)
-	JHI 2(PC)
-	INT $3
+	CMPQ	g_stackbase(g), SP
+	JHI	2(PC)
+	INT	$3
+	CMPQ	SP, g_stackguard(g)
+	JHI	2(PC)
+	INT	$3
+	RET
+
+// callString(f, arg, out)
+// call Go f(arg), which returns a string, and store in out
+TEXT callString(SB), 7, $24
+	MOVQ	arg+8(FP), BX
+	MOVQ	f+0(FP), CX
+	MOVQ	BX, 0(SP)
+	CALL	*CX
+	MOVQ	out+16(FP), DI
+	LEAQ	8(SP), SI
+	MOVSQ
+	MOVSQ
 	RET
 
