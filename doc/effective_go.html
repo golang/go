@@ -1121,9 +1121,23 @@ var timeZone = map[string] int {
 <p>
 Assigning and fetching map values looks syntactically just like
 doing the same for arrays except that the index doesn't need to
-be an integer.  An attempt to fetch a map value with a key that
-is not present in the map will cause the program to crash, but
-there is a way to do so safely using a multiple assignment.
+be an integer.
+</p>
+<pre>
+offset := timeZone["EST"]
+</pre>
+<p>
+An attempt to fetch a map value with a key that
+is not present in the map will return the zero value for the type
+of the entries
+in the map.  For instance, if the map contains integers, looking
+up a non-existent key will return <code>0</code>.
+</p>
+<p>
+Sometimes you need to distinguish a missing entry from
+a zero value.  Is there an entry for <code>"UTC"</code>
+or is that zero value because it's not in the map at all?
+You can discriminate with a form of multiple assignment.
 </p>
 <pre>
 var seconds int
@@ -1136,7 +1150,7 @@ In this example, if <code>tz</code> is present, <code>seconds</code>
 will be set appropriately and <code>ok</code> will be true; if not,
 <code>seconds</code> will be set to zero and <code>ok</code> will
 be false.
-Here's a function that puts it together:
+Here's a function that puts it together with a nice error report:
 </p>
 <pre>
 func offset(tz string) int {
@@ -1151,7 +1165,7 @@ func offset(tz string) int {
 To test for presence in the map without worrying about the actual value,
 you can use the <em>blank identifier</em>, a simple underscore (<code>_</code>).
 The blank identifier can be assigned or declared with any value of any type, with the
-value discarded harmlessly.  For testing presence in a map, use the blank
+value discarded harmlessly.  For testing just presence in a map, use the blank
 identifier in place of the usual variable for the value.
 </p>
 <pre>
@@ -1166,6 +1180,7 @@ from the map.
 <pre>
 timeZone["PDT"] = 0, false  // Now on Standard Time
 </pre>
+
 <h3 id="printing">Printing</h3>
 
 <p>
