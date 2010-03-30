@@ -169,8 +169,6 @@ var parseTests = []ParseTest{
 	ParseTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1},
 	ParseTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1},
 	ParseTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800", true, false, 1},
-	// Negative year
-	ParseTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 -2010", false, true, -1},
 	// Amount of white space should not matter.
 	ParseTest{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1},
 	ParseTest{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1},
@@ -239,6 +237,10 @@ func TestFormatAndParse(t *testing.T) {
 	const fmt = "Mon MST " + ISO8601 // all fields
 	f := func(sec int64) bool {
 		t1 := SecondsToLocalTime(sec)
+		if t1.Year < 1000 || t1.Year > 9999 {
+			// not required to work
+			return true
+		}
 		t2, err := Parse(fmt, t1.Format(fmt))
 		if err != nil {
 			t.Errorf("error: %s", err)
@@ -270,7 +272,7 @@ type ParseErrorTest struct {
 
 var parseErrorTests = []ParseErrorTest{
 	ParseErrorTest{ANSIC, "Feb  4 21:00:60 2010", "parse"}, // cannot parse Feb as Mon
-	ParseErrorTest{ANSIC, "Thu Feb  4 21:00:57 @2010", "format"},
+	ParseErrorTest{ANSIC, "Thu Feb  4 21:00:57 @2010", "parse"},
 	ParseErrorTest{ANSIC, "Thu Feb  4 21:00:60 2010", "second out of range"},
 	ParseErrorTest{ANSIC, "Thu Feb  4 21:61:57 2010", "minute out of range"},
 	ParseErrorTest{ANSIC, "Thu Feb  4 24:00:60 2010", "hour out of range"},
