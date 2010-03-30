@@ -403,3 +403,74 @@ func addState(s []state, inst instr, match []int) {
 		}
 	}
 }
+
+func (self *T) foo(x int) *T	{ return self }
+
+func _()	{ module.Func1().Func2() }
+
+func _() {
+	_ = new(T).
+		foo(1).
+		foo(2).
+		foo(3)
+
+	_ = new(T).
+		foo(1).
+		foo(2).	// inline comments
+		foo(3)
+
+	_ = new(T).foo(1).foo(2).foo(3)
+
+	// handle multiline argument list correctly
+	_ = new(T).
+		foo(
+			1).
+		foo(2)
+
+	_ = new(T).foo(
+		1).foo(2)
+
+	_ = Array[3+
+		4]
+
+	_ = Method(1, 2,
+		3)
+
+	_ = new(T).
+		foo().
+		bar().(*Type)
+
+	_ = new(T).
+		foo().
+		bar().(*Type).
+		baz()
+
+	_ = new(T).
+		foo().
+		bar()["idx"]
+
+	_ = new(T).
+		foo().
+		bar()["idx"].
+		baz()
+
+	_ = new(T).
+		foo().
+		bar()[1:2]
+
+	_ = new(T).
+		foo().
+		bar()[1:2].
+		baz()
+
+	_ = new(T).
+		Field.
+		Array[3+
+			4].
+		Table["foo"].
+		Blob.(*Type).
+		Slices[1:4].
+		Method(1, 2,
+			3).
+		Thingy
+}
