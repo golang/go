@@ -12,9 +12,15 @@ import (
  * "As" functions.  These retrieve evaluator functions from an
  * expr, panicking if the requested evaluator has the wrong type.
  */
-func (a *expr) asBool() func(*Thread) bool   { return a.eval.(func(*Thread) bool) }
-func (a *expr) asUint() func(*Thread) uint64 { return a.eval.(func(*Thread) uint64) }
-func (a *expr) asInt() func(*Thread) int64   { return a.eval.(func(*Thread) int64) }
+func (a *expr) asBool() func(*Thread) bool {
+	return a.eval.(func(*Thread) bool)
+}
+func (a *expr) asUint() func(*Thread) uint64 {
+	return a.eval.(func(*Thread) uint64)
+}
+func (a *expr) asInt() func(*Thread) int64 {
+	return a.eval.(func(*Thread) int64)
+}
 func (a *expr) asIdealInt() func() *bignum.Integer {
 	return a.eval.(func() *bignum.Integer)
 }
@@ -33,10 +39,18 @@ func (a *expr) asArray() func(*Thread) ArrayValue {
 func (a *expr) asStruct() func(*Thread) StructValue {
 	return a.eval.(func(*Thread) StructValue)
 }
-func (a *expr) asPtr() func(*Thread) Value   { return a.eval.(func(*Thread) Value) }
-func (a *expr) asFunc() func(*Thread) Func   { return a.eval.(func(*Thread) Func) }
-func (a *expr) asSlice() func(*Thread) Slice { return a.eval.(func(*Thread) Slice) }
-func (a *expr) asMap() func(*Thread) Map     { return a.eval.(func(*Thread) Map) }
+func (a *expr) asPtr() func(*Thread) Value {
+	return a.eval.(func(*Thread) Value)
+}
+func (a *expr) asFunc() func(*Thread) Func {
+	return a.eval.(func(*Thread) Func)
+}
+func (a *expr) asSlice() func(*Thread) Slice {
+	return a.eval.(func(*Thread) Slice)
+}
+func (a *expr) asMap() func(*Thread) Map {
+	return a.eval.(func(*Thread) Map)
+}
 func (a *expr) asMulti() func(*Thread) []Value {
 	return a.eval.(func(*Thread) []Value)
 }
@@ -72,7 +86,7 @@ func (a *expr) asInterface() func(*Thread) interface{} {
 	default:
 		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos)
 	}
-	panic()
+	panic("fail")
 }
 
 /*
@@ -210,26 +224,17 @@ func (a *expr) genUnaryOpNeg(v *expr) {
 	switch a.t.lit().(type) {
 	case *uintType:
 		vf := v.asUint()
-		a.eval = func(t *Thread) uint64 {
-			v := vf(t)
-			return -v
-		}
+		a.eval = func(t *Thread) uint64 { v := vf(t); return -v }
 	case *intType:
 		vf := v.asInt()
-		a.eval = func(t *Thread) int64 {
-			v := vf(t)
-			return -v
-		}
+		a.eval = func(t *Thread) int64 { v := vf(t); return -v }
 	case *idealIntType:
 		v := v.asIdealInt()()
 		val := v.Neg()
 		a.eval = func() *bignum.Integer { return val }
 	case *floatType:
 		vf := v.asFloat()
-		a.eval = func(t *Thread) float64 {
-			v := vf(t)
-			return -v
-		}
+		a.eval = func(t *Thread) float64 { v := vf(t); return -v }
 	case *idealFloatType:
 		v := v.asIdealFloat()()
 		val := v.Neg()
@@ -243,10 +248,7 @@ func (a *expr) genUnaryOpNot(v *expr) {
 	switch a.t.lit().(type) {
 	case *boolType:
 		vf := v.asBool()
-		a.eval = func(t *Thread) bool {
-			v := vf(t)
-			return !v
-		}
+		a.eval = func(t *Thread) bool { v := vf(t); return !v }
 	default:
 		log.Crashf("unexpected type %v at %v", a.t, a.pos)
 	}
@@ -256,16 +258,10 @@ func (a *expr) genUnaryOpXor(v *expr) {
 	switch a.t.lit().(type) {
 	case *uintType:
 		vf := v.asUint()
-		a.eval = func(t *Thread) uint64 {
-			v := vf(t)
-			return ^v
-		}
+		a.eval = func(t *Thread) uint64 { v := vf(t); return ^v }
 	case *intType:
 		vf := v.asInt()
-		a.eval = func(t *Thread) int64 {
-			v := vf(t)
-			return ^v
-		}
+		a.eval = func(t *Thread) int64 { v := vf(t); return ^v }
 	case *idealIntType:
 		v := v.asIdealInt()()
 		val := v.Neg().Sub(bignum.Int(1))
@@ -1905,5 +1901,5 @@ func genAssign(lt Type, r *expr) func(lv Value, t *Thread) {
 	default:
 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos)
 	}
-	panic()
+	panic("fail")
 }

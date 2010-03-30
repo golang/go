@@ -25,6 +25,7 @@ var v, ok = m[g()]
 
 func main() {
 	if x != 1 || y != 2 || z != 3 || nf != 1 || v != 0 || ok != false || ng != 1 {
-		panic("x=", x, " y=", y, " z=", z, " nf=", nf, " v=", v, " ok=", ok, " ng=", ng)
+		println("x=", x, " y=", y, " z=", z, " nf=", nf, " v=", v, " ok=", ok, " ng=", ng)
+		panic("fail")
 	}
 }

@@ -11,10 +11,12 @@ func main() {
 	c <- 100
 	x, ok := <-c
 	if x != 100 || !ok {
-		panic("x=", x, " ok=", ok, " want 100, true")
+		println("x=", x, " ok=", ok, " want 100, true")
+		panic("fail")
 	}
 	x, ok = <-c
 	if x != 0 || ok {
-		panic("x=", x, " ok=", ok, " want 0, false")
+		println("x=", x, " ok=", ok, " want 0, false")
+		panic("fail")
 	}
 }

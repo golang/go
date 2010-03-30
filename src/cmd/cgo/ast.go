@@ -157,7 +157,7 @@ func walk(x interface{}, p *Prog, context string) {
 	// everything else just recurs
 	default:
 		error(noPos, "unexpected type %T in walk", x)
-		panic()
+		panic("unexpected type")
 
 	case nil:
 

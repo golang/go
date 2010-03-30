@@ -10,42 +10,45 @@ import "container/vector"
 
 
 type S struct {
-	val int;
+	val int
 }
 
 
 func (p *S) Init(val int) *S {
-	p.val = val;
-	return p;
+	p.val = val
+	return p
 }
 
 
 func test0() {
-	v := new(vector.Vector);
+	v := new(vector.Vector)
 	if v.Len() != 0 {
-		panic("len = ", v.Len(), "\n")
+		print("len = ", v.Len(), "\n")
+		panic("fail")
 	}
 }
 
 
 func test1() {
-	var a [1000]*S;
+	var a [1000]*S
 	for i := 0; i < len(a); i++ {
 		a[i] = new(S).Init(i)
 	}
 
-	v := new(vector.Vector);
+	v := new(vector.Vector)
 	for i := 0; i < len(a); i++ {
-		v.Insert(0, a[i]);
+		v.Insert(0, a[i])
 		if v.Len() != i+1 {
-			panic("len = ", v.Len(), "\n")
+			print("len = ", v.Len(), "\n")
+			panic("fail")
 		}
 	}
 
 	for i := 0; i < v.Len(); i++ {
-		x := v.At(i).(*S);
+		x := v.At(i).(*S)
 		if x.val != v.Len()-i-1 {
-			panic("expected ", i, ", found ", x.val, "\n")
+			print("expected ", i, ", found ", x.val, "\n")
+			panic("fail")
 		}
 	}
 
@@ -56,6 +59,6 @@ func test1() {
 
 
 func main() {
-	test0();
-	test1();
+	test0()
+	test1()
 }

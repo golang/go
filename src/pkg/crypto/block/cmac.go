@@ -37,7 +37,7 @@ func NewCMAC(c Cipher) hash.Hash {
 	case 128 / 8:
 		r = r128
 	default:
-		panic("crypto/block: NewCMAC: invalid cipher block size", n)
+		panic("crypto/block: NewCMAC: invalid cipher block size")
 	}
 
 	d := new(cmac)

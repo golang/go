@@ -119,7 +119,7 @@ func init() {
 	// sanity check: if nKinds is too large, the SpotInfo
 	// accessor functions may need to be updated
 	if nKinds > 8 {
-		panic()
+		panic("nKinds > 8")
 	}
 }
 

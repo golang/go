@@ -25,7 +25,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 	var la, ra syscall.Sockaddr
 	switch mode {
 	default:
-		panic("unixSocket", mode)
+		panic("unixSocket mode " + mode)
 
 	case "dial":
 		if laddr != nil {

@@ -62,7 +62,7 @@ func getKeyNumber(s string) (r uint32) {
 func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 	rwc, buf, err := c.Hijack()
 	if err != nil {
-		panic("Hijack failed: ", err.String())
+		panic("Hijack failed: " + err.String())
 		return
 	}
 	// The server should abort the WebSocket connection if it finds
@@ -200,7 +200,7 @@ func (f Draft75Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 
 	rwc, buf, err := c.Hijack()
 	if err != nil {
-		panic("Hijack failed: ", err.String())
+		panic("Hijack failed: " + err.String())
 		return
 	}
 	defer rwc.Close()

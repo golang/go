@@ -63,7 +63,7 @@ func (v remoteFramePtr) Get(t *eval.Thread) eval.Value {
 	}
 
 	t.Abort(NotOnStack{v.fn, g})
-	panic()
+	panic("fail")
 }
 
 func (v remoteFramePtr) Set(t *eval.Thread, x eval.Value) {

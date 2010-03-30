@@ -103,12 +103,12 @@ var binOps = []Op{
 	Op{Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(r)", Types: numbers},
 	Op{Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(r)", Types: numbers},
 	Op{Name: "Quo",
-		Body:      "if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r",
+		Body:      "if r == 0 { t.Abort(DivByZeroError{}) }; ret =  l / r",
 		ConstExpr: "l.Quo(r)",
 		Types:     numbers,
 	},
 	Op{Name: "Rem",
-		Body:      "if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r",
+		Body:      "if r == 0 { t.Abort(DivByZeroError{}) }; ret = l % r",
 		ConstExpr: "l.Rem(r)",
 		Types:     integers,
 	},
@@ -186,7 +186,7 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
 	default:
 		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos);
 	}
-	panic();
+	panic("fail");
 }
 
 /*
@@ -357,7 +357,7 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
 	default:
 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
 	}
-	panic();
+	panic("fail");
 }
 `
 

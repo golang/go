@@ -7,11 +7,11 @@
 package main
 
 var (
-	nf int
+	nf      int
 	x, y, z = f(), f(), f()
-	m = map[string]string{"a":"A"}
-	a, aok = m["a"]
-	b, bok = m["b"]
+	m       = map[string]string{"a": "A"}
+	a, aok  = m["a"]
+	b, bok  = m["b"]
 )
 
 func look(s string) (string, bool) {
@@ -26,9 +26,11 @@ func f() int {
 
 func main() {
 	if nf != 3 || x != 1 || y != 2 || z != 3 {
-		panic("nf=", nf, " x=", x, " y=", y)
+		println("nf=", nf, " x=", x, " y=", y)
+		panic("fail")
 	}
 	if a != "A" || aok != true || b != "" || bok != false {
-		panic("a=", a, " aok=", aok, " b=", b, " bok=", bok)
+		println("a=", a, " aok=", aok, " b=", b, " bok=", bok)
+		panic("fail")
 	}
 }

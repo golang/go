@@ -101,7 +101,8 @@ var ftoatests = []ftoaTest{
 
 func TestFtoa(t *testing.T) {
 	if FloatSize != 32 {
-		panic("floatsize: ", FloatSize)
+		println("floatsize: ", FloatSize)
+		panic("floatsize")
 	}
 	for i := 0; i < len(ftoatests); i++ {
 		test := &ftoatests[i]

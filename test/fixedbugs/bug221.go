@@ -12,10 +12,11 @@
 package main
 
 var gen = 'a'
+
 func f(n int) string {
-	s := string(gen) + string(n+'A'-1);
-	gen++;
-	return s;
+	s := string(gen) + string(n+'A'-1)
+	gen++
+	return s
 }
 
 func g(x, y string) string {
@@ -23,16 +24,19 @@ func g(x, y string) string {
 }
 
 func main() {
-	s := f(1) + f(2);
+	s := f(1) + f(2)
 	if s != "aAbB" {
-		panic("BUG: bug221a: ", s);
+		println("BUG: bug221a: ", s)
+		panic("fail")
 	}
-	s = g(f(3), f(4));
+	s = g(f(3), f(4))
 	if s != "cCdD" {
-		panic("BUG: bug221b: ", s);
+		println("BUG: bug221b: ", s)
+		panic("fail")
 	}
-	s = f(5) + f(6) + f(7) + f(8) + f(9);
+	s = f(5) + f(6) + f(7) + f(8) + f(9)
 	if s != "eEfFgGhHiI" {
-		panic("BUG: bug221c: ", s);
+		println("BUG: bug221c: ", s)
+		panic("fail")
 	}
 }
