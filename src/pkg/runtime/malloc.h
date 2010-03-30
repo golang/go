@@ -192,6 +192,8 @@ struct MStats
 	uint64	mspan_sys;
 	uint64	mcache_inuse;	// MCache structures
 	uint64	mcache_sys;
+	uint64	heapmap_sys;	// heap map
+	uint64	buckhash_sys;	// profiling bucket hash table
 	
 	// Statistics about garbage collector.
 	// Protected by stopping the world during GC.

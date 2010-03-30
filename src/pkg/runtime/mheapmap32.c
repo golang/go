@@ -84,6 +84,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
 			p2 = m->allocator(sizeof *p2);
 			if(p2 == nil)
 				return false;
+			mstats.heapmap_sys += sizeof *p2;
 			m->p[i1] = p2;
 		}
 
