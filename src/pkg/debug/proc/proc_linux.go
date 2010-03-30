@@ -430,7 +430,7 @@ func (t *thread) wait() {
 		t.logTrace("beginning wait")
 		ev.Waitmsg, ev.err = os.Wait(t.tid, syscall.WALL)
 		if ev.err == nil && ev.Pid != t.tid {
-			panic("Wait returned pid ", ev.Pid, " wanted ", t.tid)
+			panic(fmt.Sprint("Wait returned pid ", ev.Pid, " wanted ", t.tid))
 		}
 		if ev.StopSignal() == syscall.SIGSTOP && t.ignoreNextSigstop {
 			// Spurious SIGSTOP.  See Thread.Stop().

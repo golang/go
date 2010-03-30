@@ -34,7 +34,7 @@ import (
 		http.Handle("/echo", websocket.Handler(EchoServer));
 		err := http.ListenAndServe(":12345", nil);
 		if err != nil {
-			panic("ListenAndServe: ", err.String())
+			panic("ListenAndServe: " + err.String())
 		}
 	}
 */

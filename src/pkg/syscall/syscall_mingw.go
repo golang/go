@@ -24,7 +24,7 @@ import (
 )
 
 func abort(funcname string, err int) {
-	panic(funcname+" failed: (", err, ") ", syscall.Errstr(err), "\n")
+	panic(funcname + " failed: " + syscall.Errstr(err))
 }
 
 func print_version(v uint32) {
@@ -77,7 +77,7 @@ func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
 func loadDll(fname string) uint32 {
 	m := loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(fname))))
 	if m == 0 {
-		panic("syscall: could not LoadLibraryEx ", fname)
+		panic("syscall: could not LoadLibraryEx " + fname)
 	}
 	return m
 }
@@ -85,7 +85,7 @@ func loadDll(fname string) uint32 {
 func getSysProcAddr(m uint32, pname string) uintptr {
 	p := getprocaddress(m, uintptr(unsafe.Pointer(StringBytePtr(pname))))
 	if p == 0 {
-		panic("syscall: could not GetProcAddress for ", pname)
+		panic("syscall: could not GetProcAddress for " + pname)
 	}
 	return p
 }

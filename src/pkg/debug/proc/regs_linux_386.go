@@ -92,7 +92,7 @@ func (r *_386Regs) Get(i int) Word {
 	case 15:
 		return Word(r.Gs)
 	}
-	panic("invalid register index ", strconv.Itoa(i))
+	panic("invalid register index " + strconv.Itoa(i))
 }
 
 func (r *_386Regs) Set(i int, val Word) os.Error {
@@ -130,7 +130,7 @@ func (r *_386Regs) Set(i int, val Word) os.Error {
 	case 15:
 		r.Gs = uint16(val)
 	default:
-		panic("invalid register index ", strconv.Itoa(i))
+		panic("invalid register index " + strconv.Itoa(i))
 	}
 	return r.setter(&r.PtraceRegs)
 }
