@@ -10,6 +10,7 @@ package printer
 
 import (
 	"bytes"
+	"container/vector"
 	"go/ast"
 	"go/token"
 )
@@ -89,6 +90,7 @@ const (
 	commaSep                            // elements are separated by commas
 	commaTerm                           // list is optionally terminated by a comma
 	noIndent                            // no extra indentation in multi-line lists
+	periodSep                           // elements are separated by periods
 )
 
 
@@ -176,7 +178,19 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 	// the first linebreak is always a formfeed since this section must not
 	// depend on any previous formatting
 	prevBreak := -1 // index of last expression that was followed by a linebreak
-	if prev.IsValid() && prev.Line < line && p.linebreak(line, 1, 2, ws, true) {
+	linebreakMin := 1
+	if mode&periodSep != 0 {
+		// Make fragments like
+		//
+		// a.Bar(1,
+		//   2).Foo
+		//
+		// format correctly (a linebreak shouldn't be added before Foo) when
+		// doing period-separated expr lists by setting minimum linebreak to 0
+		// lines for them.
+		linebreakMin = 0
+	}
+	if prev.IsValid() && prev.Line < line && p.linebreak(line, linebreakMin, 2, ws, true) {
 		ws = ignore
 		*multiLine = true
 		prevBreak = 0
@@ -230,19 +244,23 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 			if mode&commaSep != 0 {
 				p.print(token.COMMA)
 			}
+			if mode&periodSep != 0 {
+				p.print(token.PERIOD)
+			}
 			if prevLine < line && prevLine > 0 && line > 0 {
 				// lines are broken using newlines so comments remain aligned
 				// unless forceFF is set or there are multiple expressions on
 				// the same line in which case formfeed is used
 				// broken with a formfeed
-				if p.linebreak(line, 1, 2, ws, useFF || prevBreak+1 < i) {
+				if p.linebreak(line, linebreakMin, 2, ws, useFF || prevBreak+1 < i) {
 					ws = ignore
 					*multiLine = true
 					prevBreak = i
 				}
-			} else {
+			} else if mode&periodSep == 0 {
 				p.print(blank)
 			}
+			// period-separadet list elements don't need a blank
 		}
 
 		if isPair && size > 0 && len(list) > 1 {
@@ -652,6 +670,68 @@ func isBinary(expr ast.Expr) bool {
 }
 
 
+// If the expression contains one or more selector expressions, splits it into
+// two expressions at the rightmost period. Writes entire expr to suffix when
+// selector isn't found. Rewrites AST nodes for calls, index expressions and
+// type assertions, all of which may be found in selector chains, to make them
+// parts of the chain.
+func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
+	// Rewrite call and index expressions to be a part of the selector chain so
+	// that their multiline arguments get indented correctly.
+	switch x := expr.(type) {
+	case *ast.SelectorExpr:
+		body, suffix = x.X, x.Sel
+		return
+	case *ast.CallExpr:
+		body, suffix = splitSelector(x.Fun)
+		if body != nil {
+			suffix = &ast.CallExpr{suffix, x.Lparen, x.Args, x.Rparen}
+			return
+		}
+	case *ast.IndexExpr:
+		body, suffix = splitSelector(x.X)
+		if body != nil {
+			suffix = &ast.IndexExpr{suffix, x.Index}
+			return
+		}
+	case *ast.SliceExpr:
+		body, suffix = splitSelector(x.X)
+		if body != nil {
+			suffix = &ast.SliceExpr{suffix, x.Index, x.End}
+			return
+		}
+	case *ast.TypeAssertExpr:
+		body, suffix = splitSelector(x.X)
+		if body != nil {
+			suffix = &ast.TypeAssertExpr{suffix, x.Type}
+			return
+		}
+	}
+	suffix = expr
+	return
+}
+
+
+// Convert an expression into an expression list split at the periods of
+// selector expressions.
+func selectorExprList(expr ast.Expr) (result []ast.Expr) {
+	var list vector.Vector
+	for expr != nil {
+		var suffix ast.Expr
+		expr, suffix = splitSelector(expr)
+		list.Push(suffix)
+	}
+
+	result = make([]ast.Expr, len(list))
+	i := len(result)
+	for _, x := range list {
+		i--
+		result[i] = x.(ast.Expr)
+	}
+	return
+}
+
+
 // Sets multiLine to true if the expression spans multiple lines.
 func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multiLine *bool) {
 	p.print(expr.Pos())
@@ -719,9 +799,8 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.print(x.Rparen, token.RPAREN)
 
 	case *ast.SelectorExpr:
-		p.expr1(x.X, token.HighestPrec, depth, 0, multiLine)
-		p.print(token.PERIOD)
-		p.expr1(x.Sel, token.HighestPrec, depth, 0, multiLine)
+		parts := selectorExprList(expr)
+		p.exprList(noPos, parts, depth, periodSep, multiLine, noPos)
 
 	case *ast.TypeAssertExpr:
 		p.expr1(x.X, token.HighestPrec, depth, 0, multiLine)
