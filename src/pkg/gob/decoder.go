@@ -40,7 +40,7 @@ func NewDecoder(r io.Reader) *Decoder {
 
 func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
-	if _, alreadySeen := dec.wireType[id]; alreadySeen {
+	if dec.wireType[id] != nil {
 		dec.state.err = os.ErrorString("gob: duplicate type received")
 		return
 	}
@@ -109,8 +109,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 
 		// No, it's a value.
 		// Make sure the type has been defined already.
-		_, ok := dec.wireType[id]
-		if !ok {
+		if dec.wireType[id] == nil {
 			dec.state.err = errBadType
 			break
 		}

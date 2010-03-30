@@ -510,7 +510,7 @@ const inf = 1 << 30 // infinity - no struct has that many nesting levels
 func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
 	fd = inf // field depth
 
-	if _, marked := mark[t]; marked {
+	if mark[t] {
 		// Struct already seen.
 		return
 	}

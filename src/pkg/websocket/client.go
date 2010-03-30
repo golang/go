@@ -25,14 +25,10 @@ type ProtocolError struct {
 
 var (
 	ErrBadStatus            = &ProtocolError{"bad status"}
-	ErrNoUpgrade            = &ProtocolError{"no upgrade"}
-	ErrBadUpgrade           = &ProtocolError{"bad upgrade"}
-	ErrNoWebSocketOrigin    = &ProtocolError{"no WebSocket-Origin"}
-	ErrBadWebSocketOrigin   = &ProtocolError{"bad WebSocket-Origin"}
-	ErrNoWebSocketLocation  = &ProtocolError{"no WebSocket-Location"}
-	ErrBadWebSocketLocation = &ProtocolError{"bad WebSocket-Location"}
-	ErrNoWebSocketProtocol  = &ProtocolError{"no WebSocket-Protocol"}
-	ErrBadWebSocketProtocol = &ProtocolError{"bad WebSocket-Protocol"}
+	ErrBadUpgrade           = &ProtocolError{"missing or bad upgrade"}
+	ErrBadWebSocketOrigin   = &ProtocolError{"missing or bad WebSocket-Origin"}
+	ErrBadWebSocketLocation = &ProtocolError{"missing or bad WebSocket-Location"}
+	ErrBadWebSocketProtocol = &ProtocolError{"missing or bad WebSocket-Protocol"}
 	ErrChallengeResponse    = &ProtocolError{"mismatch challange/response"}
 	secKeyRandomChars       [0x30 - 0x21 + 0x7F - 0x3A]byte
 )
@@ -244,40 +240,21 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
 	}
 
 	// Step 41. check websocket headers.
-	upgrade, found := resp.Header["Upgrade"]
-	if !found {
-		return ErrNoUpgrade
-	}
-	if upgrade != "WebSocket" {
-		return ErrBadUpgrade
-	}
-	connection, found := resp.Header["Connection"]
-	if !found || strings.ToLower(connection) != "upgrade" {
+	if resp.Header["Upgrade"] != "WebSocket" ||
+		strings.ToLower(resp.Header["Connection"]) != "upgrade" {
 		return ErrBadUpgrade
 	}
 
-	s, found := resp.Header["Sec-Websocket-Origin"]
-	if !found {
-		return ErrNoWebSocketOrigin
-	}
-	if s != origin {
+	if resp.Header["Sec-Websocket-Origin"] != origin {
 		return ErrBadWebSocketOrigin
 	}
-	s, found = resp.Header["Sec-Websocket-Location"]
-	if !found {
-		return ErrNoWebSocketLocation
-	}
-	if s != location {
+
+	if resp.Header["Sec-Websocket-Location"] != location {
 		return ErrBadWebSocketLocation
 	}
-	if protocol != "" {
-		s, found = resp.Header["Sec-Websocket-Protocol"]
-		if !found {
-			return ErrNoWebSocketProtocol
-		}
-		if s != protocol {
-			return ErrBadWebSocketProtocol
-		}
+
+	if protocol != "" && resp.Header["Sec-Websocket-Protocol"] != protocol {
+		return ErrBadWebSocketProtocol
 	}
 
 	// Step 42-43. get expected data from challange data.
@@ -322,40 +299,18 @@ func draft75handshake(resourceName, host, origin, location, protocol string, br 
 	if resp.Status != "101 Web Socket Protocol Handshake" {
 		return ErrBadStatus
 	}
-	upgrade, found := resp.Header["Upgrade"]
-	if !found {
-		return ErrNoUpgrade
-	}
-	if upgrade != "WebSocket" {
+	if resp.Header["Upgrade"] != "WebSocket" ||
+		resp.Header["Connection"] != "Upgrade" {
 		return ErrBadUpgrade
 	}
-	connection, found := resp.Header["Connection"]
-	if !found || connection != "Upgrade" {
-		return ErrBadUpgrade
-	}
-
-	ws_origin, found := resp.Header["Websocket-Origin"]
-	if !found {
-		return ErrNoWebSocketOrigin
-	}
-	if ws_origin != origin {
+	if resp.Header["Websocket-Origin"] != origin {
 		return ErrBadWebSocketOrigin
 	}
-	ws_location, found := resp.Header["Websocket-Location"]
-	if !found {
-		return ErrNoWebSocketLocation
-	}
-	if ws_location != location {
+	if resp.Header["Websocket-Location"] != location {
 		return ErrBadWebSocketLocation
 	}
-	if protocol != "" {
-		ws_protocol, found := resp.Header["Websocket-Protocol"]
-		if !found {
-			return ErrNoWebSocketProtocol
-		}
-		if ws_protocol != protocol {
-			return ErrBadWebSocketProtocol
-		}
+	if protocol != "" && resp.Header["Websocket-Protocol"] != protocol {
+		return ErrBadWebSocketProtocol
 	}
 	return
 }

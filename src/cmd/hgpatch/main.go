@@ -62,20 +62,20 @@ func main() {
 	// Make sure we won't be editing files with local pending changes.
 	dirtylist, err := hgModified()
 	chk(err)
-	dirty := make(map[string]int)
+	dirty := make(map[string]bool)
 	for _, f := range dirtylist {
-		dirty[f] = 1
+		dirty[f] = true
 	}
-	conflict := make(map[string]int)
+	conflict := make(map[string]bool)
 	for _, f := range pset.File {
 		if f.Verb == patch.Delete || f.Verb == patch.Rename {
-			if _, ok := dirty[f.Src]; ok {
-				conflict[f.Src] = 1
+			if dirty[f.Src] {
+				conflict[f.Src] = true
 			}
 		}
 		if f.Verb != patch.Delete {
-			if _, ok := dirty[f.Dst]; ok {
-				conflict[f.Dst] = 1
+			if dirty[f.Dst] {
+				conflict[f.Dst] = true
 			}
 		}
 	}

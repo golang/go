@@ -42,18 +42,18 @@ func TestEcho(t *testing.T) {
 	ws, err := newClient("/echo", "localhost", "http://localhost",
 		"ws://localhost/echo", "", client, handshake)
 	if err != nil {
-		t.Errorf("WebSocket handshake error", err)
+		t.Errorf("WebSocket handshake error: %v", err)
 		return
 	}
 
 	msg := []byte("hello, world\n")
 	if _, err := ws.Write(msg); err != nil {
-		t.Errorf("Write: error %v", err)
+		t.Errorf("Write: %v", err)
 	}
 	var actual_msg = make([]byte, 512)
 	n, err := ws.Read(actual_msg)
 	if err != nil {
-		t.Errorf("Read: error %v", err)
+		t.Errorf("Read: %v", err)
 	}
 	actual_msg = actual_msg[0:n]
 	if !bytes.Equal(msg, actual_msg) {
@@ -73,7 +73,7 @@ func TestEchoDraft75(t *testing.T) {
 	ws, err := newClient("/echoDraft75", "localhost", "http://localhost",
 		"ws://localhost/echoDraft75", "", client, draft75handshake)
 	if err != nil {
-		t.Errorf("WebSocket handshake error", err)
+		t.Errorf("WebSocket handshake: %v", err)
 		return
 	}
 
@@ -104,7 +104,7 @@ func TestWithQuery(t *testing.T) {
 	ws, err := newClient("/echo?q=v", "localhost", "http://localhost",
 		"ws://localhost/echo?q=v", "", client, handshake)
 	if err != nil {
-		t.Errorf("WebSocket handshake error", err)
+		t.Errorf("WebSocket handshake: %v", err)
 		return
 	}
 	ws.Close()

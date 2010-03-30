@@ -38,7 +38,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 	}
 
 	// Get the type map for this architecture
-	typeMap, _ := manualTypes[arch]
+	typeMap := manualTypes[arch]
 	if typeMap == nil {
 		typeMap = make(map[eval.Type]*remoteType)
 		manualTypes[arch] = typeMap
