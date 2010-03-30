@@ -964,7 +964,7 @@ type Config struct {
 // Fprint "pretty-prints" an AST node to output and returns the number
 // of bytes written and an error (if any) for a given configuration cfg.
 // The node type must be *ast.File, or assignment-compatible to ast.Expr,
-// ast.Decl, or ast.Stmt.
+// ast.Decl, ast.Spec, or ast.Stmt.
 //
 func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 	// redirect output through a trimmer to eliminate trailing whitespace
