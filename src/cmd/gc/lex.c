@@ -1309,6 +1309,7 @@ static	struct
 	"print",	LNAME,		Txxx,		OPRINT,
 	"println",	LNAME,		Txxx,		OPRINTN,
 	"real",		LNAME,		Txxx,		OREAL,
+	"recover",	LNAME,		Txxx,		ORECOVER,
 
 	"notwithstanding",		LIGNORE,	Txxx,		OXXX,
 	"thetruthofthematter",		LIGNORE,	Txxx,		OXXX,

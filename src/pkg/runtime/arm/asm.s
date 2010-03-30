@@ -264,3 +264,18 @@ TEXT abort(SB),7,$0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
+// callString(f, arg, out)
+// call Go f(arg), which returns a string, and store in out
+TEXT callString(SB), 7, $24
+	MOVW	arg+4(FP), R1
+	MOVW	f+0(FP), R0
+	MOVW	R1, 0(SP)
+	BL	R0
+	MOVW	4(SP), R1
+	MOVW	8(SP), R2
+	MOVW	12(SP), R3
+	MOVW	out+8(FP), R0
+	MOVW	R1, 0(R0)
+	MOVW	R2, 4(R0)
+	MOVW	R3, 8(R0)
+	RET

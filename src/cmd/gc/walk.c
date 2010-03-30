@@ -425,7 +425,6 @@ walkstmt(Node **np)
 		switch(n->left->op) {
 		case OPRINT:
 		case OPRINTN:
-		case OPANIC:
 			walkexprlist(n->left->list, &n->ninit);
 			n->left = walkprint(n->left, &n->ninit, 1);
 			break;
@@ -623,9 +622,16 @@ walkexpr(Node **np, NodeList **init)
 
 	case OPRINT:
 	case OPRINTN:
-	case OPANIC:
 		walkexprlist(n->list, init);
 		n = walkprint(n, init, 0);
+		goto ret;
+
+	case OPANIC:
+		n = mkcall("panic", T, init, n->left);
+		goto ret;
+
+	case ORECOVER:
+		n = mkcall("recover", n->type, init);
 		goto ret;
 
 	case OLITERAL:

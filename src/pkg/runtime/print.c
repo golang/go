@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "type.h"
 
 //static Lock debuglock;
 
@@ -150,7 +151,7 @@ vprintf(int8 *s, byte *arg)
 			·printhex(*(uint64*)arg);
 			break;
 		case '!':
-			·panicl(-1);
+			panic(-1);
 		}
 		arg = narg;
 		lp = p+1;
@@ -346,4 +347,69 @@ void
 ·printnl(void)
 {
 	write(fd, "\n", 1);
+}
+
+// print an empty interface, for use by panic.
+// this could be arbitrarily complex in general,
+// so we pick off only a few important cases:
+// int, string, and values with a String() string method.
+void
+printany(Eface e)
+{
+	int32 i;
+	FuncType *ft;
+	Method *m;
+	String s;
+	Type *rt;
+	UncommonType *x;
+
+	if(e.type == nil) {
+		write(fd, "nil", 3);
+		return;
+	}
+
+	if((x=e.type->x) != nil) {
+		for(i=0; i<x->mhdr.len; i++) {
+			// Look for String() string method.
+			m = &x->m[i];
+			if(m->name->len == 6 &&
+			   mcmp(m->name->str, (byte*)"String", 6) == 0 &&
+			   // Found String; check method signature for func() string.
+			   m->mtyp->kind == KindFunc &&
+			   (ft = (FuncType*)m->mtyp)->in.len == 0 &&
+			   ft->out.len == 1 &&
+			   // Found single output.  Is it string?
+			   // Only base types have name != nil but pkgPath == nil.
+			   (rt = *(Type**)ft->out.array)->kind == KindString &&
+			   rt->x != nil &&
+			   rt->x->name != nil && rt->x->pkgPath == nil) {
+				// Found the method!
+				// Have to use assembly to call it
+				// and save the return value.
+				callString(m->ifn, e.data, &s);
+				·printstring(s);
+				return;
+			}
+		}
+	}
+
+	switch(e.type->kind & ~KindNoPointers) {
+	case KindInt:
+		mcpy((byte*)&i, (byte*)&e.data, sizeof(i));
+		·printint(i);
+		break;
+
+	case KindString:
+		·printstring(*(String*)e.data);
+		break;
+
+	default:
+		// Could print the other numeric types,
+		// but that's overkill: good panics have
+		// a string method anyway.
+		·printstring(*e.type->string);
+		write(fd, "(???)", 5);
+		break;
+	}
+
 }

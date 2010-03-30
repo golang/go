@@ -542,6 +542,7 @@ typeinit(void)
 	/* types used in front end */
 	// types[TNIL] got set early in lexinit
 	types[TIDEAL] = typ(TIDEAL);
+	types[TINTER] = typ(TINTER);
 
 	/* simple aliases */
 	simtype[TMAP] = tptr;
