@@ -60,7 +60,7 @@ testpackage-clean:
 
 install: $(INSTALLFILES)
 
-$(pkgdir)/$(TARG).a: package
+$(pkgdir)/$(TARG).a: _obj/$(TARG).a
 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
 	cp _obj/$(TARG).a "$@"
 
