@@ -58,13 +58,82 @@ const (
 	stdZeroSecond  = "05"
 	stdLongYear    = "2006"
 	stdYear        = "06"
-	stdZulu        = "1504"
 	stdPM          = "PM"
 	stdpm          = "pm"
 	stdTZ          = "MST"
-	stdISO8601TZ   = "Z"    // prints Z for UTC
-	stdNumTZ       = "0700" // always numeric
+	stdISO8601TZ   = "Z"     // prints Z for UTC
+	stdNumTZ       = "-0700" // always numeric
 )
+
+// nextStdChunk finds the first occurrence of a std string in
+// layout and returns the text before, the std string, and the text after.
+func nextStdChunk(layout string) (prefix, std, suffix string) {
+	for i := 0; i < len(layout); i++ {
+		switch layout[i] {
+		case 'J': // January, Jan
+			if len(layout) >= i+7 && layout[i:i+7] == stdLongMonth {
+				return layout[0:i], stdLongMonth, layout[i+7:]
+			}
+			if len(layout) >= i+3 && layout[i:i+3] == stdMonth {
+				return layout[0:i], stdMonth, layout[i+3:]
+			}
+
+		case 'M': // Monday, Mon, MST
+			if len(layout) >= i+6 && layout[i:i+6] == stdLongWeekDay {
+				return layout[0:i], stdLongWeekDay, layout[i+6:]
+			}
+			if len(layout) >= i+3 {
+				if layout[i:i+3] == stdWeekDay {
+					return layout[0:i], stdWeekDay, layout[i+3:]
+				}
+				if layout[i:i+3] == stdTZ {
+					return layout[0:i], stdTZ, layout[i+3:]
+				}
+			}
+
+		case '0': // 01, 02, 03, 04, 05, 06
+			if len(layout) >= i+2 && '1' <= layout[i+1] && layout[i+1] <= '6' {
+				return layout[0:i], layout[i : i+2], layout[i+2:]
+			}
+
+		case '1': // 15, 1
+			if len(layout) >= i+2 && layout[i+1] == '5' {
+				return layout[0:i], stdHour, layout[i+2:]
+			}
+			return layout[0:i], stdNumMonth, layout[i+1:]
+
+		case '2': // 2006, 2
+			if len(layout) >= i+4 && layout[i:i+4] == stdLongYear {
+				return layout[0:i], stdLongYear, layout[i+4:]
+			}
+			return layout[0:i], stdDay, layout[i+1:]
+
+		case '_': // _2
+			if len(layout) >= i+2 && layout[i+1] == '2' {
+				return layout[0:i], stdUnderDay, layout[i+2:]
+			}
+
+		case '3', '4', '5', 'Z': // 3, 4, 5, Z
+			return layout[0:i], layout[i : i+1], layout[i+1:]
+
+		case 'P': // PM
+			if len(layout) >= i+2 && layout[i+1] == 'M' {
+				return layout[0:i], layout[i : i+2], layout[i+2:]
+			}
+
+		case 'p': // pm
+			if len(layout) >= i+2 && layout[i+1] == 'm' {
+				return layout[0:i], layout[i : i+2], layout[i+2:]
+			}
+
+		case '-': // -0700
+			if len(layout) >= i+5 && layout[i:i+5] == stdNumTZ {
+				return layout[0:i], layout[i : i+5], layout[i+5:]
+			}
+		}
+	}
+	return layout, "", ""
+}
 
 var longDayNames = []string{
 	"Sunday",
@@ -118,29 +187,13 @@ var longMonthNames = []string{
 	"December",
 }
 
-func lookup(tab []string, val string) (int, os.Error) {
+func lookup(tab []string, val string) (int, string, os.Error) {
 	for i, v := range tab {
-		if v == val {
-			return i, nil
+		if len(val) >= len(v) && val[0:len(v)] == v {
+			return i, val[len(v):], nil
 		}
 	}
-	return -1, errBad
-}
-
-func charType(c uint8) int {
-	switch {
-	case '0' <= c && c <= '9':
-		return numeric
-	case c == '_': // underscore; treated like a number when printing
-		return numeric
-	case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z':
-		return alphabetic
-	case c == '+':
-		return plus
-	case c == '-':
-		return minus
-	}
-	return separator
+	return -1, val, errBad
 }
 
 func pad(i int, padding string) string {
@@ -160,17 +213,15 @@ func zeroPad(i int) string { return pad(i, "0") }
 // ISO8601 and others describe standard representations.
 func (t *Time) Format(layout string) string {
 	b := new(bytes.Buffer)
-	// Each iteration generates one piece
-	for len(layout) > 0 {
-		c := layout[0]
-		pieceType := charType(c)
-		i := 0
-		for i < len(layout) && charType(layout[i]) == pieceType {
-			i++
+	// Each iteration generates one std value.
+	for {
+		prefix, std, suffix := nextStdChunk(layout)
+		b.WriteString(prefix)
+		if std == "" {
+			break
 		}
-		p := layout[0:i]
-		layout = layout[i:]
-		switch p {
+		var p string
+		switch std {
 		case stdYear:
 			p = strconv.Itoa64(t.Year % 100)
 		case stdLongYear:
@@ -207,37 +258,22 @@ func (t *Time) Format(layout string) string {
 			p = strconv.Itoa(t.Second)
 		case stdZeroSecond:
 			p = zeroPad(t.Second)
-		case stdZulu:
-			p = zeroPad(t.Hour) + zeroPad(t.Minute)
 		case stdISO8601TZ, stdNumTZ:
 			// Ugly special case.  We cheat and take "Z" to mean "the time
 			// zone as formatted for ISO 8601".
-			zone := t.ZoneOffset / 60 // convert to minutes
-			if p == stdISO8601TZ && t.ZoneOffset == 0 {
+			if std == stdISO8601TZ && t.ZoneOffset == 0 {
 				p = "Z"
-			} else {
-				// If the reference time is stdNumTZ (0700), the sign has already been
-				// emitted but may be wrong.  For stdISO8601TZ we must print it.
-				if p == stdNumTZ && b.Len() > 0 {
-					soFar := b.Bytes()
-					if soFar[len(soFar)-1] == '-' && zone >= 0 {
-						// fix the sign
-						soFar[len(soFar)-1] = '+'
-					} else {
-						zone = -zone
-					}
-					p = ""
-				} else {
-					if zone < 0 {
-						p = "-"
-						zone = -zone
-					} else {
-						p = "+"
-					}
-				}
-				p += zeroPad(zone / 60)
-				p += zeroPad(zone % 60)
+				break
 			}
+			zone := t.ZoneOffset / 60 // convert to minutes
+			if zone < 0 {
+				p = "-"
+				zone = -zone
+			} else {
+				p = "+"
+			}
+			p += zeroPad(zone / 60)
+			p += zeroPad(zone % 60)
 		case stdPM:
 			if t.Hour >= 12 {
 				p = "PM"
@@ -268,6 +304,7 @@ func (t *Time) Format(layout string) string {
 			}
 		}
 		b.WriteString(p)
+		layout = suffix
 	}
 	return b.String()
 }
@@ -299,20 +336,49 @@ func (e *ParseError) String() string {
 		strconv.Quote(e.Value) + e.Message
 }
 
-// To simplify comparison, collapse an initial run of spaces into a single space.
-func collapseSpaces(s string) string {
-	if len(s) <= 1 || s[0] != ' ' {
-		return s
+// getnum parses s[0:1] or s[0:2] (fixed forces the latter)
+// as a decimal integer and returns the integer and the
+// remainder of the string.
+func getnum(s string, fixed bool) (int, string, os.Error) {
+	if len(s) == 0 || s[0] < '0' || s[0] > '9' {
+		return 0, s, errBad
 	}
-	var i int
-	for i = 1; i < len(s); i++ {
-		if s[i] != ' ' {
-			return s[i-1:]
+	if len(s) == 1 || s[1] < '0' || s[1] > '9' {
+		if fixed {
+			return 0, s, errBad
 		}
+		return int(s[0] - '0'), s[1:], nil
 	}
-	return " "
+	return int(s[0]-'0')*10 + int(s[1]-'0'), s[2:], nil
 }
 
+func cutspace(s string) string {
+	for len(s) > 0 && s[0] == ' ' {
+		s = s[1:]
+	}
+	return s
+}
+
+// skip removes the given prefix from value,
+// treating runs of space characters as equivalent.
+func skip(value, prefix string) (string, os.Error) {
+	for len(prefix) > 0 {
+		if prefix[0] == ' ' {
+			if len(value) > 0 && value[0] != ' ' {
+				return "", errBad
+			}
+			prefix = cutspace(prefix)
+			value = cutspace(value)
+			continue
+		}
+		if len(value) == 0 || value[0] != prefix[0] {
+			return "", errBad
+		}
+		prefix = prefix[1:]
+		value = value[1:]
+	}
+	return value, nil
+}
 
 // Parse parses a formatted string and returns the time value it represents.
 // The layout defines the format by showing the representation of a standard
@@ -325,74 +391,35 @@ func collapseSpaces(s string) string {
 // (such as having the wrong day of the week), the returned value will also
 // be inconsistent.  In any case, the elements of the returned time will be
 // sane: hours in 0..23, minutes in 0..59, day of month in 0..31, etc.
+// Years must be in the range 0000..9999.
 func Parse(alayout, avalue string) (*Time, os.Error) {
 	var t Time
-	const formatErr = ": different format from "
 	rangeErrString := "" // set if a value is out of range
 	pmSet := false       // do we need to add 12 to the hour?
-	// Each iteration steps along one piece
 	layout, value := alayout, avalue
-	sign := "" // pending + or - from previous iteration
-	for len(layout) > 0 && len(value) > 0 {
-		c := layout[0]
-		pieceType := charType(c)
-		var i int
-		for i = 0; i < len(layout) && charType(layout[i]) == pieceType; i++ {
-		}
-		reference := layout[0:i]
-		prevLayout := layout
-		layout = layout[i:]
-		// Ugly time zone handling.
-		if reference == "Z" {
-			// Special case for ISO8601 time zone: "Z" or "-0800"
-			if value[0] == 'Z' {
-				i = 1
-			} else if len(value) >= 5 {
-				i = 5
-			} else {
-				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
-			}
-		} else {
-			c = value[0]
-			if charType(c) != pieceType {
-				// Ugly management of signs.  Reference and data might differ.
-				// 1. Could be a minus sign introducing a negative year.
-				if c == '-' && pieceType != minus {
-					value = value[1:]
-					layout = prevLayout // don't consume reference item
-					sign = "-"
-					continue
-				}
-				// 2. Could be a plus sign for a +0100 time zone, represented by -0700 in the standard.
-				if c == '+' && pieceType == minus {
-					value = value[1:]
-					layout = prevLayout[1:] // absorb sign in both value and layout
-					sign = "+"
-					continue
-				}
-				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
-			}
-			for i = 0; i < len(value) && charType(value[i]) == pieceType; i++ {
-			}
-		}
-		p := value[0:i]
-		value = value[i:]
-		switch pieceType {
-		case separator:
-			// Separators must match but initial run of spaces is treated as a single space.
-			if collapseSpaces(p) != collapseSpaces(reference) {
-				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
-			}
-			continue
-		case plus, minus:
-			if len(p) == 1 { // ++ or -- don't count as signs.
-				sign = p
-				continue
-			}
-		}
+	// Each iteration processes one std value.
+	for {
 		var err os.Error
-		switch reference {
+		prefix, std, suffix := nextStdChunk(layout)
+		value, err = skip(value, prefix)
+		if err != nil {
+			return nil, &ParseError{alayout, avalue, prefix, value, ""}
+		}
+		if len(std) == 0 {
+			if len(value) != 0 {
+				return nil, &ParseError{alayout, avalue, "", value, ": extra text: " + value}
+			}
+			break
+		}
+		layout = suffix
+		var p string
+		switch std {
 		case stdYear:
+			if len(value) < 2 {
+				err = errBad
+				break
+			}
+			p, value = value[0:2], value[2:]
 			t.Year, err = strconv.Atoi64(p)
 			if t.Year >= 69 { // Unix time starts Dec 31 1969 in some time zones
 				t.Year += 1900
@@ -400,70 +427,66 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 				t.Year += 2000
 			}
 		case stdLongYear:
-			t.Year, err = strconv.Atoi64(p)
-			if sign == "-" {
-				t.Year = -t.Year
+			if len(value) < 4 || value[0] < '0' || value[0] > '9' {
+				err = errBad
+				break
 			}
+			p, value = value[0:4], value[4:]
+			t.Year, err = strconv.Atoi64(p)
 		case stdMonth:
-			t.Month, err = lookup(shortMonthNames, p)
+			t.Month, value, err = lookup(shortMonthNames, value)
 		case stdLongMonth:
-			t.Month, err = lookup(longMonthNames, p)
+			t.Month, value, err = lookup(longMonthNames, value)
 		case stdNumMonth, stdZeroMonth:
-			t.Month, err = strconv.Atoi(p)
+			t.Month, value, err = getnum(value, std == stdZeroMonth)
 			if t.Month <= 0 || 12 < t.Month {
 				rangeErrString = "month"
 			}
 		case stdWeekDay:
-			t.Weekday, err = lookup(shortDayNames, p)
+			t.Weekday, value, err = lookup(shortDayNames, value)
 		case stdLongWeekDay:
-			t.Weekday, err = lookup(longDayNames, p)
+			t.Weekday, value, err = lookup(longDayNames, value)
 		case stdDay, stdUnderDay, stdZeroDay:
-			t.Day, err = strconv.Atoi(p)
+			if std == stdUnderDay && len(value) > 0 && value[0] == ' ' {
+				value = value[1:]
+			}
+			t.Day, value, err = getnum(value, std == stdZeroDay)
 			if t.Day < 0 || 31 < t.Day {
 				// TODO: be more thorough in date check?
 				rangeErrString = "day"
 			}
 		case stdHour:
-			t.Hour, err = strconv.Atoi(p)
+			t.Hour, value, err = getnum(value, false)
 			if t.Hour < 0 || 24 <= t.Hour {
 				rangeErrString = "hour"
 			}
 		case stdHour12, stdZeroHour12:
-			t.Hour, err = strconv.Atoi(p)
+			t.Hour, value, err = getnum(value, std == stdZeroHour12)
 			if t.Hour < 0 || 12 < t.Hour {
 				rangeErrString = "hour"
 			}
 		case stdMinute, stdZeroMinute:
-			t.Minute, err = strconv.Atoi(p)
+			t.Minute, value, err = getnum(value, std == stdZeroMinute)
 			if t.Minute < 0 || 60 <= t.Minute {
 				rangeErrString = "minute"
 			}
 		case stdSecond, stdZeroSecond:
-			t.Second, err = strconv.Atoi(p)
+			t.Second, value, err = getnum(value, std == stdZeroSecond)
 			if t.Second < 0 || 60 <= t.Second {
 				rangeErrString = "second"
 			}
-		case stdZulu:
-			if len(p) != 4 {
-				err = os.ErrorString("HHMM value must be 4 digits")
+		case stdISO8601TZ, stdNumTZ:
+			if std == stdISO8601TZ && len(value) >= 1 && value[0] == 'Z' {
+				value = value[1:]
+				t.Zone = "UTC"
 				break
 			}
-			t.Hour, err = strconv.Atoi(p[0:2])
-			if err != nil {
-				t.Minute, err = strconv.Atoi(p[2:4])
+			if len(value) < 5 {
+				err = errBad
+				break
 			}
-		case stdISO8601TZ, stdNumTZ:
-			if reference == stdISO8601TZ {
-				if p == "Z" {
-					t.Zone = "UTC"
-					break
-				}
-				// len(p) known to be 5: "-0800"
-				sign = p[0:1]
-				p = p[1:]
-			} else {
-				// len(p) known to be 4: "0800" and sign is set
-			}
+			var sign string
+			sign, p, value = value[0:1], value[1:5], value[5:]
 			var hr, min int
 			hr, err = strconv.Atoi(p[0:2])
 			if err != nil {
@@ -478,12 +501,22 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 				err = errBad
 			}
 		case stdPM:
+			if len(value) < 2 {
+				err = errBad
+				break
+			}
+			p, value = value[0:2], value[2:]
 			if p == "PM" {
 				pmSet = true
 			} else if p != "AM" {
 				err = errBad
 			}
 		case stdpm:
+			if len(value) < 2 {
+				err = errBad
+				break
+			}
+			p, value = value[0:2], value[2:]
 			if p == "pm" {
 				pmSet = true
 			} else if p != "am" {
@@ -491,13 +524,18 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			}
 		case stdTZ:
 			// Does it look like a time zone?
-			if p == "UTC" {
-				t.Zone = p
+			if len(value) >= 3 && value[0:3] == "UTC" {
+				t.Zone, value = value[0:3], value[3:]
 				break
 			}
-			// All other time zones look like XXT or XXXT.
-			if len(p) != 3 && len(p) != 4 || p[len(p)-1] != 'T' {
+
+			if len(value) >= 3 && value[2] == 'T' {
+				p, value = value[0:3], value[3:]
+			} else if len(value) >= 4 && value[3] == 'T' {
+				p, value = value[0:4], value[4:]
+			} else {
 				err = errBad
+				break
 			}
 			for i := 0; i < len(p); i++ {
 				if p[i] < 'A' || 'Z' < p[i] {
@@ -519,12 +557,11 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			}
 		}
 		if rangeErrString != "" {
-			return nil, &ParseError{alayout, avalue, reference, p, ": " + rangeErrString + " out of range"}
+			return nil, &ParseError{alayout, avalue, std, value, ": " + rangeErrString + " out of range"}
 		}
 		if err != nil {
-			return nil, &ParseError{alayout, avalue, reference, p, ""}
+			return nil, &ParseError{alayout, avalue, std, value, ""}
 		}
-		sign = ""
 	}
 	if pmSet && t.Hour < 12 {
 		t.Hour += 12

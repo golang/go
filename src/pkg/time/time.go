@@ -43,12 +43,12 @@ const (
 
 // Time is the struct representing a parsed time value.
 type Time struct {
-	Year                 int64 // 2008 is 2008
-	Month, Day           int   // Sep-17 is 9, 17
-	Hour, Minute, Second int   // 10:43:12 is 10, 43, 12
-	Weekday              int   // Sunday, Monday, ...
-	ZoneOffset           int   // seconds east of UTC
-	Zone                 string
+	Year                 int64  // 2006 is 2006
+	Month, Day           int    // Jan-2 is 1, 2
+	Hour, Minute, Second int    // 15:04:05 is 15, 4, 5.
+	Weekday              int    // Sunday, Monday, ...
+	ZoneOffset           int    // seconds east of UTC, e.g. -7*60 for -0700
+	Zone                 string // e.g., "MST"
 }
 
 var nonleapyear = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
