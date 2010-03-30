@@ -9,7 +9,7 @@
 //	http://godoc/		main landing page
 //	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, tutorial, etc.
 //	http://godoc/src/	serve files from $GOROOT/src; .go gets pretty-printed
-//	http://godoc/cmd/	serve documentation about commands (TODO)
+//	http://godoc/cmd/	serve documentation about commands
 //	http://godoc/pkg/	serve documentation about packages
 //				(idea is if you say import "compress/zlib", you go to
 //				http://godoc/pkg/compress/zlib)
@@ -27,16 +27,19 @@ package main
 
 import (
 	"bytes"
+	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
-	_ "expvar" // to serve /debug/vars
+	"go/ast"
 	"http"
 	_ "http/pprof" // to serve /debug/pprof/*
 	"io"
 	"log"
 	"os"
 	pathutil "path"
+	"regexp"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -53,8 +56,8 @@ var (
 	serverAddr = flag.String("server", "", "webserver address for command line searches")
 
 	// layout control
-	html   = flag.Bool("html", false, "print HTML in command-line mode")
-	genAST = flag.Bool("src", false, "print exported source in command-line mode")
+	html    = flag.Bool("html", false, "print HTML in command-line mode")
+	srcMode = flag.Bool("src", false, "print (exported) source in command-line mode")
 
 	// command-line searches
 	query = flag.Bool("q", false, "arguments are considered search queries")
@@ -188,6 +191,34 @@ func remoteSearch(query string) (res *http.Response, err os.Error) {
 }
 
 
+// Does s look like a regular expression?
+func isRegexp(s string) bool {
+	return strings.IndexAny(s, ".(|)*+?^$[]") >= 0
+}
+
+
+// Make a regular expression of the form
+// names[0]|names[1]|...names[len(names)-1].
+// Returns nil if the regular expression is illegal.
+func makeRx(names []string) (rx *regexp.Regexp) {
+	if len(names) > 0 {
+		s := ""
+		for i, name := range names {
+			if i > 0 {
+				s += "|"
+			}
+			if isRegexp(name) {
+				s += name
+			} else {
+				s += "^" + name + "$" // must match exactly
+			}
+		}
+		rx, _ = regexp.Compile(s) // rx is nil if there's a compilation error
+	}
+	return
+}
+
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -250,12 +281,6 @@ func main() {
 		// Start indexing goroutine.
 		go indexer()
 
-		// The server may have been restarted; always wait 1sec to
-		// give the forking server a chance to shut down and release
-		// the http port.
-		// TODO(gri): Do we still need this?
-		time.Sleep(1e9)
-
 		// Start http server.
 		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
 			log.Exitf("ListenAndServe %s: %v", *httpAddr, err)
@@ -297,21 +322,43 @@ func main() {
 		relpath = relativePath(path)
 	}
 
+	var mode PageInfoMode
+	if *srcMode {
+		// only filter exports if we don't have explicit command-line filter arguments
+		if flag.NArg() == 1 {
+			mode |= exportsOnly
+		}
+	} else {
+		mode = exportsOnly | genDoc
+	}
 	// TODO(gri): Provide a mechanism (flag?) to select a package
 	//            if there are multiple packages in a directory.
-	info := pkgHandler.getPageInfo(abspath, relpath, "", *genAST, true)
+	info := pkgHandler.getPageInfo(abspath, relpath, "", mode|tryMode)
 
 	if info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
 		// try again, this time assume it's a command
 		if len(path) > 0 && path[0] != '/' {
 			abspath = absolutePath(path, cmdHandler.fsRoot)
 		}
-		info = cmdHandler.getPageInfo(abspath, relpath, "", false, false)
+		info = cmdHandler.getPageInfo(abspath, relpath, "", mode)
 	}
 
-	if info.PDoc != nil && flag.NArg() > 1 {
-		args := flag.Args()
-		info.PDoc.Filter(args[1:])
+	// If we have more than one argument, use the remaining arguments for filtering
+	if flag.NArg() > 1 {
+		args := flag.Args()[1:]
+		rx := makeRx(args)
+		if rx == nil {
+			log.Exitf("illegal regular expression from %v", args)
+		}
+
+		filter := func(s string) bool { return rx.MatchString(s) }
+		switch {
+		case info.PAst != nil:
+			ast.FilterFile(info.PAst, filter)
+			info.PAst.Doc = nil // don't show package comment in this case
+		case info.PDoc != nil:
+			info.PDoc.Filter(filter)
+		}
 	}
 
 	if err := packageText.Execute(info, os.Stdout); err != nil {
