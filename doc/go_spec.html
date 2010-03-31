@@ -1704,9 +1704,11 @@ last non-empty expression list.
 <p>
 A type declaration binds an identifier, the <i>type name</i>, to a new type
 that has the same definition (element, fields, channel direction, etc.) as
-an existing type.  The new type is
+an existing type.  With the exception of interface types, the new type is
 <a href="#Properties_of_types_and_values">compatible</a> with, but
 <a href="#Properties_of_types_and_values">different</a> from, the existing type.
+A newly defined interface type is always
+<a href="#Properties_of_types_and_values">identical</a> to the existing type.
 </p>
 
 <pre class="ebnf">
@@ -1737,7 +1739,7 @@ type Cipher interface {
 <p>
 The declared type does not inherit any <a href="#Method_declarations">methods</a>
 bound to the existing type, but the <a href="#Types">method set</a>
-of elements of a composite type is not changed:
+of elements of a composite type or of an interface type is not changed:
 </p>
 
 <pre>
@@ -1754,6 +1756,10 @@ type NewMutex Mutex
 type PrintableMutex struct {
 	Mutex
 }
+
+// MyCipher is an interface type that has the same method set as Cipher;
+// it is indistinguishable from Cipher.
+type MyCipher Cipher
 </pre>
 
 <p>
