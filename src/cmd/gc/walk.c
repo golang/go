@@ -391,6 +391,7 @@ walkstmt(Node **np)
 	case OPRINTN:
 	case OPANIC:
 	case OEMPTY:
+	case ORECOVER:
 		if(n->typecheck == 0)
 			fatal("missing typecheck");
 		init = n->ninit;
@@ -631,7 +632,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case ORECOVER:
-		n = mkcall("recover", n->type, init);
+		n = mkcall("recover", n->type, init, nod(OADDR, nodfp, N));
 		goto ret;
 
 	case OLITERAL:

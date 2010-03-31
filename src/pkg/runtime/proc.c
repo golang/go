@@ -447,6 +447,32 @@ scheduler(void)
 	lock(&sched);
 	if(gosave(&m->sched) != 0){
 		gp = m->curg;
+		if(gp->status == Grecovery) {
+			// switched to scheduler to get stack unwound.
+			// don't go through the full scheduling logic.
+			Defer *d;
+
+			d = gp->defer;
+			gp->defer = d->link;
+			
+			// unwind to the stack frame with d->sp in it.
+			unwindstack(gp, d->sp);
+			if(d->sp < gp->stackguard || gp->stackbase < d->sp)
+				throw("bad stack in recovery");
+			
+			// make the deferproc for this d return again,
+			// this time returning 1.  function will jump to
+			// standard return epilogue.
+			// the -2*sizeof(uintptr) makes up for the
+			// two extra words that are on the stack at
+			// each call to deferproc.
+			// (the pc we're returning to does pop pop
+			// before it tests the return value.)
+			gp->sched.sp = d->sp - 2*sizeof(uintptr);
+			gp->sched.pc = d->pc;
+			free(d);
+			gogo(&gp->sched, 1);
+		}
 
 		// Jumped here via gosave/gogo, so didn't
 		// execute lock(&sched) above.
@@ -719,6 +745,10 @@ newstack(void)
 	top->fp = m->morefp;
 	top->args = args;
 	top->free = free;
+	
+	// copy flag from panic
+	top->panic = g1->ispanic;
+	g1->ispanic = false;
 
 	g1->stackbase = (byte*)top;
 	g1->stackguard = stk + StackGuard;
@@ -819,7 +849,7 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 }
 
 #pragma textflag 7
-void
+uintptr
 ·deferproc(int32 siz, byte* fn, ...)
 {
 	Defer *d;
@@ -828,10 +858,19 @@ void
 	d->fn = fn;
 	d->sp = (byte*)(&fn+1);
 	d->siz = siz;
+	d->pc = ·getcallerpc(&siz);
 	mcpy(d->args, d->sp, d->siz);
 
 	d->link = g->defer;
 	g->defer = d;
+	
+	// deferproc returns 0 normally.
+	// a deferred func that stops a panic
+	// makes the deferproc return 1.
+	// the code the compiler generates always
+	// checks the return value and jumps to the
+	// end of the function if deferproc returns != 0.
+	return 0;
 }
 
 #pragma textflag 7
@@ -887,6 +926,131 @@ unwindstack(G *gp, byte *sp)
 		free(stk);
 	}
 }
+
+static void
+printpanics(Panic *p)
+{
+	if(p->link) {
+		printpanics(p->link);
+		printf("\t");
+	}
+	printf("panic: ");
+	printany(p->arg);
+	if(p->recovered)
+		printf(" [recovered]");
+	printf("\n");
+}
+	
+void
+·panic(Eface e)
+{
+	Defer *d;
+	Panic *p;
+
+	p = mal(sizeof *p);
+	p->arg = e;
+	p->link = g->panic;
+	p->stackbase = g->stackbase;
+	g->panic = p;
+
+	for(;;) {
+		d = g->defer;
+		if(d == nil)
+			break;
+		// take defer off list in case of recursive panic
+		g->defer = d->link;
+		g->ispanic = true;	// rock for newstack, where reflect.call ends up
+		reflect·call(d->fn, d->args, d->siz);
+		if(p->recovered) {
+			g->panic = p->link;
+			free(p);
+			// put recovering defer back on list
+			// for scheduler to find.
+			d->link = g->defer;
+			g->defer = d;
+			g->status = Grecovery;
+			gosched();
+			throw("recovery failed"); // gosched should not return
+		}
+		free(d);
+	}
+
+	// ran out of deferred calls - old-school panic now
+	fd = 2;
+	printpanics(g->panic);
+	panic(0);
+}
+
+#pragma textflag 7	/* no split, or else g->stackguard is not the stack for fp */
+void
+·recover(byte *fp, Eface ret)
+{
+	Stktop *top, *oldtop;
+	Panic *p;
+
+	// Must be a panic going on.
+	if((p = g->panic) == nil || p->recovered)
+		goto nomatch;
+
+	// Frame must be at the top of the stack segment,
+	// because each deferred call starts a new stack
+	// segment as a side effect of using reflect.call.
+	// (There has to be some way to remember the
+	// variable argument frame size, and the segment
+	// code already takes care of that for us, so we
+	// reuse it.)
+	//
+	// As usual closures complicate things: the fp that
+	// the closure implementation function claims to have
+	// is where the explicit arguments start, after the
+	// implicit pointer arguments and PC slot.
+	// If we're on the first new segment for a closure,
+	// then fp == top - top->args is correct, but if
+	// the closure has its own big argument frame and
+	// allocated a second segment (see below),
+	// the fp is slightly above top - top->args.
+	// That condition can't happen normally though
+	// (stack pointer go down, not up), so we can accept
+	// any fp between top and top - top->args as
+	// indicating the top of the segment.
+	top = (Stktop*)g->stackbase;
+	if(fp < (byte*)top - top->args || (byte*)top < fp)
+		goto nomatch;
+
+	// The deferred call makes a new segment big enough
+	// for the argument frame but not necessarily big
+	// enough for the function's local frame (size unknown
+	// at the time of the call), so the function might have
+	// made its own segment immediately.  If that's the
+	// case, back top up to the older one, the one that
+	// reflect.call would have made for the panic.
+	//
+	// The fp comparison here checks that the argument
+	// frame that was copied during the split (the top->args
+	// bytes above top->fp) abuts the old top of stack.
+	// This is a correct test for both closure and non-closure code.
+	oldtop = (Stktop*)top->stackbase;
+	if(oldtop != nil && top->fp == (byte*)oldtop - top->args)
+		top = oldtop;
+
+	// Now we have the segment that was created to
+	// run this call.  It must have been marked as a panic segment.
+	if(!top->panic)
+		goto nomatch;
+
+	// Okay, this is the top frame of a deferred call
+	// in response to a panic.  It can see the panic argument.
+	p->recovered = 1;
+	ret = p->arg;
+	FLUSH(&ret);
+	return;
+
+nomatch:
+	ret.type = nil;
+	ret.data = nil;
+	FLUSH(&ret);
+}
+
 
 // Put on gfree list.  Sched must be locked.
 static void

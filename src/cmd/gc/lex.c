@@ -138,14 +138,14 @@ main(int argc, char *argv[])
 	resumecheckwidth();
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
-			funccompile(l->n);
+			funccompile(l->n, 0);
 	if(nerrors == 0)
 		fninit(xtop);
 	while(closures) {
 		l = closures;
 		closures = nil;
 		for(; l; l=l->next)
-			funccompile(l->n);
+			funccompile(l->n, 1);
 	}
 	dclchecks();
 
@@ -1443,6 +1443,13 @@ lexfini(void)
 		*s->def = *nodbool(0);
 		s->def->sym = s;
 	}
+	
+	nodfp = nod(ONAME, N, N);
+	nodfp->noescape = 1;
+	nodfp->type = types[TINT32];
+	nodfp->xoffset = 0;
+	nodfp->class = PPARAM;
+	nodfp->sym = lookup(".fp");
 }
 
 struct

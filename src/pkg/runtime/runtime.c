@@ -42,15 +42,6 @@ panic(int32 unused)
 }
 
 void
-·panic(Eface e)
-{
-	fd = 2;
-	printf("panic: ");
-	printany(e);
-	panic(0);
-}
-
-void
 ·throwindex(void)
 {
 	throw("index out of range");

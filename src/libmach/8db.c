@@ -147,8 +147,6 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 	// G is
 	//	byte* stackguard
 	//	byte* stackbase (= Stktop*)
-	//	Defer* defer
-	//	Gobuf sched
 	// TODO(rsc): Need some way to get at the g for other threads.
 	// Probably need to pass it into the trace function.
 	g = 0;

@@ -142,8 +142,8 @@ ginscall(Node *f, int proc)
 		break;
 
 	case 1:	// call in new proc (go)
-	case 2:	// defered call (defer)
-		nodreg(&reg, types[TINT64], D_AX);
+	case 2:	// deferred call (defer)
+		nodreg(&reg, types[TINT64], D_CX);
 		gins(APUSHQ, f, N);
 		nodconst(&con, types[TINT32], argsize(f->type));
 		gins(APUSHQ, &con, N);
@@ -156,6 +156,11 @@ ginscall(Node *f, int proc)
 		}
 		gins(APOPQ, N, &reg);
 		gins(APOPQ, N, &reg);
+		if(proc == 2) {
+			nodreg(&reg, types[TINT64], D_AX);
+			gins(ATESTQ, &reg, &reg);
+			patch(gbranch(AJNE, T), pret);
+		}
 		break;
 	}
 }

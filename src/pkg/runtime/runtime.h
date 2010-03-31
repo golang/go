@@ -62,6 +62,7 @@ typedef	struct	Itab		Itab;
 typedef	struct	Eface		Eface;
 typedef	struct	Type		Type;
 typedef	struct	Defer		Defer;
+typedef	struct	Panic		Panic;
 typedef	struct	hash		Hmap;
 typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
@@ -98,6 +99,7 @@ enum
 	Gwaiting,
 	Gmoribund,
 	Gdead,
+	Grecovery,
 };
 enum
 {
@@ -176,7 +178,8 @@ struct	G
 	byte*	stackguard;	// cannot move - also known to linker, libmach, libcgo
 	byte*	stackbase;	// cannot move - also known to libmach, libcgo
 	Defer*	defer;
-	Gobuf	sched;		// cannot move - also known to libmach
+	Panic*	panic;
+	Gobuf	sched;
 	byte*	stack0;
 	byte*	entry;		// initial function
 	G*	alllink;	// on allg
@@ -186,6 +189,7 @@ struct	G
 	uint32	selgen;		// valid sudog pointer
 	G*	schedlink;
 	bool	readyonstop;
+	bool	ispanic;
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
 	void	(*cgofn)(void*);	// for cgo/ffi
@@ -240,6 +244,7 @@ struct	Stktop
 	// function call, which uses an off-stack argument frame.
 	uint8*	fp;
 	bool	free;	// call stackfree for this frame?
+	bool	panic;	// is this frame the top of a panic?
 };
 struct	Alg
 {
@@ -311,9 +316,21 @@ struct Defer
 {
 	int32	siz;
 	byte*	sp;
+	byte*	pc;
 	byte*	fn;
 	Defer*	link;
 	byte	args[8];	// padded to actual size
+};
+
+/*
+ * panics
+ */
+struct Panic
+{
+	Eface	arg;		// argument to panic
+	byte*	stackbase;	// g->stackbase in panic
+	Panic*	link;		// link to earlier panic
+	bool	recovered;	// whether this panic is over
 };
 
 /*
@@ -400,6 +417,7 @@ void*	malloc(uintptr size);
 void	free(void *v);
 void	addfinalizer(void*, void(*fn)(void*), int32);
 void	walkfintab(void (*fn)(void*));
+void	runpanic(Panic*);
 
 void	exit(int32);
 void	breakpoint(void);

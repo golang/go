@@ -197,5 +197,5 @@ fninit(NodeList *n)
 	fn->nbody = r;
 	funcbody(fn);
 	typecheck(&fn, Etop);
-	funccompile(fn);
+	funccompile(fn, 0);
 }
