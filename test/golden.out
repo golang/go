@@ -116,14 +116,12 @@ PASS
 == interface/
 
 =========== interface/fail.go
-*main.S is not main.I: missing method Foo
-throw: interface conversion
+panic: interface conversion: *main.S is not main.I: missing method Foo
 
 panic PC=xxx
 
 =========== interface/returntype.go
-*main.S is not main.I2: missing method Name
-throw: interface conversion
+panic: interface conversion: *main.S is not main.I2: missing method Name
 
 panic PC=xxx
 
@@ -165,15 +163,13 @@ fixedbugs/bug081.go:9: typechecking loop
 M
 
 =========== fixedbugs/bug113.go
-interface is int, not int32
-throw: interface conversion
+panic: interface conversion: interface is int, not int32
 
 panic PC=xxx
 
 =========== fixedbugs/bug148.go
 2 3
-interface is main.T, not main.T
-throw: interface conversion
+panic: interface conversion: interface is main.T, not main.T
 
 panic PC=xxx
 

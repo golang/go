@@ -369,20 +369,6 @@ TEXT stackcheck(SB), 7, $0
 	INT	$3
 	RET
 
-// callString(f, arg, out)
-// call Go f(arg), which returns a string, and store in out
-TEXT callString(SB), 7, $24
-	MOVL	arg+4(FP), BX
-	MOVL	f+0(FP), CX
-	MOVL	BX, 0(SP)
-	CALL	*CX
-	MOVL	out+8(FP), DI
-	LEAL	4(SP), SI
-	MOVSL
-	MOVSL
-	MOVSL
-	RET
-
 GLOBL m0(SB), $1024
 GLOBL g0(SB), $1024
 GLOBL tls0(SB), $32
