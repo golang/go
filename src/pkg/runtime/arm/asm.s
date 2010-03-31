@@ -270,7 +270,7 @@ TEXT callString(SB), 7, $24
 	MOVW	arg+4(FP), R1
 	MOVW	f+0(FP), R0
 	MOVW	R1, 0(SP)
-	BL	R0
+	BL	(R0)
 	MOVW	4(SP), R1
 	MOVW	8(SP), R2
 	MOVW	12(SP), R3
