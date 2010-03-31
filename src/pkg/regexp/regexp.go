@@ -33,18 +33,25 @@ import (
 
 var debug = false
 
+// Error is the local type for a parsing error.
+type Error string
+
+func (e Error) String() string {
+	return string(e)
+}
+
 // Error codes returned by failures to parse an expression.
 var (
-	ErrInternal            = os.NewError("internal error")
-	ErrUnmatchedLpar       = os.NewError("unmatched '('")
-	ErrUnmatchedRpar       = os.NewError("unmatched ')'")
-	ErrUnmatchedLbkt       = os.NewError("unmatched '['")
-	ErrUnmatchedRbkt       = os.NewError("unmatched ']'")
-	ErrBadRange            = os.NewError("bad range in character class")
-	ErrExtraneousBackslash = os.NewError("extraneous backslash")
-	ErrBadClosure          = os.NewError("repeated closure (**, ++, etc.)")
-	ErrBareClosure         = os.NewError("closure applies to nothing")
-	ErrBadBackslash        = os.NewError("illegal backslash escape")
+	ErrInternal            = Error("internal error")
+	ErrUnmatchedLpar       = Error("unmatched '('")
+	ErrUnmatchedRpar       = Error("unmatched ')'")
+	ErrUnmatchedLbkt       = Error("unmatched '['")
+	ErrUnmatchedRbkt       = Error("unmatched ']'")
+	ErrBadRange            = Error("bad range in character class")
+	ErrExtraneousBackslash = Error("extraneous backslash")
+	ErrBadClosure          = Error("repeated closure (**, ++, etc.)")
+	ErrBareClosure         = Error("closure applies to nothing")
+	ErrBadBackslash        = Error("illegal backslash escape")
 )
 
 // An instruction executed by the NFA
@@ -252,10 +259,14 @@ func (re *Regexp) add(i instr) instr {
 
 type parser struct {
 	re    *Regexp
-	error os.Error
 	nlpar int // number of unclosed lpars
 	pos   int
 	ch    int
+}
+
+func (p *parser) error(err os.Error) {
+	p.re = nil
+	panic(err)
 }
 
 const endOfFile = -1
@@ -309,8 +320,7 @@ func (p *parser) charClass() instr {
 		switch c := p.c(); c {
 		case ']', endOfFile:
 			if left >= 0 {
-				p.error = ErrBadRange
-				return nil
+				p.error(ErrBadRange)
 			}
 			// Is it [^\n]?
 			if cc.negate && cc.ranges.Len() == 2 &&
@@ -328,21 +338,18 @@ func (p *parser) charClass() instr {
 			p.re.add(cc)
 			return cc
 		case '-': // do this before backslash processing
-			p.error = ErrBadRange
-			return nil
+			p.error(ErrBadRange)
 		case '\\':
 			c = p.nextc()
 			switch {
 			case c == endOfFile:
-				p.error = ErrExtraneousBackslash
-				return nil
+				p.error(ErrExtraneousBackslash)
 			case c == 'n':
 				c = '\n'
 			case specialcclass(c):
 				// c is as delivered
 			default:
-				p.error = ErrBadBackslash
-				return nil
+				p.error(ErrBadBackslash)
 			}
 			fallthrough
 		default:
@@ -359,8 +366,7 @@ func (p *parser) charClass() instr {
 				cc.addRange(left, c)
 				left = -1
 			default:
-				p.error = ErrBadRange
-				return nil
+				p.error(ErrBadRange)
 			}
 		}
 	}
@@ -368,28 +374,18 @@ func (p *parser) charClass() instr {
 }
 
 func (p *parser) term() (start, end instr) {
-	// term() is the leaf of the recursion, so it's sufficient to pick off the
-	// error state here for early exit.
-	// The other functions (closure(), concatenation() etc.) assume
-	// it's safe to recur to here.
-	if p.error != nil {
-		return
-	}
 	switch c := p.c(); c {
 	case '|', endOfFile:
 		return nil, nil
 	case '*', '+':
-		p.error = ErrBareClosure
-		return
+		p.error(ErrBareClosure)
 	case ')':
 		if p.nlpar == 0 {
-			p.error = ErrUnmatchedRpar
-			return
+			p.error(ErrUnmatchedRpar)
 		}
 		return nil, nil
 	case ']':
-		p.error = ErrUnmatchedRbkt
-		return
+		p.error(ErrUnmatchedRbkt)
 	case '^':
 		p.nextc()
 		start = p.re.add(new(_Bot))
@@ -405,12 +401,8 @@ func (p *parser) term() (start, end instr) {
 	case '[':
 		p.nextc()
 		start = p.charClass()
-		if p.error != nil {
-			return
-		}
 		if p.c() != ']' {
-			p.error = ErrUnmatchedLbkt
-			return
+			p.error(ErrUnmatchedLbkt)
 		}
 		p.nextc()
 		return start, start
@@ -421,8 +413,7 @@ func (p *parser) term() (start, end instr) {
 		nbra := p.re.nbra
 		start, end = p.regexp()
 		if p.c() != ')' {
-			p.error = ErrUnmatchedLpar
-			return
+			p.error(ErrUnmatchedLpar)
 		}
 		p.nlpar--
 		p.nextc()
@@ -434,7 +425,7 @@ func (p *parser) term() (start, end instr) {
 		ebra.n = nbra
 		if start == nil {
 			if end == nil {
-				p.error = ErrInternal
+				p.error(ErrInternal)
 				return
 			}
 			start = ebra
@@ -447,15 +438,13 @@ func (p *parser) term() (start, end instr) {
 		c = p.nextc()
 		switch {
 		case c == endOfFile:
-			p.error = ErrExtraneousBackslash
-			return
+			p.error(ErrExtraneousBackslash)
 		case c == 'n':
 			c = '\n'
 		case special(c):
 			// c is as delivered
 		default:
-			p.error = ErrBadBackslash
-			return
+			p.error(ErrBadBackslash)
 		}
 		fallthrough
 	default:
@@ -469,7 +458,7 @@ func (p *parser) term() (start, end instr) {
 
 func (p *parser) closure() (start, end instr) {
 	start, end = p.term()
-	if start == nil || p.error != nil {
+	if start == nil {
 		return
 	}
 	switch p.c() {
@@ -504,7 +493,7 @@ func (p *parser) closure() (start, end instr) {
 	}
 	switch p.nextc() {
 	case '*', '+', '?':
-		p.error = ErrBadClosure
+		p.error(ErrBadClosure)
 	}
 	return
 }
@@ -512,9 +501,6 @@ func (p *parser) closure() (start, end instr) {
 func (p *parser) concatenation() (start, end instr) {
 	for {
 		nstart, nend := p.closure()
-		if p.error != nil {
-			return
-		}
 		switch {
 		case nstart == nil: // end of this concatenation
 			if start == nil { // this is the empty string
@@ -534,9 +520,6 @@ func (p *parser) concatenation() (start, end instr) {
 
 func (p *parser) regexp() (start, end instr) {
 	start, end = p.concatenation()
-	if p.error != nil {
-		return
-	}
 	for {
 		switch p.c() {
 		default:
@@ -544,9 +527,6 @@ func (p *parser) regexp() (start, end instr) {
 		case '|':
 			p.nextc()
 			nstart, nend := p.concatenation()
-			if p.error != nil {
-				return
-			}
 			alt := new(_Alt)
 			p.re.add(alt)
 			alt.left = start
@@ -595,14 +575,11 @@ func (re *Regexp) dump() {
 	}
 }
 
-func (re *Regexp) doParse() os.Error {
+func (re *Regexp) doParse() {
 	p := newParser(re)
 	start := new(_Start)
 	re.add(start)
 	s, e := p.regexp()
-	if p.error != nil {
-		return p.error
-	}
 	start.setNext(s)
 	re.start = start
 	e.setNext(re.add(new(_End)))
@@ -617,14 +594,11 @@ func (re *Regexp) doParse() os.Error {
 		re.dump()
 		println()
 	}
-	if p.error == nil {
-		re.setPrefix()
-		if debug {
-			re.dump()
-			println()
-		}
+	re.setPrefix()
+	if debug {
+		re.dump()
+		println()
 	}
-	return p.error
 }
 
 // Extract regular text from the beginning of the pattern.
@@ -661,12 +635,16 @@ Loop:
 // object that can be used to match against text.
 func Compile(str string) (regexp *Regexp, error os.Error) {
 	regexp = new(Regexp)
+	// doParse will panic if there is a parse error.
+	defer func() {
+		if e := recover(); e != nil {
+			regexp = nil
+			error = e.(Error) // Will re-panic if error was not an Error, e.g. nil-pointer exception
+		}
+	}()
 	regexp.expr = str
 	regexp.inst = new(vector.Vector)
-	error = regexp.doParse()
-	if error != nil {
-		regexp = nil
-	}
+	regexp.doParse()
 	return
 }
 
