@@ -935,7 +935,7 @@ printpanics(Panic *p)
 		printf("\t");
 	}
 	printf("panic: ");
-	printany(p->arg);
+	·printany(p->arg);
 	if(p->recovered)
 		printf(" [recovered]");
 	printf("\n");

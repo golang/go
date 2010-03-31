@@ -21,6 +21,7 @@ CFLAGS_mingw=-D__MINGW__
 CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
 
 GOFILES=\
+	error.go\
 	extern.go\
 	type.go\
 	version.go\

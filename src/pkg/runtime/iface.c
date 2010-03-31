@@ -46,9 +46,12 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	Itab *m;
 	UncommonType *x;
 	Type *itype;
+	Eface err;
 
 	if(inter->mhdr.len == 0)
 		throw("internal error - misuse of itab");
+
+	locked = 0;
 
 	// easy case
 	x = type->x;
@@ -114,9 +117,12 @@ search:
 				if(!canfail) {
 				throw:
 					// didn't find method
-					printf("%S is not %S: missing method %S\n",
-						*type->string, *inter->string, *iname);
-					throw("interface conversion");
+					·newTypeAssertionError(nil, type, inter,
+						nil, type->string, inter->string,
+						iname, &err);
+					if(locked)
+						unlock(&ifacelock);
+					·panic(err);
 					return nil;	// not reached
 				}
 				m->bad = 1;
@@ -211,16 +217,21 @@ void
 {
 	Itab *tab;
 	byte *ret;
+	Eface err;
 
 	ret = (byte*)(&i+1);
 	tab = i.tab;
 	if(tab == nil) {
-		printf("interface is nil, not %S\n", *t->string);
-		throw("interface conversion");
+		·newTypeAssertionError(nil, nil, t,
+			nil, nil, t->string,
+			nil, &err);
+		·panic(err);
 	}
 	if(tab->type != t) {
-		printf("%S is %S, not %S\n", *tab->inter->string, *tab->type->string, *t->string);
-		throw("interface conversion");
+		·newTypeAssertionError(tab->inter, tab->type, t,
+			tab->inter->string, tab->type->string, t->string,
+			nil, &err);
+		·panic(err);
 	}
 	copyout(t, &i.data, ret);
 }
@@ -254,15 +265,21 @@ void
 ·ifaceE2T(Type *t, Eface e, ...)
 {
 	byte *ret;
+	Eface err;
 
 	ret = (byte*)(&e+1);
 
+	if(e.type == nil) {
+		·newTypeAssertionError(nil, nil, t,
+			nil, nil, t->string,
+			nil, &err);
+		·panic(err);
+	}
 	if(e.type != t) {
-		if(e.type == nil)
-			printf("interface is nil, not %S\n", *t->string);
-		else
-			printf("interface is %S, not %S\n", *e.type->string, *t->string);
-		throw("interface conversion");
+		·newTypeAssertionError(nil, e.type, t,
+			nil, e.type->string, t->string,
+			nil, &err);
+		·panic(err);
 	}
 	copyout(t, &e.data, ret);
 }
@@ -336,12 +353,15 @@ void
 ·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
 {
 	Itab *tab;
+	Eface err;
 
 	tab = i.tab;
 	if(tab == nil) {
 		// explicit conversions require non-nil interface value.
-		printf("interface is nil, not %S\n", *inter->string);
-		throw("interface conversion");
+		·newTypeAssertionError(nil, nil, inter,
+			nil, nil, inter->string,
+			nil, &err);
+		·panic(err);
 	} else {
 		ret = i;
 		if(tab->inter != inter)
@@ -385,12 +405,15 @@ void
 ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 {
 	Type *t;
+	Eface err;
 
 	t = e.type;
 	if(t == nil) {
 		// explicit conversions require non-nil interface value.
-		printf("interface is nil, not %S\n", *inter->string);
-		throw("interface conversion");
+		·newTypeAssertionError(nil, nil, inter,
+			nil, nil, inter->string,
+			nil, &err);
+		·panic(err);
 	} else {
 		ret->data = e.data;
 		ret->tab = itab(inter, t, 0);
