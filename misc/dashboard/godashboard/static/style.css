@@ -1,0 +1,87 @@
+body {
+	font-family: sans-serif;
+	margin: 0;
+	padding: 0;
+}
+h1, h2, ul, table, p {
+	padding: 0 0.2em;
+}
+h1, h2 {
+	margin: 0;
+	background: #eee;
+}
+h1 {
+	border-bottom: 1px solid #ccc;
+	font-size: 1em;
+	padding: 0.5em;
+	margin-bottom: 0.5em;
+	text-align: right;
+}
+h2 {
+	border-top: 1px solid #ccc;
+}
+table.alternate {
+	white-space: nowrap;
+	margin: 0.5em 0;
+}
+table.alternate td,
+table.alternate th {
+	padding: 0.1em 0.25em;
+	font-size: small;
+}
+table.alternate tr td:last-child {
+	padding-right: 0;
+}
+table.alternate tr:nth-child(2n) {
+	background-color: #f8f8f8;
+}
+span.hash {
+	font-family: monospace;
+	font-size: small;
+	color: #aaa;
+}
+td.date {
+	color: #aaa;
+}
+td.result {
+	text-align: center;
+}
+th.builder {
+	font-weight: bold;
+}
+a.fail {
+	color: #F00;
+}
+a.fail:visited {
+	color: #900;
+}
+ul.menu {
+	margin: 0;
+	padding: 0;
+	list-style-type: none;
+}
+ul.menu li {
+	float: left;
+	display: block;
+	font-size: 1em;
+	padding: 0.5em;
+	background: #EEF;
+	margin-left: 0.5em;
+	border-left: 1px solid #999;
+	border-right: 1px solid #999;
+}
+div.paginate {
+	padding: 0.5em;
+}
+div.paginate a {
+	padding: 0.5em;
+	margin-right: 0.5em;
+	background: #eee;
+	color: blue;
+}
+div.paginate a.inactive {
+	color: #999;
+}
+td.time {
+	font-family: monospace;
+}

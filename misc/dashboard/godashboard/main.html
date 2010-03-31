@@ -1,67 +1,23 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <title>Go dashboard</title>
-
-    <style>
-      h1 {
-          font-size: 1em;
-          font-weight: bold;
-      }
-      h2 {
-          font-size: 1em;
-          font-weight: bold;
-      }
-      table.alternate {
-          white-space: nowrap;
-      }
-      table.alternate tr td {
-        padding-right: 10px;
-      }
-      table.alternate tr td:last-child {
-        padding-right: 0;
-      }
-      table.alternate tr:nth-child(2n) {
-        background-color: #f8f8f8;
-      }
-      td.revision {
-      }
-      span.hash {
-        font-family: monospace;
-        font-size: small;
-        color: #aaa;
-      }
-      span.nodeseq {
-      }
-      td.user {
-        font-size: small;
-      }
-      td.date {
-        color: #aaa;
-        font-size: small;
-      }
-      td.result {
-        text-align: center;
-      }
-      span.ok {
-      }
-      td.desc {
-        font-size: small;
-        font-family: sans-serif;
-      }
-      th.builder {
-        font-weight: bold;
-        padding-right: 0.5em;
-      }
-    </style>
+    <title>Build Status - Go Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="static/style.css">
   </head>
 
   <body>
-    <h1>Go dashboard</h1>
+    <a id="top"></a>
+
+    <ul class="menu">
+      <li>Build Status</li>
+      <li><a href="/package">Packages</a></li>
+      <li><a href="/benchmarks">Benchmarks</a></li>
+      <li><a href="http://golang.org/">golang.org</a></li>
+    </ul>
     
-    <a href="benchmarks">benchmarks</a>
+    <h1>Go Dashboard</h1>
     
-    <h2>Build status</h2>
+    <h2>Build Status</h2>
     <table class="alternate" cellpadding="0" cellspacing="0">
       <tr>
         <th></th>
@@ -83,9 +39,9 @@
             <span class="ok">ok</span>
           {% else %}
             {% if b.log %}
-              <a href="/log/{{b.log}}">fail</a>
+              <a class="fail" href="/log/{{b.log}}">fail</a>
             {% else %}
-              <span/>
+              &nbsp;
             {% endif %}
           {% endif %}
           </td>
@@ -97,5 +53,10 @@
       </tr>
       {% endfor %}
     </table>
+    <div class="paginate">
+	<a{% if prev %} href="?n={{num}}&p={{prev}}"{% else %} class="inactive"{% endif %}>prev</a>
+	<a{% if next %} href="?n={{num}}&p={{next}}"{% else %} class="inactive"{% endif %}>next</a>
+	<a href="#top">top</a>
+    </div>
   </body>
 </html>
