@@ -222,7 +222,7 @@ func (special SpecialCase) ToUpper(rune int) int {
 	return r
 }
 
-// ToTitlemaps the rune to upper case giving priority to the special mapping.
+// ToTitle maps the rune to title case giving priority to the special mapping.
 func (special SpecialCase) ToTitle(rune int) int {
 	r := to(TitleCase, rune, []CaseRange(special))
 	if r == rune {
@@ -231,7 +231,7 @@ func (special SpecialCase) ToTitle(rune int) int {
 	return r
 }
 
-// ToLower maps the rune to upper case giving priority to the special mapping.
+// ToLower maps the rune to lower case giving priority to the special mapping.
 func (special SpecialCase) ToLower(rune int) int {
 	r := to(LowerCase, rune, []CaseRange(special))
 	if r == rune {
