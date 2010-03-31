@@ -122,9 +122,25 @@ class MainPage(webapp.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
 
+        try:
+            page = int(self.request.get('p', 1))
+            if not page > 0:
+                raise
+        except:
+            page = 1
+
+        try:
+            num = int(self.request.get('n', N))
+            if num <= 0 or num > 200:
+                raise
+        except:
+            num = N
+
+        offset = (page-1) * num
+
         q = Commit.all()
         q.order('-__key__')
-        results = q.fetch(N)
+        results = q.fetch(num, offset)
 
         revs = [toRev(r) for r in results]
         builders = {}
@@ -143,6 +159,11 @@ class MainPage(webapp.RequestHandler):
         builders = list(builders.items())
         builders.sort()
         values = {"revs": revs, "builders": [v for k,v in builders]}
+
+        values['num'] = num
+        values['prev'] = page - 1
+        if len(results) == num:
+            values['next'] = page + 1
 
         path = os.path.join(os.path.dirname(__file__), 'main.html')
         self.response.out.write(template.render(path, values))

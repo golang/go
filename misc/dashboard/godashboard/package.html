@@ -1,75 +1,31 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <title>Go packages</title>
-
-    <style>
-      h1 {
-          font-size: 1em;
-          font-weight: bold;
-      }
-      h2 {
-          font-size: 1em;
-          font-weight: bold;
-      }
-      table.alternate {
-          white-space: nowrap;
-      }
-      table.alternate tr td {
-        padding-right: 10px;
-      }
-      table.alternate tr td:last-child {
-        padding-right: 0;
-      }
-      table.alternate tr:nth-child(2n) {
-        background-color: #f8f8f8;
-      }
-      td.revision {
-      }
-      span.hash {
-        font-family: monospace;
-        font-size: small;
-        color: #aaa;
-      }
-      span.nodeseq {
-      }
-      td.user {
-        font-size: small;
-      }
-      td.date {
-        color: #aaa;
-        font-size: small;
-      }
-      td.result {
-        text-align: center;
-      }
-      span.ok {
-      }
-      td.desc {
-        font-size: small;
-        font-family: sans-serif;
-      }
-      th.builder {
-        font-weight: bold;
-        padding-right: 0.5em;
-      }
-    </style>
+    <title>Packages - Go Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="static/style.css">
   </head>
 
   <body>
-    <h1>Go packages</h1>
+    <ul class="menu">
+      <li><a href="/">Build Status</a></li>
+      <li>Packages</li>
+      <li><a href="/benchmarks">Benchmarks</a></li>
+      <li><a href="http://golang.org/">golang.org</a></li>
+    </ul>
+
+    <h1>Go Dashboard</h1>
     
-    <a href="/">build status</a>
-    <br><br>
-    (Packages listed on this page are written by third parties and 
-    may or may not build or be safe to use.)
+    <p>
+    Packages listed on this page are written by third parties and 
+    may or may not build or be safe to use.
+    </p>
     
     <h2>Recently Installed Packages</h2>
     <table class="alternate" cellpadding="0" cellspacing="0">
       <tr><th>last install</th><th>count</th><th>path</th></tr>
       {% for r in by_time %}
         <tr>
-          <td class="time">{{r.last_install}}</td>
+          <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
           <td class="count">{{r.count}}</td>
           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
         </tr>
@@ -81,7 +37,7 @@
       <tr><th>last install</th><th>count</th><th>path</th></tr>
       {% for r in by_count %}
         <tr>
-          <td class="time">{{r.last_install}}</td>
+          <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
           <td class="count">{{r.count}}</td>
           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
         </tr>
