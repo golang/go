@@ -19,7 +19,8 @@ type Range struct {
 	Stride int
 }
 
-// The representation of a range of Unicode code points for case conversion.
+// CaseRange represents a range of Unicode code points for simple (one
+// code point to one code point) case conversion.
 // The range runs from Lo to Hi inclusive, with a fixed stride of 1.  Deltas
 // are the number to add to the code point to reach the code point for a
 // different case for that character.  They may be negative.  If zero, it
@@ -33,6 +34,13 @@ type CaseRange struct {
 	Hi    int
 	Delta d
 }
+
+// SpecialCase represents language-specific case mappings such as Turkish.
+// Methods of SpecialCase customize (by overriding) the standard mappings.
+type SpecialCase []CaseRange
+
+//BUG(r): Provide a mechanism for full case folding (those that involve
+// multiple runes in the input or output).
 
 // Indices into the Delta arrays inside CaseRanges for case mapping.
 const (
@@ -130,17 +138,17 @@ func IsSpace(rune int) bool {
 	return Is(White_Space, rune)
 }
 
-// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
-func To(_case int, rune int) int {
+// to maps the rune using the specified case mapping.
+func to(_case int, rune int, caseRange []CaseRange) int {
 	if _case < 0 || MaxCase <= _case {
 		return ReplacementChar // as reasonable an error as any
 	}
 	// binary search over ranges
 	lo := 0
-	hi := len(CaseRanges)
+	hi := len(caseRange)
 	for lo < hi {
 		m := lo + (hi-lo)/2
-		r := CaseRanges[m]
+		r := caseRange[m]
 		if r.Lo <= rune && rune <= r.Hi {
 			delta := int(r.Delta[_case])
 			if delta > MaxRune {
@@ -165,6 +173,11 @@ func To(_case int, rune int) int {
 		}
 	}
 	return rune
+}
+
+// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
+func To(_case int, rune int) int {
+	return to(_case, rune, CaseRanges)
 }
 
 // ToUpper maps the rune to upper case.
@@ -198,4 +211,31 @@ func ToTitle(rune int) int {
 		return rune
 	}
 	return To(TitleCase, rune)
+}
+
+// ToUpper maps the rune to upper case giving priority to the special mapping.
+func (special SpecialCase) ToUpper(rune int) int {
+	r := to(UpperCase, rune, []CaseRange(special))
+	if r == rune {
+		r = ToUpper(rune)
+	}
+	return r
+}
+
+// ToTitlemaps the rune to upper case giving priority to the special mapping.
+func (special SpecialCase) ToTitle(rune int) int {
+	r := to(TitleCase, rune, []CaseRange(special))
+	if r == rune {
+		r = ToTitle(rune)
+	}
+	return r
+}
+
+// ToLower maps the rune to upper case giving priority to the special mapping.
+func (special SpecialCase) ToLower(rune int) int {
+	r := to(LowerCase, rune, []CaseRange(special))
+	if r == rune {
+		r = ToLower(rune)
+	}
+	return r
 }

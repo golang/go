@@ -341,6 +341,28 @@ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTest
 
 func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
 
+func TestSpecialCase(t *testing.T) {
+	lower := "abcçdefgğhıijklmnoöprsştuüvyz"
+	upper := "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"
+	u := ToUpperSpecial(unicode.TurkishCase, upper)
+	if u != upper {
+		t.Errorf("Upper(upper) is %s not %s", u, upper)
+	}
+	u = ToUpperSpecial(unicode.TurkishCase, lower)
+	if u != upper {
+		t.Errorf("Upper(lower) is %s not %s", u, upper)
+	}
+	l := ToLowerSpecial(unicode.TurkishCase, lower)
+	if l != lower {
+		t.Errorf("Lower(lower) is %s not %s", l, lower)
+	}
+	l = ToLowerSpecial(unicode.TurkishCase, upper)
+	if l != lower {
+		t.Errorf("Lower(upper) is %s not %s", l, lower)
+	}
+}
+
+
 func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
 func equal(m string, s1, s2 string, t *testing.T) bool {

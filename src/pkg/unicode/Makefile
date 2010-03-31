@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
 
 TARG=unicode
 GOFILES=\
+	casetables.go\
 	digit.go\
 	letter.go\
 	tables.go\
