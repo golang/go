@@ -291,6 +291,24 @@ func ToLower(s string) string { return Map(unicode.ToLower, s) }
 // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
 func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
 
+// ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
+// upper case, giving priority to the special casing rules.
+func ToUpperSpecial(_case unicode.SpecialCase, s string) string {
+	return Map(func(r int) int { return _case.ToUpper(r) }, s)
+}
+
+// ToLowerSpecial returns a copy of the string s with all Unicode letters mapped to their
+// lower case, giving priority to the special casing rules.
+func ToLowerSpecial(_case unicode.SpecialCase, s string) string {
+	return Map(func(r int) int { return _case.ToLower(r) }, s)
+}
+
+// ToTitleSpecial returns a copy of the string s with all Unicode letters mapped to their
+// title case, giving priority to the special casing rules.
+func ToTitleSpecial(_case unicode.SpecialCase, s string) string {
+	return Map(func(r int) int { return _case.ToTitle(r) }, s)
+}
+
 // Trim returns a slice of the string s, with all leading and trailing white space
 // removed, as defined by Unicode.
 func TrimSpace(s string) string {

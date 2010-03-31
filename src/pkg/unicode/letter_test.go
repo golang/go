@@ -349,3 +349,29 @@ func TestLetterOptimizations(t *testing.T) {
 		}
 	}
 }
+
+func TestTurkishCase(t *testing.T) {
+	lower := []int("abcçdefgğhıijklmnoöprsştuüvyz")
+	upper := []int("ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ")
+	for i, l := range lower {
+		u := upper[i]
+		if TurkishCase.ToLower(l) != l {
+			t.Errorf("lower(U+%04X) is U+%04X not U+%04X", l, TurkishCase.ToLower(l), l)
+		}
+		if TurkishCase.ToUpper(u) != u {
+			t.Errorf("upper(U+%04X) is U+%04X not U+%04X", u, TurkishCase.ToUpper(u), u)
+		}
+		if TurkishCase.ToUpper(l) != u {
+			t.Errorf("upper(U+%04X) is U+%04X not U+%04X", l, TurkishCase.ToUpper(l), u)
+		}
+		if TurkishCase.ToLower(u) != l {
+			t.Errorf("lower(U+%04X) is U+%04X not U+%04X", u, TurkishCase.ToLower(l), l)
+		}
+		if TurkishCase.ToTitle(u) != u {
+			t.Errorf("title(U+%04X) is U+%04X not U+%04X", u, TurkishCase.ToTitle(u), u)
+		}
+		if TurkishCase.ToTitle(l) != u {
+			t.Errorf("title(U+%04X) is U+%04X not U+%04X", l, TurkishCase.ToTitle(l), u)
+		}
+	}
+}
