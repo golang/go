@@ -123,7 +123,6 @@ DIRS=\
 	utf16\
 	utf8\
 	websocket\
-	xgb\
 	xml\
 
 NOTEST=\
@@ -140,7 +139,6 @@ NOTEST=\
 	runtime/pprof\
 	syscall\
 	testing/iotest\
-	xgb\
 
 NOBENCH=\
 	container/vector\
