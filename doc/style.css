@@ -198,6 +198,11 @@ span.highlight {
   background-color: #ffffa0;
 }
 
+span.subtitle {
+  font-weight: bold;
+  font-size: medium;
+}
+
 /* same style as for gettingStarted */
 #menu {
   margin-top: 1.5em;

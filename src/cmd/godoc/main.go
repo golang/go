@@ -66,7 +66,7 @@ var (
 
 func serveError(c *http.Conn, r *http.Request, relpath string, err os.Error) {
 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
-	servePage(c, "File "+relpath, "", contents)
+	servePage(c, "File "+relpath, "", "", contents)
 }
 
 

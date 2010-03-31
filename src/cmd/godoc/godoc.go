@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	pathutil "path"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -874,9 +875,10 @@ func readTemplates() {
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
 
-func servePage(c *http.Conn, title, query string, content []byte) {
+func servePage(c *http.Conn, title, subtitle, query string, content []byte) {
 	type Data struct {
 		Title     string
+		Subtitle  string
 		PkgRoots  []string
 		Timestamp uint64 // int64 to be compatible with os.Dir.Mtime_ns
 		Query     string
@@ -888,6 +890,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 	_, ts := fsTree.get()
 	d := Data{
 		Title:     title,
+		Subtitle:  subtitle,
 		PkgRoots:  fsMap.PrefixList(),
 		Timestamp: uint64(ts) * 1e9, // timestamp in ns
 		Query:     query,
@@ -912,16 +915,16 @@ func serveText(c *http.Conn, text []byte) {
 // Files
 
 var (
-	tagBegin = []byte("<!--")
-	tagEnd   = []byte("-->")
+	titleRx        = regexp.MustCompile(`<!-- title ([^\-]*)-->`)
+	subtitleRx     = regexp.MustCompile(`<!-- subtitle ([^\-]*)-->`)
+	firstCommentRx = regexp.MustCompile(`<!--([^\-]*)-->`)
 )
 
-// commentText returns the text of the first HTML comment in src.
-func commentText(src []byte) (text string) {
-	i := bytes.Index(src, tagBegin)
-	j := bytes.Index(src, tagEnd)
-	if i >= 0 && j >= i+len(tagBegin) {
-		text = string(bytes.TrimSpace(src[i+len(tagBegin) : j]))
+
+func extractString(src []byte, rx *regexp.Regexp) (s string) {
+	m := rx.Execute(src)
+	if len(m) >= 4 {
+		s = strings.TrimSpace(string(src[m[2]:m[3]]))
 	}
 	return
 }
@@ -950,8 +953,15 @@ func serveHTMLDoc(c *http.Conn, r *http.Request, abspath, relpath string) {
 		src = buf.Bytes()
 	}
 
-	title := commentText(src)
-	servePage(c, title, "", src)
+	// get title and subtitle, if any
+	title := extractString(src, titleRx)
+	if title == "" {
+		// no title found; try first comment for backward-compatibility
+		title = extractString(src, firstCommentRx)
+	}
+	subtitle := extractString(src, subtitleRx)
+
+	servePage(c, title, subtitle, "", src)
 }
 
 
@@ -983,7 +993,7 @@ func serveGoSource(c *http.Conn, r *http.Request, abspath, relpath string) {
 	info := &SourceInfo{buf.Bytes(), styler.mapping()}
 
 	contents := applyTemplate(sourceHTML, "sourceHTML", info)
-	servePage(c, "Source file "+relpath, "", contents)
+	servePage(c, "Source file "+relpath, "", "", contents)
 }
 
 
@@ -1056,7 +1066,7 @@ func serveTextFile(c *http.Conn, r *http.Request, abspath, relpath string) {
 	template.HTMLEscape(&buf, src)
 	fmt.Fprintln(&buf, "</pre>")
 
-	servePage(c, "Text file "+relpath, "", buf.Bytes())
+	servePage(c, "Text file "+relpath, "", "", buf.Bytes())
 }
 
 
@@ -1079,7 +1089,7 @@ func serveDirectory(c *http.Conn, r *http.Request, abspath, relpath string) {
 	}
 
 	contents := applyTemplate(dirlistHTML, "dirlistHTML", list)
-	servePage(c, "Directory "+relpath, "", contents)
+	servePage(c, "Directory "+relpath, "", "", contents)
 }
 
 
@@ -1326,7 +1336,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	}
 
 	contents := applyTemplate(packageHTML, "packageHTML", info)
-	servePage(c, title, "", contents)
+	servePage(c, title, "", "", contents)
 }
 
 
@@ -1373,7 +1383,7 @@ func search(c *http.Conn, r *http.Request) {
 	}
 
 	contents := applyTemplate(searchHTML, "searchHTML", result)
-	servePage(c, title, query, contents)
+	servePage(c, title, "", query, contents)
 }
 
 
