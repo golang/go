@@ -618,6 +618,6 @@ argsize(Type *t)
 		fp = funcnext(&save);
 	}
 
-	w = (w+7) & ~7;
+	w = (w+widthptr-1) & ~(widthptr-1);
 	return w;
 }
