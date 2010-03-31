@@ -5,6 +5,68 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-03-30">2010-03-30</h3>
+
+<pre>
+This release contains three language changes:
+
+1. Accessing a non-existent key in a map is no longer a run-time error.  
+It now evaluates to the zero value for that type.  For example:
+        x := myMap[i]   is now equivalent to:   x, _ := myMap[i]
+
+2. It is now legal to take the address of a function's return value.  
+The return values are copied back to the caller only after deferred
+functions have run.
+
+3. The functions panic and recover, intended for reporting and recovering from
+failure, have been added to the spec:
+	http://golang.org/doc/go_spec.html#Handling_panics 
+In a related change, panicln is gone, and panic is now a single-argument
+function.  Panic and recover are recognized by the gc compilers but the new
+behavior is not yet implemented.
+
+The ARM build is broken in this release; ARM users should stay at release.2010-03-22.
+
+Other changes:
+* bytes, strings: add IndexAny.
+* cc/ld: Add support for #pragma dynexport,
+        Rename dynld to dynimport throughout. Cgo users will need to rerun cgo.
+* expvar: default publishings for cmdline, memstats
+* flag: add user-defined flag types.
+* gc: usual bug fixes
+* go/ast: generalized ast filtering.
+* go/printer: avoid reflect in print.
+* godefs: fix handling of negative constants.
+* godoc: export pprof debug information, exported variables,
+        support for filtering of command-line output in -src mode,
+        use http GET for remote search instead of rpc.
+* gofmt: don't convert multi-line functions into one-liners,
+        preserve newlines in multiline selector expressions (thanks Risto Jaakko Saarelma).
+* goinstall: include command name in error reporting (thanks Andrey Mirtchovski)
+* http: add HandleFunc as shortcut to Handle(path, HandlerFunc(func))
+* make: use actual dependency for install
+* math: add J1, Y1, Jn, Yn, J0, Y0 (Bessel functions) (thanks Charles L. Dorian)
+* prof: add pprof from google-perftools
+* regexp: don't return non-nil *Regexp if there is an error.
+* runtime: add Callers,
+        add malloc sampling, pprof interface,
+        add memory profiling, more statistics to runtime.MemStats,
+        implement missing destroylock() (thanks Alex Brainman),
+        more malloc statistics,
+        run all finalizers in a single goroutine,
+        Goexit runs deferred calls.
+* strconv: add Atob and Btoa,
+        Unquote could wrongly return a nil error on error (thanks Roger Peppe).
+* syscall: add IPV6 constants,
+        add syscall_bsd.go for Darwin and other *BSDs (thanks Giles Lean),
+        implement SetsockoptString (thanks Christopher Wedgwood).
+* websocket: implement new protocol (thanks Fumitoshi Ukai).
+* xgb: fix request length and request size (thanks Firmansyah Adiputra).
+* xml: add CopyToken (thanks Kyle Consalus),
+        add line numbers to syntax errors (thanks Kyle Consalus),
+        use io.ReadByter in place of local readByter (thanks Raif S. Naffah). 
+</pre>
+
 <h3 id="2010-03-22">2010-03-22</h3>
 
 <pre>
