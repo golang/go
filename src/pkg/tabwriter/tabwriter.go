@@ -221,23 +221,30 @@ func (b *Writer) dump() {
 }
 
 
-func (b *Writer) write0(buf []byte) os.Error {
+// local error wrapper so we can distinguish os.Errors we want to return
+// as errors from genuine panics (which we don't want to return as errors)
+type osError struct {
+	err os.Error
+}
+
+
+func (b *Writer) write0(buf []byte) {
 	n, err := b.output.Write(buf)
 	if n != len(buf) && err == nil {
 		err = os.EIO
 	}
-	return err
+	if err != nil {
+		panic(osError{err})
+	}
 }
 
 
-func (b *Writer) writeN(src []byte, n int) os.Error {
+func (b *Writer) writeN(src []byte, n int) {
 	for n > len(src) {
-		if err := b.write0(src); err != nil {
-			return err
-		}
+		b.write0(src)
 		n -= len(src)
 	}
-	return b.write0(src[0:n])
+	b.write0(src[0:n])
 }
 
 
@@ -247,11 +254,11 @@ var (
 )
 
 
-func (b *Writer) writePadding(textw, cellw int, useTabs bool) os.Error {
+func (b *Writer) writePadding(textw, cellw int, useTabs bool) {
 	if b.padbytes[0] == '\t' || useTabs {
 		// padding is done with tabs
 		if b.tabwidth == 0 {
-			return nil // tabs have no width - can't do any padding
+			return // tabs have no width - can't do any padding
 		}
 		// make cellw the smallest multiple of b.tabwidth
 		cellw = (cellw + b.tabwidth - 1) / b.tabwidth * b.tabwidth
@@ -259,17 +266,18 @@ func (b *Writer) writePadding(textw, cellw int, useTabs bool) os.Error {
 		if n < 0 {
 			panic("internal error")
 		}
-		return b.writeN(tabs, (n+b.tabwidth-1)/b.tabwidth)
+		b.writeN(tabs, (n+b.tabwidth-1)/b.tabwidth)
+		return
 	}
 
 	// padding is done with non-tab characters
-	return b.writeN(&b.padbytes, cellw-textw)
+	b.writeN(&b.padbytes, cellw-textw)
 }
 
 
 var vbar = []byte{'|'}
 
-func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) {
+func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 	pos = pos0
 	for i := line0; i < line1; i++ {
 		line := b.line(i)
@@ -282,40 +290,28 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 
 			if j > 0 && b.flags&Debug != 0 {
 				// indicate column break
-				if err = b.write0(vbar); err != nil {
-					return
-				}
+				b.write0(vbar)
 			}
 
 			if c.size == 0 {
 				// empty cell
 				if j < b.widths.Len() {
-					if err = b.writePadding(c.width, b.widths.At(j), useTabs); err != nil {
-						return
-					}
+					b.writePadding(c.width, b.widths.At(j), useTabs)
 				}
 			} else {
 				// non-empty cell
 				useTabs = false
 				if b.flags&AlignRight == 0 { // align left
-					if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
-						return
-					}
+					b.write0(b.buf.Bytes()[pos : pos+c.size])
 					pos += c.size
 					if j < b.widths.Len() {
-						if err = b.writePadding(c.width, b.widths.At(j), false); err != nil {
-							return
-						}
+						b.writePadding(c.width, b.widths.At(j), false)
 					}
 				} else { // align right
 					if j < b.widths.Len() {
-						if err = b.writePadding(c.width, b.widths.At(j), false); err != nil {
-							return
-						}
+						b.writePadding(c.width, b.widths.At(j), false)
 					}
-					if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
-						return
-					}
+					b.write0(b.buf.Bytes()[pos : pos+c.size])
 					pos += c.size
 				}
 			}
@@ -324,15 +320,11 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 		if i+1 == b.lines.Len() {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			if err = b.write0(b.buf.Bytes()[pos : pos+b.cell.size]); err != nil {
-				return
-			}
+			b.write0(b.buf.Bytes()[pos : pos+b.cell.size])
 			pos += b.cell.size
 		} else {
 			// not the last line - write newline
-			if err = b.write0(newline); err != nil {
-				return
-			}
+			b.write0(newline)
 		}
 	}
 	return
@@ -344,7 +336,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 // Returns the buffer position corresponding to the beginning of
 // line1 and an error, if any.
 //
-func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
+func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
 	pos = pos0
 	column := b.widths.Len()
 	for this := line0; this < line1; this++ {
@@ -359,9 +351,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			// to a column)
 
 			// print unprinted lines until beginning of block
-			if pos, err = b.writeLines(pos, line0, this); err != nil {
-				return
-			}
+			pos = b.writeLines(pos, line0, this)
 			line0 = this
 
 			// column block begin
@@ -394,7 +384,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			// format and print all columns to the right of this column
 			// (we know the widths of this column and all columns to the left)
 			b.widths.Push(width)
-			pos, err = b.format(pos, line0, this)
+			pos = b.format(pos, line0, this)
 			b.widths.Pop()
 			line0 = this
 		}
@@ -472,12 +462,22 @@ func (b *Writer) terminateCell(htab bool) int {
 }
 
 
+func handlePanic(err *os.Error) {
+	if e := recover(); e != nil {
+		*err = e.(osError).err // re-panics if it's not a local osError
+	}
+}
+
+
 // Flush should be called after the last call to Write to ensure
 // that any data buffered in the Writer is written to output. Any
 // incomplete escape sequence at the end is simply considered
 // complete for formatting purposes.
 //
-func (b *Writer) Flush() os.Error {
+func (b *Writer) Flush() (err os.Error) {
+	defer b.reset() // even in the presence of errors
+	defer handlePanic(&err)
+
 	// add current cell if not empty
 	if b.cell.size > 0 {
 		if b.endChar != 0 {
@@ -488,12 +488,9 @@ func (b *Writer) Flush() os.Error {
 	}
 
 	// format contents of buffer
-	_, err := b.format(0, 0, b.lines.Len())
+	b.format(0, 0, b.lines.Len())
 
-	// reset, even in the presence of errors
-	b.reset()
-
-	return err
+	return
 }
 
 
@@ -504,6 +501,8 @@ var hbar = []byte("---\n")
 // while writing to the underlying output stream.
 //
 func (b *Writer) Write(buf []byte) (n int, err os.Error) {
+	defer handlePanic(&err)
+
 	// split text into cells
 	n = 0
 	for i, ch := range buf {
@@ -530,9 +529,7 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 						}
 						if ch == '\f' && b.flags&Debug != 0 {
 							// indicate section break
-							if err = b.write0(hbar); err != nil {
-								return
-							}
+							b.write0(hbar)
 						}
 					}
 				}
