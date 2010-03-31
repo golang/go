@@ -190,7 +190,7 @@ ginscall(Node *f, int proc)
 
 		break;
 
-	case 2:	// defered call (defer)
+	case 2:	// deferred call (defer)
 		regalloc(&r, types[tptr], N);
 		p = gins(AMOVW, N, &r);
 		p->from.type = D_OREG;
@@ -222,7 +222,7 @@ ginscall(Node *f, int proc)
 
 		ginscall(deferproc, 0);
 
-		regalloc(&r, types[tptr], N);
+		nodreg(&r, types[tptr], D_R1);
 		p = gins(AMOVW, N, &r);
 		p->from.type = D_OREG;
 		p->from.reg = REGSP;
@@ -233,8 +233,13 @@ ginscall(Node *f, int proc)
 		p->to.reg = REGSP;
 		p->to.offset = 8;
 		p->scond |= C_WBIT;
-		regfree(&r);
-
+		
+		if(proc == 2) {
+			nodconst(&con, types[TINT32], 0);
+			nodreg(&r, types[tptr], D_R0);
+			gins(ACMP, &con, &r);
+			patch(gbranch(ABNE, T), pret);
+		}
 		break;
 	}
 }

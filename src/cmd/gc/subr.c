@@ -2923,7 +2923,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 
 	funcbody(fn);
 	typecheck(&fn, Etop);
-	funccompile(fn);
+	funccompile(fn, 0);
 }
 
 /*

@@ -1004,7 +1004,7 @@ NodeList*	constiter(NodeList*, Node*, NodeList*);
 
 Node*	unsafenmagic(Node*, NodeList*);
 void	dclchecks(void);
-void	funccompile(Node*);
+void	funccompile(Node*, int);
 
 Node*	typedcl0(Sym*);
 Node*	typedcl1(Node*, Node*, int);
@@ -1168,6 +1168,8 @@ EXTERN	Prog*	continpc;
 EXTERN	Prog*	breakpc;
 EXTERN	Prog*	pc;
 EXTERN	Prog*	firstpc;
+
+EXTERN	Node*	nodfp;
 
 void	allocparams(void);
 void	cgen_as(Node *nl, Node *nr);

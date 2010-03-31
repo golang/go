@@ -16,7 +16,7 @@ func throwreturn()
 func throwinit()
 
 func panic(interface{})
-func recover() interface{}
+func recover(*int32) interface{}
 
 func printbool(bool)
 func printfloat(float64)

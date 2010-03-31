@@ -5,7 +5,7 @@ char *runtimeimport =
 	"func \"\".throwreturn ()\n"
 	"func \"\".throwinit ()\n"
 	"func \"\".panic (? interface { })\n"
-	"func \"\".recover () interface { }\n"
+	"func \"\".recover (? *int32) interface { }\n"
 	"func \"\".printbool (? bool)\n"
 	"func \"\".printfloat (? float64)\n"
 	"func \"\".printint (? int64)\n"

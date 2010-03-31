@@ -1276,7 +1276,7 @@ addmethod(Sym *sf, Type *t, int local)
 }
 
 void
-funccompile(Node *n)
+funccompile(Node *n, int isclosure)
 {
 	stksize = BADWIDTH;
 	maxarg = 0;
@@ -1289,6 +1289,18 @@ funccompile(Node *n)
 
 	// assign parameter offsets
 	checkwidth(n->type);
+	
+	// record offset to actual frame pointer.
+	// for closure, have to skip over leading pointers and PC slot.
+	nodfp->xoffset = 0;
+	if(isclosure) {
+		NodeList *l;
+		for(l=n->nname->ntype->list; l; l=l->next) {
+			nodfp->xoffset += widthptr;
+			if(l->n->left == N)	// found slot for PC
+				break;
+		}
+	}
 
 	if(curfn)
 		fatal("funccompile %S inside %S", n->nname->sym, curfn->nname->sym);
