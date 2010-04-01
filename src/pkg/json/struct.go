@@ -346,29 +346,24 @@ func (s *writeState) writeIndent() {
 	}
 }
 
-func (s *writeState) writeArrayOrSlice(val reflect.ArrayOrSliceValue) (err os.Error) {
+func (s *writeState) writeArrayOrSlice(val reflect.ArrayOrSliceValue) {
 	s.descend('[')
 
 	for i := 0; i < val.Len(); i++ {
 		s.writeIndent()
-
-		if err = s.writeValue(val.Elem(i)); err != nil {
-			return
-		}
-
+		s.writeValue(val.Elem(i))
 		if i < val.Len()-1 {
 			s.WriteByte(',')
 		}
 	}
 
 	s.ascend(']')
-	return
 }
 
-func (s *writeState) writeMap(val *reflect.MapValue) (err os.Error) {
+func (s *writeState) writeMap(val *reflect.MapValue) {
 	key := val.Type().(*reflect.MapType).Key()
 	if _, ok := key.(*reflect.StringType); !ok {
-		return &MarshalError{val.Type()}
+		panic(&MarshalError{val.Type()})
 	}
 
 	s.descend('{')
@@ -376,45 +371,34 @@ func (s *writeState) writeMap(val *reflect.MapValue) (err os.Error) {
 	keys := val.Keys()
 	for i := 0; i < len(keys); i++ {
 		s.writeIndent()
-
 		fmt.Fprintf(s, "%s:", Quote(keys[i].(*reflect.StringValue).Get()))
-
-		if err = s.writeValue(val.Elem(keys[i])); err != nil {
-			return
-		}
-
+		s.writeValue(val.Elem(keys[i]))
 		if i < len(keys)-1 {
 			s.WriteByte(',')
 		}
 	}
 
 	s.ascend('}')
-	return
 }
 
-func (s *writeState) writeStruct(val *reflect.StructValue) (err os.Error) {
+func (s *writeState) writeStruct(val *reflect.StructValue) {
 	s.descend('{')
 
 	typ := val.Type().(*reflect.StructType)
 
 	for i := 0; i < val.NumField(); i++ {
 		s.writeIndent()
-
-		fieldValue := val.Field(i)
 		fmt.Fprintf(s, "%s:", Quote(typ.Field(i).Name))
-		if err = s.writeValue(fieldValue); err != nil {
-			return
-		}
+		s.writeValue(val.Field(i))
 		if i < val.NumField()-1 {
 			s.WriteByte(',')
 		}
 	}
 
 	s.ascend('}')
-	return
 }
 
-func (s *writeState) writeValue(val reflect.Value) (err os.Error) {
+func (s *writeState) writeValue(val reflect.Value) {
 	if val == nil {
 		fmt.Fprint(s, "null")
 		return
@@ -424,28 +408,28 @@ func (s *writeState) writeValue(val reflect.Value) (err os.Error) {
 	case *reflect.StringValue:
 		fmt.Fprint(s, Quote(v.Get()))
 	case *reflect.ArrayValue:
-		err = s.writeArrayOrSlice(v)
+		s.writeArrayOrSlice(v)
 	case *reflect.SliceValue:
-		err = s.writeArrayOrSlice(v)
+		s.writeArrayOrSlice(v)
 	case *reflect.MapValue:
-		err = s.writeMap(v)
+		s.writeMap(v)
 	case *reflect.StructValue:
-		err = s.writeStruct(v)
+		s.writeStruct(v)
 	case *reflect.ChanValue,
 		*reflect.UnsafePointerValue,
 		*reflect.FuncValue:
-		err = &MarshalError{val.Type()}
+		panic(&MarshalError{val.Type()})
 	case *reflect.InterfaceValue:
 		if v.IsNil() {
 			fmt.Fprint(s, "null")
 		} else {
-			err = s.writeValue(v.Elem())
+			s.writeValue(v.Elem())
 		}
 	case *reflect.PtrValue:
 		if v.IsNil() {
 			fmt.Fprint(s, "null")
 		} else {
-			err = s.writeValue(v.Elem())
+			s.writeValue(v.Elem())
 		}
 	case *reflect.UintptrValue:
 		fmt.Fprintf(s, "%d", v.Get())
@@ -461,14 +445,15 @@ func (s *writeState) writeValue(val reflect.Value) (err os.Error) {
 		value := val.(reflect.Value)
 		fmt.Fprintf(s, "%#v", value.Interface())
 	}
-	return
 }
 
 func (s *writeState) marshal(w io.Writer, val interface{}) (err os.Error) {
-	err = s.writeValue(reflect.NewValue(val))
-	if err != nil {
-		return
-	}
+	defer func() {
+		if e := recover(); e != nil {
+			err = e.(*MarshalError)
+		}
+	}()
+	s.writeValue(reflect.NewValue(val))
 	if s.newlines {
 		s.WriteByte('\n')
 	}
