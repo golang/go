@@ -42,6 +42,8 @@
       <item> bool </item>
       <item> byte </item>
       <item> chan </item>
+      <item> complex64 </item>
+      <item> complex128 </item>
       <item> float </item>
       <item> float32 </item>
       <item> float64 </item>
@@ -63,15 +65,18 @@
       <item> cap </item>
       <item> close </item>
       <item> closed </item>
+      <item> cmplx </item>
       <item> convert </item>
       <item> copy </item>
+      <item> imag </item>
       <item> len </item>
       <item> make </item>
       <item> new </item>
       <item> panic </item>
-      <item> panicln </item>
       <item> print </item>
       <item> println </item>
+      <item> real </item>
+      <item> recover </item>
     </list>
     <contexts>
       <context attribute="Normal Text" lineEndContext="#stay" name="Normal">
@@ -115,7 +120,7 @@
     <itemDatas>
       <itemData name="Normal Text"  defStyleNum="dsNormal" spellChecking="false"/>
       <itemData name="Keyword"      defStyleNum="dsKeyword" spellChecking="false"/>
-      <itemData name="Builtin Function" defStyleNum="dsDataType" spellChecking="false"/>
+      <itemData name="Builtin Function" defStyleNum="dsFunction" spellChecking="false"/>
       <itemData name="Data Type"    defStyleNum="dsDataType" spellChecking="false"/>
       <itemData name="Decimal"      defStyleNum="dsDecVal" spellChecking="false"/>
       <itemData name="Octal"        defStyleNum="dsBaseN" spellChecking="false"/>
