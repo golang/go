@@ -167,7 +167,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 
 	// Read and decode Mach magic to determine byte order, size.
 	// Magic32 and Magic64 differ only in the bottom bit.
-	var ident [4]uint8
+	var ident [4]byte
 	if _, err := r.ReadAt(&ident, 0); err != nil {
 		return nil, err
 	}
@@ -180,6 +180,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	case le &^ 1:
 		f.ByteOrder = binary.LittleEndian
 		f.Magic = le
+	default:
+		return nil, &FormatError{0, "invalid magic number", nil}
 	}
 
 	// Read entire file header.
