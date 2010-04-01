@@ -5,4 +5,4 @@
 
 set -e
 bash make.bash
-bash run.bash
+bash run.bash --no-rebuild

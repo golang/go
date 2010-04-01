@@ -4,47 +4,10 @@
 # license that can be found in the LICENSE file.
 
 set -e
+. ./env.bash
 
-if test -z "$GOBIN"; then
-	if ! test -d "$HOME"/bin; then
-		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
-		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
-		echo 'be installed.' 1>&2
-		exit 1
-	fi
-	GOBIN="$HOME/bin"
-elif ! test -d "$GOBIN"; then
-	echo '$GOBIN is not a directory or does not exist' 1>&2
-	echo 'create it or set $GOBIN differently' 1>&2
-	exit 1
-fi
-
-GOBIN="${GOBIN:-$HOME/bin}"
 export MAKEFLAGS=-j4
-
 unset CDPATH	# in case user has it set
-
-if ! test -f "$GOROOT"/include/u.h
-then
-	echo '$GOROOT is not set correctly or not exported' 1>&2
-	exit 1
-fi
-
-case "$GOARCH" in
-amd64 | 386 | arm)
-	;;
-*)
-	echo '$GOARCH is set to <'$GOARCH'>, must be amd64, 386, or arm' 1>&2
-	exit 1
-esac
-
-case "$GOOS" in
-darwin | freebsd | linux | mingw | nacl)
-	;;
-*)
-	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, mingw, or nacl' 1>&2
-	exit 1
-esac
 
 rm -f "$GOBIN"/quietgcc
 CC=${CC:-gcc}
