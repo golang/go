@@ -157,3 +157,11 @@ func TestOpen(t *testing.T) {
 
 	}
 }
+
+func TestOpenFailure(t *testing.T) {
+	filename := "file.go"    // not a Mach-O file
+	_, err := Open(filename) // don't crash
+	if err == nil {
+		t.Errorf("open %s: succeeded unexpectedly", filename)
+	}
+}
