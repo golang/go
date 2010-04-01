@@ -126,9 +126,9 @@ type FormatError struct {
 func (e *FormatError) String() string {
 	msg := e.msg
 	if e.val != nil {
-		msg += fmt.Sprintf(" '%v' ", e.val)
+		msg += fmt.Sprintf(" '%v'", e.val)
 	}
-	msg += fmt.Sprintf("in record at byte %#x", e.off)
+	msg += fmt.Sprintf(" in record at byte %#x", e.off)
 	return msg
 }
 
