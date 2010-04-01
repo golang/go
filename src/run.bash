@@ -4,12 +4,21 @@
 # license that can be found in the LICENSE file.
 
 set -e
+. ./env.bash
 
-GOBIN="${GOBIN:-$HOME/bin}"
+export MAKEFLAGS=-j4
+unset CDPATH	# in case user has it set
 
 # no core files, please
 ulimit -c 0
 
+# allow make.bash to avoid double-build of everything
+rebuild=true
+if [ "$1" = "--no-rebuild" ]; then
+	rebuild=false
+	shift
+fi
+		
 xcd() {
 	echo
 	echo --- cd $1
@@ -21,9 +30,11 @@ maketest() {
 	do
 		(
 			xcd $i
-			"$GOBIN"/gomake clean
-			time "$GOBIN"/gomake
-			"$GOBIN"/gomake install
+			if $rebuild; then
+				"$GOBIN"/gomake clean
+				time "$GOBIN"/gomake
+				"$GOBIN"/gomake install
+			fi
 			"$GOBIN"/gomake test
 		) || exit $?
 	done
@@ -36,20 +47,26 @@ maketest \
 # from what maketest does.
 
 (xcd pkg/sync;
-"$GOBIN"/gomake clean;
-time "$GOBIN"/gomake
+if $rebuild; then
+	"$GOBIN"/gomake clean;
+	time "$GOBIN"/gomake
+fi
 GOMAXPROCS=10 "$GOBIN"/gomake test
 ) || exit $?
 
 (xcd cmd/gofmt
-"$GOBIN"/gomake clean
-time "$GOBIN"/gomake
+if $rebuild; then
+	"$GOBIN"/gomake clean;
+	time "$GOBIN"/gomake
+fi
 time "$GOBIN"/gomake smoketest
 ) || exit $?
 
 (xcd cmd/ebnflint
-"$GOBIN"/gomake clean
-time "$GOBIN"/gomake
+if $rebuild; then
+	"$GOBIN"/gomake clean;
+	time "$GOBIN"/gomake
+fi
 time "$GOBIN"/gomake test
 ) || exit $?
 
