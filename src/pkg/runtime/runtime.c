@@ -42,27 +42,29 @@ panic(int32 unused)
 }
 
 void
-·throwindex(void)
+·panicindex(void)
 {
-	throw("index out of range");
+	panicstring("index out of range");
 }
 
 void
-·throwslice(void)
+·panicslice(void)
 {
-	throw("slice out of range");
+	panicstring("slice bounds out of range");
 }
 
 void
 ·throwreturn(void)
 {
-	throw("no return at end of a typed function");
+	// can only happen if compiler is broken
+	throw("no return at end of a typed function - compiler is broken");
 }
 
 void
 ·throwinit(void)
 {
-	throw("recursive call during initialization");
+	// can only happen with linker skew
+	throw("recursive call during initialization - linker skew");
 }
 
 void
@@ -73,6 +75,15 @@ throw(int8 *s)
 	panic(-1);
 	*(int32*)0 = 0;	// not reached
 	exit(1);	// even more not reached
+}
+
+void
+panicstring(int8 *s)
+{
+	Eface err;
+	
+	·newErrorString(gostring((byte*)s), &err);
+	·panic(err);
 }
 
 void
@@ -421,7 +432,7 @@ nohash(uint32 s, void *a)
 {
 	USED(s);
 	USED(a);
-	throw("hash of unhashable type");
+	panicstring("hash of unhashable type");
 	return 0;
 }
 
@@ -431,25 +442,8 @@ noequal(uint32 s, void *a, void *b)
 	USED(s);
 	USED(a);
 	USED(b);
-	throw("comparing uncomparable types");
+	panicstring("comparing uncomparable types");
 	return 0;
-}
-
-static void
-noprint(uint32 s, void *a)
-{
-	USED(s);
-	USED(a);
-	throw("print of unprintable type");
-}
-
-static void
-nocopy(uint32 s, void *a, void *b)
-{
-	USED(s);
-	USED(a);
-	USED(b);
-	throw("copy of uncopyable type");
 }
 
 Alg
@@ -460,7 +454,6 @@ algarray[] =
 [ASTRING]	{ strhash, strequal, strprint, memcopy },
 [AINTER]		{ interhash, interequal, interprint, memcopy },
 [ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, memcopy },
-[AFAKE]	{ nohash, noequal, noprint, nocopy },
 };
 
 #pragma textflag 7

@@ -78,34 +78,25 @@ gostringw(uint16 *str)
 	return s;
 }
 
-func catstring(s1 String, s2 String) (s3 String) {
-	if(s1.len == 0) {
-		s3 = s2;
-		goto out;
-	}
-	if(s2.len == 0) {
-		s3 = s1;
-		goto out;
-	}
+String
+catstring(String s1, String s2)
+{
+	String s3;
+
+	if(s1.len == 0)
+		return s2;
+	if(s2.len == 0)
+		return s1;
 
 	s3 = gostringsize(s1.len + s2.len);
 	mcpy(s3.str, s1.str, s1.len);
 	mcpy(s3.str+s1.len, s2.str, s2.len);
-out:
+	return s3;
 }
 
-static void
-prbounds(int8* s, int32 a, int32 b, int32 c)
-{
-	prints(s);
-	prints(" ");
-	·printint(a);
-	prints("<");
-	·printint(b);
-	prints(">");
-	·printint(c);
-	prints("\n");
-	throw("string bounds");
+
+func catstring(s1 String, s2 String) (s3 String) {
+	s3 = catstring(s1, s2);
 }
 
 uint32
@@ -159,9 +150,7 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
 
 	if(lindex < 0 || lindex > si.len ||
 	   hindex < lindex || hindex > si.len) {
-		·printpc(&si);
-		prints(" ");
-		prbounds("slice", lindex, si.len, hindex);
+	   	·panicslice();
 	}
 
 	l = hindex-lindex;
@@ -177,9 +166,7 @@ func slicestring1(si String, lindex int32) (so String) {
 	int32 l;
 
 	if(lindex < 0 || lindex > si.len) {
-		·printpc(&si);
-		prints(" ");
-		prbounds("slice", lindex, si.len, si.len);
+		·panicslice();
 	}
 
 	l = si.len-lindex;
@@ -193,9 +180,7 @@ func slicestring1(si String, lindex int32) (so String) {
 
 func indexstring(s String, i int32) (b byte) {
 	if(i < 0 || i >= s.len) {
-		·printpc(&s);
-		prints(" ");
-		prbounds("index", 0, i, s.len);
+		·panicindex();
 	}
 
 	b = s.str[i];

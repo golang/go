@@ -1846,8 +1846,6 @@ walkprint(Node *nn, NodeList **init, int defer)
 	if(defer) {
 		if(op == OPRINTN)
 			fmtprint(&fmt, "\n");
-		if(op == OPANIC)
-			fmtprint(&fmt, "%%!");
 		on = syslook("printf", 1);
 		on->type = functype(nil, intypes, nil);
 		args->n = nod(OLITERAL, N, N);
@@ -1863,10 +1861,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 		typechecklist(calls, Etop);
 		walkexprlist(calls, init);
 
-		if(op == OPANIC)
-			r = mkcall("panicl", T, nil);
-		else
-			r = nod(OEMPTY, N, N);
+		r = nod(OEMPTY, N, N);
 		typecheck(&r, Etop);
 		walkexpr(&r, init);
 		r->ninit = calls;

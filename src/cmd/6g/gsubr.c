@@ -1867,7 +1867,7 @@ oindex:
 		}
 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-		ginscall(throwindex, 0);
+		ginscall(panicindex, 0);
 		patch(p1, pc);
 	}
 
@@ -1924,7 +1924,7 @@ oindex_const:
 			nodconst(&n2, types[TUINT64], v);
 			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-			ginscall(throwindex, 0);
+			ginscall(panicindex, 0);
 			patch(p1, pc);
 		}
 
@@ -1958,7 +1958,7 @@ oindex_const_sudo:
 		p1 = gins(optoas(OCMP, types[TUINT32]), N, &n2);
 		p1->from = *a;
 		p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-		ginscall(throwindex, 0);
+		ginscall(panicindex, 0);
 		patch(p1, pc);
 		a->offset -= Array_nel;
 	}

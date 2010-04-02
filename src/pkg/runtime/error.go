@@ -7,7 +7,12 @@ package runtime
 // The Error interface identifies a run time error.
 type Error interface {
 	String() string
-	RuntimeError() // no-op that uniquely identifies runtime.Error
+
+	// RuntimeError is a no-op function but
+	// serves to distinguish types that are runtime
+	// errors from ordinary os.Errors: a type is a
+	// runtime error if it has a RuntimeError method.
+	RuntimeError()
 }
 
 // A TypeAssertionError explains a failed type assertion.
@@ -20,6 +25,8 @@ type TypeAssertionError struct {
 	assertedString  string
 	missingMethod   string // one method needed by Interface, missing from Concrete
 }
+
+func (*TypeAssertionError) RuntimeError() {}
 
 func (e *TypeAssertionError) String() string {
 	inter := e.interfaceString
@@ -57,8 +64,6 @@ func (e *TypeAssertionError) MissingMethod() string {
 	return e.missingMethod
 }
 
-func (*TypeAssertionError) RuntimeError() {}
-
 // For calling from C.
 func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *string, ret *interface{}) {
 	var t1, t2, t3 Type
@@ -88,12 +93,26 @@ func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *st
 	*ret = &TypeAssertionError{t1, t2, t3, s1, s2, s3, meth}
 }
 
+// An errorString represents a runtime error described by a single string.
+type errorString string
+
+func (e errorString) RuntimeError() {}
+
+func (e errorString) String() string {
+	return "runtime error: " + string(e)
+}
+
+// For calling from C.
+func newErrorString(s string, ret *interface{}) {
+	*ret = errorString(s)
+}
+
 type stringer interface {
 	String() string
 }
 
 // For calling from C.
-// Prints an argument to panic.
+// Prints an argument passed to panic.
 // There's room for arbitrary complexity here, but we keep it
 // simple and handle just a few important cases: int, string, and Stringer.
 func printany(i interface{}) {

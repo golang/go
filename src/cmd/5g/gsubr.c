@@ -1724,7 +1724,7 @@ oindex:
 		gcmp(optoas(OCMP, types[TUINT32]), reg1, &n3);
 		regfree(&n3);
 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-		ginscall(throwindex, 0);
+		ginscall(panicindex, 0);
 		patch(p1, pc);
 	}
 
@@ -1780,7 +1780,7 @@ oindex_const:
 			regfree(&n4);
 			regfree(&n3);
 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-			ginscall(throwindex, 0);
+			ginscall(panicindex, 0);
 			patch(p1, pc);
 		}
 

@@ -23,8 +23,8 @@ compile(Node *fn)
 		newproc = sysfunc("newproc");
 		deferproc = sysfunc("deferproc");
 		deferreturn = sysfunc("deferreturn");
-		throwindex = sysfunc("throwindex");
-		throwslice = sysfunc("throwslice");
+		panicindex = sysfunc("panicindex");
+		panicslice = sysfunc("panicslice");
 		throwreturn = sysfunc("throwreturn");
 	}
 
@@ -142,8 +142,8 @@ ginscall(Node *f, int proc)
 		afunclit(&p->to);
 		break;
 
-	// TODO(kaib): unify newproc and defer if you can figure out how not to break things
 	case 1:	// call in new proc (go)
+	case 2:	// deferred call (defer)
 		regalloc(&r, types[tptr], N);
 		p = gins(AMOVW, N, &r);
 		p->from.type = D_OREG;
@@ -173,71 +173,23 @@ ginscall(Node *f, int proc)
 		p->to.offset = 4;
 		regfree(&r);
 
-		ginscall(newproc, 0);
+		if(proc == 1)
+			ginscall(newproc, 0);
+		else
+			ginscall(deferproc, 0);
 
-		regalloc(&r, types[tptr], N);
-		p = gins(AMOVW, N, &r);
-		p->from.type = D_OREG;
+		nodreg(&r, types[tptr], 1);
+		p = gins(AMOVW, N, N);
+		p->from.type = D_CONST;
 		p->from.reg = REGSP;
-		p->from.offset = 0;
-
-		p = gins(AMOVW, &r, N);
-		p->to.type = D_OREG;
+		p->from.offset = 12;
 		p->to.reg = REGSP;
-		p->to.offset = 12;
-		p->scond |= C_WBIT;
-		regfree(&r);
+		p->to.type = D_REG;
 
-		break;
-
-	case 2:	// deferred call (defer)
-		regalloc(&r, types[tptr], N);
-		p = gins(AMOVW, N, &r);
-		p->from.type = D_OREG;
-		p->from.reg = REGSP;
-		
-		p = gins(AMOVW, &r, N);
-		p->to.type = D_OREG;
-		p->to.reg = REGSP;
-		p->to.offset = -8;
-		p->scond |= C_WBIT;
-
-		memset(&n1, 0, sizeof n1);
-		n1.op = OADDR;
-		n1.left = f;
-		gins(AMOVW, &n1, &r);
-
-		p = gins(AMOVW, &r, N);
-		p->to.type = D_OREG;
-		p->to.reg = REGSP;
-		p->to.offset = 8;
-
-		nodconst(&con, types[TINT32], argsize(f->type));
-		gins(AMOVW, &con, &r);
-		p = gins(AMOVW, &r, N);
-		p->to.type = D_OREG;
-		p->to.reg = REGSP;
-		p->to.offset = 4;
-		regfree(&r);
-
-		ginscall(deferproc, 0);
-
-		nodreg(&r, types[tptr], D_R1);
-		p = gins(AMOVW, N, &r);
-		p->from.type = D_OREG;
-		p->from.reg = REGSP;
-		p->from.offset = 0;
-
-		p = gins(AMOVW, &r, N);
-		p->to.type = D_OREG;
-		p->to.reg = REGSP;
-		p->to.offset = 8;
-		p->scond |= C_WBIT;
-		
 		if(proc == 2) {
 			nodconst(&con, types[TINT32], 0);
-			nodreg(&r, types[tptr], D_R0);
-			gins(ACMP, &con, &r);
+			p = gins(ACMP, &con, N);
+			p->reg = 0;
 			patch(gbranch(ABNE, T), pret);
 		}
 		break;
@@ -773,7 +725,7 @@ cmpandthrow(Node *nl, Node *nr)
 			if(cl > cr) {
 				if(throwpc == nil) {
 					throwpc = pc;
-					ginscall(throwslice, 0);
+					ginscall(panicslice, 0);
 				} else
 					patch(gbranch(AB, T), throwpc);
 			}
@@ -807,7 +759,7 @@ cmpandthrow(Node *nl, Node *nr)
 	if(throwpc == nil) {
 		p1 = gbranch(optoas(op, types[TUINT32]), T);
 		throwpc = pc;
-		ginscall(throwslice, 0);
+		ginscall(panicslice, 0);
 		patch(p1, pc);
 	} else {
 		op = brcom(op);
