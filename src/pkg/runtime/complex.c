@@ -20,7 +20,7 @@ void
 		b = -b;
 	if(a <= b) {
 		if(b == 0)
-			throw("complex divide");
+			panicstring("complex divide by zero");
 		ratio = denreal/denimag;
 		denom = denreal*ratio + denimag;
 		quoreal = (numreal*ratio + numimag) / denom;

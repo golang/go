@@ -1,7 +1,8 @@
 char *runtimeimport =
 	"package runtime\n"
 	"func \"\".mal (? int32) *any\n"
-	"func \"\".throwindex ()\n"
+	"func \"\".panicindex ()\n"
+	"func \"\".panicslice ()\n"
 	"func \"\".throwreturn ()\n"
 	"func \"\".throwinit ()\n"
 	"func \"\".panic (? interface { })\n"

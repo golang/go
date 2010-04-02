@@ -36,19 +36,6 @@ void
 	}
 }
 
-static void
-throwslice(uint32 lb, uint32 hb, uint32 n)
-{
-	prints("slice[");
-	·printint(lb);
-	prints(":");
-	·printint(hb);
-	prints("] of [");
-	·printint(n);
-	prints("] array\n");
-	throw("array slice");
-}
-
 // sliceslice(old []any, lb int, hb int, width int) (ary []any);
 void
 ·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
@@ -71,7 +58,7 @@ void
 			·printint(old.cap);
 			prints("\n");
 		}
-		throwslice(lb, hb, old.cap);
+		·panicslice();
 	}
 
 	// new array is inside old array
@@ -116,7 +103,7 @@ void
 			·printint(old.cap);
 			prints("\n");
 		}
-		throwslice(lb, old.len, old.cap);
+		·panicslice();
 	}
 
 	// new array is inside old array
@@ -165,7 +152,7 @@ void
 			·printint(width);
 			prints("\n");
 		}
-		throwslice(lb, hb, nel);
+		·panicslice();
 	}
 
 	// new array is inside old array

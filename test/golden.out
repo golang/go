@@ -2,26 +2,22 @@
 == ./
 
 =========== ./cmp2.go
-comparing uncomparable type []int
-throw: interface compare
+panic: runtime error: comparing uncomparable type []int
 
 panic PC=xxx
 
 =========== ./cmp3.go
-comparing uncomparable type []int
-throw: interface compare
+panic: runtime error: comparing uncomparable type []int
 
 panic PC=xxx
 
 =========== ./cmp4.go
-hash of unhashable type []int
-throw: interface hash
+panic: runtime error: hash of unhashable type []int
 
 panic PC=xxx
 
 =========== ./cmp5.go
-hash of unhashable type []int
-throw: interface hash
+panic: runtime error: hash of unhashable type []int
 
 panic PC=xxx
 

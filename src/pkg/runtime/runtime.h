@@ -300,7 +300,6 @@ enum
 	ASTRING,
 	AINTER,
 	ANILINTER,
-	AFAKE,
 	Amax
 };
 
@@ -369,6 +368,7 @@ void	goargs(void);
 void	FLUSH(void*);
 void*	getu(void);
 void	throw(int8*);
+void	panicstring(int8*);
 uint32	rnd(uint32, uint32);
 void	prints(int8*);
 void	printf(int8*, ...);
@@ -379,6 +379,7 @@ void	memmove(void*, void*, uint32);
 void*	mal(uintptr);
 void*	malx(uintptr size, int32 skip_delta);
 uint32	cmpstring(String, String);
+String	catstring(String, String);
 String	gostring(byte*);
 String	gostringw(uint16*);
 void	initsig(void);
@@ -416,6 +417,7 @@ void	free(void *v);
 void	addfinalizer(void*, void(*fn)(void*), int32);
 void	walkfintab(void (*fn)(void*));
 void	runpanic(Panic*);
+void*	getcallersp(void*);
 
 void	exit(int32);
 void	breakpoint(void);
@@ -531,13 +533,15 @@ void	runtime_printslice(Slice);
 void	runtime_printcomplex(Complex128);
 void	reflect·call(byte*, byte*, uint32);
 void	·panic(Eface);
-
+void	·panicindex(void);
+void	·panicslice(void);
 /*
  * runtime c-called (but written in Go)
  */
 void ·newError(String, Eface*);
 void	·printany(Eface);
 void	·newTypeAssertionError(Type*, Type*, Type*, String*, String*, String*, String*, Eface*);
+void	·newErrorString(String, Eface*);
 
 /*
  * wrapped for go users

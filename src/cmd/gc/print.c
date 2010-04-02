@@ -276,7 +276,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case ODOTTYPE:
 		exprfmt(f, n->left, 7);
 		fmtprint(f, ".(");
-		exprfmt(f, n->right, 0);
+		if(n->right != N)
+			exprfmt(f, n->right, 0);
+		else
+			fmtprint(f, "%T", n->type);
 		fmtprint(f, ")");
 		break;
 

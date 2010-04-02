@@ -457,6 +457,7 @@ static uintptr
 ifacehash1(void *data, Type *t)
 {
 	int32 alg, wid;
+	Eface err;
 
 	if(t == nil)
 		return 0;
@@ -464,12 +465,10 @@ ifacehash1(void *data, Type *t)
 	alg = t->alg;
 	wid = t->size;
 	if(algarray[alg].hash == nohash) {
-		// calling nohash will throw too,
+		// calling nohash will panic too,
 		// but we can print a better error.
-		printf("hash of unhashable type %S\n", *t->string);
-		if(alg == AFAKE)
-			throw("fake interface hash");
-		throw("interface hash");
+		·newErrorString(catstring(gostring((byte*)"hash of unhashable type "), *t->string), &err);
+		·panic(err);
 	}
 	if(wid <= sizeof(data))
 		return algarray[alg].hash(wid, &data);
@@ -494,17 +493,16 @@ static bool
 ifaceeq1(void *data1, void *data2, Type *t)
 {
 	int32 alg, wid;
+	Eface err;
 
 	alg = t->alg;
 	wid = t->size;
 
 	if(algarray[alg].equal == noequal) {
-		// calling noequal will throw too,
+		// calling noequal will panic too,
 		// but we can print a better error.
-		printf("comparing uncomparable type %S\n", *t->string);
-		if(alg == AFAKE)
-			throw("fake interface compare");
-		throw("interface compare");
+		·newErrorString(catstring(gostring((byte*)"comparing uncomparable type "), *t->string), &err);
+		·panic(err);
 	}
 
 	if(wid <= sizeof(data1))

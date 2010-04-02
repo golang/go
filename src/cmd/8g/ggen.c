@@ -23,8 +23,8 @@ compile(Node *fn)
 		newproc = sysfunc("newproc");
 		deferproc = sysfunc("deferproc");
 		deferreturn = sysfunc("deferreturn");
-		throwindex = sysfunc("throwindex");
-		throwslice = sysfunc("throwslice");
+		panicindex = sysfunc("panicindex");
+		panicslice = sysfunc("panicslice");
 		throwreturn = sysfunc("throwreturn");
 	}
 
@@ -824,7 +824,7 @@ cmpandthrow(Node *nl, Node *nr)
 			if(cl > cr) {
 				if(throwpc == nil) {
 					throwpc = pc;
-					ginscall(throwslice, 0);
+					ginscall(panicslice, 0);
 				} else
 					patch(gbranch(AJMP, T), throwpc);
 			}
@@ -842,7 +842,7 @@ cmpandthrow(Node *nl, Node *nr)
 	if(throwpc == nil) {
 		p1 = gbranch(optoas(op, types[TUINT32]), T);
 		throwpc = pc;
-		ginscall(throwslice, 0);
+		ginscall(panicslice, 0);
 		patch(p1, pc);
 	} else {
 		op = brcom(op);

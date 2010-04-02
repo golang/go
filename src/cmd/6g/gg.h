@@ -54,8 +54,8 @@ EXTERN	Node*	curfn;
 EXTERN	Node*	newproc;
 EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
-EXTERN	Node*	throwindex;
-EXTERN	Node*	throwslice;
+EXTERN	Node*	panicindex;
+EXTERN	Node*	panicslice;
 EXTERN	Node*	throwreturn;
 EXTERN	vlong	unmappedzero;
 

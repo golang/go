@@ -201,10 +201,10 @@ missing(uvlong pc, uvlong epc)
 	}
 
 	if(epc - pc == 5) {
-		// check for CALL sys.throwindex
+		// check for CALL sys.panicindex
 		buf[0] = 0;
 		machdata->das(text, pc, 0, buf, sizeof buf);
-		if(strstr(buf, "throwindex"))
+		if(strstr(buf, "panicindex"))
 			return;
 	}
 

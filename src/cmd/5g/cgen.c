@@ -573,7 +573,7 @@ agen(Node *n, Node *res)
 					regfree(&n4);
 					regfree(&n5);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-					ginscall(throwindex, 0);
+					ginscall(panicindex, 0);
 					patch(p1, pc);
 				}
 
@@ -627,7 +627,7 @@ agen(Node *n, Node *res)
 			gcmp(optoas(OCMP, types[TUINT32]), &n2, &n4);
 			regfree(&n4);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-			ginscall(throwindex, 0);
+			ginscall(panicindex, 0);
 			patch(p1, pc);
 		}
 

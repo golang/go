@@ -11,7 +11,8 @@ package PACKAGE
 // emitted by compiler, not referred to by go programs
 
 func mal(int32) *any
-func throwindex()
+func panicindex()
+func panicslice()
 func throwreturn()
 func throwinit()
 

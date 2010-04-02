@@ -23,21 +23,21 @@ func main() {
 }
 
 func die() {
-	runtime.Breakpoint()	// can't depend on panic
+	runtime.Breakpoint() // can't depend on panic
 }
 
 func mustRecover(x interface{}) {
-	mustNotRecover()	// because it's not a defer call
+	mustNotRecover() // because it's not a defer call
 	v := recover()
 	if v == nil {
 		println("missing recover")
-		die()	// panic is useless here
+		die() // panic is useless here
 	}
 	if v != x {
 		println("wrong value", v, x)
 		die()
 	}
-	
+
 	// the value should be gone now regardless
 	v = recover()
 	if v != nil {
@@ -49,19 +49,19 @@ func mustRecover(x interface{}) {
 func mustNotRecover() {
 	v := recover()
 	if v != nil {
-		println("spurious recover")
+		println("spurious recover", v)
 		die()
 	}
 }
 
 func withoutRecover() {
-	mustNotRecover()	// because it's a sub-call
+	mustNotRecover() // because it's a sub-call
 }
 
 func test1() {
-	defer mustNotRecover()	// because mustRecover will squelch it
-	defer mustRecover(1)	// because of panic below
-	defer withoutRecover()	// should be no-op, leaving for mustRecover to find
+	defer mustNotRecover() // because mustRecover will squelch it
+	defer mustRecover(1)   // because of panic below
+	defer withoutRecover() // should be no-op, leaving for mustRecover to find
 	panic(1)
 }
 
@@ -102,14 +102,14 @@ func test2() {
 	// It does not see the panic when called from a call within a deferred call (too late)
 	// nor does it see the panic when it *is* the deferred call (too early).
 	defer mustRecover(2)
-	defer recover()	// should be no-op
+	defer recover() // should be no-op
 	panic(2)
 }
 
 func test3() {
 	defer mustNotRecover()
 	defer func() {
-		recover()	// should squelch
+		recover() // should squelch
 	}()
 	panic(3)
 }
@@ -118,7 +118,7 @@ func test4() {
 	// Equivalent to test3 but using defer to make the call.
 	defer mustNotRecover()
 	defer func() {
-		defer recover()	// should squelch
+		defer recover() // should squelch
 	}()
 	panic(4)
 }
@@ -154,8 +154,8 @@ func test5() {
 		println("wrong value", v, 5)
 		die()
 	}
-	
-	s := try(func() { }, "hi").(string)
+
+	s := try(func() {}, "hi").(string)
 	if s != "hi" {
 		println("wrong value", s, "hi")
 		die()
@@ -166,8 +166,8 @@ func test5() {
 		println("try1 wrong value", v, 5)
 		die()
 	}
-	
-	s = try1(func() { }, "hi").(string)
+
+	s = try1(func() {}, "hi").(string)
 	if s != "hi" {
 		println("try1 wrong value", s, "hi")
 		die()
@@ -183,7 +183,7 @@ func big(mustRecover bool) {
 	x[0] = 1
 	x[99999] = 1
 	_ = x
-	
+
 	v := recover()
 	if mustRecover {
 		if v == nil {
