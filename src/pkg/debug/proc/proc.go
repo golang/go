@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package ptrace provides a platform-independent interface for
+// Package proc provides a platform-independent interface for
 // tracing and controlling running processes.  It supports
 // multi-threaded processes and provides typical low-level debugging
 // controls such as breakpoints, single stepping, and manipulating
