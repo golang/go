@@ -18,9 +18,9 @@
 #	* Each function, that returns errno, needs to supply a number,
 #	  that return value of winapi will be tested against to
 #	  detect failure. This would set errno to windows "last-error",
-#	  otherwise it will be 0. The value can be provided at
-#	  the very end of //sys declaration, like
-#	  //sys LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryA, 0xffffffff
+#	  otherwise it will be 0. The value can be provided
+#	  at end of //sys declaration, like
+#	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval=-1] = LoadLibraryA
 #	  and is 0 by default.
 
 $cmdline = "mksyscall_mingw.sh " . join(' ', @ARGV);
@@ -72,12 +72,12 @@ while(<>) {
 	# Line must be of the form
 	#	func Open(path string, mode int, perm int) (fd int, errno int)
 	# Split into name, in params, out params.
-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(\w*))?(?:\s*,\s*(\w+))?$/) {
+	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval=(.*)\])?\s*(?:=\s*(\w*))?$/) {
 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
 		$errors = 1;
 		next;
 	}
-	my ($func, $in, $out, $sysname, $failretval) = ($1, $2, $3, $4, $5);
+	my ($func, $in, $out, $failretval, $sysname) = ($1, $2, $3, $4, $5);
 
 	# Split argument lists on comma.
 	my @in = parseparamlist($in);
@@ -163,6 +163,7 @@ while(<>) {
 
 	# Assign return values.
 	my $body = "";
+	my $failexpr = "";
 	my @ret = ("_", "_", "_");
 	for(my $i=0; $i<@out; $i++) {
 		my $p = $out[$i];
@@ -191,9 +192,16 @@ while(<>) {
 			$ret[$i] = sprintf("r%d", $i);
 			$ret[$i+1] = sprintf("r%d", $i+1);
 		}
+		if($i == 0) {
+			if($type eq "bool") {
+				$failexpr = "!$name";
+			} else {
+				$failexpr = "$name == $failretval";
+			}
+		}
 		if($name eq "errno") {
 			# Set errno to "last error" only if returned value indicate failure
-			$body .= "\tif uint32(r0) == $failretval {\n";
+			$body .= "\tif $failexpr {\n";
 			$body .= "\t\t$name = $type($reg);\n";
 			$body .= "\t} else {\n";
 			$body .= "\t\t$name = 0;\n";
