@@ -98,6 +98,15 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	GetProcAddress(module uint32, procname string) (proc uint32, errno int)
 //sys	GetVersion() (ver uint32, errno int)
 //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
+//sys	ExitProcess(exitcode uint32)
+//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval=-1] = CreateFileW
+//sys	ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
+//sys	WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
+//sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval=0xffffffff]
+//sys	CloseHandle(handle int32) (ok bool, errno int)
+//sys	GetStdHandle(stdhandle int32) (handle int32, errno int) [failretval=-1]
+
+// syscall interface implementation for other packages
 
 func Errstr(errno int) string {
 	if errno == EMINGW {
@@ -111,11 +120,184 @@ func Errstr(errno int) string {
 	return UTF16ToString(b[0 : n-1])
 }
 
+func Exit(code int) { ExitProcess(uint32(code)) }
+
+func Open(path string, mode int, perm int) (fd int, errno int) {
+	if len(path) == 0 {
+		return -1, ERROR_FILE_NOT_FOUND
+	}
+	var access, sharemode uint32
+	switch {
+	case mode&O_CREAT != 0:
+		access = GENERIC_READ | GENERIC_WRITE
+		sharemode = 0
+	case mode&O_RDWR == O_RDONLY:
+		access = GENERIC_READ
+		sharemode = FILE_SHARE_READ
+	case mode&O_RDWR == O_WRONLY:
+		access = GENERIC_WRITE
+		sharemode = FILE_SHARE_READ
+	case mode&O_RDWR == O_RDWR:
+		access = GENERIC_READ | GENERIC_WRITE
+		sharemode = FILE_SHARE_READ | FILE_SHARE_WRITE
+	}
+	var createmode uint32
+	switch {
+	case mode&O_CREAT != 0:
+		if mode&O_EXCL != 0 {
+			createmode = CREATE_NEW
+		} else {
+			createmode = CREATE_ALWAYS
+		}
+	case mode&O_TRUNC != 0:
+		createmode = TRUNCATE_EXISTING
+	default:
+		createmode = OPEN_EXISTING
+	}
+	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, nil, createmode, FILE_ATTRIBUTE_NORMAL, 0)
+	return int(h), int(e)
+}
+
+func Read(fd int, p []byte) (n int, errno int) {
+	var done uint32
+	if ok, e := ReadFile(int32(fd), p, &done, nil); !ok {
+		return 0, e
+	}
+	return int(done), 0
+}
+
+// TODO(brainman): ReadFile/WriteFile change file offset, therefore
+// i use Seek here to preserve semantics of unix pread/pwrite,
+// not sure if I should do that
+
+func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+	var o Overlapped
+	o.OffsetHigh = uint32(offset >> 32)
+	o.Offset = uint32(offset)
+	curoffset, e := Seek(fd, 0, 1)
+	if e != 0 {
+		return 0, e
+	}
+	var done uint32
+	if ok, e := ReadFile(int32(fd), p, &done, &o); !ok {
+		return 0, e
+	}
+	_, e = Seek(fd, curoffset, 0)
+	if e != 0 {
+		return 0, e
+	}
+	return int(done), 0
+}
+
+func Write(fd int, p []byte) (n int, errno int) {
+	var done uint32
+	if ok, e := WriteFile(int32(fd), p, &done, nil); !ok {
+		return 0, e
+	}
+	return int(done), 0
+}
+
+func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+	var o Overlapped
+	o.OffsetHigh = uint32(offset >> 32)
+	o.Offset = uint32(offset)
+	curoffset, e := Seek(fd, 0, 1)
+	if e != 0 {
+		return 0, e
+	}
+	var done uint32
+	if ok, e := WriteFile(int32(fd), p, &done, &o); !ok {
+		return 0, e
+	}
+	_, e = Seek(fd, curoffset, 0)
+	if e != 0 {
+		return 0, e
+	}
+	return int(done), 0
+}
+
+func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+	var w uint32
+	switch whence {
+	case 0:
+		w = FILE_BEGIN
+	case 1:
+		w = FILE_CURRENT
+	case 2:
+		w = FILE_END
+	}
+	hi := int32(offset >> 32)
+	lo := int32(offset)
+	rlo, e := SetFilePointer(int32(fd), lo, &hi, w)
+	if e != 0 {
+		return 0, e
+	}
+	return int64(hi)<<32 + int64(rlo), 0
+}
+
+func Close(fd int) (errno int) {
+	if ok, e := CloseHandle(int32(fd)); !ok {
+		return e
+	}
+	return 0
+}
+
+var (
+	Stdin  = getStdHandle(STD_INPUT_HANDLE)
+	Stdout = getStdHandle(STD_OUTPUT_HANDLE)
+	Stderr = getStdHandle(STD_ERROR_HANDLE)
+)
+
+func getStdHandle(h int32) (fd int) {
+	r, _ := GetStdHandle(h)
+	return int(r)
+}
+
+// TODO(brainman): fix all needed for os
+
+const (
+	SIGTRAP = 5
+)
+
+func Getdents(fd int, buf []byte) (n int, errno int) { return 0, EMINGW }
+
+func Getpid() (pid int)   { return -1 }
+func Getppid() (ppid int) { return -1 }
+
+func Mkdir(path string, mode int) (errno int)             { return EMINGW }
+func Lstat(path string, stat *Stat_t) (errno int)         { return EMINGW }
+func Stat(path string, stat *Stat_t) (errno int)          { return EMINGW }
+func Fstat(fd int, stat *Stat_t) (errno int)              { return EMINGW }
+func Chdir(path string) (errno int)                       { return EMINGW }
+func Fchdir(fd int) (errno int)                           { return EMINGW }
+func Unlink(path string) (errno int)                      { return EMINGW }
+func Rmdir(path string) (errno int)                       { return EMINGW }
+func Link(oldpath, newpath string) (errno int)            { return EMINGW }
+func Symlink(path, link string) (errno int)               { return EMINGW }
+func Readlink(path string, buf []byte) (n int, errno int) { return 0, EMINGW }
+func Rename(oldpath, newpath string) (errno int)          { return EMINGW }
+func Chmod(path string, mode int) (errno int)             { return EMINGW }
+func Fchmod(fd int, mode int) (errno int)                 { return EMINGW }
+func Chown(path string, uid int, gid int) (errno int)     { return EMINGW }
+func Lchown(path string, uid int, gid int) (errno int)    { return EMINGW }
+func Fchown(fd int, uid int, gid int) (errno int)         { return EMINGW }
+func Truncate(name string, size int64) (errno int)        { return EMINGW }
+func Ftruncate(fd int, length int64) (errno int)          { return EMINGW }
+
+const ImplementsGetwd = true
+
+func Getwd() (wd string, errno int)        { return "", EMINGW }
+func Getuid() (uid int)                    { return -1 }
+func Geteuid() (euid int)                  { return -1 }
+func Getgid() (gid int)                    { return -1 }
+func Getegid() (egid int)                  { return -1 }
+func Getgroups() (gids []int, errno int)   { return nil, EMINGW }
+func Gettimeofday(tv *Timeval) (errno int) { return EMINGW }
+
 // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
 
 func Pipe(p []int) (errno int) { return EMINGW }
 
-func Close(fd int) (errno int) { return EMINGW }
 func read(fd int, buf *byte, nbuf int) (n int, errno int) {
 	return 0, EMINGW
 }
@@ -125,24 +307,13 @@ func fcntl(fd, cmd, arg int) (val int, errno int) {
 }
 
 const (
-	F_SETFD = 1 + iota
-	FD_CLOEXEC
-	F_GETFL
-	F_SETFL
-	O_NONBLOCK
-	SYS_FORK
-	SYS_PTRACE
-	SYS_CHDIR
-	SYS_DUP2
-	SYS_FCNTL
-	SYS_EXECVE
-	PTRACE_TRACEME
+	PTRACE_TRACEME = 1 + iota
+	WNOHANG
+	WSTOPPED
 	SYS_CLOSE
 	SYS_WRITE
 	SYS_EXIT
 	SYS_READ
-	EPIPE
-	EINTR
 )
 
 type Rusage struct {

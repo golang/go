@@ -45,9 +45,9 @@ func NewFile(fd int, name string) *File {
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
 // standard output, and standard error file descriptors.
 var (
-	Stdin  = NewFile(0, "/dev/stdin")
-	Stdout = NewFile(1, "/dev/stdout")
-	Stderr = NewFile(2, "/dev/stderr")
+	Stdin  = NewFile(syscall.Stdin, "/dev/stdin")
+	Stdout = NewFile(syscall.Stdout, "/dev/stdout")
+	Stderr = NewFile(syscall.Stderr, "/dev/stderr")
 )
 
 // Flags to Open wrapping those of the underlying system. Not all flags
