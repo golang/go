@@ -388,25 +388,20 @@ class Benchmarks(webapp.RequestHandler):
 
     def compute(self, num):
         benchmarks, builders = benchmark_list()
-                
-        # Build empty grid, to be filled in.
-        rows = [{"name": bm, "builds": [{"url": ""} for b in builders]} for bm in benchmarks]
 
-        for i in range(len(rows)):
-            benchmark = benchmarks[i]
-            builds = rows[i]["builds"]
-            minr, maxr, bybuilder = benchmark_data(benchmark)
-            for j in range(len(builders)):
-                builder = builders[j]
-                cell = builds[j]
-                if len(bybuilder) > 0 and builder == bybuilder[0][0]:
-                    cell["url"] = benchmark_sparkline(bybuilder[0][2])
-                    bybuilder = bybuilder[1:]
+        rows = []
+        for bm in benchmarks:
+            row = {'name':bm, 'builders': []}
+            for bl in builders:
+                key = "single-%s-%s" % (bm, bl)
+                url = memcache.get(key)
+                row['builders'].append({'name': bl, 'url': url})
+            rows.append(row)
 
         path = os.path.join(os.path.dirname(__file__), 'benchmarks.html')
         data = {
-            "benchmarks": rows,
-            "builders": [builderInfo(b) for b in builders]
+            "builders": [builderInfo(b) for b in builders],
+            "rows": rows,
         }
         return template.render(path, data)
 
@@ -463,6 +458,34 @@ class Benchmarks(webapp.RequestHandler):
             memcache.delete(key)
 
         self.response.set_status(200)
+
+class SingleBenchmark(webapp.RequestHandler):
+    """
+    Fetch data for single benchmark/builder combination 
+    and return sparkline url as HTTP redirect, also set memcache entry.
+    """
+    def get(self):
+        benchmark = self.request.get('benchmark')
+        builder = self.request.get('builder')
+        key = "single-%s-%s" % (benchmark, builder)
+
+        url = memcache.get(key)
+
+        if url is None:
+            minr, maxr, bybuilder = benchmark_data(benchmark)
+            for bb in bybuilder:
+                if bb[0] != builder:
+                    continue
+                url = benchmark_sparkline(bb[2])
+
+        if url is None:
+            self.response.set_status(500, "No data found")
+            return
+
+        memcache.set(key, url, 700) # slightly longer than bench timeout 
+
+        self.response.set_status(302)
+        self.response.headers.add_header("Location", url)
 
 def node(num):
     q = Commit.all()
@@ -535,19 +558,19 @@ def benchmark_sparkline(ns):
     # Encoding is 0-61, which is fine enough granularity for our tiny graphs.  _ means missing.
     encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
     s = ''.join([x < 0 and "_" or encoding[int((len(encoding)-1)*x/m)] for x in ns])
-    url = "http://chart.apis.google.com/chart?cht=ls&chd=s:"+s
+    url = "http://chart.apis.google.com/chart?cht=ls&chd=s:"+s+"&chs=80x20&chf=bg,s,00000000&chco=000000ff&chls=1,1,0"
     return url
 
 def benchmark_list():
     q = BenchmarkResults.all()
     q.order('__key__')
     q.filter('builder = ', u'darwin-amd64')
-    benchmarks = [r.benchmark for r in q.fetch(1000)]
+    benchmarks = [r.benchmark for r in q]
     
     q = BenchmarkResults.all()
     q.order('__key__')
     q.filter('benchmark =', u'math_test.BenchmarkSqrt')
-    builders = [r.builder for r in q.fetch(100)]
+    builders = [r.builder for r in q.fetch(20)]
     
     return benchmarks, builders
     
@@ -682,6 +705,7 @@ application = webapp.WSGIApplication(
                                       ('/init', Init),
                                       ('/build', Build),
                                       ('/benchmarks', Benchmarks),
+                                      ('/benchmarks/single', SingleBenchmark),
                                       ('/benchmarks/.*', GetBenchmarks),
                                      ], debug=True)
 

@@ -1,62 +1,22 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <title>Go benchmarks</title>
-
-    <style>
-      h1 {
-          font-size: 1em;
-          font-weight: bold;
-      }
-      h2 {
-          font-size: 1em;
-          font-weight: bold;
-      }
-      table.alternate {
-          white-space: nowrap;
-      }
-      table.alternate tr td {
-        padding-right: 10px;
-      }
-      table.alternate tr td:last-child {
-        padding-right: 0;
-      }
-      table.alternate tr:nth-child(2n) {
-        background-color: #f8f8f8;
-      }
-      td.revision {
-      }
-      span.nodeseq {
-      }
-      td.user {
-        font-size: small;
-      }
-      td.date {
-        color: #aaa;
-        font-size: small;
-      }
-      td.result {
-        text-align: center;
-      }
-      span.ok {
-      }
-      td.desc {
-        font-size: small;
-        font-family: sans-serif;
-      }
-      th.builder {
-        font-weight: bold;
-        padding-right: 0.5em;
-      }
-    </style>
+    <title>Benchmarks - Go Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
   </head>
 
   <body>
-    <h1>Go dashboard - benchmarks</h1>
-    
-    <a href="/">build status</a>
+    <ul class="menu">
+      <li><a href="/">Build Status</a></li>
+      <li><a href="/package">Packages</a></li>
+      <li>Benchmarks</li>
+      <li><a href="http://golang.org/">golang.org</a></li>
+    </ul>
 
+    <h1>Go Dashboard</h1>
+    
     <h2>Benchmarks</h2>
+
     <table class="alternate" cellpadding="0" cellspacing="0">
       <tr>
         <th></th>
@@ -65,15 +25,17 @@
         {% endfor %}
       </tr>
 
-      {% for m in benchmarks %}
+      {% for bm in rows %}
       <tr>
-        <td class="name"><a href="/benchmarks/{{m.name}}">{{m.name}}</a></td>
+        <td class="name"><a href="/benchmarks/{{bm.name}}">{{bm.name}}</a></td>
 
-        {% for b in m.builds %}
+        {% for bl in bm.builders %}
           <td class="result">
-          {% if b.url %}
-            <img src="{{b.url}}&chs=80x20&chf=bg,s,00000000&chco=000000ff&chls=1,1,0">
-          {% endif %}
+	    {% if bl.url %}
+	    <img src="{{bl.url}}" />
+	    {% else %}
+	    <img src="/benchmarks/single?benchmark={{bm.name}}&builder={{bl.name}}" />
+	    {% endif %}
           </td>
         {% endfor %}
       </tr>
