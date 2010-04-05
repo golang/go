@@ -6,7 +6,6 @@
 set -e
 . ./env.bash
 
-export MAKEFLAGS=-j4
 unset CDPATH	# in case user has it set
 
 # no core files, please
