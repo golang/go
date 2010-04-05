@@ -94,6 +94,7 @@ DIRS=\
 	math\
 	mime\
 	net\
+	nntp\
 	once\
 	os\
 	os/signal\
