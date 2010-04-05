@@ -5,9 +5,13 @@
 package tls
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"io"
+	"io/ioutil"
+	"once"
 	"os"
+	"time"
 )
 
 const (
@@ -130,3 +134,38 @@ func (nop) Sum() []byte { return nil }
 func (nop) Reset() {}
 
 func (nop) Size() int { return 0 }
+
+
+// The defaultConfig is used in place of a nil *Config in the TLS server and client.
+var varDefaultConfig *Config
+
+func defaultConfig() *Config {
+	once.Do(initDefaultConfig)
+	return varDefaultConfig
+}
+
+// Possible certificate files; stop after finding one.
+// On OS X we should really be using the Directory Services keychain
+// but that requires a lot of Mach goo to get at.  Instead we use
+// the same root set that curl uses.
+var certFiles = []string{
+	"/etc/ssl/certs/ca-certificates.crt", // Linux etc
+	"/usr/share/curl/curl-ca-bundle.crt", // OS X
+}
+
+func initDefaultConfig() {
+	roots := NewCASet()
+	for _, file := range certFiles {
+		data, err := ioutil.ReadFile(file)
+		if err == nil {
+			roots.SetFromPEM(data)
+			break
+		}
+	}
+
+	varDefaultConfig = &Config{
+		Rand:    rand.Reader,
+		Time:    time.Seconds,
+		RootCAs: roots,
+	}
+}
