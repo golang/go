@@ -125,7 +125,43 @@ should recognise such cases and optimize its use of OS threads. For now,
 </p>
 
 
-<h2 id="Closures">Closures</h2>
+<h2 id="Functions_methods">Functions and Methods</h2>
+
+<h3 id="different_method_sets">
+Why do T and *T have different method sets?</h3>
+
+<p>
+From the <a href="http://golang.org/doc/go_spec.html#Types">Go Spec</a>:
+</p>
+
+<blockquote>
+The method set of any other named type <code>T</code> consists of all methods
+with receiver type <code>T</code>. The method set of the corresponding pointer
+type <code>*T</code> is the set of all methods with receiver <code>*T</code> or
+<code>T</code> (that is, it also contains the method set of <code>T</code>).
+</blockquote>
+
+<p>
+If an interface value contains a pointer <code>*T</code>,
+a method call can obtain a value by dereferencing the pointer,
+but if an interface value contains a value <code>T</code>,
+there is no useful way for a method call to obtain a pointer.
+</p>
+
+<p>
+If not for this restriction, this code:
+</p>
+
+<pre>
+var buf bytes.Buffer
+io.Copy(buf, os.Stdin)
+</pre>
+
+<p>
+would copy standard input into a <i>copy</i> of <code>buf</code>,
+not into <code>buf</code> itself.
+This is almost never the desired behavior.
+</p>
 
 <h3 id="closures_and_goroutines">
 Why am I confused by the way my closures behave as goroutines?</h3>
