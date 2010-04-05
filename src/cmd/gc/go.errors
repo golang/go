@@ -49,4 +49,8 @@ static struct {
 
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LVAR LNAME '[' ']' LNAME '{'
 	"var declaration missing = before initial value",
+	
+	% loadsys package imports LFUNC LNAME '(' ')' '{' LDEFER LNAME ';'
+	"argument to go/defer must be function call",
+
 };
