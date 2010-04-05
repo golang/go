@@ -125,6 +125,9 @@ type handshaker interface {
 // Server establishes a secure connection over the given connection and acts
 // as a TLS server.
 func startTLSGoroutines(conn net.Conn, h handshaker, config *Config) *Conn {
+	if config == nil {
+		config = defaultConfig()
+	}
 	tls := new(Conn)
 	tls.Conn = conn
 
@@ -167,7 +170,6 @@ func (l *Listener) Accept() (c net.Conn, err os.Error) {
 	if err != nil {
 		return
 	}
-
 	c = Server(c, l.config)
 	return
 }
@@ -179,8 +181,27 @@ func (l *Listener) Addr() net.Addr { return l.listener.Addr() }
 // NewListener creates a Listener which accepts connections from an inner
 // Listener and wraps each connection with Server.
 func NewListener(listener net.Listener, config *Config) (l *Listener) {
+	if config == nil {
+		config = defaultConfig()
+	}
 	l = new(Listener)
 	l.listener = listener
 	l.config = config
 	return
+}
+
+func Listen(network, laddr string) (net.Listener, os.Error) {
+	l, err := net.Listen(network, laddr)
+	if err != nil {
+		return nil, err
+	}
+	return NewListener(l, nil), nil
+}
+
+func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
+	c, err := net.Dial(network, laddr, raddr)
+	if err != nil {
+		return nil, err
+	}
+	return Client(c, nil), nil
 }
