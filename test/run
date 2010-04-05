@@ -87,6 +87,7 @@ done | # clean up some stack noise
 		/^Trace\/BPT trap/d
 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+		/Segmentation fault/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
 rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out

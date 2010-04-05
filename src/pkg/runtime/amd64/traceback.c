@@ -99,7 +99,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 }
 
 void
-traceback(byte *pc0, byte *sp, G *g)
+traceback(byte *pc0, byte *sp, byte*, G *g)
 {
 	gentraceback(pc0, sp, g, 0, nil, 100);
 }
@@ -111,7 +111,7 @@ callers(int32 skip, uintptr *pcbuf, int32 m)
 
 	// our caller's pc, sp.
 	sp = (byte*)&skip;
-	pc = *(byte**)(sp-sizeof(uintptr));
+	pc = ·getcallerpc(&skip);
 
 	return gentraceback(pc, sp, g, skip, pcbuf, m);
 }

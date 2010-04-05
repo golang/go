@@ -32,9 +32,8 @@ panic(int32 unused)
 	panicking++;
 
 	printf("\npanic PC=%X\n", (uint64)(uintptr)&unused);
-	sp = (uint8*)&unused;
 	if(gotraceback()){
-		traceback(·getcallerpc(&unused), sp, g);
+		traceback(·getcallerpc(&unused), getcallersp(&unused), 0, g);
 		tracebackothers(g);
 	}
 	breakpoint();  // so we can grab it in a debugger

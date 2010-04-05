@@ -8,3 +8,5 @@ int32	clone(int32, void*, M*, G*, void(*)(void));
 
 struct Sigaction;
 void	rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
+
+void	sigaltstack(Sigaltstack*, Sigaltstack*);

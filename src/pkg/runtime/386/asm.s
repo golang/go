@@ -311,6 +311,10 @@ TEXT	·setcallerpc+0(SB),7,$0
 	MOVL	BX, -4(AX)		// set calling pc
 	RET
 
+TEXT getcallersp(SB), 7, $0
+	MOVL	sp+0(FP), AX
+	RET
+
 TEXT ldt0setup(SB),7,$16
 	// set up ldt 7 to point at tls0
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.

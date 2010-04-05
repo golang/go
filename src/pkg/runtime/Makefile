@@ -18,7 +18,7 @@ CFLAGS_64=-D_64BIT
 # can enable optimizations again.
 CFLAGS_arm=-N
 CFLAGS_mingw=-D__MINGW__
-CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
 
 GOFILES=\
 	error.go\

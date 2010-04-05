@@ -399,7 +399,7 @@ noops(void)
 				p->as = AMOVW;
 				p->scond = C_SCOND_LO;
 				p->from.type = D_CONST;
-				p->from.offset = (curtext->to.offset2 & ~7) + 4;
+				p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
 				p->to.type = D_REG;
 				p->to.reg = 2;
 
@@ -449,7 +449,7 @@ noops(void)
 				p = appendp(p);
 				p->as = AMOVW;
 				p->from.type = D_CONST;
-				p->from.offset = (curtext->to.offset2 & ~7) + 4;
+				p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
 				p->to.type = D_REG;
 				p->to.reg = 2;
 

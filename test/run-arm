@@ -67,6 +67,7 @@ done | # clean up some stack noise
 		/^Trace\/breakpoint trap/d
 		/^Trace\/BPT trap/d
 		s!'$GOROOT'!$GOROOT!g
+		/Segmentation fault/d
 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out

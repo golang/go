@@ -98,28 +98,6 @@ TEXT	notok(SB),7,$0
 	MOVQ	BP, (BP)
 	RET
 
-TEXT	·memclr(SB),7,$0-16
-	MOVQ	8(SP), DI		// arg 1 addr
-	MOVL	16(SP), CX		// arg 2 count (cannot be zero)
-	ADDL	$7, CX
-	SHRL	$3, CX
-	MOVQ	$0, AX
-	CLD
-	REP
-	STOSQ
-	RET
-
-TEXT	·getcallerpc+0(SB),7,$0
-	MOVQ	x+0(FP),AX		// addr of first arg
-	MOVQ	-8(AX),AX		// get calling pc
-	RET
-
-TEXT	·setcallerpc+0(SB),7,$0
-	MOVQ	x+0(FP),AX		// addr of first arg
-	MOVQ	x+8(FP), BX
-	MOVQ	BX, -8(AX)		// set calling pc
-	RET
-
 // int64 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
 TEXT	futex(SB),7,$0

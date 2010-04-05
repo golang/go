@@ -7,25 +7,31 @@
 #include "signals.h"
 #include "os.h"
 
-void dumpregs(void) {}
-// void
-// dumpregs(Sigcontext *r)
-// {
-// 	printf("eax     %X\n", r->eax);
-// 	printf("ebx     %X\n", r->ebx);
-// 	printf("ecx     %X\n", r->ecx);
-// 	printf("edx     %X\n", r->edx);
-// 	printf("edi     %X\n", r->edi);
-// 	printf("esi     %X\n", r->esi);
-// 	printf("ebp     %X\n", r->ebp);
-// 	printf("esp     %X\n", r->esp);
-// 	printf("eip     %X\n", r->eip);
-// 	printf("eflags  %X\n", r->eflags);
-// 	printf("cs      %X\n", r->cs);
-// 	printf("fs      %X\n", r->fs);
-// 	printf("gs      %X\n", r->gs);
-// }
-
+void
+dumpregs(Sigcontext *r)
+{
+	printf("trap    %x\n", r->trap_no);
+	printf("error   %x\n", r->error_code);
+	printf("oldmask %x\n", r->oldmask);
+	printf("r0      %x\n", r->arm_r0);
+	printf("r1      %x\n", r->arm_r1);
+	printf("r2      %x\n", r->arm_r2);
+	printf("r3      %x\n", r->arm_r3);
+	printf("r4      %x\n", r->arm_r4);
+	printf("r5      %x\n", r->arm_r5);
+	printf("r6      %x\n", r->arm_r6);
+	printf("r7      %x\n", r->arm_r7);
+	printf("r8      %x\n", r->arm_r8);
+	printf("r9      %x\n", r->arm_r9);
+	printf("r10     %x\n", r->arm_r10);
+	printf("fp      %x\n", r->arm_fp);
+	printf("ip      %x\n", r->arm_ip);
+	printf("sp      %x\n", r->arm_sp);
+	printf("lr      %x\n", r->arm_lr);
+	printf("pc      %x\n", r->arm_pc);
+	printf("cpsr    %x\n", r->arm_cpsr);
+	printf("fault   %x\n", r->fault_address);
+}
 
 /*
  * This assembler routine takes the args from registers, puts them on the stack,
@@ -43,70 +49,79 @@ signame(int32 sig)
 	return gostring((byte*)sigtab[sig].name);
 }
 
-void sighandler(void) {}
-// void
-// sighandler(int32 sig, Siginfo* info, void* context)
-// {
-// 	Ucontext *uc;
-// 	Sigcontext *sc;
+void
+sighandler(int32 sig, Siginfo *info, void *context)
+{
+	Ucontext *uc;
+	Sigcontext *sc;
 
-// 	if(panicking)	// traceback already printed
-// 		exit(2);
-// 	panicking = 1;
+	if(sigtab[sig].flags & SigQueue) {
+		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+			return;
+		exit(2);	// SIGINT, SIGTERM, etc
+	}
 
-// 	uc = context;
-// 	sc = &uc->uc_mcontext;
+	if(panicking)	// traceback already printed
+		exit(2);
+	panicking = 1;
 
-// 	if(sig < 0 || sig >= NSIG)
-// 		printf("Signal %d\n", sig);
-// 	else
-// 		printf("%s\n", sigtab[sig].name);
+	if(sig < 0 || sig >= NSIG)
+		printf("Signal %d\n", sig);
+	else
+		printf("%s\n", sigtab[sig].name);
 
-// 	printf("Faulting address: %p\n", *(void**)info->_sifields);
-// 	printf("pc=%X\n", sc->eip);
-// 	printf("\n");
+	uc = context;
+	sc = &uc->uc_mcontext;
 
-// 	if(gotraceback()){
-// 		traceback((void*)sc->eip, (void*)sc->esp, m->curg);
-// 		tracebackothers(m->curg);
-// 		dumpregs(sc);
-// 	}
+	printf("Faulting address: %p\n", sc->fault_address);
+	printf("PC=%x\n", sc->arm_pc);
+	printf("\n");
 
-// 	breakpoint();
-// 	exit(2);
-// }
+	if(gotraceback()){
+		traceback((void*)sc->arm_pc, (void*)sc->arm_sp, (void*)sc->arm_lr, m->curg);
+		tracebackothers(m->curg);
+		printf("\n");
+		dumpregs(sc);
+	}
+
+//	breakpoint();
+	exit(2);
+}
 
 void
 signalstack(byte *p, int32 n)
 {
-// 	Sigaltstack st;
+	Sigaltstack st;
 
-// 	st.ss_sp = p;
-// 	st.ss_size = n;
-// 	st.ss_flags = 0;
-// 	sigaltstack(&st, nil);
+	st.ss_sp = p;
+	st.ss_size = n;
+	st.ss_flags = 0;
+	sigaltstack(&st, nil);
 }
 
 void
 initsig(void)
 {
-// 	static Sigaction sa;
+	static Sigaction sa;
 
-// 	int32 i;
-// 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
-// 	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
-// 	sa.sa_restorer = (void*)sigreturn;
-// 	for(i = 0; i<NSIG; i++) {
-// 		if(sigtab[i].flags) {
-// 			if(sigtab[i].flags & SigCatch)
-// 				*(void**)sa._u = (void*)sigtramp;	// handler
-// 			else
-// 				*(void**)sa._u = (void*)sigignore;	// handler
-// 			if(sigtab[i].flags & SigRestart)
-// 				sa.sa_flags |= SA_RESTART;
-// 			else
-// 				sa.sa_flags &= ~SA_RESTART;
-// 			rt_sigaction(i, &sa, nil, 8);
-// 		}
-// 	}
+	siginit();
+
+	int32 i;
+	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+	sa.sa_mask.sig[0] = 0xFFFFFFFF;
+	sa.sa_mask.sig[1] = 0xFFFFFFFF;
+	sa.sa_restorer = (void*)sigreturn;
+	for(i = 0; i<NSIG; i++) {
+		if(sigtab[i].flags) {
+			if(sigtab[i].flags & (SigCatch | SigQueue))
+				sa.sa_handler = (void*)sigtramp;
+			else
+				sa.sa_handler = (void*)sigignore;
+			if(sigtab[i].flags & SigRestart)
+				sa.sa_flags |= SA_RESTART;
+			else
+				sa.sa_flags &= ~SA_RESTART;
+			rt_sigaction(i, &sa, nil, 8);
+		}
+	}
 }

@@ -393,8 +393,8 @@ asmb(void)
 	int32 t, etext;
 	int a, dynsym;
 	uint32 va, fo, w, symo, startva;
+	uint32 symdatva = SYMDATVA;
 	int strtabsize;
-	vlong symdatva = SYMDATVA;
 	Optab *o;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
@@ -521,6 +521,10 @@ asmb(void)
 			asmthumbmap();
 		if(dlm)
 			asmdyn();
+		cflush();
+		seek(cout, symo, 0);
+		lputl(symsize);
+		lputl(lcsize);
 		cflush();
 	}
 	else if(dlm){

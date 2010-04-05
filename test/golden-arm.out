@@ -3,32 +3,24 @@
 PASS
 
 =========== cmp2.go
-comparing uncomparable type []int
-throw: interface compare
+panic: runtime error: comparing uncomparable type []int
 
 panic PC=xxx
-[1]   Segmentation fault      "${@}"
 
 =========== cmp3.go
-comparing uncomparable type []int
-throw: interface compare
+panic: runtime error: comparing uncomparable type []int
 
 panic PC=xxx
-[1]   Segmentation fault      "${@}"
 
 =========== cmp4.go
-hash of unhashable type []int
-throw: interface hash
+panic: runtime error: hash of unhashable type []int
 
 panic PC=xxx
-[1]   Segmentation fault      "${@}"
 
 =========== cmp5.go
-hash of unhashable type []int
-throw: interface hash
+panic: runtime error: hash of unhashable type []int
 
 panic PC=xxx
-[1]   Segmentation fault      "${@}"
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:11: constant -3 overflows uint
@@ -62,22 +54,21 @@ fixedbugs/bug081.go:9: typechecking loop
 M
 
 =========== fixedbugs/bug113.go
-interface is int, not int32
-throw: interface conversion
+panic: interface conversion: interface is int, not int32
 
 panic PC=xxx
-[1]   Segmentation fault      "${@}"
 
 =========== fixedbugs/bug148.go
 2 3
-interface is main.T, not main.T
-throw: interface conversion
+panic: interface conversion: interface is main.T, not main.T
 
 panic PC=xxx
-[1]   Segmentation fault      "${@}"
 
 =========== fixedbugs/bug154.go
-[1]   Segmentation fault      "${@}"
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+PC=0x255b4
+
 BUG: should not panic
 
 =========== fixedbugs/bug206.go
@@ -87,18 +78,14 @@ BUG: bug206
 hello, world
 
 =========== interface/fail.go
-*main.S is not main.I: missing method Foo
-throw: interface conversion
+panic: interface conversion: *main.S is not main.I: missing method Foo
 
 panic PC=xxx
-[1]   Segmentation fault      "${@}"
 
 =========== interface/returntype.go
-*main.S is not main.I2: missing method Name
-throw: interface conversion
+panic: interface conversion: *main.S is not main.I2: missing method Name
 
 panic PC=xxx
-[1]   Segmentation fault      "${@}"
 
 =========== ken/intervar.go
  print 1 bio 2 file 3 -- abc

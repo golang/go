@@ -85,8 +85,7 @@ TEXT _dep_dummy(SB),7,$0
 
 TEXT	breakpoint(SB),7,$0
 	BL	abort(SB)
-//	BYTE $0xcc
-//	RET
+	RET
 
 /*
  *  go-routine
@@ -133,7 +132,7 @@ TEXT gogocall(SB), 7, $-4
 // R1 frame size
 // R2 arg size
 // R3 prolog's LR
-// NB. we do not save R0 because the we've forced 5c to pass all arguments
+// NB. we do not save R0 because we've forced 5c to pass all arguments
 // on the stack.
 // using frame size $-4 means do not save LR on stack.
 TEXT ·morestack(SB),7,$-4
@@ -215,8 +214,7 @@ TEXT jmpdefer(SB), 7, $0
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
 	MOVW	4(SP), R0		// fn
-	MOVW	8(SP), R1
-	MOVW	$-4(R1), SP	// correct for sp pointing to arg0, past stored lr
+	MOVW	8(SP), SP
 	B		(R0)
 
 TEXT	·memclr(SB),7,$20
@@ -241,6 +239,11 @@ TEXT	·setcallerpc+0(SB),7,$-4
 	MOVW	R0, 0(SP)
 	RET
 
+TEXT	getcallersp(SB),7,$-4
+	MOVW	0(FP), R0
+	MOVW	$-4(R0), R0
+	RET
+
 // runcgo(void(*fn)(void*), void *arg)
 // Just call fn(arg), but first align the stack
 // appropriately for the gcc ABI.
@@ -260,7 +263,7 @@ TEXT	runcgo(SB),7,$16
 TEXT emptyfunc(SB),0,$0
 	RET
 
-TEXT abort(SB),7,$0
+TEXT abort(SB),7,$-4
 	MOVW	$0, R0
 	MOVW	(R0), R1
 

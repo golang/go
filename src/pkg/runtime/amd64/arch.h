@@ -1,0 +1,3 @@
+enum {
+	thechar = '6'
+};
