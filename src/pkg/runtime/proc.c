@@ -157,7 +157,7 @@ tracebackothers(G *me)
 		if(g == me || g->status == Gdead)
 			continue;
 		printf("\ngoroutine %d [%d]:\n", g->goid, g->status);
-		traceback(g->sched.pc, g->sched.sp, g);
+		traceback(g->sched.pc, g->sched.sp, 0, g);
 	}
 }
 
@@ -468,7 +468,7 @@ scheduler(void)
 			// each call to deferproc.
 			// (the pc we're returning to does pop pop
 			// before it tests the return value.)
-			gp->sched.sp = d->sp - 2*sizeof(uintptr);
+			gp->sched.sp = getcallersp(d->sp - 2*sizeof(uintptr));
 			gp->sched.pc = d->pc;
 			free(d);
 			gogo(&gp->sched, 1);
@@ -714,7 +714,8 @@ newstack(void)
 	frame = m->moreframe;
 	args = m->moreargs;
 	g1 = m->curg;
-	
+
+
 	if(frame == 1 && args > 0 && m->morebuf.sp - sizeof(Stktop) - args - 32 > g1->stackguard) {
 		// special case: called from reflect.call (frame == 1)
 		// to call code with an arbitrary argument size,
@@ -883,7 +884,7 @@ void
 	d = g->defer;
 	if(d == nil)
 		return;
-	sp = (byte*)&arg0;
+	sp = getcallersp(&arg0);
 	if(d->sp != sp)
 		return;
 	mcpy(d->sp, d->args, d->siz);

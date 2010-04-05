@@ -93,28 +93,6 @@ TEXT	notok(SB),7,$0
 	MOVQ	BP, (BP)
 	RET
 
-TEXT	·memclr(SB),7,$0
-	MOVQ	8(SP), DI		// arg 1 addr
-	MOVL	16(SP), CX		// arg 2 count
-	ADDL	$7, CX
-	SHRL	$3, CX
-	MOVQ	$0, AX
-	CLD
-	REP
-	STOSQ
-	RET
-
-TEXT	·getcallerpc+0(SB),7,$0
-	MOVQ	x+0(FP),AX		// addr of first arg
-	MOVQ	-8(AX),AX		// get calling pc
-	RET
-
-TEXT	·setcallerpc+0(SB),7,$0
-	MOVQ	x+0(FP),AX		// addr of first arg
-	MOVQ	x+8(FP), BX
-	MOVQ	BX, -8(AX)		// set calling pc
-	RET
-
 TEXT sigaltstack(SB),7,$0
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI

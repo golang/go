@@ -80,7 +80,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
 	printf("\n");
 
 	if(gotraceback()){
-		traceback((void*)sc->rip, (void*)sc->rsp, (void*)sc->r15);
+		traceback((void*)sc->rip, (void*)sc->rsp, 0, (void*)sc->r15);
 		tracebackothers((void*)sc->r15);
 		dumpregs(sc);
 	}

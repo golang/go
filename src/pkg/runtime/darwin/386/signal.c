@@ -65,7 +65,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
 	printf("\n");
 
 	if(gotraceback()){
-		traceback((void*)r->eip, (void*)r->esp, m->curg);
+		traceback((void*)r->eip, (void*)r->esp, 0, m->curg);
 		tracebackothers(m->curg);
 		dumpregs(r);
 	}

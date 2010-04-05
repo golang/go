@@ -232,7 +232,7 @@ loop:
 	}
 	if(a == AB) {
 		q = p->cond;
-		if(q != P) {
+		if(q != P && q->as != ATEXT) {
 			p->mark |= FOLL;
 			p = q;
 			if(!(p->mark & FOLL))

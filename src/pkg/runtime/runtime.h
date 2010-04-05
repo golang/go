@@ -384,7 +384,7 @@ String	gostring(byte*);
 String	gostringw(uint16*);
 void	initsig(void);
 int32	gotraceback(void);
-void	traceback(uint8 *pc, uint8 *sp, G* gp);
+void	traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
 void	tracebackothers(G*);
 int32	open(byte*, int32, ...);
 int32	write(int32, void*, int32);

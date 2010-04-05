@@ -73,7 +73,6 @@ TEXT gettime(SB), 7, $32
 	MOVL	BX, (DI)
 	RET
 
-
 TEXT	sigaction(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act
@@ -108,28 +107,6 @@ TEXT	·mmap(SB),7,$-8
 TEXT	notok(SB),7,$-8
 	MOVL	$0xf1, BP
 	MOVQ	BP, (BP)
-	RET
-
-TEXT	·memclr(SB),7,$-8
-	MOVQ	8(SP), DI		// arg 1 addr
-	MOVL	16(SP), CX		// arg 2 count
-	ADDL	$7, CX
-	SHRL	$3, CX
-	MOVQ	$0, AX
-	CLD
-	REP
-	STOSQ
-	RET
-
-TEXT	·getcallerpc+0(SB),7,$0
-	MOVQ	x+0(FP),AX		// addr of first arg
-	MOVQ	-8(AX),AX		// get calling pc
-	RET
-
-TEXT	·setcallerpc+0(SB),7,$0
-	MOVQ	x+0(FP),AX		// addr of first arg
-	MOVQ	x+8(FP), BX
-	MOVQ	BX, -8(AX)		// set calling pc
 	RET
 
 TEXT sigaltstack(SB),7,$-8
