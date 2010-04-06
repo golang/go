@@ -571,20 +571,21 @@ func Serve(l net.Listener, handler Handler) os.Error {
 //	package main
 //
 //	import (
-//		"http";
-//		"io";
+//		"http"
+//		"io"
+//		"log"
 //	)
 //
 //	// hello world, the web server
 //	func HelloServer(c *http.Conn, req *http.Request) {
-//		io.WriteString(c, "hello, world!\n");
+//		io.WriteString(c, "hello, world!\n")
 //	}
 //
 //	func main() {
-//		http.Handle("/hello", http.HandlerFunc(HelloServer));
-//		err := http.ListenAndServe(":12345", nil);
+//		http.HandleFunc("/hello", HelloServer)
+//		err := http.ListenAndServe(":12345", nil)
 //		if err != nil {
-//			panic("ListenAndServe: ", err.String())
+//			log.Exit("ListenAndServe: ", err.String())
 //		}
 //	}
 func ListenAndServe(addr string, handler Handler) os.Error {
