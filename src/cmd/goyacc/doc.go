@@ -19,5 +19,18 @@ The file units.y in this directory is a yacc grammar for a version of
 the Unix tool units, also written in Go and largely transliterated
 from the Plan 9 C version.
 
+The generated parser is reentrant. Parse expects to be given an
+argument that conforms to the following interface:
+
+	type yyLexer interface {
+		Lex(lval *yySymType) int
+	}
+
+Lex should return the token identifier, and place other token
+information in lval (which replaces the usual yylval).
+
+Code inside the parser may refer to the variable yylex
+which holds the yyLexer passed to Parse.
+
 */
 package documentation

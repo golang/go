@@ -49,6 +49,8 @@ import (
 	"fmt"
 	"bufio"
 	"os"
+	"strings"
+	"bytes"
 )
 
 // the following are adjustable
@@ -104,7 +106,7 @@ const (
 )
 
 // output parser flags
-const YYFLAG = -1000
+const yyFlag = -1000
 
 // parse tokens
 const (
@@ -147,8 +149,9 @@ func SETTYPE(i, j int) int { return i | (j << 10) }
 // I/O descriptors
 var finput *bufio.Reader // input file
 var stderr *bufio.Writer
-var ftable *bufio.Writer  // y.go file
-var foutput *bufio.Writer // y.output file
+var ftable *bufio.Writer    // y.go file
+var fcode = &bytes.Buffer{} // saved code
+var foutput *bufio.Writer   // y.output file
 
 var oflag string // -o [y.go]		- y.go file
 var vflag string // -v [y.output]	- y.output file
@@ -503,22 +506,20 @@ outer:
 	}
 
 	// put out names of token names
-	fmt.Fprintf(ftable, "var\tToknames\t =[]string {\n")
+	fmt.Fprintf(ftable, "var\tyyToknames\t =[]string {\n")
 	for i := TOKSTART; i <= ntokens; i++ {
 		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
 	}
 	fmt.Fprintf(ftable, "}\n")
 
 	// put out names of state names
-	fmt.Fprintf(ftable, "var\tStatenames\t =[]string {\n")
+	fmt.Fprintf(ftable, "var\tyyStatenames\t =[]string {\n")
 	//	for i:=TOKSTART; i<=ntokens; i++ {
 	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
 	//	}
 	fmt.Fprintf(ftable, "}\n")
 
-	fmt.Fprintf(ftable, "\nfunc\n")
-	fmt.Fprintf(ftable, "yyrun(p int, yypt int) {\n")
-	fmt.Fprintf(ftable, "switch p {\n")
+	fmt.Fprintf(fcode, "switch yynt {\n")
 
 	moreprod()
 	prdptr[0] = []int{NTBASE, start, 1, 0}
@@ -589,7 +590,7 @@ outer:
 				break
 			}
 			levprd[nprod] |= ACTFLAG
-			fmt.Fprintf(ftable, "\ncase %v:", nprod)
+			fmt.Fprintf(fcode, "\ncase %v:", nprod)
 			cpyact(curprod, mem)
 
 			// action within rule...
@@ -646,8 +647,8 @@ outer:
 			if tempty != nontrst[curprod[0]-NTBASE].value {
 				error("default action causes potential type clash")
 			}
-			fmt.Fprintf(ftable, "\ncase %v:", nprod)
-			fmt.Fprintf(ftable, "\n\tYYVAL.%v = YYS[yypt-0].%v;",
+			fmt.Fprintf(fcode, "\ncase %v:", nprod)
+			fmt.Fprintf(fcode, "\n\tYYVAL.%v = YYS[yypt-0].%v;",
 				typeset[tempty], typeset[tempty])
 		}
 		moreprod()
@@ -663,12 +664,11 @@ outer:
 	// dump out the prefix code
 	//
 
-	fmt.Fprintf(ftable, "\n\t}")
-	fmt.Fprintf(ftable, "\n}\n")
+	fmt.Fprintf(fcode, "\n\t}")
 
-	fmt.Fprintf(ftable, "const	YYEOFCODE	= 1\n")
-	fmt.Fprintf(ftable, "const	YYERRCODE	= 2\n")
-	fmt.Fprintf(ftable, "const	YYMAXDEPTH	= %v\n", stacksize)
+	fmt.Fprintf(ftable, "const	yyEofCode	= 1\n")
+	fmt.Fprintf(ftable, "const	yyErrCode	= 2\n")
+	fmt.Fprintf(ftable, "const	yyMaxDepth	= %v\n", stacksize)
 
 	//
 	// copy any postfix code
@@ -682,7 +682,7 @@ outer:
 			if c == EOF {
 				break
 			}
-			putrune(ftable, c)
+			ftable.WriteRune(c)
 		}
 	}
 }
@@ -1034,7 +1034,7 @@ func cpyunion() {
 	if !lflag {
 		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
 	}
-	fmt.Fprintf(ftable, "type\tYYSTYPE\tstruct")
+	fmt.Fprintf(ftable, "type\tyySymType\tstruct")
 
 	level := 0
 
@@ -1044,7 +1044,7 @@ out:
 		if c == EOF {
 			error("EOF encountered while processing %%union")
 		}
-		putrune(ftable, c)
+		ftable.WriteRune(c)
 		switch c {
 		case '\n':
 			lineno++
@@ -1061,9 +1061,6 @@ out:
 		}
 	}
 	fmt.Fprintf(ftable, "\n")
-	fmt.Fprintf(ftable, "var\tyylval\tYYSTYPE\n")
-	fmt.Fprintf(ftable, "var\tYYVAL\tYYSTYPE\n")
-	fmt.Fprintf(ftable, "var\tYYS\t[%v]YYSTYPE\n", stacksize)
 }
 
 //
@@ -1086,9 +1083,9 @@ func cpycode() {
 			if c == '}' {
 				return
 			}
-			putrune(ftable, '%')
+			ftable.WriteRune('%')
 		}
-		putrune(ftable, c)
+		ftable.WriteRune(c)
 		if c == '\n' {
 			lineno++
 		}
@@ -1097,74 +1094,6 @@ func cpycode() {
 	lineno = lno
 	error("eof before %%}")
 }
-
-//func
-//addcode(k int, s string)
-//{
-//	for i := 0; i < len(s); i++ {
-//		addcodec(k, int(s[i]));
-//	}
-//}
-
-//func
-//addcodec(k, c int)
-//{
-//	if codehead == nil || k != codetail.kind || codetail.ndata >= NCode {
-//		cd := new(Code);
-//		cd.kind = k;
-//		cd.data = make([]byte, NCode+UTFmax);
-//		cd.ndata = 0;
-//		cd.next = nil;
-//
-//		if codehead == nil {
-//			codehead = cd;
-//		} else
-//			codetail.next = cd;
-//		codetail = cd;
-//	}
-//
-////!!	codetail.ndata += sys->char2byte(c, codetail.data, codetail.ndata);
-//}
-
-//func
-//dumpcode(til int)
-//{
-//	for ; codehead != nil; codehead = codehead.next {
-//		if codehead.kind == til {
-//			return;
-//		}
-//		if write(ftable, codehead.data, codehead.ndata) != codehead.ndata {
-//			error("can't write output file");
-//		}
-//	}
-//}
-
-//
-// write out the module declaration and any token info
-//
-//func
-//dumpmod()
-//{
-//
-//	for ; codehead != nil; codehead = codehead.next {
-//		if codehead.kind != CodeMod {
-//			break;
-//		}
-//		if write(ftable, codehead.data, codehead.ndata) != codehead.ndata {
-//			error("can't write output file");
-//		}
-//	}
-//
-//	for i:=TOKSTART; i<=ntokens; i++ {
-//		// non-literals
-//		c := tokset[i].name[0];
-//		if c != ' ' && c != '$' {
-//			fmt.Fprintf(ftable, "vonst	%v	%v\n",
-//				tokset[i].name, tokset[i].value);
-//		}
-//	}
-//
-//}
 
 //
 // skip over comments
@@ -1229,7 +1158,7 @@ func dumpprod(curprod []int, max int) {
 func cpyact(curprod []int, max int) {
 
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
+		fmt.Fprintf(fcode, "\n//line %v %v\n", lineno, infile)
 	}
 
 	lno := lineno
@@ -1243,14 +1172,14 @@ loop:
 		switch c {
 		case ';':
 			if brac == 0 {
-				putrune(ftable, c)
+				ftable.WriteRune(c)
 				return
 			}
 
 		case '{':
 			if brac == 0 {
 			}
-			putrune(ftable, '\t')
+			ftable.WriteRune('\t')
 			brac++
 
 		case '$':
@@ -1268,14 +1197,14 @@ loop:
 				c = getrune(finput)
 			}
 			if c == '$' {
-				fmt.Fprintf(ftable, "YYVAL")
+				fmt.Fprintf(fcode, "YYVAL")
 
 				// put out the proper tag...
 				if ntypes != 0 {
 					if tok < 0 {
 						tok = fdtype(curprod[0])
 					}
-					fmt.Fprintf(ftable, ".%v", typeset[tok])
+					fmt.Fprintf(fcode, ".%v", typeset[tok])
 				}
 				continue loop
 			}
@@ -1322,14 +1251,14 @@ loop:
 					error("$name or $name@number not found")
 				}
 			} else {
-				putrune(ftable, '$')
+				fcode.WriteRune('$')
 				if s < 0 {
-					putrune(ftable, '-')
+					fcode.WriteRune('-')
 				}
 				ungetrune(finput, c)
 				continue loop
 			}
-			fmt.Fprintf(ftable, "YYS[yypt-%v]", max-j-1)
+			fmt.Fprintf(fcode, "YYS[yypt-%v]", max-j-1)
 
 			// put out the proper tag
 			if ntypes != 0 {
@@ -1339,7 +1268,7 @@ loop:
 				if tok < 0 {
 					tok = fdtype(curprod[j])
 				}
-				fmt.Fprintf(ftable, ".%v", typeset[tok])
+				fmt.Fprintf(fcode, ".%v", typeset[tok])
 			}
 			continue loop
 
@@ -1348,7 +1277,7 @@ loop:
 			if brac != 0 {
 				break
 			}
-			putrune(ftable, c)
+			fcode.WriteRune(c)
 			return
 
 		case '/':
@@ -1358,8 +1287,8 @@ loop:
 				break
 			}
 			// a comment
-			putrune(ftable, c)
-			putrune(ftable, nc)
+			fcode.WriteRune(c)
+			fcode.WriteRune(nc)
 			c = getrune(finput)
 			for c != EOF {
 				switch {
@@ -1371,14 +1300,14 @@ loop:
 				case c == '*' && nc == '*': // end of /* comment?
 					nnc := getrune(finput)
 					if nnc == '/' {
-						putrune(ftable, '*')
-						putrune(ftable, '/')
+						fcode.WriteRune('*')
+						fcode.WriteRune('/')
 						c = getrune(finput)
 						break swt
 					}
 					ungetrune(finput, nnc)
 				}
-				putrune(ftable, c)
+				fcode.WriteRune(c)
 				c = getrune(finput)
 			}
 			error("EOF inside comment")
@@ -1386,11 +1315,11 @@ loop:
 		case '\'', '"':
 			// character string or constant
 			match := c
-			putrune(ftable, c)
+			fcode.WriteRune(c)
 			c = getrune(finput)
 			for c != EOF {
 				if c == '\\' {
-					putrune(ftable, c)
+					fcode.WriteRune(c)
 					c = getrune(finput)
 					if c == '\n' {
 						lineno++
@@ -1401,7 +1330,7 @@ loop:
 				if c == '\n' {
 					error("newline in string or char const")
 				}
-				putrune(ftable, c)
+				fcode.WriteRune(c)
 				c = getrune(finput)
 			}
 			error("EOF in string or character constant")
@@ -1414,7 +1343,7 @@ loop:
 			lineno++
 		}
 
-		putrune(ftable, c)
+		fcode.WriteRune(c)
 	}
 }
 
@@ -2137,7 +2066,7 @@ nextk:
 func output() {
 	var c, u, v int
 
-	fmt.Fprintf(ftable, "var\tYYEXCA = []int {\n")
+	fmt.Fprintf(ftable, "var\tyyExca = []int {\n")
 
 	noset := mkset()
 
@@ -2210,10 +2139,10 @@ func output() {
 	}
 
 	fmt.Fprintf(ftable, "}\n")
-	fmt.Fprintf(ftable, "const\tYYNPROD\t= %v\n", nprod)
-	fmt.Fprintf(ftable, "const\tYYPRIVATE\t= %v\n", PRIVATE)
-	fmt.Fprintf(ftable, "var\tYYTOKENNAMES []string\n")
-	fmt.Fprintf(ftable, "var\tYYSTATES []string\n")
+	fmt.Fprintf(ftable, "const\tyyNprod\t= %v\n", nprod)
+	fmt.Fprintf(ftable, "const\tyyPrivate\t= %v\n", PRIVATE)
+	fmt.Fprintf(ftable, "var\tyyTokenNames []string\n")
+	fmt.Fprintf(ftable, "var\tyyStates []string\n")
 }
 
 //
@@ -2616,7 +2545,7 @@ func callopt() {
 		if tystate[i] == 0 && adb > 1 {
 			fmt.Fprintf(ftable, "State %v: null\n", i)
 		}
-		indgo[i] = YYFLAG
+		indgo[i] = yyFlag
 	}
 
 	i = nxti()
@@ -2636,7 +2565,7 @@ func callopt() {
 			for i = 0; i < 10; i++ {
 				fmt.Fprintf(ftable, "%v  ", amem[p+i])
 			}
-			putrune(ftable, '\n')
+			ftable.WriteRune('\n')
 		}
 	}
 
@@ -2788,10 +2717,10 @@ nextn:
 // write out the optimized parser
 //
 func aoutput() {
-	fmt.Fprintf(ftable, "const\tYYLAST\t= %v\n", maxa+1)
-	arout("YYACT", amem, maxa+1)
-	arout("YYPACT", indgo, nstate)
-	arout("YYPGO", pgo, nnonter+1)
+	fmt.Fprintf(ftable, "const\tyyLast\t= %v\n", maxa+1)
+	arout("yyAct", amem, maxa+1)
+	arout("yyPact", indgo, nstate)
+	arout("yyPgo", pgo, nnonter+1)
 }
 
 //
@@ -2800,7 +2729,7 @@ func aoutput() {
 func others() {
 	var i, j int
 
-	arout("YYR1", levprd, nprod)
+	arout("yyR1", levprd, nprod)
 	aryfil(temp1, nprod, 0)
 
 	//
@@ -2809,7 +2738,7 @@ func others() {
 	for i = 1; i < nprod; i++ {
 		temp1[i] = len(prdptr[i]) - 2
 	}
-	arout("YYR2", temp1, nprod)
+	arout("yyR2", temp1, nprod)
 
 	aryfil(temp1, nstate, -1000)
 	for i = 0; i <= ntokens; i++ {
@@ -2822,8 +2751,8 @@ func others() {
 			temp1[j] = -i
 		}
 	}
-	arout("YYCHK", temp1, nstate)
-	arout("YYDEF", defact, nstate)
+	arout("yyChk", temp1, nstate)
+	arout("yyDef", defact, nstate)
 
 	// put out token translation tables
 	// table 1 has 0-256
@@ -2848,7 +2777,7 @@ func others() {
 			temp1[i] = YYLEXUNK
 		}
 	}
-	arout("YYTOK1", temp1, c+1)
+	arout("yyTok1", temp1, c+1)
 
 	// table 2 has PRIVATE-PRIVATE+256
 	aryfil(temp1, 256, 0)
@@ -2867,10 +2796,10 @@ func others() {
 			}
 		}
 	}
-	arout("YYTOK2", temp1, c+1)
+	arout("yyTok2", temp1, c+1)
 
 	// table 3 has everything else
-	fmt.Fprintf(ftable, "var\tYYTOK3\t= []int {\n")
+	fmt.Fprintf(ftable, "var\tyyTok3\t= []int {\n")
 	c = 0
 	for i = 1; i <= ntokens; i++ {
 		j = tokset[i].value
@@ -2884,7 +2813,7 @@ func others() {
 		fmt.Fprintf(ftable, "%4d,%4d,", j, i)
 		c++
 		if c%5 == 0 {
-			putrune(ftable, '\n')
+			ftable.WriteRune('\n')
 		}
 	}
 	fmt.Fprintf(ftable, "%4d,\n };\n", 0)
@@ -2892,22 +2821,25 @@ func others() {
 	// copy parser text
 	c = getrune(finput)
 	for c != EOF {
-		putrune(ftable, c)
+		ftable.WriteRune(c)
 		c = getrune(finput)
 	}
 
+	parts := strings.Split(yaccpar, "yyrun()", 2)
 	// copy yaccpar
-	fmt.Fprintf(ftable, "%v", yaccpar)
+	fmt.Fprintf(ftable, "%v", parts[0])
+	ftable.Write(fcode.Bytes())
+	fmt.Fprintf(ftable, "%v", parts[1])
 }
 
 func arout(s string, v []int, n int) {
 	fmt.Fprintf(ftable, "var\t%v\t= []int {\n", s)
 	for i := 0; i < n; i++ {
 		if i%10 == 0 {
-			putrune(ftable, '\n')
+			ftable.WriteRune('\n')
 		}
 		fmt.Fprintf(ftable, "%4d", v[i])
-		putrune(ftable, ',')
+		ftable.WriteRune(',')
 	}
 	fmt.Fprintf(ftable, "\n};\n")
 }
@@ -2978,7 +2910,7 @@ func chcopy(q string) string {
 }
 
 func usage() {
-	fmt.Fprintf(stderr, "usage: gacc [-o output] [-v parsetable] input\n")
+	fmt.Fprintf(stderr, "usage: goyacc [-o output] [-v parsetable] input\n")
 	exit(1)
 }
 
@@ -3144,224 +3076,228 @@ func exit(status int) {
 var yaccpar = `
 /*	parser for yacc output	*/
 
-var	Nerrs		= 0		/* number of errors */
-var	Errflag		= 0		/* error recovery flag */
-var	Debug		= 0
-const	YYFLAG		= -1000
+var yyDebug = 0
 
-func
-Tokname(yyc int) string {
-	if yyc > 0 && yyc <= len(Toknames) {
-		if Toknames[yyc-1] != "" {
-			return Toknames[yyc-1];
-		}
-	}
-	return fmt.Sprintf("tok-%v", yyc);
+type yyLexer interface {
+	Lex(lval *yySymType) int
 }
 
-func
-Statname(yys int) string {
-	if yys >= 0 && yys < len(Statenames) {
-		if Statenames[yys] != "" {
-			return Statenames[yys];
+const yyFlag = -1000
+
+func yyTokname(yyc int) string {
+	if yyc > 0 && yyc <= len(yyToknames) {
+		if yyToknames[yyc-1] != "" {
+			return yyToknames[yyc-1]
 		}
 	}
-	return fmt.Sprintf("state-%v", yys);
+	return fmt.Sprintf("tok-%v", yyc)
 }
 
-func
-lex1() int {
-	var yychar int;
-	var c int;
+func yyStatname(yys int) string {
+	if yys >= 0 && yys < len(yyStatenames) {
+		if yyStatenames[yys] != "" {
+			return yyStatenames[yys]
+		}
+	}
+	return fmt.Sprintf("state-%v", yys)
+}
 
-	yychar = Lex();
+func yylex1(yylex yyLexer, lval *yySymType) int {
+	var yychar int
+	var c int
+
+	yychar = yylex.Lex(lval)
 	if yychar <= 0 {
-		c = YYTOK1[0];
-		goto out;
+		c = yyTok1[0]
+		goto out
 	}
-	if yychar < len(YYTOK1) {
-		c = YYTOK1[yychar];
-		goto out;
+	if yychar < len(yyTok1) {
+		c = yyTok1[yychar]
+		goto out
 	}
-	if yychar >= YYPRIVATE {
-		if yychar < YYPRIVATE+len(YYTOK2) {
-			c = YYTOK2[yychar-YYPRIVATE];
-			goto out;
+	if yychar >= yyPrivate {
+		if yychar < yyPrivate+len(yyTok2) {
+			c = yyTok2[yychar-yyPrivate]
+			goto out
 		}
 	}
-	for i:=0; i<len(YYTOK3); i+=2 {
-		c = YYTOK3[i+0];
+	for i := 0; i < len(yyTok3); i += 2 {
+		c = yyTok3[i+0]
 		if c == yychar {
-			c = YYTOK3[i+1];
-			goto out;
+			c = yyTok3[i+1]
+			goto out
 		}
 	}
-	c = 0;
+	c = 0
 
 out:
 	if c == 0 {
-		c = YYTOK2[1];	/* unknown char */
+		c = yyTok2[1] /* unknown char */
 	}
-	if Debug >= 3 {
-		fmt.Printf("lex %.4lux %s\n", yychar, Tokname(c));
+	if yyDebug >= 3 {
+		fmt.Printf("lex %.4x %s\n", uint(yychar), yyTokname(c))
 	}
-	return c;
+	return c
 }
 
-func
-Parse() int {
-	var yyj, yystate, yyn, yyg, yyxi, yyp int;
-	var yychar int;
-	var yypt, yynt int;
+func yyParse(yylex yyLexer) int {
+	var yyn int
+	var yylval yySymType
+	var YYVAL yySymType
+	YYS := make([]yySymType, yyMaxDepth)
 
-	yystate = 0;
-	yychar = -1;
-	Nerrs = 0;
-	Errflag = 0;
-	yyp = -1;
-	goto yystack;
+	Nerrs := 0   /* number of errors */
+	Errflag := 0 /* error recovery flag */
+	yystate := 0
+	yychar := -1
+	yyp := -1
+	goto yystack
 
 ret0:
-	return 0;
+	return 0
 
 ret1:
-	return 1;
+	return 1
 
 yystack:
 	/* put a state and value onto the stack */
-	if Debug >= 4 {
-		fmt.Printf("char %v in %v", Tokname(yychar), Statname(yystate));
+	if yyDebug >= 4 {
+		fmt.Printf("char %v in %v", yyTokname(yychar), yyStatname(yystate))
 	}
 
-	yyp++;
+	yyp++
 	if yyp >= len(YYS) {
-		Error("yacc stack overflow");
-		goto ret1;
+		nyys := make([]yySymType, len(YYS)*2)
+		copy(nyys, YYS)
+		YYS = nyys
 	}
-	YYS[yyp] = YYVAL;
-	YYS[yyp].yys = yystate;
+	YYS[yyp] = YYVAL
+	YYS[yyp].yys = yystate
 
 yynewstate:
-	yyn = YYPACT[yystate];
-	if yyn <= YYFLAG {
-		goto yydefault; /* simple state */
+	yyn = yyPact[yystate]
+	if yyn <= yyFlag {
+		goto yydefault /* simple state */
 	}
 	if yychar < 0 {
-		yychar = lex1();
+		yychar = yylex1(yylex, &yylval)
 	}
-	yyn += yychar;
-	if yyn < 0 || yyn >= YYLAST {
-		goto yydefault;
+	yyn += yychar
+	if yyn < 0 || yyn >= yyLast {
+		goto yydefault
 	}
-	yyn = YYACT[yyn];
-	if YYCHK[yyn] == yychar { /* valid shift */
-		yychar = -1;
-		YYVAL = yylval;
-		yystate = yyn;
+	yyn = yyAct[yyn]
+	if yyChk[yyn] == yychar { /* valid shift */
+		yychar = -1
+		YYVAL = yylval
+		yystate = yyn
 		if Errflag > 0 {
-			Errflag--;
+			Errflag--
 		}
-		goto yystack;
+		goto yystack
 	}
 
 yydefault:
 	/* default state action */
-	yyn = YYDEF[yystate];
+	yyn = yyDef[yystate]
 	if yyn == -2 {
 		if yychar < 0 {
-			yychar = lex1();
+			yychar = yylex1(yylex, &yylval)
 		}
 
 		/* look through exception table */
-		for yyxi=0;; yyxi+=2 {
-			if YYEXCA[yyxi+0] == -1 && YYEXCA[yyxi+1] == yystate {
-				break;
+		yyxi := 0
+		for {
+			if yyExca[yyxi+0] == -1 && yyExca[yyxi+1] == yystate {
+				break
 			}
+			yyxi += 2
 		}
-		for yyxi += 2;; yyxi += 2 {
-			yyn = YYEXCA[yyxi+0];
+		for yyxi += 2; ; yyxi += 2 {
+			yyn = yyExca[yyxi+0]
 			if yyn < 0 || yyn == yychar {
-				break;
+				break
 			}
 		}
-		yyn = YYEXCA[yyxi+1];
+		yyn = yyExca[yyxi+1]
 		if yyn < 0 {
-			goto ret0;
+			goto ret0
 		}
 	}
 	if yyn == 0 {
 		/* error ... attempt to resume parsing */
 		switch Errflag {
-		case 0:   /* brand new error */
-			Error("syntax error");
-			Nerrs++;
-			if Debug >= 1 {
-				fmt.Printf("%s", Statname(yystate));
-				fmt.Printf("saw %s\n", Tokname(yychar));
+		case 0: /* brand new error */
+			yyError("syntax error")
+			Nerrs++
+			if yyDebug >= 1 {
+				fmt.Printf("%s", yyStatname(yystate))
+				fmt.Printf("saw %s\n", yyTokname(yychar))
 			}
-			fallthrough;
+			fallthrough
 
-		case 1,2: /* incompletely recovered error ... try again */
-			Errflag = 3;
+		case 1, 2: /* incompletely recovered error ... try again */
+			Errflag = 3
 
 			/* find a state where "error" is a legal shift action */
 			for yyp >= len(YYS) {
-				yyn = YYPACT[YYS[yyp].yys] + YYERRCODE;
-				if yyn >= 0 && yyn < YYLAST {
-					yystate = YYACT[yyn];  /* simulate a shift of "error" */
-					if YYCHK[yystate] == YYERRCODE {
-						goto yystack;
+				yyn = yyPact[YYS[yyp].yys] + yyErrCode
+				if yyn >= 0 && yyn < yyLast {
+					yystate = yyAct[yyn] /* simulate a shift of "error" */
+					if yyChk[yystate] == yyErrCode {
+						goto yystack
 					}
 				}
 
 				/* the current yyp has no shift onn "error", pop stack */
-				if Debug >= 2 {
+				if yyDebug >= 2 {
 					fmt.Printf("error recovery pops state %d, uncovers %d\n",
-						YYS[yyp].yys, YYS[yyp-1].yys );
+						YYS[yyp].yys, YYS[yyp-1].yys)
 				}
-				yyp--;
+				yyp--
 			}
 			/* there is no state on the stack with an error shift ... abort */
-			goto ret1;
+			goto ret1
 
-		case 3:  /* no shift yet; clobber input char */
-			if Debug >= 2 {
-				fmt.Printf("error recovery discards %s\n", Tokname(yychar));
+		case 3: /* no shift yet; clobber input char */
+			if yyDebug >= 2 {
+				fmt.Printf("error recovery discards %s\n", yyTokname(yychar))
 			}
-			if yychar == YYEOFCODE {
-				goto ret1;
+			if yychar == yyEofCode {
+				goto ret1
 			}
-			yychar = -1;
-			goto yynewstate;   /* try again in the same state */
+			yychar = -1
+			goto yynewstate /* try again in the same state */
 		}
 	}
 
 	/* reduction by production yyn */
-	if Debug >= 2 {
-		fmt.Printf("reduce %v in:\n\t%v", yyn, Statname(yystate));
+	if yyDebug >= 2 {
+		fmt.Printf("reduce %v in:\n\t%v", yyn, yyStatname(yystate))
 	}
 
-	yynt = yyn;
-	yypt = yyp;
+	yynt := yyn
+	yypt := yyp
+	_ = yypt		// guard against "declared and not used"
 
-	yyp -= YYR2[yyn];
-	YYVAL = YYS[yyp+1];
+	yyp -= yyR2[yyn]
+	YYVAL = YYS[yyp+1]
 
 	/* consult goto table to find next state */
-	yyn = YYR1[yyn];
-	yyg = YYPGO[yyn];
-	yyj = yyg + YYS[yyp].yys + 1;
+	yyn = yyR1[yyn]
+	yyg := yyPgo[yyn]
+	yyj := yyg + YYS[yyp].yys + 1
 
-	if yyj >= YYLAST {
-		yystate = YYACT[yyg];
+	if yyj >= yyLast {
+		yystate = yyAct[yyg]
 	} else {
-		yystate = YYACT[yyj];
-		if YYCHK[yystate] != -yyn {
-			yystate = YYACT[yyg];
+		yystate = yyAct[yyj]
+		if yyChk[yystate] != -yyn {
+			yystate = yyAct[yyg]
 		}
 	}
-
-	yyrun(yynt, yypt);
-	goto yystack;  /* stack new state and value */
+	// dummy call; replaced with literal code
+	yyrun()
+	goto yystack /* stack new state and value */
 }
 `
