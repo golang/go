@@ -140,7 +140,9 @@ knucleotide() {
 	runonly echo 'k-nucleotide 1000000'
 	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
 	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
+	run 'gccgo -O2 k-nucleotide-parallel.go' a.out <x	# warning: pages badly!
 	run 'gc k-nucleotide' $O.out <x
+	run 'gc k-nucleotide-parallel' $O.out <x
 	run 'gc_B k-nucleotide' $O.out <x
 	rm x
 }
