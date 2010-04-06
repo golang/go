@@ -479,7 +479,7 @@ void
 {
 	Func *f;
 
-	if(callers(skip, &retpc, 1) == 0 || (f = findfunc(retpc-1)) == nil) {
+	if(callers(1+skip, &retpc, 1) == 0 || (f = findfunc(retpc-1)) == nil) {
 		retfile = emptystring;
 		retline = 0;
 		retbool = false;
