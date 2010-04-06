@@ -352,6 +352,10 @@ stoptheworld(void)
 	gcwaiting = 1;
 	sched.mcpumax = 1;
 	while(sched.mcpu > 1) {
+		// It would be unsafe for multiple threads to be using
+		// the stopped note at once, but there is only
+		// ever one thread doing garbage collection,
+		// so this is okay.
 		noteclear(&sched.stopped);
 		sched.waitstop = 1;
 		unlock(&sched);
@@ -989,6 +993,8 @@ void
 	Stktop *top, *oldtop;
 	Panic *p;
 
+	fp = getcallersp(fp);
+
 	// Must be a panic going on.
 	if((p = g->panic) == nil || p->recovered)
 		goto nomatch;
@@ -1113,13 +1119,14 @@ void
 	lock(&sched);
 	sched.gomaxprocs = n;
 	sched.mcpumax = n;
-	// handle fewer procs
-	while(sched.mcpu > sched.mcpumax) {
-		noteclear(&sched.stopped);
-		sched.waitstop = 1;
+	// handle fewer procs?
+	if(sched.mcpu > sched.mcpumax) {
 		unlock(&sched);
-		notesleep(&sched.stopped);
-		lock(&sched);
+		// just give up the cpu.
+		// we'll only get rescheduled once the
+		// number has come down.
+		gosched();
+		return;
 	}
 	// handle more procs
 	matchmg();
