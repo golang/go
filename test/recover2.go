@@ -15,6 +15,7 @@ package main
 import (
 	"os"
 	"strings"
+	"syscall"
 )
 
 var x = make([]byte, 10)
@@ -80,6 +81,10 @@ func test6() {
 }
 
 func test7() {
+	if syscall.ARCH == "arm" {
+		// ARM doesn't have floating point yet
+		return
+	}
 	defer mustRecover("complex divide by zero")
 	var x, y complex
 	println(x / y)
