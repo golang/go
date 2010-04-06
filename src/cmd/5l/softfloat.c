@@ -8,7 +8,7 @@
 void
 softfloat()
 {
-	Prog *p, *prev, *psfloat;
+	Prog *p, *next, *psfloat;
 	Sym *symsfloat;
 	int wasfloat;
 	
@@ -26,7 +26,6 @@ softfloat()
 
 	wasfloat = 0;
 	p = firstp;
-	prev = P;
 	for(p = firstp; p != P; p = p->link) {
 		switch(p->as) {
 		case AMOVWD:
@@ -50,21 +49,23 @@ softfloat()
 			if (psfloat == P)
 				diag("floats used with _sfloat not defined");
 			if (!wasfloat) {
-				if (prev == P)
-					diag("float instruction without predecessor TEXT");
+				next = prg();
+				*next = *p;
+
 				// BL		_sfloat(SB)
-				prev = appendp(prev);
-				prev->as = ABL;
- 				prev->to.type = D_BRANCH;
-				prev->to.sym = symsfloat;
-				prev->cond = psfloat;
-				
+				*p = zprg;
+				p->link = next;
+				p->as = ABL;
+ 				p->to.type = D_BRANCH;
+				p->to.sym = symsfloat;
+				p->cond = psfloat;
+
+				p = next;
 				wasfloat = 1;
 			}
 			break;
 		default:
 			wasfloat = 0;
 		}
-		prev = p;
 	}
 }
