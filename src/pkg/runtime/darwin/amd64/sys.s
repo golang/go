@@ -77,11 +77,11 @@ TEXT sigtramp(SB),7,$40
 
 TEXT	·mmap(SB),7,$0
 	MOVQ	8(SP), DI		// arg 1 addr
-	MOVL	16(SP), SI		// arg 2 len
-	MOVL	20(SP), DX		// arg 3 prot
-	MOVL	24(SP), R10		// arg 4 flags
-	MOVL	28(SP), R8		// arg 5 fid
-	MOVL	32(SP), R9		// arg 6 offset
+	MOVQ	16(SP), SI		// arg 2 len
+	MOVL	24(SP), DX		// arg 3 prot
+	MOVL	28(SP), R10		// arg 4 flags
+	MOVL	32(SP), R8		// arg 5 fid
+	MOVL	36(SP), R9		// arg 6 offset
 	MOVL	$(0x2000000+197), AX	// syscall entry
 	SYSCALL
 	JCC	2(PC)

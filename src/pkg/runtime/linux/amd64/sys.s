@@ -76,14 +76,14 @@ TEXT	sigreturn(SB),7,$0
 	SYSCALL
 	INT $3	// not reached
 
-TEXT	·mmap(SB),7,$0-32
+TEXT	·mmap(SB),7,$0
 	MOVQ	8(SP), DI
 	MOVQ	$0, SI
-	MOVL	16(SP), SI
-	MOVL	20(SP), DX
-	MOVL	24(SP), R10
-	MOVL	28(SP), R8
-	MOVL	32(SP), R9
+	MOVQ	16(SP), SI
+	MOVL	24(SP), DX
+	MOVL	28(SP), R10
+	MOVL	32(SP), R8
+	MOVL	36(SP), R9
 
 	MOVL	$9, AX			// syscall entry
 	SYSCALL
