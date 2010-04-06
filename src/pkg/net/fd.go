@@ -26,8 +26,8 @@ type netFD struct {
 	family  int
 	proto   int
 	sysfile *os.File
-	cr      chan *netFD
-	cw      chan *netFD
+	cr      chan bool
+	cw      chan bool
 	net     string
 	laddr   Addr
 	raddr   Addr
@@ -122,9 +122,9 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 	if intfd < 0 {
 		// fd closed underfoot
 		if mode == 'r' {
-			fd.cr <- fd
+			fd.cr <- true
 		} else {
-			fd.cw <- fd
+			fd.cw <- true
 		}
 		return
 	}
@@ -166,12 +166,12 @@ func (s *pollServer) WakeFD(fd *netFD, mode int) {
 	if mode == 'r' {
 		for fd.ncr > 0 {
 			fd.ncr--
-			fd.cr <- fd
+			fd.cr <- true
 		}
 	} else {
 		for fd.ncw > 0 {
 			fd.ncw--
-			fd.cw <- fd
+			fd.cw <- true
 		}
 	}
 }
@@ -312,8 +312,8 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err 
 		rs = raddr.String()
 	}
 	f.sysfile = os.NewFile(fd, net+":"+ls+"->"+rs)
-	f.cr = make(chan *netFD, 1)
-	f.cw = make(chan *netFD, 1)
+	f.cr = make(chan bool, 1)
+	f.cw = make(chan bool, 1)
 	return f, nil
 }
 
