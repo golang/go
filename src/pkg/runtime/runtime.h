@@ -511,7 +511,7 @@ void	notewakeup(Note*);
 /*
  * low level go-called
  */
-uint8*	runtime_mmap(byte*, uint32, int32, int32, int32, uint32);
+uint8*	runtime_mmap(byte*, uintptr, int32, int32, int32, uint32);
 void	runtime_memclr(byte*, uint32);
 void	runtime_setcallerpc(void*, void*);
 void*	runtime_getcallerpc(void*);
