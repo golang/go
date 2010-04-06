@@ -126,15 +126,15 @@ For example, in this program:
 </p>
 
 <pre>
-var a string;
+var a string
 
 func f() {
-	print(a);
+	print(a)
 }
 
 func hello() {
-	a = "hello, world";
-	go f();
+	a = "hello, world"
+	go f()
 }
 </pre>
 
@@ -166,14 +166,14 @@ var c = make(chan int, 10)
 var a string
 
 func f() {
-	a = "hello, world";
-	c &lt;- 0;
+	a = "hello, world"
+	c &lt;- 0
 }
 
 func main() {
-	go f();
-	&lt;-c;
-	print(a);
+	go f()
+	&lt;-c
+	print(a)
 }
 </pre>
 
@@ -199,16 +199,16 @@ var c = make(chan int)
 var a string
 
 func f() {
-	a = "hello, world";
-	&lt;-c;
+	a = "hello, world"
+	&lt;-c
 }
 </pre>
 
 <pre>
 func main() {
-	go f();
-	c &lt;- 0;
-	print(a);
+	go f()
+	c &lt;- 0
+	print(a)
 }
 </pre>
 
@@ -247,15 +247,15 @@ var l sync.Mutex
 var a string
 
 func f() {
-	a = "hello, world";
-	l.Unlock();
+	a = "hello, world"
+	l.Unlock()
 }
 
 func main() {
-	l.Lock();
-	go f();
-	l.Lock();
-	print(a);
+	l.Lock()
+	go f()
+	l.Lock()
+	print(a)
 }
 </pre>
 
@@ -295,17 +295,17 @@ In this program:
 var a string
 
 func setup() {
-	a = "hello, world";
+	a = "hello, world"
 }
 
 func doprint() {
-	once.Do(setup);
-	print(a);
+	once.Do(setup)
+	print(a)
 }
 
 func twoprint() {
-	go doprint();
-	go doprint();
+	go doprint()
+	go doprint()
 }
 </pre>
 
@@ -331,18 +331,18 @@ In this program:
 var a, b int
 
 func f() {
-	a = 1;
-	b = 2;
+	a = 1
+	b = 2
 }
 
 func g() {
-	print(b);
-	print(a);
+	print(b)
+	print(a)
 }
 
 func main() {
-	go f();
-	g();
+	go f()
+	g()
 }
 </pre>
 
@@ -365,20 +365,20 @@ var a string
 var done bool
 
 func setup() {
-	a = "hello, world";
-	done = true;
+	a = "hello, world"
+	done = true
 }
 
 func doprint() {
 	if !done {
-		once.Do(setup);
+		once.Do(setup)
 	}
-	print(a);
+	print(a)
 }
 
 func twoprint() {
-	go doprint();
-	go doprint();
+	go doprint()
+	go doprint()
 }
 </pre>
 
@@ -398,15 +398,15 @@ var a string
 var done bool
 
 func setup() {
-	a = "hello, world";
-	done = true;
+	a = "hello, world"
+	done = true
 }
 
 func main() {
-	go setup();
+	go setup()
 	for !done {
 	}
-	print(a);
+	print(a)
 }
 </pre>
 
@@ -427,22 +427,22 @@ There are subtler variants on this theme, such as this program.
 
 <pre>
 type T struct {
-	msg string;
+	msg string
 }
 
 var g *T
 
 func setup() {
-	t := new(T);
-	t.msg = "hello, world";
-	g = t;
+	t := new(T)
+	t.msg = "hello, world"
+	g = t
 }
 
 func main() {
-	go setup();
+	go setup()
 	for g == nil {
 	}
-	print(g.msg);
+	print(g.msg)
 }
 </pre>
 
