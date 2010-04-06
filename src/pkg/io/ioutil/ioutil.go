@@ -31,7 +31,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
 	// read, so let's try it but be prepared for the answer to be wrong.
 	dir, err := f.Stat()
 	var n uint64
-	if err != nil && dir.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
+	if err == nil && dir.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
 		n = dir.Size
 	}
 	// Add a little extra in case Size is zero, and to avoid another allocation after
