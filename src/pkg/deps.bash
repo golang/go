@@ -18,10 +18,12 @@ dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
 for dir in $dirs; do (
 	cd $dir || exit 1
 
-	sources=$(sed -n 's/^[ \t]*\([^ \t]*\.go\)[ \t]*\\*[ \t]*$/\1/p' Makefile)
+	sources=$(sed -n 's/^[ 	]*\([^ 	]*\.go\)[ 	]*\\*[ 	]*$/\1/p' Makefile)
 	sources=$(echo $sources | sed 's/\$(GOOS)/'$GOOS'/g')
 	sources=$(echo $sources | sed 's/\$(GOARCH)/'$GOARCH'/g')
-	sources=$(ls $sources 2> /dev/null)  # remove .s, .c, etc.
+	# /dev/null here means we get an empty dependency list if $sources is empty
+	# instead of listing every file in the directory.
+	sources=$(ls $sources /dev/null 2> /dev/null)  # remove .s, .c, etc.
 
 	deps=$(
 		sed -n '/^import.*"/p; /^import[ \t]*(/,/^)/p' $sources /dev/null |
