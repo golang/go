@@ -221,7 +221,7 @@ type allFlags struct {
 	first_arg int // 0 is the program name, 1 is first arg
 }
 
-var flags *allFlags = &allFlags{make(map[string]*Flag), make(map[string]*Flag), 1}
+var flags *allFlags
 
 // VisitAll visits the flags, calling fn for each. It visits all flags, even those not set.
 func VisitAll(fn func(*Flag)) {
@@ -274,6 +274,16 @@ func PrintDefaults() {
 var Usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
+}
+
+var panicOnError = false
+
+func fail() {
+	Usage()
+	if panicOnError {
+		panic("flag parse error")
+	}
+	os.Exit(2)
 }
 
 func NFlag() int { return len(flags.actual) }
@@ -442,8 +452,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	name := s[num_minuses:]
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
 		fmt.Fprintln(os.Stderr, "bad flag syntax:", s)
-		Usage()
-		os.Exit(2)
+		fail()
 	}
 
 	// it's a flag. does it have an argument?
@@ -461,15 +470,13 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	flag, alreadythere := m[name] // BUG
 	if !alreadythere {
 		fmt.Fprintf(os.Stderr, "flag provided but not defined: -%s\n", name)
-		Usage()
-		os.Exit(2)
+		fail()
 	}
 	if f, ok := flag.Value.(*boolValue); ok { // special case: doesn't need an arg
 		if has_value {
 			if !f.Set(value) {
 				fmt.Fprintf(os.Stderr, "invalid boolean value %t for flag: -%s\n", value, name)
-				Usage()
-				os.Exit(2)
+				fail()
 			}
 		} else {
 			f.Set("true")
@@ -484,14 +491,12 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 		}
 		if !has_value {
 			fmt.Fprintf(os.Stderr, "flag needs an argument: -%s\n", name)
-			Usage()
-			os.Exit(2)
+			fail()
 		}
 		ok = flag.Value.Set(value)
 		if !ok {
 			fmt.Fprintf(os.Stderr, "invalid value %s for flag: -%s\n", value, name)
-			Usage()
-			os.Exit(2)
+			fail()
 		}
 	}
 	flags.actual[name] = flag
@@ -511,4 +516,33 @@ func Parse() {
 			break
 		}
 	}
+}
+
+// ResetForTesting clears all flag state and sets the usage function as directed.
+// After calling ResetForTesting, parse errors in flag handling will panic rather
+// than exit the program.
+// For testing only!
+func ResetForTesting(usage func()) {
+	flags = &allFlags{make(map[string]*Flag), make(map[string]*Flag), 1}
+	Usage = usage
+	panicOnError = true
+}
+
+// ParseForTesting parses the flag state using the provided arguments. It
+// should be called after 1) ResetForTesting and 2) setting up the new flags.
+// The return value reports whether the parse was error-free.
+// For testing only!
+func ParseForTesting(args []string) (result bool) {
+	defer func() {
+		if recover() != nil {
+			result = false
+		}
+	}()
+	os.Args = args
+	Parse()
+	return true
+}
+
+func init() {
+	flags = &allFlags{make(map[string]*Flag), make(map[string]*Flag), 1}
 }
