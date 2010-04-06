@@ -26,6 +26,7 @@ DIRS=\
 	bignum\
 	bufio\
 	bytes\
+	cmath\
 	compress/flate\
 	compress/gzip\
 	compress/zlib\
