@@ -9,6 +9,8 @@
 // packages rather than this one if you can.
 // For details of the functions and data types in this package consult
 // the manuals for the appropriate operating system.
+// These calls return errno == 0 to indicate success; otherwise
+// errno is an operating system error number describing the failure.
 package syscall
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
