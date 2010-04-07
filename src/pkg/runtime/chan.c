@@ -781,10 +781,9 @@ loop:
 			sel, c, cas, cas->send, o);
 
 	if(!cas->send) {
-		if(cas->u.elemp != nil) {
+		if(cas->u.elemp != nil)
 			c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
-			c->elemalg->copy(c->elemsize, sg->elem, nil);
-		}
+		c->elemalg->copy(c->elemsize, sg->elem, nil);
 	}
 
 	freesg(c, sg);
@@ -792,10 +791,9 @@ loop:
 
 asyncrecv:
 	// can receive from buffer
-	if(cas->u.elemp != nil) {
+	if(cas->u.elemp != nil)
 		c->elemalg->copy(c->elemsize, cas->u.elemp, c->recvdataq->elem);
-		c->elemalg->copy(c->elemsize, c->recvdataq->elem, nil);
-	}
+	c->elemalg->copy(c->elemsize, c->recvdataq->elem, nil);
 	c->recvdataq = c->recvdataq->link;
 	c->qcount--;
 	sg = dequeue(&c->sendq, c);
@@ -824,10 +822,9 @@ syncrecv:
 	// can receive from sleeping sender (sg)
 	if(debug)
 		printf("syncrecv: sel=%p c=%p o=%d\n", sel, c, o);
-	if(cas->u.elemp != nil) {
+	if(cas->u.elemp != nil)
 		c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
-		c->elemalg->copy(c->elemsize, sg->elem, nil);
-	}
+	c->elemalg->copy(c->elemsize, sg->elem, nil);
 	gp = sg->g;
 	gp->param = sg;
 	ready(gp);
