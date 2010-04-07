@@ -1,5 +1,6 @@
-./235.go
-./64bit.go
+./235.go  # slow
+./64bit.go  # slow
+# ./args.go  # android runner doesn't pass args through
 ./assign.go
 ./bigalg.go
 ./blank.go
@@ -9,6 +10,10 @@
 ./closedchan.go
 ./closure.go
 ./cmp1.go
+./cmp2.go
+./cmp3.go
+./cmp4.go
+./cmp5.go
 ./complit.go
 ./compos.go
 ./const.go
@@ -19,7 +24,7 @@
 ./convert3.go
 ./convlit.go
 ./convlit1.go
-./copy.go
+# ./copy.go  # slow
 ./ddd.go
 ./ddd1.go
 ./ddd2.go
@@ -27,18 +32,24 @@
 ./decl.go
 ./declbad.go
 ./defer.go
+# ./deferprint.go  # need floating point
 ./empty.go
+./env.go
 ./escape.go
+./float_lit.go
+# ./floatcmp.go  # need floating point
 ./for.go
+# ./func.go
 ./func1.go
 ./func2.go
 ./func3.go
 ./func4.go
 ./func5.go
-./gc.go
-./gc1.go
+# ./gc.go
+# ./gc1.go
 ./hashmap.go
 ./hilbert.go
+./helloworld.go
 ./if.go
 ./if1.go
 ./import.go
@@ -49,16 +60,18 @@
 ./indirect.go
 ./indirect1.go
 ./initcomma.go
+# ./initialize.go  # need floating point
 ./initializerr.go
 ./initsyscall.go
 ./int_lit.go
 ./intcvt.go
 ./iota.go
 ./literal.go
-./malloc1.go
-./mallocrand.go
-./mallocrep.go
-./mallocrep1.go
+# ./malloc1.go
+# ./mallocfin.go
+# ./mallocrand.go
+# ./mallocrep.go
+# ./mallocrep1.go
 ./map.go
 ./method.go
 ./method1.go
@@ -67,13 +80,19 @@
 ./named.go
 ./named1.go
 ./nil.go
+./nul1.go
 ./parentype.go
+# ./peano.go  # foo
+./printbig.go
 ./range.go
+./recover.go
 ./recover1.go
+./recover2.go
 ./rename.go
 ./rename1.go
 ./runtime.go
 ./sieve.go
+# ./sigchld.go  # fail - does not survive signal
 ./simassign.go
 ./stack.go
 ./string_lit.go
@@ -81,38 +100,58 @@
 ./switch.go
 ./switch1.go
 ./test0.go
+./turing.go
 ./typeswitch.go
+# ./typeswitch1.go
 ./typeswitch2.go
 ./utf.go
 ./varinit.go
-./vectors.go
+# ./vectors.go
 ken/array.go
-ken/chan.go
-ken/chan1.go
+# ken/chan.go  # slow
+# ken/chan1.go  # slow
 ken/complit.go
-ken/divconst.go
+# ken/cplx0.go  # need floating point
+# ken/cplx1.go  # need floating point
+# ken/cplx2.go  # need floating point
+# ken/cplx3.go  # need floating point
+# ken/cplx4.go  # need floating point
+# ken/cplx5.go  # need floating point
+# ken/divconst.go  # slow
 ken/divmod.go
 ken/embed.go
 ken/for.go
 ken/interbasic.go
 ken/interfun.go
+ken/intervar.go
+ken/label.go
 ken/litfun.go
 ken/mfunc.go
-ken/modconst.go
+# ken/modconst.go  # slow
 ken/ptrfun.go
 ken/ptrvar.go
 ken/range.go
+ken/rob1.go
+ken/rob2.go
 ken/robfor.go
+# ken/robfunc.go  # fail
 ken/robif.go
 ken/shift.go
+ken/simparray.go
 ken/simpbool.go
+ken/simpconv.go
 ken/simpfun.go
+ken/simpprint.go
+ken/simpswitch.go
 ken/simpvar.go
 ken/slicearray.go
 ken/sliceslice.go
+ken/string.go
 ken/strvar.go
+# chan/doubleselect.go  # slow
 chan/fifo.go
 chan/goroutines.go
+chan/nonblock.go
 chan/perm.go
 chan/powser1.go
 chan/powser2.go
@@ -128,10 +167,13 @@ interface/embed.go
 interface/embed0.go
 interface/embed1.go
 interface/explicit.go
+# interface/fake.go  # fails - panic: assert
+interface/fail.go
 interface/pointer.go
 interface/receiver.go
 interface/receiver1.go
 interface/recursive.go
+interface/returntype.go
 interface/struct.go
 nilptr/arrayindex.go
 nilptr/arrayindex1.go
@@ -172,6 +214,7 @@ fixedbugs/bug012.go
 fixedbugs/bug013.go
 fixedbugs/bug014.go
 fixedbugs/bug015.go
+fixedbugs/bug016.go
 fixedbugs/bug017.go
 fixedbugs/bug020.go
 fixedbugs/bug021.go
@@ -179,6 +222,7 @@ fixedbugs/bug022.go
 fixedbugs/bug023.go
 fixedbugs/bug024.go
 fixedbugs/bug026.go
+fixedbugs/bug027.go
 fixedbugs/bug028.go
 fixedbugs/bug030.go
 fixedbugs/bug031.go
@@ -210,8 +254,10 @@ fixedbugs/bug063.go
 fixedbugs/bug064.go
 fixedbugs/bug065.go
 fixedbugs/bug066.go
+fixedbugs/bug067.go
 fixedbugs/bug068.go
 fixedbugs/bug069.go
+fixedbugs/bug070.go
 fixedbugs/bug071.go
 fixedbugs/bug072.go
 fixedbugs/bug073.go
@@ -221,6 +267,7 @@ fixedbugs/bug076.go
 fixedbugs/bug077.go
 fixedbugs/bug078.go
 fixedbugs/bug080.go
+fixedbugs/bug081.go
 fixedbugs/bug082.go
 fixedbugs/bug083.go
 fixedbugs/bug084.go
@@ -232,6 +279,7 @@ fixedbugs/bug089.go
 fixedbugs/bug090.go
 fixedbugs/bug091.go
 fixedbugs/bug092.go
+fixedbugs/bug093.go
 fixedbugs/bug094.go
 fixedbugs/bug096.go
 fixedbugs/bug097.go
@@ -248,12 +296,14 @@ fixedbugs/bug109.go
 fixedbugs/bug110.go
 fixedbugs/bug111.go
 fixedbugs/bug112.go
+fixedbugs/bug113.go
 fixedbugs/bug114.go
 fixedbugs/bug115.go
 fixedbugs/bug116.go
 fixedbugs/bug117.go
 fixedbugs/bug118.go
 fixedbugs/bug119.go
+# fixedbugs/bug120.go  # needs floating point
 fixedbugs/bug121.go
 fixedbugs/bug122.go
 fixedbugs/bug123.go
@@ -277,11 +327,13 @@ fixedbugs/bug144.go
 fixedbugs/bug145.go
 fixedbugs/bug146.go
 fixedbugs/bug147.go
+fixedbugs/bug148.go
 fixedbugs/bug149.go
 fixedbugs/bug150.go
 fixedbugs/bug151.go
 fixedbugs/bug152.go
 fixedbugs/bug153.go
+# fixedbugs/bug154.go  # needs floating point
 fixedbugs/bug155.go
 fixedbugs/bug156.go
 fixedbugs/bug157.go
@@ -345,6 +397,7 @@ fixedbugs/bug217.go
 fixedbugs/bug218.go
 fixedbugs/bug219.go
 fixedbugs/bug220.go
+# fixedbugs/bug221.go  # slow
 fixedbugs/bug222.go
 fixedbugs/bug223.go
 fixedbugs/bug224.go
@@ -359,13 +412,14 @@ fixedbugs/bug232.go
 fixedbugs/bug233.go
 fixedbugs/bug234.go
 fixedbugs/bug235.go
-fixedbugs/bug236.go
+# fixedbugs/bug236.go  # slow
 fixedbugs/bug237.go
 fixedbugs/bug238.go
 fixedbugs/bug239.go
 fixedbugs/bug240.go
 fixedbugs/bug241.go
 fixedbugs/bug242.go
+# fixedbugs/bug243.go  # fail
 fixedbugs/bug244.go
 fixedbugs/bug245.go
 fixedbugs/bug246.go
@@ -379,9 +433,12 @@ fixedbugs/bug253.go
 fixedbugs/bug254.go
 fixedbugs/bug255.go
 fixedbugs/bug256.go
-fixedbugs/bug257.go
+# fixedbugs/bug257.go  # slow
+# fixedbugs/bug258.go  # needs floating point
 fixedbugs/bug259.go
 fixedbugs/bug261.go
 fixedbugs/bug262.go
 fixedbugs/bug263.go
 fixedbugs/bug265.go
+bugs/bug260.go
+bugs/bug264.go
