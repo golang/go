@@ -34,7 +34,7 @@
 ./defer.go
 # ./deferprint.go  # need floating point
 ./empty.go
-./env.go
+# ./env.go  # android runner doesn't pass env through
 ./escape.go
 ./float_lit.go
 # ./floatcmp.go  # need floating point
@@ -80,7 +80,7 @@
 ./named.go
 ./named1.go
 ./nil.go
-./nul1.go
+# ./nul1.go  # android runner gets confused
 ./parentype.go
 # ./peano.go  # foo
 ./printbig.go
