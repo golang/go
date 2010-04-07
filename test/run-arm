@@ -36,7 +36,7 @@ FAILEDFILE=/tmp/gotest3-$$-$USER
 ulimit -v 4000000
 
 
-for i in $(cat arm-pass.txt)
+for i in $(cat arm-pass.txt | sed 's/#.*//')
 do
 	export F=$(basename $i .go)
 	dir=$(dirname $i)

@@ -1,24 +1,65 @@
 
+=========== ./cmp2.go
+panic: runtime error: comparing uncomparable type []int
+
+panic PC=xxx
+
+=========== ./cmp3.go
+panic: runtime error: comparing uncomparable type []int
+
+panic PC=xxx
+
+=========== ./cmp4.go
+panic: runtime error: hash of unhashable type []int
+
+panic PC=xxx
+
+=========== ./cmp5.go
+panic: runtime error: hash of unhashable type []int
+
+panic PC=xxx
+
+=========== ./helloworld.go
+hello, world
+
+=========== ./printbig.go
+-9223372036854775808
+9223372036854775807
+
+=========== ./turing.go
+Hello World!
+
+=========== ken/intervar.go
+ print 1 bio 2 file 3 -- abc
+
+=========== ken/label.go
+100
+
+=========== ken/rob1.go
+9876543210
+
+=========== ken/rob2.go
+(defn foo (add 12 34))
+
+=========== ken/simpprint.go
+hello world
+
+=========== ken/simpswitch.go
+0out01out12out2aout34out4fiveout56out6aout78out89out9
+
+=========== ken/string.go
+abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+
 =========== chan/nonblock.go
 PASS
 
-=========== cmp2.go
-panic: runtime error: comparing uncomparable type []int
+=========== interface/fail.go
+panic: interface conversion: *main.S is not main.I: missing method Foo
 
 panic PC=xxx
 
-=========== cmp3.go
-panic: runtime error: comparing uncomparable type []int
-
-panic PC=xxx
-
-=========== cmp4.go
-panic: runtime error: hash of unhashable type []int
-
-panic PC=xxx
-
-=========== cmp5.go
-panic: runtime error: hash of unhashable type []int
+=========== interface/returntype.go
+panic: interface conversion: *main.S is not main.I2: missing method Name
 
 panic PC=xxx
 
@@ -64,56 +105,17 @@ panic: interface conversion: interface is main.T, not main.T
 
 panic PC=xxx
 
-=========== fixedbugs/bug154.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-PC=0x255b4
+=========== bugs/bug260.go
+FAIL
+BUG: bug260 failed
 
-BUG: should not panic
-
-=========== fixedbugs/bug206.go
-BUG: bug206
-
-=========== helloworld.go
-hello, world
-
-=========== interface/fail.go
-panic: interface conversion: *main.S is not main.I: missing method Foo
+=========== bugs/bug264.go
+foo
+bar
+bar
+bal
+bal
+panic: barCount != 1
 
 panic PC=xxx
-
-=========== interface/returntype.go
-panic: interface conversion: *main.S is not main.I2: missing method Name
-
-panic PC=xxx
-
-=========== ken/intervar.go
- print 1 bio 2 file 3 -- abc
-
-=========== ken/label.go
-100
-
-=========== ken/rob1.go
-9876543210
-
-=========== ken/rob2.go
-(defn foo (add 12 34))
-
-=========== ken/simpprint.go
-hello world
-
-=========== ken/simpswitch.go
-0out01out12out2aout34out4fiveout56out6aout78out89out9
-
-=========== ken/string.go
-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
-
-=========== printbig.go
--9223372036854775808
-9223372036854775807
-
-=========== sigchld.go
-survived SIGCHLD
-
-=========== turing.go
-Hello World!
+BUG
