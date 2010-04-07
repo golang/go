@@ -282,20 +282,19 @@ This remains an open issue.
 <h3 id="exceptions">
 Why does Go not have exceptions?</h3>
 <p>
-Exceptions are a similar story.  A number of designs for exceptions
-have been proposed but each adds significant complexity to the
-language and run-time.  By their very nature, exceptions span functions and
-perhaps even goroutines; they have wide-ranging implications.  There
-is also concern about the effect they would have on the
-libraries.  They are, by definition, exceptional yet experience with
-other languages that support them show they have profound effect on
-library and interface specification.  It would be nice to find a design
-that allows them to be truly exceptional without encouraging common
-errors to turn into special control flow that requires every programmer to
-compensate.
+We believe that coupling the usual idea of exceptions to a control
+structure, as in the <code>try-catch-finally</code> idiom, results in
+convoluted code.  It also tends to encourage programmers to label
+too many ordinary errors, such as failing to open a file, as
+exceptional.  And then the type system gets mixed in.
 </p>
 <p>
-Like generics, exceptions remain an open issue.
+Go takes a different approach.  Instead of exceptions, it has couple
+of built-in functions to signal and recover from truly exceptional
+conditions.  The recovery mechanism is executed only as part of a
+function's state being torn down after an error, which is sufficient
+to handle catastrophe but requires no extra control structures and,
+when used well, can result in clean error-handling code.
 </p>
 
 <h3 id="assertions">
