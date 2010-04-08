@@ -4,12 +4,9 @@
 
 package math
 
-
 // Copysign(x, y) returns a value with the magnitude
 // of x and the sign of y.
 func Copysign(x, y float64) float64 {
-	if x < 0 && y > 0 || x > 0 && y < 0 {
-		return -x
-	}
-	return x
+	const sign = 1 << 63
+	return Float64frombits(Float64bits(x)&^sign | Float64bits(y)&sign)
 }

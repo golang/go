@@ -11,8 +11,10 @@ package math
 // Special cases are (in order):
 //	Atan2(y, NaN) = NaN
 //	Atan2(NaN, x) = NaN
-//	Atan2(0, x>=0) = 0
-//	Atan2(0, x<0) = Pi
+//	Atan2(+0, x>=0) = +0
+//	Atan2(-0, x>=0) = -0
+//	Atan2(+0, x<=-0) = +Pi
+//	Atan2(-0, x<=-0) = -Pi
 //	Atan2(y>0, 0) = +Pi/2
 //	Atan2(y<0, 0) = -Pi/2
 //	Atan2(+Inf, +Inf) = +Pi/4
@@ -32,41 +34,29 @@ func Atan2(y, x float64) float64 {
 	case y != y || x != x: // IsNaN(y) || IsNaN(x):
 		return NaN()
 	case y == 0:
-		if x >= 0 {
-			return 0
+		if x >= 0 && !Signbit(x) {
+			return Copysign(0, y)
 		}
-		return Pi
+		return Copysign(Pi, y)
 	case x == 0:
-		if y > 0 {
-			return Pi / 2
-		}
-		return -Pi / 2
+		return Copysign(Pi/2, y)
 	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
 		if x > MaxFloat64 { // IsInf(x, 1) {
 			switch {
-			case y > MaxFloat64: // IsInf(y, 1):
-				return Pi / 4
-			case y < -MaxFloat64: // IsInf(y, -1):
-				return -Pi / 4
+			case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y, -1) || IsInf(y, 1):
+				return Copysign(Pi/4, y)
 			default:
-				return 0
+				return Copysign(0, y)
 			}
 		}
 		switch {
-		case y > MaxFloat64: //IsInf(y, 1):
-			return 3 * Pi / 4
-		case y < -MaxFloat64: //IsInf(y, -1):
-			return -3 * Pi / 4
-		case y > 0:
-			return Pi
+		case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y, -1) || IsInf(y, 1):
+			return Copysign(3*Pi/4, y)
 		default:
-			return -Pi
+			return Copysign(Pi, y)
 		}
 	case y < -MaxFloat64 || y > MaxFloat64: //IsInf(y, 0):
-		if y > MaxFloat64 { // IsInf(y, 1) {
-			return Pi / 2
-		}
-		return -Pi / 2
+		return Copysign(Pi/2, y)
 	}
 
 	// Call atan and determine the quadrant.

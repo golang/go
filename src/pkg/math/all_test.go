@@ -466,6 +466,18 @@ var remainder = []float64{
 	8.734595415957246977711748e-01,
 	1.314075231424398637614104e+00,
 }
+var signbit = []bool{
+	false,
+	false,
+	true,
+	true,
+	false,
+	false,
+	false,
+	false,
+	false,
+	true,
+}
 var sin = []float64{
 	-9.6466616586009283766724726e-01,
 	9.9338225271646545763467022e-01,
@@ -653,8 +665,16 @@ var vfatan2SC = [][2]float64{
 	[2]float64{-Pi, 0},
 	[2]float64{-Pi, Inf(1)},
 	[2]float64{-Pi, NaN()},
+	[2]float64{-1 / Inf(1), Inf(-1)},     // -0, -Inf
+	[2]float64{-1 / Inf(1), -Pi},         // -0, -Pi
+	[2]float64{-1 / Inf(1), -1 / Inf(1)}, // -0, -0
+	[2]float64{-1 / Inf(1), 0},           // -0, +0
+	[2]float64{-1 / Inf(1), +Pi},         // -0, +Pi
+	[2]float64{-1 / Inf(1), Inf(1)},      // -0, +Inf
+	[2]float64{-1 / Inf(1), NaN()},       // -0, NaN
 	[2]float64{0, Inf(-1)},
 	[2]float64{0, -Pi},
+	[2]float64{0, -1 / Inf(1)}, // +0, -0
 	[2]float64{0, 0},
 	[2]float64{0, +Pi},
 	[2]float64{0, Inf(1)},
@@ -680,10 +700,18 @@ var atan2SC = []float64{
 	NaN(),
 	-Pi,
 	-Pi / 2,
-	-0,
+	-1 / Inf(1), // -0
+	NaN(),
+	-Pi,
+	-Pi,
+	-Pi, // -0, -0
+	-1 / Inf(1),
+	-1 / Inf(1),
+	-1 / Inf(1),
 	NaN(),
 	Pi,
 	Pi,
+	Pi, // +0, -0
 	0,
 	0,
 	0,
@@ -1107,6 +1135,21 @@ var powSC = []float64{
 	1,
 }
 
+var vfsignbitSC = []float64{
+	Inf(-1),
+	-1 / Inf(1), // -0
+	1 / Inf(1),  // +0
+	Inf(1),
+	NaN(),
+}
+var signbitSC = []bool{
+	true,
+	true,
+	false,
+	false,
+	false,
+}
+
 var vfsqrtSC = []float64{
 	Inf(-1),
 	-Pi,
@@ -1174,7 +1217,7 @@ func alike(a, b float64) bool {
 	case IsNaN(a) && IsNaN(b):
 		return true
 	case a == b:
-		return true
+		return Signbit(a) == Signbit(b)
 	}
 	return false
 }
@@ -1705,6 +1748,18 @@ func TestRemainder(t *testing.T) {
 	}
 }
 
+func TestSignbit(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Signbit(vf[i]); signbit[i] != f {
+			t.Errorf("Signbit(%g) = %t, want %t\n", vf[i], f, signbit[i])
+		}
+	}
+	for i := 0; i < len(vfsignbitSC); i++ {
+		if f := Signbit(vfsignbitSC[i]); signbitSC[i] != f {
+			t.Errorf("Signbit(%g) = %t, want %t\n", vfsignbitSC[i], vfsignbitSC[i], f, signbitSC[i])
+		}
+	}
+}
 func TestSin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Sin(vf[i]); !close(sin[i], f) {
@@ -2147,6 +2202,12 @@ func BenchmarkPowFrac(b *testing.B) {
 func BenchmarkRemainder(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Remainder(10, 3)
+	}
+}
+
+func BenchmarkSignbit(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Signbit(2.5)
 	}
 }
 
