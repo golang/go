@@ -25,6 +25,8 @@ extern byte end[];
 
 static G *fing;
 static Finalizer *finq;
+static int32 fingwait;
+
 static void sweepblock(byte*, int64, uint32*, int32);
 static void runfinq(void);
 
@@ -306,8 +308,10 @@ gc(int32 force)
 		// kick off or wake up goroutine to run queued finalizers
 		if(fing == nil)
 			fing = newproc1((byte*)runfinq, nil, 0, 0);
-		else if(fing->status == Gwaiting)
+		else if(fingwait) {
 			ready(fing);
+			fingwait = 0;
+		}
 	}
 	m->locks--;
 
@@ -340,6 +344,7 @@ runfinq(void)
 		f = finq;
 		finq = nil;
 		if(f == nil) {
+			fingwait = 1;
 			g->status = Gwaiting;
 			gosched();
 			continue;
