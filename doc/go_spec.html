@@ -4570,7 +4570,7 @@ If the function defined here,
 func f(hideErrors bool) {
 	defer func() {
 		if x := recover(); x != nil {
-			println("panicking with value", v)
+			println("panicking with value", x)
 			if !hideErrors {
 				panic(x)  // go back to panicking
 			}
