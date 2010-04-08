@@ -69,6 +69,7 @@ ALLGOFILES=\
 	pow.go\
 	pow10.go\
 	remainder.go\
+	signbit.go\
 	sin.go\
 	sincos.go\
 	sinh.go\
