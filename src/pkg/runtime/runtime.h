@@ -92,6 +92,10 @@ extern	register	M*	m;
 enum
 {
 	// G status
+	//
+	// If you add to this list, add to the list
+	// of "okay during garbage collection" status
+	// in mgc0.c too.
 	Gidle,
 	Grunnable,
 	Grunning,

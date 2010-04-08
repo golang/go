@@ -135,6 +135,7 @@ mark(void)
 		case Grunnable:
 		case Gsyscall:
 		case Gwaiting:
+		case Grecovery:
 			scanstack(gp);
 			break;
 		}
