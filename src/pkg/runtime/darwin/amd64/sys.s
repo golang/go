@@ -113,6 +113,7 @@ TEXT bsdthread_create(SB),7,$0
 	MOVQ	gg+24(SP), R10	// "pthread"
 // TODO(rsc): why do we get away with 0 flags here but not on 386?
 	MOVQ	$0, R8	// flags
+	MOVQ	$0, R9	// paranoia
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL
 	JCC 2(PC)
@@ -146,6 +147,9 @@ TEXT bsdthread_register(SB),7,$0
 	MOVQ	$bsdthread_start(SB), DI	// threadstart
 	MOVQ	$0, SI	// wqthread, not used by us
 	MOVQ	$0, DX	// pthsize, not used by us
+	MOVQ	$0, R10	// dummy_value [sic]
+	MOVQ	$0, R8	// targetconc_ptr
+	MOVQ	$0, R9	// dispatchqueue_offset
 	MOVQ	$(0x2000000+366), AX	// bsdthread_register
 	SYSCALL
 	JCC 2(PC)
