@@ -461,9 +461,7 @@ scheduler(void)
 			
 			// unwind to the stack frame with d->sp in it.
 			unwindstack(gp, d->sp);
-			if(d->sp < gp->stackguard || gp->stackbase < d->sp)
-				throw("bad stack in recovery");
-			
+
 			// make the deferproc for this d return again,
 			// this time returning 1.  function will jump to
 			// standard return epilogue.
@@ -929,6 +927,11 @@ unwindstack(G *gp, byte *sp)
 		gp->stackbase = top->stackbase;
 		gp->stackguard = top->stackguard;
 		free(stk);
+	}
+
+	if(sp != nil && (sp < gp->stackguard - StackGuard || gp->stackbase < sp)) {
+		printf("recover: %p not in [%p, %p]\n", sp, gp->stackguard - StackGuard, gp->stackbase);
+		throw("bad unwindstack");
 	}
 }
 
