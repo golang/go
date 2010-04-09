@@ -7,9 +7,19 @@
 
 static void* threadentry(void*);
 
+static pthread_key_t km, kg;
+
 void
 initcgo(void)
 {
+	if(pthread_key_create(&km, nil) < 0) {
+		fprintf(stderr, "libcgo: pthread_key_create failed\n");
+		abort();
+	}
+	if(pthread_key_create(&kg, nil) < 0) {
+		fprintf(stderr, "libcgo: pthread_key_create failed\n");
+		abort();
+	}
 }
 
 void
@@ -43,4 +53,26 @@ threadentry(void *v)
 
 	crosscall_amd64(ts.m, ts.g, ts.fn);
 	return nil;
+}
+
+void
+libcgo_set_scheduler(void *m, void *g)
+{
+	pthread_setspecific(km, m);
+	pthread_setspecific(kg, g);
+}
+
+struct get_scheduler_args {
+	void *m;
+	void *g;
+};
+
+void libcgo_get_scheduler(struct get_scheduler_args *)
+  __attribute__ ((visibility("hidden")));
+
+void
+libcgo_get_scheduler(struct get_scheduler_args *p)
+{
+	p->m = pthread_getspecific(km);
+	p->g = pthread_getspecific(kg);
 }

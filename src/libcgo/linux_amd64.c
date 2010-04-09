@@ -44,3 +44,28 @@ threadentry(void *v)
 	crosscall_amd64(ts.m, ts.g, ts.fn);
 	return nil;
 }
+
+static __thread void *libcgo_m;
+static __thread void *libcgo_g;
+
+void
+libcgo_set_scheduler(void *m, void *g)
+{
+	libcgo_m = m;
+	libcgo_g = g;
+}
+
+struct get_scheduler_args {
+	void *m;
+	void *g;
+};
+
+void libcgo_get_scheduler(struct get_scheduler_args *)
+  __attribute__ ((visibility("hidden")));
+
+void
+libcgo_get_scheduler(struct get_scheduler_args *p)
+{
+	p->m = libcgo_m;
+	p->g = libcgo_g;
+}
