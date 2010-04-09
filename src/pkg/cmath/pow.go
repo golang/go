@@ -42,7 +42,7 @@ import "math"
 // arithmetic   domain     # trials      peak         rms
 //    IEEE      -10,+10     30000       9.4e-15     1.5e-15
 
-// Pow returns x^y, the base-x exponential of y.
+// Pow returns x**y, the base-x exponential of y.
 func Pow(x, y complex128) complex128 {
 	modulus := Abs(x)
 	if modulus == 0 {

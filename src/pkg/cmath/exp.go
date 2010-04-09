@@ -47,7 +47,7 @@ import "math"
 //    DEC       -10,+10      8700       3.7e-17     1.1e-17
 //    IEEE      -10,+10     30000       3.0e-16     8.7e-17
 
-// Exp returns e^x, the base-e exponential of x.
+// Exp returns e**x, the base-e exponential of x.
 func Exp(x complex128) complex128 {
 	r := math.Exp(real(x))
 	s, c := math.Sincos(imag(x))
