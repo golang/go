@@ -544,8 +544,8 @@ gosched(void)
 
 // The goroutine g is about to enter a system call.
 // Record that it's not using the cpu anymore.
-// This is called only from the go syscall library, not
-// from the low-level system calls used by the runtime.
+// This is called only from the go syscall library and cgocall,
+// not from the low-level system calls used by the runtime.
 void
 ·entersyscall(void)
 {
@@ -602,6 +602,28 @@ void
 	// When the scheduler takes g away from m,
 	// it will undo the sched.mcpu++ above.
 	gosched();
+}
+
+// Start scheduling g1 again for a cgo callback.
+void
+startcgocallback(G* g1)
+{
+	lock(&sched);
+	g1->status = Grunning;
+	sched.msyscall--;
+	sched.mcpu++;
+	unlock(&sched);
+}
+
+// Stop scheduling g1 after a cgo callback.
+void
+endcgocallback(G* g1)
+{
+	lock(&sched);
+	g1->status = Gsyscall;
+	sched.mcpu--;
+	sched.msyscall++;
+	unlock(&sched);
 }
 
 /*

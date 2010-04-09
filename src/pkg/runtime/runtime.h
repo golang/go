@@ -196,8 +196,6 @@ struct	G
 	bool	ispanic;
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
-	void	(*cgofn)(void*);	// for cgo/ffi
-	void	*cgoarg;
 	int32	sig;
 	uintptr	sigcode0;
 	uintptr	sigcode1;
@@ -432,8 +430,11 @@ void	breakpoint(void);
 void	gosched(void);
 void	goexit(void);
 void	runcgo(void (*fn)(void*), void*);
+void	runcgocallback(G*, void*, void (*fn)());
 void	·entersyscall(void);
 void	·exitsyscall(void);
+void	startcgocallback(G*);
+void	endcgocallback(G*);
 G*	newproc1(byte*, byte*, int32, int32);
 void	siginit(void);
 bool	sigsend(int32 sig);

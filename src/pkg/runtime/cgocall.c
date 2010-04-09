@@ -13,10 +13,20 @@ void ·exitsyscall(void);
 void
 cgocall(void (*fn)(void*), void *arg)
 {
+	G *oldlock;
+
 	if(initcgo == nil)
 		throw("cgocall unavailable");
 
 	ncgocall++;
+
+	/*
+	 * Lock g to m to ensure we stay on the same stack if we do a
+	 * cgo callback.
+	 */
+	oldlock = m->lockedg;
+	m->lockedg = g;
+	g->lockedm = m;
 
 	/*
 	 * Announce we are entering a system call
@@ -27,7 +37,47 @@ cgocall(void (*fn)(void*), void *arg)
 	·entersyscall();
 	runcgo(fn, arg);
 	·exitsyscall();
+
+	m->lockedg = oldlock;
+	if(oldlock == nil)
+		g->lockedm = nil;
+
 	return;
+}
+
+// When a C function calls back into Go, the wrapper function will
+// call this.  This switches to a Go stack, copies the arguments
+// (arg/argsize) on to the stack, calls the function, copies the
+// arguments back where they came from, and finally returns to the old
+// stack.
+void
+cgocallback(void (*fn)(void), void *arg, int32 argsize)
+{
+	Gobuf oldsched;
+	G *g1;
+	void *sp;
+
+	if(g != m->g0)
+		throw("bad g in cgocallback");
+
+	oldsched = m->sched;
+
+	g1 = m->curg;
+
+	startcgocallback(g1);
+
+	sp = g1->sched.sp - argsize;
+	if(sp < g1->stackguard)
+		throw("g stack overflow in cgocallback");
+	mcpy(sp, arg, argsize);
+
+	runcgocallback(g1, sp, fn);
+
+	mcpy(arg, sp, argsize);
+
+	endcgocallback(g1);
+
+	m->sched = oldsched;
 }
 
 void
