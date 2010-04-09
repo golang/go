@@ -143,17 +143,17 @@ func Ext(path string) string {
 // visited by Walk. The parameter path is the full path of d relative
 // to root.
 type Visitor interface {
-	VisitDir(path string, d *os.Dir) bool
-	VisitFile(path string, d *os.Dir)
+	VisitDir(path string, f *os.FileInfo) bool
+	VisitFile(path string, f *os.FileInfo)
 }
 
-func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
-	if !d.IsDirectory() {
-		v.VisitFile(path, d)
+func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
+	if !f.IsDirectory() {
+		v.VisitFile(path, f)
 		return
 	}
 
-	if !v.VisitDir(path, d) {
+	if !v.VisitDir(path, f) {
 		return // skip directory entries
 	}
 
@@ -177,12 +177,12 @@ func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
 // If errors != nil, Walk sends each directory read error
 // to the channel.  Otherwise Walk discards the error.
 func Walk(root string, v Visitor, errors chan<- os.Error) {
-	d, err := os.Lstat(root)
+	f, err := os.Lstat(root)
 	if err != nil {
 		if errors != nil {
 			errors <- err
 		}
 		return // can't progress
 	}
-	walk(root, d, v, errors)
+	walk(root, f, v, errors)
 }

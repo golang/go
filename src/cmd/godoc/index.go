@@ -578,17 +578,17 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
 }
 
 
-func (x *Indexer) VisitDir(path string, d *os.Dir) bool {
+func (x *Indexer) VisitDir(path string, f *os.FileInfo) bool {
 	return true
 }
 
 
-func (x *Indexer) VisitFile(path string, d *os.Dir) {
-	if !isGoFile(d) {
+func (x *Indexer) VisitFile(path string, f *os.FileInfo) {
+	if !isGoFile(f) {
 		return
 	}
 
-	if excludeTestFiles && (!isPkgFile(d) || strings.HasPrefix(path, "test/")) {
+	if excludeTestFiles && (!isPkgFile(f) || strings.HasPrefix(path, "test/")) {
 		return
 	}
 

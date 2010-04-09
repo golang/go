@@ -27,12 +27,12 @@ func ReadFile(filename string) ([]byte, os.Error) {
 		return nil, err
 	}
 	defer f.Close()
-	// It's a good but not certain bet that Stat will tell us exactly how much to
+	// It's a good but not certain bet that FileInfo will tell us exactly how much to
 	// read, so let's try it but be prepared for the answer to be wrong.
-	dir, err := f.Stat()
+	fi, err := f.Stat()
 	var n uint64
-	if err == nil && dir.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
-		n = dir.Size
+	if err == nil && fi.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
+		n = fi.Size
 	}
 	// Add a little extra in case Size is zero, and to avoid another allocation after
 	// Read has filled the buffer.
@@ -63,15 +63,15 @@ func WriteFile(filename string, data []byte, perm int) os.Error {
 }
 
 // A dirList implements sort.Interface.
-type dirList []*os.Dir
+type fileInfoList []*os.FileInfo
 
-func (d dirList) Len() int           { return len(d) }
-func (d dirList) Less(i, j int) bool { return d[i].Name < d[j].Name }
-func (d dirList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
+func (f fileInfoList) Len() int           { return len(f) }
+func (f fileInfoList) Less(i, j int) bool { return f[i].Name < f[j].Name }
+func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 
 // ReadDir reads the directory named by dirname and returns
 // a list of sorted directory entries.
-func ReadDir(dirname string) ([]*os.Dir, os.Error) {
+func ReadDir(dirname string) ([]*os.FileInfo, os.Error) {
 	f, err := os.Open(dirname, os.O_RDONLY, 0)
 	if err != nil {
 		return nil, err
@@ -81,10 +81,10 @@ func ReadDir(dirname string) ([]*os.Dir, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	dirs := make(dirList, len(list))
+	fi := make(fileInfoList, len(list))
 	for i := range list {
-		dirs[i] = &list[i]
+		fi[i] = &list[i]
 	}
-	sort.Sort(dirs)
-	return dirs, nil
+	sort.Sort(fi)
+	return fi, nil
 }
