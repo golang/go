@@ -57,6 +57,8 @@ sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
 	Mcontext *r;
+	G *gp;
+	uintptr *sp;
 
 	uc = context;
 	r = &uc->uc_mcontext;
@@ -98,7 +100,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
 	if(gotraceback()){
 		traceback((void*)r->mc_rip, (void*)r->mc_rsp, 0, (void*)r->mc_r15);
 		tracebackothers((void*)r->mc_r15);
-		dumpregs(mc);
+		dumpregs(r);
 	}
 
 	breakpoint();
