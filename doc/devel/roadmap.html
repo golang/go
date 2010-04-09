@@ -20,24 +20,12 @@ accepted.
 
 <ul>
 <li>
-Adjust and simplify semicolon rules.
-<li>
-Adjust definition of <code>...</code> in parameter lists.
-<li>
-Add explicit conversions from <code>string</code>
-to <code>[]byte</code> and <code>[]int</code>.
-<li>
 Possibly rewrite restriction on goto across variable declarations.
 <li>
 Variant types.  A way to define a type as being the union of some set
 of types.
 <li>
-Possibly provide a method that will be run by the garbage
-collector when an item is freed.
-<li>
 Generics.  An active topic of discussion.
-<li>
-Exceptions.  An active topic of discussion.
 </ul>
 
 <h3 id="Implementation_roadmap">
@@ -58,12 +46,7 @@ Improved CGO including some mechanism for calling back from C to Go.
 <li>
 SWIG support.
 <li>
-Public continuous build and benchmark infrastructure.
-<li>
 Improved implementation documentation.
-<li>
-Package manager, possibly including a language change to the import
-statement.
 </ul>
 
 <h4 id="Gc_roadmap">
@@ -71,11 +54,9 @@ Gc compiler roadmap</h4>
 
 <ul>
 <li>
-Method expressions.
-<li>
 Implement goto restrictions.
 <li>
-Safe compilation mode: generate code which is guaranteed not to obtain
+Safe compilation mode: generate code that is guaranteed not to obtain
 an invalid memory address other than via <code>import "unsafe"</code>.
 <li>
 Generate ELF debug info.
@@ -89,8 +70,6 @@ Improved optimization.
 Gccgo compiler roadmap</h4>
 
 <ul>
-<li>
-Method expressions.
 <li>
 Implement goto restrictions.
 <li>
