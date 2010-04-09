@@ -351,14 +351,51 @@ TEXT	runcgo(SB),7,$16
 	// Now on a scheduling stack (a pthread-created stack).
 	SUBL	$16, SP
 	ANDL	$~15, SP	// alignment for gcc ABI
+	MOVL	g(DI), BP
+	MOVL	BP, 8(SP)
+	MOVL	SI, g(DI)
 	MOVL	CX, 4(SP)
 	MOVL	BX, 0(SP)
 	CALL	AX
 	
-	// Back; switch to original stack, re-establish
+	// Back; switch to original g and stack, re-establish
 	// "DF is clear" invariant.
 	CLD
+	get_tls(DI)
+	MOVL	8(SP), SI
+	MOVL	SI, g(DI)
 	MOVL	4(SP), SP
+	RET
+
+// runcgocallback(G *g1, void* sp, void (*fn)(void))
+// Switch to g1 and sp, call fn, switch back.  fn's arguments are on
+// the new stack.
+TEXT	runcgocallback(SB),7,$32
+	MOVL	g1+0(FP), DX
+	MOVL	sp+4(FP), AX
+	MOVL	fn+8(FP), BX
+
+	// We are running on m's scheduler stack.  Save current SP
+	// into m->sched.sp so that a recursive call to runcgo doesn't
+	// clobber our stack, and also so that we can restore
+	// the SP when the call finishes.  Reusing m->sched.sp
+	// for this purpose depends on the fact that there is only
+	// one possible gosave of m->sched.
+	get_tls(CX)
+	MOVL	DX, g(CX)
+	MOVL	m(CX), CX
+	MOVL	SP, (m_sched+gobuf_sp)(CX)
+
+	// Set new SP, call fn
+	MOVL	AX, SP
+	CALL	BX
+
+	// Restore old g and SP, return
+	get_tls(CX)
+	MOVL	m(CX), DX
+	MOVL	m_g0(DX), BX
+	MOVL	BX, g(CX)
+	MOVL	(m_sched+gobuf_sp)(DX), SP
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)
