@@ -53,7 +53,27 @@ void
 sighandler(int32 sig, Siginfo *info, void *context)
 {
 	Ucontext *uc;
-	Sigcontext *sc;
+	Sigcontext *r;
+	G *gp;
+
+	uc = context;
+	r = &uc->uc_mcontext;
+
+	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
+		// Make it look like a call to the signal func.
+		// Have to pass arguments out of band since
+		// augmenting the stack frame would break
+		// the unwinding code.
+		gp->sig = sig;
+		gp->sigcode0 = info->si_code;
+		gp->sigcode1 = r->fault_address;
+
+		// If this is a leaf function, we do smash LR,
+		// but we're not going back there anyway.
+		r->arm_lr = r->arm_pc;
+		r->arm_pc = (uintptr)sigpanic;
+		return;
+	}
 
 	if(sigtab[sig].flags & SigQueue) {
 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
@@ -70,18 +90,14 @@ sighandler(int32 sig, Siginfo *info, void *context)
 	else
 		printf("%s\n", sigtab[sig].name);
 
-	uc = context;
-	sc = &uc->uc_mcontext;
-
-	printf("Faulting address: %p\n", sc->fault_address);
-	printf("PC=%x\n", sc->arm_pc);
+	printf("PC=%x\n", r->arm_pc);
 	printf("\n");
 
 	if(gotraceback()){
-		traceback((void*)sc->arm_pc, (void*)sc->arm_sp, (void*)sc->arm_lr, m->curg);
+		traceback((void*)r->arm_pc, (void*)r->arm_sp, (void*)r->arm_lr, m->curg);
 		tracebackothers(m->curg);
 		printf("\n");
-		dumpregs(sc);
+		dumpregs(r);
 	}
 
 //	breakpoint();

@@ -10,3 +10,4 @@ struct Sigaction;
 void	rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
 
 void	sigaltstack(Sigaltstack*, Sigaltstack*);
+void	sigpanic(void);

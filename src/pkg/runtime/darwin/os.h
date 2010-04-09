@@ -22,3 +22,4 @@ void	sigaction(uintptr, struct Sigaction*, struct Sigaction*);
 struct StackT;
 void	sigaltstack(struct StackT*, struct StackT*);
 void	sigtramp(void);
+void	sigpanic(void);

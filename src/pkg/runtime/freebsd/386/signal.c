@@ -48,7 +48,26 @@ void
 sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
-	Mcontext *mc;
+	Mcontext *r;
+
+	uc = context;
+	r = &uc->uc_mcontext;
+
+	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
+		// Make it look like a call to the signal func.
+		// Have to pass arguments out of band since
+		// augmenting the stack frame would break
+		// the unwinding code.
+		gp->sig = sig;
+		gp->sigcode0 = info->si_code;
+		gp->sigcode1 = (uintptr)info->si_addr;
+
+		sp = (uintptr*)r->mc_esp;
+		*--sp = r->mc_eip;
+		r->mc_eip = (uintptr)sigpanic;
+		r->mc_esp = (uintptr)sp;
+		return;
+	}
 
 	if(sigtab[sig].flags & SigQueue) {
 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
@@ -60,22 +79,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
 		exit(2);
 	panicking = 1;
 
-	uc = context;
-	mc = &uc->uc_mcontext;
-
 	if(sig < 0 || sig >= NSIG)
 		printf("Signal %d\n", sig);
 	else
 		printf("%s\n", sigtab[sig].name);
 
-	printf("Faulting address: %p\n", info->si_addr);
-	printf("PC=%X\n", mc->mc_eip);
+	printf("PC=%X\n", r->mc_eip);
 	printf("\n");
 
 	if(gotraceback()){
-		traceback((void*)mc->mc_eip, (void*)mc->mc_esp, 0, m->curg);
+		traceback((void*)r->mc_eip, (void*)r->mc_esp, 0, m->curg);
 		tracebackothers(m->curg);
-		dumpregs(mc);
+		dumpregs(r);
 	}
 
 	breakpoint();

@@ -6,6 +6,8 @@
 #include "defs.h"
 #include "os.h"
 
+extern SigTab sigtab[];
+
 static void
 unimplemented(int8 *name)
 {
@@ -443,3 +445,26 @@ mach_semrelease(uint32 sem)
 	}
 }
 
+void
+sigpanic(void)
+{
+	switch(g->sig) {
+	case SIGBUS:
+		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
+			panicstring("invalid memory address or nil pointer dereference");
+		break;
+	case SIGSEGV:
+		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
+			panicstring("invalid memory address or nil pointer dereference");
+		break;
+	case SIGFPE:
+		switch(g->sigcode0) {
+		case FPE_INTDIV:
+			panicstring("integer divide by zero");
+		case FPE_INTOVF:
+			panicstring("integer overflow");
+		}
+		panicstring("floating point error");
+	}
+	panicstring(sigtab[g->sig].name);
+}
