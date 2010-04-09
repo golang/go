@@ -22,8 +22,6 @@ gotraceback(void)
 void
 panic(int32 unused)
 {
-	uint8 *sp;
-
 	fd = 2;
 	if(panicking) {
 		printf("double panic\n");

@@ -3,10 +3,10 @@
 
 #include "runtime.h"
 #include "defs.h"
-#include "signals.h"
 #include "os.h"
 
 extern SigTab sigtab[];
+extern int32 sys_umtx_op(uint32*, int32, uint32, void*, void*);
 
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
 // thus the code is largely similar. See linux/thread.c for comments.
@@ -102,7 +102,7 @@ unlock(Lock *l)
 }
 
 void
-destroylock(Lock *l)
+destroylock(Lock*)
 {
 }
 

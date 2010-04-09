@@ -49,6 +49,8 @@ sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
 	Mcontext *r;
+	G *gp;
+	uintptr *sp;
 
 	uc = context;
 	r = &uc->uc_mcontext;
