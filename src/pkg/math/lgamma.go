@@ -39,7 +39,7 @@ package math
 //      minimum (ymin=1.461632144968362245) to maintain monotonicity.
 //      On [ymin-0.23, ymin+0.27] (i.e., [1.23164,1.73163]), use
 //              Let z = x-ymin;
-//              lgamma(x) = -1.214862905358496078218 + z^2*poly(z)
+//              lgamma(x) = -1.214862905358496078218 + z**2*poly(z)
 //              poly(z) is a 14 degree polynomial.
 //   2. Rational approximation in the primary interval [2,3]
 //      We use the following approximation:

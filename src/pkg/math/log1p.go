@@ -24,7 +24,7 @@ package math
 //
 // Method :
 //   1. Argument Reduction: find k and f such that
-//                      1+x = 2^k * (1+f),
+//                      1+x = 2**k * (1+f),
 //         where  sqrt(2)/2 < 1+f < sqrt(2) .
 //
 //      Note. If k=0, then f=x is exact. However, if k!=0, then f
@@ -96,9 +96,9 @@ func Log1p(x float64) float64 {
 	const (
 		Sqrt2M1     = 4.142135623730950488017e-01  // Sqrt(2)-1 = 0x3fda827999fcef34
 		Sqrt2HalfM1 = -2.928932188134524755992e-01 // Sqrt(2)/2-1 = 0xbfd2bec333018866
-		Small       = 1.0 / (1 << 29)              // 2^-29 = 0x3e20000000000000
-		Tiny        = 1.0 / (1 << 54)              // 2^-54
-		Two53       = 1 << 53                      // 2^53
+		Small       = 1.0 / (1 << 29)              // 2**-29 = 0x3e20000000000000
+		Tiny        = 1.0 / (1 << 54)              // 2**-54
+		Two53       = 1 << 53                      // 2**53
 		Ln2Hi       = 6.93147180369123816490e-01   // 3fe62e42fee00000
 		Ln2Lo       = 1.90821492927058770002e-10   // 3dea39ef35793c76
 		Lp1         = 6.666666666666735130e-01     // 3FE5555555555593
@@ -131,8 +131,8 @@ func Log1p(x float64) float64 {
 	var iu uint64
 	k := 1
 	if absx < Sqrt2M1 { //  |x| < Sqrt(2)-1
-		if absx < Small { // |x| < 2^-29
-			if absx < Tiny { // |x| < 2^-54
+		if absx < Small { // |x| < 2**-29
+			if absx < Tiny { // |x| < 2**-54
 				return x
 			}
 			return x - x*x*0.5
@@ -175,7 +175,7 @@ func Log1p(x float64) float64 {
 	}
 	hfsq := 0.5 * f * f
 	var s, R, z float64
-	if iu == 0 { // |f| < 2^-20
+	if iu == 0 { // |f| < 2**-20
 		if f == 0 {
 			if k == 0 {
 				return 0

@@ -28,7 +28,7 @@ package math
 //	asinh(x) := x  if  1+x*x=1,
 //	         := sign(x)*(log(x)+ln2)) for large |x|, else
 //	         := sign(x)*log(2|x|+1/(|x|+sqrt(x*x+1))) if|x|>2, else
-//	         := sign(x)*log1p(|x| + x^2/(1 + sqrt(1+x^2)))
+//	         := sign(x)*log1p(|x| + x**2/(1 + sqrt(1+x**2)))
 //
 
 // Asinh(x) calculates the inverse hyperbolic sine of x.
@@ -40,8 +40,8 @@ package math
 func Asinh(x float64) float64 {
 	const (
 		Ln2      = 6.93147180559945286227e-01 // 0x3FE62E42FEFA39EF
-		NearZero = 1.0 / (1 << 28)            // 2^-28
-		Large    = 1 << 28                    // 2^28
+		NearZero = 1.0 / (1 << 28)            // 2**-28
+		Large    = 1 << 28                    // 2**28
 	)
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
@@ -57,13 +57,13 @@ func Asinh(x float64) float64 {
 	var temp float64
 	switch {
 	case x > Large:
-		temp = Log(x) + Ln2 // |x| > 2^28
+		temp = Log(x) + Ln2 // |x| > 2**28
 	case x > 2:
-		temp = Log(2*x + 1/(Sqrt(x*x+1)+x)) // 2^28 > |x| > 2.0
+		temp = Log(2*x + 1/(Sqrt(x*x+1)+x)) // 2**28 > |x| > 2.0
 	case x < NearZero:
-		temp = x // |x| < 2^-28
+		temp = x // |x| < 2**-28
 	default:
-		temp = Log1p(x + x*x/(1+Sqrt(1+x*x))) // 2.0 > |x| > 2^-28
+		temp = Log1p(x + x*x/(1+Sqrt(1+x*x))) // 2.0 > |x| > 2**-28
 	}
 	if sign {
 		temp = -temp

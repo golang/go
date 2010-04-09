@@ -5,7 +5,7 @@
 package math
 
 // Ldexp is the inverse of Frexp.
-// It returns frac × 2^exp.
+// It returns frac × 2**exp.
 func Ldexp(frac float64, exp int) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us

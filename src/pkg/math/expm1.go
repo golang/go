@@ -34,13 +34,13 @@ package math
 //   2. Approximating expm1(r) by a special rational function on
 //      the interval [0,0.34658]:
 //      Since
-//          r*(exp(r)+1)/(exp(r)-1) = 2+ r^2/6 - r^4/360 + ...
+//          r*(exp(r)+1)/(exp(r)-1) = 2+ r**2/6 - r**4/360 + ...
 //      we define R1(r*r) by
-//          r*(exp(r)+1)/(exp(r)-1) = 2+ r^2/6 * R1(r*r)
+//          r*(exp(r)+1)/(exp(r)-1) = 2+ r**2/6 * R1(r*r)
 //      That is,
 //          R1(r**2) = 6/r *((exp(r)+1)/(exp(r)-1) - 2/r)
 //                   = 6/r * ( 1 + 2.0*(1/(exp(r)-1) - 1/r))
-//                   = 1 - r^2/60 + r^4/2520 - r^6/100800 + ...
+//                   = 1 - r**2/60 + r**4/2520 - r**6/100800 + ...
 //      We use a special Reme algorithm on [0,0.347] to generate
 //      a polynomial of degree 5 in r*r to approximate R1. The
 //      maximum error of this polynomial approximation is bounded
@@ -79,20 +79,20 @@ package math
 //                 = r - E
 //   3. Scale back to obtain expm1(x):
 //      From step 1, we have
-//         expm1(x) = either 2^k*[expm1(r)+1] - 1
-//                  = or     2^k*[expm1(r) + (1-2^-k)]
+//         expm1(x) = either 2**k*[expm1(r)+1] - 1
+//                  = or     2**k*[expm1(r) + (1-2**-k)]
 //   4. Implementation notes:
 //      (A). To save one multiplication, we scale the coefficient Qi
-//           to Qi*2^i, and replace z by (x^2)/2.
+//           to Qi*2**i, and replace z by (x**2)/2.
 //      (B). To achieve maximum accuracy, we compute expm1(x) by
 //        (i)   if x < -56*ln2, return -1.0, (raise inexact if x!=inf)
 //        (ii)  if k=0, return r-E
 //        (iii) if k=-1, return 0.5*(r-E)-0.5
 //        (iv)  if k=1 if r < -0.25, return 2*((r+0.5)- E)
 //                     else          return  1.0+2.0*(r-E);
-//        (v)   if (k<-2||k>56) return 2^k(1-(E-r)) - 1 (or exp(x)-1)
-//        (vi)  if k <= 20, return 2^k((1-2^-k)-(E-r)), else
-//        (vii) return 2^k(1-((E+2^-k)-r))
+//        (v)   if (k<-2||k>56) return 2**k(1-(E-r)) - 1 (or exp(x)-1)
+//        (vi)  if k <= 20, return 2**k((1-2**-k)-(E-r)), else
+//        (vii) return 2**k(1-((E+2**-k)-r))
 //
 // Special cases:
 //      expm1(INF) is INF, expm1(NaN) is NaN;
@@ -114,7 +114,7 @@ package math
 // to produce the hexadecimal values shown.
 //
 
-// Expm1 returns e^x - 1, the base-e exponential of x minus 1.
+// Expm1 returns e**x - 1, the base-e exponential of x minus 1.
 // It is more accurate than Exp(x) - 1 when x is near zero.
 //
 // Special cases are:
@@ -131,7 +131,7 @@ func Expm1(x float64) float64 {
 		Ln2Hi      = 6.93147180369123816490e-01 // 0x3fe62e42fee00000
 		Ln2Lo      = 1.90821492927058770002e-10 // 0x3dea39ef35793c76
 		InvLn2     = 1.44269504088896338700e+00 // 0x3ff71547652b82fe
-		Tiny       = 1.0 / (1 << 54)            // 2^-54 = 0x3c90000000000000
+		Tiny       = 1.0 / (1 << 54)            // 2**-54 = 0x3c90000000000000
 		// scaled coefficients related to expm1
 		Q1 = -3.33333333333331316428e-02 // 0xBFA11111111110F4
 		Q2 = 1.58730158725481460165e-03  // 0x3F5A01A019FE5585
@@ -194,7 +194,7 @@ func Expm1(x float64) float64 {
 		}
 		x = hi - lo
 		c = (hi - x) - lo
-	} else if absx < Tiny { // when |x| < 2^-54, return x
+	} else if absx < Tiny { // when |x| < 2**-54, return x
 		return x
 	} else {
 		k = 0
@@ -223,12 +223,12 @@ func Expm1(x float64) float64 {
 			return y - 1
 		}
 		if k < 20 {
-			t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2^-k
+			t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
 			y := t - (e - x)
 			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
 			return y
 		}
-		t := Float64frombits(uint64((0x3ff - k) << 52)) // 2^-k
+		t := Float64frombits(uint64((0x3ff - k) << 52)) // 2**-k
 		y := x - (e + t)
 		y += 1
 		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent

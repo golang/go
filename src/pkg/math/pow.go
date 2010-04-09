@@ -82,11 +82,11 @@ func Pow(x, y float64) float64 {
 		return Exp(y * Log(x))
 	}
 
-	// ans = a1 * 2^ae (= 1 for now).
+	// ans = a1 * 2**ae (= 1 for now).
 	a1 := float64(1)
 	ae := 0
 
-	// ans *= x^yf
+	// ans *= x**yf
 	if yf != 0 {
 		if yf > 0.5 {
 			yf--
@@ -95,7 +95,7 @@ func Pow(x, y float64) float64 {
 		a1 = Exp(yf * Log(x))
 	}
 
-	// ans *= x^yi
+	// ans *= x**yi
 	// by multiplying in successive squarings
 	// of x according to bits of yi.
 	// accumulate powers of two into exp.
@@ -113,7 +113,7 @@ func Pow(x, y float64) float64 {
 		}
 	}
 
-	// ans = a1*2^ae
+	// ans = a1*2**ae
 	// if flip { ans = 1 / ans }
 	// but in the opposite order
 	if flip {
