@@ -80,9 +80,9 @@ func initPrinterMode() {
 }
 
 
-func isGoFile(d *os.Dir) bool {
+func isGoFile(f *os.FileInfo) bool {
 	// ignore non-Go files
-	return d.IsRegular() && !strings.HasPrefix(d.Name, ".") && strings.HasSuffix(d.Name, ".go")
+	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
 }
 
 
@@ -145,13 +145,13 @@ func processFileByName(filename string) (err os.Error) {
 
 type fileVisitor chan os.Error
 
-func (v fileVisitor) VisitDir(path string, d *os.Dir) bool {
+func (v fileVisitor) VisitDir(path string, f *os.FileInfo) bool {
 	return true
 }
 
 
-func (v fileVisitor) VisitFile(path string, d *os.Dir) {
-	if isGoFile(d) {
+func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
+	if isGoFile(f) {
 		v <- nil // synchronize error handler
 		if err := processFileByName(path); err != nil {
 			v <- err

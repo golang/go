@@ -258,12 +258,12 @@ func Mkdir(name string, perm int) Error {
 	return nil
 }
 
-// Stat returns a Dir structure describing the named file and an error, if any.
-// If name names a valid symbolic link, the returned Dir describes
-// the file pointed at by the link and has dir.FollowedSymlink set to true.
-// If name names an invalid symbolic link, the returned Dir describes
-// the link itself and has dir.FollowedSymlink set to false.
-func Stat(name string) (dir *Dir, err Error) {
+// Stat returns a FileInfo structure describing the named file and an error, if any.
+// If name names a valid symbolic link, the returned FileInfo describes
+// the file pointed at by the link and has fi.FollowedSymlink set to true.
+// If name names an invalid symbolic link, the returned FileInfo describes
+// the link itself and has fi.FollowedSymlink set to false.
+func Stat(name string) (fi *FileInfo, err Error) {
 	var lstat, stat syscall.Stat_t
 	e := syscall.Lstat(name, &lstat)
 	if e != 0 {
@@ -276,38 +276,39 @@ func Stat(name string) (dir *Dir, err Error) {
 			statp = &stat
 		}
 	}
-	return dirFromStat(name, new(Dir), &lstat, statp), nil
+	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
 }
 
-// Stat returns the Dir structure describing file.
-// It returns the Dir and an error, if any.
-func (file *File) Stat() (dir *Dir, err Error) {
+// Stat returns the FileInfo structure describing file.
+// It returns the FileInfo and an error, if any.
+func (file *File) Stat() (fi *FileInfo, err Error) {
 	var stat syscall.Stat_t
 	e := syscall.Fstat(file.fd, &stat)
 	if e != 0 {
 		return nil, &PathError{"stat", file.name, Errno(e)}
 	}
-	return dirFromStat(file.name, new(Dir), &stat, &stat), nil
+	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
 }
 
-// Lstat returns the Dir structure describing the named file and an error, if any.
-// If the file is a symbolic link, the returned Dir describes the
-// symbolic link.  Lstat makes no attempt to follow the link.
-func Lstat(name string) (dir *Dir, err Error) {
+// Lstat returns the FileInfo structure describing the named file and an
+// error, if any.  If the file is a symbolic link, the returned FileInfo
+// describes the symbolic link.  Lstat makes no attempt to follow the link.
+func Lstat(name string) (fi *FileInfo, err Error) {
 	var stat syscall.Stat_t
 	e := syscall.Lstat(name, &stat)
 	if e != 0 {
 		return nil, &PathError{"lstat", name, Errno(e)}
 	}
-	return dirFromStat(name, new(Dir), &stat, &stat), nil
+	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
 }
 
 // Readdir reads the contents of the directory associated with file and
-// returns an array of up to count Dir structures, as would be returned
-// by Stat, in directory order.  Subsequent calls on the same file will yield further Dirs.
+// returns an array of up to count FileInfo structures, as would be returned
+// by Stat, in directory order.  Subsequent calls on the same file will yield
+// further FileInfos.
 // A negative count means to read until EOF.
 // Readdir returns the array and an Error, if any.
-func (file *File) Readdir(count int) (dirs []Dir, err Error) {
+func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 	dirname := file.name
 	if dirname == "" {
 		dirname = "."
@@ -317,13 +318,13 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
 	if err1 != nil {
 		return nil, err1
 	}
-	dirs = make([]Dir, len(names))
+	fi = make([]FileInfo, len(names))
 	for i, filename := range names {
-		dirp, err := Lstat(dirname + filename)
-		if dirp == nil || err != nil {
-			dirs[i].Name = filename // rest is already zeroed out
+		fip, err := Lstat(dirname + filename)
+		if fip == nil || err != nil {
+			fi[i].Name = filename // rest is already zeroed out
 		} else {
-			dirs[i] = *dirp
+			fi[i] = *fip
 		}
 	}
 	return

@@ -224,13 +224,13 @@ func mark(name string) {
 
 type TestVisitor struct{}
 
-func (v *TestVisitor) VisitDir(path string, d *os.Dir) bool {
-	mark(d.Name)
+func (v *TestVisitor) VisitDir(path string, f *os.FileInfo) bool {
+	mark(f.Name)
 	return true
 }
 
-func (v *TestVisitor) VisitFile(path string, d *os.Dir) {
-	mark(d.Name)
+func (v *TestVisitor) VisitFile(path string, f *os.FileInfo) {
+	mark(f.Name)
 }
 
 func TestWalk(t *testing.T) {

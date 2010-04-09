@@ -10,6 +10,6 @@ func isSymlink(stat *syscall.Stat_t) bool {
 	panic("windows isSymlink not implemented")
 }
 
-func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
-	panic("windows dirFromStat not implemented")
+func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
+	panic("windows fileInfoFromStat not implemented")
 }

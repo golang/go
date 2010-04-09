@@ -116,21 +116,21 @@ func registerPublicHandlers(mux *http.ServeMux) {
 // ----------------------------------------------------------------------------
 // Predicates and small utility functions
 
-func isGoFile(dir *os.Dir) bool {
-	return dir.IsRegular() &&
-		!strings.HasPrefix(dir.Name, ".") && // ignore .files
-		pathutil.Ext(dir.Name) == ".go"
+func isGoFile(f *os.FileInfo) bool {
+	return f.IsRegular() &&
+		!strings.HasPrefix(f.Name, ".") && // ignore .files
+		pathutil.Ext(f.Name) == ".go"
 }
 
 
-func isPkgFile(dir *os.Dir) bool {
-	return isGoFile(dir) &&
-		!strings.HasSuffix(dir.Name, "_test.go") // ignore test files
+func isPkgFile(f *os.FileInfo) bool {
+	return isGoFile(f) &&
+		!strings.HasSuffix(f.Name, "_test.go") // ignore test files
 }
 
 
-func isPkgDir(dir *os.Dir) bool {
-	return dir.IsDirectory() && len(dir.Name) > 0 && dir.Name[0] != '_'
+func isPkgDir(f *os.FileInfo) bool {
+	return f.IsDirectory() && len(f.Name) > 0 && f.Name[0] != '_'
 }
 
 
@@ -789,7 +789,7 @@ func timeFmt(w io.Writer, x interface{}, format string) {
 
 // Template formatter for "dir/" format.
 func dirslashFmt(w io.Writer, x interface{}, format string) {
-	if x.(*os.Dir).IsDirectory() {
+	if x.(*os.FileInfo).IsDirectory() {
 		w.Write([]byte{'/'})
 	}
 }
@@ -1196,7 +1196,7 @@ type httpHandler struct {
 //
 func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
 	// filter function to select the desired .go files
-	filter := func(d *os.Dir) bool {
+	filter := func(d *os.FileInfo) bool {
 		// If we are looking at cmd documentation, only accept
 		// the special fakePkgFile containing the documentation.
 		return isPkgFile(d) && (h.isPkg || d.Name == fakePkgFile)

@@ -173,14 +173,14 @@ func ParseFiles(filenames []string, scope *ast.Scope, mode uint) (map[string]*as
 
 // ParseDir calls ParseFile for the files in the directory specified by path and
 // returns a map of package name -> package AST with all the packages found. If
-// filter != nil, only the files with os.Dir entries passing through the filter
+// filter != nil, only the files with os.FileInfo entries passing through the filter
 // are considered. The mode bits are passed to ParseFile unchanged.
 //
 // If the directory couldn't be read, a nil map and the respective error are
 // returned. If a parse error occured, a non-nil but incomplete map and the
 // error are returned.
 //
-func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*ast.Package, os.Error) {
+func ParseDir(path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, os.Error) {
 	fd, err := os.Open(path, os.O_RDONLY, 0)
 	if err != nil {
 		return nil, err
