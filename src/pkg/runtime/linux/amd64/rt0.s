@@ -5,13 +5,6 @@
 // Darwin and Linux use the same linkage to main
 
 TEXT	_rt0_amd64_linux(SB),7,$-8
-	MOVQ	initcgo(SB), AX
-	TESTQ	AX, AX
-	JZ	2(PC)
-	CALL	AX
-
 	MOVQ	$_rt0_amd64(SB), AX
 	MOVQ	SP, DI
 	JMP	AX
-
-GLOBL initcgo(SB), $8

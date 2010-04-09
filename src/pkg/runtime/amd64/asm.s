@@ -9,9 +9,15 @@ TEXT	_rt0_amd64(SB),7,$-8
 	MOVQ	0(DI), AX		// argc
 	LEAQ	8(DI), BX		// argv
 	SUBQ	$(4*8+7), SP		// 2args 2auto
-	ANDQ	$~7, SP
+	ANDQ	$~15, SP
 	MOVQ	AX, 16(SP)
 	MOVQ	BX, 24(SP)
+
+	// if there is an initcgo, call it.
+	MOVQ	initcgo(SB), AX
+	TESTQ	AX, AX
+	JZ	2(PC)
+	CALL	AX
 
 	// set the per-goroutine and per-mach registers
 	LEAQ	m0(SB), m
@@ -372,4 +378,5 @@ TEXT getcallersp(SB),7,$0
 	MOVQ	sp+0(FP), AX
 	RET
 
+GLOBL initcgo(SB), $8
 GLOBL libcgo_set_scheduler(SB), $8
