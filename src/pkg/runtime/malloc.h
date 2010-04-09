@@ -346,7 +346,7 @@ MSpan*	MHeap_Lookup(MHeap *h, PageID p);
 MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
 void	MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
 
-void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed, int32 skip_depth);
+void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
 int32	mlookup(void *v, byte **base, uintptr *size, MSpan **s, uint32 **ref);
 void	gc(int32 force);
 
@@ -369,7 +369,7 @@ enum
 	RefFlags = 0xFFFF0000U,
 };
 
-void	MProf_Malloc(int32, void*, uintptr);
+void	MProf_Malloc(void*, uintptr);
 void	MProf_Free(void*, uintptr);
 
 // Malloc profiling settings.

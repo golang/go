@@ -157,7 +157,7 @@ copyin(Type *t, void *src, void **dst)
 	if(wid <= sizeof(*dst))
 		algarray[alg].copy(wid, dst, src);
 	else {
-		p = malx(wid, 1);
+		p = mal(wid);
 		algarray[alg].copy(wid, p, src);
 		*dst = p;
 	}
@@ -662,7 +662,7 @@ unsafe·New(Eface typ, void *ret)
 	t = (Type*)((Eface*)typ.data-1);
 
 	if(t->kind&KindNoPointers)
-		ret = mallocgc(t->size, RefNoPointers, 1, 1, 1);
+		ret = mallocgc(t->size, RefNoPointers, 1, 1);
 	else
 		ret = mal(t->size);
 	FLUSH(&ret);
@@ -682,7 +682,7 @@ unsafe·NewArray(Eface typ, uint32 n, void *ret)
 	
 	size = n*t->size;
 	if(t->kind&KindNoPointers)
-		ret = mallocgc(size, RefNoPointers, 1, 1, 1);
+		ret = mallocgc(size, RefNoPointers, 1, 1);
 	else
 		ret = mal(size);
 	FLUSH(&ret);
