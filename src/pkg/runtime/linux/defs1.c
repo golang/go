@@ -14,7 +14,6 @@ typedef __sigset_t $Usigset;
 typedef struct _libc_fpxreg $Fpxreg;
 typedef struct _libc_xmmreg $Xmmreg;
 typedef struct _libc_fpstate $Fpstate;
-typedef struct _libc_fpreg $Fpreg;
 typedef struct _fpxreg $Fpxreg1;
 typedef struct _xmmreg $Xmmreg1;
 typedef struct _fpstate $Fpstate1;

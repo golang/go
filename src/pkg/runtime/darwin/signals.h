@@ -6,8 +6,9 @@
 #define I SigIgnore
 #define R SigRestart
 #define Q SigQueue
+#define P SigPanic
 
-static SigTab sigtab[] = {
+SigTab sigtab[] = {
 	/* 0 */	0, "SIGNONE: no trap",
 	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
 	/* 2 */	Q+R, "SIGINT: interrupt",
@@ -16,10 +17,10 @@ static SigTab sigtab[] = {
 	/* 5 */	C, "SIGTRAP: trace trap",	/* used by panic and array out of bounds, etc. */
 	/* 6 */	C, "SIGABRT: abort",
 	/* 7 */	C, "SIGEMT: emulate instruction executed",
-	/* 8 */	C, "SIGFPE: floating-point exception",
+	/* 8 */	C+P, "SIGFPE: floating-point exception",
 	/* 9 */	0, "SIGKILL: kill",
-	/* 10 */	C, "SIGBUS: bus error",
-	/* 11 */	C, "SIGSEGV: segmentation violation",
+	/* 10 */	C+P, "SIGBUS: bus error",
+	/* 11 */	C+P, "SIGSEGV: segmentation violation",
 	/* 12 */	C, "SIGSYS: bad system call",
 	/* 13 */	I, "SIGPIPE: write to broken pipe",
 	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
@@ -45,5 +46,6 @@ static SigTab sigtab[] = {
 #undef I
 #undef R
 #undef Q
+#undef P
 
 #define	NSIG 32

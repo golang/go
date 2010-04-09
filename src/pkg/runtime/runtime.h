@@ -198,6 +198,9 @@ struct	G
 	M*	lockedm;
 	void	(*cgofn)(void*);	// for cgo/ffi
 	void	*cgoarg;
+	int32	sig;
+	uintptr	sigcode0;
+	uintptr	sigcode1;
 };
 struct	M
 {
@@ -268,6 +271,7 @@ enum
 	SigIgnore = 1<<1,
 	SigRestart = 1<<2,
 	SigQueue = 1<<3,
+	SigPanic = 1<<4,
 };
 
 // NOTE(rsc): keep in sync with extern.go:/type.Func.

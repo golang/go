@@ -4,7 +4,12 @@
 
 /*
  * Input to godefs
-	godefs -f -m32 -f -I/home/rsc/pub/linux-2.6/arch/x86/include -f -I/home/rsc/pub/linux-2.6/include defs2.c >386/defs.h
+	godefs -f -m32 \
+		-f -I/home/rsc/pub/linux-2.6/arch/x86/include \
+		-f -I/home/rsc/pub/linux-2.6/include \
+		-f -D_LOOSE_KERNEL_NAMES \
+		-f -D__ARCH_SI_UID_T=__kernel_uid32_t \
+		defs2.c >386/defs.h
 
  * The asm header tricks we have to use for Linux on amd64
  * (see defs.c and defs1.c) don't work here, so this is yet another
@@ -47,6 +52,53 @@ enum {
 	$SA_ONSTACK = SA_ONSTACK,
 	$SA_RESTORER = SA_RESTORER,
 	$SA_SIGINFO = SA_SIGINFO,
+
+	$SIGHUP = SIGHUP,
+	$SIGINT = SIGINT,
+	$SIGQUIT = SIGQUIT,
+	$SIGILL = SIGILL,
+	$SIGTRAP = SIGTRAP,
+	$SIGABRT = SIGABRT,
+	$SIGBUS = SIGBUS,
+	$SIGFPE = SIGFPE,
+	$SIGKILL = SIGKILL,
+	$SIGUSR1 = SIGUSR1,
+	$SIGSEGV = SIGSEGV,
+	$SIGUSR2 = SIGUSR2,
+	$SIGPIPE = SIGPIPE,
+	$SIGALRM = SIGALRM,
+	$SIGSTKFLT = SIGSTKFLT,
+	$SIGCHLD = SIGCHLD,
+	$SIGCONT = SIGCONT,
+	$SIGSTOP = SIGSTOP,
+	$SIGTSTP = SIGTSTP,
+	$SIGTTIN = SIGTTIN,
+	$SIGTTOU = SIGTTOU,
+	$SIGURG = SIGURG,
+	$SIGXCPU = SIGXCPU,
+	$SIGXFSZ = SIGXFSZ,
+	$SIGVTALRM = SIGVTALRM,
+	$SIGPROF = SIGPROF,
+	$SIGWINCH = SIGWINCH,
+	$SIGIO = SIGIO,
+	$SIGPWR = SIGPWR,
+	$SIGSYS = SIGSYS,
+	
+	$FPE_INTDIV = FPE_INTDIV,
+	$FPE_INTOVF = FPE_INTOVF,
+	$FPE_FLTDIV = FPE_FLTDIV,
+	$FPE_FLTOVF = FPE_FLTOVF,
+	$FPE_FLTUND = FPE_FLTUND,
+	$FPE_FLTRES = FPE_FLTRES,
+	$FPE_FLTINV = FPE_FLTINV,
+	$FPE_FLTSUB = FPE_FLTSUB,
+	
+	$BUS_ADRALN = BUS_ADRALN,
+	$BUS_ADRERR = BUS_ADRERR,
+	$BUS_OBJERR = BUS_OBJERR,
+	
+	$SEGV_MAPERR = SEGV_MAPERR,
+	$SEGV_ACCERR = SEGV_ACCERR,
 };
 
 typedef struct _fpreg $Fpreg;

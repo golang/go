@@ -47,6 +47,40 @@ sighandler(int32 sig, Siginfo *info, void *context)
 	Ucontext *uc;
 	Mcontext *mc;
 	Regs *r;
+	G *gp;
+	uintptr *sp;
+	byte *pc;
+
+	uc = context;
+	mc = uc->uc_mcontext;
+	r = &mc->ss;
+
+	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
+		// Work around Leopard bug that doesn't set FPE_INTDIV.
+		// Look at instruction to see if it is a divide.
+		// Not necessary in Snow Leopard (si_code will be != 0).
+		if(sig == SIGFPE && info->si_code == 0) {
+			pc = (byte*)r->rip;
+			if((pc[0]&0xF0) == 0x40)	// 64-bit REX prefix
+				pc++;
+			if(pc[0] == 0xF7)
+				info->si_code = FPE_INTDIV;
+		}
+		
+		// Make it look like a call to the signal func.
+		// Have to pass arguments out of band since
+		// augmenting the stack frame would break
+		// the unwinding code.
+		gp->sig = sig;
+		gp->sigcode0 = info->si_code;
+		gp->sigcode1 = (uintptr)info->si_addr;
+
+		sp = (uintptr*)r->rsp;
+		*--sp = r->rip;
+		r->rip = (uintptr)sigpanic;
+		r->rsp = (uintptr)sp;
+		return;
+	}
 
 	if(sigtab[sig].flags & SigQueue) {
 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
@@ -64,11 +98,6 @@ sighandler(int32 sig, Siginfo *info, void *context)
 		printf("%s\n", sigtab[sig].name);
 	}
 
-	uc = context;
-	mc = uc->uc_mcontext;
-	r = &mc->ss;
-
-	printf("Faulting address: %p\n", info->si_addr);
 	printf("pc: %X\n", r->rip);
 	printf("\n");
 
