@@ -383,7 +383,6 @@ void	mcpy(byte*, byte*, uint32);
 int32	mcmp(byte*, byte*, uint32);
 void	memmove(void*, void*, uint32);
 void*	mal(uintptr);
-void*	malx(uintptr size, int32 skip_delta);
 uint32	cmpstring(String, String);
 String	catstring(String, String);
 String	gostring(byte*);

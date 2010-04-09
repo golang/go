@@ -134,8 +134,8 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 			newtab.max *= 3;
 		}
 
-		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1, 2);
-		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1, 2);
+		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1);
+		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
 
 		for(i=0; i<fintab.max; i++) {
 			void *k;

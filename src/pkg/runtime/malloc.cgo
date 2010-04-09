@@ -36,7 +36,7 @@ fastrand1(void)
 // Small objects are allocated from the per-thread cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 void*
-mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_depth)
+mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 {
 	int32 sizeclass, rate;
 	MCache *c;
@@ -105,7 +105,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_dept
 			m->mcache->next_sample = fastrand1() % (2*rate);
 		profile:
 			*ref |= RefProfiled;
-			MProf_Malloc(skip_depth+1, v, size);
+			MProf_Malloc(v, size);
 		}
 	}
 
@@ -117,7 +117,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_dept
 void*
 malloc(uintptr size)
 {
-	return mallocgc(size, 0, 0, 1, 1);
+	return mallocgc(size, 0, 0, 1);
 }
 
 // Free the object whose base pointer is v.
@@ -258,13 +258,7 @@ mallocinit(void)
 void*
 mal(uintptr n)
 {
-	return mallocgc(n, 0, 1, 1, 2);
-}
-
-void*
-malx(uintptr n, int32 skip_delta)
-{
-	return mallocgc(n, 0, 1, 1, 2+skip_delta);
+	return mallocgc(n, 0, 1, 1);
 }
 
 // Stack allocator uses malloc/free most of the time,
@@ -299,7 +293,7 @@ stackalloc(uint32 n)
 		unlock(&stacks);
 		return v;
 	}
-	v = mallocgc(n, RefNoProfiling, 0, 0, 0);
+	v = mallocgc(n, RefNoProfiling, 0, 0);
 	if(!mlookup(v, nil, nil, nil, &ref))
 		throw("stackalloc mlookup");
 	*ref = RefStack;
