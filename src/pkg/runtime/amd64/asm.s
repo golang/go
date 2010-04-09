@@ -276,14 +276,13 @@ TEXT jmpdefer(SB), 7, $0
 // Save g and m across the call,
 // since the foreign code might reuse them.
 TEXT runcgo(SB),7,$32
-	// Save old registers.
-	MOVQ	fn+0(FP),AX
-	MOVQ	arg+8(FP),DI	// DI = first argument in AMD64 ABI
+	MOVQ	fn+0(FP), R12
+	MOVQ	arg+8(FP), R13
 	MOVQ	SP, CX
 
 	// Figure out if we need to switch to m->g0 stack.
-	MOVQ	m_g0(m), R8
-	CMPQ	R8, g
+	MOVQ	m_g0(m), SI
+	CMPQ	SI, g
 	JEQ	2(PC)
 	MOVQ	(m_sched+gobuf_sp)(m), SP
 
@@ -293,12 +292,48 @@ TEXT runcgo(SB),7,$32
 	MOVQ	g, 24(SP)	// save old g, m, SP
 	MOVQ	m, 16(SP)
 	MOVQ	CX, 8(SP)
-	CALL	AX
+
+	// Save g and m values for a potential callback.  The callback
+	// will start running with on the g0 stack and as such should
+	// have g set to m->g0.
+	MOVQ	m, DI		// DI = first argument in AMD64 ABI
+				// SI, second argument, set above
+	MOVQ	libcgo_set_scheduler(SB), BX
+	CALL	BX
+
+	MOVQ	R13, DI		// DI = first argument in AMD64 ABI
+	CALL	R12
 
 	// Restore registers, stack pointer.
 	MOVQ	16(SP), m
 	MOVQ	24(SP), g
 	MOVQ	8(SP), SP
+	RET
+
+// runcgocallback(G *g1, void* sp, void (*fn)(void))
+// Switch to g1 and sp, call fn, switch back.  fn's arguments are on
+// the new stack.
+TEXT runcgocallback(SB),7,$48
+	MOVQ	g1+0(FP), DX
+	MOVQ	sp+8(FP), AX
+	MOVQ	fp+16(FP), BX
+
+	MOVQ	DX, g
+
+	// We are running on m's scheduler stack.  Save current SP
+	// into m->sched.sp so that a recursive call to runcgo doesn't
+	// clobber our stack, and also so that we can restore
+	// the SP when the call finishes.  Reusing m->sched.sp
+	// for this purpose depends on the fact that there is only
+	// one possible gosave of m->sched.
+	MOVQ	SP, (m_sched+gobuf_sp)(m)
+
+	// Set new SP, call fn
+	MOVQ	AX, SP
+	CALL	BX
+
+	// Restore old SP, return
+	MOVQ	(m_sched+gobuf_sp)(m), SP
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)
@@ -337,3 +372,4 @@ TEXT getcallersp(SB),7,$0
 	MOVQ	sp+0(FP), AX
 	RET
 
+GLOBL libcgo_set_scheduler(SB), $8

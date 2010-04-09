@@ -43,3 +43,39 @@ EXT(crosscall_amd64):
 	popq %rbp
 	popq %rbx
 	ret
+
+/*
+ * void crosscall2(void (*fn)(void*, int32), void *arg, int32 argsize)
+ *
+ * Save registers and call fn with two arguments.  fn is a Go function
+ * which takes parameters on the stack rather than in registers.
+ */
+.globl EXT(crosscall2)
+EXT(crosscall2):
+	subq  $0x58, %rsp	/* keeps stack pointer 32-byte aligned */
+	movq  %rbx, 0x10(%rsp)
+	movq  %rbp, 0x18(%rsp)
+	movq  %r12, 0x20(%rsp)
+	movq  %r13, 0x28(%rsp)
+	movq  %r14, 0x30(%rsp)
+	movq  %r15, 0x38(%rsp)
+
+	movq  %rdi, %r12	/* fn */
+	movq  %rsi, 0(%rsp)	/* arg */
+	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */
+
+	leaq  0x40(%rsp), %rdi
+	call  EXT(libcgo_get_scheduler)
+	movq  0x40(%rsp), %r14	/* m */
+	movq  0x48(%rsp), %r15	/* g */
+
+	call *%r12
+
+	movq  0x10(%rsp), %rbx
+	movq  0x18(%rsp), %rbp
+	movq  0x20(%rsp), %r12
+	movq  0x28(%rsp), %r13
+	movq  0x30(%rsp), %r14
+	movq  0x38(%rsp), %r15
+	addq  $0x58, %rsp
+	ret
