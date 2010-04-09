@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"os"
+	"strings"
 )
 
 // A Cref refers to an expression of the form C.xxx in the AST.
@@ -23,6 +24,12 @@ type Cref struct {
 	TypeName bool   // whether xxx is a C type name
 	Type     *Type  // the type of xxx
 	FuncType *FuncType
+}
+
+// A ExpFunc is an exported function, callable from C.
+type ExpFunc struct {
+	Func    *ast.FuncDecl
+	ExpName string // name to use from C
 }
 
 // A Prog collects information about a cgo program.
@@ -37,6 +44,7 @@ type Prog struct {
 	Funcdef     map[string]*FuncType
 	Enumdef     map[string]int64
 	Constdef    map[string]string
+	ExpFuncs    []*ExpFunc
 	PtrSize     int64
 	GccOptions  []string
 	OutDefs     map[string]bool
@@ -303,6 +311,8 @@ func walk(x interface{}, p *Prog, context string) {
 			walk(n.Body, p, "stmt")
 		}
 
+		checkExpFunc(n, p)
+
 	case *ast.File:
 		walk(n.Decls, p, "decl")
 
@@ -327,5 +337,40 @@ func walk(x interface{}, p *Prog, context string) {
 		for _, s := range n {
 			walk(s, p, context)
 		}
+	}
+}
+
+// If a function should be exported add it to ExpFuncs.
+func checkExpFunc(n *ast.FuncDecl, p *Prog) {
+	if n.Doc == nil {
+		return
+	}
+	for _, c := range n.Doc.List {
+		if string(c.Text[0:9]) != "//export " {
+			continue
+		}
+
+		name := strings.TrimSpace(string(c.Text[9:]))
+		if name == "" {
+			error(c.Position, "export missing name")
+		}
+
+		if p.ExpFuncs == nil {
+			p.ExpFuncs = make([]*ExpFunc, 0, 8)
+		}
+		i := len(p.ExpFuncs)
+		if i >= cap(p.ExpFuncs) {
+			new := make([]*ExpFunc, 2*i)
+			for j, v := range p.ExpFuncs {
+				new[j] = v
+			}
+			p.ExpFuncs = new
+		}
+		p.ExpFuncs = p.ExpFuncs[0 : i+1]
+		p.ExpFuncs[i] = &ExpFunc{
+			Func:    n,
+			ExpName: name,
+		}
+		break
 	}
 }

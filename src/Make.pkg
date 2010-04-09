@@ -44,7 +44,7 @@ coverage:
 	$(QUOTED_GOBIN)/gotest
 	$(QUOTED_GOBIN)/6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
-CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go *.so _obj _test _testmain.go
+CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.* *.so _obj _test _testmain.go
 
 test:
 	$(QUOTED_GOBIN)/gotest
@@ -92,9 +92,10 @@ dir:
 #
 # to the main Makefile.  This signals that cgo should process x.go
 # and y.go when building the package.
-# There are two optional variables to set, CGO_CFLAGS and CGO_LDFLAGS,
-# which specify compiler and linker flags to use when compiling
-# (using gcc) the C support for x.go and y.go.
+# There are three optional variables to set, CGO_CFLAGS, CGO_LDFLAGS,
+# and CGO_DEPS, which specify compiler flags, linker flags, and linker
+# dependencies to use when compiling (using gcc) the C support for
+# x.go and y.go.
 
 # Cgo translates each x.go file listed in $(CGOFILES) into a basic
 # translation of x.go, called x.cgo1.go. Additionally, three other
@@ -118,6 +119,9 @@ _cgo_defun.c _cgo_gotypes.go: $(CGOFILES)
 %.cgo2.o: %.cgo2.c
 	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
 
+_cgo_export.o: _cgo_export.c _cgo_export.h
+	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_export.c
+
 # The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
 # added _cgo_defun.$O to $OFILES, and added the installed copy of
 # package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
@@ -139,7 +143,7 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
 _cgo_defun.$O: _cgo_defun.c
 	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
 
-_cgo_.so: $(GCC_OFILES)
+_cgo_.so: $(GCC_OFILES) $(CGO_DEPS)
 	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
 
 $(pkgdir)/$(TARG).so: _cgo_.so
