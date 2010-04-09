@@ -363,7 +363,7 @@ func checkMode(t *testing.T, path string, mode uint32) {
 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
 	}
 	if dir.Mode&0777 != mode {
-		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode, 0777)
+		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode, mode)
 	}
 }
 
