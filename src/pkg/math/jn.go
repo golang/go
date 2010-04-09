@@ -64,7 +64,7 @@ func Jn(n int, x float64) float64 {
 	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
 		return 0
 	}
-	// J(-n, x) = (-1)^n * J(n, x), J(n, -x) = (-1)^n * J(n, x)
+	// J(-n, x) = (-1)**n * J(n, x), J(n, -x) = (-1)**n * J(n, x)
 	// Thus, J(-n, x) = J(n, -x)
 
 	if n == 0 {
@@ -125,7 +125,7 @@ func Jn(n int, x float64) float64 {
 	} else {
 		if x < TwoM29 { // x < 2**-29
 			// x is tiny, return the first Taylor expansion of J(n,x)
-			// J(n,x) = 1/n!*(x/2)^n  - ...
+			// J(n,x) = 1/n!*(x/2)**n  - ...
 
 			if n > 33 { // underflow
 				b = 0
@@ -135,13 +135,13 @@ func Jn(n int, x float64) float64 {
 				a := float64(1)
 				for i := 2; i <= n; i++ {
 					a *= float64(i) // a = n!
-					b *= temp       // b = (x/2)^n
+					b *= temp       // b = (x/2)**n
 				}
 				b /= a
 			}
 		} else {
 			// use backward recurrence
-			//                      x      x^2      x^2
+			//                      x      x**2      x**2
 			//  J(n,x)/J(n-1,x) =  ----   ------   ------   .....
 			//                      2n  - 2(n+1) - 2(n+2)
 			//
@@ -187,7 +187,7 @@ func Jn(n int, x float64) float64 {
 			}
 			a := t
 			b = 1
-			//  estimate log((2/x)^n*n!) = n*log(2/x)+n*ln(n)
+			//  estimate log((2/x)**n*n!) = n*log(2/x)+n*ln(n)
 			//  Hence, if n*(log(2n/x)) > ...
 			//  single 8.8722839355e+01
 			//  double 7.09782712893383973096e+02

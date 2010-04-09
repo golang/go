@@ -45,7 +45,7 @@ package math
 //	Atanh(-1) = -Inf
 //	Atanh(NaN) = NaN
 func Atanh(x float64) float64 {
-	const NearZero = 1.0 / (1 << 28) // 2^-28
+	const NearZero = 1.0 / (1 << 28) // 2**-28
 	// TODO(rsc): Remove manual inlining of IsNaN
 	// when compiler does it for us
 	// special cases

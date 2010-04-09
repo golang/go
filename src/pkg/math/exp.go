@@ -59,7 +59,7 @@ package math
 //
 //   3. Scale back to obtain exp(x):
 //      From step 1, we have
-//         exp(x) = 2^k * exp(r)
+//         exp(x) = 2**k * exp(r)
 //
 // Special cases:
 //      exp(INF) is INF, exp(NaN) is NaN;
@@ -81,7 +81,7 @@ package math
 // compiler will convert from decimal to binary accurately enough
 // to produce the hexadecimal values shown.
 
-// Exp returns e^x, the base-e exponential of x.
+// Exp returns e**x, the base-e exponential of x.
 //
 // Special cases are:
 //	Exp(+Inf) = +Inf
@@ -101,7 +101,7 @@ func Exp(x float64) float64 {
 
 		Overflow  = 7.09782712893383973096e+02
 		Underflow = -7.45133219101941108420e+02
-		NearZero  = 1.0 / (1 << 28) // 2^-28
+		NearZero  = 1.0 / (1 << 28) // 2**-28
 	)
 
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
@@ -140,7 +140,7 @@ func Exp(x float64) float64 {
 	return Ldexp(y, k)
 }
 
-// Exp2 returns 2^x, the base-2 exponential of x.
+// Exp2 returns 2**x, the base-2 exponential of x.
 //
 // Special cases are the same as Exp.
 func Exp2(x float64) float64 { return Exp(x * Ln2) }

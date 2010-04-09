@@ -25,7 +25,7 @@ package math
 // __ieee754_j1(x), __ieee754_y1(x)
 // Bessel function of the first and second kinds of order one.
 // Method -- j1(x):
-//      1. For tiny x, we use j1(x) = x/2 - x^3/16 + x^5/384 - ...
+//      1. For tiny x, we use j1(x) = x/2 - x**3/16 + x**5/384 - ...
 //      2. Reduce x to |x| since j1(x)=-j1(-x),  and
 //         for x in (0,2)
 //              j1(x) = x/2 + x*z*R0/S0,  where z = x*x;
@@ -52,13 +52,13 @@ package math
 //      1. screen out x<=0 cases: y1(0)=-inf, y1(x<0)=NaN
 //      2. For x<2.
 //         Since
-//              y1(x) = 2/pi*(j1(x)*(ln(x/2)+Euler)-1/x-x/2+5/64*x^3-...)
+//              y1(x) = 2/pi*(j1(x)*(ln(x/2)+Euler)-1/x-x/2+5/64*x**3-...)
 //         therefore y1(x)-2/pi*j1(x)*ln(x)-1/x is an odd function.
 //         We use the following function to approximate y1,
-//              y1(x) = x*U(z)/V(z) + (2/pi)*(j1(x)*ln(x)-1/x), z= x^2
+//              y1(x) = x*U(z)/V(z) + (2/pi)*(j1(x)*ln(x)-1/x), z= x**2
 //         where for x in [0,2] (abs err less than 2**-65.89)
-//              U(z) = U0[0] + U0[1]*z + ... + U0[4]*z^4
-//              V(z) = 1  + v0[0]*z + ... + v0[4]*z^5
+//              U(z) = U0[0] + U0[1]*z + ... + U0[4]*z**4
+//              V(z) = 1  + v0[0]*z + ... + v0[4]*z**5
 //         Note: For tiny x, 1/x dominate y1 and hence
 //              y1(tiny) = -2/pi/tiny, (choose tiny<2**-54)
 //      3. For x>=2.
@@ -225,11 +225,11 @@ func Y1(x float64) float64 {
 }
 
 // For x >= 8, the asymptotic expansions of pone is
-//      1 + 15/128 s^2 - 4725/2^15 s^4 - ..., where s = 1/x.
+//      1 + 15/128 s**2 - 4725/2**15 s**4 - ..., where s = 1/x.
 // We approximate pone by
 //      pone(x) = 1 + (R/S)
-// where R = pr0 + pr1*s^2 + pr2*s^4 + ... + pr5*s^10
-//       S = 1 + ps0*s^2 + ... + ps4*s^10
+// where R = pr0 + pr1*s**2 + pr2*s**4 + ... + pr5*s**10
+//       S = 1 + ps0*s**2 + ... + ps4*s**10
 // and
 //      | pone(x)-1-R/S | <= 2**(-60.06)
 
@@ -324,11 +324,11 @@ func pone(x float64) float64 {
 }
 
 // For x >= 8, the asymptotic expansions of qone is
-//      3/8 s - 105/1024 s^3 - ..., where s = 1/x.
+//      3/8 s - 105/1024 s**3 - ..., where s = 1/x.
 // We approximate qone by
 //      qone(x) = s*(0.375 + (R/S))
-// where R = qr1*s^2 + qr2*s^4 + ... + qr5*s^10
-//       S = 1 + qs1*s^2 + ... + qs6*s^12
+// where R = qr1*s**2 + qr2*s**4 + ... + qr5*s**10
+//       S = 1 + qs1*s**2 + ... + qs6*s**12
 // and
 //      | qone(x)/s -0.375-R/S | <= 2**(-61.13)
 

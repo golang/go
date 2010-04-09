@@ -27,7 +27,7 @@ package math
 //
 // Method :
 //   1. Argument Reduction: find k and f such that
-//			x = 2^k * (1+f),
+//			x = 2**k * (1+f),
 //	   where  sqrt(2)/2 < 1+f < sqrt(2) .
 //
 //   2. Approximation of log(1+f).

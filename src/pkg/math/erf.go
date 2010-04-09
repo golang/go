@@ -39,7 +39,7 @@ package math
 //
 // Method:
 //      1. For |x| in [0, 0.84375]
-//          erf(x)  = x + x*R(x^2)
+//          erf(x)  = x + x*R(x**2)
 //          erfc(x) = 1 - erf(x)           if x in [-.84375,0.25]
 //                  = 0.5 + ((0.5-x)-x*R)  if x in [0.25,0.84375]
 //         where R = P/Q where P is an odd poly of degree 8 and
@@ -49,7 +49,7 @@ package math
 //
 //
 //         Remark. The formula is derived by noting
-//          erf(x) = (2/sqrt(pi))*(x - x^3/3 + x^5/10 - x^7/42 + ....)
+//          erf(x) = (2/sqrt(pi))*(x - x**3/3 + x**5/10 - x**7/42 + ....)
 //         and that
 //          2/sqrt(pi) = 1.128379167095512573896158903121545171688
 //         is close to one. The interval is chosen because the fix
@@ -77,7 +77,7 @@ package math
 //              erfc(x) = (1/x)*exp(-x*x-0.5625+R1/S1)
 //              erf(x)  = 1 - erfc(x)
 //         where
-//              R1(z) = degree 7 poly in z, (z=1/x^2)
+//              R1(z) = degree 7 poly in z, (z=1/x**2)
 //              S1(z) = degree 8 poly in z
 //
 //      4. For x in [1/0.35,28]
@@ -87,7 +87,7 @@ package math
 //              erf(x)  = sign(x)*(1.0 - erfc(x)) if x < 6, else
 //              erf(x)  = sign(x)*(1.0 - tiny)
 //         where
-//              R2(z) = degree 6 poly in z, (z=1/x^2)
+//              R2(z) = degree 6 poly in z, (z=1/x**2)
 //              S2(z) = degree 7 poly in z
 //
 //      Note1:
@@ -99,10 +99,10 @@ package math
 //      Note2:
 //         Here 4 and 5 make use of the asymptotic series
 //                        exp(-x*x)
-//              erfc(x) ~ ---------- * ( 1 + Poly(1/x^2) )
+//              erfc(x) ~ ---------- * ( 1 + Poly(1/x**2) )
 //                        x*sqrt(pi)
 //         We use rational approximation to approximate
-//              g(s)=f(1/x^2) = log(erfc(x)*x) - x*x + 0.5625
+//              g(s)=f(1/x**2) = log(erfc(x)*x) - x*x + 0.5625
 //         Here is the error bound for R1/S1 and R2/S2
 //              |R1/S1 - f(x)|  < 2**(-62.57)
 //              |R2/S2 - f(x)|  < 2**(-61.52)
@@ -189,7 +189,7 @@ const (
 func Erf(x float64) float64 {
 	const (
 		VeryTiny = 2.848094538889218e-306 // 0x0080000000000000
-		Small    = 1.0 / (1 << 28)        // 2^-28
+		Small    = 1.0 / (1 << 28)        // 2**-28
 	)
 	// special cases
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
@@ -209,7 +209,7 @@ func Erf(x float64) float64 {
 	}
 	if x < 0.84375 { // |x| < 0.84375
 		var temp float64
-		if x < Small { // |x| < 2^-28
+		if x < Small { // |x| < 2**-28
 			if x < VeryTiny {
 				temp = 0.125 * (8.0*x + efx8*x) // avoid underflow
 			} else {
@@ -266,7 +266,7 @@ func Erf(x float64) float64 {
 //	Erfc(-Inf) = 2
 //	Erfc(NaN) = NaN
 func Erfc(x float64) float64 {
-	const Tiny = 1.0 / (1 << 56) // 2^-56
+	const Tiny = 1.0 / (1 << 56) // 2**-56
 	// special cases
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
@@ -285,7 +285,7 @@ func Erfc(x float64) float64 {
 	}
 	if x < 0.84375 { // |x| < 0.84375
 		var temp float64
-		if x < Tiny { // |x| < 2^-56
+		if x < Tiny { // |x| < 2**-56
 			temp = x
 		} else {
 			z := x * x
