@@ -712,9 +712,9 @@ def CheckGofmt(ui, repo, files, just_warn=False):
 #
 
 def change(ui, repo, *pats, **opts):
-	"""create or edit a change list
+	"""create, edit or delete a change list
 
-	Create or edit a change list.
+	Create, edit or delete a change list.
 	A change list is a group of files to be reviewed and submitted together,
 	plus a textual description of the change.
 	Change lists are referred to by simple alphanumeric names.
