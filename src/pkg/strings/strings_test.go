@@ -362,8 +362,75 @@ func TestSpecialCase(t *testing.T) {
 	}
 }
 
-
 func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
+
+type TrimTest struct {
+	f               func(string, string) string
+	in, cutset, out string
+}
+
+var trimTests = []TrimTest{
+	TrimTest{Trim, "abba", "a", "bb"},
+	TrimTest{Trim, "abba", "ab", ""},
+	TrimTest{TrimLeft, "abba", "ab", ""},
+	TrimTest{TrimRight, "abba", "ab", ""},
+	TrimTest{TrimLeft, "abba", "a", "bba"},
+	TrimTest{TrimRight, "abba", "a", "abb"},
+	TrimTest{Trim, "<tag>", "<>", "tag"},
+	TrimTest{Trim, "* listitem", " *", "listitem"},
+	TrimTest{Trim, `"quote"`, `"`, "quote"},
+	TrimTest{Trim, "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
+	//empty string tests
+	TrimTest{Trim, "abba", "", "abba"},
+	TrimTest{Trim, "", "123", ""},
+	TrimTest{Trim, "", "", ""},
+	TrimTest{TrimLeft, "abba", "", "abba"},
+	TrimTest{TrimLeft, "", "123", ""},
+	TrimTest{TrimLeft, "", "", ""},
+	TrimTest{TrimRight, "abba", "", "abba"},
+	TrimTest{TrimRight, "", "123", ""},
+	TrimTest{TrimRight, "", "", ""},
+}
+
+func TestTrim(t *testing.T) {
+	for _, tc := range trimTests {
+		actual := tc.f(tc.in, tc.cutset)
+		var name string
+		switch tc.f {
+		case Trim:
+			name = "Trim"
+		case TrimLeft:
+			name = "TrimLeft"
+		case TrimRight:
+			name = "TrimRight"
+		default:
+			t.Error("Undefined trim function")
+		}
+		if actual != tc.out {
+			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.cutset, actual, tc.out)
+		}
+	}
+}
+
+type TrimFuncTest struct {
+	f             func(r int) bool
+	name, in, out string
+}
+
+var trimFuncTests = []TrimFuncTest{
+	TrimFuncTest{unicode.IsSpace, "IsSpace", space + " hello " + space, "hello"},
+	TrimFuncTest{unicode.IsDigit, "IsDigit", "\u0e50\u0e5212hello34\u0e50\u0e51", "hello"},
+	TrimFuncTest{unicode.IsUpper, "IsUpper", "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", "hello"},
+}
+
+func TestTrimFunc(t *testing.T) {
+	for _, tc := range trimFuncTests {
+		actual := TrimFunc(tc.in, tc.f)
+		if actual != tc.out {
+			t.Errorf("TrimFunc(%q, %q) = %q; want %q", tc.in, tc.name, actual, tc.out)
+		}
+	}
+}
 
 func equal(m string, s1, s2 string, t *testing.T) bool {
 	if s1 == s2 {
