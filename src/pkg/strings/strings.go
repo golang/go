@@ -106,6 +106,17 @@ func LastIndex(s, sep string) int {
 	return -1
 }
 
+// IndexRune returns the index of the first instance of the Unicode code point
+// rune, or -1 if rune is not present in s.
+func IndexRune(s string, rune int) int {
+	for i, c := range s {
+		if c == rune {
+			return i
+		}
+	}
+	return -1
+}
+
 // IndexAny returns the index of the first instance of any Unicode code point
 // from chars in s, or -1 if no Unicode code point from chars is present in s.
 func IndexAny(s, chars string) int {
@@ -309,9 +320,9 @@ func ToTitleSpecial(_case unicode.SpecialCase, s string) string {
 	return Map(func(r int) int { return _case.ToTitle(r) }, s)
 }
 
-// Trim returns a slice of the string s, with all leading and trailing white space
-// removed, as defined by Unicode.
-func TrimSpace(s string) string {
+// TrimLeftFunc returns a slice of the string s with all leading
+// Unicode code points c satisfying f(c) removed.
+func TrimLeftFunc(s string, f func(r int) bool) string {
 	start, end := 0, len(s)
 	for start < end {
 		wid := 1
@@ -319,16 +330,23 @@ func TrimSpace(s string) string {
 		if rune >= utf8.RuneSelf {
 			rune, wid = utf8.DecodeRuneInString(s[start:end])
 		}
-		if !unicode.IsSpace(rune) {
-			break
+		if !f(rune) {
+			return s[start:]
 		}
 		start += wid
 	}
+	return s[start:]
+}
+
+// TrimRightFunc returns a slice of the string s with all trailing
+// Unicode code points c satisfying f(c) removed.
+func TrimRightFunc(s string, f func(r int) bool) string {
+	start, end := 0, len(s)
 	for start < end {
 		wid := 1
-		rune := int(s[end-1])
+		rune := int(s[end-wid])
 		if rune >= utf8.RuneSelf {
-			// Back up carefully looking for beginning of rune. Mustn't pass start.
+			// Back up & look for beginning of rune. Mustn't pass start.
 			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
 			}
 			if start > end-wid { // invalid UTF-8 sequence; stop processing
@@ -336,10 +354,53 @@ func TrimSpace(s string) string {
 			}
 			rune, wid = utf8.DecodeRuneInString(s[end-wid : end])
 		}
-		if !unicode.IsSpace(rune) {
-			break
+		if !f(rune) {
+			return s[0:end]
 		}
 		end -= wid
 	}
-	return s[start:end]
+	return s[0:end]
+}
+
+// TrimFunc returns a slice of the string s with all leading
+// and trailing Unicode code points c satisfying f(c) removed.
+func TrimFunc(s string, f func(r int) bool) string {
+	return TrimRightFunc(TrimLeftFunc(s, f), f)
+}
+
+func makeCutsetFunc(cutset string) func(rune int) bool {
+	return func(rune int) bool { return IndexRune(cutset, rune) != -1 }
+}
+
+// Trim returns a slice of the string s with all leading and
+// trailing Unicode code points contained in cutset removed.
+func Trim(s string, cutset string) string {
+	if s == "" || cutset == "" {
+		return s
+	}
+	return TrimFunc(s, makeCutsetFunc(cutset))
+}
+
+// TrimLeft returns a slice of the string s with all leading
+// Unicode code points contained in cutset removed.
+func TrimLeft(s string, cutset string) string {
+	if s == "" || cutset == "" {
+		return s
+	}
+	return TrimLeftFunc(s, makeCutsetFunc(cutset))
+}
+
+// TrimRight returns a slice of the string s, with all trailing
+// Unicode code points contained in cutset removed.
+func TrimRight(s string, cutset string) string {
+	if s == "" || cutset == "" {
+		return s
+	}
+	return TrimRightFunc(s, makeCutsetFunc(cutset))
+}
+
+// TrimSpace returns a slice of the string s, with all leading
+// and trailing white space removed, as defined by Unicode.
+func TrimSpace(s string) string {
+	return TrimFunc(s, unicode.IsSpace)
 }
