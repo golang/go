@@ -199,9 +199,9 @@ func (r *RPC) Start(name string, arg []interface{}) {
 // waits for it to finish, and then returns the results.
 // Its implementation is:
 //
-//	r.Start(name, arg);
-//	<-r.Done;
-//	return r.Ret, r.Errno;
+//	r.Start(name, arg)
+//	<-r.Done
+//	return r.Ret, r.Errno
 //
 func (r *RPC) Call(name string, arg []interface{}) (ret []interface{}, err Errno) {
 	r.Start(name, arg)
