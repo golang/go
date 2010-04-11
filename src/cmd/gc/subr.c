@@ -118,8 +118,11 @@ yyerrorl(int line, char *fmt, ...)
 
 	hcrash();
 	nerrors++;
-	if(nerrors >= 10 && !debug['e'])
-		fatal("too many errors");
+	if(nerrors >= 10 && !debug['e']) {
+		flusherrors();
+		print("%L: too many errors\n", line);
+		errorexit();
+	}
 }
 
 extern int yystate, yychar;
@@ -172,8 +175,11 @@ yyerror(char *fmt, ...)
 
 	hcrash();
 	nerrors++;
-	if(nerrors >= 10 && !debug['e'])
-		fatal("too many errors");
+	if(nerrors >= 10 && !debug['e']) {
+		flusherrors();
+		print("%L: too many errors\n", parserline());
+		errorexit();
+	}
 }
 
 void
@@ -195,12 +201,18 @@ fatal(char *fmt, ...)
 
 	flusherrors();
 
-	print("%L: fatal error: ", lineno);
+	print("%L: internal compiler error: ", lineno);
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
 	print("\n");
-
+	
+	// If this is a released compiler version, ask for a bug report.
+	if(strncmp(getgoversion(), "release", 7) == 0) {
+		print("\n");
+		print("Please file a bug report including a short program that triggers the error.\n");
+		print("http://code.google.com/p/go/issues/entry?template=compilerbug");
+	}
 	hcrash();
 	errorexit();
 }
@@ -3549,8 +3561,10 @@ mkpkg(Strlit *path)
 	Pkg *p;
 	int h;
 	
-	if(strlen(path->s) != path->len)
-		fatal("import path contains NUL byte");
+	if(strlen(path->s) != path->len) {
+		yyerror("import path contains NUL byte");
+		errorexit();
+	}
 	
 	h = stringhash(path->s) & (nelem(phash)-1);
 	for(p=phash[h]; p; p=p->link)
