@@ -160,7 +160,7 @@ func (f *File) Close() os.Error {
 	return err
 }
 
-// NewFile creates a new File for acecssing an ELF binary in an underlying reader.
+// NewFile creates a new File for accessing an ELF binary in an underlying reader.
 // The ELF binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, os.Error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
