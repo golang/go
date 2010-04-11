@@ -1269,16 +1269,11 @@ var rsparcStrings = []intName{
 func (i R_SPARC) String() string   { return stringName(uint32(i), rsparcStrings, false) }
 func (i R_SPARC) GoString() string { return stringName(uint32(i), rsparcStrings, true) }
 
-/*
- * Magic number for the elf trampoline, chosen wisely to be an immediate
- * value.
- */
+// Magic number for the elf trampoline, chosen wisely to be an immediate value.
 const ARM_MAGIC_TRAMP_NUMBER = 0x5c000003
 
 
-/*
- * ELF32 File header.
- */
+// ELF32 File header.
 type Header32 struct {
 	Ident     [EI_NIDENT]byte /* File identification. */
 	Type      uint16          /* File type. */
@@ -1296,9 +1291,7 @@ type Header32 struct {
 	Shstrndx  uint16          /* Section name strings section. */
 }
 
-/*
- * ELF32 Section header.
- */
+// ELF32 Section header.
 type Section32 struct {
 	Name      uint32 /* Section name (index into the section header string table). */
 	Type      uint32 /* Section type. */
@@ -1312,9 +1305,7 @@ type Section32 struct {
 	Entsize   uint32 /* Size of each entry in section. */
 }
 
-/*
- * ELF32 Program header.
- */
+// ELF32 Program header.
 type Prog32 struct {
 	Type   uint32 /* Entry type. */
 	Off    uint32 /* File offset of contents. */
@@ -1326,9 +1317,7 @@ type Prog32 struct {
 	Align  uint32 /* Alignment in memory and file. */
 }
 
-/*
- * ELF32 Dynamic structure.  The ".dynamic" section contains an array of them.
- */
+// ELF32 Dynamic structure.  The ".dynamic" section contains an array of them.
 type Dyn32 struct {
 	Tag int32  /* Entry type. */
 	Val uint32 /* Integer/Address value. */
@@ -1375,10 +1364,7 @@ func ST_VISIBILITY(other uint8) SymVis        { return SymVis(other & 3) }
  * ELF64
  */
 
-/*
- * ELF64 file header.
- */
-
+// ELF64 file header.
 type Header64 struct {
 	Ident     [EI_NIDENT]byte /* File identification. */
 	Type      uint16          /* File type. */
@@ -1396,10 +1382,7 @@ type Header64 struct {
 	Shstrndx  uint16          /* Section name strings section. */
 }
 
-/*
- * ELF64 Section header.
- */
-
+// ELF64 Section header.
 type Section64 struct {
 	Name      uint32 /* Section name (index into the section header string table). */
 	Type      uint32 /* Section type. */
@@ -1413,10 +1396,7 @@ type Section64 struct {
 	Entsize   uint64 /* Size of each entry in section. */
 }
 
-/*
- * ELF64 Program header.
- */
-
+// ELF64 Program header.
 type Prog64 struct {
 	Type   uint32 /* Entry type. */
 	Flags  uint32 /* Access permission flags. */
@@ -1428,10 +1408,7 @@ type Prog64 struct {
 	Align  uint64 /* Alignment in memory and file. */
 }
 
-/*
- * ELF64 Dynamic structure.  The ".dynamic" section contains an array of them.
- */
-
+// ELF64 Dynamic structure.  The ".dynamic" section contains an array of them.
 type Dyn64 struct {
 	Tag int64  /* Entry type. */
 	Val uint64 /* Integer/address value */
@@ -1459,9 +1436,7 @@ func R_TYPE64(info uint64) uint32   { return uint32(info) }
 func R_INFO(sym, typ uint32) uint64 { return uint64(sym)<<32 | uint64(typ) }
 
 
-/*
- * ELF64 symbol table entries.
- */
+// ELF64 symbol table entries.
 type Sym64 struct {
 	Name  uint32 /* String table index of name. */
 	Info  uint8  /* Type and binding information. */
