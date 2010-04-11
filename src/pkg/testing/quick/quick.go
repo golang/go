@@ -224,11 +224,11 @@ func (s *CheckEqualError) String() string {
 //
 // 	func TestOddMultipleOfThree(t *testing.T) {
 // 		f := func(x int) bool {
-// 			y := OddMultipleOfThree(x);
+// 			y := OddMultipleOfThree(x)
 // 			return y%2 == 1 && y%3 == 0
 // 		}
 // 		if err := quick.Check(f, nil); err != nil {
-// 			t.Error(err);
+// 			t.Error(err)
 // 		}
 // 	}
 func Check(function interface{}, config *Config) (err os.Error) {
