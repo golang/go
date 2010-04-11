@@ -24,9 +24,9 @@ var (
 // and then it can be treated as an io.Reader to access the file's data.
 //
 // Example:
-//	tr := tar.NewReader(r);
+//	tr := tar.NewReader(r)
 //	for {
-//		hdr, err := tr.Next();
+//		hdr, err := tr.Next()
 //		if err != nil {
 //			// handle error
 //		}
@@ -34,7 +34,7 @@ var (
 //			// end of tar archive
 //			break
 //		}
-//		io.Copy(data, tr);
+//		io.Copy(data, tr)
 //	}
 type Reader struct {
 	r   io.Reader

@@ -25,15 +25,15 @@ var (
 // writing at most hdr.Size bytes in total.
 //
 // Example:
-//	tw := tar.NewWriter(w);
-//	hdr := new(Header);
-//	hdr.Size = length of data in bytes;
+//	tw := tar.NewWriter(w)
+//	hdr := new(Header)
+//	hdr.Size = length of data in bytes
 //	// populate other hdr fields as desired
 //	if err := tw.WriteHeader(hdr); err != nil {
 //		// handle error
 //	}
-//	io.Copy(tw, data);
-//	tw.Close();
+//	io.Copy(tw, data)
+//	tw.Close()
 type Writer struct {
 	w          io.Writer
 	err        os.Error
