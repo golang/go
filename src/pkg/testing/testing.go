@@ -29,11 +29,11 @@
 // If a benchmark needs some expensive setup before running, the timer
 // may be stopped:
 //     func BenchmarkBigLen(b *testing.B) {
-//         b.StopTimer();
-//         big := NewBig();
-//         b.StartTimer();
+//         b.StopTimer()
+//         big := NewBig()
+//         b.StartTimer()
 //         for i := 0; i < b.N; i++ {
-//             big.Len();
+//             big.Len()
 //         }
 //     }
 package testing
