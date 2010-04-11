@@ -12,8 +12,11 @@ void
 dumpobj(void)
 {
 	bout = Bopen(outfile, OWRITE);
-	if(bout == nil)
-		fatal("cant open %s", outfile);
+	if(bout == nil) {
+		flusherrors();
+		print("can't create %s: %r\n", outfile);
+		errorexit();
+	}
 
 	Bprint(bout, "%s\n", thestring);
 	Bprint(bout, "  exports automatically generated from\n");

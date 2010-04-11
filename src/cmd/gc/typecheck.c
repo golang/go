@@ -1709,7 +1709,7 @@ exportassignok(Type *t, char *desc)
 					prefix = " in ";
 				else
 					desc = "";
-				yyerror("implicit assignment of %T field '%s'%s%s", t, s->name, prefix, desc);
+				yyerror("implicit assignment of unexported field '%s' of %T%s%s", s->name, t, prefix, desc);
 				goto no;
 			}
 			if(!exportassignok(f->type, desc))
@@ -1935,7 +1935,7 @@ typecheckcomplit(Node **np)
 				}
 				s = f->sym;
 				if(s != nil && !exportname(s->name) && s->pkg != localpkg)
-					yyerror("implicit assignment of %T field '%s' in struct literal", t, s->name);
+					yyerror("implicit assignment of unexported field '%s' in %T literal", s->name, t);
 				ll->n = typecheckconv(nil, ll->n, f->type, 0, "field value");
 				ll->n = nod(OKEY, newname(f->sym), ll->n);
 				ll->n->left->typecheck = 1;

@@ -110,8 +110,10 @@ main(int argc, char *argv[])
 
 		curio.infile = infile;
 		curio.bin = Bopen(infile, OREAD);
-		if(curio.bin == nil)
-			fatal("open %s: %r", infile);
+		if(curio.bin == nil) {
+			print("open %s: %r\n", infile);
+			errorexit();
+		}
 		curio.peekc = 0;
 		curio.peekc1 = 0;
 		curio.nlsemi = 0;
@@ -300,8 +302,10 @@ importfile(Val *f, int line)
 		return;
 	}
 
-	if(strlen(f->u.sval->s) != f->u.sval->len)
-		fatal("import path contains NUL");
+	if(strlen(f->u.sval->s) != f->u.sval->len) {
+		yyerror("import path contains NUL");
+		errorexit();
+	}
 
 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
 		importpkg = mkpkg(f->u.sval);
@@ -317,20 +321,25 @@ importfile(Val *f, int line)
 		path = strlit(cleanbuf);
 	}
 
-	if(!findpkg(path))
-		fatal("can't find import: %Z", f->u.sval);
-
+	if(!findpkg(path)) {
+		yyerror("can't find import: %Z", f->u.sval);
+		errorexit();
+	}
 	importpkg = mkpkg(path);
 
 	imp = Bopen(namebuf, OREAD);
-	if(imp == nil)
-		fatal("can't open import: %Z", f->u.sval);
+	if(imp == nil) {
+		yyerror("can't open import: %Z", f->u.sval);
+		errorexit();
+	}
 	file = strdup(namebuf);
 
 	len = strlen(namebuf);
 	if(len > 2 && namebuf[len-2] == '.' && namebuf[len-1] == 'a') {
-		if(!skiptopkgdef(imp))
-			fatal("import not package file: %s", namebuf);
+		if(!skiptopkgdef(imp)) {
+			yyerror("import not package file: %s", namebuf);
+			errorexit();
+		}
 	}
 
 	// assume files move (get installed)
