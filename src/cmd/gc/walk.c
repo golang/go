@@ -1053,6 +1053,30 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OCMPSTR:
+		// If one argument to the comparison is an empty string,
+		// comparing the lengths instead will yield the same result
+		// without the function call.
+		if((isconst(n->left, CTSTR) && n->left->val.u.sval->len == 0) ||
+		   (isconst(n->right, CTSTR) && n->right->val.u.sval->len == 0)) {
+			r = nod(n->etype, nod(OLEN, n->left, N), nod(OLEN, n->right, N));
+			typecheck(&r, Erv);
+			walkexpr(&r, init);
+			n = r;
+			goto ret;
+		}
+
+		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
+		if((n->etype == OEQ || n->etype == ONE) &&
+		   isconst(n->right, CTSTR) &&
+		   n->left->op == OADDSTR && isconst(n->left->right, CTSTR) &&
+		   cmpslit(n->right, n->left->right) == 0) {
+			r = nod(n->etype, nod(OLEN, n->left->left, N), nodintconst(0));
+			typecheck(&r, Erv);
+			walkexpr(&r, init);
+			n = r;
+			goto ret;
+		}
+
 		// sys_cmpstring(s1, s2) :: 0
 		r = mkcall("cmpstring", types[TINT], init,
 			conv(n->left, types[TSTRING]),
