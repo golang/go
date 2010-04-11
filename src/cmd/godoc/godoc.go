@@ -782,7 +782,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
 
 // Template formatter for "time" format.
 func timeFmt(w io.Writer, x interface{}, format string) {
-	// note: os.Dir.Mtime_ns is in uint64 in ns!
+	// note: os.FileInfo.Mtime_ns is in uint64 in ns!
 	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(int64(x.(uint64)/1e9)).String()))
 }
 
@@ -880,7 +880,7 @@ func servePage(c *http.Conn, title, subtitle, query string, content []byte) {
 		Title     string
 		Subtitle  string
 		PkgRoots  []string
-		Timestamp uint64 // int64 to be compatible with os.Dir.Mtime_ns
+		Timestamp uint64 // int64 to be compatible with os.FileInfo.Mtime_ns
 		Query     string
 		Version   string
 		Menu      []byte
