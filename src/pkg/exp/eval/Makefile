@@ -21,3 +21,9 @@ GOFILES=\
 	world.go\
 
 include ../../../Make.pkg
+
+main.$O: main.go $(pkgdir)/$(TARG).a
+	$(QUOTED_GOBIN)/$(GC) $<
+
+eval: main.$O
+	$(QUOTED_GOBIN)/$(LD) -o $@ $<
