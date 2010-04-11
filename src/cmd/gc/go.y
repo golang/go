@@ -1070,11 +1070,18 @@ fndcl:
 		$3 = checkarglist($3, 1);
 		$$ = nod(ODCLFUNC, N, N);
 		$$->nname = $1;
-		if($3 == nil && $5 == nil)
-			$$->nname = renameinit($1);
 		n = nod(OTFUNC, N, N);
 		n->list = $3;
 		n->rlist = $5;
+		if(strcmp($1->sym->name, "init") == 0) {
+			$$->nname = renameinit($1);
+			if($3 != nil || $5 != nil)
+				yyerror("func init must have no arguments and no return values");
+		}
+		if(strcmp(localpkg->name, "main") == 0 && strcmp($1->sym->name, "main") == 0) {
+			if($3 != nil || $5 != nil)
+				yyerror("func main must have no arguments and no return values");
+		}
 		// TODO: check if nname already has an ntype
 		$$->nname->ntype = n;
 		funchdr($$);
