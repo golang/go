@@ -5,12 +5,12 @@
 package main
 
 import (
-	"./_obj/eval"
 	"bufio"
+	"exp/eval"
 	"flag"
 	"go/parser"
 	"go/scanner"
-	"io"
+	"io/ioutil"
 	"os"
 )
 
@@ -25,7 +25,7 @@ func main() {
 			println(err.String())
 			os.Exit(1)
 		}
-		file, err := parser.ParseFile(*filename, data, 0)
+		file, err := parser.ParseFile(*filename, data, nil, 0)
 		if err != nil {
 			println(err.String())
 			os.Exit(1)
@@ -41,7 +41,7 @@ func main() {
 			}
 			os.Exit(1)
 		}
-		_, err := code.Run()
+		_, err = code.Run()
 		if err != nil {
 			println(err.String())
 			os.Exit(1)
