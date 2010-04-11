@@ -156,7 +156,7 @@ func tickerLoop() {
 	}
 }
 
-// Ticker returns a new Ticker containing a channel that will
+// NewTicker returns a new Ticker containing a channel that will
 // send the time, in nanoseconds, every ns nanoseconds.  It adjusts the
 // intervals to make up for pauses in delivery of the ticks.
 func NewTicker(ns int64) *Ticker {
