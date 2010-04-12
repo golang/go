@@ -236,13 +236,13 @@ func (b *structBuilder) Key(k string) Builder {
 // For example, given these definitions:
 //
 //	type Email struct {
-//		Where string;
-//		Addr string;
+//		Where string
+//		Addr string
 //	}
 //
 //	type Result struct {
-//		Name string;
-//		Phone string;
+//		Name string
+//		Phone string
 //		Email []Email
 //	}
 //
@@ -272,8 +272,8 @@ func (b *structBuilder) Key(k string) Builder {
 //		"phone",		// no phone given
 //		[]Email{
 //			Email{ "home", "gre@example.com" },
-//			Email{ "work", "gre@work.com" }
-//		}
+//			Email{ "work", "gre@work.com" },
+//		},
 //	}
 //
 // Note that the field r.Phone has not been modified and
