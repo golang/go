@@ -306,14 +306,11 @@ func (f *fmt) fmt_uo32(v uint32) { f.integer(int64(v), 8, unsigned, ldigits) }
 // fmt_uo formats a uint in octal.
 func (f *fmt) fmt_uo(v uint) { f.integer(int64(v), 8, unsigned, ldigits) }
 
-// fmt_b64 formats a uint64 in binary.
-func (f *fmt) fmt_b64(v uint64) { f.integer(int64(v), 2, unsigned, ldigits) }
+// fmt_b64 formats an int64 in binary.
+func (f *fmt) fmt_b64(v int64) { f.integer(v, 2, signed, ldigits) }
 
-// fmt_b32 formats a uint32 in binary.
-func (f *fmt) fmt_b32(v uint32) { f.integer(int64(v), 2, unsigned, ldigits) }
-
-// fmt_b formats a uint in binary.
-func (f *fmt) fmt_b(v uint) { f.integer(int64(v), 2, unsigned, ldigits) }
+// fmt_ub64 formats a uint64 in binary.
+func (f *fmt) fmt_ub64(v uint64) { f.integer(int64(v), 2, unsigned, ldigits) }
 
 // fmt_c formats a Unicode character.
 func (f *fmt) fmt_c(v int) { f.padString(string(v)) }

@@ -162,6 +162,7 @@ var fmttests = []fmtTest{
 	fmtTest{"%x", b64, "ffffffffffffffff"},
 	fmtTest{"%b", 7, "111"},
 	fmtTest{"%b", b64, "1111111111111111111111111111111111111111111111111111111111111111"},
+	fmtTest{"%b", -6, "-110"},
 	fmtTest{"%e", float64(1), "1.000000e+00"},
 	fmtTest{"%e", float64(1234.5678e3), "1.234568e+06"},
 	fmtTest{"%e", float64(1234.5678e-8), "1.234568e-05"},
