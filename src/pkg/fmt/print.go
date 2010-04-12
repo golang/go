@@ -857,8 +857,12 @@ func (p *pp) doprintf(format string, a []interface{}) {
 
 		// int
 		case 'b':
-			if v, _, ok := getInt(field); ok {
-				p.fmt.fmt_b64(uint64(v)) // always unsigned
+			if v, signed, ok := getInt(field); ok {
+				if signed {
+					p.fmt.fmt_b64(v)
+				} else {
+					p.fmt.fmt_ub64(uint64(v))
+				}
 			} else if v, ok := getFloat32(field); ok {
 				p.fmt.fmt_fb32(v)
 			} else if v, ok := getFloat64(field); ok {
