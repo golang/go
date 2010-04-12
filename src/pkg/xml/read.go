@@ -29,18 +29,18 @@ import (
 // For example, given these definitions:
 //
 //	type Email struct {
-//		Where string "attr";
-//		Addr string;
+//		Where string "attr"
+//		Addr  string
 //	}
 //
 //	type Result struct {
-//		XMLName xml.Name "result";
-//		Name string;
-//		Phone string;
-//		Email []Email;
+//		XMLName xml.Name "result"
+//		Name	string
+//		Phone	string
+//		Email	[]Email
 //	}
 //
-//	result := Result{ Name: "name", Phone: "phone", Email: nil }
+//	result := Result{Name: "name", Phone: "phone", Email: nil}
 //
 // unmarshalling the XML input
 //
@@ -57,14 +57,13 @@ import (
 //
 // via Unmarshal(r, &result) is equivalent to assigning
 //
-//	r = Result{
-//		xml.Name{"", "result"},
-//		"Grace R. Emlin",	// name
-//		"phone",	// no phone given
+//	r = Result{xml.Name{"", "result"},
+//		"Grace R. Emlin", // name
+//		"phone",	  // no phone given
 //		[]Email{
-//			Email{ "home", "gre@example.com" },
-//			Email{ "work", "gre@work.com" }
-//		}
+//			Email{"home", "gre@example.com"},
+//			Email{"work", "gre@work.com"},
+//		},
 //	}
 //
 // Note that the field r.Phone has not been modified and
