@@ -2312,7 +2312,7 @@ reorder4(NodeList *ll)
  * copies of escaped parameters to the heap.
  */
 NodeList*
-paramstoheap(Type **argin)
+paramstoheap(Type **argin, int out)
 {
 	Type *t;
 	Iter savet;
@@ -2322,6 +2322,12 @@ paramstoheap(Type **argin)
 	nn = nil;
 	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
 		v = t->nname;
+		if(v == N && out && hasdefer) {
+			// Defer might stop a panic and show the
+			// return values as they exist at the time of panic.
+			// Make sure to zero them on entry to the function.
+			nn = list(nn, nod(OAS, nodarg(t, 1), N));
+		}
 		if(v == N || !(v->class & PHEAP))
 			continue;
 
@@ -2366,9 +2372,9 @@ heapmoves(void)
 {
 	NodeList *nn;
 
-	nn = paramstoheap(getthis(curfn->type));
-	nn = concat(nn, paramstoheap(getinarg(curfn->type)));
-	nn = concat(nn, paramstoheap(getoutarg(curfn->type)));
+	nn = paramstoheap(getthis(curfn->type), 0);
+	nn = concat(nn, paramstoheap(getinarg(curfn->type), 0));
+	nn = concat(nn, paramstoheap(getoutarg(curfn->type), 1));
 	curfn->enter = concat(curfn->enter, nn);
 	curfn->exit = returnsfromheap(getoutarg(curfn->type));
 }
