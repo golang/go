@@ -67,7 +67,6 @@ DIRS=\
 	exp/datafmt\
 	exp/draw\
 	exp/eval\
-	exp/exception\
 	exp/iterable\
 	expvar\
 	flag\
