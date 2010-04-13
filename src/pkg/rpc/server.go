@@ -313,7 +313,9 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
 		err := dec.Decode(req)
 		if err != nil {
 			if err == os.EOF || err == io.ErrUnexpectedEOF {
-				log.Stderr("rpc: ", err)
+				if err == io.ErrUnexpectedEOF {
+					log.Stderr("rpc: ", err)
+				}
 				break
 			}
 			s := "rpc: server cannot decode request: " + err.String()
@@ -377,7 +379,7 @@ func Register(rcvr interface{}) os.Error { return server.register(rcvr) }
 // ServeConn runs the server on a single connection.  When the connection
 // completes, service terminates.  ServeConn blocks; the caller typically
 // invokes it in a go statement.
-func ServeConn(conn io.ReadWriteCloser) { go server.input(conn) }
+func ServeConn(conn io.ReadWriteCloser) { server.input(conn) }
 
 // Accept accepts connections on the listener and serves requests
 // for each incoming connection.  Accept blocks; the caller typically
