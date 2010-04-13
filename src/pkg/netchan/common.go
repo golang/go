@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,12 +6,12 @@ package netchan
 
 import (
 	"gob"
-	"log"
 	"net"
 	"os"
 	"sync"
 )
 
+// The direction of a connection from the client's perspective.
 type Dir int
 
 const (
@@ -19,8 +19,34 @@ const (
 	Send
 )
 
-// Mutex-protected encoder and decoder pair
+// Payload types
+const (
+	payRequest = iota // request structure follows
+	payError          // error structure follows
+	payData           // user payload follows
+)
 
+// A header is sent as a prefix to every transmission.  It will be followed by
+// a request structure, an error structure, or an arbitrary user payload structure.
+type header struct {
+	name        string
+	payloadType int
+}
+
+// Sent with a header once per channel from importer to exporter to report
+// that it wants to bind to a channel with the specified direction for count
+// messages.  If count is zero, it means unlimited.
+type request struct {
+	count int
+	dir   Dir
+}
+
+// Sent with a header to report an error.
+type error struct {
+	error string
+}
+
+// Mutex-protected encoder and decoder pair.
 type encDec struct {
 	decLock sync.Mutex
 	dec     *gob.Decoder
@@ -35,29 +61,27 @@ func newEncDec(conn net.Conn) *encDec {
 	}
 }
 
+// Decode an item from the connection.
 func (ed *encDec) decode(e interface{}) os.Error {
 	ed.decLock.Lock()
-	defer ed.decLock.Unlock()
 	err := ed.dec.Decode(e)
 	if err != nil {
-		log.Stderr("exporter decode:", err)
-		// TODO: tear down connection
-		return err
+		// TODO: tear down connection?
 	}
-	return nil
+	ed.decLock.Unlock()
+	return err
 }
 
-func (ed *encDec) encode(e0, e1 interface{}) os.Error {
+// Encode a header and payload onto the connection.
+func (ed *encDec) encode(hdr *header, payloadType int, payload interface{}) os.Error {
 	ed.encLock.Lock()
-	defer ed.encLock.Unlock()
-	err := ed.enc.Encode(e0)
-	if err == nil && e1 != nil {
-		err = ed.enc.Encode(e1)
+	hdr.payloadType = payloadType
+	err := ed.enc.Encode(hdr)
+	if err == nil {
+		err = ed.enc.Encode(payload)
+	} else {
+		// TODO: tear down connection if there is an error?
 	}
-	if err != nil {
-		log.Stderr("exporter encode:", err)
-		// TODO: tear down connection?
-		return err
-	}
-	return nil
+	ed.encLock.Unlock()
+	return err
 }

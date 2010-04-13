@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -14,37 +14,82 @@ type value struct {
 	s string
 }
 
+const count = 10
+
 func exportSend(exp *Exporter, t *testing.T) {
-	c := make(chan value)
-	err := exp.Export("name", c, Send)
+	ch := make(chan value)
+	err := exp.Export("exportedSend", ch, Send, new(value))
 	if err != nil {
-		t.Fatal("export:", err)
+		t.Fatal("exportSend:", err)
 	}
-	c <- value{23, "hello"}
+	for i := 0; i < count; i++ {
+		ch <- value{23 + i, "hello"}
+	}
+}
+
+func exportReceive(exp *Exporter, t *testing.T) {
+	ch := make(chan value)
+	err := exp.Export("exportedRecv", ch, Recv, new(value))
+	if err != nil {
+		t.Fatal("exportReceive:", err)
+	}
+	for i := 0; i < count; i++ {
+		v := <-ch
+		fmt.Printf("%v\n", v)
+		if v.i != 45+i || v.s != "hello" {
+			t.Errorf("export Receive: bad value: expected 4%d, hello; got %+v", 45+i, v)
+		}
+	}
 }
 
 func importReceive(imp *Importer, t *testing.T) {
 	ch := make(chan value)
-	err := imp.ImportNValues("name", ch, Recv, new(value), 1)
+	err := imp.ImportNValues("exportedSend", ch, Recv, new(value), count)
 	if err != nil {
-		t.Fatal("import:", err)
+		t.Fatal("importReceive:", err)
 	}
-	v := <-ch
-	fmt.Printf("%v\n", v)
-	if v.i != 23 || v.s != "hello" {
-		t.Errorf("bad value: expected 23, hello; got %+v\n", v)
+	for i := 0; i < count; i++ {
+		v := <-ch
+		fmt.Printf("%v\n", v)
+		if v.i != 23+i || v.s != "hello" {
+			t.Errorf("importReceive: bad value: expected %d, hello; got %+v", 23+i, v)
+		}
 	}
 }
 
-func TestBabyStep(t *testing.T) {
+func importSend(imp *Importer, t *testing.T) {
+	ch := make(chan value)
+	err := imp.ImportNValues("exportedRecv", ch, Send, new(value), count)
+	if err != nil {
+		t.Fatal("importSend:", err)
+	}
+	for i := 0; i < count; i++ {
+		ch <- value{45 + i, "hello"}
+	}
+}
+
+func TestExportSendImportReceive(t *testing.T) {
 	exp, err := NewExporter("tcp", ":0")
 	if err != nil {
 		t.Fatal("new exporter:", err)
 	}
-	go exportSend(exp, t)
 	imp, err := NewImporter("tcp", exp.Addr().String())
 	if err != nil {
 		t.Fatal("new importer:", err)
 	}
+	go exportSend(exp, t)
 	importReceive(imp, t)
+}
+
+func TestExportReceiveImportSend(t *testing.T) {
+	exp, err := NewExporter("tcp", ":0")
+	if err != nil {
+		t.Fatal("new exporter:", err)
+	}
+	imp, err := NewImporter("tcp", exp.Addr().String())
+	if err != nil {
+		t.Fatal("new importer:", err)
+	}
+	go importSend(imp, t)
+	exportReceive(exp, t)
 }
