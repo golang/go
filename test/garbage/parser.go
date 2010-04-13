@@ -18,13 +18,13 @@ import (
 	"time"
 )
 
-func isGoFile(dir *os.Dir) bool {
+func isGoFile(dir *os.FileInfo) bool {
 	return dir.IsRegular() &&
 		!strings.HasPrefix(dir.Name, ".") && // ignore .files
 		path.Ext(dir.Name) == ".go"
 }
 
-func isPkgFile(dir *os.Dir) bool {
+func isPkgFile(dir *os.FileInfo) bool {
 	return isGoFile(dir) &&
 		!strings.HasSuffix(dir.Name, "_test.go") // ignore test files
 }
@@ -43,7 +43,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
 	_, pkgname := path.Split(dirpath)
 
 	// filter function to select the desired .go files
-	filter := func(d *os.Dir) bool {
+	filter := func(d *os.FileInfo) bool {
 		if isPkgFile(d) {
 			// Some directories contain main packages: Only accept
 			// files that belong to the expected package so that
@@ -94,9 +94,9 @@ func main() {
 	}
 	t1 := time.Nanoseconds()
 
-	fmt.Printf("Alloc=%d/%d Heap=%d/%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
+	fmt.Printf("Alloc=%d/%d Heap=%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
 		st.Alloc, st.TotalAlloc,
-		st.InusePages<<12, st.Sys,
+		st.Sys,
 		st.Mallocs, float64(st.PauseNs)/1e9,
 		st.NumGC, float64(st.PauseNs)/1e9/float64(st.NumGC))
 
