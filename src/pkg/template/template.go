@@ -69,7 +69,6 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"runtime"
 	"strings"
 )
 
@@ -153,11 +152,10 @@ type repeatedElement struct {
 type Template struct {
 	fmap FormatterMap // formatters for variables
 	// Used during parsing:
-	ldelim, rdelim []byte   // delimiters; default {}
-	buf            []byte   // input text to process
-	p              int      // position in buf
-	linenum        int      // position in input
-	error          os.Error // error during parsing (only)
+	ldelim, rdelim []byte // delimiters; default {}
+	buf            []byte // input text to process
+	p              int    // position in buf
+	linenum        int    // position in input
 	// Parsed results:
 	elems *vector.Vector
 }
@@ -169,11 +167,10 @@ type state struct {
 	parent *state        // parent in hierarchy
 	data   reflect.Value // the driver data for this section etc.
 	wr     io.Writer     // where to send output
-	errors chan os.Error // for reporting errors during execute
 }
 
 func (parent *state) clone(data reflect.Value) *state {
-	return &state{parent, data, parent.wr, parent.errors}
+	return &state{parent, data, parent.wr}
 }
 
 // New creates a new template with the specified formatter map (which
@@ -189,14 +186,13 @@ func New(fmap FormatterMap) *Template {
 
 // Report error and stop executing.  The line number must be provided explicitly.
 func (t *Template) execError(st *state, line int, err string, args ...interface{}) {
-	st.errors <- &Error{line, fmt.Sprintf(err, args)}
-	runtime.Goexit()
+	panic(&Error{line, fmt.Sprintf(err, args)})
 }
 
-// Report error, save in Template to terminate parsing.
+// Report error, panic to terminate parsing.
 // The line number comes from the template state.
 func (t *Template) parseError(err string, args ...interface{}) {
-	t.error = &Error{t.linenum, fmt.Sprintf(err, args)}
+	panic(&Error{t.linenum, fmt.Sprintf(err, args)})
 }
 
 // -- Lexical analysis
@@ -427,9 +423,6 @@ func (t *Template) newVariable(name_formatter string) (v *variableElement) {
 // Otherwise return its details.
 func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
 	tok, w = t.analyze(item)
-	if t.error != nil {
-		return
-	}
 	done = true // assume for simplicity
 	switch tok {
 	case tokComment:
@@ -449,7 +442,6 @@ func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
 			t.elems.Push(&literalElement{tab})
 		default:
 			t.parseError("internal error: unknown literal: %s", w[0])
-			return
 		}
 		return
 	case tokVariable:
@@ -472,19 +464,13 @@ func (t *Template) parseRepeated(words []string) *repeatedElement {
 	r.altstart = -1
 	r.altend = -1
 Loop:
-	for t.error == nil {
+	for {
 		item := t.nextItem()
-		if t.error != nil {
-			break
-		}
 		if len(item) == 0 {
 			t.parseError("missing .end for .repeated section")
 			break
 		}
 		done, tok, w := t.parseSimple(item)
-		if t.error != nil {
-			break
-		}
 		if done {
 			continue
 		}
@@ -517,9 +503,6 @@ Loop:
 			break Loop
 		}
 	}
-	if t.error != nil {
-		return nil
-	}
 	if r.altend < 0 {
 		r.altend = t.elems.Len()
 	}
@@ -536,19 +519,13 @@ func (t *Template) parseSection(words []string) *sectionElement {
 	s.start = t.elems.Len()
 	s.or = -1
 Loop:
-	for t.error == nil {
+	for {
 		item := t.nextItem()
-		if t.error != nil {
-			break
-		}
 		if len(item) == 0 {
 			t.parseError("missing .end for .section")
 			break
 		}
 		done, tok, w := t.parseSimple(item)
-		if t.error != nil {
-			break
-		}
 		if done {
 			continue
 		}
@@ -571,19 +548,13 @@ Loop:
 			t.parseError("internal error: unknown section item: %s", item)
 		}
 	}
-	if t.error != nil {
-		return nil
-	}
 	s.end = t.elems.Len()
 	return s
 }
 
 func (t *Template) parse() {
-	for t.error == nil {
+	for {
 		item := t.nextItem()
-		if t.error != nil {
-			break
-		}
 		if len(item) == 0 {
 			break
 		}
@@ -909,37 +880,48 @@ func validDelim(d []byte) bool {
 	return true
 }
 
+// checkError is a deferred function to turn a panic with type *Error into a plain error return.
+// Other panics are unexpected and so are re-enabled.
+func checkError(error *os.Error) {
+	if v := recover(); v != nil {
+		if e, ok := v.(*Error); ok {
+			*error = e
+		} else {
+			// runtime errors should crash
+			panic(v)
+		}
+	}
+}
+
 // -- Public interface
 
 // Parse initializes a Template by parsing its definition.  The string
 // s contains the template text.  If any errors occur, Parse returns
 // the error.
-func (t *Template) Parse(s string) os.Error {
+func (t *Template) Parse(s string) (err os.Error) {
 	if t.elems == nil {
 		return &Error{1, "template not allocated with New"}
 	}
 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
 		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
 	}
+	defer checkError(&err)
 	t.buf = []byte(s)
 	t.p = 0
 	t.linenum = 1
 	t.parse()
-	return t.error
+	return nil
 }
 
 // Execute applies a parsed template to the specified data object,
 // generating output to wr.
-func (t *Template) Execute(data interface{}, wr io.Writer) os.Error {
+func (t *Template) Execute(data interface{}, wr io.Writer) (err os.Error) {
 	// Extract the driver data.
 	val := reflect.NewValue(data)
-	errors := make(chan os.Error)
-	go func() {
-		t.p = 0
-		t.execute(0, t.elems.Len(), &state{nil, val, wr, errors})
-		errors <- nil // clean return;
-	}()
-	return <-errors
+	defer checkError(&err)
+	t.p = 0
+	t.execute(0, t.elems.Len(), &state{nil, val, wr})
+	return nil
 }
 
 // SetDelims sets the left and right delimiters for operations in the
