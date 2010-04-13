@@ -88,7 +88,7 @@ func count(x *Number) int {
 func check(x *Number, expected int) {
 	var c = count(x)
 	if c != expected {
-		panic("error: found ", c, "; expected ", expected, "\n")
+		panic(fmt.Sprintf("error: found %d; expected %d", c, expected))
 	}
 }
 
