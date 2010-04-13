@@ -4,6 +4,4 @@
 
 package syscall
 
-// TODO(brainman): check Getpagesize
-
 func Getpagesize() int { return 4096 }

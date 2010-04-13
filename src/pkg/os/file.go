@@ -11,13 +11,6 @@ import (
 	"syscall"
 )
 
-// Auxiliary information if the File describes a directory
-type dirInfo struct {
-	buf  []byte // buffer for directory I/O
-	nbuf int    // length of buf; return value from Getdirentries
-	bufp int    // location of next record in buf.
-}
-
 // File represents an open file descriptor.
 type File struct {
 	fd      int
@@ -67,41 +60,6 @@ const (
 	O_TRUNC    = syscall.O_TRUNC    // if possible, truncate file when opened.
 	O_CREATE   = O_CREAT            // create a new file if none exists.
 )
-
-// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
-// if applicable.  If successful, methods on the returned File can be used for I/O.
-// It returns the File and an Error, if any.
-func Open(name string, flag int, perm int) (file *File, err Error) {
-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
-	if e != 0 {
-		return nil, &PathError{"open", name, Errno(e)}
-	}
-
-	// There's a race here with fork/exec, which we are
-	// content to live with.  See ../syscall/exec.go
-	if syscall.O_CLOEXEC == 0 { // O_CLOEXEC not supported
-		syscall.CloseOnExec(r)
-	}
-
-	return NewFile(r, name), nil
-}
-
-// Close closes the File, rendering it unusable for I/O.
-// It returns an Error, if any.
-func (file *File) Close() Error {
-	if file == nil || file.fd < 0 {
-		return EINVAL
-	}
-	var err Error
-	if e := syscall.Close(file.fd); e != 0 {
-		err = &PathError{"close", file.name, Errno(e)}
-	}
-	file.fd = -1 // so it can't be closed again
-
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(file, nil)
-	return err
-}
 
 type eofError int
 
@@ -300,34 +258,6 @@ func Lstat(name string) (fi *FileInfo, err Error) {
 		return nil, &PathError{"lstat", name, Errno(e)}
 	}
 	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
-}
-
-// Readdir reads the contents of the directory associated with file and
-// returns an array of up to count FileInfo structures, as would be returned
-// by Stat, in directory order.  Subsequent calls on the same file will yield
-// further FileInfos.
-// A negative count means to read until EOF.
-// Readdir returns the array and an Error, if any.
-func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
-	dirname := file.name
-	if dirname == "" {
-		dirname = "."
-	}
-	dirname += "/"
-	names, err1 := file.Readdirnames(count)
-	if err1 != nil {
-		return nil, err1
-	}
-	fi = make([]FileInfo, len(names))
-	for i, filename := range names {
-		fip, err := Lstat(dirname + filename)
-		if fip == nil || err != nil {
-			fi[i].Name = filename // rest is already zeroed out
-		} else {
-			fi[i] = *fip
-		}
-	}
-	return
 }
 
 // Chdir changes the current working directory to the named directory.
