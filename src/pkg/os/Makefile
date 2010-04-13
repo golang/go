@@ -19,4 +19,21 @@ GOFILES=\
 	time.go\
 	types.go\
 
+GOFILES_freebsd=\
+	file_unix.go\
+
+GOFILES_darwin=\
+	file_unix.go\
+
+GOFILES_linux=\
+	file_unix.go\
+
+GOFILES_nacl=\
+	file_unix.go\
+
+GOFILES_mingw=\
+	file_mingw.go\
+
+GOFILES+=$(GOFILES_$(GOOS))
+
 include ../../Make.pkg

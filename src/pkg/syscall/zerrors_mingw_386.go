@@ -7,6 +7,7 @@ package syscall
 
 const (
 	ERROR_FILE_NOT_FOUND      = 2
+	ERROR_NO_MORE_FILES       = 18
 	ERROR_INSUFFICIENT_BUFFER = 122
 	ERROR_MOD_NOT_FOUND       = 126
 	ERROR_PROC_NOT_FOUND      = 127

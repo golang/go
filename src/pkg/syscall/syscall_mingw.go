@@ -57,8 +57,11 @@ func StringToUTF16(s string) []uint16 { return utf16.Encode([]int(s + "\x00")) }
 // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
 // with a terminating NUL removed.
 func UTF16ToString(s []uint16) string {
-	if n := len(s); n > 0 && s[n-1] == 0 {
-		s = s[0 : n-1]
+	for i, v := range s {
+		if v == 0 {
+			s = s[0:i]
+			break
+		}
 	}
 	return string(utf16.Decode(s))
 }
@@ -105,6 +108,9 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval=0xffffffff]
 //sys	CloseHandle(handle int32) (ok bool, errno int)
 //sys	GetStdHandle(stdhandle int32) (handle int32, errno int) [failretval=-1]
+//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) [failretval=-1] = FindFirstFileW
+//sys	FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) = FindNextFileW
+//sys	FindClose(handle int32) (ok bool, errno int)
 
 // syscall interface implementation for other packages
 
@@ -117,7 +123,7 @@ func Errstr(errno int) string {
 	if err != 0 {
 		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
 	}
-	return UTF16ToString(b[0 : n-1])
+	return string(utf16.Decode(b[0 : n-1]))
 }
 
 func Exit(code int) { ExitProcess(uint32(code)) }
@@ -253,20 +259,31 @@ func getStdHandle(h int32) (fd int) {
 	return int(r)
 }
 
+func Stat(path string, stat *Stat_t) (errno int) {
+	h, e := FindFirstFile(StringToUTF16Ptr(path), &stat.Windata)
+	if e != 0 {
+		return e
+	}
+	defer FindClose(h)
+	stat.Mode = 0
+	return 0
+}
+
+func Lstat(path string, stat *Stat_t) (errno int) {
+	// no links on windows, just call Stat
+	return Stat(path, stat)
+}
+
 // TODO(brainman): fix all needed for os
 
 const (
 	SIGTRAP = 5
 )
 
-func Getdents(fd int, buf []byte) (n int, errno int) { return 0, EMINGW }
-
 func Getpid() (pid int)   { return -1 }
 func Getppid() (ppid int) { return -1 }
 
 func Mkdir(path string, mode int) (errno int)             { return EMINGW }
-func Lstat(path string, stat *Stat_t) (errno int)         { return EMINGW }
-func Stat(path string, stat *Stat_t) (errno int)          { return EMINGW }
 func Fstat(fd int, stat *Stat_t) (errno int)              { return EMINGW }
 func Chdir(path string) (errno int)                       { return EMINGW }
 func Fchdir(fd int) (errno int)                           { return EMINGW }

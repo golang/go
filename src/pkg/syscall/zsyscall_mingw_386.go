@@ -20,6 +20,9 @@ var (
 	procSetFilePointer = getSysProcAddr(modKERNEL32, "SetFilePointer")
 	procCloseHandle    = getSysProcAddr(modKERNEL32, "CloseHandle")
 	procGetStdHandle   = getSysProcAddr(modKERNEL32, "GetStdHandle")
+	procFindFirstFileW = getSysProcAddr(modKERNEL32, "FindFirstFileW")
+	procFindNextFileW  = getSysProcAddr(modKERNEL32, "FindNextFileW")
+	procFindClose      = getSysProcAddr(modKERNEL32, "FindClose")
 )
 
 func GetLastError() (lasterrno int) {
@@ -159,6 +162,39 @@ func GetStdHandle(stdhandle int32) (handle int32, errno int) {
 	r0, _, e1 := Syscall(procGetStdHandle, uintptr(stdhandle), 0, 0)
 	handle = int32(r0)
 	if handle == -1 {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) {
+	r0, _, e1 := Syscall(procFindFirstFileW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(data)), 0)
+	handle = int32(r0)
+	if handle == -1 {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procFindNextFileW, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func FindClose(handle int32) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procFindClose, uintptr(handle), 0, 0)
+	ok = bool(r0 != 0)
+	if !ok {
 		errno = int(e1)
 	} else {
 		errno = 0

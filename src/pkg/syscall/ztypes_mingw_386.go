@@ -78,6 +78,8 @@ const (
 	FORMAT_MESSAGE_FROM_SYSTEM     = 4096
 	FORMAT_MESSAGE_ARGUMENT_ARRAY  = 8192
 	FORMAT_MESSAGE_MAX_WIDTH_MASK  = 255
+
+	MAX_PATH = 260
 )
 
 // Types
@@ -101,6 +103,29 @@ type Overlapped struct {
 	Offset       uint32
 	OffsetHigh   uint32
 	HEvent       *byte
+}
+
+type Filetime struct {
+	LowDateTime  uint32
+	HighDateTime uint32
+}
+
+type Win32finddata struct {
+	FileAttributes    uint32
+	CreationTime      Filetime
+	LastAccessTime    Filetime
+	LastWriteTime     Filetime
+	FileSizeHigh      uint32
+	FileSizeLow       uint32
+	Reserved0         uint32
+	Reserved1         uint32
+	FileName          [MAX_PATH - 1]uint16
+	AlternateFileName [13]uint16
+}
+
+type Stat_t struct {
+	Windata Win32finddata
+	Mode    uint32
 }
 
 // TODO(brainman): fix all needed for os
@@ -135,28 +160,3 @@ const (
 	S_IWUSR    = 0x80
 	S_IXUSR    = 0x40
 )
-
-type Stat_t struct {
-	Dev       int64
-	Ino       uint32
-	Mode      uint32
-	Nlink     uint32
-	Uid       uint32
-	Gid       uint32
-	__padding int32
-	Rdev      int64
-	Size      int32
-	Blksize   int32
-	Blocks    int32
-	Atime     int32
-	Mtime     int32
-	Ctime     int32
-}
-
-type Dirent struct {
-	Ino    uint32
-	Off    int32
-	Reclen uint16
-	Name   [256]int8
-	Pad0   [2]byte
-}
