@@ -1070,10 +1070,8 @@ func Append(slice, data[]byte) []byte {
     if l + len(data) &gt; cap(slice) {  // reallocate
         // Allocate double what's needed, for future growth.
         newSlice := make([]byte, (l+len(data))*2)
-        // Copy data (could use bytes.Copy()).
-        for i, c := range slice {
-            newSlice[i] = c
-        }
+        // The copy function is predeclared and works for any slice type.
+        copy(newSlice, slice)
         slice = newSlice
     }
     slice = slice[0:l+len(data)]
