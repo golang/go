@@ -70,7 +70,11 @@ sighandler(int32 sig, Siginfo *info, void *context)
 
 		// If this is a leaf function, we do smash LR,
 		// but we're not going back there anyway.
-		r->arm_lr = r->arm_pc;
+		// Don't bother smashing if r->arm_pc is 0,
+		// which is probably a call to a nil func: the
+		// old link register is more useful in the stack trace.
+		if(r->arm_pc != 0)
+			r->arm_lr = r->arm_pc;
 		r->arm_pc = (uintptr)sigpanic;
 		return;
 	}
