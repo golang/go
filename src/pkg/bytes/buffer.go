@@ -63,54 +63,44 @@ func (b *Buffer) Truncate(n int) {
 // b.Reset() is the same as b.Truncate(0).
 func (b *Buffer) Reset() { b.Truncate(0) }
 
-// Resize buffer to guarantee enough space for n more bytes.
-// After this call, the state of b.buf is inconsistent.
-// It must be fixed up as is done in Write and WriteString.
-func (b *Buffer) resize(n int) {
-	var buf []byte
-	if b.buf == nil && n <= len(b.bootstrap) {
-		buf = &b.bootstrap
-	} else {
-		// not enough space anywhere
-		buf = make([]byte, 2*cap(b.buf)+n)
-		copy(buf, b.buf[b.off:])
+// Grow buffer to guarantee space for n more bytes.
+// Return index where bytes should be written.
+func (b *Buffer) grow(n int) int {
+	m := b.Len()
+	// If buffer is empty, reset to recover space.
+	if m == 0 && b.off != 0 {
+		b.Truncate(0)
 	}
-	b.buf = buf
-	b.off = 0
+	if len(b.buf)+n > cap(b.buf) {
+		var buf []byte
+		if b.buf == nil && n <= len(b.bootstrap) {
+			buf = &b.bootstrap
+		} else {
+			// not enough space anywhere
+			buf = make([]byte, 2*cap(b.buf)+n)
+			copy(buf, b.buf[b.off:])
+		}
+		b.buf = buf
+		b.off = 0
+	}
+	b.buf = b.buf[0 : b.off+m+n]
+	return b.off + m
 }
 
 // Write appends the contents of p to the buffer.  The return
 // value n is the length of p; err is always nil.
 func (b *Buffer) Write(p []byte) (n int, err os.Error) {
-	m := b.Len()
-	// If buffer is empty, reset to recover space.
-	if m == 0 && b.off != 0 {
-		b.Truncate(0)
-	}
-	n = len(p)
-	if len(b.buf)+n > cap(b.buf) {
-		b.resize(n)
-	}
-	b.buf = b.buf[0 : b.off+m+n]
-	copy(b.buf[b.off+m:], p)
-	return n, nil
+	m := b.grow(len(p))
+	copy(b.buf[m:], p)
+	return len(p), nil
 }
 
 // WriteString appends the contents of s to the buffer.  The return
 // value n is the length of s; err is always nil.
 func (b *Buffer) WriteString(s string) (n int, err os.Error) {
-	m := b.Len()
-	// If buffer is empty, reset to recover space.
-	if m == 0 && b.off != 0 {
-		b.Truncate(0)
-	}
-	n = len(s)
-	if len(b.buf)+n > cap(b.buf) {
-		b.resize(n)
-	}
-	b.buf = b.buf[0 : b.off+m+n]
-	copyString(b.buf, b.off+m, s)
-	return n, nil
+	m := b.grow(len(s))
+	copyString(b.buf, m, s)
+	return len(s), nil
 }
 
 // MinRead is the minimum slice size passed to a Read call by
@@ -177,8 +167,8 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
 // The returned error is always nil, but is included
 // to match bufio.Writer's WriteByte.
 func (b *Buffer) WriteByte(c byte) os.Error {
-	b.runeBytes[0] = c
-	b.Write(b.runeBytes[0:1])
+	m := b.grow(1)
+	b.buf[m] = c
 	return nil
 }
 
