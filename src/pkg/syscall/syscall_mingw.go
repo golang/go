@@ -132,21 +132,19 @@ func Open(path string, mode int, perm int) (fd int, errno int) {
 	if len(path) == 0 {
 		return -1, ERROR_FILE_NOT_FOUND
 	}
-	var access, sharemode uint32
-	switch {
-	case mode&O_CREAT != 0:
-		access = GENERIC_READ | GENERIC_WRITE
-		sharemode = 0
-	case mode&O_RDWR == O_RDONLY:
+	var access uint32
+	switch mode & (O_RDONLY | O_WRONLY | O_RDWR) {
+	case O_RDONLY:
 		access = GENERIC_READ
-		sharemode = FILE_SHARE_READ
-	case mode&O_RDWR == O_WRONLY:
+	case O_WRONLY:
 		access = GENERIC_WRITE
-		sharemode = FILE_SHARE_READ
-	case mode&O_RDWR == O_RDWR:
+	case O_RDWR:
 		access = GENERIC_READ | GENERIC_WRITE
-		sharemode = FILE_SHARE_READ | FILE_SHARE_WRITE
 	}
+	if mode&O_CREAT != 0 {
+		access |= GENERIC_WRITE
+	}
+	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
 	var createmode uint32
 	switch {
 	case mode&O_CREAT != 0:
