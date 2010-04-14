@@ -72,10 +72,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
 		gp->sigcode0 = info->si_code;
 		gp->sigcode1 = (uintptr)info->si_addr;
 
-		sp = (uintptr*)r->mc_rsp;
-		*--sp = r->mc_rip;
+		// Only push sigpanic if r->mc_rip != 0.
+		// If r->mc_rip == 0, probably panicked because of a
+		// call to a nil func.  Not pushing that onto sp will
+		// make the trace look like a call to sigpanic instead.
+		// (Otherwise the trace will end at sigpanic and we
+		// won't get to see who faulted.)
+		if(r->mc_rip != 0) {
+			sp = (uintptr*)r->mc_rsp;
+			*--sp = r->mc_rip;
+			r->mc_rsp = (uintptr)sp;
+		}
 		r->mc_rip = (uintptr)sigpanic;
-		r->mc_rsp = (uintptr)sp;
 		return;
 	}
 
