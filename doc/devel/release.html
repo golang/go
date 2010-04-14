@@ -5,6 +5,42 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-04-13">2010-04-13</h3>
+
+<pre>
+This release contains many changes:
+
+* 8l: add DOS stub to PE binaries (thanks Evan Shaw).
+* cgo: add //export.
+* cmath: new complex math library (thanks Charles L. Dorian).
+* docs: update to match current coding style (thanks Christopher Wedgwood).
+* exp/eval: fix example and add target to Makefile (thanks Evan Shaw).
+* fmt: change behaviour of format verb %b to match %x when negative (thanks Andrei Vieru).
+* gc: compile s == "" as len(s) == 0,
+	distinguish fatal compiler bug from error+exit,
+	fix alignment on non-amd64,
+	good syntax error for defer func() {} - missing fina (),
+	implement panic and recover,
+	zero unnamed return values on entry if func has defer.
+* goyacc: change to be reentrant (thanks Roger Peppe).
+* io/ioutil: fix bug in ReadFile when Open succeeds but Stat fails.
+* kate: update for recent language changes (thanks Evan Shaw).
+* libcgo: initial mingw port work - builds but untested (thanks Joe Poirier).
+* math: new functions and special cases (thanks Charles L. Dorian) 
+* net: use chan bool instead of chan *netFD to avoid cycle.
+* netchan: allow client to send as well as receive.
+* nntp: new package, NNTP client (thanks Conrad Meyer).
+* os: rename os.Dir to os.FileInfo.
+* rpc: don't log normal EOF,
+	fix ServeConn to block as documented.
+* runtime: many bug fixes, better ARM support.
+* strings: add IndexRune, Trim, TrimLeft, TrimRight, etc (thanks Michael Hoisie).
+* syscall: implement some mingw syscalls required by os (thanks Alex Brainman).
+* test/bench: add k-nucleotide-parallel (thanks Kyle Consalus).
+* Unicode: add support for Turkish case mapping.
+* xgb: move from the main repository to http://code.google.com/p/x-go-binding/
+</pre>
+
 <h3 id="2010-03-30">2010-03-30</h3>
 
 <pre>
