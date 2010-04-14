@@ -10,8 +10,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
 	fi.Mode = 0
 	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_DIRECTORY {
 		fi.Mode = fi.Mode | syscall.S_IFDIR
-	}
-	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_NORMAL {
+	} else {
 		fi.Mode = fi.Mode | syscall.S_IFREG
 	}
 	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_READONLY {

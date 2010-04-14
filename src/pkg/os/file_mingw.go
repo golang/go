@@ -55,7 +55,7 @@ func Open(name string, flag int, perm int) (file *File, err Error) {
 	if e == nil {
 		return r, nil
 	}
-	r, e = openFile(name, flag|syscall.O_CLOEXEC, perm)
+	r, e = openFile(name, flag, perm)
 	if e == nil {
 		return r, nil
 	}
