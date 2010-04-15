@@ -58,147 +58,131 @@ import (
 )
 
 // -- Bool Value
-type boolValue struct {
-	p *bool
-}
+type boolValue bool
 
 func newBoolValue(val bool, p *bool) *boolValue {
 	*p = val
-	return &boolValue{p}
+	return (*boolValue)(p)
 }
 
 func (b *boolValue) Set(s string) bool {
 	v, err := strconv.Atob(s)
-	*b.p = v
+	*b = boolValue(v)
 	return err == nil
 }
 
-func (b *boolValue) String() string { return fmt.Sprintf("%v", *b.p) }
+func (b *boolValue) String() string { return fmt.Sprintf("%v", *b) }
 
 // -- Int Value
-type intValue struct {
-	p *int
-}
+type intValue int
 
 func newIntValue(val int, p *int) *intValue {
 	*p = val
-	return &intValue{p}
+	return (*intValue)(p)
 }
 
 func (i *intValue) Set(s string) bool {
 	v, err := strconv.Atoi(s)
-	*i.p = int(v)
+	*i = intValue(v)
 	return err == nil
 }
 
-func (i *intValue) String() string { return fmt.Sprintf("%v", *i.p) }
+func (i *intValue) String() string { return fmt.Sprintf("%v", *i) }
 
 // -- Int64 Value
-type int64Value struct {
-	p *int64
-}
+type int64Value int64
 
 func newInt64Value(val int64, p *int64) *int64Value {
 	*p = val
-	return &int64Value{p}
+	return (*int64Value)(p)
 }
 
 func (i *int64Value) Set(s string) bool {
 	v, err := strconv.Atoi64(s)
-	*i.p = v
+	*i = int64Value(v)
 	return err == nil
 }
 
-func (i *int64Value) String() string { return fmt.Sprintf("%v", *i.p) }
+func (i *int64Value) String() string { return fmt.Sprintf("%v", *i) }
 
 // -- Uint Value
-type uintValue struct {
-	p *uint
-}
+type uintValue uint
 
 func newUintValue(val uint, p *uint) *uintValue {
 	*p = val
-	return &uintValue{p}
+	return (*uintValue)(p)
 }
 
 func (i *uintValue) Set(s string) bool {
 	v, err := strconv.Atoui(s)
-	*i.p = uint(v)
+	*i = uintValue(v)
 	return err == nil
 }
 
-func (i *uintValue) String() string { return fmt.Sprintf("%v", *i.p) }
+func (i *uintValue) String() string { return fmt.Sprintf("%v", *i) }
 
 // -- uint64 Value
-type uint64Value struct {
-	p *uint64
-}
+type uint64Value uint64
 
 func newUint64Value(val uint64, p *uint64) *uint64Value {
 	*p = val
-	return &uint64Value{p}
+	return (*uint64Value)(p)
 }
 
 func (i *uint64Value) Set(s string) bool {
 	v, err := strconv.Atoui64(s)
-	*i.p = uint64(v)
+	*i = uint64Value(v)
 	return err == nil
 }
 
-func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i.p) }
+func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i) }
 
 // -- string Value
-type stringValue struct {
-	p *string
-}
+type stringValue string
 
 func newStringValue(val string, p *string) *stringValue {
 	*p = val
-	return &stringValue{p}
+	return (*stringValue)(p)
 }
 
 func (s *stringValue) Set(val string) bool {
-	*s.p = val
+	*s = stringValue(val)
 	return true
 }
 
-func (s *stringValue) String() string { return fmt.Sprintf("%s", *s.p) }
+func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
 
 // -- Float Value
-type floatValue struct {
-	p *float
-}
+type floatValue float
 
 func newFloatValue(val float, p *float) *floatValue {
 	*p = val
-	return &floatValue{p}
+	return (*floatValue)(p)
 }
 
 func (f *floatValue) Set(s string) bool {
 	v, err := strconv.Atof(s)
-	*f.p = v
+	*f = floatValue(v)
 	return err == nil
 }
 
-func (f *floatValue) String() string { return fmt.Sprintf("%v", *f.p) }
+func (f *floatValue) String() string { return fmt.Sprintf("%v", *f) }
 
 // -- Float64 Value
-type float64Value struct {
-	p *float64
-}
+type float64Value float64
 
 func newFloat64Value(val float64, p *float64) *float64Value {
 	*p = val
-	return &float64Value{p}
+	return (*float64Value)(p)
 }
 
 func (f *float64Value) Set(s string) bool {
 	v, err := strconv.Atof64(s)
-	*f.p = v
+	*f = float64Value(v)
 	return err == nil
 }
 
-func (f *float64Value) String() string { return fmt.Sprintf("%v", *f.p) }
+func (f *float64Value) String() string { return fmt.Sprintf("%v", *f) }
 
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
