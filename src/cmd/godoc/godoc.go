@@ -1273,7 +1273,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		if mode&genDoc != 0 {
 			pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(relpath)) // no trailing '/' in importpath
 		} else {
-			past = ast.MergePackageFiles(pkg, false)
+			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
 		}
 	}
 

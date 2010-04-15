@@ -290,6 +290,17 @@ func FilterPackage(pkg *Package, f Filter) bool {
 // ----------------------------------------------------------------------------
 // Merging of package files
 
+// The MergeMode flags control the behavior of MergePackageFiles.
+type MergeMode uint
+
+const (
+	// If set, duplicate function declarations are excluded.
+	FilterFuncDuplicates MergeMode = 1 << iota
+	// If set, comments that are not associated with a specific
+	// AST node (as Doc or Comment) are excluded.
+	FilterUnassociatedComments
+)
+
 // separator is an empty //-style comment that is interspersed between
 // different comment groups when they are concatenated into a single group
 //
@@ -318,14 +329,9 @@ func lineAfterComment(c *Comment) token.Position {
 
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
-// files belonging to a package. If complete is set, the package
-// files are assumed to contain the complete, unfiltered package
-// information. In this case, MergePackageFiles collects all entities
-// and all comments. Otherwise (complete == false), MergePackageFiles
-// excludes duplicate entries and does not collect comments that are
-// not attached to AST nodes.
+// files belonging to a package. The mode flags control merging behavior.
 //
-func MergePackageFiles(pkg *Package, complete bool) *File {
+func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	// Count the number of package docs, comments and declarations across
 	// all package files.
 	ndocs := 0
@@ -380,7 +386,7 @@ func MergePackageFiles(pkg *Package, complete bool) *File {
 		n := 0                        // number of filtered entries
 		for _, f := range pkg.Files {
 			for _, d := range f.Decls {
-				if !complete {
+				if mode&FilterFuncDuplicates != 0 {
 					// A language entity may be declared multiple
 					// times in different package files; only at
 					// build time declarations must be unique.
@@ -432,7 +438,7 @@ func MergePackageFiles(pkg *Package, complete bool) *File {
 
 	// Collect comments from all package files.
 	var comments []*CommentGroup
-	if complete {
+	if mode&FilterUnassociatedComments == 0 {
 		comments = make([]*CommentGroup, ncomments)
 		i := 0
 		for _, f := range pkg.Files {
