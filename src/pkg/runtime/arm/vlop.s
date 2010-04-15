@@ -167,17 +167,23 @@ out:
 	B	out
 
 // trampoline for _sfloat2. passes LR as arg0 and
-// saves registers R0-R11 on the stack for mutation
-// by _sfloat2
-TEXT	_sfloat(SB), 7, $52 // 4 arg + 12*4 saved regs
+// saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
+// be changed by _sfloat2.
+TEXT	_sfloat(SB), 7, $64 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	R14, 4(R13)
 	MOVW	R0, 8(R13)
 	MOVW	$12(R13), R0
-	MOVM.IA.W	[R1-R11], (R0)
+	MOVM.IA.W	[R1-R12], (R0)
+	MOVW	$68(R13), R1 // correct for frame size
+	MOVW	R1, 60(R13)
+	WORD	$0xe10f1000 // mrs r1, cpsr
+	MOVW	R1, 64(R13)
 	BL	_sfloat2(SB)
 	MOVW	R0, 0(R13)
+	MOVW	64(R13), R1
+	WORD	$0xe128f001	// msr cpsr_f, r1
 	MOVW	$12(R13), R0
-	MOVM.IA.W	(R0), [R1-R11]
+	MOVM.IA.W	(R0), [R1-R12]
 	MOVW	8(R13), R0
 	RET
 			

@@ -36,7 +36,7 @@
 ./empty.go
 # ./env.go  # android runner doesn't pass env through
 ./escape.go
-./float_lit.go
+# ./float_lit.go  # need floating point
 # ./floatcmp.go  # need floating point
 ./for.go
 # ./func.go
@@ -66,18 +66,18 @@
 ./int_lit.go
 ./intcvt.go
 ./iota.go
-./literal.go
+# ./literal.go  # need floating point
 # ./malloc1.go
 # ./mallocfin.go
 # ./mallocrand.go
 # ./mallocrep.go
 # ./mallocrep1.go
-./map.go
+# ./map.go  # need floating point
 ./method.go
 ./method1.go
 ./method2.go
 ./method3.go
-./named.go
+#./named.go  # need floating point
 ./named1.go
 ./nil.go
 # ./nul1.go  # android runner gets confused
@@ -137,15 +137,15 @@ ken/robfor.go
 # ken/robfunc.go  # fail
 ken/robif.go
 ken/shift.go
-ken/simparray.go
+#ken/simparray.go  # need floating point
 ken/simpbool.go
-ken/simpconv.go
+#ken/simpconv.go  # need floating point
 ken/simpfun.go
 ken/simpprint.go
 ken/simpswitch.go
 ken/simpvar.go
-ken/slicearray.go
-ken/sliceslice.go
+#ken/slicearray.go  # need floating point
+#ken/sliceslice.go  # need floating point
 ken/string.go
 ken/strvar.go
 # chan/doubleselect.go  # slow
@@ -209,7 +209,7 @@ fixedbugs/bug007.go
 fixedbugs/bug008.go
 fixedbugs/bug009.go
 fixedbugs/bug010.go
-fixedbugs/bug011.go
+#fixedbugs/bug011.go  # need floating point
 fixedbugs/bug012.go
 fixedbugs/bug013.go
 fixedbugs/bug014.go

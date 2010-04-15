@@ -230,6 +230,7 @@ struct	M
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache	*mcache;
 	G*	lockedg;
+	uint64 freg[8];	// Floating point register storage used by ARM software fp routines
 #ifdef __MINGW__
 	void*	return_address;	// saved return address and stack
 	void*	stack_pointer;	// pointer for Windows stdcall
