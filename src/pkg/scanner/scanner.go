@@ -282,6 +282,14 @@ func (s *Scanner) Next() int {
 }
 
 
+// Peek returns the next Unicode character in the source without advancing
+// the scanner. It returns EOF if the scanner's position is at the last
+// character of the source.
+func (s *Scanner) Peek() int {
+	return s.ch
+}
+
+
 func (s *Scanner) error(msg string) {
 	s.ErrorCount++
 	if s.Error != nil {
