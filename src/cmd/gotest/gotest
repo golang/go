@@ -38,7 +38,7 @@ esac
 # TODO(kaib): proper emulator strategy
 case x"$GOARCH" in
 xarm)
-	export E=${EMU_arm:-qemu-arm -cpu cortex-a8}
+	export E=${GORUN:-qemu-arm -cpu cortex-a8}
 esac
 
 # Allow overrides
