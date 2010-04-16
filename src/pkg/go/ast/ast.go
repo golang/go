@@ -155,7 +155,7 @@ type (
 	// A BasicLit node represents a literal of basic type.
 	BasicLit struct {
 		token.Position             // literal position
-		Kind           token.Token //  token.INT, token.FLOAT, token.CHAR, or token.STRING
+		Kind           token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
 		Value          []byte      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
 	}
 
