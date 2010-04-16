@@ -35,6 +35,14 @@ FAILEDFILE=/tmp/gotest3-$$-$USER
 # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
 ulimit -v 4000000
 
+# no core files please
+ulimit -c 0
+
+true >times.out
+
+# TODO(kaib): figure out why the GC makes things so utterly slow.
+export GOGC=off
+export GOTRACEBACK=0
 
 for i in $(cat arm-pass.txt | sed 's/#.*//')
 do
@@ -42,7 +50,7 @@ do
 	dir=$(dirname $i)
 	export D=$dir
 	sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
-	if ! sh $RUNFILE >$TMP1FILE 2>&1
+	if ! { time -p bash -c "bash $RUNFILE >$TMP1FILE 2>&1" ; } 2>$TMP2FILE
 	then
 		echo
 		echo "===========" $i
@@ -58,6 +66,7 @@ do
 	then
 		echo $i succeeded with no output.
 	fi
+	echo $(awk 'NR==1{print $2}' $TMP2FILE) $D/$F >>times.out
 done | # clean up some stack noise
 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
 	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
@@ -75,7 +84,7 @@ done | # clean up some stack noise
 failed=0
 rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
 diffmsg=""
-if ! diff run.out golden-arm.out
+if ! diff -b run.out golden-arm.out
 then
 	diffmsg="; test output differs"
 	failed=1
