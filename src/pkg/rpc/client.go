@@ -37,6 +37,7 @@ type Client struct {
 	enc      *gob.Encoder
 	dec      *gob.Decoder
 	pending  map[uint64]*Call
+	closing  bool
 }
 
 func (client *Client) send(c *Call) {
@@ -72,7 +73,7 @@ func (client *Client) input() {
 		response := new(Response)
 		err = client.dec.Decode(response)
 		if err != nil {
-			if err == os.EOF {
+			if err == os.EOF && !client.closing {
 				err = io.ErrUnexpectedEOF
 			}
 			break
@@ -101,7 +102,9 @@ func (client *Client) input() {
 		_ = call.Done <- call // do not block
 	}
 	client.mutex.Unlock()
-	log.Stderr("rpc: client protocol error:", err)
+	if err != os.EOF || !client.closing {
+		log.Stderr("rpc: client protocol error:", err)
+	}
 }
 
 // NewClient returns a new Client to handle requests to the
@@ -144,6 +147,16 @@ func Dial(network, address string) (*Client, os.Error) {
 		return nil, err
 	}
 	return NewClient(conn), nil
+}
+
+func (client *Client) Close() os.Error {
+	if client.shutdown != nil || client.closing {
+		return os.ErrorString("rpc: already closed")
+	}
+	client.mutex.Lock()
+	client.closing = true
+	client.mutex.Unlock()
+	return client.conn.Close()
 }
 
 // Go invokes the function asynchronously.  It returns the Call structure representing
