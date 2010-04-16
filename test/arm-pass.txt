@@ -1,6 +1,6 @@
-./235.go  # slow
-./64bit.go  # slow
-# ./args.go  # android runner doesn't pass args through
+./235.go
+./64bit.go  # slow with GOGC=on
+./args.go
 ./assign.go
 ./bigalg.go
 ./blank.go
@@ -34,7 +34,7 @@
 ./defer.go
 # ./deferprint.go  # need floating point
 ./empty.go
-# ./env.go  # android runner doesn't pass env through
+./env.go
 ./escape.go
 # ./float_lit.go  # need floating point
 # ./floatcmp.go  # need floating point
