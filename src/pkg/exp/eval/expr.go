@@ -589,14 +589,16 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 		return ei.compileIndexExpr(l, r)
 
 	case *ast.SliceExpr:
-		end := x.End
-		if end == nil {
-			// TODO: set end to len(x.X)
-			panic("unimplemented")
-		}
+		var hi *expr
 		arr := a.compile(x.X, false)
 		lo := a.compile(x.Index, false)
-		hi := a.compile(end, false)
+		if x.End == nil {
+			// End was omitted, so we need to compute len(x.X)
+			ei := &exprInfo{a.compiler, x.Pos()}
+			hi = ei.compileBuiltinCallExpr(a.block, lenType, []*expr{arr})
+		} else {
+			hi = a.compile(x.End, false)
+		}
 		if arr == nil || lo == nil || hi == nil {
 			return nil
 		}
