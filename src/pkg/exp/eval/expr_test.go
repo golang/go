@@ -142,6 +142,7 @@ var exprTests = []test{
 
 	Val("+1", bignum.Int(+1)),
 	Val("+1.0", bignum.Rat(1, 1)),
+	Val("01.5", bignum.Rat(15, 10)),
 	CErr("+\"x\"", opTypes),
 
 	Val("-42", bignum.Int(-42)),

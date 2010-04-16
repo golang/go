@@ -762,7 +762,7 @@ func (a *exprInfo) compileCharLit(lit string) *expr {
 }
 
 func (a *exprInfo) compileFloatLit(lit string) *expr {
-	f, _, n := bignum.RatFromString(lit, 0)
+	f, _, n := bignum.RatFromString(lit, 10)
 	if n != len(lit) {
 		log.Crashf("malformed float literal %s at %v passed parser", lit, a.pos)
 	}
