@@ -8,7 +8,9 @@ TARG=json
 GOFILES=\
 	decode.go\
 	error.go\
+	indent.go\
 	parse.go\
+	scanner.go\
 	struct.go\
 
 include ../../Make.pkg
