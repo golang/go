@@ -389,7 +389,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 			msg[off] = byte(i >> 24)
 			msg[off+1] = byte(i >> 16)
 			msg[off+2] = byte(i >> 8)
-			msg[off+4] = byte(i)
+			msg[off+3] = byte(i)
 			off += 4
 		case *reflect.StringValue:
 			// There are multiple string encodings.
@@ -633,13 +633,13 @@ func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
 		off, ok = packStruct(&question[i], msg, off)
 	}
 	for i := 0; i < len(answer); i++ {
-		off, ok = packStruct(answer[i], msg, off)
+		off, ok = packRR(answer[i], msg, off)
 	}
 	for i := 0; i < len(ns); i++ {
-		off, ok = packStruct(ns[i], msg, off)
+		off, ok = packRR(ns[i], msg, off)
 	}
 	for i := 0; i < len(extra); i++ {
-		off, ok = packStruct(extra[i], msg, off)
+		off, ok = packRR(extra[i], msg, off)
 	}
 	if !ok {
 		return nil, false
