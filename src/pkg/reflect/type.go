@@ -507,7 +507,7 @@ func (t *StructType) FieldByIndex(index []int) (f StructField) {
 
 const inf = 1 << 30 // infinity - no struct has that many nesting levels
 
-func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
+func (t *StructType) fieldByNameFunc(match func(string) bool, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
 	fd = inf // field depth
 
 	if mark[t] {
@@ -522,7 +522,7 @@ L: for i, _ := range t.fields {
 		f := t.Field(i)
 		d := inf
 		switch {
-		case f.Name == name:
+		case match(f.Name):
 			// Matching top-level field.
 			d = depth
 		case f.Anonymous:
@@ -531,13 +531,13 @@ L: for i, _ := range t.fields {
 				ft = pt.Elem()
 			}
 			switch {
-			case ft.Name() == name:
+			case match(ft.Name()):
 				// Matching anonymous top-level field.
 				d = depth
 			case fd > depth:
 				// No top-level field yet; look inside nested structs.
 				if st, ok := ft.(*StructType); ok {
-					f, d = st.fieldByName(name, mark, depth+1)
+					f, d = st.fieldByNameFunc(match, mark, depth+1)
 				}
 			}
 		}
@@ -576,7 +576,13 @@ L: for i, _ := range t.fields {
 // FieldByName returns the struct field with the given name
 // and a boolean to indicate if the field was found.
 func (t *StructType) FieldByName(name string) (f StructField, present bool) {
-	if ff, fd := t.fieldByName(name, make(map[*StructType]bool), 0); fd < inf {
+	return t.FieldByNameFunc(func(s string) bool { return s == name })
+}
+
+// FieldByNameFunc returns the struct field with a name that satisfies the
+// match function and a boolean to indicate if the field was found.
+func (t *StructType) FieldByNameFunc(match func(string) bool) (f StructField, present bool) {
+	if ff, fd := t.fieldByNameFunc(match, make(map[*StructType]bool), 0); fd < inf {
 		ff.Index = ff.Index[0 : fd+1]
 		f, present = ff, true
 	}
