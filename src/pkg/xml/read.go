@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"utf8"
 )
 
 // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:
@@ -331,24 +332,24 @@ Loop:
 		case StartElement:
 			// Sub-element.
 			// Look up by tag name.
-			// If that fails, fall back to mop-up field named "Any".
 			if sv != nil {
 				k := fieldName(t.Name.Local)
-				any := -1
-				for i, n := 0, styp.NumField(); i < n; i++ {
-					f := styp.Field(i)
-					if strings.ToLower(f.Name) == k {
-						if err := p.unmarshal(sv.FieldByIndex(f.Index), &t); err != nil {
-							return err
-						}
-						continue Loop
+				match := func(s string) bool {
+					// check if the name matches ignoring case
+					if strings.ToLower(s) != strings.ToLower(k) {
+						return false
 					}
-					if any < 0 && f.Name == "Any" {
-						any = i
-					}
+					// now check that it's public
+					c, _ := utf8.DecodeRuneInString(s)
+					return unicode.IsUpper(c)
 				}
-				if any >= 0 {
-					if err := p.unmarshal(sv.FieldByIndex(styp.Field(any).Index), &t); err != nil {
+
+				f, found := styp.FieldByNameFunc(match)
+				if !found { // fall back to mop-up field named "Any"
+					f, found = styp.FieldByName("Any")
+				}
+				if found {
+					if err := p.unmarshal(sv.FieldByIndex(f.Index), &t); err != nil {
 						return err
 					}
 					continue Loop

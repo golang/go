@@ -1251,6 +1251,16 @@ func (t *StructValue) FieldByName(name string) Value {
 	return nil
 }
 
+// FieldByNameFunc returns the struct field with a name that satisfies the
+// match function.
+// The result is nil if no field was found.
+func (t *StructValue) FieldByNameFunc(match func(string) bool) Value {
+	if f, ok := t.Type().(*StructType).FieldByNameFunc(match); ok {
+		return t.FieldByIndex(f.Index)
+	}
+	return nil
+}
+
 // NumField returns the number of fields in the struct.
 func (v *StructValue) NumField() int { return v.typ.(*StructType).NumField() }
 
