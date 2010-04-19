@@ -790,7 +790,7 @@ reswitch:
 		defaultlit2(&l, &r, 0);
 		n->left = l;
 		n->right = r;
-		if(l->type->etype != l->type->etype) {
+		if(l->type->etype != r->type->etype) {
 		badcmplx:
 			yyerror("invalid operation: %#N (cmplx of types %T, %T)", n, l->type, r->type);
 			goto error;
