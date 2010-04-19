@@ -434,9 +434,10 @@ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
 	return
 }
 
-func Setsid() (pid int) {
-	r0, _, _ := Syscall(SYS_SETSID, 0, 0, 0)
+func Setsid() (pid int, errno int) {
+	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
 	pid = int(r0)
+	errno = int(e1)
 	return
 }
 
