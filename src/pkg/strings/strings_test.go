@@ -222,6 +222,22 @@ func TestFields(t *testing.T) {
 	}
 }
 
+func TestFieldsFunc(t *testing.T) {
+	pred := func(c int) bool { return c == 'X' }
+	var fieldsFuncTests = []FieldsTest{
+		FieldsTest{"", []string{}},
+		FieldsTest{"XX", []string{}},
+		FieldsTest{"XXhiXXX", []string{"hi"}},
+		FieldsTest{"aXXbXXXcX", []string{"a", "b", "c"}},
+	}
+	for _, tt := range fieldsFuncTests {
+		a := FieldsFunc(tt.s, pred)
+		if !eq(a, tt.a) {
+			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+		}
+	}
+}
+
 
 // Test case for any function which accepts and returns a single string.
 type StringTest struct {

@@ -172,12 +172,19 @@ func SplitAfter(s, sep string, n int) []string {
 // Fields splits the string s around each instance of one or more consecutive white space
 // characters, returning an array of substrings of s or an empty list if s contains only white space.
 func Fields(s string) []string {
+	return FieldsFunc(s, unicode.IsSpace)
+}
+
+// FieldsFunc splits the string s at each run of Unicode code points c satifying f(c)
+// and returns an array of slices of s. If no code points in s satisfy f(c), an empty slice
+// is returned.
+func FieldsFunc(s string, f func(int) bool) []string {
 	// First count the fields.
 	n := 0
 	inField := false
 	for _, rune := range s {
 		wasInField := inField
-		inField = !unicode.IsSpace(rune)
+		inField = !f(rune)
 		if inField && !wasInField {
 			n++
 		}
@@ -188,7 +195,7 @@ func Fields(s string) []string {
 	na := 0
 	fieldStart := -1 // Set to -1 when looking for start of field.
 	for i, rune := range s {
-		if unicode.IsSpace(rune) {
+		if f(rune) {
 			if fieldStart >= 0 {
 				a[na] = s[fieldStart:i]
 				na++
