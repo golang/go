@@ -25,6 +25,7 @@ import os
 import re
 import struct
 import time
+import bz2
 
 # local imports
 import key
@@ -70,9 +71,10 @@ class Cache(db.Model):
     data = db.BlobProperty()
     expire = db.IntegerProperty()
 
-# A Log contains the textual build log of a failed build. The key name is the
-# hex digest of the SHA256 hash of the contents.
-class Log(db.Model):
+# A CompressedLog contains the textual build log of a failed build. 
+# The key name is the hex digest of the SHA256 hash of the contents.
+# The contents is bz2 compressed.
+class CompressedLog(db.Model):
     log = db.BlobProperty()
 
 # For each builder, we store the last revision that it built. So, if it
@@ -241,12 +243,13 @@ class LogHandler(webapp.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
         hash = self.request.path[5:]
-        l = Log.get_by_key_name(hash)
+        l = CompressedLog.get_by_key_name(hash)
         if l is None:
             self.response.set_status(404)
             return
+        log = bz2.decompress(l.log)
         self.response.set_status(200)
-        self.response.out.write(l.log)
+        self.response.out.write(log)
 
 # Init creates the commit with id 0. Since this commit doesn't have a parent,
 # it cannot be created by Build.
@@ -288,8 +291,8 @@ class Build(webapp.RequestHandler):
         loghash = ''
         if len(log) > 0:
             loghash = hashlib.sha256(log).hexdigest()
-            l = Log(key_name = loghash)
-            l.log = log
+            l = CompressedLog(key_name=loghash)
+            l.log = bz2.compress(log)
             l.put()
 
         date = parseDate(self.request.get('date'))
