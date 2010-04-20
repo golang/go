@@ -5,8 +5,8 @@
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
-// func addVV_s(z, x, y *Word, n int) (c Word)
-TEXT ·addVV_s(SB),7,$0
+// func addVV(z, x, y *Word, n int) (c Word)
+TEXT ·addVV(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), CX
@@ -29,9 +29,9 @@ E1:	CMPL BX, BP		// i < n
 	RET
 
 
-// func subVV_s(z, x, y *Word, n int) (c Word)
-// (same as addVV_s except for SBBL instead of ADCL and label names)
-TEXT ·subVV_s(SB),7,$0
+// func subVV(z, x, y *Word, n int) (c Word)
+// (same as addVV except for SBBL instead of ADCL and label names)
+TEXT ·subVV(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), CX
@@ -54,8 +54,8 @@ E2:	CMPL BX, BP        // i < n
 	RET
 
 
-// func addVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT ·addVW_s(SB),7,$0
+// func addVW(z, x *Word, y Word, n int) (c Word)
+TEXT ·addVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), AX   // c = y
@@ -76,8 +76,8 @@ E3:	CMPL BX, BP        // i < n
 	RET
 
 
-// func subVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT ·subVW_s(SB),7,$0
+// func subVW(z, x *Word, y Word, n int) (c Word)
+TEXT ·subVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), AX   // c = y
@@ -99,8 +99,8 @@ E4:	CMPL BX, BP         // i < n
 	RET
 
 
-// func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
-TEXT ·mulAddVWW_s(SB),7,$0
+// func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
+TEXT ·mulAddVWW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), BP
@@ -126,8 +126,8 @@ E5:	CMPL BX, $0        // i < 0
 	RET
 
 
-// func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT ·addMulVVW_s(SB),7,$0
+// func addMulVVW(z, x *Word, y Word, n int) (c Word)
+TEXT ·addMulVVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), BP
@@ -155,8 +155,8 @@ E6:	CMPL BX, $0        // i < 0
 	RET
 
 
-// divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
-TEXT ·divWVW_s(SB),7,$0
+// divWVW(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+TEXT ·divWVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL xn+4(FP), DX   // r = xn
 	MOVL x+8(FP), SI
