@@ -5,11 +5,6 @@
 # This is the server part of the continuous build system for Go. It must be run
 # by AppEngine.
 
-# TODO(rsc):
-#	Delete old Benchmark and BenchmarkResult models once
-#	BenchmarkResults has been working okay for a few days.
-#	Delete conversion code at bottom of file at same time.
-
 from google.appengine.api import memcache
 from google.appengine.runtime import DeadlineExceededError
 from google.appengine.ext import db
@@ -51,16 +46,6 @@ class Commit(db.Model):
     # name> "`" <log hash>. If the log hash is empty, then the build was
     # successful.
     builds = db.StringListProperty()
-
-class Benchmark(db.Model):
-    name = db.StringProperty()
-    version = db.IntegerProperty()
-
-class BenchmarkResult(db.Model):
-    num = db.IntegerProperty()
-    builder = db.StringProperty()
-    iterations = db.IntegerProperty()
-    nsperop = db.IntegerProperty()
 
 class BenchmarkResults(db.Model):
     builder = db.StringProperty()
@@ -718,49 +703,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-
-# TODO(rsc): Delete once no longer needed.
-# old benchmark conversion handler
-#
-#     def convert(self):
-#         try:
-#             self.response.set_status(200)
-#             self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-#             q = Benchmark.all()
-#             q.filter('__key__ >', Benchmark.get_or_insert('v002.').key())
-#             benchmarks = q.fetch(10000)
-#             
-#             # Which builders have sent benchmarks recently?
-#             builders = set()
-#             q = BenchmarkResult.all()
-#             q.ancestor(benchmarks[0])
-#             q.order('-__key__')
-#             for r in q.fetch(50):
-#                 builders.add(r.builder)
-#             builders = list(builders)
-#             builders.sort()
-#             
-#             for bm in benchmarks:
-#                 all = None
-# 
-#                 for b in builders:
-#                     key = "%s;%s" % (b, bm.name)
-#                     ra = BenchmarkResults.get_by_key_name(key)
-#                     if ra is not None:
-#                         continue
-#                     data = []
-#                     if all is None:
-#                         q = BenchmarkResult.all()
-#                         q.ancestor(bm)
-#                         q.order('__key__')
-#                         all = q.fetch(1000)
-#                     for r in all:
-#                         if r.builder == b:
-#                             data += [-1L, long(r.num), long(r.iterations), long(r.nsperop)]
-#                     ra = BenchmarkResults(key_name = key, builder = b, benchmark = bm.name, data = data)
-#                     ra.put()
-#                     self.response.out.write(key + '\n')
-# 
-#             self.response.out.write('done')
-#         except DeadlineExceededError:
-#             pass
