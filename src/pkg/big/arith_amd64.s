@@ -7,8 +7,8 @@
 
 // TODO(gri) - experiment with unrolled loops for faster execution
 
-// func addVV_s(z, x, y *Word, n int) (c Word)
-TEXT ·addVV_s(SB),7,$0
+// func addVV(z, x, y *Word, n int) (c Word)
+TEXT ·addVV(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
@@ -31,9 +31,9 @@ E1:	CMPQ BX, R11		// i < n
 	RET
 
 
-// func subVV_s(z, x, y *Word, n int) (c Word)
+// func subVV(z, x, y *Word, n int) (c Word)
 // (same as addVV_s except for SBBQ instead of ADCQ and label names)
-TEXT ·subVV_s(SB),7,$0
+TEXT ·subVV(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
@@ -56,8 +56,8 @@ E2:	CMPQ BX, R11        // i < n
 	RET
 
 
-// func addVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT ·addVW_s(SB),7,$0
+// func addVW(z, x *Word, y Word, n int) (c Word)
+TEXT ·addVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), AX   // c = y
@@ -78,8 +78,8 @@ E3:	CMPQ BX, R11        // i < n
 	RET
 
 
-// func subVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT ·subVW_s(SB),7,$0
+// func subVW(z, x *Word, y Word, n int) (c Word)
+TEXT ·subVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), AX   // c = y
@@ -101,8 +101,8 @@ E4:	CMPQ BX, R11         // i < n
 	RET
 
 
-// func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
-TEXT ·mulAddVWW_s(SB),7,$0
+// func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
+TEXT ·mulAddVWW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
@@ -126,8 +126,8 @@ E5:	CMPQ BX, R11        // i < n
 	RET
 
 
-// func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT ·addMulVVW_s(SB),7,$0
+// func addMulVVW(z, x *Word, y Word, n int) (c Word)
+TEXT ·addMulVVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
@@ -153,8 +153,8 @@ E6:	CMPQ BX, R11        // i < n
 	RET
 
 
-// divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
-TEXT ·divWVW_s(SB),7,$0
+// divWVW(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+TEXT ·divWVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ xn+8(FP), DX   // r = xn
 	MOVQ x+16(FP), R8
