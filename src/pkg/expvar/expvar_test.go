@@ -61,7 +61,8 @@ func TestMapCounter(t *testing.T) {
 	// colours.String() should be '{"red":3, "blue":4}',
 	// though the order of red and blue could vary.
 	s := colours.String()
-	j, err := json.Decode(s)
+	var j interface{}
+	err := json.Unmarshal([]byte(s), &j)
 	if err != nil {
 		t.Errorf("colours.String() isn't valid JSON: %v", err)
 	}

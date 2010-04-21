@@ -415,7 +415,7 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	s.false = false
 	s.mp = make(map[string]string)
 	s.mp["mapkey"] = "Ahoy!"
-	s.json, _ = json.Decode("{\"maps\":[{\"a\":1,\"b\":2},{\"a\":3,\"b\":4}]}")
+	json.Unmarshal([]byte(`{"maps":[{"a":1,"b":2},{"a":3,"b":4}]}`), &s.json)
 	s.innermap.mp = make(map[string]int)
 	s.innermap.mp["innerkey"] = 55
 	s.stringmap = make(map[string]string)

@@ -181,6 +181,10 @@ func (s *scanner) popParseState() {
 	}
 }
 
+func isSpace(c int) bool {
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
+}
+
 // NOTE(rsc): The various instances of
 //
 //	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
@@ -590,7 +594,7 @@ func stateError(s *scanner, c int) int {
 // error records an error and switches to the error state.
 func (s *scanner) error(c int, context string) int {
 	s.step = stateError
-	s.err = SyntaxError("invalid character '" + quoteChar(c) + "' " + context)
+	s.err = SyntaxError("invalid character " + quoteChar(c) + " " + context)
 	return scanError
 }
 
