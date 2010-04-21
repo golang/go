@@ -114,13 +114,13 @@ $(pkgdir)/%.h: %.h
 clean: clean-local
 
 clean-local:
-	rm -f cgo2c mkversion version.go */asm.h runtime.acid.*
+	rm -f goc2c mkversion version.go */asm.h runtime.acid.*
 
 $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 	./mkasmh.sh >$@.x
 	mv -f $@.x $@
 
-cgo2c: cgo2c.c
+goc2c: goc2c.c
 	$(QUOTED_GOBIN)/quietgcc -o $@ $<
 
 mkversion: mkversion.c
@@ -129,8 +129,8 @@ mkversion: mkversion.c
 version.go: mkversion
 	./mkversion >version.go
 
-%.c:	%.cgo cgo2c
-	./cgo2c $< > $@.tmp
+%.c:	%.goc goc2c
+	./goc2c $< > $@.tmp
 	mv -f $@.tmp $@
 
 %.$O:	$(GOARCH)/%.c
