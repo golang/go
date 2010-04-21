@@ -175,6 +175,7 @@ func diff(t *testing.T, a, b []byte) {
 				j = 0
 			}
 			t.Errorf("diverge at %d: «%s» vs «%s»", i, trim(a[j:]), trim(b[j:]))
+			return
 		}
 	}
 }
@@ -191,9 +192,11 @@ func trim(b []byte) []byte {
 var jsonBig []byte
 
 func init() {
-	var buf bytes.Buffer
-	Marshal(&buf, genValue(100000))
-	jsonBig = buf.Bytes()
+	b, err := Marshal(genValue(10000))
+	if err != nil {
+		panic(err)
+	}
+	jsonBig = b
 }
 
 func genValue(n int) interface{} {

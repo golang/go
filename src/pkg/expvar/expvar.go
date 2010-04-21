@@ -225,16 +225,13 @@ func expvarHandler(c *http.Conn, req *http.Request) {
 }
 
 func memstats() string {
-	var buf bytes.Buffer
-	json.MarshalIndent(&buf, &runtime.MemStats, "    ")
-	s := buf.String()
-	return s[0 : len(s)-1] // chop final \n
+	b, _ := json.MarshalIndent(&runtime.MemStats, "", "\t")
+	return string(b)
 }
 
 func cmdline() string {
-	var buf bytes.Buffer
-	json.Marshal(&buf, os.Args)
-	return buf.String()
+	b, _ := json.Marshal(os.Args)
+	return string(b)
 }
 
 func init() {
