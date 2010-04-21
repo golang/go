@@ -38,7 +38,7 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	"bignum"
+	"big"
 	"flag"
 	"fmt"
 )
@@ -47,11 +47,14 @@ var n = flag.Int("n", 27, "number of digits")
 var silent = flag.Bool("s", false, "don't print result")
 
 var (
-	tmp1  *bignum.Integer
-	tmp2  *bignum.Integer
-	numer = bignum.Int(1)
-	accum = bignum.Int(0)
-	denom = bignum.Int(1)
+	tmp1  = big.NewInt(0)
+	tmp2  = big.NewInt(0)
+	y2    = big.NewInt(0)
+	bigk  = big.NewInt(0)
+	numer = big.NewInt(1)
+	accum = big.NewInt(0)
+	denom = big.NewInt(1)
+	ten   = big.NewInt(10)
 )
 
 func extract_digit() int64 {
@@ -60,36 +63,39 @@ func extract_digit() int64 {
 	}
 
 	// Compute (numer * 3 + accum) / denom
-	tmp1 = numer.Shl(1)
-	bignum.Iadd(tmp1, tmp1, numer)
-	bignum.Iadd(tmp1, tmp1, accum)
-	tmp1, tmp2 := tmp1.QuoRem(denom)
+	tmp1.Lsh(numer, 1)
+	tmp1.Add(tmp1, numer)
+	tmp1.Add(tmp1, accum)
+	tmp1.DivMod(tmp1, denom, tmp2)
 
 	// Now, if (numer * 4 + accum) % denom...
-	bignum.Iadd(tmp2, tmp2, numer)
+	tmp2.Add(tmp2, numer)
 
 	// ... is normalized, then the two divisions have the same result.
 	if tmp2.Cmp(denom) >= 0 {
 		return -1
 	}
 
-	return tmp1.Value()
+	return tmp1.Int64()
 }
 
 func next_term(k int64) {
-	y2 := k*2 + 1
+	// TODO(eds) If big.Int ever gets a Scale method, y2 and bigk could be int64
+	y2.New(k*2 + 1)
+	bigk.New(k)
 
-	tmp1 = numer.Shl(1)
-	bignum.Iadd(accum, accum, tmp1)
-	bignum.Iscale(accum, y2)
-	bignum.Iscale(numer, k)
-	bignum.Iscale(denom, y2)
+	tmp1.Lsh(numer, 1)
+	accum.Add(accum, tmp1)
+	accum.Mul(accum, y2)
+	numer.Mul(numer, bigk)
+	denom.Mul(denom, y2)
 }
 
 func eliminate_digit(d int64) {
-	bignum.Isub(accum, accum, denom.Mul1(d))
-	bignum.Iscale(accum, 10)
-	bignum.Iscale(numer, 10)
+	tmp := big.NewInt(0).Set(denom)
+	accum.Sub(accum, tmp.Mul(tmp, big.NewInt(d)))
+	accum.Mul(accum, ten)
+	numer.Mul(numer, ten)
 }
 
 func printf(s string, arg ...interface{}) {

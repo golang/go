@@ -302,7 +302,7 @@ func divLargeNN(z, z2, uIn, v []Word) (q, r []Word) {
 	q = makeN(z, m+1, false)
 
 	// D1.
-	shift := leadingZeroBits(v[n-1])
+	shift := uint(leadingZeroBits(v[n-1]))
 	shiftLeft(v, v, shift)
 	shiftLeft(u, uIn, shift)
 	u[len(uIn)] = uIn[len(uIn)-1] >> (_W - uint(shift))
@@ -530,31 +530,34 @@ func trailingZeroBits(x Word) int {
 }
 
 
-func shiftLeft(dst, src []Word, n int) {
+// To avoid losing the top n bits, dst should be sized so that
+// len(dst) == len(src) + 1.
+func shiftLeft(dst, src []Word, n uint) {
 	if len(src) == 0 {
 		return
 	}
 
-	ñ := _W - uint(n)
-	for i := len(src) - 1; i >= 1; i-- {
-		dst[i] = src[i] << uint(n)
-		dst[i] |= src[i-1] >> ñ
+	ñ := _W - n
+	if len(dst) > len(src) {
+		dst[len(src)] |= src[len(src)-1] >> ñ
 	}
-	dst[0] = src[0] << uint(n)
+	for i := len(src) - 1; i >= 1; i-- {
+		dst[i] = src[i]<<n | src[i-1]>>ñ
+	}
+	dst[0] = src[0] << n
 }
 
 
-func shiftRight(dst, src []Word, n int) {
+func shiftRight(dst, src []Word, n uint) {
 	if len(src) == 0 {
 		return
 	}
 
-	ñ := _W - uint(n)
+	ñ := _W - n
 	for i := 0; i < len(src)-1; i++ {
-		dst[i] = src[i] >> uint(n)
-		dst[i] |= src[i+1] << ñ
+		dst[i] = src[i]>>n | src[i+1]<<ñ
 	}
-	dst[len(src)-1] = src[len(src)-1] >> uint(n)
+	dst[len(src)-1] = src[len(src)-1] >> n
 }
 
 
@@ -585,7 +588,7 @@ func powersOfTwoDecompose(n []Word) (q []Word, k Word) {
 	x := trailingZeroBits(n[zeroWords])
 
 	q = makeN(nil, len(n)-zeroWords, false)
-	shiftRight(q, n[zeroWords:], x)
+	shiftRight(q, n[zeroWords:], uint(x))
 	q = normN(q)
 
 	k = Word(_W*zeroWords + x)

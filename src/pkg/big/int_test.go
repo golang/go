@@ -192,7 +192,8 @@ func TestDivSigns(t *testing.T) {
 	for i, test := range divSignsTests {
 		x := new(Int).New(test.x)
 		y := new(Int).New(test.y)
-		q, r := new(Int).Div(x, y)
+		r := new(Int)
+		q, r := new(Int).DivMod(x, y, r)
 		expectedQ := new(Int).New(test.q)
 		expectedR := new(Int).New(test.r)
 
@@ -249,7 +250,8 @@ func checkDiv(x, y []byte) bool {
 		return true
 	}
 
-	q, r := new(Int).Div(u, v)
+	r := new(Int)
+	q, r := new(Int).DivMod(u, v, r)
 
 	if r.Cmp(v) >= 0 {
 		return false
@@ -297,7 +299,8 @@ func TestDiv(t *testing.T) {
 		expectedQ, _ := new(Int).SetString(test.q, 10)
 		expectedR, _ := new(Int).SetString(test.r, 10)
 
-		q, r := new(Int).Div(x, y)
+		r := new(Int)
+		q, r := new(Int).DivMod(x, y, r)
 
 		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
 			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
@@ -313,7 +316,8 @@ func TestDivStepD6(t *testing.T) {
 	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M ^ (1 << (_W - 1))}}
 	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1 << (_W - 1)}}
 
-	q, r := new(Int).Div(u, v)
+	r := new(Int)
+	q, r := new(Int).DivMod(u, v, r)
 	const expectedQ64 = "18446744073709551613"
 	const expectedR64 = "3138550867693340382088035895064302439801311770021610913807"
 	const expectedQ32 = "4294967293"
@@ -519,32 +523,32 @@ func TestProbablyPrime(t *testing.T) {
 }
 
 
-type rshTest struct {
+type intShiftTest struct {
 	in    string
-	shift int
+	shift uint
 	out   string
 }
 
 
-var rshTests = []rshTest{
-	rshTest{"0", 0, "0"},
-	rshTest{"0", 1, "0"},
-	rshTest{"0", 2, "0"},
-	rshTest{"1", 0, "1"},
-	rshTest{"1", 1, "0"},
-	rshTest{"1", 2, "0"},
-	rshTest{"2", 0, "2"},
-	rshTest{"2", 1, "1"},
-	rshTest{"2", 2, "0"},
-	rshTest{"4294967296", 0, "4294967296"},
-	rshTest{"4294967296", 1, "2147483648"},
-	rshTest{"4294967296", 2, "1073741824"},
-	rshTest{"18446744073709551616", 0, "18446744073709551616"},
-	rshTest{"18446744073709551616", 1, "9223372036854775808"},
-	rshTest{"18446744073709551616", 2, "4611686018427387904"},
-	rshTest{"18446744073709551616", 64, "1"},
-	rshTest{"340282366920938463463374607431768211456", 64, "18446744073709551616"},
-	rshTest{"340282366920938463463374607431768211456", 128, "1"},
+var rshTests = []intShiftTest{
+	intShiftTest{"0", 0, "0"},
+	intShiftTest{"0", 1, "0"},
+	intShiftTest{"0", 2, "0"},
+	intShiftTest{"1", 0, "1"},
+	intShiftTest{"1", 1, "0"},
+	intShiftTest{"1", 2, "0"},
+	intShiftTest{"2", 0, "2"},
+	intShiftTest{"2", 1, "1"},
+	intShiftTest{"2", 2, "0"},
+	intShiftTest{"4294967296", 0, "4294967296"},
+	intShiftTest{"4294967296", 1, "2147483648"},
+	intShiftTest{"4294967296", 2, "1073741824"},
+	intShiftTest{"18446744073709551616", 0, "18446744073709551616"},
+	intShiftTest{"18446744073709551616", 1, "9223372036854775808"},
+	intShiftTest{"18446744073709551616", 2, "4611686018427387904"},
+	intShiftTest{"18446744073709551616", 64, "1"},
+	intShiftTest{"340282366920938463463374607431768211456", 64, "18446744073709551616"},
+	intShiftTest{"340282366920938463463374607431768211456", 128, "1"},
 }
 
 
@@ -556,6 +560,115 @@ func TestRsh(t *testing.T) {
 
 		if out.Cmp(expected) != 0 {
 			t.Errorf("#%d got %s want %s", i, out, expected)
+		}
+	}
+}
+
+
+func TestRshSelf(t *testing.T) {
+	for i, test := range rshTests {
+		z, _ := new(Int).SetString(test.in, 10)
+		expected, _ := new(Int).SetString(test.out, 10)
+		z.Rsh(z, test.shift)
+
+		if z.Cmp(expected) != 0 {
+			t.Errorf("#%d got %s want %s", i, z, expected)
+		}
+	}
+}
+
+
+var lshTests = []intShiftTest{
+	intShiftTest{"0", 0, "0"},
+	intShiftTest{"0", 1, "0"},
+	intShiftTest{"0", 2, "0"},
+	intShiftTest{"1", 0, "1"},
+	intShiftTest{"1", 1, "2"},
+	intShiftTest{"1", 2, "4"},
+	intShiftTest{"2", 0, "2"},
+	intShiftTest{"2", 1, "4"},
+	intShiftTest{"2", 2, "8"},
+	intShiftTest{"-87", 1, "-174"},
+	intShiftTest{"4294967296", 0, "4294967296"},
+	intShiftTest{"4294967296", 1, "8589934592"},
+	intShiftTest{"4294967296", 2, "17179869184"},
+	intShiftTest{"18446744073709551616", 0, "18446744073709551616"},
+	intShiftTest{"9223372036854775808", 1, "18446744073709551616"},
+	intShiftTest{"4611686018427387904", 2, "18446744073709551616"},
+	intShiftTest{"1", 64, "18446744073709551616"},
+	intShiftTest{"18446744073709551616", 64, "340282366920938463463374607431768211456"},
+	intShiftTest{"1", 128, "340282366920938463463374607431768211456"},
+}
+
+
+func TestLsh(t *testing.T) {
+	for i, test := range lshTests {
+		in, _ := new(Int).SetString(test.in, 10)
+		expected, _ := new(Int).SetString(test.out, 10)
+		out := new(Int).Lsh(in, test.shift)
+
+		if out.Cmp(expected) != 0 {
+			t.Errorf("#%d got %s want %s", i, out, expected)
+		}
+	}
+}
+
+
+func TestLshSelf(t *testing.T) {
+	for i, test := range lshTests {
+		z, _ := new(Int).SetString(test.in, 10)
+		expected, _ := new(Int).SetString(test.out, 10)
+		z.Lsh(z, test.shift)
+
+		if z.Cmp(expected) != 0 {
+			t.Errorf("#%d got %s want %s", i, z, expected)
+		}
+	}
+}
+
+
+func TestLshRsh(t *testing.T) {
+	for i, test := range rshTests {
+		in, _ := new(Int).SetString(test.in, 10)
+		out := new(Int).Lsh(in, test.shift)
+		out = out.Rsh(out, test.shift)
+
+		if in.Cmp(out) != 0 {
+			t.Errorf("#%d got %s want %s", i, out, in)
+		}
+	}
+	for i, test := range lshTests {
+		in, _ := new(Int).SetString(test.in, 10)
+		out := new(Int).Lsh(in, test.shift)
+		out.Rsh(out, test.shift)
+
+		if in.Cmp(out) != 0 {
+			t.Errorf("#%d got %s want %s", i, out, in)
+		}
+	}
+}
+
+
+var int64Tests = []int64{
+	0,
+	1,
+	-1,
+	4294967295,
+	-4294967295,
+	4294967296,
+	-4294967296,
+	9223372036854775807,
+	-9223372036854775807,
+	-9223372036854775808,
+}
+
+func TestInt64(t *testing.T) {
+	for i, testVal := range int64Tests {
+		in := NewInt(testVal)
+		out := in.Int64()
+
+		if out != testVal {
+			t.Errorf("#%d got %d want %d", i, out, testVal)
 		}
 	}
 }
