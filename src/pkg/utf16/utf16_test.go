@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"unicode"
 )
 
 type encodeTest struct {
@@ -28,6 +29,41 @@ func TestEncode(t *testing.T) {
 		out := Encode(tt.in)
 		if !reflect.DeepEqual(out, tt.out) {
 			t.Errorf("Encode(%v) = %v; want %v", hex(tt.in), hex16(out), hex16(tt.out))
+		}
+	}
+}
+
+func TestEncodeRune(t *testing.T) {
+	for i, tt := range encodeTests {
+		j := 0
+		for _, r := range tt.in {
+			r1, r2 := EncodeRune(r)
+			if r < 0x10000 || r > unicode.MaxRune {
+				if j >= len(tt.out) {
+					t.Errorf("#%d: ran out of tt.out", i)
+					break
+				}
+				if r1 != unicode.ReplacementChar || r2 != unicode.ReplacementChar {
+					t.Errorf("EncodeRune(%#x) = %#x, %#x; want 0xfffd, 0xfffd", r, r1, r2)
+				}
+				j++
+			} else {
+				if j+1 >= len(tt.out) {
+					t.Errorf("#%d: ran out of tt.out", i)
+					break
+				}
+				if r1 != int(tt.out[j]) || r2 != int(tt.out[j+1]) {
+					t.Errorf("EncodeRune(%#x) = %#x, %#x; want %#x, %#x", r, r1, r2, tt.out[j], tt.out[j+1])
+				}
+				j += 2
+				dec := DecodeRune(r1, r2)
+				if dec != r {
+					t.Errorf("DecodeRune(%#x, %#x) = %#x; want %#x", r1, r2, dec, r)
+				}
+			}
+		}
+		if j != len(tt.out) {
+			t.Errorf("#%d: EncodeRune didn't generate enough output", i)
 		}
 	}
 }
