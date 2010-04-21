@@ -17,7 +17,7 @@ func TestUnmarshalFeed(t *testing.T) {
 		t.Fatalf("Unmarshal: %s", err)
 	}
 	if !reflect.DeepEqual(f, rssFeed) {
-		t.Fatalf("have %#v\nwant %#v\n\n%#v", f)
+		t.Fatalf("have %#v\nwant %#v", f, rssFeed)
 	}
 }
 
@@ -102,9 +102,10 @@ type Link struct {
 }
 
 type Person struct {
-	Name  string
-	URI   string
-	Email string
+	Name     string
+	URI      string
+	Email    string
+	InnerXML string "innerxml"
 }
 
 type Text struct {
@@ -124,7 +125,8 @@ var rssFeed = Feed{
 	Id:      "http://codereview.appspot.com/",
 	Updated: "2009-10-04T01:35:58+00:00",
 	Author: Person{
-		Name: "rietveld",
+		Name:     "rietveld",
+		InnerXML: "<name>rietveld</name>",
 	},
 	Entry: []Entry{
 		Entry{
@@ -134,7 +136,8 @@ var rssFeed = Feed{
 			},
 			Updated: "2009-10-04T01:35:58+00:00",
 			Author: Person{
-				Name: "email-address-removed",
+				Name:     "email-address-removed",
+				InnerXML: "<name>email-address-removed</name>",
 			},
 			Id: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
 			Summary: Text{
@@ -180,7 +183,8 @@ the top of feeds.py marked NOTE(rsc).
 			},
 			Updated: "2009-10-03T23:02:17+00:00",
 			Author: Person{
-				Name: "email-address-removed",
+				Name:     "email-address-removed",
+				InnerXML: "<name>email-address-removed</name>",
 			},
 			Id: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
 			Summary: Text{
