@@ -162,7 +162,7 @@ Can I translate the Go home page into another language?</h3>
 
 <p>
 Absolutely. We encourage developers to make Go Language sites in their own languages.
-However, if choose to add the Google logo or branding to your site
+However, if you choose to add the Google logo or branding to your site
 (it does not appear on <a href="http://golang.org/">golang.org</a>),
 you will need to abide by the guidelines at
 <a href="http://www.google.com/permissions/guidelines.html">http://www.google.com/permissions/guidelines.html</a>
@@ -334,3 +334,37 @@ compiled with a version of the Plan 9 C compiler that supports
 segmented stacks for goroutines.
 Work is underway to provide the same stack management in
 <code>gccgo</code>.
+
+<h2 id="Performance">Performance</h2>
+
+<h3 id="Why_does_Go_perform_badly_on_benchmark_x">
+Why does Go perform badly on benchmark X?</h3>
+
+<p>
+One of Go's design goals is to approach the performance of C for comparable
+programs, yet on some benchmarks it does quite poorly, including several 
+in <a href="/test/bench/">test/bench</a>. The slowest depend on libraries 
+for which versions of comparable performance are not available in Go. 
+For instance, pidigits depends on a multi-precision math package, and the C
+versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
+written in optimized assembler). 
+Benchmarks that depend on regular expressions (regex-dna, for instance) are
+essentially comparing Go's stopgap <a href="/pkg/regexp">regexp package</a> to
+mature, highly optimized regular expression libraries like PCRE.
+</p>
+
+<p>
+Benchmark games are won by extensive tuning and the Go versions of most
+of the benchmarks need attention.  If you measure comparable C
+and Go programs (reverse-complement is one example), you'll see the two
+languages are much closer in raw performance than this suite would
+indicate.
+</p>
+
+<p>
+Still, there is room for improvement. The compilers are good but could be
+better, many librarise need major performance work, and the garbage collector
+isn't fast enough yet (even if it were, taking care not to generate unnecessary 
+garbage can have a huge effect).
+</p>
+
