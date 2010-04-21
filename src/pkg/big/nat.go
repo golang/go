@@ -48,7 +48,7 @@ func normN(z []Word) []Word {
 
 
 func makeN(z []Word, m int, clear bool) []Word {
-	if len(z) > m {
+	if cap(z) > m {
 		z = z[0:m] // reuse z - has at least one extra word for a carry, if any
 		if clear {
 			for i := range z {
@@ -224,9 +224,10 @@ func mulNN(z, x, y []Word) []Word {
 	}
 	// m >= n && m > 1 && n > 1
 
-	z = makeN(z, m+n, true)
-	if &z[0] == &x[0] || &z[0] == &y[0] {
+	if z == nil || &z[0] == &x[0] || &z[0] == &y[0] {
 		z = makeN(nil, m+n, true) // z is an alias for x or y - cannot reuse
+	} else {
+		z = makeN(z, m+n, true)
 	}
 	for i := 0; i < n; i++ {
 		if f := y[i]; f != 0 {
@@ -297,7 +298,12 @@ func divLargeNN(z, z2, uIn, v []Word) (q, r []Word) {
 	n := len(v)
 	m := len(uIn) - len(v)
 
-	u := makeN(z2, len(uIn)+1, false)
+	var u []Word
+	if z2 == nil || &z2[0] == &uIn[0] {
+		u = makeN(nil, len(uIn)+1, true) // uIn is an alias for z2
+	} else {
+		u = makeN(z2, len(uIn)+1, true)
+	}
 	qhatv := make([]Word, len(v)+1)
 	q = makeN(z, m+1, false)
 
