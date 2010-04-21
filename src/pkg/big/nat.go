@@ -432,7 +432,7 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
 	}
 
 	// convert string
-	z = makeN(z, len(z), false)
+	z = z[0:0]
 	for ; i < n; i++ {
 		d := hexValue(s[i])
 		if 0 <= d && d < base {
