@@ -829,11 +829,11 @@ asmb(void)
 		ph = newElfPhdr();
 		ph->type = PT_LOAD;
 		ph->flags = PF_X+PF_R;
-		ph->vaddr = va;
-		ph->paddr = va;
-		ph->off = fo;
-		ph->filesz = w;
-		ph->memsz = w;
+		ph->vaddr = va - fo;
+		ph->paddr = va - fo;
+		ph->off = 0;
+		ph->filesz = w + fo;
+		ph->memsz = w + fo;
 		ph->align = INITRND;
 
 		fo = rnd(fo+w, INITRND);
