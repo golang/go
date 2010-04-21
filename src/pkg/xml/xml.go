@@ -165,6 +165,7 @@ type Parser struct {
 
 	r         io.ReadByter
 	buf       bytes.Buffer
+	saved     *bytes.Buffer
 	stk       *stack
 	free      *stack
 	needClose bool
@@ -698,11 +699,24 @@ func (p *Parser) getc() (b byte, ok bool) {
 		if p.err != nil {
 			return 0, false
 		}
+		if p.saved != nil {
+			p.saved.WriteByte(b)
+		}
 	}
 	if b == '\n' {
 		p.line++
 	}
 	return b, true
+}
+
+// Return saved offset.
+// If we did ungetc (nextByte >= 0), have to back up one.
+func (p *Parser) savedOffset() int {
+	n := p.saved.Len()
+	if p.nextByte >= 0 {
+		n--
+	}
+	return n
 }
 
 // Must read a single byte.

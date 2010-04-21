@@ -76,6 +76,10 @@ import (
 //
 // Unmarshal maps an XML element to a struct using the following rules:
 //
+//   * If the struct has a field of type []byte or string with tag "innerxml",
+//      Unmarshal accumulates the raw XML nested inside the element
+//      in that field.  The rest of the rules still apply.
+//
 //   * If the struct has a field named XMLName of type xml.Name,
 //      Unmarshal records the element name in that field.
 //
@@ -198,12 +202,15 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	}
 
 	var (
-		data        []byte
-		saveData    reflect.Value
-		comment     []byte
-		saveComment reflect.Value
-		sv          *reflect.StructValue
-		styp        *reflect.StructType
+		data         []byte
+		saveData     reflect.Value
+		comment      []byte
+		saveComment  reflect.Value
+		saveXML      reflect.Value
+		saveXMLIndex int
+		saveXMLData  []byte
+		sv           *reflect.StructValue
+		styp         *reflect.StructType
 	)
 	switch v := val.(type) {
 	default:
@@ -316,6 +323,17 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				if saveData == nil {
 					saveData = sv.FieldByIndex(f.Index)
 				}
+
+			case "innerxml":
+				if saveXML == nil {
+					saveXML = sv.FieldByIndex(f.Index)
+					if p.saved == nil {
+						saveXMLIndex = 0
+						p.saved = new(bytes.Buffer)
+					} else {
+						saveXMLIndex = p.savedOffset()
+					}
+				}
 			}
 		}
 	}
@@ -324,6 +342,10 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	// Process sub-elements along the way.
 Loop:
 	for {
+		var savedOffset int
+		if saveXML != nil {
+			savedOffset = p.savedOffset()
+		}
 		tok, err := p.Token()
 		if err != nil {
 			return err
@@ -361,6 +383,12 @@ Loop:
 			}
 
 		case EndElement:
+			if saveXML != nil {
+				saveXMLData = p.saved.Bytes()[saveXMLIndex:savedOffset]
+				if saveXMLIndex == 0 {
+					p.saved = nil
+				}
+			}
 			break Loop
 
 		case CharData:
@@ -489,6 +517,13 @@ Loop:
 		t.Set(string(comment))
 	case *reflect.SliceValue:
 		t.Set(reflect.NewValue(comment).(*reflect.SliceValue))
+	}
+
+	switch t := saveXML.(type) {
+	case *reflect.StringValue:
+		t.Set(string(saveXMLData))
+	case *reflect.SliceValue:
+		t.Set(reflect.NewValue(saveXMLData).(*reflect.SliceValue))
 	}
 
 	return nil
