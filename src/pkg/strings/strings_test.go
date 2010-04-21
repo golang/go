@@ -5,6 +5,7 @@
 package strings_test
 
 import (
+	"os"
 	. "strings"
 	"testing"
 	"unicode"
@@ -573,6 +574,28 @@ func TestRunes(t *testing.T) {
 			if s != tt.in {
 				t.Errorf("string([]int(%q)) = %x; want %x", tt.in, s, tt.in)
 			}
+		}
+	}
+}
+
+func TestReadRune(t *testing.T) {
+	testStrings := []string{"", abcd, faces, commas}
+	for _, s := range testStrings {
+		reader := NewReader(s)
+		res := ""
+		for {
+			r, _, e := reader.ReadRune()
+			if e == os.EOF {
+				break
+			}
+			if e != nil {
+				t.Errorf("Reading %q: %s", s, e)
+				break
+			}
+			res += string(r)
+		}
+		if res != s {
+			t.Errorf("Reader(%q).ReadRune() produced %q", s, res)
 		}
 	}
 }

@@ -4,9 +4,12 @@
 
 package strings
 
-import "os"
+import (
+	"os"
+	"utf8"
+)
 
-// A Reader satisfies calls to Read and ReadByte by
+// A Reader satisfies calls to Read, ReadByte, and ReadRune by
 // reading from a string.
 type Reader string
 
@@ -30,6 +33,26 @@ func (r *Reader) ReadByte() (b byte, err os.Error) {
 	}
 	b = s[0]
 	*r = s[1:]
+	return
+}
+
+// ReadRune reads and returns the next UTF-8-encoded
+// Unicode code point from the buffer.
+// If no bytes are available, the error returned is os.EOF.
+// If the bytes are an erroneous UTF-8 encoding, it
+// consumes one byte and returns U+FFFD, 1.
+func (r *Reader) ReadRune() (rune int, size int, err os.Error) {
+	s := *r
+	if len(s) == 0 {
+		return 0, 0, os.EOF
+	}
+	c := s[0]
+	if c < utf8.RuneSelf {
+		*r = s[1:]
+		return int(c), 1, nil
+	}
+	rune, size = utf8.DecodeRuneInString(string(s))
+	*r = s[size:]
 	return
 }
 
