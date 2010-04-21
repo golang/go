@@ -131,7 +131,7 @@ func TestLeadingZeroBits(t *testing.T) {
 
 type shiftTest struct {
 	in    []Word
-	shift int
+	shift uint
 	out   []Word
 }
 

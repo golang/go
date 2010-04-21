@@ -100,21 +100,26 @@ func (z *Int) Mul(x, y *Int) *Int {
 }
 
 
-// Div calculates q = (x-r)/y where 0 <= r < y. The receiver is set to q.
-func (z *Int) Div(x, y *Int) (q, r *Int) {
-	q = z
-	r = new(Int)
-	div(q, r, x, y)
-	return
+// Div calculates q = (x-r)/y and sets z = q.
+func (z *Int) Div(x, y *Int) *Int {
+	r := new(Int)
+	div(z, r, x, y)
+	return z
 }
 
 
-// Mod calculates q = (x-r)/y and returns r.
-func (z *Int) Mod(x, y *Int) (r *Int) {
+// Mod calculates q = (x-r)/y and sets z = r.
+func (z *Int) Mod(x, y *Int) *Int {
 	q := new(Int)
-	r = z
-	div(q, r, x, y)
-	return
+	div(q, z, x, y)
+	return z
+}
+
+
+// DivMod calculates q = (x-r)/y and sets z = q.  (It returns z, r.)
+func (z *Int) DivMod(x, y, r *Int) (*Int, *Int) {
+	div(z, r, x, y)
+	return z, r
 }
 
 
@@ -166,6 +171,23 @@ func (z *Int) String() string {
 		s = "-"
 	}
 	return s + stringN(z.abs, 10)
+}
+
+
+// Int64 returns the int64 representation of z.
+// If z cannot be represented in an int64, the result is undefined.
+func (z *Int) Int64() int64 {
+	if len(z.abs) == 0 {
+		return 0
+	}
+	v := int64(z.abs[0])
+	if _W == 32 && len(z.abs) > 1 {
+		v |= int64(z.abs[1]) << 32
+	}
+	if z.neg {
+		v = -v
+	}
+	return v
 }
 
 
@@ -324,7 +346,8 @@ func GcdInt(d, x, y, a, b *Int) {
 	temp := new(Int)
 
 	for len(B.abs) > 0 {
-		q, r := q.Div(A, B)
+		r := new(Int)
+		q, r = q.DivMod(A, B, r)
 
 		A, B = B, r
 
@@ -359,12 +382,28 @@ func GcdInt(d, x, y, a, b *Int) {
 func ProbablyPrime(z *Int, n int) bool { return !z.neg && probablyPrime(z.abs, n) }
 
 
-// Rsh sets z = x >> s and returns z.
-func (z *Int) Rsh(x *Int, n int) *Int {
-	removedWords := n / _W
-	z.abs = makeN(z.abs, len(x.abs)-removedWords, false)
+// Lsh sets z = x << n and returns z.
+func (z *Int) Lsh(x *Int, n uint) *Int {
+	addedWords := int(n) / _W
+	// Don't assign z.abs yet, in case z == x
+	znew := makeN(z.abs, len(x.abs)+addedWords+1, false)
 	z.neg = x.neg
-	shiftRight(z.abs, x.abs[removedWords:], n%_W)
-	z.abs = normN(z.abs)
+	shiftLeft(znew[addedWords:], x.abs, n%_W)
+	for i := range znew[0:addedWords] {
+		znew[i] = 0
+	}
+	z.abs = normN(znew)
+	return z
+}
+
+
+// Rsh sets z = x >> n and returns z.
+func (z *Int) Rsh(x *Int, n uint) *Int {
+	removedWords := int(n) / _W
+	// Don't assign z.abs yet, in case z == x
+	znew := makeN(z.abs, len(x.abs)-removedWords, false)
+	z.neg = x.neg
+	shiftRight(znew, x.abs[removedWords:], n%_W)
+	z.abs = normN(znew)
 	return z
 }
