@@ -297,7 +297,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 		fmtprint(f, "[");
 		exprfmt(f, n->right->left, 0);
 		fmtprint(f, ":");
-		exprfmt(f, n->right->right, 0);
+		if(n->right->right != N)
+			exprfmt(f, n->right->right, 0);
 		fmtprint(f, "]");
 		break;
 
