@@ -1038,12 +1038,22 @@ func (v *MapValue) Set(x *MapValue) {
 	if !v.canSet {
 		panic(cannotSet)
 	}
+	if x == nil {
+		*(**uintptr)(v.addr) = nil
+		return
+	}
 	typesMustMatch(v.typ, x.typ)
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr)
 }
 
 // Set sets v to the value x.
-func (v *MapValue) SetValue(x Value) { v.Set(x.(*MapValue)) }
+func (v *MapValue) SetValue(x Value) {
+	if x == nil {
+		v.Set(nil)
+		return
+	}
+	v.Set(x.(*MapValue))
+}
 
 // Get returns the uintptr value of v.
 // It is mainly useful for printing.
@@ -1146,6 +1156,10 @@ func (v *PtrValue) Get() uintptr { return *(*uintptr)(v.addr) }
 // Set assigns x to v.
 // The new value x must have the same type as v.
 func (v *PtrValue) Set(x *PtrValue) {
+	if x == nil {
+		*(**uintptr)(v.addr) = nil
+		return
+	}
 	if !v.canSet {
 		panic(cannotSet)
 	}
@@ -1156,7 +1170,13 @@ func (v *PtrValue) Set(x *PtrValue) {
 }
 
 // Set sets v to the value x.
-func (v *PtrValue) SetValue(x Value) { v.Set(x.(*PtrValue)) }
+func (v *PtrValue) SetValue(x Value) {
+	if x == nil {
+		v.Set(nil)
+		return
+	}
+	v.Set(x.(*PtrValue))
+}
 
 // PointTo changes v to point to x.
 func (v *PtrValue) PointTo(x Value) {

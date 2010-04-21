@@ -350,6 +350,26 @@ func TestPtrPointTo(t *testing.T) {
 	}
 }
 
+func TestPtrSetNil(t *testing.T) {
+	var i int32 = 1234
+	ip := &i
+	vip := NewValue(&ip)
+	vip.(*PtrValue).Elem().(*PtrValue).Set(nil)
+	if ip != nil {
+		t.Errorf("got non-nil (%d), want nil", *ip)
+	}
+}
+
+func TestMapSetNil(t *testing.T) {
+	m := make(map[string]int)
+	vm := NewValue(&m)
+	vm.(*PtrValue).Elem().(*MapValue).Set(nil)
+	if m != nil {
+		t.Errorf("got non-nil (%p), want nil", m)
+	}
+}
+
+
 func TestAll(t *testing.T) {
 	testType(t, 1, Typeof((int8)(0)), "int8")
 	testType(t, 2, Typeof((*int8)(nil)).(*PtrType).Elem(), "int8")
@@ -837,6 +857,12 @@ func TestMap(t *testing.T) {
 	v, ok := newm["a"]
 	if ok {
 		t.Errorf("newm[\"a\"] = %d after delete", v)
+	}
+
+	mv = NewValue(&m).(*PtrValue).Elem().(*MapValue)
+	mv.Set(nil)
+	if m != nil {
+		t.Errorf("mv.Set(nil) failed")
 	}
 }
 
