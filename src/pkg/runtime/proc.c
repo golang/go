@@ -248,7 +248,7 @@ readylocked(G *g)
 	}
 
 	// Mark runnable.
-	if(g->status == Grunnable || g->status == Grunning)
+	if(g->status == Grunnable || g->status == Grunning || g->status == Grecovery)
 		throw("bad g->status in ready");
 	g->status = Grunnable;
 
@@ -472,6 +472,7 @@ scheduler(void)
 			// before it tests the return value.)
 			gp->sched.sp = getcallersp(d->sp - 2*sizeof(uintptr));
 			gp->sched.pc = d->pc;
+			gp->status = Grunning;
 			free(d);
 			gogo(&gp->sched, 1);
 		}

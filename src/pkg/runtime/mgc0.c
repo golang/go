@@ -128,6 +128,7 @@ mark(void)
 		case Gdead:
 			break;
 		case Grunning:
+		case Grecovery:
 			if(gp != g)
 				throw("mark - world not stopped");
 			scanstack(gp);
@@ -135,7 +136,6 @@ mark(void)
 		case Grunnable:
 		case Gsyscall:
 		case Gwaiting:
-		case Grecovery:
 			scanstack(gp);
 			break;
 		}
