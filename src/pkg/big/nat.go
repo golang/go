@@ -544,13 +544,16 @@ func shiftLeft(dst, src []Word, n uint) {
 	}
 
 	ñ := _W - n
+	x := src[len(src)-1]
 	if len(dst) > len(src) {
-		dst[len(src)] |= src[len(src)-1] >> ñ
+		dst[len(src)] = x >> ñ
 	}
 	for i := len(src) - 1; i >= 1; i-- {
-		dst[i] = src[i]<<n | src[i-1]>>ñ
+		y := src[i-1]
+		dst[i] = x<<n | y>>ñ
+		x = y
 	}
-	dst[0] = src[0] << n
+	dst[0] = x << n
 }
 
 
@@ -560,10 +563,13 @@ func shiftRight(dst, src []Word, n uint) {
 	}
 
 	ñ := _W - n
+	x := src[0]
 	for i := 0; i < len(src)-1; i++ {
-		dst[i] = src[i]>>n | src[i+1]<<ñ
+		y := src[i+1]
+		dst[i] = x>>n | y<<ñ
+		x = y
 	}
-	dst[len(src)-1] = src[len(src)-1] >> n
+	dst[len(src)-1] = x >> n
 }
 
 
