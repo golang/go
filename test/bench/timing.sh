@@ -82,11 +82,6 @@ revcomp() {
 	run 'gccgo -O2 reverse-complement.go' a.out < x
 	run 'gc reverse-complement' $O.out < x
 	run 'gc_B reverse-complement' $O.out < x
-	export GOGC=off
-	runonly echo 'GOGC=off'
-	run 'gc reverse-complement' $O.out < x
-	run 'gc_B reverse-complement' $O.out < x
-	unset GOGC
 	rm x
 }
 
@@ -181,7 +176,7 @@ threadring() {
 chameneos() {
 	runonly echo 'chameneos 6000000'
 	run 'gcc -O2 chameneosredux.c -lpthread' a.out 6000000
-#	run 'gccgo -O2 chameneosredux.go' a.out 6000000	# doesn't support the non-forward-decl variant
+	run 'gccgo -O2 chameneosredux.go' a.out 6000000
 	run 'gc chameneosredux' $O.out 6000000
 }
 
