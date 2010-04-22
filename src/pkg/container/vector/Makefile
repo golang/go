@@ -11,6 +11,8 @@ GOFILES=\
 	stringvector.go\
 	vector.go\
 
+include ../../../Make.pkg
+
 generate: vector.go vector_test.go
 	< vector.go cat\
 	| gofmt -r='Vector -> IntVector'\
@@ -65,5 +67,3 @@ generate: vector.go vector_test.go
 	| gofmt -r='TestIter -> TestStrIter'\
 	| gofmt -r='TestVectorData -> TestStrVectorData'\
 	> stringvector_test.go
-
-include ../../../Make.pkg
