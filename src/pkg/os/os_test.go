@@ -33,7 +33,7 @@ var etc = []string{
 	"passwd",
 }
 
-func size(name string, t *testing.T) uint64 {
+func size(name string, t *testing.T) int64 {
 	file, err := Open(name, O_RDONLY, 0)
 	defer file.Close()
 	if err != nil {
@@ -51,7 +51,7 @@ func size(name string, t *testing.T) uint64 {
 			t.Fatal("read failed:", err)
 		}
 	}
-	return uint64(len)
+	return int64(len)
 }
 
 func TestStat(t *testing.T) {
@@ -394,10 +394,10 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
 	if err != nil {
 		t.Fatalf("Stat %q (looking for uid/gid %d/%d): %s", path, uid, gid, err)
 	}
-	if dir.Uid != uint32(uid) {
+	if dir.Uid != uid {
 		t.Errorf("Stat %q: uid %d want %d", path, dir.Uid, uid)
 	}
-	if dir.Gid != uint32(gid) {
+	if dir.Gid != gid {
 		t.Errorf("Stat %q: gid %d want %d", path, dir.Gid, gid)
 	}
 }
@@ -427,7 +427,7 @@ func TestChown(t *testing.T) {
 	if err = Chown(Path, -1, gid); err != nil {
 		t.Fatalf("chown %s -1 %d: %s", Path, gid, err)
 	}
-	checkUidGid(t, Path, int(dir.Uid), gid)
+	checkUidGid(t, Path, dir.Uid, gid)
 
 	// Then try all the auxiliary groups.
 	groups, err := Getgroups()
@@ -439,17 +439,17 @@ func TestChown(t *testing.T) {
 		if err = Chown(Path, -1, g); err != nil {
 			t.Fatalf("chown %s -1 %d: %s", Path, g, err)
 		}
-		checkUidGid(t, Path, int(dir.Uid), g)
+		checkUidGid(t, Path, dir.Uid, g)
 
 		// change back to gid to test fd.Chown
 		if err = fd.Chown(-1, gid); err != nil {
 			t.Fatalf("fchown %s -1 %d: %s", Path, gid, err)
 		}
-		checkUidGid(t, Path, int(dir.Uid), gid)
+		checkUidGid(t, Path, dir.Uid, gid)
 	}
 }
 
-func checkSize(t *testing.T, path string, size uint64) {
+func checkSize(t *testing.T, path string, size int64) {
 	dir, err := Stat(path)
 	if err != nil {
 		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err)

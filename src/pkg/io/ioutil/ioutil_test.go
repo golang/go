@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func checkSize(t *testing.T, path string, size uint64) {
+func checkSize(t *testing.T, path string, size int64) {
 	dir, err := os.Stat(path)
 	if err != nil {
 		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err)
@@ -33,7 +33,7 @@ func TestReadFile(t *testing.T) {
 		t.Fatalf("ReadFile %s: %v", filename, err)
 	}
 
-	checkSize(t, filename, uint64(len(contents)))
+	checkSize(t, filename, int64(len(contents)))
 }
 
 func TestWriteFile(t *testing.T) {

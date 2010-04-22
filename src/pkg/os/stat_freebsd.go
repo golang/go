@@ -15,15 +15,15 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
 	fi.Ino = uint64(stat.Ino)
 	fi.Nlink = uint64(stat.Nlink)
 	fi.Mode = uint32(stat.Mode)
-	fi.Uid = stat.Uid
-	fi.Gid = stat.Gid
+	fi.Uid = int(stat.Uid)
+	fi.Gid = int(stat.Gid)
 	fi.Rdev = uint64(stat.Rdev)
 	fi.Size = uint64(stat.Size)
-	fi.Blksize = uint64(stat.Blksize)
-	fi.Blocks = uint64(stat.Blocks)
-	fi.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec))
-	fi.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec))
-	fi.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec))
+	fi.Blksize = int64(stat.Blksize)
+	fi.Blocks = stat.Blocks
+	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
+	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
+	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
 	for i := len(name) - 1; i >= 0; i-- {
 		if name[i] == '/' {
 			name = name[i+1:]

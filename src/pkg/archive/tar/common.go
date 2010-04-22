@@ -33,8 +33,8 @@ const (
 type Header struct {
 	Name     string
 	Mode     int64
-	Uid      int64
-	Gid      int64
+	Uid      int
+	Gid      int
 	Size     int64
 	Mtime    int64
 	Typeflag byte

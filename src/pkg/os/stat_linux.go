@@ -12,18 +12,18 @@ func isSymlink(stat *syscall.Stat_t) bool {
 
 func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
 	fi.Dev = stat.Dev
-	fi.Ino = uint64(stat.Ino)
+	fi.Ino = stat.Ino
 	fi.Nlink = uint64(stat.Nlink)
 	fi.Mode = stat.Mode
-	fi.Uid = stat.Uid
-	fi.Gid = stat.Gid
+	fi.Uid = int(stat.Uid)
+	fi.Gid = int(stat.Gid)
 	fi.Rdev = stat.Rdev
-	fi.Size = uint64(stat.Size)
-	fi.Blksize = uint64(stat.Blksize)
-	fi.Blocks = uint64(stat.Blocks)
-	fi.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim))
-	fi.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim))
-	fi.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim))
+	fi.Size = stat.Size
+	fi.Blksize = int64(stat.Blksize)
+	fi.Blocks = stat.Blocks
+	fi.Atime_ns = syscall.TimespecToNsec(stat.Atim)
+	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtim)
+	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctim)
 	for i := len(name) - 1; i >= 0; i-- {
 		if name[i] == '/' {
 			name = name[i+1:]

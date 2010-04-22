@@ -130,8 +130,8 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 	copy(s.next(100), []byte(hdr.Name))
 
 	tw.octal(s.next(8), hdr.Mode)          // 100:108
-	tw.numeric(s.next(8), hdr.Uid)         // 108:116
-	tw.numeric(s.next(8), hdr.Gid)         // 116:124
+	tw.numeric(s.next(8), int64(hdr.Uid))  // 108:116
+	tw.numeric(s.next(8), int64(hdr.Gid))  // 116:124
 	tw.numeric(s.next(12), hdr.Size)       // 124:136
 	tw.numeric(s.next(12), hdr.Mtime)      // 136:148
 	s.next(8)                              // chksum (148:156)

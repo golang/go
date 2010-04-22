@@ -30,7 +30,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
 	// It's a good but not certain bet that FileInfo will tell us exactly how much to
 	// read, so let's try it but be prepared for the answer to be wrong.
 	fi, err := f.Stat()
-	var n uint64
+	var n int64
 	if err == nil && fi.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
 		n = fi.Size
 	}

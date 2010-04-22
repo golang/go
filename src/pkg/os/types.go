@@ -18,15 +18,15 @@ type FileInfo struct {
 	Ino             uint64 // inode number.
 	Nlink           uint64 // number of hard links.
 	Mode            uint32 // permission and mode bits.
-	Uid             uint32 // user id of owner.
-	Gid             uint32 // group id of owner.
+	Uid             int    // user id of owner.
+	Gid             int    // group id of owner.
 	Rdev            uint64 // device type for special file.
-	Size            uint64 // length in bytes.
-	Blksize         uint64 // size of blocks, in bytes.
-	Blocks          uint64 // number of blocks allocated for file.
-	Atime_ns        uint64 // access time; nanoseconds since epoch.
-	Mtime_ns        uint64 // modified time; nanoseconds since epoch.
-	Ctime_ns        uint64 // status change time; nanoseconds since epoch.
+	Size            int64  // length in bytes.
+	Blksize         int64  // size of blocks, in bytes.
+	Blocks          int64  // number of blocks allocated for file.
+	Atime_ns        int64  // access time; nanoseconds since epoch.
+	Mtime_ns        int64  // modified time; nanoseconds since epoch.
+	Ctime_ns        int64  // status change time; nanoseconds since epoch.
 	Name            string // name of file as presented to Open.
 	FollowedSymlink bool   // followed a symlink to get this information
 }
