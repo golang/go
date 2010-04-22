@@ -7,32 +7,32 @@ package big
 import "testing"
 
 type cmpTest struct {
-	x, y []Word
+	x, y nat
 	r    int
 }
 
 
 var cmpTests = []cmpTest{
 	cmpTest{nil, nil, 0},
-	cmpTest{nil, []Word{}, 0},
-	cmpTest{[]Word{}, nil, 0},
-	cmpTest{[]Word{}, []Word{}, 0},
-	cmpTest{[]Word{0}, []Word{0}, 0},
-	cmpTest{[]Word{0}, []Word{1}, -1},
-	cmpTest{[]Word{1}, []Word{0}, 1},
-	cmpTest{[]Word{1}, []Word{1}, 0},
-	cmpTest{[]Word{0, _M}, []Word{1}, 1},
-	cmpTest{[]Word{1}, []Word{0, _M}, -1},
-	cmpTest{[]Word{1, _M}, []Word{0, _M}, 1},
-	cmpTest{[]Word{0, _M}, []Word{1, _M}, -1},
-	cmpTest{[]Word{16, 571956, 8794, 68}, []Word{837, 9146, 1, 754489}, -1},
-	cmpTest{[]Word{34986, 41, 105, 1957}, []Word{56, 7458, 104, 1957}, 1},
+	cmpTest{nil, nat{}, 0},
+	cmpTest{nat{}, nil, 0},
+	cmpTest{nat{}, nat{}, 0},
+	cmpTest{nat{0}, nat{0}, 0},
+	cmpTest{nat{0}, nat{1}, -1},
+	cmpTest{nat{1}, nat{0}, 1},
+	cmpTest{nat{1}, nat{1}, 0},
+	cmpTest{nat{0, _M}, nat{1}, 1},
+	cmpTest{nat{1}, nat{0, _M}, -1},
+	cmpTest{nat{1, _M}, nat{0, _M}, 1},
+	cmpTest{nat{0, _M}, nat{1, _M}, -1},
+	cmpTest{nat{16, 571956, 8794, 68}, nat{837, 9146, 1, 754489}, -1},
+	cmpTest{nat{34986, 41, 105, 1957}, nat{56, 7458, 104, 1957}, 1},
 }
 
 
-func TestCmpNN(t *testing.T) {
+func TestCmp(t *testing.T) {
 	for i, a := range cmpTests {
-		r := cmpNN(a.x, a.y)
+		r := a.x.cmp(a.y)
 		if r != a.r {
 			t.Errorf("#%d got r = %v; want %v", i, r, a.r)
 		}
@@ -40,38 +40,38 @@ func TestCmpNN(t *testing.T) {
 }
 
 
-type funNN func(z, x, y []Word) []Word
+type funNN func(z, x, y nat) nat
 type argNN struct {
-	z, x, y []Word
+	z, x, y nat
 }
 
 
 var sumNN = []argNN{
 	argNN{},
-	argNN{[]Word{1}, nil, []Word{1}},
-	argNN{[]Word{1111111110}, []Word{123456789}, []Word{987654321}},
-	argNN{[]Word{0, 0, 0, 1}, nil, []Word{0, 0, 0, 1}},
-	argNN{[]Word{0, 0, 0, 1111111110}, []Word{0, 0, 0, 123456789}, []Word{0, 0, 0, 987654321}},
-	argNN{[]Word{0, 0, 0, 1}, []Word{0, 0, _M}, []Word{0, 0, 1}},
+	argNN{nat{1}, nil, nat{1}},
+	argNN{nat{1111111110}, nat{123456789}, nat{987654321}},
+	argNN{nat{0, 0, 0, 1}, nil, nat{0, 0, 0, 1}},
+	argNN{nat{0, 0, 0, 1111111110}, nat{0, 0, 0, 123456789}, nat{0, 0, 0, 987654321}},
+	argNN{nat{0, 0, 0, 1}, nat{0, 0, _M}, nat{0, 0, 1}},
 }
 
 
 var prodNN = []argNN{
 	argNN{},
 	argNN{nil, nil, nil},
-	argNN{nil, []Word{991}, nil},
-	argNN{[]Word{991}, []Word{991}, []Word{1}},
-	argNN{[]Word{991 * 991}, []Word{991}, []Word{991}},
-	argNN{[]Word{0, 0, 991 * 991}, []Word{0, 991}, []Word{0, 991}},
-	argNN{[]Word{1 * 991, 2 * 991, 3 * 991, 4 * 991}, []Word{1, 2, 3, 4}, []Word{991}},
-	argNN{[]Word{4, 11, 20, 30, 20, 11, 4}, []Word{1, 2, 3, 4}, []Word{4, 3, 2, 1}},
+	argNN{nil, nat{991}, nil},
+	argNN{nat{991}, nat{991}, nat{1}},
+	argNN{nat{991 * 991}, nat{991}, nat{991}},
+	argNN{nat{0, 0, 991 * 991}, nat{0, 991}, nat{0, 991}},
+	argNN{nat{1 * 991, 2 * 991, 3 * 991, 4 * 991}, nat{1, 2, 3, 4}, nat{991}},
+	argNN{nat{4, 11, 20, 30, 20, 11, 4}, nat{1, 2, 3, 4}, nat{4, 3, 2, 1}},
 }
 
 
-func TestSetN(t *testing.T) {
+func TestSet(t *testing.T) {
 	for _, a := range sumNN {
-		z := setN(nil, a.z)
-		if cmpNN(z, a.z) != 0 {
+		z := nat(nil).set(a.z)
+		if z.cmp(a.z) != 0 {
 			t.Errorf("got z = %v; want %v", z, a.z)
 		}
 	}
@@ -80,7 +80,7 @@ func TestSetN(t *testing.T) {
 
 func testFunNN(t *testing.T, msg string, f funNN, a argNN) {
 	z := f(nil, a.x, a.y)
-	if cmpNN(z, a.z) != 0 {
+	if z.cmp(a.z) != 0 {
 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z)
 	}
 }
@@ -89,30 +89,30 @@ func testFunNN(t *testing.T, msg string, f funNN, a argNN) {
 func TestFunNN(t *testing.T) {
 	for _, a := range sumNN {
 		arg := a
-		testFunNN(t, "addNN", addNN, arg)
+		testFunNN(t, "add", nat.add, arg)
 
 		arg = argNN{a.z, a.y, a.x}
-		testFunNN(t, "addNN symmetric", addNN, arg)
+		testFunNN(t, "add symmetric", nat.add, arg)
 
 		arg = argNN{a.x, a.z, a.y}
-		testFunNN(t, "subNN", subNN, arg)
+		testFunNN(t, "sub", nat.sub, arg)
 
 		arg = argNN{a.y, a.z, a.x}
-		testFunNN(t, "subNN symmetric", subNN, arg)
+		testFunNN(t, "sub symmetric", nat.sub, arg)
 	}
 
 	for _, a := range prodNN {
 		arg := a
-		testFunNN(t, "mulNN", mulNN, arg)
+		testFunNN(t, "mul", nat.mul, arg)
 
 		arg = argNN{a.z, a.y, a.x}
-		testFunNN(t, "mulNN symmetric", mulNN, arg)
+		testFunNN(t, "mul symmetric", nat.mul, arg)
 	}
 }
 
 
 type strN struct {
-	x []Word
+	x nat
 	b int
 	s string
 }
@@ -120,21 +120,21 @@ type strN struct {
 
 var tabN = []strN{
 	strN{nil, 10, "0"},
-	strN{[]Word{1}, 10, "1"},
-	strN{[]Word{10}, 10, "10"},
-	strN{[]Word{1234567890}, 10, "1234567890"},
+	strN{nat{1}, 10, "1"},
+	strN{nat{10}, 10, "10"},
+	strN{nat{1234567890}, 10, "1234567890"},
 }
 
 
-func TestStringN(t *testing.T) {
+func TestString(t *testing.T) {
 	for _, a := range tabN {
-		s := stringN(a.x, a.b)
+		s := a.x.string(a.b)
 		if s != a.s {
 			t.Errorf("stringN%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
-		x, b, n := scanN(nil, a.s, a.b)
-		if cmpNN(x, a.x) != 0 {
+		x, b, n := nat(nil).scan(a.s, a.b)
+		if x.cmp(a.x) != 0 {
 			t.Errorf("scanN%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
 		if b != a.b {
@@ -159,27 +159,27 @@ func TestLeadingZeroBits(t *testing.T) {
 
 
 type shiftTest struct {
-	in    []Word
+	in    nat
 	shift uint
-	out   []Word
+	out   nat
 }
 
 
 var leftShiftTests = []shiftTest{
 	shiftTest{nil, 0, nil},
 	shiftTest{nil, 1, nil},
-	shiftTest{[]Word{0}, 0, []Word{0}},
-	shiftTest{[]Word{1}, 0, []Word{1}},
-	shiftTest{[]Word{1}, 1, []Word{2}},
-	shiftTest{[]Word{1 << (_W - 1)}, 1, []Word{0}},
-	shiftTest{[]Word{1 << (_W - 1), 0}, 1, []Word{0, 1}},
+	shiftTest{nat{0}, 0, nat{0}},
+	shiftTest{nat{1}, 0, nat{1}},
+	shiftTest{nat{1}, 1, nat{2}},
+	shiftTest{nat{1 << (_W - 1)}, 1, nat{0}},
+	shiftTest{nat{1 << (_W - 1), 0}, 1, nat{0, 1}},
 }
 
 
 func TestShiftLeft(t *testing.T) {
 	for i, test := range leftShiftTests {
-		dst := make([]Word, len(test.out))
-		shiftLeft(dst, test.in, test.shift)
+		dst := make(nat, len(test.out))
+		dst.shiftLeft(test.in, test.shift)
 		for j, v := range dst {
 			if test.out[j] != v {
 				t.Errorf("#%d: got: %v want: %v", i, dst, test.out)
@@ -193,19 +193,19 @@ func TestShiftLeft(t *testing.T) {
 var rightShiftTests = []shiftTest{
 	shiftTest{nil, 0, nil},
 	shiftTest{nil, 1, nil},
-	shiftTest{[]Word{0}, 0, []Word{0}},
-	shiftTest{[]Word{1}, 0, []Word{1}},
-	shiftTest{[]Word{1}, 1, []Word{0}},
-	shiftTest{[]Word{2}, 1, []Word{1}},
-	shiftTest{[]Word{0, 1}, 1, []Word{1 << (_W - 1), 0}},
-	shiftTest{[]Word{2, 1, 1}, 1, []Word{1<<(_W-1) + 1, 1 << (_W - 1), 0}},
+	shiftTest{nat{0}, 0, nat{0}},
+	shiftTest{nat{1}, 0, nat{1}},
+	shiftTest{nat{1}, 1, nat{0}},
+	shiftTest{nat{2}, 1, nat{1}},
+	shiftTest{nat{0, 1}, 1, nat{1 << (_W - 1), 0}},
+	shiftTest{nat{2, 1, 1}, 1, nat{1<<(_W-1) + 1, 1 << (_W - 1), 0}},
 }
 
 
 func TestShiftRight(t *testing.T) {
 	for i, test := range rightShiftTests {
-		dst := make([]Word, len(test.out))
-		shiftRight(dst, test.in, test.shift)
+		dst := make(nat, len(test.out))
+		dst.shiftRight(test.in, test.shift)
 		for j, v := range dst {
 			if test.out[j] != v {
 				t.Errorf("#%d: got: %v want: %v", i, dst, test.out)
@@ -216,30 +216,30 @@ func TestShiftRight(t *testing.T) {
 }
 
 
-type modNWTest struct {
+type modWTest struct {
 	in       string
 	dividend string
 	out      string
 }
 
 
-var modNWTests32 = []modNWTest{
-	modNWTest{"23492635982634928349238759823742", "252341", "220170"},
+var modWTests32 = []modWTest{
+	modWTest{"23492635982634928349238759823742", "252341", "220170"},
 }
 
 
-var modNWTests64 = []modNWTest{
-	modNWTest{"6527895462947293856291561095690465243862946", "524326975699234", "375066989628668"},
+var modWTests64 = []modWTest{
+	modWTest{"6527895462947293856291561095690465243862946", "524326975699234", "375066989628668"},
 }
 
 
-func runModNWTests(t *testing.T, tests []modNWTest) {
+func runModWTests(t *testing.T, tests []modWTest) {
 	for i, test := range tests {
 		in, _ := new(Int).SetString(test.in, 10)
 		d, _ := new(Int).SetString(test.dividend, 10)
 		out, _ := new(Int).SetString(test.out, 10)
 
-		r := modNW(in.abs, d.abs[0])
+		r := in.abs.modW(d.abs[0])
 		if r != out.abs[0] {
 			t.Errorf("#%d failed: got %s want %s\n", i, r, out)
 		}
@@ -247,12 +247,12 @@ func runModNWTests(t *testing.T, tests []modNWTest) {
 }
 
 
-func TestModNW(t *testing.T) {
+func TestModW(t *testing.T) {
 	if _W >= 32 {
-		runModNWTests(t, modNWTests32)
+		runModWTests(t, modWTests32)
 	}
 	if _W >= 64 {
-		runModNWTests(t, modNWTests32)
+		runModWTests(t, modWTests64)
 	}
 }
 
@@ -269,19 +269,19 @@ func TestTrailingZeroBits(t *testing.T) {
 }
 
 
-type expNNNTest struct {
+type expNNTest struct {
 	x, y, m string
 	out     string
 }
 
 
-var expNNNTests = []expNNNTest{
-	expNNNTest{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
-	expNNNTest{"0x8000000000000000", "2", "6719", "4944"},
-	expNNNTest{"0x8000000000000000", "3", "6719", "5447"},
-	expNNNTest{"0x8000000000000000", "1000", "6719", "1603"},
-	expNNNTest{"0x8000000000000000", "1000000", "6719", "3199"},
-	expNNNTest{
+var expNNTests = []expNNTest{
+	expNNTest{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
+	expNNTest{"0x8000000000000000", "2", "6719", "4944"},
+	expNNTest{"0x8000000000000000", "3", "6719", "5447"},
+	expNNTest{"0x8000000000000000", "1000", "6719", "1603"},
+	expNNTest{"0x8000000000000000", "1000000", "6719", "3199"},
+	expNNTest{
 		"2938462938472983472983659726349017249287491026512746239764525612965293865296239471239874193284792387498274256129746192347",
 		"298472983472983471903246121093472394872319615612417471234712061",
 		"29834729834729834729347290846729561262544958723956495615629569234729836259263598127342374289365912465901365498236492183464",
@@ -290,20 +290,20 @@ var expNNNTests = []expNNNTest{
 }
 
 
-func TestExpNNN(t *testing.T) {
-	for i, test := range expNNNTests {
-		x, _, _ := scanN(nil, test.x, 0)
-		y, _, _ := scanN(nil, test.y, 0)
-		out, _, _ := scanN(nil, test.out, 0)
+func TestExpNN(t *testing.T) {
+	for i, test := range expNNTests {
+		x, _, _ := nat(nil).scan(test.x, 0)
+		y, _, _ := nat(nil).scan(test.y, 0)
+		out, _, _ := nat(nil).scan(test.out, 0)
 
-		var m []Word
+		var m nat
 
 		if len(test.m) > 0 {
-			m, _, _ = scanN(nil, test.m, 0)
+			m, _, _ = nat(nil).scan(test.m, 0)
 		}
 
-		z := expNNN(nil, x, y, m)
-		if cmpNN(z, out) != 0 {
+		z := nat(nil).expNN(x, y, m)
+		if z.cmp(out) != 0 {
 			t.Errorf("#%d got %v want %v", i, z, out)
 		}
 	}

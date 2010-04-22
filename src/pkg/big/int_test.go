@@ -327,8 +327,8 @@ func TestDivStepD6(t *testing.T) {
 	// See Knuth, Volume 2, section 4.3.1, exercise 21. This code exercises
 	// a code path which only triggers 1 in 10^{-19} cases.
 
-	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M ^ (1 << (_W - 1))}}
-	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1 << (_W - 1)}}
+	u := &Int{false, nat{0, 0, 1 + 1<<(_W-1), _M ^ (1 << (_W - 1))}}
+	v := &Int{false, nat{5, 2 + 1<<(_W-1), 1 << (_W - 1)}}
 
 	r := new(Int)
 	q, r := new(Int).DivMod(u, v, r)
