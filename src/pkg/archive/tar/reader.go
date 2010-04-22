@@ -142,8 +142,8 @@ func (tr *Reader) readHeader() *Header {
 
 	hdr.Name = cString(s.next(100))
 	hdr.Mode = tr.octal(s.next(8))
-	hdr.Uid = tr.octal(s.next(8))
-	hdr.Gid = tr.octal(s.next(8))
+	hdr.Uid = int(tr.octal(s.next(8)))
+	hdr.Gid = int(tr.octal(s.next(8)))
 	hdr.Size = tr.octal(s.next(12))
 	hdr.Mtime = tr.octal(s.next(12))
 	s.next(8) // chksum
