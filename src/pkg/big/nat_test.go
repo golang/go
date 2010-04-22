@@ -6,8 +6,37 @@ package big
 
 import "testing"
 
+type cmpTest struct {
+	x, y []Word
+	r    int
+}
+
+
+var cmpTests = []cmpTest{
+	cmpTest{nil, nil, 0},
+	cmpTest{nil, []Word{}, 0},
+	cmpTest{[]Word{}, nil, 0},
+	cmpTest{[]Word{}, []Word{}, 0},
+	cmpTest{[]Word{0}, []Word{0}, 0},
+	cmpTest{[]Word{0}, []Word{1}, -1},
+	cmpTest{[]Word{1}, []Word{0}, 1},
+	cmpTest{[]Word{1}, []Word{1}, 0},
+	cmpTest{[]Word{0, _M}, []Word{1}, 1},
+	cmpTest{[]Word{1}, []Word{0, _M}, -1},
+	cmpTest{[]Word{1, _M}, []Word{0, _M}, 1},
+	cmpTest{[]Word{0, _M}, []Word{1, _M}, -1},
+	cmpTest{[]Word{16, 571956, 8794, 68}, []Word{837, 9146, 1, 754489}, -1},
+	cmpTest{[]Word{34986, 41, 105, 1957}, []Word{56, 7458, 104, 1957}, 1},
+}
+
+
 func TestCmpNN(t *testing.T) {
-	// TODO(gri) write this test - all other tests depends on it
+	for i, a := range cmpTests {
+		r := cmpNN(a.x, a.y)
+		if r != a.r {
+			t.Errorf("#%d got r = %v; want %v", i, r, a.r)
+		}
+	}
 }
 
 
