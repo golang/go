@@ -151,22 +151,36 @@ var fromStringTests = []fromStringTest{
 	fromStringTest{"0x10", 0, 16, true},
 	fromStringTest{in: "0x10", base: 16, ok: false},
 	fromStringTest{"-0x10", 0, -16, true},
+	fromStringTest{"00", 0, 0, true},
+	fromStringTest{"0", 8, 0, true},
+	fromStringTest{"07", 0, 7, true},
+	fromStringTest{"7", 8, 7, true},
+	fromStringTest{in: "08", ok: false},
+	fromStringTest{in: "8", base: 8, ok: false},
+	fromStringTest{"023", 0, 19, true},
+	fromStringTest{"23", 8, 19, true},
 }
 
 
 func TestSetString(t *testing.T) {
+	n2 := new(Int)
 	for i, test := range fromStringTests {
-		n, ok := new(Int).SetString(test.in, test.base)
-		if ok != test.ok {
+		n1, ok1 := new(Int).SetString(test.in, test.base)
+		n2, ok2 := n2.SetString(test.in, test.base)
+		expected := new(Int).New(test.out)
+		if ok1 != test.ok || ok2 != test.ok {
 			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok)
 			continue
 		}
-		if !ok {
+		if !ok1 || !ok2 {
 			continue
 		}
 
-		if n.Cmp(new(Int).New(test.out)) != 0 {
-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n, test.out)
+		if n1.Cmp(expected) != 0 {
+			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n1, test.out)
+		}
+		if n2.Cmp(expected) != 0 {
+			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n2, test.out)
 		}
 	}
 }
