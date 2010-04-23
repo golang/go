@@ -108,7 +108,7 @@ start:
 	}while(again);
 
 	if(INITRND) {
-		INITDAT = rnd(c, INITRND);
+		INITDAT = rnd(c+textpad, INITRND);
 		if(INITDAT != idat) {
 			idat = INITDAT;
 			goto start;

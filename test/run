@@ -22,7 +22,7 @@ esac
 
 case X"$GOOS" in
 Xnacl)
-	export E="nacl"
+	export E=${GORUN:-$GOROOT/misc/nacl/naclrun}
 esac
 
 export G=${A}g

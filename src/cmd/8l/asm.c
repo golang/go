@@ -226,8 +226,11 @@ addsize(Sym *s, Sym *t)
 vlong
 datoff(vlong addr)
 {
-	if(addr >= INITDAT)
+	if(addr >= INITDAT) {
+		if(HEADTYPE == 8)
+			return addr - INITDAT + rnd(HEADR+textsize, 4096);
 		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
+	}
 	diag("datoff %#llx", addr);
 	return 0;
 }
@@ -548,6 +551,14 @@ asmb(void)
 		}
 		cflush();
 		break;
+	case 8:
+		// Native Client only needs to round
+		// text segment file address to 4096 bytes,
+		// but text segment memory address rounds
+		// to INITRND (65536).
+		v = rnd(HEADR+textsize, 4096);
+		seek(cout, v, 0);
+		break;
 	Elfseek:
 	case 10:
 		v = rnd(HEADR+textsize, INITRND);
@@ -829,15 +840,25 @@ asmb(void)
 		ph = newElfPhdr();
 		ph->type = PT_LOAD;
 		ph->flags = PF_X+PF_R;
-		ph->vaddr = va - fo;
-		ph->paddr = va - fo;
-		ph->off = 0;
-		ph->filesz = w + fo;
-		ph->memsz = w + fo;
+		if(HEADTYPE != 8) {	// Include header, but not on Native Client.
+			va -= fo;
+			w += fo;
+			fo = 0;
+		}
+		ph->vaddr = va;
+		ph->paddr = va;
+		ph->off = fo;
+		ph->filesz = w;
+		ph->memsz = INITDAT - va;
 		ph->align = INITRND;
 
-		fo = rnd(fo+w, INITRND);
-		va = rnd(va+w, INITRND);
+		// NaCl text segment file address rounds to 4096;
+		// only memory address rounds to INITRND.
+		if(HEADTYPE == 8)
+			fo = rnd(fo+w, 4096);
+		else
+			fo = rnd(fo+w, INITRND);
+		va = INITDAT;
 		w = datsize;
 
 		ph = newElfPhdr();
@@ -941,7 +962,7 @@ asmb(void)
 		ph->flags = PF_W+PF_R;
 		ph->align = 4;
 
-		fo = ELFRESERVE;
+		fo = HEADR;
 		va = startva + fo;
 		w = textsize;
 
@@ -953,7 +974,12 @@ asmb(void)
 		sh->size = w;
 		sh->addralign = 4;
 
-		fo = rnd(fo+w, INITRND);
+		// NaCl text segment file address rounds to 4096;
+		// only memory address rounds to INITRND.
+		if(HEADTYPE == 8)
+			fo = rnd(fo+w, 4096);
+		else
+			fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
@@ -1013,7 +1039,7 @@ asmb(void)
 		switch(HEADTYPE) {
 		case 8:
 			eh->ident[EI_OSABI] = ELFOSABI_NACL;
-			eh->ident[EI_ABIVERSION] = 6;
+			eh->ident[EI_ABIVERSION] = 7;
 			eh->flags = 0x200000;	// aligned mod 32
 			break;
 		case 9:

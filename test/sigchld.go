@@ -1,3 +1,4 @@
+// if [ $GOOS == nacl ]; then echo survived SIGCHLD; exit 0; fi  # NaCl has no signals.
 // $G $D/$F.go && $L $F.$A && ./$A.out
 
 // Copyright 2009 The Go Authors. All rights reserved.

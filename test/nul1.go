@@ -1,3 +1,4 @@
+// [ $GOOS != nacl ] || exit 0  # NaCl runner elides NUL in output
 // $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
 // errchk $G -e tmp.go
 // rm -f tmp.go

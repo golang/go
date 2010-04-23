@@ -88,7 +88,7 @@ unlock(Lock *l)
 }
 
 void
-destroylock(Lock *l)
+destroylock(Lock*)
 {
 }
 

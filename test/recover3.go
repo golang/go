@@ -1,3 +1,4 @@
+// [ $GOOS != nacl ] || exit 0  # NaCl cannot recover from signals
 // $G $D/$F.go && $L $F.$A && ./$A.out
 
 // Copyright 2010 The Go Authors.  All rights reserved.

@@ -150,6 +150,25 @@ TEST=\
 BENCH=\
 	$(filter-out $(NOBENCH),$(TEST))
 
+# Disable tests that NaCl cannot run yet.
+ifeq ($(GOOS),nacl)
+NOTEST+=archive/tar  # no pipe
+NOTEST+=debug/dwarf  # no pread
+NOTEST+=debug/macho  # no pread
+NOTEST+=debug/elf    # no pread
+NOTEST+=exec         # no pipe
+NOTEST+=http         # no network
+NOTEST+=log          # no runtime.Caller
+NOTEST+=net          # no network
+NOTEST+=os           # many things unimplemented
+NOTEST+=os/signal    # no signals
+NOTEST+=path         # tree walking does not work
+NOTEST+=rpc          # no network
+NOTEST+=syslog       # no network
+NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
+NOTEST+=websocket    # no network
+endif
+
 clean.dirs: $(addsuffix .clean, $(DIRS))
 install.dirs: $(addsuffix .install, $(DIRS))
 nuke.dirs: $(addsuffix .nuke, $(DIRS))

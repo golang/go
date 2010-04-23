@@ -7,6 +7,7 @@
 
 export GOARCH=386
 export GOOS=nacl
+export GORUN="$GOROOT/misc/nacl/naclrun"
 
 set -e
 bash make.bash
@@ -16,6 +17,11 @@ xcd() {
 	echo --- cd $1
 	builtin cd $1
 }
+
+(xcd pkg
+make install
+make test
+) || exit $?
 
 (xcd pkg/exp/nacl/srpc
 make clean
@@ -38,5 +44,5 @@ make
 ) || exit $?
 
 (xcd ../test
-./run-nacl
+./run
 ) || exit $?

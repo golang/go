@@ -1,0 +1,15 @@
+#!/bin/sh
+# Copyright 2010 The Go Authors.  All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# Run nacl binary in debug mode (allow file access)
+# and then grep away the chatter.
+# See ../../src/pkg/exp/nacl/README for more on
+# how to configure NaCl.
+
+nacl -d "$@" >/tmp/nacl.out.$$ 2>&1
+status=$?
+egrep -v 'DEBUG MODE ENABLED|^\[[0-9]+,' /tmp/nacl.out.$$
+rm -f /tmp/nacl.out.$$
+exit $status

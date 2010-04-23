@@ -131,7 +131,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 func Mkdir(path string, mode int) (errno int) { return ENACL }
 
 func Lstat(path string, stat *Stat_t) (errno int) {
-	return ENACL
+	return Stat(path, stat)
 }
 
 func Chdir(path string) (errno int) { return ENACL }
