@@ -18,7 +18,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
 	fi.Uid = int(stat.Uid)
 	fi.Gid = int(stat.Gid)
 	fi.Rdev = uint64(stat.Rdev)
-	fi.Size = uint64(stat.Size)
+	fi.Size = int64(stat.Size)
 	fi.Blksize = int64(stat.Blksize)
 	fi.Blocks = stat.Blocks
 	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
