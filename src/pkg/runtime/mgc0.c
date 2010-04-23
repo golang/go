@@ -56,18 +56,36 @@ scanblock(int32 depth, byte *b, int64 n)
 	n /= PtrSize;
 	for(i=0; i<n; i++) {
 		obj = vp[i];
-		if(obj == nil || (byte*)obj < mheap.min || (byte*)obj >= mheap.max)
+		if(obj == nil)
 			continue;
-		if(mlookup(obj, &obj, &size, nil, &refp)) {
-			ref = *refp;
-			switch(ref & ~RefFlags) {
-			case RefNone:
-				if(Debug > 1)
-					printf("%d found at %p: ", depth, &vp[i]);
-				*refp = RefSome | (ref & RefFlags);
-				if(!(ref & RefNoPointers))
-					scanblock(depth+1, obj, size);
-				break;
+		if(mheap.closure_min != nil && mheap.closure_min <= (byte*)obj && (byte*)obj < mheap.closure_max) {
+			if((((uintptr)obj) & 63) != 0)
+				continue;
+
+			// Looks like a Native Client closure.
+			// Actual pointer is pointed at by address in first instruction.
+			// Embedded pointer starts at byte 2.
+			// If it is f4f4f4f4 then that space hasn't been
+			// used for a closure yet (f4 is the HLT instruction).
+			// See nacl/386/closure.c for more.
+			void **pp;
+			pp = *(void***)((byte*)obj+2);
+			if(pp == (void**)0xf4f4f4f4)	// HLT... - not a closure after all
+				continue;
+			obj = *pp;
+		}
+		if(mheap.min <= (byte*)obj && (byte*)obj < mheap.max) {
+			if(mlookup(obj, &obj, &size, nil, &refp)) {
+				ref = *refp;
+				switch(ref & ~RefFlags) {
+				case RefNone:
+					if(Debug > 1)
+						printf("%d found at %p: ", depth, &vp[i]);
+					*refp = RefSome | (ref & RefFlags);
+					if(!(ref & RefNoPointers))
+						scanblock(depth+1, obj, size);
+					break;
+				}
 			}
 		}
 	}
@@ -310,8 +328,8 @@ gc(int32 force)
 		if(fing == nil)
 			fing = newproc1((byte*)runfinq, nil, 0, 0);
 		else if(fingwait) {
-			ready(fing);
 			fingwait = 0;
+			ready(fing);
 		}
 	}
 	m->locks--;
@@ -359,6 +377,7 @@ runfinq(void)
 			f->fn = nil;
 			f->arg = nil;
 			f->next = nil;
+			free(f);
 		}
 		gc(1);	// trigger another gc to clean up the finalized objects, if possible
 	}

@@ -8,6 +8,7 @@
 #include "opt.h"
 
 static Prog *pret;
+static Node *naclnop;
 
 void
 compile(Node *fn)
@@ -23,6 +24,7 @@ compile(Node *fn)
 		newproc = sysfunc("newproc");
 		deferproc = sysfunc("deferproc");
 		deferreturn = sysfunc("deferreturn");
+		naclnop = sysfunc("naclnop");
 		panicindex = sysfunc("panicindex");
 		panicslice = sysfunc("panicslice");
 		throwreturn = sysfunc("throwreturn");
@@ -95,8 +97,16 @@ compile(Node *fn)
 	gclean();
 	if(nerrors != 0)
 		goto ret;
-	if(hasdefer)
+	if(hasdefer) {
+		// On Native client, insert call to no-op function
+		// to force alignment immediately before call to deferreturn,
+		// so that when jmpdefer subtracts 5 from the second CALL's
+		// return address and then the return masks off the low bits,
+		// we'll back up to the NOPs immediately after the dummy CALL.
+		if(strcmp(getgoos(), "nacl") == 0)
+			ginscall(naclnop, 0);
 		ginscall(deferreturn, 0);
+	}
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 

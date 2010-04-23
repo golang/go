@@ -68,5 +68,5 @@ func main() {
 	for i := 0; i < len(t); i++ {
 		t[i] = 1
 	}
-	recur(10000)
+	recur(8000)
 }

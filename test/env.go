@@ -1,3 +1,4 @@
+// [ $GOOS != nacl ] || exit 0  # NaCl runner does not expose environment
 // $G $F.go && $L $F.$A && ./$A.out
 
 // Copyright 2009 The Go Authors. All rights reserved.

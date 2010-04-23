@@ -280,7 +280,12 @@ main(int argc, char *argv[])
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
-			INITRND = 4096;
+			INITRND = 65536;
+		
+		// 512 kB of address space for closures.
+		// (Doesn't take any space in the binary file.)
+		// Closures are 64 bytes each, so this is 8,192 closures.
+		textpad = 512*1024;
 		break;
 	case 10: /* PE executable */
 		peinit();

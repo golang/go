@@ -154,8 +154,12 @@ runtime.acid.$(GOARCH): runtime.h proc.c
 
 # 386 traceback is really amd64 traceback
 ifeq ($(GOARCH),386)
-
 traceback.$O:	amd64/traceback.c
 	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+endif
 
+# NaCl closure is special.
+ifeq ($(GOOS),nacl)
+closure.$O: nacl/$(GOARCH)/closure.c
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
 endif

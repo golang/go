@@ -1,3 +1,4 @@
+// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
 // $G $D/$F.go && $L $F.$A &&
 //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
 

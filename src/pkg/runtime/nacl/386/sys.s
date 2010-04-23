@@ -20,6 +20,8 @@
 #define SYS_mutex_lock  71
 #define SYS_mutex_unlock 73
 #define SYS_gettimeofday 40
+#define SYS_dyncode_copy 104
+
 
 #define SYSCALL(x)	$(0x10000+SYS_/**/x * 32)
 
@@ -54,6 +56,15 @@ TEXT	mutex_unlock(SB),7,$0
 
 TEXT thread_create(SB),7,$0
 	JMP	SYSCALL(thread_create)
+
+TEXT dyncode_copy(SB),7,$0
+	JMP	SYSCALL(dyncode_copy)
+
+// For Native Client: a simple no-op function.
+// Inserting a call to this no-op is a simple way
+// to trigger an alignment.
+TEXT ·naclnop(SB),7,$0
+	RET
 
 TEXT ·mmap(SB),7,$24
 	MOVL	a1+0(FP), BX
