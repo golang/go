@@ -596,7 +596,7 @@ func (st *state) findVar(s string) reflect.Value {
 			return nil
 		}
 		if intf, ok := data.(*reflect.InterfaceValue); ok {
-			data = intf.Elem()
+			data = reflect.Indirect(intf.Elem())
 		}
 
 		switch typ := data.Type().(type) {
