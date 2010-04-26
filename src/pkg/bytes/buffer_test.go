@@ -264,6 +264,7 @@ func TestWriteTo(t *testing.T) {
 	}
 }
 
+
 func TestRuneIO(t *testing.T) {
 	const NRune = 1000
 	// Built a test array while we write the data
@@ -294,6 +295,40 @@ func TestRuneIO(t *testing.T) {
 		nr, nbytes, err := buf.ReadRune()
 		if nr != r || nbytes != size || err != nil {
 			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
+		}
+	}
+}
+
+
+func TestNext(t *testing.T) {
+	b := []byte{0, 1, 2, 3, 4}
+	tmp := make([]byte, 5)
+	for i := 0; i <= 5; i++ {
+		for j := i; j <= 5; j++ {
+			for k := 0; k <= 6; k++ {
+				// 0 <= i <= j <= 5; 0 <= k <= 6
+				// Check that if we start with a buffer
+				// of length j at offset i and ask for
+				// Next(k), we get the right bytes.
+				buf := NewBuffer(b[0:j])
+				n, _ := buf.Read(tmp[0:i])
+				if n != i {
+					t.Fatalf("Read %d returned %d", i, n)
+				}
+				bb := buf.Next(k)
+				want := k
+				if want > j-i {
+					want = j - i
+				}
+				if len(bb) != want {
+					t.Fatalf("in %d,%d: len(Next(%d)) == %d", i, j, k, len(bb))
+				}
+				for l, v := range bb {
+					if v != byte(l+i) {
+						t.Fatalf("in %d,%d: Next(%d)[%d] = %d, want %d", i, j, k, l, v, l+i)
+					}
+				}
+			}
 		}
 	}
 }
