@@ -196,17 +196,23 @@ func (b *Buffer) Read(p []byte) (n int, err os.Error) {
 		b.Truncate(0)
 		return 0, os.EOF
 	}
-	m := b.Len()
-	n = len(p)
+	n = copy(p, b.buf[b.off:])
+	b.off += n
+	return
+}
 
+// Next returns a slice containing the next n bytes from the buffer,
+// advancing the buffer as if the bytes had been returned by Read.
+// If there are fewer than n bytes in the buffer, Next returns the entire buffer.
+// The slice is only valid until the next call to a read or write method.
+func (b *Buffer) Next(n int) []byte {
+	m := b.Len()
 	if n > m {
-		// more bytes requested than available
 		n = m
 	}
-
-	copy(p, b.buf[b.off:b.off+n])
+	data := b.buf[b.off : b.off+n]
 	b.off += n
-	return n, err
+	return data
 }
 
 // ReadByte reads and returns the next byte from the buffer.
