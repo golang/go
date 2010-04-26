@@ -28,6 +28,7 @@ var good_re = []string{
 	`[abc]`,
 	`[^1234]`,
 	`[^\n]`,
+	`\!\\`,
 }
 
 type stringError struct {
@@ -100,6 +101,14 @@ var matches = []tester{
 	// fixed bugs
 	tester{`ab$`, "cab", vec{1, 3}},
 	tester{`axxb$`, "axxcb", vec{}},
+
+	// can backslash-escape any punctuation
+	tester{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
+		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, vec{0, 31}},
+	tester{`[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~]+`,
+		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, vec{0, 31}},
+	tester{"\\`", "`", vec{0, 1}},
+	tester{"[\\`]+", "`", vec{0, 1}},
 }
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
