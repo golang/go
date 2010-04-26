@@ -16,6 +16,7 @@ GOFILES=\
 	ipsock.go\
 	net.go\
 	parse.go\
+	pipe.go\
 	port.go\
 	sock.go\
 	tcpsock.go\
