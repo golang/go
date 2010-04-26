@@ -795,8 +795,9 @@ Input:
 			var i int
 		CharLoop:
 			for i = 0; i < len(p.tmp); i++ {
-				p.tmp[i], p.err = p.r.ReadByte()
-				if p.err != nil {
+				var ok bool
+				p.tmp[i], ok = p.getc()
+				if !ok {
 					if p.err == os.EOF {
 						p.err = p.syntaxError("unexpected EOF")
 					}
