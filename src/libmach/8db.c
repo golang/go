@@ -1131,7 +1131,7 @@ static Optable optabFF[8] =
 [0x06]	0,0,		"PUSHL	%e",
 };
 
-static Optable optable[256+1] =
+static Optable optable[256+2] =
 {
 [0x00]	RMB,0,		"ADDB	%r,%e",
 [0x01]	RM,0,		"ADD%S	%r,%e",
@@ -1387,6 +1387,7 @@ static Optable optable[256+1] =
 [0xfe]	RMOPB,0,	optabFE,
 [0xff]	RMOP,0,		optabFF,
 [0x100]	RM,0,		"MOVLQSX	%e,%r",
+[0x101]	RM,0,		"MOVLQZX	%e,%r",
 };
 
 /*
@@ -1590,7 +1591,10 @@ newop:
 				return 0;
 		}
 		if(c == 0x63){
-			op = &obase[0x100];	/* MOVLQSX */
+			if(ip->rex&REXW)
+				op = &obase[0x100];	/* MOVLQSX */
+			else
+				op = &obase[0x101];	/* MOVLQZX */
 			goto hack;
 		}
 	}
