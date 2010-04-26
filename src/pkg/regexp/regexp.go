@@ -298,8 +298,8 @@ func special(c int) bool {
 	return false
 }
 
-func specialcclass(c int) bool {
-	for _, r := range `\-[]` {
+func ispunct(c int) bool {
+	for _, r := range "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" {
 		if c == r {
 			return true
 		}
@@ -344,7 +344,7 @@ func (p *parser) charClass() instr {
 				p.error(ErrExtraneousBackslash)
 			case c == 'n':
 				c = '\n'
-			case specialcclass(c):
+			case ispunct(c):
 				// c is as delivered
 			default:
 				p.error(ErrBadBackslash)
@@ -439,7 +439,7 @@ func (p *parser) term() (start, end instr) {
 			p.error(ErrExtraneousBackslash)
 		case c == 'n':
 			c = '\n'
-		case special(c):
+		case ispunct(c):
 			// c is as delivered
 		default:
 			p.error(ErrBadBackslash)
