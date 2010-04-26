@@ -48,6 +48,7 @@ type S struct {
 	stringmap     map[string]string
 	bytes         []byte
 	iface         interface{}
+	ifaceptr      interface{}
 }
 
 func (s *S) pointerMethod() string { return "ptrmethod!" }
@@ -385,6 +386,11 @@ var tests = []*Test{
 
 		out: "[1 2 3]",
 	},
+	&Test{
+		in: "{.section ifaceptr}{item} {value}{.end}",
+
+		out: "Item Value",
+	},
 }
 
 func TestAll(t *testing.T) {
@@ -423,6 +429,7 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	s.stringmap["stringkey2"] = "stringresult"
 	s.bytes = []byte("hello")
 	s.iface = []int{1, 2, 3}
+	s.ifaceptr = &T{"Item", "Value"}
 
 	var buf bytes.Buffer
 	for _, test := range tests {
