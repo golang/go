@@ -1242,3 +1242,9 @@ int	duintxx(Sym *s, int off, uint64 v, int wid);
 void	genembedtramp(Type*, Type*, Sym*);
 int	gen_as_init(Node*);
 
+
+enum {
+	SysUnix = 1<<1,
+	SysWindows = 1<<2,
+};
+int	systemtype(int);

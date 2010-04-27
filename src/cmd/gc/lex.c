@@ -24,6 +24,7 @@ main(int argc, char *argv[])
 {
 	int i, c;
 	NodeList *l;
+	char *p;
 
 	localpkg = mkpkg(strlit(""));
 	localpkg->prefix = "\"\"";
@@ -79,6 +80,13 @@ main(int argc, char *argv[])
 	pathname = mal(1000);
 	if(getwd(pathname, 999) == 0)
 		strcpy(pathname, "/???");
+
+	if(systemtype(SysWindows)) {
+		// Canonicalize path by converting \ to / (Windows accepts both).
+		for(p=pathname; *p; p++)
+			if(*p == '\\')
+				*p = '/';
+	}
 
 	fmtinstall('O', Oconv);		// node opcodes
 	fmtinstall('E', Econv);		// etype opcodes
@@ -239,8 +247,11 @@ addidir(char* dir)
 int
 islocalname(Strlit *name)
 {
-	if(name->len >= 1 && name->s[0] == '/')
+	if(systemtype(SysUnix) && name->len >= 1 && name->s[0] == '/')
 		return 1;
+	if(systemtype(SysWindows) && name->len >= 3 &&
+	   isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')
+	   	return 1;
 	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
 		return 1;
 	if(name->len >= 3 && strncmp(name->s, "../", 3) == 0)
@@ -1661,4 +1672,14 @@ mkpackage(char* pkgname)
 			*p = 0;
 		outfile = smprint("%s.%c", namebuf, thechar);
 	}
+}
+
+int
+systemtype(int sys)
+{
+#ifdef __MINGW32__
+	return sys&SysWindows;
+#else
+	return sys&SysUnix;
+#endif
 }
