@@ -144,9 +144,47 @@ func _() {
 	for x := range []int{} {
 		use(x)
 	}
-	for x := range []int{} {
+	for x := range ([]int{}) {
 		use(x)
 	}	// no parens printed
+}
+
+
+// Don't remove mandatory parentheses around composite literals in control clauses.
+func _() {
+	if x {
+	}	// no ()'s
+	if x {
+	}	// no ()'s
+	if ([]T{}) {
+	}	// ()
+	if ([]T{}) {
+	}	// ()
+	if ([]T{}) {
+	}	// ()
+
+	for x {
+	}	// no ()'s
+	for x {
+	}	// no ()'s
+	for ([]T{}) {
+	}	// ()
+	for ([]T{}) {
+	}	// ()
+	for ([]T{}) {
+	}	// ()
+
+	switch x {
+	}	// no ()'s
+	switch x {
+	}	// no ()'s
+	switch ([]T{}) {
+	}	// ()
+	switch ([]T{}) {
+	}	// ()
+
+	for _ = range ([]T{T{42}}) {
+	}	// ()
 }
 
 

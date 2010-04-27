@@ -953,9 +953,14 @@ func (p *printer) block(s *ast.BlockStmt, indent int) {
 // TODO(gri): Decide if this should be used more broadly. The printing code
 //            knows when to insert parentheses for precedence reasons, but
 //            need to be careful to keep them around type expressions.
-func stripParens(x ast.Expr) ast.Expr {
-	if px, hasParens := x.(*ast.ParenExpr); hasParens {
-		return stripParens(px.X)
+func stripParens(x ast.Expr, inControlClause bool) ast.Expr {
+	for px, hasParens := x.(*ast.ParenExpr); hasParens; px, hasParens = x.(*ast.ParenExpr) {
+		x = px.X
+		if _, isCompositeLit := x.(*ast.CompositeLit); isCompositeLit && inControlClause {
+			// composite literals inside control clauses need parens;
+			// don't strip innermost layer
+			return px
+		}
 	}
 	return x
 }
@@ -967,7 +972,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 	if init == nil && post == nil {
 		// no semicolons required
 		if expr != nil {
-			p.expr(stripParens(expr), ignoreMultiLine)
+			p.expr(stripParens(expr, true), ignoreMultiLine)
 			needsBlank = true
 		}
 	} else {
@@ -978,7 +983,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 		}
 		p.print(token.SEMICOLON, blank)
 		if expr != nil {
-			p.expr(stripParens(expr), ignoreMultiLine)
+			p.expr(stripParens(expr, true), ignoreMultiLine)
 			needsBlank = true
 		}
 		if isForStmt {
@@ -1152,7 +1157,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 			p.expr(s.Value, multiLine)
 		}
 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
-		p.expr(stripParens(s.X), multiLine)
+		p.expr(stripParens(s.X, true), multiLine)
 		p.print(blank)
 		p.block(s.Body, 1)
 		*multiLine = true
