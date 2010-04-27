@@ -207,6 +207,18 @@ func TestPipeReadClose(t *testing.T) {
 	}
 }
 
+// Test close on Read side during Read.
+func TestPipeReadClose2(t *testing.T) {
+	c := make(chan int, 1)
+	r, _ := Pipe()
+	go delayClose(t, r, c, pipeTest{})
+	n, err := r.Read(make([]byte, 64))
+	<-c
+	if n != 0 || err != os.EINVAL {
+		t.Errorf("read from closed pipe: %v, %v want %v, %v", n, err, 0, os.EINVAL)
+	}
+}
+
 // Test write after/before reader close.
 
 func TestPipeWriteClose(t *testing.T) {
