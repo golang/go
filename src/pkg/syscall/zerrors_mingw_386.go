@@ -128,6 +128,7 @@ const (
 	ETOOMANYREFS    = 129
 	EPROCLIM        = 130
 	EUSERS          = 131
+	EWOULDBLOCK     = 141
 	ESTALE          = 133
 	ENOMEDIUM       = 135
 	ENOSHARE        = 136
