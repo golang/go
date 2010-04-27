@@ -950,14 +950,25 @@ func (p *printer) block(s *ast.BlockStmt, indent int) {
 }
 
 
+func isTypeName(x ast.Expr) bool {
+	switch t := x.(type) {
+	case *ast.Ident:
+		return true
+	case *ast.SelectorExpr:
+		return isTypeName(t.X)
+	}
+	return false
+}
+
+
 // TODO(gri): Decide if this should be used more broadly. The printing code
 //            knows when to insert parentheses for precedence reasons, but
 //            need to be careful to keep them around type expressions.
 func stripParens(x ast.Expr, inControlClause bool) ast.Expr {
 	for px, hasParens := x.(*ast.ParenExpr); hasParens; px, hasParens = x.(*ast.ParenExpr) {
 		x = px.X
-		if _, isCompositeLit := x.(*ast.CompositeLit); isCompositeLit && inControlClause {
-			// composite literals inside control clauses need parens;
+		if cx, isCompositeLit := x.(*ast.CompositeLit); inControlClause && isCompositeLit && isTypeName(cx.Type) {
+			// composite literals inside control clauses need parens if they start with a type name;
 			// don't strip innermost layer
 			return px
 		}
