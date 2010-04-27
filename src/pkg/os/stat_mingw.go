@@ -18,7 +18,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
 	} else {
 		fi.Mode = fi.Mode | 0666
 	}
-	fi.Size = int64(stat.Windata.FileSizeHigh)<<32 + uint64(stat.Windata.FileSizeLow)
+	fi.Size = int64(stat.Windata.FileSizeHigh)<<32 + int64(stat.Windata.FileSizeLow)
 	fi.Name = string(syscall.UTF16ToString(stat.Windata.FileName[0:]))
 	fi.FollowedSymlink = false
 	// TODO(brainman): use CreationTime LastAccessTime LastWriteTime to prime following Dir fields
