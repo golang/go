@@ -85,6 +85,27 @@ func (file *File) Close() Error {
 	return err
 }
 
+func (file *File) statFile(name string) (fi *FileInfo, err Error) {
+	var stat syscall.ByHandleFileInformation
+	if ok, e := syscall.GetFileInformationByHandle(int32(file.fd), &stat); !ok {
+		return nil, &PathError{"stat", file.name, Errno(e)}
+	}
+	return fileInfoFromByHandleInfo(new(FileInfo), file.name, &stat), nil
+}
+
+// Stat returns the FileInfo structure describing file.
+// It returns the FileInfo and an error, if any.
+func (file *File) Stat() (fi *FileInfo, err Error) {
+	if file == nil || file.fd < 0 {
+		return nil, EINVAL
+	}
+	if file.isdir() {
+		// I don't know any better way to do that for directory
+		return Stat(file.name)
+	}
+	return file.statFile(file.name)
+}
+
 // Readdir reads the contents of the directory associated with file and
 // returns an array of up to count FileInfo structures, as would be returned
 // by Stat, in directory order.  Subsequent calls on the same file will yield
@@ -112,7 +133,7 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 			}
 		}
 		var f FileInfo
-		fileInfoFromStat("", &f, &di.stat, &di.stat)
+		fileInfoFromWin32finddata(&f, &di.stat.Windata)
 		if f.Name == "." || f.Name == ".." { // Useless names
 			continue
 		}
@@ -128,4 +149,19 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 		fi[len(fi)-1] = f
 	}
 	return fi, nil
+}
+
+// Truncate changes the size of the named file.
+// If the file is a symbolic link, it changes the size of the link's target.
+func Truncate(name string, size int64) Error {
+	f, e := Open(name, O_WRONLY|O_CREAT, 0666)
+	if e != nil {
+		return e
+	}
+	defer f.Close()
+	e1 := f.Truncate(size)
+	if e1 != nil {
+		return e1
+	}
+	return nil
 }

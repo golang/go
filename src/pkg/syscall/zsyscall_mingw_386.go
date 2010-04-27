@@ -6,23 +6,33 @@ package syscall
 import "unsafe"
 
 var (
-	modKERNEL32        = loadDll("kernel32.dll")
-	procGetLastError   = getSysProcAddr(modKERNEL32, "GetLastError")
-	procLoadLibraryW   = getSysProcAddr(modKERNEL32, "LoadLibraryW")
-	procFreeLibrary    = getSysProcAddr(modKERNEL32, "FreeLibrary")
-	procGetProcAddress = getSysProcAddr(modKERNEL32, "GetProcAddress")
-	procGetVersion     = getSysProcAddr(modKERNEL32, "GetVersion")
-	procFormatMessageW = getSysProcAddr(modKERNEL32, "FormatMessageW")
-	procExitProcess    = getSysProcAddr(modKERNEL32, "ExitProcess")
-	procCreateFileW    = getSysProcAddr(modKERNEL32, "CreateFileW")
-	procReadFile       = getSysProcAddr(modKERNEL32, "ReadFile")
-	procWriteFile      = getSysProcAddr(modKERNEL32, "WriteFile")
-	procSetFilePointer = getSysProcAddr(modKERNEL32, "SetFilePointer")
-	procCloseHandle    = getSysProcAddr(modKERNEL32, "CloseHandle")
-	procGetStdHandle   = getSysProcAddr(modKERNEL32, "GetStdHandle")
-	procFindFirstFileW = getSysProcAddr(modKERNEL32, "FindFirstFileW")
-	procFindNextFileW  = getSysProcAddr(modKERNEL32, "FindNextFileW")
-	procFindClose      = getSysProcAddr(modKERNEL32, "FindClose")
+	modKERNEL32                    = loadDll("kernel32.dll")
+	procGetLastError               = getSysProcAddr(modKERNEL32, "GetLastError")
+	procLoadLibraryW               = getSysProcAddr(modKERNEL32, "LoadLibraryW")
+	procFreeLibrary                = getSysProcAddr(modKERNEL32, "FreeLibrary")
+	procGetProcAddress             = getSysProcAddr(modKERNEL32, "GetProcAddress")
+	procGetVersion                 = getSysProcAddr(modKERNEL32, "GetVersion")
+	procFormatMessageW             = getSysProcAddr(modKERNEL32, "FormatMessageW")
+	procExitProcess                = getSysProcAddr(modKERNEL32, "ExitProcess")
+	procCreateFileW                = getSysProcAddr(modKERNEL32, "CreateFileW")
+	procReadFile                   = getSysProcAddr(modKERNEL32, "ReadFile")
+	procWriteFile                  = getSysProcAddr(modKERNEL32, "WriteFile")
+	procSetFilePointer             = getSysProcAddr(modKERNEL32, "SetFilePointer")
+	procCloseHandle                = getSysProcAddr(modKERNEL32, "CloseHandle")
+	procGetStdHandle               = getSysProcAddr(modKERNEL32, "GetStdHandle")
+	procFindFirstFileW             = getSysProcAddr(modKERNEL32, "FindFirstFileW")
+	procFindNextFileW              = getSysProcAddr(modKERNEL32, "FindNextFileW")
+	procFindClose                  = getSysProcAddr(modKERNEL32, "FindClose")
+	procGetFileInformationByHandle = getSysProcAddr(modKERNEL32, "GetFileInformationByHandle")
+	procGetCurrentDirectoryW       = getSysProcAddr(modKERNEL32, "GetCurrentDirectoryW")
+	procSetCurrentDirectoryW       = getSysProcAddr(modKERNEL32, "SetCurrentDirectoryW")
+	procCreateDirectoryW           = getSysProcAddr(modKERNEL32, "CreateDirectoryW")
+	procRemoveDirectoryW           = getSysProcAddr(modKERNEL32, "RemoveDirectoryW")
+	procDeleteFileW                = getSysProcAddr(modKERNEL32, "DeleteFileW")
+	procMoveFileW                  = getSysProcAddr(modKERNEL32, "MoveFileW")
+	procGetComputerNameW           = getSysProcAddr(modKERNEL32, "GetComputerNameW")
+	procSetEndOfFile               = getSysProcAddr(modKERNEL32, "SetEndOfFile")
+	procGetSystemTimeAsFileTime    = getSysProcAddr(modKERNEL32, "GetSystemTimeAsFileTime")
 )
 
 func GetLastError() (lasterrno int) {
@@ -199,5 +209,109 @@ func FindClose(handle int32) (ok bool, errno int) {
 	} else {
 		errno = 0
 	}
+	return
+}
+
+func GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procGetFileInformationByHandle, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) {
+	r0, _, e1 := Syscall(procGetCurrentDirectoryW, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
+	n = uint32(r0)
+	if n == 0 {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func SetCurrentDirectory(path *uint16) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procSetCurrentDirectoryW, uintptr(unsafe.Pointer(path)), 0, 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procCreateDirectoryW, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(sa)), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func RemoveDirectory(path *uint16) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procRemoveDirectoryW, uintptr(unsafe.Pointer(path)), 0, 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func DeleteFile(path *uint16) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procDeleteFileW, uintptr(unsafe.Pointer(path)), 0, 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func MoveFile(from *uint16, to *uint16) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procMoveFileW, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procGetComputerNameW, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func SetEndOfFile(handle int32) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procSetEndOfFile, uintptr(handle), 0, 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetSystemTimeAsFileTime(time *Filetime) {
+	Syscall(procGetSystemTimeAsFileTime, uintptr(unsafe.Pointer(time)), 0, 0)
 	return
 }
