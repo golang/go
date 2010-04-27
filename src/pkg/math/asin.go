@@ -14,16 +14,20 @@ package math
 
 // Asin returns the arcsine of x.
 //
-// Special case is:
+// Special cases are:
+//	Asin(±0) = ±0
 //	Asin(x) = NaN if x < -1 or x > 1
 func Asin(x float64) float64 {
+	if x == 0 {
+		return x // special case
+	}
 	sign := false
 	if x < 0 {
 		x = -x
 		sign = true
 	}
 	if x > 1 {
-		return NaN()
+		return NaN() // special case
 	}
 
 	temp := Sqrt(1 - x*x)

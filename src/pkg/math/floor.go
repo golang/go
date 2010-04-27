@@ -14,7 +14,7 @@ package math
 func Floor(x float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
-	if x != x || x > MaxFloat64 || x < -MaxFloat64 { // IsNaN(x) || IsInf(x, 0)
+	if x == 0 || x != x || x > MaxFloat64 || x < -MaxFloat64 { // x == 0 || IsNaN(x) || IsInf(x, 0)
 		return x
 	}
 	if x < 0 {
@@ -45,7 +45,7 @@ func Ceil(x float64) float64 { return -Floor(-x) }
 func Trunc(x float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
-	if x != x || x > MaxFloat64 || x < -MaxFloat64 { // IsNaN(x) || IsInf(x, 0)
+	if x == 0 || x != x || x > MaxFloat64 || x < -MaxFloat64 { // x == 0 || IsNaN(x) || IsInf(x, 0)
 		return x
 	}
 	d, _ := Modf(x)

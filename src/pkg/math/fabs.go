@@ -11,8 +11,11 @@ package math
 //	Fabs(-Inf) = +Inf
 //	Fabs(NaN) = NaN
 func Fabs(x float64) float64 {
-	if x < 0 {
+	switch {
+	case x < 0:
 		return -x
+	case x == 0:
+		return 0 // return correctly fabs(-0)
 	}
 	return x
 }

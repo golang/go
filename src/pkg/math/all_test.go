@@ -26,8 +26,7 @@ var vf = []float64{
 // at http://keisan.casio.com/.  More exact input values (array vf[], above)
 // were obtained by printing them with "%.26f".  The answers were calculated
 // to 26 digits (by using the "Digit number" drop-down control of each
-// calculator).  Twenty-six digits were chosen so that the answers would be
-// accurate even for a float128 type.
+// calculator).
 var acos = []float64{
 	1.0496193546107222142571536e+00,
 	6.8584012813664425171660692e-01,
@@ -231,6 +230,18 @@ var exp2 = []float64{
 	6.6250893439173561733216375e+00,
 	3.5438267900243941544605339e+00,
 	2.4281533133513300984289196e-03,
+}
+var fabs = []float64{
+	4.9790119248836735e+00,
+	7.7388724745781045e+00,
+	2.7688005719200159e-01,
+	5.0106036182710749e+00,
+	9.6362937071984173e+00,
+	2.9263772392439646e+00,
+	5.2290834314593066e+00,
+	2.7279399104360102e+00,
+	1.8253080916808550e+00,
+	8.6859247685756013e+00,
 }
 var fdim = []float64{
 	4.9790119248836735e+00,
@@ -600,57 +611,96 @@ var yM3 = []float64{
 }
 
 // arguments and expected results for special cases
+var vfacosSC = []float64{
+	-Pi,
+	1,
+	Pi,
+	NaN(),
+}
+var acosSC = []float64{
+	NaN(),
+	0,
+	NaN(),
+	NaN(),
+}
+
 var vfacoshSC = []float64{
 	Inf(-1),
 	0.5,
+	Inf(1),
 	NaN(),
 }
 var acoshSC = []float64{
 	NaN(),
 	NaN(),
+	Inf(1),
 	NaN(),
 }
 
 var vfasinSC = []float64{
-	NaN(),
 	-Pi,
+	-1 / Inf(1), // -0
+	0,
 	Pi,
+	NaN(),
 }
 var asinSC = []float64{
 	NaN(),
+	-1 / Inf(1), // -0
+	0,
 	NaN(),
 	NaN(),
 }
 
 var vfasinhSC = []float64{
 	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
 var asinhSC = []float64{
 	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
 
 var vfatanSC = []float64{
+	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
+	Inf(1),
 	NaN(),
 }
 var atanSC = []float64{
+	-Pi / 2,
+	-1 / Inf(1), // -0
+	0,
+	Pi / 2,
 	NaN(),
 }
 
 var vfatanhSC = []float64{
+	Inf(-1),
 	-Pi,
 	-1,
+	-1 / Inf(1), // -0
+	0,
 	1,
 	Pi,
+	Inf(1),
 	NaN(),
 }
 var atanhSC = []float64{
 	NaN(),
+	NaN(),
 	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
+	NaN(),
 	NaN(),
 	NaN(),
 }
@@ -692,61 +742,69 @@ var vfatan2SC = [][2]float64{
 	[2]float64{NaN(), NaN()},
 }
 var atan2SC = []float64{
-	-3 * Pi / 4,
-	-Pi / 2,
-	-Pi / 2,
-	-Pi / 2,
-	-Pi / 4,
-	NaN(),
-	-Pi,
-	-Pi / 2,
-	-1 / Inf(1), // -0
-	NaN(),
-	-Pi,
-	-Pi,
-	-Pi, // -0, -0
-	-1 / Inf(1),
-	-1 / Inf(1),
-	-1 / Inf(1),
-	NaN(),
-	Pi,
-	Pi,
-	Pi, // +0, -0
-	0,
-	0,
-	0,
-	NaN(),
-	Pi,
-	Pi / 2,
-	0,
-	NaN(),
-	3 * Pi / 4,
-	Pi / 2,
-	Pi / 2,
-	Pi / 2,
-	Pi / 4,
-	NaN(),
-	NaN(),
+	-3 * Pi / 4, // atan2(-Inf, -Inf)
+	-Pi / 2,     // atan2(-Inf, -Pi)
+	-Pi / 2,     // atan2(-Inf, +0)
+	-Pi / 2,     // atan2(-Inf, +Pi)
+	-Pi / 4,     // atan2(-Inf, +Inf)
+	NaN(),       // atan2(-Inf, NaN)
+	-Pi,         // atan2(-Pi, -Inf)
+	-Pi / 2,     // atan2(-Pi, +0)
+	-1 / Inf(1), // -0 = atan2(-Pi, Inf)
+	NaN(),       // atan2(-Pi, NaN)
+	-Pi,         // atan2(-0, -Inf)
+	-Pi,         // atan2(-0, -Pi)
+	-Pi,         // atan2(-0, -0)
+	-1 / Inf(1), // atan2(-0, +0)
+	-1 / Inf(1), // atan2(-0, +Pi)
+	-1 / Inf(1), // atan2(-0, +Inf)
+	NaN(),       // atan2(-0, NaN)
+	Pi,          // atan2(+0, -Inf)
+	Pi,          // atan2(+0, -Pi)
+	Pi,          // atan2(+0, -0)
+	0,           // atan2(+0, +0)
+	0,           // atan2(+0, +Pi)
+	0,           // atan2(+0, +Inf)
+	NaN(),       // atan2(+0, NaN)
+	Pi,          // atan2(+Pi, -Inf)
+	Pi / 2,      // atan2(+Pi, +0)
+	0,           // atan2(+Pi, +Inf)
+	NaN(),       // atan2(+Pi, NaN)
+	3 * Pi / 4,  // atan2(+Inf, -Inf)
+	Pi / 2,      // atan2(+Inf, -Pi)
+	Pi / 2,      // atan2(+Inf, +0)
+	Pi / 2,      // atan2(+Inf, +Pi)
+	Pi / 4,      // atan2(+Inf, +Inf)
+	NaN(),       // atan2(+Inf, NaN)
+	NaN(),       // atan2(NaN, NaN)
 }
 
 var vfcbrtSC = []float64{
 	Inf(-1),
+	-1 / Inf(1),
+	0,
 	Inf(1),
 	NaN(),
 }
 var cbrtSC = []float64{
 	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
 
 var vfceilSC = []float64{
 	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
 var ceilSC = []float64{
 	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
@@ -762,14 +820,50 @@ var copysignSC = []float64{
 	NaN(),
 }
 
+var vfcosSC = []float64{
+	Inf(-1),
+	Inf(1),
+	NaN(),
+}
+var cosSC = []float64{
+	NaN(),
+	NaN(),
+	NaN(),
+}
+
+var vfcoshSC = []float64{
+	Inf(-1),
+	-1 / Inf(1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var coshSC = []float64{
+	Inf(1),
+	1,
+	1,
+	Inf(1),
+	NaN(),
+}
+
 var vferfSC = []float64{
 	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
 var erfSC = []float64{
 	-1,
+	-1 / Inf(1), // -0
+	0,
 	1,
+	NaN(),
+}
+
+var vferfcSC = []float64{
+	Inf(-1),
+	Inf(1),
 	NaN(),
 }
 var erfcSC = []float64{
@@ -788,8 +882,33 @@ var expSC = []float64{
 	Inf(1),
 	NaN(),
 }
+
+var vfexpm1SC = []float64{
+	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
+	Inf(1),
+	NaN(),
+}
 var expm1SC = []float64{
 	-1,
+	-1 / Inf(1),
+	0,
+	Inf(1),
+	NaN(),
+}
+
+var vffabsSC = []float64{
+	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
+	Inf(1),
+	NaN(),
+}
+var fabsSC = []float64{
+	Inf(1),
+	0,
+	0,
 	Inf(1),
 	NaN(),
 }
@@ -805,6 +924,10 @@ var vffmodSC = [][2]float64{
 	[2]float64{-Pi, 0},
 	[2]float64{-Pi, Inf(1)},
 	[2]float64{-Pi, NaN()},
+	[2]float64{-1 / Inf(1), Inf(-1)}, // -0, -Inf
+	[2]float64{-1 / Inf(1), 0},       // -0, 0
+	[2]float64{-1 / Inf(1), Inf(1)},  // -0, Inf
+	[2]float64{-1 / Inf(1), NaN()},   // -0, NaN
 	[2]float64{0, Inf(-1)},
 	[2]float64{0, 0},
 	[2]float64{0, Inf(1)},
@@ -827,46 +950,52 @@ var vffmodSC = [][2]float64{
 	[2]float64{NaN(), NaN()},
 }
 var fmodSC = []float64{
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	-Pi,
-	NaN(),
-	-Pi,
-	NaN(),
-	0,
-	NaN(),
-	0,
-	NaN(),
-	Pi,
-	NaN(),
-	Pi,
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
+	NaN(),       // fmod(-Inf, -Inf)
+	NaN(),       // fmod(-Inf, -Pi)
+	NaN(),       // fmod(-Inf, 0)
+	NaN(),       // fmod(-Inf, Pi)
+	NaN(),       // fmod(-Inf, +Inf)
+	NaN(),       // fmod(-Inf, NaN)
+	-Pi,         // fmod(-Pi, -Inf)
+	NaN(),       // fmod(-Pi, 0)
+	-Pi,         // fmod(-Pi, +Inf)
+	NaN(),       // fmod(-Pi, NaN)
+	-1 / Inf(1), // -0 = fmod(-0, -Inf)
+	NaN(),       // fmod(-0, 0)
+	-1 / Inf(1), // -0 = fmod(-0, Inf)
+	NaN(),       // fmod(-0, NaN)
+	0,           // fmod(0, -Inf)
+	NaN(),       // fmod(0, 0)
+	0,           // fmod(0, +Inf)
+	NaN(),       // fmod(0, NaN)
+	Pi,          // fmod(Pi, -Inf)
+	NaN(),       // fmod(Pi, 0)
+	Pi,          // fmod(Pi, +Inf)
+	NaN(),       // fmod(Pi, NaN)
+	NaN(),       // fmod(+Inf, -Inf)
+	NaN(),       // fmod(+Inf, -Pi)
+	NaN(),       // fmod(+Inf, 0)
+	NaN(),       // fmod(+Inf, Pi)
+	NaN(),       // fmod(+Inf, +Inf)
+	NaN(),       // fmod(+Inf, NaN)
+	NaN(),       // fmod(NaN, -Inf)
+	NaN(),       // fmod(NaN, -Pi)
+	NaN(),       // fmod(NaN, 0)
+	NaN(),       // fmod(NaN, Pi)
+	NaN(),       // fmod(NaN, +Inf)
+	NaN(),       // fmod(NaN, NaN)
 }
 
 var vffrexpSC = []float64{
 	Inf(-1),
+	-1 / Inf(1), // -0
 	0,
 	Inf(1),
 	NaN(),
 }
 var frexpSC = []fi{
 	fi{Inf(-1), 0},
+	fi{-1 / Inf(1), 0}, // -0, 0
 	fi{0, 0},
 	fi{Inf(1), 0},
 	fi{NaN(), 0},
@@ -875,12 +1004,14 @@ var frexpSC = []fi{
 var vfgammaSC = []float64{
 	Inf(-1),
 	-3,
+	-1 / Inf(1), // -0
 	0,
 	Inf(1),
 	NaN(),
 }
 var gammaSC = []float64{
 	Inf(-1),
+	Inf(1),
 	Inf(1),
 	Inf(1),
 	Inf(1),
@@ -970,6 +1101,8 @@ var vflgammaSC = []float64{
 	Inf(-1),
 	-3,
 	0,
+	1,
+	2,
 	Inf(1),
 	NaN(),
 }
@@ -977,6 +1110,8 @@ var lgammaSC = []fi{
 	fi{Inf(-1), 1},
 	fi{Inf(1), 1},
 	fi{Inf(1), 1},
+	fi{0, 1},
+	fi{0, 1},
 	fi{Inf(1), 1},
 	fi{NaN(), 1},
 }
@@ -1013,6 +1148,8 @@ var vflog1pSC = []float64{
 	Inf(-1),
 	-Pi,
 	-1,
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
@@ -1020,6 +1157,8 @@ var log1pSC = []float64{
 	NaN(),
 	NaN(),
 	Inf(-1),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
@@ -1030,8 +1169,8 @@ var vfmodfSC = []float64{
 	NaN(),
 }
 var modfSC = [][2]float64{
-	[2]float64{Inf(-1), NaN()},
-	[2]float64{Inf(1), NaN()},
+	[2]float64{Inf(-1), NaN()}, // [2]float64{-1 / Inf(1), Inf(-1)}, // -0, -Inf
+	[2]float64{Inf(1), NaN()},  // [2]float64{0, Inf(1)},
 	[2]float64{NaN(), NaN()},
 }
 
@@ -1047,92 +1186,105 @@ var nextafterSC = []float64{
 }
 
 var vfpowSC = [][2]float64{
-	[2]float64{-Pi, Pi},
-	[2]float64{-Pi, -Pi},
+	[2]float64{Inf(-1), -Pi},
+	[2]float64{Inf(-1), -3},
+	[2]float64{Inf(-1), 0},
+	[2]float64{Inf(-1), 1},
 	[2]float64{Inf(-1), 3},
 	[2]float64{Inf(-1), Pi},
-	[2]float64{Inf(-1), -3},
-	[2]float64{Inf(-1), -Pi},
-	[2]float64{Inf(1), Pi},
-	[2]float64{0, -Pi},
-	[2]float64{Inf(1), -Pi},
-	[2]float64{0, Pi},
+	[2]float64{Inf(-1), NaN()},
+
+	[2]float64{-Pi, Inf(-1)},
+	[2]float64{-Pi, -Pi},
+	[2]float64{-Pi, 0},
+	[2]float64{-Pi, 1},
+	[2]float64{-Pi, Pi},
+	[2]float64{-Pi, Inf(1)},
+	[2]float64{-Pi, NaN()},
+
 	[2]float64{-1, Inf(-1)},
 	[2]float64{-1, Inf(1)},
+	[2]float64{-1 / 2, Inf(-1)},
+	[2]float64{-1 / 2, Inf(1)},
+	[2]float64{-1 / Inf(1), -3}, // -0, -3
+	[2]float64{-1 / Inf(1), 3},  // -0, 3
+
+	[2]float64{0, -Pi},
+	[2]float64{0, -3},
+	[2]float64{0, 0},
+	[2]float64{0, 3},
+	[2]float64{0, Pi},
+	[2]float64{0, NaN()},
+
+	[2]float64{1 / 2, Inf(-1)},
+	[2]float64{1 / 2, Inf(1)},
 	[2]float64{1, Inf(-1)},
 	[2]float64{1, Inf(1)},
-	[2]float64{-1 / 2, Inf(1)},
-	[2]float64{1 / 2, Inf(1)},
-	[2]float64{-Pi, Inf(-1)},
+	[2]float64{1, NaN()},
+
 	[2]float64{Pi, Inf(-1)},
-	[2]float64{-1 / 2, Inf(-1)},
-	[2]float64{1 / 2, Inf(-1)},
-	[2]float64{-Pi, Inf(1)},
-	[2]float64{Pi, Inf(1)},
-	[2]float64{NaN(), -Pi},
-	[2]float64{NaN(), Pi},
-	[2]float64{Inf(-1), NaN()},
-	[2]float64{-Pi, NaN()},
-	[2]float64{0, NaN()},
-	[2]float64{Pi, NaN()},
-	[2]float64{Inf(1), NaN()},
-	[2]float64{NaN(), NaN()},
-	[2]float64{Inf(-1), 1},
-	[2]float64{-Pi, 1},
-	[2]float64{0, 1},
-	[2]float64{Pi, 1},
-	[2]float64{Inf(1), 1},
-	[2]float64{NaN(), 1},
-	[2]float64{Inf(-1), 0},
-	[2]float64{-Pi, 0},
-	[2]float64{0, 0},
 	[2]float64{Pi, 0},
+	[2]float64{Pi, 1},
+	[2]float64{Pi, Inf(1)},
+	[2]float64{Pi, NaN()},
+	[2]float64{Inf(1), -Pi},
 	[2]float64{Inf(1), 0},
+	[2]float64{Inf(1), 1},
+	[2]float64{Inf(1), Pi},
+	[2]float64{Inf(1), NaN()},
+	[2]float64{NaN(), -Pi},
 	[2]float64{NaN(), 0},
+	[2]float64{NaN(), 1},
+	[2]float64{NaN(), Pi},
+	[2]float64{NaN(), NaN()},
 }
 var powSC = []float64{
-	NaN(),
-	NaN(),
-	Inf(-1),
-	Inf(1),
-	0,
-	0,
-	Inf(1),
-	Inf(1),
-	0,
-	0,
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	0,
-	0,
-	0,
-	0,
-	Inf(1),
-	Inf(1),
-	Inf(1),
-	Inf(1),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	NaN(),
-	Inf(-1),
-	-Pi,
-	0,
-	Pi,
-	Inf(1),
-	NaN(),
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
+	0,       // pow(-Inf, -Pi)
+	0,       // pow(-Inf, -3)
+	1,       // pow(-Inf, 0)
+	Inf(-1), // pow(-Inf, 1)
+	Inf(-1), // pow(-Inf, 3)
+	Inf(1),  // pow(-Inf, Pi)
+	NaN(),   // pow(-Inf, NaN)
+	0,       // pow(-Pi, -Inf)
+	NaN(),   // pow(-Pi, -Pi)
+	1,       // pow(-Pi, +0)
+	-Pi,     // pow(-Pi, 1)
+	NaN(),   // pow(-Pi, Pi)
+	Inf(1),  // pow(-Pi, +Inf)
+	NaN(),   // pow(-Pi, NaN)
+	NaN(),   // pow(-1, -Inf)
+	NaN(),   // pow(-1, +Inf)
+	Inf(1),  // pow(-1/2, -Inf)
+	0,       // pow(-1/2, +Inf)
+	Inf(1),  // pow(-0, -3)
+	0,       // pow(-0, 3)
+	Inf(1),  // pow(+0, -Pi)
+	Inf(1),  // pow(+0, -3)
+	1,       // pow(+0, +0)
+	0,       // pow(+0, 3)
+	0,       // pow(+0, +Pi)
+	NaN(),   // pow(+0, NaN)
+	Inf(1),  // pow(1/2, -Inf)
+	0,       // pow(1/2, +Inf)
+	NaN(),   // pow(1, -Inf)
+	NaN(),   // pow(1, +Inf)
+	NaN(),   // pow(1, NaN)
+	0,       // pow(+Pi, -Inf)
+	1,       // pow(+Pi, +0)
+	Pi,      // pow(+Pi, 1)
+	Inf(1),  // pow(+Pi, +Inf)
+	NaN(),   // pow(+Pi, NaN)
+	0,       // pow(+Inf, -Pi)
+	1,       // pow(+Inf, +0)
+	Inf(1),  // pow(+Inf, 1)
+	Inf(1),  // pow(+Inf, Pi)
+	NaN(),   // pow(+Inf, NaN)
+	NaN(),   // pow(NaN, -Pi)
+	1,       // pow(NaN, +0)
+	NaN(),   // pow(NaN, 1)
+	NaN(),   // pow(NaN, +Pi)
+	NaN(),   // pow(NaN, NaN)
 }
 
 var vfsignbitSC = []float64{
@@ -1150,6 +1302,36 @@ var signbitSC = []bool{
 	false,
 }
 
+var vfsinSC = []float64{
+	Inf(-1),
+	-1 / Inf(1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var sinSC = []float64{
+	NaN(),
+	-1 / Inf(1),
+	0,
+	NaN(),
+	NaN(),
+}
+
+var vfsinhSC = []float64{
+	Inf(-1),
+	-1 / Inf(1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var sinhSC = []float64{
+	Inf(-1),
+	-1 / Inf(1),
+	0,
+	Inf(1),
+	NaN(),
+}
+
 var vfsqrtSC = []float64{
 	Inf(-1),
 	-Pi,
@@ -1160,6 +1342,21 @@ var sqrtSC = []float64{
 	NaN(),
 	NaN(),
 	Inf(1),
+	NaN(),
+}
+
+var vftanhSC = []float64{
+	Inf(-1),
+	-1 / Inf(1),
+	0,
+	Inf(1),
+	NaN(),
+}
+var tanhSC = []float64{
+	-1,
+	-1 / Inf(1),
+	0,
+	1,
 	NaN(),
 }
 
@@ -1229,9 +1426,9 @@ func TestAcos(t *testing.T) {
 			t.Errorf("Acos(%g) = %g, want %g\n", a, f, acos[i])
 		}
 	}
-	for i := 0; i < len(vfasinSC); i++ {
-		if f := Acos(vfasinSC[i]); !alike(asinSC[i], f) {
-			t.Errorf("Acos(%g) = %g, want %g\n", vfasinSC[i], f, asinSC[i])
+	for i := 0; i < len(vfacosSC); i++ {
+		if f := Acos(vfacosSC[i]); !alike(acosSC[i], f) {
+			t.Errorf("Acos(%g) = %g, want %g\n", vfacosSC[i], f, acosSC[i])
 		}
 	}
 }
@@ -1362,12 +1559,22 @@ func TestCos(t *testing.T) {
 			t.Errorf("Cos(%g) = %g, want %g\n", vf[i], f, cos[i])
 		}
 	}
+	for i := 0; i < len(vfcosSC); i++ {
+		if f := Cos(vfcosSC[i]); !alike(cosSC[i], f) {
+			t.Errorf("Cos(%g) = %g, want %g\n", vfcosSC[i], f, cosSC[i])
+		}
+	}
 }
 
 func TestCosh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Cosh(vf[i]); !close(cosh[i], f) {
 			t.Errorf("Cosh(%g) = %g, want %g\n", vf[i], f, cosh[i])
+		}
+	}
+	for i := 0; i < len(vfcoshSC); i++ {
+		if f := Cosh(vfcoshSC[i]); !alike(coshSC[i], f) {
+			t.Errorf("Cosh(%g) = %g, want %g\n", vfcoshSC[i], f, coshSC[i])
 		}
 	}
 }
@@ -1393,9 +1600,9 @@ func TestErfc(t *testing.T) {
 			t.Errorf("Erfc(%g) = %g, want %g\n", a, f, erfc[i])
 		}
 	}
-	for i := 0; i < len(vferfSC); i++ {
-		if f := Erfc(vferfSC[i]); !alike(erfcSC[i], f) {
-			t.Errorf("Erfc(%g) = %g, want %g\n", vferfSC[i], f, erfcSC[i])
+	for i := 0; i < len(vferfcSC); i++ {
+		if f := Erfc(vferfcSC[i]); !alike(erfcSC[i], f) {
+			t.Errorf("Erfc(%g) = %g, want %g\n", vferfcSC[i], f, erfcSC[i])
 		}
 	}
 }
@@ -1417,12 +1624,12 @@ func TestExpm1(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := vf[i] / 100
 		if f := Expm1(a); !veryclose(expm1[i], f) {
-			t.Errorf("Expm1(%.26fg) = %.26fg, want %.26fg\n", a, f, expm1[i])
+			t.Errorf("Expm1(%g) = %g, want %g\n", a, f, expm1[i])
 		}
 	}
-	for i := 0; i < len(vfexpSC); i++ {
-		if f := Expm1(vfexpSC[i]); !alike(expm1SC[i], f) {
-			t.Errorf("Expm1(%g) = %g, want %g\n", vfexpSC[i], f, expm1SC[i])
+	for i := 0; i < len(vfexpm1SC); i++ {
+		if f := Expm1(vfexpm1SC[i]); !alike(expm1SC[i], f) {
+			t.Errorf("Expm1(%g) = %g, want %g\n", vfexpm1SC[i], f, expm1SC[i])
 		}
 	}
 }
@@ -1436,6 +1643,19 @@ func TestExp2(t *testing.T) {
 	for i := 0; i < len(vfexpSC); i++ {
 		if f := Exp2(vfexpSC[i]); !alike(expSC[i], f) {
 			t.Errorf("Exp2(%g) = %g, want %g\n", vfexpSC[i], f, expSC[i])
+		}
+	}
+}
+
+func TestFabs(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Fabs(vf[i]); fabs[i] != f {
+			t.Errorf("Fabs(%g) = %g, want %g\n", vf[i], f, fabs[i])
+		}
+	}
+	for i := 0; i < len(vffabsSC); i++ {
+		if f := Fabs(vffabsSC[i]); !alike(fabsSC[i], f) {
+			t.Errorf("Fabs(%g) = %g, want %g\n", vffabsSC[i], f, fabsSC[i])
 		}
 	}
 }
@@ -1756,7 +1976,7 @@ func TestSignbit(t *testing.T) {
 	}
 	for i := 0; i < len(vfsignbitSC); i++ {
 		if f := Signbit(vfsignbitSC[i]); signbitSC[i] != f {
-			t.Errorf("Signbit(%g) = %t, want %t\n", vfsignbitSC[i], vfsignbitSC[i], f, signbitSC[i])
+			t.Errorf("Signbit(%g) = %t, want %t\n", vfsignbitSC[i], f, signbitSC[i])
 		}
 	}
 }
@@ -1764,6 +1984,11 @@ func TestSin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Sin(vf[i]); !close(sin[i], f) {
 			t.Errorf("Sin(%g) = %g, want %g\n", vf[i], f, sin[i])
+		}
+	}
+	for i := 0; i < len(vfsinSC); i++ {
+		if f := Sin(vfsinSC[i]); !alike(sinSC[i], f) {
+			t.Errorf("Sin(%g) = %g, want %g\n", vfsinSC[i], f, sinSC[i])
 		}
 	}
 }
@@ -1780,6 +2005,11 @@ func TestSinh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Sinh(vf[i]); !close(sinh[i], f) {
 			t.Errorf("Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i])
+		}
+	}
+	for i := 0; i < len(vfsinhSC); i++ {
+		if f := Sinh(vfsinhSC[i]); !alike(sinhSC[i], f) {
+			t.Errorf("Sinh(%g) = %g, want %g\n", vfsinhSC[i], f, sinhSC[i])
 		}
 	}
 }
@@ -1808,12 +2038,23 @@ func TestTan(t *testing.T) {
 			t.Errorf("Tan(%g) = %g, want %g\n", vf[i], f, tan[i])
 		}
 	}
+	// same special cases as Sin
+	for i := 0; i < len(vfsinSC); i++ {
+		if f := Tan(vfsinSC[i]); !alike(sinSC[i], f) {
+			t.Errorf("Tan(%g) = %g, want %g\n", vfsinSC[i], f, sinSC[i])
+		}
+	}
 }
 
 func TestTanh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Tanh(vf[i]); !veryclose(tanh[i], f) {
 			t.Errorf("Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i])
+		}
+	}
+	for i := 0; i < len(vftanhSC); i++ {
+		if f := Tanh(vftanhSC[i]); !alike(tanhSC[i], f) {
+			t.Errorf("Tanh(%g) = %g, want %g\n", vftanhSC[i], f, tanhSC[i])
 		}
 	}
 }
