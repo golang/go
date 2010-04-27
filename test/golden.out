@@ -185,3 +185,7 @@ panic: barCount != 1
 
 panic PC=xxx
 BUG
+
+=========== bugs/bug267.go
+bugs/bug267.go:14: syntax error: unexpected {, expecting :
+BUG
