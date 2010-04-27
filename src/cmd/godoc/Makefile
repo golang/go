@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
 
 TARG=godoc
 GOFILES=\
+	codewalk.go\
 	godoc.go\
 	index.go\
 	main.go\
