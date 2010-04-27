@@ -7,15 +7,13 @@ include ../../../Make.$(GOARCH)
 TARG=crypto/tls
 GOFILES=\
 	alert.go\
+	ca_set.go\
 	common.go\
+	conn.go\
 	handshake_client.go\
 	handshake_messages.go\
 	handshake_server.go\
 	prf.go\
-	record_process.go\
-	record_read.go\
-	record_write.go\
-	ca_set.go\
 	tls.go\
 
 include ../../../Make.pkg

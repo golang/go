@@ -19,6 +19,7 @@ import (
 	"crypto/sha1"
 	"crypto/subtle"
 	"io"
+	"os"
 )
 
 type cipherSuite struct {
@@ -31,33 +32,22 @@ var cipherSuites = []cipherSuite{
 	cipherSuite{TLS_RSA_WITH_RC4_128_SHA, 20, 16},
 }
 
-// A serverHandshake performs the server side of the TLS 1.1 handshake protocol.
-type serverHandshake struct {
-	writeChan   chan<- interface{}
-	controlChan chan<- interface{}
-	msgChan     <-chan interface{}
-	config      *Config
-}
-
-func (h *serverHandshake) loop(writeChan chan<- interface{}, controlChan chan<- interface{}, msgChan <-chan interface{}, config *Config) {
-	h.writeChan = writeChan
-	h.controlChan = controlChan
-	h.msgChan = msgChan
-	h.config = config
-
-	defer close(writeChan)
-	defer close(controlChan)
-
-	clientHello, ok := h.readHandshakeMsg().(*clientHelloMsg)
-	if !ok {
-		h.error(alertUnexpectedMessage)
-		return
+func (c *Conn) serverHandshake() os.Error {
+	config := c.config
+	msg, err := c.readHandshake()
+	if err != nil {
+		return err
 	}
-	major, minor, ok := mutualVersion(clientHello.major, clientHello.minor)
+	clientHello, ok := msg.(*clientHelloMsg)
 	if !ok {
-		h.error(alertProtocolVersion)
-		return
+		return c.sendAlert(alertUnexpectedMessage)
 	}
+	vers, ok := mutualVersion(clientHello.vers)
+	if !ok {
+		return c.sendAlert(alertProtocolVersion)
+	}
+	c.vers = vers
+	c.haveVers = true
 
 	finishedHash := newFinishedHash()
 	finishedHash.Write(clientHello.marshal())
@@ -89,23 +79,20 @@ func (h *serverHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 	}
 
 	if suite == nil || !foundCompression {
-		h.error(alertHandshakeFailure)
-		return
+		return c.sendAlert(alertHandshakeFailure)
 	}
 
-	hello.major = major
-	hello.minor = minor
+	hello.vers = vers
 	hello.cipherSuite = suite.id
-	currentTime := uint32(config.Time())
+	t := uint32(config.Time())
 	hello.random = make([]byte, 32)
-	hello.random[0] = byte(currentTime >> 24)
-	hello.random[1] = byte(currentTime >> 16)
-	hello.random[2] = byte(currentTime >> 8)
-	hello.random[3] = byte(currentTime)
-	_, err := io.ReadFull(config.Rand, hello.random[4:])
+	hello.random[0] = byte(t >> 24)
+	hello.random[1] = byte(t >> 16)
+	hello.random[2] = byte(t >> 8)
+	hello.random[3] = byte(t)
+	_, err = io.ReadFull(config.Rand, hello.random[4:])
 	if err != nil {
-		h.error(alertInternalError)
-		return
+		return c.sendAlert(alertInternalError)
 	}
 	hello.compressionMethod = compressionNone
 	if clientHello.nextProtoNeg {
@@ -114,41 +101,40 @@ func (h *serverHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 	}
 
 	finishedHash.Write(hello.marshal())
-	writeChan <- writerSetVersion{major, minor}
-	writeChan <- hello
+	c.writeRecord(recordTypeHandshake, hello.marshal())
 
 	if len(config.Certificates) == 0 {
-		h.error(alertInternalError)
-		return
+		return c.sendAlert(alertInternalError)
 	}
 
 	certMsg := new(certificateMsg)
 	certMsg.certificates = config.Certificates[0].Certificate
 	finishedHash.Write(certMsg.marshal())
-	writeChan <- certMsg
+	c.writeRecord(recordTypeHandshake, certMsg.marshal())
 
 	helloDone := new(serverHelloDoneMsg)
 	finishedHash.Write(helloDone.marshal())
-	writeChan <- helloDone
+	c.writeRecord(recordTypeHandshake, helloDone.marshal())
 
-	ckx, ok := h.readHandshakeMsg().(*clientKeyExchangeMsg)
+	msg, err = c.readHandshake()
+	if err != nil {
+		return err
+	}
+	ckx, ok := msg.(*clientKeyExchangeMsg)
 	if !ok {
-		h.error(alertUnexpectedMessage)
-		return
+		return c.sendAlert(alertUnexpectedMessage)
 	}
 	finishedHash.Write(ckx.marshal())
 
 	preMasterSecret := make([]byte, 48)
 	_, err = io.ReadFull(config.Rand, preMasterSecret[2:])
 	if err != nil {
-		h.error(alertInternalError)
-		return
+		return c.sendAlert(alertInternalError)
 	}
 
 	err = rsa.DecryptPKCS1v15SessionKey(config.Rand, config.Certificates[0].PrivateKey, ckx.ciphertext, preMasterSecret)
 	if err != nil {
-		h.error(alertHandshakeFailure)
-		return
+		return c.sendAlert(alertHandshakeFailure)
 	}
 	// We don't check the version number in the premaster secret. For one,
 	// by checking it, we would leak information about the validity of the
@@ -160,91 +146,53 @@ func (h *serverHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 	masterSecret, clientMAC, serverMAC, clientKey, serverKey :=
 		keysFromPreMasterSecret11(preMasterSecret, clientHello.random, hello.random, suite.hashLength, suite.cipherKeyLength)
 
-	_, ok = h.readHandshakeMsg().(changeCipherSpec)
-	if !ok {
-		h.error(alertUnexpectedMessage)
-		return
+	cipher, _ := rc4.NewCipher(clientKey)
+	c.in.prepareCipherSpec(cipher, hmac.New(sha1.New(), clientMAC))
+	c.readRecord(recordTypeChangeCipherSpec)
+	if err := c.error(); err != nil {
+		return err
 	}
 
-	cipher, _ := rc4.NewCipher(clientKey)
-	controlChan <- &newCipherSpec{cipher, hmac.New(sha1.New(), clientMAC)}
-
-	clientProtocol := ""
 	if hello.nextProtoNeg {
-		nextProto, ok := h.readHandshakeMsg().(*nextProtoMsg)
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
+		nextProto, ok := msg.(*nextProtoMsg)
 		if !ok {
-			h.error(alertUnexpectedMessage)
-			return
+			return c.sendAlert(alertUnexpectedMessage)
 		}
 		finishedHash.Write(nextProto.marshal())
-		clientProtocol = nextProto.proto
+		c.clientProtocol = nextProto.proto
 	}
 
-	clientFinished, ok := h.readHandshakeMsg().(*finishedMsg)
+	msg, err = c.readHandshake()
+	if err != nil {
+		return err
+	}
+	clientFinished, ok := msg.(*finishedMsg)
 	if !ok {
-		h.error(alertUnexpectedMessage)
-		return
+		return c.sendAlert(alertUnexpectedMessage)
 	}
 
 	verify := finishedHash.clientSum(masterSecret)
 	if len(verify) != len(clientFinished.verifyData) ||
 		subtle.ConstantTimeCompare(verify, clientFinished.verifyData) != 1 {
-		h.error(alertHandshakeFailure)
-		return
+		return c.sendAlert(alertHandshakeFailure)
 	}
-
-	controlChan <- ConnectionState{true, "TLS_RSA_WITH_RC4_128_SHA", 0, clientProtocol}
 
 	finishedHash.Write(clientFinished.marshal())
 
 	cipher2, _ := rc4.NewCipher(serverKey)
-	writeChan <- writerChangeCipherSpec{cipher2, hmac.New(sha1.New(), serverMAC)}
+	c.out.prepareCipherSpec(cipher2, hmac.New(sha1.New(), serverMAC))
+	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
 
 	finished := new(finishedMsg)
 	finished.verifyData = finishedHash.serverSum(masterSecret)
-	writeChan <- finished
+	c.writeRecord(recordTypeHandshake, finished.marshal())
 
-	writeChan <- writerEnableApplicationData{}
+	c.handshakeComplete = true
+	c.cipherSuite = TLS_RSA_WITH_RC4_128_SHA
 
-	for {
-		_, ok := h.readHandshakeMsg().(*clientHelloMsg)
-		if !ok {
-			h.error(alertUnexpectedMessage)
-			return
-		}
-		// We reject all renegotication requests.
-		writeChan <- alert{alertLevelWarning, alertNoRenegotiation}
-	}
-}
-
-func (h *serverHandshake) readHandshakeMsg() interface{} {
-	v := <-h.msgChan
-	if closed(h.msgChan) {
-		// If the channel closed then the processor received an error
-		// from the peer and we don't want to echo it back to them.
-		h.msgChan = nil
-		return 0
-	}
-	if _, ok := v.(alert); ok {
-		// We got an alert from the processor. We forward to the writer
-		// and shutdown.
-		h.writeChan <- v
-		h.msgChan = nil
-		return 0
-	}
-	return v
-}
-
-func (h *serverHandshake) error(e alertType) {
-	if h.msgChan != nil {
-		// If we didn't get an error from the processor, then we need
-		// to tell it about the error.
-		go func() {
-			for _ = range h.msgChan {
-			}
-		}()
-		h.controlChan <- ConnectionState{false, "", e, ""}
-		close(h.controlChan)
-		h.writeChan <- alert{alertLevelError, e}
-	}
+	return nil
 }

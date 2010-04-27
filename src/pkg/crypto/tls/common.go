@@ -10,22 +10,18 @@ import (
 	"io"
 	"io/ioutil"
 	"once"
-	"os"
 	"time"
 )
 
 const (
-	// maxTLSCiphertext is the maximum length of a plaintext payload.
-	maxTLSPlaintext = 16384
-	// maxTLSCiphertext is the maximum length payload after compression and encryption.
-	maxTLSCiphertext = 16384 + 2048
-	// maxHandshakeMsg is the largest single handshake message that we'll buffer.
-	maxHandshakeMsg = 65536
-	// defaultMajor and defaultMinor are the maximum TLS version that we support.
-	defaultMajor = 3
-	defaultMinor = 2
-)
+	maxPlaintext    = 16384        // maximum plaintext payload length
+	maxCiphertext   = 16384 + 2048 // maximum ciphertext payload length
+	recordHeaderLen = 5            // record header length
+	maxHandshake    = 65536        // maximum handshake we support (protocol max is 16 MB)
 
+	minVersion = 0x0301 // minimum supported version - TLS 1.0
+	maxVersion = 0x0302 // maximum supported version - TLS 1.1
+)
 
 // TLS record types.
 type recordType uint8
@@ -67,7 +63,7 @@ var (
 type ConnectionState struct {
 	HandshakeComplete  bool
 	CipherSuite        string
-	Error              alertType
+	Error              alert
 	NegotiatedProtocol string
 }
 
@@ -99,6 +95,7 @@ type record struct {
 
 type handshakeMessage interface {
 	marshal() []byte
+	unmarshal([]byte) bool
 }
 
 type encryptor interface {
@@ -108,33 +105,15 @@ type encryptor interface {
 
 // mutualVersion returns the protocol version to use given the advertised
 // version of the peer.
-func mutualVersion(theirMajor, theirMinor uint8) (major, minor uint8, ok bool) {
-	// We don't deal with peers < TLS 1.0 (aka version 3.1).
-	if theirMajor < 3 || theirMajor == 3 && theirMinor < 1 {
-		return 0, 0, false
+func mutualVersion(vers uint16) (uint16, bool) {
+	if vers < minVersion {
+		return 0, false
 	}
-	major = 3
-	minor = 2
-	if theirMinor < minor {
-		minor = theirMinor
+	if vers > maxVersion {
+		vers = maxVersion
 	}
-	ok = true
-	return
+	return vers, true
 }
-
-// A nop implements the NULL encryption and MAC algorithms.
-type nop struct{}
-
-func (nop) XORKeyStream(buf []byte) {}
-
-func (nop) Write(buf []byte) (int, os.Error) { return len(buf), nil }
-
-func (nop) Sum() []byte { return nil }
-
-func (nop) Reset() {}
-
-func (nop) Size() int { return 0 }
-
 
 // The defaultConfig is used in place of a nil *Config in the TLS server and client.
 var varDefaultConfig *Config
