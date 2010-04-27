@@ -24,6 +24,15 @@ const (
 // may be replaced by a digit if the following number
 // (a day) has two digits; for compatibility with
 // fixed-width Unix time formats.
+//
+// Numeric time zone offsets format as follows:
+//	-0700  ±hhmm
+//	-07:00 ±hh:mm
+// Replacing the sign in the format with a Z triggers
+// the ISO 8601 behavior of printing Z instead of an
+// offset for the UTC zone.  Thus:
+//	Z0700  Z or ±hhmm
+//	Z07:00 Z or ±hh:mm
 const (
 	ANSIC    = "Mon Jan _2 15:04:05 2006"
 	UnixDate = "Mon Jan _2 15:04:05 MST 2006"
@@ -34,35 +43,35 @@ const (
 	RFC850  = "Monday, 02-Jan-06 15:04:05 MST"
 	RFC1123 = "Mon, 02 Jan 2006 15:04:05 MST"
 	Kitchen = "3:04PM"
-	// Special case: use Z to get the time zone formatted according to ISO 8601,
-	// which is -0700 or Z for UTC
-	ISO8601 = "2006-01-02T15:04:05Z"
+	RFC3339 = "2006-01-02T15:04:05Z07:00"
 )
 
 const (
-	stdLongMonth   = "January"
-	stdMonth       = "Jan"
-	stdNumMonth    = "1"
-	stdZeroMonth   = "01"
-	stdLongWeekDay = "Monday"
-	stdWeekDay     = "Mon"
-	stdDay         = "2"
-	stdUnderDay    = "_2"
-	stdZeroDay     = "02"
-	stdHour        = "15"
-	stdHour12      = "3"
-	stdZeroHour12  = "03"
-	stdMinute      = "4"
-	stdZeroMinute  = "04"
-	stdSecond      = "5"
-	stdZeroSecond  = "05"
-	stdLongYear    = "2006"
-	stdYear        = "06"
-	stdPM          = "PM"
-	stdpm          = "pm"
-	stdTZ          = "MST"
-	stdISO8601TZ   = "Z"     // prints Z for UTC
-	stdNumTZ       = "-0700" // always numeric
+	stdLongMonth      = "January"
+	stdMonth          = "Jan"
+	stdNumMonth       = "1"
+	stdZeroMonth      = "01"
+	stdLongWeekDay    = "Monday"
+	stdWeekDay        = "Mon"
+	stdDay            = "2"
+	stdUnderDay       = "_2"
+	stdZeroDay        = "02"
+	stdHour           = "15"
+	stdHour12         = "3"
+	stdZeroHour12     = "03"
+	stdMinute         = "4"
+	stdZeroMinute     = "04"
+	stdSecond         = "5"
+	stdZeroSecond     = "05"
+	stdLongYear       = "2006"
+	stdYear           = "06"
+	stdPM             = "PM"
+	stdpm             = "pm"
+	stdTZ             = "MST"
+	stdISO8601TZ      = "Z0700"  // prints Z for UTC
+	stdISO8601ColonTZ = "Z07:00" // prints Z for UTC
+	stdNumTZ          = "-0700"  // always numeric
+	stdNumColonTZ     = "-07:00" // always numeric
 )
 
 // nextStdChunk finds the first occurrence of a std string in
@@ -113,7 +122,7 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
 				return layout[0:i], stdUnderDay, layout[i+2:]
 			}
 
-		case '3', '4', '5', 'Z': // 3, 4, 5, Z
+		case '3', '4', '5': // 3, 4, 5
 			return layout[0:i], layout[i : i+1], layout[i+1:]
 
 		case 'P': // PM
@@ -126,9 +135,19 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
 				return layout[0:i], layout[i : i+2], layout[i+2:]
 			}
 
-		case '-': // -0700
+		case '-': // -0700, -07:00
 			if len(layout) >= i+5 && layout[i:i+5] == stdNumTZ {
 				return layout[0:i], layout[i : i+5], layout[i+5:]
+			}
+			if len(layout) >= i+6 && layout[i:i+6] == stdNumColonTZ {
+				return layout[0:i], layout[i : i+6], layout[i+6:]
+			}
+		case 'Z': // Z0700, Z07:00
+			if len(layout) >= i+5 && layout[i:i+5] == stdISO8601TZ {
+				return layout[0:i], layout[i : i+5], layout[i+5:]
+			}
+			if len(layout) >= i+6 && layout[i:i+6] == stdISO8601ColonTZ {
+				return layout[0:i], layout[i : i+6], layout[i+6:]
 			}
 		}
 	}
@@ -210,7 +229,7 @@ func zeroPad(i int) string { return pad(i, "0") }
 // according to layout.  The layout defines the format by showing the
 // representation of a standard time, which is then used to describe
 // the time to be formatted.  Predefined layouts ANSIC, UnixDate,
-// ISO8601 and others describe standard representations.
+// RFC3339 and others describe standard representations.
 func (t *Time) Format(layout string) string {
 	b := new(bytes.Buffer)
 	// Each iteration generates one std value.
@@ -258,10 +277,10 @@ func (t *Time) Format(layout string) string {
 			p = strconv.Itoa(t.Second)
 		case stdZeroSecond:
 			p = zeroPad(t.Second)
-		case stdISO8601TZ, stdNumTZ:
-			// Ugly special case.  We cheat and take "Z" to mean "the time
-			// zone as formatted for ISO 8601".
-			if std == stdISO8601TZ && t.ZoneOffset == 0 {
+		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumColonTZ:
+			// Ugly special case.  We cheat and take the "Z" variants
+			// to mean "the time zone as formatted for ISO 8601".
+			if t.ZoneOffset == 0 && std[0] == 'Z' {
 				p = "Z"
 				break
 			}
@@ -273,6 +292,9 @@ func (t *Time) Format(layout string) string {
 				p = "+"
 			}
 			p += zeroPad(zone / 60)
+			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
+				p += ":"
+			}
 			p += zeroPad(zone % 60)
 		case stdPM:
 			if t.Hour >= 12 {
@@ -383,7 +405,7 @@ func skip(value, prefix string) (string, os.Error) {
 // Parse parses a formatted string and returns the time value it represents.
 // The layout defines the format by showing the representation of a standard
 // time, which is then used to describe the string to be parsed.  Predefined
-// layouts ANSIC, UnixDate, ISO8601 and others describe standard
+// layouts ANSIC, UnixDate, RFC3339 and others describe standard
 // representations.
 //
 // Only those elements present in the value will be set in the returned time
@@ -475,22 +497,34 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			if t.Second < 0 || 60 <= t.Second {
 				rangeErrString = "second"
 			}
-		case stdISO8601TZ, stdNumTZ:
-			if std == stdISO8601TZ && len(value) >= 1 && value[0] == 'Z' {
+		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumColonTZ:
+			if std[0] == 'Z' && len(value) >= 1 && value[0] == 'Z' {
 				value = value[1:]
 				t.Zone = "UTC"
 				break
 			}
-			if len(value) < 5 {
-				err = errBad
-				break
+			var sign, hh, mm string
+			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
+				if len(value) < 6 {
+					err = errBad
+					break
+				}
+				if value[3] != ':' {
+					err = errBad
+					break
+				}
+				sign, hh, mm, value = value[0:1], value[1:3], value[4:6], value[6:]
+			} else {
+				if len(value) < 5 {
+					err = errBad
+					break
+				}
+				sign, hh, mm, value = value[0:1], value[1:3], value[3:5], value[5:]
 			}
-			var sign string
-			sign, p, value = value[0:1], value[1:5], value[5:]
 			var hr, min int
-			hr, err = strconv.Atoi(p[0:2])
+			hr, err = strconv.Atoi(hh)
 			if err != nil {
-				min, err = strconv.Atoi(p[2:4])
+				min, err = strconv.Atoi(mm)
 			}
 			t.ZoneOffset = (hr*60 + min) * 60 // offset is in seconds
 			switch sign[0] {
