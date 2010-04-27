@@ -20,7 +20,7 @@ import (
 )
 
 // Unmarshal parses the JSON-encoded data and stores the result
-// in the value pointed at by v.
+// in the value pointed to by v.
 //
 // Unmarshal traverses the value v recursively.
 // If an encountered value implements the Unmarshaler interface,
@@ -247,6 +247,10 @@ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, refl
 			_, isUnmarshaler = v.Interface().(Unmarshaler)
 		}
 
+		if iv, ok := v.(*reflect.InterfaceValue); ok && !iv.IsNil() {
+			v = iv.Elem()
+			continue
+		}
 		pv, ok := v.(*reflect.PtrValue)
 		if !ok {
 			break
@@ -255,7 +259,9 @@ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, refl
 		if !isptrptr && wantptr && !isUnmarshaler {
 			return nil, pv
 		}
-		pv.PointTo(reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem()))
+		if pv.IsNil() {
+			pv.PointTo(reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem()))
+		}
 		if isUnmarshaler {
 			// Using v.Interface().(Unmarshaler)
 			// here means that we have to use a pointer
@@ -436,11 +442,12 @@ func (d *decodeState) object(v reflect.Value) {
 			d.error(errPhase)
 		}
 
-		// Figure out
+		// Figure out field corresponding to key.
 		var subv reflect.Value
 		if mv != nil {
 			subv = reflect.MakeZero(mv.Type().(*reflect.MapType).Elem())
 		} else {
+			// First try for field with that tag.
 			for i := 0; i < sv.NumField(); i++ {
 				f := sv.Type().(*reflect.StructType).Field(i)
 				if f.Tag == key {
@@ -449,7 +456,12 @@ func (d *decodeState) object(v reflect.Value) {
 				}
 			}
 			if subv == nil {
-				subv = sv.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
+				// Second, exact match.
+				subv = sv.FieldByName(key)
+				if subv == nil {
+					// Third, case-insensitive match.
+					subv = sv.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
+				}
 			}
 		}
 
