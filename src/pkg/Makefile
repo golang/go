@@ -104,6 +104,7 @@ DIRS=\
 	reflect\
 	regexp\
 	rpc\
+	rpc/jsonrpc\
 	runtime\
 	runtime/pprof\
 	scanner\
