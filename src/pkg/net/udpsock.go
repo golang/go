@@ -77,12 +77,7 @@ func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface - see Conn for documentation.
 
-// Read reads data from a single UDP packet on the connection.
-// If the slice b is smaller than the arriving packet,
-// the excess packet data may be discarded.
-//
-// Read can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// Read implements the net.Conn Read method.
 func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -90,10 +85,7 @@ func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
 	return c.fd.Read(b)
 }
 
-// Write writes data to the connection as a single UDP packet.
-//
-// Write can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// Write implements the net.Conn Write method.
 func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -127,8 +119,7 @@ func (c *UDPConn) RemoteAddr() Addr {
 	return c.fd.raddr
 }
 
-// SetTimeout sets the read and write deadlines associated
-// with the connection.
+// SetTimeout implements the net.Conn SetTimeout method.
 func (c *UDPConn) SetTimeout(nsec int64) os.Error {
 	if !c.ok() {
 		return os.EINVAL
@@ -136,9 +127,7 @@ func (c *UDPConn) SetTimeout(nsec int64) os.Error {
 	return setTimeout(c.fd, nsec)
 }
 
-// SetReadTimeout sets the time (in nanoseconds) that
-// Read will wait for data before returning os.EAGAIN.
-// Setting nsec == 0 (the default) disables the deadline.
+// SetReadTimeout implements the net.Conn SetReadTimeout method.
 func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
 	if !c.ok() {
 		return os.EINVAL
@@ -146,11 +135,7 @@ func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
 	return setReadTimeout(c.fd, nsec)
 }
 
-// SetWriteTimeout sets the time (in nanoseconds) that
-// Write will wait to send its data before returning os.EAGAIN.
-// Setting nsec == 0 (the default) disables the deadline.
-// Even if write times out, it may return n > 0, indicating that
-// some of the data was successfully written.
+// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
 func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
 	if !c.ok() {
 		return os.EINVAL
@@ -182,7 +167,7 @@ func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
 // It returns the number of bytes copied into b and the return address
 // that was on the packet.
 //
-// ReadFromUDP can be made to time out and return err == os.EAGAIN
+// ReadFromUDP can be made to time out and return an error with Timeout() == true
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
 	if !c.ok() {
@@ -198,12 +183,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
 	return
 }
 
-// ReadFrom reads a UDP packet from c, copying the payload into b.
-// It returns the number of bytes copied into b and the return address
-// that was on the packet.
-//
-// ReadFrom can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// ReadFrom implements the net.PacketConn ReadFrom method.
 func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -214,25 +194,22 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 
 // WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
 //
-// WriteToUDP can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetWriteTimeout.
-// On packet-oriented connections such as UDP, write timeouts are rare.
+// WriteToUDP can be made to time out and return
+// an error with Timeout() == true after a fixed time limit;
+// see SetTimeout and SetWriteTimeout.
+// On packet-oriented connections, write timeouts are rare.
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL
 	}
-	sa, err := addr.sockaddr(c.fd.family)
-	if err != nil {
-		return 0, err
+	sa, err1 := addr.sockaddr(c.fd.family)
+	if err1 != nil {
+		return 0, &OpError{Op: "write", Net: "udp", Addr: addr, Error: err1}
 	}
 	return c.fd.WriteTo(b, sa)
 }
 
-// WriteTo writes a UDP packet with payload b to addr via c.
-//
-// WriteTo can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetWriteTimeout.
-// On packet-oriented connections such as UDP, write timeouts are rare.
+// WriteTo implements the net.PacketConn WriteTo method.
 func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL

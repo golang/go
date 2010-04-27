@@ -32,8 +32,8 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 	if readFrom {
 		what = "ReadFrom"
 	}
-	if n != 0 || !isEAGAIN(err1) {
-		t.Errorf("fd.%s on %s %s did not return 0, EAGAIN: %v, %v", what, network, addr, n, err1)
+	if n != 0 || err1 == nil || !err1.(Error).Timeout() {
+		t.Errorf("fd.%s on %s %s did not return 0, timeout: %v, %v", what, network, addr, n, err1)
 	}
 	if t1-t0 < 0.5e8 || t1-t0 > 1.5e8 {
 		t.Errorf("fd.%s on %s %s took %f seconds, expected 0.1", what, network, addr, float64(t1-t0)/1e9)

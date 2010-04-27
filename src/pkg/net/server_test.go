@@ -69,14 +69,14 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 	}
 	var b1 [100]byte
 
-	n, err := fd.Write(b)
+	n, err1 := fd.Write(b)
 	if n != len(b) {
-		t.Fatalf("fd.Write(%q) = %d, %v", b, n, err)
+		t.Fatalf("fd.Write(%q) = %d, %v", b, n, err1)
 	}
 
-	n, err = fd.Read(&b1)
-	if n != len(b) || err != nil {
-		t.Fatalf("fd.Read() = %d, %v (want %d, nil)", n, err, len(b))
+	n, err1 = fd.Read(&b1)
+	if n != len(b) || err1 != nil {
+		t.Fatalf("fd.Read() = %d, %v (want %d, nil)", n, err1, len(b))
 	}
 	fd.Close()
 }
@@ -127,7 +127,7 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
 	var buf [1000]byte
 	for {
 		n, addr, err := c.ReadFrom(&buf)
-		if isEAGAIN(err) {
+		if e, ok := err.(Error); ok && e.Timeout() {
 			if done <- 1 {
 				break
 			}

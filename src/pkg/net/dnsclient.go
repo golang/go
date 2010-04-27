@@ -23,9 +23,10 @@ import (
 
 // DNSError represents a DNS lookup error.
 type DNSError struct {
-	Error  string // description of the error
-	Name   string // name looked for
-	Server string // server used
+	Error     string // description of the error
+	Name      string // name looked for
+	Server    string // server used
+	IsTimeout bool
 }
 
 func (e *DNSError) String() string {
@@ -37,23 +38,26 @@ func (e *DNSError) String() string {
 	return s
 }
 
+func (e *DNSError) Timeout() bool   { return e.IsTimeout }
+func (e *DNSError) Temporary() bool { return e.IsTimeout }
+
 const noSuchHost = "no such host"
 
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
-func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error) {
+func exchange(cfg *dnsConfig, c Conn, name string) (*dnsMsg, os.Error) {
 	if len(name) >= 256 {
-		return nil, &DNSError{"name too long", name, ""}
+		return nil, &DNSError{Error: "name too long", Name: name}
 	}
-	out := new(_DNS_Msg)
+	out := new(dnsMsg)
 	out.id = uint16(rand.Int()) ^ uint16(time.Nanoseconds())
-	out.question = []_DNS_Question{
-		_DNS_Question{name, _DNS_TypeA, _DNS_ClassINET},
+	out.question = []dnsQuestion{
+		dnsQuestion{name, dnsTypeA, dnsClassINET},
 	}
 	out.recursion_desired = true
 	msg, ok := out.Pack()
 	if !ok {
-		return nil, &DNSError{"internal error - cannot pack message", name, ""}
+		return nil, &DNSError{Error: "internal error - cannot pack message", Name: name}
 	}
 
 	for attempt := 0; attempt < cfg.attempts; attempt++ {
@@ -66,15 +70,14 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 
 		buf := make([]byte, 2000) // More than enough.
 		n, err = c.Read(buf)
-		if isEAGAIN(err) {
-			err = nil
-			continue
-		}
 		if err != nil {
+			if e, ok := err.(Error); ok && e.Timeout() {
+				continue
+			}
 			return nil, err
 		}
 		buf = buf[0:n]
-		in := new(_DNS_Msg)
+		in := new(dnsMsg)
 		if !in.Unpack(buf) || in.id != out.id {
 			continue
 		}
@@ -84,24 +87,24 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 	if a := c.RemoteAddr(); a != nil {
 		server = a.String()
 	}
-	return nil, &DNSError{"no answer from server", name, server}
+	return nil, &DNSError{Error: "no answer from server", Name: name, Server: server, IsTimeout: true}
 }
 
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
-func answer(name, server string, dns *_DNS_Msg) (addrs []string, err *DNSError) {
+func answer(name, server string, dns *dnsMsg) (addrs []string, err os.Error) {
 	addrs = make([]string, 0, len(dns.answer))
 
-	if dns.rcode == _DNS_RcodeNameError && dns.recursion_available {
-		return nil, &DNSError{noSuchHost, name, ""}
+	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
+		return nil, &DNSError{Error: noSuchHost, Name: name}
 	}
-	if dns.rcode != _DNS_RcodeSuccess {
+	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly.
-		return nil, &DNSError{"server misbehaving", name, server}
+		return nil, &DNSError{Error: "server misbehaving", Name: name, Server: server}
 	}
 
 	// Look for the name.
@@ -115,34 +118,34 @@ Cname:
 		for i := 0; i < len(dns.answer); i++ {
 			rr := dns.answer[i]
 			h := rr.Header()
-			if h.Class == _DNS_ClassINET && h.Name == name {
+			if h.Class == dnsClassINET && h.Name == name {
 				switch h.Rrtype {
-				case _DNS_TypeA:
+				case dnsTypeA:
 					n := len(addrs)
-					a := rr.(*_DNS_RR_A).A
+					a := rr.(*dnsRR_A).A
 					addrs = addrs[0 : n+1]
 					addrs[n] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String()
-				case _DNS_TypeCNAME:
+				case dnsTypeCNAME:
 					// redirect to cname
-					name = rr.(*_DNS_RR_CNAME).Cname
+					name = rr.(*dnsRR_CNAME).Cname
 					continue Cname
 				}
 			}
 		}
 		if len(addrs) == 0 {
-			return nil, &DNSError{noSuchHost, name, server}
+			return nil, &DNSError{Error: noSuchHost, Name: name, Server: server}
 		}
 		return addrs, nil
 	}
 
-	return nil, &DNSError{"too many redirects", name, server}
+	return nil, &DNSError{Error: "too many redirects", Name: name, Server: server}
 }
 
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
-func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
+func tryOneName(cfg *dnsConfig, name string) (addrs []string, err os.Error) {
 	if len(cfg.servers) == 0 {
-		return nil, &DNSError{"no DNS servers", name, ""}
+		return nil, &DNSError{Error: "no DNS servers", Name: name}
 	}
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
@@ -157,30 +160,24 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
 			err = cerr
 			continue
 		}
-		msg, merr := _Exchange(cfg, c, name)
+		msg, merr := exchange(cfg, c, name)
 		c.Close()
 		if merr != nil {
 			err = merr
 			continue
 		}
-		var dnserr *DNSError
-		addrs, dnserr = answer(name, server, msg)
-		if dnserr != nil {
-			err = dnserr
-		} else {
-			err = nil // nil os.Error, not nil *DNSError
-		}
-		if dnserr == nil || dnserr.Error == noSuchHost {
+		addrs, err = answer(name, server, msg)
+		if err == nil || err.(*DNSError).Error == noSuchHost {
 			break
 		}
 	}
 	return
 }
 
-var cfg *_DNS_Config
+var cfg *dnsConfig
 var dnserr os.Error
 
-func loadConfig() { cfg, dnserr = _DNS_ReadConfig() }
+func loadConfig() { cfg, dnserr = dnsReadConfig() }
 
 func isDomainName(s string) bool {
 	// Requirements on DNS name:
@@ -231,7 +228,7 @@ func isDomainName(s string) bool {
 // host's addresses.
 func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 	if !isDomainName(name) {
-		return name, nil, &DNSError{"invalid domain name", name, ""}
+		return name, nil, &DNSError{Error: "invalid domain name", Name: name}
 	}
 	once.Do(loadConfig)
 	if dnserr != nil || cfg == nil {
