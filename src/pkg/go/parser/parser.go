@@ -1105,9 +1105,11 @@ func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
 
 	lbrace := p.expect(token.LBRACE)
 	var elts []ast.Expr
+	p.exprLev++
 	if p.tok != token.RBRACE {
 		elts = p.parseElementList()
 	}
+	p.exprLev--
 	rbrace := p.expect(token.RBRACE)
 	return &ast.CompositeLit{typ, lbrace, elts, rbrace}
 }
