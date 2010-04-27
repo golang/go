@@ -97,8 +97,7 @@ func randomString(n int, rand *rand.Rand) string {
 
 func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &clientHelloMsg{}
-	m.major = uint8(rand.Intn(256))
-	m.minor = uint8(rand.Intn(256))
+	m.vers = uint16(rand.Intn(65536))
 	m.random = randomBytes(32, rand)
 	m.sessionId = randomBytes(rand.Intn(32), rand)
 	m.cipherSuites = make([]uint16, rand.Intn(63)+1)
@@ -118,8 +117,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 
 func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &serverHelloMsg{}
-	m.major = uint8(rand.Intn(256))
-	m.minor = uint8(rand.Intn(256))
+	m.vers = uint16(rand.Intn(65536))
 	m.random = randomBytes(32, rand)
 	m.sessionId = randomBytes(rand.Intn(32), rand)
 	m.cipherSuite = uint16(rand.Int31())

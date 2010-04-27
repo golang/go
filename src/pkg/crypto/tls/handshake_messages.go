@@ -6,7 +6,7 @@ package tls
 
 type clientHelloMsg struct {
 	raw                []byte
-	major, minor       uint8
+	vers               uint16
 	random             []byte
 	sessionId          []byte
 	cipherSuites       []uint16
@@ -40,8 +40,8 @@ func (m *clientHelloMsg) marshal() []byte {
 	x[1] = uint8(length >> 16)
 	x[2] = uint8(length >> 8)
 	x[3] = uint8(length)
-	x[4] = m.major
-	x[5] = m.minor
+	x[4] = uint8(m.vers >> 8)
+	x[5] = uint8(m.vers)
 	copy(x[6:38], m.random)
 	x[38] = uint8(len(m.sessionId))
 	copy(x[39:39+len(m.sessionId)], m.sessionId)
@@ -108,12 +108,11 @@ func (m *clientHelloMsg) marshal() []byte {
 }
 
 func (m *clientHelloMsg) unmarshal(data []byte) bool {
-	if len(data) < 43 {
+	if len(data) < 42 {
 		return false
 	}
 	m.raw = data
-	m.major = data[4]
-	m.minor = data[5]
+	m.vers = uint16(data[4])<<8 | uint16(data[5])
 	m.random = data[6:38]
 	sessionIdLen := int(data[38])
 	if sessionIdLen > 32 || len(data) < 39+sessionIdLen {
@@ -136,7 +135,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 		m.cipherSuites[i] = uint16(data[2+2*i])<<8 | uint16(data[3+2*i])
 	}
 	data = data[2+cipherSuiteLen:]
-	if len(data) < 2 {
+	if len(data) < 1 {
 		return false
 	}
 	compressionMethodsLen := int(data[0])
@@ -212,7 +211,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 
 type serverHelloMsg struct {
 	raw               []byte
-	major, minor      uint8
+	vers              uint16
 	random            []byte
 	sessionId         []byte
 	cipherSuite       uint16
@@ -249,8 +248,8 @@ func (m *serverHelloMsg) marshal() []byte {
 	x[1] = uint8(length >> 16)
 	x[2] = uint8(length >> 8)
 	x[3] = uint8(length)
-	x[4] = m.major
-	x[5] = m.minor
+	x[4] = uint8(m.vers >> 8)
+	x[5] = uint8(m.vers)
 	copy(x[6:38], m.random)
 	x[38] = uint8(len(m.sessionId))
 	copy(x[39:39+len(m.sessionId)], m.sessionId)
@@ -306,8 +305,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 		return false
 	}
 	m.raw = data
-	m.major = data[4]
-	m.minor = data[5]
+	m.vers = uint16(data[4])<<8 | uint16(data[5])
 	m.random = data[6:38]
 	sessionIdLen := int(data[38])
 	if sessionIdLen > 32 || len(data) < 39+sessionIdLen {

@@ -4,40 +4,70 @@
 
 package tls
 
-type alertLevel int
-type alertType int
+import "strconv"
+
+type alert uint8
 
 const (
-	alertLevelWarning alertLevel = 1
-	alertLevelError   alertLevel = 2
+	// alert level
+	alertLevelWarning = 1
+	alertLevelError   = 2
 )
 
 const (
-	alertCloseNotify            alertType = 0
-	alertUnexpectedMessage      alertType = 10
-	alertBadRecordMAC           alertType = 20
-	alertDecryptionFailed       alertType = 21
-	alertRecordOverflow         alertType = 22
-	alertDecompressionFailure   alertType = 30
-	alertHandshakeFailure       alertType = 40
-	alertBadCertificate         alertType = 42
-	alertUnsupportedCertificate alertType = 43
-	alertCertificateRevoked     alertType = 44
-	alertCertificateExpired     alertType = 45
-	alertCertificateUnknown     alertType = 46
-	alertIllegalParameter       alertType = 47
-	alertUnknownCA              alertType = 48
-	alertAccessDenied           alertType = 49
-	alertDecodeError            alertType = 50
-	alertDecryptError           alertType = 51
-	alertProtocolVersion        alertType = 70
-	alertInsufficientSecurity   alertType = 71
-	alertInternalError          alertType = 80
-	alertUserCanceled           alertType = 90
-	alertNoRenegotiation        alertType = 100
+	alertCloseNotify            alert = 0
+	alertUnexpectedMessage      alert = 10
+	alertBadRecordMAC           alert = 20
+	alertDecryptionFailed       alert = 21
+	alertRecordOverflow         alert = 22
+	alertDecompressionFailure   alert = 30
+	alertHandshakeFailure       alert = 40
+	alertBadCertificate         alert = 42
+	alertUnsupportedCertificate alert = 43
+	alertCertificateRevoked     alert = 44
+	alertCertificateExpired     alert = 45
+	alertCertificateUnknown     alert = 46
+	alertIllegalParameter       alert = 47
+	alertUnknownCA              alert = 48
+	alertAccessDenied           alert = 49
+	alertDecodeError            alert = 50
+	alertDecryptError           alert = 51
+	alertProtocolVersion        alert = 70
+	alertInsufficientSecurity   alert = 71
+	alertInternalError          alert = 80
+	alertUserCanceled           alert = 90
+	alertNoRenegotiation        alert = 100
 )
 
-type alert struct {
-	level alertLevel
-	error alertType
+var alertText = map[alert]string{
+	alertCloseNotify:            "close notify",
+	alertUnexpectedMessage:      "unexpected message",
+	alertBadRecordMAC:           "bad record MAC",
+	alertDecryptionFailed:       "decryption failed",
+	alertRecordOverflow:         "record overflow",
+	alertDecompressionFailure:   "decompression failure",
+	alertHandshakeFailure:       "handshake failure",
+	alertBadCertificate:         "bad certificate",
+	alertUnsupportedCertificate: "unsupported certificate",
+	alertCertificateRevoked:     "revoked certificate",
+	alertCertificateExpired:     "expired certificate",
+	alertCertificateUnknown:     "unknown certificate",
+	alertIllegalParameter:       "illegal parameter",
+	alertUnknownCA:              "unknown certificate authority",
+	alertAccessDenied:           "access denied",
+	alertDecodeError:            "error decoding message",
+	alertDecryptError:           "error decrypting message",
+	alertProtocolVersion:        "protocol version not supported",
+	alertInsufficientSecurity:   "insufficient security level",
+	alertInternalError:          "internal error",
+	alertUserCanceled:           "user canceled",
+	alertNoRenegotiation:        "no renegotiation",
+}
+
+func (e alert) String() string {
+	s, ok := alertText[e]
+	if ok {
+		return s
+	}
+	return "alert(" + strconv.Itoa(int(e)) + ")"
 }
