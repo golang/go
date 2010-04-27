@@ -63,7 +63,7 @@ func extract_digit() int64 {
 	}
 
 	// Compute (numer * 3 + accum) / denom
-	tmp1.Lsh(numer, 1)
+	tmp1.Add(numer, numer) // tmp1.Lsh(numer, 1)
 	tmp1.Add(tmp1, numer)
 	tmp1.Add(tmp1, accum)
 	tmp1.DivMod(tmp1, denom, tmp2)
@@ -84,7 +84,7 @@ func next_term(k int64) {
 	y2.New(k*2 + 1)
 	bigk.New(k)
 
-	tmp1.Lsh(numer, 1)
+	tmp1.Add(numer, numer) // tmp1.Lsh(numer, 1)
 	accum.Add(accum, tmp1)
 	accum.Mul(accum, y2)
 	numer.Mul(numer, bigk)
