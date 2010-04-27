@@ -11,6 +11,7 @@ const (
 	ERROR_INSUFFICIENT_BUFFER = 122
 	ERROR_MOD_NOT_FOUND       = 126
 	ERROR_PROC_NOT_FOUND      = 127
+	ERROR_DIRECTORY           = 267
 	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
 	EMINGW = 99999 /* otherwise unused */
 )
@@ -36,7 +37,7 @@ const (
 	EEXIST          = 17
 	EXDEV           = 18
 	ENODEV          = 19
-	ENOTDIR         = 20
+	ENOTDIR         = ERROR_DIRECTORY
 	EISDIR          = 21
 	EINVAL          = 22
 	ENFILE          = 23

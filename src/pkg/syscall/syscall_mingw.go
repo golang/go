@@ -111,6 +111,16 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) [failretval=-1] = FindFirstFileW
 //sys	FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) = FindNextFileW
 //sys	FindClose(handle int32) (ok bool, errno int)
+//sys	GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int)
+//sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) = GetCurrentDirectoryW
+//sys	SetCurrentDirectory(path *uint16) (ok bool, errno int) = SetCurrentDirectoryW
+//sys	CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) = CreateDirectoryW
+//sys	RemoveDirectory(path *uint16) (ok bool, errno int) = RemoveDirectoryW
+//sys	DeleteFile(path *uint16) (ok bool, errno int) = DeleteFileW
+//sys	MoveFile(from *uint16, to *uint16) (ok bool, errno int) = MoveFileW
+//sys	GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) = GetComputerNameW
+//sys	SetEndOfFile(handle int32) (ok bool, errno int)
+//sys	GetSystemTimeAsFileTime(time *Filetime)
 
 // syscall interface implementation for other packages
 
@@ -118,7 +128,7 @@ func Errstr(errno int) string {
 	if errno == EMINGW {
 		return "not supported by windows"
 	}
-	var b = make([]uint16, 300)
+	b := make([]uint16, 300)
 	n, err := FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ARGUMENT_ARRAY, 0, uint32(errno), 0, b, nil)
 	if err != 0 {
 		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
@@ -175,19 +185,16 @@ func Read(fd int, p []byte) (n int, errno int) {
 // not sure if I should do that
 
 func Pread(fd int, p []byte, offset int64) (n int, errno int) {
-	var o Overlapped
-	o.OffsetHigh = uint32(offset >> 32)
-	o.Offset = uint32(offset)
 	curoffset, e := Seek(fd, 0, 1)
 	if e != 0 {
 		return 0, e
 	}
+	defer Seek(fd, curoffset, 0)
+	var o Overlapped
+	o.OffsetHigh = uint32(offset >> 32)
+	o.Offset = uint32(offset)
 	var done uint32
 	if ok, e := ReadFile(int32(fd), p, &done, &o); !ok {
-		return 0, e
-	}
-	_, e = Seek(fd, curoffset, 0)
-	if e != 0 {
 		return 0, e
 	}
 	return int(done), 0
@@ -202,19 +209,16 @@ func Write(fd int, p []byte) (n int, errno int) {
 }
 
 func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
-	var o Overlapped
-	o.OffsetHigh = uint32(offset >> 32)
-	o.Offset = uint32(offset)
 	curoffset, e := Seek(fd, 0, 1)
 	if e != 0 {
 		return 0, e
 	}
+	defer Seek(fd, curoffset, 0)
+	var o Overlapped
+	o.OffsetHigh = uint32(offset >> 32)
+	o.Offset = uint32(offset)
 	var done uint32
 	if ok, e := WriteFile(int32(fd), p, &done, &o); !ok {
-		return 0, e
-	}
-	_, e = Seek(fd, curoffset, 0)
-	if e != 0 {
 		return 0, e
 	}
 	return int(done), 0
@@ -272,6 +276,93 @@ func Lstat(path string, stat *Stat_t) (errno int) {
 	return Stat(path, stat)
 }
 
+const ImplementsGetwd = true
+
+func Getwd() (wd string, errno int) {
+	b := make([]uint16, 300)
+	n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
+	if e != 0 {
+		return "", e
+	}
+	return string(utf16.Decode(b[0:n])), 0
+}
+
+func Chdir(path string) (errno int) {
+	if ok, e := SetCurrentDirectory(&StringToUTF16(path)[0]); !ok {
+		return e
+	}
+	return 0
+}
+
+func Mkdir(path string, mode int) (errno int) {
+	if ok, e := CreateDirectory(&StringToUTF16(path)[0], nil); !ok {
+		return e
+	}
+	return 0
+}
+
+func Rmdir(path string) (errno int) {
+	if ok, e := RemoveDirectory(&StringToUTF16(path)[0]); !ok {
+		return e
+	}
+	return 0
+}
+
+func Unlink(path string) (errno int) {
+	if ok, e := DeleteFile(&StringToUTF16(path)[0]); !ok {
+		return e
+	}
+	return 0
+}
+
+func Rename(oldpath, newpath string) (errno int) {
+	from := &StringToUTF16(oldpath)[0]
+	to := &StringToUTF16(newpath)[0]
+	if ok, e := MoveFile(from, to); !ok {
+		return e
+	}
+	return 0
+}
+
+func ComputerName() (name string, errno int) {
+	var n uint32 = MAX_COMPUTERNAME_LENGTH + 1
+	b := make([]uint16, n)
+	if ok, e := GetComputerName(&b[0], &n); !ok {
+		return "", e
+	}
+	return string(utf16.Decode(b[0:n])), 0
+}
+
+func Ftruncate(fd int, length int64) (errno int) {
+	curoffset, e := Seek(fd, 0, 1)
+	if e != 0 {
+		return e
+	}
+	defer Seek(fd, curoffset, 0)
+	if _, e := Seek(fd, length, 0); e != 0 {
+		return e
+	}
+	if _, e := SetEndOfFile(int32(fd)); e != 0 {
+		return e
+	}
+	return 0
+}
+
+func Gettimeofday(tv *Timeval) (errno int) {
+	var ft Filetime
+	// 100-nanosecond intervals since January 1, 1601
+	GetSystemTimeAsFileTime(&ft)
+	t := uint64(ft.HighDateTime)<<32 + uint64(ft.LowDateTime)
+	// convert into microseconds
+	t /= 10
+	// change starting time to the Epoch (00:00:00 UTC, January 1, 1970)
+	t -= 11644473600000000
+	// split into sec / usec
+	tv.Sec = int32(t / 1e6)
+	tv.Usec = int32(t) - tv.Sec
+	return 0
+}
+
 // TODO(brainman): fix all needed for os
 
 const (
@@ -281,33 +372,21 @@ const (
 func Getpid() (pid int)   { return -1 }
 func Getppid() (ppid int) { return -1 }
 
-func Mkdir(path string, mode int) (errno int)             { return EMINGW }
-func Fstat(fd int, stat *Stat_t) (errno int)              { return EMINGW }
-func Chdir(path string) (errno int)                       { return EMINGW }
 func Fchdir(fd int) (errno int)                           { return EMINGW }
-func Unlink(path string) (errno int)                      { return EMINGW }
-func Rmdir(path string) (errno int)                       { return EMINGW }
 func Link(oldpath, newpath string) (errno int)            { return EMINGW }
 func Symlink(path, link string) (errno int)               { return EMINGW }
 func Readlink(path string, buf []byte) (n int, errno int) { return 0, EMINGW }
-func Rename(oldpath, newpath string) (errno int)          { return EMINGW }
 func Chmod(path string, mode int) (errno int)             { return EMINGW }
 func Fchmod(fd int, mode int) (errno int)                 { return EMINGW }
 func Chown(path string, uid int, gid int) (errno int)     { return EMINGW }
 func Lchown(path string, uid int, gid int) (errno int)    { return EMINGW }
 func Fchown(fd int, uid int, gid int) (errno int)         { return EMINGW }
-func Truncate(name string, size int64) (errno int)        { return EMINGW }
-func Ftruncate(fd int, length int64) (errno int)          { return EMINGW }
 
-const ImplementsGetwd = true
-
-func Getwd() (wd string, errno int)        { return "", EMINGW }
-func Getuid() (uid int)                    { return -1 }
-func Geteuid() (euid int)                  { return -1 }
-func Getgid() (gid int)                    { return -1 }
-func Getegid() (egid int)                  { return -1 }
-func Getgroups() (gids []int, errno int)   { return nil, EMINGW }
-func Gettimeofday(tv *Timeval) (errno int) { return EMINGW }
+func Getuid() (uid int)                  { return -1 }
+func Geteuid() (euid int)                { return -1 }
+func Getgid() (gid int)                  { return -1 }
+func Getegid() (egid int)                { return -1 }
+func Getgroups() (gids []int, errno int) { return nil, EMINGW }
 
 // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
 

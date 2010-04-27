@@ -53,6 +53,17 @@ func (file *File) Close() Error {
 	return err
 }
 
+// Stat returns the FileInfo structure describing file.
+// It returns the FileInfo and an error, if any.
+func (file *File) Stat() (fi *FileInfo, err Error) {
+	var stat syscall.Stat_t
+	e := syscall.Fstat(file.fd, &stat)
+	if e != 0 {
+		return nil, &PathError{"stat", file.name, Errno(e)}
+	}
+	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
+}
+
 // Readdir reads the contents of the directory associated with file and
 // returns an array of up to count FileInfo structures, as would be returned
 // by Stat, in directory order.  Subsequent calls on the same file will yield
@@ -79,4 +90,13 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 		}
 	}
 	return
+}
+
+// Truncate changes the size of the named file.
+// If the file is a symbolic link, it changes the size of the link's target.
+func Truncate(name string, size int64) Error {
+	if e := syscall.Truncate(name, size); e != 0 {
+		return &PathError{"truncate", name, Errno(e)}
+	}
+	return nil
 }

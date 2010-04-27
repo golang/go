@@ -237,17 +237,6 @@ func Stat(name string) (fi *FileInfo, err Error) {
 	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
 }
 
-// Stat returns the FileInfo structure describing file.
-// It returns the FileInfo and an error, if any.
-func (file *File) Stat() (fi *FileInfo, err Error) {
-	var stat syscall.Stat_t
-	e := syscall.Fstat(file.fd, &stat)
-	if e != 0 {
-		return nil, &PathError{"stat", file.name, Errno(e)}
-	}
-	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
-}
-
 // Lstat returns the FileInfo structure describing the named file and an
 // error, if any.  If the file is a symbolic link, the returned FileInfo
 // describes the symbolic link.  Lstat makes no attempt to follow the link.
@@ -301,6 +290,9 @@ func Remove(name string) Error {
 	// file path, like /etc/passwd/foo, but in that case,
 	// both errors will be ENOTDIR, so it's okay to
 	// use the error from unlink.
+	// For windows syscall.ENOTDIR is set
+	// to syscall.ERROR_DIRECTORY, hopefully it should
+	// do the trick.
 	if e1 != syscall.ENOTDIR {
 		e = e1
 	}
@@ -403,15 +395,6 @@ func Lchown(name string, uid, gid int) Error {
 func (f *File) Chown(uid, gid int) Error {
 	if e := syscall.Fchown(f.fd, uid, gid); e != 0 {
 		return &PathError{"chown", f.name, Errno(e)}
-	}
-	return nil
-}
-
-// Truncate changes the size of the named file.
-// If the file is a symbolic link, it changes the size of the link's target.
-func Truncate(name string, size int64) Error {
-	if e := syscall.Truncate(name, size); e != 0 {
-		return &PathError{"truncate", name, Errno(e)}
 	}
 	return nil
 }

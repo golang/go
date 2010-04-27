@@ -4,4 +4,12 @@
 
 package os
 
-func Hostname() (name string, err Error) { return "windows", nil }
+import "syscall"
+
+func Hostname() (name string, err Error) {
+	s, e := syscall.ComputerName()
+	if e != 0 {
+		return "", NewSyscallError("ComputerName", e)
+	}
+	return s, nil
+}

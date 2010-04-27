@@ -80,6 +80,8 @@ const (
 	FORMAT_MESSAGE_MAX_WIDTH_MASK  = 255
 
 	MAX_PATH = 260
+
+	MAX_COMPUTERNAME_LENGTH = 15
 )
 
 // Types
@@ -92,6 +94,7 @@ type _C_long int32
 
 type _C_long_long int64
 
+// Invented values to support what package os expects.
 type Timeval struct {
 	Sec  int32
 	Usec int32
@@ -123,6 +126,20 @@ type Win32finddata struct {
 	AlternateFileName [13]uint16
 }
 
+type ByHandleFileInformation struct {
+	FileAttributes     uint32
+	CreationTime       Filetime
+	LastAccessTime     Filetime
+	LastWriteTime      Filetime
+	VolumeSerialNumber uint32
+	FileSizeHigh       uint32
+	FileSizeLow        uint32
+	NumberOfLinks      uint32
+	FileIndexHigh      uint32
+	FileIndexLow       uint32
+}
+
+// Invented values to support what package os expects.
 type Stat_t struct {
 	Windata Win32finddata
 	Mode    uint32
