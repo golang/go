@@ -33,11 +33,23 @@ type Client struct {
 	shutdown os.Error   // non-nil if the client is shut down
 	sending  sync.Mutex
 	seq      uint64
-	conn     io.ReadWriteCloser
-	enc      *gob.Encoder
-	dec      *gob.Decoder
+	codec    ClientCodec
 	pending  map[uint64]*Call
 	closing  bool
+}
+
+// A ClientCodec implements writing of RPC requests and
+// reading of RPC responses for the client side of an RPC session.
+// The client calls WriteRequest to write a request to the connection
+// and calls ReadResponseHeader and ReadResponseBody in pairs
+// to read responses.  The client calls Close when finished with the
+// connection.
+type ClientCodec interface {
+	WriteRequest(*Request, interface{}) os.Error
+	ReadResponseHeader(*Response) os.Error
+	ReadResponseBody(interface{}) os.Error
+
+	Close() os.Error
 }
 
 func (client *Client) send(c *Call) {
@@ -59,9 +71,7 @@ func (client *Client) send(c *Call) {
 	client.sending.Lock()
 	request.Seq = c.seq
 	request.ServiceMethod = c.ServiceMethod
-	client.enc.Encode(request)
-	err := client.enc.Encode(c.Args)
-	if err != nil {
+	if err := client.codec.WriteRequest(request, c.Args); err != nil {
 		panic("rpc: client encode error: " + err.String())
 	}
 	client.sending.Unlock()
@@ -71,7 +81,7 @@ func (client *Client) input() {
 	var err os.Error
 	for err == nil {
 		response := new(Response)
-		err = client.dec.Decode(response)
+		err = client.codec.ReadResponseHeader(response)
 		if err != nil {
 			if err == os.EOF && !client.closing {
 				err = io.ErrUnexpectedEOF
@@ -83,7 +93,7 @@ func (client *Client) input() {
 		c := client.pending[seq]
 		client.pending[seq] = c, false
 		client.mutex.Unlock()
-		err = client.dec.Decode(c.Reply)
+		err = client.codec.ReadResponseBody(c.Reply)
 		// Empty strings should turn into nil os.Errors
 		if response.Error != "" {
 			c.Error = os.ErrorString(response.Error)
@@ -110,17 +120,49 @@ func (client *Client) input() {
 // NewClient returns a new Client to handle requests to the
 // set of services at the other end of the connection.
 func NewClient(conn io.ReadWriteCloser) *Client {
-	client := new(Client)
-	client.conn = conn
-	client.enc = gob.NewEncoder(conn)
-	client.dec = gob.NewDecoder(conn)
-	client.pending = make(map[uint64]*Call)
+	return NewClientWithCodec(&gobClientCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)})
+}
+
+// NewClientWithCodec is like NewClient but uses the specified
+// codec to encode requests and decode responses.
+func NewClientWithCodec(codec ClientCodec) *Client {
+	client := &Client{
+		codec:   codec,
+		pending: make(map[uint64]*Call),
+	}
 	go client.input()
 	return client
 }
 
+type gobClientCodec struct {
+	rwc io.ReadWriteCloser
+	dec *gob.Decoder
+	enc *gob.Encoder
+}
+
+func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) os.Error {
+	if err := c.enc.Encode(r); err != nil {
+		return err
+	}
+	return c.enc.Encode(body)
+}
+
+func (c *gobClientCodec) ReadResponseHeader(r *Response) os.Error {
+	return c.dec.Decode(r)
+}
+
+func (c *gobClientCodec) ReadResponseBody(body interface{}) os.Error {
+	return c.dec.Decode(body)
+}
+
+func (c *gobClientCodec) Close() os.Error {
+	return c.rwc.Close()
+}
+
+
 // DialHTTP connects to an HTTP RPC server at the specified network address.
 func DialHTTP(network, address string) (*Client, os.Error) {
+	var err os.Error
 	conn, err := net.Dial(network, "", address)
 	if err != nil {
 		return nil, err
@@ -156,7 +198,7 @@ func (client *Client) Close() os.Error {
 	client.mutex.Lock()
 	client.closing = true
 	client.mutex.Unlock()
-	return client.conn.Close()
+	return client.codec.Close()
 }
 
 // Go invokes the function asynchronously.  It returns the Call structure representing
