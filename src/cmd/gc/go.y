@@ -53,7 +53,7 @@
 %type	<node>	compound_stmt dotname embed expr
 %type	<node>	expr_or_type
 %type	<node>	fndcl fnliteral
-%type	<node>	for_body for_header for_stmt if_header if_stmt
+%type	<node>	for_body for_header for_stmt if_header if_stmt non_dcl_stmt
 %type	<node>	interfacedcl keyval labelname name
 %type	<node>	name_or_type non_expr_type
 %type	<node>	new_name dcl_name oexpr typedclname
@@ -270,6 +270,11 @@ xdcl:
 |	xfndcl
 	{
 		$$ = list1($1);
+	}
+|	non_dcl_stmt
+	{
+		yyerror("non-declaration statement outside function body");
+		$$ = nil;
 	}
 |	error
 	{
@@ -1086,10 +1091,12 @@ fndcl:
 		$$->nname->ntype = n;
 		funchdr($$);
 	}
-|	'(' oarg_type_list_ocomma ')' new_name '(' oarg_type_list_ocomma ')' fnres
+|	'(' oarg_type_list_ocomma ')' sym '(' oarg_type_list_ocomma ')' fnres
 	{
 		Node *rcvr, *t;
-
+		Node *name;
+		
+		name = newname($4);
 		$2 = checkarglist($2, 0);
 		$6 = checkarglist($6, 1);
 		$$ = N;
@@ -1108,12 +1115,12 @@ fndcl:
 		}
 
 		$$ = nod(ODCLFUNC, N, N);
-		$$->nname = methodname1($4, rcvr->right);
+		$$->nname = methodname1(name, rcvr->right);
 		t = nod(OTFUNC, rcvr, N);
 		t->list = $6;
 		t->rlist = $8;
 		$$->nname->ntype = t;
-		$$->shortname = $4;
+		$$->shortname = name;
 		funchdr($$);
 	}
 
@@ -1340,12 +1347,19 @@ stmt:
 	{
 		$$ = N;
 	}
-|	simple_stmt
 |	compound_stmt
 |	common_dcl
 	{
 		$$ = liststmt($1);
 	}
+|	non_dcl_stmt
+|	error
+	{
+		$$ = N;
+	}
+
+non_dcl_stmt:
+	simple_stmt
 |	for_stmt
 |	switch_stmt
 |	select_stmt
@@ -1359,10 +1373,6 @@ stmt:
 		popdcl();
 		$$ = $1;
 		$$->nelse = list1($3);
-	}
-|	error
-	{
-		$$ = N;
 	}
 |	labelname ':' stmt
 	{
