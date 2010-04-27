@@ -15,7 +15,9 @@ type Error interface {
 // Error.
 type ErrorString string
 
-func (e ErrorString) String() string { return string(e) }
+func (e ErrorString) String() string  { return string(e) }
+func (e ErrorString) Temporary() bool { return false }
+func (e ErrorString) Timeout() bool   { return false }
 
 // Note: If the name of the function NewError changes,
 // pkg/go/doc/doc.go should be adjusted since it hardwires
@@ -29,6 +31,14 @@ func NewError(s string) Error { return ErrorString(s) }
 type Errno int64
 
 func (e Errno) String() string { return syscall.Errstr(int(e)) }
+
+func (e Errno) Temporary() bool {
+	return e == Errno(syscall.EINTR) || e.Timeout()
+}
+
+func (e Errno) Timeout() bool {
+	return e == Errno(syscall.EAGAIN) || e == Errno(syscall.EWOULDBLOCK)
+}
 
 // Commonly known Unix errors.
 var (

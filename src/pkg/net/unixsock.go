@@ -34,7 +34,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 		if raddr != nil {
 			ra = &syscall.SockaddrUnix{Name: raddr.Name}
 		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
-			return nil, &OpError{mode, net, nil, errMissingAddress}
+			return nil, &OpError{Op: mode, Net: net, Error: errMissingAddress}
 		}
 
 	case "listen":
@@ -43,7 +43,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 		}
 		la = &syscall.SockaddrUnix{Name: laddr.Name}
 		if raddr != nil {
-			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected remote address", raddr.String()}}
+			return nil, &OpError{Op: mode, Net: net, Addr: raddr, Error: &AddrError{Error: "unexpected remote address", Addr: raddr.String()}}
 		}
 	}
 
@@ -51,8 +51,8 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 	if proto != syscall.SOCK_STREAM {
 		f = sockaddrToUnixgram
 	}
-	fd, err = socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
-	if err != nil {
+	fd, oserr := socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
+	if oserr != nil {
 		goto Error
 	}
 	return fd, nil
@@ -62,7 +62,7 @@ Error:
 	if mode == "listen" {
 		addr = laddr
 	}
-	return nil, &OpError{mode, net, addr, err}
+	return nil, &OpError{Op: mode, Net: net, Addr: addr, Error: oserr}
 }
 
 // UnixAddr represents the address of a Unix domain socket end point.
@@ -133,10 +133,7 @@ func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface - see Conn for documentation.
 
-// Read reads data from the Unix domain connection.
-//
-// Read can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// Read implements the net.Conn Read method.
 func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -144,10 +141,7 @@ func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
 	return c.fd.Read(b)
 }
 
-// Write writes data to the Unix domain connection.
-//
-// Write can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// Write implements the net.Conn Write method.
 func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -184,8 +178,7 @@ func (c *UnixConn) RemoteAddr() Addr {
 	return c.fd.raddr
 }
 
-// SetTimeout sets the read and write deadlines associated
-// with the connection.
+// SetTimeout implements the net.Conn SetTimeout method.
 func (c *UnixConn) SetTimeout(nsec int64) os.Error {
 	if !c.ok() {
 		return os.EINVAL
@@ -193,9 +186,7 @@ func (c *UnixConn) SetTimeout(nsec int64) os.Error {
 	return setTimeout(c.fd, nsec)
 }
 
-// SetReadTimeout sets the time (in nanoseconds) that
-// Read will wait for data before returning os.EAGAIN.
-// Setting nsec == 0 (the default) disables the deadline.
+// SetReadTimeout implements the net.Conn SetReadTimeout method.
 func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
 	if !c.ok() {
 		return os.EINVAL
@@ -203,11 +194,7 @@ func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
 	return setReadTimeout(c.fd, nsec)
 }
 
-// SetWriteTimeout sets the time (in nanoseconds) that
-// Write will wait to send its data before returning os.EAGAIN.
-// Setting nsec == 0 (the default) disables the deadline.
-// Even if write times out, it may return n > 0, indicating that
-// some of the data was successfully written.
+// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
 func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
 	if !c.ok() {
 		return os.EINVAL
@@ -237,8 +224,9 @@ func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
 // It returns the number of bytes copied into b and the return address
 // that was on the packet.
 //
-// ReadFromUnix can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// ReadFromUnix can be made to time out and return
+// an error with Timeout() == true after a fixed time limit;
+// see SetTimeout and SetReadTimeout.
 func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -251,12 +239,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) 
 	return
 }
 
-// ReadFrom reads a packet from c, copying the payload into b.
-// It returns the number of bytes copied into b and the return address
-// that was on the packet.
-//
-// ReadFrom can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// ReadFrom implements the net.PacketConn ReadFrom method.
 func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -267,9 +250,10 @@ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 
 // WriteToUnix writes a packet to addr via c, copying the payload from b.
 //
-// WriteToUnix can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetWriteTimeout.
-// On packet-oriented connections such as UDP, write timeouts are rare.
+// WriteToUnix can be made to time out and return
+// an error with Timeout() == true after a fixed time limit;
+// see SetTimeout and SetWriteTimeout.
+// On packet-oriented connections, write timeouts are rare.
 func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -281,11 +265,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
 	return c.fd.WriteTo(b, sa)
 }
 
-// WriteTo writes a packet to addr via c, copying the payload from b.
-//
-// WriteTo can be made to time out and return err == os.EAGAIN
-// after a fixed time limit; see SetTimeout and SetWriteTimeout.
-// On packet-oriented connections such as UDP, write timeouts are rare.
+// WriteTo implements the net.PacketConn WriteTo method.
 func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -325,17 +305,14 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
 	if laddr != nil {
 		laddr = &UnixAddr{laddr.Name, net == "unixgram"} // make our own copy
 	}
-	fd, e := unixSocket(net, laddr, nil, "listen")
-	if e != nil {
-		if pe, ok := e.(*os.PathError); ok {
-			e = pe.Error
-		}
-		return nil, e
+	fd, err := unixSocket(net, laddr, nil, "listen")
+	if err != nil {
+		return nil, err
 	}
 	e1 := syscall.Listen(fd.sysfd, 8) // listenBacklog());
 	if e1 != 0 {
 		syscall.Close(fd.sysfd)
-		return nil, &OpError{"listen", "unix", laddr, os.Errno(e1)}
+		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Error: os.Errno(e1)}
 	}
 	return &UnixListener{fd, laddr.Name}, nil
 }
