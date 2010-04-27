@@ -250,15 +250,12 @@ span.subtitle {
   padding-right: 1em;
   padding-bottom: 0.75em;
   border: 2px solid #ba9836;
-  width: 180px;
+  width: 160px;
 }
 
 #blog { margin-bottom: 1.5em; }
 #blog h1 { font-size: 1.2em; }
-#blog .gfg-title, #blog .gf-author, #blog .gf-spacer { display: none; }
-#blog .gfg-list { margin-top: 1em; }
-#blog .gf-title { font-size: 1.1em; }
-#blog .gfg-listentry-highlight { font-weight: bold; }
+#blog #blogFeed a { font-size: 1.1em; display: block; margin-top: 1em; }
 
 #gettingStarted h1 {
   padding-top: 0.3em;
@@ -267,6 +264,7 @@ span.subtitle {
 }
 
 #gettingStarted ol {
+  padding-left: 2em;
 }
 
 #gettingStarted a img {
