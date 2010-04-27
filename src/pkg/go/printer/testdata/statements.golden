@@ -152,7 +152,7 @@ func _() {
 
 // Don't remove mandatory parentheses around composite literals in control clauses.
 func _() {
-	// strip no parentheses - no composite literals or composite literals don't start with a type name
+	// strip parentheses - no composite literals or composite literals don't start with a type name
 	if x {
 	}
 	if x {
