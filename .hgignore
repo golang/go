@@ -27,7 +27,7 @@ src/pkg/Make.deps
 src/pkg/exp/ogle/ogle
 src/pkg/os/signal/unix.go
 src/pkg/runtime/*/asm.h
-src/pkg/runtime/cgo2c
+src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
 src/pkg/runtime/runtime.acid.*
 src/pkg/runtime/version.go
