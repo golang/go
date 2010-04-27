@@ -47,7 +47,14 @@ func satan(arg float64) float64 {
 }
 
 // Atan returns the arctangent of x.
+//
+// Special cases are:
+//	Atan(±0) = ±0
+//	Atan(±Inf) = ±Pi/2
 func Atan(x float64) float64 {
+	if x == 0 {
+		return x
+	}
 	if x > 0 {
 		return satan(x)
 	}

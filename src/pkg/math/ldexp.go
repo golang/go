@@ -10,7 +10,10 @@ func Ldexp(frac float64, exp int) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
 	// special cases
-	if frac != frac { // IsNaN(frac)
+	switch {
+	case frac == 0:
+		return frac // correctly return -0
+	case frac != frac: // IsNaN(frac):
 		return NaN()
 	}
 	x := Float64bits(frac)

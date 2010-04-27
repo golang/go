@@ -15,8 +15,8 @@ package math
 // Cbrt returns the cube root of its argument.
 //
 // Special cases are:
-//	Exp(+Inf) = +Inf
-//	Exp(-Inf) = -Inf
+//	Exp(±0) = ±0
+//	Exp(±Inf) = ±Inf
 //	Exp(NaN) = NaN
 func Cbrt(x float64) float64 {
 	const (
@@ -37,7 +37,7 @@ func Cbrt(x float64) float64 {
 	// when compiler does it for us
 	// special cases
 	switch {
-	case x != x || x < -MaxFloat64 || x > MaxFloat64: // IsNaN(x) || IsInf(x, 0):
+	case x == 0 || x != x || x < -MaxFloat64 || x > MaxFloat64: // x == 0 || IsNaN(x) || IsInf(x, 0):
 		return x
 	}
 	sign := false

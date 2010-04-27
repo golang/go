@@ -14,10 +14,9 @@ func Frexp(f float64) (frac float64, exp int) {
 	// special cases
 	switch {
 	case f == 0:
-		return
+		return f, 0 // correctly return -0
 	case f < -MaxFloat64 || f > MaxFloat64 || f != f: // IsInf(f, 0) || IsNaN(f):
-		frac = f
-		return
+		return f, 0
 	}
 	x := Float64bits(f)
 	exp = int((x>>shift)&mask) - bias
