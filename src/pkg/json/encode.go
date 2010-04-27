@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
-	"strings"
 )
 
 // Marshal returns the JSON encoding of v.
@@ -40,7 +39,7 @@ import (
 // The map's key type must be string; the object keys are used directly
 // as map keys.
 //
-// Pointer values encode as the value pointed at.
+// Pointer values encode as the value pointed to.
 // A nil pointer encodes as the null JSON object.
 //
 // Interface values encode as the value contained in the interface.
@@ -202,7 +201,7 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 			if f.Tag != "" {
 				e.string(f.Tag)
 			} else {
-				e.string(strings.ToLower(f.Name))
+				e.string(f.Name)
 			}
 			e.WriteByte(':')
 			e.reflectValue(v.Field(i))
