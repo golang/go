@@ -108,8 +108,9 @@ func initHandlers() {
 func registerPublicHandlers(mux *http.ServeMux) {
 	mux.Handle(cmdHandler.pattern, &cmdHandler)
 	mux.Handle(pkgHandler.pattern, &pkgHandler)
-	mux.Handle("/search", http.HandlerFunc(search))
-	mux.Handle("/", http.HandlerFunc(serveFile))
+	mux.HandleFunc("/doc/codewalk/", codewalk)
+	mux.HandleFunc("/search", search)
+	mux.HandleFunc("/", serveFile)
 }
 
 
@@ -849,6 +850,8 @@ func readTemplate(name string) *template.Template {
 
 
 var (
+	codewalkHTML,
+	codewalkdirHTML,
 	dirlistHTML,
 	errorHTML,
 	godocHTML,
@@ -861,6 +864,8 @@ var (
 
 func readTemplates() {
 	// have to delay until after flags processing since paths depend on goroot
+	codewalkHTML = readTemplate("codewalk.html")
+	codewalkdirHTML = readTemplate("codewalkdir.html")
 	dirlistHTML = readTemplate("dirlist.html")
 	errorHTML = readTemplate("error.html")
 	godocHTML = readTemplate("godoc.html")

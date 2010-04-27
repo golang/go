@@ -45,6 +45,7 @@ span.alert {
 
 body {
   font: 13px Helvetica, Arial, sans-serif;
+  margin-bottom: 0px;
 }
 
 h1 {
@@ -102,6 +103,7 @@ div#content {
   margin-left: 20%;
   padding: 0 1em 2em 1em;
   margin-top: 0px;
+  margin-bottom: 0px;
 /*
   border-left: 2px solid #e5ecf9;
   border-right: 2px solid #e5ecf9;
@@ -156,10 +158,14 @@ div#linkList li.navhead {
 }
 
 #footer {
-  margin: 2em;
+  margin: 2em 0 0 0;
   text-align: center;
   color: #555;
   font-size: small;
+}
+
+#footer p {
+  margin: 0px;
 }
 
 #footer a {
