@@ -5,6 +5,69 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-04-27">2010-04-27</h3>
+
+<pre>
+This release includes a new Codelab that illustrates the construction of a
+simple wiki web application: 
+	http://golang.org/doc/codelab/wiki/
+
+It also includes a Codewalk framework for documenting code. See:
+	http://golang.org/doc/codewalk/
+
+Other changes:
+* 6g: fix need for parens around array index expression.
+* 6l, 8l: include ELF header in PT_LOAD mapping for text segment.
+* arm: add android runner script,
+	support for printing floats.
+* big: implemented Karatsuba multiplication,
+	many fixes and improvements (thanks Evan Shaw).
+* bytes: add Next method to Buffer, simplify Read,
+	shuffle implementation, making WriteByte 50% faster.
+* crypto/tls: simpler implementation of record layer.
+* exp/eval: fixes (thanks Evan Shaw).
+* flag: eliminate unnecessary structs.
+* gc: better windows support,
+	cmplx typecheck bug fix,
+	more specific error for statements at top level.
+* go/parser: don't require unnecessary parens.
+* godoc: exclude duplicate entries (thanks Andrei Vieru),
+	use int64 for timestamps (thanks Christopher Wedgwood).
+* gofmt: fine-tune stripping of parentheses,
+* json: Marshal, Unmarshal using new scanner,
+	preserve field name case by default,
+	scanner, Compact, Indent, and tests,
+	support for streaming.
+* libmach: disassemble MOVLQZX correctly.
+* math: more special cases for signed zero (thanks Charles L. Dorian).
+* net: add Pipe,
+	fix bugs in packStructValue (thanks Michael Hoisie),
+	introduce net.Error interface.
+* os: FileInfo: regularize the types of some fields,
+	create sys_bsd.go (thanks Giles Lean),
+	mingw bug fixes (thanks Alex Brainman).
+* reflect: add FieldByNameFunc (thanks Raif S. Naffah),
+	implement Set(nil), SetValue(nil) for PtrValue and MapValue.
+* regexp: allow escaping of any punctuation.
+* rpc/jsonrpc: support for jsonrpc wire encoding.
+* rpc: abstract client and server encodings,
+	add Close() method to rpc.Client.
+* runtime: closures, defer bug fix for Native Client,
+	rename cgo2c, *.cgo to goc2c, *.goc to avoid confusion with real cgo.
+	several other fixes.
+* scanner: implement Peek() to look at the next char w/o advancing.
+* strings: add ReadRune to Reader, add FieldsFunc (thanks Kyle Consalus).
+* syscall: match linux Setsid function signature to darwin,
+	mingw bug fixes (thanks Alex Brainman).
+* template: fix handling of pointer inside interface.
+* test/bench: add fannkuch-parallel.go (thanks Kyle Consalus),
+	pidigits ~10% performance win by using adds instead of shifts.
+* time: remove incorrect time.ISO8601 and add time.RFC3339 (thanks Micah Stetson).
+* utf16: add DecodeRune, EncodeRune.
+* xml: add support for XML marshalling embedded structs (thanks Raif S. Naffah),
+	new "innerxml" tag to collect inner XML.
+</pre>
+
 <h3 id="2010-04-13">2010-04-13</h3>
 
 <pre>
