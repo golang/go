@@ -301,6 +301,7 @@ func TestLongSymlink(t *testing.T) {
 	// Long, but not too long: a common limit is 255.
 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
 	from := "longsymlinktestfrom"
+	Remove(from) // Just in case.
 	err := Symlink(s, from)
 	if err != nil {
 		t.Fatalf("symlink %q, %q failed: %v", s, from, err)
