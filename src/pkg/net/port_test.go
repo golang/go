@@ -33,7 +33,6 @@ var porttests = []portTest{
 	portTest{"tcp", "http", 80, true},
 
 	portTest{"udp", "echo", 7, true},
-	portTest{"udp", "tacacs", 49, true},
 	portTest{"udp", "tftp", 69, true},
 	portTest{"udp", "bootpc", 68, true},
 	portTest{"udp", "bootps", 67, true},
@@ -41,7 +40,6 @@ var porttests = []portTest{
 	portTest{"udp", "ntp", 123, true},
 	portTest{"udp", "snmp", 161, true},
 	portTest{"udp", "syslog", 514, true},
-	portTest{"udp", "nfs", 2049, true},
 
 	portTest{"--badnet--", "zzz", 0, false},
 	portTest{"tcp", "--badport--", 0, false},
