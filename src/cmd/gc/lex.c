@@ -8,6 +8,8 @@
 #include <ar.h>
 
 extern int yychar;
+int windows;
+
 void lexfini(void);
 void yytinit(void);
 
@@ -81,7 +83,10 @@ main(int argc, char *argv[])
 	if(getwd(pathname, 999) == 0)
 		strcpy(pathname, "/???");
 
-	if(systemtype(SysWindows)) {
+	if(isalpha(pathname[0]) && pathname[1] == ':') {
+		// On Windows.
+		windows = 1;
+
 		// Canonicalize path by converting \ to / (Windows accepts both).
 		for(p=pathname; *p; p++)
 			if(*p == '\\')
@@ -247,9 +252,9 @@ addidir(char* dir)
 int
 islocalname(Strlit *name)
 {
-	if(systemtype(SysUnix) && name->len >= 1 && name->s[0] == '/')
+	if(!windows && name->len >= 1 && name->s[0] == '/')
 		return 1;
-	if(systemtype(SysWindows) && name->len >= 3 &&
+	if(windows && name->len >= 3 &&
 	   isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')
 	   	return 1;
 	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
@@ -1672,14 +1677,4 @@ mkpackage(char* pkgname)
 			*p = 0;
 		outfile = smprint("%s.%c", namebuf, thechar);
 	}
-}
-
-int
-systemtype(int sys)
-{
-#ifdef __MINGW32__
-	return sys&SysWindows;
-#else
-	return sys&SysUnix;
-#endif
 }
