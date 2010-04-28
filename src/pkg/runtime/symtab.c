@@ -17,10 +17,7 @@
 #include "os.h"
 #include "arch.h"
 
-// TODO(rsc): Move this *under* the text segment.
-// Then define names for these addresses instead of hard-coding magic ones.
-#define SYMCOUNTS ((int32*)(0x99LL<<24))   // known to 6l, 8l; see src/cmd/ld/lib.h
-#define SYMDATA ((byte*)(0x99LL<<24) + 8)
+extern int32 symdat[];
 
 typedef struct Sym Sym;
 struct Sym
@@ -39,18 +36,15 @@ walksymtab(void (*fn)(Sym*))
 	byte *p, *ep, *q;
 	Sym s;
 
-	// TODO(rsc): Remove once TODO at top of file is done.
-	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
-		return;
-	if(goos != nil && strcmp((uint8*)goos, (uint8*)"pchw") == 0)
+	if(symdat == nil)
 		return;
 
 #ifdef __MINGW__
 	v = get_symdat_addr();
 	p = (byte*)v+8;
 #else
-	v = SYMCOUNTS;
-	p = SYMDATA;
+	v = symdat;
+	p = (byte*)(symdat+2);
 #endif
 	ep = p + v[0];
 	while(p < ep) {
@@ -248,7 +242,7 @@ splitpcln(void)
 	Func *f, *ef;
 	int32 *v;
 	int32 pcquant;
-	
+
 	switch(thechar) {
 	case '5':
 		pcquant = 4;
@@ -258,10 +252,7 @@ splitpcln(void)
 		break;
 	}
 
-	// TODO(rsc): Remove once TODO at top of file is done.
-	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
-		return;
-	if(goos != nil && strcmp((uint8*)goos, (uint8*)"pchw") == 0)
+	if(symdat == nil)
 		return;
 
 	// pc/ln table bounds
@@ -269,8 +260,8 @@ splitpcln(void)
 	v = get_symdat_addr();
 	p = (byte*)v+8;
 #else
-	v = SYMCOUNTS;
-	p = SYMDATA;
+	v = symdat;
+	p = (byte*)(symdat+2);
 #endif
 	p += v[0];
 	ep = p+v[1];

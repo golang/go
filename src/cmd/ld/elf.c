@@ -320,7 +320,7 @@ elfdynhash(int nsym)
 	uint32 *chain, *buckets;
 
 	s = lookup(".hash", 0);
-	s->type = SDATA;	// TODO: rodata
+	s->type = SELFDATA;	// TODO: rodata
 	s->reachable = 1;
 
 	i = nsym;

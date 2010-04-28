@@ -199,6 +199,9 @@ enum
 
 	SIMPORT,
 	SEXPORT,
+	
+	SFIXED,
+	SELFDATA,
 
 	LFROM		= 1<<0,
 	LTO		= 1<<1,
@@ -317,6 +320,7 @@ EXTERN	Prog*	curp;
 EXTERN	Prog*	curtext;
 EXTERN	Prog*	datap;
 EXTERN	int32	datsize;
+EXTERN	int32 	elfdatsize;
 EXTERN	char	debug[128];
 EXTERN	Prog*	edatap;
 EXTERN	Prog*	etextp;

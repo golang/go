@@ -167,6 +167,8 @@ enum
 	SEXPORT,
 
 	SMACHO,
+	SFIXED,
+	SELFDATA,
 
 	NHASH		= 10007,
 	NHUNK		= 100000,
@@ -314,6 +316,7 @@ EXTERN	Prog*	curtext;
 EXTERN	Prog*	datap;
 EXTERN	Prog*	edatap;
 EXTERN	vlong	datsize;
+EXTERN	vlong	elfdatsize;
 EXTERN	char	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Prog*	etextp;

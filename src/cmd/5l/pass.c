@@ -48,7 +48,7 @@ dodata(void)
 			s->value = dtype;
 		if(s->type == SBSS)
 			s->type = SDATA;
-		if(s->type != SDATA)
+		if(s->type != SDATA && s->type != SELFDATA)
 			diag("initialize non-data (%d): %s\n%P",
 				s->type, s->name, p);
 		v = p->from.offset + p->reg;
@@ -72,6 +72,24 @@ dodata(void)
 				s->type = SSTRING;
 		}
 	}
+	
+	/*
+	 * pass 0
+	 * assign elf data - must be segregated from real data
+	 */
+	orig = 0;
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->link) {
+		if(!s->reachable || s->type != SELFDATA)
+			continue;
+		v = s->value;
+		while(v & 3)
+			v++;
+		s->size = v;
+		s->value = orig;
+		orig += v;
+	}
+	elfdatsize = orig;
 
 	/*
 	 * pass 1
@@ -79,7 +97,6 @@ dodata(void)
 	 *	(rational is that data segment is more easily
 	 *	 addressed through offset on R12)
 	 */
-	orig = 0;
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->link) {
 		t = s->type;
@@ -146,6 +163,11 @@ dodata(void)
 	xdefine("edata", SDATA, datsize);
 	xdefine("end", SBSS, datsize+bsssize);
 	xdefine("etext", STEXT, 0L);
+
+	if(debug['s'])
+		xdefine("symdat", SFIXED, 0);
+	else
+		xdefine("symdat", SFIXED, SYMDATVA);
 }
 
 void

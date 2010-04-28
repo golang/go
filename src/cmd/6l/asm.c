@@ -254,6 +254,7 @@ enum {
 	ElfStrText,
 	ElfStrData,
 	ElfStrBss,
+	ElfStrGosymcounts,
 	ElfStrGosymtab,
 	ElfStrGopclntab,
 	ElfStrShstrtab,
@@ -296,6 +297,7 @@ doelf(void)
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
 	if(!debug['s']) {
+		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
 		if(debug['e']) {
@@ -317,32 +319,42 @@ doelf(void)
 
 		/* dynamic symbol table - first entry all zeros */
 		s = lookup(".dynsym", 0);
-		s->type = SDATA;
+		s->type = SELFDATA;
 		s->reachable = 1;
 		s->value += ELF64SYMSIZE;
 
 		/* dynamic string table */
 		s = lookup(".dynstr", 0);
+		s->type = SELFDATA;
+		s->reachable = 1;
+		s->value += ELF64SYMSIZE;
 		addstring(s, "");
 		dynstr = s;
 
 		/* relocation table */
 		s = lookup(".rela", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
 
 		/* global offset table */
 		s = lookup(".got", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
 
 		/* got.plt - ??? */
 		s = lookup(".got.plt", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
+		
+		/* hash */
+		s = lookup(".hash", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
 
 		/* define dynamic elf table */
 		s = lookup(".dynamic", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
 		dynamic = s;
 
 		/*
@@ -737,7 +749,7 @@ asmb(void)
 		if(!debug['s']) {
 			ph = newElfPhdr();
 			ph->type = PT_LOAD;
-			ph->flags = PF_W+PF_R;
+			ph->flags = PF_R;
 			ph->off = symo;
 			ph->vaddr = symdatva;
 			ph->paddr = symdatva;
@@ -835,9 +847,9 @@ asmb(void)
 		sh = newElfShdr(elfstr[ElfStrData]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
-		sh->addr = va;
-		sh->off = fo;
-		sh->size = w;
+		sh->addr = va + elfdatsize;
+		sh->off = fo + elfdatsize;
+		sh->size = w - elfdatsize;
 		sh->addralign = 8;
 
 		fo += w;
@@ -853,23 +865,38 @@ asmb(void)
 		sh->addralign = 8;
 
 		if (!debug['s']) {
-			fo = symo+8;
+			fo = symo;
+			w = 8;
+
+			sh = newElfShdr(elfstr[ElfStrGosymcounts]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
+			sh->off = fo;
+			sh->size = w;
+			sh->addralign = 1;
+			sh->addr = symdatva;
+
+			fo += w;
 			w = symsize;
 
 			sh = newElfShdr(elfstr[ElfStrGosymtab]);
 			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
+			sh->addr = symdatva + 8;
 
 			fo += w;
 			w = lcsize;
 
 			sh = newElfShdr(elfstr[ElfStrGopclntab]);
 			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
+			sh->addr = symdatva + 8 + symsize;
 			
 			if(debug['e']) {
 				sh = newElfShdr(elfstr[ElfStrSymtab]);
@@ -1102,7 +1129,7 @@ datblk(int32 s, int32 n)
 			for(j=l+(c-i)-1; j>=l; j--)
 				if(buf.dbuf[j]) {
 					print("%P\n", p);
-					diag("multiple initialization");
+					diag("multiple initialization for %d %d", s, j);
 					break;
 				}
 		}

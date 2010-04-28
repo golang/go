@@ -708,6 +708,10 @@ aclass(Adr *a)
 					s->name, TNAME);
 				s->type = SDATA;
 			}
+			if(s->type == SFIXED) {
+				instoffset = s->value + a->offset;
+				return C_LCON;
+			}
 			instoffset = s->value + a->offset + INITDAT;
 			if(s->type == STEXT || s->type == SLEAF || s->type == SUNDEF) {
 				instoffset = s->value + a->offset;
@@ -756,6 +760,9 @@ aclass(Adr *a)
 					s->name, TNAME);
 				s->type = SDATA;
 				break;
+			case SFIXED:
+				instoffset = s->value + a->offset;
+				return C_LCON;
 			case SUNDEF:
 			case STEXT:
 			case SSTRING:
