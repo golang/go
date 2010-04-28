@@ -36,6 +36,20 @@ import "rand"
 
 type nat []Word
 
+var (
+	natOne = nat{1}
+	natTwo = nat{2}
+)
+
+
+func (z nat) clear() nat {
+	for i := range z {
+		z[i] = 0
+	}
+	return z
+}
+
+
 func (z nat) norm() nat {
 	i := len(z)
 	for i > 0 && z[i-1] == 0 {
@@ -46,15 +60,9 @@ func (z nat) norm() nat {
 }
 
 
-func (z nat) make(m int, clear bool) nat {
+func (z nat) make(m int) nat {
 	if cap(z) > m {
-		z = z[0:m] // reuse z - has at least one extra word for a carry, if any
-		if clear {
-			for i := range z {
-				z[i] = 0
-			}
-		}
-		return z
+		return z[0:m] // reuse z - has at least one extra word for a carry, if any
 	}
 
 	c := 4 // minimum capacity
@@ -67,12 +75,12 @@ func (z nat) make(m int, clear bool) nat {
 
 func (z nat) new(x uint64) nat {
 	if x == 0 {
-		return z.make(0, false)
+		return z.make(0)
 	}
 
 	// single-digit values
 	if x == uint64(Word(x)) {
-		z = z.make(1, false)
+		z = z.make(1)
 		z[0] = Word(x)
 		return z
 	}
@@ -84,7 +92,7 @@ func (z nat) new(x uint64) nat {
 	}
 
 	// split x into n words
-	z = z.make(n, false)
+	z = z.make(n)
 	for i := 0; i < n; i++ {
 		z[i] = Word(x & _M)
 		x >>= _W
@@ -95,7 +103,7 @@ func (z nat) new(x uint64) nat {
 
 
 func (z nat) set(x nat) nat {
-	z = z.make(len(x), false)
+	z = z.make(len(x))
 	for i, d := range x {
 		z[i] = d
 	}
@@ -112,14 +120,14 @@ func (z nat) add(x, y nat) nat {
 		return z.add(y, x)
 	case m == 0:
 		// n == 0 because m >= n; result is 0
-		return z.make(0, false)
+		return z.make(0)
 	case n == 0:
 		// result is x
 		return z.set(x)
 	}
 	// m > 0
 
-	z = z.make(m, false)
+	z = z.make(m)
 	c := addVV(&z[0], &x[0], &y[0], n)
 	if m > n {
 		c = addVW(&z[n], &x[n], c, m-n)
@@ -142,14 +150,14 @@ func (z nat) sub(x, y nat) nat {
 		panic("underflow")
 	case m == 0:
 		// n == 0 because m >= n; result is 0
-		return z.make(0, false)
+		return z.make(0)
 	case n == 0:
 		// result is x
 		return z.set(x)
 	}
 	// m > 0
 
-	z = z.make(m, false)
+	z = z.make(m)
 	c := subVV(&z[0], &x[0], &y[0], n)
 	if m > n {
 		c = subVW(&z[n], &x[n], c, m-n)
@@ -198,7 +206,7 @@ func (z nat) mulAddWW(x nat, y, r Word) nat {
 	}
 	// m > 0
 
-	z = z.make(m, false)
+	z = z.make(m)
 	c := mulAddVWW(&z[0], &x[0], y, r, m)
 	if c > 0 {
 		z = z[0 : m+1]
@@ -206,6 +214,173 @@ func (z nat) mulAddWW(x nat, y, r Word) nat {
 	}
 
 	return z
+}
+
+
+// basicMul multiplies x and y and leaves the result in z.
+// The (non-normalized) result is placed in z[0 : len(x) + len(y)].
+func basicMul(z, x, y nat) {
+	// initialize z
+	for i := range z[0 : len(x)+len(y)] {
+		z[i] = 0
+	}
+	// multiply
+	for i, d := range y {
+		if d != 0 {
+			z[len(x)+i] = addMulVVW(&z[i], &x[0], d, len(x))
+		}
+	}
+}
+
+
+// Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
+// Factored out for readability - do not use outside karatsuba.
+func karatsubaAdd(z, x nat, n int) {
+	if c := addVV(&z[0], &z[0], &x[0], n); c != 0 {
+		addVW(&z[n], &z[n], c, n>>1)
+	}
+}
+
+
+// Like karatsubaAdd, but does subtract.
+func karatsubaSub(z, x nat, n int) {
+	if c := subVV(&z[0], &z[0], &x[0], n); c != 0 {
+		subVW(&z[n], &z[n], c, n>>1)
+	}
+}
+
+
+// Operands that are shorter than karatsubaThreshold are multiplied using
+// "grade school" multiplication; for longer operands the Karatsuba algorithm
+// is used.
+var karatsubaThreshold int = 30 // modified by calibrate.go
+
+// karatsuba multiplies x and y and leaves the result in z.
+// Both x and y must have the same length n and n must be a
+// power of 2. The result vector z must have len(z) >= 6*n.
+// The (non-normalized) result is placed in z[0 : 2*n].
+func karatsuba(z, x, y nat) {
+	n := len(y)
+
+	// Switch to basic multiplication if numbers are odd or small.
+	// (n is always even if karatsubaThreshold is even, but be
+	// conservative)
+	if n&1 != 0 || n < karatsubaThreshold || n < 2 {
+		basicMul(z, x, y)
+		return
+	}
+	// n&1 == 0 && n >= karatsubaThreshold && n >= 2
+
+	// Karatsuba multiplication is based on the observation that
+	// for two numbers x and y with:
+	//
+	//   x = x1*b + x0
+	//   y = y1*b + y0
+	//
+	// the product x*y can be obtained with 3 products z2, z1, z0
+	// instead of 4:
+	//
+	//   x*y = x1*y1*b*b + (x1*y0 + x0*y1)*b + x0*y0
+	//       =    z2*b*b +              z1*b +    z0
+	//
+	// with:
+	//
+	//   xd = x1 - x0
+	//   yd = y0 - y1
+	//
+	//   z1 =      xd*yd                    + z1 + z0
+	//      = (x1-x0)*(y0 - y1)             + z1 + z0
+	//      = x1*y0 - x1*y1 - x0*y0 + x0*y1 + z1 + z0
+	//      = x1*y0 -    z1 -    z0 + x0*y1 + z1 + z0
+	//      = x1*y0                 + x0*y1
+
+	// split x, y into "digits"
+	n2 := n >> 1              // n2 >= 1
+	x1, x0 := x[n2:], x[0:n2] // x = x1*b + y0
+	y1, y0 := y[n2:], y[0:n2] // y = y1*b + y0
+
+	// z is used for the result and temporary storage:
+	//
+	//   6*n     5*n     4*n     3*n     2*n     1*n     0*n
+	// z = [z2 copy|z0 copy| xd*yd | yd:xd | x1*y1 | x0*y0 ]
+	//
+	// For each recursive call of karatsuba, an unused slice of
+	// z is passed in that has (at least) half the length of the
+	// caller's z.
+
+	// compute z0 and z2 with the result "in place" in z
+	karatsuba(z, x0, y0)     // z0 = x0*y0
+	karatsuba(z[n:], x1, y1) // z2 = x1*y1
+
+	// compute xd (or the negative value if underflow occurs)
+	s := 1 // sign of product xd*yd
+	xd := z[2*n : 2*n+n2]
+	if subVV(&xd[0], &x1[0], &x0[0], n2) != 0 { // x1-x0
+		s = -s
+		subVV(&xd[0], &x0[0], &x1[0], n2) // x0-x1
+	}
+
+	// compute yd (or the negative value if underflow occurs)
+	yd := z[2*n+n2 : 3*n]
+	if subVV(&yd[0], &y0[0], &y1[0], n2) != 0 { // y0-y1
+		s = -s
+		subVV(&yd[0], &y1[0], &y0[0], n2) // y1-y0
+	}
+
+	// p = (x1-x0)*(y0-y1) == x1*y0 - x1*y1 - x0*y0 + x0*y1 for s > 0
+	// p = (x0-x1)*(y0-y1) == x0*y0 - x0*y1 - x1*y0 + x1*y1 for s < 0
+	p := z[n*3:]
+	karatsuba(p, xd, yd)
+
+	// save original z2:z0
+	// (ok to use upper half of z since we're done recursing)
+	r := z[n*4:]
+	copy(r, z)
+
+	// add up all partial products
+	//
+	//   2*n     n     0
+	// z = [ z2  | z0  ]
+	//   +    [ z0  ]
+	//   +    [ z2  ]
+	//   +    [  p  ]
+	//
+	karatsubaAdd(z[n2:], r, n)
+	karatsubaAdd(z[n2:], r[n:], n)
+	if s > 0 {
+		karatsubaAdd(z[n2:], p, n)
+	} else {
+		karatsubaSub(z[n2:], p, n)
+	}
+}
+
+
+// alias returns true if x and y share the same base array.
+func alias(x, y nat) bool {
+	return &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
+}
+
+
+// addAt implements z += x*(1<<(_W*i)); z must be long enough.
+// (we don't use nat.add because we need z to stay the same
+// slice, and we don't need to normalize z after each addition)
+func addAt(z, x nat, i int) {
+	if n := len(x); n > 0 {
+		if c := addVV(&z[i], &z[i], &x[0], n); c != 0 {
+			j := i + n
+			if j < len(z) {
+				addVW(&z[j], &z[j], c, len(z)-j)
+			}
+		}
+	}
+}
+
+
+func max(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
 }
 
 
@@ -217,25 +392,86 @@ func (z nat) mul(x, y nat) nat {
 	case m < n:
 		return z.mul(y, x)
 	case m == 0 || n == 0:
-		return z.make(0, false)
+		return z.make(0)
 	case n == 1:
 		return z.mulAddWW(x, y[0], 0)
 	}
-	// m >= n && m > 1 && n > 1
+	// m >= n > 1
 
-	if z == nil || &z[0] == &x[0] || &z[0] == &y[0] {
-		z = nat(nil).make(m+n, true) // z is an alias for x or y - cannot reuse
-	} else {
-		z = z.make(m+n, true)
+	// determine if z can be reused
+	if len(z) > 0 && (alias(z, x) || alias(z, y)) {
+		z = nil // z is an alias for x or y - cannot reuse
 	}
-	for i := 0; i < n; i++ {
-		if f := y[i]; f != 0 {
-			z[m+i] = addMulVVW(&z[i], &x[0], f, m)
-		}
-	}
-	z = z.norm()
 
-	return z
+	// use basic multiplication if the numbers are small
+	if n < karatsubaThreshold || n < 2 {
+		z = z.make(m + n)
+		basicMul(z, x, y)
+		return z.norm()
+	}
+	// m >= n && n >= karatsubaThreshold && n >= 2
+
+	// determine largest k such that
+	//
+	//   x = x1*b + x0
+	//   y = y1*b + y0  (and k <= len(y), which implies k <= len(x))
+	//   b = 1<<(_W*k)  ("base" of digits xi, yi)
+	//
+	// and k is karatsubaThreshold multiplied by a power of 2
+	k := max(karatsubaThreshold, 2)
+	for k*2 <= n {
+		k *= 2
+	}
+	// k <= n
+
+	// multiply x0 and y0 via Karatsuba
+	x0 := x[0:k]              // x0 is not normalized
+	y0 := y[0:k]              // y0 is not normalized
+	z = z.make(max(6*k, m+n)) // enough space for karatsuba of x0*y0 and full result of x*y
+	karatsuba(z, x0, y0)
+	z = z[0 : m+n] // z has final length but may be incomplete, upper portion is garbage
+
+	// If x1 and/or y1 are not 0, add missing terms to z explicitly:
+	//
+	//     m+n       2*k       0
+	//   z = [   ...   | x0*y0 ]
+	//     +   [ x1*y1 ]
+	//     +   [ x1*y0 ]
+	//     +   [ x0*y1 ]
+	//
+	if k < n || m != n {
+		x1 := x[k:] // x1 is normalized because x is
+		y1 := y[k:] // y1 is normalized because y is
+		var t nat
+		t = t.mul(x1, y1)
+		copy(z[2*k:], t)
+		z[2*k+len(t):].clear() // upper portion of z is garbage
+		t = t.mul(x1, y0.norm())
+		addAt(z, t, k)
+		t = t.mul(x0.norm(), y1)
+		addAt(z, t, k)
+	}
+
+	return z.norm()
+}
+
+
+// mulRange computes the product of all the unsigned integers in the
+// range [a, b] inclusively. If a > b (empty range), the result is 1.
+func (z nat) mulRange(a, b uint64) nat {
+	switch {
+	case a == 0:
+		// cut long ranges short (optimization)
+		return z.new(0)
+	case a > b:
+		return z.new(1)
+	case a == b:
+		return z.new(a)
+	case a+1 == b:
+		return z.mul(nat(nil).new(a), nat(nil).new(b))
+	}
+	m := (a + b) / 2
+	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
 }
 
 
@@ -253,7 +489,7 @@ func (z nat) divW(x nat, y Word) (q nat, r Word) {
 		return
 	}
 	// m > 0
-	z = z.make(m, false)
+	z = z.make(m)
 	r = divWVW(&z[0], 0, &x[0], y, m)
 	q = z.norm()
 	return
@@ -266,7 +502,7 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 	}
 
 	if u.cmp(v) < 0 {
-		q = z.make(0, false)
+		q = z.make(0)
 		r = z2.set(u)
 		return
 	}
@@ -275,10 +511,10 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 		var rprime Word
 		q, rprime = z.divW(u, v[0])
 		if rprime > 0 {
-			r = z2.make(1, false)
+			r = z2.make(1)
 			r[0] = rprime
 		} else {
-			r = z2.make(0, false)
+			r = z2.make(0)
 		}
 		return
 	}
@@ -299,12 +535,12 @@ func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
 
 	var u nat
 	if z2 == nil || &z2[0] == &uIn[0] {
-		u = u.make(len(uIn)+1, true) // uIn is an alias for z2
+		u = u.make(len(uIn) + 1).clear() // uIn is an alias for z2
 	} else {
-		u = z2.make(len(uIn)+1, true)
+		u = z2.make(len(uIn) + 1).clear()
 	}
 	qhatv := make(nat, len(v)+1)
-	q = z.make(m+1, false)
+	q = z.make(m + 1)
 
 	// D1.
 	shift := uint(leadingZeroBits(v[n-1]))
@@ -363,11 +599,11 @@ func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
 // The result is the integer n for which 2^n <= x < 2^(n+1).
 // If x == 0, the result is -1.
 func log2(x Word) int {
-	n := 0
+	n := -1
 	for ; x > 0; x >>= 1 {
 		n++
 	}
-	return n - 1
+	return n
 }
 
 
@@ -375,9 +611,8 @@ func log2(x Word) int {
 // The result is the integer n for which 2^n <= x < 2^(n+1).
 // If x == 0, the result is -1.
 func (x nat) log2() int {
-	m := len(x)
-	if m > 0 {
-		return (m-1)*_W + log2(x[m-1])
+	if i := len(x) - 1; i >= 0 {
+		return i*_W + log2(x[i])
 	}
 	return -1
 }
@@ -535,6 +770,9 @@ func trailingZeroBits(x Word) int {
 }
 
 
+// TODO(gri) Make the shift routines faster.
+//           Use pidigits.go benchmark as a test case.
+
 // To avoid losing the top n bits, z should be sized so that
 // len(z) == len(x) + 1.
 func (z nat) shiftLeft(x nat, n uint) nat {
@@ -582,7 +820,7 @@ func greaterThan(x1, x2, y1, y2 Word) bool { return x1 > y1 || x1 == y1 && x2 > 
 func (x nat) modW(d Word) (r Word) {
 	// TODO(agl): we don't actually need to store the q value.
 	var q nat
-	q = q.make(len(x), false)
+	q = q.make(len(x))
 	return divWVW(&q[0], 0, &x[0], d, len(x))
 }
 
@@ -601,7 +839,7 @@ func (n nat) powersOfTwoDecompose() (q nat, k Word) {
 	// zeroWords < len(n).
 	x := trailingZeroBits(n[zeroWords])
 
-	q = q.make(len(n)-zeroWords, false)
+	q = q.make(len(n) - zeroWords)
 	q.shiftRight(n[zeroWords:], uint(x))
 	q = q.norm()
 
@@ -618,7 +856,7 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 		bitLengthOfMSW = _W
 	}
 	mask := Word((1 << bitLengthOfMSW) - 1)
-	z = z.make(len(limit), false)
+	z = z.make(len(limit))
 
 	for {
 		for i := range z {
@@ -645,14 +883,14 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 // reuses the storage of z if possible.
 func (z nat) expNN(x, y, m nat) nat {
 	if len(y) == 0 {
-		z = z.make(1, false)
+		z = z.make(1)
 		z[0] = 1
 		return z
 	}
 
 	if m != nil {
 		// We likely end up being as long as the modulus.
-		z = z.make(len(m), false)
+		z = z.make(len(m))
 	}
 	z = z.set(x)
 	v := y[len(y)-1]
@@ -715,14 +953,6 @@ func (z nat) len() int {
 }
 
 
-const (
-	primesProduct32 = 0xC0CFD797         // Π {p ∈ primes, 2 < p <= 29}
-	primesProduct64 = 0xE221F97C30E94E1D // Π {p ∈ primes, 2 < p <= 53}
-)
-
-var bigOne = nat{1}
-var bigTwo = nat{2}
-
 // probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
 // If it returns true, n is prime with probability 1 - 1/4^reps.
 // If it returns false, n is not prime.
@@ -750,6 +980,9 @@ func (n nat) probablyPrime(reps int) bool {
 		}
 	}
 
+	const primesProduct32 = 0xC0CFD797         // Π {p ∈ primes, 2 < p <= 29}
+	const primesProduct64 = 0xE221F97C30E94E1D // Π {p ∈ primes, 2 < p <= 53}
+
 	var r Word
 	switch _W {
 	case 32:
@@ -770,11 +1003,11 @@ func (n nat) probablyPrime(reps int) bool {
 		return false
 	}
 
-	nm1 := nat(nil).sub(n, bigOne)
+	nm1 := nat(nil).sub(n, natOne)
 	// 1<<k * q = nm1;
 	q, k := nm1.powersOfTwoDecompose()
 
-	nm3 := nat(nil).sub(nm1, bigTwo)
+	nm3 := nat(nil).sub(nm1, natTwo)
 	rand := rand.New(rand.NewSource(int64(n[0])))
 
 	var x, y, quotient nat
@@ -783,9 +1016,9 @@ func (n nat) probablyPrime(reps int) bool {
 NextRandom:
 	for i := 0; i < reps; i++ {
 		x = x.random(rand, nm3, nm3Len)
-		x = x.add(x, bigTwo)
+		x = x.add(x, natTwo)
 		y = y.expNN(x, q, n)
-		if y.cmp(bigOne) == 0 || y.cmp(nm1) == 0 {
+		if y.cmp(natOne) == 0 || y.cmp(nm1) == 0 {
 			continue
 		}
 		for j := Word(1); j < k; j++ {
@@ -794,7 +1027,7 @@ NextRandom:
 			if y.cmp(nm1) == 0 {
 				continue NextRandom
 			}
-			if y.cmp(bigOne) == 0 {
+			if y.cmp(natOne) == 0 {
 				return false
 			}
 		}

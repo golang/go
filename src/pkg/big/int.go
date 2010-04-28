@@ -230,7 +230,7 @@ Error:
 // sets z to that value.
 func (z *Int) SetBytes(b []byte) *Int {
 	s := int(_S)
-	z.abs = z.abs.make((len(b)+s-1)/s, false)
+	z.abs = z.abs.make((len(b) + s - 1) / s)
 	z.neg = false
 
 	j := 0
@@ -386,7 +386,7 @@ func ProbablyPrime(z *Int, n int) bool { return !z.neg && z.abs.probablyPrime(n)
 func (z *Int) Lsh(x *Int, n uint) *Int {
 	addedWords := int(n) / _W
 	// Don't assign z.abs yet, in case z == x
-	znew := z.abs.make(len(x.abs)+addedWords+1, false)
+	znew := z.abs.make(len(x.abs) + addedWords + 1)
 	z.neg = x.neg
 	znew[addedWords:].shiftLeft(x.abs, n%_W)
 	for i := range znew[0:addedWords] {
@@ -401,7 +401,7 @@ func (z *Int) Lsh(x *Int, n uint) *Int {
 func (z *Int) Rsh(x *Int, n uint) *Int {
 	removedWords := int(n) / _W
 	// Don't assign z.abs yet, in case z == x
-	znew := z.abs.make(len(x.abs)-removedWords, false)
+	znew := z.abs.make(len(x.abs) - removedWords)
 	z.neg = x.neg
 	znew.shiftRight(x.abs[removedWords:], n%_W)
 	z.abs = znew.norm()
