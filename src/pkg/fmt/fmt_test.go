@@ -264,6 +264,7 @@ var fmttests = []fmtTest{
 	fmtTest{"%d", "hello", "%d(string=hello)"},
 	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
 	fmtTest{"%s", nil, "%s(<nil>)"},
+	fmtTest{"%T", nil, "<nil>"},
 }
 
 func TestSprintf(t *testing.T) {

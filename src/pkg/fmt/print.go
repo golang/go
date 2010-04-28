@@ -1030,6 +1030,10 @@ func (p *pp) doprintf(format string, a []interface{}) {
 
 		// the value's type
 		case 'T':
+			if field == nil {
+				p.buf.Write(nilAngleBytes)
+				break
+			}
 			p.buf.WriteString(reflect.Typeof(field).String())
 
 		default:
