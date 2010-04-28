@@ -133,14 +133,15 @@ func Partition(iter Iterable, f func(interface{}) bool) (Iterable, Iterable) {
 	return Filter(iter, f), Filter(iter, not(f))
 }
 
-// helper type for the Take/TakeWhile/Drop/DropWhile functions.
-// primarily used so that the .Iter() method can be attached
-type iterFunc func(chan<- interface{})
+// A Func is a function that, when called, sends the
+// iterable values on a channel.
+type Func func(chan<- interface{})
 
-// provide the Iterable interface
-func (v iterFunc) Iter() <-chan interface{} {
+// Iter creates and returns a new channel; it starts a
+// goroutine running f to send values to the channel.
+func (f Func) Iter() <-chan interface{} {
 	ch := make(chan interface{})
-	go v(ch)
+	go f(ch)
 	return ch
 }
 
@@ -149,7 +150,7 @@ func Take(iter Iterable, n int) Iterable { return Slice(iter, 0, n) }
 
 // TakeWhile returns an Iterable that contains elements from iter while f is true.
 func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		for v := range iter.Iter() {
 			if !f(v) {
 				break
@@ -162,7 +163,7 @@ func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
 
 // Drop returns an Iterable that returns each element of iter after the first n elements.
 func Drop(iter Iterable, n int) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		m := n
 		for v := range iter.Iter() {
 			if m > 0 {
@@ -177,7 +178,7 @@ func Drop(iter Iterable, n int) Iterable {
 
 // DropWhile returns an Iterable that returns each element of iter after the initial sequence for which f returns true.
 func DropWhile(iter Iterable, f func(interface{}) bool) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		drop := true
 		for v := range iter.Iter() {
 			if drop {
@@ -194,7 +195,7 @@ func DropWhile(iter Iterable, f func(interface{}) bool) Iterable {
 
 // Cycle repeats the values of iter in order infinitely.
 func Cycle(iter Iterable) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		for {
 			for v := range iter.Iter() {
 				ch <- v
@@ -205,7 +206,7 @@ func Cycle(iter Iterable) Iterable {
 
 // Chain returns an Iterable that concatentates all values from the specified Iterables.
 func Chain(args []Iterable) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		for _, e := range args {
 			for v := range e.Iter() {
 				ch <- v
@@ -219,7 +220,7 @@ func Chain(args []Iterable) Iterable {
 // each input Iterable.  The length of the returned Iterable is the minimum of
 // the lengths of the input Iterables.
 func Zip(args []Iterable) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		defer close(ch)
 		if len(args) == 0 {
 			return
@@ -260,7 +261,7 @@ func ZipWith3(f func(d, e, f interface{}) interface{}, a, b, c Iterable) Iterabl
 // Slice returns an Iterable that contains the elements from iter
 // with indexes in [start, stop).
 func Slice(iter Iterable, start, stop int) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		defer close(ch)
 		i := 0
 		for v := range iter.Iter() {
@@ -277,7 +278,7 @@ func Slice(iter Iterable, start, stop int) Iterable {
 
 // Repeat generates an infinite stream of v.
 func Repeat(v interface{}) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		for {
 			ch <- v
 		}
@@ -286,7 +287,7 @@ func Repeat(v interface{}) Iterable {
 
 // RepeatTimes generates a stream of n copies of v.
 func RepeatTimes(v interface{}, n int) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		for i := 0; i < n; i++ {
 			ch <- v
 		}
@@ -315,7 +316,7 @@ type Grouper interface {
 // values for the group, and an Iterable for retrieving all the values in the
 // group.
 func GroupBy(iter Iterable, k Grouper) Iterable {
-	return iterFunc(func(ch chan<- interface{}) {
+	return Func(func(ch chan<- interface{}) {
 		var curkey interface{}
 		var lst *list.List
 		// Basic strategy is to read one group at a time into a list prior to emitting the Group value
