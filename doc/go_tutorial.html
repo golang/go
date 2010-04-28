@@ -184,7 +184,7 @@ string variable we will use to build the output.
 The declaration statement has the form
 <p>
 <pre>
-    var s string = "";
+    var s string = ""
 </pre>
 <p>
 This is the <code>var</code> keyword, followed by the name of the variable, followed by
@@ -195,13 +195,13 @@ string constant is of type string, we don't have to tell the compiler that.
 We could write
 <p>
 <pre>
-    var s = "";
+    var s = ""
 </pre>
 <p>
 or we could go even shorter and write the idiom
 <p>
 <pre>
-    s := "";
+    s := ""
 </pre>
 <p>
 The <code>:=</code> operator is used a lot in Go to represent an initializing declaration.
@@ -264,8 +264,8 @@ However the following statements are illegal because they would modify
 a <code>string</code> value:
 <p>
 <pre>
-    s[0] = 'x';
-    (*p)[1] = 'y';
+    s[0] = 'x'
+    (*p)[1] = 'y'
 </pre>
 <p>
 In C++ terms, Go strings are a bit like <code>const strings</code>, while pointers
@@ -277,7 +277,7 @@ read on.
 Arrays are declared like this:
 <p>
 <pre>
-    var arrayOfInt [10]int;
+    var arrayOfInt [10]int
 </pre>
 <p>
 Arrays, like strings, are values, but they are mutable. This differs
@@ -341,7 +341,7 @@ If you are creating a regular array but want the compiler to count the
 elements for you, use <code>...</code> as the array size:
 <p>
 <pre>
-    s := sum(&amp;[...]int{1,2,3});
+    s := sum(&amp;[...]int{1,2,3})
 </pre>
 <p>
 In practice, though, unless you're meticulous about storage layout within a
@@ -349,7 +349,7 @@ data structure, a slice itself&mdash;using empty brackets and no
 <code>&amp;</code>&mdash;is all you need:
 <p>
 <pre>
-    s := sum([]int{1,2,3});
+    s := sum([]int{1,2,3})
 </pre>
 <p>
 There are also maps, which you can initialize like this:
@@ -391,13 +391,13 @@ returns a pointer to the allocated storage.
 <p>
 <pre>
     type T struct { a, b int }
-    var t *T = new(T);
+    var t *T = new(T)
 </pre>
 <p>
 or the more idiomatic
 <p>
 <pre>
-    t := new(T);
+    t := new(T)
 </pre>
 <p>
 Some types&mdash;maps, slices, and channels (see below)&mdash;have reference semantics.
@@ -406,14 +406,14 @@ referencing the same underlying data will see the modification.  For these three
 types you want to use the built-in function <code>make()</code>:
 <p>
 <pre>
-    m := make(map[string]int);
+    m := make(map[string]int)
 </pre>
 <p>
 This statement initializes a new map ready to store entries.
 If you just declare the map, as in
 <p>
 <pre>
-    var m map[string]int;
+    var m map[string]int
 </pre>
 <p>
 it creates a <code>nil</code> reference that cannot hold anything. To use the map,
@@ -518,9 +518,9 @@ the ones used to build maps and arrays, to construct a new heap-allocated
 object.  We could write
 <p>
 <pre>
-    n := new(File);
-    n.fd = fd;
-    n.name = name;
+    n := new(File)
+    n.fd = fd
+    n.name = name
     return n
 </pre>
 <p>
@@ -640,7 +640,7 @@ We can now use our new package:
 11    )
 <p>
 13    func main() {
-14        hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'}
+14        hello := []byte(&quot;hello, world\n&quot;)
 15        file.Stdout.Write(hello)
 16        file, err := file.Open(&quot;/does/not/exist&quot;,  0,  0)
 17        if file == nil {
@@ -903,7 +903,7 @@ to test that the result is sorted.
 14        a := sort.IntArray(data)
 15        sort.Sort(a)
 16        if !sort.IsSorted(a) {
-17            panic()
+17            panic(&quot;fail&quot;)
 18        }
 19    }
 </pre>
@@ -1050,7 +1050,7 @@ Schematically, given a value <code>v</code>, it does this:
 </pre>
 <p>
 <pre>
-    s, ok := v.(Stringer);  // Test whether v implements "String()"
+    s, ok := v.(Stringer)  // Test whether v implements "String()"
     if ok {
         result = s.String()
     } else {
@@ -1077,7 +1077,7 @@ interface type defined in the <code>io</code> library:
 <p>
 <pre>
     type Writer interface {
-        Write(p []byte) (n int, err os.Error);
+        Write(p []byte) (n int, err os.Error)
     }
 </pre>
 <p>
@@ -1162,17 +1162,17 @@ this starts the function running in parallel with the current
 computation but in the same address space:
 <p>
 <pre>
-    go sum(hugeArray); // calculate sum in the background
+    go sum(hugeArray) // calculate sum in the background
 </pre>
 <p>
 If you want to know when the calculation is done, pass a channel
 on which it can report back:
 <p>
 <pre>
-    ch := make(chan int);
-    go sum(hugeArray, ch);
+    ch := make(chan int)
+    go sum(hugeArray, ch)
     // ... do something else for a while
-    result := &lt;-ch;  // wait for, and retrieve, result
+    result := &lt;-ch  // wait for, and retrieve, result
 </pre>
 <p>
 Back to our prime sieve.  Here's how the sieve pipeline is stitched
