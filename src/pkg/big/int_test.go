@@ -93,36 +93,55 @@ func TestProdZZ(t *testing.T) {
 }
 
 
-var facts = map[int]string{
-	0:  "1",
-	1:  "1",
-	2:  "2",
-	10: "3628800",
-	20: "2432902008176640000",
-	100: "933262154439441526816992388562667004907159682643816214685929" +
-		"638952175999932299156089414639761565182862536979208272237582" +
-		"51185210916864000000000000000000000000",
-}
+// mulBytes returns x*y via grade school multiplication. Both inputs
+// and the result are assumed to be in big-endian representation (to
+// match the semantics of Int.Bytes and Int.SetBytes).
+func mulBytes(x, y []byte) []byte {
+	z := make([]byte, len(x)+len(y))
 
-
-func fact(n int) *Int {
-	var z Int
-	z.New(1)
-	for i := 2; i <= n; i++ {
-		var t Int
-		t.New(int64(i))
-		z.Mul(&z, &t)
-	}
-	return &z
-}
-
-
-func TestFact(t *testing.T) {
-	for n, s := range facts {
-		f := fact(n).String()
-		if f != s {
-			t.Errorf("%d! = %s; want %s", n, f, s)
+	// multiply
+	k0 := len(z) - 1
+	for j := len(y) - 1; j >= 0; j-- {
+		d := int(y[j])
+		if d != 0 {
+			k := k0
+			carry := 0
+			for i := len(x) - 1; i >= 0; i-- {
+				t := int(z[k]) + int(x[i])*d + carry
+				z[k], carry = byte(t), t>>8
+				k--
+			}
+			z[k] = byte(carry)
 		}
+		k0--
+	}
+
+	// normalize (remove leading 0's)
+	i := 0
+	for i < len(z) && z[i] == 0 {
+		i++
+	}
+
+	return z[i:]
+}
+
+
+func checkMul(a, b []byte) bool {
+	var x, y, z1 Int
+	x.SetBytes(a)
+	y.SetBytes(b)
+	z1.Mul(&x, &y)
+
+	var z2 Int
+	z2.SetBytes(mulBytes(a, b))
+
+	return z1.Cmp(&z2) == 0
+}
+
+
+func TestMul(t *testing.T) {
+	if err := quick.Check(checkMul, nil); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -235,8 +254,7 @@ func checkSetBytes(b []byte) bool {
 
 
 func TestSetBytes(t *testing.T) {
-	err := quick.Check(checkSetBytes, nil)
-	if err != nil {
+	if err := quick.Check(checkSetBytes, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -249,8 +267,7 @@ func checkBytes(b []byte) bool {
 
 
 func TestBytes(t *testing.T) {
-	err := quick.Check(checkSetBytes, nil)
-	if err != nil {
+	if err := quick.Check(checkSetBytes, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -302,8 +319,7 @@ var divTests = []divTest{
 
 
 func TestDiv(t *testing.T) {
-	err := quick.Check(checkDiv, nil)
-	if err != nil {
+	if err := quick.Check(checkDiv, nil); err != nil {
 		t.Error(err)
 	}
 
@@ -675,6 +691,7 @@ var int64Tests = []int64{
 	-9223372036854775807,
 	-9223372036854775808,
 }
+
 
 func TestInt64(t *testing.T) {
 	for i, testVal := range int64Tests {
