@@ -4217,7 +4217,10 @@ ContinueStmt = "continue" [ Label ] .
 </pre>
 
 <p>
-The optional label is analogous to that of a "break" statement.
+If there is a label, it must be that of an enclosing
+"for" statement, and that is the one whose execution
+advances
+(§<a href="#For_statements">For statements</a>).
 </p>
 
 <h3 id="Goto_statements">Goto statements</h3>
