@@ -28,7 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// This magic number also defined in src/pkg/runtime/symtab.c in SYMCOUNTS
+// Where symbol table data gets mapped into memory.
 #define SYMDATVA 0x99LL<<24
 
 typedef struct Library Library;

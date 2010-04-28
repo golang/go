@@ -406,6 +406,10 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
 	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
 		if(line)
 			line[n] = '\0';
+		if(strlen(pn) > 3 && strcmp(pn+strlen(pn)-3, ".go") == 0) {
+			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thechar, pn, thechar, thechar);
+			errorexit();
+		}
 		diag("file not %s [%s]\n", thestring, line);
 		return;
 	}

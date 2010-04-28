@@ -214,6 +214,7 @@ asmsym(void)
 				continue;
 
 			case SDATA:
+			case SELFDATA:
 				if(!s->reachable)
 					continue;
 				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
@@ -229,6 +230,10 @@ asmsym(void)
 				if(!s->reachable)
 					continue;
 				putsymb(s->name, 'B', s->value+INITDAT, s->version, s->gotype);
+				continue;
+
+			case SFIXED:
+				putsymb(s->name, 'B', s->value, s->version, s->gotype);
 				continue;
 
 			case SFILE:
@@ -621,6 +626,9 @@ vaddr(Adr *a)
 				if(!s->reachable)
 					sysfatal("unreachable symbol in vaddr - %s", s->name);
 				v += INITDAT + datsize + s->value;
+				break;
+			case SFIXED:
+				v += s->value;
 				break;
 			default:
 				if(!s->reachable)

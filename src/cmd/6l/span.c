@@ -234,6 +234,7 @@ genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
 				continue;
 
 			case SDATA:
+			case SELFDATA:
 				if(!s->reachable)
 					continue;
 				put(s->name, 'D', s->value+INITDAT, s->size, s->version, s->gotype);
@@ -249,6 +250,10 @@ genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
 				if(!s->reachable)
 					continue;
 				put(s->name, 'B', s->value+INITDAT, s->size, s->version, s->gotype);
+				continue;
+
+			case SFIXED:
+				put(s->name, 'B', s->value, s->size, s->version, s->gotype);
 				continue;
 
 			case SFILE:
@@ -790,6 +795,9 @@ vaddr(Adr *a)
 					diag("unreachable symbol in vaddr - %s", s->name);
 				if((uvlong)s->value < (uvlong)INITTEXT)
 					v += INITTEXT;	/* TO DO */
+				v += s->value;
+				break;
+			case SFIXED:
 				v += s->value;
 				break;
 			case SMACHO:

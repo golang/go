@@ -161,6 +161,9 @@ enum
 
 	SMACHO,	/* pointer to mach-o imported symbol */
 
+	SFIXED,
+	SELFDATA,
+
 	NHASH		= 10007,
 	NHUNK		= 100000,
 	MINSIZ		= 4,
@@ -280,6 +283,7 @@ EXTERN	Prog*	curtext;
 EXTERN	Prog*	datap;
 EXTERN	Prog*	edatap;
 EXTERN	int32	datsize;
+EXTERN	int32	elfdatsize;
 EXTERN	int32	dynptrsize;
 EXTERN	char	debug[128];
 EXTERN	char	literal[32];

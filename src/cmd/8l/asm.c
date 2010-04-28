@@ -38,7 +38,7 @@
 
 char linuxdynld[] = "/lib/ld-linux.so.2";
 char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
-uint32 symdatva = 0x99<<24;
+uint32 symdatva = SYMDATVA;
 
 int32
 entryvalue(void)
@@ -248,6 +248,7 @@ enum {
 	ElfStrText,
 	ElfStrData,
 	ElfStrBss,
+	ElfStrGosymcounts,
 	ElfStrGosymtab,
 	ElfStrGopclntab,
 	ElfStrShstrtab,
@@ -289,6 +290,7 @@ doelf(void)
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
 	if(!debug['s']) {
+		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
 	}
@@ -307,36 +309,40 @@ doelf(void)
 		/* interpreter string */
 		s = lookup(".interp", 0);
 		s->reachable = 1;
-		s->type = SDATA;	// TODO: rodata
+		s->type = SELFDATA;
 
 		/* dynamic symbol table - first entry all zeros */
 		s = lookup(".dynsym", 0);
-		s->type = SDATA;
+		s->type = SELFDATA;
 		s->reachable = 1;
 		s->value += ELF32SYMSIZE;
 
 		/* dynamic string table */
 		s = lookup(".dynstr", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
 		addstring(s, "");
 		dynstr = s;
 
 		/* relocation table */
 		s = lookup(".rel", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
 
 		/* global offset table */
 		s = lookup(".got", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
 
 		/* got.plt - ??? */
 		s = lookup(".got.plt", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
 
 		/* define dynamic elf table */
 		s = lookup(".dynamic", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
 		dynamic = s;
 
 		/*
@@ -874,7 +880,7 @@ asmb(void)
 		if(!debug['s'] && HEADTYPE != 8 && HEADTYPE != 11) {
 			ph = newElfPhdr();
 			ph->type = PT_LOAD;
-			ph->flags = PF_W+PF_R;
+			ph->flags = PF_R;
 			ph->off = symo;
 			ph->vaddr = symdatva;
 			ph->paddr = symdatva;
@@ -986,9 +992,9 @@ asmb(void)
 		sh = newElfShdr(elfstr[ElfStrData]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
-		sh->addr = va;
-		sh->off = fo;
-		sh->size = w;
+		sh->addr = va + elfdatsize;
+		sh->off = fo + elfdatsize;
+		sh->size = w - elfdatsize;
 		sh->addralign = 4;
 
 		fo += w;
@@ -1004,23 +1010,38 @@ asmb(void)
 		sh->addralign = 4;
 
 		if (!debug['s']) {
-			fo = symo+8;
+			fo = symo;
+			w = 8;
+
+			sh = newElfShdr(elfstr[ElfStrGosymcounts]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
+			sh->off = fo;
+			sh->size = w;
+			sh->addralign = 1;
+			sh->addr = symdatva;
+
+			fo += w;
 			w = symsize;
 
 			sh = newElfShdr(elfstr[ElfStrGosymtab]);
 			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
+			sh->addr = symdatva + 8;
 
 			fo += w;
 			w = lcsize;
 
 			sh = newElfShdr(elfstr[ElfStrGopclntab]);
 			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
+			sh->addr = symdatva + 8 + symsize;
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);

@@ -55,7 +55,7 @@ dodata(void)
 			s->value = dtype;
 		if(s->type == SBSS)
 			s->type = SDATA;
-		if(s->type != SDATA)
+		if(s->type != SDATA && s->type != SELFDATA)
 			diag("initialize non-data (%d): %s\n%P",
 				s->type, s->name, p);
 		t = p->from.offset + p->width;
@@ -63,8 +63,23 @@ dodata(void)
 			diag("initialize bounds (%ld): %s\n%P",
 				s->value, s->name, p);
 	}
-	/* allocate small guys */
+
+	/* allocate elf guys - must be segregated from real data */
 	datsize = 0;
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->link) {
+		if(!s->reachable)
+			continue;
+		if(s->type != SELFDATA)
+			continue;
+		t = rnd(s->value, 4);
+		s->size = t;
+		s->value = datsize;
+		datsize += t;
+	}
+	elfdatsize = datsize;
+
+	/* allocate small guys */
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->link) {
 		if(!s->reachable)
@@ -148,6 +163,11 @@ dodata(void)
 	xdefine("data", SBSS, 0);
 	xdefine("edata", SBSS, datsize);
 	xdefine("end", SBSS, dynptrsize + bsssize + datsize);
+
+	if(debug['s'])
+		xdefine("symdat", SFIXED, 0);
+	else
+		xdefine("symdat", SFIXED, SYMDATVA);
 }
 
 Prog*

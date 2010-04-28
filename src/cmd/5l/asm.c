@@ -184,6 +184,7 @@ enum {
 	ElfStrText,
 	ElfStrData,
 	ElfStrBss,
+	ElfStrGosymcounts,
 	ElfStrGosymtab,
 	ElfStrGopclntab,
 	ElfStrShstrtab,
@@ -224,7 +225,8 @@ doelf(void)
 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
-	if(!debug['s']) {
+	if(!debug['s']) {	
+		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
 	}
@@ -243,36 +245,45 @@ doelf(void)
 		/* interpreter string */
 		s = lookup(".interp", 0);
 		s->reachable = 1;
-		s->type = SDATA;	// TODO: rodata
+		s->type = SELFDATA;	// TODO: rodata
 
 		/* dynamic symbol table - first entry all zeros */
 		s = lookup(".dynsym", 0);
-		s->type = SDATA;
+		s->type = SELFDATA;
 		s->reachable = 1;
 		s->value += ELF32SYMSIZE;
 
 		/* dynamic string table */
 		s = lookup(".dynstr", 0);
+		s->type = SELFDATA;
+		s->reachable = 1;
 		addstring(s, "");
 		dynstr = s;
 
 		/* relocation table */
 		s = lookup(".rel", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
 
 		/* global offset table */
 		s = lookup(".got", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
 
 		/* got.plt - ??? */
 		s = lookup(".got.plt", 0);
 		s->reachable = 1;
-		s->type = SDATA;
+		s->type = SELFDATA;
+		
+		/* hash */
+		s = lookup(".hash", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
 
 		/* define dynamic elf table */
 		s = lookup(".dynamic", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
 		dynamic = s;
 
 		/*
@@ -664,7 +675,7 @@ asmb(void)
 		if(!debug['s']) {
 			ph = newElfPhdr();
 			ph->type = PT_LOAD;
-			ph->flags = PF_W+PF_R;
+			ph->flags = PF_R;
 			ph->off = symo;
 			ph->vaddr = symdatva;
 			ph->paddr = symdatva;
@@ -757,13 +768,19 @@ asmb(void)
 		va = startva + fo;
 		w = textsize;
 
+		/*
+		 * The alignments are bigger than they really need
+		 * to be here, but they are necessary to keep the
+		 * arm strip from moving everything around.
+		 */
+
 		sh = newElfShdr(elfstr[ElfStrText]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
 		sh->addr = va;
 		sh->off = fo;
 		sh->size = w;
-		sh->addralign = 4;
+		sh->addralign = ELFRESERVE;
 
 		fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
@@ -772,10 +789,10 @@ asmb(void)
 		sh = newElfShdr(elfstr[ElfStrData]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
-		sh->addr = va;
-		sh->off = fo;
-		sh->size = w;
-		sh->addralign = 4;
+		sh->addr = va + elfdatsize;
+		sh->off = fo + elfdatsize;
+		sh->size = w - elfdatsize;
+		sh->addralign = INITRND;
 
 		fo += w;
 		va += w;
@@ -790,23 +807,38 @@ asmb(void)
 		sh->addralign = 4;
 
 		if (!debug['s']) {
-			fo = symo+8;
+			fo = symo;
+			w = 8;
+
+			sh = newElfShdr(elfstr[ElfStrGosymtab]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
+			sh->off = fo;
+			sh->size = w;
+			sh->addralign = INITRND;
+			sh->addr = symdatva;
+
+			fo += w;
 			w = symsize;
 
 			sh = newElfShdr(elfstr[ElfStrGosymtab]);
 			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
+			sh->addr = symdatva + 8;
 
 			fo += w;
 			w = lcsize;
 
 			sh = newElfShdr(elfstr[ElfStrGopclntab]);
 			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
+			sh->addr = symdatva + 8 + lcsize;
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
@@ -987,11 +1019,16 @@ asmsym(void)
 				continue;
 
 			case SDATA:
+			case SELFDATA:
 				putsymb(s->name, 'D', s->value+INITDAT, s->version);
 				continue;
 
 			case SBSS:
 				putsymb(s->name, 'B', s->value+INITDAT, s->version);
+				continue;
+
+			case SFIXED:
+				putsymb(s->name, 'B', s->value, s->version);
 				continue;
 
 			case SSTRING:
