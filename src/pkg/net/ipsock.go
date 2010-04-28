@@ -78,7 +78,7 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
 		}
 	}
 	fd, oserr = socket(net, family, proto, 0, la, ra, toAddr)
-	if err != nil {
+	if oserr != nil {
 		goto Error
 	}
 	return fd, nil
