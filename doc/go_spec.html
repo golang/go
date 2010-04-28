@@ -1749,7 +1749,7 @@ func (m *Mutex) Unlock()  { /* Unlock implementation */ }
 // NewMutex has the same composition as Mutex but its method set is empty.
 type NewMutex Mutex
 
-// PrintableMutex's method set contains the methods
+// The method set of *PrintableMutex contains the methods
 // Lock and Unlock bound to its anonymous field Mutex.
 type PrintableMutex struct {
 	Mutex
