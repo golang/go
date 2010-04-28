@@ -4,9 +4,7 @@
 
 /*
 	Data-driven templates for generating textual output such as
-	HTML. See
-		http://code.google.com/p/json-template/wiki/Reference
-	for full documentation of the template language. A summary:
+	HTML.
 
 	Templates are executed by applying them to a data structure.
 	Annotations in the template refer to elements of the data
