@@ -612,6 +612,12 @@ reswitch:
 		defaultlit(&n->left, T);
 		defaultlit(&n->right->left, types[TUINT]);
 		defaultlit(&n->right->right, types[TUINT]);
+		if(isfixedarray(n->left->type)) {
+			// Insert explicit & before fixed array
+			// so that back end knows to move to heap.
+			n->left = nod(OADDR, n->left, N);
+			typecheck(&n->left, top);
+		}
 		implicitstar(&n->left);
 		if(n->right->left == N) {
 			yyerror("missing slice bounds?");
