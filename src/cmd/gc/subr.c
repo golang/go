@@ -1227,14 +1227,10 @@ Tpretty(Fmt *fp, Type *t)
 				fmtprint(fp, " ?unknown-type?");
 				break;
 			}
-			if(t1->etype != TFIELD) {
-				fmtprint(fp, " %T", t1);
-				break;
-			}
-			if(t1->sym == S) {
-				fmtprint(fp, " %T", t1->type);
-				break;
-			}
+			if(t1->etype == TFIELD)
+				t1 = t1->type;
+			fmtprint(fp, " %T", t1);
+			break;
 		default:
 			t1 = getoutargx(t)->type;
 			fmtprint(fp, " (");
