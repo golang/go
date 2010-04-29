@@ -116,8 +116,10 @@ TEXT bsdthread_create(SB),7,$0
 	MOVQ	$0, R9	// paranoia
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL
-	JCC 2(PC)
-	CALL	notok(SB)
+	JCC 3(PC)
+	MOVL	$-1, AX
+	RET
+	MOVL	$0, AX
 	RET
 
 // The thread that bsdthread_create creates starts executing here,

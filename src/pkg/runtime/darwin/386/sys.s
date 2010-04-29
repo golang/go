@@ -130,8 +130,10 @@ TEXT bsdthread_create(SB),7,$32
 	MOVL	BX, 16(SP)	// pthread
 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
 	INT	$0x80
-	JAE	2(PC)
-	CALL	notok(SB)
+	JAE	3(PC)
+	MOVL	$-1, AX
+	RET
+	MOVL	$0, AX
 	RET
 
 // The thread that bsdthread_create creates starts executing here,
