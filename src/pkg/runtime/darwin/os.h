@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-void	bsdthread_create(void*, M*, G*, void(*)(void));
+int32	bsdthread_create(void*, M*, G*, void(*)(void));
 void	bsdthread_register(void);
 int32	mach_msg_trap(MachHeader*, int32, uint32, uint32, uint32, uint32, uint32);
 uint32	mach_reply_port(void);

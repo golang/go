@@ -157,7 +157,8 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 		printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, m->id, m->tls[0], &m);
 	}
-	bsdthread_create(stk, m, g, fn);
+	if(bsdthread_create(stk, m, g, fn) < 0)
+		throw("cannot create new OS thread");
 }
 
 // Called to initialize a new m (including the bootstrap m).
