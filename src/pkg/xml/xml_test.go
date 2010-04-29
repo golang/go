@@ -102,7 +102,6 @@ var xmlInput = []string{
 	"<t",
 	"<t ",
 	"<t/",
-	"<t/>c",
 	"<!",
 	"<!-",
 	"<!--",
@@ -124,8 +123,6 @@ var xmlInput = []string{
 	"<t/><![CDATA[d]]",
 
 	// other Syntax errors
-	" ",
-	">",
 	"<>",
 	"<t/a",
 	"<0 />",
@@ -140,7 +137,6 @@ var xmlInput = []string{
 	"<t a=>",
 	"<t a=v>",
 	//	"<![CDATA[d]]>",	// let the Token() caller handle
-	"cdata",
 	"<t></e>",
 	"<t></>",
 	"<t></t!",
@@ -367,5 +363,27 @@ func TestSyntaxErrorLineNum(t *testing.T) {
 	}
 	if synerr.Line != 3 {
 		t.Error("SyntaxError didn't have correct line number.")
+	}
+}
+
+func TestTrailingRawToken(t *testing.T) {
+	input := `<FOO></FOO>  `
+	p := NewParser(StringReader(input))
+	var err os.Error
+	for _, err = p.RawToken(); err == nil; _, err = p.RawToken() {
+	}
+	if err != os.EOF {
+		t.Fatalf("p.RawToken() = _, %v, want _, os.EOF", err)
+	}
+}
+
+func TestTrailingToken(t *testing.T) {
+	input := `<FOO></FOO>  `
+	p := NewParser(StringReader(input))
+	var err os.Error
+	for _, err = p.Token(); err == nil; _, err = p.Token() {
+	}
+	if err != os.EOF {
+		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
 	}
 }
