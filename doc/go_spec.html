@@ -1648,12 +1648,11 @@ const (
 <h3 id="Iota">Iota</h3>
 
 <p>
-Within a constant declaration, the predeclared identifier
+Within a <a href="#Constant_declarations">constant declaration</a>, the predeclared identifier
 <code>iota</code> represents successive untyped integer <a href="#Constants">
 constants</a>. It is reset to 0 whenever the reserved word <code>const</code>
-appears in the source and increments with each
-<a href="#Semicolons">semicolon</a>. It can be used to construct a
-set of related constants:
+appears in the source and increments after each <a href="#ConstSpec">ConstSpec</a>.
+It can be used to construct a set of related constants:
 </p>
 
 <pre>
@@ -1681,7 +1680,7 @@ const y = iota  // y == 0 (iota has been reset)
 
 <p>
 Within an ExpressionList, the value of each <code>iota</code> is the same because
-it is only incremented at a semicolon:
+it is only incremented after each ConstSpec:
 </p>
 
 <pre>
