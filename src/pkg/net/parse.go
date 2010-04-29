@@ -35,6 +35,11 @@ func (f *file) getLineFromData() (s string, ok bool) {
 			return
 		}
 	}
+	if len(f.data) > 0 {
+		s = string(data)
+		f.data = nil
+		ok = true
+	}
 	return
 }
 
