@@ -75,7 +75,7 @@ call sites.  I also wanted to verify that ExpandTabs was
 not being used from outside intra_region_diff.py.
 
 
-</summary></entry></feed>`
+</summary></entry></feed> 	   `
 
 type Feed struct {
 	XMLName Name "http://www.w3.org/2005/Atom feed"

@@ -758,9 +758,15 @@ func (p *Parser) text(quote int, cdata bool) []byte {
 	p.buf.Reset()
 Input:
 	for {
-		b, ok := p.mustgetc()
+		b, ok := p.getc()
 		if !ok {
-			return nil
+			if cdata {
+				if p.err == os.EOF {
+					p.err = p.syntaxError("unexpected EOF in CDATA section")
+				}
+				return nil
+			}
+			break Input
 		}
 
 		// <![CDATA[ section ends with ]]>.
