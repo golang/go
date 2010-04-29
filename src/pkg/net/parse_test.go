@@ -19,8 +19,7 @@ func TestReadLine(t *testing.T) {
 	}
 	br := bufio.NewReader(fd)
 
-	var file *file
-	file, err = open(filename)
+	file, err := open(filename)
 	if file == nil {
 		t.Fatalf("net.open(%s) = nil", filename)
 	}
