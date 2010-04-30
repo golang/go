@@ -2,7 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file computes the Karatsuba threshold as a "test".
+// This file prints execution times for the Mul benchmark
+// given different Karatsuba thresholds. The result may be
+// used to manually fine-tune the threshold constant. The
+// results are somewhat fragile; use repeated runs to get
+// a clear picture.
+
 // Usage: gotest -calibrate
 
 package big
@@ -12,27 +17,13 @@ import (
 	"fmt"
 	"testing"
 	"time"
-	"unsafe" // for Sizeof
 )
 
 
 var calibrate = flag.Bool("calibrate", false, "run calibration test")
 
 
-// makeNumber creates an n-word number 0xffff...ffff
-func makeNumber(n int) *Int {
-	var w Word
-	b := make([]byte, n*unsafe.Sizeof(w))
-	for i := range b {
-		b[i] = 0xff
-	}
-	var x Int
-	x.SetBytes(b)
-	return &x
-}
-
-
-// measure returns the time to compute x*x in nanoseconds
+// measure returns the time to run f
 func measure(f func()) int64 {
 	const N = 100
 	start := time.Nanoseconds()
@@ -44,48 +35,58 @@ func measure(f func()) int64 {
 }
 
 
-func computeThreshold(t *testing.T) int {
-	// use a mix of numbers as work load
-	x := make([]*Int, 20)
-	for i := range x {
-		x[i] = makeNumber(10 * (i + 1))
-	}
+func computeThresholds() {
+	fmt.Printf("Multiplication times for varying Karatsuba thresholds\n")
+	fmt.Printf("(run repeatedly for good results)\n")
 
-	threshold := -1
-	for n := 8; threshold < 0 || n <= threshold+20; n += 2 {
-		// set work load
-		f := func() {
-			var t Int
-			for _, x := range x {
-				t.Mul(x, x)
-			}
-		}
+	// determine Tk, the work load execution time using basic multiplication
+	karatsubaThreshold = 1e9 // disable karatsuba
+	Tb := measure(benchmarkMulLoad)
+	fmt.Printf("Tb = %dns\n", Tb)
 
-		karatsubaThreshold = 1e9 // disable karatsuba
-		t1 := measure(f)
+	// thresholds
+	n := 8 // any lower values for the threshold lead to very slow multiplies
+	th1 := -1
+	th2 := -1
 
+	var deltaOld int64
+	for count := -1; count != 0; count-- {
+		// determine Tk, the work load execution time using Karatsuba multiplication
 		karatsubaThreshold = n // enable karatsuba
-		t2 := measure(f)
+		Tk := measure(benchmarkMulLoad)
 
-		c := '<'
-		mark := ""
-		if t1 > t2 {
-			c = '>'
-			if threshold < 0 {
-				threshold = n
-				mark = " *"
-			}
+		// improvement over Tb
+		delta := (Tb - Tk) * 100 / Tb
+
+		fmt.Printf("n = %3d  Tk = %8dns  %4d%%", n, Tk, delta)
+
+		// determine break-even point
+		if Tk < Tb && th1 < 0 {
+			th1 = n
+			fmt.Print("  break-even point")
 		}
 
-		fmt.Printf("%4d: %8d %c %8d%s\n", n, t1, c, t2, mark)
+		// determine diminishing return
+		if 0 < delta && delta < deltaOld && th2 < 0 {
+			th2 = n
+			fmt.Print("  diminishing return")
+		}
+		deltaOld = delta
+
+		fmt.Println()
+
+		// trigger counter
+		if th1 >= 0 && th2 >= 0 && count < 0 {
+			count = 20 // this many extra measurements after we got both thresholds
+		}
+
+		n++
 	}
-	return threshold
 }
 
 
 func TestCalibrate(t *testing.T) {
 	if *calibrate {
-		fmt.Printf("Computing Karatsuba threshold\n")
-		fmt.Printf("threshold = %d\n", computeThreshold(t))
+		computeThresholds()
 	}
 }

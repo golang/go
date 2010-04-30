@@ -147,7 +147,7 @@ func TestMulRange(t *testing.T) {
 }
 
 
-var mulArg nat
+var mulArg, mulTmp nat
 
 func init() {
 	const n = 1000
@@ -158,13 +158,17 @@ func init() {
 }
 
 
+func benchmarkMulLoad() {
+	for j := 1; j <= 10; j++ {
+		x := mulArg[0 : j*100]
+		mulTmp.mul(x, x)
+	}
+}
+
+
 func BenchmarkMul(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		var t nat
-		for j := 1; j <= 10; j++ {
-			x := mulArg[0 : j*100]
-			t.mul(x, x)
-		}
+		benchmarkMulLoad()
 	}
 }
 

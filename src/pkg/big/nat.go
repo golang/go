@@ -253,7 +253,7 @@ func karatsubaSub(z, x nat, n int) {
 // Operands that are shorter than karatsubaThreshold are multiplied using
 // "grade school" multiplication; for longer operands the Karatsuba algorithm
 // is used.
-var karatsubaThreshold int = 30 // modified by calibrate.go
+var karatsubaThreshold int = 32 // computed by calibrate.go
 
 // karatsuba multiplies x and y and leaves the result in z.
 // Both x and y must have the same length n and n must be a
@@ -384,6 +384,20 @@ func max(x, y int) int {
 }
 
 
+// karatsubaLen computes an approximation to the maximum k <= n such that
+// k = p<<i for a number p <= karatsubaThreshold and an i >= 0. Thus, the
+// result is the largest number that can be divided repeatedly by 2 before
+// becoming about the value of karatsubaThreshold.
+func karatsubaLen(n int) int {
+	i := uint(0)
+	for n > karatsubaThreshold {
+		n >>= 1
+		i++
+	}
+	return n << i
+}
+
+
 func (z nat) mul(x, y nat) nat {
 	m := len(x)
 	n := len(y)
@@ -411,17 +425,13 @@ func (z nat) mul(x, y nat) nat {
 	}
 	// m >= n && n >= karatsubaThreshold && n >= 2
 
-	// determine largest k such that
+	// determine Karatsuba length k such that
 	//
 	//   x = x1*b + x0
 	//   y = y1*b + y0  (and k <= len(y), which implies k <= len(x))
 	//   b = 1<<(_W*k)  ("base" of digits xi, yi)
 	//
-	// and k is karatsubaThreshold multiplied by a power of 2
-	k := max(karatsubaThreshold, 2)
-	for k*2 <= n {
-		k *= 2
-	}
+	k := karatsubaLen(n)
 	// k <= n
 
 	// multiply x0 and y0 via Karatsuba
@@ -972,10 +982,8 @@ func (n nat) probablyPrime(reps int) bool {
 
 		// We have to exclude these cases because we reject all
 		// multiples of these numbers below.
-		if n[0] == 3 || n[0] == 5 || n[0] == 7 || n[0] == 11 ||
-			n[0] == 13 || n[0] == 17 || n[0] == 19 || n[0] == 23 ||
-			n[0] == 29 || n[0] == 31 || n[0] == 37 || n[0] == 41 ||
-			n[0] == 43 || n[0] == 47 || n[0] == 53 {
+		switch n[0] {
+		case 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53:
 			return true
 		}
 	}
