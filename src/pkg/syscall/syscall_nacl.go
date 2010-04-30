@@ -108,6 +108,10 @@ func Sleep(ns int64) (errno int) {
 //	SYS_TLS_*
 //	SYS_SCHED_YIELD
 
+// #define'd in NaCl but not picked up by mkerrors_nacl.sh.
+
+const EWOULDBLOCK = EAGAIN
+
 // Not implemented in NaCl but needed to compile other packages.
 
 const (
