@@ -101,6 +101,9 @@ E4:	CMPL BX, BP		// i < n
 
 // func shlVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shlVW(SB),7,$0
+	NOP
+	JMP ·shlVW_g(SB)	// TODO(gri) remove once code below works
+
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL s+8(FP), CX
@@ -126,6 +129,9 @@ E8:	CMPL BX, BP		// i < n
 
 // func shrVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shrVW(SB),7,$0
+	NOP
+	JMP ·shrVW_g(SB)	// TODO(gri) remove once code below works
+
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL s+8(FP), CX
