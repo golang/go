@@ -103,6 +103,10 @@ addlib(char *src, char *obj)
 		sprint(name, "");
 		i = 1;
 	} else
+	if(isalpha(histfrog[0]->name[1]) && histfrog[0]->name[2] == ':') {
+		strcpy(name, histfrog[0]->name+1);
+		i = 1;
+	} else
 	if(histfrog[0]->name[1] == '.') {
 		sprint(name, ".");
 		i = 0;
