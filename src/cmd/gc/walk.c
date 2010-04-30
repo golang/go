@@ -1618,7 +1618,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
 	Type *l, *ll;
 	Node *r, *a;
 	NodeList *nn, *lr0, *alist;
-	Iter savel, peekl;
+	Iter savel;
 
 	lr0 = lr;
 	l = structfirst(&savel, nl);
@@ -1626,11 +1626,9 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
 	if(lr)
 		r = lr->n;
 	nn = nil;
-
-	// 1 to many
-	peekl = savel;
-	if(l != T && r != N && structnext(&peekl) != T && lr->next == nil
-	&& r->type->etype == TSTRUCT && r->type->funarg) {
+	
+	// f(g()) where g has multiple return values
+	if(r != N && lr->next == nil && r->type->etype == TSTRUCT && r->type->funarg) {
 		// optimization - can do block copy
 		if(eqtypenoname(r->type, *nl)) {
 			a = nodarg(*nl, fp);
@@ -1638,6 +1636,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
 			nn = list1(convas(nod(OAS, a, r), init));
 			goto ret;
 		}
+		
 		// conversions involved.
 		// copy into temporaries.
 		alist = nil;
@@ -1689,9 +1688,9 @@ loop:
 	if(l == T || r == N) {
 		if(l != T || r != N) {
 			if(l != T)
-				yyerror("xxx not enough arguments to %O", op);
+				yyerror("not enough arguments to %O", op);
 			else
-				yyerror("xxx too many arguments to %O", op);
+				yyerror("too many arguments to %O", op);
 			dumptypes(nl, "expected");
 			dumpnodetypes(lr0, "given");
 		}
