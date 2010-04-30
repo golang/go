@@ -80,7 +80,7 @@ get_proc_addr(void *library, void *name)
 }
 
 void
-mingw_goargs(void)
+windows_goargs(void)
 {
 	extern Slice os·Args;
 	extern Slice os·Envs;

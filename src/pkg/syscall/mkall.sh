@@ -150,8 +150,8 @@ linux_arm)
 	mktypes="godefs -gsyscall -carm-gcc"
 	mkerrors="./mkerrors.sh"
 	;;
-mingw_386)
-	mksyscall="./mksyscall_mingw.sh -l32"
+windows_386)
+	mksyscall="./mksyscall_windows.sh -l32"
 	mksysnum=
 	mktypes=
 	mkerrors=

@@ -6,10 +6,10 @@ package proc
 
 import "os"
 
-// Process tracing is not supported on MinGW yet.
+// Process tracing is not supported on windows yet.
 
 func Attach(pid int) (Process, os.Error) {
-	return nil, os.NewError("debug/proc not implemented on MinGW")
+	return nil, os.NewError("debug/proc not implemented on windows")
 }
 
 func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {

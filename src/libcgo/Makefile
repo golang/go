@@ -23,7 +23,7 @@ CFLAGS_amd64=-m64
 LDFLAGS_linux=-shared -lpthread -lm
 LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
 LDFLAGS_freebsd=-pthread -shared -lm
-LDFLAGS_mingw=-shared -lm -mthreads
+LDFLAGS_windows=-shared -lm -mthreads
 
 %.o: %.c
 	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c

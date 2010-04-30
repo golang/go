@@ -168,7 +168,7 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "freebsd") == 0)
 			HEADTYPE = 9;
 		else
-		if(strcmp(goos, "mingw") == 0)
+		if(strcmp(goos, "windows") == 0)
 			HEADTYPE = 10;
 		else
 		if(strcmp(goos, "pchw") == 0)

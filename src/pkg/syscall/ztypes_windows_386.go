@@ -4,7 +4,7 @@
 
 package syscall
 
-// TODO(brainman): autogenerate types in ztypes_mingw_386.go
+// TODO(brainman): autogenerate types in ztypes_windows_386.go
 
 //import "unsafe"
 
