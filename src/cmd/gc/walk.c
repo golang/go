@@ -803,11 +803,8 @@ walkexpr(Node **np, NodeList **init)
 		switch(et) {
 		case I2Isame:
 		case E2Esame:
-			n->rlist = list(list1(r->left), nodbool(1));
-			typechecklist(n->rlist, Erv);
-			goto as2;
 		case I2E:
-			n->list = list(list1(n->right), nodbool(1));
+			n->rlist = list(list1(r->left), nodbool(1));
 			typechecklist(n->rlist, Erv);
 			goto as2;
 		case I2T:
