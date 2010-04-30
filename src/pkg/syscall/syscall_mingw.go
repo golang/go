@@ -121,8 +121,17 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) = GetComputerNameW
 //sys	SetEndOfFile(handle int32) (ok bool, errno int)
 //sys	GetSystemTimeAsFileTime(time *Filetime)
+//sys   sleep(msec uint32) = Sleep
 
 // syscall interface implementation for other packages
+
+func Sleep(nsec int64) (errno int) {
+	nsec += 999999 // round up to milliseconds
+	msec := uint32(nsec / 1e6)
+	sleep(msec)
+	errno = 0
+	return
+}
 
 func Errstr(errno int) string {
 	if errno == EMINGW {
