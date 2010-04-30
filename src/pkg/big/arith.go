@@ -310,6 +310,28 @@ func subVW_g(z, x *Word, y Word, n int) (c Word) {
 }
 
 
+func shlVW(z, x *Word, s Word, n int) (c Word)
+func shlVW_g(z, x *Word, s Word, n int) (c Word) {
+	ŝ := _W - s
+	for i := 0; i < n; i++ {
+		w := *x.at(i)
+		c, *z.at(i) = w>>ŝ, w<<s|c
+	}
+	return
+}
+
+
+func shrVW(z, x *Word, s Word, n int) (c Word)
+func shrVW_g(z, x *Word, s Word, n int) (c Word) {
+	ŝ := _W - s
+	for i := n - 1; i >= 0; i-- {
+		w := *x.at(i)
+		c, *z.at(i) = w<<ŝ, w>>s|c
+	}
+	return
+}
+
+
 func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
 func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
 	c = r

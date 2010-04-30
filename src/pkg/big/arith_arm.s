@@ -18,6 +18,12 @@ TEXT ·addVW(SB),7,$0
 TEXT ·subVW(SB),7,$0
 	B ·subVW_g(SB)
 
+TEXT ·shlVW(SB),7,$0
+	B ·shlVW_g(SB)
+
+TEXT ·shrVW(SB),7,$0
+	B ·shrVW_g(SB)
+
 TEXT ·mulAddVWW(SB),7,$0
 	B ·mulAddVWW_g(SB)
 

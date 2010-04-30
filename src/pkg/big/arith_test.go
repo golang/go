@@ -147,6 +147,36 @@ var prodVW = []argVW{
 	argVW{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
 }
 
+var lshVW = []argVW{
+	argVW{},
+	argVW{nat{0}, nat{0}, 0, 0},
+	argVW{nat{0}, nat{0}, 1, 0},
+	argVW{nat{0}, nat{0}, 20, 0},
+
+	argVW{nat{_M}, nat{_M}, 0, 0},
+	argVW{nat{_M << 1 & _M}, nat{_M}, 1, 1},
+	argVW{nat{_M << 20 & _M}, nat{_M}, 20, _M >> (_W - 20)},
+
+	argVW{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
+	argVW{nat{_M << 1 & _M, _M, _M}, nat{_M, _M, _M}, 1, 1},
+	argVW{nat{_M << 20 & _M, _M, _M}, nat{_M, _M, _M}, 20, _M >> (_W - 20)},
+}
+
+var rshVW = []argVW{
+	argVW{},
+	argVW{nat{0}, nat{0}, 0, 0},
+	argVW{nat{0}, nat{0}, 1, 0},
+	argVW{nat{0}, nat{0}, 20, 0},
+
+	argVW{nat{_M}, nat{_M}, 0, 0},
+	argVW{nat{_M >> 1}, nat{_M}, 1, _M << (_W - 1) & _M},
+	argVW{nat{_M >> 20}, nat{_M}, 20, _M << (_W - 20) & _M},
+
+	argVW{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
+	argVW{nat{_M, _M, _M >> 1}, nat{_M, _M, _M}, 1, _M << (_W - 1) & _M},
+	argVW{nat{_M, _M, _M >> 20}, nat{_M, _M, _M}, 20, _M << (_W - 20) & _M},
+}
+
 
 func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
 	n := len(a.z)
@@ -173,6 +203,18 @@ func TestFunVW(t *testing.T) {
 		arg = argVW{a.x, a.z, a.y, a.c}
 		testFunVW(t, "subVW_g", subVW_g, arg)
 		testFunVW(t, "subVW", subVW, arg)
+	}
+
+	for _, a := range lshVW {
+		arg := a
+		testFunVW(t, "shlVW_g", shlVW_g, arg)
+		testFunVW(t, "shlVW", shlVW, arg)
+	}
+
+	for _, a := range rshVW {
+		arg := a
+		testFunVW(t, "shrVW_g", shrVW_g, arg)
+		testFunVW(t, "shrVW", shrVW, arg)
 	}
 }
 
