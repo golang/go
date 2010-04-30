@@ -431,6 +431,33 @@ flt2:	// binary
 }
 
 /*
+ * generate array index into res.
+ * n might be any size; res is 32-bit.
+ * returns Prog* to patch to panic call.
+ */
+Prog*
+cgenindex(Node *n, Node *res)
+{
+	Node tmp, lo, hi, zero;
+	Prog *p;
+
+	if(!is64(n->type)) {
+		cgen(n, res);
+		return nil;
+	}
+
+	tempname(&tmp, types[TINT64]);
+	cgen(n, &tmp);
+	split64(&tmp, &lo, &hi);
+	gmove(&lo, res);
+	if(debug['B'])
+		return nil;
+	nodconst(&zero, types[TINT32], 0);
+	gins(ACMPL, &hi, &zero);
+	return gbranch(AJNE, T);
+}
+		
+/*
  * address gen
  *	res = &n;
  */
@@ -442,7 +469,7 @@ agen(Node *n, Node *res)
 	Type *t;
 	uint32 w;
 	uint64 v;
-	Prog *p1;
+	Prog *p1, *p2;
 
 	if(debug['g']) {
 		dump("\nagen-res", res);
@@ -489,20 +516,20 @@ agen(Node *n, Node *res)
 		break;
 
 	case OINDEX:
-		// TODO(rsc): uint64 indices
+		p2 = nil;  // to be patched to panicindex.
 		w = n->type->width;
 		if(nr->addable) {
 			agenr(nl, &n3, res);
 			if(!isconst(nr, CTINT)) {
 				tempname(&tmp, types[TINT32]);
-				cgen(nr, &tmp);
+				p2 = cgenindex(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
 		} else if(nl->addable) {
 			if(!isconst(nr, CTINT)) {
 				tempname(&tmp, types[TINT32]);
-				cgen(nr, &tmp);
+				p2 = cgenindex(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
@@ -510,7 +537,7 @@ agen(Node *n, Node *res)
 			agen(nl, &n3);
 		} else {
 			tempname(&tmp, types[TINT32]);
-			cgen(nr, &tmp);
+			p2 = cgenindex(nr, &tmp);
 			nr = &tmp;
 			agenr(nl, &n3, res);
 			regalloc(&n1, tmp.type, N);
@@ -575,12 +602,7 @@ agen(Node *n, Node *res)
 			break;
 		}
 
-		// type of the index
-		t = types[TUINT32];
-		if(issigned[n1.type->etype])
-			t = types[TINT32];
-
-		regalloc(&n2, t, &n1);			// i
+		regalloc(&n2, types[TINT32], &n1);			// i
 		gmove(&n1, &n2);
 		regfree(&n1);
 
@@ -595,6 +617,8 @@ agen(Node *n, Node *res)
 				nodconst(&n1, types[TUINT32], nl->type->bound);
 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+			if(p2)
+				patch(p2, pc);
 			ginscall(panicindex, 0);
 			patch(p1, pc);
 		}
@@ -613,8 +637,8 @@ agen(Node *n, Node *res)
 			p1->from.index = p1->from.type;
 			p1->from.type = p1->to.type + D_INDIR;
 		} else {
-			nodconst(&n1, t, w);
-			gins(optoas(OMUL, t), &n1, &n2);
+			nodconst(&n1, types[TUINT32], w);
+			gins(optoas(OMUL, types[TUINT32]), &n1, &n2);
 			gins(optoas(OADD, types[tptr]), &n2, &n3);
 			gmove(&n3, res);
 		}
