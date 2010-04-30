@@ -100,30 +100,36 @@ _* | *_ | _)
 	exit 1
 	;;
 freebsd_386)
+	mkerrors="$mkerrors -f -m32"
 	mksyscall="./mksyscall.sh -l32"
 	mksysnum="./mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m32"
 	;;
 freebsd_amd64)
+	mkerrors="$mkerrors -f -m64"
 	mksysnum="./mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m64"
 	;;
 darwin_386)
+	mkerrors="$mkerrors -f -m32"
 	mksyscall="./mksyscall.sh -l32"
 	mksysnum="./mksysnum_darwin.sh /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m32"
 	;;
 darwin_amd64)
+	mkerrors="$mkerrors -f -m64"
 	mksysnum="./mksysnum_darwin.sh /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m64"
 	mkerrors="./mkerrors.sh"
 	;;
 linux_386)
+	mkerrors="$mkerrors -f -m32"
 	mksyscall="./mksyscall.sh -l32"
 	mksysnum="./mksysnum_linux.sh /usr/include/asm/unistd_32.h"
 	mktypes="godefs -gsyscall -f-m32"
 	;;
 linux_amd64)
+	mkerrors="$mkerrors -f -m64"
 	mksysnum="./mksysnum_linux.sh /usr/include/asm/unistd_64.h"
 	mktypes="godefs -gsyscall -f-m64"
 	;;
