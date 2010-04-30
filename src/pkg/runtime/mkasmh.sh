@@ -19,7 +19,7 @@ case "$GOARCH" in
 	#	../../libcgo/linux_386.c:/^start
 	#	../../libcgo/darwin_386.c:/^start
 	case "$GOOS" in
-	mingw)
+	windows)
 		echo '#define	get_tls(r)	MOVL 0x2c(FS), r'
 		echo '#define	g(r)	0(r)'
 		echo '#define	m(r)	4(r)'

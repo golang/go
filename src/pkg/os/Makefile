@@ -34,9 +34,9 @@ GOFILES_nacl=\
 	file_unix.go\
 	sys_nacl.go\
 
-GOFILES_mingw=\
-	file_mingw.go\
-	sys_mingw.go\
+GOFILES_windows=\
+	file_windows.go\
+	sys_windows.go\
 
 GOFILES+=$(GOFILES_$(GOOS))
 

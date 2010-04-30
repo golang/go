@@ -117,7 +117,7 @@ enum
 struct	Lock
 {
 	uint32	key;
-#ifdef __MINGW__
+#ifdef __WINDOWS__
 	void*	event;
 #else
 	uint32	sema;	// for OS X
@@ -231,7 +231,7 @@ struct	M
 	MCache	*mcache;
 	G*	lockedg;
 	uint64 freg[8];	// Floating point register storage used by ARM software fp routines
-#ifdef __MINGW__
+#ifdef __WINDOWS__
 	void*	return_address;	// saved return address and stack
 	void*	stack_pointer;	// pointer for Windows stdcall
 	void*	os_stack_pointer;

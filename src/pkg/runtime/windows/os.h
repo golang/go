@@ -16,8 +16,8 @@ extern void *LoadLibraryEx;
 extern void *GetProcAddress;
 extern void *GetLastError;
 
-#define goargs mingw_goargs
-void mingw_goargs(void);
+#define goargs windows_goargs
+void windows_goargs(void);
 
 // Get start address of symbol data in memory.
 void *get_symdat_addr(void);

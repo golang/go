@@ -39,7 +39,7 @@ walksymtab(void (*fn)(Sym*))
 	if(symdat == nil)
 		return;
 
-#ifdef __MINGW__
+#ifdef __WINDOWS__
 	v = get_symdat_addr();
 	p = (byte*)v+8;
 #else
@@ -256,7 +256,7 @@ splitpcln(void)
 		return;
 
 	// pc/ln table bounds
-#ifdef __MINGW__
+#ifdef __WINDOWS__
 	v = get_symdat_addr();
 	p = (byte*)v+8;
 #else

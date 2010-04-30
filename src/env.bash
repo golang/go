@@ -45,10 +45,10 @@ esac
 
 GOOS=${GOOS:-$(uname | tr A-Z a-z)}
 case "$GOOS" in
-darwin | freebsd | linux | mingw | nacl)
+darwin | freebsd | linux | windows | nacl)
 	;;
 *)
-	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, mingw, or nacl' 1>&2
+	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, windows, or nacl' 1>&2
 	exit 1
 esac
 

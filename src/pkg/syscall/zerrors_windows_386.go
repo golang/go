@@ -3,7 +3,7 @@
 
 package syscall
 
-// TODO(brainman): populate errors in zerrors_mingw.go
+// TODO(brainman): populate errors in zerrors_windows.go
 
 const (
 	ERROR_FILE_NOT_FOUND      = 2
@@ -12,8 +12,8 @@ const (
 	ERROR_MOD_NOT_FOUND       = 126
 	ERROR_PROC_NOT_FOUND      = 127
 	ERROR_DIRECTORY           = 267
-	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
-	EMINGW = 99999 /* otherwise unused */
+	// TODO(brainman): should use value for EWINDOWS that does not clashes with anything else
+	EWINDOWS = 99999 /* otherwise unused */
 )
 
 // TODO(brainman): fix all needed for os

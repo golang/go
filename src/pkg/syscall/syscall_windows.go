@@ -11,7 +11,7 @@ import (
 	"utf16"
 )
 
-const OS = "mingw"
+const OS = "windows"
 
 /*
 
@@ -72,7 +72,7 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 // dll helpers
 
-// implemented in ../pkg/runtime/mingw/syscall.cgo
+// implemented in ../pkg/runtime/windows/syscall.cgo
 func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, lasterr uintptr)
 func loadlibraryex(filename uintptr) (handle uint32)
 func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
@@ -134,7 +134,7 @@ func Sleep(nsec int64) (errno int) {
 }
 
 func Errstr(errno int) string {
-	if errno == EMINGW {
+	if errno == EWINDOWS {
 		return "not supported by windows"
 	}
 	b := make([]uint16, 300)
@@ -381,32 +381,32 @@ const (
 func Getpid() (pid int)   { return -1 }
 func Getppid() (ppid int) { return -1 }
 
-func Fchdir(fd int) (errno int)                           { return EMINGW }
-func Link(oldpath, newpath string) (errno int)            { return EMINGW }
-func Symlink(path, link string) (errno int)               { return EMINGW }
-func Readlink(path string, buf []byte) (n int, errno int) { return 0, EMINGW }
-func Chmod(path string, mode int) (errno int)             { return EMINGW }
-func Fchmod(fd int, mode int) (errno int)                 { return EMINGW }
-func Chown(path string, uid int, gid int) (errno int)     { return EMINGW }
-func Lchown(path string, uid int, gid int) (errno int)    { return EMINGW }
-func Fchown(fd int, uid int, gid int) (errno int)         { return EMINGW }
+func Fchdir(fd int) (errno int)                           { return EWINDOWS }
+func Link(oldpath, newpath string) (errno int)            { return EWINDOWS }
+func Symlink(path, link string) (errno int)               { return EWINDOWS }
+func Readlink(path string, buf []byte) (n int, errno int) { return 0, EWINDOWS }
+func Chmod(path string, mode int) (errno int)             { return EWINDOWS }
+func Fchmod(fd int, mode int) (errno int)                 { return EWINDOWS }
+func Chown(path string, uid int, gid int) (errno int)     { return EWINDOWS }
+func Lchown(path string, uid int, gid int) (errno int)    { return EWINDOWS }
+func Fchown(fd int, uid int, gid int) (errno int)         { return EWINDOWS }
 
 func Getuid() (uid int)                  { return -1 }
 func Geteuid() (euid int)                { return -1 }
 func Getgid() (gid int)                  { return -1 }
 func Getegid() (egid int)                { return -1 }
-func Getgroups() (gids []int, errno int) { return nil, EMINGW }
+func Getgroups() (gids []int, errno int) { return nil, EWINDOWS }
 
 // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
 
-func Pipe(p []int) (errno int) { return EMINGW }
+func Pipe(p []int) (errno int) { return EWINDOWS }
 
 func read(fd int, buf *byte, nbuf int) (n int, errno int) {
-	return 0, EMINGW
+	return 0, EWINDOWS
 }
 
 func fcntl(fd, cmd, arg int) (val int, errno int) {
-	return 0, EMINGW
+	return 0, EWINDOWS
 }
 
 const (
@@ -439,7 +439,7 @@ type Rusage struct {
 }
 
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
-	return 0, EMINGW
+	return 0, EWINDOWS
 }
 
 type WaitStatus uint32
