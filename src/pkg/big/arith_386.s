@@ -99,6 +99,20 @@ E4:	CMPL BX, BP         // i < n
 	RET
 
 
+// func shlVW(z, x *Word, s Word, n int) (c Word)
+// TODO(gri) implement this routine
+TEXT ·shlVW(SB),7,$0
+	NOP			// work around bug in linker
+	JMP ·shlVW_g(SB)
+
+
+// func shrVW(z, x *Word, s Word, n int) (c Word)
+// TODO(gri) implement this routine
+TEXT ·shrVW(SB),7,$0
+	NOP			// work around bug in linker
+	JMP ·shrVW_g(SB)
+
+
 // func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
 TEXT ·mulAddVWW(SB),7,$0
 	MOVL z+0(FP), DI

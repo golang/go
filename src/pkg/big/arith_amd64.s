@@ -101,6 +101,56 @@ E4:	CMPQ BX, R11         // i < n
 	RET
 
 
+// func shlVW(z, x *Word, s Word, n int) (c Word)
+TEXT ·shlVW(SB),7,$0
+	MOVQ z+0(FP), R10
+	MOVQ x+8(FP), R8
+	MOVQ s+16(FP), CX
+	MOVL n+24(FP), R11
+	MOVQ $0, AX         // c = 0
+	MOVQ $0, BX         // i = 0
+	JMP E8
+
+L8:	MOVQ (R8)(BX*8), DX
+	MOVQ DX, R12
+	SHLQ CX, DX:AX
+	MOVQ DX, (R10)(BX*8)
+	MOVQ R12, AX
+	ADDL $1, BX          // i++
+
+E8:	CMPQ BX, R11         // i < n
+	JL L8
+
+	MOVQ $0, DX
+	SHLQ CX, DX:AX
+	MOVQ DX, c+32(FP)
+	RET
+
+
+// func shrVW(z, x *Word, s Word, n int) (c Word)
+TEXT ·shrVW(SB),7,$0
+	MOVQ z+0(FP), R10
+	MOVQ x+8(FP), R8
+	MOVQ s+16(FP), CX
+	MOVL n+24(FP), BX   // i = n
+	MOVQ $0, AX         // c = 0
+	JMP E9
+
+L9:	MOVQ (R8)(BX*8), DX
+	MOVQ DX, R12
+	SHRQ CX, DX:AX
+	MOVQ DX, (R10)(BX*8)
+	MOVQ R12, AX
+
+E9:	SUBL $1, BX         // i--
+	JGE L9
+
+	MOVQ $0, DX
+	SHRQ CX, DX:AX
+	MOVQ DX, c+32(FP)
+	RET
+
+
 // func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
 TEXT ·mulAddVWW(SB),7,$0
 	MOVQ z+0(FP), R10
