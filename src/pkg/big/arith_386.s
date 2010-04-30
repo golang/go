@@ -101,24 +101,24 @@ E4:	CMPL BX, BP		// i < n
 
 // func shlVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shlVW(SB),7,$0
-	NOP
-	JMP ·shlVW_g(SB)	// TODO(gri) remove once code below works
-
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL s+8(FP), CX
-	MOVL n+12(FP), BP
+	MOVL n+12(FP), BX
+	LEAL (DI)(BX*4), DI
+	LEAL (SI)(BX*4), SI
+	NEGL BX			// i = -n
 	MOVL $0, AX		// c = 0
-	MOVL $0, BX		// i = 0
 	JMP E8
 
-L8:	MOVL (SI)(BX*8), DX
+L8:	MOVL (SI)(BX*4), DX
+	MOVL DX, BP
 	SHLL CX, DX:AX
-	MOVL DX, (DI)(BX*8)
-	MOVL (SI)(BX*8), AX	// reload (not enough regs to save original DX)
+	MOVL DX, (DI)(BX*4)
+	MOVL BP, AX
 	ADDL $1, BX		// i++
 
-E8:	CMPL BX, BP		// i < n
+E8:	CMPL BX, $0		// i < 0
 	JL L8
 
 	MOVL $0, DX
@@ -129,9 +129,6 @@ E8:	CMPL BX, BP		// i < n
 
 // func shrVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shrVW(SB),7,$0
-	NOP
-	JMP ·shrVW_g(SB)	// TODO(gri) remove once code below works
-
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL s+8(FP), CX
@@ -139,10 +136,10 @@ TEXT ·shrVW(SB),7,$0
 	MOVL $0, AX		// c = 0
 	JMP E9
 
-L9:	MOVL (SI)(BX*8), DX
+L9:	MOVL (SI)(BX*4), DX
 	MOVL DX, BP
 	SHRL CX, DX:AX
-	MOVL DX, (DI)(BX*8)
+	MOVL DX, (DI)(BX*4)
 	MOVL BP, AX
 
 E9:	SUBL $1, BX		// i--
@@ -161,9 +158,9 @@ TEXT ·mulAddVWW(SB),7,$0
 	MOVL y+8(FP), BP
 	MOVL r+12(FP), CX	// c = r
 	MOVL n+16(FP), BX
-	LEAL	(SI)(BX*4), SI
-	LEAL	(DI)(BX*4), DI
-	NEGL BX  // i = -n
+	LEAL (DI)(BX*4), DI
+	LEAL (SI)(BX*4), SI
+	NEGL BX			// i = -n
 	JMP E5
 
 L5:	MOVL (SI)(BX*4), AX
@@ -187,8 +184,8 @@ TEXT ·addMulVVW(SB),7,$0
 	MOVL x+4(FP), SI
 	MOVL y+8(FP), BP
 	MOVL n+12(FP), BX
-	LEAL	(SI)(BX*4), SI
-	LEAL	(DI)(BX*4), DI
+	LEAL (DI)(BX*4), DI
+	LEAL (SI)(BX*4), SI
 	NEGL BX			// i = -n
 	MOVL $0, CX		// c = 0
 	JMP E6
