@@ -5,6 +5,13 @@ package syscall
 
 import "unsafe"
 
+func open(path string, mode int, perm int) (fd int, errno int) {
+	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+	fd = int(r0)
+	errno = int(e1)
+	return
+}
+
 func pipe(p *[2]_C_int) (errno int) {
 	_, _, e1 := Syscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
 	errno = int(e1)
@@ -310,13 +317,6 @@ func Mknodat(dirfd int, path string, mode int, dev int) (errno int) {
 
 func Nanosleep(time *Timespec, leftover *Timespec) (errno int) {
 	_, _, e1 := Syscall(SYS_NANOSLEEP, uintptr(unsafe.Pointer(time)), uintptr(unsafe.Pointer(leftover)), 0)
-	errno = int(e1)
-	return
-}
-
-func Open(path string, mode int, perm int) (fd int, errno int) {
-	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
-	fd = int(r0)
 	errno = int(e1)
 	return
 }
