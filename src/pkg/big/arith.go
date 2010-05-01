@@ -211,16 +211,29 @@ func divStep(x1, x0, y Word) (q, r Word) {
 }
 
 
-// Number of leading zeros in x.
-func leadingZeros(x Word) (n uint) {
-	if x == 0 {
-		return _W
+// Length of x in bits.
+func bitLen(x Word) (n int) {
+	for ; x >= 0x100; x >>= 8 {
+		n += 8
 	}
-	for x&(1<<(_W-1)) == 0 {
+	for ; x > 0; x >>= 1 {
 		n++
-		x <<= 1
 	}
 	return
+}
+
+
+// log2 computes the integer binary logarithm of x.
+// The result is the integer n for which 2^n <= x < 2^(n+1).
+// If x == 0, the result is -1.
+func log2(x Word) int {
+	return bitLen(x) - 1
+}
+
+
+// Number of leading zeros in x.
+func leadingZeros(x Word) uint {
+	return uint(_W - bitLen(x))
 }
 
 

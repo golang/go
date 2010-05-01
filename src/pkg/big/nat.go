@@ -165,9 +165,8 @@ func (z nat) sub(x, y nat) nat {
 	if c != 0 {
 		panic("underflow")
 	}
-	z = z.norm()
 
-	return z
+	return z.norm()
 }
 
 
@@ -495,7 +494,7 @@ func (z nat) divW(x nat, y Word) (q nat, r Word) {
 		q = z.set(x) // result is x
 		return
 	case m == 0:
-		q = z.set(nil) // result is 0
+		q = z.make(0) // result is 0
 		return
 	}
 	// m > 0
@@ -553,10 +552,10 @@ func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
 	q = z.make(m + 1)
 
 	// D1.
-	shift := uint(leadingZeroBits(v[n-1]))
+	shift := leadingZeros(v[n-1])
 	v.shiftLeftDeprecated(v, shift)
 	u.shiftLeftDeprecated(uIn, shift)
-	u[len(uIn)] = uIn[len(uIn)-1] >> (_W - uint(shift))
+	u[len(uIn)] = uIn[len(uIn)-1] >> (_W - shift)
 
 	// D2.
 	for j := m; j >= 0; j-- {
@@ -605,26 +604,12 @@ func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
 }
 
 
-// log2 computes the integer binary logarithm of x.
-// The result is the integer n for which 2^n <= x < 2^(n+1).
-// If x == 0, the result is -1.
-func log2(x Word) int {
-	n := -1
-	for ; x > 0; x >>= 1 {
-		n++
-	}
-	return n
-}
-
-
-// log2 computes the integer binary logarithm of x.
-// The result is the integer n for which 2^n <= x < 2^(n+1).
-// If x == 0, the result is -1.
-func (x nat) log2() int {
+// Length of x in bits. x must be normalized.
+func (x nat) bitLen() int {
 	if i := len(x) - 1; i >= 0 {
-		return i*_W + log2(x[i])
+		return i*_W + bitLen(x[i])
 	}
-	return -1
+	return 0
 }
 
 
@@ -703,7 +688,7 @@ func (x nat) string(base int) string {
 	}
 
 	// allocate buffer for conversion
-	i := (x.log2()+1)/log2(Word(base)) + 1 // +1: round up
+	i := x.bitLen()/log2(Word(base)) + 1 // +1: round up
 	s := make([]byte, i)
 
 	// don't destroy x
@@ -720,24 +705,6 @@ func (x nat) string(base int) string {
 	return string(s[i:])
 }
 
-
-// leadingZeroBits returns the number of leading zero bits in x.
-func leadingZeroBits(x Word) int {
-	c := 0
-	if x < 1<<(_W/2) {
-		x <<= _W / 2
-		c = _W / 2
-	}
-
-	for i := 0; x != 0; i++ {
-		if x&(1<<(_W-1)) != 0 {
-			return i + c
-		}
-		x <<= 1
-	}
-
-	return _W
-}
 
 const deBruijn32 = 0x077CB531
 
@@ -997,16 +964,6 @@ func (z nat) expNN(x, y, m nat) nat {
 }
 
 
-// len returns the bit length of z.
-func (z nat) len() int {
-	if len(z) == 0 {
-		return 0
-	}
-
-	return (len(z)-1)*_W + (_W - leadingZeroBits(z[len(z)-1]))
-}
-
-
 // probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
 // If it returns true, n is prime with probability 1 - 1/4^reps.
 // If it returns false, n is not prime.
@@ -1063,7 +1020,7 @@ func (n nat) probablyPrime(reps int) bool {
 	rand := rand.New(rand.NewSource(int64(n[0])))
 
 	var x, y, quotient nat
-	nm3Len := nm3.len()
+	nm3Len := nm3.bitLen()
 
 NextRandom:
 	for i := 0; i < reps; i++ {
