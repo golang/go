@@ -209,11 +209,11 @@ func TestString(t *testing.T) {
 }
 
 
-func TestLeadingZeroBits(t *testing.T) {
-	var x Word = 1 << (_W - 1)
+func TestLeadingZeros(t *testing.T) {
+	var x Word = _B >> 1
 	for i := 0; i <= _W; i++ {
-		if leadingZeroBits(x) != i {
-			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i)
+		if int(leadingZeros(x)) != i {
+			t.Errorf("failed at %x: got %d want %d", x, leadingZeros(x), i)
 		}
 		x >>= 1
 	}
