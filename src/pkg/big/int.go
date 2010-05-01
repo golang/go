@@ -216,13 +216,16 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 	if scanned != len(s) {
 		goto Error
 	}
+	if len(z.abs) == 0 {
+		z.neg = false // 0 has no sign
+	}
 
 	return z, true
 
 Error:
 	z.neg = false
 	z.abs = nil
-	return nil, false
+	return z, false
 }
 
 
@@ -384,26 +387,24 @@ func ProbablyPrime(z *Int, n int) bool { return !z.neg && z.abs.probablyPrime(n)
 
 // Lsh sets z = x << n and returns z.
 func (z *Int) Lsh(x *Int, n uint) *Int {
-	addedWords := int(n) / _W
-	// Don't assign z.abs yet, in case z == x
-	znew := z.abs.make(len(x.abs) + addedWords + 1)
 	z.neg = x.neg
-	znew[addedWords:].shiftLeft(x.abs, n%_W)
-	for i := range znew[0:addedWords] {
-		znew[i] = 0
-	}
-	z.abs = znew.norm()
+	z.abs = z.abs.shl(x.abs, n)
 	return z
 }
 
 
 // Rsh sets z = x >> n and returns z.
 func (z *Int) Rsh(x *Int, n uint) *Int {
-	removedWords := int(n) / _W
-	// Don't assign z.abs yet, in case z == x
-	znew := z.abs.make(len(x.abs) - removedWords)
-	z.neg = x.neg
-	znew.shiftRight(x.abs[removedWords:], n%_W)
-	z.abs = znew.norm()
+	if x.neg {
+		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
+		z.neg = true
+		t := z.abs.sub(x.abs, natOne) // no underflow because |x| > 0
+		t = t.shr(t, n)
+		z.abs = t.add(t, natOne)
+		return z
+	}
+
+	z.neg = false
+	z.abs = z.abs.shr(x.abs, n)
 	return z
 }

@@ -562,6 +562,7 @@ type intShiftTest struct {
 
 var rshTests = []intShiftTest{
 	intShiftTest{"0", 0, "0"},
+	intShiftTest{"-0", 0, "0"},
 	intShiftTest{"0", 1, "0"},
 	intShiftTest{"0", 2, "0"},
 	intShiftTest{"1", 0, "1"},
@@ -569,7 +570,12 @@ var rshTests = []intShiftTest{
 	intShiftTest{"1", 2, "0"},
 	intShiftTest{"2", 0, "2"},
 	intShiftTest{"2", 1, "1"},
-	intShiftTest{"2", 2, "0"},
+	intShiftTest{"-1", 0, "-1"},
+	intShiftTest{"-1", 1, "-1"},
+	intShiftTest{"-1", 10, "-1"},
+	intShiftTest{"-100", 2, "-25"},
+	intShiftTest{"-100", 3, "-13"},
+	intShiftTest{"-100", 100, "-1"},
 	intShiftTest{"4294967296", 0, "4294967296"},
 	intShiftTest{"4294967296", 1, "2147483648"},
 	intShiftTest{"4294967296", 2, "1073741824"},
