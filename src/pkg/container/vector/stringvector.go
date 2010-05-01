@@ -12,6 +12,9 @@ func (p *StringVector) realloc(length, capacity int) (b []string) {
 	if capacity < initialSize {
 		capacity = initialSize
 	}
+	if capacity < length {
+		capacity = length
+	}
 	b = make(StringVector, length, capacity)
 	copy(b, *p)
 	*p = b
@@ -186,9 +189,7 @@ func (p *StringVector) Pop() string {
 
 
 // AppendVector appends the entire vector x to the end of this vector.
-func (p *StringVector) AppendVector(x *StringVector) {
-	p.InsertVector(len(*p), x)
-}
+func (p *StringVector) AppendVector(x *StringVector) { p.InsertVector(len(*p), x) }
 
 
 // Swap exchanges the elements at indexes i and j.
