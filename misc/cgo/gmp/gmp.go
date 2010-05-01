@@ -190,7 +190,7 @@ func (z *Int) SetString(s string, base int) os.Error {
 	if C.mpz_set_str(&z.i[0], p, C.int(base)) < 0 {
 		return os.EINVAL
 	}
-	return z
+	return nil
 }
 
 // String returns the decimal representation of z.
