@@ -667,10 +667,13 @@ static	int32	debug	= 0;
 
 // makemap(key, val *Type, hint uint32) (hmap *map[any]any);
 Hmap*
-makemap(Type *key, Type *val, uint32 hint)
+makemap(Type *key, Type *val, int64 hint)
 {
 	Hmap *h;
 	int32 keyalg, valalg, keysize, valsize;
+
+	if(hint < 0 || (int32)hint != hint)
+		panicstring("makemap: size out of range");
 
 	keyalg = key->alg;
 	valalg = val->alg;
@@ -731,9 +734,9 @@ makemap(Type *key, Type *val, uint32 hint)
 	return h;
 }
 
-// makemap(key, val *Type, hint uint32) (hmap *map[any]any);
+// makemap(key, val *Type, hint int64) (hmap *map[any]any);
 void
-·makemap(Type *key, Type *val, uint32 hint, Hmap *ret)
+·makemap(Type *key, Type *val, int64 hint, Hmap *ret)
 {
 	ret = makemap(key, val, hint);
 	FLUSH(&ret);

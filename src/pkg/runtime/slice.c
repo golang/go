@@ -9,17 +9,20 @@
 static	int32	debug	= 0;
 
 // see also unsafe·NewArray
-// makeslice(typ *Type, nel int, cap int) (ary []any);
+// makeslice(typ *Type, len, cap int64) (ary []any);
 void
-·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
+·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
 {
-	uint64 size;
+	uintptr size;
 
-	if(cap < nel)
-		cap = nel;
+	if(len < 0 || (int32)len != len)
+		panicstring("makeslice: len out of range");
+	if(cap < len || (int32)cap != cap || cap > ((uintptr)-1) / t->elem->size)
+		panicstring("makeslice: cap out of range");
+
 	size = cap*t->elem->size;
 
-	ret.len = nel;
+	ret.len = len;
 	ret.cap = cap;
 
 	if((t->elem->kind&KindNoPointers))
@@ -30,8 +33,8 @@ void
 	FLUSH(&ret);
 
 	if(debug) {
-		printf("makeslice(%S, %d, %d); ret=",
-			*t->string, nel, cap);
+		printf("makeslice(%S, %D, %D); ret=",
+			*t->string, len, cap);
  		·printslice(ret);
 	}
 }

@@ -65,7 +65,7 @@ func ifacethash(i1 any) (ret uint32)
 func efacethash(i1 any) (ret uint32)
 
 // *byte is really *runtime.Type
-func makemap(key, val *byte, hint int) (hmap map[any]any)
+func makemap(key, val *byte, hint int64) (hmap map[any]any)
 func mapaccess1(hmap map[any]any, key any) (val any)
 func mapaccess2(hmap map[any]any, key any) (val any, pres bool)
 func mapassign1(hmap map[any]any, key any, val any)
@@ -76,7 +76,7 @@ func mapiter1(hiter *any) (key any)
 func mapiter2(hiter *any) (key any, val any)
 
 // *byte is really *runtime.Type
-func makechan(elem *byte, hint int) (hchan chan any)
+func makechan(elem *byte, hint int64) (hchan chan any)
 func chanrecv1(hchan <-chan any) (elem any)
 func chanrecv2(hchan <-chan any) (elem any, pres bool)
 func chansend1(hchan chan<- any, elem any)
@@ -90,7 +90,7 @@ func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
 func selectdefault(sel *byte) (selected bool)
 func selectgo(sel *byte)
 
-func makeslice(typ *byte, nel int, cap int) (ary []any)
+func makeslice(typ *byte, nel int64, cap int64) (ary []any)
 func sliceslice1(old []any, lb int, width int) (ary []any)
 func sliceslice(old []any, lb int, hb int, width int) (ary []any)
 func slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)

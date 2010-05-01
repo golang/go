@@ -96,7 +96,7 @@ void
 dowidth(Type *t)
 {
 	int32 et;
-	uint32 w;
+	int64 w;
 	int lno;
 	Type *t1;
 
@@ -222,7 +222,15 @@ dowidth(Type *t)
 		if(t->type == T)
 			break;
 		if(t->bound >= 0) {
+			uint64 cap;
+
 			dowidth(t->type);
+			if(tptr == TPTR32)
+				cap = ((uint32)-1) / t->type->width;
+			else
+				cap = ((uint64)-1) / t->type->width;
+			if(t->bound > cap)
+				yyerror("type %lT larger than address space", t);
 			w = t->bound * t->type->width;
 			if(w == 0)
 				w = maxround;
