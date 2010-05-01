@@ -12,6 +12,9 @@ func (p *Vector) realloc(length, capacity int) (b []interface{}) {
 	if capacity < initialSize {
 		capacity = initialSize
 	}
+	if capacity < length {
+		capacity = length
+	}
 	b = make(Vector, length, capacity)
 	copy(b, *p)
 	*p = b
