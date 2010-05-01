@@ -230,9 +230,8 @@ type shiftTest struct {
 var leftShiftTests = []shiftTest{
 	shiftTest{nil, 0, nil},
 	shiftTest{nil, 1, nil},
-	shiftTest{nat{0}, 0, nat{0}},
-	shiftTest{nat{1}, 0, nat{1}},
-	shiftTest{nat{1}, 1, nat{2}},
+	shiftTest{natOne, 0, natOne},
+	shiftTest{natOne, 1, natTwo},
 	shiftTest{nat{1 << (_W - 1)}, 1, nat{0}},
 	shiftTest{nat{1 << (_W - 1), 0}, 1, nat{0, 1}},
 }
@@ -240,11 +239,11 @@ var leftShiftTests = []shiftTest{
 
 func TestShiftLeft(t *testing.T) {
 	for i, test := range leftShiftTests {
-		dst := make(nat, len(test.out))
-		dst.shiftLeft(test.in, test.shift)
-		for j, v := range dst {
-			if test.out[j] != v {
-				t.Errorf("#%d: got: %v want: %v", i, dst, test.out)
+		var z nat
+		z = z.shl(test.in, test.shift)
+		for j, d := range test.out {
+			if j >= len(z) || z[j] != d {
+				t.Errorf("#%d: got: %v want: %v", i, z, test.out)
 				break
 			}
 		}
@@ -255,22 +254,21 @@ func TestShiftLeft(t *testing.T) {
 var rightShiftTests = []shiftTest{
 	shiftTest{nil, 0, nil},
 	shiftTest{nil, 1, nil},
-	shiftTest{nat{0}, 0, nat{0}},
-	shiftTest{nat{1}, 0, nat{1}},
-	shiftTest{nat{1}, 1, nat{0}},
-	shiftTest{nat{2}, 1, nat{1}},
-	shiftTest{nat{0, 1}, 1, nat{1 << (_W - 1), 0}},
-	shiftTest{nat{2, 1, 1}, 1, nat{1<<(_W-1) + 1, 1 << (_W - 1), 0}},
+	shiftTest{natOne, 0, natOne},
+	shiftTest{natOne, 1, nil},
+	shiftTest{natTwo, 1, natOne},
+	shiftTest{nat{0, 1}, 1, nat{1 << (_W - 1)}},
+	shiftTest{nat{2, 1, 1}, 1, nat{1<<(_W-1) + 1, 1 << (_W - 1)}},
 }
 
 
 func TestShiftRight(t *testing.T) {
 	for i, test := range rightShiftTests {
-		dst := make(nat, len(test.out))
-		dst.shiftRight(test.in, test.shift)
-		for j, v := range dst {
-			if test.out[j] != v {
-				t.Errorf("#%d: got: %v want: %v", i, dst, test.out)
+		var z nat
+		z = z.shr(test.in, test.shift)
+		for j, d := range test.out {
+			if j >= len(z) || z[j] != d {
+				t.Errorf("#%d: got: %v want: %v", i, z, test.out)
 				break
 			}
 		}
