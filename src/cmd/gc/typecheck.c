@@ -929,13 +929,13 @@ reswitch:
 			l = args->n;
 			args = args->next;
 			typecheck(&l, Erv);
-			defaultlit(&l, types[TUINT]);
+			defaultlit(&l, types[TINT]);
 			r = N;
 			if(args != nil) {
 				r = args->n;
 				args = args->next;
 				typecheck(&r, Erv);
-				defaultlit(&r, types[TUINT]);
+				defaultlit(&r, types[TINT]);
 			}
 			if(l->type == T || (r && r->type == T))
 				goto error;
@@ -947,8 +947,6 @@ reswitch:
 				yyerror("non-integer cap argument to make(%T)", t);
 				goto error;
 			}
-			if(r == N)
-				r = nodintconst(0);
 			n->left = l;
 			n->right = r;
 			n->op = OMAKESLICE;
@@ -959,7 +957,7 @@ reswitch:
 				l = args->n;
 				args = args->next;
 				typecheck(&l, Erv);
-				defaultlit(&l, types[TUINT]);
+				defaultlit(&l, types[TINT]);
 				if(l->type == T)
 					goto error;
 				if(!isint[l->type->etype]) {
@@ -978,7 +976,7 @@ reswitch:
 				l = args->n;
 				args = args->next;
 				typecheck(&l, Erv);
-				defaultlit(&l, types[TUINT]);
+				defaultlit(&l, types[TINT]);
 				if(l->type == T)
 					goto error;
 				if(!isint[l->type->etype]) {

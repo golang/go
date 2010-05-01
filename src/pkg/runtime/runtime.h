@@ -577,9 +577,9 @@ struct hash_iter*	mapiterinit(Hmap*);
 void	mapiternext(struct hash_iter*);
 bool	mapiterkey(struct hash_iter*, void*);
 void	mapiterkeyvalue(struct hash_iter*, void*, void*);
-Hmap*	makemap(Type*, Type*, uint32);
+Hmap*	makemap(Type*, Type*, int64);
 
-Hchan*	makechan(Type*, uint32);
+Hchan*	makechan(Type*, int64);
 void	chansend(Hchan*, void*, bool*);
 void	chanrecv(Hchan*, void*, bool*);
 void	chanclose(Hchan*);

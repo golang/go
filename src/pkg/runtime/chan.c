@@ -90,10 +90,13 @@ static	uint32	fastrand2(void);
 static	void	destroychan(Hchan*);
 
 Hchan*
-makechan(Type *elem, uint32 hint)
+makechan(Type *elem, int64 hint)
 {
 	Hchan *c;
 	int32 i;
+
+	if(hint < 0 || (int32)hint != hint || hint > ((uintptr)-1) / elem->size)
+		panicstring("makechan: size out of range");
 
 	if(elem->alg >= nelem(algarray)) {
 		printf("chan(alg=%d)\n", elem->alg);
@@ -141,9 +144,9 @@ destroychan(Hchan *c)
 }
 
 
-// makechan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+// makechan(elem *Type, hint int64) (hchan *chan any);
 void
-·makechan(Type *elem, uint32 hint, Hchan *ret)
+·makechan(Type *elem, int64 hint, Hchan *ret)
 {
 	ret = makechan(elem, hint);
 	FLUSH(&ret);

@@ -1138,7 +1138,7 @@ walkexpr(Node **np, NodeList **init)
 	case OMAKECHAN:
 		n = mkcall1(chanfn("makechan", 1, n->type), n->type, init,
 			typename(n->type->type),
-			conv(n->left, types[TINT]));
+			conv(n->left, types[TINT64]));
 		goto ret;
 
 	case OMAKEMAP:
@@ -1151,18 +1151,22 @@ walkexpr(Node **np, NodeList **init)
 		n = mkcall1(fn, n->type, init,
 			typename(t->down),	// key type
 			typename(t->type),		// value type
-			conv(n->left, types[TINT]));
+			conv(n->left, types[TINT64]));
 		goto ret;
 
 	case OMAKESLICE:
-		// makeslice(nel int, max int, width int) (ary []any)
+		// makeslice(t *Type, nel int64, max int64) (ary []any)
+		l = n->left;
+		r = n->right;
+		if(r == nil)
+			l = r = safeexpr(l, init);
 		t = n->type;
 		fn = syslook("makeslice", 1);
 		argtype(fn, t->type);			// any-1
 		n = mkcall1(fn, n->type, init,
 			typename(n->type),
-			conv(n->left, types[TINT]),
-			conv(n->right, types[TINT]));
+			conv(l, types[TINT64]),
+			conv(r, types[TINT64]));
 		goto ret;
 
 	case ORUNESTR:
