@@ -32,17 +32,17 @@ arg=0
 
 TEXT	_mulv(SB), $0
 	MOVW	0(FP), R0
-	MOVW	8(FP), R2		/* l0 */
-	MOVW	4(FP), R3	  /* h0 */
-	MOVW	16(FP), R4	  /* l1 */
-	MOVW	12(FP), R5	  /* h1 */
+	MOVW	4(FP), R2	/* l0 */
+	MOVW	8(FP), R11	/* h0 */
+	MOVW	12(FP), R4	/* l1 */
+	MOVW	16(FP), R5	/* h1 */
 	UMULL(4, 2, 7, 6, 0)
-	MUL(3, 4, 8, 0)
+	MUL(11, 4, 8, 0)
 	ADD	R8, R7
 	MUL(2, 5, 8, 0)
 	ADD	R8, R7
-	MOVW	R6, 4(R(arg))
-	MOVW	R7, 0(R(arg))
+	MOVW	R6, 0(R(arg))
+	MOVW	R7, 4(R(arg))
 	RET
 
 
