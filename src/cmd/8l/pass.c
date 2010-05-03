@@ -164,7 +164,7 @@ dodata(void)
 	xdefine("edata", SBSS, datsize);
 	xdefine("end", SBSS, dynptrsize + bsssize + datsize);
 
-	if(debug['s'])
+	if(debug['s'] || HEADTYPE == 8)
 		xdefine("symdat", SFIXED, 0);
 	else
 		xdefine("symdat", SFIXED, SYMDATVA);
