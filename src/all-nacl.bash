@@ -7,7 +7,7 @@
 
 export GOARCH=386
 export GOOS=nacl
-export GORUN="$GOROOT/misc/nacl/naclrun"
+export GORUN=${GORUN:-$GOROOT/misc/nacl/naclrun}
 
 set -e
 bash make.bash
