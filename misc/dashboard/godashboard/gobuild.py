@@ -575,7 +575,7 @@ class GetBenchmarks(webapp.RequestHandler):
             sep = "\n\t"
             for builder, iter, ns in bybuilder:
                 self.response.out.write('%s{ "builder": "%s", "iterations": %s, "nsperop": %s }' %
-                    (sep, builder, str(iter).replace("L", ""), str(nsperop).replace("L", "")))
+                    (sep, builder, str(iter).replace("L", ""), str(ns).replace("L", "")))
                 sep = ",\n\t"
             self.response.out.write('\n}\n')
             return
