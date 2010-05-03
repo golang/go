@@ -629,7 +629,7 @@ func hexValue(ch byte) int {
 }
 
 
-// scanN returns the natural number corresponding to the
+// scan returns the natural number corresponding to the
 // longest possible prefix of s representing a natural number in a
 // given conversion base, the actual conversion base used, and the
 // prefix length. The syntax of natural numbers follows the syntax
@@ -830,6 +830,81 @@ func (z nat) shiftRightDeprecated(x nat, n uint) nat {
 	}
 	z[len(x)-1] = m >> n
 	return z
+}
+
+
+func (z nat) and(x, y nat) nat {
+	m := len(x)
+	n := len(y)
+	if m > n {
+		m = n
+	}
+	// m <= n
+
+	z = z.make(m)
+	for i := 0; i < m; i++ {
+		z[i] = x[i] & y[i]
+	}
+
+	return z.norm()
+}
+
+
+func (z nat) andNot(x, y nat) nat {
+	m := len(x)
+	n := len(y)
+	if n > m {
+		n = m
+	}
+	// m >= n
+
+	z = z.make(m)
+	for i := 0; i < n; i++ {
+		z[i] = x[i] &^ y[i]
+	}
+	copy(z[n:m], x[n:m])
+
+	return z.norm()
+}
+
+
+func (z nat) or(x, y nat) nat {
+	m := len(x)
+	n := len(y)
+	s := x
+	if m < n {
+		n, m = m, n
+		s = y
+	}
+	// n >= m
+
+	z = z.make(n)
+	for i := 0; i < m; i++ {
+		z[i] = x[i] | y[i]
+	}
+	copy(z[m:n], s[m:n])
+
+	return z.norm()
+}
+
+
+func (z nat) xor(x, y nat) nat {
+	m := len(x)
+	n := len(y)
+	s := x
+	if n < m {
+		n, m = m, n
+		s = y
+	}
+	// n >= m
+
+	z = z.make(n)
+	for i := 0; i < m; i++ {
+		z[i] = x[i] ^ y[i]
+	}
+	copy(z[m:n], s[m:n])
+
+	return z.norm()
 }
 
 
