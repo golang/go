@@ -6,7 +6,7 @@
  * Input to godefs.
  *
 	godefs -f -m64 defs.c >amd64/defs.h
-	godefs defs.c >386/defs.h
+	godefs -f -m32 defs.c >386/defs.h
  */
 
 #include <sys/types.h>
