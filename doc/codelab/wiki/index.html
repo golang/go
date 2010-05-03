@@ -544,7 +544,7 @@ to its own function:
 func viewHandler(c *http.Conn, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
-	renderTemplate(c, &#34;edit&#34;, p)
+	renderTemplate(c, &#34;view&#34;, p)
 }
 
 func editHandler(c *http.Conn, r *http.Request) {
@@ -553,7 +553,7 @@ func editHandler(c *http.Conn, r *http.Request) {
 	if err != nil {
 		p = &amp;page{title: title}
 	}
-	renderTemplate(c, &#34;view&#34;, p)
+	renderTemplate(c, &#34;edit&#34;, p)
 }
 
 func renderTemplate(c *http.Conn, tmpl string, p *page) {
