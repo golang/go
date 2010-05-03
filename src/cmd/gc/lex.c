@@ -797,6 +797,7 @@ l0:
 	 * i said it was clumsy.
 	 */
 	case '(':
+	case '[':
 		if(loophack || lstk != nil) {
 			h = malloc(sizeof *h);
 			h->v = loophack;
@@ -806,6 +807,7 @@ l0:
 		}
 		goto lx;
 	case ')':
+	case ']':
 		if(lstk != nil) {
 			h = lstk;
 			loophack = h->v;
