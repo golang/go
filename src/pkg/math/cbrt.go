@@ -15,9 +15,9 @@ package math
 // Cbrt returns the cube root of its argument.
 //
 // Special cases are:
-//	Exp(±0) = ±0
-//	Exp(±Inf) = ±Inf
-//	Exp(NaN) = NaN
+//	Cbrt(±0) = ±0
+//	Cbrt(±Inf) = ±Inf
+//	Cbrt(NaN) = NaN
 func Cbrt(x float64) float64 {
 	const (
 		A1 = 1.662848358e-01
