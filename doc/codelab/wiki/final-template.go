@@ -34,13 +34,13 @@ func editHandler(c *http.Conn, r *http.Request) {
 	if err != nil {
 		p = &page{title: title}
 	}
-	renderTemplate(c, "view", p)
+	renderTemplate(c, "edit", p)
 }
 
 func viewHandler(c *http.Conn, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
-	renderTemplate(c, "edit", p)
+	renderTemplate(c, "view", p)
 }
 
 func saveHandler(c *http.Conn, r *http.Request) {
