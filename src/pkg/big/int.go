@@ -408,3 +408,145 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 	z.abs = z.abs.shr(x.abs, n)
 	return z
 }
+
+// And sets z = x & y and returns z.
+func (z *Int) And(x, y *Int) *Int {
+	if x.neg == y.neg {
+		if x.neg {
+			// (-x) & (-y) == ^(x-1) & ^(y-1) == ^((x-1) | (y-1)) == -(((x-1) | (y-1)) + 1)
+			x1 := nat{}.sub(x.abs, natOne)
+			y1 := z.abs.sub(y.abs, natOne)
+			z.neg = true
+			z.abs = z.abs.add(z.abs.or(x1, y1), natOne)
+			return z
+		}
+
+		// x & y == x & y
+		z.neg = false
+		z.abs = z.abs.and(x.abs, y.abs)
+		return z
+	}
+
+	// x.neg != y.neg
+	if x.neg {
+		x, y = y, x // & is symmetric
+	}
+
+	// x & (-y) == x & ^(y-1) == x &^ (y-1)
+	y1 := z.abs.sub(y.abs, natOne)
+	z.neg = false
+	z.abs = z.abs.andNot(x.abs, y1)
+	return z
+}
+
+
+// AndNot sets z = x &^ y and returns z.
+func (z *Int) AndNot(x, y *Int) *Int {
+	if x.neg == y.neg {
+		if x.neg {
+			// (-x) &^ (-y) == ^(x-1) &^ ^(y-1) == ^(x-1) & (y-1) == (y-1) &^ (x-1)
+			x1 := nat{}.sub(x.abs, natOne)
+			y1 := z.abs.sub(y.abs, natOne)
+			z.neg = false
+			z.abs = z.abs.andNot(y1, x1)
+			return z
+		}
+
+		// x &^ y == x &^ y
+		z.neg = false
+		z.abs = z.abs.andNot(x.abs, y.abs)
+		return z
+	}
+
+	if x.neg {
+		// (-x) &^ y == ^(x-1) &^ y == ^(x-1) & ^y == ^((x-1) | y) == -(((x-1) | y) + 1)
+		x1 := z.abs.sub(x.abs, natOne)
+		z.neg = true
+		z.abs = z.abs.add(z.abs.or(x1, y.abs), natOne)
+		return z
+	}
+
+	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
+	y1 := z.abs.add(y.abs, natOne)
+	z.neg = false
+	z.abs = z.abs.and(x.abs, y1)
+	return z
+}
+
+
+// Or sets z = x | y and returns z.
+func (z *Int) Or(x, y *Int) *Int {
+	if x.neg == y.neg {
+		if x.neg {
+			// (-x) | (-y) == ^(x-1) | ^(y-1) == ^((x-1) & (y-1)) == -(((x-1) & (y-1)) + 1)
+			x1 := nat{}.sub(x.abs, natOne)
+			y1 := z.abs.sub(y.abs, natOne)
+			z.neg = true
+			z.abs = z.abs.add(z.abs.and(x1, y1), natOne)
+			return z
+		}
+
+		// x | y == x | y
+		z.neg = false
+		z.abs = z.abs.or(x.abs, y.abs)
+		return z
+	}
+
+	// x.neg != y.neg
+	if x.neg {
+		x, y = y, x // | is symmetric
+	}
+
+	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
+	y1 := z.abs.sub(y.abs, natOne)
+	z.neg = true
+	z.abs = z.abs.add(z.abs.andNot(y1, x.abs), natOne)
+	return z
+}
+
+
+// Xor sets z = x ^ y and returns z.
+func (z *Int) Xor(x, y *Int) *Int {
+	if x.neg == y.neg {
+		if x.neg {
+			// (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
+			x1 := nat{}.sub(x.abs, natOne)
+			y1 := z.abs.sub(y.abs, natOne)
+			z.neg = false
+			z.abs = z.abs.xor(x1, y1)
+			return z
+		}
+
+		// x ^ y == x ^ y
+		z.neg = false
+		z.abs = z.abs.xor(x.abs, y.abs)
+		return z
+	}
+
+	// x.neg != y.neg
+	if x.neg {
+		x, y = y, x // | is symmetric
+	}
+
+	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
+	y1 := z.abs.sub(y.abs, natOne)
+	z.neg = true
+	z.abs = z.abs.add(z.abs.xor(x.abs, y1), natOne)
+	return z
+}
+
+
+// Not sets z = ^x and returns z.
+func (z *Int) Not(x *Int) *Int {
+	if x.neg {
+		// ^(-x) == ^(^(x-1)) == x-1
+		z.neg = false
+		z.abs = z.abs.sub(x.abs, natOne)
+		return z
+	}
+
+	// ^x == -x-1 == -(x+1)
+	z.neg = true
+	z.abs = z.abs.add(x.abs, natOne)
+	return z
+}

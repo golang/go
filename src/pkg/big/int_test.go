@@ -709,3 +709,129 @@ func TestInt64(t *testing.T) {
 		}
 	}
 }
+
+
+type bitwiseTest struct {
+	x, y                 string
+	and, or, xor, andNot string
+}
+
+var bitwiseTests = []bitwiseTest{
+	bitwiseTest{"0x00", "0x00", "0x00", "0x00", "0x00", "0x00"},
+	bitwiseTest{"0x00", "0x01", "0x00", "0x01", "0x01", "0x00"},
+	bitwiseTest{"0x01", "0x00", "0x00", "0x01", "0x01", "0x01"},
+	bitwiseTest{"-0x01", "0x00", "0x00", "-0x01", "-0x01", "-0x01"},
+	bitwiseTest{"0x00", "-0x01", "0x00", "-0x01", "-0x01", "0x00"},
+	bitwiseTest{"0x01", "0x01", "0x01", "0x01", "0x00", "0x00"},
+	bitwiseTest{"-0x01", "-0x01", "-0x01", "-0x01", "0x00", "0x00"},
+	bitwiseTest{"0x07", "0x08", "0x00", "0x0f", "0x0f", "0x07"},
+	bitwiseTest{"0x05", "0x0f", "0x05", "0x0f", "0x0a", "0x00"},
+	bitwiseTest{"0x013ff6", "0x9a4e", "0x1a46", "0x01bffe", "0x01a5b8", "0x0125b0"},
+	bitwiseTest{"-0x013ff6", "0x9a4e", "0x800a", "-0x0125b2", "-0x01a5bc", "-0x01c000"},
+	bitwiseTest{"-0x013ff6", "-0x9a4e", "-0x01bffe", "-0x1a46", "0x01a5b8", "0x8008"},
+	bitwiseTest{
+		"0x1000009dc6e3d9822cba04129bcbe3401",
+		"0xb9bd7d543685789d57cb918e833af352559021483cdb05cc21fd",
+		"0x1000001186210100001000009048c2001",
+		"0xb9bd7d543685789d57cb918e8bfeff7fddb2ebe87dfbbdfe35fd",
+		"0xb9bd7d543685789d57ca918e8ae69d6fcdb2eae87df2b97215fc",
+		"0x8c40c2d8822caa04120b8321400",
+	},
+	bitwiseTest{
+		"0x1000009dc6e3d9822cba04129bcbe3401",
+		"-0xb9bd7d543685789d57cb918e833af352559021483cdb05cc21fd",
+		"0x8c40c2d8822caa04120b8321401",
+		"-0xb9bd7d543685789d57ca918e82229142459020483cd2014001fd",
+		"-0xb9bd7d543685789d57ca918e8ae69d6fcdb2eae87df2b97215fe",
+		"0x1000001186210100001000009048c2000",
+	},
+	bitwiseTest{
+		"-0x1000009dc6e3d9822cba04129bcbe3401",
+		"-0xb9bd7d543685789d57cb918e833af352559021483cdb05cc21fd",
+		"-0xb9bd7d543685789d57cb918e8bfeff7fddb2ebe87dfbbdfe35fd",
+		"-0x1000001186210100001000009048c2001",
+		"0xb9bd7d543685789d57ca918e8ae69d6fcdb2eae87df2b97215fc",
+		"0xb9bd7d543685789d57ca918e82229142459020483cd2014001fc",
+	},
+}
+
+
+type bitFun func(z, x, y *Int) *Int
+
+func testBitFun(t *testing.T, msg string, f bitFun, x, y *Int, exp string) {
+	expected := new(Int)
+	expected.SetString(exp, 16)
+
+	out := f(new(Int), x, y)
+	if out.Cmp(expected) != 0 {
+		println("Test failed")
+		t.Errorf("%s: got %s want %s", msg, out, expected)
+	}
+}
+
+
+func testBitFunSelf(t *testing.T, msg string, f bitFun, x, y *Int, exp string) {
+	expected := new(Int)
+	expected.SetString(exp, 16)
+
+	x = f(x, x, y)
+	if x.Cmp(expected) != 0 {
+		println("Test failed")
+		t.Errorf("%s: got %s want %s", msg, x, expected)
+	}
+}
+
+
+func TestBitwise(t *testing.T) {
+	x := new(Int)
+	y := new(Int)
+	for _, test := range bitwiseTests {
+		x.SetString(test.x, 16)
+		y.SetString(test.y, 16)
+
+		testBitFun(t, "and", (*Int).And, x, y, test.and)
+		testBitFunSelf(t, "and", (*Int).And, x, y, test.and)
+		testBitFun(t, "andNot", (*Int).AndNot, x, y, test.andNot)
+		testBitFunSelf(t, "andNot", (*Int).AndNot, x, y, test.andNot)
+		testBitFun(t, "or", (*Int).Or, x, y, test.or)
+		testBitFunSelf(t, "or", (*Int).Or, x, y, test.or)
+		testBitFun(t, "xor", (*Int).Xor, x, y, test.xor)
+		testBitFunSelf(t, "xor", (*Int).Xor, x, y, test.xor)
+	}
+}
+
+
+type notTest struct {
+	in  string
+	out string
+}
+
+var notTests = []notTest{
+	notTest{"0", "-1"},
+	notTest{"1", "-2"},
+	notTest{"7", "-8"},
+	notTest{"0", "-1"},
+	notTest{"-81910", "81909"},
+	notTest{
+		"298472983472983471903246121093472394872319615612417471234712061",
+		"-298472983472983471903246121093472394872319615612417471234712062",
+	},
+}
+
+func TestNot(t *testing.T) {
+	in := new(Int)
+	out := new(Int)
+	expected := new(Int)
+	for i, test := range notTests {
+		in.SetString(test.in, 10)
+		expected.SetString(test.out, 10)
+		out = out.Not(in)
+		if out.Cmp(expected) != 0 {
+			t.Errorf("#%d: got %s want %s", i, out, expected)
+		}
+		out = out.Not(out)
+		if out.Cmp(in) != 0 {
+			t.Errorf("#%d: got %s want %s", i, out, in)
+		}
+	}
+}

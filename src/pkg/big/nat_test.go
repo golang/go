@@ -173,37 +173,37 @@ func BenchmarkMul(b *testing.B) {
 }
 
 
-type strN struct {
+type str struct {
 	x nat
 	b int
 	s string
 }
 
 
-var tabN = []strN{
-	strN{nil, 10, "0"},
-	strN{nat{1}, 10, "1"},
-	strN{nat{10}, 10, "10"},
-	strN{nat{1234567890}, 10, "1234567890"},
+var tab = []str{
+	str{nil, 10, "0"},
+	str{nat{1}, 10, "1"},
+	str{nat{10}, 10, "10"},
+	str{nat{1234567890}, 10, "1234567890"},
 }
 
 
 func TestString(t *testing.T) {
-	for _, a := range tabN {
+	for _, a := range tab {
 		s := a.x.string(a.b)
 		if s != a.s {
-			t.Errorf("stringN%+v\n\tgot s = %s; want %s", a, s, a.s)
+			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
 		x, b, n := nat(nil).scan(a.s, a.b)
 		if x.cmp(a.x) != 0 {
-			t.Errorf("scanN%+v\n\tgot z = %v; want %v", a, x, a.x)
+			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
 		if b != a.b {
-			t.Errorf("scanN%+v\n\tgot b = %d; want %d", a, b, a.b)
+			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.b)
 		}
 		if n != len(a.s) {
-			t.Errorf("scanN%+v\n\tgot n = %d; want %d", a, n, len(a.s))
+			t.Errorf("scan%+v\n\tgot n = %d; want %d", a, n, len(a.s))
 		}
 	}
 }
