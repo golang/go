@@ -785,7 +785,7 @@ func (z nat) shr(x nat, s uint) nat {
 	}
 
 	z = z.make(n)
-	shrVW(&z[0], &x[m-n], Word(s%_W), m)
+	shrVW(&z[0], &x[m-n], Word(s%_W), n)
 
 	return z.norm()
 }
