@@ -106,7 +106,7 @@ dir:
 #	x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
 #
 
-_cgo_defun.c _cgo_gotypes.go: $(CGOFILES)
+_cgo_defun.c _cgo_gotypes.go _cgo_export.c _cgo_export.h: $(CGOFILES)
 	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $(CGOFILES)
 
 # Ugly but necessary
