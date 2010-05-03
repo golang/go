@@ -1,4 +1,4 @@
-// godefs defs.c
+// godefs -f -m32 defs.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 
