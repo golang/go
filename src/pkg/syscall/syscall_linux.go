@@ -24,6 +24,11 @@ func Open(path string, mode int, perm int) (fd int, errno int) {
 	return open(path, mode|O_LARGEFILE, perm)
 }
 
+//sys	openat(dirfd int, path string, flags int, mode int) (fd int, errno int)
+func Openat(dirfd int, path string, flags int, mode int) (fd int, errno int) {
+	return openat(dirfd, path, flags|O_LARGEFILE, mode)
+}
+
 //sys	pipe(p *[2]_C_int) (errno int)
 func Pipe(p []int) (errno int) {
 	if len(p) != 2 {
@@ -581,7 +586,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
 //sys	Mknod(path string, mode int, dev int) (errno int)
 //sys	Mknodat(dirfd int, path string, mode int, dev int) (errno int)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
-//sys	Openat(dirfd int, path string, flags int, mode int) (fd int, errno int)
 //sys	Pause() (errno int)
 //sys	PivotRoot(newroot string, putold string) (errno int) = SYS_PIVOT_ROOT
 //sys	Pread(fd int, p []byte, offset int64) (n int, errno int) = SYS_PREAD64

@@ -4,6 +4,15 @@
 
 package syscall
 
+// These seem not to be defined in our gcc's ARM headers
+// and are thus missing from zerrors_linux_arm.go.
+const (
+	WSTOPPED     = 0x7f
+	O_CLOEXEC    = 0
+	EPOLLRDHUP   = EPOLLHUP
+	EPOLLONESHOT = 0x40000000
+)
+
 func Getpagesize() int { return 4096 }
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
