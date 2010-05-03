@@ -119,6 +119,7 @@ var indexAnyTests = []BinOpTest{
 	BinOpTest{"aaa", "a", 0},
 	BinOpTest{"abc", "xyz", -1},
 	BinOpTest{"abc", "xcz", 2},
+	BinOpTest{"ab☺c", "x☺yz", 2},
 	BinOpTest{"aRegExp*", ".(|)*+?^$[]", 7},
 	BinOpTest{dots + dots + dots, " ", -1},
 }
@@ -138,7 +139,15 @@ func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, tes
 
 func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
 func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
-func TestIndexAny(t *testing.T)  { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
+func TestIndexAny(t *testing.T) {
+	for _, test := range indexAnyTests {
+		a := []byte(test.a)
+		actual := IndexAny(a, test.b)
+		if actual != test.i {
+			t.Errorf("IndexAny(%q,%q) = %v; want %v", a, test.b, actual, test.i)
+		}
+	}
+}
 
 func TestIndexByte(t *testing.T) {
 	for _, tt := range indexTests {

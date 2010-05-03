@@ -14,11 +14,16 @@ import (
 // Compare returns an integer comparing the two byte arrays lexicographically.
 // The result will be 0 if a==b, -1 if a < b, and +1 if a > b
 func Compare(a, b []byte) int {
-	for i := 0; i < len(a) && i < len(b); i++ {
+	m := len(a)
+	if m > len(b) {
+		m = len(b)
+	}
+	for i, ac := range a[0:m] {
+		bc := b[i]
 		switch {
-		case a[i] > b[i]:
+		case ac > bc:
 			return 1
-		case a[i] < b[i]:
+		case ac < bc:
 			return -1
 		}
 	}
@@ -36,8 +41,8 @@ func Equal(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
+	for i, c := range a {
+		if c != b[i] {
 			return false
 		}
 	}
@@ -125,13 +130,22 @@ func LastIndex(s, sep []byte) int {
 	return -1
 }
 
-// IndexAny returns the index of the first instance of any byte
-// from bytes in s, or -1 if no byte from bytes is present in s.
-func IndexAny(s, bytes []byte) int {
-	if len(bytes) > 0 {
-		for i, b := range s {
-			for _, m := range bytes {
-				if b == m {
+// IndexAny interprets s as a sequence of UTF-8 encoded Unicode code points.
+// It returns the byte index of the first occurrence in s of any of the Unicode
+// code points in chars.  It returns -1 if chars is empty or if there is no code
+// point in common.
+func IndexAny(s []byte, chars string) int {
+	if len(chars) > 0 {
+		var rune, width int
+		for i := 0; i < len(s); i += width {
+			rune = int(s[i])
+			if rune < utf8.RuneSelf {
+				width = 1
+			} else {
+				rune, width = utf8.DecodeRune(s[i:])
+			}
+			for _, r := range chars {
+				if rune == r {
 					return i
 				}
 			}
@@ -261,7 +275,8 @@ func HasSuffix(s, suffix []byte) bool {
 
 // Map returns a copy of the byte array s with all its characters modified
 // according to the mapping function. If mapping returns a negative value, the character is
-// dropped from the string with no replacement.
+// dropped from the string with no replacement.  The characters in s and the
+// output are interpreted as UTF-8 encoded Unicode code points.
 func Map(mapping func(rune int) int, s []byte) []byte {
 	// In the worst case, the array can grow when mapped, making
 	// things unpleasant.  But it's so rare we barge in assuming it's
@@ -293,7 +308,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 	return b[0:nbytes]
 }
 
-// Repeat returns a new byte array consisting of count copies of b.
+// Repeat returns a new byte slice consisting of count copies of b.
 func Repeat(b []byte, count int) []byte {
 	nb := make([]byte, len(b)*count)
 	bp := 0
@@ -316,7 +331,8 @@ func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
 func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 
 // Trim returns a slice of the string s, with all leading and trailing white space
-// removed, as defined by Unicode.
+// removed, as defined by Unicode.  The slice is is interpreted as UTF-8 encoded
+// Unicode code points.
 func TrimSpace(s []byte) []byte {
 	start, end := 0, len(s)
 	for start < end {
