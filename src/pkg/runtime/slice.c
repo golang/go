@@ -186,9 +186,7 @@ void
 void
 ·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
 {
-	if(fm.array == nil || fm.len == 0 ||
-	   to.array == nil || to.len == 0 ||
-	   width == 0) {
+	if(fm.len == 0 || to.len == 0 || width == 0) {
 		ret = 0;
 		goto out;
 	}
