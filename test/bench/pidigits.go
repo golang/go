@@ -81,8 +81,8 @@ func extract_digit() int64 {
 
 func next_term(k int64) {
 	// TODO(eds) If big.Int ever gets a Scale method, y2 and bigk could be int64
-	y2.New(k*2 + 1)
-	bigk.New(k)
+	y2.SetInt64(k*2 + 1)
+	bigk.SetInt64(k)
 
 	tmp1.Lsh(numer, 1)
 	accum.Add(accum, tmp1)

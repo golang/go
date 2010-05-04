@@ -67,7 +67,7 @@ func TestEncryptPKCS1v15(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to open /dev/urandom")
 	}
-	k := (rsaPrivateKey.N.Len() + 7) / 8
+	k := (rsaPrivateKey.N.BitLen() + 7) / 8
 
 	tryEncryptDecrypt := func(in []byte, blind bool) bool {
 		if len(in) > k-11 {

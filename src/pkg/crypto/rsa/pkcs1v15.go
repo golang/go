@@ -18,7 +18,7 @@ import (
 // WARNING: use of this function to encrypt plaintexts other than session keys
 // is dangerous. Use RSA OAEP in new protocols.
 func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, err os.Error) {
-	k := (pub.N.Len() + 7) / 8
+	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-11 {
 		err = MessageTooLongError{}
 		return
@@ -66,7 +66,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
 // Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
 // (Crypto '98),
 func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err os.Error) {
-	k := (priv.N.Len() + 7) / 8
+	k := (priv.N.BitLen() + 7) / 8
 	if k-(len(key)+3+8) < 0 {
 		err = DecryptionError{}
 		return
@@ -83,7 +83,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 }
 
 func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, msg []byte, err os.Error) {
-	k := (priv.N.Len() + 7) / 8
+	k := (priv.N.BitLen() + 7) / 8
 	if k < 11 {
 		err = DecryptionError{}
 		return
@@ -179,7 +179,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash PKCS1v15Hash, hashed []
 	}
 
 	tLen := len(prefix) + hashLen
-	k := (priv.N.Len() + 7) / 8
+	k := (priv.N.BitLen() + 7) / 8
 	if k < tLen+11 {
 		return nil, MessageTooLongError{}
 	}
@@ -212,7 +212,7 @@ func VerifyPKCS1v15(pub *PublicKey, hash PKCS1v15Hash, hashed []byte, sig []byte
 	}
 
 	tLen := len(prefix) + hashLen
-	k := (pub.N.Len() + 7) / 8
+	k := (pub.N.BitLen() + 7) / 8
 	if k < tLen+11 {
 		err = VerificationError{}
 		return
