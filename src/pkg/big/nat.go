@@ -356,7 +356,7 @@ func karatsuba(z, x, y nat) {
 
 // alias returns true if x and y share the same base array.
 func alias(x, y nat) bool {
-	return &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
+	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
 
 
@@ -412,7 +412,7 @@ func (z nat) mul(x, y nat) nat {
 	// m >= n > 1
 
 	// determine if z can be reused
-	if len(z) > 0 && (alias(z, x) || alias(z, y)) {
+	if alias(z, x) || alias(z, y) {
 		z = nil // z is an alias for x or y - cannot reuse
 	}
 
@@ -757,7 +757,7 @@ func (z nat) shl(x nat, s uint) nat {
 
 	// determine if z can be reused
 	// TODO(gri) change shlVW so we don't need this
-	if len(z) > 0 && alias(z, x) {
+	if alias(z, x) {
 		z = nil // z is an alias for x - cannot reuse
 	}
 
@@ -780,7 +780,7 @@ func (z nat) shr(x nat, s uint) nat {
 
 	// determine if z can be reused
 	// TODO(gri) change shrVW so we don't need this
-	if len(z) > 0 && alias(z, x) {
+	if alias(z, x) {
 		z = nil // z is an alias for x - cannot reuse
 	}
 

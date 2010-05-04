@@ -11,9 +11,13 @@ import (
 	"testing/quick"
 )
 
-func newZ(x int64) *Int {
-	var z Int
-	return z.New(x)
+
+func isNormalized(x *Int) bool {
+	if len(x.abs) == 0 {
+		return !x.neg
+	}
+	// len(x.abs) > 0
+	return x.abs[len(x.abs)-1] != 0
 }
 
 
@@ -24,20 +28,20 @@ type argZZ struct {
 
 
 var sumZZ = []argZZ{
-	argZZ{newZ(0), newZ(0), newZ(0)},
-	argZZ{newZ(1), newZ(1), newZ(0)},
-	argZZ{newZ(1111111110), newZ(123456789), newZ(987654321)},
-	argZZ{newZ(-1), newZ(-1), newZ(0)},
-	argZZ{newZ(864197532), newZ(-123456789), newZ(987654321)},
-	argZZ{newZ(-1111111110), newZ(-123456789), newZ(-987654321)},
+	argZZ{NewInt(0), NewInt(0), NewInt(0)},
+	argZZ{NewInt(1), NewInt(1), NewInt(0)},
+	argZZ{NewInt(1111111110), NewInt(123456789), NewInt(987654321)},
+	argZZ{NewInt(-1), NewInt(-1), NewInt(0)},
+	argZZ{NewInt(864197532), NewInt(-123456789), NewInt(987654321)},
+	argZZ{NewInt(-1111111110), NewInt(-123456789), NewInt(-987654321)},
 }
 
 
 var prodZZ = []argZZ{
-	argZZ{newZ(0), newZ(0), newZ(0)},
-	argZZ{newZ(0), newZ(1), newZ(0)},
-	argZZ{newZ(1), newZ(1), newZ(1)},
-	argZZ{newZ(-991 * 991), newZ(991), newZ(-991)},
+	argZZ{NewInt(0), NewInt(0), NewInt(0)},
+	argZZ{NewInt(0), NewInt(1), NewInt(0)},
+	argZZ{NewInt(1), NewInt(1), NewInt(1)},
+	argZZ{NewInt(-991 * 991), NewInt(991), NewInt(-991)},
 	// TODO(gri) add larger products
 }
 
@@ -46,6 +50,9 @@ func TestSetZ(t *testing.T) {
 	for _, a := range sumZZ {
 		var z Int
 		z.Set(a.z)
+		if !isNormalized(&z) {
+			t.Errorf("%v is not normalized", z)
+		}
 		if (&z).Cmp(a.z) != 0 {
 			t.Errorf("got z = %v; want %v", z, a.z)
 		}
@@ -56,6 +63,9 @@ func TestSetZ(t *testing.T) {
 func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 	var z Int
 	f(&z, a.x, a.y)
+	if !isNormalized(&z) {
+		t.Errorf("msg: %v is not normalized", z, msg)
+	}
 	if (&z).Cmp(a.z) != 0 {
 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
 	}
@@ -186,13 +196,20 @@ func TestSetString(t *testing.T) {
 	for i, test := range fromStringTests {
 		n1, ok1 := new(Int).SetString(test.in, test.base)
 		n2, ok2 := n2.SetString(test.in, test.base)
-		expected := new(Int).New(test.out)
+		expected := NewInt(test.out)
 		if ok1 != test.ok || ok2 != test.ok {
 			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok)
 			continue
 		}
 		if !ok1 || !ok2 {
 			continue
+		}
+
+		if ok1 && !isNormalized(n1) {
+			t.Errorf("#%d (input '%s'): %v is not normalized", i, test.in, *n1)
+		}
+		if ok2 && !isNormalized(n2) {
+			t.Errorf("#%d (input '%s'): %v is not normalized", i, test.in, *n2)
 		}
 
 		if n1.Cmp(expected) != 0 {
@@ -205,33 +222,77 @@ func TestSetString(t *testing.T) {
 }
 
 
-type divSignsTest struct {
+type divisionSignsTest struct {
 	x, y int64
-	q, r int64
+	q, r int64 // T-division
+	d, m int64 // Euclidian division
 }
 
 
-// These examples taken from the Go Language Spec, section "Arithmetic operators"
-var divSignsTests = []divSignsTest{
-	divSignsTest{5, 3, 1, 2},
-	divSignsTest{-5, 3, -1, -2},
-	divSignsTest{5, -3, -1, 2},
-	divSignsTest{-5, -3, 1, -2},
-	divSignsTest{1, 2, 0, 1},
+// Examples from the Go Language Spec, section "Arithmetic operators"
+var divisionSignsTests = []divisionSignsTest{
+	divisionSignsTest{5, 3, 1, 2, 1, 2},
+	divisionSignsTest{-5, 3, -1, -2, -2, 1},
+	divisionSignsTest{5, -3, -1, 2, -1, 2},
+	divisionSignsTest{-5, -3, 1, -2, 2, 1},
+	divisionSignsTest{1, 2, 0, 1, 0, 1},
+	divisionSignsTest{8, 4, 2, 0, 2, 0},
 }
 
 
-func TestDivSigns(t *testing.T) {
-	for i, test := range divSignsTests {
-		x := new(Int).New(test.x)
-		y := new(Int).New(test.y)
-		r := new(Int)
-		q, r := new(Int).DivMod(x, y, r)
-		expectedQ := new(Int).New(test.q)
-		expectedR := new(Int).New(test.r)
+func TestDivisionSigns(t *testing.T) {
+	for i, test := range divisionSignsTests {
+		x := NewInt(test.x)
+		y := NewInt(test.y)
+		q := NewInt(test.q)
+		r := NewInt(test.r)
+		d := NewInt(test.d)
+		m := NewInt(test.m)
 
-		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
-			t.Errorf("#%d: got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
+		q1 := new(Int).Quo(x, y)
+		r1 := new(Int).Rem(x, y)
+		if !isNormalized(q1) {
+			t.Errorf("#%d Quo: %v is not normalized", i, *q1)
+		}
+		if !isNormalized(r1) {
+			t.Errorf("#%d Rem: %v is not normalized", i, *r1)
+		}
+		if q1.Cmp(q) != 0 || r1.Cmp(r) != 0 {
+			t.Errorf("#%d QuoRem: got (%s, %s), want (%s, %s)", i, q1, r1, q, r)
+		}
+
+		q2, r2 := new(Int).QuoRem(x, y, new(Int))
+		if !isNormalized(q2) {
+			t.Errorf("#%d Quo: %v is not normalized", i, *q2)
+		}
+		if !isNormalized(r2) {
+			t.Errorf("#%d Rem: %v is not normalized", i, *r2)
+		}
+		if q2.Cmp(q) != 0 || r2.Cmp(r) != 0 {
+			t.Errorf("#%d QuoRem: got (%s, %s), want (%s, %s)", i, q2, r2, q, r)
+		}
+
+		d1 := new(Int).Div(x, y)
+		m1 := new(Int).Mod(x, y)
+		if !isNormalized(d1) {
+			t.Errorf("#%d Div: %v is not normalized", i, *d1)
+		}
+		if !isNormalized(m1) {
+			t.Errorf("#%d Mod: %v is not normalized", i, *m1)
+		}
+		if d1.Cmp(d) != 0 || m1.Cmp(m) != 0 {
+			t.Errorf("#%d DivMod: got (%s, %s), want (%s, %s)", i, d1, m1, d, m)
+		}
+
+		d2, m2 := new(Int).DivMod(x, y, new(Int))
+		if !isNormalized(d2) {
+			t.Errorf("#%d Div: %v is not normalized", i, *d2)
+		}
+		if !isNormalized(m2) {
+			t.Errorf("#%d Mod: %v is not normalized", i, *m2)
+		}
+		if d2.Cmp(d) != 0 || m2.Cmp(m) != 0 {
+			t.Errorf("#%d DivMod: got (%s, %s), want (%s, %s)", i, d2, m2, d, m)
 		}
 	}
 }
@@ -273,7 +334,7 @@ func TestBytes(t *testing.T) {
 }
 
 
-func checkDiv(x, y []byte) bool {
+func checkQuo(x, y []byte) bool {
 	u := new(Int).SetBytes(x)
 	v := new(Int).SetBytes(y)
 
@@ -282,7 +343,7 @@ func checkDiv(x, y []byte) bool {
 	}
 
 	r := new(Int)
-	q, r := new(Int).DivMod(u, v, r)
+	q, r := new(Int).QuoRem(u, v, r)
 
 	if r.Cmp(v) >= 0 {
 		return false
@@ -296,20 +357,20 @@ func checkDiv(x, y []byte) bool {
 }
 
 
-type divTest struct {
+type quoTest struct {
 	x, y string
 	q, r string
 }
 
 
-var divTests = []divTest{
-	divTest{
+var quoTests = []quoTest{
+	quoTest{
 		"476217953993950760840509444250624797097991362735329973741718102894495832294430498335824897858659711275234906400899559094370964723884706254265559534144986498357",
 		"9353930466774385905609975137998169297361893554149986716853295022578535724979483772383667534691121982974895531435241089241440253066816724367338287092081996",
 		"50911",
 		"1",
 	},
-	divTest{
+	quoTest{
 		"11510768301994997771168",
 		"1328165573307167369775",
 		"8",
@@ -318,19 +379,19 @@ var divTests = []divTest{
 }
 
 
-func TestDiv(t *testing.T) {
-	if err := quick.Check(checkDiv, nil); err != nil {
+func TestQuo(t *testing.T) {
+	if err := quick.Check(checkQuo, nil); err != nil {
 		t.Error(err)
 	}
 
-	for i, test := range divTests {
+	for i, test := range quoTests {
 		x, _ := new(Int).SetString(test.x, 10)
 		y, _ := new(Int).SetString(test.y, 10)
 		expectedQ, _ := new(Int).SetString(test.q, 10)
 		expectedR, _ := new(Int).SetString(test.r, 10)
 
 		r := new(Int)
-		q, r := new(Int).DivMod(x, y, r)
+		q, r := new(Int).QuoRem(x, y, r)
 
 		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
 			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
@@ -339,7 +400,7 @@ func TestDiv(t *testing.T) {
 }
 
 
-func TestDivStepD6(t *testing.T) {
+func TestQuoStepD6(t *testing.T) {
 	// See Knuth, Volume 2, section 4.3.1, exercise 21. This code exercises
 	// a code path which only triggers 1 in 10^{-19} cases.
 
@@ -347,7 +408,7 @@ func TestDivStepD6(t *testing.T) {
 	v := &Int{false, nat{5, 2 + 1<<(_W-1), 1 << (_W - 1)}}
 
 	r := new(Int)
-	q, r := new(Int).DivMod(u, v, r)
+	q, r := new(Int).QuoRem(u, v, r)
 	const expectedQ64 = "18446744073709551613"
 	const expectedR64 = "3138550867693340382088035895064302439801311770021610913807"
 	const expectedQ32 = "4294967293"
@@ -359,35 +420,38 @@ func TestDivStepD6(t *testing.T) {
 }
 
 
-type lenTest struct {
+type bitLenTest struct {
 	in  string
 	out int
 }
 
 
-var lenTests = []lenTest{
-	lenTest{"0", 0},
-	lenTest{"1", 1},
-	lenTest{"2", 2},
-	lenTest{"4", 3},
-	lenTest{"0x8000", 16},
-	lenTest{"0x80000000", 32},
-	lenTest{"0x800000000000", 48},
-	lenTest{"0x8000000000000000", 64},
-	lenTest{"0x80000000000000000000", 80},
+var bitLenTests = []bitLenTest{
+	bitLenTest{"-1", 1},
+	bitLenTest{"0", 0},
+	bitLenTest{"1", 1},
+	bitLenTest{"2", 2},
+	bitLenTest{"4", 3},
+	bitLenTest{"0xabc", 12},
+	bitLenTest{"0x8000", 16},
+	bitLenTest{"0x80000000", 32},
+	bitLenTest{"0x800000000000", 48},
+	bitLenTest{"0x8000000000000000", 64},
+	bitLenTest{"0x80000000000000000000", 80},
+	bitLenTest{"-0x4000000000000000000000", 87},
 }
 
 
-func TestLen(t *testing.T) {
-	for i, test := range lenTests {
-		n, ok := new(Int).SetString(test.in, 0)
+func TestBitLen(t *testing.T) {
+	for i, test := range bitLenTests {
+		x, ok := new(Int).SetString(test.in, 0)
 		if !ok {
 			t.Errorf("#%d test input invalid: %s", i, test.in)
 			continue
 		}
 
-		if n.Len() != test.out {
-			t.Errorf("#%d got %d want %d\n", i, n.Len(), test.out)
+		if n := x.BitLen(); n != test.out {
+			t.Errorf("#%d got %d want %d\n", i, n, test.out)
 		}
 	}
 }
@@ -404,6 +468,7 @@ var expTests = []expTest{
 	expTest{"-5", "0", "", "-1"},
 	expTest{"5", "1", "", "5"},
 	expTest{"-5", "1", "", "-5"},
+	expTest{"-2", "3", "2", "0"},
 	expTest{"5", "2", "", "25"},
 	expTest{"1", "65537", "2", "1"},
 	expTest{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
@@ -436,13 +501,16 @@ func TestExp(t *testing.T) {
 		}
 
 		if !ok1 || !ok2 || !ok3 || !ok4 {
-			t.Errorf("#%d error in input", i)
+			t.Errorf("#%d: error in input", i)
 			continue
 		}
 
 		z := new(Int).Exp(x, y, m)
+		if !isNormalized(z) {
+			t.Errorf("#%d: %v is not normalized", i, *z)
+		}
 		if z.Cmp(out) != 0 {
-			t.Errorf("#%d got %s want %s", i, z, out)
+			t.Errorf("#%d: got %s want %s", i, z, out)
 		}
 	}
 }
@@ -478,16 +546,16 @@ var gcdTests = []gcdTest{
 
 func TestGcd(t *testing.T) {
 	for i, test := range gcdTests {
-		a := new(Int).New(test.a)
-		b := new(Int).New(test.b)
+		a := NewInt(test.a)
+		b := NewInt(test.b)
 
 		x := new(Int)
 		y := new(Int)
 		d := new(Int)
 
-		expectedX := new(Int).New(test.x)
-		expectedY := new(Int).New(test.y)
-		expectedD := new(Int).New(test.d)
+		expectedX := NewInt(test.x)
+		expectedY := NewInt(test.y)
+		expectedD := NewInt(test.d)
 
 		GcdInt(d, x, y, a, b)
 
@@ -594,8 +662,11 @@ func TestRsh(t *testing.T) {
 		expected, _ := new(Int).SetString(test.out, 10)
 		out := new(Int).Rsh(in, test.shift)
 
+		if !isNormalized(out) {
+			t.Errorf("#%d: %v is not normalized", i, *out)
+		}
 		if out.Cmp(expected) != 0 {
-			t.Errorf("#%d got %s want %s", i, out, expected)
+			t.Errorf("#%d: got %s want %s", i, out, expected)
 		}
 	}
 }
@@ -607,8 +678,11 @@ func TestRshSelf(t *testing.T) {
 		expected, _ := new(Int).SetString(test.out, 10)
 		z.Rsh(z, test.shift)
 
+		if !isNormalized(z) {
+			t.Errorf("#%d: %v is not normalized", i, *z)
+		}
 		if z.Cmp(expected) != 0 {
-			t.Errorf("#%d got %s want %s", i, z, expected)
+			t.Errorf("#%d: got %s want %s", i, z, expected)
 		}
 	}
 }
@@ -643,8 +717,11 @@ func TestLsh(t *testing.T) {
 		expected, _ := new(Int).SetString(test.out, 10)
 		out := new(Int).Lsh(in, test.shift)
 
+		if !isNormalized(out) {
+			t.Errorf("#%d: %v is not normalized", i, *out)
+		}
 		if out.Cmp(expected) != 0 {
-			t.Errorf("#%d got %s want %s", i, out, expected)
+			t.Errorf("#%d: got %s want %s", i, out, expected)
 		}
 	}
 }
@@ -656,8 +733,11 @@ func TestLshSelf(t *testing.T) {
 		expected, _ := new(Int).SetString(test.out, 10)
 		z.Lsh(z, test.shift)
 
+		if !isNormalized(z) {
+			t.Errorf("#%d: %v is not normalized", i, *z)
+		}
 		if z.Cmp(expected) != 0 {
-			t.Errorf("#%d got %s want %s", i, z, expected)
+			t.Errorf("#%d: got %s want %s", i, z, expected)
 		}
 	}
 }
@@ -669,8 +749,11 @@ func TestLshRsh(t *testing.T) {
 		out := new(Int).Lsh(in, test.shift)
 		out = out.Rsh(out, test.shift)
 
+		if !isNormalized(out) {
+			t.Errorf("#%d: %v is not normalized", i, *out)
+		}
 		if in.Cmp(out) != 0 {
-			t.Errorf("#%d got %s want %s", i, out, in)
+			t.Errorf("#%d: got %s want %s", i, out, in)
 		}
 	}
 	for i, test := range lshTests {
@@ -678,8 +761,11 @@ func TestLshRsh(t *testing.T) {
 		out := new(Int).Lsh(in, test.shift)
 		out.Rsh(out, test.shift)
 
+		if !isNormalized(out) {
+			t.Errorf("#%d: %v is not normalized", i, *out)
+		}
 		if in.Cmp(out) != 0 {
-			t.Errorf("#%d got %s want %s", i, out, in)
+			t.Errorf("#%d: got %s want %s", i, out, in)
 		}
 	}
 }
@@ -721,6 +807,7 @@ var bitwiseTests = []bitwiseTest{
 	bitwiseTest{"0x00", "0x01", "0x00", "0x01", "0x01", "0x00"},
 	bitwiseTest{"0x01", "0x00", "0x00", "0x01", "0x01", "0x01"},
 	bitwiseTest{"-0x01", "0x00", "0x00", "-0x01", "-0x01", "-0x01"},
+	bitwiseTest{"-0xAF", "-0x50", "0x00", "-0xFF", "-0x01", "-0x01"},
 	bitwiseTest{"0x00", "-0x01", "0x00", "-0x01", "-0x01", "0x00"},
 	bitwiseTest{"0x01", "0x01", "0x01", "0x01", "0x00", "0x00"},
 	bitwiseTest{"-0x01", "-0x01", "-0x01", "-0x01", "0x00", "0x00"},

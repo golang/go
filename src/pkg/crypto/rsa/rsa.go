@@ -50,11 +50,11 @@ func randomPrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
 
 // randomNumber returns a uniform random value in [0, max).
 func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
-	k := (max.Len() + 7) / 8
+	k := (max.BitLen() + 7) / 8
 
 	// r is the number of bits in the used in the most significant byte of
 	// max.
-	r := uint(max.Len() % 8)
+	r := uint(max.BitLen() % 8)
 	if r == 0 {
 		r = 8
 	}
@@ -244,7 +244,7 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 // twice the hash length plus 2.
 func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err os.Error) {
 	hash.Reset()
-	k := (pub.N.Len() + 7) / 8
+	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-2*hash.Size()-2 {
 		err = MessageTooLongError{}
 		return
@@ -365,7 +365,7 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
 // If rand != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
 func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err os.Error) {
-	k := (priv.N.Len() + 7) / 8
+	k := (priv.N.BitLen() + 7) / 8
 	if len(ciphertext) > k ||
 		k < hash.Size()*2+2 {
 		err = DecryptionError{}

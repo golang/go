@@ -253,7 +253,7 @@ func (x *Integer) QuoRem(y *Integer) (*Integer, *Integer) {
 // Div and Mod implement Euclidian division and modulus:
 //
 //   q = x.Div(y)
-//   r = x.Mod(y) with: 0 <= r < |q| and: y = x*q + r
+//   r = x.Mod(y) with: 0 <= r < |q| and: x = y*q + r
 //
 // (Raymond T. Boute, ``The Euclidian definition of the functions
 // div and mod''. ACM Transactions on Programming Languages and
