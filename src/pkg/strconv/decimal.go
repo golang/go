@@ -41,32 +41,25 @@ func (a *decimal) String() string {
 		buf[w] = '.'
 		w++
 		w += digitZero(buf[w : w+-a.dp])
-		w += copy(buf[w:w+a.nd], a.d[0:a.nd])
+		w += copy(buf[w:], a.d[0:a.nd])
 
 	case a.dp < a.nd:
 		// decimal point in middle of digits
-		w += copy(buf[w:w+a.dp], a.d[0:a.dp])
+		w += copy(buf[w:], a.d[0:a.dp])
 		buf[w] = '.'
 		w++
-		w += copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd])
+		w += copy(buf[w:], a.d[a.dp:a.nd])
 
 	default:
 		// zeros fill space between digits and decimal point
-		w += copy(buf[w:w+a.nd], a.d[0:a.nd])
+		w += copy(buf[w:], a.d[0:a.nd])
 		w += digitZero(buf[w : w+a.dp-a.nd])
 	}
 	return string(buf[0:w])
 }
 
-func copy(dst []byte, src []byte) int {
-	for i := 0; i < len(dst); i++ {
-		dst[i] = src[i]
-	}
-	return len(dst)
-}
-
 func digitZero(dst []byte) int {
-	for i := 0; i < len(dst); i++ {
+	for i := range dst {
 		dst[i] = '0'
 	}
 	return len(dst)
