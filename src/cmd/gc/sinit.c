@@ -31,8 +31,10 @@ init1(Node *n, NodeList **out)
 	case PFUNC:
 		break;
 	default:
-		if(isblank(n))
+		if(isblank(n) && n->defn != N && !n->defn->initorder) {
+			n->defn->initorder = 1;
 			*out = list(*out, n->defn);
+		}
 		return;
 	}
 
