@@ -701,8 +701,10 @@ walkexpr(Node **np, NodeList **init)
 		if(l == N || r == N)
 			goto ret;
 		r = ascompatee1(n->op, l, r, init);
-		if(r != N)
+		if(r != N) {
+			r->dodata = n->dodata;
 			n = r;
+		}
 		goto ret;
 
 	case OAS2:
