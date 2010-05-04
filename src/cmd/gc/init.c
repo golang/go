@@ -37,17 +37,14 @@ renameinit(Node *n)
  *				return
  *			throw();			(5)
  *		}
- *		initdone.<file> += 1;			(6)
+ *		initdone.<file> = 1;			(6)
  *		// over all matching imported symbols
  *			<pkg>.init·<file>()		(7)
  *		{ <init stmts> }			(8)
  *		init·<file>()	// if any		(9)
- *		initdone.<file> += 1;			(10)
+ *		initdone.<file> = 2;			(10)
  *		return					(11)
  *	}
- * note that this code cannot have an assignment
- * statement or, because of the initflag,  it will
- * be converted into a data statement.
  */
 int
 anyinit(NodeList *n)
@@ -120,7 +117,6 @@ fninit(NodeList *n)
 	addvar(gatevar, types[TUINT8], PEXTERN);
 
 	// (2)
-
 	maxarg = 0;
 	snprint(namebuf, sizeof(namebuf), "Init·");
 
