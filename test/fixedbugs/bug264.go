@@ -8,27 +8,22 @@
 
 package main
 
-import "fmt"
-
 var fooCount = 0
 var barCount = 0
 var balCount = 0
 
 func foo() (int, int) {
 	fooCount++
-	fmt.Println("foo")
 	return 0, 0
 }
 
 func bar() (int, int) {
 	barCount++
-	fmt.Println("bar")
 	return 0, 0
 }
 
 func bal() (int, int) {
 	balCount++
-	fmt.Println("bal")
 	return 0, 0
 }
 
