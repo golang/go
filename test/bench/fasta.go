@@ -31,134 +31,136 @@ POSSIBILITY OF SUCH DAMAGE.
  * http://shootout.alioth.debian.org/
  *
  * contributed by The Go Authors.
- * Based on C program by Joern Inge Vestgaarden
- * and Jorge Peixoto de Morais Neto.
+ * Based on C program by by Petr Prokhorenkov.
  */
 
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"flag"
 	"os"
 )
 
-var out *bufio.Writer
+var out = make(buffer, 0, 32768)
 
 var n = flag.Int("n", 1000, "length of result")
 
-const WIDTH = 60 // Fold lines after WIDTH bytes
+const Line = 60
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-type AminoAcid struct {
-	p float
-	c byte
-}
-
-func AccumulateProbabilities(genelist []AminoAcid) {
-	for i := 1; i < len(genelist); i++ {
-		genelist[i].p += genelist[i-1].p
-	}
-}
-
-// RepeatFasta prints the characters of the byte slice s. When it
-// reaches the end of the slice, it goes back to the beginning.
-// It stops after generating count characters.
-// After each WIDTH characters it prints a newline.
-// It assumes that WIDTH <= len(s) + 1.
-func RepeatFasta(s []byte, count int) {
-	pos := 0
-	s2 := make([]byte, len(s)+WIDTH)
-	copy(s2, s)
-	copy(s2[len(s):], s)
-	for count > 0 {
-		line := min(WIDTH, count)
-		out.Write(s2[pos : pos+line])
-		out.WriteByte('\n')
-		pos += line
-		if pos >= len(s) {
-			pos -= len(s)
+func Repeat(alu []byte, n int) {
+	buf := bytes.Add(alu, alu)
+	off := 0
+	for n > 0 {
+		m := n
+		if m > Line {
+			m = Line
 		}
-		count -= line
+		buf1 := out.NextWrite(m + 1)
+		copy(buf1, buf[off:])
+		buf1[m] = '\n'
+		if off += m; off >= len(alu) {
+			off -= len(alu)
+		}
+		n -= m
 	}
 }
-
-var lastrandom uint32 = 42
 
 const (
 	IM = 139968
 	IA = 3877
 	IC = 29573
+
+	LookupSize  = 4096
+	LookupScale float64 = LookupSize - 1
 )
 
-// Each element of genelist is a struct with a character and
-// a floating point number p between 0 and 1.
-// RandomFasta generates a random float r and
-// finds the first element such that p >= r.
-// This is a weighted random selection.
-// RandomFasta then prints the character of the array element.
-// This sequence is repeated count times.
-// Between each WIDTH consecutive characters, the function prints a newline.
-func RandomFasta(genelist []AminoAcid, count int) {
-	buf := make([]byte, WIDTH+1)
-	for count > 0 {
-		line := min(WIDTH, count)
-		for pos := 0; pos < line; pos++ {
-			lastrandom = (lastrandom*IA + IC) % IM
-			// Integer to float conversions are faster if the integer is signed.
-			r := float(int32(lastrandom)) / IM
-			for _, v := range genelist {
-				if v.p >= r {
-					buf[pos] = v.c
-					break
-				}
-			}
+var rand uint32 = 42
+
+type Acid struct {
+	sym   byte
+	prob  float64
+	cprob float64
+	next  *Acid
+}
+
+func computeLookup(acid []Acid) *[LookupSize]*Acid {
+	var lookup [LookupSize]*Acid
+	var p float64
+	for i := range acid {
+		p += acid[i].prob
+		acid[i].cprob = p * LookupScale
+		if i > 0 {
+			acid[i-1].next = &acid[i]
 		}
-		buf[line] = '\n'
-		out.Write(buf[0 : line+1])
-		count -= line
+	}
+	acid[len(acid)-1].cprob = 1.0 * LookupScale
+
+	j := 0
+	for i := range lookup {
+		for acid[j].cprob < float64(i) {
+			j++
+		}
+		lookup[i] = &acid[j]
+	}
+
+	return &lookup
+}
+
+func Random(acid []Acid, n int) {
+	lookup := computeLookup(acid)
+	for n > 0 {
+		m := n
+		if m > Line {
+			m = Line
+		}
+		buf := out.NextWrite(m + 1)
+		f := LookupScale / IM
+		myrand := rand
+		for i := 0; i < m; i++ {
+			myrand = (myrand*IA + IC) % IM
+			r := float64(int(myrand)) * f
+			a := lookup[int(r)]
+			for a.cprob < r {
+				a = a.next
+			}
+			buf[i] = a.sym
+		}
+		rand = myrand
+		buf[m] = '\n'
+		n -= m
 	}
 }
 
 func main() {
-	out = bufio.NewWriter(os.Stdout)
 	defer out.Flush()
 
 	flag.Parse()
 
-	iub := []AminoAcid{
-		AminoAcid{0.27, 'a'},
-		AminoAcid{0.12, 'c'},
-		AminoAcid{0.12, 'g'},
-		AminoAcid{0.27, 't'},
-		AminoAcid{0.02, 'B'},
-		AminoAcid{0.02, 'D'},
-		AminoAcid{0.02, 'H'},
-		AminoAcid{0.02, 'K'},
-		AminoAcid{0.02, 'M'},
-		AminoAcid{0.02, 'N'},
-		AminoAcid{0.02, 'R'},
-		AminoAcid{0.02, 'S'},
-		AminoAcid{0.02, 'V'},
-		AminoAcid{0.02, 'W'},
-		AminoAcid{0.02, 'Y'},
+	iub := []Acid{
+		Acid{prob: 0.27, sym: 'a'},
+		Acid{prob: 0.12, sym: 'c'},
+		Acid{prob: 0.12, sym: 'g'},
+		Acid{prob: 0.27, sym: 't'},
+		Acid{prob: 0.02, sym: 'B'},
+		Acid{prob: 0.02, sym: 'D'},
+		Acid{prob: 0.02, sym: 'H'},
+		Acid{prob: 0.02, sym: 'K'},
+		Acid{prob: 0.02, sym: 'M'},
+		Acid{prob: 0.02, sym: 'N'},
+		Acid{prob: 0.02, sym: 'R'},
+		Acid{prob: 0.02, sym: 'S'},
+		Acid{prob: 0.02, sym: 'V'},
+		Acid{prob: 0.02, sym: 'W'},
+		Acid{prob: 0.02, sym: 'Y'},
 	}
 
-	homosapiens := []AminoAcid{
-		AminoAcid{0.3029549426680, 'a'},
-		AminoAcid{0.1979883004921, 'c'},
-		AminoAcid{0.1975473066391, 'g'},
-		AminoAcid{0.3015094502008, 't'},
+	homosapiens := []Acid{
+		Acid{prob: 0.3029549426680, sym: 'a'},
+		Acid{prob: 0.1979883004921, sym: 'c'},
+		Acid{prob: 0.1975473066391, sym: 'g'},
+		Acid{prob: 0.3015094502008, sym: 't'},
 	}
-
-	AccumulateProbabilities(iub)
-	AccumulateProbabilities(homosapiens)
 
 	alu := []byte(
 		"GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG" +
@@ -170,9 +172,38 @@ func main() {
 			"AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA")
 
 	out.WriteString(">ONE Homo sapiens alu\n")
-	RepeatFasta(alu, 2**n)
+	Repeat(alu, 2**n)
 	out.WriteString(">TWO IUB ambiguity codes\n")
-	RandomFasta(iub, 3**n)
+	Random(iub, 3**n)
 	out.WriteString(">THREE Homo sapiens frequency\n")
-	RandomFasta(homosapiens, 5**n)
+	Random(homosapiens, 5**n)
+}
+
+
+type buffer []byte
+
+func (b *buffer) Flush() {
+	p := *b
+	if len(p) > 0 {
+		os.Stdout.Write(p)
+	}
+	*b = p[0:0]
+}
+
+func (b *buffer) WriteString(s string) {
+	p := b.NextWrite(len(s))
+	for i := 0; i < len(s); i++ {
+		p[i] = s[i]
+	}
+}
+
+func (b *buffer) NextWrite(n int) []byte {
+	p := *b
+	if len(p)+n > cap(p) {
+		b.Flush()
+		p = *b
+	}
+	out := p[len(p) : len(p)+n]
+	*b = p[0 : len(p)+n]
+	return out
 }
