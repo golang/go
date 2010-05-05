@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of March 25, 2010 -->
+<!-- subtitle Version of May 4, 2010 -->
 
 <!--
 Todo
@@ -2869,7 +2869,6 @@ For integer values, <code>/</code> and <code>%</code> satisfy the following rela
 
 <p>
 with <code>(a / b)</code> truncated towards zero.
-Examples:
 </p>
 
 <pre>
@@ -2881,6 +2880,7 @@ Examples:
 </pre>
 
 <p>
+If the divisor is zero, a <a href="#Run_time_panics">run-time panic</a> occurs.
 If the dividend is positive and the divisor is a constant power of 2,
 the division may be replaced by a right shift, and computing the remainder may
 be replaced by a bitwise "and" operation:
@@ -2921,6 +2921,9 @@ follows:
 For floating-point numbers,
 <code>+x</code> is the same as <code>x</code>,
 while <code>-x</code> is the negation of <code>x</code>.
+The result of a floating-point division by zero is not specified beyond the
+IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
+occurs is implementation-specific.
 </p>
 
 <h3 id="Integer_overflow">Integer overflow</h3>
@@ -4421,24 +4424,24 @@ The memory is initialized as described in the section on initial values
 </p>
 
 <pre class="grammar">
-make(T [, optional list of expressions])
+Call             Type T     Result
+
+make(T, n)       slice      slice of type T with length n and capacity n
+make(T, n, m)    slice      slice of type T with length n and capacity m
+
+make(T)          map        map of type T
+make(T, n)       map        map of type T with initial space for n elements
+
+make(T)          channel    synchronous channel of type T
+make(T, n)       channel    asynchronous channel of type T, buffer size n
 </pre>
 
-<p>
-For instance
-</p>
-
-<pre>
-make(map[string] int)
-</pre>
 
 <p>
-creates a new map value and initializes it to an empty map.
-</p>
-
-<p>
-The parameters affect sizes for allocating slices, maps, and
-buffered channels:
+The arguments <code>n</code> and <code>m</code> must be of integer type.
+A <a href="#Run_time_panics">run-time panic</a> occurs if <code>n</code>
+is negative or larger than <code>m</code>, or if <code>n</code> or
+<code>m</code> cannot be represented by an <code>int</code>.
 </p>
 
 <pre>
