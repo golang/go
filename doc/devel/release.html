@@ -5,6 +5,34 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-05-04">2010-05-04</h3>
+
+<pre>
+In this release we renamed the Windows OS target from 'mingw' to 'windows'.
+If you are currently building for 'mingw' you should set GOOS=windows instead.
+
+* 5l, 6l, 8l, runtime: make -s binaries work.
+* 5l, 6l, 8l: change ELF header so that strip doesn't destroy binary.
+* 8l: fix absolute path detection on Windows.
+* big: new functions, optimizations, and cleanups,
+	add bitwise methods for Int (thanks Evan Shaw).
+* bytes: Change IndexAny to look for UTF-8 encoded characters.
+* darwin: bsdthread_create can fail; print good error.
+* fmt: %T missing print <nil> for nil (thanks Christopher Wedgwood).
+* gc: many fixes.
+* misc/cgo/gmp: fix bug in SetString.
+* net: fix resolv.conf EOF without newline bug (thanks Christopher Wedgwood).
+* spec: some small clarifications (no language changes).
+* syscall: add EWOULDBLOCK to sycall_nacl.go,
+	force O_LARGEFILE in Linux open system call,
+	handle EOF on pipe - special case on Windows (thanks Alex Brainman),
+	mingw Sleep (thanks Joe Poirier).
+* test/bench: import new fasta C reference, update Go, optimizations.
+* test: test of static initialization (fails).
+* vector: use correct capacity in call to make.
+* xml: allow text segments to end at EOF.
+</pre>
+
 <h3 id="2010-04-27">2010-04-27</h3>
 
 <pre>
