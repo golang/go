@@ -71,9 +71,8 @@
 	Structs, arrays and slices are also supported.  Strings and arrays of bytes are
 	supported with a special, efficient representation (see below).
 
-	Maps are not supported yet, but they will be.  Interfaces, functions, and channels
-	cannot be sent in a gob.  Attempting to encode a value that contains one will
-	fail.
+	Interfaces, functions, and channels cannot be sent in a gob.  Attempting
+	to encode a value that contains one will fail.
 
 	The rest of this comment documents the encoding, details that are not important
 	for most users.  Details are presented bottom-up.
@@ -263,10 +262,13 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	case *reflect.ArrayType:
 		// arrays must be sent so we know their lengths and element types.
 		break
+	case *reflect.MapType:
+		// maps must be sent so we know their lengths and key/value types.
+		break
 	case *reflect.StructType:
 		// structs must be sent so we know their fields.
 		break
-	case *reflect.ChanType, *reflect.FuncType, *reflect.MapType, *reflect.InterfaceType:
+	case *reflect.ChanType, *reflect.FuncType, *reflect.InterfaceType:
 		// Probably a bad field in a struct.
 		enc.badType(rt)
 		return

@@ -22,7 +22,7 @@ const uint64Size = unsafe.Sizeof(uint64(0))
 type encoderState struct {
 	b        *bytes.Buffer
 	err      os.Error             // error encountered during encoding.
-	inArray  bool                 // encoding an array element
+	inArray  bool                 // encoding an array element or map key/value pair
 	fieldnum int                  // the last field number written.
 	buf      [1 + uint64Size]byte // buffer used by the encoder; here to avoid allocation.
 }
@@ -297,7 +297,7 @@ func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) os.Error {
 	return state.err
 }
 
-func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length int, elemIndir int) os.Error {
+func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, elemIndir int, length int) os.Error {
 	state := new(encoderState)
 	state.b = b
 	state.fieldnum = -1
@@ -315,6 +315,39 @@ func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length i
 		}
 		op(nil, state, unsafe.Pointer(elemp))
 		p += uintptr(elemWid)
+	}
+	return state.err
+}
+
+func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir int) {
+	for i := 0; i < indir && v != nil; i++ {
+		v = reflect.Indirect(v)
+	}
+	if v == nil {
+		state.err = os.ErrorString("gob: encodeMap: nil element")
+		return
+	}
+	op(nil, state, unsafe.Pointer(v.Addr()))
+}
+
+func encodeMap(b *bytes.Buffer, rt reflect.Type, p uintptr, keyOp, elemOp encOp, keyIndir, elemIndir int) os.Error {
+	state := new(encoderState)
+	state.b = b
+	state.fieldnum = -1
+	state.inArray = true
+	// Maps cannot be accessed by moving addresses around the way
+	// that slices etc. can.  We must recover a full reflection value for
+	// the iteration.
+	v := reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer((p))))
+	mv := reflect.Indirect(v).(*reflect.MapValue)
+	keys := mv.Keys()
+	encodeUint(state, uint64(len(keys)))
+	for _, key := range keys {
+		if state.err != nil {
+			break
+		}
+		encodeReflectValue(state, key, keyOp, keyIndir)
+		encodeReflectValue(state, mv.Elem(key), elemOp, elemIndir)
 	}
 	return state.err
 }
@@ -344,7 +377,6 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 	typ, indir := indirect(rt)
 	op, ok := encOpMap[reflect.Typeof(typ)]
 	if !ok {
-		typ, _ := indirect(rt)
 		// Special cases
 		switch t := typ.(type) {
 		case *reflect.SliceType:
@@ -363,7 +395,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 					return
 				}
 				state.update(i)
-				state.err = encodeArray(state.b, slice.Data, elemOp, t.Elem().Size(), int(slice.Len), indir)
+				state.err = encodeArray(state.b, slice.Data, elemOp, t.Elem().Size(), indir, int(slice.Len))
 			}
 		case *reflect.ArrayType:
 			// True arrays have size in the type.
@@ -373,7 +405,20 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			}
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i)
-				state.err = encodeArray(state.b, uintptr(p), elemOp, t.Elem().Size(), t.Len(), indir)
+				state.err = encodeArray(state.b, uintptr(p), elemOp, t.Elem().Size(), indir, t.Len())
+			}
+		case *reflect.MapType:
+			keyOp, keyIndir, err := encOpFor(t.Key())
+			if err != nil {
+				return nil, 0, err
+			}
+			elemOp, elemIndir, err := encOpFor(t.Elem())
+			if err != nil {
+				return nil, 0, err
+			}
+			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+				state.update(i)
+				state.err = encodeMap(state.b, typ, uintptr(p), keyOp, elemOp, keyIndir, elemIndir)
 			}
 		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.

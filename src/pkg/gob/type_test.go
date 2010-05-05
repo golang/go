@@ -105,6 +105,26 @@ func TestSliceType(t *testing.T) {
 	}
 }
 
+func TestMapType(t *testing.T) {
+	var m map[string]int
+	mapStringInt := getTypeUnlocked("map", reflect.Typeof(m))
+	var newm map[string]int
+	newMapStringInt := getTypeUnlocked("map1", reflect.Typeof(newm))
+	if mapStringInt != newMapStringInt {
+		t.Errorf("second registration of map[string]int creates new type")
+	}
+	var b map[string]bool
+	mapStringBool := getTypeUnlocked("", reflect.Typeof(b))
+	if mapStringBool == mapStringInt {
+		t.Errorf("registration of map[string]bool creates same type as map[string]int")
+	}
+	str := mapStringBool.string()
+	expected := "map[string]bool"
+	if str != expected {
+		t.Errorf("map printed as %q; expected %q", str, expected)
+	}
+}
+
 type Bar struct {
 	x string
 }
