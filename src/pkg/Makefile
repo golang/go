@@ -94,6 +94,7 @@ DIRS=\
 	math\
 	mime\
 	net\
+	netchan\
 	nntp\
 	once\
 	os\
