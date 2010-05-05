@@ -142,6 +142,31 @@ func (a *arrayType) safeString(seen map[typeId]bool) string {
 
 func (a *arrayType) string() string { return a.safeString(make(map[typeId]bool)) }
 
+// Map type
+type mapType struct {
+	commonType
+	Key  typeId
+	Elem typeId
+}
+
+func newMapType(name string, key, elem gobType) *mapType {
+	m := &mapType{commonType{name: name}, key.id(), elem.id()}
+	setTypeId(m)
+	return m
+}
+
+func (m *mapType) safeString(seen map[typeId]bool) string {
+	if seen[m._id] {
+		return m.name
+	}
+	seen[m._id] = true
+	key := m.Key.gobType().safeString(seen)
+	elem := m.Elem.gobType().safeString(seen)
+	return fmt.Sprintf("map[%s]%s", key, elem)
+}
+
+func (m *mapType) string() string { return m.safeString(make(map[typeId]bool)) }
+
 // Slice type
 type sliceType struct {
 	commonType
@@ -239,6 +264,17 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 		}
 		return newArrayType(name, gt, t.Len()), nil
 
+	case *reflect.MapType:
+		kt, err := getType("", t.Key())
+		if err != nil {
+			return nil, err
+		}
+		vt, err := getType("", t.Elem())
+		if err != nil {
+			return nil, err
+		}
+		return newMapType(name, kt, vt), nil
+
 	case *reflect.SliceType:
 		// []byte == []uint8 is a special case
 		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
@@ -330,16 +366,18 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 // using the gob rules for sending a structure, except that we assume the
 // ids for wireType and structType are known.  The relevant pieces
 // are built in encode.go's init() function.
-
+// To maintain binary compatibility, if you extend this type, always put
+// the new fields last.
 type wireType struct {
-	array *arrayType
-	slice *sliceType
-	strct *structType
+	arrayT  *arrayType
+	sliceT  *sliceType
+	structT *structType
+	mapT    *mapType
 }
 
 func (w *wireType) name() string {
-	if w.strct != nil {
-		return w.strct.name
+	if w.structT != nil {
+		return w.structT.name
 	}
 	return "unknown"
 }
@@ -370,14 +408,16 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 		t := info.id.gobType()
 		switch typ := rt.(type) {
 		case *reflect.ArrayType:
-			info.wire = &wireType{array: t.(*arrayType)}
+			info.wire = &wireType{arrayT: t.(*arrayType)}
+		case *reflect.MapType:
+			info.wire = &wireType{mapT: t.(*mapType)}
 		case *reflect.SliceType:
 			// []byte == []uint8 is a special case handled separately
 			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
-				info.wire = &wireType{slice: t.(*sliceType)}
+				info.wire = &wireType{sliceT: t.(*sliceType)}
 			}
 		case *reflect.StructType:
-			info.wire = &wireType{strct: t.(*structType)}
+			info.wire = &wireType{structT: t.(*structType)}
 		}
 		typeInfoMap[rt] = info
 	}
