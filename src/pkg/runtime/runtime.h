@@ -569,6 +569,7 @@ float64	modf(float64 d, float64 *ip);
 void	semacquire(uint32*);
 void	semrelease(uint32*);
 String	signame(int32 sig);
+int32	gomaxprocsfunc(int32 n);
 
 
 void	mapassign(Hmap*, byte*, byte*);

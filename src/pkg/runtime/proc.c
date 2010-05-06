@@ -1136,13 +1136,15 @@ void
 }
 
 // delete when scheduler is stronger
-void
-·GOMAXPROCS(int32 n)
+int32
+gomaxprocsfunc(int32 n)
 {
-	if(n < 1)
-		n = 1;
+	int32 ret;
 
 	lock(&sched);
+	ret = sched.gomaxprocs;
+	if (n <= 0)
+		n = ret;
 	sched.gomaxprocs = n;
 	sched.mcpumax = n;
 	// handle fewer procs?
@@ -1152,11 +1154,12 @@ void
 		// we'll only get rescheduled once the
 		// number has come down.
 		gosched();
-		return;
+		return ret;
 	}
 	// handle more procs
 	matchmg();
 	unlock(&sched);
+	return ret;
 }
 
 void
