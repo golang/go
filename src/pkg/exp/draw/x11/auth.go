@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-// Reads the DISPLAY environment variable, and returns the "12" in ":12.0".
+// getDisplay reads the DISPLAY environment variable, and returns the "12" in ":12.0".
 func getDisplay() string {
 	d := os.Getenv("DISPLAY")
 	if len(d) < 1 || d[0] != ':' {
@@ -25,7 +25,7 @@ func getDisplay() string {
 	return d[1:i]
 }
 
-// Reads a big-endian uint16 from r, using b as a scratch buffer.
+// readU16BE reads a big-endian uint16 from r, using b as a scratch buffer.
 func readU16BE(r io.Reader, b []byte) (uint16, os.Error) {
 	_, err := io.ReadFull(r, b[0:2])
 	if err != nil {
@@ -34,34 +34,38 @@ func readU16BE(r io.Reader, b []byte) (uint16, os.Error) {
 	return uint16(b[0])<<8 + uint16(b[1]), nil
 }
 
-// Reads a length-prefixed string from r, using b as a scratch buffer.
-func readStr(r io.Reader, b []byte) (s string, err os.Error) {
+// readStr reads a length-prefixed string from r, using b as a scratch buffer.
+func readStr(r io.Reader, b []byte) (string, os.Error) {
 	n, err := readU16BE(r, b)
 	if err != nil {
-		return
+		return "", err
 	}
 	if int(n) > len(b) {
-		return s, os.NewError("Xauthority entry too long for buffer")
+		return "", os.NewError("Xauthority entry too long for buffer")
 	}
 	_, err = io.ReadFull(r, b[0:n])
 	if err != nil {
-		return
+		return "", err
 	}
 	return string(b[0:n]), nil
 }
 
-// Reads the ~/.Xauthority file and returns the name/data pair for the DISPLAY.
+// readAuth reads the X authority file and returns the name/data pair for the DISPLAY.
 // b is a scratch buffer to use, and should be at least 256 bytes long (i.e. it should be able to hold a hostname).
 func readAuth(b []byte) (name, data string, err os.Error) {
 	// As per /usr/include/X11/Xauth.h.
 	const familyLocal = 256
 
-	home := os.Getenv("HOME")
-	if len(home) == 0 {
-		err = os.NewError("unknown HOME")
-		return
+	fn := os.Getenv("XAUTHORITY")
+	if fn == "" {
+		home := os.Getenv("HOME")
+		if home == "" {
+			err = os.NewError("Xauthority not found: $XAUTHORITY, $HOME not set")
+			return
+		}
+		fn = home + "/.Xauthority"
 	}
-	r, err := os.Open(home+"/.Xauthority", os.O_RDONLY, 0444)
+	r, err := os.Open(fn, os.O_RDONLY, 0444)
 	if err != nil {
 		return
 	}
