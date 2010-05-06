@@ -974,3 +974,70 @@ func TestInvalidField(t *testing.T) {
 		t.Error("expected type error; got", err)
 	}
 }
+
+type Indirect struct {
+	a ***[3]int
+	s ***[]int
+	m ***map[string]int
+}
+
+type Direct struct {
+	a [3]int
+	s []int
+	m map[string]int
+}
+
+func TestIndirectSliceMapArray(t *testing.T) {
+	// Marshal indirect, unmarshal to direct.
+	i := new(Indirect)
+	i.a = new(**[3]int)
+	*i.a = new(*[3]int)
+	**i.a = new([3]int)
+	***i.a = [3]int{1, 2, 3}
+	i.s = new(**[]int)
+	*i.s = new(*[]int)
+	**i.s = new([]int)
+	***i.s = []int{4, 5, 6}
+	i.m = new(**map[string]int)
+	*i.m = new(*map[string]int)
+	**i.m = new(map[string]int)
+	***i.m = map[string]int{"one": 1, "two": 2, "three": 3}
+	b := new(bytes.Buffer)
+	NewEncoder(b).Encode(i)
+	dec := NewDecoder(b)
+	var d Direct
+	err := dec.Decode(&d)
+	if err != nil {
+		t.Error("error: ", err)
+	}
+	if len(d.a) != 3 || d.a[0] != 1 || d.a[1] != 2 || d.a[2] != 3 {
+		t.Errorf("indirect to direct: d.a is %v not %v", d.a, ***i.a)
+	}
+	if len(d.s) != 3 || d.s[0] != 4 || d.s[1] != 5 || d.s[2] != 6 {
+		t.Errorf("indirect to direct: d.s is %v not %v", d.s, ***i.s)
+	}
+	if len(d.m) != 3 || d.m["one"] != 1 || d.m["two"] != 2 || d.m["three"] != 3 {
+		t.Errorf("indirect to direct: d.m is %v not %v", d.m, ***i.m)
+	}
+	// Marshal direct, unmarshal to indirect.
+	d.a = [3]int{11, 22, 33}
+	d.s = []int{44, 55, 66}
+	d.m = map[string]int{"four": 4, "five": 5, "six": 6}
+	i = new(Indirect)
+	b.Reset()
+	NewEncoder(b).Encode(d)
+	dec = NewDecoder(b)
+	err = dec.Decode(&i)
+	if err != nil {
+		t.Error("error: ", err)
+	}
+	if len(***i.a) != 3 || (***i.a)[0] != 11 || (***i.a)[1] != 22 || (***i.a)[2] != 33 {
+		t.Errorf("indirect to direct: ***i.a is %v not %v", ***i.a, d.a)
+	}
+	if len(***i.s) != 3 || (***i.s)[0] != 44 || (***i.s)[1] != 55 || (***i.s)[2] != 66 {
+		t.Errorf("indirect to direct: ***i.s is %v not %v", ***i.s, ***i.s)
+	}
+	if len(***i.m) != 3 || (***i.m)["four"] != 4 || (***i.m)["five"] != 5 || (***i.m)["six"] != 6 {
+		t.Errorf("indirect to direct: ***i.m is %v not %v", ***i.m, d.m)
+	}
+}
