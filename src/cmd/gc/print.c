@@ -251,7 +251,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 	
 	case OARRAYLIT:
-		fmtprint(f, "slice literal");
+		if(isslice(n->type))
+			fmtprint(f, "slice literal");
+		else
+			fmtprint(f, "array literal");
 		break;
 	
 	case OMAPLIT:
