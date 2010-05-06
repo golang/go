@@ -599,9 +599,6 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				up := unsafe.Pointer(p)
-				if indir > 1 {
-					up = decIndirect(up, indir)
-				}
 				state.err = decodeMap(t, state, uintptr(up), keyOp, elemOp, i.indir, keyIndir, elemIndir, ovfl)
 			}
 
