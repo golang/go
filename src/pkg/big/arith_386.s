@@ -136,7 +136,7 @@ X8b:	MOVL $0, c+16(FP)
 
 // func shrVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shrVW(SB),7,$0
-	MOVL n+24(FP), BP
+	MOVL n+12(FP), BP
 	SUBL $1, BP		// n--
 	JL X9b			// n < 0	(n <= 0)
 
