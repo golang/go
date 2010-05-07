@@ -11,13 +11,13 @@ and compress during writing.  For example, to write compressed data
 to a buffer:
 
 	var b bytes.Buffer
-	w, err := zlib.NewDeflater(&b)
+	w, err := zlib.NewWriter(&b)
 	w.Write([]byte("hello, world\n"))
 	w.Close()
 
 and to read that data back:
 
-	r, err := zlib.NewInflater(&b)
+	r, err := zlib.NewReader(&b)
 	io.Copy(os.Stdout, r)
 	r.Close()
 */
@@ -39,17 +39,17 @@ var HeaderError os.Error = os.ErrorString("invalid zlib header")
 var UnsupportedError os.Error = os.ErrorString("unsupported zlib format")
 
 type reader struct {
-	r        flate.Reader
-	inflater io.ReadCloser
-	digest   hash.Hash32
-	err      os.Error
-	scratch  [4]byte
+	r            flate.Reader
+	decompressor io.ReadCloser
+	digest       hash.Hash32
+	err          os.Error
+	scratch      [4]byte
 }
 
-// NewInflater creates a new io.ReadCloser that satisfies reads by decompressing data read from r.
+// NewReader creates a new io.ReadCloser that satisfies reads by decompressing data read from r.
 // The implementation buffers input and may read more data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser when done.
-func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
+func NewReader(r io.Reader) (io.ReadCloser, os.Error) {
 	z := new(reader)
 	if fr, ok := r.(flate.Reader); ok {
 		z.r = fr
@@ -69,7 +69,7 @@ func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
 		return nil, UnsupportedError
 	}
 	z.digest = adler32.New()
-	z.inflater = flate.NewInflater(z.r)
+	z.decompressor = flate.NewReader(z.r)
 	return z, nil
 }
 
@@ -81,7 +81,7 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
 		return 0, nil
 	}
 
-	n, err = z.inflater.Read(p)
+	n, err = z.decompressor.Read(p)
 	z.digest.Write(p[0:n])
 	if n != 0 || err != os.EOF {
 		z.err = err
@@ -102,11 +102,11 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
 	return
 }
 
-// Calling Close does not close the wrapped io.Reader originally passed to NewInflater.
+// Calling Close does not close the wrapped io.Reader originally passed to NewReader.
 func (z *reader) Close() os.Error {
 	if z.err != nil {
 		return z.err
 	}
-	z.err = z.inflater.Close()
+	z.err = z.decompressor.Close()
 	return z.err
 }

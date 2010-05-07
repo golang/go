@@ -40,7 +40,7 @@ var HeaderError os.Error = os.ErrorString("invalid gzip header")
 var ChecksumError os.Error = os.ErrorString("gzip checksum error")
 
 // The gzip file stores a header giving metadata about the compressed file.
-// That header is exposed as the fields of the Deflater and Inflater structs.
+// That header is exposed as the fields of the Compressor and Decompressor structs.
 type Header struct {
 	Comment string // comment
 	Extra   []byte // "extra data"
@@ -49,36 +49,36 @@ type Header struct {
 	OS      byte   // operating system type
 }
 
-// An Inflater is an io.Reader that can be read to retrieve
+// An Decompressor is an io.Reader that can be read to retrieve
 // uncompressed data from a gzip-format compressed file.
 //
 // In general, a gzip file can be a concatenation of gzip files,
-// each with its own header.  Reads from the Inflater
+// each with its own header.  Reads from the Decompressor
 // return the concatenation of the uncompressed data of each.
-// Only the first header is recorded in the Inflater fields.
+// Only the first header is recorded in the Decompressor fields.
 //
 // Gzip files store a length and checksum of the uncompressed data.
-// The Inflater will return a ChecksumError when Read
+// The Decompressor will return a ChecksumError when Read
 // reaches the end of the uncompressed data if it does not
 // have the expected length or checksum.  Clients should treat data
 // returned by Read as tentative until they receive the successful
 // (zero length, nil error) Read marking the end of the data.
-type Inflater struct {
+type Decompressor struct {
 	Header
-	r        flate.Reader
-	inflater io.ReadCloser
-	digest   hash.Hash32
-	size     uint32
-	flg      byte
-	buf      [512]byte
-	err      os.Error
+	r            flate.Reader
+	decompressor io.ReadCloser
+	digest       hash.Hash32
+	size         uint32
+	flg          byte
+	buf          [512]byte
+	err          os.Error
 }
 
-// NewInflater creates a new Inflater reading the given reader.
+// NewReader creates a new Decompressor reading the given reader.
 // The implementation buffers input and may read more data than necessary from r.
-// It is the caller's responsibility to call Close on the Inflater when done.
-func NewInflater(r io.Reader) (*Inflater, os.Error) {
-	z := new(Inflater)
+// It is the caller's responsibility to call Close on the Decompressor when done.
+func NewReader(r io.Reader) (*Decompressor, os.Error) {
+	z := new(Decompressor)
 	z.r = makeReader(r)
 	z.digest = crc32.NewIEEE()
 	if err := z.readHeader(true); err != nil {
@@ -93,7 +93,7 @@ func get4(p []byte) uint32 {
 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
 }
 
-func (z *Inflater) readString() (string, os.Error) {
+func (z *Decompressor) readString() (string, os.Error) {
 	var err os.Error
 	for i := 0; ; i++ {
 		if i >= len(z.buf) {
@@ -112,7 +112,7 @@ func (z *Inflater) readString() (string, os.Error) {
 	panic("not reached")
 }
 
-func (z *Inflater) read2() (uint32, os.Error) {
+func (z *Decompressor) read2() (uint32, os.Error) {
 	_, err := io.ReadFull(z.r, z.buf[0:2])
 	if err != nil {
 		return 0, err
@@ -120,7 +120,7 @@ func (z *Inflater) read2() (uint32, os.Error) {
 	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil
 }
 
-func (z *Inflater) readHeader(save bool) os.Error {
+func (z *Decompressor) readHeader(save bool) os.Error {
 	_, err := io.ReadFull(z.r, z.buf[0:10])
 	if err != nil {
 		return err
@@ -182,11 +182,11 @@ func (z *Inflater) readHeader(save bool) os.Error {
 	}
 
 	z.digest.Reset()
-	z.inflater = flate.NewInflater(z.r)
+	z.decompressor = flate.NewReader(z.r)
 	return nil
 }
 
-func (z *Inflater) Read(p []byte) (n int, err os.Error) {
+func (z *Decompressor) Read(p []byte) (n int, err os.Error) {
 	if z.err != nil {
 		return 0, z.err
 	}
@@ -194,7 +194,7 @@ func (z *Inflater) Read(p []byte) (n int, err os.Error) {
 		return 0, nil
 	}
 
-	n, err = z.inflater.Read(p)
+	n, err = z.decompressor.Read(p)
 	z.digest.Write(p[0:n])
 	z.size += uint32(n)
 	if n != 0 || err != os.EOF {
@@ -226,5 +226,5 @@ func (z *Inflater) Read(p []byte) (n int, err os.Error) {
 	return z.Read(p)
 }
 
-// Calling Close does not close the wrapped io.Reader originally passed to NewInflater.
-func (z *Inflater) Close() os.Error { return z.inflater.Close() }
+// Calling Close does not close the wrapped io.Reader originally passed to NewReader.
+func (z *Decompressor) Close() os.Error { return z.decompressor.Close() }

@@ -279,13 +279,13 @@ var gunzipTests = []gunzipTest{
 	},
 }
 
-func TestInflater(t *testing.T) {
+func TestDecompressor(t *testing.T) {
 	b := new(bytes.Buffer)
 	for _, tt := range gunzipTests {
 		in := bytes.NewBuffer(tt.gzip)
-		gzip, err := NewInflater(in)
+		gzip, err := NewReader(in)
 		if err != nil {
-			t.Errorf("%s: NewInflater: %s", tt.name, err)
+			t.Errorf("%s: NewReader: %s", tt.name, err)
 			continue
 		}
 		defer gzip.Close()

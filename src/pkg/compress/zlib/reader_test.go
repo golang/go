@@ -67,14 +67,14 @@ var zlibTests = []zlibTest{
 	},
 }
 
-func TestInflater(t *testing.T) {
+func TestDecompressor(t *testing.T) {
 	b := new(bytes.Buffer)
 	for _, tt := range zlibTests {
 		in := bytes.NewBuffer(tt.compressed)
-		zlib, err := NewInflater(in)
+		zlib, err := NewReader(in)
 		if err != nil {
 			if err != tt.err {
-				t.Errorf("%s: NewInflater: %s", tt.desc, err)
+				t.Errorf("%s: NewReader: %s", tt.desc, err)
 			}
 			continue
 		}

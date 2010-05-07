@@ -38,7 +38,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
 	go func() {
 		defer raw.Close()
 		defer pipew.Close()
-		zlibw, err := NewDeflaterLevel(pipew, level)
+		zlibw, err := NewWriterLevel(pipew, level)
 		if err != nil {
 			t.Errorf("%s (level=%d): %v", fn, level, err)
 			return
@@ -65,7 +65,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
 			}
 		}
 	}()
-	zlibr, err := NewInflater(piper)
+	zlibr, err := NewReader(piper)
 	if err != nil {
 		t.Errorf("%s (level=%d): %v", fn, level, err)
 		return

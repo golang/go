@@ -12,32 +12,32 @@ import (
 
 // pipe creates two ends of a pipe that gzip and gunzip, and runs dfunc at the
 // writer end and ifunc at the reader end.
-func pipe(t *testing.T, dfunc func(*Deflater), ifunc func(*Inflater)) {
+func pipe(t *testing.T, dfunc func(*Compressor), cfunc func(*Decompressor)) {
 	piper, pipew := io.Pipe()
 	defer piper.Close()
 	go func() {
 		defer pipew.Close()
-		deflater, err := NewDeflater(pipew)
+		compressor, err := NewWriter(pipew)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
-		defer deflater.Close()
-		dfunc(deflater)
+		defer compressor.Close()
+		dfunc(compressor)
 	}()
-	inflater, err := NewInflater(piper)
+	decompressor, err := NewReader(piper)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer inflater.Close()
-	ifunc(inflater)
+	defer decompressor.Close()
+	cfunc(decompressor)
 }
 
 // Tests that an empty payload still forms a valid GZIP stream.
 func TestEmpty(t *testing.T) {
 	pipe(t,
-		func(deflater *Deflater) {},
-		func(inflater *Inflater) {
-			b, err := ioutil.ReadAll(inflater)
+		func(compressor *Compressor) {},
+		func(decompressor *Decompressor) {
+			b, err := ioutil.ReadAll(decompressor)
 			if err != nil {
 				t.Fatalf("%v", err)
 			}
@@ -50,35 +50,35 @@ func TestEmpty(t *testing.T) {
 // Tests that gzipping and then gunzipping is the identity function.
 func TestWriter(t *testing.T) {
 	pipe(t,
-		func(deflater *Deflater) {
-			deflater.Comment = "comment"
-			deflater.Extra = []byte("extra")
-			deflater.Mtime = 1e8
-			deflater.Name = "name"
-			_, err := deflater.Write([]byte("payload"))
+		func(compressor *Compressor) {
+			compressor.Comment = "comment"
+			compressor.Extra = []byte("extra")
+			compressor.Mtime = 1e8
+			compressor.Name = "name"
+			_, err := compressor.Write([]byte("payload"))
 			if err != nil {
 				t.Fatalf("%v", err)
 			}
 		},
-		func(inflater *Inflater) {
-			b, err := ioutil.ReadAll(inflater)
+		func(decompressor *Decompressor) {
+			b, err := ioutil.ReadAll(decompressor)
 			if err != nil {
 				t.Fatalf("%v", err)
 			}
 			if string(b) != "payload" {
 				t.Fatalf("payload is %q, want %q", string(b), "payload")
 			}
-			if inflater.Comment != "comment" {
-				t.Fatalf("comment is %q, want %q", inflater.Comment, "comment")
+			if decompressor.Comment != "comment" {
+				t.Fatalf("comment is %q, want %q", decompressor.Comment, "comment")
 			}
-			if string(inflater.Extra) != "extra" {
-				t.Fatalf("extra is %q, want %q", inflater.Extra, "extra")
+			if string(decompressor.Extra) != "extra" {
+				t.Fatalf("extra is %q, want %q", decompressor.Extra, "extra")
 			}
-			if inflater.Mtime != 1e8 {
-				t.Fatalf("mtime is %d, want %d", inflater.Mtime, uint32(1e8))
+			if decompressor.Mtime != 1e8 {
+				t.Fatalf("mtime is %d, want %d", decompressor.Mtime, uint32(1e8))
 			}
-			if inflater.Name != "name" {
-				t.Fatalf("name is %q, want %q", inflater.Name, "name")
+			if decompressor.Name != "name" {
+				t.Fatalf("name is %q, want %q", decompressor.Name, "name")
 			}
 		})
 }

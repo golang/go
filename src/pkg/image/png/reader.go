@@ -206,7 +206,7 @@ func paeth(a, b, c uint8) uint8 {
 }
 
 func (d *decoder) idatReader(idat io.Reader) os.Error {
-	r, err := zlib.NewInflater(idat)
+	r, err := zlib.NewReader(idat)
 	if err != nil {
 		return err
 	}

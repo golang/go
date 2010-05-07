@@ -188,16 +188,16 @@ var fixedHuffmanDecoder = huffmanDecoder{
 	},
 }
 
-// The actual read interface needed by NewInflater.
+// The actual read interface needed by NewReader.
 // If the passed in io.Reader does not also have ReadByte,
-// the NewInflater will introduce its own buffering.
+// the NewReader will introduce its own buffering.
 type Reader interface {
 	io.Reader
 	ReadByte() (c byte, err os.Error)
 }
 
-// Inflate state.
-type inflater struct {
+// Decompress state.
+type decompressor struct {
 	// Input/output sources.
 	r       Reader
 	w       io.Writer
@@ -224,7 +224,7 @@ type inflater struct {
 	buf [4]byte
 }
 
-func (f *inflater) inflate() (err os.Error) {
+func (f *decompressor) inflate() (err os.Error) {
 	final := false
 	for err == nil && !final {
 		for f.nb < 1+2 {
@@ -261,7 +261,7 @@ func (f *inflater) inflate() (err os.Error) {
 
 var codeOrder = [...]int{16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15}
 
-func (f *inflater) readHuffman() os.Error {
+func (f *decompressor) readHuffman() os.Error {
 	// HLIT[5], HDIST[5], HCLEN[4].
 	for f.nb < 5+5+4 {
 		if err := f.moreBits(); err != nil {
@@ -358,7 +358,7 @@ func (f *inflater) readHuffman() os.Error {
 // hl and hd are the Huffman states for the lit/length values
 // and the distance values, respectively.  If hd == nil, using the
 // fixed distance encoding associated with fixed Huffman blocks.
-func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
+func (f *decompressor) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 	for {
 		v, err := f.huffSym(hl)
 		if err != nil {
@@ -480,7 +480,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 }
 
 // Copy a single uncompressed data block from input to output.
-func (f *inflater) dataBlock() os.Error {
+func (f *decompressor) dataBlock() os.Error {
 	// Uncompressed.
 	// Discard current half-byte.
 	f.nb = 0
@@ -521,7 +521,7 @@ func (f *inflater) dataBlock() os.Error {
 	return nil
 }
 
-func (f *inflater) moreBits() os.Error {
+func (f *decompressor) moreBits() os.Error {
 	c, err := f.r.ReadByte()
 	if err != nil {
 		if err == os.EOF {
@@ -536,7 +536,7 @@ func (f *inflater) moreBits() os.Error {
 }
 
 // Read the next Huffman-encoded symbol from f according to h.
-func (f *inflater) huffSym(h *huffmanDecoder) (int, os.Error) {
+func (f *decompressor) huffSym(h *huffmanDecoder) (int, os.Error) {
 	for n := uint(h.min); n <= uint(h.max); n++ {
 		lim := h.limit[n]
 		if lim == -1 {
@@ -560,7 +560,7 @@ func (f *inflater) huffSym(h *huffmanDecoder) (int, os.Error) {
 }
 
 // Flush any buffered output to the underlying writer.
-func (f *inflater) flush() os.Error {
+func (f *decompressor) flush() os.Error {
 	if f.hp == 0 {
 		return nil
 	}
@@ -586,7 +586,7 @@ func makeReader(r io.Reader) Reader {
 
 // Inflate reads DEFLATE-compressed data from r and writes
 // the uncompressed data to w.
-func (f *inflater) inflater(r io.Reader, w io.Writer) os.Error {
+func (f *decompressor) decompressor(r io.Reader, w io.Writer) os.Error {
 	f.r = makeReader(r)
 	f.w = w
 	f.woffset = 0
@@ -599,13 +599,13 @@ func (f *inflater) inflater(r io.Reader, w io.Writer) os.Error {
 	return nil
 }
 
-// NewInflater returns a new ReadCloser that can be used
+// NewReader returns a new ReadCloser that can be used
 // to read the uncompressed version of r.  It is the caller's
 // responsibility to call Close on the ReadCloser when
 // finished reading.
-func NewInflater(r io.Reader) io.ReadCloser {
-	var f inflater
+func NewReader(r io.Reader) io.ReadCloser {
+	var f decompressor
 	pr, pw := io.Pipe()
-	go func() { pw.CloseWithError(f.inflater(r, pw)) }()
+	go func() { pw.CloseWithError(f.decompressor(r, pw)) }()
 	return pr
 }
