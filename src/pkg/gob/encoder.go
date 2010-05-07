@@ -173,8 +173,12 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 	encodeInt(enc.state, int64(enc.sent[rt]))
 
 	// Encode the object.
-	encode(enc.state.b, e)
-	enc.send()
+	err := encode(enc.state.b, e)
+	if err != nil {
+		enc.setError(err)
+	} else {
+		enc.send()
+	}
 
 	return enc.state.err
 }
