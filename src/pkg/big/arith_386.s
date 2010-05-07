@@ -101,53 +101,73 @@ E4:	CMPL BX, BP		// i < n
 
 // func shlVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shlVW(SB),7,$0
+	MOVL n+12(FP), BX	// i = n
+	SUBL $1, BX		// i--
+	JL X8b			// i < 0	(n <= 0)
+
+	// n > 0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL s+8(FP), CX
-	MOVL n+12(FP), BX
-	LEAL (DI)(BX*4), DI
-	LEAL (SI)(BX*4), SI
-	NEGL BX			// i = -n
-	MOVL $0, AX		// c = 0
-	JMP E8
-
-L8:	MOVL (SI)(BX*4), DX
-	MOVL DX, BP
-	SHLL CX, DX:AX
-	MOVL DX, (DI)(BX*4)
-	MOVL BP, AX
-	ADDL $1, BX		// i++
-
-E8:	CMPL BX, $0		// i < 0
-	JL L8
-
+	MOVL (SI)(BX*4), AX	// w1 = x[n-1]
 	MOVL $0, DX
-	SHLL CX, DX:AX
+	SHLL CX, DX:AX		// w1>>ŝ
 	MOVL DX, c+16(FP)
+
+	CMPL BX, $0
+	JLE X8a			// i <= 0
+
+	// i > 0
+L8:	MOVL AX, DX		// w = w1
+	MOVL -4(SI)(BX*4), AX	// w1 = x[i-1]
+	SHLL CX, DX:AX		// w<<s | w1>>ŝ
+	MOVL DX, (DI)(BX*4)	// z[i] = w<<s | w1>>ŝ
+	SUBL $1, BX		// i--
+	JG L8			// i > 0
+
+	// i <= 0
+X8a:	SHLL CX, AX		// w1<<s
+	MOVL AX, (DI)		// z[0] = w1<<s
+	RET
+
+X8b:	MOVL $0, c+16(FP)
 	RET
 
 
 // func shrVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shrVW(SB),7,$0
+	MOVL n+24(FP), BP
+	SUBL $1, BP		// n--
+	JL X9b			// n < 0	(n <= 0)
+
+	// n > 0
 	MOVL z+0(FP), DI
 	MOVL x+4(FP), SI
 	MOVL s+8(FP), CX
-	MOVL n+12(FP), BX	// i = n
-	MOVL $0, AX		// c = 0
+	MOVL (SI), AX		// w1 = x[0]
+	MOVL $0, DX
+	SHRL CX, DX:AX		// w1<<ŝ
+	MOVL DX, c+16(FP)
+
+	MOVL $0, BX		// i = 0
 	JMP E9
 
-L9:	MOVL (SI)(BX*4), DX
-	MOVL DX, BP
-	SHRL CX, DX:AX
-	MOVL DX, (DI)(BX*4)
-	MOVL BP, AX
+	// i < n-1
+L9:	MOVL AX, DX		// w = w1
+	MOVL 4(SI)(BX*4), AX	// w1 = x[i+1]
+	SHRL CX, DX:AX		// w>>s | w1<<ŝ
+	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
+	ADDL $1, BX		// i++
+	
+E9:	CMPL BX, BP
+	JL L9			// i < n-1
 
-E9:	SUBL $1, BX		// i--
-	JGE L9
+	// i >= n-1
+X9a:	SHRL CX, AX		// w1>>s
+	MOVL AX, (DI)(BP*4)	// z[n-1] = w1>>s
+	RET
 
-	MOVL $0, DX
-	SHRL CX, DX:AX
-	MOVL DX, c+16(FP)
+X9b:	MOVL $0, c+16(FP)
 	RET
 
 

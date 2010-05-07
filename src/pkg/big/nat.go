@@ -60,6 +60,11 @@ func (z nat) norm() nat {
 }
 
 
+// TODO(gri) Consider changing "make" such that is does not reserve space
+//           for a potential carry; instead callers must provide the correct
+//           m (+1). Should lead to clearer code and shorter allocations on
+//           average.
+
 func (z nat) make(m int) nat {
 	if cap(z) > m {
 		return z[0:m] // reuse z - has at least one extra word for a carry, if any
@@ -219,11 +224,7 @@ func (z nat) mulAddWW(x nat, y, r Word) nat {
 // basicMul multiplies x and y and leaves the result in z.
 // The (non-normalized) result is placed in z[0 : len(x) + len(y)].
 func basicMul(z, x, y nat) {
-	// initialize z
-	for i := range z[0 : len(x)+len(y)] {
-		z[i] = 0
-	}
-	// multiply
+	z[0 : len(x)+len(y)].clear() // initialize z
 	for i, d := range y {
 		if d != 0 {
 			z[len(x)+i] = addMulVVW(&z[i], &x[0], d, len(x))
@@ -534,28 +535,26 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 
 
 // q = (uIn-r)/v, with 0 <= r < y
+// Uses z as storage for q, and u as storage for r if possible.
 // See Knuth, Volume 2, section 4.3.1, Algorithm D.
 // Preconditions:
 //    len(v) >= 2
 //    len(uIn) >= len(v)
-func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
+func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	n := len(v)
-	m := len(uIn) - len(v)
+	m := len(uIn) - n
 
-	var u nat
-	if z2 == nil || &z2[0] == &uIn[0] {
-		u = u.make(len(uIn) + 1).clear() // uIn is an alias for z2
-	} else {
-		u = z2.make(len(uIn) + 1).clear()
-	}
-	qhatv := make(nat, len(v)+1)
 	q = z.make(m + 1)
+	qhatv := make(nat, n+1)
+	if alias(u, uIn) {
+		u = nil // u is an alias for uIn - cannot reuse
+	}
+	u = u.make(len(uIn) + 1).clear()
 
 	// D1.
-	shift := leadingZeros(v[n-1])
-	v.shiftLeftDeprecated(v, shift)
-	u.shiftLeftDeprecated(uIn, shift)
-	u[len(uIn)] = uIn[len(uIn)-1] >> (_W - shift)
+	shift := Word(leadingZeros(v[n-1]))
+	shlVW(&v[0], &v[0], shift, n)
+	u[len(uIn)] = shlVW(&u[0], &uIn[0], shift, len(uIn))
 
 	// D2.
 	for j := m; j >= 0; j-- {
@@ -583,12 +582,12 @@ func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
 		}
 
 		// D4.
-		qhatv[len(v)] = mulAddVWW(&qhatv[0], &v[0], qhat, 0, len(v))
+		qhatv[n] = mulAddVWW(&qhatv[0], &v[0], qhat, 0, n)
 
 		c := subVV(&u[j], &u[j], &qhatv[0], len(qhatv))
 		if c != 0 {
-			c := addVV(&u[j], &u[j], &v[0], len(v))
-			u[j+len(v)] += c
+			c := addVV(&u[j], &u[j], &v[0], n)
+			u[j+n] += c
 			qhat--
 		}
 
@@ -596,8 +595,8 @@ func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
 	}
 
 	q = q.norm()
-	u.shiftRightDeprecated(u, shift)
-	v.shiftRightDeprecated(v, shift)
+	shrVW(&u[0], &u[0], shift, len(u))
+	shrVW(&v[0], &v[0], shift, n)
 	r = u.norm()
 
 	return q, r
@@ -755,15 +754,10 @@ func (z nat) shl(x nat, s uint) nat {
 	}
 	// m > 0
 
-	// determine if z can be reused
-	// TODO(gri) change shlVW so we don't need this
-	if alias(z, x) {
-		z = nil // z is an alias for x - cannot reuse
-	}
-
 	n := m + int(s/_W)
 	z = z.make(n + 1)
 	z[n] = shlVW(&z[n-m], &x[0], Word(s%_W), m)
+	z[0 : n-m].clear()
 
 	return z.norm()
 }
@@ -778,58 +772,10 @@ func (z nat) shr(x nat, s uint) nat {
 	}
 	// n > 0
 
-	// determine if z can be reused
-	// TODO(gri) change shrVW so we don't need this
-	if alias(z, x) {
-		z = nil // z is an alias for x - cannot reuse
-	}
-
 	z = z.make(n)
 	shrVW(&z[0], &x[m-n], Word(s%_W), n)
 
 	return z.norm()
-}
-
-
-// TODO(gri) Remove these shift functions once shlVW and shrVW can be
-//           used directly in divLarge and powersOfTwoDecompose
-//
-// To avoid losing the top n bits, z should be sized so that
-// len(z) == len(x) + 1.
-func (z nat) shiftLeftDeprecated(x nat, n uint) nat {
-	if len(x) == 0 {
-		return x
-	}
-
-	ñ := _W - n
-	m := x[len(x)-1]
-	if len(z) > len(x) {
-		z[len(x)] = m >> ñ
-	}
-	for i := len(x) - 1; i >= 1; i-- {
-		y := x[i-1]
-		z[i] = m<<n | y>>ñ
-		m = y
-	}
-	z[0] = m << n
-	return z
-}
-
-
-func (z nat) shiftRightDeprecated(x nat, n uint) nat {
-	if len(x) == 0 {
-		return x
-	}
-
-	ñ := _W - n
-	m := x[0]
-	for i := 0; i < len(x)-1; i++ {
-		y := x[i+1]
-		z[i] = m>>n | y<<ñ
-		m = y
-	}
-	z[len(x)-1] = m >> n
-	return z
 }
 
 
@@ -936,7 +882,7 @@ func (n nat) powersOfTwoDecompose() (q nat, k Word) {
 	x := trailingZeroBits(n[zeroWords])
 
 	q = q.make(len(n) - zeroWords)
-	q.shiftRightDeprecated(n[zeroWords:], uint(x))
+	shrVW(&q[0], &n[zeroWords], Word(x), len(q))
 	q = q.norm()
 
 	k = Word(_W*zeroWords + x)
