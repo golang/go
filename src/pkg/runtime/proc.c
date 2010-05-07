@@ -551,15 +551,15 @@ void
 ·entersyscall(void)
 {
 	lock(&sched);
+	// Leave SP around for gc and traceback.
+	// Do before notewakeup so that gc
+	// never sees Gsyscall with wrong stack.
+	gosave(&g->sched);
 	if(sched.predawn) {
 		unlock(&sched);
 		return;
 	}
 	g->status = Gsyscall;
-	// Leave SP around for gc and traceback.
-	// Do before notewakeup so that gc
-	// never sees Gsyscall with wrong stack.
-	gosave(&g->sched);
 	sched.mcpu--;
 	sched.msyscall++;
 	if(sched.gwait != 0)
