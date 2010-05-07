@@ -18,8 +18,8 @@ const (
 	DefaultCompression   = -1
 	logMaxOffsetSize     = 15  // Standard DEFLATE
 	wideLogMaxOffsetSize = 22  // Wide DEFLATE
-	minMatchLength       = 3   // The smallest match that the deflater looks for
-	maxMatchLength       = 258 // The longest match for the deflater
+	minMatchLength       = 3   // The smallest match that the compressor looks for
+	maxMatchLength       = 258 // The longest match for the compressor
 	minOffsetSize        = 1   // The shortest offset that makes any sence
 
 	// The maximum number of tokens we put into a single flat block, just too
@@ -81,7 +81,7 @@ func syncPipe() (*syncPipeReader, *syncPipeWriter) {
 	return sr, sw
 }
 
-type deflater struct {
+type compressor struct {
 	level         int
 	logWindowSize uint
 	w             *huffmanBitWriter
@@ -118,12 +118,12 @@ type deflater struct {
 	blockStart int
 }
 
-func (d *deflater) flush() os.Error {
+func (d *compressor) flush() os.Error {
 	d.w.flush()
 	return d.w.err
 }
 
-func (d *deflater) fillWindow(index int) (int, os.Error) {
+func (d *compressor) fillWindow(index int) (int, os.Error) {
 	wSize := d.windowMask + 1
 	if index >= wSize+wSize-(minMatchLength+maxMatchLength) {
 		// shift the window by wSize
@@ -152,7 +152,7 @@ func (d *deflater) fillWindow(index int) (int, os.Error) {
 	return index, err
 }
 
-func (d *deflater) writeBlock(tokens []token, index int, eof bool) os.Error {
+func (d *compressor) writeBlock(tokens []token, index int, eof bool) os.Error {
 	if index > 0 || eof {
 		var window []byte
 		if d.blockStart <= index {
@@ -167,7 +167,7 @@ func (d *deflater) writeBlock(tokens []token, index int, eof bool) os.Error {
 
 // Try to find a match starting at index whose length is greater than prevSize.
 // We only look at chainCount possibilities before giving up.
-func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead int) (length, offset int, ok bool) {
+func (d *compressor) findMatch(pos int, prevHead int, prevLength int, lookahead int) (length, offset int, ok bool) {
 	win := d.window[0 : pos+min(maxMatchLength, lookahead)]
 
 	// We quit when we get a match that's at least nice long
@@ -215,7 +215,7 @@ func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead in
 	return
 }
 
-func (d *deflater) writeStoredBlock(buf []byte) os.Error {
+func (d *compressor) writeStoredBlock(buf []byte) os.Error {
 	if d.w.writeStoredHeader(len(buf), false); d.w.err != nil {
 		return d.w.err
 	}
@@ -223,7 +223,7 @@ func (d *deflater) writeStoredBlock(buf []byte) os.Error {
 	return d.w.err
 }
 
-func (d *deflater) storedDeflate() os.Error {
+func (d *compressor) storedDeflate() os.Error {
 	buf := make([]byte, maxStoreBlockSize)
 	for {
 		n, err := d.r.Read(buf)
@@ -242,7 +242,7 @@ func (d *deflater) storedDeflate() os.Error {
 	return nil
 }
 
-func (d *deflater) doDeflate() (err os.Error) {
+func (d *compressor) doDeflate() (err os.Error) {
 	// init
 	d.windowMask = 1<<d.logWindowSize - 1
 	d.hashHead = make([]int, hashSize)
@@ -399,7 +399,7 @@ func (d *deflater) doDeflate() (err os.Error) {
 	return
 }
 
-func (d *deflater) deflater(r io.Reader, w io.Writer, level int, logWindowSize uint) (err os.Error) {
+func (d *compressor) compressor(r io.Reader, w io.Writer, level int, logWindowSize uint) (err os.Error) {
 	d.r = r
 	d.w = newHuffmanBitWriter(w)
 	d.level = level
@@ -426,16 +426,16 @@ func (d *deflater) deflater(r io.Reader, w io.Writer, level int, logWindowSize u
 	return d.flush()
 }
 
-func newDeflater(w io.Writer, level int, logWindowSize uint) io.WriteCloser {
-	var d deflater
+func newCompressor(w io.Writer, level int, logWindowSize uint) io.WriteCloser {
+	var d compressor
 	pr, pw := syncPipe()
 	go func() {
-		err := d.deflater(pr, w, level, logWindowSize)
+		err := d.compressor(pr, w, level, logWindowSize)
 		pr.CloseWithError(err)
 	}()
 	return pw
 }
 
-func NewDeflater(w io.Writer, level int) io.WriteCloser {
-	return newDeflater(w, level, logMaxOffsetSize)
+func NewWriter(w io.Writer, level int) io.WriteCloser {
+	return newCompressor(w, level, logMaxOffsetSize)
 }

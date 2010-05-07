@@ -4,7 +4,7 @@
 
 // This test tests some internals of the flate package.
 // The tests in package compress/gzip serve as the
-// end-to-end test of the inflater.
+// end-to-end test of the decompressor.
 
 package flate
 
@@ -127,7 +127,7 @@ func TestInitDecoder(t *testing.T) {
 }
 
 func TestUncompressedSource(t *testing.T) {
-	decoder := NewInflater(bytes.NewBuffer([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}))
+	decoder := NewReader(bytes.NewBuffer([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}))
 	output := make([]byte, 1)
 	n, error := decoder.Read(output)
 	if n != 1 || error != nil {

@@ -22,23 +22,23 @@ const (
 )
 
 type writer struct {
-	w        io.Writer
-	deflater io.WriteCloser
-	digest   hash.Hash32
-	err      os.Error
-	scratch  [4]byte
+	w          io.Writer
+	compressor io.WriteCloser
+	digest     hash.Hash32
+	err        os.Error
+	scratch    [4]byte
 }
 
-// NewDeflater calls NewDeflaterLevel with the default compression level.
-func NewDeflater(w io.Writer) (io.WriteCloser, os.Error) {
-	return NewDeflaterLevel(w, DefaultCompression)
+// NewWriter calls NewWriterLevel with the default compression level.
+func NewWriter(w io.Writer) (io.WriteCloser, os.Error) {
+	return NewWriterLevel(w, DefaultCompression)
 }
 
-// NewDeflaterLevel creates a new io.WriteCloser that satisfies writes by compressing data written to w.
+// NewWriterLevel creates a new io.WriteCloser that satisfies writes by compressing data written to w.
 // It is the caller's responsibility to call Close on the WriteCloser when done.
 // level is the compression level, which can be DefaultCompression, NoCompression,
 // or any integer value between BestSpeed and BestCompression (inclusive).
-func NewDeflaterLevel(w io.Writer, level int) (io.WriteCloser, os.Error) {
+func NewWriterLevel(w io.Writer, level int) (io.WriteCloser, os.Error) {
 	z := new(writer)
 	// ZLIB has a two-byte header (as documented in RFC 1950).
 	// The first four bits is the CINFO (compression info), which is 7 for the default deflate window size.
@@ -65,7 +65,7 @@ func NewDeflaterLevel(w io.Writer, level int) (io.WriteCloser, os.Error) {
 		return nil, err
 	}
 	z.w = w
-	z.deflater = flate.NewDeflater(w, level)
+	z.compressor = flate.NewWriter(w, level)
 	z.digest = adler32.New()
 	return z, nil
 }
@@ -77,7 +77,7 @@ func (z *writer) Write(p []byte) (n int, err os.Error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
-	n, err = z.deflater.Write(p)
+	n, err = z.compressor.Write(p)
 	if err != nil {
 		z.err = err
 		return
@@ -86,12 +86,12 @@ func (z *writer) Write(p []byte) (n int, err os.Error) {
 	return
 }
 
-// Calling Close does not close the wrapped io.Writer originally passed to NewDeflater.
+// Calling Close does not close the wrapped io.Writer originally passed to NewWriter.
 func (z *writer) Close() os.Error {
 	if z.err != nil {
 		return z.err
 	}
-	z.err = z.deflater.Close()
+	z.err = z.compressor.Close()
 	if z.err != nil {
 		return z.err
 	}

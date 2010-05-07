@@ -21,34 +21,34 @@ const (
 	DefaultCompression = flate.DefaultCompression
 )
 
-// A Deflater is an io.WriteCloser that satisfies writes by compressing data written
+// A Compressor is an io.WriteCloser that satisfies writes by compressing data written
 // to its wrapped io.Writer.
-type Deflater struct {
+type Compressor struct {
 	Header
-	w        io.Writer
-	level    int
-	deflater io.WriteCloser
-	digest   hash.Hash32
-	size     uint32
-	closed   bool
-	buf      [10]byte
-	err      os.Error
+	w          io.Writer
+	level      int
+	compressor io.WriteCloser
+	digest     hash.Hash32
+	size       uint32
+	closed     bool
+	buf        [10]byte
+	err        os.Error
 }
 
-// NewDeflater calls NewDeflaterLevel with the default compression level.
-func NewDeflater(w io.Writer) (*Deflater, os.Error) {
-	return NewDeflaterLevel(w, DefaultCompression)
+// NewWriter calls NewWriterLevel with the default compression level.
+func NewWriter(w io.Writer) (*Compressor, os.Error) {
+	return NewWriterLevel(w, DefaultCompression)
 }
 
-// NewDeflaterLevel creates a new Deflater writing to the given writer.
+// NewWriterLevel creates a new Compressor writing to the given writer.
 // Writes may be buffered and not flushed until Close.
-// Callers that wish to set the fields in Deflater.Header must
+// Callers that wish to set the fields in Compressor.Header must
 // do so before the first call to Write or Close.
 // It is the caller's responsibility to call Close on the WriteCloser when done.
 // level is the compression level, which can be DefaultCompression, NoCompression,
 // or any integer value between BestSpeed and BestCompression (inclusive).
-func NewDeflaterLevel(w io.Writer, level int) (*Deflater, os.Error) {
-	z := new(Deflater)
+func NewWriterLevel(w io.Writer, level int) (*Compressor, os.Error) {
+	z := new(Compressor)
 	z.OS = 255 // unknown
 	z.w = w
 	z.level = level
@@ -70,7 +70,7 @@ func put4(p []byte, v uint32) {
 }
 
 // writeBytes writes a length-prefixed byte slice to z.w.
-func (z *Deflater) writeBytes(b []byte) os.Error {
+func (z *Compressor) writeBytes(b []byte) os.Error {
 	if len(b) > 0xffff {
 		return os.NewError("gzip.Write: Extra data is too large")
 	}
@@ -84,7 +84,7 @@ func (z *Deflater) writeBytes(b []byte) os.Error {
 }
 
 // writeString writes a string (in ISO 8859-1 (Latin-1) format) to z.w.
-func (z *Deflater) writeString(s string) os.Error {
+func (z *Compressor) writeString(s string) os.Error {
 	// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
 	// TODO(nigeltao): Convert from UTF-8 to ISO 8859-1 (Latin-1).
 	for _, v := range s {
@@ -102,13 +102,13 @@ func (z *Deflater) writeString(s string) os.Error {
 	return err
 }
 
-func (z *Deflater) Write(p []byte) (int, os.Error) {
+func (z *Compressor) Write(p []byte) (int, os.Error) {
 	if z.err != nil {
 		return 0, z.err
 	}
 	var n int
 	// Write the GZIP header lazily.
-	if z.deflater == nil {
+	if z.compressor == nil {
 		z.buf[0] = gzipID1
 		z.buf[1] = gzipID2
 		z.buf[2] = gzipDeflate
@@ -153,16 +153,16 @@ func (z *Deflater) Write(p []byte) (int, os.Error) {
 				return n, z.err
 			}
 		}
-		z.deflater = flate.NewDeflater(z.w, z.level)
+		z.compressor = flate.NewWriter(z.w, z.level)
 	}
 	z.size += uint32(len(p))
 	z.digest.Write(p)
-	n, z.err = z.deflater.Write(p)
+	n, z.err = z.compressor.Write(p)
 	return n, z.err
 }
 
-// Calling Close does not close the wrapped io.Writer originally passed to NewDeflater.
-func (z *Deflater) Close() os.Error {
+// Calling Close does not close the wrapped io.Writer originally passed to NewWriter.
+func (z *Compressor) Close() os.Error {
 	if z.err != nil {
 		return z.err
 	}
@@ -170,13 +170,13 @@ func (z *Deflater) Close() os.Error {
 		return nil
 	}
 	z.closed = true
-	if z.deflater == nil {
+	if z.compressor == nil {
 		z.Write(nil)
 		if z.err != nil {
 			return z.err
 		}
 	}
-	z.err = z.deflater.Close()
+	z.err = z.compressor.Close()
 	if z.err != nil {
 		return z.err
 	}

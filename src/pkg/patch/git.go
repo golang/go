@@ -91,7 +91,7 @@ func ParseGitBinary(raw []byte) (Diff, os.Error) {
 		if n, _, ok := atoi(first, "literal ", 10); ok && sawBinary {
 			data := make([]byte, n)
 			d := git85.NewDecoder(bytes.NewBuffer(raw))
-			z, err := zlib.NewInflater(d)
+			z, err := zlib.NewReader(d)
 			if err != nil {
 				return nil, err
 			}

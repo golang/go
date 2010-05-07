@@ -80,7 +80,7 @@ func getLargeDataChunk() []byte {
 func TestDeflate(t *testing.T) {
 	for _, h := range deflateTests {
 		buffer := bytes.NewBuffer([]byte{})
-		w := NewDeflater(buffer, h.level)
+		w := NewWriter(buffer, h.level)
 		w.Write(h.in)
 		w.Close()
 		if bytes.Compare(buffer.Bytes(), h.out) != 0 {
@@ -92,16 +92,16 @@ func TestDeflate(t *testing.T) {
 
 func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.Error {
 	buffer := bytes.NewBuffer([]byte{})
-	w := NewDeflater(buffer, level)
+	w := NewWriter(buffer, level)
 	w.Write(input)
 	w.Close()
-	inflater := NewInflater(buffer)
-	decompressed, err := ioutil.ReadAll(inflater)
+	decompressor := NewReader(buffer)
+	decompressed, err := ioutil.ReadAll(decompressor)
 	if err != nil {
-		t.Errorf("reading inflater: %s", err)
+		t.Errorf("reading decompressor: %s", err)
 		return err
 	}
-	inflater.Close()
+	decompressor.Close()
 	if bytes.Compare(input, decompressed) != 0 {
 		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name)
 	}

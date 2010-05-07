@@ -18,7 +18,7 @@ func TestRead(t *testing.T) {
 	}
 
 	var z bytes.Buffer
-	f := flate.NewDeflater(&z, 5)
+	f := flate.NewWriter(&z, 5)
 	f.Write(b)
 	f.Close()
 	if z.Len() < len(b)*99/100 {

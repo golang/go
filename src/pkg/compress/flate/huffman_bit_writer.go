@@ -291,7 +291,7 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 	w.writeBits(firstBits, 3)
 	w.writeBits(int32(numLiterals-257), 5)
 	if numOffsets > offsetCodeCount {
-		// Extended version of deflater
+		// Extended version of decompressor
 		w.writeBits(int32(offsetCodeCount+((numOffsets-(1+offsetCodeCount))>>3)), 5)
 		w.writeBits(int32((numOffsets-(1+offsetCodeCount))&0x7), 3)
 	} else {
