@@ -126,7 +126,7 @@ func (z *Int) Rem(x, y *Int) *Int {
 // QuoRem implements T-division and modulus (like Go):
 //
 //	q = x/y      with the result truncated to zero
-//      r = x - y*q
+//	r = x - y*q
 //
 // (See Daan Leijen, ``Division and Modulus for Computer Scientists''.)
 //
@@ -183,7 +183,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 // DivMod implements Euclidian division and modulus (unlike Go):
 //
 //	q = x div y  such that
-//      m = x - y*q  with 0 <= m < |q|
+//	m = x - y*q  with 0 <= m < |q|
 //
 // (See Raymond T. Boute, ``The Euclidian definition of the functions
 // div and mod''. ACM Transactions on Programming Languages and

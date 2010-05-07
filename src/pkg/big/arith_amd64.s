@@ -13,8 +13,8 @@ TEXT ·addVV(SB),7,$0
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
 	MOVL n+24(FP), R11
-	MOVQ $0, BX         // i = 0
-	MOVQ $0, DX         // c = 0
+	MOVQ $0, BX		// i = 0
+	MOVQ $0, DX		// c = 0
 	JMP E1
 
 L1:	MOVQ (R8)(BX*8), AX
@@ -22,7 +22,7 @@ L1:	MOVQ (R8)(BX*8), AX
 	ADCQ (R9)(BX*8), AX
 	RCLQ $1, DX
 	MOVQ AX, (R10)(BX*8)
-	ADDL $1, BX			// i++
+	ADDL $1, BX		// i++
 
 E1:	CMPQ BX, R11		// i < n
 	JL L1
@@ -38,8 +38,8 @@ TEXT ·subVV(SB),7,$0
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
 	MOVL n+24(FP), R11
-	MOVQ $0, BX         // i = 0
-	MOVQ $0, DX         // c = 0
+	MOVQ $0, BX		// i = 0
+	MOVQ $0, DX		// c = 0
 	JMP E2
 
 L2:	MOVQ (R8)(BX*8), AX
@@ -47,9 +47,9 @@ L2:	MOVQ (R8)(BX*8), AX
 	SBBQ (R9)(BX*8), AX
 	RCLQ $1, DX
 	MOVQ AX, (R10)(BX*8)
-	ADDL $1, BX         // i++
+	ADDL $1, BX		// i++
 
-E2:	CMPQ BX, R11        // i < n
+E2:	CMPQ BX, R11		// i < n
 	JL L2
 
 	MOVQ DX, c+32(FP)
@@ -60,18 +60,18 @@ E2:	CMPQ BX, R11        // i < n
 TEXT ·addVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
-	MOVQ y+16(FP), AX   // c = y
+	MOVQ y+16(FP), AX	// c = y
 	MOVL n+24(FP), R11
-	MOVQ $0, BX         // i = 0
+	MOVQ $0, BX		// i = 0
 	JMP E3
 
 L3:	ADDQ (R8)(BX*8), AX
 	MOVQ AX, (R10)(BX*8)
 	RCLQ $1, AX
 	ANDQ $1, AX
-	ADDL $1, BX         // i++
+	ADDL $1, BX		// i++
 
-E3:	CMPQ BX, R11        // i < n
+E3:	CMPQ BX, R11		// i < n
 	JL L3
 
 	MOVQ AX, c+32(FP)
@@ -82,9 +82,9 @@ E3:	CMPQ BX, R11        // i < n
 TEXT ·subVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
-	MOVQ y+16(FP), AX   // c = y
+	MOVQ y+16(FP), AX	// c = y
 	MOVL n+24(FP), R11
-	MOVQ $0, BX         // i = 0
+	MOVQ $0, BX		// i = 0
 	JMP E4
 
 L4:	MOVQ (R8)(BX*8), DX	// TODO(gri) is there a reverse SUBQ?
@@ -92,9 +92,9 @@ L4:	MOVQ (R8)(BX*8), DX	// TODO(gri) is there a reverse SUBQ?
 	MOVQ DX, (R10)(BX*8)
 	RCLQ $1, AX
 	ANDQ $1, AX
-	ADDL $1, BX          // i++
+	ADDL $1, BX		// i++
 
-E4:	CMPQ BX, R11         // i < n
+E4:	CMPQ BX, R11		// i < n
 	JL L4
 
 	MOVQ AX, c+32(FP)
@@ -103,47 +103,93 @@ E4:	CMPQ BX, R11         // i < n
 
 // func shlVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shlVW(SB),7,$0
+	MOVL n+24(FP), BX	// i = n
+	SUBL $1, BX		// i--
+	JL X8b			// i < 0	(n <= 0)
+
+	// n > 0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ s+16(FP), CX
-	MOVL n+24(FP), R11
-	MOVQ $0, AX         // c = 0
-	MOVQ $0, BX         // i = 0
-	JMP E8
-
-L8:	MOVQ (R8)(BX*8), DX
-	MOVQ DX, R12
-	SHLQ CX, DX:AX
-	MOVQ DX, (R10)(BX*8)
-	MOVQ R12, AX
-	ADDL $1, BX          // i++
-
-E8:	CMPQ BX, R11         // i < n
-	JL L8
-
+	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
 	MOVQ $0, DX
-	SHLQ CX, DX:AX
+	SHLQ CX, DX:AX		// w1>>ŝ
 	MOVQ DX, c+32(FP)
+
+	CMPL BX, $0
+	JLE X8a			// i <= 0
+
+	// i > 0
+L8:	MOVQ AX, DX		// w = w1
+	MOVQ -8(R8)(BX*8), AX	// w1 = x[i-1]
+	SHLQ CX, DX:AX		// w<<s | w1>>ŝ
+	MOVQ DX, (R10)(BX*8)	// z[i] = w<<s | w1>>ŝ
+	SUBL $1, BX		// i--
+	JG L8			// i > 0
+
+	// i <= 0
+X8a:	SHLQ CX, AX		// w1<<s
+	MOVQ AX, (R10)		// z[0] = w1<<s
+	RET
+
+X8b:	MOVQ $0, c+32(FP)
 	RET
 
 
 // func shrVW(z, x *Word, s Word, n int) (c Word)
 TEXT ·shrVW(SB),7,$0
+	MOVL n+24(FP), R11
+	SUBL $1, R11		// n--
+	JL X9b			// n < 0	(n <= 0)
+
+	// n > 0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ s+16(FP), CX
-	MOVL n+24(FP), BX   // i = n
-	MOVQ $0, AX         // c = 0
+	MOVQ (R8), AX		// w1 = x[0]
+	MOVQ $0, DX
+	SHRQ CX, DX:AX		// w1<<ŝ
+	MOVQ DX, c+32(FP)
+
+	MOVQ $0, BX		// i = 0
 	JMP E9
 
-L9:	MOVQ (R8)(BX*8), DX
+	// i < n-1
+L9:	MOVQ AX, DX		// w = w1
+	MOVQ 8(R8)(BX*8), AX	// w1 = x[i+1]
+	SHRQ CX, DX:AX		// w>>s | w1<<ŝ
+	MOVQ DX, (R10)(BX*8)	// z[i] = w>>s | w1<<ŝ
+	ADDL $1, BX		// i++
+	
+E9:	CMPQ BX, R11
+	JL L9			// i < n-1
+
+	// i >= n-1
+X9a:	SHRQ CX, AX		// w1>>s
+	MOVQ AX, (R10)(R11*8)	// z[n-1] = w1>>s
+	RET
+
+X9b:	MOVQ $0, c+32(FP)
+	RET
+
+
+// func shrVW(z, x *Word, s Word, n int) (c Word)
+TEXT ·shrVW_(SB),7,$0
+	MOVQ z+0(FP), R10
+	MOVQ x+8(FP), R8
+	MOVQ s+16(FP), CX
+	MOVL n+24(FP), BX	// i = n
+	MOVQ $0, AX		// c = 0
+	JMP E9_
+
+L9_:	MOVQ (R8)(BX*8), DX
 	MOVQ DX, R12
 	SHRQ CX, DX:AX
 	MOVQ DX, (R10)(BX*8)
 	MOVQ R12, AX
 
-E9:	SUBL $1, BX         // i--
-	JGE L9
+E9_:	SUBL $1, BX		// i--
+	JGE L9_
 
 	MOVQ $0, DX
 	SHRQ CX, DX:AX
@@ -156,9 +202,9 @@ TEXT ·mulAddVWW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
-	MOVQ r+24(FP), CX   // c = r
+	MOVQ r+24(FP), CX	// c = r
 	MOVL n+32(FP), R11
-	MOVQ $0, BX         // i = 0
+	MOVQ $0, BX		// i = 0
 	JMP E5
 
 L5:	MOVQ (R8)(BX*8), AX
@@ -167,9 +213,9 @@ L5:	MOVQ (R8)(BX*8), AX
 	ADCQ $0, DX
 	MOVQ AX, (R10)(BX*8)
 	MOVQ DX, CX
-	ADDL $1, BX         // i++
+	ADDL $1, BX		// i++
 
-E5:	CMPQ BX, R11        // i < n
+E5:	CMPQ BX, R11		// i < n
 	JL L5
 
 	MOVQ CX, c+40(FP)
@@ -182,8 +228,8 @@ TEXT ·addMulVVW(SB),7,$0
 	MOVQ x+8(FP), R8
 	MOVQ y+16(FP), R9
 	MOVL n+24(FP), R11
-	MOVQ $0, BX         // i = 0
-	MOVQ $0, CX         // c = 0
+	MOVQ $0, BX		// i = 0
+	MOVQ $0, CX		// c = 0
 	JMP E6
 
 L6:	MOVQ (R8)(BX*8), AX
@@ -194,9 +240,9 @@ L6:	MOVQ (R8)(BX*8), AX
 	ADCQ $0, DX
 	MOVQ AX, (R10)(BX*8)
 	MOVQ DX, CX
-	ADDL $1, BX         // i++
+	ADDL $1, BX		// i++
 
-E6:	CMPQ BX, R11        // i < n
+E6:	CMPQ BX, R11		// i < n
 	JL L6
 
 	MOVQ CX, c+32(FP)
@@ -206,18 +252,18 @@ E6:	CMPQ BX, R11        // i < n
 // divWVW(z* Word, xn Word, x *Word, y Word, n int) (r Word)
 TEXT ·divWVW(SB),7,$0
 	MOVQ z+0(FP), R10
-	MOVQ xn+8(FP), DX   // r = xn
+	MOVQ xn+8(FP), DX	// r = xn
 	MOVQ x+16(FP), R8
 	MOVQ y+24(FP), R9
-	MOVL n+32(FP), BX   // i = n
+	MOVL n+32(FP), BX	// i = n
 	JMP E7
 
 L7:	MOVQ (R8)(BX*8), AX
 	DIVQ R9
 	MOVQ AX, (R10)(BX*8)
 
-E7:	SUBL $1, BX         // i--
-	JGE L7              // i >= 0
+E7:	SUBL $1, BX		// i--
+	JGE L7			// i >= 0
 
 	MOVQ DX, r+40(FP)
 	RET
