@@ -8,19 +8,23 @@
 
 package big
 
-import "unsafe"
+// TODO(gri) Decide if Word needs to remain exported.
 
 type Word uintptr
 
 const (
-	_S    = uintptr(unsafe.Sizeof(Word(0))) // TODO(gri) should Sizeof return a uintptr?
-	_logW = (0x650 >> _S) & 7
-	_W    = 1 << _logW
-	_B    = 1 << _W
-	_M    = _B - 1
-	_W2   = _W / 2
-	_B2   = 1 << _W2
-	_M2   = _B2 - 1
+	// Compute the size _S of a Word in bytes.
+	_m    = ^Word(0)
+	_logS = _m>>8&1 + _m>>16&1 + _m>>32&1
+	_S    = 1 << _logS
+
+	_W = _S << 3 // word size in bits
+	_B = 1 << _W // digit base
+	_M = _B - 1  // digit mask
+
+	_W2 = _W / 2   // half word size in bits
+	_B2 = 1 << _W2 // half digit base
+	_M2 = _B2 - 1  // half digit mask
 )
 
 
@@ -280,109 +284,104 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 }
 
 
-func (p *Word) at(i int) *Word {
-	return (*Word)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + uintptr(i)*_S))
-}
-
-
-func addVV(z, x, y *Word, n int) (c Word)
-func addVV_g(z, x, y *Word, n int) (c Word) {
+func addVV(z, x, y []Word, n int) (c Word)
+func addVV_g(z, x, y []Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
-		c, *z.at(i) = addWW_g(*x.at(i), *y.at(i), c)
+		c, z[i] = addWW_g(x[i], y[i], c)
 	}
 	return
 }
 
 
-func subVV(z, x, y *Word, n int) (c Word)
-func subVV_g(z, x, y *Word, n int) (c Word) {
+func subVV(z, x, y []Word, n int) (c Word)
+func subVV_g(z, x, y []Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
-		c, *z.at(i) = subWW_g(*x.at(i), *y.at(i), c)
+		c, z[i] = subWW_g(x[i], y[i], c)
 	}
 	return
 }
 
 
-func addVW(z, x *Word, y Word, n int) (c Word)
-func addVW_g(z, x *Word, y Word, n int) (c Word) {
+func addVW(z, x []Word, y Word, n int) (c Word)
+func addVW_g(z, x []Word, y Word, n int) (c Word) {
 	c = y
 	for i := 0; i < n; i++ {
-		c, *z.at(i) = addWW_g(*x.at(i), c, 0)
+		c, z[i] = addWW_g(x[i], c, 0)
 	}
 	return
 }
 
 
-func subVW(z, x *Word, y Word, n int) (c Word)
-func subVW_g(z, x *Word, y Word, n int) (c Word) {
+func subVW(z, x []Word, y Word, n int) (c Word)
+func subVW_g(z, x []Word, y Word, n int) (c Word) {
 	c = y
 	for i := 0; i < n; i++ {
-		c, *z.at(i) = subWW_g(*x.at(i), c, 0)
+		c, z[i] = subWW_g(x[i], c, 0)
 	}
 	return
 }
 
 
-func shlVW(z, x *Word, s Word, n int) (c Word)
-func shlVW_g(z, x *Word, s Word, n int) (c Word) {
+func shlVW(z, x []Word, s Word, n int) (c Word)
+func shlVW_g(z, x []Word, s Word, n int) (c Word) {
 	if n > 0 {
 		ŝ := _W - s
-		w1 := *x.at(n - 1)
+		w1 := x[n-1]
 		c = w1 >> ŝ
 		for i := n - 1; i > 0; i-- {
 			w := w1
-			w1 = *x.at(i - 1)
-			*z.at(i) = w<<s | w1>>ŝ
+			w1 = x[i-1]
+			z[i] = w<<s | w1>>ŝ
 		}
-		*z.at(0) = w1 << s
+		z[0] = w1 << s
 	}
 	return
 }
 
 
-func shrVW(z, x *Word, s Word, n int) (c Word)
-func shrVW_g(z, x *Word, s Word, n int) (c Word) {
+func shrVW(z, x []Word, s Word, n int) (c Word)
+func shrVW_g(z, x []Word, s Word, n int) (c Word) {
 	if n > 0 {
 		ŝ := _W - s
-		w1 := *x.at(0)
+		w1 := x[0]
 		c = w1 << ŝ
 		for i := 0; i < n-1; i++ {
 			w := w1
-			w1 = *x.at(i + 1)
-			*z.at(i) = w>>s | w1<<ŝ
+			w1 = x[i+1]
+			z[i] = w>>s | w1<<ŝ
 		}
-		*z.at(n - 1) = w1 >> s
+		z[n-1] = w1 >> s
 	}
 	return
 }
 
 
-func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
-func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
+func mulAddVWW(z, x []Word, y, r Word, n int) (c Word)
+func mulAddVWW_g(z, x []Word, y, r Word, n int) (c Word) {
 	c = r
 	for i := 0; i < n; i++ {
-		c, *z.at(i) = mulAddWWW_g(*x.at(i), y, c)
+		c, z[i] = mulAddWWW_g(x[i], y, c)
 	}
 	return
 }
 
 
-func addMulVVW(z, x *Word, y Word, n int) (c Word)
-func addMulVVW_g(z, x *Word, y Word, n int) (c Word) {
+func addMulVVW(z, x []Word, y Word, n int) (c Word)
+func addMulVVW_g(z, x []Word, y Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
-		z1, z0 := mulAddWWW_g(*x.at(i), y, *z.at(i))
-		c, *z.at(i) = addWW_g(z0, c, 0)
+		z1, z0 := mulAddWWW_g(x[i], y, z[i])
+		c, z[i] = addWW_g(z0, c, 0)
 		c += z1
 	}
 	return
 }
 
 
-func divWVW(z *Word, xn Word, x *Word, y Word, n int) (r Word)
-func divWVW_g(z *Word, xn Word, x *Word, y Word, n int) (r Word) {
+func divWVW(z []Word, xn Word, x []Word, y Word, n int) (r Word)
+func divWVW_g(z []Word, xn Word, x []Word, y Word, n int) (r Word) {
 	r = xn
 	for i := n - 1; i >= 0; i-- {
-		*z.at(i), r = divWW_g(r, *x.at(i), y)
+		z[i], r = divWW_g(r, x[i], y)
 	}
 	return
 }

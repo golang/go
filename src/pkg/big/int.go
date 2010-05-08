@@ -307,7 +307,7 @@ Error:
 // SetBytes interprets b as the bytes of a big-endian, unsigned integer and
 // sets z to that value.
 func (z *Int) SetBytes(b []byte) *Int {
-	s := int(_S)
+	const s = _S
 	z.abs = z.abs.make((len(b) + s - 1) / s)
 
 	j := 0
@@ -343,7 +343,7 @@ func (z *Int) SetBytes(b []byte) *Int {
 
 // Bytes returns the absolute value of x as a big-endian byte array.
 func (z *Int) Bytes() []byte {
-	s := int(_S)
+	const s = _S
 	b := make([]byte, len(z.abs)*s)
 
 	for i, w := range z.abs {
