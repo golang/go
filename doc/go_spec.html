@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 4, 2010 -->
+<!-- subtitle Version of May 7, 2010 -->
 
 <!--
 Todo
@@ -1154,16 +1154,26 @@ A value of channel type may be <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-ChannelType   = Channel | SendChannel | RecvChannel .
-Channel       = "chan" ElementType .
-SendChannel   = "chan" "&lt;-" ElementType .
-RecvChannel   = "&lt;-" "chan" ElementType .
+ChannelType = ( "chan" [ "&lt;-" ] | "&lt;-" "chan" ) ElementType .
 </pre>
 
 <p>
-To avoid a parsing ambiguity in cases such as <code>chan&lt;- chan int</code>,
-the Channel production's ElementType cannot be a RecvChannel.
-To construct such a type, parenthesize the RecvChannel first.
+The <code>&lt;-</code> operator specifies the channel <i>direction</i>,
+<i>send</i> or <i>receive</i>. If no direction is given, the channel is
+<i>bi-directional</i>.
+A channel may be constrained only to send or only to receive by
+<a href="#Conversions">conversion</a> or <a href="#Assignments">assignment</a>.
+</p>
+
+<pre>
+chan T         // can be used to send and receive values of type T
+chan&lt;- float   // can only be used to send floats
+&lt;-chan int     // can only be used to receive ints
+</pre>
+
+<p>
+The <code>&lt;-</code> operator associates with the leftmost <code>chan</code>
+possible:
 </p>
 
 <pre>
@@ -1174,21 +1184,9 @@ chan (&lt;-chan int)
 </pre>
 
 <p>
-Upon creation, a channel can be used both to send and to receive values.
-By conversion or assignment, a channel may be constrained only to send or
-to receive. This constraint is called a channel's <i>direction</i>; either
-<i>send</i>, <i>receive</i>, or <i>bi-directional</i> (unconstrained).
-</p>
-
-<pre>
-chan T         // can be used to send and receive values of type T
-chan&lt;- float   // can only be used to send floats
-&lt;-chan int     // can only be used to receive ints
-</pre>
-
-<p>
 The value of an uninitialized channel is <code>nil</code>. A new, initialized channel
-value can be made using the built-in function <code>make</code>,
+value can be made using the built-in function
+<a href="#Making_slices_maps_and_channels"><code>make</code></a>,
 which takes the channel type and an optional capacity as arguments:
 </p>
 
