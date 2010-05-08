@@ -284,47 +284,47 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 }
 
 
-func addVV(z, x, y []Word, n int) (c Word)
-func addVV_g(z, x, y []Word, n int) (c Word) {
-	for i := 0; i < n; i++ {
+func addVV(z, x, y []Word) (c Word)
+func addVV_g(z, x, y []Word) (c Word) {
+	for i := range z {
 		c, z[i] = addWW_g(x[i], y[i], c)
 	}
 	return
 }
 
 
-func subVV(z, x, y []Word, n int) (c Word)
-func subVV_g(z, x, y []Word, n int) (c Word) {
-	for i := 0; i < n; i++ {
+func subVV(z, x, y []Word) (c Word)
+func subVV_g(z, x, y []Word) (c Word) {
+	for i := range z {
 		c, z[i] = subWW_g(x[i], y[i], c)
 	}
 	return
 }
 
 
-func addVW(z, x []Word, y Word, n int) (c Word)
-func addVW_g(z, x []Word, y Word, n int) (c Word) {
+func addVW(z, x []Word, y Word) (c Word)
+func addVW_g(z, x []Word, y Word) (c Word) {
 	c = y
-	for i := 0; i < n; i++ {
+	for i := range z {
 		c, z[i] = addWW_g(x[i], c, 0)
 	}
 	return
 }
 
 
-func subVW(z, x []Word, y Word, n int) (c Word)
-func subVW_g(z, x []Word, y Word, n int) (c Word) {
+func subVW(z, x []Word, y Word) (c Word)
+func subVW_g(z, x []Word, y Word) (c Word) {
 	c = y
-	for i := 0; i < n; i++ {
+	for i := range z {
 		c, z[i] = subWW_g(x[i], c, 0)
 	}
 	return
 }
 
 
-func shlVW(z, x []Word, s Word, n int) (c Word)
-func shlVW_g(z, x []Word, s Word, n int) (c Word) {
-	if n > 0 {
+func shlVW(z, x []Word, s Word) (c Word)
+func shlVW_g(z, x []Word, s Word) (c Word) {
+	if n := len(z); n > 0 {
 		ŝ := _W - s
 		w1 := x[n-1]
 		c = w1 >> ŝ
@@ -339,9 +339,9 @@ func shlVW_g(z, x []Word, s Word, n int) (c Word) {
 }
 
 
-func shrVW(z, x []Word, s Word, n int) (c Word)
-func shrVW_g(z, x []Word, s Word, n int) (c Word) {
-	if n > 0 {
+func shrVW(z, x []Word, s Word) (c Word)
+func shrVW_g(z, x []Word, s Word) (c Word) {
+	if n := len(z); n > 0 {
 		ŝ := _W - s
 		w1 := x[0]
 		c = w1 << ŝ
@@ -356,19 +356,19 @@ func shrVW_g(z, x []Word, s Word, n int) (c Word) {
 }
 
 
-func mulAddVWW(z, x []Word, y, r Word, n int) (c Word)
-func mulAddVWW_g(z, x []Word, y, r Word, n int) (c Word) {
+func mulAddVWW(z, x []Word, y, r Word) (c Word)
+func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
 	c = r
-	for i := 0; i < n; i++ {
+	for i := range z {
 		c, z[i] = mulAddWWW_g(x[i], y, c)
 	}
 	return
 }
 
 
-func addMulVVW(z, x []Word, y Word, n int) (c Word)
-func addMulVVW_g(z, x []Word, y Word, n int) (c Word) {
-	for i := 0; i < n; i++ {
+func addMulVVW(z, x []Word, y Word) (c Word)
+func addMulVVW_g(z, x []Word, y Word) (c Word) {
+	for i := range z {
 		z1, z0 := mulAddWWW_g(x[i], y, z[i])
 		c, z[i] = addWW_g(z0, c, 0)
 		c += z1
@@ -377,10 +377,10 @@ func addMulVVW_g(z, x []Word, y Word, n int) (c Word) {
 }
 
 
-func divWVW(z []Word, xn Word, x []Word, y Word, n int) (r Word)
-func divWVW_g(z []Word, xn Word, x []Word, y Word, n int) (r Word) {
+func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+func divWVW_g(z []Word, xn Word, x []Word, y Word) (r Word) {
 	r = xn
-	for i := n - 1; i >= 0; i-- {
+	for i := len(z) - 1; i >= 0; i-- {
 		z[i], r = divWW_g(r, x[i], y)
 	}
 	return
