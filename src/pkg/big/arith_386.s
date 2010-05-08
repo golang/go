@@ -5,12 +5,12 @@
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
-// func addVV(z, x, y []Word, n int) (c Word)
+// func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), CX
-	MOVL n+36(FP), BP
+	MOVL n+4(FP), BP
 	MOVL $0, BX		// i = 0
 	MOVL $0, DX		// c = 0
 	JMP E1
@@ -25,17 +25,17 @@ L1:	MOVL (SI)(BX*4), AX
 E1:	CMPL BX, BP		// i < n
 	JL L1
 
-	MOVL DX, c+40(FP)
+	MOVL DX, c+36(FP)
 	RET
 
 
-// func subVV(z, x, y []Word, n int) (c Word)
+// func subVV(z, x, y []Word) (c Word)
 // (same as addVV except for SBBL instead of ADCL and label names)
 TEXT ·subVV(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), CX
-	MOVL n+36(FP), BP
+	MOVL n+4(FP), BP
 	MOVL $0, BX		// i = 0
 	MOVL $0, DX		// c = 0
 	JMP E2
@@ -50,16 +50,16 @@ L2:	MOVL (SI)(BX*4), AX
 E2:	CMPL BX, BP		// i < n
 	JL L2
 
-	MOVL DX, c+40(FP)
+	MOVL DX, c+36(FP)
 	RET
 
 
-// func addVW(z, x []Word, y Word, n int) (c Word)
+// func addVW(z, x []Word, y Word) (c Word)
 TEXT ·addVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), AX	// c = y
-	MOVL n+28(FP), BP
+	MOVL n+4(FP), BP
 	MOVL $0, BX		// i = 0
 	JMP E3
 
@@ -72,16 +72,16 @@ L3:	ADDL (SI)(BX*4), AX
 E3:	CMPL BX, BP		// i < n
 	JL L3
 
-	MOVL AX, c+32(FP)
+	MOVL AX, c+28(FP)
 	RET
 
 
-// func subVW(z, x []Word, y Word, n int) (c Word)
+// func subVW(z, x []Word, y Word) (c Word)
 TEXT ·subVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), AX	// c = y
-	MOVL n+28(FP), BP
+	MOVL n+4(FP), BP
 	MOVL $0, BX		// i = 0
 	JMP E4
 
@@ -95,13 +95,13 @@ L4:	MOVL (SI)(BX*4), DX	// TODO(gri) is there a reverse SUBL?
 E4:	CMPL BX, BP		// i < n
 	JL L4
 
-	MOVL AX, c+32(FP)
+	MOVL AX, c+28(FP)
 	RET
 
 
-// func shlVW(z, x []Word, s Word, n int) (c Word)
+// func shlVW(z, x []Word, s Word) (c Word)
 TEXT ·shlVW(SB),7,$0
-	MOVL n+28(FP), BX	// i = n
+	MOVL n+4(FP), BX	// i = n
 	SUBL $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
 
@@ -112,7 +112,7 @@ TEXT ·shlVW(SB),7,$0
 	MOVL (SI)(BX*4), AX	// w1 = x[n-1]
 	MOVL $0, DX
 	SHLL CX, DX:AX		// w1>>ŝ
-	MOVL DX, c+32(FP)
+	MOVL DX, c+28(FP)
 
 	CMPL BX, $0
 	JLE X8a			// i <= 0
@@ -130,13 +130,13 @@ X8a:	SHLL CX, AX		// w1<<s
 	MOVL AX, (DI)		// z[0] = w1<<s
 	RET
 
-X8b:	MOVL $0, c+32(FP)
+X8b:	MOVL $0, c+28(FP)
 	RET
 
 
-// func shrVW(z, x []Word, s Word, n int) (c Word)
+// func shrVW(z, x []Word, s Word) (c Word)
 TEXT ·shrVW(SB),7,$0
-	MOVL n+28(FP), BP
+	MOVL n+4(FP), BP
 	SUBL $1, BP		// n--
 	JL X9b			// n < 0	(n <= 0)
 
@@ -147,7 +147,7 @@ TEXT ·shrVW(SB),7,$0
 	MOVL (SI), AX		// w1 = x[0]
 	MOVL $0, DX
 	SHRL CX, DX:AX		// w1<<ŝ
-	MOVL DX, c+32(FP)
+	MOVL DX, c+28(FP)
 
 	MOVL $0, BX		// i = 0
 	JMP E9
@@ -167,17 +167,17 @@ X9a:	SHRL CX, AX		// w1>>s
 	MOVL AX, (DI)(BP*4)	// z[n-1] = w1>>s
 	RET
 
-X9b:	MOVL $0, c+32(FP)
+X9b:	MOVL $0, c+28(FP)
 	RET
 
 
-// func mulAddVWW(z, x []Word, y, r Word, n int) (c Word)
+// func mulAddVWW(z, x []Word, y, r Word) (c Word)
 TEXT ·mulAddVWW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), BP
 	MOVL r+28(FP), CX	// c = r
-	MOVL n+32(FP), BX
+	MOVL n+4(FP), BX
 	LEAL (DI)(BX*4), DI
 	LEAL (SI)(BX*4), SI
 	NEGL BX			// i = -n
@@ -194,16 +194,16 @@ L5:	MOVL (SI)(BX*4), AX
 E5:	CMPL BX, $0		// i < 0
 	JL L5
 
-	MOVL CX, c+36(FP)
+	MOVL CX, c+32(FP)
 	RET
 
 
-// func addMulVVW(z, x []Word, y Word, n int) (c Word)
+// func addMulVVW(z, x []Word, y Word) (c Word)
 TEXT ·addMulVVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), BP
-	MOVL n+28(FP), BX
+	MOVL n+4(FP), BX
 	LEAL (DI)(BX*4), DI
 	LEAL (SI)(BX*4), SI
 	NEGL BX			// i = -n
@@ -223,17 +223,17 @@ L6:	MOVL (SI)(BX*4), AX
 E6:	CMPL BX, $0		// i < 0
 	JL L6
 
-	MOVL CX, c+32(FP)
+	MOVL CX, c+28(FP)
 	RET
 
 
-// divWVW(z* Word, xn Word, x []Word, y Word, n int) (r Word)
+// divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
 TEXT ·divWVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL xn+12(FP), DX	// r = xn
 	MOVL x+16(FP), SI
 	MOVL y+28(FP), CX
-	MOVL n+32(FP), BX	// i = n
+	MOVL n+4(FP), BX	// i = n
 	JMP E7
 
 L7:	MOVL (SI)(BX*4), AX
@@ -243,5 +243,5 @@ L7:	MOVL (SI)(BX*4), AX
 E7:	SUBL $1, BX		// i--
 	JGE L7			// i >= 0
 
-	MOVL DX, r+36(FP)
+	MOVL DX, r+32(FP)
 	RET

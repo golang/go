@@ -52,7 +52,7 @@ func TestFunWW(t *testing.T) {
 }
 
 
-type funVV func(z, x, y []Word, n int) (c Word)
+type funVV func(z, x, y []Word) (c Word)
 type argVV struct {
 	z, x, y nat
 	c       Word
@@ -72,9 +72,8 @@ var sumVV = []argVV{
 
 
 func testFunVV(t *testing.T, msg string, f funVV, a argVV) {
-	n := len(a.z)
-	z := make(nat, n)
-	c := f(z, a.x, a.y, n)
+	z := make(nat, len(a.z))
+	c := f(z, a.x, a.y)
 	for i, zi := range z {
 		if zi != a.z[i] {
 			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
@@ -108,7 +107,7 @@ func TestFunVV(t *testing.T) {
 }
 
 
-type funVW func(z, x []Word, y Word, n int) (c Word)
+type funVW func(z, x []Word, y Word) (c Word)
 type argVW struct {
 	z, x nat
 	y    Word
@@ -171,9 +170,8 @@ var rshVW = []argVW{
 
 
 func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
-	n := len(a.z)
-	z := make(nat, n)
-	c := f(z, a.x, a.y, n)
+	z := make(nat, len(a.z))
+	c := f(z, a.x, a.y)
 	for i, zi := range z {
 		if zi != a.z[i] {
 			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
@@ -211,7 +209,7 @@ func TestFunVW(t *testing.T) {
 }
 
 
-type funVWW func(z, x []Word, y, r Word, n int) (c Word)
+type funVWW func(z, x []Word, y, r Word) (c Word)
 type argVWW struct {
 	z, x nat
 	y, r Word
@@ -246,9 +244,8 @@ var prodVWW = []argVWW{
 
 
 func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
-	n := len(a.z)
-	z := make(nat, n)
-	c := f(z, a.x, a.y, a.r, n)
+	z := make(nat, len(a.z))
+	c := f(z, a.x, a.y, a.r)
 	for i, zi := range z {
 		if zi != a.z[i] {
 			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
@@ -264,7 +261,7 @@ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
 // TODO(gri) mulAddVWW and divWVW are symmetric operations but
 //           their signature is not symmetric. Try to unify.
 
-type funWVW func(z []Word, xn Word, x []Word, y Word, n int) (r Word)
+type funWVW func(z []Word, xn Word, x []Word, y Word) (r Word)
 type argWVW struct {
 	z  nat
 	xn Word
@@ -274,9 +271,8 @@ type argWVW struct {
 }
 
 func testFunWVW(t *testing.T, msg string, f funWVW, a argWVW) {
-	n := len(a.z)
-	z := make(nat, n)
-	r := f(z, a.xn, a.x, a.y, n)
+	z := make(nat, len(a.z))
+	r := f(z, a.xn, a.x, a.y)
 	for i, zi := range z {
 		if zi != a.z[i] {
 			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
