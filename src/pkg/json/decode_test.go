@@ -24,6 +24,7 @@ var unmarshalTests = []unmarshalTest{
 	unmarshalTest{`1.2`, new(float), 1.2},
 	unmarshalTest{`-5`, new(int16), int16(-5)},
 	unmarshalTest{`"a\u1234"`, new(string), "a\u1234"},
+	unmarshalTest{`"http:\/\/"`, new(string), "http://"},
 	unmarshalTest{`"g-clef: \uD834\uDD1E"`, new(string), "g-clef: \U0001D11E"},
 	unmarshalTest{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD"},
 	unmarshalTest{"null", new(interface{}), nil},

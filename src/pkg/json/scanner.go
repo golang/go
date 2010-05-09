@@ -349,7 +349,7 @@ func stateInString(s *scanner, c int) int {
 // stateInStringEsc is the state after reading `"\` during a quoted string.
 func stateInStringEsc(s *scanner, c int) int {
 	switch c {
-	case 'b', 'f', 'n', 'r', 't', '\\', '"':
+	case 'b', 'f', 'n', 'r', 't', '\\', '/', '"':
 		s.step = stateInString
 		return scanContinue
 	}
