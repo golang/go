@@ -62,7 +62,12 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 	// Fast paths for special cases. If none of them apply, then we fall back to a general but slow implementation.
 	if dst0, ok := dst.(*image.RGBA); ok {
 		if op == Over {
-			// TODO(nigeltao): Implement a fast path for font glyphs (i.e. when mask is an image.Alpha).
+			if mask0, ok := mask.(*image.Alpha); ok {
+				if src0, ok := src.(image.ColorImage); ok {
+					drawGlyphOver(dst0, r, src0, mask0, mp)
+					return
+				}
+			}
 		} else {
 			if mask == nil {
 				if src0, ok := src.(image.ColorImage); ok {
@@ -143,6 +148,43 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 				}
 				dst.Set(x, y, out)
 			}
+		}
+	}
+}
+
+func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *image.Alpha, mp Point) {
+	x0, x1 := r.Min.X, r.Max.X
+	y0, y1 := r.Min.Y, r.Max.Y
+	cr, cg, cb, ca := src.RGBA()
+	cr >>= 16
+	cg >>= 16
+	cb >>= 16
+	ca >>= 16
+	for y, my := y0, mp.Y; y != y1; y, my = y+1, my+1 {
+		for x, mx := x0, mp.X; x != x1; x, mx = x+1, mx+1 {
+			ma := uint32(mask.Pixel[my][mx].A)
+			if ma == 0 {
+				continue
+			}
+			ma |= ma << 8
+			dr := uint32(dst.Pixel[y][x].R)
+			dg := uint32(dst.Pixel[y][x].G)
+			db := uint32(dst.Pixel[y][x].B)
+			da := uint32(dst.Pixel[y][x].A)
+			// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
+			// We work in 16-bit color, and so would normally do:
+			// dr |= dr << 8
+			// and similarly for dg, db and da, but instead we multiply a
+			// (which is a 16-bit color, ranging in [0,65535]) by 0x101.
+			// This yields the same result, but is fewer arithmetic operations.
+			const M = 1<<16 - 1
+			a := M - (ca * ma / M)
+			a *= 0x101
+			dr = (dr*a + cr*ma) / M
+			dg = (dg*a + cg*ma) / M
+			db = (db*a + cb*ma) / M
+			da = (da*a + ca*ma) / M
+			dst.Pixel[y][x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 	}
 }
