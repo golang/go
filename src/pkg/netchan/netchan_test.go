@@ -4,10 +4,7 @@
 
 package netchan
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 type value struct {
 	i int
@@ -35,7 +32,6 @@ func exportReceive(exp *Exporter, t *testing.T) {
 	}
 	for i := 0; i < count; i++ {
 		v := <-ch
-		fmt.Printf("%v\n", v)
 		if v.i != 45+i || v.s != "hello" {
 			t.Errorf("export Receive: bad value: expected 4%d, hello; got %+v", 45+i, v)
 		}
@@ -50,7 +46,6 @@ func importReceive(imp *Importer, t *testing.T) {
 	}
 	for i := 0; i < count; i++ {
 		v := <-ch
-		fmt.Printf("%v\n", v)
 		if v.i != 23+i || v.s != "hello" {
 			t.Errorf("importReceive: bad value: expected %d, hello; got %+v", 23+i, v)
 		}
