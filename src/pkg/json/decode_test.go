@@ -6,38 +6,46 @@ package json
 
 import (
 	"bytes"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 )
 
+type T struct {
+	X string
+	Y int
+}
+
 type unmarshalTest struct {
 	in  string
 	ptr interface{}
 	out interface{}
+	err os.Error
 }
 
 var unmarshalTests = []unmarshalTest{
 	// basic types
-	unmarshalTest{`true`, new(bool), true},
-	unmarshalTest{`1`, new(int), 1},
-	unmarshalTest{`1.2`, new(float), 1.2},
-	unmarshalTest{`-5`, new(int16), int16(-5)},
-	unmarshalTest{`"a\u1234"`, new(string), "a\u1234"},
-	unmarshalTest{`"http:\/\/"`, new(string), "http://"},
-	unmarshalTest{`"g-clef: \uD834\uDD1E"`, new(string), "g-clef: \U0001D11E"},
-	unmarshalTest{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD"},
-	unmarshalTest{"null", new(interface{}), nil},
+	unmarshalTest{`true`, new(bool), true, nil},
+	unmarshalTest{`1`, new(int), 1, nil},
+	unmarshalTest{`1.2`, new(float), 1.2, nil},
+	unmarshalTest{`-5`, new(int16), int16(-5), nil},
+	unmarshalTest{`"a\u1234"`, new(string), "a\u1234", nil},
+	unmarshalTest{`"http:\/\/"`, new(string), "http://", nil},
+	unmarshalTest{`"g-clef: \uD834\uDD1E"`, new(string), "g-clef: \U0001D11E", nil},
+	unmarshalTest{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD", nil},
+	unmarshalTest{"null", new(interface{}), nil, nil},
+	unmarshalTest{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.Typeof("")}},
 
 	// composite tests
-	unmarshalTest{allValueIndent, new(All), allValue},
-	unmarshalTest{allValueCompact, new(All), allValue},
-	unmarshalTest{allValueIndent, new(*All), &allValue},
-	unmarshalTest{allValueCompact, new(*All), &allValue},
-	unmarshalTest{pallValueIndent, new(All), pallValue},
-	unmarshalTest{pallValueCompact, new(All), pallValue},
-	unmarshalTest{pallValueIndent, new(*All), &pallValue},
-	unmarshalTest{pallValueCompact, new(*All), &pallValue},
+	unmarshalTest{allValueIndent, new(All), allValue, nil},
+	unmarshalTest{allValueCompact, new(All), allValue, nil},
+	unmarshalTest{allValueIndent, new(*All), &allValue, nil},
+	unmarshalTest{allValueCompact, new(*All), &allValue, nil},
+	unmarshalTest{pallValueIndent, new(All), pallValue, nil},
+	unmarshalTest{pallValueCompact, new(All), pallValue, nil},
+	unmarshalTest{pallValueIndent, new(*All), &pallValue, nil},
+	unmarshalTest{pallValueCompact, new(*All), &pallValue, nil},
 }
 
 func TestMarshal(t *testing.T) {
@@ -73,8 +81,8 @@ func TestUnmarshal(t *testing.T) {
 		// v = new(right-type)
 		v := reflect.NewValue(tt.ptr).(*reflect.PtrValue)
 		v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
-		if err := Unmarshal([]byte(in), v.Interface()); err != nil {
-			t.Errorf("#%d: %v", i, err)
+		if err := Unmarshal([]byte(in), v.Interface()); !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("#%d: %v want %v", i, err, tt.err)
 			continue
 		}
 		if !reflect.DeepEqual(v.Elem().Interface(), tt.out) {
