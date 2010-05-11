@@ -167,10 +167,11 @@ func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *ima
 				continue
 			}
 			ma |= ma << 8
-			dr := uint32(dst.Pixel[y][x].R)
-			dg := uint32(dst.Pixel[y][x].G)
-			db := uint32(dst.Pixel[y][x].B)
-			da := uint32(dst.Pixel[y][x].A)
+			rgba := dst.Pixel[y][x]
+			dr := uint32(rgba.R)
+			dg := uint32(rgba.G)
+			db := uint32(rgba.B)
+			da := uint32(rgba.A)
 			// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
 			// We work in 16-bit color, and so would normally do:
 			// dr |= dr << 8
