@@ -345,7 +345,7 @@ func atoi(s string, i int) (n, i1 int, ok bool) {
 
 // Parse HTTP version: "HTTP/1.2" -> (1, 2, true).
 func parseHTTPVersion(vers string) (int, int, bool) {
-	if vers[0:5] != "HTTP/" {
+	if len(vers) < 5 || vers[0:5] != "HTTP/" {
 		return 0, 0, false
 	}
 	major, i, ok := atoi(vers, 5)
