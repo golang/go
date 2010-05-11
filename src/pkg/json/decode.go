@@ -304,6 +304,9 @@ func (d *decodeState) array(v reflect.Value) {
 	av, ok := v.(reflect.ArrayOrSliceValue)
 	if !ok {
 		d.saveError(&UnmarshalTypeError{"array", v.Type()})
+		d.off--
+		d.next()
+		return
 	}
 
 	sv, _ := v.(*reflect.SliceValue)
