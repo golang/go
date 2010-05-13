@@ -1053,8 +1053,10 @@ func (p *pp) doprintf(format string, a []interface{}) {
 		p.buf.Write(extraBytes)
 		for ; fieldnum < len(a); fieldnum++ {
 			field := a[fieldnum]
-			p.buf.WriteString(reflect.Typeof(field).String())
-			p.buf.WriteByte('=')
+			if field != nil {
+				p.buf.WriteString(reflect.Typeof(field).String())
+				p.buf.WriteByte('=')
+			}
 			p.printField(field, false, false, 0)
 			if fieldnum+1 < len(a) {
 				p.buf.Write(commaSpaceBytes)
