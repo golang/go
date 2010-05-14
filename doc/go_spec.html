@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 7, 2010 -->
+<!-- subtitle Version of May 14, 2010 -->
 
 <!--
 Todo
@@ -186,15 +186,31 @@ into the token stream at the end of a non-blank line if the line's final
 token is
 </p>
 <ul>
-	<li>an identifier
-	<li>an integer, floating-point, character, or string literal
-	<li>one of the keywords
-	    <code>break</code>, <code>continue</code>, <code>fallthrough</code>,
-	    or <code>return</code>
+	<li>an
+	    <a href="#Identifiers">identifier</a>
 	</li>
-	<li>one of the operators and delimiters
-	    <code>++</code>, <code>--</code>, <code>)</code>, <code>]</code>,
-	    or <code>}</code>
+	
+	<li>an
+	    <a href="#Integer_literals">integer</a>,
+	    <a href="#Floating-point_literals">floating-point</a>,
+	    <a href="#Imaginary_literals">imaginary</a>,
+	    <a href="#Character_literals">character</a>, or
+	    <a href="#String_literals">string</a> literal
+	</li>
+	
+	<li>one of the <a href="#Keywords">keywords</a>
+	    <code>break</code>,
+	    <code>continue</code>,
+	    <code>fallthrough</code>, or
+	    <code>return</code>
+	</li>
+	
+	<li>one of the <a href="#Operators_and_Delimiters">operators and delimiters</a>
+	    <code>++</code>,
+	    <code>--</code>,
+	    <code>)</code>,
+	    <code>]</code>, or
+	    <code>}</code>
 	</li>
 </ul>
 </li>
@@ -1558,9 +1574,9 @@ using a <a href="#Qualified_identifiers">qualified identifier</a>. An identifier
 is exported if both:
 </p>
 <ol>
-	<li>the first character of the identifier's name is a Unicode upper case letter (Unicode class "Lu"); and
+	<li>the first character of the identifier's name is a Unicode upper case letter (Unicode class "Lu"); and</li>
 	<li>the identifier is declared in the <a href="#Blocks">package block</a> or denotes a field or method of a type
-	    declared in that block.
+	    declared in that block.</li>
 </ol>
 <p>
 All other identifiers are not exported.
@@ -2308,6 +2324,7 @@ If no value or <code>nil</code> was assigned to <code>x</code>, <code>x.f</code>
 </li>
 <li>
 In all other cases, <code>x.f</code> is illegal.
+</li>
 </ol>
 <p>
 Selectors automatically dereference pointers.
@@ -2410,7 +2427,7 @@ where <code>T</code> is a <a href="#String_types">string type</a>:
 	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code></li>
 	<li><code>a[x]</code> is the byte at index <code>x</code> and the type of
 	  <code>a[x]</code> is <code>byte</code></li>
-	<li><code>a[x]</code> may not be assigned to
+	<li><code>a[x]</code> may not be assigned to</li>
 	<li>if the index <code>x</code> is out of range,
 	a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 </ul>
@@ -3271,6 +3288,7 @@ When converting a floating-point number to an integer, the fraction is discarded
 <li>
 A value of complex type may be converted to a different complex type,
 but there is no conversion between complex and any other type.
+</li>
 <li>
 When converting a number to a floating-point or complex type,
 the result value is rounded
@@ -5099,15 +5117,19 @@ The following minimal alignment properties are guaranteed:
 </p>
 <ol>
 <li>For a variable <code>x</code> of any type: <code>1 <= unsafe.Alignof(x) <= unsafe.Maxalign</code>.
+</li>
 
 <li>For a variable <code>x</code> of numeric type: <code>unsafe.Alignof(x)</code> is the smaller
    of <code>unsafe.Sizeof(x)</code> and <code>unsafe.Maxalign</code>, but at least 1.
+</li>
 
 <li>For a variable <code>x</code> of struct type: <code>unsafe.Alignof(x)</code> is the largest of
    all the values <code>unsafe.Alignof(x.f)</code> for each field <code>f</code> of x, but at least 1.
+</li>
 
 <li>For a variable <code>x</code> of array type: <code>unsafe.Alignof(x)</code> is the same as
    <code>unsafe.Alignof(x[0])</code>, but at least 1.
+</li>
 </ol>
 
 <h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
