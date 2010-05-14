@@ -491,7 +491,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
 type exprContext uint
 
 const (
-	compositeLit = 1 << iota
+	compositeLit exprContext = 1 << iota
 	structType
 )
 
@@ -922,7 +922,7 @@ const maxStmtNewlines = 2 // maximum number of newlines between statements
 // Print the statement list indented, but without a newline after the last statement.
 // Extra line breaks between statements in the source are respected but at most one
 // empty line is printed between statements.
-func (p *printer) stmtList(list []ast.Stmt, _indent int) {
+func (p *printer) stmtList(list []ast.Stmt, _indent int, nextIsRBrace bool) {
 	// TODO(gri): fix _indent code
 	if _indent > 0 {
 		p.print(indent)
@@ -933,7 +933,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 		// in those cases each clause is a new section
 		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, ignore, i == 0 || _indent == 0 || multiLine)
 		multiLine = false
-		p.stmt(s, &multiLine)
+		p.stmt(s, nextIsRBrace && i == len(list)-1, &multiLine)
 	}
 	if _indent > 0 {
 		p.print(unindent)
@@ -944,7 +944,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 // block prints an *ast.BlockStmt; it always spans at least two lines.
 func (p *printer) block(s *ast.BlockStmt, indent int) {
 	p.print(s.Pos(), token.LBRACE)
-	p.stmtList(s.List, indent)
+	p.stmtList(s.List, indent, true)
 	p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true)
 	p.print(s.Rbrace, token.RBRACE)
 }
@@ -990,7 +990,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 		// all semicolons required
 		// (they are not separators, print them explicitly)
 		if init != nil {
-			p.stmt(init, ignoreMultiLine)
+			p.stmt(init, false, ignoreMultiLine)
 		}
 		p.print(token.SEMICOLON, blank)
 		if expr != nil {
@@ -1001,7 +1001,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 			p.print(token.SEMICOLON, blank)
 			needsBlank = false
 			if post != nil {
-				p.stmt(post, ignoreMultiLine)
+				p.stmt(post, false, ignoreMultiLine)
 				needsBlank = true
 			}
 		}
@@ -1013,7 +1013,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 
 
 // Sets multiLine to true if the statements spans multiple lines.
-func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
+func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 	p.print(stmt.Pos())
 
 	switch s := stmt.(type) {
@@ -1033,8 +1033,12 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 		p.print(unindent)
 		p.expr(s.Label, multiLine)
 		p.print(token.COLON, vtab, indent)
+		if _, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty && !nextIsRBrace {
+			p.print(token.SEMICOLON)
+			break
+		}
 		p.linebreak(s.Stmt.Pos().Line, 0, 1, ignore, true)
-		p.stmt(s.Stmt, multiLine)
+		p.stmt(s.Stmt, nextIsRBrace, multiLine)
 
 	case *ast.ExprStmt:
 		const depth = 1
@@ -1088,10 +1092,10 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 			p.print(blank, token.ELSE, blank)
 			switch s.Else.(type) {
 			case *ast.BlockStmt, *ast.IfStmt:
-				p.stmt(s.Else, ignoreMultiLine)
+				p.stmt(s.Else, nextIsRBrace, ignoreMultiLine)
 			default:
 				p.print(token.LBRACE, indent, formfeed)
-				p.stmt(s.Else, ignoreMultiLine)
+				p.stmt(s.Else, true, ignoreMultiLine)
 				p.print(unindent, formfeed, token.RBRACE)
 			}
 		}
@@ -1104,7 +1108,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 			p.print(token.DEFAULT)
 		}
 		p.print(s.Colon, token.COLON)
-		p.stmtList(s.Body, 1)
+		p.stmtList(s.Body, 1, nextIsRBrace)
 
 	case *ast.SwitchStmt:
 		p.print(token.SWITCH)
@@ -1120,17 +1124,17 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 			p.print(token.DEFAULT)
 		}
 		p.print(s.Colon, token.COLON)
-		p.stmtList(s.Body, 1)
+		p.stmtList(s.Body, 1, nextIsRBrace)
 
 	case *ast.TypeSwitchStmt:
 		p.print(token.SWITCH)
 		if s.Init != nil {
 			p.print(blank)
-			p.stmt(s.Init, ignoreMultiLine)
+			p.stmt(s.Init, false, ignoreMultiLine)
 			p.print(token.SEMICOLON)
 		}
 		p.print(blank)
-		p.stmt(s.Assign, ignoreMultiLine)
+		p.stmt(s.Assign, false, ignoreMultiLine)
 		p.print(blank)
 		p.block(s.Body, 0)
 		*multiLine = true
@@ -1147,7 +1151,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
 			p.print(token.DEFAULT)
 		}
 		p.print(s.Colon, token.COLON)
-		p.stmtList(s.Body, 1)
+		p.stmtList(s.Body, 1, nextIsRBrace)
 
 	case *ast.SelectStmt:
 		p.print(token.SELECT, blank)
@@ -1359,7 +1363,7 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 				if i > 0 {
 					p.print(token.SEMICOLON, blank)
 				}
-				p.stmt(s, ignoreMultiLine)
+				p.stmt(s, i == len(b.List)-1, ignoreMultiLine)
 			}
 			p.print(blank)
 		}

@@ -767,6 +767,7 @@ func (p *printer) print(args ...interface{}) {
 			} else {
 				data = []byte(x.Name())
 			}
+			tok = token.IDENT
 		case *ast.BasicLit:
 			if p.Styler != nil {
 				data, tag = p.Styler.BasicLit(x)
@@ -778,6 +779,7 @@ func (p *printer) print(args ...interface{}) {
 			// bytes since they do not appear in legal UTF-8 sequences)
 			// TODO(gri): do this more efficiently.
 			data = []byte("\xff" + string(data) + "\xff")
+			tok = token.INT // representing all literal tokens
 		case token.Token:
 			if p.Styler != nil {
 				data, tag = p.Styler.Token(x)
@@ -1011,7 +1013,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 			if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
 				p.indent = 1
 			}
-			p.stmt(n, ignoreMultiLine)
+			p.stmt(n, false, ignoreMultiLine)
 		case ast.Decl:
 			p.useNodeComments = true
 			p.decl(n, atTop, ignoreMultiLine)
