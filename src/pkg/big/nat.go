@@ -69,7 +69,7 @@ func (z nat) make(n int) nat {
 }
 
 
-func (z nat) new(x uint64) nat {
+func (z nat) setUint64(x uint64) nat {
 	if x == 0 {
 		return z.make(0)
 	}
@@ -194,7 +194,7 @@ func (x nat) cmp(y nat) (r int) {
 func (z nat) mulAddWW(x nat, y, r Word) nat {
 	m := len(x)
 	if m == 0 || y == 0 {
-		return z.new(uint64(r)) // result is r
+		return z.setUint64(uint64(r)) // result is r
 	}
 	// m > 0
 
@@ -456,13 +456,13 @@ func (z nat) mulRange(a, b uint64) nat {
 	switch {
 	case a == 0:
 		// cut long ranges short (optimization)
-		return z.new(0)
+		return z.setUint64(0)
 	case a > b:
-		return z.new(1)
+		return z.setUint64(1)
 	case a == b:
-		return z.new(a)
+		return z.setUint64(a)
 	case a+1 == b:
-		return z.mul(nat(nil).new(a), nat(nil).new(b))
+		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
 	}
 	m := (a + b) / 2
 	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
@@ -621,7 +621,8 @@ func hexValue(ch byte) int {
 //
 // If the base argument is 0, the string prefix determines the actual
 // conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
-// ``0'' prefix selects base 8. Otherwise the selected base is 10.
+// ``0'' prefix selects base 8, and a ``0b'' or ``0B'' prefix selects
+// base 2. Otherwise the selected base is 10.
 //
 func (z nat) scan(s string, base int) (nat, int, int) {
 	// determine base if necessary
@@ -629,23 +630,25 @@ func (z nat) scan(s string, base int) (nat, int, int) {
 	if base == 0 {
 		base = 10
 		if n > 0 && s[0] == '0' {
-			if n > 1 && (s[1] == 'x' || s[1] == 'X') {
-				if n == 2 {
-					// Reject a string which is just '0x' as nonsense.
-					return nil, 0, 0
+			base, i = 8, 1
+			if n > 1 {
+				switch s[1] {
+				case 'x', 'X':
+					base, i = 16, 2
+				case 'b', 'B':
+					base, i = 2, 2
 				}
-				base, i = 16, 2
-			} else {
-				base, i = 8, 1
 			}
 		}
 	}
-	if base < 2 || 16 < base {
-		panic("illegal base")
+
+	// reject illegal bases or strings consisting only of prefix
+	if base < 2 || 16 < base || (base != 8 && i >= n) {
+		return nil, 0, 0
 	}
 
 	// convert string
-	z = z[0:0]
+	z = z.make(0)
 	for ; i < n; i++ {
 		d := hexValue(s[i])
 		if 0 <= d && d < base {
