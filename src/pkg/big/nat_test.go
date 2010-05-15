@@ -111,25 +111,25 @@ func TestFunNN(t *testing.T) {
 }
 
 
-type mulRange struct {
+type mulRangeN struct {
 	a, b uint64
 	prod string
 }
 
 
-var mulRanges = []mulRange{
-	mulRange{0, 0, "0"},
-	mulRange{1, 1, "1"},
-	mulRange{1, 2, "2"},
-	mulRange{1, 3, "6"},
-	mulRange{1, 3, "6"},
-	mulRange{10, 10, "10"},
-	mulRange{0, 100, "0"},
-	mulRange{0, 1e9, "0"},
-	mulRange{100, 1, "1"},                  // empty range
-	mulRange{1, 10, "3628800"},             // 10!
-	mulRange{1, 20, "2432902008176640000"}, // 20!
-	mulRange{1, 100,
+var mulRangesN = []mulRangeN{
+	mulRangeN{0, 0, "0"},
+	mulRangeN{1, 1, "1"},
+	mulRangeN{1, 2, "2"},
+	mulRangeN{1, 3, "6"},
+	mulRangeN{10, 10, "10"},
+	mulRangeN{0, 100, "0"},
+	mulRangeN{0, 1e9, "0"},
+	mulRangeN{1, 0, "1"},                    // empty range
+	mulRangeN{100, 1, "1"},                  // empty range
+	mulRangeN{1, 10, "3628800"},             // 10!
+	mulRangeN{1, 20, "2432902008176640000"}, // 20!
+	mulRangeN{1, 100,
 		"933262154439441526816992388562667004907159682643816214685929" +
 			"638952175999932299156089414639761565182862536979208272237582" +
 			"51185210916864000000000000000000000000", // 100!
@@ -137,11 +137,11 @@ var mulRanges = []mulRange{
 }
 
 
-func TestMulRange(t *testing.T) {
-	for i, r := range mulRanges {
+func TestMulRangeN(t *testing.T) {
+	for i, r := range mulRangesN {
 		prod := nat(nil).mulRange(r.a, r.b).string(10)
 		if prod != r.prod {
-			t.Errorf("%d: got %s; want %s", i, prod, r.prod)
+			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
 		}
 	}
 }

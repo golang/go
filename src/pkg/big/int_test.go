@@ -7,6 +7,7 @@ package big
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"testing"
 	"testing/quick"
 )
@@ -156,47 +157,143 @@ func TestMul(t *testing.T) {
 }
 
 
-type fromStringTest struct {
+type mulRangeZ struct {
+	a, b int64
+	prod string
+}
+
+
+var mulRangesZ = []mulRangeZ{
+	// entirely positive ranges are covered by mulRangesN
+	mulRangeZ{-1, 1, "0"},
+	mulRangeZ{-2, -1, "2"},
+	mulRangeZ{-3, -2, "6"},
+	mulRangeZ{-3, -1, "-6"},
+	mulRangeZ{1, 3, "6"},
+	mulRangeZ{-10, -10, "-10"},
+	mulRangeZ{0, -1, "1"},                      // empty range
+	mulRangeZ{-1, -100, "1"},                   // empty range
+	mulRangeZ{-1, 1, "0"},                      // range includes 0
+	mulRangeZ{-1e9, 0, "0"},                    // range includes 0
+	mulRangeZ{-1e9, 1e9, "0"},                  // range includes 0
+	mulRangeZ{-10, -1, "3628800"},              // 10!
+	mulRangeZ{-20, -2, "-2432902008176640000"}, // -20!
+	mulRangeZ{-99, -1,
+		"-933262154439441526816992388562667004907159682643816214685929" +
+			"638952175999932299156089414639761565182862536979208272237582" +
+			"511852109168640000000000000000000000", // -99!
+	},
+}
+
+
+func TestMulRangeZ(t *testing.T) {
+	var tmp Int
+	// test entirely positive ranges
+	for i, r := range mulRangesN {
+		prod := tmp.MulRange(int64(r.a), int64(r.b)).String()
+		if prod != r.prod {
+			t.Errorf("#%da: got %s; want %s", i, prod, r.prod)
+		}
+	}
+	// test other ranges
+	for i, r := range mulRangesZ {
+		prod := tmp.MulRange(r.a, r.b).String()
+		if prod != r.prod {
+			t.Errorf("#%db: got %s; want %s", i, prod, r.prod)
+		}
+	}
+}
+
+
+type stringTest struct {
 	in   string
+	out  string
 	base int
-	out  int64
+	val  int64
 	ok   bool
 }
 
 
-var fromStringTests = []fromStringTest{
-	fromStringTest{in: "", ok: false},
-	fromStringTest{in: "a", ok: false},
-	fromStringTest{in: "z", ok: false},
-	fromStringTest{in: "+", ok: false},
-	fromStringTest{"0", 0, 0, true},
-	fromStringTest{"0", 10, 0, true},
-	fromStringTest{"0", 16, 0, true},
-	fromStringTest{"10", 0, 10, true},
-	fromStringTest{"10", 10, 10, true},
-	fromStringTest{"10", 16, 16, true},
-	fromStringTest{"-10", 16, -16, true},
-	fromStringTest{in: "0x", ok: false},
-	fromStringTest{"0x10", 0, 16, true},
-	fromStringTest{in: "0x10", base: 16, ok: false},
-	fromStringTest{"-0x10", 0, -16, true},
-	fromStringTest{"00", 0, 0, true},
-	fromStringTest{"0", 8, 0, true},
-	fromStringTest{"07", 0, 7, true},
-	fromStringTest{"7", 8, 7, true},
-	fromStringTest{in: "08", ok: false},
-	fromStringTest{in: "8", base: 8, ok: false},
-	fromStringTest{"023", 0, 19, true},
-	fromStringTest{"23", 8, 19, true},
+var stringTests = []stringTest{
+	stringTest{in: "", ok: false},
+	stringTest{in: "a", ok: false},
+	stringTest{in: "z", ok: false},
+	stringTest{in: "+", ok: false},
+	stringTest{in: "0b", ok: false},
+	stringTest{in: "0x", ok: false},
+	stringTest{in: "2", base: 2, ok: false},
+	stringTest{in: "0b2", base: 0, ok: false},
+	stringTest{in: "08", ok: false},
+	stringTest{in: "8", base: 8, ok: false},
+	stringTest{in: "0xg", base: 0, ok: false},
+	stringTest{in: "g", base: 16, ok: false},
+	stringTest{"0", "0", 0, 0, true},
+	stringTest{"0", "0", 10, 0, true},
+	stringTest{"0", "0", 16, 0, true},
+	stringTest{"10", "10", 0, 10, true},
+	stringTest{"10", "10", 10, 10, true},
+	stringTest{"10", "10", 16, 16, true},
+	stringTest{"-10", "-10", 16, -16, true},
+	stringTest{"0x10", "16", 0, 16, true},
+	stringTest{in: "0x10", base: 16, ok: false},
+	stringTest{"-0x10", "-16", 0, -16, true},
+	stringTest{"00", "0", 0, 0, true},
+	stringTest{"0", "0", 8, 0, true},
+	stringTest{"07", "7", 0, 7, true},
+	stringTest{"7", "7", 8, 7, true},
+	stringTest{"023", "19", 0, 19, true},
+	stringTest{"23", "23", 8, 19, true},
+	stringTest{"cafebabe", "cafebabe", 16, 0xcafebabe, true},
+	stringTest{"0b0", "0", 0, 0, true},
+	stringTest{"-111", "-111", 2, -7, true},
+	stringTest{"-0b111", "-7", 0, -7, true},
+	stringTest{"0b1001010111", "599", 0, 0x257, true},
+	stringTest{"1001010111", "1001010111", 2, 0x257, true},
+}
+
+
+func format(base int) string {
+	switch base {
+	case 2:
+		return "%b"
+	case 8:
+		return "%o"
+	case 16:
+		return "%x"
+	}
+	return "%d"
+}
+
+
+func TestGetString(t *testing.T) {
+	z := new(Int)
+	for i, test := range stringTests {
+		if !test.ok {
+			continue
+		}
+		z.SetInt64(test.val)
+
+		if test.base == 10 {
+			s := z.String()
+			if s != test.out {
+				t.Errorf("#%da got %s; want %s\n", i, s, test.out)
+			}
+		}
+
+		s := fmt.Sprintf(format(test.base), z)
+		if s != test.out {
+			t.Errorf("#%db got %s; want %s\n", i, s, test.out)
+		}
+	}
 }
 
 
 func TestSetString(t *testing.T) {
-	n2 := new(Int)
-	for i, test := range fromStringTests {
+	tmp := new(Int)
+	for i, test := range stringTests {
 		n1, ok1 := new(Int).SetString(test.in, test.base)
-		n2, ok2 := n2.SetString(test.in, test.base)
-		expected := NewInt(test.out)
+		n2, ok2 := tmp.SetString(test.in, test.base)
+		expected := NewInt(test.val)
 		if ok1 != test.ok || ok2 != test.ok {
 			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok)
 			continue
@@ -213,10 +310,10 @@ func TestSetString(t *testing.T) {
 		}
 
 		if n1.Cmp(expected) != 0 {
-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n1, test.out)
+			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n1, test.val)
 		}
 		if n2.Cmp(expected) != 0 {
-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n2, test.out)
+			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n2, test.val)
 		}
 	}
 }

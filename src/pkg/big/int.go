@@ -6,6 +6,9 @@
 
 package big
 
+import "fmt"
+
+
 // An Int represents a signed multi-precision integer.
 // The zero value for an Int represents the value 0.
 type Int struct {
@@ -19,12 +22,13 @@ var intOne = &Int{false, natOne}
 
 // SetInt64 sets z to x and returns z.
 func (z *Int) SetInt64(x int64) *Int {
-	z.neg = false
+	neg := false
 	if x < 0 {
-		z.neg = true
+		neg = true
 		x = -x
 	}
-	z.abs = z.abs.new(uint64(x))
+	z.abs = z.abs.setUint64(uint64(x))
+	z.neg = neg
 	return z
 }
 
@@ -37,8 +41,8 @@ func NewInt(x int64) *Int {
 
 // Set sets z to x.
 func (z *Int) Set(x *Int) *Int {
-	z.neg = x.neg
 	z.abs = z.abs.set(x.abs)
+	z.neg = x.neg
 	return z
 }
 
@@ -95,6 +99,30 @@ func (z *Int) Mul(x, y *Int) *Int {
 	// (-x) * (-y) == x * y
 	z.abs = z.abs.mul(x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
+	return z
+}
+
+
+// MulRange sets z to the product of all integers
+// in the range [a, b] inclusively and returns z.
+// If a > b (empty range), the result is 1.
+func (z *Int) MulRange(a, b int64) *Int {
+	switch {
+	case a > b:
+		return z.SetInt64(1) // empty range
+	case a <= 0 && b >= 0:
+		return z.SetInt64(0) // range includes 0
+	}
+	// a <= b && (b < 0 || a > 0)
+
+	neg := false
+	if a < 0 {
+		neg = (b-a)&1 == 0
+		a, b = -b, -a
+	}
+
+	z.abs = z.abs.mulRange(uint64(a), uint64(b))
+	z.neg = neg
 	return z
 }
 
@@ -243,26 +271,53 @@ func (x *Int) Cmp(y *Int) (r int) {
 }
 
 
-func (z *Int) String() string {
+func (x *Int) String() string {
 	s := ""
-	if z.neg {
+	if x.neg {
 		s = "-"
 	}
-	return s + z.abs.string(10)
+	return s + x.abs.string(10)
+}
+
+
+func fmtbase(ch int) int {
+	switch ch {
+	case 'b':
+		return 2
+	case 'o':
+		return 8
+	case 'd':
+		return 10
+	case 'x':
+		return 16
+	}
+	return 10
+}
+
+
+// Format is a support routine for fmt.Formatter. It accepts
+// the formats 'b' (binary), 'o' (octal), 'd' (decimal) and
+// 'x' (hexadecimal).
+//
+func (x *Int) Format(s fmt.State, ch int) {
+	if x.neg {
+		fmt.Fprint(s, "-")
+	}
+	fmt.Fprint(s, x.abs.string(fmtbase(ch)))
 }
 
 
 // Int64 returns the int64 representation of z.
 // If z cannot be represented in an int64, the result is undefined.
-func (z *Int) Int64() int64 {
-	if len(z.abs) == 0 {
+func (x *Int) Int64() int64 {
+	if len(x.abs) == 0 {
 		return 0
 	}
-	v := int64(z.abs[0])
-	if _W == 32 && len(z.abs) > 1 {
-		v |= int64(z.abs[1]) << 32
+	v := int64(x.abs[0])
+	if _W == 32 && len(x.abs) > 1 {
+		v |= int64(x.abs[1]) << 32
 	}
-	if z.neg {
+	if x.neg {
 		v = -v
 	}
 	return v
