@@ -6,7 +6,8 @@
 set -e
 . ./env.bash
 
-export MAKEFLAGS=-j4
+MAKEFLAGS=${MAKEFLAGS:-"-j4"}
+export MAKEFLAGS
 unset CDPATH	# in case user has it set
 
 rm -f "$GOBIN"/quietgcc
