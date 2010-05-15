@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The cmath package provides basic constants
+// and mathematical functions for complex numbers.
 package cmath
 
 import "math"
