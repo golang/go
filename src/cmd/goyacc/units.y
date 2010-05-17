@@ -215,7 +215,7 @@ expr0:
 
 type UnitsLex int
 
-func (l UnitsLex) Lex(yylval *yySymType) int {
+func (_ UnitsLex) Lex(yylval *yySymType) int {
 	var c, i int
 
 	c = peekrune
@@ -278,6 +278,10 @@ numb:
 	}
 	yylval.vval = f
 	return VAL
+}
+
+func (_ UnitsLex) Error(s string) {
+	Error("syntax error, last name: %v", sym)
 }
 
 func main() {
@@ -382,10 +386,6 @@ func rdigit(c int) bool {
 		return true
 	}
 	return false
-}
-
-func yyError(s string) {
-	Error("syntax error, last name: %v", sym)
 }
 
 func Error(s string, v ...interface{}) {
