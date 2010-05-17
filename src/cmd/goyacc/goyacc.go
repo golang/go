@@ -3080,6 +3080,7 @@ var yyDebug = 0
 
 type yyLexer interface {
 	Lex(lval *yySymType) int
+	Error(s string)
 }
 
 const yyFlag = -1000
@@ -3162,7 +3163,7 @@ ret1:
 yystack:
 	/* put a state and value onto the stack */
 	if yyDebug >= 4 {
-		fmt.Printf("char %v in %v", yyTokname(yychar), yyStatname(yystate))
+		fmt.Printf("char %v in %v\n", yyTokname(yychar), yyStatname(yystate))
 	}
 
 	yyp++
@@ -3228,7 +3229,7 @@ yydefault:
 		/* error ... attempt to resume parsing */
 		switch Errflag {
 		case 0: /* brand new error */
-			yyError("syntax error")
+			yylex.Error("syntax error")
 			Nerrs++
 			if yyDebug >= 1 {
 				fmt.Printf("%s", yyStatname(yystate))
@@ -3273,7 +3274,7 @@ yydefault:
 
 	/* reduction by production yyn */
 	if yyDebug >= 2 {
-		fmt.Printf("reduce %v in:\n\t%v", yyn, yyStatname(yystate))
+		fmt.Printf("reduce %v in:\n\t%v\n", yyn, yyStatname(yystate))
 	}
 
 	yynt := yyn
