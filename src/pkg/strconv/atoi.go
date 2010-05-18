@@ -77,13 +77,14 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 
 	for i := 0; i < len(s); i++ {
 		var v byte
+		d := s[i]
 		switch {
-		case '0' <= s[i] && s[i] <= '9':
-			v = s[i] - '0'
-		case 'a' <= s[i] && s[i] <= 'z':
-			v = s[i] - 'a' + 10
-		case 'A' <= s[i] && s[i] <= 'Z':
-			v = s[i] - 'A' + 10
+		case '0' <= d && d <= '9':
+			v = d - '0'
+		case 'a' <= d && d <= 'z':
+			v = d - 'a' + 10
+		case 'A' <= d && d <= 'Z':
+			v = d - 'A' + 10
 		default:
 			n = 0
 			err = os.EINVAL
