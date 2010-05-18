@@ -528,10 +528,15 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	n := len(v)
 	m := len(uIn) - n
 
+	// determine if z can be reused
+	if alias(z, uIn) || alias(z, v) {
+		z = nil // z is an alias for uIn or v - cannot reuse
+	}
 	q = z.make(m + 1)
+
 	qhatv := make(nat, n+1)
-	if alias(u, uIn) {
-		u = nil // u is an alias for uIn - cannot reuse
+	if alias(u, uIn) || alias(u, v) {
+		u = nil // u is an alias for uIn or v - cannot reuse
 	}
 	u = u.make(len(uIn) + 1)
 	u.clear()
