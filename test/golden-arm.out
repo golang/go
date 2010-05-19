@@ -108,14 +108,3 @@ panic PC=xxx
 =========== bugs/bug260.go
 FAIL
 BUG: bug260 failed
-
-=========== bugs/bug264.go
-foo
-bar
-bar
-bal
-bal
-panic: barCount != 1
-
-panic PC=xxx
-BUG
