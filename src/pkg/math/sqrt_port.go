@@ -90,7 +90,7 @@ package math
 //
 // Special cases are:
 //	Sqrt(+Inf) = +Inf
-//	Sqrt(0) = 0
+//	Sqrt(±0) = ±0
 //	Sqrt(x < 0) = NaN
 //	Sqrt(NaN) = NaN
 func sqrtGo(x float64) float64 {
@@ -98,10 +98,8 @@ func sqrtGo(x float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
 	switch {
-	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
+	case x == 0 || x != x || x > MaxFloat64: // x == 0 || IsNaN(x) || IsInf(x, 1):
 		return x
-	case x == 0:
-		return 0
 	case x < 0:
 		return NaN()
 	}

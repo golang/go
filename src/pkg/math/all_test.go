@@ -1335,12 +1335,16 @@ var sinhSC = []float64{
 var vfsqrtSC = []float64{
 	Inf(-1),
 	-Pi,
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
 var sqrtSC = []float64{
 	NaN(),
 	NaN(),
+	-1 / Inf(1), // -0
+	0,
 	Inf(1),
 	NaN(),
 }
@@ -2018,7 +2022,7 @@ func TestSqrt(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(vf[i])
 		if f := SqrtGo(a); sqrt[i] != f {
-			t.Errorf("sqrtGo(%g) = %g, want %g\n", a, f, sqrt[i])
+			t.Errorf("SqrtGo(%g) = %g, want %g\n", a, f, sqrt[i])
 		}
 		a = Fabs(vf[i])
 		if f := Sqrt(a); sqrt[i] != f {
@@ -2026,7 +2030,10 @@ func TestSqrt(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vfsqrtSC); i++ {
-		if f := Log10(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
+		if f := SqrtGo(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
+			t.Errorf("SqrtGo(%g) = %g, want %g\n", vfsqrtSC[i], f, sqrtSC[i])
+		}
+		if f := Sqrt(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
 			t.Errorf("Sqrt(%g) = %g, want %g\n", vfsqrtSC[i], f, sqrtSC[i])
 		}
 	}
