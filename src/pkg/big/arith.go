@@ -56,6 +56,7 @@ func subWW_g(x, y, c Word) (z1, z0 Word) {
 
 
 // z1<<_W + z0 = x*y
+func mulWW(x, y Word) (z1, z0 Word)
 func mulWW_g(x, y Word) (z1, z0 Word) {
 	// Split x and y into 2 halfWords each, multiply
 	// the halfWords separately while avoiding overflow,
@@ -242,6 +243,7 @@ func leadingZeros(x Word) uint {
 
 
 // q = (x1<<_W + x0 - r)/y
+func divWW(x1, x0, y Word) (q, r Word)
 func divWW_g(x1, x0, y Word) (q, r Word) {
 	if x1 == 0 {
 		q, r = x0/y, x0%y

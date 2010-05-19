@@ -7,6 +7,25 @@
 
 // TODO(gri) - experiment with unrolled loops for faster execution
 
+// func mulWW(x, y Word) (z1, z0 Word)
+TEXT ·mulWW(SB),7,$0
+	MOVQ x+0(FP), AX
+	MULQ y+8(FP)
+	MOVQ DX, z1+16(FP)
+	MOVQ AX, z0+24(FP)
+	RET
+
+
+// func divWW(x1, x0, y Word) (q, r Word)
+TEXT ·divWW(SB),7,$0
+	MOVQ x1+0(FP), DX
+	MOVQ x0+8(FP), AX
+	DIVQ y+16(FP)
+	MOVQ AX, q+24(FP)
+	MOVQ DX, r+32(FP)
+	RET
+
+
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),7,$0
 	MOVQ z+0(FP), R10
@@ -210,11 +229,10 @@ TEXT ·addMulVVW(SB),7,$0
 
 L6:	MOVQ (R8)(BX*8), AX
 	MULQ R9
-	ADDQ (R10)(BX*8), AX
-	ADCQ $0, DX
 	ADDQ CX, AX
 	ADCQ $0, DX
-	MOVQ AX, (R10)(BX*8)
+	ADDQ AX, (R10)(BX*8)
+	ADCQ $0, DX
 	MOVQ DX, CX
 	ADDL $1, BX		// i++
 

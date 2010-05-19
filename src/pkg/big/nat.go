@@ -69,16 +69,20 @@ func (z nat) make(n int) nat {
 }
 
 
-func (z nat) setUint64(x uint64) nat {
+func (z nat) setWord(x Word) nat {
 	if x == 0 {
 		return z.make(0)
 	}
+	z = z.make(1)
+	z[0] = x
+	return z
+}
 
+
+func (z nat) setUint64(x uint64) nat {
 	// single-digit values
-	if x == uint64(Word(x)) {
-		z = z.make(1)
-		z[0] = Word(x)
-		return z
+	if w := Word(x); uint64(w) == x {
+		return z.setWord(w)
 	}
 
 	// compute number of words n required to represent x
@@ -194,7 +198,7 @@ func (x nat) cmp(y nat) (r int) {
 func (z nat) mulAddWW(x nat, y, r Word) nat {
 	m := len(x)
 	if m == 0 || y == 0 {
-		return z.setUint64(uint64(r)) // result is r
+		return z.setWord(r) // result is r
 	}
 	// m > 0
 
@@ -529,6 +533,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	m := len(uIn) - n
 
 	// determine if z can be reused
+	// TODO(gri) should find a better solution - this if statement
+	//           is very costly (see e.g. time pidigits -s -n 10000)
 	if alias(z, uIn) || alias(z, v) {
 		z = nil // z is an alias for uIn or v - cannot reuse
 	}
@@ -549,15 +555,13 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	// D2.
 	for j := m; j >= 0; j-- {
 		// D3.
-		var qhat Word
-		if u[j+n] == v[n-1] {
-			qhat = _B - 1
-		} else {
+		qhat := Word(_M)
+		if u[j+n] != v[n-1] {
 			var rhat Word
-			qhat, rhat = divWW_g(u[j+n], u[j+n-1], v[n-1])
+			qhat, rhat = divWW(u[j+n], u[j+n-1], v[n-1])
 
 			// x1 | x2 = q̂v_{n-2}
-			x1, x2 := mulWW_g(qhat, v[n-2])
+			x1, x2 := mulWW(qhat, v[n-2])
 			// test if q̂v_{n-2} > br̂ + u_{j+n-2}
 			for greaterThan(x1, x2, rhat, u[j+n-2]) {
 				qhat--
@@ -567,7 +571,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 				if rhat < prevRhat {
 					break
 				}
-				x1, x2 = mulWW_g(qhat, v[n-2])
+				x1, x2 = mulWW(qhat, v[n-2])
 			}
 		}
 
