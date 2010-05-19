@@ -330,40 +330,85 @@ func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
 // ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
 func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 
-// Trim returns a slice of the string s, with all leading and trailing white space
-// removed, as defined by Unicode.  The slice is is interpreted as UTF-8 encoded
-// Unicode code points.
-func TrimSpace(s []byte) []byte {
-	start, end := 0, len(s)
-	for start < end {
-		wid := 1
+// TrimLeftFunc returns a subslice of s by slicing off all leading UTF-8 encoded
+// Unicode code points c that satisfy f(c).
+func TrimLeftFunc(s []byte, f func(r int) bool) []byte {
+	var start, wid int
+	for start = 0; start < len(s); start += wid {
+		wid = 1
 		rune := int(s[start])
 		if rune >= utf8.RuneSelf {
-			rune, wid = utf8.DecodeRune(s[start:end])
+			rune, wid = utf8.DecodeRune(s[start:])
 		}
-		if !unicode.IsSpace(rune) {
+		if !f(rune) {
 			break
 		}
-		start += wid
 	}
-	for start < end {
-		wid := 1
-		rune := int(s[end-1])
+	return s[start:]
+}
+
+// TrimRightFunc returns a subslice of s by slicing off all trailing UTF-8
+// encoded Unicode code points c that satisfy f(c).
+func TrimRightFunc(s []byte, f func(r int) bool) []byte {
+	var end, wid int
+	for end = len(s); end > 0; end -= wid {
+		wid = 1
+		rune := int(s[end-wid])
 		if rune >= utf8.RuneSelf {
-			// Back up carefully looking for beginning of rune. Mustn't pass start.
-			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
+			// Back up & look for beginning of rune. Mustn't pass start.
+			for wid = 2; end-wid >= 0 && !utf8.RuneStart(s[end-wid]); wid++ {
 			}
-			if start > end-wid { // invalid UTF-8 sequence; stop processing
-				return s[start:end]
+			if end-wid < 0 { // invalid UTF-8 sequence; stop processing
+				break
 			}
 			rune, wid = utf8.DecodeRune(s[end-wid : end])
 		}
-		if !unicode.IsSpace(rune) {
+		if !f(rune) {
 			break
 		}
-		end -= wid
 	}
-	return s[start:end]
+	return s[0:end]
+}
+
+// TrimFunc returns a subslice of s by slicing off all leading and trailing
+// UTF-8 encoded Unicode code points c that satisfy f(c).
+func TrimFunc(s []byte, f func(r int) bool) []byte {
+	return TrimRightFunc(TrimLeftFunc(s, f), f)
+}
+
+func makeCutsetFunc(cutset string) func(rune int) bool {
+	return func(rune int) bool {
+		for _, c := range cutset {
+			if c == rune {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// Trim returns a subslice of s by slicing off all leading and
+// trailing UTF-8 encoded Unicode code points contained in cutset.
+func Trim(s []byte, cutset string) []byte {
+	return TrimFunc(s, makeCutsetFunc(cutset))
+}
+
+// TrimLeft returns a subslice of s by slicing off all leading
+// UTF-8 encoded Unicode code points contained in cutset.
+func TrimLeft(s []byte, cutset string) []byte {
+	return TrimLeftFunc(s, makeCutsetFunc(cutset))
+}
+
+// TrimRight returns a subslice of s by slicing off all trailing
+// UTF-8 encoded Unicode code points that are contained in cutset.
+func TrimRight(s []byte, cutset string) []byte {
+	return TrimRightFunc(s, makeCutsetFunc(cutset))
+}
+
+// TrimSpace returns a subslice of s by slicing off all leading and
+// trailing white space, as as defined by Unicode.
+func TrimSpace(s []byte) []byte {
+	return TrimFunc(s, unicode.IsSpace)
 }
 
 // How big to make a byte array when growing.
