@@ -491,7 +491,7 @@ typeinit(void)
 	okfor[OGT] = okforcmp;
 	okfor[OLE] = okforcmp;
 	okfor[OLT] = okforcmp;
-	okfor[OMOD] = okforarith;
+	okfor[OMOD] = okforand;
 	okfor[OMUL] = okforarith;
 	okfor[ONE] = okforeq;
 	okfor[OOR] = okforand;
