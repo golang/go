@@ -439,6 +439,6 @@ fixedbugs/bug259.go
 fixedbugs/bug261.go
 fixedbugs/bug262.go
 fixedbugs/bug263.go
+fixedbugs/bug264.go
 fixedbugs/bug265.go
 bugs/bug260.go
-bugs/bug264.go
