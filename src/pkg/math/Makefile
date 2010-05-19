@@ -7,6 +7,7 @@ include ../../Make.$(GOARCH)
 TARG=math
 
 OFILES_amd64=\
+	fdim_amd64.$O\
 	sqrt_amd64.$O\
 
 OFILES_386=\
