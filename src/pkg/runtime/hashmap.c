@@ -9,13 +9,13 @@
 /* Return a pointer to the struct/union of type "type"
    whose "field" field is addressed by pointer "p". */
 
-
 struct hash {	   /* a hash table; initialize with hash_init() */
 	uint32 count;	  /* elements in table - must be first */
 
 	uint8 datasize;   /* amount of data to store in entry */
 	uint8 max_power;  /* max power of 2 to create sub-tables */
 	uint8 max_probes; /* max entries to probe before rehashing */
+	uint8 indirectval; /* storing pointers to values */
 	int32 changes;	      /* inc'ed whenever a subtable is created/grown */
 	hash_hash_t (*data_hash) (uint32, void *a);  /* return hash of *a */
 	uint32 (*data_eq) (uint32, void *a, void *b);   /* return whether *a == *b */
@@ -361,7 +361,7 @@ hash_remove (struct hash *h, void *data, void *arg)
 	}
 	while (e != end_e && ((e_hash = e->hash) ^ hash) < HASH_SUBHASH) {
 		if (HASH_DATA_EQ (h, data, e->data)) {    /* a match */
-			(*h->data_del) (h->keysize, arg, e->data);
+			(*h->data_del) (h->datavo, arg, e->data);
 			hash_remove_n (st, e, 1);
 			h->count--;
 			return (1);
@@ -655,6 +655,13 @@ hash_visit (struct hash *h, void (*data_visit) (void *arg, int32 level, void *da
 /// interfaces to go runtime
 //
 
+// hash requires < 256 bytes of data (key+value) stored inline.
+// Only basic types can be key - biggest is complex128 (16 bytes).
+// Leave some room to grow, just in case.
+enum {
+	MaxValsize = 256 - 64
+};
+
 static void
 donothing(uint32 s, void *a, void *b)
 {
@@ -663,6 +670,24 @@ donothing(uint32 s, void *a, void *b)
 	USED(b);
 }
 
+static void
+freedata(uint32 datavo, void *a, void *b)
+{
+	void *p;
+
+	USED(a);
+	p = *(void**)((byte*)b + datavo);
+	free(p);
+}
+
+static void**
+hash_indirect(Hmap *h, void *p)
+{
+	if(h->indirectval)
+		p = *(void**)p;
+	return p;
+}	
+
 static	int32	debug	= 0;
 
 // makemap(key, val *Type, hint uint32) (hmap *map[any]any);
@@ -670,7 +695,8 @@ Hmap*
 makemap(Type *key, Type *val, int64 hint)
 {
 	Hmap *h;
-	int32 keyalg, valalg, keysize, valsize;
+	int32 keyalg, valalg, keysize, valsize, valsize_in_hash;
+	void (*data_del)(uint32, void*, void*);
 
 	if(hint < 0 || (int32)hint != hint)
 		panicstring("makemap: size out of range");
@@ -692,16 +718,24 @@ makemap(Type *key, Type *val, int64 hint)
 
 	h = mal(sizeof(*h));
 
+	valsize_in_hash = valsize;
+	data_del = donothing;
+	if (valsize > MaxValsize) {
+		h->indirectval = 1;
+		data_del = freedata;
+		valsize_in_hash = sizeof(void*);
+	} 
+
 	// align value inside data so that mark-sweep gc can find it.
 	// might remove in the future and just assume datavo == keysize.
 	h->datavo = keysize;
-	if(valsize >= sizeof(void*))
+	if(valsize_in_hash >= sizeof(void*))
 		h->datavo = rnd(keysize, sizeof(void*));
 
-	hash_init(h, h->datavo+valsize,
+	hash_init(h, h->datavo+valsize_in_hash,
 		algarray[keyalg].hash,
 		algarray[keyalg].equal,
-		donothing,
+		data_del,
 		hint);
 
 	h->keysize = keysize;
@@ -753,7 +787,7 @@ mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
 	res = nil;
 	if(hash_lookup(h, ak, (void**)&res)) {
 		*pres = true;
-		h->valalg->copy(h->valsize, av, res+h->datavo);
+		h->valalg->copy(h->valsize, av, hash_indirect(h, res+h->datavo));
 	} else {
 		*pres = false;
 		h->valalg->copy(h->valsize, av, nil);
@@ -828,8 +862,10 @@ mapassign(Hmap *h, byte *ak, byte *av)
 	}
 
 	hit = hash_insert(h, ak, (void**)&res);
+	if(!hit && h->indirectval)
+		*(void**)(res+h->datavo) = mal(h->valsize);
 	h->keyalg->copy(h->keysize, res, ak);
-	h->valalg->copy(h->valsize, res+h->datavo, av);
+	h->valalg->copy(h->valsize, hash_indirect(h, res+h->datavo), av);
 
 	if(debug) {
 		prints("mapassign: map=");
@@ -884,6 +920,17 @@ void
 	}
 }
 
+void*
+hash_next_and_deref(struct hash_iter *it)
+{
+	void *p;
+
+	p = hash_next(it);
+	if(it->h->indirectval)
+		p = *(void**)p;
+	return p;
+}
+
 // mapiterinit(hmap *map[any]any, hiter *any);
 void
 ·mapiterinit(Hmap *h, struct hash_iter *it)
@@ -893,7 +940,7 @@ void
 		return;
 	}
 	hash_iter_init(h, it);
-	it->data = hash_next(it);
+	it->data = hash_next_and_deref(it);
 	if(debug) {
 		prints("runtime.mapiterinit: map=");
 		·printpointer(h);
@@ -922,7 +969,7 @@ void
 	if(gcwaiting)
 		gosched();
 
-	it->data = hash_next(it);
+	it->data = hash_next_and_deref(it);
 	if(debug) {
 		prints("runtime.mapiternext: iter=");
 		·printpointer(it);
@@ -951,7 +998,7 @@ void
 
 	res = it->data;
 	if(res == nil)
-		throw("runtime.mapiter2: key:val nil pointer");
+		throw("runtime.mapiter1: key:val nil pointer");
 
 	h->keyalg->copy(h->keysize, ak, res);
 
@@ -995,7 +1042,7 @@ void
 		throw("runtime.mapiter2: key:val nil pointer");
 
 	h->keyalg->copy(h->keysize, ak, res);
-	h->valalg->copy(h->valsize, av, res+h->datavo);
+	h->valalg->copy(h->valsize, av, hash_indirect(h, res+h->datavo));
 
 	if(debug) {
 		prints("mapiter2: iter=");
