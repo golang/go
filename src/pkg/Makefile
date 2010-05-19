@@ -162,6 +162,7 @@ NOTEST+=exec         # no pipe
 NOTEST+=http         # no network
 NOTEST+=log          # no runtime.Caller
 NOTEST+=net          # no network
+NOTEST+=netchan      # no network
 NOTEST+=os           # many things unimplemented
 NOTEST+=os/signal    # no signals
 NOTEST+=path         # tree walking does not work
