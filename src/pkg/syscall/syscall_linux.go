@@ -403,6 +403,11 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
 	return sendto(fd, p, flags, ptr, n)
 }
 
+// BindToDevice binds the socket associated with fd to device.
+func BindToDevice(fd int, device string) (errno int) {
+	return SetsockoptString(fd, SOL_SOCKET, SO_BINDTODEVICE, device)
+}
+
 //sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
 
 func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno int) {
