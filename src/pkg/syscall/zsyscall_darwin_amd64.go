@@ -121,6 +121,18 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
 	return
 }
 
+func utimes(path string, timeval *[2]Timeval) (errno int) {
+	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(timeval)), 0)
+	errno = int(e1)
+	return
+}
+
+func futimes(fd int, timeval *[2]Timeval) (errno int) {
+	_, _, e1 := Syscall(SYS_FUTIMES, uintptr(fd), uintptr(unsafe.Pointer(timeval)), 0)
+	errno = int(e1)
+	return
+}
+
 func fcntl(fd int, cmd int, arg int) (val int, errno int) {
 	r0, _, e1 := Syscall(SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg))
 	val = int(r0)

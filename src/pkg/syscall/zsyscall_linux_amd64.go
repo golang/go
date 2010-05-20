@@ -31,8 +31,8 @@ func utimes(path string, times *[2]Timeval) (errno int) {
 	return
 }
 
-func futimesat(dirfd int, path string, times *[2]Timeval) (errno int) {
-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(times)))
+func futimesat(dirfd int, path *byte, times *[2]Timeval) (errno int) {
+	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
 	errno = int(e1)
 	return
 }

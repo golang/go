@@ -164,7 +164,13 @@ esac
 
 (
 	if [ -n "$mkerrors" ]; then echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"; fi
-	if [ -n "$mksyscall" ]; then echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
+	syscall_goos="syscall_$GOOS.go"
+	case "$GOOS" in
+	darwin | freebsd)
+		syscall_goos="syscall_bsd.go $syscall_goos"
+		;;
+	esac
+	if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
 	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"; fi
 ) | $run
