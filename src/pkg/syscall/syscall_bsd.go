@@ -451,9 +451,27 @@ func SysctlUint32(name string) (value uint32, errno int) {
 	return *(*uint32)(unsafe.Pointer(&buf[0])), 0
 }
 
+//sys	utimes(path string, timeval *[2]Timeval) (errno int)
+func Utimes(path string, tv []Timeval) (errno int) {
+	if len(tv) != 2 {
+		return EINVAL
+	}
+	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+}
+
+//sys	futimes(fd int, timeval *[2]Timeval) (errno int)
+func Futimes(fd int, tv []Timeval) (errno int) {
+	if len(tv) != 2 {
+		return EINVAL
+	}
+	return futimes(fd, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+}
+
+//sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
+
+
 // TODO: wrap
 //	Acct(name nil-string) (errno int)
-//	Futimes(fd int, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
 //	Gethostuuid(uuid *byte, timeout *Timespec) (errno int)
 //	Getsockopt(s int, level int, name int, val *byte, vallen *int) (errno int)
 //	Madvise(addr *byte, len int, behav int) (errno int)
@@ -463,5 +481,3 @@ func SysctlUint32(name string) (value uint32, errno int) {
 //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, errno int)
 //	Recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
 //	Sendmsg(s int, msg *Msghdr, flags int) (n int, errno int)
-//	Utimes(path string, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
-//sys	fcntl(fd int, cmd int, arg int) (val int, errno int)

@@ -49,12 +49,18 @@ func Utimes(path string, tv []Timeval) (errno int) {
 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
-//sys	futimesat(dirfd int, path string, times *[2]Timeval) (errno int)
+//sys	futimesat(dirfd int, path *byte, times *[2]Timeval) (errno int)
 func Futimesat(dirfd int, path string, tv []Timeval) (errno int) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
-	return futimesat(dirfd, path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	return futimesat(dirfd, StringBytePtr(path), (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+}
+
+func Futimes(fd int, tv []Timeval) (errno int) {
+	// Believe it or not, this is the best we can do on Linux
+	// (and is what glibc does).
+	return Utimes("/proc/self/fd/"+str(fd), tv)
 }
 
 const ImplementsGetwd = true
