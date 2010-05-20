@@ -84,6 +84,8 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 				}
 			}
 		}
+		drawRGBA(dst0, r, src, sp, mask, mp, op)
+		return
 	}
 
 	x0, x1, dx := r.Min.X, r.Max.X, 1
@@ -161,31 +163,26 @@ func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *ima
 	cb >>= 16
 	ca >>= 16
 	for y, my := y0, mp.Y; y != y1; y, my = y+1, my+1 {
+		p := dst.Pixel[y]
 		for x, mx := x0, mp.X; x != x1; x, mx = x+1, mx+1 {
 			ma := uint32(mask.Pixel[my][mx].A)
 			if ma == 0 {
 				continue
 			}
 			ma |= ma << 8
-			rgba := dst.Pixel[y][x]
+			rgba := p[x]
 			dr := uint32(rgba.R)
 			dg := uint32(rgba.G)
 			db := uint32(rgba.B)
 			da := uint32(rgba.A)
-			// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
-			// We work in 16-bit color, and so would normally do:
-			// dr |= dr << 8
-			// and similarly for dg, db and da, but instead we multiply a
-			// (which is a 16-bit color, ranging in [0,65535]) by 0x101.
-			// This yields the same result, but is fewer arithmetic operations.
 			const M = 1<<16 - 1
-			a := M - (ca * ma / M)
-			a *= 0x101
+			// The 0x101 is here for the same reason as in drawRGBA.
+			a := (M - (ca * ma / M)) * 0x101
 			dr = (dr*a + cr*ma) / M
 			dg = (dg*a + cg*ma) / M
 			db = (db*a + cb*ma) / M
 			da = (da*a + ca*ma) / M
-			dst.Pixel[y][x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+			p[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 	}
 }
@@ -217,6 +214,63 @@ func drawCopy(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
 	sx0, sx1 := sp.X, sp.X+dx1-dx0
 	for y, sy := dy0, sp.Y; y < dy1; y, sy = y+1, sy+1 {
 		copy(dst.Pixel[y][dx0:dx1], src.Pixel[sy][sx0:sx1])
+	}
+}
+
+func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
+	x0, x1, dx := r.Min.X, r.Max.X, 1
+	y0, y1, dy := r.Min.Y, r.Max.Y, 1
+	if image.Image(dst) == src && r.Overlaps(r.Add(sp.Sub(r.Min))) {
+		if sp.Y < r.Min.Y || sp.Y == r.Min.Y && sp.X < r.Min.X {
+			x0, x1, dx = x1-1, x0-1, -1
+			y0, y1, dy = y1-1, y0-1, -1
+		}
+	}
+
+	sy := sp.Y + y0 - r.Min.Y
+	my := mp.Y + y0 - r.Min.Y
+	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+		sx := sp.X + x0 - r.Min.X
+		mx := mp.X + x0 - r.Min.X
+		p := dst.Pixel[y]
+		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
+			const M = 1<<16 - 1
+			ma := uint32(M)
+			if mask != nil {
+				_, _, _, ma = mask.At(mx, my).RGBA()
+				ma >>= 16
+			}
+			sr, sg, sb, sa := src.At(sx, sy).RGBA()
+			sr >>= 16
+			sg >>= 16
+			sb >>= 16
+			sa >>= 16
+			var dr, dg, db, da uint32
+			if op == Over {
+				rgba := p[x]
+				dr = uint32(rgba.R)
+				dg = uint32(rgba.G)
+				db = uint32(rgba.B)
+				da = uint32(rgba.A)
+				// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
+				// We work in 16-bit color, and so would normally do:
+				// dr |= dr << 8
+				// and similarly for dg, db and da, but instead we multiply a
+				// (which is a 16-bit color, ranging in [0,65535]) by 0x101.
+				// This yields the same result, but is fewer arithmetic operations.
+				a := (M - (sa * ma / M)) * 0x101
+				dr = (dr*a + sr*ma) / M
+				dg = (dg*a + sg*ma) / M
+				db = (db*a + sb*ma) / M
+				da = (da*a + sa*ma) / M
+			} else {
+				dr = sr * ma / M
+				dg = sg * ma / M
+				db = sb * ma / M
+				da = sa * ma / M
+			}
+			p[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+		}
 	}
 }
 
