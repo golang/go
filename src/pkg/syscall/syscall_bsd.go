@@ -362,6 +362,15 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
 	return sendto(fd, p, flags, ptr, n)
 }
 
+// TODO:
+// FreeBSD has IP_SENDIF.  Darwin probably needs BSDLLCTest, see:
+// http://developer.apple.com/mac/library/samplecode/BSDLLCTest/index.html
+
+// BindToDevice binds the socket associated with fd to device.
+func BindToDevice(fd int, device string) (errno int) {
+	return ENOSYS
+}
+
 //sys	kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int)
 
 func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno int) {
