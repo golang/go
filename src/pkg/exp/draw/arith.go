@@ -59,10 +59,10 @@ func (r Rectangle) Sub(p Point) Rectangle { return Rectangle{r.Min.Sub(p), r.Max
 // has Min.X <= Max.X and Min.Y <= Max.Y.
 func (r Rectangle) Canon() Rectangle {
 	if r.Max.X < r.Min.X {
-		r.Max.X = r.Min.X
+		r.Min.X, r.Max.X = r.Max.X, r.Min.X
 	}
 	if r.Max.Y < r.Min.Y {
-		r.Max.Y = r.Min.Y
+		r.Min.Y, r.Max.Y = r.Max.Y, r.Min.Y
 	}
 	return r
 }
