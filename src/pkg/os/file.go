@@ -407,3 +407,19 @@ func (f *File) Truncate(size int64) Error {
 	}
 	return nil
 }
+
+// Chtimes changes the access and modification times of the named
+// file, similar to the Unix utime() or utimes() functions.
+//
+// The argument times are in nanoseconds, although the underlying
+// filesystem may truncate or round the values to a more
+// coarse time unit.
+func Chtimes(name string, atime_ns int64, mtime_ns int64) Error {
+	var utimes [2]syscall.Timeval
+	utimes[0] = syscall.NsecToTimeval(atime_ns)
+	utimes[1] = syscall.NsecToTimeval(mtime_ns)
+	if e := syscall.Utimes(name, &utimes); e != 0 {
+		return &PathError{"chtimes", name, Errno(e)}
+	}
+	return nil
+}
