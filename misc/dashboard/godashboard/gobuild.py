@@ -47,6 +47,10 @@ class Commit(db.Model):
     # successful.
     builds = db.StringListProperty()
 
+class Benchmark(db.Model):		
+    name = db.StringProperty()		
+    version = db.IntegerProperty()	
+
 class BenchmarkResults(db.Model):
     builder = db.StringProperty()
     benchmark = db.StringProperty()
@@ -435,8 +439,6 @@ class Benchmarks(webapp.RequestHandler):
 
         for (benchmark, (iterations, time)) in benchmarks.items():
             b = Benchmark.get_or_insert('v002.' + benchmark.encode('base64'), name = benchmark, version = 2)
-            r = BenchmarkResult(key_name = '%08x/%s' % (n.num, builder), parent = b, num = n.num, iterations = iterations, nsperop = time, builder = builder)
-            r.put()
             key = '%s;%s' % (builder, benchmark)
             r1 = BenchmarkResults.get_by_key_name(key)
             if r1 is not None and (len(r1.data) < 4 or r1.data[-4] != -1 or r1.data[-3] != n.num):
