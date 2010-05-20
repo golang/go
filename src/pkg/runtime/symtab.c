@@ -106,7 +106,7 @@ dofunc(Sym *sym)
 			break;
 		}
 		f = &func[nfunc++];
-		f->name = gostring(sym->name);
+		f->name = gostringnocopy(sym->name);
 		f->entry = sym->value;
 		if(sym->symtype == 'L' || sym->symtype == 'l')
 			f->frame = -sizeof(uintptr);

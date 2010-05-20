@@ -387,6 +387,7 @@ void*	mal(uintptr);
 uint32	cmpstring(String, String);
 String	catstring(String, String);
 String	gostring(byte*);
+String	gostringnocopy(byte*);
 String	gostringw(uint16*);
 void	initsig(void);
 int32	gotraceback(void);

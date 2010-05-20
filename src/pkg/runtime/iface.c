@@ -467,7 +467,7 @@ ifacehash1(void *data, Type *t)
 	if(algarray[alg].hash == nohash) {
 		// calling nohash will panic too,
 		// but we can print a better error.
-		·newErrorString(catstring(gostring((byte*)"hash of unhashable type "), *t->string), &err);
+		·newErrorString(catstring(gostringnocopy((byte*)"hash of unhashable type "), *t->string), &err);
 		·panic(err);
 	}
 	if(wid <= sizeof(data))
@@ -501,7 +501,7 @@ ifaceeq1(void *data1, void *data2, Type *t)
 	if(algarray[alg].equal == noequal) {
 		// calling noequal will panic too,
 		// but we can print a better error.
-		·newErrorString(catstring(gostring((byte*)"comparing uncomparable type "), *t->string), &err);
+		·newErrorString(catstring(gostringnocopy((byte*)"comparing uncomparable type "), *t->string), &err);
 		·panic(err);
 	}
 

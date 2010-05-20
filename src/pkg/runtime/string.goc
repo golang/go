@@ -61,6 +61,16 @@ gostring(byte *str)
 }
 
 String
+gostringnocopy(byte *str)
+{
+	String s;
+	
+	s.str = str;
+	s.len = findnull(str);
+	return s;
+}
+
+String
 gostringw(uint16 *str)
 {
 	int32 n, i;
