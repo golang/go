@@ -483,6 +483,48 @@ func TestTruncate(t *testing.T) {
 	Remove(Path)
 }
 
+func TestChtimes(t *testing.T) {
+	MkdirAll("_obj", 0777)
+	const Path = "_obj/_TestChtimes_"
+	fd, err := Open(Path, O_WRONLY|O_CREAT, 0666)
+	if err != nil {
+		t.Fatalf("create %s: %s", Path, err)
+	}
+	fd.Write([]byte("hello, world\n"))
+	fd.Close()
+
+	preStat, err := Stat(Path)
+	if err != nil {
+		t.Fatalf("Stat %s: %s", Path, err)
+	}
+
+	// Move access and modification time back a second
+	const OneSecond = 1e9 // in nanoseconds
+	err = Chtimes(Path, preStat.Atime_ns-OneSecond, preStat.Mtime_ns-OneSecond)
+	if err != nil {
+		t.Fatalf("Chtimes %s: %s", Path, err)
+	}
+
+	postStat, err := Stat(Path)
+	if err != nil {
+		t.Fatalf("second Stat %s: %s", Path, err)
+	}
+
+	if postStat.Atime_ns >= preStat.Atime_ns {
+		t.Errorf("Atime_ns didn't go backwards; was=%d, after=%d",
+			preStat.Atime_ns,
+			postStat.Atime_ns)
+	}
+
+	if postStat.Mtime_ns >= preStat.Mtime_ns {
+		t.Errorf("Mtime_ns didn't go backwards; was=%d, after=%d",
+			preStat.Mtime_ns,
+			postStat.Mtime_ns)
+	}
+
+	Remove(Path)
+}
+
 func TestChdirAndGetwd(t *testing.T) {
 	fd, err := Open(".", O_RDONLY, 0)
 	if err != nil {
