@@ -41,7 +41,7 @@ signame(int32 sig)
 {
 	if(sig < 0 || sig >= NSIG)
 		return emptystring;
-	return gostring((byte*)sigtab[sig].name);
+	return gostringnocopy((byte*)sigtab[sig].name);
 }
 
 void

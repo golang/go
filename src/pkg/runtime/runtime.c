@@ -79,7 +79,7 @@ panicstring(int8 *s)
 {
 	Eface err;
 	
-	·newErrorString(gostring((byte*)s), &err);
+	·newErrorString(gostringnocopy((byte*)s), &err);
 	·panic(err);
 }
 
@@ -161,13 +161,13 @@ goargs(void)
 	genvv = malloc(envc*sizeof genvv[0]);
 
 	for(i=0; i<argc; i++)
-		gargv[i] = gostring(argv[i]);
+		gargv[i] = gostringnocopy(argv[i]);
 	os·Args.array = (byte*)gargv;
 	os·Args.len = argc;
 	os·Args.cap = argc;
 
 	for(i=0; i<envc; i++)
-		genvv[i] = gostring(argv[argc+1+i]);
+		genvv[i] = gostringnocopy(argv[argc+1+i]);
 	os·Envs.array = (byte*)genvv;
 	os·Envs.len = envc;
 	os·Envs.cap = envc;
@@ -220,7 +220,7 @@ void
 	byte *p;
 
 	p = getenv("GOROOT");
-	out = gostring(p);
+	out = gostringnocopy(p);
 	FLUSH(&out);
 }
 
