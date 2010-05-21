@@ -89,6 +89,10 @@ typecheck(Node **np, int top)
 redo:
 	lno = setlineno(n);
 	if(n->sym) {
+		if(n->op == ONAME && n->etype != 0) {
+			yyerror("use of builtin %S not in function call", n->sym);
+			goto error;
+		}
 		walkdef(n);
 		if(n->op == ONONAME)
 			goto error;
