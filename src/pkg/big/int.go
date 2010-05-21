@@ -39,10 +39,18 @@ func NewInt(x int64) *Int {
 }
 
 
-// Set sets z to x.
+// Set sets z to x and returns z.
 func (z *Int) Set(x *Int) *Int {
 	z.abs = z.abs.set(x.abs)
 	z.neg = x.neg
+	return z
+}
+
+
+// Neg sets z to -x and returns z.
+func (z *Int) Neg(x *Int) *Int {
+	z.abs = z.abs.set(x.abs)
+	z.neg = len(z.abs) > 0 && !x.neg // 0 has no sign
 	return z
 }
 
@@ -124,6 +132,15 @@ func (z *Int) MulRange(a, b int64) *Int {
 	z.abs = z.abs.mulRange(uint64(a), uint64(b))
 	z.neg = neg
 	return z
+}
+
+
+// Binomial sets z to the binomial coefficient of (n, k) and returns z.
+func (z *Int) Binomial(n, k int64) *Int {
+	var a, b Int
+	a.MulRange(n-k+1, n)
+	b.MulRange(1, k)
+	return z.Quo(&a, &b)
 }
 
 
@@ -234,14 +251,6 @@ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 		}
 	}
 	return z, m
-}
-
-
-// Neg computes the negation z = -x.
-func (z *Int) Neg(x *Int) *Int {
-	z.abs = z.abs.set(x.abs)
-	z.neg = len(z.abs) > 0 && !x.neg // 0 has no sign
-	return z
 }
 
 
