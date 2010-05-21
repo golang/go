@@ -333,18 +333,18 @@ func (x *Int) Int64() int64 {
 }
 
 
-// SetString sets z to the value of s, interpreted in the given base.
-// If base is 0 then SetString attempts to detect the base by at the prefix of
-// s. '0x' implies base 16, '0' implies base 8. Otherwise base 10 is assumed.
+// SetString sets z to the value of s, interpreted in the given base,
+// and returns z and a boolean indicating success. If SetString fails,
+// the value of z is undefined.
+//
+// If the base argument is 0, the string prefix determines the actual
+// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
+// ``0'' prefix selects base 8, and a ``0b'' or ``0B'' prefix selects
+// base 2. Otherwise the selected base is 10.
+//
 func (z *Int) SetString(s string, base int) (*Int, bool) {
-	var scanned int
-
-	if base == 1 || base > 16 {
-		goto Error
-	}
-
-	if len(s) == 0 {
-		goto Error
+	if len(s) == 0 || base < 0 || base == 1 || 16 < base {
+		return z, false
 	}
 
 	neg := false
@@ -353,18 +353,14 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 		s = s[1:]
 	}
 
+	var scanned int
 	z.abs, _, scanned = z.abs.scan(s, base)
 	if scanned != len(s) {
-		goto Error
+		return z, false
 	}
 	z.neg = len(z.abs) > 0 && neg // 0 has no sign
 
 	return z, true
-
-Error:
-	z.abs = nil
-	z.neg = false
-	return z, false
 }
 
 
