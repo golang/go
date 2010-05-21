@@ -10,6 +10,7 @@
 // The following numeric types are supported:
 //
 //	- Int	signed integers
+//	- Rat	rational numbers
 //
 // All methods on Int take the result as the receiver; if it is one
 // of the operands it may be overwritten (and its memory reused).
@@ -39,6 +40,7 @@ type nat []Word
 var (
 	natOne = nat{1}
 	natTwo = nat{2}
+	natTen = nat{10}
 )
 
 
