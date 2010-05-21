@@ -879,6 +879,8 @@ mkvar(Reg *r, Adr *a)
 			}
 		}
 	}
+	if(a->pun)
+		flag = 1;
 
 	switch(et) {
 	case 0:

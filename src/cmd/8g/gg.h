@@ -30,6 +30,7 @@ struct	Addr
 	uchar	index;
 	uchar	etype;
 	uchar	scale;	/* doubles as width in DATA op */
+	uchar	pun;	/* dont register variable */
 };
 #define	A	((Addr*)0)
 
