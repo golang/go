@@ -221,7 +221,9 @@ walkdef(Node *n)
 	if(n->op == ONONAME) {
 		if(!n->diag) {
 			n->diag = 1;
-			yyerrorl(n->lineno, "undefined: %S", n->sym);
+			if(n->lineno != 0)
+				lineno = n->lineno;
+			yyerror("undefined: %S", n->sym);
 		}
 		return;
 	}
