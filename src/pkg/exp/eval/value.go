@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"bignum"
+	"exp/bignum"
 	"fmt"
 )
 

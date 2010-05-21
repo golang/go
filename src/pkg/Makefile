@@ -23,7 +23,6 @@ DIRS=\
 	archive/tar\
 	asn1\
 	big\
-	bignum\
 	bufio\
 	bytes\
 	cmath\
@@ -64,6 +63,7 @@ DIRS=\
 	encoding/hex\
 	encoding/pem\
 	exec\
+	exp/bignum\
 	exp/datafmt\
 	exp/draw\
 	exp/eval\

@@ -2,13 +2,13 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.$(GOARCH)
+include ../../../Make.$(GOARCH)
 
-TARG=bignum
+TARG=exp/bignum
 GOFILES=\
 	arith.go\
 	bignum.go\
 	integer.go\
 	rational.go\
 
-include ../../Make.pkg
+include ../../../Make.pkg

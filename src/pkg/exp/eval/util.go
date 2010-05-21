@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"bignum"
+	"exp/bignum"
 )
 
 // TODO(austin): Maybe add to bignum in more general form
