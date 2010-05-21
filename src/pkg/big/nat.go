@@ -653,7 +653,7 @@ func (z nat) scan(s string, base int) (nat, int, int) {
 
 	// reject illegal bases or strings consisting only of prefix
 	if base < 2 || 16 < base || (base != 8 && i >= n) {
-		return nil, 0, 0
+		return z, 0, 0
 	}
 
 	// convert string
