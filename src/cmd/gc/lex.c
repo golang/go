@@ -854,7 +854,7 @@ talph:
 			ungetc(c);
 			rune = getr();
 			// 0xb7 · is used for internal names
-			if(!isalpharune(rune) && !isdigitrune(rune) && rune != 0xb7)
+			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
 				yyerror("invalid identifier character 0x%ux", rune);
 			cp += runetochar(cp, &rune);
 		} else if(!isalnum(c) && c != '_')
