@@ -362,13 +362,16 @@ func (fd *netFD) Close() os.Error {
 }
 
 func (fd *netFD) Read(p []byte) (n int, err os.Error) {
-	if fd == nil || fd.sysfile == nil {
+	if fd == nil {
 		return 0, os.EINVAL
 	}
 	fd.rio.Lock()
 	defer fd.rio.Unlock()
 	fd.incref()
 	defer fd.decref()
+	if fd.sysfile == nil {
+		return 0, os.EINVAL
+	}
 	if fd.rdeadline_delta > 0 {
 		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
 	} else {
@@ -430,13 +433,16 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
 }
 
 func (fd *netFD) Write(p []byte) (n int, err os.Error) {
-	if fd == nil || fd.sysfile == nil {
+	if fd == nil {
 		return 0, os.EINVAL
 	}
 	fd.wio.Lock()
 	defer fd.wio.Unlock()
 	fd.incref()
 	defer fd.decref()
+	if fd.sysfile == nil {
+		return 0, os.EINVAL
+	}
 	if fd.wdeadline_delta > 0 {
 		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta
 	} else {
@@ -444,6 +450,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	}
 	nn := 0
 	var oserr os.Error
+
 	for {
 		n, errno := syscall.Write(fd.sysfile.Fd(), p[nn:])
 		if n > 0 {
