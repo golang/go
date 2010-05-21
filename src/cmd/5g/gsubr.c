@@ -197,6 +197,12 @@ afunclit(Addr *a)
 	}
 }
 
+int32
+anyregalloc(void)
+{
+	return 0;
+}
+
 /*
  * allocate register of type t, leave in n.
  * if o != N, o is desired fixed register.

@@ -215,6 +215,7 @@ struct	Node
 	uchar	used;
 	uchar	oldref;
 	uchar	isddd;
+	uchar	pun;		// dont registerize variable ONAME
 
 	// most nodes
 	Node*	left;
@@ -1241,3 +1242,4 @@ int	duintptr(Sym *s, int off, uint64 v);
 int	duintxx(Sym *s, int off, uint64 v, int wid);
 void	genembedtramp(Type*, Type*, Sym*);
 int	gen_as_init(Node*);
+int	anyregalloc();

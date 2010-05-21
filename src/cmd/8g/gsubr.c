@@ -710,6 +710,23 @@ gclean(void)
 			yyerror("reg %R left allocated at %lux", i, regpc[i]);
 }
 
+int32
+anyregalloc(void)
+{
+	int i, j;
+
+	for(i=D_AL; i<=D_DI; i++) {
+		if(reg[i] == 0)
+			goto ok;
+		for(j=0; j<nelem(resvd); j++)
+			if(resvd[j] == i)
+				goto ok;
+		return 1;
+	ok:;
+	}
+	return 0;
+}
+
 /*
  * allocate register of type t, leave in n.
  * if o != N, o is desired fixed register.
@@ -1692,6 +1709,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 			a->width = n->type->width;
 			a->gotype = ngotype(n);
 		}
+		a->pun = n->pun;
 		a->offset = n->xoffset;
 		a->sym = n->sym;
 		if(a->sym == S)

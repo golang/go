@@ -663,4 +663,5 @@ tempname(Node *n, Type *t)
 	stksize += w;
 	stksize = rnd(stksize, w);
 	n->xoffset = -stksize;
+	n->pun = anyregalloc();
 }
