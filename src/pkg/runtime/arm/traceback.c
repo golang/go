@@ -7,7 +7,6 @@
 static int32
 gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 m)
 {
-	byte *p;
 	int32 i, n, iter;
 	uintptr pc, lr, tracepc;
 	Stktop *stk;
@@ -15,6 +14,12 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
 	
 	pc = (uintptr)pc0;
 	lr = (uintptr)lr0;
+	
+	// If the PC is goexit, it hasn't started yet.
+	if(pc == (uintptr)goexit) {
+		pc = (uintptr)g->entry;
+		lr = (uintptr)goexit;
+	}
 
 	// If the PC is zero, it's likely a nil function call.
 	// Start in the caller's frame.

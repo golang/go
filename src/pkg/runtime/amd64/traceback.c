@@ -5,6 +5,8 @@
 #include "runtime.h"
 #include "malloc.h"
 
+static uintptr isclosureentry(uintptr);
+
 // This code is also used for the 386 tracebacks.
 // Use uintptr for an appropriate word-sized integer.
 
@@ -16,7 +18,7 @@ static int32
 gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 {
 	byte *p;
-	int32 i, n, iter;
+	int32 i, n, iter, nascent;
 	uintptr pc, tracepc;
 	Stktop *stk;
 	Func *f;
@@ -28,6 +30,14 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 	if(pc == 0) {
 		pc = *(uintptr*)sp;
 		sp += sizeof(uintptr);
+	}
+	
+	nascent = 0;
+	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)goexit) {
+		// Hasn't started yet.  g->sched is set up for goexit
+		// but goroutine will start at g->entry.
+		nascent = 1;
+		pc = (uintptr)g->entry;
 	}
 	
 	n = 0;
@@ -55,6 +65,10 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 				sp += sizeof(uintptr);
 				continue;
 			}
+			
+			if(nascent && (pc = isclosureentry(pc)) != 0)
+				continue;
+
 			// Unknown pc; stop.
 			break;
 		}
@@ -89,6 +103,13 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 			n++;
 		}
 		
+		if(nascent) {
+			pc = (uintptr)g->sched.pc;
+			sp = g->sched.sp;
+			nascent = 0;
+			continue;
+		}
+
 		if(f->frame < sizeof(uintptr))	// assembly functions lie
 			sp += sizeof(uintptr);
 		else
@@ -114,4 +135,68 @@ callers(int32 skip, uintptr *pcbuf, int32 m)
 	pc = ·getcallerpc(&skip);
 
 	return gentraceback(pc, sp, g, skip, pcbuf, m);
+}
+
+static uintptr
+isclosureentry(uintptr pc)
+{
+	byte *p;
+	int32 i, siz;
+	
+	p = (byte*)pc;
+	if(p < mheap.min || p+32 > mheap.max)
+		return 0;
+	
+	// SUBQ $siz, SP
+	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0x81 || *p++ != 0xec)
+		return 0;
+	siz = *(uint32*)p;
+	p += 4;
+	
+	// MOVQ $q, SI
+	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xbe)
+		return 0;
+	p += sizeof(uintptr);
+
+	// MOVQ SP, DI
+	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0x89 || *p++ != 0xe7)
+		return 0;
+
+	// CLD on 32-bit
+	if(sizeof(uintptr) == 4 && *p++ != 0xfc)
+		return 0;
+
+	if(siz <= 4*sizeof(uintptr)) {
+		// MOVSQ...
+		for(i=0; i<siz; i+=sizeof(uintptr))
+			if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xa5)
+				return 0;
+	} else {
+		// MOVQ $(siz/8), CX  [32-bit immediate siz/8]
+		if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xc7 || *p++ != 0xc1)
+			return 0;
+		p += 4;
+		
+		// REP MOVSQ
+		if(*p++ != 0xf3 || (sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xa5)
+			return 0;
+	}
+	
+	// CALL fn
+	if(*p == 0xe8) {
+		p++;
+		return (uintptr)p+4 + *(int32*)p;
+	}
+	
+	// MOVQ $fn, CX; CALL *CX
+	if(sizeof(uintptr) != 8 || *p++ != 0x48 || *p++ != 0xb9)
+		return 0;
+
+	pc = *(uintptr*)p;
+	p += 8;
+	
+	if(*p++ != 0xff || *p != 0xd1)
+		return 0;
+
+	return pc;
 }
