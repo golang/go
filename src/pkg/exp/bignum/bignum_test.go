@@ -331,6 +331,16 @@ func TestNatDiv(t *testing.T) {
 	for i := uint(0); i < n; i++ {
 		nat_eq(100+i, p.Div(MulRange(1, i)), MulRange(i+1, n))
 	}
+
+	// a specific test case that exposed a bug in package big
+	test_msg = "NatDivC"
+	x := natFromString("69720375229712477164533808935312303556800", 10, nil)
+	y := natFromString("3099044504245996706400", 10, nil)
+	q := natFromString("22497377864108980962", 10, nil)
+	r := natFromString("0", 10, nil)
+	qc, rc := x.DivMod(y)
+	nat_eq(0, q, qc)
+	nat_eq(1, r, rc)
 }
 
 

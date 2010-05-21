@@ -10,7 +10,7 @@
 
 package main
 
-import Big "bignum"
+import Big "exp/bignum"
 import Fmt "fmt"
 
 

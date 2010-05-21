@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"bignum"
+	"exp/bignum"
 	"go/ast"
 	"go/token"
 	"log"
