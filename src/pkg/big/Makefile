@@ -7,8 +7,9 @@ include ../../Make.$(GOARCH)
 TARG=big
 GOFILES=\
 	arith.go\
-	nat.go\
 	int.go\
+	nat.go\
+	rat.go\
 
 OFILES=\
 	arith_$(GOARCH).$O\
