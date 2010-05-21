@@ -180,7 +180,3 @@ BUG: bug260 failed
 
 =========== bugs/bug274.go
 BUG: errchk: command succeeded unexpectedly
-
-=========== bugs/bug275.go
-bugs/bug275.go:17: internal compiler error: subnode not addable
-BUG should compile

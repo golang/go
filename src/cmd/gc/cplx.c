@@ -129,12 +129,18 @@ complexgen(Node *n, Node *res)
 		return;
 
 	case OREAL:
-		subnode(&n1, &n2, n->left);
-		cgen(&n1, res);
-		return;
-
 	case OIMAG:
-		subnode(&n1, &n2, n->left);
+		nl = n->left;
+		if(!nl->addable) {
+			tempname(&tmp, nl->type);
+			complexgen(nl, &tmp);
+			nl = &tmp;
+		}
+		subnode(&n1, &n2, nl);
+		if(n->op == OREAL) {
+			cgen(&n1, res);
+			return;
+		}
 		cgen(&n2, res);
 		return;
 	}
