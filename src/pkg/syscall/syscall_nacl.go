@@ -174,6 +174,14 @@ func Fchown(fd int, uid int, gid int) (errno int) {
 	return ENACL
 }
 
+func Utimes(path string, tv []Timeval) (errno int) {
+	return ENACL
+}
+
+func Futimes(fd int, tv []Timeval) (errno int) {
+	return ENACL
+}
+
 func Truncate(name string, size int64) (errno int) {
 	return ENACL
 }
