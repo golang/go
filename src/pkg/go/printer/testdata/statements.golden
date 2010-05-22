@@ -247,7 +247,6 @@ func _() {
 // Formatting around labels.
 func _() {
 L:
-
 }
 
 
@@ -260,9 +259,11 @@ L:	// no semicolon needed
 func _() {
 	switch 0 {
 	case 0:
-	L0:	;	// semicolon required
+	L0:	// semicolon required
+		;
 	case 1:
-	L1:	;	// semicolon required
+	L1:	// semicolon required
+		;
 	default:
 	L2:	// no semicolon needed
 	}
@@ -270,26 +271,38 @@ func _() {
 
 
 func _() {
+	f()
+L1:
+	f()
+L2:
+	;
+L3:
+}
+
+
+func _() {
 	// this comment should be indented
 L:
-
 }
 
 
 func _() {
-L:	_ = 0
+L:
+	_ = 0
 }
 
 
 func _() {
 	// this comment should be indented
-L:	_ = 0
+L:
+	_ = 0
 }
 
 
 func _() {
 	for {
-	L1:	_ = 0
+	L1:
+		_ = 0
 	L2:
 		_ = 0
 	}
@@ -299,7 +312,8 @@ func _() {
 func _() {
 	// this comment should be indented
 	for {
-	L1:	_ = 0
+	L1:
+		_ = 0
 	L2:
 		_ = 0
 	}
@@ -319,5 +333,6 @@ AnOverlongLabel:
 	}
 	_ = 0
 
-L:	_ = 0
+L:
+	_ = 0
 }

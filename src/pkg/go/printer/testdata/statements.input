@@ -206,6 +206,16 @@ func _() {
 
 
 func _() {
+	f()
+L1:
+	f()
+L2:
+	;
+L3:
+}
+
+
+func _() {
 	// this comment should be indented
 	L:
 }

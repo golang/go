@@ -795,7 +795,8 @@ func (p *pp) doprintf(format string, a []interface{}) {
 		i++
 		// flags and widths
 		p.fmt.clearflags()
-	F: for ; i < end; i++ {
+	F:
+		for ; i < end; i++ {
 			switch format[i] {
 			case '#':
 				p.fmt.sharp = true
