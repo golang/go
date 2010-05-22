@@ -16,9 +16,6 @@
 // of the operands it may be overwritten (and its memory reused).
 // To enable chaining of operations, the result is also returned.
 //
-// If possible, one should use big over bignum as the latter is headed for
-// deprecation.
-//
 package big
 
 import "rand"
