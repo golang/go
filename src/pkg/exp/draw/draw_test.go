@@ -134,7 +134,8 @@ func makeGolden(dst image.Image, t drawTest) image.Image {
 }
 
 func TestDraw(t *testing.T) {
-loop: for _, test := range drawTests {
+loop:
+	for _, test := range drawTests {
 		dst := hgradRed(255)
 		// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
 		golden := makeGolden(dst, test)

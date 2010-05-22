@@ -1030,14 +1030,17 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 		// a "correcting" unindent immediately following a line break
 		// is applied before the line break if there is no comment
 		// between (see writeWhitespace)
-		p.print(unindent)
+		p.print(unindent, s.Pos())
 		p.expr(s.Label, multiLine)
-		p.print(token.COLON, vtab, indent)
-		if _, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty && !nextIsRBrace {
-			p.print(token.SEMICOLON)
-			break
+		p.print(token.COLON, indent)
+		if _, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty {
+			if !nextIsRBrace {
+				p.print(newline, s.Stmt.Pos(), token.SEMICOLON)
+				break
+			}
+		} else {
+			p.print(newline)
 		}
-		p.linebreak(s.Stmt.Pos().Line, 0, 1, ignore, true)
 		p.stmt(s.Stmt, nextIsRBrace, multiLine)
 
 	case *ast.ExprStmt:

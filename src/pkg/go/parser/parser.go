@@ -1224,7 +1224,8 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 	}
 
 	x := p.parseOperand()
-L: for {
+L:
+	for {
 		switch p.tok {
 		case token.PERIOD:
 			x = p.parseSelectorOrTypeAssertion(p.checkExpr(x))
