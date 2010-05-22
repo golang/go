@@ -83,11 +83,6 @@ func main() {
 		// Reset p.Preamble so that we don't end up with conflicting headers / defines
 		p.Preamble = builtinProlog
 		openProg(input, p)
-
-		if len(p.Vardef) == 0 && len(p.Funcdef) == 0 && len(p.Enumdef) == 0 && len(p.Constdef) == 0 {
-			fatal("no C symbols were used in cgo file " + input)
-		}
-
 		for _, cref := range p.Crefs {
 			// Convert C.ulong to C.unsigned long, etc.
 			if expand, ok := expandName[cref.Name]; ok {
