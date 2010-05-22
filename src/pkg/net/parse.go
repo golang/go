@@ -192,6 +192,16 @@ func count(s string, b byte) int {
 	return n
 }
 
+// Returns the prefix of s up to but not including the character c
+func prefixBefore(s string, c byte) string {
+	for i, v := range s {
+		if v == int(c) {
+			return s[0:i]
+		}
+	}
+	return s
+}
+
 // Index of rightmost occurrence of b in s.
 func last(s string, b byte) int {
 	i := len(s)

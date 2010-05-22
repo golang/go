@@ -198,7 +198,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
 	if raddr == nil {
 		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
 	}
-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, "dial", sockaddrToTCP)
+	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
 	if e != nil {
 		return nil, e
 	}
@@ -217,7 +217,7 @@ type TCPListener struct {
 // If laddr has a port of 0, it means to listen on some available port.
 // The caller can use l.Addr() to retrieve the chosen address.
 func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
-	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, "listen", sockaddrToTCP)
+	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
 	if err != nil {
 		return nil, err
 	}

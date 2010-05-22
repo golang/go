@@ -46,7 +46,7 @@ type sockaddr interface {
 	family() int
 }
 
-func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
+func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
 	// Figure out IP version.
 	// If network has a suffix like "tcp4", obey it.
 	var oserr os.Error
@@ -77,7 +77,7 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
 			goto Error
 		}
 	}
-	fd, oserr = socket(net, family, proto, 0, la, ra, toAddr)
+	fd, oserr = socket(net, family, socktype, proto, la, ra, toAddr)
 	if oserr != nil {
 		goto Error
 	}

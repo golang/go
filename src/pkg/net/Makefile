@@ -14,6 +14,7 @@ GOFILES=\
 	hosts.go\
 	ip.go\
 	ipsock.go\
+	iprawsock.go\
 	net.go\
 	parse.go\
 	pipe.go\
