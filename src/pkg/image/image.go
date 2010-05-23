@@ -38,11 +38,12 @@ func (p *RGBA) Set(x, y int, c Color) { p.Pixel[y][x] = toRGBAColor(c).(RGBAColo
 
 // NewRGBA returns a new RGBA with the given width and height.
 func NewRGBA(w, h int) *RGBA {
-	pixel := make([][]RGBAColor, h)
-	for y := 0; y < h; y++ {
-		pixel[y] = make([]RGBAColor, w)
+	buf := make([]RGBAColor, w*h)
+	pix := make([][]RGBAColor, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
 	}
-	return &RGBA{pixel}
+	return &RGBA{pix}
 }
 
 // An RGBA64 is an in-memory image backed by a 2-D slice of RGBA64Color values.
@@ -68,11 +69,12 @@ func (p *RGBA64) Set(x, y int, c Color) { p.Pixel[y][x] = toRGBA64Color(c).(RGBA
 
 // NewRGBA64 returns a new RGBA64 with the given width and height.
 func NewRGBA64(w, h int) *RGBA64 {
-	pixel := make([][]RGBA64Color, h)
-	for y := 0; y < h; y++ {
-		pixel[y] = make([]RGBA64Color, w)
+	buf := make([]RGBA64Color, w*h)
+	pix := make([][]RGBA64Color, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
 	}
-	return &RGBA64{pixel}
+	return &RGBA64{pix}
 }
 
 // A NRGBA is an in-memory image backed by a 2-D slice of NRGBAColor values.
@@ -98,11 +100,12 @@ func (p *NRGBA) Set(x, y int, c Color) { p.Pixel[y][x] = toNRGBAColor(c).(NRGBAC
 
 // NewNRGBA returns a new NRGBA with the given width and height.
 func NewNRGBA(w, h int) *NRGBA {
-	pixel := make([][]NRGBAColor, h)
-	for y := 0; y < h; y++ {
-		pixel[y] = make([]NRGBAColor, w)
+	buf := make([]NRGBAColor, w*h)
+	pix := make([][]NRGBAColor, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
 	}
-	return &NRGBA{pixel}
+	return &NRGBA{pix}
 }
 
 // A NRGBA64 is an in-memory image backed by a 2-D slice of NRGBA64Color values.
@@ -128,11 +131,12 @@ func (p *NRGBA64) Set(x, y int, c Color) { p.Pixel[y][x] = toNRGBA64Color(c).(NR
 
 // NewNRGBA64 returns a new NRGBA64 with the given width and height.
 func NewNRGBA64(w, h int) *NRGBA64 {
-	pixel := make([][]NRGBA64Color, h)
-	for y := 0; y < h; y++ {
-		pixel[y] = make([]NRGBA64Color, w)
+	buf := make([]NRGBA64Color, w*h)
+	pix := make([][]NRGBA64Color, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
 	}
-	return &NRGBA64{pixel}
+	return &NRGBA64{pix}
 }
 
 // An Alpha is an in-memory image backed by a 2-D slice of AlphaColor values.
@@ -158,11 +162,12 @@ func (p *Alpha) Set(x, y int, c Color) { p.Pixel[y][x] = toAlphaColor(c).(AlphaC
 
 // NewAlpha returns a new Alpha with the given width and height.
 func NewAlpha(w, h int) *Alpha {
-	pixel := make([][]AlphaColor, h)
-	for y := 0; y < h; y++ {
-		pixel[y] = make([]AlphaColor, w)
+	buf := make([]AlphaColor, w*h)
+	pix := make([][]AlphaColor, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
 	}
-	return &Alpha{pixel}
+	return &Alpha{pix}
 }
 
 // A PalettedColorModel represents a fixed palette of colors.
@@ -235,9 +240,10 @@ func (p *Paletted) SetColorIndex(x, y int, index uint8) {
 
 // NewPaletted returns a new Paletted with the given width, height and palette.
 func NewPaletted(w, h int, m PalettedColorModel) *Paletted {
-	pixel := make([][]uint8, h)
-	for y := 0; y < h; y++ {
-		pixel[y] = make([]uint8, w)
+	buf := make([]uint8, w*h)
+	pix := make([][]uint8, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
 	}
-	return &Paletted{pixel, m}
+	return &Paletted{pix, m}
 }
