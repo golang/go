@@ -888,6 +888,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	int a, rcx;
 	Prog *p1;
 	uvlong sc;
+	Type *tcount;
 
 	a = optoas(op, nl->type);
 
@@ -920,8 +921,16 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 
 	rcx = reg[D_CX];
 	nodreg(&n1, types[TUINT32], D_CX);
+	
+	// Allow either uint32 or uint64 as shift type,
+	// to avoid unnecessary conversion from uint32 to uint64
+	// just to do the comparison.
+	tcount = types[simtype[nr->type->etype]];
+	if(tcount->etype < TUINT32)
+		tcount = types[TUINT32];
+
 	regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
-	regalloc(&n3, types[TUINT64], &n1);	// to clear high bits of CX
+	regalloc(&n3, tcount, &n1);	// to clear high bits of CX
 
 	nodreg(&cx, types[TUINT64], D_CX);
 	memset(&oldcx, 0, sizeof oldcx);
@@ -929,6 +938,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		regalloc(&oldcx, types[TUINT64], N);
 		gmove(&cx, &oldcx);
 	}
+	cx.type = tcount;
 
 	if(samereg(&cx, res))
 		regalloc(&n2, nl->type, N);
@@ -946,9 +956,9 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	regfree(&n3);
 
 	// test and fix up large shifts
-	nodconst(&n3, types[TUINT64], nl->type->width*8);
-	gins(optoas(OCMP, types[TUINT64]), &n1, &n3);
-	p1 = gbranch(optoas(OLT, types[TUINT64]), T);
+	nodconst(&n3, tcount, nl->type->width*8);
+	gins(optoas(OCMP, tcount), &n1, &n3);
+	p1 = gbranch(optoas(OLT, tcount), T);
 	if(op == ORSH && issigned[nl->type->etype]) {
 		nodconst(&n3, types[TUINT32], nl->type->width*8-1);
 		gins(a, &n3, &n2);
@@ -960,6 +970,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	gins(a, &n1, &n2);
 
 	if(oldcx.op != 0) {
+		cx.type = types[TUINT64];
 		gmove(&oldcx, &cx);
 		regfree(&oldcx);
 	}
