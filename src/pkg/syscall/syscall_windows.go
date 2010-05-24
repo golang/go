@@ -70,6 +70,12 @@ func UTF16ToString(s []uint16) string {
 // the UTF-8 string s, with a terminating NUL added.
 func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
+func NsecToTimeval(nsec int64) (tv Timeval) {
+	tv.Sec = int32(nsec / 1e9)
+	tv.Usec = int32(nsec % 1e9 / 1e3)
+	return
+}
+
 // dll helpers
 
 // implemented in ../pkg/runtime/windows/syscall.cgo
@@ -374,6 +380,11 @@ func Gettimeofday(tv *Timeval) (errno int) {
 	tv.Sec = int32(t / 1e6)
 	tv.Usec = int32(t) - tv.Sec
 	return 0
+}
+
+// TODO(brainman): implement Utimes, or rewrite os.file.Chtimes() instead
+func Utimes(path string, tv []Timeval) (errno int) {
+	return EWINDOWS
 }
 
 // TODO(brainman): fix all needed for os
