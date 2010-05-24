@@ -32,9 +32,8 @@ unsafenmagic(Node *fn, NodeList *args)
 
 	if(strcmp(s->name, "Sizeof") == 0) {
 		typecheck(&r, Erv);
+		defaultlit(&r, T);
 		tr = r->type;
-		if(r->op == OLITERAL && r->val.ctype == CTSTR)
-			tr = types[TSTRING];
 		if(tr == T)
 			goto no;
 		v = tr->width;
@@ -49,9 +48,8 @@ unsafenmagic(Node *fn, NodeList *args)
 	}
 	if(strcmp(s->name, "Alignof") == 0) {
 		typecheck(&r, Erv);
+		defaultlit(&r, T);
 		tr = r->type;
-		if(r->op == OLITERAL && r->val.ctype == CTSTR)
-			tr = types[TSTRING];
 		if(tr == T)
 			goto no;
 
