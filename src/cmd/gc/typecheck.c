@@ -2074,6 +2074,9 @@ islvalue(Node *n)
 {
 	switch(n->op) {
 	case OINDEX:
+		if(isfixedarray(n->left->type))
+			return islvalue(n->left);
+		// fall through
 	case OIND:
 	case ODOTPTR:
 		return 1;
