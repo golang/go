@@ -533,11 +533,18 @@ _change_prolog = """# Change list.
 #######################################################################
 # Mercurial helper functions
 
+# Get effective change nodes taking into account applied MQ patches
+def effective_revpair(repo):
+    try:
+	return cmdutil.revpair(repo, ['qparent'])
+    except:
+	return cmdutil.revpair(repo, None)
+
 # Return list of changed files in repository that match pats.
 def ChangedFiles(ui, repo, pats, opts):
 	# Find list of files being operated on.
 	matcher = cmdutil.match(repo, pats, opts)
-	node1, node2 = cmdutil.revpair(repo, None)
+	node1, node2 = effective_revpair(repo)
 	modified, added, removed = repo.status(node1, node2, matcher)[:3]
 	l = modified + added + removed
 	l.sort()
@@ -546,7 +553,7 @@ def ChangedFiles(ui, repo, pats, opts):
 # Return list of changed files in repository that match pats and still exist.
 def ChangedExistingFiles(ui, repo, pats, opts):
 	matcher = cmdutil.match(repo, pats, opts)
-	node1, node2 = cmdutil.revpair(repo, None)
+	node1, node2 = effective_revpair(repo)
 	modified, added, _ = repo.status(node1, node2, matcher)[:3]
 	l = modified + added
 	l.sort()
@@ -2828,8 +2835,11 @@ class MercurialVCS(VersionControlSystem):
     if self.options.revision:
       self.base_rev = self.options.revision
     else:
-      self.base_rev = RunShell(["hg", "parent", "-q"]).split(':')[1].strip()
-
+      mqparent, err = RunShellWithReturnCode(['hg', 'log', '--rev', 'qparent', '--template={node}'])
+      if not err:
+        self.base_rev = mqparent
+      else:
+        self.base_rev = RunShell(["hg", "parent", "-q"]).split(':')[1].strip()
   def _GetRelPath(self, filename):
     """Get relative path of a file according to the current directory,
     given its logical path in the repo."""
