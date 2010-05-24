@@ -70,7 +70,7 @@
 %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
 %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
 
-%type	<node>	convtype dotdotdot
+%type	<node>	convtype comptype dotdotdot
 %type	<node>	indcl interfacetype structtype ptrtype
 %type	<node>	recvchantype non_recvchantype othertype fnret_type fntype
 
@@ -822,7 +822,7 @@ pexpr:
 		$$ = nod(OCALL, $1, N);
 		$$->list = list1($3);
 	}
-|	convtype lbrace braced_keyval_list '}'
+|	comptype lbrace braced_keyval_list '}'
 	{
 		// composite expression
 		$$ = nod(OCOMPLIT, N, $1);
@@ -886,7 +886,7 @@ sym:
 	LNAME
 
 name:
-	sym
+	sym	%prec NotParen
 	{
 		$$ = oldname($1);
 		if($$->pack != N)
@@ -895,24 +895,6 @@ name:
 
 labelname:
 	new_name
-
-convtype:
-	'[' oexpr ']' ntype
-	{
-		// array literal
-		$$ = nod(OTARRAY, $2, $4);
-	}
-|	'[' LDDD ']' ntype
-	{
-		// array literal of nelem
-		$$ = nod(OTARRAY, nod(ODDD, N, N), $4);
-	}
-|	LMAP '[' ntype ']' ntype
-	{
-		// map literal
-		$$ = nod(OTMAP, $3, $5);
-	}
-|	structtype
 
 /*
  * to avoid parsing conflicts, type is split into
@@ -962,6 +944,13 @@ non_recvchantype:
 	{
 		$$ = $2;
 	}
+
+convtype:
+	fntype
+|	othertype
+
+comptype:
+	othertype
 
 fnret_type:
 	recvchantype
