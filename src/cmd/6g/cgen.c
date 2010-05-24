@@ -938,11 +938,32 @@ stkof(Node *n)
 {
 	Type *t;
 	Iter flist;
+	int32 off;
 
 	switch(n->op) {
 	case OINDREG:
 		return n->xoffset;
 
+	case ODOT:
+		t = n->left->type;
+		if(isptr[t->etype])
+			break;
+		off = stkof(n->left);
+		if(off == -1000 || off == 1000)
+			return off;
+		return off + n->xoffset;
+
+	case OINDEX:
+		t = n->left->type;
+		if(!isfixedarray(t))
+			break;
+		off = stkof(n->left);
+		if(off == -1000 || off == 1000)
+			return off;
+		if(isconst(n->right, CTINT))
+			return off + t->type->width * mpgetfix(n->right->val.u.xval);
+		return 1000;
+		
 	case OCALLMETH:
 	case OCALLINTER:
 	case OCALLFUNC:
@@ -968,7 +989,7 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *ns, int32 w)
 {
-	Node nodl, nodr, oldl, oldr, cx, oldcx;
+	Node nodl, nodr, oldl, oldr, cx, oldcx, tmp;
 	int32 c, q, odst, osrc;
 
 	if(debug['g']) {
@@ -989,6 +1010,16 @@ sgen(Node *n, Node *ns, int32 w)
 	osrc = stkof(n);
 	odst = stkof(ns);
 
+	if(osrc != -1000 && odst != -1000 && (osrc == 1000 || odst == 1000)) {
+		// osrc and odst both on stack, and at least one is in
+		// an unknown position.  Could generate code to test
+		// for forward/backward copy, but instead just copy
+		// to a temporary location first.
+		tempname(&tmp, n->type);
+		sgen(n, &tmp, w);
+		sgen(&tmp, ns, w);
+		return;
+	}
 
 	if(n->ullman >= ns->ullman) {
 		savex(D_SI, &nodr, &oldr, N, types[tptr]);
