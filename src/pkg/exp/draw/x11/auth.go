@@ -10,21 +10,6 @@ import (
 	"os"
 )
 
-// getDisplay reads the DISPLAY environment variable, and returns the "12" in ":12.0".
-func getDisplay() string {
-	d := os.Getenv("DISPLAY")
-	if len(d) < 1 || d[0] != ':' {
-		return ""
-	}
-	i := 1
-	for ; i < len(d); i++ {
-		if d[i] < '0' || d[i] > '9' {
-			break
-		}
-	}
-	return d[1:i]
-}
-
 // readU16BE reads a big-endian uint16 from r, using b as a scratch buffer.
 func readU16BE(r io.Reader, b []byte) (uint16, os.Error) {
 	_, err := io.ReadFull(r, b[0:2])
@@ -50,9 +35,12 @@ func readStr(r io.Reader, b []byte) (string, os.Error) {
 	return string(b[0:n]), nil
 }
 
-// readAuth reads the X authority file and returns the name/data pair for the DISPLAY.
-// b is a scratch buffer to use, and should be at least 256 bytes long (i.e. it should be able to hold a hostname).
-func readAuth(b []byte) (name, data string, err os.Error) {
+// readAuth reads the X authority file and returns the name/data pair for the display.
+// displayStr is the "12" out of a $DISPLAY like ":12.0".
+func readAuth(displayStr string) (name, data string, err os.Error) {
+	// b is a scratch buffer to use and should be at least 256 bytes long
+	// (i.e. it should be able to hold a hostname).
+	var b [256]byte
 	// As per /usr/include/X11/Xauth.h.
 	const familyLocal = 256
 
@@ -76,7 +64,6 @@ func readAuth(b []byte) (name, data string, err os.Error) {
 	if err != nil {
 		return
 	}
-	display := getDisplay()
 	for {
 		family, err := readU16BE(br, b[0:2])
 		if err != nil {
@@ -98,7 +85,7 @@ func readAuth(b []byte) (name, data string, err os.Error) {
 		if err != nil {
 			return
 		}
-		if family == familyLocal && addr == hostname && disp == display {
+		if family == familyLocal && addr == hostname && disp == displayStr {
 			return name0, data0, nil
 		}
 	}
