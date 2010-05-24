@@ -74,6 +74,8 @@
 %type	<node>	indcl interfacetype structtype ptrtype
 %type	<node>	recvchantype non_recvchantype othertype fnret_type fntype
 
+%type	<val>	hidden_tag
+
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
 %type	<node>	hidden_constant hidden_literal hidden_dcl
@@ -1709,12 +1711,12 @@ hidden_dcl:
 	}
 
 hidden_structdcl:
-	sym hidden_type oliteral
+	sym hidden_type hidden_tag
 	{
 		$$ = nod(ODCLFIELD, newname($1), typenod($2));
 		$$->val = $3;
 	}
-|	'?' hidden_type oliteral
+|	'?' hidden_type hidden_tag
 	{
 		Sym *s;
 
@@ -1726,6 +1728,15 @@ hidden_structdcl:
 		$$ = embedded(s);
 		$$->right = typenod($2);
 		$$->val = $3;
+	}
+
+hidden_tag:
+	{
+		$$.ctype = CTxxx;
+	}
+|	':' LLITERAL	// extra colon avoids conflict with "" looking like beginning of "".typename
+	{
+		$$ = $2;
 	}
 
 hidden_interfacedcl:
