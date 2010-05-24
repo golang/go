@@ -319,7 +319,7 @@ func readU32LE(r io.Reader, b []byte) (uint32, os.Error) {
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, nil
 }
 
-// setU32LE sets b[0:4] to be the big-endian representation of u.
+// setU32LE sets b[0:4] to be the little-endian representation of u.
 func setU32LE(b []byte, u uint32) {
 	b[0] = byte((u >> 0) & 0xff)
 	b[1] = byte((u >> 8) & 0xff)
