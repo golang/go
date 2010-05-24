@@ -3017,9 +3017,10 @@ The right operand is evaluated conditionally.
 <p>
 The address-of operator <code>&amp;</code> generates the address of its operand,
 which must be <i>addressable</i>,
-that is, either a variable, pointer indirection, array or slice indexing
-operation,
-or a field selector of an addressable struct operand.
+that is, either a variable, pointer indirection, or slice indexing
+operation;
+or a field selector of an addressable struct operand;
+or an array indexing operation of an addressable array.
 Given an operand of pointer type, the pointer indirection
 operator <code>*</code> retrieves the value pointed
 to by the operand.
