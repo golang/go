@@ -259,3 +259,13 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
 	}
 	return newUDPConn(fd), nil
 }
+
+// BindToDevice binds a UDPConn to a network interface.
+func (c *UDPConn) BindToDevice(device string) os.Error {
+	if !c.ok() {
+		return os.EINVAL
+	}
+	c.fd.incref()
+	defer c.fd.decref()
+	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
+}
