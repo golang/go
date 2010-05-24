@@ -602,7 +602,7 @@ func TestExp(t *testing.T) {
 			continue
 		}
 
-		z := new(Int).Exp(x, y, m)
+		z := y.Exp(x, y, m)
 		if !isNormalized(z) {
 			t.Errorf("#%d: %v is not normalized", i, *z)
 		}
