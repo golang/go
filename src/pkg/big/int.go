@@ -434,8 +434,9 @@ func (z *Int) BitLen() int {
 // See Knuth, volume 2, section 4.6.3.
 func (z *Int) Exp(x, y, m *Int) *Int {
 	if y.neg || len(y.abs) == 0 {
+		neg := x.neg
 		z.SetInt64(1)
-		z.neg = x.neg
+		z.neg = neg
 		return z
 	}
 

@@ -920,6 +920,11 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 // If m != nil, expNN calculates x**y mod m. Otherwise it calculates x**y. It
 // reuses the storage of z if possible.
 func (z nat) expNN(x, y, m nat) nat {
+	if alias(z, x) || alias(z, y) {
+		// We cannot allow in place modification of x or y.
+		z = nil
+	}
+
 	if len(y) == 0 {
 		z = z.make(1)
 		z[0] = 1
