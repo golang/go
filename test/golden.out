@@ -180,3 +180,15 @@ BUG: bug260 failed
 
 =========== bugs/bug274.go
 BUG: errchk: command succeeded unexpectedly
+
+=========== bugs/bug277.go
+bugs/bug277.go:46: syntax error: unexpected (, expecting {
+bugs/bug277.go:50: syntax error: unexpected interface
+bugs/bug277.go:53: non-declaration statement outside function body
+bugs/bug277.go:54: non-declaration statement outside function body
+bugs/bug277.go:55: syntax error: unexpected LCHAN
+bugs/bug277.go:56: syntax error: unexpected LCHAN
+bugs/bug277.go:57: non-declaration statement outside function body
+bugs/bug277.go:58: non-declaration statement outside function body
+bugs/bug277.go:59: syntax error: unexpected }
+BUG should compile
