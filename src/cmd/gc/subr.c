@@ -1295,8 +1295,12 @@ Tpretty(Fmt *fp, Type *t)
 				fmtprint(fp, "... %T", t->type->type);
 		} else
 			fmtprint(fp, "%T", t->type);
-		if(t->note)
-			fmtprint(fp, " \"%Z\"", t->note);
+		if(t->note) {	
+			fmtprint(fp, " ");
+			if(exporting)
+				fmtprint(fp, ":");
+			fmtprint(fp, "\"%Z\"", t->note);
+		}
 		return 0;
 
 	case TFORW:
