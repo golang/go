@@ -17,6 +17,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type resID uint32 // X resource IDs.
@@ -197,9 +199,65 @@ func (c *conn) pumper() {
 	// TODO(nigeltao): Should we explicitly close our kbd/mouse/resize/quit chans?
 }
 
-// Authenticate ourselves with the X server.
-func (c *conn) authenticate() os.Error {
-	key, value, err := readAuth(c.buf[0:])
+// connect connects to the X server given by the full X11 display name (e.g.
+// ":12.0") and returns the connection as well as the portion of the full name
+// that is the display number (e.g. "12").
+// Examples:
+//	connect(":1")                 // calls net.Dial("unix", "", "/tmp/.X11-unix/X1"), displayStr="1"
+//	connect("/tmp/launch-123/:0") // calls net.Dial("unix", "", "/tmp/launch-123/:0"), displayStr="0"
+//	connect("hostname:2.1")       // calls net.Dial("tcp", "", "hostname:6002"), displayStr="2"
+//	connect("tcp/hostname:1.0")   // calls net.Dial("tcp", "", "hostname:6001"), displayStr="1"
+func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
+	colonIdx := strings.LastIndex(display, ":")
+	if colonIdx < 0 {
+		return nil, "", os.NewError("bad display: " + display)
+	}
+	// Parse the section before the colon.
+	var protocol, host, socket string
+	if display[0] == '/' {
+		socket = display[0:colonIdx]
+	} else {
+		if i := strings.LastIndex(display, "/"); i < 0 {
+			// The default protocol is TCP.
+			protocol = "tcp"
+			host = display[0:colonIdx]
+		} else {
+			protocol = display[0:i]
+			host = display[i+1 : colonIdx]
+		}
+	}
+	// Parse the section after the colon.
+	after := display[colonIdx+1:]
+	if after == "" {
+		return nil, "", os.NewError("bad display: " + display)
+	}
+	if i := strings.LastIndex(after, "."); i < 0 {
+		displayStr = after
+	} else {
+		displayStr = after[0:i]
+	}
+	displayInt, err := strconv.Atoi(displayStr)
+	if err != nil || displayInt < 0 {
+		return nil, "", os.NewError("bad display: " + display)
+	}
+	// Make the connection.
+	if socket != "" {
+		conn, err = net.Dial("unix", "", socket+":"+displayStr)
+	} else if host != "" {
+		conn, err = net.Dial(protocol, "", host+":"+strconv.Itoa(6000+displayInt))
+	} else {
+		conn, err = net.Dial("unix", "", "/tmp/.X11-unix/X"+displayStr)
+	}
+	if err != nil {
+		return nil, "", os.NewError("cannot connect to " + display + ": " + err.String())
+	}
+	return
+}
+
+// authenticate authenticates ourselves with the X server.
+// displayStr is the "12" out of ":12.0".
+func authenticate(w *bufio.Writer, displayStr string) os.Error {
+	key, value, err := readAuth(displayStr)
 	if err != nil {
 		return err
 	}
@@ -210,31 +268,31 @@ func (c *conn) authenticate() os.Error {
 	// 0x006c means little-endian. 0x000b, 0x0000 means X major version 11, minor version 0.
 	// 0x0012 and 0x0010 means the auth key and value have lenths 18 and 16.
 	// The final 0x0000 is padding, so that the string length is a multiple of 4.
-	_, err = io.WriteString(c.w, "\x6c\x00\x0b\x00\x00\x00\x12\x00\x10\x00\x00\x00")
+	_, err = io.WriteString(w, "\x6c\x00\x0b\x00\x00\x00\x12\x00\x10\x00\x00\x00")
 	if err != nil {
 		return err
 	}
-	_, err = io.WriteString(c.w, key)
+	_, err = io.WriteString(w, key)
 	if err != nil {
 		return err
 	}
 	// Again, the 0x0000 is padding.
-	_, err = io.WriteString(c.w, "\x00\x00")
+	_, err = io.WriteString(w, "\x00\x00")
 	if err != nil {
 		return err
 	}
-	_, err = io.WriteString(c.w, value)
+	_, err = io.WriteString(w, value)
 	if err != nil {
 		return err
 	}
-	err = c.w.Flush()
+	err = w.Flush()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// Reads a uint8 from r, using b as a scratch buffer.
+// readU8 reads a uint8 from r, using b as a scratch buffer.
 func readU8(r io.Reader, b []byte) (uint8, os.Error) {
 	_, err := io.ReadFull(r, b[0:1])
 	if err != nil {
@@ -243,7 +301,7 @@ func readU8(r io.Reader, b []byte) (uint8, os.Error) {
 	return uint8(b[0]), nil
 }
 
-// Reads a little-endian uint16 from r, using b as a scratch buffer.
+// readU16LE reads a little-endian uint16 from r, using b as a scratch buffer.
 func readU16LE(r io.Reader, b []byte) (uint16, os.Error) {
 	_, err := io.ReadFull(r, b[0:2])
 	if err != nil {
@@ -252,7 +310,7 @@ func readU16LE(r io.Reader, b []byte) (uint16, os.Error) {
 	return uint16(b[0]) | uint16(b[1])<<8, nil
 }
 
-// Reads a little-endian uint32 from r, using b as a scratch buffer.
+// readU32LE reads a little-endian uint32 from r, using b as a scratch buffer.
 func readU32LE(r io.Reader, b []byte) (uint32, os.Error) {
 	_, err := io.ReadFull(r, b[0:4])
 	if err != nil {
@@ -261,7 +319,7 @@ func readU32LE(r io.Reader, b []byte) (uint32, os.Error) {
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, nil
 }
 
-// Sets b[0:4] to be the big-endian representation of u.
+// setU32LE sets b[0:4] to be the big-endian representation of u.
 func setU32LE(b []byte, u uint32) {
 	b[0] = byte((u >> 0) & 0xff)
 	b[1] = byte((u >> 8) & 0xff)
@@ -269,7 +327,7 @@ func setU32LE(b []byte, u uint32) {
 	b[3] = byte((u >> 24) & 0xff)
 }
 
-// Check that we have an agreeable X pixmap Format.
+// checkPixmapFormats checks that we have an agreeable X pixmap Format.
 func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err os.Error) {
 	for i := 0; i < n; i++ {
 		_, err = io.ReadFull(r, b[0:8])
@@ -284,7 +342,7 @@ func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err os.Error)
 	return
 }
 
-// Check that we have an agreeable X Depth (i.e. one that has an agreeable X VisualType).
+// checkDepths checks that we have an agreeable X Depth (i.e. one that has an agreeable X VisualType).
 func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err os.Error) {
 	for i := 0; i < n; i++ {
 		depth, err := readU16LE(r, b)
@@ -321,7 +379,7 @@ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err o
 	return
 }
 
-// Check that we have an agreeable X Screen.
+// checkScreens checks that we have an agreeable X Screen.
 func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Error) {
 	for i := 0; i < n; i++ {
 		root0, err := readU32LE(r, b)
@@ -356,7 +414,8 @@ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Err
 	return
 }
 
-// Perform the protocol handshake with the X server, and ensure that the server provides a compatible Screen, Depth, etcetera.
+// handshake performs the protocol handshake with the X server, and ensures
+// that the server provides a compatible Screen, Depth, etc.
 func (c *conn) handshake() os.Error {
 	_, err := io.ReadFull(c.r, c.buf[0:8])
 	if err != nil {
@@ -447,21 +506,28 @@ func (c *conn) handshake() os.Error {
 	return nil
 }
 
-// Returns a new draw.Context, backed by a newly created and mapped X11 window.
+// NewWindow calls NewWindowDisplay with $DISPLAY.
 func NewWindow() (draw.Context, os.Error) {
-	display := getDisplay()
+	display := os.Getenv("DISPLAY")
 	if len(display) == 0 {
-		return nil, os.NewError("unsupported DISPLAY")
+		return nil, os.NewError("$DISPLAY not set")
 	}
-	s, err := net.Dial("unix", "", "/tmp/.X11-unix/X"+display)
+	return NewWindowDisplay(display)
+}
+
+// NewWindowDisplay returns a new draw.Context, backed by a newly created and
+// mapped X11 window. The X server to connect to is specified by the display
+// string, such as ":1".
+func NewWindowDisplay(display string) (draw.Context, os.Error) {
+	socket, displayStr, err := connect(display)
 	if err != nil {
 		return nil, err
 	}
 	c := new(conn)
-	c.c = s
-	c.r = bufio.NewReader(s)
-	c.w = bufio.NewWriter(s)
-	err = c.authenticate()
+	c.c = socket
+	c.r = bufio.NewReader(socket)
+	c.w = bufio.NewWriter(socket)
+	err = authenticate(c.w, displayStr)
 	if err != nil {
 		return nil, err
 	}
