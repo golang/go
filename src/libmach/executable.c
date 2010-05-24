@@ -1177,6 +1177,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 					goto bad;
 				}
 				sect++;
+				if (strcmp(sect->sectname, "__nl_symbol_ptr") == 0)
+					sect++;
 				if (strcmp(sect->sectname, "__bss") == 0) {
 					bsssize = swav(sect->size);
 				} else {
