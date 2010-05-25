@@ -45,10 +45,10 @@ static struct {
 	"var declaration not allowed in for initializer",
 
 	% loadsys package imports LVAR LNAME '[' ']' LNAME '{'
-	"var declaration missing = before initial value",
+	"unexpected { at end of statement",
 
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LVAR LNAME '[' ']' LNAME '{'
-	"var declaration missing = before initial value",
+	"unexpected { at end of statement",
 	
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LDEFER LNAME ';'
 	"argument to go/defer must be function call",

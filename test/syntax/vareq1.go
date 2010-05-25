@@ -6,5 +6,5 @@
 
 package main
 
-var x map[string]string{"a":"b"}		// ERROR "var declaration missing ="
+var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement"
 
