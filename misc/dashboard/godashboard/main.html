@@ -56,7 +56,7 @@
     <div class="paginate">
 	<a{% if prev %} href="?n={{num}}&p={{prev}}"{% else %} class="inactive"{% endif %}>prev</a>
 	<a{% if next %} href="?n={{num}}&p={{next}}"{% else %} class="inactive"{% endif %}>next</a>
-	<a href="#top">top</a>
+	<a{% if prev %} href="?n={{num}}&p=1"{% else %} class="inactive"{% endif %}>top</a>
     </div>
   </body>
 </html>
