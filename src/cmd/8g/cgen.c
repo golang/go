@@ -10,6 +10,8 @@
 void
 mgen(Node *n, Node *n1, Node *rg)
 {
+	Node n2;
+
 	n1->op = OEMPTY;
 
 	if(n->addable) {
@@ -18,11 +20,13 @@ mgen(Node *n, Node *n1, Node *rg)
 			reg[n->val.u.reg]++;
 		return;
 	}
-	if(n->type->width > widthptr && !isfloat[n->type->etype])
-		tempname(n1, n->type);
-	else
-		regalloc(n1, n->type, rg);
+	tempname(n1, n->type);
 	cgen(n, n1);
+	if(n->type->width <= widthptr || isfloat[n->type->etype]) {
+		n2 = *n1;
+		regalloc(n1, n->type, rg);
+		gmove(&n2, n1);
+	}
 }
 
 void
