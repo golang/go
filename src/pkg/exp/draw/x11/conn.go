@@ -91,18 +91,18 @@ func (c *conn) flusher() {
 				close(c.flush)
 				return
 			}
+			p := c.img.Pixel[y]
 			for x := 0; x < w; {
 				nx := w - x
 				if nx > len(c.flushBuf1)/4 {
 					nx = len(c.flushBuf1) / 4
 				}
-				for i := 0; i < nx; i++ {
-					r, g, b, _ := c.img.At(x, y).RGBA()
-					c.flushBuf1[4*i+0] = uint8(b >> 24)
-					c.flushBuf1[4*i+1] = uint8(g >> 24)
-					c.flushBuf1[4*i+2] = uint8(r >> 24)
-					x++
+				for i, rgba := range p[x : x+nx] {
+					c.flushBuf1[4*i+0] = rgba.B
+					c.flushBuf1[4*i+1] = rgba.G
+					c.flushBuf1[4*i+2] = rgba.R
 				}
+				x += nx
 				_, err := c.w.Write(c.flushBuf1[0 : 4*nx])
 				if err != nil {
 					close(c.flush)
