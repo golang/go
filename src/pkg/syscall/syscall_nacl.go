@@ -241,6 +241,7 @@ const (
 	IPPROTO_TCP
 	SOCK_DGRAM
 	SOCK_STREAM
+	SOCK_RAW
 	SOL_SOCKET
 	SOMAXCONN
 	SO_DONTROUTE
@@ -270,6 +271,8 @@ func Getpeername(fd int) (sa Sockaddr, errno int) {
 }
 
 func Bind(fd int, sa Sockaddr) (errno int) { return ENACL }
+
+func BindToDevice(fd int, device string) (errno int) { return ENACL }
 
 func Connect(fd int, sa Sockaddr) (errno int) { return ENACL }
 
