@@ -53,6 +53,28 @@ func (doc *docReader) init(pkgName string) {
 }
 
 
+func (doc *docReader) addDoc(comments *ast.CommentGroup) {
+	if doc.doc == nil {
+		// common case: just one package comment
+		doc.doc = comments
+		return
+	}
+
+	// More than one package comment: Usually there will be only
+	// one file with a package comment, but it's better to collect
+	// all comments than drop them on the floor.
+	// (This code isn't particularly clever - no amortized doubling is
+	// used - but this situation occurs rarely and is not time-critical.)
+	n1 := len(doc.doc.List)
+	n2 := len(comments.List)
+	list := make([]*ast.Comment, n1+1+n2) // + 1 for separator line
+	copy(list, doc.doc.List)
+	list[n1] = &ast.Comment{token.Position{}, []byte("//")} // separator line
+	copy(list[n1+1:], comments.List)
+	doc.doc = &ast.CommentGroup{list}
+}
+
+
 func (doc *docReader) addType(decl *ast.GenDecl) {
 	spec := decl.Specs[0].(*ast.TypeSpec)
 	typ := doc.lookupTypeDoc(spec.Name.Name())
@@ -275,12 +297,7 @@ var (
 func (doc *docReader) addFile(src *ast.File) {
 	// add package documentation
 	if src.Doc != nil {
-		// TODO(gri) This won't do the right thing if there is more
-		//           than one file with package comments. Consider
-		//           using ast.MergePackageFiles which handles these
-		//           comments correctly (but currently looses BUG(...)
-		//           comments).
-		doc.doc = src.Doc
+		doc.addDoc(src.Doc)
 		src.Doc = nil // doc consumed - remove from ast.File node
 	}
 
