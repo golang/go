@@ -8,5 +8,6 @@ TARG=fmt
 GOFILES=\
 	format.go\
 	print.go\
+	scan.go\
 
 include ../../Make.pkg
