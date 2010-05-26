@@ -1019,3 +1019,30 @@ func TestNot(t *testing.T) {
 		}
 	}
 }
+
+
+type modInverseTest struct {
+	element string
+	prime   string
+}
+
+var modInverseTests = []modInverseTest{
+	modInverseTest{"1", "7"},
+	modInverseTest{"1", "13"},
+	modInverseTest{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
+}
+
+func TestModInverse(t *testing.T) {
+	var element, prime Int
+	one := NewInt(1)
+	for i, test := range modInverseTests {
+		(&element).SetString(test.element, 10)
+		(&prime).SetString(test.prime, 10)
+		inverse := new(Int).ModInverse(&element, &prime)
+		inverse.Mul(inverse, &element)
+		inverse.Mod(inverse, &prime)
+		if inverse.Cmp(one) != 0 {
+			t.Errorf("#%d: failed (e·e^(-1)=%s)", i, inverse)
+		}
+	}
+}

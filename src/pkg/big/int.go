@@ -518,6 +518,20 @@ func ProbablyPrime(z *Int, n int) bool {
 }
 
 
+// ModInverse sets z to the multiplicative inverse of g in the group ℤ/pℤ (where
+// p is a prime) and returns z.
+func (z *Int) ModInverse(g, p *Int) *Int {
+	var d Int
+	GcdInt(&d, z, nil, g, p)
+	// x and y are such that g*x + p*y = d. Since p is prime, d = 1. Taking
+	// that modulo p results in g*x = 1, therefore x is the inverse element.
+	if z.neg {
+		z.Add(z, p)
+	}
+	return z
+}
+
+
 // Lsh sets z = x << n and returns z.
 func (z *Int) Lsh(x *Int, n uint) *Int {
 	z.abs = z.abs.shl(x.abs, n)
