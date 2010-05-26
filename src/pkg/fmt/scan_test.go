@@ -121,6 +121,8 @@ func TestScanln(t *testing.T) {
 }
 
 func TestScanOverflow(t *testing.T) {
+	// different machines and different types report errors with different strings.
+	re := testing.MustCompile("overflow|too large|out of range|not representable")
 	for _, test := range overflowTests {
 		r := strings.NewReader(test.text)
 		_, err := Scan(r, test.in)
@@ -128,7 +130,7 @@ func TestScanOverflow(t *testing.T) {
 			t.Errorf("expected overflow scanning %q", test.text)
 			continue
 		}
-		if strings.Index(err.String(), "overflow") < 0 && strings.Index(err.String(), "too large") < 0 {
+		if !re.MatchString(err.String()) {
 			t.Errorf("expected overflow error scanning %q: %s", test.text, err)
 		}
 	}
