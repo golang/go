@@ -1035,7 +1035,7 @@ func isTextFile(path string) bool {
 	defer f.Close()
 
 	var buf [1024]byte
-	n, err := f.Read(&buf)
+	n, err := f.Read(buf[0:])
 	if err != nil {
 		return false
 	}

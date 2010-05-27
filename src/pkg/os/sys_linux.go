@@ -16,7 +16,7 @@ func Hostname() (name string, err Error) {
 	defer f.Close()
 
 	var buf [512]byte // Enough for a DNS name.
-	n, err := f.Read(&buf)
+	n, err := f.Read(buf[0:])
 	if err != nil {
 		return "", err
 	}

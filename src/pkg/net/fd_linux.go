@@ -113,9 +113,9 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	if nsec > 0 {
 		msec = int((nsec + 1e6 - 1) / 1e6)
 	}
-	n, e := syscall.EpollWait(p.epfd, &evarray, msec)
+	n, e := syscall.EpollWait(p.epfd, evarray[0:], msec)
 	for e == syscall.EAGAIN || e == syscall.EINTR {
-		n, e = syscall.EpollWait(p.epfd, &evarray, msec)
+		n, e = syscall.EpollWait(p.epfd, evarray[0:], msec)
 	}
 	if e != 0 {
 		return -1, 0, os.NewSyscallError("epoll_wait", e)

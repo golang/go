@@ -16,7 +16,7 @@ func runSyslog(c net.PacketConn, done chan<- string) {
 	var buf [4096]byte
 	var rcvd string = ""
 	for {
-		n, _, err := c.ReadFrom(&buf)
+		n, _, err := c.ReadFrom(buf[0:])
 		if err != nil || n == 0 {
 			break
 		}

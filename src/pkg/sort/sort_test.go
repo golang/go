@@ -18,7 +18,7 @@ var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "
 
 func TestSortIntArray(t *testing.T) {
 	data := ints
-	a := IntArray(&data)
+	a := IntArray(data[0:])
 	Sort(a)
 	if !IsSorted(a) {
 		t.Errorf("sorted %v", ints)
@@ -28,7 +28,7 @@ func TestSortIntArray(t *testing.T) {
 
 func TestSortFloatArray(t *testing.T) {
 	data := floats
-	a := FloatArray(&data)
+	a := FloatArray(data[0:])
 	Sort(a)
 	if !IsSorted(a) {
 		t.Errorf("sorted %v", floats)
@@ -38,7 +38,7 @@ func TestSortFloatArray(t *testing.T) {
 
 func TestSortStringArray(t *testing.T) {
 	data := strings
-	a := StringArray(&data)
+	a := StringArray(data[0:])
 	Sort(a)
 	if !IsSorted(a) {
 		t.Errorf("sorted %v", strings)
@@ -48,8 +48,8 @@ func TestSortStringArray(t *testing.T) {
 
 func TestSortInts(t *testing.T) {
 	data := ints
-	SortInts(&data)
-	if !IntsAreSorted(&data) {
+	SortInts(data[0:])
+	if !IntsAreSorted(data[0:]) {
 		t.Errorf("sorted %v", ints)
 		t.Errorf("   got %v", data)
 	}
@@ -57,8 +57,8 @@ func TestSortInts(t *testing.T) {
 
 func TestSortFloats(t *testing.T) {
 	data := floats
-	SortFloats(&data)
-	if !FloatsAreSorted(&data) {
+	SortFloats(data[0:])
+	if !FloatsAreSorted(data[0:]) {
 		t.Errorf("sorted %v", floats)
 		t.Errorf("   got %v", data)
 	}
@@ -66,8 +66,8 @@ func TestSortFloats(t *testing.T) {
 
 func TestSortStrings(t *testing.T) {
 	data := strings
-	SortStrings(&data)
-	if !StringsAreSorted(&data) {
+	SortStrings(data[0:])
+	if !StringsAreSorted(data[0:]) {
 		t.Errorf("sorted %v", strings)
 		t.Errorf("   got %v", data)
 	}

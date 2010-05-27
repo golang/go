@@ -201,7 +201,7 @@ func (p *pp) add(c int) {
 	if c < utf8.RuneSelf {
 		p.buf.WriteByte(byte(c))
 	} else {
-		w := utf8.EncodeRune(c, &p.runeBuf)
+		w := utf8.EncodeRune(c, p.runeBuf[0:])
 		p.buf.Write(p.runeBuf[0:w])
 	}
 }

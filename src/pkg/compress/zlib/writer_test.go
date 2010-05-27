@@ -46,7 +46,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
 		defer zlibw.Close()
 		var b [1024]byte
 		for {
-			n, err0 := raw.Read(&b)
+			n, err0 := raw.Read(b[0:])
 			if err0 != nil && err0 != os.EOF {
 				t.Errorf("%s (level=%d): %v", fn, level, err0)
 				return

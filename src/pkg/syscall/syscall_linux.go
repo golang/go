@@ -68,7 +68,7 @@ const ImplementsGetwd = true
 //sys	Getcwd(buf []byte) (n int, errno int)
 func Getwd() (wd string, errno int) {
 	var buf [PathMax]byte
-	n, err := Getcwd(&buf)
+	n, err := Getcwd(buf[0:])
 	if err != 0 {
 		return "", err
 	}
@@ -442,7 +442,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 		if errno != 0 {
 			return n, errno
 		}
-		copied := copy(out, &buf)
+		copied := copy(out, buf[0:])
 		n += copied
 		out = out[copied:]
 	}
@@ -497,7 +497,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 		if errno != 0 {
 			return n, errno
 		}
-		copy(&buf, data)
+		copy(buf[0:], data)
 		word := *((*uintptr)(unsafe.Pointer(&buf[0])))
 		errno = ptrace(pokeReq, pid, addr+uintptr(n), word)
 		if errno != 0 {

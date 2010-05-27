@@ -126,7 +126,7 @@ func (w *huffmanBitWriter) flushBits() {
 	w.bytes[n] = byte(bits)
 	w.bytes[n+1] = byte(bits >> 8)
 	if n += 2; n >= len(w.bytes) {
-		_, w.err = w.w.Write(&w.bytes)
+		_, w.err = w.w.Write(w.bytes[0:])
 		n = 0
 	}
 	w.nbytes = n

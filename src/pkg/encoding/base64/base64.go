@@ -132,7 +132,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		if e.nbuf < 3 {
 			return
 		}
-		e.enc.Encode(&e.out, &e.buf)
+		e.enc.Encode(e.out[0:], e.buf[0:])
 		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
 			return n, e.err
 		}
@@ -147,7 +147,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		}
 		nn -= nn % 3
 		if nn > 0 {
-			e.enc.Encode(&e.out, p[0:nn])
+			e.enc.Encode(e.out[0:], p[0:nn])
 			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
 				return n, e.err
 			}
@@ -170,7 +170,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		e.enc.Encode(&e.out, e.buf[0:e.nbuf])
+		e.enc.Encode(e.out[0:], e.buf[0:e.nbuf])
 		e.nbuf = 0
 		_, e.err = e.w.Write(e.out[0:4])
 	}
@@ -301,7 +301,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	nr := d.nbuf / 4 * 4
 	nw := d.nbuf / 4 * 3
 	if nw > len(p) {
-		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr])
+		nw, d.end, d.err = d.enc.decode(d.outbuf[0:], d.buf[0:nr])
 		d.out = d.outbuf[0:nw]
 		n = copy(p, d.out)
 		d.out = d.out[n:]

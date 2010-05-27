@@ -117,7 +117,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		if e.nbuf < 4 {
 			return
 		}
-		nout := Encode(&e.out, &e.buf)
+		nout := Encode(e.out[0:], e.buf[0:])
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 			return n, e.err
 		}
@@ -132,7 +132,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		}
 		nn -= nn % 4
 		if nn > 0 {
-			nout := Encode(&e.out, p[0:nn])
+			nout := Encode(e.out[0:], p[0:nn])
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 				return n, e.err
 			}
@@ -155,7 +155,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(&e.out, e.buf[0:e.nbuf])
+		nout := Encode(e.out[0:], e.buf[0:e.nbuf])
 		e.nbuf = 0
 		_, e.err = e.w.Write(e.out[0:nout])
 	}
@@ -275,10 +275,10 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		// Decode leftover input from last read.
 		var nn, nsrc, ndst int
 		if d.nbuf > 0 {
-			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil)
+			ndst, nsrc, d.err = Decode(d.outbuf[0:], d.buf[0:d.nbuf], d.readErr != nil)
 			if ndst > 0 {
 				d.out = d.outbuf[0:ndst]
-				d.nbuf = copy(&d.buf, d.buf[nsrc:d.nbuf])
+				d.nbuf = copy(d.buf[0:], d.buf[nsrc:d.nbuf])
 				continue // copy out and return
 			}
 		}

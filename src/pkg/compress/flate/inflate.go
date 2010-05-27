@@ -290,7 +290,7 @@ func (f *decompressor) readHuffman() os.Error {
 	for i := nclen; i < len(codeOrder); i++ {
 		f.codebits[codeOrder[i]] = 0
 	}
-	if !f.h1.init(&f.codebits) {
+	if !f.h1.init(f.codebits[0:]) {
 		return CorruptInputError(f.roffset)
 	}
 

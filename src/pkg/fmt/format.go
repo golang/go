@@ -168,7 +168,7 @@ func (f *fmt) fmt_boolean(v bool) {
 // integer; interprets prec but not wid.  Once formatted, result is sent to pad()
 // and then flags are cleared.
 func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
-	var buf []byte = &f.intbuf
+	var buf []byte = f.intbuf[0:]
 	negative := signedness == signed && a < 0
 	if negative {
 		a = -a

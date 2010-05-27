@@ -177,7 +177,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		if e.nbuf < 52 {
 			return
 		}
-		nout := Encode(&e.out, &e.buf)
+		nout := Encode(e.out[0:], e.buf[0:])
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 			return n, e.err
 		}
@@ -191,7 +191,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			nn = len(p) / 52 * 52
 		}
 		if nn > 0 {
-			nout := Encode(&e.out, p[0:nn])
+			nout := Encode(e.out[0:], p[0:nn])
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 				return n, e.err
 			}
@@ -212,7 +212,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(&e.out, e.buf[0:e.nbuf])
+		nout := Encode(e.out[0:], e.buf[0:e.nbuf])
 		e.nbuf = 0
 		_, e.err = e.w.Write(e.out[0:nout])
 	}
@@ -265,12 +265,12 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		if nl < 0 {
 			continue
 		}
-		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1])
+		nn, d.err = Decode(d.outbuf[0:], d.buf[0:nl+1])
 		if e, ok := d.err.(CorruptInputError); ok {
 			d.err = CorruptInputError(int64(e) + d.off)
 		}
 		d.out = d.outbuf[0:nn]
-		d.nbuf = copy(&d.buf, d.buf[nl+1:d.nbuf])
+		d.nbuf = copy(d.buf[0:], d.buf[nl+1:d.nbuf])
 		d.off += int64(nl + 1)
 	}
 	panic("unreacahable")

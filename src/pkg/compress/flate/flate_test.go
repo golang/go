@@ -93,7 +93,7 @@ var initDecoderTests = []*InitDecoderTest{
 
 	// Static Huffman codes (RFC 1951 section 3.2.6)
 	&InitDecoderTest{
-		&fixedHuffmanBits,
+		fixedHuffmanBits[0:],
 		fixedHuffmanDecoder,
 		true,
 	},

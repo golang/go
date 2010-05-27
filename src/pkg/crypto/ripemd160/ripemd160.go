@@ -64,7 +64,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
 		}
 		d.nx += n
 		if d.nx == BlockSize {
-			_Block(d, &d.x)
+			_Block(d, d.x[0:])
 			d.nx = 0
 		}
 		p = p[n:]

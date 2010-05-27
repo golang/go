@@ -171,7 +171,7 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
 		remoteMAC := payload[n:]
 
 		hc.mac.Reset()
-		hc.mac.Write(&hc.seq)
+		hc.mac.Write(hc.seq[0:])
 		hc.incSeq()
 		hc.mac.Write(b.data)
 
@@ -188,7 +188,7 @@ func (hc *halfConn) encrypt(b *block) (bool, alert) {
 	// mac
 	if hc.mac != nil {
 		hc.mac.Reset()
-		hc.mac.Write(&hc.seq)
+		hc.mac.Write(hc.seq[0:])
 		hc.incSeq()
 		hc.mac.Write(b.data)
 		mac := hc.mac.Sum()

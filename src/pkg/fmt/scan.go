@@ -95,7 +95,7 @@ func (r readRune) ReadRune() (rune int, size int, err os.Error) {
 		if err != nil {
 			break
 		}
-		if !utf8.FullRune(&r.buf) {
+		if !utf8.FullRune(r.buf[0:]) {
 			continue
 		}
 		if c, w := utf8.DecodeRune(r.buf[0:size]); w == size {

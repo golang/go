@@ -103,9 +103,9 @@ func getip(fd int, remote bool) (ip []byte, port int, ok bool) {
 	}
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &sa.Addr, sa.Port, true
+		return sa.Addr[0:], sa.Port, true
 	case *syscall.SockaddrInet6:
-		return &sa.Addr, sa.Port, true
+		return sa.Addr[0:], sa.Port, true
 	}
 	return
 }
