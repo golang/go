@@ -38,6 +38,25 @@ var complexVal complex
 var complex64Val complex64
 var complex128Val complex128
 
+// Xs accepts any non-empty run of x's.
+var xPat = testing.MustCompile("x+")
+
+type Xs string
+
+func (x *Xs) Scan(state ScanState) os.Error {
+	tok, err := state.Token()
+	if err != nil {
+		return err
+	}
+	if !xPat.MatchString(tok) {
+		return os.ErrorString("syntax error for xs")
+	}
+	*x = Xs(tok)
+	return nil
+}
+
+var xVal Xs
+
 var scanTests = []ScanTest{
 	ScanTest{"T\n", &boolVal, true},
 	ScanTest{"21\n", &intVal, 21},
@@ -72,6 +91,9 @@ var scanTests = []ScanTest{
 	ScanTest{"(3.4e1-2i)\n", &complexVal, 3.4e1 - 2i},
 	ScanTest{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
 	ScanTest{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
+
+	// Custom scanner.
+	ScanTest{"  xxx ", &xVal, Xs("xxx")},
 }
 
 var overflowTests = []ScanTest{
