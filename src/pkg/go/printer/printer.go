@@ -709,7 +709,7 @@ func (p *printer) writeWhitespace(n int) {
 			fallthrough
 		default:
 			data[0] = byte(ch)
-			p.write(&data)
+			p.write(data[0:])
 		}
 	}
 

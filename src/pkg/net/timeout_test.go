@@ -23,9 +23,9 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 	var n int
 	var err1 os.Error
 	if readFrom {
-		n, _, err1 = fd.(PacketConn).ReadFrom(&b)
+		n, _, err1 = fd.(PacketConn).ReadFrom(b[0:])
 	} else {
-		n, err1 = fd.Read(&b)
+		n, err1 = fd.Read(b[0:])
 	}
 	t1 := time.Nanoseconds()
 	what := "Read"

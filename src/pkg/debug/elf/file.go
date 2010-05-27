@@ -166,7 +166,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
 	// Read and decode ELF identifier
 	var ident [16]uint8
-	if _, err := r.ReadAt(&ident, 0); err != nil {
+	if _, err := r.ReadAt(ident[0:], 0); err != nil {
 		return nil, err
 	}
 	if ident[0] != '\x7f' || ident[1] != 'E' || ident[2] != 'L' || ident[3] != 'F' {

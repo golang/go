@@ -67,7 +67,7 @@ func TestECBEncrypter(t *testing.T) {
 		for frag := 0; frag < 2; frag++ {
 			c := &IncCipher{block, 0, true}
 			b.Reset()
-			r := bytes.NewBuffer(&plain)
+			r := bytes.NewBuffer(plain[0:])
 			w := NewECBEncrypter(c, b)
 
 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
@@ -100,7 +100,7 @@ func TestECBEncrypter(t *testing.T) {
 				continue
 			}
 
-			if string(data) != string(&crypt) {
+			if string(data) != string(crypt[0:]) {
 				t.Errorf("block=%d frag=%d: want %x got %x", block, frag, data, crypt)
 			}
 		}

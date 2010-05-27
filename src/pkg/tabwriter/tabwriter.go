@@ -271,7 +271,7 @@ func (b *Writer) writePadding(textw, cellw int, useTabs bool) {
 	}
 
 	// padding is done with non-tab characters
-	b.writeN(&b.padbytes, cellw-textw)
+	b.writeN(b.padbytes[0:], cellw-textw)
 }
 
 

@@ -23,7 +23,7 @@ func runEcho(fd io.ReadWriter, done chan<- int) {
 	var buf [1024]byte
 
 	for {
-		n, err := fd.Read(&buf)
+		n, err := fd.Read(buf[0:])
 		if err != nil || n == 0 {
 			break
 		}
@@ -74,7 +74,7 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 		t.Fatalf("fd.Write(%q) = %d, %v", b, n, err1)
 	}
 
-	n, err1 = fd.Read(&b1)
+	n, err1 = fd.Read(b1[0:])
 	if n != len(b) || err1 != nil {
 		t.Fatalf("fd.Read() = %d, %v (want %d, nil)", n, err1, len(b))
 	}
@@ -126,7 +126,7 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
 	c.SetReadTimeout(10e6) // 10ms
 	var buf [1000]byte
 	for {
-		n, addr, err := c.ReadFrom(&buf)
+		n, addr, err := c.ReadFrom(buf[0:])
 		if e, ok := err.(Error); ok && e.Timeout() {
 			if done <- 1 {
 				break

@@ -5,11 +5,11 @@
 package blowfish
 
 func expandKey(key []byte, c *Cipher) {
-	copy(&c.p, &p)
-	copy(&c.s0, &s0)
-	copy(&c.s1, &s1)
-	copy(&c.s2, &s2)
-	copy(&c.s3, &s3)
+	copy(c.p[0:], p[0:])
+	copy(c.s0[0:], s0[0:])
+	copy(c.s1[0:], s1[0:])
+	copy(c.s2[0:], s2[0:])
+	copy(c.s3[0:], s3[0:])
 
 	j := 0
 	for i := 0; i < 18; i++ {

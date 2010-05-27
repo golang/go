@@ -194,7 +194,7 @@ func Pipe() (r *File, w *File, err Error) {
 
 	// See ../syscall/exec.go for description of lock.
 	syscall.ForkLock.RLock()
-	e := syscall.Pipe(&p)
+	e := syscall.Pipe(p[0:])
 	if e != 0 {
 		syscall.ForkLock.RUnlock()
 		return nil, nil, NewSyscallError("pipe", e)
@@ -418,7 +418,7 @@ func Chtimes(name string, atime_ns int64, mtime_ns int64) Error {
 	var utimes [2]syscall.Timeval
 	utimes[0] = syscall.NsecToTimeval(atime_ns)
 	utimes[1] = syscall.NsecToTimeval(mtime_ns)
-	if e := syscall.Utimes(name, &utimes); e != 0 {
+	if e := syscall.Utimes(name, utimes[0:]); e != 0 {
 		return &PathError{"chtimes", name, Errno(e)}
 	}
 	return nil

@@ -78,7 +78,7 @@ func TestEncodeRune(t *testing.T) {
 		m := utf8map[i]
 		b := makeBytes(m.str)
 		var buf [10]byte
-		n := EncodeRune(m.rune, &buf)
+		n := EncodeRune(m.rune, buf[0:])
 		b1 := buf[0:n]
 		if !bytes.Equal(b, b1) {
 			t.Errorf("EncodeRune(%#04x) = %q want %q", m.rune, b1, b)

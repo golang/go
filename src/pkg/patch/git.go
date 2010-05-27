@@ -103,7 +103,7 @@ func ParseGitBinary(raw []byte) (Diff, os.Error) {
 				return nil, err
 			}
 			var buf [1]byte
-			m, err := z.Read(&buf)
+			m, err := z.Read(buf[0:])
 			if m != 0 || err != os.EOF {
 				return nil, os.NewError("Git binary literal longer than expected")
 			}

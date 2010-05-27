@@ -74,7 +74,7 @@ func (b *Buffer) grow(n int) int {
 	if len(b.buf)+n > cap(b.buf) {
 		var buf []byte
 		if b.buf == nil && n <= len(b.bootstrap) {
-			buf = &b.bootstrap
+			buf = b.bootstrap[0:]
 		} else {
 			// not enough space anywhere
 			buf = make([]byte, 2*cap(b.buf)+n)
@@ -181,7 +181,7 @@ func (b *Buffer) WriteRune(r int) (n int, err os.Error) {
 		b.WriteByte(byte(r))
 		return 1, nil
 	}
-	n = utf8.EncodeRune(r, &b.runeBytes)
+	n = utf8.EncodeRune(r, b.runeBytes[0:])
 	b.Write(b.runeBytes[0:n])
 	return n, nil
 }

@@ -81,15 +81,15 @@ func (r *reader) Read(b []byte) (n int, err os.Error) {
 
 	for len(b) > 0 {
 		if r.budget == 0 {
-			_, err := io.ReadFull(r.entropy, &r.seed)
+			_, err := io.ReadFull(r.entropy, r.seed[0:])
 			if err != nil {
 				return n - len(b), err
 			}
-			_, err = io.ReadFull(r.entropy, &r.key)
+			_, err = io.ReadFull(r.entropy, r.key[0:])
 			if err != nil {
 				return n - len(b), err
 			}
-			r.cipher, err = aes.NewCipher(&r.key)
+			r.cipher, err = aes.NewCipher(r.key[0:])
 			if err != nil {
 				return n - len(b), err
 			}
@@ -112,17 +112,17 @@ func (r *reader) Read(b []byte) (n int, err os.Error) {
 		r.time[5] = byte(ns >> 16)
 		r.time[6] = byte(ns >> 8)
 		r.time[7] = byte(ns)
-		r.cipher.Encrypt(&r.time, &r.time)
+		r.cipher.Encrypt(r.time[0:], r.time[0:])
 		for i := 0; i < aes.BlockSize; i++ {
 			r.dst[i] = r.time[i] ^ r.seed[i]
 		}
-		r.cipher.Encrypt(&r.dst, &r.dst)
+		r.cipher.Encrypt(r.dst[0:], r.dst[0:])
 		for i := 0; i < aes.BlockSize; i++ {
 			r.seed[i] = r.time[i] ^ r.dst[i]
 		}
-		r.cipher.Encrypt(&r.seed, &r.seed)
+		r.cipher.Encrypt(r.seed[0:], r.seed[0:])
 
-		m := copy(b, &r.dst)
+		m := copy(b, r.dst[0:])
 		b = b[m:]
 	}
 

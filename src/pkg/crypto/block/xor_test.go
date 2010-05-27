@@ -53,7 +53,7 @@ func testXorWriter(t *testing.T, maxio int) {
 		for frag := 0; frag < 2; frag++ {
 			test := fmt.Sprintf("block=%d frag=%d maxio=%d", block, frag, maxio)
 			b.Reset()
-			r := bytes.NewBuffer(&plain)
+			r := bytes.NewBuffer(plain[0:])
 			s := newIncStream(block)
 			w := newXorWriter(s, b)
 

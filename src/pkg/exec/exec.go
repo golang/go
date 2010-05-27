@@ -95,7 +95,7 @@ func Run(argv0 string, argv, envv []string, dir string, stdin, stdout, stderr in
 	}
 
 	// Run command.
-	p.Pid, err = os.ForkExec(argv0, argv, envv, dir, &fd)
+	p.Pid, err = os.ForkExec(argv0, argv, envv, dir, fd[0:])
 	if err != nil {
 		goto Error
 	}

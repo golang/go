@@ -42,7 +42,7 @@ func size(name string, t *testing.T) int64 {
 	var buf [100]byte
 	len := 0
 	for {
-		n, e := file.Read(&buf)
+		n, e := file.Read(buf[0:])
 		len += n
 		if e == EOF {
 			break
