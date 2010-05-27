@@ -5,6 +5,74 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-05-27">2010-05-27</h3>
+
+<pre>
+A sizeable release, including standard library improvements and a slew of
+compiler bug fixes. The three-week interval was largely caused by the team
+preparing for Google I/O. 
+
+* big: add Rat type (thanks Evan Shaw),
+        new features, much performance tuning, cleanups, and more tests.
+* bignum: deprecate by moving into exp directory.
+* build: allow MAKEFLAGS to be set outside the build scripts (thanks Christopher Wedgwood).
+* bytes: add Trim, TrimLeft, TrimRight, and generic functions (thanks Michael Hoisie).
+* cgo: fix to permit cgo callbacks from init code.
+* cmath: update range of Phase and Polar due to signed zero (thanks Charles L. Dorian).
+* codereview: work better with mq (thanks Peter Williams).
+* compress: renamings
+	NewDeflater -> NewWriter
+	NewInflater -> NewReader
+	Deflater -> Compressor
+	Inflater -> Decompressor
+* exp/draw/x11: respect $XAUTHORITY,
+        treat $DISPLAY the same way x-go-bindings does.
+* exp/draw: fast path for glyph images, other optimizations,
+        fix Rectangle.Canon (thanks Roger Peppe).
+* fmt: Scan, Scanln: Start of a simple scanning API in the fmt package,
+        fix Printf crash when given an extra nil argument (thanks Roger Peppe).
+* gc: better error when computing remainder of non-int (thanks Evan Shaw),
+        disallow middot in Go programs,
+        distinguish array, slice literal in error messages,
+        fix shift/reduce conflict in go.y export syntax,
+        fix unsafe.Sizeof on ideal constants,
+        handle use of builtin function outside function call,
+        many other bug fixes.
+* gob: add support for maps,
+        add test for indirect maps, slices, arrays.
+* godoc: collect package comments from all package files.
+* gofmt: don't lose mandatory semicolons,
+        exclude test w/ illegal syntax from test cases,
+        fix printing of labels.
+* http: prevent crash if remote server is not responding with "HTTP/".
+* json: accept escaped slash in string scanner (thanks Michael Hoisie),
+        fix array -> non-array decoding.
+* libmach: skip __nl_symbol_ptr section on OS X.
+* math: amd64 versions of Fdim, Fmax, Fmin,
+        signed zero Sqrt special case (thanks Charles L. Dorian).
+* misc/kate: convert isn't a built in function (thanks Evan Shaw).
+* net: implement BindToDevice,
+        implement raw sockets (thanks Christopher Wedgwood).
+* netFD: fix race between Close and Read/Write (thanks Michael Hoisie).
+* os: add Chtimes function (thanks Brad Fitzpatrick).
+* pkg/Makefile: add netchan to standard package list.
+* runtime: GOMAXPROCS returns previous value,
+        allow large map values,
+        avoid allocation for fixed strings,
+        correct tracebacks for nascent goroutines, even closures,
+        free old hashmap pieces during resizing.
+* spec: added imaginary literal to semicolon rules (was missing),
+        fix and clarify syntax of conversions,
+        simplify section on channel types,
+        other minor tweaks.
+* strconv: Btoui64 optimizations (thanks Kyle Consalus).
+* strings: use copy instead of for loop in Map (thanks Kyle Consalus).
+* syscall: implement BindToDevice (thanks Christopher Wedgwood),
+        add Utimes on Darwin/FreeBSD, add Futimes everywhere,
+        regenerate syscalls for some platforms.
+* template: regularize name lookups of interfaces, pointers, and methods.
+</pre>
+
 <h3 id="2010-05-04">2010-05-04</h3>
 
 <pre>
