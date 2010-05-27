@@ -181,11 +181,11 @@ func (s *ss) token() string {
 	return s.buf.String()
 }
 
-// Scan parses text read from r, storing successive space-separated
-// values into successive arguments.  Newlines count as space.  Each
-// argument must be a pointer to a basic type.  It returns the number of
-// items successfully parsed.  If that is less than the number of arguments,
-// err will report why.
+// Scan parses text read from r, storing successive space-separated values
+// into successive arguments.  Newlines count as space.  Each argument must
+// be a pointer to a basic type or an implementation of the Scanner
+// interface.  It returns the number of items successfully parsed.  If that
+// is less than the number of arguments, err will report why.
 func Scan(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	s := newScanState(r, true)
 	n = s.doScan(a)
@@ -194,12 +194,12 @@ func Scan(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	return
 }
 
-// Scanln parses text read from r, storing successive space-separated
-// values into successive arguments.  Scanning stops at a newline and after
-// the final item there must be a newline or EOF.  Each argument must be a
-// pointer to a basic type.  It returns the number of items successfully
-// parsed.  If that is less than the number of arguments, err will report
-// why.
+// Scanln parses text read from r, storing successive space-separated values
+// into successive arguments.  Scanning stops at a newline and after the
+// final item there must be a newline or EOF.  Each argument must be a
+// pointer to a basic type or an implementation of the Scanner interface.  It
+// returns the number of items successfully parsed.  If that is less than the
+// number of arguments, err will report why.
 func Scanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	s := newScanState(r, false)
 	n = s.doScan(a)
