@@ -44,6 +44,12 @@ func (p Point) Div(k int) Point { return Point{p.X / k, p.Y / k} }
 // Eq returns true if p and q are equal.
 func (p Point) Eq(q Point) bool { return p.X == q.X && p.Y == q.Y }
 
+// In returns true if p is within r.
+func (p Point) In(r Rectangle) bool {
+	return p.X >= r.Min.X && p.X < r.Max.X &&
+		p.Y >= r.Min.Y && p.Y < r.Max.Y
+}
+
 // Inset returns the rectangle r inset by n: Rect(r.Min.X+n, r.Min.Y+n, r.Max.X-n, r.Max.Y-n).
 func (r Rectangle) Inset(n int) Rectangle {
 	return Rectangle{Point{r.Min.X + n, r.Min.Y + n}, Point{r.Max.X - n, r.Max.Y - n}}
@@ -119,6 +125,9 @@ func (r Rectangle) Clip(r1 Rectangle) Rectangle {
 	if r1.Empty() {
 		return r1
 	}
+	if !r.Overlaps(r1) {
+		return Rectangle{r.Min, r.Min}
+	}
 	if r.Min.X < r1.Min.X {
 		r.Min.X = r1.Min.X
 	}
@@ -139,3 +148,8 @@ func (r Rectangle) Dx() int { return r.Max.X - r.Min.X }
 
 // Dy returns the width of the rectangle r: r.Max.Y - r.Min.Y.
 func (r Rectangle) Dy() int { return r.Max.Y - r.Min.Y }
+
+// Eq returns true if r and r1 are equal.
+func (r Rectangle) Eq(r1 Rectangle) bool {
+	return r.Min.Eq(r1.Min) && r.Max.Eq(r1.Max)
+}
