@@ -4,8 +4,10 @@
 
 /*
 	Package fmt implements formatted I/O with functions analogous
-	to C's printf.  The format 'verbs' are derived from C's but
+	to C's printf and scanf.  The format 'verbs' are derived from C's but
 	are simpler.
+
+	Printing:
 
 	The verbs:
 
@@ -74,9 +76,23 @@
 
 	If an operand implements method String() string that method
 	will be used for %v, %s, or Print etc.
+
+	Scanning:
+
+	An analogous set of functions scans formatted text to yield
+	values.  Scan and Scanln read from os.Stdin; Fscan and Fscanln
+	read from a specified os.Reader.  By default, tokens are
+	separated by spaces.  Fscanln and Scanln stop scanning at a
+	newline and require that the items be followed by one; the
+	other routines treat newlines as spaces.
+
+	If an operand implements method Scan() (that is, it implements
+	the Scanner interface) that method will be used to scan the
+	text for that operand.
 */
 package fmt
 
+// BUG(r): There is no format-driven scanning yet.
 
 import (
 	"bytes"

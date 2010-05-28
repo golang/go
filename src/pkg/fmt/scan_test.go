@@ -135,11 +135,11 @@ func testScan(t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Er
 }
 
 func TestScan(t *testing.T) {
-	testScan(t, Scan)
+	testScan(t, Fscan)
 }
 
 func TestScanln(t *testing.T) {
-	testScan(t, Scanln)
+	testScan(t, Fscanln)
 }
 
 func TestScanOverflow(t *testing.T) {
@@ -147,7 +147,7 @@ func TestScanOverflow(t *testing.T) {
 	re := testing.MustCompile("overflow|too large|out of range|not representable")
 	for _, test := range overflowTests {
 		r := strings.NewReader(test.text)
-		_, err := Scan(r, test.in)
+		_, err := Fscan(r, test.in)
 		if err == nil {
 			t.Errorf("expected overflow scanning %q", test.text)
 			continue
@@ -162,7 +162,7 @@ func TestScanMultiple(t *testing.T) {
 	text := "1 2 3 x"
 	r := strings.NewReader(text)
 	var a, b, c, d int
-	n, err := Scan(r, &a, &b, &c, &d)
+	n, err := Fscan(r, &a, &b, &c, &d)
 	if n != 3 {
 		t.Errorf("count error: expected 3: got %d", n)
 	}
@@ -174,7 +174,7 @@ func TestScanMultiple(t *testing.T) {
 func TestScanNotPointer(t *testing.T) {
 	r := strings.NewReader("1")
 	var a int
-	_, err := Scan(r, a)
+	_, err := Fscan(r, a)
 	if err == nil {
 		t.Error("expected error scanning non-pointer")
 	} else if strings.Index(err.String(), "pointer") < 0 {
@@ -185,7 +185,7 @@ func TestScanNotPointer(t *testing.T) {
 func TestScanlnNoNewline(t *testing.T) {
 	r := strings.NewReader("1 x\n")
 	var a int
-	_, err := Scanln(r, &a)
+	_, err := Fscanln(r, &a)
 	if err == nil {
 		t.Error("expected error scanning string missing newline")
 	} else if strings.Index(err.String(), "newline") < 0 {
@@ -196,7 +196,7 @@ func TestScanlnNoNewline(t *testing.T) {
 func TestScanlnWithMiddleNewline(t *testing.T) {
 	r := strings.NewReader("123\n456\n")
 	var a, b int
-	_, err := Scanln(r, &a, &b)
+	_, err := Fscanln(r, &a, &b)
 	if err == nil {
 		t.Error("expected error scanning string with extra newline")
 	} else if strings.Index(err.String(), "newline") < 0 {
