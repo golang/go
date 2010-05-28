@@ -3,7 +3,7 @@
 
 <!--
 Todo
-[ ] clarify: two equal lowercase identifiers from different packages denote different objects
+[ ] clarify: two equal lower-case identifiers from different packages denote different objects
 [ ] need language about function/method calls and parameter passing rules
 [ ] last paragraph of #Assignments (constant promotion) should be elsewhere
     and mention assignment to empty interface.
@@ -1236,10 +1236,10 @@ Identical types are always compatible, but compatible types need not be identica
 
 <p>
 Two named types are identical if their type names originate in the same
-type declaration (§<a href="#Declarations_and_scope">Declarations and scope</a>). A named and an unnamed type
-are never identical. Two unnamed types are identical if the corresponding
-type literals have the same literal structure and corresponding components have
-identical types. In detail:
+type declaration (§<a href="#Declarations_and_scope">Declarations and scope</a>).
+A named and an unnamed type are always different. Two unnamed types are identical
+if the corresponding type literals are identical; that is if they have the same
+literal structure and corresponding components have identical types. In detail:
 </p>
 
 <ul>
@@ -1250,7 +1250,8 @@ identical types. In detail:
 
 	<li>Two struct types are identical if they have the same sequence of fields,
 	    and if corresponding fields have the same names and identical types.
-	    Two anonymous fields are considered to have the same name.</li>
+	    Two anonymous fields are considered to have the same name. Lower-case field
+	    names from different packages are always different.</li>
 
 	<li>Two pointer types are identical if they have identical base types.</li>
 
@@ -1262,8 +1263,8 @@ identical types. In detail:
 	    Parameter and result names are not required to match.</li>
 
 	<li>Two interface types are identical if they have the same set of methods
-	    with the same names and identical function types. The order
-	    of the methods is irrelevant.</li>
+	    with the same names and identical function types. Lower-case method names from
+	    different packages are always different. The order of the methods is irrelevant.</li>
 
 	<li>Two map types are identical if they have identical key and value types.</li>
 
@@ -1274,11 +1275,9 @@ identical types. In detail:
 <h4 id="Type_compatibility">Type compatibility</h4>
 
 <p>
-Type compatibility is less stringent than type identity: a named and an unnamed
-type are compatible if the respective type literals are compatible.
-In all other respects, the definition of type compatibility is the
-same as for type identity listed above but with ``compatible''
-substituted for ``identical''.
+Type compatibility is less stringent than type identity: All identical types are
+compatible, but additionally a named and an unnamed type are compatible if the
+respective type literals are identical.
 </p>
 
 <p>
@@ -1320,12 +1319,14 @@ These types are compatible:
 T0 and T0
 T0 and []string
 T3 and struct { a int; c int }
-T4 and func(x int, y float) *[]string
+T4 and func(x int, y float) (result *T0)
 </pre>
 
 <p>
 <code>T2</code> and <code>struct { a, c int }</code> are incompatible because
-they have different field names.
+they have different field names; <code>T4</code> and
+<code>func(x int, y float) *[]string</code> are incompatible because the
+respective type literals are different.
 </p>
 
 <h3 id="Assignment_compatibility">Assignment compatibility</h3>
@@ -1345,7 +1346,7 @@ with a type <code>T</code> if one or more of the following conditions applies:
 </li>
 <li>
 <code>V</code> is a bidirectional channel and <code>T</code> is a channel type
-with compatible element type and at least one of <code>V</code> or <code>T</code> is unnamed.
+with identical element type and at least one of <code>V</code> or <code>T</code> is unnamed.
 </li>
 </ul>
 
@@ -1418,7 +1419,7 @@ Function values are equal if they refer to the same function.
 Channel and map values are equal if they were created by the same call to <code>make</code>
 (§<a href="#Making_slices">Making slices</a>, maps, and channels).
 When comparing two values of channel type, the channel value types
-must be compatible but the channel direction is ignored.
+must be identical but the channel direction is ignored.
 </li>
 <li>
 Interface values may be compared if they have compatible static types.
@@ -2550,7 +2551,7 @@ The notation <code>x.(T)</code> is called a <i>type assertion</i>.
 <p>
 More precisely, if <code>T</code> is not an interface type, <code>x.(T)</code> asserts
 that the dynamic type of <code>x</code> is identical to the type <code>T</code>
-(§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
+(§<a href="#Type_identity">Type identity and compatibility</a>).
 If <code>T</code> is an interface type, <code>x.(T)</code> asserts that the dynamic type
 of <code>x</code> implements the interface <code>T</code> (§<a href="#Interface_types">Interface types</a>).
 </p>
@@ -2642,7 +2643,7 @@ if Join(Split(value, len(value)/2)) != value {
 <p>
 A method call <code>x.m()</code> is valid if the method set of
 (the type of) <code>x</code> contains <code>m</code> and the
-argument list is compatible with the parameter list of <code>m</code>.
+argument list can be assigned to the parameter list of <code>m</code>.
 If <code>x</code> is <a href="#Address_operators">addressable</a> and <code>&amp;x</code>'s method
 set contains <code>m</code>, <code>x.m()</code> is shorthand
 for <code>(&amp;x).m()</code>:
@@ -3263,12 +3264,21 @@ If the type starts with an operator it must be parenthesized:
 </pre>
 
 <p>
-In general, a conversion succeeds if the value of <code>x</code> is
-<a href="#Assignment_compatibility">assignment compatible</a> with type <code>T</code>,
-or if the value would be assignment compatible with type <code>T</code> if the
-value's type, or <code>T</code>, or any of their component types were unnamed.
-Usually, such a conversion changes the type but not the representation of the value
-of <code>x</code> and thus has no run-time cost.
+In general, a conversion is permitted if
+</p>
+<ol>
+<li>
+the value of <code>x</code> would be
+<a href="#Assignment_compatibility">assignment compatible</a> with type
+<code>T</code> if <code>T</code> were unnamed
+</li>
+<li>
+<code>x</code> is of an unnamed pointer type and type <code>T</code> is another
+unnamed pointer type and the previous rule applies to the pointer base types.
+</li>
+</ol>
+<p>
+Such a conversion changes the type but not the representation of <code>x</code>.
 </p>
 
 <p>
@@ -4478,10 +4488,10 @@ m := make(map[string] int, 100)  // map with initial space for 100 elements
 <h3 id="Copying_slices">Copying slices</h3>
 
 <p>
-The built-in function <code>copy</code> copies array or slice elements from
+The built-in function <code>copy</code> copies slice elements from
 a source <code>src</code> to a destination <code>dst</code> and returns the
 number of elements copied. Source and destination may overlap.
-Both arguments must have the same element type <code>T</code> and must be
+Both arguments must have identical element type <code>T</code> and must be
 <a href="#Assignment_compatibility">assignment compatible</a> to a slice
 of type <code>[]T</code>. The number of arguments copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
@@ -4498,7 +4508,7 @@ Examples:
 <pre>
 var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
 var s = make([]int, 6)
-n1 := copy(s, &amp;a)     // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
+n1 := copy(s, a[0:])  // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
 n2 := copy(s, s[2:])  // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
 </pre>
 
