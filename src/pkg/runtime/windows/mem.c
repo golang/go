@@ -10,7 +10,7 @@
 void*
 SysAlloc(uintptr n)
 {
-	return stdcall(VirtualAlloc, nil, n, 0x3000, 0x40);
+	return stdcall_raw(VirtualAlloc, nil, n, 0x3000, 0x40);
 }
 
 void
