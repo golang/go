@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 24, 2010 -->
+<!-- subtitle Version of May 26, 2010 -->
 
 <!--
 Todo
@@ -1342,12 +1342,6 @@ with a type <code>T</code> if one or more of the following conditions applies:
 <li>
 <code>T</code> is an interface type and
 <code>V</code> <a href="#Interface_types">implements</a> <code>T</code>.
-</li>
-<li>
-<code>V</code> is a pointer to an array and <code>T</code> is a slice type
-with compatible element type and at least one of <code>V</code> or <code>T</code> is unnamed.
-After assignment, the slice variable refers to the original array; the elements are not
-copied.
 </li>
 <li>
 <code>V</code> is a bidirectional channel and <code>T</code> is a channel type
