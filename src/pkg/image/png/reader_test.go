@@ -76,9 +76,9 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 		io.WriteString(w, "PLTE {\n")
 		for i := 0; i < len(cpm); i++ {
 			r, g, b, _ := cpm[i].RGBA()
-			r >>= 24
-			g >>= 24
-			b >>= 24
+			r >>= 8
+			g >>= 8
+			b >>= 8
 			fmt.Fprintf(w, "    (%3d,%3d,%3d)     # rgb = (0x%02x,0x%02x,0x%02x)\n", r, g, b, r, g, b)
 		}
 		io.WriteString(w, "}\n")

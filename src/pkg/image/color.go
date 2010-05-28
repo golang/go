@@ -4,14 +4,15 @@
 
 package image
 
-// TODO(nigeltao): Think about how floating-point color models work.
-
-// All Colors can convert themselves, with a possible loss of precision, to 128-bit alpha-premultiplied RGBA.
+// All Colors can convert themselves, with a possible loss of precision,
+// to 64-bit alpha-premultiplied RGBA. Each channel value ranges within
+// [0, 0xFFFF].
 type Color interface {
 	RGBA() (r, g, b, a uint32)
 }
 
-// An RGBAColor represents a traditional 32-bit alpha-premultiplied color, having 8 bits for each of red, green, blue and alpha.
+// An RGBAColor represents a traditional 32-bit alpha-premultiplied color,
+// having 8 bits for each of red, green, blue and alpha.
 type RGBAColor struct {
 	R, G, B, A uint8
 }
@@ -19,34 +20,23 @@ type RGBAColor struct {
 func (c RGBAColor) RGBA() (r, g, b, a uint32) {
 	r = uint32(c.R)
 	r |= r << 8
-	r |= r << 16
 	g = uint32(c.G)
 	g |= g << 8
-	g |= g << 16
 	b = uint32(c.B)
 	b |= b << 8
-	b |= b << 16
 	a = uint32(c.A)
 	a |= a << 8
-	a |= a << 16
 	return
 }
 
-// An RGBA64Color represents a 64-bit alpha-premultiplied color, having 16 bits for each of red, green, blue and alpha.
+// An RGBA64Color represents a 64-bit alpha-premultiplied color,
+// having 16 bits for each of red, green, blue and alpha.
 type RGBA64Color struct {
 	R, G, B, A uint16
 }
 
 func (c RGBA64Color) RGBA() (r, g, b, a uint32) {
-	r = uint32(c.R)
-	r |= r << 16
-	g = uint32(c.G)
-	g |= g << 16
-	b = uint32(c.B)
-	b |= b << 16
-	a = uint32(c.A)
-	a |= a << 16
-	return
+	return uint32(c.R), uint32(c.G), uint32(c.B), uint32(c.A)
 }
 
 // An NRGBAColor represents a non-alpha-premultiplied 32-bit color.
@@ -59,24 +49,21 @@ func (c NRGBAColor) RGBA() (r, g, b, a uint32) {
 	r |= r << 8
 	r *= uint32(c.A)
 	r /= 0xff
-	r |= r << 16
 	g = uint32(c.G)
 	g |= g << 8
 	g *= uint32(c.A)
 	g /= 0xff
-	g |= g << 16
 	b = uint32(c.B)
 	b |= b << 8
 	b *= uint32(c.A)
 	b /= 0xff
-	b |= b << 16
 	a = uint32(c.A)
 	a |= a << 8
-	a |= a << 16
 	return
 }
 
-// An NRGBA64Color represents a non-alpha-premultiplied 64-bit color, having 16 bits for each of red, green, blue and alpha.
+// An NRGBA64Color represents a non-alpha-premultiplied 64-bit color,
+// having 16 bits for each of red, green, blue and alpha.
 type NRGBA64Color struct {
 	R, G, B, A uint16
 }
@@ -85,18 +72,13 @@ func (c NRGBA64Color) RGBA() (r, g, b, a uint32) {
 	r = uint32(c.R)
 	r *= uint32(c.A)
 	r /= 0xffff
-	r |= r << 16
 	g = uint32(c.G)
 	g *= uint32(c.A)
 	g /= 0xffff
-	g |= g << 16
 	b = uint32(c.B)
 	b *= uint32(c.A)
 	b /= 0xffff
-	b |= b << 16
 	a = uint32(c.A)
-	a |= a << 8
-	a |= a << 16
 	return
 }
 
@@ -108,12 +90,11 @@ type AlphaColor struct {
 func (c AlphaColor) RGBA() (r, g, b, a uint32) {
 	a = uint32(c.A)
 	a |= a << 8
-	a |= a << 16
 	return a, a, a, a
 }
 
-// A ColorModel can convert foreign Colors, with a possible loss of precision, to a Color
-// from its own color model.
+// A ColorModel can convert foreign Colors, with a possible loss of precision,
+// to a Color from its own color model.
 type ColorModel interface {
 	Convert(c Color) Color
 }
@@ -129,36 +110,32 @@ func (f ColorModelFunc) Convert(c Color) Color {
 }
 
 func toRGBAColor(c Color) Color {
-	if _, ok := c.(RGBAColor); ok { // no-op conversion
+	if _, ok := c.(RGBAColor); ok {
 		return c
 	}
 	r, g, b, a := c.RGBA()
-	return RGBAColor{uint8(r >> 24), uint8(g >> 24), uint8(b >> 24), uint8(a >> 24)}
+	return RGBAColor{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)}
 }
 
 func toRGBA64Color(c Color) Color {
-	if _, ok := c.(RGBA64Color); ok { // no-op conversion
+	if _, ok := c.(RGBA64Color); ok {
 		return c
 	}
 	r, g, b, a := c.RGBA()
-	return RGBA64Color{uint16(r >> 16), uint16(g >> 16), uint16(b >> 16), uint16(a >> 16)}
+	return RGBA64Color{uint16(r), uint16(g), uint16(b), uint16(a)}
 }
 
 func toNRGBAColor(c Color) Color {
-	if _, ok := c.(NRGBAColor); ok { // no-op conversion
+	if _, ok := c.(NRGBAColor); ok {
 		return c
 	}
 	r, g, b, a := c.RGBA()
-	a >>= 16
 	if a == 0xffff {
-		return NRGBAColor{uint8(r >> 24), uint8(g >> 24), uint8(b >> 24), 0xff}
+		return NRGBAColor{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), 0xff}
 	}
 	if a == 0 {
 		return NRGBAColor{0, 0, 0, 0}
 	}
-	r >>= 16
-	g >>= 16
-	b >>= 16
 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
 	r = (r * 0xffff) / a
 	g = (g * 0xffff) / a
@@ -167,14 +144,10 @@ func toNRGBAColor(c Color) Color {
 }
 
 func toNRGBA64Color(c Color) Color {
-	if _, ok := c.(NRGBA64Color); ok { // no-op conversion
+	if _, ok := c.(NRGBA64Color); ok {
 		return c
 	}
 	r, g, b, a := c.RGBA()
-	a >>= 16
-	r >>= 16
-	g >>= 16
-	b >>= 16
 	if a == 0xffff {
 		return NRGBA64Color{uint16(r), uint16(g), uint16(b), 0xffff}
 	}
@@ -189,11 +162,11 @@ func toNRGBA64Color(c Color) Color {
 }
 
 func toAlphaColor(c Color) Color {
-	if _, ok := c.(AlphaColor); ok { // no-op conversion
+	if _, ok := c.(AlphaColor); ok {
 		return c
 	}
 	_, _, _, a := c.RGBA()
-	return AlphaColor{uint8(a >> 24)}
+	return AlphaColor{uint8(a >> 8)}
 }
 
 // The ColorModel associated with RGBAColor.

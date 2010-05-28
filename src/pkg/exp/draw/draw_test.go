@@ -106,20 +106,11 @@ func makeGolden(dst image.Image, t drawTest) image.Image {
 			var dr, dg, db, da uint32
 			if t.op == Over {
 				dr, dg, db, da = dst.At(x, y).RGBA()
-				dr >>= 16
-				dg >>= 16
-				db >>= 16
-				da >>= 16
 			}
 			sr, sg, sb, sa := t.src.At(sx, sy).RGBA()
-			sr >>= 16
-			sg >>= 16
-			sb >>= 16
-			sa >>= 16
 			ma := uint32(M)
 			if t.mask != nil {
 				_, _, _, ma = t.mask.At(mx, my).RGBA()
-				ma >>= 16
 			}
 			a := M - (sa * ma / M)
 			golden.Set(x, y, image.RGBA64Color{

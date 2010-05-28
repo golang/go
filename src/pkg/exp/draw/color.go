@@ -51,13 +51,9 @@ func (c Color) RGBA() (r, g, b, a uint32) {
 	x := uint32(c)
 	r, g, b, a = x>>24, (x>>16)&0xFF, (x>>8)&0xFF, x&0xFF
 	r |= r << 8
-	r |= r << 16
 	g |= g << 8
-	g |= g << 16
 	b |= b << 8
-	b |= b << 16
 	a |= a << 8
-	a |= a << 16
 	return
 }
 
@@ -103,7 +99,7 @@ func toColor(color image.Color) image.Color {
 		return c
 	}
 	r, g, b, a := color.RGBA()
-	return Color(r>>24<<24 | g>>24<<16 | b>>24<<8 | a>>24)
+	return Color(r>>8<<24 | g>>8<<16 | b>>8<<8 | a>>8)
 }
 
 func (c Color) ColorModel() image.ColorModel { return image.ColorModelFunc(toColor) }

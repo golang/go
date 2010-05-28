@@ -105,13 +105,10 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 		sx := sp.X + x0 - r.Min.X
 		mx := mp.X + x0 - r.Min.X
 		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
-			// A nil mask is equivalent to a fully opaque, infinitely large mask.
-			// We work in 16-bit color, so that multiplying two values does not overflow a uint32.
 			const M = 1<<16 - 1
 			ma := uint32(M)
 			if mask != nil {
 				_, _, _, ma = mask.At(mx, my).RGBA()
-				ma >>= 16
 			}
 			switch {
 			case ma == 0:
@@ -124,19 +121,11 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 				dst.Set(x, y, src.At(sx, sy))
 			default:
 				sr, sg, sb, sa := src.At(sx, sy).RGBA()
-				sr >>= 16
-				sg >>= 16
-				sb >>= 16
-				sa >>= 16
 				if out == nil {
 					out = new(image.RGBA64Color)
 				}
 				if op == Over {
 					dr, dg, db, da := dst.At(x, y).RGBA()
-					dr >>= 16
-					dg >>= 16
-					db >>= 16
-					da >>= 16
 					a := M - (sa * ma / M)
 					out.R = uint16((dr*a + sr*ma) / M)
 					out.G = uint16((dg*a + sg*ma) / M)
@@ -158,10 +147,6 @@ func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *ima
 	x0, x1 := r.Min.X, r.Max.X
 	y0, y1 := r.Min.Y, r.Max.Y
 	cr, cg, cb, ca := src.RGBA()
-	cr >>= 16
-	cg >>= 16
-	cb >>= 16
-	ca >>= 16
 	for y, my := y0, mp.Y; y != y1; y, my = y+1, my+1 {
 		p := dst.Pixel[y]
 		for x, mx := x0, mp.X; x != x1; x, mx = x+1, mx+1 {
@@ -192,7 +177,7 @@ func drawFill(dst *image.RGBA, r Rectangle, src image.ColorImage) {
 		return
 	}
 	cr, cg, cb, ca := src.RGBA()
-	color := image.RGBAColor{uint8(cr >> 24), uint8(cg >> 24), uint8(cb >> 24), uint8(ca >> 24)}
+	color := image.RGBAColor{uint8(cr >> 8), uint8(cg >> 8), uint8(cb >> 8), uint8(ca >> 8)}
 	// The built-in copy function is faster than a straightforward for loop to fill the destination with
 	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
 	// then use the first row as the slice source for the remaining rows.
@@ -238,13 +223,8 @@ func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask imag
 			ma := uint32(M)
 			if mask != nil {
 				_, _, _, ma = mask.At(mx, my).RGBA()
-				ma >>= 16
 			}
 			sr, sg, sb, sa := src.At(sx, sy).RGBA()
-			sr >>= 16
-			sg >>= 16
-			sb >>= 16
-			sa >>= 16
 			var dr, dg, db, da uint32
 			if op == Over {
 				rgba := p[x]
