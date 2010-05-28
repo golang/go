@@ -112,6 +112,7 @@ while(<>) {
 	# Prepare arguments to Syscall.
 	my @args = ();
 	my $n = 0;
+	my @pin= ();
 	foreach my $p (@in) {
 		my ($name, $type) = parseparam($p);
 		if($type =~ /^\*/) {
@@ -135,6 +136,7 @@ while(<>) {
 		} else {
 			push @args, "uintptr($name)";
 		}
+		push @pin, sprintf "\"%s=\", %s, ", $name, $name;
 	}
 
 	# Determine which form to use; pad args with zeros.
@@ -165,6 +167,7 @@ while(<>) {
 	my $body = "";
 	my $failexpr = "";
 	my @ret = ("_", "_", "_");
+	my @pout= ();
 	for(my $i=0; $i<@out; $i++) {
 		my $p = $out[$i];
 		my ($name, $type) = parseparam($p);
@@ -209,6 +212,7 @@ while(<>) {
 		} else {
 			$body .= "\t$name = $type($reg);\n";
 		}
+		push @pout, sprintf "\"%s=\", %s(%s), ", $name, $type, $reg;
 	}
 	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
 		$text .= "\t$call;\n";
@@ -216,6 +220,9 @@ while(<>) {
 		$text .= "\t$ret[0], $ret[1], $ret[2] := $call;\n";
 	}
 	$text .= $body;
+	if(0) {
+		$text .= sprintf 'print("SYSCALL: %s(", %s") (", %s")\n")%s', $func, join('", ", ', @pin), join('", ", ', @pout), "\n";
+	}
 
 	$text .= "\treturn;\n";
 	$text .= "}\n\n";
