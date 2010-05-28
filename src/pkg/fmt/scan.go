@@ -181,12 +181,32 @@ func (s *ss) token() string {
 	return s.buf.String()
 }
 
-// Scan parses text read from r, storing successive space-separated values
+// Scan parses text read from standard input, storing successive
+// space-separated values into successive arguments.  Newlines count as
+// space.  Each argument must be a pointer to a basic type or an
+// implementation of the Scanner interface.  It returns the number of items
+// successfully parsed.  If that is less than the number of arguments, err
+// will report why.
+func Scan(a ...interface{}) (n int, err os.Error) {
+	return Fscan(os.Stdin, a)
+}
+
+// Fscanln parses text read from standard input, storing successive
+// space-separated values into successive arguments.  Scanning stops at a
+// newline and after the final item there must be a newline or EOF.  Each
+// argument must be a pointer to a basic type or an implementation of the
+// Scanner interface.  It returns the number of items successfully parsed.
+// If that is less than the number of arguments, err will report why.
+func Scanln(a ...interface{}) (n int, err os.Error) {
+	return Fscanln(os.Stdin, a)
+}
+
+// Fscan parses text read from r, storing successive space-separated values
 // into successive arguments.  Newlines count as space.  Each argument must
 // be a pointer to a basic type or an implementation of the Scanner
 // interface.  It returns the number of items successfully parsed.  If that
 // is less than the number of arguments, err will report why.
-func Scan(r io.Reader, a ...interface{}) (n int, err os.Error) {
+func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	s := newScanState(r, true)
 	n = s.doScan(a)
 	err = s.err
@@ -194,13 +214,13 @@ func Scan(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	return
 }
 
-// Scanln parses text read from r, storing successive space-separated values
+// Fscanln parses text read from r, storing successive space-separated values
 // into successive arguments.  Scanning stops at a newline and after the
 // final item there must be a newline or EOF.  Each argument must be a
 // pointer to a basic type or an implementation of the Scanner interface.  It
 // returns the number of items successfully parsed.  If that is less than the
 // number of arguments, err will report why.
-func Scanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
+func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	s := newScanState(r, false)
 	n = s.doScan(a)
 	err = s.err
