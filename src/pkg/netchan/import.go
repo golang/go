@@ -49,6 +49,17 @@ func NewImporter(network, remoteaddr string) (*Importer, os.Error) {
 	return imp, nil
 }
 
+// shutdown closes all channels for which we are receiving data from the remote side.
+func (imp *Importer) shutdown() {
+	imp.chanLock.Lock()
+	for _, ich := range imp.chans {
+		if ich.dir == Recv {
+			ich.ch.Close()
+		}
+	}
+	imp.chanLock.Unlock()
+}
+
 // Handle the data from a single imported data stream, which will
 // have the form
 //	(response, data)*
@@ -60,6 +71,7 @@ func (imp *Importer) run() {
 	for {
 		if e := imp.decode(hdr); e != nil {
 			log.Stderr("importer header:", e)
+			imp.shutdown()
 			return
 		}
 		switch hdr.payloadType {
@@ -72,7 +84,7 @@ func (imp *Importer) run() {
 			}
 			if err.error != "" {
 				log.Stderr("importer response error:", err.error)
-				// TODO: tear down connection
+				imp.shutdown()
 				return
 			}
 		default:
