@@ -15,10 +15,11 @@
 	use the channels in the usual way.
 
 	Networked channels are not synchronized; they always behave
-	as if there is a buffer of at least one element between the
-	two machines.
+	as if they are buffered channels of at least one element.
 */
 package netchan
+
+// BUG: can't use range clause to receive when using ImportNValues with N non-zero.
 
 import (
 	"log"
@@ -143,6 +144,10 @@ func (client *expClient) serveRecv(hdr header, count int) {
 	}
 	for {
 		val := ech.ch.Recv()
+		if ech.ch.Closed() {
+			client.sendError(&hdr, os.EOF.String())
+			break
+		}
 		if err := client.encode(&hdr, payData, val.Interface()); err != nil {
 			log.Stderr("error encoding client response:", err)
 			client.sendError(&hdr, err.String())
