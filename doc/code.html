@@ -203,3 +203,88 @@ Once your new code is tested and working,
 it's time to get it <a href="contribute.html">reviewed and submitted</a>.
 </p>
 
+<h2 id="pkg_example">An example package with tests</h2>
+
+<p>
+This example package, <code>numbers</code>, consists of the function
+<code>Double</code>, which takes an <code>int</code> and returns that value 
+multiplied by 2. It consists of three files.
+</p>
+
+<p>
+First, the package implementation, <code>numbers.go</code>:
+</p>
+
+<pre>
+package numbers
+
+func Double(i int) int {
+	return i * 2
+}
+</pre>
+
+<p>
+Next, the tests, <code>numbers_test.go</code>:
+</p>
+
+<pre>
+package numbers
+
+import (
+	"testing"
+)
+
+type doubleTest struct {
+	in, out int
+}
+
+var doubleTests = []doubleTest{
+	doubleTest{1, 2},
+	doubleTest{2, 4},
+	doubleTest{-5, -10},
+}
+
+func TestDouble(t *testing.T) {
+	for _, dt := range doubleTests {
+		v := Double(dt.in)
+		if v != dt.out {
+			t.Errorf("Double(%d) returns %d; should be %d.", dt.in, v, dt.out)
+		}
+	}
+}
+</pre>
+
+<p>
+Finally, the <code>Makefile</code>:
+</p>
+
+<pre>
+include $(GOROOT)/src/Make.$(GOARCH)
+
+TARG=numbers
+GOFILES=\
+	numbers.go\
+
+include $(GOROOT)/src/Make.pkg
+</pre>
+
+<p>
+Running <code>make install</code> will build and install the package to
+the <code>$GOROOT/pkg/</code> directory (it can then be used by any
+program on the system).
+</p>
+
+<p>
+Running <code>make test</code> (or just running the command
+<code>gotest</code>) will rebuild the package, including the
+<code>numbers_test.go</code> file, and then run the <code>TestDouble</code>
+function. The output "<code>PASS</code>" indicates that all tests passed
+successfully.  Breaking the implementation by changing the multiplier from
+<code>2</code> to <code>3</code> will allow you to see how failing tests are 
+reported.
+</p>
+
+<p>
+See the <a href="/cmd/gotest/">gotest documentation</a> and the 
+<a href="/pkg/testing/">testing package</a> for more detail.
+</p>
