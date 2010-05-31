@@ -49,30 +49,3 @@ func (p *IntVector) Less(i, j int) bool { return (*p)[i] < (*p)[j] }
 
 // Less returns a boolean denoting whether the i'th element is less than the j'th element.
 func (p *StringVector) Less(i, j int) bool { return (*p)[i] < (*p)[j] }
-
-
-// Do calls function f for each element of the vector, in order.
-// The behavior of Do is undefined if f changes *p.
-func (p *Vector) Do(f func(elem interface{})) {
-	for _, e := range *p {
-		f(e)
-	}
-}
-
-
-// Do calls function f for each element of the vector, in order.
-// The behavior of Do is undefined if f changes *p.
-func (p *IntVector) Do(f func(elem int)) {
-	for _, e := range *p {
-		f(e)
-	}
-}
-
-
-// Do calls function f for each element of the vector, in order.
-// The behavior of Do is undefined if f changes *p.
-func (p *StringVector) Do(f func(elem string)) {
-	for _, e := range *p {
-		f(e)
-	}
-}

@@ -214,3 +214,12 @@ func (p *Vector) Iter() <-chan interface{} {
 	go p.iterate(c)
 	return c
 }
+
+
+// Do calls function f for each element of the vector, in order.
+// The behavior of Do is undefined if f changes *p.
+func (p *Vector) Do(f func(elem interface{})) {
+	for _, e := range *p {
+		f(e)
+	}
+}

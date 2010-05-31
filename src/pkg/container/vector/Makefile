@@ -44,6 +44,7 @@ generate: vector.go vector_test.go
 	| gofmt -r='TestDo -> TestIntDo'\
 	| gofmt -r='TestIter -> TestIntIter'\
 	| gofmt -r='TestVectorData -> TestIntVectorData'\
+	| gofmt -r='interface{} -> int'\
 	> intvector_test.go\
 	
 	< vector_test.go cat\
@@ -66,4 +67,5 @@ generate: vector.go vector_test.go
 	| gofmt -r='TestDo -> TestStrDo'\
 	| gofmt -r='TestIter -> TestStrIter'\
 	| gofmt -r='TestVectorData -> TestStrVectorData'\
+	| gofmt -r='interface{} -> string'\
 	> stringvector_test.go

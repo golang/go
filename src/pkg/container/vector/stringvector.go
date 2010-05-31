@@ -214,3 +214,12 @@ func (p *StringVector) Iter() <-chan string {
 	go p.iterate(c)
 	return c
 }
+
+
+// Do calls function f for each element of the vector, in order.
+// The behavior of Do is undefined if f changes *p.
+func (p *StringVector) Do(f func(elem string)) {
+	for _, e := range *p {
+		f(e)
+	}
+}

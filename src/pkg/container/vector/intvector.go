@@ -214,3 +214,12 @@ func (p *IntVector) Iter() <-chan int {
 	go p.iterate(c)
 	return c
 }
+
+
+// Do calls function f for each element of the vector, in order.
+// The behavior of Do is undefined if f changes *p.
+func (p *IntVector) Do(f func(elem int)) {
+	for _, e := range *p {
+		f(e)
+	}
+}
