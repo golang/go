@@ -369,16 +369,11 @@ func Ftruncate(fd int, length int64) (errno int) {
 
 func Gettimeofday(tv *Timeval) (errno int) {
 	var ft Filetime
-	// 100-nanosecond intervals since January 1, 1601
 	GetSystemTimeAsFileTime(&ft)
-	t := uint64(ft.HighDateTime)<<32 + uint64(ft.LowDateTime)
-	// convert into microseconds
-	t /= 10
-	// change starting time to the Epoch (00:00:00 UTC, January 1, 1970)
-	t -= 11644473600000000
+	ms := ft.Microseconds()
 	// split into sec / usec
-	tv.Sec = int32(t / 1e6)
-	tv.Usec = int32(t) - tv.Sec
+	tv.Sec = int32(ms / 1e6)
+	tv.Usec = int32(ms) - tv.Sec
 	return 0
 }
 

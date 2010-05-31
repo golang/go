@@ -113,6 +113,16 @@ type Filetime struct {
 	HighDateTime uint32
 }
 
+func (ft *Filetime) Microseconds() int64 {
+	// 100-nanosecond intervals since January 1, 1601
+	ms := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime)
+	// convert into microseconds
+	ms /= 10
+	// change starting time to the Epoch (00:00:00 UTC, January 1, 1970)
+	ms -= 11644473600000000
+	return ms
+}
+
 type Win32finddata struct {
 	FileAttributes    uint32
 	CreationTime      Filetime
