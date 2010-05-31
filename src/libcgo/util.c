@@ -4,7 +4,7 @@
 
 #include "libcgo.h"
 
-/* Stub for calling malloc from the other world */
+/* Stub for calling malloc from Go */
 void
 _cgo_malloc(void *p)
 {
@@ -14,6 +14,17 @@ _cgo_malloc(void *p)
 	} *a = p;
 
 	a->ret = malloc(a->n);
+}
+
+/* Stub for calling from Go */
+void
+_cgo_free(void *p)
+{
+	struct a {
+		void *arg;
+	} *a = p;
+
+	free(a->arg);
 }
 
 /* Stub for creating a new thread */
