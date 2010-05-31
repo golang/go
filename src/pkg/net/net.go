@@ -155,7 +155,7 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 			return nil, err
 		}
 		return c, nil
-	case "udp", "udp4", "upd6":
+	case "udp", "udp4", "udp6":
 		var la, ra *UDPAddr
 		if laddr != "" {
 			if la, err = ResolveUDPAddr(laddr); err != nil {
