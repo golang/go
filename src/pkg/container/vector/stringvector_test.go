@@ -279,9 +279,10 @@ func TestStrDo(t *testing.T) {
 		a.Set(i, int2StrValue(salt*i))
 	}
 	count := 0
-	a.Do(func(s string) {
-		if s != int2StrValue(count*salt) {
-			t.Error(tname(a), "value at", count, "should be", count*salt, "not", s)
+	a.Do(func(e string) {
+		i := intf2StrValue(e)
+		if i != int2StrValue(count*salt) {
+			t.Error(tname(a), "value at", count, "should be", count*salt, "not", i)
 		}
 		count++
 	})
@@ -294,9 +295,10 @@ func TestStrDo(t *testing.T) {
 		(*b)[i] = int2StrValue(salt * i)
 	}
 	count = 0
-	b.Do(func(s string) {
-		if s != int2StrValue(count*salt) {
-			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", s)
+	b.Do(func(e string) {
+		i := intf2StrValue(e)
+		if i != int2StrValue(count*salt) {
+			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", i)
 		}
 		count++
 	})
@@ -310,9 +312,10 @@ func TestStrDo(t *testing.T) {
 		c[i] = int2StrValue(salt * i)
 	}
 	count = 0
-	c.Do(func(s string) {
-		if s != int2StrValue(count*salt) {
-			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", s)
+	c.Do(func(e string) {
+		i := intf2StrValue(e)
+		if i != int2StrValue(count*salt) {
+			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", i)
 		}
 		count++
 	})

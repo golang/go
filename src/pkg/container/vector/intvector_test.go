@@ -279,8 +279,9 @@ func TestIntDo(t *testing.T) {
 		a.Set(i, int2IntValue(salt*i))
 	}
 	count := 0
-	a.Do(func(i int) {
-		if i != count*salt {
+	a.Do(func(e int) {
+		i := intf2IntValue(e)
+		if i != int2IntValue(count*salt) {
 			t.Error(tname(a), "value at", count, "should be", count*salt, "not", i)
 		}
 		count++
@@ -294,8 +295,9 @@ func TestIntDo(t *testing.T) {
 		(*b)[i] = int2IntValue(salt * i)
 	}
 	count = 0
-	b.Do(func(i int) {
-		if i != count*salt {
+	b.Do(func(e int) {
+		i := intf2IntValue(e)
+		if i != int2IntValue(count*salt) {
 			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", i)
 		}
 		count++
@@ -310,8 +312,9 @@ func TestIntDo(t *testing.T) {
 		c[i] = int2IntValue(salt * i)
 	}
 	count = 0
-	c.Do(func(i int) {
-		if i != count*salt {
+	c.Do(func(e int) {
+		i := intf2IntValue(e)
+		if i != int2IntValue(count*salt) {
 			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", i)
 		}
 		count++
