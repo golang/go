@@ -511,19 +511,15 @@ func getComplex128(a interface{}) (val complex128, ok bool) {
 }
 
 // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
-
-func parsenum(s string, start, end int) (n int, got bool, newi int) {
+func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 	if start >= end {
 		return 0, false, end
 	}
-	isnum := false
-	num := 0
-	for '0' <= s[start] && s[start] <= '9' {
-		num = num*10 + int(s[start]-'0')
-		start++
+	for newi = start; newi < end && '0' <= s[newi] && s[newi] <= '9'; newi++ {
+		num = num*10 + int(s[newi]-'0')
 		isnum = true
 	}
-	return num, isnum, start
+	return
 }
 
 type uintptrGetter interface {
