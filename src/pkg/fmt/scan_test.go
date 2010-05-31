@@ -19,24 +19,58 @@ type ScanTest struct {
 	out  interface{}
 }
 
-var boolVal bool
-var intVal int
-var int8Val int8
-var int16Val int16
-var int32Val int32
-var int64Val int64
-var uintVal uint
-var uint8Val uint8
-var uint16Val uint16
-var uint32Val uint32
-var uint64Val uint64
-var floatVal float
-var float32Val float32
-var float64Val float64
-var stringVal string
-var complexVal complex
-var complex64Val complex64
-var complex128Val complex128
+type ScanfTest struct {
+	format string
+	text   string
+	in     interface{}
+	out    interface{}
+}
+
+type (
+	renamedInt     int
+	renamedInt8    int8
+	renamedInt16   int16
+	renamedInt32   int32
+	renamedInt64   int64
+	renamedUint    uint
+	renamedUint8   uint8
+	renamedUint16  uint16
+	renamedUint32  uint32
+	renamedUint64  uint64
+	renamedUintptr uintptr
+)
+
+var (
+	boolVal           bool
+	intVal            int
+	int8Val           int8
+	int16Val          int16
+	int32Val          int32
+	int64Val          int64
+	uintVal           uint
+	uint8Val          uint8
+	uint16Val         uint16
+	uint32Val         uint32
+	uint64Val         uint64
+	floatVal          float
+	float32Val        float32
+	float64Val        float64
+	stringVal         string
+	complexVal        complex
+	complex64Val      complex64
+	complex128Val     complex128
+	renamedIntVal     renamedInt
+	renamedInt8Val    renamedInt8
+	renamedInt16Val   renamedInt16
+	renamedInt32Val   renamedInt32
+	renamedInt64Val   renamedInt64
+	renamedUintVal    renamedUint
+	renamedUint8Val   renamedUint8
+	renamedUint16Val  renamedUint16
+	renamedUint32Val  renamedUint32
+	renamedUint64Val  renamedUint64
+	renamedUintptrVal renamedUintptr
+)
 
 // Xs accepts any non-empty run of x's.
 var xPat = testing.MustCompile("x+")
@@ -92,8 +126,64 @@ var scanTests = []ScanTest{
 	ScanTest{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
 	ScanTest{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
 
+	// Renamed types
+	ScanTest{"101\n", &renamedIntVal, renamedInt(101)},
+	ScanTest{"102\n", &renamedIntVal, renamedInt(102)},
+	ScanTest{"103\n", &renamedUintVal, renamedUint(103)},
+	ScanTest{"104\n", &renamedUintVal, renamedUint(104)},
+	ScanTest{"105\n", &renamedInt8Val, renamedInt8(105)},
+	ScanTest{"106\n", &renamedInt16Val, renamedInt16(106)},
+	ScanTest{"107\n", &renamedInt32Val, renamedInt32(107)},
+	ScanTest{"108\n", &renamedInt64Val, renamedInt64(108)},
+	ScanTest{"109\n", &renamedUint8Val, renamedUint8(109)},
+	ScanTest{"110\n", &renamedUint16Val, renamedUint16(110)},
+	ScanTest{"111\n", &renamedUint32Val, renamedUint32(111)},
+	ScanTest{"112\n", &renamedUint64Val, renamedUint64(112)},
+	ScanTest{"113\n", &renamedUintptrVal, renamedUintptr(113)},
+
 	// Custom scanner.
 	ScanTest{"  xxx ", &xVal, Xs("xxx")},
+}
+
+var scanfTests = []ScanfTest{
+	ScanfTest{"%v", "FALSE\n", &boolVal, false},
+	ScanfTest{"%t", "true\n", &boolVal, true},
+	ScanfTest{"%v", "-71\n", &intVal, -71},
+	ScanfTest{"%d", "72\n", &intVal, 72},
+	ScanfTest{"%d", "73\n", &int8Val, int8(73)},
+	ScanfTest{"%d", "-74\n", &int16Val, int16(-74)},
+	ScanfTest{"%d", "75\n", &int32Val, int32(75)},
+	ScanfTest{"%d", "76\n", &int64Val, int64(76)},
+	ScanfTest{"%b", "1001001\n", &intVal, 73},
+	ScanfTest{"%o", "075\n", &intVal, 075},
+	ScanfTest{"%x", "a75\n", &intVal, 0xa75},
+	ScanfTest{"%v", "71\n", &uintVal, uint(71)},
+	ScanfTest{"%d", "72\n", &uintVal, uint(72)},
+	ScanfTest{"%d", "73\n", &uint8Val, uint8(73)},
+	ScanfTest{"%d", "74\n", &uint16Val, uint16(74)},
+	ScanfTest{"%d", "75\n", &uint32Val, uint32(75)},
+	ScanfTest{"%d", "76\n", &uint64Val, uint64(76)},
+	ScanfTest{"%b", "1001001\n", &uintVal, uint(73)},
+	ScanfTest{"%o", "075\n", &uintVal, uint(075)},
+	ScanfTest{"%x", "a75\n", &uintVal, uint(0xa75)},
+	ScanfTest{"%x", "A75\n", &uintVal, uint(0xa75)},
+
+	// Renamed types
+	ScanfTest{"%v", "101\n", &renamedIntVal, renamedInt(101)},
+	ScanfTest{"%d", "102\n", &renamedIntVal, renamedInt(102)},
+	ScanfTest{"%v", "103\n", &renamedUintVal, renamedUint(103)},
+	ScanfTest{"%d", "104\n", &renamedUintVal, renamedUint(104)},
+	ScanfTest{"%d", "105\n", &renamedInt8Val, renamedInt8(105)},
+	ScanfTest{"%d", "106\n", &renamedInt16Val, renamedInt16(106)},
+	ScanfTest{"%d", "107\n", &renamedInt32Val, renamedInt32(107)},
+	ScanfTest{"%d", "108\n", &renamedInt64Val, renamedInt64(108)},
+	ScanfTest{"%d", "109\n", &renamedUint8Val, renamedUint8(109)},
+	ScanfTest{"%d", "110\n", &renamedUint16Val, renamedUint16(110)},
+	ScanfTest{"%d", "111\n", &renamedUint32Val, renamedUint32(111)},
+	ScanfTest{"%d", "112\n", &renamedUint64Val, renamedUint64(112)},
+	ScanfTest{"%d", "113\n", &renamedUintptrVal, renamedUintptr(113)},
+
+	ScanfTest{"%x", "FFFFFFFF\n", &uint32Val, uint32(0xFFFFFFFF)},
 }
 
 var overflowTests = []ScanTest{
@@ -140,6 +230,30 @@ func TestScan(t *testing.T) {
 
 func TestScanln(t *testing.T) {
 	testScan(t, Fscanln)
+}
+
+func TestScanf(t *testing.T) {
+	for _, test := range scanfTests {
+		r := strings.NewReader(test.text)
+		n, err := XXXFscanf(r, test.format, test.in)
+		if err != nil {
+			t.Errorf("got error scanning (%q, %q): %s", test.format, test.text, err)
+			continue
+		}
+		if n != 1 {
+			t.Errorf("count error on entry (%q, %q): got %d", test.format, test.text, n)
+			continue
+		}
+		// The incoming value may be a pointer
+		v := reflect.NewValue(test.in)
+		if p, ok := v.(*reflect.PtrValue); ok {
+			v = p.Elem()
+		}
+		val := v.Interface()
+		if !reflect.DeepEqual(val, test.out) {
+			t.Errorf("scanning (%q, %q): expected %v got %v, type %T", test.format, test.text, test.out, val, val)
+		}
+	}
 }
 
 func TestScanOverflow(t *testing.T) {

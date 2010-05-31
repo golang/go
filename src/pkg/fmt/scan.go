@@ -41,6 +41,67 @@ type Scanner interface {
 	Scan(ScanState) os.Error
 }
 
+// Scan parses text read from standard input, storing successive
+// space-separated values into successive arguments.  Newlines count as
+// space.  Each argument must be a pointer to a basic type or an
+// implementation of the Scanner interface.  It returns the number of items
+// successfully parsed.  If that is less than the number of arguments, err
+// will report why.
+func Scan(a ...interface{}) (n int, err os.Error) {
+	return Fscan(os.Stdin, a)
+}
+
+// Fscanln parses text read from standard input, storing successive
+// space-separated values into successive arguments.  Scanning stops at a
+// newline and after the final item there must be a newline or EOF.  Each
+// argument must be a pointer to a basic type or an implementation of the
+// Scanner interface.  It returns the number of items successfully parsed.
+// If that is less than the number of arguments, err will report why.
+func Scanln(a ...interface{}) (n int, err os.Error) {
+	return Fscanln(os.Stdin, a)
+}
+
+// Fscan parses text read from r, storing successive space-separated values
+// into successive arguments.  Newlines count as space.  Each argument must
+// be a pointer to a basic type or an implementation of the Scanner
+// interface.  It returns the number of items successfully parsed.  If that
+// is less than the number of arguments, err will report why.
+func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
+	s := newScanState(r, true)
+	n = s.doScan(a)
+	err = s.err
+	s.free()
+	return
+}
+
+// Fscanln parses text read from r, storing successive space-separated values
+// into successive arguments.  Scanning stops at a newline and after the
+// final item there must be a newline or EOF.  Each argument must be a
+// pointer to a basic type or an implementation of the Scanner interface.  It
+// returns the number of items successfully parsed.  If that is less than the
+// number of arguments, err will report why.
+func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
+	s := newScanState(r, false)
+	n = s.doScan(a)
+	err = s.err
+	s.free()
+	return
+}
+
+// XXXScanf is incomplete, do not use.
+func XXXScanf(format string, a ...interface{}) (n int, err os.Error) {
+	return XXXFscanf(os.Stdin, format, a)
+}
+
+// XXXFscanf is incomplete, do not use.
+func XXXFscanf(r io.Reader, format string, a ...interface{}) (n int, err os.Error) {
+	s := newScanState(r, false)
+	n = s.doScanf(format, a)
+	err = s.err
+	s.free()
+	return
+}
+
 // ss is the internal implementation of ScanState.
 type ss struct {
 	rr        readRuner    // where to read input
@@ -181,51 +242,9 @@ func (s *ss) token() string {
 	return s.buf.String()
 }
 
-// Scan parses text read from standard input, storing successive
-// space-separated values into successive arguments.  Newlines count as
-// space.  Each argument must be a pointer to a basic type or an
-// implementation of the Scanner interface.  It returns the number of items
-// successfully parsed.  If that is less than the number of arguments, err
-// will report why.
-func Scan(a ...interface{}) (n int, err os.Error) {
-	return Fscan(os.Stdin, a)
-}
-
-// Fscanln parses text read from standard input, storing successive
-// space-separated values into successive arguments.  Scanning stops at a
-// newline and after the final item there must be a newline or EOF.  Each
-// argument must be a pointer to a basic type or an implementation of the
-// Scanner interface.  It returns the number of items successfully parsed.
-// If that is less than the number of arguments, err will report why.
-func Scanln(a ...interface{}) (n int, err os.Error) {
-	return Fscanln(os.Stdin, a)
-}
-
-// Fscan parses text read from r, storing successive space-separated values
-// into successive arguments.  Newlines count as space.  Each argument must
-// be a pointer to a basic type or an implementation of the Scanner
-// interface.  It returns the number of items successfully parsed.  If that
-// is less than the number of arguments, err will report why.
-func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
-	s := newScanState(r, true)
-	n = s.doScan(a)
-	err = s.err
-	s.free()
-	return
-}
-
-// Fscanln parses text read from r, storing successive space-separated values
-// into successive arguments.  Scanning stops at a newline and after the
-// final item there must be a newline or EOF.  Each argument must be a
-// pointer to a basic type or an implementation of the Scanner interface.  It
-// returns the number of items successfully parsed.  If that is less than the
-// number of arguments, err will report why.
-func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
-	s := newScanState(r, false)
-	n = s.doScan(a)
-	err = s.err
-	s.free()
-	return
+// typeError sets the error string to an indication that the type of the operand did not match the format
+func (s *ss) typeError(field interface{}, expected string) {
+	s.err = os.ErrorString("expected field of type pointer to " + expected + "; found " + reflect.Typeof(field).String())
 }
 
 var intBits = uint(reflect.Typeof(int(0)).Size() * 8)
@@ -240,6 +259,101 @@ func (s *ss) scanBool(tok string) bool {
 	var b bool
 	b, s.err = strconv.Atob(tok)
 	return b
+}
+
+// convertInt returns the value of the integer
+// stored in the token, checking for overflow.  Any error is stored in s.err.
+func (s *ss) convertInt(tok string, bitSize uint, base int) (i int64) {
+	i, s.err = strconv.Btoi64(tok, base)
+	x := (i << (64 - bitSize)) >> (64 - bitSize)
+	if x != i {
+		s.err = os.ErrorString("integer overflow on token " + tok)
+	}
+	return i
+}
+
+// convertUint returns the value of the unsigned integer
+// stored in the token, checking for overflow.  Any error is stored in s.err.
+func (s *ss) convertUint(tok string, bitSize uint, base int) (i uint64) {
+	i, s.err = strconv.Btoui64(tok, base)
+	x := (i << (64 - bitSize)) >> (64 - bitSize)
+	if x != i {
+		s.err = os.ErrorString("unsigned integer overflow on token " + tok)
+	}
+	return i
+}
+
+// scanInteger converts the token to an integer in the appropriate base
+// and stores the result according to the type of the field.
+func (s *ss) scanInteger(tok string, field interface{}, base int) {
+	switch v := field.(type) {
+	case *int:
+		*v = int(s.convertInt(tok, intBits, base))
+		return
+	case *int8:
+		*v = int8(s.convertInt(tok, 8, base))
+		return
+	case *int16:
+		*v = int16(s.convertInt(tok, 16, base))
+		return
+	case *int32:
+		*v = int32(s.convertInt(tok, 32, base))
+		return
+	case *int64:
+		*v = s.convertInt(tok, 64, base)
+		return
+	case *uint:
+		*v = uint(s.convertUint(tok, intBits, base))
+		return
+	case *uint8:
+		*v = uint8(s.convertUint(tok, 8, base))
+		return
+	case *uint16:
+		*v = uint16(s.convertUint(tok, 16, base))
+		return
+	case *uint32:
+		*v = uint32(s.convertUint(tok, 32, base))
+		return
+	case *uint64:
+		*v = uint64(s.convertUint(tok, 64, base))
+		return
+	case *uintptr:
+		*v = uintptr(s.convertUint(tok, uintptrBits, base))
+		return
+	}
+	// Not a basic type; probably a renamed type. We need to use reflection.
+	v := reflect.NewValue(field)
+	ptr, ok := v.(*reflect.PtrValue)
+	if !ok {
+		s.typeError(field, "integer")
+		return
+	}
+	switch v := ptr.Elem().(type) {
+	case *reflect.IntValue:
+		v.Set(int(s.convertInt(tok, intBits, base)))
+	case *reflect.Int8Value:
+		v.Set(int8(s.convertInt(tok, 8, base)))
+	case *reflect.Int16Value:
+		v.Set(int16(s.convertInt(tok, 16, base)))
+	case *reflect.Int32Value:
+		v.Set(int32(s.convertInt(tok, 32, base)))
+	case *reflect.Int64Value:
+		v.Set(s.convertInt(tok, 64, base))
+	case *reflect.UintValue:
+		v.Set(uint(s.convertUint(tok, intBits, base)))
+	case *reflect.Uint8Value:
+		v.Set(uint8(s.convertUint(tok, 8, base)))
+	case *reflect.Uint16Value:
+		v.Set(uint16(s.convertUint(tok, 16, base)))
+	case *reflect.Uint32Value:
+		v.Set(uint32(s.convertUint(tok, 32, base)))
+	case *reflect.Uint64Value:
+		v.Set(s.convertUint(tok, 64, base))
+	case *reflect.UintptrValue:
+		v.Set(uintptr(s.convertUint(tok, uintptrBits, base)))
+	default:
+		s.err = os.ErrorString("internal error: unknown int type")
+	}
 }
 
 // complexParts returns the strings representing the real and imaginary parts of the string.
@@ -341,110 +455,97 @@ func (s *ss) scanComplex(tok string, atof func(*ss, string) float64) complex128 
 	return cmplx(real, imag)
 }
 
-// scanInt converts the token to an int64, but checks that it fits into the
-// specified number of bits.
-func (s *ss) scanInt(tok string, bitSize uint) int64 {
+// scanOne scans a single value, deriving the scanner from the type of the argument.
+func (s *ss) scanOne(field interface{}) {
+	tok := s.token()
 	if s.err != nil {
-		return 0
+		return
 	}
-	var i int64
-	i, s.err = strconv.Atoi64(tok)
-	x := (i << (64 - bitSize)) >> (64 - bitSize)
-	if i != x {
-		s.err = os.ErrorString("integer overflow on token " + tok)
+	switch v := field.(type) {
+	case *bool:
+		*v = s.scanBool(tok)
+	case *complex:
+		*v = complex(s.scanComplex(tok, (*ss).scanFloat))
+	case *complex64:
+		*v = complex64(s.scanComplex(tok, (*ss).scanFloat32))
+	case *complex128:
+		*v = s.scanComplex(tok, (*ss).scanFloat64)
+	case *int:
+		*v = int(s.convertInt(tok, intBits, 10))
+	case *int8:
+		*v = int8(s.convertInt(tok, 8, 10))
+	case *int16:
+		*v = int16(s.convertInt(tok, 16, 10))
+	case *int32:
+		*v = int32(s.convertInt(tok, 32, 10))
+	case *int64:
+		*v = s.convertInt(tok, intBits, 10)
+	case *uint:
+		*v = uint(s.convertUint(tok, intBits, 10))
+	case *uint8:
+		*v = uint8(s.convertUint(tok, 8, 10))
+	case *uint16:
+		*v = uint16(s.convertUint(tok, 16, 10))
+	case *uint32:
+		*v = uint32(s.convertUint(tok, 32, 10))
+	case *uint64:
+		*v = s.convertUint(tok, 64, 10)
+	case *uintptr:
+		*v = uintptr(s.convertUint(tok, uintptrBits, 10))
+	case *float:
+		if s.err == nil {
+			*v, s.err = strconv.Atof(tok)
+		} else {
+			*v = 0
+		}
+	case *float32:
+		if s.err == nil {
+			*v, s.err = strconv.Atof32(tok)
+		} else {
+			*v = 0
+		}
+	case *float64:
+		if s.err == nil {
+			*v, s.err = strconv.Atof64(tok)
+		} else {
+			*v = 0
+		}
+	case *string:
+		*v = tok
+	default:
+		t := reflect.Typeof(v)
+		str := t.String()
+		ptr, ok := t.(*reflect.PtrType)
+		if !ok {
+			s.err = os.ErrorString("Scan: type not a pointer: " + str)
+			return
+		}
+		switch ptr.Elem().(type) {
+		case *reflect.IntType, *reflect.Int8Type, *reflect.Int16Type, *reflect.Int32Type, *reflect.Int64Type:
+			s.scanInteger(tok, v, 10)
+		case *reflect.UintType, *reflect.Uint8Type, *reflect.Uint16Type, *reflect.Uint32Type, *reflect.Uint64Type, *reflect.UintptrType:
+			s.scanInteger(tok, v, 10)
+		default:
+			s.err = os.ErrorString("Scan: can't handle type: " + t.String())
+		}
 	}
-	return i
 }
 
-// scanUint converts the token to a uint64, but checks that it fits into the
-// specified number of bits.
-func (s *ss) scanUint(tok string, bitSize uint) uint64 {
-	if s.err != nil {
-		return 0
-	}
-	var i uint64
-	i, s.err = strconv.Atoui64(tok)
-	x := (i << (64 - bitSize)) >> (64 - bitSize)
-	if i != x {
-		s.err = os.ErrorString("unsigned integer overflow on token " + tok)
-	}
-	return i
-}
-
-// doScan does the real work.  At the moment, it handles only pointers to basic types.
+// doScan does the real work for scanning without a format string.
+// At the moment, it handles only pointers to basic types.
 func (s *ss) doScan(a []interface{}) int {
-	for n, param := range a {
+	for fieldnum, field := range a {
 		// If the parameter has its own Scan method, use that.
-		if v, ok := param.(Scanner); ok {
+		if v, ok := field.(Scanner); ok {
 			s.err = v.Scan(s)
 			if s.err != nil {
-				return n
+				return fieldnum
 			}
 			continue
 		}
-		tok := s.token()
-		switch v := param.(type) {
-		case *bool:
-			*v = s.scanBool(tok)
-		case *complex:
-			*v = complex(s.scanComplex(tok, (*ss).scanFloat))
-		case *complex64:
-			*v = complex64(s.scanComplex(tok, (*ss).scanFloat32))
-		case *complex128:
-			*v = s.scanComplex(tok, (*ss).scanFloat64)
-		case *int:
-			*v = int(s.scanInt(tok, intBits))
-		case *int8:
-			*v = int8(s.scanInt(tok, 8))
-		case *int16:
-			*v = int16(s.scanInt(tok, 16))
-		case *int32:
-			*v = int32(s.scanInt(tok, 32))
-		case *int64:
-			*v = s.scanInt(tok, 64)
-		case *uint:
-			*v = uint(s.scanUint(tok, intBits))
-		case *uint8:
-			*v = uint8(s.scanUint(tok, 8))
-		case *uint16:
-			*v = uint16(s.scanUint(tok, 16))
-		case *uint32:
-			*v = uint32(s.scanUint(tok, 32))
-		case *uint64:
-			*v = s.scanUint(tok, 64)
-		case *uintptr:
-			*v = uintptr(s.scanUint(tok, uintptrBits))
-		case *float:
-			if s.err == nil {
-				*v, s.err = strconv.Atof(tok)
-			} else {
-				*v = 0
-			}
-		case *float32:
-			if s.err == nil {
-				*v, s.err = strconv.Atof32(tok)
-			} else {
-				*v = 0
-			}
-		case *float64:
-			if s.err == nil {
-				*v, s.err = strconv.Atof64(tok)
-			} else {
-				*v = 0
-			}
-		case *string:
-			*v = tok
-		default:
-			t := reflect.Typeof(v)
-			str := t.String()
-			if _, ok := t.(*reflect.PtrType); !ok {
-				s.err = os.ErrorString("Scan: type not a pointer: " + str)
-			} else {
-				s.err = os.ErrorString("Scan: can't handle type: " + str)
-			}
-		}
+		s.scanOne(field)
 		if s.err != nil {
-			return n
+			return fieldnum
 		}
 	}
 	// Check for newline if required.
@@ -468,4 +569,71 @@ func (s *ss) doScan(a []interface{}) int {
 		}
 	}
 	return len(a)
+}
+
+// doScanf does the real work when scanning with a format string.
+//  At the moment, it handles only pointers to basic types.
+func (s *ss) doScanf(format string, a []interface{}) int {
+	end := len(format) - 1
+	fieldnum := 0 // we process one item per non-trivial format
+	for i := 0; i <= end; {
+		c, w := utf8.DecodeRuneInString(format[i:])
+		if c != '%' || i == end {
+			// TODO: WHAT NOW?
+			i += w
+			continue
+		}
+		i++
+		// TODO: FLAGS
+		c, w = utf8.DecodeRuneInString(format[i:])
+		i += w
+		// percent is special - absorbs no operand
+		if c == '%' {
+			// TODO: WHAT NOW?
+			continue
+		}
+		if fieldnum >= len(a) { // out of operands
+			s.err = os.ErrorString("too few operands for format %" + format[i-w:])
+			return fieldnum
+		}
+		field := a[fieldnum]
+		fieldnum++
+
+		// If the parameter has its own Scan method, use that.
+		if v, ok := field.(Scanner); ok {
+			s.err = v.Scan(s)
+			if s.err != nil {
+				return fieldnum - 1
+			}
+			continue
+		}
+		if c == 'v' {
+			// Default format works; just call doScan, but note that it will scan for the token
+			s.scanOne(field)
+		} else {
+			tok := s.token()
+			switch c {
+			case 't':
+				if v, ok := field.(*bool); ok {
+					*v = s.scanBool(tok)
+				} else {
+					s.typeError(field, "boolean")
+				}
+			case 'b':
+				s.scanInteger(tok, field, 2)
+			case 'o':
+				s.scanInteger(tok, field, 8)
+			case 'd':
+				s.scanInteger(tok, field, 10)
+			case 'x', 'X':
+				s.scanInteger(tok, field, 16)
+			default:
+				s.err = os.ErrorString("unknown scanning verb %" + format[i-w:])
+			}
+			if s.err != nil {
+				return fieldnum - 1
+			}
+		}
+	}
+	return fieldnum
 }
