@@ -568,7 +568,7 @@ const cProlog = `
 #pragma dynimport libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
 #pragma dynimport libcgo_set_scheduler libcgo_set_scheduler "%s/libcgo.so"
 #pragma dynimport _cgo_malloc _cgo_malloc "%s/libcgo.so"
-#pragma dynimport _cgo_free free "%s/libcgo.so"
+#pragma dynimport _cgo_free _cgo_free "%s/libcgo.so"
 
 void
 ·_C_GoString(int8 *p, String s)
