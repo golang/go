@@ -170,15 +170,15 @@ var scanfTests = []ScanfTest{
 
 	// Renamed types
 	ScanfTest{"%v", "101\n", &renamedIntVal, renamedInt(101)},
-	ScanfTest{"%d", "102\n", &renamedIntVal, renamedInt(102)},
+	ScanfTest{"%o", "0146\n", &renamedIntVal, renamedInt(102)},
 	ScanfTest{"%v", "103\n", &renamedUintVal, renamedUint(103)},
 	ScanfTest{"%d", "104\n", &renamedUintVal, renamedUint(104)},
 	ScanfTest{"%d", "105\n", &renamedInt8Val, renamedInt8(105)},
 	ScanfTest{"%d", "106\n", &renamedInt16Val, renamedInt16(106)},
 	ScanfTest{"%d", "107\n", &renamedInt32Val, renamedInt32(107)},
 	ScanfTest{"%d", "108\n", &renamedInt64Val, renamedInt64(108)},
-	ScanfTest{"%d", "109\n", &renamedUint8Val, renamedUint8(109)},
-	ScanfTest{"%d", "110\n", &renamedUint16Val, renamedUint16(110)},
+	ScanfTest{"%x", "6D\n", &renamedUint8Val, renamedUint8(109)},
+	ScanfTest{"%o", "0156\n", &renamedUint16Val, renamedUint16(110)},
 	ScanfTest{"%d", "111\n", &renamedUint32Val, renamedUint32(111)},
 	ScanfTest{"%d", "112\n", &renamedUint64Val, renamedUint64(112)},
 	ScanfTest{"%d", "113\n", &renamedUintptrVal, renamedUintptr(113)},
