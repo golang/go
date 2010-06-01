@@ -175,3 +175,29 @@ func TestRatBin(t *testing.T) {
 		}
 	}
 }
+
+
+func TestIssue820(t *testing.T) {
+	x := NewRat(3, 1)
+	y := NewRat(2, 1)
+	z := y.Quo(x, y)
+	q := NewRat(3, 2)
+	if z.Cmp(q) != 0 {
+		t.Errorf("got %s want %s", z, q)
+	}
+
+	y = NewRat(3, 1)
+	x = NewRat(2, 1)
+	z = y.Quo(x, y)
+	q = NewRat(2, 3)
+	if z.Cmp(q) != 0 {
+		t.Errorf("got %s want %s", z, q)
+	}
+
+	x = NewRat(3, 1)
+	z = x.Quo(x, x)
+	q = NewRat(3, 3)
+	if z.Cmp(q) != 0 {
+		t.Errorf("got %s want %s", z, q)
+	}
+}

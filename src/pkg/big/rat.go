@@ -160,9 +160,11 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
 	if len(y.a.abs) == 0 {
 		panic("division by zero")
 	}
-	z.a.abs = z.a.abs.mul(x.a.abs, y.b)
-	z.b = z.b.mul(x.b, y.a.abs)
-	z.a.neg = x.a.neg != y.a.neg
+	a := mulNat(&x.a, y.b)
+	b := mulNat(&y.a, x.b)
+	z.a.abs = a.abs
+	z.b = b.abs
+	z.a.neg = a.neg != b.neg
 	return z.norm()
 }
 
