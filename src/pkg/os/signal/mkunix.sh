@@ -19,6 +19,6 @@ var _ = syscall.Syscall  // in case there are zero signals
 const (
 EOH
 
-sed -n 's/^[ 	]*\(SIG[A-Z0-9][A-Z0-9]*\).*/  \1 = UnixSignal(syscall.\1)/p' "$1"
+sed -n 's/^[ 	]*\(SIG[A-Z0-9][A-Z0-9]*\)[ 	].*/  \1 = UnixSignal(syscall.\1)/p' "$1"
 
 echo ")"
