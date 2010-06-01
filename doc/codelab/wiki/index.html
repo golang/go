@@ -848,9 +848,9 @@ a title string:
 </p>
 
 <pre>
-func viewHandler(c, *http.Conn, r *http.Request, title string)
-func editHandler(c, *http.Conn, r *http.Request, title string)
-func saveHandler(c, *http.Conn, r *http.Request, title string)
+func viewHandler(c *http.Conn, r *http.Request, title string)
+func editHandler(c *http.Conn, r *http.Request, title string)
+func saveHandler(c *http.Conn, r *http.Request, title string)
 </pre>
 
 <p>
