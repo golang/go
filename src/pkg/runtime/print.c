@@ -200,12 +200,12 @@ void
 		write(fd, "NaN", 3);
 		return;
 	}
-	if(isInf(v, 0)) {
+	if(isInf(v, 1)) {
 		write(fd, "+Inf", 4);
 		return;
 	}
 	if(isInf(v, -1)) {
-		write(fd, "+Inf", 4);
+		write(fd, "-Inf", 4);
 		return;
 	}
 
