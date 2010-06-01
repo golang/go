@@ -248,7 +248,7 @@ func TestDouble(t *testing.T) {
 	for _, dt := range doubleTests {
 		v := Double(dt.in)
 		if v != dt.out {
-			t.Errorf("Double(%d) returns %d; should be %d.", dt.in, v, dt.out)
+			t.Errorf("Double(%d) = %d, want %d.", dt.in, v, dt.out)
 		}
 	}
 }
