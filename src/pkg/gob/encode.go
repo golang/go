@@ -99,14 +99,14 @@
 
 	The low bit is therefore analogous to a sign bit, but making it the complement bit
 	instead guarantees that the largest negative integer is not a special case.  For
-	example, -129=^128=(^256>>1) encodes as (01 82).
+	example, -129=^128=(^256>>1) encodes as (FE 01 01).
 
 	Floating-point numbers are always sent as a representation of a float64 value.
 	That value is converted to a uint64 using math.Float64bits.  The uint64 is then
 	byte-reversed and sent as a regular unsigned integer.  The byte-reversal means the
 	exponent and high-precision part of the mantissa go first.  Since the low bits are
 	often zero, this can save encoding bytes.  For instance, 17.0 is encoded in only
-	two bytes (40 e2).
+	three bytes (FE 31 40).
 
 	Strings and slices of bytes are sent as an unsigned count followed by that many
 	uninterpreted bytes of the value.
@@ -123,9 +123,9 @@
 	order of increasing field number; the deltas are therefore unsigned.  The
 	initialization for the delta encoding sets the field number to -1, so an unsigned
 	integer field 0 with value 7 is transmitted as unsigned delta = 1, unsigned value
-	= 7 or (81 87).  Finally, after all the fields have been sent a terminating mark
+	= 7 or (01 0E).  Finally, after all the fields have been sent a terminating mark
 	denotes the end of the struct.  That mark is a delta=0 value, which has
-	representation (80).
+	representation (00).
 
 	The representation of types is described below.  When a type is defined on a given
 	connection between an Encoder and Decoder, it is assigned a signed integer type
@@ -198,7 +198,7 @@ package gob
 
 		1f	// This item (a type descriptor) is 31 bytes long.
 		ff 81	// The negative of the id for the type we're defining, -65.
-			// This is one byte (indicated by FF = ^-1) followed by
+			// This is one byte (indicated by FF = -1) followed by
 			// ^-65<<1 | 1.  The low 1 bit signals to complement the
 			// rest upon receipt.
 
