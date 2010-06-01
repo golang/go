@@ -102,7 +102,7 @@ var git = vcs{
 	cmd:            "git",
 	metadir:        ".git",
 	clone:          "clone",
-	update:         "checkout",
+	update:         "pull",
 	pull:           "fetch",
 	log:            "log",
 	logLimitFlag:   "-n1",
