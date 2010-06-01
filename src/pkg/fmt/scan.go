@@ -27,7 +27,7 @@ type readRuner interface {
 type ScanState interface {
 	// GetRune reads the next rune (Unicode code point) from the input.
 	GetRune() (rune int, err os.Error)
-	// UngetRune causes the next call to Get to return the rune.
+	// UngetRune causes the next call to GetRune to return the rune.
 	UngetRune(rune int)
 	// Token returns the next space-delimited token from the input.
 	Token() (token string, err os.Error)
