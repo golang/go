@@ -27,49 +27,65 @@ type ScanfTest struct {
 }
 
 type (
-	renamedInt     int
-	renamedInt8    int8
-	renamedInt16   int16
-	renamedInt32   int32
-	renamedInt64   int64
-	renamedUint    uint
-	renamedUint8   uint8
-	renamedUint16  uint16
-	renamedUint32  uint32
-	renamedUint64  uint64
-	renamedUintptr uintptr
+	renamedBool       bool
+	renamedInt        int
+	renamedInt8       int8
+	renamedInt16      int16
+	renamedInt32      int32
+	renamedInt64      int64
+	renamedUint       uint
+	renamedUint8      uint8
+	renamedUint16     uint16
+	renamedUint32     uint32
+	renamedUint64     uint64
+	renamedUintptr    uintptr
+	renamedString     string
+	renamedFloat      float
+	renamedFloat32    float32
+	renamedFloat64    float64
+	renamedComplex    complex
+	renamedComplex64  complex64
+	renamedComplex128 complex128
 )
 
 var (
-	boolVal           bool
-	intVal            int
-	int8Val           int8
-	int16Val          int16
-	int32Val          int32
-	int64Val          int64
-	uintVal           uint
-	uint8Val          uint8
-	uint16Val         uint16
-	uint32Val         uint32
-	uint64Val         uint64
-	floatVal          float
-	float32Val        float32
-	float64Val        float64
-	stringVal         string
-	complexVal        complex
-	complex64Val      complex64
-	complex128Val     complex128
-	renamedIntVal     renamedInt
-	renamedInt8Val    renamedInt8
-	renamedInt16Val   renamedInt16
-	renamedInt32Val   renamedInt32
-	renamedInt64Val   renamedInt64
-	renamedUintVal    renamedUint
-	renamedUint8Val   renamedUint8
-	renamedUint16Val  renamedUint16
-	renamedUint32Val  renamedUint32
-	renamedUint64Val  renamedUint64
-	renamedUintptrVal renamedUintptr
+	boolVal              bool
+	intVal               int
+	int8Val              int8
+	int16Val             int16
+	int32Val             int32
+	int64Val             int64
+	uintVal              uint
+	uint8Val             uint8
+	uint16Val            uint16
+	uint32Val            uint32
+	uint64Val            uint64
+	floatVal             float
+	float32Val           float32
+	float64Val           float64
+	stringVal            string
+	complexVal           complex
+	complex64Val         complex64
+	complex128Val        complex128
+	renamedBoolVal       renamedBool
+	renamedIntVal        renamedInt
+	renamedInt8Val       renamedInt8
+	renamedInt16Val      renamedInt16
+	renamedInt32Val      renamedInt32
+	renamedInt64Val      renamedInt64
+	renamedUintVal       renamedUint
+	renamedUint8Val      renamedUint8
+	renamedUint16Val     renamedUint16
+	renamedUint32Val     renamedUint32
+	renamedUint64Val     renamedUint64
+	renamedUintptrVal    renamedUintptr
+	renamedStringVal     renamedString
+	renamedFloatVal      renamedFloat
+	renamedFloat32Val    renamedFloat32
+	renamedFloat64Val    renamedFloat64
+	renamedComplexVal    renamedComplex
+	renamedComplex64Val  renamedComplex64
+	renamedComplex128Val renamedComplex128
 )
 
 // Xs accepts any non-empty run of x's.
@@ -92,7 +108,9 @@ func (x *Xs) Scan(state ScanState) os.Error {
 var xVal Xs
 
 var scanTests = []ScanTest{
-	ScanTest{"T\n", &boolVal, true},
+	// Numbers
+	ScanTest{"T\n", &boolVal, true},  // boolean test vals toggle to be sure they are written
+	ScanTest{"F\n", &boolVal, false}, // restored to zero value
 	ScanTest{"21\n", &intVal, 21},
 	ScanTest{"22\n", &int8Val, int8(22)},
 	ScanTest{"23\n", &int16Val, int16(23)},
@@ -125,8 +143,11 @@ var scanTests = []ScanTest{
 	ScanTest{"(3.4e1-2i)\n", &complexVal, 3.4e1 - 2i},
 	ScanTest{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
 	ScanTest{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
+	ScanTest{"hello\n", &stringVal, "hello"},
 
 	// Renamed types
+	ScanTest{"true\n", &renamedBoolVal, renamedBool(true)},
+	ScanTest{"F\n", &renamedBoolVal, renamedBool(false)},
 	ScanTest{"101\n", &renamedIntVal, renamedInt(101)},
 	ScanTest{"102\n", &renamedIntVal, renamedInt(102)},
 	ScanTest{"103\n", &renamedUintVal, renamedUint(103)},
@@ -140,14 +161,15 @@ var scanTests = []ScanTest{
 	ScanTest{"111\n", &renamedUint32Val, renamedUint32(111)},
 	ScanTest{"112\n", &renamedUint64Val, renamedUint64(112)},
 	ScanTest{"113\n", &renamedUintptrVal, renamedUintptr(113)},
+	ScanTest{"114\n", &renamedStringVal, renamedString("114")},
 
 	// Custom scanner.
 	ScanTest{"  xxx ", &xVal, Xs("xxx")},
 }
 
 var scanfTests = []ScanfTest{
-	ScanfTest{"%v", "FALSE\n", &boolVal, false},
-	ScanfTest{"%t", "true\n", &boolVal, true},
+	ScanfTest{"%v", "TRUE\n", &boolVal, true},
+	ScanfTest{"%t", "false\n", &boolVal, false},
 	ScanfTest{"%v", "-71\n", &intVal, -71},
 	ScanfTest{"%d", "72\n", &intVal, 72},
 	ScanfTest{"%d", "73\n", &int8Val, int8(73)},
@@ -168,7 +190,15 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%x", "a75\n", &uintVal, uint(0xa75)},
 	ScanfTest{"%x", "A75\n", &uintVal, uint(0xa75)},
 
+	// Strings
+	ScanfTest{"%s", "using-%s\n", &stringVal, "using-%s"},
+	ScanfTest{"%x", "7573696e672d2578\n", &stringVal, "using-%x"},
+	ScanfTest{"%q", `"quoted\twith\\do\u0075bl\x65s"` + "\n", &stringVal, "quoted\twith\\doubles"},
+	ScanfTest{"%q", "`quoted with backs`\n", &stringVal, "quoted with backs"},
+
 	// Renamed types
+	ScanfTest{"%v\n", "true\n", &renamedBoolVal, renamedBool(true)},
+	ScanfTest{"%t\n", "F\n", &renamedBoolVal, renamedBool(false)},
 	ScanfTest{"%v", "101\n", &renamedIntVal, renamedInt(101)},
 	ScanfTest{"%o", "0146\n", &renamedIntVal, renamedInt(102)},
 	ScanfTest{"%v", "103\n", &renamedUintVal, renamedUint(103)},
@@ -182,6 +212,13 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%d", "111\n", &renamedUint32Val, renamedUint32(111)},
 	ScanfTest{"%d", "112\n", &renamedUint64Val, renamedUint64(112)},
 	ScanfTest{"%d", "113\n", &renamedUintptrVal, renamedUintptr(113)},
+	ScanfTest{"%s", "114\n", &renamedStringVal, renamedString("114")},
+	ScanfTest{"%g", "115.1\n", &renamedFloatVal, renamedFloat(115.1)},
+	ScanfTest{"%g", "116e1\n", &renamedFloat32Val, renamedFloat32(116e1)},
+	ScanfTest{"%g", "-11.7e+1", &renamedFloat64Val, renamedFloat64(-11.7e+1)},
+	ScanfTest{"%g", "11+5.1i\n", &renamedComplexVal, renamedComplex(11 + 5.1i)},
+	ScanfTest{"%g", "11+6e1i\n", &renamedComplex64Val, renamedComplex64(11 + 6e1i)},
+	ScanfTest{"%g", "-11.+7e+1i", &renamedComplex128Val, renamedComplex128(-11. + 7e+1i)},
 
 	ScanfTest{"%x", "FFFFFFFF\n", &uint32Val, uint32(0xFFFFFFFF)},
 }
