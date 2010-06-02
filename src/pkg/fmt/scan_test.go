@@ -220,6 +220,10 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%g", "11+6e1i\n", &renamedComplex64Val, renamedComplex64(11 + 6e1i)},
 	ScanfTest{"%g", "-11.+7e+1i", &renamedComplex128Val, renamedComplex128(-11. + 7e+1i)},
 
+	// Interesting formats
+	ScanfTest{"here is\tthe value:%d", "here is   the\tvalue:118\n", &intVal, 118},
+	ScanfTest{"%% %%:%d", "% %:119\n", &intVal, 119},
+
 	ScanfTest{"%x", "FFFFFFFF\n", &uint32Val, uint32(0xFFFFFFFF)},
 }
 
@@ -271,8 +275,7 @@ func TestScanln(t *testing.T) {
 
 func TestScanf(t *testing.T) {
 	for _, test := range scanfTests {
-		r := strings.NewReader(test.text)
-		n, err := XXXFscanf(r, test.format, test.in)
+		n, err := Sscanf(test.text, test.format, test.in)
 		if err != nil {
 			t.Errorf("got error scanning (%q, %q): %s", test.format, test.text, err)
 			continue
@@ -297,8 +300,7 @@ func TestScanOverflow(t *testing.T) {
 	// different machines and different types report errors with different strings.
 	re := testing.MustCompile("overflow|too large|out of range|not representable")
 	for _, test := range overflowTests {
-		r := strings.NewReader(test.text)
-		_, err := Fscan(r, test.in)
+		_, err := Sscan(test.text, test.in)
 		if err == nil {
 			t.Errorf("expected overflow scanning %q", test.text)
 			continue
@@ -310,15 +312,39 @@ func TestScanOverflow(t *testing.T) {
 }
 
 func TestScanMultiple(t *testing.T) {
-	text := "1 2 3 x"
+	text := "1 2 3"
 	r := strings.NewReader(text)
 	var a, b, c, d int
-	n, err := Fscan(r, &a, &b, &c, &d)
+	n, err := Fscan(r, &a, &b, &c)
 	if n != 3 {
-		t.Errorf("count error: expected 3: got %d", n)
+		t.Errorf("Fscan count error: expected 3: got %d", n)
+	}
+	if err != nil {
+		t.Errorf("Fscan expected no error scanning %q; got %s", text, err)
+	}
+	text = "1 2 3 x"
+	r = strings.NewReader(text)
+	n, err = Fscan(r, &a, &b, &c, &d)
+	if n != 3 {
+		t.Errorf("Fscan count error: expected 3: got %d", n)
 	}
 	if err == nil {
-		t.Errorf("expected error scanning ", text)
+		t.Errorf("Fscan expected error scanning %q", text)
+	}
+	text = "1 2 3 x"
+	r = strings.NewReader(text)
+	n, err = Fscanf(r, "%d %d %d\n", &a, &b, &c, &d)
+	if n != 3 {
+		t.Errorf("Fscanf count error: expected 3: got %d", n)
+	}
+	text = "1 2"
+	r = strings.NewReader(text)
+	n, err = Fscanf(r, "%d %d %d\n", &a, &b, &c, &d)
+	if n != 2 {
+		t.Errorf("Fscanf count error: expected 2: got %d", n)
+	}
+	if err == nil {
+		t.Errorf("Fscanf expected error scanning %q", text)
 	}
 }
 
@@ -334,9 +360,8 @@ func TestScanNotPointer(t *testing.T) {
 }
 
 func TestScanlnNoNewline(t *testing.T) {
-	r := strings.NewReader("1 x\n")
 	var a int
-	_, err := Fscanln(r, &a)
+	_, err := Sscanln("1 x\n", &a)
 	if err == nil {
 		t.Error("expected error scanning string missing newline")
 	} else if strings.Index(err.String(), "newline") < 0 {

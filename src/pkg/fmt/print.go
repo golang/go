@@ -81,18 +81,45 @@
 
 	An analogous set of functions scans formatted text to yield
 	values.  Scan and Scanln read from os.Stdin; Fscan and Fscanln
-	read from a specified os.Reader.  By default, tokens are
-	separated by spaces.  Fscanln and Scanln stop scanning at a
+	read from a specified os.Reader; Sscan and Sscanln read from
+	an argument string.  By default, tokens are separated by
+	spaces.  Sscanln, Fscanln and Sscanln stop scanning at a
 	newline and require that the items be followed by one; the
 	other routines treat newlines as spaces.
 
-	If an operand implements method Scan() (that is, it implements
-	the Scanner interface) that method will be used to scan the
-	text for that operand.
+	Scanf, Fscanf, and Sscanf parse the arguments according to a
+	format string, analogous to that of Printf.  For example, "%x"
+	will scan an integer as a hexadecimal number, and %v will scan
+	the default representation format for the value.
+
+	The formats behave analogously to those of Printf with the
+	following exceptions:
+
+	%p is not implemented
+	%T is not implemented
+	%e %E %f %F %g %g are all equivalent and scan any floating
+		point or complex value
+
+	When scanning with a format, all non-empty runs of space
+	characters (including newline) are equivalent to a single
+	space in both the format and the input.  With that proviso,
+	text in the format string must match the input text; scanning
+	stops if it does not, with the return value of the function
+	indicating the number of arguments scanned.
+
+	In all the scanning functions, if an operand implements method
+	Scan (that is, it implements the Scanner interface) that
+	method will be used to scan the text for that operand.  Also,
+	if the number of arguments scanned is less than the number of
+	arguments provided, an error is returned.
+
+	All arguments to be scanned must be either pointers to basic
+	types or implementations of the Scanner interface.
 */
 package fmt
 
-// BUG(r): There is no format-driven scanning yet.
+// BUG: format precision and flags are not yet implemented for scanning.
+// BUG: %sqx are not yet implemented for scanning byte slices.
 
 import (
 	"bytes"
