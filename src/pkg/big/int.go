@@ -225,12 +225,12 @@ func (z *Int) Mod(x, y *Int) *Int {
 // and returns the pair (z, m) for y != 0.
 // If y == 0, a division-by-zero run-time panic occurs.
 //
-// DivMod implements Euclidian division and modulus (unlike Go):
+// DivMod implements Euclidean division and modulus (unlike Go):
 //
 //	q = x div y  such that
 //	m = x - y*q  with 0 <= m < |q|
 //
-// (See Raymond T. Boute, ``The Euclidian definition of the functions
+// (See Raymond T. Boute, ``The Euclidean definition of the functions
 // div and mod''. ACM Transactions on Programming Languages and
 // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
 // ACM press.)
