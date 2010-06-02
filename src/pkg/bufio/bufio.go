@@ -229,7 +229,8 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 
 		// Buffer is full?
 		if b.Buffered() >= len(b.buf) {
-			return nil, ErrBufferFull
+			b.r = b.w
+			return b.buf, ErrBufferFull
 		}
 	}
 	panic("not reached")
@@ -259,20 +260,9 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 			break
 		}
 
-		// Read bytes out of buffer.
-		buf := make([]byte, b.Buffered())
-		var n int
-		n, e = b.Read(buf)
-		if e != nil {
-			frag = buf[0:n]
-			err = e
-			break
-		}
-		if n != len(buf) {
-			frag = buf[0:n]
-			err = errInternal
-			break
-		}
+		// Make a copy of the buffer.
+		buf := make([]byte, len(frag))
+		copy(buf, frag)
 
 		// Grow list if needed.
 		if full == nil {

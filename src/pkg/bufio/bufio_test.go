@@ -407,3 +407,15 @@ func TestWriteString(t *testing.T) {
 		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()))
 	}
 }
+
+func TestBufferFull(t *testing.T) {
+	buf, _ := NewReaderSize(strings.NewReader("hello, world"), 5)
+	line, err := buf.ReadSlice(',')
+	if string(line) != "hello" || err != ErrBufferFull {
+		t.Errorf("first ReadSlice(,) = %q, %v", line, err)
+	}
+	line, err = buf.ReadSlice(',')
+	if string(line) != "," || err != nil {
+		t.Errorf("second ReadSlice(,) = %q, %v", line, err)
+	}
+}
