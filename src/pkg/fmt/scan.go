@@ -649,6 +649,10 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		}
 	case *string:
 		*v = s.convertString(verb)
+	case *[]byte:
+		// We scan to string and convert so we get a copy of the data.
+		// If we scanned to bytes, the slice would point at the buffer.
+		*v = []byte(s.convertString(verb))
 	default:
 		val := reflect.NewValue(v)
 		ptr, ok := val.(*reflect.PtrValue)
@@ -683,6 +687,17 @@ func (s *ss) scanOne(verb int, field interface{}) {
 			v.Set(uintptr(s.scanUint(verb, uintptrBits)))
 		case *reflect.StringValue:
 			v.Set(s.convertString(verb))
+		case *reflect.SliceValue:
+			// For now, can only handle (renamed) []byte.
+			typ := v.Type().(*reflect.SliceType)
+			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
+				goto CantHandle
+			}
+			str := s.convertString(verb)
+			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
+			for i := 0; i < len(str); i++ {
+				v.Elem(i).(*reflect.Uint8Value).Set(str[i])
+			}
 		case *reflect.FloatValue:
 			v.Set(float(s.convertFloat(s.token())))
 		case *reflect.Float32Value:
@@ -696,6 +711,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		case *reflect.Complex128Value:
 			v.Set(s.scanComplex(verb, (*ss).convertFloat64))
 		default:
+		CantHandle:
 			s.errorString("Scan: can't handle type: " + val.Type().String())
 		}
 	}
@@ -738,12 +754,12 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err os.Error) {
 	return
 }
 
-// advance determines whether the next characters in the input matches
+// advance determines whether the next characters in the input match
 // those of the format.  It returns the number of bytes (sic) consumed
 // in the format. Newlines included, all runs of space characters in
-// either input or format behave as a single space. This routines also
-// handles the %% case.  If the return value is zero, either the format
-// is sitting on a % or the input is empty.
+// either input or format behave as a single space. This routine also
+// handles the %% case.  If the return value is zero, either format
+// starts with a % (with no following %) or the input is empty.
 func (s *ss) advance(format string) (i int) {
 	for i < len(format) {
 		fmtc, w := utf8.DecodeRuneInString(format[i:])
@@ -797,9 +813,9 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.E
 			i += w
 			continue
 		}
-		// Either we have a percent character or we ran out of input.
+		// Either we failed to advance, we have a percent character, or we ran out of input.
 		if format[i] != '%' {
-			// Out of format.  Have we run out of input?
+			// Can't advance format.  Do we have arguments still to process?
 			if i < len(a) {
 				s.errorString("too many arguments for format")
 			}

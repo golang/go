@@ -119,7 +119,6 @@
 package fmt
 
 // BUG: format precision and flags are not yet implemented for scanning.
-// BUG: %sqx are not yet implemented for scanning byte slices.
 
 import (
 	"bytes"
