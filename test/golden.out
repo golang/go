@@ -200,10 +200,10 @@ errchk: bugs/bug284.go:107: missing expected error: 'cannot'
 errchk: bugs/bug284.go:110: missing expected error: 'cannot'
 errchk: bugs/bug284.go:111: missing expected error: 'cannot'
 errchk: bugs/bug284.go:112: missing expected error: 'cannot'
-errchk: bugs/bug284.go:130: error message does not match 'cannot'
-errchk: bugs/bug284.go:133: error message does not match 'cannot'
-errchk: bugs/bug284.go:134: error message does not match 'cannot'
-errchk: bugs/bug284.go:135: error message does not match 'cannot'
+errchk: bugs/bug284.go:130: missing expected error: 'cannot'
+errchk: bugs/bug284.go:133: missing expected error: 'cannot'
+errchk: bugs/bug284.go:134: missing expected error: 'cannot'
+errchk: bugs/bug284.go:135: missing expected error: 'cannot'
 errchk: bugs/bug284.go:145: missing expected error: 'cannot'
 errchk: bugs/bug284.go:148: missing expected error: 'cannot'
 errchk: bugs/bug284.go:149: missing expected error: 'cannot'
@@ -216,3 +216,7 @@ errchk: bugs/bug284.go:175: missing expected error: 'cannot'
 errchk: bugs/bug284.go:178: missing expected error: 'cannot'
 errchk: bugs/bug284.go:179: missing expected error: 'cannot'
 errchk: bugs/bug284.go:180: missing expected error: 'cannot'
+errchk: bugs/bug284.go: unmatched error messages:
+==================================================
+bugs/bug284.go:186: internal compiler error: typename ideal
+==================================================

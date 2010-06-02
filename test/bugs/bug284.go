@@ -179,4 +179,9 @@ func main() {
 	c2 = C2(c0) // ERROR "cannot"
 	c2 = C2(c1) // ERROR "cannot"
 	c2 = c2
+
+	// internal compiler error (6g and gccgo)
+	type T interface{}
+	var _ T = 17 // assignment compatible
+	_ = T(17)    // internal compiler error even though assignment compatible
 }
