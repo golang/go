@@ -40,6 +40,7 @@ type (
 	renamedUint64     uint64
 	renamedUintptr    uintptr
 	renamedString     string
+	renamedBytes      []byte
 	renamedFloat      float
 	renamedFloat32    float32
 	renamedFloat64    float64
@@ -64,6 +65,7 @@ var (
 	float32Val           float32
 	float64Val           float64
 	stringVal            string
+	bytesVal             []byte
 	complexVal           complex
 	complex64Val         complex64
 	complex128Val        complex128
@@ -80,6 +82,7 @@ var (
 	renamedUint64Val     renamedUint64
 	renamedUintptrVal    renamedUintptr
 	renamedStringVal     renamedString
+	renamedBytesVal      renamedBytes
 	renamedFloatVal      renamedFloat
 	renamedFloat32Val    renamedFloat32
 	renamedFloat64Val    renamedFloat64
@@ -140,6 +143,7 @@ var scanTests = []ScanTest{
 	ScanTest{"2.3e1\n", &float32Val, float32(2.3e1)},
 	ScanTest{"2.3e2\n", &float64Val, float64(2.3e2)},
 	ScanTest{"2.35\n", &stringVal, "2.35"},
+	ScanTest{"2345678\n", &bytesVal, []byte("2345678")},
 	ScanTest{"(3.4e1-2i)\n", &complexVal, 3.4e1 - 2i},
 	ScanTest{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
 	ScanTest{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
@@ -162,6 +166,7 @@ var scanTests = []ScanTest{
 	ScanTest{"112\n", &renamedUint64Val, renamedUint64(112)},
 	ScanTest{"113\n", &renamedUintptrVal, renamedUintptr(113)},
 	ScanTest{"114\n", &renamedStringVal, renamedString("114")},
+	ScanTest{"115\n", &renamedBytesVal, renamedBytes([]byte("115"))},
 
 	// Custom scanner.
 	ScanTest{"  xxx ", &xVal, Xs("xxx")},
@@ -196,6 +201,12 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%q", `"quoted\twith\\do\u0075bl\x65s"` + "\n", &stringVal, "quoted\twith\\doubles"},
 	ScanfTest{"%q", "`quoted with backs`\n", &stringVal, "quoted with backs"},
 
+	// Byte slices
+	ScanfTest{"%s", "bytes-%s\n", &bytesVal, []byte("bytes-%s")},
+	ScanfTest{"%x", "62797465732d2578\n", &bytesVal, []byte("bytes-%x")},
+	ScanfTest{"%q", `"bytes\rwith\vdo\u0075bl\x65s"` + "\n", &bytesVal, []byte("bytes\rwith\vdoubles")},
+	ScanfTest{"%q", "`bytes with backs`\n", &bytesVal, []byte("bytes with backs")},
+
 	// Renamed types
 	ScanfTest{"%v\n", "true\n", &renamedBoolVal, renamedBool(true)},
 	ScanfTest{"%t\n", "F\n", &renamedBoolVal, renamedBool(false)},
@@ -213,6 +224,7 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%d", "112\n", &renamedUint64Val, renamedUint64(112)},
 	ScanfTest{"%d", "113\n", &renamedUintptrVal, renamedUintptr(113)},
 	ScanfTest{"%s", "114\n", &renamedStringVal, renamedString("114")},
+	ScanfTest{"%q", "\"1155\"\n", &renamedBytesVal, renamedBytes([]byte("1155"))},
 	ScanfTest{"%g", "115.1\n", &renamedFloatVal, renamedFloat(115.1)},
 	ScanfTest{"%g", "116e1\n", &renamedFloat32Val, renamedFloat32(116e1)},
 	ScanfTest{"%g", "-11.7e+1", &renamedFloat64Val, renamedFloat64(-11.7e+1)},
