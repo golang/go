@@ -10,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"unicode"
 	"utf8"
 )
@@ -41,31 +42,52 @@ type Scanner interface {
 	Scan(ScanState) os.Error
 }
 
-// Scan parses text read from standard input, storing successive
-// space-separated values into successive arguments.  Newlines count as
-// space.  Each argument must be a pointer to a basic type or an
-// implementation of the Scanner interface.  It returns the number of items
-// successfully parsed.  If that is less than the number of arguments, err
-// will report why.
+// Scan scans text read from standard input, storing successive
+// space-separated values into successive arguments.  Newlines count
+// as space.  It returns the number of items successfully scanned.
+// If that is less than the number of arguments, err will report why.
 func Scan(a ...interface{}) (n int, err os.Error) {
 	return Fscan(os.Stdin, a)
 }
 
-// Fscanln parses text read from standard input, storing successive
-// space-separated values into successive arguments.  Scanning stops at a
-// newline and after the final item there must be a newline or EOF.  Each
-// argument must be a pointer to a basic type or an implementation of the
-// Scanner interface.  It returns the number of items successfully parsed.
-// If that is less than the number of arguments, err will report why.
+// Scanln is similar to Scan, but stops scanning at a newline and
+// after the final item there must be a newline or EOF.
 func Scanln(a ...interface{}) (n int, err os.Error) {
 	return Fscanln(os.Stdin, a)
 }
 
-// Fscan parses text read from r, storing successive space-separated values
-// into successive arguments.  Newlines count as space.  Each argument must
-// be a pointer to a basic type or an implementation of the Scanner
-// interface.  It returns the number of items successfully parsed.  If that
-// is less than the number of arguments, err will report why.
+// Scanf scans text read from standard input, storing successive
+// space-separated values into successive arguments as determined by
+// the format.  It returns the number of items successfully scanned.
+func Scanf(format string, a ...interface{}) (n int, err os.Error) {
+	return Fscanf(os.Stdin, format, a)
+}
+
+// Sscan scans the argument string, storing successive space-separated
+// values into successive arguments.  Newlines count as space.  It
+// returns the number of items successfully scanned.  If that is less
+// than the number of arguments, err will report why.
+func Sscan(str string, a ...interface{}) (n int, err os.Error) {
+	return Fscan(strings.NewReader(str), a)
+}
+
+// Sscanln is similar to Sscan, but stops scanning at a newline and
+// after the final item there must be a newline or EOF.
+func Sscanln(str string, a ...interface{}) (n int, err os.Error) {
+	return Fscanln(strings.NewReader(str), a)
+}
+
+// Sscanf scans the argument string, storing successive space-separated
+// values into successive arguments as determined by the format.  It
+// returns the number of items successfully parsed.
+func Sscanf(str string, format string, a ...interface{}) (n int, err os.Error) {
+	return Fscanf(strings.NewReader(str), format, a)
+}
+
+// Fscan scans text read from r, storing successive space-separated
+// values into successive arguments.  Newlines count as space.  It
+// returns the number of items successfully scanned.  If that is less
+// than the number of arguments, err will report why.
 func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	s := newScanState(r, true)
 	n, err = s.doScan(a)
@@ -73,12 +95,8 @@ func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	return
 }
 
-// Fscanln parses text read from r, storing successive space-separated values
-// into successive arguments.  Scanning stops at a newline and after the
-// final item there must be a newline or EOF.  Each argument must be a
-// pointer to a basic type or an implementation of the Scanner interface.  It
-// returns the number of items successfully parsed.  If that is less than the
-// number of arguments, err will report why.
+// Fscanln is similar to Fscan, but stops scanning at a newline and
+// after the final item there must be a newline or EOF.
 func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	s := newScanState(r, false)
 	n, err = s.doScan(a)
@@ -86,13 +104,10 @@ func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
 	return
 }
 
-// XXXScanf is incomplete, do not use.
-func XXXScanf(format string, a ...interface{}) (n int, err os.Error) {
-	return XXXFscanf(os.Stdin, format, a)
-}
-
-// XXXFscanf is incomplete, do not use.
-func XXXFscanf(r io.Reader, format string, a ...interface{}) (n int, err os.Error) {
+// Fscanf scans text read from r, storing successive space-separated
+// values into successive arguments as determined by the format.  It
+// returns the number of items successfully parsed.
+func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err os.Error) {
 	s := newScanState(r, false)
 	n, err = s.doScanf(format, a)
 	s.free()
@@ -723,6 +738,53 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err os.Error) {
 	return
 }
 
+// advance determines whether the next characters in the input matches
+// those of the format.  It returns the number of bytes (sic) consumed
+// in the format. Newlines included, all runs of space characters in
+// either input or format behave as a single space. This routines also
+// handles the %% case.  If the return value is zero, either the format
+// is sitting on a % or the input is empty.
+func (s *ss) advance(format string) (i int) {
+	for i < len(format) {
+		fmtc, w := utf8.DecodeRuneInString(format[i:])
+		if fmtc == '%' {
+			// %% acts like a real percent
+			nextc, _ := utf8.DecodeRuneInString(format[i+w:]) // will not match % if string is empty
+			if nextc != '%' {
+				return
+			}
+			i += w // skip the first %
+		}
+		sawSpace := false
+		for unicode.IsSpace(fmtc) && i < len(format) {
+			sawSpace = true
+			i += w
+			fmtc, w = utf8.DecodeRuneInString(format[i:])
+		}
+		if sawSpace {
+			// There was space in the format, so there should be space (EOF)
+			// in the input.
+			inputc := s.getRune()
+			if inputc == EOF {
+				return
+			}
+			if !unicode.IsSpace(inputc) {
+				// Space in format but not in input: error
+				s.errorString("expected space in input to match format")
+			}
+			s.skipSpace()
+			continue
+		}
+		inputc := s.mustGetRune()
+		if fmtc != inputc {
+			s.UngetRune(inputc)
+			return
+		}
+		i += w
+	}
+	return
+}
+
 // doScanf does the real work when scanning with a format string.
 //  At the moment, it handles only pointers to basic types.
 func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.Error) {
@@ -730,21 +792,24 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.E
 	end := len(format) - 1
 	// We process one item per non-trivial format
 	for i := 0; i <= end; {
-		c, w := utf8.DecodeRuneInString(format[i:])
-		if c != '%' || i == end {
-			// TODO: WHAT NOW?
+		w := s.advance(format[i:])
+		if w > 0 {
 			i += w
 			continue
 		}
-		i++
-		// TODO: FLAGS
-		c, w = utf8.DecodeRuneInString(format[i:])
-		i += w
-		// percent is special - absorbs no operand
-		if c == '%' {
-			// TODO: WHAT NOW?
-			continue
+		// Either we have a percent character or we ran out of input.
+		if format[i] != '%' {
+			// Out of format.  Have we run out of input?
+			if i < len(a) {
+				s.errorString("too many arguments for format")
+			}
+			break
 		}
+		i++ // % is one byte
+
+		// TODO: FLAGS
+		c, w := utf8.DecodeRuneInString(format[i:])
+		i += w
 
 		if numProcessed >= len(a) { // out of operands
 			s.errorString("too few operands for format %" + format[i-w:])
