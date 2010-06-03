@@ -26,6 +26,14 @@ type ScanfTest struct {
 	out    interface{}
 }
 
+type ScanfMultiTest struct {
+	format string
+	text   string
+	in     []interface{}
+	out    []interface{}
+	err    string
+}
+
 type (
 	renamedBool       bool
 	renamedInt        int
@@ -65,6 +73,7 @@ var (
 	float32Val           float32
 	float64Val           float64
 	stringVal            string
+	stringVal1           string
 	bytesVal             []byte
 	complexVal           complex
 	complex64Val         complex64
@@ -91,17 +100,29 @@ var (
 	renamedComplex128Val renamedComplex128
 )
 
-// Xs accepts any non-empty run of x's.
-var xPat = testing.MustCompile("x+")
-
+// Xs accepts any non-empty run of the verb character
 type Xs string
 
-func (x *Xs) Scan(state ScanState) os.Error {
-	tok, err := state.Token()
+func (x *Xs) Scan(state ScanState, verb int) os.Error {
+	var tok string
+	var c int
+	var err os.Error
+	wid, present := state.Width()
+	if !present {
+		tok, err = state.Token()
+	} else {
+		for i := 0; i < wid; i++ {
+			c, err = state.GetRune()
+			if err != nil {
+				break
+			}
+			tok += string(c)
+		}
+	}
 	if err != nil {
 		return err
 	}
-	if !xPat.MatchString(tok) {
+	if !testing.MustCompile(string(verb) + "+").MatchString(tok) {
 		return os.ErrorString("syntax error for xs")
 	}
 	*x = Xs(tok)
@@ -169,7 +190,7 @@ var scanTests = []ScanTest{
 	ScanTest{"115\n", &renamedBytesVal, renamedBytes([]byte("115"))},
 
 	// Custom scanner.
-	ScanTest{"  xxx ", &xVal, Xs("xxx")},
+	ScanTest{"  vvv ", &xVal, Xs("vvv")},
 }
 
 var scanfTests = []ScanfTest{
@@ -178,7 +199,7 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%v", "-71\n", &intVal, -71},
 	ScanfTest{"%d", "72\n", &intVal, 72},
 	ScanfTest{"%d", "73\n", &int8Val, int8(73)},
-	ScanfTest{"%d", "-74\n", &int16Val, int16(-74)},
+	ScanfTest{"%d", "+74\n", &int16Val, int16(74)},
 	ScanfTest{"%d", "75\n", &int32Val, int32(75)},
 	ScanfTest{"%d", "76\n", &int64Val, int64(76)},
 	ScanfTest{"%b", "1001001\n", &intVal, 73},
@@ -236,7 +257,12 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"here is\tthe value:%d", "here is   the\tvalue:118\n", &intVal, 118},
 	ScanfTest{"%% %%:%d", "% %:119\n", &intVal, 119},
 
+	// Corner cases
 	ScanfTest{"%x", "FFFFFFFF\n", &uint32Val, uint32(0xFFFFFFFF)},
+
+	// Custom scanner.
+	ScanfTest{"%s", "  sss ", &xVal, Xs("sss")},
+	ScanfTest{"%2s", "sssss", &xVal, Xs("ss")},
 }
 
 var overflowTests = []ScanTest{
@@ -251,6 +277,34 @@ var overflowTests = []ScanTest{
 	ScanTest{"(1e100+0i)", &complexVal, 0},
 	ScanTest{"(1+1e100i)", &complex64Val, 0},
 	ScanTest{"(1-1e500i)", &complex128Val, 0},
+}
+
+var i, j, k int
+var f float
+var s, t string
+var c complex
+var x, y Xs
+
+func args(a ...interface{}) []interface{} { return a }
+
+var multiTests = []ScanfMultiTest{
+	ScanfMultiTest{"", "", nil, nil, ""},
+	ScanfMultiTest{"%d", "23", args(&i), args(23), ""},
+	ScanfMultiTest{"%2s%3s", "22333", args(&s, &t), args("22", "333"), ""},
+	ScanfMultiTest{"%2d%3d", "44555", args(&i, &j), args(44, 555), ""},
+	ScanfMultiTest{"%2d.%3d", "66.777", args(&i, &j), args(66, 777), ""},
+	ScanfMultiTest{"%d, %d", "23, 18", args(&i, &j), args(23, 18), ""},
+	ScanfMultiTest{"%3d22%3d", "33322333", args(&i, &j), args(333, 333), ""},
+	ScanfMultiTest{"%6vX=%3fY", "3+2iX=2.5Y", args(&c, &f), args((3 + 2i), float(2.5)), ""},
+	ScanfMultiTest{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
+
+	// Custom scanner.
+	ScanfMultiTest{"%2e%f", "eefffff", []interface{}{&x, &y}, []interface{}{Xs("ee"), Xs("fffff")}, ""},
+
+	// Errors
+	ScanfMultiTest{"%t", "23 18", []interface{}{&i}, nil, "bad verb"},
+	ScanfMultiTest{"%d %d %d", "23 18", []interface{}{&i, &j}, []interface{}{23, 18}, "too few operands"},
+	ScanfMultiTest{"%d %d", "23 18 27", []interface{}{&i, &j, &k}, []interface{}{23, 18}, "too many operands"},
 }
 
 func testScan(t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Error)) {
@@ -323,40 +377,59 @@ func TestScanOverflow(t *testing.T) {
 	}
 }
 
+// TODO: there's no conversion from []T to ...T, but we can fake it.  These
+// functions do the faking.  We index the table by the length of the param list.
+var scanf = []func(string, string, []interface{}) (int, os.Error){
+	0: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f) },
+	1: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0]) },
+	2: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0], i[1]) },
+	3: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0], i[1], i[2]) },
+}
+
+func TestScanfMulti(t *testing.T) {
+	sliceType := reflect.Typeof(make([]interface{}, 1)).(*reflect.SliceType)
+	for _, test := range multiTests {
+		n, err := scanf[len(test.in)](test.text, test.format, test.in)
+		if err != nil {
+			if test.err == "" {
+				t.Errorf("got error scanning (%q, %q): %q", test.format, test.text, err)
+			} else if strings.Index(err.String(), test.err) < 0 {
+				t.Errorf("got wrong error scanning (%q, %q): %q; expected %q", test.format, test.text, err, test.err)
+			}
+			continue
+		}
+		if test.err != "" {
+			t.Errorf("expected error %q error scanning (%q, %q)", test.err, test.format, test.text)
+		}
+		if n != len(test.out) {
+			t.Errorf("count error on entry (%q, %q): expected %d got %d", test.format, test.text, len(test.out), n)
+			continue
+		}
+		// Convert the slice of pointers into a slice of values
+		resultVal := reflect.MakeSlice(sliceType, n, n)
+		for i := 0; i < n; i++ {
+			v := reflect.NewValue(test.in[i]).(*reflect.PtrValue).Elem()
+			resultVal.Elem(i).(*reflect.InterfaceValue).Set(v)
+		}
+		result := resultVal.Interface()
+		if !reflect.DeepEqual(result, test.out) {
+			t.Errorf("scanning (%q, %q): expected %v got %v", test.format, test.text, test.out, result)
+		}
+	}
+}
+
 func TestScanMultiple(t *testing.T) {
-	text := "1 2 3"
-	r := strings.NewReader(text)
-	var a, b, c, d int
-	n, err := Fscan(r, &a, &b, &c)
-	if n != 3 {
-		t.Errorf("Fscan count error: expected 3: got %d", n)
+	var a int
+	var s string
+	n, err := Sscan("123abc", &a, &s)
+	if n != 2 {
+		t.Errorf("Sscan count error: expected 2: got %d", n)
 	}
 	if err != nil {
-		t.Errorf("Fscan expected no error scanning %q; got %s", text, err)
+		t.Errorf("Sscan expected no error; got %s", err)
 	}
-	text = "1 2 3 x"
-	r = strings.NewReader(text)
-	n, err = Fscan(r, &a, &b, &c, &d)
-	if n != 3 {
-		t.Errorf("Fscan count error: expected 3: got %d", n)
-	}
-	if err == nil {
-		t.Errorf("Fscan expected error scanning %q", text)
-	}
-	text = "1 2 3 x"
-	r = strings.NewReader(text)
-	n, err = Fscanf(r, "%d %d %d\n", &a, &b, &c, &d)
-	if n != 3 {
-		t.Errorf("Fscanf count error: expected 3: got %d", n)
-	}
-	text = "1 2"
-	r = strings.NewReader(text)
-	n, err = Fscanf(r, "%d %d %d\n", &a, &b, &c, &d)
-	if n != 2 {
-		t.Errorf("Fscanf count error: expected 2: got %d", n)
-	}
-	if err == nil {
-		t.Errorf("Fscanf expected error scanning %q", text)
+	if a != 123 || s != "abc" {
+		t.Errorf("Sscan wrong values: got (%d %q) expected (123 \"abc\")", a, s)
 	}
 }
 

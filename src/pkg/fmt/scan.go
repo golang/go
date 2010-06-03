@@ -30,7 +30,12 @@ type ScanState interface {
 	GetRune() (rune int, err os.Error)
 	// UngetRune causes the next call to GetRune to return the rune.
 	UngetRune(rune int)
-	// Token returns the next space-delimited token from the input.
+	// Width returns the value of the width option and whether it has been set.
+	// The unit is Unicode code points.
+	Width() (wid int, ok bool)
+	// Token returns the next space-delimited token from the input. If
+	// a width has been specified, the returned token will be no longer
+	// than the width.
 	Token() (token string, err os.Error)
 }
 
@@ -39,7 +44,7 @@ type ScanState interface {
 // receiver, which must be a pointer to be useful.  The Scan method is called
 // for any argument to Scan or Scanln that implements it.
 type Scanner interface {
-	Scan(ScanState) os.Error
+	Scan(state ScanState, verb int) os.Error
 }
 
 // Scan scans text read from standard input, storing successive
@@ -122,10 +127,13 @@ type scanError struct {
 
 // ss is the internal implementation of ScanState.
 type ss struct {
-	rr        readRuner    // where to read input
-	buf       bytes.Buffer // token accumulator
-	nlIsSpace bool         // whether newline counts as white space
-	peekRune  int          // one-rune lookahead
+	rr         readRuner    // where to read input
+	buf        bytes.Buffer // token accumulator
+	nlIsSpace  bool         // whether newline counts as white space
+	peekRune   int          // one-rune lookahead
+	maxWid     int          // max width of field, in runes
+	widPresent bool         // width was specified
+	wid        int          // width consumed so far; used in accept()
 }
 
 func (s *ss) GetRune() (rune int, err os.Error) {
@@ -136,6 +144,10 @@ func (s *ss) GetRune() (rune int, err os.Error) {
 	}
 	rune, _, err = s.rr.ReadRune()
 	return
+}
+
+func (s *ss) Width() (wid int, ok bool) {
+	return s.maxWid, s.widPresent
 }
 
 const EOF = -1
@@ -257,6 +269,8 @@ func newScanState(r io.Reader, nlIsSpace bool) *ss {
 	}
 	s.nlIsSpace = nlIsSpace
 	s.peekRune = -1
+	s.maxWid = 0
+	s.widPresent = false
 	return s
 }
 
@@ -273,7 +287,6 @@ func (s *ss) free() {
 
 // skipSpace skips spaces and maybe newlines
 func (s *ss) skipSpace() {
-	s.buf.Reset()
 	for {
 		rune := s.getRune()
 		if rune == EOF {
@@ -293,13 +306,13 @@ func (s *ss) skipSpace() {
 	}
 }
 
-// token returns the next space-delimited string from the input.
-// For Scanln, it stops at newlines.  For Scan, newlines are treated as
-// spaces.
+// token returns the next space-delimited string from the input.  It
+// skips white space.  For Scanln, it stops at newlines.  For Scan,
+// newlines are treated as spaces.
 func (s *ss) token() string {
 	s.skipSpace()
 	// read until white space or newline
-	for {
+	for nrunes := 0; !s.widPresent || nrunes < s.maxWid; nrunes++ {
 		rune := s.getRune()
 		if rune == EOF {
 			break
@@ -321,6 +334,30 @@ func (s *ss) typeError(field interface{}, expected string) {
 var intBits = uint(reflect.Typeof(int(0)).Size() * 8)
 var uintptrBits = uint(reflect.Typeof(int(0)).Size() * 8)
 var complexError = os.ErrorString("syntax error scanning complex number")
+var boolError = os.ErrorString("syntax error scanning boolean")
+
+// accepts checks the next rune in the input.  If it's a byte (sic) in the string, it puts it in the
+// buffer and returns true. Otherwise it return false.
+func (s *ss) accept(ok string) bool {
+	if s.wid >= s.maxWid {
+		return false
+	}
+	rune := s.getRune()
+	if rune == EOF {
+		return false
+	}
+	for i := 0; i < len(ok); i++ {
+		if int(ok[i]) == rune {
+			s.buf.WriteRune(rune)
+			s.wid++
+			return true
+		}
+	}
+	if rune != EOF {
+		s.UngetRune(rune)
+	}
+	return false
+}
 
 // okVerb verifies that the verb is present in the list, setting s.err appropriately if not.
 func (s *ss) okVerb(verb int, okVerbs, typ string) bool {
@@ -338,34 +375,73 @@ func (s *ss) scanBool(verb int) bool {
 	if !s.okVerb(verb, "tv", "boolean") {
 		return false
 	}
-	tok := s.token()
-	b, err := strconv.Atob(tok)
-	if err != nil {
-		s.error(err)
+	// Syntax-checking a boolean is annoying.  We're not fastidious about case.
+	switch s.mustGetRune() {
+	case '0':
+		return false
+	case '1':
+		return true
+	case 't', 'T':
+		if s.accept("rR") && (!s.accept("uU") || !s.accept("eE")) {
+			s.error(boolError)
+		}
+		return true
+	case 'f', 'F':
+		if s.accept("aL") && (!s.accept("lL") || !s.accept("sS") || !s.accept("eE")) {
+			s.error(boolError)
+		}
+		return false
 	}
-	return b
+	return false
 }
 
-// getBase returns the numeric base represented by the verb.
-func (s *ss) getBase(verb int) int {
+// Numerical elements
+const (
+	binaryDigits      = "01"
+	octalDigits       = "01234567"
+	decimalDigits     = "0123456789"
+	hexadecimalDigits = "0123456789aAbBcCdDeEfF"
+	sign              = "+-"
+	period            = "."
+	exponent          = "eE"
+)
+
+// getBase returns the numeric base represented by the verb and its digit string.
+func (s *ss) getBase(verb int) (base int, digits string) {
 	s.okVerb(verb, "bdoxXv", "integer") // sets s.err
-	base := 10
+	base = 10
+	digits = decimalDigits
 	switch verb {
 	case 'b':
 		base = 2
+		digits = binaryDigits
 	case 'o':
 		base = 8
+		digits = octalDigits
 	case 'x', 'X':
 		base = 16
+		digits = hexadecimalDigits
 	}
-	return base
+	return
+}
+
+// scanNumber returns the numerical string with specified digits starting here.
+func (s *ss) scanNumber(digits string) string {
+	if !s.accept(digits) {
+		s.errorString("expected integer")
+	}
+	for s.accept(digits) {
+	}
+	return s.buf.String()
 }
 
 // scanInt returns the value of the integer represented by the next
 // token, checking for overflow.  Any error is stored in s.err.
 func (s *ss) scanInt(verb int, bitSize uint) int64 {
-	base := s.getBase(verb)
-	tok := s.token()
+	base, digits := s.getBase(verb)
+	s.skipSpace()
+	s.accept(sign) // If there's a sign, it will be left in the token buffer.
+	tok := s.scanNumber(digits)
 	i, err := strconv.Btoi64(tok, base)
 	if err != nil {
 		s.error(err)
@@ -380,8 +456,9 @@ func (s *ss) scanInt(verb int, bitSize uint) int64 {
 // scanUint returns the value of the unsigned integer represented
 // by the next token, checking for overflow.  Any error is stored in s.err.
 func (s *ss) scanUint(verb int, bitSize uint) uint64 {
-	base := s.getBase(verb)
-	tok := s.token()
+	base, digits := s.getBase(verb)
+	s.skipSpace()
+	tok := s.scanNumber(digits)
 	i, err := strconv.Btoui64(tok, base)
 	if err != nil {
 		s.error(err)
@@ -393,56 +470,55 @@ func (s *ss) scanUint(verb int, bitSize uint) uint64 {
 	return i
 }
 
-// complexParts returns the strings representing the real and imaginary parts of the string.
-func (s *ss) complexParts(str string) (real, imag string) {
-	if len(str) > 2 && str[0] == '(' && str[len(str)-1] == ')' {
-		str = str[1 : len(str)-1]
-	}
-	real, str = floatPart(str)
-	// Must now have a sign.
-	if len(str) == 0 || (str[0] != '+' && str[0] != '-') {
-		s.error(complexError)
-	}
-	imag, str = floatPart(str)
-	if str != "i" {
-		s.error(complexError)
-	}
-	return real, imag
-}
-
-// floatPart returns strings holding the floating point value in the string, followed
-// by the remainder of the string.  That is, it splits str into (number,rest-of-string).
-func floatPart(str string) (first, last string) {
-	i := 0
+// floatToken returns the floating-point number starting here, no longer than swid
+// if the width is specified. It's not rigorous about syntax because it doesn't check that
+// we have at least some digits, but Atof will do that.
+func (s *ss) floatToken() string {
+	s.buf.Reset()
 	// leading sign?
-	if len(str) > i && (str[0] == '+' || str[0] == '-') {
-		i++
-	}
+	s.accept(sign)
 	// digits?
-	for len(str) > i && '0' <= str[i] && str[i] <= '9' {
-		i++
+	for s.accept(decimalDigits) {
 	}
-	// period?
-	if str[i] == '.' {
-		i++
-	}
-	// fraction?
-	for len(str) > i && '0' <= str[i] && str[i] <= '9' {
-		i++
+	// decimal point?
+	if s.accept(period) {
+		// fraction?
+		for s.accept(decimalDigits) {
+		}
 	}
 	// exponent?
-	if len(str) > i && (str[i] == 'e' || str[i] == 'E') {
-		i++
+	if s.accept(exponent) {
 		// leading sign?
-		if str[i] == '+' || str[i] == '-' {
-			i++
-		}
+		s.accept(sign)
 		// digits?
-		for len(str) > i && '0' <= str[i] && str[i] <= '9' {
-			i++
+		for s.accept(decimalDigits) {
 		}
 	}
-	return str[0:i], str[i:]
+	return s.buf.String()
+}
+
+// complexTokens returns the real and imaginary parts of the complex number starting here.
+// The number might be parenthesized and has the format (N+Ni) where N is a floating-point
+// number and there are no spaces within.
+func (s *ss) complexTokens() (real, imag string) {
+	// TODO: accept N and Ni independently?
+	parens := s.accept("(")
+	real = s.floatToken()
+	s.buf.Reset()
+	// Must now have a sign.
+	if !s.accept("+-") {
+		s.error(complexError)
+	}
+	// Sign is now in buffer
+	imagSign := s.buf.String()
+	imag = s.floatToken()
+	if !s.accept("i") {
+		s.error(complexError)
+	}
+	if parens && !s.accept(")") {
+		s.error(complexError)
+	}
+	return real, imagSign + imag
 }
 
 // convertFloat converts the string to a float value.
@@ -480,8 +556,8 @@ func (s *ss) scanComplex(verb int, atof func(*ss, string) float64) complex128 {
 	if !s.okVerb(verb, floatVerbs, "complex") {
 		return 0
 	}
-	tok := s.token()
-	sreal, simag := s.complexParts(tok)
+	s.skipSpace()
+	sreal, simag := s.complexTokens()
 	real := atof(s, sreal)
 	imag := atof(s, simag)
 	return cmplx(real, imag)
@@ -503,7 +579,7 @@ func (s *ss) convertString(verb int) string {
 	return s.token() // %s and %v just return the next word
 }
 
-// quotedString returns the double- or back-quoted string.
+// quotedString returns the double- or back-quoted string represented by the next input characters.
 func (s *ss) quotedString() string {
 	quote := s.mustGetRune()
 	switch quote {
@@ -593,15 +669,20 @@ const floatVerbs = "eEfFgGv"
 
 // scanOne scans a single value, deriving the scanner from the type of the argument.
 func (s *ss) scanOne(verb int, field interface{}) {
+	s.buf.Reset()
 	var err os.Error
 	// If the parameter has its own Scan method, use that.
 	if v, ok := field.(Scanner); ok {
-		err = v.Scan(s)
+		err = v.Scan(s, verb)
 		if err != nil {
 			s.error(err)
 		}
 		return
 	}
+	if !s.widPresent {
+		s.maxWid = 1 << 30 // Huge
+	}
+	s.wid = 0
 	switch v := field.(type) {
 	case *bool:
 		*v = s.scanBool(verb)
@@ -637,15 +718,18 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	// scan in high precision and convert, in order to preserve the correct error condition.
 	case *float:
 		if s.okVerb(verb, floatVerbs, "float") {
-			*v = float(s.convertFloat(s.token()))
+			s.skipSpace()
+			*v = float(s.convertFloat(s.floatToken()))
 		}
 	case *float32:
 		if s.okVerb(verb, floatVerbs, "float32") {
-			*v = float32(s.convertFloat32(s.token()))
+			s.skipSpace()
+			*v = float32(s.convertFloat32(s.floatToken()))
 		}
 	case *float64:
 		if s.okVerb(verb, floatVerbs, "float64") {
-			*v = s.convertFloat64(s.token())
+			s.skipSpace()
+			*v = s.convertFloat64(s.floatToken())
 		}
 	case *string:
 		*v = s.convertString(verb)
@@ -699,11 +783,14 @@ func (s *ss) scanOne(verb int, field interface{}) {
 				v.Elem(i).(*reflect.Uint8Value).Set(str[i])
 			}
 		case *reflect.FloatValue:
-			v.Set(float(s.convertFloat(s.token())))
+			s.skipSpace()
+			v.Set(float(s.convertFloat(s.floatToken())))
 		case *reflect.Float32Value:
-			v.Set(float32(s.convertFloat(s.token())))
+			s.skipSpace()
+			v.Set(float32(s.convertFloat(s.floatToken())))
 		case *reflect.Float64Value:
-			v.Set(s.convertFloat(s.token()))
+			s.skipSpace()
+			v.Set(s.convertFloat(s.floatToken()))
 		case *reflect.ComplexValue:
 			v.Set(complex(s.scanComplex(verb, (*ss).convertFloat)))
 		case *reflect.Complex64Value:
@@ -823,7 +910,9 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.E
 		}
 		i++ // % is one byte
 
-		// TODO: FLAGS
+		// do we have 20 (width)?
+		s.maxWid, s.widPresent, i = parsenum(format, i, end)
+
 		c, w := utf8.DecodeRuneInString(format[i:])
 		i += w
 
@@ -835,6 +924,9 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.E
 
 		s.scanOne(c, field)
 		numProcessed++
+	}
+	if numProcessed < len(a) {
+		s.errorString("too many operands")
 	}
 	return
 }

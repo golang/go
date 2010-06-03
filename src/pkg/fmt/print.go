@@ -80,12 +80,11 @@
 	Scanning:
 
 	An analogous set of functions scans formatted text to yield
-	values.  Scan and Scanln read from os.Stdin; Fscan and Fscanln
-	read from a specified os.Reader; Sscan and Sscanln read from
-	an argument string.  By default, tokens are separated by
-	spaces.  Sscanln, Fscanln and Sscanln stop scanning at a
-	newline and require that the items be followed by one; the
-	other routines treat newlines as spaces.
+	values.  Scan and Scanln read from os.Stdin; Fscan and
+	Fscanln read from a specified os.Reader; Sscan and Sscanln
+	read from an argument string.  Sscanln, Fscanln and Sscanln
+	stop scanning at a newline and require that the items be
+	followed by one; the other routines treat newlines as spaces.
 
 	Scanf, Fscanf, and Sscanf parse the arguments according to a
 	format string, analogous to that of Printf.  For example, "%x"
@@ -99,6 +98,12 @@
 	%T is not implemented
 	%e %E %f %F %g %g are all equivalent and scan any floating
 		point or complex value
+	%s and %v on strings scan a space-delimited token
+
+	Width is interpreted in the input text (%5s means at most
+	five runes of input will be read to scan a string) but there
+	is no syntax for scanning with a precision (no %5.2f, just
+	%5f).
 
 	When scanning with a format, all non-empty runs of space
 	characters (including newline) are equivalent to a single
@@ -117,8 +122,6 @@
 	types or implementations of the Scanner interface.
 */
 package fmt
-
-// BUG: format precision and flags are not yet implemented for scanning.
 
 import (
 	"bytes"
