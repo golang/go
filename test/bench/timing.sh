@@ -119,6 +119,7 @@ regexdna() {
 	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
 #	run 'gccgo -O2 regex-dna.go' a.out <x	# pages badly; don't run
 	run 'gc regex-dna' $O.out <x
+	run 'gc regex-dna-parallel' $O.out <x
 	run 'gc_B regex-dna' $O.out <x
 	rm x
 }
