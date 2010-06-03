@@ -50,7 +50,7 @@ func importReceive(imp *Importer, t *testing.T) {
 		v := <-ch
 		if closed(ch) {
 			if i != closeCount {
-				t.Errorf("expected close at %d; got one at %d\n", count/2, i)
+				t.Errorf("expected close at %d; got one at %d\n", closeCount, i)
 			}
 			break
 		}
