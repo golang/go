@@ -9,13 +9,37 @@ func isOddInt(x float64) bool {
 	return xf == 0 && int64(xi)&1 == 1
 }
 
+// Special cases taken from FreeBSD's /usr/src/lib/msun/src/e_pow.c
+// updated by IEEE Std. 754-2008 "Section 9.2.1 Special values".
+
 // Pow returns x**y, the base-x exponential of y.
+//
+// Special cases are (in order):
+//	Pow(x, ±0) = 1 for any x
+//	Pow(1, y) = 1 for any y
+//	Pow(x, 1) = x for any x
+//	Pow(NaN, y) = NaN
+//	Pow(x, NaN) = NaN
+//	Pow(±0, y) = ±Inf for y an odd integer < 0
+//	Pow(±0, -Inf) = +Inf
+//	Pow(±0, +Inf) = +0
+//	Pow(±0, y) = +Inf for finite y < 0 and not an odd integer
+//	Pow(±0, y) = ±0 for y an odd integer > 0
+//	Pow(±0, y) = +0 for finite y > 0 and not an odd integer
+//	Pow(-1, ±Inf) = 1
+//	Pow(x, +Inf) = +Inf for |x| > 1
+//	Pow(x, -Inf) = +0 for |x| > 1
+//	Pow(x, +Inf) = +0 for |x| < 1
+//	Pow(x, -Inf) = +Inf for |x| < 1
+//	Pow(+Inf, y) = +Inf for y > 0
+//	Pow(+Inf, y) = +0 for y < 0
+//	Pow(-Inf, y) = Pow(-0, -y)
+//	Pow(x, y) = NaN for finite x < 0 and finite non-integer y
 func Pow(x, y float64) float64 {
-	// TODO:  maybe ±0.
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
 	switch {
-	case y == 0:
+	case y == 0 || x == 1:
 		return 1
 	case y == 1:
 		return x
@@ -28,43 +52,34 @@ func Pow(x, y float64) float64 {
 	case x == 0:
 		switch {
 		case y < 0:
+			if isOddInt(y) {
+				return Copysign(Inf(1), x)
+			}
 			return Inf(1)
 		case y > 0:
+			if isOddInt(y) {
+				return x
+			}
 			return 0
 		}
 	case y > MaxFloat64 || y < -MaxFloat64: // IsInf(y, 0):
 		switch {
-		case Fabs(x) == 1:
-			return NaN()
-		case Fabs(x) < 1:
-			switch {
-			case IsInf(y, -1):
-				return Inf(1)
-			case IsInf(y, 1):
-				return 0
-			}
-		case Fabs(x) > 1:
-			switch {
-			case IsInf(y, -1):
-				return 0
-			case IsInf(y, 1):
-				return Inf(1)
-			}
+		case x == -1:
+			return 1
+		case (Fabs(x) < 1) == IsInf(y, 1):
+			return 0
+		default:
+			return Inf(1)
 		}
 	case x > MaxFloat64 || x < -MaxFloat64: // IsInf(x, 0):
+		if IsInf(x, -1) {
+			return Pow(1/x, -y) // Pow(-0, -y)
+		}
 		switch {
 		case y < 0:
 			return 0
 		case y > 0:
-			switch {
-			case IsInf(x, -1):
-				if isOddInt(y) {
-					return Inf(-1)
-				}
-				return Inf(1)
-			case IsInf(x, 1):
-				return Inf(1)
-			}
+			return Inf(1)
 		}
 	}
 
