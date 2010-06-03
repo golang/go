@@ -26,6 +26,7 @@ import (
 // Errors introduced by the HTTP server.
 var (
 	ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush")
+	ErrBodyNotAllowed  = os.NewError("http: response status code does not allow body")
 	ErrHijacked        = os.NewError("Conn has been hijacked")
 )
 
@@ -138,6 +139,11 @@ func (c *Conn) WriteHeader(code int) {
 	}
 	c.wroteHeader = true
 	c.status = code
+	if code == StatusNotModified {
+		// Must not have body.
+		c.header["Content-Type"] = "", false
+		c.header["Transfer-Encoding"] = "", false
+	}
 	c.written = 0
 	if !c.Req.ProtoAtLeast(1, 0) {
 		return
@@ -171,6 +177,11 @@ func (c *Conn) Write(data []byte) (n int, err os.Error) {
 	}
 	if len(data) == 0 {
 		return 0, nil
+	}
+
+	if c.status == StatusNotModified {
+		// Must not have body.
+		return 0, ErrBodyNotAllowed
 	}
 
 	c.written += int64(len(data)) // ignoring errors, for errorKludge
