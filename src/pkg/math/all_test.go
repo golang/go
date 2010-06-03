@@ -627,26 +627,28 @@ var acosSC = []float64{
 var vfacoshSC = []float64{
 	Inf(-1),
 	0.5,
+	1,
 	Inf(1),
 	NaN(),
 }
 var acoshSC = []float64{
 	NaN(),
 	NaN(),
+	0,
 	Inf(1),
 	NaN(),
 }
 
 var vfasinSC = []float64{
 	-Pi,
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Pi,
 	NaN(),
 }
 var asinSC = []float64{
 	NaN(),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	NaN(),
 	NaN(),
@@ -654,14 +656,14 @@ var asinSC = []float64{
 
 var vfasinhSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var asinhSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -669,14 +671,14 @@ var asinhSC = []float64{
 
 var vfatanSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var atanSC = []float64{
 	-Pi / 2,
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Pi / 2,
 	NaN(),
@@ -686,7 +688,7 @@ var vfatanhSC = []float64{
 	Inf(-1),
 	-Pi,
 	-1,
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	1,
 	Pi,
@@ -697,7 +699,7 @@ var atanhSC = []float64{
 	NaN(),
 	NaN(),
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -715,16 +717,16 @@ var vfatan2SC = [][2]float64{
 	[2]float64{-Pi, 0},
 	[2]float64{-Pi, Inf(1)},
 	[2]float64{-Pi, NaN()},
-	[2]float64{-1 / Inf(1), Inf(-1)},     // -0, -Inf
-	[2]float64{-1 / Inf(1), -Pi},         // -0, -Pi
-	[2]float64{-1 / Inf(1), -1 / Inf(1)}, // -0, -0
-	[2]float64{-1 / Inf(1), 0},           // -0, +0
-	[2]float64{-1 / Inf(1), +Pi},         // -0, +Pi
-	[2]float64{-1 / Inf(1), Inf(1)},      // -0, +Inf
-	[2]float64{-1 / Inf(1), NaN()},       // -0, NaN
+	[2]float64{Copysign(0, -1), Inf(-1)},
+	[2]float64{Copysign(0, -1), -Pi},
+	[2]float64{Copysign(0, -1), Copysign(0, -1)},
+	[2]float64{Copysign(0, -1), 0},
+	[2]float64{Copysign(0, -1), +Pi},
+	[2]float64{Copysign(0, -1), Inf(1)},
+	[2]float64{Copysign(0, -1), NaN()},
 	[2]float64{0, Inf(-1)},
 	[2]float64{0, -Pi},
-	[2]float64{0, -1 / Inf(1)}, // +0, -0
+	[2]float64{0, Copysign(0, -1)},
 	[2]float64{0, 0},
 	[2]float64{0, +Pi},
 	[2]float64{0, Inf(1)},
@@ -742,53 +744,53 @@ var vfatan2SC = [][2]float64{
 	[2]float64{NaN(), NaN()},
 }
 var atan2SC = []float64{
-	-3 * Pi / 4, // atan2(-Inf, -Inf)
-	-Pi / 2,     // atan2(-Inf, -Pi)
-	-Pi / 2,     // atan2(-Inf, +0)
-	-Pi / 2,     // atan2(-Inf, +Pi)
-	-Pi / 4,     // atan2(-Inf, +Inf)
-	NaN(),       // atan2(-Inf, NaN)
-	-Pi,         // atan2(-Pi, -Inf)
-	-Pi / 2,     // atan2(-Pi, +0)
-	-1 / Inf(1), // -0 = atan2(-Pi, Inf)
-	NaN(),       // atan2(-Pi, NaN)
-	-Pi,         // atan2(-0, -Inf)
-	-Pi,         // atan2(-0, -Pi)
-	-Pi,         // atan2(-0, -0)
-	-1 / Inf(1), // atan2(-0, +0)
-	-1 / Inf(1), // atan2(-0, +Pi)
-	-1 / Inf(1), // atan2(-0, +Inf)
-	NaN(),       // atan2(-0, NaN)
-	Pi,          // atan2(+0, -Inf)
-	Pi,          // atan2(+0, -Pi)
-	Pi,          // atan2(+0, -0)
-	0,           // atan2(+0, +0)
-	0,           // atan2(+0, +Pi)
-	0,           // atan2(+0, +Inf)
-	NaN(),       // atan2(+0, NaN)
-	Pi,          // atan2(+Pi, -Inf)
-	Pi / 2,      // atan2(+Pi, +0)
-	0,           // atan2(+Pi, +Inf)
-	NaN(),       // atan2(+Pi, NaN)
-	3 * Pi / 4,  // atan2(+Inf, -Inf)
-	Pi / 2,      // atan2(+Inf, -Pi)
-	Pi / 2,      // atan2(+Inf, +0)
-	Pi / 2,      // atan2(+Inf, +Pi)
-	Pi / 4,      // atan2(+Inf, +Inf)
-	NaN(),       // atan2(+Inf, NaN)
-	NaN(),       // atan2(NaN, NaN)
+	-3 * Pi / 4,     // atan2(-Inf, -Inf)
+	-Pi / 2,         // atan2(-Inf, -Pi)
+	-Pi / 2,         // atan2(-Inf, +0)
+	-Pi / 2,         // atan2(-Inf, +Pi)
+	-Pi / 4,         // atan2(-Inf, +Inf)
+	NaN(),           // atan2(-Inf, NaN)
+	-Pi,             // atan2(-Pi, -Inf)
+	-Pi / 2,         // atan2(-Pi, +0)
+	Copysign(0, -1), // atan2(-Pi, Inf)
+	NaN(),           // atan2(-Pi, NaN)
+	-Pi,             // atan2(-0, -Inf)
+	-Pi,             // atan2(-0, -Pi)
+	-Pi,             // atan2(-0, -0)
+	Copysign(0, -1), // atan2(-0, +0)
+	Copysign(0, -1), // atan2(-0, +Pi)
+	Copysign(0, -1), // atan2(-0, +Inf)
+	NaN(),           // atan2(-0, NaN)
+	Pi,              // atan2(+0, -Inf)
+	Pi,              // atan2(+0, -Pi)
+	Pi,              // atan2(+0, -0)
+	0,               // atan2(+0, +0)
+	0,               // atan2(+0, +Pi)
+	0,               // atan2(+0, +Inf)
+	NaN(),           // atan2(+0, NaN)
+	Pi,              // atan2(+Pi, -Inf)
+	Pi / 2,          // atan2(+Pi, +0)
+	0,               // atan2(+Pi, +Inf)
+	NaN(),           // atan2(+Pi, NaN)
+	3 * Pi / 4,      // atan2(+Inf, -Inf)
+	Pi / 2,          // atan2(+Inf, -Pi)
+	Pi / 2,          // atan2(+Inf, +0)
+	Pi / 2,          // atan2(+Inf, +Pi)
+	Pi / 4,          // atan2(+Inf, +Inf)
+	NaN(),           // atan2(+Inf, NaN)
+	NaN(),           // atan2(NaN, NaN)
 }
 
 var vfcbrtSC = []float64{
 	Inf(-1),
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var cbrtSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -796,14 +798,14 @@ var cbrtSC = []float64{
 
 var vfceilSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var ceilSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -833,7 +835,7 @@ var cosSC = []float64{
 
 var vfcoshSC = []float64{
 	Inf(-1),
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -848,14 +850,14 @@ var coshSC = []float64{
 
 var vferfSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var erfSC = []float64{
 	-1,
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	1,
 	NaN(),
@@ -885,14 +887,14 @@ var expSC = []float64{
 
 var vfexpm1SC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var expm1SC = []float64{
 	-1,
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -900,7 +902,7 @@ var expm1SC = []float64{
 
 var vffabsSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -924,10 +926,10 @@ var vffmodSC = [][2]float64{
 	[2]float64{-Pi, 0},
 	[2]float64{-Pi, Inf(1)},
 	[2]float64{-Pi, NaN()},
-	[2]float64{-1 / Inf(1), Inf(-1)}, // -0, -Inf
-	[2]float64{-1 / Inf(1), 0},       // -0, 0
-	[2]float64{-1 / Inf(1), Inf(1)},  // -0, Inf
-	[2]float64{-1 / Inf(1), NaN()},   // -0, NaN
+	[2]float64{Copysign(0, -1), Inf(-1)},
+	[2]float64{Copysign(0, -1), 0},
+	[2]float64{Copysign(0, -1), Inf(1)},
+	[2]float64{Copysign(0, -1), NaN()},
 	[2]float64{0, Inf(-1)},
 	[2]float64{0, 0},
 	[2]float64{0, Inf(1)},
@@ -950,52 +952,52 @@ var vffmodSC = [][2]float64{
 	[2]float64{NaN(), NaN()},
 }
 var fmodSC = []float64{
-	NaN(),       // fmod(-Inf, -Inf)
-	NaN(),       // fmod(-Inf, -Pi)
-	NaN(),       // fmod(-Inf, 0)
-	NaN(),       // fmod(-Inf, Pi)
-	NaN(),       // fmod(-Inf, +Inf)
-	NaN(),       // fmod(-Inf, NaN)
-	-Pi,         // fmod(-Pi, -Inf)
-	NaN(),       // fmod(-Pi, 0)
-	-Pi,         // fmod(-Pi, +Inf)
-	NaN(),       // fmod(-Pi, NaN)
-	-1 / Inf(1), // -0 = fmod(-0, -Inf)
-	NaN(),       // fmod(-0, 0)
-	-1 / Inf(1), // -0 = fmod(-0, Inf)
-	NaN(),       // fmod(-0, NaN)
-	0,           // fmod(0, -Inf)
-	NaN(),       // fmod(0, 0)
-	0,           // fmod(0, +Inf)
-	NaN(),       // fmod(0, NaN)
-	Pi,          // fmod(Pi, -Inf)
-	NaN(),       // fmod(Pi, 0)
-	Pi,          // fmod(Pi, +Inf)
-	NaN(),       // fmod(Pi, NaN)
-	NaN(),       // fmod(+Inf, -Inf)
-	NaN(),       // fmod(+Inf, -Pi)
-	NaN(),       // fmod(+Inf, 0)
-	NaN(),       // fmod(+Inf, Pi)
-	NaN(),       // fmod(+Inf, +Inf)
-	NaN(),       // fmod(+Inf, NaN)
-	NaN(),       // fmod(NaN, -Inf)
-	NaN(),       // fmod(NaN, -Pi)
-	NaN(),       // fmod(NaN, 0)
-	NaN(),       // fmod(NaN, Pi)
-	NaN(),       // fmod(NaN, +Inf)
-	NaN(),       // fmod(NaN, NaN)
+	NaN(),           // fmod(-Inf, -Inf)
+	NaN(),           // fmod(-Inf, -Pi)
+	NaN(),           // fmod(-Inf, 0)
+	NaN(),           // fmod(-Inf, Pi)
+	NaN(),           // fmod(-Inf, +Inf)
+	NaN(),           // fmod(-Inf, NaN)
+	-Pi,             // fmod(-Pi, -Inf)
+	NaN(),           // fmod(-Pi, 0)
+	-Pi,             // fmod(-Pi, +Inf)
+	NaN(),           // fmod(-Pi, NaN)
+	Copysign(0, -1), // fmod(-0, -Inf)
+	NaN(),           // fmod(-0, 0)
+	Copysign(0, -1), // fmod(-0, Inf)
+	NaN(),           // fmod(-0, NaN)
+	0,               // fmod(0, -Inf)
+	NaN(),           // fmod(0, 0)
+	0,               // fmod(0, +Inf)
+	NaN(),           // fmod(0, NaN)
+	Pi,              // fmod(Pi, -Inf)
+	NaN(),           // fmod(Pi, 0)
+	Pi,              // fmod(Pi, +Inf)
+	NaN(),           // fmod(Pi, NaN)
+	NaN(),           // fmod(+Inf, -Inf)
+	NaN(),           // fmod(+Inf, -Pi)
+	NaN(),           // fmod(+Inf, 0)
+	NaN(),           // fmod(+Inf, Pi)
+	NaN(),           // fmod(+Inf, +Inf)
+	NaN(),           // fmod(+Inf, NaN)
+	NaN(),           // fmod(NaN, -Inf)
+	NaN(),           // fmod(NaN, -Pi)
+	NaN(),           // fmod(NaN, 0)
+	NaN(),           // fmod(NaN, Pi)
+	NaN(),           // fmod(NaN, +Inf)
+	NaN(),           // fmod(NaN, NaN)
 }
 
 var vffrexpSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var frexpSC = []fi{
 	fi{Inf(-1), 0},
-	fi{-1 / Inf(1), 0}, // -0, 0
+	fi{Copysign(0, -1), 0},
 	fi{0, 0},
 	fi{Inf(1), 0},
 	fi{NaN(), 0},
@@ -1004,7 +1006,7 @@ var frexpSC = []fi{
 var vfgammaSC = []float64{
 	Inf(-1),
 	-3,
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -1023,6 +1025,10 @@ var vfhypotSC = [][2]float64{
 	[2]float64{Inf(-1), 0},
 	[2]float64{Inf(-1), Inf(1)},
 	[2]float64{Inf(-1), NaN()},
+	[2]float64{Copysign(0, -1), Copysign(0, -1)},
+	[2]float64{Copysign(0, -1), 0},
+	[2]float64{0, Copysign(0, -1)},
+	[2]float64{0, 0}, // +0, +0
 	[2]float64{0, Inf(-1)},
 	[2]float64{0, Inf(1)},
 	[2]float64{0, NaN()},
@@ -1040,6 +1046,10 @@ var hypotSC = []float64{
 	Inf(1),
 	Inf(1),
 	Inf(1),
+	0,
+	0,
+	0,
+	0,
 	Inf(1),
 	Inf(1),
 	NaN(),
@@ -1119,7 +1129,9 @@ var lgammaSC = []fi{
 var vflogSC = []float64{
 	Inf(-1),
 	-Pi,
+	Copysign(0, -1),
 	0,
+	1,
 	Inf(1),
 	NaN(),
 }
@@ -1127,6 +1139,8 @@ var logSC = []float64{
 	NaN(),
 	NaN(),
 	Inf(-1),
+	Inf(-1),
+	0,
 	Inf(1),
 	NaN(),
 }
@@ -1148,7 +1162,7 @@ var vflog1pSC = []float64{
 	Inf(-1),
 	-Pi,
 	-1,
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -1157,7 +1171,7 @@ var log1pSC = []float64{
 	NaN(),
 	NaN(),
 	Inf(-1),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -1169,7 +1183,7 @@ var vfmodfSC = []float64{
 	NaN(),
 }
 var modfSC = [][2]float64{
-	[2]float64{Inf(-1), NaN()}, // [2]float64{-1 / Inf(1), Inf(-1)}, // -0, -Inf
+	[2]float64{Inf(-1), NaN()}, // [2]float64{Copysign(0, -1), Inf(-1)},
 	[2]float64{Inf(1), NaN()},  // [2]float64{0, Inf(1)},
 	[2]float64{NaN(), NaN()},
 }
@@ -1188,6 +1202,7 @@ var nextafterSC = []float64{
 var vfpowSC = [][2]float64{
 	[2]float64{Inf(-1), -Pi},
 	[2]float64{Inf(-1), -3},
+	[2]float64{Inf(-1), Copysign(0, -1)},
 	[2]float64{Inf(-1), 0},
 	[2]float64{Inf(-1), 1},
 	[2]float64{Inf(-1), 3},
@@ -1196,6 +1211,7 @@ var vfpowSC = [][2]float64{
 
 	[2]float64{-Pi, Inf(-1)},
 	[2]float64{-Pi, -Pi},
+	[2]float64{-Pi, Copysign(0, -1)},
 	[2]float64{-Pi, 0},
 	[2]float64{-Pi, 1},
 	[2]float64{-Pi, Pi},
@@ -1204,16 +1220,24 @@ var vfpowSC = [][2]float64{
 
 	[2]float64{-1, Inf(-1)},
 	[2]float64{-1, Inf(1)},
+	[2]float64{-1, NaN()},
 	[2]float64{-1 / 2, Inf(-1)},
 	[2]float64{-1 / 2, Inf(1)},
-	[2]float64{-1 / Inf(1), -3}, // -0, -3
-	[2]float64{-1 / Inf(1), 3},  // -0, 3
+	[2]float64{Copysign(0, -1), Inf(-1)},
+	[2]float64{Copysign(0, -1), -Pi},
+	[2]float64{Copysign(0, -1), -3},
+	[2]float64{Copysign(0, -1), 3},
+	[2]float64{Copysign(0, -1), Pi},
+	[2]float64{Copysign(0, -1), Inf(1)},
 
+	[2]float64{0, Inf(-1)},
 	[2]float64{0, -Pi},
 	[2]float64{0, -3},
+	[2]float64{0, Copysign(0, -1)},
 	[2]float64{0, 0},
 	[2]float64{0, 3},
 	[2]float64{0, Pi},
+	[2]float64{0, Inf(1)},
 	[2]float64{0, NaN()},
 
 	[2]float64{1 / 2, Inf(-1)},
@@ -1223,74 +1247,90 @@ var vfpowSC = [][2]float64{
 	[2]float64{1, NaN()},
 
 	[2]float64{Pi, Inf(-1)},
+	[2]float64{Pi, Copysign(0, -1)},
 	[2]float64{Pi, 0},
 	[2]float64{Pi, 1},
 	[2]float64{Pi, Inf(1)},
 	[2]float64{Pi, NaN()},
 	[2]float64{Inf(1), -Pi},
+	[2]float64{Inf(1), Copysign(0, -1)},
 	[2]float64{Inf(1), 0},
 	[2]float64{Inf(1), 1},
 	[2]float64{Inf(1), Pi},
 	[2]float64{Inf(1), NaN()},
 	[2]float64{NaN(), -Pi},
+	[2]float64{NaN(), Copysign(0, -1)},
 	[2]float64{NaN(), 0},
 	[2]float64{NaN(), 1},
 	[2]float64{NaN(), Pi},
 	[2]float64{NaN(), NaN()},
 }
 var powSC = []float64{
-	0,       // pow(-Inf, -Pi)
-	0,       // pow(-Inf, -3)
-	1,       // pow(-Inf, 0)
-	Inf(-1), // pow(-Inf, 1)
-	Inf(-1), // pow(-Inf, 3)
-	Inf(1),  // pow(-Inf, Pi)
-	NaN(),   // pow(-Inf, NaN)
-	0,       // pow(-Pi, -Inf)
-	NaN(),   // pow(-Pi, -Pi)
-	1,       // pow(-Pi, +0)
-	-Pi,     // pow(-Pi, 1)
-	NaN(),   // pow(-Pi, Pi)
-	Inf(1),  // pow(-Pi, +Inf)
-	NaN(),   // pow(-Pi, NaN)
-	NaN(),   // pow(-1, -Inf)
-	NaN(),   // pow(-1, +Inf)
-	Inf(1),  // pow(-1/2, -Inf)
-	0,       // pow(-1/2, +Inf)
-	Inf(1),  // pow(-0, -3)
-	0,       // pow(-0, 3)
-	Inf(1),  // pow(+0, -Pi)
-	Inf(1),  // pow(+0, -3)
-	1,       // pow(+0, +0)
-	0,       // pow(+0, 3)
-	0,       // pow(+0, +Pi)
-	NaN(),   // pow(+0, NaN)
-	Inf(1),  // pow(1/2, -Inf)
-	0,       // pow(1/2, +Inf)
-	NaN(),   // pow(1, -Inf)
-	NaN(),   // pow(1, +Inf)
-	NaN(),   // pow(1, NaN)
-	0,       // pow(+Pi, -Inf)
-	1,       // pow(+Pi, +0)
-	Pi,      // pow(+Pi, 1)
-	Inf(1),  // pow(+Pi, +Inf)
-	NaN(),   // pow(+Pi, NaN)
-	0,       // pow(+Inf, -Pi)
-	1,       // pow(+Inf, +0)
-	Inf(1),  // pow(+Inf, 1)
-	Inf(1),  // pow(+Inf, Pi)
-	NaN(),   // pow(+Inf, NaN)
-	NaN(),   // pow(NaN, -Pi)
-	1,       // pow(NaN, +0)
-	NaN(),   // pow(NaN, 1)
-	NaN(),   // pow(NaN, +Pi)
-	NaN(),   // pow(NaN, NaN)
+	0,               // pow(-Inf, -Pi)
+	Copysign(0, -1), // pow(-Inf, -3)
+	1,               // pow(-Inf, -0)
+	1,               // pow(-Inf, +0)
+	Inf(-1),         // pow(-Inf, 1)
+	Inf(-1),         // pow(-Inf, 3)
+	Inf(1),          // pow(-Inf, Pi)
+	NaN(),           // pow(-Inf, NaN)
+	0,               // pow(-Pi, -Inf)
+	NaN(),           // pow(-Pi, -Pi)
+	1,               // pow(-Pi, -0)
+	1,               // pow(-Pi, +0)
+	-Pi,             // pow(-Pi, 1)
+	NaN(),           // pow(-Pi, Pi)
+	Inf(1),          // pow(-Pi, +Inf)
+	NaN(),           // pow(-Pi, NaN)
+	1,               // pow(-1, -Inf) IEEE 754-2008
+	1,               // pow(-1, +Inf) IEEE 754-2008
+	NaN(),           // pow(-1, NaN)
+	Inf(1),          // pow(-1/2, -Inf)
+	0,               // pow(-1/2, +Inf)
+	Inf(1),          // pow(-0, -Inf)
+	Inf(1),          // pow(-0, -Pi)
+	Inf(-1),         // pow(-0, -3) IEEE 754-2008
+	Copysign(0, -1), // pow(-0, 3) IEEE 754-2008
+	0,               // pow(-0, +Pi)
+	0,               // pow(-0, +Inf)
+	Inf(1),          // pow(+0, -Inf)
+	Inf(1),          // pow(+0, -Pi)
+	Inf(1),          // pow(+0, -3)
+	1,               // pow(+0, -0)
+	1,               // pow(+0, +0)
+	0,               // pow(+0, 3)
+	0,               // pow(+0, +Pi)
+	0,               // pow(+0, +Inf)
+	NaN(),           // pow(+0, NaN)
+	Inf(1),          // pow(1/2, -Inf)
+	0,               // pow(1/2, +Inf)
+	1,               // pow(1, -Inf) IEEE 754-2008
+	1,               // pow(1, +Inf) IEEE 754-2008
+	1,               // pow(1, NaN) IEEE 754-2008
+	0,               // pow(+Pi, -Inf)
+	1,               // pow(+Pi, -0)
+	1,               // pow(+Pi, +0)
+	Pi,              // pow(+Pi, 1)
+	Inf(1),          // pow(+Pi, +Inf)
+	NaN(),           // pow(+Pi, NaN)
+	0,               // pow(+Inf, -Pi)
+	1,               // pow(+Inf, -0)
+	1,               // pow(+Inf, +0)
+	Inf(1),          // pow(+Inf, 1)
+	Inf(1),          // pow(+Inf, Pi)
+	NaN(),           // pow(+Inf, NaN)
+	NaN(),           // pow(NaN, -Pi)
+	1,               // pow(NaN, -0)
+	1,               // pow(NaN, +0)
+	NaN(),           // pow(NaN, 1)
+	NaN(),           // pow(NaN, +Pi)
+	NaN(),           // pow(NaN, NaN)
 }
 
 var vfsignbitSC = []float64{
 	Inf(-1),
-	-1 / Inf(1), // -0
-	1 / Inf(1),  // +0
+	Copysign(0, -1),
+	0,
 	Inf(1),
 	NaN(),
 }
@@ -1304,14 +1344,14 @@ var signbitSC = []bool{
 
 var vfsinSC = []float64{
 	Inf(-1),
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var sinSC = []float64{
 	NaN(),
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	NaN(),
 	NaN(),
@@ -1319,14 +1359,14 @@ var sinSC = []float64{
 
 var vfsinhSC = []float64{
 	Inf(-1),
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var sinhSC = []float64{
 	Inf(-1),
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -1335,7 +1375,7 @@ var sinhSC = []float64{
 var vfsqrtSC = []float64{
 	Inf(-1),
 	-Pi,
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -1343,7 +1383,7 @@ var vfsqrtSC = []float64{
 var sqrtSC = []float64{
 	NaN(),
 	NaN(),
-	-1 / Inf(1), // -0
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
@@ -1351,14 +1391,14 @@ var sqrtSC = []float64{
 
 var vftanhSC = []float64{
 	Inf(-1),
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
 var tanhSC = []float64{
 	-1,
-	-1 / Inf(1),
+	Copysign(0, -1),
 	0,
 	1,
 	NaN(),
