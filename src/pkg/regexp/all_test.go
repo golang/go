@@ -519,7 +519,7 @@ var numSubexpCases = []numSubexpCase{
 
 func TestNumSubexp(t *testing.T) {
 	for _, c := range numSubexpCases {
-		re, _ := Compile(c.input)
+		re := MustCompile(c.input)
 		n := re.NumSubexp()
 		if n != c.expected {
 			t.Errorf("NumSubexp for %q returned %d, expected %d", c.input, n, c.expected)
@@ -530,7 +530,7 @@ func TestNumSubexp(t *testing.T) {
 func BenchmarkLiteral(b *testing.B) {
 	x := strings.Repeat("x", 50)
 	b.StopTimer()
-	re, _ := Compile(x)
+	re := MustCompile(x)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
@@ -543,7 +543,35 @@ func BenchmarkLiteral(b *testing.B) {
 func BenchmarkNotLiteral(b *testing.B) {
 	x := strings.Repeat("x", 49)
 	b.StopTimer()
-	re, _ := Compile("^" + x)
+	re := MustCompile("^" + x)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		if !re.MatchString(x) {
+			println("no match!")
+			break
+		}
+	}
+}
+
+func BenchmarkMatchClass(b *testing.B) {
+	b.StopTimer()
+	x := strings.Repeat("xxxx", 20) + "w"
+	re := MustCompile("[abcdw]")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		if !re.MatchString(x) {
+			println("no match!")
+			break
+		}
+	}
+}
+
+func BenchmarkMatchClass_InRange(b *testing.B) {
+	b.StopTimer()
+	// 'b' is betwen 'a' and 'c', so the charclass
+	// range checking is no help here.
+	x := strings.Repeat("bbbb", 20) + "c"
+	re := MustCompile("[ac]")
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
@@ -556,7 +584,7 @@ func BenchmarkNotLiteral(b *testing.B) {
 func BenchmarkReplaceAll(b *testing.B) {
 	x := "abcdefghijklmnopqrstuvwxyz"
 	b.StopTimer()
-	re, _ := Compile("[cjrw]")
+	re := MustCompile("[cjrw]")
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		re.ReplaceAllString(x, "")
