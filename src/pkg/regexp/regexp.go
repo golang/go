@@ -152,10 +152,10 @@ func newChar(char int) *_Char {
 
 type _CharClass struct {
 	common
-	char   int
 	negate bool // is character class negated? ([^a-z])
 	// vector of int, stored pairwise: [a-z] is (a,z); x is (x,x):
-	ranges *vector.IntVector
+	ranges     *vector.IntVector
+	cmin, cmax int
 }
 
 func (cclass *_CharClass) kind() int { return _CHARCLASS }
@@ -180,13 +180,21 @@ func (cclass *_CharClass) addRange(a, b int) {
 	// range is a through b inclusive
 	cclass.ranges.Push(a)
 	cclass.ranges.Push(b)
+	if a < cclass.cmin {
+		cclass.cmin = a
+	}
+	if b > cclass.cmax {
+		cclass.cmax = b
+	}
 }
 
 func (cclass *_CharClass) matches(c int) bool {
-	for i := 0; i < cclass.ranges.Len(); i = i + 2 {
-		min := cclass.ranges.At(i)
-		max := cclass.ranges.At(i + 1)
-		if min <= c && c <= max {
+	if c < cclass.cmin || c > cclass.cmax {
+		return cclass.negate
+	}
+	ranges := []int(*cclass.ranges)
+	for i := 0; i < len(ranges); i = i + 2 {
+		if ranges[i] <= c && c <= ranges[i+1] {
 			return !cclass.negate
 		}
 	}
@@ -196,6 +204,8 @@ func (cclass *_CharClass) matches(c int) bool {
 func newCharClass() *_CharClass {
 	c := new(_CharClass)
 	c.ranges = new(vector.IntVector)
+	c.cmin = 0x10FFFF + 1 // MaxRune + 1
+	c.cmax = -1
 	return c
 }
 
