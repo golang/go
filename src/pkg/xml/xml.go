@@ -158,9 +158,8 @@ type Parser struct {
 	//	"lt": "<",
 	//	"gt": ">",
 	//	"amp": "&",
-	//	"pos": "'",
+	//	"apos": "'",
 	//	"quot": `"`,
-	//
 	Entity map[string]string
 
 	r         io.ReadByter
@@ -222,7 +221,6 @@ func NewParser(r io.Reader) *Parser {
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
-//
 func (p *Parser) Token() (t Token, err os.Error) {
 	if p.nextToken != nil {
 		t = p.nextToken
