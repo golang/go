@@ -7,5 +7,6 @@ include ../../../Make.$(GOARCH)
 TARG=io/ioutil
 GOFILES=\
 	ioutil.go\
+	tempfile.go\
 
 include ../../../Make.pkg
