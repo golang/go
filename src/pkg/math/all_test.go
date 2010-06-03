@@ -2339,7 +2339,7 @@ func BenchmarkExpm1(b *testing.B) {
 
 func BenchmarkExp2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Exp(.5)
+		Exp2(.5)
 	}
 }
 
