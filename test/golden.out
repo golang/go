@@ -220,3 +220,17 @@ errchk: bugs/bug284.go: unmatched error messages:
 ==================================================
 bugs/bug284.go:186: internal compiler error: typename ideal
 ==================================================
+
+=========== bugs/bug285.go
+bugs/bug285.go:23: invalid map index false - need type B
+bugs/bug285.go:80: invalid map index z - need type interface { }
+bugs/bug285.go:83: invalid map index new(struct { x int }) - need type interface { }
+bugs/bug285.go:84: invalid map index p - need type interface { }
+bugs/bug285.go:85: invalid map index false - need type interface { }
+bugs/bug285.go:86: invalid map index 17 - need type interface { }
+bugs/bug285.go:87: invalid map index "foo" - need type interface { }
+bugs/bug285.go:93: invalid map index new(struct { x int }) - need type I1
+bugs/bug285.go:94: invalid map index false - need type I1
+bugs/bug285.go:95: invalid map index 17 - need type I1
+bugs/bug285.go:95: too many errors
+BUG: should compile
