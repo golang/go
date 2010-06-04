@@ -12,6 +12,9 @@ package draw
 
 import "image"
 
+// m is the maximum color value returned by image.Color.RGBA.
+const m = 1<<16 - 1
+
 // A Porter-Duff compositing operator.
 type Op int
 
@@ -62,7 +65,20 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 	// Fast paths for special cases. If none of them apply, then we fall back to a general but slow implementation.
 	if dst0, ok := dst.(*image.RGBA); ok {
 		if op == Over {
-			if mask0, ok := mask.(*image.Alpha); ok {
+			if mask == nil {
+				if src0, ok := src.(image.ColorImage); ok {
+					drawFillOver(dst0, r, src0)
+					return
+				}
+				if src0, ok := src.(*image.RGBA); ok {
+					if dst0 == src0 && r.Overlaps(r.Add(sp.Sub(r.Min))) {
+						// TODO(nigeltao): Implement a fast path for the overlapping case.
+					} else {
+						drawCopyOver(dst0, r, src0, sp)
+						return
+					}
+				}
+			} else if mask0, ok := mask.(*image.Alpha); ok {
 				if src0, ok := src.(image.ColorImage); ok {
 					drawGlyphOver(dst0, r, src0, mask0, mp)
 					return
@@ -71,14 +87,14 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 		} else {
 			if mask == nil {
 				if src0, ok := src.(image.ColorImage); ok {
-					drawFill(dst0, r, src0)
+					drawFillSrc(dst0, r, src0)
 					return
 				}
 				if src0, ok := src.(*image.RGBA); ok {
 					if dst0 == src0 && r.Overlaps(r.Add(sp.Sub(r.Min))) {
 						// TODO(nigeltao): Implement a fast path for the overlapping case.
 					} else {
-						drawCopy(dst0, r, src0, sp)
+						drawCopySrc(dst0, r, src0, sp)
 						return
 					}
 				}
@@ -105,8 +121,7 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 		sx := sp.X + x0 - r.Min.X
 		mx := mp.X + x0 - r.Min.X
 		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
-			const M = 1<<16 - 1
-			ma := uint32(M)
+			ma := uint32(m)
 			if mask != nil {
 				_, _, _, ma = mask.At(mx, my).RGBA()
 			}
@@ -117,7 +132,7 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 				} else {
 					dst.Set(x, y, zeroColor)
 				}
-			case ma == M && op == Src:
+			case ma == m && op == Src:
 				dst.Set(x, y, src.At(sx, sy))
 			default:
 				sr, sg, sb, sa := src.At(sx, sy).RGBA()
@@ -126,19 +141,65 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 				}
 				if op == Over {
 					dr, dg, db, da := dst.At(x, y).RGBA()
-					a := M - (sa * ma / M)
-					out.R = uint16((dr*a + sr*ma) / M)
-					out.G = uint16((dg*a + sg*ma) / M)
-					out.B = uint16((db*a + sb*ma) / M)
-					out.A = uint16((da*a + sa*ma) / M)
+					a := m - (sa * ma / m)
+					out.R = uint16((dr*a + sr*ma) / m)
+					out.G = uint16((dg*a + sg*ma) / m)
+					out.B = uint16((db*a + sb*ma) / m)
+					out.A = uint16((da*a + sa*ma) / m)
 				} else {
-					out.R = uint16(sr * ma / M)
-					out.G = uint16(sg * ma / M)
-					out.B = uint16(sb * ma / M)
-					out.A = uint16(sa * ma / M)
+					out.R = uint16(sr * ma / m)
+					out.G = uint16(sg * ma / m)
+					out.B = uint16(sb * ma / m)
+					out.A = uint16(sa * ma / m)
 				}
 				dst.Set(x, y, out)
 			}
+		}
+	}
+}
+
+func drawFillOver(dst *image.RGBA, r Rectangle, src image.ColorImage) {
+	cr, cg, cb, ca := src.RGBA()
+	// The 0x101 is here for the same reason as in drawRGBA.
+	a := (m - ca) * 0x101
+	x0, x1 := r.Min.X, r.Max.X
+	y0, y1 := r.Min.Y, r.Max.Y
+	for y := y0; y != y1; y++ {
+		p := dst.Pixel[y]
+		for x := x0; x != x1; x++ {
+			rgba := p[x]
+			dr := (uint32(rgba.R)*a)/m + cr
+			dg := (uint32(rgba.G)*a)/m + cg
+			db := (uint32(rgba.B)*a)/m + cb
+			da := (uint32(rgba.A)*a)/m + ca
+			p[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+		}
+	}
+}
+
+func drawCopyOver(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
+	x0, x1 := r.Min.X, r.Max.X
+	y0, y1 := r.Min.Y, r.Max.Y
+	for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+		dpix := dst.Pixel[y]
+		spix := src.Pixel[y]
+		for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
+			// For unknown reasons, even though both dpix[x] and spix[sx] are
+			// image.RGBAColors, on an x86 CPU it seems fastest to call RGBA
+			// for the source but to do it manually for the destination.
+			sr, sg, sb, sa := spix[sx].RGBA()
+			drgba := dpix[x]
+			dr := uint32(drgba.R)
+			dg := uint32(drgba.G)
+			db := uint32(drgba.B)
+			da := uint32(drgba.A)
+			// The 0x101 is here for the same reason as in drawRGBA.
+			a := (m - sa) * 0x101
+			dr = (dr*a)/m + sr
+			dg = (dg*a)/m + sg
+			db = (db*a)/m + sb
+			da = (da*a)/m + sa
+			dpix[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 	}
 }
@@ -160,19 +221,18 @@ func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *ima
 			dg := uint32(rgba.G)
 			db := uint32(rgba.B)
 			da := uint32(rgba.A)
-			const M = 1<<16 - 1
 			// The 0x101 is here for the same reason as in drawRGBA.
-			a := (M - (ca * ma / M)) * 0x101
-			dr = (dr*a + cr*ma) / M
-			dg = (dg*a + cg*ma) / M
-			db = (db*a + cb*ma) / M
-			da = (da*a + ca*ma) / M
+			a := (m - (ca * ma / m)) * 0x101
+			dr = (dr*a + cr*ma) / m
+			dg = (dg*a + cg*ma) / m
+			db = (db*a + cb*ma) / m
+			da = (da*a + ca*ma) / m
 			p[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 	}
 }
 
-func drawFill(dst *image.RGBA, r Rectangle, src image.ColorImage) {
+func drawFillSrc(dst *image.RGBA, r Rectangle, src image.ColorImage) {
 	if r.Dy() < 1 {
 		return
 	}
@@ -193,7 +253,7 @@ func drawFill(dst *image.RGBA, r Rectangle, src image.ColorImage) {
 	}
 }
 
-func drawCopy(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
+func drawCopySrc(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
 	dx0, dx1 := r.Min.X, r.Max.X
 	dy0, dy1 := r.Min.Y, r.Max.Y
 	sx0, sx1 := sp.X, sp.X+dx1-dx0
@@ -219,8 +279,7 @@ func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask imag
 		mx := mp.X + x0 - r.Min.X
 		p := dst.Pixel[y]
 		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
-			const M = 1<<16 - 1
-			ma := uint32(M)
+			ma := uint32(m)
 			if mask != nil {
 				_, _, _, ma = mask.At(mx, my).RGBA()
 			}
@@ -238,16 +297,16 @@ func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask imag
 				// and similarly for dg, db and da, but instead we multiply a
 				// (which is a 16-bit color, ranging in [0,65535]) by 0x101.
 				// This yields the same result, but is fewer arithmetic operations.
-				a := (M - (sa * ma / M)) * 0x101
-				dr = (dr*a + sr*ma) / M
-				dg = (dg*a + sg*ma) / M
-				db = (db*a + sb*ma) / M
-				da = (da*a + sa*ma) / M
+				a := (m - (sa * ma / m)) * 0x101
+				dr = (dr*a + sr*ma) / m
+				dg = (dg*a + sg*ma) / m
+				db = (db*a + sb*ma) / m
+				da = (da*a + sa*ma) / m
 			} else {
-				dr = sr * ma / M
-				dg = sg * ma / M
-				db = sb * ma / M
-				da = sa * ma / M
+				dr = sr * ma / m
+				dg = sg * ma / m
+				db = sb * ma / m
+				da = sa * ma / m
 			}
 			p[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
