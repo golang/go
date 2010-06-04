@@ -219,7 +219,6 @@ func (s *ss) Token() (tok string, err os.Error) {
 // readRune is a structure to enable reading UTF-8 encoded code points
 // from an io.Reader.  It is used if the Reader given to the scanner does
 // not already implement ReadRuner.
-// TODO: readByteRune for things that can read bytes.
 type readRune struct {
 	reader io.Reader
 	buf    [utf8.UTFMax]byte
@@ -435,9 +434,22 @@ func (s *ss) scanNumber(digits string) string {
 	return s.buf.String()
 }
 
+// scanRune returns the next rune value in the input.
+func (s *ss) scanRune(bitSize uint) int64 {
+	rune := int64(s.mustGetRune())
+	x := (rune << (64 - bitSize)) >> (64 - bitSize)
+	if x != rune {
+		s.errorString("overflow on character value " + string(rune))
+	}
+	return rune
+}
+
 // scanInt returns the value of the integer represented by the next
 // token, checking for overflow.  Any error is stored in s.err.
 func (s *ss) scanInt(verb int, bitSize uint) int64 {
+	if verb == 'c' {
+		return s.scanRune(bitSize)
+	}
 	base, digits := s.getBase(verb)
 	s.skipSpace()
 	s.accept(sign) // If there's a sign, it will be left in the token buffer.
@@ -456,6 +468,9 @@ func (s *ss) scanInt(verb int, bitSize uint) int64 {
 // scanUint returns the value of the unsigned integer represented
 // by the next token, checking for overflow.  Any error is stored in s.err.
 func (s *ss) scanUint(verb int, bitSize uint) uint64 {
+	if verb == 'c' {
+		return uint64(s.scanRune(bitSize))
+	}
 	base, digits := s.getBase(verb)
 	s.skipSpace()
 	tok := s.scanNumber(digits)
