@@ -48,3 +48,9 @@ func (c ColorImage) Width() int { return 1e9 }
 func (c ColorImage) Height() int { return 1e9 }
 
 func (c ColorImage) At(x, y int) Color { return c.C }
+
+// Opaque scans the entire image and returns whether or not it is fully opaque.
+func (c ColorImage) Opaque() bool {
+	_, _, _, a := c.C.RGBA()
+	return a == 0xffff
+}
