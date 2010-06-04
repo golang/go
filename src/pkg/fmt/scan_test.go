@@ -198,6 +198,8 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%t", "false\n", &boolVal, false},
 	ScanfTest{"%v", "-71\n", &intVal, -71},
 	ScanfTest{"%d", "72\n", &intVal, 72},
+	ScanfTest{"%c", "a\n", &intVal, 'a'},
+	ScanfTest{"%c", "\u1234\n", &intVal, '\u1234'},
 	ScanfTest{"%d", "73\n", &int8Val, int8(73)},
 	ScanfTest{"%d", "+74\n", &int16Val, int16(74)},
 	ScanfTest{"%d", "75\n", &int32Val, int32(75)},
@@ -299,12 +301,13 @@ var multiTests = []ScanfMultiTest{
 	ScanfMultiTest{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
 
 	// Custom scanner.
-	ScanfMultiTest{"%2e%f", "eefffff", []interface{}{&x, &y}, []interface{}{Xs("ee"), Xs("fffff")}, ""},
+	ScanfMultiTest{"%2e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
 
 	// Errors
-	ScanfMultiTest{"%t", "23 18", []interface{}{&i}, nil, "bad verb"},
-	ScanfMultiTest{"%d %d %d", "23 18", []interface{}{&i, &j}, []interface{}{23, 18}, "too few operands"},
-	ScanfMultiTest{"%d %d", "23 18 27", []interface{}{&i, &j, &k}, []interface{}{23, 18}, "too many operands"},
+	ScanfMultiTest{"%t", "23 18", args(&i), nil, "bad verb"},
+	ScanfMultiTest{"%d %d %d", "23 18", args(&i, &j), args(23, 18), "too few operands"},
+	ScanfMultiTest{"%d %d", "23 18 27", args(&i, &j, &k), args(23, 18), "too many operands"},
+	ScanfMultiTest{"%c", "\u0100", args(&int8Val), nil, "overflow"},
 }
 
 func testScan(t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Error)) {
