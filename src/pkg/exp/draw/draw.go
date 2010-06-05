@@ -182,7 +182,7 @@ func drawCopyOver(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
 	y0, y1 := r.Min.Y, r.Max.Y
 	for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
 		dpix := dst.Pixel[y]
-		spix := src.Pixel[y]
+		spix := src.Pixel[sy]
 		for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
 			// For unknown reasons, even though both dpix[x] and spix[sx] are
 			// image.RGBAColors, on an x86 CPU it seems fastest to call RGBA
