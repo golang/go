@@ -1,0 +1,129 @@
+#data
+<div bar="ZZ&gt;YY"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ>YY"
+
+#data
+<div bar="ZZ&"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ&"
+
+#data
+<div bar='ZZ&'></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ&"
+
+#data
+<div bar=ZZ&></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ&"
+
+#data
+<div bar="ZZ&gt=YY"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ&gt=YY"
+
+#data
+<div bar="ZZ&gt0YY"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ&gt0YY"
+
+#data
+<div bar="ZZ&gt9YY"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ&gt9YY"
+
+#data
+<div bar="ZZ&gtaYY"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ&gtaYY"
+
+#data
+<div bar="ZZ&gtZYY"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ&gtZYY"
+
+#data
+<div bar="ZZ&gt YY"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ> YY"
+
+#data
+<div bar="ZZ&gt"></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ>"
+
+#data
+<div bar='ZZ&gt'></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ>"
+
+#data
+<div bar=ZZ&gt></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       bar="ZZ>"

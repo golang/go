@@ -1,0 +1,167 @@
+#data
+Test
+#errors
+Line: 1 Col: 4 Unexpected non-space characters. Expected DOCTYPE.
+#document
+| <html>
+|   <head>
+|   <body>
+|     "Test"
+
+#data
+<div></div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+
+#data
+<div>Test</div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       "Test"
+
+#data
+<di
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+
+#data
+<div>Hello</div>
+<script>
+console.log("PASS");
+</script>
+<div>Bye</div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       "Hello"
+|     "
+"
+|     <script>
+|       "
+console.log("PASS");
+"
+|     "
+"
+|     <div>
+|       "Bye"
+
+#data
+<div foo="bar">Hello</div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       foo="bar"
+|       "Hello"
+
+#data
+<div>Hello</div>
+<script>
+console.log("FOO<span>BAR</span>BAZ");
+</script>
+<div>Bye</div>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       "Hello"
+|     "
+"
+|     <script>
+|       "
+console.log("FOO<span>BAR</span>BAZ");
+"
+|     "
+"
+|     <div>
+|       "Bye"
+
+#data
+<foo bar="baz"></foo><potato quack="duck"></potato>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <foo>
+|       bar="baz"
+|     <potato>
+|       quack="duck"
+
+#data
+<foo bar="baz"><potato quack="duck"></potato></foo>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <foo>
+|       bar="baz"
+|       <potato>
+|         quack="duck"
+
+#data
+<foo></foo bar="baz"><potato></potato quack="duck">
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <foo>
+|     <potato>
+
+#data
+1<script>document.write("2")</script>3
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     "1"
+|     <script>
+|       "document.write("2")"
+|     "23"
+
+#data
+1<script>document.write("<script>document.write('2')</scr"+ "ipt><script>document.write('3')</scr" + "ipt>")</script>4
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     "1"
+|     <script>
+|       "document.write("<script>document.write('2')</scr"+ "ipt><script>document.write('3')</scr" + "ipt>")"
+|     <script>
+|       "document.write('2')"
+|     "2"
+|     <script>
+|       "document.write('3')"
+|     "34"
+
+#data
+</ tttt>
+#errors
+#document
+| <!--  tttt -->
+| <html>
+|   <head>
+|   <body>
