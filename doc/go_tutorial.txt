@@ -173,7 +173,7 @@ are mandatory.  The same applies to the "if" and "switch" statements.
 Later examples will show some other ways "for" can be written.
 
 The body of the loop builds up the string "s" by appending (using "+=")
-the flags and separating spaces. After the loop, if the "-n" flag is not
+the arguments and separating spaces. After the loop, if the "-n" flag is not
 set, the program appends a newline. Finally, it writes the result.
 
 Notice that "main.main" is a niladic function with no return type.
