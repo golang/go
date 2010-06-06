@@ -70,16 +70,16 @@ type Request struct {
 	// A header mapping request lines to their values.
 	// If the header says
 	//
-	//	Accept-Language: en-us
 	//	accept-encoding: gzip, deflate
+	//	Accept-Language: en-us
 	//	Connection: keep-alive
 	//
 	// then
 	//
 	//	Header = map[string]string{
-	//		"Accept-Encoding": "en-us",
-	//		"Accept-Language": "gzip, deflate",
-	//		"Connection": "keep-alive"
+	//		"Accept-Encoding": "gzip, deflate",
+	//		"Accept-Language": "en-us",
+	//		"Connection": "keep-alive",
 	//	}
 	//
 	// HTTP defines that header names are case-insensitive.
