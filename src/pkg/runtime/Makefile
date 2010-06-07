@@ -26,8 +26,8 @@ GOFILES=\
 	type.go\
 	version.go\
 
-GOFILES_pchw=\
-	pchw/io.go\
+GOFILES_tiny=\
+	tiny/io.go\
 
 OFILES_windows=\
 	syscall.$O\

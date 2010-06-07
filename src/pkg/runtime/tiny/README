@@ -24,6 +24,9 @@ and GOOS set to your normal GOOS (linux, darwin).  Then:
 	cat bootblock 8.out | dd of=disk conv=notrunc
 	bochs
 
+Use the built-in print(text string) function to print to the
+console.
+
 You may have to tweak the .bochsrc depending on your system,
 and you may need to install the Bochs emulator.
 
