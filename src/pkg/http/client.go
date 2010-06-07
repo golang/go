@@ -130,7 +130,6 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 	return
 }
 
-
 // Post issues a POST to the specified URL.
 //
 // Caller should close r.Body when done reading it.
@@ -152,6 +151,19 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 	}
 
 	return send(&req)
+}
+
+// Head issues a HEAD to the specified URL.
+func Head(url string) (r *Response, err os.Error) {
+	var req Request
+	req.Method = "HEAD"
+	if req.URL, err = ParseURL(url); err != nil {
+		return
+	}
+	if r, err = send(&req); err != nil {
+		return
+	}
+	return
 }
 
 type nopCloser struct {
