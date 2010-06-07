@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT _rt0_386_pchw(SB), 7, $0
+TEXT _rt0_386_tiny(SB), 7, $0
 	// Disable interrupts.
 	CLI
 	

@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "windows") == 0)
 			HEADTYPE = 10;
 		else
-		if(strcmp(goos, "pchw") == 0)
+		if(strcmp(goos, "tiny") == 0)
 			HEADTYPE = 11;
 		else
 			print("goos is not known: %s\n", goos);
