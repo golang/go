@@ -28,3 +28,13 @@ func TestClient(t *testing.T) {
 		t.Errorf("Incorrect page body (did not begin with User-agent): %q", s)
 	}
 }
+
+func TestClientHead(t *testing.T) {
+	r, err := Head("http://www.google.com/robots.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	if _, ok := r.Header["Last-Modified"]; !ok {
+		t.Error("Last-Modified header not found.")
+	}
+}
