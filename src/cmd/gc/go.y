@@ -753,7 +753,7 @@ uexpr:
 	}
 |	'~' uexpr
 	{
-		yyerror("the OCOM operator is ^");
+		yyerror("the bitwise complement operator is ^");
 		$$ = nod(OCOM, $2, N);
 	}
 |	'^' uexpr
