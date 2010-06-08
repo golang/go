@@ -1,4 +1,4 @@
-// $G $D/$F.go || echo BUG: should compile
+// $G $D/$F.go && $L $F.go && ./$A.out
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -95,9 +95,7 @@ func main() {
 	m1[17] = 42    // this should work: 17 is assignment-compatible with I1
 	m1["foo"] = 42 // this should work: "foo" is assignment-compatible with I1
 
-	var t2 T2
 	m2[new(T2)] = 42 // this should work: *T2 is assignment-compatible with I2
-	m2[t2] = 42      // this should work: t2 is assignment-compatible with I2
 }
 
 /*
