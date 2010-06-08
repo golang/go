@@ -648,7 +648,7 @@ type defined by its declaration.  Variables of interface type
 also have a distinct <i>dynamic type</i>, which
 is the actual type of the value stored in the variable at run-time.
 The dynamic type may vary during execution but is always
-<a href="#Assignment_compatibility">assignment compatible</a>
+<a href="#Assignability">assignable</a>
 to the static type of the interface variable.  For non-interface
 types, the dynamic type is always the static type.
 </p>
@@ -1002,9 +1002,8 @@ For the last parameter only, instead of a type one may write
 <code>...</code> or <code>...  T</code> to indicate that the function
 may be invoked with zero or more additional arguments.  If the type
 <code>T</code> is present in the parameter declaration, the additional
-arguments must all be
-<a href="#Assignment_compatibility">assignment compatible</a>
-with type <code>T</code>; otherwise they may be of any type.
+arguments must all be <a href="#Assignability">assignable</a>
+to <code>T</code>; otherwise they may be of any type.
 </p>
 
 <pre>
@@ -1322,11 +1321,11 @@ is different from <code>[]string</code>.
 </p>
 
 
-<h3 id="Assignment_compatibility">Assignment compatibility</h3>
+<h3 id="Assignability">Assignability</h3>
 
 <p>
-A value <code>x</code> is <i>assignment compatible</i> with type <code>T</code>
-(<code>x</code> <i>can be assigned to</i> <code>T</code>) in any of these cases:
+A value <code>x</code> is <i>assignable</i> to a variable of type <code>T</code>
+("<code>x</code> is assignable to <code>T</code>") in any of these cases:
 </p>
 
 <ul>
@@ -1550,7 +1549,7 @@ ExpressionList = Expression { "," Expression } .
 
 <p>
 If the type is present, all constants take the type specified, and
-the expressions must be <a href="#Assignment_compatibility">assignment compatible</a> with that type.
+the expressions must be <a href="#Assignability">assignable</a> to that type.
 If the type is omitted, the constants take the
 individual types of the corresponding expressions.
 If the expression values are untyped <a href="#Constants">constants</a>,
@@ -1993,8 +1992,8 @@ Value         = Expression .
 The LiteralType must be a struct, array, slice, or map type
 (the grammar enforces this constraint except when the type is given
 as a TypeName).
-The types of the expressions must be <a href="#Assignment_compatibility">assignment compatible</a> with
-the respective field, element, and key types of the LiteralType;
+The types of the expressions must be <a href="#Assignability">assignable</a>
+to the respective field, element, and key types of the LiteralType;
 there is no additional conversion.
 The key is interpreted as a field name for struct literals,
 an index expression for array and slice literals, and a key for map literals.
@@ -2375,8 +2374,8 @@ where <code>M</code> is a <a href="#Map_types">map type</a>:
 </p>
 <ul>
 	<li><code>x</code>'s type must be
-	<a href="#Assignment_compatibility">assignment compatible</a>
-	with the key type of <code>M</code></li>
+	<a href="#Assignability">assignable</a>
+	to the key type of <code>M</code></li>
 	<li>if the map contains an entry with key <code>x</code>,
 	  <code>a[x]</code> is the map value with key <code>x</code>
 	  and the type of <code>a[x]</code> is the value type of <code>M</code></li>
@@ -2540,7 +2539,7 @@ f(a1, a2, ... an)
 <p>
 calls <code>f</code> with arguments <code>a1, a2, ... an</code>.
 Except for one special case, arguments must be single-valued expressions
-<a href="#Assignment_compatibility">assignment compatible</a> with the parameter types of
+<a href="#Assignability">assignable</a> to the parameter types of
 <code>F</code> and are evaluated before the function is called.
 The type of the expression is the result type
 of <code>F</code>.
@@ -2557,8 +2556,8 @@ pt.Scale(3.5)  // method call with receiver pt
 
 <p>
 As a special case, if the return parameters of a function or method
-<code>g</code> are equal in number and individually assignment
-compatible with the parameters of another function or method
+<code>g</code> are equal in number and individually
+assignable to the parameters of another function or method
 <code>f</code>, then the call <code>f(g(<i>parameters_of_g</i>))</code>
 will invoke <code>f</code> after binding the return values of
 <code>g</code> to the parameters of <code>f</code> in order.  The call
@@ -2702,8 +2701,8 @@ For operations involving constants only, see the section on
 
 <p>
 In a channel send, the first operand is always a channel and the second
-must be a value <a href="#Assignment_compatibility">assignment compatible</a>
-with the channel's element type.
+must be a value <a href="#Assignability">assignable</a>
+to the channel's element type.
 </p>
 
 <p>
@@ -2915,8 +2914,8 @@ Comparison operators compare two operands and yield a value of type <code>bool</
 
 <p>
 The operands must be <i>comparable</i>; that is, the first operand
-must be <a href="#Assignment_compatibility">assignment compatible</a>
-with the type of the second operand, or vice versa.
+must be <a href="#Assignability">assignable</a>
+to the type of the second operand, or vice versa.
 </p>
 <p>
 The operators <code>==</code> and <code>!=</code> apply
@@ -3258,7 +3257,7 @@ of these cases:
 
 <ul>
 	<li>
-	<code>x</code> can be <a href="#Assignment_compatibility">assigned</a>
+	<code>x</code> is <a href="#Assignability">assignable</a>
 	to <code>T</code>.
 	</li>
 	<li>
@@ -3683,7 +3682,7 @@ a, b = b, a  // exchange a and b
 
 <p>
 In assignments, each value must be
-<a href="#Assignment_compatibility">assignment compatible</a> with the type of the
+<a href="#Assignability">assignable</a> to the type of the
 operand to which it is assigned. If an untyped <a href="#Constants">constant</a>
 is assigned to a variable of interface type, the constant is <a href="#Conversions">converted</a>
 to type <code>bool</code>, <code>int</code>, <code>float</code>,
@@ -3989,7 +3988,7 @@ map key, and the second variable, if present, is set to the corresponding
 string or array element or map value.
 The types of the array or slice index (always <code>int</code>)
 and element, or of the map key and value respectively,
-must be <a href="#Assignment_compatibility">assignment compatible</a> with
+must be <a href="#Assignability">assignable</a> to
 the type of the iteration variables.  The expression on the right hand
 side is evaluated once before beginning the loop.  At each iteration
 of the loop, the values produced by the range clause are assigned to
@@ -4033,7 +4032,7 @@ for i, s := range a {
 }
 
 var key string
-var val interface {}  // value type of m is assignment compatible with val
+var val interface {}  // value type of m is assignable to val
 for key, val = range m {
 	h(key, val)
 }
@@ -4165,9 +4164,8 @@ type:
 <ol>
 	<li>The return value or values may be explicitly listed
 		in the "return" statement. Each expression must be single-valued
-		and <a href="#Assignment_compatibility">assignment compatible</a>
-		with the type of the corresponding element of the function's
-		result type.
+		and <a href="#Assignability">assignable</a>
+		to the corresponding element of the function's result type.
 <pre>
 func simple_f() int {
 	return 2
@@ -4494,7 +4492,7 @@ The built-in function <code>copy</code> copies slice elements from
 a source <code>src</code> to a destination <code>dst</code> and returns the
 number of elements copied. Source and destination may overlap.
 Both arguments must have <a href="#Type_identity">identical</a> element type <code>T</code> and must be
-<a href="#Assignment_compatibility">assignment compatible</a> to a slice
+<a href="#Assignability">assignable</a> to a slice
 of type <code>[]T</code>. The number of arguments copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
 </p>
