@@ -1160,7 +1160,6 @@ escchar(int e, int *escflg, vlong *val)
 
 	*escflg = 0;
 
-loop:
 	c = getr();
 	switch(c) {
 	case EOF:
@@ -1180,9 +1179,6 @@ loop:
 
 	c = getr();
 	switch(c) {
-	case '\n':
-		goto loop;
-
 	case 'x':
 		*escflg = 1;	// it's a byte
 		i = 2;
