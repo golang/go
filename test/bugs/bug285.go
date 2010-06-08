@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L $F.go && ./$A.out
+// $G $D/$F.go && $L $F.go && ./$A.out || echo BUG: bug285
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
