@@ -1,4 +1,4 @@
-// errchk $G $D/$F.go
+// errchk $G -e $D/$F.go
 
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -85,11 +85,15 @@ func main() {
 	}
 	var q1 Q1
 	var q2 Q2
+	var ps1 *S1
 	q0 = q0
 	q0 = q1
 	q0 = (*struct {
 		x int
-	})(q2) // legal because of special conversion exception for pointers
+	})(ps1) // legal because of special conversion exception for pointers
+	q0 = (*struct {
+		x int
+	})(q2) // ERROR "cannot"
 	q1 = q0
 	q1 = q1
 	q1 = Q1(q2)    // ERROR "cannot"
@@ -127,12 +131,12 @@ func main() {
 	x0 = x1
 	x0 = interface {
 		f() int
-	}(x2) // ERROR "cannot"|"need type assertion"
+	}(x2) // ERROR "cannot|need type assertion"
 	x1 = x0
 	x1 = x1
-	x1 = X1(x2) // ERROR "cannot"|"need type assertion"
-	x2 = X2(x0) // ERROR "cannot"|"need type assertion"
-	x2 = X2(x1) // ERROR "cannot"|"need type assertion"
+	x1 = X1(x2) // ERROR "cannot|need type assertion"
+	x2 = X2(x0) // ERROR "cannot|need type assertion"
+	x2 = X2(x1) // ERROR "cannot|need type assertion"
 	x2 = x2
 
 	type L1 []int
