@@ -194,31 +194,32 @@ errchk: bugs/bug284.go:71: missing expected error: 'cannot'
 errchk: bugs/bug284.go:74: missing expected error: 'cannot'
 errchk: bugs/bug284.go:75: missing expected error: 'cannot'
 errchk: bugs/bug284.go:76: missing expected error: 'cannot'
-errchk: bugs/bug284.go:95: missing expected error: 'cannot'
-errchk: bugs/bug284.go:97: missing expected error: 'cannot'
-errchk: bugs/bug284.go:107: missing expected error: 'cannot'
-errchk: bugs/bug284.go:110: missing expected error: 'cannot'
+errchk: bugs/bug284.go:96: missing expected error: 'cannot'
+errchk: bugs/bug284.go:99: missing expected error: 'cannot'
+errchk: bugs/bug284.go:101: missing expected error: 'cannot'
 errchk: bugs/bug284.go:111: missing expected error: 'cannot'
-errchk: bugs/bug284.go:112: missing expected error: 'cannot'
-errchk: bugs/bug284.go:130: missing expected error: 'cannot'
-errchk: bugs/bug284.go:133: missing expected error: 'cannot'
-errchk: bugs/bug284.go:134: missing expected error: 'cannot'
-errchk: bugs/bug284.go:135: missing expected error: 'cannot'
-errchk: bugs/bug284.go:145: missing expected error: 'cannot'
-errchk: bugs/bug284.go:148: missing expected error: 'cannot'
+errchk: bugs/bug284.go:114: missing expected error: 'cannot'
+errchk: bugs/bug284.go:115: missing expected error: 'cannot'
+errchk: bugs/bug284.go:116: missing expected error: 'cannot'
+errchk: bugs/bug284.go:134: missing expected error: 'cannot|need type assertion'
+errchk: bugs/bug284.go:137: missing expected error: 'cannot|need type assertion'
+errchk: bugs/bug284.go:138: missing expected error: 'cannot|need type assertion'
+errchk: bugs/bug284.go:139: missing expected error: 'cannot|need type assertion'
 errchk: bugs/bug284.go:149: missing expected error: 'cannot'
-errchk: bugs/bug284.go:150: missing expected error: 'cannot'
-errchk: bugs/bug284.go:160: missing expected error: 'cannot'
-errchk: bugs/bug284.go:163: missing expected error: 'cannot'
+errchk: bugs/bug284.go:152: missing expected error: 'cannot'
+errchk: bugs/bug284.go:153: missing expected error: 'cannot'
+errchk: bugs/bug284.go:154: missing expected error: 'cannot'
 errchk: bugs/bug284.go:164: missing expected error: 'cannot'
-errchk: bugs/bug284.go:165: missing expected error: 'cannot'
-errchk: bugs/bug284.go:175: missing expected error: 'cannot'
-errchk: bugs/bug284.go:178: missing expected error: 'cannot'
+errchk: bugs/bug284.go:167: missing expected error: 'cannot'
+errchk: bugs/bug284.go:168: missing expected error: 'cannot'
+errchk: bugs/bug284.go:169: missing expected error: 'cannot'
 errchk: bugs/bug284.go:179: missing expected error: 'cannot'
-errchk: bugs/bug284.go:180: missing expected error: 'cannot'
+errchk: bugs/bug284.go:182: missing expected error: 'cannot'
+errchk: bugs/bug284.go:183: missing expected error: 'cannot'
+errchk: bugs/bug284.go:184: missing expected error: 'cannot'
 errchk: bugs/bug284.go: unmatched error messages:
 ==================================================
-bugs/bug284.go:186: internal compiler error: typename ideal
+bugs/bug284.go:190: internal compiler error: typename ideal
 ==================================================
 
 =========== bugs/bug285.go
@@ -233,4 +234,4 @@ bugs/bug285.go:93: invalid map index new(struct { x int }) - need type I1
 bugs/bug285.go:94: invalid map index false - need type I1
 bugs/bug285.go:95: invalid map index 17 - need type I1
 bugs/bug285.go:95: too many errors
-BUG: should compile
+BUG: bug285
