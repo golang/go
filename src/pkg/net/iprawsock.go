@@ -15,9 +15,9 @@ import (
 func sockaddrToIP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &IPAddr{&sa.Addr}
+		return &IPAddr{sa.Addr[0:]}
 	case *syscall.SockaddrInet6:
-		return &IPAddr{&sa.Addr}
+		return &IPAddr{sa.Addr[0:]}
 	}
 	return nil
 }
@@ -176,14 +176,14 @@ func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
 	n, sa, err := c.fd.ReadFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &IPAddr{&sa.Addr}
+		addr = &IPAddr{sa.Addr[0:]}
 		if len(b) >= 4 { // discard ipv4 header
 			hsize := (int(b[0]) & 0xf) * 4
 			copy(b, b[hsize:])
 			n -= hsize
 		}
 	case *syscall.SockaddrInet6:
-		addr = &IPAddr{&sa.Addr}
+		addr = &IPAddr{sa.Addr[0:]}
 	}
 	return
 }

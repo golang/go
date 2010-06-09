@@ -15,7 +15,7 @@ type _386Regs struct {
 	setter func(*syscall.PtraceRegs) os.Error
 }
 
-var names = [...]string{
+var names = []string{
 	"eax",
 	"ebx",
 	"ecx",
@@ -55,7 +55,7 @@ func (r *_386Regs) SetSP(val Word) os.Error {
 	return r.setter(&r.PtraceRegs)
 }
 
-func (r *_386Regs) Names() []string { return &names }
+func (r *_386Regs) Names() []string { return names }
 
 func (r *_386Regs) Get(i int) Word {
 	switch i {

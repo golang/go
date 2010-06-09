@@ -109,7 +109,7 @@ func TestRawMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	if string(*data.Id) != raw {
+	if string([]byte(*data.Id)) != raw {
 		t.Fatalf("Raw mismatch: have %#q want %#q", []byte(*data.Id), raw)
 	}
 	b, err := Marshal(&data)

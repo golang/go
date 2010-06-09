@@ -88,7 +88,7 @@ func main() {
 	z1[0] = 'a'
 	z1[1] = 'b'
 	z1[2] = 'c'
-	c = string(&z1)
+	c = string(z1[0:])
 	if c != "abc" {
 		print("create byte array ", c)
 		panic("fail")
@@ -99,7 +99,7 @@ func main() {
 	z2[0] = 'a'
 	z2[1] = '\u1234'
 	z2[2] = 'c'
-	c = string(&z2)
+	c = string(z2[0:])
 	if c != "a\u1234c" {
 		print("create int array ", c)
 		panic("fail")
@@ -110,7 +110,7 @@ func main() {
 	z3[0] = 'a'
 	z3[1] = 'b'
 	z3[2] = 'c'
-	c = string(z3)
+	c = string(z3[0:])
 	if c != "abc" {
 		print("create array pointer ", c)
 		panic("fail")

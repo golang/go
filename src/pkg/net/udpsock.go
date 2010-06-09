@@ -14,9 +14,9 @@ import (
 func sockaddrToUDP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &UDPAddr{&sa.Addr, sa.Port}
+		return &UDPAddr{sa.Addr[0:], sa.Port}
 	case *syscall.SockaddrInet6:
-		return &UDPAddr{&sa.Addr, sa.Port}
+		return &UDPAddr{sa.Addr[0:], sa.Port}
 	}
 	return nil
 }
@@ -176,9 +176,9 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
 	n, sa, err := c.fd.ReadFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &UDPAddr{&sa.Addr, sa.Port}
+		addr = &UDPAddr{sa.Addr[0:], sa.Port}
 	case *syscall.SockaddrInet6:
-		addr = &UDPAddr{&sa.Addr, sa.Port}
+		addr = &UDPAddr{sa.Addr[0:], sa.Port}
 	}
 	return
 }
