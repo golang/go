@@ -182,10 +182,22 @@ dumpexporttype(Sym *s)
 	Bprint(bout, "type %#T %l#T\n",  t, t);
 }
 
+static int
+methcmp(const void *va, const void *vb)
+{
+	Type *a, *b;
+	
+	a = *(Type**)va;
+	b = *(Type**)vb;
+	return strcmp(a->sym->name, b->sym->name);
+}
+
 void
 dumpsym(Sym *s)
 {
 	Type *f, *t;
+	Type **m;
+	int i, n;
 
 	if(s->flags & SymExported)
 		return;
@@ -207,14 +219,23 @@ dumpsym(Sym *s)
 		break;
 	case OTYPE:
 		t = s->def->type;
-		// TODO(rsc): sort methods by name
-		for(f=t->method; f!=T; f=f->down)
+		n = 0;
+		for(f=t->method; f!=T; f=f->down) {	
 			dumpprereq(f);
+			n++;
+		}
+		m = mal(n*sizeof m[0]);
+		i = 0;
+		for(f=t->method; f!=T; f=f->down)
+			m[i++] = f;
+		qsort(m, n, sizeof m[0], methcmp);
 
 		dumpexporttype(s);
-		for(f=t->method; f!=T; f=f->down)
+		for(i=0; i<n; i++) {
+			f = m[i];
 			Bprint(bout, "\tfunc (%#T) %hS %#hhT\n",
 				f->type->type->type, f->sym, f->type);
+		}
 		break;
 	case ONAME:
 		dumpexportvar(s);
@@ -357,7 +378,7 @@ importvar(Sym *s, Type *t, int ctxt)
 
 	importsym(s, ONAME);
 	if(s->def != N && s->def->op == ONAME) {
-		if(cvttype(t, s->def->type))
+		if(eqtype(t, s->def->type))
 			return;
 		yyerror("inconsistent definition for var %S during import\n\t%T\n\t%T",
 			s, s->def->type, t);

@@ -148,8 +148,21 @@ main(int argc, char *argv[])
 	typecheckok = 1;
 	if(debug['f'])
 		frame(1);
+
+	// Process top-level declarations in three phases.
+	// Phase 1: const, type, and names and types of funcs.
+	//   This will gather all the information about types
+	//   and methods but doesn't depend on any of it.
+	// Phase 2: Variable assignments.
+	//   To check interface assignments, depends on phase 1.
+	// Phase 3: Function bodies.
 	defercheckwidth();
-	typechecklist(xtop, Etop);
+	for(l=xtop; l; l=l->next)
+		if(l->n->op != ODCL && l->n->op != OAS)
+			typecheck(&l->n, Etop);
+	for(l=xtop; l; l=l->next)
+		if(l->n->op == ODCL || l->n->op == OAS)
+			typecheck(&l->n, Etop);
 	resumecheckwidth();
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
@@ -164,7 +177,6 @@ main(int argc, char *argv[])
 	}
 	dclchecks();
 
-	runifacechecks();
 	if(nerrors)
 		errorexit();
 
@@ -1155,7 +1167,7 @@ loop:
 int
 escchar(int e, int *escflg, vlong *val)
 {
-	int i, c;
+	int i, u, c;
 	vlong l;
 
 	*escflg = 0;
@@ -1177,6 +1189,7 @@ escchar(int e, int *escflg, vlong *val)
 		return 0;
 	}
 
+	u = 0;
 	c = getr();
 	switch(c) {
 	case 'x':
@@ -1186,10 +1199,12 @@ escchar(int e, int *escflg, vlong *val)
 
 	case 'u':
 		i = 4;
+		u = 1;
 		goto hex;
 
 	case 'U':
 		i = 8;
+		u = 1;
 		goto hex;
 
 	case '0':
@@ -1238,6 +1253,10 @@ hex:
 		yyerror("non-hex character in escape sequence: %c", c);
 		ungetc(c);
 		break;
+	}
+	if(u && l > Runemax) {
+		yyerror("invalid Unicode code point in escape sequence: %#llx", l);
+		l = Runeerror;
 	}
 	*val = l;
 	return 0;
@@ -1388,7 +1407,6 @@ lexinit(void)
 	// (the type of x in var x string or var x = "hello").
 	// this is the ideal form
 	// (the type of x in const x = "hello").
-	// TODO(rsc): this may need some more thought.
 	idealstring = typ(TSTRING);
 	idealbool = typ(TBOOL);
 

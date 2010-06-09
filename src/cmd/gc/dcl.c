@@ -281,6 +281,7 @@ updatetype(Type *n, Type *t)
 	local = n->local;
 	vargen = n->vargen;
 	*n = *t;
+	n->orig = t->orig;
 	n->sym = s;
 	n->local = local;
 	n->siggen = 0;
@@ -759,7 +760,7 @@ typedcl2(Type *pt, Type *t)
 
 	if(pt->etype == TFORW)
 		goto ok;
-	if(!cvttype(pt, t))
+	if(!eqtype(pt->orig, t))
 		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
 	return;
 
@@ -1154,7 +1155,7 @@ Sym*
 methodsym(Sym *nsym, Type *t0)
 {
 	Sym *s;
-	char buf[NSYMB];
+	char *p;
 	Type *t;
 
 	t = t0;
@@ -1177,8 +1178,10 @@ methodsym(Sym *nsym, Type *t0)
 	if(t != t0 && t0->sym)
 		t0 = ptrto(t);
 
-	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
-	return pkglookup(buf, s->pkg);
+	p = smprint("%#hT·%s", t0, nsym->name);
+	s = pkglookup(p, s->pkg);
+	free(p);
+	return s;
 
 bad:
 	yyerror("illegal receiver type: %T", t0);
@@ -1200,7 +1203,7 @@ Node*
 methodname1(Node *n, Node *t)
 {
 	char *star;
-	char buf[NSYMB];
+	char *p;
 
 	star = "";
 	if(t->op == OIND) {
@@ -1209,8 +1212,10 @@ methodname1(Node *n, Node *t)
 	}
 	if(t->sym == S || isblank(n))
 		return newname(n->sym);
-	snprint(buf, sizeof(buf), "%s%S·%S", star, t->sym, n->sym);
-	return newname(pkglookup(buf, t->sym->pkg));
+	p = smprint("%s%S·%S", star, t->sym, n->sym);
+	n = newname(pkglookup(p, t->sym->pkg));
+	free(p);
+	return n;
 }
 
 /*

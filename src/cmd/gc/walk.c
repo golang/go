@@ -9,26 +9,6 @@ static	Node*	conv(Node*, Type*);
 static	Node*	mapfn(char*, Type*);
 static	Node*	makenewvar(Type*, NodeList**, Node**);
 
-enum
-{
-	Inone,
-	I2T,
-	I2T2,
-	I2I,
-	I2Ix,
-	I2I2,
-	T2I,
-	I2Isame,
-	E2T,
-	E2T2,
-	E2I,
-	E2I2,
-	I2E,
-	I2E2,
-	T2E,
-	E2Esame,
-};
-
 // can this code branch reach the end
 // without an undcontitional RETURN
 // this is hard, so it is conservative
@@ -169,8 +149,7 @@ walkdeftype(Node *n)
 	t->printed = 0;
 	t->deferwidth = 0;
 
-	// double-check use of type as map key
-	// TODO(rsc): also use of type as receiver?
+	// double-check use of type as map key.
 	if(maplineno) {
 		lineno = maplineno;
 		maptype(n->type, types[TBOOL]);
@@ -441,7 +420,10 @@ walkstmt(Node **np)
 		walkstmtlist(n->ninit);
 		if(n->ntest != N) {
 			walkstmtlist(n->ntest->ninit);
-			walkexpr(&n->ntest, &n->ninit);
+			init = n->ntest->ninit;
+			n->ntest->ninit = nil;
+			walkexpr(&n->ntest, &init);
+			n->ntest->ninit = concat(init, n->ntest->ninit);
 		}
 		walkstmt(&n->nincr);
 		walkstmtlist(n->nbody);
@@ -483,7 +465,7 @@ walkstmt(Node **np)
 			break;
 		}
 		ll = ascompatte(n->op, getoutarg(curfn->type), n->list, 1, &n->ninit);
-		n->list = reorder4(ll);
+		n->list = ll;
 		break;
 
 	case OSELECT:
@@ -541,6 +523,7 @@ walkexpr(Node **np, NodeList **init)
 	int et;
 	int32 lno;
 	Node *n, *fn;
+	char buf[100], *p;
 
 	n = *np;
 
@@ -671,6 +654,7 @@ walkexpr(Node **np, NodeList **init)
 			// the output bool, so we clear it before the call.
 			Node *b;
 			b = nodbool(0);
+			typecheck(&b, Erv);
 			lr = ascompatte(n->op, getoutarg(t), list1(b), 0, init);
 			n->list = concat(n->list, lr);
 		}
@@ -710,7 +694,6 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OAS2:
-	as2:
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		walkexprlistsafe(n->list, init);
@@ -802,41 +785,77 @@ walkexpr(Node **np, NodeList **init)
 		n->ninit = nil;
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
-		walkdottype(r, init);
-		et = ifaceas1(r->type, r->left->type, 1);
-		switch(et) {
-		case I2Isame:
-		case E2Esame:
-		case I2E:
-			n->rlist = list(list1(r->left), nodbool(1));
-			typechecklist(n->rlist, Erv);
-			goto as2;
-		case I2T:
-			et = I2T2;
-			break;
-		case I2Ix:
-			et = I2I2;
-			break;
-		case E2I:
-			et = E2I2;
-			break;
-		case E2T:
-			et = E2T2;
-			break;
-		default:
-			et = Inone;
-			break;
-		}
-		if(et == Inone)
-			break;
-		r = ifacecvt(r->type, r->left, et, init);
+		r->op = ODOTTYPE2;
+		walkexpr(&r, init);
 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
 		n = liststmt(concat(list1(r), ll));
 		goto ret;
 
 	case ODOTTYPE:
-		walkdottype(n, init);
-		walkconv(&n, init);
+	case ODOTTYPE2:		
+		// Build name of function: assertI2E2 etc.
+		strcpy(buf, "assert");
+		p = buf+strlen(buf);
+		if(isnilinter(n->left->type))
+			*p++ = 'E';
+		else
+			*p++ = 'I';
+		*p++ = '2';
+		if(isnilinter(n->type))
+			*p++ = 'E';
+		else if(isinter(n->type))
+			*p++ = 'I';
+		else
+			*p++ = 'T';
+		if(n->op == ODOTTYPE2)
+			*p++ = '2';
+		*p = '\0';
+	
+		fn = syslook(buf, 1);
+		ll = list1(typename(n->type));
+		ll = list(ll, n->left);
+		argtype(fn, n->left->type);
+		argtype(fn, n->type);
+		n = nod(OCALL, fn, N);
+		n->list = ll;
+		typecheck(&n, Erv | Efnstruct);
+		walkexpr(&n, init);
+		goto ret;
+
+	case OCONVIFACE:
+		// Build name of function: convI2E etc.
+		// Not all names are possible
+		// (e.g., we'll never generate convE2E or convE2I).
+		walkexpr(&n->left, init);
+		strcpy(buf, "conv");
+		p = buf+strlen(buf);
+		if(isnilinter(n->left->type))
+			*p++ = 'E';
+		else if(isinter(n->left->type))
+			*p++ = 'I';
+		else
+			*p++ = 'T';
+		*p++ = '2';
+		if(isnilinter(n->type))
+			*p++ = 'E';
+		else
+			*p++ = 'I';
+		*p = '\0';
+		
+		fn = syslook(buf, 1);
+		ll = nil;
+		if(!isinter(n->left->type))
+			ll = list(ll, typename(n->left->type));
+		if(!isnilinter(n->type))
+			ll = list(ll, typename(n->type));
+		ll = list(ll, n->left);
+		argtype(fn, n->left->type);
+		argtype(fn, n->type);
+		dowidth(fn->type);
+		n = nod(OCALL, fn, N);
+		n->list = ll;
+		typecheck(&n, Erv);
+		walkexpr(&n, init);
 		goto ret;
 
 	case OCONV:
@@ -1176,7 +1195,7 @@ walkexpr(Node **np, NodeList **init)
 	case ORUNESTR:
 		// sys_intstring(v)
 		n = mkcall("intstring", n->type, init,
-			conv(n->left, types[TINT64]));	// TODO(rsc): int64?!
+			conv(n->left, types[TINT64]));
 		goto ret;
 
 	case OARRAYBYTESTR:
@@ -1234,11 +1253,6 @@ walkexpr(Node **np, NodeList **init)
 		n = mkcall1(chanfn("chansend2", 2, n->left->type), n->type, init, n->left, n->right);
 		goto ret;
 
-	case OCONVIFACE:
-		walkexpr(&n->left, init);
-		n = ifacecvt(n->type, n->left, n->etype, init);
-		goto ret;
-
 	case OCLOSURE:
 		n = walkclosure(n, init);
 		goto ret;
@@ -1269,70 +1283,6 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
 	*nstar = nod(OIND, nvar, N);
 	typecheck(nstar, Erv);
 	return nvar;
-}
-
-// TODO(rsc): cut
-void
-walkdottype(Node *n, NodeList **init)
-{
-	walkexpr(&n->left, init);
-	if(n->left == N)
-		return;
-	if(n->right != N) {
-		walkexpr(&n->right, init);
-		n->type = n->right->type;
-		n->right = N;
-	}
-}
-
-// TODO(rsc): cut
-void
-walkconv(Node **np, NodeList **init)
-{
-	int et;
-	char *what;
-	Type *t;
-	Node *l;
-	Node *n;
-
-	n = *np;
-	t = n->type;
-	if(t == T)
-		return;
-	walkexpr(&n->left, init);
-	l = n->left;
-	if(l == N)
-		return;
-	if(l->type == T)
-		return;
-
-	// if using .(T), interface assertion.
-	if(n->op == ODOTTYPE) {
-		et = ifaceas1(t, l->type, 1);
-		if(et == I2Isame || et == E2Esame) {
-			n->op = OCONVNOP;
-			return;
-		}
-		if(et != Inone) {
-			n = ifacecvt(t, l, et, init);
-			*np = n;
-			return;
-		}
-		goto bad;
-	}
-
-	fatal("walkconv");
-
-bad:
-	if(n->diag)
-		return;
-	n->diag = 1;
-	if(n->op == ODOTTYPE)
-		what = "type assertion";
-	else
-		what = "conversion";
-	if(l->type != T)
-		yyerror("invalid %s: %T to %T", what, l->type, t);
 }
 
 Node*
@@ -1418,6 +1368,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 		if(fncall(l, r->type)) {
 			tmp = nod(OXXX, N, N);
 			tempname(tmp, r->type);
+			typecheck(&tmp, Erv);
 			a = nod(OAS, l, tmp);
 			a = convas(a, init);
 			mm = list(mm, a);
@@ -1517,6 +1468,7 @@ mkdotargs(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
 	var = nod(OXXX, N, N);
 	tempname(var, st);
 	var->sym = lookup(".ddd");
+	typecheck(&var, Erv);
 
 	// assign the fields to the struct.
 	// use the init list so that reorder1 doesn't reorder
@@ -1927,166 +1879,11 @@ bad:
 	return T;
 }
 
-/*
- * assigning src to dst involving interfaces?
- * return op to use.
- */
-int
-ifaceas1(Type *dst, Type *src, int explicit)
-{
-	if(src == T || dst == T)
-		return Inone;
-
-	if(explicit && !isinter(src))
-		yyerror("cannot use .(T) on non-interface type %T", src);
-
-	if(isinter(dst)) {
-		if(isinter(src)) {
-			if(isnilinter(dst)) {
-				if(isnilinter(src))
-					return E2Esame;
-				return I2E;
-			}
-			if(eqtype(dst, src))
-				return I2Isame;
-			ifacecheck(dst, src, lineno, explicit);
-			if(isnilinter(src))
-				return E2I;
-			if(explicit)
-				return I2Ix;
-			return I2I;
-		}
-		if(isnilinter(dst))
-			return T2E;
-		ifacecheck(dst, src, lineno, explicit);
-		return T2I;
-	}
-	if(isinter(src)) {
-		ifacecheck(dst, src, lineno, explicit);
-		if(isnilinter(src))
-			return E2T;
-		return I2T;
-	}
-	return Inone;
-}
-
-/*
- * treat convert T to T as noop
- */
-int
-ifaceas(Type *dst, Type *src, int explicit)
-{
-	int et;
-
-	et = ifaceas1(dst, src, explicit);
-	if(et == I2Isame || et == E2Esame)
-		et = Inone;
-	return et;
-}
-
-static	char*
-ifacename[] =
-{
-	[I2T]		= "ifaceI2T",
-	[I2T2]		= "ifaceI2T2",
-	[I2I]		= "ifaceI2I",
-	[I2Ix]		= "ifaceI2Ix",
-	[I2I2]		= "ifaceI2I2",
-	[I2Isame]	= "ifaceI2Isame",
-	[E2T]		= "ifaceE2T",
-	[E2T2]		= "ifaceE2T2",
-	[E2I]		= "ifaceE2I",
-	[E2I2]		= "ifaceE2I2",
-	[I2E]		= "ifaceI2E",
-	[I2E2]		= "ifaceI2E2",
-	[T2I]		= "ifaceT2I",
-	[T2E]		= "ifaceT2E",
-	[E2Esame]	= "ifaceE2Esame",
-};
-
-Node*
-ifacecvt(Type *tl, Node *n, int et, NodeList **init)
-{
-	Type *tr;
-	Node *r, *on;
-	NodeList *args;
-
-	tr = n->type;
-
-	switch(et) {
-	default:
-		fatal("ifacecvt: unknown op %d\n", et);
-
-	case I2Isame:
-	case E2Esame:
-		return n;
-
-	case T2I:
-		// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
-		args = list1(typename(tl));	// sigi
-		args = list(args, typename(tr));	// sigt
-		args = list(args, n);	// elem
-
-		on = syslook("ifaceT2I", 1);
-		argtype(on, tr);
-		argtype(on, tl);
-		dowidth(on->type);
-		break;
-
-	case I2T:
-	case I2T2:
-	case I2I:
-	case I2Ix:
-	case I2I2:
-	case E2T:
-	case E2T2:
-	case E2I:
-	case E2I2:
-		// iface[IT]2[IT][2](sigt *byte, iface any) (ret any[, ok bool]);
-		args = list1(typename(tl));	// sigi or sigt
-		args = list(args, n);		// iface
-
-		on = syslook(ifacename[et], 1);
-		argtype(on, tr);
-		argtype(on, tl);
-		break;
-
-	case I2E:
-		// TODO(rsc): Should do this in back end, without a call.
-		// ifaceI2E(elem any) (ret any);
-		args = list1(n);	// elem
-
-		on = syslook("ifaceI2E", 1);
-		argtype(on, tr);
-		argtype(on, tl);
-		break;
-
-	case T2E:
-		// TODO(rsc): Should do this in back end for pointer case, without a call.
-		// ifaceT2E(sigt *byte, elem any) (ret any);
-		args = list1(typename(tr));	// sigt
-		args = list(args, n);		// elem
-
-		on = syslook("ifaceT2E", 1);
-		argtype(on, tr);
-		argtype(on, tl);
-		break;
-	}
-
-	dowidth(on->type);
-	r = nod(OCALL, on, N);
-	r->list = args;
-	typecheck(&r, Erv | Efnstruct);
-	walkexpr(&r, init);
-	return r;
-}
-
 Node*
 convas(Node *n, NodeList **init)
 {
 	Node *l, *r;
 	Type *lt, *rt;
-	int et;
 
 	if(n->op != OAS)
 		fatal("convas: not OAS %O", n->op);
@@ -2115,15 +1912,12 @@ convas(Node *n, NodeList **init)
 			n->left->left, n->left->right, n->right);
 		goto out;
 	}
-
+	
 	if(eqtype(lt, rt))
 		goto out;
-
-	et = ifaceas(lt, rt, 0);
-	if(et != Inone) {
-		n->right = ifacecvt(lt, r, et, init);
-		goto out;
-	}
+	
+	n->right = assignconv(r, lt, "assignment");
+	walkexpr(&n->right, init);
 
 out:
 	ullmancalc(n);
@@ -2290,24 +2084,6 @@ reorder3(NodeList *all)
 		}
 	}
 	return concat(all, r);
-}
-
-NodeList*
-reorder4(NodeList *ll)
-{
-	/*
-	 * from ascompat[te]
-	 *	return c,d
-	 * return expression assigned to output
-	 * parameters. there may be no problems.
-	 *
-	 * TODO(rsc): i don't believe that.
-	 *	func f() (a, b int) {
-	 *		a, b = 1, 2;
-	 *		return b, a;
-	 *	}
-	 */
-	return ll;
 }
 
 /*

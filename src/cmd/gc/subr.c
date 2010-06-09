@@ -524,6 +524,7 @@ typ(int et)
 	t->etype = et;
 	t->width = BADWIDTH;
 	t->lineno = lineno;
+	t->orig = t;
 	return t;
 }
 
@@ -863,16 +864,13 @@ goopnames[] =
 int
 Oconv(Fmt *fp)
 {
-	char buf[500];
 	int o;
 
 	o = va_arg(fp->args, int);
 	if((fp->flags & FmtSharp) && o >= 0 && o < nelem(goopnames) && goopnames[o] != nil)
 		return fmtstrcpy(fp, goopnames[o]);
-	if(o < 0 || o >= nelem(opnames) || opnames[o] == nil) {
-		snprint(buf, sizeof(buf), "O-%d", o);
-		return fmtstrcpy(fp, buf);
-	}
+	if(o < 0 || o >= nelem(opnames) || opnames[o] == nil)
+		return fmtprint(fp, "O-%d", o);
 	return fmtstrcpy(fp, opnames[o]);
 }
 
@@ -992,14 +990,11 @@ etnames[] =
 int
 Econv(Fmt *fp)
 {
-	char buf[500];
 	int et;
 
 	et = va_arg(fp->args, int);
-	if(et < 0 || et >= nelem(etnames) || etnames[et] == nil) {
-		snprint(buf, sizeof(buf), "E-%d", et);
-		return fmtstrcpy(fp, buf);
-	}
+	if(et < 0 || et >= nelem(etnames) || etnames[et] == nil)
+		return fmtprint(fp, "E-%d", et);
 	return fmtstrcpy(fp, etnames[et]);
 }
 
@@ -1139,6 +1134,13 @@ Tpretty(Fmt *fp, Type *t)
 {
 	Type *t1;
 	Sym *s;
+	
+	if(debug['U']) {
+		debug['U'] = 0;
+		fmtprint(fp, "%T (orig=%T)", t, t->orig);
+		debug['U'] = 1;
+		return 0;
+	}
 
 	if(t->etype != TFIELD
 	&& t->sym != S
@@ -1775,113 +1777,73 @@ iscomposite(Type *t)
 	return 0;
 }
 
+// Return 1 if t1 and t2 are identical, following the spec rules.
+//
+// Any cyclic type must go through a named type, and if one is
+// named, it is only identical to the other if they are the same
+// pointer (t1 == t2), so there's no chance of chasing cycles
+// ad infinitum, so no need for a depth counter.
 int
-eqtype1(Type *t1, Type *t2, int d, int names)
+eqtype(Type *t1, Type *t2)
 {
-	if(d >= 20)
-		return 1;
 	if(t1 == t2)
 		return 1;
-	if(t1 == T || t2 == T)
+	if(t1 == T || t2 == T || t1->etype != t2->etype || t1->sym || t2->sym)
 		return 0;
-	if(t1->etype != t2->etype)
-		return 0;
-	if(names && t1->etype != TFIELD && t1->sym && t2->sym && t1 != t2)
-		return 0;
+
 	switch(t1->etype) {
 	case TINTER:
 	case TSTRUCT:
-		t1 = t1->type;
-		t2 = t2->type;
-		for(;;) {
-			if(!eqtype1(t1, t2, d+1, names))
+		for(t1=t1->type, t2=t2->type; t1 && t2; t1=t1->down, t2=t2->down) {
+			if(t1->etype != TFIELD || t2->etype != TFIELD)
+				fatal("struct/interface missing field: %T %T", t1, t2);
+			if(t1->sym != t2->sym || t1->embedded != t2->embedded || !eqtype(t1->type, t2->type))
 				return 0;
-			if(t1 == T)
-				return 1;
-			if(t1->embedded != t2->embedded)
-				return 0;
-			if(t1->nname != N && t1->nname->sym != S) {
-				if(t2->nname == N || t2->nname->sym == S)
-					return 0;
-				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0)
-					return 0;
-			}
-			t1 = t1->down;
-			t2 = t2->down;
 		}
-		return 1;
+		return t1 == T && t2 == T;
 
 	case TFUNC:
 		// Loop over structs: receiver, in, out.
-		t1 = t1->type;
-		t2 = t2->type;
-		for(;;) {
+		for(t1=t1->type, t2=t2->type; t1 && t2; t1=t1->down, t2=t2->down) {
 			Type *ta, *tb;
-			if(t1 == t2)
-				break;
-			if(t1 == T || t2 == T)
-				return 0;
+
 			if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
-				return 0;
+				fatal("func missing struct: %T %T", t1, t2);
 
-			// Loop over fields in structs, checking type only.
-			ta = t1->type;
-			tb = t2->type;
-			while(ta != tb) {
-				if(ta == T || tb == T)
+			// Loop over fields in structs, ignoring argument names.
+			for(ta=t1->type, tb=t2->type; ta && tb; ta=ta->down, tb=tb->down) {
+				if(ta->etype != TFIELD || tb->etype != TFIELD)
+					fatal("func struct missing field: %T %T", ta, tb);
+				if(ta->isddd != tb->isddd || !eqtype(ta->type, tb->type))
 					return 0;
-				if(ta->etype != TFIELD || tb->etype != TFIELD || ta->isddd != tb->isddd)
-					return 0;
-				if(!eqtype1(ta->type, tb->type, d+1, names))
-					return 0;
-				ta = ta->down;
-				tb = tb->down;
 			}
-
-			t1 = t1->down;
-			t2 = t2->down;
+			if(ta != T || tb != T)
+				return 0;
 		}
-		return 1;
-
+		return t1 == T && t2 == T;
+	
 	case TARRAY:
 		if(t1->bound != t2->bound)
 			return 0;
 		break;
-
+	
 	case TCHAN:
 		if(t1->chan != t2->chan)
 			return 0;
 		break;
-
-	case TMAP:
-		if(!eqtype1(t1->down, t2->down, d+1, names))
-			return 0;
-		break;
 	}
-	return eqtype1(t1->type, t2->type, d+1, names);
+
+	return eqtype(t1->down, t2->down) && eqtype(t1->type, t2->type);
 }
 
-int
-eqtype(Type *t1, Type *t2)
-{
-	return eqtype1(t1, t2, 0, 1);
-}
-
-/*
- * can we convert from type src to dst with
- * a trivial conversion (no bits changing)?
- */
-int
-cvttype(Type *dst, Type *src)
-{
-	return eqtype1(dst, src, 0, 0);
-}
-
+// Are t1 and t2 equal struct types when field names are ignored?
+// For deciding whether the result struct from g can be copied
+// directly when compiling f(g()).
 int
 eqtypenoname(Type *t1, Type *t2)
 {
 	if(t1 == T || t2 == T || t1->etype != TSTRUCT || t2->etype != TSTRUCT)
-		return eqtype(t1, t2);
+		return 0;
 
 	t1 = t1->type;
 	t2 = t2->type;
@@ -1893,6 +1855,216 @@ eqtypenoname(Type *t1, Type *t2)
 		t1 = t1->down;
 		t2 = t2->down;
 	}
+}
+
+// Is type src assignment compatible to type dst?
+// If so, return op code to use in conversion.
+// If not, return 0.
+//
+// It is the caller's responsibility to call exportassignok
+// to check for assignments to other packages' unexported fields,
+int
+assignop(Type *src, Type *dst, char **why)
+{
+	Type *missing, *have;
+
+	if(why != nil)
+		*why = "";
+
+	if(src == dst)
+		return OCONVNOP;
+	if(src == T || dst == T || src->etype == TFORW || dst->etype == TFORW || src->orig == T || dst->orig == T)
+		return 0;
+
+	// 1. src type is identical to dst.
+	if(eqtype(src, dst))
+		return OCONVNOP;
+	
+	// 2. src and dst have identical underlying types
+	// and either src or dst is not a named type.
+	if(eqtype(src->orig, dst->orig) && (src->sym == S || dst->sym == S))
+		return OCONVNOP;
+
+	// 3. dst is an interface type and src implements dst.
+	if(dst->etype == TINTER && src->etype != TNIL) {
+		if(implements(src, dst, &missing, &have))
+			return OCONVIFACE;
+		if(why != nil) {
+			if(isptrto(src, TINTER))
+				*why = smprint(": %T is pointer to interface, not interface", src);
+			else if(have)
+				*why = smprint(": %T does not implement %T (wrong type for %S method)\n"
+					"\thave %T\n\twant %T", src, dst, missing->sym, have->type, missing->type);
+			else
+				*why = smprint(": %T does not implement %T (missing %S method)",
+					src, dst, missing->sym);
+		}
+		return 0;
+	}
+	if(src->etype == TINTER && dst->etype != TBLANK) {
+		if(why != nil)
+			*why = ": need type assertion";
+		return 0;
+	}
+
+	// 4. src is a bidirectional channel value, dst is a channel type,
+	// src and dst have identical element types, and
+	// either src or dst is not a named type.
+	if(src->etype == TCHAN && src->chan == Cboth && dst->etype == TCHAN)
+	if(eqtype(src->type, dst->type) && (src->sym == S || dst->sym == S))
+		return OCONVNOP;
+
+	// 5. src is the predeclared identifier nil and dst is a nillable type.
+	if(src->etype == TNIL) {
+		switch(dst->etype) {
+		case TARRAY:
+			if(dst->bound != -100)	// not slice
+				break;
+		case TPTR32:
+		case TPTR64:
+		case TFUNC:
+		case TMAP:
+		case TCHAN:
+		case TINTER:
+			return OCONVNOP;
+		}
+	}
+
+	// 6. rule about untyped constants - already converted by defaultlit.
+	
+	// 7. Any typed value can be assigned to the blank identifier.
+	if(dst->etype == TBLANK)
+		return OCONVNOP;
+	
+	// 8. Array to slice.
+	// TODO(rsc): Not for long.
+	if(!src->sym || !dst->sym)
+	if(isptr[src->etype] && isfixedarray(src->type) && isslice(dst))
+	if(eqtype(src->type->type, dst->type))
+		return OCONVSLICE;
+
+	return 0;
+}
+
+// Can we convert a value of type src to a value of type dst?
+// If so, return op code to use in conversion (maybe OCONVNOP).
+// If not, return 0.
+int
+convertop(Type *src, Type *dst, char **why)
+{
+	int op;
+	
+	if(why != nil)
+		*why = "";
+
+	if(src == dst)
+		return OCONVNOP;
+	if(src == T || dst == T)
+		return 0;
+	
+	// 1. src can be assigned to dst.
+	if((op = assignop(src, dst, why)) != 0)
+		return op;
+
+	// The rules for interfaces are no different in conversions
+	// than assignments.  If interfaces are involved, stop now
+	// with the good message from assignop.
+	// Otherwise clear the error.
+	if(src->etype == TINTER || dst->etype == TINTER)
+		return 0;
+	if(why != nil)
+		*why = "";
+
+	// 2. src and dst have identical underlying types.
+	if(eqtype(src->orig, dst->orig))
+		return OCONVNOP;
+	
+	// 3. src and dst are unnamed pointer types 
+	// and their base types have identical underlying types.
+	if(isptr[src->etype] && isptr[dst->etype] && src->sym == S && dst->sym == S)
+	if(eqtype(src->type->orig, dst->type->orig))
+		return OCONVNOP;
+
+	// 4. src and dst are both integer or floating point types.
+	if((isint[src->etype] || isfloat[src->etype]) && (isint[dst->etype] || isfloat[dst->etype])) {
+		if(simtype[src->etype] == simtype[dst->etype])
+			return OCONVNOP;
+		return OCONV;
+	}
+
+	// 5. src and dst are both complex types.
+	if(iscomplex[src->etype] && iscomplex[dst->etype]) {
+		if(simtype[src->etype] == simtype[dst->etype])
+			return OCONVNOP;
+		return OCONV;
+	}
+
+	// 6. src is an integer or has type []byte or []int
+	// and dst is a string type.
+	if(isint[src->etype] && dst->etype == TSTRING)
+		return ORUNESTR;
+
+	if(isslice(src) && src->sym == nil &&  src->type == types[src->type->etype] && dst->etype == TSTRING) {
+		switch(src->type->etype) {
+		case TUINT8:
+			return OARRAYBYTESTR;
+		case TINT:
+			return OARRAYRUNESTR;
+		}
+	}
+	
+	// 7. src is a string and dst is []byte or []int.
+	// String to slice.
+	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil && dst->type == types[dst->type->etype]) {
+		switch(dst->type->etype) {
+		case TUINT8:
+			return OSTRARRAYBYTE;
+		case TINT:
+			return OSTRARRAYRUNE;
+		}
+	}
+	
+	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
+	if((isptr[src->etype] || src->etype == TUINTPTR) && isptrto(dst, TANY))
+		return OCONVNOP;
+
+	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
+	if(isptrto(src, TANY) && (isptr[dst->etype] || dst->etype == TUINTPTR))
+		return OCONVNOP;
+		
+
+	return 0;
+}
+
+// Convert node n for assignment to type t.
+Node*
+assignconv(Node *n, Type *t, char *context)
+{
+	int op;
+	Node *r;
+	char *why;
+	
+	if(n == N || n->type == T)
+		return n;
+
+	defaultlit(&n, t);
+	if(t->etype == TBLANK)
+		return n;
+
+	exportassignok(n->type, context);
+	if(eqtype(n->type, t))
+		return n;
+
+	op = assignop(n->type, t, &why);
+	if(op == 0) {
+		yyerror("cannot use %+N as type %T in %s%s", n, t, context, why);
+		op = OCONV;
+	}
+
+	r = nod(op, n, N);
+	r->type = t;
+	r->typecheck = 1;
+	return r;
 }
 
 static int
@@ -2026,6 +2198,8 @@ shallow(Type *t)
 		return T;
 	nt = typ(0);
 	*nt = *t;
+	if(t->orig == t)
+		nt->orig = nt;
 	return nt;
 }
 
@@ -2941,43 +3115,6 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 	funccompile(fn, 0);
 }
 
-/*
- * delayed interface type check.
- * remember that there is an interface conversion
- * on the given line.  once the file is completely read
- * and all methods are known, we can check that
- * the conversions are valid.
- */
-
-typedef struct Icheck Icheck;
-struct Icheck
-{
-	Icheck *next;
-	Type *dst;
-	Type *src;
-	int lineno;
-	int explicit;
-};
-Icheck *icheck;
-Icheck *ichecktail;
-
-void
-ifacecheck(Type *dst, Type *src, int lineno, int explicit)
-{
-	Icheck *p;
-
-	p = mal(sizeof *p);
-	if(ichecktail)
-		ichecktail->next = p;
-	else
-		icheck = p;
-	p->dst = dst;
-	p->src = src;
-	p->lineno = lineno;
-	p->explicit = explicit;
-	ichecktail = p;
-}
-
 Type*
 ifacelookdot(Sym *s, Type *t, int *followptr)
 {
@@ -3012,20 +3149,42 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
 	return T;
 }
 
-// check whether non-interface type t
-// satisifes inteface type iface.
 int
-ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
+implements(Type *t, Type *iface, Type **m, Type **samename)
 {
-	Type *t, *im, *tm, *rcvr, *imtype;
+	Type *t0, *im, *tm, *rcvr, *imtype;
 	int followptr;
 
-	t = methtype(t0);
+	t0 = t;
+	if(t == T)
+		return 0;
 
 	// if this is too slow,
 	// could sort these first
 	// and then do one loop.
 
+	if(t->etype == TINTER) {
+		for(im=iface->type; im; im=im->down) {
+			for(tm=t->type; tm; tm=tm->down) {
+				if(tm->sym == im->sym) {
+					if(eqtype(tm->type, im->type))
+						goto found;
+					*m = im;
+					*samename = tm;
+					return 0;
+				}
+			}
+			*m = im;
+			*samename = nil;
+			return 0;
+		found:;
+		}
+		return 1;
+	}
+
+	t = methtype(t);
+	if(t != T)
+		expandmeth(t->sym, t);
 	for(im=iface->type; im; im=im->down) {
 		imtype = methodfunc(im->type, 0);
 		tm = ifacelookdot(im->sym, t, &followptr);
@@ -3046,87 +3205,6 @@ ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
 		}
 	}
 	return 1;
-}
-
-// check whether interface type i1 satisifes interface type i2.
-int
-ifaceokI2I(Type *i1, Type *i2, Type **m)
-{
-	Type *m1, *m2;
-
-	// if this is too slow,
-	// could sort these first
-	// and then do one loop.
-
-	for(m2=i2->type; m2; m2=m2->down) {
-		for(m1=i1->type; m1; m1=m1->down)
-			if(m1->sym == m2->sym && eqtype(m1, m2))
-				goto found;
-		*m = m2;
-		return 0;
-	found:;
-	}
-	return 1;
-}
-
-void
-runifacechecks(void)
-{
-	Icheck *p;
-	int lno, wrong, needexplicit;
-	Type *m, *t, *iface, *samename;
-
-	lno = lineno;
-	for(p=icheck; p; p=p->next) {
-		lineno = p->lineno;
-		wrong = 0;
-		needexplicit = 0;
-		m = nil;
-		samename = nil;
-		if(isinter(p->dst) && isinter(p->src)) {
-			iface = p->dst;
-			t = p->src;
-			needexplicit = !ifaceokI2I(t, iface, &m);
-		}
-		else if(isinter(p->dst)) {
-			t = p->src;
-			iface = p->dst;
-			wrong = !ifaceokT2I(t, iface, &m, &samename);
-		} else {
-			t = p->dst;
-			iface = p->src;
-			wrong = !ifaceokT2I(t, iface, &m, &samename);
-			needexplicit = 1;
-		}
-		if(wrong) {
-			if(p->explicit) {
-				if(samename)
-					yyerror("%T cannot contain %T\n\tmissing %S%hhT\n\tdo have %S%hhT",
-						iface, t, m->sym, m->type, samename->sym, samename->type);
-				else
-					yyerror("%T cannot contain %T\n\tmissing %S%hhT", iface, t, m->sym, m->type);
-			} else {
-				if(samename)
-					yyerror("%T is not %T\n\tmissing %S%hhT\n\tdo have %S%hhT",
-						t, iface, m->sym, m->type, samename->sym, samename->type);
-				else
-					yyerror("%T is not %T\n\tmissing %S%hhT", t, iface, m->sym, m->type);
-			}
-		}
-		else if(!p->explicit && needexplicit) {
-			if(m) {
-				if(samename)
-					yyerror("need type assertion to use %T as %T\n\tmissing %S %hhT\n\tdo have %S%hhT",
-						p->src, p->dst, m->sym, m->type, samename->sym, samename->type);
-				else
-					yyerror("need type assertion to use %T as %T\n\tmissing %S%hhT",
-						p->src, p->dst, m->sym, m->type);
-			} else
-				yyerror("need type assertion to use %T as %T",
-					p->src, p->dst);
-		}
-	}
-	lineno = lno;
 }
 
 /*
