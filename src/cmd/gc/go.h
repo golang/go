@@ -158,6 +158,7 @@ struct	Type
 	uchar	isddd;	// TFIELD is ... argument
 
 	Node*	nod;		// canonical OTYPE node
+	Type*	orig;		// original type (type literal or predefined type)
 	int		lineno;
 
 	// TFUNCT
@@ -361,11 +362,12 @@ enum
 	OCLOSURE,
 	OCMPIFACE, OCMPSTR,
 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
-	OCONV, OCONVNOP, OCONVIFACE, OCONVSLICE,
+	OCONV, OCONVIFACE, OCONVNOP, OCONVSLICE,
 	OCOPY,
 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
 	ODOTTYPE,
+	ODOTTYPE2,
 	OEQ, ONE, OLT, OLE, OGE, OGT,
 	OIND,
 	OINDEX, OINDEXSTR, OINDEXMAP,
@@ -904,26 +906,21 @@ NodeList*	list(NodeList*, Node*);
 NodeList*	concat(NodeList*, NodeList*);
 int		count(NodeList*);
 Node*	liststmt(NodeList*);
-
 Type**	getthis(Type*);
 Type**	getoutarg(Type*);
 Type**	getinarg(Type*);
-
 Type*	getthisx(Type*);
 Type*	getoutargx(Type*);
 Type*	getinargx(Type*);
-
 Type*	structfirst(Iter*, Type**);
 Type*	structnext(Iter*);
 Type*	funcfirst(Iter*, Type*);
 Type*	funcnext(Iter*);
-
 int	brcom(int);
 int	brrev(int);
 void	setmaxarg(Type*);
 int	dotoffset(Node*, int*, Node**);
 void	tempname(Node*, Type*);
-
 int	Econv(Fmt*);
 int	Jconv(Fmt*);
 int	Lconv(Fmt*);
@@ -934,23 +931,22 @@ int	Nconv(Fmt*);
 void	exprfmt(Fmt*, Node*, int);
 int	Wconv(Fmt*);
 int	Zconv(Fmt*);
-
 int	lookdot0(Sym*, Type*, Type**);
 int	adddot1(Sym*, Type*, int, Type**);
 Node*	adddot(Node*);
 void	expandmeth(Sym*, Type*);
 void	genwrapper(Type*, Type*, Sym*);
-
 int	simsimtype(Type*);
-
 int	powtwo(Node*);
 Type*	tounsigned(Type*);
 void	smagic(Magic*);
 void	umagic(Magic*);
-
 void	redeclare(Sym*, char*);
 Sym*	ngotype(Node*);
-
+int	convertop(Type*, Type*, char**);
+int	assignop(Type*, Type*, char**);
+Node*	assignconv(Node*, Type*, char*);
+int	implements(Type*, Type*, Type**, Type**);
 
 /*
  *	dcl.c
@@ -1053,7 +1049,6 @@ void	walkstmt(Node**);
 void	walkstmtlist(NodeList*);
 void	walkexprlist(NodeList*, NodeList**);
 void	walkconv(Node**, NodeList**);
-void	walkdottype(Node*, NodeList**);
 void	walkas(Node*);
 void	walkswitch(Node*);
 void	walkrange(Node*);
@@ -1071,8 +1066,6 @@ Type*	fixchan(Type*);
 Node*	ifacecvt(Type*, Node*, int, NodeList**);
 int	ifaceas(Type*, Type*, int);
 int	ifaceas1(Type*, Type*, int);
-void	ifacecheck(Type*, Type*, int, int);
-void	runifacechecks(void);
 Node*	convas(Node*, NodeList**);
 Node*	colas(NodeList*, NodeList*);
 void	colasdefn(NodeList*, Node*);
@@ -1090,10 +1083,10 @@ void	typecheckswitch(Node*);
 void	typecheckselect(Node*);
 void	typecheckrange(Node*);
 Node*	typecheckconv(Node*, Node*, Type*, int, char*);
-int	checkconv(Type*, Type*, int, int*, int*, char*);
 Node*	typecheck(Node**, int);
 int	islvalue(Node*);
 void	queuemethod(Node*);
+int	exportassignok(Type*, char*);
 
 /*
  *	const.c
@@ -1242,4 +1235,4 @@ int	duintptr(Sym *s, int off, uint64 v);
 int	duintxx(Sym *s, int off, uint64 v, int wid);
 void	genembedtramp(Type*, Type*, Sym*);
 int	gen_as_init(Node*);
-int	anyregalloc();
+int	anyregalloc(void);

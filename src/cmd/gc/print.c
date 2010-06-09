@@ -39,6 +39,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case ODOTPTR:
 	case ODOTINTER:
 	case ODOTMETH:
+	case ODOTTYPE:
+	case ODOTTYPE2:
 	case OARRAYBYTESTR:
 	case OCAP:
 	case OCLOSE:
@@ -54,7 +56,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCONV:
 	case OCONVNOP:
 	case OCONVSLICE:
-	case OCONVIFACE:
 	case OMAKESLICE:
 	case ORUNESTR:
 	case OADDR:
@@ -64,6 +65,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case ONOT:
 	case OPLUS:
 	case ORECV:
+	case OCONVIFACE:
 		nprec = 7;
 		break;
 
@@ -277,6 +279,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case ODOTTYPE:
+	case ODOTTYPE2:
 		exprfmt(f, n->left, 7);
 		fmtprint(f, ".(");
 		if(n->right != N)
@@ -336,9 +339,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case OCONV:
+	case OCONVIFACE:
 	case OCONVNOP:
 	case OCONVSLICE:
-	case OCONVIFACE:
 	case OARRAYBYTESTR:
 	case ORUNESTR:
 		if(n->type == T || n->type->sym == S)

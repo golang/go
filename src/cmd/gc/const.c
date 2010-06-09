@@ -93,8 +93,11 @@ convlit1(Node **np, Type *t, int explicit)
 		return;
 	case OLITERAL:
 		// target is invalid type for a constant?  leave alone.
-		if(!okforconst[t->etype] && n->type->etype != TNIL)
+		if(!okforconst[t->etype] && n->type->etype != TNIL) {
+			defaultlit(&n, T);
+			*np = n;
 			return;
+		}
 		break;
 	case OLSH:
 	case ORSH:
@@ -109,10 +112,8 @@ convlit1(Node **np, Type *t, int explicit)
 	}
 
 	// avoided repeated calculations, errors
-	if(cvttype(n->type, t) == 1) {
-		n->type = t;
+	if(eqtype(n->type, t))
 		return;
-	}
 
 	ct = consttype(n);
 	if(ct < 0)
@@ -968,6 +969,8 @@ defaultlit(Node **np, Type *t)
 		break;
 	case CTBOOL:
 		n->type = types[TBOOL];
+		if(t != T && t->etype == TBOOL)
+			n->type = t;
 		break;
 	case CTINT:
 		n->type = types[TINT];

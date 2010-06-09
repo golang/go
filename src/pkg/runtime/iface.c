@@ -177,26 +177,26 @@ copyout(Type *t, void **src, void *dst)
 		algarray[alg].copy(wid, dst, *src);
 }
 
-// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret Iface);
+// func convT2I(typ *byte, typ2 *byte, elem any) (ret any)
 #pragma textflag 7
 void
-·ifaceT2I(InterfaceType *inter, Type *t, ...)
+·convT2I(Type *t, InterfaceType *inter, ...)
 {
 	byte *elem;
 	Iface *ret;
 	int32 wid;
 
-	elem = (byte*)(&t+1);
+	elem = (byte*)(&inter+1);
 	wid = t->size;
 	ret = (Iface*)(elem + rnd(wid, Structrnd));
 	ret->tab = itab(inter, t, 0);
 	copyin(t, elem, &ret->data);
 }
 
-// ifaceT2E(sigt *byte, elem any) (ret Eface);
+// func convT2E(typ *byte, elem any) (ret any)
 #pragma textflag 7
 void
-·ifaceT2E(Type *t, ...)
+·convT2E(Type *t, ...)
 {
 	byte *elem;
 	Eface *ret;
@@ -205,15 +205,14 @@ void
 	elem = (byte*)(&t+1);
 	wid = t->size;
 	ret = (Eface*)(elem + rnd(wid, Structrnd));
-
 	ret->type = t;
 	copyin(t, elem, &ret->data);
 }
 
-// ifaceI2T(sigt *byte, iface any) (ret any);
+// func ifaceI2T(typ *byte, iface any) (ret any)
 #pragma textflag 7
 void
-·ifaceI2T(Type *t, Iface i, ...)
+·assertI2T(Type *t, Iface i, ...)
 {
 	Itab *tab;
 	byte *ret;
@@ -236,10 +235,10 @@ void
 	copyout(t, &i.data, ret);
 }
 
-// ifaceI2T2(sigt *byte, i Iface) (ret any, ok bool);
+// func ifaceI2T2(typ *byte, iface any) (ret any, ok bool)
 #pragma textflag 7
 void
-·ifaceI2T2(Type *t, Iface i, ...)
+·assertI2T2(Type *t, Iface i, ...)
 {
 	byte *ret;
 	bool *ok;
@@ -259,10 +258,10 @@ void
 	copyout(t, &i.data, ret);
 }
 
-// ifaceE2T(sigt *byte, e Eface) (ret any);
+// func ifaceE2T(typ *byte, iface any) (ret any)
 #pragma textflag 7
 void
-·ifaceE2T(Type *t, Eface e, ...)
+·assertE2T(Type *t, Eface e, ...)
 {
 	byte *ret;
 	Eface err;
@@ -284,10 +283,10 @@ void
 	copyout(t, &e.data, ret);
 }
 
-// ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
+// func ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
 #pragma textflag 7
 void
-·ifaceE2T2(Type *t, Eface e, ...)
+·assertE2T2(Type *t, Eface e, ...)
 {
 	byte *ret;
 	bool *ok;
@@ -307,50 +306,25 @@ void
 	copyout(t, &e.data, ret);
 }
 
-// ifaceI2E(sigi *byte, iface any) (ret any);
-// TODO(rsc): Move to back end, throw away function.
+// func convI2E(elem any) (ret any)
+#pragma textflag 7
 void
-·ifaceI2E(Iface i, Eface ret)
+·convI2E(Iface i, Eface ret)
 {
 	Itab *tab;
 
 	ret.data = i.data;
-	tab = i.tab;
-	if(tab == nil)
+	if((tab = i.tab) == nil)
 		ret.type = nil;
 	else
 		ret.type = tab->type;
 	FLUSH(&ret);
 }
 
-// ifaceI2I(sigi *byte, iface any) (ret any);
-// called only for implicit (no type assertion) conversions.
-// converting nil is okay.
+// func ifaceI2E(typ *byte, iface any) (ret any)
+#pragma textflag 7
 void
-·ifaceI2I(InterfaceType *inter, Iface i, Iface ret)
-{
-	Itab *tab;
-
-	tab = i.tab;
-	if(tab == nil) {
-		// If incoming interface is uninitialized (zeroed)
-		// make the outgoing interface zeroed as well.
-		ret.tab = nil;
-		ret.data = nil;
-	} else {
-		ret = i;
-		if(tab->inter != inter)
-			ret.tab = itab(inter, tab->type, 0);
-	}
-
-	FLUSH(&ret);
-}
-
-// ifaceI2Ix(sigi *byte, iface any) (ret any);
-// called only for explicit conversions (with type assertion).
-// converting nil is not okay.
-void
-·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
+·assertI2E(InterfaceType* inter, Iface i, Eface ret)
 {
 	Itab *tab;
 	Eface err;
@@ -362,45 +336,97 @@ void
 			nil, nil, inter->string,
 			nil, &err);
 		·panic(err);
-	} else {
-		ret = i;
-		if(tab->inter != inter)
-			ret.tab = itab(inter, tab->type, 0);
 	}
-
+	ret.data = i.data;
+	ret.type = tab->type;
 	FLUSH(&ret);
 }
 
-// ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+// func ifaceI2E2(typ *byte, iface any) (ret any, ok bool)
+#pragma textflag 7
 void
-·ifaceI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+·assertI2E2(InterfaceType* inter, Iface i, Eface ret, bool ok)
 {
 	Itab *tab;
 
+	USED(inter);
 	tab = i.tab;
 	if(tab == nil) {
-		// If incoming interface is nil, the conversion fails.
-		ret.tab = nil;
-		ret.data = nil;
-		ok = false;
+		ret.type = nil;
+		ok = 0;
 	} else {
-		ret = i;
-		ok = true;
-		if(tab->inter != inter) {
-			ret.tab = itab(inter, tab->type, 1);
-			if(ret.tab == nil) {
-				ret.data = nil;
-				ok = false;
-			}
-		}
+		ret.type = tab->type;
+		ok = 1;
 	}
-
+	ret.data = i.data;
 	FLUSH(&ret);
 	FLUSH(&ok);
 }
 
-// ifaceE2I(sigi *byte, iface any) (ret any);
-// Called only for explicit conversions (with type assertion).
+// func convI2I(typ *byte, elem any) (ret any)
+#pragma textflag 7
+void
+·convI2I(InterfaceType* inter, Iface i, Iface ret)
+{
+	Itab *tab;
+	
+	ret.data = i.data;
+	if((tab = i.tab) == nil)
+		ret.tab = nil;
+	else if(tab->inter == inter)
+		ret.tab = tab;
+	else
+		ret.tab = itab(inter, tab->type, 0);
+	FLUSH(&ret);
+}
+
+void
+ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
+{
+	Itab *tab;
+	Eface err;
+
+	tab = i.tab;
+	if(tab == nil) {
+		// explicit conversions require non-nil interface value.
+		·newTypeAssertionError(nil, nil, inter,
+			nil, nil, inter->string,
+			nil, &err);
+		·panic(err);
+	}
+	ret->data = i.data;
+	ret->tab = itab(inter, tab->type, 0);
+}
+
+// func ifaceI2I(sigi *byte, iface any) (ret any)
+#pragma textflag 7
+void
+·assertI2I(InterfaceType* inter, Iface i, Iface ret)
+{
+	ifaceI2I(inter, i, &ret);
+}
+
+// func ifaceI2I2(sigi *byte, iface any) (ret any, ok bool)
+#pragma textflag 7
+void
+·assertI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+{
+	Itab *tab;
+
+	tab = i.tab;
+	if(tab != nil && (tab->inter == inter || (tab = itab(inter, tab->type, 1)) != nil)) {
+		ret.data = i.data;
+		ret.tab = tab;
+		ok = 1;
+	} else {
+		ret.data = 0;
+		ret.tab = 0;
+		ok = 0;
+	}
+	FLUSH(&ret);
+	FLUSH(&ok);
+}
+
 void
 ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 {
@@ -414,41 +440,67 @@ ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 			nil, nil, inter->string,
 			nil, &err);
 		·panic(err);
-	} else {
-		ret->data = e.data;
-		ret->tab = itab(inter, t, 0);
 	}
+	ret->data = e.data;
+	ret->tab = itab(inter, t, 0);
 }
 
-// ifaceE2I(sigi *byte, iface any) (ret any);
-// Called only for explicit conversions (with type assertion).
+// func ifaceE2I(sigi *byte, iface any) (ret any)
+#pragma textflag 7
 void
-·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
+·assertE2I(InterfaceType* inter, Eface e, Iface ret)
 {
 	ifaceE2I(inter, e, &ret);
 }
 
-// ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
+// ifaceE2I2(sigi *byte, iface any) (ret any, ok bool)
+#pragma textflag 7
 void
-·ifaceE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
 {
-	Type *t;
-
-	t = e.type;
-	ok = true;
-	if(t == nil) {
-		// If incoming interface is nil, the conversion fails.
+	if(e.type == nil) {
+		ok = 0;
 		ret.data = nil;
 		ret.tab = nil;
-		ok = false;
+	} else if((ret.tab = itab(inter, e.type, 1)) == nil) {
+		ok = 0;
+		ret.data = nil;
 	} else {
+		ok = 1;
 		ret.data = e.data;
-		ret.tab = itab(inter, t, 1);
-		if(ret.tab == nil) {
-			ret.data = nil;
-			ok = false;
-		}
 	}
+	FLUSH(&ret);
+	FLUSH(&ok);
+}
+
+// func ifaceE2E(typ *byte, iface any) (ret any)
+#pragma textflag 7
+void
+·assertE2E(InterfaceType* inter, Eface e, Eface ret)
+{
+	Type *t;
+	Eface err;
+
+	t = e.type;
+	if(t == nil) {
+		// explicit conversions require non-nil interface value.
+		·newTypeAssertionError(nil, nil, inter,
+			nil, nil, inter->string,
+			nil, &err);
+		·panic(err);
+	}
+	ret = e;
+	FLUSH(&ret);
+}
+
+// func ifaceE2E2(iface any) (ret any, ok bool)
+#pragma textflag 7
+void
+·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
+{
+	USED(inter);
+	ret = e;
+	ok = e.type != nil;
 	FLUSH(&ret);
 	FLUSH(&ok);
 }

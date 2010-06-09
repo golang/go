@@ -12,46 +12,57 @@ package main
 type Bool bool
 
 type Map map[int]int
+
 func (Map) M() {}
 
-func asBool(Bool) {}
+type Slice []byte
+
+var slice Slice
+
+func asBool(Bool)     {}
+func asString(String) {}
+
+type String string
 
 func main() {
 	var (
-		b Bool = true;
-		i, j int;
-		c = make(chan int);
-		m = make(Map);
+		b    Bool = true
+		i, j int
+		c    = make(chan int)
+		m    = make(Map)
 	)
 
-	asBool(b);
-	asBool(!b);
-	asBool(true);
-	asBool(*&b);
-	asBool(Bool(true));
-	asBool(1!=2);	// ERROR "cannot use.*type bool.*as type Bool"
-	asBool(i < j);	// ERROR "cannot use.*type bool.*as type Bool"
+	asBool(b)
+	asBool(!b)
+	asBool(true)
+	asBool(*&b)
+	asBool(Bool(true))
+	asBool(1 != 2) // ERROR "cannot use.*type bool.*as type Bool"
+	asBool(i < j)  // ERROR "cannot use.*type bool.*as type Bool"
 
-	_, b = m[2];	// ERROR "cannot .* bool.*type Bool"
-	m[2] = 1, b;	// ERROR "cannot use.*type Bool.*as type bool"
+	_, b = m[2] // ERROR "cannot .* bool.*type Bool"
+	m[2] = 1, b // ERROR "cannot use.*type Bool.*as type bool"
 
-	b = c<-1;	// ERROR "cannot use.*type bool.*type Bool"
-	_ = b;
-	asBool(c<-1);	// ERROR "cannot use.*type bool.*as type Bool"
+	b = c <- 1 // ERROR "cannot use.*type bool.*type Bool"
+	_ = b
+	asBool(c <- 1) // ERROR "cannot use.*type bool.*as type Bool"
 
-	_, b = <-c;	// ERROR "cannot .* bool.*type Bool"
-	_ = b;
+	_, b = <-c // ERROR "cannot .* bool.*type Bool"
+	_ = b
 
-	var inter interface{};
-	_, b = inter.(Map);	// ERROR "cannot .* bool.*type Bool"
-	_ = b;
+	var inter interface{}
+	_, b = inter.(Map) // ERROR "cannot .* bool.*type Bool"
+	_ = b
 
-	var minter interface{M()};
-	_, b = minter.(Map);	// ERROR "cannot .* bool.*type Bool"
-	_ = b;
+	var minter interface {
+		M()
+	}
+	_, b = minter.(Map) // ERROR "cannot .* bool.*type Bool"
+	_ = b
 
-	asBool(closed(c));	// ERROR "cannot use.*type bool.*as type Bool"
-	b = closed(c);		// ERROR "cannot use.*type bool.*type Bool"
-	_ = b;
+	asBool(closed(c)) // ERROR "cannot use.*type bool.*as type Bool"
+	b = closed(c)     // ERROR "cannot use.*type bool.*type Bool"
+	_ = b
+
+	asString(String(slice)) // ERROR "cannot convert slice"
 }
-

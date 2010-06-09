@@ -133,25 +133,22 @@ bitno(int32 b)
 int
 Qconv(Fmt *fp)
 {
-	char str[STRINGSZ], ss[STRINGSZ], *s;
 	Bits bits;
-	int i;
+	int i, first;
 
-	str[0] = 0;
+	first = 1;
 	bits = va_arg(fp->args, Bits);
 	while(bany(&bits)) {
 		i = bnum(bits);
-		if(str[0])
-			strcat(str, " ");
-		if(var[i].sym == S) {
-			sprint(ss, "$%lld", var[i].offset);
-			s = ss;
-		} else
-			s = var[i].sym->name;
-		if(strlen(str) + strlen(s) + 1 >= STRINGSZ)
-			break;
-		strcat(str, s);
+		if(first)
+			first = 0;
+		else
+			fmtprint(fp, " ");
+		if(var[i].sym == S)
+			fmtprint(fp, "$%lld", var[i].offset);
+		else
+			fmtprint(fp, var[i].sym->name);
 		bits.b[i/32] &= ~(1L << (i%32));
 	}
-	return fmtstrcpy(fp, str);
+	return 0;
 }

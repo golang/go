@@ -11,7 +11,7 @@
 void
 typecheckrange(Node *n)
 {
-	int op, et;
+	char *why;
 	Type *t, *t1, *t2;
 	Node *v1, *v2;
 	NodeList *ll;
@@ -66,13 +66,13 @@ typecheckrange(Node *n)
 
 	if(v1->defn == n)
 		v1->type = t1;
-	else if(v1->type != T && checkconv(t1, v1->type, 0, &op, &et, "range") < 0)
-		yyerror("cannot assign type %T to %+N", t1, v1);
+	else if(v1->type != T && assignop(t1, v1->type, &why) == 0)
+		yyerror("cannot assign type %T to %+N in range%s", t1, v1, why);
 	if(v2) {
 		if(v2->defn == n)
 			v2->type = t2;
-		else if(v2->type != T && checkconv(t2, v2->type, 0, &op, &et, "range") < 0)
-			yyerror("cannot assign type %T to %+N", t1, v1);
+		else if(v2->type != T && assignop(t2, v2->type, &why) == 0)
+			yyerror("cannot assign type %T to %+N in range%s", t2, v2, why);
 	}
 
 out:

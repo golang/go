@@ -18,8 +18,9 @@ var f2 = []int(e)
 
 var g = []int(nil)
 
-type H *[4]int
+type H []int
 type J []int
+
 var h H
-var j1 J = h	// ERROR "compat|illegal|cannot|cannot"
+var j1 J = h // ERROR "compat|illegal|cannot"
 var j2 = J(h)

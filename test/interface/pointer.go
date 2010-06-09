@@ -9,28 +9,28 @@
 package main
 
 type Inst interface {
-	Next()	*Inst;
+	Next() *Inst
 }
 
 type Regexp struct {
-	code []Inst;
-	start	Inst;
+	code  []Inst
+	start Inst
 }
 
 type Start struct {
-	foo	*Inst;
+	foo *Inst
 }
 
 func (start *Start) Next() *Inst { return nil }
 
 
 func AddInst(Inst) *Inst {
-	print("ok in addinst\n");
+	print("ok in addinst\n")
 	return nil
 }
 
 func main() {
-	print("call addinst\n");
-	var x Inst = AddInst(new(Start));	// ERROR "illegal|incompatible|is not"
-	print("return from  addinst\n");
+	print("call addinst\n")
+	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface"
+	print("return from  addinst\n")
 }

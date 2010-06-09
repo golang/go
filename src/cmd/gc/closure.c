@@ -119,6 +119,7 @@ walkclosure(Node *func, NodeList **init)
 	Node *xtype, *v, *addr, *xfunc, *call, *clos;
 	NodeList *l, *in;
 	static int closgen;
+	char *p;
 
 	/*
 	 * wrap body in external function
@@ -134,8 +135,9 @@ walkclosure(Node *func, NodeList **init)
 		if(v->op == 0)
 			continue;
 		addr = nod(ONAME, N, N);
-		snprint(namebuf, sizeof namebuf, "&%s", v->sym->name);
-		addr->sym = lookup(namebuf);
+		p = smprint("&%s", v->sym->name);
+		addr->sym = lookup(p);
+		free(p);
 		addr->ntype = nod(OIND, typenod(v->type), N);
 		addr->class = PPARAM;
 		addr->addable = 1;

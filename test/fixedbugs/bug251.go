@@ -12,10 +12,10 @@ type I1 interface {
 }
 
 type I2 interface {
-	I1	// ERROR "loop|interface"
+	I1 // ERROR "loop|interface"
 }
 
 
-var i1 I1 = i2	// ERROR "need type assertion"
+var i1 I1 = i2 // ERROR "missing m method|need type assertion"
 var i2 I2
 var i2a I2 = i1
