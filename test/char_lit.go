@@ -30,15 +30,15 @@ func main() {
 		'\xFE' +
 		'\u0123' +
 		'\ubabe' +
-		'\U0123ABCD' +
-		'\Ucafebabe'
+		'\U0010FFFF' +
+		'\U000ebabe'
 		;
-	if '\Ucafebabe' != 0xcafebabe {
-		print("cafebabe wrong\n");
+	if '\U000ebabe' != 0x000ebabe {
+		print("ebabe wrong\n");
 		os.Exit(1)
 	}
-	if i != 0xcc238de1 {
-		print("number is ", i, " should be ", 0xcc238de1, "\n");
+	if i != 0x20e213 {
+		print("number is ", i, " should be ", 0x20e213, "\n");
 		os.Exit(1)
 		}
 }
