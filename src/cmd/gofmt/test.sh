@@ -36,7 +36,7 @@ apply1() {
 	# the following files are skipped because they are test cases
 	# for syntax errors and thus won't parse in the first place:
 	case `basename "$F"` in
-	func3.go | const2.go | \
+	func3.go | const2.go | char_lit1.go | \
 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
