@@ -1,4 +1,4 @@
-// errchk $G $D/$F.go
+// errchk $G -e $D/$F.go
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -50,3 +50,22 @@ func main() {
 	e = E(t) // ok
 	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
 }
+
+type M interface { M() }
+var m M
+
+var _ = m.(int)	// ERROR "impossible type assertion"
+
+type Int int
+func (Int) M(float) {}
+
+var _ = m.(Int)	// ERROR "impossible type assertion"
+
+var ii int
+var jj Int
+
+var m1 M = ii	// ERROR "missing"
+var m2 M = jj	// ERROR "wrong type for M method"
+
+var m3 = M(ii)	// ERROR "missing"
+var m4 = M(jj)	// ERROR "wrong type for M method"

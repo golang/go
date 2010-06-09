@@ -659,6 +659,7 @@ EXTERN	char*	outfile;
 EXTERN	Biobuf*	bout;
 EXTERN	int	nerrors;
 EXTERN	int	nsyntaxerrors;
+EXTERN	int	safemode;
 EXTERN	char	namebuf[NSYMB];
 EXTERN	char	lexbuf[NSYMB];
 EXTERN	char	debug[256];

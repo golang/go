@@ -21,6 +21,26 @@ enum
 	EOF		= -1,
 };
 
+void
+usage(void)
+{
+	print("usage: %cg [flags] file.go...\n");
+	print("flags:\n");
+	// -A is allow use of "any" type, for bootstrapping
+	print("  -I DIR search for packages in DIR\n");
+	print("  -d print declarations\n");
+	print("  -e no limit on number of errors printed\n");
+	print("  -f print stack frame structure\n");
+	print("  -h panic on an error\n");
+	print("  -o file specify output file\n");
+	print("  -S print the assembly language\n");
+	print("  -V print the compiler version\n");
+	print("  -u disable package unsafe\n");
+	print("  -w print the parse tree after typing\n");
+	print("  -x print lex tokens\n");
+	exit(0);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -62,19 +82,24 @@ main(int argc, char *argv[])
 		break;
 
 	case 'o':
-		outfile = ARGF();
+		outfile = EARGF(usage());
 		break;
 
 	case 'I':
-		addidir(ARGF());
+		addidir(EARGF(usage()));
 		break;
+	
+	case 'u':
+		safemode = 1;
+		break;
+
 	case 'V':
 		print("%cg version %s\n", thechar, getgoversion());
-		errorexit();
+		exit(0);
 	} ARGEND
 
 	if(argc < 1)
-		goto usage;
+		usage();
 
 	// special flag to detect compilation of package runtime
 	compiling_runtime = debug['+'];
@@ -186,22 +211,6 @@ main(int argc, char *argv[])
 		errorexit();
 
 	flusherrors();
-	exit(0);
-	return 0;
-
-usage:
-	print("flags:\n");
-	// -A is allow use of "any" type, for bootstrapping
-	print("  -I DIR search for packages in DIR\n");
-	print("  -d print declarations\n");
-	print("  -e no limit on number of errors printed\n");
-	print("  -f print stack frame structure\n");
-	print("  -h panic on an error\n");
-	print("  -o file specify output file\n");
-	print("  -S print the assembly language\n");
-	print("  -V print the compiler version\n");
-	print("  -w print the parse tree after typing\n");
-	print("  -x print lex tokens\n");
 	exit(0);
 	return 0;
 }
@@ -336,6 +345,10 @@ importfile(Val *f, int line)
 	}
 
 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
+		if(safemode) {
+			yyerror("cannot import package unsafe");
+			errorexit();
+		}
 		importpkg = mkpkg(f->u.sval);
 		cannedimports("unsafe.6", unsafeimport);
 		return;
@@ -461,7 +474,7 @@ _yylex(void)
 {
 	int c, c1, clen, escflag, ncp;
 	vlong v;
-	char *cp;
+	char *cp, *ep;
 	Rune rune;
 	Sym *s;
 	static Loophack *lstk;
@@ -485,11 +498,13 @@ l0:
 	if(c >= Runeself) {
 		/* all multibyte runes are alpha */
 		cp = lexbuf;
+		ep = lexbuf+sizeof lexbuf;
 		goto talph;
 	}
 
 	if(isalpha(c)) {
 		cp = lexbuf;
+		ep = lexbuf+sizeof lexbuf;
 		goto talph;
 	}
 
@@ -504,12 +519,14 @@ l0:
 
 	case '_':
 		cp = lexbuf;
+		ep = lexbuf+sizeof lexbuf;
 		goto talph;
 
 	case '.':
 		c1 = getc();
 		if(isdigit(c1)) {
 			cp = lexbuf;
+			ep = lexbuf+sizeof lexbuf;
 			*cp++ = c;
 			c = c1;
 			c1 = 0;
@@ -862,6 +879,10 @@ talph:
 	 * prefix has been stored
 	 */
 	for(;;) {
+		if(cp+10 >= ep) {
+			yyerror("identifier too long");
+			errorexit();
+		}
 		if(c >= Runeself) {
 			ungetc(c);
 			rune = getr();
@@ -898,8 +919,13 @@ talph:
 tnum:
 	c1 = 0;
 	cp = lexbuf;
+	ep = lexbuf+sizeof lexbuf;
 	if(c != '0') {
 		for(;;) {
+			if(cp+10 >= ep) {
+				yyerror("identifier too long");
+				errorexit();
+			}
 			*cp++ = c;
 			c = getc();
 			if(isdigit(c))
@@ -911,6 +937,10 @@ tnum:
 	c = getc();
 	if(c == 'x' || c == 'X') {
 		for(;;) {
+			if(cp+10 >= ep) {
+				yyerror("identifier too long");
+				errorexit();
+			}
 			*cp++ = c;
 			c = getc();
 			if(isdigit(c))
@@ -930,6 +960,10 @@ tnum:
 
 	c1 = 0;
 	for(;;) {
+		if(cp+10 >= ep) {
+			yyerror("identifier too long");
+			errorexit();
+		}
 		if(!isdigit(c))
 			break;
 		if(c < '0' || c > '7')
@@ -973,6 +1007,10 @@ ncu:
 
 casedot:
 	for(;;) {
+		if(cp+10 >= ep) {
+			yyerror("identifier too long");
+			errorexit();
+		}
 		*cp++ = c;
 		c = getc();
 		if(!isdigit(c))
@@ -993,6 +1031,10 @@ casee:
 	if(!isdigit(c))
 		yyerror("malformed fp constant exponent");
 	while(isdigit(c)) {
+		if(cp+10 >= ep) {
+			yyerror("identifier too long");
+			errorexit();
+		}
 		*cp++ = c;
 		c = getc();
 	}
@@ -1010,6 +1052,10 @@ casep:
 	if(!isdigit(c))
 		yyerror("malformed fp constant exponent");
 	while(isdigit(c)) {
+		if(cp+10 >= ep) {
+			yyerror("identifier too long");
+			errorexit();
+		}
 		*cp++ = c;
 		c = getc();
 	}
@@ -1254,7 +1300,7 @@ hex:
 		ungetc(c);
 		break;
 	}
-	if(u && l > Runemax) {
+	if(u && (l > Runemax || (0xd800 <= l && l < 0xe000))) {
 		yyerror("invalid Unicode code point in escape sequence: %#llx", l);
 		l = Runeerror;
 	}
