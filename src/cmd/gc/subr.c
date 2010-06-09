@@ -877,7 +877,6 @@ Oconv(Fmt *fp)
 int
 Lconv(Fmt *fp)
 {
-	char str[STRINGSZ], s[STRINGSZ];
 	struct
 	{
 		Hist*	incl;	/* start of this include file */
@@ -917,29 +916,25 @@ Lconv(Fmt *fp)
 	if(n > HISTSZ)
 		n = HISTSZ;
 
-	str[0] = 0;
 	for(i=n-1; i>=0; i--) {
 		if(i != n-1) {
 			if(fp->flags & ~(FmtWidth|FmtPrec))
 				break;
-			strcat(str, " ");
+			fmtprint(fp, " ");
 		}
 		if(a[i].line)
-			snprint(s, STRINGSZ, "%s:%ld[%s:%ld]",
+			fmtprint(fp, "%s:%ld[%s:%ld]",
 				a[i].line->name, lno-a[i].ldel+1,
 				a[i].incl->name, lno-a[i].idel+1);
 		else
-			snprint(s, STRINGSZ, "%s:%ld",
+			fmtprint(fp, "%s:%ld",
 				a[i].incl->name, lno-a[i].idel+1);
-		if(strlen(s)+strlen(str) >= STRINGSZ-10)
-			break;
-		strcat(str, s);
 		lno = a[i].incl->line - 1;	/* now print out start of this file */
 	}
 	if(n == 0)
-		strcat(str, "<epoch>");
+		fmtprint(fp, "<epoch>");
 
-	return fmtstrcpy(fp, str);
+	return 0;
 }
 
 /*
@@ -1135,10 +1130,10 @@ Tpretty(Fmt *fp, Type *t)
 	Type *t1;
 	Sym *s;
 	
-	if(debug['U']) {
-		debug['U'] = 0;
+	if(debug['r']) {
+		debug['r'] = 0;
 		fmtprint(fp, "%T (orig=%T)", t, t->orig);
-		debug['U'] = 1;
+		debug['r'] = 1;
 		return 0;
 	}
 
@@ -1871,6 +1866,11 @@ assignop(Type *src, Type *dst, char **why)
 	if(why != nil)
 		*why = "";
 
+	if(safemode && (isptrto(src, TANY) || isptrto(dst, TANY))) {
+		yyerror("cannot use unsafe.Pointer");
+		errorexit();
+	}
+
 	if(src == dst)
 		return OCONVNOP;
 	if(src == T || dst == T || src->etype == TFORW || dst->etype == TFORW || src->orig == T || dst->orig == T)
@@ -1894,7 +1894,8 @@ assignop(Type *src, Type *dst, char **why)
 				*why = smprint(": %T is pointer to interface, not interface", src);
 			else if(have)
 				*why = smprint(": %T does not implement %T (wrong type for %S method)\n"
-					"\thave %T\n\twant %T", src, dst, missing->sym, have->type, missing->type);
+					"\thave %S%hhT\n\twant %S%hhT", src, dst, missing->sym,
+					have->sym, have->type, missing->sym, missing->type);
 			else
 				*why = smprint(": %T does not implement %T (missing %S method)",
 					src, dst, missing->sym);
@@ -2031,7 +2032,6 @@ convertop(Type *src, Type *dst, char **why)
 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
 	if(isptrto(src, TANY) && (isptr[dst->etype] || dst->etype == TUINTPTR))
 		return OCONVNOP;
-		
 
 	return 0;
 }

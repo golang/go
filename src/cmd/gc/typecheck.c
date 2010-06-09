@@ -52,7 +52,7 @@ typecheck(Node **np, int top)
 	Node *n, *l, *r;
 	NodeList *args;
 	int lno, ok, ntop;
-	Type *t;
+	Type *t, *missing, *have;
 	Sym *sym;
 	Val v;
 	char *why;
@@ -520,6 +520,18 @@ reswitch:
 			n->right = N;
 			if(n->type == T)
 				goto error;
+		}
+		if(n->type != T && n->type->etype != TINTER)
+		if(!implements(n->type, t, &missing, &have)) {
+			if(have)
+				yyerror("impossible type assertion: %+N cannot have dynamic type %T"
+					" (wrong type for %S method)\n\thave %S%hhT\n\twant %S%hhT",
+					l, n->type, missing->sym, have->sym, have->type,
+					missing->sym, missing->type);
+			else
+				yyerror("impossible type assertion: %+N cannot have dynamic type %T"
+					" (missing %S method)", l, n->type, missing->sym);
+			goto error;
 		}
 		goto ret;
 
@@ -1179,6 +1191,8 @@ ret:
 			checkwidth(t);
 		}
 	}
+	if(safemode && isptrto(t, TANY))
+		yyerror("cannot use unsafe.Pointer");
 
 	evconst(n);
 	if(n->op == OTYPE && !(top & Etype)) {
