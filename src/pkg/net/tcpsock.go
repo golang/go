@@ -14,9 +14,9 @@ import (
 func sockaddrToTCP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &TCPAddr{&sa.Addr, sa.Port}
+		return &TCPAddr{sa.Addr[0:], sa.Port}
 	case *syscall.SockaddrInet6:
-		return &TCPAddr{&sa.Addr, sa.Port}
+		return &TCPAddr{sa.Addr[0:], sa.Port}
 	}
 	return nil
 }

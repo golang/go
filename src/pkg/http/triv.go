@@ -6,13 +6,12 @@ package main
 
 import (
 	"bytes"
-	"bufio"
 	"expvar"
 	"flag"
 	"fmt"
+	"http"
 	"io"
 	"log"
-	"net"
 	"os"
 	"strconv"
 )
@@ -67,7 +66,7 @@ func FileServer(c *http.Conn, req *http.Request) {
 		fmt.Fprintf(c, "open %s: %v\n", path, err)
 		return
 	}
-	n, err1 := io.Copy(c, f)
+	n, _ := io.Copy(c, f)
 	fmt.Fprintf(c, "[%d bytes]\n", n)
 	f.Close()
 }
@@ -89,7 +88,7 @@ func FlagServer(c *http.Conn, req *http.Request) {
 
 // simple argument server
 func ArgServer(c *http.Conn, req *http.Request) {
-	for i, s := range os.Args {
+	for _, s := range os.Args {
 		fmt.Fprint(c, s, " ")
 	}
 }
@@ -138,6 +137,13 @@ func DateServer(c *http.Conn, req *http.Request) {
 	}
 }
 
+func Logger(c *http.Conn, req *http.Request) {
+	log.Stdout(req.URL.Raw)
+	c.WriteHeader(404)
+	c.Write([]byte("oops"))
+}
+
+
 func main() {
 	flag.Parse()
 
@@ -146,6 +152,7 @@ func main() {
 	http.Handle("/counter", ctr)
 	expvar.Publish("counter", ctr)
 
+	http.Handle("/", http.HandlerFunc(Logger))
 	http.Handle("/go/", http.HandlerFunc(FileServer))
 	http.Handle("/flags", http.HandlerFunc(FlagServer))
 	http.Handle("/args", http.HandlerFunc(ArgServer))

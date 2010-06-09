@@ -168,11 +168,11 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	// Read and decode Mach magic to determine byte order, size.
 	// Magic32 and Magic64 differ only in the bottom bit.
 	var ident [4]byte
-	if _, err := r.ReadAt(&ident, 0); err != nil {
+	if _, err := r.ReadAt(ident[0:], 0); err != nil {
 		return nil, err
 	}
-	be := binary.BigEndian.Uint32(&ident)
-	le := binary.LittleEndian.Uint32(&ident)
+	be := binary.BigEndian.Uint32(ident[0:])
+	le := binary.LittleEndian.Uint32(ident[0:])
 	switch Magic32 &^ 1 {
 	case be &^ 1:
 		f.ByteOrder = binary.BigEndian
@@ -227,7 +227,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 			s.LoadBytes = cmddat
 			s.Cmd = cmd
 			s.Len = siz
-			s.Name = cstring(&seg32.Name)
+			s.Name = cstring(seg32.Name[0:])
 			s.Addr = uint64(seg32.Addr)
 			s.Memsz = uint64(seg32.Memsz)
 			s.Offset = uint64(seg32.Offset)
@@ -243,8 +243,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 					return nil, err
 				}
 				sh := new(Section)
-				sh.Name = cstring(&sh32.Name)
-				sh.Seg = cstring(&sh32.Seg)
+				sh.Name = cstring(sh32.Name[0:])
+				sh.Seg = cstring(sh32.Seg[0:])
 				sh.Addr = uint64(sh32.Addr)
 				sh.Size = uint64(sh32.Size)
 				sh.Offset = sh32.Offset
@@ -265,7 +265,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 			s.LoadBytes = cmddat
 			s.Cmd = cmd
 			s.Len = siz
-			s.Name = cstring(&seg64.Name)
+			s.Name = cstring(seg64.Name[0:])
 			s.Addr = seg64.Addr
 			s.Memsz = seg64.Memsz
 			s.Offset = seg64.Offset
@@ -281,8 +281,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 					return nil, err
 				}
 				sh := new(Section)
-				sh.Name = cstring(&sh64.Name)
-				sh.Seg = cstring(&sh64.Seg)
+				sh.Name = cstring(sh64.Name[0:])
+				sh.Seg = cstring(sh64.Seg[0:])
 				sh.Addr = sh64.Addr
 				sh.Size = sh64.Size
 				sh.Offset = sh64.Offset
