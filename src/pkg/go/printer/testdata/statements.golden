@@ -259,11 +259,11 @@ L:	// no semicolon needed
 func _() {
 	switch 0 {
 	case 0:
-	L0:	// semicolon required
-		;
+	L0:
+		;	// semicolon required
 	case 1:
-	L1:	// semicolon required
-		;
+	L1:
+		;	// semicolon required
 	default:
 	L2:	// no semicolon needed
 	}
