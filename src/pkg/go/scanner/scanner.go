@@ -345,34 +345,43 @@ exit:
 }
 
 
-func (S *Scanner) scanDigits(base, length int) {
-	for length > 0 && digitVal(S.ch) < base {
-		S.next()
-		length--
-	}
-	if length > 0 {
-		S.error(S.pos, "illegal char escape")
-	}
-}
-
-
 func (S *Scanner) scanEscape(quote int) {
 	pos := S.pos
-	ch := S.ch
-	S.next()
-	switch ch {
+
+	var i, base, max uint32
+	switch S.ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
-	// nothing to do
+		S.next()
+		return
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		S.scanDigits(8, 3-1) // 1 char read already
+		i, base, max = 3, 8, 255
 	case 'x':
-		S.scanDigits(16, 2)
+		S.next()
+		i, base, max = 2, 16, 255
 	case 'u':
-		S.scanDigits(16, 4)
+		S.next()
+		i, base, max = 4, 16, unicode.MaxRune
 	case 'U':
-		S.scanDigits(16, 8)
+		S.next()
+		i, base, max = 8, 16, unicode.MaxRune
 	default:
-		S.error(pos, "illegal char escape")
+		S.next() // always make progress
+		S.error(pos, "unknown escape sequence")
+		return
+	}
+
+	var x uint32
+	for ; i > 0; i-- {
+		d := uint32(digitVal(S.ch))
+		if d > base {
+			S.error(S.pos, "illegal character in escape sequence")
+			return
+		}
+		x = x*base + d
+		S.next()
+	}
+	if x > max || 0xd800 <= x && x < 0xe000 {
+		S.error(pos, "escape sequence is invalid Unicode code point")
 	}
 }
 
