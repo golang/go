@@ -5,6 +5,53 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-06-09">2010-06-09</h3>
+
+<pre>
+This release contains many fixes and improvements, including several
+clarifications and consolidations to the Language Specification.
+
+The type checking rules around assignments and conversions are simpler but more
+restrictive: assignments no longer convert implicitly from *[10]int to []int
+(write x[0:] instead of &x), and conversions can no longer change the names of
+types inside composite types.
+
+The fmt package now includes flexible type-driven (fmt.Scan) and 
+format-driven (fmt.Scanf) scanners for all basic types.
+
+* big: bug fix for Quo aliasing problem.
+* bufio: change ReadSlice to match description.
+* cgo: bug fixes.
+* doc: add Google I/O talk and programs,
+        codereview + Mercurial Queues info (thanks Peter Williams).
+* exp/draw: Draw fast paths for the Over operator,
+        add Rectangle.Eq and Point.In, fix Rectangle.Clip (thanks Roger Peppe).
+* fmt: Scan fixes and improvements.
+* gc: backslash newline is not a legal escape sequence in strings,
+        better error message when ~ operator is found,
+        fix export of complex types,
+        new typechecking rules.
+* go/parser: correct position of empty statement ';'.
+* gofmt: fix test script.
+* goinstall: use 'git pull' instead of 'git checkout' (thanks Michael Hoisie).
+* http: add Head function for making HTTP HEAD requests,
+        handle status 304 correctly.
+* image: add Opaque method to the image types.
+        make Color.RGBA return 16 bit color instead of 32 bit color.
+* io/ioutil: add TempFile.
+* math: Pow special cases and additional tests (thanks Charles L. Dorian).
+* netchan: improve closing and shutdown.
+* os: implement os.FileInfo.*time_ns for windows (thanks Alex Brainman).
+* os/signal: correct the regexp for finding Unix signal names (thanks Vinu Rajashekhar).
+* regexp: optimizations (thanks Kyle Consalus).
+* runtime: fix printing -Inf (thanks Evan Shaw),
+        finish pchw -> tiny, added gettime for tiny (thanks Daniel Theophanes).
+* spec: clean-ups and consolidation.
+* syscall: additional Windows compatibility fixes (thanks Alex Brainman).
+* test/bench: added regex-dna-parallel.go (thanks Kyle Consalus).
+* vector: type-specific Do functions now take f(type) (thanks Michael Hoisie). 
+</pre>
+
 <h3 id="2010-05-27">2010-05-27</h3>
 
 <pre>
