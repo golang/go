@@ -1021,7 +1021,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 		p.print("BadStmt")
 
 	case *ast.DeclStmt:
-		p.decl(s.Decl, inStmtList, multiLine)
+		p.decl(s.Decl, multiLine)
 
 	case *ast.EmptyStmt:
 		// nothing to do
@@ -1191,21 +1191,12 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type declContext uint
-
-const (
-	atTop declContext = iota
-	inGroup
-	inStmtList
-)
-
-// The parameter n is the number of specs in the group; context specifies
-// the surroundings of the declaration. Separating semicolons are printed
-// depending on the context. If indent is set, a multi-line identifier lists
-// in the spec are indented when the first linebreak is encountered. Sets
-// multiLine to true if the spec spans multiple lines.
+// The parameter n is the number of specs in the group. If indent is set,
+// multi-line identifier lists in the spec are indented when the first
+// linebreak is encountered.
+// Sets multiLine to true if the spec spans multiple lines.
 //
-func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, multiLine *bool) {
+func (p *printer) spec(spec ast.Spec, n int, indent bool, multiLine *bool) {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		p.setComment(s.Doc)
@@ -1268,7 +1259,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, m
 
 
 // Sets multiLine to true if the declaration spans multiple lines.
-func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) {
+func (p *printer) genDecl(d *ast.GenDecl, multiLine *bool) {
 	p.setComment(d.Doc)
 	p.print(d.Pos(), d.Tok, blank)
 
@@ -1283,7 +1274,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 					p.linebreak(s.Pos().Line, 1, 2, ignore, ml)
 				}
 				ml = false
-				p.spec(s, len(d.Specs), inGroup, false, &ml)
+				p.spec(s, len(d.Specs), false, &ml)
 			}
 			p.print(unindent, formfeed)
 			*multiLine = true
@@ -1292,7 +1283,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 
 	} else {
 		// single declaration
-		p.spec(d.Specs[0], 1, context, true, multiLine)
+		p.spec(d.Specs[0], 1, true, multiLine)
 	}
 }
 
@@ -1406,12 +1397,12 @@ func (p *printer) funcDecl(d *ast.FuncDecl, multiLine *bool) {
 
 
 // Sets multiLine to true if the declaration spans multiple lines.
-func (p *printer) decl(decl ast.Decl, context declContext, multiLine *bool) {
+func (p *printer) decl(decl ast.Decl, multiLine *bool) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
 		p.print(d.Pos(), "BadDecl")
 	case *ast.GenDecl:
-		p.genDecl(d, context, multiLine)
+		p.genDecl(d, multiLine)
 	case *ast.FuncDecl:
 		p.funcDecl(d, multiLine)
 	default:
@@ -1454,7 +1445,7 @@ func (p *printer) file(src *ast.File) {
 				min = 2
 			}
 			p.linebreak(d.Pos().Line, min, maxDeclNewlines, ignore, false)
-			p.decl(d, atTop, ignoreMultiLine)
+			p.decl(d, ignoreMultiLine)
 		}
 	}
 
