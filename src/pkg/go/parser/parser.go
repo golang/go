@@ -1716,8 +1716,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		var key, value ast.Expr
 		switch len(as.Lhs) {
 		case 2:
-			value = as.Lhs[1]
-			fallthrough
+			key, value = as.Lhs[0], as.Lhs[1]
 		case 1:
 			key = as.Lhs[0]
 		default:
@@ -1785,8 +1784,8 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 	case token.FOR:
 		s = p.parseForStmt()
 	case token.SEMICOLON:
+		s = &ast.EmptyStmt{p.pos}
 		p.next()
-		fallthrough
 	case token.RBRACE:
 		// a semicolon may be omitted before a closing "}"
 		s = &ast.EmptyStmt{p.pos}
