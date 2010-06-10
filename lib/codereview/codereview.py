@@ -659,6 +659,7 @@ original_match = None
 def ReplacementForCmdutilMatch(repo, pats=[], opts={}, globbed=False, default='relpath'):
 	taken = []
 	files = []
+        pats = pats or []
 	for p in pats:
 		if p.startswith('@'):
 			taken.append(p)
@@ -671,7 +672,7 @@ def ReplacementForCmdutilMatch(repo, pats=[], opts={}, globbed=False, default='r
 			if cl.files == None:
 				raise util.Abort("no files in CL " + clname)
 			files = Add(files, cl.files)
-	pats = Sub(pats, taken)	+ ['path:'+f for f in files]
+	pats = Sub(pats, taken) + ['path:'+f for f in files]
 	return original_match(repo, pats=pats, opts=opts, globbed=globbed, default=default)
 
 def RelativePath(path, cwd):
