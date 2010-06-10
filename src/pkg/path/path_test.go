@@ -284,3 +284,26 @@ func TestWalk(t *testing.T) {
 		t.Errorf("removeTree: %v", err)
 	}
 }
+
+var basetests = []CleanTest{
+	// Already clean
+	CleanTest{"", "."},
+	CleanTest{".", "."},
+	CleanTest{"/.", "."},
+	CleanTest{"/", "/"},
+	CleanTest{"////", "/"},
+	CleanTest{"x/", "x"},
+	CleanTest{"abc", "abc"},
+	CleanTest{"abc/def", "def"},
+	CleanTest{"a/b/.x", ".x"},
+	CleanTest{"a/b/c.", "c."},
+	CleanTest{"a/b/c.x", "c.x"},
+}
+
+func TestBase(t *testing.T) {
+	for _, test := range basetests {
+		if s := Base(test.path); s != test.clean {
+			t.Errorf("Base(%q) = %q, want %q", test.path, s, test.clean)
+		}
+	}
+}
