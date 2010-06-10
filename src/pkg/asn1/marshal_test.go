@@ -75,6 +75,7 @@ var marshalTests = []marshalTest{
 	marshalTest{"test", "130474657374"},
 	marshalTest{ia5StringTest{"test"}, "3006160474657374"},
 	marshalTest{printableStringTest{"test"}, "3006130474657374"},
+	marshalTest{printableStringTest{"test*"}, "30071305746573742a"},
 	marshalTest{rawContentsStruct{nil, 64}, "3003020140"},
 	marshalTest{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
 	marshalTest{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},
