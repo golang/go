@@ -186,3 +186,25 @@ func Walk(root string, v Visitor, errors chan<- os.Error) {
 	}
 	walk(root, f, v, errors)
 }
+
+// Base returns the last path element of the slash-separated name.
+// Trailing slashes are removed before extracting the last element.  If the name is
+// empty, "." is returned.  If it consists entirely of slashes, "/" is returned.
+func Base(name string) string {
+	if name == "" {
+		return "."
+	}
+	// Strip trailing slashes.
+	for len(name) > 0 && name[len(name)-1] == '/' {
+		name = name[0 : len(name)-1]
+	}
+	// Find the last element
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	// If empty now, it had only slashes.
+	if name == "" {
+		return "/"
+	}
+	return name
+}
