@@ -647,7 +647,7 @@ dostkoff(void)
 					p->to.type = D_SP;
 
 					p = appendp(p);
-					p->as = AJHI;
+					p->as = AJCC;
 					p->to.type = D_BRANCH;
 					p->to.offset = 4;
 					q1 = p;
