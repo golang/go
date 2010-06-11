@@ -630,7 +630,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 }
 
 /*
- * does line contain substring (length-limited)
+ *	does line contain substring (length-limited)
  */
 int
 strstrn(char *line, int len, char *sub)
@@ -646,7 +646,26 @@ strstrn(char *line, int len, char *sub)
 }
 
 /*
- * Extract the package definition data from an object file
+ *	package import data
+ */
+char*	pkgname;
+char*	importblock;
+
+void
+getpkgdef(char **datap, int *lenp)
+{
+	if(pkgname == nil) {
+		pkgname = "__emptyarchive__";
+		importblock = "";
+	}
+	
+	*datap = smprint("import\n$$\npackage %s\n%s\n$$\n", pkgname, importblock);
+	*lenp = strlen(*datap);
+}
+
+/*
+ *	extract the package definition data from an object file.
+ *	there can be only one.
  */
 void
 scanpkg(Biobuf *b, long size)
@@ -702,6 +721,13 @@ foundstart:
 				pkg++;
 			if(strncmp(pkg, "package ", 8) != 0)
 				goto bad;
+			pkg += 8;
+			data = pkg;
+			while(*pkg != ' ' && *pkg != '\n' && *pkg != '\0')
+				pkg++;
+			pkgname = armalloc(pkg - data + 1);
+			memmove(pkgname, data, pkg - data);
+			pkgname[pkg-data] = '\0';
 			start = Boffset(b);  // after package statement
 			first = 0;
 			continue;
@@ -719,24 +745,21 @@ foundend:
 		return;
 	if (end == 0)
 		goto bad;
-	if (pkgstmt == nil) {
-		/* this is the first package */
-		pkgstmt = arstrdup(pkg);
-	} else {
-		if (strcmp(pkg, pkgstmt) != 0) {
-			fprint(2, "gopack: inconsistent package name\n");
-			return;
-		}
+	if(importblock != nil) {
+		fprint(2, "gopack: multiple Go object files\n");
+		errors++;
+		return;
 	}
-
 	pkgsize = end-start;
-	data = armalloc(pkgsize);
+	data = armalloc(end - start + 1);
 	Bseek(b, start, 0);
 	if (Bread(b, data, pkgsize) != pkgsize) {
 		fprint(2, "gopack: error reading package import section in %s\n", file);
+		errors++;
 		return;
 	}
-	loadpkgdata(data, pkgsize);
+	data[end-start] = '\0';
+	importblock = data;
 }
 
 /*
@@ -1463,305 +1486,4 @@ arstrdup(char *s)
 	return t;
 }
 
-
-/*
- *	package import data
- */
-typedef struct Import Import;
-struct Import
-{
-	Import *hash;	// next in hash table
-	char *prefix;	// "type", "var", "func", "const"
-	char *name;
-	char *def;
-	char *file;
-};
-enum {
-	NIHASH = 1024
-};
-Import *ihash[NIHASH];
-int nimport;
-
-Import *
-ilookup(char *name)
-{
-	int h;
-	Import *x;
-
-	h = hashstr(name) % NIHASH;
-	for(x=ihash[h]; x; x=x->hash)
-		if(x->name[0] == name[0] && strcmp(x->name, name) == 0)
-			return x;
-	x = armalloc(sizeof *x);
-	x->name = name;
-	x->hash = ihash[h];
-	ihash[h] = x;
-	nimport++;
-	return x;
-}
-
-int parsemethod(char**, char*, char**);
-int parsepkgdata(char**, char*, char**, char**, char**);
-
-void
-loadpkgdata(char *data, int len)
-{
-	char *p, *ep, *prefix, *name, *def;
-	Import *x;
-
-	p = data;
-	ep = data + len;
-	while(parsepkgdata(&p, ep, &prefix, &name, &def) > 0) {
-		if(strcmp(prefix, "import") == 0) {
-			// backwards from the rest: def is unique, name is not.
-			x = ilookup(def);
-			if(x->prefix == nil) {
-				x->prefix = prefix;
-				x->def = name;
-				x->file = file;
-			} else if(strcmp(x->def, name) != 0) {
-				fprint(2, "gopack: conflicting package names for %s\n", def);
-				fprint(2, "%s:\t%s\n", x->file, x->def);
-				fprint(2, "%s:\t%s\n", file, name);
-				errors++;
-			}
-			continue;
-		}
-				
-		x = ilookup(name);
-		if(x->prefix == nil) {
-			x->prefix = prefix;
-			x->def = def;
-			x->file = file;
-		} else if(strcmp(x->prefix, prefix) != 0) {
-			fprint(2, "gopack: conflicting definitions for %s\n", name);
-			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
-			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
-			errors++;
-		} else if(strcmp(x->def, def) != 0) {
-			fprint(2, "gopack: conflicting definitions for %s\n", name);
-			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
-			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
-			errors++;
-		}
-	}
-}
-
-int
-parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
-{
-	char *p, *prefix, *name, *def, *edef, *meth;
-	int n;
-
-	// skip white space
-	p = *pp;
-	while(p < ep && (*p == ' ' || *p == '\t'))
-		p++;
-	if(p == ep)
-		return 0;
-
-	// prefix: (var|type|func|const)
-	prefix = p;
-
-	prefix = p;
-	if(p + 7 > ep)
-		return -1;
-	if(strncmp(p, "var ", 4) == 0)
-		p += 4;
-	else if(strncmp(p, "type ", 5) == 0)
-		p += 5;
-	else if(strncmp(p, "func ", 5) == 0)
-		p += 5;
-	else if(strncmp(p, "const ", 6) == 0)
-		p += 6;
-	else if(strncmp(p, "import ", 7) == 0)
-		p += 7;
-	else {
-		fprint(2, "gopack: confused in pkg data near <<%.20s>>\n", p);
-		errors++;
-		return -1;
-	}
-	p[-1] = '\0';
-
-	// name: a.b followed by space
-	name = p;
-	while(p < ep && *p != ' ')
-		p++;
-	if(p >= ep)
-		return -1;
-	*p++ = '\0';
-
-	// def: free form to new line
-	def = p;
-	while(p < ep && *p != '\n')
-		p++;
-	if(p >= ep)
-		return -1;
-	edef = p;
-	*p++ = '\0';
-
-	// include methods on successive lines in def of named type
-	while(parsemethod(&p, ep, &meth) > 0) {
-		*edef++ = '\n';	// overwrites '\0'
-		if(edef+1 > meth) {
-			// We want to indent methods with a single \t.
-			// 6g puts at least one char of indent before all method defs,
-			// so there will be room for the \t.  If the method def wasn't
-			// indented we could do something more complicated,
-			// but for now just diagnose the problem and assume
-			// 6g will keep indenting for us.
-			fprint(2, "gopack: %s: expected methods to be indented %p %p %.10s\n", file, edef, meth, meth);
-			errors++;
-			return -1;
-		}
-		*edef++ = '\t';
-		n = strlen(meth);
-		memmove(edef, meth, n);
-		edef += n;
-	}
-
-	// done
-	*pp = p;
-	*prefixp = prefix;
-	*namep = name;
-	*defp = def;
-	return 1;
-}
-
-int
-parsemethod(char **pp, char *ep, char **methp)
-{
-	char *p;
-
-	// skip white space
-	p = *pp;
-	while(p < ep && (*p == ' ' || *p == '\t'))
-		p++;
-	if(p == ep)
-		return 0;
-
-	// if it says "func (", it's a method
-	if(p + 6 >= ep || strncmp(p, "func (", 6) != 0)
-		return 0;
-
-	// definition to end of line
-	*methp = p;
-	while(p < ep && *p != '\n')
-		p++;
-	if(p >= ep) {
-		fprint(2, "gopack: lost end of line in method definition\n");
-		*pp = ep;
-		return -1;
-	}
-	*p++ = '\0';
-	*pp = p;
-	return 1;
-}
-
-int
-importcmp(const void *va, const void *vb)
-{
-	Import *a, *b;
-	int i;
-
-	a = *(Import**)va;
-	b = *(Import**)vb;
-
-	i = strcmp(a->prefix, b->prefix);
-	if(i != 0) {
-		// rewrite so "type" comes first
-		if(strcmp(a->prefix, "type") == 0)
-			return -1;
-		if(strcmp(b->prefix, "type") == 0)
-			return 1;
-		return i;
-	}
-	return strcmp(a->name, b->name);
-}
-
-char*
-strappend(char *s, char *t)
-{
-	int n;
-
-	n = strlen(t);
-	memmove(s, t, n);
-	return s+n;
-}
-
-void
-getpkgdef(char **datap, int *lenp)
-{
-	int i, j, len;
-	char *data, *p;
-	Import **all, *x;
-
-	if(pkgstmt == nil) {
-		// Write out non-empty, parseable __.PKGDEF,
-		// so that import of an empty archive works.
-		*datap = "import\n$$\npackage __emptypackage__\n$$\n";
-		*lenp = strlen(*datap);
-		return;
-	}
-
-	// make a list of all the exports and count string sizes
-	all = armalloc(nimport*sizeof all[0]);
-	j = 0;
-	len = 7 + 3 + strlen(pkgstmt) + 1;	// import\n$$\npkgstmt\n
-	for(i=0; i<NIHASH; i++) {
-		for(x=ihash[i]; x; x=x->hash) {
-			all[j++] = x;
-			len += strlen(x->prefix) + 1
-				+ strlen(x->name) + 1
-				+ strlen(x->def) + 1;
-		}
-	}
-	if(j != nimport) {
-		fprint(2, "gopack: import count mismatch (internal error)\n");
-		exits("oops");
-	}
-	len += 3;	// $$\n
-
-	// sort exports (unnecessary but nicer to look at)
-	qsort(all, nimport, sizeof all[0], importcmp);
-
-	// print them into buffer
-	data = armalloc(len);
-
-	// import\n
-	// $$\n
-	// pkgstmt\n
-	p = data;
-	p = strappend(p, "import\n$$\n");
-	p = strappend(p, pkgstmt);
-	p = strappend(p, "\n");
-	for(i=0; i<nimport; i++) {
-		x = all[i];
-		if(strcmp(x->prefix, "import") == 0) {
-			// prefix def name\n
-			p = strappend(p, x->prefix);
-			p = strappend(p, " ");
-			p = strappend(p, x->def);
-			p = strappend(p, " ");
-			p = strappend(p, x->name);
-			p = strappend(p, "\n");
-			continue;
-		}
-		// prefix name def\n
-		p = strappend(p, x->prefix);
-		p = strappend(p, " ");
-		p = strappend(p, x->name);
-		p = strappend(p, " ");
-		p = strappend(p, x->def);
-		p = strappend(p, "\n");
-	}
-	p = strappend(p, "$$\n");
-	if(p != data+len) {
-		fprint(2, "gopack: internal math error\n");
-		exits("oops");
-	}
-
-	*datap = data;
-	*lenp = len;
-}
 
