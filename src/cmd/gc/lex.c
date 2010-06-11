@@ -442,6 +442,7 @@ cannedimports(char *file, char *cp)
 	curio.infile = file;
 	curio.cp = cp;
 	curio.nlsemi = 0;
+	curio.importsafe = 0;
 
 	typecheckok = 1;
 	incannedimport = 1;
