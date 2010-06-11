@@ -532,6 +532,8 @@ asmb(void)
 			asmthumbmap();
 		if(dlm)
 			asmdyn();
+		if(!debug['s'])
+			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
 		cflush();
 		seek(cout, symo, 0);
 		lputl(symsize);
@@ -679,8 +681,8 @@ asmb(void)
 			ph->off = symo;
 			ph->vaddr = symdatva;
 			ph->paddr = symdatva;
-			ph->filesz = 8+symsize+lcsize;
-			ph->memsz = 8+symsize+lcsize;
+			ph->filesz = rnd(8+symsize+lcsize, INITRND);
+			ph->memsz = rnd(8+symsize+lcsize, INITRND);
 			ph->align = INITRND;
 		}
 
