@@ -7,10 +7,6 @@
 // The arguments are strings.
 void *get_proc_addr(void *library, void *name);
 
-// Call a Windows function with stdcall conventions.
-void *stdcall(void *fn, ...);
-void *stdcall_raw(void *fn, ...);
-
 extern void *VirtualAlloc;
 extern void *LoadLibraryEx;
 extern void *GetProcAddress;
@@ -21,3 +17,26 @@ void windows_goargs(void);
 
 // Get start address of symbol data in memory.
 void *get_symdat_addr(void);
+
+// Call a Windows function with stdcall conventions.
+void *stdcall_raw(void *fn, ...);
+
+// Call a Windows function with stdcall conventions,
+// and switch to os stack during the call.
+void *stdcall(void *fn, int32 count, ...);
+
+// Call stdcall Windows function StdcallParams.fn
+// with params StdcallParams.args,
+// followed immediately by GetLastError call.
+// Both return values are returned in StdcallParams.r and
+// StdcallParams.err. Will use os stack during the call.
+typedef struct StdcallParams StdcallParams;
+struct StdcallParams
+{
+	void	*fn;
+	uintptr args[9];
+	uintptr	r;
+	uintptr	err;
+};
+void call_syscall(void *args);
+void syscall(StdcallParams *p);
