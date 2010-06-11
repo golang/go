@@ -220,6 +220,8 @@ unlock(Lock *l)
 void
 destroylock(Lock *l)
 {
+	if(l->event != 0)
+		stdcall(CloseHandle, 1, l->event);
 }
 
 void
