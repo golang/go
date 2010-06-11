@@ -12,25 +12,9 @@ TEXT get_kernel_module(SB),7,$0
 	MOVL	0x08(AX), AX		// get base of module
 	RET
 
-// TODO(rsc,hectorchu): Switch to m stack before call.
-TEXT stdcall(SB),7,$0
-	CALL	·entersyscall(SB)
-	get_tls(CX)
-	MOVL	m(CX), CX
-	POPL	m_return_address(CX)	// save return address
-	POPL	AX			// first arg is function pointer
-	MOVL	SP, m_stack_pointer(CX)	// save stack pointer
-	CALL	AX
-	get_tls(CX)
-	MOVL	m(CX), CX
-	MOVL	m_stack_pointer(CX), SP
-	PUSHL	AX
-	PUSHL	m_return_address(CX)
-	CALL	·exitsyscall(SB)
-	MOVL	4(SP), AX
-	RET
-
-// TODO(rsc,hectorchu): Switch to m stack before call.
+// void *stdcall_raw(void *fn, ...);
+// Call fn with stdcall calling convention.
+// fn parameters are on stack.
 TEXT stdcall_raw(SB),7,$0
 	get_tls(CX)
 	MOVL	m(CX), CX
@@ -43,6 +27,37 @@ TEXT stdcall_raw(SB),7,$0
 	MOVL	m_stack_pointer(CX), SP
 	PUSHL	AX
 	PUSHL	m_return_address(CX)
+	RET
+
+// void syscall(StdcallParams *p);
+// Call p.fn syscall + GetLastError on os stack.
+TEXT syscall(SB),7,$16
+	MOVL	p+0(FP), AX
+	MOVL	SP, CX
+
+	// Figure out if we need to switch to m->g0 stack.
+	get_tls(DI)
+	MOVL	m(DI), DX
+	MOVL	m_g0(DX), SI
+	CMPL	g(DI), SI
+	JEQ	2(PC)
+	MOVL	(m_sched+gobuf_sp)(DX), SP
+
+	// Now on a scheduling stack (an os stack).
+	MOVL	g(DI), BP
+	MOVL	BP, 8(SP)
+	MOVL	SI, g(DI)
+	MOVL	CX, 4(SP)
+	MOVL	AX, 0(SP)
+	CALL	call_syscall(SB)
+	
+	// Back; switch to original g and stack, re-establish
+	// "DF is clear" invariant.
+	CLD
+	get_tls(DI)
+	MOVL	8(SP), SI
+	MOVL	SI, g(DI)
+	MOVL	4(SP), SP
 	RET
 
 TEXT threadstart(SB),7,$0

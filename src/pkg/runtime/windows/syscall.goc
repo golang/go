@@ -7,39 +7,87 @@ package syscall
 #include "os.h"
 
 func loadlibraryex(filename uintptr) (handle uint32) {
-	handle = (uint32)stdcall(LoadLibraryEx, filename, 0, 0);
+	StdcallParams p;
+	p.fn = (void*)LoadLibraryEx;
+	p.args[0] = filename;
+	p.args[1] = 0;
+	p.args[2] = 0;
+	·entersyscall();
+	syscall(&p);
+	·exitsyscall();
+	handle = p.r;
 }
 
 func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
-	proc = (uintptr)stdcall(GetProcAddress, handle, procname);
+	StdcallParams p;
+	p.fn = (void*)GetProcAddress;
+	p.args[0] = handle;
+	p.args[1] = procname;
+	·entersyscall();
+	syscall(&p);
+	·exitsyscall();
+	proc = p.r;
 }
 
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	StdcallParams p;
+	p.fn = (void*)trap;
+	p.args[0] = a1;
+	p.args[1] = a2;
+	p.args[2] = a3;
 	·entersyscall();
-	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
-	r2 = 0;
-	err = (uintptr)stdcall_raw(GetLastError);
+	syscall(&p);
 	·exitsyscall();
+	r1 = p.r;
+	r2 = 0;
+	err = p.err;
 }
 
 func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	StdcallParams p;
+	p.fn = (void*)trap;
+	p.args[0] = a1;
+	p.args[1] = a2;
+	p.args[2] = a3;
+	p.args[3] = a4;
+	p.args[4] = a5;
+	p.args[5] = a6;
 	·entersyscall();
-	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6);
-	r2 = 0;
-	err = (uintptr)stdcall_raw(GetLastError);
+	syscall(&p);
 	·exitsyscall();
+	r1 = p.r;
+	r2 = 0;
+	err = p.err;
 }
 
 func Syscall9(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
+	StdcallParams p;
+	p.fn = (void*)trap;
+	p.args[0] = a1;
+	p.args[1] = a2;
+	p.args[2] = a3;
+	p.args[3] = a4;
+	p.args[4] = a5;
+	p.args[5] = a6;
+	p.args[6] = a7;
+	p.args[7] = a8;
+	p.args[8] = a9;
 	·entersyscall();
-	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
-	r2 = 0;
-	lasterr = (uintptr)stdcall_raw(GetLastError);
+	syscall(&p);
 	·exitsyscall();
+	r1 = p.r;
+	r2 = 0;
+	lasterr = p.err;
 }
 
 func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
+	StdcallParams p;
+	p.fn = (void*)trap;
+	p.args[0] = a1;
+	p.args[1] = a2;
+	p.args[2] = a3;
+	syscall(&p);
+	r1 = p.r;
 	r2 = 0;
-	err = (uintptr)stdcall_raw(GetLastError);
+	err = p.err;
 }

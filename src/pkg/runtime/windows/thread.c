@@ -5,8 +5,6 @@
 #include "runtime.h"
 #include "os.h"
 
-#define stdcall stdcall_raw
-
 extern void *get_kernel_module(void);
 
 // Also referenced by external packages
@@ -75,8 +73,8 @@ get_proc_addr(void *library, void *name)
 {
 	void *base;
 
-	base = stdcall(LoadLibraryEx, library, 0, 0);
-	return stdcall(GetProcAddress, base, name);
+	base = stdcall_raw(LoadLibraryEx, library, 0, 0);
+	return stdcall_raw(GetProcAddress, base, name);
 }
 
 void
@@ -96,9 +94,9 @@ windows_goargs(void)
 	clta = get_proc_addr("shell32.dll", "CommandLineToArgvW");
 	ges = get_proc_addr("kernel32.dll", "GetEnvironmentStringsW");
 
-	cmd = stdcall(gcl);
-	env = stdcall(ges);
-	argv = stdcall(clta, cmd, &argc);
+	cmd = stdcall(gcl, 0);
+	env = stdcall(ges, 0);
+	argv = stdcall(clta, 2, cmd, &argc);
 
 	envc = 0;
 	for(envp=env; *envp; envc++)
@@ -126,7 +124,7 @@ windows_goargs(void)
 void
 exit(int32 code)
 {
-	stdcall(ExitProcess, code);
+	stdcall(ExitProcess, 1, code);
 }
 
 int32
@@ -138,15 +136,15 @@ write(int32 fd, void *buf, int32 n)
 	written = 0;
 	switch(fd) {
 	case 1:
-		handle = stdcall(GetStdHandle, -11);
+		handle = stdcall(GetStdHandle, 1, -11);
 		break;
 	case 2:
-		handle = stdcall(GetStdHandle, -12);
+		handle = stdcall(GetStdHandle, 1, -12);
 		break;
 	default:
 		return -1;
 	}
-	stdcall(WriteFile, handle, buf, n, &written, 0);
+	stdcall(WriteFile, 5, handle, buf, n, &written, 0);
 	return written;
 }
 
@@ -157,7 +155,7 @@ get_symdat_addr(void)
 	uint32 peh, add;
 	uint16 oph;
 
-	mod = stdcall(GetModuleHandle, 0);
+	mod = stdcall(GetModuleHandle, 1, 0);
 	peh = *(uint32*)(mod+0x3c);
 	p = mod+peh+4;
 	oph = *(uint16*)(p+0x10);
@@ -174,10 +172,10 @@ initevent(void **pevent)
 {
 	void *event;
 
-	event = stdcall(CreateEvent, 0, 0, 0, 0);
+	event = stdcall(CreateEvent, 4, 0, 0, 0, 0);
 	if(!casp(pevent, 0, event)) {
 		// Someone else filled it in.  Use theirs.
-		stdcall(CloseHandle, event);
+		stdcall(CloseHandle, 1, event);
 	}
 }
 
@@ -189,14 +187,14 @@ eventlock(Lock *l)
 		initevent(&l->event);
 
 	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
-		stdcall(WaitForSingleObject, l->event, -1);
+		stdcall(WaitForSingleObject, 2, l->event, -1);
 }
 
 static void
 eventunlock(Lock *l)
 {
 	if(xadd(&l->key, -1) > 0)	// someone else is waiting
-		stdcall(SetEvent, l->event);
+		stdcall(SetEvent, 1, l->event);
 }
 
 void
@@ -253,14 +251,41 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	extern uint32 threadstart(void *p);
 
 	USED(g, stk, fn);
-	param.event_handle = stdcall(CreateEvent, 0, 0, 0, 0);
-	stdcall(CreateThread, 0, 0, threadstart, &param, 0, 0);
-	stdcall(WaitForSingleObject, param.event_handle, -1);
-	stdcall(CloseHandle, param.event_handle);
+	param.event_handle = stdcall(CreateEvent, 4, 0, 0, 0, 0);
+	stdcall(CreateThread, 6, 0, 0, threadstart, &param, 0, 0);
+	stdcall(WaitForSingleObject, 2, param.event_handle, -1);
+	stdcall(CloseHandle, 1, param.event_handle);
 }
 
 // Called to initialize a new m (including the bootstrap m).
 void
 minit(void)
 {
+}
+
+// Calling stdcall on os stack.
+#pragma textflag 7
+void *
+stdcall(void *fn, int32 count, ...)
+{
+	uintptr *a;
+	StdcallParams p;
+
+	p.fn = fn;
+	a = (uintptr*)(&count + 1);
+	while(count > 0) {
+		count--;
+		p.args[count] = a[count];
+	}
+	syscall(&p);
+	return (void*)(p.r);
+}
+
+void
+call_syscall(void *args)
+{
+	StdcallParams *p = (StdcallParams*)args;
+	p->r = (uintptr)stdcall_raw((void*)p->fn, p->args[0], p->args[1], p->args[2], p->args[3], p->args[4], p->args[5], p->args[6], p->args[7], p->args[8]);
+	p->err = (uintptr)stdcall_raw(GetLastError);
+	return;
 }
