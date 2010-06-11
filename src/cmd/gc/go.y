@@ -152,6 +152,7 @@ loadsys:
 			cannedimports("runtime.builtin", "package runtime\n\n$$\n\n");
 		else
 			cannedimports("runtime.builtin", runtimeimport);
+		curio.importsafe = 1;
 	}
 	import_package
 	import_there
@@ -236,10 +237,13 @@ import_here:
 	}
 
 import_package:
-	LPACKAGE sym ';'
+	LPACKAGE sym import_safety ';'
 	{
 		importpkg->name = $2->name;
 		importpkg->direct = 1;
+		
+		if(safemode && !curio.importsafe)
+			yyerror("cannot import unsafe package %Z", importpkg->path);
 
 		// NOTE(rsc): This is no longer a technical restriction:
 		// the 6g tool chain would work just fine without giving
@@ -248,6 +252,13 @@ import_package:
 		// (gccgo does), so it stays in the language and the compiler.
 		if(strcmp($2->name, "main") == 0)
 			yyerror("cannot import package main");
+	}
+
+import_safety:
+|	LNAME
+	{
+		if(strcmp($1->name, "safe") == 0)
+			curio.importsafe = 1;
 	}
 
 import_there:

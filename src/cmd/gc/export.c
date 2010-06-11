@@ -268,7 +268,10 @@ dumpexport(void)
 	packagequotes = 1;
 	Bprint(bout, "\n$$  // exports\n");
 
-	Bprint(bout, "    package %s\n", localpkg->name);
+	Bprint(bout, "    package %s", localpkg->name);
+	if(safemode)
+		Bprint(bout, " safe");
+	Bprint(bout, "\n");
 
 	for(l=exportlist; l; l=l->next) {
 		lineno = l->n->lineno;

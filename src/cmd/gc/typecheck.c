@@ -1191,7 +1191,10 @@ ret:
 			checkwidth(t);
 		}
 	}
-	if(safemode && isptrto(t, TANY))
+
+	// TODO(rsc): should not need to check importpkg,
+	// but reflect mentions unsafe.Pointer.
+	if(safemode && !incannedimport && !importpkg && isptrto(t, TANY))
 		yyerror("cannot use unsafe.Pointer");
 
 	evconst(n);

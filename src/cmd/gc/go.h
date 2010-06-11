@@ -578,6 +578,7 @@ struct	Io
 	int	peekc;
 	int	peekc1;	// second peekc for ...
 	char*	cp;	// used for content when bin==nil
+	int	importsafe;
 };
 
 typedef	struct	Dlist	Dlist;
