@@ -109,7 +109,7 @@ typedef struct Hashchain
 
 		/* constants and flags */
 char	*man =		"mrxtdpq";
-char	*opt =		"uvnbailo";
+char	*opt =		"uvnbailoS";
 char	artemp[] =	"/tmp/vXXXXX";
 char	movtemp[] =	"/tmp/v1XXXXX";
 char	tailtemp[] =	"/tmp/v2XXXXX";
@@ -123,6 +123,7 @@ int	gflag;
 int	oflag;
 int	uflag;
 int	vflag;
+int	Sflag;	/* force mark Go package as safe */
 
 int	errors;
 
@@ -217,6 +218,7 @@ main(int argc, char *argv[])
 		case 'u':	uflag = 1;	break;
 		case 'v':	vflag = 1;	break;
 		case 'x':	setcom(xcmd);	break;
+		case 'S':	Sflag = 1;  break;
 		default:
 			fprint(2, "gopack: bad option `%c'\n", *cp);
 			exits("error");
@@ -648,18 +650,25 @@ strstrn(char *line, int len, char *sub)
 /*
  *	package import data
  */
+int	safe = 1;
 char*	pkgname;
 char*	importblock;
 
 void
 getpkgdef(char **datap, int *lenp)
 {
+	char *tag;
+
 	if(pkgname == nil) {
 		pkgname = "__emptyarchive__";
 		importblock = "";
 	}
 	
-	*datap = smprint("import\n$$\npackage %s\n%s\n$$\n", pkgname, importblock);
+	tag = "";
+	if(safe || Sflag)
+		tag = "safe";
+
+	*datap = smprint("import\n$$\npackage %s %s\n%s\n$$\n", pkgname, tag, importblock);
 	*lenp = strlen(*datap);
 }
 
@@ -695,6 +704,7 @@ scanpkg(Biobuf *b, long size)
 		goto foundstart;
 	}
 	// fprint(2, "gopack: warning: no package import section in %s\n", file);
+	safe = 0;	// non-Go file (C or assembly)
 	return;
 
 foundstart:
@@ -728,6 +738,8 @@ foundstart:
 			pkgname = armalloc(pkg - data + 1);
 			memmove(pkgname, data, pkg - data);
 			pkgname[pkg-data] = '\0';
+			if(strcmp(pkg, " safe\n") != 0)
+				safe = 0;
 			start = Boffset(b);  // after package statement
 			first = 0;
 			continue;
