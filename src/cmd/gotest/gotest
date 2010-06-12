@@ -100,7 +100,7 @@ if $havex; then
 fi
 
 # They all compile; now generate the code to call them.
-trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+# trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
 
 # Suppress output to stdout on Linux
 MAKEFLAGS=
@@ -116,7 +116,7 @@ nmgrep() {
 		# Figure out pkg.
 		case "$i" in
 		*.a)
-			pkg=$("$GOBIN"/gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 1q)
+			pkg=$("$GOBIN"/gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 's/ .*//' | sed 1q)
 			;;
 		*)
 			pkg=$(sed -n 's/^ .* in package "\(.*\)".*/\1/p' $i | sed 1q)
