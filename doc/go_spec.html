@@ -986,7 +986,7 @@ Signature      = Parameters [ Result ] .
 Result         = Parameters | Type .
 Parameters     = "(" [ ParameterList [ "," ] ] ")" .
 ParameterList  = ParameterDecl { "," ParameterDecl } .
-ParameterDecl  = [ IdentifierList ] ( Type | "..." [ Type ] ) .
+ParameterDecl  = [ IdentifierList ] [ "..." ] Type .
 </pre>
 
 <p>
@@ -998,23 +998,22 @@ lists are always parenthesized except that if there is exactly
 one unnamed result it may written as an unparenthesized type.
 </p>
 <p>
-For the last parameter only, instead of a type one may write
-<code>...</code> or <code>...  T</code> to indicate that the function
-may be invoked with zero or more additional arguments.  If the type
-<code>T</code> is present in the parameter declaration, the additional
-arguments must all be <a href="#Assignability">assignable</a>
-to <code>T</code>; otherwise they may be of any type.
+If the function's last parameter has a type prefixed with <code>...</code>,
+the function may be invoked with zero or more arguments for that parameter,
+each of which must be <a href="#Assignability">assignable</a>
+to the type that follows the <code>...</code>.
+Such a function is called <i>variadic</i>.
+
 </p>
 
 <pre>
 func()
 func(x int)
 func() int
-func(string, float, ...)
-func(prefix string, values ... int)
+func(prefix string, values ...int)
 func(a, b int, z float) bool
 func(a, b int, z float) (bool)
-func(a, b int, z float, opt ...) (success bool)
+func(a, b int, z float, opt ...interface{}) (success bool)
 func(int, int, float) (float, *[]int)
 func(n int) func(p *T)
 </pre>
@@ -1271,10 +1270,8 @@ literal structure and corresponding components have identical types. In detail:
 	<li>Two pointer types are identical if they have identical base types.</li>
 
 	<li>Two function types are identical if they have the same number of parameters
-	    and result values and if corresponding parameter and result types are
-	    identical. All "..." parameters without a specified type are defined to have
-	    identical type.  All "..." parameters with specified identical type
-	    <code>T</code> are defined to have identical type.
+	    and result values, corresponding parameter and result types are
+	    identical, and either both functions are variadic or neither is.
 	    Parameter and result names are not required to match.</li>
 
 	<li>Two interface types are identical if they have the same set of methods
@@ -2602,48 +2599,13 @@ There is no distinct method type and there are no method literals.
 <h3 id="Passing_arguments_to_..._parameters">Passing arguments to <code>...</code> parameters</h3>
 
 <p>
-When a function <code>f</code> has a <code>...</code> parameter,
-it is always the last formal parameter. Within calls to <code>f</code>,
-the arguments before the <code>...</code> are treated normally.
-After those, an arbitrary number (including zero) of trailing
-arguments may appear in the call and are bound to the <code>...</code>
-parameter.
-</p>
-
-<p>
-Within <code>f</code>, a <code>...</code> parameter with no
-specified type has static type <code>interface{}</code> (the empty
-interface). For each call, its dynamic type is a structure whose
-sequential fields are the trailing arguments of the call.  That is,
-the actual arguments provided for a <code>...</code> parameter are
-wrapped into a struct that is passed to the function instead of the
-actual arguments.  Using the <a href="#Package_unsafe">reflection</a>
-interface, <code>f</code> may unpack the elements of the dynamic
-type to recover the actual arguments.
-</p>
-
-<p>
-Given the function and call
-</p>
-<pre>
-func Fprintf(f io.Writer, format string, args ...)
-Fprintf(os.Stdout, "%s %d", "hello", 23)
-</pre>
-
-<p>
-Within <code>Fprintf</code>, the dynamic type of <code>args</code> for this
-call will be, schematically,
-<code> struct { string; int }</code>.
-</p>
-
-<p>
-If the final parameter of <code>f</code> has type <code>... T</code>,
-within the function it is equivalent to a parameter of type
-<code>[]T</code>.  At each call of <code>f</code>, the actual
-arguments provided for the <code>... T</code> parameter are placed
-into a new slice of type <code>[]T</code> whose successive elements are
+If <code>f</code> is variadic with final parameter type <code>...T</code>,
+then within the function the argument is equivalent to a parameter of type
+<code>[]T</code>.  At each call of <code>f</code>, the argument
+passed to the final parameter is
+a new slice of type <code>[]T</code> whose successive elements are
 the actual arguments.  The length of the slice is therefore the
-number of arguments bound to the <code>... T</code> parameter and
+number of arguments bound to the final parameter and
 may differ for each call site.
 </p>
 
@@ -2662,11 +2624,10 @@ Within <code>Greeting</code>, <code>who</code> will have value
 
 
 <p>
-As a special case, if a function passes its own <code>...</code> parameter,
-with or without specified type, as the argument
-for a <code>...</code> in a call to another function with a <code>...</code> parameter
-of <a href="#Type_identity">identical type</a>,
-the parameter is not wrapped again but passed directly. In short, a formal <code>...</code>
+As a special case, if a function passes its own <code>...</code> parameter
+as the <code>...</code> argument in a call to another function with
+a <code>...</code> parameter of <a href="#Type_identity">identical type</a>,
+the parameter is passed directly.  In short, a formal <code>...</code>
 parameter is passed unchanged as an actual <code>...</code> parameter provided the
 types match.
 </p>
