@@ -201,7 +201,6 @@ struct	Node
 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
 	uchar	class;		// PPARAM, PAUTO, PEXTERN, etc
 	uchar	method;		// OCALLMETH name
-	uchar	iota;		// OLITERAL made from iota
 	uchar	embedded;	// ODCLFIELD embedded type
 	uchar	colas;		// OAS resulting from :=
 	uchar	diag;		// already printed error about this
@@ -214,7 +213,6 @@ struct	Node
 	uchar	initorder;
 	uchar	dodata;		// compile literal assignment as data statement
 	uchar	used;
-	uchar	oldref;
 	uchar	isddd;
 	uchar	pun;		// dont registerize variable ONAME
 
@@ -270,6 +268,7 @@ struct	Node
 	int32	lineno;
 	vlong	xoffset;
 	int32	ostk;
+	int32	iota;
 };
 #define	N	((Node*)0)
 
@@ -721,7 +720,7 @@ EXTERN	int	incannedimport;
 EXTERN	int	statuniqgen;		// name generator for static temps
 EXTERN	int	loophack;
 
-EXTERN	uint32	iota;
+EXTERN	int32	iota;
 EXTERN	NodeList*	lastconst;
 EXTERN	Node*	lasttype;
 EXTERN	int32	maxarg;
@@ -1079,7 +1078,7 @@ void	anylit(Node*, Node*, NodeList**);
 int	oaslit(Node*, NodeList**);
 void	heapmoves(void);
 void	walkdeflist(NodeList*);
-void	walkdef(Node*);
+Node*	walkdef(Node*);
 void	typechecklist(NodeList*, int);
 void	typecheckswitch(Node*);
 void	typecheckselect(Node*);
@@ -1089,6 +1088,7 @@ Node*	typecheck(Node**, int);
 int	islvalue(Node*);
 void	queuemethod(Node*);
 int	exportassignok(Type*, char*);
+Node*	resolve(Node*);
 
 /*
  *	const.c

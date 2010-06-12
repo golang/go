@@ -430,23 +430,12 @@ newname(Sym *s)
 
 /*
  * this generates a new name node for a name
- * being declared.  if at the top level, it might return
- * an ONONAME node created by an earlier reference.
+ * being declared.
  */
 Node*
 dclname(Sym *s)
 {
 	Node *n;
-
-	// top-level name: might already have been
-	// referred to, in which case s->def is already
-	// set to an ONONAME.
-	if(dclcontext == PEXTERN && s->block <= 1) {
-		if(s->def == N)
-			oldname(s);
-		if(s->def->op == ONONAME)
-			return s->def;
-	}
 
 	n = newname(s);
 	n->op = ONONAME;	// caller will correct it
@@ -484,12 +473,12 @@ oldname(Sym *s)
 	if(n == N) {
 		// maybe a top-level name will come along
 		// to give this a definition later.
+		// walkdef will check s->def again once
+		// all the input source has been processed.
 		n = newname(s);
 		n->op = ONONAME;
-		s->def = n;
+		n->iota = iota;	// save current iota value in const declarations
 	}
-	if(n->oldref < 100)
-		n->oldref++;
 	if(curfn != nil && n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
 		// inner func is referring to var in outer func.
 		//
@@ -586,11 +575,6 @@ colasdefn(NodeList *left, Node *defn)
 		}
 		if(n->sym->block == block)
 			continue;
-
-		// If we created an ONONAME just for this :=,
-		// delete it, to avoid confusion with top-level imports.
-		if(n->op == ONONAME && n->oldref < 100 && --n->oldref == 0)
-			n->sym->def = N;
 
 		nnew++;
 		n = newname(n->sym);

@@ -33,6 +33,23 @@ static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
 static void stringtoarraylit(Node**);
 
+/*
+ * resolve ONONAME to definition, if any.
+ */
+Node*
+resolve(Node *n)
+{
+	Node *r;
+
+	if(n != N && n->op == ONONAME && (r = n->sym->def) != N) {
+		if(r->op != OIOTA)
+			n = r;
+		else if(n->iota >= 0)
+			n = nodintconst(n->iota);
+	}
+	return n;
+}
+
 void
 typechecklist(NodeList *l, int top)
 {
@@ -64,6 +81,10 @@ typecheck(Node **np, int top)
 	n = *np;
 	if(n == N)
 		return N;
+	
+	// Resolve definition of name and value of iota lazily.
+	n = resolve(n);
+	*np = n;
 
 	// Skip typecheck if already done.
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
@@ -85,10 +106,9 @@ typecheck(Node **np, int top)
 	}
 	n->typecheck = 2;
 
-redo:
 	lno = setlineno(n);
 	if(n->sym) {
-		if(n->op == ONAME && n->etype != 0) {
+		if(n->op == ONAME && n->etype != 0 && !(top & Ecall)) {
 			yyerror("use of builtin %S not in function call", n->sym);
 			goto error;
 		}
@@ -96,6 +116,7 @@ redo:
 		if(n->op == ONONAME)
 			goto error;
 	}
+	*np = n;
 
 reswitch:
 	ok = 0;
@@ -137,15 +158,6 @@ reswitch:
 	case OPACK:
 		yyerror("use of package %S not in selector", n->sym);
 		goto error;
-
-	case OIOTA:
-		// looked like iota during parsing but might
-		// have been redefined.  decide.
-		if(n->left->op != ONONAME)
-			n = n->left;
-		else
-			n = n->right;
-		goto redo;
 
 	case ODDD:
 		break;
@@ -680,6 +692,12 @@ reswitch:
 	 */
 	case OCALL:
 		l = n->left;
+		if(l->op == ONAME && (r = unsafenmagic(l, n->list)) != N) {
+			n = r;
+			goto reswitch;
+		}
+		typecheck(&n->left, Erv | Etype | Ecall);
+		l = n->left;
 		if(l->op == ONAME && l->etype != 0) {
 			// builtin: OLEN, OCAP, etc.
 			n->op = l->etype;
@@ -687,11 +705,6 @@ reswitch:
 			n->right = N;
 			goto reswitch;
 		}
-		if(l->op == ONAME && (r = unsafenmagic(l, n->list)) != N) {
-			n = r;
-			goto reswitch;
-		}
-		typecheck(&n->left, Erv | Etype | Ecall);
 		defaultlit(&n->left, T);
 		l = n->left;
 		if(l->op == OTYPE) {
@@ -895,7 +908,7 @@ reswitch:
 	case OCONV:
 	doconv:
 		ok |= Erv;
-		typecheck(&n->left, Erv | (top & Eindir));
+		typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
 		convlit1(&n->left, n->type, 1);
 		if((t = n->left->type) == T || n->type == T)
 			goto error;
@@ -1929,6 +1942,7 @@ typecheckas(Node *n)
 	// if the variable has a type (ntype) then typechecking
 	// will not look at defn, so it is okay (and desirable,
 	// so that the conversion below happens).
+	n->left = resolve(n->left);
 	if(n->left->defn != n || n->left->ntype)
 		typecheck(&n->left, Erv | Easgn);
 
@@ -1976,6 +1990,7 @@ typecheckas2(Node *n)
 
 	for(ll=n->list; ll; ll=ll->next) {
 		// delicate little dance.
+		ll->n = resolve(ll->n);
 		if(ll->n->defn != n || ll->n->ntype)
 			typecheck(&ll->n, Erv | Easgn);
 	}

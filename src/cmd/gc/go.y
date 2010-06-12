@@ -194,12 +194,7 @@ import_stmt:
 		}
 		if(my->name[0] == '_' && my->name[1] == '\0')
 			break;
-
-		// Can end up with my->def->op set to ONONAME
-		// if one package refers to p without importing it.
-		// Don't want to give an error on a good import
-		// in another file.
-		if(my->def && my->def->op != ONONAME) {
+		if(my->def) {
 			lineno = $1;
 			redeclare(my, "as imported package name");
 		}
@@ -307,27 +302,28 @@ common_dcl:
 	{
 		$$ = nil;
 	}
-|	LCONST constdcl
+|	lconst constdcl
 	{
 		$$ = $2;
-		iota = 0;
+		iota = -100000;
 		lastconst = nil;
 	}
-|	LCONST '(' constdcl osemi ')'
+|	lconst '(' constdcl osemi ')'
 	{
 		$$ = $3;
-		iota = 0;
+		iota = -100000;
 		lastconst = nil;
 	}
-|	LCONST '(' constdcl ';' constdcl_list osemi ')'
+|	lconst '(' constdcl ';' constdcl_list osemi ')'
 	{
 		$$ = concat($3, $5);
-		iota = 0;
+		iota = -100000;
 		lastconst = nil;
 	}
-|	LCONST '(' ')'
+|	lconst '(' ')'
 	{
 		$$ = nil;
+		iota = -100000;
 	}
 |	LTYPE typedcl
 	{
@@ -340,6 +336,12 @@ common_dcl:
 |	LTYPE '(' ')'
 	{
 		$$ = nil;
+	}
+
+lconst:
+	LCONST
+	{
+		iota = 0;
 	}
 
 vardcl:

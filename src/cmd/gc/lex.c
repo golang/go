@@ -1444,11 +1444,6 @@ lexinit(void)
 		}
 	}
 
-	s = lookup("iota");
-	s->def = nod(ONONAME, N, N);
-	s->def->iota = 1;
-	s->def->sym = s;
-
 	// logically, the type of a string literal.
 	// types[TSTRING] is the named type string
 	// (the type of x in var x string or var x = "hello").
@@ -1491,13 +1486,12 @@ lexfini(void)
 		s->lexical = lex;
 
 		etype = syms[i].etype;
-		if(etype != Txxx && (etype != TANY || debug['A']))
-		if(s->def != N && s->def->op == ONONAME)
-			*s->def = *typenod(types[etype]);
+		if(etype != Txxx && (etype != TANY || debug['A']) && s->def == N)
+			s->def = typenod(types[etype]);
 
 		etype = syms[i].op;
-		if(etype != OXXX && s->def != N && s->def->op == ONONAME) {
-			s->def->op = ONAME;
+		if(etype != OXXX && s->def == N) {
+			s->def = nod(ONAME, N, N);
 			s->def->sym = s;
 			s->def->etype = etype;
 			s->def->builtin = 1;
@@ -1506,29 +1500,35 @@ lexfini(void)
 
 	for(i=0; typedefs[i].name; i++) {
 		s = lookup(typedefs[i].name);
-		if(s->def != N && s->def->op == ONONAME)
-			*s->def = *typenod(types[typedefs[i].etype]);
+		if(s->def == N)
+			s->def = typenod(types[typedefs[i].etype]);
 	}
 
 	// there's only so much table-driven we can handle.
 	// these are special cases.
 	types[TNIL] = typ(TNIL);
 	s = lookup("nil");
-	if(s->def != N && s->def->op == ONONAME) {
+	if(s->def == N) {
 		v.ctype = CTNIL;
-		*s->def = *nodlit(v);
+		s->def = nodlit(v);
+		s->def->sym = s;
+	}
+	
+	s = lookup("iota");
+	if(s->def == N) {
+		s->def = nod(OIOTA, N, N);
 		s->def->sym = s;
 	}
 
 	s = lookup("true");
-	if(s->def != N && s->def->op == ONONAME) {
-		*s->def = *nodbool(1);
+	if(s->def == N) {
+		s->def = nodbool(1);
 		s->def->sym = s;
 	}
 
 	s = lookup("false");
-	if(s->def != N && s->def->op == ONONAME) {
-		*s->def = *nodbool(0);
+	if(s->def == N) {
+		s->def = nodbool(0);
 		s->def->sym = s;
 	}
 	
