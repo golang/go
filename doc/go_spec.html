@@ -4190,8 +4190,7 @@ func complex_f2() (re float, im float) {
 	</li>
 	<li>The expression list may be empty if the functions's result
 		type specifies names for its result parameters (§<a href="#Function_Types">Function Types</a>).
-		The result parameters act as ordinary local variables that are
-		initialized to the zero values for their type (§<a href="#The_zero_value">The zero value</a>)
+		The result parameters act as ordinary local variables
 		and the function may assign values to them as necessary.
 		The "return" statement returns the values of these variables.
 <pre>
@@ -4203,6 +4202,10 @@ func complex_f3() (re float, im float) {
 </pre>
 	</li>
 </ol>
+
+<p>
+Regardless of how they are declared, all the result values are initialized to the zero values for their type (§<a href="#The_zero_value">The zero value</a>) upon entry to the function.
+</p>
 
 <!---
 <p>
