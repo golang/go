@@ -56,22 +56,39 @@ TEXT rt_sigaction(SB),7,$0
 	INT	$0x80
 	RET
 
-TEXT sigtramp(SB),7,$0
+TEXT sigtramp(SB),7,$40
 	get_tls(CX)
-	MOVL	m(CX), BP
-	MOVL	m_gsignal(BP), AX
-	MOVL	AX, g(CX)
-	JMP	sighandler(SB)
+	
+	// save g
+	MOVL	g(CX), BX
+	MOVL	BX, 20(SP)
+	
+	// g = m->gsignal
+	MOVL	m(CX), BX
+	MOVL	m_gsignal(BX), BX
+	MOVL	BX, g(CX)
+	
+	// copy arguments for call to sighandler
+	MOVL	sig+0(FP), BX
+	MOVL	BX, 0(SP)
+	MOVL	info+4(FP), BX
+	MOVL	BX, 4(SP)
+	MOVL	context+8(FP), BX
+	MOVL	BX, 8(SP)
+
+	CALL	sighandler(SB)
+	
+	// restore g
+	get_tls(CX)
+	MOVL	20(SP), BX
+	MOVL	BX, g(CX)
+	
+	RET
 
 TEXT sigignore(SB),7,$0
 	RET
 
 TEXT sigreturn(SB),7,$0
-	// g = m->curg
-	get_tls(CX)
-	MOVL	m(CX), BP
-	MOVL	m_curg(BP), BP
-	MOVL	BP, g(CX)
 	MOVL	$173, AX	// rt_sigreturn
 	INT $0x80
 	INT $3	// not reached
@@ -259,4 +276,3 @@ TEXT setldt(SB),7,$32
 	MOVW	AX, GS
 
 	RET
-

@@ -74,8 +74,13 @@ TEXT sigaction(SB),7,$0
 //	16(FP)	siginfo
 //	20(FP)	context
 TEXT sigtramp(SB),7,$40
-	// g = m->gsignal
 	get_tls(CX)
+
+	// save g
+	MOVL	g(CX), BP
+	MOVL	BP, 20(SP)
+	
+	// g = m->gsignal
 	MOVL	m(CX), BP
 	MOVL	m_gsignal(BP), BP
 	MOVL	BP, g(CX)
@@ -91,10 +96,9 @@ TEXT sigtramp(SB),7,$40
 	MOVL	CX, 8(SP)
 	CALL	DI
 
-	// g = m->curg
+	// restore g
 	get_tls(CX)
-	MOVL	m(CX), BP
-	MOVL	m_curg(BP), BP
+	MOVL	20(SP), BP
 	MOVL	BP, g(CX)
 
 	MOVL	context+16(FP), CX
