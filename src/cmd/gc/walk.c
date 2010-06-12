@@ -9,6 +9,8 @@ static	Node*	conv(Node*, Type*);
 static	Node*	mapfn(char*, Type*);
 static	Node*	makenewvar(Type*, NodeList**, Node**);
 
+static	NodeList*	walkdefstack;
+
 // can this code branch reach the end
 // without an undcontitional RETURN
 // this is hard, so it is conservative
@@ -186,13 +188,14 @@ queuemethod(Node *n)
 	methodqueue = list(methodqueue, n);
 }
 
-void
+Node*
 walkdef(Node *n)
 {
 	int lno;
 	NodeList *init;
 	Node *e;
 	Type *t;
+	NodeList *l;
 
 	lno = lineno;
 	setlineno(n);
@@ -204,14 +207,24 @@ walkdef(Node *n)
 				lineno = n->lineno;
 			yyerror("undefined: %S", n->sym);
 		}
-		return;
+		return n;
 	}
 
 	if(n->walkdef == 1)
-		return;
+		return n;
+
+	l = mal(sizeof *l);
+	l->n = n;
+	l->next = walkdefstack;
+	walkdefstack = l;
+
 	if(n->walkdef == 2) {
-		// TODO(rsc): better loop message
-		fatal("loop");
+		flusherrors();
+		print("walkdef loop:");
+		for(l=walkdefstack; l; l=l->next)
+			print(" %S", l->n->sym);
+		print("\n");
+		fatal("walkdef loop");
 	}
 	n->walkdef = 2;
 
@@ -266,8 +279,11 @@ walkdef(Node *n)
 		}
 		if(n->type != T)
 			break;
-		if(n->defn == N)
+		if(n->defn == N) {
+			if(n->etype != 0)	// like OPRINTN
+				break;
 			fatal("var without type, init: %S", n->sym);
+		}
 		if(n->defn->op == ONAME) {
 			typecheck(&n->defn, Erv);
 			n->type = n->defn->type;
@@ -289,8 +305,14 @@ walkdef(Node *n)
 	}
 
 ret:
+	if(walkdefstack->n != n)
+		fatal("walkdefstack mismatch");
+	l = walkdefstack;
+	walkdefstack = l->next;
+
 	lineno = lno;
 	n->walkdef = 1;
+	return n;
 }
 
 void

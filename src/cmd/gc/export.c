@@ -120,7 +120,7 @@ dumpexportconst(Sym *s)
 
 	switch(n->val.ctype) {
 	default:
-		fatal("dumpexportconst: unknown ctype: %S", s);
+		fatal("dumpexportconst: unknown ctype: %S %d", s, n->val.ctype);
 	case CTINT:
 		Bprint(bout, "%B\n", n->val.u.xval);
 		break;

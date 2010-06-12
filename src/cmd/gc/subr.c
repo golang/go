@@ -1529,13 +1529,19 @@ treecopy(Node *n)
 		break;
 
 	case ONONAME:
-		if(n->iota) {
-			m = nod(OIOTA, n, nodintconst(iota));
+		if(n->sym == lookup("iota")) {
+			// Not sure yet whether this is the real iota,
+			// but make a copy of the Node* just in case,
+			// so that all the copies of this const definition
+			// don't have the same iota value.
+			m = nod(OXXX, N, N);
+			*m = *n;
+			m->iota = iota;
 			break;
 		}
 		// fall through
-	case OLITERAL:
 	case ONAME:
+	case OLITERAL:
 	case OTYPE:
 		m = n;
 		break;
