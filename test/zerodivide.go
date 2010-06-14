@@ -1,0 +1,168 @@
+// $G $F.go && $L $F.$A && ./$A.out
+
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"math"
+	"strings"
+)
+
+type Error interface {
+	String() string
+}
+
+type ErrorTest struct {
+	name	string
+	fn	func()
+	err	string
+}
+
+var (
+	i, j, k int = 0, 0, 1
+	i8, j8, k8 int8 = 0, 0, 1
+	i16, j16, k16 int16 = 0, 0, 1
+	i32, j32, k32 int32 = 0, 0, 1
+	i64, j64, k64 int64 = 0, 0, 1
+
+	u, v, w uint = 0, 0, 1
+	u8, v8, w8 uint8 = 0, 0, 1
+	u16, v16, w16 uint16 = 0, 0, 1
+	u32, v32, w32 uint32 = 0, 0, 1
+	u64, v64, w64 uint64 = 0, 0, 1
+	up, vp, wp uintptr = 0, 0, 1
+
+	f, g, h float = 0, 0, 1
+	f32, g32, h32 float32 = 0, 0, 1
+	f64, g64, h64, inf, negInf, nan float64 = 0, 0, 1, math.Inf(1), math.Inf(-1), math.NaN()
+
+	c, d, e complex = 0+0i, 0+0i, 1+1i
+	c64, d64, e64 complex64 = 0+0i, 0+0i, 1+1i
+	c128, d128, e128 complex128 = 0+0i, 0+0i, 1+1i
+)
+
+var tmp interface{}
+
+// We could assign to _ but the compiler optimizes it too easily.
+func use(v interface{}) {
+	tmp = v
+}
+
+// Verify error/no error for all types.
+var errorTests = []ErrorTest{
+	// All integer divide by zero should error.
+	ErrorTest{ "int 0/0", func() { use(i/j) }, "divide", },
+// TODO commented out: fails in 8g.
+//	ErrorTest{ "int8 0/0", func() { use(i8/j8) }, "divide", },
+	ErrorTest{ "int16 0/0", func() { use(i16/j16) }, "divide", },
+	ErrorTest{ "int32 0/0", func() { use(i32/j32) }, "divide", },
+	ErrorTest{ "int64 0/0", func() { use(i64/j64) }, "divide", },
+
+	ErrorTest{ "int 1/0", func() { use(k/j) }, "divide", },
+// TODO commented out: fails in 8g.
+//	ErrorTest{ "int8 1/0", func() { use(k8/j8) }, "divide", },
+	ErrorTest{ "int16 1/0", func() { use(k16/j16) }, "divide", },
+	ErrorTest{ "int32 1/0", func() { use(k32/j32) }, "divide", },
+	ErrorTest{ "int64 1/0", func() { use(k64/j64) }, "divide", },
+
+	ErrorTest{ "uint 0/0", func() { use(u/v) }, "divide", },
+// TODO commented out: fails in 8g.
+//	ErrorTest{ "uint8 0/0", func() { use(u8/v8) }, "divide", },
+	ErrorTest{ "uint16 0/0", func() { use(u16/v16) }, "divide", },
+	ErrorTest{ "uint32 0/0", func() { use(u32/v32) }, "divide", },
+	ErrorTest{ "uint64 0/0", func() { use(u64/v64) }, "divide", },
+	ErrorTest{ "uintptr 0/0", func() { use(up/vp) }, "divide", },
+
+	ErrorTest{ "uint 1/0", func() { use(w/v) }, "divide", },
+// TODO commented out: fails in 8g.
+//	ErrorTest{ "uint8 1/0", func() { use(w8/v8) }, "divide", },
+	ErrorTest{ "uint16 1/0", func() { use(w16/v16) }, "divide", },
+	ErrorTest{ "uint32 1/0", func() { use(w32/v32) }, "divide", },
+	ErrorTest{ "uint64 1/0", func() { use(w64/v64) }, "divide", },
+	ErrorTest{ "uintptr 1/0", func() { use(wp/vp) }, "divide", },
+
+	// All floating divide by zero should not error.
+	ErrorTest{ "float 0/0", func() { use(f/g) }, "", },
+	ErrorTest{ "float32 0/0", func() { use(f32/g32) }, "", },
+	ErrorTest{ "float64 0/0", func() { use(f64/g64) }, "", },
+
+	ErrorTest{ "float 1/0", func() { use(h/g) }, "", },
+	ErrorTest{ "float32 1/0", func() { use(h32/g32) }, "", },
+	ErrorTest{ "float64 1/0", func() { use(h64/g64) }, "", },
+	ErrorTest{ "float64 inf/0", func() { use(inf/g64) }, "", },
+	ErrorTest{ "float64 -inf/0", func() { use(negInf/g64) }, "", },
+	ErrorTest{ "float64 nan/0", func() { use(nan/g64) }, "", },
+
+	// All complex divide by zero should not error.
+	ErrorTest{ "complex 0/0", func() { use(c/d) }, "", },
+	ErrorTest{ "complex64 0/0", func() { use(c64/d64) }, "", },
+	ErrorTest{ "complex128 0/0", func() { use(c128/d128) }, "", },
+
+	ErrorTest{ "complex 1/0", func() { use(e/d) }, "", },
+	ErrorTest{ "complex64 1/0", func() { use(e64/d64) }, "", },
+	ErrorTest{ "complex128 1/0", func() { use(e128/d128) }, "", },
+}
+
+func error(fn func()) (error string) {
+	defer func() {
+		if e := recover(); e != nil {
+			error = e.(Error).String()
+		}
+	}()
+	fn()
+	return ""
+}
+
+type FloatTest struct{
+	name	string
+	f, g	float64
+	out	float64
+}
+
+var floatTests = []FloatTest{
+	FloatTest{"float64 0/0", 0, 0, nan },
+	FloatTest{"float64 nan/0", nan, 0, nan },
+	FloatTest{"float64 inf/0", inf, 0, inf },
+	FloatTest{"float64 -inf/0", negInf, 0, negInf },
+}
+
+func alike(a, b float64) bool {
+	switch {
+	case math.IsNaN(a) && math.IsNaN(b):
+		return true
+	case a == b:
+		return math.Signbit(a) == math.Signbit(b)
+	}
+	return false
+}
+
+func main() {
+	for _, t := range errorTests {
+		err := error(t.fn)
+		switch {
+		case t.err == "" && err == "":
+			// fine
+		case t.err != "" && err == "":
+			fmt.Printf("%s: expected %q; got no error\n", t.name, t.err)
+		case t.err == "" && err != "":
+			fmt.Printf("%s: expected no error; got %q\n", t.name, err)
+		case t.err != "" && err != "":
+			if strings.Index(err, t.err) < 0 {
+				fmt.Printf("%s: expected %q; got %q\n", t.name, t.err, err)
+				continue
+			}
+		}
+	}
+
+	// At this point we know we don't error on the values we're testing
+	for _, t := range floatTests {
+		x := t.f/t.g
+		if !alike(x, t.out) {
+			fmt.Printf("%s: expected %g error; got %g\n", t.name, t.out, x)
+		}
+	}
+}
