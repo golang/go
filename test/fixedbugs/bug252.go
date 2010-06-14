@@ -6,7 +6,7 @@
 
 package main
 
-func f(args ...) {
+func f(args ...int) {
 	g(args)	// ERROR "[.][.][.] mismatch"
 }
 

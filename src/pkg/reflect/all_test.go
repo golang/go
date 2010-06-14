@@ -6,6 +6,7 @@ package reflect_test
 
 import (
 	"container/vector"
+	"fmt"
 	"io"
 	"os"
 	. "reflect"
@@ -139,10 +140,10 @@ var typeTests = []pair{
 	},
 	pair{struct {
 		x struct {
-			f func(args ...)
+			f func(args ...int)
 		}
 	}{},
-		"struct { f func(...) }",
+		"struct { f func(...int) }",
 	},
 	pair{struct {
 		x (interface {
@@ -1220,4 +1221,27 @@ func TestImportPath(t *testing.T) {
 	if path := Typeof(vector.Vector{}).PkgPath(); path != "container/vector" {
 		t.Errorf("Typeof(vector.Vector{}).PkgPath() = %q, want \"container/vector\"", path)
 	}
+}
+
+func TestDotDotDot(t *testing.T) {
+	// Test example from FuncType.DotDotDot documentation.
+	var f func(x int, y ...float)
+	typ := Typeof(f).(*FuncType)
+	if typ.NumIn() == 2 && typ.In(0) == Typeof(int(0)) {
+		sl, ok := typ.In(1).(*SliceType)
+		if ok {
+			if sl.Elem() == Typeof(float(0)) {
+				// ok
+				return
+			}
+		}
+	}
+
+	// Failed
+	t.Errorf("want NumIn() = 2, In(0) = int, In(1) = []float")
+	s := fmt.Sprintf("have NumIn() = %d", typ.NumIn())
+	for i := 0; i < typ.NumIn(); i++ {
+		s += fmt.Sprintf(", In(%d) = %s", i, typ.In(i))
+	}
+	t.Error(s)
 }

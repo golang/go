@@ -388,8 +388,8 @@ func (t *FuncType) In(i int) Type {
 }
 
 // DotDotDot returns true if the final function input parameter
-// is a "..." parameter.  If so, the parameter's underlying static
-// type - either interface{} or []T - is returned by t.In(t.NumIn() - 1).
+// is a "..." parameter.  If so, t.In(t.NumIn() - 1) returns the
+// parameter's underlying static type []T.
 //
 // For concreteness, if t is func(x int, y ... float), then
 //
