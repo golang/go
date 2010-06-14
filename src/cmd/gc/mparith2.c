@@ -618,7 +618,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 	q->neg = ns^ds;
 }
 
-int
+static int
 iszero(Mpint *a)
 {
 	long *a1;

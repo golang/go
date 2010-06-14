@@ -8,13 +8,22 @@ static	Node*	walkprint(Node*, NodeList**, int);
 static	Node*	conv(Node*, Type*);
 static	Node*	mapfn(char*, Type*);
 static	Node*	makenewvar(Type*, NodeList**, Node**);
+static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
+static	NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
+static	NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
+static	NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
+static	Node*	convas(Node*, NodeList**);
+static	void	heapmoves(void);
+static	NodeList*	paramstoheap(Type **argin, int out);
+static	NodeList*	reorder1(NodeList*);
+static	NodeList*	reorder3(NodeList*);
 
 static	NodeList*	walkdefstack;
 
 // can this code branch reach the end
 // without an undcontitional RETURN
 // this is hard, so it is conservative
-int
+static int
 walkret(NodeList *l)
 {
 	Node *n;
@@ -85,16 +94,6 @@ walk(Node *fn)
 		snprint(s, sizeof(s), "enter %S", curfn->nname->sym);
 		dumplist(s, curfn->enter);
 	}
-}
-
-void
-gettype(Node **np, NodeList **init)
-{
-	if(debug['W'])
-		dump("\nbefore gettype", *np);
-	typecheck(np, Erv);
-	if(debug['W'])
-		dump("after gettype", *np);
 }
 
 static int nwalkdeftype;
@@ -1307,13 +1306,13 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
 	return nvar;
 }
 
-Node*
+static Node*
 ascompatee1(int op, Node *l, Node *r, NodeList **init)
 {
 	return convas(nod(OAS, l, r), init);
 }
 
-NodeList*
+static NodeList*
 ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
 {
 	NodeList *ll, *lr, *nn;
@@ -1346,7 +1345,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
  * evaluating the lv or a function call
  * in the conversion of the types
  */
-int
+static int
 fncall(Node *l, Type *rt)
 {
 	if(l->ullman >= UINF)
@@ -1356,7 +1355,7 @@ fncall(Node *l, Type *rt)
 	return 1;
 }
 
-NodeList*
+static NodeList*
 ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 {
 	Node *l, *tmp, *a;
@@ -1414,113 +1413,10 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 	return concat(nn, mm);
 }
 
-/*
- * make a tsig for the structure
- * carrying the ... arguments
- */
-Type*
-sigtype(Type *st)
-{
-	Sym *s;
-	Type *t;
-	static int sigdddgen;
-
-	dowidth(st);
-
-	sigdddgen++;
-	snprint(namebuf, sizeof(namebuf), "dsigddd_%d", sigdddgen);
-	s = lookup(namebuf);
-	t = newtype(s);
-	t = dodcltype(t);
-	updatetype(t, st);
-	t->local = 1;
-	return t;
-}
-
-/*
- * package all the arguments that
- * match a ... parameter into an
- * automatic structure.
- * then call the ... arg (interface)
- * with a pointer to the structure.
- */
-NodeList*
-mkdotargs(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
-{
-	Node *r;
-	Type *t, *st, *ft;
-	Node *a, *var;
-	NodeList *lr, *n;
-
-	n = nil;			// list of assignments
-
-	st = typ(TSTRUCT);	// generated structure
-	ft = T;			// last field
-	for(lr=lr0; lr; lr=lr->next) {
-		r = lr->n;
-		if(r->op == OLITERAL && r->val.ctype == CTNIL) {
-			if(r->type == T || r->type->etype == TNIL) {
-				yyerror("inappropriate use of nil in ... argument");
-				return nil;
-			}
-		}
-		defaultlit(&r, T);
-		lr->n = r;
-		if(r->type == T)	// type check failed
-			return nil;
-
-		// generate the next structure field
-		t = typ(TFIELD);
-		t->type = r->type;
-		if(ft == T)
-			st->type = t;
-		else
-			ft->down = t;
-		ft = t;
-
-		a = nod(OAS, N, r);
-		n = list(n, a);
-	}
-
-	// make a named type for the struct
-	st = sigtype(st);
-	dowidth(st);
-
-	// now we have the size, make the struct
-	var = nod(OXXX, N, N);
-	tempname(var, st);
-	var->sym = lookup(".ddd");
-	typecheck(&var, Erv);
-
-	// assign the fields to the struct.
-	// use the init list so that reorder1 doesn't reorder
-	// these assignments after the interface conversion
-	// below.
-	t = st->type;
-	for(lr=n; lr; lr=lr->next) {
-		r = lr->n;
-		r->left = nod(OXXX, N, N);
-		*r->left = *var;
-		r->left->type = r->right->type;
-		r->left->xoffset += t->width;
-		typecheck(&r, Etop);
-		walkexpr(&r, init);
-		lr->n = r;
-		t = t->down;
-	}
-	*init = concat(*init, n);
-
-	// last thing is to put assignment
-	// of the structure to the DDD parameter
-	a = nod(OAS, nodarg(l, fp), var);
-	nn = list(nn, convas(a, init));
-	return nn;
-}
-
  /*
  * package all the arguments that match a ... T parameter into a []T.
  */
-NodeList*
+static NodeList*
 mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
 {
 	Node *a, *n;
@@ -1594,7 +1490,7 @@ dumpnodetypes(NodeList *l, char *what)
  *	return expr-list
  *	func(expr-list)
  */
-NodeList*
+static NodeList*
 ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
 {
 	Type *l, *ll;
@@ -1656,14 +1552,10 @@ loop:
 			goto ret;
 		}
 
-		// normal case -- make a structure of all
-		// remaining arguments and pass a pointer to
-		// it to the ddd parameter (empty interface)
-		// TODO(rsc): delete in DDD cleanup.
-		if(l->type->etype == TINTER)
-			nn = mkdotargs(lr, nn, l, fp, init);
-		else
-			nn = mkdotargslice(lr, nn, l, fp, init);
+		// normal case -- make a slice of all
+		// remaining arguments and pass it to
+		// the ddd parameter.
+		nn = mkdotargslice(lr, nn, l, fp, init);
 		goto ret;
 	}
 
@@ -1882,26 +1774,7 @@ callnew(Type *t)
 	return mkcall1(fn, ptrto(t), nil, nodintconst(t->width));
 }
 
-Type*
-fixchan(Type *t)
-{
-	if(t == T)
-		goto bad;
-	if(t->etype != TCHAN)
-		goto bad;
-	if(t->type == T)
-		goto bad;
-
-	dowidth(t->type);
-
-	return t;
-
-bad:
-	yyerror("not a channel: %lT", t);
-	return T;
-}
-
-Node*
+static Node*
 convas(Node *n, NodeList **init)
 {
 	Node *l, *r;
@@ -2014,7 +1887,7 @@ reorder1(NodeList *all)
  * be later use of an earlier lvalue.
  */
 
-int
+static int
 vmatch2(Node *l, Node *r)
 {
 	NodeList *ll;
@@ -2113,7 +1986,7 @@ reorder3(NodeList *all)
  * generate and return code to allocate
  * copies of escaped parameters to the heap.
  */
-NodeList*
+static NodeList*
 paramstoheap(Type **argin, int out)
 {
 	Type *t;
@@ -2146,7 +2019,7 @@ paramstoheap(Type **argin, int out)
 /*
  * walk through argout parameters copying back to stack
  */
-NodeList*
+static NodeList*
 returnsfromheap(Type **argin)
 {
 	Type *t;
@@ -2169,7 +2042,7 @@ returnsfromheap(Type **argin)
  * between the stack and the heap.  adds code to
  * curfn's before and after lists.
  */
-void
+static void
 heapmoves(void)
 {
 	NodeList *nn;

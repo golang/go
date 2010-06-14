@@ -8,6 +8,8 @@
 #include	"opnames.h"
 #include	"yerr.h"
 
+static	void	dodump(Node*, int);
+
 typedef struct Error Error;
 struct Error
 {
@@ -509,12 +511,6 @@ maptype(Type *key, Type *val)
 	return t;
 }
 
-int
-iskeytype(Type *t)
-{
-	return algtype(t) != ANOEQ;
-}
-
 Type*
 typ(int et)
 {
@@ -657,7 +653,7 @@ aindex(Node *b, Type *t)
 	return r;
 }
 
-void
+static void
 indent(int dep)
 {
 	int i;
@@ -666,14 +662,14 @@ indent(int dep)
 		print(".   ");
 }
 
-void
+static void
 dodumplist(NodeList *l, int dep)
 {
 	for(; l; l=l->next)
 		dodump(l->n, dep);
 }
 
-void
+static void
 dodump(Node *n, int dep)
 {
 	if(n == N)
@@ -1036,34 +1032,6 @@ Jconv(Fmt *fp)
 }
 
 int
-Gconv(Fmt *fp)
-{
-	char buf[100];
-	Type *t;
-
-	t = va_arg(fp->args, Type*);
-
-	if(t->etype == TFUNC) {
-		if(t->vargen != 0) {
-			snprint(buf, sizeof(buf), "-%d%d%d g(%ld)",
-				t->thistuple, t->outtuple, t->intuple, t->vargen);
-			goto out;
-		}
-		snprint(buf, sizeof(buf), "-%d%d%d",
-			t->thistuple, t->outtuple, t->intuple);
-		goto out;
-	}
-	if(t->vargen != 0) {
-		snprint(buf, sizeof(buf), " g(%ld)", t->vargen);
-		goto out;
-	}
-	strcpy(buf, "");
-
-out:
-	return fmtstrcpy(fp, buf);
-}
-
-int
 Sconv(Fmt *fp)
 {
 	Sym *s;
@@ -1203,13 +1171,9 @@ Tpretty(Fmt *fp, Type *t)
 		fmtprint(fp, "(");
 		for(t1=getinargx(t)->type; t1; t1=t1->down) {
 			if(noargnames && t1->etype == TFIELD) {
-				if(t1->isddd) {
-					// TODO(rsc): Delete with DDD cleanup.
-					if(t1->type->etype == TINTER)
-						fmtprint(fp, "...");
-					else
-						fmtprint(fp, "... %T", t1->type->type);
-				} else
+				if(t1->isddd)
+					fmtprint(fp, "...%T", t1->type->type);
+				else
 					fmtprint(fp, "%T", t1->type);
 			} else
 				fmtprint(fp, "%T", t1);
@@ -1287,13 +1251,9 @@ Tpretty(Fmt *fp, Type *t)
 				fmtprint(fp, "? ");
 		} else
 			fmtprint(fp, "%hS ", t->sym);
-		if(t->isddd) {
-			// TODO(rsc): delete with DDD cleanup.
-			if(t->type->etype == TINTER)
-				fmtprint(fp, "...");
-			else
-				fmtprint(fp, "... %T", t->type->type);
-		} else
+		if(t->isddd)
+			fmtprint(fp, "...%T", t->type->type);
+		else
 			fmtprint(fp, "%T", t->type);
 		if(t->note) {	
 			fmtprint(fp, " ");
@@ -1764,20 +1724,6 @@ cplxsubtype(int et)
 	return 0;
 }
 
-int
-iscomposite(Type *t)
-{
-	if(t == T)
-		return 0;
-	switch(t->etype) {
-	case TARRAY:
-	case TSTRUCT:
-	case TMAP:
-		return 1;
-	}
-	return 0;
-}
-
 // Return 1 if t1 and t2 are identical, following the spec rules.
 //
 // Any cyclic type must go through a named type, and if one is
@@ -2209,7 +2155,7 @@ shallow(Type *t)
 	return nt;
 }
 
-Type*
+static Type*
 deep(Type *t)
 {
 	Type *nt, *xt;
@@ -2281,39 +2227,6 @@ syslook(char *name, int copy)
 	n->type = deep(s->def->type);
 
 	return n;
-}
-
-/*
- * are the arg names of two
- * functions the same. we know
- * that eqtype has been called
- * and has returned true.
- */
-int
-eqargs(Type *t1, Type *t2)
-{
-	if(t1 == t2)
-		return 1;
-	if(t1 == T || t2 == T)
-		return 0;
-
-	if(t1->etype != t2->etype)
-		return 0;
-
-	if(t1->etype != TFUNC)
-		fatal("eqargs: oops %E", t1->etype);
-
-	t1 = t1->type;
-	t2 = t2->type;
-	for(;;) {
-		if(t1 == t2)
-			break;
-		if(!eqtype(t1, t2))
-			return 0;
-		t1 = t1->down;
-		t2 = t2->down;
-	}
-	return 1;
 }
 
 /*
@@ -2750,7 +2663,7 @@ setmaxarg(Type *t)
 // search depth 0 --
 // return count of fields+methods
 // found with a given name
-int
+static int
 lookdot0(Sym *s, Type *t, Type **save)
 {
 	Type *f, *u;
@@ -3019,7 +2932,7 @@ expandmeth(Sym *s, Type *t)
 /*
  * Given funarg struct list, return list of ODCLFIELD Node fn args.
  */
-NodeList*
+static NodeList*
 structargs(Type **tl, int mustname)
 {
 	Iter savet;
@@ -3121,7 +3034,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 	funccompile(fn, 0);
 }
 
-Type*
+static Type*
 ifacelookdot(Sym *s, Type *t, int *followptr)
 {
 	int i, c, d;

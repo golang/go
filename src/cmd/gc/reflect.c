@@ -235,7 +235,7 @@ methods(Type *t)
 /*
  * return methods of interface type t, sorted by name.
  */
-Sig*
+static Sig*
 imethods(Type *t)
 {
 	Sig *a, *all, *last;

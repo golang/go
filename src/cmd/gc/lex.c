@@ -7,11 +7,22 @@
 #include	"y.tab.h"
 #include <ar.h>
 
+#undef	getc
+#undef	ungetc
+#define	getc	ccgetc
+#define	ungetc	ccungetc
+
 extern int yychar;
 int windows;
 
-void lexfini(void);
-void yytinit(void);
+static void	lexinit(void);
+static void	lexfini(void);
+static void	yytinit(void);
+static int	getc(void);
+static void	ungetc(int);
+static int32	getr(void);
+static int	escchar(int, int*, vlong*);
+static void	addidir(char*);
 
 static char *goos, *goarch, *goroot;
 
@@ -215,7 +226,7 @@ main(int argc, char *argv[])
 	return 0;
 }
 
-int
+static int
 arsize(Biobuf *b, char *name)
 {
 	struct ar_hdr *a;
@@ -229,7 +240,7 @@ arsize(Biobuf *b, char *name)
 	return atoi(a->size);
 }
 
-int
+static int
 skiptopkgdef(Biobuf *b)
 {
 	char *p;
@@ -254,7 +265,7 @@ skiptopkgdef(Biobuf *b)
 	return 1;
 }
 
-void
+static void
 addidir(char* dir)
 {
 	Idir** pp;
@@ -270,7 +281,7 @@ addidir(char* dir)
 }
 
 // is this path a local name?  begins with ./ or ../ or /
-int
+static int
 islocalname(Strlit *name)
 {
 	if(!windows && name->len >= 1 && name->s[0] == '/')
@@ -285,7 +296,7 @@ islocalname(Strlit *name)
 	return 0;
 }
 
-int
+static int
 findpkg(Strlit *name)
 {
 	Idir *p;
@@ -448,7 +459,7 @@ cannedimports(char *file, char *cp)
 	incannedimport = 1;
 }
 
-int
+static int
 isfrog(int c)
 {
 	// complain about possibly invisible control characters
@@ -1132,7 +1143,7 @@ yylex(void)
 	return lx;
 }
 
-int
+static int
 getc(void)
 {
 	int c;
@@ -1170,7 +1181,7 @@ getc(void)
 	return c;
 }
 
-void
+static void
 ungetc(int c)
 {
 	curio.peekc1 = curio.peekc;
@@ -1179,7 +1190,7 @@ ungetc(int c)
 		lexlineno--;
 }
 
-int32
+static int32
 getr(void)
 {
 	int c, i;
@@ -1210,8 +1221,7 @@ loop:
 	return rune;
 }
 
-
-int
+static int
 escchar(int e, int *escflg, vlong *val)
 {
 	int i, u, c;
@@ -1407,7 +1417,7 @@ static	struct
 	"insofaras",			LIGNORE,	Txxx,		OXXX,
 };
 
-void
+static void
 lexinit(void)
 {
 	int i, lex;
@@ -1471,7 +1481,7 @@ lexinit(void)
 	nblank = s->def;
 }
 
-void
+static void
 lexfini(void)
 {
 	Sym *s;
@@ -1657,7 +1667,7 @@ struct
 	"','",	"comma",
 };
 
-void
+static void
 yytinit(void)
 {
 	int i, j;

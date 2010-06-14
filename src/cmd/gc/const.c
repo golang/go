@@ -1117,7 +1117,7 @@ nonnegconst(Node *n)
  * convert x to type et and back to int64
  * for sign extension and truncation.
  */
-int64
+static int64
 iconv(int64 x, int et)
 {
 	switch(et) {

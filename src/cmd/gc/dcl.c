@@ -7,7 +7,7 @@
 
 static	void	funcargs(Node*);
 
-int
+static int
 dflag(void)
 {
 	if(!debug['d'])
@@ -24,7 +24,7 @@ dflag(void)
  */
 static	Sym*	dclstack;
 
-void
+static void
 dcopy(Sym *a, Sym *b)
 {
 	a->pkg = b->pkg;
@@ -34,7 +34,7 @@ dcopy(Sym *a, Sym *b)
 	a->lastlineno = b->lastlineno;
 }
 
-Sym*
+static Sym*
 push(void)
 {
 	Sym *d;
@@ -45,7 +45,7 @@ push(void)
 	return d;
 }
 
-Sym*
+static Sym*
 pushdcl(Sym *s)
 {
 	Sym *d;
@@ -215,90 +215,6 @@ addvar(Node *n, Type *t, int ctxt)
 	n->op = ONAME;
 	declare(n, ctxt);
 	n->type = t;
-}
-
-// TODO: cut use of below in sigtype and then delete
-void
-addtyp(Type *n, int ctxt)
-{
-	Node *def;
-
-	if(n==T || n->sym == S)
-		fatal("addtyp: n=%T t=%T nil", n);
-
-	def = typenod(n);
-	declare(def, ctxt);
-	n->vargen = def->vargen;
-
-	typelist = list(typelist, def);
-}
-
-/*
- * introduce a type named n
- * but it is an unknown type for now
- */
-// TODO(rsc): cut use of this in sigtype and then delete
-Type*
-dodcltype(Type *n)
-{
-	addtyp(n, dclcontext);
-	n->local = 1;
-	autoexport(typenod(n), dclcontext);
-	return n;
-}
-
-/*
- * now we know what n is: it's t
- */
-// TODO(rsc): cut use of this in sigtype and then delete
-void
-updatetype(Type *n, Type *t)
-{
-	Sym *s;
-	int local, vargen;
-	int maplineno, lno, etype;
-
-	if(t == T)
-		return;
-	s = n->sym;
-	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
-		fatal("updatetype %T = %T", n, t);
-
-	etype = n->etype;
-	switch(n->etype) {
-	case TFORW:
-		break;
-
-	default:
-		fatal("updatetype %T / %T", n, t);
-	}
-
-	// decl was
-	//	type n t;
-	// copy t, but then zero out state associated with t
-	// that is no longer associated with n.
-	maplineno = n->maplineno;
-	local = n->local;
-	vargen = n->vargen;
-	*n = *t;
-	n->orig = t->orig;
-	n->sym = s;
-	n->local = local;
-	n->siggen = 0;
-	n->printed = 0;
-	n->method = nil;
-	n->vargen = vargen;
-	n->nod = N;
-
-	checkwidth(n);
-
-	// double-check use of type as map key
-	if(maplineno) {
-		lno = lineno;
-		lineno = maplineno;
-		maptype(n, types[TBOOL]);
-		lineno = lno;
-	}
 }
 
 /*
@@ -544,8 +460,6 @@ dclchecks(void)
 static int
 colasname(Node *n)
 {
-	// TODO(rsc): can probably simplify
-	// once late-binding of names goes in
 	switch(n->op) {
 	case ONAME:
 	case ONONAME:
@@ -769,7 +683,7 @@ ok:
 /*
  * turn a parsed struct into a type
  */
-Type**
+static Type**
 stotype(NodeList *l, int et, Type **t)
 {
 	Type *f, *t1, *t2, **t0;
@@ -1028,15 +942,9 @@ checkarglist(NodeList *all, int input)
 				yyerror("cannot use ... in output argument list");
 			else if(l->next != nil)
 				yyerror("can only use ... as final argument in list");
-			if(n->right->left == N) {
-				// TODO(rsc): Delete with DDD cleanup.
-				n->right->op = OTYPE;
-				n->right->type = typ(TINTER);
-			} else {
-				n->right->op = OTARRAY;
-				n->right->right = n->right->left;
-				n->right->left = N;
-			}
+			n->right->op = OTARRAY;
+			n->right->right = n->right->left;
+			n->right->left = N;
 			n->isddd = 1;
 			if(n->left != N)
 				n->left->isddd = 1;
@@ -1106,33 +1014,6 @@ functype(Node *this, NodeList *in, NodeList *out)
 	t->outnamed = t->outtuple > 0 && out->n->left != N;
 
 	return t;
-}
-
-int
-methcmp(Type *t1, Type *t2)
-{
-	if(t1->etype != TFUNC)
-		return 0;
-	if(t2->etype != TFUNC)
-		return 0;
-
-	t1 = t1->type->down;	// skip this arg
-	t2 = t2->type->down;	// skip this arg
-	for(;;) {
-		if(t1 == t2)
-			break;
-		if(t1 == T || t2 == T)
-			return 0;
-		if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
-			return 0;
-
-		if(!eqtype(t1->type, t2->type))
-			return 0;
-
-		t1 = t1->down;
-		t2 = t2->down;
-	}
-	return 1;
 }
 
 Sym*

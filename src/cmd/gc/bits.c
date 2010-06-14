@@ -30,6 +30,7 @@
 
 #include "go.h"
 
+/*
 Bits
 bor(Bits a, Bits b)
 {
@@ -52,7 +53,6 @@ band(Bits a, Bits b)
 	return c;
 }
 
-/*
 Bits
 bnot(Bits a)
 {
@@ -76,6 +76,7 @@ bany(Bits *a)
 	return 0;
 }
 
+/*
 int
 beq(Bits a, Bits b)
 {
@@ -86,6 +87,7 @@ beq(Bits a, Bits b)
 			return 0;
 	return 1;
 }
+*/
 
 int
 bnum(Bits a)
@@ -110,6 +112,7 @@ blsh(uint n)
 	return c;
 }
 
+/*
 int
 bset(Bits a, uint n)
 {
@@ -117,6 +120,7 @@ bset(Bits a, uint n)
 		return 1;
 	return 0;
 }
+*/
 
 int
 bitno(int32 b)

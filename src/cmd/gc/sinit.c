@@ -718,7 +718,7 @@ initctxt:
 	return 1;
 }
 
-int
+static int
 getlit(Node *lit)
 {
 	if(smallintconst(lit))
