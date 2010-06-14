@@ -328,49 +328,99 @@ func ToTitleSpecial(_case unicode.SpecialCase, s string) string {
 // TrimLeftFunc returns a slice of the string s with all leading
 // Unicode code points c satisfying f(c) removed.
 func TrimLeftFunc(s string, f func(r int) bool) string {
-	start, end := 0, len(s)
-	for start < end {
-		wid := 1
-		rune := int(s[start])
-		if rune >= utf8.RuneSelf {
-			rune, wid = utf8.DecodeRuneInString(s[start:end])
-		}
-		if !f(rune) {
-			return s[start:]
-		}
-		start += wid
+	i := indexFunc(s, f, false)
+	if i == -1 {
+		return ""
 	}
-	return s[start:]
+	return s[i:]
 }
 
 // TrimRightFunc returns a slice of the string s with all trailing
 // Unicode code points c satisfying f(c) removed.
 func TrimRightFunc(s string, f func(r int) bool) string {
-	start, end := 0, len(s)
-	for start < end {
-		wid := 1
-		rune := int(s[end-wid])
-		if rune >= utf8.RuneSelf {
-			// Back up & look for beginning of rune. Mustn't pass start.
-			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
-			}
-			if start > end-wid { // invalid UTF-8 sequence; stop processing
-				return s[start:end]
-			}
-			rune, wid = utf8.DecodeRuneInString(s[end-wid : end])
-		}
-		if !f(rune) {
-			return s[0:end]
-		}
-		end -= wid
+	i := lastIndexFunc(s, f, false)
+	if i >= 0 && s[i] >= utf8.RuneSelf {
+		_, wid := utf8.DecodeRuneInString(s[i:])
+		i += wid
+	} else {
+		i++
 	}
-	return s[0:end]
+	return s[0:i]
 }
 
 // TrimFunc returns a slice of the string s with all leading
 // and trailing Unicode code points c satisfying f(c) removed.
 func TrimFunc(s string, f func(r int) bool) string {
 	return TrimRightFunc(TrimLeftFunc(s, f), f)
+}
+
+// IndexFunc returns the index into s of the first Unicode
+// code point satisfying f(c), or -1 if none do.
+func IndexFunc(s string, f func(r int) bool) int {
+	return indexFunc(s, f, true)
+}
+
+// LastIndexFunc returns the index into s of the last
+// Unicode code point satisfying f(c), or -1 if none do.
+func LastIndexFunc(s string, f func(r int) bool) int {
+	return lastIndexFunc(s, f, true)
+}
+
+// indexFunc is the same as IndexFunc except that if
+// truth==false, the sense of the predicate function is
+// inverted. We could use IndexFunc directly, but this
+// way saves a closure allocation.
+func indexFunc(s string, f func(r int) bool, truth bool) int {
+	start := 0
+	for start < len(s) {
+		wid := 1
+		rune := int(s[start])
+		if rune >= utf8.RuneSelf {
+			rune, wid = utf8.DecodeRuneInString(s[start:])
+		}
+		if f(rune) == truth {
+			return start
+		}
+		start += wid
+	}
+	return -1
+}
+
+// lastIndexFunc is the same as LastIndexFunc except that if
+// truth==false, the sense of the predicate function is
+// inverted. We could use IndexFunc directly, but this
+// way saves a closure allocation.
+func lastIndexFunc(s string, f func(r int) bool, truth bool) int {
+	end := len(s)
+	for end > 0 {
+		start := end - 1
+		rune := int(s[start])
+		if rune >= utf8.RuneSelf {
+			// Back up & look for beginning of rune. Mustn't pass start.
+			for start--; start >= 0; start-- {
+				if utf8.RuneStart(s[start]) {
+					break
+				}
+			}
+			if start < 0 {
+				return -1
+			}
+			var wid int
+			rune, wid = utf8.DecodeRuneInString(s[start:end])
+
+			// If we've decoded fewer bytes than we expected,
+			// we've got some invalid UTF-8, so make sure we return
+			// the last possible index in s.
+			if start+wid < end && f(utf8.RuneError) == truth {
+				return end - 1
+			}
+		}
+		if f(rune) == truth {
+			return start
+		}
+		end = start
+	}
+	return -1
 }
 
 func makeCutsetFunc(cutset string) func(rune int) bool {
