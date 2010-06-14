@@ -9,6 +9,9 @@
 
 #include "go.h"
 
+static void	cgen_dcl(Node *n);
+static void	cgen_proc(Node *n, int proc);
+
 Node*
 sysfunc(char *name)
 {
@@ -61,7 +64,7 @@ allocparams(void)
 	lineno = lno;
 }
 
-void
+static void
 newlab(int op, Sym *s, Node *stmt)
 {
 	Label *lab;
@@ -400,7 +403,7 @@ cgen_proc(Node *n, int proc)
  * but might have to allocate heap copy
  * for escaped variables.
  */
-void
+static void
 cgen_dcl(Node *n)
 {
 	if(debug['g'])
@@ -419,7 +422,7 @@ cgen_dcl(Node *n)
 /*
  * generate discard of value
  */
-void
+static void
 cgen_discard(Node *nr)
 {
 	Node tmp;

@@ -5,13 +5,10 @@
 #include	"go.h"
 #include	"y.tab.h"
 
-void dumpsym(Sym*);
-
-void
-addexportsym(Node *n)
-{
-	exportlist = list(exportlist, n);
-}
+static	void dumpsym(Sym*);
+static	void	dumpexporttype(Sym*);
+static	void	dumpexportvar(Sym*);
+static	void	dumpexportconst(Sym*);
 
 void
 exportsym(Node *n)
@@ -25,10 +22,10 @@ exportsym(Node *n)
 	}
 	n->sym->flags |= SymExport;
 
-	addexportsym(n);
+	exportlist = list(exportlist, n);
 }
 
-void
+static void
 packagesym(Node *n)
 {
 	if(n == N || n->sym == S)
@@ -40,7 +37,7 @@ packagesym(Node *n)
 	}
 	n->sym->flags |= SymPackage;
 
-	addexportsym(n);
+	exportlist = list(exportlist, n);
 }
 
 int
@@ -69,7 +66,7 @@ autoexport(Node *n, int ctxt)
 		packagesym(n);
 }
 
-void
+static void
 dumppkg(Pkg *p)
 {
 	if(p == nil || p == localpkg || p->exported)
@@ -78,7 +75,7 @@ dumppkg(Pkg *p)
 	Bprint(bout, "\timport %s \"%Z\"\n", p->name, p->path);
 }
 
-void
+static void
 dumpprereq(Type *t)
 {
 	if(t == T)
@@ -97,7 +94,7 @@ dumpprereq(Type *t)
 	dumpprereq(t->down);
 }
 
-void
+static void
 dumpexportconst(Sym *s)
 {
 	Node *n;
@@ -142,7 +139,7 @@ dumpexportconst(Sym *s)
 	}
 }
 
-void
+static void
 dumpexportvar(Sym *s)
 {
 	Node *n;
@@ -166,7 +163,7 @@ dumpexportvar(Sym *s)
 	Bprint(bout, "\n");
 }
 
-void
+static void
 dumpexporttype(Sym *s)
 {
 	Type *t;
@@ -192,7 +189,7 @@ methcmp(const void *va, const void *vb)
 	return strcmp(a->sym->name, b->sym->name);
 }
 
-void
+static void
 dumpsym(Sym *s)
 {
 	Type *f, *t;
@@ -243,7 +240,7 @@ dumpsym(Sym *s)
 	}
 }
 
-void
+static void
 dumptype(Type *t)
 {
 	// no need to re-dump type if already exported

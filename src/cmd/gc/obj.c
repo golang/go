@@ -8,6 +8,9 @@
  * architecture-independent object file output
  */
 
+static	void	outhist(Biobuf *b);
+static	void	dumpglobls(void);
+
 void
 dumpobj(void)
 {
@@ -38,7 +41,7 @@ dumpobj(void)
 	Bterm(bout);
 }
 
-void
+static void
 dumpglobls(void)
 {
 	Node *n;
@@ -58,8 +61,7 @@ dumpglobls(void)
 			continue;
 		dowidth(n->type);
 
-		// TODO(rsc): why is this not s/n->sym->def/n/ ?
-		ggloblnod(n->sym->def, n->type->width);
+		ggloblnod(n, n->type->width);
 	}
 }
 
@@ -71,7 +73,7 @@ Bputname(Biobuf *b, Sym *s)
 	Bwrite(b, s->name, strlen(s->name)+1);
 }
 
-void
+static void
 outhist(Biobuf *b)
 {
 	Hist *h;

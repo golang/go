@@ -923,7 +923,8 @@ labelname:
 dotdotdot:
 	LDDD
 	{
-		$$ = nod(ODDD, N, N);
+		yyerror("final argument in variadic function missing type");
+		$$ = nod(ODDD, typenod(typ(TINTER)), N);
 	}
 |	LDDD ntype
 	{
@@ -1709,9 +1710,17 @@ hidden_dcl:
 	}
 |	hidden_opt_sym LDDD
 	{
-		$$ = nod(ODCLFIELD, $1, typenod(typ(TINTER)));
+		Type *t;
+
+		yyerror("invalid variadic function type in import - recompile import");
+		
+		t = typ(TARRAY);
+		t->bound = -1;
+		t->type = typ(TINTER);
+		$$ = nod(ODCLFIELD, $1, typenod(t));
 		$$->isddd = 1;
 	}
+
 |	hidden_opt_sym LDDD hidden_type
 	{
 		Type *t;

@@ -46,7 +46,7 @@ renameinit(Node *n)
  *		return					(11)
  *	}
  */
-int
+static int
 anyinit(NodeList *n)
 {
 	uint32 h;

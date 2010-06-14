@@ -33,14 +33,6 @@ struct	Case
 };
 #define	C	((Case*)nil)
 
-Type*
-notideal(Type *t)
-{
-	if(t != T && t->etype == TIDEAL)
-		return T;
-	return t;
-}
-
 void
 dumpcase(Case *c0)
 {
@@ -240,7 +232,7 @@ csort(Case *l, int(*f)(Case*, Case*))
 	return l;
 }
 
-Node*
+static Node*
 newlabel(void)
 {
 	static int label;
@@ -255,7 +247,7 @@ newlabel(void)
  * make labels between cases and statements
  * deal with fallthrough, break, unreachable statements
  */
-void
+static void
 casebody(Node *sw, Node *typeswvar)
 {
 	Node *os, *oc, *n, *c, *last;
@@ -339,7 +331,7 @@ casebody(Node *sw, Node *typeswvar)
 	lineno = lno;
 }
 
-Case*
+static Case*
 mkcaselist(Node *sw, int arg)
 {
 	Node *n;
@@ -434,7 +426,7 @@ mkcaselist(Node *sw, int arg)
 
 static	Node*	exprname;
 
-Node*
+static Node*
 exprbsw(Case *c0, int ncase, int arg)
 {
 	NodeList *cas;
@@ -494,7 +486,7 @@ exprbsw(Case *c0, int ncase, int arg)
  * normal (expression) switch.
  * rebulid case statements into if .. goto
  */
-void
+static void
 exprswitch(Node *sw)
 {
 	Node *def;
@@ -580,7 +572,7 @@ static	Node*	hashname;
 static	Node*	facename;
 static	Node*	boolname;
 
-Node*
+static Node*
 typeone(Node *t)
 {
 	NodeList *init;
@@ -609,7 +601,7 @@ typeone(Node *t)
 	return a;
 }
 
-Node*
+static Node*
 typebsw(Case *c0, int ncase)
 {
 	NodeList *cas;
@@ -652,7 +644,7 @@ typebsw(Case *c0, int ncase)
  *	switch v := i.(type) { case t1: ..; case t2: ..; }
  * into if statements
  */
-void
+static void
 typeswitch(Node *sw)
 {
 	Node *def;

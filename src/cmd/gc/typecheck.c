@@ -9,9 +9,6 @@
  * marks variables that escape the local frame.
  * rewrites n->op to be more specific in some cases.
  * sets n->walk to walking function.
- *
- * TODO:
- *	trailing ... section of function calls
  */
 
 #include "go.h"
@@ -32,6 +29,7 @@ static void	checklvalue(Node*, char*);
 static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
 static void stringtoarraylit(Node**);
+static Node* resolve(Node*);
 
 /*
  * resolve ONONAME to definition, if any.
@@ -1432,8 +1430,6 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
 		tn = n->type->type;
 		for(tl=tstruct->type; tl; tl=tl->down) {
 			if(tl->isddd) {
-				// TODO(rsc): delete if (but not body) in DDD cleanup.
-				if(tl->type->etype != TINTER)
 				for(; tn; tn=tn->down)
 					if(assignop(tn->type, tl->type->type, &why) == 0)
 						yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
@@ -1465,8 +1461,6 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
 			for(; nl; nl=nl->next) {
 				setlineno(nl->n);
 				defaultlit(&nl->n, t->type);
-				// TODO(rsc): drop first if in DDD cleanup
-				if(t->etype != TINTER)
 				if(assignop(nl->n->type, t->type, &why) == 0)
 					yyerror("cannot use %+N as type %T in %s%s", nl->n, t->type, desc, why);
 			}
