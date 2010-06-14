@@ -622,13 +622,18 @@ We've seen simple uses of the package "fmt", which
 implements "Printf", "Fprintf", and so on.
 Within the "fmt" package, "Printf" is declared with this signature:
 
-	Printf(format string, v ...) (n int, errno os.Error)
+	Printf(format string, v ...interface{}) (n int, errno os.Error)
 
-That "..." represents the variadic argument list that in C would
-be handled using the "stdarg.h" macros but in Go is passed using
-an empty interface variable ("interface {}") and then unpacked
-using the reflection library.  It's off topic here but the use of
-reflection helps explain some of the nice properties of Go's "Printf",
+The token "..." introduces a variable-length argument list that in C would
+be handled using the "stdarg.h" macros.
+In Go, variadic functions are passed a slice of the arguments of the
+specified type.  In "Printf"'s case, the declaration says "...interface{}"
+so the actual type is a slice of empty interface values, "[]interface{}".
+"Printf" can examine the arguments by iterating over the slice
+and, for each element, using a type switch or the reflection library
+to interpret the value.
+It's off topic here but such run-time type analysis
+helps explain some of the nice properties of Go's "Printf",
 due to the ability of "Printf" to discover the type of its arguments
 dynamically.
 

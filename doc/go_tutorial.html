@@ -938,14 +938,19 @@ implements <code>Printf</code>, <code>Fprintf</code>, and so on.
 Within the <code>fmt</code> package, <code>Printf</code> is declared with this signature:
 <p>
 <pre>
-    Printf(format string, v ...) (n int, errno os.Error)
+    Printf(format string, v ...interface{}) (n int, errno os.Error)
 </pre>
 <p>
-That <code>...</code> represents the variadic argument list that in C would
-be handled using the <code>stdarg.h</code> macros but in Go is passed using
-an empty interface variable (<code>interface {}</code>) and then unpacked
-using the reflection library.  It's off topic here but the use of
-reflection helps explain some of the nice properties of Go's <code>Printf</code>,
+The token <code>...</code> introduces a variable-length argument list that in C would
+be handled using the <code>stdarg.h</code> macros.
+In Go, variadic functions are passed a slice of the arguments of the
+specified type.  In <code>Printf</code>'s case, the declaration says <code>...interface{}</code>
+so the actual type is a slice of empty interface values, <code>[]interface{}</code>.
+<code>Printf</code> can examine the arguments by iterating over the slice
+and, for each element, using a type switch or the reflection library
+to interpret the value.
+It's off topic here but such run-time type analysis
+helps explain some of the nice properties of Go's <code>Printf</code>,
 due to the ability of <code>Printf</code> to discover the type of its arguments
 dynamically.
 <p>
