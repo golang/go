@@ -165,14 +165,14 @@ func drawFillOver(dst *image.RGBA, r Rectangle, src image.ColorImage) {
 	x0, x1 := r.Min.X, r.Max.X
 	y0, y1 := r.Min.Y, r.Max.Y
 	for y := y0; y != y1; y++ {
-		p := dst.Pixel[y]
+		dpix := dst.Pixel[y]
 		for x := x0; x != x1; x++ {
-			rgba := p[x]
+			rgba := dpix[x]
 			dr := (uint32(rgba.R)*a)/m + cr
 			dg := (uint32(rgba.G)*a)/m + cg
 			db := (uint32(rgba.B)*a)/m + cb
 			da := (uint32(rgba.A)*a)/m + ca
-			p[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+			dpix[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 	}
 }
@@ -209,14 +209,15 @@ func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *ima
 	y0, y1 := r.Min.Y, r.Max.Y
 	cr, cg, cb, ca := src.RGBA()
 	for y, my := y0, mp.Y; y != y1; y, my = y+1, my+1 {
-		p := dst.Pixel[y]
+		dpix := dst.Pixel[y]
+		mpix := mask.Pixel[my]
 		for x, mx := x0, mp.X; x != x1; x, mx = x+1, mx+1 {
-			ma := uint32(mask.Pixel[my][mx].A)
+			ma := uint32(mpix[mx].A)
 			if ma == 0 {
 				continue
 			}
 			ma |= ma << 8
-			rgba := p[x]
+			rgba := dpix[x]
 			dr := uint32(rgba.R)
 			dg := uint32(rgba.G)
 			db := uint32(rgba.B)
@@ -227,7 +228,7 @@ func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *ima
 			dg = (dg*a + cg*ma) / m
 			db = (db*a + cb*ma) / m
 			da = (da*a + ca*ma) / m
-			p[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+			dpix[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 	}
 }
@@ -277,7 +278,7 @@ func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask imag
 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
 		sx := sp.X + x0 - r.Min.X
 		mx := mp.X + x0 - r.Min.X
-		p := dst.Pixel[y]
+		dpix := dst.Pixel[y]
 		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
 			ma := uint32(m)
 			if mask != nil {
@@ -286,7 +287,7 @@ func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask imag
 			sr, sg, sb, sa := src.At(sx, sy).RGBA()
 			var dr, dg, db, da uint32
 			if op == Over {
-				rgba := p[x]
+				rgba := dpix[x]
 				dr = uint32(rgba.R)
 				dg = uint32(rgba.G)
 				db = uint32(rgba.B)
@@ -308,7 +309,7 @@ func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask imag
 				db = sb * ma / m
 				da = sa * ma / m
 			}
-			p[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+			dpix[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 	}
 }
