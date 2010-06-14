@@ -129,8 +129,12 @@ func (s Send) getSend() sendAction { return s }
 
 func (s Send) getChannel() interface{} { return s.Channel }
 
-func newEmptyInterface(args ...) reflect.Value {
-	return reflect.NewValue(args).(*reflect.StructValue).Field(0)
+type empty struct {
+	x interface{}
+}
+
+func newEmptyInterface(e empty) reflect.Value {
+	return reflect.NewValue(e).(*reflect.StructValue).Field(0)
 }
 
 func (s Send) send() {
@@ -140,7 +144,7 @@ func (s Send) send() {
 	c := reflect.NewValue(s.Channel).(*reflect.ChanValue)
 	var v reflect.Value
 	if iface, ok := c.Type().(*reflect.ChanType).Elem().(*reflect.InterfaceType); ok && iface.NumMethod() == 0 {
-		v = newEmptyInterface(s.Value)
+		v = newEmptyInterface(empty{s.Value})
 	} else {
 		v = reflect.NewValue(s.Value)
 	}

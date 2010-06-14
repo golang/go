@@ -661,7 +661,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 // in which is available in custom formatters through
 // the state parameter.
 //
-func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
+func (f Format) Eval(env Environment, args ...interface{}) ([]byte, os.Error) {
 	if f == nil {
 		return nil, os.NewError("format is nil")
 	}
@@ -670,9 +670,12 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 	s := newState(f, env, errors)
 
 	go func() {
-		value := reflect.NewValue(args).(*reflect.StructValue)
-		for i := 0; i < value.NumField(); i++ {
-			fld := value.Field(i)
+		for _, v := range args {
+			fld := reflect.NewValue(v)
+			if fld == nil {
+				errors <- os.NewError("nil argument")
+				return
+			}
 			mark := s.save()
 			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) { // TODO is 0 index correct?
 				s.restore(mark)
@@ -693,7 +696,7 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 // and writes to w. The result is the total number of bytes
 // written and an os.Error, if any.
 //
-func (f Format) Fprint(w io.Writer, env Environment, args ...) (int, os.Error) {
+func (f Format) Fprint(w io.Writer, env Environment, args ...interface{}) (int, os.Error) {
 	data, err := f.Eval(env, args)
 	if err != nil {
 		// TODO should we print partial result in case of error?
@@ -707,7 +710,7 @@ func (f Format) Fprint(w io.Writer, env Environment, args ...) (int, os.Error) {
 // and writes to standard output. The result is the total
 // number of bytes written and an os.Error, if any.
 //
-func (f Format) Print(args ...) (int, os.Error) {
+func (f Format) Print(args ...interface{}) (int, os.Error) {
 	return f.Fprint(os.Stdout, nil, args)
 }
 
@@ -717,7 +720,7 @@ func (f Format) Print(args ...) (int, os.Error) {
 // during formatting, the result string contains the
 // partially formatted result followed by an error message.
 //
-func (f Format) Sprint(args ...) string {
+func (f Format) Sprint(args ...interface{}) string {
 	var buf bytes.Buffer
 	_, err := f.Fprint(&buf, nil, args)
 	if err != nil {

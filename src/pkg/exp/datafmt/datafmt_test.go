@@ -20,7 +20,7 @@ func parse(t *testing.T, form string, fmap FormatterMap) Format {
 }
 
 
-func verify(t *testing.T, f Format, expected string, args ...) {
+func verify(t *testing.T, f Format, expected string, args ...interface{}) {
 	if f == nil {
 		return // allow other tests to run
 	}
@@ -92,7 +92,7 @@ func TestCustomFormatters(t *testing.T) {
 // ----------------------------------------------------------------------------
 // Formatting of basic and simple composite types
 
-func check(t *testing.T, form, expected string, args ...) {
+func check(t *testing.T, form, expected string, args ...interface{}) {
 	f := parse(t, form, nil)
 	if f == nil {
 		return // allow other tests to run
@@ -174,16 +174,6 @@ func TestFuncTypes(t *testing.T) {
 	f1 := func() int { return 42 }
 	check(t, `func="func"`, `func`, f1)
 	// check(t, `func=*`, `42`, f1);  // reflection support for funcs incomplete
-}
-
-
-func TestInterfaceTypes(t *testing.T) {
-	var i0 interface{}
-	check(t, `interface="interface"`, `interface`, i0)
-
-	i0 = "foo"
-	check(t, `interface="interface"`, `interface`, i0)
-	check(t, `interface=*; string="%s"`, `foo`, i0)
 }
 
 
