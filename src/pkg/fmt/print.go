@@ -959,7 +959,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 				p.buf.Write(nilAngleBytes)
 				break
 			}
-			p.buf.WriteString(reflect.Typeof(field).String())
+			p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
 			continue
 		}
 
