@@ -56,30 +56,26 @@ func use(v interface{}) {
 var errorTests = []ErrorTest{
 	// All integer divide by zero should error.
 	ErrorTest{ "int 0/0", func() { use(i/j) }, "divide", },
-// TODO commented out: fails in 8g.
-//	ErrorTest{ "int8 0/0", func() { use(i8/j8) }, "divide", },
+	ErrorTest{ "int8 0/0", func() { use(i8/j8) }, "divide", },
 	ErrorTest{ "int16 0/0", func() { use(i16/j16) }, "divide", },
 	ErrorTest{ "int32 0/0", func() { use(i32/j32) }, "divide", },
 	ErrorTest{ "int64 0/0", func() { use(i64/j64) }, "divide", },
 
 	ErrorTest{ "int 1/0", func() { use(k/j) }, "divide", },
-// TODO commented out: fails in 8g.
-//	ErrorTest{ "int8 1/0", func() { use(k8/j8) }, "divide", },
+	ErrorTest{ "int8 1/0", func() { use(k8/j8) }, "divide", },
 	ErrorTest{ "int16 1/0", func() { use(k16/j16) }, "divide", },
 	ErrorTest{ "int32 1/0", func() { use(k32/j32) }, "divide", },
 	ErrorTest{ "int64 1/0", func() { use(k64/j64) }, "divide", },
 
 	ErrorTest{ "uint 0/0", func() { use(u/v) }, "divide", },
-// TODO commented out: fails in 8g.
-//	ErrorTest{ "uint8 0/0", func() { use(u8/v8) }, "divide", },
+	ErrorTest{ "uint8 0/0", func() { use(u8/v8) }, "divide", },
 	ErrorTest{ "uint16 0/0", func() { use(u16/v16) }, "divide", },
 	ErrorTest{ "uint32 0/0", func() { use(u32/v32) }, "divide", },
 	ErrorTest{ "uint64 0/0", func() { use(u64/v64) }, "divide", },
 	ErrorTest{ "uintptr 0/0", func() { use(up/vp) }, "divide", },
 
 	ErrorTest{ "uint 1/0", func() { use(w/v) }, "divide", },
-// TODO commented out: fails in 8g.
-//	ErrorTest{ "uint8 1/0", func() { use(w8/v8) }, "divide", },
+	ErrorTest{ "uint8 1/0", func() { use(w8/v8) }, "divide", },
 	ErrorTest{ "uint16 1/0", func() { use(w16/v16) }, "divide", },
 	ErrorTest{ "uint32 1/0", func() { use(w32/v32) }, "divide", },
 	ErrorTest{ "uint64 1/0", func() { use(w64/v64) }, "divide", },

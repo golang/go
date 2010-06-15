@@ -63,7 +63,9 @@ sighandler(int32 sig, Siginfo *info, void *context)
 			pc = (byte*)r->rip;
 			if((pc[0]&0xF0) == 0x40)	// 64-bit REX prefix
 				pc++;
-			if(pc[0] == 0xF7)
+			else if(pc[0] == 0x66)	// 16-bit instruction prefix
+				pc++;
+			if(pc[0] == 0xF6 || pc[0] == 0xF7)
 				info->si_code = FPE_INTDIV;
 		}
 		
