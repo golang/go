@@ -245,7 +245,7 @@ var (
     countLock   sync.Mutex
     inputCount  uint32
     outputCount uint32
-    errorCount uint32
+    errorCount  uint32
 )
 </pre>
 
@@ -423,7 +423,7 @@ if i &lt; f()  // wrong!
 <h2 id="control-structures">Control structures</h2>
 
 <p>
-The control structures of Go are related to those of C but different
+The control structures of Go are related to those of C but differ
 in important ways.
 There is no <code>do</code> or <code>while</code> loop, only a
 slightly generalized
@@ -1308,22 +1308,24 @@ to print in the format
 Our <code>String()</code> method is able to call <code>Sprintf</code> because the
 print routines are fully reentrant and can be used recursively.
 We can even go one step further and pass a print routine's arguments directly to another such routine.
-The signature of <code>Printf</code> uses the <code>...</code>
-type for its final argument to specify that an arbitrary number of parameters can appear
-after the format.
+The signature of <code>Printf</code> uses the type <code>...interface{}</code>
+for its final argument to specify that an arbitrary number of parameters (of arbitrary type)
+can appear after the format.
 </p>
 <pre>
-func Printf(format string, v ...) (n int, errno os.Error) {
+func Printf(format string, v ...interface{}) (n int, errno os.Error) {
 </pre>
 <p>
-Within the function <code>Printf</code>, <code>v</code> is a variable that can be passed,
-for instance, to another print routine.  Here is the implementation of the
+Within the function <code>Printf</code>, <code>v</code> acts like a variable of type
+<code>[]interface{}</code> but if it is passed to another variadic function, it acts like
+a regular list of arguments.
+Here is the implementation of the
 function <code>log.Stderr</code> we used above. It passes its arguments directly to
 <code>fmt.Sprintln</code> for the actual formatting.
 </p>
 <pre>
 // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
-func Stderr(v ...) {
+func Stderr(v ...interface{}) {
     stderr.Output(2, fmt.Sprintln(v))  // Output takes parameters (int, string)
 }
 </pre>
@@ -1331,6 +1333,21 @@ func Stderr(v ...) {
 There's even more to printing than we've covered here.  See the <code>godoc</code> documentation
 for package <code>fmt</code> for the details.
 </p>
+<p>
+By the way, a <code>...</code> parameter can be of a specific type, for instance <code>...int</code>
+for a min function that chooses the least of a list of integers:
+</p>
+<pre>
+func Min(a ...int) int {
+    min := int(^uint(0) >> 1)  // largest int
+    for _, i := range a {
+    	if i < min {
+    		min = i
+    	}
+    }
+    return min
+}
+</pre>
 
 <h2 id="initialization">Initialization</h2>
 
@@ -1948,7 +1965,7 @@ type Job struct {
 <p>
 The <code>Job</code> type now has the <code>Log</code>, <code>Logf</code>
 and other
-methods of <code>log.Logger</code>.  We could have given the <code>Logger</code>
+methods of <code>*log.Logger</code>.  We could have given the <code>Logger</code>
 a field name, of course, but it's not necessary to do so.  And now, once
 initialized, we can
 log to the <code>Job</code>:
@@ -1993,7 +2010,7 @@ of <code>Job</code> would dominate it.
 </p>
 <p>
 Second, if the same name appears at the same nesting level, it is usually an error;
-it would be erroneous to embed <code>log.Logger</code> if <code>Job</code> struct
+it would be erroneous to embed <code>log.Logger</code> if the <code>Job</code> struct
 contained another field or method called <code>Logger</code>.
 However, if the duplicate name is never mentioned in the program outside the type definition, it is OK.
 This qualification provides some protection against changes made to types embedded from outside; there
