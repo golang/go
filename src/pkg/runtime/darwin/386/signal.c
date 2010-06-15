@@ -54,7 +54,9 @@ sighandler(int32 sig, Siginfo *info, void *context)
 		// Not necessary in Snow Leopard (si_code will be != 0).
 		if(sig == SIGFPE && info->si_code == 0) {
 			pc = (byte*)r->eip;
-			if(pc[0] == 0xF7)
+			if(pc[0] == 0x66)	// 16-bit instruction prefix
+				pc++;
+			if(pc[0] == 0xF6 || pc[0] == 0xF7)
 				info->si_code = FPE_INTDIV;
 		}
 		

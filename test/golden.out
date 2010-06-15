@@ -54,10 +54,6 @@ FAIL
 Hello World!
 
 =========== ./zerodivide.go
-int16 0/0: expected "divide"; got "runtime error: floating point error"
-int16 1/0: expected "divide"; got "runtime error: floating point error"
-uint16 0/0: expected "divide"; got "runtime error: floating point error"
-uint16 1/0: expected "divide"; got "runtime error: floating point error"
 complex 0/0: expected no error; got "runtime error: complex divide by zero"
 complex64 0/0: expected no error; got "runtime error: complex divide by zero"
 complex128 0/0: expected no error; got "runtime error: complex divide by zero"
