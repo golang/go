@@ -234,87 +234,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	f.pad(buf[i:])
 }
 
-// fmt_d64 formats an int64 in decimal.
-func (f *fmt) fmt_d64(v int64) { f.integer(v, 10, signed, ldigits) }
-
-// fmt_d32 formats an int32 in decimal.
-func (f *fmt) fmt_d32(v int32) { f.integer(int64(v), 10, signed, ldigits) }
-
-// fmt_d formats an int in decimal.
-func (f *fmt) fmt_d(v int) { f.integer(int64(v), 10, signed, ldigits) }
-
-// fmt_ud64 formats a uint64 in decimal.
-func (f *fmt) fmt_ud64(v uint64) { f.integer(int64(v), 10, unsigned, ldigits) }
-
-// fmt_ud32 formats a uint32 in decimal.
-func (f *fmt) fmt_ud32(v uint32) { f.integer(int64(v), 10, unsigned, ldigits) }
-
-// fmt_ud formats a uint in decimal.
-func (f *fmt) fmt_ud(v uint) { f.integer(int64(v), 10, unsigned, ldigits) }
-
-// fmt_x64 formats an int64 in hexadecimal.
-func (f *fmt) fmt_x64(v int64) { f.integer(v, 16, signed, ldigits) }
-
-// fmt_x32 formats an int32 in hexadecimal.
-func (f *fmt) fmt_x32(v int32) { f.integer(int64(v), 16, signed, ldigits) }
-
-// fmt_x formats an int in hexadecimal.
-func (f *fmt) fmt_x(v int) { f.integer(int64(v), 16, signed, ldigits) }
-
-// fmt_ux64 formats a uint64 in hexadecimal.
-func (f *fmt) fmt_ux64(v uint64) { f.integer(int64(v), 16, unsigned, ldigits) }
-
-// fmt_ux32 formats a uint32 in hexadecimal.
-func (f *fmt) fmt_ux32(v uint32) { f.integer(int64(v), 16, unsigned, ldigits) }
-
-// fmt_ux formats a uint in hexadecimal.
-func (f *fmt) fmt_ux(v uint) { f.integer(int64(v), 16, unsigned, ldigits) }
-
-// fmt_X64 formats an int64 in upper case hexadecimal.
-func (f *fmt) fmt_X64(v int64) { f.integer(v, 16, signed, udigits) }
-
-// fmt_X32 formats an int32 in upper case hexadecimal.
-func (f *fmt) fmt_X32(v int32) { f.integer(int64(v), 16, signed, udigits) }
-
-// fmt_X formats an int in upper case hexadecimal.
-func (f *fmt) fmt_X(v int) { f.integer(int64(v), 16, signed, udigits) }
-
-// fmt_uX64 formats a uint64 in upper case hexadecimal.
-func (f *fmt) fmt_uX64(v uint64) { f.integer(int64(v), 16, unsigned, udigits) }
-
-// fmt_uX32 formats a uint32 in upper case hexadecimal.
-func (f *fmt) fmt_uX32(v uint32) { f.integer(int64(v), 16, unsigned, udigits) }
-
-// fmt_uX formats a uint in upper case hexadecimal.
-func (f *fmt) fmt_uX(v uint) { f.integer(int64(v), 16, unsigned, udigits) }
-
-// fmt_o64 formats an int64 in octal.
-func (f *fmt) fmt_o64(v int64) { f.integer(v, 8, signed, ldigits) }
-
-// fmt_o32 formats an int32 in octal.
-func (f *fmt) fmt_o32(v int32) { f.integer(int64(v), 8, signed, ldigits) }
-
-// fmt_o formats an int in octal.
-func (f *fmt) fmt_o(v int) { f.integer(int64(v), 8, signed, ldigits) }
-
-// fmt_uo64 formats a uint64 in octal.
-func (f *fmt) fmt_uo64(v uint64) { f.integer(int64(v), 8, unsigned, ldigits) }
-
-// fmt_uo32 formats a uint32 in octal.
-func (f *fmt) fmt_uo32(v uint32) { f.integer(int64(v), 8, unsigned, ldigits) }
-
-// fmt_uo formats a uint in octal.
-func (f *fmt) fmt_uo(v uint) { f.integer(int64(v), 8, unsigned, ldigits) }
-
-// fmt_b64 formats an int64 in binary.
-func (f *fmt) fmt_b64(v int64) { f.integer(v, 2, signed, ldigits) }
-
-// fmt_ub64 formats a uint64 in binary.
-func (f *fmt) fmt_ub64(v uint64) { f.integer(int64(v), 2, unsigned, ldigits) }
-
-// fmt_c formats a Unicode character.
-func (f *fmt) fmt_c(v int) { f.padString(string(v)) }
-
 // fmt_s formats a string.
 func (f *fmt) fmt_s(s string) {
 	if f.precPresent {
@@ -422,14 +341,13 @@ func (f *fmt) fmt_G32(v float32) { f.plusSpace(strconv.Ftoa32(v, 'G', doPrec(f, 
 // fmt_fb32 formats a float32 in the form -123p3 (exponent is power of 2).
 func (f *fmt) fmt_fb32(v float32) { f.padString(strconv.Ftoa32(v, 'b', 0)) }
 
-// fmt_c64 formats a complex64 according to its fmt_x argument.
-// TODO pass in a method rather than a byte when the compilers mature.
-func (f *fmt) fmt_c64(v complex64, fmt_x byte) {
+// fmt_c64 formats a complex64 according to the verb.
+func (f *fmt) fmt_c64(v complex64, verb int) {
 	f.buf.WriteByte('(')
 	r := real(v)
 	f.preserveFlags = true
 	for i := 0; ; i++ {
-		switch fmt_x {
+		switch verb {
 		case 'e':
 			f.fmt_e32(r)
 		case 'E':
@@ -451,14 +369,13 @@ func (f *fmt) fmt_c64(v complex64, fmt_x byte) {
 	f.buf.Write(irparenBytes)
 }
 
-// fmt_c128 formats a complex128 according to its fmt_x argument.
-// TODO pass in a method rather than a byte when the compilers mature.
-func (f *fmt) fmt_c128(v complex128, fmt_x byte) {
+// fmt_c128 formats a complex128 according to the verb.
+func (f *fmt) fmt_c128(v complex128, verb int) {
 	f.buf.WriteByte('(')
 	r := real(v)
 	f.preserveFlags = true
 	for i := 0; ; i++ {
-		switch fmt_x {
+		switch verb {
 		case 'e':
 			f.fmt_e64(r)
 		case 'E':
