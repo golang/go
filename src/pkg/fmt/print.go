@@ -75,16 +75,23 @@
 	can be used for fine control of formatting.
 
 	If an operand implements method String() string that method
-	will be used for %v, %s, or Print etc.
+	will be used to conver the object to a string, which will then
+	be formatted as required by the verb (if any). To avoid
+	recursion in cases such as
+		type X int
+		func (x X) String() string { return Sprintf("%d", x) }
+	cast the value before recurring:
+		func (x X) String() string { return Sprintf("%d", int(x)) }
 
 	Scanning:
 
 	An analogous set of functions scans formatted text to yield
-	values.  Scan and Scanln read from os.Stdin; Fscan and
-	Fscanln read from a specified os.Reader; Sscan and Sscanln
-	read from an argument string.  Sscanln, Fscanln and Sscanln
-	stop scanning at a newline and require that the items be
-	followed by one; the other routines treat newlines as spaces.
+	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
+	Fscanf and Fscanln read from a specified os.Reader; Sscan,
+	Sscanf and Sscanln read from an argument string.  Sscanln,
+	Fscanln and Sscanln stop scanning at a newline and require that
+	the items be followed by one; the other routines treat newlines
+	as spaces.
 
 	Scanf, Fscanf, and Sscanf parse the arguments according to a
 	format string, analogous to that of Printf.  For example, "%x"
@@ -134,8 +141,6 @@ import (
 // Some constants in the form of bytes, to avoid string overhead.
 // Needlessly fastidious, I suppose.
 var (
-	trueBytes       = []byte("true")
-	falseBytes      = []byte("false")
 	commaSpaceBytes = []byte(", ")
 	nilAngleBytes   = []byte("<nil>")
 	nilParenBytes   = []byte("(nil)")
@@ -144,6 +149,7 @@ var (
 	missingBytes    = []byte("missing")
 	extraBytes      = []byte("?(extra ")
 	irparenBytes    = []byte("i)")
+	bytesBytes      = []byte("[]byte{")
 )
 
 // State represents the printer state passed to custom formatters.
@@ -183,14 +189,6 @@ type Stringer interface {
 type GoStringer interface {
 	GoString() string
 }
-
-// getter is implemented by any value that has a Get() method,
-// which means the object contains a pointer.  Used by %p.
-type getter interface {
-	Get() uintptr
-}
-
-const allocSize = 32
 
 type pp struct {
 	n       int
@@ -262,7 +260,7 @@ func (p *pp) Write(b []byte) (ret int, err os.Error) {
 // Fprintf formats according to a format specifier and writes to w.
 func Fprintf(w io.Writer, format string, a ...interface{}) (n int, error os.Error) {
 	p := newPrinter()
-	p.doprintf(format, a)
+	p.doPrintf(format, a)
 	n64, error := p.buf.WriteTo(w)
 	p.free()
 	return int(n64), error
@@ -277,7 +275,7 @@ func Printf(format string, a ...interface{}) (n int, errno os.Error) {
 // Sprintf formats according to a format specifier and returns the resulting string.
 func Sprintf(format string, a ...interface{}) string {
 	p := newPrinter()
-	p.doprintf(format, a)
+	p.doPrintf(format, a)
 	s := p.buf.String()
 	p.free()
 	return s
@@ -289,7 +287,7 @@ func Sprintf(format string, a ...interface{}) string {
 // Spaces are added between operands when neither is a string.
 func Fprint(w io.Writer, a ...interface{}) (n int, error os.Error) {
 	p := newPrinter()
-	p.doprint(a, false, false)
+	p.doPrint(a, false, false)
 	n64, error := p.buf.WriteTo(w)
 	p.free()
 	return int(n64), error
@@ -306,7 +304,7 @@ func Print(a ...interface{}) (n int, errno os.Error) {
 // Spaces are added between operands when neither is a string.
 func Sprint(a ...interface{}) string {
 	p := newPrinter()
-	p.doprint(a, false, false)
+	p.doPrint(a, false, false)
 	s := p.buf.String()
 	p.free()
 	return s
@@ -320,7 +318,7 @@ func Sprint(a ...interface{}) string {
 // Spaces are always added between operands and a newline is appended.
 func Fprintln(w io.Writer, a ...interface{}) (n int, error os.Error) {
 	p := newPrinter()
-	p.doprint(a, true, true)
+	p.doPrint(a, true, true)
 	n64, error := p.buf.WriteTo(w)
 	p.free()
 	return int(n64), error
@@ -337,7 +335,7 @@ func Println(a ...interface{}) (n int, errno os.Error) {
 // Spaces are always added between operands and a newline is appended.
 func Sprintln(a ...interface{}) string {
 	p := newPrinter()
-	p.doprint(a, true, true)
+	p.doPrint(a, true, true)
 	s := p.buf.String()
 	p.free()
 	return s
@@ -357,188 +355,6 @@ func getField(v *reflect.StructValue, i int) reflect.Value {
 	return val
 }
 
-// Getters for the fields of the argument structure.
-
-func getBool(a interface{}) (val bool, ok bool) {
-	// Is it a regular bool type?
-	if b, ok := a.(bool); ok {
-		return b, true
-	}
-	// Must be a renamed bool type.
-	if b, ok := reflect.NewValue(a).(*reflect.BoolValue); ok {
-		return b.Get(), true
-	}
-	return
-}
-
-func getInt(a interface{}) (val int64, signed, ok bool) {
-	// Is it a predeclared integer type?
-	switch i := a.(type) {
-	case int:
-		return int64(i), true, true
-	case int8:
-		return int64(i), true, true
-	case int16:
-		return int64(i), true, true
-	case int32:
-		return int64(i), true, true
-	case int64:
-		return i, true, true
-	case uint:
-		return int64(i), false, true
-	case uint8:
-		return int64(i), false, true
-	case uint16:
-		return int64(i), false, true
-	case uint32:
-		return int64(i), false, true
-	case uint64:
-		return int64(i), false, true
-	case uintptr:
-		return int64(i), false, true
-	}
-	// Must be a renamed integer type.
-	switch i := reflect.NewValue(a).(type) {
-	case *reflect.IntValue:
-		return int64(i.Get()), true, true
-	case *reflect.Int8Value:
-		return int64(i.Get()), true, true
-	case *reflect.Int16Value:
-		return int64(i.Get()), true, true
-	case *reflect.Int32Value:
-		return int64(i.Get()), true, true
-	case *reflect.Int64Value:
-		return i.Get(), true, true
-	case *reflect.UintValue:
-		return int64(i.Get()), false, true
-	case *reflect.Uint8Value:
-		return int64(i.Get()), false, true
-	case *reflect.Uint16Value:
-		return int64(i.Get()), false, true
-	case *reflect.Uint32Value:
-		return int64(i.Get()), false, true
-	case *reflect.Uint64Value:
-		return int64(i.Get()), false, true
-	case *reflect.UintptrValue:
-		return int64(i.Get()), false, true
-	}
-	return
-}
-
-func getString(a interface{}) (val string, ok bool) {
-	if a == nil {
-		return "<nil>", ok
-	}
-	// Is it a regular string or []byte type?
-	switch s := a.(type) {
-	case string:
-		return s, true
-	case []byte:
-		return string(s), true
-	}
-	// Must be a renamed string or []byte type.
-	v := reflect.NewValue(a)
-	if s, ok := v.(*reflect.StringValue); ok {
-		return s.Get(), true
-	}
-	if bytes, ok := v.Interface().([]byte); ok {
-		return string(bytes), true
-	}
-	return
-}
-
-var floatBits = reflect.Typeof(float(0)).Size() * 8
-
-func getFloat32(a interface{}) (val float32, ok bool) {
-	// Is it a regular floating-point type?
-	switch f := a.(type) {
-	case float32:
-		return f, true
-	case float:
-		if floatBits == 32 {
-			return float32(f), true
-		}
-	}
-	// Must be a renamed floating-point type.
-	switch f := reflect.NewValue(a).(type) {
-	case *reflect.Float32Value:
-		return float32(f.Get()), true
-	case *reflect.FloatValue:
-		if floatBits == 32 {
-			return float32(f.Get()), true
-		}
-	}
-	return
-}
-
-func getFloat64(a interface{}) (val float64, ok bool) {
-	// Is it a regular floating-point type?
-	switch f := a.(type) {
-	case float64:
-		return f, true
-	case float:
-		if floatBits == 64 {
-			return float64(f), true
-		}
-	}
-	// Must be a renamed floating-point type.
-	switch f := reflect.NewValue(a).(type) {
-	case *reflect.Float64Value:
-		return float64(f.Get()), true
-	case *reflect.FloatValue:
-		if floatBits == 64 {
-			return float64(f.Get()), true
-		}
-	}
-	return
-}
-
-var complexBits = reflect.Typeof(complex(0i)).Size() * 8
-
-func getComplex64(a interface{}) (val complex64, ok bool) {
-	// Is it a regular complex type?
-	switch c := a.(type) {
-	case complex64:
-		return c, true
-	case complex:
-		if complexBits == 64 {
-			return complex64(c), true
-		}
-	}
-	// Must be a renamed complex type.
-	switch c := reflect.NewValue(a).(type) {
-	case *reflect.Complex64Value:
-		return complex64(c.Get()), true
-	case *reflect.ComplexValue:
-		if complexBits == 64 {
-			return complex64(c.Get()), true
-		}
-	}
-	return
-}
-
-func getComplex128(a interface{}) (val complex128, ok bool) {
-	// Is it a regular complex type?
-	switch c := a.(type) {
-	case complex128:
-		return c, true
-	case complex:
-		if complexBits == 128 {
-			return complex128(c), true
-		}
-	}
-	// Must be a renamed complex type.
-	switch c := reflect.NewValue(a).(type) {
-	case *reflect.Complex128Value:
-		return complex128(c.Get()), true
-	case *reflect.ComplexValue:
-		if complexBits == 128 {
-			return complex128(c.Get()), true
-		}
-	}
-	return
-}
-
 // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
 func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 	if start >= end {
@@ -551,6 +367,7 @@ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 	return
 }
 
+// Reflection values like reflect.FuncValue implement this method. We use it for %p.
 type uintptrGetter interface {
 	Get() uintptr
 }
@@ -565,17 +382,250 @@ func (p *pp) unknownType(v interface{}) {
 	p.buf.WriteByte('?')
 }
 
-func (p *pp) printField(field interface{}, plus, sharp bool, depth int) (was_string bool) {
-	if field != nil && depth >= 0 {
+func (p *pp) badVerb(verb int, val interface{}) {
+	p.add('%')
+	p.add(verb)
+	p.add('(')
+	if val == nil {
+		p.buf.Write(nilAngleBytes)
+	} else {
+		p.buf.WriteString(reflect.Typeof(val).String())
+		p.add('=')
+		p.printField(val, 'v', false, false, 0)
+	}
+	p.add(')')
+}
+
+func (p *pp) fmtBool(v bool, verb int, value interface{}) {
+	switch verb {
+	case 't', 'v':
+		p.fmt.fmt_boolean(v)
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+// fmtC formats a rune for the 'c' format.
+func (p *pp) fmtC(c int64) {
+	rune := int(c) // Check for overflow.
+	if int64(rune) != c {
+		rune = utf8.RuneError
+	}
+	w := utf8.EncodeRune(rune, p.runeBuf[0:utf8.UTFMax])
+	p.fmt.pad(p.runeBuf[0:w])
+}
+
+func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
+	switch verb {
+	case 'b':
+		p.fmt.integer(v, 2, signed, ldigits)
+	case 'c':
+		p.fmtC(v)
+	case 'd', 'v':
+		p.fmt.integer(v, 10, signed, ldigits)
+	case 'o':
+		p.fmt.integer(v, 8, signed, ldigits)
+	case 'x':
+		p.fmt.integer(v, 16, signed, ldigits)
+	case 'X':
+		p.fmt.integer(v, 16, signed, udigits)
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+// fmt_sharpHex64 formats a uint64 in hexadecimal and prefixes it with 0x by
+// temporarily turning on the sharp flag.
+func (p *pp) fmt0x64(v uint64) {
+	sharp := p.fmt.sharp
+	p.fmt.sharp = true // turn on 0x
+	p.fmt.integer(int64(v), 16, unsigned, ldigits)
+	p.fmt.sharp = sharp
+}
+
+func (p *pp) fmtUint64(v uint64, verb int, sharp bool, value interface{}) {
+	switch verb {
+	case 'b':
+		p.fmt.integer(int64(v), 2, unsigned, ldigits)
+	case 'c':
+		p.fmtC(int64(v))
+	case 'd':
+		p.fmt.integer(int64(v), 10, unsigned, ldigits)
+	case 'v':
+		if sharp {
+			p.fmt0x64(v)
+		} else {
+			p.fmt.integer(int64(v), 10, unsigned, ldigits)
+		}
+	case 'o':
+		p.fmt.integer(int64(v), 8, unsigned, ldigits)
+	case 'x':
+		p.fmt.integer(int64(v), 16, unsigned, ldigits)
+	case 'X':
+		p.fmt.integer(int64(v), 16, unsigned, udigits)
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+var floatBits = reflect.Typeof(float(0)).Size() * 8
+
+func (p *pp) fmtFloat32(v float32, verb int, value interface{}) {
+	switch verb {
+	case 'b':
+		p.fmt.fmt_fb32(v)
+	case 'e':
+		p.fmt.fmt_e32(v)
+	case 'E':
+		p.fmt.fmt_E32(v)
+	case 'f':
+		p.fmt.fmt_f32(v)
+	case 'g', 'v':
+		p.fmt.fmt_g32(v)
+	case 'G':
+		p.fmt.fmt_G32(v)
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+func (p *pp) fmtFloat64(v float64, verb int, value interface{}) {
+	switch verb {
+	case 'b':
+		p.fmt.fmt_fb64(v)
+	case 'e':
+		p.fmt.fmt_e64(v)
+	case 'E':
+		p.fmt.fmt_E64(v)
+	case 'f':
+		p.fmt.fmt_f64(v)
+	case 'g', 'v':
+		p.fmt.fmt_g64(v)
+	case 'G':
+		p.fmt.fmt_G64(v)
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+var complexBits = reflect.Typeof(complex(0i)).Size() * 8
+
+func (p *pp) fmtComplex64(v complex64, verb int, value interface{}) {
+	switch verb {
+	case 'e', 'E', 'f', 'F', 'g', 'G':
+		p.fmt.fmt_c64(v, verb)
+	case 'v':
+		p.fmt.fmt_c64(v, 'g')
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+func (p *pp) fmtComplex128(v complex128, verb int, value interface{}) {
+	switch verb {
+	case 'e', 'E', 'f', 'F', 'g', 'G':
+		p.fmt.fmt_c128(v, verb)
+	case 'v':
+		p.fmt.fmt_c128(v, 'g')
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+func (p *pp) fmtString(v string, verb int, sharp bool, value interface{}) {
+	switch verb {
+	case 'v':
+		if sharp {
+			p.fmt.fmt_q(v)
+		} else {
+			p.fmt.fmt_s(v)
+		}
+	case 's':
+		p.fmt.fmt_s(v)
+	case 'x':
+		p.fmt.fmt_sx(v)
+	case 'X':
+		p.fmt.fmt_sX(v)
+	case 'q':
+		p.fmt.fmt_q(v)
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+func (p *pp) fmtBytes(v []byte, verb int, sharp bool, depth int, value interface{}) {
+	if verb == 'v' {
+		if p.fmt.sharp {
+			p.buf.Write(bytesBytes)
+		} else {
+			p.buf.WriteByte('[')
+		}
+		for i, c := range v {
+			if i > 0 {
+				if p.fmt.sharp {
+					p.buf.Write(commaSpaceBytes)
+				} else {
+					p.buf.WriteByte(' ')
+				}
+			}
+			p.printField(c, 'v', p.fmt.plus, p.fmt.sharp, depth+1)
+		}
+		if sharp {
+			p.buf.WriteByte('}')
+		} else {
+			p.buf.WriteByte(']')
+		}
+		return
+	}
+	s := string(v)
+	switch verb {
+	case 's':
+		p.fmt.fmt_s(s)
+	case 'x':
+		p.fmt.fmt_sx(s)
+	case 'X':
+		p.fmt.fmt_sX(s)
+	case 'q':
+		p.fmt.fmt_q(s)
+	default:
+		p.badVerb(verb, value)
+	}
+}
+
+func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int, sharp bool) bool {
+	v, ok := value.(uintptrGetter)
+	if !ok {
+		return false
+	}
+	u := v.Get()
+	if sharp {
+		p.add('(')
+		p.buf.WriteString(reflect.Typeof(field).String())
+		p.add(')')
+		p.add('(')
+		if u == 0 {
+			p.buf.Write(nilBytes)
+		} else {
+			p.fmt0x64(uint64(v.Get()))
+		}
+		p.add(')')
+	} else {
+		p.fmt0x64(uint64(u))
+	}
+	return true
+}
+
+func (p *pp) printField(field interface{}, verb int, plus, sharp bool, depth int) (was_string bool) {
+	if field != nil {
 		switch {
 		default:
 			if stringer, ok := field.(Stringer); ok {
-				p.buf.WriteString(stringer.String())
+				p.printField(stringer.String(), verb, plus, sharp, depth)
 				return false // this value is not a string
 			}
 		case sharp:
 			if stringer, ok := field.(GoStringer); ok {
-				p.buf.WriteString(stringer.GoString())
+				p.printField(stringer.GoString(), verb, plus, sharp, depth)
 				return false // this value is not a string
 			}
 		}
@@ -584,83 +634,139 @@ func (p *pp) printField(field interface{}, plus, sharp bool, depth int) (was_str
 	// Some types can be done without reflection.
 	switch f := field.(type) {
 	case bool:
-		p.fmt.fmt_boolean(f)
-		return false
-	case float32:
-		p.fmt.fmt_g32(f)
-		return false
-	case float64:
-		p.fmt.fmt_g64(f)
+		p.fmtBool(f, verb, field)
 		return false
 	case float:
 		if floatBits == 32 {
-			p.fmt.fmt_g32(float32(f))
+			p.fmtFloat32(float32(f), verb, field)
 		} else {
-			p.fmt.fmt_g64(float64(f))
+			p.fmtFloat64(float64(f), verb, field)
 		}
 		return false
-	case complex64:
-		p.fmt.fmt_c64(f, 'g')
+	case float32:
+		p.fmtFloat32(f, verb, field)
 		return false
-	case complex128:
-		p.fmt.fmt_c128(f, 'g')
+	case float64:
+		p.fmtFloat64(f, verb, field)
 		return false
 	case complex:
 		if complexBits == 64 {
-			p.fmt.fmt_c64(complex64(f), 'g')
+			p.fmtComplex64(complex64(f), verb, field)
 		} else {
-			p.fmt.fmt_c128(complex128(f), 'g')
+			p.fmtComplex128(complex128(f), verb, field)
 		}
 		return false
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr:
-		v, signed, ok := getInt(field)
-		if !ok {
-			// cannot happen, but print something to be sure
-			p.unknownType(f)
-		} else {
-			if signed {
-				p.fmt.fmt_d64(v)
-			} else {
-				if sharp {
-					p.fmt.sharp = true // turn on 0x
-					p.fmt.fmt_ux64(uint64(v))
-				} else {
-					p.fmt.fmt_ud64(uint64(v))
-				}
-			}
-		}
+	case complex64:
+		p.fmtComplex64(complex64(f), verb, field)
+		return false
+	case complex128:
+		p.fmtComplex128(f, verb, field)
+		return false
+	case int:
+		p.fmtInt64(int64(f), verb, field)
+		return false
+	case int8:
+		p.fmtInt64(int64(f), verb, field)
+		return false
+	case int16:
+		p.fmtInt64(int64(f), verb, field)
+		return false
+	case int32:
+		p.fmtInt64(int64(f), verb, field)
+		return false
+	case int64:
+		p.fmtInt64(f, verb, field)
+		return false
+	case uint:
+		p.fmtUint64(uint64(f), verb, sharp, field)
+		return false
+	case uint8:
+		p.fmtUint64(uint64(f), verb, sharp, field)
+		return false
+	case uint16:
+		p.fmtUint64(uint64(f), verb, sharp, field)
+		return false
+	case uint32:
+		p.fmtUint64(uint64(f), verb, sharp, field)
+		return false
+	case uint64:
+		p.fmtUint64(f, verb, sharp, field)
+		return false
+	case uintptr:
+		p.fmtUint64(uint64(f), verb, sharp, field)
 		return false
 	case string:
-		if sharp {
-			p.fmt.fmt_q(f)
-		} else {
-			p.fmt.fmt_s(f)
-		}
-		return true
+		p.fmtString(f, verb, sharp, field)
+		return verb == 's' || verb == 'v'
+	case []byte:
+		p.fmtBytes(f, verb, sharp, depth, field)
+		return verb == 's'
 	}
 
+	if field == nil {
+		if verb == 'v' {
+			p.buf.Write(nilAngleBytes)
+		} else {
+			p.badVerb(verb, field)
+		}
+		return false
+	}
+
+	value := reflect.NewValue(field)
 	// Need to use reflection
+	// Special case for reflection values that know how to print with %p.
+	if verb == 'p' && p.fmtUintptrGetter(field, value, verb, sharp) {
+		return false
+	}
+
 BigSwitch:
-	switch f := reflect.NewValue(field).(type) {
+	switch f := value.(type) {
 	case *reflect.BoolValue:
-		p.fmt.fmt_boolean(f.Get())
-	case *reflect.Float32Value:
-		p.fmt.fmt_g32(f.Get())
-	case *reflect.Float64Value:
-		p.fmt.fmt_g64(f.Get())
+		p.fmtBool(f.Get(), verb, field)
+	case *reflect.IntValue:
+		p.fmtInt64(int64(f.Get()), verb, field)
+	case *reflect.Int8Value:
+		p.fmtInt64(int64(f.Get()), verb, field)
+	case *reflect.Int16Value:
+		p.fmtInt64(int64(f.Get()), verb, field)
+	case *reflect.Int32Value:
+		p.fmtInt64(int64(f.Get()), verb, field)
+	case *reflect.Int64Value:
+		p.fmtInt64(f.Get(), verb, field)
+	case *reflect.UintValue:
+		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+	case *reflect.Uint8Value:
+		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+	case *reflect.Uint16Value:
+		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+	case *reflect.Uint32Value:
+		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+	case *reflect.Uint64Value:
+		p.fmtUint64(f.Get(), verb, sharp, field)
+	case *reflect.UintptrValue:
+		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
 	case *reflect.FloatValue:
 		if floatBits == 32 {
-			p.fmt.fmt_g32(float32(f.Get()))
+			p.fmtFloat32(float32(f.Get()), verb, field)
 		} else {
-			p.fmt.fmt_g64(float64(f.Get()))
+			p.fmtFloat64(float64(f.Get()), verb, field)
 		}
+	case *reflect.Float32Value:
+		p.fmtFloat64(float64(f.Get()), verb, field)
+	case *reflect.Float64Value:
+		p.fmtFloat64(f.Get(), verb, field)
+	case *reflect.ComplexValue:
+		if complexBits == 64 {
+			p.fmtComplex64(complex64(f.Get()), verb, field)
+		} else {
+			p.fmtComplex128(complex128(f.Get()), verb, field)
+		}
+	case *reflect.Complex64Value:
+		p.fmtComplex64(f.Get(), verb, field)
+	case *reflect.Complex128Value:
+		p.fmtComplex128(f.Get(), verb, field)
 	case *reflect.StringValue:
-		if sharp {
-			p.fmt.fmt_q(f.Get())
-		} else {
-			p.fmt.fmt_s(f.Get())
-			was_string = true
-		}
+		p.fmtString(f.Get(), verb, sharp, field)
 	case *reflect.MapValue:
 		if sharp {
 			p.buf.WriteString(f.Type().String())
@@ -677,9 +783,9 @@ BigSwitch:
 					p.buf.WriteByte(' ')
 				}
 			}
-			p.printField(key.Interface(), plus, sharp, depth+1)
+			p.printField(key.Interface(), verb, plus, sharp, depth+1)
 			p.buf.WriteByte(':')
-			p.printField(f.Elem(key).Interface(), plus, sharp, depth+1)
+			p.printField(f.Elem(key).Interface(), verb, plus, sharp, depth+1)
 		}
 		if sharp {
 			p.buf.WriteByte('}')
@@ -708,7 +814,7 @@ BigSwitch:
 					p.buf.WriteByte(':')
 				}
 			}
-			p.printField(getField(v, i).Interface(), plus, sharp, depth+1)
+			p.printField(getField(v, i).Interface(), verb, plus, sharp, depth+1)
 		}
 		p.buf.WriteByte('}')
 	case *reflect.InterfaceValue:
@@ -721,7 +827,7 @@ BigSwitch:
 				p.buf.Write(nilAngleBytes)
 			}
 		} else {
-			return p.printField(value.Interface(), plus, sharp, depth+1)
+			return p.printField(value.Interface(), verb, plus, sharp, depth+1)
 		}
 	case reflect.ArrayOrSliceValue:
 		if sharp {
@@ -738,7 +844,7 @@ BigSwitch:
 					p.buf.WriteByte(' ')
 				}
 			}
-			p.printField(f.Elem(i).Interface(), plus, sharp, depth+1)
+			p.printField(f.Elem(i).Interface(), verb, plus, sharp, depth+1)
 		}
 		if sharp {
 			p.buf.WriteByte('}')
@@ -753,11 +859,11 @@ BigSwitch:
 			switch a := f.Elem().(type) {
 			case reflect.ArrayOrSliceValue:
 				p.buf.WriteByte('&')
-				p.printField(a.Interface(), plus, sharp, depth+1)
+				p.printField(a.Interface(), verb, plus, sharp, depth+1)
 				break BigSwitch
 			case *reflect.StructValue:
 				p.buf.WriteByte('&')
-				p.printField(a.Interface(), plus, sharp, depth+1)
+				p.printField(a.Interface(), verb, plus, sharp, depth+1)
 				break BigSwitch
 			}
 		}
@@ -769,8 +875,7 @@ BigSwitch:
 			if v == 0 {
 				p.buf.Write(nilBytes)
 			} else {
-				p.fmt.sharp = true
-				p.fmt.fmt_ux64(uint64(v))
+				p.fmt0x64(uint64(v))
 			}
 			p.buf.WriteByte(')')
 			break
@@ -779,47 +884,19 @@ BigSwitch:
 			p.buf.Write(nilAngleBytes)
 			break
 		}
-		p.fmt.sharp = true // turn 0x on
-		p.fmt.fmt_ux64(uint64(v))
+		p.fmt0x64(uint64(v))
 	case uintptrGetter:
-		v := f.Get()
-		if sharp {
-			p.buf.WriteByte('(')
-			p.buf.WriteString(reflect.Typeof(field).String())
-			p.buf.WriteByte(')')
-			p.buf.WriteByte('(')
-			if v == 0 {
-				p.buf.Write(nilBytes)
-			} else {
-				p.fmt.sharp = true
-				p.fmt.fmt_ux64(uint64(v))
-			}
-			p.buf.WriteByte(')')
-		} else {
-			p.fmt.sharp = true // turn 0x on
-			p.fmt.fmt_ux64(uint64(f.Get()))
-		}
-	default:
-		v, signed, ok := getInt(field)
-		if ok {
-			if signed {
-				p.fmt.fmt_d64(v)
-			} else {
-				if sharp {
-					p.fmt.sharp = true // turn on 0x
-					p.fmt.fmt_ux64(uint64(v))
-				} else {
-					p.fmt.fmt_ud64(uint64(v))
-				}
-			}
+		if p.fmtUintptrGetter(field, value, verb, sharp) {
 			break
 		}
+		p.unknownType(f)
+	default:
 		p.unknownType(f)
 	}
 	return false
 }
 
-func (p *pp) doprintf(format string, a []interface{}) {
+func (p *pp) doPrintf(format string, a []interface{}) {
 	end := len(format) - 1
 	fieldnum := 0 // we process one field per non-trivial format
 	for i := 0; i <= end; {
@@ -875,222 +952,28 @@ func (p *pp) doprintf(format string, a []interface{}) {
 		field := a[fieldnum]
 		fieldnum++
 
-		// Try formatter except for %T,
-		// which is special and handled internally.
-		if field != nil && c != 'T' {
+		// %T is special; we always do it here.
+		if c == 'T' {
+			// the value's type
+			if field == nil {
+				p.buf.Write(nilAngleBytes)
+				break
+			}
+			p.buf.WriteString(reflect.Typeof(field).String())
+			continue
+		}
+
+		// Try Formatter (except for %T).
+		if field != nil {
 			if formatter, ok := field.(Formatter); ok {
 				formatter.Format(p, c)
 				continue
 			}
 		}
 
-		switch c {
-		// bool
-		case 't':
-			if v, ok := getBool(field); ok {
-				if v {
-					p.buf.Write(trueBytes)
-				} else {
-					p.buf.Write(falseBytes)
-				}
-			} else {
-				goto badtype
-			}
-
-		// int
-		case 'b':
-			if v, signed, ok := getInt(field); ok {
-				if signed {
-					p.fmt.fmt_b64(v)
-				} else {
-					p.fmt.fmt_ub64(uint64(v))
-				}
-			} else if v, ok := getFloat32(field); ok {
-				p.fmt.fmt_fb32(v)
-			} else if v, ok := getFloat64(field); ok {
-				p.fmt.fmt_fb64(v)
-			} else {
-				goto badtype
-			}
-		case 'c':
-			if v, _, ok := getInt(field); ok {
-				p.fmt.fmt_c(int(v))
-			} else {
-				goto badtype
-			}
-		case 'd':
-			if v, signed, ok := getInt(field); ok {
-				if signed {
-					p.fmt.fmt_d64(v)
-				} else {
-					p.fmt.fmt_ud64(uint64(v))
-				}
-			} else {
-				goto badtype
-			}
-		case 'o':
-			if v, signed, ok := getInt(field); ok {
-				if signed {
-					p.fmt.fmt_o64(v)
-				} else {
-					p.fmt.fmt_uo64(uint64(v))
-				}
-			} else {
-				goto badtype
-			}
-		case 'x':
-			if v, signed, ok := getInt(field); ok {
-				if signed {
-					p.fmt.fmt_x64(v)
-				} else {
-					p.fmt.fmt_ux64(uint64(v))
-				}
-			} else if v, ok := getString(field); ok {
-				p.fmt.fmt_sx(v)
-			} else {
-				goto badtype
-			}
-		case 'X':
-			if v, signed, ok := getInt(field); ok {
-				if signed {
-					p.fmt.fmt_X64(v)
-				} else {
-					p.fmt.fmt_uX64(uint64(v))
-				}
-			} else if v, ok := getString(field); ok {
-				p.fmt.fmt_sX(v)
-			} else {
-				goto badtype
-			}
-
-		// float/complex
-		case 'e':
-			if v, ok := getFloat32(field); ok {
-				p.fmt.fmt_e32(v)
-			} else if v, ok := getFloat64(field); ok {
-				p.fmt.fmt_e64(v)
-			} else if v, ok := getComplex64(field); ok {
-				p.fmt.fmt_c64(v, 'e')
-			} else if v, ok := getComplex128(field); ok {
-				p.fmt.fmt_c128(v, 'e')
-			} else {
-				goto badtype
-			}
-		case 'E':
-			if v, ok := getFloat32(field); ok {
-				p.fmt.fmt_E32(v)
-			} else if v, ok := getFloat64(field); ok {
-				p.fmt.fmt_E64(v)
-			} else if v, ok := getComplex64(field); ok {
-				p.fmt.fmt_c64(v, 'E')
-			} else if v, ok := getComplex128(field); ok {
-				p.fmt.fmt_c128(v, 'E')
-			} else {
-				goto badtype
-			}
-		case 'f':
-			if v, ok := getFloat32(field); ok {
-				p.fmt.fmt_f32(v)
-			} else if v, ok := getFloat64(field); ok {
-				p.fmt.fmt_f64(v)
-			} else if v, ok := getComplex64(field); ok {
-				p.fmt.fmt_c64(v, 'f')
-			} else if v, ok := getComplex128(field); ok {
-				p.fmt.fmt_c128(v, 'f')
-			} else {
-				goto badtype
-			}
-		case 'g':
-			if v, ok := getFloat32(field); ok {
-				p.fmt.fmt_g32(v)
-			} else if v, ok := getFloat64(field); ok {
-				p.fmt.fmt_g64(v)
-			} else if v, ok := getComplex64(field); ok {
-				p.fmt.fmt_c64(v, 'g')
-			} else if v, ok := getComplex128(field); ok {
-				p.fmt.fmt_c128(v, 'g')
-			} else {
-				goto badtype
-			}
-		case 'G':
-			if v, ok := getFloat32(field); ok {
-				p.fmt.fmt_G32(v)
-			} else if v, ok := getFloat64(field); ok {
-				p.fmt.fmt_G64(v)
-			} else if v, ok := getComplex64(field); ok {
-				p.fmt.fmt_c64(v, 'G')
-			} else if v, ok := getComplex128(field); ok {
-				p.fmt.fmt_c128(v, 'G')
-			} else {
-				goto badtype
-			}
-
-		// string
-		case 's':
-			if field != nil {
-				// if object implements String, use the result.
-				if stringer, ok := field.(Stringer); ok {
-					p.fmt.fmt_s(stringer.String())
-					break
-				}
-			}
-			if v, ok := getString(field); ok {
-				p.fmt.fmt_s(v)
-			} else {
-				goto badtype
-			}
-		case 'q':
-			if field != nil {
-				// if object implements String, use the result.
-				if stringer, ok := field.(Stringer); ok {
-					p.fmt.fmt_q(stringer.String())
-					break
-				}
-			}
-			if v, ok := getString(field); ok {
-				p.fmt.fmt_q(v)
-			} else {
-				goto badtype
-			}
-
-		// pointer, including addresses of reference types.
-		case 'p':
-			switch v := reflect.NewValue(field).(type) {
-			case getter:
-				p.fmt.fmt_s("0x")
-				p.fmt.fmt_uX64(uint64(v.Get()))
-			default:
-				goto badtype
-			}
-
-		// arbitrary value; do your best
-		case 'v':
-			plus, sharp := p.fmt.plus, p.fmt.sharp
-			p.fmt.plus = false
-			p.fmt.sharp = false
-			p.printField(field, plus, sharp, 0)
-
-		// the value's type
-		case 'T':
-			if field == nil {
-				p.buf.Write(nilAngleBytes)
-				break
-			}
-			p.buf.WriteString(reflect.Typeof(field).String())
-
-		default:
-		badtype:
-			p.buf.WriteByte('%')
-			p.add(c)
-			p.buf.WriteByte('(')
-			if field != nil {
-				p.buf.WriteString(reflect.Typeof(field).String())
-				p.buf.WriteByte('=')
-			}
-			p.printField(field, false, false, -1)
-			p.buf.WriteByte(')')
-		}
+		p.printField(field, c, p.fmt.plus, p.fmt.sharp, 0)
 	}
+
 	if fieldnum < len(a) {
 		p.buf.Write(extraBytes)
 		for ; fieldnum < len(a); fieldnum++ {
@@ -1099,7 +982,7 @@ func (p *pp) doprintf(format string, a []interface{}) {
 				p.buf.WriteString(reflect.Typeof(field).String())
 				p.buf.WriteByte('=')
 			}
-			p.printField(field, false, false, 0)
+			p.printField(field, 'v', false, false, 0)
 			if fieldnum+1 < len(a) {
 				p.buf.Write(commaSpaceBytes)
 			}
@@ -1108,7 +991,7 @@ func (p *pp) doprintf(format string, a []interface{}) {
 	}
 }
 
-func (p *pp) doprint(a []interface{}, addspace, addnewline bool) {
+func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
 	prev_string := false
 	for fieldnum := 0; fieldnum < len(a); fieldnum++ {
 		// always add spaces if we're doing println
@@ -1119,7 +1002,7 @@ func (p *pp) doprint(a []interface{}, addspace, addnewline bool) {
 				p.buf.WriteByte(' ')
 			}
 		}
-		prev_string = p.printField(field, false, false, 0)
+		prev_string = p.printField(field, 'v', false, false, 0)
 	}
 	if addnewline {
 		p.buf.WriteByte('\n')

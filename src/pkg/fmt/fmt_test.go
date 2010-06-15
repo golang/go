@@ -13,6 +13,29 @@ import (
 	"testing"
 )
 
+type (
+	renamedBool       bool
+	renamedInt        int
+	renamedInt8       int8
+	renamedInt16      int16
+	renamedInt32      int32
+	renamedInt64      int64
+	renamedUint       uint
+	renamedUint8      uint8
+	renamedUint16     uint16
+	renamedUint32     uint32
+	renamedUint64     uint64
+	renamedUintptr    uintptr
+	renamedString     string
+	renamedBytes      []byte
+	renamedFloat      float
+	renamedFloat32    float32
+	renamedFloat64    float64
+	renamedComplex    complex
+	renamedComplex64  complex64
+	renamedComplex128 complex128
+)
+
 func TestFmtInterface(t *testing.T) {
 	var i1 interface{}
 	i1 = "abc"
@@ -43,7 +66,7 @@ type A struct {
 
 type I int
 
-func (i I) String() string { return Sprintf("<%d>", i) }
+func (i I) String() string { return Sprintf("<%d>", int(i)) }
 
 type B struct {
 	i I
@@ -58,6 +81,10 @@ type C struct {
 var b byte
 
 var fmttests = []fmtTest{
+	fmtTest{"%d", 12345, "12345"},
+	fmtTest{"%v", 12345, "12345"},
+	fmtTest{"%t", true, "true"},
+
 	// basic string
 	fmtTest{"%s", "abc", "abc"},
 	fmtTest{"%x", "abc", "616263"},
@@ -245,7 +272,10 @@ var fmttests = []fmtTest{
 	fmtTest{"%+v", C{1, B{2, 3}}, `{i:1 B:{i:<2> j:3}}`},
 
 	// q on Stringable items
+	fmtTest{"%s", I(23), `<23>`},
 	fmtTest{"%q", I(23), `"<23>"`},
+	fmtTest{"%x", I(23), `3c32333e`},
+	fmtTest{"%d", I(23), `%d(string=<23>)`},
 
 	// %p on non-pointers
 	fmtTest{"%p", make(chan int), "PTR"},
@@ -259,6 +289,30 @@ var fmttests = []fmtTest{
 	fmtTest{"%#v", make(chan int), "(chan int)(PTR)"},
 	fmtTest{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
 	fmtTest{"%#v", 1000000000, "1000000000"},
+
+	// renamings
+	fmtTest{"%v", renamedBool(true), "true"},
+	fmtTest{"%d", renamedBool(true), "%d(fmt_test.renamedBool=true)"},
+	fmtTest{"%o", renamedInt(8), "10"},
+	fmtTest{"%d", renamedInt8(-9), "-9"},
+	fmtTest{"%v", renamedInt16(10), "10"},
+	fmtTest{"%v", renamedInt32(-11), "-11"},
+	fmtTest{"%X", renamedInt64(255), "FF"},
+	fmtTest{"%v", renamedUint(13), "13"},
+	fmtTest{"%o", renamedUint8(14), "16"},
+	fmtTest{"%X", renamedUint16(15), "F"},
+	fmtTest{"%d", renamedUint32(16), "16"},
+	fmtTest{"%X", renamedUint64(17), "11"},
+	fmtTest{"%o", renamedUintptr(18), "22"},
+	fmtTest{"%x", renamedString("thing"), "7468696e67"},
+	// TODO: It would be nice if this one worked, but it's hard.
+	//	fmtTest{"%q", renamedBytes([]byte("hello")), `"hello"`},
+	fmtTest{"%v", renamedFloat(11), "11"},
+	fmtTest{"%v", renamedFloat32(22), "22"},
+	fmtTest{"%v", renamedFloat64(33), "33"},
+	fmtTest{"%v", renamedComplex(7 + .2i), "(7+0.2i)"},
+	fmtTest{"%v", renamedComplex64(3 + 4i), "(3+4i)"},
+	fmtTest{"%v", renamedComplex128(4 - 3i), "(4-3i)"},
 
 	// erroneous things
 	fmtTest{"%d", "hello", "%d(string=hello)"},

@@ -10,7 +10,7 @@ import "fmt"
 
 type T int
 
-func (t T) String() string { return fmt.Sprintf("T%d", t) }
+func (t T) String() string { return fmt.Sprintf("T%d", int(t)) }
 
 const (
 	A T = 1 << (1 << iota)

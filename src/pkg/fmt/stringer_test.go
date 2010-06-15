@@ -26,21 +26,21 @@ type TF64 float64
 type TB bool
 type TS string
 
-func (v TI) String() string   { return Sprintf("I: %d", v) }
-func (v TI8) String() string  { return Sprintf("I8: %d", v) }
-func (v TI16) String() string { return Sprintf("I16: %d", v) }
-func (v TI32) String() string { return Sprintf("I32: %d", v) }
-func (v TI64) String() string { return Sprintf("I64: %d", v) }
-func (v TU) String() string   { return Sprintf("U: %d", v) }
-func (v TU8) String() string  { return Sprintf("U8: %d", v) }
-func (v TU16) String() string { return Sprintf("U16: %d", v) }
-func (v TU32) String() string { return Sprintf("U32: %d", v) }
-func (v TU64) String() string { return Sprintf("U64: %d", v) }
-func (v TUI) String() string  { return Sprintf("UI: %d", v) }
-func (v TF) String() string   { return Sprintf("F: %f", v) }
-func (v TF32) String() string { return Sprintf("F32: %f", v) }
-func (v TF64) String() string { return Sprintf("F64: %f", v) }
-func (v TB) String() string   { return Sprintf("B: %t", v) }
+func (v TI) String() string   { return Sprintf("I: %d", int(v)) }
+func (v TI8) String() string  { return Sprintf("I8: %d", int8(v)) }
+func (v TI16) String() string { return Sprintf("I16: %d", int16(v)) }
+func (v TI32) String() string { return Sprintf("I32: %d", int32(v)) }
+func (v TI64) String() string { return Sprintf("I64: %d", int64(v)) }
+func (v TU) String() string   { return Sprintf("U: %d", uint(v)) }
+func (v TU8) String() string  { return Sprintf("U8: %d", uint8(v)) }
+func (v TU16) String() string { return Sprintf("U16: %d", uint16(v)) }
+func (v TU32) String() string { return Sprintf("U32: %d", uint32(v)) }
+func (v TU64) String() string { return Sprintf("U64: %d", uint64(v)) }
+func (v TUI) String() string  { return Sprintf("UI: %d", uintptr(v)) }
+func (v TF) String() string   { return Sprintf("F: %f", float(v)) }
+func (v TF32) String() string { return Sprintf("F32: %f", float32(v)) }
+func (v TF64) String() string { return Sprintf("F64: %f", float64(v)) }
+func (v TB) String() string   { return Sprintf("B: %t", bool(v)) }
 func (v TS) String() string   { return Sprintf("S: %q", string(v)) }
 
 func check(t *testing.T, got, want string) {
