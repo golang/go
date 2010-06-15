@@ -314,6 +314,12 @@ var fmttests = []fmtTest{
 	fmtTest{"%v", renamedComplex64(3 + 4i), "(3+4i)"},
 	fmtTest{"%v", renamedComplex128(4 - 3i), "(4-3i)"},
 
+	// %T
+	fmtTest{"%T", (4 - 3i), "complex"},
+	fmtTest{"%T", renamedComplex128(4 - 3i), "fmt_test.renamedComplex128"},
+	fmtTest{"%T", intVal, "int"},
+	fmtTest{"%6T", &intVal, "  *int"},
+
 	// erroneous things
 	fmtTest{"%d", "hello", "%d(string=hello)"},
 	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
