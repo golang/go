@@ -770,6 +770,139 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
 }
 </pre>
 
+<h3 id="defer">Defer</h3>
+
+<p>
+Go's <code>defer</code> statement schedules a function call (the
+<i>deferred</i> function) to be run immediately before the function
+executing the <code>defer</code> returns.  It's an unusual but
+effective way to deal with situations such as resources that must be
+released regardless of which path a function takes to return.  The
+canonical examples are unlocking a mutex or closing a file.
+</p>
+
+<pre>
+// Contents returns the file's contents as a string.
+func Contents(filename string) (string, os.Error) {
+    f, err := os.Open(filename, os.O_RDONLY, 0)
+    if err != nil {
+        return "", err
+    }
+    defer f.Close()  // f.Close will run when we're finished.
+
+    var result []byte
+    buf := make([]byte, 100)
+    for {
+        n, err := f.Read(buf[0:])
+        result = bytes.Add(result, buf[0:n])
+        if err != nil {
+            if err == os.EOF {
+                break
+            }
+            return "", err  // f will be closed if we return here.
+        }
+    }
+    return string(result), nil // f will be closed if we return here.
+}
+</pre>
+
+<p>
+Deferring a function like this has two advantages.  First, it
+guarantees that you will never forget to close the file, a mistake
+that's easy to make if you later edit the function to add a new return
+path.  Second, it means that the close sits near the open,
+which is much clearer than placing it at the end of the function.
+</p>
+
+<p>
+The arguments to the deferred function (which includes the receiver if
+the function is a method) are evaluated when the <i>defer</i>
+executes, not when the <i>call</i> executes.  Besides avoiding worries
+about variables changing values as the function executes, this means
+that a single deferred call site can defer multiple function
+executions.  Here's a silly example.
+</p>
+
+<pre>
+for i := 0; i < 5; i++ {
+    defer fmt.Printf("%d ", i)
+}
+</pre>
+
+<p>
+Deferred functions are executed in LIFO order, so this code will cause
+<code>4 3 2 1 0</code> to be printed when the function returns.  A
+more plausible example is a simple way to trace function execution
+through the program.  We could write a couple of simple tracing
+routines like this:
+</p>
+
+<pre>
+func trace(s string)   { fmt.Println("entering:", s) }
+func untrace(s string) { fmt.Println("leaving:", s) }
+
+// Use them like this:
+func a() {
+    trace("a")
+    defer untrace("a")
+    // do something....
+}
+</pre>
+
+<p>
+We can do better by exploiting the fact that arguments to deferred
+functions are evaluated when the <code>defer</code> executes.  The
+tracing routine can set up the argument to the untracing routine.
+This example:
+</p>
+
+<pre>
+func trace(s string) string {
+    fmt.Println("entering:", s)
+    return s
+}
+
+func un(s string) {
+    fmt.Println("leaving:", s)
+}
+
+func a() {
+    defer un(trace("a"))
+    fmt.Println("in a")
+}
+
+func b() {
+    defer un(trace("b"))
+    fmt.Println("in b")
+    a()
+}
+
+func main() {
+    b()
+}
+</pre>
+
+<p>
+prints
+</p>
+
+<pre>
+entering: b
+in b
+entering: a
+in a
+leaving: a
+leaving: b
+</pre>
+
+<p>
+For programmers accustomed to block-level resource management from
+other languages, <code>defer</code> may seem peculiar, but its most
+interesting and powerful applications come precisely from the fact
+that it's not block-based but function based.  In the section on
+<code>panic</code> and <code>recover</code> we'll see an example.
+</p>
+
 <h2 id="data">Data</h2>
 
 <h3 id="allocation_new">Allocation with <code>new()</code></h3>
@@ -1341,9 +1474,9 @@ for a min function that chooses the least of a list of integers:
 func Min(a ...int) int {
     min := int(^uint(0) >> 1)  // largest int
     for _, i := range a {
-    	if i < min {
-    		min = i
-    	}
+        if i < min {
+            min = i
+        }
     }
     return min
 }
@@ -2435,6 +2568,13 @@ for try := 0; try &lt; 2; try++ {
     return
 }
 </pre>
+
+<h3 id="panic_recover">Panic and recover</h3>
+
+<p>
+TODO: Short discussion of panic and recover goes here.
+</p>
+
 
 <h2 id="web_server">A web server</h2>
 
