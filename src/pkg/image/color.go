@@ -93,6 +93,16 @@ func (c AlphaColor) RGBA() (r, g, b, a uint32) {
 	return a, a, a, a
 }
 
+// An Alpha16Color represents a 16-bit alpha.
+type Alpha16Color struct {
+	A uint16
+}
+
+func (c Alpha16Color) RGBA() (r, g, b, a uint32) {
+	a = uint32(c.A)
+	return a, a, a, a
+}
+
 // A ColorModel can convert foreign Colors, with a possible loss of precision,
 // to a Color from its own color model.
 type ColorModel interface {
@@ -169,6 +179,14 @@ func toAlphaColor(c Color) Color {
 	return AlphaColor{uint8(a >> 8)}
 }
 
+func toAlpha16Color(c Color) Color {
+	if _, ok := c.(Alpha16Color); ok {
+		return c
+	}
+	_, _, _, a := c.RGBA()
+	return Alpha16Color{uint16(a)}
+}
+
 // The ColorModel associated with RGBAColor.
 var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor)
 
@@ -183,3 +201,6 @@ var NRGBA64ColorModel ColorModel = ColorModelFunc(toNRGBA64Color)
 
 // The ColorModel associated with AlphaColor.
 var AlphaColorModel ColorModel = ColorModelFunc(toAlphaColor)
+
+// The ColorModel associated with Alpha16Color.
+var Alpha16ColorModel ColorModel = ColorModelFunc(toAlpha16Color)

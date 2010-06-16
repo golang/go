@@ -255,6 +255,54 @@ func NewAlpha(w, h int) *Alpha {
 	return &Alpha{pix}
 }
 
+// An Alpha16 is an in-memory image backed by a 2-D slice of Alpha16Color values.
+type Alpha16 struct {
+	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
+	Pixel [][]Alpha16Color
+}
+
+func (p *Alpha16) ColorModel() ColorModel { return Alpha16ColorModel }
+
+func (p *Alpha16) Width() int {
+	if len(p.Pixel) == 0 {
+		return 0
+	}
+	return len(p.Pixel[0])
+}
+
+func (p *Alpha16) Height() int { return len(p.Pixel) }
+
+func (p *Alpha16) At(x, y int) Color { return p.Pixel[y][x] }
+
+func (p *Alpha16) Set(x, y int, c Color) { p.Pixel[y][x] = toAlpha16Color(c).(Alpha16Color) }
+
+// Opaque scans the entire image and returns whether or not it is fully opaque.
+func (p *Alpha16) Opaque() bool {
+	h := len(p.Pixel)
+	if h > 0 {
+		w := len(p.Pixel[0])
+		for y := 0; y < h; y++ {
+			pix := p.Pixel[y]
+			for x := 0; x < w; x++ {
+				if pix[x].A != 0xffff {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// NewAlpha16 returns a new Alpha16 with the given width and height.
+func NewAlpha16(w, h int) *Alpha16 {
+	buf := make([]Alpha16Color, w*h)
+	pix := make([][]Alpha16Color, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
+	}
+	return &Alpha16{pix}
+}
+
 // A PalettedColorModel represents a fixed palette of colors.
 type PalettedColorModel []Color
 
