@@ -134,7 +134,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
 			b.off = 0
 		}
 		m, e := r.Read(b.buf[len(b.buf):cap(b.buf)])
-		b.buf = b.buf[b.off : len(b.buf)+m]
+		b.buf = b.buf[0 : len(b.buf)+m]
 		n += int64(m)
 		if e == os.EOF {
 			break
