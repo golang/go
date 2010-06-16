@@ -220,14 +220,35 @@ func (s *ss) Token() (tok string, err os.Error) {
 // from an io.Reader.  It is used if the Reader given to the scanner does
 // not already implement ReadRuner.
 type readRune struct {
-	reader io.Reader
-	buf    [utf8.UTFMax]byte
+	reader  io.Reader
+	buf     [utf8.UTFMax]byte // used only inside ReadRune
+	pending int               // number of bytes in pendBuf; only >0 for bad UTF-8
+	pendBuf [utf8.UTFMax]byte // bytes left over
+}
+
+// readByte returns the next byte from the input, which may be
+// left over from a previous read if the UTF-8 was ill-formed.
+func (r *readRune) readByte() (b byte, err os.Error) {
+	if r.pending > 0 {
+		b = r.pendBuf[0]
+		copy(r.pendBuf[0:], r.pendBuf[1:])
+		r.pending--
+		return
+	}
+	_, err = r.reader.Read(r.pendBuf[0:1])
+	return r.pendBuf[0], err
+}
+
+// unread saves the bytes for the next read.
+func (r *readRune) unread(buf []byte) {
+	copy(r.pendBuf[r.pending:], buf)
+	r.pending += len(buf)
 }
 
 // ReadRune returns the next UTF-8 encoded code point from the
 // io.Reader inside r.
-func (r readRune) ReadRune() (rune int, size int, err os.Error) {
-	_, err = r.reader.Read(r.buf[0:1])
+func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
+	r.buf[0], err = r.readByte()
 	if err != nil {
 		return 0, 0, err
 	}
@@ -235,20 +256,22 @@ func (r readRune) ReadRune() (rune int, size int, err os.Error) {
 		rune = int(r.buf[0])
 		return
 	}
-	for size := 1; size < utf8.UTFMax; size++ {
-		_, err = r.reader.Read(r.buf[size : size+1])
+	var n int
+	for n = 1; !utf8.FullRune(r.buf[0:n]); n++ {
+		r.buf[n], err = r.readByte()
 		if err != nil {
-			break
-		}
-		if !utf8.FullRune(r.buf[0:]) {
-			continue
-		}
-		if c, w := utf8.DecodeRune(r.buf[0:size]); w == size {
-			rune = c
+			if err == os.EOF {
+				err = nil
+				break
+			}
 			return
 		}
 	}
-	return utf8.RuneError, 1, err
+	rune, size = utf8.DecodeRune(r.buf[0:n])
+	if size < n { // an error
+		r.unread(r.buf[size:n])
+	}
+	return
 }
 
 
@@ -264,7 +287,7 @@ func newScanState(r io.Reader, nlIsSpace bool) *ss {
 	if rr, ok := r.(readRuner); ok {
 		s.rr = rr
 	} else {
-		s.rr = readRune{reader: r}
+		s.rr = &readRune{reader: r}
 	}
 	s.nlIsSpace = nlIsSpace
 	s.peekRune = -1

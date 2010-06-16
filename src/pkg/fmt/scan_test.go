@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"utf8"
 )
 
 type ScanTest struct {
@@ -108,6 +109,20 @@ func (x *Xs) Scan(state ScanState, verb int) os.Error {
 
 var xVal Xs
 
+// myStringReader implements Read but not ReadRune, allowing us to test our readRune wrapper
+// type that creates something that can read runes given only Read().
+type myStringReader struct {
+	r *strings.Reader
+}
+
+func (s *myStringReader) Read(p []byte) (n int, err os.Error) {
+	return s.r.Read(p)
+}
+
+func newReader(s string) *myStringReader {
+	return &myStringReader{strings.NewReader(s)}
+}
+
 var scanTests = []ScanTest{
 	// Numbers
 	ScanTest{"T\n", &boolVal, true},  // boolean test vals toggle to be sure they are written
@@ -176,6 +191,7 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%v", "-71\n", &intVal, -71},
 	ScanfTest{"%d", "72\n", &intVal, 72},
 	ScanfTest{"%c", "a\n", &intVal, 'a'},
+	ScanfTest{"%c", "\u5072\n", &intVal, 0x5072},
 	ScanfTest{"%c", "\u1234\n", &intVal, '\u1234'},
 	ScanfTest{"%d", "73\n", &int8Val, int8(73)},
 	ScanfTest{"%d", "+74\n", &int16Val, int16(74)},
@@ -211,6 +227,7 @@ var scanfTests = []ScanfTest{
 	ScanfTest{"%v\n", "true\n", &renamedBoolVal, renamedBool(true)},
 	ScanfTest{"%t\n", "F\n", &renamedBoolVal, renamedBool(false)},
 	ScanfTest{"%v", "101\n", &renamedIntVal, renamedInt(101)},
+	ScanfTest{"%c", "\u0101\n", &renamedIntVal, renamedInt('\u0101')},
 	ScanfTest{"%o", "0146\n", &renamedIntVal, renamedInt(102)},
 	ScanfTest{"%v", "103\n", &renamedUintVal, renamedUint(103)},
 	ScanfTest{"%d", "104\n", &renamedUintVal, renamedUint(104)},
@@ -276,6 +293,7 @@ var multiTests = []ScanfMultiTest{
 	ScanfMultiTest{"%3d22%3d", "33322333", args(&i, &j), args(333, 333), ""},
 	ScanfMultiTest{"%6vX=%3fY", "3+2iX=2.5Y", args(&c, &f), args((3 + 2i), float(2.5)), ""},
 	ScanfMultiTest{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
+	ScanfMultiTest{"%c%c%c", "2\u50c2X", args(&i, &j, &k), args('2', '\u50c2', 'X'), ""},
 
 	// Custom scanner.
 	ScanfMultiTest{"%2e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
@@ -285,18 +303,26 @@ var multiTests = []ScanfMultiTest{
 	ScanfMultiTest{"%d %d %d", "23 18", args(&i, &j), args(23, 18), "too few operands"},
 	ScanfMultiTest{"%d %d", "23 18 27", args(&i, &j, &k), args(23, 18), "too many operands"},
 	ScanfMultiTest{"%c", "\u0100", args(&int8Val), nil, "overflow"},
+
+	// Bad UTF-8: should see every byte.
+	ScanfMultiTest{"%c%c%c", "\xc2X\xc2", args(&i, &j, &k), args(utf8.RuneError, 'X', utf8.RuneError), ""},
 }
 
-func testScan(t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Error)) {
+func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Error)) {
 	for _, test := range scanTests {
-		r := strings.NewReader(test.text)
+		var r io.Reader
+		if name == "StringReader" {
+			r = strings.NewReader(test.text)
+		} else {
+			r = newReader(test.text)
+		}
 		n, err := scan(r, test.in)
 		if err != nil {
-			t.Errorf("got error scanning %q: %s", test.text, err)
+			t.Errorf("%s got error scanning %q: %s", name, test.text, err)
 			continue
 		}
 		if n != 1 {
-			t.Errorf("count error on entry %q: got %d", test.text, n)
+			t.Errorf("%s count error on entry %q: got %d", name, test.text, n)
 			continue
 		}
 		// The incoming value may be a pointer
@@ -306,17 +332,25 @@ func testScan(t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Er
 		}
 		val := v.Interface()
 		if !reflect.DeepEqual(val, test.out) {
-			t.Errorf("scanning %q: expected %v got %v, type %T", test.text, test.out, val, val)
+			t.Errorf("%s scanning %q: expected %v got %v, type %T", name, test.text, test.out, val, val)
 		}
 	}
 }
 
 func TestScan(t *testing.T) {
-	testScan(t, Fscan)
+	testScan("StringReader", t, Fscan)
+}
+
+func TestMyReaderScan(t *testing.T) {
+	testScan("myStringReader", t, Fscan)
 }
 
 func TestScanln(t *testing.T) {
-	testScan(t, Fscanln)
+	testScan("StringReader", t, Fscanln)
+}
+
+func TestMyReaderScanln(t *testing.T) {
+	testScan("myStringReader", t, Fscanln)
 }
 
 func TestScanf(t *testing.T) {
@@ -359,17 +393,23 @@ func TestScanOverflow(t *testing.T) {
 
 // TODO: there's no conversion from []T to ...T, but we can fake it.  These
 // functions do the faking.  We index the table by the length of the param list.
-var scanf = []func(string, string, []interface{}) (int, os.Error){
-	0: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f) },
-	1: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0]) },
-	2: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0], i[1]) },
-	3: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0], i[1], i[2]) },
+var fscanf = []func(io.Reader, string, []interface{}) (int, os.Error){
+	0: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f) },
+	1: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0]) },
+	2: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0], i[1]) },
+	3: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0], i[1], i[2]) },
 }
 
-func TestScanfMulti(t *testing.T) {
+func testScanfMulti(name string, t *testing.T) {
 	sliceType := reflect.Typeof(make([]interface{}, 1)).(*reflect.SliceType)
 	for _, test := range multiTests {
-		n, err := scanf[len(test.in)](test.text, test.format, test.in)
+		var r io.Reader
+		if name == "StringReader" {
+			r = strings.NewReader(test.text)
+		} else {
+			r = newReader(test.text)
+		}
+		n, err := fscanf[len(test.in)](r, test.format, test.in)
 		if err != nil {
 			if test.err == "" {
 				t.Errorf("got error scanning (%q, %q): %q", test.format, test.text, err)
@@ -396,6 +436,14 @@ func TestScanfMulti(t *testing.T) {
 			t.Errorf("scanning (%q, %q): expected %v got %v", test.format, test.text, test.out, result)
 		}
 	}
+}
+
+func TestScanfMulti(t *testing.T) {
+	testScanfMulti("StringReader", t)
+}
+
+func TestMyReaderScanfMulti(t *testing.T) {
+	testScanfMulti("myStringReader", t)
 }
 
 func TestScanMultiple(t *testing.T) {
