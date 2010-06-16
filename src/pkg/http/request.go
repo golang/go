@@ -635,3 +635,8 @@ func (r *Request) FormValue(key string) string {
 	}
 	return ""
 }
+
+func (r *Request) expectsContinue() bool {
+	expectation, ok := r.Header["Expect"]
+	return ok && strings.ToLower(expectation) == "100-continue"
+}
