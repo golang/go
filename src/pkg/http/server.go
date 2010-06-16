@@ -56,6 +56,7 @@ type Conn struct {
 	closeAfterReply bool              // close connection after this reply
 	chunking        bool              // using chunked transfer encoding for reply body
 	wroteHeader     bool              // reply header has been written
+	wroteContinue   bool              // 100 Continue response was written
 	header          map[string]string // reply header parameters
 	written         int64             // number of bytes written in body
 	status          int               // status code passed to WriteHeader
@@ -75,6 +76,28 @@ func newConn(rwc net.Conn, handler Handler) (c *Conn, err os.Error) {
 	return c, nil
 }
 
+// wrapper around io.ReaderCloser which on first read, sends an
+// HTTP/1.1 100 Continue header
+type expectContinueReader struct {
+	conn       *Conn
+	readCloser io.ReadCloser
+}
+
+func (ecr *expectContinueReader) Read(p []byte) (n int, err os.Error) {
+	if !ecr.conn.wroteContinue && !ecr.conn.hijacked {
+		ecr.conn.wroteContinue = true
+		if ecr.conn.Req.ProtoAtLeast(1, 1) {
+			io.WriteString(ecr.conn.buf, "HTTP/1.1 100 Continue\r\n\r\n")
+			ecr.conn.buf.Flush()
+		}
+	}
+	return ecr.readCloser.Read(p)
+}
+
+func (ecr *expectContinueReader) Close() os.Error {
+	return ecr.readCloser.Close()
+}
+
 // Read next request from connection.
 func (c *Conn) readRequest() (req *Request, err os.Error) {
 	if c.hijacked {
@@ -87,7 +110,14 @@ func (c *Conn) readRequest() (req *Request, err os.Error) {
 	// Reset per-request connection state.
 	c.header = make(map[string]string)
 	c.wroteHeader = false
+	c.wroteContinue = false
 	c.Req = req
+
+	// Expect 100 Continue support
+	if req.expectsContinue() {
+		// Wrap the Body reader with one that replies on the connection
+		req.Body = &expectContinueReader{readCloser: req.Body, conn: c}
+	}
 
 	// Default output is HTML encoded in UTF-8.
 	c.SetHeader("Content-Type", "text/html; charset=utf-8")
