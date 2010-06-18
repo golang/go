@@ -53,14 +53,6 @@ FAIL
 =========== ./turing.go
 Hello World!
 
-=========== ./zerodivide.go
-complex 0/0: expected no error; got "runtime error: complex divide by zero"
-complex64 0/0: expected no error; got "runtime error: complex divide by zero"
-complex128 0/0: expected no error; got "runtime error: complex divide by zero"
-complex 1/0: expected no error; got "runtime error: complex divide by zero"
-complex64 1/0: expected no error; got "runtime error: complex divide by zero"
-complex128 1/0: expected no error; got "runtime error: complex divide by zero"
-
 == ken/
 
 =========== ken/cplx0.go

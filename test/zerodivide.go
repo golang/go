@@ -114,16 +114,15 @@ func error(fn func()) (error string) {
 }
 
 type FloatTest struct{
-	name	string
 	f, g	float64
 	out	float64
 }
 
 var floatTests = []FloatTest{
-	FloatTest{"float64 0/0", 0, 0, nan },
-	FloatTest{"float64 nan/0", nan, 0, nan },
-	FloatTest{"float64 inf/0", inf, 0, inf },
-	FloatTest{"float64 -inf/0", negInf, 0, negInf },
+	FloatTest{0, 0, nan},
+	FloatTest{nan, 0, nan},
+	FloatTest{inf, 0, inf},
+	FloatTest{negInf, 0, negInf},
 }
 
 func alike(a, b float64) bool {
@@ -138,6 +137,9 @@ func alike(a, b float64) bool {
 
 func main() {
 	for _, t := range errorTests {
+		if t.err != "" && syscall.OS == "nacl" {
+			continue
+		}
 		err := error(t.fn)
 		switch {
 		case t.err == "" && err == "":
@@ -158,7 +160,7 @@ func main() {
 	for _, t := range floatTests {
 		x := t.f/t.g
 		if !alike(x, t.out) {
-			fmt.Printf("%s: expected %g error; got %g\n", t.name, t.out, x)
+			fmt.Printf("%v/%v: expected %g error; got %g\n", t.f, t.g, t.out, x)
 		}
 	}
 }
