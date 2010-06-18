@@ -29,7 +29,7 @@ and the <a href="go_tutorial.html">tutorial</a>, both of which you
 should read first.
 </p>
 
-<h3 id="read">Examples</h3>
+<h3 id="examples">Examples</h3>
 
 <p>
 The <a href="/src/pkg/">Go package sources</a>
@@ -2569,10 +2569,175 @@ for try := 0; try &lt; 2; try++ {
 }
 </pre>
 
-<h3 id="panic_recover">Panic and recover</h3>
+<h3 id="panic">Panic</h3>
 
 <p>
-TODO: Short discussion of panic and recover goes here.
+The usual way to report an error to a caller is to return an
+<code>os.Error</code> as an extra return value.  The canonical
+<code>Read</code> method is a well-known instance; it returns a byte
+count and an <code>os.Error</code>.  But what if the error is
+unrecoverable?  Sometimes the program simply cannot continue.
+</p>
+
+<p>
+For this purpose, there is a built-in function <code>panic</code>
+that in effect creates a run-time error that will stop the program
+(but see the next section).  The function takes a single argument
+of arbitrary type&mdash;often a string&mdash;to be printed as the
+program dies.  It's also a way to indicate that something impossible has
+happened, such as exiting an infinite loop.  In fact, the compiler
+recognizes a <code>panic</code> at the end of a function and
+suppresses the usual check for a <code>return</code> statement.
+</p>
+
+
+<pre>
+// A toy implementation of cube root using Newton's method.
+func CubeRoot(x float64) float64 {
+    z := x/3   // Arbitrary intitial value
+    for i := 0; i < 1e6; i++ {
+        prevz := z
+        z -= (z*z*z-x) / (3*z*z)
+        if veryClose(z, prevz) {
+            return z
+        }
+    }
+    // A million iterations has not converged; something is wrong.
+    panic(fmt.Sprintf("CubeRoot(%g) did not converge", x)
+}
+</pre>
+
+<p>
+This is only an example but real library functions should
+avoid <code>panic</code>.  If the problem can be masked or worked
+around, it's always better to let things continue to run rather
+than taking down the whole program.  One possible counterexample
+is during initialization: if the library truly cannot set itself up,
+it might be reasonable to panic, so to speak.
+</p>
+
+<pre>
+var user = os.Getenv("USER")
+
+func init() {
+    if user == "" {
+        panic("no value for $USER")
+    }
+}
+</pre>
+
+<h3 id="recover">Recover</h3>
+
+<p>
+When <code>panic</code> is called, including implicitly for run-time
+errors such indexing an array out of bounds or failing a type
+assertion, it immediately stops execution of the current function
+and begins unwinding the stack of the goroutine, running any deferred
+functions along the way.  If that unwinding reaches the top of the
+goroutine's stack, the program dies.  However, it is possible to
+use the built-in function <code>recover</code> to regain control
+of the goroutine and resume normal execution.
+</p>
+
+<p>
+A call to <code>recover</code> stops the unwinding and returns the
+argument passed to <code>panic</code>.  Because the only code that
+runs while unwinding is inside deferred functions, <code>recover</code>
+is only useful inside deferred functions.
+</p>
+
+<p>
+One application of <code>recover</code> is to shut down a failing goroutine
+inside a server without killing the other executing goroutines.
+</p>
+
+<pre>
+func server(workChan <-chan *Work) {
+    for work := range workChan {
+        safelyDo(work)
+    }
+}
+
+func safelyDo(work *Work) {
+    defer func() {
+        if err := recover(); err != nil {
+            log.Stderr("work failed:", err)
+        }
+    }()
+    do(work)
+}
+</pre>
+
+<p>
+In this example, if <code>do(work)</code> panics, the result will be
+logged and the goroutine will exit cleanly without disturbing the
+others.  There's no need to do anything else in the deferred closure;
+calling <code>recover</code> handles the condition completely.
+</p>
+
+<p>
+Note that with this recovery pattern in place, the <code>do</code>
+function (and anything it calls) can get out of any bad situation
+cleanly by calling <code>panic</code>.  We can use that idea to
+simplify error handling in complex software.  Let's look at an
+idealized excerpt from the <code>regexp</code> package, which reports
+parsing errors by calling <code>panic</code> with a local
+<code>Error</code> type.  Here's the definition of <code>Error</code>,
+an <code>error</code> method, and the <code>Compile</code> function.
+</p>
+
+<pre>
+// Error is the type of a parse error; it satisfies os.Error.
+type Error string
+func (e Error) String() string {
+    return string(e)
+}
+
+// error is a method of *Regexp that reports parsing errors by
+// panicking with an Error.
+func (regexp *Regexp) error(err string) {
+    panic(Error(err))
+}
+
+// Compile returns a parsed representation of the regular expression.
+func Compile(str string) (regexp *Regexp, err os.Error) {
+    regexp = new(Regexp)
+    // doParse will panic if there is a parse error.
+    defer func() {
+        if e := recover(); e != nil {
+            regexp = nil    // Clear return value.
+            err = e.(Error) // Will re-panic if not a parse error.
+        }
+    }()
+    return regexp.doParse(str), nil
+}
+</pre>
+
+<p>
+If <code>doParse</code> panics, the recovery block will set the
+return value to <code>nil</code>&mdash;deferred functions can modify
+named return values.  It then will then check, in the assignment
+to <code>err</code>, that the problem was a parse error by asserting
+that it has type <code>Error</code>.
+If it does not, the type assertion will fail, causing a run-time error
+that continues the stack unwinding as though nothing had interrupted
+it.  This check means that if something unexpected happens, such
+as an array index out of bounds, the code will fail even though we
+are using <code>panic</code> and <code>recover</code> to handle
+user-triggered errors.
+</p>
+
+<p>
+With this error handling in place, the <code>error</code> method
+makes it easy to report parse errors without worrying about unwinding
+the parse stack by hand.
+</p>
+
+<p>
+Useful though this pattern is, it should be used only within a package.
+<code>Parse</code> turns its internal <code>panic</code> calls into
+<code>os.Error</code> values; it does not expose <code>panics</code>
+to its client.  That is a good rule to follow.
 </p>
 
 
