@@ -81,11 +81,11 @@ func test6() {
 }
 
 func test7() {
-	if syscall.ARCH == "arm" {
-		// ARM doesn't have floating point yet
+	if syscall.ARCH == "arm" || syscall.OS == "nacl" {
+		// ARM doesn't have integer divide trap yet
 		return
 	}
-	defer mustRecover("complex divide by zero")
-	var x, y complex
+	defer mustRecover("divide by zero")
+	var x, y int
 	println(x / y)
 }
