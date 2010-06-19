@@ -1457,7 +1457,7 @@ function <code>log.Stderr</code> we used above. It passes its arguments directly
 <code>fmt.Sprintln</code> for the actual formatting.
 </p>
 <pre>
-// Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
+// Stderr is a helper function for easy logging to stderr. It is analogous to Fprintln(os.Stderr).
 func Stderr(v ...interface{}) {
     stderr.Output(2, fmt.Sprintln(v))  // Output takes parameters (int, string)
 }
