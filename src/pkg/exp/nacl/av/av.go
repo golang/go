@@ -157,7 +157,7 @@ func videoPollEvent(ev []byte) (err os.Error) {
 		if r == bridge.share.eq.wi {
 			return noEvents
 		}
-		copy(ev, &bridge.share.eq.event[r])
+		copy(ev, bridge.share.eq.event[r][0:])
 		bridge.share.eq.ri = (r + 1) % eqsize
 		return nil
 	}
