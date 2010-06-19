@@ -120,7 +120,7 @@ func (r *msgReceiver) recv() (*msg, os.Error) {
 	// returned the total byte count as n.
 	m := new(msg)
 	m.rdata = make([]byte, n)
-	copy(m.rdata, &r.data)
+	copy(m.rdata, r.data[0:])
 
 	// Make a copy of the desc too.
 	// The system call *did* update r.hdr.ndesc.
