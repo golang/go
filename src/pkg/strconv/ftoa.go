@@ -64,6 +64,17 @@ func Ftoa64(f float64, fmt byte, prec int) string {
 	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info)
 }
 
+// FtoaN converts the 64-bit floating-point number f to a string,
+// according to the format fmt and precision prec, but it rounds the
+// result assuming that it was obtained from a floating-point value
+// of n bits (32 or 64).
+func FtoaN(f float64, fmt byte, prec int, n int) string {
+	if n == 32 {
+		return Ftoa32(float32(f), fmt, prec)
+	}
+	return Ftoa64(f, fmt, prec)
+}
+
 // Ftoa behaves as Ftoa32 or Ftoa64, depending on the size of the float type.
 func Ftoa(f float, fmt byte, prec int) string {
 	if FloatSize == 32 {
