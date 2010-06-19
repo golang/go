@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"syscall"
 )
 
 type Error interface {
