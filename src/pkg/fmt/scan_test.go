@@ -303,6 +303,7 @@ var multiTests = []ScanfMultiTest{
 	ScanfMultiTest{"%d %d %d", "23 18", args(&i, &j), args(23, 18), "too few operands"},
 	ScanfMultiTest{"%d %d", "23 18 27", args(&i, &j, &k), args(23, 18), "too many operands"},
 	ScanfMultiTest{"%c", "\u0100", args(&int8Val), nil, "overflow"},
+	ScanfMultiTest{"X%d", "10X", args(&intVal), nil, "input does not match format"},
 
 	// Bad UTF-8: should see every byte.
 	ScanfMultiTest{"%c%c%c", "\xc2X\xc2", args(&i, &j, &k), args(utf8.RuneError, 'X', utf8.RuneError), ""},

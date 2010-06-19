@@ -885,6 +885,7 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err os.Error) {
 // either input or format behave as a single space. This routine also
 // handles the %% case.  If the return value is zero, either format
 // starts with a % (with no following %) or the input is empty.
+// If it is negative, the input did not match the string.
 func (s *ss) advance(format string) (i int) {
 	for i < len(format) {
 		fmtc, w := utf8.DecodeRuneInString(format[i:])
@@ -919,7 +920,7 @@ func (s *ss) advance(format string) (i int) {
 		inputc := s.mustGetRune()
 		if fmtc != inputc {
 			s.UngetRune(inputc)
-			return
+			return -1
 		}
 		i += w
 	}
@@ -940,10 +941,11 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.E
 		}
 		// Either we failed to advance, we have a percent character, or we ran out of input.
 		if format[i] != '%' {
-			// Can't advance format.  Do we have arguments still to process?
-			if i < len(a) {
-				s.errorString("too many arguments for format")
+			// Can't advance format.  Why not?
+			if w < 0 {
+				s.errorString("input does not match format")
 			}
+			// Otherwise at EOF; "too many operands" error handled below
 			break
 		}
 		i++ // % is one byte
