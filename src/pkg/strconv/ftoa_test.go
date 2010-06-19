@@ -110,10 +110,18 @@ func TestFtoa(t *testing.T) {
 		if s != test.s {
 			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
 		}
+		s = FtoaN(test.f, test.fmt, test.prec, 64)
+		if s != test.s {
+			t.Error("testN=64", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+		}
 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
 			s := Ftoa32(float32(test.f), test.fmt, test.prec)
 			if s != test.s {
 				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+			}
+			s = FtoaN(test.f, test.fmt, test.prec, 32)
+			if s != test.s {
+				t.Error("testN=32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
 			}
 		}
 	}

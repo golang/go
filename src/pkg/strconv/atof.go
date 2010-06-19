@@ -367,3 +367,16 @@ func Atof(s string) (f float, err os.Error) {
 	f1, err1 := Atof64(s)
 	return float(f1), err1
 }
+
+
+// AtofN converts the string s to a 64-bit floating-point number,
+// but it rounds the result assuming that it will be stored in a value
+// of n bits (32 or 64).
+func AtofN(s string, n int) (f float64, err os.Error) {
+	if n == 32 {
+		f1, err1 := Atof32(s)
+		return float64(f1), err1
+	}
+	f1, err1 := Atof64(s)
+	return f1, err1
+}
