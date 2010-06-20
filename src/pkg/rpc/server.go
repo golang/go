@@ -214,7 +214,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 		}
 		// Method needs three ins: receiver, *args, *reply.
 		// The args and reply must be structs until gobs are more general.
-		if mtype.NumIn() != 3 && mtype.NumIn() != 4 {
+		if mtype.NumIn() != 3 {
 			log.Stderr("method", mname, "has wrong number of ins:", mtype.NumIn())
 			continue
 		}
@@ -301,19 +301,13 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec Se
 	sending.Unlock()
 }
 
-func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec, ci *ClientInfo) {
+func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec) {
 	mtype.Lock()
 	mtype.numCalls++
 	mtype.Unlock()
 	function := mtype.method.Func
 	// Invoke the method, providing a new value for the reply.
-	var args []reflect.Value
-	if mtype.method.Type.NumIn() == 3 {
-		args = []reflect.Value{s.rcvr, argv, replyv}
-	} else {
-		args = []reflect.Value{s.rcvr, argv, replyv, reflect.NewValue(ci)}
-	}
-	returnValues := function.Call(args)
+	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv})
 	// The return value for the method is an os.Error.
 	errInter := returnValues[0].Interface()
 	errmsg := ""
@@ -348,7 +342,7 @@ func (c *gobServerCodec) Close() os.Error {
 	return c.rwc.Close()
 }
 
-func (server *serverType) input(codec ServerCodec, ci *ClientInfo) {
+func (server *serverType) input(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	for {
 		// Grab the request header.
@@ -395,7 +389,7 @@ func (server *serverType) input(codec ServerCodec, ci *ClientInfo) {
 			sendResponse(sending, req, replyv.Interface(), codec, err.String())
 			break
 		}
-		go service.call(sending, mtype, req, argv, replyv, codec, ci)
+		go service.call(sending, mtype, req, argv, replyv, codec)
 	}
 	codec.Close()
 }
@@ -406,7 +400,7 @@ func (server *serverType) accept(lis net.Listener) {
 		if err != nil {
 			log.Exit("rpc.Serve: accept:", err.String()) // TODO(r): exit?
 		}
-		go ServeConn(conn, &ClientInfo{conn.LocalAddr().String(), conn.RemoteAddr().String()})
+		go ServeConn(conn)
 	}
 }
 
@@ -438,14 +432,14 @@ type ServerCodec interface {
 // The caller typically invokes ServeConn in a go statement.
 // ServeConn uses the gob wire format (see package gob) on the
 // connection.  To use an alternate codec, use ServeCodec.
-func ServeConn(conn io.ReadWriteCloser, ci *ClientInfo) {
-	ServeCodec(&gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)}, ci)
+func ServeConn(conn io.ReadWriteCloser) {
+	ServeCodec(&gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)})
 }
 
 // ServeCodec is like ServeConn but uses the specified codec to
 // decode requests and encode responses.
-func ServeCodec(codec ServerCodec, ci *ClientInfo) {
-	server.input(codec, ci)
+func ServeCodec(codec ServerCodec) {
+	server.input(codec)
 }
 
 // Accept accepts connections on the listener and serves requests
@@ -471,11 +465,7 @@ func serveHTTP(c *http.Conn, req *http.Request) {
 		return
 	}
 	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")
-	ci := &ClientInfo{
-		LocalAddr:  conn.(net.Conn).LocalAddr().String(),
-		RemoteAddr: c.RemoteAddr,
-	}
-	ServeConn(conn, ci)
+	ServeConn(conn)
 }
 
 // HandleHTTP registers an HTTP handler for RPC messages.
