@@ -3143,7 +3143,6 @@ implements(Type *t, Type *iface, Type **m, Type **samename, int *ptr)
 		imtype = methodfunc(im->type, 0);
 		tm = ifacelookdot(im->sym, t, &followptr, 0);
 		if(tm == T || !eqtype(methodfunc(tm->type, 0), imtype)) {
-print("try case\n");
 			if(tm == T)
 				tm = ifacelookdot(im->sym, t, &followptr, 1);
 			*m = im;
