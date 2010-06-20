@@ -118,6 +118,6 @@ func (c *serverCodec) Close() os.Error {
 // ServeConn runs the JSON-RPC server on a single connection.
 // ServeConn blocks, serving the connection until the client hangs up.
 // The caller typically invokes ServeConn in a go statement.
-func ServeConn(conn io.ReadWriteCloser, ci *rpc.ClientInfo) {
-	rpc.ServeCodec(NewServerCodec(conn), ci)
+func ServeConn(conn io.ReadWriteCloser) {
+	rpc.ServeCodec(NewServerCodec(conn))
 }

@@ -724,8 +724,10 @@ sub RunWeb {
     "firefox",
   );
   foreach my $b (@alt) {
-    if (system($b, $fname) == 0) {
-      return;
+    if (-f $b) {
+      if (system($b, $fname) == 0) {
+        return;
+      }
     }
   }
 
