@@ -651,7 +651,7 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam)
 
 	e = method->sym;
 	for(d=0; d<nelem(dotlist); d++) {
-		c = adddot1(e, rcvr, d, nil);
+		c = adddot1(e, rcvr, d, nil, 0);
 		if(c == 1)
 			goto out;
 	}

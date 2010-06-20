@@ -14,6 +14,7 @@ import (
 	"image"
 	"io"
 	"os"
+	"strconv"
 )
 
 // Color type, as per the PNG spec.
@@ -108,7 +109,7 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	}
 	crc.Write(d.tmp[0:13])
 	if d.tmp[8] != 8 {
-		return UnsupportedError("bit depth")
+		return UnsupportedError("bit depth " + strconv.Itoa(int(d.tmp[8])))
 	}
 	if d.tmp[10] != 0 || d.tmp[11] != 0 || d.tmp[12] != 0 {
 		return UnsupportedError("compression, filter or interlace method")

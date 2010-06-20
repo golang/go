@@ -14,7 +14,7 @@
 #include "go.h"
 
 static void	implicitstar(Node**);
-static int	onearg(Node*);
+static int	onearg(Node*, char*, ...);
 static int	twoarg(Node*);
 static int	lookdot(Node*, Type*, int);
 static void	typecheckaste(int, Type*, NodeList*, char*);
@@ -63,7 +63,7 @@ typechecklist(NodeList *l, int top)
 Node*
 typecheck(Node **np, int top)
 {
-	int et, op;
+	int et, op, ptr;
 	Node *n, *l, *r;
 	NodeList *args;
 	int lno, ok, ntop;
@@ -532,7 +532,7 @@ reswitch:
 				goto error;
 		}
 		if(n->type != T && n->type->etype != TINTER)
-		if(!implements(n->type, t, &missing, &have)) {
+		if(!implements(n->type, t, &missing, &have, &ptr)) {
 			if(have)
 				yyerror("impossible type assertion: %+N cannot have dynamic type %T"
 					" (wrong type for %S method)\n\thave %S%hhT\n\twant %S%hhT",
@@ -710,10 +710,10 @@ reswitch:
 			ok |= Erv;
 			// turn CALL(type, arg) into CONV(arg) w/ type
 			n->left = N;
-			if(onearg(n) < 0)
-				goto error;
 			n->op = OCONV;
 			n->type = l->type;
+			if(onearg(n, "conversion to %T", l->type) < 0)
+				goto error;
 			goto doconv;
 		}
 
@@ -770,7 +770,7 @@ reswitch:
 	case OREAL:
 	case OIMAG:
 		ok |= Erv;
-		if(onearg(n) < 0)
+		if(onearg(n, "%#O", n->op) < 0)
 			goto error;
 		typecheck(&n->left, Erv);
 		defaultlit(&n->left, T);
@@ -850,7 +850,7 @@ reswitch:
 
 	case OCLOSED:
 	case OCLOSE:
-		if(onearg(n) < 0)
+		if(onearg(n, "%#O", n->op) < 0)
 			goto error;
 		typecheck(&n->left, Erv);
 		defaultlit(&n->left, T);
@@ -1053,7 +1053,7 @@ reswitch:
 
 	case OPANIC:
 		ok |= Etop;
-		if(onearg(n) < 0)
+		if(onearg(n, "panic") < 0)
 			goto error;
 		typecheck(&n->left, Erv);
 		defaultlit(&n->left, T);
@@ -1273,20 +1273,30 @@ implicitstar(Node **nn)
 }
 
 static int
-onearg(Node *n)
+onearg(Node *n, char *f, ...)
 {
+	va_list arg;
+	char *p;
+
 	if(n->left != N)
 		return 0;
 	if(n->list == nil) {
-		yyerror("missing argument to %#O - %#N", n->op, n);
+		va_start(arg, f);
+		p = vsmprint(f, arg);
+		va_end(arg);
+		yyerror("missing argument to %s: %#N", p, n);
 		return -1;
 	}
-	n->left = n->list->n;
 	if(n->list->next != nil) {
-		yyerror("too many arguments to %#O", n->op);
+		va_start(arg, f);
+		p = vsmprint(f, arg);
+		va_end(arg);
+		yyerror("too many arguments to %s: %#N", p, n);
+		n->left = n->list->n;
 		n->list = nil;
 		return -1;
 	}
+	n->left = n->list->n;
 	n->list = nil;
 	return 0;
 }
@@ -1307,7 +1317,7 @@ twoarg(Node *n)
 		return -1;
 	}
 	if(n->list->next->next != nil) {
-		yyerror("too many arguments to %#O", n->op);
+		yyerror("too many arguments to %#O - %#N", n->op, n);
 		n->list = nil;
 		return -1;
 	}

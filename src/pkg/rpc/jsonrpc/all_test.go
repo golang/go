@@ -58,7 +58,8 @@ func TestServer(t *testing.T) {
 
 	cli, srv := net.Pipe()
 	defer cli.Close()
-	go ServeConn(srv)
+	var ci rpc.ClientInfo
+	go ServeConn(srv, &ci)
 	dec := json.NewDecoder(cli)
 
 	// Send hand-coded requests to server, parse responses.
@@ -84,8 +85,9 @@ func TestServer(t *testing.T) {
 func TestClient(t *testing.T) {
 	// Assume server is okay (TestServer is above).
 	// Test client against server.
+	var ci rpc.ClientInfo
 	cli, srv := net.Pipe()
-	go ServeConn(srv)
+	go ServeConn(srv, &ci)
 
 	client := NewClient(cli)
 	defer client.Close()
