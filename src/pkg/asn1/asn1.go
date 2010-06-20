@@ -647,19 +647,22 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		err = err1
 		return
 	case *reflect.IntValue:
-		parsedInt, err1 := parseInt(innerBytes)
-		if err1 == nil {
-			val.Set(parsedInt)
+		switch val.Type().Kind() {
+		case reflect.Int:
+			parsedInt, err1 := parseInt(innerBytes)
+			if err1 == nil {
+				val.Set(int64(parsedInt))
+			}
+			err = err1
+			return
+		case reflect.Int64:
+			parsedInt, err1 := parseInt64(innerBytes)
+			if err1 == nil {
+				val.Set(parsedInt)
+			}
+			err = err1
+			return
 		}
-		err = err1
-		return
-	case *reflect.Int64Value:
-		parsedInt, err1 := parseInt64(innerBytes)
-		if err1 == nil {
-			val.Set(parsedInt)
-		}
-		err = err1
-		return
 	case *reflect.StructValue:
 		structType := fieldType.(*reflect.StructType)
 
@@ -686,7 +689,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	case *reflect.SliceValue:
 		sliceType := fieldType.(*reflect.SliceType)
-		if _, ok := sliceType.Elem().(*reflect.Uint8Type); ok {
+		if sliceType.Elem().Kind() == reflect.Uint8 {
 			val.Set(reflect.MakeSlice(sliceType, len(innerBytes), len(innerBytes)))
 			reflect.ArrayCopy(val, reflect.NewValue(innerBytes).(reflect.ArrayOrSliceValue))
 			return
@@ -729,9 +732,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 	}
 	switch val := v.(type) {
 	case *reflect.IntValue:
-		val.Set(int(*params.defaultValue))
-	case *reflect.Int64Value:
-		val.Set(int64(*params.defaultValue))
+		val.Set(*params.defaultValue)
 	}
 	return
 }

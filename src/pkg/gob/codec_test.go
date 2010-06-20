@@ -360,7 +360,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a int
 		}
-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpMap[reflect.Int], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(signedResult)
 		execDec("int", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
@@ -373,7 +373,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a uint
 		}
-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpMap[reflect.Uint], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
 		execDec("uint", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
@@ -464,7 +464,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a uintptr
 		}
-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpMap[reflect.Uintptr], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
 		execDec("uintptr", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
@@ -503,7 +503,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a float
 		}
-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpMap[reflect.Float], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(floatResult)
 		execDec("float", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {

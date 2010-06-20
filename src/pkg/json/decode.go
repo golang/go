@@ -572,101 +572,24 @@ func (d *decodeState) literal(v reflect.Value) {
 			v.Set(reflect.NewValue(n))
 
 		case *reflect.IntValue:
-			n, err := strconv.Atoi(s)
-			if err != nil {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(n)
-		case *reflect.Int8Value:
-			n, err := strconv.Atoi(s)
-			if err != nil || int(int8(n)) != n {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(int8(n))
-		case *reflect.Int16Value:
-			n, err := strconv.Atoi(s)
-			if err != nil || int(int16(n)) != n {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(int16(n))
-		case *reflect.Int32Value:
-			n, err := strconv.Atoi(s)
-			if err != nil || int(int32(n)) != n {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(int32(n))
-		case *reflect.Int64Value:
 			n, err := strconv.Atoi64(s)
-			if err != nil {
+			if err != nil || v.Overflow(n) {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
 				break
 			}
 			v.Set(n)
 
 		case *reflect.UintValue:
-			n, err := strconv.Atoui(s)
-			if err != nil {
+			n, err := strconv.Atoui64(s)
+			if err != nil || v.Overflow(n) {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
 				break
 			}
 			v.Set(n)
-		case *reflect.Uint8Value:
-			n, err := strconv.Atoui(s)
-			if err != nil || uint(uint8(n)) != n {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(uint8(n))
-		case *reflect.Uint16Value:
-			n, err := strconv.Atoui(s)
-			if err != nil || uint(uint16(n)) != n {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(uint16(n))
-		case *reflect.Uint32Value:
-			n, err := strconv.Atoui(s)
-			if err != nil || uint(uint32(n)) != n {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(uint32(n))
-		case *reflect.Uint64Value:
-			n, err := strconv.Atoui64(s)
-			if err != nil {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(n)
-		case *reflect.UintptrValue:
-			n, err := strconv.Atoui64(s)
-			if err != nil || uint64(uintptr(n)) != n {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(uintptr(n))
 
 		case *reflect.FloatValue:
-			n, err := strconv.Atof(s)
-			if err != nil {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(n)
-		case *reflect.Float32Value:
-			n, err := strconv.Atof32(s)
-			if err != nil {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
-				break
-			}
-			v.Set(n)
-		case *reflect.Float64Value:
-			n, err := strconv.Atof64(s)
-			if err != nil {
+			n, err := strconv.AtofN(s, int(v.Type().Size()*8))
+			if err != nil || v.Overflow(n) {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
 				break
 			}

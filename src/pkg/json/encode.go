@@ -156,35 +156,13 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		}
 
 	case *reflect.IntValue:
-		e.WriteString(strconv.Itoa(v.Get()))
-	case *reflect.Int8Value:
-		e.WriteString(strconv.Itoa(int(v.Get())))
-	case *reflect.Int16Value:
-		e.WriteString(strconv.Itoa(int(v.Get())))
-	case *reflect.Int32Value:
-		e.WriteString(strconv.Itoa(int(v.Get())))
-	case *reflect.Int64Value:
 		e.WriteString(strconv.Itoa64(v.Get()))
 
 	case *reflect.UintValue:
-		e.WriteString(strconv.Uitoa(v.Get()))
-	case *reflect.Uint8Value:
-		e.WriteString(strconv.Uitoa(uint(v.Get())))
-	case *reflect.Uint16Value:
-		e.WriteString(strconv.Uitoa(uint(v.Get())))
-	case *reflect.Uint32Value:
-		e.WriteString(strconv.Uitoa(uint(v.Get())))
-	case *reflect.Uint64Value:
 		e.WriteString(strconv.Uitoa64(v.Get()))
-	case *reflect.UintptrValue:
-		e.WriteString(strconv.Uitoa64(uint64(v.Get())))
 
 	case *reflect.FloatValue:
-		e.WriteString(strconv.Ftoa(v.Get(), 'g', -1))
-	case *reflect.Float32Value:
-		e.WriteString(strconv.Ftoa32(v.Get(), 'g', -1))
-	case *reflect.Float64Value:
-		e.WriteString(strconv.Ftoa64(v.Get(), 'g', -1))
+		e.WriteString(strconv.FtoaN(v.Get(), 'g', -1, int(v.Type().Size()*8)))
 
 	case *reflect.StringValue:
 		e.string(v.Get())

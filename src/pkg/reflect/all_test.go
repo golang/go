@@ -164,8 +164,8 @@ var valueTests = []pair{
 	pair{(uint16)(0), "16"},
 	pair{(uint32)(0), "32"},
 	pair{(uint64)(0), "64"},
-	pair{(float32)(0), "32.1"},
-	pair{(float64)(0), "64.2"},
+	pair{(float32)(0), "256.25"},
+	pair{(float64)(0), "512.125"},
 	pair{(string)(""), "stringy cheese"},
 	pair{(bool)(false), "true"},
 	pair{(*int8)(nil), "*int8(0)"},
@@ -219,31 +219,49 @@ func TestSet(t *testing.T) {
 		v := NewValue(tt.i)
 		switch v := v.(type) {
 		case *IntValue:
-			v.Set(132)
-		case *Int8Value:
-			v.Set(8)
-		case *Int16Value:
-			v.Set(16)
-		case *Int32Value:
-			v.Set(32)
-		case *Int64Value:
-			v.Set(64)
+			switch v.Type().Kind() {
+			case Int:
+				v.Set(132)
+			case Int8:
+				v.Set(8)
+			case Int16:
+				v.Set(16)
+			case Int32:
+				v.Set(32)
+			case Int64:
+				v.Set(64)
+			}
 		case *UintValue:
-			v.Set(132)
-		case *Uint8Value:
-			v.Set(8)
-		case *Uint16Value:
-			v.Set(16)
-		case *Uint32Value:
-			v.Set(32)
-		case *Uint64Value:
-			v.Set(64)
+			switch v.Type().Kind() {
+			case Uint:
+				v.Set(132)
+			case Uint8:
+				v.Set(8)
+			case Uint16:
+				v.Set(16)
+			case Uint32:
+				v.Set(32)
+			case Uint64:
+				v.Set(64)
+			}
 		case *FloatValue:
-			v.Set(3200.0)
-		case *Float32Value:
-			v.Set(32.1)
-		case *Float64Value:
-			v.Set(64.2)
+			switch v.Type().Kind() {
+			case Float:
+				v.Set(128.5)
+			case Float32:
+				v.Set(256.25)
+			case Float64:
+				v.Set(512.125)
+			}
+		case *ComplexValue:
+			switch v.Type().Kind() {
+			case Complex:
+				v.Set(53200.0 + 100i)
+			case Complex64:
+				v.Set(532.125 + 10i)
+			case Complex128:
+				v.Set(564.25 + 1i)
+			}
 		case *StringValue:
 			v.Set("stringy cheese")
 		case *BoolValue:
@@ -261,31 +279,50 @@ func TestSetValue(t *testing.T) {
 		v := NewValue(tt.i)
 		switch v := v.(type) {
 		case *IntValue:
-			v.SetValue(NewValue(int(132)))
-		case *Int8Value:
-			v.SetValue(NewValue(int8(8)))
-		case *Int16Value:
-			v.SetValue(NewValue(int16(16)))
-		case *Int32Value:
-			v.SetValue(NewValue(int32(32)))
-		case *Int64Value:
-			v.SetValue(NewValue(int64(64)))
+			switch v.Type().Kind() {
+			case Int:
+				v.SetValue(NewValue(int(132)))
+			case Int8:
+				v.SetValue(NewValue(int8(8)))
+			case Int16:
+				v.SetValue(NewValue(int16(16)))
+			case Int32:
+				v.SetValue(NewValue(int32(32)))
+			case Int64:
+				v.SetValue(NewValue(int64(64)))
+			}
 		case *UintValue:
-			v.SetValue(NewValue(uint(132)))
-		case *Uint8Value:
-			v.SetValue(NewValue(uint8(8)))
-		case *Uint16Value:
-			v.SetValue(NewValue(uint16(16)))
-		case *Uint32Value:
-			v.SetValue(NewValue(uint32(32)))
-		case *Uint64Value:
-			v.SetValue(NewValue(uint64(64)))
+			switch v.Type().Kind() {
+			case Uint:
+				v.SetValue(NewValue(uint(132)))
+			case Uint8:
+				v.SetValue(NewValue(uint8(8)))
+			case Uint16:
+				v.SetValue(NewValue(uint16(16)))
+			case Uint32:
+				v.SetValue(NewValue(uint32(32)))
+			case Uint64:
+				v.SetValue(NewValue(uint64(64)))
+			}
 		case *FloatValue:
-			v.SetValue(NewValue(float(3200.0)))
-		case *Float32Value:
-			v.SetValue(NewValue(float32(32.1)))
-		case *Float64Value:
-			v.SetValue(NewValue(float64(64.2)))
+			switch v.Type().Kind() {
+			case Float:
+				v.SetValue(NewValue(float(128.5)))
+			case Float32:
+				v.SetValue(NewValue(float32(256.25)))
+			case Float64:
+				v.SetValue(NewValue(float64(512.125)))
+			}
+		case *ComplexValue:
+			switch v.Type().Kind() {
+			case Complex:
+				v.SetValue(NewValue(complex(53200.0 + 100i)))
+			case Complex64:
+				v.SetValue(NewValue(complex64(532.125 + 10i)))
+			case Complex128:
+				v.SetValue(NewValue(complex128(564.25 + 1i)))
+			}
+
 		case *StringValue:
 			v.SetValue(NewValue("stringy cheese"))
 		case *BoolValue:
@@ -302,7 +339,7 @@ var _i = 7
 
 var valueToStringTests = []pair{
 	pair{123, "123"},
-	pair{123.4, "123.4"},
+	pair{123.5, "123.5"},
 	pair{byte(123), "123"},
 	pair{"abc", "abc"},
 	pair{T{123, 456.75, "hello", &_i}, "reflect_test.T{123, 456.75, hello, *int(&7)}"},
@@ -606,9 +643,9 @@ func TestDeepEqualRecursiveStruct(t *testing.T) {
 	}
 }
 
-type Complex struct {
+type _Complex struct {
 	a int
-	b [3]*Complex
+	b [3]*_Complex
 	c *string
 	d map[float]float
 }
@@ -616,9 +653,9 @@ type Complex struct {
 func TestDeepEqualComplexStruct(t *testing.T) {
 	m := make(map[float]float)
 	stra, strb := "hello", "hello"
-	a, b := new(Complex), new(Complex)
-	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m}
-	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m}
+	a, b := new(_Complex), new(_Complex)
+	*a = _Complex{5, [3]*_Complex{a, b, a}, &stra, m}
+	*b = _Complex{5, [3]*_Complex{b, a, a}, &strb, m}
 	if !DeepEqual(a, b) {
 		t.Error("DeepEqual(complex same) = false, want true")
 	}
@@ -627,9 +664,9 @@ func TestDeepEqualComplexStruct(t *testing.T) {
 func TestDeepEqualComplexStructInequality(t *testing.T) {
 	m := make(map[float]float)
 	stra, strb := "hello", "helloo" // Difference is here
-	a, b := new(Complex), new(Complex)
-	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m}
-	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m}
+	a, b := new(_Complex), new(_Complex)
+	*a = _Complex{5, [3]*_Complex{a, b, a}, &stra, m}
+	*b = _Complex{5, [3]*_Complex{b, a, a}, &strb, m}
 	if DeepEqual(a, b) {
 		t.Error("DeepEqual(complex different) = true, want false")
 	}
@@ -830,7 +867,7 @@ func TestMap(t *testing.T) {
 
 		// Check that value lookup is correct.
 		vv := mv.Elem(NewValue(k))
-		if vi := vv.(*IntValue).Get(); vi != v {
+		if vi := vv.(*IntValue).Get(); vi != int64(v) {
 			t.Errorf("Key %q: have value %d, want %d", vi, v)
 		}
 
@@ -982,9 +1019,9 @@ func TestFunc(t *testing.T) {
 		t.Fatalf("Call returned %d values, want 3", len(ret))
 	}
 
-	i := ret[0].(*Uint8Value).Get()
+	i := ret[0].(*UintValue).Get()
 	j := ret[1].(*IntValue).Get()
-	k := ret[2].(*Uint8Value).Get()
+	k := ret[2].(*UintValue).Get()
 	if i != 10 || j != 20 || k != 30 {
 		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k)
 	}

@@ -468,8 +468,6 @@ func (p *pp) fmtUint64(v uint64, verb int, sharp bool, value interface{}) {
 	}
 }
 
-var floatBits = reflect.Typeof(float(0)).Size() * 8
-
 func (p *pp) fmtFloat32(v float32, verb int, value interface{}) {
 	switch verb {
 	case 'b':
@@ -507,8 +505,6 @@ func (p *pp) fmtFloat64(v float64, verb int, value interface{}) {
 		p.badVerb(verb, value)
 	}
 }
-
-var complexBits = reflect.Typeof(complex(0i)).Size() * 8
 
 func (p *pp) fmtComplex64(v complex64, verb int, value interface{}) {
 	switch verb {
@@ -614,6 +610,13 @@ func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int, 
 	}
 	return true
 }
+
+var (
+	intBits     = uintptr(reflect.Typeof(int(0)).Size() * 8)
+	floatBits   = uintptr(reflect.Typeof(float(0)).Size() * 8)
+	complexBits = uintptr(reflect.Typeof(complex(0+0i)).Size() * 8)
+	uintptrBits = uintptr(reflect.Typeof(uintptr(0)).Size() * 8)
+)
 
 func (p *pp) printField(field interface{}, verb int, plus, sharp bool, depth int) (was_string bool) {
 	if field != nil {
@@ -724,47 +727,21 @@ BigSwitch:
 	case *reflect.BoolValue:
 		p.fmtBool(f.Get(), verb, field)
 	case *reflect.IntValue:
-		p.fmtInt64(int64(f.Get()), verb, field)
-	case *reflect.Int8Value:
-		p.fmtInt64(int64(f.Get()), verb, field)
-	case *reflect.Int16Value:
-		p.fmtInt64(int64(f.Get()), verb, field)
-	case *reflect.Int32Value:
-		p.fmtInt64(int64(f.Get()), verb, field)
-	case *reflect.Int64Value:
 		p.fmtInt64(f.Get(), verb, field)
 	case *reflect.UintValue:
 		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
-	case *reflect.Uint8Value:
-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
-	case *reflect.Uint16Value:
-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
-	case *reflect.Uint32Value:
-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
-	case *reflect.Uint64Value:
-		p.fmtUint64(f.Get(), verb, sharp, field)
-	case *reflect.UintptrValue:
-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
 	case *reflect.FloatValue:
-		if floatBits == 32 {
+		if f.Type().Size() == 4 {
 			p.fmtFloat32(float32(f.Get()), verb, field)
 		} else {
 			p.fmtFloat64(float64(f.Get()), verb, field)
 		}
-	case *reflect.Float32Value:
-		p.fmtFloat64(float64(f.Get()), verb, field)
-	case *reflect.Float64Value:
-		p.fmtFloat64(f.Get(), verb, field)
 	case *reflect.ComplexValue:
-		if complexBits == 64 {
+		if f.Type().Size() == 8 {
 			p.fmtComplex64(complex64(f.Get()), verb, field)
 		} else {
 			p.fmtComplex128(complex128(f.Get()), verb, field)
 		}
-	case *reflect.Complex64Value:
-		p.fmtComplex64(f.Get(), verb, field)
-	case *reflect.Complex128Value:
-		p.fmtComplex128(f.Get(), verb, field)
 	case *reflect.StringValue:
 		p.fmtString(f.Get(), verb, sharp, field)
 	case *reflect.MapValue:

@@ -122,17 +122,15 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 	case timeType:
 		return tagUTCTime, false, true
 	}
-	switch i := t.(type) {
+	switch t := t.(type) {
 	case *reflect.BoolType:
 		return tagBoolean, false, true
 	case *reflect.IntType:
 		return tagInteger, false, true
-	case *reflect.Int64Type:
-		return tagInteger, false, true
 	case *reflect.StructType:
 		return tagSequence, true, true
 	case *reflect.SliceType:
-		if _, ok := t.(*reflect.SliceType).Elem().(*reflect.Uint8Type); ok {
+		if t.Elem().Kind() == reflect.Uint8 {
 			return tagOctetString, false, true
 		}
 		if strings.HasSuffix(t.Name(), "SET") {

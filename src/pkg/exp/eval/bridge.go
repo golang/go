@@ -37,37 +37,45 @@ func TypeFromNative(t reflect.Type) Type {
 	switch t := t.(type) {
 	case *reflect.BoolType:
 		et = BoolType
-	case *reflect.Float32Type:
-		et = Float32Type
-	case *reflect.Float64Type:
-		et = Float64Type
 	case *reflect.FloatType:
-		et = FloatType
-	case *reflect.Int16Type:
-		et = Int16Type
-	case *reflect.Int32Type:
-		et = Int32Type
-	case *reflect.Int64Type:
-		et = Int64Type
-	case *reflect.Int8Type:
-		et = Int8Type
+		switch t.Kind() {
+		case reflect.Float32:
+			et = Float32Type
+		case reflect.Float64:
+			et = Float64Type
+		case reflect.Float:
+			et = FloatType
+		}
 	case *reflect.IntType:
-		et = IntType
+		switch t.Kind() {
+		case reflect.Int16:
+			et = Int16Type
+		case reflect.Int32:
+			et = Int32Type
+		case reflect.Int64:
+			et = Int64Type
+		case reflect.Int8:
+			et = Int8Type
+		case reflect.Int:
+			et = IntType
+		}
+	case *reflect.UintType:
+		switch t.Kind() {
+		case reflect.Uint16:
+			et = Uint16Type
+		case reflect.Uint32:
+			et = Uint32Type
+		case reflect.Uint64:
+			et = Uint64Type
+		case reflect.Uint8:
+			et = Uint8Type
+		case reflect.Uint:
+			et = UintType
+		case reflect.Uintptr:
+			et = UintptrType
+		}
 	case *reflect.StringType:
 		et = StringType
-	case *reflect.Uint16Type:
-		et = Uint16Type
-	case *reflect.Uint32Type:
-		et = Uint32Type
-	case *reflect.Uint64Type:
-		et = Uint64Type
-	case *reflect.Uint8Type:
-		et = Uint8Type
-	case *reflect.UintType:
-		et = UintType
-	case *reflect.UintptrType:
-		et = UintptrType
-
 	case *reflect.ArrayType:
 		et = NewArrayType(int64(t.Len()), TypeFromNative(t.Elem()))
 	case *reflect.ChanType:
