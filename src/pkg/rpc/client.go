@@ -93,7 +93,13 @@ func (client *Client) input() {
 		c := client.pending[seq]
 		client.pending[seq] = c, false
 		client.mutex.Unlock()
+		if c == nil {
+			err = os.NewError("invalid response sequence number")
+			break
+		}
 		err = client.codec.ReadResponseBody(c.Reply)
+		// TODO(rsc): Should look at err, but breaks tests.
+
 		// Empty strings should turn into nil os.Errors
 		if response.Error != "" {
 			c.Error = os.ErrorString(response.Error)

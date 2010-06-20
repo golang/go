@@ -48,7 +48,6 @@
 # ./gc.go
 # ./gc1.go
 ./hashmap.go
-./hilbert.go
 ./helloworld.go
 ./if.go
 ./if1.go
@@ -332,7 +331,6 @@ fixedbugs/bug149.go
 fixedbugs/bug150.go
 fixedbugs/bug151.go
 fixedbugs/bug152.go
-fixedbugs/bug153.go
 # fixedbugs/bug154.go  # needs floating point
 fixedbugs/bug155.go
 fixedbugs/bug156.go

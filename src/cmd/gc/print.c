@@ -348,7 +348,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 			fmtprint(f, "(%T)(", n->type);
 		else
 			fmtprint(f, "%T(", n->type);
-		exprfmt(f, n->left, 0);
+		if(n->left == N)
+			exprlistfmt(f, n->list);
+		else
+			exprfmt(f, n->left, 0);
 		fmtprint(f, ")");
 		break;
 

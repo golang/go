@@ -807,6 +807,7 @@ goopnames[] =
 	[OAS]		= "=",
 	[OAS2]		= "=",
 	[OBREAK]	= "break",
+	[OCALL]	= "function call",
 	[OCAP]		= "cap",
 	[OCASE]		= "case",
 	[OCLOSED]	= "closed",
@@ -1814,6 +1815,7 @@ int
 assignop(Type *src, Type *dst, char **why)
 {
 	Type *missing, *have;
+	int ptr;
 
 	if(why != nil)
 		*why = "";
@@ -1839,17 +1841,24 @@ assignop(Type *src, Type *dst, char **why)
 
 	// 3. dst is an interface type and src implements dst.
 	if(dst->etype == TINTER && src->etype != TNIL) {
-		if(implements(src, dst, &missing, &have))
+		if(implements(src, dst, &missing, &have, &ptr))
 			return OCONVIFACE;
 		if(why != nil) {
 			if(isptrto(src, TINTER))
-				*why = smprint(": %T is pointer to interface, not interface", src);
+				*why = smprint(":\n\t%T is pointer to interface, not interface", src);
+			else if(have && have->sym == missing->sym)
+				*why = smprint(":\n\t%T does not implement %T (wrong type for %S method)\n"
+					"\t\thave %S%hhT\n\t\twant %S%hhT", src, dst, missing->sym,
+					have->sym, have->type, missing->sym, missing->type);
+			else if(ptr)
+				*why = smprint(":\n\t%T does not implement %T (%S method requires pointer receiver)",
+					src, dst, missing->sym);
 			else if(have)
-				*why = smprint(": %T does not implement %T (wrong type for %S method)\n"
-					"\thave %S%hhT\n\twant %S%hhT", src, dst, missing->sym,
+				*why = smprint(":\n\t%T does not implement %T (missing %S method)\n"
+					"\t\thave %S%hhT\n\t\twant %S%hhT", src, dst, missing->sym,
 					have->sym, have->type, missing->sym, missing->type);
 			else
-				*why = smprint(": %T does not implement %T (missing %S method)",
+				*why = smprint(":\n\t%T does not implement %T (missing %S method)",
 					src, dst, missing->sym);
 		}
 		return 0;
@@ -2655,6 +2664,30 @@ setmaxarg(Type *t)
 		maxarg = w;
 }
 
+/* unicode-aware case-insensitive strcmp */
+
+static int
+cistrcmp(char *p, char *q)
+{
+	Rune rp, rq;
+
+	while(*p || *q) {
+		if(*p == 0)
+			return +1;
+		if(*q == 0)
+			return -1;
+		p += chartorune(&rp, p);
+		q += chartorune(&rq, q);
+		rp = tolowerrune(rp);
+		rq = tolowerrune(rq);
+		if(rp < rq)
+			return -1;
+		if(rp > rq)
+			return +1;
+	}
+	return 0;
+}
+
 /*
  * code to resolve elided DOTs
  * in embedded types
@@ -2664,7 +2697,7 @@ setmaxarg(Type *t)
 // return count of fields+methods
 // found with a given name
 static int
-lookdot0(Sym *s, Type *t, Type **save)
+lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
 {
 	Type *f, *u;
 	int c;
@@ -2676,7 +2709,7 @@ lookdot0(Sym *s, Type *t, Type **save)
 	c = 0;
 	if(u->etype == TSTRUCT || u->etype == TINTER) {
 		for(f=u->type; f!=T; f=f->down)
-			if(f->sym == s) {
+			if(f->sym == s || (ignorecase && cistrcmp(f->sym->name, s->name) == 0)) {
 				if(save)
 					*save = f;
 				c++;
@@ -2685,7 +2718,7 @@ lookdot0(Sym *s, Type *t, Type **save)
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down)
-			if(f->sym == s && f->embedded == 0) {
+			if(f->embedded == 0 && (f->sym == s || (ignorecase && cistrcmp(f->sym->name, s->name) == 0))) {
 				if(save)
 					*save = f;
 				c++;
@@ -2700,7 +2733,7 @@ lookdot0(Sym *s, Type *t, Type **save)
 // answer is in dotlist array and
 // count of number of ways is returned.
 int
-adddot1(Sym *s, Type *t, int d, Type **save)
+adddot1(Sym *s, Type *t, int d, Type **save, int ignorecase)
 {
 	Type *f, *u;
 	int c, a;
@@ -2710,7 +2743,7 @@ adddot1(Sym *s, Type *t, int d, Type **save)
 	t->trecur = 1;
 
 	if(d == 0) {
-		c = lookdot0(s, t, save);
+		c = lookdot0(s, t, save, ignorecase);
 		goto out;
 	}
 
@@ -2727,7 +2760,7 @@ adddot1(Sym *s, Type *t, int d, Type **save)
 			continue;
 		if(f->sym == S)
 			continue;
-		a = adddot1(s, f->type, d, save);
+		a = adddot1(s, f->type, d, save, ignorecase);
 		if(a != 0 && c == 0)
 			dotlist[d].field = f;
 		c += a;
@@ -2764,7 +2797,7 @@ adddot(Node *n)
 		goto ret;
 
 	for(d=0; d<nelem(dotlist); d++) {
-		c = adddot1(s, t, d, nil);
+		c = adddot1(s, t, d, nil, 0);
 		if(c > 0)
 			goto out;
 	}
@@ -2902,7 +2935,7 @@ expandmeth(Sym *s, Type *t)
 	for(sl=slist; sl!=nil; sl=sl->link) {
 		sl->field->sym->flags &= ~SymUniq;
 		for(d=0; d<nelem(dotlist); d++) {
-			c = adddot1(sl->field->sym, t, d, &f);
+			c = adddot1(sl->field->sym, t, d, &f, 0);
 			if(c == 0)
 				continue;
 			if(c == 1) {
@@ -3035,7 +3068,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 }
 
 static Type*
-ifacelookdot(Sym *s, Type *t, int *followptr)
+ifacelookdot(Sym *s, Type *t, int *followptr, int ignorecase)
 {
 	int i, c, d;
 	Type *m;
@@ -3046,7 +3079,7 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
 		return T;
 
 	for(d=0; d<nelem(dotlist); d++) {
-		c = adddot1(s, t, d, &m);
+		c = adddot1(s, t, d, &m, ignorecase);
 		if(c > 1) {
 			yyerror("%T.%S is ambiguous", t, s);
 			return T;
@@ -3069,7 +3102,7 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
 }
 
 int
-implements(Type *t, Type *iface, Type **m, Type **samename)
+implements(Type *t, Type *iface, Type **m, Type **samename, int *ptr)
 {
 	Type *t0, *im, *tm, *rcvr, *imtype;
 	int followptr;
@@ -3090,11 +3123,13 @@ implements(Type *t, Type *iface, Type **m, Type **samename)
 						goto found;
 					*m = im;
 					*samename = tm;
+					*ptr = 0;
 					return 0;
 				}
 			}
 			*m = im;
 			*samename = nil;
+			*ptr = 0;
 			return 0;
 		found:;
 		}
@@ -3106,10 +3141,14 @@ implements(Type *t, Type *iface, Type **m, Type **samename)
 		expandmeth(t->sym, t);
 	for(im=iface->type; im; im=im->down) {
 		imtype = methodfunc(im->type, 0);
-		tm = ifacelookdot(im->sym, t, &followptr);
+		tm = ifacelookdot(im->sym, t, &followptr, 0);
 		if(tm == T || !eqtype(methodfunc(tm->type, 0), imtype)) {
+print("try case\n");
+			if(tm == T)
+				tm = ifacelookdot(im->sym, t, &followptr, 1);
 			*m = im;
 			*samename = tm;
+			*ptr = 0;
 			return 0;
 		}
 		// if pointer receiver in method,
@@ -3120,6 +3159,7 @@ implements(Type *t, Type *iface, Type **m, Type **samename)
 				yyerror("interface pointer mismatch");
 			*m = im;
 			*samename = nil;
+			*ptr = 1;
 			return 0;
 		}
 	}
