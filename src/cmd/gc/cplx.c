@@ -121,12 +121,15 @@ complexgen(Node *n, Node *res)
 	// pick off float/complex opcodes
 	switch(n->op) {
 	case OCMPLX:
-		subnode(&n1, &n2, res);
-		tempname(&tmp, n1.type);
-		cgen(n->left, &tmp);
-		cgen(n->right, &n2);
-		cgen(&tmp, &n1);
-		return;
+		if(res->addable) {
+			subnode(&n1, &n2, res);
+			tempname(&tmp, n1.type);
+			cgen(n->left, &tmp);
+			cgen(n->right, &n2);
+			cgen(&tmp, &n1);
+			return;
+		}
+		break;
 
 	case OREAL:
 	case OIMAG:
