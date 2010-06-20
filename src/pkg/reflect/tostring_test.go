@@ -23,35 +23,14 @@ func valueToString(val Value) string {
 	typ := val.Type()
 	switch val := val.(type) {
 	case *IntValue:
-		return strconv.Uitoa64(uint64(val.Get()))
-	case *Int8Value:
-		return strconv.Itoa64(int64(val.Get()))
-	case *Int16Value:
-		return strconv.Itoa64(int64(val.Get()))
-	case *Int32Value:
-		return strconv.Itoa64(int64(val.Get()))
-	case *Int64Value:
-		return strconv.Itoa64(int64(val.Get()))
+		return strconv.Itoa64(val.Get())
 	case *UintValue:
-		return strconv.Itoa64(int64(val.Get()))
-	case *Uint8Value:
-		return strconv.Itoa64(int64(val.Get()))
-	case *Uint16Value:
-		return strconv.Itoa64(int64(val.Get()))
-	case *Uint32Value:
-		return strconv.Itoa64(int64(val.Get()))
-	case *Uint64Value:
-		return strconv.Uitoa64(uint64(val.Get()))
+		return strconv.Uitoa64(val.Get())
 	case *FloatValue:
-		if strconv.FloatSize == 32 {
-			return strconv.Ftoa32(float32(val.Get()), 'g', -1)
-		} else {
-			return strconv.Ftoa64(float64(val.Get()), 'g', -1)
-		}
-	case *Float32Value:
-		return strconv.Ftoa32(val.Get(), 'g', -1)
-	case *Float64Value:
-		return strconv.Ftoa64(val.Get(), 'g', -1)
+		return strconv.Ftoa64(float64(val.Get()), 'g', -1)
+	case *ComplexValue:
+		c := val.Get()
+		return strconv.Ftoa64(float64(real(c)), 'g', -1) + "+" + strconv.Ftoa64(float64(imag(c)), 'g', -1) + "i"
 	case *StringValue:
 		return val.Get()
 	case *BoolValue:

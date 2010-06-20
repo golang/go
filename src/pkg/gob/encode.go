@@ -601,35 +601,35 @@ func encodeMap(b *bytes.Buffer, rt reflect.Type, p uintptr, keyOp, elemOp encOp,
 	return state.err
 }
 
-var encOpMap = map[reflect.Type]encOp{
-	valueKind(false):      encBool,
-	valueKind(int(0)):     encInt,
-	valueKind(int8(0)):    encInt8,
-	valueKind(int16(0)):   encInt16,
-	valueKind(int32(0)):   encInt32,
-	valueKind(int64(0)):   encInt64,
-	valueKind(uint(0)):    encUint,
-	valueKind(uint8(0)):   encUint8,
-	valueKind(uint16(0)):  encUint16,
-	valueKind(uint32(0)):  encUint32,
-	valueKind(uint64(0)):  encUint64,
-	valueKind(uintptr(0)): encUintptr,
-	valueKind(float(0)):   encFloat,
-	valueKind(float32(0)): encFloat32,
-	valueKind(float64(0)): encFloat64,
-	valueKind("x"):        encString,
+var encOpMap = map[reflect.Kind]encOp{
+	reflect.Bool:    encBool,
+	reflect.Int:     encInt,
+	reflect.Int8:    encInt8,
+	reflect.Int16:   encInt16,
+	reflect.Int32:   encInt32,
+	reflect.Int64:   encInt64,
+	reflect.Uint:    encUint,
+	reflect.Uint8:   encUint8,
+	reflect.Uint16:  encUint16,
+	reflect.Uint32:  encUint32,
+	reflect.Uint64:  encUint64,
+	reflect.Uintptr: encUintptr,
+	reflect.Float:   encFloat,
+	reflect.Float32: encFloat32,
+	reflect.Float64: encFloat64,
+	reflect.String:  encString,
 }
 
 // Return the encoding op for the base type under rt and
 // the indirection count to reach it.
 func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 	typ, indir := indirect(rt)
-	op, ok := encOpMap[reflect.Typeof(typ)]
+	op, ok := encOpMap[typ.Kind()]
 	if !ok {
 		// Special cases
 		switch t := typ.(type) {
 		case *reflect.SliceType:
-			if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+			if t.Elem().Kind() == reflect.Uint8 {
 				op = encUint8Array
 				break
 			}

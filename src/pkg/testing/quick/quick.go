@@ -60,26 +60,41 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	switch concrete := t.(type) {
 	case *reflect.BoolType:
 		return reflect.NewValue(rand.Int()&1 == 0), true
-	case *reflect.Float32Type:
-		return reflect.NewValue(randFloat32(rand)), true
-	case *reflect.Float64Type:
-		return reflect.NewValue(randFloat64(rand)), true
-	case *reflect.FloatType:
-		if t.Size() == 4 {
-			return reflect.NewValue(float(randFloat32(rand))), true
-		} else {
-			return reflect.NewValue(float(randFloat64(rand))), true
+	case *reflect.FloatType, *reflect.IntType, *reflect.UintType:
+		switch t.Kind() {
+		case reflect.Float32:
+			return reflect.NewValue(randFloat32(rand)), true
+		case reflect.Float64:
+			return reflect.NewValue(randFloat64(rand)), true
+		case reflect.Float:
+			if t.Size() == 4 {
+				return reflect.NewValue(float(randFloat32(rand))), true
+			} else {
+				return reflect.NewValue(float(randFloat64(rand))), true
+			}
+		case reflect.Int16:
+			return reflect.NewValue(int16(randInt64(rand))), true
+		case reflect.Int32:
+			return reflect.NewValue(int32(randInt64(rand))), true
+		case reflect.Int64:
+			return reflect.NewValue(randInt64(rand)), true
+		case reflect.Int8:
+			return reflect.NewValue(int8(randInt64(rand))), true
+		case reflect.Int:
+			return reflect.NewValue(int(randInt64(rand))), true
+		case reflect.Uint16:
+			return reflect.NewValue(uint16(randInt64(rand))), true
+		case reflect.Uint32:
+			return reflect.NewValue(uint32(randInt64(rand))), true
+		case reflect.Uint64:
+			return reflect.NewValue(uint64(randInt64(rand))), true
+		case reflect.Uint8:
+			return reflect.NewValue(uint8(randInt64(rand))), true
+		case reflect.Uint:
+			return reflect.NewValue(uint(randInt64(rand))), true
+		case reflect.Uintptr:
+			return reflect.NewValue(uintptr(randInt64(rand))), true
 		}
-	case *reflect.Int16Type:
-		return reflect.NewValue(int16(randInt64(rand))), true
-	case *reflect.Int32Type:
-		return reflect.NewValue(int32(randInt64(rand))), true
-	case *reflect.Int64Type:
-		return reflect.NewValue(randInt64(rand)), true
-	case *reflect.Int8Type:
-		return reflect.NewValue(int8(randInt64(rand))), true
-	case *reflect.IntType:
-		return reflect.NewValue(int(randInt64(rand))), true
 	case *reflect.MapType:
 		numElems := rand.Intn(complexSize)
 		m := reflect.MakeMap(concrete)
@@ -128,18 +143,6 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 			s.Field(i).SetValue(v)
 		}
 		return s, true
-	case *reflect.Uint16Type:
-		return reflect.NewValue(uint16(randInt64(rand))), true
-	case *reflect.Uint32Type:
-		return reflect.NewValue(uint32(randInt64(rand))), true
-	case *reflect.Uint64Type:
-		return reflect.NewValue(uint64(randInt64(rand))), true
-	case *reflect.Uint8Type:
-		return reflect.NewValue(uint8(randInt64(rand))), true
-	case *reflect.UintType:
-		return reflect.NewValue(uint(randInt64(rand))), true
-	case *reflect.UintptrType:
-		return reflect.NewValue(uintptr(randInt64(rand))), true
 	default:
 		return nil, false
 	}

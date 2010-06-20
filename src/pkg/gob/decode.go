@@ -540,19 +540,19 @@ func ignoreSlice(state *decodeState, elemOp decOp) os.Error {
 	return ignoreArrayHelper(state, elemOp, int(decodeUint(state)))
 }
 
-var decOpMap = map[reflect.Type]decOp{
-	valueKind(false):      decBool,
-	valueKind(int8(0)):    decInt8,
-	valueKind(int16(0)):   decInt16,
-	valueKind(int32(0)):   decInt32,
-	valueKind(int64(0)):   decInt64,
-	valueKind(uint8(0)):   decUint8,
-	valueKind(uint16(0)):  decUint16,
-	valueKind(uint32(0)):  decUint32,
-	valueKind(uint64(0)):  decUint64,
-	valueKind(float32(0)): decFloat32,
-	valueKind(float64(0)): decFloat64,
-	valueKind("x"):        decString,
+var decOpMap = map[reflect.Kind]decOp{
+	reflect.Bool:    decBool,
+	reflect.Int8:    decInt8,
+	reflect.Int16:   decInt16,
+	reflect.Int32:   decInt32,
+	reflect.Int64:   decInt64,
+	reflect.Uint8:   decUint8,
+	reflect.Uint16:  decUint16,
+	reflect.Uint32:  decUint32,
+	reflect.Uint64:  decUint64,
+	reflect.Float32: decFloat32,
+	reflect.Float64: decFloat64,
+	reflect.String:  decString,
 }
 
 var decIgnoreOpMap = map[typeId]decOp{
@@ -568,7 +568,7 @@ var decIgnoreOpMap = map[typeId]decOp{
 // the indirection count to reach it.
 func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error) {
 	typ, indir := indirect(rt)
-	op, ok := decOpMap[reflect.Typeof(typ)]
+	op, ok := decOpMap[typ.Kind()]
 	if !ok {
 		// Special cases
 		switch t := typ.(type) {
@@ -604,7 +604,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 
 		case *reflect.SliceType:
 			name = "element of " + name
-			if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+			if t.Elem().Kind() == reflect.Uint8 {
 				op = decUint8Array
 				break
 			}
@@ -718,11 +718,11 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 		return false
 	case *reflect.BoolType:
 		return fw == tBool
-	case *reflect.IntType, *reflect.Int8Type, *reflect.Int16Type, *reflect.Int32Type, *reflect.Int64Type:
+	case *reflect.IntType:
 		return fw == tInt
-	case *reflect.UintType, *reflect.Uint8Type, *reflect.Uint16Type, *reflect.Uint32Type, *reflect.Uint64Type, *reflect.UintptrType:
+	case *reflect.UintType:
 		return fw == tUint
-	case *reflect.FloatType, *reflect.Float32Type, *reflect.Float64Type:
+	case *reflect.FloatType:
 		return fw == tFloat
 	case *reflect.StringType:
 		return fw == tString
@@ -742,8 +742,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 		return dec.compatibleType(t.Key(), mapType.Key) && dec.compatibleType(t.Elem(), mapType.Elem)
 	case *reflect.SliceType:
 		// Is it an array of bytes?
-		et := t.Elem()
-		if _, ok := et.(*reflect.Uint8Type); ok {
+		if t.Elem().Kind() == reflect.Uint8 {
 			return fw == tBytes
 		}
 		// Extract and compare element types.
@@ -874,7 +873,7 @@ func init() {
 	default:
 		panic("gob: unknown size of float")
 	}
-	decOpMap[valueKind(float(0))] = op
+	decOpMap[reflect.Float] = op
 
 	// A similar assumption about int and uint.  Also assume int and uint have the same size.
 	var uop decOp
@@ -888,8 +887,8 @@ func init() {
 	default:
 		panic("gob: unknown size of int/uint")
 	}
-	decOpMap[valueKind(int(0))] = op
-	decOpMap[valueKind(uint(0))] = uop
+	decOpMap[reflect.Int] = op
+	decOpMap[reflect.Uint] = uop
 
 	// Finally uintptr
 	switch unsafe.Sizeof(uintptr(0)) {
@@ -900,5 +899,5 @@ func init() {
 	default:
 		panic("gob: unknown size of uintptr")
 	}
-	decOpMap[valueKind(uintptr(0))] = uop
+	decOpMap[reflect.Uintptr] = uop
 }

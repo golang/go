@@ -194,26 +194,8 @@ func sizeof(v reflect.Type) int {
 		}
 		return sum
 
-	case *reflect.Uint8Type:
-		return 1
-	case *reflect.Uint16Type:
-		return 2
-	case *reflect.Uint32Type:
-		return 4
-	case *reflect.Uint64Type:
-		return 8
-	case *reflect.Int8Type:
-		return 1
-	case *reflect.Int16Type:
-		return 2
-	case *reflect.Int32Type:
-		return 4
-	case *reflect.Int64Type:
-		return 8
-	case *reflect.Float32Type:
-		return 4
-	case *reflect.Float64Type:
-		return 8
+	case *reflect.UintType, *reflect.IntType, *reflect.FloatType:
+		return int(v.Size())
 	}
 	return -1
 }
@@ -307,26 +289,37 @@ func (d *decoder) value(v reflect.Value) {
 			d.value(v.Elem(i))
 		}
 
-	case *reflect.Uint8Value:
-		v.Set(d.uint8())
-	case *reflect.Uint16Value:
-		v.Set(d.uint16())
-	case *reflect.Uint32Value:
-		v.Set(d.uint32())
-	case *reflect.Uint64Value:
-		v.Set(d.uint64())
-	case *reflect.Int8Value:
-		v.Set(d.int8())
-	case *reflect.Int16Value:
-		v.Set(d.int16())
-	case *reflect.Int32Value:
-		v.Set(d.int32())
-	case *reflect.Int64Value:
-		v.Set(d.int64())
-	case *reflect.Float32Value:
-		v.Set(math.Float32frombits(d.uint32()))
-	case *reflect.Float64Value:
-		v.Set(math.Float64frombits(d.uint64()))
+	case *reflect.IntValue:
+		switch v.Type().Kind() {
+		case reflect.Int8:
+			v.Set(int64(d.int8()))
+		case reflect.Int16:
+			v.Set(int64(d.int16()))
+		case reflect.Int32:
+			v.Set(int64(d.int32()))
+		case reflect.Int64:
+			v.Set(d.int64())
+		}
+
+	case *reflect.UintValue:
+		switch v.Type().Kind() {
+		case reflect.Uint8:
+			v.Set(uint64(d.uint8()))
+		case reflect.Uint16:
+			v.Set(uint64(d.uint16()))
+		case reflect.Uint32:
+			v.Set(uint64(d.uint32()))
+		case reflect.Uint64:
+			v.Set(d.uint64())
+		}
+
+	case *reflect.FloatValue:
+		switch v.Type().Kind() {
+		case reflect.Float32:
+			v.Set(float64(math.Float32frombits(d.uint32())))
+		case reflect.Float64:
+			v.Set(math.Float64frombits(d.uint64()))
+		}
 	}
 }
 
@@ -348,25 +341,36 @@ func (e *encoder) value(v reflect.Value) {
 			e.value(v.Elem(i))
 		}
 
-	case *reflect.Uint8Value:
-		e.uint8(v.Get())
-	case *reflect.Uint16Value:
-		e.uint16(v.Get())
-	case *reflect.Uint32Value:
-		e.uint32(v.Get())
-	case *reflect.Uint64Value:
-		e.uint64(v.Get())
-	case *reflect.Int8Value:
-		e.int8(v.Get())
-	case *reflect.Int16Value:
-		e.int16(v.Get())
-	case *reflect.Int32Value:
-		e.int32(v.Get())
-	case *reflect.Int64Value:
-		e.int64(v.Get())
-	case *reflect.Float32Value:
-		e.uint32(math.Float32bits(v.Get()))
-	case *reflect.Float64Value:
-		e.uint64(math.Float64bits(v.Get()))
+	case *reflect.IntValue:
+		switch v.Type().Kind() {
+		case reflect.Int8:
+			e.int8(int8(v.Get()))
+		case reflect.Int16:
+			e.int16(int16(v.Get()))
+		case reflect.Int32:
+			e.int32(int32(v.Get()))
+		case reflect.Int64:
+			e.int64(v.Get())
+		}
+
+	case *reflect.UintValue:
+		switch v.Type().Kind() {
+		case reflect.Uint8:
+			e.uint8(uint8(v.Get()))
+		case reflect.Uint16:
+			e.uint16(uint16(v.Get()))
+		case reflect.Uint32:
+			e.uint32(uint32(v.Get()))
+		case reflect.Uint64:
+			e.uint64(v.Get())
+		}
+
+	case *reflect.FloatValue:
+		switch v.Type().Kind() {
+		case reflect.Float32:
+			e.uint32(math.Float32bits(float32(v.Get())))
+		case reflect.Float64:
+			e.uint64(math.Float64bits(v.Get()))
+		}
 	}
 }

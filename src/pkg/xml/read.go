@@ -218,7 +218,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 
 	case *reflect.SliceValue:
 		typ := v.Type().(*reflect.SliceType)
-		if _, ok := typ.Elem().(*reflect.Uint8Type); ok {
+		if typ.Elem().Kind() == reflect.Uint8 {
 			// []byte
 			saveData = v
 			break
@@ -245,11 +245,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		}
 		return nil
 
-	case *reflect.StringValue,
-		*reflect.IntValue, *reflect.UintValue, *reflect.UintptrValue,
-		*reflect.Int8Value, *reflect.Int16Value, *reflect.Int32Value, *reflect.Int64Value,
-		*reflect.Uint8Value, *reflect.Uint16Value, *reflect.Uint32Value, *reflect.Uint64Value,
-		*reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value, *reflect.BoolValue:
+	case *reflect.BoolValue, *reflect.FloatValue, *reflect.IntValue, *reflect.UintValue, *reflect.StringValue:
 		saveData = v
 
 	case *reflect.StructValue:
@@ -434,68 +430,13 @@ Loop:
 		if !getInt64() {
 			return err
 		}
-		t.Set(int(itmp))
-	case *reflect.Int8Value:
-		if !getInt64() {
-			return err
-		}
-		t.Set(int8(itmp))
-	case *reflect.Int16Value:
-		if !getInt64() {
-			return err
-		}
-		t.Set(int16(itmp))
-	case *reflect.Int32Value:
-		if !getInt64() {
-			return err
-		}
-		t.Set(int32(itmp))
-	case *reflect.Int64Value:
-		if !getInt64() {
-			return err
-		}
 		t.Set(itmp)
 	case *reflect.UintValue:
 		if !getUint64() {
 			return err
 		}
-		t.Set(uint(utmp))
-	case *reflect.Uint8Value:
-		if !getUint64() {
-			return err
-		}
-		t.Set(uint8(utmp))
-	case *reflect.Uint16Value:
-		if !getUint64() {
-			return err
-		}
-		t.Set(uint16(utmp))
-	case *reflect.Uint32Value:
-		if !getUint64() {
-			return err
-		}
-		t.Set(uint32(utmp))
-	case *reflect.Uint64Value:
-		if !getUint64() {
-			return err
-		}
 		t.Set(utmp)
-	case *reflect.UintptrValue:
-		if !getUint64() {
-			return err
-		}
-		t.Set(uintptr(utmp))
 	case *reflect.FloatValue:
-		if !getFloat64() {
-			return err
-		}
-		t.Set(float(ftmp))
-	case *reflect.Float32Value:
-		if !getFloat64() {
-			return err
-		}
-		t.Set(float32(ftmp))
-	case *reflect.Float64Value:
 		if !getFloat64() {
 			return err
 		}

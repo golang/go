@@ -353,8 +353,6 @@ func (s *ss) typeError(field interface{}, expected string) {
 	s.errorString("expected field of type pointer to " + expected + "; found " + reflect.Typeof(field).String())
 }
 
-var intBits = uint(reflect.Typeof(int(0)).Size() * 8)
-var uintptrBits = uint(reflect.Typeof(int(0)).Size() * 8)
 var complexError = os.ErrorString("syntax error scanning complex number")
 var boolError = os.ErrorString("syntax error scanning boolean")
 
@@ -458,7 +456,7 @@ func (s *ss) scanNumber(digits string) string {
 }
 
 // scanRune returns the next rune value in the input.
-func (s *ss) scanRune(bitSize uint) int64 {
+func (s *ss) scanRune(bitSize uintptr) int64 {
 	rune := int64(s.mustGetRune())
 	x := (rune << (64 - bitSize)) >> (64 - bitSize)
 	if x != rune {
@@ -469,7 +467,7 @@ func (s *ss) scanRune(bitSize uint) int64 {
 
 // scanInt returns the value of the integer represented by the next
 // token, checking for overflow.  Any error is stored in s.err.
-func (s *ss) scanInt(verb int, bitSize uint) int64 {
+func (s *ss) scanInt(verb int, bitSize uintptr) int64 {
 	if verb == 'c' {
 		return s.scanRune(bitSize)
 	}
@@ -490,7 +488,7 @@ func (s *ss) scanInt(verb int, bitSize uint) int64 {
 
 // scanUint returns the value of the unsigned integer represented
 // by the next token, checking for overflow.  Any error is stored in s.err.
-func (s *ss) scanUint(verb int, bitSize uint) uint64 {
+func (s *ss) scanUint(verb int, bitSize uintptr) uint64 {
 	if verb == 'c' {
 		return uint64(s.scanRune(bitSize))
 	}
@@ -559,27 +557,9 @@ func (s *ss) complexTokens() (real, imag string) {
 	return real, imagSign + imag
 }
 
-// convertFloat converts the string to a float value.
-func (s *ss) convertFloat(str string) float64 {
-	f, err := strconv.Atof(str)
-	if err != nil {
-		s.error(err)
-	}
-	return float64(f)
-}
-
-// convertFloat32 converts the string to a float32 value.
-func (s *ss) convertFloat32(str string) float64 {
-	f, err := strconv.Atof32(str)
-	if err != nil {
-		s.error(err)
-	}
-	return float64(f)
-}
-
-// convertFloat64 converts the string to a float64 value.
-func (s *ss) convertFloat64(str string) float64 {
-	f, err := strconv.Atof64(str)
+// convertFloat converts the string to a float64value.
+func (s *ss) convertFloat(str string, n int) float64 {
+	f, err := strconv.AtofN(str, n)
 	if err != nil {
 		s.error(err)
 	}
@@ -590,14 +570,14 @@ func (s *ss) convertFloat64(str string) float64 {
 // The atof argument is a type-specific reader for the underlying type.
 // If we're reading complex64, atof will parse float32s and convert them
 // to float64's to avoid reproducing this code for each complex type.
-func (s *ss) scanComplex(verb int, atof func(*ss, string) float64) complex128 {
+func (s *ss) scanComplex(verb int, n int) complex128 {
 	if !s.okVerb(verb, floatVerbs, "complex") {
 		return 0
 	}
 	s.skipSpace()
 	sreal, simag := s.complexTokens()
-	real := atof(s, sreal)
-	imag := atof(s, simag)
+	real := s.convertFloat(sreal, n/2)
+	imag := s.convertFloat(simag, n/2)
 	return cmplx(real, imag)
 }
 
@@ -725,11 +705,11 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	case *bool:
 		*v = s.scanBool(verb)
 	case *complex:
-		*v = complex(s.scanComplex(verb, (*ss).convertFloat))
+		*v = complex(s.scanComplex(verb, int(complexBits)))
 	case *complex64:
-		*v = complex64(s.scanComplex(verb, (*ss).convertFloat32))
+		*v = complex64(s.scanComplex(verb, 64))
 	case *complex128:
-		*v = s.scanComplex(verb, (*ss).convertFloat64)
+		*v = s.scanComplex(verb, 128)
 	case *int:
 		*v = int(s.scanInt(verb, intBits))
 	case *int8:
@@ -757,17 +737,17 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	case *float:
 		if s.okVerb(verb, floatVerbs, "float") {
 			s.skipSpace()
-			*v = float(s.convertFloat(s.floatToken()))
+			*v = float(s.convertFloat(s.floatToken(), int(floatBits)))
 		}
 	case *float32:
 		if s.okVerb(verb, floatVerbs, "float32") {
 			s.skipSpace()
-			*v = float32(s.convertFloat32(s.floatToken()))
+			*v = float32(s.convertFloat(s.floatToken(), 32))
 		}
 	case *float64:
 		if s.okVerb(verb, floatVerbs, "float64") {
 			s.skipSpace()
-			*v = s.convertFloat64(s.floatToken())
+			*v = s.convertFloat(s.floatToken(), 64)
 		}
 	case *string:
 		*v = s.convertString(verb)
@@ -786,55 +766,27 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		case *reflect.BoolValue:
 			v.Set(s.scanBool(verb))
 		case *reflect.IntValue:
-			v.Set(int(s.scanInt(verb, intBits)))
-		case *reflect.Int8Value:
-			v.Set(int8(s.scanInt(verb, 8)))
-		case *reflect.Int16Value:
-			v.Set(int16(s.scanInt(verb, 16)))
-		case *reflect.Int32Value:
-			v.Set(int32(s.scanInt(verb, 32)))
-		case *reflect.Int64Value:
-			v.Set(s.scanInt(verb, 64))
+			v.Set(s.scanInt(verb, v.Type().Size()*8))
 		case *reflect.UintValue:
-			v.Set(uint(s.scanUint(verb, intBits)))
-		case *reflect.Uint8Value:
-			v.Set(uint8(s.scanUint(verb, 8)))
-		case *reflect.Uint16Value:
-			v.Set(uint16(s.scanUint(verb, 16)))
-		case *reflect.Uint32Value:
-			v.Set(uint32(s.scanUint(verb, 32)))
-		case *reflect.Uint64Value:
-			v.Set(s.scanUint(verb, 64))
-		case *reflect.UintptrValue:
-			v.Set(uintptr(s.scanUint(verb, uintptrBits)))
+			v.Set(s.scanUint(verb, v.Type().Size()*8))
 		case *reflect.StringValue:
 			v.Set(s.convertString(verb))
 		case *reflect.SliceValue:
 			// For now, can only handle (renamed) []byte.
 			typ := v.Type().(*reflect.SliceType)
-			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
+			if typ.Elem().Kind() != reflect.Uint8 {
 				goto CantHandle
 			}
 			str := s.convertString(verb)
 			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
 			for i := 0; i < len(str); i++ {
-				v.Elem(i).(*reflect.Uint8Value).Set(str[i])
+				v.Elem(i).(*reflect.UintValue).Set(uint64(str[i]))
 			}
 		case *reflect.FloatValue:
 			s.skipSpace()
-			v.Set(float(s.convertFloat(s.floatToken())))
-		case *reflect.Float32Value:
-			s.skipSpace()
-			v.Set(float32(s.convertFloat(s.floatToken())))
-		case *reflect.Float64Value:
-			s.skipSpace()
-			v.Set(s.convertFloat(s.floatToken()))
+			v.Set(s.convertFloat(s.floatToken(), int(v.Type().Size()*8)))
 		case *reflect.ComplexValue:
-			v.Set(complex(s.scanComplex(verb, (*ss).convertFloat)))
-		case *reflect.Complex64Value:
-			v.Set(complex64(s.scanComplex(verb, (*ss).convertFloat32)))
-		case *reflect.Complex128Value:
-			v.Set(s.scanComplex(verb, (*ss).convertFloat64))
+			v.Set(s.scanComplex(verb, int(v.Type().Size()*8)))
 		default:
 		CantHandle:
 			s.errorString("Scan: can't handle type: " + val.Type().String())

@@ -78,7 +78,7 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 		return
 	case *reflect.SliceType:
 		// If it's []uint8, don't send; it's considered basic.
-		if _, ok := rt.Elem().(*reflect.Uint8Type); ok {
+		if rt.Elem().Kind() == reflect.Uint8 {
 			return
 		}
 		// Otherwise we do send.

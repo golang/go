@@ -11,25 +11,12 @@ import (
 	"sync"
 )
 
-type kind reflect.Type
-
 // Reflection types are themselves interface values holding structs
 // describing the type.  Each type has a different struct so that struct can
 // be the kind.  For example, if typ is the reflect type for an int8, typ is
 // a pointer to a reflect.Int8Type struct; if typ is the reflect type for a
 // function, typ is a pointer to a reflect.FuncType struct; we use the type
 // of that pointer as the kind.
-
-// typeKind returns a reflect.Type representing typ's kind.  The kind is the
-// general kind of type:
-//	int8, int16, int, uint, float, func, chan, struct, and so on.
-// That is, all struct types have the same kind, all func types have the same
-// kind, all int8 types have the same kind, and so on.
-func typeKind(typ reflect.Type) kind { return kind(reflect.Typeof(typ)) }
-
-// valueKind returns the kind of the value type
-// stored inside the interface v.
-func valueKind(v interface{}) reflect.Type { return typeKind(reflect.Typeof(v)) }
 
 // A typeId represents a gob Type as an integer that can be passed on the wire.
 // Internally, typeIds are used as keys to a map to recover the underlying type info.
@@ -245,13 +232,13 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 	case *reflect.BoolType:
 		return tBool.gobType(), nil
 
-	case *reflect.IntType, *reflect.Int8Type, *reflect.Int16Type, *reflect.Int32Type, *reflect.Int64Type:
+	case *reflect.IntType:
 		return tInt.gobType(), nil
 
-	case *reflect.UintType, *reflect.Uint8Type, *reflect.Uint16Type, *reflect.Uint32Type, *reflect.Uint64Type, *reflect.UintptrType:
+	case *reflect.UintType:
 		return tUint.gobType(), nil
 
-	case *reflect.FloatType, *reflect.Float32Type, *reflect.Float64Type:
+	case *reflect.FloatType:
 		return tFloat.gobType(), nil
 
 	case *reflect.StringType:
@@ -277,7 +264,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 
 	case *reflect.SliceType:
 		// []byte == []uint8 is a special case
-		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+		if t.Elem().Kind() == reflect.Uint8 {
 			return tBytes.gobType(), nil
 		}
 		gt, err := getType(t.Elem().Name(), t.Elem())
@@ -413,7 +400,7 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 			info.wire = &wireType{mapT: t.(*mapType)}
 		case *reflect.SliceType:
 			// []byte == []uint8 is a special case handled separately
-			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
+			if typ.Elem().Kind() != reflect.Uint8 {
 				info.wire = &wireType{sliceT: t.(*sliceType)}
 			}
 		case *reflect.StructType:

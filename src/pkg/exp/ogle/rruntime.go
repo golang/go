@@ -265,7 +265,7 @@ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
 		for j := 0; j < outStructt.NumField(); j++ {
 			f := outStructv.Field(j).(*reflect.IntValue)
 			name := outStructt.Field(j).Name
-			f.Set(indexes[name])
+			f.Set(int64(indexes[name]))
 		}
 	}
 }

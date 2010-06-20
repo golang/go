@@ -237,7 +237,7 @@ func (p *Process) bootstrap() {
 		if sym == nil {
 			continue
 		}
-		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Value)
+		rtv.Field(i).(*reflect.UintValue).Set(sym.Value)
 	}
 
 	// Get runtime field indexes
