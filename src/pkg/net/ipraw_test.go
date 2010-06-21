@@ -87,7 +87,7 @@ func TestICMP(t *testing.T) {
 		t.Fatalf(`net.ListenIP("ip4:icmp", %v) = %v, %v`, *srchost, c, err)
 	}
 
-	sendid := os.Getpid()
+	sendid := os.Getpid() & 0xffff
 	const sendseq = 61455
 	const pingpktlen = 128
 	sendpkt := makePingRequest(sendid, sendseq, pingpktlen, []byte("Go Go Gadget Ping!!!"))
@@ -109,7 +109,7 @@ func TestICMP(t *testing.T) {
 		}
 		rcvid, rcvseq := parsePingReply(resp)
 		if rcvid != sendid || rcvseq != sendseq {
-			t.Fatal(`Ping reply saw id,seq=%v,%v (expected %v, %v)`, rcvid, rcvseq, sendid, sendseq)
+			t.Fatalf(`Ping reply saw id,seq=0x%x,0x%x (expected 0x%x, 0x%x)`, rcvid, rcvseq, sendid, sendseq)
 		}
 		return
 	}
