@@ -5,6 +5,52 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-06-21">2010-06-21</h3>
+
+<pre>
+This release includes a language change. The "..." function parameter form is
+gone; "...T" remains. Typically, "...interface{}" can be used instead of "...".
+
+The implementation of Printf has changed in a way that subtly affects its
+handling of the fmt.Stringer interface. You may need to make changes to your
+code. For details, see:
+        https://groups.google.com/group/golang-nuts/msg/6fffba90a3e3dc06
+
+The reflect package has been changed. If you have code that uses reflect, 
+it will need to be updated. For details, see:
+        https://groups.google.com/group/golang-nuts/msg/7a93d07c590e7beb
+
+Other changes:
+* 8l: correct test for sp == top of stack in 8l -K code.
+* asn1: allow '*' in PrintableString.
+* bytes.Buffer.ReadFrom: fix bug.
+* codereview: avoid exception in match (thanks Paolo Giarrusso).
+* complex divide: match C99 implementation.
+* exp/draw: small draw.drawGlyphOver optimization.
+* fmt: Print*: reimplement to switch on type first,
+        Scanf: improve error message when input does not match format.
+* gc: better error messages for interface failures, conversions, undefined symbols.
+* go/scanner: report illegal escape sequences.
+* gob: substitute slice for map.
+* goinstall: process dependencies for package main (thanks Roger Peppe).
+* gopack: add S flag to force marking a package as safe,
+        simplify go metadata code.
+* html: sync testdata/webkit to match WebKit tip.
+* http: reply to Expect 100-continue requests automatically (thanks Brad Fitzpatrick).
+* image: add an Alpha16 type.
+* ld: pad Go symbol table out to page boundary (fixes cgo crash).
+* misc/vim: reorganize plugin to be easier to use (thanks James Whitehead).
+* path: add Base, analogous to Unix basename.
+* pkg/Makefile: allow DISABLE_NET_TESTS=1 to disable network tests.
+* reflect: add Kind, Type.Bits, remove Int8Type, Int8Value, etc.
+* runtime: additional Windows support (thanks Alex Brainman),
+        correct fault for 16-bit divide on Leopard,
+        fix 386 signal handler bug.
+* strconv: add AtofN, FtoaN.
+* string: add IndexFunc and LastIndexFunc (thanks Roger Peppe).
+* syslog: use local network for tests. 
+</pre>
+
 <h3 id="2010-06-09">2010-06-09</h3>
 
 <pre>
