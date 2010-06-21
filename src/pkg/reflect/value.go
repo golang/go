@@ -75,6 +75,10 @@ type Value interface {
 	getAddr() addr
 }
 
+// value is the common implementation of most values.
+// It is embedded in other, public struct types, but always
+// with a unique tag like "uint" or "float" so that the client cannot
+// convert from, say, *UintValue to *FloatValue.
 type value struct {
 	typ    Type
 	addr   addr
@@ -113,7 +117,7 @@ func (v *value) CanSet() bool { return v.canSet }
 
 // BoolValue represents a bool value.
 type BoolValue struct {
-	value
+	value "bool"
 }
 
 // Get returns the underlying bool value.
@@ -132,7 +136,7 @@ func (v *BoolValue) SetValue(x Value) { v.Set(x.(*BoolValue).Get()) }
 
 // FloatValue represents a float value.
 type FloatValue struct {
-	value
+	value "float"
 }
 
 // Get returns the underlying int value.
@@ -181,7 +185,7 @@ func (v *FloatValue) SetValue(x Value) { v.Set(x.(*FloatValue).Get()) }
 
 // ComplexValue represents a complex value.
 type ComplexValue struct {
-	value
+	value "complex"
 }
 
 // Get returns the underlying complex value.
@@ -217,47 +221,9 @@ func (v *ComplexValue) Set(x complex128) {
 // Set sets v to the value x.
 func (v *ComplexValue) SetValue(x Value) { v.Set(x.(*ComplexValue).Get()) }
 
-// Complex64Value represents a complex64 value.
-type Complex64Value struct {
-	value
-}
-
-// Get returns the underlying complex64 value.
-func (v *Complex64Value) Get() complex64 { return *(*complex64)(v.addr) }
-
-// Set sets v to the value x.
-func (v *Complex64Value) Set(x complex64) {
-	if !v.canSet {
-		panic(cannotSet)
-	}
-	*(*complex64)(v.addr) = x
-}
-
-// Set sets v to the value x.
-func (v *Complex64Value) SetValue(x Value) { v.Set(x.(*Complex64Value).Get()) }
-
-// Complex128Value represents a complex128 value.
-type Complex128Value struct {
-	value
-}
-
-// Get returns the underlying complex128 value.
-func (v *Complex128Value) Get() complex128 { return *(*complex128)(v.addr) }
-
-// Set sets v to the value x.
-func (v *Complex128Value) Set(x complex128) {
-	if !v.canSet {
-		panic(cannotSet)
-	}
-	*(*complex128)(v.addr) = x
-}
-
-// Set sets v to the value x.
-func (v *Complex128Value) SetValue(x Value) { v.Set(x.(*Complex128Value).Get()) }
-
 // IntValue represents an int value.
 type IntValue struct {
-	value
+	value "int"
 }
 
 // Get returns the underlying int value.
@@ -303,7 +269,7 @@ func (v *IntValue) SetValue(x Value) { v.Set(x.(*IntValue).Get()) }
 
 // Overflow returns true if x cannot be represented by the type of v.
 func (v *IntValue) Overflow(x int64) bool {
-	bitSize := v.typ.Size() * 8
+	bitSize := uint(v.typ.Bits())
 	trunc := (x << (64 - bitSize)) >> (64 - bitSize)
 	return x != trunc
 }
@@ -316,7 +282,7 @@ type StringHeader struct {
 
 // StringValue represents a string value.
 type StringValue struct {
-	value
+	value "string"
 }
 
 // Get returns the underlying string value.
@@ -335,7 +301,7 @@ func (v *StringValue) SetValue(x Value) { v.Set(x.(*StringValue).Get()) }
 
 // UintValue represents a uint value.
 type UintValue struct {
-	value
+	value "uint"
 }
 
 // Get returns the underlying uuint value.
@@ -382,7 +348,7 @@ func (v *UintValue) Set(x uint64) {
 
 // Overflow returns true if x cannot be represented by the type of v.
 func (v *UintValue) Overflow(x uint64) bool {
-	bitSize := v.typ.Size() * 8
+	bitSize := uint(v.typ.Bits())
 	trunc := (x << (64 - bitSize)) >> (64 - bitSize)
 	return x != trunc
 }
@@ -392,7 +358,7 @@ func (v *UintValue) SetValue(x Value) { v.Set(x.(*UintValue).Get()) }
 
 // UnsafePointerValue represents an unsafe.Pointer value.
 type UnsafePointerValue struct {
-	value
+	value "unsafe.Pointer"
 }
 
 // Get returns the underlying uintptr value.
@@ -454,7 +420,7 @@ func ArrayCopy(dst, src ArrayOrSliceValue) int {
 
 // An ArrayValue represents an array.
 type ArrayValue struct {
-	value
+	value "array"
 }
 
 // Len returns the length of the array.
@@ -503,7 +469,7 @@ type SliceHeader struct {
 
 // A SliceValue represents a slice.
 type SliceValue struct {
-	value
+	value "slice"
 }
 
 func (v *SliceValue) slice() *SliceHeader { return (*SliceHeader)(v.value.addr) }
@@ -593,7 +559,7 @@ func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
 
 // A ChanValue represents a chan.
 type ChanValue struct {
-	value
+	value "chan"
 }
 
 // IsNil returns whether v is a nil channel.
@@ -714,7 +680,7 @@ func MakeChan(typ *ChanType, buffer int) *ChanValue {
 
 // A FuncValue represents a function value.
 type FuncValue struct {
-	value
+	value       "func"
 	first       *value
 	isInterface bool
 }
@@ -874,7 +840,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
 
 // An InterfaceValue represents an interface value.
 type InterfaceValue struct {
-	value
+	value "interface"
 }
 
 // No Get because v.Interface() is available.
@@ -939,7 +905,7 @@ func (v *InterfaceValue) Method(i int) *FuncValue {
 
 // A MapValue represents a map value.
 type MapValue struct {
-	value
+	value "map"
 }
 
 // IsNil returns whether v is a nil map value.
@@ -1056,7 +1022,7 @@ func MakeMap(typ *MapType) *MapValue {
 
 // A PtrValue represents a pointer.
 type PtrValue struct {
-	value
+	value "ptr"
 }
 
 // IsNil returns whether v is a nil pointer.
@@ -1127,7 +1093,7 @@ func Indirect(v Value) Value {
 
 // A StructValue represents a struct value.
 type StructValue struct {
-	value
+	value "struct"
 }
 
 // Set assigns x to v.
@@ -1211,57 +1177,39 @@ func NewValue(i interface{}) Value {
 	return newValue(toType(t), addr(a), true)
 }
 
-
-func newFuncValue(typ Type, addr addr, canSet bool) *FuncValue {
-	return &FuncValue{value: value{typ, addr, canSet}}
-}
-
 func newValue(typ Type, addr addr, canSet bool) Value {
-	// FuncValue has a different layout;
-	// it needs a extra space for the fixed receivers.
-	if _, ok := typ.(*FuncType); ok {
-		return newFuncValue(typ, addr, canSet)
-	}
-
-	// All values have same memory layout;
-	// build once and convert.
-	v := &struct{ value }{value{typ, addr, canSet}}
+	v := value{typ, addr, canSet}
 	switch typ.(type) {
 	case *ArrayType:
-		// TODO(rsc): Something must prevent
-		// clients of the package from doing
-		// this same kind of cast.
-		// We should be allowed because
-		// they're our types.
-		// Something about implicit assignment
-		// to struct fields.
-		return (*ArrayValue)(v)
+		return &ArrayValue{v}
 	case *BoolType:
-		return (*BoolValue)(v)
+		return &BoolValue{v}
 	case *ChanType:
-		return (*ChanValue)(v)
+		return &ChanValue{v}
 	case *FloatType:
-		return (*FloatValue)(v)
+		return &FloatValue{v}
+	case *FuncType:
+		return &FuncValue{value: v}
 	case *ComplexType:
-		return (*ComplexValue)(v)
+		return &ComplexValue{v}
 	case *IntType:
-		return (*IntValue)(v)
+		return &IntValue{v}
 	case *InterfaceType:
-		return (*InterfaceValue)(v)
+		return &InterfaceValue{v}
 	case *MapType:
-		return (*MapValue)(v)
+		return &MapValue{v}
 	case *PtrType:
-		return (*PtrValue)(v)
+		return &PtrValue{v}
 	case *SliceType:
-		return (*SliceValue)(v)
+		return &SliceValue{v}
 	case *StringType:
-		return (*StringValue)(v)
+		return &StringValue{v}
 	case *StructType:
-		return (*StructValue)(v)
+		return &StructValue{v}
 	case *UintType:
-		return (*UintValue)(v)
+		return &UintValue{v}
 	case *UnsafePointerType:
-		return (*UnsafePointerValue)(v)
+		return &UnsafePointerValue{v}
 	}
 	panic("newValue" + typ.String())
 }

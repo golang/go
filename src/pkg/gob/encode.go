@@ -601,7 +601,7 @@ func encodeMap(b *bytes.Buffer, rt reflect.Type, p uintptr, keyOp, elemOp encOp,
 	return state.err
 }
 
-var encOpMap = map[reflect.Kind]encOp{
+var encOpMap = []encOp{
 	reflect.Bool:    encBool,
 	reflect.Int:     encInt,
 	reflect.Int8:    encInt8,
@@ -624,8 +624,12 @@ var encOpMap = map[reflect.Kind]encOp{
 // the indirection count to reach it.
 func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 	typ, indir := indirect(rt)
-	op, ok := encOpMap[typ.Kind()]
-	if !ok {
+	var op encOp
+	k := typ.Kind()
+	if int(k) < len(encOpMap) {
+		op = encOpMap[k]
+	}
+	if op == nil {
 		// Special cases
 		switch t := typ.(type) {
 		case *reflect.SliceType:

@@ -588,7 +588,7 @@ func (d *decodeState) literal(v reflect.Value) {
 			v.Set(n)
 
 		case *reflect.FloatValue:
-			n, err := strconv.AtofN(s, int(v.Type().Size()*8))
+			n, err := strconv.AtofN(s, v.Type().Bits())
 			if err != nil || v.Overflow(n) {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
 				break

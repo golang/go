@@ -30,9 +30,6 @@ func main() {
 
 	var a interface{}
 	switch c := reflect.NewValue(a).(type) {
-	case *reflect.Complex64Value:
-		v := c.Get()
-		_, _ = complex64(v), true
 	case *reflect.ComplexValue:
 		if complexBits == 64 {
 			v := c.Get()

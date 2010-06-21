@@ -612,10 +612,10 @@ func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int, 
 }
 
 var (
-	intBits     = uintptr(reflect.Typeof(int(0)).Size() * 8)
-	floatBits   = uintptr(reflect.Typeof(float(0)).Size() * 8)
-	complexBits = uintptr(reflect.Typeof(complex(0+0i)).Size() * 8)
-	uintptrBits = uintptr(reflect.Typeof(uintptr(0)).Size() * 8)
+	intBits     = reflect.Typeof(0).Bits()
+	floatBits   = reflect.Typeof(0.0).Bits()
+	complexBits = reflect.Typeof(1i).Bits()
+	uintptrBits = reflect.Typeof(uintptr(0)).Bits()
 )
 
 func (p *pp) printField(field interface{}, verb int, plus, sharp bool, depth int) (was_string bool) {
