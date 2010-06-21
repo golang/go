@@ -72,7 +72,7 @@ func importSend(imp *Importer, t *testing.T) {
 }
 
 func TestExportSendImportReceive(t *testing.T) {
-	exp, err := NewExporter("tcp", ":0")
+	exp, err := NewExporter("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal("new exporter:", err)
 	}
@@ -85,7 +85,7 @@ func TestExportSendImportReceive(t *testing.T) {
 }
 
 func TestExportReceiveImportSend(t *testing.T) {
-	exp, err := NewExporter("tcp", ":0")
+	exp, err := NewExporter("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal("new exporter:", err)
 	}
@@ -98,7 +98,7 @@ func TestExportReceiveImportSend(t *testing.T) {
 }
 
 func TestClosingExportSendImportReceive(t *testing.T) {
-	exp, err := NewExporter("tcp", ":0")
+	exp, err := NewExporter("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal("new exporter:", err)
 	}

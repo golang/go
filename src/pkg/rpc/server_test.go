@@ -55,7 +55,7 @@ func (t *Arith) Error(args *Args, reply *Reply) os.Error {
 func startServer() {
 	Register(new(Arith))
 
-	l, e := net.Listen("tcp", ":0") // any available address
+	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
 	if e != nil {
 		log.Exitf("net.Listen tcp :0: %v", e)
 	}
@@ -64,7 +64,7 @@ func startServer() {
 	go Accept(l)
 
 	HandleHTTP()
-	l, e = net.Listen("tcp", ":0") // any available address
+	l, e = net.Listen("tcp", "127.0.0.1:0") // any available address
 	if e != nil {
 		log.Stderrf("net.Listen tcp :0: %v", e)
 		os.Exit(1)
