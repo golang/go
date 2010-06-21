@@ -122,7 +122,7 @@ func install(pkg, parent string) {
 	}
 
 	// Install prerequisites.
-	files, m, err := goFiles(dir)
+	files, m, pkgname, err := goFiles(dir, parent == "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
 		errors = true
@@ -137,6 +137,14 @@ func install(pkg, parent string) {
 	}
 	for p := range m {
 		install(p, pkg)
+	}
+	if pkgname == "main" {
+		if !errors {
+			fmt.Fprintf(os.Stderr, "%s: %s's dependencies are installed.\n", argv0, pkg)
+		}
+		errors = true
+		visit[pkg] = done
+		return
 	}
 
 	// Install this package.
