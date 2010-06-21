@@ -162,7 +162,7 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		e.WriteString(strconv.Uitoa64(v.Get()))
 
 	case *reflect.FloatValue:
-		e.WriteString(strconv.FtoaN(v.Get(), 'g', -1, int(v.Type().Size()*8)))
+		e.WriteString(strconv.FtoaN(v.Get(), 'g', -1, v.Type().Bits()))
 
 	case *reflect.StringValue:
 		e.string(v.Get())

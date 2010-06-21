@@ -34,6 +34,11 @@ import (
  * copy in order to access the private fields.
  */
 
+// commonType is the common implementation of most values.
+// It is embedded in other, public struct types, but always
+// with a unique tag like "uint" or "float" so that the client cannot
+// convert from, say, *UintType to *FloatType.
+
 type commonType struct {
 	size       uintptr
 	hash       uint32
@@ -62,44 +67,44 @@ type uncommonType struct {
 
 // BoolType represents a boolean type.
 type BoolType struct {
-	commonType
+	commonType "bool"
 }
 
 // FloatType represents a float type.
 type FloatType struct {
-	commonType
+	commonType "float"
 }
 
 // ComplexType represents a complex type.
 type ComplexType struct {
-	commonType
+	commonType "complex"
 }
 
 // IntType represents a signed integer type.
 type IntType struct {
-	commonType
+	commonType "int"
 }
 
 // UintType represents a uint type.
 type UintType struct {
-	commonType
+	commonType "uint"
 }
 
 // StringType represents a string type.
 type StringType struct {
-	commonType
+	commonType "string"
 }
 
 // UnsafePointerType represents an unsafe.Pointer type.
 type UnsafePointerType struct {
-	commonType
+	commonType "unsafe.Pointer"
 }
 
 // ArrayType represents a fixed array type.
 type ArrayType struct {
-	commonType
-	elem *runtime.Type
-	len  uintptr
+	commonType "array"
+	elem       *runtime.Type
+	len        uintptr
 }
 
 // ChanDir represents a channel type's direction.
@@ -113,17 +118,17 @@ const (
 
 // ChanType represents a channel type.
 type ChanType struct {
-	commonType
-	elem *runtime.Type
-	dir  uintptr
+	commonType "chan"
+	elem       *runtime.Type
+	dir        uintptr
 }
 
 // FuncType represents a function type.
 type FuncType struct {
-	commonType
-	dotdotdot bool
-	in        []*runtime.Type
-	out       []*runtime.Type
+	commonType "func"
+	dotdotdot  bool
+	in         []*runtime.Type
+	out        []*runtime.Type
 }
 
 // Method on interface type
@@ -135,27 +140,27 @@ type imethod struct {
 
 // InterfaceType represents an interface type.
 type InterfaceType struct {
-	commonType
-	methods []imethod
+	commonType "interface"
+	methods    []imethod
 }
 
 // MapType represents a map type.
 type MapType struct {
-	commonType
-	key  *runtime.Type
-	elem *runtime.Type
+	commonType "map"
+	key        *runtime.Type
+	elem       *runtime.Type
 }
 
 // PtrType represents a pointer type.
 type PtrType struct {
-	commonType
-	elem *runtime.Type
+	commonType "ptr"
+	elem       *runtime.Type
 }
 
 // SliceType represents a slice type.
 type SliceType struct {
-	commonType
-	elem *runtime.Type
+	commonType "slice"
+	elem       *runtime.Type
 }
 
 // Struct field
@@ -169,8 +174,8 @@ type structField struct {
 
 // StructType represents a struct type.
 type StructType struct {
-	commonType
-	fields []structField
+	commonType "struct"
+	fields     []structField
 }
 
 
@@ -213,6 +218,11 @@ type Type interface {
 	// Size returns the number of bytes needed to store
 	// a value of the given type; it is analogous to unsafe.Sizeof.
 	Size() uintptr
+
+	// Bits returns the size of the type in bits.
+	// It is intended for use with numeric types and may overflow
+	// when used for composite types.
+	Bits() int
 
 	// Align returns the alignment of a value of this type
 	// when allocated in memory.
@@ -333,6 +343,8 @@ func (t *commonType) String() string { return *t.string }
 
 func (t *commonType) Size() uintptr { return t.size }
 
+func (t *commonType) Bits() int { return int(t.size * 8) }
+
 func (t *commonType) Align() int { return int(t.align) }
 
 func (t *commonType) FieldAlign() int { return int(t.fieldAlign) }
@@ -352,7 +364,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	}
 	m.Type = toType(*p.typ).(*FuncType)
 	fn := p.tfn
-	m.Func = newFuncValue(m.Type, addr(&fn), true)
+	m.Func = &FuncValue{value: value{m.Type, addr(&fn), true}}
 	return
 }
 

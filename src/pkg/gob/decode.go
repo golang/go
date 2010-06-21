@@ -540,7 +540,7 @@ func ignoreSlice(state *decodeState, elemOp decOp) os.Error {
 	return ignoreArrayHelper(state, elemOp, int(decodeUint(state)))
 }
 
-var decOpMap = map[reflect.Kind]decOp{
+var decOpMap = []decOp{
 	reflect.Bool:    decBool,
 	reflect.Int8:    decInt8,
 	reflect.Int16:   decInt16,
@@ -568,8 +568,12 @@ var decIgnoreOpMap = map[typeId]decOp{
 // the indirection count to reach it.
 func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error) {
 	typ, indir := indirect(rt)
-	op, ok := decOpMap[typ.Kind()]
-	if !ok {
+	var op decOp
+	k := typ.Kind()
+	if int(k) < len(decOpMap) {
+		op = decOpMap[k]
+	}
+	if op == nil {
 		// Special cases
 		switch t := typ.(type) {
 		case *reflect.ArrayType:

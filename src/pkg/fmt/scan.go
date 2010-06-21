@@ -456,9 +456,10 @@ func (s *ss) scanNumber(digits string) string {
 }
 
 // scanRune returns the next rune value in the input.
-func (s *ss) scanRune(bitSize uintptr) int64 {
+func (s *ss) scanRune(bitSize int) int64 {
 	rune := int64(s.mustGetRune())
-	x := (rune << (64 - bitSize)) >> (64 - bitSize)
+	n := uint(bitSize)
+	x := (rune << (64 - n)) >> (64 - n)
 	if x != rune {
 		s.errorString("overflow on character value " + string(rune))
 	}
@@ -467,7 +468,7 @@ func (s *ss) scanRune(bitSize uintptr) int64 {
 
 // scanInt returns the value of the integer represented by the next
 // token, checking for overflow.  Any error is stored in s.err.
-func (s *ss) scanInt(verb int, bitSize uintptr) int64 {
+func (s *ss) scanInt(verb int, bitSize int) int64 {
 	if verb == 'c' {
 		return s.scanRune(bitSize)
 	}
@@ -479,7 +480,8 @@ func (s *ss) scanInt(verb int, bitSize uintptr) int64 {
 	if err != nil {
 		s.error(err)
 	}
-	x := (i << (64 - bitSize)) >> (64 - bitSize)
+	n := uint(bitSize)
+	x := (i << (64 - n)) >> (64 - n)
 	if x != i {
 		s.errorString("integer overflow on token " + tok)
 	}
@@ -488,7 +490,7 @@ func (s *ss) scanInt(verb int, bitSize uintptr) int64 {
 
 // scanUint returns the value of the unsigned integer represented
 // by the next token, checking for overflow.  Any error is stored in s.err.
-func (s *ss) scanUint(verb int, bitSize uintptr) uint64 {
+func (s *ss) scanUint(verb int, bitSize int) uint64 {
 	if verb == 'c' {
 		return uint64(s.scanRune(bitSize))
 	}
@@ -499,7 +501,8 @@ func (s *ss) scanUint(verb int, bitSize uintptr) uint64 {
 	if err != nil {
 		s.error(err)
 	}
-	x := (i << (64 - bitSize)) >> (64 - bitSize)
+	n := uint(bitSize)
+	x := (i << (64 - n)) >> (64 - n)
 	if x != i {
 		s.errorString("unsigned integer overflow on token " + tok)
 	}
@@ -766,9 +769,9 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		case *reflect.BoolValue:
 			v.Set(s.scanBool(verb))
 		case *reflect.IntValue:
-			v.Set(s.scanInt(verb, v.Type().Size()*8))
+			v.Set(s.scanInt(verb, v.Type().Bits()))
 		case *reflect.UintValue:
-			v.Set(s.scanUint(verb, v.Type().Size()*8))
+			v.Set(s.scanUint(verb, v.Type().Bits()))
 		case *reflect.StringValue:
 			v.Set(s.convertString(verb))
 		case *reflect.SliceValue:
@@ -784,9 +787,9 @@ func (s *ss) scanOne(verb int, field interface{}) {
 			}
 		case *reflect.FloatValue:
 			s.skipSpace()
-			v.Set(s.convertFloat(s.floatToken(), int(v.Type().Size()*8)))
+			v.Set(s.convertFloat(s.floatToken(), v.Type().Bits()))
 		case *reflect.ComplexValue:
-			v.Set(s.scanComplex(verb, int(v.Type().Size()*8)))
+			v.Set(s.scanComplex(verb, v.Type().Bits()))
 		default:
 		CantHandle:
 			s.errorString("Scan: can't handle type: " + val.Type().String())
