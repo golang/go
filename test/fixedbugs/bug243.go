@@ -15,7 +15,7 @@ import (
 
 func main() {
 	os.Stdout.Close()
-	var listen, _ = net.Listen("tcp", ":0")
+	var listen, _ = net.Listen("tcp", "127.0.0.1:0")
 
 	go func() {
 		for {
