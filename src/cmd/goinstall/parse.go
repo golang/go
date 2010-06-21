@@ -16,25 +16,25 @@ import (
 	"go/parser"
 )
 
-// goFiles returns a list of the *.go source files in dir,
-// excluding those in package main or ending in _test.go.
-// It also returns a map giving the packages imported
-// by those files.  The map keys are the imported paths.
-// The key's value is one file that imports that path.
-func goFiles(dir string) (files []string, imports map[string]string, err os.Error) {
+// goFiles returns a list of the *.go source files in dir, excluding
+// those in package main (unless allowMain is true) or ending in
+// _test.go.  It also returns a map giving the packages imported by
+// those files, and the package name.
+// The map keys are the imported paths.  The key's value
+// is one file that imports that path.
+func goFiles(dir string, allowMain bool) (files []string, imports map[string]string, pkgName string, err os.Error) {
 	f, err := os.Open(dir, os.O_RDONLY, 0)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	dirs, err := f.Readdir(-1)
 	f.Close()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	files = make([]string, 0, len(dirs))
 	imports = make(map[string]string)
-	pkgName := ""
 	for i := range dirs {
 		d := &dirs[i]
 		if !strings.HasSuffix(d.Name, ".go") || strings.HasSuffix(d.Name, "_test.go") {
@@ -43,16 +43,23 @@ func goFiles(dir string) (files []string, imports map[string]string, err os.Erro
 		filename := path.Join(dir, d.Name)
 		pf, err := parser.ParseFile(filename, nil, nil, parser.ImportsOnly)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, "", err
 		}
 		s := string(pf.Name.Name())
-		if s == "main" {
+		if s == "main" && !allowMain {
 			continue
 		}
 		if pkgName == "" {
 			pkgName = s
 		} else if pkgName != s {
-			return nil, nil, os.ErrorString("multiple package names in " + dir)
+			// Only if all files in the directory are in package main
+			// do we return pkgName=="main".
+			// A mix of main and another package reverts
+			// to the original (allowMain=false) behaviour.
+			if allowMain && pkgName == "main" {
+				return goFiles(dir, false)
+			}
+			return nil, nil, "", os.ErrorString("multiple package names in " + dir)
 		}
 		n := len(files)
 		files = files[0 : n+1]
@@ -68,5 +75,5 @@ func goFiles(dir string) (files []string, imports map[string]string, err os.Erro
 			}
 		}
 	}
-	return files, imports, nil
+	return files, imports, pkgName, nil
 }

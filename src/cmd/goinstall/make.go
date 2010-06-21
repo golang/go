@@ -35,11 +35,10 @@ func domake(dir, pkg string, local bool) os.Error {
 // installing as package pkg.  It includes all *.go files in the directory
 // except those in package main and those ending in _test.go.
 func makeMakefile(dir, pkg string) ([]byte, os.Error) {
-	files, _, err := goFiles(dir)
+	files, _, _, err := goFiles(dir, false)
 	if err != nil {
 		return nil, err
 	}
-
 	var buf bytes.Buffer
 	if err := makefileTemplate.Execute(&makedata{pkg, files}, &buf); err != nil {
 		return nil, err
