@@ -146,11 +146,10 @@ NOTEST=\
 NOBENCH=\
 	container/vector\
 
-TEST=\
-	$(filter-out $(NOTEST),$(DIRS))
-
-BENCH=\
-	$(filter-out $(NOBENCH),$(TEST))
+# Disable tests that depend on an external network.
+ifeq ($(DISABLE_NET_TESTS),1)
+NOTEST+=http net
+endif
 
 # Disable tests that NaCl cannot run yet.
 ifeq ($(GOOS),nacl)
@@ -171,6 +170,12 @@ NOTEST+=syslog       # no network
 NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
 NOTEST+=websocket    # no network
 endif
+
+TEST=\
+	$(filter-out $(NOTEST),$(DIRS))
+
+BENCH=\
+	$(filter-out $(NOBENCH),$(TEST))
 
 clean.dirs: $(addsuffix .clean, $(DIRS))
 install.dirs: $(addsuffix .install, $(DIRS))
