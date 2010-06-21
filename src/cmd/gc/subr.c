@@ -1725,6 +1725,18 @@ cplxsubtype(int et)
 	return 0;
 }
 
+static int
+eqnote(Strlit *a, Strlit *b)
+{
+	if(a == b)
+		return 1;
+	if(a == nil || b == nil)
+		return 0;
+	if(a->len != b->len)
+		return 0;
+	return memcmp(a->s, b->s, a->len) == 0;
+}
+
 // Return 1 if t1 and t2 are identical, following the spec rules.
 //
 // Any cyclic type must go through a named type, and if one is
@@ -1745,7 +1757,7 @@ eqtype(Type *t1, Type *t2)
 		for(t1=t1->type, t2=t2->type; t1 && t2; t1=t1->down, t2=t2->down) {
 			if(t1->etype != TFIELD || t2->etype != TFIELD)
 				fatal("struct/interface missing field: %T %T", t1, t2);
-			if(t1->sym != t2->sym || t1->embedded != t2->embedded || !eqtype(t1->type, t2->type))
+			if(t1->sym != t2->sym || t1->embedded != t2->embedded || !eqtype(t1->type, t2->type) || !eqnote(t1->note, t2->note))
 				return 0;
 		}
 		return t1 == T && t2 == T;
