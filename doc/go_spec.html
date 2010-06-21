@@ -1263,7 +1263,8 @@ literal structure and corresponding components have identical types. In detail:
 	<li>Two slice types are identical if they have identical element types.</li>
 
 	<li>Two struct types are identical if they have the same sequence of fields,
-	    and if corresponding fields have the same names and identical types.
+	    and if corresponding fields have the same names, and identical types,
+	    and identical tags.
 	    Two anonymous fields are considered to have the same name. Lower-case field
 	    names from different packages are always different.</li>
 
