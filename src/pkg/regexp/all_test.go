@@ -100,6 +100,7 @@ var matches = []tester{
 
 	// fixed bugs
 	tester{`ab$`, "cab", vec{1, 3}},
+	tester{`axxb$`, "axxcb", vec{}},
 	tester{`data`, "daXY data", vec{5, 9}},
 	tester{`da(.)a$`, "daXY data", vec{5, 9, 7, 8}},
 
