@@ -7,6 +7,7 @@ include ../../Make.$(GOARCH)
 TARG=big
 GOFILES=\
 	arith.go\
+	arith_decl.go\
 	int.go\
 	nat.go\
 	rat.go\

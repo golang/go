@@ -56,7 +56,6 @@ func subWW_g(x, y, c Word) (z1, z0 Word) {
 
 
 // z1<<_W + z0 = x*y
-func mulWW(x, y Word) (z1, z0 Word)
 func mulWW_g(x, y Word) (z1, z0 Word) {
 	// Split x and y into 2 halfWords each, multiply
 	// the halfWords separately while avoiding overflow,
@@ -243,7 +242,6 @@ func leadingZeros(x Word) uint {
 
 
 // q = (x1<<_W + x0 - r)/y
-func divWW(x1, x0, y Word) (q, r Word)
 func divWW_g(x1, x0, y Word) (q, r Word) {
 	if x1 == 0 {
 		q, r = x0/y, x0%y
@@ -286,7 +284,6 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 }
 
 
-func addVV(z, x, y []Word) (c Word)
 func addVV_g(z, x, y []Word) (c Word) {
 	for i := range z {
 		c, z[i] = addWW_g(x[i], y[i], c)
@@ -295,7 +292,6 @@ func addVV_g(z, x, y []Word) (c Word) {
 }
 
 
-func subVV(z, x, y []Word) (c Word)
 func subVV_g(z, x, y []Word) (c Word) {
 	for i := range z {
 		c, z[i] = subWW_g(x[i], y[i], c)
@@ -304,7 +300,6 @@ func subVV_g(z, x, y []Word) (c Word) {
 }
 
 
-func addVW(z, x []Word, y Word) (c Word)
 func addVW_g(z, x []Word, y Word) (c Word) {
 	c = y
 	for i := range z {
@@ -314,7 +309,6 @@ func addVW_g(z, x []Word, y Word) (c Word) {
 }
 
 
-func subVW(z, x []Word, y Word) (c Word)
 func subVW_g(z, x []Word, y Word) (c Word) {
 	c = y
 	for i := range z {
@@ -324,7 +318,6 @@ func subVW_g(z, x []Word, y Word) (c Word) {
 }
 
 
-func shlVW(z, x []Word, s Word) (c Word)
 func shlVW_g(z, x []Word, s Word) (c Word) {
 	if n := len(z); n > 0 {
 		ŝ := _W - s
@@ -341,7 +334,6 @@ func shlVW_g(z, x []Word, s Word) (c Word) {
 }
 
 
-func shrVW(z, x []Word, s Word) (c Word)
 func shrVW_g(z, x []Word, s Word) (c Word) {
 	if n := len(z); n > 0 {
 		ŝ := _W - s
@@ -358,7 +350,6 @@ func shrVW_g(z, x []Word, s Word) (c Word) {
 }
 
 
-func mulAddVWW(z, x []Word, y, r Word) (c Word)
 func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
 	c = r
 	for i := range z {
@@ -368,7 +359,6 @@ func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
 }
 
 
-func addMulVVW(z, x []Word, y Word) (c Word)
 func addMulVVW_g(z, x []Word, y Word) (c Word) {
 	for i := range z {
 		z1, z0 := mulAddWWW_g(x[i], y, z[i])
@@ -379,7 +369,6 @@ func addMulVVW_g(z, x []Word, y Word) (c Word) {
 }
 
 
-func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
 func divWVW_g(z []Word, xn Word, x []Word, y Word) (r Word) {
 	r = xn
 	for i := len(z) - 1; i >= 0; i-- {
