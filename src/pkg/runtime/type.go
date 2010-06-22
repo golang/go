@@ -90,50 +90,14 @@ type uncommonType struct {
 // BoolType represents a boolean type.
 type BoolType commonType
 
-// Float32Type represents a float32 type.
-type Float32Type commonType
-
-// Float64Type represents a float64 type.
-type Float64Type commonType
-
 // FloatType represents a float type.
 type FloatType commonType
-
-// Complex64Type represents a complex64 type.
-type Complex64Type commonType
-
-// Complex128Type represents a complex128 type.
-type Complex128Type commonType
 
 // ComplexType represents a complex type.
 type ComplexType commonType
 
-// Int16Type represents an int16 type.
-type Int16Type commonType
-
-// Int32Type represents an int32 type.
-type Int32Type commonType
-
-// Int64Type represents an int64 type.
-type Int64Type commonType
-
-// Int8Type represents an int8 type.
-type Int8Type commonType
-
 // IntType represents an int type.
 type IntType commonType
-
-// Uint16Type represents a uint16 type.
-type Uint16Type commonType
-
-// Uint32Type represents a uint32 type.
-type Uint32Type commonType
-
-// Uint64Type represents a uint64 type.
-type Uint64Type commonType
-
-// Uint8Type represents a uint8 type.
-type Uint8Type commonType
 
 // UintType represents a uint type.
 type UintType commonType
