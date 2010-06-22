@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
 
 TARG=net
 GOFILES=\
+	dial.go\
 	dnsclient.go\
 	dnsconfig.go\
 	dnsmsg.go\
