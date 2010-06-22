@@ -727,34 +727,35 @@ func (a *matchArena) noMatch() *matchVec {
 }
 
 type state struct {
-	inst  instr // next instruction to execute
-	match *matchVec
+	inst     instr // next instruction to execute
+	prefixed bool  // this match began with a fixed prefix
+	match    *matchVec
 }
 
 // Append new state to to-do list.  Leftmost-longest wins so avoid
 // adding a state that's already active.  The matchVec will be inc-ref'ed
 // if it is assigned to a state.
-func (a *matchArena) addState(s []state, inst instr, match *matchVec, pos, end int) []state {
+func (a *matchArena) addState(s []state, inst instr, prefixed bool, match *matchVec, pos, end int) []state {
 	switch inst.kind() {
 	case _BOT:
 		if pos == 0 {
-			s = a.addState(s, inst.next(), match, pos, end)
+			s = a.addState(s, inst.next(), prefixed, match, pos, end)
 		}
 		return s
 	case _EOT:
 		if pos == end {
-			s = a.addState(s, inst.next(), match, pos, end)
+			s = a.addState(s, inst.next(), prefixed, match, pos, end)
 		}
 		return s
 	case _BRA:
 		n := inst.(*_Bra).n
 		match.m[2*n] = pos
-		s = a.addState(s, inst.next(), match, pos, end)
+		s = a.addState(s, inst.next(), prefixed, match, pos, end)
 		return s
 	case _EBRA:
 		n := inst.(*_Ebra).n
 		match.m[2*n+1] = pos
-		s = a.addState(s, inst.next(), match, pos, end)
+		s = a.addState(s, inst.next(), prefixed, match, pos, end)
 		return s
 	}
 	index := inst.index()
@@ -773,12 +774,13 @@ func (a *matchArena) addState(s []state, inst instr, match *matchVec, pos, end i
 	}
 	s = s[0 : l+1]
 	s[l].inst = inst
+	s[l].prefixed = prefixed
 	s[l].match = match
 	match.ref++
 	if inst.kind() == _ALT {
-		s = a.addState(s, inst.(*_Alt).left, a.copy(match), pos, end)
+		s = a.addState(s, inst.(*_Alt).left, prefixed, a.copy(match), pos, end)
 		// give other branch a copy of this match vector
-		s = a.addState(s, inst.next(), a.copy(match), pos, end)
+		s = a.addState(s, inst.next(), prefixed, a.copy(match), pos, end)
 	}
 	return s
 }
@@ -818,10 +820,10 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 			match := arena.noMatch()
 			match.m[0] = pos
 			if prefixed {
-				s[out] = arena.addState(s[out], re.prefixStart, match, pos, end)
+				s[out] = arena.addState(s[out], re.prefixStart, true, match, pos, end)
 				prefixed = false // next iteration should start at beginning of machine.
 			} else {
-				s[out] = arena.addState(s[out], re.start.next(), match, pos, end)
+				s[out] = arena.addState(s[out], re.start.next(), false, match, pos, end)
 			}
 			arena.free(match) // if addState saved it, ref was incremented
 		}
@@ -852,19 +854,19 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 			case _EOT:
 			case _CHAR:
 				if c == st.inst.(*_Char).char {
-					s[out] = arena.addState(s[out], st.inst.next(), st.match, pos, end)
+					s[out] = arena.addState(s[out], st.inst.next(), st.prefixed, st.match, pos, end)
 				}
 			case _CHARCLASS:
 				if st.inst.(*_CharClass).matches(c) {
-					s[out] = arena.addState(s[out], st.inst.next(), st.match, pos, end)
+					s[out] = arena.addState(s[out], st.inst.next(), st.prefixed, st.match, pos, end)
 				}
 			case _ANY:
 				if c != endOfFile {
-					s[out] = arena.addState(s[out], st.inst.next(), st.match, pos, end)
+					s[out] = arena.addState(s[out], st.inst.next(), st.prefixed, st.match, pos, end)
 				}
 			case _NOTNL:
 				if c != endOfFile && c != '\n' {
-					s[out] = arena.addState(s[out], st.inst.next(), st.match, pos, end)
+					s[out] = arena.addState(s[out], st.inst.next(), st.prefixed, st.match, pos, end)
 				}
 			case _BRA:
 			case _EBRA:
@@ -892,7 +894,7 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 		return nil
 	}
 	// if match found, back up start of match by width of prefix.
-	if re.prefix != "" && len(final.match.m) > 0 {
+	if final.prefixed && len(final.match.m) > 0 {
 		final.match.m[0] -= len(re.prefix)
 	}
 	return final.match.m
