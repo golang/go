@@ -135,16 +135,6 @@ main(int argc, char *argv[])
 		HEADTYPE = atolwhex(EARGF(usage()));
 		/* do something about setting INITTEXT */
 		break;
-	case 'x':	/* produce export table */
-		doexp = 1;
-		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
-			readundefs(ARGF(), SEXPORT);
-		break;
-	case 'u':	/* produce dynamically loadable module */
-		dlm = 1;
-		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
-			readundefs(ARGF(), SIMPORT);
-		break;
 	case 'V':
 		print("%cl version %s\n", thechar, getgoversion());
 		errorexit();
