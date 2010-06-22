@@ -84,19 +84,28 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 
 	if((int)len != len) {
 		fprint(2, "%s: too much pkg data in %s\n", argv0, filename);
+		if(debug['u'])
+			errorexit();
 		return;
 	}
 	data = mal(len+1);
 	if(Bread(f, data, len) != len) {
 		fprint(2, "%s: short pkg read %s\n", argv0, filename);
+		if(debug['u'])
+			errorexit();
 		return;
 	}
 	data[len] = '\0';
 
 	// first \n$$ marks beginning of exports - skip rest of line
 	p0 = strstr(data, "\n$$");
-	if(p0 == nil)
+	if(p0 == nil) {
+		if(debug['u']) {
+			fprint(2, "%s: cannot find export data in %s\n", argv0, filename);
+			errorexit();
+		}
 		return;
+	}
 	p0 += 3;
 	while(*p0 != '\n' && *p0 != '\0')
 		p0++;
@@ -105,6 +114,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 	p1 = strstr(p0, "\n$$");
 	if(p1 == nil) {
 		fprint(2, "%s: cannot find end of exports in %s\n", argv0, filename);
+		if(debug['u'])
+			errorexit();
 		return;
 	}
 	while(p0 < p1 && (*p0 == ' ' || *p0 == '\t' || *p0 == '\n'))
@@ -112,6 +123,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 	if(p0 < p1) {
 		if(strncmp(p0, "package ", 8) != 0) {
 			fprint(2, "%s: bad package section in %s - %s\n", argv0, filename, p0);
+			if(debug['u'])
+				errorexit();
 			return;
 		}
 		p0 += 8;
@@ -120,6 +133,10 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 		name = p0;
 		while(p0 < p1 && *p0 != ' ' && *p0 != '\t' && *p0 != '\n')
 			p0++;
+		if(debug['u'] && memcmp(p0, " safe\n", 6) != 0) {
+			fprint(2, "%s: load of unsafe package %s\n", argv0, filename);
+			errorexit();
+		}
 		if(p0 < p1) {
 			*p0++ = '\0';
 			if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
@@ -140,6 +157,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 	p1 = strstr(p0, "\n$$");
 	if(p1 == nil) {
 		fprint(2, "%s: cannot find end of local types in %s\n", argv0, filename);
+		if(debug['u'])
+			errorexit();
 		return;
 	}
 
@@ -151,6 +170,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 		p0 = strchr(p0+1, '\n');
 		if(p0 == nil) {
 			fprint(2, "%s: found $$ // dynimport but no newline in %s\n", argv0, filename);
+			if(debug['u'])
+				errorexit();
 			return;
 		}
 		p1 = strstr(p0, "\n$$");
@@ -158,6 +179,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 			p1 = strstr(p0, "\n!\n");
 		if(p1 == nil) {
 			fprint(2, "%s: cannot find end of // dynimport section in %s\n", argv0, filename);
+			if(debug['u'])
+				errorexit();
 			return;
 		}
 		loaddynimport(filename, p0 + 1, p1 - (p0+1));
@@ -169,6 +192,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 		p0 = strchr(p0+1, '\n');
 		if(p0 == nil) {
 			fprint(2, "%s: found $$ // dynexporg but no newline in %s\n", argv0, filename);
+			if(debug['u'])
+				errorexit();
 			return;
 		}
 		p1 = strstr(p0, "\n$$");
@@ -176,6 +201,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 			p1 = strstr(p0, "\n!\n");
 		if(p1 == nil) {
 			fprint(2, "%s: cannot find end of // dynexporg section in %s\n", argv0, filename);
+			if(debug['u'])
+				errorexit();
 			return;
 		}
 		loaddynexport(filename, pkg, p0 + 1, p1 - (p0+1));
