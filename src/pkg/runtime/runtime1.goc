@@ -5,10 +5,6 @@
 package runtime
 #include "runtime.h"
 
-func mal(n uint32) (ret *uint8) {
-	ret = mal(n);
-}
-
 func GOMAXPROCS(n int32) (ret int32) {
 	ret = gomaxprocsfunc(n);
 }
