@@ -21,8 +21,10 @@ CFLAGS_windows=-D__WINDOWS__
 CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
 
 GOFILES=\
+	debug.go\
 	error.go\
 	extern.go\
+	sig.go\
 	type.go\
 	version.go\
 

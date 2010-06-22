@@ -261,6 +261,10 @@ mal(uintptr n)
 	return mallocgc(n, 0, 1, 1);
 }
 
+func mal(n uint32) (ret *uint8) {
+	ret = mal(n);
+}
+
 // Stack allocator uses malloc/free most of the time,
 // but if we're in the middle of malloc and need stack,
 // we have to do something else to avoid deadlock.
