@@ -66,6 +66,7 @@ DIRS=\
 	exp/bignum\
 	exp/datafmt\
 	exp/draw\
+	exp/draw/x11\
 	exp/eval\
 	exp/iterable\
 	expvar\
@@ -130,6 +131,7 @@ DIRS=\
 
 NOTEST=\
 	debug/proc\
+	exp/draw/x11\
 	go/ast\
 	go/doc\
 	go/token\
