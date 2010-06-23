@@ -3,8 +3,8 @@ body {
 	margin: 0;
 	padding: 0;
 }
-h1, h2, ul, table, p {
-	padding: 0 0.2em;
+h1, h2, h3, ul.menu, table, p {
+	padding: 0 0.5em;
 }
 h1, h2 {
 	margin: 0;
@@ -19,6 +19,25 @@ h1 {
 }
 h2 {
 	border-top: 1px solid #ccc;
+	padding-left: 0.2em;
+}
+.submit {
+	float: right;
+	border: 1px solid #ccc;
+	width: 350px;
+	padding-bottom: 1em;
+	margin: 0.5em;
+	background: #eee;
+}
+.submit table {
+	width: 100%;
+}
+.submit input[type=text] {
+	width: 200px;
+}
+.submit .msg {
+	text-align: center;
+	color: red;
 }
 table.alternate {
 	white-space: nowrap;
