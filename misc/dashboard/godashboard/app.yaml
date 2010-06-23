@@ -1,5 +1,5 @@
 application: godashboard
-version: 4
+version: 5
 runtime: python
 api_version: 1
 
@@ -8,6 +8,9 @@ handlers:
   static_dir: static
 
 - url: /package.*
+  script: package.py
+
+- url: /project.*
   script: package.py
 
 - url: /.*
