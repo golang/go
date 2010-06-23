@@ -35,4 +35,10 @@ func main() {
 	// real, imag, cmplx
 	c3 := cmplx(real(c2)+3, imag(c2)-5) + c2
 	fmt.Printf("c = %G\n", c3)
+
+	// compiler used to crash on nested divide
+	c4 := cmplx(real(c3/2), imag(c3/2))
+	if c4 != c3/2 {
+		fmt.Printf("c3 = %G != c4 = %G\n", c3, c4)
+	}
 }
