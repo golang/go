@@ -184,6 +184,7 @@ complexgen(Node *n, Node *res)
 	case OINDEX:
 	case OIND:
 	case ONAME:	// PHEAP or PPARAMREF var
+	case OCALLFUNC:
 		igen(n, &n1, res);
 		complexmove(&n1, res);
 		regfree(&n1);
@@ -245,7 +246,6 @@ complexgen(Node *n, Node *res)
 	case OMUL:
 		complexmul(nl, nr, res);
 		break;
-	// ODIV call a runtime function
 	}
 }
 
