@@ -78,12 +78,17 @@ func (t *commonType) Name() string { return t.name }
 // Create and check predefined types
 // The string for tBytes is "bytes" not "[]byte" to signify its specialness.
 
-var tBool = bootstrapType("bool", false, 1)
-var tInt = bootstrapType("int", int(0), 2)
-var tUint = bootstrapType("uint", uint(0), 3)
-var tFloat = bootstrapType("float", float64(0), 4)
-var tBytes = bootstrapType("bytes", make([]byte, 0), 5)
-var tString = bootstrapType("string", "", 6)
+var (
+	// Primordial types, needed during initialization.
+	tBool   = bootstrapType("bool", false, 1)
+	tInt    = bootstrapType("int", int(0), 2)
+	tUint   = bootstrapType("uint", uint(0), 3)
+	tFloat  = bootstrapType("float", float64(0), 4)
+	tBytes  = bootstrapType("bytes", make([]byte, 0), 5)
+	tString = bootstrapType("string", "", 6)
+	// Types added to the language later, not needed during initialization.
+	tComplex typeId
+)
 
 // Predefined because it's needed by the Decoder
 var tWireType = mustGetTypeInfo(reflect.Typeof(wireType{})).id
@@ -94,10 +99,17 @@ func init() {
 	checkId(9, mustGetTypeInfo(reflect.Typeof(commonType{})).id)
 	checkId(11, mustGetTypeInfo(reflect.Typeof(structType{})).id)
 	checkId(12, mustGetTypeInfo(reflect.Typeof(fieldType{})).id)
+
+	// Complex was added after gob was written, so appears after the
+	// fundamental types are built.
+	tComplex = bootstrapType("complex", 0+0i, 15)
+	decIgnoreOpMap[tComplex] = ignoreTwoUints
+
 	builtinIdToType = make(map[typeId]gobType)
 	for k, v := range idToType {
 		builtinIdToType[k] = v
 	}
+
 	// Move the id space upwards to allow for growth in the predefined world
 	// without breaking existing files.
 	if nextId > firstUserId {
@@ -241,6 +253,9 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 	case *reflect.FloatType:
 		return tFloat.gobType(), nil
 
+	case *reflect.ComplexType:
+		return tComplex.gobType(), nil
+
 	case *reflect.StringType:
 		return tString.gobType(), nil
 
@@ -335,7 +350,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 	rt := reflect.Typeof(e)
 	_, present := types[rt]
 	if present {
-		panic("bootstrap type already present: " + name)
+		panic("bootstrap type already present: " + name + ", " + rt.String())
 	}
 	typ := &commonType{name: name}
 	types[rt] = typ

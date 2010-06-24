@@ -467,7 +467,7 @@ func floatBits(f float64) uint64 {
 }
 
 func encFloat(i *encInstr, state *encoderState, p unsafe.Pointer) {
-	f := float(*(*float)(p))
+	f := *(*float)(p)
 	if f != 0 || state.inArray {
 		v := floatBits(float64(f))
 		state.update(i)
@@ -476,7 +476,7 @@ func encFloat(i *encInstr, state *encoderState, p unsafe.Pointer) {
 }
 
 func encFloat32(i *encInstr, state *encoderState, p unsafe.Pointer) {
-	f := float32(*(*float32)(p))
+	f := *(*float32)(p)
 	if f != 0 || state.inArray {
 		v := floatBits(float64(f))
 		state.update(i)
@@ -490,6 +490,40 @@ func encFloat64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 		state.update(i)
 		v := floatBits(f)
 		encodeUint(state, v)
+	}
+}
+
+// Complex numbers are just a pair of floating-point numbers, real part first.
+func encComplex(i *encInstr, state *encoderState, p unsafe.Pointer) {
+	c := *(*complex)(p)
+	if c != 0+0i || state.inArray {
+		rpart := floatBits(float64(real(c)))
+		ipart := floatBits(float64(imag(c)))
+		state.update(i)
+		encodeUint(state, rpart)
+		encodeUint(state, ipart)
+	}
+}
+
+func encComplex64(i *encInstr, state *encoderState, p unsafe.Pointer) {
+	c := *(*complex64)(p)
+	if c != 0+0i || state.inArray {
+		rpart := floatBits(float64(real(c)))
+		ipart := floatBits(float64(imag(c)))
+		state.update(i)
+		encodeUint(state, rpart)
+		encodeUint(state, ipart)
+	}
+}
+
+func encComplex128(i *encInstr, state *encoderState, p unsafe.Pointer) {
+	c := *(*complex128)(p)
+	if c != 0+0i || state.inArray {
+		rpart := floatBits(real(c))
+		ipart := floatBits(imag(c))
+		state.update(i)
+		encodeUint(state, rpart)
+		encodeUint(state, ipart)
 	}
 }
 
@@ -602,22 +636,25 @@ func encodeMap(b *bytes.Buffer, rt reflect.Type, p uintptr, keyOp, elemOp encOp,
 }
 
 var encOpMap = []encOp{
-	reflect.Bool:    encBool,
-	reflect.Int:     encInt,
-	reflect.Int8:    encInt8,
-	reflect.Int16:   encInt16,
-	reflect.Int32:   encInt32,
-	reflect.Int64:   encInt64,
-	reflect.Uint:    encUint,
-	reflect.Uint8:   encUint8,
-	reflect.Uint16:  encUint16,
-	reflect.Uint32:  encUint32,
-	reflect.Uint64:  encUint64,
-	reflect.Uintptr: encUintptr,
-	reflect.Float:   encFloat,
-	reflect.Float32: encFloat32,
-	reflect.Float64: encFloat64,
-	reflect.String:  encString,
+	reflect.Bool:       encBool,
+	reflect.Int:        encInt,
+	reflect.Int8:       encInt8,
+	reflect.Int16:      encInt16,
+	reflect.Int32:      encInt32,
+	reflect.Int64:      encInt64,
+	reflect.Uint:       encUint,
+	reflect.Uint8:      encUint8,
+	reflect.Uint16:     encUint16,
+	reflect.Uint32:     encUint32,
+	reflect.Uint64:     encUint64,
+	reflect.Uintptr:    encUintptr,
+	reflect.Float:      encFloat,
+	reflect.Float32:    encFloat32,
+	reflect.Float64:    encFloat64,
+	reflect.Complex:    encComplex,
+	reflect.Complex64:  encComplex64,
+	reflect.Complex128: encComplex128,
+	reflect.String:     encString,
 }
 
 // Return the encoding op for the base type under rt and
@@ -688,7 +725,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 		}
 	}
 	if op == nil {
-		return op, indir, os.ErrorString("gob enc: can't happen: encode type" + rt.String())
+		return op, indir, os.ErrorString("gob enc: can't happen: encode type " + rt.String())
 	}
 	return op, indir, nil
 }
