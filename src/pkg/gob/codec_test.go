@@ -112,7 +112,9 @@ var boolResult = []byte{0x07, 0x01}
 var signedResult = []byte{0x07, 2 * 17}
 var unsignedResult = []byte{0x07, 17}
 var floatResult = []byte{0x07, 0xFE, 0x31, 0x40}
-// The result of encoding "hello" with field number 6
+// The result of encoding a number 17+19i with field number 7
+var complexResult = []byte{0x07, 0xFE, 0x31, 0x40, 0xFE, 0x33, 0x40}
+// The result of encoding "hello" with field number 7
 var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
 
 func newencoderState(b *bytes.Buffer) *encoderState {
@@ -537,6 +539,45 @@ func TestScalarDecInstructions(t *testing.T) {
 		}
 	}
 
+	// complex
+	{
+		var data struct {
+			a complex
+		}
+		instr := &decInstr{decOpMap[reflect.Complex], 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(complexResult)
+		execDec("complex", instr, state, t, unsafe.Pointer(&data))
+		if data.a != 17+19i {
+			t.Errorf("complex a = %v not 17+19i", data.a)
+		}
+	}
+
+	// complex64
+	{
+		var data struct {
+			a complex64
+		}
+		instr := &decInstr{decOpMap[reflect.Complex64], 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(complexResult)
+		execDec("complex", instr, state, t, unsafe.Pointer(&data))
+		if data.a != 17+19i {
+			t.Errorf("complex a = %v not 17+19i", data.a)
+		}
+	}
+
+	// complex128
+	{
+		var data struct {
+			a complex128
+		}
+		instr := &decInstr{decOpMap[reflect.Complex128], 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(complexResult)
+		execDec("complex", instr, state, t, unsafe.Pointer(&data))
+		if data.a != 17+19i {
+			t.Errorf("complex a = %v not 17+19i", data.a)
+		}
+	}
+
 	// bytes == []uint8
 	{
 		var data struct {
@@ -576,6 +617,7 @@ func TestEndToEnd(t *testing.T) {
 		n       *[3]float
 		strs    *[2]string
 		int64s  *[]int64
+		ri      complex64
 		s       string
 		y       []byte
 		t       *T2
@@ -590,6 +632,7 @@ func TestEndToEnd(t *testing.T) {
 		n:      &[3]float{1.5, 2.5, 3.5},
 		strs:   &[2]string{s1, s2},
 		int64s: &[]int64{77, 89, 123412342134},
+		ri:     17 - 23i,
 		s:      "Now is the time",
 		y:      []byte("hello, sailor"),
 		t:      &T2{"this is T2"},
@@ -616,6 +659,8 @@ func TestOverflow(t *testing.T) {
 		maxu uint64
 		maxf float64
 		minf float64
+		maxc complex128
+		minc complex128
 	}
 	var it inputT
 	var err os.Error
@@ -757,6 +802,22 @@ func TestOverflow(t *testing.T) {
 	err = dec.Decode(&o7)
 	if err == nil || err.String() != `value for "maxf" out of range` {
 		t.Error("wrong overflow error for float32:", err)
+	}
+
+	// complex64
+	b.Reset()
+	it = inputT{
+		maxc: cmplx(math.MaxFloat32*2, math.MaxFloat32*2),
+	}
+	type outc64 struct {
+		maxc complex64
+		minc complex64
+	}
+	var o8 outc64
+	enc.Encode(it)
+	err = dec.Decode(&o8)
+	if err == nil || err.String() != `value for "maxc" out of range` {
+		t.Error("wrong overflow error for complex64:", err)
 	}
 }
 
