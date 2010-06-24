@@ -125,12 +125,15 @@ type scanError struct {
 	err os.Error
 }
 
+const EOF = -1
+
 // ss is the internal implementation of ScanState.
 type ss struct {
 	rr         readRuner    // where to read input
 	buf        bytes.Buffer // token accumulator
 	nlIsSpace  bool         // whether newline counts as white space
 	peekRune   int          // one-rune lookahead
+	atEOF      bool         // already read EOF
 	maxWid     int          // max width of field, in runes
 	widPresent bool         // width was specified
 	wid        int          // width consumed so far; used in accept()
@@ -150,11 +153,12 @@ func (s *ss) Width() (wid int, ok bool) {
 	return s.maxWid, s.widPresent
 }
 
-const EOF = -1
-
 // The public method returns an error; this private one panics.
 // If getRune reaches EOF, the return value is EOF (-1).
 func (s *ss) getRune() (rune int) {
+	if s.atEOF {
+		return EOF
+	}
 	if s.peekRune >= 0 {
 		rune = s.peekRune
 		s.peekRune = -1
@@ -163,6 +167,7 @@ func (s *ss) getRune() (rune int) {
 	rune, _, err := s.rr.ReadRune()
 	if err != nil {
 		if err == os.EOF {
+			s.atEOF = true
 			return EOF
 		}
 		s.error(err)
@@ -174,6 +179,9 @@ func (s *ss) getRune() (rune int) {
 // It is called in cases such as string scanning where an EOF is a
 // syntax error.
 func (s *ss) mustGetRune() (rune int) {
+	if s.atEOF {
+		s.error(io.ErrUnexpectedEOF)
+	}
 	if s.peekRune >= 0 {
 		rune = s.peekRune
 		s.peekRune = -1
@@ -291,6 +299,7 @@ func newScanState(r io.Reader, nlIsSpace bool) *ss {
 	}
 	s.nlIsSpace = nlIsSpace
 	s.peekRune = -1
+	s.atEOF = false
 	s.maxWid = 0
 	s.widPresent = false
 	return s

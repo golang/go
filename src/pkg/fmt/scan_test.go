@@ -493,3 +493,45 @@ func TestScanlnWithMiddleNewline(t *testing.T) {
 		t.Errorf("expected newline error scanning string with extra newline, got: %s", err)
 	}
 }
+
+// Special Reader that counts reads at end of file.
+type eofCounter struct {
+	reader   *strings.Reader
+	eofCount int
+}
+
+func (ec *eofCounter) Read(b []byte) (n int, err os.Error) {
+	n, err = ec.reader.Read(b)
+	if n == 0 {
+		ec.eofCount++
+	}
+	return
+}
+
+// Verify that when we scan, we see at most EOF once per call to a Scan function,
+// and then only when it's really an EOF
+func TestEOF(t *testing.T) {
+	ec := &eofCounter{strings.NewReader("123\n"), 0}
+	var a int
+	n, err := Fscanln(ec, &a)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	if n != 1 {
+		t.Error("expected to scan one item, got", n)
+	}
+	if ec.eofCount != 0 {
+		t.Error("expected zero EOFs", ec.eofCount)
+		ec.eofCount = 0 // reset for next test
+	}
+	n, err = Fscanln(ec, &a)
+	if err == nil {
+		t.Error("expected error scanning empty string")
+	}
+	if n != 0 {
+		t.Error("expected to scan zero items, got", n)
+	}
+	if ec.eofCount != 1 {
+		t.Error("expected one EOF, got", ec.eofCount)
+	}
+}
