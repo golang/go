@@ -5,6 +5,7 @@
 package rpc
 
 import (
+	"fmt"
 	"http"
 	"log"
 	"net"
@@ -46,6 +47,16 @@ func (t *Arith) Div(args *Args, reply *Reply) os.Error {
 	}
 	reply.C = args.A / args.B
 	return nil
+}
+
+func (t *Arith) String(args *Args, reply *string) os.Error {
+	*reply = fmt.Sprintf("%d+%d=%d", args.A, args.B, args.A+args.B)
+	return nil
+}
+
+func (t *Arith) Scan(args *string, reply *Reply) (err os.Error) {
+	_, err = fmt.Sscan(*args, &reply.C)
+	return
 }
 
 func (t *Arith) Error(args *Args, reply *Reply) os.Error {
@@ -136,6 +147,29 @@ func TestRPC(t *testing.T) {
 	} else if err.String() != "divide by zero" {
 		t.Error("Div: expected divide by zero error; got", err)
 	}
+
+	// Non-struct argument
+	const Val = 12345
+	str := fmt.Sprint(Val)
+	reply = new(Reply)
+	err = client.Call("Arith.Scan", &str, reply)
+	if err != nil {
+		t.Errorf("Scan: expected no error but got string %q", err.String())
+	} else if reply.C != Val {
+		t.Errorf("Scan: expected %d got %d", Val, reply.C)
+	}
+
+	// Non-struct reply
+	args = &Args{27, 35}
+	str = ""
+	err = client.Call("Arith.String", args, &str)
+	if err != nil {
+		t.Errorf("String: expected no error but got string %q", err.String())
+	}
+	expect := fmt.Sprintf("%d+%d=%d", args.A, args.B, args.A+args.B)
+	if str != expect {
+		t.Errorf("String: expected %s got %s", expect, str)
+	}
 }
 
 func TestHTTPRPC(t *testing.T) {
@@ -217,37 +251,44 @@ func TestCheckBadType(t *testing.T) {
 	}
 }
 
-type Bad int
+type ArgNotPointer int
+type ReplyNotPointer int
+type ArgNotPublic int
+type ReplyNotPublic int
 type local struct{}
 
-func (t *Bad) ArgNotPointer(args Args, reply *Reply) os.Error {
+func (t *ArgNotPointer) ArgNotPointer(args Args, reply *Reply) os.Error {
 	return nil
 }
 
-func (t *Bad) ArgNotPointerToStruct(args *int, reply *Reply) os.Error {
+func (t *ReplyNotPointer) ReplyNotPointer(args *Args, reply Reply) os.Error {
 	return nil
 }
 
-func (t *Bad) ReplyNotPointer(args *Args, reply Reply) os.Error {
+func (t *ArgNotPublic) ArgNotPublic(args *local, reply *Reply) os.Error {
 	return nil
 }
 
-func (t *Bad) ReplyNotPointerToStruct(args *Args, reply *int) os.Error {
-	return nil
-}
-
-func (t *Bad) ArgNotPublic(args *local, reply *Reply) os.Error {
-	return nil
-}
-
-func (t *Bad) ReplyNotPublic(args *Args, reply *local) os.Error {
+func (t *ReplyNotPublic) ReplyNotPublic(args *Args, reply *local) os.Error {
 	return nil
 }
 
 // Check that registration handles lots of bad methods and a type with no suitable methods.
 func TestRegistrationError(t *testing.T) {
-	err := Register(new(Bad))
+	err := Register(new(ArgNotPointer))
 	if err == nil {
-		t.Errorf("expected error registering bad type")
+		t.Errorf("expected error registering ArgNotPointer")
+	}
+	err = Register(new(ReplyNotPointer))
+	if err == nil {
+		t.Errorf("expected error registering ReplyNotPointer")
+	}
+	err = Register(new(ArgNotPublic))
+	if err == nil {
+		t.Errorf("expected error registering ArgNotPublic")
+	}
+	err = Register(new(ReplyNotPublic))
+	if err == nil {
+		t.Errorf("expected error registering ReplyNotPublic")
 	}
 }
