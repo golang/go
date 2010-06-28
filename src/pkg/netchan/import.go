@@ -136,7 +136,7 @@ func (imp *Importer) Import(name string, chT interface{}, dir Dir, pT interface{
 //	err := imp.ImportNValues("name", ch, Recv, new(myType), 1)
 //	if err != nil { log.Exit(err) }
 //	fmt.Printf("%+v\n", <-ch)
-// TODO: fix gob interface so we can eliminate the need for pT, and for structs.
+// TODO: fix reflection so we can eliminate the need for pT.
 func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, pT interface{}, n int) os.Error {
 	ch, err := checkChan(chT, dir)
 	if err != nil {
@@ -146,9 +146,6 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, pT int
 	rt := reflect.Typeof(pT)
 	if _, ok := rt.(*reflect.PtrType); !ok {
 		return os.ErrorString("not a pointer:" + rt.String())
-	}
-	if _, ok := reflect.Indirect(reflect.NewValue(pT)).(*reflect.StructValue); !ok {
-		return os.ErrorString("not a pointer to a struct:" + rt.String())
 	}
 	imp.chanLock.Lock()
 	defer imp.chanLock.Unlock()
