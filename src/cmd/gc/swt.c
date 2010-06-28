@@ -777,11 +777,12 @@ typeswitch(Node *sw)
 		// binary search among cases to narrow by hash
 		cas = list(cas, typebsw(c1, ncase));
 	}
-	
-	cas = list(cas, def);
-	sw->nbody = concat(cas, sw->nbody);
-	sw->list = nil;
-	walkstmtlist(sw->nbody);
+	if(nerrors == 0) {
+		cas = list(cas, def);
+		sw->nbody = concat(cas, sw->nbody);
+		sw->list = nil;
+		walkstmtlist(sw->nbody);
+	}
 }
 
 void
