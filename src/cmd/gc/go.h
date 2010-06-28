@@ -1016,7 +1016,7 @@ void	walkselect(Node *sel);
 /*
  *	sinit.c
  */
-void	anylit(Node *n, Node *var, NodeList **init);
+void	anylit(int ctxt, Node *n, Node *var, NodeList **init);
 int	gen_as_init(Node *n);
 NodeList*	initfix(NodeList *l);
 int	oaslit(Node *n, NodeList **init);
