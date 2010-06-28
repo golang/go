@@ -68,7 +68,7 @@ func (enc *Encoder) send() {
 	}
 }
 
-func (enc *Encoder) sendType(origt reflect.Type) {
+func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 	// Drill down to the base type.
 	rt, _ := indirect(origt)
 
@@ -147,11 +147,6 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 
 	enc.state.err = nil
 	rt, _ := indirect(reflect.Typeof(e))
-	// Must be a struct
-	if _, ok := rt.(*reflect.StructType); !ok {
-		enc.badType(rt)
-		return enc.state.err
-	}
 
 	// Sanity check only: encoder should never come in with data present.
 	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
@@ -163,9 +158,22 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 	// First, have we already sent this type?
 	if _, alreadySent := enc.sent[rt]; !alreadySent {
 		// No, so send it.
-		enc.sendType(rt)
+		sent := enc.sendType(rt)
 		if enc.state.err != nil {
 			return enc.state.err
+		}
+		// If the type info has still not been transmitted, it means we have
+		// a singleton basic type (int, []byte etc.) at top level.  We don't
+		// need to send the type info but we do need to update enc.sent.
+		if !sent {
+			typeLock.Lock()
+			info, err := getTypeInfo(rt)
+			typeLock.Unlock()
+			if err != nil {
+				enc.setError(err)
+				return err
+			}
+			enc.sent[rt] = info.id
 		}
 	}
 

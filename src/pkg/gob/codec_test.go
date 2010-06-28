@@ -1039,7 +1039,7 @@ func TestInvalidField(t *testing.T) {
 type Indirect struct {
 	a ***[3]int
 	s ***[]int
-	m ***map[string]int
+	m ****map[string]int
 }
 
 type Direct struct {
@@ -1059,10 +1059,11 @@ func TestIndirectSliceMapArray(t *testing.T) {
 	*i.s = new(*[]int)
 	**i.s = new([]int)
 	***i.s = []int{4, 5, 6}
-	i.m = new(**map[string]int)
-	*i.m = new(*map[string]int)
-	**i.m = new(map[string]int)
-	***i.m = map[string]int{"one": 1, "two": 2, "three": 3}
+	i.m = new(***map[string]int)
+	*i.m = new(**map[string]int)
+	**i.m = new(*map[string]int)
+	***i.m = new(map[string]int)
+	****i.m = map[string]int{"one": 1, "two": 2, "three": 3}
 	b := new(bytes.Buffer)
 	NewEncoder(b).Encode(i)
 	dec := NewDecoder(b)
@@ -1093,12 +1094,12 @@ func TestIndirectSliceMapArray(t *testing.T) {
 		t.Error("error: ", err)
 	}
 	if len(***i.a) != 3 || (***i.a)[0] != 11 || (***i.a)[1] != 22 || (***i.a)[2] != 33 {
-		t.Errorf("indirect to direct: ***i.a is %v not %v", ***i.a, d.a)
+		t.Errorf("direct to indirect: ***i.a is %v not %v", ***i.a, d.a)
 	}
 	if len(***i.s) != 3 || (***i.s)[0] != 44 || (***i.s)[1] != 55 || (***i.s)[2] != 66 {
-		t.Errorf("indirect to direct: ***i.s is %v not %v", ***i.s, ***i.s)
+		t.Errorf("direct to indirect: ***i.s is %v not %v", ***i.s, ***i.s)
 	}
-	if len(***i.m) != 3 || (***i.m)["four"] != 4 || (***i.m)["five"] != 5 || (***i.m)["six"] != 6 {
-		t.Errorf("indirect to direct: ***i.m is %v not %v", ***i.m, d.m)
+	if len(****i.m) != 3 || (****i.m)["four"] != 4 || (****i.m)["five"] != 5 || (****i.m)["six"] != 6 {
+		t.Errorf("direct to indirect: ****i.m is %v not %v", ****i.m, d.m)
 	}
 }
