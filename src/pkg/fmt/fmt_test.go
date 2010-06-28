@@ -289,6 +289,14 @@ var fmttests = []fmtTest{
 	fmtTest{"%#v", make(chan int), "(chan int)(PTR)"},
 	fmtTest{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
 	fmtTest{"%#v", 1000000000, "1000000000"},
+	fmtTest{"%#v", map[string]int{"a": 1, "b": 2}, `map[string] int{"a":1, "b":2}`},
+	fmtTest{"%#v", map[string]B{"a": B{1, 2}, "b": B{3, 4}}, `map[string] fmt_test.B{"a":fmt_test.B{i:1, j:2}, "b":fmt_test.B{i:3, j:4}}`},
+	fmtTest{"%#v", []string{"a", "b"}, `[]string{"a", "b"}`},
+
+	// slices with other formats
+	fmtTest{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
+	fmtTest{"%x", []int{1, 2, 15}, `[1 2 f]`},
+	fmtTest{"%q", []string{"a", "b"}, `["a" "b"]`},
 
 	// renamings
 	fmtTest{"%v", renamedBool(true), "true"},

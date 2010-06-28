@@ -43,14 +43,13 @@ type fmt struct {
 	wid  int
 	prec int
 	// flags
-	widPresent    bool
-	precPresent   bool
-	minus         bool
-	plus          bool
-	sharp         bool
-	space         bool
-	zero          bool
-	preserveFlags bool // don't clear flags after this print; used to carry over in complex prints
+	widPresent  bool
+	precPresent bool
+	minus       bool
+	plus        bool
+	sharp       bool
+	space       bool
+	zero        bool
 }
 
 func (f *fmt) clearflags() {
@@ -120,9 +119,6 @@ func (f *fmt) pad(b []byte) {
 	if right > 0 {
 		f.writePadding(right, padding)
 	}
-	if !f.preserveFlags {
-		f.clearflags()
-	}
 }
 
 // append s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
@@ -139,9 +135,6 @@ func (f *fmt) padString(s string) {
 	f.buf.WriteString(s)
 	if right > 0 {
 		f.writePadding(right, padding)
-	}
-	if !f.preserveFlags {
-		f.clearflags()
 	}
 }
 
@@ -345,7 +338,6 @@ func (f *fmt) fmt_fb32(v float32) { f.padString(strconv.Ftoa32(v, 'b', 0)) }
 func (f *fmt) fmt_c64(v complex64, verb int) {
 	f.buf.WriteByte('(')
 	r := real(v)
-	f.preserveFlags = true
 	for i := 0; ; i++ {
 		switch verb {
 		case 'e':
@@ -359,7 +351,6 @@ func (f *fmt) fmt_c64(v complex64, verb int) {
 		case 'G':
 			f.fmt_G32(r)
 		}
-		f.preserveFlags = false
 		if i != 0 {
 			break
 		}
@@ -373,7 +364,6 @@ func (f *fmt) fmt_c64(v complex64, verb int) {
 func (f *fmt) fmt_c128(v complex128, verb int) {
 	f.buf.WriteByte('(')
 	r := real(v)
-	f.preserveFlags = true
 	for i := 0; ; i++ {
 		switch verb {
 		case 'e':
@@ -387,7 +377,6 @@ func (f *fmt) fmt_c128(v complex128, verb int) {
 		case 'G':
 			f.fmt_G64(r)
 		}
-		f.preserveFlags = false
 		if i != 0 {
 			break
 		}
