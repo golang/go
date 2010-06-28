@@ -813,7 +813,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case ODOTTYPE:
-	case ODOTTYPE2:		
+	case ODOTTYPE2:
 		// Build name of function: assertI2E2 etc.
 		strcpy(buf, "assert");
 		p = buf+strlen(buf);
@@ -1081,7 +1081,7 @@ walkexpr(Node **np, NodeList **init)
 		case OMAPLIT:
 		case OSTRUCTLIT:
 			nvar = makenewvar(n->type, init, &nstar);
-			anylit(n->left, nstar, init);
+			anylit(0, n->left, nstar, init);
 			n = nvar;
 			goto ret;
 		}
@@ -1262,7 +1262,7 @@ walkexpr(Node **np, NodeList **init)
 	case OSTRUCTLIT:
 		nvar = nod(OXXX, N, N);
 		tempname(nvar, n->type);
-		anylit(n, nvar, init);
+		anylit(0, n, nvar, init);
 		n = nvar;
 		goto ret;
 

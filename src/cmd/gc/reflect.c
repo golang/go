@@ -617,7 +617,7 @@ typename(Type *t)
 	Sym *s;
 	Node *n;
 
-	if((isptr[t->etype] && t->type == T) || isideal(t))
+	if(t == T || (isptr[t->etype] && t->type == T) || isideal(t))
 		fatal("typename %T", t);
 	s = typesym(t);
 	if(s->def == N) {
