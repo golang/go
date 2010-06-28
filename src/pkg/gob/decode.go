@@ -13,15 +13,13 @@ import (
 	"math"
 	"os"
 	"reflect"
-	"runtime"
 	"unsafe"
 )
 
 var (
-	errBadUint   = os.ErrorString("gob: encoded unsigned integer out of range")
-	errBadType   = os.ErrorString("gob: unknown type id or corrupted data")
-	errRange     = os.ErrorString("gob: internal error: field numbers out of bounds")
-	errNotStruct = os.ErrorString("gob: TODO: can only handle structs")
+	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range")
+	errBadType = os.ErrorString("gob: unknown type id or corrupted data")
+	errRange   = os.ErrorString("gob: internal error: field numbers out of bounds")
 )
 
 // The global execution state of an instance of the decoder.
@@ -389,18 +387,44 @@ type decEngine struct {
 	numInstr int // the number of active instructions
 }
 
-func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, p uintptr, indir int) os.Error {
-	if indir > 0 {
-		up := unsafe.Pointer(p)
-		if indir > 1 {
-			up = decIndirect(up, indir)
-		}
-		if *(*unsafe.Pointer)(up) == nil {
-			// Allocate object.
-			*(*unsafe.Pointer)(up) = unsafe.New((*runtime.StructType)(unsafe.Pointer(rtyp)))
-		}
-		p = *(*uintptr)(up)
+// allocate makes sure storage is available for an object of underlying type rtyp
+// that is indir levels of indirection through p.
+func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
+	if indir == 0 {
+		return p
 	}
+	up := unsafe.Pointer(p)
+	if indir > 1 {
+		up = decIndirect(up, indir)
+	}
+	if *(*unsafe.Pointer)(up) == nil {
+		// Allocate object.
+		*(*unsafe.Pointer)(up) = unsafe.New(rtyp)
+	}
+	return *(*uintptr)(up)
+}
+
+func decodeSingle(engine *decEngine, rtyp reflect.Type, b *bytes.Buffer, p uintptr, indir int) os.Error {
+	p = allocate(rtyp, p, indir)
+	state := newDecodeState(b)
+	state.fieldnum = singletonField
+	basep := p
+	delta := int(decodeUint(state))
+	if delta != 0 {
+		state.err = os.ErrorString("gob decode: corrupted data: non-zero delta for singleton")
+		return state.err
+	}
+	instr := &engine.instr[singletonField]
+	ptr := unsafe.Pointer(basep) // offset will be zero
+	if instr.indir > 1 {
+		ptr = decIndirect(ptr, instr.indir)
+	}
+	instr.op(instr, state, ptr)
+	return state.err
+}
+
+func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, p uintptr, indir int) os.Error {
+	p = allocate(rtyp, p, indir)
 	state := newDecodeState(b)
 	state.fieldnum = -1
 	basep := p
@@ -468,12 +492,7 @@ func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uint
 
 func decodeArray(atyp *reflect.ArrayType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) os.Error {
 	if indir > 0 {
-		up := unsafe.Pointer(p)
-		if *(*unsafe.Pointer)(up) == nil {
-			// Allocate object.
-			*(*unsafe.Pointer)(up) = unsafe.New(atyp)
-		}
-		p = *(*uintptr)(up)
+		p = allocate(atyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
 	if n := decodeUint(state); n != uint64(length) {
 		return os.ErrorString("gob: length mismatch in decodeArray")
@@ -493,12 +512,7 @@ func decodeIntoValue(state *decodeState, op decOp, indir int, v reflect.Value, o
 
 func decodeMap(mtyp *reflect.MapType, state *decodeState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.ErrorString) os.Error {
 	if indir > 0 {
-		up := unsafe.Pointer(p)
-		if *(*unsafe.Pointer)(up) == nil {
-			// Allocate object.
-			*(*unsafe.Pointer)(up) = unsafe.New(mtyp)
-		}
-		p = *(*uintptr)(up)
+		p = allocate(mtyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
 	up := unsafe.Pointer(p)
 	if *(*unsafe.Pointer)(up) == nil { // maps are represented as a pointer in the runtime
@@ -806,18 +820,34 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 	return true
 }
 
+func (dec *Decoder) compileSingle(remoteId typeId, rt reflect.Type) (engine *decEngine, err os.Error) {
+	engine = new(decEngine)
+	engine.instr = make([]decInstr, 1) // one item
+	name := rt.String()                // best we can do
+	if !dec.compatibleType(rt, remoteId) {
+		return nil, os.ErrorString("gob: wrong type received for local value " + name)
+	}
+	op, indir, err := dec.decOpFor(remoteId, rt, name)
+	if err != nil {
+		return nil, err
+	}
+	ovfl := os.ErrorString(`value for "` + name + `" out of range`)
+	engine.instr[singletonField] = decInstr{op, singletonField, indir, 0, ovfl}
+	engine.numInstr = 1
+	return
+}
+
 func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEngine, err os.Error) {
-	srt, ok1 := rt.(*reflect.StructType)
+	srt, ok := rt.(*reflect.StructType)
+	if !ok {
+		return dec.compileSingle(remoteId, rt)
+	}
 	var wireStruct *structType
 	// Builtin types can come from global pool; the rest must be defined by the decoder
 	if t, ok := builtinIdToType[remoteId]; ok {
 		wireStruct = t.(*structType)
 	} else {
-		w, ok2 := dec.wireType[remoteId]
-		if !ok1 || !ok2 {
-			return nil, errNotStruct
-		}
-		wireStruct = w.structT
+		wireStruct = dec.wireType[remoteId].structT
 	}
 	engine = new(decEngine)
 	engine.instr = make([]decInstr, len(wireStruct.field))
@@ -891,20 +921,19 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
 func (dec *Decoder) decode(wireId typeId, e interface{}) os.Error {
 	// Dereference down to the underlying struct type.
 	rt, indir := indirect(reflect.Typeof(e))
-	st, ok := rt.(*reflect.StructType)
-	if !ok {
-		return os.ErrorString("gob: decode can't handle " + rt.String())
-	}
 	enginePtr, err := dec.getDecEnginePtr(wireId, rt)
 	if err != nil {
 		return err
 	}
 	engine := *enginePtr
-	if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].structT.field) > 0 {
-		name := rt.Name()
-		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
+	if st, ok := rt.(*reflect.StructType); ok {
+		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].structT.field) > 0 {
+			name := rt.Name()
+			return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
+		}
+		return decodeStruct(engine, st, dec.state.b, uintptr(reflect.NewValue(e).Addr()), indir)
 	}
-	return decodeStruct(engine, st, dec.state.b, uintptr(reflect.NewValue(e).Addr()), indir)
+	return decodeSingle(engine, rt, dec.state.b, uintptr(reflect.NewValue(e).Addr()), indir)
 }
 
 func init() {

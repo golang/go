@@ -131,17 +131,10 @@ func TestBadData(t *testing.T) {
 	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
 }
 
-// Types not supported by the Encoder (only structs work at the top level).
-// Basic types work implicitly.
+// Types not supported by the Encoder.
 var unsupportedValues = []interface{}{
-	3,
-	"hi",
-	7.2,
-	[]int{1, 2, 3},
-	[3]int{1, 2, 3},
 	make(chan int),
 	func(a int) bool { return true },
-	make(map[string]int),
 	new(interface{}),
 }
 
@@ -273,5 +266,61 @@ func TestDefaultsInArray(t *testing.T) {
 	var t7p Type7
 	if err := encAndDec(t7, &t7p); err != nil {
 		t.Error(err)
+	}
+}
+
+var testInt int
+var testFloat32 float32
+var testString string
+var testSlice []string
+var testMap map[string]int
+
+type SingleTest struct {
+	in  interface{}
+	out interface{}
+	err string
+}
+
+var singleTests = []SingleTest{
+	SingleTest{17, &testInt, ""},
+	SingleTest{float32(17.5), &testFloat32, ""},
+	SingleTest{"bike shed", &testString, ""},
+	SingleTest{[]string{"bike", "shed", "paint", "color"}, &testSlice, ""},
+	SingleTest{map[string]int{"seven": 7, "twelve": 12}, &testMap, ""},
+
+	// Decode errors
+	SingleTest{172, &testFloat32, "wrong type"},
+}
+
+func TestSingletons(t *testing.T) {
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	dec := NewDecoder(b)
+	for _, test := range singleTests {
+		b.Reset()
+		err := enc.Encode(test.in)
+		if err != nil {
+			t.Errorf("error encoding %v: %s", test.in, err)
+			continue
+		}
+		err = dec.Decode(test.out)
+		switch {
+		case err != nil && test.err == "":
+			t.Errorf("error decoding %v: %s", test.in, err)
+			continue
+		case err == nil && test.err != "":
+			t.Errorf("expected error decoding %v: %s", test.in, test.err)
+			continue
+		case err != nil && test.err != "":
+			if strings.Index(err.String(), test.err) < 0 {
+				t.Errorf("wrong error decoding %v: wanted %s, got %v", test.in, test.err, err)
+			}
+			continue
+		}
+		// Get rid of the pointer in the rhs
+		val := reflect.NewValue(test.out).(*reflect.PtrValue).Elem().Interface()
+		if !reflect.DeepEqual(test.in, val) {
+			t.Errorf("decoding int: expected %v got %v", test.in, val)
+		}
 	}
 }

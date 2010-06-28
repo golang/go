@@ -108,8 +108,9 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		}
 
 		// No, it's a value.
-		// Make sure the type has been defined already.
-		if dec.wireType[id] == nil {
+		// Make sure the type has been defined already or is a builtin type (for
+		// top-level singleton values).
+		if dec.wireType[id] == nil && builtinIdToType[id] == nil {
 			dec.state.err = errBadType
 			break
 		}
