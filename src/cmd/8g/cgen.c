@@ -453,10 +453,13 @@ cgenindex(Node *n, Node *res)
 	cgen(n, &tmp);
 	split64(&tmp, &lo, &hi);
 	gmove(&lo, res);
-	if(debug['B'])
+	if(debug['B']) {
+		splitclean();
 		return nil;
+	}
 	nodconst(&zero, types[TINT32], 0);
 	gins(ACMPL, &hi, &zero);
+	splitclean();
 	return gbranch(AJNE, T);
 }
 		
