@@ -10,6 +10,7 @@ GOFILES=\
 	dnsclient.go\
 	dnsconfig.go\
 	dnsmsg.go\
+	newpollserver.go\
 	fd.go\
 	fd_$(GOOS).go\
 	hosts.go\
