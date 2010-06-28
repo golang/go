@@ -225,7 +225,7 @@ func checkChan(chT interface{}, dir Dir) (*reflect.ChanValue, os.Error) {
 // Despite the literal signature, the effective signature is
 //	Export(name string, chT chan T, dir Dir)
 // where T must be a struct, pointer to struct, etc.
-// TODO: fix gob interface so we can eliminate the need for pT, and for structs.
+// TODO: fix reflection so we can eliminate the need for pT.
 func (exp *Exporter) Export(name string, chT interface{}, dir Dir, pT interface{}) os.Error {
 	ch, err := checkChan(chT, dir)
 	if err != nil {
