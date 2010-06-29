@@ -74,8 +74,10 @@ var atoftests = []atofTest{
 	atofTest{"1e-322", "1e-322", nil},
 	// smallest denormal
 	atofTest{"5e-324", "5e-324", nil},
+	atofTest{"4e-324", "5e-324", nil},
+	atofTest{"3e-324", "5e-324", nil},
 	// too small
-	atofTest{"4e-324", "0", nil},
+	atofTest{"2e-324", "0", nil},
 	// way too small
 	atofTest{"1e-350", "0", nil},
 	atofTest{"1e-400000", "0", nil},

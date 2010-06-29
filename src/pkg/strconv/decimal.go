@@ -289,11 +289,11 @@ func (a *decimal) Shift(k int) *decimal {
 
 // If we chop a at nd digits, should we round up?
 func shouldRoundUp(a *decimal, nd int) bool {
-	if nd <= 0 || nd >= a.nd {
+	if nd < 0 || nd >= a.nd {
 		return false
 	}
 	if a.d[nd] == '5' && nd+1 == a.nd { // exactly halfway - round to even
-		return (a.d[nd-1]-'0')%2 != 0
+		return nd > 0 && (a.d[nd-1]-'0')%2 != 0
 	}
 	// not halfway - digit tells all
 	return a.d[nd] >= '5'
@@ -301,8 +301,11 @@ func shouldRoundUp(a *decimal, nd int) bool {
 
 // Round a to nd digits (or fewer).
 // Returns receiver for convenience.
+// If nd is zero, it means we're rounding
+// just to the left of the digits, as in
+// 0.09 -> 0.1.
 func (a *decimal) Round(nd int) *decimal {
-	if nd <= 0 || nd >= a.nd {
+	if nd < 0 || nd >= a.nd {
 		return a
 	}
 	if shouldRoundUp(a, nd) {
@@ -314,7 +317,7 @@ func (a *decimal) Round(nd int) *decimal {
 // Round a down to nd digits (or fewer).
 // Returns receiver for convenience.
 func (a *decimal) RoundDown(nd int) *decimal {
-	if nd <= 0 || nd >= a.nd {
+	if nd < 0 || nd >= a.nd {
 		return a
 	}
 	a.nd = nd
@@ -325,7 +328,7 @@ func (a *decimal) RoundDown(nd int) *decimal {
 // Round a up to nd digits (or fewer).
 // Returns receiver for convenience.
 func (a *decimal) RoundUp(nd int) *decimal {
-	if nd <= 0 || nd >= a.nd {
+	if nd < 0 || nd >= a.nd {
 		return a
 	}
 
