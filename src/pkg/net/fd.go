@@ -194,6 +194,50 @@ func (s *pollServer) CheckDeadlines() {
 	s.deadline = next_deadline
 }
 
+func (s *pollServer) Run() {
+	var scratch [100]byte
+	for {
+		var t = s.deadline
+		if t > 0 {
+			t = t - s.Now()
+			if t <= 0 {
+				s.CheckDeadlines()
+				continue
+			}
+		}
+		fd, mode, err := s.poll.WaitFD(t)
+		if err != nil {
+			print("pollServer WaitFD: ", err.String(), "\n")
+			return
+		}
+		if fd < 0 {
+			// Timeout happened.
+			s.CheckDeadlines()
+			continue
+		}
+		if fd == s.pr.Fd() {
+			// Drain our wakeup pipe.
+			for nn, _ := s.pr.Read(scratch[0:]); nn > 0; {
+				nn, _ = s.pr.Read(scratch[0:])
+			}
+			// Read from channels
+			for fd, ok := <-s.cr; ok; fd, ok = <-s.cr {
+				s.AddFD(fd, 'r')
+			}
+			for fd, ok := <-s.cw; ok; fd, ok = <-s.cw {
+				s.AddFD(fd, 'w')
+			}
+		} else {
+			netfd := s.LookupFD(fd, mode)
+			if netfd == nil {
+				print("pollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n")
+				continue
+			}
+			s.WakeFD(netfd, mode)
+		}
+	}
+}
+
 var wakeupbuf [1]byte
 
 func (s *pollServer) Wakeup() { s.pw.Write(wakeupbuf[0:]) }
