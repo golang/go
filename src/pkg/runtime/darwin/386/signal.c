@@ -129,7 +129,7 @@ signalstack(byte *p, int32 n)
 }
 
 void
-initsig(void)
+initsig(int32 queue)
 {
 	int32 i;
 	static Sigaction sa;
@@ -141,6 +141,8 @@ initsig(void)
 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
 	for(i = 0; i<NSIG; i++) {
 		if(sigtab[i].flags) {
+			if((sigtab[i].flags & SigQueue) != queue)
+				continue;
 			if(sigtab[i].flags & (SigCatch | SigQueue)) {
 				sa.__sigaction_u.__sa_sigaction = sighandler;
 			} else {

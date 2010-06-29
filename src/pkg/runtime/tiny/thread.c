@@ -17,7 +17,7 @@ osinit(void)
 }
 
 void
-initsig(void)
+initsig(int32 queue)
 {
 }
 

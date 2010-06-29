@@ -94,5 +94,6 @@ func Signame(sig int32) (name String) {
 }
 
 func Siginit() {
+	initsig(SigQueue);
 	sig.inuse = true;	// enable reception of signals; cannot disable
 }

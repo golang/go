@@ -3,6 +3,6 @@
 // license that can be found in the LICENSE file.
 
 void
-initsig(void)
+initsig(int32 queue)
 {
 }

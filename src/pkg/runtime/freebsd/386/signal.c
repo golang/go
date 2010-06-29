@@ -124,7 +124,7 @@ signalstack(byte *p, int32 n)
 }
 
 void
-initsig(void)
+initsig(int32 queue)
 {
 	static Sigaction sa;
 
@@ -136,6 +136,8 @@ initsig(void)
 	
 	for(i = 0; i < NSIG; i++) {
 		if(sigtab[i].flags) {
+			if((sigtab[i].flags & SigQueue) != queue)
+				continue;
 			if(sigtab[i].flags & (SigCatch | SigQueue))
 				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
 			else
