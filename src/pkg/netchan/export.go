@@ -36,7 +36,6 @@ import (
 type exportChan struct {
 	ch  *reflect.ChanValue
 	dir Dir
-	ptr *reflect.PtrValue // a pointer value we can point at each new received item
 }
 
 // An Exporter allows a set of channels to be published on a single
@@ -101,17 +100,19 @@ func (client *expClient) getChan(hdr *header, dir Dir) *exportChan {
 // while (client Send) requests are handled as data arrives from the client.
 func (client *expClient) run() {
 	hdr := new(header)
+	hdrValue := reflect.NewValue(hdr)
 	req := new(request)
+	reqValue := reflect.NewValue(req)
 	error := new(error)
 	for {
-		if err := client.decode(hdr); err != nil {
+		if err := client.decode(hdrValue); err != nil {
 			log.Stderr("error decoding client header:", err)
 			// TODO: tear down connection
 			return
 		}
 		switch hdr.payloadType {
 		case payRequest:
-			if err := client.decode(req); err != nil {
+			if err := client.decode(reqValue); err != nil {
 				log.Stderr("error decoding client request:", err)
 				// TODO: tear down connection
 				return
@@ -169,9 +170,8 @@ func (client *expClient) serveSend(hdr header) {
 		return
 	}
 	// Create a new value for each received item.
-	val := reflect.MakeZero(ech.ptr.Type().(*reflect.PtrType).Elem())
-	ech.ptr.PointTo(val)
-	if err := client.decode(ech.ptr.Interface()); err != nil {
+	val := reflect.MakeZero(ech.ch.Type().(*reflect.ChanType).Elem())
+	if err := client.decode(val); err != nil {
 		log.Stderr("exporter value decode:", err)
 		return
 	}
@@ -224,9 +224,7 @@ func checkChan(chT interface{}, dir Dir) (*reflect.ChanValue, os.Error) {
 // channel type.
 // Despite the literal signature, the effective signature is
 //	Export(name string, chT chan T, dir Dir)
-// where T must be a struct, pointer to struct, etc.
-// TODO: fix reflection so we can eliminate the need for pT.
-func (exp *Exporter) Export(name string, chT interface{}, dir Dir, pT interface{}) os.Error {
+func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
 	ch, err := checkChan(chT, dir)
 	if err != nil {
 		return err
@@ -237,7 +235,6 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir, pT interface{
 	if present {
 		return os.ErrorString("channel name already being exported:" + name)
 	}
-	ptr := reflect.MakeZero(reflect.Typeof(pT)).(*reflect.PtrValue)
-	exp.chans[name] = &exportChan{ch, dir, ptr}
+	exp.chans[name] = &exportChan{ch, dir}
 	return nil
 }

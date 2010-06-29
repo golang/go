@@ -19,7 +19,6 @@ import (
 type importChan struct {
 	ch  *reflect.ChanValue
 	dir Dir
-	ptr *reflect.PtrValue // a pointer value we can point at each new received item
 }
 
 // An Importer allows a set of channels to be imported from a single
@@ -67,9 +66,11 @@ func (imp *Importer) shutdown() {
 func (imp *Importer) run() {
 	// Loop on responses; requests are sent by ImportNValues()
 	hdr := new(header)
+	hdrValue := reflect.NewValue(hdr)
 	err := new(error)
+	errValue := reflect.NewValue(err)
 	for {
-		if e := imp.decode(hdr); e != nil {
+		if e := imp.decode(hdrValue); e != nil {
 			log.Stderr("importer header:", e)
 			imp.shutdown()
 			return
@@ -78,7 +79,7 @@ func (imp *Importer) run() {
 		case payData:
 			// done lower in loop
 		case payError:
-			if e := imp.decode(err); e != nil {
+			if e := imp.decode(errValue); e != nil {
 				log.Stderr("importer error:", e)
 				return
 			}
@@ -103,20 +104,19 @@ func (imp *Importer) run() {
 			return
 		}
 		// Create a new value for each received item.
-		val := reflect.MakeZero(ich.ptr.Type().(*reflect.PtrType).Elem())
-		ich.ptr.PointTo(val)
-		if e := imp.decode(ich.ptr.Interface()); e != nil {
+		value := reflect.MakeZero(ich.ch.Type().(*reflect.ChanType).Elem())
+		if e := imp.decode(value); e != nil {
 			log.Stderr("importer value decode:", e)
 			return
 		}
-		ich.ch.Send(val)
+		ich.ch.Send(value)
 	}
 }
 
 // Import imports a channel of the given type and specified direction.
 // It is equivalent to ImportNValues with a count of 0, meaning unbounded.
-func (imp *Importer) Import(name string, chT interface{}, dir Dir, pT interface{}) os.Error {
-	return imp.ImportNValues(name, chT, dir, pT, 0)
+func (imp *Importer) Import(name string, chT interface{}, dir Dir) os.Error {
+	return imp.ImportNValues(name, chT, dir, 0)
 }
 
 // ImportNValues imports a channel of the given type and specified direction
@@ -125,27 +125,18 @@ func (imp *Importer) Import(name string, chT interface{}, dir Dir, pT interface{
 // the remote site's channel is provided in the call and may be of arbitrary
 // channel type.
 // Despite the literal signature, the effective signature is
-//	ImportNValues(name string, chT chan T, dir Dir, pT T, n int) os.Error
-// where T must be a struct, pointer to struct, etc.  pT may be more indirect
-// than the value type of the channel (e.g.  chan T, pT *T) but it must be a
-// pointer.
+//	ImportNValues(name string, chT chan T, dir Dir, n int) os.Error
 // Example usage:
 //	imp, err := NewImporter("tcp", "netchanserver.mydomain.com:1234")
 //	if err != nil { log.Exit(err) }
 //	ch := make(chan myType)
-//	err := imp.ImportNValues("name", ch, Recv, new(myType), 1)
+//	err := imp.ImportNValues("name", ch, Recv, 1)
 //	if err != nil { log.Exit(err) }
 //	fmt.Printf("%+v\n", <-ch)
-// TODO: fix reflection so we can eliminate the need for pT.
-func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, pT interface{}, n int) os.Error {
+func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, n int) os.Error {
 	ch, err := checkChan(chT, dir)
 	if err != nil {
 		return err
-	}
-	// Make sure pT is a pointer (to a pointer...) to a struct.
-	rt := reflect.Typeof(pT)
-	if _, ok := rt.(*reflect.PtrType); !ok {
-		return os.ErrorString("not a pointer:" + rt.String())
 	}
 	imp.chanLock.Lock()
 	defer imp.chanLock.Unlock()
@@ -153,8 +144,7 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, pT int
 	if present {
 		return os.ErrorString("channel name already being imported:" + name)
 	}
-	ptr := reflect.MakeZero(reflect.Typeof(pT)).(*reflect.PtrValue)
-	imp.chans[name] = &importChan{ch, dir, ptr}
+	imp.chans[name] = &importChan{ch, dir}
 	// Tell the other side about this channel.
 	hdr := new(header)
 	hdr.name = name
