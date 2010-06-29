@@ -29,6 +29,11 @@ const (
 	windowWidth  = 800
 )
 
+const (
+	keymapLo = 8
+	keymapHi = 255
+)
+
 type conn struct {
 	// TODO(nigeltao): Figure out which goroutine should be responsible for closing c,
 	// or if there is a race condition if one goroutine calls c.Close whilst another one
@@ -136,6 +141,13 @@ func (c *conn) QuitChan() <-chan bool { return c.quit }
 
 // pumper runs in its own goroutine, reading X events and demuxing them over the kbd / mouse / resize / quit chans.
 func (c *conn) pumper() {
+	var (
+		keymap            [256][]int
+		keysymsPerKeycode int
+	)
+	defer close(c.flush)
+	// TODO(nigeltao): Is this the right place for defer c.c.Close()?
+	// TODO(nigeltao): Should we explicitly defer close our kbd/mouse/resize/quit chans?
 	for {
 		// X events are always 32 bytes long.
 		_, err := io.ReadFull(c.r, c.buf[0:32])
@@ -144,15 +156,49 @@ func (c *conn) pumper() {
 			// TODO(nigeltao): should we do c.quit<-true? Should c.quit be a buffered channel?
 			// Or is c.quit only for non-exceptional closing (e.g. when the window manager destroys
 			// our window), and not for e.g. an I/O error?
-			break
+			os.Stderr.Write([]byte(err.String()))
+			return
 		}
 		switch c.buf[0] {
+		case 0x01: // Reply from a request (e.g. GetKeyboardMapping).
+			cookie := int(c.buf[3])<<8 | int(c.buf[2])
+			if cookie != 1 {
+				// We issued only one request (GetKeyboardMapping) with a cookie of 1,
+				// so we shouldn't get any other reply from the X server.
+				os.Stderr.Write([]byte("exp/draw/x11: unexpected cookie\n"))
+				return
+			}
+			keysymsPerKeycode = int(c.buf[1])
+			b := make([]int, 256*keysymsPerKeycode)
+			for i := range keymap {
+				keymap[i] = b[i*keysymsPerKeycode : (i+1)*keysymsPerKeycode]
+			}
+			for i := keymapLo; i <= keymapHi; i++ {
+				m := keymap[i]
+				for j := range m {
+					u, err := readU32LE(c.r, c.buf[0:4])
+					if err != nil {
+						os.Stderr.Write([]byte(err.String()))
+						return
+					}
+					m[j] = int(u)
+				}
+			}
 		case 0x02, 0x03: // Key press, key release.
-			// BUG(nigeltao): Keycode to keysym mapping is not implemented.
-
-			// The keycode is in c.buf[1], but as keymaps aren't implemented yet, we'll use the
-			// space character as a placeholder.
-			keysym := int(' ')
+			// X Keyboard Encoding is documented at http://tronche.com/gui/x/xlib/input/keyboard-encoding.html
+			// TODO(nigeltao): Do we need to implement the "MODE SWITCH / group modifier" feature
+			// or is that some no-longer-used X construct?
+			if keysymsPerKeycode < 2 {
+				// Either we haven't yet received the GetKeyboardMapping reply or
+				// the X server has sent one that's too short.
+				continue
+			}
+			keycode := int(c.buf[1])
+			shift := int(c.buf[28]) & 0x01
+			keysym := keymap[keycode][shift]
+			if keysym == 0 {
+				keysym = keymap[keycode][0]
+			}
 			// TODO(nigeltao): Should we send KeyboardChan ints for Shift/Ctrl/Alt? Should Shift-A send
 			// the same int down the channel as the sent on just the A key?
 			// TODO(nigeltao): How should IME events (e.g. key presses that should generate CJK text) work? Or
@@ -194,9 +240,6 @@ func (c *conn) pumper() {
 			// What about EnterNotify (0x07) and LeaveNotify (0x08)?
 		}
 	}
-	close(c.flush)
-	// TODO(nigeltao): Is this the right place for c.c.Close()?
-	// TODO(nigeltao): Should we explicitly close our kbd/mouse/resize/quit chans?
 }
 
 // connect connects to the X server given by the full X11 display name (e.g.
@@ -537,29 +580,33 @@ func NewWindowDisplay(display string) (draw.Context, os.Error) {
 	}
 
 	// Now that we're connected, show a window, via three X protocol messages.
-	// First, create a graphics context (GC).
-	setU32LE(c.buf[0:4], 0x00060037) // 0x37 is the CreateGC opcode, and the message is 6 x 4 bytes long.
-	setU32LE(c.buf[4:8], uint32(c.gc))
-	setU32LE(c.buf[8:12], uint32(c.root))
-	setU32LE(c.buf[12:16], 0x00010004) // Bit 2 is XCB_GC_FOREGROUND, bit 16 is XCB_GC_GRAPHICS_EXPOSURES.
-	setU32LE(c.buf[16:20], 0x00000000) // The Foreground is black.
-	setU32LE(c.buf[20:24], 0x00000000) // GraphicsExposures' value is unused.
-	// Second, create the window.
-	setU32LE(c.buf[24:28], 0x000a0001) // 0x01 is the CreateWindow opcode, and the message is 10 x 4 bytes long.
-	setU32LE(c.buf[28:32], uint32(c.window))
-	setU32LE(c.buf[32:36], uint32(c.root))
-	setU32LE(c.buf[36:40], 0x00000000) // Initial (x, y) is (0, 0).
-	setU32LE(c.buf[40:44], windowHeight<<16|windowWidth)
-	setU32LE(c.buf[44:48], 0x00010000) // Border width is 0, XCB_WINDOW_CLASS_INPUT_OUTPUT is 1.
-	setU32LE(c.buf[48:52], uint32(c.visual))
-	setU32LE(c.buf[52:56], 0x00000802) // Bit 1 is XCB_CW_BACK_PIXEL, bit 11 is XCB_CW_EVENT_MASK.
-	setU32LE(c.buf[56:60], 0x00000000) // The Back-Pixel is black.
-	setU32LE(c.buf[60:64], 0x0000804f) // Key/button press and release, pointer motion, and expose event masks.
-	// Third, map the window.
-	setU32LE(c.buf[64:68], 0x00020008) // 0x08 is the MapWindow opcode, and the message is 2 x 4 bytes long.
-	setU32LE(c.buf[68:72], uint32(c.window))
+	// First, issue a GetKeyboardMapping request. This is the first request, and
+	// will be associated with a cookie of 1.
+	setU32LE(c.buf[0:4], 0x00020065) // 0x65 is the GetKeyboardMapping opcode, and the message is 2 x 4 bytes long.
+	setU32LE(c.buf[4:8], uint32((keymapHi-keymapLo+1)<<8|keymapLo))
+	// Second, create a graphics context (GC).
+	setU32LE(c.buf[8:12], 0x00060037) // 0x37 is the CreateGC opcode, and the message is 6 x 4 bytes long.
+	setU32LE(c.buf[12:16], uint32(c.gc))
+	setU32LE(c.buf[16:20], uint32(c.root))
+	setU32LE(c.buf[20:24], 0x00010004) // Bit 2 is XCB_GC_FOREGROUND, bit 16 is XCB_GC_GRAPHICS_EXPOSURES.
+	setU32LE(c.buf[24:28], 0x00000000) // The Foreground is black.
+	setU32LE(c.buf[28:32], 0x00000000) // GraphicsExposures' value is unused.
+	// Third, create the window.
+	setU32LE(c.buf[32:36], 0x000a0001) // 0x01 is the CreateWindow opcode, and the message is 10 x 4 bytes long.
+	setU32LE(c.buf[36:40], uint32(c.window))
+	setU32LE(c.buf[40:44], uint32(c.root))
+	setU32LE(c.buf[44:48], 0x00000000) // Initial (x, y) is (0, 0).
+	setU32LE(c.buf[48:52], windowHeight<<16|windowWidth)
+	setU32LE(c.buf[52:56], 0x00010000) // Border width is 0, XCB_WINDOW_CLASS_INPUT_OUTPUT is 1.
+	setU32LE(c.buf[56:60], uint32(c.visual))
+	setU32LE(c.buf[60:64], 0x00000802) // Bit 1 is XCB_CW_BACK_PIXEL, bit 11 is XCB_CW_EVENT_MASK.
+	setU32LE(c.buf[64:68], 0x00000000) // The Back-Pixel is black.
+	setU32LE(c.buf[68:72], 0x0000804f) // Key/button press and release, pointer motion, and expose event masks.
+	// Fourth, map the window.
+	setU32LE(c.buf[72:76], 0x00020008) // 0x08 is the MapWindow opcode, and the message is 2 x 4 bytes long.
+	setU32LE(c.buf[76:80], uint32(c.window))
 	// Write the bytes.
-	_, err = c.w.Write(c.buf[0:72])
+	_, err = c.w.Write(c.buf[0:80])
 	if err != nil {
 		return nil, err
 	}
