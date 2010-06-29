@@ -11,7 +11,7 @@ const closeCount = 5 // number of items when sender closes early
 
 func exportSend(exp *Exporter, n int, t *testing.T) {
 	ch := make(chan int)
-	err := exp.Export("exportedSend", ch, Send, new(int))
+	err := exp.Export("exportedSend", ch, Send)
 	if err != nil {
 		t.Fatal("exportSend:", err)
 	}
@@ -23,7 +23,7 @@ func exportSend(exp *Exporter, n int, t *testing.T) {
 
 func exportReceive(exp *Exporter, t *testing.T) {
 	ch := make(chan int)
-	err := exp.Export("exportedRecv", ch, Recv, new(int))
+	err := exp.Export("exportedRecv", ch, Recv)
 	if err != nil {
 		t.Fatal("exportReceive:", err)
 	}
@@ -37,7 +37,7 @@ func exportReceive(exp *Exporter, t *testing.T) {
 
 func importReceive(imp *Importer, t *testing.T) {
 	ch := make(chan int)
-	err := imp.ImportNValues("exportedSend", ch, Recv, new(int), count)
+	err := imp.ImportNValues("exportedSend", ch, Recv, count)
 	if err != nil {
 		t.Fatal("importReceive:", err)
 	}
@@ -57,7 +57,7 @@ func importReceive(imp *Importer, t *testing.T) {
 
 func importSend(imp *Importer, t *testing.T) {
 	ch := make(chan int)
-	err := imp.ImportNValues("exportedRecv", ch, Send, new(int), count)
+	err := imp.ImportNValues("exportedRecv", ch, Send, count)
 	if err != nil {
 		t.Fatal("importSend:", err)
 	}

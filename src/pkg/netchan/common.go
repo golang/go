@@ -8,6 +8,7 @@ import (
 	"gob"
 	"net"
 	"os"
+	"reflect"
 	"sync"
 )
 
@@ -62,9 +63,9 @@ func newEncDec(conn net.Conn) *encDec {
 }
 
 // Decode an item from the connection.
-func (ed *encDec) decode(e interface{}) os.Error {
+func (ed *encDec) decode(value reflect.Value) os.Error {
 	ed.decLock.Lock()
-	err := ed.dec.Decode(e)
+	err := ed.dec.DecodeValue(value)
 	if err != nil {
 		// TODO: tear down connection?
 	}
