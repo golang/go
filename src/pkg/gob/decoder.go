@@ -55,15 +55,16 @@ func (dec *Decoder) recvType(id typeId) {
 // Decode reads the next value from the connection and stores
 // it in the data represented by the empty interface value.
 // The value underlying e must be the correct type for the next
-// data item received, which must be a pointer.
+// data item received, and must be a pointer.
 func (dec *Decoder) Decode(e interface{}) os.Error {
-	// If e represents a value, the answer won't get back to the
-	// caller.  Make sure it's a pointer.
-	if _, ok := reflect.Typeof(e).(*reflect.PtrType); !ok {
+	value := reflect.NewValue(e)
+	// If e represents a value as opposed to a pointer, the answer won't
+	// get back to the caller.  Make sure it's a pointer.
+	if value.Type().Kind() != reflect.Ptr {
 		dec.state.err = os.ErrorString("gob: attempt to decode into a non-pointer")
 		return dec.state.err
 	}
-	return dec.DecodeValue(reflect.NewValue(e))
+	return dec.DecodeValue(value)
 }
 
 // DecodeValue reads the next value from the connection and stores

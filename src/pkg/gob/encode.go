@@ -15,11 +15,10 @@
 	recursive values (data with cycles) are problematic.  This may change.
 
 	To use gobs, create an Encoder and present it with a series of data items as
-	values or addresses that can be dereferenced to values.  (At the moment, these
-	items must be structs (struct, *struct, **struct etc.), but this may change.) The
-	Encoder makes sure all type information is sent before it is needed.  At the
-	receive side, a Decoder retrieves values from the encoded stream and unpacks them
-	into local variables.
+	values or addresses that can be dereferenced to values.  The Encoder makes sure
+	all type information is sent before it is needed.  At the receive side, a
+	Decoder retrieves values from the encoded stream and unpacks them into local
+	variables.
 
 	The source and destination values/types need not correspond exactly.  For structs,
 	fields (identified by name) that are in the source but absent from the receiving
@@ -251,6 +250,20 @@ package gob
 	output will be just:
 
 		07 ff 82 01 2c 01 42 00
+
+	A single non-struct value at top level is transmitted like a field with
+	delta tag 0.  For instance, a signed integer with value 3 presented as
+	the argument to Encode will emit:
+
+		03 04 00 06
+
+	Which represents:
+
+		03 // this value is 3 bytes long
+		04 // the type number, 2, represents an integer
+		00 // tag delta 0
+		06 // value 3
+
 */
 
 import (
@@ -810,7 +823,7 @@ func encode(b *bytes.Buffer, value reflect.Value) os.Error {
 	if err != nil {
 		return err
 	}
-	if _, ok := value.(*reflect.StructValue); ok {
+	if value.Type().Kind() == reflect.Struct {
 		return encodeStruct(engine, b, value.Addr())
 	}
 	return encodeSingle(engine, b, value.Addr())

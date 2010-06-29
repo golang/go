@@ -395,7 +395,7 @@ var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
 // The reflection type must have all its indirections processed out.
 // typeLock must be held.
 func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
-	if _, ok := rt.(*reflect.PtrType); ok {
+	if rt.Kind() == reflect.Ptr {
 		panic("pointer type in getTypeInfo: " + rt.String())
 	}
 	info, ok := typeInfoMap[rt]
