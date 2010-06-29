@@ -34,6 +34,17 @@ var ftoatests = []ftoaTest{
 	ftoaTest{200000, 'g', -1, "200000"},
 	ftoaTest{2000000, 'g', -1, "2e+06"},
 
+	// g conversion and zero suppression
+	ftoaTest{400, 'g', 2, "4e+02"},
+	ftoaTest{40, 'g', 2, "40"},
+	ftoaTest{4, 'g', 2, "4"},
+	ftoaTest{.4, 'g', 2, "0.4"},
+	ftoaTest{.04, 'g', 2, "0.04"},
+	ftoaTest{.004, 'g', 2, "0.004"},
+	ftoaTest{.0004, 'g', 2, "0.0004"},
+	ftoaTest{.00004, 'g', 2, "4e-05"},
+	ftoaTest{.000004, 'g', 2, "4e-06"},
+
 	ftoaTest{0, 'e', 5, "0.00000e+00"},
 	ftoaTest{0, 'f', 5, "0.00000"},
 	ftoaTest{0, 'g', 5, "0"},
