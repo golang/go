@@ -1079,6 +1079,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OLEN:
 		// len of string or slice
 		naddr(n->left, a, canemitcode);
+		if(a->type == D_CONST && a->offset == 0)
+			break;	// len(nil)
 		a->etype = TUINT;
 		a->offset += Array_nel;
 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
@@ -1088,6 +1090,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OCAP:
 		// cap of string or slice
 		naddr(n->left, a, canemitcode);
+		if(a->type == D_CONST && a->offset == 0)
+			break;	// cap(nil)
 		a->etype = TUINT;
 		a->offset += Array_cap;
 		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
