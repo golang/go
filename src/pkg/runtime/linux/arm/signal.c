@@ -120,7 +120,7 @@ signalstack(byte *p, int32 n)
 }
 
 void
-initsig(void)
+initsig(int32 queue)
 {
 	static Sigaction sa;
 
@@ -133,6 +133,8 @@ initsig(void)
 	sa.sa_restorer = (void*)sigreturn;
 	for(i = 0; i<NSIG; i++) {
 		if(sigtab[i].flags) {
+			if((sigtab[i].flags & SigQueue) != queue)
+				continue;
 			if(sigtab[i].flags & (SigCatch | SigQueue))
 				sa.sa_handler = (void*)sigtramp;
 			else

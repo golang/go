@@ -278,7 +278,7 @@ check(void)
 	if(z != 4)
 		throw("cas4");
 
-	initsig();
+	initsig(0);
 }
 
 /*

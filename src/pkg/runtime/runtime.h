@@ -389,7 +389,7 @@ String	catstring(String, String);
 String	gostring(byte*);
 String	gostringnocopy(byte*);
 String	gostringw(uint16*);
-void	initsig(void);
+void	initsig(int32);
 int32	gotraceback(void);
 void	traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
 void	tracebackothers(G*);
