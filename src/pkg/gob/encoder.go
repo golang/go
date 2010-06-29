@@ -115,7 +115,7 @@ func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 	// Id:
 	encodeInt(enc.state, -int64(info.id))
 	// Type:
-	encode(enc.state.b, info.wire)
+	encode(enc.state.b, reflect.NewValue(info.wire))
 	enc.send()
 	if enc.state.err != nil {
 		return
@@ -140,13 +140,19 @@ func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 // Encode transmits the data item represented by the empty interface value,
 // guaranteeing that all necessary type information has been transmitted first.
 func (enc *Encoder) Encode(e interface{}) os.Error {
+	return enc.EncodeValue(reflect.NewValue(e))
+}
+
+// EncodeValue transmits the data item represented by the reflection value,
+// guaranteeing that all necessary type information has been transmitted first.
+func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 	// Make sure we're single-threaded through here, so multiple
 	// goroutines can share an encoder.
 	enc.mutex.Lock()
 	defer enc.mutex.Unlock()
 
 	enc.state.err = nil
-	rt, _ := indirect(reflect.Typeof(e))
+	rt, _ := indirect(value.Type())
 
 	// Sanity check only: encoder should never come in with data present.
 	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
@@ -181,7 +187,7 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 	encodeInt(enc.state, int64(enc.sent[rt]))
 
 	// Encode the object.
-	err := encode(enc.state.b, e)
+	err := encode(enc.state.b, value)
 	if err != nil {
 		enc.setError(err)
 	} else {

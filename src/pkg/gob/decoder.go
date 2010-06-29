@@ -47,7 +47,7 @@ func (dec *Decoder) recvType(id typeId) {
 
 	// Type:
 	wire := new(wireType)
-	dec.state.err = dec.decode(tWireType, wire)
+	dec.state.err = dec.decode(tWireType, reflect.NewValue(wire))
 	// Remember we've seen this type.
 	dec.wireType[id] = wire
 }
@@ -55,7 +55,7 @@ func (dec *Decoder) recvType(id typeId) {
 // Decode reads the next value from the connection and stores
 // it in the data represented by the empty interface value.
 // The value underlying e must be the correct type for the next
-// data item received.
+// data item received, which must be a pointer.
 func (dec *Decoder) Decode(e interface{}) os.Error {
 	// If e represents a value, the answer won't get back to the
 	// caller.  Make sure it's a pointer.
@@ -63,7 +63,14 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		dec.state.err = os.ErrorString("gob: attempt to decode into a non-pointer")
 		return dec.state.err
 	}
+	return dec.DecodeValue(reflect.NewValue(e))
+}
 
+// DecodeValue reads the next value from the connection and stores
+// it in the data represented by the reflection value.
+// The value must be the correct type for the next
+// data item received.
+func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	// Make sure we're single-threaded through here.
 	dec.mutex.Lock()
 	defer dec.mutex.Unlock()
@@ -114,7 +121,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 			dec.state.err = errBadType
 			break
 		}
-		dec.state.err = dec.decode(id, e)
+		dec.state.err = dec.decode(id, value)
 		break
 	}
 	return dec.state.err
