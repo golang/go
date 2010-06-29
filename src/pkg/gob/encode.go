@@ -798,12 +798,11 @@ func getEncEngine(rt reflect.Type) (*encEngine, os.Error) {
 	return info.encoder, err
 }
 
-func encode(b *bytes.Buffer, e interface{}) os.Error {
+func encode(b *bytes.Buffer, value reflect.Value) os.Error {
 	// Dereference down to the underlying object.
-	rt, indir := indirect(reflect.Typeof(e))
-	v := reflect.NewValue(e)
+	rt, indir := indirect(value.Type())
 	for i := 0; i < indir; i++ {
-		v = reflect.Indirect(v)
+		value = reflect.Indirect(value)
 	}
 	typeLock.Lock()
 	engine, err := getEncEngine(rt)
@@ -811,8 +810,8 @@ func encode(b *bytes.Buffer, e interface{}) os.Error {
 	if err != nil {
 		return err
 	}
-	if _, ok := v.(*reflect.StructValue); ok {
-		return encodeStruct(engine, b, v.Addr())
+	if _, ok := value.(*reflect.StructValue); ok {
+		return encodeStruct(engine, b, value.Addr())
 	}
-	return encodeSingle(engine, b, v.Addr())
+	return encodeSingle(engine, b, value.Addr())
 }

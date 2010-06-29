@@ -918,9 +918,9 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
 	return
 }
 
-func (dec *Decoder) decode(wireId typeId, e interface{}) os.Error {
+func (dec *Decoder) decode(wireId typeId, val reflect.Value) os.Error {
 	// Dereference down to the underlying struct type.
-	rt, indir := indirect(reflect.Typeof(e))
+	rt, indir := indirect(val.Type())
 	enginePtr, err := dec.getDecEnginePtr(wireId, rt)
 	if err != nil {
 		return err
@@ -931,9 +931,9 @@ func (dec *Decoder) decode(wireId typeId, e interface{}) os.Error {
 			name := rt.Name()
 			return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
 		}
-		return decodeStruct(engine, st, dec.state.b, uintptr(reflect.NewValue(e).Addr()), indir)
+		return decodeStruct(engine, st, dec.state.b, uintptr(val.Addr()), indir)
 	}
-	return decodeSingle(engine, rt, dec.state.b, uintptr(reflect.NewValue(e).Addr()), indir)
+	return decodeSingle(engine, rt, dec.state.b, uintptr(val.Addr()), indir)
 }
 
 func init() {

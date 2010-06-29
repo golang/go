@@ -1028,7 +1028,7 @@ func TestInvalidField(t *testing.T) {
 	var bad0 Bad0
 	bad0.inter = 17
 	b := new(bytes.Buffer)
-	err := encode(b, &bad0)
+	err := encode(b, reflect.NewValue(&bad0))
 	if err == nil {
 		t.Error("expected error; got none")
 	} else if strings.Index(err.String(), "interface") < 0 {
