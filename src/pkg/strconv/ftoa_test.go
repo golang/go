@@ -108,6 +108,16 @@ var ftoatests = []ftoaTest{
 	ftoaTest{-math.Inf(0), 'g', -1, "-Inf"},
 
 	ftoaTest{-1, 'b', -1, "-4503599627370496p-52"},
+
+	// fixed bugs
+	ftoaTest{0.9, 'f', 1, "0.9"},
+	ftoaTest{0.09, 'f', 1, "0.1"},
+	ftoaTest{0.0999, 'f', 1, "0.1"},
+	ftoaTest{0.05, 'f', 1, "0.1"},
+	ftoaTest{0.05, 'f', 0, "0"},
+	ftoaTest{0.5, 'f', 1, "0.5"},
+	ftoaTest{0.5, 'f', 0, "0"},
+	ftoaTest{1.5, 'f', 0, "2"},
 }
 
 func TestFtoa(t *testing.T) {
