@@ -32,7 +32,7 @@ func TestClient(t *testing.T) {
 func TestClientHead(t *testing.T) {
 	r, err := Head("http://www.google.com/robots.txt")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if _, ok := r.Header["Last-Modified"]; !ok {
 		t.Error("Last-Modified header not found.")
