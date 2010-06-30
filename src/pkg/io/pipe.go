@@ -144,10 +144,11 @@ func (p *pipeHalf) rw(data []byte) (n int, err os.Error) {
 	// Run i/o operation.
 	// Check ioclosed flag under lock to make sure we're still allowed to do i/o.
 	p.io.Lock()
-	defer p.io.Unlock()
 	if p.ioclosed {
+		p.io.Unlock()
 		return 0, os.EINVAL
 	}
+	p.io.Unlock()
 	p.c1 <- data
 	res := <-p.c2
 	return res.n, res.err
