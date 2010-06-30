@@ -174,7 +174,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		DNSNames:              []string{"test.example.com"},
 	}
 
-	derBytes, err := CreateCertificate(urandom, &template, &template, priv)
+	derBytes, err := CreateCertificate(urandom, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
 		t.Errorf("Failed to create certificate: %s", err)
 		return
