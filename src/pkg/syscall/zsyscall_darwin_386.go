@@ -59,6 +59,15 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
 	return
 }
 
+func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
+	var f [2]int
+	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
+	fd = f
+	errno = int(e1)
+	return
+}
+
+
 func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
 	errno = int(e1)

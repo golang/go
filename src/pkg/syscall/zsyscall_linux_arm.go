@@ -628,6 +628,14 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
 	return
 }
 
+func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
+	var f [2]int
+	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
+	fd = f
+	errno = int(e1)
+	return
+}
+
 func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
 	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
 	errno = int(e1)

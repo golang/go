@@ -100,6 +100,13 @@ func getpeername(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
 	return
 }
 
+func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
+	var f [2]int
+	_, errno = socketcall(_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
+	fd = f
+	return
+}
+
 func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
 	_, errno = socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
 	return
