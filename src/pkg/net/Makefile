@@ -10,8 +10,6 @@ GOFILES=\
 	dnsclient.go\
 	dnsconfig.go\
 	dnsmsg.go\
-	newpollserver.go\
-	fd.go\
 	fd_$(GOOS).go\
 	hosts.go\
 	ip.go\
@@ -25,5 +23,23 @@ GOFILES=\
 	tcpsock.go\
 	udpsock.go\
 	unixsock.go\
+
+GOFILES_freebsd=\
+	newpollserver.go\
+	fd.go\
+
+GOFILES_darwin=\
+	newpollserver.go\
+	fd.go\
+
+GOFILES_linux=\
+	newpollserver.go\
+	fd.go\
+
+GOFILES_nacl=\
+	newpollserver.go\
+	fd.go\
+
+GOFILES+=$(GOFILES_$(GOOS))
 
 include ../../Make.pkg
