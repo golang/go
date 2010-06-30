@@ -10,19 +10,15 @@ package syscall
 
 // Constants
 const (
-	sizeofPtr           = 0x4
-	sizeofShort         = 0x2
-	sizeofInt           = 0x4
-	sizeofLong          = 0x4
-	sizeofLongLong      = 0x8
-	PathMax             = 0x1000
-	SizeofSockaddrInet4 = 0x10
-	SizeofSockaddrInet6 = 0x1c
-	SizeofSockaddrAny   = 0x70
-	SizeofSockaddrUnix  = 0x6e
-	SizeofLinger        = 0x8
-	SizeofMsghdr        = 0x1c
-	SizeofCmsghdr       = 0xc
+	sizeofPtr      = 0x4
+	sizeofShort    = 0x2
+	sizeofInt      = 0x4
+	sizeofLong     = 0x4
+	sizeofLongLong = 0x8
+	PathMax        = 0x1000
+	SizeofLinger   = 0x8
+	SizeofMsghdr   = 0x1c
+	SizeofCmsghdr  = 0xc
 )
 
 const (
@@ -82,6 +78,10 @@ const (
 	MAX_PATH = 260
 
 	MAX_COMPUTERNAME_LENGTH = 15
+
+	INFINITE = 0xffffffff
+
+	WAIT_TIMEOUT = 258
 )
 
 // Types
@@ -153,6 +153,58 @@ type ByHandleFileInformation struct {
 type Stat_t struct {
 	Windata Win32finddata
 	Mode    uint32
+}
+
+// Socket related.
+
+const (
+	AF_UNIX  = 1
+	AF_INET  = 2
+	AF_INET6 = 23
+
+	SOCK_STREAM = 1
+	SOCK_DGRAM  = 2
+	SOCK_RAW    = 3
+
+	IPPROTO_IP  = 0
+	IPPROTO_TCP = 6
+	IPPROTO_UDP = 17
+
+	SOL_SOCKET               = 0xffff
+	SO_REUSEADDR             = 4
+	SO_KEEPALIVE             = 8
+	SO_DONTROUTE             = 16
+	SO_BROADCAST             = 32
+	SO_LINGER                = 128
+	SO_RCVBUF                = 0x1002
+	SO_SNDBUF                = 0x1001
+	SO_UPDATE_ACCEPT_CONTEXT = 0x700b
+
+	SOMAXCONN = 5
+
+	TCP_NODELAY = 1
+
+	SHUT_RD   = 0
+	SHUT_WR   = 1
+	SHUT_RDWR = 2
+
+	WSADESCRIPTION_LEN = 256
+	WSASYS_STATUS_LEN  = 128
+)
+
+type WSAData struct {
+	Version      uint16
+	HighVersion  uint16
+	Description  [WSADESCRIPTION_LEN + 1]byte
+	SystemStatus [WSASYS_STATUS_LEN + 1]byte
+	MaxSockets   uint16
+	MaxUdpDg     uint16
+	VendorInfo   *byte
+}
+
+type WSABuf struct {
+	Len uint32
+	Buf *byte
 }
 
 // TODO(brainman): fix all needed for os

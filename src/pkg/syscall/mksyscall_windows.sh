@@ -62,6 +62,8 @@ sub parseparam($) {
 
 $text = "";
 $vars = "";
+$mods = "";
+$modnames = "";
 while(<>) {
 	chomp;
 	s/\s+/ /g;
@@ -72,16 +74,26 @@ while(<>) {
 	# Line must be of the form
 	#	func Open(path string, mode int, perm int) (fd int, errno int)
 	# Split into name, in params, out params.
-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval=(.*)\])?\s*(?:=\s*(\w*))?$/) {
+	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval=(.*)\])?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
 		$errors = 1;
 		next;
 	}
-	my ($func, $in, $out, $failretval, $sysname) = ($1, $2, $3, $4, $5);
+	my ($func, $in, $out, $failretval, $modname, $sysname) = ($1, $2, $3, $4, $5, $6);
 
 	# Split argument lists on comma.
 	my @in = parseparamlist($in);
 	my @out = parseparamlist($out);
+
+	# Dll file name.
+	if($modname eq "") {
+		$modname = "kernel32";
+	}
+	$modvname = "mod$modname";
+	if($modnames !~ /$modname/) {
+		$modnames .= ".$modname";
+		$mods .= "\t$modvname = loadDll(\"$modname.dll\")\n";
+	}
 
 	# System call name.
 	if($sysname eq "") {
@@ -104,7 +116,7 @@ while(<>) {
 	}
 
 	# Winapi proc address variable.
-	$vars .= sprintf "\t%s = getSysProcAddr(modKERNEL32, \"%s\")\n", $sysvarname, $sysname;
+	$vars .= sprintf "\t%s = getSysProcAddr(%s, \"%s\")\n", $sysvarname, $modvname, $sysname;
 
 	# Go function header.
 	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
@@ -198,6 +210,9 @@ while(<>) {
 		if($i == 0) {
 			if($type eq "bool") {
 				$failexpr = "!$name";
+			} elsif($name eq "errno") {
+				$ret[$i] = "r1";
+				$failexpr = "int(r1) == $failretval";
 			} else {
 				$failexpr = "$name == $failretval";
 			}
@@ -212,7 +227,7 @@ while(<>) {
 		} else {
 			$body .= "\t$name = $type($reg);\n";
 		}
-		push @pout, sprintf "\"%s=\", %s(%s), ", $name, $type, $reg;
+		push @pout, sprintf "\"%s=\", %s, ", $name, $name;
 	}
 	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
 		$text .= "\t$call;\n";
@@ -241,7 +256,7 @@ package syscall
 import "unsafe"
 
 var (
-	modKERNEL32 = loadDll("kernel32.dll")
+$mods
 $vars
 )
 

@@ -128,6 +128,8 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	SetEndOfFile(handle int32) (ok bool, errno int)
 //sys	GetSystemTimeAsFileTime(time *Filetime)
 //sys   sleep(msec uint32) = Sleep
+//sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
+//sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
 
 // syscall interface implementation for other packages
 
@@ -381,6 +383,191 @@ func Gettimeofday(tv *Timeval) (errno int) {
 func Utimes(path string, tv []Timeval) (errno int) {
 	return EWINDOWS
 }
+
+// net api calls
+
+//sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = wsock32.WSAStartup
+//sys	WSACleanup() (errno int) [failretval=-1] = wsock32.WSACleanup
+//sys	socket(af int32, typ int32, protocol int32) (handle int32, errno int) [failretval=-1] = wsock32.socket
+//sys	setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval=-1] = wsock32.setsockopt
+//sys	bind(s int32, name uintptr, namelen int32) (errno int) [failretval=-1] = wsock32.bind
+//sys	connect(s int32, name uintptr, namelen int32) (errno int) [failretval=-1] = wsock32.connect
+//sys	getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval=-1] = wsock32.getsockname
+//sys	getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval=-1] = wsock32.getpeername
+//sys	listen(s int32, backlog int32) (errno int) [failretval=-1] = wsock32.listen
+//sys	shutdown(s int32, how int32) (errno int) [failretval=-1] = wsock32.shutdown
+//sys	AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) = wsock32.AcceptEx
+//sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
+//sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecv
+//sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASend
+
+type RawSockaddrInet4 struct {
+	Family uint16
+	Port   uint16
+	Addr   [4]byte /* in_addr */
+	Zero   [8]uint8
+}
+
+type RawSockaddr struct {
+	Family uint16
+	Data   [14]int8
+}
+
+type RawSockaddrAny struct {
+	Addr RawSockaddr
+	Pad  [96]int8
+}
+
+type Sockaddr interface {
+	sockaddr() (ptr uintptr, len int32, errno int) // lowercase; only we can define Sockaddrs
+}
+
+type SockaddrInet4 struct {
+	Port int
+	Addr [4]byte
+	raw  RawSockaddrInet4
+}
+
+func (sa *SockaddrInet4) sockaddr() (uintptr, int32, int) {
+	if sa.Port < 0 || sa.Port > 0xFFFF {
+		return 0, 0, EINVAL
+	}
+	sa.raw.Family = AF_INET
+	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+	p[0] = byte(sa.Port >> 8)
+	p[1] = byte(sa.Port)
+	for i := 0; i < len(sa.Addr); i++ {
+		sa.raw.Addr[i] = sa.Addr[i]
+	}
+	return uintptr(unsafe.Pointer(&sa.raw)), int32(unsafe.Sizeof(sa.raw)), 0
+}
+
+type SockaddrInet6 struct {
+	Port int
+	Addr [16]byte
+}
+
+func (sa *SockaddrInet6) sockaddr() (uintptr, int32, int) {
+	// TODO(brainman): implement SockaddrInet6.sockaddr()
+	return 0, 0, EWINDOWS
+}
+
+type SockaddrUnix struct {
+	Name string
+}
+
+func (sa *SockaddrUnix) sockaddr() (uintptr, int32, int) {
+	// TODO(brainman): implement SockaddrUnix.sockaddr()
+	return 0, 0, EWINDOWS
+}
+
+func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, int) {
+	switch rsa.Addr.Family {
+	case AF_UNIX:
+		return nil, EWINDOWS
+
+	case AF_INET:
+		pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa))
+		sa := new(SockaddrInet4)
+		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+		sa.Port = int(p[0])<<8 + int(p[1])
+		for i := 0; i < len(sa.Addr); i++ {
+			sa.Addr[i] = pp.Addr[i]
+		}
+		return sa, 0
+
+	case AF_INET6:
+		return nil, EWINDOWS
+	}
+	return nil, EAFNOSUPPORT
+}
+
+func Socket(domain, typ, proto int) (fd, errno int) {
+	h, e := socket(int32(domain), int32(typ), int32(proto))
+	return int(h), int(e)
+}
+
+func SetsockoptInt(fd, level, opt int, value int) (errno int) {
+	v := int32(value)
+	return int(setsockopt(int32(fd), int32(level), int32(opt), (*byte)(unsafe.Pointer(&v)), int32(unsafe.Sizeof(v))))
+}
+
+func Bind(fd int, sa Sockaddr) (errno int) {
+	ptr, n, err := sa.sockaddr()
+	if err != 0 {
+		return err
+	}
+	return bind(int32(fd), ptr, n)
+}
+
+func Connect(fd int, sa Sockaddr) (errno int) {
+	ptr, n, err := sa.sockaddr()
+	if err != 0 {
+		return err
+	}
+	return connect(int32(fd), ptr, n)
+}
+
+func Getsockname(fd int) (sa Sockaddr, errno int) {
+	var rsa RawSockaddrAny
+	l := int32(unsafe.Sizeof(rsa))
+	if errno = getsockname(int32(fd), &rsa, &l); errno != 0 {
+		return
+	}
+	return rsa.Sockaddr()
+}
+
+func Getpeername(fd int) (sa Sockaddr, errno int) {
+	var rsa RawSockaddrAny
+	l := int32(unsafe.Sizeof(rsa))
+	if errno = getpeername(int32(fd), &rsa, &l); errno != 0 {
+		return
+	}
+	return rsa.Sockaddr()
+}
+
+func Listen(s int, n int) (errno int) {
+	return int(listen(int32(s), int32(n)))
+}
+
+func Shutdown(fd, how int) (errno int) {
+	return int(shutdown(int32(fd), int32(how)))
+}
+
+func AcceptIOCP(iocpfd, fd int, o *Overlapped) (attrs *byte, errno int) {
+	// Will ask for local and remote address only.
+	rsa := make([]RawSockaddrAny, 2)
+	attrs = (*byte)(unsafe.Pointer(&rsa[0]))
+	alen := uint32(unsafe.Sizeof(rsa[0]))
+	var done uint32
+	_, errno = AcceptEx(uint32(iocpfd), uint32(fd), attrs, 0, alen, alen, &done, o)
+	return
+}
+
+func GetAcceptIOCPSockaddrs(attrs *byte) (lsa, rsa Sockaddr) {
+	var lrsa, rrsa *RawSockaddrAny
+	var llen, rlen int32
+	alen := uint32(unsafe.Sizeof(*lrsa))
+	GetAcceptExSockaddrs(attrs, 0, alen, alen, &lrsa, &llen, &rrsa, &rlen)
+	lsa, _ = lrsa.Sockaddr()
+	rsa, _ = rrsa.Sockaddr()
+	return
+}
+
+// TODO(brainman): fix all needed for net
+
+func Accept(fd int) (nfd int, sa Sockaddr, errno int)                        { return 0, nil, EWINDOWS }
+func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) { return 0, nil, EWINDOWS }
+func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int)            { return EWINDOWS }
+func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int)          { return EWINDOWS }
+
+type Linger struct {
+	Onoff  int32
+	Linger int32
+}
+
+func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) { return EWINDOWS }
+func BindToDevice(fd int, device string) (errno int)             { return EWINDOWS }
 
 // TODO(brainman): fix all needed for os
 

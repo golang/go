@@ -13,6 +13,7 @@ const (
 	ERROR_MOD_NOT_FOUND       = 126
 	ERROR_PROC_NOT_FOUND      = 127
 	ERROR_DIRECTORY           = 267
+	ERROR_IO_PENDING          = 997
 	// TODO(brainman): should use value for EWINDOWS that does not clashes with anything else
 	EWINDOWS = 99999 /* otherwise unused */
 )
