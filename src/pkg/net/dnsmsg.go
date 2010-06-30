@@ -50,6 +50,7 @@ const (
 	dnsTypeMINFO = 14
 	dnsTypeMX    = 15
 	dnsTypeTXT   = 16
+	dnsTypeSRV   = 33
 
 	// valid dnsQuestion.qtype only
 	dnsTypeAXFR  = 252
@@ -226,6 +227,18 @@ func (rr *dnsRR_TXT) Header() *dnsRR_Header {
 	return &rr.Hdr
 }
 
+type dnsRR_SRV struct {
+	Hdr      dnsRR_Header
+	Priority uint16
+	Weight   uint16
+	Port     uint16
+	Target   string "domain-name"
+}
+
+func (rr *dnsRR_SRV) Header() *dnsRR_Header {
+	return &rr.Hdr
+}
+
 type dnsRR_A struct {
 	Hdr dnsRR_Header
 	A   uint32 "ipv4"
@@ -255,6 +268,7 @@ var rr_mk = map[int]func() dnsRR{
 	dnsTypePTR:   func() dnsRR { return new(dnsRR_PTR) },
 	dnsTypeSOA:   func() dnsRR { return new(dnsRR_SOA) },
 	dnsTypeTXT:   func() dnsRR { return new(dnsRR_TXT) },
+	dnsTypeSRV:   func() dnsRR { return new(dnsRR_SRV) },
 	dnsTypeA:     func() dnsRR { return new(dnsRR_A) },
 }
 
