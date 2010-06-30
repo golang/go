@@ -761,8 +761,8 @@ var (
 // MaxPathLen, SubjectKeyId, DNSNames.
 //
 // The certificate is signed by parent. If parent is equal to template then the
-// certificate is self-signed. pub is the public key of the signee. priv is the
-// private key of the signer.
+// certificate is self-signed. The parameter pub is the public key of the
+// signee and priv is the private key of the signer.
 //
 // The returned slice is the certificate in DER encoding.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.PublicKey, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
