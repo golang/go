@@ -45,14 +45,14 @@ const noSuchHost = "no such host"
 
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
-func exchange(cfg *dnsConfig, c Conn, name string) (*dnsMsg, os.Error) {
+func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, os.Error) {
 	if len(name) >= 256 {
 		return nil, &DNSError{Error: "name too long", Name: name}
 	}
 	out := new(dnsMsg)
 	out.id = uint16(rand.Int()) ^ uint16(time.Nanoseconds())
 	out.question = []dnsQuestion{
-		dnsQuestion{name, dnsTypeA, dnsClassINET},
+		dnsQuestion{name, qtype, dnsClassINET},
 	}
 	out.recursion_desired = true
 	msg, ok := out.Pack()
@@ -93,8 +93,8 @@ func exchange(cfg *dnsConfig, c Conn, name string) (*dnsMsg, os.Error) {
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
-func answer(name, server string, dns *dnsMsg) (addrs []string, err os.Error) {
-	addrs = make([]string, 0, len(dns.answer))
+func answer(name, server string, dns *dnsMsg, qtype uint16) (addrs []dnsRR, err os.Error) {
+	addrs = make([]dnsRR, 0, len(dns.answer))
 
 	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
 		return nil, &DNSError{Error: noSuchHost, Name: name}
@@ -120,11 +120,10 @@ Cname:
 			h := rr.Header()
 			if h.Class == dnsClassINET && h.Name == name {
 				switch h.Rrtype {
-				case dnsTypeA:
+				case qtype:
 					n := len(addrs)
-					a := rr.(*dnsRR_A).A
 					addrs = addrs[0 : n+1]
-					addrs[n] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String()
+					addrs[n] = rr
 				case dnsTypeCNAME:
 					// redirect to cname
 					name = rr.(*dnsRR_CNAME).Cname
@@ -143,7 +142,7 @@ Cname:
 
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
-func tryOneName(cfg *dnsConfig, name string) (addrs []string, err os.Error) {
+func tryOneName(cfg *dnsConfig, name string, qtype uint16) (addrs []dnsRR, err os.Error) {
 	if len(cfg.servers) == 0 {
 		return nil, &DNSError{Error: "no DNS servers", Name: name}
 	}
@@ -160,18 +159,28 @@ func tryOneName(cfg *dnsConfig, name string) (addrs []string, err os.Error) {
 			err = cerr
 			continue
 		}
-		msg, merr := exchange(cfg, c, name)
+		msg, merr := exchange(cfg, c, name, qtype)
 		c.Close()
 		if merr != nil {
 			err = merr
 			continue
 		}
-		addrs, err = answer(name, server, msg)
+		addrs, err = answer(name, server, msg, qtype)
 		if err == nil || err.(*DNSError).Error == noSuchHost {
 			break
 		}
 	}
 	return
+}
+
+func convertRR_A(records []dnsRR) []string {
+	addrs := make([]string, len(records))
+	for i := 0; i < len(records); i++ {
+		rr := records[i]
+		a := rr.(*dnsRR_A).A
+		addrs[i] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String()
+	}
+	return addrs
 }
 
 var cfg *dnsConfig
@@ -223,22 +232,13 @@ func isDomainName(s string) bool {
 	return ok
 }
 
-// LookupHost looks for name using the local hosts file and DNS resolver.
-// It returns the canonical name for the host and an array of that
-// host's addresses.
-func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
 	if !isDomainName(name) {
 		return name, nil, &DNSError{Error: "invalid domain name", Name: name}
 	}
 	once.Do(loadConfig)
 	if dnserr != nil || cfg == nil {
 		err = dnserr
-		return
-	}
-	// Use entries from /etc/hosts if they match.
-	addrs = lookupStaticHost(name)
-	if len(addrs) > 0 {
-		cname = name
 		return
 	}
 	// If name is rooted (trailing dot) or has enough dots,
@@ -250,7 +250,7 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 			rname += "."
 		}
 		// Can try as ordinary name.
-		addrs, err = tryOneName(cfg, rname)
+		addrs, err = tryOneName(cfg, rname, qtype)
 		if err == nil {
 			cname = rname
 			return
@@ -266,7 +266,7 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 		if rname[len(rname)-1] != '.' {
 			rname += "."
 		}
-		addrs, err = tryOneName(cfg, rname)
+		addrs, err = tryOneName(cfg, rname, qtype)
 		if err == nil {
 			cname = rname
 			return
@@ -278,10 +278,55 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 	if !rooted {
 		rname += "."
 	}
-	addrs, err = tryOneName(cfg, rname)
+	addrs, err = tryOneName(cfg, rname, qtype)
 	if err == nil {
 		cname = rname
 		return
+	}
+	return
+}
+
+// LookupHost looks for name using the local hosts file and DNS resolver.
+// It returns the canonical name for the host and an array of that
+// host's addresses.
+func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+	once.Do(loadConfig)
+	if dnserr != nil || cfg == nil {
+		err = dnserr
+		return
+	}
+	// Use entries from /etc/hosts if they match.
+	addrs = lookupStaticHost(name)
+	if len(addrs) > 0 {
+		cname = name
+		return
+	}
+	var records []dnsRR
+	cname, records, err = lookup(name, dnsTypeA)
+	if err != nil {
+		return
+	}
+	addrs = convertRR_A(records)
+	return
+}
+
+type SRV struct {
+	Target   string
+	Port     uint16
+	Priority uint16
+	Weight   uint16
+}
+
+func LookupSRV(name string) (cname string, addrs []*SRV, err os.Error) {
+	var records []dnsRR
+	cname, records, err = lookup(name, dnsTypeSRV)
+	if err != nil {
+		return
+	}
+	addrs = make([]*SRV, len(records))
+	for i := 0; i < len(records); i++ {
+		r := records[i].(*dnsRR_SRV)
+		addrs[i] = &SRV{r.Target, r.Port, r.Priority, r.Weight}
 	}
 	return
 }
