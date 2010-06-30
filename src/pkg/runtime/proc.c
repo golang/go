@@ -168,7 +168,7 @@ gput(G *g)
 	M *m;
 
 	// If g is wired, hand it off directly.
-	if((m = g->lockedm) != nil) {
+	if(sched.mcpu < sched.mcpumax && (m = g->lockedm) != nil) {
 		mnextg(m, g);
 		return;
 	}
