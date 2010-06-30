@@ -368,6 +368,11 @@ func Socket(domain, typ, proto int) (fd, errno int) {
 	return
 }
 
+func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
+	fd, errno = socketpair(domain, typ, proto)
+	return
+}
+
 func SetsockoptInt(fd, level, opt int, value int) (errno int) {
 	var n = int32(value)
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
