@@ -88,8 +88,8 @@ void	libinit(void);
 void	Lflag(char *arg);
 void	usage(void);
 void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
-void	ldobj(Biobuf*, char*, int64, char*);
-void	ldpkg(Biobuf*, char*, int64, char*);
+void	ldobj(Biobuf*, char*, int64, char*, int);
+void	ldpkg(Biobuf*, char*, int64, char*, int);
 void	mark(Sym *s);
 char*	expandpkg(char*, char*);
 void	deadcode(void);
@@ -102,3 +102,10 @@ void	mywhatsys(void);
 extern	char*	goroot;
 extern	char*	goarch;
 extern	char*	goos;
+
+/* whence for ldpkg */
+enum {
+	FileObj = 0,
+	ArchiveObj,
+	Pkgdef
+};

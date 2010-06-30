@@ -35,6 +35,7 @@
 int iconv(Fmt*);
 
 char	symname[]	= SYMDEF;
+char	pkgname[]	= "__.PKGDEF";
 char*	libdir[16];
 int	nlibdir = 0;
 int	cout = -1;
@@ -156,14 +157,14 @@ addlib(char *src, char *obj)
 	}else
 		strcpy(pname, name);
 	cleanname(pname);
-	
+
 	/* runtime.a -> runtime */
 	if(strlen(name) > 2 && name[strlen(name)-2] == '.')
 		name[strlen(name)-2] = '\0';
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, pname);
-	
+
 	addlibpath(src, obj, pname, name);
 }
 
@@ -261,7 +262,7 @@ objfile(char *file, char *pkg)
 	char name[100], pname[150];
 	struct ar_hdr arhdr;
 	char *e, *start, *stop, *x;
-	
+
 	pkg = smprint("%i", pkg);
 
 	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
@@ -286,7 +287,7 @@ objfile(char *file, char *pkg)
 		/* load it as a regular file */
 		l = Bseek(f, 0L, 2);
 		Bseek(f, 0L, 0);
-		ldobj(f, pkg, l, file);
+		ldobj(f, pkg, l, file, FileObj);
 		Bterm(f);
 		return;
 	}
@@ -303,6 +304,25 @@ objfile(char *file, char *pkg)
 
 	esym = SARMAG + SAR_HDR + atolwhex(arhdr.size);
 	off = SARMAG + SAR_HDR;
+
+	if(debug['u']) {
+		struct ar_hdr pkghdr;
+		int n;
+
+		// Read next ar header to check for package safe bit.
+		Bseek(f, esym+(esym&1), 0);
+		l = Bread(f, &pkghdr, SAR_HDR);
+		if(l != SAR_HDR) {
+			diag("%s: short read on second archive header", file);
+			goto out;
+		}
+		if(strncmp(pkghdr.name, pkgname, strlen(pkgname))) {
+			diag("%s: second entry not package header", file);
+			goto out;
+		}
+		n = atolwhex(pkghdr.size);
+		ldpkg(f, pkg, n, file, Pkgdef);
+	}
 
 	/*
 	 * just bang the whole symbol file into memory
@@ -350,7 +370,7 @@ objfile(char *file, char *pkg)
 				l--;
 			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
 			l = atolwhex(arhdr.size);
-			ldobj(f, pkg, l, pname);
+			ldobj(f, pkg, l, pname, ArchiveObj);
 			if(s->type == SXREF) {
 				diag("%s: failed to load: %s", file, s->name);
 				errorexit();
@@ -368,7 +388,7 @@ out:
 }
 
 void
-ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
+ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 {
 	static int files;
 	static char **filen;
@@ -433,7 +453,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
 	import1 = Boffset(f);
 
 	Bseek(f, import0, 0);
-	ldpkg(f, pkg, import1 - import0 - 2, pn);	// -2 for !\n
+	ldpkg(f, pkg, import1 - import0 - 2, pn, whence);	// -2 for !\n
 	Bseek(f, import1, 0);
 
 	ldobj1(f, pkg, eof - Boffset(f), pn);

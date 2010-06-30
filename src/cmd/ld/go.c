@@ -75,7 +75,7 @@ static int ndynexp;
 static Sym **dynexp;
 
 void
-ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 {
 	char *data, *p0, *p1, *name;
 
@@ -100,7 +100,7 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 	// first \n$$ marks beginning of exports - skip rest of line
 	p0 = strstr(data, "\n$$");
 	if(p0 == nil) {
-		if(debug['u']) {
+		if(debug['u'] && whence != ArchiveObj) {
 			fprint(2, "%s: cannot find export data in %s\n", argv0, filename);
 			errorexit();
 		}
@@ -133,19 +133,30 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
 		name = p0;
 		while(p0 < p1 && *p0 != ' ' && *p0 != '\t' && *p0 != '\n')
 			p0++;
-		if(debug['u'] && memcmp(p0, " safe\n", 6) != 0) {
+		if(debug['u'] && whence != ArchiveObj &&
+		   (p0+6 > p1 || memcmp(p0, " safe\n", 6) != 0)) {
 			fprint(2, "%s: load of unsafe package %s\n", argv0, filename);
 			errorexit();
 		}
 		if(p0 < p1) {
-			*p0++ = '\0';
-			if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
-				fprint(2, "%s: %s: not package main (package %s)\n", argv0, filename, name);
-			else if(strcmp(pkg, "main") != 0 && strcmp(name, "main") == 0)
-				fprint(2, "%s: %s: importing %s, found package main", argv0, filename, pkg);
+			if(*p0 == '\n')
+				*p0++ = '\0';
+			else {
+				*p0++ = '\0';
+				while(p0 < p1 && *p0++ != '\n')
+					;
+			}
 		}
+		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
+			fprint(2, "%s: %s: not package main (package %s)\n", argv0, filename, name);
+		else if(strcmp(pkg, "main") != 0 && strcmp(name, "main") == 0)
+			fprint(2, "%s: %s: importing %s, found package main", argv0, filename, pkg);
 		loadpkgdata(filename, pkg, p0, p1 - p0);
 	}
+
+	// The __.PKGDEF archive summary has no local types.
+	if(whence == Pkgdef)
+		return;
 
 	// local types begin where exports end.
 	// skip rest of line after $$ we found above
@@ -245,7 +256,7 @@ expandpkg(char *t0, char *pkg)
 	int n;
 	char *p;
 	char *w, *w0, *t;
-	
+
 	n = 0;
 	for(p=t0; (p=strstr(p, "\"\".")) != nil; p+=3)
 		n++;
@@ -343,7 +354,7 @@ loop:
 		memmove(edef, meth, n);
 		edef += n;
 	}
-	
+
 	name = expandpkg(name, pkg);
 	def = expandpkg(def, pkg);
 
