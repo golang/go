@@ -63,6 +63,11 @@ func codewalk(c *http.Conn, r *http.Request) {
 		return
 	}
 
+	// Canonicalize the path and redirect if changed
+	if redirect(c, r) {
+		return
+	}
+
 	b := applyTemplate(codewalkHTML, "codewalk", cw)
 	servePage(c, "Codewalk: "+cw.Title, "", "", b)
 }
