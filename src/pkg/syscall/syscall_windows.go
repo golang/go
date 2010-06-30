@@ -131,6 +131,7 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval=0xffffffff]
 //sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
 //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
+//sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
 
 // syscall interface implementation for other packages
 
