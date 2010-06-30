@@ -40,6 +40,7 @@ var (
 	procGetTimeZoneInformation     = getSysProcAddr(modkernel32, "GetTimeZoneInformation")
 	procCreateIoCompletionPort     = getSysProcAddr(modkernel32, "CreateIoCompletionPort")
 	procGetQueuedCompletionStatus  = getSysProcAddr(modkernel32, "GetQueuedCompletionStatus")
+	procGetTempPathW               = getSysProcAddr(modkernel32, "GetTempPathW")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -368,6 +369,17 @@ func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlap
 	r0, _, e1 := Syscall6(procGetQueuedCompletionStatus, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
 	ok = bool(r0 != 0)
 	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
+	r0, _, e1 := Syscall(procGetTempPathW, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
+	n = uint32(r0)
+	if n == 0 {
 		errno = int(e1)
 	} else {
 		errno = 0
