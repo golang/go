@@ -10,6 +10,22 @@ GOFILES=\
 	sleep.go\
 	tick.go\
 	time.go\
-	zoneinfo.go\
+
+GOFILES_freebsd=\
+	zoneinfo_unix.go\
+
+GOFILES_darwin=\
+	zoneinfo_unix.go\
+
+GOFILES_linux=\
+	zoneinfo_unix.go\
+
+GOFILES_nacl=\
+	zoneinfo_unix.go\
+
+GOFILES_windows=\
+	zoneinfo_windows.go\
+
+GOFILES+=$(GOFILES_$(GOOS))
 
 include ../../Make.pkg

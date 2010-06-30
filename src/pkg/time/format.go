@@ -2,7 +2,6 @@ package time
 
 import (
 	"bytes"
-	"once"
 	"os"
 	"strconv"
 )
@@ -581,13 +580,9 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			}
 			// It's a valid format.
 			t.Zone = p
-			// Can we find it in the table?
-			once.Do(setupZone)
-			for _, z := range zones {
-				if p == z.zone.name {
-					t.ZoneOffset = z.zone.utcoff
-					break
-				}
+			// Can we find its offset?
+			if offset, found := lookupByName(p); found {
+				t.ZoneOffset = offset
 			}
 		}
 		if rangeErrString != "" {

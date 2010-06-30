@@ -127,19 +127,12 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) = GetComputerNameW
 //sys	SetEndOfFile(handle int32) (ok bool, errno int)
 //sys	GetSystemTimeAsFileTime(time *Filetime)
-//sys   sleep(msec uint32) = Sleep
+//sys	sleep(msec uint32) = Sleep
+//sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval=0xffffffff]
 //sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
 //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
 
 // syscall interface implementation for other packages
-
-func Sleep(nsec int64) (errno int) {
-	nsec += 999999 // round up to milliseconds
-	msec := uint32(nsec / 1e6)
-	sleep(msec)
-	errno = 0
-	return
-}
 
 func Errstr(errno int) string {
 	if errno == EWINDOWS {
@@ -376,6 +369,11 @@ func Gettimeofday(tv *Timeval) (errno int) {
 	// split into sec / usec
 	tv.Sec = int32(ms / 1e6)
 	tv.Usec = int32(ms) - tv.Sec
+	return 0
+}
+
+func Sleep(nsec int64) (errno int) {
+	sleep(uint32((nsec + 1e6 - 1) / 1e6)) // round up to milliseconds
 	return 0
 }
 
