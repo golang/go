@@ -2343,15 +2343,21 @@ func BenchmarkExp2(b *testing.B) {
 	}
 }
 
-func BenchmarkFloor(b *testing.B) {
+func BenchmarkFabs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Floor(.5)
+		Fabs(.5)
 	}
 }
 
 func BenchmarkFdim(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Fdim(10, 3)
+	}
+}
+
+func BenchmarkFloor(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Floor(.5)
 	}
 }
 
@@ -2445,15 +2451,15 @@ func BenchmarkLogb(b *testing.B) {
 	}
 }
 
-func BenchmarkLog10(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Log10(.5)
-	}
-}
-
 func BenchmarkLog1p(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Log1p(.5)
+	}
+}
+
+func BenchmarkLog10(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Log10(.5)
 	}
 }
 

@@ -7,6 +7,8 @@ include ../../Make.$(GOARCH)
 TARG=math
 
 OFILES_amd64=\
+	exp_amd64.$O\
+	fabs_amd64.$O\
 	fdim_amd64.$O\
 	sqrt_amd64.$O\
 
@@ -48,6 +50,7 @@ ALLGOFILES=\
 	copysign.go\
 	erf.go\
 	exp.go\
+	exp2.go\
 	expm1.go\
 	fabs.go\
 	fdim.go\
