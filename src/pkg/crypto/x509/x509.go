@@ -761,19 +761,20 @@ var (
 // MaxPathLen, SubjectKeyId, DNSNames.
 //
 // The certificate is signed by parent. If parent is equal to template then the
-// certificate is self-signed.
+// certificate is self-signed. pub is the public key of the signee. priv is the
+// private key of the signer.
 //
 // The returned slice is the certificate in DER encoding.
-func CreateCertificate(rand io.Reader, template, parent *Certificate, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
+func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.PublicKey, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
 	asn1PublicKey, err := asn1.MarshalToMemory(rsaPublicKey{
-		N: asn1.RawValue{Tag: 2, Bytes: priv.PublicKey.N.Bytes()},
-		E: priv.PublicKey.E,
+		N: asn1.RawValue{Tag: 2, Bytes: pub.N.Bytes()},
+		E: pub.E,
 	})
 	if err != nil {
 		return
 	}
 
-	if len(template.SubjectKeyId) > 0 && len(parent.SubjectKeyId) > 0 {
+	if len(parent.SubjectKeyId) > 0 {
 		template.AuthorityKeyId = parent.SubjectKeyId
 	}
 
