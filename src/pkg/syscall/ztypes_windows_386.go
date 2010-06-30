@@ -79,7 +79,11 @@ const (
 
 	MAX_COMPUTERNAME_LENGTH = 15
 
-	INFINITE = 0xffffffff
+	TIME_ZONE_ID_UNKNOWN  = 0
+	TIME_ZONE_ID_STANDARD = 1
+
+	TIME_ZONE_ID_DAYLIGHT = 2
+	INFINITE              = 0xffffffff
 
 	WAIT_TIMEOUT = 258
 )
@@ -153,6 +157,27 @@ type ByHandleFileInformation struct {
 type Stat_t struct {
 	Windata Win32finddata
 	Mode    uint32
+}
+
+type Systemtime struct {
+	Year         uint16
+	Month        uint16
+	DayOfWeek    uint16
+	Day          uint16
+	Hour         uint16
+	Minute       uint16
+	Second       uint16
+	Milliseconds uint16
+}
+
+type Timezoneinformation struct {
+	Bias         int32
+	StandardName [32]uint16
+	StandardDate Systemtime
+	StandardBias int32
+	DaylightName [32]uint16
+	DaylightDate Systemtime
+	DaylightBias int32
 }
 
 // Socket related.

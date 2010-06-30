@@ -37,6 +37,7 @@ var (
 	procSetEndOfFile               = getSysProcAddr(modkernel32, "SetEndOfFile")
 	procGetSystemTimeAsFileTime    = getSysProcAddr(modkernel32, "GetSystemTimeAsFileTime")
 	procSleep                      = getSysProcAddr(modkernel32, "Sleep")
+	procGetTimeZoneInformation     = getSysProcAddr(modkernel32, "GetTimeZoneInformation")
 	procCreateIoCompletionPort     = getSysProcAddr(modkernel32, "CreateIoCompletionPort")
 	procGetQueuedCompletionStatus  = getSysProcAddr(modkernel32, "GetQueuedCompletionStatus")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
@@ -338,6 +339,17 @@ func GetSystemTimeAsFileTime(time *Filetime) {
 
 func sleep(msec uint32) {
 	Syscall(procSleep, uintptr(msec), 0, 0)
+	return
+}
+
+func GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) {
+	r0, _, e1 := Syscall(procGetTimeZoneInformation, uintptr(unsafe.Pointer(tzi)), 0, 0)
+	rc = uint32(r0)
+	if rc == 0xffffffff {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
 	return
 }
 
