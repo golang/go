@@ -101,6 +101,7 @@ if __name__ == "__main__":
 server = "codereview.appspot.com"
 server_url_base = None
 defaultcc = None
+contributors = {}
 
 #######################################################################
 # Change list parsing.
@@ -1021,22 +1022,17 @@ def CheckContributor(ui, repo, user=None):
 	return userline
 
 def FindContributor(ui, repo, user, warn=True):
-	try:
-		f = open(repo.root + '/CONTRIBUTORS', 'r')
-	except:
-		raise util.Abort("cannot open %s: %s" % (repo.root+'/CONTRIBUTORS', ExceptionDetail()))
-	for line in f.readlines():
-		line = line.rstrip()
-		if line.startswith('#'):
-			continue
-		match = re.match(r"(.*) <(.*)>", line)
-		if not match:
-			continue
-		if line == user or match.group(2).lower() == user.lower():
-			return match.group(2), line
-	if warn:
-		ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))
-	return None, None
+	m = re.match(r".*<(.*)>", user)
+	if m:
+		user = m.group(1).lower()
+
+	if user not in contributors:
+		if warn:
+			ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))
+		return None, None
+	
+	user, email = contributors[user]
+	return email, "%s <%s>" % (user, email)
 
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
@@ -1615,7 +1611,7 @@ class opt(object):
 	pass
 
 def RietveldSetup(ui, repo):
-	global defaultcc, upload_options, rpc, server, server_url_base, force_google_account, verbosity
+	global defaultcc, upload_options, rpc, server, server_url_base, force_google_account, verbosity, contributors
 
 	# Read repository-specific options from lib/codereview/codereview.cfg
 	try:
@@ -1625,6 +1621,26 @@ def RietveldSetup(ui, repo):
 				defaultcc = SplitCommaSpace(line[10:])
 	except:
 		pass
+
+	try:
+		f = open(repo.root + '/CONTRIBUTORS', 'r')
+	except:
+		raise util.Abort("cannot open %s: %s" % (repo.root+'/CONTRIBUTORS', ExceptionDetail()))
+	for line in f:
+		# CONTRIBUTORS is a list of lines like:
+		#	Person <email>
+		#	Person <email> <alt-email>
+		# The first email address is the one used in commit logs.
+		if line.startswith('#'):
+			continue
+		m = re.match(r"([^<>]+\S)\s+(<[^<>\s]+>)((\s+<[^<>\s]+>)*)\s*$", line)
+		if m:
+			name = m.group(1)
+			email = m.group(2)[1:-1]
+			contributors[email.lower()] = (name, email)
+			for extra in m.group(3).split():
+				contributors[extra[1:-1].lower()] = (name, email)
+	
 
 	# TODO(rsc): If the repository config has no codereview section,
 	# do not enable the extension.  This allows users to
