@@ -462,3 +462,36 @@ func Runes(s []byte) []int {
 	}
 	return t
 }
+
+// Replace returns a copy of the slice s with the first n
+// non-overlapping instances of old replaced by new.
+// If n <= 0, there is no limit on the number of replacements.
+func Replace(s, old, new []byte, n int) []byte {
+	// Compute number of replacements.
+	if m := Count(s, old); m == 0 {
+		return s // avoid allocation
+	} else if n <= 0 || m < n {
+		n = m
+	}
+
+	// Apply replacements to buffer.
+	t := make([]byte, len(s)+n*(len(new)-len(old)))
+	w := 0
+	start := 0
+	for i := 0; i < n; i++ {
+		j := start
+		if len(old) == 0 {
+			if i > 0 {
+				_, wid := utf8.DecodeRune(s[start:])
+				j += wid
+			}
+		} else {
+			j += Index(s[start:], old)
+		}
+		w += copy(t[w:], s[start:j])
+		w += copy(t[w:], new)
+		start = j + len(old)
+	}
+	w += copy(t[w:], s[start:])
+	return t[0:w]
+}

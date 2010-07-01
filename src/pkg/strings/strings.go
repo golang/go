@@ -459,3 +459,51 @@ func TrimRight(s string, cutset string) string {
 func TrimSpace(s string) string {
 	return TrimFunc(s, unicode.IsSpace)
 }
+
+// Replace returns a copy of the string s with the first n
+// non-overlapping instances of old replaced by new.
+// If n <= 0, there is no limit on the number of replacements.
+func Replace(s, old, new string, n int) string {
+	if old == new {
+		return s // avoid allocation
+	}
+
+	// Compute number of replacements.
+	if m := Count(s, old); m == 0 {
+		return s // avoid allocation
+	} else if n <= 0 || m < n {
+		n = m
+	}
+
+	// Apply replacements to buffer.
+	t := make([]byte, len(s)+n*(len(new)-len(old)))
+	w := 0
+	start := 0
+	for i := 0; i < n; i++ {
+		j := start
+		if len(old) == 0 {
+			if i > 0 {
+				_, wid := utf8.DecodeRuneInString(s[start:])
+				j += wid
+			}
+		} else {
+			j += Index(s[start:], old)
+		}
+		w += copyString(t[w:], s[start:j])
+		w += copyString(t[w:], new)
+		start = j + len(old)
+	}
+	w += copyString(t[w:], s[start:])
+	return string(t[0:w])
+}
+
+func copyString(dst []byte, src string) int {
+	n := len(dst)
+	if n > len(src) {
+		n = len(src)
+	}
+	for i := 0; i < n; i++ {
+		dst[i] = src[i]
+	}
+	return n
+}

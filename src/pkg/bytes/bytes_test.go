@@ -645,3 +645,39 @@ func TestTrimFunc(t *testing.T) {
 		}
 	}
 }
+
+type ReplaceTest struct {
+	in       string
+	old, new string
+	n        int
+	out      string
+}
+
+var ReplaceTests = []ReplaceTest{
+	ReplaceTest{"hello", "l", "L", 0, "heLLo"},
+	ReplaceTest{"hello", "x", "X", 0, "hello"},
+	ReplaceTest{"", "x", "X", 0, ""},
+	ReplaceTest{"radar", "r", "<r>", 0, "<r>ada<r>"},
+	ReplaceTest{"", "", "<>", 0, "<>"},
+	ReplaceTest{"banana", "a", "<>", 0, "b<>n<>n<>"},
+	ReplaceTest{"banana", "a", "<>", 1, "b<>nana"},
+	ReplaceTest{"banana", "a", "<>", 1000, "b<>n<>n<>"},
+	ReplaceTest{"banana", "an", "<>", 0, "b<><>a"},
+	ReplaceTest{"banana", "ana", "<>", 0, "b<>na"},
+	ReplaceTest{"banana", "", "<>", 0, "<>b<>a<>n<>a<>n<>a<>"},
+	ReplaceTest{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
+	ReplaceTest{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
+	ReplaceTest{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
+	ReplaceTest{"banana", "", "<>", 1, "<>banana"},
+	ReplaceTest{"banana", "a", "a", 0, "banana"},
+	ReplaceTest{"banana", "a", "a", 1, "banana"},
+	ReplaceTest{"☺☻☹", "", "<>", 0, "<>☺<>☻<>☹<>"},
+}
+
+func TestReplace(t *testing.T) {
+	for _, tt := range ReplaceTests {
+		if s := string(Replace([]byte(tt.in), []byte(tt.old), []byte(tt.new), tt.n)); s != tt.out {
+			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
+		}
+	}
+}
