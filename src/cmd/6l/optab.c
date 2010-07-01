@@ -792,7 +792,7 @@ Optab optab[] =
 	{ AMOVLPD,	yxmov,	Pe, 0x12,0x13 },
 	{ AMOVLPS,	yxmov,	Pm, 0x12,0x13 },
 	{ AMOVLQSX,	yml_rl,	Pw, 0x63 },
-	{ AMOVLQZX,	yml_rl,	Px, 0x63 },
+	{ AMOVLQZX,	yml_rl,	Px, 0x8b },	/* not 0x63 - MOVL (0x8b) is more widely understood and has same effect */
 	{ AMOVMSKPD,	yxrrl,	Pq, 0x50 },
 	{ AMOVMSKPS,	yxrrl,	Pm, 0x50 },
 	{ AMOVNTO,	yxr_ml,	Pe, 0xe7 },
