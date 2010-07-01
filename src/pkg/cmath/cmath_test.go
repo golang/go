@@ -38,8 +38,7 @@ var vc = []complex128{
 // at http://keisan.casio.com/.  More exact input values (array vc[], above)
 // were obtained by printing them with "%.26f".  The answers were calculated
 // to 26 digits (by using the "Digit number" drop-down control of each
-// calculator).  Twenty-six digits were chosen so that the answers would be
-// accurate even for a float128 type.
+// calculator).
 
 var abs = []float64{
 	9.2022120669932650313380972e+00,
@@ -355,6 +354,28 @@ var vcExpSC = []complex128{
 var expSC = []complex128{
 	NaN(),
 }
+var vcIsNaNSC = []complex128{
+	cmplx(math.Inf(-1), math.Inf(-1)),
+	cmplx(math.Inf(-1), math.NaN()),
+	cmplx(math.NaN(), math.Inf(-1)),
+	cmplx(0, math.NaN()),
+	cmplx(math.NaN(), 0),
+	cmplx(math.Inf(1), math.Inf(1)),
+	cmplx(math.Inf(1), math.NaN()),
+	cmplx(math.NaN(), math.Inf(1)),
+	cmplx(math.NaN(), math.NaN()),
+}
+var isNaNSC = []bool{
+	false,
+	false,
+	false,
+	true,
+	true,
+	false,
+	false,
+	false,
+	true,
+}
 var vcLogSC = []complex128{
 	NaN(),
 }
@@ -432,7 +453,7 @@ func alike(a, b float64) bool {
 	case a != a && b != b: // math.IsNaN(a) && math.IsNaN(b):
 		return true
 	case a == b:
-		return true
+		return math.Signbit(a) == math.Signbit(b)
 	}
 	return false
 }
@@ -454,7 +475,7 @@ func cAlike(a, b complex128) bool {
 	case IsNaN(a) && IsNaN(b):
 		return true
 	case a == b:
-		return true
+		return math.Signbit(real(a)) == math.Signbit(real(b)) && math.Signbit(imag(a)) == math.Signbit(imag(b))
 	}
 	return false
 }
@@ -588,6 +609,13 @@ func TestExp(t *testing.T) {
 	for i := 0; i < len(vcExpSC); i++ {
 		if f := Exp(vcExpSC[i]); !cAlike(expSC[i], f) {
 			t.Errorf("Exp(%g) = %g, want %g\n", vcExpSC[i], f, expSC[i])
+		}
+	}
+}
+func TestIsNaN(t *testing.T) {
+	for i := 0; i < len(vcIsNaNSC); i++ {
+		if f := IsNaN(vcIsNaNSC[i]); isNaNSC[i] != f {
+			t.Errorf("IsNaN(%g) = %g, want %g\n", vcIsNaNSC[i], f, isNaNSC[i])
 		}
 	}
 }

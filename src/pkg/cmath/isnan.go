@@ -6,9 +6,13 @@ package cmath
 
 import "math"
 
-// IsNaN returns true if either real(x) or imag(x) is NaN.
+// IsNaN returns true if either real(x) or imag(x) is NaN
+// and neither is an infinity.
 func IsNaN(x complex128) bool {
-	if math.IsNaN(real(x)) || math.IsNaN(imag(x)) {
+	switch {
+	case math.IsInf(real(x), 0) || math.IsInf(imag(x), 0):
+		return false
+	case math.IsNaN(real(x)) || math.IsNaN(imag(x)):
 		return true
 	}
 	return false
