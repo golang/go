@@ -184,7 +184,7 @@ func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
 	return genRun(dir, stdin, cmd, true)
 }
 
-// genRun implements run and tryRun.
+// genRun implements run and quietRun.
 func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
 	bin, err := exec.LookPath(cmd[0])
 	if err != nil {

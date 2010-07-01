@@ -42,6 +42,15 @@ if necessary.  The recognized code hosting sites are:
 		import "project.googlecode.com/svn/trunk"
 		import "project.googlecode.com/svn/trunk/sub/directory"
 
+	Launchpad
+
+		import "launchpad.net/project
+		import "launchpad.net/project/series
+		import "launchpad.net/project/series/sub/directory
+
+		import "launchpad.net/~user/project/branch
+		import "launchpad.net/~user/project/branch/sub/directory
+
 
 If the destination directory (e.g., $GOROOT/src/pkg/bitbucket.org/user/project)
 already exists and contains an appropriate checkout, goinstall will not
