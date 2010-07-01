@@ -260,7 +260,7 @@ spec8:	/* CMPPS/CMPPD */
 	{
 		$$.from = $1;
 		$$.to = $3;
-		$$.from.offset = $5;
+		$$.to.offset = $5;
 	}
 
 spec9:	/* shufl */
