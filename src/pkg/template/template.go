@@ -54,7 +54,7 @@
 	map passed to the template set up routines or in the default
 	set ("html","str","") and is used to process the data for
 	output.  The formatter function has signature
-		func(wr io.Write, data interface{}, formatter string)
+		func(wr io.Writer, data interface{}, formatter string)
 	where wr is the destination for output, data is the field
 	value, and formatter is its name at the invocation site.
 */
