@@ -225,6 +225,8 @@ dowidth(Type *t)
 			uint64 cap;
 
 			dowidth(t->type);
+			if(t->type->width == 0)
+				fatal("no width for type %T", t->type);
 			if(tptr == TPTR32)
 				cap = ((uint32)-1) / t->type->width;
 			else
@@ -275,6 +277,9 @@ dowidth(Type *t)
 		break;
 	}
 
+	// catch all for error cases; avoid divide by zero later
+	if(w == 0)
+		w = maxround;
 	t->width = w;
 	lineno = lno;
 
