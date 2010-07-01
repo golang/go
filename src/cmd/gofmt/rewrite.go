@@ -21,7 +21,7 @@ func initRewrite() {
 	if *rewriteRule == "" {
 		return
 	}
-	f := strings.Split(*rewriteRule, "->", 0)
+	f := strings.Split(*rewriteRule, "->", -1)
 	if len(f) != 2 {
 		fmt.Fprintf(os.Stderr, "rewrite rule must be of the form 'pattern -> replacement'\n")
 		os.Exit(2)

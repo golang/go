@@ -236,7 +236,7 @@ func all(scripts map[string][]Script) []string {
 // Extract the version number from the URL
 func version() string {
 	// Break on slashes and look for the first numeric field
-	fields := strings.Split(*url, "/", 0)
+	fields := strings.Split(*url, "/", -1)
 	for _, f := range fields {
 		if len(f) > 0 && '0' <= f[0] && f[0] <= '9' {
 			return f
@@ -304,7 +304,7 @@ func printCategories() {
 		return
 	}
 	// Find out which categories to dump
-	list := strings.Split(*tablelist, ",", 0)
+	list := strings.Split(*tablelist, ",", -1)
 	if *tablelist == "all" {
 		list = allCategories()
 	}
@@ -580,7 +580,7 @@ func printScriptOrProperty(doProps bool) {
 	resp.Body.Close()
 
 	// Find out which scripts to dump
-	list := strings.Split(flaglist, ",", 0)
+	list := strings.Split(flaglist, ",", -1)
 	if flaglist == "all" {
 		list = all(table)
 	}

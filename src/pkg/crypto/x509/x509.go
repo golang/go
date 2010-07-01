@@ -407,8 +407,8 @@ func matchHostnames(pattern, host string) bool {
 		return false
 	}
 
-	patternParts := strings.Split(pattern, ".", 0)
-	hostParts := strings.Split(host, ".", 0)
+	patternParts := strings.Split(pattern, ".", -1)
+	hostParts := strings.Split(host, ".", -1)
 
 	if len(patternParts) != len(hostParts) {
 		return false

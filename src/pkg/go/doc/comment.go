@@ -59,7 +59,7 @@ func CommentText(comment *ast.CommentGroup) string {
 		}
 
 		// Split on newlines.
-		cl := strings.Split(c, "\n", 0)
+		cl := strings.Split(c, "\n", -1)
 
 		// Walk lines, stripping trailing white space and adding to list.
 		for _, l := range cl {

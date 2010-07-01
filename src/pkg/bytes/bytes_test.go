@@ -211,8 +211,8 @@ type ExplodeTest struct {
 }
 
 var explodetests = []ExplodeTest{
-	ExplodeTest{abcd, 0, []string{"a", "b", "c", "d"}},
-	ExplodeTest{faces, 0, []string{"☺", "☻", "☹"}},
+	ExplodeTest{abcd, -1, []string{"a", "b", "c", "d"}},
+	ExplodeTest{faces, -1, []string{"☺", "☻", "☹"}},
 	ExplodeTest{abcd, 2, []string{"a", "bcd"}},
 }
 
@@ -240,16 +240,16 @@ type SplitTest struct {
 }
 
 var splittests = []SplitTest{
-	SplitTest{abcd, "a", 0, []string{"", "bcd"}},
-	SplitTest{abcd, "z", 0, []string{"abcd"}},
-	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
-	SplitTest{commas, ",", 0, []string{"1", "2", "3", "4"}},
-	SplitTest{dots, "...", 0, []string{"1", ".2", ".3", ".4"}},
-	SplitTest{faces, "☹", 0, []string{"☺☻", ""}},
-	SplitTest{faces, "~", 0, []string{faces}},
-	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
+	SplitTest{abcd, "a", 0, nil},
+	SplitTest{abcd, "a", -1, []string{"", "bcd"}},
+	SplitTest{abcd, "z", -1, []string{"abcd"}},
+	SplitTest{abcd, "", -1, []string{"a", "b", "c", "d"}},
+	SplitTest{commas, ",", -1, []string{"1", "2", "3", "4"}},
+	SplitTest{dots, "...", -1, []string{"1", ".2", ".3", ".4"}},
+	SplitTest{faces, "☹", -1, []string{"☺☻", ""}},
+	SplitTest{faces, "~", -1, []string{faces}},
+	SplitTest{faces, "", -1, []string{"☺", "☻", "☹"}},
 	SplitTest{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
-	SplitTest{"1 2 3", " ", 3, []string{"1", "2", "3"}},
 	SplitTest{"1 2", " ", 3, []string{"1", "2"}},
 	SplitTest{"123", "", 2, []string{"1", "23"}},
 	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
@@ -263,6 +263,9 @@ func TestSplit(t *testing.T) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
 		}
+		if tt.n == 0 {
+			continue
+		}
 		s := Join(a, []byte(tt.sep))
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
@@ -271,14 +274,14 @@ func TestSplit(t *testing.T) {
 }
 
 var splitaftertests = []SplitTest{
-	SplitTest{abcd, "a", 0, []string{"a", "bcd"}},
-	SplitTest{abcd, "z", 0, []string{"abcd"}},
-	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
-	SplitTest{commas, ",", 0, []string{"1,", "2,", "3,", "4"}},
-	SplitTest{dots, "...", 0, []string{"1...", ".2...", ".3...", ".4"}},
-	SplitTest{faces, "☹", 0, []string{"☺☻☹", ""}},
-	SplitTest{faces, "~", 0, []string{faces}},
-	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
+	SplitTest{abcd, "a", -1, []string{"a", "bcd"}},
+	SplitTest{abcd, "z", -1, []string{"abcd"}},
+	SplitTest{abcd, "", -1, []string{"a", "b", "c", "d"}},
+	SplitTest{commas, ",", -1, []string{"1,", "2,", "3,", "4"}},
+	SplitTest{dots, "...", -1, []string{"1...", ".2...", ".3...", ".4"}},
+	SplitTest{faces, "☹", -1, []string{"☺☻☹", ""}},
+	SplitTest{faces, "~", -1, []string{faces}},
+	SplitTest{faces, "", -1, []string{"☺", "☻", "☹"}},
 	SplitTest{"1 2 3 4", " ", 3, []string{"1 ", "2 ", "3 4"}},
 	SplitTest{"1 2 3", " ", 3, []string{"1 ", "2 ", "3"}},
 	SplitTest{"1 2", " ", 3, []string{"1 ", "2"}},
@@ -654,24 +657,25 @@ type ReplaceTest struct {
 }
 
 var ReplaceTests = []ReplaceTest{
-	ReplaceTest{"hello", "l", "L", 0, "heLLo"},
-	ReplaceTest{"hello", "x", "X", 0, "hello"},
-	ReplaceTest{"", "x", "X", 0, ""},
-	ReplaceTest{"radar", "r", "<r>", 0, "<r>ada<r>"},
-	ReplaceTest{"", "", "<>", 0, "<>"},
-	ReplaceTest{"banana", "a", "<>", 0, "b<>n<>n<>"},
+	ReplaceTest{"hello", "l", "L", 0, "hello"},
+	ReplaceTest{"hello", "l", "L", -1, "heLLo"},
+	ReplaceTest{"hello", "x", "X", -1, "hello"},
+	ReplaceTest{"", "x", "X", -1, ""},
+	ReplaceTest{"radar", "r", "<r>", -1, "<r>ada<r>"},
+	ReplaceTest{"", "", "<>", -1, "<>"},
+	ReplaceTest{"banana", "a", "<>", -1, "b<>n<>n<>"},
 	ReplaceTest{"banana", "a", "<>", 1, "b<>nana"},
 	ReplaceTest{"banana", "a", "<>", 1000, "b<>n<>n<>"},
-	ReplaceTest{"banana", "an", "<>", 0, "b<><>a"},
-	ReplaceTest{"banana", "ana", "<>", 0, "b<>na"},
-	ReplaceTest{"banana", "", "<>", 0, "<>b<>a<>n<>a<>n<>a<>"},
+	ReplaceTest{"banana", "an", "<>", -1, "b<><>a"},
+	ReplaceTest{"banana", "ana", "<>", -1, "b<>na"},
+	ReplaceTest{"banana", "", "<>", -1, "<>b<>a<>n<>a<>n<>a<>"},
 	ReplaceTest{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
 	ReplaceTest{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
 	ReplaceTest{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
 	ReplaceTest{"banana", "", "<>", 1, "<>banana"},
-	ReplaceTest{"banana", "a", "a", 0, "banana"},
+	ReplaceTest{"banana", "a", "a", -1, "banana"},
 	ReplaceTest{"banana", "a", "a", 1, "banana"},
-	ReplaceTest{"☺☻☹", "", "<>", 0, "<>☺<>☻<>☹<>"},
+	ReplaceTest{"☺☻☹", "", "<>", -1, "<>☺<>☻<>☹<>"},
 }
 
 func TestReplace(t *testing.T) {

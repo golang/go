@@ -10,9 +10,12 @@ import (
 	"utf8"
 )
 
-// explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n <= 0 means no limit).
+// explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n < 0 means no limit).
 // Invalid UTF-8 sequences become correct encodings of U+FFF8.
 func explode(s string, n int) []string {
+	if n == 0 {
+		return nil
+	}
 	l := utf8.RuneCountInString(s)
 	if n <= 0 || n > l {
 		n = l
@@ -135,10 +138,13 @@ func IndexAny(s, chars string) int {
 // Generic split: splits after each instance of sep,
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep string, sepSave, n int) []string {
+	if n == 0 {
+		return nil
+	}
 	if sep == "" {
 		return explode(s, n)
 	}
-	if n <= 0 {
+	if n < 0 {
 		n = Count(s, sep) + 1
 	}
 	c := sep[0]
@@ -159,12 +165,14 @@ func genSplit(s, sep string, sepSave, n int) []string {
 
 // Split splits the string s around each instance of sep, returning an array of substrings of s.
 // If sep is empty, Split splits s after each UTF-8 sequence.
-// If n > 0, Split splits s into at most n substrings; the last substring will be the unsplit remainder.
+// If n >= 0, Split splits s into at most n substrings; the last substring will be the unsplit remainder.
+// Thus if n == 0, the result will be nil.
 func Split(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
 
 // SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
 // If sep is empty, SplitAfter splits s after each UTF-8 sequence.
-// If n > 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
+// If n >= 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
+// Thus if n == 0, the result will be nil.
 func SplitAfter(s, sep string, n int) []string {
 	return genSplit(s, sep, len(sep), n)
 }
@@ -462,16 +470,16 @@ func TrimSpace(s string) string {
 
 // Replace returns a copy of the string s with the first n
 // non-overlapping instances of old replaced by new.
-// If n <= 0, there is no limit on the number of replacements.
+// If n < 0, there is no limit on the number of replacements.
 func Replace(s, old, new string, n int) string {
-	if old == new {
+	if old == new || n == 0 {
 		return s // avoid allocation
 	}
 
 	// Compute number of replacements.
 	if m := Count(s, old); m == 0 {
 		return s // avoid allocation
-	} else if n <= 0 || m < n {
+	} else if n < 0 || m < n {
 		n = m
 	}
 
