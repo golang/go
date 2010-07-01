@@ -21,6 +21,13 @@ func creat(name string) *os.File {
 	return f
 }
 
+func slashToUnderscore(c int) int {
+	if c == '/' {
+		c = '_'
+	}
+	return c
+}
+
 // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
 func (p *Prog) writeDefs() {
@@ -28,6 +35,15 @@ func (p *Prog) writeDefs() {
 	path := p.PackagePath
 	if !strings.HasPrefix(path, "/") {
 		path = pkgroot + "/" + path
+	}
+
+	// The path for the shared object is slash-free so that ELF loaders
+	// will treat it as a relative path.  We rewrite slashes to underscores.
+	sopath := "cgo_" + strings.Map(slashToUnderscore, p.PackagePath)
+	soprefix := ""
+	if os.Getenv("GOOS") == "darwin" {
+		// OS X requires its own prefix for a relative path
+		soprefix = "@rpath/"
 	}
 
 	fgo2 := creat("_cgo_gotypes.go")
@@ -48,10 +64,10 @@ func (p *Prog) writeDefs() {
 	}
 	fmt.Fprintf(fgo2, "type _C_void [0]byte\n")
 
-	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot, pkgroot)
+	fmt.Fprintf(fc, cProlog, soprefix, soprefix, soprefix, soprefix, soprefix)
 
 	for name, def := range p.Vardef {
-		fmt.Fprintf(fc, "#pragma dynimport ·_C_%s %s \"%s.so\"\n", name, name, path)
+		fmt.Fprintf(fc, "#pragma dynimport ·_C_%s %s \"%s%s.so\"\n", name, name, soprefix, sopath)
 		fmt.Fprintf(fgo2, "var _C_%s ", name)
 		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
 		fmt.Fprintf(fgo2, "\n")
@@ -130,7 +146,7 @@ func (p *Prog) writeDefs() {
 
 		// C wrapper calls into gcc, passing a pointer to the argument frame.
 		// Also emit #pragma to get a pointer to the gcc wrapper.
-		fmt.Fprintf(fc, "#pragma dynimport _cgo_%s _cgo_%s \"%s.so\"\n", name, name, path)
+		fmt.Fprintf(fc, "#pragma dynimport _cgo_%s _cgo_%s \"%s%s.so\"\n", name, name, soprefix, sopath)
 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
 		fmt.Fprintf(fc, "\n")
 		fmt.Fprintf(fc, "void\n")
@@ -564,11 +580,11 @@ const cProlog = `
 #include "runtime.h"
 #include "cgocall.h"
 
-#pragma dynimport initcgo initcgo "%s/libcgo.so"
-#pragma dynimport libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
-#pragma dynimport libcgo_set_scheduler libcgo_set_scheduler "%s/libcgo.so"
-#pragma dynimport _cgo_malloc _cgo_malloc "%s/libcgo.so"
-#pragma dynimport _cgo_free _cgo_free "%s/libcgo.so"
+#pragma dynimport initcgo initcgo "%slibcgo.so"
+#pragma dynimport libcgo_thread_start libcgo_thread_start "%slibcgo.so"
+#pragma dynimport libcgo_set_scheduler libcgo_set_scheduler "%slibcgo.so"
+#pragma dynimport _cgo_malloc _cgo_malloc "%slibcgo.so"
+#pragma dynimport _cgo_free _cgo_free "%slibcgo.so"
 
 void
 ·_C_GoString(int8 *p, String s)
