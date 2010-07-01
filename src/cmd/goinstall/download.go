@@ -34,6 +34,7 @@ func maybeReportToDashboard(path string) {
 var googlecode = regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/(svn|hg))(/[a-z0-9A-Z_.\-/]*)?$`)
 var github = regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`)
 var bitbucket = regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`)
+var launchpad = regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`)
 
 // download checks out or updates pkg from the remote server.
 func download(pkg string) (string, os.Error) {
@@ -71,53 +72,78 @@ func download(pkg string) (string, os.Error) {
 		}
 		return root + pkg, nil
 	}
+	if m := launchpad.MatchStrings(pkg); m != nil {
+		// Either lp.net/<project>[/<series>[/<path>]]
+		//	 or lp.net/~<user or team>/<project>/<branch>[/<path>]
+		if err := vcsCheckout(&bzr, root+m[1], "https://"+m[1], m[1]); err != nil {
+			return "", err
+		}
+		return root + pkg, nil
+	}
 	return "", os.ErrorString("unknown repository: " + pkg)
 }
 
 // a vcs represents a version control system
 // like Mercurial, Git, or Subversion.
 type vcs struct {
-	cmd            string
-	metadir        string
-	clone          string
-	update         string
-	pull           string
-	log            string
-	logLimitFlag   string
-	logReleaseFlag string
+	cmd               string
+	metadir           string
+	clone             string
+	update            string
+	updateReleaseFlag string
+	pull              string
+	pullForceFlag     string
+	log               string
+	logLimitFlag      string
+	logReleaseFlag    string
 }
 
 var hg = vcs{
-	cmd:            "hg",
-	metadir:        ".hg",
-	clone:          "clone",
-	update:         "update",
-	pull:           "pull",
-	log:            "log",
-	logLimitFlag:   "-l1",
-	logReleaseFlag: "-rrelease",
+	cmd:               "hg",
+	metadir:           ".hg",
+	clone:             "clone",
+	update:            "update",
+	updateReleaseFlag: "release",
+	pull:              "pull",
+	log:               "log",
+	logLimitFlag:      "-l1",
+	logReleaseFlag:    "-rrelease",
 }
 
 var git = vcs{
-	cmd:            "git",
-	metadir:        ".git",
-	clone:          "clone",
-	update:         "pull",
-	pull:           "fetch",
-	log:            "log",
-	logLimitFlag:   "-n1",
-	logReleaseFlag: "release",
+	cmd:               "git",
+	metadir:           ".git",
+	clone:             "clone",
+	update:            "pull",
+	updateReleaseFlag: "release",
+	pull:              "fetch",
+	log:               "log",
+	logLimitFlag:      "-n1",
+	logReleaseFlag:    "release",
 }
 
 var svn = vcs{
-	cmd:            "svn",
-	metadir:        ".svn",
-	clone:          "checkout",
-	update:         "update",
-	pull:           "",
-	log:            "log",
-	logLimitFlag:   "-l1",
-	logReleaseFlag: "release",
+	cmd:               "svn",
+	metadir:           ".svn",
+	clone:             "checkout",
+	update:            "update",
+	updateReleaseFlag: "release",
+	log:               "log",
+	logLimitFlag:      "-l1",
+	logReleaseFlag:    "release",
+}
+
+var bzr = vcs{
+	cmd:               "bzr",
+	metadir:           ".bzr",
+	clone:             "branch",
+	update:            "update",
+	updateReleaseFlag: "-rrelease",
+	pull:              "pull",
+	pullForceFlag:     "--overwrite",
+	log:               "log",
+	logLimitFlag:      "-l1",
+	logReleaseFlag:    "-rrelease",
 }
 
 // vcsCheckout checks out repo into dst using vcs.
@@ -138,27 +164,37 @@ func vcsCheckout(vcs *vcs, dst, repo, dashpath string) os.Error {
 		if err := run("/", nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
 			return err
 		}
-		quietRun(dst, nil, vcs.cmd, vcs.update, "release")
+		quietRun(dst, nil, vcs.cmd, vcs.update, vcs.updateReleaseFlag)
 
 		// success on first installation - report
 		maybeReportToDashboard(dashpath)
 	} else if *update {
+		// Retrieve new revisions from the remote branch, if the VCS
+		// supports this operation independently (e.g. svn doesn't)
 		if vcs.pull != "" {
-			if err := run(dst, nil, vcs.cmd, vcs.pull); err != nil {
+			if vcs.pullForceFlag != "" {
+				if err := run(dst, nil, vcs.cmd, vcs.pull, vcs.pullForceFlag); err != nil {
+					return err
+				}
+			} else if err := run(dst, nil, vcs.cmd, vcs.pull); err != nil {
 				return err
 			}
 		}
-		// check for release with hg log -l 1 -r release
-		// if success, hg update release
-		// else hg update
+
+		// Try to detect if a "release" tag exists.  If it does, update
+		// to the tagged version.  If no tag is found, then update to the
+		// tip afterwards.
+		// NOTE(gustavo@niemeyer.net): What is the expected behavior with
+		// svn here? "svn log -l1 release" doesn't make sense in this
+		// context and will probably fail.
 		if err := quietRun(dst, nil, vcs.cmd, vcs.log, vcs.logLimitFlag, vcs.logReleaseFlag); err == nil {
-			if err := run(dst, nil, vcs.cmd, vcs.update, "release"); err != nil {
+			if err := run(dst, nil, vcs.cmd, vcs.update, vcs.updateReleaseFlag); err != nil {
+				// The VCS supports tagging, has the "release" tag, but
+				// something else went wrong.  Report.
 				return err
 			}
-		} else {
-			if err := run(dst, nil, vcs.cmd, vcs.update); err != nil {
-				return err
-			}
+		} else if err := run(dst, nil, vcs.cmd, vcs.update); err != nil {
+			return err
 		}
 	}
 	return nil
