@@ -35,7 +35,15 @@ fmt(double g)
 	if(strcmp(p, "-0") == 0)
 		strcpy(p, "negzero");
 	return p;
-}	
+}
+
+int
+iscnan(double complex d)
+{
+	return !isinf(creal(d)) && !isinf(cimag(d)) && (isnan(creal(d)) || isnan(cimag(d)));
+}
+
+double complex zero;	// attempt to hide zero division from gcc
 
 int
 main(void)
@@ -54,7 +62,20 @@ main(void)
 		n = f[i] + f[j]*I;
 		d = f[k] + f[l]*I;
 		q = n/d;
-		printf("\tTest{cmplx(%s, %s), cmplx(%s, %s), cmplx(%s, %s)},\n", fmt(creal(n)), fmt(cimag(n)), fmt(creal(d)), fmt(cimag(d)), fmt(creal(q)), fmt(cimag(q)));
+		
+		// BUG FIX.
+		// Gcc gets the wrong answer for NaN/0 unless both sides are NaN.
+		// That is, it treats (NaN+NaN*I)/0 = NaN+NaN*I (a complex NaN)
+		// but it then computes (1+NaN*I)/0 = Inf+NaN*I (a complex infinity).
+		// Since both numerators are complex NaNs, it seems that the
+		// results should agree in kind.  Override the gcc computation in this case.
+		if(iscnan(n) && d == 0)
+			q = (NAN+NAN*I) / zero;
+
+		printf("\tTest{cmplx(%s, %s), cmplx(%s, %s), cmplx(%s, %s)},\n",
+			fmt(creal(n)), fmt(cimag(n)),
+			fmt(creal(d)), fmt(cimag(d)),
+			fmt(creal(q)), fmt(cimag(q)));
 	}
 	printf("}\n");
 	return 0;
