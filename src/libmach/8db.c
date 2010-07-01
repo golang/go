@@ -695,7 +695,7 @@ static Optable optab0F[256]=
 [0xB1]	RM,0,		"CMPXCHG%S	%r,%e",
 [0xC0]	RMB,0,		"XADDB	%r,%e",
 [0xC1]	RM,0,		"XADD%S	%r,%e",
-[0xC2]	RM,Ib,		"CMP%s	%i,%x,%X",
+[0xC2]	RM,Ib,		"CMP%s	%x,%X,%#i",
 [0xC3]	RM,0,		"MOVNTI%S	%r,%e",
 [0xC6]	RM,Ib,		"SHUF%s	%i,%x,%X",
 [0xC8]	0,0,		"BSWAP	AX",
@@ -2074,6 +2074,7 @@ pea(Instr *ip)
 static void
 prinstr(Instr *ip, char *fmt)
 {
+	int sharp;
 	vlong v;
 
 	if (ip->prefix)
@@ -2083,7 +2084,12 @@ prinstr(Instr *ip, char *fmt)
 			*ip->curr++ = *fmt;
 			continue;
 		}
-		switch(*++fmt){
+		sharp = 0;
+		if(*++fmt == '#') {
+			sharp = 1;
+			++fmt;
+		}
+		switch(*fmt){
 		case '%':
 			*ip->curr++ = '%';
 			break;
@@ -2107,7 +2113,8 @@ prinstr(Instr *ip, char *fmt)
 			bprint(ip,"%s", ONAME(ip));
 			break;
 		case 'i':
-			bprint(ip, "$");
+			if(!sharp)
+				bprint(ip, "$");
 			v = ip->imm;
 			if(ip->rex & REXW)
 				v = ip->imm64;
