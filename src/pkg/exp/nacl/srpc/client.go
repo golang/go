@@ -67,7 +67,7 @@ func NewClient(fd int) (c *Client, err os.Error) {
 		log.Stderrf("NewClient service_discovery: %s", m.status)
 		return nil, m.status
 	}
-	for n, line := range bytes.Split(m.Ret[0].([]byte), []byte{'\n'}, 0) {
+	for n, line := range bytes.Split(m.Ret[0].([]byte), []byte{'\n'}, -1) {
 		i := bytes.Index(line, []byte{':'})
 		if i < 0 {
 			continue

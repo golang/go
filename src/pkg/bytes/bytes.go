@@ -154,10 +154,13 @@ func IndexAny(s []byte, chars string) int {
 // Generic split: splits after each instance of sep,
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+	if n == 0 {
+		return nil
+	}
 	if len(sep) == 0 {
 		return explode(s, n)
 	}
-	if n <= 0 {
+	if n < 0 {
 		n = Count(s, sep) + 1
 	}
 	c := sep[0]
@@ -178,13 +181,15 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 
 // Split splits the array s around each instance of sep, returning an array of subarrays of s.
 // If sep is empty, Split splits s after each UTF-8 sequence.
-// If n > 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
+// If n >= 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
+// Thus if n == 0, the result will ne nil.
 func Split(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 
 // SplitAfter splits the array s after each instance of sep, returning an array of subarrays of s.
 // If sep is empty, SplitAfter splits s after each UTF-8 sequence.
-// If n > 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
+// If n >= 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
 // unsplit remainder.
+// Thus if n == 0, the result will ne nil.
 func SplitAfter(s, sep []byte, n int) [][]byte {
 	return genSplit(s, sep, len(sep), n)
 }
@@ -465,8 +470,11 @@ func Runes(s []byte) []int {
 
 // Replace returns a copy of the slice s with the first n
 // non-overlapping instances of old replaced by new.
-// If n <= 0, there is no limit on the number of replacements.
+// If n < 0, there is no limit on the number of replacements.
 func Replace(s, old, new []byte, n int) []byte {
+	if n == 0 {
+		return s // avoid allocation
+	}
 	// Compute number of replacements.
 	if m := Count(s, old); m == 0 {
 		return s // avoid allocation

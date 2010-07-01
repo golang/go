@@ -352,7 +352,7 @@ func (server *serverType) input(codec ServerCodec) {
 			sendResponse(sending, req, invalidRequest, codec, s)
 			break
 		}
-		serviceMethod := strings.Split(req.ServiceMethod, ".", 0)
+		serviceMethod := strings.Split(req.ServiceMethod, ".", -1)
 		if len(serviceMethod) != 2 {
 			s := "rpc: service/method request ill-formed: " + req.ServiceMethod
 			sendResponse(sending, req, invalidRequest, codec, s)

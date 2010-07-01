@@ -153,7 +153,7 @@ func cmdLoad(args []byte) os.Error {
 		}
 		println("Attached to", pid)
 	} else {
-		parts := strings.Split(path, " ", 0)
+		parts := strings.Split(path, " ", -1)
 		if len(parts) == 0 {
 			fname = ""
 		} else {

@@ -77,7 +77,7 @@ type mapping struct {
 func (m *Mapping) Init(paths string) {
 	cwd, _ := os.Getwd() // ignore errors
 
-	pathlist := strings.Split(paths, ":", 0)
+	pathlist := strings.Split(paths, ":", -1)
 
 	list := make([]mapping, len(pathlist))
 	n := 0 // number of mappings

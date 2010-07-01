@@ -568,7 +568,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 
 func ParseQuery(query string) (m map[string][]string, err os.Error) {
 	m = make(map[string][]string)
-	for _, kv := range strings.Split(query, "&", 0) {
+	for _, kv := range strings.Split(query, "&", -1) {
 		kvPair := strings.Split(kv, "=", 2)
 
 		var key, value string

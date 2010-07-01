@@ -338,8 +338,8 @@ func (dir *Directory) lookupLocal(name string) *Directory {
 
 // lookup looks for the *Directory for a given path, relative to dir.
 func (dir *Directory) lookup(path string) *Directory {
-	d := strings.Split(dir.Path, "/", 0)
-	p := strings.Split(path, "/", 0)
+	d := strings.Split(dir.Path, "/", -1)
+	p := strings.Split(path, "/", -1)
 	i := 0
 	for i < len(d) {
 		if i >= len(p) || d[i] != p[i] {

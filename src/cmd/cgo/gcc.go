@@ -27,7 +27,7 @@ func (p *Prog) loadDebugInfo() {
 	b.WriteString(p.Preamble)
 	stdout := p.gccPostProc(b.Bytes())
 	defines := make(map[string]string)
-	for _, line := range strings.Split(stdout, "\n", 0) {
+	for _, line := range strings.Split(stdout, "\n", -1) {
 		if len(line) < 9 || line[0:7] != "#define" {
 			continue
 		}
@@ -110,7 +110,7 @@ func (p *Prog) loadDebugInfo() {
 	if stderr == "" {
 		fatal("gcc produced no output")
 	}
-	for _, line := range strings.Split(stderr, "\n", 0) {
+	for _, line := range strings.Split(stderr, "\n", -1) {
 		if len(line) < 9 || line[0:9] != "cgo-test:" {
 			continue
 		}
@@ -631,7 +631,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			if ss, ok := cnameMap[s]; ok {
 				s = ss
 			}
-			s = strings.Join(strings.Split(s, " ", 0), "") // strip spaces
+			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
 			name := c.Ident("_C_" + s)
 			c.typedef[name.Name()] = t.Go
 			t.Go = name
