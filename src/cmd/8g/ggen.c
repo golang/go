@@ -672,8 +672,10 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	a = optoas(op, nl->type);
 
 	if(nr->op == OLITERAL) {
+		tempname(&n2, nl->type);
+		cgen(nl, &n2);
 		regalloc(&n1, nl->type, res);
-		cgen(nl, &n1);
+		gmove(&n2, &n1);
 		sc = mpgetfix(nr->val.u.xval);
 		if(sc >= nl->type->width*8) {
 			// large shift gets 2 shifts by width
