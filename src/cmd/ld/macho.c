@@ -441,6 +441,7 @@ asmbmacho(vlong symdatva, vlong symo)
 	vlong v, w;
 	vlong va;
 	int a, i, ptrsize;
+	char *pkgroot;
 	MachoHdr *mh;
 	MachoSect *msect;
 	MachoSeg *ms;
@@ -584,6 +585,12 @@ asmbmacho(vlong symdatva, vlong symo)
 		ml->data[0] = 12;	/* offset to string */
 		strcpy((char*)&ml->data[1], "/usr/lib/dyld");
 
+		if(ndylib > 0) {	/* add reference to where .so files are installed */
+			pkgroot = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+			ml = newMachoLoad(0x80000000 | 0x1c, 1+(strlen(pkgroot)+1+7)/8*2);	/* LC_RPATH */
+			ml->data[0] = 12;	/* offset of string from beginning of load */
+			strcpy((char*)&ml->data[1], pkgroot);
+		}
 		for(i=0; i<ndylib; i++) {
 			ml = newMachoLoad(12, 4+(strlen(dylib[i])+1+7)/8*2);	/* LC_LOAD_DYLIB */
 			ml->data[0] = 24;	/* offset of string from beginning of load */

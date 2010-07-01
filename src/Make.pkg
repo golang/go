@@ -31,11 +31,12 @@ INSTALLFILES+=$(pkgdir)/$(TARG).a
 # The rest of the cgo rules are below, but these variable updates
 # must be done here so they apply to the main rules.
 ifdef CGOFILES
+CGOTARG=cgo_$(subst /,_,$(TARG))
 GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
 GOFILES+=_cgo_gotypes.go
 OFILES+=_cgo_defun.$O
 GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
-INSTALLFILES+=$(pkgdir)/$(TARG).so
+INSTALLFILES+=$(pkgdir)/$(CGOTARG).so
 endif
 
 PREREQ+=$(patsubst %,%.make,$(DEPS))
@@ -146,7 +147,7 @@ _cgo_defun.$O: _cgo_defun.c
 _cgo_.so: $(GCC_OFILES) $(CGO_DEPS)
 	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
 
-$(pkgdir)/$(TARG).so: _cgo_.so
+$(pkgdir)/$(CGOTARG).so: _cgo_.so
 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
 	cp _cgo_.so "$@"
 

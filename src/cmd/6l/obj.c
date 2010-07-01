@@ -138,6 +138,8 @@ main(int argc, char *argv[])
 		usage();
 
 	libinit();
+	if(rpath == nil)
+		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
 
 	if(HEADTYPE == -1) {
 		HEADTYPE = 2;
