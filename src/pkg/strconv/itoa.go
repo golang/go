@@ -6,12 +6,15 @@ package strconv
 
 // Uitob64 returns the string representation of i in the given base.
 func Uitob64(u uint64, base uint) string {
+	if base < 2 || 36 < base {
+		panic("invalid base " + Uitoa(base))
+	}
 	if u == 0 {
 		return "0"
 	}
 
 	// Assemble decimal in reverse order.
-	var buf [32]byte
+	var buf [64]byte
 	j := len(buf)
 	b := uint64(base)
 	for u > 0 {
