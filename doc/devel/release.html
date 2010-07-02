@@ -5,6 +5,64 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-07-01">2010-07-01</h3>
+
+<pre>
+This release includes some package changes that may require changes to 
+client code.
+
+The Split function in the bytes and strings packages has been changed.
+The count argument, which limits the size of the return, previously treated
+zero as unbounded. It now treats 0 as 0, and will return an empty slice.  
+To request unbounded results, use -1 (or some other negative value).
+The new Replace functions in bytes and strings share this behavior.
+This may require you change your existing code.
+
+The gob package now allows the transmission of non-struct values at the
+top-level. As a result, the rpc and netchan packages have fewer restrictions
+on the types they can handle.  For example, netchan can now share a chan int.
+
+The release also includes a Code Walk: "Share Memory By Communicating".
+It describes an idiomatic Go program that uses goroutines and channels:
+	http://golang.org/doc/codewalk/sharemem/
+
+There is now a Projects page on the Go Dashboard that lists Go programs, 
+tools, and libraries:
+	http://godashboard.appspot.com/project
+
+Other changes:
+* 6a, 6l: bug fixes.
+* bytes, strings: add Replace.
+* cgo: use slash-free relative paths for .so references.
+* cmath: correct IsNaN for argument cmplx(Inf, NaN) (thanks Charles L. Dorian).
+* codereview: allow multiple email addresses in CONTRIBUTORS.
+* doc/codewalk: add Share Memory By Communicating.
+* exp/draw/x11: implement the mapping from keycodes to keysyms.
+* fmt: Printf: fix bug in handling of %#v, allow other verbs for slices
+        Scan: fix handling of EOFs.
+* gc: bug fixes and optimizations.
+* gob: add DecodeValue and EncodeValue,
+        add support for complex numbers.
+* goinstall: support for Bazaar+Launchpad (thanks Gustavo Niemeyer).
+* io/ioutil: add TempFile for Windows (thanks Peter Mundy).
+* ld: add -u flag to check safe bits; discard old -u, -x flags.
+* math: amd64 versions of Exp and Fabs (thanks Charles L. Dorian).
+* misc/vim: always override filetype detection for .go files.
+* net: add support for DNS SRV requests (thanks Kirklin McDonald),
+        initial attempt to implement Windows version (thanks Alex Brainman).
+* netchan: allow chan of basic types now that gob can handle such,
+        eliminate the need for a pointer value in Import and Export.
+* os/signal: only catch all signals if os/signal package imported.
+* regexp: bug fix: need to track whether match begins with fixed prefix.
+* rpc: allow non-struct args and reply (they must still be pointers).
+* runtime: bug fixes and reorganization.
+* strconv: fix bugs in floating-point and base 2 conversions
+* syscall: add syscall_bsd.go to zsycall_freebsd_386.go (thanks Peter Mundy),
+        add socketpair (thanks Ivan Krasin).
+* time: implement time zones for Windows (thanks Alex Brainman).
+* x509: support non-self-signed certs. 
+</pre>
+
 <h3 id="2010-06-21">2010-06-21</h3>
 
 <pre>
