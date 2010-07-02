@@ -527,9 +527,10 @@ A constant value is represented by an
 <a href="#String_literals">string</a> literal,
 an identifier denoting a constant,
 a <a href="#Constant_expressions">constant expression</a>, or
-the result value of some built-in functions such as <code>unsafe.Sizeof</code>
-and <code>cap</code> or <code>len</code> applied to an array,
-<code>len</code> applied to a string constant,
+the result value of some built-in functions such as
+<code>unsafe.Sizeof</code> applied to any value,
+<code>cap</code> or <code>len</code> applied to
+<a href="#Length_and_capacity">some expressions</a>,
 <code>real</code> and <code>imag</code> applied to a complex constant
 and <code>cmplx</code> applied to numeric constants.
 The boolean truth values are represented by the predeclared constants
@@ -754,8 +755,7 @@ ElementType = Type .
 The length is part of the array's type and must be a
 <a href="#Constant_expressions">constant expression</a> that evaluates to a non-negative
 integer value.  The length of array <code>a</code> can be discovered
-using the built-in function <code>len(a)</code>, which is a
-compile-time constant.  The elements can be indexed by integer
+using the built-in function <code>len(a)</code>.  The elements can be indexed by integer
 indices 0 through the <code>len(a)-1</code> (§<a href="#Indexes">Indexes</a>).
 Array types are always one-dimensional but may be composed to form
 multi-dimensional types.
@@ -805,7 +805,7 @@ a slice of length up to that capacity can be created by `slicing' a new
 one from the original slice (§<a href="#Slices">Slices</a>).
 The capacity of a slice <code>a</code> can be discovered using the
 built-in function <code>cap(a)</code> and the relationship between
-<code>len()</code> and <code>cap()</code> is:
+<code>len(a)</code> and <code>cap(a)</code> is:
 </p>
 
 <pre>
@@ -4358,12 +4358,12 @@ The implementation guarantees that the result always fits into an <code>int</cod
 Call      Argument type        Result
 
 len(s)    string type          string length in bytes
-          [n]T, *[n]T          array length (== constant n)
+          [n]T, *[n]T          array length (== n)
           []T                  slice length
           map[K]T              map length (number of defined keys)
           chan T               number of elements queued in channel buffer
 
-cap(s)    [n]T, *[n]T          array length (== constant n)
+cap(s)    [n]T, *[n]T          array length (== n)
           []T                  slice capacity
           chan T               channel buffer capacity
 </pre>
@@ -4378,6 +4378,20 @@ At any time the following relationship holds:
 0 <= len(s) <= cap(s)
 </pre>
 
+<p>
+The expression
+<code>len(s)</code> is a
+<a href="#Constants">constant</a> if <code>s</code> is a string constant.
+The expressions
+<code>len(s)</code> and
+<code>cap(s)</code> are
+constants if <code>s</code> is an (optionally parenthesized)
+identifier or
+<a href="#Qualified_identifiers">qualified identifier</a> 
+denoting an array or pointer to array.
+Otherwise invocations of <code>len</code> and <code>cap</code> are not
+constant.
+</p>
 
 <h3 id="Allocation">Allocation</h3>
 
