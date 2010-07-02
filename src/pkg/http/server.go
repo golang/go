@@ -642,8 +642,8 @@ func ListenAndServe(addr string, handler Handler) os.Error {
 	return e
 }
 
-// ListenAndServeTLS acts identically to ListenAndServe, expect that it
-// except HTTPS connections. Additionally, files containing a certificate and
+// ListenAndServeTLS acts identically to ListenAndServe, except that it
+// expects HTTPS connections. Additionally, files containing a certificate and
 // matching private key for the server must be provided.
 //
 // A trivial example server is:
