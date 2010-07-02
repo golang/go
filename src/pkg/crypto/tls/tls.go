@@ -79,7 +79,7 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
 
 	certDERBlock, _ := pem.Decode(certPEMBlock)
 	if certDERBlock == nil {
-		err = os.ErrorString("failed to parse certificate PEM data")
+		err = os.ErrorString("crypto/tls: failed to parse certificate PEM data")
 		return
 	}
 
@@ -92,13 +92,13 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
 
 	keyDERBlock, _ := pem.Decode(keyPEMBlock)
 	if keyDERBlock == nil {
-		err = os.ErrorString("failed to parse key PEM data")
+		err = os.ErrorString("crypto/tls: failed to parse key PEM data")
 		return
 	}
 
 	key, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
 	if err != nil {
-		err = os.ErrorString("failed to parse key")
+		err = os.ErrorString("crypto/tls: failed to parse key")
 		return
 	}
 
@@ -112,7 +112,7 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
 	}
 
 	if x509Cert.PublicKeyAlgorithm != x509.RSA || x509Cert.PublicKey.(*rsa.PublicKey).N.Cmp(key.PublicKey.N) != 0 {
-		err = os.ErrorString("Private key does not match public key")
+		err = os.ErrorString("crypto/tls: private key does not match public key")
 		return
 	}
 
