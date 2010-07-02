@@ -802,7 +802,7 @@ reswitch:
 				nodconst(n, types[TINT], l->val.u.sval->len);
 			break;
 		case TARRAY:
-			if(t->bound >= 0)
+			if(t->bound >= 0 && l->op == ONAME)
 				nodconst(n, types[TINT], t->bound);
 			break;
 		}

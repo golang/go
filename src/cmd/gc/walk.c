@@ -594,8 +594,6 @@ walkexpr(Node **np, NodeList **init)
 	case OMINUS:
 	case OPLUS:
 	case OCOM:
-	case OLEN:
-	case OCAP:
 	case OREAL:
 	case OIMAG:
 	case ODOT:
@@ -606,6 +604,22 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->left, init);
 		goto ret;
 
+	case OLEN:
+	case OCAP:
+		walkexpr(&n->left, init);
+		
+		// replace len(*[10]int) with 10.
+		// delayed until now to preserve side effects.
+		t = n->left->type;
+		if(isptr[t->etype])
+			t = t->type;
+		if(isfixedarray(t)) {
+			safeexpr(n->left, init);
+			nodconst(n, n->type, t->bound);
+			n->typecheck = 1;
+		}
+		goto ret;
+	
 	case OLSH:
 	case ORSH:
 	case OAND:
