@@ -53,7 +53,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 			if dirent.Fileno == 0 { // File absent in directory.
 				continue
 			}
-			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]))
+			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
 			var name = string(bytes[0:dirent.Namlen])
 			if name == "." || name == ".." { // Useless names
 				continue
