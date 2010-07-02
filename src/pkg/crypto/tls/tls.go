@@ -6,8 +6,12 @@
 package tls
 
 import (
-	"os"
+	"io/ioutil"
 	"net"
+	"os"
+	"encoding/pem"
+	"crypto/rsa"
+	"crypto/x509"
 )
 
 func Server(conn net.Conn, config *Config) *Conn {
@@ -64,4 +68,53 @@ func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
 		return nil, err
 	}
 	return Client(c, nil), nil
+}
+
+// LoadX509KeyPair
+func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.Error) {
+	certPEMBlock, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return
+	}
+
+	certDERBlock, _ := pem.Decode(certPEMBlock)
+	if certDERBlock == nil {
+		err = os.ErrorString("failed to parse certificate PEM data")
+		return
+	}
+
+	cert.Certificate = [][]byte{certDERBlock.Bytes}
+
+	keyPEMBlock, err := ioutil.ReadFile(keyFile)
+	if err != nil {
+		return
+	}
+
+	keyDERBlock, _ := pem.Decode(keyPEMBlock)
+	if keyDERBlock == nil {
+		err = os.ErrorString("failed to parse key PEM data")
+		return
+	}
+
+	key, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
+	if err != nil {
+		err = os.ErrorString("failed to parse key")
+		return
+	}
+
+	cert.PrivateKey = key
+
+	// We don't need to parse the public key for TLS, but we so do anyway
+	// to check that it looks sane and matches the private key.
+	x509Cert, err := x509.ParseCertificate(certDERBlock.Bytes)
+	if err != nil {
+		return
+	}
+
+	if x509Cert.PublicKeyAlgorithm != x509.RSA || x509Cert.PublicKey.(*rsa.PublicKey).N.Cmp(key.PublicKey.N) != 0 {
+		err = os.ErrorString("Private key does not match public key")
+		return
+	}
+
+	return
 }

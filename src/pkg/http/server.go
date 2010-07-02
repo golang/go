@@ -13,6 +13,8 @@ package http
 
 import (
 	"bufio"
+	"crypto/rand"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -21,6 +23,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Errors introduced by the HTTP server.
@@ -637,4 +640,53 @@ func ListenAndServe(addr string, handler Handler) os.Error {
 	e = Serve(l, handler)
 	l.Close()
 	return e
+}
+
+// ListenAndServeTLS acts identically to ListenAndServe, expect that it
+// except HTTPS connections. Additionally, files containing a certificate and
+// matching private key for the server must be provided.
+//
+// A trivial example server is:
+//
+//	import (
+//		"http"
+//		"log"
+//	)
+//
+//	func handler(conn *http.Conn, req *http.Request) {
+//		conn.SetHeader("Content-Type", "text/plain")
+//		conn.Write([]byte("This is an example server.\n"))
+//	}
+//
+//	func main() {
+//		http.HandleFunc("/", handler)
+//		log.Stdoutf("About to listen on 10443. Go to https://127.0.0.1:10443/")
+//		err := http.ListenAndServe(":10443", "cert.pem", "key.pem", nil)
+//		if err != nil {
+//			log.Exit(err)
+//		}
+//	}
+//
+// One can use generate_cert.go in crypto/tls to generate cert.pem and key.pem.
+func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Handler) os.Error {
+	config := &tls.Config{
+		Rand:       rand.Reader,
+		Time:       time.Seconds,
+		NextProtos: []string{"http/1.1"},
+	}
+
+	var err os.Error
+	config.Certificates = make([]tls.Certificate, 1)
+	config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return err
+	}
+
+	conn, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	tlsListener := tls.NewListener(conn, config)
+	return Serve(tlsListener, handler)
 }
