@@ -24,6 +24,8 @@ typecheckrange(Node *n)
 	typecheck(&n->right, Erv);
 	if((t = n->right->type) == T)
 		goto out;
+	if(isptr[t->etype] && isfixedarray(t->type))
+		t = t->type;
 	n->type = t;
 
 	switch(t->etype) {
@@ -104,9 +106,6 @@ walkrange(Node *n)
 		a = nod(OCONV, n->right, N);
 		a->type = types[TSTRING];
 	}
-	ha = nod(OXXX, N, N);
-	tempname(ha, a->type);
-	init = list(init, nod(OAS, ha, a));
 
 	v1 = n->list->n;
 	hv1 = N;
@@ -115,6 +114,16 @@ walkrange(Node *n)
 	if(n->list->next)
 		v2 = n->list->next->n;
 	hv2 = N;
+
+	if(v2 == N && t->etype == TARRAY) {
+		// will have just one reference to argument.
+		// no need to make a potentially expensive copy.
+		ha = a;
+	} else {
+		ha = nod(OXXX, N, N);
+		tempname(ha, a->type);
+		init = list(init, nod(OAS, ha, a));
+	}
 
 	switch(t->etype) {
 	default:
@@ -131,7 +140,7 @@ walkrange(Node *n)
 		init = list(init, nod(OAS, hn, nod(OLEN, ha, N)));
 		if(v2) {
 			hp = nod(OXXX, N, N);
-			tempname(hp, ptrto(a->type->type));
+			tempname(hp, ptrto(n->type->type));
 			tmp = nod(OINDEX, ha, nodintconst(0));
 			tmp->etype = 1;	// no bounds check
 			init = list(init, nod(OAS, hp, nod(OADDR, tmp, N)));
