@@ -66,7 +66,7 @@ ilookup(char *name)
 }
 
 static void loadpkgdata(char*, char*, char*, int);
-static void loaddynimport(char*, char*, int);
+static void loaddynimport(char*, char*, char*, int);
 static void loaddynexport(char*, char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
@@ -194,7 +194,7 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 				errorexit();
 			return;
 		}
-		loaddynimport(filename, p0 + 1, p1 - (p0+1));
+		loaddynimport(filename, pkg, p0 + 1, p1 - (p0+1));
 	}
 
 	// look for dynexp section
@@ -397,7 +397,7 @@ parsemethod(char **pp, char *ep, char **methp)
 }
 
 static void
-loaddynimport(char *file, char *p, int n)
+loaddynimport(char *file, char *pkg, char *p, int n)
 {
 	char *pend, *next, *name, *def, *p0, *lib;
 	Sym *s;
@@ -431,6 +431,8 @@ loaddynimport(char *file, char *p, int n)
 		// successful parse: now can edit the line
 		*strchr(name, ' ') = 0;
 		*strchr(def, ' ') = 0;
+
+		name = expandpkg(name, pkg);
 
 		s = lookup(name, 0);
 		s->dynimplib = lib;
