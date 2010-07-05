@@ -650,8 +650,12 @@ We can now use our new package:
 21    }
 </pre>
 <p>
-The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the compiler to use our own package rather than
-something from the directory of installed packages.
+The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the
+compiler to use the ''<code>file</code>'' package in the current directory
+rather than something from the directory of installed packages.
+</p>
+<p>
+You must compile ''<code>file.go</code>'' before any package that imports it.
 <p>
 Finally we can run the program:
 <p>
