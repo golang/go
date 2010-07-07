@@ -6,8 +6,7 @@ for 386 and arm.
 386
 
 It is very primitive but can run go/test/sieve.go, the concurrent
-prime sieve, on a uniprocessor.  It has only been tested using the
-Bochs emulator.
+prime sieve, on a uniprocessor.
 
 To run, first build the tools by running all.bash with GOARCH=386
 and GOOS set to your normal GOOS (linux, darwin).  Then:
@@ -22,13 +21,36 @@ and GOOS set to your normal GOOS (linux, darwin).  Then:
 	8l -a sieve.8 >sieve.asm	# can consult sieve.asm for debugging
 	dd if=/dev/zero of=disk count=10000
 	cat bootblock 8.out | dd of=disk conv=notrunc
-	bochs
 
 Use the built-in print(text string) function to print to the
 console.
 
+BOCHS
+
 You may have to tweak the .bochsrc depending on your system,
 and you may need to install the Bochs emulator.
+
+    $ cp dot-bochsrc .bochsrc
+    $ $EDITOR .bochsrc # tweak it if required
+    $ bochs
+
+
+ORACLE xVM VIRTUALBOX
+
+Get VirtualBox installed, and the do:
+
+    ... build 'disk', described above
+    $ VBoxManage convertfromraw disk go-tiny.vdi
+    $ VirtualBox
+        create a new VM; as disk use the go-tiny.vdi image.
+        start the vm.
+
+QEMU / KVM
+
+This should work the same for qemu and kvm (really: qemu-kvm).
+
+    ... build 'disk', described above
+    $ qemu -hda disk
 
 
 ARM
