@@ -59,6 +59,11 @@ unlock(Lock *l)
 	l->key = 0;
 }
 
+void destroylock(Lock *l)
+{
+    // nothing
+}
+
 void
 noteclear(Note *n)
 {
