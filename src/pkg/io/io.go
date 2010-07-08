@@ -336,7 +336,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error)
 	case 2:
 		offset += s.limit
 	}
-	if offset < s.off || offset > s.limit {
+	if offset < s.base || offset > s.limit {
 		return 0, os.EINVAL
 	}
 	s.off = offset
