@@ -103,9 +103,7 @@ func (z nat) setUint64(x uint64) nat {
 
 func (z nat) set(x nat) nat {
 	z = z.make(len(x))
-	for i, d := range x {
-		z[i] = d
-	}
+	copy(z, x)
 	return z
 }
 
@@ -666,7 +664,7 @@ func (z nat) scan(s string, base int) (nat, int, int) {
 		}
 	}
 
-	return z, base, i
+	return z.norm(), base, i
 }
 
 
