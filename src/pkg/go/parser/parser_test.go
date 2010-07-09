@@ -36,7 +36,7 @@ var validPrograms = []interface{}{
 	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
 	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
 	`package main; func f(func() func() func())` + "\n",
-	`package main; func f(...)` + "\n",
+	`package main; func f(...T)` + "\n",
 	`package main; func f(float, ...int)` + "\n",
 	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} }` + "\n",
 	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} }` + "\n",
