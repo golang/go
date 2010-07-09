@@ -593,9 +593,13 @@ func (p *parser) tryParameterType(ellipsisOk bool) ast.Expr {
 	if ellipsisOk && p.tok == token.ELLIPSIS {
 		pos := p.pos
 		p.next()
-		typ := p.tryType()
+		typ := p.tryType() // don't use parseType so we can provide better error message
+		if typ == nil {
+			p.Error(pos, "'...' parameter is missing type")
+			typ = &ast.BadExpr{pos}
+		}
 		if p.tok != token.RPAREN {
-			p.Error(pos, "can use '...' for last parameter only")
+			p.Error(pos, "can use '...' with last parameter type only")
 		}
 		return &ast.Ellipsis{pos, typ}
 	}
