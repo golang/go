@@ -186,26 +186,17 @@ func (z *Rat) Set(x *Rat) *Rat {
 
 
 // SetString sets z to the value of s and returns z and a boolean indicating
-// success. s can be given as a fraction "a/b" or as a decimal number "a.b".
-// If the operation failed, the value of z is undefined.
+// success. s can be given as a fraction "a/b" or as a floating-point number
+// optionally followed by an exponent. If the operation failed, the value of z
+// is undefined.
 func (z *Rat) SetString(s string) (*Rat, bool) {
 	if len(s) == 0 {
 		return z, false
 	}
 
-	// Check for a decimal point
-	sep := strings.Index(s, ".")
-	if sep < 0 {
-		// Check for a quotient
-		sep = strings.Index(s, "/")
-		if sep < 0 {
-			// Just read in the string as an integer
-			if _, ok := z.a.SetString(s, 10); !ok {
-				return z, false
-			}
-			z.b = z.b.setWord(1)
-			return z, true
-		}
+	// check for a quotient
+	sep := strings.Index(s, "/")
+	if sep >= 0 {
 		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
 			return z, false
 		}
@@ -214,17 +205,42 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		if z.b, _, n = z.b.scan(s, 10); n != len(s) {
 			return z, false
 		}
-
 		return z.norm(), true
 	}
 
-	s = s[0:sep] + s[sep+1:]
+	// check for a decimal point
+	sep = strings.Index(s, ".")
+	// check for an exponent
+	e := strings.IndexAny(s, "eE")
+	var exp Int
+	if e >= 0 {
+		if e < sep {
+			// The E must come after the decimal point.
+			return z, false
+		}
+		if _, ok := exp.SetString(s[e+1:], 10); !ok {
+			return z, false
+		}
+		s = s[0:e]
+	}
+	if sep >= 0 {
+		s = s[0:sep] + s[sep+1:]
+		exp.Sub(&exp, NewInt(int64(len(s)-sep)))
+	}
+
 	if _, ok := z.a.SetString(s, 10); !ok {
 		return z, false
 	}
-	z.b = z.b.expNN(natTen, nat{Word(len(s) - sep)}, nil)
+	powTen := nat{}.expNN(natTen, exp.abs, nil)
+	if exp.neg {
+		z.b = powTen
+		z.norm()
+	} else {
+		z.a.abs = z.a.abs.mul(z.a.abs, powTen)
+		z.b = z.b.setWord(1)
+	}
 
-	return z.norm(), true
+	return z, true
 }
 
 
@@ -257,7 +273,7 @@ func (z *Rat) FloatString(prec int) string {
 	r = r.mul(r, p)
 	r, r2 := r.div(nat{}, r, z.b)
 
-	// See if we need to round up
+	// see if we need to round up
 	r2 = r2.mul(r2, natTwo)
 	if z.b.cmp(r2) <= 0 {
 		r = r.add(r, natOne)

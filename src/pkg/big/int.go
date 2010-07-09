@@ -347,10 +347,12 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 		return z, false
 	}
 
-	neg := false
-	if s[0] == '-' {
-		neg = true
+	neg := s[0] == '-'
+	if neg || s[0] == '+' {
 		s = s[1:]
+		if len(s) == 0 {
+			return z, false
+		}
 	}
 
 	var scanned int
