@@ -230,7 +230,7 @@ func (s *pollServer) Run() {
 		} else {
 			netfd := s.LookupFD(fd, mode)
 			if netfd == nil {
-				print("pollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n")
+				print("pollServer: unexpected wakeup for fd=", fd, " mode=", string(mode), "\n")
 				continue
 			}
 			s.WakeFD(netfd, mode)
