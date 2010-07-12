@@ -7,10 +7,10 @@ package rsa
 import (
 	"big"
 	"bytes"
+	"crypto/rand"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
-	"os"
 	"io"
 	"testing"
 	"testing/quick"
@@ -63,10 +63,7 @@ func TestDecryptPKCS1v15(t *testing.T) {
 }
 
 func TestEncryptPKCS1v15(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
-	if err != nil {
-		t.Errorf("Failed to open /dev/urandom")
-	}
+	random := rand.Reader
 	k := (rsaPrivateKey.N.BitLen() + 7) / 8
 
 	tryEncryptDecrypt := func(in []byte, blind bool) bool {
@@ -74,7 +71,7 @@ func TestEncryptPKCS1v15(t *testing.T) {
 			in = in[0 : k-11]
 		}
 
-		ciphertext, err := EncryptPKCS1v15(urandom, &rsaPrivateKey.PublicKey, in)
+		ciphertext, err := EncryptPKCS1v15(random, &rsaPrivateKey.PublicKey, in)
 		if err != nil {
 			t.Errorf("error encrypting: %s", err)
 			return false
@@ -84,7 +81,7 @@ func TestEncryptPKCS1v15(t *testing.T) {
 		if !blind {
 			rand = nil
 		} else {
-			rand = urandom
+			rand = random
 		}
 		plaintext, err := DecryptPKCS1v15(rand, rsaPrivateKey, ciphertext)
 		if err != nil {
@@ -137,13 +134,10 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 }
 
 func TestNonZeroRandomBytes(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
-	if err != nil {
-		t.Errorf("Failed to open /dev/urandom")
-	}
+	random := rand.Reader
 
 	b := make([]byte, 512)
-	err = nonZeroRandomBytes(b, urandom)
+	err := nonZeroRandomBytes(b, random)
 	if err != nil {
 		t.Errorf("returned error: %s", err)
 	}

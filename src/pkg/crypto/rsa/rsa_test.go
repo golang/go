@@ -7,18 +7,15 @@ package rsa
 import (
 	"big"
 	"bytes"
+	"crypto/rand"
 	"crypto/sha1"
-	"os"
 	"testing"
 )
 
 func TestKeyGeneration(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
-	if err != nil {
-		t.Errorf("failed to open /dev/urandom")
-	}
+	random := rand.Reader
 
-	priv, err := GenerateKey(urandom, 1024)
+	priv, err := GenerateKey(random, 1024)
 	if err != nil {
 		t.Errorf("failed to generate key")
 	}
@@ -33,7 +30,7 @@ func TestKeyGeneration(t *testing.T) {
 		t.Errorf("got:%v, want:%v (%s)", m2, m, priv)
 	}
 
-	m3, err := decrypt(urandom, priv, c)
+	m3, err := decrypt(random, priv, c)
 	if err != nil {
 		t.Errorf("error while decrypting (blind): %s", err)
 	}
@@ -76,10 +73,7 @@ func TestEncryptOAEP(t *testing.T) {
 }
 
 func TestDecryptOAEP(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
-	if err != nil {
-		t.Errorf("Failed to open /dev/urandom")
-	}
+	random := rand.Reader
 
 	sha1 := sha1.New()
 	n := new(big.Int)
@@ -98,7 +92,7 @@ func TestDecryptOAEP(t *testing.T) {
 			}
 
 			// Decrypt with blinding.
-			out, err = DecryptOAEP(sha1, urandom, &private, message.out, nil)
+			out, err = DecryptOAEP(sha1, random, &private, message.out, nil)
 			if err != nil {
 				t.Errorf("#%d,%d (blind) error: %s", i, j, err)
 			} else if bytes.Compare(out, message.in) != 0 {

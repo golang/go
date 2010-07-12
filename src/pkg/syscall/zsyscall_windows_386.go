@@ -7,6 +7,7 @@ import "unsafe"
 
 var (
 	modkernel32 = loadDll("kernel32.dll")
+	modadvapi32 = loadDll("advapi32.dll")
 	modwsock32  = loadDll("wsock32.dll")
 	modws2_32   = loadDll("ws2_32.dll")
 
@@ -41,6 +42,9 @@ var (
 	procCreateIoCompletionPort     = getSysProcAddr(modkernel32, "CreateIoCompletionPort")
 	procGetQueuedCompletionStatus  = getSysProcAddr(modkernel32, "GetQueuedCompletionStatus")
 	procGetTempPathW               = getSysProcAddr(modkernel32, "GetTempPathW")
+	procCryptAcquireContextW       = getSysProcAddr(modadvapi32, "CryptAcquireContextW")
+	procCryptReleaseContext        = getSysProcAddr(modadvapi32, "CryptReleaseContext")
+	procCryptGenRandom             = getSysProcAddr(modadvapi32, "CryptGenRandom")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -380,6 +384,39 @@ func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
 	r0, _, e1 := Syscall(procGetTempPathW, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
 	n = uint32(r0)
 	if n == 0 {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) {
+	r0, _, e1 := Syscall6(procCryptAcquireContextW, uintptr(unsafe.Pointer(provhandle)), uintptr(unsafe.Pointer(container)), uintptr(unsafe.Pointer(provider)), uintptr(provtype), uintptr(flags), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procCryptReleaseContext, uintptr(provhandle), uintptr(flags), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		errno = int(e1)
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procCryptGenRandom, uintptr(provhandle), uintptr(buflen), uintptr(unsafe.Pointer(buf)))
+	ok = bool(r0 != 0)
+	if !ok {
 		errno = int(e1)
 	} else {
 		errno = 0
