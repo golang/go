@@ -47,6 +47,18 @@ var prodZZ = []argZZ{
 }
 
 
+func TestSignZ(t *testing.T) {
+	var zero Int
+	for _, a := range sumZZ {
+		s := a.z.Sign()
+		e := a.z.Cmp(&zero)
+		if s != e {
+			t.Errorf("got %d; want %d for z = %v", s, e, a.z)
+		}
+	}
+}
+
+
 func TestSetZ(t *testing.T) {
 	for _, a := range sumZZ {
 		var z Int
@@ -56,6 +68,23 @@ func TestSetZ(t *testing.T) {
 		}
 		if (&z).Cmp(a.z) != 0 {
 			t.Errorf("got z = %v; want %v", z, a.z)
+		}
+	}
+}
+
+
+func TestAbsZ(t *testing.T) {
+	var zero Int
+	for _, a := range sumZZ {
+		var z Int
+		z.Abs(a.z)
+		var e Int
+		e.Set(a.z)
+		if e.Cmp(&zero) < 0 {
+			e.Sub(&zero, &e)
+		}
+		if z.Cmp(&e) != 0 {
+			t.Errorf("got z = %v; want %v", z, e)
 		}
 	}
 }

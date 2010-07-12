@@ -60,6 +60,23 @@ func (z *Rat) SetInt64(x int64) *Rat {
 }
 
 
+// Sign returns:
+//
+//	-1 if x <  0
+//	 0 if x == 0
+//	+1 if x >  0
+//
+func (x *Rat) Sign() int {
+	return x.a.Sign()
+}
+
+
+// IsInt returns true if the denominator of x is 1.
+func (x *Rat) IsInt() bool {
+	return len(x.b) == 1 && x.b[0] == 1
+}
+
+
 // Num returns the numerator of z; it may be <= 0.
 // The result is a reference to z's numerator; it
 // may change if a new value is assigned to z.
@@ -123,6 +140,14 @@ func mulNat(x *Int, y nat) *Int {
 //
 func (x *Rat) Cmp(y *Rat) (r int) {
 	return mulNat(&x.a, y.b).Cmp(mulNat(&y.a, x.b))
+}
+
+
+// Abs sets z to |x| (the absolute value of x) and returns z.
+func (z *Rat) Abs(x *Rat) *Rat {
+	z.a.Abs(&x.a)
+	z.b = z.b.set(x.b)
+	return z
 }
 
 

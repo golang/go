@@ -84,6 +84,20 @@ func TestFloatString(t *testing.T) {
 }
 
 
+func TestRatSign(t *testing.T) {
+	zero := NewRat(0, 1)
+	for _, a := range setStringTests {
+		var x Rat
+		x.SetString(a.in)
+		s := x.Sign()
+		e := x.Cmp(zero)
+		if s != e {
+			t.Errorf("got %d; want %d for z = %v", s, e, &x)
+		}
+	}
+}
+
+
 type ratCmpTest struct {
 	rat1, rat2 string
 	out        int
@@ -109,6 +123,38 @@ func TestRatCmp(t *testing.T) {
 		out := x.Cmp(y)
 		if out != test.out {
 			t.Errorf("#%d got out = %v; want %v", i, out, test.out)
+		}
+	}
+}
+
+
+func TestIsInt(t *testing.T) {
+	one := NewInt(1)
+	for _, a := range setStringTests {
+		var x Rat
+		x.SetString(a.in)
+		i := x.IsInt()
+		e := x.Denom().Cmp(one) == 0
+		if i != e {
+			t.Errorf("got %v; want %v for z = %v", i, e, &x)
+		}
+	}
+}
+
+
+func TestRatAbs(t *testing.T) {
+	zero := NewRat(0, 1)
+	for _, a := range setStringTests {
+		var z Rat
+		z.SetString(a.in)
+		var e Rat
+		e.Set(&z)
+		if e.Cmp(zero) < 0 {
+			e.Sub(zero, &e)
+		}
+		z.Abs(&z)
+		if z.Cmp(&e) != 0 {
+			t.Errorf("got z = %v; want %v", &z, &e)
 		}
 	}
 }
