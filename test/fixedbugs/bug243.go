@@ -8,7 +8,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 )
 
@@ -18,8 +17,10 @@ func main() {
 	go func() {
 		for {
 			var conn, _ = listen.Accept()
+			_ = conn
 		}
 	}()
 
 	var conn, _ = net.Dial("tcp", "", listen.Addr().String())
+	_ = conn
 }
