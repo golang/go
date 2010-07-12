@@ -20,6 +20,23 @@ type Int struct {
 var intOne = &Int{false, natOne}
 
 
+// Sign returns:
+//
+//	-1 if x <  0
+//	 0 if x == 0
+//	+1 if x >  0
+//
+func (x *Int) Sign() int {
+	if len(x.abs) == 0 {
+		return 0
+	}
+	if x.neg {
+		return -1
+	}
+	return 1
+}
+
+
 // SetInt64 sets z to x and returns z.
 func (z *Int) SetInt64(x int64) *Int {
 	neg := false
@@ -43,6 +60,14 @@ func NewInt(x int64) *Int {
 func (z *Int) Set(x *Int) *Int {
 	z.abs = z.abs.set(x.abs)
 	z.neg = x.neg
+	return z
+}
+
+
+// Abs sets z to |x| (the absolute value of x) and returns z.
+func (z *Int) Abs(x *Int) *Int {
+	z.abs = z.abs.set(x.abs)
+	z.neg = false
 	return z
 }
 
