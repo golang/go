@@ -139,6 +139,16 @@ func TestUnmarshalPtrPtr(t *testing.T) {
 	}
 }
 
+func TestHTMLEscape(t *testing.T) {
+	b, err := MarshalForHTML("foobarbaz<>&quux")
+	if err != nil {
+		t.Fatalf("MarshalForHTML error: %v", err)
+	}
+	if !bytes.Equal(b, []byte(`"foobarbaz\u003c\u003e\u0026quux"`)) {
+		t.Fatalf("Unexpected encoding of \"<>&\": %s", b)
+	}
+}
+
 func noSpace(c int) int {
 	if isSpace(c) {
 		return -1
