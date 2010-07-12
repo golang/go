@@ -10,6 +10,7 @@ OFILES_amd64=\
 	exp_amd64.$O\
 	fabs_amd64.$O\
 	fdim_amd64.$O\
+	log_amd64.$O\
 	sqrt_amd64.$O\
 
 OFILES_386=\
@@ -26,6 +27,7 @@ OFILES_386=\
 	hypot_386.$O\
 	ldexp_386.$O\
 	log_386.$O\
+	log10_386.$O\
 	log1p_386.$O\
 	modf_386.$O\
 	remainder_386.$O\
@@ -63,11 +65,12 @@ ALLGOFILES=\
 	j0.go\
 	j1.go\
 	jn.go\
-	logb.go\
 	lgamma.go\
 	ldexp.go\
 	log.go\
+	log10.go\
 	log1p.go\
+	logb.go\
 	modf.go\
 	nextafter.go\
 	pow.go\
