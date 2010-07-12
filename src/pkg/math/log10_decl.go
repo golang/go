@@ -4,4 +4,5 @@
 
 package math
 
-func Log(x float64) float64
+func Log10(x float64) float64
+func Log2(x float64) float64
