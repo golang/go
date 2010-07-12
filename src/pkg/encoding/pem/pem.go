@@ -218,14 +218,13 @@ func Encode(out io.Writer, b *Block) (err os.Error) {
 		return
 	}
 
-	for k, v := range b.Headers {
-		_, err = out.Write([]byte(k + ": " + v + "\n"))
-		if err != nil {
-			return
+	if len(b.Headers) > 0 {
+		for k, v := range b.Headers {
+			_, err = out.Write([]byte(k + ": " + v + "\n"))
+			if err != nil {
+				return
+			}
 		}
-	}
-
-	if len(b.Headers) > 1 {
 		_, err = out.Write([]byte{'\n'})
 		if err != nil {
 			return
