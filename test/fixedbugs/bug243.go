@@ -10,20 +10,16 @@ package main
 import (
 	"fmt"
 	"net"
-	"os"
 )
 
 func main() {
-	os.Stdout.Close()
 	var listen, _ = net.Listen("tcp", "127.0.0.1:0")
 
 	go func() {
 		for {
 			var conn, _ = listen.Accept()
-			fmt.Println("[SERVER] ", conn)
 		}
 	}()
 
 	var conn, _ = net.Dial("tcp", "", listen.Addr().String())
-	fmt.Println("[CLIENT] ", conn)
 }
