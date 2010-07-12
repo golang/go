@@ -35,7 +35,7 @@ enum
 void
 usage(void)
 {
-	print("usage: %cg [flags] file.go...\n");
+	print("gc: usage: %cg [flags] file.go...\n", thechar);
 	print("flags:\n");
 	// -A is allow use of "any" type, for bootstrapping
 	print("  -I DIR search for packages in DIR\n");
