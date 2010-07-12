@@ -199,23 +199,6 @@ func (p *Vector) Swap(i, j int) {
 }
 
 
-// Iterate over all elements; driver for range
-func (p *Vector) iterate(c chan<- interface{}) {
-	for _, v := range *p {
-		c <- v
-	}
-	close(c)
-}
-
-
-// Channel iterator for range.
-func (p *Vector) Iter() <-chan interface{} {
-	c := make(chan interface{})
-	go p.iterate(c)
-	return c
-}
-
-
 // Do calls function f for each element of the vector, in order.
 // The behavior of Do is undefined if f changes *p.
 func (p *Vector) Do(f func(elem interface{})) {

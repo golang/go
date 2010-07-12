@@ -326,53 +326,6 @@ func TestIntDo(t *testing.T) {
 }
 
 
-func TestIntIter(t *testing.T) {
-	const Len = 100
-	x := new(IntVector).Resize(Len, 0)
-	for i := 0; i < Len; i++ {
-		x.Set(i, int2IntValue(i*i))
-	}
-	i := 0
-	for v := range x.Iter() {
-		if elem2IntValue(v) != int2IntValue(i*i) {
-			t.Error(tname(x), "Iter expected", i*i, "got", elem2IntValue(v))
-		}
-		i++
-	}
-	if i != Len {
-		t.Error(tname(x), "Iter stopped at", i, "not", Len)
-	}
-	y := new(IntVector).Resize(Len, 0)
-	for i := 0; i < Len; i++ {
-		(*y)[i] = int2IntValue(i * i)
-	}
-	i = 0
-	for v := range y.Iter() {
-		if elem2IntValue(v) != int2IntValue(i*i) {
-			t.Error(tname(y), "y, Iter expected", i*i, "got", elem2IntValue(v))
-		}
-		i++
-	}
-	if i != Len {
-		t.Error(tname(y), "y, Iter stopped at", i, "not", Len)
-	}
-	var z IntVector
-	z.Resize(Len, 0)
-	for i := 0; i < Len; i++ {
-		z[i] = int2IntValue(i * i)
-	}
-	i = 0
-	for v := range z.Iter() {
-		if elem2IntValue(v) != int2IntValue(i*i) {
-			t.Error(tname(z), "z, Iter expected", i*i, "got", elem2IntValue(v))
-		}
-		i++
-	}
-	if i != Len {
-		t.Error(tname(z), "z, Iter stopped at", i, "not", Len)
-	}
-}
-
 func TestIntVectorData(t *testing.T) {
 	// verify Data() returns a slice of a copy, not a slice of the original vector
 	const Len = 10

@@ -199,23 +199,6 @@ func (p *IntVector) Swap(i, j int) {
 }
 
 
-// Iterate over all elements; driver for range
-func (p *IntVector) iterate(c chan<- int) {
-	for _, v := range *p {
-		c <- v
-	}
-	close(c)
-}
-
-
-// Channel iterator for range.
-func (p *IntVector) Iter() <-chan int {
-	c := make(chan int)
-	go p.iterate(c)
-	return c
-}
-
-
 // Do calls function f for each element of the vector, in order.
 // The behavior of Do is undefined if f changes *p.
 func (p *IntVector) Do(f func(elem int)) {

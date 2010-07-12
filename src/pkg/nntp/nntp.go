@@ -361,10 +361,8 @@ func parseGroups(lines []string) ([]Group, os.Error) {
 		res.Push(&Group{ss[0], high, low, ss[3]})
 	}
 	realres := make([]Group, res.Len())
-	i := 0
-	for v := range res.Iter() {
+	for i, v := range res {
 		realres[i] = *v.(*Group)
-		i++
 	}
 	return realres, nil
 }
