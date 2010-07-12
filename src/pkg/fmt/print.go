@@ -53,7 +53,7 @@
 		+	always print a sign for numeric values
 		-	pad with spaces on the right rather than the left (left-justify the field)
 		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
-			suppress 0x for %p (%#p);
+			0X for hex (%#X); suppress 0x for %p (%#p);
 			print a raw (backquoted) string if possible for %q (%#q)
 		' '	(space) leave a space for elided sign in numbers (% d);
 			put spaces between bytes printing strings or slices in hex (% x)
