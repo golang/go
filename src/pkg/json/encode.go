@@ -76,6 +76,43 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
+// MarshalForHTML is like Marshal but applies HTMLEscape to the output.
+func MarshalForHTML(v interface{}) ([]byte, os.Error) {
+	b, err := Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	HTMLEscape(&buf, b)
+	return buf.Bytes(), nil
+}
+
+// HTMLEscape appends to dst the JSON-encoded src with <, >, and &
+// characters inside string literals changed to \u003c, \u003e, \u0026
+// so that the JSON will be safe to embed inside HTML <script> tags.
+// For historical reasons, web browsers don't honor standard HTML
+// escaping within <script> tags, so an alternative JSON encoding must
+// be used.
+func HTMLEscape(dst *bytes.Buffer, src []byte) {
+	// < > & can only appear in string literals,
+	// so just scan the string one byte at a time.
+	start := 0
+	for i, c := range src {
+		if c == '<' || c == '>' || c == '&' {
+			if start < i {
+				dst.Write(src[start:i])
+			}
+			dst.WriteString(`\u00`)
+			dst.WriteByte(hex[c>>4])
+			dst.WriteByte(hex[c&0xF])
+			start = i + 1
+		}
+	}
+	if start < len(src) {
+		dst.Write(src[start:])
+	}
+}
+
 // Marshaler is the interface implemented by objects that
 // can marshal themselves into valid JSON.
 type Marshaler interface {
