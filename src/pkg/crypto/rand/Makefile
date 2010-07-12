@@ -9,4 +9,21 @@ TARG=crypto/rand
 GOFILES=\
 	rand.go\
 
+GOFILES_freebsd=\
+	rand_unix.go\
+
+GOFILES_darwin=\
+	rand_unix.go\
+
+GOFILES_linux=\
+	rand_unix.go\
+
+GOFILES_nacl=\
+	rand_unix.go\
+
+GOFILES_windows=\
+	rand_windows.go\
+
+GOFILES+=$(GOFILES_$(GOOS))
+
 include ../../../Make.pkg

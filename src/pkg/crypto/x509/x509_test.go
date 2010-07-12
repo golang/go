@@ -6,10 +6,10 @@ package x509
 
 import (
 	"big"
+	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/pem"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -145,10 +145,7 @@ var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be13
 	"36dcd585d6ace53f546f961e05af"
 
 func TestCreateSelfSignedCertificate(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
-	if err != nil {
-		t.Errorf("failed to open /dev/urandom")
-	}
+	random := rand.Reader
 
 	block, _ := pem.Decode([]byte(pemPrivateKey))
 	priv, err := ParsePKCS1PrivateKey(block.Bytes)
@@ -174,7 +171,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		DNSNames:              []string{"test.example.com"},
 	}
 
-	derBytes, err := CreateCertificate(urandom, &template, &template, &priv.PublicKey, priv)
+	derBytes, err := CreateCertificate(random, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
 		t.Errorf("Failed to create certificate: %s", err)
 		return
