@@ -318,7 +318,7 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	}
 
 	// Maybe path is //authority/path
-	if len(path) > 2 && path[0:2] == "//" {
+	if url.Scheme != "" && len(path) > 2 && path[0:2] == "//" {
 		url.Authority, path = split(path[2:], '/', false)
 	}
 	url.RawPath = path + query

@@ -174,6 +174,17 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// leading // without scheme shouldn't create an authority
+	URLTest{
+		"//foo",
+		&URL{
+			Raw:     "//foo",
+			Scheme:  "",
+			RawPath: "//foo",
+			Path:    "//foo",
+		},
+		"",
+	},
 }
 
 var urlnofragtests = []URLTest{
