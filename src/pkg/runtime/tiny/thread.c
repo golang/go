@@ -59,7 +59,8 @@ unlock(Lock *l)
 	l->key = 0;
 }
 
-void destroylock(Lock *l)
+void 
+destroylock(Lock *l)
 {
     // nothing
 }

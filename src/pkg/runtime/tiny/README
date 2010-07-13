@@ -25,6 +25,7 @@ and GOOS set to your normal GOOS (linux, darwin).  Then:
 Use the built-in print(text string) function to print to the
 console.
 
+
 BOCHS
 
 You may have to tweak the .bochsrc depending on your system,
@@ -37,19 +38,22 @@ and you may need to install the Bochs emulator.
 
 ORACLE xVM VIRTUALBOX
 
-Get VirtualBox installed, and the do:
+Install VirtualBox. Then:
 
-    ... build 'disk', described above
+    Build 'disk' (described above under '386').
+
     $ VBoxManage convertfromraw disk go-tiny.vdi
     $ VirtualBox
         create a new VM; as disk use the go-tiny.vdi image.
         start the vm.
 
+
 QEMU / KVM
 
 This should work the same for qemu and kvm (really: qemu-kvm).
 
-    ... build 'disk', described above
+    Build 'disk' (described above under '386').
+
     $ qemu -hda disk
 
 
