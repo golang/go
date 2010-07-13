@@ -14,8 +14,9 @@ import (
 )
 
 /*
-	Handler is an interface to a WebSocket.
-	A trivial example server is:
+Handler is an interface to a WebSocket.
+
+A trivial example server:
 
 	package main
 
@@ -41,8 +42,8 @@ import (
 type Handler func(*Conn)
 
 /*
-	Gets key number from Sec-WebSocket-Key<n>: field as described
- 	in 5.2 Sending the server's opening handshake, 4.
+Gets key number from Sec-WebSocket-Key<n>: field as described
+in 5.2 Sending the server's opening handshake, 4.
 */
 func getKeyNumber(s string) (r uint32) {
 	// 4. Let /key-number_n/ be the digits (characters in the range
@@ -166,8 +167,8 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 
 
 /*
- 	Draft75Handler is an interface to a WebSocket based on
-        (soon obsolete) draft-hixie-thewebsocketprotocol-75.
+Draft75Handler is an interface to a WebSocket based on the
+(soon obsolete) draft-hixie-thewebsocketprotocol-75.
 */
 type Draft75Handler func(*Conn)
 
