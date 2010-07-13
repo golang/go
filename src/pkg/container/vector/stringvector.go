@@ -104,8 +104,8 @@ func (p *StringVector) Set(i int, x string) { (*p)[i] = x }
 func (p *StringVector) Last() string { return (*p)[len(*p)-1] }
 
 
-// Data returns all the elements as a slice.
-func (p *StringVector) Data() []string {
+// Copy makes a copy of the vector and returns it.
+func (p *StringVector) Copy() StringVector {
 	arr := make(StringVector, len(*p))
 	copy(arr, *p)
 	return arr

@@ -371,7 +371,7 @@ func TestGroupBy(t *testing.T) {
 	for x := range GroupBy(elevenToTwenty, intkey{}).Iter() {
 		out.Push(x.(Group).Key)
 	}
-	assertArraysAreEqual(t, out.Data(), elevenToTwenty)
+	assertArraysAreEqual(t, out, elevenToTwenty)
 }
 
 func TestUnique(t *testing.T) {

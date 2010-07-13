@@ -326,14 +326,14 @@ func TestStrDo(t *testing.T) {
 }
 
 
-func TestStrVectorData(t *testing.T) {
-	// verify Data() returns a slice of a copy, not a slice of the original vector
+func TestStrVectorCopy(t *testing.T) {
+	// verify Copy() returns a copy, not simply a slice of the original vector
 	const Len = 10
 	var src StringVector
 	for i := 0; i < Len; i++ {
 		src.Push(int2StrValue(i * i))
 	}
-	dest := src.Data()
+	dest := src.Copy()
 	for i := 0; i < Len; i++ {
 		src[i] = int2StrValue(-1)
 		v := elem2StrValue(dest[i])

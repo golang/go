@@ -326,14 +326,14 @@ func TestDo(t *testing.T) {
 }
 
 
-func TestVectorData(t *testing.T) {
-	// verify Data() returns a slice of a copy, not a slice of the original vector
+func TestVectorCopy(t *testing.T) {
+	// verify Copy() returns a copy, not simply a slice of the original vector
 	const Len = 10
 	var src Vector
 	for i := 0; i < Len; i++ {
 		src.Push(int2Value(i * i))
 	}
-	dest := src.Data()
+	dest := src.Copy()
 	for i := 0; i < Len; i++ {
 		src[i] = int2Value(-1)
 		v := elem2Value(dest[i])
