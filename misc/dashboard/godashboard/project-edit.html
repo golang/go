@@ -1,11 +1,11 @@
 <html>
 <head>
+<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="http://www.google.com/jsapi"></script>
 <script>
 google.load("jquery", "1");
+google.load("jqueryui", "1.8.2");
 </script>
-<script type="text/javascript" src="/static/jquery.autocomplete.min.js"></script>
-<link rel="stylesheet" type="text/css" href="/static/jquery.autocomplete.css" />
 </head>
 <body>
 <form action="/project/edit?orig_name={{p.name}}" method="POST">
@@ -38,8 +38,10 @@ var cats = [
 {% endfor %}
 ];
 
-$('#tags').autocomplete(tags);
-$('#cats').autocomplete(cats);
+google.setOnLoadCallback(function() {
+	$('#tags').autocomplete({source:tags});
+	$('#cats').autocomplete({source:cats});
+});
 </script>
 </body>
 </html>
