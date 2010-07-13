@@ -30,6 +30,7 @@ func (r *rngReader) Read(b []byte) (n int, err os.Error) {
 		const flags = syscall.CRYPT_VERIFYCONTEXT | syscall.CRYPT_SILENT
 		ok, errno := syscall.CryptAcquireContext(&r.prov, nil, nil, provType, flags)
 		if !ok {
+			r.mu.Unlock()
 			return 0, os.NewSyscallError("CryptAcquireContext", errno)
 		}
 	}
