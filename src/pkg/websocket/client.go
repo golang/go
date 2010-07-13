@@ -61,8 +61,9 @@ func newClient(resourceName, host, origin, location, protocol string, rwc io.Rea
 }
 
 /*
-	Dial opens a new client connection to a Web Socket.
-	A trivial example client is:
+Dial opens a new client connection to a Web Socket.
+
+A trivial example client:
 
 	package main
 
@@ -99,9 +100,8 @@ func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
 }
 
 /*
- 	Generates handshake key as described in 4.1 Opening handshake
-        step 16 to 22.
-	cf. http://www.whatwg.org/specs/web-socket-protocol/
+Generates handshake key as described in 4.1 Opening handshake step 16 to 22.
+cf. http://www.whatwg.org/specs/web-socket-protocol/
 */
 func generateKeyNumber() (key string, number uint32) {
 	// 16.  Let /spaces_n/ be a random integer from 1 to 12 inclusive.
@@ -143,9 +143,8 @@ func generateKeyNumber() (key string, number uint32) {
 }
 
 /*
- 	Generates handshake key_3 as described in 4.1 Opening handshake
-        step 26.
-	cf. http://www.whatwg.org/specs/web-socket-protocol/
+Generates handshake key_3 as described in 4.1 Opening handshake step 26.
+cf. http://www.whatwg.org/specs/web-socket-protocol/
 */
 func generateKey3() (key []byte) {
 	// 26. Let /key3/ be a string consisting of eight random bytes (or
@@ -158,9 +157,9 @@ func generateKey3() (key []byte) {
 }
 
 /*
- 	Gets expected from challenge as described in 4.1 Opening handshake
-        Step 42 to 43.
-	cf. http://www.whatwg.org/specs/web-socket-protocol/
+Gets expected from challenge as described in 4.1 Opening handshake
+step 42 to 43.
+cf. http://www.whatwg.org/specs/web-socket-protocol/
 */
 func getExpectedForChallenge(number1, number2 uint32, key3 []byte) (expected []byte, err os.Error) {
 	// 41. Let /challenge/ be the concatenation of /number_1/, expressed
@@ -184,9 +183,9 @@ func getExpectedForChallenge(number1, number2 uint32, key3 []byte) (expected []b
 }
 
 /*
- 	Web Socket protocol handshake based on
-	http://www.whatwg.org/specs/web-socket-protocol/
-        (draft of http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol)
+Web Socket protocol handshake based on
+http://www.whatwg.org/specs/web-socket-protocol/
+(draft of http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol)
 */
 func handshake(resourceName, host, origin, location, protocol string, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {
 	// 4.1. Opening handshake.
@@ -278,8 +277,8 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
 }
 
 /*
-	Handhake described in (soon obsolete)
-	draft-hixie-thewebsocket-protocol-75.
+Handhake described in (soon obsolete)
+draft-hixie-thewebsocket-protocol-75.
 */
 func draft75handshake(resourceName, host, origin, location, protocol string, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {
 	bw.WriteString("GET " + resourceName + " HTTP/1.1\r\n")
