@@ -104,8 +104,8 @@ func (p *Vector) Set(i int, x interface{}) { (*p)[i] = x }
 func (p *Vector) Last() interface{} { return (*p)[len(*p)-1] }
 
 
-// Data returns all the elements as a slice.
-func (p *Vector) Data() []interface{} {
+// Copy makes a copy of the vector and returns it.
+func (p *Vector) Copy() Vector {
 	arr := make(Vector, len(*p))
 	copy(arr, *p)
 	return arr

@@ -39,11 +39,11 @@ func Any(iter Iterable, f func(interface{}) bool) bool {
 
 // Data returns a slice containing the elements of iter.
 func Data(iter Iterable) []interface{} {
-	vec := new(vector.Vector)
+	var v vector.Vector
 	for e := range iter.Iter() {
-		vec.Push(e)
+		v.Push(e)
 	}
-	return vec.Data()
+	return v
 }
 
 // filteredIterable is a struct that implements Iterable with each element

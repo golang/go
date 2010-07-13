@@ -42,7 +42,7 @@ generate: vector.go vector_test.go
 	| gofmt -r='make_vector -> make_vectorInt'\
 	| gofmt -r='TestInsertVector -> TestIntInsertVector'\
 	| gofmt -r='TestDo -> TestIntDo'\
-	| gofmt -r='TestVectorData -> TestIntVectorData'\
+	| gofmt -r='TestVectorCopy -> TestIntVectorCopy'\
 	| gofmt -r='interface{} -> int'\
 	> intvector_test.go\
 	
@@ -64,6 +64,6 @@ generate: vector.go vector_test.go
 	| gofmt -r='make_vector -> make_vectorStr'\
 	| gofmt -r='TestInsertVector -> TestStrInsertVector'\
 	| gofmt -r='TestDo -> TestStrDo'\
-	| gofmt -r='TestVectorData -> TestStrVectorData'\
+	| gofmt -r='TestVectorCopy -> TestStrVectorCopy'\
 	| gofmt -r='interface{} -> string'\
 	> stringvector_test.go
