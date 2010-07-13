@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of June 7, 2010 -->
+<!-- subtitle Version of July 12, 2010 -->
 
 <!--
 TODO
@@ -17,6 +17,7 @@ TODO
 [ ] specify iteration direction for range clause
 [ ] review language on implicit dereferencing
 [ ] clarify what it means for two functions to be "the same" when comparing them
+[ ] need to specify what happends when sending/receiving from a nil channel
 -->
 
 
@@ -755,7 +756,8 @@ ElementType = Type .
 The length is part of the array's type and must be a
 <a href="#Constant_expressions">constant expression</a> that evaluates to a non-negative
 integer value.  The length of array <code>a</code> can be discovered
-using the built-in function <code>len(a)</code>.  The elements can be indexed by integer
+using the built-in function <a href="#Length_and_capacity"><code>len(a)</code></a>.
+The elements can be indexed by integer
 indices 0 through the <code>len(a)-1</code> (§<a href="#Indexes">Indexes</a>).
 Array types are always one-dimensional but may be composed to form
 multi-dimensional types.
@@ -785,7 +787,7 @@ SliceType = "[" "]" ElementType .
 <p>
 Like arrays, slices are indexable and have a length.  The length of a
 slice <code>s</code> can be discovered by the built-in function
-<code>len(s)</code>; unlike with arrays it may change during
+<a href="#Length_and_capacity"><code>len(s)</code></a>; unlike with arrays it may change during
 execution.  The elements can be addressed by integer indices 0
 through <code>len(s)-1</code> (§<a href="#Indexes">Indexes</a>).  The slice index of a
 given element may be less than the index of the same element in the
@@ -804,18 +806,14 @@ the length of the slice and the length of the array beyond the slice;
 a slice of length up to that capacity can be created by `slicing' a new
 one from the original slice (§<a href="#Slices">Slices</a>).
 The capacity of a slice <code>a</code> can be discovered using the
-built-in function <code>cap(a)</code> and the relationship between
-<code>len(a)</code> and <code>cap(a)</code> is:
+built-in function <a href="#Length_and_capacity"><code>cap(a)</code></a>.
 </p>
 
-<pre>
-0 <= len(a) <= cap(a)
-</pre>
-
 <p>
-The length and capacity of a <code>nil</code> slice
-are 0. A new, initialized slice value for a given element type <code>T</code> is
-made using the built-in function <code>make</code>, which takes a slice type
+A new, initialized slice value for a given element type <code>T</code> is
+made using the built-in function
+<a href="#Making_slices_maps_and_channels"><code>make</code></a>,
+which takes a slice type
 and parameters specifying the length and optionally the capacity:
 </p>
 
@@ -1155,16 +1153,16 @@ map [string] interface {}
 </pre>
 
 <p>
-The number of elements is called the length and is never negative.
-The length of a map <code>m</code> can be discovered using the
-built-in function <code>len(m)</code> and may change during execution.
-Values may be added and removed
+The number of map elements is called its length.
+For a map <code>m</code>, it can be discovered using the
+built-in function <a href="#Length_and_capacity"><code>len(m)</code></a>
+and may change during execution. Values may be added and removed
 during execution using special forms of <a href="#Assignments">assignment</a>.
 </p>
 <p>
 A new, empty map value is made using the built-in
-function <code>make</code>, which takes the map type and an optional
-capacity hint as arguments:
+function <a href="#Making_slices_maps_and_channels"><code>make</code></a>,
+which takes the map type and an optional capacity hint as arguments:
 </p>
 
 <pre>
@@ -4377,6 +4375,10 @@ At any time the following relationship holds:
 <pre>
 0 <= len(s) <= cap(s)
 </pre>
+
+<p>
+The length and capacity of a <code>nil</code> slice, map, or channel are 0.
+</p>
 
 <p>
 The expression
