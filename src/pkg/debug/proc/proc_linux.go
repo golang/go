@@ -153,7 +153,7 @@ type process struct {
 	debugEvents        chan *debugEvent
 	debugReqs          chan *debugReq
 	stopReq            chan os.Error
-	transitionHandlers *vector.Vector
+	transitionHandlers vector.Vector
 	err                os.Error
 }
 
@@ -472,8 +472,8 @@ func (t *thread) setState(newState threadState) {
 		return
 	}
 
-	t.proc.transitionHandlers = new(vector.Vector)
-	for _, h := range handlers.Data() {
+	t.proc.transitionHandlers = nil
+	for _, h := range handlers {
 		h := h.(*transitionHandler)
 		h.handle(t, oldState, newState)
 	}
@@ -738,7 +738,7 @@ func (p *process) monitor() {
 
 	// Abort waiting handlers
 	// TODO(austin) How do I stop the wait threads?
-	for _, h := range p.transitionHandlers.Data() {
+	for _, h := range p.transitionHandlers {
 		h := h.(*transitionHandler)
 		h.onErr(err)
 	}
@@ -1249,14 +1249,13 @@ func (p *process) attachAllThreads() os.Error {
 // newProcess creates a new process object and starts its monitor thread.
 func newProcess(pid int) *process {
 	p := &process{
-		pid:                pid,
-		threads:            make(map[int]*thread),
-		breakpoints:        make(map[uintptr]*breakpoint),
-		ready:              make(chan bool, 1),
-		debugEvents:        make(chan *debugEvent),
-		debugReqs:          make(chan *debugReq),
-		stopReq:            make(chan os.Error),
-		transitionHandlers: new(vector.Vector),
+		pid:         pid,
+		threads:     make(map[int]*thread),
+		breakpoints: make(map[uintptr]*breakpoint),
+		ready:       make(chan bool, 1),
+		debugEvents: make(chan *debugEvent),
+		debugReqs:   make(chan *debugReq),
+		stopReq:     make(chan os.Error),
 	}
 
 	go p.monitor()
