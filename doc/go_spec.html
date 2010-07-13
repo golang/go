@@ -17,7 +17,6 @@ TODO
 [ ] specify iteration direction for range clause
 [ ] review language on implicit dereferencing
 [ ] clarify what it means for two functions to be "the same" when comparing them
-[ ] need to specify what happends when sending/receiving from a nil channel
 -->
 
 
@@ -3063,6 +3062,12 @@ to <code>false</code> and <code>x</code> is set to the
 zero value for its type (§<a href="#The_zero_value">The zero value</a>).
 </p>
 
+<p>
+Except in a communications clause of a <a href="#Select_statements">select statement</a>,
+sending or receiving from a <code>nil</code> channel causes a
+<a href="#Run_time_panics">run-time panic</a>.
+</p>
+
 <!---
 <p>
 <span class="alert">TODO: Probably in a separate section, communication semantics
@@ -4048,18 +4053,22 @@ RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
 
 <p>
 For all the send and receive expressions in the "select"
-statement, the channel expressions are evaluated, along with
-any expressions that appear on the right hand side of send expressions,
-in top-to-bottom order.
-If any of the resulting operations can proceed, one is
-chosen and the corresponding communication and statements are
-evaluated.  Otherwise, if there is a default case, that executes;
-if not, the statement blocks until one of the communications can
-complete.  The channels and send expressions are not re-evaluated.
+statement, the channel expressions are evaluated in top-to-bottom order, along with
+any expressions that appear on the right hand side of send expressions.
 A channel pointer may be <code>nil</code>,
 which is equivalent to that case not
 being present in the select statement
 except, if a send, its expression is still evaluated.
+If any of the resulting operations can proceed, one of those is
+chosen and the corresponding communication and statements are
+evaluated.  Otherwise, if there is a default case, that executes;
+if there is no default case, the statement blocks until one of the communications can
+complete.
+If there are no cases with non-<code>nil</code> channels,
+the statement blocks forever.
+Even if the statement blocks,
+the channel and send expressions are evaluated only once,
+upon entering the select statement.
 </p>
 <p>
 Since all the channels and send expressions are evaluated, any side
@@ -4067,7 +4076,7 @@ effects in that evaluation will occur for all the communications
 in the "select" statement.
 </p>
 <p>
-If multiple cases can proceed, a uniform fair choice is made to decide
+If multiple cases can proceed, a pseudo-random fair choice is made to decide
 which single communication will execute.
 <p>
 The receive case may declare a new variable using a
@@ -4092,6 +4101,8 @@ for {  // send random sequence of bits to c
 	case c &lt;- 1:
 	}
 }
+
+select { }  // block forever
 </pre>
 
 
