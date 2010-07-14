@@ -45,11 +45,11 @@ var (
 	intType = &Type{Repr: "*intType", Value: "IntValue", Native: "int64", As: "asInt",
 		Sizes: []Size{Size{8, "int8"}, Size{16, "int16"}, Size{32, "int32"}, Size{64, "int64"}, Size{0, "int"}},
 	}
-	idealIntType = &Type{Repr: "*idealIntType", Value: "IdealIntValue", Native: "*bignum.Integer", As: "asIdealInt", IsIdeal: true}
+	idealIntType = &Type{Repr: "*idealIntType", Value: "IdealIntValue", Native: "*big.Int", As: "asIdealInt", IsIdeal: true}
 	floatType    = &Type{Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat",
 		Sizes: []Size{Size{32, "float32"}, Size{64, "float64"}, Size{0, "float"}},
 	}
-	idealFloatType = &Type{Repr: "*idealFloatType", Value: "IdealFloatValue", Native: "*bignum.Rational", As: "asIdealFloat", IsIdeal: true}
+	idealFloatType = &Type{Repr: "*idealFloatType", Value: "IdealFloatValue", Native: "*big.Rat", As: "asIdealFloat", IsIdeal: true}
 	stringType     = &Type{Repr: "*stringType", Value: "StringValue", Native: "string", As: "asString"}
 	arrayType      = &Type{Repr: "*ArrayType", Value: "ArrayValue", Native: "ArrayValue", As: "asArray", HasAssign: true}
 	structType     = &Type{Repr: "*StructType", Value: "StructValue", Native: "StructValue", As: "asStruct", HasAssign: true}
@@ -93,33 +93,33 @@ var (
 )
 
 var unOps = []Op{
-	Op{Name: "Neg", Expr: "-v", ConstExpr: "v.Neg()", Types: numbers},
+	Op{Name: "Neg", Expr: "-v", ConstExpr: "val.Neg(val)", Types: numbers},
 	Op{Name: "Not", Expr: "!v", Types: bools},
-	Op{Name: "Xor", Expr: "^v", ConstExpr: "v.Neg().Sub(bignum.Int(1))", Types: integers},
+	Op{Name: "Xor", Expr: "^v", ConstExpr: "val.Not(val)", Types: integers},
 }
 
 var binOps = []Op{
-	Op{Name: "Add", Expr: "l + r", ConstExpr: "l.Add(r)", Types: addable},
-	Op{Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(r)", Types: numbers},
-	Op{Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(r)", Types: numbers},
+	Op{Name: "Add", Expr: "l + r", ConstExpr: "l.Add(l, r)", Types: addable},
+	Op{Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(l, r)", Types: numbers},
+	Op{Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(l, r)", Types: numbers},
 	Op{Name: "Quo",
 		Body:      "if r == 0 { t.Abort(DivByZeroError{}) }; ret =  l / r",
-		ConstExpr: "l.Quo(r)",
+		ConstExpr: "l.Quo(l, r)",
 		Types:     numbers,
 	},
 	Op{Name: "Rem",
 		Body:      "if r == 0 { t.Abort(DivByZeroError{}) }; ret = l % r",
-		ConstExpr: "l.Rem(r)",
+		ConstExpr: "l.Rem(l, r)",
 		Types:     integers,
 	},
-	Op{Name: "And", Expr: "l & r", ConstExpr: "l.And(r)", Types: integers},
-	Op{Name: "Or", Expr: "l | r", ConstExpr: "l.Or(r)", Types: integers},
-	Op{Name: "Xor", Expr: "l ^ r", ConstExpr: "l.Xor(r)", Types: integers},
-	Op{Name: "AndNot", Expr: "l &^ r", ConstExpr: "l.AndNot(r)", Types: integers},
-	Op{Name: "Shl", Expr: "l << r", ConstExpr: "l.Shl(uint(r.Value()))",
+	Op{Name: "And", Expr: "l & r", ConstExpr: "l.And(l, r)", Types: integers},
+	Op{Name: "Or", Expr: "l | r", ConstExpr: "l.Or(l, r)", Types: integers},
+	Op{Name: "Xor", Expr: "l ^ r", ConstExpr: "l.Xor(l, r)", Types: integers},
+	Op{Name: "AndNot", Expr: "l &^ r", ConstExpr: "l.AndNot(l, r)", Types: integers},
+	Op{Name: "Shl", Expr: "l << r", ConstExpr: "l.Lsh(l, uint(r.Value()))",
 		AsRightName: "asUint", Types: shiftable,
 	},
-	Op{Name: "Shr", Expr: "l >> r", ConstExpr: "l.Shr(uint(r.Value()))",
+	Op{Name: "Shr", Expr: "l >> r", ConstExpr: "new(big.Int).Rsh(l, uint(r.Value()))",
 		AsRightName: "asUint", Types: shiftable,
 	},
 	Op{Name: "Lss", Expr: "l < r", ConstExpr: "l.Cmp(r) < 0", ReturnType: "bool", Types: addable},
@@ -149,8 +149,8 @@ const templateStr = `
 package eval
 
 import (
-	"bignum";
-	"log";
+	"big"
+	"log"
 )
 
 /*
@@ -184,9 +184,9 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos);
+		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos)
 	}
-	panic("fail");
+	panic("fail")
 }
 
 /*
@@ -198,19 +198,19 @@ func (a *expr) genConstant(v Value) {
 «.repeated section Types»
 	case «Repr»:
 «.section IsIdeal»
-		val := v.(«Value»).Get();
+		val := v.(«Value»).Get()
 		a.eval = func() «Native» { return val }
 «.or»
 		a.eval = func(t *Thread) «Native» { return v.(«Value»).Get(t) }
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected constant type %v at %v", a.t, a.pos);
+		log.Crashf("unexpected constant type %v at %v", a.t, a.pos)
 	}
 }
 
 func (a *expr) genIdentOp(level, index int) {
-	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) };
+	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) }
 	switch a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
@@ -220,12 +220,12 @@ func (a *expr) genIdentOp(level, index int) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
+		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos)
 	}
 }
 
 func (a *expr) genFuncCall(call func(t *Thread) []Value) {
-	a.exec = func(t *Thread) { call(t)};
+	a.exec = func(t *Thread) { call(t)}
 	switch a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
@@ -237,12 +237,12 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 	case *MultiType:
 		a.eval = func(t *Thread) []Value { return call(t) }
 	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
 	}
 }
 
 func (a *expr) genValue(vf func(*Thread) Value) {
-	a.evalAddr = vf;
+	a.evalAddr = vf
 	switch a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
@@ -252,7 +252,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -262,29 +262,29 @@ func (a *expr) genUnaryOp«Name»(v *expr) {
 «.repeated section Types»
 	case «Repr»:
 «.section IsIdeal»
-		v := v.«As»()();
-		val := «ConstExpr»;
+		val := v.«As»()()
+		«ConstExpr»
 		a.eval = func() «Native» { return val }
 «.or»
-		vf := v.«As»();
+		vf := v.«As»()
 		a.eval = func(t *Thread) «Native» { v := vf(t); return «Expr» }
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected type %v at %v", a.t, a.pos);
+		log.Crashf("unexpected type %v at %v", a.t, a.pos)
 	}
 }
 
 «.end»
 func (a *expr) genBinOpLogAnd(l, r *expr) {
-	lf := l.asBool();
-	rf := r.asBool();
+	lf := l.asBool()
+	rf := r.asBool()
 	a.eval = func(t *Thread) bool { return lf(t) && rf(t) }
 }
 
 func (a *expr) genBinOpLogOr(l, r *expr) {
-	lf := l.asBool();
-	rf := r.asBool();
+	lf := l.asBool()
+	rf := r.asBool()
 	a.eval = func(t *Thread) bool { return lf(t) || rf(t) }
 }
 
@@ -294,20 +294,20 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
 «.repeated section Types»
 	case «Repr»:
 	«.section IsIdeal»
-		l := l.«As»()();
-		r := r.«As»()();
-		val := «ConstExpr»;
+		l := l.«As»()()
+		r := r.«As»()()
+		val := «ConstExpr»
 		«.section ReturnType»
 		a.eval = func(t *Thread) «ReturnType» { return val }
 		«.or»
 		a.eval = func() «Native» { return val }
 		«.end»
 	«.or»
-		lf := l.«As»();
-		rf := r.«.section AsRightName»«@»«.or»«As»«.end»();
+		lf := l.«As»()
+		rf := r.«.section AsRightName»«@»«.or»«As»«.end»()
 		«.section ReturnType»
 		a.eval = func(t *Thread) «@» {
-			l, r := lf(t), rf(t);
+			l, r := lf(t), rf(t)
 			return «Expr»
 		}
 		«.or»
@@ -316,22 +316,22 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
 		«.repeated section @»
 		case «Bits»:
 			a.eval = func(t *Thread) «Native» {
-				l, r := lf(t), rf(t);
-				var ret «Native»;
+				l, r := lf(t), rf(t)
+				var ret «Native»
 				«.section Body»
-				«Body»;
+				«Body»
 				«.or»
-				ret = «Expr»;
+				ret = «Expr»
 				«.end»
 				return «Native»(«Sized»(ret))
 			}
 		«.end»
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
+			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 		«.or»
 		a.eval = func(t *Thread) «Native» {
-			l, r := lf(t), rf(t);
+			l, r := lf(t), rf(t)
 			return «Expr»
 		}
 		«.end»
@@ -339,7 +339,7 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
 	«.end»
 	«.end»
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -350,14 +350,14 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
 «.section IsIdeal»
 «.or»
 	case «Repr»:
-		rf := r.«As»();
+		rf := r.«As»()
 		return func(lv Value, t *Thread) { «.section HasAssign»lv.Assign(t, rf(t))«.or»lv.(«Value»).Set(t, rf(t))«.end» }
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
+		log.Crashf("unexpected left operand type %v at %v", lt, r.pos)
 	}
-	panic("fail");
+	panic("fail")
 }
 `
 

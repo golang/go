@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"exp/bignum"
+	"big"
 	"log"
 	"go/ast"
 	"go/token"
@@ -493,7 +493,7 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 
 	one := l.newExpr(IdealIntType, "constant")
 	one.pos = s.Pos()
-	one.eval = func() *bignum.Integer { return bignum.Int(1) }
+	one.eval = func() *big.Int { return big.NewInt(1) }
 
 	binop := l.compileBinaryExpr(op, l, one)
 	if binop == nil {

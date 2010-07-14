@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"exp/bignum"
+	"big"
 	"go/ast"
 	"go/token"
 	"log"
@@ -60,9 +60,9 @@ type Type interface {
 type BoundedType interface {
 	Type
 	// minVal returns the smallest value of this type.
-	minVal() *bignum.Rational
+	minVal() *big.Rat
 	// maxVal returns the largest value of this type.
-	maxVal() *bignum.Rational
+	maxVal() *big.Rat
 }
 
 var universePos = token.Position{"<universe>", 0, 0, 0}
@@ -234,9 +234,9 @@ func (t *uintType) Zero() Value {
 	panic("unexpected uint bit count")
 }
 
-func (t *uintType) minVal() *bignum.Rational { return bignum.Rat(0, 1) }
+func (t *uintType) minVal() *big.Rat { return big.NewRat(0, 1) }
 
-func (t *uintType) maxVal() *bignum.Rational {
+func (t *uintType) maxVal() *big.Rat {
 	bits := t.Bits
 	if bits == 0 {
 		if t.Ptr {
@@ -245,7 +245,10 @@ func (t *uintType) maxVal() *bignum.Rational {
 			bits = uint(8 * unsafe.Sizeof(uint(0)))
 		}
 	}
-	return bignum.MakeRat(bignum.Int(1).Shl(bits).Add(bignum.Int(-1)), bignum.Nat(1))
+	numer := big.NewInt(1)
+	numer.Lsh(numer, bits)
+	numer.Sub(numer, idealOne)
+	return new(big.Rat).SetInt(numer)
 }
 
 /*
@@ -307,20 +310,25 @@ func (t *intType) Zero() Value {
 	panic("unexpected int bit count")
 }
 
-func (t *intType) minVal() *bignum.Rational {
+func (t *intType) minVal() *big.Rat {
 	bits := t.Bits
 	if bits == 0 {
 		bits = uint(8 * unsafe.Sizeof(int(0)))
 	}
-	return bignum.MakeRat(bignum.Int(-1).Shl(bits-1), bignum.Nat(1))
+	numer := big.NewInt(-1)
+	numer.Lsh(numer, bits-1)
+	return new(big.Rat).SetInt(numer)
 }
 
-func (t *intType) maxVal() *bignum.Rational {
+func (t *intType) maxVal() *big.Rat {
 	bits := t.Bits
 	if bits == 0 {
 		bits = uint(8 * unsafe.Sizeof(int(0)))
 	}
-	return bignum.MakeRat(bignum.Int(1).Shl(bits-1).Add(bignum.Int(-1)), bignum.Nat(1))
+	numer := big.NewInt(1)
+	numer.Lsh(numer, bits-1)
+	numer.Sub(numer, idealOne)
+	return new(big.Rat).SetInt(numer)
 }
 
 /*
@@ -346,7 +354,7 @@ func (t *idealIntType) isIdeal() bool { return true }
 
 func (t *idealIntType) String() string { return "ideal integer" }
 
-func (t *idealIntType) Zero() Value { return &idealIntV{bignum.Int(0)} }
+func (t *idealIntType) Zero() Value { return &idealIntV{idealZero} }
 
 /*
  * Float
@@ -393,12 +401,12 @@ func (t *floatType) Zero() Value {
 	panic("unexpected float bit count")
 }
 
-var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1))
-var maxFloat64Val = bignum.MakeRat(bignum.Int(0x1fffffffffffff).Shl(1023-52), bignum.Nat(1))
-var minFloat32Val = maxFloat32Val.Neg()
-var minFloat64Val = maxFloat64Val.Neg()
+var maxFloat32Val *big.Rat
+var maxFloat64Val *big.Rat
+var minFloat32Val *big.Rat
+var minFloat64Val *big.Rat
 
-func (t *floatType) minVal() *bignum.Rational {
+func (t *floatType) minVal() *big.Rat {
 	bits := t.Bits
 	if bits == 0 {
 		bits = uint(8 * unsafe.Sizeof(float(0)))
@@ -413,7 +421,7 @@ func (t *floatType) minVal() *bignum.Rational {
 	panic("unreachable")
 }
 
-func (t *floatType) maxVal() *bignum.Rational {
+func (t *floatType) maxVal() *big.Rat {
 	bits := t.Bits
 	if bits == 0 {
 		bits = uint(8 * unsafe.Sizeof(float(0)))
@@ -451,7 +459,7 @@ func (t *idealFloatType) isIdeal() bool { return true }
 
 func (t *idealFloatType) String() string { return "ideal float" }
 
-func (t *idealFloatType) Zero() Value { return &idealFloatV{bignum.Rat(1, 0)} }
+func (t *idealFloatType) Zero() Value { return &idealFloatV{big.NewRat(0, 1)} }
 
 /*
  * String
@@ -1221,6 +1229,15 @@ func (t *MultiType) Zero() Value {
  */
 
 func init() {
+	numer := big.NewInt(0xffffff)
+	numer.Lsh(numer, 127-23)
+	maxFloat32Val = new(big.Rat).SetInt(numer)
+	numer.SetInt64(0x1fffffffffffff)
+	numer.Lsh(numer, 1023-52)
+	maxFloat64Val = new(big.Rat).SetInt(numer)
+	minFloat32Val = new(big.Rat).Neg(maxFloat32Val)
+	minFloat64Val = new(big.Rat).Neg(maxFloat64Val)
+
 	// To avoid portability issues all numeric types are distinct
 	// except byte, which is an alias for uint8.
 

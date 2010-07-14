@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"exp/bignum"
+	"big"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ var implLimit = "implementation limit"
 var mustBeUnsigned = "must be unsigned"
 var divByZero = "divide by zero"
 
-var hugeInteger = bignum.Int(1).Shl(64)
+var hugeInteger = new(big.Int).Lsh(idealOne, 64)
 
 var exprTests = []test{
 	Val("i", 1),
@@ -30,9 +30,9 @@ var exprTests = []test{
 	// TODO(austin) Test variable in constant context
 	//CErr("t", typeAsExpr),
 
-	Val("'a'", bignum.Int('a')),
-	Val("'\\uffff'", bignum.Int('\uffff')),
-	Val("'\\n'", bignum.Int('\n')),
+	Val("'a'", big.NewInt('a')),
+	Val("'\\uffff'", big.NewInt('\uffff')),
+	Val("'\\n'", big.NewInt('\n')),
 	CErr("''+x", badCharLit),
 	// Produces two parse errors
 	//CErr("'''", ""),
@@ -40,10 +40,10 @@ var exprTests = []test{
 	CErr("'\\z'", unknownEscape),
 	CErr("'ab'", badCharLit),
 
-	Val("1.0", bignum.Rat(1, 1)),
-	Val("1.", bignum.Rat(1, 1)),
-	Val(".1", bignum.Rat(1, 10)),
-	Val("1e2", bignum.Rat(100, 1)),
+	Val("1.0", big.NewRat(1, 1)),
+	Val("1.", big.NewRat(1, 1)),
+	Val(".1", big.NewRat(1, 10)),
+	Val("1e2", big.NewRat(100, 1)),
 
 	Val("\"abc\"", "abc"),
 	Val("\"\"", ""),
@@ -140,12 +140,12 @@ var exprTests = []test{
 	CErr("&c", badAddrOf),
 	Val("*(&ai[0])", 1),
 
-	Val("+1", bignum.Int(+1)),
-	Val("+1.0", bignum.Rat(1, 1)),
-	Val("01.5", bignum.Rat(15, 10)),
+	Val("+1", big.NewInt(+1)),
+	Val("+1.0", big.NewRat(1, 1)),
+	Val("01.5", big.NewRat(15, 10)),
 	CErr("+\"x\"", opTypes),
 
-	Val("-42", bignum.Int(-42)),
+	Val("-42", big.NewInt(-42)),
 	Val("-i", -1),
 	Val("-f", -1.0),
 	// 6g bug?
@@ -154,8 +154,8 @@ var exprTests = []test{
 
 	// TODO(austin) Test unary !
 
-	Val("^2", bignum.Int(^2)),
-	Val("^(-2)", bignum.Int(^(-2))),
+	Val("^2", big.NewInt(^2)),
+	Val("^(-2)", big.NewInt(^(-2))),
 	CErr("^2.0", opTypes),
 	CErr("^2.5", opTypes),
 	Val("^i", ^1),
@@ -165,67 +165,66 @@ var exprTests = []test{
 	Val("1+i", 2),
 	Val("1+u", uint(2)),
 	Val("3.0+i", 4),
-	Val("1+1", bignum.Int(2)),
+	Val("1+1", big.NewInt(2)),
 	Val("f+f", 2.0),
 	Val("1+f", 2.0),
-	Val("1.0+1", bignum.Rat(2, 1)),
+	Val("1.0+1", big.NewRat(2, 1)),
 	Val("\"abc\" + \"def\"", "abcdef"),
 	CErr("i+u", opTypes),
 	CErr("-1+u", constantUnderflows),
 	// TODO(austin) Test named types
 
-	Val("2-1", bignum.Int(1)),
-	Val("2.0-1", bignum.Rat(1, 1)),
+	Val("2-1", big.NewInt(1)),
+	Val("2.0-1", big.NewRat(1, 1)),
 	Val("f-2", -1.0),
-	// TOOD(austin) bignum can't do negative 0?
-	//Val("-0.0", XXX),
-	Val("2*2", bignum.Int(4)),
+	Val("-0.0", big.NewRat(0, 1)),
+	Val("2*2", big.NewInt(4)),
 	Val("2*i", 2),
-	Val("3/2", bignum.Int(1)),
+	Val("3/2", big.NewInt(1)),
 	Val("3/i", 3),
 	CErr("1/0", divByZero),
 	CErr("1.0/0", divByZero),
 	RErr("i/0", divByZero),
-	Val("3%2", bignum.Int(1)),
+	Val("3%2", big.NewInt(1)),
 	Val("i%2", 1),
 	CErr("3%0", divByZero),
 	CErr("3.0%0", opTypes),
 	RErr("i%0", divByZero),
 
 	// Examples from "Arithmetic operators"
-	Val("5/3", bignum.Int(1)),
+	Val("5/3", big.NewInt(1)),
 	Val("(i+4)/(i+2)", 1),
-	Val("5%3", bignum.Int(2)),
+	Val("5%3", big.NewInt(2)),
 	Val("(i+4)%(i+2)", 2),
-	Val("-5/3", bignum.Int(-1)),
+	Val("-5/3", big.NewInt(-1)),
 	Val("(i-6)/(i+2)", -1),
-	Val("-5%3", bignum.Int(-2)),
+	Val("-5%3", big.NewInt(-2)),
 	Val("(i-6)%(i+2)", -2),
-	Val("5/-3", bignum.Int(-1)),
+	Val("5/-3", big.NewInt(-1)),
 	Val("(i+4)/(i-4)", -1),
-	Val("5%-3", bignum.Int(2)),
+	Val("5%-3", big.NewInt(2)),
 	Val("(i+4)%(i-4)", 2),
-	Val("-5/-3", bignum.Int(1)),
+	Val("-5/-3", big.NewInt(1)),
 	Val("(i-6)/(i-4)", 1),
-	Val("-5%-3", bignum.Int(-2)),
+	Val("-5%-3", big.NewInt(-2)),
 	Val("(i-6)%(i-4)", -2),
 
 	// Examples from "Arithmetic operators"
-	Val("11/4", bignum.Int(2)),
+	Val("11/4", big.NewInt(2)),
 	Val("(i+10)/4", 2),
-	Val("11%4", bignum.Int(3)),
+	Val("11%4", big.NewInt(3)),
 	Val("(i+10)%4", 3),
-	Val("11>>2", bignum.Int(2)),
+	Val("11>>2", big.NewInt(2)),
 	Val("(i+10)>>2", 2),
-	Val("11&3", bignum.Int(3)),
+	Val("11&3", big.NewInt(3)),
 	Val("(i+10)&3", 3),
-	Val("-11/4", bignum.Int(-2)),
+	Val("-11/4", big.NewInt(-2)),
 	Val("(i-12)/4", -2),
-	Val("-11%4", bignum.Int(-3)),
+	Val("-11%4", big.NewInt(-3)),
 	Val("(i-12)%4", -3),
-	Val("-11>>2", bignum.Int(-3)),
+	Val("-11>>2", big.NewInt(-3)),
 	Val("(i-12)>>2", -3),
-	Val("-11&3", bignum.Int(1)),
+	Val("-11&3", big.NewInt(1)),
 	Val("(i-12)&3", 1),
 
 	// TODO(austin) Test bit ops
@@ -234,29 +233,29 @@ var exprTests = []test{
 	// ideal int, negative ideal int, big ideal int, ideal
 	// fractional float, ideal non-fractional float, int, uint,
 	// and float.
-	Val("2<<2", bignum.Int(2<<2)),
+	Val("2<<2", big.NewInt(2<<2)),
 	CErr("2<<(-1)", constantUnderflows),
 	CErr("2<<0x10000000000000000", constantOverflows),
 	CErr("2<<2.5", constantTruncated),
-	Val("2<<2.0", bignum.Int(2<<2.0)),
+	Val("2<<2.0", big.NewInt(2<<2.0)),
 	CErr("2<<i", mustBeUnsigned),
 	Val("2<<u", 2<<1),
 	CErr("2<<f", opTypes),
 
-	Val("-2<<2", bignum.Int(-2<<2)),
+	Val("-2<<2", big.NewInt(-2<<2)),
 	CErr("-2<<(-1)", constantUnderflows),
 	CErr("-2<<0x10000000000000000", constantOverflows),
 	CErr("-2<<2.5", constantTruncated),
-	Val("-2<<2.0", bignum.Int(-2<<2.0)),
+	Val("-2<<2.0", big.NewInt(-2<<2.0)),
 	CErr("-2<<i", mustBeUnsigned),
 	Val("-2<<u", -2<<1),
 	CErr("-2<<f", opTypes),
 
-	Val("0x10000000000000000<<2", hugeInteger.Shl(2)),
+	Val("0x10000000000000000<<2", new(big.Int).Lsh(hugeInteger, 2)),
 	CErr("0x10000000000000000<<(-1)", constantUnderflows),
 	CErr("0x10000000000000000<<0x10000000000000000", constantOverflows),
 	CErr("0x10000000000000000<<2.5", constantTruncated),
-	Val("0x10000000000000000<<2.0", hugeInteger.Shl(2)),
+	Val("0x10000000000000000<<2.0", new(big.Int).Lsh(hugeInteger, 2)),
 	CErr("0x10000000000000000<<i", mustBeUnsigned),
 	CErr("0x10000000000000000<<u", constantOverflows),
 	CErr("0x10000000000000000<<f", opTypes),

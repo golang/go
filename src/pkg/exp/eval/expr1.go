@@ -4,13 +4,13 @@
 package eval
 
 import (
-	"exp/bignum"
+	"big"
 	"log"
 )
 
 /*
- * "As" functions.  These retrieve evaluator functions from an
- * expr, panicking if the requested evaluator has the wrong type.
+* "As" functions.  These retrieve evaluator functions from an
+* expr, panicking if the requested evaluator has the wrong type.
  */
 func (a *expr) asBool() func(*Thread) bool {
 	return a.eval.(func(*Thread) bool)
@@ -21,14 +21,14 @@ func (a *expr) asUint() func(*Thread) uint64 {
 func (a *expr) asInt() func(*Thread) int64 {
 	return a.eval.(func(*Thread) int64)
 }
-func (a *expr) asIdealInt() func() *bignum.Integer {
-	return a.eval.(func() *bignum.Integer)
+func (a *expr) asIdealInt() func() *big.Int {
+	return a.eval.(func() *big.Int)
 }
 func (a *expr) asFloat() func(*Thread) float64 {
 	return a.eval.(func(*Thread) float64)
 }
-func (a *expr) asIdealFloat() func() *bignum.Rational {
-	return a.eval.(func() *bignum.Rational)
+func (a *expr) asIdealFloat() func() *big.Rat {
+	return a.eval.(func() *big.Rat)
 }
 func (a *expr) asString() func(*Thread) string {
 	return a.eval.(func(*Thread) string)
@@ -63,11 +63,11 @@ func (a *expr) asInterface() func(*Thread) interface{} {
 		return func(t *Thread) interface{} { return sf(t) }
 	case func(t *Thread) int64:
 		return func(t *Thread) interface{} { return sf(t) }
-	case func() *bignum.Integer:
+	case func() *big.Int:
 		return func(*Thread) interface{} { return sf() }
 	case func(t *Thread) float64:
 		return func(t *Thread) interface{} { return sf(t) }
-	case func() *bignum.Rational:
+	case func() *big.Rat:
 		return func(*Thread) interface{} { return sf() }
 	case func(t *Thread) string:
 		return func(t *Thread) interface{} { return sf(t) }
@@ -90,7 +90,7 @@ func (a *expr) asInterface() func(*Thread) interface{} {
 }
 
 /*
- * Operator generators.
+* Operator generators.
  */
 
 func (a *expr) genConstant(v Value) {
@@ -103,12 +103,12 @@ func (a *expr) genConstant(v Value) {
 		a.eval = func(t *Thread) int64 { return v.(IntValue).Get(t) }
 	case *idealIntType:
 		val := v.(IdealIntValue).Get()
-		a.eval = func() *bignum.Integer { return val }
+		a.eval = func() *big.Int { return val }
 	case *floatType:
 		a.eval = func(t *Thread) float64 { return v.(FloatValue).Get(t) }
 	case *idealFloatType:
 		val := v.(IdealFloatValue).Get()
-		a.eval = func() *bignum.Rational { return val }
+		a.eval = func() *big.Rat { return val }
 	case *stringType:
 		a.eval = func(t *Thread) string { return v.(StringValue).Get(t) }
 	case *ArrayType:
@@ -229,16 +229,16 @@ func (a *expr) genUnaryOpNeg(v *expr) {
 		vf := v.asInt()
 		a.eval = func(t *Thread) int64 { v := vf(t); return -v }
 	case *idealIntType:
-		v := v.asIdealInt()()
-		val := v.Neg()
-		a.eval = func() *bignum.Integer { return val }
+		val := v.asIdealInt()()
+		val.Neg(val)
+		a.eval = func() *big.Int { return val }
 	case *floatType:
 		vf := v.asFloat()
 		a.eval = func(t *Thread) float64 { v := vf(t); return -v }
 	case *idealFloatType:
-		v := v.asIdealFloat()()
-		val := v.Neg()
-		a.eval = func() *bignum.Rational { return val }
+		val := v.asIdealFloat()()
+		val.Neg(val)
+		a.eval = func() *big.Rat { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", a.t, a.pos)
 	}
@@ -263,9 +263,9 @@ func (a *expr) genUnaryOpXor(v *expr) {
 		vf := v.asInt()
 		a.eval = func(t *Thread) int64 { v := vf(t); return ^v }
 	case *idealIntType:
-		v := v.asIdealInt()()
-		val := v.Neg().Sub(bignum.Int(1))
-		a.eval = func() *bignum.Integer { return val }
+		val := v.asIdealInt()()
+		val.Not(val)
+		a.eval = func() *big.Int { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", a.t, a.pos)
 	}
@@ -372,8 +372,8 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.Add(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.Add(l, r)
+		a.eval = func() *big.Int { return val }
 	case *floatType:
 		lf := l.asFloat()
 		rf := r.asFloat()
@@ -405,8 +405,8 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 	case *idealFloatType:
 		l := l.asIdealFloat()()
 		r := r.asIdealFloat()()
-		val := l.Add(r)
-		a.eval = func() *bignum.Rational { return val }
+		val := l.Add(l, r)
+		a.eval = func() *big.Rat { return val }
 	case *stringType:
 		lf := l.asString()
 		rf := r.asString()
@@ -508,8 +508,8 @@ func (a *expr) genBinOpSub(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.Sub(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.Sub(l, r)
+		a.eval = func() *big.Int { return val }
 	case *floatType:
 		lf := l.asFloat()
 		rf := r.asFloat()
@@ -541,8 +541,8 @@ func (a *expr) genBinOpSub(l, r *expr) {
 	case *idealFloatType:
 		l := l.asIdealFloat()()
 		r := r.asIdealFloat()()
-		val := l.Sub(r)
-		a.eval = func() *bignum.Rational { return val }
+		val := l.Sub(l, r)
+		a.eval = func() *big.Rat { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -637,8 +637,8 @@ func (a *expr) genBinOpMul(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.Mul(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.Mul(l, r)
+		a.eval = func() *big.Int { return val }
 	case *floatType:
 		lf := l.asFloat()
 		rf := r.asFloat()
@@ -670,8 +670,8 @@ func (a *expr) genBinOpMul(l, r *expr) {
 	case *idealFloatType:
 		l := l.asIdealFloat()()
 		r := r.asIdealFloat()()
-		val := l.Mul(r)
-		a.eval = func() *bignum.Rational { return val }
+		val := l.Mul(l, r)
+		a.eval = func() *big.Rat { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -796,8 +796,8 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.Quo(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.Quo(l, r)
+		a.eval = func() *big.Int { return val }
 	case *floatType:
 		lf := l.asFloat()
 		rf := r.asFloat()
@@ -838,8 +838,8 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 	case *idealFloatType:
 		l := l.asIdealFloat()()
 		r := r.asIdealFloat()()
-		val := l.Quo(r)
-		a.eval = func() *bignum.Rational { return val }
+		val := l.Quo(l, r)
+		a.eval = func() *big.Rat { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -964,8 +964,8 @@ func (a *expr) genBinOpRem(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.Rem(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.Rem(l, r)
+		a.eval = func() *big.Int { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1060,8 +1060,8 @@ func (a *expr) genBinOpAnd(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.And(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.And(l, r)
+		a.eval = func() *big.Int { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1156,8 +1156,8 @@ func (a *expr) genBinOpOr(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.Or(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.Or(l, r)
+		a.eval = func() *big.Int { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1252,8 +1252,8 @@ func (a *expr) genBinOpXor(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.Xor(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.Xor(l, r)
+		a.eval = func() *big.Int { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1348,8 +1348,8 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
 	case *idealIntType:
 		l := l.asIdealInt()()
 		r := r.asIdealInt()()
-		val := l.AndNot(r)
-		a.eval = func() *bignum.Integer { return val }
+		val := l.AndNot(l, r)
+		a.eval = func() *big.Int { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}

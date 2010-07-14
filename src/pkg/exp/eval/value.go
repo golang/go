@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"exp/bignum"
+	"big"
 	"fmt"
 )
 
@@ -40,7 +40,7 @@ type IntValue interface {
 // because ideals are not l-values.
 type IdealIntValue interface {
 	Value
-	Get() *bignum.Integer
+	Get() *big.Int
 }
 
 type FloatValue interface {
@@ -51,7 +51,7 @@ type FloatValue interface {
 
 type IdealFloatValue interface {
 	Value
-	Get() *bignum.Rational
+	Get() *big.Rat
 }
 
 type StringValue interface {
@@ -272,7 +272,7 @@ func (v *intV) Set(t *Thread, x int64) { *v = intV(x) }
  */
 
 type idealIntV struct {
-	V *bignum.Integer
+	V *big.Int
 }
 
 func (v *idealIntV) String() string { return v.V.String() }
@@ -281,7 +281,7 @@ func (v *idealIntV) Assign(t *Thread, o Value) {
 	v.V = o.(IdealIntValue).Get()
 }
 
-func (v *idealIntV) Get() *bignum.Integer { return v.V }
+func (v *idealIntV) Get() *big.Int { return v.V }
 
 /*
  * Float
@@ -322,16 +322,16 @@ func (v *floatV) Set(t *Thread, x float64) { *v = floatV(x) }
  */
 
 type idealFloatV struct {
-	V *bignum.Rational
+	V *big.Rat
 }
 
-func (v *idealFloatV) String() string { return ratToString(v.V) }
+func (v *idealFloatV) String() string { return v.V.FloatString(6) }
 
 func (v *idealFloatV) Assign(t *Thread, o Value) {
 	v.V = o.(IdealFloatValue).Get()
 }
 
-func (v *idealFloatV) Get() *bignum.Rational { return v.V }
+func (v *idealFloatV) Get() *big.Rat { return v.V }
 
 /*
  * String
@@ -586,8 +586,6 @@ func (v multiV) Assign(t *Thread, o Value) {
  * Universal constants
  */
 
-// TODO(austin) Nothing complains if I accidentally define init with
-// arguments.  Is this intentional?
 func init() {
 	s := universe
 
