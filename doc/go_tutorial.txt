@@ -471,15 +471,21 @@ We can now use our new package:
 
 --PROG progs/helloworld3.go /package/ END
 
-The ''"./"'' in the import of ''"./file"'' tells the compiler to use our own package rather than
+The ''"./"'' in the import of ''"./file"'' tells the compiler
+to use our own package rather than
 something from the directory of installed packages.
+(Also, ''"file.go"'' must be compiled before we can import the
+package.)
 
-Finally we can run the program:
+Now we can compile and run the program:
 
-	% helloworld3
+	$ 6g file.go                       # compile file package
+	$ 6g helloworld3.go                # compile main package
+	$ 6l -o helloworld3 helloworld3.6  # link - no need to mention "file"
+	$ helloworld3
 	hello, world
 	can't open file; err=No such file or directory
-	%
+	$
 
 Rotting cats
 ----
@@ -549,11 +555,11 @@ even though under the covers it holds a pointer to a "struct".
 Here it is in action:
 
 <pre>
-	% echo abcdefghijklmnopqrstuvwxyz | ./cat
+	$ echo abcdefghijklmnopqrstuvwxyz | ./cat
 	abcdefghijklmnopqrstuvwxyz
-	% echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
+	$ echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
 	nopqrstuvwxyzabcdefghijklm
-	%
+	$
 </pre>
 
 Fans of dependency injection may take cheer from how easily interfaces
