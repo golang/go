@@ -650,20 +650,22 @@ We can now use our new package:
 21    }
 </pre>
 <p>
-The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the
-compiler to use the ''<code>file</code>'' package in the current directory
-rather than something from the directory of installed packages.
-</p>
+The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the compiler
+to use our own package rather than
+something from the directory of installed packages.
+(Also, ''<code>file.go</code>'' must be compiled before we can import the
+package.)
 <p>
-You must compile ''<code>file.go</code>'' before any package that imports it.
-<p>
-Finally we can run the program:
+Now we can compile and run the program:
 <p>
 <pre>
-    % helloworld3
+    $ 6g file.go                       # compile file package
+    $ 6g helloworld3.go                # compile main package
+    $ 6l -o helloworld3 helloworld3.6  # link - no need to mention "file"
+    $ helloworld3
     hello, world
     can't open file; err=No such file or directory
-    %
+    $
 </pre>
 <p>
 <h2>Rotting cats</h2>
@@ -827,11 +829,11 @@ even though under the covers it holds a pointer to a <code>struct</code>.
 Here it is in action:
 <p>
 <pre>
-    % echo abcdefghijklmnopqrstuvwxyz | ./cat
+    $ echo abcdefghijklmnopqrstuvwxyz | ./cat
     abcdefghijklmnopqrstuvwxyz
-    % echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
+    $ echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
     nopqrstuvwxyzabcdefghijklm
-    %
+    $
 </pre>
 <p>
 Fans of dependency injection may take cheer from how easily interfaces
