@@ -182,6 +182,9 @@ chansend(Hchan *c, byte *ep, bool *pres)
 	SudoG *sg;
 	G* gp;
 
+	if(c == nil)
+		panicstring("send to nil channel");
+
 	if(gcwaiting)
 		gosched();
 
@@ -285,6 +288,9 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 {
 	SudoG *sg;
 	G *gp;
+
+	if(c == nil)
+		panicstring("receive from nil channel");
 
 	if(gcwaiting)
 		gosched();
