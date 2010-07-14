@@ -18,21 +18,24 @@ import (
 func (c *Conn) clientHandshake() os.Error {
 	finishedHash := newFinishedHash()
 
-	config := defaultConfig()
+	if c.config == nil {
+		c.config = defaultConfig()
+	}
 
 	hello := &clientHelloMsg{
 		vers:               maxVersion,
 		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		compressionMethods: []uint8{compressionNone},
 		random:             make([]byte, 32),
+		ocspStapling:       true,
 	}
 
-	t := uint32(config.Time())
+	t := uint32(c.config.Time())
 	hello.random[0] = byte(t >> 24)
 	hello.random[1] = byte(t >> 16)
 	hello.random[2] = byte(t >> 8)
 	hello.random[3] = byte(t)
-	_, err := io.ReadFull(config.Rand, hello.random[4:])
+	_, err := io.ReadFull(c.config.Rand, hello.random[4:])
 	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}
@@ -89,8 +92,8 @@ func (c *Conn) clientHandshake() os.Error {
 	}
 
 	// TODO(rsc): Find certificates for OS X 10.6.
-	if false && config.RootCAs != nil {
-		root := config.RootCAs.FindParent(certs[len(certs)-1])
+	if false && c.config.RootCAs != nil {
+		root := c.config.RootCAs.FindParent(certs[len(certs)-1])
 		if root == nil {
 			return c.sendAlert(alertBadCertificate)
 		}
@@ -102,6 +105,22 @@ func (c *Conn) clientHandshake() os.Error {
 	pub, ok := certs[0].PublicKey.(*rsa.PublicKey)
 	if !ok {
 		return c.sendAlert(alertUnsupportedCertificate)
+	}
+
+	if serverHello.certStatus {
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
+		cs, ok := msg.(*certificateStatusMsg)
+		if !ok {
+			return c.sendAlert(alertUnexpectedMessage)
+		}
+		finishedHash.Write(cs.marshal())
+
+		if cs.statusType == statusTypeOCSP {
+			c.ocspResponse = cs.response
+		}
 	}
 
 	msg, err = c.readHandshake()
@@ -118,12 +137,12 @@ func (c *Conn) clientHandshake() os.Error {
 	preMasterSecret := make([]byte, 48)
 	preMasterSecret[0] = byte(hello.vers >> 8)
 	preMasterSecret[1] = byte(hello.vers)
-	_, err = io.ReadFull(config.Rand, preMasterSecret[2:])
+	_, err = io.ReadFull(c.config.Rand, preMasterSecret[2:])
 	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}
 
-	ckx.ciphertext, err = rsa.EncryptPKCS1v15(config.Rand, pub, preMasterSecret)
+	ckx.ciphertext, err = rsa.EncryptPKCS1v15(c.config.Rand, pub, preMasterSecret)
 	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}

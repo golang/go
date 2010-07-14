@@ -13,6 +13,7 @@ type clientHelloMsg struct {
 	compressionMethods []uint8
 	nextProtoNeg       bool
 	serverName         string
+	ocspStapling       bool
 }
 
 func (m *clientHelloMsg) marshal() []byte {
@@ -24,6 +25,10 @@ func (m *clientHelloMsg) marshal() []byte {
 	numExtensions := 0
 	extensionsLength := 0
 	if m.nextProtoNeg {
+		numExtensions++
+	}
+	if m.ocspStapling {
+		extensionsLength += 1 + 2 + 2
 		numExtensions++
 	}
 	if len(m.serverName) > 0 {
@@ -101,6 +106,16 @@ func (m *clientHelloMsg) marshal() []byte {
 		copy(z[5:], []byte(m.serverName))
 		z = z[l:]
 	}
+	if m.ocspStapling {
+		// RFC 4366, section 3.6
+		z[0] = byte(extensionStatusRequest >> 8)
+		z[1] = byte(extensionStatusRequest)
+		z[2] = 0
+		z[3] = 5
+		z[4] = 1 // OCSP type
+		// Two zero valued uint16s for the two lengths.
+		z = z[9:]
+	}
 
 	m.raw = x
 
@@ -148,6 +163,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 
 	m.nextProtoNeg = false
 	m.serverName = ""
+	m.ocspStapling = false
 
 	if len(data) == 0 {
 		// ClientHello is optionally followed by extension data
@@ -202,6 +218,8 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				return false
 			}
 			m.nextProtoNeg = true
+		case extensionStatusRequest:
+			m.ocspStapling = length > 0 && data[0] == statusTypeOCSP
 		}
 		data = data[length:]
 	}
@@ -218,6 +236,7 @@ type serverHelloMsg struct {
 	compressionMethod uint8
 	nextProtoNeg      bool
 	nextProtos        []string
+	certStatus        bool
 }
 
 func (m *serverHelloMsg) marshal() []byte {
@@ -237,6 +256,9 @@ func (m *serverHelloMsg) marshal() []byte {
 		}
 		nextProtoLen += len(m.nextProtos)
 		extensionsLength += nextProtoLen
+	}
+	if m.certStatus {
+		numExtensions++
 	}
 	if numExtensions > 0 {
 		extensionsLength += 4 * numExtensions
@@ -281,6 +303,11 @@ func (m *serverHelloMsg) marshal() []byte {
 			z = z[1+l:]
 		}
 	}
+	if m.certStatus {
+		z[0] = byte(extensionStatusRequest >> 8)
+		z[1] = byte(extensionStatusRequest)
+		z = z[4:]
+	}
 
 	m.raw = x
 
@@ -322,6 +349,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 
 	m.nextProtoNeg = false
 	m.nextProtos = nil
+	m.certStatus = false
 
 	if len(data) == 0 {
 		// ServerHello is optionally followed by extension data
@@ -361,6 +389,11 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 				m.nextProtos = append(m.nextProtos, string(d[0:l]))
 				d = d[l:]
 			}
+		case extensionStatusRequest:
+			if length > 0 {
+				return false
+			}
+			m.certStatus = true
 		}
 		data = data[length:]
 	}
@@ -442,6 +475,61 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
 		d = d[3+certLen:]
 	}
 
+	return true
+}
+
+type certificateStatusMsg struct {
+	raw        []byte
+	statusType uint8
+	response   []byte
+}
+
+func (m *certificateStatusMsg) marshal() []byte {
+	if m.raw != nil {
+		return m.raw
+	}
+
+	var x []byte
+	if m.statusType == statusTypeOCSP {
+		x = make([]byte, 4+4+len(m.response))
+		x[0] = typeCertificateStatus
+		l := len(m.response) + 4
+		x[1] = byte(l >> 16)
+		x[2] = byte(l >> 8)
+		x[3] = byte(l)
+		x[4] = statusTypeOCSP
+
+		l -= 4
+		x[5] = byte(l >> 16)
+		x[6] = byte(l >> 8)
+		x[7] = byte(l)
+		copy(x[8:], m.response)
+	} else {
+		x = []byte{typeCertificateStatus, 0, 0, 1, m.statusType}
+	}
+
+	m.raw = x
+	return x
+}
+
+func (m *certificateStatusMsg) unmarshal(data []byte) bool {
+	m.raw = data
+	if len(data) < 5 {
+		return false
+	}
+	m.statusType = data[4]
+
+	m.response = nil
+	if m.statusType == statusTypeOCSP {
+		if len(data) < 8 {
+			return false
+		}
+		respLen := uint32(data[5])<<16 | uint32(data[6])<<8 | uint32(data[7])
+		if uint32(len(data)) != 4+4+respLen {
+			return false
+		}
+		m.response = data[8:]
+	}
 	return true
 }
 
