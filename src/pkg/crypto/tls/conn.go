@@ -26,6 +26,7 @@ type Conn struct {
 	config            *Config    // configuration passed to constructor
 	handshakeComplete bool
 	cipherSuite       uint16
+	ocspResponse      []byte // stapled OCSP response
 
 	clientProtocol string
 
@@ -531,6 +532,8 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
 		m = new(serverHelloMsg)
 	case typeCertificate:
 		m = new(certificateMsg)
+	case typeCertificateStatus:
+		m = new(certificateStatusMsg)
 	case typeServerHelloDone:
 		m = new(serverHelloDoneMsg)
 	case typeClientKeyExchange:
@@ -625,11 +628,26 @@ func (c *Conn) Handshake() os.Error {
 	return c.serverHandshake()
 }
 
-// If c is a TLS server, ClientConnection returns the protocol
-// requested by the client during the TLS handshake.
-// Handshake must have been called already.
-func (c *Conn) ClientConnection() string {
+// ConnectionState returns basic TLS details about the connection.
+func (c *Conn) ConnectionState() ConnectionState {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
-	return c.clientProtocol
+
+	var state ConnectionState
+	state.HandshakeComplete = c.handshakeComplete
+	if c.handshakeComplete {
+		state.NegotiatedProtocol = c.clientProtocol
+		state.CipherSuite = c.cipherSuite
+	}
+
+	return state
+}
+
+// OCSPResponse returns the stapled OCSP response from the TLS server, if
+// any. (Only valid for client connections.)
+func (c *Conn) OCSPResponse() []byte {
+	c.handshakeMutex.Lock()
+	defer c.handshakeMutex.Unlock()
+
+	return c.ocspResponse
 }

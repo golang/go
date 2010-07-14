@@ -38,6 +38,7 @@ const (
 	typeClientHello       uint8 = 1
 	typeServerHello       uint8 = 2
 	typeCertificate       uint8 = 11
+	typeCertificateStatus uint8 = 22
 	typeServerHelloDone   uint8 = 14
 	typeClientKeyExchange uint8 = 16
 	typeFinished          uint8 = 20
@@ -45,25 +46,30 @@ const (
 )
 
 // TLS cipher suites.
-var (
+const (
 	TLS_RSA_WITH_RC4_128_SHA uint16 = 5
 )
 
 // TLS compression types.
-var (
+const (
 	compressionNone uint8 = 0
 )
 
 // TLS extension numbers
 var (
-	extensionServerName   uint16 = 0
-	extensionNextProtoNeg uint16 = 13172 // not IANA assigned
+	extensionServerName    uint16 = 0
+	extensionStatusRequest uint16 = 5
+	extensionNextProtoNeg  uint16 = 13172 // not IANA assigned
+)
+
+// TLS CertificateStatusType (RFC 3546)
+const (
+	statusTypeOCSP uint8 = 1
 )
 
 type ConnectionState struct {
 	HandshakeComplete  bool
-	CipherSuite        string
-	Error              alert
+	CipherSuite        uint16
 	NegotiatedProtocol string
 }
 
