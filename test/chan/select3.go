@@ -25,7 +25,7 @@ func testPanic(signal string, f func()) {
 	defer func() {
 		s := never
 		if recover() != nil {
-			s = always  // f panicked
+			s = always // f panicked
 		}
 		if s != signal {
 			panic(signal + " panic")
@@ -55,6 +55,8 @@ func testBlock(signal string, f func()) {
 func main() {
 	const async = 1 // asynchronous channels
 	var nilch chan int
+	closedch := make(chan int)
+	close(closedch)
 
 	// sending/receiving from a nil channel outside a select panics
 	testPanic(always, func() {
@@ -84,6 +86,24 @@ func main() {
 	testBlock(never, func() {
 		ch := make(chan int, async)
 		ch <- 7
+	})
+
+	// receiving (a small number of times) from a closed channel never blocks
+	testBlock(never, func() {
+		for i := 0; i < 10; i++ {
+			if <-closedch != 0 {
+				panic("expected zero value when reading from closed channel")
+			}
+		}
+	})
+
+	// sending (a small number of times) to a closed channel is not specified
+	// but the current implementation doesn't block: test that different
+	// implementations behave the same
+	testBlock(never, func() {
+		for i := 0; i < 10; i++ {
+			closedch <- 7
+		}
 	})
 
 	// receiving from a non-ready channel always blocks
@@ -171,6 +191,18 @@ func main() {
 		case <-ch:
 		default:
 			unreachable()
+		}
+	})
+
+	// selects with closed channels don't block
+	testBlock(never, func() {
+		select {
+		case <-closedch:
+		}
+	})
+	testBlock(never, func() {
+		select {
+		case closedch <- 7:
 		}
 	})
 }
