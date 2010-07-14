@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"exp/bignum"
+	"big"
 	"flag"
 	"fmt"
 	"log"
@@ -166,12 +166,12 @@ func toValue(val interface{}) Value {
 	case int:
 		r := intV(val)
 		return &r
-	case *bignum.Integer:
+	case *big.Int:
 		return &idealIntV{val}
 	case float:
 		r := floatV(val)
 		return &r
-	case *bignum.Rational:
+	case *big.Rat:
 		return &idealFloatV{val}
 	case string:
 		r := stringV(val)
@@ -235,7 +235,7 @@ func newTestWorld() *World {
 
 	def := func(name string, t Type, val interface{}) { w.DefineVar(name, t, toValue(val)) }
 
-	w.DefineConst("c", IdealIntType, toValue(bignum.Int(1)))
+	w.DefineConst("c", IdealIntType, toValue(big.NewInt(1)))
 	def("i", IntType, 1)
 	def("i2", IntType, 2)
 	def("u", UintType, uint(1))

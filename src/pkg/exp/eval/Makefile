@@ -16,7 +16,6 @@ GOFILES=\
 	stmt.go\
 	type.go\
 	typec.go\
-	util.go\
 	value.go\
 	world.go\
 
@@ -27,3 +26,12 @@ main.$O: main.go $(pkgdir)/$(TARG).a
 
 eval: main.$O
 	$(QUOTED_GOBIN)/$(LD) -o $@ $<
+
+gen.$O: gen.go
+	$(QUOTED_GOBIN)/$(GC) $<
+
+expr1.go: gen.$O
+	$(QUOTED_GOBIN)/$(LD) -o generate $<;\
+	./generate > expr1.go;\
+	gofmt -w expr1.go
+

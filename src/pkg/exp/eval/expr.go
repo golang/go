@@ -5,7 +5,7 @@
 package eval
 
 import (
-	"exp/bignum"
+	"big"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -13,6 +13,11 @@ import (
 	"strconv"
 	"strings"
 	"os"
+)
+
+var (
+	idealZero = big.NewInt(0)
+	idealOne  = big.NewInt(1)
 )
 
 // An expr is the result of compiling an expression.  It stores the
@@ -85,7 +90,7 @@ func (a *expr) convertTo(t Type) *expr {
 		log.Crashf("attempted to convert from %v, expected ideal", a.t)
 	}
 
-	var rat *bignum.Rational
+	var rat *big.Rat
 
 	// XXX(Spec)  The spec says "It is erroneous".
 	//
@@ -97,12 +102,12 @@ func (a *expr) convertTo(t Type) *expr {
 	case IdealFloatType:
 		rat = a.asIdealFloat()()
 		if t.isInteger() && !rat.IsInt() {
-			a.diag("constant %v truncated to integer", ratToString(rat))
+			a.diag("constant %v truncated to integer", rat.FloatString(6))
 			return nil
 		}
 	case IdealIntType:
 		i := a.asIdealInt()()
-		rat = bignum.MakeRat(i, bignum.Nat(1))
+		rat = new(big.Rat).SetInt(i)
 	default:
 		log.Crashf("unexpected ideal type %v", a.t)
 	}
@@ -110,11 +115,11 @@ func (a *expr) convertTo(t Type) *expr {
 	// Check bounds
 	if t, ok := t.lit().(BoundedType); ok {
 		if rat.Cmp(t.minVal()) < 0 {
-			a.diag("constant %v underflows %v", ratToString(rat), t)
+			a.diag("constant %v underflows %v", rat.FloatString(6), t)
 			return nil
 		}
 		if rat.Cmp(t.maxVal()) > 0 {
-			a.diag("constant %v overflows %v", ratToString(rat), t)
+			a.diag("constant %v overflows %v", rat.FloatString(6), t)
 			return nil
 		}
 	}
@@ -123,25 +128,26 @@ func (a *expr) convertTo(t Type) *expr {
 	res := a.newExpr(t, a.desc)
 	switch t := t.lit().(type) {
 	case *uintType:
-		n, d := rat.Value()
-		f := n.Quo(bignum.MakeInt(false, d))
-		v := f.Abs().Value()
+		n, d := rat.Num(), rat.Denom()
+		f := new(big.Int).Quo(n, d)
+		f = f.Abs(f)
+		v := uint64(f.Int64())
 		res.eval = func(*Thread) uint64 { return v }
 	case *intType:
-		n, d := rat.Value()
-		f := n.Quo(bignum.MakeInt(false, d))
-		v := f.Value()
+		n, d := rat.Num(), rat.Denom()
+		f := new(big.Int).Quo(n, d)
+		v := f.Int64()
 		res.eval = func(*Thread) int64 { return v }
 	case *idealIntType:
-		n, d := rat.Value()
-		f := n.Quo(bignum.MakeInt(false, d))
-		res.eval = func() *bignum.Integer { return f }
+		n, d := rat.Num(), rat.Denom()
+		f := new(big.Int).Quo(n, d)
+		res.eval = func() *big.Int { return f }
 	case *floatType:
-		n, d := rat.Value()
-		v := float64(n.Value()) / float64(d.Value())
+		n, d := rat.Num(), rat.Denom()
+		v := float64(n.Int64()) / float64(d.Int64())
 		res.eval = func(*Thread) float64 { return v }
 	case *idealFloatType:
-		res.eval = func() *bignum.Rational { return rat }
+		res.eval = func() *big.Rat { return rat }
 	default:
 		log.Crashf("cannot convert to type %T", t)
 	}
@@ -158,7 +164,7 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
 	switch a.t.lit().(type) {
 	case *idealIntType:
 		val := a.asIdealInt()()
-		if negErr != "" && val.IsNeg() {
+		if negErr != "" && val.Sign() < 0 {
 			a.diag("negative %s: %s", negErr, val)
 			return nil
 		}
@@ -166,7 +172,7 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
 		if negErr == "slice" {
 			bound++
 		}
-		if max != -1 && val.Cmp(bignum.Int(bound)) >= 0 {
+		if max != -1 && val.Cmp(big.NewInt(bound)) >= 0 {
 			a.diag("index %s exceeds length %d", val, max)
 			return nil
 		}
@@ -735,14 +741,14 @@ func (a *exprInfo) compileGlobalVariable(v *Variable) *expr {
 	return expr
 }
 
-func (a *exprInfo) compileIdealInt(i *bignum.Integer, desc string) *expr {
+func (a *exprInfo) compileIdealInt(i *big.Int, desc string) *expr {
 	expr := a.newExpr(IdealIntType, desc)
-	expr.eval = func() *bignum.Integer { return i }
+	expr.eval = func() *big.Int { return i }
 	return expr
 }
 
 func (a *exprInfo) compileIntLit(lit string) *expr {
-	i, _, _ := bignum.IntFromString(lit, 0)
+	i, _ := new(big.Int).SetString(lit, 0)
 	return a.compileIdealInt(i, "integer literal")
 }
 
@@ -758,16 +764,16 @@ func (a *exprInfo) compileCharLit(lit string) *expr {
 		a.silentErrors++
 		return nil
 	}
-	return a.compileIdealInt(bignum.Int(int64(v)), "character literal")
+	return a.compileIdealInt(big.NewInt(int64(v)), "character literal")
 }
 
 func (a *exprInfo) compileFloatLit(lit string) *expr {
-	f, _, n := bignum.RatFromString(lit, 10)
-	if n != len(lit) {
+	f, ok := new(big.Rat).SetString(lit)
+	if !ok {
 		log.Crashf("malformed float literal %s at %v passed parser", lit, a.pos)
 	}
 	expr := a.newExpr(IdealFloatType, "float literal")
-	expr.eval = func() *bignum.Rational { return f }
+	expr.eval = func() *big.Rat { return f }
 	return expr
 }
 
@@ -1774,8 +1780,8 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 	switch op {
 	case token.QUO, token.REM:
 		if r.t.isIdeal() {
-			if (r.t.isInteger() && r.asIdealInt()().IsZero()) ||
-				(r.t.isFloat() && r.asIdealFloat()().IsZero()) {
+			if (r.t.isInteger() && r.asIdealInt()().Sign() == 0) ||
+				(r.t.isFloat() && r.asIdealFloat()().Sign() == 0) {
 				a.diag("divide by zero")
 				return nil
 			}
@@ -1817,13 +1823,13 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 			lv := l.asIdealInt()()
 			rv := r.asIdealInt()()
 			const maxShift = 99999
-			if rv.Cmp(bignum.Int(maxShift)) > 0 {
+			if rv.Cmp(big.NewInt(maxShift)) > 0 {
 				a.diag("left shift by %v; exceeds implementation limit of %v", rv, maxShift)
 				expr.t = nil
 				return nil
 			}
-			val := lv.Shl(uint(rv.Value()))
-			expr.eval = func() *bignum.Integer { return val }
+			val := new(big.Int).Lsh(lv, uint(rv.Int64()))
+			expr.eval = func() *big.Int { return val }
 		} else {
 			expr.genBinOpShl(l, r)
 		}
@@ -1832,8 +1838,8 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 		if l.t.isIdeal() {
 			lv := l.asIdealInt()()
 			rv := r.asIdealInt()()
-			val := lv.Shr(uint(rv.Value()))
-			expr.eval = func() *bignum.Integer { return val }
+			val := new(big.Int).Rsh(lv, uint(rv.Int64()))
+			expr.eval = func() *big.Int { return val }
 		} else {
 			expr.genBinOpShr(l, r)
 		}
