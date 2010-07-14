@@ -30,8 +30,8 @@ eval: main.$O
 gen.$O: gen.go
 	$(QUOTED_GOBIN)/$(GC) $<
 
-expr1.go: gen.$O
-	$(QUOTED_GOBIN)/$(LD) -o generate $<;\
+generate: gen.$O $(pkgdir)/$(TARG).a
+	$(QUOTED_GOBIN)/$(LD) -o $@ $<;\
 	./generate > expr1.go;\
 	gofmt -w expr1.go
 
