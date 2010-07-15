@@ -351,8 +351,8 @@ void
 defercheckwidth(void)
 {
 	// we get out of sync on syntax errors, so don't be pedantic.
-	// if(defercalc)
-	//	fatal("defercheckwidth");
+	if(defercalc && nerrors == 0)
+		fatal("defercheckwidth");
 	defercalc = 1;
 }
 
