@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	. "os"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -56,7 +57,13 @@ func size(name string, t *testing.T) int64 {
 
 func newFile(testName string, t *testing.T) (f *File) {
 	// Use a local file system, not NFS.
-	f, err := ioutil.TempFile("", "_Go_"+testName)
+	// On Unix, override $TMPDIR in case the user
+	// has it set to an NFS-mounted directory.
+	dir := ""
+	if syscall.OS != "windows" {
+		dir = "/tmp"
+	}
+	f, err := ioutil.TempFile(dir, "_Go_"+testName)
 	if err != nil {
 		t.Fatalf("open %s: %s", testName, err)
 	}
