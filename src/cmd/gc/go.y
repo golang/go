@@ -515,10 +515,33 @@ switch_body:
 	}
 
 caseblock:
-	case stmt_list
+	case
 	{
+		// If the last token read by the lexer was consumed
+		// as part of the case, clear it (parser has cleared yychar).
+		// If the last token read by the lexer was the lookahead
+		// leave it alone (parser has it cached in yychar).
+		// This is so that the stmt_list action doesn't look at
+		// the case tokens if the stmt_list is empty.
+		yylast = yychar;
+	}
+	stmt_list
+	{
+		int last;
+
+		// This is the only place in the language where a statement
+		// list is not allowed to drop the final semicolon, because
+		// it's the only place where a statement list is not followed 
+		// by a closing brace.  Handle the error for pedantry.
+
+		// Find the final token of the statement list.
+		// yylast is lookahead; yyprev is last of stmt_list
+		last = yyprev;
+
+		if(last > 0 && last != ';' && yychar != '}')
+			yyerror("missing statement after label");
 		$$ = $1;
-		$$->nbody = $2;
+		$$->nbody = $3;
 	}
 
 caseblock_list:

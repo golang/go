@@ -14,6 +14,8 @@
 
 extern int yychar;
 int windows;
+int yyprev;
+int yylast;
 
 static void	lexinit(void);
 static void	lexfini(void);
@@ -1140,6 +1142,10 @@ yylex(void)
 		curio.nlsemi = 0;
 		break;
 	}
+
+	// Track last two tokens returned by yylex.
+	yyprev = yylast;
+	yylast = lx;
 	return lx;
 }
 
