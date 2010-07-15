@@ -690,7 +690,7 @@ reswitch:
 	 */
 	case OCALL:
 		l = n->left;
-		if(l->op == ONAME && (r = unsafenmagic(l, n->list)) != N) {
+		if(l->op == ONAME && (r = unsafenmagic(n)) != N) {
 			n = r;
 			goto reswitch;
 		}

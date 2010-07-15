@@ -267,6 +267,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		fmtprint(f, "struct literal");
 		break;
 
+	case OXDOT:
 	case ODOT:
 	case ODOTPTR:
 	case ODOTINTER:

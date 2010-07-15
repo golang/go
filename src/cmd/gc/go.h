@@ -1145,7 +1145,7 @@ void	typechecklist(NodeList *l, int top);
 /*
  *	unsafe.c
  */
-Node*	unsafenmagic(Node *fn, NodeList *args);
+Node*	unsafenmagic(Node *n);
 
 /*
  *	walk.c
