@@ -794,6 +794,8 @@ cgen_inline(Node *n, Node *res)
 		goto no;
 	if(!n->left->addable)
 		goto no;
+	if(n->left->sym == S)
+		goto no;
 	if(n->left->sym->pkg != runtimepkg)
 		goto no;
 	if(strcmp(n->left->sym->name, "slicearray") == 0)
