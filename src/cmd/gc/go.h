@@ -914,6 +914,8 @@ char*	lexname(int lex);
 void	mkpackage(char* pkgname);
 void	unimportfile(void);
 int32	yylex(void);
+extern	int	yylast;
+extern	int	yyprev;
 
 /*
  *	mparith1.c
