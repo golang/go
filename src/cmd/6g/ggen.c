@@ -90,13 +90,13 @@ compile(Node *fn)
 	if(pret)
 		patch(pret, pc);
 	ginit();
+	if(hasdefer)
+		ginscall(deferreturn, 0);
 	if(curfn->exit)
 		genlist(curfn->exit);
 	gclean();
 	if(nerrors != 0)
 		goto ret;
-	if(hasdefer)
-		ginscall(deferreturn, 0);
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
