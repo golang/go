@@ -63,7 +63,6 @@ DIRS=\
 	encoding/hex\
 	encoding/pem\
 	exec\
-	exp/bignum\
 	exp/datafmt\
 	exp/draw\
 	exp/draw/x11\
