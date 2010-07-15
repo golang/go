@@ -720,8 +720,8 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
-		ll = ascompatte(n->op, getinarg(t), n->list, 0, init);
-		lr = ascompatte(n->op, getthis(t), list1(n->left->left), 0, init);
+		ll = ascompatte(n->op, getthis(t), list1(n->left->left), 0, init);
+		lr = ascompatte(n->op, getinarg(t), n->list, 0, init);
 		ll = concat(ll, lr);
 		n->left->left = N;
 		ullmancalc(n->left);
@@ -1474,47 +1474,51 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
 /*
  * helpers for shape errors
  */
-static void
+static char*
 dumptypes(Type **nl, char *what)
 {
 	int first;
 	Type *l;
 	Iter savel;
+	Fmt fmt;
 
+	fmtstrinit(&fmt);
+	fmtprint(&fmt, "\t");
 	l = structfirst(&savel, nl);
-	print("\t");
 	first = 1;
 	for(l = structfirst(&savel, nl); l != T; l = structnext(&savel)) {
 		if(first)
 			first = 0;
 		else
-			print(", ");
-		print("%T", l);
+			fmtprint(&fmt, ", ");
+		fmtprint(&fmt, "%T", l);
 	}
 	if(first)
-		print("[no arguments %s]", what);
-	print("\n");
+		fmtprint(&fmt, "[no arguments %s]", what);
+	return fmtstrflush(&fmt);
 }
 
-static void
+static char*
 dumpnodetypes(NodeList *l, char *what)
 {
 	int first;
 	Node *r;
+	Fmt fmt;
 
-	print("\t");
+	fmtstrinit(&fmt);
+	fmtprint(&fmt, "\t");
 	first = 1;
 	for(; l; l=l->next) {
 		r = l->n;
 		if(first)
 			first = 0;
 		else
-			print(", ");
-		print("%T", r->type);
+			fmtprint(&fmt, ", ");
+		fmtprint(&fmt, "%T", r->type);
 	}
 	if(first)
-		print("[no arguments %s]", what);
-	print("\n");
+		fmtprint(&fmt, "[no arguments %s]", what);
+	return fmtstrflush(&fmt);
 }
 
 /*
@@ -1530,6 +1534,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
 	Node *r, *a;
 	NodeList *nn, *lr0, *alist;
 	Iter savel;
+	char *l1, *l2;
 
 	lr0 = lr;
 	l = structfirst(&savel, nl);
@@ -1594,12 +1599,12 @@ loop:
 
 	if(l == T || r == N) {
 		if(l != T || r != N) {
+			l1 = dumptypes(nl, "expected");
+			l2 = dumpnodetypes(lr0, "given");
 			if(l != T)
-				yyerror("not enough arguments to %O", op);
+				yyerror("not enough arguments to %O\n%s\n%s", op, l1, l2);
 			else
-				yyerror("too many arguments to %O", op);
-			dumptypes(nl, "expected");
-			dumpnodetypes(lr0, "given");
+				yyerror("too many arguments to %O\n%s\n%s", op, l1, l2);
 		}
 		goto ret;
 	}
