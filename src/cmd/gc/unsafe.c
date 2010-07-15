@@ -11,13 +11,18 @@
  * rewrite with a constant
  */
 Node*
-unsafenmagic(Node *fn, NodeList *args)
+unsafenmagic(Node *nn)
 {
 	Node *r, *n;
 	Sym *s;
 	Type *t, *tr;
 	long v;
 	Val val;
+	Node *fn;
+	NodeList *args;
+	
+	fn = nn->left;
+	args = nn->list;
 
 	if(safemode || fn == N || fn->op != ONAME || (s = fn->sym) == S)
 		goto no;
@@ -35,13 +40,14 @@ unsafenmagic(Node *fn, NodeList *args)
 		defaultlit(&r, T);
 		tr = r->type;
 		if(tr == T)
-			goto no;
+			goto bad;
 		v = tr->width;
 		goto yes;
 	}
 	if(strcmp(s->name, "Offsetof") == 0) {
+		typecheck(&r, Erv);
 		if(r->op != ODOT && r->op != ODOTPTR)
-			goto no;
+			goto bad;
 		typecheck(&r, Erv);
 		v = r->xoffset;
 		goto yes;
@@ -51,7 +57,7 @@ unsafenmagic(Node *fn, NodeList *args)
 		defaultlit(&r, T);
 		tr = r->type;
 		if(tr == T)
-			goto no;
+			goto bad;
 
 		// make struct { byte; T; }
 		t = typ(TSTRUCT);
@@ -70,9 +76,15 @@ unsafenmagic(Node *fn, NodeList *args)
 no:
 	return N;
 
+bad:
+	yyerror("invalid expression %#N", nn);
+	v = 0;
+	goto ret;
+	
 yes:
 	if(args->next != nil)
 		yyerror("extra arguments for %S", s);
+ret:
 	// any side effects disappear; ignore init
 	val.ctype = CTINT;
 	val.u.xval = mal(sizeof(*n->val.u.xval));
