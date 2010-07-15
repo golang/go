@@ -108,7 +108,7 @@ dir:
 #
 
 _cgo_defun.c _cgo_gotypes.go _cgo_export.c _cgo_export.h: $(CGOFILES)
-	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $(CGOFILES)
+	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo -- $(CGO_CFLAGS) $(CGOFILES)
 
 # Ugly but necessary
 %.cgo1.go: _cgo_defun.c _cgo_gotypes.go
