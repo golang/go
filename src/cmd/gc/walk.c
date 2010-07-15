@@ -281,6 +281,13 @@ walkdef(Node *n)
 		if(n->defn == N) {
 			if(n->etype != 0)	// like OPRINTN
 				break;
+			if(nerrors > 0) {
+				// Can have undefined variables in x := foo
+				// that make x have an n->ndefn == nil.
+				// If there are other errors anyway, don't
+				// bother adding to the noise.
+				break;
+			}
 			fatal("var without type, init: %S", n->sym);
 		}
 		if(n->defn->op == ONAME) {
