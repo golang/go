@@ -6,7 +6,9 @@ include ../../../src/Make.$(GOARCH)
 
 TARG=stdio
 CGOFILES=\
-	file.go
+	align.go\
+	file.go\
+	test.go\
 
 CLEANFILES+=hello fib chain run.out
 

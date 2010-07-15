@@ -22,7 +22,7 @@ func link(left chan<- int, right <-chan int) {
 	runtime.LockOSThread()
 	for {
 		v := <-right
-		stdio.Puts(strconv.Itoa(v))
+		stdio.Stdout.WriteString(strconv.Itoa(v) + "\n")
 		left <- 1+v
 	}
 }
@@ -38,6 +38,6 @@ func main() {
 	for i := 0; i < R; i++ {
 		right <- 0
 		x := <-leftmost
-		stdio.Puts(strconv.Itoa(x))
+		stdio.Stdout.WriteString(strconv.Itoa(x) + "\n")
 	}
 }

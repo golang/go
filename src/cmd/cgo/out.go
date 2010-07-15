@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -13,30 +14,9 @@ import (
 	"strings"
 )
 
-func creat(name string) *os.File {
-	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
-	if err != nil {
-		fatal("%s", err)
-	}
-	return f
-}
-
-func slashToUnderscore(c int) int {
-	if c == '/' {
-		c = '_'
-	}
-	return c
-}
-
 // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
-func (p *Prog) writeDefs() {
-	pkgroot := os.Getenv("GOROOT") + "/pkg/" + os.Getenv("GOOS") + "_" + os.Getenv("GOARCH")
-	path := p.PackagePath
-	if !strings.HasPrefix(path, "/") {
-		path = pkgroot + "/" + path
-	}
-
+func (p *Package) writeDefs() {
 	// The path for the shared object is slash-free so that ELF loaders
 	// will treat it as a relative path.  We rewrite slashes to underscores.
 	sopath := "cgo_" + strings.Map(slashToUnderscore, p.PackagePath)
@@ -53,108 +33,43 @@ func (p *Prog) writeDefs() {
 	// In a separate file so that the import of "unsafe" does not
 	// pollute the original file.
 	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n")
-	fmt.Fprintf(fgo2, "package %s\n\n", p.Package)
+	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
+	fmt.Fprintf(fgo2, "import \"os\"\n\n")
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
+	fmt.Fprintf(fgo2, "func _Cerrno(dst *os.Error, x int) { *dst = os.Errno(x) }\n")
 
 	for name, def := range p.Typedef {
 		fmt.Fprintf(fgo2, "type %s ", name)
 		printer.Fprint(fgo2, def)
 		fmt.Fprintf(fgo2, "\n")
 	}
-	fmt.Fprintf(fgo2, "type _C_void [0]byte\n")
+	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
 
 	fmt.Fprintf(fc, cProlog, soprefix, soprefix, soprefix, soprefix, soprefix)
 
-	for name, def := range p.Vardef {
-		fmt.Fprintf(fc, "#pragma dynimport ·_C_%s %s \"%s%s.so\"\n", name, name, soprefix, sopath)
-		fmt.Fprintf(fgo2, "var _C_%s ", name)
-		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
+	for _, n := range p.Name {
+		if n.Kind != "var" {
+			continue
+		}
+		fmt.Fprintf(fc, "#pragma dynimport ·%s %s \"%s%s.so\"\n", n.Mangle, n.C, soprefix, sopath)
+		fmt.Fprintf(fgo2, "var %s ", n.Mangle)
+		printer.Fprint(fgo2, &ast.StarExpr{X: n.Type.Go})
 		fmt.Fprintf(fgo2, "\n")
 	}
 	fmt.Fprintf(fc, "\n")
 
-	for name, value := range p.Constdef {
-		fmt.Fprintf(fgo2, "const %s = %s\n", name, value)
-	}
-
-	for name, value := range p.Enumdef {
-		fmt.Fprintf(fgo2, "const %s = %d\n", name, value)
+	for _, n := range p.Name {
+		if n.Const != "" {
+			fmt.Fprintf(fgo2, "const _Cconst_%s = %s\n", n.Go, n.Const)
+		}
 	}
 	fmt.Fprintf(fgo2, "\n")
 
-	for name, def := range p.Funcdef {
-		// Go func declaration.
-		d := &ast.FuncDecl{
-			Name: ast.NewIdent("_C_" + name),
-			Type: def.Go,
+	for _, n := range p.Name {
+		if n.FuncType != nil {
+			p.writeDefsFunc(fc, fgo2, n, soprefix, sopath)
 		}
-		printer.Fprint(fgo2, d)
-		fmt.Fprintf(fgo2, "\n")
-
-		if name == "CString" || name == "GoString" {
-			// The builtins are already defined in the C prolog.
-			continue
-		}
-
-		// Construct a gcc struct matching the 6c argument frame.
-		// Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
-		// These assumptions are checked by the gccProlog.
-		// Also assumes that 6c convention is to word-align the
-		// input and output parameters.
-		structType := "struct {\n"
-		off := int64(0)
-		npad := 0
-		for i, t := range def.Params {
-			if off%t.Align != 0 {
-				pad := t.Align - off%t.Align
-				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
-				off += pad
-				npad++
-			}
-			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
-			off += t.Size
-		}
-		if off%p.PtrSize != 0 {
-			pad := p.PtrSize - off%p.PtrSize
-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
-			off += pad
-			npad++
-		}
-		if t := def.Result; t != nil {
-			if off%t.Align != 0 {
-				pad := t.Align - off%t.Align
-				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
-				off += pad
-				npad++
-			}
-			structType += fmt.Sprintf("\t\t%s r;\n", t.C)
-			off += t.Size
-		}
-		if off%p.PtrSize != 0 {
-			pad := p.PtrSize - off%p.PtrSize
-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
-			off += pad
-			npad++
-		}
-		if len(def.Params) == 0 && def.Result == nil {
-			structType += "\t\tchar unused;\n" // avoid empty struct
-			off++
-		}
-		structType += "\t}"
-		argSize := off
-
-		// C wrapper calls into gcc, passing a pointer to the argument frame.
-		// Also emit #pragma to get a pointer to the gcc wrapper.
-		fmt.Fprintf(fc, "#pragma dynimport _cgo_%s _cgo_%s \"%s%s.so\"\n", name, name, soprefix, sopath)
-		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
-		fmt.Fprintf(fc, "\n")
-		fmt.Fprintf(fc, "void\n")
-		fmt.Fprintf(fc, "·_C_%s(struct{uint8 x[%d];}p)\n", name, argSize)
-		fmt.Fprintf(fc, "{\n")
-		fmt.Fprintf(fc, "\tcgocall(_cgo_%s, &p);\n", name)
-		fmt.Fprintf(fc, "}\n")
-		fmt.Fprintf(fc, "\n")
 	}
 
 	p.writeExports(fgo2, fc)
@@ -163,111 +78,200 @@ func (p *Prog) writeDefs() {
 	fc.Close()
 }
 
+// Construct a gcc struct matching the 6c argument frame.
+// Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
+// These assumptions are checked by the gccProlog.
+// Also assumes that 6c convention is to word-align the
+// input and output parameters.
+func (p *Package) structType(n *Name) (string, int64) {
+	var buf bytes.Buffer
+	fmt.Fprint(&buf, "struct {\n")
+	off := int64(0)
+	for i, t := range n.FuncType.Params {
+		if off%t.Align != 0 {
+			pad := t.Align - off%t.Align
+			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
+			off += pad
+		}
+		fmt.Fprintf(&buf, "\t\t%s p%d;\n", t.C, i)
+		off += t.Size
+	}
+	if off%p.PtrSize != 0 {
+		pad := p.PtrSize - off%p.PtrSize
+		fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
+		off += pad
+	}
+	if t := n.FuncType.Result; t != nil {
+		if off%t.Align != 0 {
+			pad := t.Align - off%t.Align
+			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
+			off += pad
+		}
+		fmt.Fprintf(&buf, "\t\t%s r;\n", t.C)
+		off += t.Size
+	}
+	if off%p.PtrSize != 0 {
+		pad := p.PtrSize - off%p.PtrSize
+		fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
+		off += pad
+	}
+	if n.AddError {
+		fmt.Fprint(&buf, "\t\tvoid *e[2]; /* os.Error */\n")
+		off += 2 * p.PtrSize
+	}
+	if off == 0 {
+		fmt.Fprintf(&buf, "\t\tchar unused;\n") // avoid empty struct
+		off++
+	}
+	fmt.Fprintf(&buf, "\t}\n")
+	return buf.String(), off
+}
+
+func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath string) {
+	name := n.Go
+	gtype := n.FuncType.Go
+	if n.AddError {
+		// Add "os.Error" to return type list.
+		// Type list is known to be 0 or 1 element - it's a C function.
+		err := &ast.Field{Type: ast.NewIdent("os.Error")}
+		l := gtype.Results.List
+		if len(l) == 0 {
+			l = []*ast.Field{err}
+		} else {
+			l = []*ast.Field{l[0], err}
+		}
+		t := new(ast.FuncType)
+		*t = *gtype
+		t.Results = &ast.FieldList{List: l}
+		gtype = t
+	}
+
+	// Go func declaration.
+	d := &ast.FuncDecl{
+		Name: ast.NewIdent(n.Mangle),
+		Type: gtype,
+	}
+	printer.Fprint(fgo2, d)
+	fmt.Fprintf(fgo2, "\n")
+
+	if name == "CString" || name == "GoString" {
+		// The builtins are already defined in the C prolog.
+		return
+	}
+
+	var argSize int64
+	_, argSize = p.structType(n)
+
+	// C wrapper calls into gcc, passing a pointer to the argument frame.
+	// Also emit #pragma to get a pointer to the gcc wrapper.
+	fmt.Fprintf(fc, "#pragma dynimport _cgo%s _cgo%s \"%s%s.so\"\n", n.Mangle, n.Mangle, soprefix, sopath)
+	fmt.Fprintf(fc, "void (*_cgo%s)(void*);\n", n.Mangle)
+	fmt.Fprintf(fc, "\n")
+	fmt.Fprintf(fc, "void\n")
+	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
+	fmt.Fprintf(fc, "{\n")
+	fmt.Fprintf(fc, "\tcgocall(_cgo%s, &p);\n", n.Mangle)
+	if n.AddError {
+		// gcc leaves errno in first word of interface at end of p.
+		// check whether it is zero; if so, turn interface into nil.
+		// if not, turn interface into errno.
+		// Go init function initializes ·_Cerrno with an os.Errno
+		// for us to copy.
+		fmt.Fprintln(fc, `	{
+			int32 e;
+			void **v;
+			v = (void**)(&p+1) - 2;	/* v = final two void* of p */
+			e = *(int32*)v;
+			v[0] = (void*)0xdeadbeef;
+			v[1] = (void*)0xdeadbeef;
+			if(e == 0) {
+				/* nil interface */
+				v[0] = 0;
+				v[1] = 0;
+			} else {
+				·_Cerrno(v, e);	/* fill in v as os.Error for errno e */
+			}
+		}`)
+	}
+	fmt.Fprintf(fc, "}\n")
+	fmt.Fprintf(fc, "\n")
+}
+
 // writeOutput creates stubs for a specific source file to be compiled by 6g
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
-func (p *Prog) writeOutput(srcfile string) {
+func (p *Package) writeOutput(f *File, srcfile string) {
 	base := srcfile
 	if strings.HasSuffix(base, ".go") {
 		base = base[0 : len(base)-3]
 	}
+	base = strings.Map(slashToUnderscore, base)
 	fgo1 := creat(base + ".cgo1.go")
 	fgcc := creat(base + ".cgo2.c")
 
 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
 	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
-	printer.Fprint(fgo1, p.AST)
+	printer.Fprint(fgo1, f.AST)
 
 	// While we process the vars and funcs, also write 6c and gcc output.
 	// Gcc output starts with the preamble.
-	fmt.Fprintf(fgcc, "%s\n", p.Preamble)
+	fmt.Fprintf(fgcc, "%s\n", f.Preamble)
 	fmt.Fprintf(fgcc, "%s\n", gccProlog)
 
-	for name, def := range p.Funcdef {
-		_, ok := p.OutDefs[name]
-		if name == "CString" || name == "GoString" || ok {
-			// The builtins are already defined in the C prolog, and we don't
-			// want to duplicate function definitions we've already done.
-			continue
+	for _, n := range f.Name {
+		if n.FuncType != nil {
+			p.writeOutputFunc(fgcc, n)
 		}
-		p.OutDefs[name] = true
-
-		// Construct a gcc struct matching the 6c argument frame.
-		// Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
-		// These assumptions are checked by the gccProlog.
-		// Also assumes that 6c convention is to word-align the
-		// input and output parameters.
-		structType := "struct {\n"
-		off := int64(0)
-		npad := 0
-		for i, t := range def.Params {
-			if off%t.Align != 0 {
-				pad := t.Align - off%t.Align
-				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
-				off += pad
-				npad++
-			}
-			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
-			off += t.Size
-		}
-		if off%p.PtrSize != 0 {
-			pad := p.PtrSize - off%p.PtrSize
-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
-			off += pad
-			npad++
-		}
-		if t := def.Result; t != nil {
-			if off%t.Align != 0 {
-				pad := t.Align - off%t.Align
-				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
-				off += pad
-				npad++
-			}
-			structType += fmt.Sprintf("\t\t%s r;\n", t.C)
-			off += t.Size
-		}
-		if off%p.PtrSize != 0 {
-			pad := p.PtrSize - off%p.PtrSize
-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
-			off += pad
-			npad++
-		}
-		if len(def.Params) == 0 && def.Result == nil {
-			structType += "\t\tchar unused;\n" // avoid empty struct
-			off++
-		}
-		structType += "\t}"
-
-		// Gcc wrapper unpacks the C argument struct
-		// and calls the actual C function.
-		fmt.Fprintf(fgcc, "void\n")
-		fmt.Fprintf(fgcc, "_cgo_%s(void *v)\n", name)
-		fmt.Fprintf(fgcc, "{\n")
-		fmt.Fprintf(fgcc, "\t%s *a = v;\n", structType)
-		fmt.Fprintf(fgcc, "\t")
-		if def.Result != nil {
-			fmt.Fprintf(fgcc, "a->r = ")
-		}
-		fmt.Fprintf(fgcc, "%s(", name)
-		for i := range def.Params {
-			if i > 0 {
-				fmt.Fprintf(fgcc, ", ")
-			}
-			fmt.Fprintf(fgcc, "a->p%d", i)
-		}
-		fmt.Fprintf(fgcc, ");\n")
-		fmt.Fprintf(fgcc, "}\n")
-		fmt.Fprintf(fgcc, "\n")
 	}
 
 	fgo1.Close()
 	fgcc.Close()
 }
 
+func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+	name := n.Mangle
+	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || p.Written[name] {
+		// The builtins are already defined in the C prolog, and we don't
+		// want to duplicate function definitions we've already done.
+		return
+	}
+	p.Written[name] = true
+
+	ctype, _ := p.structType(n)
+
+	// Gcc wrapper unpacks the C argument struct
+	// and calls the actual C function.
+	fmt.Fprintf(fgcc, "void\n")
+	fmt.Fprintf(fgcc, "_cgo%s(void *v)\n", n.Mangle)
+	fmt.Fprintf(fgcc, "{\n")
+	if n.AddError {
+		fmt.Fprintf(fgcc, "\tint e;\n") // assuming 32 bit (see comment above structType)
+		fmt.Fprintf(fgcc, "\terrno = 0;\n")
+	}
+	fmt.Fprintf(fgcc, "\t%s *a = v;\n", ctype)
+	fmt.Fprintf(fgcc, "\t")
+	if n.FuncType.Result != nil {
+		fmt.Fprintf(fgcc, "a->r = ")
+	}
+	fmt.Fprintf(fgcc, "%s(", n.C)
+	for i := range n.FuncType.Params {
+		if i > 0 {
+			fmt.Fprintf(fgcc, ", ")
+		}
+		fmt.Fprintf(fgcc, "a->p%d", i)
+	}
+	fmt.Fprintf(fgcc, ");\n")
+	if n.AddError {
+		fmt.Fprintf(fgcc, "\t*(int*)(a->e) = errno;\n")
+	}
+	fmt.Fprintf(fgcc, "}\n")
+	fmt.Fprintf(fgcc, "\n")
+}
+
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
-func (p *Prog) writeExports(fgo2, fc *os.File) {
-	if len(p.ExpFuncs) == 0 {
+func (p *Package) writeExports(fgo2, fc *os.File) {
+	if len(p.ExpFunc) == 0 {
 		return
 	}
 
@@ -280,17 +284,17 @@ func (p *Prog) writeExports(fgo2, fc *os.File) {
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
 
-	for _, exp := range p.ExpFuncs {
+	for _, exp := range p.ExpFunc {
 		fn := exp.Func
 
 		// Construct a gcc struct matching the 6c argument and
 		// result frame.
-		structType := "struct {\n"
+		ctype := "struct {\n"
 		off := int64(0)
 		npad := 0
 		if fn.Recv != nil {
 			t := p.cgoType(fn.Recv.List[0].Type)
-			structType += fmt.Sprintf("\t\t%s recv;\n", t.C)
+			ctype += fmt.Sprintf("\t\t%s recv;\n", t.C)
 			off += t.Size
 		}
 		fntype := fn.Type
@@ -299,16 +303,16 @@ func (p *Prog) writeExports(fgo2, fc *os.File) {
 				t := p.cgoType(atype)
 				if off%t.Align != 0 {
 					pad := t.Align - off%t.Align
-					structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+					ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
 					off += pad
 					npad++
 				}
-				structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
+				ctype += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
 				off += t.Size
 			})
 		if off%p.PtrSize != 0 {
 			pad := p.PtrSize - off%p.PtrSize
-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+			ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
 			off += pad
 			npad++
 		}
@@ -317,24 +321,24 @@ func (p *Prog) writeExports(fgo2, fc *os.File) {
 				t := p.cgoType(atype)
 				if off%t.Align != 0 {
 					pad := t.Align - off%t.Align
-					structType += fmt.Sprintf("\t\tchar __pad%d[%d]\n", npad, pad)
+					ctype += fmt.Sprintf("\t\tchar __pad%d[%d]\n", npad, pad)
 					off += pad
 					npad++
 				}
-				structType += fmt.Sprintf("\t\t%s r%d;\n", t.C, i)
+				ctype += fmt.Sprintf("\t\t%s r%d;\n", t.C, i)
 				off += t.Size
 			})
 		if off%p.PtrSize != 0 {
 			pad := p.PtrSize - off%p.PtrSize
-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+			ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
 			off += pad
 			npad++
 		}
-		if structType == "struct {\n" {
-			structType += "\t\tchar unused;\n" // avoid empty struct
+		if ctype == "struct {\n" {
+			ctype += "\t\tchar unused;\n" // avoid empty struct
 			off++
 		}
-		structType += "\t}"
+		ctype += "\t}"
 
 		// Get the return type of the wrapper function
 		// compiled by gcc.
@@ -373,7 +377,7 @@ func (p *Prog) writeExports(fgo2, fc *os.File) {
 		fmt.Fprintf(fgcc, "extern _cgoexp_%s(void *, int);\n", exp.ExpName)
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
-		fmt.Fprintf(fgcc, "\t%s a;\n", structType)
+		fmt.Fprintf(fgcc, "\t%s a;\n", ctype)
 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
 		}
@@ -493,7 +497,7 @@ var goTypes = map[string]*Type{
 }
 
 // Map an ast type to a Type.
-func (p *Prog) cgoType(e ast.Expr) *Type {
+func (p *Package) cgoType(e ast.Expr) *Type {
 	switch t := e.(type) {
 	case *ast.StarExpr:
 		x := p.cgoType(t.X)
@@ -515,7 +519,7 @@ func (p *Prog) cgoType(e ast.Expr) *Type {
 	case *ast.Ident:
 		// Look up the type in the top level declarations.
 		// TODO: Handle types defined within a function.
-		for _, d := range p.AST.Decls {
+		for _, d := range p.Decl {
 			gd, ok := d.(*ast.GenDecl)
 			if !ok || gd.Tok != token.TYPE {
 				continue
@@ -568,6 +572,9 @@ typedef long long __cgo_long_long;
 __cgo_size_assert(__cgo_long_long, 8)
 __cgo_size_assert(float, 4)
 __cgo_size_assert(double, 8)
+
+#include <errno.h>
+#include <string.h>
 `
 
 const builtinProlog = `
@@ -586,15 +593,17 @@ const cProlog = `
 #pragma dynimport _cgo_malloc _cgo_malloc "%slibcgo.so"
 #pragma dynimport _cgo_free _cgo_free "%slibcgo.so"
 
+void ·_Cerrno(void*, int32);
+
 void
-·_C_GoString(int8 *p, String s)
+·_Cfunc_GoString(int8 *p, String s)
 {
 	s = gostring((byte*)p);
 	FLUSH(&s);
 }
 
 void
-·_C_CString(String s, int8 *p)
+·_Cfunc_CString(String s, int8 *p)
 {
 	p = cmalloc(s.len+1);
 	mcpy((byte*)p, s.str, s.len);

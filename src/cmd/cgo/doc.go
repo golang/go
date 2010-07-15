@@ -23,6 +23,19 @@ the package.  For example:
 	// #include <errno.h>
 	import "C"
 
+C identifiers or field names that are keywords in Go can be
+accessed by prefixing them with an underscore: if x points at
+a C struct with a field named "type", x._type accesses the field.
+
+To access a struct, union, or enum type directly, prefix it with
+struct_, union_, or enum_, as in C.struct_stat.
+
+Any C function that returns a value may be called in a multiple
+assignment context to retrieve both the return value and the
+C errno variable as an os.Error.  For example:
+
+	n, err := C.atoi("abc")
+
 Cgo transforms the input file into four output files: two Go source
 files, a C file for 6c (or 8c or 5c), and a C file for gcc.
 
