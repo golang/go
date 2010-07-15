@@ -5,6 +5,43 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-07-14">2010-07-14</h3>
+
+<pre>
+This release includes a package change. In container/vector, the Iter method
+has been removed from the Vector, IntVector, and StringVector types. Also, the
+Data method has been renamed to Copy to better express its actual behavior.
+Now that Vector is just a slice, any for loops ranging over v.Iter() or
+v.Data() can be changed to range over v instead.
+
+Other changes:
+* big: Improvements to Rat.SetString (thanks Evan Shaw),
+        add sign, abs, Rat.IsInt.
+* cgo: various bug fixes.
+* codereview: Fix for Mercurial >= 1.6 (thanks Evan Shaw).
+* crypto/rand: add Windows implementation (thanks Peter Mundy).
+* crypto/tls: make HTTPS servers easier,
+        add client OCSP stapling support.
+* exp/eval: converted from bignum to big (thanks Evan Shaw).
+* gc: implement new len spec, range bug fix, optimization.
+* go/parser: require that '...' parameters are followed by a type.
+* http: fix ParseURL to handle //relative_path properly.
+* io: fix SectionReader Seek to seek backwards (thanks Peter Mundy).
+* json: Add HTMLEscape (thanks Micah Stetson).
+* ld: bug fixes.
+* math: amd64 version of log (thanks Charles L. Dorian).
+* mime/multipart: new package to parse multipart MIME messages
+        and HTTP multipart/form-data support.
+* os: use TempFile with default TempDir for test files (thanks Peter Mundy).
+* runtime/tiny: add docs for additional VMs, fix build (thanks Markus Duft).
+* runtime: better error for send/recv on nil channel.
+* spec: clarification of channel close(),
+        lock down some details about channels and select,
+        restrict when len(x) is constant,
+        specify len/cap for nil slices, maps, and channels.
+* windows: append .exe to binary names (thanks Joe Poirier).
+</pre>
+
 <h3 id="2010-07-01">2010-07-01</h3>
 
 <pre>
