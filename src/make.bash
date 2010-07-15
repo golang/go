@@ -12,6 +12,7 @@ unset CDPATH	# in case user has it set
 
 rm -f "$GOBIN"/quietgcc
 CC=${CC:-gcc}
+export CC
 sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
 chmod +x "$GOBIN"/quietgcc
 

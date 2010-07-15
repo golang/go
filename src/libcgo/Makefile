@@ -26,13 +26,13 @@ LDFLAGS_freebsd=-pthread -shared -lm
 LDFLAGS_windows=-shared -lm -mthreads
 
 %.o: %.c
-	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
+	$(CC) $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
 
 %.o: %.S
-	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.S
+	$(CC) $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.S
 
 libcgo.so: $(OFILES)
-	gcc $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
+	$(CC) $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
 
 $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
 	cp libcgo.so $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
