@@ -11,6 +11,10 @@ QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
 
 include $(QUOTED_GOROOT)/src/Make.common
 
+ifeq ($(GOOS),windows) 
+TARG:=$(TARG).exe 
+endif
+
 PREREQ+=$(patsubst %,%.make,$(DEPS))
 
 $(TARG): _go_.$O $(OFILES)
