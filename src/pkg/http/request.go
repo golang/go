@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime"
+	"mime/multipart"
 	"os"
 	"strconv"
 	"strings"
@@ -40,6 +42,8 @@ var (
 	ErrNotSupported         = &ProtocolError{"feature not supported"}
 	ErrUnexpectedTrailer    = &ProtocolError{"trailer header without chunked transfer encoding"}
 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
+	ErrNotMultipart         = &ProtocolError{"request Content-Type isn't multipart/form-data"}
+	ErrMissingBoundary      = &ProtocolError{"no multipart boundary param Content-Type"}
 )
 
 type badStringError struct {
@@ -137,6 +141,24 @@ type Request struct {
 func (r *Request) ProtoAtLeast(major, minor int) bool {
 	return r.ProtoMajor > major ||
 		r.ProtoMajor == major && r.ProtoMinor >= minor
+}
+
+// MultipartReader returns a MIME multipart reader if this is a
+// multipart/form-data POST request, else returns nil and an error.
+func (r *Request) MultipartReader() (multipart.Reader, os.Error) {
+	v, ok := r.Header["Content-Type"]
+	if !ok {
+		return nil, ErrNotMultipart
+	}
+	d, params := mime.ParseMediaType(v)
+	if d != "multipart/form-data" {
+		return nil, ErrNotMultipart
+	}
+	boundary, ok := params["boundary"]
+	if !ok {
+		return nil, ErrMissingBoundary
+	}
+	return multipart.NewReader(r.Body, boundary), nil
 }
 
 // Return value if nonempty, def otherwise.

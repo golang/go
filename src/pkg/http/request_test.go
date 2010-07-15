@@ -101,6 +101,24 @@ func TestPostContentTypeParsing(t *testing.T) {
 	}
 }
 
+func TestMultipartReader(t *testing.T) {
+	req := &Request{
+		Method: "POST",
+		Header: stringMap{"Content-Type": `multipart/form-data; boundary="foo123"`},
+		Body:   nopCloser{new(bytes.Buffer)},
+	}
+	multipart, err := req.MultipartReader()
+	if multipart == nil {
+		t.Errorf("expected multipart; error: %v", err)
+	}
+
+	req.Header = stringMap{"Content-Type": "text/plain"}
+	multipart, err = req.MultipartReader()
+	if multipart != nil {
+		t.Errorf("unexpected multipart for text/plain")
+	}
+}
+
 func TestRedirect(t *testing.T) {
 	const (
 		start = "http://codesearch.google.com/"
