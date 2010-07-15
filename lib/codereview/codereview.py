@@ -592,7 +592,11 @@ def getremote(ui, repo, opts):
 	# delete it in an attempt to "help"
 	proxy = os.environ.get('http_proxy')
 	source = hg.parseurl(ui.expandpath("default"), None)[0]
-	other = hg.repository(cmdutil.remoteui(repo, opts), source)
+	try:
+		remoteui = hg.remoteui # hg 1.6
+        except:
+		remoteui = cmdutil.remoteui
+	other = hg.repository(remoteui(repo, opts), source)
 	if proxy is not None:
 		os.environ['http_proxy'] = proxy
 	return other
@@ -2856,7 +2860,7 @@ class MercurialVCS(VersionControlSystem):
       if not err:
         self.base_rev = mqparent
       else:
-        self.base_rev = RunShell(["hg", "parent", "-q"]).split(':')[1].strip()
+        self.base_rev = RunShell(["hg", "parents", "-q"]).split(':')[1].strip()
   def _GetRelPath(self, filename):
     """Get relative path of a file according to the current directory,
     given its logical path in the repo."""
