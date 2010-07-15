@@ -12,16 +12,6 @@ import (
 	"os"
 )
 
-// A ByteReaderAt implements io.ReadAt using a slice of bytes.
-type ByteReaderAt []byte
-
-func (r ByteReaderAt) ReadAt(p []byte, off int64) (n int, err os.Error) {
-	if off >= int64(len(r)) || off < 0 {
-		return 0, os.EOF
-	}
-	return copy(p, r[off:]), nil
-}
-
 // run runs the command argv, feeding in stdin on standard input.
 // It returns the output to standard output and standard error.
 // ok indicates whether the command exited successfully.
@@ -91,4 +81,39 @@ func error(pos token.Position, msg string, args ...interface{}) {
 	}
 	fmt.Fprintf(os.Stderr, msg, args)
 	fmt.Fprintf(os.Stderr, "\n")
+}
+
+// isName returns true if s is a valid C identifier
+func isName(s string) bool {
+	for i, v := range s {
+		if v != '_' && (v < 'A' || v > 'Z') && (v < 'a' || v > 'z') && (v < '0' || v > '9') {
+			return false
+		}
+		if i == 0 && '0' <= v && v <= '9' {
+			return false
+		}
+	}
+	return s != ""
+}
+
+func creat(name string) *os.File {
+	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+	if err != nil {
+		fatal("%s", err)
+	}
+	return f
+}
+
+func slashToUnderscore(c int) int {
+	if c == '/' {
+		c = '_'
+	}
+	return c
+}
+
+func concat(a, b []string) []string {
+	c := make([]string, len(a)+len(b))
+	copy(c, a)
+	copy(c[len(a):], b)
+	return c
 }

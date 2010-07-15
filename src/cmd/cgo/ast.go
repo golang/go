@@ -16,59 +16,8 @@ import (
 	"strings"
 )
 
-// A Cref refers to an expression of the form C.xxx in the AST.
-type Cref struct {
-	Name     string
-	Expr     *ast.Expr
-	Context  string // "type", "expr", "const", or "call"
-	TypeName bool   // whether xxx is a C type name
-	Type     *Type  // the type of xxx
-	FuncType *FuncType
-}
-
-// A ExpFunc is an exported function, callable from C.
-type ExpFunc struct {
-	Func    *ast.FuncDecl
-	ExpName string // name to use from C
-}
-
-// A Prog collects information about a cgo program.
-type Prog struct {
-	AST         *ast.File // parsed AST
-	Preamble    string    // C preamble (doc comment on import "C")
-	PackagePath string
-	Package     string
-	Crefs       []*Cref
-	Typedef     map[string]ast.Expr
-	Vardef      map[string]*Type
-	Funcdef     map[string]*FuncType
-	Enumdef     map[string]int64
-	Constdef    map[string]string
-	ExpFuncs    []*ExpFunc
-	PtrSize     int64
-	GccOptions  []string
-	OutDefs     map[string]bool
-}
-
-// A Type collects information about a type in both the C and Go worlds.
-type Type struct {
-	Size       int64
-	Align      int64
-	C          string
-	Go         ast.Expr
-	EnumValues map[string]int64
-}
-
-// A FuncType collects information about a function type in both the C and Go worlds.
-type FuncType struct {
-	Params []*Type
-	Result *Type
-	Go     *ast.FuncType
-}
-
-func openProg(name string, p *Prog) {
-	var err os.Error
-	p.AST, err = parser.ParseFile(name, nil, nil, parser.ParseComments)
+func parse(name string, flags uint) *ast.File {
+	ast1, err := parser.ParseFile(name, nil, nil, flags)
 	if err != nil {
 		if list, ok := err.(scanner.ErrorList); ok {
 			// If err is a scanner.ErrorList, its String will print just
@@ -82,16 +31,60 @@ func openProg(name string, p *Prog) {
 		}
 		fatal("parsing %s: %s", name, err)
 	}
-	p.Package = p.AST.Name.Name()
+	return ast1
+}
 
-	// Find the import "C" line and get any extra C preamble.
-	// Delete the import "C" line along the way.
+// ReadGo populates f with information learned from reading the
+// Go source file with the given file name.  It gathers the C preamble
+// attached to the import "C" comment, a list of references to C.xxx,
+// a list of exported functions, and the actual AST, to be rewritten and
+// printed.
+func (f *File) ReadGo(name string) {
+	// Two different parses: once with comments, once without.
+	// The printer is not good enough at printing comments in the
+	// right place when we start editing the AST behind its back,
+	// so we use ast1 to look for the doc comments on import "C"
+	// and on exported functions, and we use ast2 for translating
+	// and reprinting.
+	ast1 := parse(name, parser.ParseComments)
+	ast2 := parse(name, 0)
+
+	f.Package = ast1.Name.Name()
+	f.Name = make(map[string]*Name)
+
+	// In ast1, find the import "C" line and get any extra C preamble.
 	sawC := false
-	w := 0
-	for _, decl := range p.AST.Decls {
+	for _, decl := range ast1.Decls {
 		d, ok := decl.(*ast.GenDecl)
 		if !ok {
-			p.AST.Decls[w] = decl
+			continue
+		}
+		for _, spec := range d.Specs {
+			s, ok := spec.(*ast.ImportSpec)
+			if !ok || string(s.Path.Value) != `"C"` {
+				continue
+			}
+			sawC = true
+			if s.Name != nil {
+				error(s.Path.Pos(), `cannot rename import "C"`)
+			}
+			if s.Doc != nil {
+				f.Preamble += doc.CommentText(s.Doc) + "\n"
+			} else if len(d.Specs) == 1 && d.Doc != nil {
+				f.Preamble += doc.CommentText(d.Doc) + "\n"
+			}
+		}
+	}
+	if !sawC {
+		error(noPos, `cannot find import "C"`)
+	}
+
+	// In ast2, strip the import "C" line.
+	w := 0
+	for _, decl := range ast2.Decls {
+		d, ok := decl.(*ast.GenDecl)
+		if !ok {
+			ast2.Decls[w] = decl
 			w++
 			continue
 		}
@@ -101,247 +94,85 @@ func openProg(name string, p *Prog) {
 			if !ok || string(s.Path.Value) != `"C"` {
 				d.Specs[ws] = spec
 				ws++
-				continue
-			}
-			sawC = true
-			if s.Name != nil {
-				error(s.Path.Pos(), `cannot rename import "C"`)
-			}
-			if s.Doc != nil {
-				p.Preamble += doc.CommentText(s.Doc) + "\n"
-			} else if len(d.Specs) == 1 && d.Doc != nil {
-				p.Preamble += doc.CommentText(d.Doc) + "\n"
 			}
 		}
 		if ws == 0 {
 			continue
 		}
 		d.Specs = d.Specs[0:ws]
-		p.AST.Decls[w] = d
+		ast2.Decls[w] = d
 		w++
 	}
-	p.AST.Decls = p.AST.Decls[0:w]
-
-	if !sawC {
-		error(noPos, `cannot find import "C"`)
-	}
+	ast2.Decls = ast2.Decls[0:w]
 
 	// Accumulate pointers to uses of C.x.
-	if p.Crefs == nil {
-		p.Crefs = make([]*Cref, 0, 8)
+	if f.Ref == nil {
+		f.Ref = make([]*Ref, 0, 8)
 	}
-	walk(p.AST, p, "prog")
+	f.walk(ast2, "prog", (*File).saveRef)
+
+	// Accumulate exported functions.
+	// The comments are only on ast1 but we need to
+	// save the function bodies from ast2.
+	// The first walk fills in ExpFunc, and the
+	// second walk changes the entries to
+	// refer to ast2 instead.
+	f.walk(ast1, "prog", (*File).saveExport)
+	f.walk(ast2, "prog", (*File).saveExport2)
+
+	f.AST = ast2
 }
 
-func walk(x interface{}, p *Prog, context string) {
-	switch n := x.(type) {
-	case *ast.Expr:
-		if sel, ok := (*n).(*ast.SelectorExpr); ok {
-			// For now, assume that the only instance of capital C is
-			// when used as the imported package identifier.
-			// The parser should take care of scoping in the future,
-			// so that we will be able to distinguish a "top-level C"
-			// from a local C.
-			if l, ok := sel.X.(*ast.Ident); ok && l.Name() == "C" {
-				i := len(p.Crefs)
-				if i >= cap(p.Crefs) {
-					new := make([]*Cref, 2*i)
-					for j, v := range p.Crefs {
-						new[j] = v
-					}
-					p.Crefs = new
+// Save references to C.xxx for later processing.
+func (f *File) saveRef(x interface{}, context string) {
+	n, ok := x.(*ast.Expr)
+	if !ok {
+		return
+	}
+	if sel, ok := (*n).(*ast.SelectorExpr); ok {
+		// For now, assume that the only instance of capital C is
+		// when used as the imported package identifier.
+		// The parser should take care of scoping in the future,
+		// so that we will be able to distinguish a "top-level C"
+		// from a local C.
+		if l, ok := sel.X.(*ast.Ident); ok && l.Name() == "C" {
+			i := len(f.Ref)
+			if i >= cap(f.Ref) {
+				new := make([]*Ref, 2*i)
+				for j, v := range f.Ref {
+					new[j] = v
 				}
-				p.Crefs = p.Crefs[0 : i+1]
-				p.Crefs[i] = &Cref{
-					Name:    sel.Sel.Name(),
-					Expr:    n,
-					Context: context,
-				}
-				break
+				f.Ref = new
 			}
-		}
-		walk(*n, p, context)
-
-	// everything else just recurs
-	default:
-		error(noPos, "unexpected type %T in walk", x)
-		panic("unexpected type")
-
-	case nil:
-
-	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
-	case *ast.Field:
-		walk(&n.Type, p, "type")
-	case *ast.FieldList:
-		for _, f := range n.List {
-			walk(f, p, context)
-		}
-	case *ast.BadExpr:
-	case *ast.Ident:
-	case *ast.Ellipsis:
-	case *ast.BasicLit:
-	case *ast.FuncLit:
-		walk(n.Type, p, "type")
-		walk(n.Body, p, "stmt")
-	case *ast.CompositeLit:
-		walk(&n.Type, p, "type")
-		walk(n.Elts, p, "expr")
-	case *ast.ParenExpr:
-		walk(&n.X, p, context)
-	case *ast.SelectorExpr:
-		walk(&n.X, p, "selector")
-	case *ast.IndexExpr:
-		walk(&n.X, p, "expr")
-		walk(&n.Index, p, "expr")
-	case *ast.SliceExpr:
-		walk(&n.X, p, "expr")
-		walk(&n.Index, p, "expr")
-		if n.End != nil {
-			walk(&n.End, p, "expr")
-		}
-	case *ast.TypeAssertExpr:
-		walk(&n.X, p, "expr")
-		walk(&n.Type, p, "type")
-	case *ast.CallExpr:
-		walk(&n.Fun, p, "call")
-		walk(n.Args, p, "expr")
-	case *ast.StarExpr:
-		walk(&n.X, p, context)
-	case *ast.UnaryExpr:
-		walk(&n.X, p, "expr")
-	case *ast.BinaryExpr:
-		walk(&n.X, p, "expr")
-		walk(&n.Y, p, "expr")
-	case *ast.KeyValueExpr:
-		walk(&n.Key, p, "expr")
-		walk(&n.Value, p, "expr")
-
-	case *ast.ArrayType:
-		walk(&n.Len, p, "expr")
-		walk(&n.Elt, p, "type")
-	case *ast.StructType:
-		walk(n.Fields, p, "field")
-	case *ast.FuncType:
-		walk(n.Params, p, "field")
-		if n.Results != nil {
-			walk(n.Results, p, "field")
-		}
-	case *ast.InterfaceType:
-		walk(n.Methods, p, "field")
-	case *ast.MapType:
-		walk(&n.Key, p, "type")
-		walk(&n.Value, p, "type")
-	case *ast.ChanType:
-		walk(&n.Value, p, "type")
-
-	case *ast.BadStmt:
-	case *ast.DeclStmt:
-		walk(n.Decl, p, "decl")
-	case *ast.EmptyStmt:
-	case *ast.LabeledStmt:
-		walk(n.Stmt, p, "stmt")
-	case *ast.ExprStmt:
-		walk(&n.X, p, "expr")
-	case *ast.IncDecStmt:
-		walk(&n.X, p, "expr")
-	case *ast.AssignStmt:
-		walk(n.Lhs, p, "expr")
-		walk(n.Rhs, p, "expr")
-	case *ast.GoStmt:
-		walk(n.Call, p, "expr")
-	case *ast.DeferStmt:
-		walk(n.Call, p, "expr")
-	case *ast.ReturnStmt:
-		walk(n.Results, p, "expr")
-	case *ast.BranchStmt:
-	case *ast.BlockStmt:
-		walk(n.List, p, "stmt")
-	case *ast.IfStmt:
-		walk(n.Init, p, "stmt")
-		walk(&n.Cond, p, "expr")
-		walk(n.Body, p, "stmt")
-		walk(n.Else, p, "stmt")
-	case *ast.CaseClause:
-		walk(n.Values, p, "expr")
-		walk(n.Body, p, "stmt")
-	case *ast.SwitchStmt:
-		walk(n.Init, p, "stmt")
-		walk(&n.Tag, p, "expr")
-		walk(n.Body, p, "stmt")
-	case *ast.TypeCaseClause:
-		walk(n.Types, p, "type")
-		walk(n.Body, p, "stmt")
-	case *ast.TypeSwitchStmt:
-		walk(n.Init, p, "stmt")
-		walk(n.Assign, p, "stmt")
-		walk(n.Body, p, "stmt")
-	case *ast.CommClause:
-		walk(n.Lhs, p, "expr")
-		walk(n.Rhs, p, "expr")
-		walk(n.Body, p, "stmt")
-	case *ast.SelectStmt:
-		walk(n.Body, p, "stmt")
-	case *ast.ForStmt:
-		walk(n.Init, p, "stmt")
-		walk(&n.Cond, p, "expr")
-		walk(n.Post, p, "stmt")
-		walk(n.Body, p, "stmt")
-	case *ast.RangeStmt:
-		walk(&n.Key, p, "expr")
-		walk(&n.Value, p, "expr")
-		walk(&n.X, p, "expr")
-		walk(n.Body, p, "stmt")
-
-	case *ast.ImportSpec:
-	case *ast.ValueSpec:
-		walk(&n.Type, p, "type")
-		walk(n.Values, p, "expr")
-	case *ast.TypeSpec:
-		walk(&n.Type, p, "type")
-
-	case *ast.BadDecl:
-	case *ast.GenDecl:
-		walk(n.Specs, p, "spec")
-	case *ast.FuncDecl:
-		if n.Recv != nil {
-			walk(n.Recv, p, "field")
-		}
-		walk(n.Type, p, "type")
-		if n.Body != nil {
-			walk(n.Body, p, "stmt")
-		}
-
-		checkExpFunc(n, p)
-
-	case *ast.File:
-		walk(n.Decls, p, "decl")
-
-	case *ast.Package:
-		for _, f := range n.Files {
-			walk(f, p, "file")
-		}
-
-	case []ast.Decl:
-		for _, d := range n {
-			walk(d, p, context)
-		}
-	case []ast.Expr:
-		for i := range n {
-			walk(&n[i], p, context)
-		}
-	case []ast.Stmt:
-		for _, s := range n {
-			walk(s, p, context)
-		}
-	case []ast.Spec:
-		for _, s := range n {
-			walk(s, p, context)
+			if context == "as2" {
+				context = "expr"
+			}
+			goname := sel.Sel.Name()
+			name := f.Name[goname]
+			if name == nil {
+				name = &Name{
+					Go: goname,
+				}
+				f.Name[goname] = name
+			}
+			f.Ref = f.Ref[0 : i+1]
+			f.Ref[i] = &Ref{
+				Name:    name,
+				Expr:    n,
+				Context: context,
+			}
+			return
 		}
 	}
 }
 
-// If a function should be exported add it to ExpFuncs.
-func checkExpFunc(n *ast.FuncDecl, p *Prog) {
+// If a function should be exported add it to ExpFunc.
+func (f *File) saveExport(x interface{}, context string) {
+	n, ok := x.(*ast.FuncDecl)
+	if !ok {
+		return
+	}
+
 	if n.Doc == nil {
 		return
 	}
@@ -355,22 +186,226 @@ func checkExpFunc(n *ast.FuncDecl, p *Prog) {
 			error(c.Position, "export missing name")
 		}
 
-		if p.ExpFuncs == nil {
-			p.ExpFuncs = make([]*ExpFunc, 0, 8)
+		if f.ExpFunc == nil {
+			f.ExpFunc = make([]*ExpFunc, 0, 8)
 		}
-		i := len(p.ExpFuncs)
-		if i >= cap(p.ExpFuncs) {
-			new := make([]*ExpFunc, 2*i)
-			for j, v := range p.ExpFuncs {
-				new[j] = v
-			}
-			p.ExpFuncs = new
+		i := len(f.ExpFunc)
+		if i >= cap(f.ExpFunc) {
+			new := make([]*ExpFunc, i, 2*i)
+			copy(new, f.ExpFunc)
+			f.ExpFunc = new
 		}
-		p.ExpFuncs = p.ExpFuncs[0 : i+1]
-		p.ExpFuncs[i] = &ExpFunc{
+		f.ExpFunc = f.ExpFunc[0 : i+1]
+		f.ExpFunc[i] = &ExpFunc{
 			Func:    n,
 			ExpName: name,
 		}
 		break
+	}
+}
+
+// Make f.ExpFunc[i] point at the Func from this AST instead of the other one.
+func (f *File) saveExport2(x interface{}, context string) {
+	n, ok := x.(*ast.FuncDecl)
+	if !ok {
+		return
+	}
+
+	for _, exp := range f.ExpFunc {
+		if exp.Func.Name.Name() == n.Name.Name() {
+			exp.Func = n
+			break
+		}
+	}
+}
+
+// walk walks the AST x, calling visit(f, x, context) for each node.
+func (f *File) walk(x interface{}, context string, visit func(*File, interface{}, string)) {
+	visit(f, x, context)
+	switch n := x.(type) {
+	case *ast.Expr:
+		f.walk(*n, context, visit)
+
+	// everything else just recurs
+	default:
+		error(noPos, "unexpected type %T in walk", x, visit)
+		panic("unexpected type")
+
+	case nil:
+
+	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
+	case *ast.Field:
+		f.walk(&n.Type, "type", visit)
+	case *ast.FieldList:
+		for _, field := range n.List {
+			f.walk(field, context, visit)
+		}
+	case *ast.BadExpr:
+	case *ast.Ident:
+	case *ast.Ellipsis:
+	case *ast.BasicLit:
+	case *ast.FuncLit:
+		f.walk(n.Type, "type", visit)
+		f.walk(n.Body, "stmt", visit)
+	case *ast.CompositeLit:
+		f.walk(&n.Type, "type", visit)
+		f.walk(n.Elts, "expr", visit)
+	case *ast.ParenExpr:
+		f.walk(&n.X, context, visit)
+	case *ast.SelectorExpr:
+		f.walk(&n.X, "selector", visit)
+	case *ast.IndexExpr:
+		f.walk(&n.X, "expr", visit)
+		f.walk(&n.Index, "expr", visit)
+	case *ast.SliceExpr:
+		f.walk(&n.X, "expr", visit)
+		f.walk(&n.Index, "expr", visit)
+		if n.End != nil {
+			f.walk(&n.End, "expr", visit)
+		}
+	case *ast.TypeAssertExpr:
+		f.walk(&n.X, "expr", visit)
+		f.walk(&n.Type, "type", visit)
+	case *ast.CallExpr:
+		if context == "as2" {
+			f.walk(&n.Fun, "call2", visit)
+		} else {
+			f.walk(&n.Fun, "call", visit)
+		}
+		f.walk(n.Args, "expr", visit)
+	case *ast.StarExpr:
+		f.walk(&n.X, context, visit)
+	case *ast.UnaryExpr:
+		f.walk(&n.X, "expr", visit)
+	case *ast.BinaryExpr:
+		f.walk(&n.X, "expr", visit)
+		f.walk(&n.Y, "expr", visit)
+	case *ast.KeyValueExpr:
+		f.walk(&n.Key, "expr", visit)
+		f.walk(&n.Value, "expr", visit)
+
+	case *ast.ArrayType:
+		f.walk(&n.Len, "expr", visit)
+		f.walk(&n.Elt, "type", visit)
+	case *ast.StructType:
+		f.walk(n.Fields, "field", visit)
+	case *ast.FuncType:
+		f.walk(n.Params, "field", visit)
+		if n.Results != nil {
+			f.walk(n.Results, "field", visit)
+		}
+	case *ast.InterfaceType:
+		f.walk(n.Methods, "field", visit)
+	case *ast.MapType:
+		f.walk(&n.Key, "type", visit)
+		f.walk(&n.Value, "type", visit)
+	case *ast.ChanType:
+		f.walk(&n.Value, "type", visit)
+
+	case *ast.BadStmt:
+	case *ast.DeclStmt:
+		f.walk(n.Decl, "decl", visit)
+	case *ast.EmptyStmt:
+	case *ast.LabeledStmt:
+		f.walk(n.Stmt, "stmt", visit)
+	case *ast.ExprStmt:
+		f.walk(&n.X, "expr", visit)
+	case *ast.IncDecStmt:
+		f.walk(&n.X, "expr", visit)
+	case *ast.AssignStmt:
+		f.walk(n.Lhs, "expr", visit)
+		if len(n.Lhs) == 2 {
+			f.walk(n.Rhs, "as2", visit)
+		} else {
+			f.walk(n.Rhs, "expr", visit)
+		}
+	case *ast.GoStmt:
+		f.walk(n.Call, "expr", visit)
+	case *ast.DeferStmt:
+		f.walk(n.Call, "expr", visit)
+	case *ast.ReturnStmt:
+		f.walk(n.Results, "expr", visit)
+	case *ast.BranchStmt:
+	case *ast.BlockStmt:
+		f.walk(n.List, "stmt", visit)
+	case *ast.IfStmt:
+		f.walk(n.Init, "stmt", visit)
+		f.walk(&n.Cond, "expr", visit)
+		f.walk(n.Body, "stmt", visit)
+		f.walk(n.Else, "stmt", visit)
+	case *ast.CaseClause:
+		f.walk(n.Values, "expr", visit)
+		f.walk(n.Body, "stmt", visit)
+	case *ast.SwitchStmt:
+		f.walk(n.Init, "stmt", visit)
+		f.walk(&n.Tag, "expr", visit)
+		f.walk(n.Body, "stmt", visit)
+	case *ast.TypeCaseClause:
+		f.walk(n.Types, "type", visit)
+		f.walk(n.Body, "stmt", visit)
+	case *ast.TypeSwitchStmt:
+		f.walk(n.Init, "stmt", visit)
+		f.walk(n.Assign, "stmt", visit)
+		f.walk(n.Body, "stmt", visit)
+	case *ast.CommClause:
+		f.walk(n.Lhs, "expr", visit)
+		f.walk(n.Rhs, "expr", visit)
+		f.walk(n.Body, "stmt", visit)
+	case *ast.SelectStmt:
+		f.walk(n.Body, "stmt", visit)
+	case *ast.ForStmt:
+		f.walk(n.Init, "stmt", visit)
+		f.walk(&n.Cond, "expr", visit)
+		f.walk(n.Post, "stmt", visit)
+		f.walk(n.Body, "stmt", visit)
+	case *ast.RangeStmt:
+		f.walk(&n.Key, "expr", visit)
+		f.walk(&n.Value, "expr", visit)
+		f.walk(&n.X, "expr", visit)
+		f.walk(n.Body, "stmt", visit)
+
+	case *ast.ImportSpec:
+	case *ast.ValueSpec:
+		f.walk(&n.Type, "type", visit)
+		f.walk(n.Values, "expr", visit)
+	case *ast.TypeSpec:
+		f.walk(&n.Type, "type", visit)
+
+	case *ast.BadDecl:
+	case *ast.GenDecl:
+		f.walk(n.Specs, "spec", visit)
+	case *ast.FuncDecl:
+		if n.Recv != nil {
+			f.walk(n.Recv, "field", visit)
+		}
+		f.walk(n.Type, "type", visit)
+		if n.Body != nil {
+			f.walk(n.Body, "stmt", visit)
+		}
+
+	case *ast.File:
+		f.walk(n.Decls, "decl", visit)
+
+	case *ast.Package:
+		for _, file := range n.Files {
+			f.walk(file, "file", visit)
+		}
+
+	case []ast.Decl:
+		for _, d := range n {
+			f.walk(d, context, visit)
+		}
+	case []ast.Expr:
+		for i := range n {
+			f.walk(&n[i], context, visit)
+		}
+	case []ast.Stmt:
+		for _, s := range n {
+			f.walk(s, context, visit)
+		}
+	case []ast.Spec:
+		for _, s := range n {
+			f.walk(s, context, visit)
+		}
 	}
 }

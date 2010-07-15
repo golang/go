@@ -26,7 +26,7 @@ func fibber(c, out chan int64, i int64) {
 	}
 	for {
 		j := <-c
-		stdio.Puts(strconv.Itoa64(j))
+		stdio.Stdout.WriteString(strconv.Itoa64(j) + "\n")
 		out <- j
 		<-out
 		i += j

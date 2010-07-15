@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Annotate Crefs in Prog with C types by parsing gcc debug output.
+// Annotate Ref in Prog with C types by parsing gcc debug output.
 // Conversion of debug output to Go types.
 
 package main
@@ -12,6 +12,7 @@ import (
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -21,12 +22,64 @@ import (
 	"strings"
 )
 
-func (p *Prog) loadDebugInfo() {
-	var b bytes.Buffer
+var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
+var debugGcc = flag.Bool("debug-gcc", false, "print gcc invocations")
 
-	b.WriteString(p.Preamble)
-	stdout := p.gccPostProc(b.Bytes())
-	defines := make(map[string]string)
+var nameToC = map[string]string{
+	"schar":     "signed char",
+	"uchar":     "unsigned char",
+	"ushort":    "unsigned short",
+	"uint":      "unsigned int",
+	"ulong":     "unsigned long",
+	"longlong":  "long long",
+	"ulonglong": "unsigned long long",
+}
+
+// cname returns the C name to use for C.s.
+// The expansions are listed in nameToC and also
+// struct_foo becomes "struct foo", and similarly for
+// union and enum.
+func cname(s string) string {
+	if t, ok := nameToC[s]; ok {
+		return t
+	}
+
+	if strings.HasPrefix(s, "struct_") {
+		return "struct " + s[len("struct_"):]
+	}
+	if strings.HasPrefix(s, "union_") {
+		return "union " + s[len("union_"):]
+	}
+	if strings.HasPrefix(s, "enum_") {
+		return "enum " + s[len("enum_"):]
+	}
+	return s
+}
+
+// Translate rewrites f.AST, the original Go input, to remove
+// references to the imported package C, replacing them with
+// references to the equivalent Go types, functions, and variables.
+func (p *Package) Translate(f *File) {
+	for _, cref := range f.Ref {
+		// Convert C.ulong to C.unsigned long, etc.
+		cref.Name.C = cname(cref.Name.Go)
+	}
+	p.loadDefines(f)
+	needType := p.guessKinds(f)
+	if len(needType) > 0 {
+		p.loadDWARF(f, needType)
+	}
+	p.rewriteRef(f)
+}
+
+// loadDefines coerces gcc into spitting out the #defines in use
+// in the file f and saves relevant renamings in f.Name[name].Define.
+func (p *Package) loadDefines(f *File) {
+	var b bytes.Buffer
+	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
+	stdout := p.gccDefines(b.Bytes())
+
 	for _, line := range strings.Split(stdout, "\n", -1) {
 		if len(line) < 9 || line[0:7] != "#define" {
 			continue
@@ -48,68 +101,107 @@ func (p *Prog) loadDebugInfo() {
 			val = strings.TrimSpace(line[tabIndex:])
 		}
 
-		// Only allow string, character, and numeric constants. Ignoring #defines for
-		// symbols allows those symbols to be referenced in Go, as they will be
-		// translated by gcc later.
-		_, err := strconv.Atoi(string(val[0]))
-		if err == nil || val[0] == '\'' || val[0] == '"' {
-			defines[key] = val
-		}
-	}
-
-	// Construct a slice of unique names from p.Crefs.
-	m := make(map[string]int)
-	for _, c := range p.Crefs {
-		// If we've already found this name as a define, it is not a Cref.
-		if val, ok := defines[c.Name]; ok {
-			_, err := parser.ParseExpr("", val, nil)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "The value in C.%s does not parse as a Go expression; cannot use.\n", c.Name)
-				os.Exit(2)
+		if n := f.Name[key]; n != nil {
+			if *debugDefine {
+				fmt.Fprintf(os.Stderr, "#define %s %s\n", key, val)
 			}
-
-			c.Context = "const"
-			c.TypeName = false
-			p.Constdef[c.Name] = val
-			continue
+			n.Define = val
 		}
-		m[c.Name] = -1
 	}
-	names := make([]string, 0, len(m))
-	for name, _ := range m {
-		i := len(names)
-		names = names[0 : i+1]
-		names[i] = name
-		m[name] = i
-	}
+}
 
+// guessKinds tricks gcc into revealing the kind of each
+// name xxx for the references C.xxx in the Go input.
+// The kind is either a constant, type, or variable.
+func (p *Package) guessKinds(f *File) []*Name {
 	// Coerce gcc into telling us whether each name is
 	// a type, a value, or undeclared.  We compile a function
 	// containing the line:
 	//	name;
 	// If name is a type, gcc will print:
-	//	x.c:2: warning: useless type name in empty declaration
+	//	cgo-test:2: warning: useless type name in empty declaration
 	// If name is a value, gcc will print
-	//	x.c:2: warning: statement with no effect
+	//	cgo-test:2: warning: statement with no effect
 	// If name is undeclared, gcc will print
-	//	x.c:2: error: 'name' undeclared (first use in this function)
+	//	cgo-test:2: error: 'name' undeclared (first use in this function)
 	// A line number directive causes the line number to
 	// correspond to the index in the names array.
-	b.Reset()
-	b.WriteString(p.Preamble)
+	//
+	// The line also has an enum declaration:
+	//	name; enum { _cgo_enum_1 = name };
+	// If name is not a constant, gcc will print:
+	//	cgo-test:4: error: enumerator value for '_cgo_enum_4' is not an integer constant
+	// we assume lines without that error are constants.
+
+	// Make list of names that need sniffing, type lookup.
+	toSniff := make([]*Name, 0, len(f.Name))
+	needType := make([]*Name, 0, len(f.Name))
+
+	for _, n := range f.Name {
+		// If we've already found this name as a #define
+		// and we can translate it as a constant value, do so.
+		if n.Define != "" {
+			ok := false
+			if _, err := strconv.Atoi(n.Define); err == nil {
+				ok = true
+			} else if n.Define[0] == '"' || n.Define[0] == '\'' {
+				_, err := parser.ParseExpr("", n.Define, nil)
+				if err == nil {
+					ok = true
+				}
+			}
+			if ok {
+				n.Kind = "const"
+				n.Const = n.Define
+				continue
+			}
+
+			if isName(n.Define) {
+				n.C = n.Define
+			}
+		}
+
+		// If this is a struct, union, or enum type name,
+		// record the kind but also that we need type information.
+		if strings.HasPrefix(n.C, "struct ") || strings.HasPrefix(n.C, "union ") || strings.HasPrefix(n.C, "enum ") {
+			n.Kind = "type"
+			i := len(needType)
+			needType = needType[0 : i+1]
+			needType[i] = n
+			continue
+		}
+
+		i := len(toSniff)
+		toSniff = toSniff[0 : i+1]
+		toSniff[i] = n
+	}
+
+	if len(toSniff) == 0 {
+		return needType
+	}
+
+	var b bytes.Buffer
+	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
 	b.WriteString("void f(void) {\n")
 	b.WriteString("#line 0 \"cgo-test\"\n")
-	for _, n := range names {
-		b.WriteString(n)
-		b.WriteString(";\n")
+	for i, n := range toSniff {
+		fmt.Fprintf(&b, "%s; enum { _cgo_enum_%d = %s }; /* cgo-test:%d */\n", n.C, i, n.C, i)
 	}
 	b.WriteString("}\n")
-
-	kind := make(map[string]string)
-	_, stderr := p.gccDebug(b.Bytes())
+	stderr := p.gccErrors(b.Bytes())
 	if stderr == "" {
-		fatal("gcc produced no output")
+		fatal("gcc produced no output\non input:\n%s", b.Bytes())
 	}
+
+	names := make([]*Name, len(toSniff))
+	copy(names, toSniff)
+
+	isConst := make([]bool, len(toSniff))
+	for i := range isConst {
+		isConst[i] = true // until proven otherwise
+	}
+
 	for _, line := range strings.Split(stderr, "\n", -1) {
 		if len(line) < 9 || line[0:9] != "cgo-test:" {
 			continue
@@ -129,26 +221,50 @@ func (p *Prog) loadDebugInfo() {
 			continue
 		case strings.Index(line, ": useless type name in empty declaration") >= 0:
 			what = "type"
+			isConst[i] = false
 		case strings.Index(line, ": statement with no effect") >= 0:
-			what = "value"
+			what = "not-type" // const or func or var
 		case strings.Index(line, "undeclared") >= 0:
-			what = "error"
+			error(noPos, "%s", strings.TrimSpace(line[colon+1:]))
+		case strings.Index(line, "is not an integer constant") >= 0:
+			isConst[i] = false
+			continue
 		}
-		if old, ok := kind[names[i]]; ok && old != what {
-			error(noPos, "inconsistent gcc output about C.%s", names[i])
+		n := toSniff[i]
+		if n == nil {
+			continue
 		}
-		kind[names[i]] = what
-	}
-	for _, n := range names {
-		if _, ok := kind[n]; !ok {
-			error(noPos, "could not determine kind of name for C.%s", n)
-		}
-	}
+		toSniff[i] = nil
+		n.Kind = what
 
+		j := len(needType)
+		needType = needType[0 : j+1]
+		needType[j] = n
+	}
+	for i, b := range isConst {
+		if b {
+			names[i].Kind = "const"
+		}
+	}
+	for _, n := range toSniff {
+		if n == nil {
+			continue
+		}
+		if n.Kind != "" {
+			continue
+		}
+		error(noPos, "could not determine kind of name for C.%s", n.Go)
+	}
 	if nerrors > 0 {
-		fatal("failed to interpret gcc output:\n%s", stderr)
+		fatal("unresolved names")
 	}
+	return needType
+}
 
+// loadDWARF parses the DWARF debug information generated
+// by gcc to learn the details of the constants, variables, and types
+// being referred to as C.xxx.
+func (p *Package) loadDWARF(f *File, names []*Name) {
 	// Extract the types from the DWARF section of an object
 	// from a well-formed C program.  Gcc only generates DWARF info
 	// for symbols in the object file, so it is not enough to print the
@@ -157,19 +273,24 @@ func (p *Prog) loadDebugInfo() {
 	//	typeof(names[i]) *__cgo__i;
 	// for each entry in names and then dereference the type we
 	// learn for __cgo__i.
-	b.Reset()
-	b.WriteString(p.Preamble)
+	var b bytes.Buffer
+	b.WriteString(builtinProlog)
+	b.WriteString(f.Preamble)
 	for i, n := range names {
-		fmt.Fprintf(&b, "typeof(%s) *__cgo__%d;\n", n, i)
+		fmt.Fprintf(&b, "typeof(%s) *__cgo__%d;\n", n.C, i)
+		if n.Kind == "const" {
+			fmt.Fprintf(&b, "enum { __cgo_enum__%d = %s };\n", i, n.C)
+		}
 	}
-	d, stderr := p.gccDebug(b.Bytes())
-	if d == nil {
-		fatal("gcc failed:\n%s\non input:\n%s", stderr, b.Bytes())
-	}
+	d := p.gccDebug(b.Bytes())
 
 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
 	types := make([]dwarf.Type, len(names))
 	enums := make([]dwarf.Offset, len(names))
+	nameToIndex := make(map[*Name]int)
+	for i, n := range names {
+		nameToIndex[n] = i
+	}
 	r := d.Reader()
 	for {
 		e, err := r.Next()
@@ -192,9 +313,11 @@ func (p *Prog) loadDebugInfo() {
 				}
 				if e.Tag == dwarf.TagEnumerator {
 					entryName := e.Val(dwarf.AttrName).(string)
-					i, ok := m[entryName]
-					if ok {
-						enums[i] = offset
+					if strings.HasPrefix(entryName, "__cgo_enum__") {
+						n, _ := strconv.Atoi(entryName[len("__cgo_enum__"):])
+						if 0 <= n && n < len(names) {
+							enums[n] = offset
+						}
 					}
 				}
 			}
@@ -234,97 +357,205 @@ func (p *Prog) loadDebugInfo() {
 		}
 	}
 
-	// Record types and typedef information in Crefs.
+	// Record types and typedef information.
 	var conv typeConv
 	conv.Init(p.PtrSize)
-	for _, c := range p.Crefs {
-		i, ok := m[c.Name]
-		if !ok {
-			if _, ok := p.Constdef[c.Name]; !ok {
-				fatal("Cref %s is no longer around", c.Name)
-			}
-			continue
-		}
-		c.TypeName = kind[c.Name] == "type"
+	for i, n := range names {
 		f, fok := types[i].(*dwarf.FuncType)
-		if c.Context == "call" && !c.TypeName && fok {
-			c.FuncType = conv.FuncType(f)
+		if n.Kind != "type" && fok {
+			n.Kind = "func"
+			n.FuncType = conv.FuncType(f)
 		} else {
-			c.Type = conv.Type(types[i])
+			n.Type = conv.Type(types[i])
+			if enums[i] != 0 && n.Type.EnumValues != nil {
+				n.Kind = "const"
+				n.Const = strconv.Itoa64(n.Type.EnumValues[fmt.Sprintf("__cgo_enum__%d", i)])
+			}
 		}
 	}
-	p.Typedef = conv.typedef
+	f.Typedef = conv.typedef
 }
 
-func concat(a, b []string) []string {
-	c := make([]string, len(a)+len(b))
-	for i, s := range a {
-		c[i] = s
+// rewriteRef rewrites all the C.xxx references in f.AST to refer to the
+// Go equivalents, now that we have figured out the meaning of all
+// the xxx.
+func (p *Package) rewriteRef(f *File) {
+	// Assign mangled names.
+	for _, n := range f.Name {
+		if n.Kind == "not-type" {
+			n.Kind = "var"
+		}
+		if n.Mangle == "" {
+			n.Mangle = "_C" + n.Kind + "_" + n.Go
+		}
 	}
-	for i, s := range b {
-		c[i+len(a)] = s
+
+	// Now that we have all the name types filled in,
+	// scan through the Refs to identify the ones that
+	// are trying to do a ,err call.  Also check that
+	// functions are only used in calls.
+	for _, r := range f.Ref {
+		var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
+		switch r.Context {
+		case "call", "call2":
+			if r.Name.Kind != "func" {
+				if r.Name.Kind == "type" {
+					r.Context = "type"
+					expr = r.Name.Type.Go
+					break
+				}
+				error(r.Pos(), "call of non-function C.%s", r.Name.Go)
+				break
+			}
+			if r.Context == "call2" {
+				if r.Name.FuncType.Result == nil {
+					error(r.Pos(), "assignment count mismatch: 2 = 0")
+				}
+				// Invent new Name for the two-result function.
+				n := f.Name["2"+r.Name.Go]
+				if n == nil {
+					n = new(Name)
+					*n = *r.Name
+					n.AddError = true
+					n.Mangle = "_C2func_" + n.Go
+					f.Name["2"+r.Name.Go] = n
+					expr = ast.NewIdent(n.Mangle)
+				}
+				r.Name = n
+				break
+			}
+		case "expr":
+			if r.Name.Kind == "func" {
+				error(r.Pos(), "must call C.%s", r.Name.Go)
+			}
+			if r.Name.Kind == "type" {
+				// Okay - might be new(T)
+				expr = r.Name.Type.Go
+			}
+			if r.Name.Kind == "var" {
+				expr = &ast.StarExpr{X: expr}
+			}
+
+		case "type":
+			if r.Name.Kind != "type" {
+				error(r.Pos(), "expression C.%s used as type", r.Name.Go)
+			}
+			expr = r.Name.Type.Go
+		default:
+			if r.Name.Kind == "func" {
+				error(r.Pos(), "must call C.%s", r.Name.Go)
+			}
+		}
+		*r.Expr = expr
 	}
-	return c
 }
 
-// gccDebug runs gcc -gdwarf-2 over the C program stdin and
-// returns the corresponding DWARF data and any messages
-// printed to standard error.
-func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
-	machine := "-m32"
+// gccMachine returns the gcc -m flag to use, either "-m32" or "-m64".
+func (p *Package) gccMachine() string {
 	if p.PtrSize == 8 {
-		machine = "-m64"
+		return "-m64"
 	}
+	return "-m32"
+}
 
-	tmp := "_cgo_.o"
-	base := []string{
+const gccTmp = "_cgo_.o"
+
+// gccCmd returns the gcc command line to use for compiling
+// the input.
+func (p *Package) gccCmd() []string {
+	return []string{
 		"gcc",
-		machine,
+		p.gccMachine(),
 		"-Wall",                             // many warnings
 		"-Werror",                           // warnings are errors
-		"-o" + tmp,                          // write object to tmp
+		"-o" + gccTmp,                       // write object to tmp
 		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
 		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
 		"-c",                                // do not link
 		"-xc",                               // input language is C
 		"-",                                 // read input from standard input
 	}
-	_, stderr, ok := run(stdin, concat(base, p.GccOptions))
-	if !ok {
-		return nil, string(stderr)
-	}
+}
+
+// gccDebug runs gcc -gdwarf-2 over the C program stdin and
+// returns the corresponding DWARF data and any messages
+// printed to standard error.
+func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
+	runGcc(stdin, concat(p.gccCmd(), p.GccOptions))
 
 	// Try to parse f as ELF and Mach-O and hope one works.
 	var f interface {
 		DWARF() (*dwarf.Data, os.Error)
 	}
 	var err os.Error
-	if f, err = elf.Open(tmp); err != nil {
-		if f, err = macho.Open(tmp); err != nil {
-			fatal("cannot parse gcc output %s as ELF or Mach-O object", tmp)
+	if f, err = elf.Open(gccTmp); err != nil {
+		if f, err = macho.Open(gccTmp); err != nil {
+			fatal("cannot parse gcc output %s as ELF or Mach-O object", gccTmp)
 		}
 	}
 
 	d, err := f.DWARF()
 	if err != nil {
-		fatal("cannot load DWARF debug information from %s: %s", tmp, err)
+		fatal("cannot load DWARF debug information from %s: %s", gccTmp, err)
 	}
-	return d, ""
+	return d
 }
 
-func (p *Prog) gccPostProc(stdin []byte) string {
-	machine := "-m32"
-	if p.PtrSize == 8 {
-		machine = "-m64"
-	}
+// gccDefines runs gcc -E -dM -xc - over the C program stdin
+// and returns the corresponding standard output, which is the
+// #defines that gcc encountered while processing the input
+// and its included files.
+func (p *Package) gccDefines(stdin []byte) string {
+	base := []string{"gcc", p.gccMachine(), "-E", "-dM", "-xc", "-"}
+	stdout, _ := runGcc(stdin, concat(base, p.GccOptions))
+	return stdout
+}
 
-	base := []string{"gcc", machine, "-E", "-dM", "-xc", "-"}
-	stdout, stderr, ok := run(stdin, concat(base, p.GccOptions))
+// gccErrors runs gcc over the C program stdin and returns
+// the errors that gcc prints.  That is, this function expects
+// gcc to fail.
+func (p *Package) gccErrors(stdin []byte) string {
+	// TODO(rsc): require failure
+	args := concat(p.gccCmd(), p.GccOptions)
+	if *debugGcc {
+		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
+		os.Stderr.Write(stdin)
+		fmt.Fprint(os.Stderr, "EOF\n")
+	}
+	stdout, stderr, _ := run(stdin, args)
+	if *debugGcc {
+		os.Stderr.Write(stdout)
+		os.Stderr.Write(stderr)
+	}
+	return string(stderr)
+}
+
+// runGcc runs the gcc command line args with stdin on standard input.
+// If the command exits with a non-zero exit status, runGcc prints
+// details about what was run and exits.
+// Otherwise runGcc returns the data written to standard output and standard error.
+// Note that for some of the uses we expect useful data back
+// on standard error, but for those uses gcc must still exit 0.
+func runGcc(stdin []byte, args []string) (string, string) {
+	if *debugGcc {
+		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
+		os.Stderr.Write(stdin)
+		fmt.Fprint(os.Stderr, "EOF\n")
+	}
+	stdout, stderr, ok := run(stdin, args)
+	if *debugGcc {
+		os.Stderr.Write(stdout)
+		os.Stderr.Write(stderr)
+	}
 	if !ok {
-		return string(stderr)
+		fmt.Fprint(os.Stderr, "Error running gcc:\n")
+		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
+		os.Stderr.Write(stdin)
+		fmt.Fprint(os.Stderr, "EOF\n")
+		os.Stderr.Write(stderr)
+		os.Exit(2)
 	}
-
-	return string(stdout)
+	return string(stdout), string(stderr)
 }
 
 // A typeConv is a translator from dwarf types to Go types
@@ -388,7 +619,7 @@ func base(dt dwarf.Type) dwarf.Type {
 }
 
 // Map from dwarf text names to aliases we use in package "C".
-var cnameMap = map[string]string{
+var dwarfToName = map[string]string{
 	"long int":               "long",
 	"long unsigned int":      "ulong",
 	"unsigned int":           "uint",
@@ -415,6 +646,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	t.C = dtype.Common().Name
 	t.EnumValues = nil
 	c.m[dtype] = t
+
 	if t.Size < 0 {
 		// Unsized types are [0]byte
 		t.Size = 0
@@ -555,7 +787,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		} else if t.C == "" {
 			t.C = dt.Kind + " " + tag
 		}
-		name := c.Ident("_C" + dt.Kind + "_" + tag)
+		name := c.Ident("_Ctype_" + dt.Kind + "_" + tag)
 		t.Go = name // publish before recursive calls
 		switch dt.Kind {
 		case "union", "class":
@@ -583,7 +815,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			t.Align = c.ptrSize
 			break
 		}
-		name := c.Ident("_C_" + dt.Name)
+		name := c.Ident("_Ctypedef_" + dt.Name)
 		t.Go = name // publish before recursive call
 		sub := c.Type(dt.Type)
 		t.Size = sub.Size
@@ -628,11 +860,11 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
 		s := dtype.Common().Name
 		if s != "" {
-			if ss, ok := cnameMap[s]; ok {
+			if ss, ok := dwarfToName[s]; ok {
 				s = ss
 			}
 			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
-			name := c.Ident("_C_" + s)
+			name := c.Ident("_Ctype_" + s)
 			c.typedef[name.Name()] = t.Go
 			t.Go = name
 		}
@@ -710,7 +942,9 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
 }
 
 // Identifier
-func (c *typeConv) Ident(s string) *ast.Ident { return ast.NewIdent(s) }
+func (c *typeConv) Ident(s string) *ast.Ident {
+	return ast.NewIdent(s)
+}
 
 // Opaque type of n bytes.
 func (c *typeConv) Opaque(n int64) ast.Expr {
@@ -736,13 +970,14 @@ func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
 	return fld
 }
 
-// Struct conversion
+// Struct conversion: return Go and (6g) C syntax for type.
 func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax string, align int64) {
-	csyntax = "struct { "
+	var buf bytes.Buffer
+	buf.WriteString("struct {")
 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field
 	off := int64(0)
 
-	// Mangle struct fields that happen to be named Go keywords into
+	// Rename struct fields that happen to be named Go keywords into
 	// _{keyword}.  Create a map from C ident -> Go ident.  The Go ident will
 	// be mangled.  Any existing identifier that already has the same name on
 	// the C-side will cause the Go-mangled version to be prefixed with _.
@@ -783,7 +1018,10 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 
 		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[f.Name])}, Type: t.Go}
 		off += t.Size
-		csyntax += t.C + " " + f.Name + "; "
+		buf.WriteString(t.C)
+		buf.WriteString(" ")
+		buf.WriteString(f.Name)
+		buf.WriteString("; ")
 		if t.Align > align {
 			align = t.Align
 		}
@@ -795,7 +1033,8 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 	if off != dt.ByteSize {
 		fatal("struct size calculation error")
 	}
-	csyntax += "}"
+	buf.WriteString("}")
+	csyntax = buf.String()
 	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
 	return
 }

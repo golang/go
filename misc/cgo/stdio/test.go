@@ -1,0 +1,91 @@
+// Copyright 2010 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains test cases for cgo.
+
+package stdio
+
+/*
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <errno.h>
+
+#define SHIFT(x, y)  ((x)<<(y))
+#define KILO SHIFT(1, 10)
+
+enum {
+	Enum1 = 1,
+	Enum2 = 2,
+};
+*/
+import "C"
+import (
+	"os"
+	"unsafe"
+)
+
+const EINVAL = C.EINVAL /* test #define */
+
+var KILO = C.KILO
+
+func Size(name string) (int64, os.Error) {
+	var st C.struct_stat
+	p := C.CString(name)
+	_, err := C.stat(p, &st)
+	C.free(unsafe.Pointer(p))
+	if err != nil {
+		return 0, err
+	}
+	return int64(C.ulong(st.st_size)), nil
+}
+
+func Strtol(s string, base int) (int, os.Error) {
+	p := C.CString(s)
+	n, err := C.strtol(p, nil, C.int(base))
+	C.free(unsafe.Pointer(p))
+	return int(n), err
+}
+
+func Atol(s string) int {
+	p := C.CString(s)
+	n := C.atol(p)
+	C.free(unsafe.Pointer(p))
+	return int(n)
+}
+
+func TestEnum() {
+	if C.Enum1 != 1 || C.Enum2 != 2 {
+		println("bad enum", C.Enum1, C.Enum2)
+	}
+}
+
+func TestAtol() {
+	l := Atol("123")
+	if l != 123 {
+		println("Atol 123: ", l)
+		panic("bad atol")
+	}
+}
+
+func TestErrno() {
+	n, err := Strtol("asdf", 123)
+	if n != 0 || err != os.EINVAL {
+		println("Strtol: ", n, err)
+		panic("bad atoi2")
+	}
+}
+
+var (
+	uint  = (C.uint)(0)
+	ulong C.ulong
+	char  C.char
+)
+
+func Test() {
+	TestAlign()
+	TestAtol()
+	TestEnum()
+	TestErrno()
+}
