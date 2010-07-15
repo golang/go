@@ -365,7 +365,7 @@ walkstmt(Node **np)
 	NodeList *init;
 	NodeList *ll, *rl;
 	int cl, lno;
-	Node *n;
+	Node *n, *f;
 
 	n = *np;
 	if(n == N)
@@ -490,6 +490,14 @@ walkstmt(Node **np)
 			if(samelist(rl, n->list)) {
 				// special return in disguise
 				n->list = nil;
+				break;
+			}
+			if(count(n->list) == 1 && count(rl) > 1) {
+				// OAS2FUNC in disguise
+				f = n->list->n;
+				if(f->op != OCALLFUNC && f->op != OCALLMETH && f->op != OCALLINTER)
+					fatal("expected return of call, have %#N", f);
+				n->list = concat(list1(f), ascompatet(n->op, rl, &f->type, 0, &n->ninit));
 				break;
 			}
 			ll = ascompatee(n->op, rl, n->list, &n->ninit);

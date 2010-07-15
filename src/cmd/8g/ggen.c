@@ -92,11 +92,6 @@ compile(Node *fn)
 	if(pret)
 		patch(pret, pc);
 	ginit();
-	if(curfn->exit)
-		genlist(curfn->exit);
-	gclean();
-	if(nerrors != 0)
-		goto ret;
 	if(hasdefer) {
 		// On Native client, insert call to no-op function
 		// to force alignment immediately before call to deferreturn,
@@ -107,6 +102,11 @@ compile(Node *fn)
 			ginscall(naclnop, 0);
 		ginscall(deferreturn, 0);
 	}
+	if(curfn->exit)
+		genlist(curfn->exit);
+	gclean();
+	if(nerrors != 0)
+		goto ret;
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
