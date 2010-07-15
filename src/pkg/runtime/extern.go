@@ -105,11 +105,11 @@ func Semrelease(s *uint32)
 
 // SetFinalizer sets the finalizer associated with x to f.
 // When the garbage collector finds an unreachable block
-// with an associated finalizer, it clears the association and creates
-// a new goroutine running f(x).  Creating the new goroutine makes
-// x reachable again, but now without an associated finalizer.
-// Assuming that SetFinalizer is not called again, the next time
-// the garbage collector sees that x is unreachable, it will free x.
+// with an associated finalizer, it clears the association and runs
+// f(x) in a separate goroutine.  This makes x reachable again, but
+// now without an associated finalizer.  Assuming that SetFinalizer
+// is not called again, the next time the garbage collector sees
+// that x is unreachable, it will free x.
 //
 // SetFinalizer(x, nil) clears any finalizer associated with f.
 //
