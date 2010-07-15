@@ -292,10 +292,14 @@ walkdef(Node *n)
 		break;
 
 	case OTYPE:
+		if(curfn)
+			defercheckwidth();
 		n->walkdef = 1;
 		n->type = typ(TFORW);
 		n->type->sym = n->sym;
 		walkdeftype(n);
+		if(curfn)
+			resumecheckwidth();
 		break;
 
 	case OPACK:
