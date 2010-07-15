@@ -94,6 +94,7 @@ DIRS=\
 	log\
 	math\
 	mime\
+	mime/multipart\
 	net\
 	netchan\
 	nntp\

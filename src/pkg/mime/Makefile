@@ -6,6 +6,8 @@ include ../../Make.$(GOARCH)
 
 TARG=mime
 GOFILES=\
+	grammar.go\
+	mediatype.go\
 	type.go\
 
 include ../../Make.pkg
