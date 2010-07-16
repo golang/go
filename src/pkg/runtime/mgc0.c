@@ -27,7 +27,6 @@ static G *fing;
 static Finalizer *finq;
 static int32 fingwait;
 
-static void sweepblock(byte*, int64, uint32*, int32);
 static void runfinq(void);
 
 enum {
