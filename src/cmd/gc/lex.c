@@ -25,6 +25,7 @@ static void	ungetc(int);
 static int32	getr(void);
 static int	escchar(int, int*, vlong*);
 static void	addidir(char*);
+static int	getlinepragma(void);
 
 static char *goos, *goarch, *goroot;
 
@@ -658,8 +659,8 @@ l0:
 			}
 		}
 		if(c1 == '/') {
+			c = getlinepragma();
 			for(;;) {
-				c = getr();
 				if(c == '\n') {
 					ungetc(c);
 					goto l0;
@@ -668,6 +669,7 @@ l0:
 					yyerror("eof in comment");
 					errorexit();
 				}
+				c = getr();
 			}
 		}
 		if(c1 == '=') {
@@ -1104,6 +1106,63 @@ caseout:
 	yylval.val.ctype = CTFLT;
 	DBG("lex: floating literal\n");
 	return LLITERAL;
+}
+
+/*
+ * read and interpret syntax that looks like
+ * //line 15 parse.y
+ * as a discontenuity in sequential line numbers.
+ * the next line of input comes from parse.y:15
+ */
+static int
+getlinepragma(void)
+{
+	int i, c, n;
+	char *cp, *ep;
+	Hist *h;
+
+	for(i=0; i<5; i++) {
+		c = getr();
+		if(c != "line "[i])
+			return c;
+	}
+
+	n = 0;
+	for(;;) {
+		c = getr();
+		if(!isdigit(c))
+			break;
+		n = n*10 + (c-'0');
+	}
+
+	if(c != ' ' || n == 0)
+		return c;
+
+	cp = lexbuf;
+	ep = lexbuf+sizeof(lexbuf)-5;
+	for(;;) {
+		c = getr();
+		if(c == ' ')
+			continue;
+		if(c == '\n')
+			break;
+		*cp++ = c;
+		if(cp >= ep)
+			break;
+	}
+	*cp = 0;
+//	n--;	// weve already seen the newline
+	if(n > 0) {
+		// try to avoid allocating file name over and over
+		for(h=hist; h!=H; h=h->link) {
+			if(h->name != nil && strcmp(h->name, lexbuf) == 0) {
+				linehist(h->name, n, 0);
+				return c;
+			}
+		}
+		linehist(strdup(lexbuf), n, 0);
+	}
+	return c;
 }
 
 int32
