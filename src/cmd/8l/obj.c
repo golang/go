@@ -440,9 +440,9 @@ main(int argc, char *argv[])
 }
 
 void
-zaddr(Biobuf *f, Adr *a, Sym *h[])
+zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 {
-	int t;
+	int o, t;
 	int32 l;
 	Sym *s;
 	Auto *u;
@@ -464,8 +464,14 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		a->type = D_CONST2;
 	}
 	a->sym = S;
-	if(t & T_SYM)
-		a->sym = h[Bgetc(f)];
+	if(t & T_SYM) {
+		o = Bgetc(f);
+		if(o < 0 || o >= NSYM || h[o] == nil) {
+			fprint(2, "%s: mangled input file\n", pn);
+			errorexit();
+		}
+		a->sym = h[o];
+	}
 	if(t & T_FCONST) {
 		a->ieee.l = Bget4(f);
 		a->ieee.h = Bget4(f);
@@ -599,6 +605,10 @@ loop:
 
 		if(debug['W'])
 			print("	ANAME	%s\n", s->name);
+		if(o < 0 || o >= nelem(h)) {
+			fprint(2, "%s: mangled input file\n", pn);
+			errorexit();
+		}
 		h[o] = s;
 		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
 			s->type = SXREF;
@@ -623,9 +633,9 @@ loop:
 	p->back = 2;
 	p->ft = 0;
 	p->tt = 0;
-	zaddr(f, &p->from, h);
+	zaddr(pn, f, &p->from, h);
 	fromgotype = adrgotype;
-	zaddr(f, &p->to, h);
+	zaddr(pn, f, &p->to, h);
 
 	if(debug['W'])
 		print("%P\n", p);
