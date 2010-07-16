@@ -1110,7 +1110,7 @@ caseout:
 
 /*
  * read and interpret syntax that looks like
- * //line 15 parse.y
+ * //line parse.y:15
  * as a discontenuity in sequential line numbers.
  * the next line of input comes from parse.y:15
  */
@@ -1124,8 +1124,23 @@ getlinepragma(void)
 	for(i=0; i<5; i++) {
 		c = getr();
 		if(c != "line "[i])
-			return c;
+			goto out;
 	}
+
+	cp = lexbuf;
+	ep = lexbuf+sizeof(lexbuf)-5;
+	for(;;) {
+		c = getr();
+		if(c == '\n' || c == EOF)
+			goto out;
+		if(c == ' ')
+			continue;
+		if(c == ':')
+			break;
+		if(cp < ep)
+			*cp++ = c;
+	}
+	*cp = 0;
 
 	n = 0;
 	for(;;) {
@@ -1135,33 +1150,19 @@ getlinepragma(void)
 		n = n*10 + (c-'0');
 	}
 
-	if(c != ' ' || n == 0)
-		return c;
+	if(c != '\n' || n <= 0)
+		goto out;
 
-	cp = lexbuf;
-	ep = lexbuf+sizeof(lexbuf)-5;
-	for(;;) {
-		c = getr();
-		if(c == ' ')
-			continue;
-		if(c == '\n')
-			break;
-		*cp++ = c;
-		if(cp >= ep)
-			break;
-	}
-	*cp = 0;
-//	n--;	// weve already seen the newline
-	if(n > 0) {
-		// try to avoid allocating file name over and over
-		for(h=hist; h!=H; h=h->link) {
-			if(h->name != nil && strcmp(h->name, lexbuf) == 0) {
-				linehist(h->name, n, 0);
-				return c;
-			}
+	// try to avoid allocating file name over and over
+	for(h=hist; h!=H; h=h->link) {
+		if(h->name != nil && strcmp(h->name, lexbuf) == 0) {
+			linehist(h->name, n, 0);
+			goto out;
 		}
-		linehist(strdup(lexbuf), n, 0);
 	}
+	linehist(strdup(lexbuf), n, 0);
+
+out:
 	return c;
 }
 
@@ -1205,7 +1206,7 @@ yylex(void)
 	// Track last two tokens returned by yylex.
 	yyprev = yylast;
 	yylast = lx;
-	return lx;
+ 	return lx;
 }
 
 static int
