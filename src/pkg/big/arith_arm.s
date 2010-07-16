@@ -33,3 +33,8 @@ TEXT ·addMulVVW(SB),7,$0
 TEXT ·divWVW(SB),7,$0
 	B ·divWVW_g(SB)
 
+TEXT ·divWW(SB),7,$0
+	B ·divWW_g(SB)
+
+TEXT ·mulWW(SB),7,$0
+	B ·mulWW_g(SB)
