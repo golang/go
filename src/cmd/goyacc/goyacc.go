@@ -675,7 +675,7 @@ outer:
 	//
 	if t == MARK {
 		if !lflag {
-			fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
+			fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
 		}
 		for {
 			c := getrune(finput)
@@ -2066,6 +2066,7 @@ nextk:
 func output() {
 	var c, u, v int
 
+	fmt.Fprintf(ftable, "\n//line 1 yacctab\n")
 	fmt.Fprintf(ftable, "var\tyyExca = []int {\n")
 
 	noset := mkset()
@@ -2825,8 +2826,10 @@ func others() {
 		c = getrune(finput)
 	}
 
-	parts := strings.Split(yaccpar, "yyrun()", 2)
 	// copy yaccpar
+	fmt.Fprintf(ftable, "\n//line 1 yaccpar\n")
+
+	parts := strings.Split(yaccpar, "yyrun()", 2)
 	fmt.Fprintf(ftable, "%v", parts[0])
 	ftable.Write(fcode.Bytes())
 	fmt.Fprintf(ftable, "%v", parts[1])

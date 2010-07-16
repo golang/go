@@ -228,11 +228,14 @@ linehist(char *file, int32 off, int relative)
 	if(debug['i']) {
 		if(file != nil) {
 			if(off < 0)
-				print("pragma %s at line %L\n", file, lineno);
+				print("pragma %s at line %L\n", file, lexlineno);
 			else
-				print("import %s at line %L\n", file, lineno);
+			if(off > 0)
+				print("line %s at line %L\n", file, lexlineno);
+			else
+				print("import %s at line %L\n", file, lexlineno);
 		} else
-			print("end of import at line %L\n", lineno);
+			print("end of import at line %L\n", lexlineno);
 	}
 
 	if(off < 0 && file[0] != '/' && !relative) {
@@ -894,12 +897,21 @@ Lconv(Fmt *fp)
 		if(lno < h->line)
 			break;
 		if(h->name) {
-			if(n < HISTSZ) {	/* beginning of file */
-				a[n].incl = h;
-				a[n].idel = h->line;
-				a[n].line = 0;
+			if(h->offset > 0) {
+				// #line directive
+				if(n > 0 && n < HISTSZ) {
+					a[n-1].line = h;
+					a[n-1].ldel = h->line - h->offset + 1;
+				}
+			} else {
+				// beginning of file
+				if(n < HISTSZ) {
+					a[n].incl = h;
+					a[n].idel = h->line;
+					a[n].line = 0;
+				}
+				n++;
 			}
-			n++;
 			continue;
 		}
 		n--;
@@ -921,12 +933,12 @@ Lconv(Fmt *fp)
 		}
 		if(a[i].line)
 			fmtprint(fp, "%s:%ld[%s:%ld]",
-				a[i].line->name, lno-a[i].ldel+1,
-				a[i].incl->name, lno-a[i].idel+1);
+				a[i].line->name, lno-a[i].ldel,
+				a[i].incl->name, lno-a[i].idel);
 		else
 			fmtprint(fp, "%s:%ld",
 				a[i].incl->name, lno-a[i].idel+1);
-		lno = a[i].incl->line - 1;	/* now print out start of this file */
+		lno = a[i].incl->line - 1;	// now print out start of this file
 	}
 	if(n == 0)
 		fmtprint(fp, "<epoch>");
