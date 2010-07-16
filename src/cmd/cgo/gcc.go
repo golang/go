@@ -450,6 +450,16 @@ func (p *Package) rewriteRef(f *File) {
 	}
 }
 
+// gccName returns the name of the compiler to run.  Use CC if set in
+// the environment, otherwise just "gcc".
+
+func (p *Package) gccName() (ret string) {
+	if ret = os.Getenv("CC"); ret == "" {
+		ret = "gcc"
+	}
+	return
+}
+
 // gccMachine returns the gcc -m flag to use, either "-m32" or "-m64".
 func (p *Package) gccMachine() string {
 	if p.PtrSize == 8 {
@@ -464,7 +474,7 @@ const gccTmp = "_cgo_.o"
 // the input.
 func (p *Package) gccCmd() []string {
 	return []string{
-		"gcc",
+		p.gccName(),
 		p.gccMachine(),
 		"-Wall",                             // many warnings
 		"-Werror",                           // warnings are errors
@@ -506,7 +516,7 @@ func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
 // #defines that gcc encountered while processing the input
 // and its included files.
 func (p *Package) gccDefines(stdin []byte) string {
-	base := []string{"gcc", p.gccMachine(), "-E", "-dM", "-xc", "-"}
+	base := []string{p.gccName(), p.gccMachine(), "-E", "-dM", "-xc", "-"}
 	stdout, _ := runGcc(stdin, concat(base, p.GccOptions))
 	return stdout
 }
