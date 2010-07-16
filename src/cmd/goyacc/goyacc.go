@@ -675,7 +675,7 @@ outer:
 	//
 	if t == MARK {
 		if !lflag {
-			fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
+			fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
 		}
 		for {
 			c := getrune(finput)
@@ -1032,7 +1032,7 @@ func chfind(t int, s string) int {
 func cpyunion() {
 
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
+		fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
 	}
 	fmt.Fprintf(ftable, "type\tyySymType\tstruct")
 
@@ -1075,7 +1075,7 @@ func cpycode() {
 		lineno++
 	}
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
+		fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
 	}
 	for c != EOF {
 		if c == '%' {
@@ -1158,7 +1158,7 @@ func dumpprod(curprod []int, max int) {
 func cpyact(curprod []int, max int) {
 
 	if !lflag {
-		fmt.Fprintf(fcode, "\n//line %v %v\n", lineno, infile)
+		fmt.Fprintf(fcode, "\n//line %v:%v\n", infile, lineno)
 	}
 
 	lno := lineno
@@ -2066,7 +2066,7 @@ nextk:
 func output() {
 	var c, u, v int
 
-	fmt.Fprintf(ftable, "\n//line 1 yacctab\n")
+	fmt.Fprintf(ftable, "\n//line yacctab:1\n")
 	fmt.Fprintf(ftable, "var\tyyExca = []int {\n")
 
 	noset := mkset()
@@ -2827,7 +2827,7 @@ func others() {
 	}
 
 	// copy yaccpar
-	fmt.Fprintf(ftable, "\n//line 1 yaccpar\n")
+	fmt.Fprintf(ftable, "\n//line yaccpar:1\n")
 
 	parts := strings.Split(yaccpar, "yyrun()", 2)
 	fmt.Fprintf(ftable, "%v", parts[0])
