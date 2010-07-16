@@ -506,6 +506,10 @@ loop:
 
 		if(debug['W'])
 			print("	ANAME	%s\n", s->name);
+		if(o < 0 || o >= nelem(h)) {
+			fprint(2, "%s: mangled input file\n", pn);
+			errorexit();
+		}
 		h[o] = s;
 		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
 			s->type = SXREF;

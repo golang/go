@@ -385,7 +385,7 @@ void	wput(ushort);
 void	wputl(ushort);
 void	xdefine(char*, int, int32);
 void	xfol(Prog*);
-void	zaddr(Biobuf*, Adr*, Sym*[]);
+void	zaddr(char*, Biobuf*, Adr*, Sym*[]);
 uint32	machheadr(void);
 vlong		addaddr(Sym *s, Sym *t);
 vlong		addsize(Sym *s, Sym *t);

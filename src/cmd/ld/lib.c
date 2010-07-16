@@ -118,7 +118,7 @@ addlib(char *src, char *obj)
 	}
 
 	for(; i<histfrogp; i++) {
-		snprint(comp, sizeof comp, histfrog[i]->name+1);
+		snprint(comp, sizeof comp, "%s", histfrog[i]->name+1);
 		for(;;) {
 			p = strstr(comp, "$O");
 			if(p == 0)
