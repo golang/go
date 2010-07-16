@@ -1111,7 +1111,7 @@ caseout:
 /*
  * read and interpret syntax that looks like
  * //line parse.y:15
- * as a discontenuity in sequential line numbers.
+ * as a discontinuity in sequential line numbers.
  * the next line of input comes from parse.y:15
  */
 static int
