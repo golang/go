@@ -384,7 +384,7 @@ importfile(Val *f, int line)
 
 	imp = Bopen(namebuf, OREAD);
 	if(imp == nil) {
-		yyerror("can't open import: %Z", f->u.sval);
+		yyerror("can't open import: %Z: %r", f->u.sval);
 		errorexit();
 	}
 	file = strdup(namebuf);
