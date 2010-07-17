@@ -54,6 +54,12 @@ except:
 	from mercurial.version import version as v
 	hgversion = v.get_version()
 
+try:
+	from mercurial.discovery import findcommonincoming
+except:
+	def findcommonincoming(repo, remote):
+		return repo.findcommonincoming(remote)
+
 oldMessage = """
 The code review extension requires Mercurial 1.3 or newer.
 
@@ -602,7 +608,7 @@ def getremote(ui, repo, opts):
 	return other
 
 def Incoming(ui, repo, opts):
-	_, incoming, _ = repo.findcommonincoming(getremote(ui, repo, opts))
+	_, incoming, _ = findcommonincoming(repo, getremote(ui, repo, opts))
 	return incoming
 
 def EditCL(ui, repo, cl):
