@@ -109,7 +109,7 @@ mpmulfltflt(Mpflt *a, Mpflt *b)
 	}
 
 	mpmulfract(&a->val, &b->val);
-	a->exp = (a->exp + b->exp) + Mpscale*Mpprec - 1;
+	a->exp = (a->exp + b->exp) + Mpscale*Mpprec - Mpscale - 1;
 
 	mpnorm(a);
 	if(Mpdebug)
