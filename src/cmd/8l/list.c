@@ -102,7 +102,7 @@ Dconv(Fmt *fp)
 	i = a->type;
 	if(i >= D_INDIR && i < 2*D_INDIR) {
 		if(a->offset)
-			sprint(str, "%ld(%R)", a->offset, i-D_INDIR);
+			sprint(str, "%ld(%R)", (long)a->offset, i-D_INDIR);
 		else
 			sprint(str, "(%R)", i-D_INDIR);
 		goto brk;
