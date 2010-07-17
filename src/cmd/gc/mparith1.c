@@ -156,10 +156,11 @@ mpmovefixflt(Mpflt *a, Mpint *b)
 
 // convert (truncate) b to a.
 // return -1 (but still convert) if b was non-integer.
-int
-mpmovefltfix(Mpint *a, Mpflt *b)
+static int
+mpexactfltfix(Mpint *a, Mpflt *b)
 {
 	Mpflt f;
+
 	*a = b->val;
 	mpshiftfix(a, b->exp);
 	if(b->exp < 0) {
@@ -170,6 +171,35 @@ mpmovefltfix(Mpint *a, Mpflt *b)
 			return -1;
 	}
 	return 0;
+}
+
+int
+mpmovefltfix(Mpint *a, Mpflt *b)
+{
+	Mpflt f;
+	int i;
+
+	if(mpexactfltfix(a, b) == 0)
+		return 0;
+
+	// try rounding down a little
+	f = *b;
+	f.val.a[0] = 0;
+	if(mpexactfltfix(a, &f) == 0)
+		return 0;
+
+	// try rounding up a little
+	for(i=1; i<Mpprec; i++) {
+		f.val.a[i]++;
+		if(f.val.a[i] != Mpbase)
+			break;
+		f.val.a[i] = 0;
+	}
+	mpnorm(&f);
+	if(mpexactfltfix(a, &f) == 0)
+		return 0;
+
+	return -1;
 }
 
 void
