@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package utf16
+package utf16_test
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
 	"unicode"
+	. "utf16"
 )
 
 type encodeTest struct {
