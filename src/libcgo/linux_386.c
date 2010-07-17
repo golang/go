@@ -45,11 +45,14 @@ threadentry(void *v)
 	 * Set specific keys.  On Linux/ELF, the thread local storage
 	 * is just before %gs:0.  Our dynamic 8.out's reserve 8 bytes
 	 * for the two words g and m at %gs:-8 and %gs:-4.
+	 * Xen requires us to access those words indirect from %gs:0
+	 * which points at itself.
 	 */
 	asm volatile (
-		"movl %0, %%gs:-8\n"	// MOVL g, -8(GS)
-		"movl %1, %%gs:-4\n"	// MOVL m, -4(GS)
-		:: "r"(ts.g), "r"(ts.m)
+		"movl %%gs:0, %%eax\n"		// MOVL 0(GS), tmp
+		"movl %0, -8(%%eax)\n"	// MOVL g, -8(GS)
+		"movl %1, -4(%%eax)\n"	// MOVL m, -4(GS)
+		:: "r"(ts.g), "r"(ts.m) : "%eax"
 	);
 
 	crosscall_386(ts.fn);

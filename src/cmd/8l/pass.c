@@ -378,7 +378,7 @@ patch(void)
 	s = lookup("exit", 0);
 	vexit = s->value;
 	for(p = firstp; p != P; p = p->link) {
-		if(HEADTYPE == 10) {
+		if(HEADTYPE == 10) {	// Windows
 			// Convert
 			//   op   n(GS), reg
 			// to
@@ -391,12 +391,29 @@ patch(void)
 			&& p->to.type >= D_AX && p->to.type <= D_DI) {
 				q = appendp(p);
 				q->from = p->from;
-				q->from.type += p->to.type-D_GS;
+				q->from.type = D_INDIR + p->to.type;
 				q->to = p->to;
 				q->as = p->as;
 				p->as = AMOVL;
 				p->from.type = D_INDIR+D_FS;
 				p->from.offset = 0x2C;
+			}
+		}
+		if(HEADTYPE == 7) {	// Linux
+			// Running binaries under Xen requires using
+			//	MOVL 0(GS), reg
+			// and then off(reg) instead of saying off(GS) directly
+			// when the offset is negative.
+			if(p->from.type == D_INDIR+D_GS && p->from.offset < 0
+			&& p->to.type >= D_AX && p->to.type <= D_DI) {
+				q = appendp(p);
+				q->from = p->from;
+				q->from.type = D_INDIR + p->to.type;
+				q->to = p->to;
+				q->as = p->as;
+				p->as = AMOVL;
+				p->from.type = D_INDIR+D_GS;
+				p->from.offset = 0;
 			}
 		}
 		if(p->as == ATEXT)
@@ -616,7 +633,8 @@ dostkoff(void)
 			if(pmorestack != P)
 			if(!(p->from.scale & NOSPLIT)) {
 				p = appendp(p);	// load g into CX
-				if(HEADTYPE == 10) {
+				switch(HEADTYPE) {
+				case 10:	// Windows
 					p->as = AMOVL;
 					p->from.type = D_INDIR+D_FS;
 					p->from.offset = 0x2c;
@@ -627,7 +645,22 @@ dostkoff(void)
 					p->from.type = D_INDIR+D_CX;
 					p->from.offset = 0;
 					p->to.type = D_CX;
-				} else {
+					break;
+				
+				case 7:	// Linux
+					p->as = AMOVL;
+					p->from.type = D_INDIR+D_GS;
+					p->from.offset = 0;
+					p->to.type = D_CX;
+
+					p = appendp(p);
+					p->as = AMOVL;
+					p->from.type = D_INDIR+D_CX;
+					p->from.offset = tlsoffset + 0;
+					p->to.type = D_CX;
+					break;
+
+				default:
 					p->as = AMOVL;
 					p->from.type = D_INDIR+D_GS;
 					p->from.offset = tlsoffset + 0;

@@ -161,12 +161,12 @@ TEXT clone(SB),7,$0
 	// In child on new stack.  Reload registers (paranoia).
 	MOVL	0(SP), BX	// m
 	MOVL	4(SP), DX	// g
-	MOVL	8(SP), CX	// fn
+	MOVL	8(SP), SI	// fn
 
 	MOVL	AX, m_procid(BX)	// save tid as m->procid
 
 	// set up ldt 7+id to point at m->tls.
-	// m->tls is at m+40.  newosproc left the id in tls[0].
+	// newosproc left the id in tls[0].
 	LEAL	m_tls(BX), BP
 	MOVL	0(BP), DI
 	ADDL	$7, DI	// m0 is LDT#7. count up.
@@ -186,7 +186,7 @@ TEXT clone(SB),7,$0
 	MOVL	DX, g(AX)
 	MOVL	BX, m(AX)
 
-	CALL	stackcheck(SB)	// smashes AX
+	CALL	stackcheck(SB)	// smashes AX, CX
 	MOVL	0(DX), DX	// paranoia; check they are not nil
 	MOVL	0(BX), BX
 
@@ -195,7 +195,7 @@ TEXT clone(SB),7,$0
 	CALL	emptyfunc(SB)
 	POPAL
 
-	CALL	CX	// fn()
+	CALL	SI	// fn()
 	CALL	exit1(SB)
 	MOVL	$0x1234, 0x1005
 	RET
@@ -247,8 +247,11 @@ TEXT setldt(SB),7,$32
 	 * To accommodate that rewrite, we translate
 	 * the address here and bump the limit to 0xffffffff (no limit)
 	 * so that -8(GS) maps to 0(address).
+	 * Also, the final 0(GS) (current 8(CX)) has to point
+	 * to itself, to mimic ELF.
 	 */
 	ADDL	$0x8, CX	// address
+	MOVL	CX, 0(CX)
 
 	// set up user_desc
 	LEAL	16(SP), AX	// struct user_desc
