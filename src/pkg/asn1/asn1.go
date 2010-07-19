@@ -150,6 +150,20 @@ func parseBitString(bytes []byte) (ret BitString, err os.Error) {
 // An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
 type ObjectIdentifier []int
 
+// Equal returns true iff oi and other represent the same identifier.
+func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
+	if len(oi) != len(other) {
+		return false
+	}
+	for i := 0; i < len(oi); i++ {
+		if oi[i] != other[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 // parseObjectIdentifier parses an OBJECT IDENTIFER from the given bytes and
 // returns it. An object identifer is a sequence of variable length integers
 // that are assigned in a hierarachy.
@@ -179,6 +193,17 @@ func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
 	return
 }
 
+// ENUMERATED
+
+// An Enumerated is represented as a plain int.
+type Enumerated int
+
+
+// FLAG
+
+// A Flag accepts any data and is set to true if present.
+type Flag bool
+
 // parseBase128Int parses a base-128 encoded int from the given offset in the
 // given byte array. It returns the value and the new offset.
 func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Error) {
@@ -202,101 +227,20 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Erro
 
 // UTCTime
 
-func isDigit(b byte) bool { return '0' <= b && b <= '9' }
-
-// twoDigits returns the value of two, base 10 digits.
-func twoDigits(bytes []byte, max int) (int, bool) {
-	for i := 0; i < 2; i++ {
-		if !isDigit(bytes[i]) {
-			return 0, false
-		}
+func parseUTCTime(bytes []byte) (ret *time.Time, err os.Error) {
+	s := string(bytes)
+	ret, err = time.Parse("0601021504Z0700", s)
+	if err == nil {
+		return
 	}
-	value := (int(bytes[0])-'0')*10 + int(bytes[1]-'0')
-	if value > max {
-		return 0, false
-	}
-	return value, true
+	ret, err = time.Parse("060102150405Z0700", s)
+	return
 }
 
-// parseUTCTime parses the UTCTime from the given byte array and returns the
-// resulting time.
-func parseUTCTime(bytes []byte) (ret *time.Time, err os.Error) {
-	// A UTCTime can take the following formats:
-	//
-	//             1111111
-	//   01234567890123456
-	//
-	//   YYMMDDhhmmZ
-	//   YYMMDDhhmm+hhmm
-	//   YYMMDDhhmm-hhmm
-	//   YYMMDDhhmmssZ
-	//   YYMMDDhhmmss+hhmm
-	//   YYMMDDhhmmss-hhmm
-	if len(bytes) < 11 {
-		err = SyntaxError{"UTCTime too short"}
-		return
-	}
-	ret = new(time.Time)
-
-	var ok1, ok2, ok3, ok4, ok5 bool
-	year, ok1 := twoDigits(bytes[0:2], 99)
-	// RFC 5280, section 5.1.2.4 says that years 2050 or later use another date
-	// scheme.
-	if year >= 50 {
-		ret.Year = 1900 + int64(year)
-	} else {
-		ret.Year = 2000 + int64(year)
-	}
-	ret.Month, ok2 = twoDigits(bytes[2:4], 12)
-	ret.Day, ok3 = twoDigits(bytes[4:6], 31)
-	ret.Hour, ok4 = twoDigits(bytes[6:8], 23)
-	ret.Minute, ok5 = twoDigits(bytes[8:10], 59)
-	if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 {
-		goto Error
-	}
-	bytes = bytes[10:]
-	switch bytes[0] {
-	case '0', '1', '2', '3', '4', '5', '6':
-		if len(bytes) < 3 {
-			goto Error
-		}
-		ret.Second, ok1 = twoDigits(bytes[0:2], 60) // 60, not 59, because of leap seconds.
-		if !ok1 {
-			goto Error
-		}
-		bytes = bytes[2:]
-	}
-	if len(bytes) == 0 {
-		goto Error
-	}
-	switch bytes[0] {
-	case 'Z':
-		if len(bytes) != 1 {
-			goto Error
-		}
-		return
-	case '-', '+':
-		if len(bytes) != 5 {
-			goto Error
-		}
-		hours, ok1 := twoDigits(bytes[1:3], 12)
-		minutes, ok2 := twoDigits(bytes[3:5], 59)
-		if !ok1 || !ok2 {
-			goto Error
-		}
-		sign := 1
-		if bytes[0] == '-' {
-			sign = -1
-		}
-		ret.ZoneOffset = sign * (60 * (hours*60 + minutes))
-	default:
-		goto Error
-	}
-	return
-
-Error:
-	err = SyntaxError{"invalid UTCTime"}
-	return
+// parseGeneralizedTime parses the GeneralizedTime from the given byte array
+// and returns the resulting time.
+func parseGeneralizedTime(bytes []byte) (ret *time.Time, err os.Error) {
+	return time.Parse("20060102150405Z0700", string(bytes))
 }
 
 // PrintableString
@@ -351,6 +295,7 @@ type RawValue struct {
 	Class, Tag int
 	IsCompound bool
 	Bytes      []byte
+	FullBytes  []byte // includes the tag and length
 }
 
 // RawContent is used to signal that the undecoded, DER data needs to be
@@ -462,6 +407,8 @@ func parseSequenceOf(bytes []byte, sliceType *reflect.SliceType, elemType reflec
 var (
 	bitStringType        = reflect.Typeof(BitString{})
 	objectIdentifierType = reflect.Typeof(ObjectIdentifier{})
+	enumeratedType       = reflect.Typeof(Enumerated(0))
+	flagType             = reflect.Typeof(Flag(false))
 	timeType             = reflect.Typeof(&time.Time{})
 	rawValueType         = reflect.Typeof(RawValue{})
 	rawContentsType      = reflect.Typeof(RawContent(nil))
@@ -499,7 +446,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			err = SyntaxError{"data truncated"}
 			return
 		}
-		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length]}
+		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length], bytes[initOffset : offset+t.length]}
 		offset += t.length
 		v.(*reflect.StructValue).Set(reflect.NewValue(result).(*reflect.StructValue))
 		return
@@ -559,9 +506,20 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	}
 	if params.explicit {
-		if t.class == classContextSpecific && t.tag == *params.tag && t.isCompound {
-			t, offset, err = parseTagAndLength(bytes, offset)
-			if err != nil {
+		if t.class == classContextSpecific && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
+			if t.length > 0 {
+				t, offset, err = parseTagAndLength(bytes, offset)
+				if err != nil {
+					return
+				}
+			} else {
+				if fieldType != flagType {
+					err = StructuralError{"Zero length explicit tag was not an asn1.Flag"}
+					return
+				}
+
+				flagValue := v.(*reflect.BoolValue)
+				flagValue.Set(true)
 				return
 			}
 		} else {
@@ -582,6 +540,12 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	// the wire, we change the universal type to match.
 	if universalTag == tagPrintableString && t.tag == tagIA5String {
 		universalTag = tagIA5String
+	}
+
+	// Special case for time: UTCTime and GeneralizedTime both map to the
+	// Go type time.Time.
+	if universalTag == tagUTCTime && t.tag == tagGeneralizedTime {
+		universalTag = tagGeneralizedTime
 	}
 
 	expectedClass := classUniversal
@@ -631,11 +595,29 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	case timeType:
 		ptrValue := v.(*reflect.PtrValue)
-		time, err1 := parseUTCTime(innerBytes)
+		var time *time.Time
+		var err1 os.Error
+		if universalTag == tagUTCTime {
+			time, err1 = parseUTCTime(innerBytes)
+		} else {
+			time, err1 = parseGeneralizedTime(innerBytes)
+		}
 		if err1 == nil {
 			ptrValue.Set(reflect.NewValue(time).(*reflect.PtrValue))
 		}
 		err = err1
+		return
+	case enumeratedType:
+		parsedInt, err1 := parseInt(innerBytes)
+		enumValue := v.(*reflect.IntValue)
+		if err1 == nil {
+			enumValue.Set(int64(parsedInt))
+		}
+		err = err1
+		return
+	case flagType:
+		flagValue := v.(*reflect.BoolValue)
+		flagValue.Set(true)
 		return
 	}
 	switch val := v.(type) {
@@ -752,6 +734,10 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // An ASN.1 OBJECT IDENTIFIER can be written to an
 // ObjectIdentifier.
+//
+// An ASN.1 ENUMERATED can be written to an Enumerated.
+//
+// An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a *time.Time.
 //
 // An ASN.1 PrintableString or IA5String can be written to a string.
 //
