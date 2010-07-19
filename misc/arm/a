@@ -29,7 +29,7 @@ exp ()
 rloc=/data/local/tmp/retval
 rsize=$(adb shell "ls -l $rloc"|tr -s ' '|cut -d' ' -f4)
 rcheck=38
-if [ $rsize != $rcheck ] ; then
+if [ "$rsize" != "$rcheck" ]; then
 #	echo "debug: retval size incorrect want $rcheck, got $rsize. uploading"
 	echo  >/tmp/adb.retval '#!/system/bin/sh
 "$@"
