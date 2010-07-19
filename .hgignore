@@ -40,6 +40,7 @@ test/times.out
 test/garbage/*.out
 
 syntax:regexp
+^bin/
 ^pkg/
 ^src/cmd/(.*)/6?\1$
 ^.*/core.[0-9]*$
