@@ -24,11 +24,13 @@ const (
 	tagBitString       = 3
 	tagOctetString     = 4
 	tagOID             = 6
+	tagEnum            = 10
 	tagSequence        = 16
 	tagSet             = 17
 	tagPrintableString = 19
 	tagIA5String       = 22
 	tagUTCTime         = 23
+	tagGeneralizedTime = 24
 )
 
 const (
@@ -121,6 +123,8 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 		return tagBitString, false, true
 	case timeType:
 		return tagUTCTime, false, true
+	case enumeratedType:
+		return tagEnum, false, true
 	}
 	switch t := t.(type) {
 	case *reflect.BoolType:
