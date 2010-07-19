@@ -135,6 +135,8 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
 			if err == nil {
 				err = cw.Close()
 			}
+		} else if t.ContentLength == -1 {
+			_, err = io.Copy(w, t.Body)
 		} else {
 			_, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
 		}
