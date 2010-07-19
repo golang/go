@@ -165,7 +165,7 @@ const (
 // specifies the filter output. The remaining parameters control the formatting:
 //
 //	minwidth	minimal cell width including any padding
-//      tabwidth	width of tab characters (equivalent number of spaces)
+//	tabwidth	width of tab characters (equivalent number of spaces)
 //	padding		padding added to a cell before computing its width
 //	padchar		ASCII char used for padding
 //			if padchar == '\t', the Writer will assume that the
