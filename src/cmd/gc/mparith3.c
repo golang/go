@@ -27,16 +27,36 @@ sigfig(Mpflt *a)
 void
 mpnorm(Mpflt *a)
 {
-	int s;
+	int s, os;
+	long x;
 
-	s = sigfig(a);
-	if(s == 0) {
+	os = sigfig(a);
+	if(os == 0) {
 		// zero
 		a->exp = 0;
 		a->val.neg = 0;
 		return;
 	}
-	s = (Mpnorm-s) * Mpscale;
+
+	// this will normalize to the nearest word
+	x = a->val.a[os-1];
+	s = (Mpnorm-os) * Mpscale;
+
+	// further normalize to the nearest bit
+	for(;;) {
+		x <<= 1;
+		if(x & Mpbase)
+			break;
+		s++;
+		if(x == 0) {
+			// this error comes from trying to
+			// convert an Inf or something
+			// where the initial x=0x80000000
+			s = (Mpnorm-os) * Mpscale;
+			break;
+		}
+	}
+
 	mpshiftfix(&a->val, s);
 	a->exp -= s;
 }
