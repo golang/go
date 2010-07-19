@@ -303,6 +303,17 @@ func TestMissingZone(t *testing.T) {
 	}
 }
 
+func TestMinutesInTimeZone(t *testing.T) {
+	time, err := Parse(RubyDate, "Mon Jan 02 15:04:05 +0123 2006")
+	if err != nil {
+		t.Fatal("error parsing date:", err)
+	}
+	expected := (1*60 + 23) * 60
+	if time.ZoneOffset != expected {
+		t.Errorf("ZoneOffset incorrect, expected %d got %d", expected, time.ZoneOffset)
+	}
+}
+
 func BenchmarkSeconds(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Seconds()
