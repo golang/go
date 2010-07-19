@@ -522,7 +522,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			}
 			var hr, min int
 			hr, err = strconv.Atoi(hh)
-			if err != nil {
+			if err == nil {
 				min, err = strconv.Atoi(mm)
 			}
 			t.ZoneOffset = (hr*60 + min) * 60 // offset is in seconds
