@@ -102,7 +102,6 @@ func (h *huffmanDecoder) init(bits []int) bool {
 	h.min = min
 	h.max = max
 
-
 	// For each code range, compute
 	// nextcode (first code of that length),
 	// limit (last code of that length), and

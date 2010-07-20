@@ -18,10 +18,7 @@ import (
 )
 
 
-const (
-	debug       = false // enable for debugging
-	maxNewlines = 3     // maximum vertical white space
-)
+const debug = false // enable for debugging
 
 
 type whiteSpace int
@@ -41,8 +38,8 @@ var (
 	esc       = []byte{tabwriter.Escape}
 	htab      = []byte{'\t'}
 	htabs     = []byte("\t\t\t\t\t\t\t\t")
-	newlines  = []byte("\n\n\n\n\n\n\n\n") // more than maxNewlines
-	formfeeds = []byte("\f\f\f\f\f\f\f\f") // more than maxNewlines
+	newlines  = []byte("\n\n\n\n\n\n\n\n") // more than the max determined by nlines
+	formfeeds = []byte("\f\f\f\f\f\f\f\f") // more than the max determined by nlines
 
 	esc_quot = []byte("&#34;") // shorter than "&quot;"
 	esc_apos = []byte("&#39;") // shorter than "&apos;"
@@ -68,6 +65,7 @@ type printer struct {
 	errors chan os.Error
 
 	// Current state
+	nesting int  // nesting level (0: top-level (package scope), >0: functions/decls.)
 	written int  // number of bytes written
 	indent  int  // current indentation
 	escape  bool // true if in escape sequence
@@ -109,6 +107,25 @@ func (p *printer) internalError(msg ...interface{}) {
 		fmt.Println(msg)
 		panic("go/printer")
 	}
+}
+
+
+// nlines returns the adjusted number of linebreaks given the desired number
+// of breaks n such that min <= result <= max where max depends on the current
+// nesting level.
+//
+func (p *printer) nlines(n, min int) int {
+	if n < min {
+		return min
+	}
+	max := 3 // max. number of newlines at the top level (p.nesting == 0)
+	if p.nesting > 0 {
+		max = 2 // max. number of newlines everywhere else
+	}
+	if n > max {
+		return max
+	}
+	return n
 }
 
 
@@ -207,9 +224,7 @@ func (p *printer) write(data []byte) {
 
 func (p *printer) writeNewlines(n int, useFF bool) {
 	if n > 0 {
-		if n > maxNewlines {
-			n = maxNewlines
-		}
+		n = p.nlines(n, 0)
 		if useFF {
 			p.write(formfeeds[0:n])
 		} else {
@@ -292,8 +307,8 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 	}
 
 	if pos.IsValid() && pos.Filename != p.last.Filename {
-		// comment in a different file - separate with newlines
-		p.writeNewlines(maxNewlines, true)
+		// comment in a different file - separate with newlines (writeNewlines will limit the number)
+		p.writeNewlines(10, true)
 		return
 	}
 
@@ -1004,9 +1019,11 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:
+			p.nesting = 1
 			p.useNodeComments = true
 			p.expr(n, ignoreMultiLine)
 		case ast.Stmt:
+			p.nesting = 1
 			p.useNodeComments = true
 			// A labeled statement will un-indent to position the
 			// label. Set indent to 1 so we don't get indent "underflow".
@@ -1015,12 +1032,15 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 			}
 			p.stmt(n, false, ignoreMultiLine)
 		case ast.Decl:
+			p.nesting = 1
 			p.useNodeComments = true
 			p.decl(n, ignoreMultiLine)
 		case ast.Spec:
+			p.nesting = 1
 			p.useNodeComments = true
 			p.spec(n, 1, false, ignoreMultiLine)
 		case *ast.File:
+			p.nesting = 0
 			p.comments = n.Comments
 			p.useNodeComments = n.Comments == nil
 			p.file(n)

@@ -28,32 +28,30 @@ import (
 // ----------------------------------------------------------------------------
 // Common AST nodes.
 
-// Print as many newlines as necessary (but at least min and and at most
-// max newlines) to get to the current line. ws is printed before the first
-// line break. If newSection is set, the first line break is printed as
-// formfeed. Returns true if any line break was printed; returns false otherwise.
+// Print as many newlines as necessary (but at least min newlines) to get to
+// the current line. ws is printed before the first line break. If newSection
+// is set, the first line break is printed as formfeed. Returns true if any
+// line break was printed; returns false otherwise.
 //
-// TODO(gri): Reconsider signature (provide position instead of line)
+// TODO(gri): linebreak may add too many lines if the next statement at "line"
+//            is preceeded by comments because the computation of n assumes
+//            the current position before the comment and the target position
+//            after the comment. Thus, after interspersing such comments, the
+//            space taken up by them is not considered to reduce the number of
+//            linebreaks. At the moment there is no easy way to know about
+//            future (not yet interspersed) comments in this function.
 //
-func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool) (printedBreak bool) {
-	n := line - p.pos.Line
-	switch {
-	case n < min:
-		n = min
-	case n > max:
-		n = max
-	}
-
+func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (printedBreak bool) {
+	n := p.nlines(line-p.pos.Line, min)
 	if n > 0 {
 		p.print(ws)
 		if newSection {
 			p.print(formfeed)
 			n--
-			printedBreak = true
 		}
-	}
-	for ; n > 0; n-- {
-		p.print(newline)
+		for ; n > 0; n-- {
+			p.print(newline)
+		}
 		printedBreak = true
 	}
 	return
@@ -190,7 +188,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		// lines for them.
 		linebreakMin = 0
 	}
-	if prev.IsValid() && prev.Line < line && p.linebreak(line, linebreakMin, 2, ws, true) {
+	if prev.IsValid() && prev.Line < line && p.linebreak(line, linebreakMin, ws, true) {
 		ws = ignore
 		*multiLine = true
 		prevBreak = 0
@@ -252,7 +250,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 				// unless forceFF is set or there are multiple expressions on
 				// the same line in which case formfeed is used
 				// broken with a formfeed
-				if p.linebreak(line, linebreakMin, 2, ws, useFF || prevBreak+1 < i) {
+				if p.linebreak(line, linebreakMin, ws, useFF || prevBreak+1 < i) {
 					ws = ignore
 					*multiLine = true
 					prevBreak = i
@@ -371,6 +369,11 @@ func (p *printer) setLineComment(text string) {
 
 
 func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprContext) {
+	p.nesting++
+	defer func() {
+		p.nesting--
+	}()
+
 	lbrace := fields.Opening
 	list := fields.List
 	rbrace := fields.Closing
@@ -413,7 +416,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
 		var ml bool
 		for i, f := range list {
 			if i > 0 {
-				p.linebreak(f.Pos().Line, 1, 2, ignore, ml)
+				p.linebreak(f.Pos().Line, 1, ignore, ml)
 			}
 			ml = false
 			extraTabs := 0
@@ -457,7 +460,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
 		var ml bool
 		for i, f := range list {
 			if i > 0 {
-				p.linebreak(f.Pos().Line, 1, 2, ignore, ml)
+				p.linebreak(f.Pos().Line, 1, ignore, ml)
 			}
 			ml = false
 			p.setComment(f.Doc)
@@ -648,7 +651,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
 	if xline != yline && xline > 0 && yline > 0 {
 		// at least one line break, but respect an extra empty line
 		// in the source
-		if p.linebreak(yline, 1, 2, ws, true) {
+		if p.linebreak(yline, 1, ws, true) {
 			ws = ignore
 			*multiLine = true
 			printBlank = false // no blank after line break
@@ -917,8 +920,6 @@ func (p *printer) expr(x ast.Expr, multiLine *bool) {
 // ----------------------------------------------------------------------------
 // Statements
 
-const maxStmtNewlines = 2 // maximum number of newlines between statements
-
 // Print the statement list indented, but without a newline after the last statement.
 // Extra line breaks between statements in the source are respected but at most one
 // empty line is printed between statements.
@@ -931,7 +932,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int, nextIsRBrace bool) {
 	for i, s := range list {
 		// _indent == 0 only for lists of switch/select case clauses;
 		// in those cases each clause is a new section
-		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, ignore, i == 0 || _indent == 0 || multiLine)
+		p.linebreak(s.Pos().Line, 1, ignore, i == 0 || _indent == 0 || multiLine)
 		multiLine = false
 		p.stmt(s, nextIsRBrace && i == len(list)-1, &multiLine)
 	}
@@ -945,7 +946,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int, nextIsRBrace bool) {
 func (p *printer) block(s *ast.BlockStmt, indent int) {
 	p.print(s.Pos(), token.LBRACE)
 	p.stmtList(s.List, indent, true)
-	p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true)
+	p.linebreak(s.Rbrace.Line, 1, ignore, true)
 	p.print(s.Rbrace, token.RBRACE)
 }
 
@@ -1039,7 +1040,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 				break
 			}
 		} else {
-			p.print(newline)
+			p.linebreak(s.Stmt.Pos().Line, 1, ignore, true)
 		}
 		p.stmt(s.Stmt, nextIsRBrace, multiLine)
 
@@ -1271,7 +1272,7 @@ func (p *printer) genDecl(d *ast.GenDecl, multiLine *bool) {
 			var ml bool
 			for i, s := range d.Specs {
 				if i > 0 {
-					p.linebreak(s.Pos().Line, 1, 2, ignore, ml)
+					p.linebreak(s.Pos().Line, 1, ignore, ml)
 				}
 				ml = false
 				p.spec(s, len(d.Specs), false, &ml)
@@ -1345,6 +1346,11 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 		return
 	}
 
+	p.nesting++
+	defer func() {
+		p.nesting--
+	}()
+
 	if p.isOneLineFunc(b, headerSize) {
 		sep := vtab
 		if isLit {
@@ -1414,8 +1420,6 @@ func (p *printer) decl(decl ast.Decl, multiLine *bool) {
 // ----------------------------------------------------------------------------
 // Files
 
-const maxDeclNewlines = 3 // maximum number of newlines between declarations
-
 func declToken(decl ast.Decl) (tok token.Token) {
 	tok = token.ILLEGAL
 	switch d := decl.(type) {
@@ -1444,7 +1448,7 @@ func (p *printer) file(src *ast.File) {
 			if prev != tok {
 				min = 2
 			}
-			p.linebreak(d.Pos().Line, min, maxDeclNewlines, ignore, false)
+			p.linebreak(d.Pos().Line, min, ignore, false)
 			p.decl(d, ignoreMultiLine)
 		}
 	}

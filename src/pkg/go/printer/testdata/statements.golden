@@ -227,7 +227,8 @@ func _() {
 	var x = 1
 
 	// Each use(x) call below should have at most one empty line before and after.
-
+	// Known bug: The first use call may have more than one empty line before
+	//            (see go/printer/nodes.go, func linebreak).
 
 
 	use(x)
@@ -335,4 +336,50 @@ AnOverlongLabel:
 
 L:
 	_ = 0
+}
+
+
+func _() {
+	for {
+		goto L
+	}
+L:
+
+	MoreCode()
+}
+
+
+func _() {
+	for {
+		goto L
+	}
+L:	// A comment on the same line as the label, followed by a single empty line.
+	// Known bug: There may be more than one empty line before MoreCode()
+	//            (see go/printer/nodes.go, func linebreak).
+
+
+	MoreCode()
+}
+
+
+func _() {
+	for {
+		goto L
+	}
+L:
+
+	// There should be a single empty line before this comment.
+	MoreCode()
+}
+
+
+func _() {
+	for {
+		goto AVeryLongLabelThatShouldNotAffectFormatting
+	}
+AVeryLongLabelThatShouldNotAffectFormatting:
+	// There should be a single empty line after this comment.
+
+	// There should be a single empty line before this comment.
+	MoreCode()
 }
