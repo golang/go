@@ -154,7 +154,6 @@ Body.
 		t.Fatal("newnews should work: " + err.String())
 	}
 
-
 	// NewGroups
 	if _, err = conn.NewGroups(tt); err != nil {
 		t.Fatal("newgroups shouldn't error " + err.String())

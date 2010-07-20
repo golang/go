@@ -224,7 +224,6 @@ func emphasize(w io.Writer, line []byte, words map[string]string, nice bool) {
 			italics = false // don't italicize URLs
 		}
 
-
 		// write match
 		if len(url) > 0 {
 			w.Write(html_a)

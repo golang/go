@@ -270,7 +270,6 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 		}
 	}
 
-
 	// Somethings is wrong if at the end, the top level is null or hasn't used
 	// all of the leaves.
 	if top.lastChain.leafCount != n {
