@@ -6,6 +6,20 @@
 
 package main
 
+import "os"
+
+var deLim float64
+var bad bool
+
+func
+init() {
+	if os.Getenv("GOARCH") == "arm" {
+		deLim = 1.0e-8
+	} else {
+		deLim = 10.e-14
+	}
+}
+
 func
 pow10(pow int) float64 {
 	if pow < 0 { return 1/pow10(-pow); }
@@ -30,15 +44,18 @@ close(da float64, ia, ib int64, pow int) bool {
 		de = -de;
 	}
 
-	if de < 1.0e-14 {
+	if de < deLim {
 		return true;
+	}
+	if !bad {
+		println("BUG")
+		bad = true
 	}
 	return false;
 }
 
 func
 main() {
-
 	if !close(0., 0, 1, 0) { print("0. is ", 0., "\n"); }
 	if !close(+10., 10, 1, 0) { print("+10. is ", +10., "\n"); }
 	if !close(-210., -210, 1, 0) { print("-210. is ", -210., "\n"); }
