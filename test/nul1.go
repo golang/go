@@ -1,5 +1,5 @@
 // [ $GOOS != nacl ] || exit 0  # NaCl runner elides NUL in output
-// [ $GORUN != "a" ] || exit 0  # Android runner gets confused by the NUL output 
+// [ "$GORUN" != "a" ] || exit 0  # Android runner gets confused by the NUL output 
 // $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
 // errchk $G -e tmp.go
 // rm -f tmp.go
