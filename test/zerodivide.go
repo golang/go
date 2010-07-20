@@ -137,6 +137,7 @@ func alike(a, b float64) bool {
 }
 
 func main() {
+	bad := false
 	for _, t := range errorTests {
 		if t.err != "" && syscall.OS == "nacl" {
 			continue
@@ -161,6 +162,10 @@ func main() {
 	for _, t := range floatTests {
 		x := t.f/t.g
 		if !alike(x, t.out) {
+			if !bad {
+				bad = true
+				fmt.Printf("BUG\n")
+			}
 			fmt.Printf("%v/%v: expected %g error; got %g\n", t.f, t.g, t.out, x)
 		}
 	}

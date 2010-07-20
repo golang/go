@@ -19,15 +19,57 @@ panic: runtime error: hash of unhashable type []int
 
 panic PC=xxx
 
+=========== ./deferprint.go
+printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+42 true false true +1.755561e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+
 =========== ./helloworld.go
 hello, world
+
+=========== ./peano.go
+0! = 1
+1! = 1
+2! = 2
+3! = 6
+4! = 24
+5! = 120
+6! = 720
+7! = 5040
+8! = 40320
+9! = 362880
 
 =========== ./printbig.go
 -9223372036854775808
 9223372036854775807
 
+=========== ./sigchld.go
+survived SIGCHLD
+
+=========== ./sinit.go
+FAIL
+
 =========== ./turing.go
 Hello World!
+
+=========== ken/cplx0.go
+(+1.066132e-308+1.313301e-308i)
+(+1.066132e-308+1.066132e-308i)
+(+1.066132e-308+1.313301e-308i)
+(+1.066132e-308+1.066132e-308i)
+
+=========== ken/cplx3.go
+(+1.362661e-308+2.270313e+000i)
+(+1.362661e-308+2.270313e+000i)
+64
+
+=========== ken/cplx5.go
+(+0.000000e+000+0.000000e+000i)
+(+1.066132e-308+1.066132e-308i)
+(+1.066132e-308+2.272661e+000i)
+(+2.270313e+000+2.272661e+000i)
+(+2.270313e+000+2.272661e+000i)
+(+1.313272e-308+0.000000e+000i)
+(+1.313272e-308+0.000000e+000i)
 
 =========== ken/intervar.go
  print 1 bio 2 file 3 -- abc
@@ -49,6 +91,9 @@ hello world
 
 =========== ken/string.go
 abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+
+=========== chan/doubleselect.go
+PASS
 
 =========== chan/nonblock.go
 PASS
@@ -104,7 +149,3 @@ panic PC=xxx
 panic: interface conversion: interface is main.T, not main.T
 
 panic PC=xxx
-
-=========== bugs/bug260.go
-FAIL
-BUG: bug260 failed

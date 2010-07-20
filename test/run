@@ -63,11 +63,19 @@ do
 			echo "===========" $i
 			cat $TMP1FILE
 			echo >&2 fail: $i
+			echo "# $i	# fail" >>pass.out
 		elif test -s $TMP1FILE
 		then
 			echo
 			echo "===========" $i
 			cat $TMP1FILE
+			if grep -q '^BUG' $TMP1FILE
+			then
+				echo >&2 fail: $i
+				echo "# $i	# fail, BUG" >>pass.out
+			else
+				echo $i >>pass.out
+			fi
 		elif [ $dir = "bugs" ]
 		then
 			echo $i succeeded with no output.

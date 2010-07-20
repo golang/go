@@ -9,13 +9,13 @@ package main
 import "math"
 
 type floatTest struct {
-	name string;
-	expr bool;
-	want bool;
+	name string
+	expr bool
+	want bool
 }
 
-var nan float64 = math.NaN();
-var f float64 = 1;
+var nan float64 = math.NaN()
+var f float64 = 1
 
 var tests = []floatTest{
 	floatTest{"nan == nan", nan == nan, false},
@@ -75,14 +75,14 @@ var tests = []floatTest{
 }
 
 func main() {
-	bad := false;
+	bad := false
 	for _, t := range tests {
 		if t.expr != t.want {
 			if !bad {
-				bad = true;
-				println("BUG: floatcmp");
+				bad = true
+				println("BUG: floatcmp")
 			}
-			println(t.name, "=", t.expr, "want", t.want);
+			println(t.name, "=", t.expr, "want", t.want)
 		}
 	}
 }

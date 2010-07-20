@@ -34,9 +34,14 @@ func calike(a, b complex128) bool {
 }
 
 func main() {
+	bad := false
 	for _, t := range tests {
 		x := t.f/t.g
 		if !calike(x, t.out) {
+			if !bad {
+				fmt.Printf("BUG\n")
+				bad = true
+			}
 			fmt.Printf("%v/%v: expected %v error; got %v\n", t.f, t.g, t.out, x)
 		}
 	}
