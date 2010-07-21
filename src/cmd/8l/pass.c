@@ -294,16 +294,18 @@ loop:
 	if(a != ACALL) {
 		q = brchain(p->link);
 		if(q != P && q->mark)
-		if(a != ALOOP) {
+		if(a != ALOOP && a != ATEXT) {
 			p->as = relinv(a);
 			p->link = p->pcond;
 			p->pcond = q;
 		}
 		xfol(p->link);
-		q = brchain(p->pcond);
-		if(q->mark) {
-			p->pcond = q;
-			return;
+		if(a != ATEXT) {
+			q = brchain(p->pcond);
+			if(q->mark) {
+				p->pcond = q;
+				return;
+			}
 		}
 		p = q;
 		goto loop;
