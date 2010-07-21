@@ -134,6 +134,10 @@ walkdeftype(Node *n)
 		n->diag = 1;
 		goto ret;
 	}
+	if(n->type == T) {
+		n->diag = 1;
+		goto ret;
+	}
 
 	// copy new type and clear fields
 	// that don't come along
