@@ -218,6 +218,8 @@ static	double	tab[] = { 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7 };
 static void
 mppow10flt(Mpflt *a, int p)
 {
+	if(p < 0)
+		abort();
 	if(p < nelem(tab)) {
 		mpmovecflt(a, tab[p]);
 		return;
@@ -297,6 +299,10 @@ mpatoflt(Mpflt *a, char *as)
 				}
 				if(c >= '0' && c <= '9') {
 					ex = ex*10 + (c-'0');
+					if(ex > 1e8) {
+						yyerror("exponent out of range");
+						errorexit();
+					}
 					continue;
 				}
 				break;

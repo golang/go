@@ -26,8 +26,43 @@ static int32	getr(void);
 static int	escchar(int, int*, vlong*);
 static void	addidir(char*);
 static int	getlinepragma(void);
-
 static char *goos, *goarch, *goroot;
+
+// Our own isdigit, isspace, isalpha, isalnum that take care 
+// of EOF and other out of range arguments.
+static int
+yy_isdigit(int c)
+{
+	return c >= 0 && c <= 0xFF && isdigit(c);
+}
+
+static int
+yy_isspace(int c)
+{
+	return c >= 0 && c <= 0xFF && isspace(c);
+}
+
+static int
+yy_isalpha(int c)
+{
+	return c >= 0 && c <= 0xFF && isalpha(c);
+}
+
+static int
+yy_isalnum(int c)
+{
+	return c >= 0 && c <= 0xFF && isalnum(c);
+}
+
+// Disallow use of isdigit etc.
+#undef isdigit
+#undef isspace
+#undef isalpha
+#undef isalnum
+#define isdigit use_yy_isdigit_instead_of_isdigit
+#define isspace use_yy_isspace_instead_of_isspace
+#define isalpha use_yy_isalpha_instead_of_isalpha
+#define isalnum use_yy_isalnum_instead_of_isalnum
 
 #define	DBG	if(!debug['x']);else print
 enum
@@ -122,7 +157,7 @@ main(int argc, char *argv[])
 	if(getwd(pathname, 999) == 0)
 		strcpy(pathname, "/???");
 
-	if(isalpha(pathname[0]) && pathname[1] == ':') {
+	if(yy_isalpha(pathname[0]) && pathname[1] == ':') {
 		// On Windows.
 		windows = 1;
 
@@ -290,7 +325,7 @@ islocalname(Strlit *name)
 	if(!windows && name->len >= 1 && name->s[0] == '/')
 		return 1;
 	if(windows && name->len >= 3 &&
-	   isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')
+	   yy_isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')
 	   	return 1;
 	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
 		return 1;
@@ -499,7 +534,7 @@ _yylex(void)
 
 l0:
 	c = getc();
-	if(isspace(c)) {
+	if(yy_isspace(c)) {
 		if(c == '\n' && curio.nlsemi) {
 			ungetc(c);
 			DBG("lex: implicit semi\n");
@@ -517,13 +552,13 @@ l0:
 		goto talph;
 	}
 
-	if(isalpha(c)) {
+	if(yy_isalpha(c)) {
 		cp = lexbuf;
 		ep = lexbuf+sizeof lexbuf;
 		goto talph;
 	}
 
-	if(isdigit(c))
+	if(yy_isdigit(c))
 		goto tnum;
 
 	switch(c) {
@@ -539,7 +574,7 @@ l0:
 
 	case '.':
 		c1 = getc();
-		if(isdigit(c1)) {
+		if(yy_isdigit(c1)) {
 			cp = lexbuf;
 			ep = lexbuf+sizeof lexbuf;
 			*cp++ = c;
@@ -906,7 +941,7 @@ talph:
 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
 				yyerror("invalid identifier character 0x%ux", rune);
 			cp += runetochar(cp, &rune);
-		} else if(!isalnum(c) && c != '_')
+		} else if(!yy_isalnum(c) && c != '_')
 			break;
 		else
 			*cp++ = c;
@@ -944,7 +979,7 @@ tnum:
 			}
 			*cp++ = c;
 			c = getc();
-			if(isdigit(c))
+			if(yy_isdigit(c))
 				continue;
 			goto dc;
 		}
@@ -959,7 +994,7 @@ tnum:
 			}
 			*cp++ = c;
 			c = getc();
-			if(isdigit(c))
+			if(yy_isdigit(c))
 				continue;
 			if(c >= 'a' && c <= 'f')
 				continue;
@@ -980,7 +1015,7 @@ tnum:
 			yyerror("identifier too long");
 			errorexit();
 		}
-		if(!isdigit(c))
+		if(!yy_isdigit(c))
 			break;
 		if(c < '0' || c > '7')
 			c1 = 1;		// not octal
@@ -1029,7 +1064,7 @@ casedot:
 		}
 		*cp++ = c;
 		c = getc();
-		if(!isdigit(c))
+		if(!yy_isdigit(c))
 			break;
 	}
 	if(c == 'i')
@@ -1044,9 +1079,9 @@ casee:
 		*cp++ = c;
 		c = getc();
 	}
-	if(!isdigit(c))
+	if(!yy_isdigit(c))
 		yyerror("malformed fp constant exponent");
-	while(isdigit(c)) {
+	while(yy_isdigit(c)) {
 		if(cp+10 >= ep) {
 			yyerror("identifier too long");
 			errorexit();
@@ -1065,9 +1100,9 @@ casep:
 		*cp++ = c;
 		c = getc();
 	}
-	if(!isdigit(c))
+	if(!yy_isdigit(c))
 		yyerror("malformed fp constant exponent");
-	while(isdigit(c)) {
+	while(yy_isdigit(c)) {
 		if(cp+10 >= ep) {
 			yyerror("identifier too long");
 			errorexit();
@@ -1145,9 +1180,13 @@ getlinepragma(void)
 	n = 0;
 	for(;;) {
 		c = getr();
-		if(!isdigit(c))
+		if(!yy_isdigit(c))
 			break;
 		n = n*10 + (c-'0');
+		if(n > 1e8) {
+			yyerror("line number out of range");
+			errorexit();
+		}
 	}
 
 	if(c != '\n' || n <= 0)

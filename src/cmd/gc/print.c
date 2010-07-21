@@ -154,6 +154,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case OTYPE:
+		if(n->type == T && n->sym != S) {
+			fmtprint(f, "%S", n->sym);
+			break;
+		}
 		fmtprint(f, "%T", n->type);
 		break;
 
