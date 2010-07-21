@@ -52,6 +52,13 @@ func (p *pipe) run() {
 		case <-p.done:
 			if ndone++; ndone == 2 {
 				// both reader and writer are gone
+				// close out any existing i/o
+				if r1 == nil {
+					p.r2 <- pipeResult{0, os.EINVAL}
+				}
+				if w1 == nil {
+					p.w2 <- pipeResult{0, os.EINVAL}
+				}
 				return
 			}
 			continue
@@ -89,11 +96,21 @@ func (p *pipe) run() {
 				p.r2 <- pipeResult{0, werr}
 				continue
 			}
+			if rerr != nil {
+				// read end is closed
+				p.r2 <- pipeResult{0, os.EINVAL}
+				continue
+			}
 			r1 = nil // disable Read until this one is done
 		case wb = <-w1:
 			if rerr != nil {
 				// read end is closed
 				p.w2 <- pipeResult{0, rerr}
+				continue
+			}
+			if werr != nil {
+				// write end is closed
+				p.w2 <- pipeResult{0, os.EINVAL}
 				continue
 			}
 			w1 = nil // disable Write until this one is done
