@@ -182,7 +182,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 // Split splits the array s around each instance of sep, returning an array of subarrays of s.
 // If sep is empty, Split splits s after each UTF-8 sequence.
 // If n >= 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
-// Thus if n == 0, the result will ne nil.
+// Thus if n == 0, the result will be nil.
 func Split(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 
 // SplitAfter splits the array s after each instance of sep, returning an array of subarrays of s.
