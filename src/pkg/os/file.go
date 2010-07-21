@@ -49,7 +49,7 @@ const (
 	O_RDONLY   = syscall.O_RDONLY   // open the file read-only.
 	O_WRONLY   = syscall.O_WRONLY   // open the file write-only.
 	O_RDWR     = syscall.O_RDWR     // open the file read-write.
-	O_APPEND   = syscall.O_APPEND   // open the file append-only.
+	O_APPEND   = syscall.O_APPEND   // append data to the file when writing.
 	O_ASYNC    = syscall.O_ASYNC    // generate a signal when I/O is available.
 	O_CREAT    = syscall.O_CREAT    // create a new file if none exists.
 	O_EXCL     = syscall.O_EXCL     // used with O_CREAT, file must not exist
