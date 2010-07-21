@@ -115,7 +115,9 @@ walkrange(Node *n)
 		v2 = n->list->next->n;
 	hv2 = N;
 
-	if(v2 == N && t->etype == TARRAY) {
+	// TODO(kaib): re-enable this optimization on arm once we are on par with 6g/8g
+	// see http://code.google.com/p/go/issues/detail?id=943
+	if(v2 == N && t->etype == TARRAY && thechar != '5') {
 		// will have just one reference to argument.
 		// no need to make a potentially expensive copy.
 		ha = a;
