@@ -5,6 +5,7 @@ package tls
 import (
 	"bytes"
 	"crypto/subtle"
+	"crypto/x509"
 	"hash"
 	"io"
 	"net"
@@ -27,6 +28,7 @@ type Conn struct {
 	handshakeComplete bool
 	cipherSuite       uint16
 	ocspResponse      []byte // stapled OCSP response
+	peerCertificates  []*x509.Certificate
 
 	clientProtocol string
 
@@ -650,4 +652,13 @@ func (c *Conn) OCSPResponse() []byte {
 	defer c.handshakeMutex.Unlock()
 
 	return c.ocspResponse
+}
+
+// PeerCertificates returns the certificate chain that was presented by the
+// other side.
+func (c *Conn) PeerCertificates() []*x509.Certificate {
+	c.handshakeMutex.Lock()
+	defer c.handshakeMutex.Unlock()
+
+	return c.peerCertificates
 }

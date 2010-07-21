@@ -85,6 +85,9 @@ type Config struct {
 	// NextProtos is a list of supported, application level protocols.
 	// Currently only server-side handling is supported.
 	NextProtos []string
+	// ServerName is included in the client's handshake to support virtual
+	// hosting.
+	ServerName string
 }
 
 type Certificate struct {
