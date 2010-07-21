@@ -323,7 +323,7 @@ loop:
 	if(a != ACALL) {
 		q = brchain(p->link);
 		if(q != P && q->mark)
-		if(a != ALOOP) {
+		if(a != ALOOP && a != ATEXT) {
 			p->as = relinv(a);
 			p->link = p->pcond;
 			p->pcond = q;
@@ -376,6 +376,7 @@ relinv(int a)
 	case AJOC:	return AJOS;
 	}
 	diag("unknown relation: %s in %s", anames[a], TNAME);
+	errorexit();
 	return a;
 }
 
@@ -574,7 +575,7 @@ dostkoff(void)
 
 	for(i=0; i<nelem(morename); i++) {
 		if(pmorestack[i] == P)
-			diag("morestack trampoline not defined");
+			diag("morestack trampoline not defined - %s", morename[i]);
 	}
 
 	curframe = 0;
@@ -1036,6 +1037,8 @@ newtext(Prog *p, Sym *s)
 		p->as = ATEXT;
 		p->from.sym = s;
 	}
+	if(p->from.sym == S)
+		abort();
 	s->type = STEXT;
 	s->text = p;
 	s->value = pc;

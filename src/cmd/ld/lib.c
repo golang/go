@@ -901,3 +901,9 @@ iconv(Fmt *fp)
 	return 0;
 }
 
+void
+mangle(char *file)
+{
+	fprint(2, "%s; mangled input file\n", file);
+	errorexit();
+}

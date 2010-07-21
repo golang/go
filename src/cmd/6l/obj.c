@@ -51,28 +51,6 @@ char*	paramspace	= "FP";
  *	options used: 189BLQSWabcjlnpsvz
  */
 
-static int
-isobjfile(char *f)
-{
-	int n, v;
-	Biobuf *b;
-	char buf1[5], buf2[SARMAG];
-
-	b = Bopen(f, OREAD);
-	if(b == nil)
-		return 0;
-	n = Bread(b, buf1, 5);
-	if(n == 5 && (buf1[2] == 1 && buf1[3] == '<' || buf1[3] == 1 && buf1[4] == '<'))
-		v = 1;	/* good enough for our purposes */
-	else {
-		Bseek(b, 0, 0);
-		n = Bread(b, buf2, SARMAG);
-		v = n == SARMAG && strncmp(buf2, ARMAG, SARMAG) == 0;
-	}
-	Bterm(b);
-	return v;
-}
-
 void
 usage(void)
 {
@@ -400,10 +378,21 @@ main(int argc, char *argv[])
 	errorexit();
 }
 
+Sym*
+zsym(char *pn, Biobuf *f, Sym *h[])
+{	
+	int o;
+	
+	o = Bgetc(f);
+	if(o < 0 || o >= NSYM || h[o] == nil)
+		mangle(pn);
+	return h[o];
+}
+
 void
 zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 {
-	int o, t;
+	int t;
 	int32 l;
 	Sym *s;
 	Auto *u;
@@ -424,14 +413,8 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 		}
 	}
 	a->sym = S;
-	if(t & T_SYM) {
-		o = Bgetc(f);
-		if(o < 0 || o >= NSYM || h[o] == nil) {
-			fprint(2, "%s: mangled input file\n", pn);
-			errorexit();
-		}
-		a->sym = h[o];
-	}
+	if(t & T_SYM)
+		a->sym = zsym(pn, f, h);
 	a->type = D_NONE;
 	if(t & T_FCONST) {
 		a->ieee.l = Bget4(f);
@@ -446,10 +429,15 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 		a->type = Bgetc(f);
 	adrgotype = S;
 	if(t & T_GOTYPE)
-		adrgotype = h[Bgetc(f)];
+		adrgotype = zsym(pn, f, h);
 	s = a->sym;
-	if(s == S)
+	if(s == S) {
+		switch(a->type) {
+		case D_SIZE:
+			mangle(pn);
+		}
 		return;
+	}
 
 	t = a->type;
 	if(t != D_AUTO && t != D_PARAM) {
@@ -563,10 +551,8 @@ loop:
 
 		if(debug['W'])
 			print("	ANAME	%s\n", s->name);
-		if(o < 0 || o >= nelem(h)) {
-			fprint(2, "%s: mangled input file\n", pn);
-			errorexit();
-		}
+		if(o < 0 || o >= nelem(h))
+			mangle(pn);
 		h[o] = s;
 		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
 			s->type = SXREF;

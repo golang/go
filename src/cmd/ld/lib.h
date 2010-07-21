@@ -83,6 +83,7 @@ void	readundefs(char *f, int t);
 int32	Bget4(Biobuf *f);
 void	loadlib(void);
 void	errorexit(void);
+void	mangle(char*);
 void	objfile(char *file, char *pkg);
 void	libinit(void);
 void	Lflag(char *arg);
