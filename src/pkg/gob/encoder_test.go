@@ -274,6 +274,7 @@ var testFloat32 float32
 var testString string
 var testSlice []string
 var testMap map[string]int
+var testArray [7]int
 
 type SingleTest struct {
 	in  interface{}
@@ -287,6 +288,8 @@ var singleTests = []SingleTest{
 	SingleTest{"bike shed", &testString, ""},
 	SingleTest{[]string{"bike", "shed", "paint", "color"}, &testSlice, ""},
 	SingleTest{map[string]int{"seven": 7, "twelve": 12}, &testMap, ""},
+	SingleTest{[7]int{4, 55, 0, 0, 0, 0, 0}, &testArray, ""}, // case that once triggered a bug
+	SingleTest{[7]int{4, 55, 1, 44, 22, 66, 1234}, &testArray, ""},
 
 	// Decode errors
 	SingleTest{172, &testFloat32, "wrong type"},
@@ -320,7 +323,7 @@ func TestSingletons(t *testing.T) {
 		// Get rid of the pointer in the rhs
 		val := reflect.NewValue(test.out).(*reflect.PtrValue).Elem().Interface()
 		if !reflect.DeepEqual(test.in, val) {
-			t.Errorf("decoding int: expected %v got %v", test.in, val)
+			t.Errorf("decoding singleton: expected %v got %v", test.in, val)
 		}
 	}
 }
