@@ -685,3 +685,25 @@ func TestReplace(t *testing.T) {
 		}
 	}
 }
+
+type TitleTest struct {
+	in, out string
+}
+
+var TitleTests = []TitleTest{
+	TitleTest{"", ""},
+	TitleTest{"a", "A"},
+	TitleTest{" aaa aaa aaa ", " Aaa Aaa Aaa "},
+	TitleTest{" Aaa Aaa Aaa ", " Aaa Aaa Aaa "},
+	TitleTest{"123a456", "123a456"},
+	TitleTest{"double-blind", "Double-Blind"},
+	TitleTest{"ÿøû", "Ÿøû"},
+}
+
+func TestTitle(t *testing.T) {
+	for _, tt := range TitleTests {
+		if s := string(Title([]byte(tt.in))); s != tt.out {
+			t.Errorf("Title(%q) = %q, want %q", tt.in, s, tt.out)
+		}
+	}
+}
