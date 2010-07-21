@@ -332,6 +332,52 @@ func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
 // ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
 func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 
+// isSeparator reports whether the rune could mark a word boundary.
+// TODO: update when package unicode captures more of the properties.
+func isSeparator(rune int) bool {
+	// ASCII alphanumerics and underscore are not separators
+	if rune <= 0x7F {
+		switch {
+		case '0' <= rune && rune <= '9':
+			return false
+		case 'a' <= rune && rune <= 'z':
+			return false
+		case 'A' <= rune && rune <= 'Z':
+			return false
+		case rune == '_':
+			return false
+		}
+		return true
+	}
+	// Letters and digits are not separators
+	if unicode.IsLetter(rune) || unicode.IsDigit(rune) {
+		return false
+	}
+	// Otherwise, all we can do for now is treat spaces as separators.
+	return unicode.IsSpace(rune)
+}
+
+// BUG(r): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+
+// Title returns a copy of s with all Unicode letters that begin words
+// mapped to their title case.
+func Title(s []byte) []byte {
+	// Use a closure here to remember state.
+	// Hackish but effective. Depends on Map scanning in order and calling
+	// the closure once per rune.
+	prev := ' '
+	return Map(
+		func(r int) int {
+			if isSeparator(prev) {
+				prev = r
+				return unicode.ToTitle(r)
+			}
+			prev = r
+			return r
+		},
+		s)
+}
+
 // TrimLeftFunc returns a subslice of s by slicing off all leading UTF-8 encoded
 // Unicode code points c that satisfy f(c).
 func TrimLeftFunc(s []byte, f func(r int) bool) []byte {
