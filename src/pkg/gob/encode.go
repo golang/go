@@ -722,10 +722,6 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 				return nil, 0, err
 			}
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
-				slice := (*reflect.SliceHeader)(p)
-				if slice.Len == 0 {
-					return
-				}
 				state.update(i)
 				state.err = encodeArray(state.b, uintptr(p), elemOp, t.Elem().Size(), indir, t.Len())
 			}
