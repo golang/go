@@ -232,6 +232,9 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 		err = &OpError{"WSARecv", fd.net, fd.laddr, os.Errno(r.errno)}
 	}
 	n = int(r.qty)
+	if err == nil && n == 0 {
+		err = os.EOF
+	}
 	return
 }
 
