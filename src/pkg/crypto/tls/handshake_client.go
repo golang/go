@@ -28,6 +28,7 @@ func (c *Conn) clientHandshake() os.Error {
 		compressionMethods: []uint8{compressionNone},
 		random:             make([]byte, 32),
 		ocspStapling:       true,
+		serverName:         c.config.ServerName,
 	}
 
 	t := uint32(c.config.Time())
@@ -106,6 +107,8 @@ func (c *Conn) clientHandshake() os.Error {
 	if !ok {
 		return c.sendAlert(alertUnsupportedCertificate)
 	}
+
+	c.peerCertificates = certs
 
 	if serverHello.certStatus {
 		msg, err = c.readHandshake()

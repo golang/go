@@ -100,7 +100,8 @@ func (m *clientHelloMsg) marshal() []byte {
 		//     ServerName server_name_list<1..2^16-1>
 		// } ServerNameList;
 
-		z[1] = 1
+		z[0] = byte((len(m.serverName) + 3) >> 8)
+		z[1] = byte(len(m.serverName) + 3)
 		z[3] = byte(len(m.serverName) >> 8)
 		z[4] = byte(len(m.serverName))
 		copy(z[5:], []byte(m.serverName))
