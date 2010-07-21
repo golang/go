@@ -142,8 +142,9 @@ func Errstr(errno int) string {
 	if errno == EWINDOWS {
 		return "not supported by windows"
 	}
+	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
 	b := make([]uint16, 300)
-	n, err := FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ARGUMENT_ARRAY, 0, uint32(errno), 0, b, nil)
+	n, err := FormatMessage(flags, 0, uint32(errno), 0, b, nil)
 	if err != 0 {
 		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
 	}
