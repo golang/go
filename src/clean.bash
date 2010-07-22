@@ -9,6 +9,14 @@ if [ -z "$GOROOT" ] ; then
 	echo '$GOROOT not set'
 	exit 1
 fi
+if [ -z "$GOOS" ] ; then
+	echo '$GOOS not set'
+	exit 1
+fi
+if [ -z "$GOARCH" ] ; then
+	echo '$GOARCH not set'
+	exit 1
+fi
 
 GOBIN="${GOBIN:-$HOME/bin}"
 
