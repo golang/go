@@ -71,7 +71,6 @@ do
 			cat $TMP1FILE
 			if grep -q '^BUG' $TMP1FILE
 			then
-				echo >&2 fail: $i
 				echo "# $i	# fail, BUG" >>pass.out
 			else
 				echo $i >>pass.out
