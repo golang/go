@@ -300,12 +300,10 @@ loop:
 			p->pcond = q;
 		}
 		xfol(p->link);
-		if(a != ATEXT) {
-			q = brchain(p->pcond);
-			if(q->mark) {
-				p->pcond = q;
-				return;
-			}
+		q = brchain(p->pcond);
+		if(q->mark) {
+			p->pcond = q;
+			return;
 		}
 		p = q;
 		goto loop;
