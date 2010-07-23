@@ -127,7 +127,7 @@ func LastIndex(s, sep []byte) int {
 	return -1
 }
 
-// IndexAny interprets s as a sequence of UTF-8 encoded Unicode code points.
+// IndexAny interprets s as a sequence of UTF-8-encoded Unicode code points.
 // It returns the byte index of the first occurrence in s of any of the Unicode
 // code points in chars.  It returns -1 if chars is empty or if there is no code
 // point in common.
@@ -278,7 +278,7 @@ func HasSuffix(s, suffix []byte) bool {
 // Map returns a copy of the byte array s with all its characters modified
 // according to the mapping function. If mapping returns a negative value, the character is
 // dropped from the string with no replacement.  The characters in s and the
-// output are interpreted as UTF-8 encoded Unicode code points.
+// output are interpreted as UTF-8-encoded Unicode code points.
 func Map(mapping func(rune int) int, s []byte) []byte {
 	// In the worst case, the array can grow when mapped, making
 	// things unpleasant.  But it's so rare we barge in assuming it's
@@ -378,50 +378,102 @@ func Title(s []byte) []byte {
 		s)
 }
 
-// TrimLeftFunc returns a subslice of s by slicing off all leading UTF-8 encoded
+// TrimLeftFunc returns a subslice of s by slicing off all leading UTF-8-encoded
 // Unicode code points c that satisfy f(c).
 func TrimLeftFunc(s []byte, f func(r int) bool) []byte {
-	var start, wid int
-	for start = 0; start < len(s); start += wid {
-		wid = 1
-		rune := int(s[start])
-		if rune >= utf8.RuneSelf {
-			rune, wid = utf8.DecodeRune(s[start:])
-		}
-		if !f(rune) {
-			break
-		}
+	i := indexFunc(s, f, false)
+	if i == -1 {
+		return nil
 	}
-	return s[start:]
+	return s[i:]
 }
 
 // TrimRightFunc returns a subslice of s by slicing off all trailing UTF-8
 // encoded Unicode code points c that satisfy f(c).
 func TrimRightFunc(s []byte, f func(r int) bool) []byte {
-	var end, wid int
-	for end = len(s); end > 0; end -= wid {
-		wid = 1
-		rune := int(s[end-wid])
-		if rune >= utf8.RuneSelf {
-			// Back up & look for beginning of rune. Mustn't pass start.
-			for wid = 2; end-wid >= 0 && !utf8.RuneStart(s[end-wid]); wid++ {
-			}
-			if end-wid < 0 { // invalid UTF-8 sequence; stop processing
-				break
-			}
-			rune, wid = utf8.DecodeRune(s[end-wid : end])
-		}
-		if !f(rune) {
-			break
-		}
+	i := lastIndexFunc(s, f, false)
+	if i >= 0 && s[i] >= utf8.RuneSelf {
+		_, wid := utf8.DecodeRune(s[i:])
+		i += wid
+	} else {
+		i++
 	}
-	return s[0:end]
+	return s[0:i]
 }
 
 // TrimFunc returns a subslice of s by slicing off all leading and trailing
-// UTF-8 encoded Unicode code points c that satisfy f(c).
+// UTF-8-encoded Unicode code points c that satisfy f(c).
 func TrimFunc(s []byte, f func(r int) bool) []byte {
 	return TrimRightFunc(TrimLeftFunc(s, f), f)
+}
+
+// IndexFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+// It returns the byte index in s of the first Unicode
+// code point satisfying f(c), or -1 if none do.
+func IndexFunc(s []byte, f func(r int) bool) int {
+	return indexFunc(s, f, true)
+}
+
+// LastIndexFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+// It returns the byte index in s of the last Unicode
+// code point satisfying f(c), or -1 if none do.
+func LastIndexFunc(s []byte, f func(r int) bool) int {
+	return lastIndexFunc(s, f, true)
+}
+
+// indexFunc is the same as IndexFunc except that if
+// truth==false, the sense of the predicate function is
+// inverted.
+func indexFunc(s []byte, f func(r int) bool, truth bool) int {
+	start := 0
+	for start < len(s) {
+		wid := 1
+		rune := int(s[start])
+		if rune >= utf8.RuneSelf {
+			rune, wid = utf8.DecodeRune(s[start:])
+		}
+		if f(rune) == truth {
+			return start
+		}
+		start += wid
+	}
+	return -1
+}
+
+// lastIndexFunc is the same as LastIndexFunc except that if
+// truth==false, the sense of the predicate function is
+// inverted.
+func lastIndexFunc(s []byte, f func(r int) bool, truth bool) int {
+	end := len(s)
+	for end > 0 {
+		start := end - 1
+		rune := int(s[start])
+		if rune >= utf8.RuneSelf {
+			// Back up & look for beginning of rune. Mustn't pass start.
+			for start--; start >= 0; start-- {
+				if utf8.RuneStart(s[start]) {
+					break
+				}
+			}
+			if start < 0 {
+				return -1
+			}
+			var wid int
+			rune, wid = utf8.DecodeRune(s[start:end])
+
+			// If we've decoded fewer bytes than we expected,
+			// we've got some invalid UTF-8, so make sure we return
+			// the last possible index in s.
+			if start+wid < end && f(utf8.RuneError) == truth {
+				return end - 1
+			}
+		}
+		if f(rune) == truth {
+			return start
+		}
+		end = start
+	}
+	return -1
 }
 
 func makeCutsetFunc(cutset string) func(rune int) bool {
@@ -436,19 +488,19 @@ func makeCutsetFunc(cutset string) func(rune int) bool {
 }
 
 // Trim returns a subslice of s by slicing off all leading and
-// trailing UTF-8 encoded Unicode code points contained in cutset.
+// trailing UTF-8-encoded Unicode code points contained in cutset.
 func Trim(s []byte, cutset string) []byte {
 	return TrimFunc(s, makeCutsetFunc(cutset))
 }
 
 // TrimLeft returns a subslice of s by slicing off all leading
-// UTF-8 encoded Unicode code points contained in cutset.
+// UTF-8-encoded Unicode code points contained in cutset.
 func TrimLeft(s []byte, cutset string) []byte {
 	return TrimLeftFunc(s, makeCutsetFunc(cutset))
 }
 
 // TrimRight returns a subslice of s by slicing off all trailing
-// UTF-8 encoded Unicode code points that are contained in cutset.
+// UTF-8-encoded Unicode code points that are contained in cutset.
 func TrimRight(s []byte, cutset string) []byte {
 	return TrimRightFunc(s, makeCutsetFunc(cutset))
 }

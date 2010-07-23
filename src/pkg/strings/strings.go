@@ -422,8 +422,7 @@ func LastIndexFunc(s string, f func(r int) bool) int {
 
 // indexFunc is the same as IndexFunc except that if
 // truth==false, the sense of the predicate function is
-// inverted. We could use IndexFunc directly, but this
-// way saves a closure allocation.
+// inverted.
 func indexFunc(s string, f func(r int) bool, truth bool) int {
 	start := 0
 	for start < len(s) {
@@ -442,8 +441,7 @@ func indexFunc(s string, f func(r int) bool, truth bool) int {
 
 // lastIndexFunc is the same as LastIndexFunc except that if
 // truth==false, the sense of the predicate function is
-// inverted. We could use IndexFunc directly, but this
-// way saves a closure allocation.
+// inverted.
 func lastIndexFunc(s string, f func(r int) bool, truth bool) int {
 	end := len(s)
 	for end > 0 {

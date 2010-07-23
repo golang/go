@@ -420,25 +420,6 @@ var trimTests = []TrimTest{
 	TrimTest{TrimRight, "☺\xc0", "☺", "☺\xc0"},
 }
 
-// naiveTrimRight implements a version of TrimRight
-// by scanning forwards from the start of s.
-func naiveTrimRight(s string, cutset string) string {
-	i := -1
-	for j, r := range s {
-		if IndexRune(cutset, r) == -1 {
-			i = j
-		}
-	}
-	if i >= 0 && s[i] >= utf8.RuneSelf {
-		_, wid := utf8.DecodeRuneInString(s[i:])
-		i += wid
-	} else {
-		i++
-	}
-	return s[0:i]
-}
-
-
 func TestTrim(t *testing.T) {
 	for _, tc := range trimTests {
 		actual := tc.f(tc.in, tc.cutset)
@@ -456,14 +437,12 @@ func TestTrim(t *testing.T) {
 		if actual != tc.out {
 			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.cutset, actual, tc.out)
 		}
-		// test equivalence of TrimRight to naive version
-		if tc.f == TrimRight {
-			naive := naiveTrimRight(tc.in, tc.cutset)
-			if naive != actual {
-				t.Errorf("TrimRight(%q, %q) = %q, want %q", tc.in, tc.cutset, actual, naive)
-			}
-		}
 	}
+}
+
+type predicate struct {
+	f    func(r int) bool
+	name string
 }
 
 var isSpace = predicate{unicode.IsSpace, "IsSpace"}
@@ -474,11 +453,6 @@ var isValidRune = predicate{
 		return r != utf8.RuneError
 	},
 	"IsValidRune",
-}
-
-type predicate struct {
-	f    func(r int) bool
-	name string
 }
 
 type TrimFuncTest struct {
@@ -530,7 +504,7 @@ var indexFuncTests = []IndexFuncTest{
 	IndexFuncTest{"\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", isUpper, 0, 34},
 	IndexFuncTest{"12\u0e50\u0e52hello34\u0e50\u0e51", not(isDigit), 8, 12},
 
-	// broken unicode tests
+	// tests of invalid UTF-8
 	IndexFuncTest{"\x801", isDigit, 1, 1},
 	IndexFuncTest{"\x80abc", isDigit, -1, -1},
 	IndexFuncTest{"\xc0a\xc0", isValidRune, 1, 1},
