@@ -8,6 +8,7 @@ import (
 	. "bytes"
 	"testing"
 	"unicode"
+	"utf8"
 )
 
 func eq(a, b []string) bool {
@@ -367,8 +368,14 @@ var trimSpaceTests = []StringTest{
 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
 	StringTest{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
 	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
-	StringTest{" x\x80", "x\x80"}, // invalid UTF-8 on end
-	StringTest{" x\xc0", "x\xc0"}, // invalid UTF-8 on end
+	StringTest{" x\x80", "x\x80"},
+	StringTest{" x\xc0", "x\xc0"},
+	StringTest{"x \xc0\xc0 ", "x \xc0\xc0"},
+	StringTest{"x \xc0", "x \xc0"},
+	StringTest{"x \xc0 ", "x \xc0"},
+	StringTest{"x \xc0\xc0 ", "x \xc0\xc0"},
+	StringTest{"x ☺\xc0\xc0 ", "x ☺\xc0\xc0"},
+	StringTest{"x ☺ ", "x ☺"},
 }
 
 // Bytes returns a new slice containing the bytes in s.
@@ -607,6 +614,7 @@ var trimTests = []TrimTest{
 	TrimTest{TrimRight, "abba", "", "abba"},
 	TrimTest{TrimRight, "", "123", ""},
 	TrimTest{TrimRight, "", "", ""},
+	TrimTest{TrimRight, "☺\xc0", "☺", "☺\xc0"},
 }
 
 func TestTrim(t *testing.T) {
@@ -629,22 +637,90 @@ func TestTrim(t *testing.T) {
 	}
 }
 
+type predicate struct {
+	f    func(r int) bool
+	name string
+}
+
+var isSpace = predicate{unicode.IsSpace, "IsSpace"}
+var isDigit = predicate{unicode.IsDigit, "IsDigit"}
+var isUpper = predicate{unicode.IsUpper, "IsUpper"}
+var isValidRune = predicate{
+	func(r int) bool {
+		return r != utf8.RuneError
+	},
+	"IsValidRune",
+}
+
 type TrimFuncTest struct {
-	f             func(r int) bool
-	name, in, out string
+	f       predicate
+	in, out string
+}
+
+func not(p predicate) predicate {
+	return predicate{
+		func(r int) bool {
+			return !p.f(r)
+		},
+		"not " + p.name,
+	}
 }
 
 var trimFuncTests = []TrimFuncTest{
-	TrimFuncTest{unicode.IsSpace, "IsSpace", space + " hello " + space, "hello"},
-	TrimFuncTest{unicode.IsDigit, "IsDigit", "\u0e50\u0e5212hello34\u0e50\u0e51", "hello"},
-	TrimFuncTest{unicode.IsUpper, "IsUpper", "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", "hello"},
+	TrimFuncTest{isSpace, space + " hello " + space, "hello"},
+	TrimFuncTest{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51", "hello"},
+	TrimFuncTest{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", "hello"},
+	TrimFuncTest{not(isSpace), "hello" + space + "hello", space},
+	TrimFuncTest{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo", "\u0e50\u0e521234\u0e50\u0e51"},
+	TrimFuncTest{isValidRune, "ab\xc0a\xc0cd", "\xc0a\xc0"},
+	TrimFuncTest{not(isValidRune), "\xc0a\xc0", "a"},
 }
 
 func TestTrimFunc(t *testing.T) {
 	for _, tc := range trimFuncTests {
-		actual := string(TrimFunc([]byte(tc.in), tc.f))
+		actual := string(TrimFunc([]byte(tc.in), tc.f.f))
 		if actual != tc.out {
-			t.Errorf("TrimFunc(%q, %q) = %q; want %q", tc.in, tc.name, actual, tc.out)
+			t.Errorf("TrimFunc(%q, %q) = %q; want %q", tc.in, tc.f.name, actual, tc.out)
+		}
+	}
+}
+
+type IndexFuncTest struct {
+	in          string
+	f           predicate
+	first, last int
+}
+
+var indexFuncTests = []IndexFuncTest{
+	IndexFuncTest{"", isValidRune, -1, -1},
+	IndexFuncTest{"abc", isDigit, -1, -1},
+	IndexFuncTest{"0123", isDigit, 0, 3},
+	IndexFuncTest{"a1b", isDigit, 1, 1},
+	IndexFuncTest{space, isSpace, 0, len(space) - 3}, // last rune in space is 3 bytes
+	IndexFuncTest{"\u0e50\u0e5212hello34\u0e50\u0e51", isDigit, 0, 18},
+	IndexFuncTest{"\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", isUpper, 0, 34},
+	IndexFuncTest{"12\u0e50\u0e52hello34\u0e50\u0e51", not(isDigit), 8, 12},
+
+	// tests of invalid UTF-8
+	IndexFuncTest{"\x801", isDigit, 1, 1},
+	IndexFuncTest{"\x80abc", isDigit, -1, -1},
+	IndexFuncTest{"\xc0a\xc0", isValidRune, 1, 1},
+	IndexFuncTest{"\xc0a\xc0", not(isValidRune), 0, 2},
+	IndexFuncTest{"\xc0☺\xc0", not(isValidRune), 0, 4},
+	IndexFuncTest{"\xc0☺\xc0\xc0", not(isValidRune), 0, 5},
+	IndexFuncTest{"ab\xc0a\xc0cd", not(isValidRune), 2, 4},
+	IndexFuncTest{"a\xe0\x80cd", not(isValidRune), 1, 2},
+}
+
+func TestIndexFunc(t *testing.T) {
+	for _, tc := range indexFuncTests {
+		first := IndexFunc([]byte(tc.in), tc.f.f)
+		if first != tc.first {
+			t.Errorf("IndexFunc(%q, %s) = %d; want %d", tc.in, tc.f.name, first, tc.first)
+		}
+		last := LastIndexFunc([]byte(tc.in), tc.f.f)
+		if last != tc.last {
+			t.Errorf("LastIndexFunc(%q, %s) = %d; want %d", tc.in, tc.f.name, last, tc.last)
 		}
 	}
 }
