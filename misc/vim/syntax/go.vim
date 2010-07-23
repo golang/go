@@ -136,7 +136,7 @@ syn region      goBlock             start="{" end="}" transparent fold
 syn region      goParen             start='(' end=')' transparent
 
 " Integers
-syn match       goDecimalInt        "\<\d\+\>"
+syn match       goDecimalInt        "\<\d\+\([Ee]\d\+\)\?\>"
 syn match       goHexadecimalInt    "\<0x\x\+\>"
 syn match       goOctalInt          "\<0\o\+\>"
 syn match       goOctalError        "\<0\o*[89]\d*\>"
