@@ -80,6 +80,29 @@ func Syscall9(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 u
 	lasterr = p.err;
 }
 
+func Syscall12(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
+	StdcallParams p;
+	p.fn = (void*)trap;
+	p.args[0] = a1;
+	p.args[1] = a2;
+	p.args[2] = a3;
+	p.args[3] = a4;
+	p.args[4] = a5;
+	p.args[5] = a6;
+	p.args[6] = a7;
+	p.args[7] = a8;
+	p.args[8] = a9;
+	p.args[9] = a10;
+	p.args[10] = a11;
+	p.args[11] = a12;
+	·entersyscall();
+	syscall(&p);
+	·exitsyscall();
+	r1 = p.r;
+	r2 = 0;
+	lasterr = p.err;
+}
+
 func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
 	StdcallParams p;
 	p.fn = (void*)trap;
