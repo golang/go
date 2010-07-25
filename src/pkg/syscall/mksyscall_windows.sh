@@ -145,6 +145,10 @@ while(<>) {
 			} else {
 				push @args, "uintptr($name)", "uintptr($name >> 32)";
 			}
+		} elsif($type eq "bool") {
+ 			$text .= "\tvar _p$n uint32;\n";
+			$text .= "\tif $name { _p$n = 1; } else { _p$n = 0;}\n";
+			push @args, "uintptr(_p$n)";
 		} else {
 			push @args, "uintptr($name)";
 		}
@@ -165,6 +169,11 @@ while(<>) {
 	} elsif(@args <= 9) {
 		$asm = "Syscall9";
 		while(@args < 9) {
+			push @args, "0";
+		}
+	} elsif(@args <= 12) {
+		$asm = "Syscall12";
+		while(@args < 12) {
 			push @args, "0";
 		}
 	} else {

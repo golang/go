@@ -285,7 +285,7 @@ void
 call_syscall(void *args)
 {
 	StdcallParams *p = (StdcallParams*)args;
-	p->r = (uintptr)stdcall_raw((void*)p->fn, p->args[0], p->args[1], p->args[2], p->args[3], p->args[4], p->args[5], p->args[6], p->args[7], p->args[8]);
+	p->r = (uintptr)stdcall_raw((void*)p->fn, p->args[0], p->args[1], p->args[2], p->args[3], p->args[4], p->args[5], p->args[6], p->args[7], p->args[8], p->args[9], p->args[10], p->args[11]);
 	p->err = (uintptr)stdcall_raw(GetLastError);
 	return;
 }

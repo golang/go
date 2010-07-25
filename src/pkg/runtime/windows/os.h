@@ -34,7 +34,7 @@ typedef struct StdcallParams StdcallParams;
 struct StdcallParams
 {
 	void	*fn;
-	uintptr args[9];
+	uintptr args[12];
 	uintptr	r;
 	uintptr	err;
 };

@@ -59,6 +59,10 @@ const (
 	OPEN_ALWAYS       = 4
 	TRUNCATE_EXISTING = 5
 
+	STARTF_USESTDHANDLES   = 0x00000100
+	DUPLICATE_CLOSE_SOURCE = 0x00000001
+	DUPLICATE_SAME_ACCESS  = 0x00000002
+
 	STD_INPUT_HANDLE  = -10
 	STD_OUTPUT_HANDLE = -11
 	STD_ERROR_HANDLE  = -12
@@ -75,7 +79,8 @@ const (
 	FORMAT_MESSAGE_ARGUMENT_ARRAY  = 8192
 	FORMAT_MESSAGE_MAX_WIDTH_MASK  = 255
 
-	MAX_PATH = 260
+	MAX_PATH      = 260
+	MAX_LONG_PATH = 32768
 
 	MAX_COMPUTERNAME_LENGTH = 15
 
@@ -83,9 +88,12 @@ const (
 	TIME_ZONE_ID_STANDARD = 1
 
 	TIME_ZONE_ID_DAYLIGHT = 2
+	IGNORE                = 0
 	INFINITE              = 0xffffffff
 
 	WAIT_TIMEOUT = 258
+
+	CREATE_UNICODE_ENVIRONMENT = 0x00000400
 )
 
 const (
@@ -179,6 +187,34 @@ type ByHandleFileInformation struct {
 	NumberOfLinks      uint32
 	FileIndexHigh      uint32
 	FileIndexLow       uint32
+}
+
+type StartupInfo struct {
+	Cb            uint32
+	_             *uint16
+	Desktop       *uint16
+	Title         *uint16
+	X             uint32
+	Y             uint32
+	XSize         uint32
+	YSize         uint32
+	XCountChars   uint32
+	YCountChars   uint32
+	FillAttribute uint32
+	Flags         uint32
+	ShowWindow    uint16
+	_             uint16
+	_             *byte
+	StdInput      int32
+	StdOutput     int32
+	StdErr        int32
+}
+
+type ProcessInformation struct {
+	Process   int32
+	Thread    int32
+	ProcessId uint32
+	ThreadId  uint32
 }
 
 // Invented values to support what package os expects.
