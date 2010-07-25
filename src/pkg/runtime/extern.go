@@ -111,7 +111,7 @@ func Semrelease(s *uint32)
 // is not called again, the next time the garbage collector sees
 // that x is unreachable, it will free x.
 //
-// SetFinalizer(x, nil) clears any finalizer associated with f.
+// SetFinalizer(x, nil) clears any finalizer associated with x.
 //
 // The argument x must be a pointer to an object allocated by
 // calling new or by taking the address of a composite literal.
