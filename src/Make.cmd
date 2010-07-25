@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+ifeq ($(GOOS),windows)
+TARG:=$(TARG).exe
+endif
+
 all: $(TARG)
 
 # ugly hack to deal with whitespaces in $GOROOT
@@ -10,10 +14,6 @@ space := $(nullstring) # a space at the end
 QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
 
 include $(QUOTED_GOROOT)/src/Make.common
-
-ifeq ($(GOOS),windows) 
-TARG:=$(TARG).exe 
-endif
 
 PREREQ+=$(patsubst %,%.make,$(DEPS))
 
