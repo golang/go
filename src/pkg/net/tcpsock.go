@@ -73,7 +73,7 @@ type TCPConn struct {
 
 func newTCPConn(fd *netFD) *TCPConn {
 	c := &TCPConn{fd}
-	setsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1)
+	c.SetNoDelay(true)
 	return c
 }
 
@@ -190,6 +190,17 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
 		return os.EINVAL
 	}
 	return setKeepAlive(c.fd, keepalive)
+}
+
+// SetNoDelay controls whether the operating system should delay
+// packet transmission in hopes of sending fewer packets
+// (Nagle's algorithm).  The default is true (no delay), meaning
+// that data is sent as soon as possible after a Write.
+func (c *TCPConn) SetNoDelay(noDelay bool) os.Error {
+	if !c.ok() {
+		return os.EINVAL
+	}
+	return setNoDelay(c.fd, noDelay)
 }
 
 // DialTCP is like Dial but can only connect to TCP networks
