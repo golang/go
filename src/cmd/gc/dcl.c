@@ -1017,11 +1017,12 @@ functype(Node *this, NodeList *in, NodeList *out)
 }
 
 Sym*
-methodsym(Sym *nsym, Type *t0)
+methodsym(Sym *nsym, Type *t0, int iface)
 {
 	Sym *s;
 	char *p;
 	Type *t;
+	char *suffix;
 
 	t = t0;
 	if(t == T)
@@ -1043,7 +1044,13 @@ methodsym(Sym *nsym, Type *t0)
 	if(t != t0 && t0->sym)
 		t0 = ptrto(t);
 
-	p = smprint("%#hT·%s", t0, nsym->name);
+	suffix = "";
+	if(iface) {
+		dowidth(t0);
+		if(t0->width < types[tptr]->width)
+			suffix = "·i";
+	}
+	p = smprint("%#hT·%s%s", t0, nsym->name, suffix);
 	s = pkglookup(p, s->pkg);
 	free(p);
 	return s;
@@ -1058,7 +1065,7 @@ methodname(Node *n, Type *t)
 {
 	Sym *s;
 
-	s = methodsym(n->sym, t);
+	s = methodsym(n->sym, t, 0);
 	if(s == S)
 		return n;
 	return newname(s);

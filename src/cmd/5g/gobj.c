@@ -705,7 +705,7 @@ out:
 	p->to.type = D_OREG;
 	p->to.reg = NREG;
 	p->to.name = D_EXTERN;
-	p->to.sym = methodsym(method->sym, ptrto(f->type));
+	p->to.sym = methodsym(method->sym, ptrto(f->type), 0);
 //print("4. %P\n", p);
 
 	pc->as = ARET;	// overwrite AEND
