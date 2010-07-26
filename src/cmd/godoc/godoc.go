@@ -237,27 +237,33 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 	// determine number of subdirectories and package files
 	ndirs := 0
 	nfiles := 0
-	text := ""
+	var synopses [4]string // prioritized package documentation (0 == highest priority)
 	for _, d := range list {
 		switch {
 		case isPkgDir(d):
 			ndirs++
 		case isPkgFile(d):
 			nfiles++
-			if text == "" {
-				// no package documentation yet; take the first found
+			if synopses[0] == "" {
+				// no "optimal" package synopsis yet; continue to collect synopses
 				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil, nil,
 					parser.ParseComments|parser.PackageClauseOnly)
-				if err == nil &&
-					// Also accept fakePkgName, so we get synopses for commmands.
-					// Note: This may lead to incorrect results if there is a
-					// (left-over) "documentation" package somewhere in a package
-					// directory of different name, but this is very unlikely and
-					// against current conventions.
-					(file.Name.Name() == name || file.Name.Name() == fakePkgName) &&
-					file.Doc != nil {
-					// found documentation; extract a synopsys
-					text = firstSentence(doc.CommentText(file.Doc))
+				if err == nil && file.Doc != nil {
+					// prioritize documentation
+					i := -1
+					switch file.Name.Name() {
+					case name:
+						i = 0 // normal case: directory name matches package name
+					case fakePkgName:
+						i = 1 // synopses for commands
+					case "main":
+						i = 2 // directory contains a main package
+					default:
+						i = 3 // none of the above
+					}
+					if 0 <= i && i < len(synopses) && synopses[i] == "" {
+						synopses[i] = firstSentence(doc.CommentText(file.Doc))
+					}
 				}
 			}
 		}
@@ -286,14 +292,25 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 		return nil
 	}
 
-	return &Directory{depth, path, name, text, dirs}
+	// select the highest-priority synopsis for the directory entry, if any
+	synopsis := ""
+	for _, synopsis = range synopses {
+		if synopsis != "" {
+			break
+		}
+	}
+
+	return &Directory{depth, path, name, synopsis, dirs}
 }
 
 
 // newDirectory creates a new package directory tree with at most maxDepth
-// levels, anchored at root which is relative to goroot. The result tree
-// only contains directories that contain package files or that contain
-// subdirectories containing package files (transitively).
+// levels, anchored at root. The result tree is pruned such that it only
+// contains directories that contain package files or that contain
+// subdirectories containing package files (transitively). If maxDepth is
+// too shallow, the leaf nodes are assumed to contain package files even if
+// their contents are not known (i.e., in this case the tree may contain
+// directories w/o any package files).
 //
 func newDirectory(root string, maxDepth int) *Directory {
 	d, err := os.Lstat(root)
