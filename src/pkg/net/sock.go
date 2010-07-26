@@ -129,6 +129,12 @@ func setKeepAlive(fd *netFD, keepalive bool) os.Error {
 	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive))
 }
 
+func setNoDelay(fd *netFD, noDelay bool) os.Error {
+	fd.incref()
+	defer fd.decref()
+	return setsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay))
+}
+
 func setLinger(fd *netFD, sec int) os.Error {
 	var l syscall.Linger
 	if sec >= 0 {
