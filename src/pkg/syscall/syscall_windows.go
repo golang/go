@@ -138,6 +138,8 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (ok bool, errno int)
 //sys	WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) [failretval=0xffffffff]
 //sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
+//sys	CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int)
+//sys	GetFileType(filehandle uint32) (n uint32, errno int)
 //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
 //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
 //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
@@ -261,6 +263,11 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
 	}
 	hi := int32(offset >> 32)
 	lo := int32(offset)
+	// use GetFileType to check pipe, pipe can't do seek
+	ft, _ := GetFileType(uint32(fd))
+	if ft == FILE_TYPE_PIPE {
+		return 0, EPIPE
+	}
 	rlo, e := SetFilePointer(int32(fd), lo, &hi, w)
 	if e != 0 {
 		return 0, e
@@ -385,6 +392,19 @@ func Gettimeofday(tv *Timeval) (errno int) {
 
 func Sleep(nsec int64) (errno int) {
 	sleep(uint32((nsec + 1e6 - 1) / 1e6)) // round up to milliseconds
+	return 0
+}
+
+func Pipe(p []int) (errno int) {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var r, w uint32
+	if ok, errno := CreatePipe(&r, &w, nil, 0); !ok {
+		return errno
+	}
+	p[0] = int(r)
+	p[1] = int(w)
 	return 0
 }
 
@@ -604,8 +624,6 @@ func Getegid() (egid int)                { return -1 }
 func Getgroups() (gids []int, errno int) { return nil, EWINDOWS }
 
 // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
-
-func Pipe(p []int) (errno int) { return EWINDOWS }
 
 func read(fd int, buf *byte, nbuf int) (n int, errno int) {
 	return 0, EWINDOWS
