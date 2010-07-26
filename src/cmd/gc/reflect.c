@@ -183,14 +183,14 @@ methods(Type *t)
 		a = b;
 
 		a->name = method->name;
-		a->isym = methodsym(method, it);
-		a->tsym = methodsym(method, t);
+		a->isym = methodsym(method, it, 1);
+		a->tsym = methodsym(method, t, 0);
 		a->type = methodfunc(f->type, 1);
 		a->mtype = methodfunc(f->type, 0);
 
 		if(!(a->isym->flags & SymSiggen)) {
 			a->isym->flags |= SymSiggen;
-			if(!eqtype(this, it)) {
+			if(!eqtype(this, it) || this->width < types[tptr]->width) {
 				if(oldlist == nil)
 					oldlist = pc;
 				// Is okay to call genwrapper here always,
@@ -201,7 +201,7 @@ methods(Type *t)
 				&& f->embedded && !isifacemethod(f->type))
 					genembedtramp(it, f, a->isym);
 				else
-					genwrapper(it, f, a->isym);
+					genwrapper(it, f, a->isym, 1);
 			}
 		}
 
@@ -214,7 +214,7 @@ methods(Type *t)
 				&& f->embedded && !isifacemethod(f->type))
 					genembedtramp(t, f, a->tsym);
 				else
-					genwrapper(t, f, a->tsym);
+					genwrapper(t, f, a->tsym, 0);
 			}
 		}
 	}

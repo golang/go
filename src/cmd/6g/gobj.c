@@ -732,7 +732,7 @@ out:
 	p = pc;
 	gins(AJMP, N, N);
 	p->to.type = D_EXTERN;
-	p->to.sym = methodsym(method->sym, ptrto(f->type));
+	p->to.sym = methodsym(method->sym, ptrto(f->type), 0);
 //print("6. %P\n", p);
 
 	pc->as = ARET;	// overwrite AEND

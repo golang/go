@@ -494,7 +494,7 @@ reswitch:
 				goto error;
 			}
 			n->op = ONAME;
-			n->sym = methodsym(sym, l->type);
+			n->sym = methodsym(sym, l->type, 0);
 			n->type = methodfunc(n->type, 1);
 			n->xoffset = 0;
 			getinargx(n->type)->type->type = l->type;	// fix up receiver

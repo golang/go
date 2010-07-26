@@ -3043,10 +3043,11 @@ structargs(Type **tl, int mustname)
  *	newnam - the eventual mangled name of this function
  */
 void
-genwrapper(Type *rcvr, Type *method, Sym *newnam)
+genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 {
-	Node *this, *fn, *call, *n, *t;
+	Node *this, *fn, *call, *n, *t, *pad;
 	NodeList *l, *args, *in, *out;
+	Type *tpad;
 
 	if(debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
@@ -3062,8 +3063,21 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 
 	fn = nod(ODCLFUNC, N, N);
 	fn->nname = newname(newnam);
-	t = nod(OTFUNC, this, N);
-	t->list = in;
+	t = nod(OTFUNC, N, N);
+	l = list1(this);
+	if(iface && rcvr->width < types[tptr]->width) {
+		// Building method for interface table and receiver
+		// is smaller than the single pointer-sized word
+		// that the interface call will pass in.
+		// Add a dummy padding argument after the
+		// receiver to make up the difference.
+		tpad = typ(TARRAY);
+		tpad->type = types[TUINT8];
+		tpad->bound = types[tptr]->width - rcvr->width;
+		pad = nod(ODCLFIELD, newname(lookup(".pad")), typenod(tpad));
+		l = list(l, pad);
+	}
+	t->list = concat(l, in);
 	t->rlist = out;
 	fn->nname->ntype = t;
 	funchdr(fn);
