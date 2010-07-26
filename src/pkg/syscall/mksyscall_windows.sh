@@ -229,7 +229,11 @@ while(<>) {
 		if($name eq "errno") {
 			# Set errno to "last error" only if returned value indicate failure
 			$body .= "\tif $failexpr {\n";
-			$body .= "\t\t$name = $type($reg);\n";
+			$body .= "\t\tif $reg != 0 {\n";
+			$body .= "\t\t\t$name = $type($reg);\n";
+			$body .= "\t\t} else {\n";
+			$body .= "\t\t\t$name = EINVAL;\n";
+			$body .= "\t\t}\n";
 			$body .= "\t} else {\n";
 			$body .= "\t\t$name = 0;\n";
 			$body .= "\t}\n";

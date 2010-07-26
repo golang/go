@@ -17,6 +17,7 @@ void *VirtualAlloc;
 void *LoadLibraryEx;
 void *GetProcAddress;
 void *GetLastError;
+void *SetLastError;
 
 static void *CreateEvent;
 static void *CreateThread;
@@ -65,6 +66,7 @@ osinit(void)
 	WaitForSingleObject = get_proc_addr("kernel32.dll", "WaitForSingleObject");
 	WriteFile = get_proc_addr("kernel32.dll", "WriteFile");
 	GetLastError = get_proc_addr("kernel32.dll", "GetLastError");
+	SetLastError = get_proc_addr("kernel32.dll", "SetLastError");
 }
 
 // The arguments are strings.
@@ -285,6 +287,7 @@ void
 call_syscall(void *args)
 {
 	StdcallParams *p = (StdcallParams*)args;
+	stdcall_raw(SetLastError, 1, 0);
 	p->r = (uintptr)stdcall_raw((void*)p->fn, p->args[0], p->args[1], p->args[2], p->args[3], p->args[4], p->args[5], p->args[6], p->args[7], p->args[8], p->args[9], p->args[10], p->args[11]);
 	p->err = (uintptr)stdcall_raw(GetLastError);
 	return;
