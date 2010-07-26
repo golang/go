@@ -55,7 +55,7 @@ Usage(void)
 {
 	fprint(2, "Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]\n");
 	fprint(2, "\tformats (default -h):\n");
-	fprint(2, "\t\t-c file.prof: write [c]pprof output to file.prof\n");
+	fprint(2, "\t\t-P file.prof: write [c]pprof output to file.prof\n");
 	fprint(2, "\t\t-h: histograms\n");
 	fprint(2, "\t\t-f: dynamic functions\n");
 	fprint(2, "\t\t-l: dynamic file and line numbers\n");
