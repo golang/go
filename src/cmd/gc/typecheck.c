@@ -1781,6 +1781,11 @@ typecheckcomplit(Node **np)
 					typecheck(&l->right, Erv);
 					continue;
 				}
+				// Sym might have resolved to name in other top-level
+				// package, because of import dot.  Redirect to correct sym
+				// before we do the lookup.
+				if(s->pkg != localpkg)
+					s = lookup(s->name);
 				l->left = newname(s);
 				l->left->typecheck = 1;
 				f = lookdot1(s, t, t->type, 0);
