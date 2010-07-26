@@ -47,6 +47,8 @@ var (
 	procDuplicateHandle            = getSysProcAddr(modkernel32, "DuplicateHandle")
 	procWaitForSingleObject        = getSysProcAddr(modkernel32, "WaitForSingleObject")
 	procGetTempPathW               = getSysProcAddr(modkernel32, "GetTempPathW")
+	procCreatePipe                 = getSysProcAddr(modkernel32, "CreatePipe")
+	procGetFileType                = getSysProcAddr(modkernel32, "GetFileType")
 	procCryptAcquireContextW       = getSysProcAddr(modadvapi32, "CryptAcquireContextW")
 	procCryptReleaseContext        = getSysProcAddr(modadvapi32, "CryptReleaseContext")
 	procCryptGenRandom             = getSysProcAddr(modadvapi32, "CryptGenRandom")
@@ -578,6 +580,36 @@ func WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, e
 
 func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
 	r0, _, e1 := Syscall(procGetTempPathW, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
+	n = uint32(r0)
+	if n == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int) {
+	r0, _, e1 := Syscall6(procCreatePipe, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(lpsa)), uintptr(size), 0, 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetFileType(filehandle uint32) (n uint32, errno int) {
+	r0, _, e1 := Syscall(procGetFileType, uintptr(filehandle), 0, 0)
 	n = uint32(r0)
 	if n == 0 {
 		if e1 != 0 {
