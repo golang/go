@@ -259,6 +259,10 @@ var scanfTests = []ScanfTest{
 	// Custom scanner.
 	ScanfTest{"%s", "  sss ", &xVal, Xs("sss")},
 	ScanfTest{"%2s", "sssss", &xVal, Xs("ss")},
+
+	// Fixed bugs
+	ScanfTest{"%d\n", "27\n", &intVal, 27},  // ok
+	ScanfTest{"%d\n", "28 \n", &intVal, 28}, // was: "unexpected newline"
 }
 
 var overflowTests = []ScanTest{

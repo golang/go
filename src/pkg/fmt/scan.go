@@ -316,14 +316,17 @@ func (s *ss) free() {
 	_ = ssFree <- s
 }
 
-// skipSpace skips spaces and maybe newlines
-func (s *ss) skipSpace() {
+// skipSpace skips spaces and maybe newlines.
+func (s *ss) skipSpace(stopAtNewline bool) {
 	for {
 		rune := s.getRune()
 		if rune == EOF {
 			return
 		}
 		if rune == '\n' {
+			if stopAtNewline {
+				break
+			}
 			if s.nlIsSpace {
 				continue
 			}
@@ -341,7 +344,7 @@ func (s *ss) skipSpace() {
 // skips white space.  For Scanln, it stops at newlines.  For Scan,
 // newlines are treated as spaces.
 func (s *ss) token() string {
-	s.skipSpace()
+	s.skipSpace(false)
 	// read until white space or newline
 	for nrunes := 0; !s.widPresent || nrunes < s.maxWid; nrunes++ {
 		rune := s.getRune()
@@ -482,7 +485,7 @@ func (s *ss) scanInt(verb int, bitSize int) int64 {
 		return s.scanRune(bitSize)
 	}
 	base, digits := s.getBase(verb)
-	s.skipSpace()
+	s.skipSpace(false)
 	s.accept(sign) // If there's a sign, it will be left in the token buffer.
 	tok := s.scanNumber(digits)
 	i, err := strconv.Btoi64(tok, base)
@@ -504,7 +507,7 @@ func (s *ss) scanUint(verb int, bitSize int) uint64 {
 		return uint64(s.scanRune(bitSize))
 	}
 	base, digits := s.getBase(verb)
-	s.skipSpace()
+	s.skipSpace(false)
 	tok := s.scanNumber(digits)
 	i, err := strconv.Btoui64(tok, base)
 	if err != nil {
@@ -586,7 +589,7 @@ func (s *ss) scanComplex(verb int, n int) complex128 {
 	if !s.okVerb(verb, floatVerbs, "complex") {
 		return 0
 	}
-	s.skipSpace()
+	s.skipSpace(false)
 	sreal, simag := s.complexTokens()
 	real := s.convertFloat(sreal, n/2)
 	imag := s.convertFloat(simag, n/2)
@@ -599,7 +602,7 @@ func (s *ss) convertString(verb int) string {
 	if !s.okVerb(verb, "svqx", "string") {
 		return ""
 	}
-	s.skipSpace()
+	s.skipSpace(false)
 	switch verb {
 	case 'q':
 		return s.quotedString()
@@ -748,17 +751,17 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	// scan in high precision and convert, in order to preserve the correct error condition.
 	case *float:
 		if s.okVerb(verb, floatVerbs, "float") {
-			s.skipSpace()
+			s.skipSpace(false)
 			*v = float(s.convertFloat(s.floatToken(), int(floatBits)))
 		}
 	case *float32:
 		if s.okVerb(verb, floatVerbs, "float32") {
-			s.skipSpace()
+			s.skipSpace(false)
 			*v = float32(s.convertFloat(s.floatToken(), 32))
 		}
 	case *float64:
 		if s.okVerb(verb, floatVerbs, "float64") {
-			s.skipSpace()
+			s.skipSpace(false)
 			*v = s.convertFloat(s.floatToken(), 64)
 		}
 	case *string:
@@ -795,7 +798,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
 				v.Elem(i).(*reflect.UintValue).Set(uint64(str[i]))
 			}
 		case *reflect.FloatValue:
-			s.skipSpace()
+			s.skipSpace(false)
 			v.Set(s.convertFloat(s.floatToken(), v.Type().Bits()))
 		case *reflect.ComplexValue:
 			v.Set(s.scanComplex(verb, v.Type().Bits()))
@@ -878,7 +881,7 @@ func (s *ss) advance(format string) (i int) {
 				// Space in format but not in input: error
 				s.errorString("expected space in input to match format")
 			}
-			s.skipSpace()
+			s.skipSpace(true)
 			continue
 		}
 		inputc := s.mustGetRune()
