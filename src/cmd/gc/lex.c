@@ -90,12 +90,27 @@ usage(void)
 	exit(0);
 }
 
+void
+fault(int s)
+{
+	// If we've already complained about things
+	// in the program, don't bother complaining
+	// about the seg fault too; let the user clean up
+	// the code and try again.
+	if(nerrors > 0)
+		errorexit();
+	fatal("fault");
+}
+
 int
 main(int argc, char *argv[])
 {
 	int i, c;
 	NodeList *l;
 	char *p;
+	
+	signal(SIGBUS, fault);
+	signal(SIGSEGV, fault);
 
 	localpkg = mkpkg(strlit(""));
 	localpkg->prefix = "\"\"";
