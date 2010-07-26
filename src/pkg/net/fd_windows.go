@@ -198,7 +198,11 @@ func (fd *netFD) Close() os.Error {
 }
 
 func newWSABuf(p []byte) *syscall.WSABuf {
-	return &syscall.WSABuf{uint32(len(p)), (*byte)(unsafe.Pointer(&p[0]))}
+	var p0 *byte
+	if len(p) > 0 {
+		p0 = (*byte)(unsafe.Pointer(&p[0]))
+	}
+	return &syscall.WSABuf{uint32(len(p)), p0}
 }
 
 func (fd *netFD) Read(p []byte) (n int, err os.Error) {
