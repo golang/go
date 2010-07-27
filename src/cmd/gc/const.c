@@ -536,6 +536,12 @@ evconst(Node *n)
 		v = toflt(v);
 		rv = toflt(rv);
 	}
+	if(v.ctype != rv.ctype) {
+		// Use of undefined name as constant?
+		if((v.ctype == 0 || rv.ctype == 0) && nerrors > 0)
+			return;
+		fatal("constant type mismatch %T(%d) %T(%d)", nl->type, v.ctype, nr->type, rv.ctype);
+	}
 
 	// run op
 	switch(TUP(n->op, v.ctype)) {
