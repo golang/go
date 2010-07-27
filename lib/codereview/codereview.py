@@ -1632,7 +1632,11 @@ def RietveldSetup(ui, repo):
 			if line.startswith('defaultcc: '):
 				defaultcc = SplitCommaSpace(line[10:])
 	except:
-		pass
+		# If there are no options, chances are good this is not
+		# a code review repository; stop now before we foul
+		# things up even worse.  Might also be that repo doesn't
+		# even have a root.  See issue 959.
+		return
 
 	try:
 		f = open(repo.root + '/CONTRIBUTORS', 'r')
