@@ -152,18 +152,18 @@ func htmlEscape(s string) string {
 
 
 func firstSentence(s string) string {
-	i := -1 // index+1 of first period
-	j := -1 // index+1 of first period that is followed by white space
+	i := -1 // index+1 of first terminator (punctuation ending a sentence)
+	j := -1 // index+1 of first terminator followed by white space
 	prev := 'A'
 	for k, ch := range s {
 		k1 := k + 1
-		if ch == '.' {
+		if ch == '.' || ch == '!' || ch == '?' {
 			if i < 0 {
-				i = k1 // first period
+				i = k1 // first terminator
 			}
 			if k1 < len(s) && s[k1] <= ' ' {
 				if j < 0 {
-					j = k1 // first period followed by white space
+					j = k1 // first terminator followed by white space
 				}
 				if !unicode.IsUpper(prev) {
 					j = k1
@@ -175,10 +175,10 @@ func firstSentence(s string) string {
 	}
 
 	if j < 0 {
-		// use the next best period
+		// use the next best terminator
 		j = i
 		if j < 0 {
-			// no period at all, use the entire string
+			// no terminator at all, use the entire string
 			j = len(s)
 		}
 	}
