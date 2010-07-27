@@ -1129,6 +1129,10 @@ reswitch:
 	case ORETURN:
 		ok |= Etop;
 		typechecklist(n->list, Erv | Efnstruct);
+		if(curfn == N) {
+			yyerror("return outside function");
+			goto error;
+		}
 		if(curfn->type->outnamed && n->list == nil)
 			goto ret;
 		typecheckaste(ORETURN, getoutargx(curfn->type), n->list, "return argument");
