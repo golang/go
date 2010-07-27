@@ -392,7 +392,7 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 			}
 			n = b.Available()
 		}
-		if b.Available() == 0 && len(p) >= len(b.buf) {
+		if b.Buffered() == 0 && len(p) >= len(b.buf) {
 			// Large write, empty buffer.
 			// Write directly from p to avoid copy.
 			n, b.err = b.wr.Write(p)
