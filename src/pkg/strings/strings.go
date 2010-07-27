@@ -163,16 +163,22 @@ func genSplit(s, sep string, sepSave, n int) []string {
 	return a[0 : na+1]
 }
 
-// Split splits the string s around each instance of sep, returning an array of substrings of s.
-// If sep is empty, Split splits s after each UTF-8 sequence.
-// If n >= 0, Split splits s into at most n substrings; the last substring will be the unsplit remainder.
-// Thus if n == 0, the result will be nil.
+// Split slices s into substrings separated by sep and returns a slice of
+// the substrings between those separators.
+// If sep is empty, Split splits after each UTF-8 sequence.
+// The count determines the number of substrings to return:
+//   n > 0: at most n substrings; the last substring will be the unsplit remainder.
+//   n == 0: the result is nil (zero substrings)
+//   n < 0: all substrings
 func Split(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
 
-// SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
-// If sep is empty, SplitAfter splits s after each UTF-8 sequence.
-// If n >= 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
-// Thus if n == 0, the result will be nil.
+// SplitAfter slices s into substrings after each instance of sep and
+// returns a slice of those substrings.
+// If sep is empty, Split splits after each UTF-8 sequence.
+// The count determines the number of substrings to return:
+//   n > 0: at most n substrings; the last substring will be the unsplit remainder.
+//   n == 0: the result is nil (zero substrings)
+//   n < 0: all substrings
 func SplitAfter(s, sep string, n int) []string {
 	return genSplit(s, sep, len(sep), n)
 }
