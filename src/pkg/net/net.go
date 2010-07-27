@@ -129,6 +129,9 @@ type OpError struct {
 }
 
 func (e *OpError) String() string {
+	if e == nil {
+		return "<nil>"
+	}
 	s := e.Op
 	if e.Net != "" {
 		s += " " + e.Net
@@ -164,6 +167,9 @@ type AddrError struct {
 }
 
 func (e *AddrError) String() string {
+	if e == nil {
+		return "<nil>"
+	}
 	s := e.Error
 	if e.Addr != "" {
 		s += " " + e.Addr
