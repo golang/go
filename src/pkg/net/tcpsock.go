@@ -30,7 +30,12 @@ type TCPAddr struct {
 // Network returns the address's network name, "tcp".
 func (a *TCPAddr) Network() string { return "tcp" }
 
-func (a *TCPAddr) String() string { return joinHostPort(a.IP.String(), itoa(a.Port)) }
+func (a *TCPAddr) String() string {
+	if a == nil {
+		return "<nil>"
+	}
+	return joinHostPort(a.IP.String(), itoa(a.Port))
+}
 
 func (a *TCPAddr) family() int {
 	if a == nil || len(a.IP) <= 4 {

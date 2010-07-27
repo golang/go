@@ -30,7 +30,12 @@ type IPAddr struct {
 // Network returns the address's network name, "ip".
 func (a *IPAddr) Network() string { return "ip" }
 
-func (a *IPAddr) String() string { return a.IP.String() }
+func (a *IPAddr) String() string {
+	if a == nil {
+		return "<nil>"
+	}
+	return a.IP.String()
+}
 
 func (a *IPAddr) family() int {
 	if a == nil || len(a.IP) <= 4 {

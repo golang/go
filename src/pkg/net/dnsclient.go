@@ -30,6 +30,9 @@ type DNSError struct {
 }
 
 func (e *DNSError) String() string {
+	if e == nil {
+		return "<nil>"
+	}
 	s := "lookup " + e.Name
 	if e.Server != "" {
 		s += " on " + e.Server
