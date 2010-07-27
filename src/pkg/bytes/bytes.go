@@ -179,17 +179,22 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	return a[0 : na+1]
 }
 
-// Split splits the array s around each instance of sep, returning an array of subarrays of s.
-// If sep is empty, Split splits s after each UTF-8 sequence.
-// If n >= 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
-// Thus if n == 0, the result will be nil.
+// Split slices s into subslices separated by sep and returns a slice of
+// the subslices between those separators.
+// If sep is empty, Split splits after each UTF-8 sequence.
+// The count determines the number of subslices to return:
+//   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+//   n == 0: the result is nil (zero subslices)
+//   n < 0: all subslices
 func Split(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 
-// SplitAfter splits the array s after each instance of sep, returning an array of subarrays of s.
-// If sep is empty, SplitAfter splits s after each UTF-8 sequence.
-// If n >= 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
-// unsplit remainder.
-// Thus if n == 0, the result will ne nil.
+// SplitAfter slices s into subslices after each instance of sep and
+// returns a slice of those subslices.
+// If sep is empty, Split splits after each UTF-8 sequence.
+// The count determines the number of subslices to return:
+//   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+//   n == 0: the result is nil (zero subslices)
+//   n < 0: all subslices
 func SplitAfter(s, sep []byte, n int) [][]byte {
 	return genSplit(s, sep, len(sep), n)
 }
