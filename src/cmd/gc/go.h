@@ -1209,7 +1209,7 @@ void	dumpfuncs(void);
 void	gdata(Node*, Node*, int);
 void	gdatacomplex(Node*, Mpcplx*);
 void	gdatastring(Node*, Strlit*);
-void	genembedtramp(Type*, Type*, Sym*);
+void	genembedtramp(Type*, Type*, Sym*, int iface);
 void	ggloblnod(Node *nam, int32 width);
 void	ggloblsym(Sym *s, int32 width, int dupok);
 Prog*	gjmp(Prog*);
