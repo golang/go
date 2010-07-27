@@ -427,21 +427,15 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 	}
 	if(t & T_TYPE)
 		a->type = Bgetc(f);
+	if(a->type < 0 || a->type >= D_SIZE)
+		mangle(pn);
 	adrgotype = S;
 	if(t & T_GOTYPE)
 		adrgotype = zsym(pn, f, h);
 	s = a->sym;
-	if(s == S) {
-		switch(a->type) {
-		case D_SIZE:
-			mangle(pn);
-		}
-		return;
-	}
-
 	t = a->type;
 	if(t != D_AUTO && t != D_PARAM) {
-		if(adrgotype)
+		if(s && adrgotype)
 			s->gotype = adrgotype;
 		return;
 	}
@@ -581,6 +575,15 @@ loop:
 	zaddr(pn, f, &p->from, h);
 	fromgotype = adrgotype;
 	zaddr(pn, f, &p->to, h);
+	
+	switch(p->as) {
+	case ATEXT:
+	case ADATA:
+	case AGLOBL:
+		if(p->from.sym == S)
+			mangle(pn);
+		break;
+	}
 
 	if(debug['W'])
 		print("%P\n", p);

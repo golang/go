@@ -904,6 +904,6 @@ iconv(Fmt *fp)
 void
 mangle(char *file)
 {
-	fprint(2, "%s; mangled input file\n", file);
+	fprint(2, "%s: mangled input file\n", file);
 	errorexit();
 }
