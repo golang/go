@@ -642,7 +642,7 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 }
 
 void
-genembedtramp(Type *rcvr, Type *method, Sym *newnam)
+genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
 {
 	Sym *e;
 	int c, d, o, mov, add, loaded;

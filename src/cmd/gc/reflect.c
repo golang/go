@@ -199,7 +199,7 @@ methods(Type *t)
 				// is a pointer adjustment and a JMP.
 				if(isptr[it->etype] && isptr[this->etype]
 				&& f->embedded && !isifacemethod(f->type))
-					genembedtramp(it, f, a->isym);
+					genembedtramp(it, f, a->isym, 1);
 				else
 					genwrapper(it, f, a->isym, 1);
 			}
@@ -212,7 +212,7 @@ methods(Type *t)
 					oldlist = pc;
 				if(isptr[t->etype] && isptr[this->etype]
 				&& f->embedded && !isifacemethod(f->type))
-					genembedtramp(t, f, a->tsym);
+					genembedtramp(t, f, a->tsym, 0);
 				else
 					genwrapper(t, f, a->tsym, 0);
 			}
