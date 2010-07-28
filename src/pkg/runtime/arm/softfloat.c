@@ -19,15 +19,19 @@ static uint32 doabort = 0;
 static uint32 trace = 0;
 
 #define DOUBLE_EXPBIAS 1023
-#define DOUBLE_MANT_MASK 0xfffffffffffffll
-#define DOUBLE_MANT_TOP_BIT 0x10000000000000ll
-#define DZERO 0x0000000000000000ll
-#define DNZERO 0x8000000000000000ll
-#define DONE 0x3ff0000000000000ll
-#define DINF 0x7ff0000000000000ll
-#define DNINF 0xfff0000000000000ll
+#define DOUBLE_MANT_MASK 0xfffffffffffffull
+#define DOUBLE_MANT_TOP_BIT 0x10000000000000ull
+#define DZERO 0x0000000000000000ull
+#define DNZERO 0x8000000000000000ull
+#define DONE 0x3ff0000000000000ull
+#define DINF 0x7ff0000000000000ull
+#define DNINF 0xfff0000000000000ull
+#define DNAN 0x7FF0000000000001ull
 
 #define SINGLE_EXPBIAS 127
+#define FINF 0x7f800000ul
+#define FNINF 0xff800000ul
+#define FNAN 0x7f800000ul
 
 
 static const int8* opnames[] = {
@@ -141,6 +145,14 @@ fprint(void)
 static uint32
 d2s(uint64 d)
 {
+	if ((d & ~(1ull << 63)) == 0)
+		return (uint32)(d>>32);
+	if (d == DINF)
+		return FINF;
+	if (d == DNINF)
+		return FNINF;
+	if ((d & ~(1ull << 63)) == DNAN)
+		return FNAN;
 	return (d>>32 & 0x80000000) |	//sign
 		((uint32)(fexp(d) + SINGLE_EXPBIAS) & 0xff) << 23 |	// exponent
 		(d >> 29 & 0x7fffff);	// mantissa
@@ -149,6 +161,14 @@ d2s(uint64 d)
 static uint64
 s2d(uint32 s)
 {
+	if ((s & ~(1ul << 31)) == 0)
+		return (uint64)(s) << 32;
+	if (s == FINF)
+		return DINF;
+	if (s == FNINF)
+		return DNINF;
+	if ((s & ~(1ul << 31)) == FNAN)
+		return DNAN;
 	return (uint64)(s & 0x80000000) << 63 |	// sign
 		(uint64)((s >> 23 &0xff) + (DOUBLE_EXPBIAS - SINGLE_EXPBIAS)) << 52  |	// exponent
 		(uint64)(s & 0x7fffff) << 29;	// mantissa
@@ -199,6 +219,10 @@ dataprocess(uint32* pc)
 	} else {
 		fraw0 = m->freg[lhs];
 		fraw1 = frhs(rhs);
+		if (isNaN(float64frombits(fraw0)) || isNaN(float64frombits(fraw1))) {
+			m->freg[dest] = DNAN;
+			goto ret;
+		}
 		switch (opcode) {
 		case 2: // suf
 			fraw1 ^= 0x1ll << 63;
@@ -236,6 +260,10 @@ dataprocess(uint32* pc)
 				if (0x1ll<<expd & fsd)
 					break;
 			}
+			if (expd - 52 < 0)
+				fsd <<= -(expd - 52);
+			else
+				fsd >>= expd - 52;
 			if (exp0 > exp1)
 				exp = expd + exp0 - 52;
 			else
@@ -255,6 +283,15 @@ dataprocess(uint32* pc)
 			goto ret;
 
 		case 4: //dvf
+			if ((fraw1 & ~(1ull<<63)) == 0) {
+				if ((fraw0 & ~(1ull<<63)) == 0) {
+					m->freg[dest] = DNAN;
+				} else {
+					sign = fraw0 & 1ull<<63 ^ fraw1 & 1ull<<63;
+					m->freg[dest] = sign | DINF;
+				}
+				goto ret;
+			}
 			// reciprocal for fraw1
 			if (fraw1 == DONE)
 				goto muf;
@@ -558,7 +595,7 @@ stepflt(uint32 *pc, uint32 *regs)
 		if (i & 0x00800000) {
 			return 0;
 		}
-		return i & 0x007ffffff + 2;
+		return (i & 0x007fffff) + 2;
 	}
 	
 	c = i >> 25 & 7;

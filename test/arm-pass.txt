@@ -18,7 +18,7 @@
 ./cmp4.go
 ./cmp5.go
 ./cmplx.go
-# ./cmplxdivide.go	# fail
+# ./cmplxdivide.go	# fail, BUG
 ./cmplxdivide1.go
 ./complit.go
 ./compos.go
@@ -42,8 +42,8 @@
 ./empty.go
 ./env.go
 ./escape.go
-# ./float_lit.go	# fail
-# ./floatcmp.go	# fail
+./float_lit.go
+# ./floatcmp.go	# fail, BUG
 ./for.go
 ./func.go
 ./func1.go
@@ -65,13 +65,13 @@
 ./indirect.go
 ./indirect1.go
 ./initcomma.go
-# ./initialize.go	# fail
+# ./initialize.go	# fail, BUG
 ./initializerr.go
 ./initsyscall.go
 ./int_lit.go
 ./intcvt.go
 ./iota.go
-# ./literal.go	# fail
+./literal.go
 ./malloc1.go
 # ./mallocfin.go	# fail
 ./mallocrand.go
@@ -82,14 +82,14 @@
 ./method1.go
 ./method2.go
 ./method3.go
-# ./named.go	# fail
+./named.go
 ./named1.go
 ./nil.go
 ./nul1.go
 ./parentype.go
 ./peano.go
 ./printbig.go
-# ./range.go	# fail
+./range.go
 ./recover.go
 ./recover1.go
 ./recover2.go
@@ -106,7 +106,6 @@
 ./stringrange.go
 ./switch.go
 ./switch1.go
-./test.go
 ./test0.go
 ./turing.go
 ./typeswitch.go
@@ -117,7 +116,7 @@
 ./varerr.go
 ./varinit.go
 ./vectors.go
-# ./zerodivide.go	# fail
+./zerodivide.go
 ken/array.go
 ken/chan.go
 ken/chan1.go
@@ -126,7 +125,7 @@ ken/cplx0.go
 # ken/cplx1.go	# fail
 # ken/cplx2.go	# fail
 ken/cplx3.go
-# ken/cplx4.go	# fail
+# ken/cplx4.go	# fail, BUG
 ken/cplx5.go
 ken/divconst.go
 ken/divmod.go
@@ -148,9 +147,9 @@ ken/robfor.go
 ken/robfunc.go
 ken/robif.go
 ken/shift.go
-# ken/simparray.go	# fail
+ken/simparray.go
 ken/simpbool.go
-# ken/simpconv.go	# fail
+ken/simpconv.go
 ken/simpfun.go
 ken/simpprint.go
 ken/simpswitch.go
@@ -168,6 +167,7 @@ chan/powser1.go
 chan/powser2.go
 chan/select.go
 chan/select2.go
+# chan/select3.go	# fail
 chan/sieve1.go
 chan/sieve2.go
 interface/bigdata.go
@@ -460,6 +460,7 @@ fixedbugs/bug270.go
 fixedbugs/bug271.go
 # fixedbugs/bug272.go	# fail
 fixedbugs/bug273.go
+fixedbugs/bug274.go
 fixedbugs/bug275.go
 fixedbugs/bug276.go
 fixedbugs/bug277.go
@@ -471,8 +472,17 @@ fixedbugs/bug282.go
 fixedbugs/bug283.go
 fixedbugs/bug284.go
 fixedbugs/bug285.go
+fixedbugs/bug286.go
 fixedbugs/bug287.go
 fixedbugs/bug288.go
+fixedbugs/bug289.go
+fixedbugs/bug290.go
+fixedbugs/bug291.go
+fixedbugs/bug292.go
+fixedbugs/bug293.go
+fixedbugs/bug294.go
+fixedbugs/bug295.go
+fixedbugs/bug296.go
+fixedbugs/bug297.go
+fixedbugs/bug298.go
 # bugs/bug260.go	# fail, BUG
-# bugs/bug274.go	# fail, BUG
-# bugs/bug286.go	# fail, BUG

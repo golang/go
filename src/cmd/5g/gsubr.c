@@ -715,10 +715,20 @@ gmove(Node *f, Node *t)
 	* float to integer
 	*/
 	case CASE(TFLOAT32, TINT8):
-	case CASE(TFLOAT32, TINT16):
-	case CASE(TFLOAT32, TINT32):
 	case CASE(TFLOAT32, TUINT8):
+		fa = AMOVF;
+		a = AMOVFW;
+		ta = AMOVB;
+		goto fltconv;
+
+	case CASE(TFLOAT32, TINT16):
 	case CASE(TFLOAT32, TUINT16):
+		fa = AMOVF;
+		a = AMOVFW;
+		ta = AMOVH;
+		goto fltconv;
+
+	case CASE(TFLOAT32, TINT32):
 	case CASE(TFLOAT32, TUINT32):
 		fa = AMOVF;
 		a = AMOVFW;
@@ -726,10 +736,20 @@ gmove(Node *f, Node *t)
 		goto fltconv;
 
 	case CASE(TFLOAT64, TINT8):
-	case CASE(TFLOAT64, TINT16):
-	case CASE(TFLOAT64, TINT32):
 	case CASE(TFLOAT64, TUINT8):
+		fa = AMOVD;
+		a = AMOVDW;
+		ta = AMOVB;
+		goto fltconv;
+
+	case CASE(TFLOAT64, TINT16):
 	case CASE(TFLOAT64, TUINT16):
+		fa = AMOVD;
+		a = AMOVDW;
+		ta = AMOVH;
+		goto fltconv;
+
+	case CASE(TFLOAT64, TINT32):
 	case CASE(TFLOAT64, TUINT32):
 		fa = AMOVD;
 		a = AMOVDW;
@@ -745,10 +765,20 @@ gmove(Node *f, Node *t)
 	 * integer to float
 	 */
 	case CASE(TINT8, TFLOAT32):
-	case CASE(TINT16, TFLOAT32):
-	case CASE(TINT32, TFLOAT32):
 	case CASE(TUINT8, TFLOAT32):
+		fa = AMOVB;
+		a = AMOVWF;
+		ta = AMOVF;
+		goto fltconv;
+
+	case CASE(TINT16, TFLOAT32):
 	case CASE(TUINT16, TFLOAT32):
+		fa = AMOVH;
+		a = AMOVWF;
+		ta = AMOVF;
+		goto fltconv;
+
+	case CASE(TINT32, TFLOAT32):
 	case CASE(TUINT32, TFLOAT32):
 		fa = AMOVW;
 		a = AMOVWF;
@@ -756,10 +786,20 @@ gmove(Node *f, Node *t)
 		goto fltconv;
 
 	case CASE(TINT8, TFLOAT64):
-	case CASE(TINT16, TFLOAT64):
-	case CASE(TINT32, TFLOAT64):
 	case CASE(TUINT8, TFLOAT64):
+		fa = AMOVB;
+		a = AMOVWD;
+		ta = AMOVD;
+		goto fltconv;
+
+	case CASE(TINT16, TFLOAT64):
 	case CASE(TUINT16, TFLOAT64):
+		fa = AMOVH;
+		a = AMOVWD;
+		ta = AMOVD;
+		goto fltconv;
+
+	case CASE(TINT32, TFLOAT64):
 	case CASE(TUINT32, TFLOAT64):
 		fa = AMOVW;
 		a = AMOVWD;

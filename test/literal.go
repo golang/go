@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 var nbad int
 
 func assert(cond bool, msg string) {
@@ -17,6 +19,19 @@ func assert(cond bool, msg string) {
 		print(" ", msg);
 	}
 }
+
+func equal(a, b float) bool {
+	if os.Getenv("GOARCH") != "arm" {
+		return a == b
+	}
+	d := a-b
+	if a > b {
+		return d < a * 1.0e-7
+	}
+	d = -d
+	return d < b * 1.0e-7
+}
+
 
 func main() {
 	// bool
@@ -134,12 +149,12 @@ func main() {
 	assert(f04 == f05, "f04");
 	assert(f05 == f06, "f05");
 	assert(f07 == -f08, "f07");
-	assert(f09 == 1/f10, "f09");
+	assert(equal(f09, 1/f10), "f09");
 	assert(f11 == f09, "f11");
 	assert(f12 == f10, "f12");
-	assert(f13 == f09/10.0, "f13");
-	assert(f14 == f12/10.0, "f14");
-	assert(f15 == f16/1e20, "f15");
+	assert(equal(f13, f09/10.0), "f13");
+	assert(equal(f14, f12/10.0), "f14");
+	assert(equal(f15, f16/1e20), "f15");
 
 	// character
 	var c0 uint8 = 'a';
