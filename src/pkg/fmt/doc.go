@@ -1,0 +1,132 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/*
+	Package fmt implements formatted I/O with functions analogous
+	to C's printf and scanf.  The format 'verbs' are derived from C's but
+	are simpler.
+
+	Printing:
+
+	The verbs:
+
+	General:
+		%v	the value in a default format.
+			when printing structs, the plus flag (%+v) adds field names
+		%#v	a Go-syntax representation of the value
+		%T	a Go-syntax representation of the type of the value
+
+	Boolean:
+		%t	the word true or false
+	Integer:
+		%b	base 2
+		%c	the character represented by the corresponding Unicode code point
+		%d	base 10
+		%o	base 8
+		%x	base 16, with lower-case letters for a-f
+		%X	base 16, with upper-case letters for A-F
+	Floating-point and complex constituents:
+		%e	scientific notation, e.g. -1234.456e+78
+		%E	scientific notation, e.g. -1234.456E+78
+		%f	decimal point but no exponent, e.g. 123.456
+		%g	whichever of %e or %f produces more compact output
+		%G	whichever of %E or %f produces more compact output
+	String and slice of bytes:
+		%s	the uninterpreted bytes of the string or slice
+		%q	a double-quoted string safely escaped with Go syntax
+		%x	base 16 notation with two characters per byte
+	Pointer:
+		%p	base 16 notation, with leading 0x
+
+	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
+	Similarly, there is no need to specify the size of the operand (int8, int64).
+
+	For numeric values, the width and precision flags control
+	formatting; width sets the width of the field, precision the
+	number of places after the decimal, if appropriate.  The
+	format %6.2f prints 123.45. The width of a field is the number
+	of Unicode code points in the string. This differs from C's printf where
+	the field width is the number of bytes.
+
+	Other flags:
+		+	always print a sign for numeric values
+		-	pad with spaces on the right rather than the left (left-justify the field)
+		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
+			0X for hex (%#X); suppress 0x for %p (%#p);
+			print a raw (backquoted) string if possible for %q (%#q)
+		' '	(space) leave a space for elided sign in numbers (% d);
+			put spaces between bytes printing strings or slices in hex (% x)
+		0	pad with leading zeros rather than spaces
+
+	For each Printf-like function, there is also a Print function
+	that takes no format and is equivalent to saying %v for every
+	operand.  Another variant Println inserts blanks between
+	operands and appends a newline.
+
+	Regardless of the verb, if an operand is an interface value,
+	the internal concrete value is used, not the interface itself.
+	Thus:
+		var i interface{} = 23;
+		fmt.Printf("%v\n", i);
+	will print 23.
+
+	If an operand implements interface Formatter, that interface
+	can be used for fine control of formatting.
+
+	If an operand implements method String() string that method
+	will be used to conver the object to a string, which will then
+	be formatted as required by the verb (if any). To avoid
+	recursion in cases such as
+		type X int
+		func (x X) String() string { return Sprintf("%d", x) }
+	cast the value before recurring:
+		func (x X) String() string { return Sprintf("%d", int(x)) }
+
+	Scanning:
+
+	An analogous set of functions scans formatted text to yield
+	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
+	Fscanf and Fscanln read from a specified os.Reader; Sscan,
+	Sscanf and Sscanln read from an argument string.  Sscanln,
+	Fscanln and Sscanln stop scanning at a newline and require that
+	the items be followed by one; Sscanf, Fscanf and Sscanf require
+	newlines in the input to match newlines in the format; the other
+	routines treat newlines as spaces.
+
+	Scanf, Fscanf, and Sscanf parse the arguments according to a
+	format string, analogous to that of Printf.  For example, "%x"
+	will scan an integer as a hexadecimal number, and %v will scan
+	the default representation format for the value.
+
+	The formats behave analogously to those of Printf with the
+	following exceptions:
+
+	%p is not implemented
+	%T is not implemented
+	%e %E %f %F %g %g are all equivalent and scan any floating
+		point or complex value
+	%s and %v on strings scan a space-delimited token
+
+	Width is interpreted in the input text (%5s means at most
+	five runes of input will be read to scan a string) but there
+	is no syntax for scanning with a precision (no %5.2f, just
+	%5f).
+
+	When scanning with a format, all non-empty runs of space
+	characters (except newline) are equivalent to a single
+	space in both the format and the input.  With that proviso,
+	text in the format string must match the input text; scanning
+	stops if it does not, with the return value of the function
+	indicating the number of arguments scanned.
+
+	In all the scanning functions, if an operand implements method
+	Scan (that is, it implements the Scanner interface) that
+	method will be used to scan the text for that operand.  Also,
+	if the number of arguments scanned is less than the number of
+	arguments provided, an error is returned.
+
+	All arguments to be scanned must be either pointers to basic
+	types or implementations of the Scanner interface.
+*/
+package fmt
