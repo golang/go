@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
 
 TARG=fmt
 GOFILES=\
+	doc.go\
 	format.go\
 	print.go\
 	scan.go\
