@@ -21,7 +21,7 @@ panic PC=xxx
 
 =========== ./deferprint.go
 printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
-42 true false true +1.755561e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
 
 =========== ./helloworld.go
 hello, world
@@ -51,25 +51,49 @@ FAIL
 =========== ./turing.go
 Hello World!
 
+=========== ./zerodivide.go
+int 0/0: expected "divide"; got no error
+int8 0/0: expected "divide"; got no error
+int16 0/0: expected "divide"; got no error
+int32 0/0: expected "divide"; got no error
+int64 0/0: expected "divide"; got no error
+int 1/0: expected "divide"; got no error
+int8 1/0: expected "divide"; got no error
+int16 1/0: expected "divide"; got no error
+int32 1/0: expected "divide"; got no error
+int64 1/0: expected "divide"; got no error
+uint 0/0: expected "divide"; got no error
+uint8 0/0: expected "divide"; got no error
+uint16 0/0: expected "divide"; got no error
+uint32 0/0: expected "divide"; got no error
+uint64 0/0: expected "divide"; got no error
+uintptr 0/0: expected "divide"; got no error
+uint 1/0: expected "divide"; got no error
+uint8 1/0: expected "divide"; got no error
+uint16 1/0: expected "divide"; got no error
+uint32 1/0: expected "divide"; got no error
+uint64 1/0: expected "divide"; got no error
+uintptr 1/0: expected "divide"; got no error
+
 =========== ken/cplx0.go
-(+1.066132e-308+1.313303e-308i)
-(+1.066132e-308+1.066132e-308i)
-(+1.066132e-308+1.313303e-308i)
-(+1.066132e-308+1.066132e-308i)
+(+1.112538e-308+1.278303e-308i)
+(+1.112538e-308+1.112538e-308i)
+(+1.112538e-308+1.278303e-308i)
+(+1.112538e-308+1.112538e-308i)
 
 =========== ken/cplx3.go
-(+1.362661e-308+2.270313e+000i)
-(+1.362661e-308+2.270313e+000i)
+(+1.436040e-308+2.250626e+000i)
+(+1.436040e-308+2.250626e+000i)
 64
 
 =========== ken/cplx5.go
 (+0.000000e+000+0.000000e+000i)
-(+1.066132e-308+1.066132e-308i)
-(+1.066132e-308+2.272661e+000i)
-(+2.270313e+000+2.272661e+000i)
-(+2.270313e+000+2.272661e+000i)
-(+1.313272e-308+0.000000e+000i)
-(+1.313272e-308+0.000000e+000i)
+(+1.112550e-308+1.112550e-308i)
+(+1.112537e-308+2.382812e+000i)
+(+2.250015e+000+2.382812e+000i)
+(+2.250015e+000+2.382812e+000i)
+(+1.251430e-308+0.000000e+000i)
+(+1.251430e-308+0.000000e+000i)
 
 =========== ken/intervar.go
  print 1 bio 2 file 3 -- abc
