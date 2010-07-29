@@ -526,3 +526,23 @@ func TestEmptyMap(t *testing.T) {
 		t.Errorf("empty map printed as %q not %q", s, emptyMapStr)
 	}
 }
+
+// Check that Sprint (and hence Print, Fprint) puts spaces in the right places,
+// that is, between arg pairs in which neither is a string.
+func TestBlank(t *testing.T) {
+	got := Sprint("<", 1, ">:", 1, 2, 3, "!")
+	expect := "<1>:1 2 3!"
+	if got != expect {
+		t.Errorf("got %q expected %q", got, expect)
+	}
+}
+
+// Check that Sprintln (and hence Println, Fprintln) puts spaces in the right places,
+// that is, between all arg pairs.
+func TestBlankln(t *testing.T) {
+	got := Sprintln("<", 1, ">:", 1, 2, 3, "!")
+	expect := "< 1 >: 1 2 3 !\n"
+	if got != expect {
+		t.Errorf("got %q expected %q", got, expect)
+	}
+}
