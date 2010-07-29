@@ -7,8 +7,6 @@ include ../../Make.$(GOARCH)
 TARG=net
 GOFILES=\
 	dial.go\
-	dnsclient.go\
-	dnsconfig.go\
 	dnsmsg.go\
 	fd_$(GOOS).go\
 	hosts.go\
@@ -18,7 +16,6 @@ GOFILES=\
 	net.go\
 	parse.go\
 	pipe.go\
-	port.go\
 	sock.go\
 	tcpsock.go\
 	udpsock.go\
@@ -27,18 +24,33 @@ GOFILES=\
 GOFILES_freebsd=\
 	newpollserver.go\
 	fd.go\
+	dnsconfig.go\
+	dnsclient.go\
+	port.go\
 
 GOFILES_darwin=\
 	newpollserver.go\
 	fd.go\
-
+	dnsconfig.go\
+	dnsclient.go\
+	port.go\
+	
 GOFILES_linux=\
 	newpollserver.go\
 	fd.go\
-
+	dnsconfig.go\
+	dnsclient.go\
+	port.go\
+	
 GOFILES_nacl=\
 	newpollserver.go\
 	fd.go\
+	dnsconfig.go\
+	dnsclient.go\
+	port.go\
+
+GOFILES_windows=\
+	resolv_windows.go\
 
 GOFILES+=$(GOFILES_$(GOOS))
 

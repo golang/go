@@ -10,6 +10,7 @@ var (
 	modadvapi32 = loadDll("advapi32.dll")
 	modwsock32  = loadDll("wsock32.dll")
 	modws2_32   = loadDll("ws2_32.dll")
+	moddnsapi   = loadDll("dnsapi.dll")
 
 	procGetLastError               = getSysProcAddr(modkernel32, "GetLastError")
 	procLoadLibraryW               = getSysProcAddr(modkernel32, "LoadLibraryW")
@@ -66,6 +67,11 @@ var (
 	procGetAcceptExSockaddrs       = getSysProcAddr(modwsock32, "GetAcceptExSockaddrs")
 	procWSARecv                    = getSysProcAddr(modws2_32, "WSARecv")
 	procWSASend                    = getSysProcAddr(modws2_32, "WSASend")
+	procgethostbyname              = getSysProcAddr(modws2_32, "gethostbyname")
+	procgetservbyname              = getSysProcAddr(modws2_32, "getservbyname")
+	procntohs                      = getSysProcAddr(modws2_32, "ntohs")
+	procDnsQuery_W                 = getSysProcAddr(moddnsapi, "DnsQuery_W")
+	procDnsRecordListFree          = getSysProcAddr(moddnsapi, "DnsRecordListFree")
 )
 
 func GetLastError() (lasterrno int) {
@@ -846,5 +852,52 @@ func WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, 
 	} else {
 		errno = 0
 	}
+	return
+}
+
+func GetHostByName(name string) (h *Hostent, errno int) {
+	r0, _, e1 := Syscall(procgethostbyname, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0)
+	h = (*Hostent)(unsafe.Pointer(r0))
+	if h == nil {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetServByName(name string, proto string) (s *Servent, errno int) {
+	r0, _, e1 := Syscall(procgetservbyname, uintptr(unsafe.Pointer(StringBytePtr(name))), uintptr(unsafe.Pointer(StringBytePtr(proto))), 0)
+	s = (*Servent)(unsafe.Pointer(r0))
+	if s == nil {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func Ntohs(netshort uint16) (u uint16) {
+	r0, _, _ := Syscall(procntohs, uintptr(netshort), 0, 0)
+	u = (uint16)(r0)
+	return
+}
+
+func DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) {
+	r0, _, _ := Syscall6(procDnsQuery_W, uintptr(unsafe.Pointer(StringToUTF16Ptr(name))), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
+	status = (uint32)(r0)
+	return
+}
+
+func DnsRecordListFree(rl *DNSRecord, freetype uint32) {
+	Syscall(procDnsRecordListFree, uintptr(unsafe.Pointer(rl)), uintptr(freetype), 0)
 	return
 }
