@@ -177,3 +177,12 @@ panic PC=xxx
 =========== bugs/bug260.go
 FAIL
 BUG: bug260 failed
+
+=========== bugs/bug299.go
+BUG: errchk: bugs/bug299.go:25: missing expected error: 'expected'
+errchk: bugs/bug299.go:26: missing expected error: 'expected'
+errchk: bugs/bug299.go:27: missing expected error: 'expected'
+errchk: bugs/bug299.go: unmatched error messages:
+==================================================
+bugs/bug299.go:19: syntax error: unexpected }
+==================================================
