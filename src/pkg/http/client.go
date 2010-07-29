@@ -8,6 +8,7 @@ package http
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -21,7 +22,7 @@ import (
 func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
 
 // Used in Send to implement io.ReadCloser by bundling together the
-// io.BufReader through which we read the response, and the underlying
+// bufio.Reader through which we read the response, and the underlying
 // network connection.
 type readClose struct {
 	io.Reader
@@ -34,13 +35,13 @@ type readClose struct {
 // send() method is nonpublic because, when we refactor the code for persistent
 // connections, it may no longer make sense to have a method with this signature.
 func send(req *Request) (resp *Response, err os.Error) {
-	if req.URL.Scheme != "http" {
+	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
 	}
 
 	addr := req.URL.Host
 	if !hasPort(addr) {
-		addr += ":http"
+		addr += ":" + req.URL.Scheme
 	}
 	info := req.URL.Userinfo
 	if len(info) > 0 {
@@ -52,7 +53,13 @@ func send(req *Request) (resp *Response, err os.Error) {
 		}
 		req.Header["Authorization"] = "Basic " + string(encoded)
 	}
-	conn, err := net.Dial("tcp", "", addr)
+
+	var conn io.ReadWriteCloser
+	if req.URL.Scheme == "http" {
+		conn, err = net.Dial("tcp", "", addr)
+	} else { // https
+		conn, err = tls.Dial("tcp", "", addr)
+	}
 	if err != nil {
 		return nil, err
 	}

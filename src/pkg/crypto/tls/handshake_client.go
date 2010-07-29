@@ -93,7 +93,7 @@ func (c *Conn) clientHandshake() os.Error {
 	}
 
 	// TODO(rsc): Find certificates for OS X 10.6.
-	if false && c.config.RootCAs != nil {
+	if c.config.RootCAs != nil {
 		root := c.config.RootCAs.FindParent(certs[len(certs)-1])
 		if root == nil {
 			return c.sendAlert(alertBadCertificate)
