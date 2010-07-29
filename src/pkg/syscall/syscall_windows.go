@@ -429,6 +429,12 @@ func Utimes(path string, tv []Timeval) (errno int) {
 //sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
 //sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecv
 //sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASend
+//sys	GetHostByName(name string) (h *Hostent, errno int) [failretval=nil] = ws2_32.gethostbyname
+//sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval=nil] = ws2_32.getservbyname
+//sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
+//sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
+//sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
+
 
 type RawSockaddrInet4 struct {
 	Family uint16
