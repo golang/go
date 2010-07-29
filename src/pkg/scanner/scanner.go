@@ -158,7 +158,7 @@ type Scanner struct {
 	ErrorCount int
 
 	// The Mode field controls which tokens are recognized. For instance,
-	// to recognize Ints, set the (1<<-Int) bit in Mode. The field may be
+	// to recognize Ints, set the ScanInts bit in Mode. The field may be
 	// changed at any time.
 	Mode uint
 
