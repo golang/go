@@ -492,7 +492,7 @@ var (
 	uintptrBits = reflect.Typeof(uintptr(0)).Bits()
 )
 
-func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (was_string bool) {
+func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
 	if field != nil {
 		switch {
 		default:
@@ -850,18 +850,18 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 }
 
 func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
-	prev_string := false
+	prevString := false
 	for fieldnum := 0; fieldnum < len(a); fieldnum++ {
 		p.fmt.clearflags()
 		// always add spaces if we're doing println
 		field := a[fieldnum]
 		if fieldnum > 0 {
-			_, is_string := field.(*reflect.StringValue)
-			if addspace || !is_string && !prev_string {
+			isString := field != nil && reflect.Typeof(field).Kind() == reflect.String
+			if addspace || !isString && !prevString {
 				p.buf.WriteByte(' ')
 			}
 		}
-		prev_string = p.printField(field, 'v', false, false, 0)
+		prevString = p.printField(field, 'v', false, false, 0)
 	}
 	if addnewline {
 		p.buf.WriteByte('\n')
