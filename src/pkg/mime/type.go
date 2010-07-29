@@ -10,6 +10,7 @@ import (
 	"once"
 	"os"
 	"strings"
+	"sync"
 )
 
 var typeFiles = []string{
@@ -29,6 +30,8 @@ var mimeTypes = map[string]string{
 	".png":  "image/png",
 	".xml":  "text/xml; charset=utf-8",
 }
+
+var mimeLock sync.RWMutex
 
 func loadMimeFile(filename string) {
 	f, err := os.Open(filename, os.O_RDONLY, 0666)
@@ -79,5 +82,22 @@ func initMime() {
 //   /etc/apache/mime.types
 func TypeByExtension(ext string) string {
 	once.Do(initMime)
-	return mimeTypes[ext]
+	mimeLock.RLock()
+	typename := mimeTypes[ext]
+	mimeLock.RUnlock()
+	return typename
+}
+
+// AddExtensionType sets the MIME type associated with
+// the extension ext to typ.  The extension should begin with
+// a leading dot, as in ".html".
+func AddExtensionType(ext, typ string) os.Error {
+	once.Do(initMime)
+	if len(ext) < 1 || ext[0] != '.' {
+		return os.EINVAL
+	}
+	mimeLock.Lock()
+	mimeTypes[ext] = typ
+	mimeLock.Unlock()
+	return nil
 }
