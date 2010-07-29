@@ -68,6 +68,7 @@ extern "C" {
 #include <stddef.h>
 #include <math.h>
 #include <ctype.h>	/* for tolower */
+#include <signal.h>
 
 /*
  * OS-specific crap
@@ -191,6 +192,10 @@ typedef u64int uint64;
 #undef _NEEDUSHORT
 #undef _NEEDUINT
 #undef _NEEDULONG
+
+#ifndef SIGBUS
+#define SIGBUS SIGSEGV /* close enough */
+#endif
 
 /*
  * Funny-named symbols to tip off 9l to autolink.
