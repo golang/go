@@ -10,6 +10,6 @@ package main
 import "syscall"
 
 func main() {
-	syscall.Syscall(syscall.SYS_KILL, uintptr(syscall.Getpid()), syscall.SIGCHLD, 0);
+	syscall.Kill(syscall.Getpid(), syscall.SIGCHLD);
 	println("survived SIGCHLD");
 }
