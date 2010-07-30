@@ -20,7 +20,9 @@ fi
 
 GOBIN="${GOBIN:-$HOME/bin}"
 
-rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
+if [ "$1" != "--nopkg" ]; then
+	rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
+fi
 rm -f "$GOROOT"/lib/*.a
 for i in lib9 libbio libcgo libmach cmd pkg \
 	../misc/cgo/gmp ../misc/cgo/stdio \

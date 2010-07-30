@@ -9,3 +9,38 @@ and then visiting http://localhost:6060/doc/install.html.
 
 Unless otherwise noted, the Go source files are distributed
 under the BSD-style license found in the LICENSE file.
+
+--
+
+Binary Distribution Notes
+
+If you have just untarred a binary Go distribution, then there are some
+environment variables you'll need to set in your .profile (or equivalent):
+
+    GOOS should be set to your operating system (eg, linux),
+    GOARCH should be your processor architecture (eg, amd64),
+    GOROOT should be the directory you extracted the tarball to,
+    GOBIN should point to $GOROOT/bin.
+
+For example, if you downloaded the tarball 
+
+    go.release.YYYY-MM-DD.linux-amd64.tar.gz 
+
+and extracted it to 
+
+    /home/username/go
+
+you would set the following variables:
+
+    export GOOS=linux
+    export GOARCH=amd64
+    export GOROOT=/home/username/go
+    export GOBIN=$GOROOT/bin
+
+See doc/install.html for more detail about these flags.
+
+Additionally, $GOROOT should be in your $PATH:
+    
+    export PATH=PATH:$GOROOT
+    
+

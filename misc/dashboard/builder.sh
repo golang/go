@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
@@ -31,6 +31,7 @@ fi
 
 export PATH=$PATH:`pwd`/candidate/bin
 export GOBIN=`pwd`/candidate/bin
+export BAKED_GOROOT=/usr/local/go
 
 while true ; do
     cd go || fatal "Cannot cd into 'go'"
@@ -71,6 +72,18 @@ while true ; do
             make bench > ../../benchmarks 2>&1
             python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
             cd .. || fatal "failed to cd out of pkg"
+        fi
+        # check if we're at a release (via the hg summary)
+        #  if so, package the tar.gz and upload to googlecode
+        SUMMARY=$(hg log -l 1 | grep summary\: | awk '{print $2}')
+        if [[ "x${SUMMARY:0:7}" == "xrelease" ]]; then
+            echo "Uploading binary to googlecode"
+            TARBALL="go.$SUMMARY.$BUILDER.tar.gz"
+            ./clean.bash --nopkg
+            cd .. || fatal "Cannot cd up"
+            tar czf ../$TARBALL . || fatal "Cannot create tarball"
+            ../buildcontrol.py upload $BUILDER $SUMMARY ../$TARBALL || fatal "Cannot upload tarball"
+            cd src || fatal "Cannot cd src"
         fi
     fi
     cd ../.. || fatal "Cannot cd up"

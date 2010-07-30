@@ -18,6 +18,8 @@ buildhost = ''
 buildport = -1
 buildkey = ''
 
+upload_project = "go"
+
 def main(args):
     global buildport, buildhost, buildkey
 
@@ -35,13 +37,22 @@ def main(args):
         buildport = int(os.environ['BUILDPORT'])
 
     try:
-        buildkey = file('%s/.gobuildkey-%s' % (os.environ['HOME'], os.environ['BUILDER']), 'r').read().strip()
+        buildkeyfile = file('%s/.gobuildkey-%s' % (os.environ['HOME'], os.environ['BUILDER']), 'r')
+        buildkey = buildkeyfile.readline().strip()
     except IOError:
         try:
-            buildkey = file('%s/.gobuildkey' % os.environ['HOME'], 'r').read().strip()
+            buildkeyfile = file('%s/.gobuildkey' % os.environ['HOME'], 'r')
+            buildkey = buildkeyfile.readline().strip()
         except IOError:
             print >>sys.stderr, "Need key in ~/.gobuildkey-%s or ~/.gobuildkey" % os.environ['BUILDER']
             return
+
+    # get upload credentials
+    try:
+        username = buildkeyfile.readline().strip()
+        password = buildkeyfile.readline().strip()
+    except:
+        username, password = None, None
 
     if args[1] == 'init':
         return doInit(args)
@@ -55,6 +66,8 @@ def main(args):
         return doRecord(args)
     elif args[1] == 'benchmarks':
         return doBenchmarks(args)
+    elif args[1] == 'upload':
+        return doUpload(args, username, password)
     else:
         return usage(args[0])
 
@@ -68,6 +81,7 @@ Commands:
   next <builder>: get the next revision number to by built by the given builder
   record <builder> <rev> <ok|log file>: record a build result
   benchmarks <builder> <rev> <log file>: record benchmark numbers
+  upload <builder> <summary> <tar file>: upload tarball to googlecode
 ''' % name)
     return 1
 
@@ -164,6 +178,29 @@ def doBenchmarks(args):
         e.append(struct.pack('>H', len(b)))
         e.append(b)
     return command('benchmarks', {'node': c.node, 'builder': builder, 'benchmarkdata': binascii.b2a_base64(''.join(e))})
+
+def doUpload(args, username, password):
+    # fail gracefully if no username or password set
+    if not username or not password:
+        return
+
+    if len(args) != 5:
+        return usage(args[0])
+    builder = args[2]
+    summary = args[3]
+    filename = args[4]
+
+    from googlecode_upload import upload
+    code, msg, url = upload(
+        filename, # filename
+        upload_project, # 'go'
+        username,
+        password,
+        summary,
+        builder.split('-'), # labels
+    )
+    if code != 201:
+        raise Failed('Upload returned code %s msg "%s".' % (code, msg))
 
 def encodeMultipartFormdata(fields, files):
     """fields is a sequence of (name, value) elements for regular form fields.
