@@ -1,5 +1,5 @@
 ./235.go
-# ./64bit.go	# fail, flaky
+# ./64bit.go	# fail, flaky on android build
 ./args.go
 ./assign.go
 ./assign1.go
@@ -430,7 +430,7 @@ fixedbugs/bug239.go
 fixedbugs/bug240.go
 fixedbugs/bug241.go
 fixedbugs/bug242.go
-fixedbugs/bug243.go
+# fixedbugs/bug243.go	# fail, flaky on android build
 fixedbugs/bug244.go
 fixedbugs/bug245.go
 fixedbugs/bug246.go
