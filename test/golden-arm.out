@@ -51,30 +51,6 @@ FAIL
 =========== ./turing.go
 Hello World!
 
-=========== ./zerodivide.go
-int 0/0: expected "divide"; got no error
-int8 0/0: expected "divide"; got no error
-int16 0/0: expected "divide"; got no error
-int32 0/0: expected "divide"; got no error
-int64 0/0: expected "divide"; got no error
-int 1/0: expected "divide"; got no error
-int8 1/0: expected "divide"; got no error
-int16 1/0: expected "divide"; got no error
-int32 1/0: expected "divide"; got no error
-int64 1/0: expected "divide"; got no error
-uint 0/0: expected "divide"; got no error
-uint8 0/0: expected "divide"; got no error
-uint16 0/0: expected "divide"; got no error
-uint32 0/0: expected "divide"; got no error
-uint64 0/0: expected "divide"; got no error
-uintptr 0/0: expected "divide"; got no error
-uint 1/0: expected "divide"; got no error
-uint8 1/0: expected "divide"; got no error
-uint16 1/0: expected "divide"; got no error
-uint32 1/0: expected "divide"; got no error
-uint64 1/0: expected "divide"; got no error
-uintptr 1/0: expected "divide"; got no error
-
 =========== ken/intervar.go
  print 1 bio 2 file 3 -- abc
 

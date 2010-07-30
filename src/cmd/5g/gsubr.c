@@ -991,7 +991,7 @@ gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs)
 {
 	Prog *p;
 
-	if (sval <= 0 || sval > 32)
+	if(sval <= 0 || sval > 32)
 		fatal("bad shift value: %d", sval);
 
 	sval = sval&0x1f;
@@ -1054,7 +1054,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		break;
 
 	case OREGISTER:
-		if (n->val.u.reg <= REGALLOC_RMAX) {
+		if(n->val.u.reg <= REGALLOC_RMAX) {
 			a->type = D_REG;
 			a->reg = n->val.u.reg;
 		} else {
@@ -1594,7 +1594,7 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
 	int64 v;
 	Node n1, n2, n3, n4, *nn, *l, *r;
 	Node *reg, *reg1;
-	Prog *p1;
+	Prog *p1, *p2;
 	Type *t;
 
 	if(n->type == T)
@@ -1732,8 +1732,8 @@ oindex:
 	if(issigned[r->type->etype])
 		t = types[TINT32];
 	regalloc(reg1, t, N);
-	regalloc(&n3, r->type, reg1);
-	cgen(r, &n3);
+	regalloc(&n3, types[TINT32], reg1);
+	p2 = cgenindex(r, &n3);
 	gmove(&n3, reg1);
 	regfree(&n3);
 
@@ -1774,6 +1774,8 @@ oindex:
 		gcmp(optoas(OCMP, types[TUINT32]), reg1, &n3);
 		regfree(&n3);
 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		if(p2)
+			patch(p2, pc);
 		ginscall(panicindex, 0);
 		patch(p1, pc);
 	}
@@ -1786,7 +1788,7 @@ oindex:
 		gmove(&n2, reg);
 	}
 
-	if (*w == 1)
+	if(*w == 1)
 		gins(AADD, reg1, reg);
 	else if(*w == 2)
 		gshift(AADD, reg1, SHIFT_LL, 1, reg);
