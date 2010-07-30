@@ -22,9 +22,16 @@ $(TARG): $(OFILES)
 clean:
 	rm -f *.$O $(TARG)
 
-install: install-$(shell uname | tr A-Z a-z)
+ifeq ($(GOOS),windows)
+NAME=windows
+else
+NAME=$(shell uname | tr A-Z a-z)
+endif
+
+install: install-$(NAME)
 install-linux: install-default
 install-freebsd: install-default
+install-windows: install-default
 
 # on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
 install-darwin: $(TARG)
