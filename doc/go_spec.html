@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of July 14, 2010 -->
+<!-- subtitle Version of July 29, 2010 -->
 
 <!--
 TODO
@@ -1974,7 +1974,7 @@ a single expression or a key-value pair.
 <pre class="ebnf">
 CompositeLit  = LiteralType "{" [ ElementList [ "," ] ] "}" .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
-                SliceType | MapType | TypeName | "(" LiteralType ")" .
+                SliceType | MapType | TypeName .
 ElementList   = Element { "," Element } .
 Element       = [ Key ":" ] Value .
 Key           = FieldName | ElementIndex .
@@ -2096,10 +2096,11 @@ and is a shortcut for a slice operation applied to an array literal:
 
 <p>
 A parsing ambiguity arises when a composite literal using the
-TypeName form of the LiteralType appears in the condition of an
+TypeName form of the LiteralType appears between the
+<a href="#Keywords">keyword</a> and the opening brace of the block of an
 "if", "for", or "switch" statement, because the braces surrounding
 the expressions in the literal are confused with those introducing
-a block of statements. To resolve the ambiguity in this rare case,
+the block of statements. To resolve the ambiguity in this rare case,
 the composite literal must appear within
 parentheses.
 </p>
