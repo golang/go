@@ -159,11 +159,11 @@ func main() {
 			}
 			fmt.Printf("%s: expected no error; got %q\n", t.name, err)
 		case t.err != "" && err != "":
-			if !bad {
-				bad = true
-				fmt.Printf("BUG\n")
-			}
 			if strings.Index(err, t.err) < 0 {
+				if !bad {
+					bad = true
+					fmt.Printf("BUG\n")
+				}
 				fmt.Printf("%s: expected %q; got %q\n", t.name, t.err, err)
 				continue
 			}
