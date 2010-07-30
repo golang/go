@@ -52,6 +52,10 @@ ifneq ($(GOOS),windows)
 OFILES+=\
 	$(shell uname | tr A-Z a-z).$O\
 
+else
+OFILES+=\
+	windows.$O\
+
 endif
 
 HFILES=../../include/mach.h elf.h macho.h obj.h
