@@ -239,9 +239,9 @@ span.subtitle {
 /* ------------------------------------------------------------------------- */
 /* Styles for the frontpage */
 
-#gettingStarted, #blog {
+#fp-videos {
   margin-top: 1.5em;
-  margin-left: 1.75em;
+  margin-left: 1em;
   margin-right: 0em;
   float: right;
   clear: right;
@@ -249,26 +249,27 @@ span.subtitle {
   padding-left: 1em;
   padding-right: 1em;
   padding-bottom: 0.75em;
-  border: 2px solid #ba9836;
+  border: 1px solid #ba9836;
   width: 160px;
 }
 
 #blog { margin-bottom: 1.5em; }
-#blog h1 { font-size: 1.2em; }
-#blog #blogFeed a { font-size: 1.1em; display: block; margin-top: 1em; }
+#blog h1 { font-size: 1.2em; padding-top: 0.7em; }
+#blog #blogFeed a { display: block; margin-top: 1em; }
 
-#gettingStarted h1 {
-  padding-top: 0.3em;
+#fp-videos h1 {
+  padding-top: 0.5em;
   margin-bottom: 0.2em;
-  font-size: 1.5em;
+  font-size: 1.2em;
 }
 
-#gettingStarted ol {
-  padding-left: 2em;
-}
-
-#gettingStarted a img {
+#fp-videos a img {
   border: 1px solid blue;
+}
+
+#fp-videos a.more {
+  text-align: center;
+  display: block;
 }
 
 #frontpage {
@@ -279,4 +280,30 @@ span.subtitle {
   margin-left: 3em;
   font-size: 1.5em;
   font-weight: normal;
+}
+
+#blog {
+	float: right;
+	width: 160px;
+	background-color: ivory;
+	border: 1px solid #BA9836;
+	padding: 0 1em;
+	margin-left: 1em;
+	margin-bottom: 1em;
+}
+#blogFeed {
+	padding-bottom: 1em;
+}
+
+.video {
+  padding: 5px 0;
+  text-align: center;
+}
+.video img {
+  margin-bottom: 5px;
+}
+.video .title {
+  font-weight: bold;
+}
+.video .title {
 }
