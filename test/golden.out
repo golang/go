@@ -186,3 +186,6 @@ errchk: bugs/bug299.go: unmatched error messages:
 ==================================================
 bugs/bug299.go:19: syntax error: unexpected }
 ==================================================
+
+=========== bugs/bug300.go
+BUG: errchk: command succeeded unexpectedly
