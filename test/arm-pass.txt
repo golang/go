@@ -1,5 +1,5 @@
 ./235.go
-# ./64bit.go	# flaky
+# ./64bit.go	# fail, flaky
 ./args.go
 ./assign.go
 ./assign1.go
@@ -65,7 +65,7 @@
 ./indirect.go
 ./indirect1.go
 ./initcomma.go
-# ./initialize.go	# fail, BUG
+./initialize.go
 ./initializerr.go
 ./initsyscall.go
 ./int_lit.go
@@ -116,7 +116,7 @@
 ./varerr.go
 ./varinit.go
 ./vectors.go
-./zerodivide.go
+# ./zerodivide.go	# fail, BUG
 ken/array.go
 ken/chan.go
 ken/chan1.go
@@ -179,7 +179,7 @@ interface/embed0.go
 interface/embed1.go
 interface/explicit.go
 interface/fail.go
-# interface/fake.go	# fail
+interface/fake.go
 interface/pointer.go
 interface/receiver.go
 interface/receiver1.go
@@ -408,7 +408,7 @@ fixedbugs/bug217.go
 fixedbugs/bug218.go
 fixedbugs/bug219.go
 fixedbugs/bug220.go
-# fixedbugs/bug221.go	# fail
+fixedbugs/bug221.go
 fixedbugs/bug222.go
 fixedbugs/bug223.go
 fixedbugs/bug224.go
@@ -423,14 +423,14 @@ fixedbugs/bug232.go
 fixedbugs/bug233.go
 fixedbugs/bug234.go
 fixedbugs/bug235.go
-# fixedbugs/bug236.go	# fail
+fixedbugs/bug236.go
 fixedbugs/bug237.go
 fixedbugs/bug238.go
 fixedbugs/bug239.go
 fixedbugs/bug240.go
 fixedbugs/bug241.go
 fixedbugs/bug242.go
-# fixedbugs/bug243.go	# fail
+fixedbugs/bug243.go
 fixedbugs/bug244.go
 fixedbugs/bug245.go
 fixedbugs/bug246.go
@@ -458,7 +458,7 @@ fixedbugs/bug268.go
 fixedbugs/bug269.go
 fixedbugs/bug270.go
 fixedbugs/bug271.go
-# fixedbugs/bug272.go	# fail
+fixedbugs/bug272.go
 fixedbugs/bug273.go
 fixedbugs/bug274.go
 fixedbugs/bug275.go
@@ -467,7 +467,7 @@ fixedbugs/bug277.go
 fixedbugs/bug278.go
 fixedbugs/bug279.go
 fixedbugs/bug280.go
-# fixedbugs/bug281.go	# fail, BUG
+fixedbugs/bug281.go
 fixedbugs/bug282.go
 fixedbugs/bug283.go
 fixedbugs/bug284.go
