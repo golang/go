@@ -123,14 +123,7 @@ func generateKeyNumber() (key string, number uint32) {
 	// to U+0039 DIGIT NINE (9).
 	key = fmt.Sprintf("%d", product)
 
-	// 21. Insert /spaces_n/ U+0020 SPACE characters into /key_n/ at random
-	//     posisions.
-	for i := 0; i < spaces; i++ {
-		pos := rand.Intn(len(key)-1) + 1
-		key = key[0:pos] + " " + key[pos:]
-	}
-
-	// 22. Insert between one and twelve random characters from the ranges
+	// 21. Insert between one and twelve random characters from the ranges
 	//     U+0021 to U+002F and U+003A to U+007E into /key_n/ at random
 	//     positions.
 	n := rand.Intn(12) + 1
@@ -139,6 +132,14 @@ func generateKeyNumber() (key string, number uint32) {
 		ch := secKeyRandomChars[rand.Intn(len(secKeyRandomChars))]
 		key = key[0:pos] + string(ch) + key[pos:]
 	}
+
+	// 22. Insert /spaces_n/ U+0020 SPACE characters into /key_n/ at random
+	//     positions other than the start or end of the string.
+	for i := 0; i < spaces; i++ {
+		pos := rand.Intn(len(key)-1) + 1
+		key = key[0:pos] + " " + key[pos:]
+	}
+
 	return
 }
 
