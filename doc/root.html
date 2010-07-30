@@ -23,6 +23,7 @@ function loadFeed() {
 		}
 		container.innerHTML = "";
 		var entries = result.feed.entries;
+		console.log(entries);
 		for (var i=0; i<entries.length; i++) {
 			var a = document.createElement("a");
 			a.setAttribute("href", entries[i].link);
@@ -36,41 +37,6 @@ google.setOnLoadCallback(loadFeed);
 </script>
 <!-- end blog post widget JS/styles -->
 
-<div id="gettingStarted">
-  <h1>Getting started</h1>
-
-  <ol>
-    <li>
-      <span><a href="/doc/install.html">Install Go</a>.</span>
-    </li>
-
-    <li>
-      <span>Read the <a href="/doc/go_tutorial.html">tutorial</a>.</span>
-    </li>
-
-    <li>
-      <span>Learn the <a href="/pkg">libraries</a>.</span>
-    </li>
-  </ol>
-
-  <h1>Slow compiles?<br>Watch this</h1>
-  <table width="100%">
-    <tr>
-      <td align=center width="100%">
-        <a href="http://www.youtube.com/watch?v=wwoWei-GAPo"><img src="/doc/video-snap.jpg"></a>
-      </td>
-    </tr>
-  </table>
-</div>
-
-<div id="blog">
-	<h1>From the <a href="http://blog.golang.org">Go Blog</a>:</h1>
-	<div id="blogFeed">Loading...</div>
-</div>
-
-
-<div id="frontpage">
-
 <table style="padding-top: 1em; padding-bottom: 2em;">
   <tr>
     <td>
@@ -81,6 +47,33 @@ google.setOnLoadCallback(loadFeed);
     </td>
   </tr>
 </table>
+
+<div id="fp-videos">
+  <h1>Go videos</h1>
+  <div class="video">
+    <a href="http://www.youtube.com/watch?v=jgVhBThJdXc"><img src="/doc/video-snap-io.jpg"></a>
+    <div class="title">"Go Programming"</div>
+    <div class="subtitle">Google I/O Tech Talk</div>
+  </div>
+  <div class="video">
+    <a href="http://www.youtube.com/watch?v=wwoWei-GAPo"><img src="/doc/video-snap-fastcompiles.jpg"></a>
+    <div class="title">"Fast Compiles"</div>
+    <div class="subtitle">Go Promotional Video</div>
+  </div>
+  <div class="video">
+    <a href="http://www.youtube.com/gocoding"><img src="/doc/video-snap-gocoding.jpg"></a>
+    <div class="title">Go Youtube Channel</div>
+    <div class="subtitle">Screencasts and more</div>
+  </div>
+  <a class="more" href="/doc/go_learning.html#videos_talks">More videos and talks.</a>
+</div>
+
+<div id="frontpage">
+
+<div id="blog">
+  <h1>From the <a href="http://blog.golang.org">Go Blog</a>:</h1>
+  <div id="blogFeed">Loading...</div>
+</div>
 
 <p style="font-size: 1.5em; font-weight: bold;">Go is &hellip;</p>
 
@@ -94,24 +87,26 @@ func main() {
   fmt.Printf("Hello, 世界\n")
 }</pre>
 
+<p>Go has a small, simple feature set, making it easy to learn.</p>
+
 <h3>&hellip; fast</h3>
 
 <p>
 Go compilers produce fast code fast. Typical builds take a fraction of a second yet the resulting programs run nearly as quickly as comparable C or C++ code.
 </p>
 
+<h3>&hellip; concurrent</h3>
+
+<p>
+Go promotes writing systems and servers as sets of lightweight communicating
+processes, called goroutines, with strong support from the language.  Run
+thousands of goroutines if you want&mdash;and say good-bye to stack overflows.
+</p>
+
 <h3>&hellip; safe</h3>
 
 <p>Go is type safe and memory safe. Go has pointers but no pointer arithmetic.
 For random access, use slices, which know their limits.</p>
-
-<h3>&hellip; concurrent</h3>
-
-<p>
-Go promotes writing systems and servers as sets of lightweight
-communicating processes, called goroutines, with strong support from the language.
-Run thousands of goroutines if you want&mdash;and say good-bye to stack overflows.
-</p>
 
 <h3>&hellip; fun</h3>
 
