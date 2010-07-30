@@ -179,11 +179,13 @@ sigpanic(void)
 	case SIGBUS:
 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
 			panicstring("invalid memory address or nil pointer dereference");
-		break;
+		printf("unexpected fault address %p\n", g->sigcode1);
+		throw("fault");
 	case SIGSEGV:
 		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
 			panicstring("invalid memory address or nil pointer dereference");
-		break;
+		printf("unexpected fault address %p\n", g->sigcode1);
+		throw("fault");
 	case SIGFPE:
 		switch(g->sigcode0) {
 		case FPE_INTDIV:
