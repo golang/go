@@ -24,11 +24,19 @@ export GOARCH=XXX
 export GOOS=XXX
 export GOBIN=/gobuild/bin
 export PATH=$PATH:/gobuild/bin
-export BUILDER=XXX
+export BUILDER=$GOOS-$GOARCH
 export BUILDHOST=godashboard.appspot.com
 
-* Write the key ~gobuild/.gobuildkey (you need to get it from someone who knows
-                                      the key)
+* Write the key ~gobuild/.gobuildkey 
+  You need to get it from someone who knows the key.
+  You may also use a filename of the form .gobuildkey-$BUILDER if you
+  wish to run builders for multiple targets.
+
+* Append your username and password googlecode.com credentials from
+    https://code.google.com/hosting/settings
+  to the buildkey file in the format "Username\nPassword\n".
+  (This is for uploading tarballs to the project downloads section,
+   and is an optional step.)
 
 * sudo apt-get install bison gcc libc6-dev ed make
 * cd ~gobuild

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Copyright 2010 The Go Authors.  All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -48,7 +48,7 @@ fi
 mkdir -p $GOROOT/bin
 
 cd $GOROOT/..
-cp go/misc/dashboard/builder.sh go/misc/dashboard/buildcontrol.py .
+cp go/misc/dashboard/{builder.sh,buildcontrol.py,googlecode_upload.py} .
 chmod a+x builder.sh buildcontrol.py
 cd go
 ../buildcontrol.py next $BUILDER
