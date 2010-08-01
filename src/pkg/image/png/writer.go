@@ -32,8 +32,15 @@ func writeUint32(b []uint8, u uint32) {
 	b[3] = uint8(u >> 0)
 }
 
+type opaquer interface {
+	Opaque() bool
+}
+
 // Returns whether or not the image is fully opaque.
 func opaque(m image.Image) bool {
+	if o, ok := m.(opaquer); ok {
+		return o.Opaque()
+	}
 	for y := 0; y < m.Height(); y++ {
 		for x := 0; x < m.Width(); x++ {
 			_, _, _, a := m.At(x, y).RGBA()
