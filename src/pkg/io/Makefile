@@ -7,8 +7,7 @@ include ../../Make.$(GOARCH)
 TARG=io
 GOFILES=\
 	io.go\
-	multi_reader.go\
-	multi_writer.go\
+	multi.go\
 	pipe.go\
 
 include ../../Make.pkg
