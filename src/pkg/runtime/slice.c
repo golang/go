@@ -39,9 +39,9 @@ void
 	}
 }
 
-// sliceslice(old []any, lb int, hb int, width int) (ary []any);
+// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any);
 void
-·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+·sliceslice(Slice old, uint64 lb, uint64 hb, uint64 width, Slice ret)
 {
 	if(hb > old.cap || lb > hb) {
 		if(debug) {
@@ -86,9 +86,9 @@ void
 	}
 }
 
-// sliceslice1(old []any, lb int, width int) (ary []any);
+// sliceslice1(old []any, lb uint64, width uint64) (ary []any);
 void
-·sliceslice1(Slice old, uint32 lb, uint32 width, Slice ret)
+·sliceslice1(Slice old, uint64 lb, uint64 width, Slice ret)
 {
 	if(lb > old.len) {
 		if(debug) {
@@ -129,9 +129,9 @@ void
 	}
 }
 
-// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any);
+// slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary []any);
 void
-·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
+·slicearray(byte* old, uint64 nel, uint64 lb, uint64 hb, uint64 width, Slice ret)
 {
 	if(nel > 0 && old == nil) {
 		// crash if old == nil.

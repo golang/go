@@ -536,7 +536,7 @@ mpgetfix(Mpint *a)
 	vlong v;
 
 	if(a->ovf) {
-		yyerror("ovf in mpgetfix");
+		yyerror("constant overflow");
 		return 0;
 	}
 
