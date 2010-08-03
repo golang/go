@@ -33,7 +33,7 @@ export PATH=$PATH:`pwd`/candidate/bin
 export GOBIN=`pwd`/candidate/bin
 export BAKED_GOROOT=/usr/local/go
 
-while true ; do
+while true ; do (
     cd go || fatal "Cannot cd into 'go'"
     hg pull -u || fatal "hg sync failed"
     rev=`python ../buildcontrol.py next $BUILDER`
@@ -80,12 +80,16 @@ while true ; do
             echo "Uploading binary to googlecode"
             TARBALL="go.$SUMMARY.$BUILDER.tar.gz"
             ./clean.bash --nopkg
-            cd .. || fatal "Cannot cd up"
-            tar czf ../$TARBALL . || fatal "Cannot create tarball"
+	    # move contents of candidate/ to candidate/go/ for archival
+            cd ../..                     || fatal "Cannot cd up"
+	    mv candidate go-candidate    || fatal "Cannot rename candidate"
+	    mkdir candidate              || fatal "Cannot mkdir candidate"
+	    mv go-candidate candidate/go || fatal "Cannot mv directory"
+	    cd candidate                 || fatal "Cannot cd candidate"
+	    # build tarball
+            tar czf ../$TARBALL go       || fatal "Cannot create tarball"
             ../buildcontrol.py upload $BUILDER $SUMMARY ../$TARBALL || fatal "Cannot upload tarball"
-            cd src || fatal "Cannot cd src"
         fi
     fi
-    cd ../.. || fatal "Cannot cd up"
     sleep 10
-done
+) done
