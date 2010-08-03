@@ -31,12 +31,6 @@ fi
 
 E="$GORUN"
 
-# TODO(kaib): proper emulator strategy
-case x"$GOARCH" in
-xarm)
-	export E=${GORUN:-qemu-arm -cpu cortex-a8}
-esac
-
 # Allow overrides
 GC="$GOBIN/${_GC:-$GC} -I _test"
 GL="$GOBIN/${GL:-$LD} -L _test"
