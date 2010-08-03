@@ -23,6 +23,11 @@
 
 # Names should be added to this file like so:
 #     Name <email address>
+#
+# An entry with two email addresses specifies that the
+# first address should be used in the submit logs and
+# that the second address should be recognized as the
+# same person when interacting with Rietveld.
 
 # Please keep the list sorted.
 
@@ -44,7 +49,7 @@ Austin Clements <aclements@csail.mit.edu>
 Ben Eitzen <eitzenb@golang.org>
 Ben Olive <sionide21@gmail.com>
 Bill Neubauer <wcn@golang.org> <wcn@google.com>
-Brad Fitzpatrick <brad@danga.com>
+Brad Fitzpatrick <brad@danga.com> <bradfitz@gmail.com>
 Brendan O'Dea <bod@golang.org>
 Cary Hull <chull@google.com>
 Charles L. Dorian <cldorian@gmail.com>
