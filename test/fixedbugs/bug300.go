@@ -20,10 +20,10 @@ func main() {
 	_ = T{}
 
 	// illegal composite literals: parentheses not allowed around literal type
-	_ = (struct{}){}	// ERROR "xxx"
-	_ = ([42]int){}		// ERROR "xxx"
-	_ = ([...]int){}	// ERROR "xxx"
-	_ = ([]int){}		// ERROR "xxx"
-	_ = (map[int]int){}	// ERROR "xxx"
-	_ = (T){}		// ERROR "xxx"
+	_ = (struct{}){}    // ERROR "parenthesize"
+	_ = ([42]int){}     // ERROR "parenthesize"
+	_ = ([...]int){}    // ERROR "parenthesize"
+	_ = ([]int){}       // ERROR "parenthesize"
+	_ = (map[int]int){} // ERROR "parenthesize"
+	_ = (T){}           // ERROR "parenthesize"
 }
