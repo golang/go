@@ -18,6 +18,10 @@ type dirInfo struct {
 	bufp int    // location of next record in buf.
 }
 
+// DevNull is the name of the operating system's ``null device.''
+// On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+const DevNull = "/dev/null"
+
 // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
 // if applicable.  If successful, methods on the returned File can be used for I/O.
 // It returns the File and an Error, if any.
