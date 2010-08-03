@@ -17,6 +17,8 @@ type dirInfo struct {
 	usefirststat bool
 }
 
+const DevNull = "NUL"
+
 func (file *File) isdir() bool { return file != nil && file.dirinfo != nil }
 
 func openFile(name string, flag int, perm int) (file *File, err Error) {
