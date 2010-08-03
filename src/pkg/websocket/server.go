@@ -5,9 +5,6 @@
 package websocket
 
 import (
-	"bytes"
-	"crypto/md5"
-	"encoding/binary"
 	"http"
 	"io"
 	"strings"
@@ -123,25 +120,11 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 	part2 := keyNumber2 / space2
 
 	// Step 8. let challenge to be concatination of part1, part2 and key3.
-	challenge := make([]byte, 16)
-	challengeBuf := bytes.NewBuffer(challenge)
-	err = binary.Write(challengeBuf, binary.BigEndian, part1)
-	if err != nil {
-		return
-	}
-	err = binary.Write(challengeBuf, binary.BigEndian, part2)
-	if err != nil {
-		return
-	}
-	if n := copy(challenge[8:], key3); n != 8 {
-		return
-	}
 	// Step 9. get MD5 fingerprint of challenge.
-	h := md5.New()
-	if _, err = h.Write(challenge); err != nil {
+	response, err := getChallengeResponse(part1, part2, key3)
+	if err != nil {
 		return
 	}
-	response := h.Sum()
 
 	// Step 10. send response status line.
 	buf.WriteString("HTTP/1.1 101 WebSocket Protocol Handshake\r\n")

@@ -31,6 +31,25 @@ func startServer() {
 	go http.Serve(l, nil)
 }
 
+// Test the getChallengeResponse function with values from section
+// 5.1 of the specification steps 18, 26, and 43 from
+// http://www.whatwg.org/specs/web-socket-protocol/
+func TestChallenge(t *testing.T) {
+	var part1 uint32 = 777007543
+	var part2 uint32 = 114997259
+	key3 := []byte{0x47, 0x30, 0x22, 0x2D, 0x5A, 0x3F, 0x47, 0x58}
+	expected := []byte("0st3Rl&q-2ZU^weu")
+
+	response, err := getChallengeResponse(part1, part2, key3)
+	if err != nil {
+		t.Errorf("getChallengeResponse: returned error %v", err)
+		return
+	}
+	if !bytes.Equal(expected, response) {
+		t.Errorf("getChallengeResponse: expected %q got %q", expected, response)
+	}
+}
+
 func TestEcho(t *testing.T) {
 	once.Do(startServer)
 
