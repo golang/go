@@ -1056,7 +1056,7 @@ reswitch:
 		if(onearg(n, "panic") < 0)
 			goto error;
 		typecheck(&n->left, Erv);
-		defaultlit(&n->left, T);
+		defaultlit(&n->left, types[TINTER]);
 		if(n->left->type == T)
 			goto error;
 		goto ret;
