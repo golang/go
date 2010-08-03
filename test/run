@@ -99,7 +99,7 @@ done | # clean up some stack noise
 
 rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
 diffmsg=""
-if ! diff run.out golden.out
+if ! diff golden.out run.out
 then
 	diffmsg="; test output differs"
 	failed=1
