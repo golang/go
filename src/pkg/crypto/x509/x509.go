@@ -610,7 +610,12 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 
 			case 14:
 				// RFC 5280, 4.2.1.2
-				out.SubjectKeyId = e.Value
+				var keyid []byte
+				_, err = asn1.Unmarshal(&keyid, e.Value)
+				if err != nil {
+					return nil, err
+				}
+				out.SubjectKeyId = keyid
 				continue
 			}
 		}
