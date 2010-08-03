@@ -887,13 +887,13 @@ func GetServByName(name string, proto string) (s *Servent, errno int) {
 
 func Ntohs(netshort uint16) (u uint16) {
 	r0, _, _ := Syscall(procntohs, uintptr(netshort), 0, 0)
-	u = (uint16)(r0)
+	u = uint16(r0)
 	return
 }
 
 func DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) {
 	r0, _, _ := Syscall6(procDnsQuery_W, uintptr(unsafe.Pointer(StringToUTF16Ptr(name))), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
-	status = (uint32)(r0)
+	status = uint32(r0)
 	return
 }
 

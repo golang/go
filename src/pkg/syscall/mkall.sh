@@ -154,7 +154,7 @@ windows_386)
 	mksyscall="./mksyscall_windows.sh -l32"
 	mksysnum=
 	mktypes=
-	mkerrors=
+	mkerrors="./mkerrors_windows.sh -f -m32"
 	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
