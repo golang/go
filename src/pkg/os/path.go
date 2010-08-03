@@ -12,7 +12,7 @@ package os
 // directories that MkdirAll creates.
 // If path is already a directory, MkdirAll does nothing
 // and returns nil.
-func MkdirAll(path string, perm int) Error {
+func MkdirAll(path string, perm uint32) Error {
 	// If path exists, stop with success or error.
 	dir, err := Lstat(path)
 	if err == nil {

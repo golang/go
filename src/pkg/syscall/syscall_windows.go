@@ -164,7 +164,7 @@ func Errstr(errno int) string {
 
 func Exit(code int) { ExitProcess(uint32(code)) }
 
-func Open(path string, mode int, perm int) (fd int, errno int) {
+func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	if len(path) == 0 {
 		return -1, ERROR_FILE_NOT_FOUND
 	}
@@ -329,7 +329,7 @@ func Chdir(path string) (errno int) {
 	return 0
 }
 
-func Mkdir(path string, mode int) (errno int) {
+func Mkdir(path string, mode uint32) (errno int) {
 	if ok, e := CreateDirectory(&StringToUTF16(path)[0], nil); !ok {
 		return e
 	}
@@ -620,8 +620,8 @@ func Fchdir(fd int) (errno int)                           { return EWINDOWS }
 func Link(oldpath, newpath string) (errno int)            { return EWINDOWS }
 func Symlink(path, link string) (errno int)               { return EWINDOWS }
 func Readlink(path string, buf []byte) (n int, errno int) { return 0, EWINDOWS }
-func Chmod(path string, mode int) (errno int)             { return EWINDOWS }
-func Fchmod(fd int, mode int) (errno int)                 { return EWINDOWS }
+func Chmod(path string, mode uint32) (errno int)          { return EWINDOWS }
+func Fchmod(fd int, mode uint32) (errno int)              { return EWINDOWS }
 func Chown(path string, uid int, gid int) (errno int)     { return EWINDOWS }
 func Lchown(path string, uid int, gid int) (errno int)    { return EWINDOWS }
 func Fchown(fd int, uid int, gid int) (errno int)         { return EWINDOWS }

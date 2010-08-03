@@ -179,7 +179,7 @@ func Chflags(path string, flags int) (errno int) {
 	return
 }
 
-func Chmod(path string, mode int) (errno int) {
+func Chmod(path string, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
 	errno = int(e1)
 	return
@@ -239,7 +239,7 @@ func Fchflags(path string, flags int) (errno int) {
 	return
 }
 
-func Fchmod(fd int, mode int) (errno int) {
+func Fchmod(fd int, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
 	errno = int(e1)
 	return
@@ -428,25 +428,25 @@ func Lstat(path string, stat *Stat_t) (errno int) {
 	return
 }
 
-func Mkdir(path string, mode int) (errno int) {
+func Mkdir(path string, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
 	errno = int(e1)
 	return
 }
 
-func Mkfifo(path string, mode int) (errno int) {
+func Mkfifo(path string, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_MKFIFO, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
 	errno = int(e1)
 	return
 }
 
-func Mknod(path string, mode int, dev int) (errno int) {
+func Mknod(path string, mode uint32, dev int) (errno int) {
 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
 	errno = int(e1)
 	return
 }
 
-func Open(path string, mode int, perm int) (fd int, errno int) {
+func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
 	fd = int(r0)
 	errno = int(e1)

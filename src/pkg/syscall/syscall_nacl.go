@@ -10,7 +10,7 @@ const OS = "nacl"
 
 // Auto-generated
 
-//sys	Chmod(path string, mode int) (errno int)
+//sys	Chmod(path string, mode uint32) (errno int)
 //sys	Clock() (clock int)
 //sys	Close(fd int) (errno int)
 //sys	Exit(code int)
@@ -18,7 +18,7 @@ const OS = "nacl"
 //sys	Getdents(fd int, buf []byte) (n int, errno int)
 //sys	Getpid() (pid int)
 //sys	Gettimeofday(tv *Timeval) (errno int)
-//sys	Open(path string, mode int, perm int) (fd int, errno int)
+//sys	Open(path string, mode int, perm uint32) (fd int, errno int)
 //sys	Read(fd int, p []byte) (n int, errno int)
 //sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
 //sys	Stat(path string, stat *Stat_t) (errno int)
@@ -132,7 +132,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 	return 0, ENACL
 }
 
-func Mkdir(path string, mode int) (errno int) { return ENACL }
+func Mkdir(path string, mode uint32) (errno int) { return ENACL }
 
 func Lstat(path string, stat *Stat_t) (errno int) {
 	return Stat(path, stat)
@@ -160,7 +160,7 @@ func Rename(oldpath, newpath string) (errno int) {
 	return ENACL
 }
 
-func Fchmod(fd int, mode int) (errno int) { return ENACL }
+func Fchmod(fd int, mode uint32) (errno int) { return ENACL }
 
 func Chown(path string, uid int, gid int) (errno int) {
 	return ENACL

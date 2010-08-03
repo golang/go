@@ -46,19 +46,19 @@ var (
 // Flags to Open wrapping those of the underlying system. Not all flags
 // may be implemented on a given system.
 const (
-	O_RDONLY   = syscall.O_RDONLY   // open the file read-only.
-	O_WRONLY   = syscall.O_WRONLY   // open the file write-only.
-	O_RDWR     = syscall.O_RDWR     // open the file read-write.
-	O_APPEND   = syscall.O_APPEND   // append data to the file when writing.
-	O_ASYNC    = syscall.O_ASYNC    // generate a signal when I/O is available.
-	O_CREAT    = syscall.O_CREAT    // create a new file if none exists.
-	O_EXCL     = syscall.O_EXCL     // used with O_CREAT, file must not exist
-	O_NOCTTY   = syscall.O_NOCTTY   // do not make file the controlling tty.
-	O_NONBLOCK = syscall.O_NONBLOCK // open in non-blocking mode.
-	O_NDELAY   = O_NONBLOCK         // synonym for O_NONBLOCK
-	O_SYNC     = syscall.O_SYNC     // open for synchronous I/O.
-	O_TRUNC    = syscall.O_TRUNC    // if possible, truncate file when opened.
-	O_CREATE   = O_CREAT            // create a new file if none exists.
+	O_RDONLY   int = syscall.O_RDONLY   // open the file read-only.
+	O_WRONLY   int = syscall.O_WRONLY   // open the file write-only.
+	O_RDWR     int = syscall.O_RDWR     // open the file read-write.
+	O_APPEND   int = syscall.O_APPEND   // append data to the file when writing.
+	O_ASYNC    int = syscall.O_ASYNC    // generate a signal when I/O is available.
+	O_CREAT    int = syscall.O_CREAT    // create a new file if none exists.
+	O_EXCL     int = syscall.O_EXCL     // used with O_CREAT, file must not exist
+	O_NOCTTY   int = syscall.O_NOCTTY   // do not make file the controlling tty.
+	O_NONBLOCK int = syscall.O_NONBLOCK // open in non-blocking mode.
+	O_NDELAY   int = O_NONBLOCK         // synonym for O_NONBLOCK
+	O_SYNC     int = syscall.O_SYNC     // open for synchronous I/O.
+	O_TRUNC    int = syscall.O_TRUNC    // if possible, truncate file when opened.
+	O_CREATE   int = O_CREAT            // create a new file if none exists.
 )
 
 type eofError int
@@ -208,7 +208,7 @@ func Pipe() (r *File, w *File, err Error) {
 
 // Mkdir creates a new directory with the specified name and permission bits.
 // It returns an error, if any.
-func Mkdir(name string, perm int) Error {
+func Mkdir(name string, perm uint32) Error {
 	e := syscall.Mkdir(name, perm)
 	if e != 0 {
 		return &PathError{"mkdir", name, Errno(e)}
@@ -358,7 +358,7 @@ func Rename(oldname, newname string) Error {
 
 // Chmod changes the mode of the named file to mode.
 // If the file is a symbolic link, it changes the mode of the link's target.
-func Chmod(name string, mode int) Error {
+func Chmod(name string, mode uint32) Error {
 	if e := syscall.Chmod(name, mode); e != 0 {
 		return &PathError{"chmod", name, Errno(e)}
 	}
@@ -366,7 +366,7 @@ func Chmod(name string, mode int) Error {
 }
 
 // Chmod changes the mode of the file to mode.
-func (f *File) Chmod(mode int) Error {
+func (f *File) Chmod(mode uint32) Error {
 	if e := syscall.Fchmod(f.fd, mode); e != 0 {
 		return &PathError{"chmod", f.name, Errno(e)}
 	}
