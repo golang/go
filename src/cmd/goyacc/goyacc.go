@@ -3038,7 +3038,7 @@ func open(s string) *bufio.Reader {
 	return bufio.NewReader(fi)
 }
 
-func create(s string, m int) *bufio.Writer {
+func create(s string, m uint32) *bufio.Writer {
 	fo, err := os.Open(s, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, m)
 	if err != nil {
 		error("error opening %v: %v", s, err)

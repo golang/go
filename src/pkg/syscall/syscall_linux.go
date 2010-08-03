@@ -19,13 +19,13 @@ const OS = "linux"
  * Wrapped
  */
 
-//sys	open(path string, mode int, perm int) (fd int, errno int)
-func Open(path string, mode int, perm int) (fd int, errno int) {
+//sys	open(path string, mode int, perm uint32) (fd int, errno int)
+func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	return open(path, mode|O_LARGEFILE, perm)
 }
 
-//sys	openat(dirfd int, path string, flags int, mode int) (fd int, errno int)
-func Openat(dirfd int, path string, flags int, mode int) (fd int, errno int) {
+//sys	openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int)
+func Openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int) {
 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
 }
 
@@ -561,25 +561,25 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
 /*
  * Direct access
  */
-//sys	Access(path string, mode int) (errno int)
+//sys	Access(path string, mode uint32) (errno int)
 //sys	Acct(path string) (errno int)
 //sys	Adjtimex(buf *Timex) (state int, errno int)
 //sys	Chdir(path string) (errno int)
-//sys	Chmod(path string, mode int) (errno int)
+//sys	Chmod(path string, mode uint32) (errno int)
 //sys	Chroot(path string) (errno int)
 //sys	Close(fd int) (errno int)
-//sys	Creat(path string, mode int) (fd int, errno int)
+//sys	Creat(path string, mode uint32) (fd int, errno int)
 //sys	Dup(oldfd int) (fd int, errno int)
 //sys	Dup2(oldfd int, newfd int) (fd int, errno int)
 //sys	EpollCreate(size int) (fd int, errno int)
 //sys	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int)
 //sys	Exit(code int) = SYS_EXIT_GROUP
-//sys	Faccessat(dirfd int, path string, mode int, flags int) (errno int)
-//sys	Fallocate(fd int, mode int, off int64, len int64) (errno int)
+//sys	Faccessat(dirfd int, path string, mode uint32, flags int) (errno int)
+//sys	Fallocate(fd int, mode uint32, off int64, len int64) (errno int)
 //sys	Fchdir(fd int) (errno int)
-//sys	Fchmod(fd int, mode int) (errno int)
-//sys	Fchmodat(dirfd int, path string, mode int, flags int) (errno int)
+//sys	Fchmod(fd int, mode uint32) (errno int)
+//sys	Fchmodat(dirfd int, path string, mode uint32, flags int) (errno int)
 //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (errno int)
 //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
 //sys	Fdatasync(fd int) (errno int)
@@ -597,10 +597,10 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
 //sys	Kill(pid int, sig int) (errno int)
 //sys	Klogctl(typ int, buf []byte) (n int, errno int) = SYS_SYSLOG
 //sys	Link(oldpath string, newpath string) (errno int)
-//sys	Mkdir(path string, mode int) (errno int)
-//sys	Mkdirat(dirfd int, path string, mode int) (errno int)
-//sys	Mknod(path string, mode int, dev int) (errno int)
-//sys	Mknodat(dirfd int, path string, mode int, dev int) (errno int)
+//sys	Mkdir(path string, mode uint32) (errno int)
+//sys	Mkdirat(dirfd int, path string, mode uint32) (errno int)
+//sys	Mknod(path string, mode uint32, dev int) (errno int)
+//sys	Mknodat(dirfd int, path string, mode uint32, dev int) (errno int)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
 //sys	Pause() (errno int)
 //sys	PivotRoot(newroot string, putold string) (errno int) = SYS_PIVOT_ROOT

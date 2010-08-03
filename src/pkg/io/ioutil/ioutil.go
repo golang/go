@@ -49,7 +49,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
 // WriteFile writes data to a file named by filename.
 // If the file does not exist, WriteFile creates it with permissions perm;
 // otherwise WriteFile truncates it before writing.
-func WriteFile(filename string, data []byte, perm int) os.Error {
+func WriteFile(filename string, data []byte, perm uint32) os.Error {
 	f, err := os.Open(filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, perm)
 	if err != nil {
 		return err

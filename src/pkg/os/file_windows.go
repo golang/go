@@ -21,7 +21,7 @@ const DevNull = "NUL"
 
 func (file *File) isdir() bool { return file != nil && file.dirinfo != nil }
 
-func openFile(name string, flag int, perm int) (file *File, err Error) {
+func openFile(name string, flag int, perm uint32) (file *File, err Error) {
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
 	if e != 0 {
 		return nil, &PathError{"open", name, Errno(e)}
@@ -51,7 +51,7 @@ func openDir(name string) (file *File, err Error) {
 // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
 // if applicable.  If successful, methods on the returned File can be used for I/O.
 // It returns the File and an Error, if any.
-func Open(name string, flag int, perm int) (file *File, err Error) {
+func Open(name string, flag int, perm uint32) (file *File, err Error) {
 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
 	r, e := openDir(name)
 	if e == nil {

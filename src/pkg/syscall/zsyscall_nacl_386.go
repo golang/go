@@ -5,7 +5,7 @@ package syscall
 
 import "unsafe"
 
-func Chmod(path string, mode int) (errno int) {
+func Chmod(path string, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
 	errno = int(e1)
 	return
@@ -57,7 +57,7 @@ func Gettimeofday(tv *Timeval) (errno int) {
 	return
 }
 
-func Open(path string, mode int, perm int) (fd int, errno int) {
+func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
 	fd = int(r0)
 	errno = int(e1)

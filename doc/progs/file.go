@@ -10,8 +10,8 @@ import (
 )
 
 type File struct {
-	fd      int    // file descriptor number
-	name    string // file name at Open time
+	fd   int    // file descriptor number
+	name string // file name at Open time
 }
 
 func newFile(fd int, name string) *File {
@@ -27,7 +27,7 @@ var (
 	Stderr = newFile(2, "/dev/stderr")
 )
 
-func Open(name string, mode int, perm int) (file *File, err os.Error) {
+func Open(name string, mode int, perm uint32) (file *File, err os.Error) {
 	r, e := syscall.Open(name, mode, perm)
 	if e != 0 {
 		err = os.Errno(e)
@@ -40,7 +40,7 @@ func (file *File) Close() os.Error {
 		return os.EINVAL
 	}
 	e := syscall.Close(file.fd)
-	file.fd = -1  // so it can't be closed again
+	file.fd = -1 // so it can't be closed again
 	if e != 0 {
 		return os.Errno(e)
 	}

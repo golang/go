@@ -5,14 +5,14 @@ package syscall
 
 import "unsafe"
 
-func open(path string, mode int, perm int) (fd int, errno int) {
+func open(path string, mode int, perm uint32) (fd int, errno int) {
 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
 	fd = int(r0)
 	errno = int(e1)
 	return
 }
 
-func openat(dirfd int, path string, flags int, mode int) (fd int, errno int) {
+func openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int) {
 	r0, _, e1 := Syscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), uintptr(mode), 0, 0)
 	fd = int(r0)
 	errno = int(e1)
@@ -61,7 +61,7 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
 	return
 }
 
-func Access(path string, mode int) (errno int) {
+func Access(path string, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
 	errno = int(e1)
 	return
@@ -86,7 +86,7 @@ func Chdir(path string) (errno int) {
 	return
 }
 
-func Chmod(path string, mode int) (errno int) {
+func Chmod(path string, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
 	errno = int(e1)
 	return
@@ -104,7 +104,7 @@ func Close(fd int) (errno int) {
 	return
 }
 
-func Creat(path string, mode int) (fd int, errno int) {
+func Creat(path string, mode uint32) (fd int, errno int) {
 	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
 	fd = int(r0)
 	errno = int(e1)
@@ -154,13 +154,13 @@ func Exit(code int) {
 	return
 }
 
-func Faccessat(dirfd int, path string, mode int, flags int) (errno int) {
+func Faccessat(dirfd int, path string, mode uint32, flags int) (errno int) {
 	_, _, e1 := Syscall6(SYS_FACCESSAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(flags), 0, 0)
 	errno = int(e1)
 	return
 }
 
-func Fallocate(fd int, mode int, off int64, len int64) (errno int) {
+func Fallocate(fd int, mode uint32, off int64, len int64) (errno int) {
 	_, _, e1 := Syscall6(SYS_FALLOCATE, uintptr(fd), uintptr(mode), uintptr(off), uintptr(len), 0, 0)
 	errno = int(e1)
 	return
@@ -172,13 +172,13 @@ func Fchdir(fd int) (errno int) {
 	return
 }
 
-func Fchmod(fd int, mode int) (errno int) {
+func Fchmod(fd int, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
 	errno = int(e1)
 	return
 }
 
-func Fchmodat(dirfd int, path string, mode int, flags int) (errno int) {
+func Fchmodat(dirfd int, path string, mode uint32, flags int) (errno int) {
 	_, _, e1 := Syscall6(SYS_FCHMODAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(flags), 0, 0)
 	errno = int(e1)
 	return
@@ -298,25 +298,25 @@ func Link(oldpath string, newpath string) (errno int) {
 	return
 }
 
-func Mkdir(path string, mode int) (errno int) {
+func Mkdir(path string, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
 	errno = int(e1)
 	return
 }
 
-func Mkdirat(dirfd int, path string, mode int) (errno int) {
+func Mkdirat(dirfd int, path string, mode uint32) (errno int) {
 	_, _, e1 := Syscall(SYS_MKDIRAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode))
 	errno = int(e1)
 	return
 }
 
-func Mknod(path string, mode int, dev int) (errno int) {
+func Mknod(path string, mode uint32, dev int) (errno int) {
 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
 	errno = int(e1)
 	return
 }
 
-func Mknodat(dirfd int, path string, mode int, dev int) (errno int) {
+func Mknodat(dirfd int, path string, mode uint32, dev int) (errno int) {
 	_, _, e1 := Syscall6(SYS_MKNODAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev), 0, 0)
 	errno = int(e1)
 	return
