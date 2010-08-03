@@ -789,25 +789,58 @@ regcmp(const void *va, const void *vb)
 
 static	Prog*	throwpc;
 
+// We're only going to bother inlining if we can
+// convert all the arguments to 32 bits safely.  Can we?
+static int
+fix64(NodeList *nn, int n)
+{
+	NodeList *l;
+	Node *r;
+	int i;
+	
+	l = nn;
+	for(i=0; i<n; i++) {
+		r = l->n->right;
+		if(is64(r->type) && !smallintconst(r)) {
+			if(r->op == OCONV)
+				r = r->left;
+			if(is64(r->type))
+				return 0;
+		}
+		l = l->next;
+	}
+	return 1;
+}
+
 void
 getargs(NodeList *nn, Node *reg, int n)
 {
 	NodeList *l;
+	Node *r;
 	int i;
 
 	throwpc = nil;
 
 	l = nn;
 	for(i=0; i<n; i++) {
-		if(!smallintconst(l->n->right) && !isslice(l->n->right->type)) {
+		r = l->n->right;
+		if(is64(r->type)) {
+			if(r->op == OCONV)
+				r = r->left;
+			else if(smallintconst(r))
+				r->type = types[TUINT32];
+			if(is64(r->type))
+				fatal("getargs");
+		}
+		if(!smallintconst(r) && !isslice(r->type)) {
 			if(i < 3)	// AX CX DX
-				nodreg(reg+i, l->n->right->type, D_AX+i);
+				nodreg(reg+i, r->type, D_AX+i);
 			else
 				reg[i].op = OXXX;
-			regalloc(reg+i, l->n->right->type, reg+i);
-			cgen(l->n->right, reg+i);
+			regalloc(reg+i, r->type, reg+i);
+			cgen(r, reg+i);
 		} else
-			reg[i] = *l->n->right;
+			reg[i] = *r;
 		if(reg[i].local != 0)
 			yyerror("local used");
 		reg[i].local = l->n->left->xoffset;
@@ -908,6 +941,8 @@ cgen_inline(Node *n, Node *res)
 slicearray:
 	if(!sleasy(res))
 		goto no;
+	if(!fix64(n->list, 5))
+		goto no;
 	getargs(n->list, nodes, 5);
 
 	// if(hb[3] > nel[1]) goto throw
@@ -990,6 +1025,8 @@ slicearray:
 	return 1;
 
 sliceslice:
+	if(!fix64(n->list, narg))
+		goto no;
 	ntemp.op = OXXX;
 	if(!sleasy(n->list->n->right)) {
 		Node *n0;

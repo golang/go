@@ -1716,7 +1716,7 @@ sudoaddable(int as, Node *n, Addr *a)
 	int o, i, w;
 	int oary[10];
 	int64 v;
-	Node n1, n2, n3, *nn, *l, *r;
+	Node n1, n2, n3, n4, *nn, *l, *r;
 	Node *reg, *reg1;
 	Prog *p1;
 	Type *t;
@@ -1836,9 +1836,6 @@ oindex:
 		break;
 	}
 
-//	if(sudoaddable(as, l, a))
-//		goto oindex_sudo;
-
 	cleani += 2;
 	reg = &clean[cleani-1];
 	reg1 = &clean[cleani-2];
@@ -1879,16 +1876,29 @@ oindex:
 
 	// check bounds
 	if(!debug['B'] && !n->etype) {
+		// check bounds
+		n4.op = OXXX;
+		t = types[TUINT32];
 		if(o & ODynam) {
 			n2 = *reg;
 			n2.op = OINDREG;
-			n2.type = types[tptr];
+			n2.type = types[TUINT32];
 			n2.xoffset = Array_nel;
+			if(is64(r->type)) {
+				t = types[TUINT64];
+				regalloc(&n4, t, N);
+				gmove(&n2, &n4);
+				n2 = n4;
+			}
 		} else {
+			if(is64(r->type))
+				t = types[TUINT64];
 			nodconst(&n2, types[TUINT64], l->type->bound);
 		}
-		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		gins(optoas(OCMP, t), reg1, &n2);
+		p1 = gbranch(optoas(OLT, t), T);
+		if(n4.op != OXXX)
+			regfree(&n4);
 		ginscall(panicindex, 0);
 		patch(p1, pc);
 	}
@@ -1915,15 +1925,6 @@ oindex_const:
 	// can multiply by width statically
 
 	v = mpgetfix(r->val.u.xval);
-	if(!debug['B'] && (o & ODynam) == 0) {
-		// array indexed by a constant bounds check
-		if(v < 0) {
-			yyerror("out of bounds on array");
-		} else
-		if(v >= l->type->bound) {
-			yyerror("out of bounds on array");
-		}
-	}
 
 	if(sudoaddable(as, l, a))
 		goto oindex_const_sudo;

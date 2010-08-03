@@ -99,9 +99,9 @@ func selectdefault(sel *byte) (selected bool)
 func selectgo(sel *byte)
 
 func makeslice(typ *byte, nel int64, cap int64) (ary []any)
-func sliceslice1(old []any, lb int, width int) (ary []any)
-func sliceslice(old []any, lb int, hb int, width int) (ary []any)
-func slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
+func sliceslice1(old []any, lb uint64, width uint64) (ary []any)
+func sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
+func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary []any)
 
 func closure() // has args, but compiler fills in
 

@@ -565,6 +565,7 @@ walkexpr(Node **np, NodeList **init)
 	NodeList *ll, *lr, *lpost;
 	Type *t;
 	int et;
+	int64 v, v1, v2, len;
 	int32 lno;
 	Node *n, *fn;
 	char buf[100], *p;
@@ -1023,6 +1024,18 @@ walkexpr(Node **np, NodeList **init)
 		if((1<<(8*n->right->type->width)) <= n->left->type->bound)
 			n->etype = 1;
 
+		// check for static out of bounds
+		if(isconst(n->right, CTINT) && !n->etype) {
+			v = mpgetfix(n->right->val.u.xval);
+			len = 1LL<<60;
+			t = n->left->type;
+			if(t != T && isptr[t->etype])
+				t = t->type;
+			if(isfixedarray(t))
+				len = t->bound;
+			if(v < 0 || v >= (1LL<<31) || v >= len)
+				yyerror("index out of bounds");
+		}
 		goto ret;
 
 	case OINDEXMAP:
@@ -1039,36 +1052,6 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OSLICE:
-		walkexpr(&n->left, init);
-		n->left = safeexpr(n->left, init);
-		walkexpr(&n->right->left, init);
-		n->right->left = safeexpr(n->right->left, init);
-		walkexpr(&n->right->right, init);
-		n->right->right = safeexpr(n->right->right, init);
-		// dynamic slice
-		// sliceslice(old []any, lb int, hb int, width int) (ary []any)
-		// sliceslice1(old []any, lb int, width int) (ary []any)
-		t = n->type;
-		if(n->right->right != N) {
-			fn = syslook("sliceslice", 1);
-			argtype(fn, t->type);			// any-1
-			argtype(fn, t->type);			// any-2
-			n = mkcall1(fn, t, init,
-				n->left,
-				conv(n->right->left, types[TINT]),
-				conv(n->right->right, types[TINT]),
-				nodintconst(t->type->width));
-		} else {
-			fn = syslook("sliceslice1", 1);
-			argtype(fn, t->type);			// any-1
-			argtype(fn, t->type);			// any-2
-			n = mkcall1(fn, t, init,
-				n->left,
-				conv(n->right->left, types[TINT]),
-				nodintconst(t->type->width));
-		}
-		goto ret;
-
 	case OSLICEARR:
 		walkexpr(&n->left, init);
 		n->left = safeexpr(n->left, init);
@@ -1076,8 +1059,65 @@ walkexpr(Node **np, NodeList **init)
 		n->right->left = safeexpr(n->right->left, init);
 		walkexpr(&n->right->right, init);
 		n->right->right = safeexpr(n->right->right, init);
+
+		len = 1LL<<60;
+		t = n->left->type;
+		if(t != T && isptr[t->etype])
+			t = t->type;
+		if(isfixedarray(t))
+			len = t->bound;
+
+		// check for static out of bounds
+		// NOTE: v > len not v >= len.
+		v1 = -1;
+		v2 = -1;
+		if(isconst(n->right->left, CTINT)) {
+			v1 = mpgetfix(n->right->left->val.u.xval);
+			if(v1 < 0 || v1 >= (1LL<<31) || v1 > len) {
+				yyerror("slice index out of bounds");
+				v1 = -1;
+			}
+		}
+		if(isconst(n->right->right, CTINT)) {
+			v2 = mpgetfix(n->right->right->val.u.xval);
+			if(v2 < 0 || v2 >= (1LL<<31) || v2 > len) {
+				yyerror("slice index out of bounds");
+				v2 = -1;
+			}
+		}
+		if(v1 >= 0 && v2 >= 0 && v1 > v2)
+			yyerror("inverted slice range");
+		
+		if(n->op == OSLICEARR)
+			goto slicearray;
+
+		// dynamic slice
+		// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
+		// sliceslice1(old []any, lb uint64, width uint64) (ary []any)
+		t = n->type;
+		if(n->right->right != N) {
+			fn = syslook("sliceslice", 1);
+			argtype(fn, t->type);			// any-1
+			argtype(fn, t->type);			// any-2
+			n = mkcall1(fn, t, init,
+				n->left,
+				conv(n->right->left, types[TUINT64]),
+				conv(n->right->right, types[TUINT64]),
+				nodintconst(t->type->width));
+		} else {
+			fn = syslook("sliceslice1", 1);
+			argtype(fn, t->type);			// any-1
+			argtype(fn, t->type);			// any-2
+			n = mkcall1(fn, t, init,
+				n->left,
+				conv(n->right->left, types[TUINT64]),
+				nodintconst(t->type->width));
+		}
+		goto ret;
+
+	slicearray:
 		// static slice
-		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
+		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
 		t = n->type;
 		fn = syslook("slicearray", 1);
 		argtype(fn, n->left->type);	// any-1
@@ -1085,16 +1125,16 @@ walkexpr(Node **np, NodeList **init)
 		if(n->right->right == N)
 			r = nodintconst(n->left->type->bound);
 		else
-			r = conv(n->right->right, types[TINT]);
+			r = conv(n->right->right, types[TUINT64]);
 		n = mkcall1(fn, t, init,
 			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
-			conv(n->right->left, types[TINT]),
+			conv(n->right->left, types[TUINT64]),
 			r,
 			nodintconst(t->type->width));
 		goto ret;
 
 	case OCONVSLICE:
-		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
+		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
 		fn = syslook("slicearray", 1);
 		argtype(fn, n->left->type->type);		// any-1
 		argtype(fn, n->type->type);			// any-2

@@ -561,7 +561,7 @@ reswitch:
 			goto error;
 
 		case TARRAY:
-			defaultlit(&n->right, types[TUINT]);
+			defaultlit(&n->right, T);
 			if(n->right->type != T && !isint[n->right->type->etype])
 				yyerror("non-integer array index %#N", n->right);
 			n->type = t->type;
@@ -635,8 +635,8 @@ reswitch:
 		typecheck(&n->right->left, Erv);
 		typecheck(&n->right->right, Erv);
 		defaultlit(&n->left, T);
-		defaultlit(&n->right->left, types[TUINT]);
-		defaultlit(&n->right->right, types[TUINT]);
+		defaultlit(&n->right->left, T);
+		defaultlit(&n->right->right, T);
 		if(isfixedarray(n->left->type)) {
 			// Insert explicit & before fixed array
 			// so that back end knows to move to heap.

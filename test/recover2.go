@@ -52,7 +52,9 @@ func test2() {
 
 func test3() {
 	defer mustRecover("slice")
-	println(x[11:9])
+	var lo = 11
+	var hi = 9
+	println(x[lo:hi])
 }
 
 func test4() {

@@ -1841,19 +1841,6 @@ oindex_const:
 		n1.type = types[tptr];
 		n1.xoffset = Array_array;
 		gmove(&n1, reg);
-
-	} else
-	if(!debug['B']) {
-		if(v < 0) {
-			yyerror("out of bounds on array");
-		} else
-		if(o & OPtrto) {
-			if(v >= l->type->type->bound)
-				yyerror("out of bounds on array");
-		} else
-		if(v >= l->type->bound) {
-			yyerror("out of bounds on array");
-		}
 	}
 
 	n2 = *reg;

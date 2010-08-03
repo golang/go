@@ -682,6 +682,29 @@ regcmp(const void *va, const void *vb)
 
 static	Prog*	throwpc;
 
+// We're only going to bother inlining if we can
+// convert all the arguments to 32 bits safely.  Can we?
+static int
+fix64(NodeList *nn, int n)
+{
+	NodeList *l;
+	Node *r;
+	int i;
+	
+	l = nn;
+	for(i=0; i<n; i++) {
+		r = l->n->right;
+		if(is64(r->type) && !smallintconst(r)) {
+			if(r->op == OCONV)
+				r = r->left;
+			if(is64(r->type))
+				return 0;
+		}
+		l = l->next;
+	}
+	return 1;
+}
+
 void
 getargs(NodeList *nn, Node *reg, int n)
 {
@@ -813,6 +836,8 @@ cgen_inline(Node *n, Node *res)
 slicearray:
 	if(!sleasy(res))
 		goto no;
+	if(!fix64(n->list, 5))
+		goto no;
 	getargs(n->list, nodes, 5);
 
 	// if(hb[3] > nel[1]) goto throw
@@ -904,6 +929,8 @@ slicearray:
 	return 1;
 
 sliceslice:
+	if(!fix64(n->list, narg))
+		goto no;
 	ntemp.op = OXXX;
 	if(!sleasy(n->list->n->right)) {
 		Node *n0;
