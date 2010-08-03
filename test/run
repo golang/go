@@ -71,6 +71,10 @@ do
 			cat $TMP1FILE
 			if grep -q '^BUG' $TMP1FILE
 			then
+				if [ $dir != bugs ]
+				then
+					echo >&2 bug: $i
+				fi
 				echo "# $i	# fail, BUG" >>pass.out
 			else
 				echo $i >>pass.out
