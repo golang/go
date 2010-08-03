@@ -84,7 +84,7 @@ done | # clean up some stack noise
 failed=0
 rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
 diffmsg=""
-if ! diff -b run.out golden-arm.out
+if ! diff -b golden-arm.out run.out
 then
 	diffmsg="; test output differs"
 	failed=1
