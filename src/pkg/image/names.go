@@ -4,29 +4,11 @@
 
 package image
 
-// Colors from the HTML 4.01 specification: http://www.w3.org/TR/REC-html40/types.html#h-6.5
-// These names do not necessarily match those from other lists, such as the X11 color names.
 var (
-	Aqua    = ColorImage{RGBAColor{0x00, 0xff, 0xff, 0xff}}
-	Black   = ColorImage{RGBAColor{0x00, 0x00, 0x00, 0xff}}
-	Blue    = ColorImage{RGBAColor{0x00, 0x00, 0xff, 0xff}}
-	Fuchsia = ColorImage{RGBAColor{0xff, 0x00, 0xff, 0xff}}
-	Gray    = ColorImage{RGBAColor{0x80, 0x80, 0x80, 0xff}}
-	Green   = ColorImage{RGBAColor{0x00, 0x80, 0x00, 0xff}}
-	Lime    = ColorImage{RGBAColor{0x00, 0xff, 0x00, 0xff}}
-	Maroon  = ColorImage{RGBAColor{0x80, 0x00, 0x00, 0xff}}
-	Navy    = ColorImage{RGBAColor{0x00, 0x00, 0x80, 0xff}}
-	Olive   = ColorImage{RGBAColor{0x80, 0x80, 0x00, 0xff}}
-	Red     = ColorImage{RGBAColor{0xff, 0x00, 0x00, 0xff}}
-	Purple  = ColorImage{RGBAColor{0x80, 0x00, 0x80, 0xff}}
-	Silver  = ColorImage{RGBAColor{0xc0, 0xc0, 0xc0, 0xff}}
-	Teal    = ColorImage{RGBAColor{0x00, 0x80, 0x80, 0xff}}
-	White   = ColorImage{RGBAColor{0xff, 0xff, 0xff, 0xff}}
-	Yellow  = ColorImage{RGBAColor{0xff, 0xff, 0x00, 0xff}}
-
-	// These synonyms are not in HTML 4.01.
-	Cyan    = Aqua
-	Magenta = Fuchsia
+	// Black is an opaque black ColorImage.
+	Black = ColorImage{RGBAColor{0x00, 0x00, 0x00, 0xff}}
+	// White is an opaque white ColorImage.
+	White = ColorImage{RGBAColor{0xff, 0xff, 0xff, 0xff}}
 )
 
 // A ColorImage is a practically infinite-sized Image of uniform Color.

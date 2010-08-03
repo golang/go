@@ -103,6 +103,27 @@ func (c Alpha16Color) RGBA() (r, g, b, a uint32) {
 	return a, a, a, a
 }
 
+// A GrayColor represents an 8-bit grayscale color.
+type GrayColor struct {
+	Y uint8
+}
+
+func (c GrayColor) RGBA() (r, g, b, a uint32) {
+	y := uint32(c.Y)
+	y |= y << 8
+	return y, y, y, 0xffff
+}
+
+// A Gray16Color represents a 16-bit grayscale color.
+type Gray16Color struct {
+	Y uint16
+}
+
+func (c Gray16Color) RGBA() (r, g, b, a uint32) {
+	y := uint32(c.Y)
+	return y, y, y, 0xffff
+}
+
 // A ColorModel can convert foreign Colors, with a possible loss of precision,
 // to a Color from its own color model.
 type ColorModel interface {
@@ -187,6 +208,24 @@ func toAlpha16Color(c Color) Color {
 	return Alpha16Color{uint16(a)}
 }
 
+func toGrayColor(c Color) Color {
+	if _, ok := c.(GrayColor); ok {
+		return c
+	}
+	r, g, b, _ := c.RGBA()
+	y := (299*r + 587*g + 114*b + 500) / 1000
+	return GrayColor{uint8(y >> 8)}
+}
+
+func toGray16Color(c Color) Color {
+	if _, ok := c.(Gray16Color); ok {
+		return c
+	}
+	r, g, b, _ := c.RGBA()
+	y := (299*r + 587*g + 114*b + 500) / 1000
+	return Gray16Color{uint16(y)}
+}
+
 // The ColorModel associated with RGBAColor.
 var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor)
 
@@ -204,3 +243,9 @@ var AlphaColorModel ColorModel = ColorModelFunc(toAlphaColor)
 
 // The ColorModel associated with Alpha16Color.
 var Alpha16ColorModel ColorModel = ColorModelFunc(toAlpha16Color)
+
+// The ColorModel associated with GrayColor.
+var GrayColorModel ColorModel = ColorModelFunc(toGrayColor)
+
+// The ColorModel associated with Gray16Color.
+var Gray16ColorModel ColorModel = ColorModelFunc(toGray16Color)
