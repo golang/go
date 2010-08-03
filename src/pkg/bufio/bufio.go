@@ -28,6 +28,7 @@ type Error struct {
 var (
 	ErrInvalidUnreadByte os.Error = &Error{"bufio: invalid use of UnreadByte"}
 	ErrBufferFull        os.Error = &Error{"bufio: buffer full"}
+	ErrNegativeCount     os.Error = &Error{"bufio: negative count"}
 	errInternal          os.Error = &Error{"bufio: internal error"}
 )
 
@@ -83,13 +84,11 @@ func NewReader(rd io.Reader) *Reader {
 // fill reads a new chunk into the buffer.
 func (b *Reader) fill() {
 	// Slide existing data to beginning.
-	if b.w > b.r {
-		copy(b.buf[0:b.w-b.r], b.buf[b.r:b.w])
+	if b.r > 0 {
+		copy(b.buf, b.buf[b.r:b.w])
 		b.w -= b.r
-	} else {
-		b.w = 0
+		b.r = 0
 	}
-	b.r = 0
 
 	// Read new data.
 	n, e := b.rd.Read(b.buf[b.w:])
@@ -97,6 +96,31 @@ func (b *Reader) fill() {
 	if e != nil {
 		b.err = e
 	}
+}
+
+// Peek returns the next n bytes without advancing the reader. The bytes stop
+// being valid at the next read call. If Peek returns fewer than n bytes, it
+// also returns an error explaining why the read is short. The error is
+// ErrBufferFull if n is larger than b's buffer size.
+func (b *Reader) Peek(n int) ([]byte, os.Error) {
+	if n < 0 {
+		return nil, ErrNegativeCount
+	}
+	if n > len(b.buf) {
+		return nil, ErrBufferFull
+	}
+	for b.w-b.r < n && b.err == nil {
+		b.fill()
+	}
+	m := b.w - b.r
+	if m > n {
+		m = n
+	}
+	err := b.err
+	if m < n && err == nil {
+		err = ErrBufferFull
+	}
+	return b.buf[b.r : b.r+m], err
 }
 
 // Read reads data into p.
@@ -129,7 +153,7 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 		if n > b.w-b.r {
 			n = b.w - b.r
 		}
-		copy(p[0:n], b.buf[b.r:b.r+n])
+		copy(p[0:n], b.buf[b.r:])
 		p = p[n:]
 		b.r += n
 		b.lastbyte = int(b.buf[b.r-1])
@@ -291,10 +315,10 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 	buf := make([]byte, n)
 	n = 0
 	for i := 0; i < nfull; i++ {
-		copy(buf[n:n+len(full[i])], full[i])
+		copy(buf[n:], full[i])
 		n += len(full[i])
 	}
-	copy(buf[n:n+len(frag)], frag)
+	copy(buf[n:], frag)
 	return buf, err
 }
 
