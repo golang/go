@@ -419,3 +419,41 @@ func TestBufferFull(t *testing.T) {
 		t.Errorf("second ReadSlice(,) = %q, %v", line, err)
 	}
 }
+
+func TestPeek(t *testing.T) {
+	p := make([]byte, 10)
+	buf, _ := NewReaderSize(strings.NewReader("abcdefghij"), 4)
+	if s, err := buf.Peek(1); string(s) != "a" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "a", string(s), err)
+	}
+	if s, err := buf.Peek(4); string(s) != "abcd" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "abcd", string(s), err)
+	}
+	if _, err := buf.Peek(5); err != ErrBufferFull {
+		t.Fatalf("want ErrBufFull got %v", err)
+	}
+	if _, err := buf.Read(p[0:3]); string(p[0:3]) != "abc" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "abc", string(p[0:3]), err)
+	}
+	if s, err := buf.Peek(1); string(s) != "d" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "d", string(s), err)
+	}
+	if s, err := buf.Peek(2); string(s) != "de" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "de", string(s), err)
+	}
+	if _, err := buf.Read(p[0:3]); string(p[0:3]) != "def" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "def", string(p[0:3]), err)
+	}
+	if s, err := buf.Peek(4); string(s) != "ghij" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "ghij", string(s), err)
+	}
+	if _, err := buf.Read(p[0:4]); string(p[0:4]) != "ghij" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "ghij", string(p[0:3]), err)
+	}
+	if s, err := buf.Peek(0); string(s) != "" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "", string(s), err)
+	}
+	if _, err := buf.Peek(1); err != os.EOF {
+		t.Fatalf("want EOF got %v", err)
+	}
+}
