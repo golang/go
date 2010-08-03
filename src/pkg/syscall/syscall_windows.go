@@ -147,9 +147,12 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 // syscall interface implementation for other packages
 
 func Errstr(errno int) string {
-	if errno == EWINDOWS {
-		return "not supported by windows"
+	// deal with special go errors
+	e := errno - APPLICATION_ERROR
+	if 0 <= e && e < len(errors) {
+		return errors[e]
 	}
+	// ask windows for the remaining errors
 	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
 	b := make([]uint16, 300)
 	n, err := FormatMessage(flags, 0, uint32(errno), 0, b, nil)

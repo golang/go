@@ -216,8 +216,10 @@ while(<>) {
 			$ret[$i] = sprintf("r%d", $i);
 			$ret[$i+1] = sprintf("r%d", $i+1);
 		}
+		my $rettype = $type;
 		if($type =~ /^\*/) {
 			$reg = "unsafe.Pointer($reg)";
+			$rettype = "($rettype)";
 		}
 		if($i == 0) {
 			if($type eq "bool") {
@@ -241,7 +243,7 @@ while(<>) {
 			$body .= "\t\t$name = 0;\n";
 			$body .= "\t}\n";
 		} else {
-			$body .= "\t$name = ($type)($reg);\n";
+			$body .= "\t$name = $rettype($reg);\n";
 		}
 		push @pout, sprintf "\"%s=\", %s, ", $name, $name;
 	}

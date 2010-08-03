@@ -18,6 +18,22 @@ const (
 )
 
 const (
+	// Windows errors.
+	ERROR_FILE_NOT_FOUND      = 2
+	ERROR_NO_MORE_FILES       = 18
+	ERROR_BROKEN_PIPE         = 109
+	ERROR_INSUFFICIENT_BUFFER = 122
+	ERROR_MOD_NOT_FOUND       = 126
+	ERROR_PROC_NOT_FOUND      = 127
+	ERROR_DIRECTORY           = 267
+	ERROR_IO_PENDING          = 997
+	// Go names for Windows errors.
+	ENOTDIR = ERROR_DIRECTORY
+	// Windows reserves errors >= 1<<29 for application use.
+	APPLICATION_ERROR = 1 << 29
+)
+
+const (
 	// Invented values to support what package os expects.
 	O_RDONLY   = 0x00000
 	O_WRONLY   = 0x00001
