@@ -68,8 +68,6 @@ typecheckselect(Node *sel)
 		typechecklist(ncase->nbody, Etop);
 	}
 	sel->xoffset = count;
-	if(count == 0)
-		yyerror("empty select");
 	lineno = lno;
 }
 
@@ -91,7 +89,7 @@ walkselect(Node *sel)
 	typecheck(&r, Etop);
 	init = list(init, r);
 
-	if(sel->list == nil)
+	if(sel->list == nil && sel->xoffset != 0)
 		fatal("double walkselect");	// already rewrote
 
 	// register cases
