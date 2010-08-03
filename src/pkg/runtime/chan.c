@@ -631,9 +631,11 @@ void
 		printf("select: sel=%p\n", sel);
 
 	if(sel->ncase < 2) {
-		if(sel->ncase < 1)
-			throw("select: no cases");
-		// make special case of one.
+		if(sel->ncase < 1) {
+			g->status = Gwaiting;	// forever
+			gosched();
+		}
+		// TODO: make special case of one.
 	}
 
 	// select a (relative) prime

@@ -112,38 +112,33 @@ func main() {
 		<-ch
 	})
 
-	// TODO(gri) remove this if once 6g accepts empty selects
-	enabled := false
-	if enabled {
-		// empty selects always block
-		testBlock(always, func() {
-			select {
-			case <-make(chan int): // remove this once 6g accepts empty selects
-			}
-		})
+	// empty selects always block
+	testBlock(always, func() {
+		select {
+		}
+	})
 
-		// selects with only nil channels always block
-		testBlock(always, func() {
-			select {
-			case <-nilch:
-				unreachable()
-			}
-		})
-		testBlock(always, func() {
-			select {
-			case nilch <- 7:
-				unreachable()
-			}
-		})
-		testBlock(always, func() {
-			select {
-			case <-nilch:
-				unreachable()
-			case nilch <- 7:
-				unreachable()
-			}
-		})
-	}
+	// selects with only nil channels always block
+	testBlock(always, func() {
+		select {
+		case <-nilch:
+			unreachable()
+		}
+	})
+	testBlock(always, func() {
+		select {
+		case nilch <- 7:
+			unreachable()
+		}
+	})
+	testBlock(always, func() {
+		select {
+		case <-nilch:
+			unreachable()
+		case nilch <- 7:
+			unreachable()
+		}
+	})
 
 	// selects with non-ready non-nil channels always block
 	testBlock(always, func() {
