@@ -11,6 +11,8 @@ package websocket
 
 import (
 	"bufio"
+	"crypto/md5"
+	"encoding/binary"
 	"io"
 	"net"
 	"os"
@@ -136,12 +138,35 @@ func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
 	return os.EINVAL
 }
 
-// SeWritetTimeout sets the connection's network write timeout in nanoseconds.
+// SetWritetTimeout sets the connection's network write timeout in nanoseconds.
 func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
 		return conn.SetWriteTimeout(nsec)
 	}
 	return os.EINVAL
+}
+
+// getChallengeResponse computes the expected response from the
+// challenge as described in section 5.1 Opening Handshake steps 42 to
+// 43 of http://www.whatwg.org/specs/web-socket-protocol/
+func getChallengeResponse(number1, number2 uint32, key3 []byte) (expected []byte, err os.Error) {
+	// 41. Let /challenge/ be the concatenation of /number_1/, expressed
+	// a big-endian 32 bit integer, /number_2/, expressed in a big-
+	// endian 32 bit integer, and the eight bytes of /key_3/ in the
+	// order they were sent to the wire.
+	challenge := make([]byte, 16)
+	binary.BigEndian.PutUint32(challenge[0:], number1)
+	binary.BigEndian.PutUint32(challenge[4:], number2)
+	copy(challenge[8:], key3)
+
+	// 42. Let /expected/ be the MD5 fingerprint of /challenge/ as a big-
+	// endian 128 bit string.
+	h := md5.New()
+	if _, err = h.Write(challenge); err != nil {
+		return
+	}
+	expected = h.Sum()
+	return
 }
 
 var _ net.Conn = (*Conn)(nil) // compile-time check that *Conn implements net.Conn.
