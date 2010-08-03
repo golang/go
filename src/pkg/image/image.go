@@ -303,6 +303,78 @@ func NewAlpha16(w, h int) *Alpha16 {
 	return &Alpha16{pix}
 }
 
+// A Gray is an in-memory image backed by a 2-D slice of GrayColor values.
+type Gray struct {
+	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
+	Pixel [][]GrayColor
+}
+
+func (p *Gray) ColorModel() ColorModel { return GrayColorModel }
+
+func (p *Gray) Width() int {
+	if len(p.Pixel) == 0 {
+		return 0
+	}
+	return len(p.Pixel[0])
+}
+
+func (p *Gray) Height() int { return len(p.Pixel) }
+
+func (p *Gray) At(x, y int) Color { return p.Pixel[y][x] }
+
+func (p *Gray) Set(x, y int, c Color) { p.Pixel[y][x] = toGrayColor(c).(GrayColor) }
+
+// Opaque scans the entire image and returns whether or not it is fully opaque.
+func (p *Gray) Opaque() bool {
+	return true
+}
+
+// NewGray returns a new Gray with the given width and height.
+func NewGray(w, h int) *Gray {
+	buf := make([]GrayColor, w*h)
+	pix := make([][]GrayColor, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
+	}
+	return &Gray{pix}
+}
+
+// A Gray16 is an in-memory image backed by a 2-D slice of Gray16Color values.
+type Gray16 struct {
+	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
+	Pixel [][]Gray16Color
+}
+
+func (p *Gray16) ColorModel() ColorModel { return Gray16ColorModel }
+
+func (p *Gray16) Width() int {
+	if len(p.Pixel) == 0 {
+		return 0
+	}
+	return len(p.Pixel[0])
+}
+
+func (p *Gray16) Height() int { return len(p.Pixel) }
+
+func (p *Gray16) At(x, y int) Color { return p.Pixel[y][x] }
+
+func (p *Gray16) Set(x, y int, c Color) { p.Pixel[y][x] = toGray16Color(c).(Gray16Color) }
+
+// Opaque scans the entire image and returns whether or not it is fully opaque.
+func (p *Gray16) Opaque() bool {
+	return true
+}
+
+// NewGray16 returns a new Gray16 with the given width and height.
+func NewGray16(w, h int) *Gray16 {
+	buf := make([]Gray16Color, w*h)
+	pix := make([][]Gray16Color, h)
+	for y := range pix {
+		pix[y] = buf[w*y : w*(y+1)]
+	}
+	return &Gray16{pix}
+}
+
 // A PalettedColorModel represents a fixed palette of colors.
 type PalettedColorModel []Color
 
