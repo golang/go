@@ -37,6 +37,9 @@ var unmarshalTests = []unmarshalTest{
 	unmarshalTest{"null", new(interface{}), nil, nil},
 	unmarshalTest{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.Typeof("")}},
 
+	// syntax errors
+	unmarshalTest{`{"X": "foo", "Y"}`, nil, nil, SyntaxError("invalid character '}' after object key")},
+
 	// composite tests
 	unmarshalTest{allValueIndent, new(All), allValue, nil},
 	unmarshalTest{allValueCompact, new(All), allValue, nil},
@@ -75,7 +78,12 @@ func TestUnmarshal(t *testing.T) {
 	for i, tt := range unmarshalTests {
 		in := []byte(tt.in)
 		if err := checkValid(in, &scan); err != nil {
-			t.Errorf("#%d: checkValid: %v", i, err)
+			if !reflect.DeepEqual(err, tt.err) {
+				t.Errorf("#%d: checkValid: %v", i, err)
+				continue
+			}
+		}
+		if tt.ptr == nil {
 			continue
 		}
 		// v = new(right-type)
