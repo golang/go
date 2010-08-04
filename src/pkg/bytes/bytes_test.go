@@ -212,6 +212,7 @@ type ExplodeTest struct {
 }
 
 var explodetests = []ExplodeTest{
+	ExplodeTest{"", -1, []string{}},
 	ExplodeTest{abcd, -1, []string{"a", "b", "c", "d"}},
 	ExplodeTest{faces, -1, []string{"☺", "☻", "☹"}},
 	ExplodeTest{abcd, 2, []string{"a", "bcd"}},
