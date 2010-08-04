@@ -133,10 +133,10 @@ func processFile(f *os.File) os.Error {
 }
 
 
-func processFileByName(filename string) (err os.Error) {
+func processFileByName(filename string) os.Error {
 	file, err := os.Open(filename, os.O_RDONLY, 0)
 	if err != nil {
-		return
+		return err
 	}
 	defer file.Close()
 	return processFile(file)
