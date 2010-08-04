@@ -251,6 +251,8 @@ func stateBeginStringOrEmpty(s *scanner, c int) int {
 		return scanSkipSpace
 	}
 	if c == '}' {
+		n := len(s.parseState)
+		s.parseState[n-1] = parseObjectValue
 		return stateEndValue(s, c)
 	}
 	return stateBeginString(s, c)
@@ -288,10 +290,6 @@ func stateEndValue(s *scanner, c int) int {
 			s.parseState[n-1] = parseObjectValue
 			s.step = stateBeginValue
 			return scanObjectKey
-		}
-		if c == '}' {
-			s.popParseState()
-			return scanEndObject
 		}
 		return s.error(c, "after object key")
 	case parseObjectValue:
