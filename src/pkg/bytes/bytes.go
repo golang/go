@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The bytes package implements functions for the manipulation of byte slices.
-// Analagous to the facilities of the strings package.
+// Analogous to the facilities of the strings package.
 package bytes
 
 import (
@@ -127,6 +127,20 @@ func LastIndex(s, sep []byte) int {
 	return -1
 }
 
+// IndexRune interprets s as a sequence of UTF-8-encoded Unicode code points.
+// It returns the byte index of the first occurrence in s of the given rune.
+// It returns -1 if rune is not present in s.
+func IndexRune(s []byte, rune int) int {
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRune(s[i:])
+		if r == rune {
+			return i
+		}
+		i += size
+	}
+	return -1
+}
+
 // IndexAny interprets s as a sequence of UTF-8-encoded Unicode code points.
 // It returns the byte index of the first occurrence in s of any of the Unicode
 // code points in chars.  It returns -1 if chars is empty or if there is no code
@@ -202,12 +216,20 @@ func SplitAfter(s, sep []byte, n int) [][]byte {
 // Fields splits the array s around each instance of one or more consecutive white space
 // characters, returning a slice of subarrays of s or an empty list if s contains only white space.
 func Fields(s []byte) [][]byte {
+	return FieldsFunc(s, unicode.IsSpace)
+}
+
+// FieldsFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+// It splits the array s at each run of code points c satisfying f(c) and
+// returns a slice of subarrays of s.  If no code points in s satisfy f(c), an
+// empty slice is returned.
+func FieldsFunc(s []byte, f func(int) bool) [][]byte {
 	n := 0
 	inField := false
 	for i := 0; i < len(s); {
 		rune, size := utf8.DecodeRune(s[i:])
 		wasInField := inField
-		inField = !unicode.IsSpace(rune)
+		inField = !f(rune)
 		if inField && !wasInField {
 			n++
 		}
@@ -219,12 +241,12 @@ func Fields(s []byte) [][]byte {
 	fieldStart := -1
 	for i := 0; i <= len(s) && na < n; {
 		rune, size := utf8.DecodeRune(s[i:])
-		if fieldStart < 0 && size > 0 && !unicode.IsSpace(rune) {
+		if fieldStart < 0 && size > 0 && !f(rune) {
 			fieldStart = i
 			i += size
 			continue
 		}
-		if fieldStart >= 0 && (size == 0 || unicode.IsSpace(rune)) {
+		if fieldStart >= 0 && (size == 0 || f(rune)) {
 			a[na] = s[fieldStart:i]
 			na++
 			fieldStart = -1
@@ -336,6 +358,25 @@ func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
 
 // ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
 func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
+
+// ToUpperSpecial returns a copy of the byte array s with all Unicode letters mapped to their
+// upper case, giving priority to the special casing rules.
+func ToUpperSpecial(_case unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r int) int { return _case.ToUpper(r) }, s)
+}
+
+// ToLowerSpecial returns a copy of the byte array s with all Unicode letters mapped to their
+// lower case, giving priority to the special casing rules.
+func ToLowerSpecial(_case unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r int) int { return _case.ToLower(r) }, s)
+}
+
+// ToTitleSpecial returns a copy of the byte array s with all Unicode letters mapped to their
+// title case, giving priority to the special casing rules.
+func ToTitleSpecial(_case unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r int) int { return _case.ToTitle(r) }, s)
+}
+
 
 // isSeparator reports whether the rune could mark a word boundary.
 // TODO: update when package unicode captures more of the properties.

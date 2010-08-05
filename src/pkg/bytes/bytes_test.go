@@ -125,6 +125,15 @@ var indexAnyTests = []BinOpTest{
 	BinOpTest{dots + dots + dots, " ", -1},
 }
 
+var indexRuneTests = []BinOpTest{
+	BinOpTest{"", "a", -1},
+	BinOpTest{"", "☺", -1},
+	BinOpTest{"foo", "☹", -1},
+	BinOpTest{"foo", "o", 1},
+	BinOpTest{"foo☺bar", "☺", 3},
+	BinOpTest{"foo☺☻☹bar", "☹", 9},
+}
+
 // Execute f on each test case.  funcName should be the name of f; it's used
 // in failure reports.
 func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, testCases []BinOpTest) {
@@ -164,6 +173,17 @@ func TestIndexByte(t *testing.T) {
 		posp := IndexBytePortable(a, b)
 		if posp != tt.i {
 			t.Errorf(`indexBytePortable(%q, '%c') = %v`, tt.a, b, posp)
+		}
+	}
+}
+
+func TestIndexRune(t *testing.T) {
+	for _, tt := range indexRuneTests {
+		a := []byte(tt.a)
+		r, _ := utf8.DecodeRuneInString(tt.b)
+		pos := IndexRune(a, r)
+		if pos != tt.i {
+			t.Errorf(`IndexRune(%q, '%c') = %v`, tt.a, r, pos)
 		}
 	}
 }
@@ -332,6 +352,23 @@ func TestFields(t *testing.T) {
 		if !eq(result, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
+		}
+	}
+}
+
+func TestFieldsFunc(t *testing.T) {
+	pred := func(c int) bool { return c == 'X' }
+	var fieldsFuncTests = []FieldsTest{
+		FieldsTest{"", []string{}},
+		FieldsTest{"XX", []string{}},
+		FieldsTest{"XXhiXXX", []string{"hi"}},
+		FieldsTest{"aXXbXXXcX", []string{"a", "b", "c"}},
+	}
+	for _, tt := range fieldsFuncTests {
+		a := FieldsFunc([]byte(tt.s), pred)
+		result := arrayOfString(a)
+		if !eq(result, tt.a) {
+			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
 		}
 	}
 }
