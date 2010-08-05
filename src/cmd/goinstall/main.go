@@ -207,6 +207,9 @@ func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
 	io.Copy(&buf, p.Stdout)
 	w, err := p.Wait(0)
 	p.Close()
+	if err != nil {
+		return err
+	}
 	if !w.Exited() || w.ExitStatus() != 0 {
 		if !quiet || *verbose {
 			if dir != "" {
