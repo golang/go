@@ -38,8 +38,6 @@ ginit(void)
 
 	thechar = '6';
 	thestring = "amd64";
-	exregoffset = REGEXT;
-	exfregoffset = FREGEXT;
 	listinit();
 	nstring = 0;
 	mnstring = 0;
@@ -491,6 +489,10 @@ naddr(Node *n, Adr *a)
 		a->sym = S;
 		break;
 
+	case OEXREG:
+		a->type = D_INDIR + D_GS;
+		a->offset = n->reg - 1;
+		break;
 
 	case OIND:
 		naddr(n->left, a);
@@ -1502,11 +1504,11 @@ exreg(Type *t)
 	int32 o;
 
 	if(typechlpv[t->etype]) {
-		if(exregoffset <= REGEXT-4)
+		if(exregoffset >= 64)
 			return 0;
 		o = exregoffset;
-		exregoffset--;
-		return o;
+		exregoffset += 8;
+		return o+1;	// +1 to avoid 0 == failure; naddr's case OEXREG will subtract 1.
 	}
 	return 0;
 }

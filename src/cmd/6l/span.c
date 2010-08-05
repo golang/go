@@ -445,6 +445,24 @@ asmlc(void)
 }
 
 int
+prefixof(Adr *a)
+{
+	switch(a->type) {
+	case D_INDIR+D_CS:
+		return 0x2e;
+	case D_INDIR+D_DS:
+		return 0x3e;
+	case D_INDIR+D_ES:
+		return 0x26;
+	case D_INDIR+D_FS:
+		return 0x64;
+	case D_INDIR+D_GS:
+		return 0x65;
+	}
+	return 0;
+}
+
+int
 oclass(Adr *a)
 {
 	vlong v;
@@ -879,7 +897,7 @@ asmandsz(Adr *a, int r, int rex, int m64)
 	if(t >= D_INDIR) {
 		t -= D_INDIR;
 		rexflag |= (regrex[t] & Rxb) | rex;
-		if(t == D_NONE) {
+		if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
 			if(asmode != 64){
 				*andptr++ = (0 << 6) | (5 << 0) | (r << 3);
 				put4(v);
@@ -1173,7 +1191,7 @@ doasm(Prog *p)
 	Prog *q, pp;
 	uchar *t;
 	Movtab *mo;
-	int z, op, ft, tt, xo, l;
+	int z, op, ft, tt, xo, l, pre;
 	vlong v;
 
 	o = opindex[p->as];
@@ -1181,6 +1199,13 @@ doasm(Prog *p)
 		diag("asmins: missing op %P", p);
 		return;
 	}
+	
+	pre = prefixof(&p->from);
+	if(pre)
+		*andptr++ = pre;
+	pre = prefixof(&p->to);
+	if(pre)
+		*andptr++ = pre;
 
 	if(p->ft == 0)
 		p->ft = oclass(&p->from);
@@ -1748,7 +1773,7 @@ asmins(Prog *p)
 		n = andptr - and;
 		for(np = 0; np < n; np++) {
 			c = and[np];
-			if(c != 0x66 && c != 0xf2 && c != 0xf3 && c != 0x67)
+			if(c != 0xf2 && c != 0xf3 && (c < 0x64 || c > 0x67) && c != 0x2e && c != 0x3e && c != 0x26)
 				break;
 		}
 		memmove(and+np+1, and+np, n-np);

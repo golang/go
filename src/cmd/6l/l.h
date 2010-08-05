@@ -340,6 +340,7 @@ EXTERN	Sym*	symlist;
 EXTERN	int32	symsize;
 EXTERN	Prog*	textp;
 EXTERN	vlong	textsize;
+EXTERN	int	tlsoffset;
 EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;

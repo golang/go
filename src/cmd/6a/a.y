@@ -453,6 +453,12 @@ omem:
 		$$.type = D_INDIR+D_SP;
 		$$.offset = $1;
 	}
+|	con '(' LSREG ')'
+	{
+		$$ = nullgen;
+		$$.type = D_INDIR+$3;
+		$$.offset = $1;
+	}
 |	con '(' LLREG '*' con ')'
 	{
 		$$ = nullgen;

@@ -1403,7 +1403,6 @@ exreg(Type *t)
 		return o+1;	// +1 to avoid 0 == failure; naddr case OEXREG will -1.
 	}
 
-	USED(t);
 	return 0;
 }
 

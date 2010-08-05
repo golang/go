@@ -821,6 +821,17 @@ asmb(void)
 			ph->type = PT_DYNAMIC;
 			ph->flags = PF_R + PF_W;
 			phsh(ph, sh);
+			
+			/*
+			 * Thread-local storage segment (really just size).
+			 */
+			if(tlsoffset != 0) {
+				ph = newElfPhdr();
+				ph->type = PT_TLS;
+				ph->flags = PF_R;
+				ph->memsz = -tlsoffset;
+				ph->align = 8;
+			}
 		}
 
 		ph = newElfPhdr();

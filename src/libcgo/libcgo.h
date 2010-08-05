@@ -10,6 +10,7 @@
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
 
 typedef uint32_t uint32;
+typedef uint64_t uint64;
 typedef uintptr_t uintptr;
 
 /*
@@ -49,10 +50,9 @@ void libcgo_thread_start(ThreadStart *ts);
 void libcgo_sys_thread_start(ThreadStart *ts);
 
 /*
- * Call fn in the 6c world, with m and g
- * set to the given parameters.
+ * Call fn in the 6c world.
  */
-void crosscall_amd64(uintptr m, G *g, void (*fn)(void));
+void crosscall_amd64(void (*fn)(void));
 
 /*
  * Call fn in the 8c world.

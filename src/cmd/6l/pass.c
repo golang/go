@@ -421,6 +421,13 @@ patch(void)
 	s = lookup("exit", 0);
 	vexit = s->value;
 	for(p = firstp; p != P; p = p->link) {
+		if(HEADTYPE == 7 || HEADTYPE == 9) {
+			// ELF uses FS instead of GS.
+			if(p->from.type == D_INDIR+D_GS)
+				p->from.type = D_INDIR+D_FS;
+			if(p->to.type == D_INDIR+D_GS)
+				p->to.type = D_INDIR+D_FS;
+		}
 		if(p->as == ATEXT)
 			curtext = p;
 		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
@@ -663,6 +670,15 @@ dostkoff(void)
 				diag("nosplit func likely to overflow stack");
 
 			if(!(p->from.scale & NOSPLIT)) {
+				p = appendp(p);	// load g into CX
+				p->as = AMOVQ;
+				if(HEADTYPE == 7 || HEADTYPE == 9)	// ELF uses FS
+					p->from.type = D_INDIR+D_FS;
+				else
+					p->from.type = D_INDIR+D_GS;
+				p->from.offset = tlsoffset+0;
+				p->to.type = D_CX;
+				
 				if(debug['K']) {
 					// 6l -K means check not only for stack
 					// overflow but stack underflow.
@@ -672,7 +688,7 @@ dostkoff(void)
 
 					p = appendp(p);
 					p->as = ACMPQ;
-					p->from.type = D_INDIR+D_R15;
+					p->from.type = D_INDIR+D_CX;
 					p->from.offset = 8;
 					p->to.type = D_SP;
 
@@ -694,7 +710,7 @@ dostkoff(void)
 						p = appendp(p);
 						p->as = ACMPQ;
 						p->from.type = D_SP;
-						p->to.type = D_INDIR+D_R15;
+						p->to.type = D_INDIR+D_CX;
 						if(q1) {
 							q1->pcond = p;
 							q1 = P;
@@ -714,7 +730,7 @@ dostkoff(void)
 						p = appendp(p);
 						p->as = ACMPQ;
 						p->from.type = D_AX;
-						p->to.type = D_INDIR+D_R15;
+						p->to.type = D_INDIR+D_CX;
 					}
 
 					// common
@@ -824,7 +840,7 @@ dostkoff(void)
 				// function is marked as nosplit.
 				p = appendp(p);
 				p->as = AMOVQ;
-				p->from.type = D_INDIR+D_R15;
+				p->from.type = D_INDIR+D_CX;
 				p->from.offset = 0;
 				p->to.type = D_BX;
 
