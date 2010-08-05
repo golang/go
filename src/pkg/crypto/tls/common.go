@@ -9,7 +9,7 @@ import (
 	"crypto/rsa"
 	"io"
 	"io/ioutil"
-	"once"
+	"sync"
 	"time"
 )
 
@@ -126,6 +126,8 @@ func mutualVersion(vers uint16) (uint16, bool) {
 
 // The defaultConfig is used in place of a nil *Config in the TLS server and client.
 var varDefaultConfig *Config
+
+var once sync.Once
 
 func defaultConfig() *Config {
 	once.Do(initDefaultConfig)

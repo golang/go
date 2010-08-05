@@ -7,10 +7,12 @@
 package net
 
 import (
-	"once"
 	"os"
+	"sync"
 	"syscall"
 )
+
+var onceReadProtocols sync.Once
 
 func sockaddrToIP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
@@ -284,7 +286,7 @@ func readProtocols() {
 }
 
 func netProtoSplit(netProto string) (net string, proto int, err os.Error) {
-	once.Do(readProtocols)
+	onceReadProtocols.Do(readProtocols)
 	i := last(netProto, ':')
 	if i+1 >= len(netProto) { // no colon
 		return "", 0, os.ErrorString("no IP protocol specified")

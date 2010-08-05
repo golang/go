@@ -11,11 +11,12 @@ import (
 	"io"
 	"log"
 	"net"
-	"once"
+	"sync"
 	"testing"
 )
 
 var serverAddr string
+var once sync.Once
 
 func echoServer(ws *Conn) { io.Copy(ws, ws) }
 

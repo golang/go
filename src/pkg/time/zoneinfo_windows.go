@@ -6,8 +6,8 @@ package time
 
 import (
 	"syscall"
-	"os"
 	"once"
+	"os"
 )
 
 // BUG(brainman): The Windows implementation assumes that
@@ -121,6 +121,7 @@ func (zi *zoneinfo) pickZone(t *Time) *zone {
 
 var tz zoneinfo
 var initError os.Error
+var onceSetupZone sync.Once
 
 func setupZone() {
 	var i syscall.Timezoneinformation
@@ -145,7 +146,7 @@ func setupZone() {
 
 // Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
 func lookupTimezone(sec int64) (zone string, offset int) {
-	once.Do(setupZone)
+	onceSetupZone.Do(setupZone)
 	if initError != nil {
 		return "", 0
 	}
@@ -174,7 +175,7 @@ func lookupTimezone(sec int64) (zone string, offset int) {
 // time zone with the given abbreviation. It only considers
 // time zones that apply to the current system.
 func lookupByName(name string) (off int, found bool) {
-	once.Do(setupZone)
+	onceSetupZone.Do(setupZone)
 	if initError != nil {
 		return 0, false
 	}

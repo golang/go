@@ -15,9 +15,9 @@
 package net
 
 import (
-	"once"
 	"os"
 	"rand"
+	"sync"
 	"time"
 )
 
@@ -235,11 +235,13 @@ func isDomainName(s string) bool {
 	return ok
 }
 
+var onceLoadConfig sync.Once
+
 func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
 	if !isDomainName(name) {
 		return name, nil, &DNSError{Error: "invalid domain name", Name: name}
 	}
-	once.Do(loadConfig)
+	onceLoadConfig.Do(loadConfig)
 	if dnserr != nil || cfg == nil {
 		err = dnserr
 		return
@@ -293,7 +295,7 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
 // It returns the canonical name for the host and an array of that
 // host's addresses.
 func LookupHost(name string) (cname string, addrs []string, err os.Error) {
-	once.Do(loadConfig)
+	onceLoadConfig.Do(loadConfig)
 	if dnserr != nil || cfg == nil {
 		err = dnserr
 		return

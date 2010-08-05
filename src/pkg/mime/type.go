@@ -7,7 +7,6 @@ package mime
 
 import (
 	"bufio"
-	"once"
 	"os"
 	"strings"
 	"sync"
@@ -68,6 +67,8 @@ func initMime() {
 		loadMimeFile(filename)
 	}
 }
+
+var once sync.Once
 
 // TypeByExtension returns the MIME type associated with the file extension ext.
 // The extension ext should begin with a leading dot, as in ".html".

@@ -11,8 +11,8 @@ package time
 
 import (
 	"io/ioutil"
-	"once"
 	"os"
+	"sync"
 )
 
 const (
@@ -203,6 +203,7 @@ func readinfofile(name string) ([]zonetime, bool) {
 }
 
 var zones []zonetime
+var onceSetupZone sync.Once
 
 func setupZone() {
 	// consult $TZ to find the time zone to use.
@@ -223,7 +224,7 @@ func setupZone() {
 
 // Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
 func lookupTimezone(sec int64) (zone string, offset int) {
-	once.Do(setupZone)
+	onceSetupZone.Do(setupZone)
 	if len(zones) == 0 {
 		return "UTC", 0
 	}
@@ -251,7 +252,7 @@ func lookupTimezone(sec int64) (zone string, offset int) {
 // For a system in Sydney, "EST" and "EDT", though they have
 // different meanings than they do in New York.
 func lookupByName(name string) (off int, found bool) {
-	once.Do(setupZone)
+	onceSetupZone.Do(setupZone)
 	for _, z := range zones {
 		if name == z.zone.name {
 			return z.zone.utcoff, true

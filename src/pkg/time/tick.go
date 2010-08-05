@@ -5,7 +5,7 @@
 package time
 
 import (
-	"once"
+	"sync"
 )
 
 // A Ticker holds a synchronous channel that delivers `ticks' of a clock
@@ -156,6 +156,8 @@ func tickerLoop() {
 	}
 }
 
+var onceStartTickerLoop sync.Once
+
 // NewTicker returns a new Ticker containing a channel that will
 // send the time, in nanoseconds, every ns nanoseconds.  It adjusts the
 // intervals to make up for pauses in delivery of the ticks.
@@ -165,7 +167,7 @@ func NewTicker(ns int64) *Ticker {
 	}
 	c := make(chan int64, 1) //  See comment on send in tickerLoop
 	t := &Ticker{c, c, ns, false, Nanoseconds() + ns, nil}
-	once.Do(startTickerLoop)
+	onceStartTickerLoop.Do(startTickerLoop)
 	// must be run in background so global Tickers can be created
 	go func() { newTicker <- t }()
 	return t

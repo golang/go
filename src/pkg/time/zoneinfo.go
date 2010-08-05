@@ -203,6 +203,7 @@ func readinfofile(name string) ([]zonetime, bool) {
 }
 
 var zones []zonetime
+var onceSetupZone sync.Once
 
 func setupZone() {
 	// consult $TZ to find the time zone to use.
@@ -223,7 +224,7 @@ func setupZone() {
 
 // Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
 func lookupTimezone(sec int64) (zone string, offset int) {
-	once.Do(setupZone)
+	onceSetupZone.Do(setupZone)
 	if len(zones) == 0 {
 		return "UTC", 0
 	}

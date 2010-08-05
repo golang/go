@@ -9,14 +9,15 @@ import (
 	"http"
 	"log"
 	"net"
-	"once"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 )
 
 var serverAddr string
 var httpServerAddr string
+var once sync.Once
 
 const second = 1e9
 
