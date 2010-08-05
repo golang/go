@@ -95,8 +95,8 @@ hi def link     goConstants         Keyword
 " Comments; their contents
 syn keyword     goTodo              contained TODO FIXME XXX BUG
 syn cluster     goCommentGroup      contains=goTodo
-syn region      goComment           start="/\*" end="\*/" contains=@goCommentGroup
-syn region      goComment           start="//" end="$" contains=@goCommentGroup
+syn region      goComment           start="/\*" end="\*/" contains=@goCommentGroup,@Spell
+syn region      goComment           start="//" end="$" contains=@goCommentGroup,@Spell
 
 hi def link     goComment           Comment
 hi def link     goTodo              Todo
