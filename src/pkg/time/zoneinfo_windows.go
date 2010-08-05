@@ -6,7 +6,7 @@ package time
 
 import (
 	"syscall"
-	"once"
+	"sync"
 	"os"
 )
 
