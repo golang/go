@@ -3,9 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // The sync package provides basic synchronization primitives
-// such as mutual exclusion locks.  These are intended for use
-// by low-level library routines.  Higher-level synchronization
-// is better done via channels and communication.
+// such as mutual exclusion locks.  Other than the Once type,
+// most are intended for use by low-level library routines.
+// Higher-level synchronization  is better done via channels
+// and communication.
 package sync
 
 import "runtime"
