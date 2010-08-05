@@ -7,6 +7,7 @@ include ../../Make.$(GOARCH)
 TARG=sync
 GOFILES=\
 	mutex.go\
+	once.go \
 	rwmutex.go\
 
 # 386-specific object files
