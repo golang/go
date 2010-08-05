@@ -11,8 +11,6 @@ import (
 	"unsafe"
 )
 
-var onceStartServer sync.Once
-
 // BUG(brainman): The Windows implementation does not implement SetTimeout.
 
 // IO completion result parameters.
