@@ -104,7 +104,7 @@ func Clean(path string) string {
 
 // Split splits path immediately following the final slash,
 // separating it into a directory and file name component.
-// If there is no slash in path, DirFile returns an empty dir and
+// If there is no slash in path, Split returns an empty dir and
 // file set to path.
 func Split(path string) (dir, file string) {
 	for i := len(path) - 1; i >= 0; i-- {
