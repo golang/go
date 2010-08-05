@@ -419,8 +419,8 @@ func (p *Package) rewriteRef(f *File) {
 					n.AddError = true
 					n.Mangle = "_C2func_" + n.Go
 					f.Name["2"+r.Name.Go] = n
-					expr = ast.NewIdent(n.Mangle)
 				}
+				expr = ast.NewIdent(n.Mangle)
 				r.Name = n
 				break
 			}
