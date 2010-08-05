@@ -41,7 +41,7 @@ apply1() {
 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
 	bug226.go | bug228.go | bug248.go | bug274.go | bug280.go | \
-	bug282.go | bug287.go ) return ;;
+	bug282.go | bug287.go | bug298.go | bug299.go | bug300.go ) return ;;
 	esac
 	# the following directories are skipped because they contain test
 	# cases for syntax errors and thus won't parse in the first place:
