@@ -12,7 +12,7 @@
 #endif
 
 /*
- * void crosscall_amd64(M *m, G *g, void (*fn)(void))
+ * void crosscall_amd64(void (*fn)(void))
  *
  * Calling into the 6c tool chain, where all registers are caller save.
  * Called from standard x86-64 ABI, where %rbx, %rbp, %r12-%r15
@@ -32,9 +32,7 @@ EXT(crosscall_amd64):
 	pushq %r14
 	pushq %r15
 
-	movq %rdi, %r14	/* m */
-	movq %rsi, %r15	/* g */
-	call *%rdx	/* fn */
+	call *%rdi	/* fn */
 
 	popq %r15
 	popq %r14
@@ -60,16 +58,10 @@ EXT(crosscall2):
 	movq  %r14, 0x30(%rsp)
 	movq  %r15, 0x38(%rsp)
 
-	movq  %rdi, %r12	/* fn */
 	movq  %rsi, 0(%rsp)	/* arg */
 	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */
 
-	leaq  0x40(%rsp), %rdi
-	call  EXT(libcgo_get_scheduler)
-	movq  0x40(%rsp), %r14	/* m */
-	movq  0x48(%rsp), %r15	/* g */
-
-	call *%r12
+	call *%rdi	/* fn */
 
 	movq  0x10(%rsp), %rbx
 	movq  0x18(%rsp), %rbp

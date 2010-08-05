@@ -60,12 +60,27 @@ TEXT	rt_sigaction(SB),7,$0-32
 	SYSCALL
 	RET
 
-TEXT	sigtramp(SB),7,$24-16
-	MOVQ	m_gsignal(m), g
+TEXT	sigtramp(SB),7,$64
+	get_tls(BX)
+
+	// save g
+	MOVQ	g(BX), BP
+	MOVQ	BP, 40(SP)
+
+	// g = m->gsignal
+	MOVQ	m(BX), BP
+	MOVQ	m_gsignal(BP), BP
+	MOVQ	BP, g(BX)
+
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
 	MOVQ	DX, 16(SP)
 	CALL	sighandler(SB)
+
+	// restore g
+	get_tls(BX)
+	MOVQ	40(SP), BP
+	MOVQ	BP, g(BX)
 	RET
 
 TEXT	sigignore(SB),7,$0
@@ -129,17 +144,24 @@ TEXT	clone(SB),7,$0
 	CMPQ	AX, $0
 	JEQ	2(PC)
 	RET
-
-	// In child, set up new stack
+	
+	// In child, on new stack.
 	MOVQ	SI, SP
-	MOVQ	R8, m
-	MOVQ	R9, g
-	CALL	stackcheck(SB)
-
+	
 	// Initialize m->procid to Linux tid
 	MOVL	$186, AX	// gettid
 	SYSCALL
-	MOVQ	AX, m_procid(m)
+	MOVQ	AX, m_procid(R8)
+
+	// Set FS to point at m->tls.
+	LEAQ	m_tls(R8), DI
+	CALL	settls(SB)
+
+	// In child, set up new stack
+	get_tls(CX)
+	MOVQ	R8, m(CX)
+	MOVQ	R9, g(CX)
+	CALL	stackcheck(SB)
 
 	// Call fn
 	CALL	R12
@@ -159,3 +181,17 @@ TEXT	sigaltstack(SB),7,$-8
 	JLS	2(PC)
 	CALL	notok(SB)
 	RET
+
+// set tls base to DI
+TEXT settls(SB),7,$32
+	ADDQ	$16, DI	// ELF wants to use -16(FS), -8(FS)
+
+	MOVQ	DI, SI
+	MOVQ	$0x1002, DI	// ARCH_SET_FS
+	MOVQ	$158, AX	// arch_prctl
+	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	CALL	notok(SB)
+	RET
+

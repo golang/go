@@ -39,36 +39,15 @@ threadentry(void *v)
 	ts.g->stackbase = (uintptr)&ts;
 
 	/*
-	 * libcgo_sys_thread_start set stackguard to stack size;
-	 * change to actual guard pointer.
+	 * Set specific keys.  On FreeBSD/ELF, the thread local storage
+	 * is just before %fs:0.  Our dynamic 6.out's reserve 16 bytes
+	 * for the two words g and m at %fs:-16 and %fs:-8.
 	 */
-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
-
-	crosscall_amd64(ts.m, ts.g, ts.fn);
+	asm volatile (
+		"movq %0, %%fs:-16\n"	// MOVL g, -16(FS)
+		"movq %1, %%fs:-8\n"	// MOVL m, -8(FS)
+		:: "r"(ts.g), "r"(ts.m)
+	);
+	crosscall_amd64(ts.fn);
 	return nil;
-}
-
-static __thread void *libcgo_m;
-static __thread void *libcgo_g;
-
-void
-libcgo_set_scheduler(void *m, void *g)
-{
-	libcgo_m = m;
-	libcgo_g = g;
-}
-
-struct get_scheduler_args {
-	void *m;
-	void *g;
-};
-
-void libcgo_get_scheduler(struct get_scheduler_args *)
-  __attribute__ ((visibility("hidden")));
-
-void
-libcgo_get_scheduler(struct get_scheduler_args *p)
-{
-	p->m = libcgo_m;
-	p->g = libcgo_g;
 }

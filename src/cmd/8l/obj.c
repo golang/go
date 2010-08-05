@@ -227,7 +227,7 @@ main(int argc, char *argv[])
 	case 7:	/* elf32 executable */
 	case 9:
 		/*
-		 * Linux ELF uses TLS offsets negative from %gs.
+		 * ELF uses TLS offsets negative from %gs.
 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
 		 * Also known to ../../pkg/runtime/linux/386/sys.s
 		 * and ../../libcgo/linux_386.c.

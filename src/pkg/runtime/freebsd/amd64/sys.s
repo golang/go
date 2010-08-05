@@ -26,12 +26,21 @@ TEXT thr_new(SB),7,$0
 	RET
 
 TEXT thr_start(SB),7,$0
-	MOVQ DI, m
-	MOVQ m_g0(m), g
+	MOVQ	DI, R13	// m
+
+	// set up FS to point at m->tls
+	LEAQ	m_tls(R13), DI
+	CALL	settls(SB)	// smashes DI
+
+	// set up m, g
+	get_tls(CX)
+	MOVQ	R13, m(CX)
+	MOVQ	m_g0(R13), DI
+	MOVQ	DI, g(CX)
+
 	CALL stackcheck(SB)
 	CALL mstart(SB)
 	MOVQ 0, AX			// crash (not reached)
-
 
 // Exit the entire program (like C exit)
 TEXT	exit(SB),7,$-8
@@ -84,7 +93,10 @@ TEXT	sigaction(SB),7,$-8
 	RET
 
 TEXT	sigtramp(SB),7,$24-16
-	MOVQ	m_gsignal(m), g
+	get_tls(CX)
+	MOVQ	m(CX), AX
+	MOVQ	m_gsignal(AX), AX
+	MOVQ	AX, g(CX)
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
 	MOVQ	DX, 16(SP)
@@ -113,6 +125,18 @@ TEXT sigaltstack(SB),7,$-8
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI
 	MOVQ	$53, AX
+	SYSCALL
+	JCC	2(PC)
+	CALL	notok(SB)
+	RET
+
+// set tls base to DI
+TEXT settls(SB),7,$8
+	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+	MOVQ	DI, 0(SP)
+	MOVQ	SP, SI
+	MOVQ	$129, DI	// AMD64_SET_FSBASE
+	MOVQ	$165, AX	// sysarch
 	SYSCALL
 	JCC	2(PC)
 	CALL	notok(SB)

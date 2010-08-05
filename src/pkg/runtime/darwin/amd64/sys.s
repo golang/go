@@ -7,6 +7,9 @@
 // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
 // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
 //
+// The low 24 bits are the system call number.
+// The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
+//
 
 #include "amd64/asm.h"
 
@@ -61,14 +64,30 @@ TEXT	sigaction(SB),7,$0
 	CALL	notok(SB)
 	RET
 
-TEXT sigtramp(SB),7,$40
-	MOVQ	m_gsignal(m), g
+TEXT sigtramp(SB),7,$64
+	get_tls(BX)
+	
+	// save g
+	MOVQ	g(BX), BP
+	MOVQ	BP, 40(SP)
+	
+	// g = m->gsignal
+	MOVQ	m(BX), BP
+	MOVQ	m_gsignal(BP), BP
+	MOVQ	BP, g(BX)
+
 	MOVL	DX, 0(SP)
 	MOVQ	CX, 8(SP)
 	MOVQ	R8, 16(SP)
 	MOVQ	R8, 24(SP)	// save ucontext
 	MOVQ	SI, 32(SP)	// save infostyle
 	CALL	DI
+
+	// restore g
+	get_tls(BX)
+	MOVQ	40(SP), BP
+	MOVQ	BP, g(BX)
+
 	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
 	MOVQ	24(SP), DI	// saved ucontext
 	MOVQ	32(SP), SI	// saved infostyle
@@ -134,10 +153,25 @@ TEXT bsdthread_create(SB),7,$0
 //	SP = stack - C_64_REDZONE_LEN (= stack - 128)
 TEXT bsdthread_start(SB),7,$0
 	MOVQ	R8, SP		// empirically, SP is very wrong but R8 is right
-	MOVQ	CX, m
-	MOVQ	m_g0(m), g
-	CALL	stackcheck(SB)
-	MOVQ	SI, m_procid(m)	// thread port is m->procid
+
+	PUSHQ	DX
+	PUSHQ	CX
+	PUSHQ	SI
+
+	// set up thread local storage pointing at m->tls.
+	LEAQ	m_tls(CX), DI
+	CALL	settls(SB)
+
+	POPQ	SI
+	POPQ	CX
+	POPQ	DX
+	
+	get_tls(BX)
+	MOVQ	CX, m(BX)
+	MOVQ	SI, m_procid(CX)	// thread port is m->procid
+	MOVQ	m_g0(CX), AX
+	MOVQ	AX, g(BX)
+	CALL	stackcheck(SB)	// smashes AX, CX
 	CALL	DX	// fn
 	CALL	exit1(SB)
 	RET
@@ -220,5 +254,18 @@ TEXT mach_semaphore_signal(SB),7,$0
 TEXT mach_semaphore_signal_all(SB),7,$0
 	MOVL	8(SP), DI
 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
+	SYSCALL
+	RET
+
+// set tls base to DI
+TEXT	settls(SB),7,$32
+	/*
+	* Same as in ../386/sys.s:/ugliness, different constant.
+	* See ../../../../libcgo/darwin_amd64.c for the derivation
+	* of the constant.
+	*/
+	SUBQ $0x8a0, DI
+
+	MOVL	$(0x3000000+3), AX	// thread_fast_set_cthread_self - machdep call #3
 	SYSCALL
 	RET

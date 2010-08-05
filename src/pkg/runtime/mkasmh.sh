@@ -16,8 +16,8 @@ case "$GOARCH" in
 	# The offsets 0 and 4 are also known to:
 	#	nacl/thread.c:/^newosproc
 	#	../../cmd/8l/pass.c:/D_GS
-	#	../../libcgo/linux_386.c:/^start
-	#	../../libcgo/darwin_386.c:/^start
+	#	../../libcgo/linux_386.c:/^threadentry
+	#	../../libcgo/darwin_386.c:/^threadentry
 	case "$GOOS" in
 	windows)
 		echo '#define	get_tls(r)	MOVL 0x2c(FS), r'
@@ -57,10 +57,14 @@ case "$GOARCH" in
 	esac
 	;;
 amd64)
-	# These registers are also known to:
-	#	../../libcgo/linux_amd64.c:/^start
-	echo '#define	g	R15'
-	echo '#define	m	R14'
+	# The offsets 0 and 8 are known to:
+	#	../../cmd/6l/pass.c:/D_GS
+	#	../../libcgo/linux_amd64.c:/^threadentry
+	#	../../libcgo/darwin_amd64.c:/^threadentry
+	#
+	echo '#define	get_tls(r)'
+	echo '#define	g(r) 0(GS)'
+	echo '#define	m(r) 8(GS)'
 	;;
 arm)
 	echo '#define	g	R10'
