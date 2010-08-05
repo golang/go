@@ -8,7 +8,6 @@ package net
 
 import (
 	"io"
-	"once"
 	"os"
 	"sync"
 	"syscall"
@@ -258,6 +257,7 @@ func (s *pollServer) WaitWrite(fd *netFD) {
 // All the network FDs use a single pollServer.
 
 var pollserver *pollServer
+var onceStartServer sync.Once
 
 func startServer() {
 	p, err := newPollServer()
@@ -268,7 +268,7 @@ func startServer() {
 }
 
 func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
-	once.Do(startServer)
+	onceStartServer.Do(startServer)
 	if e := syscall.SetNonblock(fd, true); e != 0 {
 		return nil, &OpError{"setnonblock", net, laddr, os.Errno(e)}
 	}

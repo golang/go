@@ -7,13 +7,14 @@
 package os
 
 import (
-	"once"
+	"sync"
 )
 
 // ENOENV is the Error indicating that an environment variable does not exist.
 var ENOENV = NewError("no such environment variable")
 
 var env map[string]string
+var once sync.Once
 
 
 func copyenv() {

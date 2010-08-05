@@ -7,12 +7,13 @@
 package net
 
 import (
-	"once"
 	"os"
+	"sync"
 )
 
 var services map[string]map[string]int
 var servicesError os.Error
+var onceReadServices sync.Once
 
 func readServices() {
 	services = make(map[string]map[string]int)
@@ -49,7 +50,7 @@ func readServices() {
 
 // LookupPort looks up the port for the given network and service.
 func LookupPort(network, service string) (port int, err os.Error) {
-	once.Do(readServices)
+	onceReadServices.Do(readServices)
 
 	switch network {
 	case "tcp4", "tcp6":
