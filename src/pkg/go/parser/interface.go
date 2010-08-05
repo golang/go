@@ -147,16 +147,13 @@ func ParseFile(filename string, src interface{}, scope *ast.Scope, mode uint) (*
 // bits are passed to ParseFile unchanged.
 //
 // Files with parse errors are ignored. In this case the map of packages may
-// be incomplete (missing packages and/or incomplete packages) and the last
+// be incomplete (missing packages and/or incomplete packages) and the first
 // error encountered is returned.
 //
-func ParseFiles(filenames []string, scope *ast.Scope, mode uint) (map[string]*ast.Package, os.Error) {
-	pkgs := make(map[string]*ast.Package)
-	var err os.Error
+func ParseFiles(filenames []string, scope *ast.Scope, mode uint) (pkgs map[string]*ast.Package, first os.Error) {
+	pkgs = make(map[string]*ast.Package)
 	for _, filename := range filenames {
-		var src *ast.File
-		src, err = ParseFile(filename, nil, scope, mode)
-		if err == nil {
+		if src, err := ParseFile(filename, nil, scope, mode); err == nil {
 			name := src.Name.Name()
 			pkg, found := pkgs[name]
 			if !found {
@@ -164,10 +161,11 @@ func ParseFiles(filenames []string, scope *ast.Scope, mode uint) (map[string]*as
 				pkgs[name] = pkg
 			}
 			pkg.Files[filename] = src
+		} else if first == nil {
+			first = err
 		}
 	}
-
-	return pkgs, err
+	return
 }
 
 
