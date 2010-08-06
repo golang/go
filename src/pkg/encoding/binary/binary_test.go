@@ -13,16 +13,19 @@ import (
 )
 
 type Struct struct {
-	Int8    int8
-	Int16   int16
-	Int32   int32
-	Int64   int64
-	Uint8   uint8
-	Uint16  uint16
-	Uint32  uint32
-	Uint64  uint64
-	Float64 float64
-	Array   [4]uint8
+	Int8       int8
+	Int16      int16
+	Int32      int32
+	Int64      int64
+	Uint8      uint8
+	Uint16     uint16
+	Uint32     uint32
+	Uint64     uint64
+	Float32    float32
+	Float64    float64
+	Complex64  complex64
+	Complex128 complex128
+	Array      [4]uint8
 }
 
 var s = Struct{
@@ -34,8 +37,19 @@ var s = Struct{
 	0x1112,
 	0x13141516,
 	0x1718191a1b1c1d1e,
-	math.Float64frombits(0x1f20212223242526),
-	[4]uint8{0x27, 0x28, 0x29, 0x2a},
+
+	math.Float32frombits(0x1f202122),
+	math.Float64frombits(0x232425262728292a),
+	cmplx(
+		math.Float32frombits(0x2b2c2d2e),
+		math.Float32frombits(0x2f303132),
+	),
+	cmplx(
+		math.Float64frombits(0x333435363738393a),
+		math.Float64frombits(0x3b3c3d3e3f404142),
+	),
+
+	[4]uint8{0x43, 0x44, 0x45, 0x46},
 }
 
 var big = []byte{
@@ -47,8 +61,13 @@ var big = []byte{
 	17, 18,
 	19, 20, 21, 22,
 	23, 24, 25, 26, 27, 28, 29, 30,
-	31, 32, 33, 34, 35, 36, 37, 38,
-	39, 40, 41, 42,
+
+	31, 32, 33, 34,
+	35, 36, 37, 38, 39, 40, 41, 42,
+	43, 44, 45, 46, 47, 48, 49, 50,
+	51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
+
+	67, 68, 69, 70,
 }
 
 var little = []byte{
@@ -60,8 +79,13 @@ var little = []byte{
 	18, 17,
 	22, 21, 20, 19,
 	30, 29, 28, 27, 26, 25, 24, 23,
-	38, 37, 36, 35, 34, 33, 32, 31,
-	39, 40, 41, 42,
+
+	34, 33, 32, 31,
+	42, 41, 40, 39, 38, 37, 36, 35,
+	46, 45, 44, 43, 50, 49, 48, 47,
+	58, 57, 56, 55, 54, 53, 52, 51, 66, 65, 64, 63, 62, 61, 60, 59,
+
+	67, 68, 69, 70,
 }
 
 var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
