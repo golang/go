@@ -19,20 +19,32 @@
 #define LOG2E 1.4426950408889634073599246810018920 // 1/LN2
 #define LN2U 0.69314718055966295651160180568695068359375 // upper half LN2
 #define LN2L 0.28235290563031577122588448175013436025525412068e-12 // lower half LN2
+#define T0 1.0
+#define T1 0.5
+#define T2 1.6666666666666666667e-1
+#define T3 4.1666666666666666667e-2
+#define T4 8.3333333333333333333e-3
+#define T5 1.3888888888888888889e-3
+#define T6 1.9841269841269841270e-4
+#define T7 2.4801587301587301587e-5
+#define PosInf 0x7FF0000000000000
+#define NegInf 0xFFF0000000000000
 
 // func Exp(x float64) float64
 TEXT ·Exp(SB),7,$0
 // test bits for not-finite
-	MOVQ    x+0(FP), AX
-	MOVQ    $0x7ff0000000000000, BX
-	ANDQ    BX, AX
-	CMPQ    BX, AX
-	JEQ     not_finite
-	MOVSD   x+0(FP), X0
+	MOVQ    x+0(FP), BX
+	MOVQ    $~(1<<63), AX // sign bit mask
+	MOVQ    BX, DX
+	ANDQ    AX, DX
+	MOVQ    $PosInf, AX
+	CMPQ    AX, DX
+	JLE     notFinite
+	MOVQ    BX, X0
 	MOVSD   $LOG2E, X1
 	MULSD   X0, X1
-	CVTTSD2SQ X1, BX // BX = exponent
-	CVTSQ2SD BX, X1
+	CVTSD2SL X1, BX // BX = exponent
+	CVTSL2SD BX, X1
 	MOVSD   $LN2U, X2
 	MULSD   X1, X2
 	SUBSD   X2, X0
@@ -40,31 +52,23 @@ TEXT ·Exp(SB),7,$0
 	MULSD   X1, X2
 	SUBSD   X2, X0
 	// reduce argument
-	MOVSD   $0.0625, X1
-	MULSD   X1, X0
+	MULSD   $0.0625, X0
 	// Taylor series evaluation
-	MOVSD   $2.4801587301587301587e-5, X1
+	MOVSD   $T7, X1
 	MULSD   X0, X1
-	MOVSD   $1.9841269841269841270e-4, X2
-	ADDSD   X2, X1
+	ADDSD   $T6, X1
 	MULSD   X0, X1
-	MOVSD   $1.3888888888888888889e-3, X2
-	ADDSD   X2, X1
+	ADDSD   $T5, X1
 	MULSD   X0, X1
-	MOVSD   $8.3333333333333333333e-3, X2
-	ADDSD   X2, X1
+	ADDSD   $T4, X1
 	MULSD   X0, X1
-	MOVSD   $4.1666666666666666667e-2, X2
-	ADDSD   X2, X1
+	ADDSD   $T3, X1
 	MULSD   X0, X1
-	MOVSD   $1.6666666666666666667e-1, X2
-	ADDSD   X2, X1
+	ADDSD   $T2, X1
 	MULSD   X0, X1
-	MOVSD   $0.5, X2
-	ADDSD   X2, X1
+	ADDSD   $T1, X1
 	MULSD   X0, X1
-	MOVSD   $1.0, X2
-	ADDSD   X2, X1
+	ADDSD   $T0, X1
 	MULSD   X1, X0
 	MOVSD   $2.0, X1
 	ADDSD   X0, X1
@@ -78,27 +82,31 @@ TEXT ·Exp(SB),7,$0
 	MOVSD   $2.0, X1
 	ADDSD   X0, X1
 	MULSD   X1, X0
-	MOVSD   $1.0, X1
-	ADDSD   X1, X0
-	// return ldexp(fr, exp)
-	MOVQ    $0x3ff, AX // bias + 1
-	ADDQ    AX, BX
+	ADDSD   $1.0, X0
+	// return fr * 2**exponent
+	MOVL    $0x3FF, AX // bias + 1
+	ADDL    AX, BX
+	JLE     underflow
+	CMPL    BX, $0x7FF
+	JGE     overflow
+	MOVL    $52, CX
+	SHLQ    CX, BX
 	MOVQ    BX, X1
-	MOVQ    $52, AX // shift
-	MOVQ    AX, X2
-	PSLLQ   X2, X1
 	MULSD   X1, X0
 	MOVSD   X0, r+8(FP)
 	RET
-not_finite:
-// test bits for -Inf
-	MOVQ    x+0(FP), AX
-	MOVQ    $0xfff0000000000000, BX
-	CMPQ    BX, AX
-	JNE     not_neginf
-	XORQ    AX, AX
+notFinite:
+	// test bits for -Inf
+	MOVQ    $NegInf, AX
+	CMPQ    AX, BX
+	JNE     notNegInf
+	// -Inf, return 0
+underflow: // return 0
+	MOVQ    $0, AX
 	MOVQ    AX, r+8(FP)
 	RET
-not_neginf:
-	MOVQ    AX, r+8(FP)
+overflow: // return +Inf
+	MOVQ    $PosInf, BX
+notNegInf: // NaN or +Inf, return x
+	MOVQ    BX, r+8(FP)
 	RET
