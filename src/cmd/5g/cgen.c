@@ -1044,7 +1044,16 @@ bgen(Node *n, int true, Prog *to)
 		cgen(nr, &n2);
 
 		gcmp(optoas(OCMP, nr->type), &n1, &n2);
-		patch(gbranch(a, nr->type), to);
+		if(isfloat[nl->type->etype]) {
+			p1 = gbranch(ABVS, nr->type);
+			patch(gbranch(a, nr->type), to);
+			if(n->op == ONE)
+				patch(p1, to);
+			else
+				patch(p1, pc);
+		} else {
+			patch(gbranch(a, nr->type), to);
+		}
 
 		regfree(&n1);
 		regfree(&n2);

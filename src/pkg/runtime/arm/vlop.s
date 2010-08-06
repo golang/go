@@ -62,7 +62,7 @@ TEXT	save<>(SB), 7, $0
 	MOVW	20(FP), R(D)		/* denominator */
 	CMP	$0, R(D)
 	BNE	s1
-	SWI		 0
+	BL	panicdivide(SB)
 /*	  MOVW	-1(R(D)), R(TMP)	/* divide by zero fault */
 s1:	 RET
 
