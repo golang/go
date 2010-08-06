@@ -6,9 +6,7 @@
 
 package main
 
-type Number struct {
-	next *Number
-}
+type Number *Number
 
 
 // -------------------------------------
@@ -26,13 +24,13 @@ func is_zero(x *Number) bool {
 
 func add1(x *Number) *Number {
 	e := new(Number)
-	e.next = x
+	*e = x
 	return e
 }
 
 
 func sub1(x *Number) *Number {
-	return x.next
+	return *x
 }
 
 
@@ -96,7 +94,7 @@ func check(x *Number, expected int) {
 // -------------------------------------
 // Test basic functionality
 
-func verify() {
+func init() {
 	check(zero(), 0)
 	check(add1(zero()), 1)
 	check(gen(10), 10)
@@ -121,10 +119,7 @@ func verify() {
 // -------------------------------------
 // Factorial
 
-
 func main() {
-
-	verify()
 	for i := 0; i <= 9; i++ {
 		print(i, "! = ", count(fact(gen(i))), "\n")
 	}
