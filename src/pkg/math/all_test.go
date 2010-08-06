@@ -876,11 +876,15 @@ var erfcSC = []float64{
 
 var vfexpSC = []float64{
 	Inf(-1),
+	-2000,
+	2000,
 	Inf(1),
 	NaN(),
 }
 var expSC = []float64{
 	0,
+	0,
+	Inf(1),
 	Inf(1),
 	NaN(),
 }
@@ -1588,6 +1592,11 @@ func TestCopysign(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Copysign(vf[i], -1); copysign[i] != f {
 			t.Errorf("Copysign(%g, -1) = %g, want %g\n", vf[i], f, copysign[i])
+		}
+	}
+	for i := 0; i < len(vf); i++ {
+		if f := Copysign(vf[i], 1); -copysign[i] != f {
+			t.Errorf("Copysign(%g, 1) = %g, want %g\n", vf[i], f, -copysign[i])
 		}
 	}
 	for i := 0; i < len(vfcopysignSC); i++ {
