@@ -57,3 +57,16 @@ func (a StringArray) Iter() <-chan interface{} {
 	}()
 	return ch
 }
+
+type UintArray []uint
+
+func (a UintArray) Iter() <-chan interface{} {
+	ch := make(chan interface{})
+	go func() {
+		for _, e := range a {
+			ch <- e
+		}
+		close(ch)
+	}()
+	return ch
+}
