@@ -43,7 +43,7 @@
 ./env.go
 ./escape.go
 ./float_lit.go
-# ./floatcmp.go	# fail, BUG
+./floatcmp.go
 ./for.go
 ./func.go
 ./func1.go
@@ -116,7 +116,7 @@
 ./varerr.go
 ./varinit.go
 ./vectors.go
-# ./zerodivide.go	# fail, BUG
+./zerodivide.go
 ken/array.go
 ken/chan.go
 ken/chan1.go
