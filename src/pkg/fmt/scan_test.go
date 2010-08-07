@@ -464,6 +464,46 @@ func TestScanMultiple(t *testing.T) {
 	if a != 123 || s != "abc" {
 		t.Errorf("Sscan wrong values: got (%d %q) expected (123 \"abc\")", a, s)
 	}
+	n, err = Sscan("asdf", &s, &a)
+	if n != 1 {
+		t.Errorf("Sscan count error: expected 1: got %d", n)
+	}
+	if err == nil {
+		t.Errorf("Sscan expected error; got none", err)
+	}
+	if s != "asdf" {
+		t.Errorf("Sscan wrong values: got %q expected \"asdf\"", s)
+	}
+}
+
+// Empty strings are not valid input when scanning a string.
+func TestScanEmpty(t *testing.T) {
+	var s1, s2 string
+	n, err := Sscan("abc", &s1, &s2)
+	if n != 1 {
+		t.Errorf("Sscan count error: expected 1: got %d", n)
+	}
+	if err == nil {
+		t.Errorf("Sscan <one item> expected error; got none")
+	}
+	if s1 != "abc" {
+		t.Errorf("Sscan wrong values: got %q expected \"abc\"", s1)
+	}
+	n, err = Sscan("", &s1, &s2)
+	if n != 0 {
+		t.Errorf("Sscan count error: expected 0: got %d", n)
+	}
+	if err == nil {
+		t.Errorf("Sscan <empty> expected error; got none")
+	}
+	// Quoted empty string is OK.
+	n, err = Sscanf(`""`, "%q", &s1)
+	if n != 1 {
+		t.Errorf("Sscanf count error: expected 1: got %d", n)
+	}
+	if err != nil {
+		t.Errorf("Sscanf <empty> expected no error with quoted string; got %s", err)
+	}
 }
 
 func TestScanNotPointer(t *testing.T) {
