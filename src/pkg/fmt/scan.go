@@ -598,18 +598,24 @@ func (s *ss) scanComplex(verb int, n int) complex128 {
 
 // convertString returns the string represented by the next input characters.
 // The format of the input is determined by the verb.
-func (s *ss) convertString(verb int) string {
+func (s *ss) convertString(verb int) (str string) {
 	if !s.okVerb(verb, "svqx", "string") {
 		return ""
 	}
 	s.skipSpace(false)
 	switch verb {
 	case 'q':
-		return s.quotedString()
+		str = s.quotedString()
 	case 'x':
-		return s.hexString()
+		str = s.hexString()
+	default:
+		str = s.token() // %s and %v just return the next word
 	}
-	return s.token() // %s and %v just return the next word
+	// Empty strings other than with %q are not OK.
+	if len(str) == 0 && verb != 'q' && s.maxWid > 0 {
+		s.errorString("Scan: no data for string")
+	}
+	return
 }
 
 // quotedString returns the double- or back-quoted string represented by the next input characters.
