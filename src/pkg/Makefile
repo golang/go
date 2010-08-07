@@ -95,6 +95,8 @@ DIRS=\
 	mime\
 	mime/multipart\
 	net\
+	net/dict\
+	net/textproto\
 	netchan\
 	nntp\
 	once\
@@ -139,6 +141,7 @@ NOTEST=\
 	http/pprof\
 	image\
 	image/jpeg\
+	net/dict\
 	rand\
 	runtime\
 	runtime/pprof\
