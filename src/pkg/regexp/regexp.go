@@ -16,8 +16,14 @@
 //		'$'
 //		'.'
 //		character
-//		'[' [ '^' ] character-ranges ']'
+//		'[' [ '^' ] { character-range } ']'
 //		'(' regexp ')'
+//	character-range:
+//		character '-' character
+//
+// All characters are UTF-8-encoded code points.
+// Backslashes escape special characters, including inside
+// character classes.
 //
 package regexp
 
