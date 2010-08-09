@@ -59,6 +59,10 @@ type marshalTest struct {
 
 var marshalTests = []marshalTest{
 	marshalTest{10, "02010a"},
+	marshalTest{127, "02017f"},
+	marshalTest{128, "02020080"},
+	marshalTest{-128, "020180"},
+	marshalTest{-129, "0202ff7f"},
 	marshalTest{intStruct{64}, "3003020140"},
 	marshalTest{twoIntStruct{64, 65}, "3006020140020141"},
 	marshalTest{nestedStruct{intStruct{127}}, "3005300302017f"},
