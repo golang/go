@@ -816,13 +816,13 @@ func (z nat) or(x, y nat) nat {
 		n, m = m, n
 		s = y
 	}
-	// n >= m
+	// m >= n
 
-	z = z.make(n)
-	for i := 0; i < m; i++ {
+	z = z.make(m)
+	for i := 0; i < n; i++ {
 		z[i] = x[i] | y[i]
 	}
-	copy(z[m:n], s[m:n])
+	copy(z[n:m], s[n:m])
 
 	return z.norm()
 }
@@ -832,17 +832,17 @@ func (z nat) xor(x, y nat) nat {
 	m := len(x)
 	n := len(y)
 	s := x
-	if n < m {
+	if m < n {
 		n, m = m, n
 		s = y
 	}
-	// n >= m
+	// m >= n
 
-	z = z.make(n)
-	for i := 0; i < m; i++ {
+	z = z.make(m)
+	for i := 0; i < n; i++ {
 		z[i] = x[i] ^ y[i]
 	}
-	copy(z[m:n], s[m:n])
+	copy(z[n:m], s[n:m])
 
 	return z.norm()
 }
