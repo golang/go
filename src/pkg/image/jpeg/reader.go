@@ -432,3 +432,7 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 	}
 	return d.image, nil
 }
+
+func init() {
+	image.RegisterFormat("jpeg", "\xff\xd8", Decode)
+}
