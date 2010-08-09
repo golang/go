@@ -85,7 +85,7 @@ windows_goargs(void)
 	extern Slice os·Args;
 	extern Slice os·Envs;
 
-	void *gcl, *clta, *ges;
+	void *gcl, *clta, *ges, *fes;
 	uint16 *cmd, *env, **argv;
 	String *gargv;
 	String *genvv;
@@ -95,6 +95,7 @@ windows_goargs(void)
 	gcl = get_proc_addr("kernel32.dll", "GetCommandLineW");
 	clta = get_proc_addr("shell32.dll", "CommandLineToArgvW");
 	ges = get_proc_addr("kernel32.dll", "GetEnvironmentStringsW");
+	fes = get_proc_addr("kernel32.dll", "FreeEnvironmentStringsW");
 
 	cmd = stdcall(gcl, 0);
 	env = stdcall(ges, 0);
@@ -121,6 +122,8 @@ windows_goargs(void)
 	os·Envs.array = (byte*)genvv;
 	os·Envs.len = envc;
 	os·Envs.cap = envc;
+
+	stdcall(fes, 1, env);
 }
 
 void
