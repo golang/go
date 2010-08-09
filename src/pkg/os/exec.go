@@ -16,6 +16,9 @@ import (
 // will cause the child to have no open file descriptor with that index.
 // If dir is not empty, the child chdirs into the directory before execing the program.
 func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
+	if envv == nil {
+		envv = Environ()
+	}
 	// Create array of integer (system) fds.
 	intfd := make([]int, len(fd))
 	for i, f := range fd {

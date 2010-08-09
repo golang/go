@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"testing"
+	"os"
 )
 
 func TestRunCat(t *testing.T) {
@@ -70,6 +71,28 @@ func TestStderr(t *testing.T) {
 func TestMergeWithStdout(t *testing.T) {
 	cmd, err := Run("/bin/sh", []string{"sh", "-c", "echo hello world 1>&2"}, nil, "",
 		DevNull, Pipe, MergeWithStdout)
+	if err != nil {
+		t.Fatal("run:", err)
+	}
+	buf, err := ioutil.ReadAll(cmd.Stdout)
+	if err != nil {
+		t.Fatal("read:", err)
+	}
+	if string(buf) != "hello world\n" {
+		t.Fatalf("read: got %q", buf)
+	}
+	if err = cmd.Close(); err != nil {
+		t.Fatal("close:", err)
+	}
+}
+
+func TestAddEnvVar(t *testing.T) {
+	err := os.Setenv("NEWVAR", "hello world")
+	if err != nil {
+		t.Fatal("setenv:", err)
+	}
+	cmd, err := Run("/bin/sh", []string{"sh", "-c", "echo $NEWVAR"}, nil, "",
+		DevNull, Pipe, DevNull)
 	if err != nil {
 		t.Fatal("run:", err)
 	}
