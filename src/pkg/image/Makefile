@@ -7,6 +7,7 @@ include ../../Make.$(GOARCH)
 TARG=image
 GOFILES=\
 	color.go\
+	format.go\
 	image.go\
 	names.go\
 
