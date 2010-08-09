@@ -44,12 +44,12 @@ if necessary.  The recognized code hosting sites are:
 
 	Launchpad
 
-		import "launchpad.net/project
-		import "launchpad.net/project/series
-		import "launchpad.net/project/series/sub/directory
+		import "launchpad.net/project"
+		import "launchpad.net/project/series"
+		import "launchpad.net/project/series/sub/directory"
 
-		import "launchpad.net/~user/project/branch
-		import "launchpad.net/~user/project/branch/sub/directory
+		import "launchpad.net/~user/project/branch"
+		import "launchpad.net/~user/project/branch/sub/directory"
 
 
 If the destination directory (e.g., $GOROOT/src/pkg/bitbucket.org/user/project)
