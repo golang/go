@@ -16,7 +16,10 @@ func readU16BE(r io.Reader, b []byte) (uint16, os.Error) {
 	if err != nil {
 		return 0, err
 	}
-	return uint16(b[0])<<8 + uint16(b[1]), nil
+	// TODO(nigeltao): remove the workaround when bug 1011 gets fixed.
+	//return uint16(b[0])<<8 + uint16(b[1]), nil
+	ret := uint16(b[0])<<8 + uint16(b[1])
+	return ret, nil
 }
 
 // readStr reads a length-prefixed string from r, using b as a scratch buffer.
