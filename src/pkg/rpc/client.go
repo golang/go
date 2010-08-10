@@ -94,10 +94,12 @@ func (client *Client) input() {
 		client.pending[seq] = c, false
 		client.mutex.Unlock()
 		err = client.codec.ReadResponseBody(c.Reply)
-		// Empty strings should turn into nil os.Errors
 		if response.Error != "" {
 			c.Error = os.ErrorString(response.Error)
+		} else if err != nil {
+			c.Error = err
 		} else {
+			// Empty strings should turn into nil os.Errors
 			c.Error = nil
 		}
 		// We don't want to block here.  It is the caller's responsibility to make
