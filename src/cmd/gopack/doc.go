@@ -4,7 +4,7 @@
 
 /*
 
-Gopack program is a variant of the Plan 9 ar tool.  The original is documented at
+Gopack is a variant of the Plan 9 ar tool.  The original is documented at
 
 	http://plan9.bell-labs.com/magic/man2html/1/ar
 
