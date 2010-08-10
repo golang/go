@@ -1186,7 +1186,6 @@ type PageInfoMode uint
 const (
 	exportsOnly PageInfoMode = 1 << iota // only keep exported stuff
 	genDoc                               // generate documentation
-	tryMode                              // don't log errors
 )
 
 
@@ -1197,6 +1196,7 @@ type PageInfo struct {
 	PDoc    *doc.PackageDoc // nil if no single package documentation
 	Dirs    *DirList        // nil if no directory information
 	IsPkg   bool            // false if this is not documenting a real package
+	Err     os.Error        // directory read error or nil
 }
 
 
@@ -1210,10 +1210,10 @@ type httpHandler struct {
 // getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
-// is extracted from the AST. If the parameter try is set, no errors are
-// logged if getPageInfo fails. If there is no corresponding package in the
-// directory, PageInfo.PDoc and PageInfo.PExp are nil. If there are no sub-
-// directories, PageInfo.Dirs is nil.
+// is extracted from the AST. If there is no corresponding package in the
+// directory, PageInfo.PAst and PageInfo.PDoc are nil. If there are no sub-
+// directories, PageInfo.Dirs is nil. If a directory read error occured,
+// PageInfo.Err is set to the respective error but the error is not logged.
 //
 func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
 	// filter function to select the desired .go files
@@ -1225,9 +1225,10 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 
 	// get package ASTs
 	pkgs, err := parser.ParseDir(abspath, filter, parser.ParseComments)
-	if err != nil && mode&tryMode != 0 {
-		// TODO: errors should be shown instead of an empty directory
-		log.Stderrf("parser.parseDir: %s", err)
+	if err != nil && pkgs == nil {
+		// only report directory read errors, ignore parse errors
+		// (may be able to extract partial package information)
+		return PageInfo{Dirname: abspath, Err: err}
 	}
 
 	// select package
@@ -1314,7 +1315,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		dir = newDirectory(abspath, 1)
 	}
 
-	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), h.isPkg}
+	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), h.isPkg, nil}
 }
 
 
@@ -1330,6 +1331,11 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 		mode |= genDoc
 	}
 	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
+	if info.Err != nil {
+		log.Stderr(info.Err)
+		serveError(c, r, relpath, info.Err)
+		return
+	}
 
 	if r.FormValue("f") == "text" {
 		contents := applyTemplate(packageText, "packageText", info)
