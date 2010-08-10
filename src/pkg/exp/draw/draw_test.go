@@ -137,7 +137,7 @@ loop:
 			continue
 		}
 		// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
-		DrawMask(dst, Rect(b.Min.X, b.Min.Y, b.Max.X, b.Max.Y), test.src, ZP, test.mask, ZP, test.op)
+		DrawMask(dst, image.Rect(b.Min.X, b.Min.Y, b.Max.X, b.Max.Y), test.src, image.ZP, test.mask, image.ZP, test.op)
 		// Check that the resultant pixel at (8, 8) matches what we expect
 		// (the expected value can be verified by hand).
 		if !eq(dst.At(8, 8), test.expected) {
@@ -164,7 +164,7 @@ func TestIssue836(t *testing.T) {
 	b.Set(1, 0, image.RGBAColor{0, 0, 5, 5})
 	b.Set(0, 1, image.RGBAColor{0, 5, 0, 5})
 	b.Set(1, 1, image.RGBAColor{5, 0, 0, 5})
-	Draw(a, Rect(0, 0, 1, 1), b, Pt(1, 1))
+	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1))
 	if !eq(image.RGBAColor{5, 0, 0, 5}, a.At(0, 0)) {
 		t.Errorf("Issue 836: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
 	}
