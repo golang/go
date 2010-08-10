@@ -124,6 +124,8 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	}
 	d.colorType = d.tmp[9]
 	switch d.colorType {
+	case ctGrayscale:
+		d.image = image.NewGray(int(w), int(h))
 	case ctTrueColor:
 		d.image = image.NewRGBA(int(w), int(h))
 	case ctPaletted:
@@ -154,7 +156,7 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 			palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
 		}
 		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette)
-	case ctTrueColor, ctTrueColorAlpha:
+	case ctGrayscale, ctTrueColor, ctTrueColorAlpha:
 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
 		// ignorable) for the ctTrueColor and ctTrueColorAlpha color types (section 4.1.2).
 		return nil
@@ -174,8 +176,10 @@ func (d *decoder) parsetRNS(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	}
 	crc.Write(d.tmp[0:n])
 	switch d.colorType {
+	case ctGrayscale:
+		return UnsupportedError("grayscale transparency")
 	case ctTrueColor:
-		return UnsupportedError("TrueColor transparency")
+		return UnsupportedError("truecolor transparency")
 	case ctPaletted:
 		p := d.image.(*image.Paletted).Palette
 		if n > len(p) {
@@ -214,11 +218,15 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 	bpp := 0 // Bytes per pixel.
 	maxPalette := uint8(0)
 	var (
+		gray     *image.Gray
 		rgba     *image.RGBA
-		nrgba    *image.NRGBA
 		paletted *image.Paletted
+		nrgba    *image.NRGBA
 	)
 	switch d.colorType {
+	case ctGrayscale:
+		bpp = 1
+		gray = d.image.(*image.Gray)
 	case ctTrueColor:
 		bpp = 3
 		rgba = d.image.(*image.RGBA)
@@ -276,6 +284,10 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 
 		// Convert from bytes to colors.
 		switch d.colorType {
+		case ctGrayscale:
+			for x := 0; x < d.width; x++ {
+				gray.Set(x, y, image.GrayColor{cdat[x]})
+			}
 		case ctTrueColor:
 			for x := 0; x < d.width; x++ {
 				rgba.Set(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
