@@ -53,17 +53,17 @@ var (
 	N                        int
 	display                  draw.Context
 	screen                   draw.Image
-	screenr                  draw.Rectangle
+	screenr                  image.Rectangle
 	board                    [NY][NX]byte
-	rboard                   draw.Rectangle
-	pscore                   draw.Point
-	scoresz                  draw.Point
+	rboard                   image.Rectangle
+	pscore                   image.Point
+	scoresz                  image.Point
 	pcsz                     = 32
-	pos                      draw.Point
-	bbr, bb2r                draw.Rectangle
+	pos                      image.Point
+	bbr, bb2r                image.Rectangle
 	bb, bbmask, bb2, bb2mask *image.RGBA
 	whitemask                image.Image
-	br, br2                  draw.Rectangle
+	br, br2                  image.Rectangle
 	points                   int
 	dt                       int
 	DY                       int
@@ -85,8 +85,8 @@ var (
 type Piece struct {
 	rot   int
 	tx    int
-	sz    draw.Point
-	d     []draw.Point
+	sz    image.Point
+	d     []image.Point
 	left  *Piece
 	right *Piece
 }
@@ -144,26 +144,26 @@ var txbits = [NCOL][32]byte{
 	},
 }
 
-var txpix = [NCOL]draw.Color{
-	draw.Yellow,            /* yellow */
-	draw.Cyan,              /* cyan */
-	draw.Green,             /* lime green */
-	draw.GreyBlue,          /* slate */
-	draw.Red,               /* red */
-	draw.GreyGreen,         /* olive green */
-	draw.Blue,              /* blue */
-	draw.Color(0xFF55AAFF), /* pink */
-	draw.Color(0xFFAAFFFF), /* lavender */
-	draw.Color(0xBB005DFF), /* maroon */
+var txpix = [NCOL]image.ColorImage{
+	image.ColorImage{image.RGBAColor{0xFF, 0xFF, 0x00, 0xFF}}, /* yellow */
+	image.ColorImage{image.RGBAColor{0x00, 0xFF, 0xFF, 0xFF}}, /* cyan */
+	image.ColorImage{image.RGBAColor{0x00, 0xFF, 0x00, 0xFF}}, /* lime green */
+	image.ColorImage{image.RGBAColor{0x00, 0x5D, 0xBB, 0xFF}}, /* slate */
+	image.ColorImage{image.RGBAColor{0xFF, 0x00, 0x00, 0xFF}}, /* red */
+	image.ColorImage{image.RGBAColor{0x55, 0xAA, 0xAA, 0xFF}}, /* olive green */
+	image.ColorImage{image.RGBAColor{0x00, 0x00, 0xFF, 0xFF}}, /* blue */
+	image.ColorImage{image.RGBAColor{0xFF, 0x55, 0xAA, 0xFF}}, /* pink */
+	image.ColorImage{image.RGBAColor{0xFF, 0xAA, 0xFF, 0xFF}}, /* lavender */
+	image.ColorImage{image.RGBAColor{0xBB, 0x00, 0x5D, 0xFF}}, /* maroon */
 }
 
 func movemouse() int {
-	//mouse.draw.Point = draw.Pt(rboard.Min.X + rboard.Dx()/2, rboard.Min.Y + rboard.Dy()/2);
+	//mouse.image.Point = image.Pt(rboard.Min.X + rboard.Dx()/2, rboard.Min.Y + rboard.Dy()/2);
 	//moveto(mousectl, mouse.Xy);
 	return mouse.X
 }
 
-func warp(p draw.Point, x int) int {
+func warp(p image.Point, x int) int {
 	if !suspended && piece != nil {
 		x = pos.X + piece.sz.X*pcsz/2
 		if p.Y < rboard.Min.Y {
@@ -172,7 +172,7 @@ func warp(p draw.Point, x int) int {
 		if p.Y >= rboard.Max.Y {
 			p.Y = rboard.Max.Y - 1
 		}
-		//moveto(mousectl, draw.Pt(x, p.Y));
+		//moveto(mousectl, image.Pt(x, p.Y));
 	}
 	return x
 }
@@ -193,7 +193,7 @@ func initPieces() {
 	}
 }
 
-func collide(pt draw.Point, p *Piece) bool {
+func collide(pt image.Point, p *Piece) bool {
 	pt.X = (pt.X - rboard.Min.X) / pcsz
 	pt.Y = (pt.Y - rboard.Min.Y) / pcsz
 	for _, q := range p.d {
@@ -210,7 +210,7 @@ func collide(pt draw.Point, p *Piece) bool {
 	return false
 }
 
-func collider(pt, pmax draw.Point) bool {
+func collider(pt, pmax image.Point) bool {
 	pi := (pt.X - rboard.Min.X) / pcsz
 	pj := (pt.Y - rboard.Min.Y) / pcsz
 	n := pmax.X / pcsz
@@ -226,16 +226,16 @@ func collider(pt, pmax draw.Point) bool {
 }
 
 func setpiece(p *Piece) {
-	draw.Draw(bb, bbr, draw.White, draw.ZP)
-	draw.Draw(bbmask, bbr, draw.Transparent, draw.ZP)
-	br = draw.Rect(0, 0, 0, 0)
+	draw.Draw(bb, bbr, image.White, image.ZP)
+	draw.Draw(bbmask, bbr, image.Transparent, image.ZP)
+	br = image.Rect(0, 0, 0, 0)
 	br2 = br
 	piece = p
 	if p == nil {
 		return
 	}
-	var op draw.Point
-	var r draw.Rectangle
+	var op image.Point
+	var r image.Rectangle
 	r.Min = bbr.Min
 	for i, pt := range p.d {
 		r.Min.X += pt.X * pcsz
@@ -243,9 +243,9 @@ func setpiece(p *Piece) {
 		r.Max.X = r.Min.X + pcsz
 		r.Max.Y = r.Min.Y + pcsz
 		if i == 0 {
-			draw.Draw(bb, r, draw.Black, draw.ZP)
-			draw.Draw(bb, r.Inset(1), txpix[piece.tx], draw.ZP)
-			draw.Draw(bbmask, r, draw.Opaque, draw.ZP)
+			draw.Draw(bb, r, image.Black, image.ZP)
+			draw.Draw(bb, r.Inset(1), txpix[piece.tx], image.ZP)
+			draw.Draw(bbmask, r, image.Opaque, image.ZP)
 			op = r.Min
 		} else {
 			draw.Draw(bb, r, bb, op)
@@ -259,21 +259,21 @@ func setpiece(p *Piece) {
 		}
 	}
 	br.Max = br.Max.Sub(bbr.Min)
-	delta := draw.Pt(0, DY)
+	delta := image.Pt(0, DY)
 	br2.Max = br.Max.Add(delta)
 	r = br.Add(bb2r.Min)
 	r2 := br2.Add(bb2r.Min)
-	draw.Draw(bb2, r2, draw.White, draw.ZP)
+	draw.Draw(bb2, r2, image.White, image.ZP)
 	draw.Draw(bb2, r.Add(delta), bb, bbr.Min)
-	draw.Draw(bb2mask, r2, draw.Transparent, draw.ZP)
-	draw.DrawMask(bb2mask, r, draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.Over)
-	draw.DrawMask(bb2mask, r.Add(delta), draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.Over)
+	draw.Draw(bb2mask, r2, image.Transparent, image.ZP)
+	draw.DrawMask(bb2mask, r, image.Opaque, bbr.Min, bbmask, image.ZP, draw.Over)
+	draw.DrawMask(bb2mask, r.Add(delta), image.Opaque, bbr.Min, bbmask, image.ZP, draw.Over)
 }
 
 func drawpiece() {
-	draw.DrawMask(screen, br.Add(pos), bb, bbr.Min, bbmask, draw.ZP, draw.Over)
+	draw.DrawMask(screen, br.Add(pos), bb, bbr.Min, bbmask, image.ZP, draw.Over)
 	if suspended {
-		draw.DrawMask(screen, br.Add(pos), draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
+		draw.DrawMask(screen, br.Add(pos), image.White, image.ZP, whitemask, image.ZP, draw.Over)
 	}
 }
 
@@ -282,11 +282,13 @@ func undrawpiece() {
 	if collider(pos, br.Max) {
 		mask = bbmask
 	}
-	draw.DrawMask(screen, br.Add(pos), draw.White, bbr.Min, mask, bbr.Min, draw.Over)
+	draw.DrawMask(screen, br.Add(pos), image.White, bbr.Min, mask, bbr.Min, draw.Over)
 }
 
 func rest() {
-	pt := pos.Sub(rboard.Min).Div(pcsz)
+	pt := pos.Sub(rboard.Min)
+	pt.X /= pcsz
+	pt.Y /= pcsz
 	for _, p := range piece.d {
 		pt.X += p.X
 		pt.Y += p.Y
@@ -305,7 +307,7 @@ func canfit(p *Piece) bool {
 		j = 2*j - 1
 	}
 	for i := 0; i < j; i++ {
-		var z draw.Point
+		var z image.Point
 		z.X = pos.X + dx[i]*pcsz
 		z.Y = pos.Y
 		if !collide(z, p) {
@@ -323,33 +325,33 @@ func canfit(p *Piece) bool {
 func score(p int) {
 	points += p
 	//	snprint(buf, sizeof(buf), "%.6ld", points);
-	//	draw.Draw(screen, draw.Rpt(pscore, pscore.Add(scoresz)), draw.White, draw.ZP);
-	//	string(screen, pscore, draw.Black, draw.ZP, font, buf);
+	//	draw.Draw(screen, draw.Rpt(pscore, pscore.Add(scoresz)), image.White, image.ZP);
+	//	string(screen, pscore, image.Black, image.ZP, font, buf);
 }
 
-func drawsq(b draw.Image, p draw.Point, ptx int) {
-	var r draw.Rectangle
+func drawsq(b draw.Image, p image.Point, ptx int) {
+	var r image.Rectangle
 	r.Min = p
 	r.Max.X = r.Min.X + pcsz
 	r.Max.Y = r.Min.Y + pcsz
-	draw.Draw(b, r, draw.Black, draw.ZP)
-	draw.Draw(b, r.Inset(1), txpix[ptx], draw.ZP)
+	draw.Draw(b, r, image.Black, image.ZP)
+	draw.Draw(b, r.Inset(1), txpix[ptx], image.ZP)
 }
 
 func drawboard() {
-	draw.Border(screen, rboard.Inset(-2), 2, draw.Black, draw.ZP)
-	draw.Draw(screen, draw.Rect(rboard.Min.X, rboard.Min.Y-2, rboard.Max.X, rboard.Min.Y),
-		draw.White, draw.ZP)
+	draw.Border(screen, rboard.Inset(-2), 2, image.Black, image.ZP)
+	draw.Draw(screen, image.Rect(rboard.Min.X, rboard.Min.Y-2, rboard.Max.X, rboard.Min.Y),
+		image.White, image.ZP)
 	for i := 0; i < NY; i++ {
 		for j := 0; j < NX; j++ {
 			if board[i][j] != 0 {
-				drawsq(screen, draw.Pt(rboard.Min.X+j*pcsz, rboard.Min.Y+i*pcsz), int(board[i][j]-16))
+				drawsq(screen, image.Pt(rboard.Min.X+j*pcsz, rboard.Min.Y+i*pcsz), int(board[i][j]-16))
 			}
 		}
 	}
 	score(0)
 	if suspended {
-		draw.DrawMask(screen, screenr, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
+		draw.DrawMask(screen, screenr, image.White, image.ZP, whitemask, image.ZP, draw.Over)
 	}
 }
 
@@ -359,7 +361,7 @@ func choosepiece() {
 		setpiece(&pieces[i])
 		pos = rboard.Min
 		pos.X += rand.Intn(NX) * pcsz
-		if !collide(draw.Pt(pos.X, pos.Y+pcsz-DY), piece) {
+		if !collide(image.Pt(pos.X, pos.Y+pcsz-DY), piece) {
 			break
 		}
 	}
@@ -369,7 +371,7 @@ func choosepiece() {
 
 func movepiece() bool {
 	var mask image.Image
-	if collide(draw.Pt(pos.X, pos.Y+pcsz), piece) {
+	if collide(image.Pt(pos.X, pos.Y+pcsz), piece) {
 		return false
 	}
 	if collider(pos, br2.Max) {
@@ -444,7 +446,7 @@ func horiz() bool {
 	for j := 0; j < h; j++ {
 		r.Min.Y = rboard.Min.Y + lev[j]*pcsz
 		r.Max.Y = r.Min.Y + pcsz
-		draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
+		draw.DrawMask(screen, r, image.White, image.ZP, whitemask, image.ZP, draw.Over)
 		display.FlushImage()
 	}
 	PlaySound(whoosh)
@@ -457,7 +459,7 @@ func horiz() bool {
 		for j := 0; j < h; j++ {
 			r.Min.Y = rboard.Min.Y + lev[j]*pcsz
 			r.Max.Y = r.Min.Y + pcsz
-			draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
+			draw.DrawMask(screen, r, image.White, image.ZP, whitemask, image.ZP, draw.Over)
 		}
 		display.FlushImage()
 	}
@@ -467,9 +469,9 @@ func horiz() bool {
 		score(250 + 10*i*i)
 		r.Min.Y = rboard.Min.Y
 		r.Max.Y = rboard.Min.Y + lev[j]*pcsz
-		draw.Draw(screen, r.Add(draw.Pt(0, pcsz)), screen, r.Min)
+		draw.Draw(screen, r.Add(image.Pt(0, pcsz)), screen, r.Min)
 		r.Max.Y = rboard.Min.Y + pcsz
-		draw.Draw(screen, r, draw.White, draw.ZP)
+		draw.Draw(screen, r, image.White, image.ZP)
 		for k := lev[j] - 1; k >= 0; k-- {
 			board[k+1] = board[k]
 		}
@@ -480,8 +482,8 @@ func horiz() bool {
 }
 
 func mright() {
-	if !collide(draw.Pt(pos.X+pcsz, pos.Y), piece) &&
-		!collide(draw.Pt(pos.X+pcsz, pos.Y+pcsz-DY), piece) {
+	if !collide(image.Pt(pos.X+pcsz, pos.Y), piece) &&
+		!collide(image.Pt(pos.X+pcsz, pos.Y+pcsz-DY), piece) {
 		undrawpiece()
 		pos.X += pcsz
 		drawpiece()
@@ -490,8 +492,8 @@ func mright() {
 }
 
 func mleft() {
-	if !collide(draw.Pt(pos.X-pcsz, pos.Y), piece) &&
-		!collide(draw.Pt(pos.X-pcsz, pos.Y+pcsz-DY), piece) {
+	if !collide(image.Pt(pos.X-pcsz, pos.Y), piece) &&
+		!collide(image.Pt(pos.X-pcsz, pos.Y+pcsz-DY), piece) {
 		undrawpiece()
 		pos.X -= pcsz
 		drawpiece()
@@ -669,7 +671,7 @@ func redraw(new bool) {
 	//	if new && getwindow(display, Refmesg) < 0 {
 	//		sysfatal("can't reattach to window");
 	//	}
-	r := draw.Rect(screen.Bounds().MinX, screen.Bounds().Min.Y, screen, Bounds().Max.X, screen.Bounds().Max.Y)
+	r := screen.Bounds()
 	pos.X = (pos.X - rboard.Min.X) / pcsz
 	pos.Y = (pos.Y - rboard.Min.Y) / pcsz
 	dx := r.Max.X - r.Min.X
@@ -697,13 +699,13 @@ func redraw(new bool) {
 	//	scoresz = stringsize(font, "000000");
 	pos.X = pos.X*pcsz + rboard.Min.X
 	pos.Y = pos.Y*pcsz + rboard.Min.Y
-	bbr = draw.Rect(0, 0, N*pcsz, N*pcsz)
+	bbr = image.Rect(0, 0, N*pcsz, N*pcsz)
 	bb = image.NewRGBA(bbr.Max.X, bbr.Max.Y)
 	bbmask = image.NewRGBA(bbr.Max.X, bbr.Max.Y) // actually just a bitmap
-	bb2r = draw.Rect(0, 0, N*pcsz, N*pcsz+DY)
+	bb2r = image.Rect(0, 0, N*pcsz, N*pcsz+DY)
 	bb2 = image.NewRGBA(bb2r.Dx(), bb2r.Dy())
 	bb2mask = image.NewRGBA(bb2r.Dx(), bb2r.Dy()) // actually just a bitmap
-	draw.Draw(screen, screenr, draw.White, draw.ZP)
+	draw.Draw(screen, screenr, image.White, image.ZP)
 	drawboard()
 	setpiece(piece)
 	if piece != nil {
@@ -722,12 +724,12 @@ func quitter(c <-chan bool) {
 func Play(pp []Piece, ctxt draw.Context) {
 	display = ctxt
 	screen = ctxt.Screen()
-	screenr = draw.Rect(screen.Bounds().MinX, screen.Bounds().Min.Y, screen, Bounds().Max.X, screen.Bounds().Max.Y)
+	screenr = screen.Bounds()
 	pieces = pp
 	N = len(pieces[0].d)
 	initPieces()
 	rand.Seed(int64(time.Nanoseconds() % (1e9 - 1)))
-	whitemask = draw.White.SetAlpha(0x7F)
+	whitemask = image.ColorImage{image.AlphaColor{0x7F}}
 	tsleep = 50
 	timerc = time.Tick(int64(tsleep/2) * 1e6)
 	suspc = make(chan bool)

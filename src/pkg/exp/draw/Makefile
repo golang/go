@@ -6,8 +6,6 @@ include ../../../Make.$(GOARCH)
 
 TARG=exp/draw
 GOFILES=\
-	arith.go\
-	color.go\
 	draw.go\
 	event.go\
 
