@@ -82,6 +82,7 @@ DIRS=\
 	hash/adler32\
 	hash/crc32\
 	hash/crc64\
+	html\
 	http\
 	http/pprof\
 	image\
