@@ -99,7 +99,7 @@ func (c *conn) flusher() {
 				close(c.flush)
 				return
 			}
-			p := c.img.Pixel[y]
+			p := c.img.Pix[y*c.img.Stride : (y+1)*c.img.Stride]
 			for x := b.Min.X; x < b.Max.X; {
 				nx := b.Max.X - x
 				if nx > len(c.flushBuf1)/4 {

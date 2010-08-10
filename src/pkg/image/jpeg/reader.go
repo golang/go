@@ -206,7 +206,7 @@ func (d *decoder) calcPixel(px, py, lumaBlock, lumaIndex, chromaIndex int) {
 	} else if b > 255 {
 		b = 255
 	}
-	d.image.Pixel[py][px] = image.RGBAColor{uint8(r), uint8(g), uint8(b), 0xff}
+	d.image.Pix[py*d.image.Stride+px] = image.RGBAColor{uint8(r), uint8(g), uint8(b), 0xff}
 }
 
 // Convert the MCU from YCbCr to RGB.
