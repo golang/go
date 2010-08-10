@@ -41,8 +41,9 @@ func opaque(m image.Image) bool {
 	if o, ok := m.(opaquer); ok {
 		return o.Opaque()
 	}
-	for y := 0; y < m.Height(); y++ {
-		for x := 0; x < m.Width(); x++ {
+	b := m.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
 			_, _, _, a := m.At(x, y).RGBA()
 			if a != 0xffff {
 				return false
@@ -91,8 +92,9 @@ func (e *encoder) writeChunk(b []byte, name string) {
 }
 
 func (e *encoder) writeIHDR() {
-	writeUint32(e.tmp[0:4], uint32(e.m.Width()))
-	writeUint32(e.tmp[4:8], uint32(e.m.Height()))
+	b := e.m.Bounds()
+	writeUint32(e.tmp[0:4], uint32(b.Dx()))
+	writeUint32(e.tmp[4:8], uint32(b.Dy()))
 	e.tmp[8] = 8 // bit depth
 	e.tmp[9] = e.colorType
 	e.tmp[10] = 0 // default compression method
@@ -254,18 +256,19 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	// cr[ft], for non-zero filter types ft, are buffers for transforming cr[0] under the
 	// other PNG filter types. These buffers are allocated once and re-used for each row.
 	// The +1 is for the per-row filter type, which is at cr[*][0].
+	b := m.Bounds()
 	var cr [nFilter][]uint8
 	for i := 0; i < len(cr); i++ {
-		cr[i] = make([]uint8, 1+bpp*m.Width())
+		cr[i] = make([]uint8, 1+bpp*b.Dx())
 		cr[i][0] = uint8(i)
 	}
-	pr := make([]uint8, 1+bpp*m.Width())
+	pr := make([]uint8, 1+bpp*b.Dx())
 
-	for y := 0; y < m.Height(); y++ {
+	for y := b.Min.Y; y < b.Max.Y; y++ {
 		// Convert from colors to bytes.
 		switch ct {
 		case ctTrueColor:
-			for x := 0; x < m.Width(); x++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
 				// We have previously verified that the alpha value is fully opaque.
 				r, g, b, _ := m.At(x, y).RGBA()
 				cr[0][3*x+1] = uint8(r >> 8)
@@ -273,12 +276,12 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 				cr[0][3*x+3] = uint8(b >> 8)
 			}
 		case ctPaletted:
-			for x := 0; x < m.Width(); x++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
 				cr[0][x+1] = paletted.ColorIndexAt(x, y)
 			}
 		case ctTrueColorAlpha:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
-			for x := 0; x < m.Width(); x++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
 				c := image.NRGBAColorModel.Convert(m.At(x, y)).(image.NRGBAColor)
 				cr[0][4*x+1] = c.R
 				cr[0][4*x+2] = c.G
@@ -327,7 +330,7 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	// Obviously, negative widths and heights are invalid. Furthermore, the PNG
 	// spec section 11.2.2 says that zero is invalid. Excessively large images are
 	// also rejected.
-	mw, mh := int64(m.Width()), int64(m.Height())
+	mw, mh := int64(m.Bounds().Dx()), int64(m.Bounds().Dy())
 	if mw <= 0 || mh <= 0 || mw >= 1<<32 || mh >= 1<<32 {
 		return FormatError("invalid image size: " + strconv.Itoa64(mw) + "x" + strconv.Itoa64(mw))
 	}

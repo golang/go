@@ -88,9 +88,7 @@ func (c Color) SetAlpha(a uint8) Color {
 	return r<<24 | g<<16 | b<<8 | Color(a)
 }
 
-func (c Color) Width() int { return 1e9 }
-
-func (c Color) Height() int { return 1e9 }
+func (c Color) Bounds() image.Rectangle { return image.Rect(0, 0, 1e9, 1e9) }
 
 func (c Color) At(x, y int) image.Color { return c }
 

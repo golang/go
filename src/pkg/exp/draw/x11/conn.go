@@ -67,14 +67,17 @@ func (c *conn) flusher() {
 			return
 		}
 
+		b := c.img.Bounds()
+		if b.Empty() {
+			continue
+		}
 		// Each X request has a 16-bit length (in terms of 4-byte units). To avoid going over
 		// this limit, we send PutImage for each row of the image, rather than trying to paint
 		// the entire image in one X request. This approach could easily be optimized (or the
 		// X protocol may have an escape sequence to delimit very large requests).
 		// TODO(nigeltao): See what XCB's xcb_put_image does in this situation.
-		w, h := c.img.Width(), c.img.Height()
-		units := 6 + w
-		if units > 0xffff || h > 0xffff {
+		units := 6 + b.Dx()
+		if units > 0xffff || b.Dy() > 0xffff {
 			// This window is too large for X.
 			close(c.flush)
 			return
@@ -86,10 +89,10 @@ func (c *conn) flusher() {
 		c.flushBuf0[3] = uint8(units >> 8)
 		setU32LE(c.flushBuf0[4:8], uint32(c.window))
 		setU32LE(c.flushBuf0[8:12], uint32(c.gc))
-		setU32LE(c.flushBuf0[12:16], 1<<16|uint32(w))
+		setU32LE(c.flushBuf0[12:16], 1<<16|uint32(b.Dx()))
 		c.flushBuf0[21] = 0x18 // depth = 24 bits.
 
-		for y := 0; y < h; y++ {
+		for y := b.Min.Y; y < b.Max.Y; y++ {
 			setU32LE(c.flushBuf0[16:20], uint32(y<<16))
 			_, err := c.w.Write(c.flushBuf0[0:24])
 			if err != nil {
@@ -97,8 +100,8 @@ func (c *conn) flusher() {
 				return
 			}
 			p := c.img.Pixel[y]
-			for x := 0; x < w; {
-				nx := w - x
+			for x := b.Min.X; x < b.Max.X; {
+				nx := b.Max.X - x
 				if nx > len(c.flushBuf1)/4 {
 					nx = len(c.flushBuf1) / 4
 				}
