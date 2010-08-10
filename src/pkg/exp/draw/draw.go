@@ -34,15 +34,15 @@ type Image interface {
 }
 
 // Draw calls DrawMask with a nil mask and an Over op.
-func Draw(dst Image, r Rectangle, src image.Image, sp Point) {
-	DrawMask(dst, r, src, sp, nil, ZP, Over)
+func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
+	DrawMask(dst, r, src, sp, nil, image.ZP, Over)
 }
 
 // DrawMask aligns r.Min in dst with sp in src and mp in mask and then replaces the rectangle r
 // in dst with the result of a Porter-Duff composition. A nil mask is treated as opaque.
 // The implementation is simple and slow.
 // TODO(nigeltao): Optimize this.
-func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
+func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
 	sb := src.Bounds()
 	dx, dy := sb.Dx()-sp.X, sb.Dy()-sp.Y
 	if mask != nil {
@@ -160,7 +160,7 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
 	}
 }
 
-func drawFillOver(dst *image.RGBA, r Rectangle, src image.ColorImage) {
+func drawFillOver(dst *image.RGBA, r image.Rectangle, src image.ColorImage) {
 	cr, cg, cb, ca := src.RGBA()
 	// The 0x101 is here for the same reason as in drawRGBA.
 	a := (m - ca) * 0x101
@@ -179,7 +179,7 @@ func drawFillOver(dst *image.RGBA, r Rectangle, src image.ColorImage) {
 	}
 }
 
-func drawCopyOver(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
+func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
 	x0, x1 := r.Min.X, r.Max.X
 	y0, y1 := r.Min.Y, r.Max.Y
 	for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
@@ -207,7 +207,7 @@ func drawCopyOver(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
 	}
 }
 
-func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *image.Alpha, mp Point) {
+func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src image.ColorImage, mask *image.Alpha, mp image.Point) {
 	x0, x1 := r.Min.X, r.Max.X
 	y0, y1 := r.Min.Y, r.Max.Y
 	cr, cg, cb, ca := src.RGBA()
@@ -237,7 +237,7 @@ func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *ima
 	}
 }
 
-func drawFillSrc(dst *image.RGBA, r Rectangle, src image.ColorImage) {
+func drawFillSrc(dst *image.RGBA, r image.Rectangle, src image.ColorImage) {
 	if r.Dy() < 1 {
 		return
 	}
@@ -261,7 +261,7 @@ func drawFillSrc(dst *image.RGBA, r Rectangle, src image.ColorImage) {
 	}
 }
 
-func drawCopySrc(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
+func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
 	dx0, dx1 := r.Min.X, r.Max.X
 	dy0, dy1 := r.Min.Y, r.Max.Y
 	sx0, sx1 := sp.X, sp.X+dx1-dx0
@@ -278,7 +278,7 @@ func drawCopySrc(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
 	}
 }
 
-func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
+func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
 	x0, x1, dx := r.Min.X, r.Max.X, 1
 	y0, y1, dy := r.Min.Y, r.Max.Y, 1
 	if image.Image(dst) == src && r.Overlaps(r.Add(sp.Sub(r.Min))) {
@@ -334,21 +334,21 @@ func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask imag
 // in a w-pixel border around r in dst with the result of the Porter-Duff compositing
 // operation ``src over dst.''  If w is positive, the border extends w pixels inside r.
 // If w is negative, the border extends w pixels outside r.
-func Border(dst Image, r Rectangle, w int, src image.Image, sp Point) {
+func Border(dst Image, r image.Rectangle, w int, src image.Image, sp image.Point) {
 	i := w
 	if i > 0 {
 		// inside r
-		Draw(dst, Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, sp)                          // top
-		Draw(dst, Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, sp.Add(Pt(0, i)))        // left
-		Draw(dst, Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, sp.Add(Pt(r.Dx()-i, i))) // right
-		Draw(dst, Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, sp.Add(Pt(0, r.Dy()-i)))     // bottom
+		Draw(dst, image.Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, sp)                                // top
+		Draw(dst, image.Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, sp.Add(image.Pt(0, i)))        // left
+		Draw(dst, image.Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, sp.Add(image.Pt(r.Dx()-i, i))) // right
+		Draw(dst, image.Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, sp.Add(image.Pt(0, r.Dy()-i)))     // bottom
 		return
 	}
 
 	// outside r;
 	i = -i
-	Draw(dst, Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, sp.Add(Pt(-i, -i))) // top
-	Draw(dst, Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, sp.Add(Pt(-i, 0)))      // left
-	Draw(dst, Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, sp.Add(Pt(r.Dx(), 0)))  // right
-	Draw(dst, Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, sp.Add(Pt(-i, 0)))  // bottom
+	Draw(dst, image.Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, sp.Add(image.Pt(-i, -i))) // top
+	Draw(dst, image.Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, sp.Add(image.Pt(-i, 0)))      // left
+	Draw(dst, image.Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, sp.Add(image.Pt(r.Dx(), 0)))  // right
+	Draw(dst, image.Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, sp.Add(image.Pt(-i, 0)))  // bottom
 }

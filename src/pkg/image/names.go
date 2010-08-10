@@ -6,9 +6,13 @@ package image
 
 var (
 	// Black is an opaque black ColorImage.
-	Black = ColorImage{RGBAColor{0x00, 0x00, 0x00, 0xff}}
+	Black = ColorImage{Gray16Color{0}}
 	// White is an opaque white ColorImage.
-	White = ColorImage{RGBAColor{0xff, 0xff, 0xff, 0xff}}
+	White = ColorImage{Gray16Color{0xffff}}
+	// Transparent is a fully transparent ColorImage.
+	Transparent = ColorImage{Alpha16Color{0}}
+	// Opaque is a fully opaque ColorImage.
+	Opaque = ColorImage{Alpha16Color{0xffff}}
 )
 
 // A ColorImage is a practically infinite-sized Image of uniform Color.

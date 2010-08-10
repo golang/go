@@ -10,7 +10,7 @@
 
 package main
 
-import . "exp/draw"
+import . "image"
 
 var pieces4 = []Piece{
 	Piece{0, 0, Point{4, 1}, []Point{Point{0, 0}, Point{1, 0}, Point{1, 0}, Point{1, 0}}, nil, nil},
