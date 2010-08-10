@@ -66,6 +66,7 @@ var (
 
 func serveError(c *http.Conn, r *http.Request, relpath string, err os.Error) {
 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
+	c.WriteHeader(http.StatusNotFound)
 	servePage(c, "File "+relpath, "", "", contents)
 }
 
@@ -333,14 +334,17 @@ func main() {
 	}
 	// TODO(gri): Provide a mechanism (flag?) to select a package
 	//            if there are multiple packages in a directory.
-	info := pkgHandler.getPageInfo(abspath, relpath, "", mode|tryMode)
+	info := pkgHandler.getPageInfo(abspath, relpath, "", mode)
 
-	if info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
+	if info.Err != nil || info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
 		// try again, this time assume it's a command
 		if len(path) > 0 && path[0] != '/' {
 			abspath = absolutePath(path, cmdHandler.fsRoot)
 		}
 		info = cmdHandler.getPageInfo(abspath, relpath, "", mode)
+	}
+	if info.Err != nil {
+		log.Exitf("%v", info.Err)
 	}
 
 	// If we have more than one argument, use the remaining arguments for filtering

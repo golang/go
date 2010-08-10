@@ -218,6 +218,7 @@ func codewalkFileprint(c *http.Conn, r *http.Request, f string) {
 	abspath := absolutePath(f, *goroot)
 	data, err := ioutil.ReadFile(abspath)
 	if err != nil {
+		log.Stderr(err)
 		serveError(c, r, f, err)
 		return
 	}
