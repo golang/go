@@ -97,10 +97,11 @@ var drawTests = []drawTest{
 func makeGolden(dst image.Image, t drawTest) image.Image {
 	// Since golden is a newly allocated image, we don't have to check if the
 	// input source and mask images and the output golden image overlap.
-	golden := image.NewRGBA(dst.Width(), dst.Height())
-	for y := 0; y < golden.Height(); y++ {
+	b := dst.Bounds()
+	golden := image.NewRGBA(b.Dx(), b.Dy())
+	for y := b.Min.Y; y < b.Max.Y; y++ {
 		my, sy := y, y
-		for x := 0; x < golden.Width(); x++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
 			mx, sx := x, x
 			const M = 1<<16 - 1
 			var dr, dg, db, da uint32
@@ -129,9 +130,14 @@ loop:
 	for _, test := range drawTests {
 		dst := hgradRed(255)
 		// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
+		b := dst.Bounds()
 		golden := makeGolden(dst, test)
+		if !b.Eq(golden.Bounds()) {
+			t.Errorf("draw %s: bounds %v versus %v", test.desc, dst.Bounds(), golden.Bounds())
+			continue
+		}
 		// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
-		DrawMask(dst, Rect(0, 0, dst.Width(), dst.Height()), test.src, ZP, test.mask, ZP, test.op)
+		DrawMask(dst, Rect(b.Min.X, b.Min.Y, b.Max.X, b.Max.Y), test.src, ZP, test.mask, ZP, test.op)
 		// Check that the resultant pixel at (8, 8) matches what we expect
 		// (the expected value can be verified by hand).
 		if !eq(dst.At(8, 8), test.expected) {
@@ -139,8 +145,8 @@ loop:
 			continue
 		}
 		// Check that the resultant dst image matches the golden output.
-		for y := 0; y < golden.Height(); y++ {
-			for x := 0; x < golden.Width(); x++ {
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
 				if !eq(dst.At(x, y), golden.At(x, y)) {
 					t.Errorf("draw %s: at (%d, %d), %v versus golden %v", test.desc, x, y, dst.At(x, y), golden.At(x, y))
 					continue loop

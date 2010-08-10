@@ -43,13 +43,15 @@ func Draw(dst Image, r Rectangle, src image.Image, sp Point) {
 // The implementation is simple and slow.
 // TODO(nigeltao): Optimize this.
 func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
-	dx, dy := src.Width()-sp.X, src.Height()-sp.Y
+	sb := src.Bounds()
+	dx, dy := sb.Dx()-sp.X, sb.Dy()-sp.Y
 	if mask != nil {
-		if dx > mask.Width()-mp.X {
-			dx = mask.Width() - mp.X
+		mb := mask.Bounds()
+		if dx > mb.Dx()-mp.X {
+			dx = mb.Dx() - mp.X
 		}
-		if dy > mask.Height()-mp.Y {
-			dy = mask.Height() - mp.Y
+		if dy > mb.Dy()-mp.Y {
+			dy = mb.Dy() - mp.Y
 		}
 	}
 	if r.Dx() > dx {

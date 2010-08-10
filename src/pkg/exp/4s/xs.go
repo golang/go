@@ -669,7 +669,7 @@ func redraw(new bool) {
 	//	if new && getwindow(display, Refmesg) < 0 {
 	//		sysfatal("can't reattach to window");
 	//	}
-	r := draw.Rect(0, 0, screen.Width(), screen.Height())
+	r := draw.Rect(screen.Bounds().MinX, screen.Bounds().Min.Y, screen, Bounds().Max.X, screen.Bounds().Max.Y)
 	pos.X = (pos.X - rboard.Min.X) / pcsz
 	pos.Y = (pos.Y - rboard.Min.Y) / pcsz
 	dx := r.Max.X - r.Min.X
@@ -722,7 +722,7 @@ func quitter(c <-chan bool) {
 func Play(pp []Piece, ctxt draw.Context) {
 	display = ctxt
 	screen = ctxt.Screen()
-	screenr = draw.Rect(0, 0, screen.Width(), screen.Height())
+	screenr = draw.Rect(screen.Bounds().MinX, screen.Bounds().Min.Y, screen, Bounds().Max.X, screen.Bounds().Max.Y)
 	pieces = pp
 	N = len(pieces[0].d)
 	initPieces()

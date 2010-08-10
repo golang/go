@@ -5,13 +5,16 @@
 // The image package implements a basic 2-D image library.
 package image
 
-// An Image is a rectangular grid of Colors drawn from a ColorModel.
+// An Image is a finite rectangular grid of Colors drawn from a ColorModel.
 type Image interface {
+	// ColorModel returns the Image's ColorModel.
 	ColorModel() ColorModel
-	Width() int
-	Height() int
-	// At(0, 0) returns the upper-left pixel of the grid.
-	// At(Width()-1, Height()-1) returns the lower-right pixel.
+	// Bounds returns the domain for which At can return non-zero color.
+	// The bounds do not necessarily contain the point (0, 0).
+	Bounds() Rectangle
+	// At returns the color of the pixel at (x, y).
+	// At(Bounds().Min.X, Bounds().Min.Y) returns the upper-left pixel of the grid.
+	// At(Bounds().Max.X-1, Bounds().Max.Y-1) returns the lower-right one.
 	At(x, y int) Color
 }
 
@@ -23,18 +26,24 @@ type RGBA struct {
 
 func (p *RGBA) ColorModel() ColorModel { return RGBAColorModel }
 
-func (p *RGBA) Width() int {
+func (p *RGBA) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
 
-func (p *RGBA) Height() int { return len(p.Pixel) }
+func (p *RGBA) At(x, y int) Color {
+	// TODO(nigeltao): Check if (x,y) is outside the bounds, and return zero.
+	// Similarly for the other concrete image types.
+	return p.Pixel[y][x]
+}
 
-func (p *RGBA) At(x, y int) Color { return p.Pixel[y][x] }
-
-func (p *RGBA) Set(x, y int, c Color) { p.Pixel[y][x] = toRGBAColor(c).(RGBAColor) }
+func (p *RGBA) Set(x, y int, c Color) {
+	// TODO(nigeltao): Check if (x,y) is outside the bounds, and return.
+	// Similarly for the other concrete image types.
+	p.Pixel[y][x] = toRGBAColor(c).(RGBAColor)
+}
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *RGBA) Opaque() bool {
@@ -71,14 +80,12 @@ type RGBA64 struct {
 
 func (p *RGBA64) ColorModel() ColorModel { return RGBA64ColorModel }
 
-func (p *RGBA64) Width() int {
+func (p *RGBA64) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
-
-func (p *RGBA64) Height() int { return len(p.Pixel) }
 
 func (p *RGBA64) At(x, y int) Color { return p.Pixel[y][x] }
 
@@ -119,14 +126,12 @@ type NRGBA struct {
 
 func (p *NRGBA) ColorModel() ColorModel { return NRGBAColorModel }
 
-func (p *NRGBA) Width() int {
+func (p *NRGBA) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
-
-func (p *NRGBA) Height() int { return len(p.Pixel) }
 
 func (p *NRGBA) At(x, y int) Color { return p.Pixel[y][x] }
 
@@ -167,14 +172,12 @@ type NRGBA64 struct {
 
 func (p *NRGBA64) ColorModel() ColorModel { return NRGBA64ColorModel }
 
-func (p *NRGBA64) Width() int {
+func (p *NRGBA64) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
-
-func (p *NRGBA64) Height() int { return len(p.Pixel) }
 
 func (p *NRGBA64) At(x, y int) Color { return p.Pixel[y][x] }
 
@@ -215,14 +218,12 @@ type Alpha struct {
 
 func (p *Alpha) ColorModel() ColorModel { return AlphaColorModel }
 
-func (p *Alpha) Width() int {
+func (p *Alpha) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
-
-func (p *Alpha) Height() int { return len(p.Pixel) }
 
 func (p *Alpha) At(x, y int) Color { return p.Pixel[y][x] }
 
@@ -263,14 +264,12 @@ type Alpha16 struct {
 
 func (p *Alpha16) ColorModel() ColorModel { return Alpha16ColorModel }
 
-func (p *Alpha16) Width() int {
+func (p *Alpha16) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
-
-func (p *Alpha16) Height() int { return len(p.Pixel) }
 
 func (p *Alpha16) At(x, y int) Color { return p.Pixel[y][x] }
 
@@ -311,14 +310,12 @@ type Gray struct {
 
 func (p *Gray) ColorModel() ColorModel { return GrayColorModel }
 
-func (p *Gray) Width() int {
+func (p *Gray) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
-
-func (p *Gray) Height() int { return len(p.Pixel) }
 
 func (p *Gray) At(x, y int) Color { return p.Pixel[y][x] }
 
@@ -347,14 +344,12 @@ type Gray16 struct {
 
 func (p *Gray16) ColorModel() ColorModel { return Gray16ColorModel }
 
-func (p *Gray16) Width() int {
+func (p *Gray16) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
-
-func (p *Gray16) Height() int { return len(p.Pixel) }
 
 func (p *Gray16) At(x, y int) Color { return p.Pixel[y][x] }
 
@@ -421,14 +416,12 @@ type Paletted struct {
 
 func (p *Paletted) ColorModel() ColorModel { return p.Palette }
 
-func (p *Paletted) Width() int {
+func (p *Paletted) Bounds() Rectangle {
 	if len(p.Pixel) == 0 {
-		return 0
+		return ZR
 	}
-	return len(p.Pixel[0])
+	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
 }
-
-func (p *Paletted) Height() int { return len(p.Pixel) }
 
 func (p *Paletted) At(x, y int) Color { return p.Palette[p.Pixel[y][x]] }
 

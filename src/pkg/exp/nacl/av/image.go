@@ -24,14 +24,12 @@ var _ image.Image = (*Image)(nil)
 
 func (m *Image) ColorModel() image.ColorModel { return ColorModel }
 
-func (m *Image) Width() int {
+func (m *Image) Bounds() image.Rectangle {
 	if len(m.Pixel) == 0 {
-		return 0
+		return image.ZR
 	}
-	return len(m.Pixel[0])
+	return image.Rectangle{image.ZP, image.Point{len(m.Pixel[0]), len(m.Pixel)}}
 }
-
-func (m *Image) Height() int { return len(m.Pixel) }
 
 func (m *Image) At(x, y int) image.Color { return m.Pixel[y][x] }
 

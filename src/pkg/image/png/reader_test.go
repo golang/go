@@ -45,12 +45,13 @@ func readPng(filename string) (image.Image, os.Error) {
 // An approximation of the sng command-line tool.
 func sng(w io.WriteCloser, filename string, png image.Image) {
 	defer w.Close()
+	bounds := png.Bounds()
 	// For now, the go PNG parser only reads bitdepths of 8.
 	bitdepth := 8
 
 	// Write the filename and IHDR.
 	io.WriteString(w, "#SNG: from "+filename+".png\nIHDR {\n")
-	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", png.Width(), png.Height(), bitdepth)
+	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", bounds.Dx(), bounds.Dy(), bitdepth)
 	cm := png.ColorModel()
 	var paletted *image.Paletted
 	cpm, _ := cm.(image.PalettedColorModel)
@@ -86,20 +87,20 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 
 	// Write the IMAGE.
 	io.WriteString(w, "IMAGE {\n    pixels hex\n")
-	for y := 0; y < png.Height(); y++ {
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		switch {
 		case cm == image.RGBAColorModel:
-			for x := 0; x < png.Width(); x++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
 				rgba := png.At(x, y).(image.RGBAColor)
 				fmt.Fprintf(w, "%02x%02x%02x ", rgba.R, rgba.G, rgba.B)
 			}
 		case cm == image.NRGBAColorModel:
-			for x := 0; x < png.Width(); x++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
 				nrgba := png.At(x, y).(image.NRGBAColor)
 				fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A)
 			}
 		case cpm != nil:
-			for x := 0; x < png.Width(); x++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
 				fmt.Fprintf(w, "%02x", paletted.ColorIndexAt(x, y))
 			}
 		}

@@ -99,8 +99,8 @@ func (m *SpacewarPDP1) Init(ctxt draw.Context) {
 	m.ctxt = ctxt
 	m.kc = ctxt.KeyboardChan()
 	m.screen = ctxt.Screen()
-	m.dx = m.screen.Width()
-	m.dy = m.screen.Height()
+	m.dx = m.screen.Bounds().Dx()
+	m.dy = m.screen.Bounds().Dy()
 	m.colorModel = m.screen.ColorModel()
 	m.pix = make([][]uint8, m.dy)
 	for i := range m.pix {
