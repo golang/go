@@ -330,7 +330,7 @@ func NewAlpha16(w, h int) *Alpha16 {
 	return &Alpha16{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// An Gray is an in-memory image of GrayColor values.
+// A Gray is an in-memory image of GrayColor values.
 type Gray struct {
 	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
 	Pix    []GrayColor
@@ -368,7 +368,7 @@ func NewGray(w, h int) *Gray {
 	return &Gray{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// An Gray16 is an in-memory image of Gray16Color values.
+// A Gray16 is an in-memory image of Gray16Color values.
 type Gray16 struct {
 	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
 	Pix    []Gray16Color
