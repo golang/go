@@ -97,6 +97,12 @@ func (r Rectangle) Overlaps(s Rectangle) bool {
 		r.Min.Y < s.Max.Y && s.Min.Y < r.Max.Y
 }
 
+// Contains returns whether r contains p.
+func (r Rectangle) Contains(p Point) bool {
+	return p.X >= r.Min.X && p.X < r.Max.X &&
+		p.Y >= r.Min.Y && p.Y < r.Max.Y
+}
+
 // Canon returns the canonical version of r. The returned rectangle has
 // minimum and maximum coordinates swapped if necessary so that Min.X <= Max.X
 // and Min.Y <= Max.Y.

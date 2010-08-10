@@ -18,46 +18,48 @@ type Image interface {
 	At(x, y int) Color
 }
 
-// An RGBA is an in-memory image backed by a 2-D slice of RGBAColor values.
+// An RGBA is an in-memory image of RGBAColor values.
 type RGBA struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
-	Pixel [][]RGBAColor
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []RGBAColor
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
 }
 
 func (p *RGBA) ColorModel() ColorModel { return RGBAColorModel }
 
-func (p *RGBA) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
-	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
-}
+func (p *RGBA) Bounds() Rectangle { return p.Rect }
 
 func (p *RGBA) At(x, y int) Color {
-	// TODO(nigeltao): Check if (x,y) is outside the bounds, and return zero.
-	// Similarly for the other concrete image types.
-	return p.Pixel[y][x]
+	if !p.Rect.Contains(Point{x, y}) {
+		return RGBAColor{}
+	}
+	return p.Pix[y*p.Stride+x]
 }
 
 func (p *RGBA) Set(x, y int, c Color) {
-	// TODO(nigeltao): Check if (x,y) is outside the bounds, and return.
-	// Similarly for the other concrete image types.
-	p.Pixel[y][x] = toRGBAColor(c).(RGBAColor)
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toRGBAColor(c).(RGBAColor)
 }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *RGBA) Opaque() bool {
-	h := len(p.Pixel)
-	if h > 0 {
-		w := len(p.Pixel[0])
-		for y := 0; y < h; y++ {
-			pix := p.Pixel[y]
-			for x := 0; x < w; x++ {
-				if pix[x].A != 0xff {
-					return false
-				}
+	if p.Rect.Empty() {
+		return true
+	}
+	base := p.Rect.Min.Y * p.Stride
+	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+		for _, c := range p.Pix[i0:i1] {
+			if c.A != 0xff {
+				return false
 			}
 		}
+		i0 += p.Stride
+		i1 += p.Stride
 	}
 	return true
 }
@@ -65,261 +67,295 @@ func (p *RGBA) Opaque() bool {
 // NewRGBA returns a new RGBA with the given width and height.
 func NewRGBA(w, h int) *RGBA {
 	buf := make([]RGBAColor, w*h)
-	pix := make([][]RGBAColor, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &RGBA{pix}
+	return &RGBA{buf, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// An RGBA64 is an in-memory image backed by a 2-D slice of RGBA64Color values.
+// An RGBA64 is an in-memory image of RGBA64Color values.
 type RGBA64 struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
-	Pixel [][]RGBA64Color
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []RGBA64Color
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
 }
 
 func (p *RGBA64) ColorModel() ColorModel { return RGBA64ColorModel }
 
-func (p *RGBA64) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
+func (p *RGBA64) Bounds() Rectangle { return p.Rect }
+
+func (p *RGBA64) At(x, y int) Color {
+	if !p.Rect.Contains(Point{x, y}) {
+		return RGBA64Color{}
 	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+	return p.Pix[y*p.Stride+x]
 }
 
-func (p *RGBA64) At(x, y int) Color { return p.Pixel[y][x] }
-
-func (p *RGBA64) Set(x, y int, c Color) { p.Pixel[y][x] = toRGBA64Color(c).(RGBA64Color) }
+func (p *RGBA64) Set(x, y int, c Color) {
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toRGBA64Color(c).(RGBA64Color)
+}
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *RGBA64) Opaque() bool {
-	h := len(p.Pixel)
-	if h > 0 {
-		w := len(p.Pixel[0])
-		for y := 0; y < h; y++ {
-			pix := p.Pixel[y]
-			for x := 0; x < w; x++ {
-				if pix[x].A != 0xffff {
-					return false
-				}
+	if p.Rect.Empty() {
+		return true
+	}
+	base := p.Rect.Min.Y * p.Stride
+	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+		for _, c := range p.Pix[i0:i1] {
+			if c.A != 0xffff {
+				return false
 			}
 		}
+		i0 += p.Stride
+		i1 += p.Stride
 	}
 	return true
 }
 
 // NewRGBA64 returns a new RGBA64 with the given width and height.
 func NewRGBA64(w, h int) *RGBA64 {
-	buf := make([]RGBA64Color, w*h)
-	pix := make([][]RGBA64Color, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &RGBA64{pix}
+	pix := make([]RGBA64Color, w*h)
+	return &RGBA64{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// A NRGBA is an in-memory image backed by a 2-D slice of NRGBAColor values.
+// An NRGBA is an in-memory image of NRGBAColor values.
 type NRGBA struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
-	Pixel [][]NRGBAColor
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []NRGBAColor
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
 }
 
 func (p *NRGBA) ColorModel() ColorModel { return NRGBAColorModel }
 
-func (p *NRGBA) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
+func (p *NRGBA) Bounds() Rectangle { return p.Rect }
+
+func (p *NRGBA) At(x, y int) Color {
+	if !p.Rect.Contains(Point{x, y}) {
+		return NRGBAColor{}
 	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+	return p.Pix[y*p.Stride+x]
 }
 
-func (p *NRGBA) At(x, y int) Color { return p.Pixel[y][x] }
-
-func (p *NRGBA) Set(x, y int, c Color) { p.Pixel[y][x] = toNRGBAColor(c).(NRGBAColor) }
+func (p *NRGBA) Set(x, y int, c Color) {
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toNRGBAColor(c).(NRGBAColor)
+}
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *NRGBA) Opaque() bool {
-	h := len(p.Pixel)
-	if h > 0 {
-		w := len(p.Pixel[0])
-		for y := 0; y < h; y++ {
-			pix := p.Pixel[y]
-			for x := 0; x < w; x++ {
-				if pix[x].A != 0xff {
-					return false
-				}
+	if p.Rect.Empty() {
+		return true
+	}
+	base := p.Rect.Min.Y * p.Stride
+	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+		for _, c := range p.Pix[i0:i1] {
+			if c.A != 0xff {
+				return false
 			}
 		}
+		i0 += p.Stride
+		i1 += p.Stride
 	}
 	return true
 }
 
 // NewNRGBA returns a new NRGBA with the given width and height.
 func NewNRGBA(w, h int) *NRGBA {
-	buf := make([]NRGBAColor, w*h)
-	pix := make([][]NRGBAColor, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &NRGBA{pix}
+	pix := make([]NRGBAColor, w*h)
+	return &NRGBA{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// A NRGBA64 is an in-memory image backed by a 2-D slice of NRGBA64Color values.
+// An NRGBA64 is an in-memory image of NRGBA64Color values.
 type NRGBA64 struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
-	Pixel [][]NRGBA64Color
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []NRGBA64Color
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
 }
 
 func (p *NRGBA64) ColorModel() ColorModel { return NRGBA64ColorModel }
 
-func (p *NRGBA64) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
+func (p *NRGBA64) Bounds() Rectangle { return p.Rect }
+
+func (p *NRGBA64) At(x, y int) Color {
+	if !p.Rect.Contains(Point{x, y}) {
+		return NRGBA64Color{}
 	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+	return p.Pix[y*p.Stride+x]
 }
 
-func (p *NRGBA64) At(x, y int) Color { return p.Pixel[y][x] }
-
-func (p *NRGBA64) Set(x, y int, c Color) { p.Pixel[y][x] = toNRGBA64Color(c).(NRGBA64Color) }
+func (p *NRGBA64) Set(x, y int, c Color) {
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toNRGBA64Color(c).(NRGBA64Color)
+}
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *NRGBA64) Opaque() bool {
-	h := len(p.Pixel)
-	if h > 0 {
-		w := len(p.Pixel[0])
-		for y := 0; y < h; y++ {
-			pix := p.Pixel[y]
-			for x := 0; x < w; x++ {
-				if pix[x].A != 0xffff {
-					return false
-				}
+	if p.Rect.Empty() {
+		return true
+	}
+	base := p.Rect.Min.Y * p.Stride
+	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+		for _, c := range p.Pix[i0:i1] {
+			if c.A != 0xffff {
+				return false
 			}
 		}
+		i0 += p.Stride
+		i1 += p.Stride
 	}
 	return true
 }
 
 // NewNRGBA64 returns a new NRGBA64 with the given width and height.
 func NewNRGBA64(w, h int) *NRGBA64 {
-	buf := make([]NRGBA64Color, w*h)
-	pix := make([][]NRGBA64Color, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &NRGBA64{pix}
+	pix := make([]NRGBA64Color, w*h)
+	return &NRGBA64{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// An Alpha is an in-memory image backed by a 2-D slice of AlphaColor values.
+// An Alpha is an in-memory image of AlphaColor values.
 type Alpha struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
-	Pixel [][]AlphaColor
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []AlphaColor
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
 }
 
 func (p *Alpha) ColorModel() ColorModel { return AlphaColorModel }
 
-func (p *Alpha) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
+func (p *Alpha) Bounds() Rectangle { return p.Rect }
+
+func (p *Alpha) At(x, y int) Color {
+	if !p.Rect.Contains(Point{x, y}) {
+		return AlphaColor{}
 	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+	return p.Pix[y*p.Stride+x]
 }
 
-func (p *Alpha) At(x, y int) Color { return p.Pixel[y][x] }
-
-func (p *Alpha) Set(x, y int, c Color) { p.Pixel[y][x] = toAlphaColor(c).(AlphaColor) }
+func (p *Alpha) Set(x, y int, c Color) {
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toAlphaColor(c).(AlphaColor)
+}
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *Alpha) Opaque() bool {
-	h := len(p.Pixel)
-	if h > 0 {
-		w := len(p.Pixel[0])
-		for y := 0; y < h; y++ {
-			pix := p.Pixel[y]
-			for x := 0; x < w; x++ {
-				if pix[x].A != 0xff {
-					return false
-				}
+	if p.Rect.Empty() {
+		return true
+	}
+	base := p.Rect.Min.Y * p.Stride
+	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+		for _, c := range p.Pix[i0:i1] {
+			if c.A != 0xff {
+				return false
 			}
 		}
+		i0 += p.Stride
+		i1 += p.Stride
 	}
 	return true
 }
 
 // NewAlpha returns a new Alpha with the given width and height.
 func NewAlpha(w, h int) *Alpha {
-	buf := make([]AlphaColor, w*h)
-	pix := make([][]AlphaColor, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &Alpha{pix}
+	pix := make([]AlphaColor, w*h)
+	return &Alpha{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// An Alpha16 is an in-memory image backed by a 2-D slice of Alpha16Color values.
+// An Alpha16 is an in-memory image of Alpha16Color values.
 type Alpha16 struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
-	Pixel [][]Alpha16Color
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []Alpha16Color
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
 }
 
 func (p *Alpha16) ColorModel() ColorModel { return Alpha16ColorModel }
 
-func (p *Alpha16) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
+func (p *Alpha16) Bounds() Rectangle { return p.Rect }
+
+func (p *Alpha16) At(x, y int) Color {
+	if !p.Rect.Contains(Point{x, y}) {
+		return Alpha16Color{}
 	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+	return p.Pix[y*p.Stride+x]
 }
 
-func (p *Alpha16) At(x, y int) Color { return p.Pixel[y][x] }
-
-func (p *Alpha16) Set(x, y int, c Color) { p.Pixel[y][x] = toAlpha16Color(c).(Alpha16Color) }
+func (p *Alpha16) Set(x, y int, c Color) {
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toAlpha16Color(c).(Alpha16Color)
+}
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *Alpha16) Opaque() bool {
-	h := len(p.Pixel)
-	if h > 0 {
-		w := len(p.Pixel[0])
-		for y := 0; y < h; y++ {
-			pix := p.Pixel[y]
-			for x := 0; x < w; x++ {
-				if pix[x].A != 0xffff {
-					return false
-				}
+	if p.Rect.Empty() {
+		return true
+	}
+	base := p.Rect.Min.Y * p.Stride
+	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+		for _, c := range p.Pix[i0:i1] {
+			if c.A != 0xffff {
+				return false
 			}
 		}
+		i0 += p.Stride
+		i1 += p.Stride
 	}
 	return true
 }
 
 // NewAlpha16 returns a new Alpha16 with the given width and height.
 func NewAlpha16(w, h int) *Alpha16 {
-	buf := make([]Alpha16Color, w*h)
-	pix := make([][]Alpha16Color, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &Alpha16{pix}
+	pix := make([]Alpha16Color, w*h)
+	return &Alpha16{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// A Gray is an in-memory image backed by a 2-D slice of GrayColor values.
+// An Gray is an in-memory image of GrayColor values.
 type Gray struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
-	Pixel [][]GrayColor
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []GrayColor
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
 }
 
 func (p *Gray) ColorModel() ColorModel { return GrayColorModel }
 
-func (p *Gray) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
+func (p *Gray) Bounds() Rectangle { return p.Rect }
+
+func (p *Gray) At(x, y int) Color {
+	if !p.Rect.Contains(Point{x, y}) {
+		return GrayColor{}
 	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+	return p.Pix[y*p.Stride+x]
 }
 
-func (p *Gray) At(x, y int) Color { return p.Pixel[y][x] }
-
-func (p *Gray) Set(x, y int, c Color) { p.Pixel[y][x] = toGrayColor(c).(GrayColor) }
+func (p *Gray) Set(x, y int, c Color) {
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toGrayColor(c).(GrayColor)
+}
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *Gray) Opaque() bool {
@@ -328,32 +364,36 @@ func (p *Gray) Opaque() bool {
 
 // NewGray returns a new Gray with the given width and height.
 func NewGray(w, h int) *Gray {
-	buf := make([]GrayColor, w*h)
-	pix := make([][]GrayColor, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &Gray{pix}
+	pix := make([]GrayColor, w*h)
+	return &Gray{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// A Gray16 is an in-memory image backed by a 2-D slice of Gray16Color values.
+// An Gray16 is an in-memory image of Gray16Color values.
 type Gray16 struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
-	Pixel [][]Gray16Color
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []Gray16Color
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
 }
 
 func (p *Gray16) ColorModel() ColorModel { return Gray16ColorModel }
 
-func (p *Gray16) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
+func (p *Gray16) Bounds() Rectangle { return p.Rect }
+
+func (p *Gray16) At(x, y int) Color {
+	if !p.Rect.Contains(Point{x, y}) {
+		return Gray16Color{}
 	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+	return p.Pix[y*p.Stride+x]
 }
 
-func (p *Gray16) At(x, y int) Color { return p.Pixel[y][x] }
-
-func (p *Gray16) Set(x, y int, c Color) { p.Pixel[y][x] = toGray16Color(c).(Gray16Color) }
+func (p *Gray16) Set(x, y int, c Color) {
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toGray16Color(c).(Gray16Color)
+}
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *Gray16) Opaque() bool {
@@ -362,12 +402,8 @@ func (p *Gray16) Opaque() bool {
 
 // NewGray16 returns a new Gray16 with the given width and height.
 func NewGray16(w, h int) *Gray16 {
-	buf := make([]Gray16Color, w*h)
-	pix := make([][]Gray16Color, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &Gray16{pix}
+	pix := make([]Gray16Color, w*h)
+	return &Gray16{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
 // A PalettedColorModel represents a fixed palette of colors.
@@ -409,28 +445,41 @@ func (p PalettedColorModel) Convert(c Color) Color {
 
 // A Paletted is an in-memory image backed by a 2-D slice of uint8 values and a PalettedColorModel.
 type Paletted struct {
-	// The Pixel field's indices are y first, then x, so that At(x, y) == Palette[Pixel[y][x]].
-	Pixel   [][]uint8
+	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	Pix    []uint8
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
+	// Palette is the image's palette.
 	Palette PalettedColorModel
 }
 
 func (p *Paletted) ColorModel() ColorModel { return p.Palette }
 
-func (p *Paletted) Bounds() Rectangle {
-	if len(p.Pixel) == 0 {
-		return ZR
+func (p *Paletted) Bounds() Rectangle { return p.Rect }
+
+func (p *Paletted) At(x, y int) Color {
+	if len(p.Palette) == 0 {
+		return nil
 	}
-	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+	if !p.Rect.Contains(Point{x, y}) {
+		return p.Palette[0]
+	}
+	return p.Palette[p.Pix[y*p.Stride+x]]
 }
 
-func (p *Paletted) At(x, y int) Color { return p.Palette[p.Pixel[y][x]] }
-
 func (p *Paletted) ColorIndexAt(x, y int) uint8 {
-	return p.Pixel[y][x]
+	if !p.Rect.Contains(Point{x, y}) {
+		return 0
+	}
+	return p.Pix[y*p.Stride+x]
 }
 
 func (p *Paletted) SetColorIndex(x, y int, index uint8) {
-	p.Pixel[y][x] = index
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = index
 }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
@@ -446,10 +495,6 @@ func (p *Paletted) Opaque() bool {
 
 // NewPaletted returns a new Paletted with the given width, height and palette.
 func NewPaletted(w, h int, m PalettedColorModel) *Paletted {
-	buf := make([]uint8, w*h)
-	pix := make([][]uint8, h)
-	for y := range pix {
-		pix[y] = buf[w*y : w*(y+1)]
-	}
-	return &Paletted{pix, m}
+	pix := make([]uint8, w*h)
+	return &Paletted{pix, w, Rectangle{ZP, Point{w, h}}, m}
 }
