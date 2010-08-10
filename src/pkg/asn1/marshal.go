@@ -96,19 +96,6 @@ func marshalBase128Int(out *forkableWriter, n int64) (err os.Error) {
 	return nil
 }
 
-func base128Length(i int) (numBytes int) {
-	if i == 0 {
-		return 1
-	}
-
-	for i > 0 {
-		numBytes++
-		i >>= 7
-	}
-
-	return
-}
-
 func marshalInt64(out *forkableWriter, i int64) (err os.Error) {
 	n := int64Length(i)
 
@@ -125,18 +112,14 @@ func marshalInt64(out *forkableWriter, i int64) (err os.Error) {
 func int64Length(i int64) (numBytes int) {
 	numBytes = 1
 
-	if i > 0 {
-		for i > 127 {
-			numBytes++
-			i >>= 8
-		}
+	for i > 127 {
+		numBytes++
+		i >>= 8
 	}
 
-	if i < 0 {
-		for i < -128 {
-			numBytes++
-			i >>= 8
-		}
+	for i < -128 {
+		numBytes++
+		i >>= 8
 	}
 
 	return
