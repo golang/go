@@ -243,6 +243,8 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	bpp := 0 // Bytes per pixel.
 	var paletted *image.Paletted
 	switch ct {
+	case ctGrayscale:
+		bpp = 1
 	case ctTrueColor:
 		bpp = 3
 	case ctPaletted:
@@ -267,6 +269,11 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		// Convert from colors to bytes.
 		switch ct {
+		case ctGrayscale:
+			for x := b.Min.X; x < b.Max.X; x++ {
+				c := image.GrayColorModel.Convert(m.At(x, y)).(image.GrayColor)
+				cr[0][x+1] = c.Y
+			}
 		case ctTrueColor:
 			for x := b.Min.X; x < b.Max.X; x++ {
 				// We have previously verified that the alpha value is fully opaque.
@@ -338,12 +345,19 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	var e encoder
 	e.w = w
 	e.m = m
-	e.colorType = uint8(ctTrueColorAlpha)
+	e.colorType = ctTrueColorAlpha
 	pal, _ := m.(*image.Paletted)
 	if pal != nil {
 		e.colorType = ctPaletted
-	} else if opaque(m) {
-		e.colorType = ctTrueColor
+	} else {
+		switch m.ColorModel() {
+		case image.GrayColorModel:
+			e.colorType = ctGrayscale
+		default:
+			if opaque(m) {
+				e.colorType = ctTrueColor
+			}
+		}
 	}
 
 	_, e.err = io.WriteString(w, pngHeader)

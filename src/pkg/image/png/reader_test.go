@@ -19,7 +19,7 @@ var filenames = []string{
 	//"basn0g01",	// bit depth is not 8
 	//"basn0g02",	// bit depth is not 8
 	//"basn0g04",	// bit depth is not 8
-	//"basn0g08",	// grayscale color model
+	"basn0g08",
 	//"basn0g16",	// bit depth is not 8
 	"basn2c08",
 	//"basn2c16",	// bit depth is not 8
@@ -56,6 +56,8 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	var paletted *image.Paletted
 	cpm, _ := cm.(image.PalettedColorModel)
 	switch {
+	case cm == image.GrayColorModel:
+		io.WriteString(w, "    using grayscale;\n")
 	case cm == image.RGBAColorModel:
 		io.WriteString(w, "    using color;\n")
 	case cm == image.NRGBAColorModel:
@@ -89,6 +91,11 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	io.WriteString(w, "IMAGE {\n    pixels hex\n")
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		switch {
+		case cm == image.GrayColorModel:
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+				gray := png.At(x, y).(image.GrayColor)
+				fmt.Fprintf(w, "%02x", gray.Y)
+			}
 		case cm == image.RGBAColorModel:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
 				rgba := png.At(x, y).(image.RGBAColor)
