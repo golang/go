@@ -5,6 +5,7 @@
 package html
 
 import (
+	"bytes"
 	"strings"
 	"utf8"
 )
@@ -60,18 +61,45 @@ func unescape(b []byte) []byte {
 	return b
 }
 
+const escapedChars = `&'<>"`
+
+func escape(buf *bytes.Buffer, s string) {
+	i := strings.IndexAny(s, escapedChars)
+	for i != -1 {
+		buf.WriteString(s[0:i])
+		var esc string
+		switch s[i] {
+		case '&':
+			esc = "&amp;"
+		case '\'':
+			esc = "&apos;"
+		case '<':
+			esc = "&lt;"
+		case '>':
+			esc = "&gt;"
+		case '"':
+			esc = "&quot;"
+		default:
+			panic("unrecognized escape character")
+		}
+		s = s[i+1:]
+		buf.WriteString(esc)
+		i = strings.IndexAny(s, escapedChars)
+	}
+	buf.WriteString(s)
+}
+
 // EscapeString escapes special characters like "<" to become "&lt;". It
 // escapes only five such characters: amp, apos, lt, gt and quot.
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func EscapeString(s string) string {
-	// TODO(nigeltao): Do this much more efficiently.
-	s = strings.Replace(s, `&`, `&amp;`, -1)
-	s = strings.Replace(s, `'`, `&apos;`, -1)
-	s = strings.Replace(s, `<`, `&lt;`, -1)
-	s = strings.Replace(s, `>`, `&gt;`, -1)
-	s = strings.Replace(s, `"`, `&quot;`, -1)
-	return s
+	if strings.IndexAny(s, escapedChars) == -1 {
+		return s
+	}
+	buf := bytes.NewBuffer(nil)
+	escape(buf, s)
+	return buf.String()
 }
 
 // UnescapeString unescapes entities like "&lt;" to become "<". It unescapes a

@@ -5,6 +5,7 @@
 package html
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"os"
@@ -68,12 +69,19 @@ type Token struct {
 
 // tagString returns a string representation of a tag Token's Data and Attr.
 func (t Token) tagString() string {
-	// TODO(nigeltao): Don't use string concatenation; it is inefficient.
-	s := string(t.Data)
-	for _, a := range t.Attr {
-		s += ` ` + a.Key + `="` + EscapeString(a.Val) + `"`
+	if len(t.Attr) == 0 {
+		return t.Data
 	}
-	return s
+	buf := bytes.NewBuffer(nil)
+	buf.WriteString(t.Data)
+	for _, a := range t.Attr {
+		buf.WriteByte(' ')
+		buf.WriteString(a.Key)
+		buf.WriteString(`="`)
+		escape(buf, a.Val)
+		buf.WriteByte('"')
+	}
+	return buf.String()
 }
 
 // String returns a string representation of the Token.
