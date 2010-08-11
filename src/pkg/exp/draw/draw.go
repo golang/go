@@ -293,9 +293,8 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
 		sx := sp.X + x0 - r.Min.X
 		mx := mp.X + x0 - r.Min.X
-		dbase := y * dst.Stride
-		dpix := dst.Pix[dbase+x0 : dbase+x1]
-		for i, rgba := range dpix {
+		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
 			ma := uint32(m)
 			if mask != nil {
 				_, _, _, ma = mask.At(mx, my).RGBA()
@@ -303,6 +302,7 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 			sr, sg, sb, sa := src.At(sx, sy).RGBA()
 			var dr, dg, db, da uint32
 			if op == Over {
+				rgba := dpix[x]
 				dr = uint32(rgba.R)
 				dg = uint32(rgba.G)
 				db = uint32(rgba.B)
@@ -324,8 +324,7 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 				db = sb * ma / m
 				da = sa * ma / m
 			}
-			dpix[i] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
-			sx, mx = sx+dx, mx+dx
+			dpix[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 	}
 }
