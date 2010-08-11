@@ -176,7 +176,8 @@ dumpexporttype(Sym *s)
 		yyerror("export of incomplete type %T", t);
 		return;
 	}
-	Bprint(bout, "type %#T %l#T\n",  t, t);
+	if(Bprint(bout, "type %#T %l#T\n",  t, t) < 0)
+		fatal("Bprint failed for %T", t);
 }
 
 static int
