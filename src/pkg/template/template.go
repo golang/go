@@ -888,6 +888,16 @@ func (t *Template) Parse(s string) (err os.Error) {
 	return nil
 }
 
+// ParseFile is like Parse but reads the template definition from the
+// named file.
+func (t *Template) ParseFile(filename string) (err os.Error) {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	return t.Parse(string(b))
+}
+
 // Execute applies a parsed template to the specified data object,
 // generating output to wr.
 func (t *Template) Execute(data interface{}, wr io.Writer) (err os.Error) {
