@@ -3,6 +3,7 @@ http://code.google.com/p/inferno-os/source/browse/libbio/bprint.c
 
 	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 	Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+	Revisions Copyright © 2010 Google Inc.  All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,25 +31,52 @@ THE SOFTWARE.
 int
 Bprint(Biobuf *bp, char *fmt, ...)
 {
-        va_list ap;
-        char *ip, *ep, *out;
-        int n;
+	int n;
+	va_list arg;
 
-        ep = (char*)bp->ebuf;
-        ip = ep + bp->ocount;
-        va_start(ap, fmt);
-        out = vseprint(ip, ep, fmt, ap);
-        va_end(ap);
-        if(out == nil || out >= ep-5) {
-                Bflush(bp);
-                ip = ep + bp->ocount;
-                va_start(ap, fmt);
-                out = vseprint(ip, ep, fmt, ap);
-                va_end(ap);
-                if(out >= ep-5)
-                        return Beof;
-        }
-        n = out-ip;
-        bp->ocount += n;
-        return n;
+	va_start(arg, fmt);
+	n = Bvprint(bp, fmt, arg);
+	va_end(arg);
+	return n;
+}
+
+static int
+bflush(Fmt *f)
+{
+	Biobuf *bp;
+	
+	if(f->stop == nil)
+		return 0;
+
+	bp = f->farg;
+	bp->ocount = (char*)f->to - (char*)f->stop;
+	if(Bflush(bp) < 0) {
+		f->stop = nil;
+		f->to = nil;
+		return 0;
+	}
+	f->to = (char*)f->stop + bp->ocount;
+	
+	return 1;
+}
+
+int
+Bvprint(Biobuf *bp, char *fmt, va_list arg)
+{
+	int n;
+	Fmt f;
+	
+	memset(&f, 0, sizeof f);
+	fmtlocaleinit(&f, nil, nil, nil);
+	f.stop = bp->ebuf;
+	f.to = (char*)f.stop + bp->ocount;
+	f.flush = bflush;
+	f.farg = bp;
+
+	n = fmtvprint(&f, fmt, arg);
+
+	if(f.stop != nil)
+		bp->ocount = (char*)f.to - (char*)f.stop;
+
+	return n;
 }
