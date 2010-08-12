@@ -13,7 +13,7 @@ type Once struct {
 // Do calls the function f if and only if the method is being called for the
 // first time with this receiver.  In other words, given
 // 	var once Once
-// if once.Do(f) is called multiple times, only the first call will invoke f,
+// if Do(f) is called multiple times, only the first call will invoke f,
 // even if f has a different value in each invocation.  A new instance of
 // Once is required for each function to execute.
 //
@@ -21,6 +21,9 @@ type Once struct {
 // is niladic, it may be necessary to use a function literal to capture the
 // arguments to a function to be invoked by Do:
 // 	config.once.Do(func() { config.init(filename) })
+//
+// Because no call to Do returns until the one call to f returns, if f causes
+// Do to be called, it will deadlock.
 //
 func (o *Once) Do(f func()) {
 	o.m.Lock()
