@@ -738,28 +738,6 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 }
 
 
-// ExecuteString matches the Regexp against the string s.
-// The return value is an array of integers, in pairs, identifying the positions of
-// substrings matched by the expression.
-//    s[a[0]:a[1]] is the substring matched by the entire expression.
-//    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
-// A negative value means the subexpression did not match any element of the string.
-// An empty array means "no match".
-func (re *Regexp) ExecuteString(s string) (a []int) {
-	return re.doExecute(s, nil, 0)
-}
-
-
-// Execute matches the Regexp against the byte slice b.
-// The return value is an array of integers, in pairs, identifying the positions of
-// subslices matched by the expression.
-//    b[a[0]:a[1]] is the subslice matched by the entire expression.
-//    b[a[2*i]:a[2*i+1]] for i > 0 is the subslice matched by the ith parenthesized subexpression.
-// A negative value means the subexpression did not match any element of the slice.
-// An empty array means "no match".
-func (re *Regexp) Execute(b []byte) (a []int) { return re.doExecute("", b, 0) }
-
-
 // MatchString returns whether the Regexp matches the string s.
 // The return value is a boolean: true for match, false for no match.
 func (re *Regexp) MatchString(s string) bool { return len(re.doExecute(s, nil, 0)) > 0 }
@@ -769,44 +747,6 @@ func (re *Regexp) MatchString(s string) bool { return len(re.doExecute(s, nil, 0
 // The return value is a boolean: true for match, false for no match.
 func (re *Regexp) Match(b []byte) bool { return len(re.doExecute("", b, 0)) > 0 }
 
-
-// MatchStrings matches the Regexp against the string s.
-// The return value is an array of strings matched by the expression.
-//    a[0] is the substring matched by the entire expression.
-//    a[i] for i > 0 is the substring matched by the ith parenthesized subexpression.
-// An empty array means ``no match''.
-func (re *Regexp) MatchStrings(s string) (a []string) {
-	r := re.doExecute(s, nil, 0)
-	if r == nil {
-		return nil
-	}
-	a = make([]string, len(r)/2)
-	for i := 0; i < len(r); i += 2 {
-		if r[i] != -1 { // -1 means no match for this subexpression
-			a[i/2] = s[r[i]:r[i+1]]
-		}
-	}
-	return
-}
-
-// MatchSlices matches the Regexp against the byte slice b.
-// The return value is an array of subslices matched by the expression.
-//    a[0] is the subslice matched by the entire expression.
-//    a[i] for i > 0 is the subslice matched by the ith parenthesized subexpression.
-// An empty array means ``no match''.
-func (re *Regexp) MatchSlices(b []byte) (a [][]byte) {
-	r := re.doExecute("", b, 0)
-	if r == nil {
-		return nil
-	}
-	a = make([][]byte, len(r)/2)
-	for i := 0; i < len(r); i += 2 {
-		if r[i] != -1 { // -1 means no match for this subexpression
-			a[i/2] = b[r[i]:r[i+1]]
-		}
-	}
-	return
-}
 
 // MatchString checks whether a textual regular expression
 // matches a string.  More complicated queries need
@@ -818,6 +758,7 @@ func MatchString(pattern string, s string) (matched bool, error string) {
 	}
 	return re.MatchString(s), ""
 }
+
 
 // Match checks whether a textual regular expression
 // matches a byte slice.  More complicated queries need
