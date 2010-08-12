@@ -5,6 +5,78 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-08-11">2010-08-11</h3>
+
+<pre>
+This release introduces some package changes. You may need to change your
+code if you use the once, regexp, image, or exp/draw packages.
+
+The type Once has been added to the sync package. The new sync.Once will
+supersede the functionality provided by the once package. We intend to remove
+the once package after this release. See:
+    http://golang.org/pkg/sync/#Once
+All instances of once in the standard library have been replaced with
+sync.Once. Reviewing these changes may help you modify your existing code. 
+The relevant changeset:
+    http://code.google.com/p/go/source/detail?r=fa2c43595119
+
+A new set of methods has been added to the regular expression package, regexp.
+These provide a uniformly named approach to discovering the matches of an
+expression within a piece of text; see the package documentation for details: 
+    http://golang.org/pkg/regexp/
+These new methods will, in a later release, replace the old methods for
+matching substrings.  The following methods are deprecated:
+    Execute (use Find)
+    ExecuteString (use FindString)
+    MatchStrings(use FindStringSubmatch)
+    MatchSlices (use FindSubmatch)
+    AllMatches (use FindAll; note that n<0 means 'all matches'; was n<=0)
+    AllMatchesString (use FindAllString; note that n<0 means 'all matches'; was n<=0)
+(Plus there are ten new methods you didn't know you wanted.) 
+Please update your code to use the new routines before the next release.
+
+An image.Image now has a Bounds rectangle, where previously it ranged 
+from (0, 0) to (Width, Height). Loops that previously looked like:
+    for y := 0; y < img.Height(); y++ {
+        for x := 0; x < img.Width(); x++ {
+            // Do something with img.At(x, y)
+        }
+    }
+should instead be:
+    b := img.Bounds()
+    for y := b.Min.Y; y < b.Max.Y; y++ {
+        for x := b.Min.X; x < b.Max.X; x++ {
+            // Do something with img.At(x, y)
+        }
+    }
+The Point and Rectangle types have also moved from exp/draw to image.
+
+Other changes:
+* arm: bugfixes and syscall (thanks Kai Backman).
+* asn1: fix incorrect encoding of signed integers (thanks Nicholas Waples).
+* big: fixes to bitwise functions (thanks Evan Shaw).
+* bytes: add IndexRune, FieldsFunc and To*Special (thanks Christian Himpel).
+* encoding/binary: add complex (thanks Roger Peppe).
+* exp/iterable: add UintArray (thanks Anschel Schaffer-Cohen).
+* godoc: report Status 404 if a pkg or file is not found.
+* gofmt: better reporting for unexpected semicolon errors.
+* html: new package, an HTML tokenizer.
+* image: change image representation from slice-of-slices to linear buffer,
+        introduce Decode and RegisterFormat,
+        introduce Transparent and Opaque,
+        replace Width and Height by Bounds, add the Point and Rect types.
+* libbio: fix Bprint to address 6g issues with large data structures.
+* math: fix amd64 Hypot (thanks Charles L. Dorian).
+* net/textproto: new package, with example net/dict.
+* os: fix ForkExec() handling of envv == nil (thanks Alex Brainman).
+* png: grayscale support (thanks Mathieu Lonjaret).
+* regexp: document that backslashes are the escape character.
+* rpc: catch errors from ReadResponseBody.
+* runtime: memory free fix (thanks Alex Brainman).
+* template: add ParseFile method to template.Template.
+* test/peano: use directly recursive type def.
+</pre>
+
 <h3 id="2010-08-04">2010-08-04</h3>
 
 <pre>
