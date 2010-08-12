@@ -101,7 +101,7 @@ done | # clean up some stack noise
 		/Segmentation fault/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A *.a $A.out
 diffmsg=""
 if ! diff golden.out run.out
 then

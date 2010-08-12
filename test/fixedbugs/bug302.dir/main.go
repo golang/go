@@ -4,4 +4,9 @@
 
 package main
 
+// Check that the export information is correct in p.6.
 import _ "./p"
+
+// Check that it's still correct in pp.a (which contains p.6).
+import _ "./pp"
+
