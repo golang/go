@@ -943,9 +943,9 @@ var (
 
 
 func extractString(src []byte, rx *regexp.Regexp) (s string) {
-	m := rx.Find(src)
-	if len(m) >= 4 {
-		s = strings.TrimSpace(string(src[m[2]:m[3]]))
+	m := rx.FindSubmatch(src)
+	if m != nil {
+		s = strings.TrimSpace(string(m[1]))
 	}
 	return
 }

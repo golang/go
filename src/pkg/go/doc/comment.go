@@ -199,7 +199,7 @@ var (
 // and '' into &rdquo;).
 func emphasize(w io.Writer, line []byte, words map[string]string, nice bool) {
 	for {
-		m := matchRx.Find(line)
+		m := matchRx.FindSubmatchIndex(line)
 		if m == nil {
 			break
 		}
