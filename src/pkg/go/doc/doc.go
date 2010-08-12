@@ -309,7 +309,7 @@ func (doc *docReader) addFile(src *ast.File) {
 	// collect BUG(...) comments
 	for _, c := range src.Comments {
 		text := c.List[0].Text
-		if m := bug_markers.Find(text); m != nil {
+		if m := bug_markers.FindIndex(text); m != nil {
 			// found a BUG comment; maybe empty
 			if btxt := text[m[1]:]; bug_content.Match(btxt) {
 				// non-empty BUG comment; collect comment without BUG prefix
