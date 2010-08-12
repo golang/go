@@ -499,11 +499,15 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
 }
 
 
-var semicolon = []byte{';'}
+var newline = []byte{'\n'}
 
 // Scan scans the next token and returns the token position pos,
 // the token tok, and the literal text lit corresponding to the
 // token. The source end is indicated by token.EOF.
+//
+// If the returned token is token.SEMICOLON, the corresponding
+// literal value is ";" if the semicolon was present in the source,
+// and "\n" if the semicolon was inserted because of a newline.
 //
 // For more tolerant parsing, Scan will return a valid token if
 // possible even if a syntax error was encountered. Thus, even
@@ -541,7 +545,7 @@ scanAgain:
 			// set in the first place and exited early
 			// from S.skipWhitespace()
 			S.insertSemi = false // newline consumed
-			return pos, token.SEMICOLON, semicolon
+			return pos, token.SEMICOLON, newline
 		case '"':
 			insertSemi = true
 			tok = token.STRING
@@ -609,7 +613,7 @@ scanAgain:
 					S.offset = pos.Offset + 1
 					S.ch = '/'
 					S.insertSemi = false // newline consumed
-					return pos, token.SEMICOLON, semicolon
+					return pos, token.SEMICOLON, newline
 				}
 				S.scanComment(pos)
 				if S.mode&ScanComments == 0 {

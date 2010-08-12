@@ -245,9 +245,13 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 	if pos.Offset == p.pos.Offset {
 		// the error happened at the current position;
 		// make the error message more specific
-		msg += ", found '" + p.tok.String() + "'"
-		if p.tok.IsLiteral() {
-			msg += " " + string(p.lit)
+		if p.tok == token.SEMICOLON && p.lit[0] == '\n' {
+			msg += ", found newline"
+		} else {
+			msg += ", found '" + p.tok.String() + "'"
+			if p.tok.IsLiteral() {
+				msg += " " + string(p.lit)
+			}
 		}
 	}
 	p.Error(pos, msg)
