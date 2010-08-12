@@ -199,8 +199,8 @@ var (
 // and '' into &rdquo;).
 func emphasize(w io.Writer, line []byte, words map[string]string, nice bool) {
 	for {
-		m := matchRx.Execute(line)
-		if len(m) == 0 {
+		m := matchRx.Find(line)
+		if m == nil {
 			break
 		}
 		// m >= 6 (two parenthesized sub-regexps in matchRx, 1st one is identRx)
