@@ -51,134 +51,12 @@ var bad_re = []stringError{
 	stringError{`\x`, ErrBadBackslash},
 }
 
-type vec []int
-
-type tester struct {
-	re    string
-	text  string
-	match vec
-}
-
-var matches = []tester{
-	tester{`^abcdefg`, "abcdefg", vec{0, 7}},
-	tester{`a+`, "baaab", vec{1, 4}},
-	tester{"abcd..", "abcdef", vec{0, 6}},
-	tester{``, "", vec{0, 0}},
-	tester{`a`, "a", vec{0, 1}},
-	tester{`x`, "y", vec{}},
-	tester{`b`, "abc", vec{1, 2}},
-	tester{`.`, "a", vec{0, 1}},
-	tester{`.*`, "abcdef", vec{0, 6}},
-	tester{`^`, "abcde", vec{0, 0}},
-	tester{`$`, "abcde", vec{5, 5}},
-	tester{`^abcd$`, "abcd", vec{0, 4}},
-	tester{`^bcd'`, "abcdef", vec{}},
-	tester{`^abcd$`, "abcde", vec{}},
-	tester{`a+`, "baaab", vec{1, 4}},
-	tester{`a*`, "baaab", vec{0, 0}},
-	tester{`[a-z]+`, "abcd", vec{0, 4}},
-	tester{`[^a-z]+`, "ab1234cd", vec{2, 6}},
-	tester{`[a\-\]z]+`, "az]-bcz", vec{0, 4}},
-	tester{`[^\n]+`, "abcd\n", vec{0, 4}},
-	tester{`[日本語]+`, "日本語日本語", vec{0, 18}},
-	tester{`日本語+`, "日本語", vec{0, 9}},
-	tester{`日本語+`, "日本語語語語", vec{0, 18}},
-	tester{`()`, "", vec{0, 0, 0, 0}},
-	tester{`(a)`, "a", vec{0, 1, 0, 1}},
-	tester{`(.)(.)`, "日a", vec{0, 4, 0, 3, 3, 4}},
-	tester{`(.*)`, "", vec{0, 0, 0, 0}},
-	tester{`(.*)`, "abcd", vec{0, 4, 0, 4}},
-	tester{`(..)(..)`, "abcd", vec{0, 4, 0, 2, 2, 4}},
-	tester{`(([^xyz]*)(d))`, "abcd", vec{0, 4, 0, 4, 0, 3, 3, 4}},
-	tester{`((a|b|c)*(d))`, "abcd", vec{0, 4, 0, 4, 2, 3, 3, 4}},
-	tester{`(((a|b|c)*)(d))`, "abcd", vec{0, 4, 0, 4, 0, 3, 2, 3, 3, 4}},
-	tester{`a*(|(b))c*`, "aacc", vec{0, 4, 2, 2, -1, -1}},
-	tester{`(.*).*`, "ab", vec{0, 2, 0, 2}},
-	tester{`[.]`, ".", vec{0, 1}},
-	tester{`/$`, "/abc/", vec{4, 5}},
-	tester{`/$`, "/abc", vec{}},
-
-	// fixed bugs
-	tester{`ab$`, "cab", vec{1, 3}},
-	tester{`axxb$`, "axxcb", vec{}},
-	tester{`data`, "daXY data", vec{5, 9}},
-	tester{`da(.)a$`, "daXY data", vec{5, 9, 7, 8}},
-
-	// can backslash-escape any punctuation
-	tester{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
-		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, vec{0, 31}},
-	tester{`[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~]+`,
-		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, vec{0, 31}},
-	tester{"\\`", "`", vec{0, 1}},
-	tester{"[\\`]+", "`", vec{0, 1}},
-}
-
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
 	re, err := Compile(expr)
 	if err != error {
 		t.Error("compiling `", expr, "`; unexpected error: ", err.String())
 	}
 	return re
-}
-
-func printVec(t *testing.T, m []int) {
-	l := len(m)
-	if l == 0 {
-		t.Log("\t<no match>")
-	} else {
-		if m[len(m)-1] == -1 {
-			m = m[0 : len(m)-2]
-		}
-		t.Log("\t", m)
-	}
-}
-
-func equal(m1, m2 []int) bool {
-	l := len(m1)
-	if l != len(m2) {
-		return false
-	}
-	for i := 0; i < l; i++ {
-		if m1[i] != m2[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func equalStrings(m1, m2 []string) bool {
-	l := len(m1)
-	if l != len(m2) {
-		return false
-	}
-	for i := 0; i < l; i++ {
-		if m1[i] != m2[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func executeTest(t *testing.T, expr string, str string, match []int) {
-	re := compileTest(t, expr, nil)
-	if re == nil {
-		return
-	}
-	m := re.ExecuteString(str)
-	if !equal(m, match) {
-		t.Errorf("ExecuteString failure on %#q matching %q:", expr, str)
-		printVec(t, m)
-		t.Log("should be:")
-		printVec(t, match)
-	}
-	// now try bytes
-	m = re.Execute([]byte(str))
-	if !equal(m, match) {
-		t.Errorf("Execute failure on %#q matching %q:", expr, str)
-		printVec(t, m)
-		t.Log("should be:")
-		printVec(t, match)
-	}
 }
 
 func TestGoodCompile(t *testing.T) {
@@ -193,57 +71,41 @@ func TestBadCompile(t *testing.T) {
 	}
 }
 
-func TestExecute(t *testing.T) {
-	for i := 0; i < len(matches); i++ {
-		test := &matches[i]
-		executeTest(t, test.re, test.text, test.match)
-	}
-}
-
-func matchTest(t *testing.T, expr string, str string, match []int) {
-	re := compileTest(t, expr, nil)
+func matchTest(t *testing.T, test *FindTest) {
+	re := compileTest(t, test.pat, nil)
 	if re == nil {
 		return
 	}
-	m := re.MatchString(str)
-	if m != (len(match) > 0) {
-		t.Errorf("MatchString failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
+	m := re.MatchString(test.text)
+	if m != (len(test.matches) > 0) {
+		t.Errorf("MatchString failure on %s: %t should be %t", test, m, len(test.matches) > 0)
 	}
 	// now try bytes
-	m = re.Match([]byte(str))
-	if m != (len(match) > 0) {
-		t.Errorf("Match failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
+	m = re.Match([]byte(test.text))
+	if m != (len(test.matches) > 0) {
+		t.Errorf("Match failure on %s: %t should be %t", test, m, len(test.matches) > 0)
 	}
 }
 
 func TestMatch(t *testing.T) {
-	for i := 0; i < len(matches); i++ {
-		test := &matches[i]
-		matchTest(t, test.re, test.text, test.match)
+	for _, test := range findTests {
+		matchTest(t, &test)
 	}
 }
 
-func TestMatchStrings(t *testing.T) {
-	for i := 0; i < len(matches); i++ {
-		test := &matches[i]
-		matchTest(t, test.re, test.text, test.match)
-	}
-}
-
-func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
-	m, err := MatchString(expr, str)
+func matchFunctionTest(t *testing.T, test *FindTest) {
+	m, err := MatchString(test.pat, test.text)
 	if err == nil {
 		return
 	}
-	if m != (len(match) > 0) {
-		t.Errorf("Match failure on %#q matching %q: %d should be %d", expr, str, m, len(match) > 0)
+	if m != (len(test.matches) > 0) {
+		t.Errorf("Match failure on %s: %t should be %t", test, m, len(test.matches) > 0)
 	}
 }
 
 func TestMatchFunction(t *testing.T) {
-	for i := 0; i < len(matches); i++ {
-		test := &matches[i]
-		matchFunctionTest(t, test.re, test.text, test.match)
+	for _, test := range findTests {
+		matchFunctionTest(t, &test)
 	}
 }
 
@@ -403,100 +265,6 @@ func TestQuoteMeta(t *testing.T) {
 				t.Errorf("QuoteMeta(`%s`).Replace(`%s`,`%s`) = `%s`; want `%s`",
 					tc.pattern, src, repl, replaced, expected)
 			}
-		}
-	}
-}
-
-type matchCase struct {
-	matchfunc string
-	input     string
-	n         int
-	regexp    string
-	expected  []string
-}
-
-var matchCases = []matchCase{
-	matchCase{"match", " aa b", 0, "[^ ]+", []string{"aa", "b"}},
-	matchCase{"match", " aa b", 0, "[^ ]*", []string{"", "aa", "b"}},
-	matchCase{"match", "a b c", 0, "[^ ]*", []string{"a", "b", "c"}},
-	matchCase{"match", "a:a: a:", 0, "^.:", []string{"a:"}},
-	matchCase{"match", "", 0, "[^ ]*", []string{""}},
-	matchCase{"match", "", 0, "", []string{""}},
-	matchCase{"match", "a", 0, "", []string{"", ""}},
-	matchCase{"match", "ab", 0, "^", []string{""}},
-	matchCase{"match", "ab", 0, "$", []string{""}},
-	matchCase{"match", "ab", 0, "X*", []string{"", "", ""}},
-	matchCase{"match", "aX", 0, "X*", []string{"", "X"}},
-	matchCase{"match", "XabX", 0, "X*", []string{"X", "", "X"}},
-
-	matchCase{"matchit", "", 0, ".", []string{}},
-	matchCase{"matchit", "abc", 2, ".", []string{"a", "b"}},
-	matchCase{"matchit", "abc", 0, ".", []string{"a", "b", "c"}},
-}
-
-func printStringSlice(t *testing.T, s []string) {
-	t.Logf("%#v", s)
-}
-
-func TestAllMatches(t *testing.T) {
-	ch := make(chan matchCase)
-	go func() {
-		for _, c := range matchCases {
-			ch <- c
-			stringCase := matchCase{
-				"string" + c.matchfunc,
-				c.input,
-				c.n,
-				c.regexp,
-				c.expected,
-			}
-			ch <- stringCase
-		}
-		close(ch)
-	}()
-
-	for c := range ch {
-		var result []string
-		re, _ := Compile(c.regexp)
-
-		switch c.matchfunc {
-		case "matchit":
-			result = make([]string, len(c.input)+1)
-			i := 0
-			b := []byte(c.input)
-			for match := range re.AllMatchesIter(b, c.n) {
-				result[i] = string(match)
-				i++
-			}
-			result = result[0:i]
-		case "stringmatchit":
-			result = make([]string, len(c.input)+1)
-			i := 0
-			for match := range re.AllMatchesStringIter(c.input, c.n) {
-				result[i] = match
-				i++
-			}
-			result = result[0:i]
-		case "match":
-			result = make([]string, len(c.input)+1)
-			b := []byte(c.input)
-			i := 0
-			for _, match := range re.AllMatches(b, c.n) {
-				result[i] = string(match)
-				i++
-			}
-			result = result[0:i]
-		case "stringmatch":
-			result = re.AllMatchesString(c.input, c.n)
-		}
-
-		if !equalStrings(result, c.expected) {
-			t.Errorf("testing '%s'.%s('%s', %d), expected: ",
-				c.regexp, c.matchfunc, c.input, c.n)
-			printStringSlice(t, c.expected)
-			t.Log("got: ")
-			printStringSlice(t, result)
-			t.Log("\n")
 		}
 	}
 }
