@@ -1145,16 +1145,18 @@ cmpandthrow(Node *nl, Node *nr)
 
 	n1.op = OXXX;
 	t = types[TUINT32];
-	if(is64(nl->type) || is64(nr->type)) {
-		// two 64-bit is just a 64-bit compare,
-		// but one 32 and one 64 needs to copy
-		// the 32 into a register to get the full comparison.
-		t = types[TUINT64];
-		if(!is64(nl->type) && nl->op != OLITERAL) {
+	if(nl->type->width != t->width || nr->type->width != t->width) {
+		if((is64(nl->type) && nl->op != OLITERAL) || (is64(nr->type) && nr->op != OLITERAL))
+			t = types[TUINT64];
+
+		// Check if we need to use a temporary.
+		// At least one of the arguments is 32 bits
+		// (the len or cap) so one temporary suffices.
+		if(nl->type->width != t->width && nl->op != OLITERAL) {
 			regalloc(&n1, t, nl);
 			gmove(nl, &n1);
 			nl = &n1;
-		} else if(!is64(nr->type) && nr->op != OLITERAL) {
+		} else if(nr->type->width != t->width && nr->op != OLITERAL) {
 			regalloc(&n1, t, nr);
 			gmove(nr, &n1);
 			nr = &n1;
