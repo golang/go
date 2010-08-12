@@ -936,80 +936,14 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 	return final.match.m
 }
 
-
-// ExecuteString matches the Regexp against the string s.
-// The return value is an array of integers, in pairs, identifying the positions of
-// substrings matched by the expression.
-//    s[a[0]:a[1]] is the substring matched by the entire expression.
-//    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
-// A negative value means the subexpression did not match any element of the string.
-// An empty array means "no match".
-// Deprecated; use FindString.
-func (re *Regexp) ExecuteString(s string) (a []int) {
-	return re.doExecute(s, nil, 0)
-}
-
-
-// Execute matches the Regexp against the byte slice b.
-// The return value is an array of integers, in pairs, identifying the positions of
-// subslices matched by the expression.
-//    b[a[0]:a[1]] is the subslice matched by the entire expression.
-//    b[a[2*i]:a[2*i+1]] for i > 0 is the subslice matched by the ith parenthesized subexpression.
-// A negative value means the subexpression did not match any element of the slice.
-// An empty array means "no match".
-// Deprecated; use Find.
-func (re *Regexp) Execute(b []byte) (a []int) { return re.doExecute("", b, 0) }
-
-
 // MatchString returns whether the Regexp matches the string s.
 // The return value is a boolean: true for match, false for no match.
 func (re *Regexp) MatchString(s string) bool { return len(re.doExecute(s, nil, 0)) > 0 }
-
 
 // Match returns whether the Regexp matches the byte slice b.
 // The return value is a boolean: true for match, false for no match.
 func (re *Regexp) Match(b []byte) bool { return len(re.doExecute("", b, 0)) > 0 }
 
-
-// MatchStrings matches the Regexp against the string s.
-// The return value is an array of strings matched by the expression.
-//    a[0] is the substring matched by the entire expression.
-//    a[i] for i > 0 is the substring matched by the ith parenthesized subexpression.
-// An empty array means ``no match''.
-// Deprecated; use FindStringSubmatch.
-func (re *Regexp) MatchStrings(s string) (a []string) {
-	r := re.doExecute(s, nil, 0)
-	if r == nil {
-		return nil
-	}
-	a = make([]string, len(r)/2)
-	for i := 0; i < len(r); i += 2 {
-		if r[i] != -1 { // -1 means no match for this subexpression
-			a[i/2] = s[r[i]:r[i+1]]
-		}
-	}
-	return
-}
-
-// MatchSlices matches the Regexp against the byte slice b.
-// The return value is an array of subslices matched by the expression.
-//    a[0] is the subslice matched by the entire expression.
-//    a[i] for i > 0 is the subslice matched by the ith parenthesized subexpression.
-// An empty array means ``no match''.
-// Deprecated; use FindSubmatch.
-func (re *Regexp) MatchSlices(b []byte) (a [][]byte) {
-	r := re.doExecute("", b, 0)
-	if r == nil {
-		return nil
-	}
-	a = make([][]byte, len(r)/2)
-	for i := 0; i < len(r); i += 2 {
-		if r[i] != -1 { // -1 means no match for this subexpression
-			a[i/2] = b[r[i]:r[i+1]]
-		}
-	}
-	return
-}
 
 // MatchString checks whether a textual regular expression
 // matches a string.  More complicated queries need
@@ -1202,46 +1136,7 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 	}
 }
 
-// AllMatches slices the byte slice b into substrings that are successive
-// matches of the Regexp within b. If n > 0, the function returns at most n
-// matches. Text that does not match the expression will be skipped. Empty
-// matches abutting a preceding match are ignored. The function returns a slice
-// containing the matching substrings.
-// Deprecated; use FindAll.
-func (re *Regexp) AllMatches(b []byte, n int) [][]byte {
-	if n <= 0 {
-		n = len(b) + 1
-	}
-	// TODO: here and below, grow the result slice on demand
-	// to avoid allocating a huge slice for a small result and
-	// wasting memory.
-	result := make([][]byte, n)
-	i := 0
-	re.allMatches("", b, n, func(match []int) {
-		result[i] = b[match[0]:match[1]]
-		i++
-	})
-	return result[0:i]
-}
-
-// AllMatchesString slices the string s into substrings that are successive
-// matches of the Regexp within s. If n > 0, the function returns at most n
-// matches. Text that does not match the expression will be skipped. Empty
-// matches abutting a preceding match are ignored. The function returns a slice
-// containing the matching substrings.
-// Deprecated; use FindAllString.
-func (re *Regexp) AllMatchesString(s string, n int) []string {
-	if n <= 0 {
-		n = len(s) + 1
-	}
-	result := make([]string, n)
-	i := 0
-	re.allMatches(s, nil, n, func(match []int) {
-		result[i] = s[match[0]:match[1]]
-		i++
-	})
-	return result[0:i]
-}
+// TODO: AllMatchesIter and AllMatchesStringIter should change to return submatches as well.
 
 // AllMatchesIter slices the byte slice b into substrings that are successive
 // matches of the Regexp within b. If n > 0, the function returns at most n
@@ -1379,6 +1274,9 @@ func (re *Regexp) FindStringSubmatch(s string) []string {
 func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 	return re.doExecute(s, nil, 0)
 }
+
+// TODO: The routines that return slices of unpredictable length should
+// grow them on demand rather than just allocating them maximum-length.
 
 // FindAll is the 'All' version of Find; it returns a slice of all successive
 // matches of the expression, as defined by the 'All' description in the
