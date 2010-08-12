@@ -222,6 +222,11 @@ func (ip IP) String() string {
 			e1 = j
 		}
 	}
+	// The symbol "::" MUST NOT be used to shorten just one 16 bit 0 field.
+	if e1-e0 <= 2 {
+		e0 = -1
+		e1 = -1
+	}
 
 	// Print with possible :: in place of run of zeros
 	var s string

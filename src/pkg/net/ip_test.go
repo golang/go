@@ -50,3 +50,46 @@ func TestParseIP(t *testing.T) {
 		}
 	}
 }
+
+type ipStringTest struct {
+	in  IP
+	out string
+}
+
+var ipstringtests = []ipStringTest{
+	// cf. draft-ietf-6man-text-addr-representation-07
+	// (A Recommendation for IPv6 Address Text Representation)
+	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+		0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
+		"2001:db8::123:12:1"},
+	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0x1},
+		"2001:db8::1"},
+	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1,
+		0, 0, 0, 0x1, 0, 0, 0, 0x1},
+		"2001:db8:0:1:0:1:0:1"},
+	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0,
+		0, 0x1, 0, 0, 0, 0x1, 0, 0},
+		"2001:db8:1:0:1:0:1:0"},
+	ipStringTest{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0,
+		0, 0x1, 0, 0, 0, 0, 0, 0x1},
+		"2001::1:0:0:1"},
+	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+		0, 0x1, 0, 0, 0, 0, 0, 0},
+		"2001:db8:0:0:1::"},
+	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+		0, 0x1, 0, 0, 0, 0, 0, 0x1},
+		"2001:db8::1:0:0:1"},
+	ipStringTest{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0,
+		0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD},
+		"2001:db8::a:b:c:d"},
+}
+
+func TestIPString(t *testing.T) {
+	for i := 0; i < len(ipstringtests); i++ {
+		tt := ipstringtests[i]
+		if out := tt.in.String(); out != tt.out {
+			t.Errorf("IP.String(%v) = %#q, want %#q", tt.in, out, tt.out)
+		}
+	}
+}
