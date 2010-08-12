@@ -338,6 +338,7 @@ def ParseCL(text, name):
 		i = line.find('#')
 		if i >= 0:
 			line = line[0:i].rstrip()
+		line = line.strip()
 		if line == '':
 			continue
 		cl.files.append(line)
