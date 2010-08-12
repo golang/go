@@ -269,6 +269,12 @@ func checkSemi(t *testing.T, line string, mode uint) {
 	pos, tok, lit := S.Scan()
 	for tok != token.EOF {
 		if tok == token.ILLEGAL {
+			// the illegal token literal indicates what
+			// kind of semicolon literal to expect
+			semiLit := "\n"
+			if lit[0] == '#' {
+				semiLit = ";"
+			}
 			// next token must be a semicolon
 			offs := pos.Offset + 1
 			pos, tok, lit = S.Scan()
@@ -276,8 +282,8 @@ func checkSemi(t *testing.T, line string, mode uint) {
 				if pos.Offset != offs {
 					t.Errorf("bad offset for %q: got %d, expected %d", line, pos.Offset, offs)
 				}
-				if string(lit) != ";" {
-					t.Errorf(`bad literal for %q: got %q, expected ";"`, line, lit)
+				if string(lit) != semiLit {
+					t.Errorf(`bad literal for %q: got %q, expected %q`, line, lit, semiLit)
 				}
 			} else {
 				t.Errorf("bad token for %q: got %s, expected ;", line, tok.String())
@@ -291,9 +297,10 @@ func checkSemi(t *testing.T, line string, mode uint) {
 
 
 var lines = []string{
-	// the $ character indicates where a semicolon is expected
+	// # indicates a semicolon present in the source
+	// $ indicates an automatically inserted semicolon
 	"",
-	"$;",
+	"#;",
 	"foo$\n",
 	"123$\n",
 	"1.2$\n",
@@ -354,7 +361,7 @@ var lines = []string{
 	")$\n",
 	"]$\n",
 	"}$\n",
-	"$;\n",
+	"#;\n",
 	":\n",
 
 	"break$\n",
