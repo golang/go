@@ -857,7 +857,8 @@ cmpandthrow(Node *nl, Node *nr)
 	vlong cl;
 	Prog *p1;
 	int op;
-	Node *c;
+	Node *c, n1;
+	Type *t;
 
 	op = OLE;
 	if(smallintconst(nl)) {
@@ -872,16 +873,34 @@ cmpandthrow(Node *nl, Node *nr)
 		nl = nr;
 		nr = c;
 	}
-
-	gins(optoas(OCMP, types[TUINT32]), nl, nr);
+	
+	// Arguments are known not to be 64-bit,
+	// but they might be smaller than 32 bits.
+	// Check if we need to use a temporary.
+	// At least one of the arguments is 32 bits
+	// (the len or cap) so one temporary suffices.
+	n1.op = OXXX;
+	t = types[TUINT32];
+	if(nl->type->width != t->width) {
+		regalloc(&n1, t, nl);
+		gmove(nl, &n1);
+		nl = &n1;
+	} else if(nr->type->width != t->width) {
+		regalloc(&n1, t, nr);
+		gmove(nr, &n1);
+		nr = &n1;
+	}
+	gins(optoas(OCMP, t), nl, nr);
+	if(n1.op != OXXX)
+		regfree(&n1);
 	if(throwpc == nil) {
-		p1 = gbranch(optoas(op, types[TUINT32]), T);
+		p1 = gbranch(optoas(op, t), T);
 		throwpc = pc;
 		ginscall(panicslice, 0);
 		patch(p1, pc);
 	} else {
 		op = brcom(op);
-		p1 = gbranch(optoas(op, types[TUINT32]), T);
+		p1 = gbranch(optoas(op, t), T);
 		patch(p1, throwpc);
 	}
 }
@@ -1045,6 +1064,7 @@ sliceslice:
 		// if(lb[1] > old.nel[0]) goto throw;
 		n2 = nodes[0];
 		n2.xoffset += Array_nel;
+		n2.type = types[TUINT32];
 		cmpandthrow(&nodes[1], &n2);
 
 		// ret.nel = old.nel[0]-lb[1];
@@ -1064,6 +1084,7 @@ sliceslice:
 		// if(hb[2] > old.cap[0]) goto throw;
 		n2 = nodes[0];
 		n2.xoffset += Array_cap;
+		n2.type = types[TUINT32];
 		cmpandthrow(&nodes[2], &n2);
 
 		// if(lb[1] > hb[2]) goto throw;
