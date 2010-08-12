@@ -76,7 +76,7 @@ func countMatches(pat string, bytes []byte) int {
 	re := regexp.MustCompile(pat)
 	n := 0
 	for {
-		e := re.Execute(bytes)
+		e := re.FindIndex(bytes)
 		if len(e) == 0 {
 			break
 		}

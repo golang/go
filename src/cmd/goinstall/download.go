@@ -41,13 +41,13 @@ func download(pkg string) (string, os.Error) {
 	if strings.Index(pkg, "..") >= 0 {
 		return "", os.ErrorString("invalid path (contains ..)")
 	}
-	if m := bitbucket.MatchStrings(pkg); m != nil {
+	if m := bitbucket.FindStringSubmatch(pkg); m != nil {
 		if err := vcsCheckout(&hg, root+m[1], "http://"+m[1], m[1]); err != nil {
 			return "", err
 		}
 		return root + pkg, nil
 	}
-	if m := googlecode.MatchStrings(pkg); m != nil {
+	if m := googlecode.FindStringSubmatch(pkg); m != nil {
 		var v *vcs
 		switch m[2] {
 		case "hg":
@@ -63,7 +63,7 @@ func download(pkg string) (string, os.Error) {
 		}
 		return root + pkg, nil
 	}
-	if m := github.MatchStrings(pkg); m != nil {
+	if m := github.FindStringSubmatch(pkg); m != nil {
 		if strings.HasSuffix(m[1], ".git") {
 			return "", os.ErrorString("repository " + pkg + " should not have .git suffix")
 		}
@@ -72,7 +72,7 @@ func download(pkg string) (string, os.Error) {
 		}
 		return root + pkg, nil
 	}
-	if m := launchpad.MatchStrings(pkg); m != nil {
+	if m := launchpad.FindStringSubmatch(pkg); m != nil {
 		// Either lp.net/<project>[/<series>[/<path>]]
 		//	 or lp.net/~<user or team>/<project>/<branch>[/<path>]
 		if err := vcsCheckout(&bzr, root+m[1], "https://"+m[1], m[1]); err != nil {

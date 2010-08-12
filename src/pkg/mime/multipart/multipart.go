@@ -103,7 +103,7 @@ func (bp *Part) populateHeaders() os.Error {
 		if line == "\n" || line == "\r\n" {
 			return nil
 		}
-		if matches := headerRegexp.MatchStrings(line); len(matches) == 3 {
+		if matches := headerRegexp.FindStringSubmatch(line); len(matches) == 3 {
 			key := matches[1]
 			value := matches[2]
 			// TODO: canonicalize headers ala http.Request.Header?

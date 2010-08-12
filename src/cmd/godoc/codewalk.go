@@ -451,13 +451,13 @@ func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os
 		// through file, but that seems like overkill.
 		return 0, 0, os.NewError("reverse search not implemented")
 	}
-	m := re.Execute(data[hi:])
+	m := re.FindIndex(data[hi:])
 	if len(m) > 0 {
 		m[0] += hi
 		m[1] += hi
 	} else if hi > 0 {
 		// No match.  Wrap to beginning of data.
-		m = re.Execute(data)
+		m = re.FindIndex(data)
 	}
 	if len(m) == 0 {
 		return 0, 0, os.NewError("no match for " + pattern)
