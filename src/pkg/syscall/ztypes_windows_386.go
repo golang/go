@@ -25,6 +25,7 @@ const (
 	ERROR_INSUFFICIENT_BUFFER = 122
 	ERROR_MOD_NOT_FOUND       = 126
 	ERROR_PROC_NOT_FOUND      = 127
+	ERROR_ENVVAR_NOT_FOUND    = 203
 	ERROR_DIRECTORY           = 267
 	ERROR_IO_PENDING          = 997
 	// Go names for Windows errors.

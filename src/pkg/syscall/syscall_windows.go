@@ -143,6 +143,10 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
 //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
 //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
+//sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval=nil] = kernel32.GetEnvironmentStringsW
+//sys	FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) = kernel32.FreeEnvironmentStringsW
+//sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
+//sys	SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) = kernel32.SetEnvironmentVariableW
 
 // syscall interface implementation for other packages
 

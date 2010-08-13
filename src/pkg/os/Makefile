@@ -7,7 +7,6 @@ include ../../Make.$(GOARCH)
 TARG=os
 GOFILES=\
 	dir_$(GOOS).go\
-	env.go\
 	error.go\
 	exec.go\
 	file.go\
