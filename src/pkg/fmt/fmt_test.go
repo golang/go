@@ -78,6 +78,23 @@ type C struct {
 	B
 }
 
+type F int
+
+func (f F) Format(s State, c int) {
+	Fprintf(s, "<%c=F(%d)>", c, int(f))
+}
+
+type G int
+
+func (g G) GoString() string {
+	return Sprintf("GoString(%d)", int(g))
+}
+
+type S struct {
+	f F // a struct field that Formats
+	g G // a struct field that GoStrings
+}
+
 var b byte
 
 var fmttests = []fmtTest{
@@ -322,6 +339,15 @@ var fmttests = []fmtTest{
 	fmtTest{"%v", renamedComplex64(3 + 4i), "(3+4i)"},
 	fmtTest{"%v", renamedComplex128(4 - 3i), "(4-3i)"},
 
+	// Formatter
+	fmtTest{"%x", F(1), "<x=F(1)>"},
+	fmtTest{"%x", G(2), "2"},
+	fmtTest{"%+v", S{F(4), G(5)}, "{f:<v=F(4)> g:5}"},
+
+	// GoStringer
+	fmtTest{"%#v", G(6), "GoString(6)"},
+	fmtTest{"%#v", S{F(7), G(8)}, "fmt_test.S{f:<v=F(7)>, g:GoString(8)}"},
+
 	// %T
 	fmtTest{"%T", (4 - 3i), "complex"},
 	fmtTest{"%T", renamedComplex128(4 - 3i), "fmt_test.renamedComplex128"},
@@ -544,5 +570,24 @@ func TestBlankln(t *testing.T) {
 	expect := "< 1 >: 1 2 3 !\n"
 	if got != expect {
 		t.Errorf("got %q expected %q", got, expect)
+	}
+}
+
+
+// Check Formatter with Sprint, Sprintln, Sprintf
+func TestFormatterPrintln(t *testing.T) {
+	f := F(1)
+	expect := "<v=F(1)>\n"
+	s := Sprint(f, "\n")
+	if s != expect {
+		t.Errorf("Sprint wrong with Formatter: expected %q got %q\n", expect, s)
+	}
+	s = Sprintln(f)
+	if s != expect {
+		t.Errorf("Sprintln wrong with Formatter: expected %q got %q\n", expect, s)
+	}
+	s = Sprintf("%v\n", f)
+	if s != expect {
+		t.Errorf("Sprintf wrong with Formatter: expected %q got %q\n", expect, s)
 	}
 }
