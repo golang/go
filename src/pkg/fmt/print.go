@@ -462,13 +462,14 @@ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interf
 	}
 }
 
-func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int, sharp bool) bool {
+func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSyntax bool) {
 	v, ok := value.(uintptrGetter)
-	if !ok {
-		return false
+	if !ok { // reflect.PtrValue is a uintptrGetter, so failure means it's not a pointer at all.
+		p.badVerb(verb, field)
+		return
 	}
 	u := v.Get()
-	if sharp {
+	if goSyntax {
 		p.add('(')
 		p.buf.WriteString(reflect.Typeof(field).String())
 		p.add(')')
@@ -482,7 +483,6 @@ func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int, 
 	} else {
 		p.fmt0x64(uint64(u))
 	}
-	return true
 }
 
 var (
@@ -503,9 +503,13 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	}
 
 	// Special processing considerations.
-	// %T (the value's type) is special; we always do it first.
-	if verb == 'T' {
+	// %T (the value's type) and %p (its address) are special; we always do them first.
+	switch verb {
+	case 'T':
 		p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
+		return false
+	case 'p':
+		p.fmtPointer(field, reflect.NewValue(field), verb, goSyntax)
 		return false
 	}
 	// Is it a Formatter?
@@ -606,12 +610,8 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 		return verb == 's'
 	}
 
-	value := reflect.NewValue(field)
 	// Need to use reflection
-	// Special case for reflection values that know how to print with %p.
-	if verb == 'p' && p.fmtUintptrGetter(field, value, verb, goSyntax) { // TODO: is this goSyntax right?
-		return false
-	}
+	value := reflect.NewValue(field)
 
 BigSwitch:
 	switch f := value.(type) {
@@ -753,10 +753,7 @@ BigSwitch:
 		}
 		p.fmt0x64(uint64(v))
 	case uintptrGetter:
-		if p.fmtUintptrGetter(field, value, verb, goSyntax) {
-			break
-		}
-		p.unknownType(f)
+		p.fmtPointer(field, value, verb, goSyntax)
 	default:
 		p.unknownType(f)
 	}
