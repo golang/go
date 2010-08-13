@@ -100,7 +100,6 @@ DIRS=\
 	net/textproto\
 	netchan\
 	nntp\
-	once\
 	os\
 	os/signal\
 	patch\

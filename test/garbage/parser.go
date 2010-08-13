@@ -185,7 +185,6 @@ var packages = []string{
 	"mime",
 	"net",
 	"nntp",
-	"once",
 	"os",
 	"os/signal",
 	"patch",
