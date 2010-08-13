@@ -53,6 +53,10 @@ var (
 	procCryptAcquireContextW       = getSysProcAddr(modadvapi32, "CryptAcquireContextW")
 	procCryptReleaseContext        = getSysProcAddr(modadvapi32, "CryptReleaseContext")
 	procCryptGenRandom             = getSysProcAddr(modadvapi32, "CryptGenRandom")
+	procGetEnvironmentStringsW     = getSysProcAddr(modkernel32, "GetEnvironmentStringsW")
+	procFreeEnvironmentStringsW    = getSysProcAddr(modkernel32, "FreeEnvironmentStringsW")
+	procGetEnvironmentVariableW    = getSysProcAddr(modkernel32, "GetEnvironmentVariableW")
+	procSetEnvironmentVariableW    = getSysProcAddr(modkernel32, "SetEnvironmentVariableW")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -661,6 +665,66 @@ func CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) {
 
 func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) {
 	r0, _, e1 := Syscall(procCryptGenRandom, uintptr(provhandle), uintptr(buflen), uintptr(unsafe.Pointer(buf)))
+	ok = bool(r0 != 0)
+	if !ok {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetEnvironmentStrings() (envs *uint16, errno int) {
+	r0, _, e1 := Syscall(procGetEnvironmentStringsW, 0, 0, 0)
+	envs = (*uint16)(unsafe.Pointer(r0))
+	if envs == nil {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procFreeEnvironmentStringsW, uintptr(unsafe.Pointer(envs)), 0, 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) {
+	r0, _, e1 := Syscall(procGetEnvironmentVariableW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(buffer)), uintptr(size))
+	n = uint32(r0)
+	if n == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procSetEnvironmentVariableW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)), 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {
