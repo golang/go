@@ -3244,7 +3244,7 @@ yydefault:
 			Errflag = 3
 
 			/* find a state where "error" is a legal shift action */
-			for yyp >= len(YYS) {
+			for yyp >= 0 {
 				yyn = yyPact[YYS[yyp].yys] + yyErrCode
 				if yyn >= 0 && yyn < yyLast {
 					yystate = yyAct[yyn] /* simulate a shift of "error" */
