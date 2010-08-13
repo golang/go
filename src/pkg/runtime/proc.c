@@ -547,6 +547,9 @@ gosched(void)
 // Record that it's not using the cpu anymore.
 // This is called only from the go syscall library and cgocall,
 // not from the low-level system calls used by the runtime.
+// Entersyscall cannot split the stack: the gosave must
+// make g->sched refer to the caller's stack pointer.
+#pragma textflag 7
 void
 ·entersyscall(void)
 {
