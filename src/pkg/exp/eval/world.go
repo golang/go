@@ -136,13 +136,13 @@ func (e *exprCode) Run() (Value, os.Error) {
 }
 
 func (w *World) Compile(text string) (Code, os.Error) {
-	stmts, err := parser.ParseStmtList("input", text, nil)
+	stmts, err := parser.ParseStmtList("input", text)
 	if err == nil {
 		return w.CompileStmtList(stmts)
 	}
 
 	// Otherwise try as DeclList.
-	decls, err1 := parser.ParseDeclList("input", text, nil)
+	decls, err1 := parser.ParseDeclList("input", text)
 	if err1 == nil {
 		return w.CompileDeclList(decls)
 	}

@@ -7,11 +7,8 @@
 <script src="http://www.google.com/jsapi"></script>
 <script src="/doc/popups.js"></script>
 <script>
-var popup_data = [
-{.repeated section Data}
-	'{@|popupInfo}',
-{.end}
-]
+{# IdList is HTML-escaped by godoc}
+var popup_data = {IdList}
 
 google.load("jquery", "1");
 google.setOnLoadCallback(function() {.meta-left}
@@ -19,5 +16,5 @@ google.setOnLoadCallback(function() {.meta-left}
 {.meta-right});
 </script>
 
-{# Source is HTML-escaped elsewhere}
+{# Source is HTML-escaped by godoc}
 <pre>{Source}</pre>

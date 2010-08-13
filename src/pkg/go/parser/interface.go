@@ -57,52 +57,52 @@ func (p *parser) parseEOF() os.Error {
 
 
 // ParseExpr parses a Go expression and returns the corresponding
-// AST node. The filename, src, and scope arguments have the same interpretation
+// AST node. The filename and src arguments have the same interpretation
 // as for ParseFile. If there is an error, the result expression
 // may be nil or contain a partial AST.
 //
-func ParseExpr(filename string, src interface{}, scope *ast.Scope) (ast.Expr, os.Error) {
+func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p parser
-	p.init(filename, data, scope, 0)
+	p.init(filename, data, 0)
 	return p.parseExpr(), p.parseEOF()
 }
 
 
 // ParseStmtList parses a list of Go statements and returns the list
-// of corresponding AST nodes. The filename, src, and scope arguments have the same
+// of corresponding AST nodes. The filename and src arguments have the same
 // interpretation as for ParseFile. If there is an error, the node
 // list may be nil or contain partial ASTs.
 //
-func ParseStmtList(filename string, src interface{}, scope *ast.Scope) ([]ast.Stmt, os.Error) {
+func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p parser
-	p.init(filename, data, scope, 0)
+	p.init(filename, data, 0)
 	return p.parseStmtList(), p.parseEOF()
 }
 
 
 // ParseDeclList parses a list of Go declarations and returns the list
-// of corresponding AST nodes.  The filename, src, and scope arguments have the same
+// of corresponding AST nodes.  The filename and src arguments have the same
 // interpretation as for ParseFile. If there is an error, the node
 // list may be nil or contain partial ASTs.
 //
-func ParseDeclList(filename string, src interface{}, scope *ast.Scope) ([]ast.Decl, os.Error) {
+func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p parser
-	p.init(filename, data, scope, 0)
+	p.init(filename, data, 0)
 	return p.parseDeclList(), p.parseEOF()
 }
 
@@ -116,11 +116,6 @@ func ParseDeclList(filename string, src interface{}, scope *ast.Scope) ([]ast.De
 //
 // If src == nil, ParseFile parses the file specified by filename.
 //
-// If scope != nil, it is the immediately surrounding scope for the file
-// (the package scope) and it is used to lookup and declare identifiers.
-// When parsing multiple files belonging to a package, the same scope should
-// be provided to all files.
-//
 // The mode parameter controls the amount of source text parsed and other
 // optional parser functionality.
 //
@@ -130,14 +125,14 @@ func ParseDeclList(filename string, src interface{}, scope *ast.Scope) ([]ast.De
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by file position.
 //
-func ParseFile(filename string, src interface{}, scope *ast.Scope, mode uint) (*ast.File, os.Error) {
+func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p parser
-	p.init(filename, data, scope, mode)
+	p.init(filename, data, mode)
 	return p.parseFile(), p.GetError(scanner.NoMultiples) // parseFile() reads to EOF
 }
 
@@ -150,14 +145,14 @@ func ParseFile(filename string, src interface{}, scope *ast.Scope, mode uint) (*
 // be incomplete (missing packages and/or incomplete packages) and the first
 // error encountered is returned.
 //
-func ParseFiles(filenames []string, scope *ast.Scope, mode uint) (pkgs map[string]*ast.Package, first os.Error) {
+func ParseFiles(filenames []string, mode uint) (pkgs map[string]*ast.Package, first os.Error) {
 	pkgs = make(map[string]*ast.Package)
 	for _, filename := range filenames {
-		if src, err := ParseFile(filename, nil, scope, mode); err == nil {
-			name := src.Name.Name()
+		if src, err := ParseFile(filename, nil, mode); err == nil {
+			name := src.Name.Name
 			pkg, found := pkgs[name]
 			if !found {
-				pkg = &ast.Package{name, scope, make(map[string]*ast.File)}
+				pkg = &ast.Package{name, nil, make(map[string]*ast.File)}
 				pkgs[name] = pkg
 			}
 			pkg.Files[filename] = src
@@ -201,6 +196,5 @@ func ParseDir(path string, filter func(*os.FileInfo) bool, mode uint) (map[strin
 	}
 	filenames = filenames[0:n]
 
-	var scope *ast.Scope = nil // for now tracking of declarations is disabled
-	return ParseFiles(filenames, scope, mode)
+	return ParseFiles(filenames, mode)
 }

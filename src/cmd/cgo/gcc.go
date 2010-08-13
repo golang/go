@@ -145,7 +145,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 			if _, err := strconv.Atoi(n.Define); err == nil {
 				ok = true
 			} else if n.Define[0] == '"' || n.Define[0] == '\'' {
-				_, err := parser.ParseExpr("", n.Define, nil)
+				_, err := parser.ParseExpr("", n.Define)
 				if err == nil {
 					ok = true
 				}
@@ -801,7 +801,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		t.Go = name // publish before recursive calls
 		switch dt.Kind {
 		case "union", "class":
-			c.typedef[name.Name()] = c.Opaque(t.Size)
+			c.typedef[name.Name] = c.Opaque(t.Size)
 			if t.C == "" {
 				t.C = fmt.Sprintf("typeof(unsigned char[%d])", t.Size)
 			}
@@ -811,7 +811,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 				t.C = csyntax
 			}
 			t.Align = align
-			c.typedef[name.Name()] = g
+			c.typedef[name.Name] = g
 		}
 
 	case *dwarf.TypedefType:
@@ -830,8 +830,8 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		sub := c.Type(dt.Type)
 		t.Size = sub.Size
 		t.Align = sub.Align
-		if _, ok := c.typedef[name.Name()]; !ok {
-			c.typedef[name.Name()] = sub.Go
+		if _, ok := c.typedef[name.Name]; !ok {
+			c.typedef[name.Name] = sub.Go
 		}
 
 	case *dwarf.UcharType:
@@ -875,7 +875,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			}
 			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
 			name := c.Ident("_Ctype_" + s)
-			c.typedef[name.Name()] = t.Go
+			c.typedef[name.Name] = t.Go
 			t.Go = name
 		}
 	}

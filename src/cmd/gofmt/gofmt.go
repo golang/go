@@ -27,7 +27,6 @@ var (
 
 	// debugging support
 	comments = flag.Bool("comments", true, "print comments")
-	debug    = flag.Bool("debug", false, "print debugging information")
 	trace    = flag.Bool("trace", false, "print parse trace")
 
 	// layout control
@@ -92,11 +91,7 @@ func processFile(f *os.File) os.Error {
 		return err
 	}
 
-	var scope *ast.Scope
-	if *debug {
-		scope = ast.NewScope(nil)
-	}
-	file, err := parser.ParseFile(f.Name(), src, scope, parserMode)
+	file, err := parser.ParseFile(f.Name(), src, parserMode)
 
 	if err != nil {
 		return err

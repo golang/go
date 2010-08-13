@@ -41,11 +41,11 @@ func goFiles(dir string, allowMain bool) (files []string, imports map[string]str
 			continue
 		}
 		filename := path.Join(dir, d.Name)
-		pf, err := parser.ParseFile(filename, nil, nil, parser.ImportsOnly)
+		pf, err := parser.ParseFile(filename, nil, parser.ImportsOnly)
 		if err != nil {
 			return nil, nil, "", err
 		}
-		s := string(pf.Name.Name())
+		s := string(pf.Name.Name)
 		if s == "main" && !allowMain {
 			continue
 		}

@@ -17,7 +17,7 @@ import (
 )
 
 func parse(name string, flags uint) *ast.File {
-	ast1, err := parser.ParseFile(name, nil, nil, flags)
+	ast1, err := parser.ParseFile(name, nil, flags)
 	if err != nil {
 		if list, ok := err.(scanner.ErrorList); ok {
 			// If err is a scanner.ErrorList, its String will print just
@@ -49,7 +49,7 @@ func (f *File) ReadGo(name string) {
 	ast1 := parse(name, parser.ParseComments)
 	ast2 := parse(name, 0)
 
-	f.Package = ast1.Name.Name()
+	f.Package = ast1.Name.Name
 	f.Name = make(map[string]*Name)
 
 	// In ast1, find the import "C" line and get any extra C preamble.
@@ -135,7 +135,7 @@ func (f *File) saveRef(x interface{}, context string) {
 		// The parser should take care of scoping in the future,
 		// so that we will be able to distinguish a "top-level C"
 		// from a local C.
-		if l, ok := sel.X.(*ast.Ident); ok && l.Name() == "C" {
+		if l, ok := sel.X.(*ast.Ident); ok && l.Name == "C" {
 			i := len(f.Ref)
 			if i >= cap(f.Ref) {
 				new := make([]*Ref, 2*i)
@@ -147,7 +147,7 @@ func (f *File) saveRef(x interface{}, context string) {
 			if context == "as2" {
 				context = "expr"
 			}
-			goname := sel.Sel.Name()
+			goname := sel.Sel.Name
 			name := f.Name[goname]
 			if name == nil {
 				name = &Name{
@@ -212,7 +212,7 @@ func (f *File) saveExport2(x interface{}, context string) {
 	}
 
 	for _, exp := range f.ExpFunc {
-		if exp.Func.Name.Name() == n.Name.Name() {
+		if exp.Func.Name.Name == n.Name.Name {
 			exp.Func = n
 			break
 		}
