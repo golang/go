@@ -136,11 +136,11 @@ func isPkgDir(f *os.FileInfo) bool {
 
 
 func pkgName(filename string) string {
-	file, err := parser.ParseFile(filename, nil, nil, parser.PackageClauseOnly)
+	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
 	if err != nil || file == nil {
 		return ""
 	}
-	return file.Name.Name()
+	return file.Name.Name
 }
 
 
@@ -246,12 +246,12 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 			nfiles++
 			if synopses[0] == "" {
 				// no "optimal" package synopsis yet; continue to collect synopses
-				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil, nil,
+				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
 					parser.ParseComments|parser.PackageClauseOnly)
 				if err == nil && file.Doc != nil {
 					// prioritize documentation
 					i := -1
-					switch file.Name.Name() {
+					switch file.Name.Name {
 					case name:
 						i = 0 // normal case: directory name matches package name
 					case fakePkgName:
@@ -453,7 +453,7 @@ type Styler struct {
 	linetags  bool
 	highlight string
 	objmap    map[*ast.Object]int
-	count     int
+	idcount   int
 }
 
 
@@ -462,26 +462,72 @@ func newStyler(highlight string) *Styler {
 }
 
 
-func (s *Styler) id(obj *ast.Object) int {
-	n, found := s.objmap[obj]
-	if !found {
-		n = s.count
-		s.objmap[obj] = n
-		s.count++
+// identId returns a number >= 0 identifying the *ast.Object
+// denoted by name. If no object is denoted, the result is < 0.
+//
+// TODO(gri): Consider making this a mapping from popup info
+//            (for that name) to id, instead of *ast.Object
+//            to id. If a lot of the popup info is the same
+//            (e.g. type information), this will reduce the
+//            size of the html generated.
+func (s *Styler) identId(name *ast.Ident) int {
+	obj := name.Obj
+	if obj == nil || s.objmap == nil {
+		return -1
 	}
-	return n
+	id, found := s.objmap[obj]
+	if !found {
+		// first occurence
+		id = s.idcount
+		s.objmap[obj] = id
+		s.idcount++
+	}
+	return id
 }
 
 
-func (s *Styler) mapping() []*ast.Object {
-	if s.objmap == nil {
-		return nil
+// writeObjInfo writes the popup info corresponding to obj to w.
+// The text is HTML-escaped and does not contain single quotes.
+func writeObjInfo(w io.Writer, obj *ast.Object) {
+	// for now, show object kind and name; eventually
+	// do something more interesting (show declaration,
+	// for instance)
+	if obj.Kind != ast.Bad {
+		fmt.Fprintf(w, "%s ", obj.Kind)
 	}
-	m := make([]*ast.Object, s.count)
-	for obj, i := range s.objmap {
-		m[i] = obj
+	template.HTMLEscape(w, []byte(obj.Name))
+}
+
+
+// idList returns a Javascript array (source) with identifier popup
+// information: The i'th array entry is a single-quoted string with
+// the popup information for an identifier x with s.identId(x) == i,
+// for 0 <= i < s.idcount.
+func (s *Styler) idList() []byte {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, "[")
+
+	if s.idcount > 0 {
+		// invert objmap: create an array [id]obj from map[obj]id
+		a := make([]*ast.Object, s.idcount)
+		for obj, id := range s.objmap {
+			a[id] = obj
+		}
+
+		// for each id, print object info as single-quoted Javascript string
+		for id, obj := range a {
+			printIndex := false // enable for debugging (but longer html)
+			if printIndex {
+				fmt.Fprintf(&buf, "/* %4d */ ", id)
+			}
+			fmt.Fprint(&buf, "'")
+			writeObjInfo(&buf, obj)
+			fmt.Fprint(&buf, "',\n")
+		}
 	}
-	return m
+
+	fmt.Fprintln(&buf, "]")
+	return buf.Bytes()
 }
 
 
@@ -516,13 +562,13 @@ func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
 }
 
 
-func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
-	text = []byte(id.Name())
+func (s *Styler) Ident(name *ast.Ident) (text []byte, tag printer.HTMLTag) {
+	text = []byte(name.Name)
 	var str string
-	if s.objmap != nil {
-		str = fmt.Sprintf(` id="%d"`, s.id(id.Obj))
+	if id := s.identId(name); id >= 0 {
+		str = fmt.Sprintf(` id="%d"`, id)
 	}
-	if s.highlight == id.Name() {
+	if s.highlight == name.Name {
 		str += ` class="highlight"`
 	}
 	if str != "" {
@@ -819,19 +865,6 @@ func localnameFmt(w io.Writer, x interface{}, format string) {
 }
 
 
-// Template formatter for "popupInfo" format.
-func popupInfoFmt(w io.Writer, x interface{}, format string) {
-	obj := x.(*ast.Object)
-	// for now, show object kind and name; eventually
-	// do something more interesting (show declaration,
-	// for instance)
-	if obj.Kind != ast.Err {
-		fmt.Fprintf(w, "%s ", obj.Kind)
-	}
-	template.HTMLEscape(w, []byte(obj.Name))
-}
-
-
 var fmap = template.FormatterMap{
 	"":             textFmt,
 	"html":         htmlFmt,
@@ -847,7 +880,6 @@ var fmap = template.FormatterMap{
 	"time":         timeFmt,
 	"dir/":         dirslashFmt,
 	"localname":    localnameFmt,
-	"popupInfo":    popupInfoFmt,
 }
 
 
@@ -996,22 +1028,25 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 
 
 func serveGoSource(c *http.Conn, r *http.Request, abspath, relpath string) {
-	file, err := parser.ParseFile(abspath, nil, nil, parser.ParseComments)
+	file, err := parser.ParseFile(abspath, nil, parser.ParseComments)
 	if err != nil {
 		log.Stderrf("parser.ParseFile: %s", err)
 		serveError(c, r, relpath, err)
 		return
 	}
 
+	// augment AST with types; ignore errors (partial type information ok)
+	// TODO(gri): invoke typechecker
+
 	var buf bytes.Buffer
 	styler := newStyler(r.FormValue("h"))
 	writeNode(&buf, file, true, styler)
 
 	type SourceInfo struct {
+		IdList []byte
 		Source []byte
-		Data   []*ast.Object
 	}
-	info := &SourceInfo{buf.Bytes(), styler.mapping()}
+	info := &SourceInfo{styler.idList(), buf.Bytes()}
 
 	contents := applyTemplate(sourceHTML, "sourceHTML", info)
 	servePage(c, "Source file "+relpath, "", "", contents)
@@ -1346,7 +1381,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	var title string
 	switch {
 	case info.PAst != nil:
-		title = "Package " + info.PAst.Name.Name()
+		title = "Package " + info.PAst.Name.Name
 	case info.PDoc != nil:
 		switch {
 		case h.isPkg:

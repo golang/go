@@ -780,7 +780,7 @@ func (p *printer) print(args ...interface{}) {
 			if p.Styler != nil {
 				data, tag = p.Styler.Ident(x)
 			} else {
-				data = []byte(x.Name())
+				data = []byte(x.Name)
 			}
 			tok = token.IDENT
 		case *ast.BasicLit:

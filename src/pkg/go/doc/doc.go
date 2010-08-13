@@ -77,7 +77,7 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
 
 func (doc *docReader) addType(decl *ast.GenDecl) {
 	spec := decl.Specs[0].(*ast.TypeSpec)
-	typ := doc.lookupTypeDoc(spec.Name.Name())
+	typ := doc.lookupTypeDoc(spec.Name.Name)
 	// typ should always be != nil since declared types
 	// are always named - be conservative and check
 	if typ != nil {
@@ -108,7 +108,7 @@ func baseTypeName(typ ast.Expr) string {
 		// if the type is not exported, the effect to
 		// a client is as if there were no type name
 		if t.IsExported() {
-			return string(t.Name())
+			return string(t.Name)
 		}
 	case *ast.StarExpr:
 		return baseTypeName(t.X)
@@ -173,7 +173,7 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 // at least one f with associated documentation is stored in table, if there
 // are multiple f's with the same name.
 func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
-	name := f.Name.Name()
+	name := f.Name.Name
 	if g, exists := table[name]; exists && g.Doc != nil {
 		// a function with the same name has already been registered;
 		// since it has documentation, assume f is simply another
@@ -188,7 +188,7 @@ func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
 
 
 func (doc *docReader) addFunc(fun *ast.FuncDecl) {
-	name := fun.Name.Name()
+	name := fun.Name.Name
 
 	// determine if it should be associated with a type
 	if fun.Recv != nil {
@@ -325,7 +325,7 @@ func (doc *docReader) addFile(src *ast.File) {
 
 func NewFileDoc(file *ast.File) *PackageDoc {
 	var r docReader
-	r.init(file.Name.Name())
+	r.init(file.Name.Name)
 	r.addFile(file)
 	return r.newDoc("", nil)
 }
@@ -370,9 +370,9 @@ func declName(d *ast.GenDecl) string {
 
 	switch v := d.Specs[0].(type) {
 	case *ast.ValueSpec:
-		return v.Names[0].Name()
+		return v.Names[0].Name
 	case *ast.TypeSpec:
-		return v.Name.Name()
+		return v.Name.Name
 	}
 
 	return ""
@@ -434,7 +434,7 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 		if f.Recv != nil {
 			doc.Recv = f.Recv.List[0].Type
 		}
-		doc.Name = f.Name.Name()
+		doc.Name = f.Name.Name
 		doc.Decl = f
 		d[i] = doc
 		i++
@@ -467,7 +467,7 @@ func (p sortTypeDoc) Less(i, j int) bool {
 	// sort by name
 	// pull blocks (name = "") up to top
 	// in original order
-	if ni, nj := p[i].Type.Name.Name(), p[j].Type.Name.Name(); ni != nj {
+	if ni, nj := p[i].Type.Name.Name, p[j].Type.Name.Name; ni != nj {
 		return ni < nj
 	}
 	return p[i].order < p[j].order
@@ -587,12 +587,12 @@ func matchDecl(d *ast.GenDecl, f Filter) bool {
 		switch v := d.(type) {
 		case *ast.ValueSpec:
 			for _, name := range v.Names {
-				if f(name.Name()) {
+				if f(name.Name) {
 					return true
 				}
 			}
 		case *ast.TypeSpec:
-			if f(v.Name.Name()) {
+			if f(v.Name.Name) {
 				return true
 			}
 		}

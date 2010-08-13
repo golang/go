@@ -4,13 +4,11 @@
 
 package ast
 
-import "go/token"
-
 type ObjKind int
 
 // The list of possible Object kinds.
 const (
-	Err ObjKind = iota // object kind unknown (forward reference or error)
+	Bad ObjKind = iota // bad object
 	Pkg                // package
 	Con                // constant
 	Typ                // type
@@ -20,7 +18,7 @@ const (
 
 
 var objKindStrings = [...]string{
-	Err: "<unknown object kind>",
+	Bad: "bad",
 	Pkg: "package",
 	Con: "const",
 	Typ: "type",
@@ -37,13 +35,13 @@ func (kind ObjKind) String() string { return objKindStrings[kind] }
 //
 type Object struct {
 	Kind ObjKind
-	Pos  token.Position // declaration position
-	Name string         // declared name
+	Name string      // declared name
+	Decl interface{} // corresponding Field, xxxSpec or FuncDecl
 }
 
 
-func NewObj(kind ObjKind, pos token.Position, name string) *Object {
-	return &Object{kind, pos, name}
+func NewObj(kind ObjKind, name string) *Object {
+	return &Object{kind, name, nil}
 }
 
 
@@ -57,12 +55,43 @@ func (obj *Object) IsExported() bool { return IsExported(obj.Name) }
 //
 type Scope struct {
 	Outer   *Scope
-	Objects map[string]*Object
+	Objects []*Object // in declaration order
+	// Implementation note: In some cases (struct fields,
+	// function parameters) we need the source order of
+	// variables. Thus for now, we store scope entries
+	// in a linear list. If scopes become very large
+	// (say, for packages), we may need to change this
+	// to avoid slow lookups.
 }
 
 
 // NewScope creates a new scope nested in the outer scope.
-func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Object)} }
+func NewScope(outer *Scope) *Scope {
+	const n = 4 // initial scope capacity, must be > 0
+	return &Scope{outer, make([]*Object, 0, n)}
+}
+
+
+func (s *Scope) append(obj *Object) {
+	n := len(s.Objects)
+	if n >= cap(s.Objects) {
+		new := make([]*Object, 2*n)
+		copy(new, s.Objects)
+		s.Objects = new
+	}
+	s.Objects = s.Objects[0 : n+1]
+	s.Objects[n] = obj
+}
+
+
+func (s *Scope) lookup(name string) *Object {
+	for _, obj := range s.Objects {
+		if obj.Name == name {
+			return obj
+		}
+	}
+	return nil
+}
 
 
 // Declare attempts to insert a named object into the scope s.
@@ -71,12 +100,12 @@ func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Objec
 // scope remains unchanged and Declare returns the object found
 // in the scope instead.
 func (s *Scope) Declare(obj *Object) *Object {
-	decl, found := s.Objects[obj.Name]
-	if !found {
-		s.Objects[obj.Name] = obj
-		decl = obj
+	alt := s.lookup(obj.Name)
+	if alt == nil {
+		s.append(obj)
+		alt = obj
 	}
-	return decl
+	return alt
 }
 
 
@@ -85,7 +114,7 @@ func (s *Scope) Declare(obj *Object) *Object {
 //
 func (s *Scope) Lookup(name string) *Object {
 	for ; s != nil; s = s.Outer {
-		if obj, found := s.Objects[name]; found {
+		if obj := s.lookup(name); obj != nil {
 			return obj
 		}
 	}

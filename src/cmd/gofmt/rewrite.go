@@ -37,7 +37,7 @@ func initRewrite() {
 // but there are problems with preserving formatting and also
 // with what a wildcard for a statement looks like.
 func parseExpr(s string, what string) ast.Expr {
-	x, err := parser.ParseExpr("input", s, nil)
+	x, err := parser.ParseExpr("input", s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "parsing %s %s: %s\n", what, s, err)
 		os.Exit(2)
@@ -109,7 +109,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 	// times in the pattern, it must match the same expression
 	// each time.
 	if m != nil && pattern.Type() == identType {
-		name := pattern.Interface().(*ast.Ident).Name()
+		name := pattern.Interface().(*ast.Ident).Name
 		if isWildcard(name) {
 			if old, ok := m[name]; ok {
 				return match(nil, old, val)
@@ -139,7 +139,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		// of recursing down any further via reflection.
 		p := pattern.Interface().(*ast.Ident)
 		v := val.Interface().(*ast.Ident)
-		return p == nil && v == nil || p != nil && v != nil && p.Name() == v.Name()
+		return p == nil && v == nil || p != nil && v != nil && p.Name == v.Name
 	}
 
 	p := reflect.Indirect(pattern)
@@ -194,7 +194,7 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 
 	// Wildcard gets replaced with map value.
 	if m != nil && pattern.Type() == identType {
-		name := pattern.Interface().(*ast.Ident).Name()
+		name := pattern.Interface().(*ast.Ident).Name
 		if isWildcard(name) {
 			if old, ok := m[name]; ok {
 				return subst(nil, old, nil)

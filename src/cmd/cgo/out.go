@@ -403,9 +403,9 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
 		fmt.Fprintf(fgcc, "}\n")
 
 		// Build the wrapper function compiled by 6c/8c
-		goname := exp.Func.Name.Name()
+		goname := exp.Func.Name.Name
 		if fn.Recv != nil {
-			goname = "_cgoexpwrap_" + fn.Recv.List[0].Names[0].Name() + "_" + goname
+			goname = "_cgoexpwrap_" + fn.Recv.List[0].Names[0].Name + "_" + goname
 		}
 		fmt.Fprintf(fc, "#pragma dynexport _cgoexp_%s _cgoexp_%s\n", exp.ExpName, exp.ExpName)
 		fmt.Fprintf(fc, "extern void ·%s();\n", goname)
@@ -529,23 +529,23 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 				if !ok {
 					continue
 				}
-				if ts.Name.Name() == t.Name() {
+				if ts.Name.Name == t.Name {
 					return p.cgoType(ts.Type)
 				}
 			}
 		}
 		for name, def := range p.Typedef {
-			if name == t.Name() {
+			if name == t.Name {
 				return p.cgoType(def)
 			}
 		}
-		if t.Name() == "uintptr" {
+		if t.Name == "uintptr" {
 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "uintptr"}
 		}
-		if t.Name() == "string" {
+		if t.Name == "string" {
 			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: "GoString"}
 		}
-		if r, ok := goTypes[t.Name()]; ok {
+		if r, ok := goTypes[t.Name]; ok {
 			if r.Align > p.PtrSize {
 				r.Align = p.PtrSize
 			}

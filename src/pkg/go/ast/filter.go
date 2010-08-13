@@ -197,7 +197,7 @@ type Filter func(string) bool
 func filterIdentList(list []*Ident, f Filter) []*Ident {
 	j := 0
 	for _, x := range list {
-		if f(x.Name()) {
+		if f(x.Name) {
 			list[j] = x
 			j++
 		}
@@ -212,7 +212,7 @@ func filterSpec(spec Spec, f Filter) bool {
 		s.Names = filterIdentList(s.Names, f)
 		return len(s.Names) > 0
 	case *TypeSpec:
-		return f(s.Name.Name())
+		return f(s.Name.Name)
 	}
 	return false
 }
@@ -236,7 +236,7 @@ func filterDecl(decl Decl, f Filter) bool {
 		d.Specs = filterSpecList(d.Specs, f)
 		return len(d.Specs) > 0
 	case *FuncDecl:
-		return f(d.Name.Name())
+		return f(d.Name.Name)
 	}
 	return false
 }
@@ -397,7 +397,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 					//            entities (const, type, vars) if
 					//            multiple declarations are common.
 					if f, isFun := d.(*FuncDecl); isFun {
-						name := f.Name.Name()
+						name := f.Name.Name
 						if j, exists := funcs[name]; exists {
 							// function declared already
 							if decls[j] != nil && decls[j].(*FuncDecl).Doc == nil {

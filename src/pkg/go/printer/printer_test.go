@@ -43,7 +43,7 @@ const (
 
 func check(t *testing.T, source, golden string, mode checkMode) {
 	// parse source
-	prog, err := parser.ParseFile(source, nil, nil, parser.ParseComments)
+	prog, err := parser.ParseFile(source, nil, parser.ParseComments)
 	if err != nil {
 		t.Error(err)
 		return

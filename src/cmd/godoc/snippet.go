@@ -35,7 +35,7 @@ func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
 
 
 func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
-	text = []byte(id.Name())
+	text = []byte(id.Name)
 	if s.highlight == id {
 		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
 	}
@@ -114,7 +114,7 @@ func NewSnippet(decl ast.Decl, id *ast.Ident) (s *Snippet) {
 	if s == nil {
 		s = &Snippet{
 			id.Pos().Line,
-			fmt.Sprintf(`could not generate a snippet for <span class="highlight">%s</span>`, id.Name()),
+			fmt.Sprintf(`could not generate a snippet for <span class="highlight">%s</span>`, id.Name),
 		}
 	}
 	return
