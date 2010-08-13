@@ -493,18 +493,44 @@ var (
 )
 
 func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
-	if field != nil {
-		switch {
-		default:
-			if stringer, ok := field.(Stringer); ok {
-				p.printField(stringer.String(), verb, plus, goSyntax, depth)
-				return false // this value is not a string
-			}
-		case goSyntax:
-			if stringer, ok := field.(GoStringer); ok {
-				p.printField(stringer.GoString(), verb, plus, goSyntax, depth)
-				return false // this value is not a string
-			}
+	if field == nil {
+		if verb == 'T' || verb == 'v' {
+			p.buf.Write(nilAngleBytes)
+		} else {
+			p.badVerb(verb, field)
+		}
+		return false
+	}
+
+	// Special processing considerations.
+	// %T (the value's type) is special; we always do it first.
+	if verb == 'T' {
+		p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
+		return false
+	}
+	// Is it a Formatter?
+	if formatter, ok := field.(Formatter); ok {
+		formatter.Format(p, verb)
+		return false // this value is not a string
+
+	}
+	// Must not touch flags before Formatter looks at them.
+	if plus {
+		p.fmt.plus = false
+	}
+	// If we're doing Go syntax and the field knows how to supply it, take care of it now.
+	if goSyntax {
+		p.fmt.sharp = false
+		if stringer, ok := field.(GoStringer); ok {
+			// Print the result of GoString unadorned.
+			p.fmtString(stringer.GoString(), 's', false, field)
+			return false // this value is not a string
+		}
+	} else {
+		// Is it a Stringer?
+		if stringer, ok := field.(Stringer); ok {
+			p.printField(stringer.String(), verb, plus, false, depth)
+			return false // this value is not a string
 		}
 	}
 
@@ -578,15 +604,6 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	case []byte:
 		p.fmtBytes(f, verb, goSyntax, depth, field)
 		return verb == 's'
-	}
-
-	if field == nil {
-		if verb == 'v' {
-			p.buf.Write(nilAngleBytes)
-		} else {
-			p.badVerb(verb, field)
-		}
-		return false
 	}
 
 	value := reflect.NewValue(field)
@@ -802,33 +819,8 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 		field := a[fieldnum]
 		fieldnum++
 
-		// %T is special; we always do it here.
-		if c == 'T' {
-			// the value's type
-			if field == nil {
-				p.buf.Write(nilAngleBytes)
-				break
-			}
-			p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
-			continue
-		}
-
-		// Try Formatter (except for %T).
-		if field != nil {
-			if formatter, ok := field.(Formatter); ok {
-				formatter.Format(p, c)
-				continue
-			}
-		}
-
 		goSyntax := c == 'v' && p.fmt.sharp
-		if goSyntax {
-			p.fmt.sharp = false
-		}
 		plus := c == 'v' && p.fmt.plus
-		if plus {
-			p.fmt.plus = false
-		}
 		p.printField(field, c, plus, goSyntax, 0)
 	}
 
