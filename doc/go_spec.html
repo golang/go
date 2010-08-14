@@ -4661,7 +4661,7 @@ func IsPrintable(s string) (ok bool) {
 		}
 		// Panicking has stopped; execution will resume normally in caller.
 		// The return value will be true normally, false if a panic occurred.
-	}
+	}()
 	panicIfNotPrintable(s)	// will panic if validations fails.
 }
 </pre>
