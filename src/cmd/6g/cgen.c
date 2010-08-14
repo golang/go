@@ -1008,6 +1008,43 @@ sgen(Node *n, Node *ns, int32 w)
 		fatal("sgen UINF");
 	}
 
+	if(isslice(n->type))
+	if(isslice(ns->type))
+	if(n->addable)
+	if(ns->addable)
+	if(n->op != OINDREG)
+	if(ns->op != OINDREG)
+	if(n->op != OREGISTER)
+	if(ns->op != OREGISTER) {
+		// slices are done component by component
+		// to keep from confusing optimization
+		nodl = *ns;
+		nodl.xoffset += Array_array;
+		nodl.type = types[TUINT64];
+		nodr = *n;
+		nodr.xoffset += Array_array;
+		nodr.type = types[TUINT64];
+		gmove(&nodr, &nodl);
+
+		nodl = *ns;
+		nodl.xoffset += Array_nel;
+		nodl.type = types[TUINT32];
+		nodr = *n;
+		nodr.xoffset += Array_nel;
+		nodr.type = types[TUINT32];
+		gmove(&nodr, &nodl);
+
+		nodl = *ns;
+		nodl.xoffset += Array_cap;
+		nodl.type = types[TUINT32];
+		nodr = *n;
+		nodr.xoffset += Array_cap;
+		nodr.type = types[TUINT32];
+		gmove(&nodr, &nodl);
+
+		return;
+	}
+
 	if(w < 0)
 		fatal("sgen copy %d", w);
 

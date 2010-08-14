@@ -1683,11 +1683,27 @@ optoas(int op, Type *t)
 
 enum
 {
-	ODynam	= 1<<0,
+	ODynam		= 1<<0,
+	OAddable	= 1<<1,
 };
 
 static	Node	clean[20];
 static	int	cleani = 0;
+
+int
+xgen(Node *n, Node *a, int o)
+{
+	regalloc(a, types[tptr], N);
+
+	if(o & ODynam)
+	if(n->addable)
+	if(n->op != OINDREG)
+	if(n->op != OREGISTER)
+		return 1;
+
+	agen(n, a);
+	return 0;
+}
 
 void
 sudoclean(void)
@@ -1820,7 +1836,7 @@ oindex:
 	if(l->type->etype != TARRAY)
 		fatal("not ary");
 	if(l->type->bound < 0)
-		o += ODynam;
+		o |= ODynam;
 
 	w = n->type->width;
 	if(isconst(r, CTINT))
@@ -1844,8 +1860,8 @@ oindex:
 
 	// load the array (reg)
 	if(l->ullman > r->ullman) {
-		regalloc(reg, types[tptr], N);
-		agen(l, reg);
+		if(xgen(l, reg, o))
+			o |= OAddable;
 	}
 
 	// load the index (reg1)
@@ -1860,17 +1876,17 @@ oindex:
 
 	// load the array (reg)
 	if(l->ullman <= r->ullman) {
-		regalloc(reg, types[tptr], N);
-		agen(l, reg);
+		if(xgen(l, reg, o))
+			o |= OAddable;
 	}
 
 	if(!(o & ODynam) && l->type->width >= unmappedzero && l->op == OIND) {
 		// cannot rely on page protections to
 		// catch array ptr == 0, so dereference.
 		n2 = *reg;
+		n2.xoffset = 0;
 		n2.op = OINDREG;
 		n2.type = types[TUINT8];
-		n2.xoffset = 0;
 		gins(ATESTB, nodintconst(0), &n2);
 	}
 
@@ -1880,15 +1896,27 @@ oindex:
 		n4.op = OXXX;
 		t = types[TUINT32];
 		if(o & ODynam) {
-			n2 = *reg;
-			n2.op = OINDREG;
-			n2.type = types[TUINT32];
-			n2.xoffset = Array_nel;
-			if(is64(r->type)) {
-				t = types[TUINT64];
-				regalloc(&n4, t, N);
-				gmove(&n2, &n4);
-				n2 = n4;
+			if(o & OAddable) {
+				n2 = *l;
+				n2.xoffset += Array_nel;
+				n2.type = types[TUINT32];
+				if(is64(r->type)) {
+					t = types[TUINT64];
+					regalloc(&n4, t, N);
+					gmove(&n2, &n4);
+					n2 = n4;
+				}
+			} else {
+				n2 = *reg;
+				n2.xoffset = Array_nel;
+				n2.op = OINDREG;
+				n2.type = types[TUINT32];
+				if(is64(r->type)) {
+					t = types[TUINT64];
+					regalloc(&n4, t, N);
+					gmove(&n2, &n4);
+					n2 = n4;
+				}
 			}
 		} else {
 			if(is64(r->type))
@@ -1904,18 +1932,33 @@ oindex:
 	}
 
 	if(o & ODynam) {
-		n2 = *reg;
-		n2.op = OINDREG;
-		n2.type = types[tptr];
-		n2.xoffset = Array_array;
-		gmove(&n2, reg);
+		if(o & OAddable) {
+			n2 = *l;
+			n2.xoffset += Array_array;
+			n2.type = types[TUINT64];
+			gmove(&n2, reg);
+		} else {
+			n2 = *reg;
+			n2.xoffset = Array_array;
+			n2.op = OINDREG;
+			n2.type = types[tptr];
+			gmove(&n2, reg);
+		}
 	}
 
-	naddr(reg1, a, 1);
-	a->offset = 0;
-	a->scale = w;
-	a->index = a->type;
-	a->type = reg->val.u.reg + D_INDIR;
+	if(o & OAddable) {
+		naddr(reg1, a, 1);
+		a->offset = 0;
+		a->scale = w;
+		a->index = a->type;
+		a->type = reg->val.u.reg + D_INDIR;
+	} else {
+		naddr(reg1, a, 1);
+		a->offset = 0;
+		a->scale = w;
+		a->index = a->type;
+		a->type = reg->val.u.reg + D_INDIR;
+	}
 
 	goto yes;
 
