@@ -4056,7 +4056,7 @@ RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
 For all the send and receive expressions in the "select"
 statement, the channel expressions are evaluated in top-to-bottom order, along with
 any expressions that appear on the right hand side of send expressions.
-A channel pointer may be <code>nil</code>,
+A channel may be <code>nil</code>,
 which is equivalent to that case not
 being present in the select statement
 except, if a send, its expression is still evaluated.
