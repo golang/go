@@ -1275,8 +1275,7 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 	return re.doExecute(s, nil, 0)
 }
 
-// TODO: The routines that return slices of unpredictable length should
-// grow them on demand rather than just allocating them maximum-length.
+const startSize = 10 // The size at which to start a slice in the 'All' routines.
 
 // FindAll is the 'All' version of Find; it returns a slice of all successive
 // matches of the expression, as defined by the 'All' description in the
@@ -1286,9 +1285,14 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
 	if n < 0 {
 		n = len(b) + 1
 	}
-	result := make([][]byte, n)
+	result := make([][]byte, startSize)
 	i := 0
 	re.allMatches("", b, n, func(match []int) {
+		if i == cap(result) {
+			new := make([][]byte, 2*i)
+			copy(new, result)
+			result = new
+		}
 		result[i] = b[match[0]:match[1]]
 		i++
 	})
@@ -1306,9 +1310,14 @@ func (re *Regexp) FindAllIndex(b []byte, n int) [][]int {
 	if n < 0 {
 		n = len(b) + 1
 	}
-	result := make([][]int, n)
+	result := make([][]int, startSize)
 	i := 0
 	re.allMatches("", b, n, func(match []int) {
+		if i == cap(result) {
+			new := make([][]int, 2*i)
+			copy(new, result)
+			result = new
+		}
 		result[i] = match[0:2]
 		i++
 	})
@@ -1326,9 +1335,14 @@ func (re *Regexp) FindAllString(s string, n int) []string {
 	if n < 0 {
 		n = len(s) + 1
 	}
-	result := make([]string, n)
+	result := make([]string, startSize)
 	i := 0
 	re.allMatches(s, nil, n, func(match []int) {
+		if i == cap(result) {
+			new := make([]string, 2*i)
+			copy(new, result)
+			result = new
+		}
 		result[i] = s[match[0]:match[1]]
 		i++
 	})
@@ -1346,9 +1360,14 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 	if n < 0 {
 		n = len(s) + 1
 	}
-	result := make([][]int, n)
+	result := make([][]int, startSize)
 	i := 0
 	re.allMatches(s, nil, n, func(match []int) {
+		if i == cap(result) {
+			new := make([][]int, 2*i)
+			copy(new, result)
+			result = new
+		}
 		result[i] = match[0:2]
 		i++
 	})
@@ -1366,9 +1385,14 @@ func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
 	if n < 0 {
 		n = len(b) + 1
 	}
-	result := make([][][]byte, n)
+	result := make([][][]byte, startSize)
 	i := 0
 	re.allMatches("", b, n, func(match []int) {
+		if i == cap(result) {
+			new := make([][][]byte, 2*i)
+			copy(new, result)
+			result = new
+		}
 		slice := make([][]byte, len(match)/2)
 		for j := range slice {
 			if match[2*j] >= 0 {
@@ -1392,9 +1416,14 @@ func (re *Regexp) FindAllSubmatchIndex(b []byte, n int) [][]int {
 	if n < 0 {
 		n = len(b) + 1
 	}
-	result := make([][]int, n)
+	result := make([][]int, startSize)
 	i := 0
 	re.allMatches("", b, n, func(match []int) {
+		if i == cap(result) {
+			new := make([][]int, 2*i)
+			copy(new, result)
+			result = new
+		}
 		result[i] = match
 		i++
 	})
@@ -1412,9 +1441,14 @@ func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
 	if n < 0 {
 		n = len(s) + 1
 	}
-	result := make([][]string, n)
+	result := make([][]string, startSize)
 	i := 0
 	re.allMatches(s, nil, n, func(match []int) {
+		if i == cap(result) {
+			new := make([][]string, 2*i)
+			copy(new, result)
+			result = new
+		}
 		slice := make([]string, len(match)/2)
 		for j := range slice {
 			if match[2*j] >= 0 {
@@ -1439,9 +1473,14 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 	if n < 0 {
 		n = len(s) + 1
 	}
-	result := make([][]int, n)
+	result := make([][]int, startSize)
 	i := 0
 	re.allMatches(s, nil, n, func(match []int) {
+		if i == cap(result) {
+			new := make([][]int, 2*i)
+			copy(new, result)
+			result = new
+		}
 		result[i] = match
 		i++
 	})
