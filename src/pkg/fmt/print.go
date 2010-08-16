@@ -697,6 +697,22 @@ BigSwitch:
 			return p.printField(value.Interface(), verb, plus, goSyntax, depth+1)
 		}
 	case reflect.ArrayOrSliceValue:
+		// Byte slices are special.
+		if f.Type().(reflect.ArrayOrSliceType).Elem().Kind() == reflect.Uint8 {
+			// We know it's a slice of bytes, but we also know it does not have static type
+			// []byte, or it would have been caught above.  Therefore we cannot convert
+			// it directly in the (slightly) obvious way: f.Interface().([]byte); it doesn't have
+			// that type, and we can't write an expression of the right type and do a
+			// conversion because we don't have a static way to write the right type.
+			// So we build a slice by hand.  This is a rare case but it would be nice
+			// if reflection could help a little more.
+			bytes := make([]byte, f.Len())
+			for i := range bytes {
+				bytes[i] = byte(f.Elem(i).(*reflect.UintValue).Get())
+			}
+			p.fmtBytes(bytes, verb, goSyntax, depth, field)
+			return verb == 's'
+		}
 		if goSyntax {
 			p.buf.WriteString(reflect.Typeof(field).String())
 			p.buf.WriteByte('{')
@@ -804,7 +820,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 		i += w
 		// percent is special - absorbs no operand
 		if c == '%' {
-			p.buf.WriteByte('%') // TODO: should we bother with width & prec?
+			p.buf.WriteByte('%') // We ignore width and prec.
 			continue
 		}
 		if fieldnum >= len(a) { // out of operands

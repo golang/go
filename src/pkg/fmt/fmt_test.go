@@ -334,8 +334,7 @@ var fmttests = []fmtTest{
 	fmtTest{"%X", renamedUint64(17), "11"},
 	fmtTest{"%o", renamedUintptr(18), "22"},
 	fmtTest{"%x", renamedString("thing"), "7468696e67"},
-	// TODO: It would be nice if this one worked, but it's hard.
-	//	fmtTest{"%q", renamedBytes([]byte("hello")), `"hello"`},
+	fmtTest{"%q", renamedBytes([]byte("hello")), `"hello"`},
 	fmtTest{"%v", renamedFloat(11), "11"},
 	fmtTest{"%v", renamedFloat32(22), "22"},
 	fmtTest{"%v", renamedFloat64(33), "33"},
