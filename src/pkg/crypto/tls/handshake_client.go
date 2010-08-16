@@ -130,11 +130,63 @@ func (c *Conn) clientHandshake() os.Error {
 	if err != nil {
 		return err
 	}
+
+	transmitCert := false
+	certReq, ok := msg.(*certificateRequestMsg)
+	if ok {
+		// We only accept certificates with RSA keys.
+		rsaAvail := false
+		for _, certType := range certReq.certificateTypes {
+			if certType == certTypeRSASign {
+				rsaAvail = true
+				break
+			}
+		}
+
+		// For now, only send a certificate back if the server gives us an
+		// empty list of certificateAuthorities.
+		//
+		// RFC 4346 on the certificateAuthorities field:
+		// A list of the distinguished names of acceptable certificate
+		// authorities.  These distinguished names may specify a desired
+		// distinguished name for a root CA or for a subordinate CA; thus,
+		// this message can be used to describe both known roots and a
+		// desired authorization space.  If the certificate_authorities
+		// list is empty then the client MAY send any certificate of the
+		// appropriate ClientCertificateType, unless there is some
+		// external arrangement to the contrary.
+		if rsaAvail && len(certReq.certificateAuthorities) == 0 {
+			transmitCert = true
+		}
+
+		finishedHash.Write(certReq.marshal())
+
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
+	}
+
 	shd, ok := msg.(*serverHelloDoneMsg)
 	if !ok {
 		return c.sendAlert(alertUnexpectedMessage)
 	}
 	finishedHash.Write(shd.marshal())
+
+	var cert *x509.Certificate
+	if transmitCert {
+		certMsg = new(certificateMsg)
+		if len(c.config.Certificates) > 0 {
+			cert, err = x509.ParseCertificate(c.config.Certificates[0].Certificate[0])
+			if err == nil && cert.PublicKeyAlgorithm == x509.RSA {
+				certMsg.certificates = c.config.Certificates[0].Certificate
+			} else {
+				cert = nil
+			}
+		}
+		finishedHash.Write(certMsg.marshal())
+		c.writeRecord(recordTypeHandshake, certMsg.marshal())
+	}
 
 	ckx := new(clientKeyExchangeMsg)
 	preMasterSecret := make([]byte, 48)
@@ -152,6 +204,21 @@ func (c *Conn) clientHandshake() os.Error {
 
 	finishedHash.Write(ckx.marshal())
 	c.writeRecord(recordTypeHandshake, ckx.marshal())
+
+	if cert != nil {
+		certVerify := new(certificateVerifyMsg)
+		var digest [36]byte
+		copy(digest[0:16], finishedHash.serverMD5.Sum())
+		copy(digest[16:36], finishedHash.serverSHA1.Sum())
+		signed, err := rsa.SignPKCS1v15(c.config.Rand, c.config.Certificates[0].PrivateKey, rsa.HashMD5SHA1, digest[0:])
+		if err != nil {
+			return c.sendAlert(alertInternalError)
+		}
+		certVerify.signature = signed
+
+		finishedHash.Write(certVerify.marshal())
+		c.writeRecord(recordTypeHandshake, certVerify.marshal())
+	}
 
 	suite := cipherSuites[0]
 	masterSecret, clientMAC, serverMAC, clientKey, serverKey :=
