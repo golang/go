@@ -234,9 +234,7 @@ func (t *Template) nextItem() []byte {
 			break
 		}
 	}
-	if trimSpace {
-		start = i
-	} else if i > start {
+	if !trimSpace && i > start {
 		// white space is valid text
 		t.p = i
 		return t.buf[start:i]
@@ -252,6 +250,9 @@ Switch:
 		i += len(t.ldelim) // position after delimiter
 		if i+1 < len(t.buf) && (t.buf[i] == '.' || t.buf[i] == '#') {
 			special = true
+			if trimSpace {
+				start = i - len(t.ldelim)
+			}
 		}
 		for ; i < len(t.buf); i++ {
 			if t.buf[i] == '\n' {
