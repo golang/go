@@ -115,7 +115,6 @@ var packages = []string{
 	"archive/tar",
 	"asn1",
 	"big",
-	"bignum",
 	"bufio",
 	"bytes",
 	"cmath",
