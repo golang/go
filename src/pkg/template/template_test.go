@@ -98,6 +98,7 @@ var tests = []*Test{
 	&Test{" {.space}   \n", " ", ""},
 	&Test{" {.tab}   \n", "\t", ""},
 	&Test{"     {#comment}   \n", "", ""},
+	&Test{"\tSome Text\t\n", "\tSome Text\t\n", ""},
 
 	// Variables at top level
 	&Test{
