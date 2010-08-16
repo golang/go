@@ -668,3 +668,153 @@ func (m *nextProtoMsg) unmarshal(data []byte) bool {
 
 	return true
 }
+
+type certificateRequestMsg struct {
+	raw                    []byte
+	certificateTypes       []byte
+	certificateAuthorities [][]byte
+}
+
+func (m *certificateRequestMsg) marshal() (x []byte) {
+	if m.raw != nil {
+		return m.raw
+	}
+
+	// See http://tools.ietf.org/html/rfc4346#section-7.4.4
+	length := 1 + len(m.certificateTypes) + 2
+	for _, ca := range m.certificateAuthorities {
+		length += 2 + len(ca)
+	}
+
+	x = make([]byte, 4+length)
+	x[0] = typeCertificateRequest
+	x[1] = uint8(length >> 16)
+	x[2] = uint8(length >> 8)
+	x[3] = uint8(length)
+
+	x[4] = uint8(len(m.certificateTypes))
+
+	copy(x[5:], m.certificateTypes)
+	y := x[5+len(m.certificateTypes):]
+
+	numCA := len(m.certificateAuthorities)
+	y[0] = uint8(numCA >> 8)
+	y[1] = uint8(numCA)
+	y = y[2:]
+	for _, ca := range m.certificateAuthorities {
+		y[0] = uint8(len(ca) >> 8)
+		y[1] = uint8(len(ca))
+		y = y[2:]
+		copy(y, ca)
+		y = y[len(ca):]
+	}
+
+	m.raw = x
+
+	return
+}
+
+func (m *certificateRequestMsg) unmarshal(data []byte) bool {
+	m.raw = data
+
+	if len(data) < 5 {
+		return false
+	}
+
+	length := uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
+	if uint32(len(data))-4 != length {
+		return false
+	}
+
+	numCertTypes := int(data[4])
+	data = data[5:]
+	if numCertTypes == 0 || len(data) <= numCertTypes {
+		return false
+	}
+
+	m.certificateTypes = make([]byte, numCertTypes)
+	if copy(m.certificateTypes, data) != numCertTypes {
+		return false
+	}
+
+	data = data[numCertTypes:]
+	if len(data) < 2 {
+		return false
+	}
+
+	numCAs := uint16(data[0])<<16 | uint16(data[1])
+	data = data[2:]
+
+	m.certificateAuthorities = make([][]byte, numCAs)
+	for i := uint16(0); i < numCAs; i++ {
+		if len(data) < 2 {
+			return false
+		}
+		caLen := uint16(data[0])<<16 | uint16(data[1])
+
+		data = data[2:]
+		if len(data) < int(caLen) {
+			return false
+		}
+
+		ca := make([]byte, caLen)
+		copy(ca, data)
+		m.certificateAuthorities[i] = ca
+		data = data[caLen:]
+	}
+
+	if len(data) > 0 {
+		return false
+	}
+
+	return true
+}
+
+type certificateVerifyMsg struct {
+	raw       []byte
+	signature []byte
+}
+
+func (m *certificateVerifyMsg) marshal() (x []byte) {
+	if m.raw != nil {
+		return m.raw
+	}
+
+	// See http://tools.ietf.org/html/rfc4346#section-7.4.8
+	siglength := len(m.signature)
+	length := 2 + siglength
+	x = make([]byte, 4+length)
+	x[0] = typeCertificateVerify
+	x[1] = uint8(length >> 16)
+	x[2] = uint8(length >> 8)
+	x[3] = uint8(length)
+	x[4] = uint8(siglength >> 8)
+	x[5] = uint8(siglength)
+	copy(x[6:], m.signature)
+
+	m.raw = x
+
+	return
+}
+
+func (m *certificateVerifyMsg) unmarshal(data []byte) bool {
+	m.raw = data
+
+	if len(data) < 6 {
+		return false
+	}
+
+	length := uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
+	if uint32(len(data))-4 != length {
+		return false
+	}
+
+	siglength := int(data[4])<<8 + int(data[5])
+	if len(data)-6 != siglength {
+		return false
+	}
+
+	m.signature = data[6:]
+
+	return true
+}

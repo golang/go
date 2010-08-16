@@ -146,6 +146,7 @@ const (
 	HashSHA256
 	HashSHA384
 	HashSHA512
+	HashMD5SHA1 // combined MD5 and SHA1 hash used for RSA signing in TLS.
 )
 
 // These are ASN1 DER structures:
@@ -153,7 +154,7 @@ const (
 //     digestAlgorithm AlgorithmIdentifier,
 //     digest OCTET STRING
 //   }
-// For performance, we don't use the generic ASN1 encoding. Rather, we
+// For performance, we don't use the generic ASN1 encoder. Rather, we
 // precompute a prefix of the digest value that makes a valid ASN1 DER string
 // with the correct contents.
 var hashPrefixes = [][]byte{
@@ -167,6 +168,8 @@ var hashPrefixes = [][]byte{
 	[]byte{0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
 	// HashSHA512
 	[]byte{0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
+	// HashMD5SHA1
+	[]byte{}, // A special TLS case which doesn't use an ASN1 prefix.
 }
 
 // SignPKCS1v15 calcuates the signature of hashed using RSASSA-PSS-SIGN from RSA PKCS#1 v1.5.
@@ -252,6 +255,8 @@ func pkcs1v15HashInfo(hash PKCS1v15Hash, inLen int) (hashLen int, prefix []byte,
 		hashLen = 48
 	case HashSHA512:
 		hashLen = 64
+	case HashMD5SHA1:
+		hashLen = 36
 	default:
 		return 0, nil, os.ErrorString("unknown hash function")
 	}

@@ -35,14 +35,16 @@ const (
 
 // TLS handshake message types.
 const (
-	typeClientHello       uint8 = 1
-	typeServerHello       uint8 = 2
-	typeCertificate       uint8 = 11
-	typeCertificateStatus uint8 = 22
-	typeServerHelloDone   uint8 = 14
-	typeClientKeyExchange uint8 = 16
-	typeFinished          uint8 = 20
-	typeNextProtocol      uint8 = 67 // Not IANA assigned
+	typeClientHello        uint8 = 1
+	typeServerHello        uint8 = 2
+	typeCertificate        uint8 = 11
+	typeCertificateRequest uint8 = 13
+	typeServerHelloDone    uint8 = 14
+	typeCertificateVerify  uint8 = 15
+	typeClientKeyExchange  uint8 = 16
+	typeFinished           uint8 = 20
+	typeCertificateStatus  uint8 = 22
+	typeNextProtocol       uint8 = 67 // Not IANA assigned
 )
 
 // TLS cipher suites.
@@ -67,6 +69,15 @@ const (
 	statusTypeOCSP uint8 = 1
 )
 
+// Certificate types (for certificateRequestMsg)
+const (
+	certTypeRSASign    = 1 // A certificate containing an RSA key
+	certTypeDSSSign    = 2 // A certificate containing a DSA key
+	certTypeRSAFixedDH = 3 // A certificate containing a static DH key
+	certTypeDSSFixedDH = 4 // A certficiate containing a static DH key
+	// Rest of these are reserved by the TLS spec
+)
+
 type ConnectionState struct {
 	HandshakeComplete  bool
 	CipherSuite        uint16
@@ -79,7 +90,8 @@ type Config struct {
 	// Rand provides the source of entropy for nonces and RSA blinding.
 	Rand io.Reader
 	// Time returns the current time as the number of seconds since the epoch.
-	Time         func() int64
+	Time func() int64
+	// Certificates contains one or more certificate chains.
 	Certificates []Certificate
 	RootCAs      *CASet
 	// NextProtos is a list of supported, application level protocols.
@@ -88,9 +100,16 @@ type Config struct {
 	// ServerName is included in the client's handshake to support virtual
 	// hosting.
 	ServerName string
+	// AuthenticateClient determines if a server will request a certificate
+	// from the client. It does not require that the client send a
+	// certificate nor, if it does, that the certificate is anything more
+	// than self-signed.
+	AuthenticateClient bool
 }
 
 type Certificate struct {
+	// Certificate contains a chain of one or more certificates. Leaf
+	// certificate first.
 	Certificate [][]byte
 	PrivateKey  *rsa.PrivateKey
 }

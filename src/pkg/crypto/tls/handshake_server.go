@@ -18,6 +18,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/subtle"
+	"crypto/x509"
 	"io"
 	"os"
 )
@@ -112,10 +113,62 @@ func (c *Conn) serverHandshake() os.Error {
 	finishedHash.Write(certMsg.marshal())
 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
 
+	if config.AuthenticateClient {
+		// Request a client certificate
+		certReq := new(certificateRequestMsg)
+		certReq.certificateTypes = []byte{certTypeRSASign}
+		// An empty list of certificateAuthorities signals to
+		// the client that it may send any certificate in response
+		// to our request.
+
+		finishedHash.Write(certReq.marshal())
+		c.writeRecord(recordTypeHandshake, certReq.marshal())
+	}
+
 	helloDone := new(serverHelloDoneMsg)
 	finishedHash.Write(helloDone.marshal())
 	c.writeRecord(recordTypeHandshake, helloDone.marshal())
 
+	var pub *rsa.PublicKey
+	if config.AuthenticateClient {
+		// Get client certificate
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
+		certMsg, ok = msg.(*certificateMsg)
+		if !ok {
+			return c.sendAlert(alertUnexpectedMessage)
+		}
+		finishedHash.Write(certMsg.marshal())
+
+		certs := make([]*x509.Certificate, len(certMsg.certificates))
+		for i, asn1Data := range certMsg.certificates {
+			cert, err := x509.ParseCertificate(asn1Data)
+			if err != nil {
+				return c.sendAlert(alertBadCertificate)
+			}
+			certs[i] = cert
+		}
+
+		// TODO(agl): do better validation of certs: max path length, name restrictions etc.
+		for i := 1; i < len(certs); i++ {
+			if err := certs[i-1].CheckSignatureFrom(certs[i]); err != nil {
+				return c.sendAlert(alertBadCertificate)
+			}
+		}
+
+		if len(certs) > 0 {
+			key, ok := certs[0].PublicKey.(*rsa.PublicKey)
+			if !ok {
+				return c.sendAlert(alertUnsupportedCertificate)
+			}
+			pub = key
+			c.peerCertificates = certs
+		}
+	}
+
+	// Get client key exchange
 	msg, err = c.readHandshake()
 	if err != nil {
 		return err
@@ -125,6 +178,33 @@ func (c *Conn) serverHandshake() os.Error {
 		return c.sendAlert(alertUnexpectedMessage)
 	}
 	finishedHash.Write(ckx.marshal())
+
+	// If we received a client cert in response to our certificate request message,
+	// the client will send us a certificateVerifyMsg immediately after the
+	// clientKeyExchangeMsg.  This message is a MD5SHA1 digest of all preceeding
+	// handshake-layer messages that is signed using the private key corresponding
+	// to the client's certificate. This allows us to verify that the client is in
+	// posession of the private key of the certificate.
+	if len(c.peerCertificates) > 0 {
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
+		certVerify, ok := msg.(*certificateVerifyMsg)
+		if !ok {
+			return c.sendAlert(alertUnexpectedMessage)
+		}
+
+		digest := make([]byte, 36)
+		copy(digest[0:16], finishedHash.serverMD5.Sum())
+		copy(digest[16:36], finishedHash.serverSHA1.Sum())
+		err = rsa.VerifyPKCS1v15(pub, rsa.HashMD5SHA1, digest, certVerify.signature)
+		if err != nil {
+			return c.sendAlert(alertBadCertificate)
+		}
+
+		finishedHash.Write(certVerify.marshal())
+	}
 
 	preMasterSecret := make([]byte, 48)
 	_, err = io.ReadFull(config.Rand, preMasterSecret[2:])
