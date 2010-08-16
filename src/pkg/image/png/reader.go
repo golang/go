@@ -9,6 +9,7 @@ package png
 
 import (
 	"compress/zlib"
+	"fmt"
 	"hash"
 	"hash/crc32"
 	"image"
@@ -23,6 +24,17 @@ const (
 	ctPaletted       = 3
 	ctGrayscaleAlpha = 4
 	ctTrueColorAlpha = 6
+)
+
+// A cb is a combination of color type and bit depth.
+const (
+	cbG8 = iota
+	cbTC8
+	cbP8
+	cbTCA8
+	cbG16
+	cbTC16
+	cbTCA16
 )
 
 // Filter type, as per the PNG spec.
@@ -53,7 +65,7 @@ const pngHeader = "\x89PNG\r\n\x1a\n"
 type decoder struct {
 	width, height int
 	image         image.Image
-	colorType     uint8
+	cb            int
 	stage         int
 	idatWriter    io.WriteCloser
 	idatDone      chan os.Error
@@ -107,9 +119,6 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 		return err
 	}
 	crc.Write(d.tmp[0:13])
-	if d.tmp[8] != 8 {
-		return UnsupportedError("bit depth")
-	}
 	if d.tmp[10] != 0 || d.tmp[11] != 0 || d.tmp[12] != 0 {
 		return UnsupportedError("compression, filter or interlace method")
 	}
@@ -122,18 +131,37 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	if nPixels != int64(int(nPixels)) {
 		return UnsupportedError("dimension overflow")
 	}
-	d.colorType = d.tmp[9]
-	switch d.colorType {
-	case ctGrayscale:
-		d.image = image.NewGray(int(w), int(h))
-	case ctTrueColor:
-		d.image = image.NewRGBA(int(w), int(h))
-	case ctPaletted:
-		d.image = image.NewPaletted(int(w), int(h), nil)
-	case ctTrueColorAlpha:
-		d.image = image.NewNRGBA(int(w), int(h))
-	default:
-		return UnsupportedError("color type")
+	switch d.tmp[8] {
+	case 8:
+		switch d.tmp[9] {
+		case ctGrayscale:
+			d.image = image.NewGray(int(w), int(h))
+			d.cb = cbG8
+		case ctTrueColor:
+			d.image = image.NewRGBA(int(w), int(h))
+			d.cb = cbTC8
+		case ctPaletted:
+			d.image = image.NewPaletted(int(w), int(h), nil)
+			d.cb = cbP8
+		case ctTrueColorAlpha:
+			d.image = image.NewNRGBA(int(w), int(h))
+			d.cb = cbTCA8
+		}
+	case 16:
+		switch d.tmp[9] {
+		case ctGrayscale:
+			d.image = image.NewGray16(int(w), int(h))
+			d.cb = cbG16
+		case ctTrueColor:
+			d.image = image.NewRGBA64(int(w), int(h))
+			d.cb = cbTC16
+		case ctTrueColorAlpha:
+			d.image = image.NewNRGBA64(int(w), int(h))
+			d.cb = cbTCA16
+		}
+	}
+	if d.image == nil {
+		return UnsupportedError(fmt.Sprintf("bit depth %d, color type %d", d.tmp[8], d.tmp[9]))
 	}
 	d.width, d.height = int(w), int(h)
 	return nil
@@ -149,17 +177,16 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 		return err
 	}
 	crc.Write(d.tmp[0:n])
-	switch d.colorType {
-	case ctPaletted:
+	switch d.cb {
+	case cbP8:
 		palette := make([]image.Color, np)
 		for i := 0; i < np; i++ {
 			palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
 		}
 		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette)
-	case ctGrayscale, ctTrueColor, ctTrueColorAlpha:
+	case cbTC8, cbTCA8, cbTC16, cbTCA16:
 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
 		// ignorable) for the ctTrueColor and ctTrueColorAlpha color types (section 4.1.2).
-		return nil
 	default:
 		return FormatError("PLTE, color type mismatch")
 	}
@@ -175,12 +202,12 @@ func (d *decoder) parsetRNS(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 		return err
 	}
 	crc.Write(d.tmp[0:n])
-	switch d.colorType {
-	case ctGrayscale:
+	switch d.cb {
+	case cbG8, cbG16:
 		return UnsupportedError("grayscale transparency")
-	case ctTrueColor:
+	case cbTC8, cbTC16:
 		return UnsupportedError("truecolor transparency")
-	case ctPaletted:
+	case cbP8:
 		p := d.image.(*image.Paletted).Palette
 		if n > len(p) {
 			return FormatError("bad tRNS length")
@@ -189,7 +216,7 @@ func (d *decoder) parsetRNS(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 			rgba := p[i].(image.RGBAColor)
 			p[i] = image.RGBAColor{rgba.R, rgba.G, rgba.B, d.tmp[i]}
 		}
-	case ctTrueColorAlpha:
+	case cbTCA8, cbTCA16:
 		return FormatError("tRNS, color type mismatch")
 	}
 	return nil
@@ -222,21 +249,33 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 		rgba     *image.RGBA
 		paletted *image.Paletted
 		nrgba    *image.NRGBA
+		gray16   *image.Gray16
+		rgba64   *image.RGBA64
+		nrgba64  *image.NRGBA64
 	)
-	switch d.colorType {
-	case ctGrayscale:
+	switch d.cb {
+	case cbG8:
 		bpp = 1
 		gray = d.image.(*image.Gray)
-	case ctTrueColor:
+	case cbTC8:
 		bpp = 3
 		rgba = d.image.(*image.RGBA)
-	case ctPaletted:
+	case cbP8:
 		bpp = 1
 		paletted = d.image.(*image.Paletted)
 		maxPalette = uint8(len(paletted.Palette) - 1)
-	case ctTrueColorAlpha:
+	case cbTCA8:
 		bpp = 4
 		nrgba = d.image.(*image.NRGBA)
+	case cbG16:
+		bpp = 2
+		gray16 = d.image.(*image.Gray16)
+	case cbTC16:
+		bpp = 6
+		rgba64 = d.image.(*image.RGBA64)
+	case cbTCA16:
+		bpp = 8
+		nrgba64 = d.image.(*image.NRGBA64)
 	}
 	// cr and pr are the bytes for the current and previous row.
 	// The +1 is for the per-row filter type, which is at cr[0].
@@ -283,25 +322,45 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 		}
 
 		// Convert from bytes to colors.
-		switch d.colorType {
-		case ctGrayscale:
+		switch d.cb {
+		case cbG8:
 			for x := 0; x < d.width; x++ {
 				gray.Set(x, y, image.GrayColor{cdat[x]})
 			}
-		case ctTrueColor:
+		case cbTC8:
 			for x := 0; x < d.width; x++ {
 				rgba.Set(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
 			}
-		case ctPaletted:
+		case cbP8:
 			for x := 0; x < d.width; x++ {
 				if cdat[x] > maxPalette {
 					return FormatError("palette index out of range")
 				}
 				paletted.SetColorIndex(x, y, cdat[x])
 			}
-		case ctTrueColorAlpha:
+		case cbTCA8:
 			for x := 0; x < d.width; x++ {
 				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
+			}
+		case cbG16:
+			for x := 0; x < d.width; x++ {
+				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
+				gray16.Set(x, y, image.Gray16Color{ycol})
+			}
+		case cbTC16:
+			for x := 0; x < d.width; x++ {
+				rcol := uint16(cdat[6*x+0])<<8 | uint16(cdat[6*x+1])
+				gcol := uint16(cdat[6*x+2])<<8 | uint16(cdat[6*x+3])
+				bcol := uint16(cdat[6*x+4])<<8 | uint16(cdat[6*x+5])
+				rgba64.Set(x, y, image.RGBA64Color{rcol, gcol, bcol, 0xffff})
+			}
+		case cbTCA16:
+			for x := 0; x < d.width; x++ {
+				rcol := uint16(cdat[8*x+0])<<8 | uint16(cdat[8*x+1])
+				gcol := uint16(cdat[8*x+2])<<8 | uint16(cdat[8*x+3])
+				bcol := uint16(cdat[8*x+4])<<8 | uint16(cdat[8*x+5])
+				acol := uint16(cdat[8*x+6])<<8 | uint16(cdat[8*x+7])
+				nrgba64.Set(x, y, image.NRGBA64Color{rcol, gcol, bcol, acol})
 			}
 		}
 
@@ -398,7 +457,7 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 		}
 		err = d.parsetRNS(r, crc, length)
 	case "IDAT":
-		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.colorType == ctPaletted && d.stage == dsSeenIHDR) {
+		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.cb == cbP8 && d.stage == dsSeenIHDR) {
 			return chunkOrderError
 		}
 		d.stage = dsSeenIDAT
