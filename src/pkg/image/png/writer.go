@@ -15,13 +15,13 @@ import (
 )
 
 type encoder struct {
-	w         io.Writer
-	m         image.Image
-	colorType uint8
-	err       os.Error
-	header    [8]byte
-	footer    [4]byte
-	tmp       [3 * 256]byte
+	w      io.Writer
+	m      image.Image
+	cb     int
+	err    os.Error
+	header [8]byte
+	footer [4]byte
+	tmp    [3 * 256]byte
 }
 
 // Big-endian.
@@ -95,8 +95,30 @@ func (e *encoder) writeIHDR() {
 	b := e.m.Bounds()
 	writeUint32(e.tmp[0:4], uint32(b.Dx()))
 	writeUint32(e.tmp[4:8], uint32(b.Dy()))
-	e.tmp[8] = 8 // bit depth
-	e.tmp[9] = e.colorType
+	// Set bit depth and color type.
+	switch e.cb {
+	case cbG8:
+		e.tmp[8] = 8
+		e.tmp[9] = ctGrayscale
+	case cbTC8:
+		e.tmp[8] = 8
+		e.tmp[9] = ctTrueColor
+	case cbP8:
+		e.tmp[8] = 8
+		e.tmp[9] = ctPaletted
+	case cbTCA8:
+		e.tmp[8] = 8
+		e.tmp[9] = ctTrueColorAlpha
+	case cbG16:
+		e.tmp[8] = 16
+		e.tmp[9] = ctGrayscale
+	case cbTC16:
+		e.tmp[8] = 16
+		e.tmp[9] = ctTrueColor
+	case cbTCA16:
+		e.tmp[8] = 16
+		e.tmp[9] = ctTrueColorAlpha
+	}
 	e.tmp[10] = 0 // default compression method
 	e.tmp[11] = 0 // default filter method
 	e.tmp[12] = 0 // non-interlaced
@@ -233,7 +255,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 	return filter
 }
 
-func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 	zw, err := zlib.NewWriter(w)
 	if err != nil {
 		return err
@@ -242,16 +264,22 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 
 	bpp := 0 // Bytes per pixel.
 	var paletted *image.Paletted
-	switch ct {
-	case ctGrayscale:
+	switch cb {
+	case cbG8:
 		bpp = 1
-	case ctTrueColor:
+	case cbTC8:
 		bpp = 3
-	case ctPaletted:
+	case cbP8:
 		bpp = 1
 		paletted = m.(*image.Paletted)
-	case ctTrueColorAlpha:
+	case cbTCA8:
 		bpp = 4
+	case cbTC16:
+		bpp = 6
+	case cbTCA16:
+		bpp = 8
+	case cbG16:
+		bpp = 2
 	}
 	// cr[*] and pr are the bytes for the current and previous row.
 	// cr[0] is unfiltered (or equivalently, filtered with the ftNone filter).
@@ -268,13 +296,13 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		// Convert from colors to bytes.
-		switch ct {
-		case ctGrayscale:
+		switch cb {
+		case cbG8:
 			for x := b.Min.X; x < b.Max.X; x++ {
 				c := image.GrayColorModel.Convert(m.At(x, y)).(image.GrayColor)
 				cr[0][x+1] = c.Y
 			}
-		case ctTrueColor:
+		case cbTC8:
 			for x := b.Min.X; x < b.Max.X; x++ {
 				// We have previously verified that the alpha value is fully opaque.
 				r, g, b, _ := m.At(x, y).RGBA()
@@ -282,11 +310,11 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 				cr[0][3*x+2] = uint8(g >> 8)
 				cr[0][3*x+3] = uint8(b >> 8)
 			}
-		case ctPaletted:
+		case cbP8:
 			for x := b.Min.X; x < b.Max.X; x++ {
 				cr[0][x+1] = paletted.ColorIndexAt(x, y)
 			}
-		case ctTrueColorAlpha:
+		case cbTCA8:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 			for x := b.Min.X; x < b.Max.X; x++ {
 				c := image.NRGBAColorModel.Convert(m.At(x, y)).(image.NRGBAColor)
@@ -294,6 +322,36 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 				cr[0][4*x+2] = c.G
 				cr[0][4*x+3] = c.B
 				cr[0][4*x+4] = c.A
+			}
+		case cbG16:
+			for x := b.Min.X; x < b.Max.X; x++ {
+				c := image.Gray16ColorModel.Convert(m.At(x, y)).(image.Gray16Color)
+				cr[0][2*x+1] = uint8(c.Y >> 8)
+				cr[0][2*x+2] = uint8(c.Y)
+			}
+		case cbTC16:
+			for x := b.Min.X; x < b.Max.X; x++ {
+				// We have previously verified that the alpha value is fully opaque.
+				r, g, b, _ := m.At(x, y).RGBA()
+				cr[0][6*x+1] = uint8(r >> 8)
+				cr[0][6*x+2] = uint8(r)
+				cr[0][6*x+3] = uint8(g >> 8)
+				cr[0][6*x+4] = uint8(g)
+				cr[0][6*x+5] = uint8(b >> 8)
+				cr[0][6*x+6] = uint8(b)
+			}
+		case cbTCA16:
+			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+			for x := b.Min.X; x < b.Max.X; x++ {
+				c := image.NRGBA64ColorModel.Convert(m.At(x, y)).(image.NRGBA64Color)
+				cr[0][8*x+1] = uint8(c.R >> 8)
+				cr[0][8*x+2] = uint8(c.R)
+				cr[0][8*x+3] = uint8(c.G >> 8)
+				cr[0][8*x+4] = uint8(c.G)
+				cr[0][8*x+5] = uint8(c.B >> 8)
+				cr[0][8*x+6] = uint8(c.B)
+				cr[0][8*x+7] = uint8(c.A >> 8)
+				cr[0][8*x+8] = uint8(c.A)
 			}
 		}
 
@@ -322,7 +380,7 @@ func (e *encoder) writeIDATs() {
 	if e.err != nil {
 		return
 	}
-	e.err = writeImage(bw, e.m, e.colorType)
+	e.err = writeImage(bw, e.m, e.cb)
 	if e.err != nil {
 		return
 	}
@@ -345,17 +403,26 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	var e encoder
 	e.w = w
 	e.m = m
-	e.colorType = ctTrueColorAlpha
 	pal, _ := m.(*image.Paletted)
 	if pal != nil {
-		e.colorType = ctPaletted
+		e.cb = cbP8
 	} else {
 		switch m.ColorModel() {
 		case image.GrayColorModel:
-			e.colorType = ctGrayscale
+			e.cb = cbG8
+		case image.Gray16ColorModel:
+			e.cb = cbG16
+		case image.RGBAColorModel, image.NRGBAColorModel, image.AlphaColorModel:
+			if opaque(m) {
+				e.cb = cbTC8
+			} else {
+				e.cb = cbTCA8
+			}
 		default:
 			if opaque(m) {
-				e.colorType = ctTrueColor
+				e.cb = cbTC16
+			} else {
+				e.cb = cbTCA16
 			}
 		}
 	}
