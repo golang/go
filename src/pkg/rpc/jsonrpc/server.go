@@ -61,7 +61,7 @@ func (r *serverRequest) reset() {
 type serverResponse struct {
 	Id     *json.RawMessage "id"
 	Result interface{}      "result"
-	Error  string           "error"
+	Error  interface{}      "error"
 }
 
 func (c *serverCodec) ReadRequestHeader(r *rpc.Request) os.Error {
@@ -94,6 +94,8 @@ func (c *serverCodec) ReadRequestBody(x interface{}) os.Error {
 	return json.Unmarshal(*c.req.Params, &params)
 }
 
+var null = json.RawMessage([]byte("null"))
+
 func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) os.Error {
 	var resp serverResponse
 	c.mutex.Lock()
@@ -105,9 +107,17 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) os.Error {
 	c.pending[r.Seq] = nil, false
 	c.mutex.Unlock()
 
+	if b == nil {
+		// Invalid request so no id.  Use JSON null.
+		b = &null
+	}
 	resp.Id = b
 	resp.Result = x
-	resp.Error = r.Error
+	if r.Error == "" {
+		resp.Error = nil
+	} else {
+		resp.Error = r.Error
+	}
 	return c.enc.Encode(resp)
 }
 
