@@ -220,8 +220,7 @@ func equal(s []byte, n int, t []byte) bool {
 // either side, up to and including the newline.
 func (t *Template) nextItem() []byte {
 	special := false // is this a {.foo} directive, which means trim white space?
-	// Delete surrounding white space if this {.foo} is the only thing on the line.
-	trimSpace := t.p == 0 || t.buf[t.p-1] == '\n'
+	startOfLine := t.p == 0 || t.buf[t.p-1] == '\n'
 	start := t.p
 	var i int
 	newline := func() {
@@ -234,11 +233,7 @@ func (t *Template) nextItem() []byte {
 			break
 		}
 	}
-	if !trimSpace && i > start {
-		// white space is valid text
-		t.p = i
-		return t.buf[start:i]
-	}
+	leadingWhite := i > start
 	// What's left is nothing, newline, delimited string, or plain text
 Switch:
 	switch {
@@ -247,12 +242,16 @@ Switch:
 	case t.buf[i] == '\n':
 		newline()
 	case equal(t.buf, i, t.ldelim):
+		// Delete surrounding white space if this {.foo} is the first thing on the line.
 		i += len(t.ldelim) // position after delimiter
-		if i+1 < len(t.buf) && (t.buf[i] == '.' || t.buf[i] == '#') {
-			special = true
-			if trimSpace {
-				start = i - len(t.ldelim)
-			}
+		special = i+1 < len(t.buf) && (t.buf[i] == '.' || t.buf[i] == '#')
+		if special && startOfLine {
+			start = i - len(t.ldelim)
+		} else if leadingWhite {
+			// not trimming space: return leading white space if there is some.
+			i -= len(t.ldelim)
+			t.p = i
+			return t.buf[start:i]
 		}
 		for ; i < len(t.buf); i++ {
 			if t.buf[i] == '\n' {
@@ -277,7 +276,7 @@ Switch:
 		}
 	}
 	item := t.buf[start:i]
-	if special && trimSpace {
+	if special && startOfLine {
 		// consume trailing white space
 		for ; i < len(t.buf) && white(t.buf[i]); i++ {
 			if t.buf[i] == '\n' {
