@@ -369,6 +369,14 @@ var tests = []*Test{
 		out: "stringresult\n" +
 			"stringresult\n",
 	},
+	&Test{
+		in: "{.repeated section stringmap}\n" +
+			"\t{@}\n" +
+			"{.end}",
+
+		out: "\tstringresult\n" +
+			"\tstringresult\n",
+	},
 
 	// Interface values
 
@@ -451,7 +459,7 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 		buf.Reset()
 		tmpl, err := parseFunc(test)
 		if err != nil {
-			t.Error("unexpected parse error:", err)
+			t.Error("unexpected parse error: ", err)
 			continue
 		}
 		err = tmpl.Execute(s, &buf)
