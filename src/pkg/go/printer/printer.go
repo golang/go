@@ -395,7 +395,6 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 
 func (p *printer) writeCommentLine(comment *ast.Comment, pos token.Position, line []byte) {
 	// line must pass through unchanged, bracket it with tabwriter.Escape
-	esc := []byte{tabwriter.Escape}
 	line = bytes.Join([][]byte{esc, line, esc}, nil)
 
 	// apply styler, if any
@@ -859,12 +858,23 @@ func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
 // A trimmer is an io.Writer filter for stripping tabwriter.Escape
 // characters, trailing blanks and tabs, and for converting formfeed
 // and vtab characters into newlines and htabs (in case no tabwriter
-// is used).
+// is used). Text bracketed by tabwriter.Escape characters is passed
+// through unchanged.
 //
 type trimmer struct {
 	output io.Writer
-	buf    bytes.Buffer
+	space  bytes.Buffer
+	state  int
 }
+
+
+// trimmer is implemented as a state machine.
+// It can be in one of the following states:
+const (
+	inSpace = iota
+	inEscape
+	inText
+)
 
 
 // Design note: It is tempting to eliminate extra blanks occuring in
@@ -874,66 +884,59 @@ type trimmer struct {
 //              the tabwriter.
 
 func (p *trimmer) Write(data []byte) (n int, err os.Error) {
-	// m < 0: no unwritten data except for whitespace
-	// m >= 0: data[m:n] unwritten and no whitespace
-	m := 0
-	if p.buf.Len() > 0 {
-		m = -1
-	}
-
+	m := 0 // if p.state != inSpace, data[m:n] is unwritten
 	var b byte
 	for n, b = range data {
-		switch b {
-		default:
-			// write any pending whitespace
-			if m < 0 {
-				if _, err = p.output.Write(p.buf.Bytes()); err != nil {
-					return
-				}
-				p.buf.Reset()
+		if b == '\v' {
+			b = '\t' // convert to htab
+		}
+		switch p.state {
+		case inSpace:
+			switch b {
+			case '\t', ' ':
+				p.space.WriteByte(b) // WriteByte returns no errors
+			case '\f', '\n':
+				p.space.Reset()                        // discard trailing space
+				_, err = p.output.Write(newlines[0:1]) // write newline
+			case tabwriter.Escape:
+				_, err = p.output.Write(p.space.Bytes())
+				p.space.Reset()
+				p.state = inEscape
+				m = n + 1 // drop tabwriter.Escape
+			default:
+				_, err = p.output.Write(p.space.Bytes())
+				p.space.Reset()
+				p.state = inText
 				m = n
 			}
-
-		case '\v':
-			b = '\t' // convert to htab
-			fallthrough
-
-		case '\t', ' ', tabwriter.Escape:
-			// write any pending (non-whitespace) data
-			if m >= 0 {
-				if _, err = p.output.Write(data[m:n]); err != nil {
-					return
-				}
-				m = -1
+		case inEscape:
+			if b == tabwriter.Escape {
+				_, err = p.output.Write(data[m:n])
+				p.state = inSpace
 			}
-			// collect whitespace but discard tabwriter.Escapes.
-			if b != tabwriter.Escape {
-				p.buf.WriteByte(b) // WriteByte returns no errors
+		case inText:
+			switch b {
+			case '\t', ' ':
+				_, err = p.output.Write(data[m:n])
+				p.state = inSpace
+				p.space.WriteByte(b) // WriteByte returns no errors
+			case '\f':
+				data[n] = '\n' // convert to newline
+			case tabwriter.Escape:
+				_, err = p.output.Write(data[m:n])
+				p.state = inEscape
+				m = n + 1 // drop tabwriter.Escape
 			}
-
-		case '\f', '\n':
-			// discard whitespace
-			p.buf.Reset()
-			// write any pending (non-whitespace) data
-			if m >= 0 {
-				if _, err = p.output.Write(data[m:n]); err != nil {
-					return
-				}
-				m = -1
-			}
-			// convert formfeed into newline
-			if _, err = p.output.Write(newlines[0:1]); err != nil {
-				return
-			}
+		}
+		if err != nil {
+			return
 		}
 	}
 	n = len(data)
 
-	// write any pending non-whitespace
-	if m >= 0 {
-		if _, err = p.output.Write(data[m:n]); err != nil {
-			return
-		}
+	if p.state != inSpace {
+		_, err = p.output.Write(data[m:n])
+		p.state = inSpace
 	}
 
 	return
