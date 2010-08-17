@@ -11,7 +11,6 @@ package time
 
 import (
 	"io/ioutil"
-	"once"
 	"os"
 )
 
