@@ -60,9 +60,13 @@ func Setenv(key, value string) Error {
 // Clearenv deletes all environment variables.
 func Clearenv() {
 	for _, s := range Environ() {
-		for j := 0; j < len(s); j++ {
+		// Environment variables can begin with =
+		// so start looking for the separator = at j=1.
+		// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+		for j := 1; j < len(s); j++ {
 			if s[j] == '=' {
 				Setenv(s[0:j], "")
+				break
 			}
 		}
 	}
@@ -83,18 +87,15 @@ func Environ() []string {
 			if i <= from {
 				break
 			}
-			// skip anything that starts with '='
-			if p[from] != '=' {
-				if len(r) == cap(r) {
-					nr := make([]string, len(r), 2*len(r))
-					for k := 0; k < len(r); k++ {
-						nr[k] = r[k]
-					}
-					r = nr
+			if len(r) == cap(r) {
+				nr := make([]string, len(r), 2*len(r))
+				for k := 0; k < len(r); k++ {
+					nr[k] = r[k]
 				}
-				r = r[0 : len(r)+1]
-				r[len(r)-1] = string(utf16.Decode(p[from:i]))
+				r = nr
 			}
+			r = r[0 : len(r)+1]
+			r[len(r)-1] = string(utf16.Decode(p[from:i]))
 			from = i + 1
 		}
 	}
