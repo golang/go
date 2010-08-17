@@ -28,7 +28,7 @@ static int gcc;
 
 /* File and line number */
 static const char *file;
-static unsigned int lineno;
+static unsigned int lineno = 1;
 
 /* List of names and types.  */
 struct params {
