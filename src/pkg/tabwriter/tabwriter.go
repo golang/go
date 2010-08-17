@@ -34,9 +34,8 @@ type cell struct {
 }
 
 
-// A Writer is a filter that inserts padding around
-// tab-delimited columns in its input to align them
-// in the output.
+// A Writer is a filter that inserts padding around tab-delimited
+// columns in its input to align them in the output.
 //
 // The Writer treats incoming bytes as UTF-8 encoded text consisting
 // of cells terminated by (horizontal or vertical) tabs or line
@@ -48,23 +47,26 @@ type cell struct {
 // Note that cells are tab-terminated, not tab-separated: trailing
 // non-tab text at the end of a line does not form a column cell.
 //
+// The Writer assumes that all Unicode code points have the same width;
+// this may not be true in some fonts.
+//
 // If DiscardEmptyColumns is set, empty columns that are terminated
 // entirely by vertical (or "soft") tabs are discarded. Columns
 // terminated by horizontal (or "hard") tabs are not affected by
 // this flag.
 //
-// A segment of text may be escaped by bracketing it with Escape
-// characters. The tabwriter strips the Escape characters but otherwise
-// passes escaped text segments through unchanged. In particular, it
-// does not interpret any tabs or line breaks within the segment.
-//
-// The Writer assumes that all characters have the same width;
-// this may not be true in some fonts, especially with certain
-// UTF-8 characters.
-//
 // If a Writer is configured to filter HTML, HTML tags and entities
 // are simply passed through. The widths of tags and entities are
 // assumed to be zero (tags) and one (entities) for formatting purposes.
+//
+// A segment of text may be escaped by bracketing it with Escape
+// characters. The tabwriter passes escaped text segments through
+// unchanged. In particular, it does not interpret any tabs or line
+// breaks within the segment. If the StripEscape flag is set, the
+// Escape characters are stripped from the output; otherwise they
+// are passed through as well. For the purpose of formatting, the
+// width of the escaped text is always computed excluding the Escape
+// characters.
 //
 // The formfeed character ('\f') acts like a newline but it also
 // terminates all columns in the current line (effectively calling
@@ -142,6 +144,10 @@ const (
 	// Ignore html tags and treat entities (starting with '&'
 	// and ending in ';') as single characters (width = 1).
 	FilterHTML uint = 1 << iota
+
+	// Strip Escape characters bracketing escaped text segments
+	// instead of passing them through unchanged with the text.
+	StripEscape
 
 	// Force right-alignment of cell content.
 	// Default is left-alignment.
@@ -441,6 +447,9 @@ func (b *Writer) endEscape() {
 	switch b.endChar {
 	case Escape:
 		b.updateWidth()
+		if b.flags&StripEscape == 0 {
+			b.cell.width -= 2 // don't count the Escape chars
+		}
 	case '>': // tag of zero width
 	case ';':
 		b.cell.width++ // entity, count as one rune
@@ -538,7 +547,10 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 				// start of escaped sequence
 				b.append(buf[n:i])
 				b.updateWidth()
-				n = i + 1 // exclude Escape
+				n = i
+				if b.flags&StripEscape != 0 {
+					n++ // strip Escape
+				}
 				b.startEscape(Escape)
 
 			case '<', '&':
@@ -557,8 +569,8 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 			if ch == b.endChar {
 				// end of tag/entity
 				j := i + 1
-				if ch == Escape {
-					j = i // exclude Escape
+				if ch == Escape && b.flags&StripEscape != 0 {
+					j = i // strip Escape
 				}
 				b.append(buf[n:j])
 				n = i + 1 // ch consumed

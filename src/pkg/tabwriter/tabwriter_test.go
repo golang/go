@@ -43,10 +43,10 @@ func (b *buffer) String() string { return string(b.a) }
 func write(t *testing.T, testname string, w *Writer, src string) {
 	written, err := io.WriteString(w, src)
 	if err != nil {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- write error: %v\n", testname, src, err)
+		t.Errorf("--- test: %s\n--- src:\n%q\n--- write error: %v\n", testname, src, err)
 	}
 	if written != len(src) {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- written = %d, len(src) = %d\n", testname, src, written, len(src))
+		t.Errorf("--- test: %s\n--- src:\n%q\n--- written = %d, len(src) = %d\n", testname, src, written, len(src))
 	}
 }
 
@@ -54,12 +54,12 @@ func write(t *testing.T, testname string, w *Writer, src string) {
 func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected string) {
 	err := w.Flush()
 	if err != nil {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- flush error: %v\n", testname, src, err)
+		t.Errorf("--- test: %s\n--- src:\n%q\n--- flush error: %v\n", testname, src, err)
 	}
 
 	res := b.String()
 	if res != expected {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", testname, src, res, expected)
+		t.Errorf("--- test: %s\n--- src:\n%q\n--- found:\n%q\n--- expected:\n%q\n", testname, src, res, expected)
 	}
 }
 
@@ -72,27 +72,30 @@ func check(t *testing.T, testname string, minwidth, tabwidth, padding int, padch
 	w.Init(&b, minwidth, tabwidth, padding, padchar, flags)
 
 	// write all at once
+	title := testname + " (written all at once)"
 	b.clear()
-	write(t, testname, &w, src)
-	verify(t, testname, &w, &b, src, expected)
+	write(t, title, &w, src)
+	verify(t, title, &w, &b, src, expected)
 
 	// write byte-by-byte
+	title = testname + " (written byte-by-byte)"
 	b.clear()
 	for i := 0; i < len(src); i++ {
-		write(t, testname, &w, src[i:i+1])
+		write(t, title, &w, src[i:i+1])
 	}
-	verify(t, testname, &w, &b, src, expected)
+	verify(t, title, &w, &b, src, expected)
 
 	// write using Fibonacci slice sizes
+	title = testname + " (written in fibonacci slices)"
 	b.clear()
 	for i, d := 0, 0; i < len(src); {
-		write(t, testname, &w, src[i:i+d])
+		write(t, title, &w, src[i:i+d])
 		i, d = i+d, d+1
 		if i+d > len(src) {
 			d = len(src) - i
 		}
 	}
-	verify(t, testname, &w, &b, src, expected)
+	verify(t, title, &w, &b, src, expected)
 }
 
 
@@ -121,31 +124,59 @@ var tests = []entry{
 	},
 
 	entry{
+		"1b esc stripped",
+		8, 0, 1, '.', StripEscape,
+		"\xff\xff",
+		"",
+	},
+
+	entry{
 		"1b esc",
 		8, 0, 1, '.', 0,
 		"\xff\xff",
-		"",
+		"\xff\xff",
+	},
+
+	entry{
+		"1c esc stripped",
+		8, 0, 1, '.', StripEscape,
+		"\xff\t\xff",
+		"\t",
 	},
 
 	entry{
 		"1c esc",
 		8, 0, 1, '.', 0,
 		"\xff\t\xff",
-		"\t",
+		"\xff\t\xff",
+	},
+
+	entry{
+		"1d esc stripped",
+		8, 0, 1, '.', StripEscape,
+		"\xff\"foo\t\n\tbar\"\xff",
+		"\"foo\t\n\tbar\"",
 	},
 
 	entry{
 		"1d esc",
 		8, 0, 1, '.', 0,
 		"\xff\"foo\t\n\tbar\"\xff",
-		"\"foo\t\n\tbar\"",
+		"\xff\"foo\t\n\tbar\"\xff",
+	},
+
+	entry{
+		"1e esc stripped",
+		8, 0, 1, '.', StripEscape,
+		"abc\xff\tdef", // unterminated escape
+		"abc\tdef",
 	},
 
 	entry{
 		"1e esc",
 		8, 0, 1, '.', 0,
 		"abc\xff\tdef", // unterminated escape
-		"abc\tdef",
+		"abc\xff\tdef",
 	},
 
 	entry{
