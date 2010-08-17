@@ -1058,7 +1058,12 @@ func (v *PtrValue) SetValue(x Value) {
 }
 
 // PointTo changes v to point to x.
+// If x is a nil Value, PointTo sets v to nil.
 func (v *PtrValue) PointTo(x Value) {
+	if x == nil {
+		*(**uintptr)(v.addr) = nil
+		return
+	}
 	if !x.CanSet() {
 		panic("cannot set x; cannot point to x")
 	}

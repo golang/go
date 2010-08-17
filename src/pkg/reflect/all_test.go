@@ -384,6 +384,13 @@ func TestPtrPointTo(t *testing.T) {
 	if *ip != 1234 {
 		t.Errorf("got %d, want 1234", *ip)
 	}
+
+	ip = nil
+	vp := NewValue(ip).(*PtrValue)
+	vp.PointTo(vp.Elem())
+	if ip != nil {
+		t.Errorf("got non-nil (%p), want nil", ip)
+	}
 }
 
 func TestPtrSetNil(t *testing.T) {
