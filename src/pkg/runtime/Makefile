@@ -132,7 +132,7 @@ version.go: mkversion
 	./mkversion >version.go
 
 %.c:	%.goc goc2c
-	./goc2c $< > $@.tmp
+	./goc2c `pwd`/$< > $@.tmp
 	mv -f $@.tmp $@
 
 %.$O:	$(GOARCH)/%.c
