@@ -53,7 +53,7 @@ func TestServer(t *testing.T) {
 	type addResp struct {
 		Id     interface{} "id"
 		Result Reply       "result"
-		Error  string      "error"
+		Error  interface{} "error"
 	}
 
 	cli, srv := net.Pipe()
@@ -69,7 +69,7 @@ func TestServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Decode: %s", err)
 		}
-		if resp.Error != "" {
+		if resp.Error != nil {
 			t.Fatalf("resp.Error: %s", resp.Error)
 		}
 		if resp.Id.(string) != string(i) {
@@ -78,6 +78,15 @@ func TestServer(t *testing.T) {
 		if resp.Result.C != 2*i+1 {
 			t.Fatalf("resp: bad result: %d+%d=%d", i, i+1, resp.Result.C)
 		}
+	}
+
+	fmt.Fprintf(cli, "{}\n")
+	var resp addResp
+	if err := dec.Decode(&resp); err != nil {
+		t.Fatalf("Decode after empty: %s", err)
+	}
+	if resp.Error == nil {
+		t.Fatalf("Expected error, got nil")
 	}
 }
 

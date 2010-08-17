@@ -7,6 +7,7 @@
 package jsonrpc
 
 import (
+	"fmt"
 	"io"
 	"json"
 	"net"
@@ -61,13 +62,13 @@ func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) os.Error {
 type clientResponse struct {
 	Id     uint64           "id"
 	Result *json.RawMessage "result"
-	Error  string           "error"
+	Error  interface{}      "error"
 }
 
 func (r *clientResponse) reset() {
 	r.Id = 0
 	r.Result = nil
-	r.Error = ""
+	r.Error = nil
 }
 
 func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
@@ -81,8 +82,18 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
 	c.pending[c.resp.Id] = "", false
 	c.mutex.Unlock()
 
+	r.Error = ""
 	r.Seq = c.resp.Id
-	r.Error = c.resp.Error
+	if c.resp.Error != nil {
+		x, ok := c.resp.Error.(string)
+		if !ok {
+			return os.NewError(fmt.Sprintf("invalid error %v", c.resp.Error))
+		}
+		if x == "" {
+			x = "unspecified error"
+		}
+		r.Error = x
+	}
 	return nil
 }
 
