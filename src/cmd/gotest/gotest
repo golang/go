@@ -16,14 +16,15 @@ export LC_CTYPE=C
 
 GOBIN="${GOBIN:-$HOME/bin}"
 
-_GC=$GC	# Make.$GOARCH will overwrite this
+_GC=$GC	# Make.inc will overwrite this
 
 if [ ! -f [Mm]akefile ]; then
 	echo 'please create a Makefile for gotest; see http://golang.org/doc/code.html for details' 1>&2
 	exit 2
 fi
 
-. "$GOROOT"/src/Make.$GOARCH
+export GOROOT=${GOROOT:-"@@GOROOT@@"}
+eval $("$GOBIN"/gomake --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 2

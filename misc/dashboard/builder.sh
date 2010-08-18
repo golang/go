@@ -31,7 +31,7 @@ fi
 
 export PATH=$PATH:`pwd`/candidate/bin
 export GOBIN=`pwd`/candidate/bin
-export BAKED_GOROOT=/usr/local/go
+export GOROOT_FINAL=/usr/local/go
 
 while true ; do (
     cd go || fatal "Cannot cd into 'go'"

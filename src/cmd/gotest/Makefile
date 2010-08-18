@@ -5,10 +5,13 @@
 include ../../Make.conf
 
 TARG=gotest
+GOROOT_FINAL?=$(GOROOT)
 
 clean:
 	@true
 
 install: $(TARG)
 	! test -f "$(GOBIN)"/$(TARG) || chmod u+w "$(GOBIN)"/$(TARG)
-	cp $(TARG) "$(GOBIN)"/$(TARG)
+	sed 's`@@GOROOT@@`$(GOROOT_FINAL)`' gotest >"$(GOBIN)"/$(TARG)
+	chmod +x "$(GOBIN)"/$(TARG)
+

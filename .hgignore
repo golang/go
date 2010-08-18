@@ -14,9 +14,10 @@ syntax:glob
 core
 _obj
 _test
-doc/htmlgen
-src/cmd/6a/6a
 y.tab.[ch]
+doc/htmlgen
+src/Make.inc
+src/cmd/6a/6a
 src/cmd/?l/enam.c
 src/cmd/gc/builtin.c
 src/cmd/gc/mkbuiltin1

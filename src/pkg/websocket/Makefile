@@ -1,4 +1,4 @@
-include ../../Make.$(GOARCH)
+include ../../Make.inc
 
 TARG=websocket
 GOFILES=\

@@ -4,7 +4,15 @@
 # license that can be found in the LICENSE file.
 
 set -e
+if [ ! -f env.bash ]; then
+	echo 'make.bash must be run from $GOROOT/src' 1>&2
+	exit 1
+fi
 . ./env.bash
+
+GOROOT_FINAL=${GOROOT_FINAL:-$GOROOT}
+rm -f Make.inc
+sed 's!@@GOROOT@@!'"$GOROOT_FINAL"'!' Make.inc.in >Make.inc
 
 MAKEFLAGS=${MAKEFLAGS:-"-j4"}
 export MAKEFLAGS
@@ -17,11 +25,11 @@ sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
 chmod +x "$GOBIN"/quietgcc
 
 rm -f "$GOBIN"/gomake
-MAKE=make
-if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
-	MAKE=gmake
-fi
-(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >"$GOBIN"/gomake
+(
+	echo '#!/bin/sh'
+	echo 'export GOROOT=${GOROOT:-'$GOROOT_FINAL'}'
+	echo 'exec '$MAKE' "$@"'
+) >"$GOBIN"/gomake
 chmod +x "$GOBIN"/gomake
 
 if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
@@ -73,9 +81,26 @@ do
 	esac
 done
 
-case "`uname`" in
-Darwin)
-	echo;
-	echo %%% run sudo.bash to install debuggers
+# Print post-install messages.
+# Implemented as a function so that all.bash can repeat the output
+# after run.bash finishes running all the tests.
+installed() {
+	eval $("$GOBIN"/gomake -f Make.inc go-env)
 	echo
-esac
+	echo ---
+	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
+	echo Installed commands in "$GOBIN".
+	echo The compiler is $GC.
+	if [ "$(uname)" = "Darwin" ]; then
+		echo
+		echo On OS X the debuggers must be installed setgrp procmod.
+		echo Read and run ./sudo.bash to install the debuggers.
+	fi
+	if [ "$GOROOT_FINAL" != "$GOROOT" ]; then
+		echo
+		echo The binaries expect "$GOROOT" to be copied or moved to "$GOROOT_FINAL".
+	fi
+}
+
+(installed)  # run in sub-shell to avoid polluting environment
+

@@ -1,0 +1,72 @@
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# Makefile included by all other makefiles.
+# The build converts Make.inc.in to Make.inc.
+# Only make changes in Make.inc.in.
+
+# Set up GOROOT, GOARCH, GOOS if needed.
+ifeq ($(GOROOT),)
+GOROOT:=@@GOROOT@@
+endif
+
+ifeq ($(GOOS),)
+GOOS:=${shell uname | tr A-Z a-z}
+endif
+
+ifeq ($(GOOS),darwin)
+else ifeq ($(GOOS),freebsd)
+else ifeq ($(GOOS),linux)
+else ifeq ($(GOOS),nacl)
+else ifeq ($(GOOS),windows)
+else
+$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, or windows)
+endif
+
+ifeq ($(GOARCH),)
+ifeq ($(GOOS),darwin)
+# Even on 64-bit platform, darwin uname -m prints i386.
+# Check for amd64 with sysctl instead.
+GOARCH:=${shell if sysctl machdep.cpu.extfeatures | grep EM64T >/dev/null; then echo amd64; else uname -m | sed 's/i386/386/'; fi}
+else
+# Ask uname -m for the processor.
+GOARCH:=${shell uname -m | sed 's/^..86$$/386/; s/^.86$$/386/; s/x86_64/amd64/'}
+endif
+endif
+
+ifeq ($(GOARCH),386)
+O:=8
+else ifeq ($(GOARCH),amd64)
+O:=6
+else ifeq ($(GOARCH),arm)
+O:=5
+else
+$(error Invalid $$GOARCH '$(GOARCH)'; must be 386, amd64, or arm)
+endif
+
+# Save for recursive make.
+export GOARCH GOOS
+
+AS=${O}a
+CC=${O}c
+GC=${O}g
+LD=${O}l
+OS=568vq
+CFLAGS=-FVw
+
+go-env:
+	@echo export GOARCH=$(GOARCH)
+	@echo export GOOS=$(GOOS)
+	@echo export O=$O
+	@echo export AS="$(AS)"
+	@echo export CC="$(CC)"
+	@echo export GC="$(GC)"
+	@echo export LD="$(LD)"
+	@echo export OS="$(OS)"
+	@echo export CFLAGS="$(CFLAGS)"
+	@echo MAKE_GO_ENV_WORKED=1
+
+# Don't let the targets in this file be used
+# as the default make target.
+.DEFAULT_GOAL:=

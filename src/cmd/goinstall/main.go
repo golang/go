@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 )
 
@@ -28,7 +29,7 @@ var (
 	errors  = false
 	gobin   = os.Getenv("GOBIN")
 	parents = make(map[string]string)
-	root    = os.Getenv("GOROOT")
+	root    = runtime.GOROOT()
 	visit   = make(map[string]status)
 
 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
