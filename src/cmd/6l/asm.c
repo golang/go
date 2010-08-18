@@ -31,6 +31,7 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
+#include	"../ld/dwarf.h"
 #include	"../ld/macho.h"
 
 #define	Dbufslop	100
@@ -300,10 +301,9 @@ doelf(void)
 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
-		if(debug['e']) {
-			elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
-			elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
-		}
+                elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
+                elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
+                dwarfaddshstrings(shstrtab);
 	}
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
 
@@ -546,7 +546,7 @@ asmb(void)
 		seek(cout, v, 0);
 		
 		/* index of elf text section; needed by asmelfsym, double-checked below */
-		/* debug['d'] causes 8 extra sections before the .text section */
+		/* !debug['d'] causes 8 extra sections before the .text section */
 		elftextsh = 1;
 		if(!debug['d'])
 			elftextsh += 8;
@@ -627,7 +627,7 @@ asmb(void)
 		lputl(symsize);
 		lputl(lcsize);
 		cflush();
-		if(!debug['s'] && debug['e']) {
+		if(!debug['s']) {
 			elfsymo = symo+8+symsize+lcsize;
 			seek(cout, elfsymo, 0);
 			asmelfsym();
@@ -635,7 +635,12 @@ asmb(void)
 			elfstro = seek(cout, 0, 1);
 			elfsymsize = elfstro - elfsymo;
 			write(cout, elfstrdat, elfstrsize);
-		}		
+
+                        if(debug['v'])
+                               Bprint(&bso, "%5.2f dwarf\n", cputime());
+
+                        dwarfemitdebugsections();
+		}
 	} else
 	if(dlm){
 		seek(cout, HEADR+textsize+datsize, 0);
@@ -910,22 +915,22 @@ asmb(void)
 			sh->size = w;
 			sh->addralign = 1;
 			sh->addr = symdatva + 8 + symsize;
-			
-			if(debug['e']) {
-				sh = newElfShdr(elfstr[ElfStrSymtab]);
-				sh->type = SHT_SYMTAB;
-				sh->off = elfsymo;
-				sh->size = elfsymsize;
-				sh->addralign = 8;
-				sh->entsize = 24;
-				sh->link = eh->shnum;	// link to strtab
-			
-				sh = newElfShdr(elfstr[ElfStrStrtab]);
-				sh->type = SHT_STRTAB;
-				sh->off = elfstro;
-				sh->size = elfstrsize;
-				sh->addralign = 1;
-			}
+
+                        sh = newElfShdr(elfstr[ElfStrSymtab]);
+                        sh->type = SHT_SYMTAB;
+                        sh->off = elfsymo;
+                        sh->size = elfsymsize;
+                        sh->addralign = 8;
+                        sh->entsize = 24;
+                        sh->link = eh->shnum;	// link to strtab
+
+                        sh = newElfShdr(elfstr[ElfStrStrtab]);
+                        sh->type = SHT_STRTAB;
+                        sh->off = elfstro;
+                        sh->size = elfstrsize;
+                        sh->addralign = 1;
+
+                        dwarfaddheaders();
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
@@ -975,6 +980,13 @@ cflush(void)
 		write(cout, buf.cbuf, n);
 	cbp = buf.cbuf;
 	cbc = sizeof(buf.cbuf);
+}
+
+/* Current position in file */
+vlong
+cpos(void)
+{
+        return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
 }
 
 void
@@ -1322,4 +1334,3 @@ rnd(vlong v, vlong r)
 	v -= c;
 	return v;
 }
-

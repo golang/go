@@ -9,6 +9,7 @@ TARG=\
 
 OFILES=\
 	asm.$O\
+	dwarf.$O\
 	elf.$O\
 	enam.$O\
 	go.$O\
@@ -26,6 +27,7 @@ HFILES=\
 	../ld/lib.h\
 	../ld/elf.h\
 	../ld/macho.h\
+	../ld/dwarf.h\
 
 $(TARG): $(OFILES)
 	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
