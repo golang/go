@@ -6,6 +6,7 @@
 set -e
 . ./env.bash
 
+unset MAKEFLAGS  # single-threaded make
 unset CDPATH	# in case user has it set
 
 # no core files, please
