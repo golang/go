@@ -6,6 +6,8 @@ package http
 
 import (
 	"bytes"
+	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -65,6 +67,22 @@ func TestQuery(t *testing.T) {
 	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar")
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
+	}
+}
+
+func TestPostQuery(t *testing.T) {
+	req := &Request{Method: "POST"}
+	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar&both=x")
+	req.Header = map[string]string{"Content-Type": "application/x-www-form-urlencoded; boo!"}
+	req.Body = nopCloser{strings.NewReader("z=post&both=y")}
+	if q := req.FormValue("q"); q != "foo" {
+		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
+	}
+	if z := req.FormValue("z"); z != "post" {
+		t.Errorf(`req.FormValue("z") = %q, want "post"`, z)
+	}
+	if both := req.Form["both"]; !reflect.DeepEqual(both, []string{"x", "y"}) {
+		t.Errorf(`req.FormValue("both") = %q, want ["x", "y"]`, both)
 	}
 }
 
