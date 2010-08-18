@@ -450,11 +450,11 @@ func (p *Package) rewriteRef(f *File) {
 	}
 }
 
-// gccName returns the name of the compiler to run.  Use CC if set in
+// gccName returns the name of the compiler to run.  Use $GCC if set in
 // the environment, otherwise just "gcc".
 
 func (p *Package) gccName() (ret string) {
-	if ret = os.Getenv("CC"); ret == "" {
+	if ret = os.Getenv("GCC"); ret == "" {
 		ret = "gcc"
 	}
 	return
