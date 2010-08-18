@@ -20,15 +20,35 @@ compiler using the GCC back end, see
 <h2>Environment variables</h2>
 
 <p>
-The Go compilation environment depends on three environment variables plus one optional variable:
+The Go compilation environment can be customized by five environment variables.
+None are required by the build, but you may wish to set them
+to override the defaults.
 </p>
 
 <dl>
 <dt>
 	<code>$GOROOT</code>
 </dt>
-<dd>The root of the Go tree.  Typically this is <code>$HOME/go</code>
-	but it can be any directory.
+<dd>
+	The root of the Go tree, often <code>$HOME/go</code>.
+	This defaults to the parent of the directory where <code>all.bash</code> is run.
+	Although this variable is optional, the examples and typescripts below
+	use it as shorthand for the location where you installed Go.
+	If you choose not to set <code>$GOROOT</code>, you must
+	run <code>gomake</code> instead of <code>make</code> or <code>gmake</code>
+	when developing Go programs using the conventional makefiles.
+</dd>
+
+<dt>
+	<code>$GOROOT_FINAL</code>
+</dt>
+<dd>
+	The value assumed by installed binaries and scripts when
+	<code>$GOROOT</code> is not set.
+	It defaults to the value used for <code>$GOROOT</code>.
+	If you want to build the Go tree in one location
+	but move it elsewhere after the build, set 
+	<code>$GOROOT_FINAL</code> to the eventual location.
 </dd>
 
 <dt>
@@ -36,6 +56,10 @@ The Go compilation environment depends on three environment variables plus one o
 </dt>
 <dd>
 	The name of the target operating system and compilation architecture.
+	These default to the local system's operating system and
+	architecture.
+
+	<p>
 	Choices for <code>$GOOS</code> are <code>linux</code>,
 	<code>freebsd</code>,
 	<code>darwin</code> (Mac OS X 10.5 or 10.6),
@@ -74,11 +98,10 @@ The Go compilation environment depends on three environment variables plus one o
 	<td></td><td><code>nacl</code></td> <td><code>386</code></td>
 	</tr>
 	</table>
-	<p>
 </dd>
 
 <dt>
-<code>$GOBIN</code> (optional)
+<code>$GOBIN</code>
 </dt>
 <dd>
 	The location where binaries will be installed.
@@ -88,7 +111,7 @@ The Go compilation environment depends on three environment variables plus one o
 </dd>
 
 <dt>
-<code>$GOARM</code> (optional, arm, default=6)
+<code>$GOARM</code> (arm, default=6)
 </dt>
 <dd>
 	The ARM architecture version the runtime libraries should target.
@@ -103,18 +126,24 @@ The Go compilation environment depends on three environment variables plus one o
 Note that <code>$GOARCH</code> and <code>$GOOS</code> identify the
 <em>target</em> environment, not the environment you are running on.
 In effect, you are always cross-compiling.
+By architecture, we mean the kind of binaries
+that the target environment can run:
+an x86-64 system running a 32-bit-only operating system
+must set <code>GOARCH</code> to <code>386</code>,
+not <code>amd64</code>.
 </p>
 
 <p>
-Set these variables in your shell profile (<code>$HOME/.bashrc</code>,
+If you choose to override the defaults,
+set these variables in your shell profile (<code>$HOME/.bashrc</code>,
 <code>$HOME/.profile</code>, or equivalent). The settings might look 
 something like this:
 </p>
 
 <pre>
 export GOROOT=$HOME/go
-export GOARCH=amd64
-export GOOS=linux
+export GOARCH=amd64  # optional
+export GOOS=linux    # optional
 </pre>
 
 <p>
@@ -224,16 +253,21 @@ $ ./all.bash
 </pre>
 
 <p>
-If all goes well, it will finish by printing
+If all goes well, it will finish by printing output like:
 </p>
 
 <pre>
 --- cd ../test
 N known bugs; 0 unexpected bugs
+
+---
+Installed Go for darwin/amd64 in /Users/you/go; the compiler is 6g.
 </pre>
 
 <p>
-where <var>N</var> is a number that varies from release to release.
+where <var>N</var> is a number that varies from release to release
+and the details on the last line will reflect the operating system,
+architecture, and root directory used during the install.
 </p>
 
 <h2>Writing programs</h2>

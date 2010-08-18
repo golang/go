@@ -9,7 +9,7 @@ bash clean.bash
 
 GOBIN="${GOBIN:-$HOME/bin}"
 
-. "$GOROOT"/src/Make.$GOARCH
+eval $("$GOBIN"/gomake --no-print-directory -f ../Make.inc go-env)
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 1

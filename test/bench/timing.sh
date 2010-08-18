@@ -7,7 +7,7 @@ set -e
 
 GOBIN="${GOBIN:-$HOME/bin}"
 
-. "$GOROOT"/src/Make.$GOARCH
+eval $("$GOBIN"/gomake --no-print-directory -f ../../src/Make.inc go-env)
 PATH=.:$PATH
 
 mode=run

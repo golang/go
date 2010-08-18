@@ -64,7 +64,7 @@ is illustrated by <a href="../src/pkg/container/vector/Makefile"><code>src/pkg/c
 </p>
 
 <pre>
-include ../../../Make.$(GOARCH)
+include ../../../Make.inc
 
 TARG=container/vector
 GOFILES=\
@@ -80,7 +80,7 @@ Outside the Go source tree (for personal packages), the standard form is
 </p>
 
 <pre>
-include $(GOROOT)/src/Make.$(GOARCH)
+include $(GOROOT)/src/Make.inc
 
 TARG=mypackage
 GOFILES=\
@@ -96,6 +96,14 @@ Packages maintained in the standard Go tree use a relative path (instead of
 <code>$(GOROOT)/src</code>) so that <code>make</code> will work correctly
 even if <code>$(GOROOT)</code> contains spaces.
 This makes it easy for programmers to try Go.
+</p>
+
+<p>
+If you have not set <code>$GOROOT</code> in your environment,
+you must run <code>gomake</code> to use this form of makefile.
+<code>Gomake</code> also takes care to invoke GNU Make
+even on systems where it is installed as <code>gmake</code>
+rather than <code>make</code>.
 </p>
 
 <p>
@@ -131,8 +139,8 @@ cd $GOROOT/src/pkg
 </pre>
 <p>
 to update the dependency file <code>Make.deps</code>.
-(This happens automatically each time you run <code>make all</code>
-or <code>make build</code>.)
+(This happens automatically each time you run <code>all.bash</code>
+or <code>make.bash</code>.)
 </p>
 
 <p>
@@ -259,7 +267,7 @@ Finally, the <code>Makefile</code>:
 </p>
 
 <pre>
-include $(GOROOT)/src/Make.$(GOARCH)
+include $(GOROOT)/src/Make.inc
 
 TARG=numbers
 GOFILES=\
@@ -269,13 +277,13 @@ include $(GOROOT)/src/Make.pkg
 </pre>
 
 <p>
-Running <code>make install</code> will build and install the package to
+Running <code>gomake install</code> will build and install the package to
 the <code>$GOROOT/pkg/</code> directory (it can then be used by any
 program on the system).
 </p>
 
 <p>
-Running <code>make test</code> (or just running the command
+Running <code>gomake test</code> (or just running the command
 <code>gotest</code>) will rebuild the package, including the
 <code>numbers_test.go</code> file, and then run the <code>TestDouble</code>
 function. The output "<code>PASS</code>" indicates that all tests passed

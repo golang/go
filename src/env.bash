@@ -16,11 +16,13 @@ elif ! test -d "$GOBIN"; then
 	echo 'create it or set $GOBIN differently' 1>&2
 	exit 1
 fi
+export GOBIN
 
-GOROOT=${GOROOT:-$(cd ..; pwd)}
+export GOROOT=${GOROOT:-$(cd ..; pwd)}
+
 if ! test -f "$GOROOT"/include/u.h
 then
-	echo '$GOROOT is not set correctly or not exported' 1>&2
+	echo '$GOROOT is not set correctly or not exported: '$GOROOT 1>&2
 	exit 1
 fi
 
@@ -30,26 +32,23 @@ fi
 DIR1=$(cd ..; pwd)
 DIR2=$(cd $GOROOT; pwd)
 if [ "$DIR1" != "$DIR2" ]; then
-	echo 'Suspicious $GOROOT: does not match current directory.' 1>&2
+	echo 'Suspicious $GOROOT '$GOROOT': does not match current directory.' 1>&2
 	exit 1
 fi
 
-GOARCH=${GOARCH:-$(uname -m | sed 's/^..86$/386/; s/^.86$/386/; s/x86_64/amd64/')}
-case "$GOARCH" in
-amd64 | 386 | arm)
-	;;
-*)
-	echo '$GOARCH is set to <'$GOARCH'>, must be amd64, 386, or arm' 1>&2
-	exit 1
-esac
+MAKE=make
+if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
+	MAKE=gmake
+fi
 
-GOOS=${GOOS:-$(uname | tr A-Z a-z)}
-case "$GOOS" in
-darwin | freebsd | linux | windows | nacl)
-	;;
-*)
-	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, windows, or nacl' 1>&2
-	exit 1
-esac
+# Tried to use . <($MAKE ...) here, but it cannot set environment
+# variables in the version of bash that ships with OS X.  Amazing.
+eval $($MAKE --no-print-directory -f Make.inc.in go-env | egrep 'GOARCH|GOOS|GO_ENV')
 
-export GOBIN GOROOT GOARCH GOOS
+# Shell doesn't tell us whether make succeeded,
+# so Make.inc generates a fake variable name.
+if [ "$MAKE_GO_ENV_WORKED" != 1 ]; then
+	echo 'Did not find Go environment variables.' 1>&2
+	exit 1
+fi
+unset MAKE_GO_ENV_WORKED

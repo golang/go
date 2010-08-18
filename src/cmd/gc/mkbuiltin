@@ -12,7 +12,7 @@ set -e
 
 GOBIN="${GOBIN:-$HOME/bin}"
 
-. "$GOROOT"/src/Make.$GOARCH
+eval $("$GOBIN"/gomake -f ../../Make.inc go-env)
 if [ -z "$GC" ]; then
 	echo 'missing $GC - maybe no Make.$GOARCH?' 1>&2
 	exit 1
