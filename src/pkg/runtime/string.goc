@@ -61,6 +61,16 @@ gostring(byte *str)
 }
 
 String
+gostringn(byte *str, int32 l)
+{
+    String s;
+
+    s = gostringsize(l);
+    mcpy(s.str, str, l);
+    return s;
+}
+
+String
 gostringnocopy(byte *str)
 {
 	String s;
