@@ -37,7 +37,12 @@ func NotNilFilter(_ string, value reflect.Value) bool {
 //
 func Fprint(w io.Writer, x interface{}, f FieldFilter) (n int, err os.Error) {
 	// setup printer
-	p := printer{output: w, filter: f}
+	p := printer{
+		output: w,
+		filter: f,
+		ptrmap: make(map[interface{}]int),
+		last:   '\n', // force printing of line number on first line
+	}
 
 	// install error handler
 	defer func() {
@@ -69,9 +74,11 @@ func Print(x interface{}) (int, os.Error) {
 type printer struct {
 	output  io.Writer
 	filter  FieldFilter
-	written int  // number of bytes written to output
-	indent  int  // current indentation level
-	last    byte // the last byte processed by Write
+	ptrmap  map[interface{}]int // *reflect.PtrValue -> line number
+	written int                 // number of bytes written to output
+	indent  int                 // current indentation level
+	last    byte                // the last byte processed by Write
+	line    int                 // current line number
 }
 
 
@@ -87,7 +94,12 @@ func (p *printer) Write(data []byte) (n int, err os.Error) {
 			if err != nil {
 				return
 			}
+			p.line++
 		} else if p.last == '\n' {
+			_, err = fmt.Fprintf(p.output, "%6d  ", p.line)
+			if err != nil {
+				return
+			}
 			for j := p.indent; j > 0; j-- {
 				_, err = p.output.Write(indent)
 				if err != nil {
@@ -121,9 +133,8 @@ func (p *printer) printf(format string, args ...interface{}) {
 
 
 // Implementation note: Print is written for AST nodes but could be
-// used to print any acyclic data structure. It would also be easy
-// to generalize it to arbitrary data structures; such a version
-// should probably be in a different package.
+// used to print arbitrary data structures; such a version should
+// probably be in a different package.
 
 func (p *printer) print(x reflect.Value) {
 	// Note: This test is only needed because AST nodes
@@ -158,7 +169,16 @@ func (p *printer) print(x reflect.Value) {
 
 	case *reflect.PtrValue:
 		p.printf("*")
-		p.print(v.Elem())
+		// type-checked ASTs may contain cycles - use ptrmap
+		// to keep track of objects that have been printed
+		// already and print the respective line number instead
+		ptr := v.Interface()
+		if line, exists := p.ptrmap[ptr]; exists {
+			p.printf("(obj @ %d)", line)
+		} else {
+			p.ptrmap[ptr] = p.line
+			p.print(v.Elem())
+		}
 
 	case *reflect.SliceValue:
 		if s, ok := v.Interface().([]byte); ok {
