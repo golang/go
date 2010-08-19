@@ -29,7 +29,7 @@ func IsQText(rune int) bool {
 	//                "\" & CR, and including
 	//                linear-white-space>
 	switch rune {
-	case int('"'), int('\\'), int('\r'):
+	case '"', '\\', '\r':
 		return false
 	}
 	return rune < 0x80
