@@ -28,6 +28,7 @@ var (
 	// debugging support
 	comments = flag.Bool("comments", true, "print comments")
 	trace    = flag.Bool("trace", false, "print parse trace")
+	printAST = flag.Bool("ast", false, "print AST (before rewrites)")
 
 	// layout control
 	tabWidth  = flag.Int("tabwidth", 8, "tab width")
@@ -95,6 +96,10 @@ func processFile(f *os.File) os.Error {
 
 	if err != nil {
 		return err
+	}
+
+	if *printAST {
+		ast.Print(file)
 	}
 
 	if rewrite != nil {
