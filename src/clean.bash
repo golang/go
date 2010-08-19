@@ -5,20 +5,15 @@
 
 set -e
 
-if [ -z "$GOROOT" ] ; then
-	echo '$GOROOT not set'
+if [ ! -f env.bash ]; then
+	echo 'clean.bash must be run from $GOROOT/src' 1>&2
 	exit 1
 fi
-if [ -z "$GOOS" ] ; then
-	echo '$GOOS not set'
-	exit 1
+. ./env.bash
+if [ ! -f Make.inc ] ; then
+    GOROOT_FINAL=${GOROOT_FINAL:-$GOROOT}
+    sed 's!@@GOROOT@@!'"$GOROOT_FINAL"'!' Make.inc.in >Make.inc
 fi
-if [ -z "$GOARCH" ] ; then
-	echo '$GOARCH not set'
-	exit 1
-fi
-
-GOBIN="${GOBIN:-$HOME/bin}"
 
 if [ "$1" != "--nopkg" ]; then
 	rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
