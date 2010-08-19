@@ -8,6 +8,7 @@ TARG=go/ast
 GOFILES=\
 	ast.go\
 	filter.go\
+	print.go\
 	scope.go\
 	walk.go\
 

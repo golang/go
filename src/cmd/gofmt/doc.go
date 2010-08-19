@@ -33,6 +33,8 @@ Debugging flags:
 
 	-trace
 		print parse trace.
+	-ast
+		print AST (before rewrites).
 	-comments=true
 		print comments; if false, all comments are elided from the output.
 

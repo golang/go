@@ -353,7 +353,7 @@ func (pos Position) String() string {
 		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
 	}
 	if s == "" {
-		s = "???"
+		s = "-"
 	}
 	return s
 }
