@@ -154,7 +154,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath str
 	printer.Fprint(fgo2, d)
 	fmt.Fprintf(fgo2, "\n")
 
-	if name == "CString" || name == "GoString" {
+	if name == "CString" || name == "GoString" || name == "GoStringN" {
 		// The builtins are already defined in the C prolog.
 		return
 	}
@@ -230,7 +230,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 
 func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	name := n.Mangle
-	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || p.Written[name] {
+	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || name == "_Cfunc_GoStringN" || p.Written[name] {
 		// The builtins are already defined in the C prolog, and we don't
 		// want to duplicate function definitions we've already done.
 		return
@@ -580,6 +580,7 @@ __cgo_size_assert(double, 8)
 const builtinProlog = `
 typedef struct { char *p; int n; } _GoString_;
 _GoString_ GoString(char *p);
+_GoString_ GoStringN(char *p, int l);
 char *CString(_GoString_);
 `
 
@@ -599,6 +600,13 @@ void
 ·_Cfunc_GoString(int8 *p, String s)
 {
 	s = gostring((byte*)p);
+	FLUSH(&s);
+}
+
+void
+·_Cfunc_GoStringN(int8 *p, int32 l, String s)
+{
+	s = gostringn((byte*)p, l);
 	FLUSH(&s);
 }
 
