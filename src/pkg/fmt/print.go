@@ -132,6 +132,7 @@ func (p *pp) Write(b []byte) (ret int, err os.Error) {
 // These routines end in 'f' and take a format string.
 
 // Fprintf formats according to a format specifier and writes to w.
+// It returns the number of bytes written and any write error encountered.
 func Fprintf(w io.Writer, format string, a ...interface{}) (n int, error os.Error) {
 	p := newPrinter()
 	p.doPrintf(format, a)
@@ -141,12 +142,14 @@ func Fprintf(w io.Writer, format string, a ...interface{}) (n int, error os.Erro
 }
 
 // Printf formats according to a format specifier and writes to standard output.
+// It returns the number of bytes written and any write error encountered.
 func Printf(format string, a ...interface{}) (n int, errno os.Error) {
 	n, errno = Fprintf(os.Stdout, format, a)
 	return n, errno
 }
 
 // Sprintf formats according to a format specifier and returns the resulting string.
+// It returns the number of bytes written.
 func Sprintf(format string, a ...interface{}) string {
 	p := newPrinter()
 	p.doPrintf(format, a)
@@ -159,6 +162,7 @@ func Sprintf(format string, a ...interface{}) string {
 
 // Fprint formats using the default formats for its operands and writes to w.
 // Spaces are added between operands when neither is a string.
+// It returns the number of bytes written and any write error encountered.
 func Fprint(w io.Writer, a ...interface{}) (n int, error os.Error) {
 	p := newPrinter()
 	p.doPrint(a, false, false)
@@ -169,6 +173,7 @@ func Fprint(w io.Writer, a ...interface{}) (n int, error os.Error) {
 
 // Print formats using the default formats for its operands and writes to standard output.
 // Spaces are added between operands when neither is a string.
+// It returns the number of bytes written and any write error encountered.
 func Print(a ...interface{}) (n int, errno os.Error) {
 	n, errno = Fprint(os.Stdout, a)
 	return n, errno
@@ -176,6 +181,7 @@ func Print(a ...interface{}) (n int, errno os.Error) {
 
 // Sprint formats using the default formats for its operands and returns the resulting string.
 // Spaces are added between operands when neither is a string.
+// It returns the number of bytes written.
 func Sprint(a ...interface{}) string {
 	p := newPrinter()
 	p.doPrint(a, false, false)
@@ -190,6 +196,7 @@ func Sprint(a ...interface{}) string {
 
 // Fprintln formats using the default formats for its operands and writes to w.
 // Spaces are always added between operands and a newline is appended.
+// It returns the number of bytes written and any write error encountered.
 func Fprintln(w io.Writer, a ...interface{}) (n int, error os.Error) {
 	p := newPrinter()
 	p.doPrint(a, true, true)
@@ -200,6 +207,7 @@ func Fprintln(w io.Writer, a ...interface{}) (n int, error os.Error) {
 
 // Println formats using the default formats for its operands and writes to standard output.
 // Spaces are always added between operands and a newline is appended.
+// It returns the number of bytes written and any write error encountered.
 func Println(a ...interface{}) (n int, errno os.Error) {
 	n, errno = Fprintln(os.Stdout, a)
 	return n, errno
@@ -207,6 +215,7 @@ func Println(a ...interface{}) (n int, errno os.Error) {
 
 // Sprintln formats using the default formats for its operands and returns the resulting string.
 // Spaces are always added between operands and a newline is appended.
+// It returns the number of bytes written.
 func Sprintln(a ...interface{}) string {
 	p := newPrinter()
 	p.doPrint(a, true, true)
