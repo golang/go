@@ -310,9 +310,19 @@ const (
 	SYS_EPOLL_PWAIT            = 319
 	SYS_UTIMENSAT              = 320
 	SYS_SIGNALFD               = 321
-	SYS_TIMERFD                = 322
+	SYS_TIMERFD_CREATE         = 322
 	SYS_EVENTFD                = 323
 	SYS_FALLOCATE              = 324
+	SYS_TIMERFD_SETTIME        = 325
+	SYS_TIMERFD_GETTIME        = 326
+	SYS_SIGNALFD4              = 327
+	SYS_EVENTFD2               = 328
+	SYS_EPOLL_CREATE1          = 329
+	SYS_DUP3                   = 330
+	SYS_PIPE2                  = 331
+	SYS_INOTIFY_INIT1          = 332
+	SYS_PREADV                 = 333
+	SYS_PWRITEV                = 334
+	SYS_RT_TGSIGQUEUEINFO      = 335
+	SYS_PERF_EVENT_OPEN        = 336
 )
-
-func _darwin_system_call_conflict() {}

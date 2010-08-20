@@ -287,9 +287,20 @@ const (
 	SYS_UTIMENSAT              = 280
 	SYS_EPOLL_PWAIT            = 281
 	SYS_SIGNALFD               = 282
-	SYS_TIMERFD                = 283
+	SYS_TIMERFD_CREATE         = 283
 	SYS_EVENTFD                = 284
 	SYS_FALLOCATE              = 285
+	SYS_TIMERFD_SETTIME        = 286
+	SYS_TIMERFD_GETTIME        = 287
+	SYS_ACCEPT4                = 288
+	SYS_SIGNALFD4              = 289
+	SYS_EVENTFD2               = 290
+	SYS_EPOLL_CREATE1          = 291
+	SYS_DUP3                   = 292
+	SYS_PIPE2                  = 293
+	SYS_INOTIFY_INIT1          = 294
+	SYS_PREADV                 = 295
+	SYS_PWRITEV                = 296
+	SYS_RT_TGSIGQUEUEINFO      = 297
+	SYS_PERF_EVENT_OPEN        = 298
 )
-
-func _darwin_system_call_conflict() {}

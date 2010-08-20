@@ -324,7 +324,7 @@ func Socket(domain, typ, proto int) (fd, errno int) {
 }
 
 func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
-	fd, errno = socketpair(domain, typ, proto)
+	errno = socketpair(domain, typ, proto, &fd)
 	return
 }
 
