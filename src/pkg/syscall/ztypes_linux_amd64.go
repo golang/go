@@ -64,6 +64,7 @@ type Timex struct {
 	Calcnt    int64
 	Errcnt    int64
 	Stbcnt    int64
+	Tai       int32
 	Pad3      int32
 	Pad4      int32
 	Pad5      int32
@@ -75,7 +76,6 @@ type Timex struct {
 	Pad11     int32
 	Pad12     int32
 	Pad13     int32
-	Pad14     int32
 }
 
 type Time_t int64
@@ -119,21 +119,21 @@ type Rlimit struct {
 type _Gid_t uint32
 
 type Stat_t struct {
-	Dev      uint64
-	Ino      uint64
-	Nlink    uint64
-	Mode     uint32
-	Uid      uint32
-	Gid      uint32
-	Pad0     int32
-	Rdev     uint64
-	Size     int64
-	Blksize  int64
-	Blocks   int64
-	Atim     Timespec
-	Mtim     Timespec
-	Ctim     Timespec
-	__unused [3]int64
+	Dev       uint64
+	Ino       uint64
+	Nlink     uint64
+	Mode      uint32
+	Uid       uint32
+	Gid       uint32
+	X__pad0   int32
+	Rdev      uint64
+	Size      int64
+	Blksize   int64
+	Blocks    int64
+	Atim      Timespec
+	Mtim      Timespec
+	Ctim      Timespec
+	X__unused [3]int64
 }
 
 type Statfs_t struct {
@@ -268,7 +268,7 @@ type Sysinfo_t struct {
 	Totalhigh uint64
 	Freehigh  uint64
 	Unit      uint32
-	_f        [2]int8
+	X_f       [2]int8
 	Pad1      [4]byte
 }
 

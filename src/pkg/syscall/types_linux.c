@@ -13,7 +13,6 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <linux/user.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <signal.h>
@@ -34,6 +33,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <sys/timex.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <sys/user.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <time.h>

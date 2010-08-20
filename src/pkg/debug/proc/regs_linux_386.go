@@ -80,17 +80,17 @@ func (r *_386Regs) Get(i int) Word {
 	case 9:
 		return Word(uint32(r.Eflags))
 	case 10:
-		return Word(r.Cs)
+		return Word(r.Xcs)
 	case 11:
-		return Word(r.Ss)
+		return Word(r.Xss)
 	case 12:
-		return Word(r.Ds)
+		return Word(r.Xds)
 	case 13:
-		return Word(r.Es)
+		return Word(r.Xes)
 	case 14:
-		return Word(r.Fs)
+		return Word(r.Xfs)
 	case 15:
-		return Word(r.Gs)
+		return Word(r.Xgs)
 	}
 	panic("invalid register index " + strconv.Itoa(i))
 }
@@ -118,17 +118,17 @@ func (r *_386Regs) Set(i int, val Word) os.Error {
 	case 9:
 		r.Eflags = int32(val)
 	case 10:
-		r.Cs = uint16(val)
+		r.Xcs = int32(val)
 	case 11:
-		r.Ss = uint16(val)
+		r.Xss = int32(val)
 	case 12:
-		r.Ds = uint16(val)
+		r.Xds = int32(val)
 	case 13:
-		r.Es = uint16(val)
+		r.Xes = int32(val)
 	case 14:
-		r.Fs = uint16(val)
+		r.Xfs = int32(val)
 	case 15:
-		r.Gs = uint16(val)
+		r.Xgs = int32(val)
 	default:
 		panic("invalid register index " + strconv.Itoa(i))
 	}

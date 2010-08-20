@@ -61,6 +61,7 @@ type Timex struct {
 	Calcnt    int32
 	Errcnt    int32
 	Stbcnt    int32
+	Tai       int32
 	Pad0      int32
 	Pad1      int32
 	Pad2      int32
@@ -72,7 +73,6 @@ type Timex struct {
 	Pad8      int32
 	Pad9      int32
 	Pad10     int32
-	Pad11     int32
 }
 
 type Time_t int32
@@ -225,22 +225,16 @@ type PtraceRegs struct {
 	Edi      int32
 	Ebp      int32
 	Eax      int32
-	Ds       uint16
-	X__ds    uint16
-	Es       uint16
-	X__es    uint16
-	Fs       uint16
-	X__fs    uint16
-	Gs       uint16
-	X__gs    uint16
+	Xds      int32
+	Xes      int32
+	Xfs      int32
+	Xgs      int32
 	Orig_eax int32
 	Eip      int32
-	Cs       uint16
-	X__cs    uint16
+	Xcs      int32
 	Eflags   int32
 	Esp      int32
-	Ss       uint16
-	X__ss    uint16
+	Xss      int32
 }
 
 type FdSet struct {
