@@ -1008,45 +1008,12 @@ sgen(Node *n, Node *ns, int32 w)
 		fatal("sgen UINF");
 	}
 
-	if(isslice(n->type))
-	if(isslice(ns->type))
-	if(n->addable)
-	if(ns->addable)
-	if(n->op != OINDREG)
-	if(ns->op != OINDREG)
-	if(n->op != OREGISTER)
-	if(ns->op != OREGISTER) {
-		// slices are done component by component
-		// to keep from confusing optimization
-		nodl = *ns;
-		nodl.xoffset += Array_array;
-		nodl.type = types[TUINT64];
-		nodr = *n;
-		nodr.xoffset += Array_array;
-		nodr.type = types[TUINT64];
-		gmove(&nodr, &nodl);
-
-		nodl = *ns;
-		nodl.xoffset += Array_nel;
-		nodl.type = types[TUINT32];
-		nodr = *n;
-		nodr.xoffset += Array_nel;
-		nodr.type = types[TUINT32];
-		gmove(&nodr, &nodl);
-
-		nodl = *ns;
-		nodl.xoffset += Array_cap;
-		nodl.type = types[TUINT32];
-		nodr = *n;
-		nodr.xoffset += Array_cap;
-		nodr.type = types[TUINT32];
-		gmove(&nodr, &nodl);
-
-		return;
-	}
-
 	if(w < 0)
 		fatal("sgen copy %d", w);
+
+	if(w == 16)
+		if(componentgen(n, ns))
+			return;
 
 	// offset on the stack
 	osrc = stkof(n);
@@ -1140,4 +1107,130 @@ sgen(Node *n, Node *ns, int32 w)
 	restx(&nodl, &oldl);
 	restx(&nodr, &oldr);
 	restx(&cx, &oldcx);
+}
+
+/*
+ * copy a structure component by component
+ * return 1 if can do, 0 if cant.
+ * nr is N for copy zero
+ */
+int
+componentgen(Node *nr, Node *nl)
+{
+	Node nodl, nodr;
+	int free;
+
+	free = 0;
+	if(!nl->addable || nl->op != ONAME)
+		goto no;
+
+	nodl = *nl;
+	if(nr != N) {
+		if(!nr->addable || nr->op != ONAME)
+			goto no;
+		nodr = *nr;
+		if(nr->op != ONAME && nr->op != OINDREG) {
+			igen(nr, &nodr, N);
+			free = 1;
+		}
+	}
+
+	switch(nl->type->etype) {
+	case TARRAY:
+		if(!isslice(nl->type))
+			goto no;
+
+		nodl.xoffset += Array_array;
+		nodl.type = ptrto(nl->type->type);
+
+		if(nr != N) {
+			nodr.xoffset += Array_array;
+			nodr.type = nodl.type;
+		} else
+			nodconst(&nodr, nodl.type, 0);
+		gmove(&nodr, &nodl);
+
+		nodl.xoffset += Array_nel-Array_array;
+		nodl.type = types[TUINT32];
+
+		if(nr != N) {
+			nodr.xoffset += Array_nel-Array_array;
+			nodr.type = nodl.type;
+		} else
+			nodconst(&nodr, nodl.type, 0);
+		gmove(&nodr, &nodl);
+
+		nodl.xoffset += Array_cap-Array_nel;
+		nodl.type = types[TUINT32];
+
+		if(nr != N) {
+			nodr.xoffset += Array_cap-Array_nel;
+			nodr.type = nodl.type;
+		} else
+			nodconst(&nodr, nodl.type, 0);
+		gmove(&nodr, &nodl);
+
+		goto yes;
+
+	case TSTRING:
+
+		nodl.xoffset += Array_array;
+		nodl.type = ptrto(types[TUINT8]);
+
+		if(nr != N) {
+			nodr.xoffset += Array_array;
+			nodr.type = nodl.type;
+		} else
+			nodconst(&nodr, nodl.type, 0);
+		gmove(&nodr, &nodl);
+
+		nodl.xoffset += Array_nel-Array_array;
+		nodl.type = types[TUINT32];
+
+		if(nr != N) {
+			nodr.xoffset += Array_nel-Array_array;
+			nodr.type = nodl.type;
+		} else
+			nodconst(&nodr, nodl.type, 0);
+		gmove(&nodr, &nodl);
+
+		goto yes;
+
+	case TINTER:
+
+		nodl.xoffset += Array_array;
+		nodl.type = ptrto(types[TUINT8]);
+
+		if(nr != N) {
+			nodr.xoffset += Array_array;
+			nodr.type = nodl.type;
+		} else
+			nodconst(&nodr, nodl.type, 0);
+		gmove(&nodr, &nodl);
+
+		nodl.xoffset += Array_nel-Array_array;
+		nodl.type = ptrto(types[TUINT8]);
+
+		if(nr != N) {
+			nodr.xoffset += Array_nel-Array_array;
+			nodr.type = nodl.type;
+		} else
+			nodconst(&nodr, nodl.type, 0);
+		gmove(&nodr, &nodl);
+
+		goto yes;
+
+	case TSTRUCT:
+		goto no;
+	}
+
+no:
+	if(free)
+		regfree(&nodr);
+	return 0;
+
+yes:
+	if(free)
+		regfree(&nodr);
+	return 1;
 }

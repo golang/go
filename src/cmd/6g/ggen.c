@@ -1041,35 +1041,12 @@ clearfat(Node *nl)
 	if(debug['g'])
 		dump("\nclearfat", nl);
 
-	if(isslice(nl->type))
-	if(nl->addable)
-	if(nl->op != OINDREG)
-	if(nl->op != OREGISTER) {
-		// slices are done component by component
-		// to keep from confusing optimization
-
-		n1 = *nl;
-		n1.xoffset += Array_array;
-		n1.type = types[TUINT64];
-		nodconst(&ax, types[TUINT64], 0);
-		gmove(&ax, &n1);
-
-		n1 = *nl;
-		n1.xoffset += Array_nel;
-		n1.type = types[TUINT32];
-		nodconst(&ax, types[TUINT32], 0);
-		gmove(&ax, &n1);
-
-		n1 = *nl;
-		n1.xoffset += Array_cap;
-		n1.type = types[TUINT32];
-		nodconst(&ax, types[TUINT32], 0);
-		gmove(&ax, &n1);
-
-		return;
-	}
 
 	w = nl->type->width;
+	if(w == 16)
+		if(componentgen(N, nl))
+			return;
+
 	c = w % 8;	// bytes
 	q = w / 8;	// quads
 

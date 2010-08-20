@@ -99,6 +99,7 @@ void	cgen_aret(Node*, Node*);
 int	cgen_inline(Node*, Node*);
 void	restx(Node*, Node*);
 void	savex(int, Node*, Node*, Node*, Type*);
+int	componentgen(Node*, Node*);
 
 /*
  * gsubr.c
