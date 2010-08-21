@@ -759,9 +759,9 @@ ptracerw(int type, int xtype, int isr, int pid, uvlong addr, void *v, uint n)
 			if(errno)
 				goto ptraceerr;
 			if(n-i >= sizeof(uintptr))
-				*(uintptr*)((char*)v+i) = u;
+				memmove((char*)v+i, &u, sizeof(uintptr));
 			else{
-				*(uintptr*)buf = u;
+				memmove(buf, &u, sizeof u);
 				memmove((char*)v+i, buf, n-i);
 			}
 		}else{
@@ -772,9 +772,9 @@ ptracerw(int type, int xtype, int isr, int pid, uvlong addr, void *v, uint n)
 				u = ptrace(xtype, pid, addr+i, 0);
 				if(errno)
 					return -1;
-				*(uintptr*)buf = u;
+				memmove(buf, &u, sizeof u);
 				memmove(buf, (char*)v+i, n-i);
-				u = *(uintptr*)buf;
+				memmove(&u, buf, sizeof u);
 			}
 			if(ptrace(type, pid, addr+i, u) < 0)
 				goto ptraceerr;
@@ -810,9 +810,22 @@ ptracesegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 // Go 32-bit is
 //	DI SI BP NSP BX DX CX AX GS FS ES DS TRAP ECODE PC CS EFLAGS SP SS
 
-// uint go32tolinux32tab[] = {
-//	4, 3, 5, 15, 0, 2, 1, 6, 10, 9, 8, 7, -1, -1, 12, 13, 14, 15, 16
-// };
+uint go32tolinux32tab[] = {
+	4, 3, 5, 15, 0, 2, 1, 6, 10, 9, 8, 7, -1, -1, 12, 13, 14, 15, 16
+};
+static int
+go32tolinux32(uvlong addr)
+{
+	int r;
+
+	if(addr%4 || addr/4 >= nelem(go32tolinux32tab))
+		return -1;
+	r = go32tolinux32tab[addr/4];
+	if(r < 0)
+		return -1;
+	return r*4;
+}
+
 uint go32tolinux64tab[] = {
 	14, 13, 4, 19, 5, 12, 11, 10, 26, 25, 24, 23, -1, -1, 16, 17, 18, 19, 20
 };
@@ -830,15 +843,24 @@ go32tolinux64(uvlong addr)
 }
 
 extern Mach mi386;
+extern Mach mamd64;
 
 static int
 go2linux(uvlong addr)
 {
-	// TODO(rsc): If this file is being compiled in 32-bit mode,
-	// need to use the go32tolinux32 table instead.
+	if(sizeof(void*) == 4) {
+		if(mach == &mi386)
+			return go32tolinux32(addr);
+		werrstr("unsupported architecture");
+		return -1;
+	}
 
 	if(mach == &mi386)
 		return go32tolinux64(addr);
+	if(mach != &mamd64) {
+		werrstr("unsupported architecture");
+		return -1;
+	}
 
 	switch(addr){
 	case offsetof(Ureg64, ax):
