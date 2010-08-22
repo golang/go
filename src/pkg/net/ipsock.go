@@ -68,12 +68,12 @@ func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode
 
 	var la, ra syscall.Sockaddr
 	if laddr != nil {
-		if la, oserr = laddr.sockaddr(family); err != nil {
+		if la, oserr = laddr.sockaddr(family); oserr != nil {
 			goto Error
 		}
 	}
 	if raddr != nil {
-		if ra, oserr = raddr.sockaddr(family); err != nil {
+		if ra, oserr = raddr.sockaddr(family); oserr != nil {
 			goto Error
 		}
 	}
