@@ -7,6 +7,7 @@ package io_test
 import (
 	"bytes"
 	. "io"
+	"os"
 	"testing"
 )
 
@@ -76,5 +77,44 @@ func TestCopynWriteTo(t *testing.T) {
 	Copyn(wb, rb, 5)
 	if wb.String() != "hello" {
 		t.Errorf("Copyn did not work properly")
+	}
+}
+
+func TestReadAtLeast(t *testing.T) {
+	var rb bytes.Buffer
+	rb.Write([]byte("0123"))
+	buf := make([]byte, 2)
+	n, err := ReadAtLeast(&rb, buf, 2)
+	if err != nil {
+		t.Error(err)
+	}
+	n, err = ReadAtLeast(&rb, buf, 4)
+	if err != ErrShortBuffer {
+		t.Errorf("expected ErrShortBuffer got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected to have read 0 bytes, got %v", n)
+	}
+	n, err = ReadAtLeast(&rb, buf, 1)
+	if err != nil {
+		t.Error(err)
+	}
+	if n != 2 {
+		t.Errorf("expected to have read 2 bytes, got %v", n)
+	}
+	n, err = ReadAtLeast(&rb, buf, 2)
+	if err != os.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected to have read 0 bytes, got %v", n)
+	}
+	rb.Write([]byte("4"))
+	n, err = ReadAtLeast(&rb, buf, 2)
+	if err != ErrUnexpectedEOF {
+		t.Errorf("expected ErrUnexpectedEOF, got %v", err)
+	}
+	if n != 1 {
+		t.Errorf("expected to have read 1 bytes, got %v", n)
 	}
 }
