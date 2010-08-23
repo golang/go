@@ -1,4 +1,4 @@
-// godefs -gsyscall -f-m32 types_linux.c
+// godefs -gsyscall types_linux.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 
@@ -14,8 +14,11 @@ const (
 	PathMax             = 0x1000
 	SizeofSockaddrInet4 = 0x10
 	SizeofSockaddrInet6 = 0x1c
-	SizeofSockaddrAny   = 0x1c
+	SizeofSockaddrAny   = 0x70
 	SizeofSockaddrUnix  = 0x6e
+	SizeofLinger        = 0x8
+	SizeofMsghdr        = 0x1c
+	SizeofCmsghdr       = 0xc
 )
 
 // Types
@@ -113,24 +116,25 @@ type Rlimit struct {
 type _Gid_t uint32
 
 type Stat_t struct {
-	Dev      uint64
-	__pad1   uint16
-	Pad0     [2]byte
-	__st_ino uint32
-	Mode     uint32
-	Nlink    uint32
-	Uid      uint32
-	Gid      uint32
-	Rdev     uint64
-	__pad2   uint16
-	Pad1     [2]byte
-	Size     int64
-	Blksize  int32
-	Blocks   int64
-	Atim     Timespec
-	Mtim     Timespec
-	Ctim     Timespec
-	Ino      uint64
+	Dev       uint64
+	X__pad1   uint16
+	Pad0      [2]byte
+	X__st_ino uint32
+	Mode      uint32
+	Nlink     uint32
+	Uid       uint32
+	Gid       uint32
+	Rdev      uint64
+	X__pad2   uint16
+	Pad1      [6]byte
+	Size      int64
+	Blksize   int32
+	Pad2      [4]byte
+	Blocks    int64
+	Atim      Timespec
+	Mtim      Timespec
+	Ctim      Timespec
+	Ino       uint64
 }
 
 type Statfs_t struct {
@@ -145,6 +149,7 @@ type Statfs_t struct {
 	Namelen int32
 	Frsize  int32
 	Spare   [5]int32
+	Pad0    [4]byte
 }
 
 type Dirent struct {
@@ -152,8 +157,8 @@ type Dirent struct {
 	Off    int64
 	Reclen uint16
 	Type   uint8
-	Name   [256]int8
-	Pad0   [1]byte
+	Name   [256]uint8
+	Pad0   [5]byte
 }
 
 type RawSockaddrInet4 struct {
@@ -178,12 +183,12 @@ type RawSockaddrUnix struct {
 
 type RawSockaddr struct {
 	Family uint16
-	Data   [14]int8
+	Data   [14]uint8
 }
 
 type RawSockaddrAny struct {
 	Addr RawSockaddr
-	Pad  [12]int8
+	Pad  [96]uint8
 }
 
 type _Socklen uint32
@@ -193,31 +198,28 @@ type Linger struct {
 	Linger int32
 }
 
-type PtraceRegs struct {
-	Ebx      int32
-	Ecx      int32
-	Edx      int32
-	Esi      int32
-	Edi      int32
-	Ebp      int32
-	Eax      int32
-	Ds       uint16
-	__ds     uint16
-	Es       uint16
-	__es     uint16
-	Fs       uint16
-	__fs     uint16
-	Gs       uint16
-	__gs     uint16
-	Orig_eax int32
-	Eip      int32
-	Cs       uint16
-	__cs     uint16
-	Eflags   int32
-	Esp      int32
-	Ss       uint16
-	__ss     uint16
+type Iovec struct {
+	Base *byte
+	Len  uint32
 }
+
+type Msghdr struct {
+	Name       *byte
+	Namelen    uint32
+	Iov        *Iovec
+	Iovlen     uint32
+	Control    *byte
+	Controllen uint32
+	Flags      int32
+}
+
+type Cmsghdr struct {
+	Len   uint32
+	Level int32
+	Type  int32
+}
+
+type PtraceRegs struct{}
 
 type FdSet struct {
 	Bits [32]int32
@@ -237,23 +239,23 @@ type Sysinfo_t struct {
 	Totalhigh uint32
 	Freehigh  uint32
 	Unit      uint32
-	_f        [8]int8
+	X_f       [8]uint8
 }
 
 type Utsname struct {
-	Sysname    [65]int8
-	Nodename   [65]int8
-	Release    [65]int8
-	Version    [65]int8
-	Machine    [65]int8
-	Domainname [65]int8
+	Sysname    [65]uint8
+	Nodename   [65]uint8
+	Release    [65]uint8
+	Version    [65]uint8
+	Machine    [65]uint8
+	Domainname [65]uint8
 }
 
 type Ustat_t struct {
 	Tfree  int32
 	Tinode uint32
-	Fname  [6]int8
-	Fpack  [6]int8
+	Fname  [6]uint8
+	Fpack  [6]uint8
 }
 
 type EpollEvent struct {
