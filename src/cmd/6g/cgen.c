@@ -1109,6 +1109,22 @@ sgen(Node *n, Node *ns, int32 w)
 	restx(&cx, &oldcx);
 }
 
+static int
+cadable(Node *n)
+{
+	if(!n->addable) {
+		// dont know how it happens,
+		// but it does
+		return 0;
+	}
+
+	switch(n->op) {
+	case ONAME:
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * copy a structure component by component
  * return 1 if can do, 0 if cant.
@@ -1118,20 +1134,36 @@ int
 componentgen(Node *nr, Node *nl)
 {
 	Node nodl, nodr;
-	int free;
+	int freel, freer;
 
-	free = 0;
-	if(!nl->addable || nl->op != ONAME)
+	freel = 0;
+	freer = 0;
+
+	switch(nl->type->etype) {
+	default:
 		goto no;
 
-	nodl = *nl;
-	if(nr != N) {
-		if(!nr->addable || nr->op != ONAME)
+	case TARRAY:
+		if(!isslice(nl->type))
 			goto no;
+	case TSTRING:
+	case TINTER:
+		break;
+	}
+
+	nodl = *nl;
+	if(!cadable(nl)) {
+		if(nr == N || !cadable(nr))
+			goto no;
+		igen(nl, &nodl, N);
+		freel = 1;
+	}
+
+	if(nr != N) {
 		nodr = *nr;
-		if(nr->op != ONAME && nr->op != OINDREG) {
+		if(!cadable(nr)) {
 			igen(nr, &nodr, N);
-			free = 1;
+			freer = 1;
 		}
 	}
 
@@ -1173,7 +1205,6 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TSTRING:
-
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
 
@@ -1197,7 +1228,6 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TINTER:
-
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
 
@@ -1225,12 +1255,16 @@ componentgen(Node *nr, Node *nl)
 	}
 
 no:
-	if(free)
+	if(freer)
 		regfree(&nodr);
+	if(freel)
+		regfree(&nodl);
 	return 0;
 
 yes:
-	if(free)
+	if(freer)
 		regfree(&nodr);
+	if(freel)
+		regfree(&nodl);
 	return 1;
 }
