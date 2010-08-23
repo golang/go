@@ -71,7 +71,7 @@ type Request struct {
 	ProtoMajor int    // 1
 	ProtoMinor int    // 0
 
-	// A header is a mapping of request lines to their values.
+	// A header maps request lines to their values.
 	// If the header says
 	//
 	//	accept-encoding: gzip, deflate
