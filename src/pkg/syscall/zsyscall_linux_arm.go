@@ -628,14 +628,6 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
 	return
 }
 
-func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
-	var f [2]int
-	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
-	fd = f
-	errno = int(e1)
-	return
-}
-
 func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
 	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
 	errno = int(e1)
@@ -665,6 +657,12 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
 		_p0 = &buf[0]
 	}
 	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+	errno = int(e1)
+	return
+}
+
+func socketpair(domain int, typ int, flags int, fd *[2]int) (errno int) {
+	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(flags), uintptr(unsafe.Pointer(fd)), 0, 0)
 	errno = int(e1)
 	return
 }

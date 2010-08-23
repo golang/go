@@ -4,15 +4,6 @@
 
 package syscall
 
-// These seem not to be defined in our gcc's ARM headers
-// and are thus missing from zerrors_linux_arm.go.
-const (
-	WSTOPPED     = 0x7f
-	O_CLOEXEC    = 0
-	EPOLLRDHUP   = EPOLLHUP
-	EPOLLONESHOT = 0x40000000
-)
-
 func Getpagesize() int { return 4096 }
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
@@ -41,6 +32,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
 //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+//sys	socketpair(domain int, typ int, flags int, fd *[2]int) (errno int)
 
 //sys	Chown(path string, uid int, gid int) (errno int)
 //sys	Fchown(fd int, uid int, gid int) (errno int)

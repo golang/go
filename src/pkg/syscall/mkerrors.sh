@@ -11,14 +11,7 @@ unset LANG
 export LC_ALL=C
 export LC_CTYPE=C
 
-case "$GOARCH" in
-arm)
-	GCC=arm-gcc
-	;;
-*)
-	GCC=gcc
-	;;
-esac
+GCC=gcc
 
 uname=$(uname)
 
