@@ -53,4 +53,4 @@ func (f *FileInfo) IsSymlink() bool { return (f.Mode & syscall.S_IFMT) == syscal
 func (f *FileInfo) IsSocket() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFSOCK }
 
 // Permission returns the file permission bits.
-func (f *FileInfo) Permission() int { return int(f.Mode & 0777) }
+func (f *FileInfo) Permission() uint32 { return f.Mode & 0777 }
