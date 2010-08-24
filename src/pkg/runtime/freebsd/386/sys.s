@@ -66,7 +66,18 @@ TEXT	notok(SB),7,$0
 	MOVL	$0xf1, 0xf1
 	RET
 
-TEXT ·mmap(SB),7,$-4
+TEXT ·mmap(SB),7,$32
+	LEAL arg0+0(FP), SI
+	LEAL	4(SP), DI
+	CLD
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVL	$0, AX	// top 64 bits of file offset
+	STOSL
 	MOVL	$477, AX
 	INT	$0x80
 	JAE	2(PC)
