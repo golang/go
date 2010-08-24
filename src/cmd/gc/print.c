@@ -66,6 +66,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OPLUS:
 	case ORECV:
 	case OCONVIFACE:
+	case OTPAREN:
 		nprec = 7;
 		break;
 
@@ -164,6 +165,12 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OTARRAY:
 		fmtprint(f, "[]");
 		exprfmt(f, n->left, PFIXME);
+		break;
+	
+	case OTPAREN:
+		fmtprint(f, "(");
+		exprfmt(f, n->left, 0);
+		fmtprint(f, ")");
 		break;
 
 	case OTMAP:
