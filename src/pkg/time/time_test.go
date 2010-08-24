@@ -169,6 +169,7 @@ var parseTests = []ParseTest{
 	ParseTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1},
 	ParseTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1},
 	ParseTest{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1},
+	ParseTest{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1},
 	// Amount of white space should not matter.
 	ParseTest{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1},
 	ParseTest{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1},
