@@ -70,6 +70,7 @@ const (
 	stdISO8601TZ      = "Z0700"  // prints Z for UTC
 	stdISO8601ColonTZ = "Z07:00" // prints Z for UTC
 	stdNumTZ          = "-0700"  // always numeric
+	stdNumShortTZ     = "-07"    // always numeric
 	stdNumColonTZ     = "-07:00" // always numeric
 )
 
@@ -134,12 +135,15 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
 				return layout[0:i], layout[i : i+2], layout[i+2:]
 			}
 
-		case '-': // -0700, -07:00
+		case '-': // -0700, -07:00, -07
 			if len(layout) >= i+5 && layout[i:i+5] == stdNumTZ {
 				return layout[0:i], layout[i : i+5], layout[i+5:]
 			}
 			if len(layout) >= i+6 && layout[i:i+6] == stdNumColonTZ {
 				return layout[0:i], layout[i : i+6], layout[i+6:]
+			}
+			if len(layout) >= i+3 && layout[i:i+3] == stdNumShortTZ {
+				return layout[0:i], layout[i : i+3], layout[i+3:]
 			}
 		case 'Z': // Z0700, Z07:00
 			if len(layout) >= i+5 && layout[i:i+5] == stdISO8601TZ {
@@ -496,7 +500,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			if t.Second < 0 || 60 <= t.Second {
 				rangeErrString = "second"
 			}
-		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumColonTZ:
+		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ:
 			if std[0] == 'Z' && len(value) >= 1 && value[0] == 'Z' {
 				value = value[1:]
 				t.Zone = "UTC"
@@ -513,6 +517,12 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 					break
 				}
 				sign, hh, mm, value = value[0:1], value[1:3], value[4:6], value[6:]
+			} else if std == stdNumShortTZ {
+				if len(value) < 3 {
+					err = errBad
+					break
+				}
+				sign, hh, mm, value = value[0:1], value[1:3], "00", value[3:]
 			} else {
 				if len(value) < 5 {
 					err = errBad
