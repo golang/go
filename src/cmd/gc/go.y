@@ -58,7 +58,7 @@
 %type	<node>	name_or_type non_expr_type
 %type	<node>	new_name dcl_name oexpr typedclname
 %type	<node>	onew_name
-%type	<node>	osimple_stmt pexpr
+%type	<node>	osimple_stmt pexpr pexpr_no_paren
 %type	<node>	pseudocall range_stmt select_stmt
 %type	<node>	simple_stmt
 %type	<node>	switch_stmt uexpr
@@ -812,7 +812,7 @@ pseudocall:
 		$$->list = $3;
 	}
 
-pexpr:
+pexpr_no_paren:
 	LLITERAL
 	{
 		$$ = nodlit($1);
@@ -828,11 +828,6 @@ pexpr:
 			break;
 		}
 		$$ = nod(OXDOT, $1, newname($3));
-	}
-|	'(' expr_or_type ')'
-	{
-		$$ = $2;
-		$$->paren++;
 	}
 |	pexpr '.' '(' expr_or_type ')'
 	{
@@ -873,15 +868,27 @@ pexpr:
 		if($2 == LBODY)
 			loophack = 1;
 	}
-|	pexpr '{' braced_keyval_list '}'
+|	pexpr_no_paren '{' braced_keyval_list '}'
 	{
-		if($1->paren)
-			yyerror("cannot parenthesize type in composite literal");
 		// composite expression
 		$$ = nod(OCOMPLIT, N, $1);
 		$$->list = $3;
 	}
+|	'(' expr_or_type ')' '{' braced_keyval_list '}'
+	{
+		yyerror("cannot parenthesize type in composite literal");
+		// composite expression
+		$$ = nod(OCOMPLIT, N, $2);
+		$$->list = $5;
+	}
 |	fnliteral
+
+pexpr:
+	pexpr_no_paren
+|	'(' expr_or_type ')'
+	{
+		$$ = $2;
+	}
 
 expr_or_type:
 	expr
@@ -965,8 +972,7 @@ ntype:
 |	dotname
 |	'(' ntype ')'
 	{
-		$$ = $2;
-		$$->paren++;
+		$$ = nod(OTPAREN, $2, N);
 	}
 
 non_expr_type:
@@ -985,8 +991,7 @@ non_recvchantype:
 |	dotname
 |	'(' ntype ')'
 	{
-		$$ = $2;
-		$$->paren++;
+		$$ = nod(OTPAREN, $2, N);
 	}
 
 convtype:
@@ -1146,7 +1151,7 @@ fndcl:
 			yyerror("bad receiver in method");
 			break;
 		}
-		if(rcvr->right->paren || (rcvr->right->op == OIND && rcvr->right->left->paren))
+		if(rcvr->right->op == OTPAREN || (rcvr->right->op == OIND && rcvr->right->left->op == OTPAREN))
 			yyerror("cannot parenthesize receiver type");
 
 		$$ = nod(ODCLFUNC, N, N);

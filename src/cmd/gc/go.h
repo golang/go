@@ -209,7 +209,6 @@ struct	Node
 	uchar	dodata;		// compile literal assignment as data statement
 	uchar	used;
 	uchar	isddd;
-	uchar	paren;	// was parenthesized
 	uchar	pun;		// dont registerize variable ONAME
 
 	// most nodes
@@ -411,6 +410,7 @@ enum
 	OTINTER,
 	OTFUNC,
 	OTARRAY,
+	OTPAREN,
 
 	// misc
 	ODDD,
