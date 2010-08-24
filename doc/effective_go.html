@@ -207,7 +207,7 @@ have a doc comment.
 </p>
 
 <p>
-Doc comments work best as complete English sentences, which allow
+Doc comments work best as complete sentences, which allow
 a wide variety of automated presentations.
 The first sentence should be a one-sentence summary that
 starts with the name being declared.
@@ -1326,13 +1326,15 @@ You don't need to provide a format string.  For each of <code>Printf</code>,
 <code>Fprintf</code> and <code>Sprintf</code> there is another pair
 of functions, for instance <code>Print</code> and <code>Println</code>.
 These functions do not take a format string but instead generate a default
-format for each argument. The <code>ln</code> version also inserts a blank
-between arguments if neither is a string and appends a newline to the output.
+format for each argument. The <code>Println</code> versions also insert a blank
+between arguments and append a newline to the output while
+the <code>Print</code> versions add blanks only if the operand on neither side is a string.
 In this example each line produces the same output.
 </p>
 <pre>
 fmt.Printf("Hello %d\n", 23)
 fmt.Fprint(os.Stdout, "Hello ", 23, "\n")
+fmt.Println("Hello", 23)
 fmt.Println(fmt.Sprint("Hello ", 23))
 </pre>
 <p>
@@ -2014,7 +2016,7 @@ two methods explicitly, but it's easier and more evocative
 to embed the two interfaces to form the new one, like this:
 </p>
 <pre>
-// ReadWrite is the interface that groups the basic Read and Write methods.
+// ReadWriter is the interface that combines the Reader and Writer interfaces.
 type ReadWriter interface {
     Reader
     Writer
@@ -2654,7 +2656,7 @@ inside a server without killing the other executing goroutines.
 <pre>
 func server(workChan <-chan *Work) {
     for work := range workChan {
-        safelyDo(work)
+        go safelyDo(work)
     }
 }
 
