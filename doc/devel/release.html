@@ -5,6 +5,75 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-08-11">2010-08-25</h3>
+
+<pre>
+This release includes changes to the build system that will likely require you
+to make changes to your environment variables and Makefiles.
+
+All environment variables are now optional:
+ - $GOOS and $GOARCH are now optional; their values should now be inferred 
+   automatically by the build system,
+ - $GOROOT is now optional, but if you choose not to set it you must run
+   'gomake' instead of 'make' or 'gmake' when developing Go programs
+   using the conventional Makefiles,
+ - $GOBIN remains optional and now defaults to $GOROOT/bin;
+   if you wish to use this new default, make sure it is in your $PATH
+   and that you have removed the existing binaries from $HOME/bin.
+
+As a result of these changes, the Go Makefiles have changed. If your Makefiles
+inherit from the Go Makefiles, you must change this line:
+    include ../../Make.$(GOARCH)
+to this:
+    include ../../Make.inc
+
+This release also removes the deprecated functions in regexp and the 
+once package. Any code that still uses them will break.
+See the notes from the last release for details:
+    http://golang.org/doc/devel/release.html#2010-08-11
+
+Other changes:
+* 6g: better registerization for slices, strings, interface values
+* 6l: line number information in DWARF format
+* build: $GOBIN defaults to $GOROOT/bin,
+        no required environment variables
+* cgo: add C.GoStringN (thanks Eric Clark).
+* codereview: fix issues with leading tabs in CL descriptions,
+        do not send "Abandoned" mail if the CL has not been mailed.
+* crypto/ocsp: add missing Makefile.
+* crypto/tls: client certificate support (thanks Mikkel Krautz).
+* doc: update gccgo information for recent changes.
+        fix errors in Effective Go.
+* fmt/print: give %p priority, analogous to %T,
+        honor Formatter in Print, Println.
+* gc: fix parenthesization check.
+* go/ast: facility for printing AST nodes,
+        first step towards augmenting AST with full type information.
+* go/printer: do not modify tabwriter.Escape'd text.
+* gofmt: do not modify multi-line string literals,
+        print AST nodes by setting -ast flag.
+* http: fix typo in http.Request documentation (thanks Scott Lawrence)
+        parse query string always, not just in GET
+* image/png: support 16-bit color.
+* io: ReadAtLeast now errors if min > len(buf).
+* jsonrpc: use `error: null` for success, not `error: ""`.
+* libmach: implement register fetch for 32-bit x86 kernel.
+* net: make IPv6 String method standards-compliant (thanks Mikio Hara).
+* os: FileInfo.Permission() now returns uint32 (thanks Scott Lawrence),
+        implement env using native Windows API (thanks Alex Brainman).
+* reflect: allow PtrValue.PointTo(nil).
+* runtime: correct line numbers for .goc files,
+        fix another stack split bug,
+        fix freebsd/386 mmap.
+* syscall: regenerate syscall/z* files for linux/386, linux/amd64, linux/arm.
+* tabwriter: Introduce a new flag StripEscape.
+* template: fix handling of space around actions,
+        vars preceded by white space parse correctly (thanks Roger Peppe).
+* test: add test case that crashes gccgo.
+* time: parse no longer requires minutes for time zone (thanks Jan H. Hosang)
+* yacc: fix bounds check in error recovery.
+</pre>
+
 <h3 id="2010-08-11">2010-08-11</h3>
 
 <pre>
@@ -26,8 +95,8 @@ expression within a piece of text; see the package documentation for details:
     http://golang.org/pkg/regexp/
 These new methods will, in a later release, replace the old methods for
 matching substrings.  The following methods are deprecated:
-    Execute (use Find)
-    ExecuteString (use FindString)
+    Execute (use FindSubmatchIndex)
+    ExecuteString (use FindStringSubmatchIndex)
     MatchStrings(use FindStringSubmatch)
     MatchSlices (use FindSubmatch)
     AllMatches (use FindAll; note that n<0 means 'all matches'; was n<=0)
