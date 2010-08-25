@@ -14,8 +14,6 @@ unset LANG
 export LC_ALL=C
 export LC_CTYPE=C
 
-GOBIN="${GOBIN:-$HOME/bin}"
-
 _GC=$GC	# Make.inc will overwrite this
 
 if [ ! -f [Mm]akefile ]; then
@@ -24,7 +22,7 @@ if [ ! -f [Mm]akefile ]; then
 fi
 
 export GOROOT=${GOROOT:-"@@GOROOT@@"}
-eval $("$GOBIN"/gomake -j1 --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
+eval $(gomake -j1 --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 2
@@ -33,11 +31,11 @@ fi
 E="$GORUN"
 
 # Allow overrides
-GC="$GOBIN/${_GC:-$GC} -I _test"
-GL="$GOBIN/${GL:-$LD} -L _test"
-AS="$GOBIN/$AS"
-CC="$GOBIN/$CC"
-LD="$GOBIN/$LD"
+GC="${_GC:-$GC} -I _test"
+GL="${GL:-$LD} -L _test"
+AS="$AS"
+CC="$CC"
+LD="$LD"
 export GC GL O AS CC LD
 
 gofiles=""
@@ -88,8 +86,8 @@ fi
 
 set -e
 
-"$GOBIN"/gomake testpackage-clean
-"$GOBIN"/gomake testpackage "GOTESTFILES=$gofiles"
+gomake testpackage-clean
+gomake testpackage "GOTESTFILES=$gofiles"
 if $havex; then
 	$GC -o $xofile $xgofiles
 fi
@@ -111,18 +109,18 @@ nmgrep() {
 		# Figure out pkg.
 		case "$i" in
 		*.a)
-			pkg=$("$GOBIN"/gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 's/ .*//' | sed 1q)
+			pkg=$(gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 's/ .*//' | sed 1q)
 			;;
 		*)
 			pkg=$(sed -n 's/^ .* in package "\(.*\)".*/\1/p' $i | sed 1q)
 			;;
 		esac
-		"$GOBIN"/6nm -s "$i" | egrep ' T .*\.'"$pat"'$' |
+		6nm -s "$i" | egrep ' T .*\.'"$pat"'$' |
 		sed 's/.* //; /\..*\./d; s/""\./'"$pkg"'./g'
 	done
 }
 
-importpath=$("$GOBIN"/gomake -s importpath)
+importpath=$(gomake -s importpath)
 {
 	# test functions are named TestFoo
 	# the grep -v eliminates methods and other special names
