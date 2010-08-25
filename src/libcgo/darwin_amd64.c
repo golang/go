@@ -56,7 +56,7 @@ inittls(void)
 			fprintf(stderr, "\twanted 0x108 and 0x109\n");
 			fprintf(stderr, "\tgot");
 			for(i=0; i<ntofree; i++)
-				fprintf(stderr, " %#x", tofree[i]);
+				fprintf(stderr, " %#x", (unsigned)tofree[i]);
 			fprintf(stderr, "\n");
 			abort();
 		}
@@ -78,7 +78,7 @@ inittls(void)
 	asm volatile("movq %%gs:0x8a8, %0" : "=r"(y));
 
 	if(x != 0x123456789abcdef0ULL || y != 0x0fedcba987654321) {
-		printf("libcgo: thread-local storage %#x not at %%gs:0x8a0 - x=%#llx y=%#llx\n", k1, x, y);
+		printf("libcgo: thread-local storage %#x not at %%gs:0x8a0 - x=%#llx y=%#llx\n", (unsigned)k1, x, y);
 		abort();
 	}
 }

@@ -2,10 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# ugly hack to deal with whitespaces in $GOROOT
-nullstring :=
-space := $(nullstring) # a space at the end
-QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
+include ../Make.inc
 
 all: libcgo.so
 
@@ -16,9 +13,8 @@ OFILES=\
 	$(GOARCH).o\
 	util.o\
 
-CFLAGS_386=-m32
-CFLAGS_amd64=-m64
-
+HOST_CFLAGS_386=-m32
+HOST_CFLAGS_amd64=-m64
 
 LDFLAGS_linux=-shared -lpthread -lm
 LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
@@ -26,13 +22,13 @@ LDFLAGS_freebsd=-pthread -shared -lm
 LDFLAGS_windows=-shared -lm -mthreads
 
 %.o: %.c
-	$(CC) $(CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.c
+	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.c
 
 %.o: %.S
-	$(CC) $(CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.S
+	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.S
 
 libcgo.so: $(OFILES)
-	$(CC) $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
+	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
 
 $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
 	cp libcgo.so $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
