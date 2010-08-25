@@ -92,7 +92,7 @@ installed() {
 	*":$GOBIN" | *":$GOBIN:"*)
 		;;
 	*)
-		echo '***' You need to add $GOBIN to your "'$PATH.' '***'
+		echo '***' "You need to add $GOBIN to your "'$PATH.' '***'
 	esac
 	echo The compiler is $GC.
 	if [ "$(uname)" = "Darwin" ]; then
