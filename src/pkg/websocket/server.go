@@ -133,7 +133,7 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 	buf.WriteString("Connection: Upgrade\r\n")
 	buf.WriteString("Sec-WebSocket-Location: " + location + "\r\n")
 	buf.WriteString("Sec-WebSocket-Origin: " + origin + "\r\n")
-	protocol, found := req.Header["Sec-WebSocket-Protocol"]
+	protocol, found := req.Header["Sec-Websocket-Protocol"]
 	if found {
 		buf.WriteString("Sec-WebSocket-Protocol: " + protocol + "\r\n")
 	}
