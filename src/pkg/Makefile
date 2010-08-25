@@ -9,14 +9,6 @@
 #
 # to rebuild the dependency information in Make.deps.
 
-nullstring :=
-space := $(nullstring) # a space at the end
-ifndef GOBIN
-QUOTED_HOME=$(subst $(space),\ ,$(HOME))
-GOBIN=$(QUOTED_HOME)/bin
-endif
-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
-
 all: install
 
 DIRS=\
@@ -190,19 +182,19 @@ test.dirs: $(addsuffix .test, $(TEST))
 bench.dirs: $(addsuffix .bench, $(BENCH))
 
 %.clean:
-	+cd $* && $(QUOTED_GOBIN)/gomake clean
+	+cd $* && gomake clean
 
 %.install:
-	+cd $* && $(QUOTED_GOBIN)/gomake install
+	+cd $* && gomake install
 
 %.nuke:
-	+cd $* && $(QUOTED_GOBIN)/gomake nuke
+	+cd $* && gomake nuke
 
 %.test:
-	+cd $* && $(QUOTED_GOBIN)/gomake test
+	+cd $* && gomake test
 
 %.bench:
-	+cd $* && $(QUOTED_GOBIN)/gomake bench
+	+cd $* && gomake bench
 
 clean: clean.dirs
 
