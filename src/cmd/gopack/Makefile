@@ -2,17 +2,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.conf
+include ../../Make.inc
+O:=$(HOST_O)
 
 TARG=gopack
 OFILES=\
 	ar.$O\
 
-$(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lmach -lbio -l9
+LIB=\
+	../../../lib/libmach.a\
 
-clean:
-	rm -f *.$O $(TARG)
-
-install: $(TARG)
-	cp $(TARG) "$(GOBIN)"/$(TARG)
+include ../../Make.ccmd

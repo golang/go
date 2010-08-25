@@ -2,10 +2,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.conf
+include ../../Make.inc
+O:=$(HOST_O)
 
-TARG=\
-	6l\
+TARG=6l
 
 OFILES=\
 	asm.$O\
@@ -29,19 +29,12 @@ HFILES=\
 	../ld/macho.h\
 	../ld/dwarf.h\
 
-$(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
-
-$(OFILES): $(HFILES)
+include ../../Make.ccmd
 
 enam.c: 6.out.h
 	sh mkenam
 
-clean:
-	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out
-
-install: $(TARG)
-	cp $(TARG) "$(GOBIN)"/$(TARG)
+CLEANFILES+=enam.c
 
 %.$O: ../ld/%.c
-	$(CC) $(CFLAGS) -c -I. ../ld/$*.c
+	$(HOST_CC) $(HOST_CFLAGS) -c -I. ../ld/$*.c

@@ -2,10 +2,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.conf
+include ../../Make.inc
+O:=$(HOST_O)
 
-TARG=\
-	8g
+TARG=8g
 
 HFILES=\
 	../gc/go.h\
@@ -27,18 +27,9 @@ OFILES=\
 	reg.$O\
 
 LIB=\
-	../gc/gc.a$O
+	../gc/gc.a\
 
-$(TARG): $(OFILES) $(LIB)
-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm
-
-$(OFILES): $(HFILES)
-
-clean:
-	rm -f *.$O $(TARG) *.8 enam.c 8.out a.out
-
-install: $(TARG)
-	cp $(TARG) "$(GOBIN)"/$(TARG)
+include ../../Make.ccmd
 
 %.$O: ../gc/%.c
-	$(CC) $(CFLAGS) -c -I. -o $@ ../gc/$*.c
+	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../gc/$*.c

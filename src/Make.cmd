@@ -8,20 +8,15 @@ endif
 
 all: $(TARG)
 
-# ugly hack to deal with whitespaces in $GOROOT
-nullstring :=
-space := $(nullstring) # a space at the end
-QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
-
 include $(QUOTED_GOROOT)/src/Make.common
 
 PREREQ+=$(patsubst %,%.make,$(DEPS))
 
 $(TARG): _go_.$O $(OFILES)
-	$(QUOTED_GOBIN)/$(LD) -o $@ _go_.$O $(OFILES)
+	$(LD) -o $@ _go_.$O $(OFILES)
 
 _go_.$O: $(GOFILES) $(PREREQ)
-	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES)
+	$(GC) -o $@ $(GOFILES)
 
 install: $(QUOTED_GOBIN)/$(TARG)
 

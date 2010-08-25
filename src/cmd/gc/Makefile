@@ -2,10 +2,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.conf
+include ../../Make.inc
+O:=$(HOST_O)
 
-LIB=\
-	gc.a$O\
+LIB=gc.a
 
 HFILES=\
 	go.h\
@@ -43,16 +43,10 @@ OFILES=\
 	walk.$O\
 	y1.tab.$O\
 
-$(LIB): $(OFILES)
-	ar rsc $(LIB) $(OFILES)
+NOINSTALL=1
+include ../../Make.clib
 
-$(OFILES): $(HFILES)
-
-y.tab.h: $(YFILES)
-	LANG=C LANGUAGE="en_US.UTF8" bison -v -y $(YFLAGS) $(YFILES)
-
-y.tab.c: y.tab.h
-	test -f y.tab.c && touch y.tab.c
+install: $(LIB)
 
 y1.tab.c: y.tab.c	# make yystate global, yytname mutable
 	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/' >y1.tab.c
@@ -70,7 +64,4 @@ subr.$O: opnames.h
 opnames.h:	mkopnames go.h
 	./mkopnames go.h >opnames.h
 
-clean:
-	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c y1.tab.c y.output yerr.h $(LIB) mkbuiltin1 builtin.c _builtin.c opnames.h
-
-install: $(LIB)
+CLEANFILES+=*.[568] [568].out y1.tab.c yerr.h mkbuiltin1 builtin.c _builtin.c opnames.h
