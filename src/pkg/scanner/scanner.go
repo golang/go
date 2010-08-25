@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A general-purpose scanner for UTF-8 encoded text. Takes an io.Reader
-// providing the source which then can be tokenized through repeated
-// calls to the Scan function. For compatibility with existing tools,
-// the NUL character is not allowed (implementation restriction).
+// A scanner and tokenizer for UTF-8-encoded text.  Takes an io.Reader
+// providing the source, which then can be tokenized through repeated calls
+// to the Scan function.  For compatibility with existing tools, the NUL
+// character is not allowed (implementation restriction).
 //
-// By default, a Scanner skips white space and comments and
-// recognizes literals as defined by the Go language spec.
-// It may be customized to recognize only a subset of those
-// literals and to recognize different white space characters.
+// By default, a Scanner skips white space and Go comments and recognizes all
+// literals as defined by the Go language specification.  It may be
+// customized to recognize only a subset of those literals and to recognize
+// different white space characters.
 //
 // Basic usage pattern:
 //
