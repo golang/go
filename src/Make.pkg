@@ -138,12 +138,16 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
 _cgo_defun.$O: _cgo_defun.c
 	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
 
-_cgo_.so: $(GCC_OFILES) $(CGO_DEPS)
+$(CGOTARG).so: $(GCC_OFILES) $(CGO_DEPS)
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
 
-$(pkgdir)/$(CGOTARG).so: _cgo_.so
-	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
-	cp _cgo_.so "$@"
+$(pkgdir)/$(CGOTARG).so: $(CGOTARG).so
+	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
+	cp $(CGOTARG).so "$@"
+
+ifneq ($(CGOFILES),)
+testpackage: $(CGOTARG).so
+endif
 
 # Generic build rules.
 # These come last so that the rules above can override them
