@@ -8,7 +8,6 @@ package doc
 
 import (
 	"go/ast"
-	"http" // for URLEscape
 	"io"
 	"regexp"
 	"strings"
@@ -227,7 +226,7 @@ func emphasize(w io.Writer, line []byte, words map[string]string, nice bool) {
 		// write match
 		if len(url) > 0 {
 			w.Write(html_a)
-			w.Write([]byte(http.URLEscape(url)))
+			template.HTMLEscape(w, []byte(url))
 			w.Write(html_aq)
 		}
 		if italics {
