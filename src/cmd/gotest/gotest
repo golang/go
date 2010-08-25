@@ -24,7 +24,7 @@ if [ ! -f [Mm]akefile ]; then
 fi
 
 export GOROOT=${GOROOT:-"@@GOROOT@@"}
-eval $("$GOBIN"/gomake --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
+eval $("$GOBIN"/gomake -j1 --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 2

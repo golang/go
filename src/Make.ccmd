@@ -1,0 +1,36 @@
+# Copyright 2010 The Go Authors.  All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# Makefile for commands written in C.
+
+$(TARG): $(OFILES) $(LIB)
+	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm
+
+$(OFILES): $(HFILES)
+
+clean:
+	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
+
+install: $(QUOTED_GOBIN)/$(TARG)
+
+$(QUOTED_GOBIN)/$(TARG): $(TARG)
+	cp $(TARG) "$(GOBIN)"/$(TARG)
+
+y.tab.h: $(YFILES)
+	bison -y $(HOST_YFLAGS) $(YFILES)
+
+y.tab.c: y.tab.h
+	test -f y.tab.c && touch y.tab.c
+
+all: $(TARG)
+
+%.$(HOST_O): %.c
+	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
+
+# These are used by enough different Makefiles to be
+# worth writing down in one place, even if they don't
+# apply to every command that builds with Make.ccmd
+../%l/enam.o:
+	cd ../$*l; $(MAKE) enam.o
+

@@ -51,10 +51,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
 		os.Exit(1)
 	}
-	root += "/src/pkg/"
 	if gobin == "" {
-		gobin = os.Getenv("HOME") + "/bin"
+		gobin = root + "/bin"
 	}
+	root += "/src/pkg/"
 
 	// special case - "unsafe" is already installed
 	visit["unsafe"] = done

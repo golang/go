@@ -2,7 +2,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.conf
+include ../../Make.inc
+O:=$(HOST_O)
 
 TARG=godefs
 OFILES=\
@@ -12,13 +13,4 @@ OFILES=\
 
 HFILES=a.h
 
-$(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
-
-clean:
-	rm -f *.$O $(TARG)
-
-install: $(TARG)
-	cp $(TARG) "$(GOBIN)"/$(TARG)
-
-$(OFILES): $(HFILES)
+include ../../Make.ccmd

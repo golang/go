@@ -3,21 +3,6 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-if test -z "$GOBIN"; then
-	if ! test -d "$HOME"/bin; then
-		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
-		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
-		echo 'be installed.' 1>&2
-		exit 1
-	fi
-	GOBIN="$HOME/bin"
-elif ! test -d "$GOBIN"; then
-	echo '$GOBIN is not a directory or does not exist' 1>&2
-	echo 'create it or set $GOBIN differently' 1>&2
-	exit 1
-fi
-export GOBIN
-
 export GOROOT=${GOROOT:-$(cd ..; pwd)}
 
 if ! test -f "$GOROOT"/include/u.h
@@ -36,6 +21,16 @@ if [ "$DIR1" != "$DIR2" ]; then
 	exit 1
 fi
 
+export GOBIN=${GOBIN:-"$GOROOT/bin"}
+if [ ! -d "$GOBIN" ]; then
+	echo '$GOBIN is not a directory or does not exist' 1>&2
+	echo 'create it or set $GOBIN differently' 1>&2
+	exit 1
+fi
+
+export OLDPATH=$PATH
+export PATH=/bin:/usr/bin:$GOBIN:$PATH
+
 MAKE=make
 if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
 	MAKE=gmake
@@ -43,7 +38,7 @@ fi
 
 # Tried to use . <($MAKE ...) here, but it cannot set environment
 # variables in the version of bash that ships with OS X.  Amazing.
-eval $($MAKE --no-print-directory -f Make.inc.in go-env | egrep 'GOARCH|GOOS|GO_ENV')
+eval $($MAKE --no-print-directory -f Make.inc go-env | egrep 'GOARCH|GOOS|GO_ENV')
 
 # Shell doesn't tell us whether make succeeded,
 # so Make.inc generates a fake variable name.

@@ -9,6 +9,6 @@ if [ ! -f make.bash ]; then
 	exit 1
 fi
 . ./make.bash
-bash run.bash --no-rebuild
+bash run.bash --no-env --no-rebuild
 installed  # function defined by make.bash
 

@@ -2,10 +2,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.conf
+include ../../Make.inc
+O:=$(HOST_O)
 
-LIB=\
-	cc.a$O\
+LIB=cc.a
 
 HFILES=\
 	cc.h\
@@ -30,18 +30,7 @@ OFILES=\
 	dpchk.$O\
 	omachcap.$O\
 
-$(LIB): $(OFILES)
-	ar rsc $(LIB) $(OFILES)
-
-$(OFILES): $(HFILES)
-
-y.tab.h: $(YFILES)
-	bison -y $(YFLAGS) $(YFILES)
-
-y.tab.c: y.tab.h
-	test -f y.tab.c && touch y.tab.c
-
-clean:
-	rm -f *.$O *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+NOINSTALL=1
+include ../../Make.clib
 
 install: $(LIB)

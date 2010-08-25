@@ -22,7 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-include ../Make.conf
+include ../Make.inc
+O:=$(HOST_O)
 
 LIB=libbio.a
 
@@ -47,19 +48,4 @@ OFILES=\
 HFILES=\
 	../../include/bio.h
 
-install: $(LIB)
-	cp $(LIB) ../../lib
-
-$(LIB): $(OFILES)
-	ar rsc $(LIB) $(OFILES)
-
-$(OFILES): $(HFILES)
-
-y.tab.c: $(YFILES)
-	yacc $(YFLAGS) $(YFILES)
-
-clean:
-	rm -f $(OFILES) *.6 6.out $(LIB)
-
-nuke: clean
-	rm -f ../../lib/$(LIB)
+include ../Make.clib

@@ -4,7 +4,12 @@
 # license that can be found in the LICENSE file.
 
 set -e
-. ./env.bash
+if [ "$1" = "--no-env" ]; then
+	# caller has already run env.bash
+	shift
+else
+	. ./env.bash
+fi
 
 unset MAKEFLAGS  # single-threaded make
 unset CDPATH	# in case user has it set

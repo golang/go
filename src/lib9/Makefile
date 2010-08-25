@@ -2,7 +2,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../Make.conf
+include ../Make.inc
+O:=$(HOST_O)
 
 LIB=lib9.a
 
@@ -101,40 +102,19 @@ OFILES=\
 	$(UTFOFILES)\
 
 HFILES=\
-	"$(GOROOT)"/include/u.h\
-	"$(GOROOT)"/include/libc.h\
+	$(QUOTED_GOROOT)/include/u.h\
+	$(QUOTED_GOROOT)/include/libc.h\
+
+include ../Make.clib
 
 GOROOT_FINAL?=$(GOROOT)
 
-install: $(LIB)
-	cp $(LIB) "$(GOROOT)/lib"
-
-$(LIB): $(OFILES)
-	ar rsc $(LIB) $(OFILES)
-
 %.$O: fmt/%.c
-	$(CC) -c $(CFLAGS) -DPLAN9PORT -Ifmt $<
+	$(HOST_CC) -c $(HOST_CFLAGS) -DPLAN9PORT -Ifmt $<
 
 %.$O: utf/%.c
-	$(CC) -c $(CFLAGS) $<
+	$(HOST_CC) -c $(HOST_CFLAGS) $<
 
 goos.$O: goos.c
-	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
-
-clean:
-	rm -f *.$O *.6 6.out $(LIB)
-
-nuke: clean
-	rm -f "$(GOROOT)"/lib/$(LIB)
-
-#XLIB=$PLAN9/lib/$LIB
-
-#testfmt: testfmt.$O $XLIB
-#	$LD -o $target testfmt.$O
-
-#testfltfmt: testfltfmt.$O $XLIB
-#	$LD -o $target testfltfmt.$O
-
-#testprint: testprint.$O $XLIB
-#	$LD -o $target testprint.$O
+	$(HOST_CC) -c $(HOST_CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
 

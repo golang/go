@@ -11,8 +11,6 @@ fi
 . ./env.bash
 
 GOROOT_FINAL=${GOROOT_FINAL:-$GOROOT}
-rm -f Make.inc
-sed 's!@@GOROOT@@!'"$GOROOT_FINAL"'!' Make.inc.in >Make.inc
 
 MAKEFLAGS=${MAKEFLAGS:-"-j4"}
 export MAKEFLAGS
@@ -90,6 +88,12 @@ installed() {
 	echo ---
 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
 	echo Installed commands in "$GOBIN".
+	case "$OLDPATH" in
+	*":$GOBIN" | *":$GOBIN:"*)
+		;;
+	*)
+		echo '***' You need to add $GOBIN to your "'$PATH.' '***'
+	esac
 	echo The compiler is $GC.
 	if [ "$(uname)" = "Darwin" ]; then
 		echo

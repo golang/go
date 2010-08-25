@@ -7,9 +7,7 @@ set -e
 
 bash clean.bash
 
-GOBIN="${GOBIN:-$HOME/bin}"
-
-eval $("$GOBIN"/gomake --no-print-directory -f ../Make.inc go-env)
+eval $(gomake --no-print-directory -f ../Make.inc go-env)
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 1
@@ -17,7 +15,7 @@ fi
 
 cd ${O}l
 bash mkenam
-"$GOBIN"/gomake enam.o
+gomake enam.o
 cd ..
 
 # Note: commands written in Go are not listed here.
@@ -27,6 +25,6 @@ for i in cc ${O}l ${O}a ${O}c gc ${O}g cov godefs gopack gotest nm prof
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
-	"$GOBIN"/gomake install
+	gomake install
 	cd ..
 done
