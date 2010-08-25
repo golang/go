@@ -206,7 +206,7 @@ func Read(fd int, p []byte) (n int, errno int) {
 	var done uint32
 	if ok, e := ReadFile(int32(fd), p, &done, nil); !ok {
 		if e == ERROR_BROKEN_PIPE {
-			// BUG(brainman): work around ERROR_BROKEN_PIPE is returned on reading EOF from stdin
+			// NOTE(brainman): work around ERROR_BROKEN_PIPE is returned on reading EOF from stdin
 			return 0, 0
 		}
 		return 0, e
