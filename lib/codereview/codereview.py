@@ -108,6 +108,7 @@ server = "codereview.appspot.com"
 server_url_base = None
 defaultcc = None
 contributors = {}
+missing_codereview = None
 
 #######################################################################
 # Change list parsing.
@@ -755,6 +756,9 @@ def change(ui, repo, *pats, **opts):
 	before running hg change -d 123456.
 	"""
 
+	if missing_codereview:
+		return missing_codereview
+
 	dirty = {}
 	if len(pats) > 0 and GoodCLName(pats[0]):
 		name = pats[0]
@@ -838,6 +842,9 @@ def code_login(ui, repo, **opts):
 	Logs in to the code review server, saving a cookie in
 	a file in your home directory.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	MySend(None)
 
 def clpatch(ui, repo, clname, **opts):
@@ -850,6 +857,9 @@ def clpatch(ui, repo, clname, **opts):
 	Submitting an imported patch will keep the original author's
 	name as the Author: line but add your own name to a Committer: line.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	cl, patch, err = DownloadCL(ui, repo, clname)
 	argv = ["hgpatch"]
 	if opts["no_incoming"]:
@@ -882,6 +892,9 @@ def download(ui, repo, clname, **opts):
 	Download prints a description of the given change list
 	followed by its diff, downloaded from the code review server.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	cl, patch, err = DownloadCL(ui, repo, clname)
 	if err != "":
 		return err
@@ -897,6 +910,9 @@ def file(ui, repo, clname, pat, *pats, **opts):
 	The -d option only removes files from the change list.
 	It does not edit them or remove them from the repository.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	pats = tuple([pat] + list(pats))
 	if not GoodCLName(clname):
 		return "invalid CL name " + clname
@@ -954,6 +970,9 @@ def gofmt(ui, repo, *pats, **opts):
 	Applies gofmt to the modified files in the repository that match
 	the given patterns.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	files = ChangedExistingFiles(ui, repo, pats, opts)
 	files = [f for f in files if f.endswith(".go")]
 	if not files:
@@ -978,6 +997,9 @@ def mail(ui, repo, *pats, **opts):
 	Uploads a patch to the code review server and then sends mail
 	to the reviewer and CC list asking for a review.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
 	if err != "":
 		return err
@@ -1003,6 +1025,9 @@ def pending(ui, repo, *pats, **opts):
 
 	Lists pending changes followed by a list of unassigned but modified files.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	m = LoadAllCL(ui, repo, web=True)
 	names = m.keys()
 	names.sort()
@@ -1053,6 +1078,9 @@ def submit(ui, repo, *pats, **opts):
 	Submits change to remote repository.
 	Bails out if the local repository is not in sync with the remote one.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	repo.ui.quiet = True
 	if not opts["no_incoming"] and Incoming(ui, repo, opts):
 		return "local repository out of date; must sync before submit"
@@ -1165,6 +1193,9 @@ def sync(ui, repo, **opts):
 	Incorporates recent changes from the remote repository
 	into the local repository.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	if not opts["local"]:
 		ui.status = sync_note
 		ui.note = sync_note
@@ -1239,15 +1270,14 @@ def sync_changes(ui, repo):
 			ui.warn("CL %s has no files; suggest hg change -d %s\n" % (cl.name, cl.name))
 	return
 
-def uisetup(ui):
-	if "^commit|ci" in commands.table:
-		commands.table["^commit|ci"] = (nocommit, [], "")
-
 def upload(ui, repo, name, **opts):
 	"""upload diffs to the code review server
 
 	Uploads the current modifications for a given change to the server.
 	"""
+	if missing_codereview:
+		return missing_codereview
+
 	repo.ui.quiet = True
 	cl, err = LoadCL(ui, repo, name, web=True)
 	if err != "":
@@ -1291,11 +1321,6 @@ cmdtable = {
 	# instead of the help for the extension.
 	"code-login": (
 		code_login,
-		[],
-		"",
-	),
-	"commit|ci": (
-		nocommit,
 		[],
 		"",
 	),
@@ -1623,12 +1648,18 @@ def PostMessage(ui, issue, message, reviewers=None, cc=None, send_mail=True, sub
 class opt(object):
 	pass
 
+def disabled(*opts, **kwopts):
+	raise util.Abort("commit is disabled when codereview is in use")
+
 def RietveldSetup(ui, repo):
 	global defaultcc, upload_options, rpc, server, server_url_base, force_google_account, verbosity, contributors
+	global missing_codereview
 
+	repo_config_path = ''
 	# Read repository-specific options from lib/codereview/codereview.cfg
 	try:
-		f = open(repo.root + '/lib/codereview/codereview.cfg')
+		repo_config_path = repo.root + '/lib/codereview/codereview.cfg'
+		f = open(repo_config_path)
 		for line in f:
 			if line.startswith('defaultcc: '):
 				defaultcc = SplitCommaSpace(line[10:])
@@ -1637,7 +1668,16 @@ def RietveldSetup(ui, repo):
 		# a code review repository; stop now before we foul
 		# things up even worse.  Might also be that repo doesn't
 		# even have a root.  See issue 959.
+		if repo_config_path == '':
+			missing_codereview = 'codereview disabled: repository has no root'
+		else:
+			missing_codereview = 'codereview disabled: cannot open ' + repo_config_path
 		return
+
+	# Should only modify repository with hg submit.
+	# Disable the built-in Mercurial commands that might
+	# trip things up.
+	cmdutil.commit = disabled
 
 	try:
 		f = open(repo.root + '/CONTRIBUTORS', 'r')
@@ -1657,15 +1697,6 @@ def RietveldSetup(ui, repo):
 			contributors[email.lower()] = (name, email)
 			for extra in m.group(3).split():
 				contributors[extra[1:-1].lower()] = (name, email)
-	
-
-	# TODO(rsc): If the repository config has no codereview section,
-	# do not enable the extension.  This allows users to
-	# put the extension in their global .hgrc but only
-	# enable it for some repositories.
-	# if not ui.has_section("codereview"):
-	# 	cmdtable = {}
-	# 	return
 
 	if not ui.verbose:
 		verbosity = 0
@@ -1713,8 +1744,6 @@ def RietveldSetup(ui, repo):
 # We keep a full copy of upload.py here to avoid import path hell.
 # It would be nice if hg added the hg repository root
 # to the default PYTHONPATH.
-
-# Edit .+2,<hget http://codereview.appspot.com/static/upload.py
 
 #!/usr/bin/env python
 #
