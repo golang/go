@@ -13,7 +13,7 @@ fi
 
 # Get list of directories from Makefile
 dirs=$(sed '1,/^DIRS=/d; /^$/,$d; s/\\//g' Makefile)
-dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
+dirpat=$(echo $dirs C | sed 's/ /|/g; s/.*/^(&)$/')
 
 for dir in $dirs; do (
 	cd $dir || exit 1
@@ -31,6 +31,7 @@ for dir in $dirs; do (
 		egrep "$dirpat" |
 		grep -v "^$dir\$" |
 		sed 's/$/.install/' |
+		sed 's;^C\.install;../cmd/cgo.install;' |
 		sort -u
 	)
 

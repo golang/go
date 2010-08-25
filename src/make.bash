@@ -52,7 +52,8 @@ fi
 )
 bash "$GOROOT"/src/clean.bash
 
-for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goinstall cmd/goyacc cmd/hgpatch
+# pkg builds libcgo and the Go programs in cmd.
+for i in lib9 libbio libmach cmd pkg
 do
 	case "$i-$GOOS-$GOARCH" in
 	libcgo-nacl-* | cmd/*-nacl-* | libcgo-linux-arm)

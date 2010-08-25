@@ -19,7 +19,7 @@ gomake enam.o
 cd ..
 
 # Note: commands written in Go are not listed here.
-# They are in ../make.bash so that they can be built
+# They are in ../pkg/Makefile so that they can be built
 # after the Go libraries on which they depend.
 for i in cc ${O}l ${O}a ${O}c gc ${O}g cov godefs gopack gotest nm prof
 do
