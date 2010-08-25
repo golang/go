@@ -123,6 +123,14 @@ DIRS=\
 	utf8\
 	websocket\
 	xml\
+	../libcgo\
+	../cmd/cgo\
+	../cmd/ebnflint\
+	../cmd/godoc\
+	../cmd/gofmt\
+	../cmd/goinstall\
+	../cmd/goyacc\
+	../cmd/hgpatch\
 
 NOTEST=\
 	debug/proc\
@@ -140,6 +148,14 @@ NOTEST=\
 	runtime/pprof\
 	syscall\
 	testing/iotest\
+	../libcgo\
+	../cmd/cgo\
+	../cmd/ebnflint\
+	../cmd/godoc\
+	../cmd/gofmt\
+	../cmd/goinstall\
+	../cmd/goyacc\
+	../cmd/hgpatch\
 
 NOBENCH=\
 	container/vector\
@@ -211,3 +227,5 @@ deps:
 	./deps.bash
 
 -include Make.deps
+
+../cmd/cgo.install: ../libcgo.install
