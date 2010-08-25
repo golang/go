@@ -14,33 +14,18 @@ under the BSD-style license found in the LICENSE file.
 
 Binary Distribution Notes
 
-If you have just untarred a binary Go distribution, then there are some
-environment variables you'll need to set in your .profile (or equivalent):
+If you have just untarred a binary Go distribution, you need to set
+the environment variable $GOROOT to the full path of the go
+directory (the one containing this README).  You can omit the
+variable if you unpack it into /usr/local/go, or if you rebuild
+from sources by running all.bash (see doc/install.html).
+You should also add the Go binary directory $GOROOT/bin
+to your shell's path.
 
-    GOOS should be set to your operating system (eg, linux),
-    GOARCH should be your processor architecture (eg, amd64),
-    GOROOT should be the directory you extracted the tarball to,
-    GOBIN should point to $GOROOT/bin.
+For example, if you extracted the tar file into $HOME/go, you might
+put the following in your .profile:
 
-For example, if you downloaded the tarball 
+    export GOROOT=$HOME/go
+    export PATH=$PATH:$GOROOT/bin
 
-    go.release.YYYY-MM-DD.linux-amd64.tar.gz 
-
-and extracted it to 
-
-    /home/username/go
-
-you would set the following variables:
-
-    export GOOS=linux
-    export GOARCH=amd64
-    export GOROOT=/home/username/go
-    export GOBIN=$GOROOT/bin
-
-See doc/install.html for more detail about these flags.
-
-Additionally, $GOROOT should be in your $PATH:
-    
-    export PATH=PATH:$GOROOT
-    
-
+See doc/install.html for more details.
