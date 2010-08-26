@@ -84,9 +84,13 @@ func TestHMAC(t *testing.T) {
 				t.Errorf("test %d.%d: Write(%d) = %d, %v", i, j, len(tt.in), n, err)
 				continue
 			}
-			sum := fmt.Sprintf("%x", h.Sum())
-			if sum != tt.out {
-				t.Errorf("test %d.%d: have %s want %s\n", i, j, sum, tt.out)
+
+			// Repetive Sum() calls should return the same value
+			for k := 0; k < 2; k++ {
+				sum := fmt.Sprintf("%x", h.Sum())
+				if sum != tt.out {
+					t.Errorf("test %d.%d.%d: have %s want %s\n", i, j, k, sum, tt.out)
+				}
 			}
 
 			// Second iteration: make sure reset works.

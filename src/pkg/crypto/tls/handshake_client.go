@@ -8,7 +8,6 @@ import (
 	"crypto/hmac"
 	"crypto/rc4"
 	"crypto/rsa"
-	"crypto/sha1"
 	"crypto/subtle"
 	"crypto/x509"
 	"io"
@@ -226,7 +225,7 @@ func (c *Conn) clientHandshake() os.Error {
 
 	cipher, _ := rc4.NewCipher(clientKey)
 
-	c.out.prepareCipherSpec(cipher, hmac.New(sha1.New(), clientMAC))
+	c.out.prepareCipherSpec(cipher, hmac.NewSHA1(clientMAC))
 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
 
 	finished := new(finishedMsg)
@@ -235,7 +234,7 @@ func (c *Conn) clientHandshake() os.Error {
 	c.writeRecord(recordTypeHandshake, finished.marshal())
 
 	cipher2, _ := rc4.NewCipher(serverKey)
-	c.in.prepareCipherSpec(cipher2, hmac.New(sha1.New(), serverMAC))
+	c.in.prepareCipherSpec(cipher2, hmac.NewSHA1(serverMAC))
 	c.readRecord(recordTypeChangeCipherSpec)
 	if c.err != nil {
 		return c.err

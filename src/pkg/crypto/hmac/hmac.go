@@ -34,10 +34,9 @@ const (
 )
 
 type hmac struct {
-	size  int
-	key   []byte
-	tmp   []byte
-	inner hash.Hash
+	size         int
+	key, tmp     []byte
+	outer, inner hash.Hash
 }
 
 func (h *hmac) tmpPad(xor byte) {
@@ -50,14 +49,14 @@ func (h *hmac) tmpPad(xor byte) {
 }
 
 func (h *hmac) Sum() []byte {
-	h.tmpPad(0x5c)
 	sum := h.inner.Sum()
+	h.tmpPad(0x5c)
 	for i, b := range sum {
 		h.tmp[padSize+i] = b
 	}
-	h.inner.Reset()
-	h.inner.Write(h.tmp)
-	return h.inner.Sum()
+	h.outer.Reset()
+	h.outer.Write(h.tmp)
+	return h.outer.Sum()
 }
 
 func (h *hmac) Write(p []byte) (n int, err os.Error) {
@@ -72,27 +71,26 @@ func (h *hmac) Reset() {
 	h.inner.Write(h.tmp[0:padSize])
 }
 
-// New returns a new HMAC hash using the given hash and key.
-func New(h hash.Hash, key []byte) hash.Hash {
+// New returns a new HMAC hash using the given hash generator and key.
+func New(h func() hash.Hash, key []byte) hash.Hash {
+	hm := new(hmac)
+	hm.outer = h()
+	hm.inner = h()
+	hm.size = hm.inner.Size()
+	hm.tmp = make([]byte, padSize+hm.size)
 	if len(key) > padSize {
 		// If key is too big, hash it.
-		h.Write(key)
-		key = h.Sum()
+		hm.outer.Write(key)
+		key = hm.outer.Sum()
 	}
-	hm := new(hmac)
-	hm.inner = h
-	hm.size = h.Size()
 	hm.key = make([]byte, len(key))
-	for i, k := range key {
-		hm.key[i] = k
-	}
-	hm.tmp = make([]byte, padSize+hm.size)
+	copy(hm.key, key)
 	hm.Reset()
 	return hm
 }
 
 // NewMD5 returns a new HMAC-MD5 hash using the given key.
-func NewMD5(key []byte) hash.Hash { return New(md5.New(), key) }
+func NewMD5(key []byte) hash.Hash { return New(md5.New, key) }
 
 // NewSHA1 returns a new HMAC-SHA1 hash using the given key.
-func NewSHA1(key []byte) hash.Hash { return New(sha1.New(), key) }
+func NewSHA1(key []byte) hash.Hash { return New(sha1.New, key) }
