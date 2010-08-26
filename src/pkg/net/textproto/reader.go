@@ -155,6 +155,30 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, os.Error) {
 	return line, err
 }
 
+func (r *Reader) readCodeLine(expectCode int) (code int, continued bool, message string, err os.Error) {
+	line, err := r.ReadLine()
+	if err != nil {
+		return
+	}
+	if len(line) < 4 || line[3] != ' ' && line[3] != '-' {
+		err = ProtocolError("short response: " + line)
+		return
+	}
+	continued = line[3] == '-'
+	code, err = strconv.Atoi(line[0:3])
+	if err != nil || code < 100 {
+		err = ProtocolError("invalid response code: " + line)
+		return
+	}
+	message = line[4:]
+	if 1 <= expectCode && expectCode < 10 && code/100 != expectCode ||
+		10 <= expectCode && expectCode < 100 && code/10 != expectCode ||
+		100 <= expectCode && expectCode < 1000 && code != expectCode {
+		err = &Error{code, message}
+	}
+	return
+}
+
 // ReadCodeLine reads a response code line of the form
 //	code message
 // where code is a 3-digit status code and the message
@@ -166,27 +190,45 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, os.Error) {
 // For example, if expectCode is 31, an error will be returned if
 // the status is not in the range [310,319].
 //
+// If the response is multi-line, ReadCodeLine returns an error.
+//
 // An expectCode <= 0 disables the check of the status code.
 //
 func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err os.Error) {
-	line, err := r.ReadLine()
-	if err != nil {
-		return
+	code, continued, message, err := r.readCodeLine(expectCode)
+	if err == nil && continued {
+		err = ProtocolError("unexpected multi-line response: " + message)
 	}
-	if len(line) < 4 || line[3] != ' ' {
-		err = ProtocolError("short response: " + line)
-		return
-	}
-	code, err = strconv.Atoi(line[0:3])
-	if err != nil || code < 100 {
-		err = ProtocolError("invalid response code: " + line)
-		return
-	}
-	message = line[4:]
-	if 1 <= expectCode && expectCode < 10 && code/100 != expectCode ||
-		10 <= expectCode && expectCode < 100 && code/10 != expectCode ||
-		100 <= expectCode && expectCode < 1000 && code != expectCode {
-		err = &Error{code, message}
+	return
+}
+
+// ReadResponse reads a multi-line response of the form
+//	code-message line 1
+//	code-message line 2
+//	...
+//	code message line n
+// where code is a 3-digit status code. Each line should have the same code.
+// The response is terminated by a line that uses a space between the code and
+// the message line rather than a dash. Each line in message is separated by
+// a newline (\n).
+//
+// If the prefix of the status does not match the digits in expectCode,
+// ReadResponse returns with err set to &Error{code, message}.
+// For example, if expectCode is 31, an error will be returned if
+// the status is not in the range [310,319].
+//
+// An expectCode <= 0 disables the check of the status code.
+//
+func (r *Reader) ReadResponse(expectCode int) (code int, message string, err os.Error) {
+	code, continued, message, err := r.readCodeLine(expectCode)
+	for err == nil && continued {
+		var code2 int
+		var moreMessage string
+		code2, continued, moreMessage, err = r.readCodeLine(expectCode)
+		if code != code2 {
+			err = ProtocolError("status code mismatch: " + strconv.Itoa(code) + ", " + strconv.Itoa(code2))
+		}
+		message += "\n" + moreMessage
 	}
 	return
 }
