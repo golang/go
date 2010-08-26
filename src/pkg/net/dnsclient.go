@@ -335,3 +335,22 @@ func LookupSRV(name string) (cname string, addrs []*SRV, err os.Error) {
 	}
 	return
 }
+
+type MX struct {
+	Host string
+	Pref uint16
+}
+
+func LookupMX(name string) (entries []*MX, err os.Error) {
+	var records []dnsRR
+	_, records, err = lookup(name, dnsTypeMX)
+	if err != nil {
+		return
+	}
+	entries = make([]*MX, len(records))
+	for i := 0; i < len(records); i++ {
+		r := records[i].(*dnsRR_MX)
+		entries[i] = &MX{r.Mx, r.Pref}
+	}
+	return
+}
