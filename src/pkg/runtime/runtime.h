@@ -307,6 +307,7 @@ enum
 	ASTRING,
 	AINTER,
 	ANILINTER,
+	AMEMWORD,
 	Amax
 };
 
