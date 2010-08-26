@@ -361,6 +361,24 @@ memcopy(uint32 s, void *a, void *b)
 		ba[i] = bb[i];
 }
 
+static uint32
+memwordequal(uint32 s, void *a, void *b)
+{
+	USED(s);
+	return *(uintptr*)(a) == *(uintptr*)(b);
+}
+
+static void
+memwordcopy(uint32 s, void *a, void *b)
+{
+	USED(s);
+	if (b == nil) {
+		*(uintptr*)(a) = 0;
+		return;
+	}
+	*(uintptr*)(a) = *(uintptr*)(b);
+}
+
 static uintptr
 strhash(uint32 s, String *a)
 {
@@ -451,6 +469,7 @@ algarray[] =
 [ASTRING]	{ strhash, strequal, strprint, memcopy },
 [AINTER]		{ interhash, interequal, interprint, memcopy },
 [ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, memcopy },
+[AMEMWORD] { memhash, memwordequal, memprint, memwordcopy },
 };
 
 #pragma textflag 7

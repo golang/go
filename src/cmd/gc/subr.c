@@ -476,9 +476,13 @@ algtype(Type *t)
 	int a;
 
 	if(issimple[t->etype] || isptr[t->etype] || iscomplex[t->etype] ||
-	   t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP)
-		a = AMEM;	// just bytes (int, ptr, etc)
-	else if(t->etype == TSTRING)
+		t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP) {
+		if (t->width == widthptr) {
+			a = AMEMWORD;
+		} else {
+			a = AMEM;	// just bytes (int, ptr, etc)
+		}
+	} else if(t->etype == TSTRING)
 		a = ASTRING;	// string
 	else if(isnilinter(t))
 		a = ANILINTER;	// nil interface
