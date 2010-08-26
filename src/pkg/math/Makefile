@@ -12,6 +12,7 @@ OFILES_amd64=\
 	fdim_amd64.$O\
 	hypot_amd64.$O\
 	log_amd64.$O\
+	sincos_amd64.$O\
 	sqrt_amd64.$O\
 
 OFILES_386=\
