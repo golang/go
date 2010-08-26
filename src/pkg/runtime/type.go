@@ -53,6 +53,9 @@ const (
 	kindFloat
 	kindFloat32
 	kindFloat64
+	kindComplex
+	kindComplex64
+	kindComplex128
 	kindArray
 	kindChan
 	kindFunc
