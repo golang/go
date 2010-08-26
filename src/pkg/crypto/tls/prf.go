@@ -20,7 +20,7 @@ func splitPreMasterSecret(secret []byte) (s1, s2 []byte) {
 }
 
 // pHash implements the P_hash function, as defined in RFC 4346, section 5.
-func pHash(result, secret, seed []byte, hash hash.Hash) {
+func pHash(result, secret, seed []byte, hash func() hash.Hash) {
 	h := hmac.New(hash, secret)
 	h.Write(seed)
 	a := h.Sum()
@@ -46,8 +46,8 @@ func pHash(result, secret, seed []byte, hash hash.Hash) {
 
 // pRF11 implements the TLS 1.1 pseudo-random function, as defined in RFC 4346, section 5.
 func pRF11(result, secret, label, seed []byte) {
-	hashSHA1 := sha1.New()
-	hashMD5 := md5.New()
+	hashSHA1 := sha1.New
+	hashMD5 := md5.New
 
 	labelAndSeed := make([]byte, len(label)+len(seed))
 	copy(labelAndSeed, label)

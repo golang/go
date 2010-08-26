@@ -16,7 +16,6 @@ import (
 	"crypto/hmac"
 	"crypto/rc4"
 	"crypto/rsa"
-	"crypto/sha1"
 	"crypto/subtle"
 	"crypto/x509"
 	"io"
@@ -227,7 +226,7 @@ func (c *Conn) serverHandshake() os.Error {
 		keysFromPreMasterSecret11(preMasterSecret, clientHello.random, hello.random, suite.hashLength, suite.cipherKeyLength)
 
 	cipher, _ := rc4.NewCipher(clientKey)
-	c.in.prepareCipherSpec(cipher, hmac.New(sha1.New(), clientMAC))
+	c.in.prepareCipherSpec(cipher, hmac.NewSHA1(clientMAC))
 	c.readRecord(recordTypeChangeCipherSpec)
 	if err := c.error(); err != nil {
 		return err
@@ -264,7 +263,7 @@ func (c *Conn) serverHandshake() os.Error {
 	finishedHash.Write(clientFinished.marshal())
 
 	cipher2, _ := rc4.NewCipher(serverKey)
-	c.out.prepareCipherSpec(cipher2, hmac.New(sha1.New(), serverMAC))
+	c.out.prepareCipherSpec(cipher2, hmac.NewSHA1(serverMAC))
 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
 
 	finished := new(finishedMsg)
