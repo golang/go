@@ -224,6 +224,7 @@ class CL(object):
 			ui.warn("no files in change list\n")
 		if ui.configbool("codereview", "force_gofmt", True) and gofmt:
 			CheckGofmt(ui, repo, self.files, just_warn=gofmt_just_warn)
+		set_status("uploading CL metadata + diffs")
 		os.chdir(repo.root)
 		form_fields = [
 			("content_upload", "1"),
@@ -262,6 +263,7 @@ class CL(object):
 			patchset = lines[1].strip()
 			patches = [x.split(" ", 1) for x in lines[2:]]
 		ui.status(msg + "\n")
+		set_status("uploaded CL metadata + diffs")
 		if not response_body.startswith("Issue created.") and not response_body.startswith("Issue updated."):
 			raise util.Abort("failed to update issue: " + response_body)
 		issue = msg[msg.rfind("/")+1:]
@@ -269,12 +271,16 @@ class CL(object):
 		if not self.url:
 			self.url = server_url_base + self.name
 		if not uploaded_diff_file:
+			set_status("uploading patches")
 			patches = UploadSeparatePatches(issue, rpc, patchset, data, upload_options)
 		if vcs:
+			set_status("uploading base files")
 			vcs.UploadBaseFiles(issue, rpc, patches, patchset, upload_options, files)
 		if send_mail:
+			set_status("sending mail")
 			MySend("/" + issue + "/mail", payload="")
 		self.web = True
+		set_status("flushing changes to disk")
 		self.Flush(ui, repo)
 		return
 
@@ -387,6 +393,7 @@ def IsLocalCL(ui, repo, name):
 
 # Load CL from disk and/or the web.
 def LoadCL(ui, repo, name, web=True):
+	set_status("loading CL " + name)
 	if not GoodCLName(name):
 		return None, "invalid CL name"
 	dir = CodeReviewDir(ui, repo)
@@ -420,7 +427,37 @@ def LoadCL(ui, repo, name, web=True):
 			cl.desc = f['description']
 		cl.url = server_url_base + name
 		cl.web = True
+	set_status("loaded CL " + name)
 	return cl, ''
+
+global_status = ""
+
+def set_status(s):
+	# print >>sys.stderr, "\t", time.asctime(), s
+	global global_status
+	global_status = s
+
+class StatusThread(threading.Thread):
+	def __init__(self):
+		threading.Thread.__init__(self)
+	def run(self):
+		# pause a reasonable amount of time before
+		# starting to display status messages, so that
+		# most hg commands won't ever see them.
+		time.sleep(30)
+
+		# now show status every 15 seconds
+		while True:
+			time.sleep(15 - time.time() % 15)
+			s = global_status
+			if s is None:
+				continue
+			if s == "":
+				s = "(unknown status)"
+			print >>sys.stderr, time.asctime(), s
+
+def start_status_thread():
+	StatusThread().start()
 
 class LoadCLThread(threading.Thread):
 	def __init__(self, ui, repo, dir, f, web):
@@ -614,6 +651,7 @@ def Incoming(ui, repo, opts):
 	return incoming
 
 def EditCL(ui, repo, cl):
+	set_status(None)	# do not show status
 	s = cl.EditorText()
 	while True:
 		s = ui.edit(s, ui.username())
@@ -696,6 +734,7 @@ def RelativePath(path, cwd):
 
 # Check that gofmt run on the list of files does not change them
 def CheckGofmt(ui, repo, files, just_warn=False):
+	set_status("running gofmt")
 	files = [f for f in files if (f.startswith('src/') or f.startswith('test/bench/')) and f.endswith('.go')]
 	if not files:
 		return
@@ -712,6 +751,7 @@ def CheckGofmt(ui, repo, files, just_warn=False):
 	data = cmd.stdout.read()
 	errors = cmd.stderr.read()
 	cmd.wait()
+	set_status("done with gofmt")
 	if len(errors) > 0:
 		ui.warn("gofmt errors:\n" + errors.rstrip() + "\n")
 		return
@@ -1045,11 +1085,13 @@ def pending(ui, repo, *pats, **opts):
 def reposetup(ui, repo):
 	global original_match
 	if original_match is None:
+		start_status_thread()
 		original_match = cmdutil.match
 		cmdutil.match = ReplacementForCmdutilMatch
 		RietveldSetup(ui, repo)
 
 def CheckContributor(ui, repo, user=None):
+	set_status("checking CONTRIBUTORS file")
 	if not user:
 		user = ui.config("ui", "username")
 		if not user:
@@ -1444,6 +1486,7 @@ def IsRietveldSubmitted(ui, clname, hex):
 	return False
 
 def DownloadCL(ui, repo, clname):
+	set_status("downloading CL " + clname)
 	cl, err = LoadCL(ui, repo, clname)
 	if err != "":
 		return None, None, "error loading CL %s: %s" % (clname, ExceptionDetail())
@@ -1588,6 +1631,7 @@ def GetForm(url):
 # Fetch the settings for the CL, like reviewer and CC list, by
 # scraping the Rietveld editing forms.
 def GetSettings(issue):
+	set_status("getting issue metadata from web")
 	# The /issue/edit page has everything but only the
 	# CL owner is allowed to fetch it (and submit it).
 	f = None
@@ -1604,6 +1648,7 @@ def GetSettings(issue):
 	return f
 
 def EditDesc(issue, subject=None, desc=None, reviewers=None, cc=None, closed=None):
+	set_status("uploading change to description")
 	form_fields = GetForm("/" + issue + "/edit")
 	if subject is not None:
 		form_fields['subject'] = subject
@@ -1622,6 +1667,7 @@ def EditDesc(issue, subject=None, desc=None, reviewers=None, cc=None, closed=Non
 		sys.exit(2)
 
 def PostMessage(ui, issue, message, reviewers=None, cc=None, send_mail=True, subject=None):
+	set_status("uploading message")
 	form_fields = GetForm("/" + issue + "/publish")
 	if reviewers is not None:
 		form_fields['reviewers'] = reviewers
@@ -2447,6 +2493,7 @@ class VersionControlSystem(object):
 
     def UploadFile(filename, file_id, content, is_binary, status, is_base):
       """Uploads a file to the server."""
+      set_status("uploading " + filename)
       file_too_large = False
       if is_base:
         type = "base"
@@ -2948,6 +2995,7 @@ class MercurialVCS(VersionControlSystem):
     return unknown_files
 
   def GetBaseFile(self, filename):
+    set_status("inspecting " + filename)
     # "hg status" and "hg cat" both take a path relative to the current subdir
     # rather than to the repo root, but "hg diff" has given us the full path
     # to the repo root.
@@ -3035,6 +3083,7 @@ def UploadSeparatePatches(issue, rpc_server, patchset, data, options):
   patches = SplitPatch(data)
   rv = []
   for patch in patches:
+    set_status("uploading patch for " + patch[0])
     if len(patch[1]) > MAX_UPLOAD_SIZE:
       print ("Not uploading the patch for " + patch[0] +
              " because the file is too large.")
