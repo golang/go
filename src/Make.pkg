@@ -102,14 +102,11 @@ dir:
 #	x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
 #
 
-_cgo_defun.c _cgo_gotypes.go _cgo_export.c _cgo_export.h: $(CGOFILES)
+_cgo_defun.c: $(CGOFILES)
 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
 
 # Ugly but necessary
-%.cgo1.go: _cgo_defun.c _cgo_gotypes.go
-	@true
-
-%.cgo2.c: _cgo_defun.c _cgo_gotypes.go
+_cgo_gotypes.go _cgo_export.c _cgo_export.h %.cgo1.go %.cgo2.c: _cgo_defun.c
 	@true
 
 %.cgo2.o: %.cgo2.c
