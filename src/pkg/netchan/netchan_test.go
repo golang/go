@@ -15,10 +15,12 @@ func exportSend(exp *Exporter, n int, t *testing.T) {
 	if err != nil {
 		t.Fatal("exportSend:", err)
 	}
-	for i := 0; i < n; i++ {
-		ch <- 23+i
-	}
-	close(ch)
+	go func() {
+		for i := 0; i < n; i++ {
+			ch <- 23+i
+		}
+		close(ch)
+	}()
 }
 
 func exportReceive(exp *Exporter, t *testing.T) {
@@ -75,7 +77,7 @@ func TestExportSendImportReceive(t *testing.T) {
 	if err != nil {
 		t.Fatal("new importer:", err)
 	}
-	go exportSend(exp, count, t)
+	exportSend(exp, count, t)
 	importReceive(imp, t)
 }
 
@@ -101,6 +103,6 @@ func TestClosingExportSendImportReceive(t *testing.T) {
 	if err != nil {
 		t.Fatal("new importer:", err)
 	}
-	go exportSend(exp, closeCount, t)
+	exportSend(exp, closeCount, t)
 	importReceive(imp, t)
 }
