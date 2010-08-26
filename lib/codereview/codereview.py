@@ -457,7 +457,9 @@ class StatusThread(threading.Thread):
 			print >>sys.stderr, time.asctime(), s
 
 def start_status_thread():
-	StatusThread().start()
+	t = StatusThread()
+	t.setDaemon(True)  # allowed to exit if t is still running
+	t.start()
 
 class LoadCLThread(threading.Thread):
 	def __init__(self, ui, repo, dir, f, web):
