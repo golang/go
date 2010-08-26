@@ -389,7 +389,12 @@ func (url *URL) String() string {
 	if url.Host != "" || url.Userinfo != "" {
 		result += "//"
 		if url.Userinfo != "" {
-			result += urlEscape(url.Userinfo, false) + "@"
+			// hide the password, if any
+			info := url.Userinfo
+			if i := strings.Index(info, ":"); i >= 0 {
+				info = info[0:i] + ":******"
+			}
+			result += urlEscape(info, false) + "@"
 		}
 		result += url.Host
 	}
