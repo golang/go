@@ -185,6 +185,28 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	URLTest{
+		"http://user:password@google.com",
+		&URL{
+			Raw:       "http://user:password@google.com",
+			Scheme:    "http",
+			Authority: "user:password@google.com",
+			Userinfo:  "user:password",
+			Host:      "google.com",
+		},
+		"http://user:******@google.com",
+	},
+	URLTest{
+		"http://user:longerpass@google.com",
+		&URL{
+			Raw:       "http://user:longerpass@google.com",
+			Scheme:    "http",
+			Authority: "user:longerpass@google.com",
+			Userinfo:  "user:longerpass",
+			Host:      "google.com",
+		},
+		"http://user:******@google.com",
+	},
 }
 
 var urlnofragtests = []URLTest{
