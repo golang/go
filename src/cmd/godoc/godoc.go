@@ -144,13 +144,6 @@ func pkgName(filename string) string {
 }
 
 
-func htmlEscape(s string) string {
-	var buf bytes.Buffer
-	template.HTMLEscape(&buf, []byte(s))
-	return buf.String()
-}
-
-
 func firstSentence(s string) string {
 	i := -1 // index+1 of first terminator (punctuation ending a sentence)
 	j := -1 // index+1 of first terminator followed by white space
@@ -448,6 +441,37 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 // ----------------------------------------------------------------------------
 // HTML formatting support
 
+// aposescaper implements an io.Writer that escapes single quotes:
+// ' is written as \' . It is used to escape text such that it can
+// be used as the content of single-quoted string literals.
+type aposescaper struct {
+	w io.Writer
+}
+
+
+func (e *aposescaper) Write(p []byte) (n int, err os.Error) {
+	backslash := []byte{'\\'}
+	var i, m int
+	for j, b := range p {
+		if b == '\'' {
+			m, err = e.w.Write(p[i:j])
+			n += m
+			if err != nil {
+				return
+			}
+			_, err = e.w.Write(backslash)
+			if err != nil {
+				return
+			}
+			i = j
+		}
+	}
+	m, err = e.w.Write(p[i:])
+	n += m
+	return
+}
+
+
 // Styler implements a printer.Styler.
 type Styler struct {
 	linetags  bool
@@ -496,6 +520,11 @@ func writeObjInfo(w io.Writer, obj *ast.Object) {
 		fmt.Fprintf(w, "%s ", obj.Kind)
 	}
 	template.HTMLEscape(w, []byte(obj.Name))
+	// show type if we know it
+	if obj.Type != nil && obj.Type.Expr != nil {
+		fmt.Fprint(w, " ")
+		writeNode(&aposescaper{w}, obj.Type.Expr, true, &defaultStyler)
+	}
 }
 
 
@@ -1035,8 +1064,9 @@ func serveGoSource(c *http.Conn, r *http.Request, abspath, relpath string) {
 		return
 	}
 
+	// TODO(gri) enable once we are confident it works for all files
 	// augment AST with types; ignore errors (partial type information ok)
-	// TODO(gri): invoke typechecker
+	// typechecker.CheckFile(file, nil)
 
 	var buf bytes.Buffer
 	styler := newStyler(r.FormValue("h"))

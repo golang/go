@@ -70,6 +70,7 @@ DIRS=\
 	go/printer\
 	go/scanner\
 	go/token\
+	go/typechecker\
 	gob\
 	hash\
 	hash/adler32\
