@@ -27,8 +27,8 @@
 
 (defvar go-mode-syntax-table
   (let ((st (make-syntax-table)))
-    ;; Symbols
-    (modify-syntax-entry ?_  "_" st)
+    ;; Add _ to :word: character class
+    (modify-syntax-entry ?_  "w" st)
 
     ;; Operators (punctuation)
     (modify-syntax-entry ?+  "." st)
