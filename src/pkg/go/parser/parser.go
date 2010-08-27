@@ -913,7 +913,10 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 
 	p.expect(token.LBRACK)
 	p.exprLev++
-	index := p.parseExpr()
+	var index ast.Expr
+	if p.tok != token.COLON {
+		index = p.parseExpr()
+	}
 	if p.tok == token.COLON {
 		p.next()
 		var end ast.Expr

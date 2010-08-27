@@ -826,9 +826,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
 		p.print(token.LBRACK)
-		p.expr0(x.Index, depth+1, multiLine)
+		if x.Index != nil {
+			p.expr0(x.Index, depth+1, multiLine)
+		}
 		// blanks around ":" if both sides exist and either side is a binary expression
-		if depth <= 1 && x.End != nil && (isBinary(x.Index) || isBinary(x.End)) {
+		if depth <= 1 && x.Index != nil && x.End != nil && (isBinary(x.Index) || isBinary(x.End)) {
 			p.print(blank, token.COLON, blank)
 		} else {
 			p.print(token.COLON)
