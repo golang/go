@@ -25,7 +25,7 @@ func main() {
 		os.Exit(2)
 	}
 	// load file
-	file, err := parser.ParseFile(*srcFn, nil, nil, 0)
+	file, err := parser.ParseFile(*srcFn, nil, 0)
 	if err != nil {
 		log.Exit(err)
 	}
