@@ -25,6 +25,15 @@ import (
 	b "io"
 )
 
+import (
+       "unrenamed"
+       renamed "renameMe"
+       . "io"
+       _ "io"
+       "io"
+       . "os"
+)
+
 // no newlines between consecutive single imports, but
 // respect extra line breaks in the source (at most one empty line)
 import _ "io"
@@ -49,6 +58,17 @@ import (
 	"bar"
 	"foo"  // a comment
 	"bar"  // a comment
+)
+
+// comments + renames
+import (
+       "unrenamed" // a comment
+       renamed "renameMe"
+       . "io" /* a comment */
+       _ "io/ioutil" // a comment
+       "io" // testing alignment
+       . "os"
+       // a comment
 )
 
 // a case that caused problems in the past (comment placement)
