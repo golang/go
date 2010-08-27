@@ -392,23 +392,16 @@ uop:	// unary
 	gmove(&n1, res);
 	return;
 
-flt:	// floating-point.  387 (not SSE2) to interoperate with 6c
+flt:	// floating-point.  387 (not SSE2) to interoperate with 8c
 	nodreg(&f0, nl->type, D_F0);
 	nodreg(&f1, n->type, D_F0+1);
 	if(nr != N)
 		goto flt2;
 
-	if(n->op == OMINUS) {
-		nr = nodintconst(-1);
-		convlit(&nr, n->type);
-		n->op = OMUL;
-		goto flt2;
-	}
-
 	// unary
 	cgen(nl, &f0);
 	if(n->op != OCONV && n->op != OPLUS)
-		gins(foptoas(n->op, n->type, 0), &f0, &f0);
+		gins(foptoas(n->op, n->type, 0), N, N);
 	gmove(&f0, res);
 	return;
 
