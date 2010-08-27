@@ -23,7 +23,6 @@ function loadFeed() {
 		}
 		container.innerHTML = "";
 		var entries = result.feed.entries;
-		console.log(entries);
 		for (var i=0; i<entries.length; i++) {
 			var a = document.createElement("a");
 			a.setAttribute("href", entries[i].link);
