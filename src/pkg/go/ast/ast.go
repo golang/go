@@ -196,7 +196,7 @@ type (
 	// An SliceExpr node represents an expression followed by slice indices.
 	SliceExpr struct {
 		X     Expr // expression
-		Index Expr // beginning of slice range
+		Index Expr // beginning of slice range; or nil
 		End   Expr // end of slice range; or nil
 	}
 
