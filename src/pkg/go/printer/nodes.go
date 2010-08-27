@@ -1192,25 +1192,25 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-// The parameter n is the number of specs in the group. If indent is set,
+// The parameter n is the number of specs in the group. If doIndent is set,
 // multi-line identifier lists in the spec are indented when the first
 // linebreak is encountered.
 // Sets multiLine to true if the spec spans multiple lines.
 //
-func (p *printer) spec(spec ast.Spec, n int, indent bool, multiLine *bool) {
+func (p *printer) spec(spec ast.Spec, n int, doIndent bool, multiLine *bool) {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		p.setComment(s.Doc)
 		if s.Name != nil {
 			p.expr(s.Name, multiLine)
-			p.print(blank)
+			p.print(vtab)
 		}
 		p.expr(s.Path, multiLine)
 		p.setComment(s.Comment)
 
 	case *ast.ValueSpec:
 		p.setComment(s.Doc)
-		p.identList(s.Names, indent, multiLine) // always present
+		p.identList(s.Names, doIndent, multiLine) // always present
 		if n == 1 {
 			if s.Type != nil {
 				p.print(blank)
