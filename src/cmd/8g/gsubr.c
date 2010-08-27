@@ -661,6 +661,11 @@ foptoas(int op, Type *t, int flg)
 		return AFCOMDP;
 	case FCASE(OCMP, TFLOAT64, Fpop2):
 		return AFCOMDPP;
+	
+	case FCASE(OMINUS, TFLOAT32, 0):
+		return AFCHS;
+	case FCASE(OMINUS, TFLOAT64, 0):
+		return AFCHS;
 	}
 
 	fatal("foptoas %O %T %#x", op, t, flg);
