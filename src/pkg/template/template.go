@@ -216,10 +216,9 @@ func equal(s []byte, n int, t []byte) bool {
 // item is empty, we are at EOF.  The item will be either a
 // delimited string or a non-empty string between delimited
 // strings. Tokens stop at (but include, if plain text) a newline.
-// Action tokens on a line by themselves drop the white space on
+// Action tokens on a line by themselves drop any space on
 // either side, up to and including the newline.
 func (t *Template) nextItem() []byte {
-	special := false // is this a {.foo} directive, which means trim white space?
 	startOfLine := t.p == 0 || t.buf[t.p-1] == '\n'
 	start := t.p
 	var i int
@@ -233,7 +232,7 @@ func (t *Template) nextItem() []byte {
 			break
 		}
 	}
-	leadingWhite := i > start
+	leadingSpace := i > start
 	// What's left is nothing, newline, delimited string, or plain text
 Switch:
 	switch {
@@ -242,28 +241,50 @@ Switch:
 	case t.buf[i] == '\n':
 		newline()
 	case equal(t.buf, i, t.ldelim):
-		// Delete surrounding white space if this {.foo} is the first thing on the line.
-		i += len(t.ldelim) // position after delimiter
-		special = i+1 < len(t.buf) && (t.buf[i] == '.' || t.buf[i] == '#')
-		if special && startOfLine {
-			start = i - len(t.ldelim)
-		} else if leadingWhite {
-			// not trimming space: return leading white space if there is some.
-			i -= len(t.ldelim)
-			t.p = i
-			return t.buf[start:i]
-		}
+		left := i         // Start of left delimiter.
+		right := -1       // Will be (immediately after) right delimiter.
+		haveText := false // Delimiters contain text.
+		i += len(t.ldelim)
+		// Find the end of the action.
 		for ; i < len(t.buf); i++ {
 			if t.buf[i] == '\n' {
 				break
 			}
 			if equal(t.buf, i, t.rdelim) {
 				i += len(t.rdelim)
-				break Switch
+				right = i
+				break
+			}
+			haveText = true
+		}
+		if right < 0 {
+			t.parseError("unmatched opening delimiter")
+			return nil
+		}
+		// Is this a special action (starts with '.' or '#') and the only thing on the line?
+		if startOfLine && haveText {
+			firstChar := t.buf[left+len(t.ldelim)]
+			if firstChar == '.' || firstChar == '#' {
+				// It's special and the first thing on the line. Is it the last?
+				for j := right; j < len(t.buf) && white(t.buf[j]); j++ {
+					if t.buf[j] == '\n' {
+						// Yes it is. Drop the surrounding space and return the {.foo}
+						t.linenum++
+						t.p = j + 1
+						return t.buf[left:right]
+					}
+				}
 			}
 		}
-		t.parseError("unmatched opening delimiter")
-		return nil
+		// No it's not. If there's leading space, return that.
+		if leadingSpace {
+			// not trimming space: return leading white space if there is some.
+			t.p = left
+			return t.buf[start:left]
+		}
+		// Return the word, leave the trailing space.
+		start = left
+		break
 	default:
 		for ; i < len(t.buf); i++ {
 			if t.buf[i] == '\n' {
@@ -276,15 +297,6 @@ Switch:
 		}
 	}
 	item := t.buf[start:i]
-	if special && startOfLine {
-		// consume trailing white space
-		for ; i < len(t.buf) && white(t.buf[i]); i++ {
-			if t.buf[i] == '\n' {
-				newline()
-				break // stop before newline
-			}
-		}
-	}
 	t.p = i
 	return item
 }

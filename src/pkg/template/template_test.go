@@ -99,6 +99,7 @@ var tests = []*Test{
 	&Test{" {.tab}   \n", "\t", ""},
 	&Test{"     {#comment}   \n", "", ""},
 	&Test{"\tSome Text\t\n", "\tSome Text\t\n", ""},
+	&Test{" {.meta-right} {.meta-right} {.meta-right} \n", " } } } \n", ""},
 
 	// Variables at top level
 	&Test{
