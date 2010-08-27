@@ -8,6 +8,16 @@ testpackage: _test/$(TARG).a
 
 include $(QUOTED_GOROOT)/src/Make.common
 
+# The quietgcc wrapper is for our own source code
+# while building the libraries, not arbitrary source code
+# as encountered by cgo.
+ifeq ($(HOST_CC),quietgcc)
+HOST_CC:=gcc
+endif
+ifeq ($(HOST_LD),quietgcc)
+HOST_LD:=gcc
+endif
+
 # GNU Make 3.80 has a bug in lastword
 # elem=$(lastword $(subst /, ,$(TARG)))
 TARG_words=$(subst /, ,$(TARG))
