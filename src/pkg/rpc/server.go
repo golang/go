@@ -211,7 +211,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 		method := s.typ.Method(m)
 		mtype := method.Type
 		mname := method.Name
-		if mtype.PkgPath() != "" && !isPublic(mname) {
+		if mtype.PkgPath() != "" || !isPublic(mname) {
 			continue
 		}
 		// Method needs three ins: receiver, *args, *reply.
