@@ -36,11 +36,11 @@ prevent that case:
 <pre>
 [hooks]
 # Prevent "hg pull" if MQ patches are applied.
-prechangegroup.mq-no-pull = ! hg qtop > /dev/null 2>&1
+prechangegroup.mq-no-pull = ! hg qtop > /dev/null 2>&amp;1
 # Prevent "hg push" if MQ patches are applied.
-preoutgoing.mq-no-push = ! hg qtop > /dev/null 2>&1
+preoutgoing.mq-no-push = ! hg qtop > /dev/null 2>&amp;1
 # Prevent "hg update" if MQ patches are applied.
-preupdate.mq-no-update = ! hg qtop > /dev/null 2>&1
+preupdate.mq-no-update = ! hg qtop > /dev/null 2>&amp;1
 </pre>
 
 <h2>Making a change</h2>
