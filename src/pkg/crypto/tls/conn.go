@@ -617,7 +617,7 @@ func (c *Conn) Close() os.Error {
 
 // Handshake runs the client or server handshake
 // protocol if it has not yet been run.
-// Most uses of this packge need not call Handshake
+// Most uses of this package need not call Handshake
 // explicitly: the first Read or Write will call it automatically.
 func (c *Conn) Handshake() os.Error {
 	c.handshakeMutex.Lock()
