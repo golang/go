@@ -123,10 +123,10 @@ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 	mv -f $@.x $@
 
 goc2c: goc2c.c
-	$(QUOTED_GOBIN)/quietgcc -o $@ $<
+	quietgcc -o $@ $<
 
 mkversion: mkversion.c
-	$(QUOTED_GOBIN)/quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
 
 version.go: mkversion
 	./mkversion >version.go
@@ -136,32 +136,32 @@ version.go: mkversion
 	mv -f $@.tmp $@
 
 %.$O:	$(GOARCH)/%.c
-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+	$(CC) $(CFLAGS) $<
 
 %.$O:	$(GOOS)/%.c
-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+	$(CC) $(CFLAGS) $<
 
 %.$O:	$(GOOS)/$(GOARCH)/%.c
-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+	$(CC) $(CFLAGS) $<
 
 %.$O:	$(GOARCH)/%.s $(GOARCH)/asm.h
-	$(QUOTED_GOBIN)/$(AS) $<
+	$(AS) $<
 
 %.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
-	$(QUOTED_GOBIN)/$(AS) $<
+	$(AS) $<
 
 # for discovering offsets inside structs when debugging
 runtime.acid.$(GOARCH): runtime.h proc.c
-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) -a proc.c >$@
+	$(CC) $(CFLAGS) -a proc.c >$@
 
 # 386 traceback is really amd64 traceback
 ifeq ($(GOARCH),386)
 traceback.$O:	amd64/traceback.c
-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+	$(CC) $(CFLAGS) $<
 endif
 
 # NaCl closure is special.
 ifeq ($(GOOS),nacl)
 closure.$O: nacl/$(GOARCH)/closure.c
-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+	$(CC) $(CFLAGS) $<
 endif

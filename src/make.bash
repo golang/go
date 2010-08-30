@@ -71,10 +71,10 @@ do
 				bash make.bash
 				;;
 			pkg)
-				"$GOBIN"/gomake install
+				gomake install
 				;;
 			*)
-				"$GOBIN"/gomake install
+				gomake install
 			esac
 		)  || exit 1
 	esac
@@ -84,7 +84,7 @@ done
 # Implemented as a function so that all.bash can repeat the output
 # after run.bash finishes running all the tests.
 installed() {
-	eval $("$GOBIN"/gomake -f Make.inc go-env)
+	eval $(gomake -f Make.inc go-env)
 	echo
 	echo ---
 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".

@@ -36,11 +36,11 @@ maketest() {
 		(
 			xcd $i
 			if $rebuild; then
-				"$GOBIN"/gomake clean
-				time "$GOBIN"/gomake
-				"$GOBIN"/gomake install
+				gomake clean
+				time gomake
+				gomake install
 			fi
-			"$GOBIN"/gomake test
+			gomake test
 		) || exit $?
 	done
 }
@@ -53,36 +53,36 @@ maketest \
 
 (xcd pkg/sync;
 if $rebuild; then
-	"$GOBIN"/gomake clean;
-	time "$GOBIN"/gomake
+	gomake clean;
+	time gomake
 fi
-GOMAXPROCS=10 "$GOBIN"/gomake test
+GOMAXPROCS=10 gomake test
 ) || exit $?
 
 (xcd cmd/gofmt
 if $rebuild; then
-	"$GOBIN"/gomake clean;
-	time "$GOBIN"/gomake
+	gomake clean;
+	time gomake
 fi
-time "$GOBIN"/gomake smoketest
+time gomake smoketest
 ) || exit $?
 
 (xcd cmd/ebnflint
 if $rebuild; then
-	"$GOBIN"/gomake clean;
-	time "$GOBIN"/gomake
+	gomake clean;
+	time gomake
 fi
-time "$GOBIN"/gomake test
+time gomake test
 ) || exit $?
 
 (xcd ../misc/cgo/stdio
-"$GOBIN"/gomake clean
+gomake clean
 ./test.bash
 ) || exit $?
 
 (xcd pkg/exp/ogle
-"$GOBIN"/gomake clean
-time "$GOBIN"/gomake ogle
+gomake clean
+time gomake ogle
 ) || exit $?
 
 (xcd ../doc/progs

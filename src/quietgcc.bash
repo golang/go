@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file.
 
 # The master for this file is $GOROOT/src/quietgcc.bash
-# Changes made to $HOME/bin/quietgcc will be overridden.
+# Changes made to $GOBIN/quietgcc will be overridden.
 
 # Gcc output that we don't care to see.
 ignore=': error: .Each undeclared identifier'
