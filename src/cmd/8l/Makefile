@@ -9,8 +9,10 @@ TARG=8l
 
 OFILES=\
 	asm.$O\
+	dwarf.$O\
 	elf.$O\
 	enam.$O\
+	go.$O\
 	lib.$O\
 	list.$O\
 	macho.$O\
@@ -19,11 +21,12 @@ OFILES=\
 	pass.$O\
 	pe.$O\
 	span.$O\
-	go.$O\
+
 
 HFILES=\
 	l.h\
 	../8l/8.out.h\
+	../ld/dwarf.h\
 	../ld/elf.h\
 	../ld/macho.h\
 	../ld/pe.h\

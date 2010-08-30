@@ -33,6 +33,7 @@
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
+#include	"../ld/dwarf.h"
 #include	"../ld/pe.h"
 #include	<ar.h>
 
@@ -604,6 +605,7 @@ loop:
 				histfrogp++;
 			} else
 				collapsefrog(s);
+                        dwarfaddfrag(s->value, s->name);
 		}
 		goto loop;
 	}
