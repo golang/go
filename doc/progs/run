@@ -5,9 +5,7 @@
 
 set -e
 
-GOBIN="${GOBIN:-$HOME/bin}"
-
-eval $("$GOBIN"/gomake -f ../../src/Make.inc go-env)
+eval $(gomake -f ../../src/Make.inc go-env)
 
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
@@ -34,11 +32,11 @@ for i in \
 ; do
 	BASE=$(basename $i .go)
 
-	"$GOBIN"/$GC $i
+	$GC $i
 done
 
 function testit {
-	"$GOBIN"/$LD $1.$O
+	$LD $1.$O
 	x=$(echo $(./$O.out $2 2>&1))  # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
@@ -47,7 +45,7 @@ function testit {
 }
 
 function testitpipe {
-	"$GOBIN"/$LD $1.$O
+	$LD $1.$O
 	x=$(echo $(./$O.out | $2 2>&1))  # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
@@ -76,7 +74,7 @@ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 
 # server hangs; don't run it, just compile it
-"$GOBIN"/$GC server.go
+$GC server.go
 testit server1 "" ""
 
 rm -f $O.out *.$O

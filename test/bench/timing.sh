@@ -5,9 +5,7 @@
 
 set -e
 
-GOBIN="${GOBIN:-$HOME/bin}"
-
-eval $("$GOBIN"/gomake --no-print-directory -f ../../src/Make.inc go-env)
+eval $(gomake --no-print-directory -f ../../src/Make.inc go-env)
 PATH=.:$PATH
 
 mode=run
@@ -18,11 +16,11 @@ X-test)
 esac
 
 gc() {
-	"$GOBIN"/$GC $1.go; "$GOBIN"/$LD $1.$O
+	$GC $1.go; $LD $1.$O
 }
 
 gc_B() {
-	"$GOBIN"/$GC -B $1.go; "$GOBIN"/$LD $1.$O
+	$GC -B $1.go; $LD $1.$O
 }
 
 runonly() {

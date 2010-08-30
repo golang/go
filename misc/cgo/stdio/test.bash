@@ -4,8 +4,7 @@
 # license that can be found in the LICENSE file.
 
 set -e
-GOBIN="${GOBIN:-$HOME/bin}"
-"$GOBIN"/gomake hello fib chain
+gomake hello fib chain
 echo '*' hello >run.out
 ./hello >>run.out
 echo '*' fib >>run.out
@@ -13,4 +12,4 @@ echo '*' fib >>run.out
 echo '*' chain >>run.out
 ./chain >>run.out
 diff run.out golden.out
-"$GOBIN"/gomake clean
+gomake clean

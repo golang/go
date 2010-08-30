@@ -20,7 +20,7 @@ gcc -o mkbuiltin1 mkbuiltin1.c
 rm -f _builtin.c
 for i in runtime unsafe
 do
-	"$GOBIN"/$GC -A $i.go
+	$GC -A $i.go
 	O=$O ./mkbuiltin1 $i >>_builtin.c
 done
 

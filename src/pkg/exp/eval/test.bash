@@ -10,10 +10,8 @@
 
 set -e
 
-GOBIN="${GOBIN:-$HOME/bin}"
-
-"$GOBIN"/gomake
-"$GOBIN"/6g main.go && "$GOBIN"/6l main.6
+gomake
+6g main.go && 6l main.6
 (
 for i in $(egrep -l '// \$G (\$D/)?\$F\.go \&\& \$L \$F\.\$A && \./\$A\.out' "$GOROOT"/test/*.go "$GOROOT"/test/*/*.go)
 do

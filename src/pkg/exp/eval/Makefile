@@ -22,16 +22,16 @@ GOFILES=\
 include ../../../Make.pkg
 
 main.$O: main.go $(pkgdir)/$(TARG).a
-	$(QUOTED_GOBIN)/$(GC) $<
+	$(GC) $<
 
 eval: main.$O
-	$(QUOTED_GOBIN)/$(LD) -o $@ $<
+	$(LD) -o $@ $<
 
 gen.$O: gen.go
-	$(QUOTED_GOBIN)/$(GC) $<
+	$(GC) $<
 
 generate: gen.$O $(pkgdir)/$(TARG).a
-	$(QUOTED_GOBIN)/$(LD) -o $@ $<;\
+	$(LD) -o $@ $<;\
 	./generate > expr1.go;\
 	gofmt -w expr1.go
 

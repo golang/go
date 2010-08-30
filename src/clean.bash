@@ -27,6 +27,6 @@ do(
 	if test -f clean.bash; then
 		bash clean.bash
 	else
-		"$GOBIN"/gomake clean
+		gomake clean
 	fi
 )done
