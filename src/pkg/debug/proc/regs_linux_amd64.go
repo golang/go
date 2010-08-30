@@ -71,7 +71,7 @@ func (r *amd64Regs) SetSP(val Word) os.Error {
 	return r.setter(&r.PtraceRegs)
 }
 
-func (r *amd64Regs) Names() []string { return &names }
+func (r *amd64Regs) Names() []string { return names[0:] }
 
 func (r *amd64Regs) Get(i int) Word {
 	switch i {

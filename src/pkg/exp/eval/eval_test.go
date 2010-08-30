@@ -205,7 +205,7 @@ func toValue(val interface{}) Value {
 
 type testFunc struct{}
 
-func (*testFunc) NewFrame() *Frame { return &Frame{nil, &[2]Value{}} }
+func (*testFunc) NewFrame() *Frame { return &Frame{nil, make([]Value, 2)} }
 
 func (*testFunc) Call(t *Thread) {
 	n := t.f.Vars[0].(IntValue).Get(t)
@@ -217,7 +217,7 @@ func (*testFunc) Call(t *Thread) {
 
 type oneTwoFunc struct{}
 
-func (*oneTwoFunc) NewFrame() *Frame { return &Frame{nil, &[2]Value{}} }
+func (*oneTwoFunc) NewFrame() *Frame { return &Frame{nil, make([]Value, 2)} }
 
 func (*oneTwoFunc) Call(t *Thread) {
 	t.f.Vars[0].(IntValue).Set(t, 1)
