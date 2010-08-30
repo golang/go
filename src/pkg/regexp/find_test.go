@@ -57,6 +57,8 @@ var findTests = []FindTest{
 	FindTest{`(([^xyz]*)(d))`, "abcd", build(1, 0, 4, 0, 4, 0, 3, 3, 4)},
 	FindTest{`((a|b|c)*(d))`, "abcd", build(1, 0, 4, 0, 4, 2, 3, 3, 4)},
 	FindTest{`(((a|b|c)*)(d))`, "abcd", build(1, 0, 4, 0, 4, 0, 3, 2, 3, 3, 4)},
+	FindTest{`\a\b\f\n\r\t\v`, "\a\b\f\n\r\t\v", build(1, 0, 7)},
+	FindTest{`[\a\b\f\n\r\t\v]+`, "\a\b\f\n\r\t\v", build(1, 0, 7)},
 
 	FindTest{`a*(|(b))c*`, "aacc", build(1, 0, 4, 2, 2, -1, -1)},
 	FindTest{`(.*).*`, "ab", build(1, 0, 2, 0, 2)},
