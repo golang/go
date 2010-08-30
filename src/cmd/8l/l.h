@@ -345,6 +345,7 @@ Prog*	brloop(Prog*);
 void	cflush(void);
 void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
+vlong   cpos(void);
 double	cputime(void);
 void	datblk(int32, int32);
 void	diag(char*, ...);

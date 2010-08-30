@@ -641,8 +641,7 @@ asmb(void)
 
                         dwarfemitdebugsections();
 		}
-	} else
-	if(dlm){
+	} else if(dlm){
 		seek(cout, HEADR+textsize+datsize, 0);
 		asmdyn();
 		cflush();

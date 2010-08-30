@@ -31,6 +31,7 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
+#include	"../ld/dwarf.h"
 #include	"../ld/macho.h"
 #include	"../ld/pe.h"
 
@@ -293,6 +294,7 @@ doelf(void)
 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
+                dwarfaddshstrings(shstrtab);
 	}
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
 
@@ -649,8 +651,13 @@ asmb(void)
 		lputl(symsize);
 		lputl(lcsize);
 		cflush();
-	}
-	else if(dlm){
+                if(!debug['s']) {
+                        seek(cout, symo+8+symsize+lcsize, 0);
+                        if(debug['v'])
+                               Bprint(&bso, "%5.2f dwarf\n", cputime());
+                        dwarfemitdebugsections();
+		}
+	} else if(dlm){
 		seek(cout, HEADR+textsize+datsize, 0);
 		asmdyn();
 		cflush();
@@ -1042,6 +1049,8 @@ asmb(void)
 			sh->size = w;
 			sh->addralign = 1;
 			sh->addr = symdatva + 8 + symsize;
+
+                        dwarfaddheaders();
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
@@ -1116,6 +1125,13 @@ cflush(void)
 		write(cout, buf.cbuf, n);
 	cbp = buf.cbuf;
 	cbc = sizeof(buf.cbuf);
+}
+
+/* Current position in file */
+vlong
+cpos(void)
+{
+        return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
 }
 
 void
