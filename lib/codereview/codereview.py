@@ -2494,8 +2494,8 @@ class FakeMercurialUI(object):
 		self.quiet = True
 		self.output = ''
 	
-	def write(self, s):
-		self.output += s
+	def write(self, *args, **opts):
+		self.output += ' '.join(args)
 
 use_hg_shell = False	# set to True to shell out to hg always; slower
 
