@@ -100,11 +100,12 @@ func unhex(b byte) (v int, ok bool) {
 // UnquoteChar decodes the first character or byte in the escaped string
 // or character literal represented by the string s.
 // It returns four values:
-// 1) value, the decoded Unicode code point or byte value;
-// 2) multibyte, a boolean indicating whether the decoded character
-//    requires a multibyte UTF-8 representation;
-// 3) tail, the remainder of the string after the character; and
-// 4) an error that will be nil if the character is syntactically valid.
+//
+//	1) value, the decoded Unicode code point or byte value;
+//	2) multibyte, a boolean indicating whether the decoded character requires a multibyte UTF-8 representation;
+//	3) tail, the remainder of the string after the character; and
+//	4) an error that will be nil if the character is syntactically valid.
+//
 // The second argument, quote, specifies the type of literal being parsed
 // and therefore which escaped quote character is permitted.
 // If set to a single quote, it permits the sequence \' and disallows unescaped '.
