@@ -60,8 +60,8 @@ sub bug() {
 $line = 0;
 foreach $src (@src) {
 	$line++;
-	next unless $src =~ m|// ERROR (.*)|;
-	$regexp = $1;
+	next unless $src =~ m|// (GC_)?ERROR (.*)|;
+	$regexp = $2;
 	if($regexp !~ /^"([^"]*)"/) {
 		print STDERR "$file:$line: malformed regexp\n";
 		next;
