@@ -48,8 +48,8 @@ func TestRatSetString(t *testing.T) {
 	for i, test := range setStringTests {
 		x, ok := new(Rat).SetString(test.in)
 
-		if ok != test.ok || ok && x.String() != test.out {
-			t.Errorf("#%d got %s want %s", i, x.String(), test.out)
+		if ok != test.ok || ok && x.RatString() != test.out {
+			t.Errorf("#%d got %s want %s", i, x.RatString(), test.out)
 		}
 	}
 }

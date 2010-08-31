@@ -269,29 +269,34 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 }
 
 
-// String returns a string representation of z in the form "a/b".
+// String returns a string representation of z in the form "a/b" (even if b == 1).
 func (z *Rat) String() string {
-	s := z.a.String()
-	if len(z.b) == 1 && z.b[0] == 1 {
-		return s
+	return z.a.String() + "/" + z.b.string(10)
+}
+
+
+// RatString returns a string representation of z in the form "a/b" if b != 1,
+// and in the form "a" if b == 1.
+func (z *Rat) RatString() string {
+	if z.IsInt() {
+		return z.a.String()
 	}
-	return s + "/" + z.b.string(10)
+	return z.String()
 }
 
 
 // FloatString returns a string representation of z in decimal form with prec
 // digits of precision after the decimal point and the last digit rounded.
 func (z *Rat) FloatString(prec int) string {
+	if z.IsInt() {
+		return z.a.String()
+	}
+
 	q, r := nat{}.div(nat{}, z.a.abs, z.b)
 
-	s := ""
+	s := q.string(10)
 	if z.a.neg {
-		s = "-"
-	}
-	s += q.string(10)
-
-	if len(z.b) == 1 && z.b[0] == 1 {
-		return s
+		s = "-" + s
 	}
 
 	p := nat{}.expNN(natTen, nat{Word(prec)}, nil)
