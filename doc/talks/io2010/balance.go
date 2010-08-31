@@ -6,6 +6,7 @@ package main
 
 import (
 	"container/heap"
+	"flag"
 	"fmt"
 	"rand"
 	"time"
@@ -13,6 +14,8 @@ import (
 
 const nRequester = 100
 const nWorker = 10
+
+var roundRobin = flag.Bool("r", false, "use round-robin scheduling")
 
 // Simulation of some work: just sleep for a while and report how long.
 func op() int {
@@ -125,7 +128,7 @@ func (b *Balancer) print() {
 }
 
 func (b *Balancer) dispatch(req Request) {
-	if false {
+	if *roundRobin {
 		w := b.pool[b.i]
 		w.requests <- req
 		w.pending++
@@ -144,7 +147,7 @@ func (b *Balancer) dispatch(req Request) {
 }
 
 func (b *Balancer) completed(w *Worker) {
-	if false {
+	if *roundRobin {
 		w.pending--
 		return
 	}
@@ -156,6 +159,7 @@ func (b *Balancer) completed(w *Worker) {
 }
 
 func main() {
+	flag.Parse()
 	work := make(chan Request)
 	for i := 0; i < nRequester; i++ {
 		go requester(work)
