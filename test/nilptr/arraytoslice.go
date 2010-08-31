@@ -33,5 +33,5 @@ func main() {
 	// usual len and cap, we require the *array -> slice
 	// conversion to do the check.
 	var p *[1<<30]byte = nil;
-	f(p);	// should crash
+	f(p[0:]);	// should crash
 }

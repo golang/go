@@ -13,7 +13,7 @@ type T struct {
 func main() {
 	var ta []*T;
 
-	ta = new([1]*T);
+	ta = new([1]*T)[0:];
 	ta[0] = nil;
 }
 /*

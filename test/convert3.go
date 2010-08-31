@@ -13,8 +13,8 @@ var d1 chan<- int = c
 var d2 = (chan<- int)(c)
 
 var e *[4]int
-var f1 []int = e
-var f2 = []int(e)
+var f1 []int = e[0:]
+var f2 = []int(e[0:])
 
 var g = []int(nil)
 

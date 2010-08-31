@@ -81,8 +81,8 @@ func testpfpf() {
 // call ptr dynamic with ptr fixed from new
 func testpdpf1() {
 	a := new([40]int)
-	setpd(a)
-	res(sumpd(a), 0, 40)
+	setpd(a[0:])
+	res(sumpd(a[0:]), 0, 40)
 
 	b := (*a)[5:30]
 	res(sumpd(b), 5, 30)
@@ -92,8 +92,8 @@ func testpdpf1() {
 func testpdpf2() {
 	var a [80]int
 
-	setpd(&a)
-	res(sumpd(&a), 0, 80)
+	setpd(a[0:])
+	res(sumpd(a[0:]), 0, 80)
 }
 
 // generate bounds error with ptr dynamic

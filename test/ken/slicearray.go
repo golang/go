@@ -16,12 +16,12 @@ var t int
 func main() {
 	lb = 0
 	hb = 10
-	by = &bx
+	by = bx[0:]
 	tstb()
 
 	lb = 0
 	hb = 10
-	fy = &fx
+	fy = fx[0:]
 	tstf()
 
 	// width 1 (byte)
