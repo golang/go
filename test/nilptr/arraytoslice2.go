@@ -31,5 +31,5 @@ func main() {
 	// conversion to do the check.
 	var x []byte;
 	var y = &x;
-	*y = q;	// should crash (uses arraytoslice runtime routine)
+	*y = q[0:];	// should crash (uses arraytoslice runtime routine)
 }

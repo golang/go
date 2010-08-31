@@ -29,6 +29,6 @@ func main() {
 	// usual len and cap, we require the *array -> slice
 	// conversion to do the check.
 	var p *[1<<30]byte = nil;
-	var x []byte = p;	// should crash
+	var x []byte = p[0:];	// should crash
 	_ = x;
 }
