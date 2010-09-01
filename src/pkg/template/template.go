@@ -18,10 +18,11 @@
 	indirection.
 
 	In the following, 'field' is one of several things, according to the data.
-	- the name of a field of a struct (result = data.field)
-	- the value stored in a map under that key (result = data[field])
-	- the result of invoking a niladic single-valued method with that name
-	   (result = data.field())
+
+		- The name of a field of a struct (result = data.field),
+		- The value stored in a map under that key (result = data[field]), or
+		- The result of invoking a niladic single-valued method with that name
+		  (result = data.field())
 
 	Major constructs ({} are metacharacters; [] marks optional elements):
 
