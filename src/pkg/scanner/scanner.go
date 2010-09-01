@@ -236,8 +236,10 @@ func (s *Scanner) next() int {
 				if s.srcEnd == 0 {
 					return EOF
 				}
-				s.error(err.String())
-				break
+				if err != os.EOF {
+					s.error(err.String())
+					break
+				}
 			}
 		}
 		// at least one byte
