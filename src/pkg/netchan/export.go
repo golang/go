@@ -154,8 +154,9 @@ func (client *expClient) serveRecv(hdr header, count int) {
 			client.sendError(&hdr, err.String())
 			break
 		}
-		if count > 0 {
-			if count--; count == 0 {
+		// Negative count means run forever.
+		if count >= 0 {
+			if count--; count <= 0 {
 				break
 			}
 		}
