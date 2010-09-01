@@ -75,7 +75,7 @@
 	can be used for fine control of formatting.
 
 	If an operand implements method String() string that method
-	will be used to conver the object to a string, which will then
+	will be used to convert the object to a string, which will then
 	be formatted as required by the verb (if any). To avoid
 	recursion in cases such as
 		type X int
@@ -128,5 +128,10 @@
 
 	All arguments to be scanned must be either pointers to basic
 	types or implementations of the Scanner interface.
+
+	Note: Fscan etc.  can read one character past the input
+	they return, which means that a loop calling a scan routine
+	may skip some of the input.  This is usually a problem only
+	when there is no space between input values.
 */
 package fmt
