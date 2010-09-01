@@ -22,7 +22,8 @@ void dwarfaddshstrings(Sym *shstrtab);
 void dwarfemitdebugsections(void);
 
 /*
- * Add ELF section headers pointing to the sections emitted in
+ * Add section headers pointing to the sections emitted in
  * dwarfemitdebugsections.
  */
-void dwarfaddheaders(void);
+void dwarfaddelfheaders(void);
+void dwarfaddmachoheaders(void);
