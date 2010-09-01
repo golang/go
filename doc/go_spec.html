@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of July 29, 2010 -->
+<!-- subtitle Version of Sep 1, 2010 -->
 
 <!--
 TODO
@@ -1328,9 +1328,9 @@ A value <code>x</code> is <i>assignable</i> to a variable of type <code>T</code>
 <code>x</code>'s type is identical to <code>T</code>.
 </li>
 <li>
-<code>x</code>'s type <code>V</code> or <code>T</code> have identical
-<a href="#Types">underlying types</a> and <code>V</code> or <code>T</code>
-is not a named type.
+<code>x</code>'s type <code>V</code> and <code>T</code> have identical
+<a href="#Types">underlying types</a> and at least one of <code>V</code>
+or <code>T</code> is not a named type.
 </li>
 <li>
 <code>T</code> is an interface type and
@@ -1339,7 +1339,7 @@ is not a named type.
 <li>
 <code>x</code> is a bidirectional channel value, <code>T</code> is a channel type,
 <code>x</code>'s type <code>V</code> and <code>T</code> have identical element types,
-and <code>V</code> or <code>T</code> is not a named type.
+and at least one of <code>V</code> or <code>T</code> is not a named type.
 </li>
 <li>
 <code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code>
@@ -1907,7 +1907,7 @@ argument.  For instance, the method <code>Scale</code> has type
 </p>
 
 <pre>
-(p *Point, factor float)
+func (p *Point, factor float)
 </pre>
 
 <p>
