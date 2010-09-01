@@ -1050,7 +1050,7 @@ asmb(void)
 			sh->addralign = 1;
 			sh->addr = symdatva + 8 + symsize;
 
-                        dwarfaddheaders();
+                        dwarfaddelfheaders();
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);

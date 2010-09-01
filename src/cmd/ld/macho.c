@@ -6,6 +6,7 @@
 // http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
 
 #include "l.h"
+#include "../ld/dwarf.h"
 #include "../ld/lib.h"
 #include "../ld/macho.h"
 
@@ -129,7 +130,7 @@ machowrite(void)
 	MachoDebug *d;
 	MachoLoad *l;
 
-	o1 = Boffset(&bso);
+	o1 = cpos();
 
 	loadsize = 4*4*ndebug;
 	for(i=0; i<nload; i++)
@@ -229,7 +230,7 @@ machowrite(void)
 		LPUT(d->filesize);
 	}
 
-	return Boffset(&bso) - o1;
+	return cpos() - o1;
 }
 
 static void*
@@ -617,6 +618,8 @@ asmbmacho(vlong symdatva, vlong symo)
 		md = newMachoDebug();
 		md->fileoffset = symo+8+symsize;
 		md->filesize = lcsize;
+
+                dwarfaddmachoheaders();
 	}
 
 	a = machowrite();

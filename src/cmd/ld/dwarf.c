@@ -7,6 +7,7 @@
 #include	"../ld/dwarf.h"
 #include	"../ld/dwarf_defs.h"
 #include	"../ld/elf.h"
+#include	"../ld/macho.h"
 
 /*
  * Offsets and sizes of the .debug_* sections in the cout file.
@@ -835,7 +836,7 @@ dwarfemitdebugsections(void)
 }
 
 void
-dwarfaddheaders(void)
+dwarfaddelfheaders(void)
 {
 	ElfShdr *sh;
 
@@ -856,4 +857,33 @@ dwarfaddheaders(void)
 	sh->off = infoo;
 	sh->size = infosize;
 	sh->addralign = 1;
+}
+
+void
+dwarfaddmachoheaders(void)
+{
+	MachoSect *msect;
+	MachoSeg *ms;
+
+	vlong fakestart;
+
+        // Zero vsize segments won't be loaded in memory, even so they
+        // have to be page aligned in the file.
+	fakestart = abbrevo & ~0xfff;
+
+        ms = newMachoSeg("__DWARF", 3);
+	ms->fileoffset = fakestart;
+	ms->filesize = abbrevo-fakestart + abbrevsize+linesize+infosize;
+
+	msect = newMachoSect(ms, "__debug_abbrev");
+	msect->off = abbrevo;
+	msect->size = abbrevsize;
+
+	msect = newMachoSect(ms, "__debug_line");
+	msect->off = lineo;
+	msect->size = linesize;
+
+	msect = newMachoSect(ms, "__debug_info");
+	msect->off = infoo;
+	msect->size = infosize;
 }

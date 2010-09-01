@@ -929,7 +929,7 @@ asmb(void)
                         sh->size = elfstrsize;
                         sh->addralign = 1;
 
-                        dwarfaddheaders();
+                        dwarfaddelfheaders();
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
