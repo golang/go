@@ -204,7 +204,7 @@ func Cycle(iter Iterable) Iterable {
 	})
 }
 
-// Chain returns an Iterable that concatentates all values from the specified Iterables.
+// Chain returns an Iterable that concatenates all values from the specified Iterables.
 func Chain(args []Iterable) Iterable {
 	return Func(func(ch chan<- interface{}) {
 		for _, e := range args {
