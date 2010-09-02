@@ -30,12 +30,12 @@ func main() {
 	var a2 A2
 	a0 = a0
 	a0 = a1
-	a0 = [3]int(a2) // ERROR "cannot"
+	a0 = [3]int(a2) // ERROR "cannot|invalid"
 	a1 = a0
 	a1 = a1
-	a1 = A1(a2) // ERROR "cannot"
-	a2 = A2(a0) // ERROR "cannot"
-	a2 = A2(a1) // ERROR "cannot"
+	a1 = A1(a2) // ERROR "cannot|invalid"
+	a2 = A2(a0) // ERROR "cannot|invalid"
+	a2 = A2(a1) // ERROR "cannot|invalid"
 	a2 = a2
 
 	type S1 struct {
@@ -53,12 +53,12 @@ func main() {
 	s0 = s1
 	s0 = struct {
 		x int
-	}(s2) // ERROR "cannot"
+	}(s2) // ERROR "cannot|invalid"
 	s1 = s0
 	s1 = s1
-	s1 = S1(s2) // ERROR "cannot"
-	s2 = S2(s0) // ERROR "cannot"
-	s2 = S2(s1) // ERROR "cannot"
+	s1 = S1(s2) // ERROR "cannot|invalid"
+	s2 = S2(s0) // ERROR "cannot|invalid"
+	s2 = S2(s1) // ERROR "cannot|invalid"
 	s2 = s2
 
 	type P1 *int
@@ -68,12 +68,12 @@ func main() {
 	var p2 P2
 	p0 = p0
 	p0 = p1
-	p0 = (*int)(p2) // ERROR "cannot"
+	p0 = (*int)(p2) // ERROR "cannot|invalid"
 	p1 = p0
 	p1 = p1
-	p1 = P1(p2) // ERROR "cannot"
-	p2 = P2(p0) // ERROR "cannot"
-	p2 = P2(p1) // ERROR "cannot"
+	p1 = P1(p2) // ERROR "cannot|invalid"
+	p2 = P2(p0) // ERROR "cannot|invalid"
+	p2 = P2(p1) // ERROR "cannot|invalid"
 	p2 = p2
 
 	type Q1 *struct {
@@ -93,12 +93,12 @@ func main() {
 	})(ps1) // legal because of special conversion exception for pointers
 	q0 = (*struct {
 		x int
-	})(q2) // ERROR "cannot"
+	})(q2) // ERROR "cannot|invalid"
 	q1 = q0
 	q1 = q1
-	q1 = Q1(q2)    // ERROR "cannot"
+	q1 = Q1(q2)    // ERROR "cannot|invalid"
 	q2 = (*S1)(q0) // legal because of special conversion exception for pointers
-	q2 = Q2(q1)    // ERROR "cannot"
+	q2 = Q2(q1)    // ERROR "cannot|invalid"
 	q2 = q2
 
 	type F1 func(x NewInt) int
@@ -108,12 +108,12 @@ func main() {
 	var f2 F2
 	f0 = f0
 	f0 = f1
-	f0 = func(x NewInt) int(f2) // ERROR "cannot"
+	f0 = func(x NewInt) int(f2) // ERROR "cannot|invalid"
 	f1 = f0
 	f1 = f1
-	f1 = F1(f2) // ERROR "cannot"
-	f2 = F2(f0) // ERROR "cannot"
-	f2 = F2(f1) // ERROR "cannot"
+	f1 = F1(f2) // ERROR "cannot|invalid"
+	f2 = F2(f0) // ERROR "cannot|invalid"
+	f2 = F2(f1) // ERROR "cannot|invalid"
 	f2 = f2
 
 	type X1 interface {
@@ -131,12 +131,12 @@ func main() {
 	x0 = x1
 	x0 = interface {
 		f() int
-	}(x2) // ERROR "cannot|need type assertion"
+	}(x2) // ERROR "cannot|need type assertion|incompatible"
 	x1 = x0
 	x1 = x1
-	x1 = X1(x2) // ERROR "cannot|need type assertion"
-	x2 = X2(x0) // ERROR "cannot|need type assertion"
-	x2 = X2(x1) // ERROR "cannot|need type assertion"
+	x1 = X1(x2) // ERROR "cannot|need type assertion|incompatible"
+	x2 = X2(x0) // ERROR "cannot|need type assertion|incompatible"
+	x2 = X2(x1) // ERROR "cannot|need type assertion|incompatible"
 	x2 = x2
 
 	type L1 []int
@@ -146,12 +146,12 @@ func main() {
 	var l2 L2
 	l0 = l0
 	l0 = l1
-	l0 = []int(l2) // ERROR "cannot"
+	l0 = []int(l2) // ERROR "cannot|invalid"
 	l1 = l0
 	l1 = l1
-	l1 = L1(l2) // ERROR "cannot"
-	l2 = L2(l0) // ERROR "cannot"
-	l2 = L2(l1) // ERROR "cannot"
+	l1 = L1(l2) // ERROR "cannot|invalid"
+	l2 = L2(l0) // ERROR "cannot|invalid"
+	l2 = L2(l1) // ERROR "cannot|invalid"
 	l2 = l2
 
 	type M1 map[string]int
@@ -161,12 +161,12 @@ func main() {
 	var m2 L2
 	m0 = m0
 	m0 = m1
-	m0 = []int(m2) // ERROR "cannot"
+	m0 = []int(m2) // ERROR "cannot|invalid"
 	m1 = m0
 	m1 = m1
-	m1 = L1(m2) // ERROR "cannot"
-	m2 = L2(m0) // ERROR "cannot"
-	m2 = L2(m1) // ERROR "cannot"
+	m1 = L1(m2) // ERROR "cannot|invalid"
+	m2 = L2(m0) // ERROR "cannot|invalid"
+	m2 = L2(m1) // ERROR "cannot|invalid"
 	m2 = m2
 
 	type C1 chan int
@@ -176,12 +176,12 @@ func main() {
 	var c2 C2
 	c0 = c0
 	c0 = c1
-	c0 = chan int(c2) // ERROR "cannot"
+	c0 = chan int(c2) // ERROR "cannot|invalid"
 	c1 = c0
 	c1 = c1
-	c1 = C1(c2) // ERROR "cannot"
-	c2 = C2(c0) // ERROR "cannot"
-	c2 = C2(c1) // ERROR "cannot"
+	c1 = C1(c2) // ERROR "cannot|invalid"
+	c2 = C2(c0) // ERROR "cannot|invalid"
+	c2 = C2(c1) // ERROR "cannot|invalid"
 	c2 = c2
 
 	// internal compiler error (6g and gccgo)
