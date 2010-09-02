@@ -20,6 +20,17 @@
 %{
 #include <stdio.h>	/* if we don't, bison will, and go.h re-#defines getc */
 #include "go.h"
+
+static void
+fixlbrace(int lbr)
+{
+	// If the opening brace was an LBODY,
+	// set up for another one now that we're done.
+	// See comment in lex.c about loophack.
+	if(lbr == LBODY)
+		loophack = 1;
+}
+
 %}
 %union	{
 	Node*		node;
@@ -861,12 +872,8 @@ pexpr_no_paren:
 		// composite expression
 		$$ = nod(OCOMPLIT, N, $1);
 		$$->list = $3;
-
-		// If the opening brace was an LBODY,
-		// set up for another one now that we're done.
-		// See comment in lex.c about loophack.
-		if($2 == LBODY)
-			loophack = 1;
+		
+		fixlbrace($2);
 	}
 |	pexpr_no_paren '{' braced_keyval_list '}'
 	{
@@ -1063,25 +1070,29 @@ recvchantype:
 	}
 
 structtype:
-	LSTRUCT '{' structdcl_list osemi '}'
+	LSTRUCT lbrace structdcl_list osemi '}'
 	{
 		$$ = nod(OTSTRUCT, N, N);
 		$$->list = $3;
+		fixlbrace($2);
 	}
-|	LSTRUCT '{' '}'
+|	LSTRUCT lbrace '}'
 	{
 		$$ = nod(OTSTRUCT, N, N);
+		fixlbrace($2);
 	}
 
 interfacetype:
-	LINTERFACE '{' interfacedcl_list osemi '}'
+	LINTERFACE lbrace interfacedcl_list osemi '}'
 	{
 		$$ = nod(OTINTER, N, N);
 		$$->list = $3;
+		fixlbrace($2);
 	}
-|	LINTERFACE '{' '}'
+|	LINTERFACE lbrace '}'
 	{
 		$$ = nod(OTINTER, N, N);
+		fixlbrace($2);
 	}
 
 keyval:
