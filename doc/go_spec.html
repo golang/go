@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Sep 1, 2010 -->
+<!-- subtitle Version of Sep 2, 2010 -->
 
 <!--
 TODO
@@ -2464,8 +2464,8 @@ for slices, the upper bound is the capacity rather than the length.
 <p>
 If the sliced operand is a string or slice, the result of the slice operation
 is a string or slice of the same type.
-If the sliced operand is an array, the result of the slice operation is a slice
-with the same element type as the array.
+If the sliced operand is an array, it must be <a href="#Address_operators">addressable</a>
+and the result of the slice operation is a slice with the same element type as the array.
 </p>
 
 
