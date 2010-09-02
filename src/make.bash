@@ -10,6 +10,12 @@ if [ ! -f env.bash ]; then
 fi
 . ./env.bash
 
+# Create target directories
+if [ "$GOBIN" = "$GOROOT/bin" ]; then
+	mkdir -p "$GOROOT/bin"
+fi
+mkdir -p "$GOROOT/pkg"
+
 GOROOT_FINAL=${GOROOT_FINAL:-$GOROOT}
 
 MAKEFLAGS=${MAKEFLAGS:-"-j4"}
