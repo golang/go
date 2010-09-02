@@ -22,7 +22,7 @@ if [ "$DIR1" != "$DIR2" ]; then
 fi
 
 export GOBIN=${GOBIN:-"$GOROOT/bin"}
-if [ ! -d "$GOBIN" ]; then
+if [ ! -d "$GOBIN" -a "$GOBIN" != "$GOROOT/bin" ]; then
 	echo '$GOBIN is not a directory or does not exist' 1>&2
 	echo 'create it or set $GOBIN differently' 1>&2
 	exit 1
