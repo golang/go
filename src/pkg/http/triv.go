@@ -52,25 +52,6 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 	fmt.Fprintf(c, "counter = %d\n", ctr.n)
 }
 
-// simple file server
-var webroot = flag.String("root", "/home/rsc", "web root directory")
-var pathVar = expvar.NewMap("file-requests")
-
-func FileServer(c *http.Conn, req *http.Request) {
-	c.SetHeader("content-type", "text/plain; charset=utf-8")
-	pathVar.Add(req.URL.Path, 1)
-	path := *webroot + req.URL.Path // TODO: insecure: use os.CleanName
-	f, err := os.Open(path, os.O_RDONLY, 0)
-	if err != nil {
-		c.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(c, "open %s: %v\n", path, err)
-		return
-	}
-	n, _ := io.Copy(c, f)
-	fmt.Fprintf(c, "[%d bytes]\n", n)
-	f.Close()
-}
-
 // simple flag server
 var booleanflag = flag.Bool("boolean", true, "another flag for testing")
 
@@ -144,6 +125,8 @@ func Logger(c *http.Conn, req *http.Request) {
 }
 
 
+var webroot = flag.String("root", "/home/rsc", "web root directory")
+
 func main() {
 	flag.Parse()
 
@@ -153,7 +136,7 @@ func main() {
 	expvar.Publish("counter", ctr)
 
 	http.Handle("/", http.HandlerFunc(Logger))
-	http.Handle("/go/", http.HandlerFunc(FileServer))
+	http.Handle("/go/", http.FileServer(*webroot, "/go/"))
 	http.Handle("/flags", http.HandlerFunc(FlagServer))
 	http.Handle("/args", http.HandlerFunc(ArgServer))
 	http.Handle("/go/hello", http.HandlerFunc(HelloServer))

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 	"utf8"
 )
 
@@ -61,8 +62,7 @@ func dirList(c *Conn, f *os.File) {
 	fmt.Fprintf(c, "</pre>\n")
 }
 
-
-func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+func serveFile(c *Conn, r *Request, name string, redirect bool) {
 	const indexPage = "/index.html"
 
 	// redirect .../index.html to .../
@@ -102,6 +102,12 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 			}
 		}
 	}
+
+	if t, _ := time.Parse(TimeFormat, r.Header["If-Modified-Since"]); t != nil && d.Mtime_ns/1e9 <= t.Seconds() {
+		c.WriteHeader(StatusNotModified)
+		return
+	}
+	c.SetHeader("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
 
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {
@@ -145,7 +151,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 
 // ServeFile replies to the request with the contents of the named file or directory.
 func ServeFile(c *Conn, r *Request, name string) {
-	serveFileInternal(c, r, name, false)
+	serveFile(c, r, name, false)
 }
 
 type fileHandler struct {
@@ -166,5 +172,5 @@ func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
 		return
 	}
 	path = path[len(f.prefix):]
-	serveFileInternal(c, r, f.root+"/"+path, true)
+	serveFile(c, r, f.root+"/"+path, true)
 }

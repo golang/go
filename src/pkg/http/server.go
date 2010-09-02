@@ -101,6 +101,12 @@ func (ecr *expectContinueReader) Close() os.Error {
 	return ecr.readCloser.Close()
 }
 
+// TimeFormat is the time format to use with
+// time.Parse and time.Time.Format when parsing
+// or generating times in HTTP headers.
+// It is like time.RFC1123 but hard codes GMT as the time zone.
+const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
+
 // Read next request from connection.
 func (c *Conn) readRequest() (req *Request, err os.Error) {
 	if c.hijacked {
@@ -124,6 +130,7 @@ func (c *Conn) readRequest() (req *Request, err os.Error) {
 
 	// Default output is HTML encoded in UTF-8.
 	c.SetHeader("Content-Type", "text/html; charset=utf-8")
+	c.SetHeader("Date", time.UTC().Format(TimeFormat))
 
 	if req.ProtoAtLeast(1, 1) {
 		// HTTP/1.1 or greater: use chunked transfer encoding
