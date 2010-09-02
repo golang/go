@@ -21,16 +21,7 @@
 #include <stdio.h>	/* if we don't, bison will, and go.h re-#defines getc */
 #include "go.h"
 
-static void
-fixlbrace(int lbr)
-{
-	// If the opening brace was an LBODY,
-	// set up for another one now that we're done.
-	// See comment in lex.c about loophack.
-	if(lbr == LBODY)
-		loophack = 1;
-}
-
+static void fixlbrace(int);
 %}
 %union	{
 	Node*		node;
@@ -1938,3 +1929,16 @@ hidden_interfacedcl_list:
 	{
 		$$ = list($1, $3);
 	}
+
+%%
+
+static void
+fixlbrace(int lbr)
+{
+	// If the opening brace was an LBODY,
+	// set up for another one now that we're done.
+	// See comment in lex.c about loophack.
+	if(lbr == LBODY)
+		loophack = 1;
+}
+
