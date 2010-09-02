@@ -8,12 +8,14 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -159,6 +161,48 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 	}
 
 	return send(&req)
+}
+
+// PostForm issues a POST to the specified URL, 
+// with data's keys and values urlencoded as the request body.
+//
+// Caller should close r.Body when done reading it.
+func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
+	var req Request
+	req.Method = "POST"
+	req.ProtoMajor = 1
+	req.ProtoMinor = 1
+	req.Close = true
+	body := urlencode(data)
+	req.Body = nopCloser{body}
+	req.Header = map[string]string{
+		"Content-Type":   "application/x-www-form-urlencoded",
+		"Content-Length": strconv.Itoa(body.Len()),
+	}
+	req.ContentLength = int64(body.Len())
+
+	req.URL, err = ParseURL(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return send(&req)
+}
+
+func urlencode(data map[string]string) (b *bytes.Buffer) {
+	b = new(bytes.Buffer)
+	first := true
+	for k, v := range data {
+		if first {
+			first = false
+		} else {
+			b.WriteByte('&')
+		}
+		b.WriteString(URLEscape(k))
+		b.WriteByte('=')
+		b.WriteString(URLEscape(v))
+	}
+	return
 }
 
 // Head issues a HEAD to the specified URL.
