@@ -651,7 +651,7 @@ asmb(void)
 		lputl(symsize);
 		lputl(lcsize);
 		cflush();
-                if(!debug['s']) {
+                if(HEADTYPE != 10 && !debug['s']) {
                         seek(cout, symo+8+symsize+lcsize, 0);
                         if(debug['v'])
                                Bprint(&bso, "%5.2f dwarf\n", cputime());
