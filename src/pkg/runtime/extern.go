@@ -66,13 +66,17 @@ func (f *Func) Entry() uintptr { return f.entry }
 func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	// NOTE(rsc): If you edit this function, also edit
 	// symtab.c:/^funcline.
-	const PcQuant = 1
+	var pcQuant uintptr = 1
+	if GOARCH == "arm" {
+		pcQuant = 4
+	}
 
+	targetpc := pc
 	p := f.pcln
-	pc1 := f.pc0
+	pc = f.pc0
 	line = int(f.ln0)
 	file = f.src
-	for i := 0; i < len(p) && pc1 <= pc; i++ {
+	for i := 0; i < len(p) && pc <= targetpc; i++ {
 		switch {
 		case p[i] == 0:
 			line += int(p[i+1]<<24) | int(p[i+2]<<16) | int(p[i+3]<<8) | int(p[i+4])
@@ -80,11 +84,11 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 		case p[i] <= 64:
 			line += int(p[i])
 		case p[i] <= 128:
-			line += int(p[i] - 64)
+			line -= int(p[i] - 64)
 		default:
-			line += PcQuant * int(p[i]-129)
+			pc += pcQuant * uintptr(p[i]-129)
 		}
-		pc += PcQuant
+		pc += pcQuant
 	}
 	return
 }
@@ -165,4 +169,14 @@ func GOROOT() string {
 // a release tag like "release.2010-03-04".
 // A trailing + indicates that the tree had local modifications
 // at the time of the build.
-func Version() string { return defaultVersion }
+func Version() string {
+	return theVersion
+}
+
+// GOOS is the Go tree's operating system target:
+// one of darwin, freebsd, linux, and so on.
+const GOOS string = theGoos
+
+// GOARCH is the Go tree's architecture target:
+// 386, amd64, or arm.
+const GOARCH string = theGoarch
