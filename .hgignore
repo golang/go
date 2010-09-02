@@ -40,6 +40,7 @@ test/pass.out
 test/run.out
 test/times.out
 test/garbage/*.out
+goinstall.log
 
 syntax:regexp
 ^bin/

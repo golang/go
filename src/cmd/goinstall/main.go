@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -20,19 +21,24 @@ import (
 
 func usage() {
 	fmt.Fprint(os.Stderr, "usage: goinstall importpath...\n")
+	fmt.Fprintf(os.Stderr, "\tgoinstall -a\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
 
 var (
-	argv0   = os.Args[0]
-	errors  = false
-	gobin   = os.Getenv("GOBIN")
-	parents = make(map[string]string)
-	root    = runtime.GOROOT()
-	visit   = make(map[string]status)
+	argv0         = os.Args[0]
+	errors        = false
+	gobin         = os.Getenv("GOBIN")
+	parents       = make(map[string]string)
+	root          = runtime.GOROOT()
+	visit         = make(map[string]status)
+	logfile       = path.Join(root, "goinstall.log")
+	installedPkgs = make(map[string]bool)
 
+	allpkg            = flag.Bool("a", false, "install all previously installed packages")
 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
+	logPkgs           = flag.Bool("log", true, "log installed packages to $GOROOT/goinstall.log for use by -a")
 	update            = flag.Bool("u", false, "update already-downloaded packages")
 	verbose           = flag.Bool("v", false, "verbose")
 )
@@ -59,8 +65,26 @@ func main() {
 	// special case - "unsafe" is already installed
 	visit["unsafe"] = done
 
-	// install command line arguments
 	args := flag.Args()
+	if *allpkg || *logPkgs {
+		readPackageList()
+	}
+	if *allpkg {
+		if len(args) != 0 {
+			usage() // -a and package list both provided
+		}
+		// install all packages that were ever installed
+		if len(installedPkgs) == 0 {
+			fmt.Fprintf(os.Stderr, "%s: no installed packages\n", argv0)
+			os.Exit(1)
+		}
+		args = make([]string, len(installedPkgs), len(installedPkgs))
+		i := 0
+		for pkg := range installedPkgs {
+			args[i] = pkg
+			i++
+		}
+	}
 	if len(args) == 0 {
 		usage()
 	}
@@ -81,6 +105,29 @@ func printDeps(pkg string) {
 		printDeps(parents[pkg])
 	}
 	fmt.Fprintf(os.Stderr, "\t%s ->\n", pkg)
+}
+
+// readPackageList reads the list of installed packages from goinstall.log
+func readPackageList() {
+	pkglistdata, _ := ioutil.ReadFile(logfile)
+	pkglist := strings.Fields(string(pkglistdata))
+	for _, pkg := range pkglist {
+		installedPkgs[pkg] = true
+	}
+}
+
+// logPackage logs the named package as installed in goinstall.log, if the package is not found in there
+func logPackage(pkg string) {
+	if installedPkgs[pkg] {
+		return
+	}
+	fout, err := os.Open(logfile, os.O_WRONLY|os.O_APPEND|os.O_CREAT, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", argv0, err)
+		return
+	}
+	fmt.Fprintf(fout, "%s\n", pkg)
+	fout.Close()
 }
 
 // install installs the package named by path, which is needed by parent.
@@ -153,9 +200,11 @@ func install(pkg, parent string) {
 		if err := domake(dir, pkg, local); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: installing %s: %s\n", argv0, pkg, err)
 			errors = true
+		} else if !local && *logPkgs {
+			// mark this package as installed in $GOROOT/goinstall.log
+			logPackage(pkg)
 		}
 	}
-
 	visit[pkg] = done
 }
 

@@ -10,14 +10,33 @@ It maintains a list of public Go packages at http://godashboard.appspot.com/pack
 
 Usage:
 	goinstall [flags] importpath...
+	goinstall [flags] -a
 
 Flags and default settings:
+        -a=false          install all previously installed packages
 	-dashboard=true   tally public packages on godashboard.appspot.com
-	-update=false     update already-downloaded packages
+	-log=true         log installed packages to $GOROOT/goinstall.log for use by -a
+	-u=false          update already-downloaded packages
 	-v=false          verbose operation
 
-Goinstall installs each of the packages identified on the command line.
-It installs a package's prerequisites before trying to install the package itself.
+Goinstall installs each of the packages identified on the command line.  It
+installs a package's prerequisites before trying to install the package
+itself. Unless -log=false is specified, goinstall logs the import path of each
+installed package to $GOROOT/goinstall.log for use by goinstall -a.
+
+If the -a flag is given, goinstall reinstalls all previously installed
+packages, reading the list from $GOROOT/goinstall.log.  After updating to a
+new Go release, which deletes all package binaries, running
+
+	goinstall -a
+
+will recompile and reinstall goinstalled packages.
+
+Another common idiom is to use
+
+	goinstall -a -u
+
+to update, recompile, and reinstall all goinstalled packages.
 
 The source code for a package with import path foo/bar is expected
 to be in the directory $GOROOT/src/pkg/foo/bar/.  If the import
@@ -54,7 +73,7 @@ if necessary.  The recognized code hosting sites are:
 
 If the destination directory (e.g., $GOROOT/src/pkg/bitbucket.org/user/project)
 already exists and contains an appropriate checkout, goinstall will not
-attempt to fetch updates.  The -update flag changes this behavior,
+attempt to fetch updates.  The -u flag changes this behavior,
 causing goinstall to update all remote packages encountered during
 the installation.
 
