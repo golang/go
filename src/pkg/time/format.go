@@ -335,7 +335,12 @@ func (t *Time) Format(layout string) string {
 }
 
 // String returns a Unix-style representation of the time value.
-func (t *Time) String() string { return t.Format(UnixDate) }
+func (t *Time) String() string {
+	if t == nil {
+		return "<nil>"
+	}
+	return t.Format(UnixDate)
+}
 
 var errBad = os.ErrorString("bad") // just a marker; not returned to user
 
