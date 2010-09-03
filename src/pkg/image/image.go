@@ -5,6 +5,12 @@
 // The image package implements a basic 2-D image library.
 package image
 
+// A Config consists of an image's color model and dimensions.
+type Config struct {
+	ColorModel    ColorModel
+	Width, Height int
+}
+
 // An Image is a finite rectangular grid of Colors drawn from a ColorModel.
 type Image interface {
 	// ColorModel returns the Image's ColorModel.
