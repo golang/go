@@ -29,7 +29,6 @@ func usage() {
 var (
 	argv0         = os.Args[0]
 	errors        = false
-	gobin         = os.Getenv("GOBIN")
 	parents       = make(map[string]string)
 	root          = runtime.GOROOT()
 	visit         = make(map[string]status)
@@ -56,9 +55,6 @@ func main() {
 	if root == "" {
 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
 		os.Exit(1)
-	}
-	if gobin == "" {
-		gobin = root + "/bin"
 	}
 	root += "/src/pkg/"
 
