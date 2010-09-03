@@ -25,6 +25,7 @@ func (e *Element) Next() *Element { return e.next }
 func (e *Element) Prev() *Element { return e.prev }
 
 // List represents a doubly linked list.
+// The zero value for List is an empty list ready to use.
 type List struct {
 	front, back *Element
 	len         int
