@@ -12,7 +12,9 @@ $(OFILES): $(HFILES)
 clean:
 	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
 
+ifneq ($(NOINSTALL),1)
 install: $(QUOTED_GOBIN)/$(TARG)
+endif
 
 $(QUOTED_GOBIN)/$(TARG): $(TARG)
 	cp $(TARG) "$(GOBIN)"/$(TARG)
