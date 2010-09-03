@@ -21,14 +21,14 @@ func domake(dir, pkg string, local bool) os.Error {
 	if local {
 		_, err := os.Stat(dir + "/Makefile")
 		if err == nil {
-			return run(dir, nil, gobin+"/gomake", "install")
+			return run(dir, nil, "gomake", "install")
 		}
 	}
 	makefile, err := makeMakefile(dir, pkg)
 	if err != nil {
 		return err
 	}
-	return run(dir, makefile, gobin+"/gomake", "-f-", "install")
+	return run(dir, makefile, "gomake", "-f-", "install")
 }
 
 // makeMakefile computes the standard Makefile for the directory dir
