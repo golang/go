@@ -147,7 +147,6 @@ func (d *decoder) processSOF(n int) os.Error {
 			}
 		}
 	}
-	d.image = image.NewRGBA(d.width, d.height)
 	return nil
 }
 
@@ -240,7 +239,7 @@ func (d *decoder) convertMCU(mx, my, h0, v0 int) {
 // Specified in section B.2.3.
 func (d *decoder) processSOS(n int) os.Error {
 	if d.image == nil {
-		return FormatError("missing SOF segment")
+		d.image = image.NewRGBA(d.width, d.height)
 	}
 	if n != 4+2*nComponent {
 		return UnsupportedError("SOS has wrong length")
@@ -365,9 +364,8 @@ func (d *decoder) processDRI(n int) os.Error {
 	return nil
 }
 
-// Decode reads a JPEG formatted image from r and returns it as an image.Image.
-func Decode(r io.Reader) (image.Image, os.Error) {
-	var d decoder
+// decode reads a JPEG image from r and returns it as an image.Image.
+func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, os.Error) {
 	if rr, ok := r.(Reader); ok {
 		d.r = rr
 	} else {
@@ -411,6 +409,9 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 		switch {
 		case marker == sof0Marker: // Start Of Frame (Baseline).
 			err = d.processSOF(n)
+			if configOnly {
+				return nil, err
+			}
 		case marker == sof2Marker: // Start Of Frame (Progressive).
 			err = UnsupportedError("progressive mode")
 		case marker == dhtMarker: // Define Huffman Table.
@@ -433,6 +434,22 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 	return d.image, nil
 }
 
+// Decode reads a JPEG image from r and returns it as an image.Image.
+func Decode(r io.Reader) (image.Image, os.Error) {
+	var d decoder
+	return d.decode(r, false)
+}
+
+// DecodeConfig returns the color model and dimensions of a JPEG image without
+// decoding the entire image.
+func DecodeConfig(r io.Reader) (image.Config, os.Error) {
+	var d decoder
+	if _, err := d.decode(r, true); err != nil {
+		return image.Config{}, err
+	}
+	return image.Config{image.RGBAColorModel, d.width, d.height}, nil
+}
+
 func init() {
-	image.RegisterFormat("jpeg", "\xff\xd8", Decode)
+	image.RegisterFormat("jpeg", "\xff\xd8", Decode, DecodeConfig)
 }
