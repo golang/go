@@ -13,12 +13,12 @@ type I interface {
 }
 
 func main() {
-	var s *S;
-	var i I;
-	var e interface {};
-	e = s;
-	i = e.(I);
-	_ = i;
+	var s *S
+	var i I
+	var e interface {}
+	e = s
+	i = e.(I)
+	_ = i
 }
 
 // hide S down here to avoid static warning

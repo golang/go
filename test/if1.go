@@ -9,12 +9,12 @@ package main
 import "os"
 
 func main() {
-	count := 7;
+	count := 7
 	if one := 1; {
 		count = count + one
 	}
 	if count != 8 {
-		print(count, " should be 8\n");
+		print(count, " should be 8\n")
 		os.Exit(1)
 	}
 }

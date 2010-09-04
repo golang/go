@@ -24,34 +24,34 @@ func
 pow10(pow int) float64 {
 	if pow < 0 { return 1/pow10(-pow); }
 	if pow > 0 { return pow10(pow-1)*10; }
-	return 1;
+	return 1
 }
 
 func
 close(da float64, ia, ib int64, pow int) bool {
-	db := float64(ia) / float64(ib);
-	db *= pow10(pow);
+	db := float64(ia) / float64(ib)
+	db *= pow10(pow)
 
 	if da == 0 || db == 0 {
 		if da == 0 && db == 0 {
-			return true;
+			return true
 		}
-		return false;
+		return false
 	}
 
-	de := (da-db) /da;
+	de := (da-db) /da
 	if de < 0 {
-		de = -de;
+		de = -de
 	}
 
 	if de < deLim {
-		return true;
+		return true
 	}
 	if !bad {
 		println("BUG")
 		bad = true
 	}
-	return false;
+	return false
 }
 
 func

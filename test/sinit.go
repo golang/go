@@ -9,10 +9,10 @@ package p
 // Should be no init func in the assembly.
 // All these initializations should be done at link time.
 
-type	S	struct{ a,b,c int };
-type	SS	struct{ aa,bb,cc S };
-type	SA	struct{ a,b,c [3]int };
-type	SC	struct{ a,b,c []int };
+type	S	struct{ a,b,c int }
+type	SS	struct{ aa,bb,cc S }
+type	SA	struct{ a,b,c [3]int }
+type	SC	struct{ a,b,c []int }
 
 var (
 	zero = 2

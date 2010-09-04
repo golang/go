@@ -16,10 +16,10 @@ import . "os"
 func f(e os.Error)
 
 func main() {
-	var _e_ _os_.Error;
-	var dot Error;
+	var _e_ _os_.Error
+	var dot Error
 
-	f(_e_);
-	f(dot);
+	f(_e_)
+	f(dot)
 }
 

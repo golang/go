@@ -8,49 +8,49 @@ package main
 
 func assertequal(is, shouldbe int, msg string) {
 	if is != shouldbe {
-		print("assertion fail", msg, "\n");
-		panic(1);
+		print("assertion fail", msg, "\n")
+		panic(1)
 	}
 }
 
 func main() {
-	var i, sum int;
+	var i, sum int
 
-	i = 0;
+	i = 0
 	for {
-		i = i + 1;
+		i = i + 1
 		if i > 5 {
-			break;
+			break
 		}
 	}
-	assertequal(i, 6, "break");
+	assertequal(i, 6, "break")
 
-	sum = 0;
+	sum = 0
 	for i := 0; i <= 10; i++ {
-		sum = sum + i;
+		sum = sum + i
 	}
-	assertequal(sum, 55, "all three");
+	assertequal(sum, 55, "all three")
 
-	sum = 0;
+	sum = 0
 	for i := 0; i <= 10; {
-		sum = sum + i;
-		i++;
+		sum = sum + i
+		i++
 	}
-	assertequal(sum, 55, "only two");
+	assertequal(sum, 55, "only two")
 
-	sum = 0;
+	sum = 0
 	for sum < 100 {
-		sum = sum + 9;
+		sum = sum + 9
 	}
-	assertequal(sum, 99 + 9, "only one");
+	assertequal(sum, 99 + 9, "only one")
 
-	sum = 0;
+	sum = 0
 	for i := 0; i <= 10; i++ {
 		if i % 2 == 0 {
-			continue;
+			continue
 		}
-		sum = sum + i;
+		sum = sum + i
 	}
-	assertequal(sum, 1+3+5+7+9, "continue");
+	assertequal(sum, 1+3+5+7+9, "continue")
 
 }

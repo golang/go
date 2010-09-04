@@ -14,32 +14,32 @@ type T int
 func (t T) m() {}
 
 type I interface { m() }
-type J interface { I; }
+type J interface { I }
 
-type PI interface { p.I; }
-type PJ interface { p.J; }
+type PI interface { p.I }
+type PJ interface { p.J }
 
 func main() {
-	var i I;
-	var j J;
-	var t T;
-	i = t;
-	j = t;
-	_ = i;
-	_ = j;
-	i = j;
-	_ = i;
-	j = i;
-	_ = j;
-	var pi PI;
-	var pj PJ;
-	var pt p.T;
-	pi = pt;
-	pj = pt;
-	_ = pi;
-	_ = pj;
-	pi = pj;
-	_ = pi;
-	pj = pi;
-	_ = pj;
+	var i I
+	var j J
+	var t T
+	i = t
+	j = t
+	_ = i
+	_ = j
+	i = j
+	_ = i
+	j = i
+	_ = j
+	var pi PI
+	var pj PJ
+	var pt p.T
+	pi = pt
+	pj = pt
+	_ = pi
+	_ = pj
+	pi = pj
+	_ = pi
+	pj = pi
+	_ = pj
 }

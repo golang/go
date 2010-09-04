@@ -36,47 +36,47 @@ var ok = true
 
 func check(s string, v int64) {
 	if v != Value {
-		println(s, v);
-		ok = false;
+		println(s, v)
+		ok = false
 	}
 }
 
 func main() {
-	check("t.M()", t.M());
-	check("pt.M()", pt.M());
-	check("ti.M()", ti.M());
-	check("pti.M()", pti.M());
-	check("s.M()", s.M());
-	check("ps.M()", ps.M());
-	check("sp.M()", sp.M());
-	check("psp.M()", psp.M());
+	check("t.M()", t.M())
+	check("pt.M()", pt.M())
+	check("ti.M()", ti.M())
+	check("pti.M()", pti.M())
+	check("s.M()", s.M())
+	check("ps.M()", ps.M())
+	check("sp.M()", sp.M())
+	check("psp.M()", psp.M())
 
-	i = t;
-	check("i = t; i.M()", i.M());
-	check("i = t; pi.M()", pi.M());
+	i = t
+	check("i = t; i.M()", i.M())
+	check("i = t; pi.M()", pi.M())
 
-	i = pt;
-	check("i = pt; i.M()", i.M());
-	check("i = pt; pi.M()", pi.M());
+	i = pt
+	check("i = pt; i.M()", i.M())
+	check("i = pt; pi.M()", pi.M())
 
-	i = s;
-	check("i = s; i.M()", i.M());
-	check("i = s; pi.M()", pi.M());
+	i = s
+	check("i = s; i.M()", i.M())
+	check("i = s; pi.M()", pi.M())
 
-	i = ps;
-	check("i = ps; i.M()", i.M());
-	check("i = ps; pi.M()", pi.M());
+	i = ps
+	check("i = ps; i.M()", i.M())
+	check("i = ps; pi.M()", pi.M())
 
-	i = sp;
-	check("i = sp; i.M()", i.M());
-	check("i = sp; pi.M()", pi.M());
+	i = sp
+	check("i = sp; i.M()", i.M())
+	check("i = sp; pi.M()", pi.M())
 
-	i = psp;
-	check("i = psp; i.M()", i.M());
-	check("i = psp; pi.M()", pi.M());
+	i = psp
+	check("i = psp; i.M()", i.M())
+	check("i = psp; pi.M()", pi.M())
 
 	if !ok {
-		println("BUG: interface10");
+		println("BUG: interface10")
 		os.Exit(1)
 	}
 }

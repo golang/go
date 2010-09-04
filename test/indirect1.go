@@ -64,5 +64,5 @@ func f() {
 		cap(b1)+	// ERROR "illegal|invalid|must be"
 		cap(b2)+	// ERROR "illegal|invalid|must be"
 		cap(b3)+
-		cap(b4);	// ERROR "illegal|invalid|must be"
+		cap(b4)	// ERROR "illegal|invalid|must be"
 }

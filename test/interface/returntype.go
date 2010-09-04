@@ -18,8 +18,8 @@ type I1 interface { Name() int8 }
 type I2 interface { Name() int64 }
 
 func main() {
-	var i1 I1;
-	var s *S;
-	i1 = s;
+	var i1 I1
+	var s *S
+	i1 = s
 	print(i1.(I2).Name())
 }

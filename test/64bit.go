@@ -15,9 +15,9 @@
 package main
 
 import (
-	"bufio";
-	"fmt";
-	"os";
+	"bufio"
+	"fmt"
+	"os"
 )
 
 var bout *bufio.Writer
@@ -27,19 +27,19 @@ var bout *bufio.Writer
 // if the compiler has buggy or missing 64-bit support.
 
 type Uint64 struct {
-	hi	uint32;
-	lo	uint32;
+	hi	uint32
+	lo	uint32
 }
 
 type Int64 struct {
-	hi	int32;
-	lo	uint32;
+	hi	int32
+	lo	uint32
 }
 
 func (a Uint64) Int64() (c Int64) {
-	c.hi = int32(a.hi);
-	c.lo = a.lo;
-	return;
+	c.hi = int32(a.hi)
+	c.lo = a.lo
+	return
 }
 
 func (a Uint64) Cmp(b Uint64) int {
@@ -53,80 +53,80 @@ func (a Uint64) Cmp(b Uint64) int {
 	case a.lo > b.lo:
 		return 1
 	}
-	return 0;
+	return 0
 }
 
 func (a Uint64) LeftShift(b uint) (c Uint64) {
 	switch {
 	case b >= 64:
-		c.hi = 0;
-		c.lo = 0;
+		c.hi = 0
+		c.lo = 0
 	case b >= 32:
-		c.hi = a.lo << (b - 32);
-		c.lo = 0;
+		c.hi = a.lo << (b - 32)
+		c.lo = 0
 	default:
-		c.hi = a.hi<<b | a.lo>>(32-b);
-		c.lo = a.lo << b;
+		c.hi = a.hi<<b | a.lo>>(32-b)
+		c.lo = a.lo << b
 	}
-	return;
+	return
 }
 
 func (a Uint64) RightShift(b uint) (c Uint64) {
 	switch {
 	case b >= 64:
-		c.hi = 0;
-		c.lo = a.hi;
+		c.hi = 0
+		c.lo = a.hi
 	case b >= 32:
-		c.hi = 0;
-		c.lo = a.hi >> (b - 32);
+		c.hi = 0
+		c.lo = a.hi >> (b - 32)
 	default:
-		c.hi = a.hi >> b;
-		c.lo = a.hi<<(32-b) | a.lo>>b;
+		c.hi = a.hi >> b
+		c.lo = a.hi<<(32-b) | a.lo>>b
 	}
-	return;
+	return
 }
 
 func (a Uint64) LeftShift64(b Uint64) (c Uint64) {
 	if b.hi != 0 || b.lo >= 64 {
 		return
 	}
-	return a.LeftShift(uint(b.lo));
+	return a.LeftShift(uint(b.lo))
 }
 
 func (a Uint64) RightShift64(b Uint64) (c Uint64) {
 	if b.hi != 0 || b.lo >= 64 {
 		return
 	}
-	return a.RightShift(uint(b.lo));
+	return a.RightShift(uint(b.lo))
 }
 
 func (a Uint64) Plus(b Uint64) (c Uint64) {
-	var carry uint32;
+	var carry uint32
 	if c.lo = a.lo + b.lo; c.lo < a.lo {
 		carry = 1
 	}
-	c.hi = a.hi + b.hi + carry;
-	return;
+	c.hi = a.hi + b.hi + carry
+	return
 }
 
 func (a Uint64) Minus(b Uint64) (c Uint64) {
-	var borrow uint32;
+	var borrow uint32
 	if c.lo = a.lo - b.lo; c.lo > a.lo {
 		borrow = 1
 	}
-	c.hi = a.hi - b.hi - borrow;
-	return;
+	c.hi = a.hi - b.hi - borrow
+	return
 }
 
 func (a Uint64) Neg() (c Uint64) {
-	var zero Uint64;
-	return zero.Minus(a);
+	var zero Uint64
+	return zero.Minus(a)
 }
 
 func (a Uint64) Com() (c Uint64) {
-	c.hi = ^a.hi;
-	c.lo = ^a.lo;
-	return;
+	c.hi = ^a.hi
+	c.lo = ^a.lo
+	return
 }
 
 func (a Uint64) Len() int {
@@ -144,7 +144,7 @@ func (a Uint64) Len() int {
 			}
 		}
 	}
-	return 0;
+	return 0
 }
 
 func (a Uint64) HasBit(b uint) bool {
@@ -154,7 +154,7 @@ func (a Uint64) HasBit(b uint) bool {
 	case b >= 32:
 		return a.hi&(1<<(b-32)) != 0
 	}
-	return a.lo&(1<<b) != 0;
+	return a.lo&(1<<b) != 0
 }
 
 func (a Uint64) Times(b Uint64) (c Uint64) {
@@ -163,56 +163,56 @@ func (a Uint64) Times(b Uint64) (c Uint64) {
 			c = c.Plus(a.LeftShift(i))
 		}
 	}
-	return;
+	return
 }
 
 func (a Uint64) DivMod(b Uint64) (quo, rem Uint64) {
-	n := a.Len() - b.Len();
+	n := a.Len() - b.Len()
 	if n >= 0 {
-		b = b.LeftShift(uint(n));
+		b = b.LeftShift(uint(n))
 		for i := 0; i <= n; i++ {
-			quo = quo.LeftShift(1);
+			quo = quo.LeftShift(1)
 			if b.Cmp(a) <= 0 {	// b <= a
-				quo.lo |= 1;
-				a = a.Minus(b);
+				quo.lo |= 1
+				a = a.Minus(b)
 			}
-			b = b.RightShift(1);
+			b = b.RightShift(1)
 		}
 	}
-	rem = a;
-	return;
+	rem = a
+	return
 }
 
 func (a Uint64) And(b Uint64) (c Uint64) {
-	c.hi = a.hi & b.hi;
-	c.lo = a.lo & b.lo;
-	return;
+	c.hi = a.hi & b.hi
+	c.lo = a.lo & b.lo
+	return
 }
 
 func (a Uint64) AndNot(b Uint64) (c Uint64) {
-	c.hi = a.hi &^ b.hi;
-	c.lo = a.lo &^ b.lo;
-	return;
+	c.hi = a.hi &^ b.hi
+	c.lo = a.lo &^ b.lo
+	return
 }
 
 func (a Uint64) Or(b Uint64) (c Uint64) {
-	c.hi = a.hi | b.hi;
-	c.lo = a.lo | b.lo;
-	return;
+	c.hi = a.hi | b.hi
+	c.lo = a.lo | b.lo
+	return
 }
 
 func (a Uint64) Xor(b Uint64) (c Uint64) {
-	c.hi = a.hi ^ b.hi;
-	c.lo = a.lo ^ b.lo;
-	return;
+	c.hi = a.hi ^ b.hi
+	c.lo = a.lo ^ b.lo
+	return
 }
 
 func (a Uint64) String() string	{ return fmt.Sprintf("%#x%08x", a.hi, a.lo) }
 
 func (a Int64) Uint64() (c Uint64) {
-	c.hi = uint32(a.hi);
-	c.lo = a.lo;
-	return;
+	c.hi = uint32(a.hi)
+	c.lo = a.lo
+	return
 }
 
 func (a Int64) Cmp(b Int64) int {
@@ -229,7 +229,7 @@ func (a Int64) Cmp(b Int64) int {
 	case a.lo > b.lo:
 		return 1
 	}
-	return 0;
+	return 0
 }
 
 func (a Int64) LeftShift(b uint) (c Int64)	{ return a.Uint64().LeftShift(b).Int64() }
@@ -237,30 +237,30 @@ func (a Int64) LeftShift(b uint) (c Int64)	{ return a.Uint64().LeftShift(b).Int6
 func (a Int64) RightShift(b uint) (c Int64) {
 	switch {
 	case b >= 64:
-		c.hi = a.hi >> 31;	// sign extend
-		c.lo = uint32(c.hi);
+		c.hi = a.hi >> 31	// sign extend
+		c.lo = uint32(c.hi)
 	case b >= 32:
-		c.hi = a.hi >> 31;	// sign extend
-		c.lo = uint32(a.hi >> (b - 32));
+		c.hi = a.hi >> 31	// sign extend
+		c.lo = uint32(a.hi >> (b - 32))
 	default:
-		c.hi = a.hi >> b;
-		c.lo = uint32(a.hi<<(32-b)) | a.lo>>b;
+		c.hi = a.hi >> b
+		c.lo = uint32(a.hi<<(32-b)) | a.lo>>b
 	}
-	return;
+	return
 }
 
 func (a Int64) LeftShift64(b Uint64) (c Int64) {
 	if b.hi != 0 || b.lo >= 64 {
 		return
 	}
-	return a.LeftShift(uint(b.lo));
+	return a.LeftShift(uint(b.lo))
 }
 
 func (a Int64) RightShift64(b Uint64) (c Int64) {
 	if b.hi != 0 || b.lo >= 64 {
 		return a.RightShift(64)
 	}
-	return a.RightShift(uint(b.lo));
+	return a.RightShift(uint(b.lo))
 }
 
 func (a Int64) Plus(b Int64) (c Int64)	{ return a.Uint64().Plus(b.Uint64()).Int64() }
@@ -274,23 +274,23 @@ func (a Int64) Com() (c Int64)	{ return a.Uint64().Com().Int64() }
 func (a Int64) Times(b Int64) (c Int64)	{ return a.Uint64().Times(b.Uint64()).Int64() }
 
 func (a Int64) DivMod(b Int64) (quo Int64, rem Int64) {
-	var zero Int64;
+	var zero Int64
 
-	quoSign := +1;
-	remSign := +1;
+	quoSign := +1
+	remSign := +1
 	if a.Cmp(zero) < 0 {
-		quoSign = -1;
-		remSign = -1;
-		a = a.Neg();
+		quoSign = -1
+		remSign = -1
+		a = a.Neg()
 	}
 	if b.Cmp(zero) < 0 {
-		quoSign = -quoSign;
-		b = b.Neg();
+		quoSign = -quoSign
+		b = b.Neg()
 	}
 
-	q, r := a.Uint64().DivMod(b.Uint64());
-	quo = q.Int64();
-	rem = r.Int64();
+	q, r := a.Uint64().DivMod(b.Uint64())
+	quo = q.Int64()
+	rem = r.Int64()
 
 	if quoSign < 0 {
 		quo = quo.Neg()
@@ -298,7 +298,7 @@ func (a Int64) DivMod(b Int64) (quo Int64, rem Int64) {
 	if remSign < 0 {
 		rem = rem.Neg()
 	}
-	return;
+	return
 }
 
 func (a Int64) And(b Int64) (c Int64)	{ return a.Uint64().And(b.Uint64()).Int64() }
@@ -313,7 +313,7 @@ func (a Int64) String() string {
 	if a.hi < 0 {
 		return fmt.Sprintf("-%s", a.Neg().Uint64())
 	}
-	return a.Uint64().String();
+	return a.Uint64().String()
 }
 
 var int64Values = []Int64{
@@ -507,56 +507,56 @@ const prolog = "\n" +
 	"\n"
 
 func varTests() {
-	fmt.Fprint(bout, prolog);
+	fmt.Fprint(bout, prolog)
 	for _, a := range int64Values {
-		fmt.Fprintf(bout, "func test%v() {\n", ntest);
-		ntest++;
-		fmt.Fprintf(bout, "\ttestInt64Unary(%v, %v, %v, %v);\n", a, a, a.Com(), a.Neg());
+		fmt.Fprintf(bout, "func test%v() {\n", ntest)
+		ntest++
+		fmt.Fprintf(bout, "\ttestInt64Unary(%v, %v, %v, %v);\n", a, a, a.Com(), a.Neg())
 		for _, b := range int64Values {
-			var div, mod Int64;
-			dodiv := false;
-			var zero Int64;
+			var div, mod Int64
+			dodiv := false
+			var zero Int64
 			if b.Cmp(zero) != 0 {	// b != 0
 				// Can't divide by zero but also can't divide -0x8000...000 by -1.
-				var bigneg = Int64{-0x80000000, 0};
-				var minus1 = Int64{-1, ^uint32(0)};
+				var bigneg = Int64{-0x80000000, 0}
+				var minus1 = Int64{-1, ^uint32(0)}
 				if a.Cmp(bigneg) != 0 || b.Cmp(minus1) != 0 {	// a != -1<<63 || b != -1
-					div, mod = a.DivMod(b);
-					dodiv = true;
+					div, mod = a.DivMod(b)
+					dodiv = true
 				}
 			}
 			fmt.Fprintf(bout, "\ttestInt64Binary(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
 				a, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
+				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
 		}
 		for _, b := range shiftValues {
 			fmt.Fprintf(bout, "\ttestInt64Shift(%v, %v, %v, %v);\n",
 				a, b, a.LeftShift64(b), a.RightShift64(b))
 		}
-		fmt.Fprintf(bout, "}\n");
+		fmt.Fprintf(bout, "}\n")
 	}
 
 	for _, a := range uint64Values {
-		fmt.Fprintf(bout, "func test%v() {\n", ntest);
-		ntest++;
-		fmt.Fprintf(bout, "\ttestUint64Unary(%v, %v, %v, %v);\n", a, a, a.Com(), a.Neg());
+		fmt.Fprintf(bout, "func test%v() {\n", ntest)
+		ntest++
+		fmt.Fprintf(bout, "\ttestUint64Unary(%v, %v, %v, %v);\n", a, a, a.Com(), a.Neg())
 		for _, b := range uint64Values {
-			var div, mod Uint64;
-			dodiv := false;
-			var zero Uint64;
+			var div, mod Uint64
+			dodiv := false
+			var zero Uint64
 			if b.Cmp(zero) != 0 {	// b != 0
-				div, mod = a.DivMod(b);
-				dodiv = true;
+				div, mod = a.DivMod(b)
+				dodiv = true
 			}
 			fmt.Fprintf(bout, "\ttestUint64Binary(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
 				a, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
+				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
 		}
 		for _, b := range shiftValues {
 			fmt.Fprintf(bout, "\ttestUint64Shift(%v, %v, %v, %v);\n",
 				a, b, a.LeftShift64(b), a.RightShift64(b))
 		}
-		fmt.Fprintf(bout, "}\n");
+		fmt.Fprintf(bout, "}\n")
 	}
 }
 
@@ -622,88 +622,88 @@ const shiftConstR = "func test%vShiftR%v(a, left, right %v) {\n" +
 
 func constTests() {
 	for i, a := range int64Values {
-		fmt.Fprintf(bout, binaryConstL, "Int64", i, "int64", "int64", a, "int64");
-		fmt.Fprintf(bout, binaryConstR, "Int64", i, "int64", "int64", a, "int64");
-		fmt.Fprintf(bout, shiftConstL, "Int64", i, "int64", "int64", a, "int64");
+		fmt.Fprintf(bout, binaryConstL, "Int64", i, "int64", "int64", a, "int64")
+		fmt.Fprintf(bout, binaryConstR, "Int64", i, "int64", "int64", a, "int64")
+		fmt.Fprintf(bout, shiftConstL, "Int64", i, "int64", "int64", a, "int64")
 	}
 	for i, a := range uint64Values {
-		fmt.Fprintf(bout, binaryConstL, "Uint64", i, "uint64", "uint64", a, "uint64");
-		fmt.Fprintf(bout, binaryConstR, "Uint64", i, "uint64", "uint64", a, "uint64");
-		fmt.Fprintf(bout, shiftConstL, "Uint64", i, "uint64", "uint64", a, "uint64");
+		fmt.Fprintf(bout, binaryConstL, "Uint64", i, "uint64", "uint64", a, "uint64")
+		fmt.Fprintf(bout, binaryConstR, "Uint64", i, "uint64", "uint64", a, "uint64")
+		fmt.Fprintf(bout, shiftConstL, "Uint64", i, "uint64", "uint64", a, "uint64")
 	}
 	for i, a := range shiftValues {
-		fmt.Fprintf(bout, shiftConstR, "Int64", i, "int64", a, "int64");
-		fmt.Fprintf(bout, shiftConstR, "Uint64", i, "uint64", a, "uint64");
+		fmt.Fprintf(bout, shiftConstR, "Int64", i, "int64", a, "int64")
+		fmt.Fprintf(bout, shiftConstR, "Uint64", i, "uint64", a, "uint64")
 	}
 	for i, a := range int64Values {
-		fmt.Fprintf(bout, "func test%v() {\n", ntest);
-		ntest++;
+		fmt.Fprintf(bout, "func test%v() {\n", ntest)
+		ntest++
 		for j, b := range int64Values {
-			var div, mod Int64;
-			dodiv := false;
-			var zero Int64;
+			var div, mod Int64
+			dodiv := false
+			var zero Int64
 			if b.Cmp(zero) != 0 {	// b != 0
 				// Can't divide by zero but also can't divide -0x8000...000 by -1.
-				var bigneg = Int64{-0x80000000, 0};
-				var minus1 = Int64{-1, ^uint32(0)};
+				var bigneg = Int64{-0x80000000, 0}
+				var minus1 = Int64{-1, ^uint32(0)}
 				if a.Cmp(bigneg) != 0 || b.Cmp(minus1) != 0 {	// a != -1<<63 || b != -1
-					div, mod = a.DivMod(b);
-					dodiv = true;
+					div, mod = a.DivMod(b)
+					dodiv = true
 				}
 			}
 			fmt.Fprintf(bout, "\ttestInt64BinaryL%v(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
 				i, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
+				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
 			fmt.Fprintf(bout, "\ttestInt64BinaryR%v(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
 				j, a, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
+				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
 		}
 		for j, b := range shiftValues {
 			fmt.Fprintf(bout, "\ttestInt64ShiftL%v(%v, %v, %v);\n",
-				i, b, a.LeftShift64(b), a.RightShift64(b));
+				i, b, a.LeftShift64(b), a.RightShift64(b))
 			fmt.Fprintf(bout, "\ttestInt64ShiftR%v(%v, %v, %v);\n",
-				j, a, a.LeftShift64(b), a.RightShift64(b));
+				j, a, a.LeftShift64(b), a.RightShift64(b))
 		}
-		fmt.Fprintf(bout, "}\n");
+		fmt.Fprintf(bout, "}\n")
 	}
 	for i, a := range uint64Values {
-		fmt.Fprintf(bout, "func test%v() {\n", ntest);
-		ntest++;
+		fmt.Fprintf(bout, "func test%v() {\n", ntest)
+		ntest++
 		for j, b := range uint64Values {
-			var div, mod Uint64;
-			dodiv := false;
-			var zero Uint64;
+			var div, mod Uint64
+			dodiv := false
+			var zero Uint64
 			if b.Cmp(zero) != 0 {	// b != 0
-				div, mod = a.DivMod(b);
-				dodiv = true;
+				div, mod = a.DivMod(b)
+				dodiv = true
 			}
 			fmt.Fprintf(bout, "\ttestUint64BinaryL%v(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
 				i, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
+				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
 			fmt.Fprintf(bout, "\ttestUint64BinaryR%v(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
 				j, a, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
+				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
 		}
 		for j, b := range shiftValues {
 			fmt.Fprintf(bout, "\ttestUint64ShiftL%v(%v, %v, %v);\n",
-				i, b, a.LeftShift64(b), a.RightShift64(b));
+				i, b, a.LeftShift64(b), a.RightShift64(b))
 			fmt.Fprintf(bout, "\ttestUint64ShiftR%v(%v, %v, %v);\n",
-				j, a, a.LeftShift64(b), a.RightShift64(b));
+				j, a, a.LeftShift64(b), a.RightShift64(b))
 		}
-		fmt.Fprintf(bout, "}\n");
+		fmt.Fprintf(bout, "}\n")
 	}
 }
 
 func main() {
-	bout = bufio.NewWriter(os.Stdout);
-	varTests();
-	constTests();
+	bout = bufio.NewWriter(os.Stdout)
+	varTests()
+	constTests()
 
-	fmt.Fprintf(bout, "func main() {\n");
+	fmt.Fprintf(bout, "func main() {\n")
 	for i := 0; i < ntest; i++ {
 		fmt.Fprintf(bout, "\ttest%v();\n", i)
 	}
-	fmt.Fprintf(bout, "\tif !ok { os.Exit(1) }\n");
-	fmt.Fprintf(bout, "}\n");
-	bout.Flush();
+	fmt.Fprintf(bout, "\tif !ok { os.Exit(1) }\n")
+	fmt.Fprintf(bout, "}\n")
+	bout.Flush()
 }

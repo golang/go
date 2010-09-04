@@ -9,12 +9,12 @@ package main
 import "os"
 
 func main() {
-	i := 0;
+	i := 0
 	switch x := 5; {
 		case i < x:
-			os.Exit(0);
+			os.Exit(0)
 		case i == x:
 		case i > x:
-			os.Exit(1);
+			os.Exit(1)
 	}
 }

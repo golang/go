@@ -13,8 +13,8 @@ import "unsafe"
 var x byte
 
 func main() {
-	var p *[1<<30]byte = nil;
-	x = 123;
+	var p *[1<<30]byte = nil
+	x = 123
 
 	// The problem here is not the use of unsafe:
 	// it is that indexing into p[] with a large
@@ -23,5 +23,5 @@ func main() {
 	// Pointer offsets and array indices, if they are
 	// very large, need to dereference the base pointer
 	// to trigger a trap.
-	println(p[uintptr(unsafe.Pointer(&x))]);	// should crash
+	println(p[uintptr(unsafe.Pointer(&x))])	// should crash
 }

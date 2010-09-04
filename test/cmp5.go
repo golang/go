@@ -7,8 +7,8 @@
 package main
 
 func main() {
-	var b []int;
-	var ib interface{} = b;
-	var m = make(map[interface{}] int);
-	m[ib] = 1;
+	var b []int
+	var ib interface{} = b
+	var m = make(map[interface{}] int)
+	m[ib] = 1
 }

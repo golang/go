@@ -12,6 +12,6 @@ import "bufio"	// GCCGO_ERROR "previous|not used"
 import bufio "os"	// ERROR "redeclared|redefinition|incompatible"
 
 import (
-	"fmt";	// GCCGO_ERROR "previous|not used"
-	fmt "math";	// ERROR "redeclared|redefinition|incompatible"
+	"fmt"	// GCCGO_ERROR "previous|not used"
+	fmt "math"	// ERROR "redeclared|redefinition|incompatible"
 )
