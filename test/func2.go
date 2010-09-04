@@ -5,20 +5,20 @@
 // license that can be found in the LICENSE file.
 
 package main
-import os "os";
+import os "os"
 
-type t1 int;
-type t2 int;
-type t3 int;
+type t1 int
+type t2 int
+type t3 int
 
-func f1(t1, t2, t3);
-func f2(t1, t2, t3 bool);
-func f3(t1, t2, x t3);
-func f4(t1, *t3);
-func (x *t1) f5(y []t2) (t1, *t3);
-func f6() (int, *string);
-func f7(*t2, t3);
-func f8(os int) int;
+func f1(t1, t2, t3)
+func f2(t1, t2, t3 bool)
+func f3(t1, t2, x t3)
+func f4(t1, *t3)
+func (x *t1) f5(y []t2) (t1, *t3)
+func f6() (int, *string)
+func f7(*t2, t3)
+func f8(os int) int
 
 func f9(os int) int {
 	return os

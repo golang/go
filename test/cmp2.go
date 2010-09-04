@@ -9,7 +9,7 @@ package main
 func use(bool) { }
 
 func main() {
-	var a []int;
-	var ia interface{} = a;
-	use(ia == ia);
+	var a []int
+	var ia interface{} = a
+	use(ia == ia)
 }

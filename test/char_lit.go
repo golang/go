@@ -32,13 +32,12 @@ func main() {
 		'\ubabe' +
 		'\U0010FFFF' +
 		'\U000ebabe'
-		;
 	if '\U000ebabe' != 0x000ebabe {
-		print("ebabe wrong\n");
+		print("ebabe wrong\n")
 		os.Exit(1)
 	}
 	if i != 0x20e213 {
-		print("number is ", i, " should be ", 0x20e213, "\n");
+		print("number is ", i, " should be ", 0x20e213, "\n")
 		os.Exit(1)
-		}
+	}
 }

@@ -64,7 +64,7 @@ func main() {
 	v = &t
 	v.V()
 
-	//	p = t;	// ERROR
+	//	p = t	// ERROR
 	var i interface{} = t
 	if _, ok := i.(P); ok {
 		println("dynamic i.(P) succeeded incorrectly")
@@ -87,7 +87,7 @@ func main() {
 	v = &s
 	v.V()
 
-	//	p = s;	// ERROR
+	//	p = s	// ERROR
 	var j interface{} = s
 	if _, ok := j.(P); ok {
 		println("dynamic j.(P) succeeded incorrectly")

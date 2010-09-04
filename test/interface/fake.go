@@ -12,69 +12,69 @@ package main
 import "reflect"
 
 type T struct {
-	f float32;
-	g float32;
+	f float32
+	g float32
 
-	s string;
-	t string;
+	s string
+	t string
 
-	u uint32;
-	v uint32;
+	u uint32
+	v uint32
 
-	w uint32;
-	x uint32;
+	w uint32
+	x uint32
 
-	y uint32;
-	z uint32;
+	y uint32
+	z uint32
 }
 
 func add(s, t string) string {
-	return s + t;
+	return s + t
 }
 
 func assert(b bool) {
 	if !b {
-		panic("assert");
+		panic("assert")
 	}
 }
 
 func main() {
-	var x T;
-	x.f = 1.0;
-	x.g = x.f;
-	x.s = add("abc", "def");
-	x.t = add("abc", "def");
-	x.u = 1;
-	x.v = 2;
-	x.w = 1<<28;
-	x.x = 2<<28;
-	x.y = 0x12345678;
-	x.z = x.y;
+	var x T
+	x.f = 1.0
+	x.g = x.f
+	x.s = add("abc", "def")
+	x.t = add("abc", "def")
+	x.u = 1
+	x.v = 2
+	x.w = 1<<28
+	x.x = 2<<28
+	x.y = 0x12345678
+	x.z = x.y
 
 	// check mem and string
-	v := reflect.NewValue(x);
-	i := v.(*reflect.StructValue).Field(0);
-	j := v.(*reflect.StructValue).Field(1);
-	assert(i.Interface() == j.Interface());
+	v := reflect.NewValue(x)
+	i := v.(*reflect.StructValue).Field(0)
+	j := v.(*reflect.StructValue).Field(1)
+	assert(i.Interface() == j.Interface())
 
-	s := v.(*reflect.StructValue).Field(2);
-	t := v.(*reflect.StructValue).Field(3);
-	assert(s.Interface() == t.Interface());
+	s := v.(*reflect.StructValue).Field(2)
+	t := v.(*reflect.StructValue).Field(3)
+	assert(s.Interface() == t.Interface())
 
 	// make sure different values are different.
 	// make sure whole word is being compared,
 	// not just a single byte.
-	i = v.(*reflect.StructValue).Field(4);
-	j = v.(*reflect.StructValue).Field(5);
-	assert(i.Interface() != j.Interface());
+	i = v.(*reflect.StructValue).Field(4)
+	j = v.(*reflect.StructValue).Field(5)
+	assert(i.Interface() != j.Interface())
 
-	i = v.(*reflect.StructValue).Field(6);
-	j = v.(*reflect.StructValue).Field(7);
-	assert(i.Interface() != j.Interface());
+	i = v.(*reflect.StructValue).Field(6)
+	j = v.(*reflect.StructValue).Field(7)
+	assert(i.Interface() != j.Interface())
 
-	i = v.(*reflect.StructValue).Field(8);
-	j = v.(*reflect.StructValue).Field(9);
-	assert(i.Interface() == j.Interface());
+	i = v.(*reflect.StructValue).Field(8)
+	j = v.(*reflect.StructValue).Field(9)
+	assert(i.Interface() == j.Interface())
 }
 
 /*

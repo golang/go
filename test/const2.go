@@ -7,6 +7,6 @@
 package main
 
 const (
-	A int = 1;
+	A int = 1
 	B byte;	// ERROR "type without expr|expected .=."
 )

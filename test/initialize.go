@@ -10,11 +10,11 @@ import "fmt"
 import "reflect"
 
 type S struct {
-	A, B, C, X, Y, Z int;
+	A, B, C, X, Y, Z int
 }
 
 type T struct {
-	S;
+	S
 }
 
 var a1 = S { 0, 0, 0, 1, 2, 3 }
@@ -49,14 +49,14 @@ var same = []Same {
 }
 
 func main() {
-	ok := true;
+	ok := true
 	for _, s := range same {
 		if !reflect.DeepEqual(s.a, s.b) {
-			ok = false;
-			fmt.Printf("not same: %v and %v\n", s.a, s.b);
+			ok = false
+			fmt.Printf("not same: %v and %v\n", s.a, s.b)
 		}
 	}
 	if !ok {
-		fmt.Println("BUG: test/initialize");
+		fmt.Println("BUG: test/initialize")
 	}
 }

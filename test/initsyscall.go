@@ -18,8 +18,8 @@ func f() {
 }
 
 func init() {
-	go f();
-	time.Nanoseconds();
+	go f()
+	time.Nanoseconds()
 }
 
 func main() {

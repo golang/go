@@ -8,92 +8,92 @@ package main
 
 func assertequal(is, shouldbe int, msg string) {
 	if is != shouldbe {
-		print("assertion fail", msg, "\n");
-		panic(1);
+		print("assertion fail", msg, "\n")
+		panic(1)
 	}
 }
 
 func main() {
-	i5 := 5;
-	i7 := 7;
+	i5 := 5
+	i7 := 7
 
-	var count int;
+	var count int
 
-	count = 0;
+	count = 0
 	if true {
-		count = count + 1;
+		count = count + 1
 	}
-	assertequal(count, 1, "if true");
+	assertequal(count, 1, "if true")
 
-	count = 0;
+	count = 0
 	if false {
-		count = count + 1;
+		count = count + 1
 	}
-	assertequal(count, 0, "if false");
+	assertequal(count, 0, "if false")
 
-	count = 0;
+	count = 0
 	if one := 1; true {
-		count = count + one;
+		count = count + one
 	}
-	assertequal(count, 1, "if true one");
+	assertequal(count, 1, "if true one")
 
-	count = 0;
+	count = 0
 	if one := 1; false {
-		count = count + 1;
-		_ = one;
+		count = count + 1
+		_ = one
 	}
-	assertequal(count, 0, "if false one");
+	assertequal(count, 0, "if false one")
 
-	count = 0;
+	count = 0
 	if {
-		count = count + 1;
+		count = count + 1
 	}
-	assertequal(count, 1, "if empty");
+	assertequal(count, 1, "if empty")
 
-	count = 0;
+	count = 0
 	if one := 1; true {
-		count = count + one;
+		count = count + one
 	}
-	assertequal(count, 1, "if empty one");
+	assertequal(count, 1, "if empty one")
 
-	count = 0;
+	count = 0
 	if i5 < i7 {
-		count = count + 1;
+		count = count + 1
 	}
-	assertequal(count, 1, "if cond");
+	assertequal(count, 1, "if cond")
 
-	count = 0;
+	count = 0
 	if true {
-		count = count + 1;
+		count = count + 1
 	} else
-		count = count - 1;
-	assertequal(count, 1, "if else true");
+		count = count - 1
+	assertequal(count, 1, "if else true")
 
-	count = 0;
+	count = 0
 	if false {
-		count = count + 1;
+		count = count + 1
 	} else
-		count = count - 1;
-	assertequal(count, -1, "if else false");
+		count = count - 1
+	assertequal(count, -1, "if else false")
 
-	count = 0;
+	count = 0
 	if t:=1; false {
-		count = count + 1;
-		_ = t;
-		t := 7;
-		_ = t;
+		count = count + 1
+		_ = t
+		t := 7
+		_ = t
 	} else
-		count = count - t;
-	assertequal(count, -1, "if else false var");
+		count = count - t
+	assertequal(count, -1, "if else false var")
 
-	count = 0;
-	t := 1;
+	count = 0
+	t := 1
 	if false {
-		count = count + 1;
-		t := 7;
-		_ = t;
+		count = count + 1
+		t := 7
+		_ = t
 	} else
-		count = count - t;
-	_ = t;
-	assertequal(count, -1, "if else false var outside");
+		count = count - t
+	_ = t
+	assertequal(count, -1, "if else false var outside")
 }

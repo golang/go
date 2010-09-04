@@ -10,32 +10,32 @@
 package main
 
 import (
-	"os";
-	"strconv";
+	"os"
+	"strconv"
 )
 
 func f(left, right chan int) {
-	left <- <-right;
+	left <- <-right
 }
 
 func main() {
-	var n = 10000;
+	var n = 10000
 	if len(os.Args) > 1 {
-		var err os.Error;
-		n, err = strconv.Atoi(os.Args[1]);
+		var err os.Error
+		n, err = strconv.Atoi(os.Args[1])
 		if err != nil {
-			print("bad arg\n");
-			os.Exit(1);
+			print("bad arg\n")
+			os.Exit(1)
 		}
 	}
-	leftmost := make(chan int);
-	right := leftmost;
-	left := leftmost;
+	leftmost := make(chan int)
+	right := leftmost
+	left := leftmost
 	for i := 0; i < n; i++ {
-		right = make(chan int);
-		go f(left, right);
-		left = right;
+		right = make(chan int)
+		go f(left, right)
+		left = right
 	}
-	go func(c chan int) { c <- 1 }(right);
-	<-leftmost;
+	go func(c chan int) { c <- 1 }(right)
+	<-leftmost
 }

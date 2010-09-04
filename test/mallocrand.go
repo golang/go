@@ -56,7 +56,7 @@ func memset(b *byte, c byte, n uintptr) {
 
 func main() {
 	flag.Parse()
-	//	prime();
+	//	prime()
 	var blocks [1]struct {
 		base *byte
 		siz  uintptr
@@ -67,7 +67,7 @@ func main() {
 		}
 		b := rand.Int() % len(blocks)
 		if blocks[b].base != nil {
-			//	println("Free", blocks[b].siz, blocks[b].base);
+			//	println("Free", blocks[b].siz, blocks[b].base)
 			runtime.Free(blocks[b].base)
 			blocks[b].base = nil
 			allocated -= uint64(blocks[b].siz)
@@ -75,8 +75,8 @@ func main() {
 		}
 		siz := uintptr(rand.Int() >> (11 + rand.Uint32()%20))
 		base := runtime.Alloc(siz)
-		//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2);
-		//	obj, size, ref, ok := allocator.find(ptr);
+		//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2)
+		//	obj, size, ref, ok := allocator.find(ptr)
 		//	if obj != base || *ref != 0 || !ok {
 		//		println("find", siz, obj, ref, ok)
 		//		panic("fail")
@@ -84,7 +84,7 @@ func main() {
 		blocks[b].base = base
 		blocks[b].siz = siz
 		allocated += uint64(siz)
-		//	println("Alloc", siz, base);
+		//	println("Alloc", siz, base)
 		memset(base, 0xbb, siz)
 		bigger()
 	}

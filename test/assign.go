@@ -9,45 +9,45 @@ package main
 import "sync"
 
 type T struct {
-	int;
-	sync.Mutex;
+	int
+	sync.Mutex
 }
 
 func main() {
 	{
-		var x, y sync.Mutex;
-		x = y;	// ERROR "assignment.*Mutex"
-		_ = x;
+		var x, y sync.Mutex
+		x = y	// ERROR "assignment.*Mutex"
+		_ = x
 	}
 	{
-		var x, y T;
-		x = y;	// ERROR "assignment.*Mutex"
-		_ = x;
+		var x, y T
+		x = y	// ERROR "assignment.*Mutex"
+		_ = x
 	}
 	{
-		var x, y [2]sync.Mutex;
-		x = y;	// ERROR "assignment.*Mutex"
-		_ = x;
+		var x, y [2]sync.Mutex
+		x = y	// ERROR "assignment.*Mutex"
+		_ = x
 	}
 	{
-		var x, y [2]T;
-		x = y;	// ERROR "assignment.*Mutex"
-		_ = x;
+		var x, y [2]T
+		x = y	// ERROR "assignment.*Mutex"
+		_ = x
 	}
 	{
-		x := sync.Mutex{0, 0};	// ERROR "assignment.*Mutex"
-		_ = x;
+		x := sync.Mutex{0, 0}	// ERROR "assignment.*Mutex"
+		_ = x
 	}
 	{
-		x := sync.Mutex{key: 0};	// ERROR "(unknown|assignment).*Mutex"
-		_ = x;
+		x := sync.Mutex{key: 0}	// ERROR "(unknown|assignment).*Mutex"
+		_ = x
 	}
 	{
-		x := &sync.Mutex{};	// ok
-		var y sync.Mutex;	// ok
-		y = *x;	// ERROR "assignment.*Mutex"
-		*x = y;	// ERROR "assignment.*Mutex"
-		_ = x;
-		_ = y;
+		x := &sync.Mutex{}	// ok
+		var y sync.Mutex	// ok
+		y = *x	// ERROR "assignment.*Mutex"
+		*x = y	// ERROR "assignment.*Mutex"
+		_ = x
+		_ = y
 	}		
 }

@@ -59,7 +59,7 @@ func main() {
 			if *chatty {
 				println("Primed", i)
 			}
-			//	runtime.frozen = true;
+			//	runtime.frozen = true
 		}
 	}
 }

@@ -14,24 +14,24 @@ type IN interface {
 }
 
 func main() {
-	var i *int;
-	var f *float;
-	var s *string;
-	var m map[float] *int;
-	var c chan int;
-	var t *T;
-	var in IN;
-	var ta []IN;
+	var i *int
+	var f *float
+	var s *string
+	var m map[float] *int
+	var c chan int
+	var t *T
+	var in IN
+	var ta []IN
 
-	i = nil;
-	f = nil;
-	s = nil;
-	m = nil;
-	c = nil;
-	t = nil;
-	i = nil;
-	ta = make([]IN, 1);
-	ta[0] = nil;
+	i = nil
+	f = nil
+	s = nil
+	m = nil
+	c = nil
+	t = nil
+	i = nil
+	ta = make([]IN, 1)
+	ta[0] = nil
 
-	_, _, _, _, _, _, _, _ = i, f, s, m, c, t, in, ta;
+	_, _, _, _, _, _, _, _ = i, f, s, m, c, t, in, ta
 }

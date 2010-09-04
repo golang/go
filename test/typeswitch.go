@@ -9,22 +9,22 @@ package main
 import "os"
 
 const (
-	Bool = iota;
-	Int;
-	Float;
-	String;
-	Struct;
-	Chan;
-	Array;
-	Map;
-	Func;
-	Last;
+	Bool = iota
+	Int
+	Float
+	String
+	Struct
+	Chan
+	Array
+	Map
+	Func
+	Last
 )
 
 type S struct { a int }
 var s S = S{1234}
 
-var c = make(chan int);
+var c = make(chan int)
 
 var a	= []int{0,1,2,3}
 
@@ -32,81 +32,81 @@ var m = make(map[string]int)
 
 func assert(b bool, s string) {
 	if !b {
-		println(s);
-		os.Exit(1);
+		println(s)
+		os.Exit(1)
 	}
 }
 
 func f(i int) interface{} {
 	switch i {
 	case Bool:
-		return true;
+		return true
 	case Int:
-		return 7;
+		return 7
 	case Float:
-		return 7.4;
+		return 7.4
 	case String:
-		return "hello";
+		return "hello"
 	case Struct:
-		return s;
+		return s
 	case Chan:
-		return c;
+		return c
 	case Array:
-		return a;
+		return a
 	case Map:
-		return m;
+		return m
 	case Func:
-		return f;
+		return f
 	}
-	panic("bad type number");
+	panic("bad type number")
 }
 
 func main() {
 	for i := Bool; i < Last; i++ {
 		switch x := f(i).(type) {
 		case bool:
-			assert(x == true && i == Bool, "bool");
+			assert(x == true && i == Bool, "bool")
 		case int:
-			assert(x == 7 && i == Int, "int");
+			assert(x == 7 && i == Int, "int")
 		case float:
-			assert(x == 7.4 && i == Float, "float");
+			assert(x == 7.4 && i == Float, "float")
 		case string:
-			assert(x == "hello"&& i == String, "string");
+			assert(x == "hello"&& i == String, "string")
 		case S:
-			assert(x.a == 1234 && i == Struct, "struct");
+			assert(x.a == 1234 && i == Struct, "struct")
 		case chan int:
-			assert(x == c && i == Chan, "chan");
+			assert(x == c && i == Chan, "chan")
 		case []int:
-			assert(x[3] == 3 && i == Array, "array");
+			assert(x[3] == 3 && i == Array, "array")
 		case map[string]int:
-			assert(x == m && i == Map, "map");
+			assert(x == m && i == Map, "map")
 		case func(i int) interface{}:
-			assert(x == f && i == Func, "fun");
+			assert(x == f && i == Func, "fun")
 		default:
-			assert(false, "unknown");
+			assert(false, "unknown")
 		}
 	}
 
 	// boolean switch (has had bugs in past; worth writing down)
 	switch {
 	case true:
-		assert(true, "switch 2 bool");
+		assert(true, "switch 2 bool")
 	default:
-		assert(false, "switch 2 unknown");
+		assert(false, "switch 2 unknown")
 	}
 
 	switch true {
 	case true:
-		assert(true, "switch 3 bool");
+		assert(true, "switch 3 bool")
 	default:
-		assert(false, "switch 3 unknown");
+		assert(false, "switch 3 unknown")
 	}
 
 	switch false {
 	case false:
-		assert(true, "switch 4 bool");
+		assert(true, "switch 4 bool")
 	default:
-		assert(false, "switch 4 unknown");
+		assert(false, "switch 4 unknown")
 	}
 
 }

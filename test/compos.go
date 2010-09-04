@@ -7,7 +7,7 @@
 package main
 
 type T struct {
-	int;
+	int
 }
 
 func f() *T {
@@ -15,9 +15,9 @@ func f() *T {
 }
 
 func main() {
-	x := f();
-	y := f();
+	x := f()
+	y := f()
 	if x == y {
-		panic("not allocating & composite literals");
+		panic("not allocating & composite literals")
 	}
 }
