@@ -31,59 +31,47 @@ import (
 
 // Export
 
-// A channel and its associated information: a direction plus
-// a handy marshaling place for its data.
-type exportChan struct {
-	ch  *reflect.ChanValue
-	dir Dir
-}
-
 // An Exporter allows a set of channels to be published on a single
 // network port.  A single machine may have multiple Exporters
 // but they must use different ports.
 type Exporter struct {
+	*clientSet
 	listener net.Listener
-	chanLock sync.Mutex // protects access to channel map
-	chans    map[string]*exportChan
 }
 
 type expClient struct {
 	*encDec
-	exp *Exporter
+	exp     *Exporter
+	mu      sync.Mutex // protects remaining fields
+	errored bool       // client has been sent an error
+	seqNum  int64      // sequences messages sent to client; has value of highest sent
+	ackNum  int64      // highest sequence number acknowledged
 }
 
 func newClient(exp *Exporter, conn net.Conn) *expClient {
 	client := new(expClient)
 	client.exp = exp
 	client.encDec = newEncDec(conn)
+	client.seqNum = 0
+	client.ackNum = 0
 	return client
 
-}
-
-// Wait for incoming connections, start a new runner for each
-func (exp *Exporter) listen() {
-	for {
-		conn, err := exp.listener.Accept()
-		if err != nil {
-			log.Stderr("exporter.listen:", err)
-			break
-		}
-		client := newClient(exp, conn)
-		go client.run()
-	}
 }
 
 func (client *expClient) sendError(hdr *header, err string) {
 	error := &error{err}
 	log.Stderr("export:", error.error)
 	client.encode(hdr, payError, error) // ignore any encode error, hope client gets it
+	client.mu.Lock()
+	client.errored = true
+	client.mu.Unlock()
 }
 
-func (client *expClient) getChan(hdr *header, dir Dir) *exportChan {
+func (client *expClient) getChan(hdr *header, dir Dir) *chanDir {
 	exp := client.exp
-	exp.chanLock.Lock()
+	exp.mu.Lock()
 	ech, ok := exp.chans[hdr.name]
-	exp.chanLock.Unlock()
+	exp.mu.Unlock()
 	if !ok {
 		client.sendError(hdr, "no such channel: "+hdr.name)
 		return nil
@@ -95,9 +83,10 @@ func (client *expClient) getChan(hdr *header, dir Dir) *exportChan {
 	return ech
 }
 
-// Manage sends and receives for a single client.  For each (client Recv) request,
-// this will launch a serveRecv goroutine to deliver the data for that channel,
-// while (client Send) requests are handled as data arrives from the client.
+// The function run manages sends and receives for a single client.  For each
+// (client Recv) request, this will launch a serveRecv goroutine to deliver
+// the data for that channel, while (client Send) requests are handled as
+// data arrives from the client.
 func (client *expClient) run() {
 	hdr := new(header)
 	hdrValue := reflect.NewValue(hdr)
@@ -107,15 +96,13 @@ func (client *expClient) run() {
 	for {
 		if err := client.decode(hdrValue); err != nil {
 			log.Stderr("error decoding client header:", err)
-			// TODO: tear down connection
-			return
+			break
 		}
 		switch hdr.payloadType {
 		case payRequest:
 			if err := client.decode(reqValue); err != nil {
 				log.Stderr("error decoding client request:", err)
-				// TODO: tear down connection
-				return
+				break
 			}
 			switch req.dir {
 			case Recv:
@@ -132,13 +119,27 @@ func (client *expClient) run() {
 			}
 		case payData:
 			client.serveSend(*hdr)
+		case payAck:
+			client.mu.Lock()
+			if client.ackNum != hdr.seqNum-1 {
+				// Since the sequence number is incremented and the message is sent
+				// in a single instance of locking client.mu, the messages are guaranteed
+				// to be sent in order.  Therefore receipt of acknowledgement N means
+				// all messages <=N have been seen by the recipient.  We check anyway.
+				log.Stderr("netchan export: sequence out of order:", client.ackNum, hdr.seqNum)
+			}
+			if client.ackNum < hdr.seqNum { // If there has been an error, don't back up the count. 
+				client.ackNum = hdr.seqNum
+			}
+			client.mu.Unlock()
 		}
 	}
+	client.exp.delClient(client)
 }
 
 // Send all the data on a single channel to a client asking for a Recv.
 // The header is passed by value to avoid issues of overwriting.
-func (client *expClient) serveRecv(hdr header, count int) {
+func (client *expClient) serveRecv(hdr header, count int64) {
 	ech := client.getChan(&hdr, Send)
 	if ech == nil {
 		return
@@ -149,7 +150,16 @@ func (client *expClient) serveRecv(hdr header, count int) {
 			client.sendError(&hdr, os.EOF.String())
 			break
 		}
-		if err := client.encode(&hdr, payData, val.Interface()); err != nil {
+		// We hold the lock during transmission to guarantee messages are
+		// sent in sequence number order.  Also, we increment first so the
+		// value of client.seqNum is the value of the highest used sequence
+		// number, not one beyond.
+		client.mu.Lock()
+		client.seqNum++
+		hdr.seqNum = client.seqNum
+		err := client.encode(&hdr, payData, val.Interface())
+		client.mu.Unlock()
+		if err != nil {
 			log.Stderr("error encoding client response:", err)
 			client.sendError(&hdr, err.String())
 			break
@@ -180,6 +190,40 @@ func (client *expClient) serveSend(hdr header) {
 	// TODO count
 }
 
+func (client *expClient) unackedCount() int64 {
+	client.mu.Lock()
+	n := client.seqNum - client.ackNum
+	client.mu.Unlock()
+	return n
+}
+
+func (client *expClient) seq() int64 {
+	client.mu.Lock()
+	n := client.seqNum
+	client.mu.Unlock()
+	return n
+}
+
+func (client *expClient) ack() int64 {
+	client.mu.Lock()
+	n := client.seqNum
+	client.mu.Unlock()
+	return n
+}
+
+// Wait for incoming connections, start a new runner for each
+func (exp *Exporter) listen() {
+	for {
+		conn, err := exp.listener.Accept()
+		if err != nil {
+			log.Stderr("exporter.listen:", err)
+			break
+		}
+		client := exp.addClient(conn)
+		go client.run()
+	}
+}
+
 // NewExporter creates a new Exporter to export channels
 // on the network and local address defined as in net.Listen.
 func NewExporter(network, localaddr string) (*Exporter, os.Error) {
@@ -189,10 +233,50 @@ func NewExporter(network, localaddr string) (*Exporter, os.Error) {
 	}
 	e := &Exporter{
 		listener: listener,
-		chans:    make(map[string]*exportChan),
+		clientSet: &clientSet{
+			chans:   make(map[string]*chanDir),
+			clients: make(map[unackedCounter]bool),
+		},
 	}
 	go e.listen()
 	return e, nil
+}
+
+// addClient creates a new expClient and records its existence
+func (exp *Exporter) addClient(conn net.Conn) *expClient {
+	client := newClient(exp, conn)
+	exp.clients[client] = true
+	exp.mu.Unlock()
+	return client
+}
+
+// delClient forgets the client existed
+func (exp *Exporter) delClient(client *expClient) {
+	exp.mu.Lock()
+	exp.clients[client] = false, false
+	exp.mu.Unlock()
+}
+
+// Drain waits until all messages sent from this exporter/importer, including
+// those not yet sent to any client and possibly including those sent while
+// Drain was executing, have been received by the importer.  In short, it
+// waits until all the exporter's messages have been received by a client.
+// If the timeout (measured in nanoseconds) is positive and Drain takes
+// longer than that to complete, an error is returned.
+func (exp *Exporter) Drain(timeout int64) os.Error {
+	// This wrapper function is here so the method's comment will appear in godoc.
+	return exp.clientSet.drain(timeout)
+}
+
+// Sync waits until all clients of the exporter have received the messages
+// that were sent at the time Sync was invoked.  Unlike Drain, it does not
+// wait for messages sent while it is running or messages that have not been
+// dispatched to any client.  If the timeout (measured in nanoseconds) is
+// positive and Sync takes longer than that to complete, an error is
+// returned.
+func (exp *Exporter) Sync(timeout int64) os.Error {
+	// This wrapper function is here so the method's comment will appear in godoc.
+	return exp.clientSet.sync(timeout)
 }
 
 // Addr returns the Exporter's local network address.
@@ -230,12 +314,12 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
 	if err != nil {
 		return err
 	}
-	exp.chanLock.Lock()
-	defer exp.chanLock.Unlock()
+	exp.mu.Lock()
+	defer exp.mu.Unlock()
 	_, present := exp.chans[name]
 	if present {
 		return os.ErrorString("channel name already being exported:" + name)
 	}
-	exp.chans[name] = &exportChan{ch, dir}
+	exp.chans[name] = &chanDir{ch, dir}
 	return nil
 }

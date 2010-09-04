@@ -37,7 +37,7 @@ func exportReceive(exp *Exporter, t *testing.T) {
 	}
 }
 
-func importReceive(imp *Importer, t *testing.T) {
+func importReceive(imp *Importer, t *testing.T, done chan bool) {
 	ch := make(chan int)
 	err := imp.ImportNValues("exportedSend", ch, Recv, count)
 	if err != nil {
@@ -54,6 +54,9 @@ func importReceive(imp *Importer, t *testing.T) {
 		if v != 23+i {
 			t.Errorf("importReceive: bad value: expected %d; got %+d", 23+i, v)
 		}
+	}
+	if done != nil {
+		done <- true
 	}
 }
 
@@ -78,7 +81,7 @@ func TestExportSendImportReceive(t *testing.T) {
 		t.Fatal("new importer:", err)
 	}
 	exportSend(exp, count, t)
-	importReceive(imp, t)
+	importReceive(imp, t, nil)
 }
 
 func TestExportReceiveImportSend(t *testing.T) {
@@ -104,5 +107,39 @@ func TestClosingExportSendImportReceive(t *testing.T) {
 		t.Fatal("new importer:", err)
 	}
 	exportSend(exp, closeCount, t)
-	importReceive(imp, t)
+	importReceive(imp, t, nil)
+}
+
+// Not a great test but it does at least invoke Drain.
+func TestExportDrain(t *testing.T) {
+	exp, err := NewExporter("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("new exporter:", err)
+	}
+	imp, err := NewImporter("tcp", exp.Addr().String())
+	if err != nil {
+		t.Fatal("new importer:", err)
+	}
+	done := make(chan bool)
+	go exportSend(exp, closeCount, t)
+	go importReceive(imp, t, done)
+	exp.Drain(0)
+	<-done
+}
+
+// Not a great test but it does at least invoke Sync.
+func TestExportSync(t *testing.T) {
+	exp, err := NewExporter("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("new exporter:", err)
+	}
+	imp, err := NewImporter("tcp", exp.Addr().String())
+	if err != nil {
+		t.Fatal("new importer:", err)
+	}
+	done := make(chan bool)
+	go importReceive(imp, t, done)
+	exportSend(exp, closeCount, t)
+	exp.Sync(0)
+	<-done
 }
