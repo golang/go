@@ -14,13 +14,6 @@ import (
 
 // Import
 
-// A channel and its associated information: a template value and direction,
-// plus a handy marshaling place for its data.
-type importChan struct {
-	ch  *reflect.ChanValue
-	dir Dir
-}
-
 // An Importer allows a set of channels to be imported from a single
 // remote machine/network port.  A machine may have multiple
 // importers, even from the same machine/network port.
@@ -28,7 +21,7 @@ type Importer struct {
 	*encDec
 	conn     net.Conn
 	chanLock sync.Mutex // protects access to channel map
-	chans    map[string]*importChan
+	chans    map[string]*chanDir
 }
 
 // NewImporter creates a new Importer object to import channels
@@ -43,7 +36,7 @@ func NewImporter(network, remoteaddr string) (*Importer, os.Error) {
 	imp := new(Importer)
 	imp.encDec = newEncDec(conn)
 	imp.conn = conn
-	imp.chans = make(map[string]*importChan)
+	imp.chans = make(map[string]*chanDir)
 	go imp.run()
 	return imp, nil
 }
@@ -67,6 +60,7 @@ func (imp *Importer) run() {
 	// Loop on responses; requests are sent by ImportNValues()
 	hdr := new(header)
 	hdrValue := reflect.NewValue(hdr)
+	ackHdr := new(header)
 	err := new(error)
 	errValue := reflect.NewValue(err)
 	for {
@@ -103,6 +97,10 @@ func (imp *Importer) run() {
 			log.Stderr("cannot happen: receive from non-Recv channel")
 			return
 		}
+		// Acknowledge receipt
+		ackHdr.name = hdr.name
+		ackHdr.seqNum = hdr.seqNum
+		imp.encode(ackHdr, payAck, nil)
 		// Create a new value for each received item.
 		value := reflect.MakeZero(ich.ch.Type().(*reflect.ChanType).Elem())
 		if e := imp.decode(value); e != nil {
@@ -144,14 +142,10 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, n int)
 	if present {
 		return os.ErrorString("channel name already being imported:" + name)
 	}
-	imp.chans[name] = &importChan{ch, dir}
+	imp.chans[name] = &chanDir{ch, dir}
 	// Tell the other side about this channel.
-	hdr := new(header)
-	hdr.name = name
-	hdr.payloadType = payRequest
-	req := new(request)
-	req.dir = dir
-	req.count = n
+	hdr := &header{name: name, payloadType: payRequest}
+	req := &request{count: int64(n), dir: dir}
 	if err := imp.encode(hdr, payRequest, req); err != nil {
 		log.Stderr("importer request encode:", err)
 		return err
