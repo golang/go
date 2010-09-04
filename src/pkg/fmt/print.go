@@ -149,7 +149,6 @@ func Printf(format string, a ...interface{}) (n int, errno os.Error) {
 }
 
 // Sprintf formats according to a format specifier and returns the resulting string.
-// It returns the number of bytes written.
 func Sprintf(format string, a ...interface{}) string {
 	p := newPrinter()
 	p.doPrintf(format, a)
@@ -181,7 +180,6 @@ func Print(a ...interface{}) (n int, errno os.Error) {
 
 // Sprint formats using the default formats for its operands and returns the resulting string.
 // Spaces are added between operands when neither is a string.
-// It returns the number of bytes written.
 func Sprint(a ...interface{}) string {
 	p := newPrinter()
 	p.doPrint(a, false, false)
@@ -215,7 +213,6 @@ func Println(a ...interface{}) (n int, errno os.Error) {
 
 // Sprintln formats using the default formats for its operands and returns the resulting string.
 // Spaces are always added between operands and a newline is appended.
-// It returns the number of bytes written.
 func Sprintln(a ...interface{}) string {
 	p := newPrinter()
 	p.doPrint(a, true, true)
