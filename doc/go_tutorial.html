@@ -470,8 +470,8 @@ sort of open/close/read/write interface.  Here's the start of <code>file.go</cod
 10    )
 <p>
 12    type File struct {
-13        fd      int    // file descriptor number
-14        name    string // file name at Open time
+13        fd   int    // file descriptor number
+14        name string // file name at Open time
 15    }
 </pre>
 <p>
@@ -541,7 +541,7 @@ The <code>newFile</code> function was not exported because it's internal. The pr
 exported factory to use is <code>Open</code>:
 <p>
 <pre> <!-- progs/file.go /func.Open/ /^}/ -->
-30    func Open(name string, mode int, perm int) (file *File, err os.Error) {
+30    func Open(name string, mode int, perm uint32) (file *File, err os.Error) {
 31        r, e := syscall.Open(name, mode, perm)
 32        if e != 0 {
 33            err = os.Errno(e)
@@ -581,7 +581,7 @@ each of which declares a receiver variable <code>file</code>.
 40            return os.EINVAL
 41        }
 42        e := syscall.Close(file.fd)
-43        file.fd = -1  // so it can't be closed again
+43        file.fd = -1 // so it can't be closed again
 44        if e != 0 {
 45            return os.Errno(e)
 46        }
