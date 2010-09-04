@@ -8,48 +8,45 @@ package main
 
 // brainfuck
 
+var p, pc int
+var a [30000]byte
+const prog = "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.!"
+
+func scan(dir int) {
+	for nest := dir; dir*nest > 0; pc += dir {
+		switch prog[pc+dir] {
+			case ']':
+				nest--
+			case '[':
+				nest++
+		}
+	}
+}
+
 func main() {
-	var a [30000]byte;
-	prog := "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.!";
-	p := 0;
-	pc := 0;
 	for {
 		switch prog[pc] {
 			case '>':
-					p++;
+					p++
 			case '<':
-					p--;
+					p--
 			case '+':
-					a[p]++;
+					a[p]++
 			case '-':
-					a[p]--;
+					a[p]--
 			case '.':
-					print(string(a[p]));
+					print(string(a[p]))
 			case '[':
 				if a[p] == 0 {
-					for nest := 1; nest > 0; pc++ {
-						switch prog[pc+1] {
-							case ']':
-								nest--;
-							case '[':
-								nest++;
-						}
-					}
+					scan(1)
 				}
 			case ']':
 				if a[p] != 0 {
-					for nest := -1; nest < 0; pc-- {
-						switch prog[pc-1] {
-							case ']':
-								nest--;
-							case '[':
-								nest++;
-						}
-					}
+					scan(-1)
 				}
 			default:
-					return;
+					return
 		}
-		pc++;
+		pc++
 	}
 }
