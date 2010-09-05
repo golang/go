@@ -183,6 +183,9 @@ var scanTests = []ScanTest{
 
 	// Custom scanner.
 	ScanTest{"  vvv ", &xVal, Xs("vvv")},
+
+	// Fixed bugs
+	ScanTest{"2147483648\n", &int64Val, int64(2147483648)}, // was: integer overflow
 }
 
 var scanfTests = []ScanfTest{

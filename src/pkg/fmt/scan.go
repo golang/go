@@ -740,7 +740,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	case *int32:
 		*v = int32(s.scanInt(verb, 32))
 	case *int64:
-		*v = s.scanInt(verb, intBits)
+		*v = s.scanInt(verb, 64)
 	case *uint:
 		*v = uint(s.scanUint(verb, intBits))
 	case *uint8:
