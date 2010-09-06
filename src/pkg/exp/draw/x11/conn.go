@@ -45,11 +45,8 @@ type conn struct {
 	gc, window, root, visual resID
 
 	img        *image.RGBA
-	kbd        chan int
-	mouse      chan draw.Mouse
-	resize     chan bool
-	quit       chan bool
-	mouseState draw.Mouse
+	eventc     chan interface{}
+	mouseState draw.MouseEvent
 
 	buf [256]byte // General purpose scratch buffer.
 
@@ -134,13 +131,7 @@ func (c *conn) FlushImage() {
 	_ = c.flush <- false
 }
 
-func (c *conn) KeyboardChan() <-chan int { return c.kbd }
-
-func (c *conn) MouseChan() <-chan draw.Mouse { return c.mouse }
-
-func (c *conn) ResizeChan() <-chan bool { return c.resize }
-
-func (c *conn) QuitChan() <-chan bool { return c.quit }
+func (c *conn) EventChan() <-chan interface{} { return c.eventc }
 
 // pumper runs in its own goroutine, reading X events and demuxing them over the kbd / mouse / resize / quit chans.
 func (c *conn) pumper() {
@@ -209,7 +200,7 @@ func (c *conn) pumper() {
 			if c.buf[0] == 0x03 {
 				keysym = -keysym
 			}
-			c.kbd <- keysym
+			c.eventc <- draw.KeyEvent{keysym}
 		case 0x04, 0x05: // Button press, button release.
 			mask := 1 << (c.buf[1] - 1)
 			if c.buf[0] == 0x04 {
@@ -218,12 +209,12 @@ func (c *conn) pumper() {
 				c.mouseState.Buttons &^= mask
 			}
 			// TODO(nigeltao): update mouseState's timestamp.
-			c.mouse <- c.mouseState
+			c.eventc <- c.mouseState
 		case 0x06: // Motion notify.
-			c.mouseState.Point.X = int(c.buf[25])<<8 | int(c.buf[24])
-			c.mouseState.Point.Y = int(c.buf[27])<<8 | int(c.buf[26])
+			c.mouseState.Loc.X = int(c.buf[25])<<8 | int(c.buf[24])
+			c.mouseState.Loc.Y = int(c.buf[27])<<8 | int(c.buf[26])
 			// TODO(nigeltao): update mouseState's timestamp.
-			c.mouse <- c.mouseState
+			c.eventc <- c.mouseState
 		case 0x0c: // Expose.
 			// A single user action could trigger multiple expose events (e.g. if moving another
 			// window with XShape'd rounded corners over our window). In that case, the X server
@@ -619,11 +610,7 @@ func NewWindowDisplay(display string) (draw.Context, os.Error) {
 	}
 
 	c.img = image.NewRGBA(windowWidth, windowHeight)
-	// TODO(nigeltao): Should these channels be buffered?
-	c.kbd = make(chan int)
-	c.mouse = make(chan draw.Mouse)
-	c.resize = make(chan bool)
-	c.quit = make(chan bool)
+	c.eventc = make(chan interface{})
 	c.flush = make(chan bool, 1)
 	go c.flusher()
 	go c.pumper()
