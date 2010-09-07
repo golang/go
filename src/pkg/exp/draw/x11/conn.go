@@ -19,6 +19,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type resID uint32 // X resource IDs.
@@ -208,12 +209,12 @@ func (c *conn) pumper() {
 			} else {
 				c.mouseState.Buttons &^= mask
 			}
-			// TODO(nigeltao): update mouseState's timestamp.
+			c.mouseState.Nsec = time.Nanoseconds()
 			c.eventc <- c.mouseState
 		case 0x06: // Motion notify.
 			c.mouseState.Loc.X = int(c.buf[25])<<8 | int(c.buf[24])
 			c.mouseState.Loc.Y = int(c.buf[27])<<8 | int(c.buf[26])
-			// TODO(nigeltao): update mouseState's timestamp.
+			c.mouseState.Nsec = time.Nanoseconds()
 			c.eventc <- c.mouseState
 		case 0x0c: // Expose.
 			// A single user action could trigger multiple expose events (e.g. if moving another

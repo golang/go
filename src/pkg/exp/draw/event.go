@@ -39,6 +39,8 @@ type MouseEvent struct {
 	Buttons int
 	// Loc is the location of the cursor.
 	Loc image.Point
+	// Nsec is the event's timestamp.
+	Nsec int64
 }
 
 // A ConfigEvent is sent each time the window's color model or size changes.
