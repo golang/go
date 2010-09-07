@@ -63,7 +63,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 	return nil, nil, os.EINVAL
 }
 
-// Run starts the binary prog running with
+// Run starts the named binary running with
 // arguments argv and environment envv.
 // It returns a pointer to a new Cmd representing
 // the command or an error.
@@ -78,7 +78,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 // If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
 // of the returned Cmd is the other end of the pipe.
 // Otherwise the field in Cmd is nil.
-func Run(argv0 string, argv, envv []string, dir string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
+func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
 	p = new(Cmd)
 	var fd [3]*os.File
 
@@ -95,7 +95,7 @@ func Run(argv0 string, argv, envv []string, dir string, stdin, stdout, stderr in
 	}
 
 	// Run command.
-	p.Pid, err = os.ForkExec(argv0, argv, envv, dir, fd[0:])
+	p.Pid, err = os.ForkExec(name, argv, envv, dir, fd[0:])
 	if err != nil {
 		goto Error
 	}
