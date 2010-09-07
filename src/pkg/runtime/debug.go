@@ -36,10 +36,11 @@ type MemStatsType struct {
 	Mallocs    uint64 // number of mallocs
 
 	// Main allocation heap statistics.
-	HeapAlloc uint64 // bytes allocated and still in use
-	HeapSys   uint64 // bytes obtained from system
-	HeapIdle  uint64 // bytes in idle spans
-	HeapInuse uint64 // bytes in non-idle span
+	HeapAlloc   uint64 // bytes allocated and still in use
+	HeapSys     uint64 // bytes obtained from system
+	HeapIdle    uint64 // bytes in idle spans
+	HeapInuse   uint64 // bytes in non-idle span
+	HeapObjects uint64 // total number of allocated objects
 
 	// Low-level fixed-size structure allocator statistics.
 	//	Inuse is bytes used now.

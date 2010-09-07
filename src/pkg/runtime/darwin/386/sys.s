@@ -42,6 +42,13 @@ TEXT ·mmap(SB),7,$0
 	CALL	notok(SB)
 	RET
 
+TEXT ·munmap(SB),7,$0
+	MOVL	$73, AX
+	INT	$0x80
+	JAE	2(PC)
+	CALL	notok(SB)
+	RET
+
 // void gettime(int64 *sec, int32 *usec)
 TEXT gettime(SB), 7, $32
 	LEAL	12(SP), AX	// must be non-nil, unused

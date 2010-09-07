@@ -183,6 +183,7 @@ struct MStats
 	uint64	heap_sys;	// bytes obtained from system
 	uint64	heap_idle;	// bytes in idle spans
 	uint64	heap_inuse;	// bytes in non-idle spans
+	uint64	heap_objects;	// total number of allocated objects
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
@@ -251,6 +252,7 @@ struct MCache
 	MCacheList list[NumSizeClasses];
 	uint64 size;
 	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
+	int64 local_objects;	// objects allocated (or freed) since last lock of heap
 	int32 next_sample;	// trigger heap sample after allocating this many bytes
 };
 

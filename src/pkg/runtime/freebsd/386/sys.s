@@ -84,6 +84,13 @@ TEXT ·mmap(SB),7,$32
 	CALL	notok(SB)
 	RET
 
+TEXT ·munmap(SB),7,$-4
+	MOVL	$73, AX
+	INT	$0x80
+	JAE	2(PC)
+	CALL	notok(SB)
+	RET
+
 TEXT	gettime(SB), 7, $32
 	MOVL	$116, AX
 	LEAL	12(SP), BX
