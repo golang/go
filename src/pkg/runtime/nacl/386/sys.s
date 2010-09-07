@@ -11,6 +11,7 @@
 // http://code.google.com/p/nativeclient/source/browse/trunk/src/native_client/src/trusted/service_runtime/include/bits/nacl_syscalls.h
 #define SYS_exit 30
 #define SYS_mmap 21
+#define SYS_munmap 22
 #define SYS_thread_create 80
 #define SYS_thread_exit 81
 #define SYS_tls_init 82
@@ -90,6 +91,9 @@ TEXT ·mmap(SB),7,$24
 	CALL	SYSCALL(write)
 	INT $3
 	RET
+
+TEXT ·munmap(SB),7,$0
+	JMP	SYSCALL(munmap)
 
 TEXT gettime(SB),7,$32
 	LEAL	8(SP), BX

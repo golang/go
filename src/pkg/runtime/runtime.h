@@ -498,6 +498,7 @@ void	notewakeup(Note*);
 #define runtime_memclr ·memclr
 #define runtime_getcallerpc ·getcallerpc
 #define runtime_mmap ·mmap
+#define runtime_munmap ·munmap
 #define runtime_printslice ·printslice
 #define runtime_printbool ·printbool
 #define runtime_printfloat ·printfloat
@@ -524,6 +525,7 @@ void	notewakeup(Note*);
  * low level go-called
  */
 uint8*	runtime_mmap(byte*, uintptr, int32, int32, int32, uint32);
+void	runtime_munmap(uint8*, uintptr);
 void	runtime_memclr(byte*, uint32);
 void	runtime_setcallerpc(void*, void*);
 void*	runtime_getcallerpc(void*);

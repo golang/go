@@ -19,6 +19,13 @@ enum {
 	Debug = 0
 };
 
+typedef struct BlockList BlockList;
+struct BlockList
+{
+	byte *obj;
+	uintptr size;
+};
+
 extern byte data[];
 extern byte etext[];
 extern byte end[];
@@ -26,6 +33,7 @@ extern byte end[];
 static G *fing;
 static Finalizer *finq;
 static int32 fingwait;
+static BlockList *bl, *ebl;
 
 static void runfinq(void);
 
@@ -34,7 +42,7 @@ enum {
 };
 
 static void
-scanblock(int32 depth, byte *b, int64 n)
+scanblock(byte *b, int64 n)
 {
 	int32 off;
 	void *obj;
@@ -42,48 +50,65 @@ scanblock(int32 depth, byte *b, int64 n)
 	uint32 *refp, ref;
 	void **vp;
 	int64 i;
+	BlockList *w;
 
-	if(Debug > 1)
-		printf("%d scanblock %p %D\n", depth, b, n);
-	off = (uint32)(uintptr)b & (PtrSize-1);
-	if(off) {
-		b += PtrSize - off;
-		n -= PtrSize - off;
-	}
+	w = bl;
+	w->obj = b;
+	w->size = n;
+	w++;
 
-	vp = (void**)b;
-	n /= PtrSize;
-	for(i=0; i<n; i++) {
-		obj = vp[i];
-		if(obj == nil)
-			continue;
-		if(mheap.closure_min != nil && mheap.closure_min <= (byte*)obj && (byte*)obj < mheap.closure_max) {
-			if((((uintptr)obj) & 63) != 0)
-				continue;
+	while(w > bl) {
+		w--;
+		b = w->obj;
+		n = w->size;
 
-			// Looks like a Native Client closure.
-			// Actual pointer is pointed at by address in first instruction.
-			// Embedded pointer starts at byte 2.
-			// If it is f4f4f4f4 then that space hasn't been
-			// used for a closure yet (f4 is the HLT instruction).
-			// See nacl/386/closure.c for more.
-			void **pp;
-			pp = *(void***)((byte*)obj+2);
-			if(pp == (void**)0xf4f4f4f4)	// HLT... - not a closure after all
-				continue;
-			obj = *pp;
+		if(Debug > 1)
+			printf("scanblock %p %D\n", b, n);
+		off = (uint32)(uintptr)b & (PtrSize-1);
+		if(off) {
+			b += PtrSize - off;
+			n -= PtrSize - off;
 		}
-		if(mheap.min <= (byte*)obj && (byte*)obj < mheap.max) {
-			if(mlookup(obj, &obj, &size, nil, &refp)) {
-				ref = *refp;
-				switch(ref & ~RefFlags) {
-				case RefNone:
-					if(Debug > 1)
-						printf("%d found at %p: ", depth, &vp[i]);
-					*refp = RefSome | (ref & RefFlags);
-					if(!(ref & RefNoPointers))
-						scanblock(depth+1, obj, size);
-					break;
+	
+		vp = (void**)b;
+		n /= PtrSize;
+		for(i=0; i<n; i++) {
+			obj = vp[i];
+			if(obj == nil)
+				continue;
+			if(mheap.closure_min != nil && mheap.closure_min <= (byte*)obj && (byte*)obj < mheap.closure_max) {
+				if((((uintptr)obj) & 63) != 0)
+					continue;
+	
+				// Looks like a Native Client closure.
+				// Actual pointer is pointed at by address in first instruction.
+				// Embedded pointer starts at byte 2.
+				// If it is f4f4f4f4 then that space hasn't been
+				// used for a closure yet (f4 is the HLT instruction).
+				// See nacl/386/closure.c for more.
+				void **pp;
+				pp = *(void***)((byte*)obj+2);
+				if(pp == (void**)0xf4f4f4f4)	// HLT... - not a closure after all
+					continue;
+				obj = *pp;
+			}
+			if(mheap.min <= (byte*)obj && (byte*)obj < mheap.max) {
+				if(mlookup(obj, &obj, &size, nil, &refp)) {
+					ref = *refp;
+					switch(ref & ~RefFlags) {
+					case RefNone:
+						if(Debug > 1)
+							printf("found at %p: ", &vp[i]);
+						*refp = RefSome | (ref & RefFlags);
+						if(!(ref & RefNoPointers)) {
+							if(w >= ebl)
+								throw("scanblock: garbage collection stack overflow");
+							w->obj = obj;
+							w->size = size;
+							w++;
+						}
+						break;
+					}
 				}
 			}
 		}
@@ -104,7 +129,7 @@ scanstack(G *gp)
 		printf("scanstack %d %p\n", gp->goid, sp);
 	stk = (Stktop*)gp->stackbase;
 	while(stk) {
-		scanblock(0, sp, (byte*)stk - sp);
+		scanblock(sp, (byte*)stk - sp);
 		sp = stk->gobuf.sp;
 		stk = (Stktop*)stk->stackbase;
 	}
@@ -122,19 +147,40 @@ markfin(void *v)
 		throw("mark - finalizer inconsistency");
 	
 	// do not mark the finalizer block itself.  just mark the things it points at.
-	scanblock(1, v, size);
+	scanblock(v, size);
 }
 
 static void
 mark(void)
 {
 	G *gp;
+	uintptr blsize, nobj;
+
+	// Figure out how big an object stack we need.
+	// Get a new one if we need more than we have
+	// or we need significantly less than we have.
+	nobj = mstats.heap_objects;
+	if(nobj > ebl - bl || nobj < (ebl-bl)/4) {
+		if(bl != nil)
+			SysFree(bl, (byte*)ebl - (byte*)bl);
+		
+		// While we're allocated a new object stack,
+		// add 20% headroom and also round up to
+		// the nearest page boundary, since mmap
+		// will anyway.
+		nobj = nobj * 12/10;
+		blsize = nobj * sizeof *bl;
+		blsize = (blsize + 4095) & ~4095;
+		nobj = blsize / sizeof *bl;
+		bl = SysAlloc(blsize);
+		ebl = bl + nobj;
+	}
 
 	// mark data+bss.
 	// skip mheap itself, which has no interesting pointers
 	// and is mostly zeroed and would not otherwise be paged in.
-	scanblock(0, data, (byte*)&mheap - data);
-	scanblock(0, (byte*)(&mheap+1), end - (byte*)(&mheap+1));
+	scanblock(data, (byte*)&mheap - data);
+	scanblock((byte*)(&mheap+1), end - (byte*)(&mheap+1));
 
 	// mark stacks
 	for(gp=allg; gp!=nil; gp=gp->alllink) {
@@ -276,6 +322,21 @@ stealcache(void)
 		MCache_ReleaseAll(m->mcache);
 }
 
+static void
+cachestats(void)
+{
+	M *m;
+	MCache *c;
+
+	for(m=allm; m; m=m->alllink) {
+		c = m->mcache;
+		mstats.heap_alloc += c->local_alloc;
+		c->local_alloc = 0;
+		mstats.heap_objects += c->local_objects;
+		c->local_objects = 0;
+	}
+}
+
 void
 gc(int32 force)
 {
@@ -313,6 +374,7 @@ gc(int32 force)
 	if(mheap.Lock.key != 0)
 		throw("mheap locked during gc");
 	if(force || mstats.heap_alloc >= mstats.next_gc) {
+		cachestats();
 		mark();
 		sweep();
 		stealcache();

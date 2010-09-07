@@ -110,6 +110,16 @@ TEXT ·mmap(SB),7,$0
 	INCL	AX
 	RET
 
+TEXT ·munmap(SB),7,$0
+	MOVL	$91, AX	// munmap
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	INT	$0x80
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	INT $3
+	RET
+
 // int32 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
 TEXT futex(SB),7,$0

@@ -47,6 +47,7 @@ MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
 		}
 	}
 	c->local_alloc += size;
+	c->local_objects++;
 	return v;
 }
 
@@ -88,6 +89,7 @@ MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
 	l->nlist++;
 	c->size += size;
 	c->local_alloc -= size;
+	c->local_objects--;
 
 	if(l->nlist >= MaxMCacheListLen) {
 		// Release a chunk back.
@@ -120,11 +122,6 @@ MCache_ReleaseAll(MCache *c)
 {
 	int32 i;
 	MCacheList *l;
-
-	lock(&mheap);
-	mstats.heap_alloc += c->local_alloc;
-	c->local_alloc = 0;
-	unlock(&mheap);
 
 	for(i=0; i<NumSizeClasses; i++) {
 		l = &c->list[i];

@@ -33,8 +33,6 @@ SysUnused(void *v, uintptr n)
 void
 SysFree(void *v, uintptr n)
 {
-	USED(v);
-	USED(n);
-	// TODO(rsc): call munmap
+	runtime_munmap(v, n);
 }
 

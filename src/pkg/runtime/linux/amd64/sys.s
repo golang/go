@@ -100,12 +100,22 @@ TEXT	·mmap(SB),7,$0
 	MOVL	32(SP), R8
 	MOVL	36(SP), R9
 
-	MOVL	$9, AX			// syscall entry
+	MOVL	$9, AX			// mmap
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	3(PC)
 	NOTQ	AX
 	INCQ	AX
+	RET
+
+TEXT	munmap(SB),7,$0
+	MOVQ	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	$11, AX	// munmap
+	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	CALL	notok(SB)
 	RET
 
 TEXT	notok(SB),7,$0
