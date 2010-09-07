@@ -2426,14 +2426,14 @@ For a string, array, or slice <code>a</code>, the primary expression
 </p>
 
 <pre>
-a[lo : hi]
+a[low : high]
 </pre>
 
 <p>
-constructs a substring or slice. The index expressions <code>lo</code> and
-<code>hi</code> select which elements appear in the result. The result has
+constructs a substring or slice. The index expressions <code>low</code> and
+<code>high</code> select which elements appear in the result. The result has
 indexes starting at 0 and length equal to
-<code>hi</code>&nbsp;-&nbsp;<code>lo</code>.
+<code>high</code>&nbsp;-&nbsp;<code>low</code>.
 After slicing the array <code>a</code>
 </p>
 
@@ -2453,10 +2453,16 @@ s[2] == 4
 </pre>
 
 <p>
-For convenience, any of the index expressions may be omitted. A missing low
-index defaults to zero; a missing high index defaults to the length of the
-array, slice, or string.
+For convenience, any of the index expressions may be omitted. A missing <code>low</code>
+index defaults to zero; a missing <code>high</code> index defaults to the length of the
+sliced operand:
 </p>
+
+<pre>
+a[2:]	// same a[2 : len(a)]
+a[:3]   // same as a[0 : 3]
+a[:]    // same as a[0 : len(a)]
+</pre>
 
 <p>
 For arrays or strings, the indexes <code>low</code> and <code>high</code> must
