@@ -680,13 +680,13 @@ func Fchown(fd int, uid int, gid int) (errno int) {
 }
 
 func Fstat(fd int, stat *Stat_t) (errno int) {
-	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+	_, _, e1 := Syscall(SYS_FSTAT64, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
 	errno = int(e1)
 	return
 }
 
 func Fstatfs(fd int, buf *Statfs_t) (errno int) {
-	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0)
+	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0)
 	errno = int(e1)
 	return
 }
@@ -728,7 +728,7 @@ func Listen(s int, n int) (errno int) {
 }
 
 func Lstat(path string, stat *Stat_t) (errno int) {
-	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
+	_, _, e1 := Syscall(SYS_LSTAT64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
 	errno = int(e1)
 	return
 }
@@ -796,13 +796,13 @@ func Shutdown(fd int, how int) (errno int) {
 }
 
 func Stat(path string, stat *Stat_t) (errno int) {
-	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
+	_, _, e1 := Syscall(SYS_STAT64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
 	errno = int(e1)
 	return
 }
 
 func Statfs(path string, buf *Statfs_t) (errno int) {
-	_, _, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0)
+	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0)
 	errno = int(e1)
 	return
 }

@@ -73,7 +73,8 @@ while(<>) {
 	my @out = parseparamlist($out);
 
 	# Go function header.
-	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
+	my $out_decl = @out ? sprintf(" (%s)", join(', ', @out)) : "";
+	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out_decl;
 
 	# Prepare arguments to Syscall.
 	my @args = ();
@@ -88,15 +89,15 @@ while(<>) {
 			# Convert slice into pointer, length.
 			# Have to be careful not to take address of &a[0] if len == 0:
 			# pass nil in that case.
-			$text .= "\tvar _p$n *$1;\n";
-			$text .= "\tif len($name) > 0 { _p$n = \&${name}[0]; }\n";
+			$text .= "\tvar _p$n *$1\n";
+			$text .= "\tif len($name) > 0 {\n\t\t_p$n = \&${name}[0]\n\t}\n";
 			push @args, "uintptr(unsafe.Pointer(_p$n))", "uintptr(len($name))";
 			$n++;
 		} elsif($type eq "int64" && $_32bit ne "") {
 			if($_32bit eq "big-endian") {
-				push @args, "uintptr($name >> 32)", "uintptr($name)";
+				push @args, "uintptr($name>>32)", "uintptr($name)";
 			} else {
-				push @args, "uintptr($name)", "uintptr($name >> 32)";
+				push @args, "uintptr($name)", "uintptr($name>>32)";
 			}
 		} else {
 			push @args, "uintptr($name)";
@@ -159,18 +160,21 @@ while(<>) {
 			$ret[$i] = sprintf("r%d", $i);
 			$ret[$i+1] = sprintf("r%d", $i+1);
 		}
-		$body .= "\t$name = $type($reg);\n";
+		$body .= "\t$name = $type($reg)\n";
 	}
 	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
-		$text .= "\t$call;\n";
+		$text .= "\t$call\n";
 	} else {
-		$text .= "\t$ret[0], $ret[1], $ret[2] := $call;\n";
+		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
 	}
 	$text .= $body;
 
-	$text .= "\treturn;\n";
+	$text .= "\treturn\n";
 	$text .= "}\n\n";
 }
+
+chomp $text;
+chomp $text;
 
 if($errors) {
 	exit 1;
@@ -185,6 +189,5 @@ package syscall
 import "unsafe"
 
 $text
-
 EOF
 exit 0;
