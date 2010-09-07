@@ -29,7 +29,7 @@ func (c ColorImage) ColorModel() ColorModel {
 	return ColorModelFunc(func(Color) Color { return c.C })
 }
 
-func (c ColorImage) Bounds() Rectangle { return Rectangle{ZP, Point{1e9, 1e9}} }
+func (c ColorImage) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
 
 func (c ColorImage) At(x, y int) Color { return c.C }
 
