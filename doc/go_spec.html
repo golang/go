@@ -2183,7 +2183,7 @@ PrimaryExpr =
 
 Selector       = "." identifier .
 Index          = "[" Expression "]" .
-Slice          = "[" Expression ":" [ Expression ] "]" .
+Slice          = "[" [ Expression ] ":" [ Expression ] "]" .
 TypeAssertion  = "." "(" Type ")" .
 Call           = "(" [ ExpressionList [ "," ] ] ")" .
 </pre>
@@ -2453,12 +2453,15 @@ s[2] == 4
 </pre>
 
 <p>
-For convenience, the <code>hi</code> expression may be omitted; the notation
-<code>a[lo :]</code> is shorthand for <code>a[lo : len(a)]</code>.
-For arrays or strings, the indexes
-<code>lo</code> and <code>hi</code> must satisfy
-0 &lt;= <code>lo</code> &lt;= <code>hi</code> &lt;= length;
-for slices, the upper bound is the capacity rather than the length.
+For convenience, any of the index expressions may be omitted. A missing low
+index defaults to zero; a missing high index defaults to the length of the
+array, slice, or string.
+</p>
+
+<p>
+For arrays or strings, the indexes <code>low</code> and <code>high</code> must
+satisfy 0 &lt;= <code>low</code> &lt;= <code>high</code> &lt;= length; for
+slices, the upper bound is the capacity rather than the length.
 </p>
 
 <p>
