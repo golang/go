@@ -5,7 +5,77 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
-<h3 id="2010-08-11">2010-08-25</h3>
+<h3 id="2010-09-06">2010-09-06</h3>
+
+<pre>
+This release includes the syntactic modernization of more than 100 files in /test,
+and these additions, changes, and fixes: 
+* 6l/8l: emit DWARF in macho.
+* 8g: use FCHS, not FMUL, for minus float.
+* 8l: emit DWARF in ELF,
+        suppress emitting DWARF in Windows PE (thanks Alex Brainman).
+* big: added RatString, some simplifications.
+* build: create bin and pkg directories as needed; drop from hg,
+        delete Make.386 Make.amd64 Make.arm (obsoleted by Make.inc),
+        fix cgo with -j2,
+        let pkg/Makefile coordinate building of Go commands,
+        never use quietgcc in Make.pkg,
+        remove more references to GOBIN and GOROOT (thanks Christian Himpel).
+* codereview: Fix uploading for Mercurial 1.6.3 (thanks Evan Shaw),
+        consistent indent, cut dead code,
+        fix hang on standard hg commands,
+        print status when tasks take longer than 30 seconds,
+        really disable codereview when not available,
+        upload files in parallel (5x improvement on large CLs).
+* crypto/hmac: make Sum idempotent (thanks Jukka-Pekka Kekkonen).
+* doc: add links to more German docs,
+        add round-robin flag to io2010 balance example,
+        fix a bug in the example in Constants subsection (thanks James Fysh),
+        various changes for validating HTML (thanks Scott Lawrence).
+* fmt: delete erroneous sentence about return value for Sprint*.
+* gc: appease bison version running on FreeBSD builder,
+        fix spurious syntax error.
+* go/doc: use correct escaper for URL.
+* go/printer: align ImportPaths in ImportDecls (thanks Scott Lawrence).
+* go/typechecker: 2nd step towards augmenting AST with full type information.
+* gofmt: permit omission of first index in slice expression.
+* goinstall: added -a flag to mean "all remote packages" (thanks Scott Lawrence),
+        assume go binaries are in path (following new convention),
+        use https for Google Code checkouts.
+* gotest: allow make test of cgo packages (without make install).
+* http: add Date to server, Last-Modified and If-Modified-Since to file server,
+        add PostForm function to post url-encoded key/value data,
+        obscure passwords in return value of URL.String (thanks Scott Lawrence).
+* image: introduce Config type and DecodeConfig function.
+* libcgo: update Makefile to use Make.inc.
+* list: update comment to state that the zero value is ready to use.
+* math: amd64 version of Sincos (thanks Charles L. Dorian).
+* misc/bash: add *.go completion for gofmt (thanks Scott Lawrence).
+* misc/emacs: make _ a word symbol (thanks Scott Lawrence).
+* misc: add zsh completion (using compctl),
+        syntax highlighting for Fraise.app (OS X) (thanks Vincent Ambo).
+* net/textproto: Handle multi-line responses (thanks Evan Shaw).
+* net: add LookupMX (thanks Corey Thomasson).
+* netchan: Fix race condition in test,
+        rather than 0, make -1 mean infinite (a la strings.Split et al),
+        use acknowledgements on export send.
+        new methods Sync and Drain for clean teardown.
+* regexp: interpret all Go characer escapes \a \b \f \n \r \t \v.
+* rpc: fix bug that caused private methods to attempt to be registered.
+* runtime: Correct commonType.kind values to match compiler,
+        add GOOS, GOARCH; fix FuncLine,
+        special case copy, equal for one-word interface values (thanks Kyle Consalus).
+* scanner: fix incorrect reporting of error in Next (thanks Kyle Consalus).
+* spec: clarify that arrays must be addressable to be sliceable.
+* template: fix space handling around actions.
+* test/solitaire: an exercise in backtracking and string conversions.
+* test: Recognize gccgo error messages and other fixes.
+* time: do not crash in String on nil Time.
+* tutorial: regenerate HTML to pick up change to progs/file.go.
+* websocket: fix missing Sec-WebSocket-Protocol on server response (thanks Jukka-Pekka Kekkonen).
+</pre>
+
+<h3 id="2010-08-25">2010-08-25</h3>
 
 <pre>
 This release includes changes to the build system that will likely require you
