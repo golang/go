@@ -108,7 +108,7 @@ TEXT	·mmap(SB),7,$0
 	INCQ	AX
 	RET
 
-TEXT	munmap(SB),7,$0
+TEXT	·munmap(SB),7,$0
 	MOVQ	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	$11, AX	// munmap
