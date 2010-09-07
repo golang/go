@@ -8,14 +8,14 @@ import (
 	"syscall"
 )
 
-// ForkExec forks the current process and invokes Exec with the file, arguments,
-// and environment specified by argv0, argv, and envv.  It returns the process
+// ForkExec forks the current process and invokes Exec with the program, arguments,
+// and environment specified by name, argv, and envv.  It returns the process
 // id of the forked process and an Error, if any.  The fd array specifies the
 // file descriptors to be set up in the new process: fd[0] will be Unix file
 // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
 // will cause the child to have no open file descriptor with that index.
 // If dir is not empty, the child chdirs into the directory before execing the program.
-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
+func ForkExec(name string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
 	if envv == nil {
 		envv = Environ()
 	}
@@ -29,24 +29,24 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
 		}
 	}
 
-	p, e := syscall.ForkExec(argv0, argv, envv, dir, intfd)
+	p, e := syscall.ForkExec(name, argv, envv, dir, intfd)
 	if e != 0 {
-		return 0, &PathError{"fork/exec", argv0, Errno(e)}
+		return 0, &PathError{"fork/exec", name, Errno(e)}
 	}
 	return p, nil
 }
 
-// Exec replaces the current process with an execution of the program
-// named by argv0, with arguments argv and environment envv.
+// Exec replaces the current process with an execution of the
+// named binary, with arguments argv and environment envv.
 // If successful, Exec never returns.  If it fails, it returns an Error.
 // ForkExec is almost always a better way to execute a program.
-func Exec(argv0 string, argv []string, envv []string) Error {
+func Exec(name string, argv []string, envv []string) Error {
 	if envv == nil {
 		envv = Environ()
 	}
-	e := syscall.Exec(argv0, argv, envv)
+	e := syscall.Exec(name, argv, envv)
 	if e != 0 {
-		return &PathError{"exec", argv0, Errno(e)}
+		return &PathError{"exec", name, Errno(e)}
 	}
 	return nil
 }
