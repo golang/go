@@ -30,11 +30,11 @@ func isPkgFile(dir *os.FileInfo) bool {
 }
 
 func pkgName(filename string) string {
-	file, err := parser.ParseFile(filename, nil, nil, parser.PackageClauseOnly)
+	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
 	if err != nil || file == nil {
 		return ""
 	}
-	return file.Name.Name()
+	return file.Name.Name
 }
 
 func parseDir(dirpath string) map[string]*ast.Package {
