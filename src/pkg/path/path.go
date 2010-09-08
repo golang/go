@@ -140,7 +140,7 @@ func Ext(path string) string {
 }
 
 // Visitor methods are invoked for corresponding file tree entries
-// visited by Walk. The parameter path is the full path of d relative
+// visited by Walk. The parameter path is the full path of f relative
 // to root.
 type Visitor interface {
 	VisitDir(path string, f *os.FileInfo) bool
