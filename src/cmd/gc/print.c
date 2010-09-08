@@ -119,6 +119,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case OLITERAL:
+		if(n->sym != S) {
+			fmtprint(f, "%S", n->sym);
+			break;
+		}
 		switch(n->val.ctype) {
 		default:
 			goto bad;
@@ -257,6 +261,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 		if((n->op == OMINUS || n->op == OPLUS) && n->left->op == n->op)
 			fmtprint(f, " ");
 		exprfmt(f, n->left, 0);
+		break;
+
+	case OCLOSURE:
+		fmtprint(f, "func literal");
 		break;
 
 	case OCOMPLIT:
