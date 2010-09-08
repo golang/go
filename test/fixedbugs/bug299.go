@@ -22,6 +22,6 @@ type T struct {
 func (p T) m() {}
 
 // not legal according to spec
-func (p (T)) f() {}   // ERROR "parenthesize"
-func (p *(T)) g() {}  // ERROR "parenthesize"
-func (p (*T)) h() {}  // ERROR "parenthesize"
+func (p (T)) f() {}   // ERROR "parenthesize|expected"
+func (p *(T)) g() {}  // ERROR "parenthesize|expected"
+func (p (*T)) h() {}  // ERROR "parenthesize|expected"
