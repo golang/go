@@ -382,29 +382,30 @@ func parseHTTPVersion(vers string) (int, int, bool) {
 	return major, minor, true
 }
 
-var cmap = make(map[string]string)
-
 // CanonicalHeaderKey returns the canonical format of the
 // HTTP header key s.  The canonicalization converts the first
 // letter and any letter following a hyphen to upper case;
 // the rest are converted to lowercase.  For example, the
 // canonical key for "accept-encoding" is "Accept-Encoding".
 func CanonicalHeaderKey(s string) string {
-	if t, ok := cmap[s]; ok {
-		return t
-	}
-
 	// canonicalize: first letter upper case
 	// and upper case after each dash.
 	// (Host, User-Agent, If-Modified-Since).
 	// HTTP headers are ASCII only, so no Unicode issues.
-	a := []byte(s)
+	var a []byte
 	upper := true
-	for i, v := range a {
+	for i := 0; i < len(s); i++ {
+		v := s[i]
 		if upper && 'a' <= v && v <= 'z' {
+			if a == nil {
+				a = []byte(s)
+			}
 			a[i] = v + 'A' - 'a'
 		}
 		if !upper && 'A' <= v && v <= 'Z' {
+			if a == nil {
+				a = []byte(s)
+			}
 			a[i] = v + 'a' - 'A'
 		}
 		upper = false
@@ -412,9 +413,10 @@ func CanonicalHeaderKey(s string) string {
 			upper = true
 		}
 	}
-	t := string(a)
-	cmap[s] = t
-	return t
+	if a != nil {
+		return string(a)
+	}
+	return s
 }
 
 type chunkedReader struct {
