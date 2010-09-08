@@ -7,5 +7,5 @@
 package ddd
 
 func Sum() int
-	for i := range []int{} { return i }  // ERROR "return outside function"
+	for i := range []int{} { return i }  // ERROR "return outside function|expected"
 
