@@ -583,6 +583,15 @@ func (x *Indexer) VisitDir(path string, f *os.FileInfo) bool {
 }
 
 
+func pkgName(filename string) string {
+	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
+	if err != nil || file == nil {
+		return ""
+	}
+	return file.Name.Name
+}
+
+
 func (x *Indexer) VisitFile(path string, f *os.FileInfo) {
 	if !isGoFile(f) {
 		return
