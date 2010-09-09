@@ -6,19 +6,20 @@ package draw
 
 import (
 	"image"
+	"os"
 )
 
-// A Context represents a single graphics window.
-type Context interface {
-	// Screen returns an editable Image of window.
+// A Window represents a single graphics window.
+type Window interface {
+	// Screen returns an editable Image for the window.
 	Screen() Image
-
 	// FlushImage flushes changes made to Screen() back to screen.
 	FlushImage()
-
 	// EventChan returns a channel carrying UI events such as key presses,
 	// mouse movements and window resizes.
 	EventChan() <-chan interface{}
+	// Close closes the window.
+	Close() os.Error
 }
 
 // A KeyEvent is sent for a key press or release.
@@ -44,7 +45,12 @@ type MouseEvent struct {
 }
 
 // A ConfigEvent is sent each time the window's color model or size changes.
-// The client should respond by calling Context.Screen to obtain a new image.
+// The client should respond by calling Window.Screen to obtain a new image.
 type ConfigEvent struct {
 	Config image.Config
+}
+
+// An ErrEvent is sent when an error occurs.
+type ErrEvent struct {
+	Err os.Error
 }
