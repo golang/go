@@ -61,7 +61,7 @@ dirfwstat(int fd, Dir *dir)
 	struct timeval tv[2];
 
 	ret = 0;
-#ifndef __MINGW32__
+#ifndef _WIN32
 	if(~dir->mode != 0){
 		if(fchmod(fd, dir->mode) < 0)
 			ret = -1;

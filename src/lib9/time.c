@@ -25,7 +25,7 @@ THE SOFTWARE.
 #include <u.h>
 #include <sys/time.h>
 #include <time.h>
-#ifndef __MINGW32__
+#ifndef _WIN32
 #include <sys/resource.h>
 #endif
 #define NOPLAN9DEFINES
@@ -34,7 +34,7 @@ THE SOFTWARE.
 long
 p9times(long *t)
 {
-#ifdef __MINGW32__
+#ifdef _WIN32
 	memset(t, 0, 4*sizeof(long));
 #else
 	struct rusage ru, cru;
