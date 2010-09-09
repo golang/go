@@ -209,6 +209,11 @@ func (p *printer) write(data []byte) {
 
 		case tabwriter.Escape:
 			p.escape = !p.escape
+
+			// ignore escape chars introduced by printer - they are
+			// invisible and must not affect p.pos (was issue #1089)
+			p.pos.Offset--
+			p.pos.Column--
 		}
 	}
 
