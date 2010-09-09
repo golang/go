@@ -262,6 +262,7 @@ struct	Node
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
 	int32	lineno;
+	int32   endlineno;
 	vlong	xoffset;
 	int32	ostk;
 	int32	iota;
