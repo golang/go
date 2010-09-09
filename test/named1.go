@@ -64,5 +64,5 @@ func main() {
 	b = closed(c)     // ERROR "cannot use.*type bool.*type Bool"
 	_ = b
 
-	asString(String(slice)) // ERROR "cannot convert slice"
+	asString(String(slice)) // ERROR "cannot .*type Slice.*type String"
 }
