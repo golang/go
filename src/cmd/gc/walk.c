@@ -1095,13 +1095,17 @@ walkexpr(Node **np, NodeList **init)
 		// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
 		// sliceslice1(old []any, lb uint64, width uint64) (ary []any)
 		t = n->type;
+		if(n->right->left == N)
+			l = nodintconst(0);
+		else
+			l = conv(n->right->left, types[TUINT64]);
 		if(n->right->right != N) {
 			fn = syslook("sliceslice", 1);
 			argtype(fn, t->type);			// any-1
 			argtype(fn, t->type);			// any-2
 			n = mkcall1(fn, t, init,
 				n->left,
-				conv(n->right->left, types[TUINT64]),
+				l,
 				conv(n->right->right, types[TUINT64]),
 				nodintconst(t->type->width));
 		} else {
@@ -1110,7 +1114,7 @@ walkexpr(Node **np, NodeList **init)
 			argtype(fn, t->type);			// any-2
 			n = mkcall1(fn, t, init,
 				n->left,
-				conv(n->right->left, types[TUINT64]),
+				l,
 				nodintconst(t->type->width));
 		}
 		goto ret;
@@ -1122,13 +1126,17 @@ walkexpr(Node **np, NodeList **init)
 		fn = syslook("slicearray", 1);
 		argtype(fn, n->left->type);	// any-1
 		argtype(fn, t->type);			// any-2
+		if(n->right->left == N)
+			l = nodintconst(0);
+		else
+			l = conv(n->right->left, types[TUINT64]);
 		if(n->right->right == N)
 			r = nodintconst(n->left->type->bound);
 		else
 			r = conv(n->right->right, types[TUINT64]);
 		n = mkcall1(fn, t, init,
 			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
-			conv(n->right->left, types[TUINT64]),
+			l,
 			r,
 			nodintconst(t->type->width));
 		goto ret;
@@ -1213,15 +1221,19 @@ walkexpr(Node **np, NodeList **init)
 
 	case OSLICESTR:
 		// sys_slicestring(s, lb, hb)
+		if(n->right->left == N)
+			l = nodintconst(0);
+		else
+			l = conv(n->right->left, types[TINT]);
 		if(n->right->right) {
 			n = mkcall("slicestring", n->type, init,
 				conv(n->left, types[TSTRING]),
-				conv(n->right->left, types[TINT]),
+				l,
 				conv(n->right->right, types[TINT]));
 		} else {
 			n = mkcall("slicestring1", n->type, init,
 				conv(n->left, types[TSTRING]),
-				conv(n->right->left, types[TINT]));
+				l);
 		}
 		goto ret;
 
