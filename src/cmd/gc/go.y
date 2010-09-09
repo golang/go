@@ -1100,6 +1100,7 @@ xfndcl:
 		if($$ == N)
 			break;
 		$$->nbody = $3;
+		$$->endlineno = lineno;
 		funcbody($$);
 	}
 
