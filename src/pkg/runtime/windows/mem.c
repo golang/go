@@ -31,5 +31,5 @@ SysUnused(void *v, uintptr n)
 void
 SysFree(void *v, uintptr n)
 {
-	return stdcall(VirtualFree, 3, v, n, MEM_RELEASE);
+	stdcall(VirtualFree, 3, v, n, MEM_RELEASE);
 }

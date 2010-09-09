@@ -14,6 +14,7 @@ void *GetStdHandle;
 void *SetEvent;
 void *WriteFile;
 void *VirtualAlloc;
+void *VirtualFree;
 void *LoadLibraryEx;
 void *GetProcAddress;
 void *GetLastError;
@@ -63,6 +64,7 @@ osinit(void)
 	GetStdHandle = get_proc_addr("kernel32.dll", "GetStdHandle");
 	SetEvent = get_proc_addr("kernel32.dll", "SetEvent");
 	VirtualAlloc = get_proc_addr("kernel32.dll", "VirtualAlloc");
+	VirtualFree = get_proc_addr("kernel32.dll", "VirtualFree");
 	WaitForSingleObject = get_proc_addr("kernel32.dll", "WaitForSingleObject");
 	WriteFile = get_proc_addr("kernel32.dll", "WriteFile");
 	GetLastError = get_proc_addr("kernel32.dll", "GetLastError");
