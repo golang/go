@@ -8,6 +8,7 @@
 void *get_proc_addr(void *library, void *name);
 
 extern void *VirtualAlloc;
+extern void *VirtualFree;
 extern void *LoadLibraryEx;
 extern void *GetProcAddress;
 extern void *GetLastError;
