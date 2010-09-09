@@ -42,10 +42,10 @@ func main() {
 	t = i // ERROR "incompatible|need type assertion"
 
 	i = i2 // ok
-	i2 = i // ERROR "missing N method"
+	i2 = i // ERROR "incompatible|missing N method"
 
 	i = I(i2)  // ok
-	i2 = I2(i) // ERROR "missing N method"
+	i2 = I2(i) // ERROR "invalid|missing N method"
 
 	e = E(t) // ok
 	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
@@ -64,8 +64,8 @@ var _ = m.(Int)	// ERROR "impossible type assertion"
 var ii int
 var jj Int
 
-var m1 M = ii	// ERROR "missing"
-var m2 M = jj	// ERROR "wrong type for M method"
+var m1 M = ii	// ERROR "incompatible|missing"
+var m2 M = jj	// ERROR "incompatible|wrong type for M method"
 
-var m3 = M(ii)	// ERROR "missing"
-var m4 = M(jj)	// ERROR "wrong type for M method"
+var m3 = M(ii)	// ERROR "invalid|missing"
+var m4 = M(jj)	// ERROR "invalid|wrong type for M method"
