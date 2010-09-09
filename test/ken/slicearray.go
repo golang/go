@@ -33,11 +33,17 @@ func main() {
 	tstb()
 	by = bx[lb:]
 	tstb()
+	by = bx[:hb]
+	tstb()
 	by = bx[0:hb]
 	tstb()
 	by = bx[0:10]
 	tstb()
 	by = bx[0:]
+	tstb()
+	by = bx[:10]
+	tstb()
+	by = bx[:]
 	tstb()
 
 	lb = 2
@@ -65,6 +71,10 @@ func main() {
 	tstb()
 	by = bx[0:8]
 	tstb()
+	by = bx[:8]
+	tstb()
+	by = bx[:hb]
+	tstb()
 
 	lb = 2
 	hb = 8
@@ -86,11 +96,17 @@ func main() {
 	tstf()
 	fy = fx[lb:]
 	tstf()
+	fy = fx[:hb]
+	tstf()
 	fy = fx[0:hb]
 	tstf()
 	fy = fx[0:10]
 	tstf()
 	fy = fx[0:]
+	tstf()
+	fy = fx[:10]
+	tstf()
+	fy = fx[:]
 	tstf()
 
 	lb = 2
@@ -114,9 +130,13 @@ func main() {
 	tstf()
 	fy = fx[lb:8]
 	tstf()
+	fy = fx[:hb]
+	tstf()
 	fy = fx[0:hb]
 	tstf()
 	fy = fx[0:8]
+	tstf()
+	fy = fx[:8]
 	tstf()
 
 	lb = 2
