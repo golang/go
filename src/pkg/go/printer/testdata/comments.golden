@@ -431,6 +431,38 @@ func _() {
 }
 
 
+// Comments immediately adjacent to punctuation (for which the go/printer
+// may obly have estimated position information) must remain after the punctuation.
+func _() {
+	_ = T{
+		1,	// comment after comma
+		2,	/* comment after comma */
+		3,	// comment after comma
+	}
+	_ = T{
+		1,	// comment after comma
+		2,	/* comment after comma */
+		3,	// comment after comma
+	}
+	_ = T{
+		/* comment before literal */ 1,
+		2,	/* comment before comma - ok to move after comma */
+		3,	/* comment before comma - ok to move after comma */
+	}
+
+	for i = 0;	// comment after semicolon
+	i < 9;		/* comment after semicolon */
+	i++ {		// comment after opening curly brace
+	}
+
+	// TODO(gri) the last comment in this example should be aligned */
+	for i = 0;	// comment after semicolon
+	i < 9;		/* comment before semicolon - ok to move after semicolon */
+	i++ /* comment before opening curly brace */ {
+	}
+}
+
+
 // Line comments with tabs
 func _() {
 	var finput *bufio.Reader	// input file

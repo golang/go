@@ -335,7 +335,6 @@ func _() {
 		2,
 		3,
 	)
-	// TODO(gri) the cases below are not correct yet
 	f(1,
 		2,
 		3)	// comment
@@ -348,8 +347,7 @@ func _() {
 		3)	// comment
 	f(1,
 		2,
-		3 // comment
-		,
+		3,	// comment
 	)
 }
 
