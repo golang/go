@@ -654,15 +654,13 @@ reswitch:
 			typecheck(&n->left, top);
 		}
 		implicitstar(&n->left);
-		if(n->right->left == N) {
-			yyerror("missing slice bounds?");
-			goto error;
+		if(n->right->left != N) {
+			if((t = n->right->left->type) == T)
+				goto error;
+			if(!isint[t->etype]) {
+				yyerror("invalid slice index %#N (type %T)", n->right->left, t);
+				goto error;
 		}
-		if((t = n->right->left->type) == T)
-			goto error;
-		if(!isint[t->etype]) {
-			yyerror("invalid slice index %#N (type %T)", n->right->left, t);
-			goto error;
 		}
 		if(n->right->right != N) {
 			if((t = n->right->right->type) == T)

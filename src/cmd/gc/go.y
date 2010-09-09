@@ -845,10 +845,6 @@ pexpr_no_paren:
 	}
 |	pexpr '[' oexpr ':' oexpr ']'
 	{
-		if($3 == N) {
-			yyerror("missing lower bound in slice expression");
-			$3 = nodintconst(0);
-		}
 		$$ = nod(OSLICE, $1, nod(OKEY, $3, $5));
 	}
 |	pseudocall
