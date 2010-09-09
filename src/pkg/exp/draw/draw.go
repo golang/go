@@ -60,9 +60,10 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 	if r.Dy() > dy {
 		r.Max.Y = r.Min.Y + dy
 	}
-
-	// TODO(nigeltao): Clip r to dst's bounding box, and handle the case when sp or mp has negative X or Y.
-	// TODO(nigeltao): Ensure that r is well formed, i.e. r.Max.X >= r.Min.X and likewise for Y.
+	r = r.Intersect(dst.Bounds())
+	if r.Empty() {
+		return
+	}
 
 	// Fast paths for special cases. If none of them apply, then we fall back to a general but slow implementation.
 	if dst0, ok := dst.(*image.RGBA); ok {
