@@ -39,7 +39,7 @@ dirstat(char *file)
 	Dir *d;
 	char *str;
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 	if(stat(file, &st) < 0)
 		return nil;
 	lst = st;
