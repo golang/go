@@ -307,3 +307,27 @@ func TestBase(t *testing.T) {
 		}
 	}
 }
+
+type IsAbsTest struct {
+	path  string
+	isAbs bool
+}
+
+var isAbsTests = []IsAbsTest{
+	IsAbsTest{"", false},
+	IsAbsTest{"/", true},
+	IsAbsTest{"/usr/bin/gcc", true},
+	IsAbsTest{"..", false},
+	IsAbsTest{"/a/../bb", true},
+	IsAbsTest{".", false},
+	IsAbsTest{"./", false},
+	IsAbsTest{"lala", false},
+}
+
+func TestIsAbs(t *testing.T) {
+	for _, test := range isAbsTests {
+		if r := IsAbs(test.path); r != test.isAbs {
+			t.Errorf("IsAbs(%q) = %v, want %v", test.path, r, test.isAbs)
+		}
+	}
+}
