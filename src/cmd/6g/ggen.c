@@ -62,6 +62,8 @@ compile(Node *fn)
 	pl = newplist();
 	pl->name = curfn->nname;
 
+	setlineno(curfn);
+
 	nodconst(&nod1, types[TINT32], 0);
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
 	afunclit(&ptxt->from);
@@ -83,6 +85,8 @@ compile(Node *fn)
 	checklabels();
 	if(nerrors != 0)
 		goto ret;
+	if(curfn->endlineno)
+		lineno = curfn->endlineno;
 
 	if(curfn->type->outtuple != 0)
 		ginscall(throwreturn, 0);

@@ -61,6 +61,8 @@ compile(Node *fn)
 
 	pl = newplist();
 	pl->name = curfn->nname;
+	
+	setlineno(curfn);
 
 	nodconst(&nod1, types[TINT32], 0);
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
@@ -93,6 +95,8 @@ compile(Node *fn)
 		genlist(curfn->exit);
 	if(nerrors != 0)
 		goto ret;
+	if(curfn->endlineno)
+		lineno = curfn->endlineno;
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
