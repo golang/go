@@ -6,6 +6,8 @@
 #include "malloc.h"
 
 static uintptr isclosureentry(uintptr);
+void ·deferproc(void);
+void ·newproc(void);
 
 // This code is also used for the 386 tracebacks.
 // Use uintptr for an appropriate word-sized integer.
@@ -57,7 +59,8 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 			//	[48] 81 c4 zz yy xx ww c3
 			// The 0x48 byte is only on amd64.
 			p = (byte*)pc;
-			if(mheap.min < p && p+8 < mheap.max &&  // pointer in allocated memory
+			// We check p < p+8 to avoid wrapping and faulting if we lose track.
+			if(mheap.min < p && p < p+8 && p+8 < mheap.max &&  // pointer in allocated memory
 			   (sizeof(uintptr) != 8 || *p++ == 0x48) &&  // skip 0x48 byte on amd64
 			   p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
 				sp += *(uint32*)(p+2);
@@ -115,6 +118,8 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 		else
 			sp += f->frame;
 		pc = *((uintptr*)sp - 1);
+		if(f->entry == (uintptr)·deferproc || f->entry == (uintptr)·newproc)
+			sp += 2*sizeof(uintptr);
 	}
 	return n;
 }
