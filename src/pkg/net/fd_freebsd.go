@@ -44,7 +44,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 	}
 	syscall.SetKevent(ev, fd, kmode, flags)
 
-	n, e := syscall.Kevent(p.kq, &events, nil, nil)
+	n, e := syscall.Kevent(p.kq, events[:], nil, nil)
 	if e != 0 {
 		return os.NewSyscallError("kevent", e)
 	}
@@ -68,7 +68,7 @@ func (p *pollster) DelFD(fd int, mode int) {
 	ev := &events[0]
 	// EV_DELETE - delete event from kqueue list
 	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE)
-	syscall.Kevent(p.kq, &events, nil, nil)
+	syscall.Kevent(p.kq, events[:], nil, nil)
 }
 
 func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
@@ -80,7 +80,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 			}
 			*t = syscall.NsecToTimespec(nsec)
 		}
-		nn, e := syscall.Kevent(p.kq, nil, &p.eventbuf, t)
+		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
 		if e != 0 {
 			if e == syscall.EINTR {
 				continue
