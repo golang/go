@@ -9,9 +9,9 @@
 package main
 
 var (
-	_ = x	// ERROR "undefined: x"
-	_ = x	// ERROR "undefined: x"
-	_ = x	// ERROR "undefined: x"
+	_ = x	// ERROR "undefined.*x"
+	_ = x	// ERROR "undefined.*x"
+	_ = x	// ERROR "undefined.*x"
 )
 
 type T struct {
@@ -19,7 +19,7 @@ type T struct {
 }
 
 func foo() *T { return &T{y: 99} }
-func bar() int { return y }	// ERROR "undefined: y"
+func bar() int { return y }	// ERROR "undefined.*y"
 
 type T1 struct {
 	y1 int
@@ -39,6 +39,6 @@ func f1(val interface{}) {
 func f2(val interface{}) {
 	switch val.(type) {
 	default:
-		println(v)	// ERROR "undefined: v"
+		println(v)	// ERROR "undefined.*v"
 	}
 }
