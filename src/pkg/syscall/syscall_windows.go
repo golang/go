@@ -393,7 +393,7 @@ func Gettimeofday(tv *Timeval) (errno int) {
 	ms := ft.Microseconds()
 	// split into sec / usec
 	tv.Sec = int32(ms / 1e6)
-	tv.Usec = int32(ms) - tv.Sec
+	tv.Usec = int32(ms) - tv.Sec*1e6
 	return 0
 }
 
