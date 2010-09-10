@@ -445,7 +445,11 @@ func (c *Conn) sendAlertLocked(err alert) os.Error {
 	}
 	c.tmp[1] = byte(err)
 	c.writeRecord(recordTypeAlert, c.tmp[0:2])
-	return c.setError(&net.OpError{Op: "local error", Error: err})
+	// closeNotify is a special case in that it isn't an error:
+	if err != alertCloseNotify {
+		return c.setError(&net.OpError{Op: "local error", Error: err})
+	}
+	return nil
 }
 
 // sendAlert sends a TLS alert message.
