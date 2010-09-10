@@ -69,6 +69,8 @@ func sleep() {
 	runtime.Gosched()
 }
 
+const maxTries = 10000 // Up to 100ms per test.
+
 func main() {
 	var i32 int32
 	var i64 int64
@@ -105,24 +107,29 @@ func main() {
 		}
 
 		go i32receiver(c32, sync)
-		sleep()
-		ok = c32 <- 123
-		if !ok {
-			println("i32receiver buffer=", buffer)
-			panic("fail")
+		try := 0
+		for !(c32 <- 123) {
+			try++
+			if try > maxTries {
+				println("i32receiver buffer=", buffer)
+				panic("fail")
+			}
+			sleep()
 		}
 		<-sync
 
 		go i32sender(c32, sync)
 		if buffer > 0 {
 			<-sync
-		} else {
-			sleep()
 		}
-		i32, ok = <-c32
-		if !ok {
-			println("i32sender buffer=", buffer)
-			panic("fail")
+		try = 0
+		for i32, ok = <-c32; !ok; i32, ok = <-c32 {
+			try++
+			if try > maxTries {
+				println("i32sender buffer=", buffer)
+				panic("fail")
+			}
+			sleep()
 		}
 		if i32 != 234 {
 			panic("i32sender value")
@@ -132,22 +139,27 @@ func main() {
 		}
 
 		go i64receiver(c64, sync)
-		sleep()
-		ok = c64 <- 123456
-		if !ok {
-			panic("i64receiver")
+		try = 0
+		for !(c64 <- 123456) {
+			try++
+			if try > maxTries {
+				panic("i64receiver")
+			}
+			sleep()
 		}
 		<-sync
 
 		go i64sender(c64, sync)
 		if buffer > 0 {
 			<-sync
-		} else {
-			sleep()
 		}
-		i64, ok = <-c64
-		if !ok {
-			panic("i64sender")
+		try = 0
+		for i64, ok = <-c64; !ok; i64, ok = <-c64 {
+			try++
+			if try > maxTries {
+				panic("i64sender")
+			}
+			sleep()
 		}
 		if i64 != 234567 {
 			panic("i64sender value")
@@ -157,22 +169,27 @@ func main() {
 		}
 
 		go breceiver(cb, sync)
-		sleep()
-		ok = cb <- true
-		if !ok {
-			panic("breceiver")
+		try = 0
+		for !(cb <- true) {
+			try++
+			if try > maxTries {
+				panic("breceiver")
+			}
+			sleep()
 		}
 		<-sync
 
 		go bsender(cb, sync)
 		if buffer > 0 {
 			<-sync
-		} else {
-			sleep()
 		}
-		b, ok = <-cb
-		if !ok {
-			panic("bsender")
+		try = 0
+		for b, ok = <-cb; !ok; b, ok = <-cb {
+			try++
+			if try > maxTries {
+				panic("bsender")
+			}
+			sleep()
 		}
 		if !b {
 			panic("bsender value")
@@ -182,22 +199,27 @@ func main() {
 		}
 
 		go sreceiver(cs, sync)
-		sleep()
-		ok = cs <- "hello"
-		if !ok {
-			panic("sreceiver")
+		try = 0
+		for !(cs <- "hello") {
+			try++
+			if try > maxTries {
+				panic("sreceiver")
+			}
+			sleep()
 		}
 		<-sync
 
 		go ssender(cs, sync)
 		if buffer > 0 {
 			<-sync
-		} else {
-			sleep()
 		}
-		s, ok = <-cs
-		if !ok {
-			panic("ssender")
+		try = 0
+		for s, ok = <-cs; !ok; s, ok = <-cs {
+			try++
+			if try > maxTries {
+				panic("ssender")
+			}
+			sleep()
 		}
 		if s != "hello again" {
 			panic("ssender value")
