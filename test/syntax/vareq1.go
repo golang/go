@@ -6,5 +6,5 @@
 
 package main
 
-var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement"
+var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement|expected ';' or newline after top level declaration"
 
