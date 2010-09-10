@@ -78,22 +78,23 @@ Pconv(Fmt *fp)
 	p = va_arg(fp->args, Prog*);
 	switch(p->as) {
 	case ADATA:
-		sprint(str, "	%A	%D/%d,%D",
-			p->as, &p->from, p->from.scale, &p->to);
+		sprint(str, "(%L)	%A	%D/%d,%D",
+			p->lineno, p->as, &p->from, p->from.scale, &p->to);
 		break;
 
 	case ATEXT:
 		if(p->from.scale) {
-			sprint(str, "	%A	%D,%d,%lD",
-				p->as, &p->from, p->from.scale, &p->to);
+			sprint(str, "(%L)	%A	%D,%d,%lD",
+				p->lineno, p->as, &p->from, p->from.scale, &p->to);
 			break;
 		}
-		sprint(str, "	%A	%D,%lD",
-			p->as, &p->from, &p->to);
+		sprint(str, "(%L)	%A	%D,%lD",
+			p->lineno, p->as, &p->from, &p->to);
 		break;
 
 	default:
-		sprint(str, "	%A	%D,%lD", p->as, &p->from, &p->to);
+		sprint(str, "(%L)	%A	%D,%lD",
+			p->lineno, p->as, &p->from, &p->to);
 		break;
 	}
 	return fmtstrcpy(fp, str);
