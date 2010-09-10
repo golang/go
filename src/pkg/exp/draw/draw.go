@@ -44,14 +44,14 @@ func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
 // TODO(nigeltao): Optimize this.
 func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
 	sb := src.Bounds()
-	dx, dy := sb.Dx()-sp.X, sb.Dy()-sp.Y
+	dx, dy := sb.Max.X-sp.X, sb.Max.Y-sp.Y
 	if mask != nil {
 		mb := mask.Bounds()
-		if dx > mb.Dx()-mp.X {
-			dx = mb.Dx() - mp.X
+		if dx > mb.Max.X-mp.X {
+			dx = mb.Max.X - mp.X
 		}
-		if dy > mb.Dy()-mp.Y {
-			dy = mb.Dy() - mp.Y
+		if dy > mb.Max.Y-mp.Y {
+			dy = mb.Max.Y - mp.Y
 		}
 	}
 	if r.Dx() > dx {
