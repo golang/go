@@ -7,8 +7,8 @@
 package main
 
 func main() {
-	_ = asdf	// ERROR "undefined: asdf"
+	_ = asdf	// ERROR "undefined.*asdf"
 
-	new = 1	// ERROR "use of builtin new not in function call"
+	new = 1	// ERROR "use of builtin new not in function call|invalid left hand side"
 }
 
