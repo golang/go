@@ -65,7 +65,7 @@ TEXT ·mmap(SB),7,$0
 	SWI	$0
 	RET
 
-TEXT ·mmap(SB),7,$0
+TEXT ·munmap(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	$SYS_munmap, R7
