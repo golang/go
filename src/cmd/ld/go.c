@@ -282,7 +282,7 @@ static int
 parsepkgdata(char *file, char *pkg, char **pp, char *ep, char **prefixp, char **namep, char **defp)
 {
 	char *p, *prefix, *name, *def, *edef, *meth;
-	int n;
+	int n, inquote;
 
 	// skip white space
 	p = *pp;
@@ -319,8 +319,19 @@ loop:
 
 	// name: a.b followed by space
 	name = p;
-	while(p < ep && *p != ' ')
+	inquote = 0;
+	while(p < ep) {
+		if (*p == ' ' && !inquote)
+			break;
+
+                if(*p == '\\')
+                        p++;
+		else if(*p == '"')
+			inquote = !inquote;
+
 		p++;
+	}
+
 	if(p >= ep)
 		return -1;
 	*p++ = '\0';
