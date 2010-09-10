@@ -648,19 +648,16 @@ reswitch:
 		defaultlit(&n->right->left, T);
 		defaultlit(&n->right->right, T);
 		if(isfixedarray(n->left->type)) {
-			// Insert explicit & before fixed array
-			// so that back end knows to move to heap.
 			n->left = nod(OADDR, n->left, N);
 			typecheck(&n->left, top);
 		}
-		implicitstar(&n->left);
 		if(n->right->left != N) {
 			if((t = n->right->left->type) == T)
 				goto error;
 			if(!isint[t->etype]) {
 				yyerror("invalid slice index %#N (type %T)", n->right->left, t);
 				goto error;
-		}
+			}
 		}
 		if(n->right->right != N) {
 			if((t = n->right->right->type) == T)
@@ -678,9 +675,9 @@ reswitch:
 			n->op = OSLICESTR;
 			goto ret;
 		}
-		if(isfixedarray(t)) {
+		if(isptr[t->etype] && isfixedarray(t->type)) {
 			n->type = typ(TARRAY);
-			n->type->type = t->type;
+			n->type->type = t->type->type;
 			n->type->bound = -1;
 			dowidth(n->type);
 			n->op = OSLICEARR;
@@ -1269,7 +1266,7 @@ implicitstar(Node **nn)
 	Type *t;
 	Node *n;
 
-	// insert implicit * if needed
+	// insert implicit * if needed for fixed array
 	n = *nn;
 	t = n->type;
 	if(t == T || !isptr[t->etype])

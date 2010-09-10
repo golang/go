@@ -1924,13 +1924,6 @@ assignop(Type *src, Type *dst, char **why)
 	// 7. Any typed value can be assigned to the blank identifier.
 	if(dst->etype == TBLANK)
 		return OCONVNOP;
-	
-	// 8. Array to slice.
-	// TODO(rsc): Not for long.
-	if(!src->sym || !dst->sym)
-	if(isptr[src->etype] && isfixedarray(src->type) && isslice(dst))
-	if(eqtype(src->type->type, dst->type))
-		return OCONVSLICE;
 
 	return 0;
 }

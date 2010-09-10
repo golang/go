@@ -1124,33 +1124,21 @@ walkexpr(Node **np, NodeList **init)
 		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
 		t = n->type;
 		fn = syslook("slicearray", 1);
-		argtype(fn, n->left->type);	// any-1
+		argtype(fn, n->left->type->type);	// any-1
 		argtype(fn, t->type);			// any-2
 		if(n->right->left == N)
 			l = nodintconst(0);
 		else
 			l = conv(n->right->left, types[TUINT64]);
 		if(n->right->right == N)
-			r = nodintconst(n->left->type->bound);
+			r = nodintconst(n->left->type->type->bound);
 		else
 			r = conv(n->right->right, types[TUINT64]);
 		n = mkcall1(fn, t, init,
-			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
+			n->left, nodintconst(n->left->type->type->bound),
 			l,
 			r,
 			nodintconst(t->type->width));
-		goto ret;
-
-	case OCONVSLICE:
-		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
-		fn = syslook("slicearray", 1);
-		argtype(fn, n->left->type->type);		// any-1
-		argtype(fn, n->type->type);			// any-2
-		n = mkcall1(fn, n->type, init, n->left,
-			nodintconst(n->left->type->type->bound),
-			nodintconst(0),
-			nodintconst(n->left->type->type->bound),
-			nodintconst(n->type->type->width));
 		goto ret;
 
 	case OADDR:;
@@ -2140,12 +2128,17 @@ static void
 heapmoves(void)
 {
 	NodeList *nn;
-
+	int32 lno;
+	
+	lno = lineno;
+	lineno = curfn->lineno;
 	nn = paramstoheap(getthis(curfn->type), 0);
 	nn = concat(nn, paramstoheap(getinarg(curfn->type), 0));
 	nn = concat(nn, paramstoheap(getoutarg(curfn->type), 1));
 	curfn->enter = concat(curfn->enter, nn);
+	lineno = curfn->endlineno;
 	curfn->exit = returnsfromheap(getoutarg(curfn->type));
+	lineno = lno;
 }
 
 static Node*

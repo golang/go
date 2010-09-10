@@ -401,7 +401,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 		arraylit(ctxt, 2, n, vstat, init);
 
 		// copy static to slice
-		a = nod(OADDR, vstat, N);
+		a = nod(OSLICE, vstat, nod(OKEY, N, N));
 		a = nod(OAS, var, a);
 		typecheck(&a, Etop);
 		a->dodata = 2;
@@ -459,7 +459,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	}
 
 	// make slice out of heap (5)
-	a = nod(OAS, var, vauto);
+	a = nod(OAS, var, nod(OSLICE, vauto, nod(OKEY, N, N)));
 	typecheck(&a, Etop);
 	walkexpr(&a, init);
 	*init = list(*init, a);
@@ -864,8 +864,18 @@ gen_as_init(Node *n)
 	default:
 		goto no;
 
-	case OCONVSLICE:
-		goto slice;
+	case OCONVNOP:
+		nr = nr->left;
+		if(nr == N || nr->op != OSLICEARR)
+			goto no;
+		// fall through
+	
+	case OSLICEARR:
+		if(nr->right->op == OKEY && nr->right->left == N && nr->right->right == N) {
+			nr = nr->left;
+			goto slice;
+		}
+		goto no;
 
 	case OLITERAL:
 		break;
@@ -914,7 +924,7 @@ yes:
 
 slice:
 	gused(N); // in case the data is the dest of a goto
-	nr = n->right->left;
+	nl = nr;
 	if(nr == N || nr->op != OADDR)
 		goto no;
 	nr = nr->left;
@@ -926,7 +936,7 @@ slice:
 		goto no;
 
 	nam.xoffset += Array_array;
-	gdata(&nam, n->right->left, types[tptr]->width);
+	gdata(&nam, nl, types[tptr]->width);
 
 	nam.xoffset += Array_nel-Array_array;
 	nodconst(&nod1, types[TINT32], nr->type->bound);
