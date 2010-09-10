@@ -31,6 +31,7 @@ func bigger() {
 }
 
 func main() {
+	runtime.GC()		   // clean up garbage from init
 	runtime.MemProfileRate = 0 // disable profiler
 	runtime.MemStats.Alloc = 0 // ignore stacks
 	flag.Parse()
