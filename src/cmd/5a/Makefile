@@ -5,8 +5,7 @@
 include ../../Make.inc
 O:=$(HOST_O)
 
-TARG=\
-	5a\
+TARG=5a
 
 HFILES=\
 	a.h\

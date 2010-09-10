@@ -186,6 +186,19 @@ NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
 NOTEST+=websocket    # no network
 endif
 
+# Disable tests that windows cannot run yet.
+ifeq ($(GOOS),windows)
+NOTEST+=exec         # no pipe
+NOTEST+=log          # no runtime.Caller
+NOTEST+=net          # no network
+NOTEST+=os           # many things unimplemented
+NOTEST+=os/signal    # no signals
+NOTEST+=path         # tree walking does not work
+NOTEST+=syslog       # no network
+NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
+NOTEST+=websocket    # no network
+endif
+
 TEST=\
 	$(filter-out $(NOTEST),$(DIRS))
 
