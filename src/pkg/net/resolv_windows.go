@@ -54,7 +54,7 @@ func LookupSRV(name string) (cname string, addrs []*SRV, err os.Error) {
 	i := 0
 	for p := r; p != nil && p.Type == syscall.DNS_TYPE_SRV; p = p.Next {
 		v := (*syscall.DNSSRVData)(unsafe.Pointer(&p.Data[0]))
-		addrs[i] = &SRV{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))), v.Port, v.Priority, v.Weight}
+		addrs[i] = &SRV{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:]), v.Port, v.Priority, v.Weight}
 		i++
 	}
 	addrs = addrs[0:i]
