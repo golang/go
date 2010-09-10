@@ -286,14 +286,15 @@ In Go, since arrays are values, it's meaningful (and useful) to talk
 about pointers to arrays.
 <p>
 The size of the array is part of its type; however, one can declare
-a <i>slice</i> variable, to which one can assign a pointer to
-any array
-with the same element type or&mdash;much more commonly&mdash;a <i>slice
-expression</i> of the form <code>a[low : high]</code>, representing
-the subarray indexed by <code>low</code> through <code>high-1</code>.
-Slices look a lot like arrays but have
+a <i>slice</i> variable to hold a reference to any array, of any size,
+with the same element type.
+A <i>slice
+expression</i> has the form <code>a[low : high]</code>, representing
+the internal array indexed from <code>low</code> through <code>high-1</code>; the resulting
+slice is indexed from <code>0</code> through <code>high-low-1</code>.
+In short, slices look a lot like arrays but with
 no explicit size (<code>[]</code> vs. <code>[10]</code>) and they reference a segment of
-an underlying, often anonymous, regular array.  Multiple slices
+an underlying, usually anonymous, regular array.  Multiple slices
 can share data if they represent pieces of the same array;
 multiple arrays can never share data.
 <p>
@@ -302,17 +303,28 @@ regular arrays; they're more flexible, have reference semantics,
 and are efficient.  What they lack is the precise control of storage
 layout of a regular array; if you want to have a hundred elements
 of an array stored within your structure, you should use a regular
-array.
+array. To create one, use a compound value <i>constructor</i>&mdash;an
+expression formed
+from a type followed by a brace-bounded expression like this:
+<p>
+<pre>
+    [3]int{1,2,3}
+</pre>
+<p>
+In this case the constructor builds an array of 3 <code>ints</code>.
 <p>
 When passing an array to a function, you almost always want
 to declare the formal parameter to be a slice.  When you call
-the function, take the address of the array and  Go will
-create (efficiently) a slice reference and pass that.
+the function, slice the array to create
+(efficiently) a slice reference and pass that.
+By default, the lower and upper bounds of a slice match the
+ends of the existing object, so the concise notation <code>[:]</code>
+will slice the whole array.
 <p>
 Using slices one can write this function (from <code>sum.go</code>):
 <p>
 <pre> <!-- progs/sum.go /sum/ /^}/ -->
-09    func sum(a []int) int {   // returns an int
+09    func sum(a []int) int { // returns an int
 10        s := 0
 11        for i := 0; i &lt; len(a); i++ {
 12            s += a[i]
@@ -321,32 +333,27 @@ Using slices one can write this function (from <code>sum.go</code>):
 15    }
 </pre>
 <p>
-and invoke it like this:
-<p>
-<pre> <!-- progs/sum.go /1,2,3/ -->
-19        s := sum(&amp;[3]int{1,2,3})  // a slice of the array is passed to sum
-</pre>
-<p>
 Note how the return type (<code>int</code>) is defined for <code>sum()</code> by stating it
 after the parameter list.
-The expression <code>[3]int{1,2,3}</code>&mdash;a type followed by a
-brace-bounded
-expression&mdash;is a constructor for a value, in this case an array
-of 3 <code>ints</code>.
-Putting an <code>&amp;</code>
-in front gives us the address of a unique instance of the value.  We pass the
-pointer to <code>sum()</code> by (implicitly) promoting it to a slice.
+<p>
+To call the function, we slice the array.  This intricate call (we'll show
+a simpler way in a moment) constructs
+an array and slices it:
+<p>
+<pre>
+    s := sum([3]int{1,2,3}[:])
+</pre>
 <p>
 If you are creating a regular array but want the compiler to count the
 elements for you, use <code>...</code> as the array size:
 <p>
 <pre>
-    s := sum(&amp;[...]int{1,2,3})
+    s := sum([...]int{1,2,3}[:])
 </pre>
 <p>
-In practice, though, unless you're meticulous about storage layout within a
-data structure, a slice itself&mdash;using empty brackets and no
-<code>&amp;</code>&mdash;is all you need:
+That's fussier than necessary, though.
+In practice, unless you're meticulous about storage layout within a
+data structure, a slice itself&mdash;using empty brackets with no size&mdash;is all you need:
 <p>
 <pre>
     s := sum([]int{1,2,3})
@@ -687,7 +694,7 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 15        const NBUF = 512
 16        var buf [NBUF]byte
 17        for {
-18            switch nr, er := f.Read(&amp;buf); true {
+18            switch nr, er := f.Read(buf[:]); true {
 19            case nr &lt; 0:
 20                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, f.String(), er.String())
 21                os.Exit(1)
@@ -803,7 +810,7 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 57            r = newRotate13(r)
 58        }
 59        for {
-60            switch nr, er := r.Read(&amp;buf); {
+60            switch nr, er := r.Read(buf[:]); {
 61            case nr &lt; 0:
 62                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, r.String(), er.String())
 63                os.Exit(1)

@@ -227,14 +227,15 @@ In Go, since arrays are values, it's meaningful (and useful) to talk
 about pointers to arrays.
 
 The size of the array is part of its type; however, one can declare
-a <i>slice</i> variable, to which one can assign a pointer to
-any array
-with the same element type or&mdash;much more commonly&mdash;a <i>slice
-expression</i> of the form "a[low : high]", representing
-the subarray indexed by "low" through "high-1".
-Slices look a lot like arrays but have
+a <i>slice</i> variable to hold a reference to any array, of any size,
+with the same element type.
+A <i>slice
+expression</i> has the form "a[low : high]", representing
+the internal array indexed from "low" through "high-1"; the resulting
+slice is indexed from "0" through "high-low-1".
+In short, slices look a lot like arrays but with
 no explicit size ("[]" vs. "[10]") and they reference a segment of
-an underlying, often anonymous, regular array.  Multiple slices
+an underlying, usually anonymous, regular array.  Multiple slices
 can share data if they represent pieces of the same array;
 multiple arrays can never share data.
 
@@ -243,39 +244,43 @@ regular arrays; they're more flexible, have reference semantics,
 and are efficient.  What they lack is the precise control of storage
 layout of a regular array; if you want to have a hundred elements
 of an array stored within your structure, you should use a regular
-array.
+array. To create one, use a compound value <i>constructor</i>&mdash;an
+expression formed
+from a type followed by a brace-bounded expression like this:
+
+	[3]int{1,2,3}
+
+In this case the constructor builds an array of 3 "ints".
 
 When passing an array to a function, you almost always want
 to declare the formal parameter to be a slice.  When you call
-the function, take the address of the array and  Go will
-create (efficiently) a slice reference and pass that.
+the function, slice the array to create
+(efficiently) a slice reference and pass that.
+By default, the lower and upper bounds of a slice match the
+ends of the existing object, so the concise notation "[:]"
+will slice the whole array.
 
 Using slices one can write this function (from "sum.go"):
 
 --PROG progs/sum.go /sum/ /^}/
 
-and invoke it like this:
-
---PROG progs/sum.go /1,2,3/
-
 Note how the return type ("int") is defined for "sum()" by stating it
 after the parameter list.
-The expression "[3]int{1,2,3}"&mdash;a type followed by a
-brace-bounded
-expression&mdash;is a constructor for a value, in this case an array
-of 3 "ints".
-Putting an "&amp;"
-in front gives us the address of a unique instance of the value.  We pass the
-pointer to "sum()" by (implicitly) promoting it to a slice.
+
+To call the function, we slice the array.  This intricate call (we'll show
+a simpler way in a moment) constructs
+an array and slices it:
+
+	s := sum([3]int{1,2,3}[:])
 
 If you are creating a regular array but want the compiler to count the
 elements for you, use "..." as the array size:
 
-	s := sum(&amp;[...]int{1,2,3})
+	s := sum([...]int{1,2,3}[:])
 
-In practice, though, unless you're meticulous about storage layout within a
-data structure, a slice itself&mdash;using empty brackets and no
-"&amp;"&mdash;is all you need:
+That's fussier than necessary, though.
+In practice, unless you're meticulous about storage layout within a
+data structure, a slice itself&mdash;using empty brackets with no size&mdash;is all you need:
 
 	s := sum([]int{1,2,3})
 
