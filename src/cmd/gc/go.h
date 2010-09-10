@@ -262,7 +262,7 @@ struct	Node
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
 	int32	lineno;
-	int32   endlineno;
+	int32	endlineno;
 	vlong	xoffset;
 	int32	ostk;
 	int32	iota;
@@ -358,7 +358,7 @@ enum
 	OCLOSURE,
 	OCMPIFACE, OCMPSTR,
 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
-	OCONV, OCONVIFACE, OCONVNOP, OCONVSLICE,
+	OCONV, OCONVIFACE, OCONVNOP,
 	OCOPY,
 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
