@@ -261,6 +261,10 @@ walkdef(Node *n)
 			yyerror("const initializer must be constant");
 			goto ret;
 		}
+		if(isconst(e, CTNIL)) {
+			yyerror("const initializer cannot be nil");
+			goto ret;
+		}
 		t = n->type;
 		if(t != T) {
 			convlit(&e, t);
