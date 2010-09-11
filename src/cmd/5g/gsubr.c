@@ -213,6 +213,9 @@ regalloc(Node *n, Type *t, Node *o)
 {
 	int i, et, fixfree, floatfree;
 
+	// guarantee R9 and R10 (m and g) are left alone. BUG.
+	reg[9] = 1;
+	reg[10] = 1;
 	if(debug['r']) {
 		fixfree = 0;
 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
