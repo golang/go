@@ -867,9 +867,14 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
 			continue
 		}
 		if !dec.compatibleType(localField.Type, wireField.id) {
-			return nil, os.ErrorString("gob: wrong type (" +
-				localField.Type.String() + ") for received field " +
-				wireStruct.name + "." + wireField.name)
+			// BUG: work around bug in 5g by simplifying expression.
+			// return nil, os.ErrorString("gob: wrong type (" +
+			//	localField.Type.String() + ") for received field " +
+			//	wireStruct.name + "." + wireField.name)
+			str := "gob: wrong type ("
+			str += localField.Type.String() + ") for received field "
+			str += wireStruct.name + "." + wireField.name
+			return nil, os.ErrorString(str)
 		}
 		op, indir, err := dec.decOpFor(wireField.id, localField.Type, localField.Name)
 		if err != nil {
