@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"container/vector"
+	"crypto/tls"
 	"fmt"
 	"http"
 	"io"
@@ -22,6 +23,7 @@ type ProtocolError struct {
 }
 
 var (
+	ErrBadScheme            = os.ErrorString("bad scheme")
 	ErrBadStatus            = &ProtocolError{"bad status"}
 	ErrBadUpgrade           = &ProtocolError{"missing or bad upgrade"}
 	ErrBadWebSocketOrigin   = &ProtocolError{"missing or bad WebSocket-Origin"}
@@ -30,6 +32,17 @@ var (
 	ErrChallengeResponse    = &ProtocolError{"mismatch challange/response"}
 	secKeyRandomChars       [0x30 - 0x21 + 0x7F - 0x3A]byte
 )
+
+type DialError struct {
+	URL      string
+	Protocol string
+	Origin   string
+	Error    os.Error
+}
+
+func (e *DialError) String() string {
+	return "websocket.Dial " + e.URL + ": " + e.Error.String()
+}
 
 func init() {
 	i := 0
@@ -86,15 +99,35 @@ A trivial example client:
 	}
 */
 func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
+	var client net.Conn
+
 	parsedUrl, err := http.ParseURL(url)
 	if err != nil {
-		return
+		goto Error
 	}
-	client, err := net.Dial("tcp", "", parsedUrl.Host)
+
+	switch parsedUrl.Scheme {
+	case "ws":
+		client, err = net.Dial("tcp", "", parsedUrl.Host)
+
+	case "wss":
+		client, err = tls.Dial("tcp", "", parsedUrl.Host)
+
+	default:
+		err = ErrBadScheme
+	}
 	if err != nil {
-		return
+		goto Error
 	}
-	return newClient(parsedUrl.RawPath, parsedUrl.Host, origin, url, protocol, client, handshake)
+
+	ws, err = newClient(parsedUrl.RawPath, parsedUrl.Host, origin, url, protocol, client, handshake)
+	if err != nil {
+		goto Error
+	}
+	return
+
+Error:
+	return nil, &DialError{url, protocol, origin, err}
 }
 
 /*

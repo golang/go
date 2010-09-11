@@ -97,7 +97,12 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 		return
 	}
 
-	location := "ws://" + req.Host + req.URL.RawPath
+	var location string
+	if c.UsingTLS() {
+		location = "wss://" + req.Host + req.URL.RawPath
+	} else {
+		location = "ws://" + req.Host + req.URL.RawPath
+	}
 
 	// Step 4. get key number in Sec-WebSocket-Key<n> fields.
 	keyNumber1 := getKeyNumber(key1)
@@ -185,7 +190,13 @@ func (f Draft75Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 		return
 	}
 	defer rwc.Close()
-	location := "ws://" + req.Host + req.URL.RawPath
+
+	var location string
+	if c.UsingTLS() {
+		location = "wss://" + req.Host + req.URL.RawPath
+	} else {
+		location = "ws://" + req.Host + req.URL.RawPath
+	}
 
 	// TODO(ukai): verify origin,location,protocol.
 
