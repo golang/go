@@ -63,6 +63,7 @@ type Conn struct {
 	header          map[string]string // reply header parameters
 	written         int64             // number of bytes written in body
 	status          int               // status code passed to WriteHeader
+	usingTLS        bool              // a flag indicating connection over TLS
 }
 
 // Create new connection from rwc.
@@ -73,6 +74,7 @@ func newConn(rwc net.Conn, handler Handler) (c *Conn, err os.Error) {
 	}
 	c.handler = handler
 	c.rwc = rwc
+	_, c.usingTLS = rwc.(*tls.Conn)
 	br := bufio.NewReader(rwc)
 	bw := bufio.NewWriter(rwc)
 	c.buf = bufio.NewReadWriter(br, bw)
@@ -149,6 +151,11 @@ func (c *Conn) readRequest() (req *Request, err os.Error) {
 	}
 
 	return req, nil
+}
+
+// UsingTLS returns true if the connection uses transport layer security (TLS).
+func (c *Conn) UsingTLS() bool {
+	return c.usingTLS
 }
 
 // SetHeader sets a header line in the eventual reply.
