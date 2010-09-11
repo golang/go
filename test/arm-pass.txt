@@ -206,7 +206,6 @@ syntax/semi4.go
 syntax/semi5.go
 syntax/semi6.go
 syntax/semi7.go
-syntax/slice.go
 syntax/topexpr.go
 syntax/vareq.go
 syntax/vareq1.go
