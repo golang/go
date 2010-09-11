@@ -105,8 +105,8 @@ sighandler(int32 sig, Siginfo* info, void* context)
 	printf("\n");
 
 	if(gotraceback()){
-		traceback((void*)r->rip, (void*)r->rsp, 0, (void*)r->r15);
-		tracebackothers((void*)r->r15);
+		traceback((void*)r->rip, (void*)r->rsp, 0, g);
+		tracebackothers(g);
 		dumpregs(r);
 	}
 
