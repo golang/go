@@ -8,4 +8,21 @@ TARG=exec
 GOFILES=\
 	exec.go\
 
+GOFILES_freebsd=\
+	lp_unix.go\
+
+GOFILES_darwin=\
+	lp_unix.go\
+
+GOFILES_linux=\
+	lp_unix.go\
+
+GOFILES_nacl=\
+	lp_unix.go\
+
+GOFILES_windows=\
+	lp_windows.go\
+
+GOFILES+=$(GOFILES_$(GOOS))
+
 include ../../Make.pkg
