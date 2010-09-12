@@ -8,9 +8,14 @@ import (
 	"bufio"
 	"os"
 	"testing"
+	"runtime"
 )
 
 func TestReadLine(t *testing.T) {
+	// /etc/services file does not exist on windows.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	filename := "/etc/services" // a nice big file
 
 	fd, err := os.Open(filename, os.O_RDONLY, 0)

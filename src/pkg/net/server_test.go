@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"runtime"
 )
 
 // Do not test empty datagrams by default.
@@ -108,6 +109,10 @@ func TestTCPServer(t *testing.T) {
 }
 
 func TestUnixServer(t *testing.T) {
+	// "unix" sockets are not supported on windows.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	os.Remove("/tmp/gotest.net")
 	doTest(t, "unix", "/tmp/gotest.net", "/tmp/gotest.net")
 	os.Remove("/tmp/gotest.net")
@@ -177,6 +182,10 @@ func TestUDPServer(t *testing.T) {
 }
 
 func TestUnixDatagramServer(t *testing.T) {
+	// "unix" sockets are not supported on windows.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	for _, isEmpty := range []bool{false} {
 		os.Remove("/tmp/gotest1.net")
 		os.Remove("/tmp/gotest1.net.local")

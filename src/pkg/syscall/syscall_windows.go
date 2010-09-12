@@ -442,6 +442,9 @@ func Utimes(path string, tv []Timeval) (errno int) {
 //sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
 //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
 
+// For testing: clients can set this flag to force
+// creation of IPv6 sockets to return EAFNOSUPPORT.
+var SocketDisableIPv6 bool
 
 type RawSockaddrInet4 struct {
 	Family uint16
@@ -525,6 +528,9 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, int) {
 }
 
 func Socket(domain, typ, proto int) (fd, errno int) {
+	if domain == AF_INET6 && SocketDisableIPv6 {
+		return -1, EAFNOSUPPORT
+	}
 	h, e := socket(int32(domain), int32(typ), int32(proto))
 	return int(h), int(e)
 }
