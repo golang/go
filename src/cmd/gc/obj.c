@@ -74,41 +74,96 @@ Bputname(Biobuf *b, Sym *s)
 }
 
 static void
+outzfile(Biobuf *b, char *p)
+{
+	char *q, *q2;
+
+	while(p) {
+		q = utfrune(p, '/');
+		if(windows) {
+			q2 = utfrune(p, '\\');
+			if(q2 && (!q || q2 < q))
+				q = q2;
+		}
+		if(!q) {
+			zfile(b, p, strlen(p));
+			return;
+		}
+		if(q > p)
+			zfile(b, p, q-p);
+		p = q + 1;
+	}
+}
+
+#define isdelim(c) (c == '/' || c == '\\')
+
+static void
+outwinname(Biobuf *b, Hist *h, char *ds, char *p)
+{
+	if(isdelim(p[0])) {
+		// full rooted name
+		zfile(b, ds, 3);	// leading "c:/"
+		outzfile(b, p+1);
+	} else {
+		// relative name
+		if(h->offset == 0 && pathname && pathname[1] == ':') {
+			if(tolowerrune(ds[0]) == tolowerrune(pathname[0])) {
+				// using current drive
+				zfile(b, pathname, 3);	// leading "c:/"
+				outzfile(b, pathname+3);
+			} else {
+				// using drive other then current,
+				// we don't have any simple way to
+				// determine current working directory
+				// there, therefore will output name as is
+				zfile(b, ds, 2);	// leading "c:"
+			}
+		}
+		outzfile(b, p);
+	}
+}
+
+static void
 outhist(Biobuf *b)
 {
 	Hist *h;
-	char *p, *q, *op;
-	int n;
+	char *p, ds[] = {'c', ':', '/', 0};
 
 	for(h = hist; h != H; h = h->link) {
 		p = h->name;
-		op = 0;
-
-		if(p && p[0] != '/' && h->offset == 0 && pathname && pathname[0] == '/') {
-			op = p;
-			p = pathname;
-		}
-
-		while(p) {
-			q = utfrune(p, '/');
-			if(q) {
-				n = q-p;
-				if(n == 0)
-					n = 1;		// leading "/"
-				q++;
+		if(p) {
+			if(windows) {
+				// if windows variable is set, then, we know already,
+				// pathname is started with windows drive specifier
+				// and all '\' were replaced with '/' (see lex.c)
+				if(isdelim(p[0]) && isdelim(p[1])) {
+					// file name has network name in it, 
+					// like \\server\share\dir\file.go
+					zfile(b, "//", 2);	// leading "//"
+					outzfile(b, p+2);
+				} else if(p[1] == ':') {
+					// file name has drive letter in it
+					ds[0] = p[0];
+					outwinname(b, h, ds, p+2);
+				} else {
+					// no drive letter in file name
+					outwinname(b, h, pathname, p);
+				}
 			} else {
-				n = strlen(p);
-				q = 0;
-			}
-			if(n)
-				zfile(b, p, n);
-			p = q;
-			if(p == 0 && op) {
-				p = op;
-				op = 0;
+				if(p[0] == '/') {
+					// full rooted name, like /home/rsc/dir/file.go
+					zfile(b, "/", 1);	// leading "/"
+					outzfile(b, p+1);
+				} else {
+					// relative name, like dir/file.go
+					if(h->offset == 0 && pathname && pathname[0] == '/') {
+						zfile(b, "/", 1);	// leading "/"
+						outzfile(b, pathname+1);
+					}
+					outzfile(b, p);
+				}
 			}
 		}
-
 		zhist(b, h->line, h->offset);
 	}
 }
