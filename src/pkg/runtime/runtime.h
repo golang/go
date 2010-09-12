@@ -395,6 +395,7 @@ void	memmove(void*, void*, uint32);
 void*	mal(uintptr);
 uint32	cmpstring(String, String);
 String	catstring(String, String);
+String	concatstring(int32, String*);
 String	gostring(byte*);
 String  gostringn(byte*, int32);
 String	gostringnocopy(byte*);

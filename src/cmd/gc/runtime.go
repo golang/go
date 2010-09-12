@@ -33,7 +33,9 @@ func printnl()
 func printsp()
 func printf()
 
-func catstring(string, string) string
+// filled in by compiler: int n, string, string, ...
+func concatstring()
+
 func cmpstring(string, string) int
 func slicestring(string, int, int) string
 func slicestring1(string, int) string

@@ -20,7 +20,7 @@ char *runtimeimport =
 	"func \"\".printnl ()\n"
 	"func \"\".printsp ()\n"
 	"func \"\".printf ()\n"
-	"func \"\".catstring (? string, ? string) string\n"
+	"func \"\".concatstring ()\n"
 	"func \"\".cmpstring (? string, ? string) int\n"
 	"func \"\".slicestring (? string, ? int, ? int) string\n"
 	"func \"\".slicestring1 (? string, ? int) string\n"
