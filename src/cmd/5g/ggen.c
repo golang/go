@@ -68,6 +68,7 @@ compile(Node *fn)
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
 	afunclit(&ptxt->from);
 
+	ginit();
 	genlist(curfn->enter);
 	
 	pret = nil;
@@ -80,6 +81,7 @@ compile(Node *fn)
 	}
 
 	genlist(curfn->nbody);
+	gclean();
 	checklabels();
 	if(nerrors != 0)
 		goto ret;
@@ -89,10 +91,12 @@ compile(Node *fn)
 
 	if(pret)
 		patch(pret, pc);
+	ginit();
 	if(hasdefer)
 		ginscall(deferreturn, 0);
 	if(curfn->exit)
 		genlist(curfn->exit);
+	gclean();
 	if(nerrors != 0)
 		goto ret;
 	if(curfn->endlineno)
@@ -207,6 +211,7 @@ ginscall(Node *f, int proc)
 void
 cgen_callinter(Node *n, Node *res, int proc)
 {
+	int r;
 	Node *i, *f;
 	Node tmpi, nodo, nodr, nodsp;
 
@@ -220,6 +225,14 @@ cgen_callinter(Node *n, Node *res, int proc)
 
 	i = i->left;		// interface
 
+	// Release res register during genlist and cgen,
+	// which might have their own function calls.
+	r = -1;
+	if(res != N && (res->op == OREGISTER || res->op == OINDREG)) {
+		r = res->val.u.reg;
+		reg[r]--;
+	}
+
 	if(!i->addable) {
 		tempname(&tmpi, i->type);
 		cgen(i, &tmpi);
@@ -227,6 +240,8 @@ cgen_callinter(Node *n, Node *res, int proc)
 	}
 
 	genlist(n->list);			// args
+	if(r >= 0)
+		reg[r]++;
 
 	regalloc(&nodr, types[tptr], res);
 	regalloc(&nodo, types[tptr], &nodr);
@@ -548,7 +563,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		cgen(nl, &n1);
 		sc = mpgetfix(nr->val.u.xval);
 		if(sc == 0) {
-			return;
+			// nothing to do
 		} else if(sc >= nl->type->width*8) {
 			if(op == ORSH && issigned[nl->type->etype])
 				gshift(AMOVW, &n1, SHIFT_AR, w, &n1);

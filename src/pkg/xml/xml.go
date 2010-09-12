@@ -371,14 +371,8 @@ func (p *Parser) popElement(t *EndElement) bool {
 		p.err = p.syntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">")
 		return false
 	case s.name.Space != name.Space:
-		// BUG: work around bug in 5g by simplifying expression.
-		// p.err = p.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-		//	"closed by </" + name.Local + "> in space " + name.Space)
-		str := "element <" + s.name.Local
-		str += "> in space " + s.name.Space
-		str += "closed by </" + name.Local
-		str += "> in space " + name.Space
-		p.err = p.syntaxError(str)
+		p.err = p.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
+			"closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
 

@@ -110,14 +110,8 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 }
 
 func (err WrongValueError) String() string {
-	// BUG: work around bug in 5g by simplifying expression.
-	// return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.Itoa64(int64(err.from)) + ";" +
-	// 	strconv.Itoa64(int64(err.to)) + "] but actual value is " + strconv.Itoa64(int64(err.value))
-	str := "huffmanBitWriter: " + err.name + " should belong to ["
-	str += strconv.Itoa64(int64(err.from)) + ";"
-	str += strconv.Itoa64(int64(err.to)) + "] but actual value is "
-	str += strconv.Itoa64(int64(err.value))
-	return str
+	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.Itoa64(int64(err.from)) + ";" +
+		strconv.Itoa64(int64(err.to)) + "] but actual value is " + strconv.Itoa64(int64(err.value))
 }
 
 func (w *huffmanBitWriter) flushBits() {
