@@ -190,7 +190,6 @@ endif
 ifeq ($(GOOS),windows)
 NOTEST+=exec         # no pipe
 NOTEST+=log          # no runtime.Caller
-NOTEST+=net          # no network
 NOTEST+=os           # many things unimplemented
 NOTEST+=os/signal    # no signals
 NOTEST+=path         # tree walking does not work

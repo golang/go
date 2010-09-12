@@ -23,7 +23,6 @@ var porttests = []portTest{
 	portTest{"tcp", "chargen", 19, true},
 	portTest{"tcp", "ftp-data", 20, true},
 	portTest{"tcp", "ftp", 21, true},
-	portTest{"tcp", "ssh", 22, true},
 	portTest{"tcp", "telnet", 23, true},
 	portTest{"tcp", "smtp", 25, true},
 	portTest{"tcp", "time", 37, true},
