@@ -533,7 +533,7 @@ asmbmacho(vlong symdatva, vlong symo)
 		ml->data[0] = 4;	/* thread type */
 		ml->data[1] = 42;	/* word count */
 		ml->data[2+32] = entryvalue();	/* start pc */
-		ml->data[2+32+1] = entryvalue()>>32;
+		ml->data[2+32+1] = entryvalue()>>16>>16;	// hide >>32 for 8l
 		break;
 	case '8':
 		ml = newMachoLoad(5, 16+2);	/* unix thread */

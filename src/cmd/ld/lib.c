@@ -495,6 +495,7 @@ lookup(char *symb, int v)
 	s->version = v;
 	s->value = 0;
 	s->sig = 0;
+	s->size = 0;
 	hash[h] = s;
 	nsymbol++;
 	return s;

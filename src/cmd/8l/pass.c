@@ -55,13 +55,13 @@ dodata(void)
 			s->value = dtype;
 		if(s->type == SBSS)
 			s->type = SDATA;
-		if(s->type != SDATA && s->type != SELFDATA)
+		if(s->type != SDATA && s->type != SELFDATA && s->type != SRODATA)
 			diag("initialize non-data (%d): %s\n%P",
 				s->type, s->name, p);
 		t = p->from.offset + p->width;
-		if(t > s->value)
+		if(t > s->size)
 			diag("initialize bounds (%ld): %s\n%P",
-				s->value, s->name, p);
+				s->size, s->name, p);
 	}
 
 	/* allocate elf guys - must be segregated from real data */
@@ -72,7 +72,7 @@ dodata(void)
 			continue;
 		if(s->type != SELFDATA)
 			continue;
-		t = rnd(s->value, 4);
+		t = rnd(s->size, 4);
 		s->size = t;
 		s->value = datsize;
 		datsize += t;
@@ -87,14 +87,13 @@ dodata(void)
 		if(s->type != SDATA)
 		if(s->type != SBSS)
 			continue;
-		t = s->value;
+		t = s->size;
 		if(t == 0 && s->name[0] != '.') {
 			diag("%s: no size", s->name);
 			t = 1;
 		}
 		t = rnd(t, 4);
 		s->size = t;
-		s->value = t;
 		if(t > MINSIZ)
 			continue;
 		s->value = datsize;
@@ -110,8 +109,7 @@ dodata(void)
 				s->type = SDATA;
 			continue;
 		}
-		t = s->value;
-		s->size = t;
+		t = s->size;
 		s->value = datsize;
 		datsize += t;
 	}
@@ -154,8 +152,7 @@ dodata(void)
 			continue;
 		if(s->type != SBSS)
 			continue;
-		t = s->value;
-		s->size = t;
+		t = s->size;
 		s->value = bsssize + dynptrsize + datsize;
 		bsssize += t;
 	}
@@ -1042,10 +1039,10 @@ export(void)
 		newdata(et, off, sizeof(int32), D_EXTERN);
 		off += sizeof(int32);
 	}
-	et->value = off;
+	et->size = off;
 	if(sv == 0)
 		sv = 1;
-	str->value = sv;
+	str->size = sv;
 	exports = ne;
 	free(esyms);
 }

@@ -211,6 +211,7 @@ struct	Node
 	uchar	used;
 	uchar	isddd;
 	uchar	pun;		// dont registerize variable ONAME
+	uchar	readonly;
 
 	// most nodes
 	Node*	left;

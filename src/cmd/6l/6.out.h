@@ -33,6 +33,7 @@
 #define NOPROF	(1<<0)
 #define DUPOK	(1<<1)
 #define NOSPLIT	(1<<2)
+#define RODATA	(1<<3)
 
 /*
  *	amd64
