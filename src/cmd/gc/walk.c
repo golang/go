@@ -17,6 +17,7 @@ static	void	heapmoves(void);
 static	NodeList*	paramstoheap(Type **argin, int out);
 static	NodeList*	reorder1(NodeList*);
 static	NodeList*	reorder3(NodeList*);
+static	Node*	addstr(Node*, NodeList**);
 
 static	NodeList*	walkdefstack;
 
@@ -1205,10 +1206,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OADDSTR:
-		// sys_catstring(s1, s2)
-		n = mkcall("catstring", n->type, init,
-			conv(n->left, types[TSTRING]),
-			conv(n->right, types[TSTRING]));
+		n = addstr(n, init);
 		goto ret;
 
 	case OSLICESTR:
@@ -2233,4 +2231,43 @@ mapfn(char *name, Type *t)
 	argtype(fn, t->down);
 	argtype(fn, t->type);
 	return fn;
+}
+
+static Node*
+addstr(Node *n, NodeList **init)
+{
+	Node *r, *cat, *typstr;
+	NodeList *in, *args;
+	int i, count;
+	
+	count = 0;
+	for(r=n; r->op == OADDSTR; r=r->left)
+		count++;	// r->right
+	count++;	// r
+
+	// prepare call of runtime.catstring of type int, string, string, string
+	// with as many strings as we have.
+	cat = syslook("concatstring", 1);
+	cat->type = T;
+	cat->ntype = nod(OTFUNC, N, N);
+	in = list1(nod(ODCLFIELD, N, typenod(types[TINT])));	// count
+	typstr = typenod(types[TSTRING]);
+	for(i=0; i<count; i++)
+		in = list(in, nod(ODCLFIELD, N, typstr));
+	cat->ntype->list = in;
+	cat->ntype->rlist = list1(nod(ODCLFIELD, N, typstr));
+
+	args = nil;
+	for(r=n; r->op == OADDSTR; r=r->left)
+		args = concat(list1(conv(r->right, types[TSTRING])), args);
+	args = concat(list1(conv(r, types[TSTRING])), args);
+	args = concat(list1(nodintconst(count)), args);
+
+	r = nod(OCALL, cat, N);
+	r->list = args;
+	typecheck(&r, Erv);
+	walkexpr(&r, init);
+	r->type = n->type;
+	
+	return r;
 }
