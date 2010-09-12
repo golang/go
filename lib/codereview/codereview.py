@@ -1102,9 +1102,10 @@ def CheckContributor(ui, repo, user=None):
 	return userline
 
 def FindContributor(ui, repo, user, warn=True):
+	user = user.lower()
 	m = re.match(r".*<(.*)>", user)
 	if m:
-		user = m.group(1).lower()
+		user = m.group(1)
 
 	if user not in contributors:
 		if warn:
