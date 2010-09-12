@@ -197,9 +197,50 @@ afunclit(Addr *a)
 	}
 }
 
+static	int	resvd[] =
+{
+	9,	// reserved for m
+	10,	// reserved for g
+};
+
+void
+ginit(void)
+{
+	int i;
+
+	for(i=0; i<nelem(reg); i++)
+		reg[i] = 0;
+	for(i=0; i<nelem(resvd); i++)
+		reg[resvd[i]]++;
+}
+
+void
+gclean(void)
+{
+	int i;
+
+	for(i=0; i<nelem(resvd); i++)
+		reg[resvd[i]]--;
+
+	for(i=0; i<nelem(reg); i++)
+		if(reg[i])
+			yyerror("reg %R left allocated\n", i);
+}
+
 int32
 anyregalloc(void)
 {
+	int i, j;
+
+	for(i=0; i<nelem(reg); i++) {
+		if(reg[i] == 0)
+			goto ok;
+		for(j=0; j<nelem(resvd); j++)
+			if(resvd[j] == i)
+				goto ok;
+		return 1;
+	ok:;
+	}
 	return 0;
 }
 
@@ -213,9 +254,6 @@ regalloc(Node *n, Type *t, Node *o)
 {
 	int i, et, fixfree, floatfree;
 
-	// guarantee R9 and R10 (m and g) are left alone. BUG.
-	reg[9] = 1;
-	reg[10] = 1;
 	if(debug['r']) {
 		fixfree = 0;
 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)

@@ -356,17 +356,11 @@ type ParseError struct {
 // String is the string representation of a ParseError.
 func (e *ParseError) String() string {
 	if e.Message == "" {
-		// BUG: work around bug in 5g by simplifying expression.
-		// return "parsing time " +
-		//	strconv.Quote(e.Value) + " as " +
-		//	strconv.Quote(e.Layout) + ": cannot parse " +
-		//	strconv.Quote(e.ValueElem) + " as " +
-		//	strconv.Quote(e.LayoutElem)
-		str := "parsing time " + strconv.Quote(e.Value) + " as "
-		str += strconv.Quote(e.Layout) + ": cannot parse "
-		str += strconv.Quote(e.ValueElem) + " as "
-		str += strconv.Quote(e.LayoutElem)
-		return str
+		return "parsing time " +
+			strconv.Quote(e.Value) + " as " +
+			strconv.Quote(e.Layout) + ": cannot parse " +
+			strconv.Quote(e.ValueElem) + " as " +
+			strconv.Quote(e.LayoutElem)
 	}
 	return "parsing time " +
 		strconv.Quote(e.Value) + e.Message

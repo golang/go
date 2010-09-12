@@ -496,6 +496,7 @@ agen(Node *n, Node *res)
 	Prog *p1, *p2;
 	uint32 w;
 	uint64 v;
+	int r;
 
 	if(debug['g']) {
 		dump("\nagen-res", res);
@@ -527,17 +528,27 @@ agen(Node *n, Node *res)
 		break;
 
 	case OCALLMETH:
-		cgen_callmeth(n, 0);
+	case OCALLFUNC:
+		// Release res so that it is available for cgen_call.
+		// Pick it up again after the call.
+		r = -1;
+		if(n->ullman >= UINF) {
+			if(res->op == OREGISTER || res->op == OINDREG) {
+				r = res->val.u.reg;
+				reg[r]--;
+			}
+		}
+		if(n->op == OCALLMETH)
+			cgen_callmeth(n, 0);
+		else
+			cgen_call(n, 0);
+		if(r >= 0)
+			reg[r]++;
 		cgen_aret(n, res);
 		break;
 
 	case OCALLINTER:
 		cgen_callinter(n, res, 0);
-		cgen_aret(n, res);
-		break;
-
-	case OCALLFUNC:
-		cgen_call(n, 0);
 		cgen_aret(n, res);
 		break;
 

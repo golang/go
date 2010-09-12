@@ -139,8 +139,10 @@ gen(Node *n)
 	Prog *scontin, *sbreak;
 	Prog *p1, *p2, *p3;
 	Label *lab;
+	int32 wasregalloc;
 
 	lno = setlineno(n);
+	wasregalloc = anyregalloc();
 
 	if(n == N)
 		goto ret;
@@ -342,6 +344,11 @@ gen(Node *n)
 	}
 
 ret:
+	if(anyregalloc() != wasregalloc) {
+		dump("node", n);
+		fatal("registers left allocated");
+	}
+
 	lineno = lno;
 }
 

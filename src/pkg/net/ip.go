@@ -200,16 +200,10 @@ func (ip IP) String() string {
 
 	// If IPv4, use dotted notation.
 	if p4 := p.To4(); len(p4) == 4 {
-		// BUG: work around bug in 5g by simplifying expression.
-		// return itod(uint(p4[0])) + "." +
-		//	itod(uint(p4[1])) + "." +
-		//	itod(uint(p4[2])) + "." +
-		//	itod(uint(p4[3]))
-		str := itod(uint(p4[0])) + "."
-		str += itod(uint(p4[1])) + "."
-		str += itod(uint(p4[2])) + "."
-		str += itod(uint(p4[3]))
-		return str
+		return itod(uint(p4[0])) + "." +
+			itod(uint(p4[1])) + "." +
+			itod(uint(p4[2])) + "." +
+			itod(uint(p4[3]))
 	}
 	if len(p) != IPv6len {
 		return "?"
