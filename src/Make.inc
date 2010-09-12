@@ -3,8 +3,15 @@
 # license that can be found in the LICENSE file.
 
 # Makefile included by all other Go makefiles.
-# The build converts Make.inc.in to Make.inc.
-# Only make changes in Make.inc.in.
+
+# Clear variables that must come from Makefiles,
+# not the environment.
+LIB:=
+TARG:=
+GOFILES:=
+HFILES:=
+OFILES:=
+YFILES:=
 
 # GOROOT must be set.
 ifeq ($(GOROOT),)
@@ -44,7 +51,13 @@ O:=8
 else ifeq ($(GOARCH),amd64)
 O:=6
 else ifeq ($(GOARCH),arm)
+
 O:=5
+ifeq ($(GOOS),linux)
+else
+$(error Invalid $$GOOS '$(GOOS)' for GOARCH=arm; must be linux)
+endif
+
 else
 $(error Invalid $$GOARCH '$(GOARCH)'; must be 386, amd64, or arm)
 endif
