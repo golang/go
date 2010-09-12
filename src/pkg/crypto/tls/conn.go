@@ -670,3 +670,10 @@ func (c *Conn) PeerCertificates() []*x509.Certificate {
 
 	return c.peerCertificates
 }
+
+// VerifyHostname checks that the peer certificate chain is valid for
+// connecting to host.  If so, it returns nil; if not, it returns an os.Error
+// describing the problem.
+func (c *Conn) VerifyHostname(host string) os.Error {
+	return c.PeerCertificates()[0].VerifyHostname(host)
+}

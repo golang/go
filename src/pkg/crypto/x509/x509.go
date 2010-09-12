@@ -426,19 +426,37 @@ func matchHostnames(pattern, host string) bool {
 	return true
 }
 
-// IsValidForHost returns true iff c is a valid certificate for the given host.
-func (c *Certificate) IsValidForHost(h string) bool {
+type HostnameError struct {
+	Certificate *Certificate
+	Host        string
+}
+
+func (h *HostnameError) String() string {
+	var valid string
+	c := h.Certificate
+	if len(c.DNSNames) > 0 {
+		valid = strings.Join(c.DNSNames, ", ")
+	} else {
+		valid = c.Subject.CommonName
+	}
+	return "certificate is valid for " + valid + ", not " + h.Host
+}
+
+// VerifyHostname returns nil if c is a valid certificate for the named host.
+// Otherwise it returns an os.Error describing the mismatch.
+func (c *Certificate) VerifyHostname(h string) os.Error {
 	if len(c.DNSNames) > 0 {
 		for _, match := range c.DNSNames {
 			if matchHostnames(match, h) {
-				return true
+				return nil
 			}
 		}
 		// If Subject Alt Name is given, we ignore the common name.
-		return false
+	} else if matchHostnames(c.Subject.CommonName, h) {
+		return nil
 	}
 
-	return matchHostnames(c.Subject.CommonName, h)
+	return &HostnameError{c, h}
 }
 
 type UnhandledCriticalExtension struct{}

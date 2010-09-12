@@ -96,8 +96,8 @@ func TestCertificateParse(t *testing.T) {
 		t.Error(err)
 	}
 
-	if !certs[0].IsValidForHost("mail.google.com") {
-		t.Errorf("cert not valid for host")
+	if err := certs[0].VerifyHostname("mail.google.com"); err != nil {
+		t.Error(err)
 	}
 }
 
