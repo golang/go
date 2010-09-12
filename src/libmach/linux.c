@@ -202,6 +202,8 @@ attachthread(int pid, int tid, int *new, int newstate)
         memset(t, 0, sizeof *t);
 
 	thr[nthr++] = t;
+	if(pid == 0 && nthr > 0)
+		pid = thr[0]->pid;
 	t->pid = pid;
 	t->tid = tid;
 	t->state = newstate;
@@ -296,7 +298,9 @@ wait1(int nohang)
 	if(nohang != 0)
 		nohang = WNOHANG;
 
+	status = 0;
 	tid = waitpid(-1, &status, __WALL|WUNTRACED|WSTOPPED|WCONTINUED|nohang);
+
 	if(tid < 0)
 		return -1;
 	if(tid == 0)
@@ -305,11 +309,15 @@ wait1(int nohang)
 	if(trace > 0 && status != NormalStop)
 		fprint(2, "TID %d: %#x\n", tid, status);
 
-	// If we've not heard of this tid, something is wrong.
 	t = findthread(tid);
 	if(t == nil) {
-		fprint(2, "ptrace waitpid: unexpected new tid %d status %#x\n", tid, status);
-		return -1;
+		// Sometimes the kernel tells us about new threads
+		// before we see the parent clone.
+		t = attachthread(0, tid, &new, Stopped);
+		if(t == nil) {
+			fprint(2, "failed to attach to new thread %d\n", tid);
+			return -1;
+		}
 	}
 
 	if(WIFSTOPPED(status)) {
@@ -339,8 +347,6 @@ wait1(int nohang)
 				}
 				t->child = data;
 				attachthread(t->pid, t->child, &new, Running);
-				if(!new)
-					fprint(2, "ptrace child: not new\n");
 				break;
 
 			case PTRACE_EVENT_EXEC:
