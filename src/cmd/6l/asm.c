@@ -136,16 +136,16 @@ addstring(Sym *s, char *str)
 	if(s->type == 0)
 		s->type = SDATA;
 	s->reachable = 1;
-	r = s->value;
+	r = s->size;
 	n = strlen(str)+1;
 	while(n > 0) {
 		m = n;
 		if(m > sizeof(p->to.scon))
 			m = sizeof(p->to.scon);
-		p = newdata(s, s->value, m, D_EXTERN);
+		p = newdata(s, s->size, m, D_EXTERN);
 		p->to.type = D_SCONST;
 		memmove(p->to.scon, str, m);
-		s->value += m;
+		s->size += m;
 		str += m;
 		n -= m;
 	}
@@ -161,9 +161,9 @@ adduintxx(Sym *s, uint64 v, int wid)
 	if(s->type == 0)
 		s->type = SDATA;
 	s->reachable = 1;
-	r = s->value;
-	p = newdata(s, s->value, wid, D_EXTERN);
-	s->value += wid;
+	r = s->size;
+	p = newdata(s, s->size, wid, D_EXTERN);
+	s->size += wid;
 	p->to.type = D_CONST;
 	p->to.offset = v;
 	return r;
@@ -203,9 +203,9 @@ addaddr(Sym *s, Sym *t)
 	if(s->type == 0)
 		s->type = SDATA;
 	s->reachable = 1;
-	r = s->value;
-	p = newdata(s, s->value, Ptrsize, D_EXTERN);
-	s->value += Ptrsize;
+	r = s->size;
+	p = newdata(s, s->size, Ptrsize, D_EXTERN);
+	s->size += Ptrsize;
 	p->to.type = D_ADDR;
 	p->to.index = D_EXTERN;
 	p->to.offset = 0;
@@ -223,9 +223,9 @@ addsize(Sym *s, Sym *t)
 	if(s->type == 0)
 		s->type = SDATA;
 	s->reachable = 1;
-	r = s->value;
-	p = newdata(s, s->value, Ptrsize, D_EXTERN);
-	s->value += Ptrsize;
+	r = s->size;
+	p = newdata(s, s->size, Ptrsize, D_EXTERN);
+	s->size += Ptrsize;
 	p->to.type = D_SIZE;
 	p->to.index = D_EXTERN;
 	p->to.offset = 0;
@@ -321,13 +321,12 @@ doelf(void)
 		s = lookup(".dynsym", 0);
 		s->type = SELFDATA;
 		s->reachable = 1;
-		s->value += ELF64SYMSIZE;
+		s->size += ELF64SYMSIZE;
 
 		/* dynamic string table */
 		s = lookup(".dynstr", 0);
 		s->type = SELFDATA;
 		s->reachable = 1;
-		s->value += ELF64SYMSIZE;
 		addstring(s, "");
 		dynstr = s;
 
@@ -467,7 +466,7 @@ asmb(void)
 	int32 v, magic;
 	int a, dynsym;
 	uchar *op1;
-	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
+	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink, etext;
 	vlong symdatva = SYMDATVA;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
@@ -519,6 +518,16 @@ asmb(void)
 	}
 	cflush();
 
+	datap = datsort(datap);
+
+	/* output read-only data in text segment */
+	etext = INITTEXT + textsize;
+	for(v = pc; v < etext; v += sizeof(buf)-Dbufslop) {
+		if(etext - v > sizeof(buf)-Dbufslop)
+			datblk(v, sizeof(buf)-Dbufslop);
+		else
+			datblk(v, etext-v);
+	}
 
 	switch(HEADTYPE) {
 	default:
@@ -564,12 +573,11 @@ asmb(void)
 		textsize = INITDAT;
 	}
 
-	datap = datsort(datap);
 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
 		if(datsize-v > sizeof(buf)-Dbufslop)
-			datblk(v, sizeof(buf)-Dbufslop);
+			datblk(v+INITDAT, sizeof(buf)-Dbufslop);
 		else
-			datblk(v, datsize-v);
+			datblk(v+INITDAT, datsize-v);
 	}
 
 	machlink = 0;
@@ -1102,6 +1110,8 @@ datsort(Prog *l)
 	for(p = l; p != P; p = p->link) {
 		a = &p->from;
 		a->offset += a->sym->value;
+		if(a->sym->type != SRODATA)
+			a->offset += INITDAT;
 	}
 	datp = dsort(l);
 	return datp;
@@ -1202,10 +1212,10 @@ datblk(int32 s, int32 n)
 						diag("missing symbol %s", p->to.sym->name);
 					}
 					o += p->to.sym->value;
-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
+					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
 						o += INITDAT;
 					if(dlm)
-						dynreloc(p->to.sym, l+s+INITDAT, 1);
+						dynreloc(p->to.sym, l+s, 1);
 				}
 			}
 			fl = o;
@@ -1266,6 +1276,7 @@ datblk(int32 s, int32 n)
 		if(a->sym->type == SMACHO)
 			continue;
 
+		curp = p;
 		switch(p->to.type) {
 		case D_FCONST:
 			switch(c) {
@@ -1273,17 +1284,17 @@ datblk(int32 s, int32 n)
 			case 4:
 				fl = ieeedtof(&p->to.ieee);
 				cast = (uchar*)&fl;
-				outa(c, cast, fnuxi4, l+s+INITDAT);
+				outa(c, cast, fnuxi4, l+s);
 				break;
 			case 8:
 				cast = (uchar*)&p->to.ieee;
-				outa(c, cast, fnuxi8, l+s+INITDAT);
+				outa(c, cast, fnuxi8, l+s);
 				break;
 			}
 			break;
 
 		case D_SCONST:
-			outa(c, (uchar*)p->to.scon, nil, l+s+INITDAT);
+			outa(c, (uchar*)p->to.scon, nil, l+s);
 			break;
 
 		default:
@@ -1293,7 +1304,7 @@ datblk(int32 s, int32 n)
 			if(p->to.type == D_ADDR) {
 				if(p->to.sym) {
 					o += p->to.sym->value;
-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
+					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
 						o += INITDAT;
 				}
 			}
@@ -1301,17 +1312,17 @@ datblk(int32 s, int32 n)
 			cast = (uchar*)&fl;
 			switch(c) {
 			case 1:
-				outa(c, cast, inuxi1, l+s+INITDAT);
+				outa(c, cast, inuxi1, l+s);
 				break;
 			case 2:
-				outa(c, cast, inuxi2, l+s+INITDAT);
+				outa(c, cast, inuxi2, l+s);
 				break;
 			case 4:
-				outa(c, cast, inuxi4, l+s+INITDAT);
+				outa(c, cast, inuxi4, l+s);
 				break;
 			case 8:
 				cast = (uchar*)&o;
-				outa(c, cast, inuxi8, l+s+INITDAT);
+				outa(c, cast, inuxi8, l+s);
 				break;
 			}
 			break;

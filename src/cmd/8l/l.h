@@ -163,6 +163,7 @@ enum
 
 	SFIXED,
 	SELFDATA,
+	SRODATA,
 
 	NHASH		= 10007,
 	NHUNK		= 100000,
@@ -347,7 +348,7 @@ void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
 vlong   cpos(void);
 double	cputime(void);
-void	datblk(int32, int32);
+void	datblk(int32, int32, int32);
 void	diag(char*, ...);
 void	dodata(void);
 void	doelf(void);

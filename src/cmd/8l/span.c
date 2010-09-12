@@ -35,8 +35,9 @@ void
 span(void)
 {
 	Prog *p, *q;
-	int32 v, c, idat;
+	int32 i, v, c, idat;
 	int m, n, again;
+	Sym *s;
 
 	xdefine("etext", STEXT, 0L);
 	idat = INITDAT;
@@ -106,6 +107,21 @@ start:
 		textsize = c;
 		n++;
 	}while(again);
+	
+	/*
+	 * allocate read-only data to the text segment.
+	 */
+	c = rnd(c, 8);
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->link) {
+		if(s->type != SRODATA)
+			continue;
+		v = s->size;
+		while(v & 3)
+			v++;
+		s->value = c;
+		c += v;
+	}
 
 	if(INITRND) {
 		INITDAT = rnd(c+textpad, INITRND);
@@ -114,6 +130,7 @@ start:
 			goto start;
 		}
 	}
+
 	xdefine("etext", STEXT, c);
 	if(debug['v'])
 		Bprint(&bso, "etext = %lux\n", c);
@@ -208,6 +225,7 @@ asmsym(void)
 		for(s=hash[h]; s!=S; s=s->link)
 			switch(s->type) {
 			case SCONST:
+			case SRODATA:
 				if(!s->reachable)
 					continue;
 				putsymb(s->name, 'D', s->value, s->version, s->gotype);
@@ -618,6 +636,7 @@ vaddr(Adr *a)
 				ckoff(s, v);
 			case STEXT:
 			case SCONST:
+			case SRODATA:
 				if(!s->reachable)
 					sysfatal("unreachable symbol in vaddr - %s", s->name);
 				v += s->value;

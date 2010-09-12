@@ -47,41 +47,30 @@ listinit(void)
 int
 Pconv(Fmt *fp)
 {
-	char str[STRINGSZ], str1[STRINGSZ];
 	Prog *p;
 
 	p = va_arg(fp->args, Prog*);
-	if(p == P)
-		return fmtstrcpy(fp, "<P>");
-
 	bigP = p;
-
-	snprint(str1, sizeof(str1), "(%ld)", p->line);
 	switch(p->as) {
 	case ATEXT:
 		if(p->from.scale) {
-			snprint(str, sizeof(str), "%-7s %-7A %D,%d,%lD",
-				str1, p->as, &p->from, p->from.scale, &p->to);
+			fmtprint(fp, "(%d)	%A	%D,%d,%D",
+				p->line, p->as, &p->from, p->from.scale, &p->to);
 			break;
 		}
-		snprint(str, sizeof(str), "%-7s %-7A %D,%lD",
-			str1, p->as, &p->from, &p->to);
-		break;
-
 	default:
-		snprint(str, sizeof(str), "%-7s %-7A %D,%D",
-			str1, p->as, &p->from, &p->to);
+		fmtprint(fp, "(%d)	%A	%D,%D",
+			p->line, p->as, &p->from, &p->to);
 		break;
-
 	case ADATA:
 	case AINIT:
 	case ADYNT:
-		snprint(str, sizeof(str), "%-7s %-7A %D/%d,%D",
-			str1, p->as, &p->from, p->from.scale, &p->to);
+		fmtprint(fp, "(%d)	%A	%D/%d,%D",
+			p->line, p->as, &p->from, p->from.scale, &p->to);
 		break;
 	}
 	bigP = P;
-	return fmtstrcpy(fp, str);
+	return 0;
 }
 
 int

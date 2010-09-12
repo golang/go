@@ -633,18 +633,20 @@ loop:
 		s = p->from.sym;
 		if(s->type == 0 || s->type == SXREF) {
 			s->type = SBSS;
-			s->value = 0;
+			s->size = 0;
 		}
-		if(s->type != SBSS) {
+		if(s->type != SBSS && !s->dupok) {
 			diag("%s: redefinition: %s in %s",
 				pn, s->name, TNAME);
 			s->type = SBSS;
-			s->value = 0;
+			s->size = 0;
 		}
-		if(p->to.offset > s->value)
-			s->value = p->to.offset;
+		if(p->to.offset > s->size)
+			s->size = p->to.offset;
 		if(p->from.scale & DUPOK)
 			s->dupok = 1;
+		if(p->from.scale & RODATA)
+			s->type = SRODATA;
 		goto loop;
 
 	case ADYNT:
@@ -791,7 +793,7 @@ loop:
 			s = lookup(literal, 0);
 			if(s->type == 0) {
 				s->type = SBSS;
-				s->value = 4;
+				s->size = 4;
 				t = prg();
 				t->as = ADATA;
 				t->line = p->line;
@@ -837,7 +839,7 @@ loop:
 			s = lookup(literal, 0);
 			if(s->type == 0) {
 				s->type = SBSS;
-				s->value = 8;
+				s->size = 8;
 				t = prg();
 				t->as = ADATA;
 				t->line = p->line;
@@ -967,7 +969,7 @@ doprof1(void)
 	q->to.offset = n;
 
 	s->type = SBSS;
-	s->value = n*4;
+	s->size = n*4;
 }
 
 void

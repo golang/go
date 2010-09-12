@@ -2600,6 +2600,7 @@ staticname(Type *t)
 	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d", statuniqgen);
 	statuniqgen++;
 	n = newname(lookup(namebuf));
+//	n->readonly = 1;
 	addvar(n, t, PEXTERN);
 	return n;
 }

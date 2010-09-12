@@ -39,9 +39,10 @@ void
 span(void)
 {
 	Prog *p, *q;
-	int32 v;
+	int32 i, v;
 	vlong c, idat;
 	int m, n, again;
+	Sym *s;
 
 	xdefine("etext", STEXT, 0L);
 	idat = INITDAT;
@@ -121,6 +122,22 @@ loop:
 		textsize = c;
 		goto loop;
 	}
+	
+	/*
+	 * allocate read-only data to the text segment.
+	 */
+	c = rnd(c, 8);
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->link) {
+		if(s->type != SRODATA)
+			continue;
+		v = s->size;
+		while(v & 7)
+			v++;
+		s->value = c;
+		c += v;
+	}
+
 	if(INITRND) {
 		INITDAT = rnd(c, INITRND);
 		if(INITDAT != idat) {
@@ -128,6 +145,7 @@ loop:
 			goto start;
 		}
 	}
+
 	xdefine("etext", STEXT, c);
 	if(debug['v'])
 		Bprint(&bso, "etext = %llux\n", c);
@@ -228,6 +246,7 @@ genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
 		for(s=hash[h]; s!=S; s=s->link) {
 			switch(s->type) {
 			case SCONST:
+			case SRODATA:
 				if(!s->reachable)
 					continue;
 				put(s->name, 'D', s->value, s->size, s->version, s->gotype);
@@ -809,6 +828,7 @@ vaddr(Adr *a)
 				ckoff(s, v);
 			case STEXT:
 			case SCONST:
+			case SRODATA:
 				if(!s->reachable)
 					diag("unreachable symbol in vaddr - %s", s->name);
 				if((uvlong)s->value < (uvlong)INITTEXT)

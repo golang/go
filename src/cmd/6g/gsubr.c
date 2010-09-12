@@ -147,6 +147,8 @@ ggloblnod(Node *nam, int32 width)
 	p->to.sym = S;
 	p->to.type = D_CONST;
 	p->to.offset = width;
+	if(nam->readonly)
+		p->from.scale = RODATA;
 }
 
 void
@@ -163,6 +165,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
 	p->to.offset = width;
 	if(dupok)
 		p->from.scale = DUPOK;
+	p->from.scale |= RODATA;
 }
 
 int
