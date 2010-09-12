@@ -54,7 +54,7 @@ func Tan(x float64) float64 {
 
 	if flag {
 		if temp == 0 {
-			panic(NaN())
+			return NaN()
 		}
 		temp = 1 / temp
 	}

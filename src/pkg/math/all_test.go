@@ -7,6 +7,7 @@ package math_test
 import (
 	"fmt"
 	. "math"
+	"runtime"
 	"testing"
 )
 
@@ -2098,6 +2099,16 @@ func TestTan(t *testing.T) {
 	for i := 0; i < len(vfsinSC); i++ {
 		if f := Tan(vfsinSC[i]); !alike(sinSC[i], f) {
 			t.Errorf("Tan(%g) = %g, want %g\n", vfsinSC[i], f, sinSC[i])
+		}
+	}
+
+	// Make sure portable Tan(Pi/2) doesn't panic (it used to).
+	// The portable implementation returns NaN.
+	// Assembly implementations might not,
+	// because Pi/2 is not exactly representable.
+	if runtime.GOARCH != "386" {
+		if f := Tan(Pi / 2); !alike(f, NaN()) {
+			t.Errorf("Tan(%g) = %g, want %g\n", Pi/2, f, NaN())
 		}
 	}
 }
