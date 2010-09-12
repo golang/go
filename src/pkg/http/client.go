@@ -59,11 +59,21 @@ func send(req *Request) (resp *Response, err os.Error) {
 	var conn io.ReadWriteCloser
 	if req.URL.Scheme == "http" {
 		conn, err = net.Dial("tcp", "", addr)
+		if err != nil {
+			return nil, err
+		}
 	} else { // https
 		conn, err = tls.Dial("tcp", "", addr)
-	}
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+		h := req.URL.Host
+		if hasPort(h) {
+			h = h[0:strings.LastIndex(h, ":")]
+		}
+		if err := conn.(*tls.Conn).VerifyHostname(h); err != nil {
+			return nil, err
+		}
 	}
 
 	err = req.Write(conn)
