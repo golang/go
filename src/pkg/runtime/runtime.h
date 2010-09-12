@@ -232,9 +232,7 @@ struct	M
 	G*	lockedg;
 	uint64 freg[8];	// Floating point register storage used by ARM software fp routines
 #ifdef __WINDOWS__
-	void*	return_address;	// saved return address and stack
-	void*	stack_pointer;	// pointer for Windows stdcall
-	void*	os_stack_pointer;
+	void*	gostack;	// bookmark to keep track of go stack during stdcall
 #endif
 };
 struct	Stktop
@@ -288,6 +286,16 @@ struct	Func
 	int32	args;	// number of 32-bit in/out args
 	int32	locals;	// number of 32-bit locals
 };
+
+#ifdef __WINDOWS__
+enum {
+   Windows = 1
+};
+#else
+enum {
+   Windows = 0
+};
+#endif
 
 /*
  * defined macros
