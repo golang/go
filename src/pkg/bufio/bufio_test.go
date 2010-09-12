@@ -226,6 +226,99 @@ func TestReadRune(t *testing.T) {
 	}
 }
 
+func TestUnreadRune(t *testing.T) {
+	got := ""
+	segments := []string{"Hello, world:", "日本語"}
+	data := strings.Join(segments, "")
+	r := NewReader(&StringReader{data: segments})
+	// Normal execution.
+	for {
+		rune, _, err := r.ReadRune()
+		if err != nil {
+			if err != os.EOF {
+				t.Error("unexpected EOF")
+			}
+			break
+		}
+		got += string(rune)
+		// Put it back and read it again
+		if err = r.UnreadRune(); err != nil {
+			t.Error("unexpected error on UnreadRune:", err)
+		}
+		rune1, _, err := r.ReadRune()
+		if err != nil {
+			t.Error("unexpected error reading after unreading:", err)
+		}
+		if rune != rune1 {
+			t.Error("incorrect rune after unread: got %c wanted %c", rune1, rune)
+		}
+	}
+	if got != data {
+		t.Errorf("want=%q got=%q", data, got)
+	}
+}
+
+// Test that UnreadRune fails if the preceding operation was not a ReadRune.
+func TestUnreadRuneError(t *testing.T) {
+	buf := make([]byte, 3) // All runes in this test are 3 bytes long
+	r := NewReader(&StringReader{data: []string{"日本語日本語日本語"}})
+	if r.UnreadRune() == nil {
+		t.Error("expected error on UnreadRune from fresh buffer")
+	}
+	_, _, err := r.ReadRune()
+	if err != nil {
+		t.Error("unexpected error on ReadRune (1):", err)
+	}
+	if err = r.UnreadRune(); err != nil {
+		t.Error("unexpected error on UnreadRune (1):", err)
+	}
+	if r.UnreadRune() == nil {
+		t.Error("expected error after UnreadRune (1)")
+	}
+	// Test error after Read.
+	_, _, err = r.ReadRune() // reset state
+	if err != nil {
+		t.Error("unexpected error on ReadRune (2):", err)
+	}
+	_, err = r.Read(buf)
+	if err != nil {
+		t.Error("unexpected error on Read (2):", err)
+	}
+	if r.UnreadRune() == nil {
+		t.Error("expected error after Read (2)")
+	}
+	// Test error after ReadByte.
+	_, _, err = r.ReadRune() // reset state
+	if err != nil {
+		t.Error("unexpected error on ReadRune (2):", err)
+	}
+	for _ = range buf {
+		_, err = r.ReadByte()
+		if err != nil {
+			t.Error("unexpected error on ReadByte (2):", err)
+		}
+	}
+	if r.UnreadRune() == nil {
+		t.Error("expected error after ReadByte")
+	}
+	// Test error after UnreadByte.
+	_, _, err = r.ReadRune() // reset state
+	if err != nil {
+		t.Error("unexpected error on ReadRune (3):", err)
+	}
+	_, err = r.ReadByte()
+	if err != nil {
+		t.Error("unexpected error on ReadByte (3):", err)
+	}
+	err = r.UnreadByte()
+	if err != nil {
+		t.Error("unexpected error on UnreadByte (3):", err)
+	}
+	if r.UnreadRune() == nil {
+		t.Error("expected error after UnreadByte (3)")
+	}
+}
+
 func TestReadWriteRune(t *testing.T) {
 	const NRune = 1000
 	byteBuf := new(bytes.Buffer)
