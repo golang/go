@@ -434,7 +434,11 @@ matchmg(void)
 				ts.fn = mstart;
 				runcgo(libcgo_thread_start, &ts);
 			} else {
-				m->g0 = malg(8192);
+				if(Windows)
+					// windows will layout sched stack on os stack
+					m->g0 = malg(-1);
+				else
+					m->g0 = malg(8192);
 				newosproc(m, m->g0, m->g0->stackbase, mstart);
 			}
 		}

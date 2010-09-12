@@ -77,8 +77,8 @@ get_proc_addr(void *library, void *name)
 {
 	void *base;
 
-	base = stdcall_raw(LoadLibraryEx, library, 0, 0);
-	return stdcall_raw(GetProcAddress, base, name);
+	base = stdcall(LoadLibraryEx, 3, library, 0, 0);
+	return stdcall(GetProcAddress, 2, base, name);
 }
 
 void
@@ -251,17 +251,11 @@ notesleep(Note *n)
 void
 newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
-	struct {
-		void *args;
-		void *event_handle;
-	} param = { &m };
-	extern uint32 threadstart(void *p);
+	USED(stk);
+	USED(g);	// assuming g = m->g0
+	USED(fn);	// assuming fn = mstart
 
-	USED(g, stk, fn);
-	param.event_handle = stdcall(CreateEvent, 4, 0, 0, 0, 0);
-	stdcall(CreateThread, 6, 0, 0, threadstart, &param, 0, 0);
-	stdcall(WaitForSingleObject, 2, param.event_handle, -1);
-	stdcall(CloseHandle, 1, param.event_handle);
+	stdcall(CreateThread, 6, 0, 0, tstart_stdcall, m, 0, 0);
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -275,25 +269,20 @@ minit(void)
 void *
 stdcall(void *fn, int32 count, ...)
 {
-	uintptr *a;
-	StdcallParams p;
-
-	p.fn = fn;
-	a = (uintptr*)(&count + 1);
-	while(count > 0) {
-		count--;
-		p.args[count] = a[count];
-	}
-	syscall(&p);
-	return (void*)(p.r);
+	return stdcall_raw(fn, count, (uintptr*)(&count + 1));
 }
 
 void
-call_syscall(void *args)
+syscall(StdcallParams *p)
 {
-	StdcallParams *p = (StdcallParams*)args;
-	stdcall_raw(SetLastError, 0);
-	p->r = (uintptr)stdcall_raw((void*)p->fn, p->args[0], p->args[1], p->args[2], p->args[3], p->args[4], p->args[5], p->args[6], p->args[7], p->args[8], p->args[9], p->args[10], p->args[11]);
-	p->err = (uintptr)stdcall_raw(GetLastError);
-	return;
+	uintptr a;
+
+	·entersyscall();
+	// TODO(brainman): Move calls to SetLastError and GetLastError
+	// to stdcall_raw to speed up syscall.
+	a = 0;
+	stdcall_raw(SetLastError, 1, &a);
+	p->r = (uintptr)stdcall_raw((void*)p->fn, p->n, p->args);
+	p->err = (uintptr)stdcall_raw(GetLastError, 0, &a);
+	·exitsyscall();
 }
