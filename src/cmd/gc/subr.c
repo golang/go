@@ -1161,7 +1161,7 @@ Tpretty(Fmt *fp, Type *t)
 		case Csend:
 			return fmtprint(fp, "chan<- %T", t->type);
 		}
-		if(t->type != T && t->type->etype == TCHAN && t->type->chan == Crecv)
+		if(t->type != T && t->type->etype == TCHAN && t->type->sym == S && t->type->chan == Crecv)
 			return fmtprint(fp, "chan (%T)", t->type);
 		return fmtprint(fp, "chan %T", t->type);
 

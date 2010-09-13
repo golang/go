@@ -192,7 +192,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 			exprfmt(f, n->left, 0);
 		} else {
 			fmtprint(f, " ");
-			if(n->left->op == OTCHAN && n->left->etype == Crecv) {
+			if(n->left->op == OTCHAN && n->left->sym == S && n->left->etype == Crecv) {
 				fmtprint(f, "(");
 				exprfmt(f, n->left, 0);
 				fmtprint(f, ")");
