@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The json package implements encoding and decoding of JSON objects as
+// defined in RFC 4627.
 package json
 
 import (
