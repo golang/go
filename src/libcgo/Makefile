@@ -16,9 +16,10 @@ OFILES=\
 HOST_CFLAGS_386=-m32
 HOST_CFLAGS_amd64=-m64
 
-LDFLAGS_linux=-shared -lpthread -lm
 LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
-LDFLAGS_freebsd=-pthread -shared -lm
+LDFLAGS_freebsd=-shared -lm -pthread
+LDFLAGS_linux=-shared -lm -lpthread
+LDFLAGS_nacl=-shared -lm -lpthread
 LDFLAGS_windows=-shared -lm -mthreads
 
 %.o: %.c
