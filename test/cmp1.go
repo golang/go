@@ -26,6 +26,8 @@ func istrue(b bool) {
 	}
 }
 
+type T *int
+
 func main() {
 	var a []int
 	var b map[string]int
@@ -55,6 +57,24 @@ func main() {
 	isfalse(ib == id)
 	istrue(ic == id)
 	istrue(ie == ie)
+	
+	// these are okay because one side of the
+	// comparison need only be assignable to the other.
+	isfalse(a == ib)
+	isfalse(a == ic)
+	isfalse(a == id)
+	isfalse(b == ic)
+	isfalse(b == id)
+	istrue(c == id)
+	istrue(e == ie)
+
+	isfalse(ia == b)
+	isfalse(ia == c)
+	isfalse(ia == d)
+	isfalse(ib == c)
+	isfalse(ib == d)
+	istrue(ic == d)
+	istrue(ie == e)
 
 	// 6g used to let this go through as true.
 	var g uint64 = 123
@@ -72,5 +92,39 @@ func main() {
 	if m[ic] != 2 {
 		println("m[ic] = ", m[ic])
 		panic("bad m[ic]")
+	}
+	
+	// non-interface comparisons
+	{
+		c := make(chan int)
+		c1 := (<-chan int)(c)
+		c2 := (chan<- int)(c)
+		istrue(c == c1)
+		istrue(c == c2)
+		istrue(c1 == c)
+		istrue(c2 == c)
+		
+		d := make(chan int)
+		isfalse(c == d)
+		isfalse(d == c)
+		isfalse(d == c1)
+		isfalse(d == c2)
+		isfalse(c1 == d)
+		isfalse(c2 == d)
+	}
+
+	// named types vs not
+	{
+		var x = new(int)
+		var y T
+		var z T = x
+		
+		isfalse(x == y)
+		istrue(x == z)
+		isfalse(y == z)
+
+		isfalse(y == x)
+		istrue(z == x)
+		isfalse(z == y)
 	}
 }
