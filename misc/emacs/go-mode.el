@@ -92,7 +92,7 @@ some syntax analysis.")
       ;; Map key type
       (,(concat "\\<map\\s *\\[" type-name) 1 font-lock-type-face)
       ;; Channel value type
-      (,(concat "\\<chan\\s *\\(?:<-\\)?" type-name) 1 font-lock-type-face)
+      (,(concat "\\<chan\\>\\s *\\(?:<-\\)?" type-name) 1 font-lock-type-face)
       ;; new/make type
       (,(concat "\\<\\(?:new\\|make\\)\\>\\(?:\\s \\|)\\)*(" type-name) 1 font-lock-type-face)
       ;; Type conversion
