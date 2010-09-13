@@ -63,7 +63,7 @@ typechecklist(NodeList *l, int top)
 Node*
 typecheck(Node **np, int top)
 {
-	int et, op, ptr;
+	int et, aop, op, ptr;
 	Node *n, *l, *r;
 	NodeList *args;
 	int lno, ok, ntop;
@@ -350,6 +350,26 @@ reswitch:
 		et = t->etype;
 		if(et == TIDEAL)
 			et = TINT;
+		if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+			// comparison is okay as long as one side is
+			// assignable to the other.  convert so they have
+			// the same type.  (the only conversion that isn't
+			// a no-op is concrete == interface.)
+			if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
+				l = nod(aop, l, N);
+				l->type = r->type;
+				l->typecheck = 1;
+				n->left = l;
+				t = l->type;
+			} else if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
+				r = nod(aop, r, N);
+				r->type = l->type;
+				r->typecheck = 1;
+				n->right = r;
+				t = r->type;
+			}
+			et = t->etype;
+		}
 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
 		badbinary:
 			defaultlit2(&l, &r, 1);
