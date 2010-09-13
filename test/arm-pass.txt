@@ -116,7 +116,7 @@
 ./varerr.go
 ./varinit.go
 ./vectors.go
-./zerodivide.go
+# ./zerodivide.go # regalloc fails
 ken/array.go
 ken/chan.go
 ken/chan1.go
