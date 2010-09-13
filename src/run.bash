@@ -76,8 +76,10 @@ time gomake test
 ) || exit $?
 
 (xcd ../misc/cgo/stdio
-gomake clean
-./test.bash
+if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
+	gomake clean
+	./test.bash
+fi
 ) || exit $?
 
 (xcd pkg/exp/ogle
@@ -86,14 +88,20 @@ time gomake ogle
 ) || exit $?
 
 (xcd ../doc/progs
-time ./run
+if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
+	time ./run
+fi
 ) || exit $?
 
 (xcd ../test/bench
-./timing.sh -test
+if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
+	./timing.sh -test
+fi
 ) || exit $?
 
 (xcd ../test
-./run
+if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
+	./run
+fi
 ) || exit $?
 
