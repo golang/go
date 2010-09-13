@@ -148,6 +148,11 @@ func install(pkg, parent string) {
 	// If remote, download or update it.
 	var dir string
 	local := false
+	if strings.HasPrefix(pkg, "http://") {
+		fmt.Fprintf(os.Stderr, "%s: %s: 'http://' used in remote path, try '%s'\n", argv0, pkg, pkg[7:])
+		errors = true
+		return
+	}
 	if isLocalPath(pkg) {
 		dir = pkg
 		local = true
