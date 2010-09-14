@@ -7,6 +7,8 @@
 package main
 
 import (
+	"io"
+	"io/ioutil"
 	"os"
 	pathutil "path"
 	"sort"
@@ -84,4 +86,24 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
 	}
 
 	return list[0:i]
+}
+
+
+// writeFileAtomically writes data to a temporary file and then
+// atomically renames that file to the file named by filename.
+//
+func writeFileAtomically(filename string, data []byte) os.Error {
+	f, err := ioutil.TempFile(cwd, filename)
+	if err != nil {
+		return err
+	}
+	n, err := f.Write(data)
+	f.Close()
+	if err != nil {
+		return err
+	}
+	if n < len(data) {
+		return io.ErrShortWrite
+	}
+	return os.Rename(f.Name(), filename)
 }

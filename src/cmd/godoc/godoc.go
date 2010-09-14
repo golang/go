@@ -170,10 +170,8 @@ func updateFilterFile() {
 	})
 
 	// update filter file
-	// TODO(gri) should write a tmp file and atomically rename
-	err := ioutil.WriteFile(*filter, buf.Bytes(), 0666)
-	if err != nil {
-		log.Stderrf("ioutil.Writefile(%s): %s", *filter, err)
+	if err := writeFileAtomically(*filter, buf.Bytes()); err != nil {
+		log.Stderrf("writeFileAtomically(%s): %s", *filter, err)
 		filterDelay.backoff(24 * 60) // back off exponentially, but try at least once a day
 	} else {
 		filterDelay.set(*filterMin) // revert to regular filter update schedule
