@@ -605,7 +605,7 @@ loop:
 				histfrogp++;
 			} else
 				collapsefrog(s);
-                        dwarfaddfrag(s->value, s->name);
+			dwarfaddfrag(s->value, s->name);
 		}
 		goto loop;
 	}

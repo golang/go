@@ -294,7 +294,7 @@ doelf(void)
 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
-                dwarfaddshstrings(shstrtab);
+		dwarfaddshstrings(shstrtab);
 	}
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
 
@@ -660,11 +660,11 @@ asmb(void)
 		lputl(symsize);
 		lputl(lcsize);
 		cflush();
-                if(HEADTYPE != 10 && !debug['s']) {
-                        seek(cout, symo+8+symsize+lcsize, 0);
-                        if(debug['v'])
-                               Bprint(&bso, "%5.2f dwarf\n", cputime());
-                        dwarfemitdebugsections();
+		if(HEADTYPE != 10 && !debug['s']) {
+			seek(cout, symo+8+symsize+lcsize, 0);
+			if(debug['v'])
+				Bprint(&bso, "%5.2f dwarf\n", cputime());
+			dwarfemitdebugsections();
 		}
 	} else if(dlm){
 		seek(cout, HEADR+textsize+datsize, 0);
@@ -1059,7 +1059,7 @@ asmb(void)
 			sh->addralign = 1;
 			sh->addr = symdatva + 8 + symsize;
 
-                        dwarfaddelfheaders();
+			dwarfaddelfheaders();
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
@@ -1140,7 +1140,7 @@ cflush(void)
 vlong
 cpos(void)
 {
-        return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
+	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
 }
 
 void

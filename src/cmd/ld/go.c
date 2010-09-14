@@ -324,8 +324,8 @@ loop:
 		if (*p == ' ' && !inquote)
 			break;
 
-                if(*p == '\\')
-                        p++;
+		if(*p == '\\')
+			p++;
 		else if(*p == '"')
 			inquote = !inquote;
 
