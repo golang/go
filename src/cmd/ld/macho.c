@@ -619,7 +619,7 @@ asmbmacho(vlong symdatva, vlong symo)
 		md->fileoffset = symo+8+symsize;
 		md->filesize = lcsize;
 
-                dwarfaddmachoheaders();
+		dwarfaddmachoheaders();
 	}
 
 	a = machowrite();

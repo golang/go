@@ -867,11 +867,11 @@ dwarfaddmachoheaders(void)
 
 	vlong fakestart;
 
-        // Zero vsize segments won't be loaded in memory, even so they
-        // have to be page aligned in the file.
+	// Zero vsize segments won't be loaded in memory, even so they
+	// have to be page aligned in the file.
 	fakestart = abbrevo & ~0xfff;
 
-        ms = newMachoSeg("__DWARF", 3);
+	ms = newMachoSeg("__DWARF", 3);
 	ms->fileoffset = fakestart;
 	ms->filesize = abbrevo-fakestart + abbrevsize+linesize+infosize;
 

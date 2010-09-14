@@ -301,9 +301,9 @@ doelf(void)
 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
-                elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
-                elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
-                dwarfaddshstrings(shstrtab);
+		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
+		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
+		dwarfaddshstrings(shstrtab);
 	}
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
 
@@ -644,10 +644,10 @@ asmb(void)
 			elfsymsize = elfstro - elfsymo;
 			write(cout, elfstrdat, elfstrsize);
 
-                        if(debug['v'])
-                               Bprint(&bso, "%5.2f dwarf\n", cputime());
+			if(debug['v'])
+			       Bprint(&bso, "%5.2f dwarf\n", cputime());
 
-                        dwarfemitdebugsections();
+			dwarfemitdebugsections();
 		}
 	} else if(dlm){
 		seek(cout, HEADR+textsize+datsize, 0);
@@ -923,21 +923,21 @@ asmb(void)
 			sh->addralign = 1;
 			sh->addr = symdatva + 8 + symsize;
 
-                        sh = newElfShdr(elfstr[ElfStrSymtab]);
-                        sh->type = SHT_SYMTAB;
-                        sh->off = elfsymo;
-                        sh->size = elfsymsize;
-                        sh->addralign = 8;
-                        sh->entsize = 24;
-                        sh->link = eh->shnum;	// link to strtab
+			sh = newElfShdr(elfstr[ElfStrSymtab]);
+			sh->type = SHT_SYMTAB;
+			sh->off = elfsymo;
+			sh->size = elfsymsize;
+			sh->addralign = 8;
+			sh->entsize = 24;
+			sh->link = eh->shnum;	// link to strtab
 
-                        sh = newElfShdr(elfstr[ElfStrStrtab]);
-                        sh->type = SHT_STRTAB;
-                        sh->off = elfstro;
-                        sh->size = elfstrsize;
-                        sh->addralign = 1;
+			sh = newElfShdr(elfstr[ElfStrStrtab]);
+			sh->type = SHT_STRTAB;
+			sh->off = elfstro;
+			sh->size = elfstrsize;
+			sh->addralign = 1;
 
-                        dwarfaddelfheaders();
+			dwarfaddelfheaders();
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
@@ -993,7 +993,7 @@ cflush(void)
 vlong
 cpos(void)
 {
-        return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
+	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
 }
 
 void
