@@ -40,6 +40,9 @@ span(void)
 	Sym *s;
 
 	xdefine("etext", STEXT, 0L);
+	xdefine("rodata", SRODATA, 0L);
+	xdefine("erodata", SRODATA, 0L);
+
 	idat = INITDAT;
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT)
@@ -107,11 +110,13 @@ start:
 		textsize = c;
 		n++;
 	}while(again);
+	xdefine("etext", STEXT, c);
 	
 	/*
 	 * allocate read-only data to the text segment.
 	 */
 	c = rnd(c, 8);
+	xdefine("rodata", SRODATA, c);
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->link) {
 		if(s->type != SRODATA)
@@ -122,6 +127,7 @@ start:
 		s->value = c;
 		c += v;
 	}
+	xdefine("erodata", SRODATA, c);
 
 	if(INITRND) {
 		INITDAT = rnd(c+textpad, INITRND);
@@ -131,7 +137,6 @@ start:
 		}
 	}
 
-	xdefine("etext", STEXT, c);
 	if(debug['v'])
 		Bprint(&bso, "etext = %lux\n", c);
 	Bflush(&bso);
