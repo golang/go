@@ -49,7 +49,7 @@ var (
 	// periodic sync
 	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
 	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
-	syncDelay delayTime // actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
+	syncDelay delayTime // actual sync interval in minutes; usually syncDelay == syncMin, but syncDelay may back off exponentially
 
 	// network
 	httpAddr   = flag.String("http", "", "HTTP service address (e.g., '"+defaultAddr+"')")
@@ -118,9 +118,6 @@ func exec(c *http.Conn, args []string) (status int) {
 }
 
 
-// Maximum directory depth, adjust as needed.
-const maxDirDepth = 24
-
 func dosync(c *http.Conn, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd}
 	switch exec(c, args) {
@@ -130,7 +127,7 @@ func dosync(c *http.Conn, r *http.Request) {
 		// TODO(gri): The directory tree may be temporarily out-of-sync.
 		//            Consider keeping separate time stamps so the web-
 		//            page can indicate this discrepancy.
-		fsTree.set(newDirectory(*goroot, maxDirDepth))
+		fsTree.set(newDirectory(*goroot, nil, maxDirDepth))
 		fallthrough
 	case 1:
 		// sync failed because no files changed;
@@ -257,12 +254,15 @@ func main() {
 			http.Handle("/debug/sync", http.HandlerFunc(dosync))
 		}
 
-		// Initialize directory tree with corresponding timestamp.
+		// Initialize default directory tree with corresponding timestamp.
 		// Do it in two steps:
 		// 1) set timestamp right away so that the indexer is kicked on
 		fsTree.set(nil)
 		// 2) compute initial directory tree in a goroutine so that launch is quick
-		go func() { fsTree.set(newDirectory(*goroot, maxDirDepth)) }()
+		go func() { fsTree.set(newDirectory(*goroot, nil, maxDirDepth)) }()
+
+		// Initialize directory trees for user-defined file systems (-path flag).
+		initDirTrees()
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {

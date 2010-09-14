@@ -14,5 +14,6 @@ GOFILES=\
 	mapping.go\
 	snippet.go\
 	spec.go\
+	utils.go\
 
 include ../../Make.cmd

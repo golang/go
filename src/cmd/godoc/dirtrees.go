@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"go/doc"
 	"go/parser"
 	"io/ioutil"
@@ -80,8 +81,18 @@ func firstSentence(s string) string {
 }
 
 
-func newDirTree(path, name string, depth, maxDepth int) *Directory {
-	if depth >= maxDepth {
+type treeBuilder struct {
+	pathFilter func(string) bool
+	maxDepth   int
+}
+
+
+func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
+	if b.pathFilter != nil && !b.pathFilter(path) {
+		return nil
+	}
+
+	if depth >= b.maxDepth {
 		// return a dummy directory so that the parent directory
 		// doesn't get discarded just because we reached the max
 		// directory depth
@@ -132,7 +143,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 		i := 0
 		for _, d := range list {
 			if isPkgDir(d) {
-				dd := newDirTree(pathutil.Join(path, d.Name), d.Name, depth+1, maxDepth)
+				dd := b.newDirTree(pathutil.Join(path, d.Name), d.Name, depth+1)
 				if dd != nil {
 					dirs[i] = dd
 					i++
@@ -160,20 +171,41 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 }
 
 
+// Maximum directory depth, adjust as needed.
+const maxDirDepth = 24
+
 // newDirectory creates a new package directory tree with at most maxDepth
 // levels, anchored at root. The result tree is pruned such that it only
 // contains directories that contain package files or that contain
-// subdirectories containing package files (transitively). If maxDepth is
+// subdirectories containing package files (transitively). If a non-nil
+// pathFilter is provided, directory paths additionally must be accepted
+// by the filter (i.e., pathFilter(path) must be true). If maxDepth is
 // too shallow, the leaf nodes are assumed to contain package files even if
 // their contents are not known (i.e., in this case the tree may contain
 // directories w/o any package files).
 //
-func newDirectory(root string, maxDepth int) *Directory {
+func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Directory {
 	d, err := os.Lstat(root)
 	if err != nil || !isPkgDir(d) {
 		return nil
 	}
-	return newDirTree(root, d.Name, 0, maxDepth)
+	b := treeBuilder{pathFilter, maxDepth}
+	return b.newDirTree(root, d.Name, 0)
+}
+
+
+func (dir *Directory) writeLeafs(buf *bytes.Buffer) {
+	if dir != nil {
+		if len(dir.Dirs) == 0 {
+			buf.WriteString(dir.Path)
+			buf.WriteByte('\n')
+			return
+		}
+
+		for _, d := range dir.Dirs {
+			d.writeLeafs(buf)
+		}
+	}
 }
 
 
