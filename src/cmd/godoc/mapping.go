@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	pathutil "path"
+	"sort"
 	"strings"
 )
 
@@ -42,14 +43,19 @@ import (
 //
 // (assuming that file exists).
 //
+// Each individual mapping also has a RWValue associated with it that
+// may be used to store mapping-specific information. See the Iterate
+// method. 
+//
 type Mapping struct {
 	list     []mapping
-	prefixes []string
+	prefixes []string // lazily computed from list
 }
 
 
 type mapping struct {
 	prefix, path string
+	value        *RWValue
 }
 
 
@@ -75,43 +81,16 @@ type mapping struct {
 //	public -> /home/build/public
 //
 func (m *Mapping) Init(paths string) {
-	cwd, _ := os.Getwd() // ignore errors
-
-	pathlist := strings.Split(paths, ":", -1)
-
+	pathlist := canonicalizePaths(strings.Split(paths, ":", -1), nil)
 	list := make([]mapping, len(pathlist))
-	n := 0 // number of mappings
 
-	for _, path := range pathlist {
-		if len(path) == 0 {
-			// ignore empty paths (don't assume ".")
-			continue
-		}
-
-		// len(path) > 0: normalize path
-		if path[0] != '/' {
-			path = pathutil.Join(cwd, path)
-		} else {
-			path = pathutil.Clean(path)
-		}
-
-		// check if mapping exists already
-		var i int
-		for i = 0; i < n; i++ {
-			if path == list[i].path {
-				break
-			}
-		}
-
-		// add mapping if it is new
-		if i >= n {
-			_, prefix := pathutil.Split(path)
-			list[n] = mapping{prefix, path}
-			n++
-		}
+	// create mapping list
+	for i, path := range pathlist {
+		_, prefix := pathutil.Split(path)
+		list[i] = mapping{prefix, path, new(RWValue)}
 	}
 
-	m.list = list[0:n]
+	m.list = list
 }
 
 
@@ -134,24 +113,25 @@ func (m *Mapping) PrefixList() []string {
 	// compute the list lazily
 	if m.prefixes == nil {
 		list := make([]string, len(m.list))
-		n := 0 // nuber of prefixes
 
-		for _, e := range m.list {
-			// check if prefix exists already
-			var i int
-			for i = 0; i < n; i++ {
-				if e.prefix == list[i] {
-					break
-				}
-			}
+		// populate list
+		for i, e := range m.list {
+			list[i] = e.prefix
+		}
 
-			// add prefix if it is new
-			if i >= n {
-				list[n] = e.prefix
-				n++
+		// sort the list and remove duplicate entries
+		sort.SortStrings(list)
+		i := 0
+		prev := ""
+		for _, path := range list {
+			if path != prev {
+				list[i] = path
+				i++
+				prev = path
 			}
 		}
-		m.prefixes = list[0:n]
+
+		m.prefixes = list[0:i]
 	}
 
 	return m.prefixes
@@ -166,7 +146,7 @@ func (m *Mapping) Fprint(w io.Writer) {
 }
 
 
-func split(path string) (head, tail string) {
+func splitFirst(path string) (head, tail string) {
 	i := strings.Index(path, "/")
 	if i > 0 {
 		// 0 < i < len(path)
@@ -181,7 +161,7 @@ func split(path string) (head, tail string) {
 // string is returned.
 //
 func (m *Mapping) ToAbsolute(path string) string {
-	prefix, tail := split(path)
+	prefix, tail := splitFirst(path)
 	for _, e := range m.list {
 		switch {
 		case e.prefix == prefix:
@@ -213,4 +193,16 @@ func (m *Mapping) ToRelative(path string) string {
 		}
 	}
 	return "" // no match
+}
+
+
+// Iterate calls f for each path and RWValue in the mapping (in uspecified order)
+// until f returns false.
+//
+func (m *Mapping) Iterate(f func(path string, value *RWValue) bool) {
+	for _, e := range m.list {
+		if !f(e.path, e.value) {
+			return
+		}
+	}
 }

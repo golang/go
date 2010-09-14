@@ -22,38 +22,10 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
 	"template"
 	"time"
 	"utf8"
 )
-
-
-// ----------------------------------------------------------------------------
-// Support types
-
-// An RWValue wraps a value and permits mutually exclusive
-// access to it and records the time the value was last set.
-type RWValue struct {
-	mutex     sync.RWMutex
-	value     interface{}
-	timestamp int64 // time of last set(), in seconds since epoch
-}
-
-
-func (v *RWValue) set(value interface{}) {
-	v.mutex.Lock()
-	v.value = value
-	v.timestamp = time.Seconds()
-	v.mutex.Unlock()
-}
-
-
-func (v *RWValue) get() (interface{}, int64) {
-	v.mutex.RLock()
-	defer v.mutex.RUnlock()
-	return v.value, v.timestamp
-}
 
 
 // ----------------------------------------------------------------------------
@@ -79,15 +51,19 @@ var (
 	verbose = flag.Bool("v", false, "verbose mode")
 
 	// file system roots
-	goroot = flag.String("goroot", runtime.GOROOT(), "Go root directory")
-	path   = flag.String("path", "", "additional package directories (colon-separated)")
+	goroot      = flag.String("goroot", runtime.GOROOT(), "Go root directory")
+	path        = flag.String("path", "", "additional package directories (colon-separated)")
+	filter      = flag.String("filter", "godoc.dirlist", "file containing permitted package directory paths")
+	filterMin   = flag.Int("filter_minutes", 0, "filter update interval in minutes; disabled if <= 0")
+	filterDelay delayTime // actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width")
 
 	// file system mapping
-	fsMap  Mapping // user-defined mapping
-	fsTree RWValue // *Directory tree of packages, updated with each sync
+	fsMap      Mapping // user-defined mapping
+	fsTree     RWValue // *Directory tree of packages, updated with each sync
+	pathFilter RWValue // filter used when building fsMap directory trees
 
 	// http handlers
 	fileServer http.Handler // default file server
@@ -110,6 +86,134 @@ func registerPublicHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/doc/codewalk/", codewalk)
 	mux.HandleFunc("/search", search)
 	mux.HandleFunc("/", serveFile)
+}
+
+
+// ----------------------------------------------------------------------------
+// Directory filters
+
+// isParentOf returns true if p is a parent of (or the same as) q
+// where p and q are directory paths.
+func isParentOf(p, q string) bool {
+	n := len(p)
+	return strings.HasPrefix(q, p) && (len(q) <= n || q[n] == '/')
+}
+
+
+// isRelated returns true if p is a parent or child of (or the same as) q
+// where p and q are directory paths.
+func isRelated(p, q string) bool {
+	return isParentOf(p, q) || isParentOf(q, p)
+}
+
+
+func setPathFilter(list []string) {
+	if len(list) == 0 {
+		pathFilter.set(nil)
+		return
+	}
+
+	// TODO(gri) This leads to quadratic behavior.
+	//           Need to find a better filter solution.
+	pathFilter.set(func(path string) bool {
+		for _, p := range list {
+			if isRelated(path, p) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+
+func getPathFilter() func(string) bool {
+	f, _ := pathFilter.get()
+	if f != nil {
+		return f.(func(string) bool)
+	}
+	return nil
+}
+
+
+// readDirList reads a file containing newline-separated list
+// of directory paths and returns the list of paths.
+func readDirList(filename string) ([]string, os.Error) {
+	contents, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	// create list of valid directory names
+	filter := func(path string) bool {
+		d, err := os.Lstat(path)
+		return err == nil && isPkgDir(d)
+	}
+	return canonicalizePaths(strings.Split(string(contents), "\n", -1), filter), nil
+}
+
+
+func updateFilterFile() {
+	// for each user-defined file system mapping, compute
+	// respective directory tree w/o filter for accuracy
+	fsMap.Iterate(func(path string, value *RWValue) bool {
+		value.set(newDirectory(path, nil, maxDirDepth))
+		return true
+	})
+
+	// collect directory tree leaf node paths
+	var buf bytes.Buffer
+	fsMap.Iterate(func(_ string, value *RWValue) bool {
+		v, _ := value.get()
+		if v != nil && v.(*Directory) != nil {
+			v.(*Directory).writeLeafs(&buf)
+		}
+		return true
+	})
+
+	// update filter file
+	// TODO(gri) should write a tmp file and atomically rename
+	err := ioutil.WriteFile(*filter, buf.Bytes(), 0666)
+	if err != nil {
+		log.Stderrf("ioutil.Writefile(%s): %s", *filter, err)
+		filterDelay.backoff(24 * 60) // back off exponentially, but try at least once a day
+	} else {
+		filterDelay.set(*filterMin) // revert to regular filter update schedule
+	}
+}
+
+
+func initDirTrees() {
+	// setup initial path filter
+	if *filter != "" {
+		list, err := readDirList(*filter)
+		if err != nil {
+			log.Stderrf("%s", err)
+		} else if len(list) == 0 {
+			log.Stderrf("no directory paths in file %s", *filter)
+		}
+		setPathFilter(list)
+	}
+
+	// for each user-defined file system mapping, compute
+	// respective directory tree quickly using pathFilter
+	go fsMap.Iterate(func(path string, value *RWValue) bool {
+		value.set(newDirectory(path, getPathFilter(), maxDirDepth))
+		return true
+	})
+
+	// start filter update goroutine, if enabled.
+	if *filter != "" && *filterMin > 0 {
+		filterDelay.set(*filterMin) // initial filter update delay
+		go func() {
+			for {
+				updateFilterFile()
+				delay, _ := syncDelay.get()
+				if *verbose {
+					log.Stderrf("next filter update in %dmin", delay.(int))
+				}
+				time.Sleep(int64(delay.(int)) * 60e9)
+			}
+		}()
+	}
 }
 
 
@@ -1073,14 +1177,35 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		// directory tree is present; lookup respective directory
 		// (may still fail if the file system was updated and the
 		// new directory tree has not yet been computed)
-		// TODO(gri) Need to build directory tree for fsMap entries
 		dir = tree.(*Directory).lookup(abspath)
 	}
 	if dir == nil {
+		// the path may refer to a user-specified file system mapped
+		// via fsMap; lookup that mapping and corresponding RWValue
+		// if any
+		var v *RWValue
+		fsMap.Iterate(func(path string, value *RWValue) bool {
+			if isParentOf(path, abspath) {
+				// mapping found
+				v = value
+				return false
+			}
+			return true
+		})
+		if v != nil {
+			// found a RWValue associated with a user-specified file
+			// system; a non-nil RWValue stores a (possibly out-of-date)
+			// directory tree for that file system
+			if tree, _ := v.get(); tree != nil && tree.(*Directory) != nil {
+				dir = tree.(*Directory).lookup(abspath)
+			}
+		}
+	}
+	if dir == nil {
 		// no directory tree present (either early after startup
-		// or command-line mode, or we don't build a tree for the
-		// directory; e.g. google3); compute one level for this page
-		dir = newDirectory(abspath, 1)
+		// or command-line mode, or we don't have a tree for the
+		// directory yet; e.g. google3); compute one level for this page
+		dir = newDirectory(abspath, getPathFilter(), 1)
 	}
 
 	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), h.isPkg, nil}

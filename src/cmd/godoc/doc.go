@@ -61,6 +61,10 @@ The flags are:
 		repository holding the source files.
 	-sync_minutes=0
 		sync interval in minutes; sync is disabled if <= 0
+	-filter=""
+		file containing permitted permitted directory paths
+	-filter_minutes=0
+		filter update interval in minutes; update is disabled if <= 0
 
 The -path flag accepts a list of colon-separated paths; unrooted paths are relative
 to the current working directory. Each path is considered as an additional root for
@@ -75,6 +79,13 @@ as follows:
 	/home/user/godoc/x -> godoc/x
 	/home/bar/x        -> bar/x
 	/public/x          -> public/x
+
+Paths provided via -path may point to very large file systems that contain
+non-Go files. Creating the subtree of directories with Go packages may take
+a long amount of time. A file containing newline-separated directory paths
+may be provided with the -filter flag; if it exists, only directories
+on those paths are considered. If -filter_minutes is set, the filter_file is
+updated regularly by walking the entire directory tree.
 
 When godoc runs as a web server, it creates a search index from all .go files
 under -goroot (excluding files starting with .). The index is created at startup
