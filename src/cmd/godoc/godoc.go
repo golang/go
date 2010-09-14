@@ -53,8 +53,8 @@ var (
 	// file system roots
 	goroot      = flag.String("goroot", runtime.GOROOT(), "Go root directory")
 	path        = flag.String("path", "", "additional package directories (colon-separated)")
-	filter      = flag.String("filter", "godoc.dirlist", "file containing permitted package directory paths")
-	filterMin   = flag.Int("filter_minutes", 0, "filter update interval in minutes; disabled if <= 0")
+	filter      = flag.String("filter", "godoc.dirlist", "filter file containing permitted package directory paths")
+	filterMin   = flag.Int("filter_minutes", 0, "filter file update interval in minutes; disabled if <= 0")
 	filterDelay delayTime // actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
 
 	// layout control
