@@ -62,9 +62,9 @@ The flags are:
 	-sync_minutes=0
 		sync interval in minutes; sync is disabled if <= 0
 	-filter=""
-		file containing permitted permitted directory paths
+		filter file containing permitted package directory paths
 	-filter_minutes=0
-		filter update interval in minutes; update is disabled if <= 0
+		filter file update interval in minutes; update is disabled if <= 0
 
 The -path flag accepts a list of colon-separated paths; unrooted paths are relative
 to the current working directory. Each path is considered as an additional root for
