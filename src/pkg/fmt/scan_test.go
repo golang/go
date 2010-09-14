@@ -5,6 +5,7 @@
 package fmt_test
 
 import (
+	"bufio"
 	. "fmt"
 	"io"
 	"os"
@@ -580,5 +581,26 @@ func TestEOF(t *testing.T) {
 	}
 	if ec.eofCount != 1 {
 		t.Error("expected one EOF, got", ec.eofCount)
+	}
+}
+
+// Verify that, at least when using bufio, successive calls to Fscan do not lose runes.
+func TestUnreadRuneWithBufio(t *testing.T) {
+	r := bufio.NewReader(strings.NewReader("123αb"))
+	var i int
+	var a string
+	n, err := Fscanf(r, "%d", &i)
+	if n != 1 || err != nil {
+		t.Errorf("reading int expected one item, no errors; got %d %q", n, err)
+	}
+	if i != 123 {
+		t.Errorf("expected 123; got %d", i)
+	}
+	n, err = Fscanf(r, "%s", &a)
+	if n != 1 || err != nil {
+		t.Errorf("reading string expected one item, no errors; got %d %q", n, err)
+	}
+	if a != "αb" {
+		t.Errorf("expected αb; got %q", a)
 	}
 }
