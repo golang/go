@@ -135,7 +135,7 @@ func getPathFilter() func(string) bool {
 }
 
 
-// readDirList reads a file containing newline-separated list
+// readDirList reads a file containing a newline-separated list
 // of directory paths and returns the list of paths.
 func readDirList(filename string) ([]string, os.Error) {
 	contents, err := ioutil.ReadFile(filename)
@@ -205,8 +205,11 @@ func initDirTrees() {
 		filterDelay.set(*filterMin) // initial filter update delay
 		go func() {
 			for {
+				if *verbose {
+					log.Stderrf("start update of %s", *filter)
+				}
 				updateFilterFile()
-				delay, _ := syncDelay.get()
+				delay, _ := filterDelay.get()
 				if *verbose {
 					log.Stderrf("next filter update in %dmin", delay.(int))
 				}
