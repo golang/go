@@ -712,6 +712,7 @@ var (
 	panicType   = &FuncType{builtin: "panic"}
 	printType   = &FuncType{builtin: "print"}
 	printlnType = &FuncType{builtin: "println"}
+	copyType    = &FuncType{builtin: "copy"}
 )
 
 // Two function types are identical if they have the same number of
@@ -1249,6 +1250,7 @@ func init() {
 	universe.DefineConst("cap", universePos, capType, nil)
 	universe.DefineConst("close", universePos, closeType, nil)
 	universe.DefineConst("closed", universePos, closedType, nil)
+	universe.DefineConst("copy", universePos, copyType, nil)
 	universe.DefineConst("len", universePos, lenType, nil)
 	universe.DefineConst("make", universePos, makeType, nil)
 	universe.DefineConst("new", universePos, newType, nil)
