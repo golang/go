@@ -127,7 +127,7 @@ func dosync(c *http.Conn, r *http.Request) {
 		// TODO(gri): The directory tree may be temporarily out-of-sync.
 		//            Consider keeping separate time stamps so the web-
 		//            page can indicate this discrepancy.
-		fsTree.set(newDirectory(*goroot, nil, maxDirDepth))
+		fsTree.set(newDirectory(*goroot, nil, -1))
 		fallthrough
 	case 1:
 		// sync failed because no files changed;
@@ -259,7 +259,7 @@ func main() {
 		// 1) set timestamp right away so that the indexer is kicked on
 		fsTree.set(nil)
 		// 2) compute initial directory tree in a goroutine so that launch is quick
-		go func() { fsTree.set(newDirectory(*goroot, nil, maxDirDepth)) }()
+		go func() { fsTree.set(newDirectory(*goroot, nil, -1)) }()
 
 		// Initialize directory trees for user-defined file systems (-path flag).
 		initDirTrees()

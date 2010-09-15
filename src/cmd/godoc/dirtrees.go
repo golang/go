@@ -171,23 +171,23 @@ func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
 }
 
 
-// Maximum directory depth, adjust as needed.
-const maxDirDepth = 24
-
 // newDirectory creates a new package directory tree with at most maxDepth
 // levels, anchored at root. The result tree is pruned such that it only
 // contains directories that contain package files or that contain
 // subdirectories containing package files (transitively). If a non-nil
 // pathFilter is provided, directory paths additionally must be accepted
-// by the filter (i.e., pathFilter(path) must be true). If maxDepth is
-// too shallow, the leaf nodes are assumed to contain package files even if
-// their contents are not known (i.e., in this case the tree may contain
-// directories w/o any package files).
+// by the filter (i.e., pathFilter(path) must be true). If a value >= 0 is
+// provided for maxDepth, nodes at larger depths are pruned as well; they
+// are assumed to contain package files even if their contents are not known
+// (i.e., in this case the tree may contain directories w/o any package files).
 //
 func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Directory {
 	d, err := os.Lstat(root)
 	if err != nil || !isPkgDir(d) {
 		return nil
+	}
+	if maxDepth < 0 {
+		maxDepth = 1e6 // "infinity"
 	}
 	b := treeBuilder{pathFilter, maxDepth}
 	return b.newDirTree(root, d.Name, 0)
