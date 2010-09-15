@@ -110,7 +110,7 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
 
 // Readdir reads the contents of the directory associated with file and
 // returns an array of up to count FileInfo structures, as would be returned
-// by Stat, in directory order.  Subsequent calls on the same file will yield
+// by Lstat, in directory order.  Subsequent calls on the same file will yield
 // further FileInfos.
 // A negative count means to read until EOF.
 // Readdir returns the array and an Error, if any.
