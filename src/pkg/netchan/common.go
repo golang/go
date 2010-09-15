@@ -39,7 +39,7 @@ type header struct {
 
 // Sent with a header once per channel from importer to exporter to report
 // that it wants to bind to a channel with the specified direction for count
-// messages.  If count is zero, it means unlimited.
+// messages.  If count is -1, it means unlimited.
 type request struct {
 	count int64
 	dir   Dir
