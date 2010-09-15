@@ -228,14 +228,15 @@ linehist(char *file, int32 off, int relative)
 	if(debug['i']) {
 		if(file != nil) {
 			if(off < 0)
-				print("pragma %s at line %L\n", file, lexlineno);
+				print("pragma %s", file);
 			else
 			if(off > 0)
-				print("line %s at line %L\n", file, lexlineno);
+				print("line %s", file);
 			else
-				print("import %s at line %L\n", file, lexlineno);
+				print("import %s", file);
 		} else
-			print("end of import at line %L\n", lexlineno);
+			print("end of import");
+		print(" at line %L\n", lexlineno);
 	}
 
 	if(off < 0 && file[0] != '/' && !relative) {
@@ -936,8 +937,8 @@ Lconv(Fmt *fp)
 		}
 		if(a[i].line)
 			fmtprint(fp, "%s:%ld[%s:%ld]",
-				a[i].line->name, lno-a[i].ldel,
-				a[i].incl->name, lno-a[i].idel);
+				a[i].line->name, lno-a[i].ldel+1,
+				a[i].incl->name, lno-a[i].idel+1);
 		else
 			fmtprint(fp, "%s:%ld",
 				a[i].incl->name, lno-a[i].idel+1);
