@@ -101,35 +101,40 @@ func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
 
 	list, _ := ioutil.ReadDir(path) // ignore errors
 
-	// determine number of subdirectories and package files
+	// determine number of subdirectories and if there are package files
 	ndirs := 0
-	nfiles := 0
+	hasPkgFiles := false
 	var synopses [4]string // prioritized package documentation (0 == highest priority)
 	for _, d := range list {
 		switch {
 		case isPkgDir(d):
 			ndirs++
 		case isPkgFile(d):
-			nfiles++
+			// looks like a package file, but may just be a file ending in ".go";
+			// don't just count it yet (otherwise we may end up with hasPkgFiles even
+			// though the directory doesn't contain any real package files - was bug)
 			if synopses[0] == "" {
 				// no "optimal" package synopsis yet; continue to collect synopses
 				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
 					parser.ParseComments|parser.PackageClauseOnly)
-				if err == nil && file.Doc != nil {
-					// prioritize documentation
-					i := -1
-					switch file.Name.Name {
-					case name:
-						i = 0 // normal case: directory name matches package name
-					case fakePkgName:
-						i = 1 // synopses for commands
-					case "main":
-						i = 2 // directory contains a main package
-					default:
-						i = 3 // none of the above
-					}
-					if 0 <= i && i < len(synopses) && synopses[i] == "" {
-						synopses[i] = firstSentence(doc.CommentText(file.Doc))
+				if err == nil {
+					hasPkgFiles = true
+					if file.Doc != nil {
+						// prioritize documentation
+						i := -1
+						switch file.Name.Name {
+						case name:
+							i = 0 // normal case: directory name matches package name
+						case fakePkgName:
+							i = 1 // synopses for commands
+						case "main":
+							i = 2 // directory contains a main package
+						default:
+							i = 3 // none of the above
+						}
+						if 0 <= i && i < len(synopses) && synopses[i] == "" {
+							synopses[i] = firstSentence(doc.CommentText(file.Doc))
+						}
 					}
 				}
 			}
@@ -154,8 +159,8 @@ func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
 	}
 
 	// if there are no package files and no subdirectories
-	// (with package files), ignore the directory
-	if nfiles == 0 && len(dirs) == 0 {
+	// containing package files, ignore the directory
+	if !hasPkgFiles && len(dirs) == 0 {
 		return nil
 	}
 
