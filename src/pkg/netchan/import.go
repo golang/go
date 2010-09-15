@@ -114,7 +114,7 @@ func (imp *Importer) run() {
 // Import imports a channel of the given type and specified direction.
 // It is equivalent to ImportNValues with a count of -1, meaning unbounded.
 func (imp *Importer) Import(name string, chT interface{}, dir Dir) os.Error {
-	return imp.ImportNValues(name, chT, dir, 0)
+	return imp.ImportNValues(name, chT, dir, -1)
 }
 
 // ImportNValues imports a channel of the given type and specified direction
