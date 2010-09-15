@@ -155,7 +155,7 @@ func updateFilterFile() {
 	// for each user-defined file system mapping, compute
 	// respective directory tree w/o filter for accuracy
 	fsMap.Iterate(func(path string, value *RWValue) bool {
-		value.set(newDirectory(path, nil, maxDirDepth))
+		value.set(newDirectory(path, nil, -1))
 		return true
 	})
 
@@ -194,7 +194,7 @@ func initDirTrees() {
 	// for each user-defined file system mapping, compute
 	// respective directory tree quickly using pathFilter
 	go fsMap.Iterate(func(path string, value *RWValue) bool {
-		value.set(newDirectory(path, getPathFilter(), maxDirDepth))
+		value.set(newDirectory(path, getPathFilter(), -1))
 		return true
 	})
 
@@ -1203,10 +1203,11 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		}
 	}
 	if dir == nil {
-		// no directory tree present (either early after startup
-		// or command-line mode, or we don't have a tree for the
-		// directory yet; e.g. google3); compute one level for this page
-		dir = newDirectory(abspath, getPathFilter(), 1)
+		// no directory tree present (too early after startup or
+		// command-line mode); compute one level for this page
+		// note: cannot use path filter here because in general
+		//       it doesn't contain the fsTree path
+		dir = newDirectory(abspath, nil, 1)
 	}
 
 	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), h.isPkg, nil}
