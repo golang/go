@@ -329,8 +329,8 @@ struct	Instr
 	uchar	mod;		/* bits 6-7 of mod r/m field */
 	uchar	reg;		/* bits 3-5 of mod r/m field */
 	char	ss;		/* bits 6-7 of SIB */
-	char	index;		/* bits 3-5 of SIB */
-	char	base;		/* bits 0-2 of SIB */
+	schar	index;		/* bits 3-5 of SIB */
+	schar	base;		/* bits 0-2 of SIB */
 	char	rip;		/* RIP-relative in amd64 mode */
 	uchar	opre;		/* f2/f3 could introduce media */
 	short	seg;		/* segment of far address */
@@ -355,14 +355,15 @@ enum{
 	DI,
 
 	/* amd64 */
-	R8,
-	R9,
-	R10,
-	R11,
-	R12,
-	R13,
-	R14,
-	R15
+	/* be careful: some unix system headers #define R8, R9, etc */
+	AMD64_R8,
+	AMD64_R9,
+	AMD64_R10,
+	AMD64_R11,
+	AMD64_R12,
+	AMD64_R13,
+	AMD64_R14,
+	AMD64_R15
 };
 
 	/* amd64 rex extension byte */
@@ -416,8 +417,8 @@ enum {
 	RMOPB,			/* Byte R/M field with op code (/digit) */
 	RMR,			/* R/M register only (mod = 11) */
 	RMM,			/* R/M memory only (mod = 0/1/2) */
-	R0,			/* Base reg of Mod R/M is literal 0x00 */
-	R1,			/* Base reg of Mod R/M is literal 0x01 */
+	Op_R0,			/* Base reg of Mod R/M is literal 0x00 */
+	Op_R1,			/* Base reg of Mod R/M is literal 0x01 */
 	FRMOP,			/* Floating point R/M field with opcode */
 	FRMEX,			/* Extended floating point R/M field with opcode */
 	JUMP,			/* Jump or Call flag - no operand */
@@ -1006,7 +1007,7 @@ static Optable optabDA[8+8] =
 [0x09]	0,0,		"FCMOVEQ	%f,F0",
 [0x0a]	0,0,		"FCMOVLS	%f,F0",
 [0x0b]	0,0,		"FCMOVUN	%f,F0",
-[0x0d]	R1,0,		"FUCOMPP",
+[0x0d]	Op_R1,0,		"FUCOMPP",
 };
 
 static Optable optabDB[8+64] =
@@ -1071,7 +1072,7 @@ static Optable optabDE[8+8] =
 [0x07]	0,0,		"FDIVRW	%e,F0",
 [0x08]	0,0,		"FADDDP	F0,%f",
 [0x09]	0,0,		"FMULDP	F0,%f",
-[0x0b]	R1,0,		"FCOMPDP",
+[0x0b]	Op_R1,0,		"FCOMPDP",
 [0x0c]	0,0,		"FSUBRDP F0,%f",
 [0x0d]	0,0,		"FSUBDP	F0,%f",
 [0x0e]	0,0,		"FDIVRDP F0,%f",
@@ -1087,7 +1088,7 @@ static Optable optabDF[8+8] =
 [0x05]	0,0,		"FMOVL	%e,F0",
 [0x06]	0,0,		"FBSTP	%e",
 [0x07]	0,0,		"FMOVLP	F0,%e",
-[0x0c]	R0,0,		"FSTSW	%OAX",
+[0x0c]	Op_R0,0,		"FSTSW	%OAX",
 [0x0d]	0,0,		"FUCOMIP	F0,%f",
 [0x0e]	0,0,		"FCOMIP	F0,%f",
 };
@@ -1713,11 +1714,11 @@ badop:
 			if (c != 0x0a)
 				goto badop;
 			break;
-		case R0:	/* base register must be R0 */
+		case Op_R0:	/* base register must be R0 */
 			if (ip->base != 0)
 				goto badop;
 			break;
-		case R1:	/* base register must be R1 */
+		case Op_R1:	/* base register must be R1 */
 			if (ip->base != 1)
 				goto badop;
 			break;
@@ -1903,14 +1904,14 @@ static char *reg[] =  {
 [DI]	"DI",
 
 	/* amd64 */
-[R8]	"R8",
-[R9]	"R9",
-[R10]	"R10",
-[R11]	"R11",
-[R12]	"R12",
-[R13]	"R13",
-[R14]	"R14",
-[R15]	"R15",
+[AMD64_R8]	"R8",
+[AMD64_R9]	"R9",
+[AMD64_R10]	"R10",
+[AMD64_R11]	"R11",
+[AMD64_R12]	"R12",
+[AMD64_R13]	"R13",
+[AMD64_R14]	"R14",
+[AMD64_R15]	"R15",
 };
 
 static char *breg[] = { "AL", "CL", "DL", "BL", "AH", "CH", "DH", "BH" };
