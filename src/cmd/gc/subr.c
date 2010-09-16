@@ -2593,19 +2593,6 @@ brrev(int a)
 	return a;
 }
 
-Node*
-staticname(Type *t)
-{
-	Node *n;
-
-	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d", statuniqgen);
-	statuniqgen++;
-	n = newname(lookup(namebuf));
-//	n->readonly = 1;
-	addvar(n, t, PEXTERN);
-	return n;
-}
-
 /*
  * return side effect-free appending side effects to init.
  * result is assignable if n is.
