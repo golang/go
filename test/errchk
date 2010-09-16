@@ -68,8 +68,8 @@ foreach $src (@src) {
 	}
 	$regexp = $1;
 
-	@errmsg = grep { /$file:$line:/ } @out;
-	@out = grep { !/$file:$line:/ } @out;
+	@errmsg = grep { /$file:$line[:[]/ } @out;
+	@out = grep { !/$file:$line[:[]/ } @out;
 	if(@errmsg == 0) {
 		bug();
 		print STDERR "errchk: $file:$line: missing expected error: '$regexp'\n";

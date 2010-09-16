@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Use //line to set the line number of the next line to 20.
-//line bug305.go:20
+//line fixedbugs/bug305.go:20
 
 package p
 
