@@ -204,6 +204,9 @@ func (p *Package) guessKinds(f *File) []*Name {
 
 	for _, line := range strings.Split(stderr, "\n", -1) {
 		if len(line) < 9 || line[0:9] != "cgo-test:" {
+			if len(line) > 8 && line[0:8] == "<stdin>:" {
+				fatal("gcc produced unexpected output:\n%s\non input:\n%s", line, b.Bytes())
+			}
 			continue
 		}
 		line = line[9:]
@@ -439,8 +442,9 @@ func (p *Package) rewriteRef(f *File) {
 		case "type":
 			if r.Name.Kind != "type" {
 				error(r.Pos(), "expression C.%s used as type", r.Name.Go)
+			} else {
+				expr = r.Name.Type.Go
 			}
-			expr = r.Name.Type.Go
 		default:
 			if r.Name.Kind == "func" {
 				error(r.Pos(), "must call C.%s", r.Name.Go)
