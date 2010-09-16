@@ -55,6 +55,10 @@ func (c *Client) Dicts() ([]Dict, os.Error) {
 	c.text.StartResponse(id)
 	defer c.text.EndResponse(id)
 
+	_, _, err = c.text.ReadCodeLine(110)
+	if err != nil {
+		return nil, err
+	}
 	lines, err := c.text.ReadDotLines()
 	if err != nil {
 		return nil, err
@@ -85,9 +89,9 @@ type Defn struct {
 // The argument dict names the dictionary to use,
 // the Name field of a Dict returned by Dicts.
 //
-// The special dictionary name "!" means to look in all the
-// server's dictionaries.
 // The special dictionary name "*" means to look in all the
+// server's dictionaries.
+// The special dictionary name "!" means to look in all the
 // server's dictionaries in turn, stopping after finding the word
 // in one of them.
 func (c *Client) Define(dict, word string) ([]*Defn, os.Error) {
@@ -100,6 +104,9 @@ func (c *Client) Define(dict, word string) ([]*Defn, os.Error) {
 	defer c.text.EndResponse(id)
 
 	_, line, err := c.text.ReadCodeLine(150)
+	if err != nil {
+		return nil, err
+	}
 	a, _ := fields(line)
 	if len(a) < 1 {
 		return nil, textproto.ProtocolError("malformed response: " + line)
