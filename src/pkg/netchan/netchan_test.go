@@ -143,3 +143,81 @@ func TestExportSync(t *testing.T) {
 	exp.Sync(0)
 	<-done
 }
+
+type value struct {
+	i      int
+	source string
+}
+
+// This test cross-connects a pair of exporter/importer pairs.
+func TestCrossConnect(t *testing.T) {
+	e1, err := NewExporter("tcp", ":0")
+	if err != nil {
+		t.Fatal("new exporter:", err)
+	}
+	i1, err := NewImporter("tcp", e1.Addr().String())
+	if err != nil {
+		t.Fatal("new importer:", err)
+	}
+
+	e2, err := NewExporter("tcp", ":0")
+	if err != nil {
+		t.Fatal("new exporter:", err)
+	}
+	i2, err := NewImporter("tcp", e2.Addr().String())
+	if err != nil {
+		t.Fatal("new importer:", err)
+	}
+
+	go crossExport(e1, e2, t)
+	crossImport(i1, i2, t)
+}
+
+// Export side of cross-traffic.
+func crossExport(e1, e2 *Exporter, t *testing.T) {
+	s := make(chan value)
+	err := e1.Export("exportedSend", s, Send)
+	if err != nil {
+		t.Fatal("exportSend:", err)
+	}
+
+	r := make(chan value)
+	err = e2.Export("exportedReceive", r, Recv)
+	if err != nil {
+		t.Fatal("exportReceive:", err)
+	}
+
+	crossLoop("export", s, r, t)
+}
+
+// Import side of cross-traffic.
+func crossImport(i1, i2 *Importer, t *testing.T) {
+	s := make(chan value)
+	err := i2.Import("exportedReceive", s, Send)
+	if err != nil {
+		t.Fatal("import of exportedReceive:", err)
+	}
+
+	r := make(chan value)
+	err = i1.Import("exportedSend", r, Recv)
+	if err != nil {
+		t.Fatal("import of exported Send:", err)
+	}
+
+	crossLoop("import", s, r, t)
+}
+
+// Cross-traffic: send and receive 'count' numbers.
+func crossLoop(name string, s, r chan value, t *testing.T) {
+	for si, ri := 0, 0; si < count && ri < count; {
+		select {
+		case s <- value{si, name}:
+			si++
+		case v := <-r:
+			if v.i != ri {
+				t.Errorf("loop: bad value: expected %d, hello; got %+v", ri, v)
+			}
+			ri++
+		}
+	}
+}
