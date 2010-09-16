@@ -177,11 +177,3 @@ panic PC=xxx
 =========== bugs/bug260.go
 FAIL
 BUG: bug260 failed
-
-=========== bugs/bug305.go
-BUG: errchk: bugs/bug305.go:24: missing expected error: 'cannot|incompatible'
-errchk: bugs/bug305.go: unmatched error messages:
-==================================================
-bug305.go:23[bugs/bug305.go:12]: cannot convert "bogus" to type int
-bug305.go:23[bugs/bug305.go:12]: cannot use "bogus" (type string) as type int in assignment
-==================================================
