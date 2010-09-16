@@ -1,4 +1,4 @@
-<!-- Installing Go -->
+<!-- Getting Started -->
 
 <h2 id="introduction">Introduction</h2>
 
@@ -7,6 +7,8 @@
 This document explains how to check out the sources,
 build them on your own machine, and run them.
 </p>
+
+<div class="detail">
 
 <p>
 There are two distinct ways to experiment with Go.
@@ -64,11 +66,20 @@ The full set of supported combinations is listed in the discussion of
 <a href="#environment">environment variables</a> below.
 </p>
 
+</div>
+
 <h2 id="ctools">Install C tools, if needed</h2>
 
-<p>The Go tool chain is written in C.  To build it, you need
-to have GCC, the standard C libraries, the parser generator Bison,
-<tt>make</tt>, <tt>awk</tt>, and the text editor <tt>ed</tt> installed.
+<p>The Go tool chain is written in C.
+To build it, you need these programs installed: 
+<ul>
+<li>GCC, 
+<li>the standard C libraries, 
+<li>the parser generator Bison,
+<li><tt>make</tt>, 
+<li><tt>awk</tt>, and 
+<li>the text editor <tt>ed</tt>.
+</ul>
 </p>
 
 <p>On OS X, they can be
@@ -76,18 +87,28 @@ installed as part of
 <a href="http://developer.apple.com/TOOLS/Xcode/">Xcode</a>. 
 </p>
 
-<p>On Linux, use <code>sudo apt-get install bison ed gawk gcc libc6-dev make</code>
-(or the equivalent on your Linux distribution).
+<p>On Ubuntu/Debian, use <code>sudo apt-get install bison ed gawk gcc libc6-dev make</code>.
+</p>
+
+<h2 id="mercurial">Install Mercurial, if needed</h2>
+
+<p>
+To perform the next step you must have Mercurial installed. (Check that you  have an <code>hg</code> command.) This suffices to install Mercurial most systems:
+</p>
+<pre>
+sudo easy_install mercurial
+</pre>
+(On Ubuntu/Debian, you might try <code>apt-get install python-setuptools
+python-dev build-essential</code> first. The Mercurial in your distribution's
+package repository will most likely be old and broken.)
+</p>
+<p>
+If that fails, try installing manually from the <a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a> page.</p>
 </p>
 
 <h2 id="fetch">Fetch the repository</h2>
 
 <p>
-If you do not have Mercurial installed (you do not have an <code>hg</code> command),
-<code>sudo easy_install mercurial</code> works on most systems.
-(On Ubuntu/Debian, you might try <code>apt-get install python-setuptools python-dev build-essential gcc</code> first.)
-If that fails, visit the <a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a> page.</p>
-
 <p>Go will install to a directory named <code>go</code>.
 Change to the directory that will be its parent
 and make sure the <code>go</code> directory does not exist.
@@ -129,8 +150,11 @@ and the details on the last few lines will reflect the operating system,
 architecture, and root directory used during the install.
 </p>
 
+<div class="detail">
+
 <p>For more information about ways to control the build,
 see the discussion of <a href="#environment">environment variables</a> below.</p>
+</div>
 
 <h2 id="writing">Writing programs</h2>
 
@@ -195,6 +219,7 @@ command line.
 The linker learns about them by reading <code>hello.6</code>.
 </p>
 
+<div class="detail">
 <p>
 To build more complicated programs, you will probably
 want to use a
@@ -207,6 +232,28 @@ The
 about contributing to the Go project
 gives more detail about
 the process of building and testing Go programs.
+</p>
+</div>
+
+<h2 id="next">What's next</h2>
+
+<p>
+Start by reading the <a href="go_tutorial.html">Go Tutorial</a>.
+</p>
+
+<p>
+Build a web application by following the <a href="codelab/wiki/">Wiki
+Codelab</a>.
+</p>
+
+<p>
+Read <a href="effective_go.html">Effective Go</a> to learn about writing
+idiomatic Go code.
+</p>
+
+<p>
+For the full story, consult Go's extensive 
+<a href="docs.html">documentation</a>.
 </p>
 
 <h2 id="releases">Keeping up with releases</h2>

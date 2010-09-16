@@ -1,41 +1,20 @@
-<!-- title Go Resources -->
-<!-- subtitle Go documents and learning materials -->
+<!-- title Documentation -->
 
-<h2 id="about">Recommendations</h2>
+<div class="left-column">
+
+<h2 id="learning">Learning Go</h2>
+
 <p>
-If you're new to Go, we recommend following the 
-<a href="go_tutorial.html">tutorial</a> while consulting the 
-<a href="go_spec.html">language spec</a>.
-Then read <a href="effective_go.html">Effective Go</a>, as it addresses many
-common beginner questions.
+If you're new to Go, we recommend you work through the 
+<a href="go_tutorial.html">tutorial</a>. The 
+<a href="go_spec.html">language specfication</a> has all the details should
+you want to explore.
 </p>
-
-<h2 id="reference">Reference Materials</h2>
-<p>Keep these under your pillow.</p>
-
-<h3 id="pkg"><a href="/pkg/">Package Documentation</a></h3>
 <p>
-The built-in documentation for the Go standard library.
+Once you've learned a little about the language, 
+<a href="effective_go.html">Effective Go</a> will help you learn the style and
+idioms of programming in Go.
 </p>
-
-<h3 id="pkg"><a href="/cmd/">Command Documentation</a></h3>
-<p>
-The built-in documentation for the Go tools.
-</p>
-
-<h3 id="spec"><a href="go_spec.html">Language Specification</a></h3>
-<p>
-The official Go Language specification. 
-</p>
-
-<h3 id="go_mem"><a href="go_mem.html">The Go Memory Model</a></h3>
-<p>
-A document that specifies the conditions under which reads of a variable in
-one goroutine can be guaranteed to observe values produced by writes to the
-same variable in a different goroutine.
-</p>
-
-<h2 id="tutorials">Tutorials</h2>
 
 <h3 id="orig_tutorial"><a href="go_tutorial.html">A Tutorial for the Go Programming Language</a></h3>
 <p>
@@ -51,6 +30,11 @@ A must read for any new Go programmer. It augments the tutorial and
 the language spec, both of which should be read first.
 </p>
 
+<h3 id="code"><a href="code.html">How to write Go code</a></h3>
+<p>
+How to write a new package and how to test code.
+</p>
+
 <h3 id="codelab_wiki"><a href="codelab/wiki/">Codelab: Writing Web Applications</a></h3>
 <p>
 This codelab takes the reader through the creation of a simple wiki web 
@@ -63,13 +47,24 @@ and closures.
 An introduction to Go for C++ programmers.
 </p>
 
-<h3 id="code"><a href="code.html">How to write Go code</a></h3>
+<h2 id="faqs">Frequently Asked Questions</h2>
+
+<h3 id="go_faq"><a href="go_faq.html">Go FAQ</a></h3>
 <p>
-How to write a new package and how to test code.
+Answers to common questions about Go.
 </p>
 
+<h3 id="go_programming_faq"><a href="go_programming_faq.html">Programming FAQ</a></h3>
+<p>
+Answers to common questions about programming with Go.
+</p>
 
-<h2 id="tutorials_nonenglish">Documentation in languages other than English</h2>
+<h3 id="go_lang_faq"><a href="go_lang_faq.html">Language Design FAQ</a></h3>
+<p>
+Answers to common questions about the design decisions behind Go.
+</p>
+
+<h2 id="tutorials_nonenglish">Non-English Documentation</h2>
 
 <h3 id="tutorial_de"><a href="http://bitloeffel.de/DOC/golang/go_tutorial_de.html">Eine Anleitung zum Programmieren in Go</a></h3>
 <p>
@@ -86,39 +81,40 @@ A German translation of the Effective Go document.
 A German translation of the How to Write Go Code document.
 </p>
 
-
-<h2 id="faqs">Frequently Asked Questions</h2>
-
-<h3 id="go_faq"><a href="go_faq.html">Go FAQ</a></h3>
+<h3 id="effective_cn"><a href="http://code.google.com/p/ac-me/downloads/detail?name=fango.pdf">Effective Go and Tutorial, a Chinese Translation</a></h3>
 <p>
-Answers to common questions about Go.
+A Chinese translation of both the Effective Go and Go Tutorial documents.
 </p>
 
-<h3 id="go_lang_faq"><a href="go_lang_faq.html">Language Design FAQ</a></h3>
+</div>
+
+
+<div class="right-column">
+
+<h2 id="References">References</h2>
+
+<p>Keep these under your pillow.</p>
+
+<h3 id="pkg"><a href="/pkg/">Package Documentation</a></h3>
 <p>
-Answers to common questions about the design decisions behind Go.
+The built-in documentation for the Go standard library.
 </p>
 
-<h3 id="go_programming_faq"><a href="go_programming_faq.html">Programming FAQ</a></h3>
+<h3 id="cmd"><a href="/cmd/">Command Documentation</a></h3>
 <p>
-Answers to common questions about programming with Go.
+The built-in documentation for the Go tools.
 </p>
 
-<h2 id="dev">Development</h2>
-
-<h3 id="contibute"><a href="contribute.html">Contributing to the Go project</a></h3>
+<h3 id="spec"><a href="go_spec.html">Language Specification</a></h3>
 <p>
-How to contribute changes to the Go project.
+The official Go Language specification. 
 </p>
 
-<h3 id="roadmap"><a href="devel/roadmap.html">Roadmap</a></h3>
+<h3 id="go_mem"><a href="go_mem.html">The Go Memory Model</a></h3>
 <p>
-Features and ideas being developed or discussed by the Go team.
-</p>
-
-<h3 id="release"><a href="devel/release.html">Release History</a></h3>
-<p>
-A summarization of the changes between tagged releases of Go.
+A document that specifies the conditions under which reads of a variable in
+one goroutine can be guaranteed to observe values produced by writes to the
+same variable in a different goroutine.
 </p>
 
 <h2 id="videos_talks">Videos and Talks</h2>
@@ -170,30 +166,6 @@ does.
 A short promotional video featuring Russ Cox demonstrating Go's fast compiler.
 </p>
 
-<h2 id="codewalks">Codewalks</h2>
+</div>
 
-<h3 id="codewalk_sharemem"><a href="codewalk/sharemem/">Share Memory By Communicating</a></h3>
-<p>
-A demonstration of the practical use of goroutines and channels.
-</p>
-
-<h3 id="codewalk_codewalk"><a href="codewalk/codewalk/">How to write a Codewalk</a></h3>
-<p>
-A self-describing Codewalk.
-</p>
-
-
-<h2 id="blogs">Blog Posts</h2>
-<p>
-Articles about Go from external blogs.
-</p>
-
-<h3 id="blog_rsc"><a href="http://research.swtch.com/search/label/Go">Go articles at research!rsc</a></h3>
-<p>
-Posts labelled 'Go' by Russ Cox, one of the core Go developers.
-</p>
-
-<h3 id="blog_iant"><a href="http://www.airs.com/blog/archives/category/programming">Programming articles at Airs</a></h3>
-<p>
-Posts labelled 'Programming' by Ian Lance Taylor, one of the core Go developers.
-</p>
+<div class="end-columns"></div>

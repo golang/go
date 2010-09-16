@@ -1,136 +1,40 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-   "http://www.w3.org/TR/html4/transitional.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-
-  <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  <title>{Title|html-esc}</title>
-
-  <link rel="stylesheet" type="text/css" href="/doc/style.css">
-  <script type="text/javascript" src="/doc/godocs.js"></script>
-
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>The Go Programming Language</title>
+<link rel="stylesheet" href="/doc/all.css" type="text/css" media="all" charset="utf-8">
+<!--[if lt IE 8]>
+<link rel="stylesheet" href="/doc/ie.css" type="text/css">
+<![endif]-->
+<script type="text/javascript" src="/doc/godocs.js"></script>
 </head>
-
 <body>
-
-  <script>
-    // Catch 'enter' key down events and trigger the search form submission.
-    function codesearchKeyDown(event) {.meta-left}
-      if (event.which == 13) {.meta-left}
-        var form = document.getElementById('codesearch');
-        var query = document.getElementById('codesearchQuery');
-        form.q.value = "lang:go package:go.googlecode.com " + query.value;
-        document.getElementById('codesearch').submit();
-      {.meta-right}
-      return true;
-    {.meta-right}
-
-    // Capture the submission event and construct the query parameter.
-    function codeSearchSubmit() {.meta-left}
-      var query = document.getElementById('codesearchQuery');
-      var form = document.getElementById('codesearch');
-      form.q.value = "lang:go package:go.googlecode.com " + query.value;
-      return true;
-    {.meta-right}
-  </script>
-
-<div id="topnav">
-  <table summary="">
-    <tr>
-      <td id="headerImage">
-        <a href="/"><img src="/doc/logo-153x55.png" height="55" width="153" alt="Go Home Page" style="border:0" /></a>
-      </td>
-      <td>
-        <div id="headerDocSetTitle">The Go Programming Language</div>
-      </td>
-      <td>
-        <!-- <table>
-          <tr>
-            <td>
-              <! The input box is outside of the form because we want to add
-              a couple of restricts to the query before submitting. If we just
-              add the restricts to the text box before submitting, then they
-              appear in the box when the user presses 'back'. Thus we use a
-              hidden field in the form. However, there's no way to stop the
-              non-hidden text box from also submitting a value unless we move
-              it outside of the form
-              <input type="search" id="codesearchQuery" value="" size="30" onkeydown="return codesearchKeyDown(event);"/>
-              <form method="GET" action="http://www.google.com/codesearch" id="codesearch" class="search" onsubmit="return codeSearchSubmit();" style="display:inline;">
-                <input type="hidden" name="q" value=""/>
-                <input type="submit" value="Code search" />
-                <span style="color: red">(TODO: remove for now?)</span>
-              </form>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <span style="color: gray;">(e.g. &ldquo;pem&rdquo; or &ldquo;xml&rdquo;)</span>
-            </td>
-          </tr>
-        </table> -->
-      </td>
-    </tr>
-  </table>
-</div>
-
-<div id="linkList">
-  <ul>
-    <li class="navhead"><a href="/">Home</a></li>
-    <li class="blank">&nbsp;</li>
-
-    <li class="navhead"><a href="/doc/install.html">Installing Go</a></li>
-    <li class="navhead"><a href="/doc/go_learning.html">Go Resources</a></li>
-    <li class="blank">&nbsp;</li>
-
-    <li class="navhead">Selected Documents</li>
-    <li><a href="/doc/go_tutorial.html">Tutorial</a></li>
-    <li><a href="/doc/effective_go.html">Effective Go</a></li>
-    <li><a href="/doc/go_faq.html">FAQ</a></li>
-    <li><a href="/doc/go_lang_faq.html">Language Design FAQ</a></li>
-    <li><a href="/doc/go_programming_faq.html">Programming FAQ</a></li>
-
-    <li class="blank">&nbsp;</li>
-    <li class="navhead">References</li>
-    <li><a href="/doc/go_spec.html">Language Specification</a></li>
-    <li><a href="/pkg">Package documentation</a></li>
-    {.repeated section PkgRoots}
-    <li><a href="/pkg/{@|html-esc}">Package documentation for {@|html-esc}</a></li>
-    {.end}
-    <li><a href="/cmd">Command documentation</a></li>
-    <li><a href="/src">Source files</a></li>
-
-    <li class="blank">&nbsp;</li>
-    <li class="navhead">Help &amp; Community</li>
-    <li><a href="http://blog.golang.org/">Go Blog</a></li>
-    <li><a href="http://groups.google.com/group/golang-nuts">Go Nuts mailing list</a></li>
-    <li>#go-nuts on irc.freenode.net</li>
-    <li><a href="http://twitter.com/go_nuts">@go_nuts on Twitter</a></li>
-    <li><a href="http://youtube.com/user/gocoding">gocoding YouTube Channel</a></li>
-    <li><a href="http://code.google.com/p/go/issues/list">Issue tracker</a></li>
-    <li><a href="http://code.google.com/p/go/wiki/WikiIndex">Go Wiki</a></li>
-
-    <li class="blank">&nbsp;</li>
-    <li class="navhead">Go Dashboard</li>
-    <li><a href="http://godashboard.appspot.com/">Build Status</a></li>
-    <li><a href="http://godashboard.appspot.com/package">External Packages</a></li>
-    <li><a href="http://godashboard.appspot.com/benchmarks">Benchmarks</a></li>
-
-    <li class="blank">&nbsp;</li>
-    <li class="blank">&nbsp;</li>
-    <li class="navhead">Go code search</li>
-    <form method="GET" action="/search" class="search">
-    <input type="search" name="q" value="{Query|html-esc}" size="25" style="width:80%; max-width:200px" />
-    <input type="submit" value="Go" />
-    </form>
-
-    <li class="blank">&nbsp;</li>
-    <li class="navhead">Last update</li>
-	<li>{Timestamp|time}</li>
-	<li>Build version {Version|html-esc}</li>
-  </ul>
-</div>
-
-<div id="content">
+<div id="container">
+  <div id="topnav">
+    <h1 id="branding-logo"><a href="/"><span>The Go Programming Language</span></a></h1>
+    <div id="nav-main">
+      <ul>
+      <li><a href="/">Home</a></li><li><a href="/doc/install.html">Getting Started</a></li><li><a href="/doc/docs.html">Documentation</a></li><li><a href="/doc/contrib.html">Contributing</a></li><li><a href="/doc/community.html">Community</a></li>
+      </ul>
+      <div class="quickref">
+        <form method="GET" action="/search">
+        {.section PkgRoots}
+        {.repeated section PkgRoots}
+        <a href="/pkg/{@|html-esc}">{@|html-esc}</a>
+        {.end}
+        {.or}
+        References:
+        {.end}
+        <a href="/pkg/">Packages</a>
+        <a href="/cmd/">Commands</a>
+        <a href="/doc/go_spec.html">Specification</a>
+        <input id="search" type="text" name="q" value="{.section Query}{Query|html-esc}{.or}code search{.end}" class="{.section Query}{.or}inactive{.end}" />
+        </form>
+      </div>
+    </div>
+  </div>
+  <div id="content">
   <!-- Menu is HTML-escaped elsewhere -->
   {.section Menu}
     <div id="menu">
@@ -153,13 +57,10 @@
 
   <!-- Content is HTML-escaped elsewhere -->
   {Content}
+  </div>
+  <div id="site-info">
+    <p>Build version {Version|html-esc}. Except as noted, this content is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.</p>
+  </div>
 </div>
-
-<div id="footer">
-<p>Except as noted, this content is
-   licensed under <a href="http://creativecommons.org/licenses/by/3.0/">
-   Creative Commons Attribution 3.0</a>.
-</div>
-
 </body>
 </html>

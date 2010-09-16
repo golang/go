@@ -11,15 +11,30 @@
 /* We want to do some stuff on page load (after the HTML is rendered).
    So listen for that:
  */
-if (window.addEventListener){
-  window.addEventListener('load', godocs_onload, false);
-} else if (window.attachEvent){
-  window.attachEvent('onload', godocs_onload);
+function bindEvent(el, e, fn) {
+  if (el.addEventListener){
+    el.addEventListener(e, fn, false);
+  } else if (el.attachEvent){
+    el.attachEvent('on'+e, fn);
+  }
 }
+bindEvent(window, 'load', godocs_onload);
 
 function godocs_onload() {
+  godocs_bindSearchEvents();
   godocs_generateTOC();
   godocs_addTopLinks();
+}
+
+function godocs_bindSearchEvents() {
+  var search = document.getElementById('search');
+  function clearInactive() {
+    if (search.className == "inactive") {
+      search.value = "";
+      search.className = "";
+    }
+  }
+  bindEvent(search, 'focus', clearInactive);
 }
 
 /* Generates a table of contents: looks for h2 and h3 elements and generates
