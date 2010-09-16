@@ -5,6 +5,92 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-09-15">2010-09-15</h3>
+
+<pre>
+This release includes a language change: the lower bound of a subslice may
+now be omitted, in which case the value will default to 0.
+For example, s[0:10] may now be written as s[:10], and s[0:] as s[:].
+
+The release also includes important bug fixes for the ARM architecture,
+as well as the following fixes and changes:
+
+* 5g: register allocation bugs
+* 6c, 8c: show line numbers in -S output
+* 6g, 6l, 8g, 8l: move read-only data to text segment
+* 6l, 8l: make etext accurate; introduce rodata, erodata.
+* arm: fix build bugs.
+        make libcgo build during OS X cross-compile
+        remove reference to deleted file syntax/slice.go
+        use the correct stat syscalls
+        work around reg allocator bug in 5g
+* bufio: add UnreadRune.
+* build: avoid bad environment interactions
+        fix build for tiny
+        generate, clean .exe files on Windows (thanks Joe Poirier)
+        test for _WIN32, not _MINGW32 (thanks Joe Poirier)
+        work with GNU Make 3.82 (thanks Jukka-Pekka Kekkonen)
+* cgo: add typedef for uintptr in generated headers
+        silence warning for C call returning const pointer
+* codereview: convert email address to lower case before checking CONTRIBUTORS
+* crypto/tls: don't return an error from Close()
+* doc/tutorial: update for slice changes.
+* exec: separate LookPath implementations for unix/windows (thanks Joe Poirier)
+* exp/draw/x11: allow clean shutdown when the user closes the window.
+* exp/draw: clip destination rectangle to the image bounds.
+        fast path for drawing overlapping image.RGBAs.
+        fix double-counting of pt.Min for the src and mask points.
+        reintroduce the MouseEvent.Nsec timestamp.
+        rename Context to Window, and add a Close method.
+* exp/debug: preliminary support for 'copy' function (thanks Sebastien Binet)
+* fmt.Fscan: use UnreadRune to preserve data across calls.
+* gc: better printing of named constants, func literals in errors
+        many bug fixes
+        fix line number printing with //line directives
+        fix symbol table generation on windows (thanks Alex Brainman)
+        implement comparison rule from spec change 33abb649cb63
+        implement new slice spec (thanks Scott Lawrence)
+        make string x + y + z + ... + w efficient
+        more accurate line numbers for ATEXT
+        remove &[10]int -> []int conversion
+* go-mode.el: fix highlighting for 'chan' type (thanks Scott Lawrence)
+* godoc: better support for directory trees for user-supplied paths
+        use correct delay time (bug fix)
+* gofmt, go/printer: update internal estimated position correctly
+* goinstall: warn when package name starts with http:// (thanks Scott Lawrence)
+* http: check https certificate against host name
+        do not cache CanonicalHeaderKey (thanks Jukka-Pekka Kekkonen)
+* image: change a ColorImage's minimum point from (0, 0) to (-1e9, -1e9).
+        introduce Intersect and Union rectangle methods.
+* ld: handle quoted spaces in package path (thanks Dan Sinclair)
+* libcgo: fix NaCl build.
+* libmach: fix build on arm host
+        fix new thread race with Linux
+* math: make portable Tan(Pi/2) return NaN
+* misc/dashboard/builder: gobuilder, a continuous build client
+* net: disable tests for functions not available on windows (thanks Alex Brainman)
+* netchan: make -1 unlimited, as advertised.
+* os, exec: rename argv0 to name
+* path: add IsAbs (thanks Ivan Krasin)
+* runtime: fix bug in tracebacks
+        fix crash trace on amd64
+        fix windows build (thanks Alex Brainman)
+        use manual stack for garbage collection
+* spec: add examples for slices with omitted index expressions.
+        allow omission of low slice bound (thanks Scott Lawrence)
+* syscall: fix windows Gettimeofday (thanks Alex Brainman)
+* test(arm): disable zerodivide.go because compilation fails.
+* test(windows): disable tests that cause the build to fail (thanks Joe Poirier)
+* test/garbage/parser: sync with recent parser changes
+* test: Add test for //line
+        Make gccgo believe that the variables can change.
+        Recognize gccgo error messages.
+        Reduce race conditions in chan/nonblock.go.
+        Run garbage collector before testing malloc numbers.
+* websocket: Add support for secure WebSockets (thanks Jukka-Pekka Kekkonen)
+* windows: disable unimplemented tests (thanks Joe Poirier)
+</pre>
+
 <h3 id="2010-09-06">2010-09-06</h3>
 
 <pre>
