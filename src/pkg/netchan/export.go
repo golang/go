@@ -19,7 +19,7 @@
 */
 package netchan
 
-// BUG: can't use range clause to receive when using ImportNValues with N non-zero.
+// BUG: can't use range clause to receive when using ImportNValues to limit the count.
 
 import (
 	"log"
@@ -94,6 +94,7 @@ func (client *expClient) run() {
 	reqValue := reflect.NewValue(req)
 	error := new(error)
 	for {
+		*hdr = header{}
 		if err := client.decode(hdrValue); err != nil {
 			log.Stderr("error decoding client header:", err)
 			break

@@ -64,6 +64,7 @@ func (imp *Importer) run() {
 	err := new(error)
 	errValue := reflect.NewValue(err)
 	for {
+		*hdr = header{}
 		if e := imp.decode(hdrValue); e != nil {
 			log.Stderr("importer header:", e)
 			imp.shutdown()
@@ -152,7 +153,7 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, n int)
 	}
 	if dir == Send {
 		go func() {
-			for i := 0; n == 0 || i < n; i++ {
+			for i := 0; n == -1 || i < n; i++ {
 				val := ch.Recv()
 				if err := imp.encode(hdr, payData, val.Interface()); err != nil {
 					log.Stderr("error encoding client response:", err)
