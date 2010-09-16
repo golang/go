@@ -21,6 +21,16 @@ const (
 	Send
 )
 
+func (dir Dir) String() string {
+	switch dir {
+	case Recv:
+		return "Recv"
+	case Send:
+		return "Send"
+	}
+	return "???"
+}
+
 // Payload types
 const (
 	payRequest = iota // request structure follows
