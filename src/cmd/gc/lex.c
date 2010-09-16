@@ -353,8 +353,11 @@ static int
 findpkg(Strlit *name)
 {
 	Idir *p;
+	char *q;
 
 	if(islocalname(name)) {
+		if(debug['u'])
+			return 0;
 		// try .a before .6.  important for building libraries:
 		// if there is an array.6 in the array.a library,
 		// want to find all of array.a, not just array.6.
@@ -364,6 +367,18 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
+		return 0;
+	}
+
+	// local imports should be canonicalized already.
+	// don't want to see "container/../container/vector"
+	// as different from "container/vector".
+	q = mal(name->len+1);
+	memmove(q, name->s, name->len);
+	q[name->len] = '\0';
+	cleanname(q);
+	if(strlen(q) != name->len || memcmp(q, name->s, name->len) != 0) {
+		yyerror("non-canonical import name %Z (%s)", name->s, q);
 		return 0;
 	}
 
