@@ -356,7 +356,7 @@ findpkg(Strlit *name)
 	char *q;
 
 	if(islocalname(name)) {
-		if(debug['u'])
+		if(safemode)
 			return 0;
 		// try .a before .6.  important for building libraries:
 		// if there is an array.6 in the array.a library,
