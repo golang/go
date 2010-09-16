@@ -107,21 +107,44 @@ func isRelated(p, q string) bool {
 }
 
 
+// binarySearch returns an index i such that (a[i] <= s < a[i+1]) || (s is not in a).
+// The slice a must not be empty and sorted in increasing order.
+// (See "A Method of Programming", E.W. Dijkstra).
+//
+func binarySearch(a []string, s string) int {
+	i, j := 0, len(a)
+	// i < j for non-empty a
+	for i+1 < j {
+		// 0 <= i < j <= len(a) && (a[i] <= s < a[j] || (s is not in a))
+		h := i + (j-i)/2 // i < h < j
+		if a[h] <= s {
+			i = h
+		} else { // s < a[h]
+			j = h
+		}
+	}
+	// i+1 == j for non-empty a
+	return i
+}
+
+
 func setPathFilter(list []string) {
 	if len(list) == 0 {
 		pathFilter.set(nil)
 		return
 	}
 
-	// TODO(gri) This leads to quadratic behavior.
-	//           Need to find a better filter solution.
+	// len(list) > 0
 	pathFilter.set(func(path string) bool {
-		for _, p := range list {
-			if isRelated(path, p) {
-				return true
-			}
-		}
-		return false
+		// list is sorted in increasing order and for each path all its children are removed
+		i := binarySearch(list, path)
+		// At this point we have (list[i] <= path < list[i+1]) || (path is not in list),
+		// thus path must be either longer (a child) of list[i], or shorter (a parent)
+		// of list[i+1] - assuming an "infinitely extended" list. However, binarySearch
+		// will return a 0 if path < list[0], so we must be careful in that case.
+		return i == 0 && isParentOf(path, list[0]) ||
+			isParentOf(list[i], path) ||
+			i+1 < len(list) && isParentOf(path, list[i+1])
 	})
 }
 
@@ -142,12 +165,22 @@ func readDirList(filename string) ([]string, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	// create list of valid directory names
+	// create a sorted list of valid directory names
 	filter := func(path string) bool {
 		d, err := os.Lstat(path)
 		return err == nil && isPkgDir(d)
 	}
-	return canonicalizePaths(strings.Split(string(contents), "\n", -1), filter), nil
+	list := canonicalizePaths(strings.Split(string(contents), "\n", -1), filter)
+	// for each parent path, remove all it's children q
+	// (requirement for binary search to work when filtering)
+	i := 0
+	for _, q := range list {
+		if i == 0 || !isParentOf(list[i-1], q) {
+			list[i] = q
+			i++
+		}
+	}
+	return list[0:i], nil
 }
 
 
