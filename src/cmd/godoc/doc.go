@@ -45,6 +45,8 @@ The flags are:
 		print (exported) source in command-line mode
 	-tabwidth=4
 		width of tabs in units of spaces
+	-timestamps=true
+		show timestamps with directory listings
 	-path=""
 		additional package directories (colon-separated)
 	-html

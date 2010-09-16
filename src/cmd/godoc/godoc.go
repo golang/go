@@ -58,7 +58,8 @@ var (
 	filterDelay delayTime // actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
 
 	// layout control
-	tabwidth = flag.Int("tabwidth", 4, "tab width")
+	tabwidth       = flag.Int("tabwidth", 4, "tab width")
+	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
 
 	// file system mapping
 	fsMap      Mapping // user-defined mapping
@@ -97,13 +98,6 @@ func registerPublicHandlers(mux *http.ServeMux) {
 func isParentOf(p, q string) bool {
 	n := len(p)
 	return strings.HasPrefix(q, p) && (len(q) <= n || q[n] == '/')
-}
-
-
-// isRelated returns true if p is a parent or child of (or the same as) q
-// where p and q are directory paths.
-func isRelated(p, q string) bool {
-	return isParentOf(p, q) || isParentOf(q, p)
 }
 
 
@@ -800,26 +794,23 @@ func readTemplates() {
 
 func servePage(c *http.Conn, title, subtitle, query string, content []byte) {
 	type Data struct {
-		Title     string
-		Subtitle  string
-		PkgRoots  []string
-		Timestamp int64
-		Query     string
-		Version   string
-		Menu      []byte
-		Content   []byte
+		Title    string
+		Subtitle string
+		PkgRoots []string
+		Query    string
+		Version  string
+		Menu     []byte
+		Content  []byte
 	}
 
-	_, ts := fsTree.get()
 	d := Data{
-		Title:     title,
-		Subtitle:  subtitle,
-		PkgRoots:  fsMap.PrefixList(),
-		Timestamp: ts * 1e9, // timestamp in ns
-		Query:     query,
-		Version:   runtime.Version(),
-		Menu:      nil,
-		Content:   content,
+		Title:    title,
+		Subtitle: subtitle,
+		PkgRoots: fsMap.PrefixList(),
+		Query:    query,
+		Version:  runtime.Version(),
+		Menu:     nil,
+		Content:  content,
 	}
 
 	if err := godocHTML.Execute(&d, c); err != nil {
@@ -1101,6 +1092,7 @@ type PageInfo struct {
 	PAst    *ast.File       // nil if no single AST with package exports
 	PDoc    *doc.PackageDoc // nil if no single package documentation
 	Dirs    *DirList        // nil if no directory information
+	DirTime int64           // directory time stamp in seconds since epoch
 	IsPkg   bool            // false if this is not documenting a real package
 	Err     os.Error        // directory read error or nil
 }
@@ -1207,11 +1199,13 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 
 	// get directory information
 	var dir *Directory
-	if tree, _ := fsTree.get(); tree != nil && tree.(*Directory) != nil {
+	var timestamp int64
+	if tree, ts := fsTree.get(); tree != nil && tree.(*Directory) != nil {
 		// directory tree is present; lookup respective directory
 		// (may still fail if the file system was updated and the
 		// new directory tree has not yet been computed)
 		dir = tree.(*Directory).lookup(abspath)
+		timestamp = ts
 	}
 	if dir == nil {
 		// the path may refer to a user-specified file system mapped
@@ -1230,8 +1224,9 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 			// found a RWValue associated with a user-specified file
 			// system; a non-nil RWValue stores a (possibly out-of-date)
 			// directory tree for that file system
-			if tree, _ := v.get(); tree != nil && tree.(*Directory) != nil {
+			if tree, ts := v.get(); tree != nil && tree.(*Directory) != nil {
 				dir = tree.(*Directory).lookup(abspath)
+				timestamp = ts
 			}
 		}
 	}
@@ -1241,9 +1236,10 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		// note: cannot use path filter here because in general
 		//       it doesn't contain the fsTree path
 		dir = newDirectory(abspath, nil, 1)
+		timestamp = time.Seconds()
 	}
 
-	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), h.isPkg, nil}
+	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), timestamp, h.isPkg, nil}
 }
 
 
@@ -1271,7 +1267,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 		return
 	}
 
-	var title string
+	var title, subtitle string
 	switch {
 	case info.PAst != nil:
 		title = "Package " + info.PAst.Name.Name
@@ -1288,10 +1284,13 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 		}
 	default:
 		title = "Directory " + relativePath(info.Dirname)
+		if *showTimestamps {
+			subtitle = "Last update: " + time.SecondsToLocalTime(info.DirTime).String()
+		}
 	}
 
 	contents := applyTemplate(packageHTML, "packageHTML", info)
-	servePage(c, title, "", "", contents)
+	servePage(c, title, subtitle, "", contents)
 }
 
 
