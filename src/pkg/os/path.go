@@ -84,7 +84,6 @@ func RemoveAll(path string) Error {
 	if err != nil {
 		return err
 	}
-	defer fd.Close()
 
 	// Remove contents & return first error.
 	err = nil
@@ -104,6 +103,9 @@ func RemoveAll(path string) Error {
 			break
 		}
 	}
+
+	// Close directory, because windows won't remove opened directory.
+	fd.Close()
 
 	// Remove directory.
 	err1 := Remove(path)
