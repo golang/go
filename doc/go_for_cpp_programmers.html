@@ -668,7 +668,7 @@ func manager(ch chan cmd) {
 	var val int = 0
 	for {
 		c := &lt;- ch
-		if c.get { c.val = val ch &lt;- c }
+		if c.get { c.val = val; ch &lt;- c }
 		else { val = c.val }
 	}
 }
