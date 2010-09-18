@@ -151,7 +151,7 @@ type value struct {
 
 // This test cross-connects a pair of exporter/importer pairs.
 func TestCrossConnect(t *testing.T) {
-	e1, err := NewExporter("tcp", ":0")
+	e1, err := NewExporter("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal("new exporter:", err)
 	}
@@ -160,7 +160,7 @@ func TestCrossConnect(t *testing.T) {
 		t.Fatal("new importer:", err)
 	}
 
-	e2, err := NewExporter("tcp", ":0")
+	e2, err := NewExporter("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal("new exporter:", err)
 	}
