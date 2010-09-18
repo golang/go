@@ -189,6 +189,7 @@ endif
 # Disable tests that windows cannot run yet.
 ifeq ($(GOOS),windows)
 NOTEST+=exec         # no pipe
+NOTEST+=netchan      # net.Dial("tcp", "", "0.0.0.0:80") doesn't work on windows
 NOTEST+=os           # many things unimplemented
 NOTEST+=os/signal    # no signals
 NOTEST+=path         # tree walking does not work
