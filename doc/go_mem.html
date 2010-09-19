@@ -276,8 +276,9 @@ before the <i>n</i>+1'th call to <code>l.Lock</code>.
 <h3>Once</h3>
 
 <p>
-The <code>once</code> package provides a safe mechanism for
-initialization in the presence of multiple goroutines.
+The <code>sync</code> package provides a safe mechanism for
+initialization in the presence of multiple goroutines
+through the use of the <code>Once</code> type.
 Multiple threads can execute <code>once.Do(f)</code> for a particular <code>f</code>,
 but only one will run <code>f()</code>, and the other calls block
 until <code>f()</code> has returned.
@@ -293,6 +294,7 @@ In this program:
 
 <pre>
 var a string
+var once sync.Once
 
 func setup() {
 	a = "hello, world"
