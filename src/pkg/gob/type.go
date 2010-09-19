@@ -52,10 +52,20 @@ func (t typeId) gobType() gobType {
 }
 
 // string returns the string representation of the type associated with the typeId.
-func (t typeId) string() string { return t.gobType().string() }
+func (t typeId) string() string {
+	if t.gobType() == nil {
+		return "<nil>"
+	}
+	return t.gobType().string()
+}
 
 // Name returns the name of the type associated with the typeId.
-func (t typeId) Name() string { return t.gobType().Name() }
+func (t typeId) Name() string {
+	if t.gobType() == nil {
+		return "<nil>"
+	}
+	return t.gobType().Name()
+}
 
 // Common elements of all types.
 type commonType struct {

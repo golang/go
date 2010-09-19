@@ -843,11 +843,16 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
 		return dec.compileSingle(remoteId, rt)
 	}
 	var wireStruct *structType
-	// Builtin types can come from global pool; the rest must be defined by the decoder
+	// Builtin types can come from global pool; the rest must be defined by the decoder.
+	// Also we know we're decoding a struct now, so the client must have sent one.
 	if t, ok := builtinIdToType[remoteId]; ok {
-		wireStruct = t.(*structType)
+		wireStruct, _ = t.(*structType)
 	} else {
 		wireStruct = dec.wireType[remoteId].structT
+	}
+	if wireStruct == nil {
+		return nil, os.ErrorString("gob: type mismatch in decoder: want struct type " +
+			rt.String() + "; got non-struct")
 	}
 	engine = new(decEngine)
 	engine.instr = make([]decInstr, len(wireStruct.field))
