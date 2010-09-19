@@ -327,3 +327,31 @@ func TestSingletons(t *testing.T) {
 		}
 	}
 }
+
+func TestStructNonStruct(t *testing.T) {
+	type Struct struct {
+		a string
+	}
+	type NonStruct string
+	s := Struct{"hello"}
+	var sp Struct
+	if err := encAndDec(s, &sp); err != nil {
+		t.Error(err)
+	}
+	var ns NonStruct
+	if err := encAndDec(s, &ns); err == nil {
+		t.Error("should get error for struct/non-struct")
+	} else if strings.Index(err.String(), "type") < 0 {
+		t.Error("for struct/non-struct expected type error; got", err)
+	}
+	// Now try the other way
+	var nsp NonStruct
+	if err := encAndDec(ns, &nsp); err != nil {
+		t.Error(err)
+	}
+	if err := encAndDec(ns, &s); err == nil {
+		t.Error("should get error for non-struct/struct")
+	} else if strings.Index(err.String(), "type") < 0 {
+		t.Error("for non-struct/struct expected type error; got", err)
+	}
+}
