@@ -1023,7 +1023,7 @@ void	walkselect(Node *sel);
 /*
  *	sinit.c
  */
-void	anylit(Node *n, Node *var, NodeList **init);
+void	anylit(int, Node *n, Node *var, NodeList **init);
 int	gen_as_init(Node *n);
 NodeList*	initfix(NodeList *l);
 int	oaslit(Node *n, NodeList **init);
@@ -1116,7 +1116,6 @@ Type*	shallow(Type *t);
 int	simsimtype(Type *t);
 void	smagic(Magic *m);
 Type*	sortinter(Type *t);
-Node*	staticname(Type *t);
 uint32	stringhash(char *p);
 Strlit*	strlit(char *s);
 int	structcount(Type *t);

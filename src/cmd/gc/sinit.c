@@ -179,20 +179,21 @@ initfix(NodeList *l)
  * part of the composit literal.
  */
 
-static	void	structlit(int pass, Node *n, Node *var, NodeList **init);
-static	void	arraylit(int pass, Node *n, Node *var, NodeList **init);
-static	void	slicelit(Node *n, Node *var, NodeList **init);
-static	void	maplit(Node *n, Node *var, NodeList **init);
+static	void	structlit(int ctxt, int pass, Node *n, Node *var, NodeList **init);
+static	void	arraylit(int ctxt, int pass, Node *n, Node *var, NodeList **init);
+static	void	slicelit(int ctxt, Node *n, Node *var, NodeList **init);
+static	void	maplit(int ctxt, Node *n, Node *var, NodeList **init);
 
-Node*
-staticname(Type *t)
+static Node*
+staticname(Type *t, int ctxt)
 {
 	Node *n;
 
 	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d", statuniqgen);
 	statuniqgen++;
 	n = newname(lookup(namebuf));
-	n->readonly = 1;
+	if(!ctxt)
+		n->readonly = 1;
 	addvar(n, t, PEXTERN);
 	return n;
 }
@@ -270,7 +271,7 @@ getdyn(Node *n, int top)
 }
 
 static void
-structlit(int pass, Node *n, Node *var, NodeList **init)
+structlit(int ctxt, int pass, Node *n, Node *var, NodeList **init)
 {
 	Node *r, *a;
 	NodeList *nl;
@@ -286,21 +287,25 @@ structlit(int pass, Node *n, Node *var, NodeList **init)
 		switch(value->op) {
 		case OARRAYLIT:
 			if(value->type->bound < 0) {
-				if(pass == 2) {
+				if(pass == 1 && ctxt != 0) {
 					a = nod(ODOT, var, newname(index->sym));
-					slicelit(value, a, init);
+					slicelit(ctxt, value, a, init);
+				} else
+				if(pass == 2 && ctxt == 0) {
+					a = nod(ODOT, var, newname(index->sym));
+					slicelit(ctxt, value, a, init);
 				} else
 				if(pass == 3)
 					break;
 				continue;
 			}
 			a = nod(ODOT, var, newname(index->sym));
-			arraylit(pass, value, a, init);
+			arraylit(ctxt, pass, value, a, init);
 			continue;
 
 		case OSTRUCTLIT:
 			a = nod(ODOT, var, newname(index->sym));
-			structlit(pass, value, a, init);
+			structlit(ctxt, pass, value, a, init);
 			continue;
 		}
 
@@ -326,7 +331,7 @@ structlit(int pass, Node *n, Node *var, NodeList **init)
 }
 
 static void
-arraylit(int pass, Node *n, Node *var, NodeList **init)
+arraylit(int ctxt, int pass, Node *n, Node *var, NodeList **init)
 {
 	Node *r, *a;
 	NodeList *l;
@@ -342,21 +347,25 @@ arraylit(int pass, Node *n, Node *var, NodeList **init)
 		switch(value->op) {
 		case OARRAYLIT:
 			if(value->type->bound < 0) {
-				if(pass == 2) {
+				if(pass == 1 && ctxt != 0) {
 					a = nod(OINDEX, var, index);
-					slicelit(value, a, init);
+					slicelit(ctxt, value, a, init);
+				} else
+				if(pass == 2 && ctxt == 0) {
+					a = nod(OINDEX, var, index);
+					slicelit(ctxt, value, a, init);
 				} else
 				if(pass == 3)
 					break;
 				continue;
 			}
 			a = nod(OINDEX, var, index);
-			arraylit(pass, value, a, init);
+			arraylit(ctxt, pass, value, a, init);
 			continue;
 
 		case OSTRUCTLIT:
 			a = nod(OINDEX, var, index);
-			structlit(pass, value, a, init);
+			structlit(ctxt, pass, value, a, init);
 			continue;
 		}
 
@@ -382,7 +391,7 @@ arraylit(int pass, Node *n, Node *var, NodeList **init)
 }
 
 static void
-slicelit(Node *n, Node *var, NodeList **init)
+slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 {
 	Node *r, *a;
 	NodeList *l;
@@ -397,6 +406,22 @@ slicelit(Node *n, Node *var, NodeList **init)
 	t->width = 0;
 	t->sym = nil;
 	dowidth(t);
+
+	if(ctxt != 0) {
+
+		// put everything into static array
+		vstat = staticname(t, ctxt);
+		arraylit(ctxt, 1, n, vstat, init);
+		arraylit(ctxt, 2, n, vstat, init);
+
+		// copy static to slice
+		a = nod(OSLICE, vstat, nod(OKEY, N, N));
+		a = nod(OAS, var, a);
+		typecheck(&a, Etop);
+		a->dodata = 2;
+		*init = list(*init, a);
+		return;
+	}
 
 	// recipe for var = []t{...}
 	// 1. make a static array
@@ -422,8 +447,8 @@ slicelit(Node *n, Node *var, NodeList **init)
 	vstat = N;
 	mode = getdyn(n, 1);
 	if(mode & MODECONST) {
-		vstat = staticname(t);
-		arraylit(1, n, vstat, init);
+		vstat = staticname(t, ctxt);
+		arraylit(ctxt, 1, n, vstat, init);
 	}
 
 	// make new auto *array (3 declare)
@@ -468,11 +493,11 @@ slicelit(Node *n, Node *var, NodeList **init)
 		case OARRAYLIT:
 			if(value->type->bound < 0)
 				break;
-			arraylit(2, value, a, init);
+			arraylit(ctxt, 2, value, a, init);
 			continue;
 
 		case OSTRUCTLIT:
-			structlit(2, value, a, init);
+			structlit(ctxt, 2, value, a, init);
 			continue;
 		}
 
@@ -488,7 +513,7 @@ slicelit(Node *n, Node *var, NodeList **init)
 }
 
 static void
-maplit(Node *n, Node *var, NodeList **init)
+maplit(int ctxt, Node *n, Node *var, NodeList **init)
 {
 	Node *r, *a;
 	NodeList *l;
@@ -496,6 +521,8 @@ maplit(Node *n, Node *var, NodeList **init)
 	Type *t, *tk, *tv, *t1;
 	Node *vstat, *index, *value;
 	Sym *syma, *symb;
+
+ctxt = 0;
 
 	// make the map var
 	nerr = nerrors;
@@ -549,7 +576,7 @@ maplit(Node *n, Node *var, NodeList **init)
 		dowidth(t);
 
 		// make and initialize static array
-		vstat = staticname(t);
+		vstat = staticname(t, ctxt);
 		b = 0;
 		for(l=n->list; l; l=l->next) {
 			r = l->n;
@@ -640,7 +667,7 @@ maplit(Node *n, Node *var, NodeList **init)
 }
 
 void
-anylit(Node *n, Node *var, NodeList **init)
+anylit(int ctxt, Node *n, Node *var, NodeList **init)
 {
 	Type *t;
 	Node *a, *vstat;
@@ -655,18 +682,24 @@ anylit(Node *n, Node *var, NodeList **init)
 			fatal("anylit: not struct");
 
 		if(simplename(var)) {
-			// lay out static data
-			vstat = staticname(t);
-			structlit(1, n, vstat, init);
 
-			// copy static to var
-			a = nod(OAS, var, vstat);
-			typecheck(&a, Etop);
-			walkexpr(&a, init);
-			*init = list(*init, a);
+			if(ctxt == 0) {
+				// lay out static data
+				vstat = staticname(t, ctxt);
+				structlit(1, 1, n, vstat, init);
 
-			// add expressions to automatic
-			structlit(2, n, var, init);
+				// copy static to var
+				a = nod(OAS, var, vstat);
+				typecheck(&a, Etop);
+				walkexpr(&a, init);
+				*init = list(*init, a);
+
+				// add expressions to automatic
+				structlit(ctxt, 2, n, var, init);
+				break;
+			}
+			structlit(ctxt, 1, n, var, init);
+			structlit(ctxt, 2, n, var, init);
 			break;
 		}
 
@@ -677,30 +710,36 @@ anylit(Node *n, Node *var, NodeList **init)
 			walkexpr(&a, init);
 			*init = list(*init, a);
 		}
-		structlit(3, n, var, init);
+		structlit(ctxt, 3, n, var, init);
 		break;
 
 	case OARRAYLIT:
 		if(t->etype != TARRAY)
 			fatal("anylit: not array");
 		if(t->bound < 0) {
-			slicelit(n, var, init);
+			slicelit(ctxt, n, var, init);
 			break;
 		}
 
 		if(simplename(var)) {
-			// lay out static data
-			vstat = staticname(t);
-			arraylit(1, n, vstat, init);
 
-			// copy static to automatic
-			a = nod(OAS, var, vstat);
-			typecheck(&a, Etop);
-			walkexpr(&a, init);
-			*init = list(*init, a);
+			if(ctxt == 0) {
+				// lay out static data
+				vstat = staticname(t, ctxt);
+				arraylit(1, 1, n, vstat, init);
 
-			// add expressions to automatic
-			arraylit(2, n, var, init);
+				// copy static to automatic
+				a = nod(OAS, var, vstat);
+				typecheck(&a, Etop);
+				walkexpr(&a, init);
+				*init = list(*init, a);
+
+				// add expressions to automatic
+				arraylit(ctxt, 2, n, var, init);
+				break;
+			}
+			arraylit(ctxt, 1, n, var, init);
+			arraylit(ctxt, 2, n, var, init);
 			break;
 		}
 
@@ -711,13 +750,13 @@ anylit(Node *n, Node *var, NodeList **init)
 			walkexpr(&a, init);
 			*init = list(*init, a);
 		}
-		arraylit(3, n, var, init);
+		arraylit(ctxt, 3, n, var, init);
 		break;
 
 	case OMAPLIT:
 		if(t->etype != TMAP)
 			fatal("anylit: not map");
-		maplit(n, var, init);
+		maplit(ctxt, n, var, init);
 		break;
 	}
 }
@@ -725,6 +764,8 @@ anylit(Node *n, Node *var, NodeList **init)
 int
 oaslit(Node *n, NodeList **init)
 {
+	int ctxt;
+
 	if(n->left == N || n->right == N)
 		goto no;
 	if(n->left->type == T || n->right->type == T)
@@ -737,6 +778,9 @@ oaslit(Node *n, NodeList **init)
 	// context is init() function.
 	// implies generated data executed
 	// exactly once and not subject to races.
+	ctxt = 0;
+//	if(n->dodata == 1)
+//		ctxt = 1;
 
 	switch(n->right->op) {
 	default:
@@ -747,7 +791,7 @@ oaslit(Node *n, NodeList **init)
 	case OMAPLIT:
 		if(vmatch1(n->left, n->right))
 			goto no;
-		anylit(n->right, n->left, init);
+		anylit(ctxt, n->right, n->left, init);
 		break;
 	}
 	n->op = OEMPTY;
