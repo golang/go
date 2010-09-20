@@ -16,12 +16,17 @@
 $cmdline = "mksyscall.sh " . join(' ', @ARGV);
 $errors = 0;
 $_32bit = "";
+$nacl = 0;
 
 if($ARGV[0] eq "-b32") {
 	$_32bit = "big-endian";
 	shift;
 } elsif($ARGV[0] eq "-l32") {
 	$_32bit = "little-endian";
+	shift;
+}
+if($ARGV[0] eq "-nacl") {
+	$nacl = 1;
 	shift;
 }
 
@@ -89,9 +94,15 @@ while(<>) {
 			# Convert slice into pointer, length.
 			# Have to be careful not to take address of &a[0] if len == 0:
 			# pass nil in that case.
-			$text .= "\tvar _p$n *$1\n";
-			$text .= "\tif len($name) > 0 {\n\t\t_p$n = \&${name}[0]\n\t}\n";
-			push @args, "uintptr(unsafe.Pointer(_p$n))", "uintptr(len($name))";
+			$text .= "\tvar _p$n unsafe.Pointer\n";
+			$text .= "\tif len($name) > 0 {\n\t\t_p$n = unsafe.Pointer(\&${name}[0])\n\t}";
+			if($nacl) {
+				# NaCl rejects zero length write with nil pointer,
+				# so use non-nil pointer.
+				$text .= " else {\n\t\t_p$n = unsafe.Pointer(&_zero[0])\n\t}";
+			}
+			$text .= "\n";
+			push @args, "uintptr(_p$n)", "uintptr(len($name))";
 			$n++;
 		} elsif($type eq "int64" && $_32bit ne "") {
 			if($_32bit eq "big-endian") {
