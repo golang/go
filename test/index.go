@@ -1,8 +1,8 @@
 // $G $D/$F.go && $L $F.$A &&
-// ./$A.out -pass 0 >tmp.go && $G tmp.go && $L -o tmp1.$A tmp.$A && ./tmp1.$A &&
+// ./$A.out -pass 0 >tmp.go && $G tmp.go && $L -o $A.out1 tmp.$A && ./$A.out1 &&
 // ./$A.out -pass 1 >tmp.go && errchk $G -e tmp.go &&
 // ./$A.out -pass 2 >tmp.go && errchk $G -e tmp.go
-// rm -f tmp.go
+// rm -f tmp.go $A.out1
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
