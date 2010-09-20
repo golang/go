@@ -170,7 +170,7 @@ func TestErrorForIllegalChannel(t *testing.T) {
 	select {
 	case err = <-imp.Errors():
 		if strings.Index(err.String(), "no such channel") < 0 {
-			t.Errorf("wrong error for nonexistent channel:", err)
+			t.Error("wrong error for nonexistent channel:", err)
 		}
 	case <-timeout:
 		t.Error("import of nonexistent channel did not receive an error")
