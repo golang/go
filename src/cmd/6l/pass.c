@@ -692,7 +692,7 @@ dostkoff(void)
 					p->from.type = D_INDIR+D_GS;
 				p->from.offset = tlsoffset+0;
 				p->to.type = D_CX;
-				
+
 				if(debug['K']) {
 					// 6l -K means check not only for stack
 					// overflow but stack underflow.
@@ -843,6 +843,7 @@ dostkoff(void)
 				p->as = AADJSP;
 				p->from.type = D_CONST;
 				p->from.offset = autoffset;
+				p->spadj = autoffset;
 				if(q != P)
 					q->pcond = p;
 			}
@@ -903,26 +904,32 @@ dostkoff(void)
 		case APUSHL:
 		case APUSHFL:
 			deltasp += 4;
+			p->spadj = 4;
 			continue;
 		case APUSHQ:
 		case APUSHFQ:
 			deltasp += 8;
+			p->spadj = 8;
 			continue;
 		case APUSHW:
 		case APUSHFW:
 			deltasp += 2;
+			p->spadj = 2;
 			continue;
 		case APOPL:
 		case APOPFL:
 			deltasp -= 4;
+			p->spadj = -4;
 			continue;
 		case APOPQ:
 		case APOPFQ:
 			deltasp -= 8;
+			p->spadj = -8;
 			continue;
 		case APOPW:
 		case APOPFW:
 			deltasp -= 2;
+			p->spadj = -2;
 			continue;
 		case ARET:
 			break;
@@ -937,7 +944,7 @@ dostkoff(void)
 			p->as = AADJSP;
 			p->from.type = D_CONST;
 			p->from.offset = -autoffset;
-
+			p->spadj = -autoffset;
 			p = appendp(p);
 			p->as = ARET;
 		}
@@ -954,6 +961,7 @@ dostkoff(void)
 		q->from = zprg.from;
 		q->from.type = D_CONST;
 		q->from.offset = -autoffset;
+		q->spadj = -autoffset;
 		q->to = zprg.to;
 		continue;
 	}

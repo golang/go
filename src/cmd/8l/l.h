@@ -95,6 +95,7 @@ struct	Prog
 	Prog*	dlink;
 	Prog*	pcond;	/* work on this */
 	int32	pc;
+	int32	spadj;
 	int32	line;
 	short	as;
 	char	width;		/* fake for DATA */
@@ -346,7 +347,7 @@ Prog*	brloop(Prog*);
 void	cflush(void);
 void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
-vlong   cpos(void);
+vlong	cpos(void);
 double	cputime(void);
 void	datblk(int32, int32, int32);
 void	diag(char*, ...);
@@ -412,3 +413,9 @@ void	deadcode(void);
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"A"	int
+
+/* Used by ../ld/dwarf.c */
+enum
+{
+	DWARFREGSP = 4
+};
