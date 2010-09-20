@@ -392,10 +392,10 @@ patch(void)
 	for(p = firstp; p != P; p = p->link) {
 		if(HEADTYPE == 10) {	// Windows
 			// Convert
-			//   op   n(GS), reg
+			//   op	  n(GS), reg
 			// to
 			//   MOVL 0x2C(FS), reg
-			//   op   n(reg), reg
+			//   op	  n(reg), reg
 			// The purpose of this patch is to fix some accesses
 			// to extern register variables (TLS) on Windows, as
 			// a different method is used to access them.
@@ -770,6 +770,7 @@ dostkoff(void)
 				p->as = AADJSP;
 				p->from.type = D_CONST;
 				p->from.offset = autoffset;
+				p->spadj = autoffset;
 				if(q != P)
 					q->pcond = p;
 			}
@@ -792,18 +793,22 @@ dostkoff(void)
 		case APUSHL:
 		case APUSHFL:
 			deltasp += 4;
+			p->spadj = 4;
 			continue;
 		case APUSHW:
 		case APUSHFW:
 			deltasp += 2;
+			p->spadj = 2;
 			continue;
 		case APOPL:
 		case APOPFL:
 			deltasp -= 4;
+			p->spadj = -4;
 			continue;
 		case APOPW:
 		case APOPFW:
 			deltasp -= 2;
+			p->spadj = -2;
 			continue;
 		case ARET:
 			break;
@@ -822,6 +827,7 @@ dostkoff(void)
 			q->as = AADJSP;
 			q->from.type = D_CONST;
 			q->from.offset = -autoffset;
+			p->spadj = -autoffset;
 		}
 		continue;
 
@@ -836,6 +842,7 @@ dostkoff(void)
 		q->from = zprg.from;
 		q->from.type = D_CONST;
 		q->from.offset = -autoffset;
+		p->spadj = -autoffset;
 		q->to = zprg.to;
 		continue;
 	}

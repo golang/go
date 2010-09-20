@@ -95,6 +95,7 @@ struct	Prog
 	Prog*	dlink;
 	Prog*	pcond;	/* work on this */
 	vlong	pc;
+	int32	spadj;
 	int32	line;
 	short	as;
 	char	ft;	/* oclass cache */
@@ -102,7 +103,7 @@ struct	Prog
 	uchar	mark;	/* work on these */
 	uchar	back;
 
-	char	width;		/* fake for DATA */
+	char	width;	/* fake for DATA */
 	char	mode;	/* 16, 32, or 64 */
 };
 struct	Auto
@@ -397,7 +398,7 @@ void	buildop(void);
 void	cflush(void);
 void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
-vlong   cpos(void);
+vlong	cpos(void);
 double	cputime(void);
 void	datblk(int32, int32);
 void	deadcode(void);
@@ -463,3 +464,9 @@ uint32	machheadr(void);
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"A"	int
 #pragma	varargck	argpos	diag 1
+
+/* Used by ../ld/dwarf.c */
+enum
+{
+	DWARFREGSP = 7
+};
