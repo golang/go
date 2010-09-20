@@ -403,6 +403,9 @@ void
 	int32 o;
 	byte *ae;
 
+	if(c == nil)
+		panicstring("send to nil channel");
+
 	o = rnd(sizeof(c), c->elemalign);
 	ae = (byte*)&c + o;
 	chansend(c, ae, nil);
@@ -415,6 +418,9 @@ void
 {
 	int32 o;
 	byte *ae, *ap;
+
+	if(c == nil)
+		panicstring("send to nil channel");
 
 	o = rnd(sizeof(c), c->elemalign);
 	ae = (byte*)&c + o;
