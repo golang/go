@@ -22,7 +22,7 @@ endif
 GOROOT_FINAL?=$(GOROOT)
 
 ifeq ($(GOOS),)
-GOOS:=${shell uname | tr A-Z a-z}
+GOOS:=${shell uname | tr A-Z a-z | sed 's/mingw/windows/; s/windows.*/windows/'}
 endif
 
 ifeq ($(GOOS),darwin)
