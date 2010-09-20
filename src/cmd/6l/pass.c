@@ -45,10 +45,15 @@ dodata(void)
 	Sym *s;
 	Prog *p;
 	int32 t, u;
+	Section *sect;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f dodata\n", cputime());
 	Bflush(&bso);
+	
+	segdata.rwx = 06;
+	segdata.vaddr = 0;	/* span will += INITDAT */
+
 	for(p = datap; p != P; p = p->link) {
 		curtext = p;	// for diag messages
 		s = p->from.sym;
@@ -79,6 +84,9 @@ dodata(void)
 		datsize += t;
 	}
 	elfdatsize = datsize;
+	
+	sect = addsection(&segdata, ".data", 06);
+	sect->vaddr = datsize;
 
 	/* allocate small guys */
 	for(i=0; i<NHASH; i++)
@@ -147,6 +155,7 @@ dodata(void)
 		}
 		datsize += u;
 	}
+	sect->len = datsize - sect->vaddr;
 }
 
 void
@@ -155,11 +164,15 @@ dobss(void)
 	int i;
 	Sym *s;
 	int32 t;
+	Section *sect;
 
 	if(dynptrsize > 0) {
 		/* dynamic pointer section between data and bss */
 		datsize = rnd(datsize, 8);
 	}
+
+	sect = addsection(&segdata, ".bss", 06);
+	sect->vaddr = datsize;
 
 	/* now the bss */
 	bsssize = 0;
@@ -175,6 +188,10 @@ dobss(void)
 		s->value = bsssize + dynptrsize + datsize;
 		bsssize += t;
 	}
+	sect->len = bsssize;
+	
+	segdata.len = datsize+bsssize;
+	segdata.filelen = datsize;
 
 	xdefine("data", SBSS, 0);
 	xdefine("edata", SBSS, datsize);

@@ -40,6 +40,34 @@ struct Library
 	char *pkg;	// import path
 };
 
+// Terrible but standard terminology.
+// A segment describes a block of file to load into memory.
+// A section further describes the pieces of that block for
+// use in debuggers and such.
+
+typedef struct Segment Segment;
+typedef struct Section Section;
+
+struct Segment
+{
+	uchar	rwx;		// permission as usual unix bits (5 = r-x etc)
+	uvlong	vaddr;	// virtual address
+	uvlong	len;		// length in memory
+	uvlong	fileoff;	// file offset
+	uvlong	filelen;	// length on disk
+	Section*	sect;
+};
+
+struct Section
+{
+	uchar	rwx;
+	char	*name;
+	uvlong	vaddr;
+	uvlong	len;
+	Section	*next;	// in segment list
+	Segment	*seg;
+};
+
 extern	char	symname[];
 extern	char	*libdir[];
 extern	int	nlibdir;
@@ -65,8 +93,14 @@ EXTERN	char*	outfile;
 EXTERN	int32	nsymbol;
 EXTERN	char*	thestring;
 
+EXTERN	Segment	segtext;
+EXTERN	Segment	segdata;
+EXTERN	Segment	segrodata;	// NaCl only
+EXTERN	Segment	segsym;
+
 void	addlib(char *src, char *obj);
 void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
+Section*	addsection(Segment*, char*, int);
 void	copyhistfrog(char *buf, int nbuf);
 void	addhist(int32 line, int type);
 void	histtoauto(void);

@@ -965,6 +965,9 @@ extern	int	iself;
 int	elfwriteinterp(void);
 void	elfinterp(ElfShdr*, uint64, char*);
 void	elfdynhash(int);
+ElfPhdr* elfphload(Segment*);
+ElfShdr* elfshbits(Section*);
+void	elfsetstring(char*, int);
 
 /*
  * Total amount of space to reserve at the start of the file
