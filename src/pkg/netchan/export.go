@@ -31,6 +31,12 @@ import (
 
 // Export
 
+// expLog is a logging convenience function.  The first argument must be a string.
+func expLog(args ...interface{}) {
+	args[0] = "netchan export: " + args[0].(string)
+	log.Stderr(args)
+}
+
 // An Exporter allows a set of channels to be published on a single
 // network port.  A single machine may have multiple Exporters
 // but they must use different ports.
@@ -60,7 +66,7 @@ func newClient(exp *Exporter, conn net.Conn) *expClient {
 
 func (client *expClient) sendError(hdr *header, err string) {
 	error := &error{err}
-	log.Stderr("export:", error.error)
+	expLog("sending error to client", error.error)
 	client.encode(hdr, payError, error) // ignore any encode error, hope client gets it
 	client.mu.Lock()
 	client.errored = true
@@ -96,13 +102,13 @@ func (client *expClient) run() {
 	for {
 		*hdr = header{}
 		if err := client.decode(hdrValue); err != nil {
-			log.Stderr("error decoding client header:", err)
+			expLog("error decoding client header:", err)
 			break
 		}
 		switch hdr.payloadType {
 		case payRequest:
 			if err := client.decode(reqValue); err != nil {
-				log.Stderr("error decoding client request:", err)
+				expLog("error decoding client request:", err)
 				break
 			}
 			switch req.dir {
@@ -114,12 +120,14 @@ func (client *expClient) run() {
 				// The actual sends will have payload type payData.
 				// TODO: manage the count?
 			default:
-				error.error = "export request: can't handle channel direction"
-				log.Stderr(error.error, req.dir)
+				error.error = "request: can't handle channel direction"
+				expLog(error.error, req.dir)
 				client.encode(hdr, payError, error)
 			}
 		case payData:
 			client.serveSend(*hdr)
+		case payClosed:
+			client.serveClosed(*hdr)
 		case payAck:
 			client.mu.Lock()
 			if client.ackNum != hdr.seqNum-1 {
@@ -127,12 +135,14 @@ func (client *expClient) run() {
 				// in a single instance of locking client.mu, the messages are guaranteed
 				// to be sent in order.  Therefore receipt of acknowledgement N means
 				// all messages <=N have been seen by the recipient.  We check anyway.
-				log.Stderr("netchan export: sequence out of order:", client.ackNum, hdr.seqNum)
+				expLog("sequence out of order:", client.ackNum, hdr.seqNum)
 			}
 			if client.ackNum < hdr.seqNum { // If there has been an error, don't back up the count. 
 				client.ackNum = hdr.seqNum
 			}
 			client.mu.Unlock()
+		default:
+			log.Exit("netchan export: unknown payload type", hdr.payloadType)
 		}
 	}
 	client.exp.delClient(client)
@@ -148,7 +158,9 @@ func (client *expClient) serveRecv(hdr header, count int64) {
 	for {
 		val := ech.ch.Recv()
 		if ech.ch.Closed() {
-			client.sendError(&hdr, os.EOF.String())
+			if err := client.encode(&hdr, payClosed, nil); err != nil {
+				expLog("error encoding server closed message:", err)
+			}
 			break
 		}
 		// We hold the lock during transmission to guarantee messages are
@@ -161,7 +173,7 @@ func (client *expClient) serveRecv(hdr header, count int64) {
 		err := client.encode(&hdr, payData, val.Interface())
 		client.mu.Unlock()
 		if err != nil {
-			log.Stderr("error encoding client response:", err)
+			expLog("error encoding client response:", err)
 			client.sendError(&hdr, err.String())
 			break
 		}
@@ -184,11 +196,20 @@ func (client *expClient) serveSend(hdr header) {
 	// Create a new value for each received item.
 	val := reflect.MakeZero(ech.ch.Type().(*reflect.ChanType).Elem())
 	if err := client.decode(val); err != nil {
-		log.Stderr("exporter value decode:", err)
+		expLog("value decode:", err)
 		return
 	}
 	ech.ch.Send(val)
-	// TODO count
+}
+
+// Report that client has closed the channel that is sending to us.
+// The header is passed by value to avoid issues of overwriting.
+func (client *expClient) serveClosed(hdr header) {
+	ech := client.getChan(&hdr, Recv)
+	if ech == nil {
+		return
+	}
+	ech.ch.Close()
 }
 
 func (client *expClient) unackedCount() int64 {
@@ -217,7 +238,7 @@ func (exp *Exporter) listen() {
 	for {
 		conn, err := exp.listener.Accept()
 		if err != nil {
-			log.Stderr("exporter.listen:", err)
+			expLog("listen:", err)
 			break
 		}
 		client := exp.addClient(conn)

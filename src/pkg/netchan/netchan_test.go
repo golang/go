@@ -9,6 +9,8 @@ import "testing"
 const count = 10     // number of items in most tests
 const closeCount = 5 // number of items when sender closes early
 
+const base = 23
+
 func exportSend(exp *Exporter, n int, t *testing.T) {
 	ch := make(chan int)
 	err := exp.Export("exportedSend", ch, Send)
@@ -17,7 +19,7 @@ func exportSend(exp *Exporter, n int, t *testing.T) {
 	}
 	go func() {
 		for i := 0; i < n; i++ {
-			ch <- 23+i
+			ch <- base+i
 		}
 		close(ch)
 	}()
@@ -31,10 +33,30 @@ func exportReceive(exp *Exporter, t *testing.T) {
 	}
 	for i := 0; i < count; i++ {
 		v := <-ch
-		if v != 45+i {
-			t.Errorf("export Receive: bad value: expected 4%d; got %d", 45+i, v)
+		if closed(ch) {
+			if i != closeCount {
+				t.Errorf("exportReceive expected close at %d; got one at %d\n", closeCount, i)
+			}
+			break
+		}
+		if v != base+i {
+			t.Errorf("export Receive: bad value: expected %d+%d=%d; got %d", base, i, base+i, v)
 		}
 	}
+}
+
+func importSend(imp *Importer, n int, t *testing.T) {
+	ch := make(chan int)
+	err := imp.ImportNValues("exportedRecv", ch, Send, count)
+	if err != nil {
+		t.Fatal("importSend:", err)
+	}
+	go func() {
+		for i := 0; i < n; i++ {
+			ch <- base+i
+		}
+		close(ch)
+	}()
 }
 
 func importReceive(imp *Importer, t *testing.T, done chan bool) {
@@ -47,27 +69,16 @@ func importReceive(imp *Importer, t *testing.T, done chan bool) {
 		v := <-ch
 		if closed(ch) {
 			if i != closeCount {
-				t.Errorf("expected close at %d; got one at %d\n", closeCount, i)
+				t.Errorf("importReceive expected close at %d; got one at %d\n", closeCount, i)
 			}
 			break
 		}
 		if v != 23+i {
-			t.Errorf("importReceive: bad value: expected %d; got %+d", 23+i, v)
+			t.Errorf("importReceive: bad value: expected %%d+%d=%d; got %+d", base, i, base+i, v)
 		}
 	}
 	if done != nil {
 		done <- true
-	}
-}
-
-func importSend(imp *Importer, t *testing.T) {
-	ch := make(chan int)
-	err := imp.ImportNValues("exportedRecv", ch, Send, count)
-	if err != nil {
-		t.Fatal("importSend:", err)
-	}
-	for i := 0; i < count; i++ {
-		ch <- 45+i
 	}
 }
 
@@ -93,7 +104,7 @@ func TestExportReceiveImportSend(t *testing.T) {
 	if err != nil {
 		t.Fatal("new importer:", err)
 	}
-	go importSend(imp, t)
+	importSend(imp, count, t)
 	exportReceive(exp, t)
 }
 
@@ -108,6 +119,19 @@ func TestClosingExportSendImportReceive(t *testing.T) {
 	}
 	exportSend(exp, closeCount, t)
 	importReceive(imp, t, nil)
+}
+
+func TestClosingImportSendExportReceive(t *testing.T) {
+	exp, err := NewExporter("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("new exporter:", err)
+	}
+	imp, err := NewImporter("tcp", exp.Addr().String())
+	if err != nil {
+		t.Fatal("new importer:", err)
+	}
+	importSend(imp, closeCount, t)
+	exportReceive(exp, t)
 }
 
 // Not a great test but it does at least invoke Drain.
