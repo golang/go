@@ -218,19 +218,18 @@ func (c *conn) readSocket() {
 			c.mouseState.Nsec = time.Nanoseconds()
 			c.eventc <- c.mouseState
 		case 0x06: // Motion notify.
-			c.mouseState.Loc.X = int(c.buf[25])<<8 | int(c.buf[24])
-			c.mouseState.Loc.Y = int(c.buf[27])<<8 | int(c.buf[26])
+			c.mouseState.Loc.X = int(int16(c.buf[25])<<8 | int16(c.buf[24]))
+			c.mouseState.Loc.Y = int(int16(c.buf[27])<<8 | int16(c.buf[26]))
 			c.mouseState.Nsec = time.Nanoseconds()
 			c.eventc <- c.mouseState
 		case 0x0c: // Expose.
 			// A single user action could trigger multiple expose events (e.g. if moving another
-			// window with XShape'd rounded corners over our window). In that case, the X server
-			// will send a count (in bytes 16-17) of the number of additional expose events coming.
+			// window with XShape'd rounded corners over our window). In that case, the X server will
+			// send a uint16 count (in bytes 16-17) of the number of additional expose events coming.
 			// We could parse each event for the (x, y, width, height) and maintain a minimal dirty
 			// rectangle, but for now, the simplest approach is to paint the entire window, when
 			// receiving the final event in the series.
-			count := int(c.buf[17])<<8 | int(c.buf[16])
-			if count == 0 {
+			if c.buf[17] == 0 && c.buf[16] == 0 {
 				// TODO(nigeltao): Should we ignore the very first expose event? A freshly mapped window
 				// will trigger expose, but until the first c.FlushImage call, there's probably nothing to
 				// paint but black. For an 800x600 window, at 4 bytes per pixel, each repaint writes about
