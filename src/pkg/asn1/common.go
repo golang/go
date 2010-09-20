@@ -28,6 +28,7 @@ const (
 	tagSequence        = 16
 	tagSet             = 17
 	tagPrintableString = 19
+	tagT61String       = 20
 	tagIA5String       = 22
 	tagUTCTime         = 23
 	tagGeneralizedTime = 24
