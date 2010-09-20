@@ -28,6 +28,7 @@ type Importer struct {
 	conn     net.Conn
 	chanLock sync.Mutex // protects access to channel map
 	chans    map[string]*chanDir
+	errors   chan os.Error
 }
 
 // NewImporter creates a new Importer object to import channels
@@ -43,6 +44,7 @@ func NewImporter(network, remoteaddr string) (*Importer, os.Error) {
 	imp.encDec = newEncDec(conn)
 	imp.conn = conn
 	imp.chans = make(map[string]*chanDir)
+	imp.errors = make(chan os.Error, 10)
 	go imp.run()
 	return imp, nil
 }
@@ -86,15 +88,18 @@ func (imp *Importer) run() {
 			}
 			if err.error != "" {
 				impLog("response error:", err.error)
-				imp.shutdown()
-				return
+				if sent := imp.errors <- os.ErrorString(err.error); !sent {
+					imp.shutdown()
+					return
+				}
+				continue // errors are not acknowledged.
 			}
 		case payClosed:
 			ich := imp.getChan(hdr.name)
 			if ich != nil {
 				ich.ch.Close()
 			}
-			continue
+			continue // closes are not acknowledged.
 		default:
 			impLog("unexpected payload type:", hdr.payloadType)
 			return
@@ -130,6 +135,14 @@ func (imp *Importer) getChan(name string) *chanDir {
 		return nil
 	}
 	return ich
+}
+
+// Errors returns a channel from which transmission and protocol errors
+// can be read. Clients of the importer are not required to read the error
+// channel for correct execution. However, if too many errors occur
+// without being read from the error channel, the importer will shut down.
+func (imp *Importer) Errors() chan os.Error {
+	return imp.errors
 }
 
 // Import imports a channel of the given type and specified direction.

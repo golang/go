@@ -4,7 +4,11 @@
 
 package netchan
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"time"
+)
 
 const count = 10     // number of items in most tests
 const closeCount = 5 // number of items when sender closes early
@@ -132,6 +136,45 @@ func TestClosingImportSendExportReceive(t *testing.T) {
 	}
 	importSend(imp, closeCount, t)
 	exportReceive(exp, t)
+}
+
+func TestErrorForIllegalChannel(t *testing.T) {
+	exp, err := NewExporter("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("new exporter:", err)
+	}
+	imp, err := NewImporter("tcp", exp.Addr().String())
+	if err != nil {
+		t.Fatal("new importer:", err)
+	}
+	// Now export a channel.
+	ch := make(chan int, 1)
+	err = exp.Export("aChannel", ch, Send)
+	if err != nil {
+		t.Fatal("export:", err)
+	}
+	ch <- 1234
+	close(ch)
+	// Now try to import a different channel.
+	ch = make(chan int)
+	err = imp.Import("notAChannel", ch, Recv)
+	if err != nil {
+		t.Fatal("import:", err)
+	}
+	// Expect an error now.  Start a timeout.
+	timeout := make(chan bool, 1) // buffered so closure will not hang around.
+	go func() {
+		time.Sleep(10e9) // very long, to give even really slow machines a chance.
+		timeout <- true
+	}()
+	select {
+	case err = <-imp.Errors():
+		if strings.Index(err.String(), "no such channel") < 0 {
+			t.Errorf("wrong error for nonexistent channel:", err)
+		}
+	case <-timeout:
+		t.Error("import of nonexistent channel did not receive an error")
+	}
 }
 
 // Not a great test but it does at least invoke Drain.
