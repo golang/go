@@ -158,7 +158,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		SerialNumber: []byte{1},
 		Subject: Name{
 			CommonName:   "test.example.com",
-			Organization: "Acme Co",
+			Organization: []string{"Acme Co"},
 		},
 		NotBefore: time.SecondsToUTC(1000),
 		NotAfter:  time.SecondsToUTC(100000),
