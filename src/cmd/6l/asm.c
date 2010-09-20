@@ -138,6 +138,7 @@ addstring(Sym *s, char *str)
 	s->reachable = 1;
 	r = s->size;
 	n = strlen(str)+1;
+	elfsetstring(str, r);
 	while(n > 0) {
 		m = n;
 		if(m > sizeof(p->to.scon))
@@ -236,8 +237,8 @@ addsize(Sym *s, Sym *t)
 vlong
 datoff(vlong addr)
 {
-	if(addr >= INITDAT)
-		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
+	if(addr >= segdata.vaddr)
+		return addr - segdata.vaddr + segdata.fileoff;
 	diag("datoff %#llx", addr);
 	return 0;
 }
@@ -297,6 +298,8 @@ doelf(void)
 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
+	addstring(shstrtab, ".elfdata");
+	addstring(shstrtab, ".rodata");
 	if(!debug['s']) {
 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
@@ -466,16 +469,18 @@ asmb(void)
 	int32 v, magic;
 	int a, dynsym;
 	uchar *op1;
-	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink, etext;
+	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink, erodata;
 	vlong symdatva = SYMDATVA;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
+	Section *sect;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
 	Bflush(&bso);
 
+	segtext.fileoff = 0;
 	elftextsh = 0;
 	elfsymsize = 0;
 	elfstro = 0;
@@ -521,12 +526,13 @@ asmb(void)
 	datap = datsort(datap);
 
 	/* output read-only data in text segment */
-	etext = INITTEXT + textsize;
-	for(v = pc; v < etext; v += sizeof(buf)-Dbufslop) {
-		if(etext - v > sizeof(buf)-Dbufslop)
+	sect = segtext.sect->next;
+	erodata = sect->vaddr + sect->len;
+	for(v = pc; v < erodata; v += sizeof(buf)-Dbufslop) {
+		if(erodata - v > sizeof(buf)-Dbufslop)
 			datblk(v, sizeof(buf)-Dbufslop);
 		else
-			datblk(v, etext-v);
+			datblk(v, erodata-v);
 	}
 
 	switch(HEADTYPE) {
@@ -573,6 +579,7 @@ asmb(void)
 		textsize = INITDAT;
 	}
 
+	segdata.fileoff = seek(cout, 0, 1);
 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
 		if(datsize-v > sizeof(buf)-Dbufslop)
 			datblk(v+INITDAT, sizeof(buf)-Dbufslop);
@@ -736,40 +743,16 @@ asmb(void)
 			phsh(ph, sh);
 		}
 
-		ph = newElfPhdr();
-		ph->type = PT_LOAD;
-		ph->flags = PF_X+PF_R;
-		ph->vaddr = va - fo;
-		ph->paddr = va - fo;
-		ph->off = 0;
-		ph->filesz = w + fo;
-		ph->memsz = w + fo;
-		ph->align = INITRND;
-
-		fo = rnd(fo+w, INITRND);
-		va = rnd(va+w, INITRND);
-		w = datsize;
-
-		ph = newElfPhdr();
-		ph->type = PT_LOAD;
-		ph->flags = PF_W+PF_R;
-		ph->off = fo;
-		ph->vaddr = va;
-		ph->paddr = va;
-		ph->filesz = w;
-		ph->memsz = w+bsssize;
-		ph->align = INITRND;
+		elfphload(&segtext);
+		elfphload(&segdata);
 
 		if(!debug['s']) {
-			ph = newElfPhdr();
-			ph->type = PT_LOAD;
-			ph->flags = PF_R;
-			ph->off = symo;
-			ph->vaddr = symdatva;
-			ph->paddr = symdatva;
-			ph->filesz = rnd(8+symsize+lcsize, INITRND);
-			ph->memsz = rnd(8+symsize+lcsize, INITRND);
-			ph->align = INITRND;
+			segsym.rwx = 04;
+			segsym.vaddr = symdatva;
+			segsym.len = rnd(8+symsize+lcsize, INITRND);
+			segsym.fileoff = symo;
+			segsym.filelen = segsym.len;
+			elfphload(&segsym);
 		}
 
 		/* Dynamic linking sections */
@@ -851,43 +834,14 @@ asmb(void)
 		ph->flags = PF_W+PF_R;
 		ph->align = 8;
 
-		fo = ELFRESERVE;
-		va = startva + fo;
-		w = textsize;
-
 		if(elftextsh != eh->shnum)
 			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
-		sh = newElfShdr(elfstr[ElfStrText]);
-		sh->type = SHT_PROGBITS;
-		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
-		sh->addr = va;
-		sh->off = fo;
-		sh->size = w;
-		sh->addralign = 8;
-
-		fo = rnd(fo+w, INITRND);
-		va = rnd(va+w, INITRND);
-		w = datsize;
-
-		sh = newElfShdr(elfstr[ElfStrData]);
-		sh->type = SHT_PROGBITS;
-		sh->flags = SHF_WRITE+SHF_ALLOC;
-		sh->addr = va + elfdatsize;
-		sh->off = fo + elfdatsize;
-		sh->size = w - elfdatsize;
-		sh->addralign = 8;
-
-		fo += w;
-		va += w;
-		w = bsssize;
-
-		sh = newElfShdr(elfstr[ElfStrBss]);
-		sh->type = SHT_NOBITS;
-		sh->flags = SHF_WRITE+SHF_ALLOC;
-		sh->addr = va;
-		sh->off = fo;
-		sh->size = w;
-		sh->addralign = 8;
+		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+			elfshbits(sect);
+		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
+			elfshbits(sect);
+		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+			elfshbits(sect);
 
 		if (!debug['s']) {
 			fo = symo;

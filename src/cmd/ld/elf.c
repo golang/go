@@ -21,6 +21,16 @@ static	ElfPhdr	*phdr[NSECT];
 static	ElfShdr	*shdr[NSECT];
 static	char	*interp;
 
+typedef struct Elfstring Elfstring;
+struct Elfstring
+{
+	char *s;
+	int off;
+};
+
+static Elfstring elfstr[100];
+static int nelfstr;
+
 /*
  Initialize the global variable that describes the ELF header. It will be updated as
  we write section and prog headers.
@@ -120,6 +130,18 @@ elfwriteshdrs(void)
 	for (i = 0; i < hdr.shnum; i++)
 		elf32shdr(shdr[i]);
 	return hdr.shnum * ELF32SHDRSIZE;
+}
+
+void
+elfsetstring(char *s, int off)
+{
+	if(nelfstr >= nelem(elfstr)) {
+		diag("too many elf strings");
+		errorexit();
+	}
+	elfstr[nelfstr].s = s;
+	elfstr[nelfstr].off = off;
+	nelfstr++;
 }
 
 uint32
@@ -364,4 +386,62 @@ elfdynhash(int nsym)
 
 	free(chain);
 	free(buckets);
+}
+
+ElfPhdr*
+elfphload(Segment *seg)
+{
+	ElfPhdr *ph;
+	
+	ph = newElfPhdr();
+	ph->type = PT_LOAD;
+	if(seg->rwx & 4)
+		ph->flags |= PF_R;
+	if(seg->rwx & 2)
+		ph->flags |= PF_W;
+	if(seg->rwx & 1)
+		ph->flags |= PF_X;
+	ph->vaddr = seg->vaddr;
+	ph->paddr = seg->vaddr;
+	ph->memsz = seg->len;
+	ph->off = seg->fileoff;
+	ph->filesz = seg->filelen;
+	ph->align = INITRND;
+	
+	return ph;
+}
+
+ElfShdr*
+elfshbits(Section *sect)
+{
+	int i, off;
+	ElfShdr *sh;
+	
+	for(i=0; i<nelfstr; i++) {
+		if(strcmp(sect->name, elfstr[i].s) == 0) {
+			off = elfstr[i].off;
+			goto found;
+		}
+	}
+	diag("cannot find elf name %s", sect->name);
+	errorexit();
+	return nil;
+
+found:
+	sh = newElfShdr(off);
+	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen)
+		sh->type = SHT_PROGBITS;
+	else
+		sh->type = SHT_NOBITS;
+	sh->flags = SHF_ALLOC;
+	if(sect->rwx & 1)
+		sh->flags |= SHF_EXECINSTR;
+	if(sect->rwx & 2)
+		sh->flags |= SHF_WRITE;
+	sh->addr = sect->vaddr;
+	sh->addralign = PtrSize;
+	sh->size = sect->len;
+	sh->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
+	
+	return sh;
 }

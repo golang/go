@@ -129,6 +129,7 @@ addstring(Sym *s, char *str)
 	s->reachable = 1;
 	r = s->size;
 	n = strlen(str)+1;
+	elfsetstring(str, r);
 	while(n > 0) {
 		m = n;
 		if(m > sizeof(p->to.scon))
@@ -227,11 +228,8 @@ addsize(Sym *s, Sym *t)
 vlong
 datoff(vlong addr)
 {
-	if(addr >= INITDAT) {
-		if(HEADTYPE == 8)
-			return addr - INITDAT + rnd(HEADR+textsize, 4096);
-		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
-	}
+	if(addr >= segdata.vaddr)
+		return addr - segdata.vaddr + segdata.fileoff;
 	diag("datoff %#llx", addr);
 	return 0;
 }
@@ -290,6 +288,10 @@ doelf(void)
 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
+	addstring(shstrtab, ".elfdata");
+	if(HEADTYPE == 8)
+		addstring(shstrtab, ".closure");
+	addstring(shstrtab, ".rodata");
 	if(!debug['s']) {
 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
@@ -455,12 +457,13 @@ asmb(void)
 	Prog *p;
 	int32 v, magic;
 	int a, dynsym;
-	uint32 va, fo, w, symo, startva, machlink, etext;
+	uint32 va, fo, w, symo, startva, machlink, erodata;
 	uchar *op1;
 	ulong expectpc;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
+	Section *sect;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -523,20 +526,31 @@ asmb(void)
 		cbc -= a;
 	}
 	if(HEADTYPE == 8) {
-		while(pc < INITDAT) {
+		int32 etext;
+		
+		etext = rnd(segtext.vaddr + segtext.filelen, 4096);
+		while(pc < etext) {
 			cput(0xf4);	// hlt
 			pc++;
 		}
+		pc = segrodata.vaddr;
 	}
 	cflush();
-	
+
 	/* output read-only data in text segment */
-	etext = INITTEXT + textsize;
-	for(v = pc; v < etext; v += sizeof(buf)-Dbufslop) {
-		if(etext-v > sizeof(buf)-Dbufslop)
+	if(HEADTYPE == 8) {
+		// Native Client
+		sect = segrodata.sect;
+		segrodata.fileoff = seek(cout, 0, 1);
+	} else
+		sect = segtext.sect->next;
+
+	erodata = sect->vaddr + sect->len;
+	for(v = pc; v < erodata; v += sizeof(buf)-Dbufslop) {
+		if(erodata-v > sizeof(buf)-Dbufslop)
 			datblk(v, sizeof(buf)-Dbufslop, 1);
 		else
-			datblk(v, etext-v, 1);
+			datblk(v, erodata-v, 1);
 	}
 
 	switch(HEADTYPE) {
@@ -573,12 +587,12 @@ asmb(void)
 		// text segment file address to 4096 bytes,
 		// but text segment memory address rounds
 		// to INITRND (65536).
-		v = rnd(HEADR+textsize, 4096);
+		v = rnd(segrodata.fileoff+segrodata.filelen, 4096);
 		seek(cout, v, 0);
 		break;
 	Elfseek:
 	case 10:
-		v = rnd(HEADR+textsize, INITRND);
+		v = rnd(segtext.fileoff+segtext.filelen, INITRND);
 		seek(cout, v, 0);
 		break;
 	}
@@ -594,6 +608,7 @@ asmb(void)
 		textsize = INITDAT;
 	}
 
+	segdata.fileoff = seek(cout, 0, 1);
 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
 		if(datsize-v > sizeof(buf)-Dbufslop)
 			datblk(v, sizeof(buf)-Dbufslop, 0);
@@ -859,50 +874,18 @@ asmb(void)
 			phsh(ph, sh);
 		}
 
-		ph = newElfPhdr();
-		ph->type = PT_LOAD;
-		ph->flags = PF_X+PF_R;
-		if(HEADTYPE != 8) {	// Include header, but not on Native Client.
-			va -= fo;
-			w += fo;
-			fo = 0;
-		}
-		ph->vaddr = va;
-		ph->paddr = va;
-		ph->off = fo;
-		ph->filesz = w;
-		ph->memsz = INITDAT - va;
-		ph->align = INITRND;
-
-		// NaCl text segment file address rounds to 4096;
-		// only memory address rounds to INITRND.
-		if(HEADTYPE == 8)
-			fo = rnd(fo+w, 4096);
-		else
-			fo = rnd(fo+w, INITRND);
-		va = INITDAT;
-		w = datsize;
-
-		ph = newElfPhdr();
-		ph->type = PT_LOAD;
-		ph->flags = PF_W+PF_R;
-		ph->off = fo;
-		ph->vaddr = va;
-		ph->paddr = va;
-		ph->filesz = w;
-		ph->memsz = w+bsssize;
-		ph->align = INITRND;
+		elfphload(&segtext);
+		if(segrodata.len > 0)
+			elfphload(&segrodata);
+		elfphload(&segdata);
 
 		if(!debug['s'] && HEADTYPE != 8 && HEADTYPE != 11) {
-			ph = newElfPhdr();
-			ph->type = PT_LOAD;
-			ph->flags = PF_R;
-			ph->off = symo;
-			ph->vaddr = symdatva;
-			ph->paddr = symdatva;
-			ph->filesz = rnd(8+symsize+lcsize, INITRND);
-			ph->memsz = rnd(8+symsize+lcsize, INITRND);
-			ph->align = INITRND;
+			segsym.rwx = 04;
+			segsym.vaddr = symdatva;
+			segsym.len = rnd(8+symsize+lcsize, INITRND);
+			segsym.fileoff = symo;
+			segsym.filelen = segsym.len;
+			elfphload(&segsym);
 		}
 
 		/* Dynamic linking sections */
@@ -984,46 +967,12 @@ asmb(void)
 		ph->flags = PF_W+PF_R;
 		ph->align = 4;
 
-		fo = HEADR;
-		va = startva + fo;
-		w = textsize;
-
-		sh = newElfShdr(elfstr[ElfStrText]);
-		sh->type = SHT_PROGBITS;
-		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
-		sh->addr = va;
-		sh->off = fo;
-		sh->size = w;
-		sh->addralign = 4;
-
-		// NaCl text segment file address rounds to 4096;
-		// only memory address rounds to INITRND.
-		if(HEADTYPE == 8)
-			fo = rnd(fo+w, 4096);
-		else
-			fo = rnd(fo+w, INITRND);
-		va = rnd(va+w, INITRND);
-		w = datsize;
-
-		sh = newElfShdr(elfstr[ElfStrData]);
-		sh->type = SHT_PROGBITS;
-		sh->flags = SHF_WRITE+SHF_ALLOC;
-		sh->addr = va + elfdatsize;
-		sh->off = fo + elfdatsize;
-		sh->size = w - elfdatsize;
-		sh->addralign = 4;
-
-		fo += w;
-		va += w;
-		w = bsssize;
-
-		sh = newElfShdr(elfstr[ElfStrBss]);
-		sh->type = SHT_NOBITS;
-		sh->flags = SHF_WRITE+SHF_ALLOC;
-		sh->addr = va;
-		sh->off = fo;
-		sh->size = w;
-		sh->addralign = 4;
+		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+			elfshbits(sect);
+		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
+			elfshbits(sect);
+		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+			elfshbits(sect);
 
 		if (!debug['s']) {
 			fo = symo;

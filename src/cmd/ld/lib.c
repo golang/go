@@ -908,3 +908,19 @@ mangle(char *file)
 	fprint(2, "%s: mangled input file\n", file);
 	errorexit();
 }
+
+Section*
+addsection(Segment *seg, char *name, int rwx)
+{
+	Section **l;
+	Section *sect;
+	
+	for(l=&seg->sect; *l; l=&(*l)->next)
+		;
+	sect = mal(sizeof *sect);
+	sect->rwx = rwx;
+	sect->name = name;
+	sect->seg = seg;
+	*l = sect;
+	return sect;
+}

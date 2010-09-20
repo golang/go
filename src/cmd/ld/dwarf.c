@@ -812,7 +812,7 @@ enum
 vlong elfstrdbg[NElfStrDbg];
 
 void
-dwarfaddshstrings(Sym * shstrtab)
+dwarfaddshstrings(Sym *shstrtab)
 {
 	elfstrdbg[ElfStrDebugAbbrev]   = addstring(shstrtab, ".debug_abbrev");
 	elfstrdbg[ElfStrDebugAranges]  = addstring(shstrtab, ".debug_aranges");

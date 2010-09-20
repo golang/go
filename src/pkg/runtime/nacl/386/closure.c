@@ -145,7 +145,7 @@ void
 {
 	byte *p, **ret;
 	int32 e, i, n, off;
-	extern byte data[], etext[];
+	extern byte rodata[], etext[];
 	ClosureData *d, **block;
 	ClosureDataList *l;
 	ClosureFreeList *f;
@@ -169,9 +169,9 @@ void
 			clos.code = (byte*)(((uintptr)etext + 65535) & ~65535);
 			clos.ecode = clos.code;
 			mheap.closure_min = clos.code;
-			mheap.closure_max = data;
+			mheap.closure_max = rodata;
 		}
-		if(clos.ecode+ClosureChunk > data) {
+		if(clos.ecode+ClosureChunk > rodata) {
 			// Last ditch effort: garbage collect and hope.
 			unlock(&clos);
 			gc(1);

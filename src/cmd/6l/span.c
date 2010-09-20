@@ -40,9 +40,10 @@ span(void)
 {
 	Prog *p, *q;
 	int32 i, v;
-	vlong c, idat;
+	vlong c, idat, etext, rodata, erodata;
 	int m, n, again;
 	Sym *s;
+	Section *sect;
 
 	xdefine("etext", STEXT, 0L);
 	xdefine("rodata", SRODATA, 0L);
@@ -125,12 +126,13 @@ loop:
 		textsize = c;
 		goto loop;
 	}
-	xdefine("etext", STEXT, c);
+	etext = c;
 	
 	/*
 	 * allocate read-only data to the text segment.
 	 */
 	c = rnd(c, 8);
+	rodata = c;
 	xdefine("rodata", SRODATA, c);
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->link) {
@@ -142,7 +144,7 @@ loop:
 		s->value = c;
 		c += v;
 	}
-	xdefine("erodata", SRODATA, c);
+	erodata = c;
 
 	if(INITRND) {
 		INITDAT = rnd(c, INITRND);
@@ -151,6 +153,10 @@ loop:
 			goto start;
 		}
 	}
+	
+	xdefine("etext", STEXT, etext);
+	xdefine("rodata", SRODATA, rodata);
+	xdefine("erodata", SRODATA, erodata);
 
 	if(debug['v'])
 		Bprint(&bso, "etext = %llux\n", c);
@@ -158,6 +164,23 @@ loop:
 	for(p = textp; p != P; p = p->pcond)
 		p->from.sym->value = p->pc;
 	textsize = c - INITTEXT;
+	
+	segtext.rwx = 05;
+	segtext.vaddr = INITTEXT - HEADR;
+	segtext.len = INITDAT - INITTEXT + HEADR;
+	segtext.filelen = textsize + HEADR;
+	
+	sect = addsection(&segtext, ".text", 05);
+	sect->vaddr = INITTEXT;
+	sect->len = etext - sect->vaddr;
+	
+	sect = addsection(&segtext, ".rodata", 04);
+	sect->vaddr = rodata;
+	sect->len = erodata - rodata;
+	
+	segdata.vaddr += INITDAT;
+	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+		sect->vaddr += INITDAT;
 }
 
 void
@@ -166,12 +189,8 @@ xdefine(char *p, int t, vlong v)
 	Sym *s;
 
 	s = lookup(p, 0);
-	if(s->type == 0 || s->type == SXREF) {
-		s->type = t;
-		s->value = v;
-	}
-	if(s->type == STEXT && s->value == 0)
-		s->value = v;
+	s->type = t;
+	s->value = v;
 }
 
 void
