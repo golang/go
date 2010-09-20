@@ -66,7 +66,7 @@ func newClient(exp *Exporter, conn net.Conn) *expClient {
 
 func (client *expClient) sendError(hdr *header, err string) {
 	error := &error{err}
-	expLog("sending error to client", error.error)
+	expLog("sending error to client:", error.error)
 	client.encode(hdr, payError, error) // ignore any encode error, hope client gets it
 	client.mu.Lock()
 	client.errored = true
