@@ -57,7 +57,7 @@ do
 	do
 		export F=$(basename $i .go)
 		export D=$dir
-		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
+		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|g' >$RUNFILE
 		if ! { time -p bash -c "bash $RUNFILE >$TMP1FILE 2>&1" ; } 2>$TMP2FILE
 		then
 			echo
@@ -99,6 +99,7 @@ done | # clean up some stack noise
 		/^Trace\/BPT trap/d
 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+		/Fault in NaCl untrusted code/d
 		/Segmentation fault/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
