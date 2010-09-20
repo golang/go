@@ -14,6 +14,12 @@ import (
 
 // Import
 
+// impLog is a logging convenience function.  The first argument must be a string.
+func impLog(args ...interface{}) {
+	args[0] = "netchan import: " + args[0].(string)
+	log.Stderr(args)
+}
+
 // An Importer allows a set of channels to be imported from a single
 // remote machine/network port.  A machine may have multiple
 // importers, even from the same machine/network port.
@@ -66,7 +72,7 @@ func (imp *Importer) run() {
 	for {
 		*hdr = header{}
 		if e := imp.decode(hdrValue); e != nil {
-			log.Stderr("importer header:", e)
+			impLog("header:", e)
 			imp.shutdown()
 			return
 		}
@@ -75,27 +81,30 @@ func (imp *Importer) run() {
 			// done lower in loop
 		case payError:
 			if e := imp.decode(errValue); e != nil {
-				log.Stderr("importer error:", e)
+				impLog("error:", e)
 				return
 			}
 			if err.error != "" {
-				log.Stderr("importer response error:", err.error)
+				impLog("response error:", err.error)
 				imp.shutdown()
 				return
 			}
+		case payClosed:
+			ich := imp.getChan(hdr.name)
+			if ich != nil {
+				ich.ch.Close()
+			}
+			continue
 		default:
-			log.Stderr("unexpected payload type:", hdr.payloadType)
+			impLog("unexpected payload type:", hdr.payloadType)
 			return
 		}
-		imp.chanLock.Lock()
-		ich, ok := imp.chans[hdr.name]
-		imp.chanLock.Unlock()
-		if !ok {
-			log.Stderr("unknown name in request:", hdr.name)
-			return
+		ich := imp.getChan(hdr.name)
+		if ich == nil {
+			continue
 		}
 		if ich.dir != Recv {
-			log.Stderr("cannot happen: receive from non-Recv channel")
+			impLog("cannot happen: receive from non-Recv channel")
 			return
 		}
 		// Acknowledge receipt
@@ -105,11 +114,22 @@ func (imp *Importer) run() {
 		// Create a new value for each received item.
 		value := reflect.MakeZero(ich.ch.Type().(*reflect.ChanType).Elem())
 		if e := imp.decode(value); e != nil {
-			log.Stderr("importer value decode:", e)
+			impLog("importer value decode:", e)
 			return
 		}
 		ich.ch.Send(value)
 	}
+}
+
+func (imp *Importer) getChan(name string) *chanDir {
+	imp.chanLock.Lock()
+	ich := imp.chans[name]
+	imp.chanLock.Unlock()
+	if ich == nil {
+		impLog("unknown name in netchan request:", name)
+		return nil
+	}
+	return ich
 }
 
 // Import imports a channel of the given type and specified direction.
@@ -145,18 +165,24 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, n int)
 	}
 	imp.chans[name] = &chanDir{ch, dir}
 	// Tell the other side about this channel.
-	hdr := &header{name: name, payloadType: payRequest}
+	hdr := &header{name: name}
 	req := &request{count: int64(n), dir: dir}
-	if err := imp.encode(hdr, payRequest, req); err != nil {
-		log.Stderr("importer request encode:", err)
+	if err = imp.encode(hdr, payRequest, req); err != nil {
+		impLog("request encode:", err)
 		return err
 	}
 	if dir == Send {
 		go func() {
 			for i := 0; n == -1 || i < n; i++ {
 				val := ch.Recv()
-				if err := imp.encode(hdr, payData, val.Interface()); err != nil {
-					log.Stderr("error encoding client response:", err)
+				if ch.Closed() {
+					if err = imp.encode(hdr, payClosed, nil); err != nil {
+						impLog("error encoding client closed message:", err)
+					}
+					return
+				}
+				if err = imp.encode(hdr, payData, val.Interface()); err != nil {
+					impLog("error encoding client send:", err)
 					return
 				}
 			}

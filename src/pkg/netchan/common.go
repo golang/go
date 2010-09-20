@@ -37,6 +37,7 @@ const (
 	payError          // error structure follows
 	payData           // user payload follows
 	payAck            // acknowledgement; no payload
+	payClosed         // channel is now closed
 )
 
 // A header is sent as a prefix to every transmission.  It will be followed by
