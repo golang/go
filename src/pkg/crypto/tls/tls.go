@@ -67,7 +67,13 @@ func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	return Client(c, nil), nil
+	conn := Client(c, nil)
+	err = conn.Handshake()
+	if err == nil {
+		return conn, nil
+	}
+	c.Close()
+	return nil, err
 }
 
 // LoadX509KeyPair

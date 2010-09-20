@@ -675,5 +675,13 @@ func (c *Conn) PeerCertificates() []*x509.Certificate {
 // connecting to host.  If so, it returns nil; if not, it returns an os.Error
 // describing the problem.
 func (c *Conn) VerifyHostname(host string) os.Error {
-	return c.PeerCertificates()[0].VerifyHostname(host)
+	c.handshakeMutex.Lock()
+	defer c.handshakeMutex.Unlock()
+	if !c.isClient {
+		return os.ErrorString("VerifyHostname called on TLS server connection")
+	}
+	if !c.handshakeComplete {
+		return os.ErrorString("TLS handshake has not yet been performed")
+	}
+	return c.peerCertificates[0].VerifyHostname(host)
 }

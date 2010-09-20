@@ -290,6 +290,14 @@ func parseIA5String(bytes []byte) (ret string, err os.Error) {
 	return
 }
 
+// T61String
+
+// parseT61String parses a ASN.1 T61String (8-bit clean string) from the given
+// byte array and returns it.
+func parseT61String(bytes []byte) (ret string, err os.Error) {
+	return string(bytes), nil
+}
+
 // A RawValue represents an undecoded ASN.1 object.
 type RawValue struct {
 	Class, Tag int
@@ -472,6 +480,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parsePrintableString(innerBytes)
 			case tagIA5String:
 				result, err = parseIA5String(innerBytes)
+			case tagT61String:
+				result, err = parseT61String(innerBytes)
 			case tagInteger:
 				result, err = parseInt64(innerBytes)
 			case tagBitString:
@@ -689,6 +699,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			v, err = parsePrintableString(innerBytes)
 		case tagIA5String:
 			v, err = parseIA5String(innerBytes)
+		case tagT61String:
+			v, err = parseT61String(innerBytes)
 		default:
 			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)}
 		}
