@@ -162,9 +162,10 @@ const (
 // Name represents an X.509 distinguished name. This only includes the common
 // elements of a DN.  Additional elements in the name are ignored.
 type Name struct {
-	Country, Organization, OrganizationalUnit string
-	CommonName, SerialNumber, Locality        string
-	Province, StreetAddress, PostalCode       string
+	Country, Organization, OrganizationalUnit []string
+	Locality, Province                        []string
+	StreetAddress, PostalCode                 []string
+	SerialNumber, CommonName                  string
 }
 
 func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
@@ -186,19 +187,19 @@ func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
 			case 5:
 				n.SerialNumber = value
 			case 6:
-				n.Country = value
+				n.Country = appendString(n.Country, value)
 			case 7:
-				n.Locality = value
+				n.Locality = appendString(n.Locality, value)
 			case 8:
-				n.Province = value
+				n.Province = appendString(n.Province, value)
 			case 9:
-				n.StreetAddress = value
+				n.StreetAddress = appendString(n.StreetAddress, value)
 			case 10:
-				n.Organization = value
+				n.Organization = appendString(n.Organization, value)
 			case 11:
-				n.OrganizationalUnit = value
+				n.OrganizationalUnit = appendString(n.OrganizationalUnit, value)
 			case 17:
-				n.PostalCode = value
+				n.PostalCode = appendString(n.PostalCode, value)
 			}
 		}
 	}

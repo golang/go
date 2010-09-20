@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"strings"
 )
 
 // A CASet is a set of certificates.
@@ -23,7 +24,7 @@ func NewCASet() *CASet {
 }
 
 func nameToKey(name *x509.Name) string {
-	return name.Country + "/" + name.Organization + "/" + name.OrganizationalUnit + "/" + name.CommonName
+	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
 }
 
 // FindParent attempts to find the certificate in s which signs the given
