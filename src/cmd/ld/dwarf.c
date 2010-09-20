@@ -1030,7 +1030,7 @@ dwarfaddmachoheaders(void)
 	// have to be page aligned in the file.
 	fakestart = abbrevo & ~0xfff;
 
-	ms = newMachoSeg("__DWARF", 3);
+	ms = newMachoSeg("__DWARF", 4);
 	ms->fileoffset = fakestart;
 	ms->filesize = abbrevo-fakestart + abbrevsize+linesize+framesize+infosize;
 

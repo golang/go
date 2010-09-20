@@ -1159,7 +1159,7 @@ walkexpr(Node **np, NodeList **init)
 		case OMAPLIT:
 		case OSTRUCTLIT:
 			nvar = makenewvar(n->type, init, &nstar);
-			anylit(n->left, nstar, init);
+			anylit(0, n->left, nstar, init);
 			n = nvar;
 			goto ret;
 		}
@@ -1341,7 +1341,7 @@ walkexpr(Node **np, NodeList **init)
 	case OSTRUCTLIT:
 		nvar = nod(OXXX, N, N);
 		tempname(nvar, n->type);
-		anylit(n, nvar, init);
+		anylit(0, n, nvar, init);
 		n = nvar;
 		goto ret;
 
