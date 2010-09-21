@@ -1149,42 +1149,6 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 	}
 }
 
-// TODO: AllMatchesIter and AllMatchesStringIter should change to return submatches as well.
-
-// AllMatchesIter slices the byte slice b into substrings that are successive
-// matches of the Regexp within b. If n > 0, the function returns at most n
-// matches. Text that does not match the expression will be skipped. Empty
-// matches abutting a preceding match are ignored. The function returns a
-// channel that iterates over the matching substrings.
-func (re *Regexp) AllMatchesIter(b []byte, n int) <-chan []byte {
-	if n <= 0 {
-		n = len(b) + 1
-	}
-	c := make(chan []byte, 10)
-	go func() {
-		re.allMatches("", b, n, func(match []int) { c <- b[match[0]:match[1]] })
-		close(c)
-	}()
-	return c
-}
-
-// AllMatchesStringIter slices the string s into substrings that are successive
-// matches of the Regexp within s. If n > 0, the function returns at most n
-// matches. Text that does not match the expression will be skipped. Empty
-// matches abutting a preceding match are ignored. The function returns a
-// channel that iterates over the matching substrings.
-func (re *Regexp) AllMatchesStringIter(s string, n int) <-chan string {
-	if n <= 0 {
-		n = len(s) + 1
-	}
-	c := make(chan string, 10)
-	go func() {
-		re.allMatches(s, nil, n, func(match []int) { c <- s[match[0]:match[1]] })
-		close(c)
-	}()
-	return c
-}
-
 // Find returns a slice holding the text of the leftmost match in b of the regular expression.
 // A return value of nil indicates no match.
 func (re *Regexp) Find(b []byte) []byte {
