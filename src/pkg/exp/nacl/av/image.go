@@ -36,6 +36,7 @@ func (m *Image) At(x, y int) image.Color { return m.Pixel[y][x] }
 func (m *Image) Set(x, y int, color image.Color) {
 	if c, ok := color.(Color); ok {
 		m.Pixel[y][x] = c
+		return
 	}
 	m.Pixel[y][x] = makeColor(color.RGBA())
 }
@@ -69,7 +70,7 @@ func (p Color) RGBA() (r, g, b, a uint32) {
 }
 
 func makeColor(r, g, b, a uint32) Color {
-	return Color(a>>24<<24 | r>>24<<16 | g>>24<<8 | b>>24)
+	return Color(a>>8<<24 | r>>8<<16 | g>>8<<8 | b>>8)
 }
 
 func toColor(color image.Color) image.Color {
