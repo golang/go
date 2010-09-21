@@ -82,3 +82,26 @@ ok1:
 	MOVQ	DX, 48(SP)	// r2
 	MOVQ	$0, 56(SP)	// errno
 	RET
+
+TEXT ·Gettimeofday(SB),7,$0
+	MOVQ	8(SP), DI
+	MOVQ	$0, SI
+	MOVQ	$0xffffffffff600000, AX
+	CALL	AX
+
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	ok7
+	NEGQ	AX
+	MOVQ	AX, 16(SP)  // errno
+	RET
+ok7:
+	MOVQ	$0, 16(SP)  // errno
+	RET
+
+TEXT ·Time(SB),7,$0
+	MOVQ	8(SP), DI
+	MOVQ	$0xffffffffff600400, AX
+	CALL	AX
+	MOVQ	AX, 16(SP)  // tt
+	MOVQ	$0, 24(SP)  // errno
+	RET

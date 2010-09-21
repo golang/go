@@ -37,12 +37,16 @@ package syscall
 //sys	setgroups(n int, list *_Gid_t) (errno int)
 //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
 //sys	socket(domain int, typ int, proto int) (fd int, errno int)
+//sys	socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
 //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
 //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
 
 func Getpagesize() int { return 4096 }
+
+func Gettimeofday(tv *Timeval) (errno int)
+func Time(t *Time_t) (tt Time_t, errno int)
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
 
