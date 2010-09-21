@@ -38,11 +38,11 @@ func futimesat(dirfd int, path *byte, times *[2]Timeval) (errno int) {
 }
 
 func Getcwd(buf []byte) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
-		_p0 = &buf[0]
+		_p0 = unsafe.Pointer(&buf[0])
 	}
-	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0)
+	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
 	n = int(r0)
 	errno = int(e1)
 	return
@@ -139,11 +139,11 @@ func EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int) {
 }
 
 func EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int) {
-	var _p0 *EpollEvent
+	var _p0 unsafe.Pointer
 	if len(events) > 0 {
-		_p0 = &events[0]
+		_p0 = unsafe.Pointer(&events[0])
 	}
-	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(unsafe.Pointer(_p0)), uintptr(len(events)), uintptr(msec), 0, 0)
+	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
 	n = int(r0)
 	errno = int(e1)
 	return
@@ -216,11 +216,11 @@ func Ftruncate(fd int, length int64) (errno int) {
 }
 
 func Getdents(fd int, buf []byte) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
-		_p0 = &buf[0]
+		_p0 = unsafe.Pointer(&buf[0])
 	}
-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
+	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
 	n = int(r0)
 	errno = int(e1)
 	return
@@ -269,12 +269,6 @@ func Gettid() (tid int) {
 	return
 }
 
-func Gettimeofday(tv *Timeval) (errno int) {
-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
-	errno = int(e1)
-	return
-}
-
 func Kill(pid int, sig int) (errno int) {
 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
 	errno = int(e1)
@@ -282,11 +276,11 @@ func Kill(pid int, sig int) (errno int) {
 }
 
 func Klogctl(typ int, buf []byte) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
-		_p0 = &buf[0]
+		_p0 = unsafe.Pointer(&buf[0])
 	}
-	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
+	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(_p0), uintptr(len(buf)))
 	n = int(r0)
 	errno = int(e1)
 	return
@@ -341,44 +335,44 @@ func PivotRoot(newroot string, putold string) (errno int) {
 }
 
 func Pread(fd int, p []byte, offset int64) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(p) > 0 {
-		_p0 = &p[0]
+		_p0 = unsafe.Pointer(&p[0])
 	}
-	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
 	n = int(r0)
 	errno = int(e1)
 	return
 }
 
 func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(p) > 0 {
-		_p0 = &p[0]
+		_p0 = unsafe.Pointer(&p[0])
 	}
-	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
 	n = int(r0)
 	errno = int(e1)
 	return
 }
 
 func Read(fd int, p []byte) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(p) > 0 {
-		_p0 = &p[0]
+		_p0 = unsafe.Pointer(&p[0])
 	}
-	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
+	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
 	n = int(r0)
 	errno = int(e1)
 	return
 }
 
 func Readlink(path string, buf []byte) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
-		_p0 = &buf[0]
+		_p0 = unsafe.Pointer(&buf[0])
 	}
-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
+	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
 	n = int(r0)
 	errno = int(e1)
 	return
@@ -403,21 +397,21 @@ func Rmdir(path string) (errno int) {
 }
 
 func Setdomainname(p []byte) (errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(p) > 0 {
-		_p0 = &p[0]
+		_p0 = unsafe.Pointer(&p[0])
 	}
-	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0)
+	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(_p0), uintptr(len(p)), 0)
 	errno = int(e1)
 	return
 }
 
 func Sethostname(p []byte) (errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(p) > 0 {
-		_p0 = &p[0]
+		_p0 = unsafe.Pointer(&p[0])
 	}
-	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0)
+	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(_p0), uintptr(len(p)), 0)
 	errno = int(e1)
 	return
 }
@@ -490,13 +484,6 @@ func Tgkill(tgid int, tid int, sig int) (errno int) {
 	return
 }
 
-func Time(t *Time_t) (tt Time_t, errno int) {
-	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
-	tt = Time_t(r0)
-	errno = int(e1)
-	return
-}
-
 func Times(tms *Tms) (ticks uintptr, errno int) {
 	r0, _, e1 := Syscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
 	ticks = uintptr(r0)
@@ -553,11 +540,11 @@ func Utime(path string, buf *Utimbuf) (errno int) {
 }
 
 func Write(fd int, p []byte) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(p) > 0 {
-		_p0 = &p[0]
+		_p0 = unsafe.Pointer(&p[0])
 	}
-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
+	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
 	n = int(r0)
 	errno = int(e1)
 	return
@@ -641,22 +628,22 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
 }
 
 func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(p) > 0 {
-		_p0 = &p[0]
+		_p0 = unsafe.Pointer(&p[0])
 	}
-	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
 	n = int(r0)
 	errno = int(e1)
 	return
 }
 
 func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
-	var _p0 *byte
+	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
-		_p0 = &buf[0]
+		_p0 = unsafe.Pointer(&buf[0])
 	}
-	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
 	errno = int(e1)
 	return
 }
@@ -803,6 +790,19 @@ func Stat(path string, stat *Stat_t) (errno int) {
 
 func Statfs(path string, buf *Statfs_t) (errno int) {
 	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0)
+	errno = int(e1)
+	return
+}
+
+func Gettimeofday(tv *Timeval) (errno int) {
+	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+	errno = int(e1)
+	return
+}
+
+func Time(t *Time_t) (tt Time_t, errno int) {
+	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
+	tt = Time_t(r0)
 	errno = int(e1)
 	return
 }

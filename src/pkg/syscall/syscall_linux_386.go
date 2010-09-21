@@ -55,6 +55,10 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 // Implemented in assembly to avoid allocation.
 func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 
+// Vsyscalls on amd64.
+//sys	Gettimeofday(tv *Timeval) (errno int)
+//sys	Time(t *Time_t) (tt Time_t, errno int)
+
 // On x86 Linux, all the socket calls go through an extra indirection,
 // I think because the 5-register system call interface can't handle
 // the 6-argument calls like sendto and recvfrom.  Instead the
