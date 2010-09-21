@@ -39,7 +39,8 @@ type BenchRequest struct {
 var (
 	dashboard     = flag.String("dashboard", "godashboard.appspot.com", "Go Dashboard Host")
 	runBenchmarks = flag.Bool("bench", false, "Run benchmarks")
-	buildRelease  = flag.Bool("release", false, "Build and deliver binary release archive")
+	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
+	buildRevision = flag.String("rev", "", "Build specified revision and exit")
 )
 
 var (
@@ -76,6 +77,20 @@ func main() {
 	if err := run(nil, buildroot, "hg", "clone", hgUrl, goroot); err != nil {
 		log.Exit("Error cloning repository:", err)
 	}
+	// if specified, build revision and return
+	if *buildRevision != "" {
+		c, err := getCommit(*buildRevision)
+		if err != nil {
+			log.Exit("Error finding revision:", err)
+		}
+		for _, b := range builders {
+			if err := b.buildCommit(c); err != nil {
+				log.Stderr(err)
+			}
+			runQueuedBenchmark()
+		}
+		return
+	}
 	// check for new commits and build them
 	for {
 		err := run(nil, goroot, "hg", "pull", "-u")
@@ -93,16 +108,22 @@ func main() {
 		// only run benchmarks if we didn't build anything
 		// so that they don't hold up the builder queue
 		if !built {
-			// if we have no benchmarks to do, pause
-			if benchRequests.Len() == 0 {
+			if !runQueuedBenchmark() {
+				// if we have no benchmarks to do, pause
 				time.Sleep(waitInterval)
-			} else {
-				runBenchmark(benchRequests.Pop().(BenchRequest))
-				// after running one benchmark, 
-				// continue to find and build new revisions.
 			}
+			// after running one benchmark, 
+			// continue to find and build new revisions.
 		}
 	}
+}
+
+func runQueuedBenchmark() bool {
+	if benchRequests.Len() == 0 {
+		return false
+	}
+	runBenchmark(benchRequests.Pop().(BenchRequest))
+	return true
 }
 
 func runBenchmark(r BenchRequest) {
@@ -222,11 +243,15 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 		}
 	}()
 
-	// clone repo at revision num (new candidate)
-	err = run(nil, workpath,
-		"hg", "clone",
-		"-r", strconv.Itoa(c.num),
-		goroot, "go")
+	// clone repo
+	err = run(nil, workpath, "hg", "clone", goroot, "go")
+	if err != nil {
+		return
+	}
+
+	// update to specified revision
+	err = run(nil, path.Join(workpath, "go"), 
+		"hg", "update", "-r", strconv.Itoa(c.num))
 	if err != nil {
 		return
 	}
@@ -240,8 +265,17 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	}
 	srcDir := path.Join(workpath, "go", "src")
 
-	// build the release candidate
-	buildLog, status, err := runLog(env, srcDir, "bash", "all.bash")
+	// check for all-${GOARCH,GOOS}.bash and use it if found
+	allbash := "all.bash"
+	if a := "all-"+b.goarch+".bash"; isFile(path.Join(srcDir, a)) {
+		allbash = a
+	}
+	if a := "all-"+b.goos+".bash"; isFile(path.Join(srcDir, a)) {
+		allbash = a
+	}
+
+	// build
+	buildLog, status, err := runLog(env, srcDir, "bash", allbash)
 	if err != nil {
 		return errf("all.bash: %s", err)
 	}
@@ -278,31 +312,22 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 			return errf("clean.bash: %s", err)
 		}
 		// upload binary release
-		err = b.codeUpload(release)
+		fn := fmt.Sprintf("%s.%s-%s.tar.gz", release, b.goos, b.goarch)
+		err = run(nil, workpath, "tar", "czf", fn, "go")
+		if err != nil {
+			return errf("tar: %s", err)
+		}
+		err = run(nil, workpath, "python",
+			path.Join(goroot, codePyScript),
+			"-s", release,
+			"-p", codeProject,
+			"-u", b.codeUsername,
+			"-w", b.codePassword,
+			"-l", fmt.Sprintf("%s,%s", b.goos, b.goarch),
+			fn)
 	}
 
 	return
-}
-
-func (b *Builder) codeUpload(release string) (err os.Error) {
-	defer func() {
-		if err != nil {
-			err = errf("%s codeUpload release: %s: %s", b.name, release, err)
-		}
-	}()
-	fn := fmt.Sprintf("%s.%s-%s.tar.gz", release, b.goos, b.goarch)
-	err = run(nil, "", "tar", "czf", fn, "go")
-	if err != nil {
-		return
-	}
-	return run(nil, "", "python",
-		path.Join(goroot, codePyScript),
-		"-s", release,
-		"-p", codeProject,
-		"-u", b.codeUsername,
-		"-w", b.codePassword,
-		"-l", fmt.Sprintf("%s,%s", b.goos, b.goarch),
-		fn)
 }
 
 func isDirectory(name string) bool {
