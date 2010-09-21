@@ -15,7 +15,7 @@ fi
 # Various aspects of the build cd into $GOROOT-rooted paths,
 # making it easy to jump to a different tree and get confused.
 DIR1=$(cd ..; pwd)
-DIR2=$(cd $GOROOT; pwd)
+DIR2=$(cd "$GOROOT"; pwd)
 if [ "$DIR1" != "$DIR2" ]; then
 	echo 'Suspicious $GOROOT '$GOROOT': does not match current directory.' 1>&2
 	exit 1
