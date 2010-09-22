@@ -43,9 +43,9 @@ func New(data []byte) *Index {
 	for i, _ := range sa {
 		sa[i] = i
 	}
-	x := &index{data, sa}
-	sort.Sort(x)
-	return (*Index)(x)
+	x := &Index{data, sa}
+	sort.Sort((*index)(x))
+	return x
 }
 
 
@@ -75,7 +75,7 @@ func (x *Index) search(s []byte) int {
 // Lookup returns an unsorted list of at most n indices where the byte string s
 // occurs in the indexed data. If n < 0, all occurrences are returned.
 // The result is nil if s is empty, s is not found, or n == 0.
-// Lookup time is O((log(N) + len(res))*len(s)) where N is the
+// Lookup time is O((log(N) + len(result))*len(s)) where N is the
 // size of the indexed data.
 //
 func (x *Index) Lookup(s []byte, n int) []int {
@@ -102,14 +102,8 @@ func (x *Index) Lookup(s []byte, n int) []int {
 }
 
 
-// index is like Index; it is only used to hide the sort.Interface methods
-type index struct {
-	data []byte
-	sa   []int
-}
-
-
-// index implements sort.Interface
+// index is used to hide the sort.Interface
+type index Index
 
 func (x *index) Len() int           { return len(x.sa) }
 func (x *index) Less(i, j int) bool { return bytes.Compare(x.at(i), x.at(j)) < 0 }
