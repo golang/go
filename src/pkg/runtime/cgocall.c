@@ -53,16 +53,16 @@ cgocall(void (*fn)(void*), void *arg)
 void
 cgocallback(void (*fn)(void), void *arg, int32 argsize)
 {
-	Gobuf oldsched;
+	Gobuf oldsched, oldg1sched;
 	G *g1;
 	void *sp;
 
 	if(g != m->g0)
 		throw("bad g in cgocallback");
 
-	oldsched = m->sched;
-
 	g1 = m->curg;
+	oldsched = m->sched;
+	oldg1sched = g1->sched;
 
 	startcgocallback(g1);
 
@@ -78,6 +78,7 @@ cgocallback(void (*fn)(void), void *arg, int32 argsize)
 	endcgocallback(g1);
 
 	m->sched = oldsched;
+	g1->sched = oldg1sched;
 }
 
 void

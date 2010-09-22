@@ -19,6 +19,13 @@ enum {
 	Enum1 = 1,
 	Enum2 = 2,
 };
+
+typedef unsigned char uuid_t[20];
+
+void uuid_generate(uuid_t x) {
+	x[0] = 0;
+}
+
 */
 import "C"
 import (
@@ -29,6 +36,11 @@ import (
 const EINVAL = C.EINVAL /* test #define */
 
 var KILO = C.KILO
+
+func uuidgen() {
+	var uuid C.uuid_t
+	C.uuid_generate(&uuid[0])
+}
 
 func Size(name string) (int64, os.Error) {
 	var st C.struct_stat
@@ -73,8 +85,18 @@ func TestErrno() {
 	n, err := Strtol("asdf", 123)
 	if n != 0 || err != os.EINVAL {
 		println("Strtol: ", n, err)
-		panic("bad atoi2")
+		panic("bad strtol")
 	}
+}
+
+func TestMultipleAssign() {
+	p := C.CString("123")
+	n, m := C.strtol(p, nil, 345), C.strtol(p, nil, 10)
+	if n != 0 || m != 234 {
+		println("Strtol x2: ", n, m)
+		panic("bad strtol x2")
+	}
+	C.free(unsafe.Pointer(p))
 }
 
 var (
