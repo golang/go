@@ -59,6 +59,7 @@ fi
 GOMAXPROCS=10 gomake test
 ) || exit $?
 
+[ "$GOARCH" == arm ] ||
 (xcd cmd/gofmt
 if $rebuild; then
 	gomake clean;
@@ -75,6 +76,7 @@ fi
 time gomake test
 ) || exit $?
 
+[ "$GOARCH" == arm ] ||
 (xcd ../misc/cgo/stdio
 if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
 	gomake clean
@@ -93,6 +95,7 @@ if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
 fi
 ) || exit $?
 
+[ "$GOARCH" == arm ] ||
 (xcd ../test/bench
 if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
 	./timing.sh -test

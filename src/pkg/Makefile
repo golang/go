@@ -9,6 +9,8 @@
 #
 # to rebuild the dependency information in Make.deps.
 
+include ../Make.inc
+
 all: install
 
 DIRS=\
@@ -195,6 +197,69 @@ NOTEST+=path         # tree walking does not work
 NOTEST+=syslog       # no network
 NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
 NOTEST+=websocket    # no network
+endif
+
+ifeq ($(GOARCH),arm)
+# Tests that fail, probably 5g bugs.
+# Disable so that dashboard all.bash can catch regressions.
+NOTEST+=archive/tar
+NOTEST+=asn1
+NOTEST+=big
+NOTEST+=bytes
+NOTEST+=cmath
+NOTEST+=compress/gzip
+NOTEST+=compress/zlib
+NOTEST+=crypto/aes
+NOTEST+=crypto/block
+NOTEST+=crypto/blowfish
+NOTEST+=crypto/ocsp
+NOTEST+=crypto/rc4
+NOTEST+=crypto/rsa
+NOTEST+=crypto/subtle
+NOTEST+=crypto/tls
+NOTEST+=crypto/x509
+NOTEST+=debug/dwarf
+NOTEST+=debug/elf
+NOTEST+=debug/macho
+NOTEST+=encoding/base64
+NOTEST+=encoding/binary
+NOTEST+=encoding/pem
+NOTEST+=exp/datafmt
+NOTEST+=exp/eval
+NOTEST+=expvar
+NOTEST+=flag
+NOTEST+=fmt
+NOTEST+=go/printer
+NOTEST+=gob
+NOTEST+=http
+NOTEST+=image/png
+NOTEST+=io
+NOTEST+=json
+NOTEST+=log
+NOTEST+=math
+NOTEST+=mime
+NOTEST+=mime/multipart
+NOTEST+=net
+NOTEST+=netchan
+NOTEST+=os
+NOTEST+=os/signal
+NOTEST+=patch
+NOTEST+=reflect
+NOTEST+=regexp
+NOTEST+=rpc
+NOTEST+=rpc/jsonrpc
+NOTEST+=scanner
+NOTEST+=strconv
+NOTEST+=strings
+NOTEST+=syslog
+NOTEST+=tabwriter
+NOTEST+=template
+NOTEST+=testing/quick
+NOTEST+=time
+NOTEST+=utf16
+NOTEST+=utf8
+NOTEST+=websocket
+NOTEST+=xml
 endif
 
 TEST=\

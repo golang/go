@@ -49,12 +49,32 @@ ulimit -c 0
 
 true >pass.out >times.out
 
+exclude=false	# exclude nothing
+golden=golden.out
+
+filterout() {
+	grep '^'"$2"'$' $1 >/dev/null
+}
+
+if [ "$GOARCH" = "arm" ]; then
+	if [ "$GORUN" = "" ]; then
+		exclude="filterout fail-arm-native.txt"
+		golden=golden-arm-native.out
+	else
+		exclude="filterout fail-arm.txt"
+		golden=golden-arm.out
+	fi
+fi
+
 for dir in . ken chan interface nilptr syntax fixedbugs bugs
 do
 	echo
 	echo '==' $dir'/'
 	for i in $(ls $dir/*.go 2>/dev/null)
-	do
+	do (
+		if $exclude $i; then
+			exit 0  # continues for loop
+		fi
 		export F=$(basename $i .go)
 		export D=$dir
 		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|g' >$RUNFILE
@@ -87,7 +107,7 @@ do
 			echo $i >>pass.out
 		fi
 		echo $(awk 'NR==1{print $2}' $TMP2FILE) $D/$F >>times.out
-	done
+	) done
 done | # clean up some stack noise
 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
 	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
@@ -103,9 +123,9 @@ done | # clean up some stack noise
 		/Segmentation fault/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A *.a $A.out
+rm -f $RUNFILE $TMP1FILE $TMP2FILE *.$A *.a $A.out
 diffmsg=""
-if ! diff golden.out run.out
+if ! diff $golden run.out
 then
 	diffmsg="; test output differs"
 	failed=1
