@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"exec"
 	"os"
+	"strings"
 )
 
 // run is a simple wrapper for exec.Run/Close
 func run(envv []string, dir string, argv ...string) os.Error {
-	bin, err := exec.LookPath(argv[0])
+	bin, err := pathLookup(argv[0])
 	if err != nil {
 		return err
 	}
@@ -22,7 +23,7 @@ func run(envv []string, dir string, argv ...string) os.Error {
 
 // runLog runs a process and returns the combined stdout/stderr
 func runLog(envv []string, dir string, argv ...string) (output string, exitStatus int, err os.Error) {
-	bin, err := exec.LookPath(argv[0])
+	bin, err := pathLookup(argv[0])
 	if err != nil {
 		return
 	}
@@ -42,4 +43,12 @@ func runLog(envv []string, dir string, argv ...string) (output string, exitStatu
 		return
 	}
 	return b.String(), w.WaitStatus.ExitStatus(), nil
+}
+
+// Find bin in PATH if a relative or absolute path hasn't been specified
+func pathLookup(s string) (string, os.Error) {
+	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./")  || strings.HasPrefix(s, "../") {
+		return s, nil
+	} 
+	return exec.LookPath(s)
 }

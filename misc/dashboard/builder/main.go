@@ -41,6 +41,7 @@ var (
 	runBenchmarks = flag.Bool("bench", false, "Run benchmarks")
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
+	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")
 )
 
 var (
@@ -265,17 +266,8 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	}
 	srcDir := path.Join(workpath, "go", "src")
 
-	// check for all-${GOARCH,GOOS}.bash and use it if found
-	allbash := "all.bash"
-	if a := "all-"+b.goarch+".bash"; isFile(path.Join(srcDir, a)) {
-		allbash = a
-	}
-	if a := "all-"+b.goos+".bash"; isFile(path.Join(srcDir, a)) {
-		allbash = a
-	}
-
 	// build
-	buildLog, status, err := runLog(env, srcDir, "bash", allbash)
+	buildLog, status, err := runLog(env, srcDir, *buildCmd)
 	if err != nil {
 		return errf("all.bash: %s", err)
 	}
@@ -307,7 +299,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	// if this is a release, create tgz and upload to google code
 	if release := releaseRegexp.FindString(c.desc); release != "" {
 		// clean out build state
-		err = run(env, srcDir, "sh", "clean.bash", "--nopkg")
+		err = run(env, srcDir, "./clean.bash", "--nopkg")
 		if err != nil {
 			return errf("clean.bash: %s", err)
 		}
