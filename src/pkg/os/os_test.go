@@ -742,3 +742,33 @@ func TestWriteAt(t *testing.T) {
 		t.Fatalf("after write: have %q want %q", string(b), "hello, WORLD\n")
 	}
 }
+
+func writeFile(t *testing.T, fname string, flag int, text string) string {
+	f, err := Open(fname, flag, 0666)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	n, err := io.WriteString(f, text)
+	if err != nil {
+		t.Fatalf("WriteString: %d, %v", n, err)
+	}
+	f.Close()
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	return string(data)
+}
+
+func TestAppend(t *testing.T) {
+	const f = "append.txt"
+	defer Remove(f)
+	s := writeFile(t, f, O_CREAT|O_TRUNC|O_RDWR, "new")
+	if s != "new" {
+		t.Fatalf("writeFile: have %q want %q", s, "new")
+	}
+	s = writeFile(t, f, O_APPEND|O_RDWR, "|append")
+	if s != "new|append" {
+		t.Fatalf("writeFile: have %q want %q", s, "new|append")
+	}
+}
