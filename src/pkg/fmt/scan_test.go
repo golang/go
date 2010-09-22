@@ -289,8 +289,6 @@ var s, t string
 var c complex
 var x, y Xs
 
-func args(a ...interface{}) []interface{} { return a }
-
 var multiTests = []ScanfMultiTest{
 	ScanfMultiTest{"", "", nil, nil, ""},
 	ScanfMultiTest{"%d", "23", args(&i), args(23), ""},

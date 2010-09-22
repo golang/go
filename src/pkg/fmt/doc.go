@@ -47,7 +47,9 @@
 	number of places after the decimal, if appropriate.  The
 	format %6.2f prints 123.45. The width of a field is the number
 	of Unicode code points in the string. This differs from C's printf where
-	the field width is the number of bytes.
+	the field width is the number of bytes.  Either or both of the
+	flags may be replaced with the character '*', causing their values
+	to be obtained from the next operand, which must be of type int.
 
 	Other flags:
 		+	always print a sign for numeric values

@@ -605,3 +605,45 @@ func TestFormatterPrintln(t *testing.T) {
 		t.Errorf("Sprintf wrong with Formatter: expected %q got %q\n", expect, s)
 	}
 }
+
+func args(a ...interface{}) []interface{} { return a }
+
+type starTest struct {
+	fmt string
+	in  []interface{}
+	out string
+}
+
+var startests = []starTest{
+	starTest{"%*d", args(4, 42), "  42"},
+	starTest{"%.*d", args(4, 42), "0042"},
+	starTest{"%*.*d", args(8, 4, 42), "    0042"},
+	starTest{"%0*d", args(4, 42), "0042"},
+	starTest{"%-*d", args(4, 42), "42  "},
+
+	// erroneous
+	starTest{"%*d", args(nil, 42), "%(badwidth)42"},
+	starTest{"%.*d", args(nil, 42), "%(badprec)42"},
+	starTest{"%*d", args(5, "foo"), "%d(string=  foo)"},
+	starTest{"%*% %d", args(20, 5), "% 5"},
+	starTest{"%*", args(4), "%(badwidth)%*(int=4)"},
+	starTest{"%*d", args(int32(4), 42), "%(badwidth)42"},
+}
+
+// TODO: there's no conversion from []T to ...T, but we can fake it.  These
+// functions do the faking.  We index the table by the length of the param list.
+var sprintf = []func(string, []interface{}) string{
+	0: func(f string, i []interface{}) string { return Sprintf(f) },
+	1: func(f string, i []interface{}) string { return Sprintf(f, i[0]) },
+	2: func(f string, i []interface{}) string { return Sprintf(f, i[0], i[1]) },
+	3: func(f string, i []interface{}) string { return Sprintf(f, i[0], i[1], i[2]) },
+}
+
+func TestWidthAndPrecision(t *testing.T) {
+	for _, tt := range startests {
+		s := sprintf[len(tt.in)](tt.fmt, tt.in)
+		if s != tt.out {
+			t.Errorf("got %q expected %q", s, tt.out)
+		}
+	}
+}
