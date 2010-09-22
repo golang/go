@@ -184,6 +184,10 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	if mode&O_CREAT != 0 {
 		access |= GENERIC_WRITE
 	}
+	if mode&O_APPEND != 0 {
+		access &^= GENERIC_WRITE
+		access |= FILE_APPEND_DATA
+	}
 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
 	var createmode uint32
 	switch {
