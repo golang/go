@@ -1,3 +1,5 @@
+<link rel="stylesheet" type="text/css" href="/doc/frontpage.css">
+
 <script src="http://www.google.com/jsapi" type="text/javascript"></script>
 <script type="text/javascript">
 function loadFeed() {
@@ -34,7 +36,6 @@ google.load("feeds", "1");
 google.setOnLoadCallback(loadFeed);
 </script>
 
-  <link rel="stylesheet" type="text/css" href="/doc/frontpage.css">
   <div id="frontpage">
     <div class="left-column">
       <p style="margin-top: 0;">
@@ -50,7 +51,8 @@ google.setOnLoadCallback(loadFeed);
       </p>
       <h2>Check it out!</h2>
       <p>
-      <a href="/doc/install.html">Install Go now</a>, or try it right here in your browser: <small>[<a href="/doc/playground.html">How does it work?</a>]</small></p>
+      <div class="how">[<a href="/doc/playground.html">How does it work?</a>]</div>
+      <a href="/doc/install.html">Install Go now</a>, or try it right here in your browser:</p>
       <div id="playground" class="small"></div>
       <script src="/doc/play/playground.js"></script>
     </div>

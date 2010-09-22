@@ -1,3 +1,9 @@
+/* Overloads to all.css */
+#container { width: 76em }
+.left-column { width: 48%; }
+.right-column { width: 48%; }
+
+/* Frontpage styles */
 #content-introductory code {
   font-family: "Bitstream Vera Sans Mono", "Andale Mono", monospace;
 }
@@ -117,9 +123,15 @@ span.keyword {
 #content-blog li a:active .title {
   color: #c00;
 }
-
 .navtop {
   display: none !important;
 }
+.how {
+  float: right;
+  font-size: 75%;
+}
+.unsupported {
+  font-weight: bold;
+  color: red;
+}
 
-.unsupported { font-weight: bold; color: red; }
