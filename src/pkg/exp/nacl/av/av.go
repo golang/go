@@ -43,25 +43,18 @@ const (
 type Window struct {
 	Embedded bool // running as part of a web page?
 	*Image        // screen image
-
-	mousec  chan draw.Mouse
-	kbdc    chan int
-	quitc   chan bool
-	resizec chan bool
+	eventc   chan interface{}
 }
 
-// *Window implements draw.Context
-var _ draw.Context = (*Window)(nil)
+// *Window implements draw.Window.
+var _ draw.Window = (*Window)(nil)
 
-func (w *Window) KeyboardChan() <-chan int { return w.kbdc }
+func (w *Window) EventChan() <-chan interface{} { return w.eventc }
 
-func (w *Window) MouseChan() <-chan draw.Mouse {
-	return w.mousec
+func (w *Window) Close() os.Error {
+	// TODO(nigeltao): implement.
+	return nil
 }
-
-func (w *Window) QuitChan() <-chan bool { return w.quitc }
-
-func (w *Window) ResizeChan() <-chan bool { return w.resizec }
 
 func (w *Window) Screen() draw.Image { return w.Image }
 
@@ -98,10 +91,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 			return nil, err
 		}
 		w.Image = newImage(dx, dy, bridge.pixel)
-		w.resizec = make(chan bool, 64)
-		w.kbdc = make(chan int, 64)
-		w.mousec = make(chan draw.Mouse, 64)
-		w.quitc = make(chan bool)
+		w.eventc = make(chan interface{}, 64)
 	}
 
 	if subsys&SubsystemAudio != 0 {
