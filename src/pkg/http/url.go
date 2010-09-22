@@ -54,15 +54,18 @@ func (e URLEscapeError) String() string {
 
 // Return true if the specified character should be escaped when
 // appearing in a URL string, according to RFC 2396.
-func shouldEscape(c byte) bool {
+// When 'all' is true the full range of reserved characters are matched.
+func shouldEscape(c byte, all bool) bool {
 	if c <= ' ' || c >= 0x7F {
 		return true
 	}
 	switch c {
 	case '<', '>', '#', '%', '"', // RFC 2396 delims
 		'{', '}', '|', '\\', '^', '[', ']', '`', // RFC2396 unwise
-		';', '/', '?', ':', '@', '&', '=', '+', '$', ',': // RFC 2396 reserved
+		'?', '&', '=', '+': // RFC 2396 reserved
 		return true
+	case ';', '/', ':', '@', '$', ',': // RFC 2396 reserved
+		return all
 	}
 	return false
 }
@@ -188,13 +191,13 @@ func urlUnescape(s string, doPlus bool) (string, os.Error) {
 }
 
 // URLEscape converts a string into URL-encoded form.
-func URLEscape(s string) string { return urlEscape(s, true) }
+func URLEscape(s string) string { return urlEscape(s, true, true) }
 
-func urlEscape(s string, doPlus bool) string {
+func urlEscape(s string, doPlus, all bool) string {
 	spaceCount, hexCount := 0, 0
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if shouldEscape(c) {
+		if shouldEscape(c, all) {
 			if c == ' ' && doPlus {
 				spaceCount++
 			} else {
@@ -214,7 +217,7 @@ func urlEscape(s string, doPlus bool) string {
 		case c == ' ' && doPlus:
 			t[j] = '+'
 			j++
-		case shouldEscape(c):
+		case shouldEscape(c, all):
 			t[j] = '%'
 			t[j+1] = "0123456789abcdef"[c>>4]
 			t[j+2] = "0123456789abcdef"[c&15]
@@ -394,16 +397,16 @@ func (url *URL) String() string {
 			if i := strings.Index(info, ":"); i >= 0 {
 				info = info[0:i] + ":******"
 			}
-			result += urlEscape(info, false) + "@"
+			result += urlEscape(info, false, false) + "@"
 		}
 		result += url.Host
 	}
-	result += urlEscape(url.Path, false)
+	result += urlEscape(url.Path, false, false)
 	if url.RawQuery != "" {
 		result += "?" + url.RawQuery
 	}
 	if url.Fragment != "" {
-		result += "#" + urlEscape(url.Fragment, false)
+		result += "#" + urlEscape(url.Fragment, false, false)
 	}
 	return result
 }
