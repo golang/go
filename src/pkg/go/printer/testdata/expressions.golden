@@ -169,6 +169,13 @@ func _() {
 }
 
 
+func f(x int, args ...int) {
+	f(0, args...)
+	f(1, args)
+	f(2, args[0])
+}
+
+
 func _() {
 	_ = T{}
 	_ = struct{}{}

@@ -942,8 +942,13 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	lparen := p.expect(token.LPAREN)
 	p.exprLev++
 	var list vector.Vector
-	for p.tok != token.RPAREN && p.tok != token.EOF {
+	var ellipsis token.Position
+	for p.tok != token.RPAREN && p.tok != token.EOF && !ellipsis.IsValid() {
 		list.Push(p.parseExpr())
+		if p.tok == token.ELLIPSIS {
+			ellipsis = p.pos
+			p.next()
+		}
 		if p.tok != token.COMMA {
 			break
 		}
@@ -952,7 +957,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	p.exprLev--
 	rparen := p.expect(token.RPAREN)
 
-	return &ast.CallExpr{fun, lparen, makeExprList(&list), rparen}
+	return &ast.CallExpr{fun, lparen, makeExprList(&list), ellipsis, rparen}
 }
 
 

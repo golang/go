@@ -37,6 +37,7 @@ var validPrograms = []interface{}{
 	`package main; func f(func() func() func())` + "\n",
 	`package main; func f(...T)` + "\n",
 	`package main; func f(float, ...int)` + "\n",
+	`package main; func f(x int, a ...int) { f(0, a...); f(1, a...,) }` + "\n",
 	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} }` + "\n",
 	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} }` + "\n",
 	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} }` + "\n",

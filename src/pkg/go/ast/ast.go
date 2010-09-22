@@ -210,10 +210,11 @@ type (
 
 	// A CallExpr node represents an expression followed by an argument list.
 	CallExpr struct {
-		Fun    Expr           // function expression
-		Lparen token.Position // position of "("
-		Args   []Expr         // function arguments
-		Rparen token.Position // positions of ")"
+		Fun      Expr           // function expression
+		Lparen   token.Position // position of "("
+		Args     []Expr         // function arguments
+		Ellipsis token.Position // position of "...", if any
+		Rparen   token.Position // position of ")"
 	}
 
 	// A StarExpr node represents an expression of the form "*" Expression.
