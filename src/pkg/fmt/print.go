@@ -24,6 +24,8 @@ var (
 	extraBytes      = []byte("?(extra ")
 	irparenBytes    = []byte("i)")
 	bytesBytes      = []byte("[]byte{")
+	widthBytes      = []byte("%(badwidth)")
+	precBytes       = []byte("%(badprec)")
 )
 
 // State represents the printer state passed to custom formatters.
@@ -782,6 +784,16 @@ BigSwitch:
 	return false
 }
 
+// intFromArg gets the fieldnumth element of a. On return, isInt reports whether the argument has type int.
+func intFromArg(a []interface{}, end, i, fieldnum int) (num int, isInt bool, newi, newfieldnum int) {
+	newi, newfieldnum = end, fieldnum
+	if i < end && fieldnum < len(a) {
+		num, isInt = a[fieldnum].(int)
+		newi, newfieldnum = i+1, fieldnum+1
+	}
+	return
+}
+
 func (p *pp) doPrintf(format string, a []interface{}) {
 	end := len(format) - 1
 	fieldnum := 0 // we process one field per non-trivial format
@@ -816,11 +828,25 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 				break F
 			}
 		}
-		// do we have 20 (width)?
-		p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
-		// do we have .20 (precision)?
+		// do we have width?
+		if format[i] == '*' {
+			p.fmt.wid, p.fmt.widPresent, i, fieldnum = intFromArg(a, end, i, fieldnum)
+			if !p.fmt.widPresent {
+				p.buf.Write(widthBytes)
+			}
+		} else {
+			p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
+		}
+		// do we have precision?
 		if i < end && format[i] == '.' {
-			p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
+			if format[i+1] == '*' {
+				p.fmt.prec, p.fmt.precPresent, i, fieldnum = intFromArg(a, end, i+1, fieldnum)
+				if !p.fmt.precPresent {
+					p.buf.Write(precBytes)
+				}
+			} else {
+				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
+			}
 		}
 		c, w = utf8.DecodeRuneInString(format[i:])
 		i += w
