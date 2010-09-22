@@ -314,7 +314,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 		f.walk(&n.X, "expr", visit)
 	case *ast.AssignStmt:
 		f.walk(n.Lhs, "expr", visit)
-		if len(n.Lhs) == 2 {
+		if len(n.Lhs) == 2 && len(n.Rhs) == 1 {
 			f.walk(n.Rhs, "as2", visit)
 		} else {
 			f.walk(n.Rhs, "expr", visit)

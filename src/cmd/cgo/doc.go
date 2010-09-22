@@ -27,6 +27,12 @@ C identifiers or field names that are keywords in Go can be
 accessed by prefixing them with an underscore: if x points at
 a C struct with a field named "type", x._type accesses the field.
 
+The standard C numeric types are available under the names
+C.char, C.schar (signed char), C.uchar (unsigned char),
+C.short, C.ushort (unsigned short), C.int, C.uint (unsigned int),
+C.long, C.ulong (unsigned long), C.longlong (long long),
+C.ulonglong (unsigned long long), C.float, C.double.
+
 To access a struct, union, or enum type directly, prefix it with
 struct_, union_, or enum_, as in C.struct_stat.
 
@@ -35,6 +41,12 @@ assignment context to retrieve both the return value and the
 C errno variable as an os.Error.  For example:
 
 	n, err := C.atoi("abc")
+
+In C, a function argument written as a fixed size array
+actually requires a pointer to the first element of the array.
+C compilers are aware of this calling convention and adjust
+the call accordingly, but Go cannot.  In Go, you must pass
+the pointer to the first element explicitly: C.f(&x[0]).
 
 Cgo transforms the input file into four output files: two Go source
 files, a C file for 6c (or 8c or 5c), and a C file for gcc.
