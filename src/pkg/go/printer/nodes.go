@@ -686,7 +686,7 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
 	case *ast.CallExpr:
 		body, suffix = splitSelector(x.Fun)
 		if body != nil {
-			suffix = &ast.CallExpr{suffix, x.Lparen, x.Args, x.Rparen}
+			suffix = &ast.CallExpr{suffix, x.Lparen, x.Args, x.Ellipsis, x.Rparen}
 			return
 		}
 	case *ast.IndexExpr:
@@ -847,6 +847,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.expr1(x.Fun, token.HighestPrec, depth, 0, multiLine)
 		p.print(x.Lparen, token.LPAREN)
 		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
+		if x.Ellipsis.IsValid() {
+			p.print(x.Ellipsis, token.ELLIPSIS)
+		}
 		p.print(x.Rparen, token.RPAREN)
 
 	case *ast.CompositeLit:
