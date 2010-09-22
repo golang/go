@@ -61,7 +61,7 @@ func shouldEscape(c byte) bool {
 	switch c {
 	case '<', '>', '#', '%', '"', // RFC 2396 delims
 		'{', '}', '|', '\\', '^', '[', ']', '`', // RFC2396 unwise
-		'?', '&', '=', '+': // RFC 2396 reserved in path
+		';', '/', '?', ':', '@', '&', '=', '+', '$', ',': // RFC 2396 reserved
 		return true
 	}
 	return false
