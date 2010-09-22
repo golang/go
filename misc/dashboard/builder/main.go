@@ -217,7 +217,7 @@ func (b *Builder) nextCommit() (nextC *Commit, err os.Error) {
 	}
 	next := c.num + 1
 	c, err = getCommit(strconv.Itoa(next))
-	if err == nil || c.num == next {
+	if err == nil && c.num == next {
 		return &c, nil
 	}
 	return nil, nil
