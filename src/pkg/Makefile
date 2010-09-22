@@ -84,6 +84,7 @@ DIRS=\
 	image\
 	image/jpeg\
 	image/png\
+	index/suffixarray\
 	io\
 	io/ioutil\
 	json\
