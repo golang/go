@@ -514,6 +514,7 @@ var indexFuncTests = []IndexFuncTest{
 	IndexFuncTest{"\xc0☺\xc0\xc0", not(isValidRune), 0, 5},
 	IndexFuncTest{"ab\xc0a\xc0cd", not(isValidRune), 2, 4},
 	IndexFuncTest{"a\xe0\x80cd", not(isValidRune), 1, 2},
+	IndexFuncTest{"\x80\x80\x80\x80", not(isValidRune), 0, 3},
 }
 
 func TestIndexFunc(t *testing.T) {

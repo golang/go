@@ -463,7 +463,7 @@ func lastIndexFunc(s string, f func(r int) bool, truth bool) int {
 				}
 			}
 			if start < 0 {
-				return -1
+				start = 0
 			}
 			var wid int
 			rune, wid = utf8.DecodeRuneInString(s[start:end])
