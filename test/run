@@ -14,7 +14,7 @@ X386)
 	;;
 Xarm)
 	export A=5
-	export E=${GORUN:-qemu-arm -cpu cortex-a8}
+	export E="$GORUN"
 	;;
 *)
 	echo 1>&2 run: unsupported '$GOARCH'
