@@ -1,0 +1,11 @@
+./cmplxdivide.go
+./mallocfin.go
+./map.go
+./recover3.go
+./zerodivide.go
+ken/cplx0.go
+ken/cplx1.go
+ken/cplx2.go
+ken/cplx3.go
+ken/cplx4.go
+ken/cplx5.go
