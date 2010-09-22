@@ -51,7 +51,7 @@ const (
 
 var (
 	N                        int
-	display                  draw.Context
+	display                  draw.Window
 	screen                   draw.Image
 	screenr                  image.Rectangle
 	board                    [NY][NX]byte
@@ -69,12 +69,12 @@ var (
 	DY                       int
 	DMOUSE                   int
 	lastmx                   int
-	mouse                    draw.Mouse
+	mouse                    draw.MouseEvent
 	newscreen                bool
 	timerc                   <-chan int64
 	suspc                    chan bool
-	mousec                   chan draw.Mouse
-	resizec                  <-chan bool
+	mousec                   chan draw.MouseEvent
+	resizec                  chan bool
 	kbdc                     chan int
 	suspended                bool
 	tsleep                   int
@@ -160,7 +160,7 @@ var txpix = [NCOL]image.ColorImage{
 func movemouse() int {
 	//mouse.image.Point = image.Pt(rboard.Min.X + rboard.Dx()/2, rboard.Min.Y + rboard.Dy()/2);
 	//moveto(mousectl, mouse.Xy);
-	return mouse.X
+	return mouse.Loc.X
 }
 
 func warp(p image.Point, x int) int {
@@ -408,7 +408,7 @@ func pause(t int) {
 				suspend(true)
 			} else if suspended && !s {
 				suspend(false)
-				lastmx = warp(mouse.Point, lastmx)
+				lastmx = warp(mouse.Loc, lastmx)
 			}
 		case <-timerc:
 			if suspended {
@@ -534,17 +534,17 @@ func drop(f bool) bool {
 	setpiece(nil)
 	pause(1500)
 	choosepiece()
-	lastmx = warp(mouse.Point, lastmx)
+	lastmx = warp(mouse.Loc, lastmx)
 	return false
 }
 
 func play() {
-	var om draw.Mouse
+	var om draw.MouseEvent
 	dt = 64
 	lastmx = -1
 	lastmx = movemouse()
 	choosepiece()
-	lastmx = warp(mouse.Point, lastmx)
+	lastmx = warp(mouse.Loc, lastmx)
 	for {
 		select {
 		case mouse = <-mousec:
@@ -553,15 +553,15 @@ func play() {
 				break
 			}
 			if lastmx < 0 {
-				lastmx = mouse.X
+				lastmx = mouse.Loc.X
 			}
-			if mouse.X > lastmx+DMOUSE {
+			if mouse.Loc.X > lastmx+DMOUSE {
 				mright()
-				lastmx = mouse.X
+				lastmx = mouse.Loc.X
 			}
-			if mouse.X < lastmx-DMOUSE {
+			if mouse.Loc.X < lastmx-DMOUSE {
 				mleft()
-				lastmx = mouse.X
+				lastmx = mouse.Loc.X
 			}
 			if mouse.Buttons&^om.Buttons&1 == 1 {
 				rleft()
@@ -581,7 +581,7 @@ func play() {
 				suspend(true)
 			} else if suspended && !s {
 				suspend(false)
-				lastmx = warp(mouse.Point, lastmx)
+				lastmx = warp(mouse.Loc, lastmx)
 			}
 
 		case <-resizec:
@@ -637,15 +637,12 @@ func play() {
 }
 
 func suspproc() {
-	mc := display.MouseChan()
-	kc := display.KeyboardChan()
-
 	s := false
 	for {
 		select {
-		case mouse = <-mc:
+		case mouse = <-mousec:
 			mousec <- mouse
-		case r := <-kc:
+		case r := <-kbdc:
 			switch r {
 			case 'q', 'Q', 0x04, 0x7F:
 				os.Exit(0)
@@ -716,12 +713,21 @@ func redraw(new bool) {
 	display.FlushImage()
 }
 
-func quitter(c <-chan bool) {
-	<-c
+func demuxEvents(w draw.Window) {
+	for event := range w.EventChan() {
+		switch e := event.(type) {
+		case draw.MouseEvent:
+			mousec <- e
+		case draw.ConfigEvent:
+			resizec <- true
+		case draw.KeyEvent:
+			kbdc <- e.Key
+		}
+	}
 	os.Exit(0)
 }
 
-func Play(pp []Piece, ctxt draw.Context) {
+func Play(pp []Piece, ctxt draw.Window) {
 	display = ctxt
 	screen = ctxt.Screen()
 	screenr = screen.Bounds()
@@ -733,10 +739,10 @@ func Play(pp []Piece, ctxt draw.Context) {
 	tsleep = 50
 	timerc = time.Tick(int64(tsleep/2) * 1e6)
 	suspc = make(chan bool)
-	mousec = make(chan draw.Mouse)
-	resizec = ctxt.ResizeChan()
+	mousec = make(chan draw.MouseEvent)
+	resizec = make(chan bool)
 	kbdc = make(chan int)
-	go quitter(ctxt.QuitChan())
+	go demuxEvents(ctxt)
 	go suspproc()
 	points = 0
 	redraw(false)
