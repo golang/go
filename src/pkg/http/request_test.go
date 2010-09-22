@@ -139,8 +139,8 @@ func TestMultipartReader(t *testing.T) {
 
 func TestRedirect(t *testing.T) {
 	const (
-		start = "http://codesearch.google.com/"
-		end   = "http://www.google.com/codesearch"
+		start = "http://google.com/"
+		end   = "http://www.google.com/"
 	)
 	r, url, err := Get(start)
 	if err != nil {
