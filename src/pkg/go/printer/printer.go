@@ -802,10 +802,19 @@ func (p *printer) print(args ...interface{}) {
 			data = []byte("\xff" + string(data) + "\xff")
 			tok = x.Kind
 		case token.Token:
+			s := x.String()
+			if p.lastTok == token.INT && s[0] == '.' {
+				// separate int with blank from '.' so it doesn't become a float
+				if len(p.buffer) != 0 {
+					p.internalError("whitespace buffer not empty")
+				}
+				p.buffer = p.buffer[0:1]
+				p.buffer[0] = ' '
+			}
 			if p.Styler != nil {
 				data, tag = p.Styler.Token(x)
 			} else {
-				data = []byte(x.String())
+				data = []byte(s)
 			}
 			tok = x
 		case token.Position:

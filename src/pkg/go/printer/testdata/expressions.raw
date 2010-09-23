@@ -184,6 +184,16 @@ func f(x int, args ...int) {
 	f(9, .42...)
 	f(10, 42e0...)
 	f(11, 42e0...)
+
+	_ = 42 .x	// a blank must remain between 42 and .x
+	_ = 42..x
+	_ = 42..x
+	_ = 42.0.x
+	_ = 42.0.x
+	_ = .42.x
+	_ = .42.x
+	_ = 42e0.x
+	_ = 42e0.x
 }
 
 
