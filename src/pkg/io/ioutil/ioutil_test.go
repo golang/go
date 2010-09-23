@@ -37,7 +37,7 @@ func TestReadFile(t *testing.T) {
 }
 
 func TestWriteFile(t *testing.T) {
-	filename := "_obj/rumpelstilzchen"
+	filename := "_test/rumpelstilzchen"
 	data := "Programming today is a race between software engineers striving to " +
 		"build bigger and better idiot-proof programs, and the Universe trying " +
 		"to produce bigger and better idiots. So far, the Universe is winning."
@@ -74,19 +74,19 @@ func TestReadDir(t *testing.T) {
 	}
 
 	foundTest := false
-	foundObj := false
+	foundTestDir := false
 	for _, dir := range list {
 		switch {
 		case dir.IsRegular() && dir.Name == "ioutil_test.go":
 			foundTest = true
-		case dir.IsDirectory() && dir.Name == "_obj":
-			foundObj = true
+		case dir.IsDirectory() && dir.Name == "_test":
+			foundTestDir = true
 		}
 	}
 	if !foundTest {
 		t.Fatalf("ReadDir %s: test file not found", dirname)
 	}
-	if !foundObj {
-		t.Fatalf("ReadDir %s: _obj directory not found", dirname)
+	if !foundTestDir {
+		t.Fatalf("ReadDir %s: _test directory not found", dirname)
 	}
 }
