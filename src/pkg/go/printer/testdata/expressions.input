@@ -173,6 +173,17 @@ func f(x int, args ...int) {
 	f(0, args...)
 	f(1, args)
 	f(2, args[0])
+
+	// make sure syntactically legal code remains syntactically legal
+	f(3, 42 ...) // a blank must remain between 42 and ...
+	f(4, 42. ...)
+	f(5, 42....)
+	f(6, 42.0 ...)
+	f(7, 42.0...)
+	f(8, .42 ...)
+	f(9, .42...)
+	f(10, 42e0 ...)
+	f(11, 42e0...)
 }
 
 

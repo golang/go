@@ -848,6 +848,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.print(x.Lparen, token.LPAREN)
 		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
 		if x.Ellipsis.IsValid() {
+			if p.lastTok == token.INT {
+				// w/o a blank, the previous int will become a float
+				// (this could be solved more generally in the print
+				// function but it appears that this is the only
+				// place in the grammar where a token starting with
+				// a do may legally extend the previous token)
+				p.print(blank)
+			}
 			p.print(x.Ellipsis, token.ELLIPSIS)
 		}
 		p.print(x.Rparen, token.RPAREN)

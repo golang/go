@@ -65,10 +65,11 @@ type printer struct {
 	errors chan os.Error
 
 	// Current state
-	nesting int  // nesting level (0: top-level (package scope), >0: functions/decls.)
-	written int  // number of bytes written
-	indent  int  // current indentation
-	escape  bool // true if in escape sequence
+	nesting int         // nesting level (0: top-level (package scope), >0: functions/decls.)
+	written int         // number of bytes written
+	indent  int         // current indentation
+	escape  bool        // true if in escape sequence
+	lastTok token.Token // the last token printed (token.ILLEGAL if it's whitespace)
 
 	// Buffered whitespace
 	buffer []whiteSpace
@@ -762,6 +763,7 @@ func (p *printer) print(args ...interface{}) {
 		var data []byte
 		var tag HTMLTag
 		var tok token.Token
+
 		switch x := f.(type) {
 		case whiteSpace:
 			if x == ignore {
@@ -798,7 +800,7 @@ func (p *printer) print(args ...interface{}) {
 			// bytes since they do not appear in legal UTF-8 sequences)
 			// TODO(gri): do this more efficiently.
 			data = []byte("\xff" + string(data) + "\xff")
-			tok = token.INT // representing all literal tokens
+			tok = x.Kind
 		case token.Token:
 			if p.Styler != nil {
 				data, tag = p.Styler.Token(x)
@@ -810,10 +812,12 @@ func (p *printer) print(args ...interface{}) {
 			if x.IsValid() {
 				next = x // accurate position of next item
 			}
+			tok = p.lastTok
 		default:
 			fmt.Fprintf(os.Stderr, "print: unsupported argument type %T\n", f)
 			panic("go/printer type")
 		}
+		p.lastTok = tok
 		p.pos = next
 
 		if data != nil {
