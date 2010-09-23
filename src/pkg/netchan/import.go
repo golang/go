@@ -162,7 +162,7 @@ func (imp *Importer) Import(name string, chT interface{}, dir Dir) os.Error {
 //	imp, err := NewImporter("tcp", "netchanserver.mydomain.com:1234")
 //	if err != nil { log.Exit(err) }
 //	ch := make(chan myType)
-//	err := imp.ImportNValues("name", ch, Recv, 1)
+//	err = imp.ImportNValues("name", ch, Recv, 1)
 //	if err != nil { log.Exit(err) }
 //	fmt.Printf("%+v\n", <-ch)
 func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, n int) os.Error {
