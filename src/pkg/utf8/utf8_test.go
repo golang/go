@@ -44,6 +44,12 @@ var utf8map = []Utf8Map{
 	Utf8Map{0xFFFD, "\xef\xbf\xbd"},
 }
 
+var testStrings = []string{
+	"",
+	"abcd",
+	"\x80\x80\x80\x80",
+}
+
 // strings.Bytes with one extra byte at end
 func makeBytes(s string) []byte {
 	s += "\x00"
@@ -141,6 +147,79 @@ func TestDecodeRune(t *testing.T) {
 		if rune != RuneError || size != 1 {
 			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, rune, size, RuneError, 1)
 		}
+
+	}
+}
+
+// Check that DecodeRune and DecodeLastRune correspond to
+// the equivalent range loop.
+func TestSequencing(t *testing.T) {
+	for _, ts := range testStrings {
+		for _, m := range utf8map {
+			for _, s := range []string{ts + m.str, m.str + ts, ts + m.str + ts} {
+				testSequence(t, s)
+			}
+		}
+	}
+}
+
+func testSequence(t *testing.T, s string) {
+	type info struct {
+		index int
+		rune  int
+	}
+	index := make([]info, len(s))
+	b := []byte(s)
+	si := 0
+	j := 0
+	for i, r := range s {
+		if si != i {
+			t.Errorf("Sequence(%q) mismatched index %d, want %d", s, si, i)
+			return
+		}
+		index[j] = info{i, r}
+		j++
+		rune1, size1 := DecodeRune(b[i:])
+		if r != rune1 {
+			t.Errorf("DecodeRune(%q) = %#04x, want %#04x", s[i:], rune1, r)
+			return
+		}
+		rune2, size2 := DecodeRuneInString(s[i:])
+		if r != rune2 {
+			t.Errorf("DecodeRuneInString(%q) = %#04x, want %#04x", s[i:], rune2, r)
+			return
+		}
+		if size1 != size2 {
+			t.Errorf("DecodeRune/DecodeRuneInString(%q) size mismatch %d/%d", s[i:], size1, size2)
+			return
+		}
+		si += size1
+	}
+	j--
+	for si = len(s); si > 0; {
+		rune1, size1 := DecodeLastRune(b[0:si])
+		rune2, size2 := DecodeLastRuneInString(s[0:si])
+		if size1 != size2 {
+			t.Errorf("DecodeLastRune/DecodeLastRuneInString(%q, %d) size mismatch %d/%d", s, si, size1, size2)
+			return
+		}
+		if rune1 != index[j].rune {
+			t.Errorf("DecodeLastRune(%q, %d) = %#04x, want %#04x", s, si, rune1, index[j].rune)
+			return
+		}
+		if rune2 != index[j].rune {
+			t.Errorf("DecodeLastRuneInString(%q, %d) = %#04x, want %#04x", s, si, rune2, index[j].rune)
+			return
+		}
+		si -= size1
+		if si != index[j].index {
+			t.Errorf("DecodeLastRune(%q) index mismatch at %d, want %d", s, si, index[j].index)
+			return
+		}
+		j--
+	}
+	if si != 0 {
+		t.Errorf("DecodeLastRune(%q) finished at %d, not 0", s, si)
 	}
 }
 
