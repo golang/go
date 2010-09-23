@@ -39,8 +39,8 @@ func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, at
 	fi.Size = int64(sizehi)<<32 + int64(sizelo)
 	fi.Name = name
 	fi.FollowedSymlink = false
-	fi.Atime_ns = atime.Microseconds() * 1000
-	fi.Mtime_ns = wtime.Microseconds() * 1000
-	fi.Ctime_ns = ctime.Microseconds() * 1000
+	fi.Atime_ns = atime.Nanoseconds()
+	fi.Mtime_ns = wtime.Nanoseconds()
+	fi.Ctime_ns = ctime.Nanoseconds()
 	return fi
 }

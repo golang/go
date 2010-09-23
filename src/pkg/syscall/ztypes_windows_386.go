@@ -56,7 +56,8 @@ const (
 	GENERIC_EXECUTE = 0x20000000
 	GENERIC_ALL     = 0x10000000
 
-	FILE_APPEND_DATA = 0x00000004
+	FILE_APPEND_DATA      = 0x00000004
+	FILE_WRITE_ATTRIBUTES = 0x00000100
 
 	FILE_SHARE_READ          = 0x00000001
 	FILE_SHARE_WRITE         = 0x00000002
@@ -155,6 +156,16 @@ type Timeval struct {
 	Usec int32
 }
 
+func (tv *Timeval) Nanoseconds() int64 {
+	return (int64(tv.Sec)*1e6 + int64(tv.Usec)) * 1e3
+}
+
+func NsecToTimeval(nsec int64) (tv Timeval) {
+	tv.Sec = int32(nsec / 1e9)
+	tv.Usec = int32(nsec % 1e9 / 1e3)
+	return
+}
+
 type Overlapped struct {
 	Internal     uint32
 	InternalHigh uint32
@@ -168,14 +179,25 @@ type Filetime struct {
 	HighDateTime uint32
 }
 
-func (ft *Filetime) Microseconds() int64 {
+func (ft *Filetime) Nanoseconds() int64 {
 	// 100-nanosecond intervals since January 1, 1601
-	ms := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime)
-	// convert into microseconds
-	ms /= 10
+	nsec := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime)
 	// change starting time to the Epoch (00:00:00 UTC, January 1, 1970)
-	ms -= 11644473600000000
-	return ms
+	nsec -= 116444736000000000
+	// convert into nanoseconds
+	nsec *= 100
+	return nsec
+}
+
+func NsecToFiletime(nsec int64) (ft Filetime) {
+	// convert into 100-nanosecond
+	nsec /= 100
+	// change starting time to January 1, 1601
+	nsec += 116444736000000000
+	// split into high / low
+	ft.LowDateTime = uint32(nsec & 0xffffffff)
+	ft.HighDateTime = uint32(nsec >> 32 & 0xffffffff)
+	return ft
 }
 
 type Win32finddata struct {

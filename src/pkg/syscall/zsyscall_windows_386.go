@@ -57,6 +57,7 @@ var (
 	procFreeEnvironmentStringsW    = getSysProcAddr(modkernel32, "FreeEnvironmentStringsW")
 	procGetEnvironmentVariableW    = getSysProcAddr(modkernel32, "GetEnvironmentVariableW")
 	procSetEnvironmentVariableW    = getSysProcAddr(modkernel32, "SetEnvironmentVariableW")
+	procSetFileTime                = getSysProcAddr(modkernel32, "SetFileTime")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -725,6 +726,21 @@ func GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32
 
 func SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) {
 	r0, _, e1 := Syscall(procSetEnvironmentVariableW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int) {
+	r0, _, e1 := Syscall6(procSetFileTime, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {
