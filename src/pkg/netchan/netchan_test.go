@@ -39,7 +39,7 @@ func exportReceive(exp *Exporter, t *testing.T) {
 		v := <-ch
 		if closed(ch) {
 			if i != closeCount {
-				t.Errorf("exportReceive expected close at %d; got one at %d\n", closeCount, i)
+				t.Errorf("exportReceive expected close at %d; got one at %d", closeCount, i)
 			}
 			break
 		}
@@ -73,7 +73,7 @@ func importReceive(imp *Importer, t *testing.T, done chan bool) {
 		v := <-ch
 		if closed(ch) {
 			if i != closeCount {
-				t.Errorf("importReceive expected close at %d; got one at %d\n", closeCount, i)
+				t.Errorf("importReceive expected close at %d; got one at %d", closeCount, i)
 			}
 			break
 		}

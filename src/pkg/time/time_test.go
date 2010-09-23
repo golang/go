@@ -209,28 +209,28 @@ func TestRubyParse(t *testing.T) {
 func checkTime(time *Time, test *ParseTest, t *testing.T) {
 	// The time should be Thu Feb  4 21:00:57 PST 2010
 	if test.yearSign*time.Year != 2010 {
-		t.Errorf("%s: bad year: %d not %d\n", test.name, time.Year, 2010)
+		t.Errorf("%s: bad year: %d not %d", test.name, time.Year, 2010)
 	}
 	if time.Month != 2 {
-		t.Errorf("%s: bad month: %d not %d\n", test.name, time.Month, 2)
+		t.Errorf("%s: bad month: %d not %d", test.name, time.Month, 2)
 	}
 	if time.Day != 4 {
-		t.Errorf("%s: bad day: %d not %d\n", test.name, time.Day, 4)
+		t.Errorf("%s: bad day: %d not %d", test.name, time.Day, 4)
 	}
 	if time.Hour != 21 {
-		t.Errorf("%s: bad hour: %d not %d\n", test.name, time.Hour, 21)
+		t.Errorf("%s: bad hour: %d not %d", test.name, time.Hour, 21)
 	}
 	if time.Minute != 0 {
-		t.Errorf("%s: bad minute: %d not %d\n", test.name, time.Minute, 0)
+		t.Errorf("%s: bad minute: %d not %d", test.name, time.Minute, 0)
 	}
 	if time.Second != 57 {
-		t.Errorf("%s: bad second: %d not %d\n", test.name, time.Second, 57)
+		t.Errorf("%s: bad second: %d not %d", test.name, time.Second, 57)
 	}
 	if test.hasTZ && time.ZoneOffset != -28800 {
-		t.Errorf("%s: bad tz offset: %d not %d\n", test.name, time.ZoneOffset, -28800)
+		t.Errorf("%s: bad tz offset: %d not %d", test.name, time.ZoneOffset, -28800)
 	}
 	if test.hasWD && time.Weekday != 4 {
-		t.Errorf("%s: bad weekday: %d not %d\n", test.name, time.Weekday, 4)
+		t.Errorf("%s: bad weekday: %d not %d", test.name, time.Weekday, 4)
 	}
 }
 
@@ -283,9 +283,9 @@ func TestParseErrors(t *testing.T) {
 	for _, test := range parseErrorTests {
 		_, err := Parse(test.format, test.value)
 		if err == nil {
-			t.Errorf("expected error for %q %q\n", test.format, test.value)
+			t.Errorf("expected error for %q %q", test.format, test.value)
 		} else if strings.Index(err.String(), test.expect) < 0 {
-			t.Errorf("expected error with %q for %q %q; got %s\n", test.expect, test.format, test.value, err)
+			t.Errorf("expected error with %q for %q %q; got %s", test.expect, test.format, test.value, err)
 		}
 	}
 }

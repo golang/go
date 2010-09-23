@@ -64,7 +64,7 @@ func TestUintCodec(t *testing.T) {
 			t.Error("DecodeUint:", u, decState.err)
 		}
 		if u != v {
-			t.Errorf("Encode/Decode: sent %#x received %#x\n", u, v)
+			t.Errorf("Encode/Decode: sent %#x received %#x", u, v)
 		}
 		if u&(1<<63) != 0 {
 			break
@@ -87,7 +87,7 @@ func verifyInt(i int64, t *testing.T) {
 		t.Error("DecodeInt:", i, decState.err)
 	}
 	if i != j {
-		t.Errorf("Encode/Decode: sent %#x received %#x\n", uint64(i), uint64(j))
+		t.Errorf("Encode/Decode: sent %#x received %#x", uint64(i), uint64(j))
 	}
 }
 
