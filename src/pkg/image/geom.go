@@ -28,6 +28,21 @@ func (p Point) Sub(q Point) Point {
 	return Point{p.X - q.X, p.Y - q.Y}
 }
 
+// Mul returns the vector p*k.
+func (p Point) Mul(k int) Point {
+	return Point{p.X * k, p.Y * k}
+}
+
+// Div returns the vector p/k.
+func (p Point) Div(k int) Point {
+	return Point{p.X / k, p.Y / k}
+}
+
+// Eq returns whether p and q are equal.
+func (p Point) Eq(q Point) bool {
+	return p.X == q.X && p.Y == q.Y
+}
+
 // ZP is the zero Point.
 var ZP Point
 
@@ -57,6 +72,14 @@ func (r Rectangle) Dx() int {
 // Dy returns r's height.
 func (r Rectangle) Dy() int {
 	return r.Max.Y - r.Min.Y
+}
+
+// Size returns r's width and height.
+func (r Rectangle) Size() Point {
+	return Point{
+		r.Max.X - r.Min.X,
+		r.Max.Y - r.Min.Y,
+	}
 }
 
 // Add returns the rectangle r translated by p.
