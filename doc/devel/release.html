@@ -5,6 +5,56 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-09-22">2010-09-22</h3>
+
+<pre>
+This release includes new package functionality, and many bug fixes and changes.
+It also improves support for the arm and nacl platforms.
+
+* 5l: avoid fixed buffers in list.
+* 6l, 8l: clean up ELF code, fix NaCl.
+* 6l/8l: emit DWARF frame info.
+* Make.inc: make GOOS detection work on windows (thanks Alex Brainman).
+* build: fixes for native arn build,
+        make all.bash run on Ubuntu ARM.
+* cgo: bug fixes,
+        show preamble gcc errors (thanks Eric Clark).
+* crypto/x509, crypto/tls: improve root matching and observe CA flag.
+* crypto: Fix certificate validation.
+* doc: variable-width layout.
+* env.bash: fix building in directory with spaces in the path (thanks Alex Brainman).
+* exp/4s, exp/nacl/av: sync to recent exp/draw changes.
+* exp/draw/x11: mouse location is a signed integer.
+* exp/nacl/av: update color to max out at 1<<16-1 instead of 1<<32-1.
+* fmt: support '*' for width or precision (thanks Anthony Martin).
+* gc: improvements to static initialization,
+        make sure path names are canonical.
+* gob: make robust when decoding a struct with non-struct data.
+* gobuilder: add -cmd for user-specified build command,
+        add -rev= flag to build specific revision and exit,
+        fix bug that caused old revisions to be rebuilt.
+* godoc: change default filter file name to "",
+        don't use quadratic algorithm to filter paths,
+        show "Last update" info for directory listings.
+* http: new redirect test,
+        URLEscape now escapes all reserved characters as per the RFC.
+* nacl: fix zero-length writes.
+* net/dict: parse response correctly (thanks Fazlul Shahriar).
+* netchan: add a cross-connect test,
+        handle closing of channels,
+        provide a method (Importer.Errors()) to recover protocol errors.
+* os: make Open() O_APPEND flag work on windows (thanks Alex Brainman),
+        make RemoveAll() work on windows (thanks Alex Brainman).
+* pkg/Makefile: disable netchan test to fix windows build (thanks Alex Brainman).
+* regexp: delete Iter methods.
+* runtime: better panic for send to nil channel.
+* strings: fix minor bug in LastIndexFunc (thanks Roger Peppe).
+* suffixarray: a package for creating suffixarray-based indexes.
+* syscall: Use vsyscall for syscall.Gettimeofday and .Time on linux amd64.
+* test: fix NaCl build.
+* windows: fix netchan test by using 127.0.0.1.
+</pre>
+
 <h3 id="2010-09-15">2010-09-15</h3>
 
 <pre>
