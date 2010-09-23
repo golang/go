@@ -301,7 +301,7 @@ func runModWTests(t *testing.T, tests []modWTest) {
 
 		r := in.abs.modW(d.abs[0])
 		if r != out.abs[0] {
-			t.Errorf("#%d failed: got %s want %s\n", i, r, out)
+			t.Errorf("#%d failed: got %s want %s", i, r, out)
 		}
 	}
 }
@@ -322,7 +322,7 @@ func TestTrailingZeroBits(t *testing.T) {
 	x--
 	for i := 0; i < _W; i++ {
 		if trailingZeroBits(x) != i {
-			t.Errorf("Failed at step %d: x: %x got: %d\n", i, x, trailingZeroBits(x))
+			t.Errorf("Failed at step %d: x: %x got: %d", i, x, trailingZeroBits(x))
 		}
 		x <<= 1
 	}

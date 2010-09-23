@@ -69,7 +69,7 @@ func TestReaderSimple(t *testing.T) {
 
 	b = NewReader(newRot13Reader(bytes.NewBufferString(data)))
 	if s := readBytes(b); s != "uryyb jbeyq" {
-		t.Error("rot13 hello world test failed: got %q", s)
+		t.Errorf("rot13 hello world test failed: got %q", s)
 	}
 }
 
@@ -250,7 +250,7 @@ func TestUnreadRune(t *testing.T) {
 			t.Error("unexpected error reading after unreading:", err)
 		}
 		if rune != rune1 {
-			t.Error("incorrect rune after unread: got %c wanted %c", rune1, rune)
+			t.Errorf("incorrect rune after unread: got %c wanted %c", rune1, rune)
 		}
 	}
 	if got != data {

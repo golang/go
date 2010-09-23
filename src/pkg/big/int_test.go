@@ -310,13 +310,13 @@ func TestGetString(t *testing.T) {
 		if test.base == 10 {
 			s := z.String()
 			if s != test.out {
-				t.Errorf("#%da got %s; want %s\n", i, s, test.out)
+				t.Errorf("#%da got %s; want %s", i, s, test.out)
 			}
 		}
 
 		s := fmt.Sprintf(format(test.base), z)
 		if s != test.out {
-			t.Errorf("#%db got %s; want %s\n", i, s, test.out)
+			t.Errorf("#%db got %s; want %s", i, s, test.out)
 		}
 	}
 }
@@ -344,10 +344,10 @@ func TestSetString(t *testing.T) {
 		}
 
 		if n1.Cmp(expected) != 0 {
-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n1, test.val)
+			t.Errorf("#%d (input '%s') got: %s want: %d", i, test.in, n1, test.val)
 		}
 		if n2.Cmp(expected) != 0 {
-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n2, test.val)
+			t.Errorf("#%d (input '%s') got: %s want: %d", i, test.in, n2, test.val)
 		}
 	}
 }
@@ -582,7 +582,7 @@ func TestBitLen(t *testing.T) {
 		}
 
 		if n := x.BitLen(); n != test.out {
-			t.Errorf("#%d got %d want %d\n", i, n, test.out)
+			t.Errorf("#%d got %d want %d", i, n, test.out)
 		}
 	}
 }

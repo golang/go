@@ -118,7 +118,7 @@ func TestFp(t *testing.T) {
 		}
 		a := strings.Split(line, " ", -1)
 		if len(a) != 4 {
-			t.Error("testfp.txt:", lineno, ": wrong field count\n")
+			t.Error("testfp.txt:", lineno, ": wrong field count")
 			continue
 		}
 		var s string

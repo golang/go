@@ -290,26 +290,26 @@ func compareFloat32Slices(s1, s2 []float32) int {
 func TestNormTables(t *testing.T) {
 	testKn, testWn, testFn := initNorm()
 	if i := compareUint32Slices(kn[0:], testKn); i >= 0 {
-		t.Errorf("kn disagrees at index %v; %v != %v\n", i, kn[i], testKn[i])
+		t.Errorf("kn disagrees at index %v; %v != %v", i, kn[i], testKn[i])
 	}
 	if i := compareFloat32Slices(wn[0:], testWn); i >= 0 {
-		t.Errorf("wn disagrees at index %v; %v != %v\n", i, wn[i], testWn[i])
+		t.Errorf("wn disagrees at index %v; %v != %v", i, wn[i], testWn[i])
 	}
 	if i := compareFloat32Slices(fn[0:], testFn); i >= 0 {
-		t.Errorf("fn disagrees at index %v; %v != %v\n", i, fn[i], testFn[i])
+		t.Errorf("fn disagrees at index %v; %v != %v", i, fn[i], testFn[i])
 	}
 }
 
 func TestExpTables(t *testing.T) {
 	testKe, testWe, testFe := initExp()
 	if i := compareUint32Slices(ke[0:], testKe); i >= 0 {
-		t.Errorf("ke disagrees at index %v; %v != %v\n", i, ke[i], testKe[i])
+		t.Errorf("ke disagrees at index %v; %v != %v", i, ke[i], testKe[i])
 	}
 	if i := compareFloat32Slices(we[0:], testWe); i >= 0 {
-		t.Errorf("we disagrees at index %v; %v != %v\n", i, we[i], testWe[i])
+		t.Errorf("we disagrees at index %v; %v != %v", i, we[i], testWe[i])
 	}
 	if i := compareFloat32Slices(fe[0:], testFe); i >= 0 {
-		t.Errorf("fe disagrees at index %v; %v != %v\n", i, fe[i], testFe[i])
+		t.Errorf("fe disagrees at index %v; %v != %v", i, fe[i], testFe[i])
 	}
 }
 

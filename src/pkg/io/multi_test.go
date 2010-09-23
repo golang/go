@@ -83,6 +83,6 @@ func TestMultiWriter(t *testing.T) {
 	}
 
 	if sink.String() != sourceString {
-		t.Error("expected %q; got %q", sourceString, sink.String())
+		t.Errorf("expected %q; got %q", sourceString, sink.String())
 	}
 }

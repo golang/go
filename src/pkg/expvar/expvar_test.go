@@ -76,7 +76,7 @@ func TestMapCounter(t *testing.T) {
 		t.Error("red.Kind() is not a number.")
 	}
 	if x != 3 {
-		t.Error("red = %v, want 3", x)
+		t.Errorf("red = %v, want 3", x)
 	}
 }
 

@@ -367,7 +367,7 @@ func TestCertificate(t *testing.T) {
 		t.Errorf("Unmarshal failed: %v", err)
 	}
 	if !reflect.DeepEqual(cert, derEncodedSelfSignedCert) {
-		t.Errorf("Bad result:\ngot: %+v\nwant: %+v\n", cert, derEncodedSelfSignedCert)
+		t.Errorf("Bad result:\ngot: %+v\nwant: %+v", cert, derEncodedSelfSignedCert)
 	}
 }
 

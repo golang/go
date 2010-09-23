@@ -144,7 +144,7 @@ Body.
 	// Just the body?
 	r, err := conn.Body(fmt.Sprintf("%d", l))
 	if err != nil {
-		t.Fatal("should be able to fetch the low article body\n" + err.String())
+		t.Fatal("should be able to fetch the low article body" + err.String())
 	}
 	if _, err = ioutil.ReadAll(r); err != nil {
 		t.Fatal("error reading reader: " + err.String())

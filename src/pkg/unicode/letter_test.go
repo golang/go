@@ -216,17 +216,17 @@ var caseTest = []caseT{
 func TestIsLetter(t *testing.T) {
 	for _, r := range upperTest {
 		if !IsLetter(r) {
-			t.Errorf("IsLetter(U+%04X) = false, want true\n", r)
+			t.Errorf("IsLetter(U+%04X) = false, want true", r)
 		}
 	}
 	for _, r := range letterTest {
 		if !IsLetter(r) {
-			t.Errorf("IsLetter(U+%04X) = false, want true\n", r)
+			t.Errorf("IsLetter(U+%04X) = false, want true", r)
 		}
 	}
 	for _, r := range notletterTest {
 		if IsLetter(r) {
-			t.Errorf("IsLetter(U+%04X) = true, want false\n", r)
+			t.Errorf("IsLetter(U+%04X) = true, want false", r)
 		}
 	}
 }
@@ -234,17 +234,17 @@ func TestIsLetter(t *testing.T) {
 func TestIsUpper(t *testing.T) {
 	for _, r := range upperTest {
 		if !IsUpper(r) {
-			t.Errorf("IsUpper(U+%04X) = false, want true\n", r)
+			t.Errorf("IsUpper(U+%04X) = false, want true", r)
 		}
 	}
 	for _, r := range notupperTest {
 		if IsUpper(r) {
-			t.Errorf("IsUpper(U+%04X) = true, want false\n", r)
+			t.Errorf("IsUpper(U+%04X) = true, want false", r)
 		}
 	}
 	for _, r := range notletterTest {
 		if IsUpper(r) {
-			t.Errorf("IsUpper(U+%04X) = true, want false\n", r)
+			t.Errorf("IsUpper(U+%04X) = true, want false", r)
 		}
 	}
 }
@@ -265,7 +265,7 @@ func TestTo(t *testing.T) {
 	for _, c := range caseTest {
 		r := To(c.cas, c.in)
 		if c.out != r {
-			t.Errorf("To(U+%04X, %s) = U+%04X want U+%04X\n", c.in, caseString(c.cas), r, c.out)
+			t.Errorf("To(U+%04X, %s) = U+%04X want U+%04X", c.in, caseString(c.cas), r, c.out)
 		}
 	}
 }
@@ -277,7 +277,7 @@ func TestToUpperCase(t *testing.T) {
 		}
 		r := ToUpper(c.in)
 		if c.out != r {
-			t.Errorf("ToUpper(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
+			t.Errorf("ToUpper(U+%04X) = U+%04X want U+%04X", c.in, r, c.out)
 		}
 	}
 }
@@ -289,7 +289,7 @@ func TestToLowerCase(t *testing.T) {
 		}
 		r := ToLower(c.in)
 		if c.out != r {
-			t.Errorf("ToLower(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
+			t.Errorf("ToLower(U+%04X) = U+%04X want U+%04X", c.in, r, c.out)
 		}
 	}
 }
@@ -301,7 +301,7 @@ func TestToTitleCase(t *testing.T) {
 		}
 		r := ToTitle(c.in)
 		if c.out != r {
-			t.Errorf("ToTitle(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
+			t.Errorf("ToTitle(U+%04X) = U+%04X want U+%04X", c.in, r, c.out)
 		}
 	}
 }

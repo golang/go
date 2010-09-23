@@ -594,15 +594,15 @@ func TestFormatterPrintln(t *testing.T) {
 	expect := "<v=F(1)>\n"
 	s := Sprint(f, "\n")
 	if s != expect {
-		t.Errorf("Sprint wrong with Formatter: expected %q got %q\n", expect, s)
+		t.Errorf("Sprint wrong with Formatter: expected %q got %q", expect, s)
 	}
 	s = Sprintln(f)
 	if s != expect {
-		t.Errorf("Sprintln wrong with Formatter: expected %q got %q\n", expect, s)
+		t.Errorf("Sprintln wrong with Formatter: expected %q got %q", expect, s)
 	}
 	s = Sprintf("%v\n", f)
 	if s != expect {
-		t.Errorf("Sprintf wrong with Formatter: expected %q got %q\n", expect, s)
+		t.Errorf("Sprintf wrong with Formatter: expected %q got %q", expect, s)
 	}
 }
 

@@ -55,7 +55,7 @@ func TestEncoderDecoder(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(et1, newEt1) {
-		t.Fatalf("invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1)
+		t.Fatalf("invalid data for et1: expected %+v; got %+v", *et1, *newEt1)
 	}
 	if b.Len() != 0 {
 		t.Error("not at eof;", b.Len(), "bytes left")
@@ -68,7 +68,7 @@ func TestEncoderDecoder(t *testing.T) {
 		t.Fatal("round 2: error decoding ET1:", dec.state.err)
 	}
 	if !reflect.DeepEqual(et1, newEt1) {
-		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1)
+		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v", *et1, *newEt1)
 	}
 	if b.Len() != 0 {
 		t.Error("round 2: not at eof;", b.Len(), "bytes left")

@@ -112,14 +112,14 @@ func testAtof(t *testing.T, opt bool) {
 		out, err := Atof64(test.in)
 		outs := Ftoa64(out, 'g', -1)
 		if outs != test.out || !reflect.DeepEqual(err, test.err) {
-			t.Errorf("Atof64(%v) = %v, %v want %v, %v\n",
+			t.Errorf("Atof64(%v) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
 		}
 
 		out, err = AtofN(test.in, 64)
 		outs = FtoaN(out, 'g', -1, 64)
 		if outs != test.out || !reflect.DeepEqual(err, test.err) {
-			t.Errorf("AtofN(%v, 64) = %v, %v want %v, %v\n",
+			t.Errorf("AtofN(%v, 64) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
 		}
 
@@ -127,7 +127,7 @@ func testAtof(t *testing.T, opt bool) {
 			out32, err := Atof32(test.in)
 			outs := Ftoa32(out32, 'g', -1)
 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
-				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v\n",
+				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v",
 					test.in, out32, err, test.out, test.err, out)
 			}
 
@@ -135,7 +135,7 @@ func testAtof(t *testing.T, opt bool) {
 			out32 = float32(out)
 			outs = FtoaN(float64(out32), 'g', -1, 32)
 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
-				t.Errorf("AtofN(%v, 32) = %v, %v want %v, %v  # %v\n",
+				t.Errorf("AtofN(%v, 32) = %v, %v want %v, %v  # %v",
 					test.in, out32, err, test.out, test.err, out)
 			}
 		}
@@ -144,7 +144,7 @@ func testAtof(t *testing.T, opt bool) {
 			outf, err := Atof(test.in)
 			outs := Ftoa(outf, 'g', -1)
 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
-				t.Errorf("Ftoa(%v) = %v, %v want %v, %v  # %v\n",
+				t.Errorf("Ftoa(%v) = %v, %v want %v, %v  # %v",
 					test.in, outf, err, test.out, test.err, out)
 			}
 		}
