@@ -209,6 +209,73 @@ func DecodeRuneInString(s string) (rune, size int) {
 	return
 }
 
+// DecodeLastRune unpacks the last UTF-8 encoding in p
+// and returns the rune and its width in bytes.
+func DecodeLastRune(p []byte) (rune, size int) {
+	end := len(p)
+	if end == 0 {
+		return RuneError, 0
+	}
+	start := end - 1
+	rune = int(p[start])
+	if rune < RuneSelf {
+		return rune, 1
+	}
+	// guard against O(n^2) behavior when traversing
+	// backwards through strings with long sequences of
+	// invalid UTF-8.
+	lim := end - UTFMax
+	if lim < 0 {
+		lim = 0
+	}
+	for start--; start >= lim; start-- {
+		if RuneStart(p[start]) {
+			break
+		}
+	}
+	if start < 0 {
+		start = 0
+	}
+	rune, size = DecodeRune(p[start:end])
+	if start+size != end {
+		return RuneError, 1
+	}
+	return rune, size
+}
+
+// DecodeLastRuneInString is like DecodeLastRune but its input is a string.
+func DecodeLastRuneInString(s string) (rune, size int) {
+	end := len(s)
+	if end == 0 {
+		return RuneError, 0
+	}
+	start := end - 1
+	rune = int(s[start])
+	if rune < RuneSelf {
+		return rune, 1
+	}
+	// guard against O(n^2) behavior when traversing
+	// backwards through strings with long sequences of
+	// invalid UTF-8.
+	lim := end - UTFMax
+	if lim < 0 {
+		lim = 0
+	}
+	for start--; start >= lim; start-- {
+		if RuneStart(s[start]) {
+			break
+		}
+	}
+	if start < 0 {
+		start = 0
+	}
+	rune, size = DecodeRuneInString(s[start:end])
+	if start+size != end {
+		return RuneError, 1
+	}
+	return rune, size
+}
+
 // RuneLen returns the number of bytes required to encode the rune.
 func RuneLen(rune int) int {
 	switch {
