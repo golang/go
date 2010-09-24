@@ -47,10 +47,11 @@ func main() {
 		log.Exitf("av.Init: %s", err)
 	}
 
-	go quitter(w.QuitChan())
+	kc := make(chan int)
+	go demuxEvents(w, kc)
 
 	var m SpacewarPDP1
-	m.Init(w)
+	m.Init(w, kc)
 	m.PC = 4
 	f := bytes.NewBuffer([]byte(spacewarCode))
 	if err = m.Load(f); err != nil {
@@ -65,8 +66,13 @@ func main() {
 	log.Exitf("step: %s", err)
 }
 
-func quitter(c <-chan bool) {
-	<-c
+func demuxEvents(w draw.Window, kc chan int) {
+	for event := range w.EventChan() {
+		switch e := event.(type) {
+		case draw.KeyEvent:
+			kc <- e.Key
+		}
+	}
 	os.Exit(0)
 }
 
@@ -78,7 +84,7 @@ type SpacewarPDP1 struct {
 	pdp1.M
 	nframe     int
 	frameTime  int64
-	ctxt       draw.Context
+	ctxt       draw.Window
 	dx, dy     int
 	screen     draw.Image
 	ctl        pdp1.Word
@@ -95,9 +101,9 @@ func min(a, b int) int {
 	return b
 }
 
-func (m *SpacewarPDP1) Init(ctxt draw.Context) {
+func (m *SpacewarPDP1) Init(ctxt draw.Window, kc chan int) {
 	m.ctxt = ctxt
-	m.kc = ctxt.KeyboardChan()
+	m.kc = kc
 	m.screen = ctxt.Screen()
 	m.dx = m.screen.Bounds().Dx()
 	m.dy = m.screen.Bounds().Dy()
