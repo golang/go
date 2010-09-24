@@ -468,25 +468,15 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 	return nil
 }
 
-// Marshal serialises val as an ASN.1 structure and writes the result to out.
-// In the case of an error, no output is produced.
-func Marshal(out io.Writer, val interface{}) os.Error {
+// Marshal returns the ASN.1 encoding of val.
+func Marshal(val interface{}) ([]byte, os.Error) {
+	var out bytes.Buffer
 	v := reflect.NewValue(val)
 	f := newForkableWriter()
 	err := marshalField(f, v, fieldParameters{})
 	if err != nil {
-		return err
-	}
-	_, err = f.writeTo(out)
-	return err
-}
-
-// MarshalToMemory performs the same actions as Marshal, but returns the result
-// as a byte slice.
-func MarshalToMemory(val interface{}) ([]byte, os.Error) {
-	var out bytes.Buffer
-	if err := Marshal(&out, val); err != nil {
 		return nil, err
 	}
+	_, err = f.writeTo(&out)
 	return out.Bytes(), nil
 }

@@ -775,7 +775,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // Other ASN.1 types are not supported; if it encounters them,
 // Unmarshal returns a parse error.
-func Unmarshal(val interface{}, b []byte) (rest []byte, err os.Error) {
+func Unmarshal(b []byte, val interface{}) (rest []byte, err os.Error) {
 	v := reflect.NewValue(val).(*reflect.PtrValue).Elem()
 	offset, err := parseField(v, b, 0, fieldParameters{})
 	if err != nil {

@@ -312,7 +312,7 @@ func TestUnmarshal(t *testing.T) {
 		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem())
 		pv.(*reflect.PtrValue).PointTo(zv)
 		val := pv.Interface()
-		_, err := Unmarshal(val, test.in)
+		_, err := Unmarshal(test.in, val)
 		if err != nil {
 			t.Errorf("Unmarshal failed at index %d %v", i, err)
 		}
@@ -363,7 +363,7 @@ type PublicKeyInfo struct {
 func TestCertificate(t *testing.T) {
 	// This is a minimal, self-signed certificate that should parse correctly.
 	var cert Certificate
-	if _, err := Unmarshal(&cert, derEncodedSelfSignedCertBytes); err != nil {
+	if _, err := Unmarshal(derEncodedSelfSignedCertBytes, &cert); err != nil {
 		t.Errorf("Unmarshal failed: %v", err)
 	}
 	if !reflect.DeepEqual(cert, derEncodedSelfSignedCert) {
@@ -376,7 +376,7 @@ func TestCertificateWithNUL(t *testing.T) {
 	// NUL isn't a permitted character in a PrintableString.
 
 	var cert Certificate
-	if _, err := Unmarshal(&cert, derEncodedPaypalNULCertBytes); err == nil {
+	if _, err := Unmarshal(derEncodedPaypalNULCertBytes, &cert); err == nil {
 		t.Error("Unmarshal succeeded, should not have")
 	}
 }
@@ -390,7 +390,7 @@ func TestRawStructs(t *testing.T) {
 	var s rawStructTest
 	input := []byte{0x30, 0x03, 0x02, 0x01, 0x50}
 
-	rest, err := Unmarshal(&s, input)
+	rest, err := Unmarshal(input, &s)
 	if len(rest) != 0 {
 		t.Errorf("incomplete parse: %x", rest)
 		return

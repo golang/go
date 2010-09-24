@@ -88,14 +88,13 @@ var marshalTests = []marshalTest{
 
 func TestMarshal(t *testing.T) {
 	for i, test := range marshalTests {
-		buf := bytes.NewBuffer(nil)
-		err := Marshal(buf, test.in)
+		data, err := Marshal(test.in)
 		if err != nil {
 			t.Errorf("#%d failed: %s", i, err)
 		}
 		out, _ := hex.DecodeString(test.out)
-		if bytes.Compare(out, buf.Bytes()) != 0 {
-			t.Errorf("#%d got: %x want %x", i, buf.Bytes(), out)
+		if bytes.Compare(out, data) != 0 {
+			t.Errorf("#%d got: %x want %x", i, data, out)
 		}
 	}
 }
