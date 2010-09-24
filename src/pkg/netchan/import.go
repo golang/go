@@ -17,7 +17,7 @@ import (
 // impLog is a logging convenience function.  The first argument must be a string.
 func impLog(args ...interface{}) {
 	args[0] = "netchan import: " + args[0].(string)
-	log.Stderr(args)
+	log.Stderr(args...)
 }
 
 // An Importer allows a set of channels to be imported from a single

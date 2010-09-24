@@ -3052,7 +3052,7 @@ func create(s string, m uint32) *bufio.Writer {
 //
 func error(s string, v ...interface{}) {
 	nerrors++
-	fmt.Fprintf(stderr, s, v)
+	fmt.Fprintf(stderr, s, v...)
 	fmt.Fprintf(stderr, ": %v:%v\n", infile, lineno)
 	if fatfl != 0 {
 		summary()

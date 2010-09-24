@@ -70,7 +70,7 @@ type typechecker struct {
 
 
 func (tc *typechecker) Errorf(pos token.Position, format string, args ...interface{}) {
-	tc.Error(pos, fmt.Sprintf(format, args))
+	tc.Error(pos, fmt.Sprintf(format, args...))
 }
 
 

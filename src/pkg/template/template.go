@@ -185,13 +185,13 @@ func New(fmap FormatterMap) *Template {
 
 // Report error and stop executing.  The line number must be provided explicitly.
 func (t *Template) execError(st *state, line int, err string, args ...interface{}) {
-	panic(&Error{line, fmt.Sprintf(err, args)})
+	panic(&Error{line, fmt.Sprintf(err, args...)})
 }
 
 // Report error, panic to terminate parsing.
 // The line number comes from the template state.
 func (t *Template) parseError(err string, args ...interface{}) {
-	panic(&Error{t.linenum, fmt.Sprintf(err, args)})
+	panic(&Error{t.linenum, fmt.Sprintf(err, args...)})
 }
 
 // -- Lexical analysis

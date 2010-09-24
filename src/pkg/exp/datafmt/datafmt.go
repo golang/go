@@ -697,7 +697,7 @@ func (f Format) Eval(env Environment, args ...interface{}) ([]byte, os.Error) {
 // written and an os.Error, if any.
 //
 func (f Format) Fprint(w io.Writer, env Environment, args ...interface{}) (int, os.Error) {
-	data, err := f.Eval(env, args)
+	data, err := f.Eval(env, args...)
 	if err != nil {
 		// TODO should we print partial result in case of error?
 		return 0, err
@@ -711,7 +711,7 @@ func (f Format) Fprint(w io.Writer, env Environment, args ...interface{}) (int, 
 // number of bytes written and an os.Error, if any.
 //
 func (f Format) Print(args ...interface{}) (int, os.Error) {
-	return f.Fprint(os.Stdout, nil, args)
+	return f.Fprint(os.Stdout, nil, args...)
 }
 
 
@@ -722,7 +722,7 @@ func (f Format) Print(args ...interface{}) (int, os.Error) {
 //
 func (f Format) Sprint(args ...interface{}) string {
 	var buf bytes.Buffer
-	_, err := f.Fprint(&buf, nil, args)
+	_, err := f.Fprint(&buf, nil, args...)
 	if err != nil {
 		var i interface{} = args
 		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(i), err)

@@ -28,7 +28,7 @@ type stmtCompiler struct {
 }
 
 func (a *stmtCompiler) diag(format string, args ...interface{}) {
-	a.diagAt(&a.pos, format, args)
+	a.diagAt(&a.pos, format, args...)
 }
 
 /*

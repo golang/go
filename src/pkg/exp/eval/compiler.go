@@ -28,7 +28,7 @@ type compiler struct {
 }
 
 func (a *compiler) diagAt(pos positioned, format string, args ...interface{}) {
-	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args))
+	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args...))
 	a.numErrors++
 }
 

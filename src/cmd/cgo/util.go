@@ -67,7 +67,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 
 // Die with an error message.
 func fatal(msg string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, msg+"\n", args)
+	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 	os.Exit(2)
 }
 
@@ -79,7 +79,7 @@ func error(pos token.Position, msg string, args ...interface{}) {
 	if pos.IsValid() {
 		fmt.Fprintf(os.Stderr, "%s: ", pos)
 	}
-	fmt.Fprintf(os.Stderr, msg, args)
+	fmt.Fprintf(os.Stderr, msg, args...)
 	fmt.Fprintf(os.Stderr, "\n")
 }
 

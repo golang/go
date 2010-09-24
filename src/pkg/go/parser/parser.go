@@ -90,7 +90,7 @@ func (p *parser) printTrace(a ...interface{}) {
 		fmt.Print(dots)
 	}
 	fmt.Print(dots[0:i])
-	fmt.Println(a)
+	fmt.Println(a...)
 }
 
 

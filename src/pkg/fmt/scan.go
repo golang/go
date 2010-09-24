@@ -60,20 +60,20 @@ type Scanner interface {
 // as space.  It returns the number of items successfully scanned.
 // If that is less than the number of arguments, err will report why.
 func Scan(a ...interface{}) (n int, err os.Error) {
-	return Fscan(os.Stdin, a)
+	return Fscan(os.Stdin, a...)
 }
 
 // Scanln is similar to Scan, but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Scanln(a ...interface{}) (n int, err os.Error) {
-	return Fscanln(os.Stdin, a)
+	return Fscanln(os.Stdin, a...)
 }
 
 // Scanf scans text read from standard input, storing successive
 // space-separated values into successive arguments as determined by
 // the format.  It returns the number of items successfully scanned.
 func Scanf(format string, a ...interface{}) (n int, err os.Error) {
-	return Fscanf(os.Stdin, format, a)
+	return Fscanf(os.Stdin, format, a...)
 }
 
 // Sscan scans the argument string, storing successive space-separated
@@ -81,20 +81,20 @@ func Scanf(format string, a ...interface{}) (n int, err os.Error) {
 // returns the number of items successfully scanned.  If that is less
 // than the number of arguments, err will report why.
 func Sscan(str string, a ...interface{}) (n int, err os.Error) {
-	return Fscan(strings.NewReader(str), a)
+	return Fscan(strings.NewReader(str), a...)
 }
 
 // Sscanln is similar to Sscan, but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Sscanln(str string, a ...interface{}) (n int, err os.Error) {
-	return Fscanln(strings.NewReader(str), a)
+	return Fscanln(strings.NewReader(str), a...)
 }
 
 // Sscanf scans the argument string, storing successive space-separated
 // values into successive arguments as determined by the format.  It
 // returns the number of items successfully parsed.
 func Sscanf(str string, format string, a ...interface{}) (n int, err os.Error) {
-	return Fscanf(strings.NewReader(str), format, a)
+	return Fscanf(strings.NewReader(str), format, a...)
 }
 
 // Fscan scans text read from r, storing successive space-separated
