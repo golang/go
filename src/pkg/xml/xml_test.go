@@ -387,3 +387,14 @@ func TestTrailingToken(t *testing.T) {
 		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
 	}
 }
+
+func TestEntityInsideCDATA(t *testing.T) {
+	input := `<test><![CDATA[ &val=foo ]]></test>`
+	p := NewParser(StringReader(input))
+	var err os.Error
+	for _, err = p.Token(); err == nil; _, err = p.Token() {
+	}
+	if err != os.EOF {
+		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
+	}
+}
