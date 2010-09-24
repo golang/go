@@ -30,8 +30,8 @@ const (
 	O_NONBLOCK     = 0x800
 	O_SYNC         = 0x1000
 	O_TRUNC        = 0x200
+	O_EXCL         = 0x80
 	O_CLOEXEC      = 0
-	O_EXCL         = 0
 	F_GETFD        = 0x1
 	F_SETFD        = 0x2
 	F_GETFL        = 0x3
@@ -80,20 +80,20 @@ type Time_t int32
 type _Gid_t uint32
 
 type Stat_t struct {
-	Dev       int64
-	Ino       uint32
-	Mode      uint32
-	Nlink     uint32
-	Uid       uint32
-	Gid       uint32
-	__padding int32
-	Rdev      int64
-	Size      int32
-	Blksize   int32
-	Blocks    int32
-	Atime     int32
-	Mtime     int32
-	Ctime     int32
+	Dev        int64
+	Ino        uint32
+	Mode       uint32
+	Nlink      uint32
+	Uid        uint32
+	Gid        uint32
+	X__padding int32
+	Rdev       int64
+	Size       int32
+	Blksize    int32
+	Blocks     int32
+	Atime      int32
+	Mtime      int32
+	Ctime      int32
 }
 
 type Dirent struct {

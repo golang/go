@@ -24,6 +24,7 @@ const (
 	SYS_SYSCONF             = 33
 	SYS_GETTIMEOFDAY        = 40
 	SYS_CLOCK               = 41
+	SYS_NANOSLEEP           = 42
 	SYS_MULTIMEDIA_INIT     = 50
 	SYS_MULTIMEDIA_SHUTDOWN = 51
 	SYS_VIDEO_INIT          = 52
@@ -53,9 +54,11 @@ const (
 	SYS_THREAD_EXIT         = 81
 	SYS_TLS_INIT            = 82
 	SYS_THREAD_NICE         = 83
+	SYS_TLS_GET             = 84
 	SYS_SRPC_GET_FD         = 90
 	SYS_SEM_CREATE          = 100
 	SYS_SEM_WAIT            = 101
 	SYS_SEM_POST            = 102
 	SYS_SEM_GET_VALUE       = 103
+	SYS_DYNCODE_COPY        = 104
 )
