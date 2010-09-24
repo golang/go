@@ -7,7 +7,7 @@
 all: $(LIB)
 
 %.$(HOST_O): %.c
-	$(HOST_CC) $(HOST_CFLAGS) -c $*.c
+	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
 
 $(OFILES): $(HFILES)
 
