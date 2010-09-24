@@ -20,12 +20,12 @@ var (
 	nilParenBytes   = []byte("(nil)")
 	nilBytes        = []byte("nil")
 	mapBytes        = []byte("map[")
-	missingBytes    = []byte("missing")
-	extraBytes      = []byte("?(extra ")
+	missingBytes    = []byte("(MISSING)")
+	extraBytes      = []byte("%!(EXTRA ")
 	irparenBytes    = []byte("i)")
 	bytesBytes      = []byte("[]byte{")
-	widthBytes      = []byte("%(badwidth)")
-	precBytes       = []byte("%(badprec)")
+	widthBytes      = []byte("%!(BADWIDTH)")
+	precBytes       = []byte("%!(BADPREC)")
 )
 
 // State represents the printer state passed to custom formatters.
@@ -266,6 +266,7 @@ func (p *pp) unknownType(v interface{}) {
 
 func (p *pp) badVerb(verb int, val interface{}) {
 	p.add('%')
+	p.add('!')
 	p.add(verb)
 	p.add('(')
 	if val == nil {

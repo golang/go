@@ -69,8 +69,8 @@
 	Regardless of the verb, if an operand is an interface value,
 	the internal concrete value is used, not the interface itself.
 	Thus:
-		var i interface{} = 23;
-		fmt.Printf("%v\n", i);
+		var i interface{} = 23
+		fmt.Printf("%v\n", i)
 	will print 23.
 
 	If an operand implements interface Formatter, that interface
@@ -85,6 +85,26 @@
 	cast the value before recurring:
 		func (x X) String() string { return Sprintf("%d", int(x)) }
 
+	Format errors:
+
+	If an invalid argument is given for a verb, such as providing
+	a string to %d, the generated string will contain a
+	description of the problem, as in these examples:
+
+		Wrong type or unknown verb: %!verb(type=value)
+			Printf("%d", hi):          %!d(string=hi)
+		Too many arguments: %!(EXTRA type=value)
+			Printf("hi", "guys"):      hi%!(EXTRA string=guys)
+		Too few arguments: %!verb(MISSING)
+			Printf("hi%d"):            hi %!d(MISSING)
+		Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
+			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
+			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
+
+	All errors begin with the string "%!" followed sometimes
+	by a single character (the verb) and end with a parenthesized
+	description.
+
 	Scanning:
 
 	An analogous set of functions scans formatted text to yield
@@ -97,7 +117,7 @@
 	routines treat newlines as spaces.
 
 	Scanf, Fscanf, and Sscanf parse the arguments according to a
-	format string, analogous to that of Printf.  For example, "%x"
+	format string, analogous to that of Printf.  For example, %x
 	will scan an integer as a hexadecimal number, and %v will scan
 	the default representation format for the value.
 
