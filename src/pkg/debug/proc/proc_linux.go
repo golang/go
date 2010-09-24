@@ -297,7 +297,7 @@ func (t *thread) logTrace(format string, args ...interface{}) {
 		}
 	}
 	fmt.Fprint(os.Stderr, ": ")
-	fmt.Fprintf(os.Stderr, format, args)
+	fmt.Fprintf(os.Stderr, format, args...)
 	fmt.Fprint(os.Stderr, "\n")
 }
 
@@ -305,7 +305,7 @@ func (t *thread) warn(format string, args ...interface{}) {
 	logLock.Lock()
 	defer logLock.Unlock()
 	fmt.Fprintf(os.Stderr, "Thread %d: WARNING ", t.tid)
-	fmt.Fprintf(os.Stderr, format, args)
+	fmt.Fprintf(os.Stderr, format, args...)
 	fmt.Fprint(os.Stderr, "\n")
 }
 
@@ -316,7 +316,7 @@ func (p *process) logTrace(format string, args ...interface{}) {
 	logLock.Lock()
 	defer logLock.Unlock()
 	fmt.Fprintf(os.Stderr, "Process %d: ", p.pid)
-	fmt.Fprintf(os.Stderr, format, args)
+	fmt.Fprintf(os.Stderr, format, args...)
 	fmt.Fprint(os.Stderr, "\n")
 }
 
