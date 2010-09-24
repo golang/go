@@ -134,6 +134,12 @@ int errors[] = {
 	/bin/echo '
 };
 
+static int
+intcmp(const void *a, const void *b)
+{
+	return *(int*)a - *(int*)b;
+}
+
 int
 main(void)
 {
@@ -142,17 +148,16 @@ main(void)
 
 	printf("\n\n// Error table\n");
 	printf("var errors = [...]string {\n");
+	qsort(errors, nelem(errors), sizeof errors[0], intcmp);
 	for(i=0; i<nelem(errors); i++) {
 		e = errors[i];
-		for(j=0; j<i; j++)
-			if(errors[j] == e)	// duplicate value
-				goto next;
+		if(i > 0 && errors[i-1] == e)
+			continue;
 		strcpy(buf, strerror(e));
 		// lowercase first letter: Bad -> bad, but STREAM -> STREAM.
 		if(A <= buf[0] && buf[0] <= Z && a <= buf[1] && buf[1] <= z)
 			buf[0] += a - A;
 		printf("\t%d: \"%s\",\n", e, buf);
-	next:;
 	}
 	printf("}\n\n");
 	return 0;
@@ -161,4 +166,4 @@ main(void)
 '
 ) >_errors.c
 
-$GCC $ccflags -static -o _errors _errors.c && $GORUN ./_errors && rm -f _errors.c _errors _const.c
+$GCC $ccflags -o _errors _errors.c && $GORUN ./_errors && rm -f _errors.c _errors _const.c
