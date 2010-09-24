@@ -337,6 +337,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 		exprfmt(f, n->left, 7);
 		fmtprint(f, "(");
 		exprlistfmt(f, n->list);
+		if(n->isddd)
+			fmtprint(f, "...");
 		fmtprint(f, ")");
 		break;
 
