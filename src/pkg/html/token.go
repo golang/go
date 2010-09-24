@@ -7,15 +7,9 @@ package html
 import (
 	"bytes"
 	"io"
-	"log"
 	"os"
 	"strconv"
 )
-
-func init() {
-	// TODO(nigeltao): Remove this when ready.
-	log.Stderr("The html package is incomplete; do not use for production software.")
-}
 
 // A TokenType is the type of a Token.
 type TokenType int
