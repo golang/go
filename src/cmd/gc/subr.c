@@ -271,7 +271,6 @@ setlineno(Node *n)
 	case OTYPE:
 	case OPACK:
 	case OLITERAL:
-	case ONONAME:
 		break;
 	default:
 		lineno = n->lineno;
@@ -3033,10 +3032,13 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	Node *this, *fn, *call, *n, *t, *pad;
 	NodeList *l, *args, *in, *out;
 	Type *tpad;
+	int isddd;
 
 	if(debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
 			rcvr, method, newnam);
+
+	lineno = 1;	// less confusing than end of input
 
 	dclcontext = PEXTERN;
 	markdcl();
@@ -3069,12 +3071,16 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 
 	// arg list
 	args = nil;
-	for(l=in; l; l=l->next)
+	isddd = 0;
+	for(l=in; l; l=l->next) {
 		args = list(args, l->n->left);
+		isddd = l->n->left->isddd;
+	}
 
 	// generate call
 	call = nod(OCALL, adddot(nod(OXDOT, this->left, newname(method->sym))), N);
 	call->list = args;
+	call->isddd = isddd;
 	fn->nbody = list1(call);
 	if(method->type->outtuple > 0) {
 		n = nod(ORETURN, N, N);
