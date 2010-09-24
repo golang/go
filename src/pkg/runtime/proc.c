@@ -956,7 +956,8 @@ unwindstack(G *gp, byte *sp)
 			break;
 		gp->stackbase = top->stackbase;
 		gp->stackguard = top->stackguard;
-		free(stk);
+		if(top->free)
+			stackfree(stk);
 	}
 
 	if(sp != nil && (sp < gp->stackguard - StackGuard || gp->stackbase < sp)) {
