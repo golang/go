@@ -127,7 +127,7 @@ func (p ParseError) String() string {
 // Signature errors or parse failures will result in a ParseError.
 func ParseResponse(bytes []byte) (*Response, os.Error) {
 	var resp responseASN1
-	rest, err := asn1.Unmarshal(&resp, bytes)
+	rest, err := asn1.Unmarshal(bytes, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func ParseResponse(bytes []byte) (*Response, os.Error) {
 	}
 
 	var basicResp basicResponse
-	rest, err = asn1.Unmarshal(&basicResp, resp.Response.Response)
+	rest, err = asn1.Unmarshal(resp.Response.Response, &basicResp)
 	if err != nil {
 		return nil, err
 	}
