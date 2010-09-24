@@ -36,7 +36,7 @@ func rawValueIsInteger(raw *asn1.RawValue) bool {
 // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
 func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	var priv pkcs1PrivateKey
-	rest, err := asn1.Unmarshal(&priv, der)
+	rest, err := asn1.Unmarshal(der, &priv)
 	if len(rest) > 0 {
 		err = asn1.SyntaxError{"trailing data"}
 		return
@@ -81,7 +81,7 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 		Q:       asn1.RawValue{Tag: 2, Bytes: key.Q.Bytes()},
 	}
 
-	b, _ := asn1.MarshalToMemory(priv)
+	b, _ := asn1.Marshal(priv)
 	return b
 }
 
@@ -480,7 +480,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.E
 	switch algo {
 	case RSA:
 		p := new(rsaPublicKey)
-		_, err := asn1.Unmarshal(p, asn1Data)
+		_, err := asn1.Unmarshal(asn1Data, p)
 		if err != nil {
 			return nil, err
 		}
@@ -543,7 +543,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 			case 15:
 				// RFC 5280, 4.2.1.3
 				var usageBits asn1.BitString
-				_, err := asn1.Unmarshal(&usageBits, e.Value)
+				_, err := asn1.Unmarshal(e.Value, &usageBits)
 
 				if err == nil {
 					var usage int
@@ -558,7 +558,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 			case 19:
 				// RFC 5280, 4.2.1.9
 				var constriants basicConstraints
-				_, err := asn1.Unmarshal(&constriants, e.Value)
+				_, err := asn1.Unmarshal(e.Value, &constriants)
 
 				if err == nil {
 					out.BasicConstraintsValid = true
@@ -584,7 +584,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 				//      iPAddress                       [7]     OCTET STRING,
 				//      registeredID                    [8]     OBJECT IDENTIFIER }
 				var seq asn1.RawValue
-				_, err := asn1.Unmarshal(&seq, e.Value)
+				_, err := asn1.Unmarshal(e.Value, &seq)
 				if err != nil {
 					return nil, err
 				}
@@ -597,7 +597,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 				rest := seq.Bytes
 				for len(rest) > 0 {
 					var v asn1.RawValue
-					rest, err = asn1.Unmarshal(&v, rest)
+					rest, err = asn1.Unmarshal(rest, &v)
 					if err != nil {
 						return nil, err
 					}
@@ -620,7 +620,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 			case 35:
 				// RFC 5280, 4.2.1.1
 				var a authKeyId
-				_, err = asn1.Unmarshal(&a, e.Value)
+				_, err = asn1.Unmarshal(e.Value, &a)
 				if err != nil {
 					return nil, err
 				}
@@ -630,7 +630,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 			case 14:
 				// RFC 5280, 4.2.1.2
 				var keyid []byte
-				_, err = asn1.Unmarshal(&keyid, e.Value)
+				_, err = asn1.Unmarshal(e.Value, &keyid)
 				if err != nil {
 					return nil, err
 				}
@@ -650,7 +650,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 // ParseCertificate parses a single certificate from the given ASN.1 DER data.
 func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
 	var cert certificate
-	rest, err := asn1.Unmarshal(&cert, asn1Data)
+	rest, err := asn1.Unmarshal(asn1Data, &cert)
 	if err != nil {
 		return nil, err
 	}
@@ -669,7 +669,7 @@ func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
 	for len(asn1Data) > 0 {
 		cert := new(certificate)
 		var err os.Error
-		asn1Data, err = asn1.Unmarshal(cert, asn1Data)
+		asn1Data, err = asn1.Unmarshal(asn1Data, cert)
 		if err != nil {
 			return nil, err
 		}
@@ -720,7 +720,7 @@ func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
 			l = 2
 		}
 
-		ret[n].Value, err = asn1.MarshalToMemory(asn1.BitString{Bytes: a[0:l], BitLength: l * 8})
+		ret[n].Value, err = asn1.Marshal(asn1.BitString{Bytes: a[0:l], BitLength: l * 8})
 		if err != nil {
 			return
 		}
@@ -729,7 +729,7 @@ func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
 
 	if template.BasicConstraintsValid {
 		ret[n].Id = oidExtensionBasicConstraints
-		ret[n].Value, err = asn1.MarshalToMemory(basicConstraints{template.IsCA, template.MaxPathLen})
+		ret[n].Value, err = asn1.Marshal(basicConstraints{template.IsCA, template.MaxPathLen})
 		ret[n].Critical = true
 		if err != nil {
 			return
@@ -739,7 +739,7 @@ func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
 
 	if len(template.SubjectKeyId) > 0 {
 		ret[n].Id = oidExtensionSubjectKeyId
-		ret[n].Value, err = asn1.MarshalToMemory(template.SubjectKeyId)
+		ret[n].Value, err = asn1.Marshal(template.SubjectKeyId)
 		if err != nil {
 			return
 		}
@@ -748,7 +748,7 @@ func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
 
 	if len(template.AuthorityKeyId) > 0 {
 		ret[n].Id = oidExtensionAuthorityKeyId
-		ret[n].Value, err = asn1.MarshalToMemory(authKeyId{template.AuthorityKeyId})
+		ret[n].Value, err = asn1.Marshal(authKeyId{template.AuthorityKeyId})
 		if err != nil {
 			return
 		}
@@ -761,7 +761,7 @@ func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
 		for i, name := range template.DNSNames {
 			rawValues[i] = asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)}
 		}
-		ret[n].Value, err = asn1.MarshalToMemory(rawValues)
+		ret[n].Value, err = asn1.Marshal(rawValues)
 		if err != nil {
 			return
 		}
@@ -790,7 +790,7 @@ var (
 //
 // The returned slice is the certificate in DER encoding.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.PublicKey, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
-	asn1PublicKey, err := asn1.MarshalToMemory(rsaPublicKey{
+	asn1PublicKey, err := asn1.Marshal(rsaPublicKey{
 		N: asn1.RawValue{Tag: 2, Bytes: pub.N.Bytes()},
 		E: pub.E,
 	})
@@ -819,7 +819,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 		Extensions:         extensions,
 	}
 
-	tbsCertContents, err := asn1.MarshalToMemory(c)
+	tbsCertContents, err := asn1.Marshal(c)
 	if err != nil {
 		return
 	}
@@ -835,7 +835,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 		return
 	}
 
-	cert, err = asn1.MarshalToMemory(certificate{
+	cert, err = asn1.Marshal(certificate{
 		c,
 		algorithmIdentifier{oidSHA1WithRSA},
 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
