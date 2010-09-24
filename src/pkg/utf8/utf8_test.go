@@ -47,20 +47,16 @@ var utf8map = []Utf8Map{
 var testStrings = []string{
 	"",
 	"abcd",
+	"☺☻☹",
+	"日a本b語ç日ð本Ê語þ日¥本¼語i日©",
+	"日a本b語ç日ð本Ê語þ日¥本¼語i日©日a本b語ç日ð本Ê語þ日¥本¼語i日©日a本b語ç日ð本Ê語þ日¥本¼語i日©",
 	"\x80\x80\x80\x80",
-}
-
-// strings.Bytes with one extra byte at end
-func makeBytes(s string) []byte {
-	s += "\x00"
-	b := []byte(s)
-	return b[0 : len(s)-1]
 }
 
 func TestFullRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i]
-		b := makeBytes(m.str)
+		b := []byte(m.str)
 		if !FullRune(b) {
 			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune)
 		}
@@ -82,7 +78,7 @@ func TestFullRune(t *testing.T) {
 func TestEncodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i]
-		b := makeBytes(m.str)
+		b := []byte(m.str)
 		var buf [10]byte
 		n := EncodeRune(m.rune, buf[0:])
 		b1 := buf[0:n]
@@ -95,7 +91,7 @@ func TestEncodeRune(t *testing.T) {
 func TestDecodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i]
-		b := makeBytes(m.str)
+		b := []byte(m.str)
 		rune, size := DecodeRune(b)
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, rune, size, m.rune, len(b))
@@ -159,6 +155,26 @@ func TestSequencing(t *testing.T) {
 			for _, s := range []string{ts + m.str, m.str + ts, ts + m.str + ts} {
 				testSequence(t, s)
 			}
+		}
+	}
+}
+
+// Check that a range loop and a []int conversion visit the same runes.
+// Not really a test of this package, but the assumption is used here and
+// it's good to verify
+func TestIntConversion(t *testing.T) {
+	for _, ts := range testStrings {
+		runes := []int(ts)
+		if RuneCountInString(ts) != len(runes) {
+			t.Error("%q: expected %d runes; got %d", ts, len(runes), RuneCountInString(ts))
+			break
+		}
+		i := 0
+		for _, r := range ts {
+			if r != runes[i] {
+				t.Errorf("%q[%d]: expected %c (U+%04x); got %c (U+%04x)", ts, i, runes[i], runes[i], r, r)
+			}
+			i++
 		}
 	}
 }
@@ -252,7 +268,7 @@ func TestRuneCount(t *testing.T) {
 		if out := RuneCountInString(tt.in); out != tt.out {
 			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out)
 		}
-		if out := RuneCount(makeBytes(tt.in)); out != tt.out {
+		if out := RuneCount([]byte(tt.in)); out != tt.out {
 			t.Errorf("RuneCount(%q) = %d, want %d", tt.in, out, tt.out)
 		}
 	}

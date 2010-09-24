@@ -6,6 +6,7 @@ include ../../Make.inc
 
 TARG=utf8
 GOFILES=\
+	string.go\
 	utf8.go\
 
 include ../../Make.pkg
