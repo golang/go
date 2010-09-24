@@ -68,3 +68,42 @@ func TestRandomAccess(t *testing.T) {
 		}
 	}
 }
+
+func TestRandomSliceAccess(t *testing.T) {
+	for _, s := range testStrings {
+		if len(s) == 0 || s[0] == '\x80' { // the bad-UTF-8 string fools this simple test
+			continue
+		}
+		runes := []int(s)
+		str := NewString(s)
+		if str.RuneCount() != len(runes) {
+			t.Error("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
+			break
+		}
+		for k := 0; k < randCount; k++ {
+			i := rand.Intn(len(runes))
+			j := rand.Intn(len(runes) + 1)
+			if i > j { // include empty strings
+				continue
+			}
+			expect := string(runes[i:j])
+			got := str.Slice(i, j)
+			if got != expect {
+				t.Errorf("%s[%d:%d]: expected %q got %q", s, i, j, expect, got)
+			}
+		}
+	}
+}
+
+func TestLimitSliceAccess(t *testing.T) {
+	for _, s := range testStrings {
+		str := NewString(s)
+		if str.Slice(0, 0) != "" {
+			t.Error("failure with empty slice at beginning")
+		}
+		nr := RuneCountInString(s)
+		if str.Slice(nr, nr) != "" {
+			t.Error("failure with empty slice at end")
+		}
+	}
+}
