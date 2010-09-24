@@ -11,6 +11,8 @@ package utf8
 // O(N) in the length of the string, but the overhead is less than always
 // scanning from the beginning.
 // If the string is ASCII, random access is O(1).
+// Unlike the built-in string type, String has internal mutable state and
+// is not thread-safe.
 type String struct {
 	str      string
 	numRunes int
@@ -53,6 +55,39 @@ func (s *String) RuneCount() int {
 // IsASCII returns a boolean indicating whether the String contains only ASCII bytes.
 func (s *String) IsASCII() bool {
 	return s.width == 0
+}
+
+// Slice returns the string sliced at rune positions [i:j].
+func (s *String) Slice(i, j int) string {
+	// ASCII is easy.  Let the compiler catch the indexing error if there is one.
+	if j < s.nonASCII {
+		return s.str[i:j]
+	}
+	if i < 0 || j > s.numRunes || i > j {
+		panic(sliceOutOfRange)
+	}
+	if i == j {
+		return ""
+	}
+	// For non-ASCII, after At(i), bytePos is always the position of the indexed character.
+	var low, high int
+	switch {
+	case i < s.nonASCII:
+		low = i
+	case i == s.numRunes:
+		low = len(s.str)
+	default:
+		s.At(i)
+		low = s.bytePos
+	}
+	switch {
+	case j == s.numRunes:
+		high = len(s.str)
+	default:
+		s.At(j)
+		high = s.bytePos
+	}
+	return s.str[low:high]
 }
 
 // At returns the rune with index i in the String.  The sequence of runes is the same
@@ -163,4 +198,5 @@ func (err error) String() string {
 func (err error) RunTimeError() {
 }
 
-var outOfRange = error("utf8.String: index out of Range")
+var outOfRange = error("utf8.String: index out of range")
+var sliceOutOfRange = error("utf8.String: slice index out of range")
