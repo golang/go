@@ -8,8 +8,6 @@
 // and the X Render extension.
 package draw
 
-// BUG(rsc): This is a toy library and not ready for production use.
-
 import "image"
 
 // m is the maximum color value returned by image.Color.RGBA.
@@ -40,8 +38,6 @@ func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
 
 // DrawMask aligns r.Min in dst with sp in src and mp in mask and then replaces the rectangle r
 // in dst with the result of a Porter-Duff composition. A nil mask is treated as opaque.
-// The implementation is simple and slow.
-// TODO(nigeltao): Optimize this.
 func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
 	sb := src.Bounds()
 	dx, dy := sb.Max.X-sp.X, sb.Max.Y-sp.Y
