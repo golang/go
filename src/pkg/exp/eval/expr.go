@@ -65,7 +65,7 @@ func (a *exprInfo) newExpr(t Type, desc string) *expr {
 }
 
 func (a *exprInfo) diag(format string, args ...interface{}) {
-	a.diagAt(&a.pos, format, args)
+	a.diagAt(&a.pos, format, args...)
 }
 
 func (a *exprInfo) diagOpType(op token.Token, vt Type) {

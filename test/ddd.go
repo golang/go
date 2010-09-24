@@ -14,13 +14,13 @@ func sum(args ...int) int {
 	return s
 }
 
-func sumC(args ...int) int { return func() int { return sum(args) }() }
+func sumC(args ...int) int { return func() int { return sum(args...) }() }
 
-var sumD = func(args ...int) int { return sum(args) }
+var sumD = func(args ...int) int { return sum(args...) }
 
-var sumE = func() func(...int) int { return func(args ...int) int { return sum(args) } }()
+var sumE = func() func(...int) int { return func(args ...int) int { return sum(args...) } }()
 
-var sumF = func(args ...int) func() int { return func() int { return sum(args) } }
+var sumF = func(args ...int) func() int { return func() int { return sum(args...) } }
 
 func sumA(args []int) int {
 	s := 0
@@ -30,7 +30,7 @@ func sumA(args []int) int {
 	return s
 }
 
-func sum2(args ...int) int { return 2 * sum(args) }
+func sum2(args ...int) int { return 2 * sum(args...) }
 
 func sum3(args ...int) int { return 3 * sumA(args) }
 
@@ -46,9 +46,9 @@ type T []T
 
 func ln(args ...T) int { return len(args) }
 
-func ln2(args ...T) int { return 2 * ln(args) }
+func ln2(args ...T) int { return 2 * ln(args...) }
 
-func (*T) Sum(args ...int) int { return sum(args) }
+func (*T) Sum(args ...int) int { return sum(args...) }
 
 type U struct {
 	*T

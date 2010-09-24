@@ -7,9 +7,9 @@
 package main
 
 func f(args ...int) {
-	g(args)	// ERROR "[.][.][.] mismatch"
+	g(args)	// ERROR "[.][.][.]"
 }
 
 func g(args ...interface{}) {
-	f(args)	// ERROR "[.][.][.] mismatch"
+	f(args)	// ERROR "[.][.][.]"
 }

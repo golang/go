@@ -29,7 +29,7 @@ var dotcrnl = []byte{'.', '\r', '\n'}
 // PrintfLine writes the formatted output followed by \r\n.
 func (w *Writer) PrintfLine(format string, args ...interface{}) os.Error {
 	w.closeDot()
-	fmt.Fprintf(w.W, format, args)
+	fmt.Fprintf(w.W, format, args...)
 	w.W.Write(crnl)
 	return w.W.Flush()
 }

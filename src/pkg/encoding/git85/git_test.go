@@ -17,7 +17,7 @@ type testpair struct {
 
 func testEqual(t *testing.T, msg string, args ...interface{}) bool {
 	if args[len(args)-2] != args[len(args)-1] {
-		t.Errorf(msg, args)
+		t.Errorf(msg, args...)
 		return false
 	}
 	return true

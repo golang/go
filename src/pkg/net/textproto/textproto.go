@@ -113,7 +113,7 @@ func Dial(network, addr string) (*Conn, os.Error) {
 func (c *Conn) Cmd(format string, args ...interface{}) (id uint, err os.Error) {
 	id = c.Next()
 	c.StartRequest(id)
-	err = c.PrintfLine(format, args)
+	err = c.PrintfLine(format, args...)
 	c.EndRequest(id)
 	if err != nil {
 		return 0, err

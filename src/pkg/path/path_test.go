@@ -118,7 +118,7 @@ var jointests = []JoinTest{
 // join takes a []string and passes it to Join.
 func join(elem []string, args ...string) string {
 	args = elem
-	return Join(args)
+	return Join(args...)
 }
 
 func TestJoin(t *testing.T) {

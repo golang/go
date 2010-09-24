@@ -124,7 +124,7 @@ type localError struct {
 
 // printf is a convenience wrapper that takes care of print errors.
 func (p *printer) printf(format string, args ...interface{}) {
-	n, err := fmt.Fprintf(p, format, args)
+	n, err := fmt.Fprintf(p, format, args...)
 	p.written += n
 	if err != nil {
 		panic(localError{err})

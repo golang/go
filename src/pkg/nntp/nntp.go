@@ -270,7 +270,7 @@ func (c *Conn) cmd(expectCode uint, format string, args ...interface{}) (code ui
 		}
 		c.br = nil
 	}
-	if _, err := fmt.Fprintf(c.conn, format+"\r\n", args); err != nil {
+	if _, err := fmt.Fprintf(c.conn, format+"\r\n", args...); err != nil {
 		return 0, "", err
 	}
 	line, err = c.r.ReadString('\n')

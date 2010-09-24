@@ -24,7 +24,7 @@ func verify(t *testing.T, f Format, expected string, args ...interface{}) {
 	if f == nil {
 		return // allow other tests to run
 	}
-	result := f.Sprint(args)
+	result := f.Sprint(args...)
 	if result != expected {
 		t.Errorf(
 			"result  : `%s`\nexpected: `%s`\n\n",
@@ -97,7 +97,7 @@ func check(t *testing.T, form, expected string, args ...interface{}) {
 	if f == nil {
 		return // allow other tests to run
 	}
-	result := f.Sprint(args)
+	result := f.Sprint(args...)
 	if result != expected {
 		t.Errorf(
 			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",

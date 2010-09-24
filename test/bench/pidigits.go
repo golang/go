@@ -100,7 +100,7 @@ func eliminate_digit(d int64) {
 
 func printf(s string, arg ...interface{}) {
 	if !*silent {
-		fmt.Printf(s, arg)
+		fmt.Printf(s, arg...)
 	}
 }
 

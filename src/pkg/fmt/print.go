@@ -146,7 +146,7 @@ func Fprintf(w io.Writer, format string, a ...interface{}) (n int, error os.Erro
 // Printf formats according to a format specifier and writes to standard output.
 // It returns the number of bytes written and any write error encountered.
 func Printf(format string, a ...interface{}) (n int, errno os.Error) {
-	n, errno = Fprintf(os.Stdout, format, a)
+	n, errno = Fprintf(os.Stdout, format, a...)
 	return n, errno
 }
 
@@ -176,7 +176,7 @@ func Fprint(w io.Writer, a ...interface{}) (n int, error os.Error) {
 // Spaces are added between operands when neither is a string.
 // It returns the number of bytes written and any write error encountered.
 func Print(a ...interface{}) (n int, errno os.Error) {
-	n, errno = Fprint(os.Stdout, a)
+	n, errno = Fprint(os.Stdout, a...)
 	return n, errno
 }
 
@@ -209,7 +209,7 @@ func Fprintln(w io.Writer, a ...interface{}) (n int, error os.Error) {
 // Spaces are always added between operands and a newline is appended.
 // It returns the number of bytes written and any write error encountered.
 func Println(a ...interface{}) (n int, errno os.Error) {
-	n, errno = Fprintln(os.Stdout, a)
+	n, errno = Fprintln(os.Stdout, a...)
 	return n, errno
 }
 
