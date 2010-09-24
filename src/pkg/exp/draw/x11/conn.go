@@ -8,8 +8,6 @@
 // A summary of the wire format can be found in XCB's xproto.xml.
 package x11
 
-// BUG(nigeltao): This is a toy library and not ready for production use.
-
 import (
 	"bufio"
 	"exp/draw"
