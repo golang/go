@@ -538,7 +538,7 @@ isfrog(int c)
 			return 0;
 		return 1;
 	}
-	if(0x80 <= c && c <= 0xa0)	// unicode block including unbreakable space.
+	if(0x7f <= c && c <= 0xa0)	// DEL, unicode block including unbreakable space.
 		return 1;
 	return 0;
 }
@@ -945,6 +945,10 @@ lx:
 		DBG("%L lex: TOKEN '%c'\n", lexlineno, c);
 	if(isfrog(c)) {
 		yyerror("illegal character 0x%ux", c);
+		goto l0;
+	}
+	if(importpkg == nil && (c == '#' || c == '$' || c == '?' || c == '@' || c == '\\')) {
+		yyerror("%s: unexpected %c", "syntax error", c);
 		goto l0;
 	}
 	return c;
