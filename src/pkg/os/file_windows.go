@@ -113,6 +113,12 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
 // A negative count means to read until EOF.
 // Readdir returns the array and an Error, if any.
 func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+	if file == nil || file.fd < 0 {
+		return nil, EINVAL
+	}
+	if !file.isdir() {
+		return nil, &PathError{"Readdir", file.name, ENOTDIR}
+	}
 	di := file.dirinfo
 	size := count
 	if size < 0 {
