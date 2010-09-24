@@ -38,6 +38,12 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 	// Allow broadcast.
 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
 
+	if f == syscall.AF_INET6 {
+		// using ip, tcp, udp, etc.
+		// allow both protocols even if the OS default is otherwise.
+		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+	}
+
 	if la != nil {
 		e = syscall.Bind(s, la)
 		if e != 0 {
