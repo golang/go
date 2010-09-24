@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Sep 7, 2010 -->
+<!-- subtitle Version of Sep 24, 2010 -->
 
 <!--
 TODO
@@ -994,13 +994,12 @@ type stands for one item of that type.  Parameter and result
 lists are always parenthesized except that if there is exactly
 one unnamed result it may be written as an unparenthesized type.
 </p>
-<p>
-If the function's last parameter has a type prefixed with <code>...</code>,
-the function may be invoked with zero or more arguments for that parameter,
-each of which must be <a href="#Assignability">assignable</a>
-to the type that follows the <code>...</code>.
-Such a function is called <i>variadic</i>.
 
+<p>
+The final parameter in a function signature may have
+a type prefixed with <code>...</code>.
+A function with such a parameter is called <i>variadic</i> and
+may be invoked with zero or more arguments for that parameter.
 </p>
 
 <pre>
@@ -2185,7 +2184,8 @@ Selector       = "." identifier .
 Index          = "[" Expression "]" .
 Slice          = "[" [ Expression ] ":" [ Expression ] "]" .
 TypeAssertion  = "." "(" Type ")" .
-Call           = "(" [ ExpressionList [ "," ] ] ")" .
+Call           = "(" [ ArgumentList [ "," ] ] ")" .
+ArgumentList   = ExpressionList [ "..." ] .
 </pre>
 
 
@@ -2612,9 +2612,9 @@ then within the function the argument is equivalent to a parameter of type
 <code>[]T</code>.  At each call of <code>f</code>, the argument
 passed to the final parameter is
 a new slice of type <code>[]T</code> whose successive elements are
-the actual arguments.  The length of the slice is therefore the
-number of arguments bound to the final parameter and
-may differ for each call site.
+the actual arguments, which all must be <a href="#Assignability">assignable</a>
+to the type <code>T</code>. The length of the slice is therefore the number of
+arguments bound to the final parameter and may differ for each call site.
 </p>
 
 <p>
@@ -2626,19 +2626,30 @@ Greeting("hello:", "Joe", "Anna", "Eileen")
 </pre>
 
 <p>
-Within <code>Greeting</code>, <code>who</code> will have value
+within <code>Greeting</code>, <code>who</code> will have the value
 <code>[]string{"Joe", "Anna", "Eileen"}</code>
 </p>
 
+<p>
+If the final argument is of slice type <code>[]T</code>, it may be passed unchanged as the value
+for a <code>...T</code> parameter if the argument is followed by <code>...</code>.
+In this case no new slice is created.
+</p>
 
 <p>
-As a special case, if a function passes its own <code>...</code> parameter
-as the <code>...</code> argument in a call to another function with
-a <code>...</code> parameter of <a href="#Type_identity">identical type</a>,
-the parameter is passed directly.  In short, a formal <code>...</code>
-parameter is passed unchanged as an actual <code>...</code> parameter provided the
-types match.
+Given the slice <code>s</code> and call
 </p>
+
+<pre>
+s := []string{"James", "Jasmine"}
+Greeting("goodbye:", s...)
+</pre>
+
+<p>
+within <code>Greeting</code>, <code>who</code> will have the same value as <code>s</code>
+with the same underlying array.
+</p>
+
 
 <h3 id="Operators">Operators</h3>
 
@@ -4350,7 +4361,7 @@ they cannot be used as function values.
 </p>
 
 <pre class="ebnf">
-BuiltinCall = identifier "(" [ BuiltinArgs ] ")" .
+BuiltinCall = identifier "(" [ BuiltinArgs [ "," ] ] ")" .
 BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
 </pre>
 
