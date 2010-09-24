@@ -319,6 +319,20 @@ func TestUnreadRuneError(t *testing.T) {
 	}
 }
 
+func TestUnreadRuneAtEOF(t *testing.T) {
+	// UnreadRune/ReadRune should error at EOF (was a bug; used to panic)
+	r := NewReader(strings.NewReader("x"))
+	r.ReadRune()
+	r.ReadRune()
+	r.UnreadRune()
+	_, _, err := r.ReadRune()
+	if err == nil {
+		t.Error("expected error at EOF")
+	} else if err != os.EOF {
+		t.Error("expected EOF; got", err)
+	}
+}
+
 func TestReadWriteRune(t *testing.T) {
 	const NRune = 1000
 	byteBuf := new(bytes.Buffer)
