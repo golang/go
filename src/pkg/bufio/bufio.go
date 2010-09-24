@@ -207,6 +207,7 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 	for b.r+utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil {
 		b.fill()
 	}
+	b.lastRuneSize = -1
 	if b.r == b.w {
 		return 0, 0, b.err
 	}
