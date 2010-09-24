@@ -790,7 +790,7 @@ Input:
 		if quote >= 0 && b == byte(quote) {
 			break Input
 		}
-		if b == '&' {
+		if b == '&' && !cdata {
 			// Read escaped character expression up to semicolon.
 			// XML in all its glory allows a document to define and use
 			// its own character names with <!ENTITY ...> directives.
