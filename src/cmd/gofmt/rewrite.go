@@ -203,6 +203,10 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 	}
 
 	if pos != nil && pattern.Type() == positionType {
+		// use new position only if old position was valid in the first place
+		if old := pattern.Interface().(token.Position); !old.IsValid() {
+			return pattern
+		}
 		return pos
 	}
 
