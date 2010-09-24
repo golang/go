@@ -68,7 +68,7 @@ static void fixlbrace(int);
 
 %type	<list>	xdcl fnbody fnres switch_body loop_body dcl_name_list
 %type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
-%type	<list>	oexpr_list oexpr_or_type_list_ocomma caseblock_list stmt_list oarg_type_list_ocomma arg_type_list
+%type	<list>	oexpr_list caseblock_list stmt_list oarg_type_list_ocomma arg_type_list
 %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
 %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
 
@@ -808,10 +808,20 @@ uexpr:
  * can be preceded by 'defer' and 'go'
  */
 pseudocall:
-	pexpr '(' oexpr_or_type_list_ocomma ')'
+	pexpr '(' ')'
+	{
+		$$ = nod(OCALL, $1, N);
+	}
+|	pexpr '(' expr_or_type_list ocomma ')'
 	{
 		$$ = nod(OCALL, $1, N);
 		$$->list = $3;
+	}
+|	pexpr '(' expr_or_type_list LDDD ocomma ')'
+	{
+		$$ = nod(OCALL, $1, N);
+		$$->list = $3;
+		$$->isddd = 1;
 	}
 
 pexpr_no_paren:
@@ -1582,12 +1592,6 @@ oexpr_list:
 		$$ = nil;
 	}
 |	expr_list
-
-oexpr_or_type_list_ocomma:
-	{
-		$$ = nil;
-	}
-|	expr_or_type_list ocomma
 
 osimple_stmt:
 	{
