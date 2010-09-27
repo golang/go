@@ -378,7 +378,7 @@ findpkg(Strlit *name)
 	q[name->len] = '\0';
 	cleanname(q);
 	if(strlen(q) != name->len || memcmp(q, name->s, name->len) != 0) {
-		yyerror("non-canonical import name %Z (%s)", name->s, q);
+		yyerror("non-canonical import path %Z (should be %s)", name, q);
 		return 0;
 	}
 
