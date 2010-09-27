@@ -2935,6 +2935,11 @@ expandmeth(Sym *s, Type *t)
 	if(t == T || t->xmethod != nil)
 		return;
 
+	// mark top-level method symbols
+	// so that expand1 doesn't consider them.
+	for(f=t->method; f != nil; f=f->down)
+		f->sym->flags |= SymUniq;
+
 	// generate all reachable methods
 	slist = nil;
 	expand1(t, nelem(dotlist)-1, 0);
@@ -2954,6 +2959,9 @@ expandmeth(Sym *s, Type *t)
 		}
 	}
 
+	for(f=t->method; f != nil; f=f->down)
+		f->sym->flags &= ~SymUniq;
+
 	t->xmethod = t->method;
 	for(sl=slist; sl!=nil; sl=sl->link) {
 		if(sl->good) {
@@ -2965,7 +2973,6 @@ expandmeth(Sym *s, Type *t)
 				f->embedded = 2;
 			f->down = t->xmethod;
 			t->xmethod = f;
-
 		}
 	}
 }

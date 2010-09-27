@@ -1287,3 +1287,23 @@ func TestDotDotDot(t *testing.T) {
 	}
 	t.Error(s)
 }
+
+type inner struct{}
+
+type outer struct {
+	inner
+}
+
+func (*inner) m() {}
+func (*outer) m() {}
+
+func TestNestedMethods(t *testing.T) {
+	typ := Typeof((*outer)(nil))
+	if typ.NumMethod() != 1 || typ.Method(0).Func.Get() != NewValue((*outer).m).(*FuncValue).Get() {
+		t.Errorf("Wrong method table for outer: (m=%p)", (*outer).m)
+		for i := 0; i < typ.NumMethod(); i++ {
+			m := typ.Method(i)
+			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
+		}
+	}
+}
