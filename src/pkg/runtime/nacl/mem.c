@@ -26,6 +26,7 @@ void
 SysFree(void *v, uintptr n)
 {
 	// round to page size or else nacl prints annoying log messages
+	mstats.sys -= n;
 	n = (n+NaclPage-1) & ~(NaclPage-1);
 	runtime_munmap(v, n);
 }
