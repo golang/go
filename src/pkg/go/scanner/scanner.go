@@ -196,26 +196,27 @@ func (S *Scanner) scanComment(pos token.Position) {
 }
 
 
-func (S *Scanner) findNewline(pos token.Position) bool {
+func (S *Scanner) findLineEnd(pos token.Position) bool {
 	// first '/' already consumed; assume S.ch == '/' || S.ch == '*'
 
-	// read ahead until a newline or non-comment token is found
-	newline := false
+	// read ahead until a newline, EOF, or non-comment token is found
+	lineend := false
 	for pos1 := pos; S.ch >= 0; {
 		if S.ch == '/' {
 			//-style comment always contains a newline
-			newline = true
+			lineend = true
 			break
 		}
 		S.scanComment(pos1)
 		if pos1.Line < S.pos.Line {
 			/*-style comment contained a newline */
-			newline = true
+			lineend = true
 			break
 		}
 		S.skipWhitespace() // S.insertSemi is set
-		if S.ch == '\n' {
-			newline = true
+		if S.ch < 0 || S.ch == '\n' {
+			// line end
+			lineend = true
 			break
 		}
 		if S.ch != '/' {
@@ -230,12 +231,12 @@ func (S *Scanner) findNewline(pos token.Position) bool {
 		}
 	}
 
-	// reset position to where it was upon calling findNewline
+	// reset position to where it was upon calling findLineEnd
 	S.pos = pos
 	S.offset = pos.Offset + 1
 	S.next()
 
-	return newline
+	return lineend
 }
 
 
@@ -507,7 +508,8 @@ var newline = []byte{'\n'}
 //
 // If the returned token is token.SEMICOLON, the corresponding
 // literal value is ";" if the semicolon was present in the source,
-// and "\n" if the semicolon was inserted because of a newline.
+// and "\n" if the semicolon was inserted because of a newline or
+// at EOF.
 //
 // For more tolerant parsing, Scan will return a valid token if
 // possible even if a syntax error was encountered. Thus, even
@@ -539,6 +541,10 @@ scanAgain:
 		S.next() // always make progress
 		switch ch {
 		case -1:
+			if S.insertSemi {
+				S.insertSemi = false // EOF consumed
+				return pos, token.SEMICOLON, newline
+			}
 			tok = token.EOF
 		case '\n':
 			// we only reach here if S.insertSemi was
@@ -607,7 +613,7 @@ scanAgain:
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
 				// comment
-				if S.insertSemi && S.findNewline(pos) {
+				if S.insertSemi && S.findLineEnd(pos) {
 					// reset position to the beginning of the comment
 					S.pos = pos
 					S.offset = pos.Offset + 1

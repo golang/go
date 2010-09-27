@@ -403,11 +403,10 @@ var lines = []string{
 	"foo    $/*comment*/\n",
 	"foo    $/*\n*/",
 
-	"foo    $/*comment*/\n",
 	"foo    $/*0*/ /*1*/ /*2*/\n",
 	"foo    $/*comment*/    \n",
 	"foo    $/*0*/ /*1*/ /*2*/    \n",
-	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa",
+	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa$\n",
 
 	"package main$\n\nfunc main() {\n\tif {\n\t\treturn /* */ }$\n}$\n",
 }
@@ -416,9 +415,14 @@ var lines = []string{
 func TestSemis(t *testing.T) {
 	for _, line := range lines {
 		checkSemi(t, line, AllowIllegalChars|InsertSemis)
-	}
-	for _, line := range lines {
 		checkSemi(t, line, AllowIllegalChars|InsertSemis|ScanComments)
+
+		// if the input ended in newlines, the input must tokenize the
+		// same with or without those newlines
+		for i := len(line) - 1; i >= 0 && line[i] == '\n'; i-- {
+			checkSemi(t, line[0:i], AllowIllegalChars|InsertSemis)
+			checkSemi(t, line[0:i], AllowIllegalChars|InsertSemis|ScanComments)
+		}
 	}
 }
 
