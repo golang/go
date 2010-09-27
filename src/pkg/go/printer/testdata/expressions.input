@@ -194,6 +194,17 @@ func f(x int, args ...int) {
 	_ = .42.x
 	_ = 42e0 .x
 	_ = 42e0.x
+
+	// a blank must remain between the binary operator and the 2nd operand
+	_ = x/ *y
+	_ = x< -1
+	_ = x< <-1
+	_ = x+ +1
+	_ = x- -1
+	_ = x& &x
+	_ = x& ^x
+
+	_ = f(x/ *y, x< -1, x< <-1, x+ +1, x- -1, x& &x, x& ^x)
 }
 
 
