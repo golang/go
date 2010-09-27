@@ -25,20 +25,29 @@ type String struct {
 
 // NewString returns a new UTF-8 string with the provided contents.
 func NewString(contents string) *String {
+	return new(String).Init(contents)
+}
+
+// Init initializes an existing String to hold the provided contents.
+// It returns a pointer to the initialized String.
+func (s *String) Init(contents string) *String {
+	s.str = contents
+	s.bytePos = 0
+	s.runePos = 0
 	for i := 0; i < len(contents); i++ {
 		if contents[i] >= RuneSelf {
 			// Not ASCII.
-			_, wid := DecodeRuneInString(contents)
-			return &String{
-				str:      contents,
-				numRunes: RuneCountInString(contents),
-				width:    wid,
-				nonASCII: i,
-			}
+			s.numRunes = RuneCountInString(contents)
+			_, s.width = DecodeRuneInString(contents)
+			s.nonASCII = i
+			return s
 		}
 	}
 	// ASCII is simple.  Also, the empty string is ASCII.
-	return &String{str: contents, numRunes: len(contents), nonASCII: len(contents)}
+	s.numRunes = len(contents)
+	s.width = 0
+	s.nonASCII = len(contents)
+	return s
 }
 
 // String returns the contents of the String.  This method also means the
