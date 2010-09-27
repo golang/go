@@ -23,6 +23,7 @@ includes_Linux='
 
 #include <sys/types.h>
 #include <sys/epoll.h>
+#include <sys/inotify.h>
 #include <linux/ptrace.h>
 #include <linux/wait.h>
 '
@@ -84,6 +85,7 @@ done
 
 		$2 ~ /^E[A-Z0-9_]+$/ ||
 		$2 ~ /^SIG[^_]/ ||
+		$2 ~ /^IN_/ ||
 		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP)_/ ||
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||

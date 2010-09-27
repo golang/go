@@ -269,6 +269,34 @@ func Gettid() (tid int) {
 	return
 }
 
+func InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, errno int) {
+	r0, _, e1 := Syscall(SYS_INOTIFY_ADD_WATCH, uintptr(fd), uintptr(unsafe.Pointer(StringBytePtr(pathname))), uintptr(mask))
+	watchdesc = int(r0)
+	errno = int(e1)
+	return
+}
+
+func InotifyInit() (fd int, errno int) {
+	r0, _, e1 := Syscall(SYS_INOTIFY_INIT, 0, 0, 0)
+	fd = int(r0)
+	errno = int(e1)
+	return
+}
+
+func InotifyInit1(flags int) (fd int, errno int) {
+	r0, _, e1 := Syscall(SYS_INOTIFY_INIT1, uintptr(flags), 0, 0)
+	fd = int(r0)
+	errno = int(e1)
+	return
+}
+
+func InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int) {
+	r0, _, e1 := Syscall(SYS_INOTIFY_RM_WATCH, uintptr(fd), uintptr(watchdesc), 0)
+	success = int(r0)
+	errno = int(e1)
+	return
+}
+
 func Kill(pid int, sig int) (errno int) {
 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
 	errno = int(e1)

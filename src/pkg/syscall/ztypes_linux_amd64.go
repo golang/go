@@ -19,6 +19,7 @@ const (
 	SizeofLinger        = 0x8
 	SizeofMsghdr        = 0x38
 	SizeofCmsghdr       = 0x10
+	SizeofInotifyEvent  = 0x10
 )
 
 // Types
@@ -217,6 +218,13 @@ type Cmsghdr struct {
 	Len   uint64
 	Level int32
 	Type  int32
+}
+
+type InotifyEvent struct {
+	Wd     int32
+	Mask   uint32
+	Cookie uint32
+	Len    uint32
 }
 
 type PtraceRegs struct {
