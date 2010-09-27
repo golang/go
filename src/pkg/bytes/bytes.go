@@ -561,7 +561,7 @@ func Add(s, t []byte) []byte {
 	return s
 }
 
-// AddByte appends byte b to the end of s and returns the result.
+// AddByte appends byte t to the end of s and returns the result.
 // If s has enough capacity, it is extended in place; otherwise a
 // new array is allocated and returned.
 func AddByte(s []byte, t byte) []byte {
