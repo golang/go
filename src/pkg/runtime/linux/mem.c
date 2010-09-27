@@ -33,6 +33,7 @@ SysUnused(void *v, uintptr n)
 void
 SysFree(void *v, uintptr n)
 {
+	mstats.sys -= n;
 	runtime_munmap(v, n);
 }
 
