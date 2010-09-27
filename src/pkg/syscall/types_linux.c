@@ -18,6 +18,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <signal.h>
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <sys/inotify.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/param.h>
@@ -116,6 +117,14 @@ enum {
 	$SizeofLinger = sizeof(struct linger),
 	$SizeofMsghdr = sizeof(struct msghdr),
 	$SizeofCmsghdr = sizeof(struct cmsghdr),
+};
+
+
+// Inotify
+typedef struct inotify_event $InotifyEvent;
+
+enum {
+        $SizeofInotifyEvent = sizeof(struct inotify_event)
 };
 
 
