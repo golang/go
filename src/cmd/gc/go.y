@@ -461,7 +461,7 @@ case:
 		}
 		break;
 	}
-|	LCASE name '=' expr ':'
+|	LCASE expr '=' expr ':'
 	{
 		// will be converted to OCASE
 		// right will point to next case
