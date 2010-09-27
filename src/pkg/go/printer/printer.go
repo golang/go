@@ -746,6 +746,26 @@ func (p *printer) writeWhitespace(n int) {
 // ----------------------------------------------------------------------------
 // Printing interface
 
+
+func mayCombine(prev token.Token, next byte) (b bool) {
+	switch prev {
+	case token.INT:
+		b = next == '.' // 1.
+	case token.ADD:
+		b = next == '+' // ++
+	case token.SUB:
+		b = next == '-' // --
+	case token.QUO:
+		b = next == '*' // /*
+	case token.LSS:
+		b = next == '-' || next == '<' // <- or <<
+	case token.AND:
+		b = next == '&' || next == '^' // && or &^
+	}
+	return
+}
+
+
 // print prints a list of "items" (roughly corresponding to syntactic
 // tokens, but also including whitespace and formatting information).
 // It is the only print function that should be called directly from
@@ -803,8 +823,13 @@ func (p *printer) print(args ...interface{}) {
 			tok = x.Kind
 		case token.Token:
 			s := x.String()
-			if p.lastTok == token.INT && s[0] == '.' {
-				// separate int with blank from '.' so it doesn't become a float
+			if mayCombine(p.lastTok, s[0]) {
+				// the previous and the current token must be
+				// separated by a blank otherwise they combine
+				// into a different incorrect token sequence
+				// (except for token.INT followed by a '.' this
+				// should never happen because it is taken care
+				// of via binary expression formatting)
 				if len(p.buffer) != 0 {
 					p.internalError("whitespace buffer not empty")
 				}

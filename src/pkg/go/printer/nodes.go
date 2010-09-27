@@ -543,7 +543,7 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
 
 	case *ast.UnaryExpr:
 		switch e.Op.String() + r.Op.String() {
-		case "/*":
+		case "/*", "&&", "&^":
 			maxProblem = 6
 		case "++", "--":
 			if maxProblem < 5 {
@@ -612,10 +612,13 @@ func reduceDepth(depth int) int {
 //	1) If there is a binary operator with a right side unary operand
 //	   that would clash without a space, the cutoff must be (in order):
 //
-//		&^	7
 //		/*	7
+//		&&	7
+//		&^	7
 //		++	6
 //		--	6
+//
+//         (Comparison operators always have spaces around them.)
 //
 //	2) If there is a mix of level 6 and level 5 operators, then the cutoff
 //	   is 6 (use spaces to distinguish precedence) in Normal mode
