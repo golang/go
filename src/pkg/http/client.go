@@ -45,7 +45,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 	if !hasPort(addr) {
 		addr += ":" + req.URL.Scheme
 	}
-	info := req.URL.Userinfo
+	info := req.URL.RawUserinfo
 	if len(info) > 0 {
 		enc := base64.URLEncoding
 		encoded := make([]byte, enc.EncodedLen(len(info)))
