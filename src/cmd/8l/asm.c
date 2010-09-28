@@ -129,7 +129,8 @@ addstring(Sym *s, char *str)
 	s->reachable = 1;
 	r = s->size;
 	n = strlen(str)+1;
-	elfsetstring(str, r);
+	if(strcmp(s->name, ".shstrtab") == 0)
+		elfsetstring(str, r);
 	while(n > 0) {
 		m = n;
 		if(m > sizeof(p->to.scon))
