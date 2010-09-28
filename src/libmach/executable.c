@@ -786,7 +786,8 @@ error:
 			goto done;
 		memset(buf, 0, sizeof buf);
 		seek(fd, sh[ep->shstrndx].offset, 0);
-		read(fd, buf, sh[ep->shstrndx].size);
+		i = read(fd, buf, sh[ep->shstrndx].size);
+		USED(i);	// shut up ubuntu gcc
 
 		for(i = 0; i < ep->shnum; i++) {
 			if (strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
@@ -967,7 +968,8 @@ error:
 			goto done;
 		memset(buf, 0, sizeof buf);
 		seek(fd, sh[ep->shstrndx].offset, 0);
-		read(fd, buf, sh[ep->shstrndx].size);
+		i = read(fd, buf, sh[ep->shstrndx].size);
+		USED(i);	// shut up ubuntu gcc
 
 		for(i = 0; i < ep->shnum; i++) {
 			if (strcmp(&buf[sh[i].name], ".gosymtab") == 0) {

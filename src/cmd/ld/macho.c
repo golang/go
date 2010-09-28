@@ -430,8 +430,8 @@ domacholink(void)
 			}
 		}
 
-		write(cout, linkdata, nlinkdata);
-		write(cout, strtab, nstrtab);
+		ewrite(cout, linkdata, nlinkdata);
+		ewrite(cout, strtab, nstrtab);
 	}
 	return rnd(nlinkdata+nstrtab, INITRND);
 }
