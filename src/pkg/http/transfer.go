@@ -352,9 +352,20 @@ func fixLength(status int, requestMethod string, header map[string]string, te []
 
 // Determine whether to hang up after sending a request and body, or
 // receiving a response and body
+// 'header' is the request headers
 func shouldClose(major, minor int, header map[string]string) bool {
-	if major < 1 || (major == 1 && minor < 1) {
+	if major < 1 {
 		return true
+	} else if major == 1 && minor == 0 {
+		v, present := header["Connection"]
+		if !present {
+			return true
+		}
+		v = strings.ToLower(v)
+		if strings.Index(v, "keep-alive") == -1 {
+			return true
+		}
+		return false
 	} else if v, present := header["Connection"]; present {
 		// TODO: Should split on commas, toss surrounding white space,
 		// and check each field.

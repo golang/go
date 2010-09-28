@@ -56,14 +56,19 @@ type Conn struct {
 	hijacked bool               // connection has been hijacked by handler
 
 	// state for the current reply
-	closeAfterReply bool              // close connection after this reply
-	chunking        bool              // using chunked transfer encoding for reply body
-	wroteHeader     bool              // reply header has been written
-	wroteContinue   bool              // 100 Continue response was written
-	header          map[string]string // reply header parameters
-	written         int64             // number of bytes written in body
-	status          int               // status code passed to WriteHeader
-	usingTLS        bool              // a flag indicating connection over TLS
+	chunking      bool              // using chunked transfer encoding for reply body
+	wroteHeader   bool              // reply header has been written
+	wroteContinue bool              // 100 Continue response was written
+	header        map[string]string // reply header parameters
+	written       int64             // number of bytes written in body
+	status        int               // status code passed to WriteHeader
+	usingTLS      bool              // a flag indicating connection over TLS
+
+	// close connection after this reply.  set on request and
+	// updated after response from handler if there's a
+	// "Connection: keep-alive" response header and a
+	// Content-Length.
+	closeAfterReply bool
 }
 
 // Create new connection from rwc.
@@ -142,10 +147,9 @@ func (c *Conn) readRequest() (req *Request, err os.Error) {
 	} else {
 		// HTTP version < 1.1: cannot do chunked transfer
 		// encoding, so signal EOF by closing connection.
-		// Could avoid closing the connection if there is
-		// a Content-Length: header in the response,
-		// but everyone who expects persistent connections
-		// does HTTP/1.1 now.
+		// Will be overridden if the HTTP handler ends up
+		// writing a Content-Length and the client requested
+		// "Connection: keep-alive"
 		c.closeAfterReply = true
 		c.chunking = false
 	}
@@ -220,6 +224,15 @@ func (c *Conn) Write(data []byte) (n int, err os.Error) {
 		return 0, ErrHijacked
 	}
 	if !c.wroteHeader {
+		if c.Req.wantsHttp10KeepAlive() {
+			_, hasLength := c.header["Content-Length"]
+			if hasLength {
+				_, connectionHeaderSet := c.header["Connection"]
+				if !connectionHeaderSet {
+					c.header["Connection"] = "keep-alive"
+				}
+			}
+		}
 		c.WriteHeader(StatusOK)
 	}
 	if len(data) == 0 {
@@ -302,6 +315,14 @@ func errorKludge(c *Conn, req *Request) {
 }
 
 func (c *Conn) finishRequest() {
+	// If this was an HTTP/1.0 request with keep-alive and we sent a Content-Length
+	// back, we can make this a keep-alive response ...
+	if c.Req.wantsHttp10KeepAlive() {
+		_, sentLength := c.header["Content-Length"]
+		if sentLength && c.header["Connection"] == "keep-alive" {
+			c.closeAfterReply = false
+		}
+	}
 	if !c.wroteHeader {
 		c.WriteHeader(StatusOK)
 	}
@@ -341,9 +362,11 @@ func (c *Conn) serve() {
 		if err != nil {
 			break
 		}
-		// HTTP cannot have multiple simultaneous active requests.
+		// HTTP cannot have multiple simultaneous active requests.[*]
 		// Until the server replies to this request, it can't read another,
 		// so we might as well run the handler in this goroutine.
+		// [*] Not strictly true: HTTP pipelining.  We could let them all process
+		// in parallel even if their responses need to be serialized.
 		c.handler.ServeHTTP(c, req)
 		if c.hijacked {
 			return

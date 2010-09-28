@@ -678,3 +678,14 @@ func (r *Request) expectsContinue() bool {
 	expectation, ok := r.Header["Expect"]
 	return ok && strings.ToLower(expectation) == "100-continue"
 }
+
+func (r *Request) wantsHttp10KeepAlive() bool {
+	if r.ProtoMajor != 1 || r.ProtoMinor != 0 {
+		return false
+	}
+	value, exists := r.Header["Connection"]
+	if !exists {
+		return false
+	}
+	return strings.Index(strings.ToLower(value), "keep-alive") != -1
+}
