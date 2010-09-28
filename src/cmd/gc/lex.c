@@ -1247,13 +1247,8 @@ yylex(void)
 	lx = _yylex();
 	
 	if(curio.nlsemi && lx == EOF) {
-		// if the nlsemi bit is set, we'd be willing to
-		// insert a ; if we saw a \n, but we didn't.
-		// that means the final \n is missing.
-		// complain here, because we can give a
-		// good message.  the syntax error we'd get
-		// otherwise is inscrutable.
-		yyerror("missing newline at end of file");
+		// Treat EOF as "end of line" for the purposes
+		// of inserting a semicolon.
 		lx = ';';
 	}
 
