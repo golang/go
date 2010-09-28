@@ -316,7 +316,7 @@ elfwriteinterp(void)
 
 	n = strlen(interp)+1;
 	seek(cout, ELFRESERVE-n, 0);
-	write(cout, interp, n);
+	ewrite(cout, interp, n);
 	return n;
 }
 

@@ -924,3 +924,12 @@ addsection(Segment *seg, char *name, int rwx)
 	*l = sect;
 	return sect;
 }
+
+void
+ewrite(int fd, void *buf, int n)
+{
+	if(write(fd, buf, n) < 0) {
+		diag("write error: %r");
+		errorexit();
+	}
+}

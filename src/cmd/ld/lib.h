@@ -128,6 +128,7 @@ void	ldpkg(Biobuf*, char*, int64, char*, int);
 void	mark(Sym *s);
 char*	expandpkg(char*, char*);
 void	deadcode(void);
+void	ewrite(int, void*, int);
 
 int	pathchar(void);
 void*	mal(uint32);

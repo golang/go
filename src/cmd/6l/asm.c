@@ -575,7 +575,7 @@ asmb(void)
 	if(dlm){
 		char buf[8];
 
-		write(cout, buf, INITDAT-textsize);
+		ewrite(cout, buf, INITDAT-textsize);
 		textsize = INITDAT;
 	}
 
@@ -649,7 +649,7 @@ asmb(void)
 			cflush();
 			elfstro = seek(cout, 0, 1);
 			elfsymsize = elfstro - elfsymo;
-			write(cout, elfstrdat, elfstrsize);
+			ewrite(cout, elfstrdat, elfstrsize);
 
 			if(debug['v'])
 			       Bprint(&bso, "%5.2f dwarf\n", cputime());
@@ -938,7 +938,7 @@ cflush(void)
 
 	n = sizeof(buf.cbuf) - cbc;
 	if(n)
-		write(cout, buf.cbuf, n);
+		ewrite(cout, buf.cbuf, n);
 	cbp = buf.cbuf;
 	cbc = sizeof(buf.cbuf);
 }
@@ -1208,7 +1208,7 @@ datblk(int32 s, int32 n)
 		}
 	}
 
-	write(cout, buf.dbuf, n);
+	ewrite(cout, buf.dbuf, n);
 	if(!debug['a'])
 		return;
 

@@ -482,7 +482,7 @@ asmb(void)
 	if(dlm){
 		char buf[8];
 
-		write(cout, buf, INITDAT-textsize);
+		ewrite(cout, buf, INITDAT-textsize);
 		textsize = INITDAT;
 	}
 	for(t = 0; t < datsize; t += sizeof(buf)-100) {
@@ -987,7 +987,7 @@ cflush(void)
 	/* no bug if cbc < 0 since obuf(cbuf) followed by ibuf in buf! */
 	n = sizeof(buf.cbuf) - cbc;
 	if(n)
-		write(cout, buf.cbuf, n);
+		ewrite(cout, buf.cbuf, n);
 	cbp = buf.cbuf;
 	cbc = sizeof(buf.cbuf);
 }
@@ -1398,7 +1398,7 @@ datblk(int32 s, int32 n, int str)
 			break;
 		}
 	}
-	write(cout, buf.dbuf, n);
+	ewrite(cout, buf.dbuf, n);
 }
 
 void
