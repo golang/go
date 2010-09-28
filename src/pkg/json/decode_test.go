@@ -17,6 +17,12 @@ type T struct {
 	Y int
 }
 
+type tx struct {
+	x int
+}
+
+var txType = reflect.Typeof((*tx)(nil)).(*reflect.PtrType).Elem().(*reflect.StructType)
+
 type unmarshalTest struct {
 	in  string
 	ptr interface{}
@@ -36,6 +42,7 @@ var unmarshalTests = []unmarshalTest{
 	unmarshalTest{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD", nil},
 	unmarshalTest{"null", new(interface{}), nil, nil},
 	unmarshalTest{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.Typeof("")}},
+	unmarshalTest{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
 
 	// syntax errors
 	unmarshalTest{`{"X": "foo", "Y"}`, nil, nil, SyntaxError("invalid character '}' after object key")},

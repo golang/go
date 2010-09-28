@@ -82,6 +82,18 @@ func (e *UnmarshalTypeError) String() string {
 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
+// An UnmarshalFieldError describes a JSON object key that
+// led to an unexported (and therefore unwritable) struct field.
+type UnmarshalFieldError struct {
+	Key   string
+	Type  *reflect.StructType
+	Field reflect.StructField
+}
+
+func (e *UnmarshalFieldError) String() string {
+	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
+}
+
 // An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
 // (The argument to Unmarshal must be a non-nil pointer.)
 type InvalidUnmarshalError struct {
@@ -450,20 +462,32 @@ func (d *decodeState) object(v reflect.Value) {
 		if mv != nil {
 			subv = reflect.MakeZero(mv.Type().(*reflect.MapType).Elem())
 		} else {
+			var f reflect.StructField
+			var ok bool
 			// First try for field with that tag.
+			st := sv.Type().(*reflect.StructType)
 			for i := 0; i < sv.NumField(); i++ {
-				f := sv.Type().(*reflect.StructType).Field(i)
+				f = st.Field(i)
 				if f.Tag == key {
-					subv = sv.Field(i)
+					ok = true
 					break
 				}
 			}
-			if subv == nil {
+			if !ok {
 				// Second, exact match.
-				subv = sv.FieldByName(key)
-				if subv == nil {
-					// Third, case-insensitive match.
-					subv = sv.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
+				f, ok = st.FieldByName(key)
+			}
+			if !ok {
+				// Third, case-insensitive match.
+				f, ok = st.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
+			}
+
+			// Extract value; name must be exported.
+			if ok {
+				if f.PkgPath != "" {
+					d.saveError(&UnmarshalFieldError{key, st, f})
+				} else {
+					subv = sv.FieldByIndex(f.Index)
 				}
 			}
 		}
