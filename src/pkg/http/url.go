@@ -46,6 +46,17 @@ func unhex(c byte) byte {
 	return 0
 }
 
+type encoding int
+
+const (
+	encodePath encoding = 1 + iota
+	encodeUserPassword
+	encodeQueryComponent
+	encodeFragment
+	encodeOpaque
+)
+
+
 type URLEscapeError string
 
 func (e URLEscapeError) String() string {
@@ -55,19 +66,52 @@ func (e URLEscapeError) String() string {
 // Return true if the specified character should be escaped when
 // appearing in a URL string, according to RFC 2396.
 // When 'all' is true the full range of reserved characters are matched.
-func shouldEscape(c byte, all bool) bool {
-	if c <= ' ' || c >= 0x7F {
-		return true
+func shouldEscape(c byte, mode encoding) bool {
+	// RFC 2396 §2.3 Unreserved characters (alphanum)
+	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
+		return false
 	}
 	switch c {
-	case '<', '>', '#', '%', '"', // RFC 2396 delims
-		'{', '}', '|', '\\', '^', '[', ']', '`', // RFC2396 unwise
-		'?', '&', '=', '+': // RFC 2396 reserved
-		return true
-	case ';', '/', ':', '@', '$', ',': // RFC 2396 reserved
-		return all
+	case '-', '_', '.', '!', '~', '*', '\'', '(', ')': // §2.3 Unreserved characters (mark)
+		return false
+
+	case '$', '&', '+', ',', '/', ':', ';', '=', '?', '@': // §2.2 Reserved characters (reserved)
+		// Different sections of the URL allow a few of
+		// the reserved characters to appear unescaped.
+		switch mode {
+		case encodePath: // §3.3
+			// The RFC allows : @ & = + $ , but saves / ; for assigning
+			// meaning to individual path segments.  This package
+			// only manipulates the path as a whole, so we allow those
+			// last two as well.  Clients that need to distinguish between
+			// `/foo;y=z/bar` and `/foo%3by=z/bar` will have to re-decode RawPath.
+			// That leaves only ? to escape.
+			return c == '?'
+
+		case encodeUserPassword: // §3.2.2
+			// The RFC allows ; : & = + $ , in userinfo, so we must escape only @ and /.
+			// The parsing of userinfo treats : as special so we must escape that too.
+			return c == '@' || c == '/' || c == ':'
+
+		case encodeQueryComponent: // §3.4
+			// The RFC reserves (so we must escape) everything.
+			return true
+
+		case encodeFragment: // §4.1
+			// The RFC text is silent but the grammar allows
+			// everything, so escape nothing.
+			return false
+
+		case encodeOpaque: // §3 opaque_part
+			// The RFC allows opaque_part to use all characters
+			// except that the leading / must be escaped.
+			// (We implement that case in String.)
+			return false
+		}
 	}
-	return false
+
+	// Everything else must be escaped.
+	return true
 }
 
 // CanonicalPath applies the algorithm specified in RFC 2396 to
@@ -127,17 +171,19 @@ func CanonicalPath(path string) string {
 	return string(a)
 }
 
-// URLUnescape unescapes a URL-encoded string,
+// URLUnescape unescapes a string in ``URL encoded'' form,
 // converting %AB into the byte 0xAB and '+' into ' ' (space).
 // It returns an error if any % is not followed
 // by two hexadecimal digits.
-func URLUnescape(s string) (string, os.Error) { return urlUnescape(s, true) }
+// Despite the name, this encoding applies only to individual
+// components of the query portion of the URL.
+func URLUnescape(s string) (string, os.Error) {
+	return urlUnescape(s, encodeQueryComponent)
+}
 
-// urlUnescape is like URLUnescape but can be told not to
-// convert + into space.  URLUnescape implements what is
-// called "URL encoding" but that only applies to query strings.
-// Elsewhere in the URL, + does not mean space.
-func urlUnescape(s string, doPlus bool) (string, os.Error) {
+// urlUnescape is like URLUnescape but mode specifies
+// which section of the URL is being unescaped.
+func urlUnescape(s string, mode encoding) (string, os.Error) {
 	// Count %, check that they're well-formed.
 	n := 0
 	hasPlus := false
@@ -154,7 +200,7 @@ func urlUnescape(s string, doPlus bool) (string, os.Error) {
 			}
 			i += 3
 		case '+':
-			hasPlus = doPlus
+			hasPlus = mode == encodeQueryComponent
 			i++
 		default:
 			i++
@@ -174,7 +220,7 @@ func urlUnescape(s string, doPlus bool) (string, os.Error) {
 			j++
 			i += 3
 		case '+':
-			if doPlus {
+			if mode == encodeQueryComponent {
 				t[j] = ' '
 			} else {
 				t[j] = '+'
@@ -190,15 +236,19 @@ func urlUnescape(s string, doPlus bool) (string, os.Error) {
 	return string(t), nil
 }
 
-// URLEscape converts a string into URL-encoded form.
-func URLEscape(s string) string { return urlEscape(s, true, true) }
+// URLEscape converts a string into ``URL encoded'' form.
+// Despite the name, this encoding applies only to individual
+// components of the query portion of the URL.
+func URLEscape(s string) string {
+	return urlEscape(s, encodeQueryComponent)
+}
 
-func urlEscape(s string, doPlus, all bool) string {
+func urlEscape(s string, mode encoding) string {
 	spaceCount, hexCount := 0, 0
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if shouldEscape(c, all) {
-			if c == ' ' && doPlus {
+		if shouldEscape(c, mode) {
+			if c == ' ' && mode == encodeQueryComponent {
 				spaceCount++
 			} else {
 				hexCount++
@@ -214,10 +264,10 @@ func urlEscape(s string, doPlus, all bool) string {
 	j := 0
 	for i := 0; i < len(s); i++ {
 		switch c := s[i]; {
-		case c == ' ' && doPlus:
+		case c == ' ' && mode == encodeQueryComponent:
 			t[j] = '+'
 			j++
-		case shouldEscape(c, all):
+		case shouldEscape(c, mode):
 			t[j] = '%'
 			t[j+1] = "0123456789abcdef"[c>>4]
 			t[j+2] = "0123456789abcdef"[c&15]
@@ -230,25 +280,64 @@ func urlEscape(s string, doPlus, all bool) string {
 	return string(t)
 }
 
+// UnescapeUserinfo parses the RawUserinfo field of a URL
+// as the form user or user:password and unescapes and returns
+// the two halves.
+//
+// This functionality should only be used with legacy web sites.
+// RFC 2396 warns that interpreting Userinfo this way
+// ``is NOT RECOMMENDED, because the passing of authentication
+// information in clear text (such as URI) has proven to be a
+// security risk in almost every case where it has been used.''
+func UnescapeUserinfo(rawUserinfo string) (user, password string, err os.Error) {
+	u, p := split(rawUserinfo, ':', true)
+	if user, err = urlUnescape(u, encodeUserPassword); err != nil {
+		return "", "", err
+	}
+	if password, err = urlUnescape(p, encodeUserPassword); err != nil {
+		return "", "", err
+	}
+	return
+}
+
+// EscapeUserinfo combines user and password in the form
+// user:password (or just user if password is empty) and then
+// escapes it for use as the URL.RawUserinfo field.
+//
+// This functionality should only be used with legacy web sites.
+// RFC 2396 warns that interpreting Userinfo this way
+// ``is NOT RECOMMENDED, because the passing of authentication
+// information in clear text (such as URI) has proven to be a
+// security risk in almost every case where it has been used.''
+func EscapeUserinfo(user, password string) string {
+	raw := urlEscape(user, encodeUserPassword)
+	if password != "" {
+		raw += ":" + urlEscape(password, encodeUserPassword)
+	}
+	return raw
+}
+
 // A URL represents a parsed URL (technically, a URI reference).
 // The general form represented is:
 //	scheme://[userinfo@]host/path[?query][#fragment]
-// The Raw, RawPath, and RawQuery fields are in "wire format" (special
-// characters must be hex-escaped if not meant to have special meaning).
+// The Raw, RawAuthority, RawPath, and RawQuery fields are in "wire format"
+// (special characters must be hex-escaped if not meant to have special meaning).
 // All other fields are logical values; '+' or '%' represent themselves.
 //
-// Note, the reason for using wire format for the query is that it needs
-// to be split into key/value pairs before decoding.
+// The various Raw values are supplied in wire format because
+// clients typically have to split them into pieces before further
+// decoding.
 type URL struct {
-	Raw       string // the original string
-	Scheme    string // scheme
-	Authority string // [userinfo@]host
-	Userinfo  string // userinfo
-	Host      string // host
-	RawPath   string // /path[?query][#fragment]
-	Path      string // /path
-	RawQuery  string // query
-	Fragment  string // fragment
+	Raw          string // the original string
+	Scheme       string // scheme
+	RawAuthority string // [userinfo@]host
+	RawUserinfo  string // userinfo
+	Host         string // host
+	RawPath      string // /path[?query][#fragment]
+	Path         string // /path
+	OpaquePath   bool   // path is opaque (unrooted when scheme is present)
+	RawQuery     string // query
+	Fragment     string // fragment
 }
 
 // Maybe rawurl is of the form scheme:path.
@@ -304,56 +393,63 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	url = new(URL)
 	url.Raw = rawurl
 
-	// split off possible leading "http:", "mailto:", etc.
+	// Split off possible leading "http:", "mailto:", etc.
+	// Cannot contain escaped characters.
 	var path string
 	if url.Scheme, path, err = getscheme(rawurl); err != nil {
 		goto Error
 	}
 
-	// RFC 2396: a relative URI (no scheme) has a ?query,
-	// but absolute URIs only have query if path begins with /
-	var query string
-	if url.Scheme == "" || len(path) > 0 && path[0] == '/' {
-		path, query = split(path, '?', false)
+	if url.Scheme != "" && (len(path) == 0 || path[0] != '/') {
+		// RFC 2396:
+		// Absolute URI (has scheme) with non-rooted path
+		// is uninterpreted.  It doesn't even have a ?query.
+		// This is the case that handles mailto:name@example.com.
+		url.RawPath = path
+
+		if url.Path, err = urlUnescape(path, encodeOpaque); err != nil {
+			goto Error
+		}
+		url.OpaquePath = true
+	} else {
+		// Split off query before parsing path further.
+		url.RawPath = path
+		path, query := split(path, '?', false)
 		if len(query) > 1 {
 			url.RawQuery = query[1:]
 		}
-	}
 
-	// Maybe path is //authority/path
-	if url.Scheme != "" && len(path) > 2 && path[0:2] == "//" {
-		url.Authority, path = split(path[2:], '/', false)
-	}
-	url.RawPath = path + query
+		// Maybe path is //authority/path
+		if url.Scheme != "" && len(path) > 2 && path[0:2] == "//" {
+			url.RawAuthority, path = split(path[2:], '/', false)
+			url.RawPath = url.RawPath[2+len(url.RawAuthority):]
+		}
 
-	// If there's no @, split's default is wrong.  Check explicitly.
-	if strings.Index(url.Authority, "@") < 0 {
-		url.Host = url.Authority
-	} else {
-		url.Userinfo, url.Host = split(url.Authority, '@', true)
-	}
+		// Split authority into userinfo@host.
+		// If there's no @, split's default is wrong.  Check explicitly.
+		var rawHost string
+		if strings.Index(url.RawAuthority, "@") < 0 {
+			rawHost = url.RawAuthority
+		} else {
+			url.RawUserinfo, rawHost = split(url.RawAuthority, '@', true)
+		}
 
-	if url.Path, err = urlUnescape(path, false); err != nil {
-		goto Error
-	}
+		// We leave RawAuthority only in raw form because clients
+		// of common protocols should be using Userinfo and Host
+		// instead.  Clients that wish to use RawAuthority will have to
+		// interpret it themselves: RFC 2396 does not define the meaning.
 
-	// Remove escapes from the Authority and Userinfo fields, and verify
-	// that Scheme and Host contain no escapes (that would be illegal).
-	if url.Authority, err = urlUnescape(url.Authority, false); err != nil {
-		goto Error
-	}
-	if url.Userinfo, err = urlUnescape(url.Userinfo, false); err != nil {
-		goto Error
-	}
-	if strings.Index(url.Scheme, "%") >= 0 {
-		err = os.ErrorString("hexadecimal escape in scheme")
-		goto Error
-	}
-	if strings.Index(url.Host, "%") >= 0 {
-		err = os.ErrorString("hexadecimal escape in host")
-		goto Error
-	}
+		if strings.Index(rawHost, "%") >= 0 {
+			// Host cannot contain escaped characters.
+			err = os.ErrorString("hexadecimal escape in host")
+			goto Error
+		}
+		url.Host = rawHost
 
+		if url.Path, err = urlUnescape(path, encodePath); err != nil {
+			goto Error
+		}
+	}
 	return url, nil
 
 Error:
@@ -372,7 +468,7 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 	url.RawPath += frag
 	if len(frag) > 1 {
 		frag = frag[1:]
-		if url.Fragment, err = urlUnescape(frag, false); err != nil {
+		if url.Fragment, err = urlUnescape(frag, encodeFragment); err != nil {
 			return nil, &URLError{"parse", rawurl, err}
 		}
 	}
@@ -382,31 +478,40 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 // String reassembles url into a valid URL string.
 //
 // There are redundant fields stored in the URL structure:
-// the String method consults Scheme, Path, Host, Userinfo,
+// the String method consults Scheme, Path, Host, RawUserinfo,
 // RawQuery, and Fragment, but not Raw, RawPath or Authority.
 func (url *URL) String() string {
 	result := ""
 	if url.Scheme != "" {
 		result += url.Scheme + ":"
 	}
-	if url.Host != "" || url.Userinfo != "" {
+	if url.Host != "" || url.RawUserinfo != "" {
 		result += "//"
-		if url.Userinfo != "" {
+		if url.RawUserinfo != "" {
 			// hide the password, if any
-			info := url.Userinfo
+			info := url.RawUserinfo
 			if i := strings.Index(info, ":"); i >= 0 {
 				info = info[0:i] + ":******"
 			}
-			result += urlEscape(info, false, false) + "@"
+			result += info + "@"
 		}
 		result += url.Host
 	}
-	result += urlEscape(url.Path, false, false)
+	if url.OpaquePath {
+		path := url.Path
+		if strings.HasPrefix(path, "/") {
+			result += "%2f"
+			path = path[1:]
+		}
+		result += urlEscape(path, encodeOpaque)
+	} else {
+		result += urlEscape(url.Path, encodePath)
+	}
 	if url.RawQuery != "" {
 		result += "?" + url.RawQuery
 	}
 	if url.Fragment != "" {
-		result += "#" + urlEscape(url.Fragment, false, false)
+		result += "#" + urlEscape(url.Fragment, encodeFragment)
 	}
 	return result
 }
