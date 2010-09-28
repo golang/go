@@ -100,16 +100,16 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
  * return function type, receiver as first argument (or not).
  */
 Type*
-methodfunc(Type *f, int use_receiver)
+methodfunc(Type *f, Type *receiver)
 {
 	NodeList *in, *out;
 	Node *d;
 	Type *t;
 
 	in = nil;
-	if(use_receiver) {
+	if(receiver) {
 		d = nod(ODCLFIELD, N, N);
-		d->type = getthisx(f)->type->type;
+		d->type = receiver;
 		in = list(in, d);
 	}
 	for(t=getinargx(f)->type; t; t=t->down) {
@@ -185,8 +185,8 @@ methods(Type *t)
 		a->name = method->name;
 		a->isym = methodsym(method, it, 1);
 		a->tsym = methodsym(method, t, 0);
-		a->type = methodfunc(f->type, 1);
-		a->mtype = methodfunc(f->type, 0);
+		a->type = methodfunc(f->type, t);
+		a->mtype = methodfunc(f->type, nil);
 
 		if(!(a->isym->flags & SymSiggen)) {
 			a->isym->flags |= SymSiggen;
@@ -241,22 +241,27 @@ imethods(Type *t)
 	Sig *a, *all, *last;
 	int o;
 	Type *f;
+	Sym *method, *isym;
+	Prog *oldlist;
 
 	all = nil;
 	last = nil;
 	o = 0;
+	oldlist = nil;
 	for(f=t->type; f; f=f->down) {
 		if(f->etype != TFIELD)
 			fatal("imethods: not field");
 		if(f->type->etype != TFUNC || f->sym == nil)
 			continue;
+		method = f->sym;
 		a = mal(sizeof(*a));
-		a->name = f->sym->name;
-		if(!exportname(f->sym->name))
-			a->pkg = f->sym->pkg;
+		a->name = method->name;
+		if(!exportname(method->name))
+			a->pkg = method->pkg;
 		a->mtype = f->type;
 		a->offset = 0;
-		a->type = methodfunc(f->type, 0);
+		a->type = methodfunc(f->type, nil);
+
 		if(last && sigcmp(last, a) >= 0)
 			fatal("sigcmp vs sortinter %s %s", last->name, a->name);
 		if(last == nil)
@@ -264,7 +269,43 @@ imethods(Type *t)
 		else
 			last->link = a;
 		last = a;
+		
+		// Compiler can only refer to wrappers for
+		// named interface types.
+		if(t->sym == S)
+			continue;
+		
+		// NOTE(rsc): Perhaps an oversight that
+		// IfaceType.Method is not in the reflect data.
+		// Generate the method body, so that compiled
+		// code can refer to it.
+		isym = methodsym(method, t, 0);
+		if(!(isym->flags & SymSiggen)) {
+			isym->flags |= SymSiggen;
+			if(oldlist == nil)
+				oldlist = pc;
+			genwrapper(t, f, isym, 0);
+		}
+		
+		// Generate wrapper for pointer to interface type.
+		isym = methodsym(method, ptrto(t), 0);
+		if(!(isym->flags & SymSiggen)) {
+			isym->flags |= SymSiggen;
+			if(oldlist == nil)
+				oldlist = pc;
+			genwrapper(ptrto(t), f, isym, 0);
+		}
 	}
+
+	if(oldlist) {
+		// old list ended with AEND; change to ANOP
+		// so that the trampolines that follow can be found.
+		nopout(oldlist);
+
+		// start new data list
+		newplist();
+	}
+
 	return all;
 }
 
