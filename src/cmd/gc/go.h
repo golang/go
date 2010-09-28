@@ -1010,7 +1010,7 @@ void	walkrange(Node *n);
  *	reflect.c
  */
 void	dumptypestructs(void);
-Type*	methodfunc(Type *f, int use_receiver);
+Type*	methodfunc(Type *f, Type*);
 Node*	typename(Type *t);
 Sym*	typesym(Type *t);
 

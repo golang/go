@@ -19,7 +19,7 @@ func (s S) val() int   { return 1 }
 func (s *S1) val() int { return 2 }
 func (i I) val() int   { return 3 }
 func (i *I1) val() int { return 4 }
-//func (t T) val() int { return 7 }
+func (t T) val() int   { return 7 }
 func (t *T1) val() int { return 8 }
 
 type Val interface {
@@ -34,6 +34,8 @@ func main() {
 	var i I
 	var pi *I1
 	var pt *T1
+	var t T
+	var v Val
 
 	if s.val() != 1 {
 		println("s.val:", s.val())
@@ -75,7 +77,10 @@ func main() {
 		println("(*I1).val(pi):", (*I1).val(pi))
 		panic("fail")
 	}
-	//	if t.val() != 7 { prinln("t.val:", t.val()); panic("fail") }
+	if t.val() != 7 {
+		println("t.val:", t.val())
+		panic("fail")
+	}
 	if pt.val() != 8 {
 		println("pt.val:", pt.val())
 		panic("fail")
@@ -101,11 +106,27 @@ func main() {
 		println("pi.val:", val(pi))
 		panic("fail")
 	}
-	//	if val(t) != 7 { println("t.val:", val(t)); panic("fail") }
+	if val(t) != 7 {
+		println("t.val:", val(t))
+		panic("fail")
+	}
 	if val(pt) != 8 {
 		println("pt.val:", val(pt))
 		panic("fail")
 	}
 
-	//	if Val.val(i) != 3 { println("Val.val(i):", Val.val(i)); panic("fail") }
+	if Val.val(i) != 3 {
+		println("Val.val(i):", Val.val(i))
+		panic("fail")
+	}
+	v = i
+	if Val.val(v) != 3 {
+		println("Val.val(v):", Val.val(v))
+		panic("fail")
+	}
+	pv := &v
+	if pv.val() != 3 {
+		println("pv.val():", pv.val())
+		panic("fail")
+	}
 }

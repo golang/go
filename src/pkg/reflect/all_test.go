@@ -1046,6 +1046,11 @@ func TestMethod(t *testing.T) {
 		t.Errorf("Type Method returned %d; want 250", i)
 	}
 
+	i = Typeof(&p).Method(0).Func.Call([]Value{NewValue(&p), NewValue(10)})[0].(*IntValue).Get()
+	if i != 250 {
+		t.Errorf("Pointer Type Method returned %d; want 250", i)
+	}
+
 	// Curried method of value.
 	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
 	if i != 250 {
@@ -1288,9 +1293,12 @@ func TestDotDotDot(t *testing.T) {
 	t.Error(s)
 }
 
-type inner struct{}
+type inner struct {
+	x int
+}
 
 type outer struct {
+	y int
 	inner
 }
 
@@ -1305,5 +1313,44 @@ func TestNestedMethods(t *testing.T) {
 			m := typ.Method(i)
 			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
 		}
+	}
+}
+
+type innerInt struct {
+	x int
+}
+
+type outerInt struct {
+	y int
+	innerInt
+}
+
+func (i *innerInt) m() int {
+	return i.x
+}
+
+func TestEmbeddedMethods(t *testing.T) {
+	typ := Typeof((*outerInt)(nil))
+	if typ.NumMethod() != 1 || typ.Method(0).Func.Get() != NewValue((*outerInt).m).(*FuncValue).Get() {
+		t.Errorf("Wrong method table for outerInt: (m=%p)", (*outerInt).m)
+		for i := 0; i < typ.NumMethod(); i++ {
+			m := typ.Method(i)
+			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
+		}
+	}
+
+	i := &innerInt{3}
+	if v := NewValue(i).Method(0).Call(nil)[0].(*IntValue).Get(); v != 3 {
+		t.Errorf("i.m() = %d, want 3", v)
+	}
+
+	o := &outerInt{1, innerInt{2}}
+	if v := NewValue(o).Method(0).Call(nil)[0].(*IntValue).Get(); v != 2 {
+		t.Errorf("i.m() = %d, want 2", v)
+	}
+
+	f := (*outerInt).m
+	if v := f(o); v != 2 {
+		t.Errorf("f(o) = %d, want 2", v)
 	}
 }
