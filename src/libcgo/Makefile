@@ -2,6 +2,13 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+ifeq ($(GOOS),nacl)
+
+# Nothing for NaCl
+all clean install:
+	@true
+	
+else
 include ../Make.inc
 
 all: libcgo.so
@@ -37,3 +44,4 @@ $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
 clean:
 	rm -f *.o *.so
 
+endif
