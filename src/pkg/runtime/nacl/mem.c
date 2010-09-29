@@ -31,3 +31,7 @@ SysFree(void *v, uintptr n)
 	runtime_munmap(v, n);
 }
 
+void
+SysMemInit(void)
+{
+}

@@ -44,3 +44,7 @@ SysUnused(void *v, uintptr n)
 	USED(v, n);
 }
 
+void
+SysMemInit(void)
+{
+}

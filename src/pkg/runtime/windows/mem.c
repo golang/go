@@ -33,3 +33,8 @@ SysFree(void *v, uintptr n)
 {
 	stdcall(VirtualFree, 3, v, n, MEM_RELEASE);
 }
+
+void
+SysMemInit(void)
+{
+}
