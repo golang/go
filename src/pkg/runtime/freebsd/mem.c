@@ -11,7 +11,7 @@ SysAlloc(uintptr n)
 	mstats.sys += n;
 	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
 	if(v < (void*)4096) {
-		printf("mmap: errno=%p\n", p);
+		printf("mmap: errno=%p\n", v);
 		throw("mmap");
 	}
 	return v;
