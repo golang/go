@@ -90,6 +90,14 @@ HOST_YFLAGS=-d
 HOST_CFLAGS=-ggdb -I"$(GOROOT)/include" -O2 -fno-inline
 PWD=$(shell pwd)
 
+# Make environment more standard.
+LANG:=
+LC_ALL:=C
+LC_CTYPE:=C
+GREP_OPTIONS:=
+GREP_COLORS:=
+export LANG LC_ALL LC_CTYPE GREP_OPTIONS GREP_COLORS
+
 go-env:
 	@echo export GOARCH=$(GOARCH)
 	@echo export GOOS=$(GOOS)
@@ -100,6 +108,11 @@ go-env:
 	@echo export LD="$(LD)"
 	@echo export OS="$(OS)"
 	@echo export CFLAGS="$(CFLAGS)"
+	@echo export LANG="$(LANG)"
+	@echo export LC_ALL="$(LC_ALL)"
+	@echo export LC_CTYPE="$(LC_CTYPE)"
+	@echo export GREP_OPTIONS="$(GREP_OPTIONS)"
+	@echo export GREP_COLORS="$(GREP_COLORS)"
 	@echo MAKE_GO_ENV_WORKED=1
 
 # Don't let the targets in this file be used
