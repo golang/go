@@ -43,8 +43,8 @@ func isText(b []byte) bool {
 	return true
 }
 
-func dirList(c *Conn, f *os.File) {
-	fmt.Fprintf(c, "<pre>\n")
+func dirList(w ResponseWriter, f *os.File) {
+	fmt.Fprintf(w, "<pre>\n")
 	for {
 		dirs, err := f.Readdir(100)
 		if err != nil || len(dirs) == 0 {
@@ -56,25 +56,25 @@ func dirList(c *Conn, f *os.File) {
 				name += "/"
 			}
 			// TODO htmlescape
-			fmt.Fprintf(c, "<a href=\"%s\">%s</a>\n", name, name)
+			fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", name, name)
 		}
 	}
-	fmt.Fprintf(c, "</pre>\n")
+	fmt.Fprintf(w, "</pre>\n")
 }
 
-func serveFile(c *Conn, r *Request, name string, redirect bool) {
+func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 	const indexPage = "/index.html"
 
 	// redirect .../index.html to .../
 	if strings.HasSuffix(r.URL.Path, indexPage) {
-		Redirect(c, r.URL.Path[0:len(r.URL.Path)-len(indexPage)+1], StatusMovedPermanently)
+		Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len(indexPage)+1], StatusMovedPermanently)
 		return
 	}
 
 	f, err := os.Open(name, os.O_RDONLY, 0)
 	if err != nil {
 		// TODO expose actual error?
-		NotFound(c, r)
+		NotFound(w, r)
 		return
 	}
 	defer f.Close()
@@ -82,7 +82,7 @@ func serveFile(c *Conn, r *Request, name string, redirect bool) {
 	d, err1 := f.Stat()
 	if err1 != nil {
 		// TODO expose actual error?
-		NotFound(c, r)
+		NotFound(w, r)
 		return
 	}
 
@@ -92,22 +92,22 @@ func serveFile(c *Conn, r *Request, name string, redirect bool) {
 		url := r.URL.Path
 		if d.IsDirectory() {
 			if url[len(url)-1] != '/' {
-				Redirect(c, url+"/", StatusMovedPermanently)
+				Redirect(w, r, url+"/", StatusMovedPermanently)
 				return
 			}
 		} else {
 			if url[len(url)-1] == '/' {
-				Redirect(c, url[0:len(url)-1], StatusMovedPermanently)
+				Redirect(w, r, url[0:len(url)-1], StatusMovedPermanently)
 				return
 			}
 		}
 	}
 
 	if t, _ := time.Parse(TimeFormat, r.Header["If-Modified-Since"]); t != nil && d.Mtime_ns/1e9 <= t.Seconds() {
-		c.WriteHeader(StatusNotModified)
+		w.WriteHeader(StatusNotModified)
 		return
 	}
-	c.SetHeader("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
+	w.SetHeader("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
 
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {
@@ -125,7 +125,7 @@ func serveFile(c *Conn, r *Request, name string, redirect bool) {
 	}
 
 	if d.IsDirectory() {
-		dirList(c, f)
+		dirList(w, f)
 		return
 	}
 
@@ -133,25 +133,25 @@ func serveFile(c *Conn, r *Request, name string, redirect bool) {
 	// use extension to find content type.
 	ext := path.Ext(name)
 	if ctype := mime.TypeByExtension(ext); ctype != "" {
-		c.SetHeader("Content-Type", ctype)
+		w.SetHeader("Content-Type", ctype)
 	} else {
 		// read first chunk to decide between utf-8 text and binary
 		var buf [1024]byte
 		n, _ := io.ReadFull(f, buf[0:])
 		b := buf[0:n]
 		if isText(b) {
-			c.SetHeader("Content-Type", "text-plain; charset=utf-8")
+			w.SetHeader("Content-Type", "text-plain; charset=utf-8")
 		} else {
-			c.SetHeader("Content-Type", "application/octet-stream") // generic binary
+			w.SetHeader("Content-Type", "application/octet-stream") // generic binary
 		}
-		c.Write(b)
+		w.Write(b)
 	}
-	io.Copy(c, f)
+	io.Copy(w, f)
 }
 
 // ServeFile replies to the request with the contents of the named file or directory.
-func ServeFile(c *Conn, r *Request, name string) {
-	serveFile(c, r, name, false)
+func ServeFile(w ResponseWriter, r *Request, name string) {
+	serveFile(w, r, name, false)
 }
 
 type fileHandler struct {
@@ -165,12 +165,12 @@ type fileHandler struct {
 // looking up the file name in the file system.
 func FileServer(root, prefix string) Handler { return &fileHandler{root, prefix} }
 
-func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
+func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, f.prefix) {
-		NotFound(c, r)
+		NotFound(w, r)
 		return
 	}
 	path = path[len(f.prefix):]
-	serveFile(c, r, f.root+"/"+path, true)
+	serveFile(w, r, f.root+"/"+path, true)
 }

@@ -445,16 +445,16 @@ var rpcPath string = "/_goRPC_"
 var debugPath string = "/debug/rpc"
 var connected = "200 Connected to Go RPC"
 
-func serveHTTP(c *http.Conn, req *http.Request) {
+func serveHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "CONNECT" {
-		c.SetHeader("Content-Type", "text/plain; charset=utf-8")
-		c.WriteHeader(http.StatusMethodNotAllowed)
-		io.WriteString(c, "405 must CONNECT to "+rpcPath+"\n")
+		w.SetHeader("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		io.WriteString(w, "405 must CONNECT to "+rpcPath+"\n")
 		return
 	}
-	conn, _, err := c.Hijack()
+	conn, _, err := w.Hijack()
 	if err != nil {
-		log.Stderr("rpc hijacking ", c.RemoteAddr, ": ", err.String())
+		log.Stderr("rpc hijacking ", w.RemoteAddr(), ": ", err.String())
 		return
 	}
 	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")

@@ -57,8 +57,8 @@ func getKeyNumber(s string) (r uint32) {
 }
 
 // ServeHTTP implements the http.Handler interface for a Web Socket
-func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
-	rwc, buf, err := c.Hijack()
+func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	rwc, buf, err := w.Hijack()
 	if err != nil {
 		panic("Hijack failed: " + err.String())
 		return
@@ -98,7 +98,7 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 	}
 
 	var location string
-	if c.UsingTLS() {
+	if w.UsingTLS() {
 		location = "wss://" + req.Host + req.URL.RawPath
 	} else {
 		location = "ws://" + req.Host + req.URL.RawPath
@@ -161,30 +161,30 @@ Draft75Handler is an interface to a WebSocket based on the
 type Draft75Handler func(*Conn)
 
 // ServeHTTP implements the http.Handler interface for a Web Socket.
-func (f Draft75Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+func (f Draft75Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" || req.Proto != "HTTP/1.1" {
-		c.WriteHeader(http.StatusBadRequest)
-		io.WriteString(c, "Unexpected request")
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "Unexpected request")
 		return
 	}
 	if req.Header["Upgrade"] != "WebSocket" {
-		c.WriteHeader(http.StatusBadRequest)
-		io.WriteString(c, "missing Upgrade: WebSocket header")
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "missing Upgrade: WebSocket header")
 		return
 	}
 	if req.Header["Connection"] != "Upgrade" {
-		c.WriteHeader(http.StatusBadRequest)
-		io.WriteString(c, "missing Connection: Upgrade header")
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "missing Connection: Upgrade header")
 		return
 	}
 	origin, found := req.Header["Origin"]
 	if !found {
-		c.WriteHeader(http.StatusBadRequest)
-		io.WriteString(c, "missing Origin header")
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "missing Origin header")
 		return
 	}
 
-	rwc, buf, err := c.Hijack()
+	rwc, buf, err := w.Hijack()
 	if err != nil {
 		panic("Hijack failed: " + err.String())
 		return
@@ -192,7 +192,7 @@ func (f Draft75Handler) ServeHTTP(c *http.Conn, req *http.Request) {
 	defer rwc.Close()
 
 	var location string
-	if c.UsingTLS() {
+	if w.UsingTLS() {
 		location = "wss://" + req.Host + req.URL.RawPath
 	} else {
 		location = "ws://" + req.Host + req.URL.RawPath

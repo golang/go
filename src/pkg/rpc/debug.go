@@ -62,7 +62,7 @@ func (m methodArray) Less(i, j int) bool { return m[i].name < m[j].name }
 func (m methodArray) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 
 // Runs at /debug/rpc
-func debugHTTP(c *http.Conn, req *http.Request) {
+func debugHTTP(w http.ResponseWriter, req *http.Request) {
 	// Build a sorted version of the data.
 	var services = make(serviceArray, len(server.serviceMap))
 	i := 0
@@ -79,8 +79,8 @@ func debugHTTP(c *http.Conn, req *http.Request) {
 	}
 	server.Unlock()
 	sort.Sort(services)
-	err := debug.Execute(services, c)
+	err := debug.Execute(services, w)
 	if err != nil {
-		fmt.Fprintln(c, "rpc: error executing template:", err.String())
+		fmt.Fprintln(w, "rpc: error executing template:", err.String())
 	}
 }

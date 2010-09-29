@@ -792,7 +792,7 @@ func readTemplates() {
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
 
-func servePage(c *http.Conn, title, subtitle, query string, content []byte) {
+func servePage(w http.ResponseWriter, title, subtitle, query string, content []byte) {
 	type Data struct {
 		Title    string
 		Subtitle string
@@ -813,15 +813,15 @@ func servePage(c *http.Conn, title, subtitle, query string, content []byte) {
 		Content:  content,
 	}
 
-	if err := godocHTML.Execute(&d, c); err != nil {
+	if err := godocHTML.Execute(&d, w); err != nil {
 		log.Stderrf("godocHTML.Execute: %s", err)
 	}
 }
 
 
-func serveText(c *http.Conn, text []byte) {
-	c.SetHeader("Content-Type", "text/plain; charset=utf-8")
-	c.Write(text)
+func serveText(w http.ResponseWriter, text []byte) {
+	w.SetHeader("Content-Type", "text/plain; charset=utf-8")
+	w.Write(text)
 }
 
 
@@ -844,19 +844,19 @@ func extractString(src []byte, rx *regexp.Regexp) (s string) {
 }
 
 
-func serveHTMLDoc(c *http.Conn, r *http.Request, abspath, relpath string) {
+func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	// get HTML body contents
 	src, err := ioutil.ReadFile(abspath)
 	if err != nil {
 		log.Stderrf("ioutil.ReadFile: %s", err)
-		serveError(c, r, relpath, err)
+		serveError(w, r, relpath, err)
 		return
 	}
 
 	// if it begins with "<!DOCTYPE " assume it is standalone
 	// html that doesn't need the template wrapping.
 	if bytes.HasPrefix(src, []byte("<!DOCTYPE ")) {
-		c.Write(src)
+		w.Write(src)
 		return
 	}
 
@@ -875,7 +875,7 @@ func serveHTMLDoc(c *http.Conn, r *http.Request, abspath, relpath string) {
 	}
 	subtitle := extractString(src, subtitleRx)
 
-	servePage(c, title, subtitle, "", src)
+	servePage(w, title, subtitle, "", src)
 }
 
 
@@ -888,11 +888,11 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 }
 
 
-func serveGoSource(c *http.Conn, r *http.Request, abspath, relpath string) {
+func serveGoSource(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	file, err := parser.ParseFile(abspath, nil, parser.ParseComments)
 	if err != nil {
 		log.Stderrf("parser.ParseFile: %s", err)
-		serveError(c, r, relpath, err)
+		serveError(w, r, relpath, err)
 		return
 	}
 
@@ -911,13 +911,13 @@ func serveGoSource(c *http.Conn, r *http.Request, abspath, relpath string) {
 	info := &SourceInfo{styler.idList(), buf.Bytes()}
 
 	contents := applyTemplate(sourceHTML, "sourceHTML", info)
-	servePage(c, "Source file "+relpath, "", "", contents)
+	servePage(w, "Source file "+relpath, "", "", contents)
 }
 
 
-func redirect(c *http.Conn, r *http.Request) (redirected bool) {
+func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 	if canonical := pathutil.Clean(r.URL.Path) + "/"; r.URL.Path != canonical {
-		http.Redirect(c, canonical, http.StatusMovedPermanently)
+		http.Redirect(w, r, canonical, http.StatusMovedPermanently)
 		redirected = true
 	}
 	return
@@ -971,11 +971,11 @@ func isTextFile(path string) bool {
 }
 
 
-func serveTextFile(c *http.Conn, r *http.Request, abspath, relpath string) {
+func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	src, err := ioutil.ReadFile(abspath)
 	if err != nil {
 		log.Stderrf("ioutil.ReadFile: %s", err)
-		serveError(c, r, relpath, err)
+		serveError(w, r, relpath, err)
 		return
 	}
 
@@ -984,19 +984,19 @@ func serveTextFile(c *http.Conn, r *http.Request, abspath, relpath string) {
 	template.HTMLEscape(&buf, src)
 	fmt.Fprintln(&buf, "</pre>")
 
-	servePage(c, "Text file "+relpath, "", "", buf.Bytes())
+	servePage(w, "Text file "+relpath, "", "", buf.Bytes())
 }
 
 
-func serveDirectory(c *http.Conn, r *http.Request, abspath, relpath string) {
-	if redirect(c, r) {
+func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+	if redirect(w, r) {
 		return
 	}
 
 	list, err := ioutil.ReadDir(abspath)
 	if err != nil {
 		log.Stderrf("ioutil.ReadDir: %s", err)
-		serveError(c, r, relpath, err)
+		serveError(w, r, relpath, err)
 		return
 	}
 
@@ -1007,23 +1007,23 @@ func serveDirectory(c *http.Conn, r *http.Request, abspath, relpath string) {
 	}
 
 	contents := applyTemplate(dirlistHTML, "dirlistHTML", list)
-	servePage(c, "Directory "+relpath, "", "", contents)
+	servePage(w, "Directory "+relpath, "", "", contents)
 }
 
 
-func serveFile(c *http.Conn, r *http.Request) {
+func serveFile(w http.ResponseWriter, r *http.Request) {
 	relpath := r.URL.Path[1:] // serveFile URL paths start with '/'
 	abspath := absolutePath(relpath, *goroot)
 
 	// pick off special cases and hand the rest to the standard file server
 	switch r.URL.Path {
 	case "/":
-		serveHTMLDoc(c, r, pathutil.Join(*goroot, "doc/root.html"), "doc/root.html")
+		serveHTMLDoc(w, r, pathutil.Join(*goroot, "doc/root.html"), "doc/root.html")
 		return
 
 	case "/doc/root.html":
 		// hide landing page from its real name
-		http.Redirect(c, "/", http.StatusMovedPermanently)
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
 		return
 	}
 
@@ -1032,42 +1032,42 @@ func serveFile(c *http.Conn, r *http.Request) {
 		if strings.HasSuffix(abspath, "/index.html") {
 			// We'll show index.html for the directory.
 			// Use the dir/ version as canonical instead of dir/index.html.
-			http.Redirect(c, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
+			http.Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
 			return
 		}
-		serveHTMLDoc(c, r, abspath, relpath)
+		serveHTMLDoc(w, r, abspath, relpath)
 		return
 
 	case ".go":
-		serveGoSource(c, r, abspath, relpath)
+		serveGoSource(w, r, abspath, relpath)
 		return
 	}
 
 	dir, err := os.Lstat(abspath)
 	if err != nil {
 		log.Stderr(err)
-		serveError(c, r, relpath, err)
+		serveError(w, r, relpath, err)
 		return
 	}
 
 	if dir != nil && dir.IsDirectory() {
-		if redirect(c, r) {
+		if redirect(w, r) {
 			return
 		}
 		if index := abspath + "/index.html"; isTextFile(index) {
-			serveHTMLDoc(c, r, index, relativePath(index))
+			serveHTMLDoc(w, r, index, relativePath(index))
 			return
 		}
-		serveDirectory(c, r, abspath, relpath)
+		serveDirectory(w, r, abspath, relpath)
 		return
 	}
 
 	if isTextFile(abspath) {
-		serveTextFile(c, r, abspath, relpath)
+		serveTextFile(w, r, abspath, relpath)
 		return
 	}
 
-	fileServer.ServeHTTP(c, r)
+	fileServer.ServeHTTP(w, r)
 }
 
 
@@ -1243,8 +1243,8 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 }
 
 
-func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
-	if redirect(c, r) {
+func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if redirect(w, r) {
 		return
 	}
 
@@ -1257,13 +1257,13 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
 	if info.Err != nil {
 		log.Stderr(info.Err)
-		serveError(c, r, relpath, info.Err)
+		serveError(w, r, relpath, info.Err)
 		return
 	}
 
 	if r.FormValue("f") == "text" {
 		contents := applyTemplate(packageText, "packageText", info)
-		serveText(c, contents)
+		serveText(w, contents)
 		return
 	}
 
@@ -1290,7 +1290,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	}
 
 	contents := applyTemplate(packageHTML, "packageHTML", info)
-	servePage(c, title, subtitle, "", contents)
+	servePage(w, title, subtitle, "", contents)
 }
 
 
@@ -1319,13 +1319,13 @@ func lookup(query string) (result SearchResult) {
 }
 
 
-func search(c *http.Conn, r *http.Request) {
+func search(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.FormValue("q"))
 	result := lookup(query)
 
 	if r.FormValue("f") == "text" {
 		contents := applyTemplate(searchText, "searchText", result)
-		serveText(c, contents)
+		serveText(w, contents)
 		return
 	}
 
@@ -1337,7 +1337,7 @@ func search(c *http.Conn, r *http.Request) {
 	}
 
 	contents := applyTemplate(searchHTML, "searchHTML", result)
-	servePage(c, title, "", query, contents)
+	servePage(w, title, "", query, contents)
 }
 
 

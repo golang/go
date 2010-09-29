@@ -98,3 +98,9 @@ var statusText = map[int]string{
 	StatusGatewayTimeout:          "Gateway Timeout",
 	StatusHTTPVersionNotSupported: "HTTP Version Not Supported",
 }
+
+// StatusText returns a text for the HTTP status code. It returns the empty
+// string if the code is unknown.
+func StatusText(code int) string {
+	return statusText[code]
+}

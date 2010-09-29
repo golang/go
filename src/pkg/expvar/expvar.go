@@ -210,18 +210,18 @@ func Iter() <-chan KeyValue {
 	return c
 }
 
-func expvarHandler(c *http.Conn, req *http.Request) {
-	c.SetHeader("content-type", "application/json; charset=utf-8")
-	fmt.Fprintf(c, "{\n")
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.SetHeader("content-type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
 	first := true
 	for name, value := range vars {
 		if !first {
-			fmt.Fprintf(c, ",\n")
+			fmt.Fprintf(w, ",\n")
 		}
 		first = false
-		fmt.Fprintf(c, "%q: %s", name, value)
+		fmt.Fprintf(w, "%q: %s", name, value)
 	}
-	fmt.Fprintf(c, "\n}\n")
+	fmt.Fprintf(w, "\n}\n")
 }
 
 func memstats() string {
