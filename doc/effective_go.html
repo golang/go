@@ -1854,9 +1854,17 @@ that implements <code>Handler</code> can serve HTTP requests.
 </p>
 <pre>
 type Handler interface {
-    ServeHTTP(*Conn, *Request)
+    ServeHTTP(ResponseWriter, *Request)
 }
 </pre>
+<p>
+<code>ResponseWriter</code> is itself an interface that provides access
+to the methods needed to return the response to the client.
+Those methods include the standard <code>Write</code> method, so an
+<code>http.ResponseWriter</code> can be used wherever an <code>io.Writer</code>
+can be used.
+<code>Request</code> is a struct containing a parsed representation
+of the request from the client.
 <p>
 For brevity, let's ignore POSTs and assume HTTP requests are always
 GETs; that simplification does not affect the way the handlers are
@@ -1870,13 +1878,14 @@ type Counter struct {
     n int
 }
 
-func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     ctr.n++
-    fmt.Fprintf(c, "counter = %d\n", ctr.n)
+    fmt.Fprintf(w, "counter = %d\n", ctr.n)
 }
 </pre>
 <p>
-(Keeping with our theme, note how <code>Fprintf</code> can print to an HTTP connection.)
+(Keeping with our theme, note how <code>Fprintf</code> can print to an
+<code>http.ResponseWriter</code>.)
 For reference, here's how to attach such a server to a node on the URL tree.
 <pre>
 import "http"
@@ -1892,9 +1901,9 @@ But why make <code>Counter</code> a struct?  An integer is all that's needed.
 // Simpler counter server.
 type Counter int
 
-func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     *ctr++
-    fmt.Fprintf(c, "counter = %d\n", *ctr)
+    fmt.Fprintf(w, "counter = %d\n", *ctr)
 }
 </pre>
 <p>
@@ -1906,9 +1915,9 @@ has been visited?  Tie a channel to the web page.
 // (Probably want the channel to be buffered.)
 type Chan chan *http.Request
 
-func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
+func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     ch &lt;- req
-    fmt.Fprint(c, "notification sent")
+    fmt.Fprint(w, "notification sent")
 }
 </pre>
 <p>
@@ -1935,11 +1944,11 @@ The <code>http</code> package contains this code:
 // ordinary functions as HTTP handlers.  If f is a function
 // with the appropriate signature, HandlerFunc(f) is a
 // Handler object that calls f.
-type HandlerFunc func(*Conn, *Request)
+type HandlerFunc func(ResponseWriter, *Request)
 
 // ServeHTTP calls f(c, req).
-func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
-    f(c, req)
+func (f HandlerFunc) ServeHTTP(w ResponseWriter, req *Request) {
+    f(w, req)
 }
 </pre>
 <p>
@@ -1955,9 +1964,9 @@ to have the right signature.
 </p>
 <pre>
 // Argument server.
-func ArgServer(c *http.Conn, req *http.Request) {
+func ArgServer(w http.ResponseWriter, req *http.Request) {
     for i, s := range os.Args {
-        fmt.Fprintln(c, s)
+        fmt.Fprintln(w, s)
     }
 }
 </pre>
@@ -2794,8 +2803,8 @@ func main() {
     }
 }
 
-func QR(c *http.Conn, req *http.Request) {
-    templ.Execute(req.FormValue("s"), c)
+func QR(w http.ResponseWriter, req *http.Request) {
+    templ.Execute(req.FormValue("s"), w)
 }
 
 func UrlHtmlFormatter(w io.Writer, v interface{}, fmt string) {
