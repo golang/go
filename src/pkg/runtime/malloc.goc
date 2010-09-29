@@ -245,6 +245,7 @@ allocmcache(void)
 void
 mallocinit(void)
 {
+	SysMemInit();
 	InitSizes();
 	MHeap_Init(&mheap, SysAlloc);
 	m->mcache = allocmcache();

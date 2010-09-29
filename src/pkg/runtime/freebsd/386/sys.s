@@ -80,8 +80,6 @@ TEXT ·mmap(SB),7,$32
 	STOSL
 	MOVL	$477, AX
 	INT	$0x80
-	JAE	2(PC)
-	CALL	notok(SB)
 	RET
 
 TEXT ·munmap(SB),7,$-4

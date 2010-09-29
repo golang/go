@@ -103,8 +103,6 @@ TEXT	·mmap(SB),7,$0
 	MOVL	36(SP), R9		// arg 6 offset
 	MOVL	$(0x2000000+197), AX	// syscall entry
 	SYSCALL
-	JCC	2(PC)
-	CALL	notok(SB)
 	RET
 
 TEXT ·munmap(SB),7,$0

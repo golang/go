@@ -138,7 +138,7 @@ struct MLink
 void*	SysAlloc(uintptr nbytes);
 void	SysFree(void *v, uintptr nbytes);
 void	SysUnused(void *v, uintptr nbytes);
-
+void	SysMemInit(void);
 
 // FixAlloc is a simple free-list allocator for fixed size objects.
 // Malloc uses a FixAlloc wrapped around SysAlloc to manages its
