@@ -2600,7 +2600,7 @@ class MercurialVCS(VersionControlSystem):
 			if use_hg_shell:
 				base_content = RunShell(["hg", "cat", "-r", base_rev, oldrelpath], silent_ok=True)
 			else:
-				base_content = str(self.repo[base_rev][filename].data())
+				base_content = str(self.repo[base_rev][oldrelpath].data())
 			is_binary = "\0" in base_content  # Mercurial's heuristic
 		if status != "R":
 			new_content = open(relpath, "rb").read()
