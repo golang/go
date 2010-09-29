@@ -701,6 +701,10 @@ dostkoff(void)
 					p->as = AINT;
 					p->from.type = D_CONST;
 					p->from.offset = 3;
+					
+					p = appendp(p);
+					p->as = ANOP;
+					q1->pcond = p;
 				}
 
 				if(autoffset < StackBig) {  // do we need to call morestack
@@ -710,10 +714,6 @@ dostkoff(void)
 						p->as = ACMPL;
 						p->from.type = D_SP;
 						p->to.type = D_INDIR+D_CX;
-						if(q1) {
-							q1->pcond = p;
-							q1 = P;
-						}
 					} else {
 						// large stack
 						p = appendp(p);
@@ -721,10 +721,6 @@ dostkoff(void)
 						p->from.type = D_INDIR+D_SP;
 						p->from.offset = -(autoffset-StackSmall);
 						p->to.type = D_AX;
-						if(q1) {
-							q1->pcond = p;
-							q1 = P;
-						}
 
 						p = appendp(p);
 						p->as = ACMPL;
