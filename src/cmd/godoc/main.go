@@ -64,14 +64,14 @@ var (
 )
 
 
-func serveError(c *http.Conn, r *http.Request, relpath string, err os.Error) {
+func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.Error) {
 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
-	c.WriteHeader(http.StatusNotFound)
-	servePage(c, "File "+relpath, "", "", contents)
+	w.WriteHeader(http.StatusNotFound)
+	servePage(w, "File "+relpath, "", "", contents)
 }
 
 
-func exec(c *http.Conn, args []string) (status int) {
+func exec(rw http.ResponseWriter, args []string) (status int) {
 	r, w, err := os.Pipe()
 	if err != nil {
 		log.Stderrf("os.Pipe(): %v\n", err)
@@ -109,18 +109,18 @@ func exec(c *http.Conn, args []string) (status int) {
 	if *verbose {
 		os.Stderr.Write(buf.Bytes())
 	}
-	if c != nil {
-		c.SetHeader("content-type", "text/plain; charset=utf-8")
-		c.Write(buf.Bytes())
+	if rw != nil {
+		rw.SetHeader("content-type", "text/plain; charset=utf-8")
+		rw.Write(buf.Bytes())
 	}
 
 	return
 }
 
 
-func dosync(c *http.Conn, r *http.Request) {
+func dosync(w http.ResponseWriter, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd}
-	switch exec(c, args) {
+	switch exec(w, args) {
 	case 0:
 		// sync succeeded and some files have changed;
 		// update package tree.
@@ -150,9 +150,9 @@ func usage() {
 
 
 func loggingHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
-		log.Stderrf("%s\t%s", c.RemoteAddr, req.URL)
-		h.ServeHTTP(c, req)
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		log.Stderrf("%s\t%s", w.RemoteAddr(), req.URL)
+		h.ServeHTTP(w, req)
 	})
 }
 

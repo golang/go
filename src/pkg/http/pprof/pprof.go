@@ -40,28 +40,28 @@ func init() {
 // Cmdline responds with the running program's
 // command line, with arguments separated by NUL bytes.
 // The package initialization registers it as /debug/pprof/cmdline.
-func Cmdline(c *http.Conn, r *http.Request) {
-	c.SetHeader("content-type", "text/plain; charset=utf-8")
-	fmt.Fprintf(c, strings.Join(os.Args, "\x00"))
+func Cmdline(w http.ResponseWriter, r *http.Request) {
+	w.SetHeader("content-type", "text/plain; charset=utf-8")
+	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
 }
 
 // Heap responds with the pprof-formatted heap profile.
 // The package initialization registers it as /debug/pprof/heap.
-func Heap(c *http.Conn, r *http.Request) {
-	c.SetHeader("content-type", "text/plain; charset=utf-8")
-	pprof.WriteHeapProfile(c)
+func Heap(w http.ResponseWriter, r *http.Request) {
+	w.SetHeader("content-type", "text/plain; charset=utf-8")
+	pprof.WriteHeapProfile(w)
 }
 
 // Symbol looks up the program counters listed in the request,
 // responding with a table mapping program counters to function names.
 // The package initialization registers it as /debug/pprof/symbol.
-func Symbol(c *http.Conn, r *http.Request) {
-	c.SetHeader("content-type", "text/plain; charset=utf-8")
+func Symbol(w http.ResponseWriter, r *http.Request) {
+	w.SetHeader("content-type", "text/plain; charset=utf-8")
 
 	// We don't know how many symbols we have, but we
 	// do have symbol information.  Pprof only cares whether
 	// this number is 0 (no symbols available) or > 0.
-	fmt.Fprintf(c, "num_symbols: 1\n")
+	fmt.Fprintf(w, "num_symbols: 1\n")
 
 	var b *bufio.Reader
 	if r.Method == "POST" {
@@ -71,15 +71,15 @@ func Symbol(c *http.Conn, r *http.Request) {
 	}
 
 	for {
-		w, err := b.ReadSlice('+')
+		word, err := b.ReadSlice('+')
 		if err == nil {
-			w = w[0 : len(w)-1] // trim +
+			word = word[0 : len(word)-1] // trim +
 		}
-		pc, _ := strconv.Btoui64(string(w), 0)
+		pc, _ := strconv.Btoui64(string(word), 0)
 		if pc != 0 {
 			f := runtime.FuncForPC(uintptr(pc))
 			if f != nil {
-				fmt.Fprintf(c, "%#x %s\n", pc, f.Name())
+				fmt.Fprintf(w, "%#x %s\n", pc, f.Name())
 			}
 		}
 
