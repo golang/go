@@ -1395,13 +1395,19 @@ optoas(int op, Type *t)
 
 	case CASE(OAS, TBOOL):
 	case CASE(OAS, TINT8):
-	case CASE(OAS, TUINT8):
 		a = AMOVB;
 		break;
 
+	case CASE(OAS, TUINT8):
+		a = AMOVBU;
+		break;
+
 	case CASE(OAS, TINT16):
-	case CASE(OAS, TUINT16):
 		a = AMOVH;
+		break;
+
+	case CASE(OAS, TUINT16):
+		a = AMOVHU;
 		break;
 
 	case CASE(OAS, TINT32):
