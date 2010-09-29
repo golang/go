@@ -168,7 +168,7 @@ unlock(Lock *l)
 }
 
 void
-destroylock(Lock *l)
+destroylock(Lock*)
 {
 }
 
@@ -282,7 +282,7 @@ sigpanic(void)
 		printf("unexpected fault address %p\n", g->sigcode1);
 		throw("fault");
 	case SIGSEGV:
-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
+		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
 			panicstring("invalid memory address or nil pointer dereference");
 		printf("unexpected fault address %p\n", g->sigcode1);
 		throw("fault");
