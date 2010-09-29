@@ -716,6 +716,11 @@ dostkoff(void)
 					p->as = AINT;
 					p->from.type = D_CONST;
 					p->from.offset = 3;
+
+					p = appendp(p);
+					p->as = ANOP;
+					q1->pcond = p;
+					q1 = P;
 				}
 
 				if(autoffset < StackBig) {  // do we need to call morestack?
@@ -725,10 +730,6 @@ dostkoff(void)
 						p->as = ACMPQ;
 						p->from.type = D_SP;
 						p->to.type = D_INDIR+D_CX;
-						if(q1) {
-							q1->pcond = p;
-							q1 = P;
-						}
 					} else {
 						// large stack
 						p = appendp(p);
@@ -736,10 +737,6 @@ dostkoff(void)
 						p->from.type = D_INDIR+D_SP;
 						p->from.offset = -(autoffset-StackSmall);
 						p->to.type = D_AX;
-						if(q1) {
-							q1->pcond = p;
-							q1 = P;
-						}
 
 						p = appendp(p);
 						p->as = ACMPQ;
@@ -769,20 +766,12 @@ dostkoff(void)
 					p->to.type = D_BRANCH;
 					p->pcond = pmorestack[0];
 					p->to.sym = symmorestack[0];
-					if(q1) {
-						q1->pcond = p;
-						q1 = P;
-					}
 				} else
 				if(moreconst1 != 0 && moreconst2 == 0) {
 					p->as = AMOVL;
 					p->from.type = D_CONST;
 					p->from.offset = moreconst1;
 					p->to.type = D_AX;
-					if(q1) {
-						q1->pcond = p;
-						q1 = P;
-					}
 
 					p = appendp(p);
 					p->as = ACALL;
@@ -796,20 +785,12 @@ dostkoff(void)
 					p->to.type = D_BRANCH;
 					p->pcond = pmorestack[i];
 					p->to.sym = symmorestack[i];
-					if(q1) {
-						q1->pcond = p;
-						q1 = P;
-					}
 				} else
 				if(moreconst1 == 0 && moreconst2 != 0) {
 					p->as = AMOVL;
 					p->from.type = D_CONST;
 					p->from.offset = moreconst2;
 					p->to.type = D_AX;
-					if(q1) {
-						q1->pcond = p;
-						q1 = P;
-					}
 
 					p = appendp(p);
 					p->as = ACALL;
@@ -822,10 +803,6 @@ dostkoff(void)
 					p->from.offset = (uint64)moreconst2 << 32;
 					p->from.offset |= moreconst1;
 					p->to.type = D_AX;
-					if(q1) {
-						q1->pcond = p;
-						q1 = P;
-					}
 
 					p = appendp(p);
 					p->as = ACALL;
