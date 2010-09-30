@@ -236,9 +236,11 @@ allocmcache(void)
 {
 	MCache *c;
 
+	lock(&mheap);
 	c = FixAlloc_Alloc(&mheap.cachealloc);
 	mstats.mcache_inuse = mheap.cachealloc.inuse;
 	mstats.mcache_sys = mheap.cachealloc.sys;
+	unlock(&mheap);
 	return c;
 }
 
