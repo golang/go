@@ -729,8 +729,11 @@ stotype(NodeList *l, int et, Type **t)
 				n->right = N;
 				if(n->embedded && n->type != T) {
 					t1 = n->type;
-					if(t1->sym == S && isptr[t1->etype])
+					if(t1->sym == S && isptr[t1->etype]) {
 						t1 = t1->type;
+						if(t1->etype == TINTER)
+							yyerror("embedded type cannot be a pointer to interface");
+					}
 					if(isptr[t1->etype])
 						yyerror("embedded type cannot be a pointer");
 					else if(t1->etype == TFORW && t1->embedlineno == 0)

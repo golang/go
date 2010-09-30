@@ -879,9 +879,10 @@ struct {
 </pre>
 
 <p>
-A field declared with a type but no explicit field name is an <i>anonymous field</i>.
+A field declared with a type but no explicit field name is an <i>anonymous field</i>
+(colloquially called an embedded field).
 Such a field type must be specified as
-a type name <code>T</code> or as a pointer to a type name <code>*T</code>,
+a type name <code>T</code> or as a pointer to a non-interface type name <code>*T</code>,
 and <code>T</code> itself may not be
 a pointer type. The unqualified type name acts as the field name.
 </p>
@@ -2214,8 +2215,7 @@ x.f
 
 <p>
 denotes the field or method <code>f</code> of the value denoted by <code>x</code>
-(or of <code>*x</code> if
-<code>x</code> is of pointer type). The identifier <code>f</code>
+(or sometimes <code>*x</code>; see below). The identifier <code>f</code>
 is called the (field or method)
 <i>selector</i>; it must not be the <a href="#Blank_identifier">blank identifier</a>.
 The type of the expression is the type of <code>f</code>.
@@ -2258,16 +2258,13 @@ In all other cases, <code>x.f</code> is illegal.
 </li>
 </ol>
 <p>
-Selectors automatically dereference pointers.
-If <code>x</code> is of pointer type, <code>x.y</code>
-is shorthand for <code>(*x).y</code>; if <code>y</code>
-is also of pointer type, <code>x.y.z</code> is shorthand
+Selectors automatically dereference pointers to structs.
+If <code>x</code> is a pointer to a struct, <code>x.y</code>
+is shorthand for <code>(*x).y</code>; if the field <code>y</code>
+is also a pointer to a struct, <code>x.y.z</code> is shorthand
 for <code>(*(*x).y).z</code>, and so on.
-If <code>*x</code> is of pointer type, dereferencing
-must be explicit;
-only one level of automatic dereferencing is provided.
-For an <code>x</code> of type <code>T</code> containing an
-anonymous field declared as <code>*A</code>,
+If <code>x</code> contains an anonymous field of type <code>*A</code>,
+where <code>A</code> is also a struct type,
 <code>x.f</code> is a shortcut for <code>(*x.A).f</code>.
 </p>
 <p>

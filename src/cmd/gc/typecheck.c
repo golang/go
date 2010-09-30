@@ -520,7 +520,7 @@ reswitch:
 			ok = Erv;
 			goto ret;
 		}
-		if(isptr[t->etype]) {
+		if(isptr[t->etype] && t->type->etype != TINTER) {
 			t = t->type;
 			if(t == T)
 				goto error;

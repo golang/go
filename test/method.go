@@ -124,9 +124,4 @@ func main() {
 		println("Val.val(v):", Val.val(v))
 		panic("fail")
 	}
-	pv := &v
-	if pv.val() != 3 {
-		println("pv.val():", pv.val())
-		panic("fail")
-	}
 }

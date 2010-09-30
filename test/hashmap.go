@@ -21,7 +21,7 @@ func ASSERT(p bool) {
 
 type KeyType interface {
 	Hash() uint32
-	Match(other *KeyType) bool
+	Match(other KeyType) bool
 }
 
 
@@ -31,8 +31,8 @@ type ValueType interface {
 
 
 type Entry struct {
-	key *KeyType
-	value *ValueType
+	key KeyType
+	value ValueType
 }
 
 
@@ -68,7 +68,7 @@ func (m *HashMap) Initialize (initial_log2_capacity uint32) {
 }
 
 
-func (m *HashMap) Probe (key *KeyType) *Entry {
+func (m *HashMap) Probe (key KeyType) *Entry {
 	ASSERT(key != nil)
 
 	var i uint32 = key.Hash() % m.capacity()
@@ -86,7 +86,7 @@ func (m *HashMap) Probe (key *KeyType) *Entry {
 }
 
 
-func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
+func (m *HashMap) Lookup (key KeyType, insert bool) *Entry {
 	// Find a matching entry.
 	var p *Entry = m.Probe(key)
 		if p.key != nil {
@@ -145,7 +145,7 @@ func (n *Number) Hash() uint32 {
 }
 
 
-func (n *Number) Match(other *KeyType) bool {
+func (n *Number) Match(other KeyType) bool {
 	// var y *Number = other
 	// return n.x == y.x
 	return false

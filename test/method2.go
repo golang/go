@@ -20,3 +20,8 @@ type Val interface {
 }
 
 var _ = (*Val).val // ERROR "method"
+
+var v Val
+var pv = &v
+
+var _ = pv.val()	// ERROR "method"
