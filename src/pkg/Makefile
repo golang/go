@@ -15,6 +15,7 @@ all: install
 
 DIRS=\
 	archive/tar\
+	archive/zip\
 	asn1\
 	big\
 	bufio\
