@@ -27,21 +27,21 @@ func loadPage(title string) (*page, os.Error) {
 	return &page{title: title, body: body}, nil
 }
 
-func viewHandler(c *http.Conn, r *http.Request) {
-	title, err := getTitle(c, r)
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
 	if err != nil {
 		return
 	}
 	p, err := loadPage(title)
 	if err != nil {
-		http.Redirect(c, "/edit/"+title, http.StatusFound)
+		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		return
 	}
-	renderTemplate(c, "view", p)
+	renderTemplate(w, "view", p)
 }
 
-func editHandler(c *http.Conn, r *http.Request) {
-	title, err := getTitle(c, r)
+func editHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
 	if err != nil {
 		return
 	}
@@ -49,11 +49,11 @@ func editHandler(c *http.Conn, r *http.Request) {
 	if err != nil {
 		p = &page{title: title}
 	}
-	renderTemplate(c, "edit", p)
+	renderTemplate(w, "edit", p)
 }
 
-func saveHandler(c *http.Conn, r *http.Request) {
-	title, err := getTitle(c, r)
+func saveHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
 	if err != nil {
 		return
 	}
@@ -61,21 +61,21 @@ func saveHandler(c *http.Conn, r *http.Request) {
 	p := &page{title: title, body: []byte(body)}
 	err = p.save()
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(c, "/view/"+title, http.StatusFound)
+	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
-func renderTemplate(c *http.Conn, tmpl string, p *page) {
+func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
 	t, err := template.ParseFile(tmpl+".html", nil)
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	err = t.Execute(p, c)
+	err = t.Execute(p, w)
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 	}
 }
 
@@ -83,10 +83,10 @@ const lenPath = len("/view/")
 
 var titleValidator = regexp.MustCompile("^[a-zA-Z0-9]+$")
 
-func getTitle(c *http.Conn, r *http.Request) (title string, err os.Error) {
+func getTitle(w http.ResponseWriter, r *http.Request) (title string, err os.Error) {
 	title = r.URL.Path[lenPath:]
 	if !titleValidator.MatchString(title) {
-		http.NotFound(c, r)
+		http.NotFound(w, r)
 		err = os.NewError("Invalid Page Title")
 	}
 	return

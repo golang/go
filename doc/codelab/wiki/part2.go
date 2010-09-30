@@ -28,10 +28,10 @@ func loadPage(title string) (*page, os.Error) {
 
 const lenPath = len("/view/")
 
-func viewHandler(c *http.Conn, r *http.Request) {
+func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
-	fmt.Fprintf(c, "<h1>%s</h1><div>%s</div>", p.title, p.body)
+	fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.title, p.body)
 }
 
 func main() {

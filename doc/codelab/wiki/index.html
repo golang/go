@@ -240,8 +240,8 @@ import (
 	&#34;http&#34;
 )
 
-func handler(c *http.Conn, r *http.Request) {
-	fmt.Fprintf(c, &#34;Hi there, I love %s!&#34;, r.URL.Path[1:])
+func handler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, &#34;Hi there, I love %s!&#34;, r.URL.Path[1:])
 }
 
 func main() {
@@ -266,12 +266,12 @@ This function will block until the program is terminated.
 
 <p>
 The function <code>handler</code> is of the type <code>http.HandlerFunc</code>.
-It takes an <code>http.Conn</code> and <code>http.Request</code> as its 
-arguments.
+It takes an <code>http.ResponseWriter</code> and an <code>http.Request</code> as
+its arguments.
 </p>
 
 <p>
-An <code>http.Conn</code> is the server end of an HTTP connection; by writing 
+An <code>http.ResponseWriter</code> value assembles the HTTP server's response; by writing 
 to it, we send data to the HTTP client.
 </p>
 
@@ -314,10 +314,10 @@ Let's create a handler to view a wiki page:
 <pre>
 const lenPath = len(&#34;/view/&#34;)
 
-func viewHandler(c *http.Conn, r *http.Request) {
+func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
-	fmt.Fprintf(c, &#34;&lt;h1&gt;%s&lt;/h1&gt;&lt;div&gt;%s&lt;/div&gt;&#34;, p.title, p.body)
+	fmt.Fprintf(w, &#34;&lt;h1&gt;%s&lt;/h1&gt;&lt;div&gt;%s&lt;/div&gt;&#34;, p.title, p.body)
 }
 </pre>
 
@@ -333,7 +333,7 @@ begin with <code>"/view/"</code>, which is not part of the page title.
 
 <p>
 The function then loads the page data, formats the page with a string of simple 
-HTML, and writes it to <code>c</code>, the <code>http.Conn</code>. 
+HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>. 
 </p>
 
 <p>
@@ -406,13 +406,13 @@ and displays an HTML form.
 </p>
 
 <pre>
-func editHandler(c *http.Conn, r *http.Request) {
+func editHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, err := loadPage(title)
 	if err != nil {
 		p = &amp;page{title: title}
 	}
-	fmt.Fprintf(c, &#34;&lt;h1&gt;Editing %s&lt;/h1&gt;&#34;+
+	fmt.Fprintf(w, &#34;&lt;h1&gt;Editing %s&lt;/h1&gt;&#34;+
 		&#34;&lt;form action=\&#34;/save/%s\&#34; method=\&#34;POST\&#34;&gt;&#34;+
 		&#34;&lt;textarea name=\&#34;body\&#34;&gt;%s&lt;/textarea&gt;&lt;br&gt;&#34;+
 		&#34;&lt;input type=\&#34;submit\&#34; value=\&#34;Save\&#34;&gt;&#34;+
@@ -468,14 +468,14 @@ HTML:
 </p>
 
 <pre>
-func editHandler(c *http.Conn, r *http.Request) {
+func editHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, err := loadPage(title)
 	if err != nil {
 		p = &amp;page{title: title}
 	}
 	t, _ := template.ParseFile(&#34;edit.html&#34;, nil)
-	t.Execute(p, c)
+	t.Execute(p, w)
 }
 </pre>
 
@@ -488,7 +488,7 @@ The function <code>template.ParseFile</code> will read the contents of
 The method <code>t.Execute</code> replaces all occurrences of 
 <code>{title}</code> and <code>{body}</code> with the values of 
 <code>p.title</code> and <code>p.body</code>, and writes the resultant
-HTML to the <code>http.Conn</code>.
+HTML to the <code>http.ResponseWriter</code>.
 </p>
 
 <p>
@@ -523,11 +523,11 @@ Modify <code>viewHandler</code> accordingly:
 </p>
 
 <pre>
-func viewHandler(c *http.Conn, r *http.Request) {
+func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
 	t, _ := template.ParseFile(&#34;view.html&#34;, nil)
-	t.Execute(p, c)
+	t.Execute(p, w)
 }
 </pre>
 
@@ -538,24 +538,24 @@ to its own function:
 </p>
 
 <pre>
-func viewHandler(c *http.Conn, r *http.Request) {
+func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
-	renderTemplate(c, &#34;view&#34;, p)
+	renderTemplate(w, &#34;view&#34;, p)
 }
 
-func editHandler(c *http.Conn, r *http.Request) {
+func editHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, err := loadPage(title)
 	if err != nil {
 		p = &amp;page{title: title}
 	}
-	renderTemplate(c, &#34;edit&#34;, p)
+	renderTemplate(w, &#34;edit&#34;, p)
 }
 
-func renderTemplate(c *http.Conn, tmpl string, p *page) {
+func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
 	t, _ := template.ParseFile(tmpl+&#34;.html&#34;, nil)
-	t.Execute(p, c)
+	t.Execute(p, w)
 }
 </pre>
 
@@ -573,13 +573,13 @@ redirect the client to the edit page so the content may be created:
 </p>
 
 <pre>
-func viewHandler(c *http.Conn, r *http.Request, title string) {
+func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
-		http.Redirect(c, &#34;/edit/&#34;+title, http.StatusFound)
+		http.Redirect(w, r, &#34;/edit/&#34;+title, http.StatusFound)
 		return
 	}
-	renderTemplate(c, &#34;view&#34;, p)
+	renderTemplate(w, &#34;view&#34;, p)
 }
 </pre>
 
@@ -596,12 +596,12 @@ The function <code>saveHandler</code> will handle the form submission.
 </p>
 
 <pre>
-func saveHandler(c *http.Conn, r *http.Request) {
+func saveHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	body := r.FormValue(&#34;body&#34;)
 	p := &amp;page{title: title, body: []byte(body)}
 	p.save()
-	http.Redirect(c, &#34;/view/&#34;+title, http.StatusFound)
+	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
 }
 </pre>
 
@@ -634,15 +634,15 @@ First, let's handle the errors in <code>renderTemplate</code>:
 </p>
 
 <pre>
-func renderTemplate(c *http.Conn, tmpl string, p *page) {
+func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
 	t, err := template.ParseFile(tmpl+&#34;.html&#34;, nil)
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	err = t.Execute(p, c)
+	err = t.Execute(p, w)
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 	}
 }
 </pre>
@@ -658,15 +658,15 @@ Now let's fix up <code>saveHandler</code>:
 </p>
 
 <pre>
-func saveHandler(c *http.Conn, r *http.Request, title string) {
+func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue(&#34;body&#34;)
 	p := &amp;page{title: title, body: []byte(body)}
 	err := p.save()
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(c, &#34;/view/&#34;+title, http.StatusFound)
+	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
 }
 </pre>
 
@@ -725,10 +725,10 @@ the <code>Execute</code> method on the appropriate <code>Template</code> from
 <code>templates</code>:
 
 <pre>
-func renderTemplate(c *http.Conn, tmpl string, p *page) {
-	err := templates[tmpl].Execute(p, c)
+func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
+	err := templates[tmpl].Execute(p, w)
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 	}
 }
 </pre>
@@ -765,10 +765,10 @@ URL, and tests it against our <code>titleValidator</code> expression:
 </p>
 
 <pre>
-func getTitle(c *http.Conn, r *http.Request) (title string, err os.Error) {
+func getTitle(w http.ResponseWriter, r *http.Request) (title string, err os.Error) {
 	title = r.URL.Path[lenPath:]
 	if !titleValidator.MatchString(title) {
-		http.NotFound(c, r)
+		http.NotFound(w, r)
 		err = os.NewError(&#34;Invalid Page Title&#34;)
 	}
 	return
@@ -787,21 +787,21 @@ Let's put a call to <code>getTitle</code> in each of the handlers:
 </p>
 
 <pre>
-func viewHandler(c *http.Conn, r *http.Request) {
-	title, err := getTitle(c, r)
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
 	if err != nil {
 		return
 	}
 	p, err := loadPage(title)
 	if err != nil {
-		http.Redirect(c, &#34;/edit/&#34;+title, http.StatusFound)
+		http.Redirect(w, r, &#34;/edit/&#34;+title, http.StatusFound)
 		return
 	}
-	renderTemplate(c, &#34;view&#34;, p)
+	renderTemplate(w, &#34;view&#34;, p)
 }
 
-func editHandler(c *http.Conn, r *http.Request) {
-	title, err := getTitle(c, r)
+func editHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
 	if err != nil {
 		return
 	}
@@ -809,11 +809,11 @@ func editHandler(c *http.Conn, r *http.Request) {
 	if err != nil {
 		p = &amp;page{title: title}
 	}
-	renderTemplate(c, &#34;edit&#34;, p)
+	renderTemplate(w, &#34;edit&#34;, p)
 }
 
-func saveHandler(c *http.Conn, r *http.Request) {
-	title, err := getTitle(c, r)
+func saveHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
 	if err != nil {
 		return
 	}
@@ -821,10 +821,10 @@ func saveHandler(c *http.Conn, r *http.Request) {
 	p := &amp;page{title: title, body: []byte(body)}
 	err = p.save()
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(c, &#34;/view/&#34;+title, http.StatusFound)
+	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
 }
 </pre>
 
@@ -845,9 +845,9 @@ a title string:
 </p>
 
 <pre>
-func viewHandler(c *http.Conn, r *http.Request, title string)
-func editHandler(c *http.Conn, r *http.Request, title string)
-func saveHandler(c *http.Conn, r *http.Request, title string)
+func viewHandler(w http.ResponseWriter, r *http.Request, title string)
+func editHandler(w http.ResponseWriter, r *http.Request, title string)
+func saveHandler(w http.ResponseWriter, r *http.Request, title string)
 </pre>
 
 <p>
@@ -857,8 +857,8 @@ type</i>, and returns a function of type <code>http.HandlerFunc</code>
 </p>
 
 <pre>
-func makeHandler(fn func (*http.Conn, *http.Request, string)) http.HandlerFunc {
-	return func(c *http.Conn, r *http.Request) {
+func makeHandler(fn func (http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		// Here we will extract the page title from the Request,
 		// and call the provided handler 'fn'
 	}
@@ -878,28 +878,28 @@ Now we can take the code from <code>getTitle</code> and use it here
 </p>
 
 <pre>
-func makeHandler(fn func(*http.Conn, *http.Request, string)) http.HandlerFunc {
-	return func(c *http.Conn, r *http.Request) {
+func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		title := r.URL.Path[lenPath:]
 		if !titleValidator.MatchString(title) {
-			http.NotFound(c, r)
+			http.NotFound(w, r)
 			return
 		}
-		fn(c, r, title)
+		fn(w, r, title)
 	}
 }
 </pre>
 
 <p>
 The closure returned by <code>makeHandler</code> is a function that takes
-an <code>http.Conn</code> and <code>http.Request</code> (in other words,
-an <code>http.HandlerFunc</code>). 
+an <code>http.ResponseWriter</code> and <code>http.Request</code> (in other
+words, an <code>http.HandlerFunc</code>). 
 The closure extracts the <code>title</code> from the request path, and
 validates it with the <code>titleValidator</code> regexp. If the
 <code>title</code> is invalid, an error will be written to the
-<code>Conn</code> using the <code>http.NotFound</code> function. 
+<code>ResponseWriter</code> using the <code>http.NotFound</code> function. 
 If the <code>title</code> is valid, the enclosed handler function
-<code>fn</code> will be called with the <code>Conn</code>,
+<code>fn</code> will be called with the <code>ResponseWriter</code>,
 <code>Request</code>, and <code>title</code> as arguments.
 </p>
 
@@ -924,32 +924,32 @@ making them much simpler:
 </p>
 
 <pre>
-func viewHandler(c *http.Conn, r *http.Request, title string) {
+func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
-		http.Redirect(c, &#34;/edit/&#34;+title, http.StatusFound)
+		http.Redirect(w, r, &#34;/edit/&#34;+title, http.StatusFound)
 		return
 	}
-	renderTemplate(c, &#34;view&#34;, p)
+	renderTemplate(w, &#34;view&#34;, p)
 }
 
-func editHandler(c *http.Conn, r *http.Request, title string) {
+func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
 		p = &amp;page{title: title}
 	}
-	renderTemplate(c, &#34;edit&#34;, p)
+	renderTemplate(w, &#34;edit&#34;, p)
 }
 
-func saveHandler(c *http.Conn, r *http.Request, title string) {
+func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue(&#34;body&#34;)
 	p := &amp;page{title: title, body: []byte(body)}
 	err := p.save()
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(c, &#34;/view/&#34;+title, http.StatusFound)
+	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
 }
 </pre>
 

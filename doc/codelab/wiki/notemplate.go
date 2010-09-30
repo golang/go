@@ -28,19 +28,19 @@ func loadPage(title string) (*page, os.Error) {
 
 const lenPath = len("/view/")
 
-func viewHandler(c *http.Conn, r *http.Request) {
+func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
-	fmt.Fprintf(c, "<h1>%s</h1><div>%s</div>", p.title, p.body)
+	fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.title, p.body)
 }
 
-func editHandler(c *http.Conn, r *http.Request) {
+func editHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, err := loadPage(title)
 	if err != nil {
 		p = &page{title: title}
 	}
-	fmt.Fprintf(c, "<h1>Editing %s</h1>"+
+	fmt.Fprintf(w, "<h1>Editing %s</h1>"+
 		"<form action=\"/save/%s\" method=\"POST\">"+
 		"<textarea name=\"body\">%s</textarea><br>"+
 		"<input type=\"submit\" value=\"Save\">"+
