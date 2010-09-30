@@ -27,32 +27,32 @@ func loadPage(title string) (*page, os.Error) {
 	return &page{title: title, body: body}, nil
 }
 
-func viewHandler(c *http.Conn, r *http.Request, title string) {
+func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
-		http.Redirect(c, "/edit/"+title, http.StatusFound)
+		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		return
 	}
-	renderTemplate(c, "view", p)
+	renderTemplate(w, "view", p)
 }
 
-func editHandler(c *http.Conn, r *http.Request, title string) {
+func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
 		p = &page{title: title}
 	}
-	renderTemplate(c, "edit", p)
+	renderTemplate(w, "edit", p)
 }
 
-func saveHandler(c *http.Conn, r *http.Request, title string) {
+func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue("body")
 	p := &page{title: title, body: []byte(body)}
 	err := p.save()
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(c, "/view/"+title, http.StatusFound)
+	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
 var templates = make(map[string]*template.Template)
@@ -63,10 +63,10 @@ func init() {
 	}
 }
 
-func renderTemplate(c *http.Conn, tmpl string, p *page) {
-	err := templates[tmpl].Execute(p, c)
+func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
+	err := templates[tmpl].Execute(p, w)
 	if err != nil {
-		http.Error(c, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.String(), http.StatusInternalServerError)
 	}
 }
 
@@ -74,14 +74,14 @@ const lenPath = len("/view/")
 
 var titleValidator = regexp.MustCompile("^[a-zA-Z0-9]+$")
 
-func makeHandler(fn func(*http.Conn, *http.Request, string)) http.HandlerFunc {
-	return func(c *http.Conn, r *http.Request) {
+func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		title := r.URL.Path[lenPath:]
 		if !titleValidator.MatchString(title) {
-			http.NotFound(c, r)
+			http.NotFound(w, r)
 			return
 		}
-		fn(c, r, title)
+		fn(w, r, title)
 	}
 }
 

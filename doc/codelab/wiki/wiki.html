@@ -230,12 +230,12 @@ This function will block until the program is terminated.
 
 <p>
 The function <code>handler</code> is of the type <code>http.HandlerFunc</code>.
-It takes an <code>http.Conn</code> and <code>http.Request</code> as its 
-arguments.
+It takes an <code>http.ResponseWriter</code> and an <code>http.Request</code> as
+its arguments.
 </p>
 
 <p>
-An <code>http.Conn</code> is the server end of an HTTP connection; by writing 
+An <code>http.ResponseWriter</code> value assembles the HTTP server's response; by writing 
 to it, we send data to the HTTP client.
 </p>
 
@@ -293,7 +293,7 @@ begin with <code>"/view/"</code>, which is not part of the page title.
 
 <p>
 The function then loads the page data, formats the page with a string of simple 
-HTML, and writes it to <code>c</code>, the <code>http.Conn</code>. 
+HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>. 
 </p>
 
 <p>
@@ -415,7 +415,7 @@ The function <code>template.ParseFile</code> will read the contents of
 The method <code>t.Execute</code> replaces all occurrences of 
 <code>{title}</code> and <code>{body}</code> with the values of 
 <code>p.title</code> and <code>p.body</code>, and writes the resultant
-HTML to the <code>http.Conn</code>.
+HTML to the <code>http.ResponseWriter</code>.
 </p>
 
 <p>
@@ -667,9 +667,9 @@ a title string:
 </p>
 
 <pre>
-func viewHandler(c *http.Conn, r *http.Request, title string)
-func editHandler(c *http.Conn, r *http.Request, title string)
-func saveHandler(c *http.Conn, r *http.Request, title string)
+func viewHandler(w http.ResponseWriter, r *http.Request, title string)
+func editHandler(w http.ResponseWriter, r *http.Request, title string)
+func saveHandler(w http.ResponseWriter, r *http.Request, title string)
 </pre>
 
 <p>
@@ -679,8 +679,8 @@ type</i>, and returns a function of type <code>http.HandlerFunc</code>
 </p>
 
 <pre>
-func makeHandler(fn func (*http.Conn, *http.Request, string)) http.HandlerFunc {
-	return func(c *http.Conn, r *http.Request) {
+func makeHandler(fn func (http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		// Here we will extract the page title from the Request,
 		// and call the provided handler 'fn'
 	}
@@ -705,14 +705,14 @@ Now we can take the code from <code>getTitle</code> and use it here
 
 <p>
 The closure returned by <code>makeHandler</code> is a function that takes
-an <code>http.Conn</code> and <code>http.Request</code> (in other words,
-an <code>http.HandlerFunc</code>). 
+an <code>http.ResponseWriter</code> and <code>http.Request</code> (in other
+words, an <code>http.HandlerFunc</code>). 
 The closure extracts the <code>title</code> from the request path, and
 validates it with the <code>titleValidator</code> regexp. If the
 <code>title</code> is invalid, an error will be written to the
-<code>Conn</code> using the <code>http.NotFound</code> function. 
+<code>ResponseWriter</code> using the <code>http.NotFound</code> function. 
 If the <code>title</code> is valid, the enclosed handler function
-<code>fn</code> will be called with the <code>Conn</code>,
+<code>fn</code> will be called with the <code>ResponseWriter</code>,
 <code>Request</code>, and <code>title</code> as arguments.
 </p>
 
