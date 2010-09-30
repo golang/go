@@ -191,37 +191,31 @@ if they enjoy it. Not every programmer
 will, but we hope enough will find satisfaction in the approach it
 offers to justify further development.
 
-<h3 id="Is_Google_using_go_internally"> Is Google using Go
-internally?</h3>
+<h3 id="Is_Google_using_go_internally"> Is Google using Go internally?</h3>
 
-<p> The Go project was conceived to make it easier to write the kind
-of servers and other software Google uses internally, but the
-implementation isn't quite mature enough yet for large-scale
-production use.  While we continue development we are also doing
-experiments with the language as a candidate server environment.  It's
-getting there.  For instance, the server behind <a
-href="http://golang.org">http://golang.org</a> is a Go program; in
-fact it's just the <a href="/cmd/godoc"><code>godoc</code></a> document server running in a
-production configuration.
+<p>Yes. There are now several Go programs deployed in 
+production inside Google.  For instance, the server behind
+<a href="http://golang.org">http://golang.org</a> is a Go program; 
+in fact it's just the <a href="/cmd/godoc"><code>godoc</code></a>
+document server running in a production configuration.
 
 
 <h3 id="Do_Go_programs_link_with_Cpp_programs">
 Do Go programs link with C/C++ programs?</h3>
 
 <p>
-There are two Go compiler implementations, <code>6g</code> and friends, generically called
-<code>gc</code>, and <code>gccgo</code>.
+There are two Go compiler implementations, <code>6g</code> and friends, 
+generically called <code>gc</code>, and <code>gccgo</code>.
 <code>Gc</code> uses a different calling convention and linker and can
 therefore only be linked with C programs using the same convention.
-There is such a C compiler but no C++ compiler. <code>Gccgo</code> is a
-GCC front-end that can, with care, be linked with GCC-compiled
-C or C++ programs. However, because Go is garbage-collected it will be
-unwise to do so, at least naively.
+There is such a C compiler but no C++ compiler. 
+<code>Gccgo</code> is a GCC front-end that can, with care, be linked with 
+GCC-compiled C or C++ programs. 
 
 <p>
-There is a &ldquo;foreign function interface&rdquo; to allow safe calling of C-written
-libraries from Go code.  We expect to use SWIG to extend this capability
-to C++ libraries.  There is no safe way to call Go code from C or C++ yet.
+The <a href="/cmd/cgo/">cgo</a> program provides the mechanism for a 
+&ldquo;foreign function interface&rdquo; to allow safe calling of 
+C libraries from Go code. SWIG extends this capability to C++ libraries.
 
 <h3 id="Does_Go_support_Google_protocol_buffers">
 Does Go support Google's protocol buffers?</h3>
@@ -324,6 +318,9 @@ conditions.  The recovery mechanism is executed only as part of a
 function's state being torn down after an error, which is sufficient
 to handle catastrophe but requires no extra control structures and,
 when used well, can result in clean error-handling code.
+</p>
+<p>
+See the <a href="http://blog.golang.org/2010/08/defer-panic-and-recover.html">Defer, Panic, and Recover</a> article for details.
 </p>
 
 
@@ -697,6 +694,10 @@ responsible for a particular piece of data.
 Do not communicate by sharing memory. Instead, share memory by communicating.
 </p>
 
+<p>
+See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code walk and its <a href="http://blog.golang.org/2010/07/share-memory-by-communicating.html">associated article</a> for a detailed discussion of this concept.
+</p>
+
 <h3 id="Why_no_multi_CPU">
 Why doesn't my multi-goroutine program use multiple CPUs?</h3>
 
@@ -885,6 +886,8 @@ That script finds the <code>Test</code> functions,
 builds a test binary, and runs it.
 </p>
 
+<p>See the <a href="/doc/code.html">How to Write Go Code</a> document for more details.</p>
+
 
 <h2 id="Implementation">Implementation</h2>
 
@@ -1011,6 +1014,10 @@ has the same effect as
 Parsing is also simplified by having a distinct grammar for types that
 is not just the expression grammar; keywords such as <code>func</code>
 and <code>chan</code> keep things clear.
+</p>
+
+<p>
+See the <a href="http://blog.golang.org/2010/07/gos-declaration-syntax.html">Go's Declaration Syntax</a> article for more details.
 </p>
 
 <h3 id="no_pointer_arithmetic">
