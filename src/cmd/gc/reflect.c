@@ -286,15 +286,6 @@ imethods(Type *t)
 				oldlist = pc;
 			genwrapper(t, f, isym, 0);
 		}
-		
-		// Generate wrapper for pointer to interface type.
-		isym = methodsym(method, ptrto(t), 0);
-		if(!(isym->flags & SymSiggen)) {
-			isym->flags |= SymSiggen;
-			if(oldlist == nil)
-				oldlist = pc;
-			genwrapper(ptrto(t), f, isym, 0);
-		}
 	}
 
 	if(oldlist) {
