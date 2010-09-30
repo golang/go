@@ -934,6 +934,8 @@ Lconv(Fmt *fp)
 				break;
 			fmtprint(fp, " ");
 		}
+		if(debug['L'])
+			fmtprint(fp, "%s/", pathname);
 		if(a[i].line)
 			fmtprint(fp, "%s:%ld[%s:%ld]",
 				a[i].line->name, lno-a[i].ldel+1,

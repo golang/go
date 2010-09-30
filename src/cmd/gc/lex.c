@@ -436,7 +436,9 @@ importfile(Val *f, int line)
 	path = f->u.sval;
 	if(islocalname(path)) {
 		cleanbuf = mal(strlen(pathname) + strlen(path->s) + 2);
-		sprint(cleanbuf, "%s/%s", pathname, path->s);
+		strcpy(cleanbuf, pathname);
+		strcat(cleanbuf, "/");
+		strcat(cleanbuf, path->s);
 		cleanname(cleanbuf);
 		path = strlit(cleanbuf);
 	}
