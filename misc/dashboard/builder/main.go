@@ -129,6 +129,8 @@ func runQueuedBenchmark() bool {
 
 func runBenchmark(r BenchRequest) {
 	// run benchmarks and send to dashboard
+	log.Stderrf("%s benchmarking %d", r.builder.name, r.commit.num)
+	defer os.RemoveAll(r.path)
 	pkg := path.Join(r.path, "go", "src", "pkg")
 	bin := path.Join(r.path, "go", "bin")
 	env := []string{
@@ -159,7 +161,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
 
 	// read keys from keyfile
 	fn := path.Join(os.Getenv("HOME"), ".gobuildkey")
-	if s := fn+"-"+b.name; isFile(s) { // builder-specific file
+	if s := fn + "-" + b.name; isFile(s) { // builder-specific file
 		fn = s
 	}
 	c, err := ioutil.ReadFile(fn)
@@ -251,7 +253,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	}
 
 	// update to specified revision
-	err = run(nil, path.Join(workpath, "go"), 
+	err = run(nil, path.Join(workpath, "go"),
 		"hg", "update", "-r", strconv.Itoa(c.num))
 	if err != nil {
 		return
