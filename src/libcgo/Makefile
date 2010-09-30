@@ -10,7 +10,7 @@ all clean install:
 
 else ifeq ($(GOARCH),arm)
 
-# Nothing for NaCl
+# Nothing for ARM - usually cross compiling anyway
 all clean install:
 	@true
 
