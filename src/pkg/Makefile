@@ -205,6 +205,7 @@ ifeq ($(GOARCH),arm)
 # Tests that fail, probably 5g bugs.
 # Disable so that dashboard all.bash can catch regressions.
 NOTEST+=archive/tar
+NOTEST+=archive/zip
 NOTEST+=asn1
 NOTEST+=big
 NOTEST+=bytes
