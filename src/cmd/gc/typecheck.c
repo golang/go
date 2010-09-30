@@ -1550,7 +1550,7 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
 	for(tl=tstruct->type; tl; tl=tl->down) {
 		t = tl->type;
 		if(tl->isddd) {
-			if(nl != nil && nl->n->isddd && !isddd) {
+			if(nl != nil && nl->n->op == ONAME && nl->n->isddd && !isddd) {
 				// TODO(rsc): This is not actually illegal, but it will help catch bugs.
 				yyerror("to pass '%#N' as ...%T, use '%#N...'", nl->n, t->type, nl->n);
 				isddd = 1;
