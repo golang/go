@@ -7,7 +7,13 @@ ifeq ($(GOOS),nacl)
 # Nothing for NaCl
 all clean install:
 	@true
-	
+
+else ifeq ($(GOARCH),arm)
+
+# Nothing for NaCl
+all clean install:
+	@true
+
 else
 include ../Make.inc
 
