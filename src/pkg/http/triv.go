@@ -20,9 +20,9 @@ import (
 // hello world, the web server
 var helloRequests = expvar.NewInt("hello-requests")
 
-func HelloServer(c *http.Conn, req *http.Request) {
+func HelloServer(w http.ResponseWriter, req *http.Request) {
 	helloRequests.Add(1)
-	io.WriteString(c, "hello, world!\n")
+	io.WriteString(w, "hello, world!\n")
 }
 
 // Simple counter server. POSTing to it will set the value.
@@ -34,7 +34,7 @@ type Counter struct {
 // it directly.
 func (ctr *Counter) String() string { return fmt.Sprintf("%d", ctr.n) }
 
-func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
 		ctr.n++
@@ -43,34 +43,34 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 		io.Copy(buf, req.Body)
 		body := buf.String()
 		if n, err := strconv.Atoi(body); err != nil {
-			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body)
+			fmt.Fprintf(w, "bad POST: %v\nbody: [%v]\n", err, body)
 		} else {
 			ctr.n = n
-			fmt.Fprint(c, "counter reset\n")
+			fmt.Fprint(w, "counter reset\n")
 		}
 	}
-	fmt.Fprintf(c, "counter = %d\n", ctr.n)
+	fmt.Fprintf(w, "counter = %d\n", ctr.n)
 }
 
 // simple flag server
 var booleanflag = flag.Bool("boolean", true, "another flag for testing")
 
-func FlagServer(c *http.Conn, req *http.Request) {
-	c.SetHeader("content-type", "text/plain; charset=utf-8")
-	fmt.Fprint(c, "Flags:\n")
+func FlagServer(w http.ResponseWriter, req *http.Request) {
+	w.SetHeader("content-type", "text/plain; charset=utf-8")
+	fmt.Fprint(w, "Flags:\n")
 	flag.VisitAll(func(f *flag.Flag) {
 		if f.Value.String() != f.DefValue {
-			fmt.Fprintf(c, "%s = %s [default = %s]\n", f.Name, f.Value.String(), f.DefValue)
+			fmt.Fprintf(w, "%s = %s [default = %s]\n", f.Name, f.Value.String(), f.DefValue)
 		} else {
-			fmt.Fprintf(c, "%s = %s\n", f.Name, f.Value.String())
+			fmt.Fprintf(w, "%s = %s\n", f.Name, f.Value.String())
 		}
 	})
 }
 
 // simple argument server
-func ArgServer(c *http.Conn, req *http.Request) {
+func ArgServer(w http.ResponseWriter, req *http.Request) {
 	for _, s := range os.Args {
-		fmt.Fprint(c, s, " ")
+		fmt.Fprint(w, s, " ")
 	}
 }
 
@@ -87,41 +87,41 @@ func ChanCreate() Chan {
 	return c
 }
 
-func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
-	io.WriteString(c, fmt.Sprintf("channel send #%d\n", <-ch))
+func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	io.WriteString(w, fmt.Sprintf("channel send #%d\n", <-ch))
 }
 
 // exec a program, redirecting output
-func DateServer(c *http.Conn, req *http.Request) {
-	c.SetHeader("content-type", "text/plain; charset=utf-8")
+func DateServer(rw http.ResponseWriter, req *http.Request) {
+	rw.SetHeader("content-type", "text/plain; charset=utf-8")
 	r, w, err := os.Pipe()
 	if err != nil {
-		fmt.Fprintf(c, "pipe: %s\n", err)
+		fmt.Fprintf(rw, "pipe: %s\n", err)
 		return
 	}
 	pid, err := os.ForkExec("/bin/date", []string{"date"}, os.Environ(), "", []*os.File{nil, w, w})
 	defer r.Close()
 	w.Close()
 	if err != nil {
-		fmt.Fprintf(c, "fork/exec: %s\n", err)
+		fmt.Fprintf(rw, "fork/exec: %s\n", err)
 		return
 	}
-	io.Copy(c, r)
+	io.Copy(rw, r)
 	wait, err := os.Wait(pid, 0)
 	if err != nil {
-		fmt.Fprintf(c, "wait: %s\n", err)
+		fmt.Fprintf(rw, "wait: %s\n", err)
 		return
 	}
 	if !wait.Exited() || wait.ExitStatus() != 0 {
-		fmt.Fprintf(c, "date: %v\n", wait)
+		fmt.Fprintf(rw, "date: %v\n", wait)
 		return
 	}
 }
 
-func Logger(c *http.Conn, req *http.Request) {
+func Logger(w http.ResponseWriter, req *http.Request) {
 	log.Stdout(req.URL.Raw)
-	c.WriteHeader(404)
-	c.Write([]byte("oops"))
+	w.WriteHeader(404)
+	w.Write([]byte("oops"))
 }
 
 
