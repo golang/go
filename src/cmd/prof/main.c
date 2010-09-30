@@ -53,7 +53,8 @@ Map *map[32];	// thread maps
 void
 Usage(void)
 {
-	fprint(2, "Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]\n");
+	fprint(2, "Usage: prof -p pid [-t total_secs] [-d delta_msec]\n");
+	fprint(2, "       prof [-t total_secs] [-d delta_msec] 6.out args ...\n");
 	fprint(2, "\tformats (default -h):\n");
 	fprint(2, "\t\t-P file.prof: write [c]pprof output to file.prof\n");
 	fprint(2, "\t\t-h: histograms\n");
