@@ -153,6 +153,7 @@ $(CGOTARG).so: $(GCC_OFILES) $(CGO_DEPS)
 
 $(pkgdir)/$(CGOTARG).so: $(CGOTARG).so
 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
+	rm -f "$@"
 	cp $(CGOTARG).so "$@"
 
 ifneq ($(CGOFILES),)
