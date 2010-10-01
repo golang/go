@@ -1091,7 +1091,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 			p.useNodeComments = n.Comments == nil
 			p.file(n)
 		default:
-			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n))
+			p.errors <- fmt.Errorf("printer.Fprint: unsupported node type %T", n)
 			runtime.Goexit()
 		}
 		p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)

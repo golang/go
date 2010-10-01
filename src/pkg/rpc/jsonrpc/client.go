@@ -87,7 +87,7 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
 	if c.resp.Error != nil {
 		x, ok := c.resp.Error.(string)
 		if !ok {
-			return os.NewError(fmt.Sprintf("invalid error %v", c.resp.Error))
+			return fmt.Errorf("invalid error %v", c.resp.Error)
 		}
 		if x == "" {
 			x = "unspecified error"
