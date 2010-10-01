@@ -15,14 +15,14 @@ import (
 func diff(m0, m1 image.Image) os.Error {
 	b0, b1 := m0.Bounds(), m1.Bounds()
 	if !b0.Eq(b1) {
-		return os.NewError(fmt.Sprintf("dimensions differ: %v vs %v", b0, b1))
+		return fmt.Errorf("dimensions differ: %v vs %v", b0, b1)
 	}
 	for y := b0.Min.Y; y < b0.Max.Y; y++ {
 		for x := b0.Min.X; x < b0.Max.X; x++ {
 			r0, g0, b0, a0 := m0.At(x, y).RGBA()
 			r1, g1, b1, a1 := m1.At(x, y).RGBA()
 			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
-				return os.NewError(fmt.Sprintf("colors differ at (%d, %d): %v vs %v", x, y, m0.At(x, y), m1.At(x, y)))
+				return fmt.Errorf("colors differ at (%d, %d): %v vs %v", x, y, m0.At(x, y), m1.At(x, y))
 			}
 		}
 	}

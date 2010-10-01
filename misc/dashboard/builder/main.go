@@ -156,7 +156,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
 	if len(s) == 2 {
 		b.goos, b.goarch = s[0], s[1]
 	} else {
-		return nil, errf("unsupported builder form: %s", builder)
+		return nil, fmt.Errorf("unsupported builder form: %s", builder)
 	}
 
 	// read keys from keyfile
@@ -166,7 +166,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
 	}
 	c, err := ioutil.ReadFile(fn)
 	if err != nil {
-		return nil, errf("readKeys %s (%s): %s", b.name, fn, err)
+		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
 	}
 	v := strings.Split(string(c), "\n", -1)
 	b.key = v[0]
@@ -207,7 +207,7 @@ func (b *Builder) build() bool {
 func (b *Builder) nextCommit() (nextC *Commit, err os.Error) {
 	defer func() {
 		if err != nil {
-			err = errf("%s nextCommit: %s", b.name, err)
+			err = fmt.Errorf("%s nextCommit: %s", b.name, err)
 		}
 	}()
 	hw, err := b.getHighWater()
@@ -229,7 +229,7 @@ func (b *Builder) nextCommit() (nextC *Commit, err os.Error) {
 func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	defer func() {
 		if err != nil {
-			err = errf("%s buildCommit: %d: %s", b.name, c.num, err)
+			err = fmt.Errorf("%s buildCommit: %d: %s", b.name, c.num, err)
 		}
 	}()
 
@@ -271,7 +271,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	// build
 	buildLog, status, err := runLog(env, srcDir, *buildCmd)
 	if err != nil {
-		return errf("all.bash: %s", err)
+		return fmt.Errorf("all.bash: %s", err)
 	}
 	if status != 0 {
 		// record failure
@@ -280,7 +280,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 
 	// record success
 	if err = b.recordResult("", c); err != nil {
-		return errf("recordResult: %s", err)
+		return fmt.Errorf("recordResult: %s", err)
 	}
 
 	// send benchmark request if benchmarks are enabled
@@ -303,13 +303,13 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 		// clean out build state
 		err = run(env, srcDir, "./clean.bash", "--nopkg")
 		if err != nil {
-			return errf("clean.bash: %s", err)
+			return fmt.Errorf("clean.bash: %s", err)
 		}
 		// upload binary release
 		fn := fmt.Sprintf("%s.%s-%s.tar.gz", release, b.goos, b.goarch)
 		err = run(nil, workpath, "tar", "czf", fn, "go")
 		if err != nil {
-			return errf("tar: %s", err)
+			return fmt.Errorf("tar: %s", err)
 		}
 		err = run(nil, workpath, "python",
 			path.Join(goroot, codePyScript),
@@ -332,8 +332,4 @@ func isDirectory(name string) bool {
 func isFile(name string) bool {
 	s, err := os.Stat(name)
 	return err == nil && (s.IsRegular() || s.IsSymlink())
-}
-
-func errf(format string, args ...interface{}) os.Error {
-	return os.NewError(fmt.Sprintf(format, args))
 }

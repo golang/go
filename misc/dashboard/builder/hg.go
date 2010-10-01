@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -19,7 +20,7 @@ type Commit struct {
 func getCommit(rev string) (c Commit, err os.Error) {
 	defer func() {
 		if err != nil {
-			err = errf("getCommit: %s: %s", rev, err)
+			err = fmt.Errorf("getCommit: %s: %s", rev, err)
 		}
 	}()
 	parts, err := getCommitParts(rev)
