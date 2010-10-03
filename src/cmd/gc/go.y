@@ -673,11 +673,13 @@ select_stmt:
 	LSELECT
 	{
 		markdcl();
+		typesw = nod(OXXX, typesw, N);
 	}
 	switch_body
 	{
 		$$ = nod(OSELECT, N, N);
 		$$->list = $3;
+		typesw = typesw->left;
 		popdcl();
 	}
 

@@ -1186,11 +1186,6 @@ reswitch:
 		typecheckrange(n);
 		goto ret;
 
-	case OTYPECASE:
-		ok |= Etop | Erv;
-		typecheck(&n->left, Erv);
-		goto ret;
-
 	case OTYPESW:
 		yyerror("use of .(type) outside type switch");
 		goto error;
@@ -1415,6 +1410,8 @@ looktypedot(Node *n, Type *t, int dostrcmp)
 
 	expandmeth(f2->sym, f2);
 	f2 = lookdot1(s, f2, f2->xmethod, dostrcmp);
+	if(f2 == T)
+		return 0;
 
 	// disallow T.m if m requires *T receiver
 	if(isptr[getthisx(f2->type)->type->type->etype]
@@ -1531,13 +1528,16 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
 		tn = n->type->type;
 		for(tl=tstruct->type; tl; tl=tl->down) {
 			if(tl->isddd) {
-				for(; tn; tn=tn->down)
+				for(; tn; tn=tn->down) {
+					exportassignok(tn->type, desc);
 					if(assignop(tn->type, tl->type->type, &why) == 0)
 						yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
+				}
 				goto out;
 			}
 			if(tn == T)
 				goto notenough;
+			exportassignok(tn->type, desc);
 			if(assignop(tn->type, tl->type, &why) == 0)
 				yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
 			tn = tn->down;
@@ -1560,15 +1560,17 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
 					goto notenough;
 				if(nl->next != nil)
 					goto toomany;
-				if(assignop(nl->n->type, t, &why) == 0)
-					yyerror("ddd cannot use %+N as type %T in %s%s", nl->n, t, desc, why);
+				n = nl->n;
+				setlineno(n);
+				if(n->type != T)
+					nl->n = assignconv(n, t, desc);
 				goto out;
 			}
 			for(; nl; nl=nl->next) {
+				n = nl->n;
 				setlineno(nl->n);
-				defaultlit(&nl->n, t->type);
-				if(assignop(nl->n->type, t->type, &why) == 0)
-					yyerror("cannot use %+N as type %T in %s%s", nl->n, t->type, desc, why);
+				if(n->type != T)
+					nl->n = assignconv(n, t->type, desc);
 			}
 			goto out;
 		}

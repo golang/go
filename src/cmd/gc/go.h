@@ -403,7 +403,6 @@ enum
 	ORETURN,
 	OSELECT,
 	OSWITCH,
-	OTYPECASE,
 	OTYPESW,	// l = r.(type)
 
 	// types
