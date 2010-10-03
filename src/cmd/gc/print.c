@@ -106,6 +106,11 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OOROR:
 		nprec = 1;
 		break;
+	
+	case OTYPE:
+		if(n->sym != S)
+			nprec = 7;
+		break;
 	}
 
 	if(prec > nprec)
