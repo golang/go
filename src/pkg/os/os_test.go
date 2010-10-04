@@ -28,11 +28,35 @@ var dot = []string{
 	"stat_linux.go",
 }
 
-var etc = []string{
-	"group",
-	"hosts",
-	"passwd",
+type sysDir struct {
+	name  string
+	files []string
 }
+
+var sysdir = func() (sd *sysDir) {
+	switch syscall.OS {
+	case "windows":
+		sd = &sysDir{
+			Getenv("SystemRoot") + "\\system32\\drivers\\etc",
+			[]string{
+				"hosts",
+				"networks",
+				"protocol",
+				"services",
+			},
+		}
+	default:
+		sd = &sysDir{
+			"/etc",
+			[]string{
+				"group",
+				"hosts",
+				"passwd",
+			},
+		}
+	}
+	return
+}()
 
 func size(name string, t *testing.T) int64 {
 	file, err := Open(name, O_RDONLY, 0)
@@ -55,6 +79,16 @@ func size(name string, t *testing.T) int64 {
 	return int64(len)
 }
 
+func equal(name1, name2 string) (r bool) {
+	switch syscall.OS {
+	case "windows":
+		r = strings.ToLower(name1) == strings.ToLower(name2)
+	default:
+		r = name1 == name2
+	}
+	return
+}
+
 func newFile(testName string, t *testing.T) (f *File) {
 	// Use a local file system, not NFS.
 	// On Unix, override $TMPDIR in case the user
@@ -70,22 +104,27 @@ func newFile(testName string, t *testing.T) (f *File) {
 	return
 }
 
+var sfdir = sysdir.name
+var sfname = sysdir.files[0]
+
 func TestStat(t *testing.T) {
-	dir, err := Stat("/etc/passwd")
+	path := sfdir + "/" + sfname
+	dir, err := Stat(path)
 	if err != nil {
 		t.Fatal("stat failed:", err)
 	}
-	if dir.Name != "passwd" {
-		t.Error("name should be passwd; is", dir.Name)
+	if !equal(sfname, dir.Name) {
+		t.Error("name should be ", sfname, "; is", dir.Name)
 	}
-	filesize := size("/etc/passwd", t)
+	filesize := size(path, t)
 	if dir.Size != filesize {
 		t.Error("size should be", filesize, "; is", dir.Size)
 	}
 }
 
 func TestFstat(t *testing.T) {
-	file, err1 := Open("/etc/passwd", O_RDONLY, 0)
+	path := sfdir + "/" + sfname
+	file, err1 := Open(path, O_RDONLY, 0)
 	defer file.Close()
 	if err1 != nil {
 		t.Fatal("open failed:", err1)
@@ -94,24 +133,25 @@ func TestFstat(t *testing.T) {
 	if err2 != nil {
 		t.Fatal("fstat failed:", err2)
 	}
-	if dir.Name != "passwd" {
-		t.Error("name should be passwd; is", dir.Name)
+	if !equal(sfname, dir.Name) {
+		t.Error("name should be ", sfname, "; is", dir.Name)
 	}
-	filesize := size("/etc/passwd", t)
+	filesize := size(path, t)
 	if dir.Size != filesize {
 		t.Error("size should be", filesize, "; is", dir.Size)
 	}
 }
 
 func TestLstat(t *testing.T) {
-	dir, err := Lstat("/etc/passwd")
+	path := sfdir + "/" + sfname
+	dir, err := Lstat(path)
 	if err != nil {
 		t.Fatal("lstat failed:", err)
 	}
-	if dir.Name != "passwd" {
-		t.Error("name should be passwd; is", dir.Name)
+	if !equal(sfname, dir.Name) {
+		t.Error("name should be ", sfname, "; is", dir.Name)
 	}
-	filesize := size("/etc/passwd", t)
+	filesize := size(path, t)
 	if dir.Size != filesize {
 		t.Error("size should be", filesize, "; is", dir.Size)
 	}
@@ -133,7 +173,7 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 			if n == "." || n == ".." {
 				t.Errorf("got %s in directory", n)
 			}
-			if m == n {
+			if equal(m, n) {
 				if found {
 					t.Error("present twice:", m)
 				}
@@ -159,7 +199,7 @@ func testReaddir(dir string, contents []string, t *testing.T) {
 	for _, m := range contents {
 		found := false
 		for _, n := range s {
-			if m == n.Name {
+			if equal(m, n.Name) {
 				if found {
 					t.Error("present twice:", m)
 				}
@@ -174,12 +214,12 @@ func testReaddir(dir string, contents []string, t *testing.T) {
 
 func TestReaddirnames(t *testing.T) {
 	testReaddirnames(".", dot, t)
-	testReaddirnames("/etc", etc, t)
+	testReaddirnames(sysdir.name, sysdir.files, t)
 }
 
 func TestReaddir(t *testing.T) {
 	testReaddir(".", dot, t)
-	testReaddir("/etc", etc, t)
+	testReaddir(sysdir.name, sysdir.files, t)
 }
 
 // Read the directory one entry at a time.
@@ -203,7 +243,11 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
 // Check that reading a directory one entry at a time gives the same result
 // as reading it all at once.
 func TestReaddirnamesOneAtATime(t *testing.T) {
-	dir := "/usr/bin" // big directory that doesn't change often.
+	// big directory that doesn't change often.
+	dir := "/usr/bin"
+	if syscall.OS == "windows" {
+		dir = Getenv("SystemRoot") + "\\system32"
+	}
 	file, err := Open(dir, O_RDONLY, 0)
 	defer file.Close()
 	if err != nil {
@@ -226,6 +270,10 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 }
 
 func TestHardLink(t *testing.T) {
+	// Hardlinks are not supported under windows.
+	if syscall.OS == "windows" {
+		return
+	}
 	from, to := "hardlinktestfrom", "hardlinktestto"
 	Remove(from) // Just in case.
 	file, err := Open(to, O_CREAT|O_WRONLY, 0666)
@@ -255,6 +303,10 @@ func TestHardLink(t *testing.T) {
 }
 
 func TestSymLink(t *testing.T) {
+	// Symlinks are not supported under windows.
+	if syscall.OS == "windows" {
+		return
+	}
 	from, to := "symlinktestfrom", "symlinktestto"
 	Remove(from) // Just in case.
 	file, err := Open(to, O_CREAT|O_WRONLY, 0666)
@@ -313,6 +365,10 @@ func TestSymLink(t *testing.T) {
 }
 
 func TestLongSymlink(t *testing.T) {
+	// Symlinks are not supported under windows.
+	if syscall.OS == "windows" {
+		return
+	}
 	s := "0123456789abcdef"
 	// Long, but not too long: a common limit is 255.
 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
@@ -354,6 +410,10 @@ func TestRename(t *testing.T) {
 }
 
 func TestForkExec(t *testing.T) {
+	// TODO(brainman): Try to enable this test once ForkExec is working.
+	if syscall.OS == "windows" {
+		return
+	}
 	r, w, err := Pipe()
 	if err != nil {
 		t.Fatalf("Pipe: %v", err)
@@ -385,6 +445,10 @@ func checkMode(t *testing.T, path string, mode uint32) {
 }
 
 func TestChmod(t *testing.T) {
+	// Chmod is not supported under windows.
+	if syscall.OS == "windows" {
+		return
+	}
 	f := newFile("TestChmod", t)
 	defer Remove(f.Name())
 	defer f.Close()
@@ -414,6 +478,10 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
 }
 
 func TestChown(t *testing.T) {
+	// Chown is not supported under windows.
+	if syscall.OS == "windows" {
+		return
+	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file.  On NFS, the Getgroups groups are
@@ -455,13 +523,13 @@ func TestChown(t *testing.T) {
 	}
 }
 
-func checkSize(t *testing.T, path string, size int64) {
-	dir, err := Stat(path)
+func checkSize(t *testing.T, f *File, size int64) {
+	dir, err := f.Stat()
 	if err != nil {
-		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err)
+		t.Fatalf("Stat %q (looking for size %d): %s", f.Name(), size, err)
 	}
 	if dir.Size != size {
-		t.Errorf("Stat %q: size %d want %d", path, dir.Size, size)
+		t.Errorf("Stat %q: size %d want %d", f.Name(), dir.Size, size)
 	}
 }
 
@@ -470,17 +538,17 @@ func TestTruncate(t *testing.T) {
 	defer Remove(f.Name())
 	defer f.Close()
 
-	checkSize(t, f.Name(), 0)
+	checkSize(t, f, 0)
 	f.Write([]byte("hello, world\n"))
-	checkSize(t, f.Name(), 13)
+	checkSize(t, f, 13)
 	f.Truncate(10)
-	checkSize(t, f.Name(), 10)
+	checkSize(t, f, 10)
 	f.Truncate(1024)
-	checkSize(t, f.Name(), 1024)
+	checkSize(t, f, 1024)
 	f.Truncate(0)
-	checkSize(t, f.Name(), 0)
+	checkSize(t, f, 0)
 	f.Write([]byte("surprise!"))
-	checkSize(t, f.Name(), 13+9) // wrote at offset past where hello, world was.
+	checkSize(t, f, 13+9) // wrote at offset past where hello, world was.
 }
 
 // Use TempDir() to make sure we're on a local file system,
@@ -526,6 +594,10 @@ func TestChtimes(t *testing.T) {
 }
 
 func TestChdirAndGetwd(t *testing.T) {
+	// TODO(brainman): file.Chdir() is not implemented on windows.
+	if syscall.OS == "windows" {
+		return
+	}
 	fd, err := Open(".", O_RDONLY, 0)
 	if err != nil {
 		t.Fatalf("Open .: %s", err)
@@ -624,24 +696,24 @@ func TestSeek(t *testing.T) {
 type openErrorTest struct {
 	path  string
 	mode  int
-	error string
+	error Error
 }
 
 var openErrorTests = []openErrorTest{
 	openErrorTest{
-		"/etc/no-such-file",
+		sfdir + "/no-such-file",
 		O_RDONLY,
-		"open /etc/no-such-file: no such file or directory",
+		ENOENT,
 	},
 	openErrorTest{
-		"/etc",
+		sfdir,
 		O_WRONLY,
-		"open /etc: is a directory",
+		EISDIR,
 	},
 	openErrorTest{
-		"/etc/passwd/group",
+		sfdir + "/" + sfname + "/no-such-file",
 		O_WRONLY,
-		"open /etc/passwd/group: not a directory",
+		ENOTDIR,
 	},
 }
 
@@ -653,8 +725,12 @@ func TestOpenError(t *testing.T) {
 			f.Close()
 			continue
 		}
-		if s := err.String(); s != tt.error {
-			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, s, tt.error)
+		perr, ok := err.(*PathError)
+		if !ok {
+			t.Errorf("Open(%q, %d) returns error of %T type; want *os.PathError", tt.path, tt.mode, err)
+		}
+		if perr.Error != tt.error {
+			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Error.String(), tt.error.String())
 		}
 	}
 }
@@ -687,6 +763,10 @@ func run(t *testing.T, cmd []string) string {
 
 
 func TestHostname(t *testing.T) {
+	// There is no other way to fetch hostname on windows, but via winapi.
+	if syscall.OS == "windows" {
+		return
+	}
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
 	// and the /bin/hostname only returns the first component

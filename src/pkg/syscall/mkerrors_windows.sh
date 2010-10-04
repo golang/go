@@ -73,12 +73,28 @@ do
 	fi
 done
 
+# These are go errors that will be mapped directly to windows errors
+goerrors='
+ENOENT:ERROR_FILE_NOT_FOUND
+ENOTDIR:ERROR_DIRECTORY
+'
+
 # Pull out just the error names for later.
+i=$(
+	for j in "$goerrors"
+	do
+		echo "$j"
+	done |
+	awk -F: '
+		{ if (NR > 1) printf("|") }
+		{ printf("%s", $1) }
+	'
+)
 errors=$(
 	echo '#include <errno.h>' | $GCC -x c - -E -dM $ccflags |
 	awk '
 		$1 != "#define" || $2 ~ /\(/ {next}
-		$2 ~ /^ENOTDIR$/ {next}
+		$2 ~ /^('$i')$/ {next}
 		$2 ~ /^E[A-Z0-9_]+$/ { print $2 }
 		{next}
 	' | sort
@@ -102,13 +118,30 @@ echo 'package syscall'
 enum { A = 'A', Z = 'Z', a = 'a', z = 'z' }; // avoid need for single quotes below
 
 struct {
+	char *goname;
+	char *winname;
+} goerrors[] = {
+"
+	for i in $goerrors
+	do
+		j=`echo $i | cut -d: -f1`
+		k=`echo $i | cut -d: -f2`
+		echo '	{"'$j'", "'$k'"},'
+	done
+
+	# Use /bin/echo to avoid builtin echo,
+	# which interprets \n itself
+	/bin/echo '
+};
+
+struct {
 	char *name;
 	int value;
 } errors[] = {
-"
+'
 	for i in $errors
 	do
-		/bin/echo '	{"'$i'",' $i'},'
+		echo '	{"'$i'",' $i'},'
 	done
 
 	# Use /bin/echo to avoid builtin echo,
@@ -122,7 +155,19 @@ main(void)
 	int i, j, e, iota = 1;
 	char buf[1024];
 
-	printf("\nconst (\n");
+	printf("\n// Go names for Windows errors.\n");
+	printf("const (\n");
+	for(i=0; i<nelem(goerrors); i++) {
+		printf("\t%s = %s\n", goerrors[i].goname, goerrors[i].winname);
+			
+	}
+	printf(")\n");
+
+	printf("\n// Windows reserves errors >= 1<<29 for application use.\n");
+	printf("const APPLICATION_ERROR = 1 << 29\n");
+
+	printf("\n// Invented values to support what package os and others expects.\n");
+	printf("const (\n");
 	for(i=0; i<nelem(errors); i++) {
 		e = errors[i].value;
 		strcpy(buf, strerror(e));
@@ -140,7 +185,7 @@ main(void)
 	printf("\tEWINDOWS\n");
 	printf(")\n");
 
-	printf("\n// Error table\n");
+	printf("\n// Error strings for invented errors\n");
 	printf("var errors = [...]string {\n");
 	for(i=0; i<nelem(errors); i++) {
 		e = errors[i].value;

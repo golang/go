@@ -20,6 +20,7 @@ const (
 const (
 	// Windows errors.
 	ERROR_FILE_NOT_FOUND      = 2
+	ERROR_PATH_NOT_FOUND      = 3
 	ERROR_NO_MORE_FILES       = 18
 	ERROR_BROKEN_PIPE         = 109
 	ERROR_INSUFFICIENT_BUFFER = 122
@@ -28,10 +29,6 @@ const (
 	ERROR_ENVVAR_NOT_FOUND    = 203
 	ERROR_DIRECTORY           = 267
 	ERROR_IO_PENDING          = 997
-	// Go names for Windows errors.
-	ENOTDIR = ERROR_DIRECTORY
-	// Windows reserves errors >= 1<<29 for application use.
-	APPLICATION_ERROR = 1 << 29
 )
 
 const (
