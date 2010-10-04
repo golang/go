@@ -53,11 +53,24 @@ func Open(name string, flag int, perm uint32) (file *File, err Error) {
 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
 	r, e := openDir(name)
 	if e == nil {
+		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
+			r.Close()
+			return nil, &PathError{"open", name, EISDIR}
+		}
 		return r, nil
 	}
 	r, e = openFile(name, flag, perm)
 	if e == nil {
 		return r, nil
+	}
+	// Imitating Unix behavior by replacing syscall.ERROR_PATH_NOT_FOUND with
+	// os.ENOTDIR. Not sure if we should go into that.
+	if e2, ok := e.(*PathError); ok {
+		if e3, ok := e2.Error.(Errno); ok {
+			if e3 == Errno(syscall.ERROR_PATH_NOT_FOUND) {
+				return nil, &PathError{"open", name, ENOTDIR}
+			}
+		}
 	}
 	return nil, e
 }

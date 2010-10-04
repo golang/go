@@ -3,6 +3,16 @@
 
 package syscall
 
+// Go names for Windows errors.
+const (
+	ENOENT  = ERROR_FILE_NOT_FOUND
+	ENOTDIR = ERROR_DIRECTORY
+)
+
+// Windows reserves errors >= 1<<29 for application use.
+const APPLICATION_ERROR = 1 << 29
+
+// Invented values to support what package os and others expects.
 const (
 	E2BIG = APPLICATION_ERROR + iota
 	EACCES
@@ -78,7 +88,6 @@ const (
 	ENOCSI
 	ENODATA
 	ENODEV
-	ENOENT
 	ENOEXEC
 	ENOKEY
 	ENOLCK
@@ -138,7 +147,7 @@ const (
 	EWINDOWS
 )
 
-// Error table
+// Error strings for invented errors
 var errors = [...]string{
 	E2BIG - APPLICATION_ERROR:           "argument list too long",
 	EACCES - APPLICATION_ERROR:          "permission denied",
@@ -213,7 +222,6 @@ var errors = [...]string{
 	ENOCSI - APPLICATION_ERROR:          "no CSI structure available",
 	ENODATA - APPLICATION_ERROR:         "no data available",
 	ENODEV - APPLICATION_ERROR:          "no such device",
-	ENOENT - APPLICATION_ERROR:          "no such file or directory",
 	ENOEXEC - APPLICATION_ERROR:         "exec format error",
 	ENOKEY - APPLICATION_ERROR:          "required key not available",
 	ENOLCK - APPLICATION_ERROR:          "no locks available",

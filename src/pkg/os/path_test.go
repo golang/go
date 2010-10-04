@@ -7,6 +7,7 @@ package os_test
 import (
 	. "os"
 	"testing"
+	"syscall"
 )
 
 func TestMkdirAll(t *testing.T) {
@@ -104,7 +105,16 @@ func TestRemoveAll(t *testing.T) {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (second)", path)
 	}
 
-	if Getuid() != 0 { // Test fails as root
+	// Determine if we should run the following test.
+	testit := true
+	if syscall.OS == "windows" {
+		// Chmod is not supported under windows.
+		testit = false
+	} else {
+		// Test fails as root.
+		testit = Getuid() != 0
+	}
+	if testit {
 		// Make directory with file and subdirectory and trigger error.
 		if err = MkdirAll(dpath, 0777); err != nil {
 			t.Fatalf("MkdirAll %q: %s", dpath, err)
