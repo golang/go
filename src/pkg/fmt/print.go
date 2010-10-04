@@ -439,7 +439,7 @@ func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}) {
 }
 
 func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interface{}) {
-	if verb == 'v' {
+	if verb == 'v' || verb == 'd' {
 		if goSyntax {
 			p.buf.Write(bytesBytes)
 		} else {
