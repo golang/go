@@ -317,6 +317,8 @@ var fmttests = []fmtTest{
 	// slices with other formats
 	fmtTest{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
 	fmtTest{"%x", []int{1, 2, 15}, `[1 2 f]`},
+	fmtTest{"%d", []int{1, 2, 15}, `[1 2 15]`},
+	fmtTest{"%d", []byte{1, 2, 15}, `[1 2 15]`},
 	fmtTest{"%q", []string{"a", "b"}, `["a" "b"]`},
 
 	// renamings
@@ -334,6 +336,7 @@ var fmttests = []fmtTest{
 	fmtTest{"%X", renamedUint64(17), "11"},
 	fmtTest{"%o", renamedUintptr(18), "22"},
 	fmtTest{"%x", renamedString("thing"), "7468696e67"},
+	fmtTest{"%d", renamedBytes([]byte{1, 2, 15}), `[1 2 15]`},
 	fmtTest{"%q", renamedBytes([]byte("hello")), `"hello"`},
 	fmtTest{"%v", renamedFloat(11), "11"},
 	fmtTest{"%v", renamedFloat32(22), "22"},
