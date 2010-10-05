@@ -197,7 +197,6 @@ NOTEST+=os/signal    # no signals
 NOTEST+=path         # tree walking does not work
 NOTEST+=syslog       # no network
 NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
-NOTEST+=websocket    # no network
 endif
 
 ifeq ($(GOARCH),arm)
