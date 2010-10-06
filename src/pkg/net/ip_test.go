@@ -57,8 +57,7 @@ type ipStringTest struct {
 }
 
 var ipstringtests = []ipStringTest{
-	// cf. draft-ietf-6man-text-addr-representation-07
-	// (A Recommendation for IPv6 Address Text Representation)
+	// cf. RFC 5952 (A Recommendation for IPv6 Address Text Representation)
 	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
 		0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
 		"2001:db8::123:12:1"},
