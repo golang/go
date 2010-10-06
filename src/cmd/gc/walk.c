@@ -654,8 +654,6 @@ walkexpr(Node **np, NodeList **init)
 	case OAND:
 	case OOR:
 	case OXOR:
-	case OANDAND:
-	case OOROR:
 	case OSUB:
 	case OMUL:
 	case OEQ:
@@ -668,6 +666,17 @@ walkexpr(Node **np, NodeList **init)
 	case OCMPLX:
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
+		goto ret;
+	
+	case OANDAND:
+	case OOROR:
+		walkexpr(&n->left, init);
+		// cannot put side effects from n->right on init,
+		// because they cannot run before n->left is checked.
+		// save elsewhere and store on the eventual n->right.
+		ll = nil;
+		walkexpr(&n->right, &ll);
+		n->right->ninit = concat(n->right->ninit, ll);
 		goto ret;
 
 	case OPRINT:
@@ -1196,11 +1205,27 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 		}
 
+		// prepare for rewrite below
+		if(n->etype == OEQ || n->etype == ONE) {
+			n->left = cheapexpr(n->left, init);
+			n->right = cheapexpr(n->right, init);
+		}
+
 		// sys_cmpstring(s1, s2) :: 0
 		r = mkcall("cmpstring", types[TINT], init,
 			conv(n->left, types[TSTRING]),
 			conv(n->right, types[TSTRING]));
 		r = nod(n->etype, r, nodintconst(0));
+
+		// quick check of len before full compare for == or !=
+		if(n->etype == OEQ || n->etype == ONE) {
+			if(n->etype == OEQ)
+				r = nod(OANDAND, nod(OEQ, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
+			else
+				r = nod(OOROR, nod(ONE, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
+			typecheck(&r, Erv);
+			walkexpr(&r, nil);
+		}
 		typecheck(&r, Erv);
 		n = r;
 		goto ret;

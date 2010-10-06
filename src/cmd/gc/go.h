@@ -1109,6 +1109,7 @@ Type*	ptrto(Type *t);
 void*	remal(void *p, int32 on, int32 n);
 Sym*	restrictlookup(char *name, Pkg *pkg);
 Node*	safeexpr(Node *n, NodeList **init);
+Node*	cheapexpr(Node *n, NodeList **init);
 int32	setlineno(Node *n);
 void	setmaxarg(Type *t);
 Type*	shallow(Type *t);
