@@ -699,6 +699,9 @@ bgen(Node *n, int true, Prog *to)
 	if(n == N)
 		n = nodbool(1);
 
+	if(n->ninit != nil)
+		genlist(n->ninit);
+
 	nl = n->left;
 	nr = n->right;
 

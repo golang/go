@@ -2595,7 +2595,7 @@ brrev(int a)
 }
 
 /*
- * return side effect-free appending side effects to init.
+ * return side effect-free n, appending side effects to init.
  * result is assignable if n is.
  */
 Node*
@@ -2652,6 +2652,24 @@ safeexpr(Node *n, NodeList **init)
 	// make a copy; must not be used as an lvalue
 	if(islvalue(n))
 		fatal("missing lvalue case in safeexpr: %N", n);
+	return cheapexpr(n, init);
+}
+
+/*
+ * return side-effect free and cheap n, appending side effects to init.
+ * result may not be assignable.
+ */
+Node*
+cheapexpr(Node *n, NodeList **init)
+{
+	Node *a, *l;
+
+	switch(n->op) {
+	case ONAME:
+	case OLITERAL:
+		return n;
+	}
+
 	l = nod(OXXX, N, N);
 	tempname(l, n->type);
 	a = nod(OAS, l, n);
