@@ -192,14 +192,7 @@ var dnserr os.Error
 func loadConfig() { cfg, dnserr = dnsReadConfig() }
 
 func isDomainName(s string) bool {
-	// Requirements on DNS name:
-	//	* must not be empty.
-	//	* must be alphanumeric plus - and .
-	//	* each of the dot-separated elements must begin
-	//	  and end with a letter or digit.
-	//	  RFC 1035 required the element to begin with a letter,
-	//	  but RFC 3696 says this has been relaxed to allow digits too.
-	//	  still, there must be a letter somewhere in the entire name.
+	// See RFC 1035, RFC 3696.
 	if len(s) == 0 {
 		return false
 	}
