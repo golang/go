@@ -223,7 +223,7 @@ class CL(object):
 		if not self.files:
 			ui.warn("no files in change list\n")
 		if ui.configbool("codereview", "force_gofmt", True) and gofmt:
-			CheckGofmt(ui, repo, self.files, just_warn=gofmt_just_warn)
+			CheckFormat(ui, repo, self.files, just_warn=gofmt_just_warn)
 		set_status("uploading CL metadata + diffs")
 		os.chdir(repo.root)
 		form_fields = [
@@ -732,9 +732,13 @@ def RelativePath(path, cwd):
 		return path[n+1:]
 	return path
 
-# Check that gofmt run on the list of files does not change them
-def CheckGofmt(ui, repo, files, just_warn=False):
+def CheckFormat(ui, repo, files, just_warn=False):
 	set_status("running gofmt")
+	CheckGofmt(ui, repo, files, just_warn)
+	CheckTabfmt(ui, repo, files, just_warn)
+
+# Check that gofmt run on the list of files does not change them
+def CheckGofmt(ui, repo, files, just_warn):
 	files = [f for f in files if (f.startswith('src/') or f.startswith('test/bench/')) and f.endswith('.go')]
 	if not files:
 		return
@@ -757,6 +761,32 @@ def CheckGofmt(ui, repo, files, just_warn=False):
 		return
 	if len(data) > 0:
 		msg = "gofmt needs to format these files (run hg gofmt):\n" + Indent(data, "\t").rstrip()
+		if just_warn:
+			ui.warn("warning: " + msg + "\n")
+		else:
+			raise util.Abort(msg)
+	return
+
+# Check that *.[chys] files indent using tabs.
+def CheckTabfmt(ui, repo, files, just_warn):
+	files = [f for f in files if f.startswith('src/') and re.search(r"\.[chys]$", f)]
+	if not files:
+		return
+	cwd = os.getcwd()
+	files = [RelativePath(repo.root + '/' + f, cwd) for f in files]
+	files = [f for f in files if os.access(f, 0)]
+	badfiles = []
+	for f in files:
+		try:
+			for line in open(f, 'r'):
+				if line.startswith('    '):
+					badfiles.append(f)
+					break
+		except:
+			# ignore cannot open file, etc.
+			pass
+	if len(badfiles) > 0:
+		msg = "these files use spaces for indentation (use tabs instead):\n\t" + "\n\t".join(badfiles)
 		if just_warn:
 			ui.warn("warning: " + msg + "\n")
 		else:
@@ -1159,7 +1189,7 @@ def submit(ui, repo, *pats, **opts):
 
 	# check gofmt for real; allowed upload to warn in order to save CL.
 	cl.Flush(ui, repo)
-	CheckGofmt(ui, repo, cl.files)
+	CheckFormat(ui, repo, cl.files)
 
 	about += "%s%s\n" % (server_url_base, cl.name)
 
