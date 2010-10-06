@@ -173,6 +173,7 @@ endif
 # Disable tests that NaCl cannot run yet.
 ifeq ($(GOOS),nacl)
 NOTEST+=archive/tar  # no pipe
+NOTEST+=archive/zip  # no pread
 NOTEST+=debug/dwarf  # no pread
 NOTEST+=debug/macho  # no pread
 NOTEST+=debug/elf    # no pread
