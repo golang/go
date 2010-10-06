@@ -920,17 +920,6 @@ void
 	}
 }
 
-void*
-hash_next_and_deref(struct hash_iter *it)
-{
-	void *p;
-
-	p = hash_next(it);
-	if(it->h->indirectval)
-		p = *(void**)p;
-	return p;
-}
-
 // mapiterinit(hmap *map[any]any, hiter *any);
 void
 ·mapiterinit(Hmap *h, struct hash_iter *it)
@@ -940,7 +929,7 @@ void
 		return;
 	}
 	hash_iter_init(h, it);
-	it->data = hash_next_and_deref(it);
+	it->data = hash_next(it);
 	if(debug) {
 		prints("runtime.mapiterinit: map=");
 		·printpointer(h);
@@ -969,7 +958,7 @@ void
 	if(gcwaiting)
 		gosched();
 
-	it->data = hash_next_and_deref(it);
+	it->data = hash_next(it);
 	if(debug) {
 		prints("runtime.mapiternext: iter=");
 		·printpointer(it);
