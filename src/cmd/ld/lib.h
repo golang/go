@@ -103,6 +103,7 @@ void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
 Section*	addsection(Segment*, char*, int);
 void	copyhistfrog(char *buf, int nbuf);
 void	addhist(int32 line, int type);
+void	asmlc(void);
 void	histtoauto(void);
 void	collapsefrog(Sym *s);
 Sym*	lookup(char *symb, int v);
