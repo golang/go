@@ -19,6 +19,7 @@ const (
 	SizeofLinger        = 0x8
 	SizeofMsghdr        = 0x1c
 	SizeofCmsghdr       = 0xc
+	SizeofUcred         = 0xc
 	SizeofInotifyEvent  = 0x10
 )
 
@@ -216,6 +217,12 @@ type Cmsghdr struct {
 	Len   uint32
 	Level int32
 	Type  int32
+}
+
+type Ucred struct {
+	Pid int32
+	Uid uint32
+	Gid uint32
 }
 
 type InotifyEvent struct {

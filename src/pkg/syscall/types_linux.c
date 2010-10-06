@@ -108,6 +108,7 @@ typedef struct linger $Linger;
 typedef struct iovec $Iovec;
 typedef struct msghdr $Msghdr;
 typedef struct cmsghdr $Cmsghdr;
+typedef struct ucred $Ucred;
 
 enum {
 	$SizeofSockaddrInet4 = sizeof(struct sockaddr_in),
@@ -117,6 +118,7 @@ enum {
 	$SizeofLinger = sizeof(struct linger),
 	$SizeofMsghdr = sizeof(struct msghdr),
 	$SizeofCmsghdr = sizeof(struct cmsghdr),
+	$SizeofUcred = sizeof(struct ucred),
 };
 
 
