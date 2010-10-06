@@ -284,7 +284,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 }
 
 // ReadBytes reads until the first occurrence of delim in the input,
-// returning a string containing the data up to and including the delimiter.
+// returning a slice containing the data up to and including the delimiter.
 // If ReadBytes encounters an error before finding a delimiter,
 // it returns the data read before the error and the error itself (often os.EOF).
 // ReadBytes returns err != nil if and only if line does not end in delim.
