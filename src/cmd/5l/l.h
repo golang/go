@@ -279,6 +279,7 @@ enum
 	NENT		= 100,
 	MAXIO		= 8192,
 	MAXHIST		= 20,	/* limit of path elements for history symbols */
+	MINLC	= 4,
 
 	Roffset	= 22,		/* no. bits for offset in relocation address */
 	Rindex	= 10,		/* no. bits for index in relocation address */
