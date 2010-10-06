@@ -11,7 +11,7 @@ static	Node*	makenewvar(Type*, NodeList**, Node**);
 static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
 static	NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
 static	NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
-static	NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
+static	NodeList*	ascompatte(int, int, Type**, NodeList*, int, NodeList**);
 static	Node*	convas(Node*, NodeList**);
 static	void	heapmoves(void);
 static	NodeList*	paramstoheap(Type **argin, int out);
@@ -513,7 +513,7 @@ walkstmt(Node **np)
 			n->list = reorder3(ll);
 			break;
 		}
-		ll = ascompatte(n->op, getoutarg(curfn->type), n->list, 1, &n->ninit);
+		ll = ascompatte(n->op, 0, getoutarg(curfn->type), n->list, 1, &n->ninit);
 		n->list = ll;
 		break;
 
@@ -708,7 +708,7 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
-		ll = ascompatte(n->op, getinarg(t), n->list, 0, init);
+		ll = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
 		n->list = reorder1(ll);
 		goto ret;
 
@@ -718,7 +718,7 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
-		ll = ascompatte(n->op, getinarg(t), n->list, 0, init);
+		ll = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
 		n->list = reorder1(ll);
 		if(isselect(n)) {
 			// special prob with selectsend and selectrecv:
@@ -728,7 +728,7 @@ walkexpr(Node **np, NodeList **init)
 			Node *b;
 			b = nodbool(0);
 			typecheck(&b, Erv);
-			lr = ascompatte(n->op, getoutarg(t), list1(b), 0, init);
+			lr = ascompatte(n->op, 0, getoutarg(t), list1(b), 0, init);
 			n->list = concat(n->list, lr);
 		}
 		goto ret;
@@ -739,8 +739,8 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
-		ll = ascompatte(n->op, getthis(t), list1(n->left->left), 0, init);
-		lr = ascompatte(n->op, getinarg(t), n->list, 0, init);
+		ll = ascompatte(n->op, 0, getthis(t), list1(n->left->left), 0, init);
+		lr = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
 		ll = concat(ll, lr);
 		n->left->left = N;
 		ullmancalc(n->left);
@@ -1599,7 +1599,7 @@ dumpnodetypes(NodeList *l, char *what)
  *	func(expr-list)
  */
 static NodeList*
-ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ascompatte(int op, int isddd, Type **nl, NodeList *lr, int fp, NodeList **init)
 {
 	Type *l, *ll;
 	Node *r, *a;
@@ -1654,7 +1654,7 @@ loop:
 		// only if we are assigning a single ddd
 		// argument to a ddd parameter then it is
 		// passed thru unencapsulated
-		if(r != N && lr->next == nil && r->isddd && eqtype(l->type, r->type)) {
+		if(r != N && lr->next == nil && isddd && eqtype(l->type, r->type)) {
 			a = nod(OAS, nodarg(l, fp), r);
 			a = convas(a, init);
 			nn = list(nn, a);

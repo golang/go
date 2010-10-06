@@ -30,9 +30,13 @@ func sumA(args []int) int {
 	return s
 }
 
+func sumB(args []int) int { return sum(args...) }
+
 func sum2(args ...int) int { return 2 * sum(args...) }
 
 func sum3(args ...int) int { return 3 * sumA(args) }
+
+func sum4(args ...int) int { return 4 * sumB(args) }
 
 func intersum(args ...interface{}) int {
 	s := 0
@@ -116,6 +120,22 @@ func main() {
 		panic("fail")
 	}
 	if x := sum3(1, 8); x != 3*9 {
+		println("sum 9", x)
+		panic("fail")
+	}
+	if x := sum4(1, 2, 3); x != 4*6 {
+		println("sum 6", x)
+		panic("fail")
+	}
+	if x := sum4(); x != 4*0 {
+		println("sum 0", x)
+		panic("fail")
+	}
+	if x := sum4(10); x != 4*10 {
+		println("sum 10", x)
+		panic("fail")
+	}
+	if x := sum4(1, 8); x != 4*9 {
 		println("sum 9", x)
 		panic("fail")
 	}
