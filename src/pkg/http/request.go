@@ -249,6 +249,8 @@ func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
 		// If the caller asked for a line, there should be a line.
 		if err == os.EOF {
 			err = io.ErrUnexpectedEOF
+		} else if err == bufio.ErrBufferFull {
+			err = ErrLineTooLong
 		}
 		return nil, err
 	}
