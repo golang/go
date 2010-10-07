@@ -23,10 +23,16 @@ void
 exprfmt(Fmt *f, Node *n, int prec)
 {
 	int nprec;
+	char *p;
 
 	nprec = 0;
 	if(n == nil) {
 		fmtprint(f, "<nil>");
+		return;
+	}
+	
+	if(n->implicit) {
+		exprfmt(f, n->left, prec);
 		return;
 	}
 
@@ -298,8 +304,15 @@ exprfmt(Fmt *f, Node *n, int prec)
 		exprfmt(f, n->left, 7);
 		if(n->right == N || n->right->sym == S)
 			fmtprint(f, ".<nil>");
-		else
-			fmtprint(f, ".%s", n->right->sym->name);
+		else {
+			// skip leading type· in method name
+			p = utfrrune(n->right->sym->name, 0xb7);
+			if(p)
+				p+=2;
+			else
+				p = n->right->sym->name;
+			fmtprint(f, ".%s", p);
+		}
 		break;
 
 	case ODOTTYPE:

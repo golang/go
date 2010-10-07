@@ -1254,7 +1254,7 @@ ret:
 		goto error;
 	}
 	if((ok & Ecall) && !(top & Ecall)) {
-		yyerror("must call %#N", n);
+		yyerror("method %#N is not an expression, must be called", n);
 		goto error;
 	}
 	// TODO(rsc): simplify
@@ -1483,9 +1483,11 @@ lookdot(Node *n, Type *t, int dostrcmp)
 				checklvalue(n->left, "call pointer method on");
 				addrescapes(n->left);
 				n->left = nod(OADDR, n->left, N);
+				n->left->implicit = 1;
 				typecheck(&n->left, Etype|Erv);
 			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
 				n->left = nod(OIND, n->left, N);
+				n->left->implicit = 1;
 				typecheck(&n->left, Etype|Erv);
 			} else {
 				// method is attached to wrong type?
