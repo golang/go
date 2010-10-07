@@ -1,7 +1,7 @@
 // Inferno utils/6a/a.h
 // http://code.google.com/p/inferno-os/source/browse/utils/6a/a.h
 //
-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
 //	Portions Copyright © 1997-1999 Vita Nuova Limited
 //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
@@ -50,7 +50,7 @@ typedef	struct	Ref	Ref;
 typedef	struct	Gen	Gen;
 typedef	struct	Io	Io;
 typedef	struct	Hist	Hist;
-typedef	struct	Gen2 	Gen2;
+typedef	struct	Gen2	Gen2;
 
 #define	MAXALIGN	7
 #define	FPCHIP		1
@@ -161,6 +161,7 @@ EXTERN	int	pass;
 EXTERN	char*	pathname;
 EXTERN	int32	pc;
 EXTERN	int	peekc;
+EXTERN	int32	stmtline;
 EXTERN	int	sym;
 EXTERN	char*	symb;
 EXTERN	int	thechar;
@@ -168,9 +169,9 @@ EXTERN	char*	thestring;
 EXTERN	int32	thunk;
 EXTERN	Biobuf	obuf;
 
-void*   alloc(int32);
+void*	alloc(int32);
 void*	allocn(void*, int32, int32);
-void    ensuresymb(int32);
+void	ensuresymb(int32);
 void	errorexit(void);
 void	pushio(void);
 void	newio(void);

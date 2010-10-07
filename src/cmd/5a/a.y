@@ -1,7 +1,7 @@
 // Inferno utils/5a/a.y
 // http://code.google.com/p/inferno-os/source/browse/utils/5a/a.y
 //
-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
 //	Portions Copyright © 1997-1999 Vita Nuova Limited
 //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
@@ -63,7 +63,11 @@
 %type	<gen>	imm ximm name oreg ireg nireg ioreg imsr
 %%
 prog:
-|	prog line
+|	prog
+	{
+		stmtline = lineno;
+	}
+	line
 
 line:
 	LLAB ':'
