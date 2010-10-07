@@ -644,6 +644,10 @@ reswitch:
 		l = n->left;
 		if((t = l->type) == T)
 			goto error;
+		if(t->etype != TCHAN) {
+			yyerror("invalid operation: %#N (send to non-chan type %T)", n, t);
+			goto error;
+		}
 		if(!(t->chan & Csend)) {
 			yyerror("invalid operation: %#N (send to receive-only type %T)", n, t);
 			goto error;
