@@ -21,7 +21,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 {
 	byte *p;
 	int32 i, n, iter, nascent;
-	uintptr pc, tracepc;
+	uintptr pc, tracepc, *fp;
 	Stktop *stk;
 	Func *f;
 	
@@ -93,10 +93,15 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 				tracepc--;
 			printf(" %S:%d\n", f->src, funcline(f, tracepc));
 			printf("\t%S(", f->name);
+			fp = (uintptr*)sp;
+			if(f->frame < sizeof(uintptr))
+				fp++;
+			else
+				fp += f->frame/sizeof(uintptr);
 			for(i = 0; i < f->args; i++) {
 				if(i != 0)
 					prints(", ");
-				·printhex(((uintptr*)sp)[i]);
+				·printhex(fp[i]);
 				if(i >= 4) {
 					prints(", ...");
 					break;
