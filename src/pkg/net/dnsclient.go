@@ -207,7 +207,7 @@ func isDomainName(s string) bool {
 		switch {
 		default:
 			return false
-		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
+		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_':
 			ok = true
 		case '0' <= c && c <= '9':
 			// fine
