@@ -395,7 +395,6 @@ void	addhist(int32, int);
 Prog*	appendp(Prog*);
 void	asmb(void);
 void	asmdyn(void);
-void	asmlc(void);
 void	asmthumbmap(void);
 void	asmout(Prog*, Optab*);
 void	thumbasmout(Prog*, Optab*);
