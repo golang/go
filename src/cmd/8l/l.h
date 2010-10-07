@@ -338,8 +338,6 @@ Prog*	appendp(Prog*);
 void	asmb(void);
 void	asmdyn(void);
 void	asmins(Prog*);
-void	asmlc(void);
-void	asmsp(void);
 void	asmsym(void);
 int32	atolwhex(char*);
 Prog*	brchain(Prog*);
