@@ -1,7 +1,7 @@
 // Inferno utils/6a/a.y
 // http://code.google.com/p/inferno-os/source/browse/utils/6a/a.y
 //
-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
 //	Portions Copyright © 1997-1999 Vita Nuova Limited
 //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
@@ -60,7 +60,11 @@
 %type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9
 %%
 prog:
-|	prog line
+|	prog 
+	{
+		stmtline = lineno;
+	}
+	line
 
 line:
 	LLAB ':'

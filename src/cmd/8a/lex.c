@@ -1,7 +1,7 @@
 // Inferno utils/8a/lex.c
 // http://code.google.com/p/inferno-os/source/browse/utils/8a/lex.c
 //
-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
 //	Portions Copyright © 1997-1999 Vita Nuova Limited
 //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
@@ -925,10 +925,10 @@ jackpot:
 	}
 	Bputc(&obuf, a);
 	Bputc(&obuf, a>>8);
-	Bputc(&obuf, lineno);
-	Bputc(&obuf, lineno>>8);
-	Bputc(&obuf, lineno>>16);
-	Bputc(&obuf, lineno>>24);
+	Bputc(&obuf, stmtline);
+	Bputc(&obuf, stmtline>>8);
+	Bputc(&obuf, stmtline>>16);
+	Bputc(&obuf, stmtline>>24);
 	zaddr(&g2->from, sf);
 	zaddr(&g2->to, st);
 

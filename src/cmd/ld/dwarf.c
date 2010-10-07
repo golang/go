@@ -436,7 +436,7 @@ decodez(char *s)
  * The line history itself
  */
 
-static char **histfile;	   // [0] holds the empty string.
+static char **histfile;	   // [0] holds "<eof>", DW_LNS_set_file arguments must be > 0.
 static int  histfilesize;
 static int  histfilecap;
 
@@ -445,7 +445,7 @@ clearhistfile(void)
 {
 	int i;
 
-	// [0] holds the empty string.
+	// [0] holds "<eof>"
 	for (i = 1; i < histfilesize; i++)
 		free(histfile[i]);
 	histfilesize = 0;
@@ -756,12 +756,17 @@ writelines(void)
 		newattr(dwinfo->child, DW_AT_low_pc, DW_CLS_ADDRESS, p->pc, 0);
 
 		for(q = p; q != P && (q == p || q->as != ATEXT); q = q->link) {
-                        epc = q->pc;
+			epc = q->pc;
 			lh = searchhist(q->line);
 			if (lh == nil) {
 				diag("corrupt history or bad absolute line: %P", q);
 				continue;
 			}
+			if (lh->file < 1) {  // 0 is the past-EOF entry.
+				diag("instruction with linenumber past EOF in %s: %P", unitname, q);
+				continue;
+			}
+
 			lline = lh->line + q->line - lh->absline;
 			if (debug['v'] > 1)
 				print("%6llux %s[%lld] %P\n", q->pc, histfile[lh->file], lline, q);
