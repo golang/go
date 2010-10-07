@@ -310,14 +310,18 @@ memhash(uint32 s, void *a)
 static uint32
 memequal(uint32 s, void *a, void *b)
 {
-	byte *ba, *bb;
+	byte *ba, *bb, *aend;
 	uint32 i;
 
 	ba = a;
 	bb = b;
-	for(i=0; i<s; i++)
-		if(ba[i] != bb[i])
+	aend = ba+s;
+	while(ba != aend) {
+		if(*ba != *bb)
 			return 0;
+		ba++;
+		bb++;
+	}
 	return 1;
 }
 
@@ -389,8 +393,13 @@ strhash(uint32 s, String *a)
 static uint32
 strequal(uint32 s, String *a, String *b)
 {
+	int32 alen;
+
 	USED(s);
-	return cmpstring(*a, *b) == 0;
+	alen = a->len;
+	if(alen != b->len)
+		return false;
+	return memequal(alen, a->str, b->str);
 }
 
 static void
