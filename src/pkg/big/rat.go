@@ -294,25 +294,34 @@ func (z *Rat) FloatString(prec int) string {
 
 	q, r := nat{}.div(nat{}, z.a.abs, z.b)
 
+	p := natOne
+	if prec > 0 {
+		p = nat{}.expNN(natTen, nat{}.setUint64(uint64(prec)), nil)
+	}
+
+	r = r.mul(r, p)
+	r, r2 := r.div(nat{}, r, z.b)
+
+	// see if we need to round up
+	r2 = r2.add(r2, r2)
+	if z.b.cmp(r2) <= 0 {
+		r = r.add(r, natOne)
+		if r.cmp(p) >= 0 {
+			q = nat{}.add(q, natOne)
+			r = nat{}.sub(r, p)
+		}
+	}
+
 	s := q.string(10)
 	if z.a.neg {
 		s = "-" + s
 	}
 
-	p := nat{}.expNN(natTen, nat{Word(prec)}, nil)
-	r = r.mul(r, p)
-	r, r2 := r.div(nat{}, r, z.b)
-
-	// see if we need to round up
-	r2 = r2.mul(r2, natTwo)
-	if z.b.cmp(r2) <= 0 {
-		r = r.add(r, natOne)
+	if prec > 0 {
+		rs := r.string(10)
+		leadingZeros := prec - len(rs)
+		s += "." + strings.Repeat("0", leadingZeros) + rs
 	}
-
-	rs := r.string(10)
-	leadingZeros := prec - len(rs)
-	s += "." + strings.Repeat("0", leadingZeros) + rs
-	s = strings.TrimRight(s, "0")
 
 	return s
 }

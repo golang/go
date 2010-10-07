@@ -71,6 +71,11 @@ var floatStringTests = []floatStringTest{
 	floatStringTest{".25", 1, "0.3"},
 	floatStringTest{"-1/3", 3, "-0.333"},
 	floatStringTest{"-2/3", 4, "-0.6667"},
+	floatStringTest{"0.96", 1, "1.0"},
+	floatStringTest{"0.999", 2, "1.00"},
+	floatStringTest{"0.9", 0, "1"},
+	floatStringTest{".25", -1, "0"},
+	floatStringTest{".55", -1, "1"},
 }
 
 func TestFloatString(t *testing.T) {
