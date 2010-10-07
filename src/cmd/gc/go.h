@@ -210,8 +210,9 @@ struct	Node
 	uchar	dodata;		// compile literal assignment as data statement
 	uchar	used;
 	uchar	isddd;
-	uchar	pun;		// dont registerize variable ONAME
+	uchar	pun;		// don't registerize variable ONAME
 	uchar	readonly;
+	uchar	implicit;	// don't show in printout
 
 	// most nodes
 	Node*	left;
