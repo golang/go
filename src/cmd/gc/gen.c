@@ -257,6 +257,17 @@ gen(Node *n)
 		break;
 
 	case OIF:
+		if(n->ntest == N || n->ntest->op == OLITERAL) {
+			// drop dead code in if true or if false.
+			// the linker will do it for us in general,
+			// but this avoids writnig to the object file
+			// in a very common case.
+			if(n->ntest == N || n->ntest->val.u.bval)
+				genlist(n->nbody);
+			else
+				genlist(n->nelse);
+			break;
+		}
 		p1 = gjmp(P);			//		goto test
 		p2 = gjmp(P);			// p2:		goto else
 		patch(p1, pc);				// test:
