@@ -34,7 +34,7 @@ SysFree(void *v, uintptr n)
 	// Push pointer back if this is a free
 	// of the most recent SysAlloc.
 	n += 7 & -n;
-	if(allocp == v+n)
+	if(allocp == (byte*)v+n)
 		allocp -= n;
 }
 
