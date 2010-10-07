@@ -29,7 +29,7 @@ func main() {
 		}
 	}
 
-	life.Run(*gen, *dim, *dim, &a)
+	life.Run(*gen, *dim, *dim, a[:])
 
 	for i := 0; i < *dim; i++ {
 		for j := 0; j < *dim; j++ {
