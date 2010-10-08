@@ -22,13 +22,14 @@ if test "$gcc" = "@C""C@"; then
   gcc=gcc
 fi
 
-# If this is a 64-bit machine, compile 64-bit versions of
-# the host tools, to match the native ptrace.
-case "`uname -m -p`" in
+# Build 64-bit binaries on 64-bit systems, unless GOHOSTARCH=386.
+case "$(uname -m -p)-$GOHOSTARCH" in
+*x86_64*-386 | *amd64*-386)
+	gcc="$gcc -m32"
+	;;
 *x86_64* | *amd64*)
 	gcc="$gcc -m64"
 esac
-
 
 # Run gcc, save error status, redisplay output without noise, exit with gcc status.
 tmp=/tmp/qcc.$$.$USER.out
