@@ -94,7 +94,7 @@ TEXT	breakpoint(SB),7,$0
 // uintptr gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT gosave(SB), 7, $-4
-	MOVW	0(FP), R0
+	MOVW	0(FP), R0		// gobuf
 	MOVW	SP, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
 	MOVW	g, gobuf_g(R0)
@@ -104,7 +104,7 @@ TEXT gosave(SB), 7, $-4
 // void gogo(Gobuf*, uintptr)
 // restore state from Gobuf; longjmp
 TEXT	gogo(SB), 7, $-4
-	MOVW	0(FP), R1			// gobuf
+	MOVW	0(FP), R1		// gobuf
 	MOVW	4(FP), R0		// return 2nd arg
 	MOVW	gobuf_g(R1), g
 	MOVW	0(g), R2		// make sure g != nil
@@ -116,12 +116,14 @@ TEXT	gogo(SB), 7, $-4
 // (call fn, returning to state in Gobuf)
 // using frame size $-4 means do not save LR on stack.
 TEXT gogocall(SB), 7, $-4
-	MOVW	0(FP), R0
+	MOVW	0(FP), R0		// gobuf
 	MOVW	4(FP), R1		// fn
+	MOVW	8(FP), R2		// fp offset
 	MOVW	gobuf_g(R0), g
-	MOVW	0(g), R2		// make sure g != nil
+	MOVW	0(g), R3		// make sure g != nil
 	MOVW	gobuf_sp(R0), SP	// restore SP
 	MOVW	gobuf_pc(R0), LR
+	SUB	R2, SP
 	MOVW	R1, PC
 
 /*
@@ -179,15 +181,15 @@ TEXT reflect·call(SB), 7, $-4
 	// If it turns out that f needs a larger frame than
 	// the default stack, f's usual stack growth prolog will
 	// allocate a new segment (and recopy the arguments).
-	MOVW	4(SP), R0	// fn
-	MOVW	8(SP), R1	// arg frame
-	MOVW	12(SP), R2	// arg size
+	MOVW	4(SP), R0			// fn
+	MOVW	8(SP), R1			// arg frame
+	MOVW	12(SP), R2			// arg size
 
-	MOVW	R0, m_morepc(m)	// f's PC
-	MOVW	R1, m_morefp(m)	// argument frame pointer
-	MOVW	R2, m_moreargs(m)	// f's argument size
+	MOVW	R0, m_morepc(m)			// f's PC
+	MOVW	R1, m_morefp(m)			// argument frame pointer
+	MOVW	R2, m_moreargs(m)		// f's argument size
 	MOVW	$1, R3
-	MOVW	R3, m_moreframe(m)	// f's frame size
+	MOVW	R3, m_moreframe(m)		// f's frame size
 
 	// Call newstack on m's scheduling stack.
 	MOVW	m_g0(m), g

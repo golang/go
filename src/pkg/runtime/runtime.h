@@ -377,7 +377,7 @@ int32	charntorune(int32*, uint8*, int32);
  * very low level c-called
  */
 void	gogo(Gobuf*, uintptr);
-void	gogocall(Gobuf*, void(*)(void));
+void	gogocall(Gobuf*, void(*)(void), int64);
 uintptr	gosave(Gobuf*);
 void	·lessstack(void);
 void	goargs(void);
