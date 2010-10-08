@@ -528,7 +528,7 @@ scheduler(void)
 	m->curg = gp;
 	gp->m = m;
 	if(gp->sched.pc == (byte*)goexit)	// kickoff
-		gogocall(&gp->sched, (void(*)(void))gp->entry);
+		gogocall(&gp->sched, (void(*)(void))gp->entry, 0);
 	gogo(&gp->sched, 1);
 }
 
@@ -797,7 +797,7 @@ newstack(void)
 	label.sp = sp;
 	label.pc = (byte*)·lessstack;
 	label.g = m->curg;
-	gogocall(&label, m->morepc);
+	gogocall(&label, m->morepc, 4);
 
 	*(int32*)345 = 123;	// never return
 }
