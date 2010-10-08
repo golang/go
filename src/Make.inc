@@ -21,8 +21,12 @@ endif
 # Set up GOROOT_FINAL, GOARCH, GOOS if needed.
 GOROOT_FINAL?=$(GOROOT)
 
+ifeq ($(GOHOSTOS),)
+GOHOSTOS:=$(shell uname | tr A-Z a-z | sed 's/mingw/windows/; s/.*windows.*/windows/')
+endif
+
 ifeq ($(GOOS),)
-GOOS:=${shell uname | tr A-Z a-z | sed 's/mingw/windows/; s/windows.*/windows/'}
+GOOS:=$(GOHOSTOS)
 endif
 
 ifeq ($(GOOS),darwin)
@@ -35,15 +39,19 @@ else
 $(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, tiny, or windows)
 endif
 
-ifeq ($(GOARCH),)
-ifeq ($(GOOS),darwin)
+ifeq ($(GOHOSTARCH),)
+ifeq ($(GOHOSTOS),darwin)
 # Even on 64-bit platform, darwin uname -m prints i386.
 # Check for amd64 with sysctl instead.
-GOARCH:=${shell if sysctl machdep.cpu.extfeatures | grep EM64T >/dev/null; then echo amd64; else uname -m | sed 's/i386/386/'; fi}
+GOHOSTARCH:=${shell if sysctl machdep.cpu.extfeatures | grep EM64T >/dev/null; then echo amd64; else uname -m | sed 's/i386/386/'; fi}
 else
 # Ask uname -m for the processor.
-GOARCH:=${shell uname -m | sed 's/^..86$$/386/; s/^.86$$/386/; s/x86_64/amd64/; s/arm.*/arm/'}
+GOHOSTARCH:=${shell uname -m | sed 's/^..86$$/386/; s/^.86$$/386/; s/x86_64/amd64/; s/arm.*/arm/'}
 endif
+endif
+
+ifeq ($(GOARCH),)
+GOARCH:=$(GOHOSTARCH)
 endif
 
 ifeq ($(GOARCH),386)
@@ -63,7 +71,7 @@ $(error Invalid $$GOARCH '$(GOARCH)'; must be 386, amd64, or arm)
 endif
 
 # Save for recursive make to avoid recomputing.
-export GOARCH GOOS
+export GOARCH GOOS GOHOSTARCH GOHOSTOS
 
 # ugly hack to deal with whitespaces in $GOROOT
 nullstring :=
@@ -101,6 +109,8 @@ export LANG LC_ALL LC_CTYPE GREP_OPTIONS GREP_COLORS
 go-env:
 	@echo export GOARCH=$(GOARCH)
 	@echo export GOOS=$(GOOS)
+	@echo export GOHOSTARCH=$(GOHOSTARCH)
+	@echo export GOHOSTOS=$(GOHOSTOS)
 	@echo export O=$O
 	@echo export AS="$(AS)"
 	@echo export CC="$(CC)"
