@@ -489,16 +489,13 @@ func (c *conn) handshake() os.Error {
 	if err != nil {
 		return err
 	}
-	// Read the vendor length.
+	// Read the vendor length and round it up to a multiple of 4,
+	// for X11 protocol alignment reasons.
 	vendorLen, err := readU16LE(c.r, c.buf[0:2])
 	if err != nil {
 		return err
 	}
-	if vendorLen != 20 {
-		// For now, assume the vendor is "The X.Org Foundation". Supporting different
-		// vendors would require figuring out how much padding we need to read.
-		return os.NewError("unsupported X vendor")
-	}
+	vendorLen = (vendorLen + 3) &^ 3
 	// Read the maximum request length.
 	maxReqLen, err := readU16LE(c.r, c.buf[0:2])
 	if err != nil {
@@ -517,10 +514,13 @@ func (c *conn) handshake() os.Error {
 	if err != nil {
 		return err
 	}
-	// Ignore some things that we don't care about (totalling 30 bytes):
+	// Ignore some things that we don't care about (totalling 10 + vendorLen bytes):
 	// imageByteOrder(1), bitmapFormatBitOrder(1), bitmapFormatScanlineUnit(1) bitmapFormatScanlinePad(1),
-	// minKeycode(1), maxKeycode(1), padding(4), vendor(20, hard-coded above).
-	_, err = io.ReadFull(c.r, c.buf[0:30])
+	// minKeycode(1), maxKeycode(1), padding(4), vendor (vendorLen).
+	if 10+int(vendorLen) > cap(c.buf) {
+		return os.NewError("unsupported X vendor")
+	}
+	_, err = io.ReadFull(c.r, c.buf[0:10+int(vendorLen)])
 	if err != nil {
 		return err
 	}
