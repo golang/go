@@ -598,7 +598,10 @@ func (c *Conn) Read(b []byte) (n int, err os.Error) {
 	defer c.in.Unlock()
 
 	for c.input == nil && c.err == nil {
-		c.readRecord(recordTypeApplicationData)
+		if err := c.readRecord(recordTypeApplicationData); err != nil {
+			// Soft error, like EAGAIN
+			return 0, err
+		}
 	}
 	if c.err != nil {
 		return 0, c.err
