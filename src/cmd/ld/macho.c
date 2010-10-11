@@ -47,6 +47,10 @@ newMachoLoad(uint32 type, uint32 ndata)
 		diag("too many loads");
 		errorexit();
 	}
+	
+	if(macho64 && (ndata & 1))
+		ndata++;
+	
 	l = &load[nload++];
 	l->type = type;
 	l->ndata = ndata;
