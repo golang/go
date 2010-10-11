@@ -763,7 +763,7 @@ writelines(void)
 				continue;
 			}
 			if (lh->file < 1) {  // 0 is the past-EOF entry.
-				diag("instruction with linenumber past EOF in %s: %P", unitname, q);
+				//diag("instruction with linenumber past EOF in %s: %P", unitname, q);
 				continue;
 			}
 
