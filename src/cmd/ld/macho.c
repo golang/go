@@ -497,7 +497,7 @@ asmbmacho(vlong symdatva, vlong symo)
 	ms->vaddr = va+v;
 	ms->vsize = w;
 	ms->fileoffset = v;
-	ms->filesize = datsize;
+	ms->filesize = datsize+dynptrsize;
 	ms->prot1 = 7;
 	ms->prot2 = 3;
 
@@ -510,6 +510,7 @@ asmbmacho(vlong symdatva, vlong symo)
 		msect = newMachoSect(ms, "__nl_symbol_ptr");
 		msect->addr = va+v+datsize;
 		msect->size = dynptrsize;
+		msect->off = v+datsize;
 		msect->align = 2;
 		msect->flag = 6;	/* section with nonlazy symbol pointers */
 		/*
