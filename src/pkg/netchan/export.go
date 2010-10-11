@@ -107,6 +107,7 @@ func (client *expClient) run() {
 		}
 		switch hdr.payloadType {
 		case payRequest:
+			*req = request{}
 			if err := client.decode(reqValue); err != nil {
 				expLog("error decoding client request:", err)
 				break
