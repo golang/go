@@ -123,6 +123,7 @@ DIRS=\
 	testing/quick\
 	testing/script\
 	time\
+	try\
 	unicode\
 	utf16\
 	utf8\
@@ -153,6 +154,7 @@ NOTEST=\
 	runtime/pprof\
 	syscall\
 	testing/iotest\
+	try\
 	../libcgo\
 	../cmd/cgo\
 	../cmd/ebnflint\
