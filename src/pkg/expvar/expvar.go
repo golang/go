@@ -6,6 +6,8 @@
 // such as operation counters in servers. It exposes these variables via
 // HTTP at /debug/vars in JSON format.
 //
+// Operations to set or modify these public variables are atomic.
+//
 // In addition to adding the HTTP handler, this package registers the
 // following variables:
 //
@@ -48,6 +50,12 @@ func (v *Int) Add(delta int64) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.i += delta
+}
+
+func (v *Int) Set(value int64) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.i = value
 }
 
 // Map is a string-to-Var map variable, and satisfies the Var interface.
