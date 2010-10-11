@@ -37,7 +37,8 @@ func (c *Conn) clientHandshake() os.Error {
 	hello.random[3] = byte(t)
 	_, err := io.ReadFull(c.config.Rand, hello.random[4:])
 	if err != nil {
-		return c.sendAlert(alertInternalError)
+		c.sendAlert(alertInternalError)
+		return os.ErrorString("short read from Rand")
 	}
 
 	finishedHash.Write(hello.marshal())
@@ -79,14 +80,16 @@ func (c *Conn) clientHandshake() os.Error {
 	for i, asn1Data := range certMsg.certificates {
 		cert, err := x509.ParseCertificate(asn1Data)
 		if err != nil {
-			return c.sendAlert(alertBadCertificate)
+			c.sendAlert(alertBadCertificate)
+			return os.ErrorString("failed to parse certificate from server: " + err.String())
 		}
 		certs[i] = cert
 	}
 
 	for i := 1; i < len(certs); i++ {
 		if !certs[i].BasicConstraintsValid || !certs[i].IsCA {
-			return c.sendAlert(alertBadCertificate)
+			c.sendAlert(alertBadCertificate)
+			return os.ErrorString("intermediate certificate does not have CA bit set")
 		}
 		// KeyUsage status flags are ignored. From Engineering
 		// Security, Peter Gutmann:
@@ -109,7 +112,8 @@ func (c *Conn) clientHandshake() os.Error {
 		// could only be used for Diffie-Hellman key agreement.
 
 		if err := certs[i-1].CheckSignatureFrom(certs[i]); err != nil {
-			return c.sendAlert(alertBadCertificate)
+			c.sendAlert(alertBadCertificate)
+			return os.ErrorString("could not validate certificate signature: " + err.String())
 		}
 	}
 
@@ -117,10 +121,12 @@ func (c *Conn) clientHandshake() os.Error {
 	if c.config.RootCAs != nil {
 		root := c.config.RootCAs.FindParent(certs[len(certs)-1])
 		if root == nil {
-			return c.sendAlert(alertBadCertificate)
+			c.sendAlert(alertBadCertificate)
+			return os.ErrorString("could not find root certificate for chain")
 		}
-		if certs[len(certs)-1].CheckSignatureFrom(root) != nil {
-			return c.sendAlert(alertBadCertificate)
+		if err := certs[len(certs)-1].CheckSignatureFrom(root); err != nil {
+			c.sendAlert(alertBadCertificate)
+			return os.ErrorString("could not validate signature from expected root: " + err.String())
 		}
 	}
 

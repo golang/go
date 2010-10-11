@@ -145,7 +145,8 @@ func (c *Conn) serverHandshake() os.Error {
 		for i, asn1Data := range certMsg.certificates {
 			cert, err := x509.ParseCertificate(asn1Data)
 			if err != nil {
-				return c.sendAlert(alertBadCertificate)
+				c.sendAlert(alertBadCertificate)
+				return os.ErrorString("could not parse client's certificate: " + err.String())
 			}
 			certs[i] = cert
 		}
@@ -153,7 +154,8 @@ func (c *Conn) serverHandshake() os.Error {
 		// TODO(agl): do better validation of certs: max path length, name restrictions etc.
 		for i := 1; i < len(certs); i++ {
 			if err := certs[i-1].CheckSignatureFrom(certs[i]); err != nil {
-				return c.sendAlert(alertBadCertificate)
+				c.sendAlert(alertBadCertificate)
+				return os.ErrorString("could not validate certificate signature: " + err.String())
 			}
 		}
 
@@ -199,7 +201,8 @@ func (c *Conn) serverHandshake() os.Error {
 		copy(digest[16:36], finishedHash.serverSHA1.Sum())
 		err = rsa.VerifyPKCS1v15(pub, rsa.HashMD5SHA1, digest, certVerify.signature)
 		if err != nil {
-			return c.sendAlert(alertBadCertificate)
+			c.sendAlert(alertBadCertificate)
+			return os.ErrorString("could not validate signature of connection nonces: " + err.String())
 		}
 
 		finishedHash.Write(certVerify.marshal())

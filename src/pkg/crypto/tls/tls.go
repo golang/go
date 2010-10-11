@@ -76,7 +76,8 @@ func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
 	return nil, err
 }
 
-// LoadX509KeyPair
+// LoadX509KeyPair reads and parses a public/private key pair from a pair of
+// files. The files must contain PEM encoded data.
 func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.Error) {
 	certPEMBlock, err := ioutil.ReadFile(certFile)
 	if err != nil {
