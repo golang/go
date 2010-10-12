@@ -261,8 +261,47 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0
 }
 
+type SockaddrLinklayer struct {
+	Protocol uint16
+	Ifindex  int
+	Hatype   uint16
+	Pkttype  uint8
+	Halen    uint8
+	Addr     [8]byte
+	raw      RawSockaddrLinklayer
+}
+
+func (sa *SockaddrLinklayer) sockaddr() (uintptr, _Socklen, int) {
+	if sa.Ifindex < 0 || sa.Ifindex > 0x7fffffff {
+		return 0, 0, EINVAL
+	}
+	sa.raw.Family = AF_PACKET
+	sa.raw.Protocol = sa.Protocol
+	sa.raw.Ifindex = int32(sa.Ifindex)
+	sa.raw.Hatype = sa.Hatype
+	sa.raw.Pkttype = sa.Pkttype
+	sa.raw.Halen = sa.Halen
+	for i := 0; i < len(sa.Addr); i++ {
+		sa.raw.Addr[i] = sa.Addr[i]
+	}
+	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrLinklayer, 0
+}
+
 func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 	switch rsa.Addr.Family {
+	case AF_PACKET:
+		pp := (*RawSockaddrLinklayer)(unsafe.Pointer(rsa))
+		sa := new(SockaddrLinklayer)
+		sa.Protocol = pp.Protocol
+		sa.Ifindex = int(pp.Ifindex)
+		sa.Hatype = pp.Hatype
+		sa.Pkttype = pp.Pkttype
+		sa.Halen = pp.Halen
+		for i := 0; i < len(sa.Addr); i++ {
+			sa.Addr[i] = pp.Addr[i]
+		}
+		return sa, 0
+
 	case AF_UNIX:
 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
 		sa := new(SockaddrUnix)
