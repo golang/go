@@ -15,6 +15,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <netpacket/packet.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/epoll.h>
@@ -91,6 +92,7 @@ union sockaddr_all {
 	struct sockaddr_in s2;	// these pad it out
 	struct sockaddr_in6 s3;
 	struct sockaddr_un s4;
+	struct sockaddr_ll s5;
 };
 
 struct sockaddr_any {
@@ -101,6 +103,7 @@ struct sockaddr_any {
 typedef struct sockaddr_in $RawSockaddrInet4;
 typedef struct sockaddr_in6 $RawSockaddrInet6;
 typedef struct sockaddr_un $RawSockaddrUnix;
+typedef struct sockaddr_ll $RawSockaddrLinklayer;
 typedef struct sockaddr $RawSockaddr;
 typedef struct sockaddr_any $RawSockaddrAny;
 typedef socklen_t $_Socklen;
@@ -115,6 +118,7 @@ enum {
 	$SizeofSockaddrInet6 = sizeof(struct sockaddr_in6),
 	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
+	$SizeofSockaddrLinklayer = sizeof(struct sockaddr_ll),
 	$SizeofLinger = sizeof(struct linger),
 	$SizeofMsghdr = sizeof(struct msghdr),
 	$SizeofCmsghdr = sizeof(struct cmsghdr),
@@ -126,7 +130,7 @@ enum {
 typedef struct inotify_event $InotifyEvent;
 
 enum {
-        $SizeofInotifyEvent = sizeof(struct inotify_event)
+	$SizeofInotifyEvent = sizeof(struct inotify_event)
 };
 
 
