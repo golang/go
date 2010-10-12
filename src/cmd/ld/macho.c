@@ -410,7 +410,7 @@ domacholink(void)
 	uint64 val;
 
 	linkoff = 0;
-	if(nlinkdata > 0) {
+	if(nlinkdata > 0 || nstrtab > 0) {
 		linkoff = rnd(HEADR+textsize, INITRND) + rnd(datsize, INITRND);
 		seek(cout, linkoff, 0);
 
