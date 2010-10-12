@@ -463,7 +463,7 @@ statement, it's common to see one used to set up a local variable.
 
 <pre>
 if err := file.Chmod(0664); err != nil {
-    log.Stderr(err)
+    log.Print(err)
     return err
 }
 </pre>
@@ -815,7 +815,7 @@ which is much clearer than placing it at the end of the function.
 </p>
 
 <p>
-The arguments to the deferred function (which includes the receiver if
+The arguments to the deferred function (which include the receiver if
 the function is a method) are evaluated when the <i>defer</i>
 executes, not when the <i>call</i> executes.  Besides avoiding worries
 about variables changing values as the function executes, this means
@@ -1288,7 +1288,7 @@ func offset(tz string) int {
     if seconds, ok := timeZone[tz]; ok {
         return seconds
     }
-    log.Stderr("unknown time zone", tz)
+    log.Println("unknown time zone", tz)
     return 0
 }
 </pre>
@@ -1455,13 +1455,13 @@ Within the function <code>Printf</code>, <code>v</code> acts like a variable of 
 <code>[]interface{}</code> but if it is passed to another variadic function, it acts like
 a regular list of arguments.
 Here is the implementation of the
-function <code>log.Stderr</code> we used above. It passes its arguments directly to
+function <code>log.Println</code> we used above. It passes its arguments directly to
 <code>fmt.Sprintln</code> for the actual formatting.
 </p>
 <pre>
-// Stderr is a helper function for easy logging to stderr. It is analogous to Fprintln(os.Stderr).
-func Stderr(v ...interface{}) {
-    stderr.Output(2, fmt.Sprintln(v))  // Output takes parameters (int, string)
+// Println prints to the standard logger in the manner of fmt.Println.
+func Println(v ...interface{}) {
+    std.Output(2, fmt.Sprintln(v...))  // Output takes parameters (int, string)
 }
 </pre>
 <p>
@@ -2133,7 +2133,7 @@ func NewJob(command string, logger *log.Logger) *Job {
 or with a composite literal,
 </p>
 <pre>
-job := &amp;Job{command, log.New(os.Stderr, nil, "Job: ", log.Ldate)}
+job := &amp;Job{command, log.New(os.Stderr, "Job: ", log.Ldate)}
 </pre>
 <p>
 If we need to refer to an embedded field directly, the type name of the field,
@@ -2675,7 +2675,7 @@ func server(workChan <-chan *Work) {
 func safelyDo(work *Work) {
     defer func() {
         if err := recover(); err != nil {
-            log.Stderr("work failed:", err)
+            log.Println("work failed:", err)
         }
     }()
     do(work)
