@@ -117,7 +117,6 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 
 // TODO(kardia): Add trace
 //The command and arguments are passed via the Command line parameter.
-//Thus, repeating the exec name in the first argument is unneeded.
 func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int) (pid int, err int) {
 	if traceme == true {
 		return 0, EWINDOWS
@@ -150,23 +149,28 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 		if ok, err := DuplicateHandle(currentProc, int32(fd[0]), currentProc, &startupInfo.StdInput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
 			return 0, err
 		}
+		defer CloseHandle(int32(startupInfo.StdInput))
 	}
 	if len(fd) > 1 && fd[1] > 0 {
 		if ok, err := DuplicateHandle(currentProc, int32(fd[1]), currentProc, &startupInfo.StdOutput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
 			return 0, err
 		}
+		defer CloseHandle(int32(startupInfo.StdOutput))
 	}
 	if len(fd) > 2 && fd[2] > 0 {
 		if ok, err := DuplicateHandle(currentProc, int32(fd[2]), currentProc, &startupInfo.StdErr, 0, true, DUPLICATE_SAME_ACCESS); !ok {
 			return 0, err
 		}
+		defer CloseHandle(int32(startupInfo.StdErr))
 	}
-
+	if len(argv) == 0 {
+		argv = []string{""}
+	}
 	// argv0 must not be longer then 256 chars
 	// but the entire cmd line can have up to 32k chars (msdn)
 	ok, err := CreateProcess(
 		nil,
-		StringToUTF16Ptr(escapeAddQuotes(argv0)+" "+stringJoin(argv, " ", escapeAddQuotes)),
+		StringToUTF16Ptr(escapeAddQuotes(argv0)+" "+stringJoin(argv[1:], " ", escapeAddQuotes)),
 		nil,  //ptr to struct lpProcessAttributes
 		nil,  //ptr to struct lpThreadAttributes
 		true, //bInheritHandles
