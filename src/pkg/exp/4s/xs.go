@@ -144,17 +144,17 @@ var txbits = [NCOL][32]byte{
 	},
 }
 
-var txpix = [NCOL]image.ColorImage{
-	image.ColorImage{image.RGBAColor{0xFF, 0xFF, 0x00, 0xFF}}, /* yellow */
-	image.ColorImage{image.RGBAColor{0x00, 0xFF, 0xFF, 0xFF}}, /* cyan */
-	image.ColorImage{image.RGBAColor{0x00, 0xFF, 0x00, 0xFF}}, /* lime green */
-	image.ColorImage{image.RGBAColor{0x00, 0x5D, 0xBB, 0xFF}}, /* slate */
-	image.ColorImage{image.RGBAColor{0xFF, 0x00, 0x00, 0xFF}}, /* red */
-	image.ColorImage{image.RGBAColor{0x55, 0xAA, 0xAA, 0xFF}}, /* olive green */
-	image.ColorImage{image.RGBAColor{0x00, 0x00, 0xFF, 0xFF}}, /* blue */
-	image.ColorImage{image.RGBAColor{0xFF, 0x55, 0xAA, 0xFF}}, /* pink */
-	image.ColorImage{image.RGBAColor{0xFF, 0xAA, 0xFF, 0xFF}}, /* lavender */
-	image.ColorImage{image.RGBAColor{0xBB, 0x00, 0x5D, 0xFF}}, /* maroon */
+var txpix = [NCOL]image.Image{
+	image.NewColorImage(image.RGBAColor{0xFF, 0xFF, 0x00, 0xFF}), /* yellow */
+	image.NewColorImage(image.RGBAColor{0x00, 0xFF, 0xFF, 0xFF}), /* cyan */
+	image.NewColorImage(image.RGBAColor{0x00, 0xFF, 0x00, 0xFF}), /* lime green */
+	image.NewColorImage(image.RGBAColor{0x00, 0x5D, 0xBB, 0xFF}), /* slate */
+	image.NewColorImage(image.RGBAColor{0xFF, 0x00, 0x00, 0xFF}), /* red */
+	image.NewColorImage(image.RGBAColor{0x55, 0xAA, 0xAA, 0xFF}), /* olive green */
+	image.NewColorImage(image.RGBAColor{0x00, 0x00, 0xFF, 0xFF}), /* blue */
+	image.NewColorImage(image.RGBAColor{0xFF, 0x55, 0xAA, 0xFF}), /* pink */
+	image.NewColorImage(image.RGBAColor{0xFF, 0xAA, 0xFF, 0xFF}), /* lavender */
+	image.NewColorImage(image.RGBAColor{0xBB, 0x00, 0x5D, 0xFF}), /* maroon */
 }
 
 func movemouse() int {
@@ -735,7 +735,7 @@ func Play(pp []Piece, ctxt draw.Window) {
 	N = len(pieces[0].d)
 	initPieces()
 	rand.Seed(int64(time.Nanoseconds() % (1e9 - 1)))
-	whitemask = image.ColorImage{image.AlphaColor{0x7F}}
+	whitemask = image.NewColorImage(image.AlphaColor{0x7F})
 	tsleep = 50
 	timerc = time.Tick(int64(tsleep/2) * 1e6)
 	suspc = make(chan bool)
