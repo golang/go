@@ -65,7 +65,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 	if dst0, ok := dst.(*image.RGBA); ok {
 		if op == Over {
 			if mask == nil {
-				if src0, ok := src.(image.ColorImage); ok {
+				if src0, ok := src.(*image.ColorImage); ok {
 					drawFillOver(dst0, r, src0)
 					return
 				}
@@ -74,14 +74,14 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					return
 				}
 			} else if mask0, ok := mask.(*image.Alpha); ok {
-				if src0, ok := src.(image.ColorImage); ok {
+				if src0, ok := src.(*image.ColorImage); ok {
 					drawGlyphOver(dst0, r, src0, mask0, mp)
 					return
 				}
 			}
 		} else {
 			if mask == nil {
-				if src0, ok := src.(image.ColorImage); ok {
+				if src0, ok := src.(*image.ColorImage); ok {
 					drawFillSrc(dst0, r, src0)
 					return
 				}
@@ -149,7 +149,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 	}
 }
 
-func drawFillOver(dst *image.RGBA, r image.Rectangle, src image.ColorImage) {
+func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 	cr, cg, cb, ca := src.RGBA()
 	// The 0x101 is here for the same reason as in drawRGBA.
 	a := (m - ca) * 0x101
@@ -224,7 +224,7 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 	}
 }
 
-func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src image.ColorImage, mask *image.Alpha, mp image.Point) {
+func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, mask *image.Alpha, mp image.Point) {
 	x0, x1 := r.Min.X, r.Max.X
 	y0, y1 := r.Min.Y, r.Max.Y
 	cr, cg, cb, ca := src.RGBA()
@@ -254,7 +254,7 @@ func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src image.ColorImage, mas
 	}
 }
 
-func drawFillSrc(dst *image.RGBA, r image.Rectangle, src image.ColorImage) {
+func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 	if r.Dy() < 1 {
 		return
 	}
