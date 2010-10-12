@@ -2,6 +2,10 @@
 
 // MACHINE GENERATED - DO NOT EDIT.
 
+// Manual corrections: UGH
+//	remove duplicate PtraceRegs type
+//	change RawSockaddrUnix field to Path [108]int8 (was uint8()
+
 package syscall
 
 // Constants
@@ -181,7 +185,7 @@ type RawSockaddrInet6 struct {
 
 type RawSockaddrUnix struct {
 	Family uint16
-	Path   [108]uint8
+	Path   [108]int8
 }
 
 type RawSockaddrLinklayer struct {
@@ -244,8 +248,6 @@ type InotifyEvent struct {
 	Cookie uint32
 	Len    uint32
 }
-
-type PtraceRegs struct{}
 
 type PtraceRegs struct{}
 
