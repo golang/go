@@ -12,8 +12,8 @@ include $(QUOTED_GOROOT)/src/Make.common
 
 PREREQ+=$(patsubst %,%.make,$(DEPS))
 
-$(TARG): _go_.$O $(OFILES)
-	$(LD) -o $@ _go_.$O $(OFILES)
+$(TARG): _go_.$O
+	$(LD) -o $@ _go_.$O
 
 _go_.$O: $(GOFILES) $(PREREQ)
 	$(GC) -o $@ $(GOFILES)
