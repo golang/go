@@ -412,7 +412,7 @@ func (w *Window) readEvents() {
 		var e event
 		switch buf[0] {
 		default:
-			log.Stdout("unsupported event type", buf[0])
+			log.Print("unsupported event type", buf[0])
 			continue
 		case eventActive:
 			ea = new(activeEvent)
@@ -435,10 +435,10 @@ func (w *Window) readEvents() {
 		}
 		r := reader(buf)
 		if err := binary.Read(&r, binary.LittleEndian, e); err != nil {
-			log.Stdout("unpacking %T event: %s", e, err)
+			log.Print("unpacking %T event: %s", e, err)
 			continue
 		}
-		// log.Stdoutf("%#v\n", e);
+		// log.Printf("%#v\n", e);
 		switch buf[0] {
 		case eventExpose:
 			w.eventc <- draw.ConfigEvent{image.Config{ColorModel, w.Image.Bounds().Dx(), w.Image.Bounds().Dy()}}

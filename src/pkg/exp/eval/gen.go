@@ -184,7 +184,7 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos)
+		log.Panicf("unexpected expression node type %T at %v", a.eval, a.pos)
 	}
 	panic("fail")
 }
@@ -205,7 +205,7 @@ func (a *expr) genConstant(v Value) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected constant type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected constant type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -220,7 +220,7 @@ func (a *expr) genIdentOp(level, index int) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected identifier type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -237,7 +237,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 	case *MultiType:
 		a.eval = func(t *Thread) []Value { return call(t) }
 	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected result type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -252,7 +252,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected result type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -271,7 +271,7 @@ func (a *expr) genUnaryOp«Name»(v *expr) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -327,7 +327,7 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
 			}
 		«.end»
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 		«.or»
 		a.eval = func(t *Thread) «Native» {
@@ -339,7 +339,7 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
 	«.end»
 	«.end»
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -355,7 +355,7 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
 «.end»
 «.end»
 	default:
-		log.Crashf("unexpected left operand type %v at %v", lt, r.pos)
+		log.Panicf("unexpected left operand type %v at %v", lt, r.pos)
 	}
 	panic("fail")
 }

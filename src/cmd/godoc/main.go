@@ -74,20 +74,20 @@ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.E
 func exec(rw http.ResponseWriter, args []string) (status int) {
 	r, w, err := os.Pipe()
 	if err != nil {
-		log.Stderrf("os.Pipe(): %v\n", err)
+		log.Printf("os.Pipe(): %v\n", err)
 		return 2
 	}
 
 	bin := args[0]
 	fds := []*os.File{nil, w, w}
 	if *verbose {
-		log.Stderrf("executing %v", args)
+		log.Printf("executing %v", args)
 	}
 	pid, err := os.ForkExec(bin, args, os.Environ(), *goroot, fds)
 	defer r.Close()
 	w.Close()
 	if err != nil {
-		log.Stderrf("os.ForkExec(%q): %v\n", bin, err)
+		log.Printf("os.ForkExec(%q): %v\n", bin, err)
 		return 2
 	}
 
@@ -96,13 +96,13 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 	wait, err := os.Wait(pid, 0)
 	if err != nil {
 		os.Stderr.Write(buf.Bytes())
-		log.Stderrf("os.Wait(%d, 0): %v\n", pid, err)
+		log.Printf("os.Wait(%d, 0): %v\n", pid, err)
 		return 2
 	}
 	status = wait.ExitStatus()
 	if !wait.Exited() || status > 1 {
 		os.Stderr.Write(buf.Bytes())
-		log.Stderrf("executing %v failed (exit status = %d)", args, status)
+		log.Printf("executing %v failed (exit status = %d)", args, status)
 		return
 	}
 
@@ -151,7 +151,7 @@ func usage() {
 
 func loggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		log.Stderrf("%s\t%s", w.RemoteAddr(), req.URL)
+		log.Printf("%s\t%s", w.RemoteAddr(), req.URL)
 		h.ServeHTTP(w, req)
 	})
 }
@@ -237,13 +237,13 @@ func main() {
 		// HTTP server mode.
 		var handler http.Handler = http.DefaultServeMux
 		if *verbose {
-			log.Stderrf("Go Documentation Server\n")
-			log.Stderrf("version = %s\n", runtime.Version())
-			log.Stderrf("address = %s\n", *httpAddr)
-			log.Stderrf("goroot = %s\n", *goroot)
-			log.Stderrf("tabwidth = %d\n", *tabwidth)
+			log.Printf("Go Documentation Server\n")
+			log.Printf("version = %s\n", runtime.Version())
+			log.Printf("address = %s\n", *httpAddr)
+			log.Printf("goroot = %s\n", *goroot)
+			log.Printf("tabwidth = %d\n", *tabwidth)
 			if !fsMap.IsEmpty() {
-				log.Stderr("user-defined mapping:")
+				log.Print("user-defined mapping:")
 				fsMap.Fprint(os.Stderr)
 			}
 			handler = loggingHandler(handler)
@@ -272,7 +272,7 @@ func main() {
 					dosync(nil, nil)
 					delay, _ := syncDelay.get()
 					if *verbose {
-						log.Stderrf("next sync in %dmin", delay.(int))
+						log.Printf("next sync in %dmin", delay.(int))
 					}
 					time.Sleep(int64(delay.(int)) * 60e9)
 				}
@@ -377,6 +377,6 @@ func main() {
 	}
 
 	if err := packageText.Execute(info, os.Stdout); err != nil {
-		log.Stderrf("packageText.Execute: %s", err)
+		log.Printf("packageText.Execute: %s", err)
 	}
 }

@@ -74,7 +74,7 @@ type Scope struct {
 
 func (b *block) enterChild() *block {
 	if b.inner != nil && b.inner.scope == b.scope {
-		log.Crash("Failed to exit child block before entering another child")
+		log.Panic("Failed to exit child block before entering another child")
 	}
 	sub := &block{
 		outer:  b,
@@ -88,14 +88,14 @@ func (b *block) enterChild() *block {
 
 func (b *block) exit() {
 	if b.outer == nil {
-		log.Crash("Cannot exit top-level block")
+		log.Panic("Cannot exit top-level block")
 	}
 	if b.outer.scope == b.scope {
 		if b.outer.inner != b {
-			log.Crash("Already exited block")
+			log.Panic("Already exited block")
 		}
 		if b.inner != nil && b.inner.scope == b.scope {
-			log.Crash("Exit of parent block without exit of child block")
+			log.Panic("Exit of parent block without exit of child block")
 		}
 	}
 	b.outer.inner = nil
@@ -103,7 +103,7 @@ func (b *block) exit() {
 
 func (b *block) ChildScope() *Scope {
 	if b.inner != nil && b.inner.scope == b.scope {
-		log.Crash("Failed to exit child block before entering a child scope")
+		log.Panic("Failed to exit child block before entering a child scope")
 	}
 	sub := b.enterChild()
 	sub.offset = 0
@@ -125,7 +125,7 @@ func (b *block) DefineTemp(t Type) *Variable { return b.defineSlot(t, true) }
 
 func (b *block) defineSlot(t Type, temp bool) *Variable {
 	if b.inner != nil && b.inner.scope == b.scope {
-		log.Crash("Failed to exit child block before defining variable")
+		log.Panic("Failed to exit child block before defining variable")
 	}
 	index := -1
 	if !b.global || temp {

@@ -212,11 +212,11 @@ func (w *response) SetHeader(hdr, val string) { w.header[CanonicalHeaderKey(hdr)
 // WriteHeader implements the ResponseWriter.WriteHeader method
 func (w *response) WriteHeader(code int) {
 	if w.conn.hijacked {
-		log.Stderr("http: response.WriteHeader on hijacked connection")
+		log.Print("http: response.WriteHeader on hijacked connection")
 		return
 	}
 	if w.wroteHeader {
-		log.Stderr("http: multiple response.WriteHeader calls")
+		log.Print("http: multiple response.WriteHeader calls")
 		return
 	}
 	w.wroteHeader = true
@@ -248,7 +248,7 @@ func (w *response) WriteHeader(code int) {
 // Write implements the ResponseWriter.Write method
 func (w *response) Write(data []byte) (n int, err os.Error) {
 	if w.conn.hijacked {
-		log.Stderr("http: response.Write on hijacked connection")
+		log.Print("http: response.Write on hijacked connection")
 		return 0, ErrHijacked
 	}
 	if !w.wroteHeader {
@@ -721,7 +721,7 @@ func ListenAndServe(addr string, handler Handler) os.Error {
 //
 //	func main() {
 //		http.HandleFunc("/", handler)
-//		log.Stdoutf("About to listen on 10443. Go to https://127.0.0.1:10443/")
+//		log.Printf("About to listen on 10443. Go to https://127.0.0.1:10443/")
 //		err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
 //		if err != nil {
 //			log.Exit(err)

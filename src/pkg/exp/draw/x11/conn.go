@@ -69,7 +69,7 @@ func (c *conn) writeSocket() {
 		// TODO(nigeltao): See what XCB's xcb_put_image does in this situation.
 		units := 6 + b.Dx()
 		if units > 0xffff || b.Dy() > 0xffff {
-			log.Stderr("x11: window is too large for PutImage")
+			log.Print("x11: window is too large for PutImage")
 			return
 		}
 
@@ -86,7 +86,7 @@ func (c *conn) writeSocket() {
 			setU32LE(c.flushBuf0[16:20], uint32(y<<16))
 			if _, err := c.w.Write(c.flushBuf0[0:24]); err != nil {
 				if err != os.EOF {
-					log.Stderr("x11: " + err.String())
+					log.Println("x11:", err.String())
 				}
 				return
 			}
@@ -104,7 +104,7 @@ func (c *conn) writeSocket() {
 				x += nx
 				if _, err := c.w.Write(c.flushBuf1[0 : 4*nx]); err != nil {
 					if err != os.EOF {
-						log.Stderr("x11: " + err.String())
+						log.Println("x11:", err.String())
 					}
 					return
 				}
@@ -112,7 +112,7 @@ func (c *conn) writeSocket() {
 		}
 		if err := c.w.Flush(); err != nil {
 			if err != os.EOF {
-				log.Stderr("x11: " + err.String())
+				log.Println("x11:", err.String())
 			}
 			return
 		}

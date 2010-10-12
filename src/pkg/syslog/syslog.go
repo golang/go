@@ -140,5 +140,5 @@ func NewLogger(p Priority, flag int) *log.Logger {
 	if err != nil {
 		return nil
 	}
-	return log.New(s, nil, "", flag)
+	return log.New(s, "", flag)
 }

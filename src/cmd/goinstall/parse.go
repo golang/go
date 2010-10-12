@@ -69,7 +69,7 @@ func goFiles(dir string, allowMain bool) (files []string, imports map[string]str
 				quoted := string(spec.(*ast.ImportSpec).Path.Value)
 				unquoted, err := strconv.Unquote(quoted)
 				if err != nil {
-					log.Crashf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
+					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
 				}
 				imports[unquoted] = filename
 			}

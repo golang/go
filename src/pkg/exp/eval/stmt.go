@@ -82,7 +82,7 @@ func newFlowBuf(cb *codeBuf) *flowBuf {
 func (f *flowBuf) put(cond bool, term bool, jumps []*uint) {
 	pc := f.cb.nextPC()
 	if ent, ok := f.ents[pc]; ok {
-		log.Crashf("Flow entry already exists at PC %d: %+v", pc, ent)
+		log.Panicf("Flow entry already exists at PC %d: %+v", pc, ent)
 	}
 	f.ents[pc] = &flowEnt{cond, term, jumps, false}
 }
@@ -138,7 +138,7 @@ func (f *flowBuf) putLabel(name string, b *block) {
 func (f *flowBuf) reachesEnd(pc uint) bool {
 	endPC := f.cb.nextPC()
 	if pc > endPC {
-		log.Crashf("Reached bad PC %d past end PC %d", pc, endPC)
+		log.Panicf("Reached bad PC %d past end PC %d", pc, endPC)
 	}
 
 	for ; pc < endPC; pc++ {
@@ -239,7 +239,7 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 
 func (a *stmtCompiler) compile(s ast.Stmt) {
 	if a.block.inner != nil {
-		log.Crash("Child scope still entered")
+		log.Panic("Child scope still entered")
 	}
 
 	notimpl := false
@@ -309,7 +309,7 @@ func (a *stmtCompiler) compile(s ast.Stmt) {
 		notimpl = true
 
 	default:
-		log.Crashf("unexpected ast node type %T", s)
+		log.Panicf("unexpected ast node type %T", s)
 	}
 
 	if notimpl {
@@ -317,7 +317,7 @@ func (a *stmtCompiler) compile(s ast.Stmt) {
 	}
 
 	if a.block.inner != nil {
-		log.Crash("Forgot to exit child scope")
+		log.Panic("Forgot to exit child scope")
 	}
 }
 
@@ -329,16 +329,16 @@ func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
 
 	case *ast.FuncDecl:
 		if !a.block.global {
-			log.Crash("FuncDecl at statement level")
+			log.Panic("FuncDecl at statement level")
 		}
 
 	case *ast.GenDecl:
 		if decl.Tok == token.IMPORT && !a.block.global {
-			log.Crash("import at statement level")
+			log.Panic("import at statement level")
 		}
 
 	default:
-		log.Crashf("Unexpected Decl type %T", s.Decl)
+		log.Panicf("Unexpected Decl type %T", s.Decl)
 	}
 	a.compileDecl(s.Decl)
 }
@@ -350,7 +350,7 @@ func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
 			// Declaration without assignment
 			if spec.Type == nil {
 				// Parser should have caught
-				log.Crash("Type and Values nil")
+				log.Panic("Type and Values nil")
 			}
 			t := a.compileType(a.block, spec.Type)
 			// Define placeholders even if type compile failed
@@ -400,9 +400,9 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 	case *ast.GenDecl:
 		switch d.Tok {
 		case token.IMPORT:
-			log.Crashf("%v not implemented", d.Tok)
+			log.Panicf("%v not implemented", d.Tok)
 		case token.CONST:
-			log.Crashf("%v not implemented", d.Tok)
+			log.Panicf("%v not implemented", d.Tok)
 		case token.TYPE:
 			a.compileTypeDecl(a.block, d)
 		case token.VAR:
@@ -410,7 +410,7 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 		}
 
 	default:
-		log.Crashf("Unexpected Decl type %T", decl)
+		log.Panicf("Unexpected Decl type %T", decl)
 	}
 }
 
@@ -486,7 +486,7 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 		op = token.SUB
 		desc = "decrement statement"
 	default:
-		log.Crashf("Unexpected IncDec token %v", s.Tok)
+		log.Panicf("Unexpected IncDec token %v", s.Tok)
 	}
 
 	effect, l := l.extractEffect(bc.block, desc)
@@ -502,7 +502,7 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 
 	assign := a.compileAssign(s.Pos(), bc.block, l.t, []*expr{binop}, "", "")
 	if assign == nil {
-		log.Crashf("compileAssign type check failed")
+		log.Panicf("compileAssign type check failed")
 	}
 
 	lf := l.evalAddr
@@ -607,7 +607,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 				case ac.rmt.Elems[i].isFloat():
 					lt = FloatType
 				default:
-					log.Crashf("unexpected ideal type %v", rs[i].t)
+					log.Panicf("unexpected ideal type %v", rs[i].t)
 				}
 
 			default:
@@ -780,7 +780,7 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 
 	assign := a.compileAssign(s.Pos(), bc.block, l.t, []*expr{binop}, "assignment", "value")
 	if assign == nil {
-		log.Crashf("compileAssign type check failed")
+		log.Panicf("compileAssign type check failed")
 	}
 
 	lf := l.evalAddr
@@ -911,7 +911,7 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
 		return
 
 	default:
-		log.Crash("Unexpected branch token %v", s.Tok)
+		log.Panic("Unexpected branch token %v", s.Tok)
 	}
 
 	a.flow.put1(false, pc)

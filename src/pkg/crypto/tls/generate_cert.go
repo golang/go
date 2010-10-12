@@ -62,14 +62,14 @@ func main() {
 	}
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	certOut.Close()
-	log.Stdoutf("written cert.pem\n")
+	log.Print("written cert.pem\n")
 
 	keyOut, err := os.Open("key.pem", os.O_WRONLY|os.O_CREAT, 0600)
 	if err != nil {
-		log.Exitf("failed to open key.pem for writing: %s", err)
+		log.Print("failed to open key.pem for writing:", err)
 		return
 	}
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 	keyOut.Close()
-	log.Stdoutf("written key.pem\n")
+	log.Print("written key.pem\n")
 }

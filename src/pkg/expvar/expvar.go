@@ -161,12 +161,12 @@ var mutex sync.Mutex
 
 // Publish declares an named exported variable. This should be called from a
 // package's init function when it creates its Vars. If the name is already
-// registered then this will log.Crash.
+// registered then this will log.Panic.
 func Publish(name string, v Var) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if _, existing := vars[name]; existing {
-		log.Crash("Reuse of exported var name:", name)
+		log.Panicln("Reuse of exported var name:", name)
 	}
 	vars[name] = v
 }

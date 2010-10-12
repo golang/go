@@ -69,7 +69,7 @@ func (dec *Decoder) debug() {
 		break
 	}
 	if dec.state.err != nil {
-		log.Stderr("debug:", dec.state.err)
+		log.Print("debug:", dec.state.err)
 	}
 }
 

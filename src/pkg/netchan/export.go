@@ -34,7 +34,7 @@ import (
 // expLog is a logging convenience function.  The first argument must be a string.
 func expLog(args ...interface{}) {
 	args[0] = "netchan export: " + args[0].(string)
-	log.Stderr(args...)
+	log.Print(args...)
 }
 
 // An Exporter allows a set of channels to be published on a single

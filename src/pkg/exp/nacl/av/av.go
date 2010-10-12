@@ -182,7 +182,7 @@ func AudioStream(data []uint16) (nextSize int, err os.Error) {
 		return int(audioSize), nil
 	}
 	if uintptr(len(data))*2 != audioSize {
-		log.Stdoutf("invalid audio size want %d got %d", audioSize, len(data))
+		log.Printf("invalid audio size want %d got %d", audioSize, len(data))
 	}
 	e := os.NewSyscallError("audio_stream", syscall.AudioStream(&data[0], &audioSize))
 	return int(audioSize), e

@@ -79,7 +79,7 @@ func TypeFromNative(t reflect.Type) Type {
 	case *reflect.ArrayType:
 		et = NewArrayType(int64(t.Len()), TypeFromNative(t.Elem()))
 	case *reflect.ChanType:
-		log.Crashf("%T not implemented", t)
+		log.Panicf("%T not implemented", t)
 	case *reflect.FuncType:
 		nin := t.NumIn()
 		// Variadic functions have DotDotDotType at the end
@@ -97,9 +97,9 @@ func TypeFromNative(t reflect.Type) Type {
 		}
 		et = NewFuncType(in, variadic, out)
 	case *reflect.InterfaceType:
-		log.Crashf("%T not implemented", t)
+		log.Panicf("%T not implemented", t)
 	case *reflect.MapType:
-		log.Crashf("%T not implemented", t)
+		log.Panicf("%T not implemented", t)
 	case *reflect.PtrType:
 		et = NewPtrType(TypeFromNative(t.Elem()))
 	case *reflect.SliceType:
@@ -116,9 +116,9 @@ func TypeFromNative(t reflect.Type) Type {
 		}
 		et = NewStructType(fields)
 	case *reflect.UnsafePointerType:
-		log.Crashf("%T not implemented", t)
+		log.Panicf("%T not implemented", t)
 	default:
-		log.Crashf("unexpected reflect.Type: %T", t)
+		log.Panicf("unexpected reflect.Type: %T", t)
 	}
 
 	if nt != nil {

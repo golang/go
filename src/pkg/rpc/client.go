@@ -115,7 +115,7 @@ func (client *Client) input() {
 	}
 	client.mutex.Unlock()
 	if err != os.EOF || !client.closing {
-		log.Stderr("rpc: client protocol error:", err)
+		log.Println("rpc: client protocol error:", err)
 	}
 }
 
@@ -220,7 +220,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 		// RPCs that will be using that channel.  If the channel
 		// is totally unbuffered, it's best not to run at all.
 		if cap(done) == 0 {
-			log.Crash("rpc: done channel is unbuffered")
+			log.Panic("rpc: done channel is unbuffered")
 		}
 	}
 	c.Done = done

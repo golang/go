@@ -197,7 +197,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 	}
 	if s.typ.PkgPath() != "" && !isPublic(sname) {
 		s := "rpc Register: type " + sname + " is not public"
-		log.Stderr(s)
+		log.Print(s)
 		return os.ErrorString(s)
 	}
 	if _, present := server.serviceMap[sname]; present {
@@ -216,41 +216,41 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 		}
 		// Method needs three ins: receiver, *args, *reply.
 		if mtype.NumIn() != 3 {
-			log.Stderr("method", mname, "has wrong number of ins:", mtype.NumIn())
+			log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
 			continue
 		}
 		argType, ok := mtype.In(1).(*reflect.PtrType)
 		if !ok {
-			log.Stderr(mname, "arg type not a pointer:", mtype.In(1))
+			log.Println(mname, "arg type not a pointer:", mtype.In(1))
 			continue
 		}
 		replyType, ok := mtype.In(2).(*reflect.PtrType)
 		if !ok {
-			log.Stderr(mname, "reply type not a pointer:", mtype.In(2))
+			log.Println(mname, "reply type not a pointer:", mtype.In(2))
 			continue
 		}
 		if argType.Elem().PkgPath() != "" && !isPublic(argType.Elem().Name()) {
-			log.Stderr(mname, "argument type not public:", argType)
+			log.Println(mname, "argument type not public:", argType)
 			continue
 		}
 		if replyType.Elem().PkgPath() != "" && !isPublic(replyType.Elem().Name()) {
-			log.Stderr(mname, "reply type not public:", replyType)
+			log.Println(mname, "reply type not public:", replyType)
 			continue
 		}
 		if mtype.NumIn() == 4 {
 			t := mtype.In(3)
 			if t != reflect.Typeof((*ClientInfo)(nil)) {
-				log.Stderr(mname, "last argument not *ClientInfo")
+				log.Println(mname, "last argument not *ClientInfo")
 				continue
 			}
 		}
 		// Method needs one out: os.Error.
 		if mtype.NumOut() != 1 {
-			log.Stderr("method", mname, "has wrong number of outs:", mtype.NumOut())
+			log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
 			continue
 		}
 		if returnType := mtype.Out(0); returnType != typeOfOsError {
-			log.Stderr("method", mname, "returns", returnType.String(), "not os.Error")
+			log.Println("method", mname, "returns", returnType.String(), "not os.Error")
 			continue
 		}
 		s.method[mname] = &methodType{method: method, argType: argType, replyType: replyType}
@@ -258,7 +258,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 
 	if len(s.method) == 0 {
 		s := "rpc Register: type " + sname + " has no public methods of suitable type"
-		log.Stderr(s)
+		log.Print(s)
 		return os.ErrorString(s)
 	}
 	server.serviceMap[s.name] = s
@@ -289,7 +289,7 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec Se
 	sending.Lock()
 	err := codec.WriteResponse(resp, reply)
 	if err != nil {
-		log.Stderr("rpc: writing response: ", err)
+		log.Println("rpc: writing response:", err)
 	}
 	sending.Unlock()
 }
@@ -344,7 +344,7 @@ func (server *serverType) input(codec ServerCodec) {
 		if err != nil {
 			if err == os.EOF || err == io.ErrUnexpectedEOF {
 				if err == io.ErrUnexpectedEOF {
-					log.Stderr("rpc: ", err)
+					log.Println("rpc:", err)
 				}
 				break
 			}
@@ -378,7 +378,7 @@ func (server *serverType) input(codec ServerCodec) {
 		replyv := _new(mtype.replyType)
 		err = codec.ReadRequestBody(argv.Interface())
 		if err != nil {
-			log.Stderr("rpc: tearing down", serviceMethod[0], "connection:", err)
+			log.Println("rpc: tearing down", serviceMethod[0], "connection:", err)
 			sendResponse(sending, req, replyv.Interface(), codec, err.String())
 			break
 		}
@@ -454,7 +454,7 @@ func serveHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	conn, _, err := w.Hijack()
 	if err != nil {
-		log.Stderr("rpc hijacking ", w.RemoteAddr(), ": ", err.String())
+		log.Print("rpc hijacking ", w.RemoteAddr(), ": ", err.String())
 		return
 	}
 	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")

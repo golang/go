@@ -417,7 +417,7 @@ func (t *floatType) minVal() *big.Rat {
 	case 64:
 		return minFloat64Val
 	}
-	log.Crashf("unexpected floating point bit count: %d", bits)
+	log.Panicf("unexpected floating point bit count: %d", bits)
 	panic("unreachable")
 }
 
@@ -432,7 +432,7 @@ func (t *floatType) maxVal() *big.Rat {
 	case 64:
 		return maxFloat64Val
 	}
-	log.Crashf("unexpected floating point bit count: %d", bits)
+	log.Panicf("unexpected floating point bit count: %d", bits)
 	panic("unreachable")
 }
 
@@ -1121,7 +1121,7 @@ func NewNamedType(name string) *NamedType {
 
 func (t *NamedType) Complete(def Type) {
 	if !t.incomplete {
-		log.Crashf("cannot complete already completed NamedType %+v", *t)
+		log.Panicf("cannot complete already completed NamedType %+v", *t)
 	}
 	// We strip the name from def because multiple levels of
 	// naming are useless.
