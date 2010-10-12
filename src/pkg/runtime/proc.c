@@ -797,7 +797,7 @@ newstack(void)
 	label.sp = sp;
 	label.pc = (byte*)·lessstack;
 	label.g = m->curg;
-	gogocall(&label, m->morepc, 4);
+	gogocall(&label, m->morepc, 0);
 
 	*(int32*)345 = 123;	// never return
 }
