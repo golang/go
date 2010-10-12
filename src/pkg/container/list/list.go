@@ -180,19 +180,6 @@ func (l *List) MoveToBack(e *Element) {
 // Len returns the number of elements in the list.
 func (l *List) Len() int { return l.len }
 
-func (l *List) iterate(c chan<- interface{}) {
-	for e := l.front; e != nil; e = e.next {
-		c <- e.Value
-	}
-	close(c)
-}
-
-func (l *List) Iter() <-chan interface{} {
-	c := make(chan interface{})
-	go l.iterate(c)
-	return c
-}
-
 // PushBackList inserts each element of ol at the back of the list.
 func (l *List) PushBackList(ol *List) {
 	last := ol.Back()

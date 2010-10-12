@@ -116,8 +116,8 @@ func TestList(t *testing.T) {
 
 	// Check standard iteration.
 	sum := 0
-	for e := range l.Iter() {
-		if i, ok := e.(int); ok {
+	for e := l.Front(); e != nil; e = e.Next() {
+		if i, ok := e.Value.(int); ok {
 			sum += i
 		}
 	}
@@ -141,7 +141,8 @@ func checkList(t *testing.T, l *List, es []interface{}) {
 		return
 	}
 	i := 0
-	for le := range l.Iter() {
+	for e := l.Front(); e != nil; e = e.Next() {
+		le := e.Value.(int)
 		if le != es[i] {
 			t.Errorf("elt #%d has value=%v, want %v", i, le, es[i])
 		}

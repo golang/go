@@ -63,7 +63,6 @@ DIRS=\
 	exp/draw\
 	exp/draw/x11\
 	exp/eval\
-	exp/iterable\
 	expvar\
 	flag\
 	fmt\
