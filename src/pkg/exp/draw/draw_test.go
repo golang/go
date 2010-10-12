@@ -16,11 +16,11 @@ func eq(c0, c1 image.Color) bool {
 }
 
 func fillBlue(alpha int) image.Image {
-	return image.ColorImage{image.RGBAColor{0, 0, uint8(alpha), uint8(alpha)}}
+	return image.NewColorImage(image.RGBAColor{0, 0, uint8(alpha), uint8(alpha)})
 }
 
 func fillAlpha(alpha int) image.Image {
-	return image.ColorImage{image.AlphaColor{uint8(alpha)}}
+	return image.NewColorImage(image.AlphaColor{uint8(alpha)})
 }
 
 func vgradGreen(alpha int) image.Image {
