@@ -21,20 +21,46 @@ type ColorImage struct {
 	C Color
 }
 
-func (c ColorImage) RGBA() (r, g, b, a uint32) {
+func (c *ColorImage) RGBA() (r, g, b, a uint32) {
 	return c.C.RGBA()
 }
 
-func (c ColorImage) ColorModel() ColorModel {
+func (c *ColorImage) ColorModel() ColorModel {
 	return ColorModelFunc(func(Color) Color { return c.C })
 }
 
-func (c ColorImage) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+func (c *ColorImage) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
 
-func (c ColorImage) At(x, y int) Color { return c.C }
+func (c *ColorImage) At(x, y int) Color { return c.C }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
-func (c ColorImage) Opaque() bool {
+func (c *ColorImage) Opaque() bool {
 	_, _, _, a := c.C.RGBA()
 	return a == 0xffff
+}
+
+func NewColorImage(c Color) *ColorImage {
+	return &ColorImage{c}
+}
+
+// A Tiled is a practically infinite-sized Image that repeats another Image in
+// both directions. Tiled{i}.At(x, y) will equal i.At(x, y) for all points
+// within i's Bounds.
+type Tiled struct {
+	I Image
+}
+
+func (t *Tiled) ColorModel() ColorModel {
+	return t.I.ColorModel()
+}
+
+func (t *Tiled) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+
+func (t *Tiled) At(x, y int) Color {
+	p := Point{x, y}.Mod(t.I.Bounds())
+	return t.I.At(p.X, p.Y)
+}
+
+func NewTiled(i Image) *Tiled {
+	return &Tiled{i}
 }

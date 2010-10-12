@@ -38,6 +38,24 @@ func (p Point) Div(k int) Point {
 	return Point{p.X / k, p.Y / k}
 }
 
+// Mod returns the point q in r such that p.X-q.X is a multiple of r's width
+// and p.Y-q.Y is a multiple of r's height.
+func (p Point) Mod(r Rectangle) Point {
+	w, h := r.Dx(), r.Dy()
+	p = p.Sub(r.Min)
+	if p.X >= 0 {
+		p.X = p.X % w
+	} else {
+		p.X = w - 1 - (-1-p.X)%w
+	}
+	if p.Y >= 0 {
+		p.Y = p.Y % h
+	} else {
+		p.Y = h - 1 - (-1-p.Y)%h
+	}
+	return p.Add(r.Min)
+}
+
 // Eq returns whether p and q are equal.
 func (p Point) Eq(q Point) bool {
 	return p.X == q.X && p.Y == q.Y
