@@ -137,6 +137,8 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
 //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
 //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
+//sys OpenProcess(da uint32,b int, pid uint32) (handle uint32, errno int)
+//sys GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int)
 //sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval=nil] = kernel32.GetEnvironmentStringsW
 //sys	FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) = kernel32.FreeEnvironmentStringsW
 //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
@@ -691,15 +693,35 @@ type Rusage struct {
 	Nivcsw   int32
 }
 
-func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
-	return 0, EWINDOWS
+type WaitStatus struct {
+	Status   uint32
+	ExitCode uint32
 }
 
-type WaitStatus uint32
+func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
+	handle, errno := OpenProcess(PROCESS_ALL_ACCESS, 0, uint32(pid))
+	if errno != 0 {
+		return 0, errno
+	}
+	defer CloseHandle(int32(handle))
+	e, errno := WaitForSingleObject(int32(handle), INFINITE)
+	var c uint32
+	if ok, errno := GetExitCodeProcess(handle, &c); !ok {
+		return 0, errno
+	}
+	*wstatus = WaitStatus{e, c}
+	return pid, 0
+}
 
-func (WaitStatus) Exited() bool { return false }
 
-func (WaitStatus) ExitStatus() int { return -1 }
+func (w WaitStatus) Exited() bool { return w.Status == WAIT_OBJECT_0 }
+
+func (w WaitStatus) ExitStatus() int {
+	if w.Status == WAIT_OBJECT_0 {
+		return int(w.ExitCode)
+	}
+	return -1
+}
 
 func (WaitStatus) Signal() int { return -1 }
 
@@ -711,6 +733,6 @@ func (WaitStatus) Continued() bool { return false }
 
 func (WaitStatus) StopSignal() int { return -1 }
 
-func (WaitStatus) Signaled() bool { return false }
+func (w WaitStatus) Signaled() bool { return w.Status == WAIT_OBJECT_0 }
 
 func (WaitStatus) TrapCause() int { return -1 }

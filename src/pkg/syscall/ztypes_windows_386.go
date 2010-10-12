@@ -104,7 +104,10 @@ const (
 	IGNORE                = 0
 	INFINITE              = 0xffffffff
 
-	WAIT_TIMEOUT = 258
+	WAIT_TIMEOUT   = 258
+	WAIT_ABANDONED = 0x00000080
+	WAIT_OBJECT_0  = 0x00000000
+	WAIT_FAILED    = 0xFFFFFFFF
 
 	CREATE_UNICODE_ENVIRONMENT = 0x00000400
 )
@@ -473,3 +476,10 @@ type DNSRecord struct {
 	Reserved uint32
 	Data     [40]byte
 }
+
+const (
+	HANDLE_FLAG_INHERIT            = 0x00000001
+	HANDLE_FLAG_PROTECT_FROM_CLOSE = 0x00000002
+
+	PROCESS_ALL_ACCESS = 0x001fffff
+)
