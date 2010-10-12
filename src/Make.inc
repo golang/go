@@ -54,6 +54,11 @@ ifeq ($(GOARCH),)
 GOARCH:=$(GOHOSTARCH)
 endif
 
+# darwin requires GOHOSTARCH match GOARCH
+ifeq ($(GOOS),darwin)
+GOHOSTARCH:=$(GOARCH)
+endif
+
 ifeq ($(GOARCH),386)
 O:=8
 else ifeq ($(GOARCH),amd64)
