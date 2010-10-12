@@ -198,7 +198,7 @@ func updateFilterFile() {
 
 	// update filter file
 	if err := writeFileAtomically(*filter, buf.Bytes()); err != nil {
-		log.Stderrf("writeFileAtomically(%s): %s", *filter, err)
+		log.Printf("writeFileAtomically(%s): %s", *filter, err)
 		filterDelay.backoff(24 * 60) // back off exponentially, but try at least once a day
 	} else {
 		filterDelay.set(*filterMin) // revert to regular filter update schedule
@@ -211,9 +211,9 @@ func initDirTrees() {
 	if *filter != "" {
 		list, err := readDirList(*filter)
 		if err != nil {
-			log.Stderrf("%s", err)
+			log.Printf("%s", err)
 		} else if len(list) == 0 {
-			log.Stderrf("no directory paths in file %s", *filter)
+			log.Printf("no directory paths in file %s", *filter)
 		}
 		setPathFilter(list)
 	}
@@ -231,12 +231,12 @@ func initDirTrees() {
 		go func() {
 			for {
 				if *verbose {
-					log.Stderrf("start update of %s", *filter)
+					log.Printf("start update of %s", *filter)
 				}
 				updateFilterFile()
 				delay, _ := filterDelay.get()
 				if *verbose {
-					log.Stderrf("next filter update in %dmin", delay.(int))
+					log.Printf("next filter update in %dmin", delay.(int))
 				}
 				time.Sleep(int64(delay.(int)) * 60e9)
 			}
@@ -627,7 +627,7 @@ func urlFmt(w io.Writer, x interface{}, format string) {
 	default:
 		// we should never reach here, but be resilient
 		// and assume the url-pkg format instead
-		log.Stderrf("INTERNAL ERROR: urlFmt(%s)", format)
+		log.Printf("INTERNAL ERROR: urlFmt(%s)", format)
 		fallthrough
 	case "url-pkg":
 		// because of the irregular mapping under goroot
@@ -814,7 +814,7 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
 	}
 
 	if err := godocHTML.Execute(&d, w); err != nil {
-		log.Stderrf("godocHTML.Execute: %s", err)
+		log.Printf("godocHTML.Execute: %s", err)
 	}
 }
 
@@ -848,7 +848,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 	// get HTML body contents
 	src, err := ioutil.ReadFile(abspath)
 	if err != nil {
-		log.Stderrf("ioutil.ReadFile: %s", err)
+		log.Printf("ioutil.ReadFile: %s", err)
 		serveError(w, r, relpath, err)
 		return
 	}
@@ -882,7 +882,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 	var buf bytes.Buffer
 	if err := t.Execute(data, &buf); err != nil {
-		log.Stderrf("%s.Execute: %s", name, err)
+		log.Printf("%s.Execute: %s", name, err)
 	}
 	return buf.Bytes()
 }
@@ -891,7 +891,7 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 func serveGoSource(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	file, err := parser.ParseFile(abspath, nil, parser.ParseComments)
 	if err != nil {
-		log.Stderrf("parser.ParseFile: %s", err)
+		log.Printf("parser.ParseFile: %s", err)
 		serveError(w, r, relpath, err)
 		return
 	}
@@ -974,7 +974,7 @@ func isTextFile(path string) bool {
 func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	src, err := ioutil.ReadFile(abspath)
 	if err != nil {
-		log.Stderrf("ioutil.ReadFile: %s", err)
+		log.Printf("ioutil.ReadFile: %s", err)
 		serveError(w, r, relpath, err)
 		return
 	}
@@ -995,7 +995,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
 
 	list, err := ioutil.ReadDir(abspath)
 	if err != nil {
-		log.Stderrf("ioutil.ReadDir: %s", err)
+		log.Printf("ioutil.ReadDir: %s", err)
 		serveError(w, r, relpath, err)
 		return
 	}
@@ -1045,7 +1045,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 
 	dir, err := os.Lstat(abspath)
 	if err != nil {
-		log.Stderr(err)
+		log.Print(err)
 		serveError(w, r, relpath, err)
 		return
 	}
@@ -1256,7 +1256,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
 	if info.Err != nil {
-		log.Stderr(info.Err)
+		log.Print(info.Err)
 		serveError(w, r, relpath, info.Err)
 		return
 	}
@@ -1359,11 +1359,11 @@ func indexer() {
 			if *verbose {
 				secs := float64((stop-start)/1e6) / 1e3
 				nwords, nspots := index.Size()
-				log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots)
+				log.Printf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots)
 			}
-			log.Stderrf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+			log.Printf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 			runtime.GC()
-			log.Stderrf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+			log.Printf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 		}
 		time.Sleep(1 * 60e9) // try once a minute
 	}

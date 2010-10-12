@@ -140,7 +140,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 		// Symbol name
 		name := s.BaseName()
 		if _, ok := pkg[name]; ok {
-			log.Stderrf("Multiple definitions of symbol %s", s.Name)
+			log.Printf("Multiple definitions of symbol %s", s.Name)
 			continue
 		}
 
@@ -191,7 +191,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 
 		err := w.DefineConst(pkgName, pkgType, pkgVal)
 		if err != nil {
-			log.Stderrf("while defining package %s: %v", pkgName, err)
+			log.Printf("while defining package %s: %v", pkgName, err)
 		}
 	}
 

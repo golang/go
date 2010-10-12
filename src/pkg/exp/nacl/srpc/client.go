@@ -64,7 +64,7 @@ func NewClient(fd int) (c *Client, err os.Error) {
 	}
 	m.unpackResponse()
 	if m.status != OK {
-		log.Stderrf("NewClient service_discovery: %s", m.status)
+		log.Printf("NewClient service_discovery: %s", m.status)
 		return nil, m.status
 	}
 	for n, line := range bytes.Split(m.Ret[0].([]byte), []byte{'\n'}, -1) {
@@ -88,7 +88,7 @@ func (c *Client) input() {
 			log.Exitf("client recv: %s", err)
 		}
 		if m.unpackResponse(); m.status != OK {
-			log.Stderrf("invalid message: %s", m.status)
+			log.Printf("invalid message: %s", m.status)
 			continue
 		}
 		c.mu.Lock()
@@ -98,7 +98,7 @@ func (c *Client) input() {
 		}
 		c.mu.Unlock()
 		if !ok {
-			log.Stderrf("unexpected response")
+			log.Print("unexpected response")
 			continue
 		}
 		rpc.Ret = m.Ret

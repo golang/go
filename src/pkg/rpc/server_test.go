@@ -72,17 +72,17 @@ func startServer() {
 		log.Exitf("net.Listen tcp :0: %v", e)
 	}
 	serverAddr = l.Addr().String()
-	log.Stderr("Test RPC server listening on ", serverAddr)
+	log.Println("Test RPC server listening on", serverAddr)
 	go Accept(l)
 
 	HandleHTTP()
 	l, e = net.Listen("tcp", "127.0.0.1:0") // any available address
 	if e != nil {
-		log.Stderrf("net.Listen tcp :0: %v", e)
+		log.Printf("net.Listen tcp :0: %v", e)
 		os.Exit(1)
 	}
 	httpServerAddr = l.Addr().String()
-	log.Stderr("Test HTTP RPC server listening on ", httpServerAddr)
+	log.Println("Test HTTP RPC server listening on", httpServerAddr)
 	go http.Serve(l, nil)
 }
 

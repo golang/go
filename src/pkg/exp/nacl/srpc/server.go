@@ -94,10 +94,10 @@ func serveLoop(fd int) {
 		}
 		m.unpackRequest()
 		if !m.gotHeader {
-			log.Stderrf("cannot unpack header: %s", m.status)
+			log.Printf("cannot unpack header: %s", m.status)
 			continue
 		}
-		// log.Stdoutf("<- %#v", m);
+		// log.Printf("<- %#v", m);
 		m.isReq = false // set up for response
 		go serveMsg(m, c)
 	}
@@ -108,7 +108,7 @@ func sendLoop(fd int, c <-chan *msg) {
 	var s msgSender
 	s.fd = fd
 	for m := range c {
-		// log.Stdoutf("-> %#v", m);
+		// log.Printf("-> %#v", m);
 		m.packResponse()
 		s.send(m)
 	}

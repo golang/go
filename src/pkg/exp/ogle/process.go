@@ -452,7 +452,7 @@ func (p *Process) processEvent(ev Event) (EventAction, os.Error) {
 		action, err = p.goroutineExitHook.handle(ev)
 
 	default:
-		log.Crashf("Unknown event type %T in queue", p.event)
+		log.Panicf("Unknown event type %T in queue", p.event)
 	}
 
 	if err != nil {

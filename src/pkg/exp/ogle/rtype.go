@@ -103,7 +103,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 		rt = &remoteType{t, offset, fieldAlign, mk}
 
 	default:
-		log.Crashf("cannot manually construct type %T", t)
+		log.Panicf("cannot manually construct type %T", t)
 	}
 
 	typeMap[t] = rt
@@ -142,7 +142,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 		if sym != nil {
 			name = sym.Name
 		}
-		log.Stderrf("%sParsing type at %#x (%s)", prtIndent, addr, name)
+		log.Printf("%sParsing type at %#x (%s)", prtIndent, addr, name)
 		prtIndent += " "
 		defer func() { prtIndent = prtIndent[0 : len(prtIndent)-1] }()
 	}

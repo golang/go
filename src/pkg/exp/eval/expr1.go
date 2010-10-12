@@ -84,7 +84,7 @@ func (a *expr) asInterface() func(*Thread) interface{} {
 	case func(t *Thread) Map:
 		return func(t *Thread) interface{} { return sf(t) }
 	default:
-		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos)
+		log.Panicf("unexpected expression node type %T at %v", a.eval, a.pos)
 	}
 	panic("fail")
 }
@@ -124,7 +124,7 @@ func (a *expr) genConstant(v Value) {
 	case *MapType:
 		a.eval = func(t *Thread) Map { return v.(MapValue).Get(t) }
 	default:
-		log.Crashf("unexpected constant type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected constant type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -154,7 +154,7 @@ func (a *expr) genIdentOp(level, index int) {
 	case *MapType:
 		a.eval = func(t *Thread) Map { return t.f.Get(level, index).(MapValue).Get(t) }
 	default:
-		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected identifier type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -186,7 +186,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 	case *MultiType:
 		a.eval = func(t *Thread) []Value { return call(t) }
 	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected result type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -216,7 +216,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
 	case *MapType:
 		a.eval = func(t *Thread) Map { return vf(t).(MapValue).Get(t) }
 	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected result type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -240,7 +240,7 @@ func (a *expr) genUnaryOpNeg(v *expr) {
 		val.Neg(val)
 		a.eval = func() *big.Rat { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -250,7 +250,7 @@ func (a *expr) genUnaryOpNot(v *expr) {
 		vf := v.asBool()
 		a.eval = func(t *Thread) bool { v := vf(t); return !v }
 	default:
-		log.Crashf("unexpected type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -267,7 +267,7 @@ func (a *expr) genUnaryOpXor(v *expr) {
 		val.Not(val)
 		a.eval = func() *big.Int { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", a.t, a.pos)
+		log.Panicf("unexpected type %v at %v", a.t, a.pos)
 	}
 }
 
@@ -325,7 +325,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -367,7 +367,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -400,7 +400,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 				return float64(float(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealFloatType:
 		l := l.asIdealFloat()()
@@ -415,7 +415,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 			return l + r
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -461,7 +461,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -503,7 +503,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -536,7 +536,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
 				return float64(float(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealFloatType:
 		l := l.asIdealFloat()()
@@ -544,7 +544,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
 		val := l.Sub(l, r)
 		a.eval = func() *big.Rat { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -590,7 +590,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -632,7 +632,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -665,7 +665,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
 				return float64(float(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealFloatType:
 		l := l.asIdealFloat()()
@@ -673,7 +673,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
 		val := l.Mul(l, r)
 		a.eval = func() *big.Rat { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -734,7 +734,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -791,7 +791,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -833,7 +833,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				return float64(float(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealFloatType:
 		l := l.asIdealFloat()()
@@ -841,7 +841,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 		val := l.Quo(l, r)
 		a.eval = func() *big.Rat { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -902,7 +902,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -959,7 +959,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -967,7 +967,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 		val := l.Rem(l, r)
 		a.eval = func() *big.Int { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1013,7 +1013,7 @@ func (a *expr) genBinOpAnd(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -1055,7 +1055,7 @@ func (a *expr) genBinOpAnd(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -1063,7 +1063,7 @@ func (a *expr) genBinOpAnd(l, r *expr) {
 		val := l.And(l, r)
 		a.eval = func() *big.Int { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1109,7 +1109,7 @@ func (a *expr) genBinOpOr(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -1151,7 +1151,7 @@ func (a *expr) genBinOpOr(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -1159,7 +1159,7 @@ func (a *expr) genBinOpOr(l, r *expr) {
 		val := l.Or(l, r)
 		a.eval = func() *big.Int { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1205,7 +1205,7 @@ func (a *expr) genBinOpXor(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -1247,7 +1247,7 @@ func (a *expr) genBinOpXor(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -1255,7 +1255,7 @@ func (a *expr) genBinOpXor(l, r *expr) {
 		val := l.Xor(l, r)
 		a.eval = func() *big.Int { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1301,7 +1301,7 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -1343,7 +1343,7 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
 		l := l.asIdealInt()()
@@ -1351,7 +1351,7 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
 		val := l.AndNot(l, r)
 		a.eval = func() *big.Int { return val }
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1397,7 +1397,7 @@ func (a *expr) genBinOpShl(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -1439,10 +1439,10 @@ func (a *expr) genBinOpShl(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1488,7 +1488,7 @@ func (a *expr) genBinOpShr(l, r *expr) {
 				return uint64(uint(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
 		lf := l.asInt()
@@ -1530,10 +1530,10 @@ func (a *expr) genBinOpShr(l, r *expr) {
 				return int64(int(ret))
 			}
 		default:
-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1578,7 +1578,7 @@ func (a *expr) genBinOpLss(l, r *expr) {
 			return l < r
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1623,7 +1623,7 @@ func (a *expr) genBinOpGtr(l, r *expr) {
 			return l > r
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1668,7 +1668,7 @@ func (a *expr) genBinOpLeq(l, r *expr) {
 			return l <= r
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1713,7 +1713,7 @@ func (a *expr) genBinOpGeq(l, r *expr) {
 			return l >= r
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1786,7 +1786,7 @@ func (a *expr) genBinOpEql(l, r *expr) {
 			return l == r
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1859,7 +1859,7 @@ func (a *expr) genBinOpNeq(l, r *expr) {
 			return l != r
 		}
 	default:
-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
+		log.Panicf("unexpected type %v at %v", l.t, a.pos)
 	}
 }
 
@@ -1899,7 +1899,7 @@ func genAssign(lt Type, r *expr) func(lv Value, t *Thread) {
 		rf := r.asMap()
 		return func(lv Value, t *Thread) { lv.(MapValue).Set(t, rf(t)) }
 	default:
-		log.Crashf("unexpected left operand type %v at %v", lt, r.pos)
+		log.Panicf("unexpected left operand type %v at %v", lt, r.pos)
 	}
 	panic("fail")
 }

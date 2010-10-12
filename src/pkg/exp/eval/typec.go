@@ -51,7 +51,7 @@ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
 	case Type:
 		return def
 	}
-	log.Crashf("name %s has unknown type %T", x.Name, def)
+	log.Panicf("name %s has unknown type %T", x.Name, def)
 	return nil
 }
 

@@ -119,7 +119,7 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
 }
 
 func Logger(w http.ResponseWriter, req *http.Request) {
-	log.Stdout(req.URL.Raw)
+	log.Print(req.URL.Raw)
 	w.WriteHeader(404)
 	w.Write([]byte("oops"))
 }
@@ -144,6 +144,6 @@ func main() {
 	http.Handle("/date", http.HandlerFunc(DateServer))
 	err := http.ListenAndServe(":12345", nil)
 	if err != nil {
-		log.Crash("ListenAndServe: ", err)
+		log.Panicln("ListenAndServe:", err)
 	}
 }

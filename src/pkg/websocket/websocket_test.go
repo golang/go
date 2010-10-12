@@ -26,7 +26,7 @@ func startServer() {
 		log.Exitf("net.Listen tcp :0 %v", e)
 	}
 	serverAddr = l.Addr().String()
-	log.Stderr("Test WebSocket server listening on ", serverAddr)
+	log.Print("Test WebSocket server listening on ", serverAddr)
 	http.Handle("/echo", Handler(echoServer))
 	http.Handle("/echoDraft75", Draft75Handler(echoServer))
 	go http.Serve(l, nil)

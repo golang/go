@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Rudimentary logging package. Defines a type, Logger, with simple
-// methods for formatting output to one or two destinations. Also has
-// predefined Loggers accessible through helper functions Stdout[f],
-// Stderr[f], Exit[f], and Crash[f], which are easier to use than creating
-// a Logger manually.
-// Exit exits when written to.
-// Crash causes a crash when written to.
+// Simple logging package. It defines a type, Logger, with simple
+// methods for formatting output to one or two destinations. It also
+// has a predefined 'standard' Logger accessible through helper
+// functions Print[f|ln], Exit[f|ln], and Panic[f|ln], which are
+// easier to use than creating a Logger manually.  That logger writes
+// to standard error and prints the date and time of each logged
+// message.
+// The Exit functions call os.Exit(1) after writing the log message.
+// The Panic functions call panic after writing the log message.
 package log
 
 import (
@@ -19,12 +21,8 @@ import (
 	"time"
 )
 
-// These flags define the properties of the Logger and the output they produce.
+// These flags define the output Loggers produce.
 const (
-	// Flags
-	Lok    = iota
-	Lexit  // terminate execution when written
-	Lcrash // crash (panic) when written
 	// Bits or'ed together to control what's printed. There is no control over the
 	// order they appear (the order listed here) or the format they present (as
 	// described in the comments).  A colon appears after these items:
@@ -34,33 +32,28 @@ const (
 	Lmicroseconds             // microsecond resolution: 01:23:23.123123.  assumes Ltime.
 	Llongfile                 // full file name and line number: /a/b/c/d.go:23
 	Lshortfile                // final file name element and line number: d.go:23. overrides Llongfile
-	lAllBits      = Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile
+	lallBits      = Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile
 )
 
 // Logger represents an active logging object.
 type Logger struct {
-	out0   io.Writer // first destination for output
-	out1   io.Writer // second destination for output; may be nil
+	out    io.Writer // destination for output
 	prefix string    // prefix to write at beginning of each line
 	flag   int       // properties
 }
 
-// New creates a new Logger.   The out0 and out1 variables set the
-// destinations to which log data will be written; out1 may be nil.
+// New creates a new Logger.   The out variable sets the
+// destination to which log data will be written.
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
-func New(out0, out1 io.Writer, prefix string, flag int) *Logger {
-	return &Logger{out0, out1, prefix, flag}
+func New(out io.Writer, prefix string, flag int) *Logger {
+	return &Logger{out, prefix, flag}
 }
 
 var (
-	stdout = New(os.Stdout, nil, "", Lok|Ldate|Ltime)
-	stderr = New(os.Stderr, nil, "", Lok|Ldate|Ltime)
-	exit   = New(os.Stderr, nil, "", Lexit|Ldate|Ltime)
-	crash  = New(os.Stderr, nil, "", Lcrash|Ldate|Ltime)
+	std    = New(os.Stderr, "", Ldate|Ltime)
+	stdout = New(os.Stdout, "", Ldate|Ltime) // Deprecated.
 )
-
-var shortnames = make(map[string]string) // cache of short names to avoid allocation.
 
 // Cheap integer to fixed-width decimal ASCII.  Use a negative width to avoid zero-padding
 func itoa(i int, wid int) string {
@@ -100,16 +93,12 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 		_, file, line, ok := runtime.Caller(calldepth)
 		if ok {
 			if l.flag&Lshortfile != 0 {
-				short, ok := shortnames[file]
-				if !ok {
-					short = file
-					for i := len(file) - 1; i > 0; i-- {
-						if file[i] == '/' {
-							short = file[i+1:]
-							break
-						}
+				short := file
+				for i := len(file) - 1; i > 0; i-- {
+					if file[i] == '/' {
+						short = file[i+1:]
+						break
 					}
-					shortnames[file] = short
 				}
 				file = short
 			}
@@ -132,50 +121,124 @@ func (l *Logger) Output(calldepth int, s string) os.Error {
 		newline = ""
 	}
 	s = l.formatHeader(now, calldepth+1) + s + newline
-	_, err := io.WriteString(l.out0, s)
-	if l.out1 != nil {
-		_, err1 := io.WriteString(l.out1, s)
-		if err == nil && err1 != nil {
-			err = err1
-		}
-	}
-	switch l.flag & ^lAllBits {
-	case Lcrash:
-		panic("log: fatal error")
-	case Lexit:
-		os.Exit(1)
-	}
+	_, err := io.WriteString(l.out, s)
 	return err
 }
 
+// Printf prints to the logger in the manner of fmt.Printf.
+func (l *Logger) Printf(format string, v ...interface{}) {
+	l.Output(2, fmt.Sprintf(format, v...))
+}
+
+// Print prints to the logger in the manner of fmt.Print.
+func (l *Logger) Print(v ...interface{}) { l.Output(2, fmt.Sprint(v...)) }
+
+// Println prints to the logger in the manner of fmt.Println.
+func (l *Logger) Println(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
+
+// SetOutput sets the output destination for the standard logger.
+func SetOutput(w io.Writer) {
+	std.out = w
+}
+
+// SetFlags sets the output flags for the standard logger.
+func SetFlags(flag int) {
+	std.flag = flag & lallBits
+}
+
+// SetPrefix sets the output prefix for the standard logger.
+func SetPrefix(prefix string) {
+	std.prefix = prefix
+}
+
+// These functions write to the standard logger.
+
+// Print prints to the standard logger in the manner of fmt.Print.
+func Print(v ...interface{}) {
+	std.Output(2, fmt.Sprint(v...))
+}
+
+// Printf prints to the standard logger in the manner of fmt.Printf.
+func Printf(format string, v ...interface{}) {
+	std.Output(2, fmt.Sprintf(format, v...))
+}
+
+// Println prints to the standard logger in the manner of fmt.Println.
+func Println(v ...interface{}) {
+	std.Output(2, fmt.Sprintln(v...))
+}
+
+// Exit is equivalent to Print() followed by a call to os.Exit(1).
+func Exit(v ...interface{}) {
+	std.Output(2, fmt.Sprint(v...))
+	os.Exit(1)
+}
+
+// Exitf is equivalent to Printf() followed by a call to os.Exit(1).
+func Exitf(format string, v ...interface{}) {
+	std.Output(2, fmt.Sprintf(format, v...))
+	os.Exit(1)
+}
+
+// Exitln is equivalent to Println() followed by a call to os.Exit(1).
+func Exitln(v ...interface{}) {
+	std.Output(2, fmt.Sprintln(v...))
+	os.Exit(1)
+}
+
+// Panic is equivalent to Print() followed by a call to panic().
+func Panic(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	std.Output(2, s)
+	panic(s)
+}
+
+// Panicf is equivalent to Printf() followed by a call to panic().
+func Panicf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	std.Output(2, s)
+	panic(s)
+}
+
+// Panicln is equivalent to Println() followed by a call to panic().
+func Panicln(v ...interface{}) {
+	s := fmt.Sprintln(v...)
+	std.Output(2, s)
+	panic(s)
+}
+
+// Everything from here on is deprecated and will be removed after the next release.
+
 // Logf is analogous to Printf() for a Logger.
+// Deprecated.
 func (l *Logger) Logf(format string, v ...interface{}) {
 	l.Output(2, fmt.Sprintf(format, v...))
 }
 
 // Log is analogous to Print() for a Logger.
+// Deprecated.
 func (l *Logger) Log(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
 
 // Stdout is a helper function for easy logging to stdout. It is analogous to Print().
+// Deprecated.
 func Stdout(v ...interface{}) { stdout.Output(2, fmt.Sprint(v...)) }
 
 // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
-func Stderr(v ...interface{}) { stderr.Output(2, fmt.Sprintln(v...)) }
+// Deprecated.
+func Stderr(v ...interface{}) { std.Output(2, fmt.Sprintln(v...)) }
 
 // Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().
+// Deprecated.
 func Stdoutf(format string, v ...interface{}) { stdout.Output(2, fmt.Sprintf(format, v...)) }
 
 // Stderrf is a helper function for easy formatted logging to stderr. It is analogous to Fprintf(os.Stderr).
-func Stderrf(format string, v ...interface{}) { stderr.Output(2, fmt.Sprintf(format, v...)) }
-
-// Exit is equivalent to Stderr() followed by a call to os.Exit(1).
-func Exit(v ...interface{}) { exit.Output(2, fmt.Sprintln(v...)) }
-
-// Exitf is equivalent to Stderrf() followed by a call to os.Exit(1).
-func Exitf(format string, v ...interface{}) { exit.Output(2, fmt.Sprintf(format, v...)) }
+// Deprecated.
+func Stderrf(format string, v ...interface{}) { std.Output(2, fmt.Sprintf(format, v...)) }
 
 // Crash is equivalent to Stderr() followed by a call to panic().
-func Crash(v ...interface{}) { crash.Output(2, fmt.Sprintln(v...)) }
+// Deprecated.
+func Crash(v ...interface{}) { Panicln(v...) }
 
 // Crashf is equivalent to Stderrf() followed by a call to panic().
-func Crashf(format string, v ...interface{}) { crash.Output(2, fmt.Sprintf(format, v...)) }
+// Deprecated.
+func Crashf(format string, v ...interface{}) { Panicf(format, v...) }

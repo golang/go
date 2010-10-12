@@ -58,7 +58,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 	// a codewalk description.
 	cw, err := loadCodewalk(abspath + ".xml")
 	if err != nil {
-		log.Stderr(err)
+		log.Print(err)
 		serveError(w, r, relpath, err)
 		return
 	}
@@ -186,7 +186,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 
 	dir, err := ioutil.ReadDir(abspath)
 	if err != nil {
-		log.Stderr(err)
+		log.Print(err)
 		serveError(w, r, relpath, err)
 		return
 	}
@@ -218,7 +218,7 @@ func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
 	abspath := absolutePath(f, *goroot)
 	data, err := ioutil.ReadFile(abspath)
 	if err != nil {
-		log.Stderr(err)
+		log.Print(err)
 		serveError(w, r, f, err)
 		return
 	}
