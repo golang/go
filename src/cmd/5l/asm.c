@@ -1864,7 +1864,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym-
 		if(p->to.sym->thumb)
 			v |= 1;	// T bit
 		o1 = olr(8, REGPC, REGTMP, p->scond&C_SCOND);	// mov 8(PC), Rtmp
-		o2 = 	oprrr(AADD, p->scond) | immrot(8) | (REGPC<<16) | (REGLINK<<12);	// add 8,PC, LR
+		o2 = oprrr(AADD, p->scond) | immrot(8) | (REGPC<<16) | (REGLINK<<12);	// add 8,PC, LR
 		o3 = ((p->scond&C_SCOND)<<28) | (0x12fff<<8) | (1<<4) | REGTMP;		// bx Rtmp
 		o4 = opbra(AB, 14);	// B over o6
 		o5 = v;
@@ -2087,12 +2087,13 @@ olr(int32 v, int b, int r, int sc)
 		o |= 1 << 23;
 	if(sc & C_WBIT)
 		o |= 1 << 21;
-	o |= (0x1<<26) | (1<<20);
+	o |= (1<<26) | (1<<20);
 	if(v < 0) {
+		if(sc & C_UBIT) diag(".U on neg offset");
 		v = -v;
 		o ^= 1 << 23;
 	}
-	if(v >= (1<<12))
+	if(v >= (1<<12) || v < 0)
 		diag("literal span too large: %d (R%d)\n%P", v, b, PP);
 	o |= v;
 	o |= b << 16;
@@ -2117,7 +2118,7 @@ olhr(int32 v, int b, int r, int sc)
 		v = -v;
 		o ^= 1 << 23;
 	}
-	if(v >= (1<<8))
+	if(v >= (1<<8) || v < 0)
 		diag("literal span too large: %d (R%d)\n%P", v, b, PP);
 	o |= (v&0xf)|((v>>4)<<8)|(1<<22);
 	o |= b << 16;
@@ -2191,7 +2192,8 @@ ofsr(int a, int r, int32 v, int b, int sc, Prog *p)
 	}
 	if(v & 3)
 		diag("odd offset for floating point op: %d\n%P", v, p);
-	else if(v >= (1<<10))
+	else
+	if(v >= (1<<10) || v < 0)
 		diag("literal span too large: %d\n%P", v, p);
 	o |= (v>>2) & 0xFF;
 	o |= b << 16;

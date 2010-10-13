@@ -527,8 +527,9 @@ scheduler(void)
 	gp->status = Grunning;
 	m->curg = gp;
 	gp->m = m;
-	if(gp->sched.pc == (byte*)goexit)	// kickoff
-		gogocall(&gp->sched, (void(*)(void))gp->entry, 0);
+	if(gp->sched.pc == (byte*)goexit) {	// kickoff
+		gogocall(&gp->sched, (void(*)(void))gp->entry);
+	}
 	gogo(&gp->sched, 1);
 }
 
@@ -770,7 +771,8 @@ newstack(void)
 		free = true;
 	}
 
-//printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
+//printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n",
+//frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
 
 	top->stackbase = g1->stackbase;
 	top->stackguard = g1->stackguard;
@@ -797,7 +799,7 @@ newstack(void)
 	label.sp = sp;
 	label.pc = (byte*)·lessstack;
 	label.g = m->curg;
-	gogocall(&label, m->morepc, 0);
+	gogocall(&label, m->morepc);
 
 	*(int32*)345 = 123;	// never return
 }
