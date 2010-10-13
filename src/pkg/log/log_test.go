@@ -8,6 +8,7 @@ package log
 
 import (
 	"bytes"
+	"os"
 	"regexp"
 	"testing"
 )
@@ -16,7 +17,7 @@ const (
 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
-	Rline         = `(53|55):` // must update if the calls to l.Printf / l.Print below move
+	Rline         = `(54|56):` // must update if the calls to l.Printf / l.Print below move
 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
 )
@@ -64,6 +65,7 @@ func testPrint(t *testing.T, flag int, prefix string, pattern string, useFormat 
 	if !matched {
 		t.Errorf("log output should match %q is %q", pattern, line)
 	}
+	SetOutput(os.Stderr)
 }
 
 func TestAll(t *testing.T) {
