@@ -146,7 +146,6 @@ func Semrelease(s *uint32)
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
 //
-// TODO(rsc): make os.File use SetFinalizer
 // TODO(rsc): allow f to have (ignored) return values
 //
 func SetFinalizer(x, f interface{})
