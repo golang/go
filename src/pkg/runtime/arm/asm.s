@@ -123,7 +123,6 @@ TEXT gogocall(SB), 7, $-4
 	MOVW	0(g), R3		// make sure g != nil
 	MOVW	gobuf_sp(R0), SP	// restore SP
 	MOVW	gobuf_pc(R0), LR
-	SUB	R2, SP
 	MOVW	R1, PC
 
 /*
@@ -141,8 +140,7 @@ TEXT ·morestack(SB),7,$-4
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	m_g0(m), R4
 	CMP	g, R4
-	BNE	2(PC)
-	BL	abort(SB)
+	BL.EQ	abort(SB)
 
 	// Save in m.
 	MOVW	R1, m_moreframe(m)
@@ -150,9 +148,9 @@ TEXT ·morestack(SB),7,$-4
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
-	MOVW	R3, (m_morebuf+gobuf_pc)(m) // f's caller's PC
-	MOVW	SP, (m_morebuf+gobuf_sp)(m) // f's caller's SP
-	MOVW	SP, m_morefp(m) // f's caller's SP
+	MOVW	R3, (m_morebuf+gobuf_pc)(m)	// f's caller's PC
+	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// f's caller's SP
+	MOVW	SP, m_morefp(m)			// f's caller's SP
 	MOVW	g, (m_morebuf+gobuf_g)(m)
 
 	// Set m->morepc to f's PC.
@@ -184,6 +182,9 @@ TEXT reflect·call(SB), 7, $-4
 	MOVW	4(SP), R0			// fn
 	MOVW	8(SP), R1			// arg frame
 	MOVW	12(SP), R2			// arg size
+
+	SUB	$4,R1				// add the saved LR to the frame
+	ADD	$4,R2
 
 	MOVW	R0, m_morepc(m)			// f's PC
 	MOVW	R1, m_morefp(m)			// argument frame pointer
