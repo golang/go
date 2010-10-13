@@ -51,29 +51,29 @@ span(void)
 
 	idat = INITDAT;
 	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		n = 0;
-		if(p->to.type == D_BRANCH)
-			if(p->pcond == P)
-				p->pcond = p;
-		if((q = p->pcond) != P)
-			if(q->back != 2)
-				n = 1;
-		p->back = n;
-		if(p->as == AADJSP) {
-			p->to.type = D_SP;
-			v = -p->from.offset;
-			p->from.offset = v;
-			p->as = p->mode != 64? AADDL: AADDQ;
-			if(v < 0) {
-				p->as = p->mode != 64? ASUBL: ASUBQ;
-				v = -v;
+			if(p->as == ATEXT)
+				curtext = p;
+			n = 0;
+			if(p->to.type == D_BRANCH)
+				if(p->pcond == P)
+					p->pcond = p;
+			if((q = p->pcond) != P)
+				if(q->back != 2)
+					n = 1;
+			p->back = n;
+			if(p->as == AADJSP) {
+				p->to.type = D_SP;
+				v = -p->from.offset;
 				p->from.offset = v;
+				p->as = p->mode != 64? AADDL: AADDQ;
+				if(v < 0) {
+					p->as = p->mode != 64? ASUBL: ASUBQ;
+					v = -v;
+					p->from.offset = v;
+				}
+				if(v == 0)
+					p->as = ANOP;
 			}
-			if(v == 0)
-				p->as = ANOP;
-		}
 	}
 	n = 0;
 
@@ -83,16 +83,16 @@ start:
 	Bflush(&bso);
 	c = INITTEXT;
 	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		if(p->to.type == D_BRANCH)
-			if(p->back)
-				p->pc = c;
-		asmins(p);
-		p->pc = c;
-		m = andptr-and;
-		p->mark = m;
-		c += m;
+			if(p->as == ATEXT)
+				curtext = p;
+			if(p->to.type == D_BRANCH)
+				if(p->back)
+					p->pc = c;
+			asmins(p);
+			p->pc = c;
+			m = andptr-and;
+			p->mark = m;
+			c += m;
 	}
 
 loop:
@@ -107,20 +107,20 @@ loop:
 	again = 0;
 	c = INITTEXT;
 	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		if(p->to.type == D_BRANCH || p->back & 0100) {
-			if(p->back)
-				p->pc = c;
-			asmins(p);
-			m = andptr-and;
-			if(m != p->mark) {
-				p->mark = m;
-				again++;
+			if(p->as == ATEXT)
+				curtext = p;
+			if(p->to.type == D_BRANCH || p->back & 0100) {
+				if(p->back)
+					p->pc = c;
+				asmins(p);
+				m = andptr-and;
+				if(m != p->mark) {
+					p->mark = m;
+					again++;
+				}
 			}
-		}
-		p->pc = c;
-		c += p->mark;
+			p->pc = c;
+			c += p->mark;
 	}
 	if(again) {
 		textsize = c;

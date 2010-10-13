@@ -27,45 +27,45 @@ softfloat()
 	wasfloat = 0;
 	p = firstp;
 	for(p = firstp; p != P; p = p->link) {
-		switch(p->as) {
-		case AMOVWD:
-		case AMOVWF:
-		case AMOVDW:
-		case AMOVFW:
-		case AMOVFD:
-		case AMOVDF:
-		case AMOVF:
-		case AMOVD:
-		case ACMPF:
-		case ACMPD:
-		case AADDF:
-		case AADDD:
-		case ASUBF:
-		case ASUBD:
-		case AMULF:
-		case AMULD:
-		case ADIVF:
-		case ADIVD:
-			if (psfloat == P)
-				diag("floats used with _sfloat not defined");
-			if (!wasfloat) {
-				next = prg();
-				*next = *p;
-
-				// BL		_sfloat(SB)
-				*p = zprg;
-				p->link = next;
-				p->as = ABL;
- 				p->to.type = D_BRANCH;
-				p->to.sym = symsfloat;
-				p->cond = psfloat;
-
-				p = next;
-				wasfloat = 1;
+			switch(p->as) {
+			case AMOVWD:
+			case AMOVWF:
+			case AMOVDW:
+			case AMOVFW:
+			case AMOVFD:
+			case AMOVDF:
+			case AMOVF:
+			case AMOVD:
+			case ACMPF:
+			case ACMPD:
+			case AADDF:
+			case AADDD:
+			case ASUBF:
+			case ASUBD:
+			case AMULF:
+			case AMULD:
+			case ADIVF:
+			case ADIVD:
+				if (psfloat == P)
+					diag("floats used with _sfloat not defined");
+				if (!wasfloat) {
+					next = prg();
+					*next = *p;
+	
+					// BL		_sfloat(SB)
+					*p = zprg;
+					p->link = next;
+					p->as = ABL;
+	 				p->to.type = D_BRANCH;
+					p->to.sym = symsfloat;
+					p->cond = psfloat;
+	
+					p = next;
+					wasfloat = 1;
+				}
+				break;
+			default:
+				wasfloat = 0;
 			}
-			break;
-		default:
-			wasfloat = 0;
-		}
 	}
 }

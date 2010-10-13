@@ -178,59 +178,59 @@ span(void)
 	op = nil;
 	otxt = c;
 	for(p = firstp; p != P; op = p, p = p->link) {
-		setarch(p);
-		p->pc = c;
-		o = oplook(p);
-		m = o->size;
-		// must check literal pool here in case p generates many instructions
-		if(blitrl){
-			if(thumb && isbranch(p))
-				pool.extra += brextra(p);
-			if(checkpool(op, p->as == ACASE ? casesz(p) : m))
-				c = p->pc = scan(op, p, c);
-		}
-		if(m == 0) {
-			if(p->as == ATEXT) {
-				if(blitrl && lastthumb != -1 && lastthumb != thumb){	// flush literal pool
-					if(flushpool(op, 0, 1))
-						c = p->pc = scan(op, p, c);
-				}
-				lastthumb = thumb;
-				curtext = p;
-				autosize = p->to.offset + 4;
-				if(p->from.sym != S)
-					p->from.sym->value = c;
-				/* need passes to resolve branches */
-				if(c-otxt >= 1L<<17)
-					bflag = 1;
-				otxt = c;
-				if(thumb && blitrl)
+			setarch(p);
+			p->pc = c;
+			o = oplook(p);
+			m = o->size;
+			// must check literal pool here in case p generates many instructions
+			if(blitrl){
+				if(thumb && isbranch(p))
 					pool.extra += brextra(p);
+				if(checkpool(op, p->as == ACASE ? casesz(p) : m))
+					c = p->pc = scan(op, p, c);
+			}
+			if(m == 0) {
+				if(p->as == ATEXT) {
+					if(blitrl && lastthumb != -1 && lastthumb != thumb){	// flush literal pool
+						if(flushpool(op, 0, 1))
+							c = p->pc = scan(op, p, c);
+					}
+					lastthumb = thumb;
+					curtext = p;
+					autosize = p->to.offset + 4;
+					if(p->from.sym != S)
+						p->from.sym->value = c;
+					/* need passes to resolve branches */
+					if(c-otxt >= 1L<<17)
+						bflag = 1;
+					otxt = c;
+					if(thumb && blitrl)
+						pool.extra += brextra(p);
+					continue;
+				}
+				diag("zero-width instruction\n%P", p);
 				continue;
 			}
-			diag("zero-width instruction\n%P", p);
-			continue;
-		}
-		switch(o->flag & (LFROM|LTO|LPOOL)) {
-		case LFROM:
-			addpool(p, &p->from);
-			break;
-		case LTO:
-			addpool(p, &p->to);
-			break;
-		case LPOOL:
-			if ((p->scond&C_SCOND) == 14)
+			switch(o->flag & (LFROM|LTO|LPOOL)) {
+			case LFROM:
+				addpool(p, &p->from);
+				break;
+			case LTO:
+				addpool(p, &p->to);
+				break;
+			case LPOOL:
+				if ((p->scond&C_SCOND) == 14)
+					flushpool(p, 0, 0);
+				break;
+			}
+			if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == 14)
 				flushpool(p, 0, 0);
-			break;
-		}
-		if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == 14)
-			flushpool(p, 0, 0);
-		c += m;
-		if(blitrl && p->link == P){
-			if(thumb && isbranch(p))
-				pool.extra += brextra(p);
-			checkpool(p, 0);
-		}
+			c += m;
+			if(blitrl && p->link == P){
+				if(thumb && isbranch(p))
+					pool.extra += brextra(p);
+				checkpool(p, 0);
+			}
 	}
 
 	/*
@@ -245,47 +245,47 @@ span(void)
 		bflag = 0;
 		c = INITTEXT;
 		for(p = firstp; p != P; p = p->link) {
-			setarch(p);
-			p->pc = c;
-			if(thumb && isbranch(p))
-				nocache(p);
-			o = oplook(p);
+				setarch(p);
+				p->pc = c;
+				if(thumb && isbranch(p))
+					nocache(p);
+				o = oplook(p);
 /* very larg branches
-			if(o->type == 6 && p->cond) {
-				otxt = p->cond->pc - c;
-				if(otxt < 0)
-					otxt = -otxt;
-				if(otxt >= (1L<<17) - 10) {
-					q = prg();
-					q->link = p->link;
-					p->link = q;
-					q->as = AB;
-					q->to.type = D_BRANCH;
-					q->cond = p->cond;
-					p->cond = q;
-					q = prg();
-					q->link = p->link;
-					p->link = q;
-					q->as = AB;
-					q->to.type = D_BRANCH;
-					q->cond = q->link->link;
-					bflag = 1;
+				if(o->type == 6 && p->cond) {
+					otxt = p->cond->pc - c;
+					if(otxt < 0)
+						otxt = -otxt;
+					if(otxt >= (1L<<17) - 10) {
+						q = prg();
+						q->link = p->link;
+						p->link = q;
+						q->as = AB;
+						q->to.type = D_BRANCH;
+						q->cond = p->cond;
+						p->cond = q;
+						q = prg();
+						q->link = p->link;
+						p->link = q;
+						q->as = AB;
+						q->to.type = D_BRANCH;
+						q->cond = q->link->link;
+						bflag = 1;
+					}
 				}
-			}
  */
-			m = o->size;
-			if(m == 0) {
-				if(p->as == ATEXT) {
-					curtext = p;
-					autosize = p->to.offset + 4;
-					if(p->from.sym != S)
-						p->from.sym->value = c;
+				m = o->size;
+				if(m == 0) {
+					if(p->as == ATEXT) {
+						curtext = p;
+						autosize = p->to.offset + 4;
+						if(p->from.sym != S)
+							p->from.sym->value = c;
+						continue;
+					}
+					diag("zero-width instruction\n%P", p);
 					continue;
 				}
-				diag("zero-width instruction\n%P", p);
-				continue;
-			}
-			c += m;
+				c += m;
 		}
 	}
 
@@ -305,48 +305,48 @@ span(void)
 		oop = op = nil;
 		again = 0;
 		for(p = firstp; p != P; oop = op, op = p, p = p->link){
-			setarch(p);
-			if(p->pc != c)
-				again = 1;
-			p->pc = c;
-			if(thumb && isbranch(p))
-				nocache(p);
-			o = oplook(p);
-			m = o->size;
-			if(passes == 1 && thumb && isbranch(p)){	// start conservative so unneeded alignment is not added
-				if(p->as == ABL)
-					m = 4;
-				else
-					m = 2;
-				p->align = 0;
-			}
-			if(p->align){
-				if((p->align == 4 && (c&3)) || (p->align == 2 && !(c&3))){
-					if(ispad(op)){
-						oop->link = p;
-						op = oop;
-						c -= 2;
-						p->pc = c;
-					}
-					else{
-						op->link = pad(op, c);
-						op = op->link;
-						c += 2;
-						p->pc = c;
-					}
+				setarch(p);
+				if(p->pc != c)
 					again = 1;
+				p->pc = c;
+				if(thumb && isbranch(p))
+					nocache(p);
+				o = oplook(p);
+				m = o->size;
+				if(passes == 1 && thumb && isbranch(p)){	// start conservative so unneeded alignment is not added
+					if(p->as == ABL)
+						m = 4;
+					else
+						m = 2;
+					p->align = 0;
 				}
-			}
-			if(m == 0) {
-				if(p->as == ATEXT) {
-					curtext = p;
-					autosize = p->to.offset + 4;
-					if(p->from.sym != S)
-						p->from.sym->value = c;
-					continue;
+				if(p->align){
+					if((p->align == 4 && (c&3)) || (p->align == 2 && !(c&3))){
+						if(ispad(op)){
+							oop->link = p;
+							op = oop;
+							c -= 2;
+							p->pc = c;
+						}
+						else{
+							op->link = pad(op, c);
+							op = op->link;
+							c += 2;
+							p->pc = c;
+						}
+						again = 1;
+					}
 				}
-			}
-			c += m;
+				if(m == 0) {
+					if(p->as == ATEXT) {
+						curtext = p;
+						autosize = p->to.offset + 4;
+						if(p->from.sym != S)
+							p->from.sym->value = c;
+						continue;
+					}
+				}
+				c += m;
 		}
 		if(c != lastc || again){
 			lastc = c;

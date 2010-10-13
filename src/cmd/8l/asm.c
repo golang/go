@@ -473,58 +473,58 @@ asmb(void)
 	seek(cout, HEADR, 0);
 	pc = INITTEXT;
 	curp = firstp;
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		curp = p;
-		if(HEADTYPE == 8) {
-			// native client
-			expectpc = p->pc;
-			p->pc = pc;
-			asmins(p);
-			if(p->pc != expectpc) {
-				Bflush(&bso);
-				diag("phase error %lux sb %lux in %s", p->pc, expectpc, TNAME);
-			}
-			while(pc < p->pc) {
-				cput(0x90);	// nop
-				pc++;
-			}
-		}
-		if(p->pc != pc) {
-			Bflush(&bso);
-			if(!debug['a'])
-				print("%P\n", curp);
-			diag("phase error %lux sb %lux in %s", p->pc, pc, TNAME);
-			pc = p->pc;
-		}
-		if(HEADTYPE != 8) {
-			asmins(p);
-			if(pc != p->pc) {
-				Bflush(&bso);
-				diag("asmins changed pc %lux sb %lux in %s", p->pc, pc, TNAME);
-			}
-		}
-		if(cbc < sizeof(and))
-			cflush();
-		a = (andptr - and);
-
-		if(debug['a']) {
-			Bprint(&bso, pcstr, pc);
-			for(op1 = and; op1 < andptr; op1++)
-				Bprint(&bso, "%.2ux", *op1 & 0xff);
-			Bprint(&bso, "\t%P\n", curp);
-		}
-		if(dlm) {
+	for(p = firstp; p != P; p = p->link) {	
 			if(p->as == ATEXT)
-				reloca = nil;
-			else if(reloca != nil)
-				diag("reloc failure: %P", curp);
-		}
-		memmove(cbp, and, a);
-		cbp += a;
-		pc += a;
-		cbc -= a;
+				curtext = p;
+			curp = p;
+			if(HEADTYPE == 8) {
+				// native client
+				expectpc = p->pc;
+				p->pc = pc;
+				asmins(p);
+				if(p->pc != expectpc) {
+					Bflush(&bso);
+					diag("phase error %lux sb %lux in %s", p->pc, expectpc, TNAME);
+				}
+				while(pc < p->pc) {
+					cput(0x90);	// nop
+					pc++;
+				}
+			}
+			if(p->pc != pc) {
+				Bflush(&bso);
+				if(!debug['a'])
+					print("%P\n", curp);
+				diag("phase error %lux sb %lux in %s", p->pc, pc, TNAME);
+				pc = p->pc;
+			}
+			if(HEADTYPE != 8) {
+				asmins(p);
+				if(pc != p->pc) {
+					Bflush(&bso);
+					diag("asmins changed pc %lux sb %lux in %s", p->pc, pc, TNAME);
+				}
+			}
+			if(cbc < sizeof(and))
+				cflush();
+			a = (andptr - and);
+	
+			if(debug['a']) {
+				Bprint(&bso, pcstr, pc);
+				for(op1 = and; op1 < andptr; op1++)
+					Bprint(&bso, "%.2ux", *op1 & 0xff);
+				Bprint(&bso, "\t%P\n", curp);
+			}
+			if(dlm) {
+				if(p->as == ATEXT)
+					reloca = nil;
+				else if(reloca != nil)
+					diag("reloc failure: %P", curp);
+			}
+			memmove(cbp, and, a);
+			cbp += a;
+			pc += a;
+			cbc -= a;
 	}
 	if(HEADTYPE == 8) {
 		int32 etext;

@@ -490,37 +490,37 @@ asmb(void)
 	pc = INITTEXT;
 	curp = firstp;
 	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		if(p->pc != pc) {
-			if(!debug['a'])
-				print("%P\n", curp);
-			diag("phase error %llux sb %llux in %s", p->pc, pc, TNAME);
-			pc = p->pc;
-		}
-		curp = p;
-		asmins(p);
-		a = (andptr - and);
-		if(cbc < a)
-			cflush();
-		if(debug['a']) {
-			Bprint(&bso, pcstr, pc);
-			for(op1 = and; op1 < andptr; op1++)
-				Bprint(&bso, "%.2ux", *op1);
-			for(; op1 < and+Maxand; op1++)
-				Bprint(&bso, "  ");
-			Bprint(&bso, "%P\n", curp);
-		}
-		if(dlm) {
 			if(p->as == ATEXT)
-				reloca = nil;
-			else if(reloca != nil)
-				diag("reloc failure: %P", curp);
-		}
-		memmove(cbp, and, a);
-		cbp += a;
-		pc += a;
-		cbc -= a;
+				curtext = p;
+			if(p->pc != pc) {
+				if(!debug['a'])
+					print("%P\n", curp);
+				diag("phase error %llux sb %llux in %s", p->pc, pc, TNAME);
+				pc = p->pc;
+			}
+			curp = p;
+			asmins(p);
+			a = (andptr - and);
+			if(cbc < a)
+				cflush();
+			if(debug['a']) {
+				Bprint(&bso, pcstr, pc);
+				for(op1 = and; op1 < andptr; op1++)
+					Bprint(&bso, "%.2ux", *op1);
+				for(; op1 < and+Maxand; op1++)
+					Bprint(&bso, "  ");
+				Bprint(&bso, "%P\n", curp);
+			}
+			if(dlm) {
+				if(p->as == ATEXT)
+					reloca = nil;
+				else if(reloca != nil)
+					diag("reloc failure: %P", curp);
+			}
+			memmove(cbp, and, a);
+			cbp += a;
+			pc += a;
+			cbc -= a;
 	}
 	cflush();
 

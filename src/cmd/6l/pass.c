@@ -672,184 +672,44 @@ dostkoff(void)
 	deltasp = 0;
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT) {
-			curtext = p;
-			parsetextconst(p->to.offset);
-			autoffset = textstksiz;
-			if(autoffset < 0)
-				autoffset = 0;
+		curtext = p;
+		parsetextconst(p->to.offset);
+		autoffset = textstksiz;
+		if(autoffset < 0)
+			autoffset = 0;
 
-			q = P;
-			q1 = P;
-			if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
-				diag("nosplit func likely to overflow stack");
+		q = P;
+		q1 = P;
+		if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
+			diag("nosplit func likely to overflow stack");
 
-			if(!(p->from.scale & NOSPLIT)) {
-				p = appendp(p);	// load g into CX
-				p->as = AMOVQ;
-				if(HEADTYPE == 7 || HEADTYPE == 9)	// ELF uses FS
-					p->from.type = D_INDIR+D_FS;
-				else
-					p->from.type = D_INDIR+D_GS;
-				p->from.offset = tlsoffset+0;
-				p->to.type = D_CX;
+		if(!(p->from.scale & NOSPLIT)) {
+			p = appendp(p);	// load g into CX
+			p->as = AMOVQ;
+			if(HEADTYPE == 7 || HEADTYPE == 9)	// ELF uses FS
+				p->from.type = D_INDIR+D_FS;
+			else
+				p->from.type = D_INDIR+D_GS;
+			p->from.offset = tlsoffset+0;
+			p->to.type = D_CX;
 
-				if(debug['K']) {
-					// 6l -K means check not only for stack
-					// overflow but stack underflow.
-					// On underflow, INT 3 (breakpoint).
-					// Underflow itself is rare but this also
-					// catches out-of-sync stack guard info
-
-					p = appendp(p);
-					p->as = ACMPQ;
-					p->from.type = D_INDIR+D_CX;
-					p->from.offset = 8;
-					p->to.type = D_SP;
-
-					p = appendp(p);
-					p->as = AJHI;
-					p->to.type = D_BRANCH;
-					p->to.offset = 4;
-					q1 = p;
-
-					p = appendp(p);
-					p->as = AINT;
-					p->from.type = D_CONST;
-					p->from.offset = 3;
-
-					p = appendp(p);
-					p->as = ANOP;
-					q1->pcond = p;
-					q1 = P;
-				}
-
-				if(autoffset < StackBig) {  // do we need to call morestack?
-					if(autoffset <= StackSmall) {
-						// small stack
-						p = appendp(p);
-						p->as = ACMPQ;
-						p->from.type = D_SP;
-						p->to.type = D_INDIR+D_CX;
-					} else {
-						// large stack
-						p = appendp(p);
-						p->as = ALEAQ;
-						p->from.type = D_INDIR+D_SP;
-						p->from.offset = -(autoffset-StackSmall);
-						p->to.type = D_AX;
-
-						p = appendp(p);
-						p->as = ACMPQ;
-						p->from.type = D_AX;
-						p->to.type = D_INDIR+D_CX;
-					}
-
-					// common
-					p = appendp(p);
-					p->as = AJHI;
-					p->to.type = D_BRANCH;
-					p->to.offset = 4;
-					q = p;
-				}
-
-				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
-				moreconst1 = 0;
-				if(autoffset+160 > 4096)
-					moreconst1 = (autoffset+160) & ~7LL;
-				moreconst2 = textarg;
-
-				// 4 varieties varieties (const1==0 cross const2==0)
-				// and 6 subvarieties of (const1==0 and const2!=0)
-				p = appendp(p);
-				if(moreconst1 == 0 && moreconst2 == 0) {
-					p->as = ACALL;
-					p->to.type = D_BRANCH;
-					p->pcond = pmorestack[0];
-					p->to.sym = symmorestack[0];
-				} else
-				if(moreconst1 != 0 && moreconst2 == 0) {
-					p->as = AMOVL;
-					p->from.type = D_CONST;
-					p->from.offset = moreconst1;
-					p->to.type = D_AX;
-
-					p = appendp(p);
-					p->as = ACALL;
-					p->to.type = D_BRANCH;
-					p->pcond = pmorestack[1];
-					p->to.sym = symmorestack[1];
-				} else
-				if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
-					i = moreconst2/8 + 3;
-					p->as = ACALL;
-					p->to.type = D_BRANCH;
-					p->pcond = pmorestack[i];
-					p->to.sym = symmorestack[i];
-				} else
-				if(moreconst1 == 0 && moreconst2 != 0) {
-					p->as = AMOVL;
-					p->from.type = D_CONST;
-					p->from.offset = moreconst2;
-					p->to.type = D_AX;
-
-					p = appendp(p);
-					p->as = ACALL;
-					p->to.type = D_BRANCH;
-					p->pcond = pmorestack[2];
-					p->to.sym = symmorestack[2];
-				} else {
-					p->as = AMOVQ;
-					p->from.type = D_CONST;
-					p->from.offset = (uint64)moreconst2 << 32;
-					p->from.offset |= moreconst1;
-					p->to.type = D_AX;
-
-					p = appendp(p);
-					p->as = ACALL;
-					p->to.type = D_BRANCH;
-					p->pcond = pmorestack[3];
-					p->to.sym = symmorestack[3];
-				}
-			}
-
-			if(q != P)
-				q->pcond = p->link;
-
-			if(autoffset) {
-				p = appendp(p);
-				p->as = AADJSP;
-				p->from.type = D_CONST;
-				p->from.offset = autoffset;
-				p->spadj = autoffset;
-				if(q != P)
-					q->pcond = p;
-			}
-			deltasp = autoffset;
-
-			if(debug['K'] > 1 && autoffset) {
-				// 6l -KK means double-check for stack overflow
-				// even after calling morestack and even if the
-				// function is marked as nosplit.
-				p = appendp(p);
-				p->as = AMOVQ;
-				p->from.type = D_INDIR+D_CX;
-				p->from.offset = 0;
-				p->to.type = D_BX;
-
-				p = appendp(p);
-				p->as = ASUBQ;
-				p->from.type = D_CONST;
-				p->from.offset = StackSmall+32;
-				p->to.type = D_BX;
+			if(debug['K']) {
+				// 6l -K means check not only for stack
+				// overflow but stack underflow.
+				// On underflow, INT 3 (breakpoint).
+				// Underflow itself is rare but this also
+				// catches out-of-sync stack guard info
 
 				p = appendp(p);
 				p->as = ACMPQ;
-				p->from.type = D_SP;
-				p->to.type = D_BX;
+				p->from.type = D_INDIR+D_CX;
+				p->from.offset = 8;
+				p->to.type = D_SP;
 
 				p = appendp(p);
 				p->as = AJHI;
 				p->to.type = D_BRANCH;
+				p->to.offset = 4;
 				q1 = p;
 
 				p = appendp(p);
@@ -862,70 +722,210 @@ dostkoff(void)
 				q1->pcond = p;
 				q1 = P;
 			}
-		}
-		pcsize = p->mode/8;
-		a = p->from.type;
-		if(a == D_AUTO)
-			p->from.offset += deltasp;
-		if(a == D_PARAM)
-			p->from.offset += deltasp + pcsize;
-		a = p->to.type;
-		if(a == D_AUTO)
-			p->to.offset += deltasp;
-		if(a == D_PARAM)
-			p->to.offset += deltasp + pcsize;
 
-		switch(p->as) {
-		default:
-			continue;
-		case APUSHL:
-		case APUSHFL:
-			deltasp += 4;
-			p->spadj = 4;
-			continue;
-		case APUSHQ:
-		case APUSHFQ:
-			deltasp += 8;
-			p->spadj = 8;
-			continue;
-		case APUSHW:
-		case APUSHFW:
-			deltasp += 2;
-			p->spadj = 2;
-			continue;
-		case APOPL:
-		case APOPFL:
-			deltasp -= 4;
-			p->spadj = -4;
-			continue;
-		case APOPQ:
-		case APOPFQ:
-			deltasp -= 8;
-			p->spadj = -8;
-			continue;
-		case APOPW:
-		case APOPFW:
-			deltasp -= 2;
-			p->spadj = -2;
-			continue;
-		case ARET:
-			break;
+			if(autoffset < StackBig) {  // do we need to call morestack?
+				if(autoffset <= StackSmall) {
+					// small stack
+					p = appendp(p);
+					p->as = ACMPQ;
+					p->from.type = D_SP;
+					p->to.type = D_INDIR+D_CX;
+				} else {
+					// large stack
+					p = appendp(p);
+					p->as = ALEAQ;
+					p->from.type = D_INDIR+D_SP;
+					p->from.offset = -(autoffset-StackSmall);
+					p->to.type = D_AX;
+
+					p = appendp(p);
+					p->as = ACMPQ;
+					p->from.type = D_AX;
+					p->to.type = D_INDIR+D_CX;
+				}
+
+				// common
+				p = appendp(p);
+				p->as = AJHI;
+				p->to.type = D_BRANCH;
+				p->to.offset = 4;
+				q = p;
+			}
+
+			/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
+			moreconst1 = 0;
+			if(autoffset+160 > 4096)
+				moreconst1 = (autoffset+160) & ~7LL;
+			moreconst2 = textarg;
+
+			// 4 varieties varieties (const1==0 cross const2==0)
+			// and 6 subvarieties of (const1==0 and const2!=0)
+			p = appendp(p);
+			if(moreconst1 == 0 && moreconst2 == 0) {
+				p->as = ACALL;
+				p->to.type = D_BRANCH;
+				p->pcond = pmorestack[0];
+				p->to.sym = symmorestack[0];
+			} else
+			if(moreconst1 != 0 && moreconst2 == 0) {
+				p->as = AMOVL;
+				p->from.type = D_CONST;
+				p->from.offset = moreconst1;
+				p->to.type = D_AX;
+
+				p = appendp(p);
+				p->as = ACALL;
+				p->to.type = D_BRANCH;
+				p->pcond = pmorestack[1];
+				p->to.sym = symmorestack[1];
+			} else
+			if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
+				i = moreconst2/8 + 3;
+				p->as = ACALL;
+				p->to.type = D_BRANCH;
+				p->pcond = pmorestack[i];
+				p->to.sym = symmorestack[i];
+			} else
+			if(moreconst1 == 0 && moreconst2 != 0) {
+				p->as = AMOVL;
+				p->from.type = D_CONST;
+				p->from.offset = moreconst2;
+				p->to.type = D_AX;
+
+				p = appendp(p);
+				p->as = ACALL;
+				p->to.type = D_BRANCH;
+				p->pcond = pmorestack[2];
+				p->to.sym = symmorestack[2];
+			} else {
+				p->as = AMOVQ;
+				p->from.type = D_CONST;
+				p->from.offset = (uint64)moreconst2 << 32;
+				p->from.offset |= moreconst1;
+				p->to.type = D_AX;
+
+				p = appendp(p);
+				p->as = ACALL;
+				p->to.type = D_BRANCH;
+				p->pcond = pmorestack[3];
+				p->to.sym = symmorestack[3];
+			}
 		}
 
-		if(autoffset != deltasp)
-			diag("unbalanced PUSH/POP");
-		if(p->from.type == D_CONST)
-			goto become;
+		if(q != P)
+			q->pcond = p->link;
 
 		if(autoffset) {
+			p = appendp(p);
 			p->as = AADJSP;
 			p->from.type = D_CONST;
-			p->from.offset = -autoffset;
-			p->spadj = -autoffset;
-			p = appendp(p);
-			p->as = ARET;
+			p->from.offset = autoffset;
+			p->spadj = autoffset;
+			if(q != P)
+				q->pcond = p;
 		}
-		continue;
+		deltasp = autoffset;
+
+		if(debug['K'] > 1 && autoffset) {
+			// 6l -KK means double-check for stack overflow
+			// even after calling morestack and even if the
+			// function is marked as nosplit.
+			p = appendp(p);
+			p->as = AMOVQ;
+			p->from.type = D_INDIR+D_CX;
+			p->from.offset = 0;
+			p->to.type = D_BX;
+
+			p = appendp(p);
+			p->as = ASUBQ;
+			p->from.type = D_CONST;
+			p->from.offset = StackSmall+32;
+			p->to.type = D_BX;
+
+			p = appendp(p);
+			p->as = ACMPQ;
+			p->from.type = D_SP;
+			p->to.type = D_BX;
+
+			p = appendp(p);
+			p->as = AJHI;
+			p->to.type = D_BRANCH;
+			q1 = p;
+
+			p = appendp(p);
+			p->as = AINT;
+			p->from.type = D_CONST;
+			p->from.offset = 3;
+
+			p = appendp(p);
+			p->as = ANOP;
+			q1->pcond = p;
+			q1 = P;
+		}
+		}
+			pcsize = p->mode/8;
+			a = p->from.type;
+			if(a == D_AUTO)
+				p->from.offset += deltasp;
+			if(a == D_PARAM)
+				p->from.offset += deltasp + pcsize;
+			a = p->to.type;
+			if(a == D_AUTO)
+				p->to.offset += deltasp;
+			if(a == D_PARAM)
+				p->to.offset += deltasp + pcsize;
+	
+			switch(p->as) {
+			default:
+				continue;
+			case APUSHL:
+			case APUSHFL:
+				deltasp += 4;
+				p->spadj = 4;
+				continue;
+			case APUSHQ:
+			case APUSHFQ:
+				deltasp += 8;
+				p->spadj = 8;
+				continue;
+			case APUSHW:
+			case APUSHFW:
+				deltasp += 2;
+				p->spadj = 2;
+				continue;
+			case APOPL:
+			case APOPFL:
+				deltasp -= 4;
+				p->spadj = -4;
+				continue;
+			case APOPQ:
+			case APOPFQ:
+				deltasp -= 8;
+				p->spadj = -8;
+				continue;
+			case APOPW:
+			case APOPFW:
+				deltasp -= 2;
+				p->spadj = -2;
+				continue;
+			case ARET:
+				break;
+			}
+	
+			if(autoffset != deltasp)
+				diag("unbalanced PUSH/POP");
+			if(p->from.type == D_CONST)
+				goto become;
+	
+			if(autoffset) {
+				p->as = AADJSP;
+				p->from.type = D_CONST;
+				p->from.offset = -autoffset;
+				p->spadj = -autoffset;
+				p = appendp(p);
+				p->as = ARET;
+			}
+			continue;
 
 	become:
 		q = p;
