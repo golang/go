@@ -263,9 +263,9 @@ Dconv(Fmt *fp)
 		if(curp->cond != P) {
 			v = curp->cond->pc;
 			if(a->sym != S)
-				snprint(str, sizeof str, "%s+%.5lux(BRANCH)", a->sym->name, v);
+				snprint(str, sizeof str, "%s+%.5ux(BRANCH)", a->sym->name, v);
 			else
-				snprint(str, sizeof str, "%.5lux(BRANCH)", v);
+				snprint(str, sizeof str, "%.5ux(BRANCH)", v);
 		} else
 			if(a->sym != S)
 				snprint(str, sizeof str, "%s+%d(APC)", a->sym->name, a->offset);

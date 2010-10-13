@@ -56,18 +56,18 @@ Pconv(Fmt *fp)
 		snprint(scale, sizeof scale, "%d,", p->from.scale);
 	switch(p->as) {
 	default:
-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%s%D",
+		snprint(str, sizeof(str), "%.4d (%L) %-7A %D,%s%D",
 			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
 		break;
 
 	case ADATA:
 		sconsize = p->from.scale;
-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D/%d,%D",
+		snprint(str, sizeof(str), "%.4d (%L) %-7A %D/%d,%D",
 			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
 		break;
 
 	case ATEXT:
-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%s%lD",
+		snprint(str, sizeof(str), "%.4d (%L) %-7A %D,%s%lD",
 			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
 		break;
 	}
@@ -108,7 +108,7 @@ Dconv(Fmt *fp)
 		if(a->branch == nil)
 			snprint(str, sizeof(str), "<nil>");
 		else
-			snprint(str, sizeof(str), "%ld", a->branch->loc);
+			snprint(str, sizeof(str), "%d", a->branch->loc);
 		break;
 
 	case D_EXTERN:
@@ -131,7 +131,7 @@ Dconv(Fmt *fp)
 		if(fp->flags & FmtLong) {
 			d1 = a->offset & 0xffffffffLL;
 			d2 = (a->offset>>32) & 0xffffffffLL;
-			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
+			snprint(str, sizeof(str), "$%ud-%ud", (ulong)d1, (ulong)d2);
 			break;
 		}
 		snprint(str, sizeof(str), "$%lld", a->offset);

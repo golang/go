@@ -210,10 +210,10 @@ main(int argc, char *argv[])
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)
-		print("warning: -D0x%lux is ignored because of -R0x%lux\n",
+		print("warning: -D0x%ux is ignored because of -R0x%ux\n",
 			INITDAT, INITRND);
 	if(debug['v'])
-		Bprint(&bso, "HEADER = -H0x%d -T0x%lux -D0x%lux -R0x%lux\n",
+		Bprint(&bso, "HEADER = -H0x%d -T0x%ux -D0x%ux -R0x%ux\n",
 			HEADTYPE, INITTEXT, INITDAT, INITRND);
 	Bflush(&bso);
 	zprg.as = AGOK;
@@ -454,7 +454,7 @@ loop:
 
 		if(sig != 0){
 			if(s->sig != 0 && s->sig != sig)
-				diag("incompatible type signatures %lux(%s) and %lux(%s) for %s", s->sig, s->file, sig, pn, s->name);
+				diag("incompatible type signatures %ux(%s) and %ux(%s) for %s", s->sig, s->file, sig, pn, s->name);
 			s->sig = sig;
 			s->file = pn;
 		}
@@ -675,7 +675,7 @@ loop:
 
 		if(p->from.type == D_FCONST && chipfloat(p->from.ieee) < 0) {
 			/* size sb 9 max */
-			sprint(literal, "$%lux", ieeedtof(p->from.ieee));
+			sprint(literal, "$%ux", ieeedtof(p->from.ieee));
 			s = lookup(literal, 0);
 			if(s->type == 0) {
 				s->type = SBSS;
@@ -710,7 +710,7 @@ loop:
 
 		if(p->from.type == D_FCONST && chipfloat(p->from.ieee) < 0) {
 			/* size sb 18 max */
-			sprint(literal, "$%lux.%lux",
+			sprint(literal, "$%ux.%ux",
 				p->from.ieee->l, p->from.ieee->h);
 			s = lookup(literal, 0);
 			if(s->type == 0) {

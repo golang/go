@@ -483,7 +483,7 @@ asmb(void)
 				asmins(p);
 				if(p->pc != expectpc) {
 					Bflush(&bso);
-					diag("phase error %lux sb %lux in %s", p->pc, expectpc, TNAME);
+					diag("phase error %ux sb %ux in %s", p->pc, expectpc, TNAME);
 				}
 				while(pc < p->pc) {
 					cput(0x90);	// nop
@@ -494,14 +494,14 @@ asmb(void)
 				Bflush(&bso);
 				if(!debug['a'])
 					print("%P\n", curp);
-				diag("phase error %lux sb %lux in %s", p->pc, pc, TNAME);
+				diag("phase error %ux sb %ux in %s", p->pc, pc, TNAME);
 				pc = p->pc;
 			}
 			if(HEADTYPE != 8) {
 				asmins(p);
 				if(pc != p->pc) {
 					Bflush(&bso);
-					diag("asmins changed pc %lux sb %lux in %s", p->pc, pc, TNAME);
+					diag("asmins changed pc %ux sb %ux in %s", p->pc, pc, TNAME);
 				}
 			}
 			if(cbc < sizeof(and))

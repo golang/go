@@ -158,7 +158,7 @@ walkclosure(Node *func, NodeList **init)
 
 	// create the function
 	xfunc = nod(ODCLFUNC, N, N);
-	snprint(namebuf, sizeof namebuf, "_func_%.3ld", ++closgen);
+	snprint(namebuf, sizeof namebuf, "_func_%.3d", ++closgen);
 	xfunc->nname = newname(lookup(namebuf));
 	xfunc->nname->ntype = xtype;
 	xfunc->nname->defn = xfunc;

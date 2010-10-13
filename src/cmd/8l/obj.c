@@ -210,7 +210,7 @@ main(int argc, char *argv[])
 			INITRND = 4;
 		HEADR += (INITTEXT & 0xFFFF);
 		if(debug['v'])
-			Bprint(&bso, "HEADR = 0x%ld\n", HEADR);
+			Bprint(&bso, "HEADR = 0x%d\n", HEADR);
 		break;
 	case 6:	/* apple MACH */
 		/*
@@ -283,10 +283,10 @@ main(int argc, char *argv[])
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)
-		print("warning: -D0x%lux is ignored because of -R0x%lux\n",
+		print("warning: -D0x%ux is ignored because of -R0x%ux\n",
 			INITDAT, INITRND);
 	if(debug['v'])
-		Bprint(&bso, "HEADER = -H0x%ld -T0x%lux -D0x%lux -R0x%lux\n",
+		Bprint(&bso, "HEADER = -H0x%d -T0x%ux -D0x%ux -R0x%ux\n",
 			HEADTYPE, INITTEXT, INITDAT, INITRND);
 	Bflush(&bso);
 
@@ -300,7 +300,7 @@ main(int argc, char *argv[])
 	zprg.from.scale = 1;
 	zprg.to = zprg.from;
 
-	pcstr = "%.6lux ";
+	pcstr = "%.6ux ";
 	nuxiinit();
 	histgen = 0;
 	textp = nil;
@@ -337,7 +337,7 @@ main(int argc, char *argv[])
 	undef();
 	if(debug['v']) {
 		Bprint(&bso, "%5.2f cpu time\n", cputime());
-		Bprint(&bso, "%ld symbols\n", nsymbol);
+		Bprint(&bso, "%d symbols\n", nsymbol);
 		Bprint(&bso, "%d sizeof adr\n", sizeof(Adr));
 		Bprint(&bso, "%d sizeof prog\n", sizeof(Prog));
 	}
@@ -511,7 +511,7 @@ loop:
 		if(sig != 0){
 			if(s->sig != 0 && s->sig != sig)
 				diag("incompatible type signatures"
-					"%lux(%s) and %lux(%s) for %s",
+					"%ux(%s) and %ux(%s) for %s",
 					s->sig, s->file, sig, pn, s->name);
 			s->sig = sig;
 			s->file = pn;
@@ -683,7 +683,7 @@ loop:
 			goto casdef;
 		if(p->from.type == D_FCONST) {
 			/* size sb 9 max */
-			sprint(literal, "$%lux", ieeedtof(&p->from.ieee));
+			sprint(literal, "$%ux", ieeedtof(&p->from.ieee));
 			s = lookup(literal, 0);
 			if(s->type == 0) {
 				s->type = SBSS;
@@ -721,7 +721,7 @@ loop:
 			goto casdef;
 		if(p->from.type == D_FCONST) {
 			/* size sb 18 max */
-			sprint(literal, "$%lux.%lux",
+			sprint(literal, "$%ux.%ux",
 				p->from.ieee.l, p->from.ieee.h);
 			s = lookup(literal, 0);
 			if(s->type == 0) {

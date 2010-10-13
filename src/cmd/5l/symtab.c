@@ -105,7 +105,7 @@ asmsym(void)
 				putsymb(a->asym->name, 'p', a->aoffset, 0);
 	}
 	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %lud\n", symsize);
+		Bprint(&bso, "symsize = %ud\n", symsize);
 	Bflush(&bso);
 }
 

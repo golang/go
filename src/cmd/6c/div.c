@@ -120,7 +120,7 @@ sdivgen(Node *l, Node *r, Node *ax, Node *dx)
 	if(c < 0)
 		c = -c;
 	a = sdiv(c, &m, &s);
-//print("a=%d i=%ld s=%d m=%lux\n", a, (long)r->vconst, s, m);
+//print("a=%d i=%d s=%d m=%ux\n", a, (long)r->vconst, s, m);
 	gins(AMOVL, nodconst(m), ax);
 	gins(AIMULL, l, Z);
 	gins(AMOVL, l, ax);
@@ -141,7 +141,7 @@ udivgen(Node *l, Node *r, Node *ax, Node *dx)
 	Node nod;
 
 	a = udiv(r->vconst, &m, &s, &t);
-//print("a=%ud i=%ld p=%d s=%d m=%lux\n", a, (long)r->vconst, t, s, m);
+//print("a=%ud i=%d p=%d s=%d m=%ux\n", a, (long)r->vconst, t, s, m);
 	if(t != 0) {
 		gins(AMOVL, l, ax);
 		gins(ASHRL, nodconst(t), ax);

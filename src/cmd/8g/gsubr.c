@@ -715,7 +715,7 @@ gclean(void)
 
 	for(i=D_AL; i<=D_DI; i++)
 		if(reg[i])
-			yyerror("reg %R left allocated at %lux", i, regpc[i]);
+			yyerror("reg %R left allocated at %ux", i, regpc[i]);
 }
 
 int32
@@ -772,7 +772,7 @@ regalloc(Node *n, Type *t, Node *o)
 
 		fprint(2, "registers allocated at\n");
 		for(i=D_AX; i<=D_DI; i++)
-			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
+			fprint(2, "\t%R\t%#ux\n", i, regpc[i]);
 		yyerror("out of fixed registers");
 		goto err;
 

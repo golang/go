@@ -683,7 +683,7 @@ thumbasmout(Prog *p, Optab *o)
 	rt = p->to.reg;
 	r = p->reg;
 	o1 = o2 = o3 = o4 = o5 = o6 = o7 = 0;
-if(debug['P']) print("%ulx: %P	type %d %d\n", (uint32)(p->pc), p, o->type, p->align);
+if(debug['P']) print("%ux: %P	type %d %d\n", (uint32)(p->pc), p, o->type, p->align);
 	opcount[o->type] += o->size;
 	switch(o->type) {
 	default:
@@ -691,7 +691,7 @@ if(debug['P']) print("%ulx: %P	type %d %d\n", (uint32)(p->pc), p, o->type, p->al
 		prasm(p);
 		break;
 	case 0:		/* pseudo ops */
-if(debug['G']) print("%ulx: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
+if(debug['G']) print("%ux: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
 		break;
 	case 1:		/* op R, -, R or op R, R, - */
 		o1 = thumboprr(p->as);
@@ -1162,29 +1162,29 @@ if(debug['G']) print("%ulx: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
 	switch(o->size) {
 	default:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux:\t\t%P\n", v, p);
+			Bprint(&bso, " %.8ux:\t\t%P\n", v, p);
 		break;
 	case 2:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux\t%P\n", v, o1, p);
+			Bprint(&bso, " %.8ux: %.8ux\t%P\n", v, o1, p);
 		hputl(o1);
 		break;
 	case 4:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux\t%P\n", v, o1, o2, p);
+			Bprint(&bso, " %.8ux: %.8ux %.8ux\t%P\n", v, o1, o2, p);
 		hputl(o1);
 		hputl(o2);
 		break;
 	case 6:
 		if(debug['a'])
-			Bprint(&bso, "%.8lux: %.8lux %.8lux %.8lux\t%P\n", v, o1, o2, o3, p);
+			Bprint(&bso, "%.8ux: %.8ux %.8ux %.8ux\t%P\n", v, o1, o2, o3, p);
 		hputl(o1);
 		hputl(o2);
 		hputl(o3);
 		break;
 	case 8:
 		if(debug['a'])
-			Bprint(&bso, "%.8lux: %.8lux %.8lux %.8lux %.8lux\t%P\n", v, o1, o2, o3, o4, p);
+			Bprint(&bso, "%.8ux: %.8ux %.8ux %.8ux %.8ux\t%P\n", v, o1, o2, o3, o4, p);
 		hputl(o1);
 		hputl(o2);
 		hputl(o3);
@@ -1192,7 +1192,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
 		break;
 	case 10:
 		if(debug['a'])
-			Bprint(&bso, "%.8lux: %.8lux %.8lux %.8lux %.8lux %.8lux\t%P\n", v, o1, o2, o3, o4, o5, p);
+			Bprint(&bso, "%.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux\t%P\n", v, o1, o2, o3, o4, o5, p);
 		hputl(o1);
 		hputl(o2);
 		hputl(o3);
@@ -1201,7 +1201,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
 		break;
 	case 12:
 		if(debug['a'])
-			Bprint(&bso, "%.8lux: %.8lux %.8lux %.8lux %.8lux %.8lux %.8lux\t%P\n", v, o1, o2, o3, o4, o5, o6, p);
+			Bprint(&bso, "%.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux %.8ux\t%P\n", v, o1, o2, o3, o4, o5, o6, p);
 		hputl(o1);
 		hputl(o2);
 		hputl(o3);
@@ -1211,7 +1211,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
 		break;
 	case 14:
 		if(debug['a'])
-			Bprint(&bso, "%.8lux: %.8lux %.8lux %.8lux %.8lux %.8lux %.8lux %.8lux\t%P\n", v, o1, o2, o3, o4, o5, o6, o7, p);
+			Bprint(&bso, "%.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux %.8ux %.8ux\t%P\n", v, o1, o2, o3, o4, o5, o6, o7, p);
 		hputl(o1);
 		hputl(o2);
 		hputl(o3);
@@ -1223,12 +1223,12 @@ if(debug['G']) print("%ulx: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
 	}
 	if(debug['G']){
 		if(o->type == 17){
-			print("%lx:	word %ld\n", p->pc, (o2<<16)+o1);
+			print("%x:	word %d\n", p->pc, (o2<<16)+o1);
 			return;
 		}
 		if(o->type == 50){
-			print("%lx:	word %ld\n", p->pc, (o2<<16)+o1);
-			print("%lx:	word %ld\n", p->pc, (o4<<16)+o3);
+			print("%x:	word %d\n", p->pc, (o2<<16)+o1);
+			print("%x:	word %d\n", p->pc, (o4<<16)+o3);
 			return;
 		}
 		if(o->size > 0) dis(o1, p->pc);

@@ -630,7 +630,7 @@ l1:
 		vv = c;
 		yylval.vval = convvtox(vv, TUCHAR);
 		if(yylval.vval != vv)
-			yyerror("overflow in character constant: 0x%lx", c);
+			yyerror("overflow in character constant: 0x%x", c);
 		else
 		if(c & 0x80){
 			nearln = lineno;
@@ -1410,11 +1410,11 @@ Lconv(Fmt *fp)
 			strcat(str, " ");
 		}
 		if(a[i].line)
-			snprint(s, STRINGSZ, "%s:%ld[%s:%ld]",
+			snprint(s, STRINGSZ, "%s:%d[%s:%d]",
 				a[i].line->name, l-a[i].ldel+1,
 				a[i].incl->name, l-a[i].idel+1);
 		else
-			snprint(s, STRINGSZ, "%s:%ld",
+			snprint(s, STRINGSZ, "%s:%d",
 				a[i].incl->name, l-a[i].idel+1);
 		if(strlen(s)+strlen(str) >= STRINGSZ-10)
 			break;
@@ -1463,7 +1463,7 @@ Tconv(Fmt *fp)
 			n = t->width;
 			if(t->link && t->link->width)
 				n /= t->link->width;
-			sprint(s, "[%ld]", n);
+			sprint(s, "[%d]", n);
 			if(strlen(str) + strlen(s) < STRINGSZ)
 				strcat(str, s);
 		}

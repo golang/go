@@ -55,7 +55,7 @@ dodata(void)
 				s->type, s->name, p);
 		v = p->from.offset + p->reg;
 		if(v > s->value)
-			diag("initialize bounds (%ld/%ld): %s\n%P",
+			diag("initialize bounds (%d/%d): %s\n%P",
 				v, s->value, s->name, p);
 		if((s->type == SBSS || s->type == SDATA) && (p->to.type == D_CONST || p->to.type == D_OCONST) && (p->to.name == D_EXTERN || p->to.name == D_STATIC)){
 			s = p->to.sym;
@@ -394,7 +394,7 @@ patch(void)
 					q = q->link;
 			}
 			if(q == P) {
-				diag("branch out of range %ld\n%P", c, p);
+				diag("branch out of range %d\n%P", c, p);
 				p->to.type = D_NONE;
 			}
 			p->cond = q;

@@ -382,7 +382,7 @@ regopt(Prog *p)
 	if(debug['R'] && debug['v']) {
 		print("\nlooping structure:\n");
 		for(r = firstr; r != R; r = r->link) {
-			print("%ld:%P", r->loop, r->prog);
+			print("%d:%P", r->loop, r->prog);
 			for(z=0; z<BITS; z++)
 				bit.b[z] = r->use1.b[z] |
 					   r->use2.b[z] |
@@ -1031,7 +1031,7 @@ paint1(Reg *r, int bn)
 	if(LOAD(r) & ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z])) & bb) {
 		change -= CLOAD * r->loop;
 		if(debug['R'] && debug['v'])
-			print("%ld%P\tld %B $%d\n", r->loop,
+			print("%d%P\td %B $%d\n", r->loop,
 				r->prog, blsh(bn), change);
 	}
 	for(;;) {
@@ -1044,7 +1044,7 @@ paint1(Reg *r, int bn)
 				if(BtoR(bb) != D_F0)
 					change = -CINF;
 			if(debug['R'] && debug['v'])
-				print("%ld%P\tu1 %B $%d\n", r->loop,
+				print("%d%P\tu1 %B $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
 
@@ -1054,7 +1054,7 @@ paint1(Reg *r, int bn)
 				if(BtoR(bb) != D_F0)
 					change = -CINF;
 			if(debug['R'] && debug['v'])
-				print("%ld%P\tu2 %B $%d\n", r->loop,
+				print("%d%P\tu2 %B $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
 
@@ -1064,7 +1064,7 @@ paint1(Reg *r, int bn)
 				if(BtoR(bb) != D_F0)
 					change = -CINF;
 			if(debug['R'] && debug['v'])
-				print("%ld%P\tst %B $%d\n", r->loop,
+				print("%d%P\tst %B $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
 

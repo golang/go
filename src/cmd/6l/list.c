@@ -178,7 +178,7 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_FCONST:
-		snprint(str, sizeof(str), "$(%.8lux,%.8lux)", a->ieee.h, a->ieee.l);
+		snprint(str, sizeof(str), "$(%.8ux,%.8ux)", a->ieee.h, a->ieee.l);
 		break;
 
 	case D_SCONST:

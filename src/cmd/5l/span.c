@@ -392,7 +392,7 @@ span(void)
 	if(INITRND)
 		INITDAT = rnd(c, INITRND);
 	if(debug['v'])
-		Bprint(&bso, "tsize = %lux\n", textsize);
+		Bprint(&bso, "tsize = %ux\n", textsize);
 	Bflush(&bso);
 }
 
@@ -426,7 +426,7 @@ flushpool(Prog *p, int skip, int force)
 
 	if(blitrl) {
 		if(skip){
-			if(0 && skip==1)print("note: flush literal pool at %lux: len=%lud ref=%lux\n", p->pc+4, pool.size, pool.start);
+			if(0 && skip==1)print("note: flush literal pool at %ux: len=%ud ref=%ux\n", p->pc+4, pool.size, pool.start);
 			q = prg();
 			q->as = AB;
 			q->to.type = D_BRANCH;

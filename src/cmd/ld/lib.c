@@ -897,7 +897,7 @@ asmlc(void)
 				continue;
 			}
 			if(debug['O'])
-				Bprint(&bso, "\t\t%6ld", lcsize);
+				Bprint(&bso, "\t\t%6d", lcsize);
 			v = (p->pc - oldpc) / MINLC;
 			while(v) {
 				s = 127;
@@ -905,7 +905,7 @@ asmlc(void)
 					s = v;
 				cput(s+128);	/* 129-255 +pc */
 				if(debug['O'])
-					Bprint(&bso, " pc+%ld*%d(%ld)", s, MINLC, s+128);
+					Bprint(&bso, " pc+%d*%d(%d)", s, MINLC, s+128);
 				v -= s;
 				lcsize++;
 			}
@@ -920,10 +920,10 @@ asmlc(void)
 				cput(s);
 				if(debug['O']) {
 					if(s > 0)
-						Bprint(&bso, " lc+%ld(%d,%ld)\n",
+						Bprint(&bso, " lc+%d(%d,%d)\n",
 							s, 0, s);
 					else
-						Bprint(&bso, " lc%ld(%d,%ld)\n",
+						Bprint(&bso, " lc%d(%d,%d)\n",
 							s, 0, s);
 					Bprint(&bso, "%6llux %P\n",
 						p->pc, p);
@@ -934,14 +934,14 @@ asmlc(void)
 			if(s > 0) {
 				cput(0+s);	/* 1-64 +lc */
 				if(debug['O']) {
-					Bprint(&bso, " lc+%ld(%ld)\n", s, 0+s);
+					Bprint(&bso, " lc+%d(%d)\n", s, 0+s);
 					Bprint(&bso, "%6llux %P\n",
 						p->pc, p);
 				}
 			} else {
 				cput(64-s);	/* 65-128 -lc */
 				if(debug['O']) {
-					Bprint(&bso, " lc%ld(%ld)\n", s, 64-s);
+					Bprint(&bso, " lc%d(%d)\n", s, 64-s);
 					Bprint(&bso, "%6llux %P\n",
 						p->pc, p);
 				}
@@ -955,7 +955,7 @@ asmlc(void)
 		lcsize++;
 	}
 	if(debug['v'] || debug['O'])
-		Bprint(&bso, "lcsize = %ld\n", lcsize);
+		Bprint(&bso, "lcsize = %d\n", lcsize);
 	Bflush(&bso);
 }
 

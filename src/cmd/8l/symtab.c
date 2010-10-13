@@ -73,7 +73,7 @@ putsymb(char *s, int t, int32 v, int ver, Sym *go)
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
-			Bprint(&bso, "%c %.8lux ", t, v);
+			Bprint(&bso, "%c %.8ux ", t, v);
 			for(i=1; s[i] != 0 || s[i+1] != 0; i+=2) {
 				f = ((s[i]&0xff) << 8) | (s[i+1]&0xff);
 				Bprint(&bso, "/%x", f);
@@ -82,9 +82,9 @@ putsymb(char *s, int t, int32 v, int ver, Sym *go)
 			return;
 		}
 		if(ver)
-			Bprint(&bso, "%c %.8lux %s<%d> %s (%.8llux)\n", t, v, s, ver, go ? go->name : "", gv);
+			Bprint(&bso, "%c %.8ux %s<%d> %s (%.8llux)\n", t, v, s, ver, go ? go->name : "", gv);
 		else
-			Bprint(&bso, "%c %.8lux %s\n", t, v, s, go ? go->name : "", gv);
+			Bprint(&bso, "%c %.8ux %s\n", t, v, s, go ? go->name : "", gv);
 	}
 }
 
@@ -159,6 +159,6 @@ asmsym(void)
 				putsymb(a->asym->name, 'p', a->aoffset, 0, a->gotype);
 	}
 	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %lud\n", symsize);
+		Bprint(&bso, "symsize = %ud\n", symsize);
 	Bflush(&bso);
 }

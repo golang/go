@@ -195,7 +195,7 @@ doinit(Sym *s, Type *t, int32 o, Node *a)
 			dbgdecl(s);
 	}
 	if(debug['i']) {
-		print("t = %T; o = %ld; n = %s\n", t, o, s->name);
+		print("t = %T; o = %d; n = %s\n", t, o, s->name);
 		prtree(a, "doinit value");
 	}
 
@@ -323,7 +323,7 @@ init1(Sym *s, Type *t, int32 o, int exflag)
 		return Z;
 
 	if(debug['i']) {
-		print("t = %T; o = %ld; n = %s\n", t, o, s->name);
+		print("t = %T; o = %d; n = %s\n", t, o, s->name);
 		prtree(a, "init1 value");
 	}
 
@@ -479,7 +479,7 @@ init1(Sym *s, Type *t, int32 o, int exflag)
 				e = r->vconst;
 				if(t->width != 0)
 					if(e < 0 || e*w >= t->width) {
-						diag(a, "initialization index out of range: %ld", e);
+						diag(a, "initialization index out of range: %d", e);
 						continue;
 					}
 			}
@@ -916,7 +916,7 @@ fnproto1(Node *n)
 void
 dbgdecl(Sym *s)
 {
-	print("decl \"%s\": C=%s [B=%d:O=%ld] T=%T\n",
+	print("decl \"%s\": C=%s [B=%d:O=%d] T=%T\n",
 		s->name, cnames[s->class], s->block, s->offset, s->type);
 }
 
@@ -1571,7 +1571,7 @@ contig(Sym *s, Node *n, int32 v)
 	Type *zt;
 
 	if(debug['i']) {
-		print("contig v = %ld; s = %s\n", v, s->name);
+		print("contig v = %d; s = %s\n", v, s->name);
 		prtree(n, "doinit value");
 	}
 

@@ -355,7 +355,7 @@ mulgen1(uint32 v, Node *n)
 	mulparam(v, p);
 
 found:
-//	print("v=%.lx a=%d n=%d s=%d g=%d o=%d \n", p->value, p->alg, p->neg, p->shift, p->arg, p->off);
+//	print("v=%.x a=%d n=%d s=%d g=%d o=%d \n", p->value, p->alg, p->neg, p->shift, p->arg, p->off);
 	if(p->alg < 0)
 		return 0;
 

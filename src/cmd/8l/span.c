@@ -147,7 +147,7 @@ start:
 	xdefine("erodata", SRODATA, erodata);
 
 	if(debug['v'])
-		Bprint(&bso, "etext = %lux\n", c);
+		Bprint(&bso, "etext = %ux\n", c);
 	Bflush(&bso);
 	for(cursym = textp; cursym != nil; cursym = cursym->next)
 		cursym->value = cursym->text->pc;
@@ -1233,7 +1233,7 @@ bad:
 		}
 		return;
 	}
-	diag("doasm: notfound t2=%lux from=%lux to=%lux %P", t[2], p->from.type, p->to.type, p);
+	diag("doasm: notfound t2=%ux from=%ux to=%ux %P", t[2], p->from.type, p->to.type, p);
 	return;
 
 mfound:

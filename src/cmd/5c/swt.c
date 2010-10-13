@@ -47,7 +47,7 @@ swit1(C1 *q, int nc, int32 def, Node *n)
 	if(nc < 5) {
 		for(i=0; i<nc; i++) {
 			if(debug['W'])
-				print("case = %.8lux\n", q->val);
+				print("case = %.8ux\n", q->val);
 			gopcode(OEQ, nodconst(q->val), n, Z);
 			patch(p, q->label);
 			q++;
@@ -60,7 +60,7 @@ swit1(C1 *q, int nc, int32 def, Node *n)
 	i = nc / 2;
 	r = q+i;
 	if(debug['W'])
-		print("case > %.8lux\n", r->val);
+		print("case > %.8ux\n", r->val);
 	gopcode(OGT, nodconst(r->val), n, Z);
 	sp = p;
 	gopcode(OEQ, nodconst(r->val), n, Z);	/* just gen the B.EQ */
@@ -68,7 +68,7 @@ swit1(C1 *q, int nc, int32 def, Node *n)
 	swit1(q, i, def, n);
 
 	if(debug['W'])
-		print("case < %.8lux\n", r->val);
+		print("case < %.8ux\n", r->val);
 	patch(sp, pc);
 	swit1(r+1, nc-i-1, def, n);
 	return;
@@ -81,7 +81,7 @@ direct:
 	patch(p, def);
 	for(i=0; i<nc; i++) {
 		if(debug['W'])
-			print("case = %.8lux\n", q->val);
+			print("case = %.8ux\n", q->val);
 		while(q->val != v) {
 			nextpc();
 			p->as = ABCASE;
@@ -227,7 +227,7 @@ mulcon(Node *n, Node *nn)
 		return 0;
 	}
 	if(debug['M'] && debug['v'])
-		print("%L multiply: %ld\n", n->lineno, v);
+		print("%L multiply: %d\n", n->lineno, v);
 
 	memmove(code, m->code, sizeof(m->code));
 	code[sizeof(m->code)] = 0;
@@ -668,7 +668,7 @@ align(int32 i, Type *t, int op)
 	}
 	o = xround(o, w);
 	if(debug['A'])
-		print("align %s %ld %T = %ld\n", bnames[op], i, t, o);
+		print("align %s %d %T = %d\n", bnames[op], i, t, o);
 	return o;
 }
 
