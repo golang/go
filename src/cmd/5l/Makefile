@@ -17,9 +17,11 @@ OFILES=\
 	obj.$O\
 	optab.$O\
 	pass.$O\
+	prof.$O\
 	thumb.$O\
 	softfloat.$O\
 	span.$O\
+	symtab.$O\
 	go.$O\
 
 HFILES=\

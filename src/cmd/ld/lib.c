@@ -246,7 +246,7 @@ loop:
 
 	if(xrefresolv)
 	for(h=0; h<nelem(hash); h++)
-	for(s = hash[h]; s != S; s = s->link)
+	for(s = hash[h]; s != S; s = s->hash)
 		if(s->type == SXREF)
 			goto loop;
 
@@ -479,7 +479,7 @@ lookup(char *symb, int v)
 	// not if(h < 0) h = ~h, because gcc 4.3 -O2 miscompiles it.
 	h &= 0xffffff;
 	h %= NHASH;
-	for(s = hash[h]; s != S; s = s->link)
+	for(s = hash[h]; s != S; s = s->hash)
 		if(s->version == v)
 		if(memcmp(s->name, symb, l) == 0)
 			return s;
@@ -491,7 +491,7 @@ lookup(char *symb, int v)
 	s->name = mal(l + 1);
 	memmove(s->name, symb, l);
 
-	s->link = hash[h];
+	s->hash = hash[h];
 	s->type = 0;
 	s->version = v;
 	s->value = 0;
@@ -734,68 +734,12 @@ ieeedtod(Ieee *ieeep)
 }
 
 void
-undefsym(Sym *s)
-{
-	int n;
-
-	n = imports;
-	if(s->value != 0)
-		diag("value != 0 on SXREF");
-	if(n >= 1<<Rindex)
-		diag("import index %d out of range", n);
-	s->value = n<<Roffset;
-	s->type = SUNDEF;
-	imports++;
-}
-
-void
 zerosig(char *sp)
 {
 	Sym *s;
 
 	s = lookup(sp, 0);
 	s->sig = 0;
-}
-
-void
-readundefs(char *f, int t)
-{
-	int i, n;
-	Sym *s;
-	Biobuf *b;
-	char *l, buf[256], *fields[64];
-
-	if(f == nil)
-		return;
-	b = Bopen(f, OREAD);
-	if(b == nil){
-		diag("could not open %s: %r", f);
-		errorexit();
-	}
-	while((l = Brdline(b, '\n')) != nil){
-		n = Blinelen(b);
-		if(n >= sizeof(buf)){
-			diag("%s: line too long", f);
-			errorexit();
-		}
-		memmove(buf, l, n);
-		buf[n-1] = '\0';
-		n = getfields(buf, fields, nelem(fields), 1, " \t\r\n");
-		if(n == nelem(fields)){
-			diag("%s: bad format", f);
-			errorexit();
-		}
-		for(i = 0; i < n; i++){
-			s = lookup(fields[i], 0);
-			s->type = SXREF;
-			s->subtype = t;
-			if(t == SIMPORT)
-				nimports++;
-			else
-				nexports++;
-		}
-	}
-	Bterm(b);
 }
 
 int32
@@ -944,10 +888,9 @@ asmlc(void)
 
 	oldpc = INITTEXT;
 	oldlc = 0;
-	for(p = firstp; p != P; p = p->link) {
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
-				if(p->as == ATEXT)
-					curtext = p;
 				if(debug['O'])
 					Bprint(&bso, "%6llux %P\n",
 						p->pc, p);
@@ -1004,6 +947,7 @@ asmlc(void)
 				}
 			}
 			lcsize++;
+		}
 	}
 	while(lcsize & 1) {
 		s = 129;
@@ -1014,3 +958,45 @@ asmlc(void)
 		Bprint(&bso, "lcsize = %ld\n", lcsize);
 	Bflush(&bso);
 }
+
+#define	LOG	5
+void
+mkfwd(void)
+{
+	Prog *p;
+	int i;
+	int32 dwn[LOG], cnt[LOG];
+	Prog *lst[LOG], *last;
+
+	for(i=0; i<LOG; i++) {
+		if(i == 0)
+			cnt[i] = 1;
+		else
+			cnt[i] = LOG * cnt[i-1];
+		dwn[i] = 1;
+		lst[i] = P;
+	}
+	i = 0;
+	last = nil;
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
+			if(p->link == P) {
+				if(cursym->next)
+					p->forwd = cursym->next->text;
+				break;
+			}
+			i--;
+			if(i < 0)
+				i = LOG-1;
+			p->forwd = P;
+			dwn[i]--;
+			if(dwn[i] <= 0) {
+				dwn[i] = cnt[i];
+				if(lst[i] != P)
+					lst[i]->forwd = p;
+				lst[i] = p;
+			}
+		}
+	}
+}
+

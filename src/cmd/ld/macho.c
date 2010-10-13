@@ -294,7 +294,7 @@ domacho(void)
 
 	impsym = nil;
 	for(h=0; h<NHASH; h++) {
-		for(s=hash[h]; s!=S; s=s->link) {
+		for(s=hash[h]; s!=S; s=s->hash) {
 			if(!s->reachable || (s->type != STEXT && s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
 				continue;
 			if(debug['d']) {

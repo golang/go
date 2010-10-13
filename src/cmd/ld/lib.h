@@ -127,6 +127,7 @@ void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
 void	ldobj(Biobuf*, char*, int64, char*, int);
 void	ldpkg(Biobuf*, char*, int64, char*, int);
 void	mark(Sym *s);
+void	mkfwd(void);
 char*	expandpkg(char*, char*);
 void	deadcode(void);
 void	ewrite(int, void*, int);

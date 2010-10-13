@@ -5,8 +5,10 @@
 #define	EXTERN
 #include	"l.h"
 
+// Software floating point.
+
 void
-softfloat()
+softfloat(void)
 {
 	Prog *p, *next, *psfloat;
 	Sym *symsfloat;
@@ -15,18 +17,11 @@ softfloat()
 	symsfloat = lookup("_sfloat", 0);
 	psfloat = P;
 	if(symsfloat->type == STEXT)
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT) {
-			if(p->from.sym == symsfloat) {
-				psfloat = p;
-				break;
-			}
-		}
-	}
+		psfloat = symsfloat->text;
 
 	wasfloat = 0;
-	p = firstp;
-	for(p = firstp; p != P; p = p->link) {
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			switch(p->as) {
 			case AMOVWD:
 			case AMOVWF:
@@ -67,5 +62,6 @@ softfloat()
 			default:
 				wasfloat = 0;
 			}
+		}
 	}
 }

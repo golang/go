@@ -390,8 +390,8 @@ enum	as
 
 	AEND,
 
-	ADYNT,
-	AINIT,
+	ADYNT_,
+	AINIT_,
 
 	ASIGNAME,
 

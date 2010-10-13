@@ -28,9 +28,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Instruction layout.
+
 #include	"l.h"
 #include	"../ld/lib.h"
-#include	"../ld/elf.h"
 
 static int	rexflag;
 static int	asmode;
@@ -50,9 +51,8 @@ span(void)
 	xdefine("erodata", SRODATA, 0L);
 
 	idat = INITDAT;
-	for(p = firstp; p != P; p = p->link) {
-			if(p->as == ATEXT)
-				curtext = p;
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			n = 0;
 			if(p->to.type == D_BRANCH)
 				if(p->pcond == P)
@@ -74,6 +74,7 @@ span(void)
 				if(v == 0)
 					p->as = ANOP;
 			}
+		}
 	}
 	n = 0;
 
@@ -82,9 +83,8 @@ start:
 		Bprint(&bso, "%5.2f span\n", cputime());
 	Bflush(&bso);
 	c = INITTEXT;
-	for(p = firstp; p != P; p = p->link) {
-			if(p->as == ATEXT)
-				curtext = p;
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			if(p->to.type == D_BRANCH)
 				if(p->back)
 					p->pc = c;
@@ -93,6 +93,7 @@ start:
 			m = andptr-and;
 			p->mark = m;
 			c += m;
+		}
 	}
 
 loop:
@@ -106,9 +107,8 @@ loop:
 	}
 	again = 0;
 	c = INITTEXT;
-	for(p = firstp; p != P; p = p->link) {
-			if(p->as == ATEXT)
-				curtext = p;
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			if(p->to.type == D_BRANCH || p->back & 0100) {
 				if(p->back)
 					p->pc = c;
@@ -121,6 +121,7 @@ loop:
 			}
 			p->pc = c;
 			c += p->mark;
+		}
 	}
 	if(again) {
 		textsize = c;
@@ -135,7 +136,7 @@ loop:
 	rodata = c;
 	xdefine("rodata", SRODATA, c);
 	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->link) {
+	for(s = hash[i]; s != S; s = s->hash) {
 		if(s->type != SRODATA)
 			continue;
 		v = s->size;
@@ -161,8 +162,8 @@ loop:
 	if(debug['v'])
 		Bprint(&bso, "etext = %llux\n", c);
 	Bflush(&bso);
-	for(p = textp; p != P; p = p->pcond)
-		p->from.sym->value = p->pc;
+	for(cursym = textp; cursym != nil; cursym = cursym->next)
+		cursym->value = cursym->text->pc;
 	textsize = c - INITTEXT;
 	
 	segtext.rwx = 05;
@@ -194,217 +195,115 @@ xdefine(char *p, int t, vlong v)
 }
 
 void
-putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
+instinit(void)
 {
-	int i, f, l;
-	vlong gv;
+	int c, i;
 
-	if(t == 'f')
-		s++;
-	l = 4;
-	if(!debug['8']){
-		lputb(v>>32);
-		l = 8;
-	}
-	lputb(v);
-	if(ver)
-		t += 'a' - 'A';
-	cput(t+0x80);			/* 0x80 is variable length */
-
-	if(t == 'Z' || t == 'z') {
-		cput(s[0]);
-		for(i=1; s[i] != 0 || s[i+1] != 0; i += 2) {
-			cput(s[i]);
-			cput(s[i+1]);
+	for(i=1; optab[i].as; i++) {
+		c = optab[i].as;
+		if(opindex[c] != nil) {
+			diag("phase error in optab: %d (%A)", i, c);
+			errorexit();
 		}
-		cput(0);
-		cput(0);
-		i++;
+		opindex[c] = &optab[i];
 	}
-	else {
-		for(i=0; s[i]; i++)
-			cput(s[i]);
-		cput(0);
-	}
-	gv = 0;
-	if(go) {
-		if(!go->reachable)
-			diag("unreachable type %s", go->name);
-		gv = go->value+INITDAT;
-	}
-	if(l == 8)
-		lputb(gv>>32);
-	lputb(gv);
-	symsize += l + 1 + i+1 + l;
 
-	if(debug['n']) {
-		if(t == 'z' || t == 'Z') {
-			Bprint(&bso, "%c %.8llux ", t, v);
-			for(i=1; s[i] != 0 || s[i+1] != 0; i+=2) {
-				f = ((s[i]&0xff) << 8) | (s[i+1]&0xff);
-				Bprint(&bso, "/%x", f);
-			}
-			Bprint(&bso, "\n");
-			return;
+	for(i=0; i<Ymax; i++)
+		ycover[i*Ymax + i] = 1;
+
+	ycover[Yi0*Ymax + Yi8] = 1;
+	ycover[Yi1*Ymax + Yi8] = 1;
+
+	ycover[Yi0*Ymax + Ys32] = 1;
+	ycover[Yi1*Ymax + Ys32] = 1;
+	ycover[Yi8*Ymax + Ys32] = 1;
+
+	ycover[Yi0*Ymax + Yi32] = 1;
+	ycover[Yi1*Ymax + Yi32] = 1;
+	ycover[Yi8*Ymax + Yi32] = 1;
+	ycover[Ys32*Ymax + Yi32] = 1;
+
+	ycover[Yi0*Ymax + Yi64] = 1;
+	ycover[Yi1*Ymax + Yi64] = 1;
+	ycover[Yi8*Ymax + Yi64] = 1;
+	ycover[Ys32*Ymax + Yi64] = 1;
+	ycover[Yi32*Ymax + Yi64] = 1;
+
+	ycover[Yal*Ymax + Yrb] = 1;
+	ycover[Ycl*Ymax + Yrb] = 1;
+	ycover[Yax*Ymax + Yrb] = 1;
+	ycover[Ycx*Ymax + Yrb] = 1;
+	ycover[Yrx*Ymax + Yrb] = 1;
+	ycover[Yrl*Ymax + Yrb] = 1;
+
+	ycover[Ycl*Ymax + Ycx] = 1;
+
+	ycover[Yax*Ymax + Yrx] = 1;
+	ycover[Ycx*Ymax + Yrx] = 1;
+
+	ycover[Yax*Ymax + Yrl] = 1;
+	ycover[Ycx*Ymax + Yrl] = 1;
+	ycover[Yrx*Ymax + Yrl] = 1;
+
+	ycover[Yf0*Ymax + Yrf] = 1;
+
+	ycover[Yal*Ymax + Ymb] = 1;
+	ycover[Ycl*Ymax + Ymb] = 1;
+	ycover[Yax*Ymax + Ymb] = 1;
+	ycover[Ycx*Ymax + Ymb] = 1;
+	ycover[Yrx*Ymax + Ymb] = 1;
+	ycover[Yrb*Ymax + Ymb] = 1;
+	ycover[Yrl*Ymax + Ymb] = 1;
+	ycover[Ym*Ymax + Ymb] = 1;
+
+	ycover[Yax*Ymax + Yml] = 1;
+	ycover[Ycx*Ymax + Yml] = 1;
+	ycover[Yrx*Ymax + Yml] = 1;
+	ycover[Yrl*Ymax + Yml] = 1;
+	ycover[Ym*Ymax + Yml] = 1;
+
+	ycover[Yax*Ymax + Ymm] = 1;
+	ycover[Ycx*Ymax + Ymm] = 1;
+	ycover[Yrx*Ymax + Ymm] = 1;
+	ycover[Yrl*Ymax + Ymm] = 1;
+	ycover[Ym*Ymax + Ymm] = 1;
+	ycover[Ymr*Ymax + Ymm] = 1;
+
+	ycover[Yax*Ymax + Yxm] = 1;
+	ycover[Ycx*Ymax + Yxm] = 1;
+	ycover[Yrx*Ymax + Yxm] = 1;
+	ycover[Yrl*Ymax + Yxm] = 1;
+	ycover[Ym*Ymax + Yxm] = 1;
+	ycover[Yxr*Ymax + Yxm] = 1;
+
+	for(i=0; i<D_NONE; i++) {
+		reg[i] = -1;
+		if(i >= D_AL && i <= D_R15B) {
+			reg[i] = (i-D_AL) & 7;
+			if(i >= D_SPB && i <= D_DIB)
+				regrex[i] = 0x40;
+			if(i >= D_R8B && i <= D_R15B)
+				regrex[i] = Rxr | Rxx | Rxb;
 		}
-		if(ver)
-			Bprint(&bso, "%c %.8llux %s<%d> %s (%.8llux)\n", t, v, s, ver, go ? go->name : "", gv);
-		else
-			Bprint(&bso, "%c %.8llux %s %s (%.8llux)\n", t, v, s, go ? go->name : "", gv);
-	}
-}
-
-void
-genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
-{
-	Prog *p;
-	Auto *a;
-	Sym *s;
-	int h;
-
-	s = lookup("etext", 0);
-	if(s->type == STEXT)
-		put(s->name, 'T', s->value, s->size, s->version, 0);
-
-	for(h=0; h<NHASH; h++) {
-		for(s=hash[h]; s!=S; s=s->link) {
-			switch(s->type) {
-			case SCONST:
-			case SRODATA:
-				if(!s->reachable)
-					continue;
-				put(s->name, 'D', s->value, s->size, s->version, s->gotype);
-				continue;
-
-			case SDATA:
-			case SELFDATA:
-				if(!s->reachable)
-					continue;
-				put(s->name, 'D', s->value+INITDAT, s->size, s->version, s->gotype);
-				continue;
-
-			case SMACHO:
-				if(!s->reachable)
-					continue;
-				put(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->size, s->version, s->gotype);
-				continue;
-
-			case SBSS:
-				if(!s->reachable)
-					continue;
-				put(s->name, 'B', s->value+INITDAT, s->size, s->version, s->gotype);
-				continue;
-
-			case SFIXED:
-				put(s->name, 'B', s->value, s->size, s->version, s->gotype);
-				continue;
-
-			case SFILE:
-				put(s->name, 'f', s->value, 0, s->version, 0);
-				continue;
-			}
+		if(i >= D_AH && i<= D_BH)
+			reg[i] = 4 + ((i-D_AH) & 7);
+		if(i >= D_AX && i <= D_R15) {
+			reg[i] = (i-D_AX) & 7;
+			if(i >= D_R8)
+				regrex[i] = Rxr | Rxx | Rxb;
 		}
+		if(i >= D_F0 && i <= D_F0+7)
+			reg[i] = (i-D_F0) & 7;
+		if(i >= D_M0 && i <= D_M0+7)
+			reg[i] = (i-D_M0) & 7;
+		if(i >= D_X0 && i <= D_X0+15) {
+			reg[i] = (i-D_X0) & 7;
+			if(i >= D_X0+8)
+				regrex[i] = Rxr | Rxx | Rxb;
+		}
+		if(i >= D_CR+8 && i <= D_CR+15)
+			regrex[i] = Rxr;
 	}
-
-	for(p = textp; p != P; p = p->pcond) {
-		s = p->from.sym;
-		if(s->type != STEXT)
-			continue;
-
-		/* filenames first */
-		for(a=p->to.autom; a; a=a->link)
-			if(a->type == D_FILE)
-				put(a->asym->name, 'z', a->aoffset, 0, 0, 0);
-			else
-			if(a->type == D_FILE1)
-				put(a->asym->name, 'Z', a->aoffset, 0, 0, 0);
-
-		if(!s->reachable)
-			continue;
-		put(s->name, 'T', s->value, s->size, s->version, s->gotype);
-
-		/* frame, auto and param after */
-		put(".frame", 'm', p->to.offset+8, 0, 0, 0);
-
-		for(a=p->to.autom; a; a=a->link)
-			if(a->type == D_AUTO)
-				put(a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
-			else
-			if(a->type == D_PARAM)
-				put(a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
-	}
-	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %lud\n", symsize);
-	Bflush(&bso);
-}
-
-void
-asmsym(void)
-{
-	genasmsym(putsymb);
-}
-
-char *elfstrdat;
-int elfstrsize;
-int maxelfstr;
-
-int
-putelfstr(char *s)
-{
-	int off, n;
-
-	if(elfstrsize == 0 && s[0] != 0) {
-		// first entry must be empty string
-		putelfstr("");
-	}
-
-	n = strlen(s)+1;
-	if(elfstrsize+n > maxelfstr) {
-		maxelfstr = 2*(elfstrsize+n+(1<<20));
-		elfstrdat = realloc(elfstrdat, maxelfstr);
-	}
-	off = elfstrsize;
-	elfstrsize += n;
-	memmove(elfstrdat+off, s, n);
-	return off;
-}
-
-void
-putelfsymb(char *s, int t, vlong addr, vlong size, int ver, Sym *go)
-{
-	int bind, type, shndx, stroff;
-	
-	bind = STB_GLOBAL;
-	switch(t) {
-	default:
-		return;
-	case 'T':
-		type = STT_FUNC;
-		shndx = elftextsh + 0;
-		break;
-	case 'D':
-		type = STT_OBJECT;
-		shndx = elftextsh + 1;
-		break;
-	case 'B':
-		type = STT_OBJECT;
-		shndx = elftextsh + 2;
-		break;
-	}
-	
-	stroff = putelfstr(s);
-	lputl(stroff);	// string
-	cput((bind<<4)|(type&0xF));
-	cput(0);
-	wputl(shndx);
-	vputl(addr);
-	vputl(size);
-}
-
-void
-asmelfsym(void)
-{
-	genasmsym(putelfsymb);
 }
 
 int
@@ -708,10 +607,6 @@ bad:
 static void
 put4(int32 v)
 {
-	if(dlm && curp != P && reloca != nil){
-		dynreloc(reloca->sym, curp->pc + andptr - &and[0], 1);
-		reloca = nil;
-	}
 	andptr[0] = v;
 	andptr[1] = v>>8;
 	andptr[2] = v>>16;
@@ -722,10 +617,6 @@ put4(int32 v)
 static void
 put8(vlong v)
 {
-	if(dlm && curp != P && reloca != nil){
-		dynreloc(reloca->sym, curp->pc + andptr - &and[0], 1);	/* TO DO */
-		reloca = nil;
-	}
 	andptr[0] = v;
 	andptr[1] = v>>8;
 	andptr[2] = v>>16;
@@ -765,11 +656,8 @@ vaddr(Adr *a)
 	case D_EXTERN:
 		s = a->sym;
 		if(s != nil) {
-			if(dlm && curp != P)
-				reloca = a;
 			switch(s->type) {
 			case SUNDEF:
-				ckoff(s, v);
 			case STEXT:
 			case SCONST:
 			case SRODATA:
@@ -1502,13 +1390,6 @@ found:
 		q = p->pcond;
 		if(q) {
 			v = q->pc - p->pc - 5;
-			if(dlm && curp != P && p->to.sym->type == SUNDEF){
-				/* v = 0 - p->pc - 5; */
-				v = 0;
-				ckoff(p->to.sym, v);
-				v += p->to.sym->value;
-				dynreloc(p->to.sym, p->pc+1, 0);
-			}
 			*andptr++ = op;
 			*andptr++ = v;
 			*andptr++ = v>>8;
@@ -1743,158 +1624,5 @@ asmins(Prog *p)
 		memmove(and+np+1, and+np, n-np);
 		and[np] = 0x40 | rexflag;
 		andptr++;
-	}
-}
-
-enum{
-	ABSD = 0,
-	ABSU = 1,
-	RELD = 2,
-	RELU = 3,
-};
-
-int modemap[4] = { 0, 1, -1, 2, };
-
-typedef struct Reloc Reloc;
-
-struct Reloc
-{
-	int n;
-	int t;
-	uchar *m;
-	uint32 *a;
-};
-
-Reloc rels;
-
-static void
-grow(Reloc *r)
-{
-	int t;
-	uchar *m, *nm;
-	uint32 *a, *na;
-
-	t = r->t;
-	r->t += 64;
-	m = r->m;
-	a = r->a;
-	r->m = nm = mal(r->t*sizeof(uchar));
-	r->a = na = mal(r->t*sizeof(uint32));
-	memmove(nm, m, t*sizeof(uchar));
-	memmove(na, a, t*sizeof(uint32));
-	free(m);
-	free(a);
-}
-
-void
-dynreloc(Sym *s, uint32 v, int abs)
-{
-	int i, k, n;
-	uchar *m;
-	uint32 *a;
-	Reloc *r;
-
-	if(s->type == SUNDEF)
-		k = abs ? ABSU : RELU;
-	else
-		k = abs ? ABSD : RELD;
-	/* Bprint(&bso, "R %s a=%ld(%lx) %d\n", s->name, v, v, k); */
-	k = modemap[k];
-	r = &rels;
-	n = r->n;
-	if(n >= r->t)
-		grow(r);
-	m = r->m;
-	a = r->a;
-	for(i = n; i > 0; i--){
-		if(v < a[i-1]){	/* happens occasionally for data */
-			m[i] = m[i-1];
-			a[i] = a[i-1];
-		}
-		else
-			break;
-	}
-	m[i] = k;
-	a[i] = v;
-	r->n++;
-}
-
-static int
-sput(char *s)
-{
-	char *p;
-
-	p = s;
-	while(*s)
-		cput(*s++);
-	cput(0);
-	return s-p+1;
-}
-
-void
-asmdyn()
-{
-	int i, n, t, c;
-	Sym *s;
-	uint32 la, ra, *a;
-	vlong off;
-	uchar *m;
-	Reloc *r;
-
-	cflush();
-	off = seek(cout, 0, 1);
-	lputb(0);
-	t = 0;
-	lputb(imports);
-	t += 4;
-	for(i = 0; i < NHASH; i++)
-		for(s = hash[i]; s != S; s = s->link)
-			if(s->type == SUNDEF){
-				lputb(s->sig);
-				t += 4;
-				t += sput(s->name);
-			}
-
-	la = 0;
-	r = &rels;
-	n = r->n;
-	m = r->m;
-	a = r->a;
-	lputb(n);
-	t += 4;
-	for(i = 0; i < n; i++){
-		ra = *a-la;
-		if(*a < la)
-			diag("bad relocation order");
-		if(ra < 256)
-			c = 0;
-		else if(ra < 65536)
-			c = 1;
-		else
-			c = 2;
-		cput((c<<6)|*m++);
-		t++;
-		if(c == 0){
-			cput(ra);
-			t++;
-		}
-		else if(c == 1){
-			wputb(ra);
-			t += 2;
-		}
-		else{
-			lputb(ra);
-			t += 4;
-		}
-		la = *a++;
-	}
-
-	cflush();
-	seek(cout, off, 0);
-	lputb(t);
-
-	if(debug['v']){
-		Bprint(&bso, "import table entries = %d\n", imports);
-		Bprint(&bso, "export table entries = %d\n", exports);
 	}
 }

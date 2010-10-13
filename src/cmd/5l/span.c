@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Instruction layout.
+
 #include	"l.h"
 #include	"../ld/lib.h"
 
@@ -132,7 +134,7 @@ scan(Prog *op, Prog *p, int c)
 {
 	Prog *q;
 
-	for(q = op->link; q != p; q = q->link){
+	for(q = op->link; q != p && q != P; q = q->link){
 		q->pc = c;
 		c += oplook(q)->size;
 		nocache(q);
@@ -176,8 +178,29 @@ span(void)
 	bflag = 0;
 	c = INITTEXT;
 	op = nil;
+	p = nil;
 	otxt = c;
-	for(p = firstp; p != P; op = p, p = p->link) {
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		p = cursym->text;
+		setarch(p);
+		p->pc = c;
+
+		if(blitrl && lastthumb != -1 && lastthumb != thumb){	// flush literal pool
+			if(flushpool(op, 0, 1))
+				c = p->pc = scan(op, p, c);
+		}
+		lastthumb = thumb;
+		autosize = p->to.offset + 4;
+		if(p->from.sym != S)
+			p->from.sym->value = c;
+		/* need passes to resolve branches */
+		if(c-otxt >= 1L<<17)
+			bflag = 1;
+		otxt = c;
+		if(thumb && blitrl)
+			pool.extra += brextra(p);
+
+		for(op = p, p = p->link; p != P; op = p, p = p->link) {
 			setarch(p);
 			p->pc = c;
 			o = oplook(p);
@@ -191,22 +214,6 @@ span(void)
 			}
 			if(m == 0) {
 				if(p->as == ATEXT) {
-					if(blitrl && lastthumb != -1 && lastthumb != thumb){	// flush literal pool
-						if(flushpool(op, 0, 1))
-							c = p->pc = scan(op, p, c);
-					}
-					lastthumb = thumb;
-					curtext = p;
-					autosize = p->to.offset + 4;
-					if(p->from.sym != S)
-						p->from.sym->value = c;
-					/* need passes to resolve branches */
-					if(c-otxt >= 1L<<17)
-						bflag = 1;
-					otxt = c;
-					if(thumb && blitrl)
-						pool.extra += brextra(p);
-					continue;
 				}
 				diag("zero-width instruction\n%P", p);
 				continue;
@@ -226,11 +233,13 @@ span(void)
 			if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == 14)
 				flushpool(p, 0, 0);
 			c += m;
-			if(blitrl && p->link == P){
-				if(thumb && isbranch(p))
-					pool.extra += brextra(p);
-				checkpool(p, 0);
-			}
+		}
+		if(blitrl && cursym->next == nil){
+			if(thumb && isbranch(op))
+				pool.extra += brextra(op);
+			if(checkpool(op, 0))
+				c = scan(op, P, c);
+		}
 	}
 
 	/*
@@ -244,13 +253,14 @@ span(void)
 			Bprint(&bso, "%5.2f span1\n", cputime());
 		bflag = 0;
 		c = INITTEXT;
-		for(p = firstp; p != P; p = p->link) {
+		for(cursym = textp; cursym != nil; cursym = cursym->next) {
+			for(p = cursym->text; p != P; p = p->link) {
 				setarch(p);
 				p->pc = c;
 				if(thumb && isbranch(p))
 					nocache(p);
 				o = oplook(p);
-/* very larg branches
+/* very large branches
 				if(o->type == 6 && p->cond) {
 					otxt = p->cond->pc - c;
 					if(otxt < 0)
@@ -276,7 +286,6 @@ span(void)
 				m = o->size;
 				if(m == 0) {
 					if(p->as == ATEXT) {
-						curtext = p;
 						autosize = p->to.offset + 4;
 						if(p->from.sym != S)
 							p->from.sym->value = c;
@@ -286,6 +295,7 @@ span(void)
 					continue;
 				}
 				c += m;
+			}
 		}
 	}
 
@@ -304,7 +314,8 @@ span(void)
 		c = INITTEXT;
 		oop = op = nil;
 		again = 0;
-		for(p = firstp; p != P; oop = op, op = p, p = p->link){
+		for(cursym = textp; cursym != nil; cursym = cursym->next) {
+			for(p = cursym->text; p != P; oop = op, op = p, p = p->link) {
 				setarch(p);
 				if(p->pc != c)
 					again = 1;
@@ -339,7 +350,6 @@ span(void)
 				}
 				if(m == 0) {
 					if(p->as == ATEXT) {
-						curtext = p;
 						autosize = p->to.offset + 4;
 						if(p->from.sym != S)
 							p->from.sym->value = c;
@@ -347,33 +357,12 @@ span(void)
 					}
 				}
 				c += m;
+			}
 		}
 		if(c != lastc || again){
 			lastc = c;
 			goto loop;
 		}
-	}
-
-	if(0 && seenthumb){		// rm redundant padding - obsolete
-		int d;
-
-		op = nil;
-		d = 0;
-		for(p = firstp; p != P; op = p, p = p->link){
-			p->pc -= d;
-			if(p->as == ATEXT){
-				if(p->from.sym != S)
-					p->from.sym->value -= d;
-// if(p->from.sym != S) print("%s %ux %d %d %d\n", p->from.sym->name ? p->from.sym->name : "?", p->from.sym->value, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr);
-			}
-			if(ispad(p) && p->link != P && ispad(p->link)){
-				op->link = p->link->link;
-				d += 4;
-				p = op;
-			}
-		}
-		// print("%d bytes removed (padding)\n", d);
-		c -= d;
 	}
 
 	if(debug['t']) {
@@ -382,7 +371,7 @@ span(void)
 		 */
 		c = rnd(c, 8);
 		for(i=0; i<NHASH; i++)
-		for(s = hash[i]; s != S; s = s->link) {
+		for(s = hash[i]; s != S; s = s->hash) {
 			if(s->type != SSTRING)
 				continue;
 			v = s->value;
@@ -624,21 +613,6 @@ aclass(Adr *a)
 					s->name, TNAME);
 				s->type = SDATA;
 			}
-			if(dlm) {
-				switch(t) {
-				default:
-					instoffset = s->value + a->offset + INITDAT;
-					break;
-				case SUNDEF:
-				case STEXT:
-				case SCONST:
-				case SLEAF:
-				case SSTRING:
-					instoffset = s->value + a->offset;
-					break;
-				}
-				return C_ADDR;
-			}
 			instoffset = s->value + a->offset - BIG;
 			t = immaddr(instoffset);
 			if(t) {
@@ -713,7 +687,7 @@ aclass(Adr *a)
 				return C_LCON;
 			}
 			instoffset = s->value + a->offset + INITDAT;
-			if(s->type == STEXT || s->type == SLEAF || s->type == SUNDEF) {
+			if(s->type == STEXT || s->type == SLEAF) {
 				instoffset = s->value + a->offset;
 #ifdef CALLEEBX
 				instoffset += fnpinc(s);
@@ -763,7 +737,6 @@ aclass(Adr *a)
 			case SFIXED:
 				instoffset = s->value + a->offset;
 				return C_LCON;
-			case SUNDEF:
 			case STEXT:
 			case SSTRING:
 			case SCONST:
@@ -777,12 +750,10 @@ aclass(Adr *a)
 #endif
 				return C_LCON;
 			}
-			if(!dlm) {
-				instoffset = s->value + a->offset - BIG;
-				t = immrot(instoffset);
-				if(t && instoffset != 0)
-					return C_RECON;
-			}
+			instoffset = s->value + a->offset - BIG;
+			t = immrot(instoffset);
+			if(t && instoffset != 0)
+				return C_RECON;
 			instoffset = s->value + a->offset + INITDAT;
 			return C_LCON;
 
@@ -1146,159 +1117,3 @@ buildrep(int x, int as)
 	oprange[as].start = 0;
 }
 */
-
-enum{
-	ABSD = 0,
-	ABSU = 1,
-	RELD = 2,
-	RELU = 3,
-};
-
-int modemap[4] = { 0, 1, -1, 2, };
-
-typedef struct Reloc Reloc;
-
-struct Reloc
-{
-	int n;
-	int t;
-	uchar *m;
-	uint32 *a;
-};
-
-Reloc rels;
-
-static void
-grow(Reloc *r)
-{
-	int t;
-	uchar *m, *nm;
-	uint32 *a, *na;
-
-	t = r->t;
-	r->t += 64;
-	m = r->m;
-	a = r->a;
-	r->m = nm = malloc(r->t*sizeof(uchar));
-	r->a = na = malloc(r->t*sizeof(uint32));
-	memmove(nm, m, t*sizeof(uchar));
-	memmove(na, a, t*sizeof(uint32));
-	free(m);
-	free(a);
-}
-
-void
-dynreloc(Sym *s, int32 v, int abs)
-{
-	int i, k, n;
-	uchar *m;
-	uint32 *a;
-	Reloc *r;
-
-	if(v&3)
-		diag("bad relocation address");
-	v >>= 2;
-	if(s != S && s->type == SUNDEF)
-		k = abs ? ABSU : RELU;
-	else
-		k = abs ? ABSD : RELD;
-	/* Bprint(&bso, "R %s a=%ld(%lx) %d\n", s->name, a, a, k); */
-	k = modemap[k];
-	r = &rels;
-	n = r->n;
-	if(n >= r->t)
-		grow(r);
-	m = r->m;
-	a = r->a;
-	for(i = n; i > 0; i--){
-		if(v < a[i-1]){	/* happens occasionally for data */
-			m[i] = m[i-1];
-			a[i] = a[i-1];
-		}
-		else
-			break;
-	}
-	m[i] = k;
-	a[i] = v;
-	r->n++;
-}
-
-static int
-sput(char *s)
-{
-	char *p;
-
-	p = s;
-	while(*s)
-		cput(*s++);
-	cput(0);
-	return  s-p+1;
-}
-
-void
-asmdyn()
-{
-	int i, n, t, c;
-	Sym *s;
-	uint32 la, ra, *a;
-	vlong off;
-	uchar *m;
-	Reloc *r;
-
-	cflush();
-	off = seek(cout, 0, 1);
-	lput(0);
-	t = 0;
-	lput(imports);
-	t += 4;
-	for(i = 0; i < NHASH; i++)
-		for(s = hash[i]; s != S; s = s->link)
-			if(s->type == SUNDEF){
-				lput(s->sig);
-				t += 4;
-				t += sput(s->name);
-			}
-
-	la = 0;
-	r = &rels;
-	n = r->n;
-	m = r->m;
-	a = r->a;
-	lput(n);
-	t += 4;
-	for(i = 0; i < n; i++){
-		ra = *a-la;
-		if(*a < la)
-			diag("bad relocation order");
-		if(ra < 256)
-			c = 0;
-		else if(ra < 65536)
-			c = 1;
-		else
-			c = 2;
-		cput((c<<6)|*m++);
-		t++;
-		if(c == 0){
-			cput(ra);
-			t++;
-		}
-		else if(c == 1){
-			wput(ra);
-			t += 2;
-		}
-		else{
-			lput(ra);
-			t += 4;
-		}
-		la = *a++;
-	}
-
-	cflush();
-	seek(cout, off, 0);
-	lput(t);
-
-	if(debug['v']){
-		Bprint(&bso, "import table entries = %d\n", imports);
-		Bprint(&bso, "export table entries = %d\n", exports);
-	}
-}

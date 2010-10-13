@@ -19,7 +19,9 @@ OFILES=\
 	obj.$O\
 	optab.$O\
 	pass.$O\
+	prof.$O\
 	span.$O\
+	symtab.$O\
 
 HFILES=\
 	l.h\

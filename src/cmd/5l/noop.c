@@ -28,7 +28,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Code transformations.
+
 #include	"l.h"
+#include	"../ld/lib.h"
 
 // see ../../runtime/proc.c:/StackGuard
 enum
@@ -110,14 +113,12 @@ void
 noops(void)
 {
 	Prog *p, *q, *q1, *q2;
-	int o, curframe, curbecome, maxbecome, foreign;
+	int o, foreign;
 	Prog *pmorestack;
 	Sym *symmorestack;
 
 	/*
 	 * find leaf subroutines
-	 * become sizes
-	 * frame sizes
 	 * strip NOPs
 	 * expand RET
 	 * expand BECOME pseudo
@@ -127,57 +128,25 @@ noops(void)
 		Bprint(&bso, "%5.2f noops\n", cputime());
 	Bflush(&bso);
 
-	pmorestack = P;
 	symmorestack = lookup("runtime.morestack", 0);
-
-	if(symmorestack->type == STEXT)
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT) {
-			if(p->from.sym == symmorestack) {
-				pmorestack = p;
-				p->reg |= NOSPLIT;
-				break;
-			}
-		}
+	if(symmorestack->type != STEXT) {
+		diag("runtime·morestack not defined");
+		errorexit();
 	}
-	// TODO(kaib): make lack of morestack an error
-//	if(pmorestack == P)
-//		diag("runtime·morestack not defined");
-
-	curframe = 0;
-	curbecome = 0;
-	maxbecome = 0;
-	curtext = 0;
+	pmorestack = symmorestack->text;
+	pmorestack->reg |= NOSPLIT;
 
 	q = P;
-	for(p = firstp; p != P; p = p->link) {
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			setarch(p);
-	
-			/* find out how much arg space is used in this TEXT */
-			if(p->to.type == D_OREG && p->to.reg == REGSP)
-				if(p->to.offset > curframe)
-					curframe = p->to.offset;
 	
 			switch(p->as) {
 			case ATEXT:
-				if(curtext && curtext->from.sym) {
-					curtext->from.sym->frame = curframe;
-					curtext->from.sym->become = curbecome;
-					if(curbecome > maxbecome)
-						maxbecome = curbecome;
-				}
-				curframe = 0;
-				curbecome = 0;
-	
 				p->mark |= LEAF;
-				curtext = p;
 				break;
 	
 			case ARET:
-				/* special form of RET is BECOME */
-				if(p->from.type == D_CONST)
-					if(p->from.offset > curbecome)
-						curbecome = p->from.offset;
 				break;
 	
 			case ADIV:
@@ -187,21 +156,20 @@ noops(void)
 				q = p;
 				if(prog_div == P)
 					initdiv();
-				if(curtext != P)
-					curtext->mark &= ~LEAF;
+				cursym->text->mark &= ~LEAF;
 				setdiv(p->as);
 				continue;
 	
 			case ANOP:
 				q1 = p->link;
 				q->link = q1;		/* q is non-nop */
-				q1->mark |= p->mark;
+				if(q1 != P)
+					q1->mark |= p->mark;
 				continue;
 	
 			case ABL:
 			case ABX:
-				if(curtext != P)
-					curtext->mark &= ~LEAF;
+				cursym->text->mark &= ~LEAF;
 	
 			case ABCASE:
 			case AB:
@@ -222,7 +190,6 @@ noops(void)
 			case ABLT:
 			case ABGT:
 			case ABLE:
-	
 				q1 = p->cond;
 				if(q1 != P) {
 					while(q1->as == ANOP) {
@@ -233,65 +200,28 @@ noops(void)
 				break;
 			}
 			q = p;
+		}
 	}
 
-	if(curtext && curtext->from.sym) {
-		curtext->from.sym->frame = curframe;
-		curtext->from.sym->become = curbecome;
-		if(curbecome > maxbecome)
-			maxbecome = curbecome;
-	}
-
-	if(debug['b'])
-		print("max become = %d\n", maxbecome);
-	xdefine("ALEFbecome", STEXT, maxbecome);
-
-	curtext = 0;
-	for(p = firstp; p != P; p = p->link) {
-			setarch(p);
-			switch(p->as) {
-			case ATEXT:
-				curtext = p;
-				break;
-			case ABL:
-			// case ABX:
-				if(curtext != P && curtext->from.sym != S && curtext->to.offset >= 0) {
-					o = maxbecome - curtext->from.sym->frame;
-					if(o <= 0)
-						break;
-					/* calling a become or calling a variable */
-					if(p->to.sym == S || p->to.sym->become) {
-						curtext->to.offset += o;
-						if(debug['b']) {
-							curp = p;
-							print("%D calling %D increase %d\n",
-								&curtext->from, &p->to, o);
-						}
-					}
-				}
-				break;
-			}
-	}
-
-	for(p = firstp; p != P; p = p->link) {
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			setarch(p);
 			o = p->as;
 			switch(o) {
 			case ATEXT:
-				curtext = p;
 				autosize = p->to.offset + 4;
 				if(autosize <= 4)
-				if(curtext->mark & LEAF) {
+				if(cursym->text->mark & LEAF) {
 					p->to.offset = -4;
 					autosize = 0;
 				}
 	
-				if(!autosize && !(curtext->mark & LEAF)) {
+				if(!autosize && !(cursym->text->mark & LEAF)) {
 					if(debug['v'])
 						Bprint(&bso, "save suppressed in: %s\n",
-							curtext->from.sym->name);
+							cursym->name);
 					Bflush(&bso);
-					curtext->mark |= LEAF;
+					cursym->text->mark |= LEAF;
 				}
 #ifdef CALLEEBX
 				if(p->from.sym->foreign){
@@ -303,9 +233,8 @@ noops(void)
 						p = aword(0x4778, p);	// thumb bx pc and 2 bytes padding
 				}
 #endif
-				if(curtext->mark & LEAF) {
-					if(curtext->from.sym)
-						curtext->from.sym->type = SLEAF;
+				if(cursym->text->mark & LEAF) {
+					cursym->type = SLEAF;
 					if(!autosize)
 						break;
 				}
@@ -313,7 +242,7 @@ noops(void)
 				if(thumb){
 					if(!(p->reg & NOSPLIT))
 						diag("stack splitting not supported in thumb");
-					if(!(curtext->mark & LEAF)){
+					if(!(cursym->text->mark & LEAF)){
 						q = movrr(nil, REGLINK, REGTMPT-1, p);
 						p->link = q;
 						q1 = prg();
@@ -399,7 +328,7 @@ noops(void)
 					p->as = AMOVW;
 					p->scond = C_SCOND_LO;
 					p->from.type = D_CONST;
-					p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
+					p->from.offset = ((cursym->text->to.offset2 + 3) & ~3) + 4;
 					p->to.type = D_REG;
 					p->to.reg = 2;
 	
@@ -449,7 +378,7 @@ noops(void)
 					p = appendp(p);
 					p->as = AMOVW;
 					p->from.type = D_CONST;
-					p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
+					p->from.offset = ((cursym->text->to.offset2 + 3) & ~3) + 4;
 					p->to.type = D_REG;
 					p->to.reg = 2;
 	
@@ -482,17 +411,15 @@ noops(void)
 	
 			case ARET:
 				nocache(p);
-				foreign = seenthumb && curtext->from.sym != S && (curtext->from.sym->foreign || curtext->from.sym->fnptr);
-// print("%s %d %d\n", curtext->from.sym->name, curtext->from.sym->foreign, curtext->from.sym->fnptr);
-				if(p->from.type == D_CONST)
-					goto become;
-				if(curtext->mark & LEAF) {
+				foreign = seenthumb && (cursym->foreign || cursym->fnptr);
+// print("%s %d %d\n", cursym->name, cursym->foreign, cursym->fnptr);
+				if(cursym->text->mark & LEAF) {
 					if(!autosize) {
 						if(thumb){
 							p = fnret(p, REGLINK, foreign, p);
 							break;
 						}
-// if(foreign) print("ABXRET 1 %s\n", curtext->from.sym->name);
+// if(foreign) print("ABXRET 1 %s\n", cursym->name);
 						p->as = foreign ? ABXRET : AB;
 						p->from = zprg.from;
 						p->to.type = D_OREG;
@@ -502,7 +429,7 @@ noops(void)
 					}
 				}
 				if(thumb){
-					if(curtext->mark & LEAF){
+					if(cursym->text->mark & LEAF){
 						if(autosize){
 							p->as = AADD;
 							p->from.type = D_CONST;
@@ -544,7 +471,7 @@ noops(void)
 					break;
 				}
 				if(foreign) {
-// if(foreign) print("ABXRET 3 %s\n", curtext->from.sym->name);
+// if(foreign) print("ABXRET 3 %s\n", cursym->name);
 #define	R	1
 					p->as = AMOVW;
 					p->from.type = D_OREG;
@@ -583,68 +510,6 @@ noops(void)
 					p->to.type = D_REG;
 					p->to.reg = REGPC;
 				}
-				break;
-	
-			become:
-				if(foreign){
-					diag("foreign become - help");
-					break;
-				}
-				if(thumb){
-					diag("thumb become - help");
-					break;
-				}
-				print("arm become\n");
-				if(curtext->mark & LEAF) {
-	
-					if(!autosize) {
-						p->as = AB;
-						p->from = zprg.from;
-						break;
-					}
-				}
-				q = prg();
-				q->scond = p->scond;
-				q->line = p->line;
-				q->as = AB;
-				q->from = zprg.from;
-				q->to = p->to;
-				q->cond = p->cond;
-				q->link = p->link;
-				p->link = q;
-				if(thumb){
-					q1 = prg();
-					q1->line = p->line;
-					q1->as = AADD;
-					q1->from.type = D_CONST;
-					q1->from.offset = autosize;
-					q1->to.type = D_REG;
-					q1->to.reg = REGSP;
-					p->as = AMOVW;
-					p->line = p->line;
-					p->from.type = D_OREG;
-					p->from.name = D_NONE;
-					p->from.reg = REGSP;
-					p->from.offset = 0;
-					p->to.type = D_REG;
-					p->to.reg = REGTMPT-1;
-					q1->link = q;
-					p->link = q1;
-					q2 = movrr(nil, REGTMPT-1, REGLINK, p);
-					q2->link = q;
-					q1->link = q2;
-					break;
-				}
-				p->as = AMOVW;
-				p->scond |= C_PBIT;
-				p->from = zprg.from;
-				p->from.type = D_OREG;
-				p->from.offset = autosize;
-				p->from.reg = REGSP;
-				p->to = zprg.to;
-				p->to.type = D_REG;
-				p->to.reg = REGLINK;
-	
 				break;
 	
 			case ADIV:
@@ -686,7 +551,7 @@ noops(void)
 				if(q1->reg == NREG)
 					p->from.reg = q1->to.reg;
 				p->to.type = D_REG;
-				p->to.reg = prog_div != UP && prog_div->from.sym->thumb ? REGTMPT : REGTMP;
+				p->to.reg = prog_div->from.sym->thumb ? REGTMPT : REGTMP;
 				p->to.offset = 0;
 	
 				/* CALL appropriate */
@@ -698,7 +563,7 @@ noops(void)
 #ifdef CALLEEBX
 				p->as = ABL;
 #else
-				if(prog_div != UP && prog_div->from.sym->thumb)
+				if(prog_div->from.sym->thumb)
 					p->as = thumb ? ABL : ABX;
 				else
 					p->as = thumb ? ABX : ABL;
@@ -734,7 +599,7 @@ noops(void)
 				p->as = AMOVW;
 				p->line = q1->line;
 				p->from.type = D_REG;
-				p->from.reg = prog_div != UP && prog_div->from.sym->thumb ? REGTMPT : REGTMP;
+				p->from.reg = prog_div->from.sym->thumb ? REGTMPT : REGTMP;
 				p->from.offset = 0;
 				p->to.type = D_REG;
 				p->to.reg = q1->to.reg;
@@ -871,7 +736,7 @@ noops(void)
 					}
 				}
 				if(seenthumb && !thumb && p->to.type == D_OREG && p->to.reg == REGLINK){
-					// print("warn %s:	b	(R%d)	assuming a return\n", curtext->from.sym->name, p->to.reg);
+					// print("warn %s:	b	(R%d)	assuming a return\n", cursym->name, p->to.reg);
 					p->as = ABXRET;
 				}
 				break;
@@ -902,6 +767,7 @@ noops(void)
 				}
 				break;
 			}
+		}
 	}
 }
 
@@ -911,12 +777,9 @@ sigdiv(char *n)
 	Sym *s;
 
 	s = lookup(n, 0);
-	if(s->type == STEXT){
+	if(s->type == STEXT)
 		if(s->sig == 0)
 			s->sig = SIGNINTERN;
-	}
-	else if(s->type == 0 || s->type == SXREF)
-		s->type = SUNDEF;
 }
 
 void
@@ -928,25 +791,10 @@ divsig(void)
 	sigdiv("_modu");
 }
 
-static void
-sdiv(Sym *s)
-{
-	if(s->type == 0 || s->type == SXREF){
-		/* undefsym(s); */
-		s->type = SXREF;
-		if(s->sig == 0)
-			s->sig = SIGNINTERN;
-		s->subtype = SIMPORT;
-	}
-	else if(s->type != STEXT)
-		diag("undefined: %s", s->name);
-}
-
 void
 initdiv(void)
 {
 	Sym *s2, *s3, *s4, *s5;
-	Prog *p;
 
 	if(prog_div != P)
 		return;
@@ -954,38 +802,25 @@ initdiv(void)
 	sym_divu = s3 = lookup("_divu", 0);
 	sym_mod = s4 = lookup("_mod", 0);
 	sym_modu = s5 = lookup("_modu", 0);
-	if(dlm) {
-		sdiv(s2); if(s2->type == SXREF) prog_div = UP;
-		sdiv(s3); if(s3->type == SXREF) prog_divu = UP;
-		sdiv(s4); if(s4->type == SXREF) prog_mod = UP;
-		sdiv(s5); if(s5->type == SXREF) prog_modu = UP;
-	}
-	for(p = firstp; p != P; p = p->link)
-		if(p->as == ATEXT) {
-			if(p->from.sym == s2)
-				prog_div = p;
-			if(p->from.sym == s3)
-				prog_divu = p;
-			if(p->from.sym == s4)
-				prog_mod = p;
-			if(p->from.sym == s5)
-				prog_modu = p;
-		}
+	prog_div = s2->text;
+	prog_divu = s3->text;
+	prog_mod = s4->text;
+	prog_modu = s5->text;
 	if(prog_div == P) {
 		diag("undefined: %s", s2->name);
-		prog_div = curtext;
+		prog_div = cursym->text;
 	}
 	if(prog_divu == P) {
 		diag("undefined: %s", s3->name);
-		prog_divu = curtext;
+		prog_divu = cursym->text;
 	}
 	if(prog_mod == P) {
 		diag("undefined: %s", s4->name);
-		prog_mod = curtext;
+		prog_mod = cursym->text;
 	}
 	if(prog_modu == P) {
 		diag("undefined: %s", s5->name);
-		prog_modu = curtext;
+		prog_modu = cursym->text;
 	}
 }
 
@@ -1000,7 +835,7 @@ setdiv(int as)
 	case AMOD: p = prog_mod; break;
 	case AMODU: p = prog_modu; break;
 	}
-	if(p != UP && thumb != p->from.sym->thumb)
+	if(thumb != p->from.sym->thumb)
 		p->from.sym->foreign = 1;
 }
 

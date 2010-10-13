@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Writing object files.
+
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
@@ -57,8 +59,6 @@ entryvalue(void)
 	case STEXT:
 		break;
 	case SDATA:
-		if(dlm)
-			return s->value+INITDAT;
 	default:
 		diag("entry not text: %s", s->name);
 	}
@@ -355,7 +355,7 @@ doelf(void)
 		 */
 		nsym = 1;	// sym 0 is reserved
 		for(h=0; h<NHASH; h++) {
-			for(s=hash[h]; s!=S; s=s->link) {
+			for(s=hash[h]; s!=S; s=s->hash) {
 				if(!s->reachable || (s->type != STEXT && s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
 					continue;
 
@@ -472,10 +472,9 @@ asmb(void)
 
 	seek(cout, HEADR, 0);
 	pc = INITTEXT;
-	curp = firstp;
-	for(p = firstp; p != P; p = p->link) {	
-			if(p->as == ATEXT)
-				curtext = p;
+	
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			curp = p;
 			if(HEADTYPE == 8) {
 				// native client
@@ -515,16 +514,11 @@ asmb(void)
 					Bprint(&bso, "%.2ux", *op1 & 0xff);
 				Bprint(&bso, "\t%P\n", curp);
 			}
-			if(dlm) {
-				if(p->as == ATEXT)
-					reloca = nil;
-				else if(reloca != nil)
-					diag("reloc failure: %P", curp);
-			}
 			memmove(cbp, and, a);
 			cbp += a;
 			pc += a;
 			cbc -= a;
+		}
 	}
 	if(HEADTYPE == 8) {
 		int32 etext;
@@ -602,13 +596,6 @@ asmb(void)
 		Bprint(&bso, "%5.2f datblk\n", cputime());
 	Bflush(&bso);
 
-	if(dlm){
-		char buf[8];
-
-		ewrite(cout, buf, INITDAT-textsize);
-		textsize = INITDAT;
-	}
-
 	segdata.fileoff = seek(cout, 0, 1);
 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
 		if(datsize-v > sizeof(buf)-Dbufslop)
@@ -667,8 +654,6 @@ asmb(void)
 		Bflush(&bso);
 		if(!debug['s'])
 			asmlc();
-		if(dlm)
-			asmdyn();
 		if(HEADTYPE == 10 || (iself && !debug['s']))
 			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
 		cflush();
@@ -682,10 +667,6 @@ asmb(void)
 				Bprint(&bso, "%5.2f dwarf\n", cputime());
 			dwarfemitdebugsections();
 		}
-	} else if(dlm){
-		seek(cout, HEADR+textsize+datsize, 0);
-		asmdyn();
-		cflush();
 	}
 	if(debug['v'])
 		Bprint(&bso, "%5.2f headr\n", cputime());
@@ -787,8 +768,6 @@ asmb(void)
 		break;
 	case 2:	/* plan9 */
 		magic = 4*11*11+7;
-		if(dlm)
-			magic |= 0x80000000;
 		lput(magic);		/* magic */
 		lput(textsize);			/* sizes */
 		lput(datsize);
@@ -1132,14 +1111,12 @@ datblk(int32 s, int32 n, int32 rodata)
 		if(a->sym->type == SMACHO)
 			continue;
 
-		if(p->as != AINIT && p->as != ADYNT) {
-			for(j=l+(c-i)-1; j>=l; j--)
-				if(buf.dbuf[j]) {
-					print("%P\n", p);
-					diag("multiple initialization");
-					break;
-				}
-		}
+		for(j=l+(c-i)-1; j>=l; j--)
+			if(buf.dbuf[j]) {
+				print("%P\n", p);
+				diag("multiple initialization");
+				break;
+			}
 		switch(p->to.type) {
 		case D_FCONST:
 			switch(c) {
@@ -1177,13 +1154,14 @@ datblk(int32 s, int32 n, int32 rodata)
 				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
 					diag("DADDR type%P", p);
 				if(p->to.sym) {
-					if(p->to.sym->type == SUNDEF)
-						ckoff(p->to.sym, fl);
+					if(p->to.sym->type == Sxxx) {
+						cursym = p->from.sym;
+						diag("missing symbol %s", p->to.sym->name);
+						cursym = nil;
+					}
 					fl += p->to.sym->value;
-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
+					if(p->to.sym->type != STEXT && p->to.sym->type != SRODATA)
 						fl += INITDAT;
-					if(dlm)
-						dynreloc(p->to.sym, l+s+INITDAT, 1);
 				}
 			}
 			cast = (char*)&fl;
@@ -1270,13 +1248,9 @@ datblk(int32 s, int32 n, int32 rodata)
 				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
 					diag("DADDR type%P", p);
 				if(p->to.sym) {
-					if(p->to.sym->type == SUNDEF)
-						ckoff(p->to.sym, fl);
 					fl += p->to.sym->value;
-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
+					if(p->to.sym->type != STEXT && p->to.sym->type != SRODATA)
 						fl += INITDAT;
-					if(dlm)
-						dynreloc(p->to.sym, l+s+base, 1);
 				}
 			}
 			cast = (char*)&fl;

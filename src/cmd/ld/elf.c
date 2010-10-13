@@ -358,7 +358,7 @@ elfdynhash(int nsym)
 	memset(buckets, 0, nbucket * sizeof(uint32));
 	i = 1;
 	for(h = 0; h<NHASH; h++) {
-		for(sy=hash[h]; sy!=S; sy=sy->link) {
+		for(sy=hash[h]; sy!=S; sy=sy->hash) {
 			if (!sy->reachable || (sy->type != STEXT && sy->type != SDATA && sy->type != SBSS) || sy->dynimpname == nil)
 				continue;
 

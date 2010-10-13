@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Reading object files.
+
 #define	EXTERN
 #include	"l.h"
 #include	"../ld/lib.h"
@@ -67,7 +69,7 @@ usage(void)
 void
 main(int argc, char *argv[])
 {
-	int i, c;
+	int c;
 
 	Binit(&bso, 1, OWRITE);
 	cout = -1;
@@ -287,62 +289,8 @@ main(int argc, char *argv[])
 		Bprint(&bso, "HEADER = -H0x%ld -T0x%lux -D0x%lux -R0x%lux\n",
 			HEADTYPE, INITTEXT, INITDAT, INITRND);
 	Bflush(&bso);
-	for(i=1; optab[i].as; i++)
-		if(i != optab[i].as) {
-			diag("phase error in optab: %d", i);
-			errorexit();
-		}
-	maxop = i;
 
-	for(i=0; i<Ymax; i++)
-		ycover[i*Ymax + i] = 1;
-
-	ycover[Yi0*Ymax + Yi8] = 1;
-	ycover[Yi1*Ymax + Yi8] = 1;
-
-	ycover[Yi0*Ymax + Yi32] = 1;
-	ycover[Yi1*Ymax + Yi32] = 1;
-	ycover[Yi8*Ymax + Yi32] = 1;
-
-	ycover[Yal*Ymax + Yrb] = 1;
-	ycover[Ycl*Ymax + Yrb] = 1;
-	ycover[Yax*Ymax + Yrb] = 1;
-	ycover[Ycx*Ymax + Yrb] = 1;
-	ycover[Yrx*Ymax + Yrb] = 1;
-
-	ycover[Yax*Ymax + Yrx] = 1;
-	ycover[Ycx*Ymax + Yrx] = 1;
-
-	ycover[Yax*Ymax + Yrl] = 1;
-	ycover[Ycx*Ymax + Yrl] = 1;
-	ycover[Yrx*Ymax + Yrl] = 1;
-
-	ycover[Yf0*Ymax + Yrf] = 1;
-
-	ycover[Yal*Ymax + Ymb] = 1;
-	ycover[Ycl*Ymax + Ymb] = 1;
-	ycover[Yax*Ymax + Ymb] = 1;
-	ycover[Ycx*Ymax + Ymb] = 1;
-	ycover[Yrx*Ymax + Ymb] = 1;
-	ycover[Yrb*Ymax + Ymb] = 1;
-	ycover[Ym*Ymax + Ymb] = 1;
-
-	ycover[Yax*Ymax + Yml] = 1;
-	ycover[Ycx*Ymax + Yml] = 1;
-	ycover[Yrx*Ymax + Yml] = 1;
-	ycover[Yrl*Ymax + Yml] = 1;
-	ycover[Ym*Ymax + Yml] = 1;
-
-	for(i=0; i<D_NONE; i++) {
-		reg[i] = -1;
-		if(i >= D_AL && i <= D_BH)
-			reg[i] = (i-D_AL) & 7;
-		if(i >= D_AX && i <= D_DI)
-			reg[i] = (i-D_AX) & 7;
-		if(i >= D_F0 && i <= D_F0+7)
-			reg[i] = (i-D_F0) & 7;
-	}
-
+	instinit();
 	zprg.link = P;
 	zprg.pcond = P;
 	zprg.back = 2;
@@ -355,7 +303,7 @@ main(int argc, char *argv[])
 	pcstr = "%.6lux ";
 	nuxiinit();
 	histgen = 0;
-	textp = P;
+	textp = nil;
 	datap = P;
 	edatap = P;
 	pc = 0;
@@ -363,32 +311,12 @@ main(int argc, char *argv[])
 	version = 0;
 	cbp = buf.cbuf;
 	cbc = sizeof(buf.cbuf);
-	firstp = prg();
-	lastp = firstp;
 
 	addlibpath("command line", "command line", argv[0], "main");
 	loadlib();
 
 	deadcode();
 
-	firstp = firstp->link;
-	if(firstp == P)
-		errorexit();
-	if(doexp || dlm){
-		EXPTAB = "_exporttab";
-		zerosig(EXPTAB);
-		zerosig("etext");
-		zerosig("edata");
-		zerosig("end");
-		if(dlm){
-			import();
-			HEADTYPE = 2;
-			INITTEXT = INITDAT = 0;
-			INITRND = 8;
-			INITENTRY = EXPTAB;
-		}
-		export();
-	}
 	patch();
 	follow();
 	doelf();
@@ -418,7 +346,7 @@ main(int argc, char *argv[])
 	errorexit();
 }
 
-Sym*
+static Sym*
 zsym(char *pn, Biobuf *f, Sym *h[])
 {	
 	int o;
@@ -429,7 +357,7 @@ zsym(char *pn, Biobuf *f, Sym *h[])
 	return h[o];
 }
 
-void
+static void
 zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 {
 	int t;
@@ -524,7 +452,9 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
 	int32 eof;
 	char *name, *x;
 	char src[1024];
+	Prog *lastp;
 
+	lastp = nil;
 	ntext = 0;
 	eof = Boffset(f) + len;
 	di = S;
@@ -640,10 +570,10 @@ loop:
 
 	case AEND:
 		histtoauto();
-		if(curtext != P)
-			curtext->to.autom = curauto;
+		if(cursym != nil && cursym->text)
+			cursym->autom = curauto;
 		curauto = 0;
-		curtext = P;
+		cursym = nil;
 		if(Boffset(f) == eof)
 			return;
 		goto newloop;
@@ -668,49 +598,7 @@ loop:
 			s->type = SRODATA;
 		goto loop;
 
-	case ADYNT:
-		if(p->to.sym == S) {
-			diag("DYNT without a sym\n%P", p);
-			break;
-		}
-		di = p->to.sym;
-		p->from.scale = 4;
-		if(di->type == SXREF) {
-			if(debug['z'])
-				Bprint(&bso, "%P set to %d\n", p, dtype);
-			di->type = SCONST;
-			di->value = dtype;
-			dtype += 4;
-		}
-		if(p->from.sym == S)
-			break;
-
-		p->from.offset = di->value;
-		p->from.sym->type = SDATA;
-		if(curtext == P) {
-			diag("DYNT not in text: %P", p);
-			break;
-		}
-		p->to.sym = curtext->from.sym;
-		p->to.type = D_ADDR;
-		p->to.index = D_EXTERN;
-		goto data;
-
-	case AINIT:
-		if(p->from.sym == S) {
-			diag("INIT without a sym\n%P", p);
-			break;
-		}
-		if(di == S) {
-			diag("INIT without previous DYNT\n%P", p);
-			break;
-		}
-		p->from.offset = di->value;
-		p->from.sym->type = SDATA;
-		goto data;
-
 	case ADATA:
-	data:
 		// Assume that AGLOBL comes after ADATA.
 		// If we've seen an AGLOBL that said this sym was DUPOK,
 		// ignore any more ADATA we see, which must be
@@ -746,9 +634,9 @@ loop:
 
 	case ATEXT:
 		s = p->from.sym;
-		if(s == S) {
-			diag("%s: no TEXT symbol: %P", pn, p);
-			errorexit();
+		if(s->text != nil) {
+			diag("%s: %s: redefinition", pn, s->name);
+			return;
 		}
 		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
 			/* redefinition, so file has probably been seen before */
@@ -756,13 +644,19 @@ loop:
 				diag("skipping: %s: redefinition: %s", pn, s->name);
 			return;
 		}
-		if(curtext != P) {
+		if(cursym != nil && cursym->text) {
 			histtoauto();
-			curtext->to.autom = curauto;
+			cursym->autom = curauto;
 			curauto = 0;
 		}
 		skip = 0;
-		curtext = p;
+		if(etextp)
+			etextp->next = s;
+		else
+			textp = s;
+		etextp = s;
+		s->text = p;
+		cursym = s;
 		if(s->type != 0 && s->type != SXREF) {
 			if(p->from.scale & DUPOK) {
 				skip = 1;
@@ -770,7 +664,10 @@ loop:
 			}
 			diag("%s: redefinition: %s\n%P", pn, s->name, p);
 		}
-		newtext(p, s);
+		s->type = STEXT;
+		s->value = pc;
+		lastp = p;
+		p->pc = pc++;
 		goto loop;
 
 	case AFMOVF:
@@ -854,13 +751,18 @@ loop:
 	default:
 		if(skip)
 			nopout(p);
+		p->pc = pc;
+		pc++;
 
 		if(p->to.type == D_BRANCH)
 			p->to.offset += ipc;
+		if(lastp == nil) {
+			if(p->as != ANOP)
+				diag("unexpected instruction: %P", p);
+			goto loop;
+		}
 		lastp->link = p;
 		lastp = p;
-		p->pc = pc;
-		pc++;
 		goto loop;
 	}
 	goto loop;
@@ -899,154 +801,4 @@ appendp(Prog *q)
 	q->link = p;
 	p->line = q->line;
 	return p;
-}
-
-void
-doprof1(void)
-{
-	Sym *s;
-	int32 n;
-	Prog *p, *q;
-
-	if(debug['v'])
-		Bprint(&bso, "%5.2f profile 1\n", cputime());
-	Bflush(&bso);
-	s = lookup("__mcount", 0);
-	n = 1;
-	for(p = firstp->link; p != P; p = p->link) {
-		if(p->as == ATEXT) {
-			q = prg();
-			q->line = p->line;
-			q->link = datap;
-			datap = q;
-			q->as = ADATA;
-			q->from.type = D_EXTERN;
-			q->from.offset = n*4;
-			q->from.sym = s;
-			q->from.scale = 4;
-			q->to = p->from;
-			q->to.type = D_CONST;
-
-			q = prg();
-			q->line = p->line;
-			q->pc = p->pc;
-			q->link = p->link;
-			p->link = q;
-			p = q;
-			p->as = AADDL;
-			p->from.type = D_CONST;
-			p->from.offset = 1;
-			p->to.type = D_EXTERN;
-			p->to.sym = s;
-			p->to.offset = n*4 + 4;
-
-			n += 2;
-			continue;
-		}
-	}
-	q = prg();
-	q->line = 0;
-	q->link = datap;
-	datap = q;
-
-	q->as = ADATA;
-	q->from.type = D_EXTERN;
-	q->from.sym = s;
-	q->from.scale = 4;
-	q->to.type = D_CONST;
-	q->to.offset = n;
-
-	s->type = SBSS;
-	s->size = n*4;
-}
-
-void
-doprof2(void)
-{
-	Sym *s2, *s4;
-	Prog *p, *q, *ps2, *ps4;
-
-	if(debug['v'])
-		Bprint(&bso, "%5.2f profile 2\n", cputime());
-	Bflush(&bso);
-
-	s2 = lookup("_profin", 0);
-	s4 = lookup("_profout", 0);
-	if(s2->type != STEXT || s4->type != STEXT) {
-		diag("_profin/_profout not defined");
-		return;
-	}
-
-	ps2 = P;
-	ps4 = P;
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT) {
-			if(p->from.sym == s2) {
-				p->from.scale = 1;
-				ps2 = p;
-			}
-			if(p->from.sym == s4) {
-				p->from.scale = 1;
-				ps4 = p;
-			}
-		}
-	}
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT) {
-			curtext = p;
-
-			if(p->from.scale & NOPROF) {	/* dont profile */
-				for(;;) {
-					q = p->link;
-					if(q == P)
-						break;
-					if(q->as == ATEXT)
-						break;
-					p = q;
-				}
-				continue;
-			}
-
-			/*
-			 * JMPL	profin
-			 */
-			q = prg();
-			q->line = p->line;
-			q->pc = p->pc;
-			q->link = p->link;
-			p->link = q;
-			p = q;
-			p->as = ACALL;
-			p->to.type = D_BRANCH;
-			p->pcond = ps2;
-			p->to.sym = s2;
-
-			continue;
-		}
-		if(p->as == ARET) {
-			/*
-			 * RET
-			 */
-			q = prg();
-			q->as = ARET;
-			q->from = p->from;
-			q->to = p->to;
-			q->link = p->link;
-			p->link = q;
-
-			/*
-			 * JAL	profout
-			 */
-			p->as = ACALL;
-			p->from = zprg.from;
-			p->to = zprg.to;
-			p->to.type = D_BRANCH;
-			p->pcond = ps4;
-			p->to.sym = s4;
-
-			p = q;
-
-			continue;
-		}
-	}
 }

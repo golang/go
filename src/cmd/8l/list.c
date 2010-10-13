@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Printing.
+
 #include	"l.h"
 #include	"../ld/lib.h"
 
@@ -63,8 +65,8 @@ Pconv(Fmt *fp)
 			p->line, p->as, &p->from, &p->to);
 		break;
 	case ADATA:
-	case AINIT:
-	case ADYNT:
+	case AINIT_:
+	case ADYNT_:
 		fmtprint(fp, "(%d)	%A	%D/%d,%D",
 			p->line, p->as, &p->from, p->from.scale, &p->to);
 		break;
@@ -318,16 +320,19 @@ Sconv(Fmt *fp)
 void
 diag(char *fmt, ...)
 {
-	char buf[STRINGSZ], *tn;
+	char buf[STRINGSZ], *tn, *sep;
 	va_list arg;
 
-	tn = "??none??";
-	if(curtext != P && curtext->from.sym != S)
-		tn = curtext->from.sym->name;
+	tn = "";
+	sep = "";
+	if(cursym != S) {
+		tn = cursym->name;
+		sep = ": ";
+	}
 	va_start(arg, fmt);
 	vseprint(buf, buf+sizeof(buf), fmt, arg);
 	va_end(arg);
-	print("%s: %s\n", tn, buf);
+	print("%s%s%s\n", tn, sep, buf);
 
 	nerrors++;
 	if(nerrors > 20) {

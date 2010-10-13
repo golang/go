@@ -68,8 +68,6 @@ Pconv(Fmt *fp)
 		break;
 
 	case ADATA:
-	case AINIT:
-	case ADYNT:
 		snprint(str, sizeof(str), "%.4ld (%L) %-7A	%D/%d,%D",
 			p->loc, p->lineno, p->as, &p->from, p->reg, &p->to);
 		break;

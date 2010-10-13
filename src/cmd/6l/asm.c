@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Writing object files.
+
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
@@ -60,8 +62,6 @@ entryvalue(void)
 	case STEXT:
 		break;
 	case SDATA:
-		if(dlm)
-			return s->value+INITDAT;
 	default:
 		diag("entry not text: %s", s->name);
 	}
@@ -365,7 +365,7 @@ doelf(void)
 		 */
 		nsym = 1;	// sym 0 is reserved
 		for(h=0; h<NHASH; h++) {
-			for(s=hash[h]; s!=S; s=s->link) {
+			for(s=hash[h]; s!=S; s=s->hash) {
 				if(!s->reachable || (s->type != STEXT && s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
 					continue;
 
@@ -488,10 +488,9 @@ asmb(void)
 	elfsymo = 0;
 	seek(cout, HEADR, 0);
 	pc = INITTEXT;
-	curp = firstp;
-	for(p = firstp; p != P; p = p->link) {
-			if(p->as == ATEXT)
-				curtext = p;
+
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			if(p->pc != pc) {
 				if(!debug['a'])
 					print("%P\n", curp);
@@ -511,16 +510,11 @@ asmb(void)
 					Bprint(&bso, "  ");
 				Bprint(&bso, "%P\n", curp);
 			}
-			if(dlm) {
-				if(p->as == ATEXT)
-					reloca = nil;
-				else if(reloca != nil)
-					diag("reloc failure: %P", curp);
-			}
 			memmove(cbp, and, a);
 			cbp += a;
 			pc += a;
 			cbc -= a;
+		}
 	}
 	cflush();
 
@@ -572,13 +566,6 @@ asmb(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f datblk\n", cputime());
 	Bflush(&bso);
-
-	if(dlm){
-		char buf[8];
-
-		ewrite(cout, buf, INITDAT-textsize);
-		textsize = INITDAT;
-	}
 
 	segdata.fileoff = seek(cout, 0, 1);
 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
@@ -634,8 +621,6 @@ asmb(void)
 		Bflush(&bso);
 		if(!debug['s'])
 			asmlc();
-		if(dlm)
-			asmdyn();
 		if(!debug['s'])
 			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
 		cflush();
@@ -657,10 +642,6 @@ asmb(void)
 
 			dwarfemitdebugsections();
 		}
-	} else if(dlm){
-		seek(cout, HEADR+textsize+datsize, 0);
-		asmdyn();
-		cflush();
 	}
 
 	if(debug['v'])
@@ -672,8 +653,6 @@ asmb(void)
 	case 2:	/* plan9 */
 		magic = 4*26*26+7;
 		magic |= 0x00008000;		/* fat header */
-		if(dlm)
-			magic |= 0x80000000;	/* dlm */
 		lputb(magic);			/* magic */
 		lputb(textsize);			/* sizes */
 		lputb(datsize);
@@ -687,8 +666,6 @@ asmb(void)
 		break;
 	case 3:	/* plan9 */
 		magic = 4*26*26+7;
-		if(dlm)
-			magic |= 0x80000000;
 		lputb(magic);			/* magic */
 		lputb(textsize);		/* sizes */
 		lputb(datsize);
@@ -1114,14 +1091,12 @@ datblk(int32 s, int32 n)
 		if(a->sym->type == SMACHO)
 			continue;
 
-		if(p->as != AINIT && p->as != ADYNT) {
-			for(j=l+(c-i)-1; j>=l; j--)
-				if(buf.dbuf[j]) {
-					print("%P\n", p);
-					diag("multiple initialization for %d %d", s, j);
-					break;
-				}
-		}
+		for(j=l+(c-i)-1; j>=l; j--)
+			if(buf.dbuf[j]) {
+				print("%P\n", p);
+				diag("multiple initialization for %d %d", s, j);
+				break;
+			}
 
 		switch(p->to.type) {
 		case D_FCONST:
@@ -1160,17 +1135,14 @@ datblk(int32 s, int32 n)
 				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
 					diag("DADDR type%P", p);
 				if(p->to.sym) {
-					if(p->to.sym->type == SUNDEF)
-						ckoff(p->to.sym, o);
 					if(p->to.sym->type == Sxxx) {
-						curtext = p;	// show useful name in diag's output
+						cursym = p->from.sym;
 						diag("missing symbol %s", p->to.sym->name);
+						cursym = nil;
 					}
 					o += p->to.sym->value;
 					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
 						o += INITDAT;
-					if(dlm)
-						dynreloc(p->to.sym, l+s, 1);
 				}
 			}
 			fl = o;

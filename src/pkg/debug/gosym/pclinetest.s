@@ -84,6 +84,4 @@ TEXT runtime·morestack40(SB),7,$0
 TEXT runtime·morestack48(SB),7,$0
 	RET
 
-TEXT runtime·morestack8(SB),7,$0
-	RET
 
