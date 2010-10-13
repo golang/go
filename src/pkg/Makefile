@@ -206,13 +206,8 @@ ifeq ($(GOARCH),arm)
 # Disable so that dashboard all.bash can catch regressions.
 NOTEST+=archive/tar
 NOTEST+=archive/zip
-NOTEST+=big
 NOTEST+=cmath
-NOTEST+=compress/gzip
-NOTEST+=compress/zlib
 NOTEST+=crypto/block
-NOTEST+=crypto/rsa
-NOTEST+=crypto/subtle
 NOTEST+=debug/dwarf
 NOTEST+=debug/elf
 NOTEST+=debug/macho
@@ -226,7 +221,6 @@ NOTEST+=go/printer
 NOTEST+=gob
 NOTEST+=http
 NOTEST+=image/png
-NOTEST+=io
 NOTEST+=json
 NOTEST+=log
 NOTEST+=math
@@ -234,14 +228,12 @@ NOTEST+=net
 NOTEST+=netchan
 NOTEST+=os
 NOTEST+=os/signal
-NOTEST+=reflect
 NOTEST+=rpc
 NOTEST+=rpc/jsonrpc
 NOTEST+=strconv
 NOTEST+=syslog
 NOTEST+=template
 NOTEST+=testing/quick
-NOTEST+=time
 NOTEST+=websocket
 NOTEST+=xml
 endif
