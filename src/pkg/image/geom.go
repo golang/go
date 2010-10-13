@@ -43,15 +43,13 @@ func (p Point) Div(k int) Point {
 func (p Point) Mod(r Rectangle) Point {
 	w, h := r.Dx(), r.Dy()
 	p = p.Sub(r.Min)
-	if p.X >= 0 {
-		p.X = p.X % w
-	} else {
-		p.X = w - 1 - (-1-p.X)%w
+	p.X = p.X % w
+	if p.X < 0 {
+		p.X += w
 	}
-	if p.Y >= 0 {
-		p.Y = p.Y % h
-	} else {
-		p.Y = h - 1 - (-1-p.Y)%h
+	p.Y = p.Y % h
+	if p.Y < 0 {
+		p.Y += h
 	}
 	return p.Add(r.Min)
 }
