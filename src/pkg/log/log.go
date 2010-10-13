@@ -14,6 +14,7 @@
 package log
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"runtime"
@@ -32,7 +33,6 @@ const (
 	Lmicroseconds             // microsecond resolution: 01:23:23.123123.  assumes Ltime.
 	Llongfile                 // full file name and line number: /a/b/c/d.go:23
 	Lshortfile                // final file name element and line number: d.go:23. overrides Llongfile
-	lallBits      = Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile
 )
 
 // Logger represents an active logging object.
@@ -55,11 +55,13 @@ var (
 	stdout = New(os.Stdout, "", Ldate|Ltime) // Deprecated.
 )
 
-// Cheap integer to fixed-width decimal ASCII.  Use a negative width to avoid zero-padding
-func itoa(i int, wid int) string {
+// Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
+// Knows the buffer has capacity.
+func itoa(buf *bytes.Buffer, i int, wid int) {
 	var u uint = uint(i)
 	if u == 0 && wid <= 1 {
-		return "0"
+		buf.WriteByte('0')
+		return
 	}
 
 	// Assemble decimal in reverse order.
@@ -71,22 +73,36 @@ func itoa(i int, wid int) string {
 		b[bp] = byte(u%10) + '0'
 	}
 
-	return string(b[bp:])
+	// avoid slicing b to avoid an allocation.
+	for bp < len(b) {
+		buf.WriteByte(b[bp])
+		bp++
+	}
 }
 
-func (l *Logger) formatHeader(ns int64, calldepth int) string {
-	h := l.prefix
+func (l *Logger) formatHeader(buf *bytes.Buffer, ns int64, calldepth int) {
+	buf.WriteString(l.prefix)
 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
 		t := time.SecondsToLocalTime(ns / 1e9)
-		if l.flag&(Ldate) != 0 {
-			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + "/" + itoa(t.Day, 2) + " "
+		if l.flag&Ldate != 0 {
+			itoa(buf, int(t.Year), 4)
+			buf.WriteByte('/')
+			itoa(buf, int(t.Month), 2)
+			buf.WriteByte('/')
+			itoa(buf, int(t.Day), 2)
+			buf.WriteByte(' ')
 		}
 		if l.flag&(Ltime|Lmicroseconds) != 0 {
-			h += itoa(t.Hour, 2) + ":" + itoa(t.Minute, 2) + ":" + itoa(t.Second, 2)
+			itoa(buf, int(t.Hour), 2)
+			buf.WriteByte(':')
+			itoa(buf, int(t.Minute), 2)
+			buf.WriteByte(':')
+			itoa(buf, int(t.Second), 2)
 			if l.flag&Lmicroseconds != 0 {
-				h += "." + itoa(int(ns%1e9)/1e3, 6)
+				buf.WriteByte('.')
+				itoa(buf, int(ns%1e9)/1e3, 6)
 			}
-			h += " "
+			buf.WriteByte(' ')
 		}
 	}
 	if l.flag&(Lshortfile|Llongfile) != 0 {
@@ -106,9 +122,11 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 			file = "???"
 			line = 0
 		}
-		h += file + ":" + itoa(line, -1) + ": "
+		buf.WriteString(file)
+		buf.WriteByte(':')
+		itoa(buf, line, -1)
+		buf.WriteString(": ")
 	}
-	return h
 }
 
 // Output writes the output for a logging event.  The string s contains the text to print after
@@ -116,12 +134,13 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 // at the moment on all pre-defined paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) os.Error {
 	now := time.Nanoseconds() // get this early.
-	newline := "\n"
-	if len(s) > 0 && s[len(s)-1] == '\n' {
-		newline = ""
+	buf := new(bytes.Buffer)
+	l.formatHeader(buf, now, calldepth+1)
+	buf.WriteString(s)
+	if len(s) > 0 && s[len(s)-1] != '\n' {
+		buf.WriteByte('\n')
 	}
-	s = l.formatHeader(now, calldepth+1) + s + newline
-	_, err := io.WriteString(l.out, s)
+	_, err := std.out.Write(buf.Bytes())
 	return err
 }
 
@@ -143,7 +162,7 @@ func SetOutput(w io.Writer) {
 
 // SetFlags sets the output flags for the standard logger.
 func SetFlags(flag int) {
-	std.flag = flag & lallBits
+	std.flag = flag
 }
 
 // SetPrefix sets the output prefix for the standard logger.
