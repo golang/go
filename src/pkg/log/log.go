@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Simple logging package. It defines a type, Logger, with simple
-// methods for formatting output to one or two destinations. It also
-// has a predefined 'standard' Logger accessible through helper
-// functions Print[f|ln], Exit[f|ln], and Panic[f|ln], which are
-// easier to use than creating a Logger manually.  That logger writes
-// to standard error and prints the date and time of each logged
-// message.
+// Simple logging package. It defines a type, Logger, with methods
+// for formatting output. It also has a predefined 'standard' Logger
+// accessible through helper functions Print[f|ln], Exit[f|ln], and
+// Panic[f|ln], which are easier to use than creating a Logger manually.
+// That logger writes to standard error and prints the date and time
+// of each logged message.
 // The Exit functions call os.Exit(1) after writing the log message.
 // The Panic functions call panic after writing the log message.
 package log
