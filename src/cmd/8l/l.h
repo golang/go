@@ -44,7 +44,7 @@ enum
 
 #define	P		((Prog*)0)
 #define	S		((Sym*)0)
-#define	TNAME		(curtext?curtext->from.sym->name:noname)
+#define	TNAME		(cursym?cursym->name:noname)
 #define	cput(c)\
 	{ *cbp++ = c;\
 	if(--cbc <= 0)\
@@ -66,11 +66,7 @@ struct	Adr
 		Ieee	u0ieee;
 		char	*u0sbig;
 	} u0;
-	union
-	{
-		Auto*	u1autom;
-		Sym*	u1sym;
-	} u1;
+	Sym*	sym;
 	short	type;
 	uchar	index;
 	char	scale;
@@ -83,14 +79,11 @@ struct	Adr
 #define	ieee	u0.u0ieee
 #define	sbig	u0.u0sbig
 
-#define	autom	u1.u1autom
-#define	sym	u1.u1sym
-
 struct	Prog
 {
 	Adr	from;
 	Adr	to;
-	Prog	*forwd;
+	Prog*	forwd;
 	Prog*	link;
 	Prog*	dlink;
 	Prog*	pcond;	/* work on this */
@@ -116,25 +109,28 @@ struct	Auto
 };
 struct	Sym
 {
-	char	*name;
+	char*	name;
 	short	type;
 	short	version;
-	short	become;
-	short	frame;
-	uchar	subtype;
 	uchar	dupok;
 	uchar	reachable;
 	uchar	dynexport;
 	int32	value;
 	int32	size;
 	int32	sig;
-	Sym*	link;
-	Prog*	text;
-	Prog*	data;
+	Sym*	hash;	// in hash table
+	Sym*	next;	// in text or data list
 	Sym*	gotype;
 	char*	file;
 	char*	dynimpname;
 	char*	dynimplib;
+	
+	// STEXT
+	Auto*	autom;
+	Prog*	text;
+	
+	// SDATA, SBSS
+	Prog*	data;
 };
 struct	Optab
 {
@@ -156,9 +152,6 @@ enum
 	SFILE,
 	SCONST,
 	SUNDEF,
-
-	SIMPORT,
-	SEXPORT,
 
 	SMACHO,	/* pointer to mach-o imported symbol */
 
@@ -242,9 +235,6 @@ enum
 	Pm		= 0x0f,	/* 2byte opcode escape */
 	Pq		= 0xff,	/* both escape */
 	Pb		= 0xfe,	/* byte operands */
-
-	Roffset	= 22,		/* no. bits for offset in relocation address */
-	Rindex	= 10,		/* no. bits for index in relocation address */
 };
 
 EXTERN union
@@ -281,7 +271,7 @@ EXTERN	char*	pcstr;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
-EXTERN	Prog*	curtext;
+EXTERN	Sym*	cursym;
 EXTERN	Prog*	datap;
 EXTERN	Prog*	edatap;
 EXTERN	int32	datsize;
@@ -289,14 +279,13 @@ EXTERN	int32	elfdatsize;
 EXTERN	int32	dynptrsize;
 EXTERN	char	debug[128];
 EXTERN	char	literal[32];
-EXTERN	Prog*	etextp;
+EXTERN	Sym*	etextp;
 EXTERN	Prog*	firstp;
 EXTERN	int	xrefresolv;
 EXTERN	uchar	ycover[Ymax*Ymax];
 EXTERN	uchar*	andptr;
 EXTERN	uchar	and[100];
 EXTERN	char	reg[D_NONE];
-EXTERN	Prog*	lastp;
 EXTERN	int32	lcsize;
 EXTERN	int	maxop;
 EXTERN	int	nerrors;
@@ -306,9 +295,9 @@ EXTERN	char*	rpath;
 EXTERN	int32	spsize;
 EXTERN	Sym*	symlist;
 EXTERN	int32	symsize;
-EXTERN	Prog*	textp;
-EXTERN	int32	textsize;
+EXTERN	Sym*	textp;
 EXTERN	int32	textpad;
+EXTERN	int32	textsize;
 EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
@@ -316,14 +305,6 @@ EXTERN	int	tlsoffset;
 EXTERN	Sym*	adrgotype;	// type symbol on last Adr read
 EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
 
-EXTERN	Adr*	reloca;
-EXTERN	int	doexp, dlm;
-EXTERN	int	imports, nimports;
-EXTERN	int	exports, nexports;
-EXTERN	char*	EXPTAB;
-EXTERN	Prog	undefp;
-
-#define	UP	(&undefp)
 
 extern	Optab	optab[];
 extern	char*	anames[];
@@ -343,7 +324,6 @@ int32	atolwhex(char*);
 Prog*	brchain(Prog*);
 Prog*	brloop(Prog*);
 void	cflush(void);
-void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
 vlong	cpos(void);
 double	cputime(void);
@@ -355,11 +335,9 @@ void	doinit(void);
 void	doprof1(void);
 void	doprof2(void);
 void	dostkoff(void);
-void	dynreloc(Sym*, uint32, int);
 int32	entryvalue(void);
-void	export(void);
 void	follow(void);
-void	import(void);
+void	instinit(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
 void	lput(int32);
@@ -367,7 +345,6 @@ void	lputl(int32);
 void	vputl(uvlong);
 void	strnput(char*, int);
 void	main(int, char*[]);
-void	mkfwd(void);
 void*	mal(uint32);
 Prog*	newdata(Sym*, int, int, int);
 Prog*	newtext(Prog*, Sym*);
@@ -385,8 +362,7 @@ int32	symaddr(Sym*);
 void	wput(ushort);
 void	wputl(ushort);
 void	xdefine(char*, int, int32);
-void	xfol(Prog*);
-void	zaddr(char*, Biobuf*, Adr*, Sym*[]);
+
 uint32	machheadr(void);
 vlong		addaddr(Sym *s, Sym *t);
 vlong		addsize(Sym *s, Sym *t);

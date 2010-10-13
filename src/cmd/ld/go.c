@@ -524,26 +524,19 @@ markdata(Prog *p, Sym *s)
 }
 
 static void
-marktext(Prog *p)
+marktext(Sym *s)
 {
 	Auto *a;
+	Prog *p;
 
-	if(p == P)
+	if(s == S)
 		return;
-	if(p->as != ATEXT) {
-		diag("marktext: %P", p);
-		return;
-	}
-	for(a=p->to.autom; a; a=a->link)
-		mark(a->gotype);
 	markdepth++;
 	if(debug['v'] > 1)
-		Bprint(&bso, "%d marktext %s\n", markdepth, p->from.sym->name);
-	for(a=p->to.autom; a; a=a->link)
+		Bprint(&bso, "%d marktext %s\n", markdepth, s->name);
+	for(a=s->autom; a; a=a->link)
 		mark(a->gotype);
-	for(p=p->link; p != P; p=p->link) {
-		if(p->as == ATEXT || p->as == ADATA || p->as == AGLOBL)
-			break;
+	for(p=s->text; p != P; p=p->link) {
 		if(p->from.sym)
 			mark(p->from.sym);
 		if(p->to.sym)
@@ -559,7 +552,7 @@ mark(Sym *s)
 		return;
 	s->reachable = 1;
 	if(s->text)
-		marktext(s->text);
+		marktext(s);
 	if(s->data)
 		markdata(s->data, s);
 	if(s->gotype)
@@ -615,10 +608,43 @@ morename[] =
 	"runtime.morestack48",
 };
 
+static int
+isz(Auto *a)
+{
+	for(; a; a=a->link)
+		if(a->type == D_FILE || a->type == D_FILE1)
+			return 1;
+	return 0;
+}
+
+static void
+addz(Sym *s, Auto *z)
+{
+	Auto *a, *last;
+
+	// strip out non-z
+	last = nil;
+	for(a = z; a != nil; a = a->link) {
+		if(a->type == D_FILE || a->type == D_FILE1) {
+			if(last == nil)
+				z = a;
+			else
+				last->link = a;
+			last = a;
+		}
+	}
+	if(last) {
+		last->link = s->autom;
+		s->autom = z;
+	}
+}
+
 void
 deadcode(void)
 {
 	int i;
+	Sym *s, *last;
+	Auto *z;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f deadcode\n", cputime());
@@ -629,6 +655,31 @@ deadcode(void)
 
 	for(i=0; i<ndynexp; i++)
 		mark(dynexp[i]);
+	
+	// remove dead text but keep file information (z symbols).
+	last = nil;
+	z = nil;
+	for(s = textp; s != nil; s = s->next) {
+		if(!s->reachable) {
+			if(isz(s->autom))
+				z = s->autom;
+			continue;
+		}
+		if(last == nil)
+			textp = s;
+		else
+			last->next = s;
+		last = s;
+		if(z != nil) {
+			if(!isz(s->autom))
+				addz(s, z);
+			z = nil;
+		}
+	}
+	if(last == nil)
+		textp = nil;
+	else
+		last->next = nil;
 
 	// remove dead data
 	sweeplist(&datap, &edatap);

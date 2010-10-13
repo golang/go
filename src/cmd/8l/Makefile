@@ -20,7 +20,9 @@ OFILES=\
 	optab.$O\
 	pass.$O\
 	pe.$O\
+	prof.$O\
 	span.$O\
+	symtab.$O\
 
 
 HFILES=\

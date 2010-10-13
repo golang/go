@@ -158,8 +158,8 @@ enum	as
 	ARET,
 	ATEXT,
 	AWORD,
-	ADYNT,
-	AINIT,
+	ADYNT_,
+	AINIT_,
 	ABCASE,
 	ACASE,
 

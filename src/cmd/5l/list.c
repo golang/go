@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Printing.
+
 #include "l.h"
 #include "../ld/lib.h"
 
@@ -81,18 +83,18 @@ Pconv(Fmt *fp)
 		break;
 
 	case ADATA:
-	case AINIT:
-	case ADYNT:
+	case AINIT_:
+	case ADYNT_:
 		fmtprint(fp, "(%d)	%A%C	%D/%d,%D",
 			p->line, a, p->scond, &p->from, p->reg, &p->to);
 		break;
 
 	case AWORD:
-		fmtprint(fp, "WORD %x", p->to.offset);
+		fmtprint(fp, "(%d)	WORD	%D", p->line, &p->to);
 		break;
 
 	case ADWORD:
-		fmtprint(fp, "DWORD %x %x", p->from.offset, p->to.offset);
+		fmtprint(fp, "(%d)	DWORD	%D %D", p->line, &p->from, &p->to);
 		break;
 	}
 	return 0;
@@ -441,19 +443,22 @@ Oconv(Fmt *fp)
 void
 diag(char *fmt, ...)
 {
-	char buf[STRINGSZ], *tn;
+	char buf[STRINGSZ], *tn, *sep;
 	va_list arg;
 
-	tn = "??none??";
-	if(curtext != P && curtext->from.sym != S)
-		tn = curtext->from.sym->name;
+	tn = "";
+	sep = "";
+	if(cursym != S) {
+		tn = cursym->name;
+		sep = ": ";
+	}
 	va_start(arg, fmt);
 	vseprint(buf, buf+sizeof(buf), fmt, arg);
 	va_end(arg);
-	print("%s: %s\n", tn, buf);
+	print("%s%s%s\n", tn, sep, buf);
 
 	nerrors++;
-	if(nerrors > 10) {
+	if(nerrors > 20) {
 		print("too many errors\n");
 		errorexit();
 	}

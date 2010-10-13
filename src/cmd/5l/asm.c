@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Writing object files.
+
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
@@ -55,8 +57,6 @@ entryvalue(void)
 	case SLEAF:
 		break;
 	case SDATA:
-		if(dlm)
-			return s->value+INITDAT;
 	default:
 		diag("entry not text: %s", s->name);
 	}
@@ -291,7 +291,7 @@ doelf(void)
 		 */
 		nsym = 1;	// sym 0 is reserved
 		for(h=0; h<NHASH; h++) {
-			for(s=hash[h]; s!=S; s=s->link) {
+			for(s=hash[h]; s!=S; s=s->hash) {
 				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
 					continue;
 
@@ -420,14 +420,13 @@ asmb(void)
 	OFFSET = HEADR;
 	seek(cout, OFFSET, 0);
 	pc = INITTEXT;
-	for(p = firstp; p != P; p = p->link) {
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		for(p = cursym->text; p != P; p = p->link) {
 			setarch(p);
-			if(p->as == ATEXT) {
-				curtext = p;
+			if(p->as == ATEXT)
 				autosize = p->to.offset + 4;
-			}
 			if(p->pc != pc) {
-				diag("phase error %lux sb %lux",
+				diag("phase error %ux sb %ux",
 					p->pc, pc);
 				if(!debug['a'])
 					prasm(curp);
@@ -440,6 +439,7 @@ asmb(void)
 			else
 				asmout(p, o);
 			pc += o->size;
+		}
 	}
 	while(pc-INITTEXT < textsize) {
 		cput(0);
@@ -461,7 +461,7 @@ asmb(void)
 	}
 
 	/* output section header strings */
-	curtext = P;
+	cursym = nil;
 	switch(HEADTYPE) {
 	case 0:
 	case 1:
@@ -478,12 +478,6 @@ asmb(void)
 		OFFSET = rnd(HEADR+textsize, INITRND);
 		seek(cout, OFFSET, 0);
 		break;
-	}
-	if(dlm){
-		char buf[8];
-
-		ewrite(cout, buf, INITDAT-textsize);
-		textsize = INITDAT;
 	}
 	for(t = 0; t < datsize; t += sizeof(buf)-100) {
 		if(datsize-t > sizeof(buf)-100)
@@ -530,8 +524,6 @@ asmb(void)
 			asmlc();
 		if(!debug['s'])
 			asmthumbmap();
-		if(dlm)
-			asmdyn();
 		if(!debug['s'])
 			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
 		cflush();
@@ -540,13 +532,8 @@ asmb(void)
 		lputl(lcsize);
 		cflush();
 	}
-	else if(dlm){
-		seek(cout, HEADR+textsize+datsize, 0);
-		asmdyn();
-		cflush();
-	}
 
-	curtext = P;
+	cursym = nil;
 	if(debug['v'])
 		Bprint(&bso, "%5.2f header\n", cputime());
 	Bflush(&bso);
@@ -586,10 +573,7 @@ asmb(void)
 		lputl(0xe1a0f00e);		/* B (R14) - zero init return */
 		break;
 	case 2:	/* plan 9 */
-		if(dlm)
-			lput(0x80000000|0x647);	/* magic */
-		else
-			lput(0x647);			/* magic */
+		lput(0x647);			/* magic */
 		lput(textsize);			/* sizes */
 		lput(datsize);
 		lput(bsssize);
@@ -1001,136 +985,11 @@ nopstat(char *f, Count *c)
 		(double)(c->outof - c->count)/c->outof);
 }
 
-void
-asmsym(void)
-{
-	Prog *p;
-	Auto *a;
-	Sym *s;
-	int h;
-
-	s = lookup("etext", 0);
-	if(s->type == STEXT)
-		putsymb(s->name, 'T', s->value, s->version);
-
-	for(h=0; h<NHASH; h++)
-		for(s=hash[h]; s!=S; s=s->link)
-			switch(s->type) {
-			case SCONST:
-				putsymb(s->name, 'D', s->value, s->version);
-				continue;
-
-			case SDATA:
-			case SELFDATA:
-				putsymb(s->name, 'D', s->value+INITDAT, s->version);
-				continue;
-
-			case SBSS:
-				putsymb(s->name, 'B', s->value+INITDAT, s->version);
-				continue;
-
-			case SFIXED:
-				putsymb(s->name, 'B', s->value, s->version);
-				continue;
-
-			case SSTRING:
-				putsymb(s->name, 'T', s->value, s->version);
-				continue;
-
-			case SFILE:
-				putsymb(s->name, 'f', s->value, s->version);
-				continue;
-			}
-
-	for(p=textp; p!=P; p=p->cond) {
-		s = p->from.sym;
-		if(s->type != STEXT && s->type != SLEAF)
-			continue;
-
-		/* filenames first */
-		for(a=p->to.autom; a; a=a->link)
-			if(a->type == D_FILE)
-				putsymb(a->asym->name, 'z', a->aoffset, 0);
-			else
-			if(a->type == D_FILE1)
-				putsymb(a->asym->name, 'Z', a->aoffset, 0);
-
-		if(!s->reachable)
-			continue;
-
-		if(s->type == STEXT)
-			putsymb(s->name, 'T', s->value, s->version);
-		else
-			putsymb(s->name, 'L', s->value, s->version);
-
-		/* frame, auto and param after */
-		putsymb(".frame", 'm', p->to.offset+4, 0);
-		for(a=p->to.autom; a; a=a->link)
-			if(a->type == D_AUTO)
-				putsymb(a->asym->name, 'a', -a->aoffset, 0);
-			else
-			if(a->type == D_PARAM)
-				putsymb(a->asym->name, 'p', a->aoffset, 0);
-	}
-	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %lud\n", symsize);
-	Bflush(&bso);
-}
-
-void
-putsymb(char *s, int t, int32 v, int ver)
-{
-	int i, f;
-
-	if(t == 'f')
-		s++;
-	lput(v);
-	if(ver)
-		t += 'a' - 'A';
-	cput(t+0x80);			/* 0x80 is variable length */
-
-	if(t == 'Z' || t == 'z') {
-		cput(s[0]);
-		for(i=1; s[i] != 0 || s[i+1] != 0; i += 2) {
-			cput(s[i]);
-			cput(s[i+1]);
-		}
-		cput(0);
-		cput(0);
-		i++;
-	}
-	else {
-		for(i=0; s[i]; i++)
-			cput(s[i]);
-		cput(0);
-	}
-	// TODO(rsc): handle go parameter
-	lput(0);
-
-	symsize += 4 + 1 + i + 1 + 4;
-
-	if(debug['n']) {
-		if(t == 'z' || t == 'Z') {
-			Bprint(&bso, "%c %.8lux ", t, v);
-			for(i=1; s[i] != 0 || s[i+1] != 0; i+=2) {
-				f = ((s[i]&0xff) << 8) | (s[i+1]&0xff);
-				Bprint(&bso, "/%x", f);
-			}
-			Bprint(&bso, "\n");
-			return;
-		}
-		if(ver)
-			Bprint(&bso, "%c %.8lux %s<%d>\n", t, v, s, ver);
-		else
-			Bprint(&bso, "%c %.8lux %s\n", t, v, s);
-	}
-}
-
 static void
 outt(int32 f, int32 l)
 {
 	if(debug['L'])
-		Bprint(&bso, "tmap: %lux-%lux\n", f, l);
+		Bprint(&bso, "tmap: %ux-%ux\n", f, l);
 	lput(f);
 	lput(l);
 }
@@ -1145,9 +1004,9 @@ asmthumbmap(void)
 		return;
 	pc = 0;
 	lastt = -1;
-	for(p = firstp; p != P; p = p->link){
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		p = cursym->text;
 		pc = p->pc - INITTEXT;
-		if(p->as == ATEXT){
 		setarch(p);
 		if(thumb){
 			if(p->from.sym->foreign){	// 8 bytes of ARM first
@@ -1171,7 +1030,9 @@ asmthumbmap(void)
 				lastt = -1;
 			}
 		}
-		}
+		if(cursym->next == nil)
+			for(; p != P; p = p->link)
+				pc = p->pc = INITTEXT;
 	}
 	if(lastt >= 0)
 		outt(lastt, pc+1);
@@ -1205,14 +1066,12 @@ datblk(int32 s, int32 n, int str)
 		}
 		if(l >= n)
 			continue;
-		if(p->as != AINIT && p->as != ADYNT) {
-			for(j=l+(c-i)-1; j>=l; j--)
-				if(buf.dbuf[j]) {
-					print("%P\n", p);
-					diag("multiple initialization");
-					break;
-				}
-		}
+		for(j=l+(c-i)-1; j>=l; j--)
+			if(buf.dbuf[j]) {
+				print("%P\n", p);
+				diag("multiple initialization");
+				break;
+			}
 		switch(p->to.type) {
 		default:
 			diag("unknown mode in initialization%P", p);
@@ -1251,10 +1110,6 @@ datblk(int32 s, int32 n, int str)
 			v = p->to.sym;
 			if(v) {
 				switch(v->type) {
-				case SUNDEF:
-					ckoff(v, d);
-					d += v->value;
-					break;
 				case STEXT:
 				case SLEAF:
 					d += v->value;
@@ -1276,8 +1131,6 @@ datblk(int32 s, int32 n, int str)
 						d += v->value + INITDAT;
 					break;
 				}
-				if(dlm)
-					dynreloc(v, a+INITDAT, 1);
 			}
 			cast = (char*)&d;
 			switch(c) {
@@ -1324,7 +1177,6 @@ asmout(Prog *p, Optab *o)
 {
 	int32 o1, o2, o3, o4, o5, o6, v;
 	int r, rf, rt, rt2;
-	Sym *s;
 
 PP = p;
 	o1 = 0;
@@ -1403,14 +1255,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 
 	case 5:		/* bra s */
 		v = -8;
-		if(p->cond == UP) {
-			s = p->to.sym;
-			if(s->type != SUNDEF)
-				diag("bad branch sym type");
-			v = (uint32)s->value >> (Roffset-2);
-			dynreloc(s, p->pc, 0);
-		}
-		else if(p->cond != P)
+		if(p->cond != P)
 			v = (p->cond->pc - pc) - 8;
 #ifdef CALLEEBX
 		if(p->as == ABL)
@@ -1471,17 +1316,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 		break;
 
 	case 11:	/* word */
-		switch(aclass(&p->to)) {
-		case C_LCON:
-			if(!dlm)
-				break;
-			if(p->to.name != D_EXTERN && p->to.name != D_STATIC)
-				break;
-		case C_ADDR:
-			if(p->to.sym->type == SUNDEF)
-				ckoff(p->to.sym, p->to.offset);
-			dynreloc(p->to.sym, p->pc, 1);
-		}
+		aclass(&p->to);
 		o1 = instoffset;
 		break;
 
@@ -1901,11 +1736,8 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 		break;
 
 	case 63:	/* bcase */
-		if(p->cond != P) {
+		if(p->cond != P)
 			o1 = p->cond->pc;
-			if(dlm)
-				dynreloc(S, p->pc, 1);
-		}
 		break;
 
 	/* reloc ops */
@@ -2088,29 +1920,29 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 	switch(o->size) {
 	default:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux:\t\t%P\n", v, p);
+			Bprint(&bso, " %.8ux:\t\t%P\n", v, p);
 		break;
 	case 4:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux\t%P\n", v, o1, p);
+			Bprint(&bso, " %.8ux: %.8ux\t%P\n", v, o1, p);
 		lputl(o1);
 		break;
 	case 8:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux%P\n", v, o1, o2, p);
+			Bprint(&bso, " %.8ux: %.8ux %.8ux%P\n", v, o1, o2, p);
 		lputl(o1);
 		lputl(o2);
 		break;
 	case 12:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux %.8lux%P\n", v, o1, o2, o3, p);
+			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux%P\n", v, o1, o2, o3, p);
 		lputl(o1);
 		lputl(o2);
 		lputl(o3);
 		break;
 	case 16:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux %.8lux %.8lux%P\n",
+			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux%P\n",
 				v, o1, o2, o3, o4, p);
 		lputl(o1);
 		lputl(o2);
@@ -2119,7 +1951,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 		break;
 	case 20:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux %.8lux %.8lux %.8lux%P\n",
+			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux%P\n",
 				v, o1, o2, o3, o4, o5, p);
 		lputl(o1);
 		lputl(o2);
@@ -2129,7 +1961,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 		break;
 	case 24:
 		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux %.8lux %.8lux %.8lux %.8lux%P\n",
+			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux %.8ux%P\n",
 				v, o1, o2, o3, o4, o5, o6, p);
 		lputl(o1);
 		lputl(o2);

@@ -684,18 +684,12 @@ writelines(void)
 	currfile = -1;
 	lineo = cpos();
 
-	for (p = textp; p != P; p = p->pcond) {
-		curtext = p; // for diag
-
-		s = p->from.sym;
-		if (s == nil || s->type != STEXT) {
-			diag("->pcond was supposed to loop over STEXT: %P", p);
-			continue;
-		}
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		s = cursym;
 
 		// Look for history stack.  If we find one,
 		// we're entering a new compilation unit
-		if ((unitname = inithist(p->to.autom)) != 0) {
+		if((unitname = inithist(s->autom)) != 0) {
 			flushunit(epc, unitstart);
 			unitstart = cpos();
 			if(debug['v'] > 1) {
@@ -709,7 +703,7 @@ writelines(void)
 			newattr(dwinfo, DW_AT_name, DW_CLS_STRING, strlen(unitname), unitname);
 			newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT, guesslang(unitname), 0);
 			newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
-			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, p->pc, 0);
+			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, 0);
 			// Write .debug_line Line Number Program Header (sec 6.2.4)
 			// Fields marked with (*) must be changed for 64-bit dwarf
 			LPUT(0);   // unit_length (*), will be filled in later.
@@ -734,7 +728,7 @@ writelines(void)
 				// 4 zeros: the string termination + 3 fields.
 			}
 
-			epc = pc = p->pc;
+			epc = pc = s->text->pc;
 			currfile = 1;
 			lc = 1;
 			llc = 1;
@@ -746,11 +740,14 @@ writelines(void)
 		}
 		if (!s->reachable)
 			continue;
+
+		p = s->text;
+
 		if (unitstart < 0) {
 			diag("reachable code before seeing any history: %P", p);
 			continue;
 		}
-
+		
 		dwinfo->child = newdie(dwinfo->child, DW_ABRV_FUNCTION);
 		newattr(dwinfo->child, DW_AT_name, DW_CLS_STRING, strlen(s->name), s->name);
 		newattr(dwinfo->child, DW_AT_low_pc, DW_CLS_ADDRESS, p->pc, 0);
@@ -763,7 +760,7 @@ writelines(void)
 				continue;
 			}
 			if (lh->file < 1) {  // 0 is the past-EOF entry.
-				//diag("instruction with linenumber past EOF in %s: %P", unitname, q);
+				//diag("instruction with line number past EOF in %s: %P", unitname, q);
 				continue;
 			}
 
@@ -855,13 +852,8 @@ writeframes(void)
 	}
 	strnput("", pad);
 
-	for (p = textp; p != P; p = p->pcond) {
-		curtext = p; // for diag
-		s = p->from.sym;
-		if (s == nil || s->type != STEXT) {
-			diag("->pcond was supposed to loop over STEXT: %P", p);
-			continue;
-		}
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		s = cursym;
 		if (!s->reachable)
 			continue;
 
@@ -873,10 +865,11 @@ writeframes(void)
 		addrput(0);	// address range
 
 		cfa = PtrSize;	// CFA starts at sp+PtrSize
+		p = s->text;
 		pc = p->pc;
 		epc = p->pc;
 
-		for(q = p; q != P && (q == p || q->as != ATEXT); q = q->link) {
+		for(q = p; q != P; q = q->link) {
 			epc = q->pc;
 			if (q->spadj == 0)
 				continue;

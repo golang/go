@@ -1324,8 +1324,6 @@ predicable(Prog *p)
 		|| p->as == ASIGNAME
 		|| p->as == ATEXT
 		|| p->as == AWORD
-		|| p->as == ADYNT
-		|| p->as == AINIT
 		|| p->as == ABCASE
 		|| p->as == ACASE)
 		return 0;
