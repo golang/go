@@ -359,80 +359,80 @@ patch(void)
 	s = lookup("exit", 0);
 	vexit = s->value;
 	for(p = firstp; p != P; p = p->link) {
-		setarch(p);
-		a = p->as;
-		if(a == ATEXT)
-			curtext = p;
-		if(seenthumb && a == ABL){
-			// if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S)
-			//	print("%s calls %s\n", s1->name, s->name);
-			 if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S && s->thumb != s1->thumb)
-				s->foreign = 1;
-		}
-		if((a == ABL || a == ABX || a == AB || a == ARET) &&
-		   p->to.type != D_BRANCH && p->to.sym != S) {
-			s = p->to.sym;
-			switch(s->type) {
-			default:
-				diag("undefined: %s", s->name);
-				s->type = STEXT;
-				s->value = vexit;
-				continue;	// avoid more error messages
-			case STEXT:
-				p->to.offset = s->value;
-				p->to.type = D_BRANCH;
-				break;
-			case SUNDEF:
-				if(p->as != ABL)
-					diag("help: SUNDEF in AB || ARET");
-				p->to.offset = 0;
-				p->to.type = D_BRANCH;
-				p->cond = UP;
-				break;
+			setarch(p);
+			a = p->as;
+			if(a == ATEXT)
+				curtext = p;
+			if(seenthumb && a == ABL){
+				// if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S)
+				//	print("%s calls %s\n", s1->name, s->name);
+				 if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S && s->thumb != s1->thumb)
+					s->foreign = 1;
 			}
-		}
-		if(p->to.type != D_BRANCH || p->cond == UP)
-			continue;
-		c = p->to.offset;
-		for(q = firstp; q != P;) {
-			if(q->forwd != P)
-			if(c >= q->forwd->pc) {
-				q = q->forwd;
+			if((a == ABL || a == ABX || a == AB || a == ARET) &&
+			   p->to.type != D_BRANCH && p->to.sym != S) {
+				s = p->to.sym;
+				switch(s->type) {
+				default:
+					diag("undefined: %s", s->name);
+					s->type = STEXT;
+					s->value = vexit;
+					continue;	// avoid more error messages
+				case STEXT:
+					p->to.offset = s->value;
+					p->to.type = D_BRANCH;
+					break;
+				case SUNDEF:
+					if(p->as != ABL)
+						diag("help: SUNDEF in AB || ARET");
+					p->to.offset = 0;
+					p->to.type = D_BRANCH;
+					p->cond = UP;
+					break;
+				}
+			}
+			if(p->to.type != D_BRANCH || p->cond == UP)
 				continue;
+			c = p->to.offset;
+			for(q = firstp; q != P;) {
+				if(q->forwd != P)
+				if(c >= q->forwd->pc) {
+					q = q->forwd;
+					continue;
+				}
+				if(c == q->pc)
+					break;
+				q = q->link;
 			}
-			if(c == q->pc)
-				break;
-			q = q->link;
-		}
-		if(q == P) {
-			diag("branch out of range %ld\n%P", c, p);
-			p->to.type = D_NONE;
-		}
-		p->cond = q;
+			if(q == P) {
+				diag("branch out of range %ld\n%P", c, p);
+				p->to.type = D_NONE;
+			}
+			p->cond = q;
 	}
 
 	for(p = firstp; p != P; p = p->link) {
-		setarch(p);
-		a = p->as;
-		if(p->as == ATEXT)
-			curtext = p;
-		if(seenthumb && a == ABL) {
+			setarch(p);
+			a = p->as;
+			if(p->as == ATEXT)
+				curtext = p;
+			if(seenthumb && a == ABL) {
 #ifdef CALLEEBX
-			if(0)
-				{}
+				if(0)
+					{}
 #else
-			if((s = p->to.sym) != S && (s->foreign || s->fnptr))
-				p->as = ABX;
+				if((s = p->to.sym) != S && (s->foreign || s->fnptr))
+					p->as = ABX;
 #endif
-			else if(p->to.type == D_OREG)
-				p->as = ABX;
-		}
-		if(p->cond != P && p->cond != UP) {
-			p->cond = brloop(p->cond);
-			if(p->cond != P)
-			if(p->to.type == D_BRANCH)
-				p->to.offset = p->cond->pc;
-		}
+				else if(p->to.type == D_OREG)
+					p->as = ABX;
+			}
+			if(p->cond != P && p->cond != UP) {
+				p->cond = brloop(p->cond);
+				if(p->cond != P)
+				if(p->to.type == D_BRANCH)
+					p->to.offset = p->cond->pc;
+			}
 	}
 }
 

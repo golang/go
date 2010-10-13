@@ -46,29 +46,29 @@ span(void)
 
 	idat = INITDAT;
 	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		n = 0;
-		if(p->to.type == D_BRANCH)
-			if(p->pcond == P)
-				p->pcond = p;
-		if((q = p->pcond) != P)
-			if(q->back != 2)
-				n = 1;
-		p->back = n;
-		if(p->as == AADJSP) {
-			p->to.type = D_SP;
-			v = -p->from.offset;
-			p->from.offset = v;
-			p->as = AADDL;
-			if(v < 0) {
-				p->as = ASUBL;
-				v = -v;
+			if(p->as == ATEXT)
+				curtext = p;
+			n = 0;
+			if(p->to.type == D_BRANCH)
+				if(p->pcond == P)
+					p->pcond = p;
+			if((q = p->pcond) != P)
+				if(q->back != 2)
+					n = 1;
+			p->back = n;
+			if(p->as == AADJSP) {
+				p->to.type = D_SP;
+				v = -p->from.offset;
 				p->from.offset = v;
+				p->as = AADDL;
+				if(v < 0) {
+					p->as = ASUBL;
+					v = -v;
+					p->from.offset = v;
+				}
+				if(v == 0)
+					p->as = ANOP;
 			}
-			if(v == 0)
-				p->as = ANOP;
-		}
 	}
 
 	n = 0;
@@ -89,24 +89,24 @@ start:
 				if(HEADTYPE == 8)
 					c = (c+31)&~31;
 			}
-			if(p->to.type == D_BRANCH)
-				if(p->back)
+				if(p->to.type == D_BRANCH)
+					if(p->back)
+						p->pc = c;
+				if(n == 0 || HEADTYPE == 8 || p->to.type == D_BRANCH) {
+					if(HEADTYPE == 8)
+						p->pc = c;
+					asmins(p);
+					m = andptr-and;
+					if(p->mark != m)
+						again = 1;
+					p->mark = m;
+				}
+				if(HEADTYPE == 8) {
+					c = p->pc + p->mark;
+				} else {
 					p->pc = c;
-			if(n == 0 || HEADTYPE == 8 || p->to.type == D_BRANCH) {
-				if(HEADTYPE == 8)
-					p->pc = c;
-				asmins(p);
-				m = andptr-and;
-				if(p->mark != m)
-					again = 1;
-				p->mark = m;
-			}
-			if(HEADTYPE == 8) {
-				c = p->pc + p->mark;
-			} else {
-				p->pc = c;
-				c += p->mark;
-			}
+					c += p->mark;
+				}
 		}
 		textsize = c;
 		n++;

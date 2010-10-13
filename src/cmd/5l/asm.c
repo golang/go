@@ -421,25 +421,25 @@ asmb(void)
 	seek(cout, OFFSET, 0);
 	pc = INITTEXT;
 	for(p = firstp; p != P; p = p->link) {
-		setarch(p);
-		if(p->as == ATEXT) {
-			curtext = p;
-			autosize = p->to.offset + 4;
-		}
-		if(p->pc != pc) {
-			diag("phase error %lux sb %lux",
-				p->pc, pc);
-			if(!debug['a'])
-				prasm(curp);
-			pc = p->pc;
-		}
-		curp = p;
-		o = oplook(p);	/* could probably avoid this call */
-		if(thumb)
-			thumbasmout(p, o);
-		else
-			asmout(p, o);
-		pc += o->size;
+			setarch(p);
+			if(p->as == ATEXT) {
+				curtext = p;
+				autosize = p->to.offset + 4;
+			}
+			if(p->pc != pc) {
+				diag("phase error %lux sb %lux",
+					p->pc, pc);
+				if(!debug['a'])
+					prasm(curp);
+				pc = p->pc;
+			}
+			curp = p;
+			o = oplook(p);	/* could probably avoid this call */
+			if(thumb)
+				thumbasmout(p, o);
+			else
+				asmout(p, o);
+			pc += o->size;
 	}
 	while(pc-INITTEXT < textsize) {
 		cput(0);
@@ -1148,29 +1148,29 @@ asmthumbmap(void)
 	for(p = firstp; p != P; p = p->link){
 		pc = p->pc - INITTEXT;
 		if(p->as == ATEXT){
-			setarch(p);
-			if(thumb){
-				if(p->from.sym->foreign){	// 8 bytes of ARM first
-					if(lastt >= 0){
-						outt(lastt, pc-1);
-						lastt = -1;
-					}
-					pc += 8;
-				}
-				if(lastt < 0)
-					lastt = pc;
-			}
-			else{
-				if(p->from.sym->foreign){	// 4 bytes of THUMB first
-					if(lastt < 0)
-						lastt = pc;
-					pc += 4;
-				}
+		setarch(p);
+		if(thumb){
+			if(p->from.sym->foreign){	// 8 bytes of ARM first
 				if(lastt >= 0){
 					outt(lastt, pc-1);
 					lastt = -1;
 				}
+				pc += 8;
 			}
+			if(lastt < 0)
+				lastt = pc;
+		}
+		else{
+			if(p->from.sym->foreign){	// 4 bytes of THUMB first
+				if(lastt < 0)
+					lastt = pc;
+				pc += 4;
+			}
+			if(lastt >= 0){
+				outt(lastt, pc-1);
+				lastt = -1;
+			}
+		}
 		}
 	}
 	if(lastt >= 0)
