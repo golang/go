@@ -150,7 +150,7 @@ acidmember(Type *t, int32 off, int flag)
 			if(typesu[l->etype]) {
 				s1 = acidsue(l->link);
 				if(s1 != S) {
-					Bprint(&outbuf, "	'A' %s %ld %s;\n",
+					Bprint(&outbuf, "	'A' %s %d %s;\n",
 						amap(s1->name),
 						t->offset+off, amap(s->name));
 					break;
@@ -189,7 +189,7 @@ acidmember(Type *t, int32 off, int flag)
 		if(s == S)
 			break;
 		if(flag) {
-			Bprint(&outbuf, "	'%c' %ld %s;\n",
+			Bprint(&outbuf, "	'%c' %d %s;\n",
 			acidchar[t->etype], t->offset+off, amap(s->name));
 		} else {
 			Bprint(&outbuf, "\tprint(indent, \"%s\t\", addr.%s, \"\\n\");\n",
@@ -209,7 +209,7 @@ acidmember(Type *t, int32 off, int flag)
 					acidmember(l, t->offset+off, flag);
 				Bprint(&outbuf, "	};\n");
 			} else {
-				Bprint(&outbuf, "	%s %ld %s;\n",
+				Bprint(&outbuf, "	%s %d %s;\n",
 					amap(s1->name),
 					t->offset+off, amap(s->name));
 			}
@@ -223,7 +223,7 @@ acidmember(Type *t, int32 off, int flag)
 			} else {
 				Bprint(&outbuf, "\tprint(indent, \"%s {\\n\");\n",
 					amap(s1->name));
-				Bprint(&outbuf, "\tindent_%s(addr+%ld, indent+\"\\t\");\n",
+				Bprint(&outbuf, "\tindent_%s(addr+%d, indent+\"\\t\");\n",
 					amap(s1->name), t->offset+off);
 				Bprint(&outbuf, "\tprint(indent, \"}\\n\");\n");
 			}
@@ -263,7 +263,7 @@ acidtype(Type *t)
 		if(debug['s'])
 			goto asmstr;
 		an = amap(s->name);
-		Bprint(&outbuf, "sizeof%s = %ld;\n", an, t->width);
+		Bprint(&outbuf, "sizeof%s = %d;\n", an, t->width);
 		Bprint(&outbuf, "aggr %s\n{\n", an);
 		for(l = t->link; l != T; l = l->down)
 			acidmember(l, 0, 1);
@@ -280,7 +280,7 @@ acidtype(Type *t)
 			break;
 		for(l = t->link; l != T; l = l->down)
 			if(l->sym != S)
-				Bprint(&outbuf, "#define\t%s.%s\t%ld\n",
+				Bprint(&outbuf, "#define\t%s.%s\t%d\n",
 					s->name,
 					l->sym->name,
 					l->offset);

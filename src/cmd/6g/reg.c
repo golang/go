@@ -682,17 +682,17 @@ brk:
 			print("\nstats\n");
 
 		if(ostats.ncvtreg)
-			print("	%4ld cvtreg\n", ostats.ncvtreg);
+			print("	%4d cvtreg\n", ostats.ncvtreg);
 		if(ostats.nspill)
-			print("	%4ld spill\n", ostats.nspill);
+			print("	%4d spill\n", ostats.nspill);
 		if(ostats.nreload)
-			print("	%4ld reload\n", ostats.nreload);
+			print("	%4d reload\n", ostats.nreload);
 		if(ostats.ndelmov)
-			print("	%4ld delmov\n", ostats.ndelmov);
+			print("	%4d delmov\n", ostats.ndelmov);
 		if(ostats.nvar)
-			print("	%4ld delmov\n", ostats.nvar);
+			print("	%4d delmov\n", ostats.nvar);
 		if(ostats.naddr)
-			print("	%4ld delmov\n", ostats.naddr);
+			print("	%4d delmov\n", ostats.naddr);
 
 		memset(&ostats, 0, sizeof(ostats));
 	}
@@ -1268,7 +1268,7 @@ regset(Reg *r, uint32 bb)
 	while(b = bb & ~(bb-1)) {
 		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
 		if(v.type == 0)
-			fatal("zero v.type for %#lux", b);
+			fatal("zero v.type for %#ux", b);
 		c = copyu(r->prog, &v, A);
 		if(c == 3)
 			set |= b;
@@ -1486,7 +1486,7 @@ dumpone(Reg *r)
 	int z;
 	Bits bit;
 
-	print("%ld:%P", r->loop, r->prog);
+	print("%d:%P", r->loop, r->prog);
 	for(z=0; z<BITS; z++)
 		bit.b[z] =
 			r->set.b[z] |
@@ -1535,14 +1535,14 @@ dumpit(char *str, Reg *r0)
 		if(r1 != R) {
 			print("	pred:");
 			for(; r1 != R; r1 = r1->p2link)
-				print(" %.4lud", r1->prog->loc);
+				print(" %.4ud", r1->prog->loc);
 			print("\n");
 		}
 //		r1 = r->s1;
 //		if(r1 != R) {
 //			print("	succ:");
 //			for(; r1 != R; r1 = r1->s1)
-//				print(" %.4lud", r1->prog->loc);
+//				print(" %.4ud", r1->prog->loc);
 //			print("\n");
 //		}
 	}

@@ -309,7 +309,7 @@ loop2:
 	if(debug['R'] && debug['v']) {
 		print("\nprop structure:\n");
 		for(r = firstr; r != R; r = r->link) {
-			print("%ld:%P", r->loop, r->prog);
+			print("%d:%P", r->loop, r->prog);
 			for(z=0; z<BITS; z++)
 				bit.b[z] = r->set.b[z] |
 					r->refahead.b[z] | r->calahead.b[z] |
@@ -955,7 +955,7 @@ paint1(Reg *r, int bn)
 	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb) {
 		change -= CLOAD * r->loop;
 		if(debug['R'] && debug['v'])
-			print("%ld%P\tld %B $%d\n", r->loop,
+			print("%d%P\td %B $%d\n", r->loop,
 				r->prog, blsh(bn), change);
 	}
 	for(;;) {
@@ -965,21 +965,21 @@ paint1(Reg *r, int bn)
 		if(r->use1.b[z] & bb) {
 			change += CREF * r->loop;
 			if(debug['R'] && debug['v'])
-				print("%ld%P\tu1 %B $%d\n", r->loop,
+				print("%d%P\tu1 %B $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
 
 		if((r->use2.b[z]|r->set.b[z]) & bb) {
 			change += CREF * r->loop;
 			if(debug['R'] && debug['v'])
-				print("%ld%P\tu2 %B $%d\n", r->loop,
+				print("%d%P\tu2 %B $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb) {
 			change -= CLOAD * r->loop;
 			if(debug['R'] && debug['v'])
-				print("%ld%P\tst %B $%d\n", r->loop,
+				print("%d%P\tst %B $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
 

@@ -566,7 +566,7 @@ align(int32 i, Type *t, int op)
 	}
 	o = xround(o, w);
 	if(debug['A'])
-		print("align %s %ld %T = %ld\n", bnames[op], i, t, o);
+		print("align %s %d %T = %d\n", bnames[op], i, t, o);
 	return o;
 }
 

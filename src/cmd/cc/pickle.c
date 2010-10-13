@@ -143,7 +143,7 @@ picklemember(Type *t, int32 off)
 	case TIND:
 		if(s == S)
 			Bprint(&outbuf,
-				"%s\"p\", (char*)addr+%ld+_i*%ld);\n",
+				"%s\"p\", (char*)addr+%d+_i*%d);\n",
 				picklestr, t->offset+off, t->width);
 		else
 			Bprint(&outbuf,
@@ -164,14 +164,14 @@ picklemember(Type *t, int32 off)
 	case TFLOAT:
 	case TDOUBLE:
 		if(s == S)
-			Bprint(&outbuf, "%s\"%c\", (char*)addr+%ld+_i*%ld);\n",
+			Bprint(&outbuf, "%s\"%c\", (char*)addr+%d+_i*%d);\n",
 				picklestr, picklechar[t->etype], t->offset+off, t->width);
 		else
 			Bprint(&outbuf, "%s\"%c\", &addr->%s);\n",
 				picklestr, picklechar[t->etype], pmap(s->name));
 		break;
 	case TARRAY:
-		Bprint(&outbuf, "\tfor(_i = 0; _i < %ld; _i++) {\n\t",
+		Bprint(&outbuf, "\tfor(_i = 0; _i < %d; _i++) {\n\t",
 			t->width/t->link->width);
 		picklemember(t->link, t->offset+off);
 		Bprint(&outbuf, "\t}\n\t_i = 0;\n\tUSED(_i);\n");
@@ -183,7 +183,7 @@ picklemember(Type *t, int32 off)
 		if(s1 == S)
 			break;
 		if(s == S) {
-			Bprint(&outbuf, "\tbp = pickle_%s(bp, ep, un, (%s*)((char*)addr+%ld+_i*%ld));\n",
+			Bprint(&outbuf, "\tbp = pickle_%s(bp, ep, un, (%s*)((char*)addr+%d+_i*%d));\n",
 				pmap(s1->name), pmap(s1->name), t->offset+off, t->width);
 		} else {
 			Bprint(&outbuf, "\tbp = pickle_%s(bp, ep, un, &addr->%s);\n",
@@ -235,7 +235,7 @@ pickletype(Type *t)
 			break;
 		for(l = t->link; l != T; l = l->down)
 			if(l->sym != S)
-				Bprint(&outbuf, "#define\t%s.%s\t%ld\n",
+				Bprint(&outbuf, "#define\t%s.%s\t%d\n",
 					s->name,
 					l->sym->name,
 					l->offset);

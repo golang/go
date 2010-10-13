@@ -92,18 +92,18 @@ prtree1(Node *n, int d, int f)
 	{
 	case ONAME:
 		print(" \"%F\"", n);
-		print(" %ld", n->xoffset);
+		print(" %d", n->xoffset);
 		i = 0;
 		break;
 
 	case OINDREG:
-		print(" %ld(R%d)", n->xoffset, n->reg);
+		print(" %d(R%d)", n->xoffset, n->reg);
 		i = 0;
 		break;
 
 	case OREGISTER:
 		if(n->xoffset)
-			print(" %ld+R%d", n->xoffset, n->reg);
+			print(" %d+R%d", n->xoffset, n->reg);
 		else
 			print(" R%d", n->reg);
 		i = 0;
@@ -845,7 +845,7 @@ simplifyshift(Node *n)
 
 /*
 	if(debug['h'])
-		print("%.3o %ld %ld %d #%.lux\n",
+		print("%.3o %d %d %d #%.ux\n",
 			(s1<<3)|s2, c1, c2, topbit(c3), c3);
 */
 

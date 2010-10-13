@@ -132,7 +132,7 @@ doar(Biobuf *bp)
 	for (offset = Boffset(bp);;offset += size) {
 		size = nextar(bp, offset, membername);
 		if (size < 0) {
-			error("phase error on ar header %ld", offset);
+			error("phase error on ar header %d", offset);
 			return;
 		}
 		if (size == 0)

@@ -369,7 +369,7 @@ checkargs(Node *nn, char *s, int pos)
 			continue;
 		for(l=tprot; l; l=l->link)
 			if(sametype(a->type, l->type)) {
-/*print("checking %T/%ulx %T/%ulx\n", a->type, flag.b[0], l->type, l->flag.b[0]);*/
+/*print("checking %T/%ux %T/%ux\n", a->type, flag.b[0], l->type, l->flag.b[0]);*/
 				if(beq(flag, l->flag))
 					goto loop;
 			}
@@ -437,9 +437,9 @@ pragpack(void)
 		;
 	if(debug['f'])
 		if(packflg)
-			print("%4ld: pack %d\n", lineno, packflg);
+			print("%4d: pack %d\n", lineno, packflg);
 		else
-			print("%4ld: pack off\n", lineno);
+			print("%4d: pack off\n", lineno);
 }
 
 void
@@ -459,9 +459,9 @@ pragfpround(void)
 		;
 	if(debug['f'])
 		if(fproundflg)
-			print("%4ld: fproundflg %d\n", lineno, fproundflg);
+			print("%4d: fproundflg %d\n", lineno, fproundflg);
 		else
-			print("%4ld: fproundflg off\n", lineno);
+			print("%4d: fproundflg off\n", lineno);
 }
 
 void
@@ -477,7 +477,7 @@ pragtextflag(void)
 	while(getnsc() != '\n')
 		;
 	if(debug['f'])
-		print("%4ld: textflag %d\n", lineno, textflag);
+		print("%4d: textflag %d\n", lineno, textflag);
 }
 
 void

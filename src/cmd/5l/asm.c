@@ -863,12 +863,12 @@ asmb(void)
 	}
 	cflush();
 	if(debug['c']){
-		print("textsize=%ld\n", textsize);
-		print("datsize=%ld\n", datsize);
-		print("bsssize=%ld\n", bsssize);
-		print("symsize=%ld\n", symsize);
-		print("lcsize=%ld\n", lcsize);
-		print("total=%ld\n", textsize+datsize+bsssize+symsize+lcsize);
+		print("textsize=%d\n", textsize);
+		print("datsize=%d\n", datsize);
+		print("bsssize=%d\n", bsssize);
+		print("symsize=%d\n", symsize);
+		print("lcsize=%d\n", lcsize);
+		print("total=%d\n", textsize+datsize+bsssize+symsize+lcsize);
 	}
 }
 
@@ -980,7 +980,7 @@ void
 nopstat(char *f, Count *c)
 {
 	if(c->outof)
-	Bprint(&bso, "%s delay %ld/%ld (%.2f)\n", f,
+	Bprint(&bso, "%s delay %d/%d (%.2f)\n", f,
 		c->outof - c->count, c->outof,
 		(double)(c->outof - c->count)/c->outof);
 }
@@ -1186,7 +1186,7 @@ PP = p;
 	o5 = 0;
 	o6 = 0;
 	armsize += o->size;
-if(debug['P']) print("%ulx: %P	type %d\n", (uint32)(p->pc), p, o->type);
+if(debug['P']) print("%ux: %P	type %d\n", (uint32)(p->pc), p, o->type);
 	switch(o->type) {
 	default:
 		diag("unknown asm %d", o->type);
@@ -1194,7 +1194,7 @@ if(debug['P']) print("%ulx: %P	type %d\n", (uint32)(p->pc), p, o->type);
 		break;
 
 	case 0:		/* pseudo ops */
-if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr, p->from.sym->used);
+if(debug['G']) print("%ux: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr, p->from.sym->used);
 		break;
 
 	case 1:		/* op R,[R],R */

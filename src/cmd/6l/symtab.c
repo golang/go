@@ -234,7 +234,7 @@ genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
 				put(a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
 	}
 	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %lud\n", symsize);
+		Bprint(&bso, "symsize = %ud\n", symsize);
 	Bflush(&bso);
 }
 

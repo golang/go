@@ -57,18 +57,18 @@ Pconv(Fmt *fp)
 	switch(p->as) {
 	default:
 		if(p->reg == NREG)
-			snprint(str, sizeof(str), "%.4ld (%L) %-7A%C	%D,%D", 
+			snprint(str, sizeof(str), "%.4d (%L) %-7A%C	%D,%D", 
 				p->loc, p->lineno, p->as, p->scond, &p->from, &p->to);
 		else if (p->from.type != D_FREG)
-			snprint(str, sizeof(str), "%.4ld (%L) %-7A%C	%D,R%d,%D", 
+			snprint(str, sizeof(str), "%.4d (%L) %-7A%C	%D,R%d,%D", 
 				p->loc, p->lineno, p->as, p->scond, &p->from, p->reg, &p->to);
 		else
-			snprint(str, sizeof(str), "%.4ld (%L) %-7A%C	%D,F%d,%D",
+			snprint(str, sizeof(str), "%.4d (%L) %-7A%C	%D,F%d,%D",
 				p->loc, p->lineno, p->as, p->scond, &p->from, p->reg, &p->to);
 		break;
 
 	case ADATA:
-		snprint(str, sizeof(str), "%.4ld (%L) %-7A	%D/%d,%D",
+		snprint(str, sizeof(str), "%.4d (%L) %-7A	%D/%d,%D",
 			p->loc, p->lineno, p->as, &p->from, p->reg, &p->to);
 		break;
 	}

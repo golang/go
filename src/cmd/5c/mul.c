@@ -115,7 +115,7 @@ mulcon0(int32 v)
 
 	if(docode(hintab[g].hint, m->code, 1, 0))
 		return m;
-	print("multiply table failure %ld\n", v);
+	print("multiply table failure %d\n", v);
 	m->code[0] = 0;
 	return 0;
 
@@ -132,7 +132,7 @@ no:
 		if(gen1(g)) {
 			if(docode(hint, m->code, 1, 0))
 				return m;
-			print("multiply table failure %ld\n", v);
+			print("multiply table failure %d\n", v);
 			break;
 		}
 	}

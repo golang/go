@@ -81,7 +81,7 @@ ran(uvlong pc, uvlong epc)
 	key.epc = pc+1;
 	r = treeget(&breakpoints, &key);
 	if(r == nil)
-		sysfatal("unchecked breakpoint at %#lux+%d", pc, (int)(epc-pc));
+		sysfatal("unchecked breakpoint at %#llux+%d", pc, (int)(epc-pc));
 
 	// Might be that the tail of the sequence
 	// was run already, so r->epc is before the end.

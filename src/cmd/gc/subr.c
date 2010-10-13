@@ -937,11 +937,11 @@ Lconv(Fmt *fp)
 		if(debug['L'])
 			fmtprint(fp, "%s/", pathname);
 		if(a[i].line)
-			fmtprint(fp, "%s:%ld[%s:%ld]",
+			fmtprint(fp, "%s:%d[%s:%d]",
 				a[i].line->name, lno-a[i].ldel+1,
 				a[i].incl->name, lno-a[i].idel+1);
 		else
-			fmtprint(fp, "%s:%ld",
+			fmtprint(fp, "%s:%d",
 				a[i].incl->name, lno-a[i].idel+1);
 		lno = a[i].incl->line - 1;	// now print out start of this file
 	}
@@ -1020,10 +1020,10 @@ Jconv(Fmt *fp)
 		fmtprint(fp, " a(%d)", n->addable);
 
 	if(n->vargen != 0)
-		fmtprint(fp, " g(%ld)", n->vargen);
+		fmtprint(fp, " g(%d)", n->vargen);
 
 	if(n->lineno != 0)
-		fmtprint(fp, " l(%ld)", n->lineno);
+		fmtprint(fp, " l(%d)", n->lineno);
 
 	if(n->xoffset != 0)
 		fmtprint(fp, " x(%lld)", n->xoffset);
@@ -1377,7 +1377,7 @@ Tconv(Fmt *fp)
 
 	case TARRAY:
 		if(t->bound >= 0)
-			fmtprint(fp, "[%ld]%T", t->bound, t->type);
+			fmtprint(fp, "[%d]%T", t->bound, t->type);
 		else
 			fmtprint(fp, "[]%T", t->type);
 		break;
@@ -1431,7 +1431,7 @@ Nconv(Fmt *fp)
 			fmtprint(fp, "%O%J", n->op, n);
 			break;
 		}
-		fmtprint(fp, "%O-%S G%ld%J", n->op,
+		fmtprint(fp, "%O-%S G%d%J", n->op,
 			n->sym, n->vargen, n);
 		goto ptyp;
 
@@ -1477,7 +1477,7 @@ Nconv(Fmt *fp)
 		break;
 	}
 	if(n->sym != S)
-		fmtprint(fp, " %S G%ld", n->sym, n->vargen);
+		fmtprint(fp, " %S G%d", n->sym, n->vargen);
 
 ptyp:
 	if(n->type != T)
@@ -2330,7 +2330,7 @@ frame(int context)
 		case ONAME:
 			if(flag)
 				print("--- %s frame ---\n", p);
-			print("%O %S G%ld %T\n", n->op, n->sym, n->vargen, n->type);
+			print("%O %S G%d %T\n", n->op, n->sym, n->vargen, n->type);
 			flag = 0;
 			break;
 

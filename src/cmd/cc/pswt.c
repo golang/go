@@ -80,7 +80,7 @@ doswit(Node *n)
 	qsort(iq, nc, sizeof(C1), swcmp);
 	if(debug['W'])
 	for(i=0; i<nc; i++)
-		print("case %2ld: = %.8llux\n", i, (vlong)iq[i].val);
+		print("case %2d: = %.8llux\n", i, (vlong)iq[i].val);
 	for(i=0; i<nc-1; i++)
 		if(iq[i].val == iq[i+1].val)
 			diag(n, "duplicate cases in switch %lld", (vlong)iq[i].val);
