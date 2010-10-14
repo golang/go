@@ -226,7 +226,7 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 // regard it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
 func (b *Reader) UnreadRune() os.Error {
-	if b.lastRuneSize < 0 {
+	if b.lastRuneSize < 0 || b.r == 0 {
 		return ErrInvalidUnreadRune
 	}
 	b.r -= b.lastRuneSize
