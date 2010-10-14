@@ -220,22 +220,16 @@ NOTEST+=flag
 NOTEST+=fmt
 NOTEST+=go/printer
 NOTEST+=gob
-NOTEST+=http
 NOTEST+=image/png
 NOTEST+=json
 NOTEST+=log
 NOTEST+=math
-NOTEST+=net
-NOTEST+=netchan
 NOTEST+=os
 NOTEST+=os/signal
-NOTEST+=rpc
-NOTEST+=rpc/jsonrpc
 NOTEST+=strconv
 NOTEST+=syslog
 NOTEST+=template
 NOTEST+=testing/quick
-NOTEST+=websocket
 NOTEST+=xml
 endif
 
