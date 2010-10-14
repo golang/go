@@ -109,6 +109,7 @@ DIRS=\
 	runtime\
 	runtime/pprof\
 	scanner\
+	smtp\
 	sort\
 	strconv\
 	strings\
