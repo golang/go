@@ -5,6 +5,79 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-10-13">2010-10-13</h3>
+
+<pre>
+This release includes changes to the log package, the removal of exp/iterable,
+two new tools (gotry and goplay), one small language change, and many other
+changes and fixes.  If you use the log or iterable packages, you need to make
+changes to your code.
+
+The log package has changed.  Loggers now have only one output, and output to
+standard error by default.  The names have also changed, although the old names
+are still supported.  They will be deleted in the next release, though, so it
+would be good to update now if you can.  For most purposes all you need to do
+is make these substitutions:
+        log.Stderr -> log.Println or log.Print
+        log.Stderrf -> log.Printf
+        log.Crash -> log.Panicln or log.Panic
+        log.Crashf -> log.Panicf
+        log.Exit -> log.Exitln or log.Exit
+        log.Exitf -> log.Exitf (no change)
+Calls to log.New() must drop the second argument.
+Also, custom loggers with exit or panic properties will need to be reworked.
+For full details, see the change description:
+        http://code.google.com/p/go/source/detail?r=d8a3c7563d
+
+The language change is that uses of pointers to interface values no longer
+automatically dereference the pointer.  A pointer to an interface value is more
+often a beginner’s bug than correct code.
+
+The package exp/iterable has been removed. It was an interesting experiment,
+but it encourages writing inefficient code and has outlived its utility.
+
+The new tools:
+* gotry: an exercise in reflection and an unusual tool. Run 'gotry' for details.
+* goplay: a stand-alone version of the Go Playground. See misc/goplay.
+
+Other changes:
+* 6l: Mach-O fixes, and fix to work with OS X nm/otool (thanks Jim McGrath).
+* [568]a: correct line numbers for statements.
+* arm: code generation and runtime fixes
+* big: fix panic and round correctly in Rat.FloatString (thanks Anthony Martin).
+* build: Make.cmd: remove $(OFILES) (thanks Eric Clark),
+        Make.pkg: remove .so before installing new one,
+        add GOHOSTOS and GOHOSTARCH environment variables.
+* crypto/tls: better error messages for certificate issues,
+        make SetReadTimeout work.
+* doc: add Sydney University video to docs page.
+* exp/draw/x11: support X11 vendors other than "The X.Org Foundation".
+* expvar: add (*Int).Set (thanks Sam Thorogood).
+* fmt: add Errorf helper function,
+        allow %d on []byte.
+* gc: O(1) string comparison when lengths differ,
+        various bug fixes.
+* http: return the correct error if a header line is too long.
+* image: add image.Tiled type, the Go equivalent of Plan 9's repl bit.
+* ld: be less picky about bad line number info.
+* misc/cgo/life: fix for new slice rules (thanks Graham Miller).
+* net: allow _ in DNS names.
+* netchan: export before import when testing, and
+        zero out request to ensure correct gob decoding. (thanks Roger Peppe).
+* os: make tests work on windows (thanks Alex Brainman).
+* runtime: bug fix: serialize mcache allocation,
+        correct iteration of large map values,
+        faster strequal, memequal (thanks Graham Miller),
+        fix argument dump in traceback,
+        fix tiny build.
+* smtp: new package (thanks Evan Shaw).
+* syscall: add sockaddr_ll support for linux/386, linux/amd64 (thanks Mikio Hara),
+        add ucred structure for SCM_CREDENTIALS over UNIX sockets. (thanks Albert Strasheim).
+* syscall: implement WaitStatus and Wait4() for windows (thanks Wei Guangjing).
+* time: add After.
+* websocket: enable tests on windows (thanks Alex Brainman).
+</pre>
+
 <h3 id="2010-09-29">2010-09-29</h3>
 
 <pre>
