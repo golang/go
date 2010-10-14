@@ -564,3 +564,12 @@ func TestPeek(t *testing.T) {
 		t.Fatalf("want EOF got %v", err)
 	}
 }
+
+func TestPeekThenUnreadRune(t *testing.T) {
+	// This sequence used to cause a crash.
+	r := NewReader(strings.NewReader("x"))
+	r.ReadRune()
+	r.Peek(1)
+	r.UnreadRune()
+	r.ReadRune() // Used to panic here
+}
