@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "arch.h"
 #include "defs.h"
 #include "malloc.h"
 #include "os.h"
@@ -1001,7 +1002,10 @@ void
 		// take defer off list in case of recursive panic
 		g->defer = d->link;
 		g->ispanic = true;	// rock for newstack, where reflect.call ends up
-		reflect·call(d->fn, d->args, d->siz);
+		if(thechar == '5')
+			reflect·call(d->fn, d->args+4, d->siz-4);	// reflect.call does not expect LR
+		else
+			reflect·call(d->fn, d->args, d->siz);
 		if(p->recovered) {
 			g->panic = p->link;
 			free(p);
