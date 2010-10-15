@@ -74,3 +74,13 @@ func TestAll(t *testing.T) {
 		testPrint(t, testcase.flag, testcase.prefix, testcase.pattern, true)
 	}
 }
+
+func TestOutput(t *testing.T) {
+	const testString = "test"
+	var b bytes.Buffer
+	l := New(&b, "", 0)
+	l.Println(testString)
+	if expect := testString + "\n"; b.String() != expect {
+		t.Errorf("log output should match %q is %q", expect, b.String())
+	}
+}

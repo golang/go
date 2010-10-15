@@ -136,7 +136,7 @@ func (l *Logger) Output(calldepth int, s string) os.Error {
 	if len(s) > 0 && s[len(s)-1] != '\n' {
 		buf.WriteByte('\n')
 	}
-	_, err := std.out.Write(buf.Bytes())
+	_, err := l.out.Write(buf.Bytes())
 	return err
 }
 
