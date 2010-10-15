@@ -43,14 +43,17 @@ The new tools:
 Other changes:
 * 6l: Mach-O fixes, and fix to work with OS X nm/otool (thanks Jim McGrath).
 * [568]a: correct line numbers for statements.
-* arm: code generation and runtime fixes
+* arm: code generation and runtime fixes,
+	adjust recover for new reflect.call,
+	enable 6 more tests after net fix.
 * big: fix panic and round correctly in Rat.FloatString (thanks Anthony Martin).
 * build: Make.cmd: remove $(OFILES) (thanks Eric Clark),
         Make.pkg: remove .so before installing new one,
         add GOHOSTOS and GOHOSTARCH environment variables.
 * crypto/tls: better error messages for certificate issues,
         make SetReadTimeout work.
-* doc: add Sydney University video to docs page.
+* doc: add Sydney University video,
+	add The Expressiveness of Go talk.
 * exp/draw/x11: support X11 vendors other than "The X.Org Foundation".
 * expvar: add (*Int).Set (thanks Sam Thorogood).
 * fmt: add Errorf helper function,
