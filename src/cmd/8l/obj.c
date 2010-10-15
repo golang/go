@@ -268,7 +268,7 @@ main(int argc, char *argv[])
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
-			INITRND = PEALIGN;
+			INITRND = 4096;
 		break;
 	case 11:
 		tlsoffset = 0;
