@@ -246,6 +246,7 @@ enum	as
 
 /* internal only */
 #define	D_SIZE		(D_NONE+40)
+#define	D_PCREL		(D_NONE+41)
 
 /*
  * this is the ranlib header

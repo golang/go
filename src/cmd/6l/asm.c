@@ -344,10 +344,8 @@ phsh(ElfPhdr *ph, ElfShdr *sh)
 void
 asmb(void)
 {
-	Prog *p;
 	int32 v, magic;
 	int a, dynsym;
-	uchar *op1;
 	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
 	vlong symdatva = SYMDATVA;
 	ElfEhdr *eh;
@@ -366,35 +364,8 @@ asmb(void)
 	elfsymo = 0;
 	seek(cout, HEADR, 0);
 	pc = INITTEXT;
-
-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		for(p = cursym->text; p != P; p = p->link) {
-			if(p->pc != pc) {
-				if(!debug['a'])
-					print("%P\n", curp);
-				diag("phase error %llux sb %llux in %s", p->pc, pc, TNAME);
-				pc = p->pc;
-			}
-			curp = p;
-			asmins(p);
-			a = (andptr - and);
-			if(cbc < a)
-				cflush();
-			if(debug['a']) {
-				Bprint(&bso, pcstr, pc);
-				for(op1 = and; op1 < andptr; op1++)
-					Bprint(&bso, "%.2ux", *op1);
-				for(; op1 < and+Maxand; op1++)
-					Bprint(&bso, "  ");
-				Bprint(&bso, "%P\n", curp);
-			}
-			memmove(cbp, and, a);
-			cbp += a;
-			pc += a;
-			cbc -= a;
-		}
-	}
-	cflush();
+	codeblk(pc, segtext.sect->len);
+	pc += segtext.sect->len;
 
 	/* output read-only data in text segment */
 	sect = segtext.sect->next;

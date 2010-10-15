@@ -132,6 +132,7 @@ char*	expandpkg(char*, char*);
 void	deadcode(void);
 void	ewrite(int, void*, int);
 Reloc*	addrel(Sym*);
+void	codeblk(int32, int32);
 void	datblk(int32, int32);
 Sym*	datsort(Sym*);
 void	reloc(void);
