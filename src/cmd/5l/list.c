@@ -274,7 +274,7 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_FCONST:
-		snprint(str, sizeof str, "$%e", ieeedtod(a->ieee));
+		snprint(str, sizeof str, "$%e", ieeedtod(&a->ieee));
 		break;
 
 	case D_SCONST:

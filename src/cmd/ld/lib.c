@@ -775,8 +775,7 @@ mal(uint32 n)
 {
 	void *v;
 
-	while(n & 7)
-		n++;
+	n = (n+7)&~7;
 	if(n > NHUNK) {
 		v = malloc(n);
 		memset(v, 0, n);
@@ -793,6 +792,16 @@ mal(uint32 n)
 
 	memset(v, 0, n);
 	return v;
+}
+
+void
+unmal(void *v, uint32 n)
+{
+	n = (n+7)&~7;
+	if(hunk - n == v) {
+		hunk -= n;
+		nhunk += n;
+	}
 }
 
 // Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
@@ -999,4 +1008,3 @@ mkfwd(void)
 		}
 	}
 }
-

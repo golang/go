@@ -55,6 +55,7 @@ typedef	struct	Prog	Prog;
 typedef	struct	Sym	Sym;
 typedef	struct	Auto	Auto;
 typedef	struct	Optab	Optab;
+typedef	struct	Reloc	Reloc;
 
 struct	Adr
 {
@@ -79,6 +80,15 @@ struct	Adr
 #define	ieee	u0.u0ieee
 #define	sbig	u0.u0sbig
 
+struct	Reloc
+{
+	int32	off;
+	uchar	siz;
+	uchar	type;
+	int32	add;
+	Sym*	sym;
+};
+
 struct	Prog
 {
 	Adr	from;
@@ -97,8 +107,9 @@ struct	Prog
 	uchar	mark;	/* work on these */
 	uchar	back;
 	uchar	bigjmp;
-
 };
+#define datasize from.scale
+
 struct	Auto
 {
 	Sym*	asym;
@@ -130,7 +141,12 @@ struct	Sym
 	Prog*	text;
 	
 	// SDATA, SBSS
-	Prog*	data;
+	uchar*	p;
+	int32	np;
+	int32	maxp;
+	Reloc*	r;
+	int32	nr;
+	int32	maxr;
 };
 struct	Optab
 {
@@ -143,21 +159,19 @@ struct	Optab
 enum
 {
 	Sxxx,
-
+	
+	/* order here is order in output file */
 	STEXT,
+	SELFDATA,
+	SRODATA,	// TODO(rsc): move
 	SDATA,
 	SBSS,
-	SDATA1,
+
 	SXREF,
+	SMACHO,	// TODO(rsc): maybe move between DATA1 and BSS?
 	SFILE,
 	SCONST,
-	SUNDEF,
-
-	SMACHO,	/* pointer to mach-o imported symbol */
-
 	SFIXED,
-	SELFDATA,
-	SRODATA,
 
 	NHASH		= 10007,
 	NHUNK		= 100000,
@@ -263,7 +277,6 @@ EXTERN	int32	INITRND;
 EXTERN	int32	INITTEXT;
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	Biobuf	bso;
-EXTERN	int32	bsssize;
 EXTERN	int32	casepc;
 EXTERN	int	cbc;
 EXTERN	char*	cbp;
@@ -272,9 +285,7 @@ EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
 EXTERN	Sym*	cursym;
-EXTERN	Prog*	datap;
-EXTERN	Prog*	edatap;
-EXTERN	int32	datsize;
+EXTERN	Sym*	datap;
 EXTERN	int32	elfdatsize;
 EXTERN	int32	dynptrsize;
 EXTERN	char	debug[128];
@@ -327,11 +338,9 @@ void	cflush(void);
 Prog*	copyp(Prog*);
 vlong	cpos(void);
 double	cputime(void);
-void	datblk(int32, int32, int32);
 void	diag(char*, ...);
 void	dodata(void);
 void	doelf(void);
-void	doinit(void);
 void	doprof1(void);
 void	doprof2(void);
 void	dostkoff(void);
@@ -346,18 +355,14 @@ void	vputl(uvlong);
 void	strnput(char*, int);
 void	main(int, char*[]);
 void*	mal(uint32);
-Prog*	newdata(Sym*, int, int, int);
-Prog*	newtext(Prog*, Sym*);
 int	opsize(Prog*);
 void	patch(void);
 Prog*	prg(void);
 int	relinv(int);
-int32	reuse(Prog*, Sym*);
 int32	rnd(int32, int32);
 void	s8put(char*);
 void	span(void);
 void	undef(void);
-int32	vaddr(Adr*);
 int32	symaddr(Sym*);
 void	wput(ushort);
 void	wputl(ushort);

@@ -86,7 +86,7 @@ pewrite(void)
 {
 	int i, j;
 
-	write(cout, dosstub, sizeof dosstub);
+	ewrite(cout, dosstub, sizeof dosstub);
 	strnput("PE", 4);
 
 	for (i=0; i<sizeof(fh); i++)
@@ -106,12 +106,12 @@ dope(void)
 		IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
 
-	datsect = new_section(".data", datsize, 0);
+	datsect = new_section(".data", segdata.filelen, 0);
 	datsect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 	INITDAT = PEBASE+datsect->VirtualAddress;
 
-	bsssect = new_section(".bss", bsssize, 1);
+	bsssect = new_section(".bss", segdata.len - segdata.filelen, 1);
 	bsssect->Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 }

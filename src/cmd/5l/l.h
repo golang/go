@@ -49,6 +49,7 @@ typedef	struct	Adr	Adr;
 typedef	struct	Sym	Sym;
 typedef	struct	Autom	Auto;
 typedef	struct	Prog	Prog;
+typedef	struct	Reloc	Reloc;
 typedef	struct	Optab	Optab;
 typedef	struct	Oprang	Oprang;
 typedef	uchar	Opcross[32][2][32];
@@ -66,7 +67,7 @@ struct	Adr
 	{
 		int32	u0offset;
 		char*	u0sval;
-		Ieee*	u0ieee;
+		Ieee	u0ieee;
 		char*	u0sbig;
 	} u0;
 	Sym*	sym;
@@ -81,8 +82,18 @@ struct	Adr
 
 #define	offset	u0.u0offset
 #define	sval	u0.u0sval
+#define	scon	sval
 #define	ieee	u0.u0ieee
 #define	sbig	u0.u0sbig
+
+struct	Reloc
+{
+	int32	off;
+	uchar	siz;
+	uchar	type;
+	int32	add;
+	Sym*	sym;
+};
 
 struct	Prog
 {
@@ -105,8 +116,10 @@ struct	Prog
 	uchar	reg;
 	uchar	align;
 };
+
 #define	regused	u0.u0regused
 #define	forwd	u0.u0forwd
+#define	datasize	reg
 
 struct	Sym
 {
@@ -116,6 +129,7 @@ struct	Sym
 	uchar	dupok;
 	uchar	reachable;
 	uchar	dynexport;
+	uchar	leaf;
 	int32	value;
 	int32	sig;
 	int32	size;
@@ -136,7 +150,12 @@ struct	Sym
 	Prog*	text;
 	
 	// SDATA, SBSS
-	Prog*	data;
+	uchar*	p;
+	int32	np;
+	int32	maxp;
+	Reloc*	r;
+	int32	nr;
+	int32	maxr;
 };
 
 #define SIGNINTERN	(1729*325*1729)
@@ -180,20 +199,18 @@ struct	Use
 enum
 {
 	Sxxx,
-
+	
+	/* order here is order in output file */
 	STEXT		= 1,
+	SRODATA,
+	SELFDATA,
 	SDATA,
 	SBSS,
-	SDATA1,
+
 	SXREF,
-	SLEAF,
 	SFILE,
 	SCONST,
-	SSTRING,
-	SREMOVED,
-	
 	SFIXED,
-	SELFDATA,
 
 	LFROM		= 1<<0,
 	LTO		= 1<<1,
@@ -300,7 +317,6 @@ EXTERN	int32	INITTEXT;		/* text location */
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	int32	autosize;
 EXTERN	Biobuf	bso;
-EXTERN	int32	bsssize;
 EXTERN	int	cbc;
 EXTERN	uchar*	cbp;
 EXTERN	int	cout;
@@ -308,11 +324,9 @@ EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
 EXTERN	Sym*	cursym;
-EXTERN	Prog*	datap;
-EXTERN	int32	datsize;
+EXTERN	Sym*	datap;
 EXTERN	int32 	elfdatsize;
 EXTERN	char	debug[128];
-EXTERN	Prog*	edatap;
 EXTERN	Sym*	etextp;
 EXTERN	char*	noname;
 EXTERN	int	xrefresolv;
@@ -388,7 +402,6 @@ int	chipfloat(Ieee*);
 int	cmp(int, int);
 int	compound(Prog*);
 double	cputime(void);
-void	datblk(int32, int32, int);
 void	diag(char*, ...);
 void	divsig(void);
 void	dodata(void);
@@ -407,7 +420,6 @@ void	lput(int32);
 void	lputl(int32);
 void*	mysbrk(uint32);
 void	names(void);
-Prog*	newdata(Sym *s, int o, int w, int t);
 void	nocache(Prog*);
 int	ocmp(const void*, const void*);
 int32	opirr(int);
@@ -435,6 +447,7 @@ int32	rnd(int32, int32);
 void	softfloat(void);
 void	span(void);
 void	strnput(char*, int);
+int32	symaddr(Sym*);
 void	undef(void);
 void	wput(int32);
 void    wputl(ushort w);

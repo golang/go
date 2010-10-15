@@ -40,11 +40,11 @@ void
 span(void)
 {
 	Prog *p, *q;
-	int32 i, v;
-	vlong c, idat, etext, rodata, erodata;
+	int32 v;
+	vlong c, idat, etext, rosize;
 	int m, n, again;
-	Sym *s;
-	Section *sect;
+	Section *sect, *rosect;
+	Sym *sym;
 
 	xdefine("etext", STEXT, 0L);
 	xdefine("rodata", SRODATA, 0L);
@@ -77,6 +77,9 @@ span(void)
 		}
 	}
 	n = 0;
+	
+	rosect = segtext.sect->next;
+	rosize = rosect->len;
 
 start:
 	if(debug['v'])
@@ -128,24 +131,16 @@ loop:
 		goto loop;
 	}
 	etext = c;
-	
-	/*
-	 * allocate read-only data to the text segment.
-	 */
-	c = rnd(c, 8);
-	rodata = c;
-	xdefine("rodata", SRODATA, c);
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
-		if(s->type != SRODATA)
-			continue;
-		v = s->size;
-		while(v & 7)
-			v++;
-		s->value = c;
-		c += v;
+
+	if(rosect) {
+		if(INITRND)
+			c = rnd(c, INITRND);
+		if(rosect->vaddr != c){
+			rosect->vaddr = c;
+			goto start;
+		}
+		c += rosect->len;
 	}
-	erodata = c;
 
 	if(INITRND) {
 		INITDAT = rnd(c, INITRND);
@@ -156,8 +151,6 @@ loop:
 	}
 	
 	xdefine("etext", STEXT, etext);
-	xdefine("rodata", SRODATA, rodata);
-	xdefine("erodata", SRODATA, erodata);
 
 	if(debug['v'])
 		Bprint(&bso, "etext = %llux\n", c);
@@ -171,17 +164,34 @@ loop:
 	segtext.len = INITDAT - INITTEXT + HEADR;
 	segtext.filelen = textsize + HEADR;
 	
-	sect = addsection(&segtext, ".text", 05);
+	sect = segtext.sect;
 	sect->vaddr = INITTEXT;
 	sect->len = etext - sect->vaddr;
-	
-	sect = addsection(&segtext, ".rodata", 04);
-	sect->vaddr = rodata;
-	sect->len = erodata - rodata;
-	
+
+	// Adjust everything now that we know INITDAT.
+	// This will get simpler when everything is relocatable
+	// and we can run span before dodata.
+
 	segdata.vaddr += INITDAT;
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		sect->vaddr += INITDAT;
+
+	xdefine("data", SBSS, INITDAT);
+	xdefine("edata", SBSS, INITDAT+segdata.filelen);
+	xdefine("end", SBSS, INITDAT+segdata.len);
+
+	for(sym=datap; sym!=nil; sym=sym->next) {
+		switch(sym->type) {
+		case SELFDATA:
+		case SRODATA:
+			sym->value += rosect->vaddr;
+			break;
+		case SDATA:
+		case SBSS:
+			sym->value += INITDAT;
+			break;
+		}
+	}
 }
 
 void
@@ -628,6 +638,8 @@ put8(vlong v)
 	andptr += 8;
 }
 
+static vlong vaddr(Adr*);
+
 vlong
 symaddr(Sym *s)
 {
@@ -640,7 +652,7 @@ symaddr(Sym *s)
 	return vaddr(&a);
 }
 
-vlong
+static vlong
 vaddr(Adr *a)
 {
 	int t;
@@ -657,28 +669,16 @@ vaddr(Adr *a)
 		s = a->sym;
 		if(s != nil) {
 			switch(s->type) {
-			case SUNDEF:
-			case STEXT:
-			case SCONST:
-			case SRODATA:
-				if(!s->reachable)
-					diag("unreachable symbol in vaddr - %s", s->name);
-				if((uvlong)s->value < (uvlong)INITTEXT)
-					v += INITTEXT;	/* TO DO */
-				v += s->value;
-				break;
 			case SFIXED:
 				v += s->value;
 				break;
 			case SMACHO:
-				if(!s->reachable)
-					sysfatal("unreachable symbol in vaddr - %s", s->name);
-				v += INITDAT + datsize + s->value;
+				v += INITDAT + segdata.filelen - dynptrsize + s->value;
 				break;
 			default:
 				if(!s->reachable)
 					diag("unreachable symbol in vaddr - %s", s->name);
-				v += INITDAT + s->value;
+				v += s->value;
 			}
 		}
 	}

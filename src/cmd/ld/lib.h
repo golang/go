@@ -131,9 +131,24 @@ void	mkfwd(void);
 char*	expandpkg(char*, char*);
 void	deadcode(void);
 void	ewrite(int, void*, int);
+Reloc*	addrel(Sym*);
+void	datblk(int32, int32);
+Sym*	datsort(Sym*);
+void	reloc(void);
+void	savedata(Sym*, Prog*);
+void	symgrow(Sym*, int32);
+vlong	addstring(Sym*, char*);
+vlong	adduint32(Sym*, uint32);
+vlong	adduint64(Sym*, uint64);
+vlong	addaddr(Sym*, Sym*);
+vlong	addsize(Sym*, Sym*);
+vlong	adduint8(Sym*, uint8);
+vlong	adduint16(Sym*, uint16);
+void	strnput(char*, int);
 
 int	pathchar(void);
 void*	mal(uint32);
+void	unmal(void*, uint32);
 void	mywhatsys(void);
 
 /* set by call to mywhatsys() */

@@ -234,7 +234,7 @@ noops(void)
 				}
 #endif
 				if(cursym->text->mark & LEAF) {
-					cursym->type = SLEAF;
+					cursym->leaf = 1;
 					if(!autosize)
 						break;
 				}
