@@ -109,7 +109,8 @@ dope(void)
 	datsect = new_section(".data", segdata.filelen, 0);
 	datsect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
-	INITDAT = PEBASE+datsect->VirtualAddress;
+	if(INITDAT != PEBASE+datsect->VirtualAddress)
+		diag("INITDAT = %#llux, want %#llux", (vlong)INITDAT, (vlong)(PEBASE+datsect->VirtualAddress));
 
 	bsssect = new_section(".bss", segdata.len - segdata.filelen, 1);
 	bsssect->Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA|
