@@ -531,11 +531,11 @@ oclass(Adr *a)
 }
 
 void
-asmidx(Adr *a, int base)
+asmidx(int scale, int index, int base)
 {
 	int i;
 
-	switch(a->index) {
+	switch(index) {
 	default:
 		goto bad;
 
@@ -560,10 +560,10 @@ asmidx(Adr *a, int base)
 	case D_BP:
 	case D_SI:
 	case D_DI:
-		i = reg[(int)a->index] << 3;
+		i = reg[index] << 3;
 		break;
 	}
-	switch(a->scale) {
+	switch(scale) {
 	default:
 		goto bad;
 	case 1:
@@ -609,7 +609,7 @@ bas:
 	*andptr++ = i;
 	return;
 bad:
-	diag("asmidx: bad address %D", a);
+	diag("asmidx: bad address %d/%d/%d", scale, index, base);
 	*andptr++ = 0;
 	return;
 }
@@ -689,54 +689,49 @@ static void
 asmandsz(Adr *a, int r, int rex, int m64)
 {
 	int32 v;
-	int t;
-	Adr aa;
+	int t, scale;
 
 	rex &= (0x40 | Rxr);
 	v = a->offset;
 	t = a->type;
 	if(a->index != D_NONE) {
-		if(t >= D_INDIR) {
+		if(t < D_INDIR) { 
+			switch(t) {
+			default:
+				goto bad;
+			case D_STATIC:
+			case D_EXTERN:
+				t = D_NONE;
+				v = vaddr(a);
+				break;
+			case D_AUTO:
+			case D_PARAM:
+				t = D_SP;
+				break;
+			}
+		} else
 			t -= D_INDIR;
-			rexflag |= (regrex[(int)a->index] & Rxx) | (regrex[t] & Rxb) | rex;
-			if(t == D_NONE) {
-				*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
-				asmidx(a, t);
-				put4(v);
-				return;
-			}
-			if(v == 0 && t != D_BP && t != D_R13) {
-				*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
-				asmidx(a, t);
-				return;
-			}
-			if(v >= -128 && v < 128) {
-				*andptr++ = (1 << 6) | (4 << 0) | (r << 3);
-				asmidx(a, t);
-				*andptr++ = v;
-				return;
-			}
-			*andptr++ = (2 << 6) | (4 << 0) | (r << 3);
-			asmidx(a, t);
+		rexflag |= (regrex[(int)a->index] & Rxx) | (regrex[t] & Rxb) | rex;
+		if(t == D_NONE) {
+			*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
+			asmidx(a->scale, a->index, t);
 			put4(v);
 			return;
 		}
-		switch(t) {
-		default:
-			goto bad;
-		case D_STATIC:
-		case D_EXTERN:
-			aa.type = D_NONE+D_INDIR;
-			break;
-		case D_AUTO:
-		case D_PARAM:
-			aa.type = D_SP+D_INDIR;
-			break;
+		if(v == 0 && t != D_BP && t != D_R13) {
+			*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
+			asmidx(a->scale, a->index, t);
+			return;
 		}
-		aa.offset = vaddr(a);
-		aa.index = a->index;
-		aa.scale = a->scale;
-		asmandsz(&aa, r, rex, m64);
+		if(v >= -128 && v < 128) {
+			*andptr++ = (1 << 6) | (4 << 0) | (r << 3);
+			asmidx(a->scale, a->index, t);
+			*andptr++ = v;
+			return;
+		}
+		*andptr++ = (2 << 6) | (4 << 0) | (r << 3);
+		asmidx(a->scale, a->index, t);
+		put4(v);
 		return;
 	}
 	if(t >= D_AL && t <= D_X0+15) {
@@ -746,72 +741,72 @@ asmandsz(Adr *a, int r, int rex, int m64)
 		rexflag |= (regrex[t] & (0x40 | Rxb)) | rex;
 		return;
 	}
-	if(t >= D_INDIR) {
+	
+	scale = a->scale;
+	if(t < D_INDIR) {
+		switch(a->type) {
+		default:
+			goto bad;
+		case D_STATIC:
+		case D_EXTERN:
+			t = D_NONE;
+			v = vaddr(a);
+			break;
+		case D_AUTO:
+		case D_PARAM:
+			t = D_SP;
+			break;
+		}
+		scale = 1;
+	} else
 		t -= D_INDIR;
-		rexflag |= (regrex[t] & Rxb) | rex;
-		if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
-			if(asmode != 64){
-				*andptr++ = (0 << 6) | (5 << 0) | (r << 3);
-				put4(v);
-				return;
-			}
-			/* temporary */
-			*andptr++ = (0 <<  6) | (4 << 0) | (r << 3);	/* sib present */
-			*andptr++ = (0 << 6) | (4 << 3) | (5 << 0);	/* DS:d32 */
+
+	rexflag |= (regrex[t] & Rxb) | rex;
+	if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
+		if(asmode != 64){
+			*andptr++ = (0 << 6) | (5 << 0) | (r << 3);
 			put4(v);
 			return;
 		}
-		if(t == D_SP || t == D_R12) {
-			if(v == 0) {
-				*andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
-				asmidx(a, t);
-				return;
-			}
-			if(v >= -128 && v < 128) {
-				*andptr++ = (1 << 6) | (reg[t] << 0) | (r << 3);
-				asmidx(a, t);
-				*andptr++ = v;
-				return;
-			}
-			*andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
-			asmidx(a, t);
-			put4(v);
-			return;
-		}
-		if(t >= D_AX && t <= D_R15) {
-			if(v == 0 && t != D_BP && t != D_R13) {
-				*andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
-				return;
-			}
-			if(v >= -128 && v < 128) {
-				andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
-				andptr[1] = v;
-				andptr += 2;
-				return;
-			}
-			*andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
-			put4(v);
-			return;
-		}
-		goto bad;
+		/* temporary */
+		*andptr++ = (0 <<  6) | (4 << 0) | (r << 3);	/* sib present */
+		*andptr++ = (0 << 6) | (4 << 3) | (5 << 0);	/* DS:d32 */
+		put4(v);
+		return;
 	}
-	switch(a->type) {
-	default:
-		goto bad;
-	case D_STATIC:
-	case D_EXTERN:
-		aa.type = D_NONE+D_INDIR;
-		break;
-	case D_AUTO:
-	case D_PARAM:
-		aa.type = D_SP+D_INDIR;
-		break;
+	if(t == D_SP || t == D_R12) {
+		if(v == 0) {
+			*andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
+			asmidx(scale, D_NONE, t);
+			return;
+		}
+		if(v >= -128 && v < 128) {
+			*andptr++ = (1 << 6) | (reg[t] << 0) | (r << 3);
+			asmidx(scale, D_NONE, t);
+			*andptr++ = v;
+			return;
+		}
+		*andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
+		asmidx(scale, D_NONE, t);
+		put4(v);
+		return;
 	}
-	aa.index = D_NONE;
-	aa.scale = 1;
-	aa.offset = vaddr(a);
-	asmandsz(&aa, r, rex, m64);
-	return;
+	if(t >= D_AX && t <= D_R15) {
+		if(v == 0 && t != D_BP && t != D_R13) {
+			*andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
+			return;
+		}
+		if(v >= -128 && v < 128) {
+			andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
+			andptr[1] = v;
+			andptr += 2;
+			return;
+		}
+		*andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
+		put4(v);
+		return;
+	}
+
 bad:
 	diag("asmand: bad address %D", a);
 	return;
