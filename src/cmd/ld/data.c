@@ -156,6 +156,9 @@ relocsym(Sym *s)
 		case D_ADDR:
 			o = symaddr(r->sym);
 			break;
+		case D_PCREL:
+			o = symaddr(r->sym) - (s->value + r->off + r->siz);
+			break;
 		case D_SIZE:
 			o = r->sym->size;
 			break;
@@ -190,11 +193,8 @@ reloc(void)
 
 	for(s=textp; s!=S; s=s->next)
 		relocsym(s);
-	for(s=datap; s!=S; s=s->next) {
-		if(!s->reachable)
-			diag("unerachable? %s", s->name);
+	for(s=datap; s!=S; s=s->next)
 		relocsym(s);
-	}
 }
 
 void
@@ -342,11 +342,78 @@ blk(Sym *allsym, int32 addr, int32 size)
 }
 			
 void
+codeblk(int32 addr, int32 size)
+{
+	Sym *sym;
+	int32 eaddr, i, n, epc;
+	Prog *p;
+	uchar *q;
+
+	if(debug['a'])
+		Bprint(&bso, "codeblk [%#x,%#x) at offset %#llx\n", addr, addr+size, seek(cout, 0, 1));
+
+	blk(textp, addr, size);
+
+	/* again for printing */
+	if(!debug['a'])
+		return;
+
+	for(sym = textp; sym != nil; sym = sym->next) {
+		if(!sym->reachable)
+			continue;
+		if(sym->value >= addr)
+			break;
+	}
+
+	eaddr = addr + size;
+	for(; sym != nil; sym = sym->next) {
+		if(!sym->reachable)
+			continue;
+		if(sym->value >= eaddr)
+			break;
+
+		if(addr < sym->value) {
+			Bprint(&bso, "%-20s %.8llux|", "_", addr);
+			for(; addr < sym->value; addr++)
+				Bprint(&bso, " %.2ux", 0);
+			Bprint(&bso, "\n");
+		}
+		p = sym->text;
+		Bprint(&bso, "%-20s %.8llux| %P\n", sym->name, addr, p);
+		for(p = p->link; p != P; p = p->link) {
+			if(p->link != P)
+				epc = p->link->pc;
+			else
+				epc = sym->value + sym->size;
+			Bprint(&bso, "%.6ux\t", p->pc);
+			q = sym->p + p->pc - sym->value;
+			n = epc - p->pc;
+			for(i=0; i<n; i++)
+				Bprint(&bso, "%.2ux", *q++);
+			for(; i < 10; i++)
+				Bprint(&bso, "  ");
+			Bprint(&bso, " | %P\n", p);
+			addr += n;
+		}
+	}
+
+	if(addr < eaddr) {
+		Bprint(&bso, "%-20s %.8llux|", "_", addr);
+		for(; addr < eaddr; addr++)
+			Bprint(&bso, " %.2ux", 0);
+	}
+	Bflush(&bso);
+}
+			
+void
 datblk(int32 addr, int32 size)
 {
 	Sym *sym;
 	int32 eaddr;
 	uchar *p, *ep;
+
+	if(debug['a'])
+		Bprint(&bso, "datblk [%#x,%#x) at offset %#llx\n", addr, addr+size, seek(cout, 0, 1));
 
 	blk(datap, addr, size);
 
@@ -363,10 +430,8 @@ datblk(int32 addr, int32 size)
 		if(sym->value >= eaddr)
 			break;
 		if(addr < sym->value) {
-			Bprint(&bso, "%-20s %.8ux|", "(pre-pad)", addr);
-			for(; addr < sym->value; addr++)
-				Bprint(&bso, " %.2ux", 0);
-			Bprint(&bso, "\n");
+			Bprint(&bso, "%-20s %.8ux| 00 ...\n", "(pre-pad)", addr);
+			addr = sym->value;
 		}
 		Bprint(&bso, "%-20s %.8ux|", sym->name, addr);
 		p = sym->p;
@@ -379,11 +444,9 @@ datblk(int32 addr, int32 size)
 		Bprint(&bso, "\n");
 	}
 
-	if(addr < eaddr) {
-		Bprint(&bso, "%-20s %.8ux|", "(post-pad)", addr);
-		for(; addr < eaddr; addr++)
-			Bprint(&bso, " %.2ux", 0);
-	}
+	if(addr < eaddr)
+		Bprint(&bso, "%-20s %.8ux| 00 ...\n", "(post-pad)", addr);
+	Bprint(&bso, "%-20s %.8ux|\n", "", eaddr);
 }
 
 void

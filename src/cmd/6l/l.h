@@ -94,8 +94,8 @@ struct	Prog
 	Adr	from;
 	Adr	to;
 	Prog*	forwd;
+	Prog*	comefrom;
 	Prog*	link;
-	Prog*	dlink;
 	Prog*	pcond;	/* work on this */
 	vlong	pc;
 	int32	spadj;
