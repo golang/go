@@ -41,7 +41,7 @@ enum
 	AMEMWORD,
 
 	BADWIDTH	= -1000000000,
-	MAXWIDTH        = 1<<30
+	MAXWIDTH	= 1<<30
 };
 
 /*
@@ -218,6 +218,7 @@ struct	Node
 	Node*	left;
 	Node*	right;
 	Type*	type;
+	Type*	realtype;	// as determined by typecheck
 	NodeList*	list;
 	NodeList*	rlist;
 
@@ -636,9 +637,9 @@ EXTERN	Label*	labellist;
  *
  * typedef	struct
  * {				// must not move anything
- * 	uchar	array[8];	// pointer to data
- * 	uchar	nel[4];		// number of elements
- * 	uchar	cap[4];		// allocated number of elements
+ *	uchar	array[8];	// pointer to data
+ *	uchar	nel[4];		// number of elements
+ *	uchar	cap[4];		// allocated number of elements
  * } Array;
  */
 EXTERN	int	Array_array;	// runtime offsetof(Array,array) - same for String
@@ -653,8 +654,8 @@ EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
  *
  * typedef	struct
  * {				// must not move anything
- * 	uchar	array[8];	// pointer to data
- * 	uchar	nel[4];		// number of elements
+ *	uchar	array[8];	// pointer to data
+ *	uchar	nel[4];		// number of elements
  * } String;
  */
 EXTERN	int	sizeof_String;	// runtime sizeof(String)
