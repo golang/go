@@ -55,13 +55,8 @@ entryvalue(void)
 	s = lookup(a, 0);
 	if(s->type == 0)
 		return INITTEXT;
-	switch(s->type) {
-	case STEXT:
-		break;
-	case SDATA:
-	default:
+	if(s->type != STEXT)
 		diag("entry not text: %s", s->name);
-	}
 	return s->value;
 }
 
@@ -104,133 +99,13 @@ vputl(uvlong l)
 	lputl(l);
 }
 
-void
-strnput(char *s, int n)
-{
-	for(; *s && n > 0; s++) {
-		cput(*s);
-		n--;
-	}
-	while(n > 0) {
-		cput(0);
-		n--;
-	}
-}
-
-vlong
-addstring(Sym *s, char *str)
-{
-	int n, m;
-	vlong r;
-	Prog *p;
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->size;
-	n = strlen(str)+1;
-	if(strcmp(s->name, ".shstrtab") == 0)
-		elfsetstring(str, r);
-	while(n > 0) {
-		m = n;
-		if(m > sizeof(p->to.scon))
-			m = sizeof(p->to.scon);
-		p = newdata(s, s->size, m, D_EXTERN);
-		p->to.type = D_SCONST;
-		memmove(p->to.scon, str, m);
-		s->size += m;
-		str += m;
-		n -= m;
-	}
-	return r;
-}
-
-vlong
-adduintxx(Sym *s, uint64 v, int wid)
-{
-	vlong r;
-	Prog *p;
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->size;
-	p = newdata(s, s->size, wid, D_EXTERN);
-	s->size += wid;
-	p->to.type = D_CONST;
-	p->to.offset = v;
-	return r;
-}
-
-vlong
-adduint8(Sym *s, uint8 v)
-{
-	return adduintxx(s, v, 1);
-}
-
-vlong
-adduint16(Sym *s, uint16 v)
-{
-	return adduintxx(s, v, 2);
-}
-
-vlong
-adduint32(Sym *s, uint32 v)
-{
-	return adduintxx(s, v, 4);
-}
-
-vlong
-adduint64(Sym *s, uint64 v)
-{
-	return adduintxx(s, v, 8);
-}
-
-vlong
-addaddr(Sym *s, Sym *t)
-{
-	vlong r;
-	Prog *p;
-	enum { Ptrsize = 4 };
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->size;
-	p = newdata(s, s->size, Ptrsize, D_EXTERN);
-	s->size += Ptrsize;
-	p->to.type = D_ADDR;
-	p->to.index = D_EXTERN;
-	p->to.offset = 0;
-	p->to.sym = t;
-	return r;
-}
-
-vlong
-addsize(Sym *s, Sym *t)
-{
-	vlong r;
-	Prog *p;
-	enum { Ptrsize = 4 };
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->size;
-	p = newdata(s, s->size, Ptrsize, D_EXTERN);
-	s->size += Ptrsize;
-	p->to.type = D_SIZE;
-	p->to.index = D_EXTERN;
-	p->to.offset = 0;
-	p->to.sym = t;
-	return r;
-}
-
 vlong
 datoff(vlong addr)
 {
 	if(addr >= segdata.vaddr)
 		return addr - segdata.vaddr + segdata.fileoff;
+	if(addr >= segtext.vaddr)
+		return addr - segtext.vaddr + segtext.fileoff;
 	diag("datoff %#llx", addr);
 	return 0;
 }
@@ -284,7 +159,9 @@ doelf(void)
 
 	/* predefine strings we need for section headers */
 	shstrtab = lookup(".shstrtab", 0);
+	shstrtab->type = SELFDATA;
 	shstrtab->reachable = 1;
+
 	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
@@ -458,7 +335,7 @@ asmb(void)
 	Prog *p;
 	int32 v, magic;
 	int a, dynsym;
-	uint32 va, fo, w, symo, startva, machlink, erodata;
+	uint32 va, fo, w, symo, startva, machlink;
 	uchar *op1;
 	ulong expectpc;
 	ElfEhdr *eh;
@@ -533,20 +410,8 @@ asmb(void)
 	cflush();
 
 	/* output read-only data in text segment */
-	if(HEADTYPE == 8) {
-		// Native Client
-		sect = segrodata.sect;
-		segrodata.fileoff = seek(cout, 0, 1);
-	} else
-		sect = segtext.sect->next;
-
-	erodata = sect->vaddr + sect->len;
-	for(v = pc; v < erodata; v += sizeof(buf)-Dbufslop) {
-		if(erodata-v > sizeof(buf)-Dbufslop)
-			datblk(v, sizeof(buf)-Dbufslop, 1);
-		else
-			datblk(v, erodata-v, 1);
-	}
+	sect = segtext.sect->next;
+	datblk(pc, sect->vaddr + sect->len - pc);
 
 	switch(HEADTYPE) {
 	default:
@@ -597,12 +462,7 @@ asmb(void)
 	Bflush(&bso);
 
 	segdata.fileoff = seek(cout, 0, 1);
-	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
-		if(datsize-v > sizeof(buf)-Dbufslop)
-			datblk(v, sizeof(buf)-Dbufslop, 0);
-		else
-			datblk(v, datsize-v, 0);
-	}
+	datblk(INITDAT, segdata.filelen);
 
 	machlink = 0;
 	if(HEADTYPE == 6)
@@ -621,25 +481,25 @@ asmb(void)
 			if(iself)
 				goto Elfsym;
 		case 0:
-			seek(cout, rnd(HEADR+textsize, 8192)+datsize, 0);
+			seek(cout, rnd(HEADR+textsize, 8192)+segdata.filelen, 0);
 			break;
 		case 1:
-			seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
+			seek(cout, rnd(HEADR+textsize, INITRND)+segdata.filelen, 0);
 			break;
 		case 2:
-			seek(cout, HEADR+textsize+datsize, 0);
+			seek(cout, HEADR+textsize+segdata.filelen, 0);
 			break;
 		case 3:
 		case 4:
 			debug['s'] = 1;
-			symo = HEADR+textsize+datsize;
+			symo = HEADR+textsize+segdata.filelen;
 			break;
 		case 6:
-			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
+			symo = rnd(HEADR+textsize, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		Elfsym:
 		case 10:
-			symo = rnd(HEADR+textsize, INITRND)+datsize;
+			symo = rnd(HEADR+textsize, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		}
@@ -679,17 +539,17 @@ asmb(void)
 	case 0:	/* garbage */
 		lput(0x160L<<16);		/* magic and sections */
 		lput(0L);			/* time and date */
-		lput(rnd(HEADR+textsize, 4096)+datsize);
+		lput(rnd(HEADR+textsize, 4096)+segdata.filelen);
 		lput(symsize);			/* nsyms */
 		lput((0x38L<<16)|7L);		/* size of optional hdr and flags */
 		lput((0413<<16)|0437L);		/* magic and version */
 		lput(rnd(HEADR+textsize, 4096));	/* sizes */
-		lput(datsize);
-		lput(bsssize);
+		lput(segdata.filelen);
+		lput(segdata.len - segdata.filelen);
 		lput(entryvalue());		/* va of entry */
 		lput(INITTEXT-HEADR);		/* va of base of text */
 		lput(INITDAT);			/* va of base of data */
-		lput(INITDAT+datsize);		/* va of base of bss */
+		lput(INITDAT+segdata.filelen);		/* va of base of bss */
 		lput(~0L);			/* gp reg mask */
 		lput(0L);
 		lput(0L);
@@ -712,8 +572,8 @@ asmb(void)
 		 */
 		lputl(0x10b);			/* magic, version stamp */
 		lputl(rnd(textsize, INITRND));	/* text sizes */
-		lputl(datsize);			/* data sizes */
-		lputl(bsssize);			/* bss sizes */
+		lputl(segdata.filelen);			/* data sizes */
+		lputl(segdata.len - segdata.filelen);			/* bss sizes */
 		lput(entryvalue());		/* va of entry */
 		lputl(INITTEXT);		/* text start */
 		lputl(INITDAT);			/* data start */
@@ -735,7 +595,7 @@ asmb(void)
 		s8put(".data");
 		lputl(INITDAT);			/* pa */
 		lputl(INITDAT);			/* va */
-		lputl(datsize);			/* data size */
+		lputl(segdata.filelen);			/* data size */
 		lputl(HEADR+textsize);		/* file offset */
 		lputl(0);			/* relocation */
 		lputl(0);			/* line numbers */
@@ -745,9 +605,9 @@ asmb(void)
 		 * bss section header
 		 */
 		s8put(".bss");
-		lputl(INITDAT+datsize);		/* pa */
-		lputl(INITDAT+datsize);		/* va */
-		lputl(bsssize);			/* bss size */
+		lputl(INITDAT+segdata.filelen);		/* pa */
+		lputl(INITDAT+segdata.filelen);		/* va */
+		lputl(segdata.len - segdata.filelen);			/* bss size */
 		lputl(0);			/* file offset */
 		lputl(0);			/* relocation */
 		lputl(0);			/* line numbers */
@@ -760,9 +620,9 @@ asmb(void)
 		lputl(0);			/* pa */
 		lputl(0);			/* va */
 		lputl(symsize+lcsize);		/* comment size */
-		lputl(HEADR+textsize+datsize);	/* file offset */
-		lputl(HEADR+textsize+datsize);	/* offset of syms */
-		lputl(HEADR+textsize+datsize+symsize);/* offset of line numbers */
+		lputl(HEADR+textsize+segdata.filelen);	/* file offset */
+		lputl(HEADR+textsize+segdata.filelen);	/* offset of syms */
+		lputl(HEADR+textsize+segdata.filelen+symsize);/* offset of line numbers */
 		lputl(0);			/* relocation, line numbers */
 		lputl(0x200);			/* flags comment only */
 		break;
@@ -770,8 +630,8 @@ asmb(void)
 		magic = 4*11*11+7;
 		lput(magic);		/* magic */
 		lput(textsize);			/* sizes */
-		lput(datsize);
-		lput(bsssize);
+		lput(segdata.filelen);
+		lput(segdata.len - segdata.filelen);
 		lput(symsize);			/* nsyms */
 		lput(entryvalue());		/* va of entry */
 		lput(spsize);			/* sp offsets */
@@ -782,7 +642,7 @@ asmb(void)
 		break;
 	case 4:
 		/* fake MS-DOS .EXE */
-		v = rnd(HEADR+textsize, INITRND)+datsize;
+		v = rnd(HEADR+textsize, INITRND)+segdata.filelen;
 		wputl(0x5A4D);			/* 'MZ' */
 		wputl(v % 512);			/* bytes in last page */
 		wputl(rnd(v, 512)/512);		/* total number of pages */
@@ -1070,216 +930,6 @@ vlong
 cpos(void)
 {
 	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
-}
-
-void
-datblk(int32 s, int32 n, int32 rodata)
-{
-	Prog *p;
-	char *cast;
-	int32 l, fl, j;
-	int i, c;
-	Adr *a;
-	int32 base;
-	
-	base = INITDAT;
-	if(rodata)
-		base = 0;
-
-	memset(buf.dbuf, 0, n+Dbufslop);
-	for(p = datap; p != P; p = p->link) {
-		a = &p->from;
-		if(rodata != (a->sym->type == SRODATA))
-			continue;
-
-		l = a->sym->value + a->offset - s;
-		if(l >= n)
-			continue;
-
-		c = a->scale;
-		i = 0;
-		if(l < 0) {
-			if(l+c <= 0)
-				continue;
-			i = -l;
-			l = 0;
-		}
-
-		curp = p;
-		if(!a->sym->reachable)
-			diag("unreachable symbol in datblk - %s", a->sym->name);
-		if(a->sym->type == SMACHO)
-			continue;
-
-		for(j=l+(c-i)-1; j>=l; j--)
-			if(buf.dbuf[j]) {
-				print("%P\n", p);
-				diag("multiple initialization");
-				break;
-			}
-		switch(p->to.type) {
-		case D_FCONST:
-			switch(c) {
-			default:
-			case 4:
-				fl = ieeedtof(&p->to.ieee);
-				cast = (char*)&fl;
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[fnuxi4[i]];
-					l++;
-				}
-				break;
-			case 8:
-				cast = (char*)&p->to.ieee;
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[fnuxi8[i]];
-					l++;
-				}
-				break;
-			}
-			break;
-
-		case D_SCONST:
-			for(; i<c; i++) {
-				buf.dbuf[l] = p->to.scon[i];
-				l++;
-			}
-			break;
-
-		default:
-			fl = p->to.offset;
-			if(p->to.type == D_SIZE)
-				fl += p->to.sym->size;
-			if(p->to.type == D_ADDR) {
-				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
-					diag("DADDR type%P", p);
-				if(p->to.sym) {
-					if(p->to.sym->type == Sxxx) {
-						cursym = p->from.sym;
-						diag("missing symbol %s", p->to.sym->name);
-						cursym = nil;
-					}
-					fl += p->to.sym->value;
-					if(p->to.sym->type != STEXT && p->to.sym->type != SRODATA)
-						fl += INITDAT;
-				}
-			}
-			cast = (char*)&fl;
-			switch(c) {
-			default:
-				diag("bad nuxi %d %d\n%P", c, i, curp);
-				break;
-			case 1:
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[inuxi1[i]];
-					l++;
-				}
-				break;
-			case 2:
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[inuxi2[i]];
-					l++;
-				}
-				break;
-			case 4:
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[inuxi4[i]];
-					l++;
-				}
-				break;
-			}
-			break;
-		}
-	}
-
-	ewrite(cout, buf.dbuf, n);
-	if(!debug['a'])
-		return;
-
-	/*
-	 * a second pass just to print the asm
-	 */
-	for(p = datap; p != P; p = p->link) {
-		a = &p->from;
-		if(rodata != (a->sym->type == SRODATA))
-			continue;
-
-		l = a->sym->value + a->offset - s;
-		if(l < 0 || l >= n)
-			continue;
-
-		c = a->scale;
-		i = 0;
-
-		switch(p->to.type) {
-		case D_FCONST:
-			switch(c) {
-			default:
-			case 4:
-				fl = ieeedtof(&p->to.ieee);
-				cast = (char*)&fl;
-				Bprint(&bso, pcstr, l+s+base);
-				for(j=0; j<c; j++)
-					Bprint(&bso, "%.2ux", cast[fnuxi4[j]] & 0xff);
-				Bprint(&bso, "\t%P\n", p);
-				break;
-			case 8:
-				cast = (char*)&p->to.ieee;
-				Bprint(&bso, pcstr, l+s+base);
-				for(j=0; j<c; j++)
-					Bprint(&bso, "%.2ux", cast[fnuxi8[j]] & 0xff);
-				Bprint(&bso, "\t%P\n", p);
-				break;
-			}
-			break;
-
-		case D_SCONST:
-			Bprint(&bso, pcstr, l+s+base);
-			for(j=0; j<c; j++)
-				Bprint(&bso, "%.2ux", p->to.scon[j] & 0xff);
-			Bprint(&bso, "\t%P\n", p);
-			break;
-
-		default:
-			fl = p->to.offset;
-			if(p->to.type == D_SIZE)
-				fl += p->to.sym->size;
-			if(p->to.type == D_ADDR) {
-				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
-					diag("DADDR type%P", p);
-				if(p->to.sym) {
-					fl += p->to.sym->value;
-					if(p->to.sym->type != STEXT && p->to.sym->type != SRODATA)
-						fl += INITDAT;
-				}
-			}
-			cast = (char*)&fl;
-			switch(c) {
-			default:
-				diag("bad nuxi %d %d\n%P", c, i, p);
-				break;
-			case 1:
-				Bprint(&bso, pcstr, l+s+base);
-				for(j=0; j<c; j++)
-					Bprint(&bso, "%.2ux", cast[inuxi1[j]] & 0xff);
-				Bprint(&bso, "\t%P\n", p);
-				break;
-			case 2:
-				Bprint(&bso, pcstr, l+s+base);
-				for(j=0; j<c; j++)
-					Bprint(&bso, "%.2ux", cast[inuxi2[j]] & 0xff);
-				Bprint(&bso, "\t%P\n", p);
-				break;
-			case 4:
-				Bprint(&bso, pcstr, l+s+base);
-				for(j=0; j<c; j++)
-					Bprint(&bso, "%.2ux", cast[inuxi4[j]] & 0xff);
-				Bprint(&bso, "\t%P\n", p);
-				break;
-			}
-			break;
-		}
-	}
 }
 
 int32

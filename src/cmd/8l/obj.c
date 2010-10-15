@@ -303,9 +303,6 @@ main(int argc, char *argv[])
 	pcstr = "%.6ux ";
 	nuxiinit();
 	histgen = 0;
-	textp = nil;
-	datap = P;
-	edatap = P;
 	pc = 0;
 	dtype = 4;
 	version = 0;
@@ -314,9 +311,7 @@ main(int argc, char *argv[])
 
 	addlibpath("command line", "command line", argv[0], "main");
 	loadlib();
-
 	deadcode();
-
 	patch();
 	follow();
 	doelf();
@@ -330,7 +325,7 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	span();
-	doinit();
+	reloc();
 	if(HEADTYPE == 10)
 		dope();
 	asmb();
@@ -444,7 +439,7 @@ void
 ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
 {
 	int32 ipc;
-	Prog *p, *t;
+	Prog *p;
 	int v, o, r, skip;
 	Sym *h[NSYM], *s, *di;
 	uint32 sig;
@@ -604,27 +599,19 @@ loop:
 		// ignore any more ADATA we see, which must be
 		// redefinitions.
 		s = p->from.sym;
-		if(s != S && s->dupok) {
+		if(s->dupok) {
 //			if(debug['v'])
 //				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
 			goto loop;
 		}
-		if(s != S) {
-			p->dlink = s->data;
-			s->data = p;
-			if(s->file == nil)
-				s->file = pn;
-			else if(s->file != pn) {
-				diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
-				errorexit();
-			}			
+		if(s->file == nil)
+			s->file = pn;
+		else if(s->file != pn) {
+			diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+			errorexit();
 		}
-		if(edatap == P)
-			datap = p;
-		else
-			edatap->link = p;
-		edatap = p;
-		p->link = P;
+		savedata(s, p);
+		unmal(p, sizeof *p);
 		goto loop;
 
 	case AGOK:
@@ -686,21 +673,9 @@ loop:
 			sprint(literal, "$%ux", ieeedtof(&p->from.ieee));
 			s = lookup(literal, 0);
 			if(s->type == 0) {
-				s->type = SBSS;
-				s->size = 4;
-				t = prg();
-				t->as = ADATA;
-				t->line = p->line;
-				t->from.type = D_EXTERN;
-				t->from.sym = s;
-				t->from.scale = 4;
-				t->to = p->from;
-				if(edatap == P)
-					datap = t;
-				else
-					edatap->link = t;
-				edatap = t;
-				t->link = P;
+				s->type = SDATA;
+				adduint32(s, ieeedtof(&p->from.ieee));
+				s->reachable = 0;
 			}
 			p->from.type = D_EXTERN;
 			p->from.sym = s;
@@ -725,21 +700,10 @@ loop:
 				p->from.ieee.l, p->from.ieee.h);
 			s = lookup(literal, 0);
 			if(s->type == 0) {
-				s->type = SBSS;
-				s->size = 8;
-				t = prg();
-				t->as = ADATA;
-				t->line = p->line;
-				t->from.type = D_EXTERN;
-				t->from.sym = s;
-				t->from.scale = 8;
-				t->to = p->from;
-				if(edatap == P)
-					datap = t;
-				else
-					edatap->link = t;
-				edatap = t;
-				t->link = P;
+				s->type = SDATA;
+				adduint32(s, p->from.ieee.l);
+				adduint32(s, p->from.ieee.h);
+				s->reachable = 0;
 			}
 			p->from.type = D_EXTERN;
 			p->from.sym = s;

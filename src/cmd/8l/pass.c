@@ -42,148 +42,6 @@ enum
 	StackBig = 4096,
 };
 
-void
-dodata(void)
-{
-	int i;
-	Sym *s;
-	Prog *p;
-	int32 t, u;
-	Section *sect;
-
-	if(debug['v'])
-		Bprint(&bso, "%5.2f dodata\n", cputime());
-	Bflush(&bso);
-
-	segdata.rwx = 06;
-	segdata.vaddr = 0;	/* span will += INITDAT */
-
-	for(p = datap; p != P; p = p->link) {
-		s = p->from.sym;
-		if(s->type == SBSS)
-			s->type = SDATA;
-		if(s->type != SDATA && s->type != SELFDATA && s->type != SRODATA)
-			diag("%s: initialize non-data (%d)\n%P",
-				s->name, s->type, p);
-		t = p->from.offset + p->width;
-		if(t > s->size)
-			diag("%s: initialize bounds (%lld)\n%P",
-				s->name, s->size, p);
-	}
-
-	/* allocate elf guys - must be segregated from real data */
-	datsize = 0;
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
-		if(!s->reachable)
-			continue;
-		if(s->type != SELFDATA)
-			continue;
-		t = rnd(s->size, 4);
-		s->size = t;
-		s->value = datsize;
-		datsize += t;
-	}
-	elfdatsize = datsize;
-
-	sect = addsection(&segdata, ".data", 06);
-	sect->vaddr = datsize;
-
-	/* allocate small guys */
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
-		if(!s->reachable)
-			continue;
-		if(s->type != SDATA)
-		if(s->type != SBSS)
-			continue;
-		t = s->size;
-		if(t == 0 && s->name[0] != '.') {
-			diag("%s: no size", s->name);
-			t = 1;
-		}
-		t = rnd(t, 4);
-		s->size = t;
-		if(t > MINSIZ)
-			continue;
-		s->value = datsize;
-		datsize += t;
-		s->type = SDATA1;
-	}
-
-	/* allocate the rest of the data */
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
-		if(s->type != SDATA) {
-			if(s->type == SDATA1)
-				s->type = SDATA;
-			continue;
-		}
-		t = s->size;
-		s->value = datsize;
-		datsize += t;
-	}
-
-	if(debug['j']) {
-		/*
-		 * pad data with bss that fits up to next
-		 * 8k boundary, then push data to 8k
-		 */
-		u = rnd(datsize, 8192);
-		u -= datsize;
-		for(i=0; i<NHASH; i++)
-		for(s = hash[i]; s != S; s = s->hash) {
-			if(!s->reachable)
-				continue;
-			if(s->type != SBSS)
-				continue;
-			t = s->value;
-			if(t > u)
-				continue;
-			u -= t;
-			s->size = t;
-			s->value = datsize;
-			s->type = SDATA;
-			datsize += t;
-		}
-		datsize += u;
-	}
-
-	if(dynptrsize > 0) {
-		/* dynamic pointer section between data and bss */
-		datsize = rnd(datsize, 4);
-	}
-	sect->len = datsize - sect->vaddr;
-
-	/* now the bss */
-	sect = addsection(&segdata, ".bss", 06);
-	sect->vaddr = datsize;
-	bsssize = 0;
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
-		if(!s->reachable)
-			continue;
-		if(s->type != SBSS)
-			continue;
-		t = s->size;
-		s->value = bsssize + dynptrsize + datsize;
-		bsssize += t;
-	}
-	sect->len = bsssize;
-
-	segdata.len = datsize+bsssize;
-	segdata.filelen = datsize;
-
-	xdefine("data", SBSS, 0);
-	xdefine("edata", SBSS, datsize);
-	xdefine("end", SBSS, dynptrsize + bsssize + datsize);
-
-	if(debug['s'] || HEADTYPE == 8)
-		xdefine("symdat", SFIXED, 0);
-	else
-		xdefine("symdat", SFIXED, SYMDATVA);
-}
-
 Prog*
 brchain(Prog *p)
 {
@@ -279,7 +137,7 @@ loop:
 				continue;
 			}
 			if(nofollow(a) || pushpop(a))	
-				break;
+				break;	// NOTE(rsc): arm does goto copy
 			if(q->pcond == P || q->pcond->mark)
 				continue;
 			if(a == ACALL || a == ALOOP)
@@ -376,28 +234,6 @@ relinv(int a)
 	}
 	diag("unknown relation: %s in %s", anames[a], TNAME);
 	return a;
-}
-
-void
-doinit(void)
-{
-	Sym *s;
-	Prog *p;
-	int x;
-
-	for(p = datap; p != P; p = p->link) {
-		x = p->to.type;
-		if(x != D_EXTERN && x != D_STATIC)
-			continue;
-		s = p->to.sym;
-		if(s->type == 0 || s->type == SXREF)
-			diag("undefined %s initializer of %s",
-				s->name, p->from.sym->name);
-		p->to.offset += s->value;
-		p->to.type = D_CONST;
-		if(s->type == SDATA || s->type == SBSS)
-			p->to.offset += INITDAT;
-	}
 }
 
 void
@@ -789,27 +625,4 @@ undef(void)
 	for(s = hash[i]; s != S; s = s->hash)
 		if(s->type == SXREF)
 			diag("%s: not defined", s->name);
-}
-
-Prog*
-newdata(Sym *s, int o, int w, int t)
-{
-	Prog *p;
-
-	p = prg();
-	if(edatap == P)
-		datap = p;
-	else
-		edatap->link = p;
-	edatap = p;
-	p->as = ADATA;
-	p->width = w;
-	p->from.scale = w;
-	p->from.type = t;
-	p->from.sym = s;
-	p->from.offset = o;
-	p->to.type = D_CONST;
-	p->dlink = s->data;
-	s->data = p;
-	return p;
 }

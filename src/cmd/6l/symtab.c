@@ -177,28 +177,17 @@ genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
 			switch(s->type) {
 			case SCONST:
 			case SRODATA:
-				if(!s->reachable)
-					continue;
-				put(s->name, 'D', s->value, s->size, s->version, s->gotype);
-				continue;
-
 			case SDATA:
 			case SELFDATA:
 				if(!s->reachable)
 					continue;
-				put(s->name, 'D', s->value+INITDAT, s->size, s->version, s->gotype);
-				continue;
-
-			case SMACHO:
-				if(!s->reachable)
-					continue;
-				put(s->name, 'D', s->value+INITDAT+segdata.len, s->size, s->version, s->gotype);
+				put(s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
 				continue;
 
 			case SBSS:
 				if(!s->reachable)
 					continue;
-				put(s->name, 'B', s->value+INITDAT, s->size, s->version, s->gotype);
+				put(s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
 				continue;
 
 			case SFIXED:

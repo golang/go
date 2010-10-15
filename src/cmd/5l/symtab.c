@@ -46,37 +46,30 @@ asmsym(void)
 		putsymb(s->name, 'T', s->value, s->version);
 
 	for(h=0; h<NHASH; h++)
-		for(s=hash[h]; s!=S; s=s->hash)
+		for(s=hash[h]; s!=S; s=s->hash) {
+			if(!s->reachable)
+				continue;
 			switch(s->type) {
 			case SCONST:
+			case SDATA:
+			case SELFDATA:
 				putsymb(s->name, 'D', s->value, s->version);
 				continue;
 
-			case SDATA:
-			case SELFDATA:
-				putsymb(s->name, 'D', s->value+INITDAT, s->version);
-				continue;
-
 			case SBSS:
-				putsymb(s->name, 'B', s->value+INITDAT, s->version);
-				continue;
-
 			case SFIXED:
 				putsymb(s->name, 'B', s->value, s->version);
-				continue;
-
-			case SSTRING:
-				putsymb(s->name, 'T', s->value, s->version);
 				continue;
 
 			case SFILE:
 				putsymb(s->name, 'f', s->value, s->version);
 				continue;
 			}
+		}
 
 	for(s=textp; s!=nil; s=s->next) {
 		p = s->text;
-		if(s->type != STEXT && s->type != SLEAF)
+		if(s->type != STEXT)
 			continue;
 
 		/* filenames first */
@@ -90,7 +83,7 @@ asmsym(void)
 		if(!s->reachable)
 			continue;
 
-		if(s->type == STEXT)
+		if(s->leaf == 0)
 			putsymb(s->name, 'T', s->value, s->version);
 		else
 			putsymb(s->name, 'L', s->value, s->version);

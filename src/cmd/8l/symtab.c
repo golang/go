@@ -104,22 +104,17 @@ asmsym(void)
 			switch(s->type) {
 			case SCONST:
 			case SRODATA:
-				if(!s->reachable)
-					continue;
-				putsymb(s->name, 'D', s->value, s->version, s->gotype);
-				continue;
-
 			case SDATA:
 			case SELFDATA:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
+				putsymb(s->name, 'D', symaddr(s), s->version, s->gotype);
 				continue;
 
 			case SMACHO:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->version, s->gotype);
+				putsymb(s->name, 'D', s->value+INITDAT+segdata.filelen-dynptrsize, s->version, s->gotype);
 				continue;
 
 			case SBSS:

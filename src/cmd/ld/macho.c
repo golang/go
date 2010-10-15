@@ -411,13 +411,13 @@ domacholink(void)
 
 	linkoff = 0;
 	if(nlinkdata > 0 || nstrtab > 0) {
-		linkoff = rnd(HEADR+textsize, INITRND) + rnd(datsize, INITRND);
+		linkoff = rnd(HEADR+textsize, INITRND) + rnd(segdata.filelen - dynptrsize, INITRND);
 		seek(cout, linkoff, 0);
 
 		for(i = 0; i<nexpsym; ++i) {
 			s = expsym[i].s;
 			val = s->value;
-			if(s->type == SUNDEF)
+			if(s->type == SXREF)
 				diag("export of undefined symbol %s", s->name);
 			if (s->type != STEXT)
 				val += INITDAT;
@@ -492,25 +492,25 @@ asmbmacho(vlong symdatva, vlong symo)
 	msect->flag = 0x400;	/* flag - some instructions */
 
 	/* data */
-	w = datsize+dynptrsize+bsssize;
+	w = segdata.len;
 	ms = newMachoSeg("__DATA", 2+(dynptrsize>0));
 	ms->vaddr = va+v;
 	ms->vsize = w;
 	ms->fileoffset = v;
-	ms->filesize = datsize+dynptrsize;
+	ms->filesize = segdata.filelen;
 	ms->prot1 = 7;
 	ms->prot2 = 3;
 
 	msect = newMachoSect(ms, "__data");
 	msect->addr = va+v;
-	msect->size = datsize;
+	msect->size = segdata.filelen - dynptrsize;
 	msect->off = v;
 
 	if(dynptrsize > 0) {
 		msect = newMachoSect(ms, "__nl_symbol_ptr");
-		msect->addr = va+v+datsize;
+		msect->addr = va+v+segdata.filelen - dynptrsize;
 		msect->size = dynptrsize;
-		msect->off = v+datsize;
+		msect->off = v+segdata.filelen - dynptrsize;
 		msect->align = 2;
 		msect->flag = 6;	/* section with nonlazy symbol pointers */
 		/*
@@ -525,8 +525,8 @@ asmbmacho(vlong symdatva, vlong symo)
 	}
 
 	msect = newMachoSect(ms, "__bss");
-	msect->addr = va+v+datsize+dynptrsize;
-	msect->size = bsssize;
+	msect->addr = va+v+segdata.filelen;
+	msect->size = segdata.len - segdata.filelen;
 	msect->flag = 1;	/* flag - zero fill */
 
 	switch(thechar) {
@@ -554,7 +554,7 @@ asmbmacho(vlong symdatva, vlong symo)
 		nsym = dynptrsize/ptrsize;
 
 		ms = newMachoSeg("__LINKEDIT", 0);
-		ms->vaddr = va+v+rnd(datsize+dynptrsize+bsssize, INITRND);
+		ms->vaddr = va+v+rnd(segdata.len, INITRND);
 		ms->vsize = nlinkdata+nstrtab;
 		ms->fileoffset = linkoff;
 		ms->filesize = nlinkdata+nstrtab;

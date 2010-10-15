@@ -56,6 +56,7 @@ typedef	struct	Sym	Sym;
 typedef	struct	Auto	Auto;
 typedef	struct	Optab	Optab;
 typedef	struct	Movtab	Movtab;
+typedef	struct	Reloc	Reloc;
 
 struct	Adr
 {
@@ -79,6 +80,15 @@ struct	Adr
 #define	ieee	u0.u0ieee
 #define	sbig	u0.u0sbig
 
+struct	Reloc
+{
+	int32	off;
+	uchar	siz;
+	uchar	type;
+	int64	add;
+	Sym*	sym;
+};
+
 struct	Prog
 {
 	Adr	from;
@@ -99,6 +109,8 @@ struct	Prog
 	char	width;	/* fake for DATA */
 	char	mode;	/* 16, 32, or 64 */
 };
+#define	datasize	from.scale
+
 struct	Auto
 {
 	Sym*	asym;
@@ -130,7 +142,12 @@ struct	Sym
 	Prog*	text;
 	
 	// SDATA, SBSS
-	Prog*	data;
+	uchar*	p;
+	int32	np;
+	int32	maxp;
+	Reloc*	r;
+	int32	nr;
+	int32	maxr;
 };
 struct	Optab
 {
@@ -151,19 +168,19 @@ struct	Movtab
 enum
 {
 	Sxxx,
+	
+	/* order here is order in output file */
 	STEXT		= 1,
-	SDATA,
-	SBSS,
-	SDATA1,
-	SXREF,
-	SFILE,
-	SCONST,
-	SUNDEF,
-
-	SMACHO,
-	SFIXED,
 	SELFDATA,
 	SRODATA,
+	SDATA,
+	SBSS,
+
+	SXREF,
+	SMACHO,
+	SFILE,
+	SCONST,
+	SFIXED,
 
 	NHASH		= 10007,
 	NHUNK		= 100000,
@@ -298,7 +315,6 @@ EXTERN	int32	INITRND;
 EXTERN	vlong	INITTEXT;
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	Biobuf	bso;
-EXTERN	int32	bsssize;
 EXTERN	int	cbc;
 EXTERN	char*	cbp;
 EXTERN	char*	pcstr;
@@ -306,9 +322,7 @@ EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
 EXTERN	Sym*	cursym;
-EXTERN	Prog*	datap;
-EXTERN	Prog*	edatap;
-EXTERN	vlong	datsize;
+EXTERN	Sym*	datap;
 EXTERN	vlong	elfdatsize;
 EXTERN	char	debug[128];
 EXTERN	char	literal[32];
@@ -359,11 +373,6 @@ int	Sconv(Fmt*);
 void	addhist(int32, int);
 void	addstackmark(void);
 Prog*	appendp(Prog*);
-vlong	addstring(Sym*, char*);
-vlong	adduint32(Sym*, uint32);
-vlong	adduint64(Sym*, uint64);
-vlong	addaddr(Sym*, Sym*);
-vlong	addsize(Sym*, Sym*);
 void	asmb(void);
 void	asmdyn(void);
 void	asmins(Prog*);
@@ -380,10 +389,8 @@ double	cputime(void);
 void	datblk(int32, int32);
 void	deadcode(void);
 void	diag(char*, ...);
-void	dobss(void);
 void	dodata(void);
 void	doelf(void);
-void	doinit(void);
 void	domacho(void);
 void	doprof1(void);
 void	doprof2(void);
@@ -399,7 +406,6 @@ void	lputl(int32);
 void	instinit(void);
 void	main(int, char*[]);
 void*	mysbrk(uint32);
-Prog*	newdata(Sym*, int, int, int);
 Prog*	newtext(Prog*, Sym*);
 void	nopout(Prog*);
 int	opsize(Prog*);
@@ -407,12 +413,9 @@ void	patch(void);
 Prog*	prg(void);
 void	parsetextconst(vlong);
 int	relinv(int);
-int32	reuse(Prog*, Sym*);
 vlong	rnd(vlong, vlong);
 void	span(void);
-void	strnput(char*, int);
 void	undef(void);
-vlong	vaddr(Adr*);
 vlong	symaddr(Sym*);
 void	vputl(uint64);
 void	wputb(uint16);

@@ -9,6 +9,7 @@ TARG=5l
 
 OFILES=\
 	asm.$O\
+	data.$O\
 	elf.$O\
 	enam.$O\
 	lib.$O\

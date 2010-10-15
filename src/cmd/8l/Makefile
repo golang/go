@@ -9,6 +9,7 @@ TARG=8l
 
 OFILES=\
 	asm.$O\
+	data.$O\
 	dwarf.$O\
 	elf.$O\
 	enam.$O\

@@ -44,7 +44,6 @@ char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
 char freebsddynld[] = "/libexec/ld-elf.so.1";
 
 char	zeroes[32];
-Prog*	datsort(Prog *l);
 
 vlong
 entryvalue(void)
@@ -58,13 +57,8 @@ entryvalue(void)
 	s = lookup(a, 0);
 	if(s->type == 0)
 		return INITTEXT;
-	switch(s->type) {
-	case STEXT:
-		break;
-	case SDATA:
-	default:
+	if(s->type != STEXT)
 		diag("entry not text: %s", s->name);
-	}
 	return s->value;
 }
 
@@ -114,132 +108,13 @@ vputl(uint64 v)
 	lputl(v>>32);
 }
 
-void
-strnput(char *s, int n)
-{
-	int i;
-
-	for(i=0; i<n; i++) {
-		cput(*s);
-		if(*s != 0)
-			s++;
-	}
-}
-
-vlong
-addstring(Sym *s, char *str)
-{
-	int n, m;
-	vlong r;
-	Prog *p;
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->size;
-	n = strlen(str)+1;
-	if(strcmp(s->name, ".shstrtab") == 0)
-		elfsetstring(str, r);
-	while(n > 0) {
-		m = n;
-		if(m > sizeof(p->to.scon))
-			m = sizeof(p->to.scon);
-		p = newdata(s, s->size, m, D_EXTERN);
-		p->to.type = D_SCONST;
-		memmove(p->to.scon, str, m);
-		s->size += m;
-		str += m;
-		n -= m;
-	}
-	return r;
-}
-
-vlong
-adduintxx(Sym *s, uint64 v, int wid)
-{
-	vlong r;
-	Prog *p;
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->size;
-	p = newdata(s, s->size, wid, D_EXTERN);
-	s->size += wid;
-	p->to.type = D_CONST;
-	p->to.offset = v;
-	return r;
-}
-
-vlong
-adduint8(Sym *s, uint8 v)
-{
-	return adduintxx(s, v, 1);
-}
-
-vlong
-adduint16(Sym *s, uint16 v)
-{
-	return adduintxx(s, v, 2);
-}
-
-vlong
-adduint32(Sym *s, uint32 v)
-{
-	return adduintxx(s, v, 4);
-}
-
-vlong
-adduint64(Sym *s, uint64 v)
-{
-	return adduintxx(s, v, 8);
-}
-
-vlong
-addaddr(Sym *s, Sym *t)
-{
-	vlong r;
-	Prog *p;
-	enum { Ptrsize = 8 };
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->size;
-	p = newdata(s, s->size, Ptrsize, D_EXTERN);
-	s->size += Ptrsize;
-	p->to.type = D_ADDR;
-	p->to.index = D_EXTERN;
-	p->to.offset = 0;
-	p->to.sym = t;
-	return r;
-}
-
-vlong
-addsize(Sym *s, Sym *t)
-{
-	vlong r;
-	Prog *p;
-	enum { Ptrsize = 8 };
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->size;
-	p = newdata(s, s->size, Ptrsize, D_EXTERN);
-	s->size += Ptrsize;
-	p->to.type = D_SIZE;
-	p->to.index = D_EXTERN;
-	p->to.offset = 0;
-	p->to.sym = t;
-	return r;
-}
-
 vlong
 datoff(vlong addr)
 {
 	if(addr >= segdata.vaddr)
 		return addr - segdata.vaddr + segdata.fileoff;
+	if(addr >= segtext.vaddr)
+		return addr - segtext.vaddr + segtext.fileoff;
 	diag("datoff %#llx", addr);
 	return 0;
 }
@@ -295,6 +170,9 @@ doelf(void)
 
 	/* predefine strings we need for section headers */
 	shstrtab = lookup(".shstrtab", 0);
+	shstrtab->type = SELFDATA;
+	shstrtab->reachable = 1;
+
 	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
@@ -470,7 +348,7 @@ asmb(void)
 	int32 v, magic;
 	int a, dynsym;
 	uchar *op1;
-	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink, erodata;
+	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
 	vlong symdatva = SYMDATVA;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
@@ -518,17 +396,9 @@ asmb(void)
 	}
 	cflush();
 
-	datap = datsort(datap);
-
 	/* output read-only data in text segment */
 	sect = segtext.sect->next;
-	erodata = sect->vaddr + sect->len;
-	for(v = pc; v < erodata; v += sizeof(buf)-Dbufslop) {
-		if(erodata - v > sizeof(buf)-Dbufslop)
-			datblk(v, sizeof(buf)-Dbufslop);
-		else
-			datblk(v, erodata-v);
-	}
+	datblk(pc, sect->vaddr + sect->len - pc);
 
 	switch(HEADTYPE) {
 	default:
@@ -568,12 +438,7 @@ asmb(void)
 	Bflush(&bso);
 
 	segdata.fileoff = seek(cout, 0, 1);
-	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
-		if(datsize-v > sizeof(buf)-Dbufslop)
-			datblk(v+INITDAT, sizeof(buf)-Dbufslop);
-		else
-			datblk(v+INITDAT, datsize-v);
-	}
+	datblk(INITDAT, segdata.filelen);
 
 	machlink = 0;
 	if(HEADTYPE == 6)
@@ -592,14 +457,14 @@ asmb(void)
 		case 2:
 		case 5:
 			debug['s'] = 1;
-			symo = HEADR+textsize+datsize;
+			symo = HEADR+textsize+segdata.filelen;
 			break;
 		case 6:
-			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
+			symo = rnd(HEADR+textsize, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		case 7:
 		case 9:
-			symo = rnd(HEADR+textsize, INITRND)+datsize;
+			symo = rnd(HEADR+textsize, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		}
@@ -655,8 +520,8 @@ asmb(void)
 		magic |= 0x00008000;		/* fat header */
 		lputb(magic);			/* magic */
 		lputb(textsize);			/* sizes */
-		lputb(datsize);
-		lputb(bsssize);
+		lputb(segdata.filelen);
+		lputb(segdata.len - segdata.filelen);
 		lputb(symsize);			/* nsyms */
 		vl = entryvalue();
 		lputb(PADDR(vl));		/* va of entry */
@@ -668,8 +533,8 @@ asmb(void)
 		magic = 4*26*26+7;
 		lputb(magic);			/* magic */
 		lputb(textsize);		/* sizes */
-		lputb(datsize);
-		lputb(bsssize);
+		lputb(segdata.filelen);
+		lputb(segdata.len - segdata.filelen);
 		lputb(symsize);			/* nsyms */
 		lputb(entryvalue());		/* va of entry */
 		lputb(spsize);			/* sp offsets */
@@ -926,335 +791,6 @@ vlong
 cpos(void)
 {
 	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
-}
-
-void
-outa(int n, uchar *cast, uchar *map, vlong l)
-{
-	int i, j;
-
-	Bprint(&bso, pcstr, l);
-	for(i=0; i<n; i++) {
-		j = i;
-		if(map != nil)
-			j = map[j];
-		Bprint(&bso, "%.2ux", cast[j]);
-	}
-	for(; i<Maxand; i++)
-		Bprint(&bso, "  ");
-	Bprint(&bso, "%P\n", curp);
-}
-
-/*
- * divide-and-conquer list-link
- * sort of Prog* structures.
- * Used for the data block.
- */
-int
-datcmp(Prog *p1, Prog *p2)
-{
-	vlong v1, v2;
-
-	v1 = p1->from.offset;
-	v2 = p2->from.offset;
-	if(v1 > v2)
-		return +1;
-	if(v1 < v2)
-		return -1;
-	return 0;
-}
-
-Prog*
-dsort(Prog *l)
-{
-	Prog *l1, *l2, *le;
-
-	if(l == 0 || l->link == 0)
-		return l;
-
-	l1 = l;
-	l2 = l;
-	for(;;) {
-		l2 = l2->link;
-		if(l2 == 0)
-			break;
-		l2 = l2->link;
-		if(l2 == 0)
-			break;
-		l1 = l1->link;
-	}
-
-	l2 = l1->link;
-	l1->link = 0;
-	l1 = dsort(l);
-	l2 = dsort(l2);
-
-	/* set up lead element */
-	if(datcmp(l1, l2) < 0) {
-		l = l1;
-		l1 = l1->link;
-	} else {
-		l = l2;
-		l2 = l2->link;
-	}
-	le = l;
-
-	for(;;) {
-		if(l1 == 0) {
-			while(l2) {
-				le->link = l2;
-				le = l2;
-				l2 = l2->link;
-			}
-			le->link = 0;
-			break;
-		}
-		if(l2 == 0) {
-			while(l1) {
-				le->link = l1;
-				le = l1;
-				l1 = l1->link;
-			}
-			break;
-		}
-		if(datcmp(l1, l2) < 0) {
-			le->link = l1;
-			le = l1;
-			l1 = l1->link;
-		} else {
-			le->link = l2;
-			le = l2;
-			l2 = l2->link;
-		}
-	}
-	le->link = 0;
-	return l;
-}
-
-static Prog *datp;
-
-Prog*
-datsort(Prog *l)
-{
-	Prog *p;
-	Adr *a;
-
-	for(p = l; p != P; p = p->link) {
-		a = &p->from;
-		a->offset += a->sym->value;
-		if(a->sym->type != SRODATA)
-			a->offset += INITDAT;
-	}
-	datp = dsort(l);
-	return datp;
-}
-
-void
-datblk(int32 s, int32 n)
-{
-	Prog *p;
-	uchar *cast;
-	int32 l, fl, j;
-	vlong o;
-	int i, c;
-	Adr *a;
-
-	for(p = datp; p != P; p = p->link) {
-		a = &p->from;
-		l = a->offset - s;
-		if(l+a->scale < 0)
-			continue;
-		datp = p;
-		break;
-	}
-
-	memset(buf.dbuf, 0, n+Dbufslop);
-	for(p = datp; p != P; p = p->link) {
-		a = &p->from;
-
-		l = a->offset - s;
-		if(l >= n)
-			break;
-
-		c = a->scale;
-		i = 0;
-		if(l < 0) {
-			if(l+c <= 0)
-				continue;
-			i = -l;
-			l = 0;
-		}
-
-		curp = p;
-		if(!a->sym->reachable)
-			diag("unreachable symbol in datblk - %s", a->sym->name);
-		if(a->sym->type == SMACHO)
-			continue;
-
-		for(j=l+(c-i)-1; j>=l; j--)
-			if(buf.dbuf[j]) {
-				print("%P\n", p);
-				diag("multiple initialization for %d %d", s, j);
-				break;
-			}
-
-		switch(p->to.type) {
-		case D_FCONST:
-			switch(c) {
-			default:
-			case 4:
-				fl = ieeedtof(&p->to.ieee);
-				cast = (uchar*)&fl;
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[fnuxi4[i]];
-					l++;
-				}
-				break;
-			case 8:
-				cast = (uchar*)&p->to.ieee;
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[fnuxi8[i]];
-					l++;
-				}
-				break;
-			}
-			break;
-
-		case D_SCONST:
-			for(; i<c; i++) {
-				buf.dbuf[l] = p->to.scon[i];
-				l++;
-			}
-			break;
-
-		default:
-			o = p->to.offset;
-			if(p->to.type == D_SIZE)
-				o += p->to.sym->size;
-			if(p->to.type == D_ADDR) {
-				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
-					diag("DADDR type%P", p);
-				if(p->to.sym) {
-					if(p->to.sym->type == Sxxx) {
-						cursym = p->from.sym;
-						diag("missing symbol %s", p->to.sym->name);
-						cursym = nil;
-					}
-					o += p->to.sym->value;
-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
-						o += INITDAT;
-				}
-			}
-			fl = o;
-			cast = (uchar*)&fl;
-			switch(c) {
-			default:
-				diag("bad nuxi %d %d\n%P", c, i, curp);
-				break;
-			case 1:
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[inuxi1[i]];
-					l++;
-				}
-				break;
-			case 2:
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[inuxi2[i]];
-					l++;
-				}
-				break;
-			case 4:
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[inuxi4[i]];
-					l++;
-				}
-				break;
-			case 8:
-				cast = (uchar*)&o;
-				for(; i<c; i++) {
-					buf.dbuf[l] = cast[inuxi8[i]];
-					l++;
-				}
-				break;
-			}
-			break;
-		}
-	}
-
-	ewrite(cout, buf.dbuf, n);
-	if(!debug['a'])
-		return;
-
-	/*
-	 * a second pass just to print the asm
-	 */
-	for(p = datap; p != P; p = p->link) {
-		a = &p->from;
-
-		l = a->offset - s;
-		if(l >= n)
-			continue;
-
-		c = a->scale;
-		i = 0;
-		if(l < 0)
-			continue;
-
-		if(a->sym->type == SMACHO)
-			continue;
-
-		curp = p;
-		switch(p->to.type) {
-		case D_FCONST:
-			switch(c) {
-			default:
-			case 4:
-				fl = ieeedtof(&p->to.ieee);
-				cast = (uchar*)&fl;
-				outa(c, cast, fnuxi4, l+s);
-				break;
-			case 8:
-				cast = (uchar*)&p->to.ieee;
-				outa(c, cast, fnuxi8, l+s);
-				break;
-			}
-			break;
-
-		case D_SCONST:
-			outa(c, (uchar*)p->to.scon, nil, l+s);
-			break;
-
-		default:
-			o = p->to.offset;
-			if(p->to.type == D_SIZE)
-				o += p->to.sym->size;
-			if(p->to.type == D_ADDR) {
-				if(p->to.sym) {
-					o += p->to.sym->value;
-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
-						o += INITDAT;
-				}
-			}
-			fl = o;
-			cast = (uchar*)&fl;
-			switch(c) {
-			case 1:
-				outa(c, cast, inuxi1, l+s);
-				break;
-			case 2:
-				outa(c, cast, inuxi2, l+s);
-				break;
-			case 4:
-				outa(c, cast, inuxi4, l+s);
-				break;
-			case 8:
-				cast = (uchar*)&o;
-				outa(c, cast, inuxi8, l+s);
-				break;
-			}
-			break;
-		}
-	}
 }
 
 vlong

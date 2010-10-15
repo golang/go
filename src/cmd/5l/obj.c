@@ -226,9 +226,6 @@ main(int argc, char *argv[])
 	buildop();
 	thumbbuildop();	// could build on demand
 	histgen = 0;
-	textp = nil;
-	datap = P;
-	edatap = P;
 	pc = 0;
 	dtype = 4;
 	nuxiinit();
@@ -245,6 +242,10 @@ main(int argc, char *argv[])
 	for(i=0; i<nelem(linkername); i++)
 		mark(lookup(linkername[i], 0));
 	deadcode();
+	if(textp == nil) {
+		diag("no code");
+		errorexit();
+	}
 
 	patch();
 	if(debug['p'])
@@ -254,16 +255,13 @@ main(int argc, char *argv[])
 			doprof2();
 	doelf();
 	dodata();
-	if(seenthumb && debug['f'])
-		fnptrs();
 	follow();
-	if(textp == nil) {
-		diag("no code");
-		errorexit();
-	}
 	softfloat();
 	noops();
+	xdefine("setR12", SFIXED, 0);
 	span();
+	xdefine("setR12", SFIXED, INITDAT+BIG);
+	reloc();
 	asmb();
 	undef();
 
@@ -308,7 +306,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	if(a->type == D_CONST || a->type == D_OCONST) {
 		if(a->name == D_EXTERN || a->name == D_STATIC) {
 			s = a->sym;
-			if(s != S && (s->type == STEXT || s->type == SLEAF || s->type == SCONST || s->type == SXREF)) {
+			if(s != S && (s->type == STEXT || s->type == SCONST || s->type == SXREF)) {
 				if(0 && !s->fnptr && s->name[0] != '.')
 					print("%s used as function pointer\n", s->name);
 				s->fnptr = 1;	// over the top cos of SXREF
@@ -351,9 +349,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		break;
 
 	case D_FCONST:
-		a->ieee = mal(sizeof(Ieee));
-		a->ieee->l = Bget4(f);
-		a->ieee->h = Bget4(f);
+		a->ieee.l = Bget4(f);
+		a->ieee.h = Bget4(f);
 		break;
 	}
 	s = a->sym;
@@ -394,7 +391,7 @@ void
 ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
 {
 	int32 ipc;
-	Prog *p, *t;
+	Prog *p;
 	Sym *h[NSYM], *s, *di;
 	int v, o, r, skip;
 	uint32 sig;
@@ -492,8 +489,8 @@ loop:
 	zaddr(f, &p->from, h);
 	zaddr(f, &p->to, h);
 
-	if(p->reg > NREG)
-		diag("register out of range %d", p->reg);
+	if(p->as != ATEXT && p->as != AGLOBL && p->reg > NREG)
+		diag("register out of range %A %d", p->as, p->reg);
 
 	p->link = P;
 	p->cond = P;
@@ -541,8 +538,8 @@ loop:
 			s->type = SBSS;
 			s->value = 0;
 		}
-		if(p->to.offset > s->value)
-			s->value = p->to.offset;
+		if(p->to.offset > s->size)
+			s->size = p->to.offset;
 		if(p->reg & DUPOK)
 			s->dupok = 1;
 		break;
@@ -553,26 +550,19 @@ loop:
 		// ignore any more ADATA we see, which must be
 		// redefinitions.
 		s = p->from.sym;
-		if(s != S && s->dupok) {
+		if(s->dupok) {
 			if(debug['v'])
 				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
 			goto loop;
 		}
-		if(s != S) {
-			p->dlink = s->data;
-			s->data = p;
-			if(s->file == nil)
-				s->file = pn;
-			else if(s->file != pn) {
-				diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
-				errorexit();
-			}			
+		if(s->file == nil)
+			s->file = pn;
+		else if(s->file != pn) {
+			diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+			errorexit();
 		}
-		if(edatap == P)
-			datap = p;
-		else
-			edatap->link = p;
-		edatap = p;
+		savedata(s, p);
+		unmal(p, sizeof *p);
 		break;
 
 	case AGOK:
@@ -673,27 +663,14 @@ loop:
 		if(skip)
 			goto casedef;
 
-		if(p->from.type == D_FCONST && chipfloat(p->from.ieee) < 0) {
+		if(p->from.type == D_FCONST && chipfloat(&p->from.ieee) < 0) {
 			/* size sb 9 max */
-			sprint(literal, "$%ux", ieeedtof(p->from.ieee));
+			sprint(literal, "$%ux", ieeedtof(&p->from.ieee));
 			s = lookup(literal, 0);
 			if(s->type == 0) {
 				s->type = SBSS;
-				s->value = 4;
-				t = prg();
-				t->as = ADATA;
-				t->line = p->line;
-				t->from.type = D_OREG;
-				t->from.sym = s;
-				t->from.name = D_EXTERN;
-				t->reg = 4;
-				t->to = p->from;
-				if(edatap == P)
-					datap = t;
-				else
-					edatap->link = t;
-				edatap = t;
-				t->link = P;
+				adduint32(s, ieeedtof(&p->from.ieee));
+				s->reachable = 0;
 			}
 			p->from.type = D_OREG;
 			p->from.sym = s;
@@ -708,28 +685,16 @@ loop:
 		if(skip)
 			goto casedef;
 
-		if(p->from.type == D_FCONST && chipfloat(p->from.ieee) < 0) {
+		if(p->from.type == D_FCONST && chipfloat(&p->from.ieee) < 0) {
 			/* size sb 18 max */
 			sprint(literal, "$%ux.%ux",
-				p->from.ieee->l, p->from.ieee->h);
+				p->from.ieee.l, p->from.ieee.h);
 			s = lookup(literal, 0);
 			if(s->type == 0) {
 				s->type = SBSS;
-				s->value = 8;
-				t = prg();
-				t->as = ADATA;
-				t->line = p->line;
-				t->from.type = D_OREG;
-				t->from.sym = s;
-				t->from.name = D_EXTERN;
-				t->reg = 8;
-				t->to = p->from;
-				if(edatap == P)
-					datap = t;
-				else
-					edatap->link = t;
-				edatap = t;
-				t->link = P;
+				adduint32(s, p->from.ieee.l);
+				adduint32(s, p->from.ieee.h);
+				s->reachable = 0;
 			}
 			p->from.type = D_OREG;
 			p->from.sym = s;

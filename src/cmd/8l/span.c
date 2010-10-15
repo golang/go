@@ -37,10 +37,10 @@ void
 span(void)
 {
 	Prog *p, *q;
-	int32 i, v, c, idat, etext, rodata, erodata;
+	int32 v, c, idat, etext;
 	int m, n, again;
 	Sym *s;
-	Section *sect;
+	Section *sect, *rosect;
 
 	xdefine("etext", STEXT, 0L);
 	xdefine("rodata", SRODATA, 0L);
@@ -72,8 +72,10 @@ span(void)
 			}
 		}
 	}
-
 	n = 0;
+	
+	rosect = segtext.sect->next;
+
 start:
 	do{
 		again = 0;
@@ -115,24 +117,15 @@ start:
 	etext = c;
 	c += textpad;
 	
-	/*
-	 * allocate read-only data to the text segment.
-	 */
-	if(HEADTYPE == 8)
-		c = rnd(c, INITRND);
-	c = rnd(c, 8);
-	rodata = c;
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
-		if(s->type != SRODATA)
-			continue;
-		v = s->size;
-		while(v & 3)
-			v++;
-		s->value = c;
-		c += v;
+	if(rosect) {
+		if(INITRND)
+			c = rnd(c, INITRND);
+		if(rosect->vaddr != c){
+			rosect->vaddr = c;
+			goto start;
+		}
+		c += rosect->len;
 	}
-	erodata = c;
 
 	if(INITRND) {
 		INITDAT = rnd(c, INITRND);
@@ -143,8 +136,6 @@ start:
 	}
 
 	xdefine("etext", STEXT, etext);
-	xdefine("rodata", SRODATA, rodata);
-	xdefine("erodata", SRODATA, erodata);
 
 	if(debug['v'])
 		Bprint(&bso, "etext = %ux\n", c);
@@ -154,37 +145,40 @@ start:
 	textsize = c - INITTEXT;
 
 	segtext.rwx = 05;
-	if(HEADTYPE == 8) {
-		segtext.vaddr = INITTEXT;
-		segtext.len = rodata - INITTEXT;
-		segtext.fileoff = HEADR;
-		segtext.filelen = etext - INITTEXT;
-
-		segrodata.rwx = 04;
-		segrodata.vaddr = rodata;
-		segrodata.len = erodata - rodata;
-		segrodata.filelen = segrodata.len;
-	} else {
-		segtext.vaddr = INITTEXT - HEADR;
-		segtext.len = INITDAT - INITTEXT + HEADR;
-		segtext.fileoff = 0;
-		segtext.filelen = segtext.len;
-	}
-
-	sect = addsection(&segtext, ".text", 05);
+	segtext.vaddr = INITTEXT - HEADR;
+	segtext.len = INITDAT - INITTEXT + HEADR;
+	segtext.filelen = textsize + HEADR;
+	
+	sect = segtext.sect;
 	sect->vaddr = INITTEXT;
 	sect->len = etext - sect->vaddr;
-	
-	if(HEADTYPE == 8)
-		sect = addsection(&segrodata, ".rodata", 04);
-	else
-		sect = addsection(&segtext, ".rodata", 04);
-	sect->vaddr = rodata;
-	sect->len = erodata - rodata;
+
+	// Adjust everything now that we know INITDAT.
+	// This will get simpler when everything is relocatable
+	// and we can run span before dodata.
 
 	segdata.vaddr += INITDAT;
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		sect->vaddr += INITDAT;
+
+	xdefine("data", SBSS, INITDAT);
+	xdefine("edata", SBSS, INITDAT+segdata.filelen);
+	xdefine("end", SBSS, INITDAT+segdata.len);
+
+	for(s=datap; s!=nil; s=s->next) {
+		switch(s->type) {
+		case SELFDATA:
+		case SRODATA:
+			s->value += rosect->vaddr;
+			break;
+		case SDATA:
+		case SBSS:
+			s->value += INITDAT;
+			break;
+		}
+	}
+	
+	// TODO(rsc): if HEADTYPE == NACL fix up segrodata.
 }
 
 void
@@ -484,6 +478,8 @@ put4(int32 v)
 	andptr += 4;
 }
 
+static int32 vaddr(Adr*);
+
 int32
 symaddr(Sym *s)
 {
@@ -496,7 +492,7 @@ symaddr(Sym *s)
 	return vaddr(&a);
 }
 
-int32
+static int32
 vaddr(Adr *a)
 {
 	int t;
@@ -513,25 +509,17 @@ vaddr(Adr *a)
 		s = a->sym;
 		if(s != nil) {
 			switch(s->type) {
-			case STEXT:
-			case SCONST:
-			case SRODATA:
-				if(!s->reachable)
-					sysfatal("unreachable symbol in vaddr - %s", s->name);
+			case SFIXED:
 				v += s->value;
 				break;
 			case SMACHO:
-				if(!s->reachable)
-					sysfatal("unreachable symbol in vaddr - %s", s->name);
-				v += INITDAT + datsize + s->value;
-				break;
-			case SFIXED:
-				v += s->value;
+				v += INITDAT + segdata.filelen - dynptrsize + s->value;
 				break;
 			default:
 				if(!s->reachable)
 					sysfatal("unreachable symbol in vaddr - %s", s->name);
-				v += INITDAT + s->value;
+				v += s->value;
+				break;
 			}
 		}
 	}

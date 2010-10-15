@@ -512,18 +512,6 @@ err:
 static int markdepth;
 
 static void
-markdata(Prog *p, Sym *s)
-{
-	markdepth++;
-	if(p != P && debug['v'] > 1)
-		Bprint(&bso, "%d markdata %s\n", markdepth, s->name);
-	for(; p != P; p=p->dlink)
-		if(p->to.sym)
-			mark(p->to.sym);
-	markdepth--;
-}
-
-static void
 marktext(Sym *s)
 {
 	Auto *a;
@@ -548,45 +536,17 @@ marktext(Sym *s)
 void
 mark(Sym *s)
 {
+	int i;
+
 	if(s == S || s->reachable)
 		return;
 	s->reachable = 1;
 	if(s->text)
 		marktext(s);
-	if(s->data)
-		markdata(s->data, s);
+	for(i=0; i<s->nr; i++)
+		mark(s->r[i].sym);
 	if(s->gotype)
 		mark(s->gotype);
-}
-
-static void
-sweeplist(Prog **first, Prog **last)
-{
-	int reachable;
-	Prog *p, *q;
-
-	reachable = 1;
-	q = P;
-	for(p=*first; p != P; p=p->link) {
-		switch(p->as) {
-		case ATEXT:
-		case ADATA:
-		case AGLOBL:
-			reachable = p->from.sym->reachable;
-		}
-		if(reachable) {
-			if(q == P)
-				*first = p;
-			else
-				q->link = p;
-			q = p;
-		}
-	}
-	if(q == P)
-		*first = P;
-	else
-		q->link = P;
-	*last = q;
 }
 
 static char*
@@ -680,7 +640,4 @@ deadcode(void)
 		textp = nil;
 	else
 		last->next = nil;
-
-	// remove dead data
-	sweeplist(&datap, &edatap);
 }

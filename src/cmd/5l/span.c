@@ -165,15 +165,18 @@ void
 span(void)
 {
 	Prog *p, *op;
-	Sym *setext, *s;
 	Optab *o;
-	int m, bflag, i;
-	int32 c, otxt, v;
+	int m, bflag;
+	int32 c, otxt;
 	int lastthumb = -1;
+	Section *rosect, *sect;
+	Sym *sym;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f span\n", cputime());
 	Bflush(&bso);
+
+	xdefine("etext", STEXT, 0);
 
 	bflag = 0;
 	c = INITTEXT;
@@ -364,36 +367,61 @@ span(void)
 			goto loop;
 		}
 	}
-
-	if(debug['t']) {
-		/*
-		 * add strings to text segment
-		 */
-		c = rnd(c, 8);
-		for(i=0; i<NHASH; i++)
-		for(s = hash[i]; s != S; s = s->hash) {
-			if(s->type != SSTRING)
-				continue;
-			v = s->value;
-			while(v & 3)
-				v++;
-			s->value = c;
-			c += v;
-		}
-	}
-
 	c = rnd(c, 8);
 
-	setext = lookup("etext", 0);
-	if(setext != S) {
-		setext->value = c;
-		textsize = c - INITTEXT;
+	xdefine("etext", STEXT, c);
+	for(cursym = textp; cursym != nil; cursym = cursym->next)
+		cursym->value = cursym->text->pc;
+	textsize = c - INITTEXT;
+	
+	rosect = segtext.sect->next;
+	if(rosect) {
+		if(INITRND)
+			c = rnd(c, INITRND);
+		rosect->vaddr = c;
+		c += rosect->len;
 	}
+
 	if(INITRND)
 		INITDAT = rnd(c, INITRND);
+	
 	if(debug['v'])
 		Bprint(&bso, "tsize = %ux\n", textsize);
 	Bflush(&bso);
+	
+	segtext.rwx = 05;
+	segtext.vaddr = INITTEXT - HEADR;
+	segtext.len = INITDAT - INITTEXT + HEADR;
+	segtext.filelen = segtext.len;
+	
+	sect = segtext.sect;
+	sect->vaddr = INITTEXT;
+	sect->len = textsize;
+
+	// Adjust everything now that we know INITDAT.
+	// This will get simpler when everything is relocatable
+	// and we can run span before dodata.
+
+	segdata.vaddr += INITDAT;
+	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+		sect->vaddr += INITDAT;
+
+	xdefine("data", SBSS, INITDAT);
+	xdefine("edata", SBSS, INITDAT+segdata.filelen);
+	xdefine("end", SBSS, INITDAT+segdata.len);
+
+	for(sym=datap; sym!=nil; sym=sym->next) {
+		switch(sym->type) {
+		case SELFDATA:
+		case SRODATA:
+			sym->value += rosect->vaddr;
+			break;
+		case SDATA:
+		case SBSS:
+			sym->value += INITDAT;
+			break;
+		}
+	}
 }
 
 /*
@@ -512,10 +540,8 @@ xdefine(char *p, int t, int32 v)
 	Sym *s;
 
 	s = lookup(p, 0);
-	if(s->type == 0 || s->type == SXREF) {
-		s->type = t;
-		s->value = v;
-	}
+	s->type = t;
+	s->value = v;
 }
 
 int32
@@ -572,6 +598,37 @@ immhalf(int32 v)
 	return 0;
 }
 
+int32
+symaddr(Sym *s)
+{
+	int32 v;
+
+	v = s->value;
+	switch(s->type) {
+	default:
+		diag("unexpected type %d in symaddr(%s)", s->type, s->name);
+		return 0;
+	
+	case STEXT:
+#ifdef CALLEEBX
+		v += fnpinc(s);
+#else
+		if(s->thumb)
+			v++;	// T bit
+#endif
+		break;
+	
+	case SELFDATA:
+	case SRODATA:
+	case SDATA:
+	case SBSS:
+	case SFIXED:
+	case SCONST:
+		break;
+	}
+	return v;
+}
+
 int
 aclass(Adr *a)
 {
@@ -613,7 +670,7 @@ aclass(Adr *a)
 					s->name, TNAME);
 				s->type = SDATA;
 			}
-			instoffset = s->value + a->offset - BIG;
+			instoffset = s->value + a->offset - INITDAT - BIG;
 			t = immaddr(instoffset);
 			if(t) {
 				if(immhalf(instoffset))
@@ -682,21 +739,7 @@ aclass(Adr *a)
 					s->name, TNAME);
 				s->type = SDATA;
 			}
-			if(s->type == SFIXED) {
-				instoffset = s->value + a->offset;
-				return C_LCON;
-			}
-			instoffset = s->value + a->offset + INITDAT;
-			if(s->type == STEXT || s->type == SLEAF) {
-				instoffset = s->value + a->offset;
-#ifdef CALLEEBX
-				instoffset += fnpinc(s);
-#else
-				if(s->thumb)
-					instoffset++;	// T bit
-#endif
-				return C_LCON;
-			}
+			instoffset = symaddr(s) + a->offset;
 			return C_LCON;
 		}
 		return C_GOK;
@@ -735,26 +778,16 @@ aclass(Adr *a)
 				s->type = SDATA;
 				break;
 			case SFIXED:
-				instoffset = s->value + a->offset;
-				return C_LCON;
 			case STEXT:
-			case SSTRING:
 			case SCONST:
-			case SLEAF:
-				instoffset = s->value + a->offset;
-#ifdef CALLEEBX
-				instoffset += fnpinc(s);
-#else
-				if(s->thumb)
-					instoffset++;	// T bit
-#endif
+				instoffset = symaddr(s) + a->offset;
 				return C_LCON;
 			}
-			instoffset = s->value + a->offset - BIG;
+			instoffset = s->value + a->offset - INITDAT - BIG;
 			t = immrot(instoffset);
 			if(t && instoffset != 0)
 				return C_RECON;
-			instoffset = s->value + a->offset + INITDAT;
+			instoffset = symaddr(s) + a->offset;
 			return C_LCON;
 
 		case D_AUTO:
