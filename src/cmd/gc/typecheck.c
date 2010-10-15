@@ -80,7 +80,7 @@ typecheck(Node **np, int top)
 	n = *np;
 	if(n == N)
 		return N;
-	
+
 	// Resolve definition of name and value of iota lazily.
 	n = resolve(n);
 	*np = n;
@@ -112,6 +112,7 @@ typecheck(Node **np, int top)
 			goto error;
 		}
 		walkdef(n);
+		n->realtype = n->type;
 		if(n->op == ONONAME)
 			goto error;
 	}

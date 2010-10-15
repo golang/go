@@ -1273,7 +1273,7 @@ Tpretty(Fmt *fp, Type *t)
 			fmtprint(fp, "...%T", t->type->type);
 		else
 			fmtprint(fp, "%T", t->type);
-		if(t->note) {	
+		if(t->note) {
 			fmtprint(fp, " ");
 			if(exporting)
 				fmtprint(fp, ":");
@@ -3607,10 +3607,11 @@ umagic(Magic *m)
 Sym*
 ngotype(Node *n)
 {
-	if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
-	if(n->type->etype != TFUNC || n->type->thistuple == 0)
-	if(n->type->etype != TSTRUCT || n->type->funarg == 0)
-		return typename(n->type)->left->sym;
+	if(n->sym != S && n->realtype != T)
+	if(strncmp(n->sym->name, "autotmp_", 8) != 0)
+	if(strncmp(n->sym->name, "statictmp_", 8) != 0)
+		return typename(n->realtype)->left->sym;
+
 	return S;
 }
 
@@ -3684,4 +3685,3 @@ strlit(char *s)
 	t->len = strlen(s);
 	return t;
 }
-
