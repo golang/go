@@ -49,10 +49,7 @@ func New(out io.Writer, prefix string, flag int) *Logger {
 	return &Logger{out, prefix, flag}
 }
 
-var (
-	std    = New(os.Stderr, "", Ldate|Ltime)
-	stdout = New(os.Stdout, "", Ldate|Ltime) // Deprecated.
-)
+var std = New(os.Stderr, "", Ldate|Ltime)
 
 // Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
 // Knows the buffer has capacity.
@@ -224,39 +221,3 @@ func Panicln(v ...interface{}) {
 	std.Output(2, s)
 	panic(s)
 }
-
-// Everything from here on is deprecated and will be removed after the next release.
-
-// Logf is analogous to Printf() for a Logger.
-// Deprecated.
-func (l *Logger) Logf(format string, v ...interface{}) {
-	l.Output(2, fmt.Sprintf(format, v...))
-}
-
-// Log is analogous to Print() for a Logger.
-// Deprecated.
-func (l *Logger) Log(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
-
-// Stdout is a helper function for easy logging to stdout. It is analogous to Print().
-// Deprecated.
-func Stdout(v ...interface{}) { stdout.Output(2, fmt.Sprint(v...)) }
-
-// Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
-// Deprecated.
-func Stderr(v ...interface{}) { std.Output(2, fmt.Sprintln(v...)) }
-
-// Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().
-// Deprecated.
-func Stdoutf(format string, v ...interface{}) { stdout.Output(2, fmt.Sprintf(format, v...)) }
-
-// Stderrf is a helper function for easy formatted logging to stderr. It is analogous to Fprintf(os.Stderr).
-// Deprecated.
-func Stderrf(format string, v ...interface{}) { std.Output(2, fmt.Sprintf(format, v...)) }
-
-// Crash is equivalent to Stderr() followed by a call to panic().
-// Deprecated.
-func Crash(v ...interface{}) { Panicln(v...) }
-
-// Crashf is equivalent to Stderrf() followed by a call to panic().
-// Deprecated.
-func Crashf(format string, v ...interface{}) { Panicf(format, v...) }
