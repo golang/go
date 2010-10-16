@@ -72,8 +72,8 @@ typedef struct {
 	uint32 FirstThunk;
 } IMAGE_IMPORT_DESCRIPTOR;
 
-#define PERESERVE	0x400
-#define PEALIGN		0x200
+#define PERESERVE	0x1000
+#define PEALIGN		0x1000
 #define PEBASE		0x00400000
 
 enum {
