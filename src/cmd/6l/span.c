@@ -153,9 +153,7 @@ span(void)
 	// NOTE(rsc): If we get rid of the globals we should
 	// be able to parallelize these iterations.
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		if(!cursym->reachable)
-			continue;
-		
+		// TODO: move into span1
 		for(p = cursym->text; p != P; p = p->link) {
 			n = 0;
 			if(p->to.type == D_BRANCH)
@@ -189,8 +187,6 @@ span(void)
 	sect = segtext.sect;
 	sect->vaddr = c;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		if(!cursym->reachable)
-			continue;
 		cursym->value = c;
 		for(p = cursym->text; p != P; p = p->link)
 			p->pc += c;
