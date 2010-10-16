@@ -96,6 +96,7 @@ pewrite(void)
 	for (i=0; i<nsect; i++)
 		for (j=0; j<sizeof(sh[i]); j++)
 			cput(((char*)&sh[i])[j]);
+	strnput("", PERESERVE-0x400);
 }
 
 void
