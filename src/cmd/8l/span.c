@@ -33,21 +33,124 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 
+static int32	vaddr(Adr*, Reloc*);
+
+void
+span1(Sym *s)
+{
+	Prog *p, *q;
+	int32 c, v, loop;
+	uchar *bp;
+	int n, m, i;
+
+	cursym = s;
+
+	for(p = s->text; p != P; p = p->link) {
+		p->back = 2;	// use short branches first time through
+		if((q = p->pcond) != P && (q->back & 2))
+			p->back |= 1;	// backward jump
+
+		if(p->as == AADJSP) {
+			p->to.type = D_SP;
+			v = -p->from.offset;
+			p->from.offset = v;
+			p->as = AADDL;
+			if(v < 0) {
+				p->as = ASUBL;
+				v = -v;
+				p->from.offset = v;
+			}
+			if(v == 0)
+				p->as = ANOP;
+		}
+	}
+	
+	n = 0;
+	do {
+		loop = 0;
+		memset(s->r, 0, s->nr*sizeof s->r[0]);
+		s->nr = 0;
+		s->np = 0;
+		c = 0;
+		for(p = s->text; p != P; p = p->link) {
+			p->pc = c;
+
+			// process forward jumps to p
+			for(q = p->comefrom; q != P; q = q->forwd) {
+				v = p->pc - (q->pc + q->mark);
+				if(q->back & 2)	{	// short
+					if(v > 127) {
+						loop++;
+						q->back ^= 2;
+					}
+					s->p[q->pc+1] = v;
+				} else {
+					bp = s->p + q->pc + q->mark - 4;
+					*bp++ = v;
+					*bp++ = v>>8;
+					*bp++ = v>>16;
+					*bp++ = v>>24;
+				}	
+			}
+			p->comefrom = P;
+
+			asmins(p);
+			p->pc = c;
+			m = andptr-and;
+			symgrow(s, p->pc+m);
+			memmove(s->p+p->pc, and, m);
+			p->mark = m;
+			c += m;
+		}
+		if(++n > 20) {
+			diag("span must be looping");
+			errorexit();
+		}
+	} while(loop);
+	s->size = c;
+
+	if(debug['a'] > 1) {
+		print("span1 %s %lld (%d tries)\n %.6ux", s->name, s->size, n, 0);
+		for(i=0; i<s->np; i++) {
+			print(" %.2ux", s->p[i]);
+			if(i%16 == 15)
+				print("\n  %.6ux", i+1);
+		}
+		if(i%16)
+			print("\n");
+	
+		for(i=0; i<s->nr; i++) {
+			Reloc *r;
+			
+			r = &s->r[i];
+			print(" rel %#.4ux/%d %s%+lld\n", r->off, r->siz, r->sym->name, r->add);
+		}
+	}
+}
+
 void
 span(void)
 {
 	Prog *p, *q;
-	int32 v, c, idat, etext;
-	int m, n, again;
+	int32 v, c;
+	int n;
 	Sym *s;
 	Section *sect, *rosect;
 
+	if(debug['v'])
+		Bprint(&bso, "%5.2f span\n", cputime());
+
+	segtext.rwx = 05;
+	segtext.vaddr = INITTEXT - HEADR;
+	
 	xdefine("etext", STEXT, 0L);
 	xdefine("rodata", SRODATA, 0L);
 	xdefine("erodata", SRODATA, 0L);
 
-	idat = INITDAT;
+	// NOTE(rsc): If we get rid of the globals we should
+	// be able to parallelize these iterations.
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		// TODO: move into span1
 		for(p = cursym->text; p != P; p = p->link) {
 			n = 0;
 			if(p->to.type == D_BRANCH)
@@ -71,88 +174,45 @@ span(void)
 					p->as = ANOP;
 			}
 		}
+		span1(cursym);
 	}
-	n = 0;
 	
-	rosect = segtext.sect->next;
-
-start:
-	do{
-		again = 0;
-		if(debug['v'])
-			Bprint(&bso, "%5.2f span %d\n", cputime(), n);
-		Bflush(&bso);
-		if(n > 50) {
-			print("span must be looping - %d\n", textsize);
-			errorexit();
-		}
-		c = INITTEXT;
-		for(cursym = textp; cursym != nil; cursym = cursym->next) {
-			if(HEADTYPE == 8)
-				c = (c+31)&~31;
-			for(p = cursym->text; p != P; p = p->link) {
-				if(p->to.type == D_BRANCH)
-					if(p->back)
-						p->pc = c;
-				if(n == 0 || HEADTYPE == 8 || p->to.type == D_BRANCH) {
-					if(HEADTYPE == 8)
-						p->pc = c;
-					asmins(p);
-					m = andptr-and;
-					if(p->mark != m)
-						again = 1;
-					p->mark = m;
-				}
-				if(HEADTYPE == 8) {
-					c = p->pc + p->mark;
-				} else {
-					p->pc = c;
-					c += p->mark;
-				}
-			}
-		}
-		textsize = c;
-		n++;
-	}while(again);
-	etext = c;
-	c += textpad;
-	
-	if(rosect) {
-		if(INITRND)
-			c = rnd(c, INITRND);
-		if(rosect->vaddr != c){
-			rosect->vaddr = c;
-			goto start;
-		}
-		c += rosect->len;
-	}
-
-	if(INITRND) {
-		INITDAT = rnd(c, INITRND);
-		if(INITDAT != idat) {
-			idat = INITDAT;
-			goto start;
-		}
-	}
-
-	xdefine("etext", STEXT, etext);
-
-	if(debug['v'])
-		Bprint(&bso, "etext = %ux\n", c);
-	Bflush(&bso);
-	for(cursym = textp; cursym != nil; cursym = cursym->next)
-		cursym->value = cursym->text->pc;
-	textsize = c - INITTEXT;
-
-	segtext.rwx = 05;
-	segtext.vaddr = INITTEXT - HEADR;
-	segtext.len = INITDAT - INITTEXT + HEADR;
-	segtext.filelen = textsize + HEADR;
-	
+	// Next, loop over symbols to assign actual PCs.
+	// Could parallelize here too, by assigning to text 
+	// and then letting threads copy down, but probably not worth it.
+	c = INITTEXT;
 	sect = segtext.sect;
-	sect->vaddr = INITTEXT;
-	sect->len = etext - sect->vaddr;
+	sect->vaddr = c;
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		cursym->value = c;
+		for(p = cursym->text; p != P; p = p->link)
+			p->pc += c;
+		c += cursym->size;
+	}
+	sect->len = c - sect->vaddr;
+	xdefine("etext", STEXT, c);
+	if(debug['v'])
+		Bprint(&bso, "etext = %llux\n", c);
 
+	xdefine("rodata", SRODATA, c);
+	if(INITRND)
+		c = rnd(c, INITRND);
+	rosect = segtext.sect->next;
+	rosect->vaddr = c;
+	c += rosect->len;
+	xdefine("erodata", SRODATA, c);
+	textsize = c - INITTEXT;
+	if(debug['v'])
+		Bprint(&bso, "erodata = %llux", c);
+	Bflush(&bso);
+
+	segtext.len = c - segtext.vaddr;
+	segtext.filelen = segtext.len;
+
+	if(INITRND)
+		c = rnd(c, INITRND);
+	INITDAT = c;
+	
 	// Adjust everything now that we know INITDAT.
 	// This will get simpler when everything is relocatable
 	// and we can run span before dodata.
@@ -177,8 +237,6 @@ start:
 			break;
 		}
 	}
-	
-	// TODO(rsc): if HEADTYPE == NACL fix up segrodata.
 }
 
 void
@@ -478,26 +536,49 @@ put4(int32 v)
 	andptr += 4;
 }
 
-static int32 vaddr(Adr*);
+static void
+relput4(Prog *p, Adr *a)
+{
+	vlong v;
+	Reloc rel, *r;
+	
+	v = vaddr(a, &rel);
+	if(rel.siz != 0) {
+		if(rel.siz != 4)
+			diag("bad reloc");
+		r = addrel(cursym);
+		*r = rel;
+		r->off = p->pc + andptr - and;
+	}
+	put4(v);
+}
 
 int32
 symaddr(Sym *s)
 {
-	Adr a;
-
-	a.type = D_ADDR;
-	a.index = D_EXTERN;
-	a.offset = 0;
-	a.sym = s;
-	return vaddr(&a);
+	switch(s->type) {
+	case SFIXED:
+		return s->value;
+	
+	case SMACHO:
+		return INITDAT + segdata.filelen - dynptrsize + s->value;
+	
+	default:
+		if(!s->reachable)
+			diag("unreachable symbol in symaddr - %s", s->name);
+		return s->value;
+	}
 }
 
 static int32
-vaddr(Adr *a)
+vaddr(Adr *a, Reloc *r)
 {
 	int t;
 	int32 v;
 	Sym *s;
+	
+	if(r != nil)
+		memset(r, 0, sizeof *r);
 
 	t = a->type;
 	v = a->offset;
@@ -512,13 +593,19 @@ vaddr(Adr *a)
 			case SFIXED:
 				v += s->value;
 				break;
-			case SMACHO:
-				v += INITDAT + segdata.filelen - dynptrsize + s->value;
-				break;
 			default:
 				if(!s->reachable)
 					sysfatal("unreachable symbol in vaddr - %s", s->name);
-				v += s->value;
+				if(r == nil) {
+					diag("need reloc for %D", a);
+					errorexit();
+				}
+				r->type = D_ADDR;
+				r->siz = 4;
+				r->off = -1;
+				r->sym = s;
+				r->add = v;
+				v = 0;
 				break;
 			}
 		}
@@ -531,9 +618,11 @@ asmand(Adr *a, int r)
 {
 	int32 v;
 	int t, scale;
+	Reloc rel;
 
 	v = a->offset;
 	t = a->type;
+	rel.siz = 0;
 	if(a->index != D_NONE) {
 		if(t < D_INDIR || t >= 2*D_INDIR) {
 			switch(t) {
@@ -542,7 +631,7 @@ asmand(Adr *a, int r)
 			case D_STATIC:
 			case D_EXTERN:
 				t = D_NONE;
-				v = vaddr(a);
+				v = vaddr(a, &rel);
 				break;
 			case D_AUTO:
 			case D_PARAM:
@@ -555,15 +644,14 @@ asmand(Adr *a, int r)
 		if(t == D_NONE) {
 			*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
 			asmidx(a->scale, a->index, t);
-			put4(v);
-			return;
+			goto putrelv;
 		}
-		if(v == 0 && t != D_BP) {
+		if(v == 0 && rel.siz == 0 && t != D_BP) {
 			*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
 			asmidx(a->scale, a->index, t);
 			return;
 		}
-		if(v >= -128 && v < 128) {
+		if(v >= -128 && v < 128 && rel.siz == 0) {
 			*andptr++ = (1 << 6) | (4 << 0) | (r << 3);
 			asmidx(a->scale, a->index, t);
 			*andptr++ = v;
@@ -571,8 +659,7 @@ asmand(Adr *a, int r)
 		}
 		*andptr++ = (2 << 6) | (4 << 0) | (r << 3);
 		asmidx(a->scale, a->index, t);
-		put4(v);
-		return;
+		goto putrelv;
 	}
 	if(t >= D_AL && t <= D_F0+7) {
 		if(v)
@@ -589,7 +676,7 @@ asmand(Adr *a, int r)
 		case D_STATIC:
 		case D_EXTERN:
 			t = D_NONE;
-			v = vaddr(a);
+			v = vaddr(a, &rel);
 			break;
 		case D_AUTO:
 		case D_PARAM:
@@ -602,16 +689,15 @@ asmand(Adr *a, int r)
 
 	if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
 		*andptr++ = (0 << 6) | (5 << 0) | (r << 3);
-		put4(v);
-		return;
+		goto putrelv;
 	}
 	if(t == D_SP) {
-		if(v == 0) {
+		if(v == 0 && rel.siz == 0) {
 			*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
 			asmidx(scale, D_NONE, t);
 			return;
 		}
-		if(v >= -128 && v < 128) {
+		if(v >= -128 && v < 128 && rel.siz == 0) {
 			*andptr++ = (1 << 6) | (4 << 0) | (r << 3);
 			asmidx(scale, D_NONE, t);
 			*andptr++ = v;
@@ -619,24 +705,38 @@ asmand(Adr *a, int r)
 		}
 		*andptr++ = (2 << 6) | (4 << 0) | (r << 3);
 		asmidx(scale, D_NONE, t);
-		put4(v);
-		return;
+		goto putrelv;
 	}
 	if(t >= D_AX && t <= D_DI) {
-		if(v == 0 && t != D_BP) {
+		if(v == 0 && rel.siz == 0 && t != D_BP) {
 			*andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
 			return;
 		}
-		if(v >= -128 && v < 128) {
+		if(v >= -128 && v < 128 && rel.siz == 0) {
 			andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
 			andptr[1] = v;
 			andptr += 2;
 			return;
 		}
 		*andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
-		put4(v);
-		return;
+		goto putrelv;
 	}
+	goto bad;
+
+putrelv:
+	if(rel.siz != 0) {
+		Reloc *r;
+		
+		if(rel.siz != 4) {
+			diag("bad rel");
+			goto bad;
+		}
+		r = addrel(cursym);
+		*r = rel;
+		r->off = curp->pc + andptr - and;
+	}
+	put4(v);
+	return;
 
 bad:
 	diag("asmand: bad address %D", a);
@@ -827,6 +927,10 @@ doasm(Prog *p)
 	uchar *t;
 	int z, op, ft, tt;
 	int32 v, pre;
+	Reloc rel, *r;
+	Adr *a;
+	
+	curp = p;	// TODO
 
 	pre = prefixof(&p->from);
 	if(pre)
@@ -872,7 +976,7 @@ found:
 	case Pb:	/* botch */
 		break;
 	}
-	v = vaddr(&p->from);
+
 	op = o->op[z];
 	switch(t[2]) {
 	default:
@@ -963,21 +1067,24 @@ found:
 		break;
 
 	case Zm_ibo:
-		v = vaddr(&p->to);
 		*andptr++ = op;
 		asmand(&p->from, o->op[z+1]);
-		*andptr++ = v;
+		*andptr++ = vaddr(&p->to, nil);
 		break;
 
 	case Zibo_m:
 		*andptr++ = op;
 		asmand(&p->to, o->op[z+1]);
-		*andptr++ = v;
+		*andptr++ = vaddr(&p->from, nil);
 		break;
 
 	case Z_ib:
-		v = vaddr(&p->to);
 	case Zib_:
+		if(t[2] == Zib_)
+			a = &p->from;
+		else
+			a = &p->to;
+		v = vaddr(a, nil);
 		if(HEADTYPE == 8 && p->as == AINT && v == 3) {
 			// native client disallows all INT instructions.
 			// translate INT $3 to HLT.
@@ -990,69 +1097,71 @@ found:
 
 	case Zib_rp:
 		*andptr++ = op + reg[p->to.type];
-		*andptr++ = v;
+		*andptr++ = vaddr(&p->from, nil);
 		break;
 
 	case Zil_rp:
 		*andptr++ = op + reg[p->to.type];
 		if(o->prefix == Pe) {
+			v = vaddr(&p->from, nil);
 			*andptr++ = v;
 			*andptr++ = v>>8;
 		}
 		else
-			put4(v);
+			relput4(p, &p->from);
 		break;
 
 	case Zib_rr:
 		*andptr++ = op;
 		asmand(&p->to, reg[p->to.type]);
-		*andptr++ = v;
+		*andptr++ = vaddr(&p->from, nil);
 		break;
 
 	case Z_il:
-		v = vaddr(&p->to);
 	case Zil_:
+		if(t[2] == Zil_)
+			a = &p->from;
+		else
+			a = &p->to;
 		*andptr++ = op;
 		if(o->prefix == Pe) {
+			v = vaddr(a, nil);
 			*andptr++ = v;
 			*andptr++ = v>>8;
 		}
 		else
-			put4(v);
+			relput4(p, a);
 		break;
 
 	case Zm_ilo:
-		v = vaddr(&p->to);
-		*andptr++ = op;
-		asmand(&p->from, o->op[z+1]);
-		if(o->prefix == Pe) {
-			*andptr++ = v;
-			*andptr++ = v>>8;
-		}
-		else
-			put4(v);
-		break;
-
 	case Zilo_m:
 		*andptr++ = op;
-		asmand(&p->to, o->op[z+1]);
+		if(t[2] == Zilo_m) {
+			a = &p->from;
+			asmand(&p->to, o->op[z+1]);
+		} else {
+			a = &p->to;
+			asmand(&p->from, o->op[z+1]);
+		}
 		if(o->prefix == Pe) {
+			v = vaddr(a, nil);
 			*andptr++ = v;
 			*andptr++ = v>>8;
 		}
 		else
-			put4(v);
+			relput4(p, a);
 		break;
 
 	case Zil_rr:
 		*andptr++ = op;
 		asmand(&p->to, reg[p->to.type]);
 		if(o->prefix == Pe) {
+			v = vaddr(&p->from, nil);
 			*andptr++ = v;
 			*andptr++ = v>>8;
 		}
 		else
-			put4(v);
+			relput4(p, &p->from);
 		break;
 
 	case Z_rp:
@@ -1067,92 +1176,128 @@ found:
 		*andptr++ = op;
 		asmand(&p->to, reg[p->to.type]);
 		break;
+	
+	case Zcall:
+		q = p->pcond;
+		if(q == nil) {
+			diag("call without target");
+			errorexit();
+		}
+		if(q->as != ATEXT) {
+			// Could handle this case by making D_PCREL
+			// record the Prog* instead of the Sym*, but let's
+			// wait until the need arises.
+			diag("call of non-TEXT");
+			errorexit();
+		}
+		*andptr++ = op;
+		r = addrel(cursym);
+		r->off = p->pc + andptr - and;
+		r->type = D_PCREL;
+		r->siz = 4;
+		r->sym = q->from.sym;
+		put4(0);
+		break;
 
 	case Zbr:
+	case Zjmp:
 		q = p->pcond;
-		if(q) {
-			v = q->pc - p->pc - 2;
-			if(q->pc == 0)
-				v = 0;
-			if(v >= -128 && v <= 127 && !p->bigjmp) {
+		if(q == nil) {
+			diag("jmp/branch without target");
+			errorexit();
+		}
+		if(q->as == ATEXT) {
+			// jump out of function
+			if(t[2] == Zbr) {
+				diag("branch to ATEXT");
+				errorexit();
+			}
+			*andptr++ = o->op[z+1];
+			r = addrel(cursym);
+			r->off = p->pc + andptr - and;
+			r->sym = q->from.sym;
+			r->type = D_PCREL;
+			r->siz = 4;
+			put4(0);
+			break;
+		}
+		
+		// Assumes q is in this function.
+		// TODO: Check in input, preserve in brchain.
+		
+		// Fill in backward jump now.
+		if(p->back & 1) {
+			v = q->pc - (p->pc + 2);
+			if(v >= -128) {
 				*andptr++ = op;
 				*andptr++ = v;
 			} else {
-				p->bigjmp = 1;
-				v -= 6-2;
-				*andptr++ = 0x0f;
+				v -= 5-2;
+				if(t[2] == Zbr) {
+					*andptr++ = 0x0f;
+					v--;
+				}
 				*andptr++ = o->op[z+1];
 				*andptr++ = v;
 				*andptr++ = v>>8;
 				*andptr++ = v>>16;
 				*andptr++ = v>>24;
 			}
+			break;
 		}
-		break;
 
-	case Zcall:
-		q = p->pcond;
-		if(q) {
-			v = q->pc - p->pc - 5;
+		// Annotate target; will fill in later.
+		p->forwd = q->comefrom;
+		q->comefrom = p;
+		if(p->back & 2)	{ // short
 			*andptr++ = op;
-			*andptr++ = v;
-			*andptr++ = v>>8;
-			*andptr++ = v>>16;
-			*andptr++ = v>>24;
+			*andptr++ = 0;
+		} else {
+			if(t[2] == Zbr)
+				*andptr++ = 0x0f;
+			*andptr++ = o->op[z+1];
+			*andptr++ = 0;
+			*andptr++ = 0;
+			*andptr++ = 0;
+			*andptr++ = 0;
 		}
 		break;
 
 	case Zcallcon:
-		v = p->to.offset - p->pc - 5;
-		*andptr++ = op;
-		*andptr++ = v;
-		*andptr++ = v>>8;
-		*andptr++ = v>>16;
-		*andptr++ = v>>24;
-		break;
-
-	case Zjmp:
-		q = p->pcond;
-		if(q) {
-			v = q->pc - p->pc - 2;
-			if(q->pc == 0)
-				v = 0;
-			if(v >= -128 && v <= 127 && !p->bigjmp) {
-				*andptr++ = op;
-				*andptr++ = v;
-			} else {
-				p->bigjmp = 1;
-				v -= 5-2;
-				*andptr++ = o->op[z+1];
-				*andptr++ = v;
-				*andptr++ = v>>8;
-				*andptr++ = v>>16;
-				*andptr++ = v>>24;
-			}
-		}
-		break;
-
 	case Zjmpcon:
-		v = p->to.offset - p->pc - 5;
-		*andptr++ = o->op[z+1];
-		*andptr++ = v;
-		*andptr++ = v>>8;
-		*andptr++ = v>>16;
-		*andptr++ = v>>24;
+		if(t[2] == Zcallcon)
+			*andptr++ = op;
+		else
+			*andptr++ = o->op[z+1];
+		r = addrel(cursym);
+		r->off = p->pc + andptr - and;
+		r->type = D_PCREL;
+		r->siz = 4;
+		r->add = p->to.offset;
+		put4(0);
 		break;
 
 	case Zloop:
 		q = p->pcond;
-		if(q) {
-			v = q->pc - p->pc - 2;
-			if(v < -128 && v > 127)
-				diag("loop too far: %P", p);
-			*andptr++ = op;
-			*andptr++ = v;
+		if(q == nil) {
+			diag("loop without target");
+			errorexit();
 		}
+		v = q->pc - p->pc - 2;
+		if(v < -128 && v > 127)
+			diag("loop too far: %P", p);
+		*andptr++ = op;
+		*andptr++ = v;
 		break;
 
 	case Zbyte:
+		v = vaddr(&p->from, &rel);
+		if(rel.siz != 0) {
+			rel.siz = op;
+			r = addrel(cursym);
+			*r = rel;
+			r->off = p->pc + andptr - and;
+		}
 		*andptr++ = v;
 		if(op > 1) {
 			*andptr++ = v>>8;
@@ -1319,6 +1464,8 @@ asmins(Prog *p)
 	if(HEADTYPE == 8) {
 		ulong npc;
 		static Prog *prefix;
+		
+		// TODO: adjust relocations, like 6l does for rex prefix
 
 		// native client
 		// - pad indirect jump targets (aka ATEXT) to 32-byte boundary

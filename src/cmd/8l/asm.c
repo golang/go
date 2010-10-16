@@ -332,11 +332,9 @@ phsh(Elf64_Phdr *ph, Elf64_Shdr *sh)
 void
 asmb(void)
 {
-	Prog *p;
 	int32 v, magic;
 	int a, dynsym;
 	uint32 va, fo, w, symo, startva, machlink;
-	uchar *op1;
 	ulong expectpc;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
@@ -349,54 +347,9 @@ asmb(void)
 
 	seek(cout, HEADR, 0);
 	pc = INITTEXT;
-	
-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		for(p = cursym->text; p != P; p = p->link) {
-			curp = p;
-			if(HEADTYPE == 8) {
-				// native client
-				expectpc = p->pc;
-				p->pc = pc;
-				asmins(p);
-				if(p->pc != expectpc) {
-					Bflush(&bso);
-					diag("phase error %ux sb %ux in %s", p->pc, expectpc, TNAME);
-				}
-				while(pc < p->pc) {
-					cput(0x90);	// nop
-					pc++;
-				}
-			}
-			if(p->pc != pc) {
-				Bflush(&bso);
-				if(!debug['a'])
-					print("%P\n", curp);
-				diag("phase error %ux sb %ux in %s", p->pc, pc, TNAME);
-				pc = p->pc;
-			}
-			if(HEADTYPE != 8) {
-				asmins(p);
-				if(pc != p->pc) {
-					Bflush(&bso);
-					diag("asmins changed pc %ux sb %ux in %s", p->pc, pc, TNAME);
-				}
-			}
-			if(cbc < sizeof(and))
-				cflush();
-			a = (andptr - and);
-	
-			if(debug['a']) {
-				Bprint(&bso, pcstr, pc);
-				for(op1 = and; op1 < andptr; op1++)
-					Bprint(&bso, "%.2ux", *op1 & 0xff);
-				Bprint(&bso, "\t%P\n", curp);
-			}
-			memmove(cbp, and, a);
-			cbp += a;
-			pc += a;
-			cbc -= a;
-		}
-	}
+	codeblk(pc, segtext.sect->len);
+	pc += segtext.sect->len;
+
 	if(HEADTYPE == 8) {
 		int32 etext;
 		
@@ -406,8 +359,8 @@ asmb(void)
 			pc++;
 		}
 		pc = segrodata.vaddr;
+		cflush();
 	}
-	cflush();
 
 	/* output read-only data in text segment */
 	sect = segtext.sect->next;
