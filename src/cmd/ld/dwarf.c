@@ -667,7 +667,7 @@ flushunit(vlong pc, vlong unitstart)
 static void
 writelines(void)
 {
-	Prog *p, *q;
+	Prog *q;
 	Sym *s;
 	char *unitname;
 	vlong unitstart;
@@ -676,7 +676,6 @@ writelines(void)
 	int i;
 	Linehist *lh;
 
-	q = nil;
 	unitstart = -1;
 	epc = pc = 0;
 	lc = 1;
@@ -741,20 +740,18 @@ writelines(void)
 		if (!s->reachable)
 			continue;
 
-		p = s->text;
-
 		if (unitstart < 0) {
-			diag("reachable code before seeing any history: %P", p);
+			diag("reachable code before seeing any history: %P", s->text);
 			continue;
 		}
 
 		dwinfo->child = newdie(dwinfo->child, DW_ABRV_FUNCTION);
 		newattr(dwinfo->child, DW_AT_name, DW_CLS_STRING, strlen(s->name), s->name);
-		newattr(dwinfo->child, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, 0);
-		newattr(dwinfo->child, DW_AT_high_pc, DW_CLS_ADDRESS, s->text->pc + s->size, 0);
+		newattr(dwinfo->child, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, 0);
+		epc = s->value + s->size;
+		newattr(dwinfo->child, DW_AT_high_pc, DW_CLS_ADDRESS, epc, 0);
 
-		for(q = p; q != P && (q == p || q->as != ATEXT); q = q->link) {
-			epc = q->pc;
+		for(q = s->text; q != P; q = q->link) {
 			lh = searchhist(q->line);
 			if (lh == nil) {
 				diag("corrupt history or bad absolute line: %P", q);
