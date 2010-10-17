@@ -6,7 +6,7 @@
 
 // using frame size $-4 means do not save LR on stack.
 TEXT _rt0_arm(SB),7,$-4
-	MOVW $setR12(SB), R12
+	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack
 	// use R13 instead of SP to avoid linker rewriting the offsets

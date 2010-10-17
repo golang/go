@@ -54,9 +54,9 @@ ispad(Prog *p)
 {
 	if(p->as != AMOVW)
 		return 0;
-	if(p->from.type != D_REG || p->from.reg != REGSB)
+	if(p->from.type != D_REG || p->from.reg != REGTMP)
 		return 0;
-	if(p->to.type != D_REG || p->to.reg != REGSB)
+	if(p->to.type != D_REG || p->to.reg != REGTMP)
 		return 0;
 	return 1;
 }
@@ -121,9 +121,9 @@ pad(Prog *p, int pc)
 	q->as = AMOVW;
 	q->line = p->line;
 	q->from.type = D_REG;
-	q->from.reg = REGSB;
+	q->from.reg = REGTMP;
 	q->to.type = D_REG;
-	q->to.reg = REGSB;
+	q->to.reg = REGTMP;
 	q->pc = pc;
 	q->link = p->link;
 	return q;
@@ -542,6 +542,7 @@ xdefine(char *p, int t, int32 v)
 	s = lookup(p, 0);
 	s->type = t;
 	s->value = v;
+	s->reachable = 1;
 }
 
 int32
@@ -670,16 +671,8 @@ aclass(Adr *a)
 					s->name, TNAME);
 				s->type = SDATA;
 			}
-			instoffset = s->value + a->offset - INITDAT - BIG;
-			t = immaddr(instoffset);
-			if(t) {
-				if(immhalf(instoffset))
-					return immfloat(t) ? C_HFEXT : C_HEXT;
-				if(immfloat(t))
-					return C_FEXT;
-				return C_SEXT;
-			}
-			return C_LEXT;
+			instoffset = s->value + a->offset;
+			return C_ADDR;
 		case D_AUTO:
 			instoffset = autosize + a->offset;
 			t = immaddr(instoffset);
@@ -770,23 +763,11 @@ aclass(Adr *a)
 			if(s == S)
 				break;
 			t = s->type;
-			switch(t) {
-			case 0:
-			case SXREF:
+			if(t == 0 || t == SXREF) {
 				diag("undefined external: %s in %s",
 					s->name, TNAME);
 				s->type = SDATA;
-				break;
-			case SFIXED:
-			case STEXT:
-			case SCONST:
-				instoffset = symaddr(s) + a->offset;
-				return C_LCON;
 			}
-			instoffset = s->value + a->offset - INITDAT - BIG;
-			t = immrot(instoffset);
-			if(t && instoffset != 0)
-				return C_RECON;
 			instoffset = symaddr(s) + a->offset;
 			return C_LCON;
 
@@ -899,20 +880,6 @@ cmp(int a, int b)
 		if(b == C_RACON)
 			return 1;
 		break;
-	case C_LECON:
-		if(b == C_RECON)
-			return 1;
-		break;
-
-	case C_HFEXT:
-		return b == C_HEXT || b == C_FEXT;
-	case C_FEXT:
-	case C_HEXT:
-		return b == C_HFEXT;
-	case C_SEXT:
-		return cmp(C_HFEXT, b);
-	case C_LEXT:
-		return cmp(C_SEXT, b);
 
 	case C_HFAUTO:
 		return b == C_HAUTO || b == C_FAUTO;
