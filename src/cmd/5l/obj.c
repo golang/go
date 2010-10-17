@@ -70,6 +70,7 @@ main(int argc, char *argv[])
 {
 	int c, i;
 
+debug['s'] = 1;
 	Binit(&bso, 1, OWRITE);
 	cout = -1;
 	listinit();
@@ -258,9 +259,7 @@ main(int argc, char *argv[])
 	follow();
 	softfloat();
 	noops();
-	xdefine("setR12", SFIXED, 0);
 	span();
-	xdefine("setR12", SFIXED, INITDAT+BIG);
 	reloc();
 	asmb();
 	undef();

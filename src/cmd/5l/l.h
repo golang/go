@@ -238,9 +238,6 @@ enum
 	C_LACON,
 	C_GACON,	/* thumb */
 
-	C_RECON,
-	C_LECON,
-
 	C_SBRA,
 	C_LBRA,
 	C_GBRA,		/* thumb */
@@ -250,12 +247,6 @@ enum
 	C_HFAUTO,	/* both H and F */
 	C_SAUTO,	/* -0xfff to 0xfff */
 	C_LAUTO,
-
-	C_HEXT,
-	C_FEXT,
-	C_HFEXT,
-	C_SEXT,
-	C_LEXT,
 
 	C_HOREG,
 	C_FOREG,
@@ -280,7 +271,6 @@ enum
 	LABEL		= 1<<1,
 	LEAF		= 1<<2,
 
-	BIG		= (1<<12)-4,
 	STRINGSZ	= 200,
 	NHASH		= 10007,
 	NHUNK		= 100000,
