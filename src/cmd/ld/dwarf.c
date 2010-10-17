@@ -747,10 +747,11 @@ writelines(void)
 			diag("reachable code before seeing any history: %P", p);
 			continue;
 		}
-		
+
 		dwinfo->child = newdie(dwinfo->child, DW_ABRV_FUNCTION);
 		newattr(dwinfo->child, DW_AT_name, DW_CLS_STRING, strlen(s->name), s->name);
-		newattr(dwinfo->child, DW_AT_low_pc, DW_CLS_ADDRESS, p->pc, 0);
+		newattr(dwinfo->child, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, 0);
+		newattr(dwinfo->child, DW_AT_high_pc, DW_CLS_ADDRESS, s->text->pc + s->size, 0);
 
 		for(q = p; q != P && (q == p || q->as != ATEXT); q = q->link) {
 			epc = q->pc;
@@ -780,9 +781,6 @@ writelines(void)
 			lc  = q->line;
 			llc = lline;
 		}
-
-		newattr(dwinfo->child, DW_AT_high_pc, DW_CLS_ADDRESS, epc+1, 0);
-
 	}
 
 	flushunit(epc, unitstart);
@@ -795,8 +793,8 @@ writelines(void)
 enum
 {
 	CIERESERVE = 16,
-	DATAALIGNMENTFACTOR = -4,
-	FAKERETURNCOLUMN = 16
+	DATAALIGNMENTFACTOR = -4,	// TODO -PtrSize?
+	FAKERETURNCOLUMN = 16		// TODO gdb6 doesnt like > 15?
 };
 
 static void
@@ -824,7 +822,7 @@ writeframes(void)
 {
 	Prog *p, *q;
 	Sym *s;
-	vlong fdeo, fdesize, pad, cfa, pc, epc;
+	vlong fdeo, fdesize, pad, cfa, pc;
 
 	frameo = cpos();
 
@@ -867,16 +865,14 @@ writeframes(void)
 		cfa = PtrSize;	// CFA starts at sp+PtrSize
 		p = s->text;
 		pc = p->pc;
-		epc = p->pc;
 
-		for(q = p; q != P; q = q->link) {
-			epc = q->pc;
+		for(q = p; q->link != P; q = q->link) {
 			if (q->spadj == 0)
 				continue;
 
 			cfa += q->spadj;
-			putpccfadelta(q->pc - pc, cfa);
-			pc = q->pc;
+			putpccfadelta(q->link->pc - pc, cfa);
+			pc = q->link->pc;
 		}
 
 		fdesize = cpos() - fdeo - 4;	// exclude the length field.
@@ -890,7 +886,7 @@ writeframes(void)
 		LPUT(fdesize);
 		LPUT(0);
 		addrput(p->pc);
-		addrput(epc - p->pc);
+		addrput(s->size);
 
 		cflush();
 		seek(cout, fdeo + 4 + fdesize, 0);
