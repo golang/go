@@ -6,8 +6,10 @@
 
 package big
 
-import "fmt"
-
+import (
+	"fmt"
+	"rand"
+)
 
 // An Int represents a signed multi-precision integer.
 // The zero value for an Int represents the value 0.
@@ -542,6 +544,18 @@ func GcdInt(d, x, y, a, b *Int) {
 // If it returns false, z is not prime.
 func ProbablyPrime(z *Int, n int) bool {
 	return !z.neg && z.abs.probablyPrime(n)
+}
+
+
+// Rand sets z to a pseudo-random number in [0, n) and returns z. 
+func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
+	z.neg = false
+	if n.neg == true || len(n.abs) == 0 {
+		z.abs = nil
+		return z
+	}
+	z.abs = z.abs.random(rnd, n.abs, n.abs.bitLen())
+	return z
 }
 
 
