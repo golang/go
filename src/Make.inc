@@ -34,9 +34,10 @@ else ifeq ($(GOOS),freebsd)
 else ifeq ($(GOOS),linux)
 else ifeq ($(GOOS),nacl)
 else ifeq ($(GOOS),tiny)
+else ifeq ($(GOOS),plan9)
 else ifeq ($(GOOS),windows)
 else
-$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, tiny, or windows)
+$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, tiny, plan9, or windows)
 endif
 
 ifeq ($(GOHOSTARCH),)

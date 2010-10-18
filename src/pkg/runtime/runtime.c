@@ -147,15 +147,20 @@ args(int32 c, uint8 **v)
 	argv = v;
 }
 
+extern int32 isplan9;
+
 void
 goargs(void)
 {
 	String *gargv;
 	String *genvv;
 	int32 i, envc;
-
-	for(envc=0; argv[argc+1+envc] != 0; envc++)
-		;
+	
+	if(isplan9)
+		envc=0;
+	else
+		for(envc=0; argv[argc+1+envc] != 0; envc++)
+			;
 
 	gargv = malloc(argc*sizeof gargv[0]);
 	genvv = malloc(envc*sizeof genvv[0]);

@@ -76,7 +76,7 @@ typedef	struct	Complex128	Complex128;
  * segment register.
  *
  * amd64: allocated downwards from R15
- * x86: allocated upwards from 0(FS)
+ * x86: allocated upwards from 0(GS)
  * arm: allocated downwards from R10
  *
  * every C file linked into a Go program must include runtime.h

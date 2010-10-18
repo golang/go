@@ -145,6 +145,9 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "tiny") == 0)
 			HEADTYPE = 11;
 		else
+		if(strcmp(goos, "plan9") == 0)
+			HEADTYPE = 2;
+		else
 			print("goos is not known: %s\n", goos);
 	}
 
