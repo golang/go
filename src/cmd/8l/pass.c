@@ -293,6 +293,14 @@ patch(void)
 					p->from.offset = 0;
 				}
 			}
+			if(HEADTYPE == 2) {	// Plan 9
+				if(p->from.type == D_INDIR+D_GS
+				&& p->to.type >= D_AX && p->to.type <= D_DI) {
+					p->as = AMOVL;
+					p->from.type = D_ADDR+D_STATIC;
+					p->from.offset += 0xdfffefc0;
+				}
+			}
 			if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
 				s = p->to.sym;
 				if(s) {
@@ -418,7 +426,14 @@ dostkoff(void)
 				p->from.offset = tlsoffset + 0;
 				p->to.type = D_CX;
 				break;
-
+			
+			case 2:	// Plan 9
+				p->as = AMOVL;
+				p->from.type = D_ADDR+D_STATIC;
+				p->from.offset = 0xdfffefc0;
+				p->to.type = D_CX;
+				break;
+			
 			default:
 				p->as = AMOVL;
 				p->from.type = D_INDIR+D_GS;

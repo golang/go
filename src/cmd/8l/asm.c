@@ -441,6 +441,7 @@ asmb(void)
 			break;
 		case 2:
 			seek(cout, HEADR+textsize+segdata.filelen, 0);
+			symo = HEADR+textsize+segdata.filelen;
 			break;
 		case 3:
 		case 4:

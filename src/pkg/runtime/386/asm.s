@@ -26,6 +26,8 @@ TEXT _rt0_386(SB),7,$0
 	CALL	ldt0setup(SB)
 
 	// store through it, to make sure it works
+	CMPL	isplan9(SB), $1
+	JEQ	ok
 	get_tls(BX)
 	MOVL	$0x123, g(BX)
 	MOVL	tls0(SB), AX
@@ -414,4 +416,4 @@ GLOBL m0(SB), $1024
 GLOBL g0(SB), $1024
 GLOBL tls0(SB), $32
 GLOBL initcgo(SB), $4
-
+GLOBL isplan9(SB), $4

@@ -24,6 +24,11 @@ case "$GOARCH" in
 		echo '#define	g(r)	0(r)'
 		echo '#define	m(r)	4(r)'
 		;;
+	plan9)
+		echo '#define	get_tls(r)'
+		echo '#define	g(r)	0xdfffefc0'
+		echo '#define	m(r)	0xdfffefc4'
+		;;
 	linux)
 		# On Linux systems, what we call 0(GS) and 4(GS) for g and m
 		# turn into %gs:-8 and %gs:-4 (using gcc syntax to denote
