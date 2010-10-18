@@ -370,7 +370,8 @@ ret:
 
 // cmf, compare floating point
 static void
-compare(uint32 *pc, uint32 *regs) {
+compare(uint32 *pc, uint32 *regs)
+{
 	uint32 i, flags, lhs, rhs, sign0, sign1;
 	uint64 f0, f1, mant0, mant1;
 	int32 exp0, exp1;
@@ -502,16 +503,14 @@ loadconst(uint32 *pc, uint32 *regs)
 	uint32 offset;
 	uint32 *addr;
 
-	if (*pc & 0xfffff000 != 0xe59fb838 ||
-		*(pc+1) != 0xe08bb00c ||
-		*(pc+2) & 0xffff8fff != 0xed9b0100)
+	if ((*pc & 0xfffff000) != 0xe59fb000 || (*(pc+1) & 0xffff8fff) != 0xed9b0100)
 		goto undef;
 
 	offset = *pc & 0xfff;
 	addr = (uint32*)((uint8*)pc + offset + 8);
 //printf("DEBUG: addr %p *addr %x final %p\n", addr, *addr, *addr + regs[12]);
-	regs[11] = *addr + regs[12];
-	loadstore(pc + 2, regs);
+	regs[11] = *addr;
+	loadstore(pc + 1, regs);
 	goto ret;
 
 undef:
@@ -587,6 +586,8 @@ stepflt(uint32 *pc, uint32 *regs)
 {
 	uint32 i, c;
 
+//printf("stepflt %p %p\n", pc, *pc);
+
 	i = *pc;
 
 	// unconditional forward branches.
@@ -622,12 +623,11 @@ stepflt(uint32 *pc, uint32 *regs)
 	}
 
 	// lookahead for virtual instructions that span multiple arm instructions
-	c = ((*pc & 0x0f000000) >> 16) |
-		((*(pc + 1)  & 0x0f000000) >> 20) |
-		((*(pc + 2) & 0x0f000000) >> 24);
-	if(c == 0x50d) { // 0101 0000 1101
+	c = ((*pc & 0x0f000000) >> 20) |
+		((*(pc + 1) & 0x0f000000) >> 24);
+	if(c == 0x5d) { // 0101 1101
 		loadconst(pc, regs);
-		return 3;
+		return 2;
 	}
 
 	return 0;
