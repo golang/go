@@ -147,7 +147,7 @@ args(int32 c, uint8 **v)
 	argv = v;
 }
 
-extern int32 isplan9;
+int32 isplan9;
 
 void
 goargs(void)
