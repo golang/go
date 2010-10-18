@@ -346,3 +346,19 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
 	exp.chans[name] = &chanDir{ch, dir}
 	return nil
 }
+
+// Hangup disassociates the named channel from the Exporter and closes
+// the channel.  Messages in flight for the channel may be dropped.
+func (exp *Exporter) Hangup(name string) os.Error {
+	exp.mu.Lock()
+	chDir, ok := exp.chans[name]
+	if ok {
+		exp.chans[name] = nil, false
+	}
+	exp.mu.Unlock()
+	if !ok {
+		return os.ErrorString("netchan export: hangup: no such channel: " + name)
+	}
+	chDir.ch.Close()
+	return nil
+}
