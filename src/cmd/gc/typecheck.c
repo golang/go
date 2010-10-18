@@ -425,7 +425,7 @@ reswitch:
 		n->right = r;
 		t = r->type;
 		if(!isint[t->etype] || issigned[t->etype]) {
-			yyerror("invalid operation: %#N (shift count type %T)", n, r->type);
+			yyerror("invalid operation: %#N (shift count type %T, must be unsigned integer)", n, r->type);
 			goto error;
 		}
 		t = l->type;
