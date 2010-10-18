@@ -449,7 +449,7 @@ loadstore(uint32 *pc, uint32 *regs)
 	isload = i>>20&1;
 	p = i>>24&1;
 	ud = i>>23&1;
-	tlen = i>>(22 - 1)&1 | i>>15&1;
+	tlen = i>>(22 - 1)&1 | i>>15&1;	// NOTE(rsc): should this say i>>(22-1)&2 (not &1)?
 	wb = i>>21&1;
 	reg = i>>16 &0xf;
 	freg = i>>12 &0x7;
@@ -492,33 +492,6 @@ ret:
 			printf(" coproc: %d pre: %d wb %d", coproc, p, wb);
 		printf("\n");
 		fprint();
-	}
-	if (doabort)
-		fabort();
-}
-
-static void
-loadconst(uint32 *pc, uint32 *regs)
-{
-	uint32 offset;
-	uint32 *addr;
-
-	if ((*pc & 0xfffff000) != 0xe59fb000 || (*(pc+1) & 0xffff8fff) != 0xed9b0100)
-		goto undef;
-
-	offset = *pc & 0xfff;
-	addr = (uint32*)((uint8*)pc + offset + 8);
-//printf("DEBUG: addr %p *addr %x final %p\n", addr, *addr, *addr + regs[12]);
-	regs[11] = *addr;
-	loadstore(pc + 1, regs);
-	goto ret;
-
-undef:
-	doabort = 1;
-
-ret:
-	if (trace || doabort) {
-		printf(" %p coproc const %x %x %x\n", pc, *pc, *(pc+1), *(pc+2));
 	}
 	if (doabort)
 		fabort();
@@ -622,12 +595,13 @@ stepflt(uint32 *pc, uint32 *regs)
 		return 1;
 	}
 
-	// lookahead for virtual instructions that span multiple arm instructions
-	c = ((*pc & 0x0f000000) >> 20) |
-		((*(pc + 1) & 0x0f000000) >> 24);
-	if(c == 0x5d) { // 0101 1101
-		loadconst(pc, regs);
-		return 2;
+	if((i&0xfffff000) == 0xe59fb000) {
+		// load r11 from pc-relative address.
+		// might be part of a floating point move
+		// (or might not, but no harm in simulating
+		// one instruction too many).
+		regs[11] = *(uint32*)((uint8*)pc + (i&0xfff) + 8);
+		return 1;
 	}
 
 	return 0;
