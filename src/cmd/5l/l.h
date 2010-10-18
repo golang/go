@@ -379,7 +379,7 @@ void	addhist(int32, int);
 Prog*	appendp(Prog*);
 void	asmb(void);
 void	asmthumbmap(void);
-void	asmout(Prog*, Optab*);
+void	asmout(Prog*, Optab*, int32*);
 void	thumbasmout(Prog*, Optab*);
 void	asmsym(void);
 int32	atolwhex(char*);

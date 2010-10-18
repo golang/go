@@ -166,11 +166,12 @@ span(void)
 {
 	Prog *p, *op;
 	Optab *o;
-	int m, bflag;
-	int32 c, otxt;
+	int m, bflag, i, v;
+	int32 c, otxt, out[6];
 	int lastthumb = -1;
 	Section *rosect, *sect;
 	Sym *sym;
+	uchar *bp;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f span\n", cputime());
@@ -187,11 +188,8 @@ span(void)
 		p = cursym->text;
 		setarch(p);
 		p->pc = c;
+		cursym->value = c;
 
-		if(blitrl && lastthumb != -1 && lastthumb != thumb){	// flush literal pool
-			if(flushpool(op, 0, 1))
-				c = p->pc = scan(op, p, c);
-		}
 		lastthumb = thumb;
 		autosize = p->to.offset + 4;
 		if(p->from.sym != S)
@@ -216,8 +214,6 @@ span(void)
 					c = p->pc = scan(op, p, c);
 			}
 			if(m == 0) {
-				if(p->as == ATEXT) {
-				}
 				diag("zero-width instruction\n%P", p);
 				continue;
 			}
@@ -237,12 +233,13 @@ span(void)
 				flushpool(p, 0, 0);
 			c += m;
 		}
-		if(blitrl && cursym->next == nil){
+		if(blitrl){
 			if(thumb && isbranch(op))
 				pool.extra += brextra(op);
 			if(checkpool(op, 0))
 				c = scan(op, P, c);
 		}
+		cursym->size = c - cursym->value;
 	}
 
 	/*
@@ -257,6 +254,7 @@ span(void)
 		bflag = 0;
 		c = INITTEXT;
 		for(cursym = textp; cursym != nil; cursym = cursym->next) {
+			cursym->value = c;
 			for(p = cursym->text; p != P; p = p->link) {
 				setarch(p);
 				p->pc = c;
@@ -299,6 +297,7 @@ span(void)
 				}
 				c += m;
 			}
+			cursym->size = c - cursym->value;
 		}
 	}
 
@@ -318,6 +317,7 @@ span(void)
 		oop = op = nil;
 		again = 0;
 		for(cursym = textp; cursym != nil; cursym = cursym->next) {
+			cursym->value = c;
 			for(p = cursym->text; p != P; oop = op, op = p, p = p->link) {
 				setarch(p);
 				if(p->pc != c)
@@ -361,6 +361,7 @@ span(void)
 				}
 				c += m;
 			}
+			cursym->size = c - cursym->value;
 		}
 		if(c != lastc || again){
 			lastc = c;
@@ -368,12 +369,39 @@ span(void)
 		}
 	}
 	c = rnd(c, 8);
-
 	xdefine("etext", STEXT, c);
-	for(cursym = textp; cursym != nil; cursym = cursym->next)
-		cursym->value = cursym->text->pc;
 	textsize = c - INITTEXT;
 	
+	/*
+	 * lay out the code.  all the pc-relative code references,
+	 * even cross-function, are resolved now;
+	 * only data references need to be relocated.
+	 * with more work we could leave cross-function
+	 * code references to be relocated too, and then
+	 * perhaps we'd be able to parallelize the span loop above.
+	 */
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		p = cursym->text;
+		setarch(p);
+		autosize = p->to.offset + 4;
+		symgrow(cursym, cursym->size);
+	
+		bp = cursym->p;
+		for(p = p->link; p != P; p = p->link) {
+			pc = p->pc;
+			curp = p;
+			o = oplook(p);
+			asmout(p, o, out);
+			for(i=0; i<o->size/4; i++) {
+				v = out[i];
+				*bp++ = v;
+				*bp++ = v>>8;
+				*bp++ = v>>16;
+				*bp++ = v>>24;
+			}
+		}
+	}
+
 	rosect = segtext.sect->next;
 	if(rosect) {
 		if(INITRND)
