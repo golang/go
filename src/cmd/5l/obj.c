@@ -70,7 +70,7 @@ main(int argc, char *argv[])
 {
 	int c, i;
 
-debug['s'] = 1;
+//debug['s'] = 1;  // qemu cannot handle symdat load
 	Binit(&bso, 1, OWRITE);
 	cout = -1;
 	listinit();

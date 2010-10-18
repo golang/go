@@ -291,13 +291,11 @@ phsh(Elf64_Phdr *ph, Elf64_Shdr *sh)
 void
 asmb(void)
 {
-	Prog *p;
 	int32 t;
 	int a, dynsym;
 	uint32 va, fo, w, symo, startva;
 	uint32 symdatva = SYMDATVA;
 	int strtabsize;
-	Optab *o;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
@@ -312,28 +310,8 @@ asmb(void)
 	OFFSET = HEADR;
 	seek(cout, OFFSET, 0);
 	pc = INITTEXT;
-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		for(p = cursym->text; p != P; p = p->link) {
-			setarch(p);
-			if(p->as == ATEXT)
-				autosize = p->to.offset + 4;
-			if(p->pc != pc) {
-				diag("phase error %ux sb %ux",
-					p->pc, pc);
-				if(!debug['a'])
-					prasm(curp);
-				pc = p->pc;
-			}
-			curp = p;
-			o = oplook(p);	/* could probably avoid this call */
-			if(thumb)
-				thumbasmout(p, o);
-			else
-				asmout(p, o);
-			pc += o->size;
-		}
-	}
-	cflush();
+	codeblk(pc, segtext.sect->len);
+	pc += segtext.sect->len;
 	if(seek(cout, 0, 1) != pc - segtext.vaddr + segtext.fileoff)
 		diag("text phase error");
 
@@ -846,10 +824,11 @@ asmthumbmap(void)
 }
 
 void
-asmout(Prog *p, Optab *o)
+asmout(Prog *p, Optab *o, int32 *out)
 {
 	int32 o1, o2, o3, o4, o5, o6, v;
 	int r, rf, rt, rt2;
+	Reloc *rel;
 
 PP = p;
 	o1 = 0;
@@ -991,6 +970,15 @@ if(debug['G']) print("%ux: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym-
 	case 11:	/* word */
 		aclass(&p->to);
 		o1 = instoffset;
+		if(p->to.sym != S) {
+			rel = addrel(cursym);
+			rel->off = pc - cursym->value;
+			rel->siz = 4;
+			rel->type = D_ADDR;
+			rel->sym = p->to.sym;
+			rel->add = p->to.offset;
+			o1 = 0;
+		}
 		break;
 
 	case 12:	/* movw $lcon, reg */
@@ -1588,6 +1576,14 @@ if(debug['G']) print("%ux: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym-
 		o1 |= (p->scond & C_SCOND) << 28;
 		break;
 	}
+	
+	out[0] = o1;
+	out[1] = o2;
+	out[2] = o3;
+	out[3] = o4;
+	out[4] = o5;
+	out[5] = o6;
+	return;
 
 	v = p->pc;
 	switch(o->size) {
