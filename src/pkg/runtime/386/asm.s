@@ -416,4 +416,3 @@ GLOBL m0(SB), $1024
 GLOBL g0(SB), $1024
 GLOBL tls0(SB), $32
 GLOBL initcgo(SB), $4
-GLOBL isplan9(SB), $4
