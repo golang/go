@@ -19,8 +19,11 @@ softfloat(void)
 	if(symsfloat->type == STEXT)
 		psfloat = symsfloat->text;
 
-	wasfloat = 0;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		wasfloat = 0;
+		for(p = cursym->text; p != P; p = p->link)
+			if(p->cond != P)
+				p->cond->mark |= LABEL;
 		for(p = cursym->text; p != P; p = p->link) {
 			switch(p->as) {
 			case AMOVWD:
@@ -43,7 +46,7 @@ softfloat(void)
 			case ADIVD:
 				if (psfloat == P)
 					diag("floats used with _sfloat not defined");
-				if (!wasfloat) {
+				if (!wasfloat || (p->mark&LABEL)) {
 					next = prg();
 					*next = *p;
 	
