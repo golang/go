@@ -25,7 +25,10 @@ other packages. It is therefore not necessary when compiling client C of
 package P to read the files of P's dependencies, only the compiled output
 of P.
 
-Usage: 6g [flags] *.go  (or 8g or 5g)
+Usage:
+	6g [flags] file...
+The specified files must be Go source files and all part of the same package.
+Substitute 6g with 8g or 5g where appropriate.
 
 Flags:
 	-o file
