@@ -102,7 +102,7 @@ fnpinc(Sym *s)
 		if(!debug['f'])
 			diag("fnptr == 0 in fnpinc");
 		if(s->foreign)
-			diag("bad usage in fnpinc %s %d %d %d", s->name, s->used, s->foreign, s->thumb);
+			diag("bad usage in fnpinc %s %d %d", s->name, s->foreign, s->thumb);
 		return 0;
 	}
 	/* 0, 1, 2, 3 squared */
@@ -524,6 +524,7 @@ xdefine(char *p, int t, int32 v)
 	s->type = t;
 	s->value = v;
 	s->reachable = 1;
+	s->special = 1;
 }
 
 int32
@@ -592,19 +593,20 @@ symaddr(Sym *s)
 		return 0;
 	
 	case STEXT:
+/* TODO(rsc): what is this for?
 #ifdef CALLEEBX
 		v += fnpinc(s);
 #else
 		if(s->thumb)
 			v++;	// T bit
 #endif
+*/
 		break;
 	
 	case SELFDATA:
 	case SRODATA:
 	case SDATA:
 	case SBSS:
-	case SFIXED:
 	case SCONST:
 		break;
 	}

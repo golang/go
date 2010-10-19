@@ -126,6 +126,7 @@ struct	Sym
 	uchar	dupok;
 	uchar	reachable;
 	uchar	dynexport;
+	uchar	special;
 	int32	value;
 	int32	size;
 	int32	sig;
@@ -171,7 +172,6 @@ enum
 	SMACHO,	// TODO(rsc): maybe move between DATA1 and BSS?
 	SFILE,
 	SCONST,
-	SFIXED,
 
 	NHASH		= 10007,
 	NHUNK		= 100000,
@@ -347,7 +347,6 @@ void	doprof2(void);
 void	dostkoff(void);
 int32	entryvalue(void);
 void	follow(void);
-void	genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*));
 void	instinit(void);
 void	listinit(void);
 Sym*	lookup(char*, int);

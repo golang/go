@@ -37,8 +37,7 @@
 char *elfstrdat;
 int elfstrsize;
 int maxelfstr;
-
-void genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*));
+int elftextsh;
 
 int
 putelfstr(char *s)
@@ -85,151 +84,137 @@ putelfsymb(char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 	}
 	
 	stroff = putelfstr(s);
-	lputl(stroff);	// string
+	LPUT(stroff);	// string
 	cput((bind<<4)|(type&0xF));
 	cput(0);
-	wputl(shndx);
-	vputl(addr);
-	vputl(size);
+	WPUT(shndx);
+	VPUT(addr);
+	VPUT(size);
 }
 
 void
-asmelfsym(void)
+asmelfsym64(void)
 {
-	genasmsym(putelfsymb);
+//	genasmsym(putelfsymb64);
 }
 
+static Sym *symt;
+
+static void
+scput(int b)
+{
+	uchar *p;
+
+	symgrow(symt, symt->size+1);
+	p = symt->p + symt->size;
+	*p = b;
+	symt->size++;
+}
+
+static void
+slputb(int32 v)
+{
+	uchar *p;
+	
+	symgrow(symt, symt->size+4);
+	p = symt->p + symt->size;
+	*p++ = v>>24;
+	*p++ = v>>16;
+	*p++ = v>>8;
+	*p = v;
+	symt->size += 4;
+}
 
 void
-putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
+putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 {
 	int i, f, l;
-	vlong gv;
+	Reloc *rel;
 
 	if(t == 'f')
-		s++;
+		name++;
 	l = 4;
-	if(!debug['8']){
-		lputb(v>>32);
-		l = 8;
-	}
-	lputb(v);
+//	if(!debug['8'])
+//		l = 8;
+	if(s != nil) {
+		rel = addrel(symt);
+		rel->siz = l + Rbig;
+		rel->sym = s;
+		rel->type = D_ADDR;
+		rel->off = symt->size;
+		v = 0;
+	}	
+	if(l == 8)
+		slputb(v>>32);
+	slputb(v);
 	if(ver)
 		t += 'a' - 'A';
-	cput(t+0x80);			/* 0x80 is variable length */
+	scput(t+0x80);			/* 0x80 is variable length */
 
 	if(t == 'Z' || t == 'z') {
-		cput(s[0]);
-		for(i=1; s[i] != 0 || s[i+1] != 0; i += 2) {
-			cput(s[i]);
-			cput(s[i+1]);
+		scput(name[0]);
+		for(i=1; name[i] != 0 || name[i+1] != 0; i += 2) {
+			scput(name[i]);
+			scput(name[i+1]);
 		}
-		cput(0);
-		cput(0);
+		scput(0);
+		scput(0);
 		i++;
 	}
 	else {
-		for(i=0; s[i]; i++)
-			cput(s[i]);
-		cput(0);
+		for(i=0; name[i]; i++)
+			scput(name[i]);
+		scput(0);
 	}
-	gv = 0;
-	if(go) {
-		if(!go->reachable)
-			diag("unreachable type %s", go->name);
-		gv = go->value+INITDAT;
+	if(typ) {
+		if(!typ->reachable)
+			diag("unreachable type %s", typ->name);
+		rel = addrel(symt);
+		rel->siz = l;
+		rel->sym = typ;
+		rel->type = D_ADDR;
+		rel->off = symt->size;
 	}
 	if(l == 8)
-		lputb(gv>>32);
-	lputb(gv);
-	symsize += l + 1 + i+1 + l;
+		slputb(0);
+	slputb(0);
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
 			Bprint(&bso, "%c %.8llux ", t, v);
-			for(i=1; s[i] != 0 || s[i+1] != 0; i+=2) {
-				f = ((s[i]&0xff) << 8) | (s[i+1]&0xff);
+			for(i=1; name[i] != 0 || name[i+1] != 0; i+=2) {
+				f = ((name[i]&0xff) << 8) | (name[i+1]&0xff);
 				Bprint(&bso, "/%x", f);
 			}
 			Bprint(&bso, "\n");
 			return;
 		}
 		if(ver)
-			Bprint(&bso, "%c %.8llux %s<%d> %s (%.8llux)\n", t, v, s, ver, go ? go->name : "", gv);
+			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s, ver, typ ? typ->name : "");
 		else
-			Bprint(&bso, "%c %.8llux %s %s (%.8llux)\n", t, v, s, go ? go->name : "", gv);
+			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s, typ ? typ->name : "");
 	}
 }
 
 void
-genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
+symtab(void)
 {
-	Auto *a;
-	Sym *s;
-	int h;
+	// Define these so that they'll get put into the symbol table.
+	// data.c:/^address will provide the actual values.
+	xdefine("text", STEXT, 0);
+	xdefine("etext", STEXT, 0);
+	xdefine("rodata", SRODATA, 0);
+	xdefine("erodata", SRODATA, 0);
+	xdefine("data", SBSS, 0);
+	xdefine("edata", SBSS, 0);
+	xdefine("end", SBSS, 0);
+	xdefine("epclntab", SRODATA, 0);
+	xdefine("esymtab", SRODATA, 0);
 
-	s = lookup("etext", 0);
-	if(s->type == STEXT)
-		put(s->name, 'T', s->value, s->size, s->version, 0);
+	symt = lookup("symtab", 0);
+	symt->type = SRODATA;
+	symt->size = 0;
+	symt->reachable = 1;
 
-	for(h=0; h<NHASH; h++) {
-		for(s=hash[h]; s!=S; s=s->hash) {
-			switch(s->type) {
-			case SCONST:
-			case SRODATA:
-			case SDATA:
-			case SELFDATA:
-				if(!s->reachable)
-					continue;
-				put(s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
-				continue;
-
-			case SBSS:
-				if(!s->reachable)
-					continue;
-				put(s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
-				continue;
-
-			case SFIXED:
-				put(s->name, 'B', s->value, s->size, s->version, s->gotype);
-				continue;
-
-			case SFILE:
-				put(s->name, 'f', s->value, 0, s->version, 0);
-				continue;
-			}
-		}
-	}
-
-	for(s = textp; s != nil; s = s->next) {
-		/* filenames first */
-		for(a=s->autom; a; a=a->link)
-			if(a->type == D_FILE)
-				put(a->asym->name, 'z', a->aoffset, 0, 0, 0);
-			else
-			if(a->type == D_FILE1)
-				put(a->asym->name, 'Z', a->aoffset, 0, 0, 0);
-
-		put(s->name, 'T', s->value, s->size, s->version, s->gotype);
-
-		/* frame, auto and param after */
-		put(".frame", 'm', s->text->to.offset+8, 0, 0, 0);
-
-		for(a=s->autom; a; a=a->link)
-			if(a->type == D_AUTO)
-				put(a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
-			else
-			if(a->type == D_PARAM)
-				put(a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
-	}
-	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %ud\n", symsize);
-	Bflush(&bso);
-}
-
-void
-asmsym(void)
-{
 	genasmsym(putsymb);
 }
-

@@ -127,6 +127,7 @@ struct	Sym
 	uchar	dupok;
 	uchar	reachable;
 	uchar	dynexport;
+	uchar	special;
 	int32	sig;
 	Sym*	hash;	// in hash table
 	Sym*	next;	// in text or data list
@@ -180,7 +181,6 @@ enum
 	SMACHO,
 	SFILE,
 	SCONST,
-	SFIXED,
 
 	NHASH		= 10007,
 	NHUNK		= 100000,
@@ -397,7 +397,6 @@ void	doprof2(void);
 void	dostkoff(void);
 vlong	entryvalue(void);
 void	follow(void);
-void	genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*));
 void	gethunk(void);
 void	gotypestrings(void);
 void	listinit(void);

@@ -327,6 +327,8 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	span();
+	pclntab();
+	symtab();
 	dodata();
 	address();
 	reloc();
