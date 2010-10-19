@@ -889,11 +889,19 @@ ewrite(int fd, void *buf, int n)
 }
 
 void
-asmlc(void)
+pclntab(void)
 {
 	vlong oldpc;
 	Prog *p;
 	int32 oldlc, v, s;
+	Sym *sym;
+	uchar *bp;
+	
+	sym = lookup("pclntab", 0);
+	sym->type = SRODATA;
+	sym->reachable = 1;
+	if(debug['s'])
+		return;
 
 	oldpc = INITTEXT;
 	oldlc = 0;
@@ -912,7 +920,9 @@ asmlc(void)
 				s = 127;
 				if(v < 127)
 					s = v;
-				cput(s+128);	/* 129-255 +pc */
+				symgrow(sym, lcsize+1);
+				bp = sym->p + lcsize;
+				*bp = s+128;	/* 129-255 +pc */
 				if(debug['O'])
 					Bprint(&bso, " pc+%d*%d(%d)", s, MINLC, s+128);
 				v -= s;
@@ -922,11 +932,13 @@ asmlc(void)
 			oldlc = p->line;
 			oldpc = p->pc + MINLC;
 			if(s > 64 || s < -64) {
-				cput(0);	/* 0 vv +lc */
-				cput(s>>24);
-				cput(s>>16);
-				cput(s>>8);
-				cput(s);
+				symgrow(sym, lcsize+5);
+				bp = sym->p + lcsize;
+				*bp++ = 0;	/* 0 vv +lc */
+				*bp++ = s>>24;
+				*bp++ = s>>16;
+				*bp++ = s>>8;
+				*bp = s;
 				if(debug['O']) {
 					if(s > 0)
 						Bprint(&bso, " lc+%d(%d,%d)\n",
@@ -940,15 +952,17 @@ asmlc(void)
 				lcsize += 5;
 				continue;
 			}
+			symgrow(sym, lcsize+1);
+			bp = sym->p + lcsize;
 			if(s > 0) {
-				cput(0+s);	/* 1-64 +lc */
+				*bp = 0+s;	/* 1-64 +lc */
 				if(debug['O']) {
 					Bprint(&bso, " lc+%d(%d)\n", s, 0+s);
 					Bprint(&bso, "%6llux %P\n",
 						p->pc, p);
 				}
 			} else {
-				cput(64-s);	/* 65-128 -lc */
+				*bp = 64-s;	/* 65-128 -lc */
 				if(debug['O']) {
 					Bprint(&bso, " lc%d(%d)\n", s, 64-s);
 					Bprint(&bso, "%6llux %P\n",
@@ -958,11 +972,14 @@ asmlc(void)
 			lcsize++;
 		}
 	}
-	while(lcsize & 1) {
-		s = 129;
-		cput(s);
+	if(lcsize & 1) {
+		symgrow(sym, lcsize+1);
+		sym->p[lcsize] = 129;
 		lcsize++;
 	}
+	sym->size = lcsize;
+	lcsize = 0;
+
 	if(debug['v'] || debug['O'])
 		Bprint(&bso, "lcsize = %d\n", lcsize);
 	Bflush(&bso);

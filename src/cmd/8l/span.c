@@ -193,6 +193,7 @@ xdefine(char *p, int t, int32 v)
 	s->type = t;
 	s->value = v;
 	s->reachable = 1;
+	s->special = 1;
 }
 
 void
@@ -503,9 +504,6 @@ int32
 symaddr(Sym *s)
 {
 	switch(s->type) {
-	case SFIXED:
-		return s->value;
-	
 	case SMACHO:
 		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
 	
@@ -535,25 +533,18 @@ vaddr(Adr *a, Reloc *r)
 	case D_EXTERN:
 		s = a->sym;
 		if(s != nil) {
-			switch(s->type) {
-			case SFIXED:
-				v += s->value;
-				break;
-			default:
-				if(!s->reachable)
-					sysfatal("unreachable symbol in vaddr - %s", s->name);
-				if(r == nil) {
-					diag("need reloc for %D", a);
-					errorexit();
-				}
-				r->type = D_ADDR;
-				r->siz = 4;
-				r->off = -1;
-				r->sym = s;
-				r->add = v;
-				v = 0;
-				break;
+			if(!s->reachable)
+				sysfatal("unreachable symbol in vaddr - %s", s->name);
+			if(r == nil) {
+				diag("need reloc for %D", a);
+				errorexit();
 			}
+			r->type = D_ADDR;
+			r->siz = 4;
+			r->off = -1;
+			r->sym = s;
+			r->add = v;
+			v = 0;
 		}
 	}
 	return v;

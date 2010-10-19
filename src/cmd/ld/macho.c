@@ -441,7 +441,7 @@ domacholink(void)
 }
 
 void
-asmbmacho(vlong symdatva, vlong symo)
+asmbmacho(void)
 {
 	vlong v, w;
 	vlong va;
@@ -608,21 +608,17 @@ asmbmacho(vlong symdatva, vlong symo)
 	}
 
 	if(!debug['s']) {
-		ms = newMachoSeg("__SYMDAT", 1);
-		ms->vaddr = symdatva;
-		ms->vsize = 8+symsize+lcsize;
-		ms->fileoffset = symo;
-		ms->filesize = 8+symsize+lcsize;
-		ms->prot1 = 7;
-		ms->prot2 = 5;
+		Sym *s;
 
 		md = newMachoDebug();
-		md->fileoffset = symo+8;
-		md->filesize = symsize;
+		s = lookup("symtab", 0);
+		md->fileoffset = datoff(s->value);
+		md->filesize = s->size;
 
 		md = newMachoDebug();
-		md->fileoffset = symo+8+symsize;
-		md->filesize = lcsize;
+		s = lookup("pclntab", 0);
+		md->fileoffset = datoff(s->value);
+		md->filesize = s->size;
 
 		dwarfaddmachoheaders();
 	}

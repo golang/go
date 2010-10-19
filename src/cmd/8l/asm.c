@@ -41,7 +41,6 @@
 
 char linuxdynld[] = "/lib/ld-linux.so.2";
 char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
-uint32 symdatva = SYMDATVA;
 
 int32
 entryvalue(void)
@@ -371,6 +370,7 @@ asmb(void)
 	lcsize = 0;
 	symo = 0;
 	if(!debug['s']) {
+		// TODO: rationalize
 		if(debug['v'])
 			Bprint(&bso, "%5.2f sym\n", cputime());
 		Bflush(&bso);
@@ -402,26 +402,8 @@ asmb(void)
 			symo = rnd(symo, INITRND);
 			break;
 		}
-		seek(cout, symo+8, 0);
-		if(!debug['s'])
-			asmsym();
-		if(debug['v'])
-			Bprint(&bso, "%5.2f sp\n", cputime());
-		Bflush(&bso);
-		if(debug['v'])
-			Bprint(&bso, "%5.2f pc\n", cputime());
-		Bflush(&bso);
-		if(!debug['s'])
-			asmlc();
-		if(HEADTYPE == 10 || (iself && !debug['s']))
-			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
-		cflush();
-		seek(cout, symo, 0);
-		lputl(symsize);
-		lputl(lcsize);
-		cflush();
 		if(HEADTYPE != 10 && !debug['s']) {
-			seek(cout, symo+8+symsize+lcsize, 0);
+			seek(cout, symo, 0);
 			if(debug['v'])
 				Bprint(&bso, "%5.2f dwarf\n", cputime());
 			dwarfemitdebugsections();
@@ -563,7 +545,7 @@ asmb(void)
 		break;
 
 	case 6:
-		asmbmacho(symdatva, symo);
+		asmbmacho();
 		break;
 
 	Elfput:
@@ -617,15 +599,6 @@ asmb(void)
 		if(segrodata.len > 0)
 			elfphload(&segrodata);
 		elfphload(&segdata);
-
-		if(!debug['s'] && HEADTYPE != 8 && HEADTYPE != 11) {
-			segsym.rwx = 04;
-			segsym.vaddr = symdatva;
-			segsym.len = rnd(8+symsize+lcsize, INITRND);
-			segsym.fileoff = symo;
-			segsym.filelen = segsym.len;
-			elfphload(&segsym);
-		}
 
 		/* Dynamic linking sections */
 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
@@ -714,38 +687,17 @@ asmb(void)
 			elfshbits(sect);
 
 		if (!debug['s']) {
-			fo = symo;
-			w = 8;
-
-			sh = newElfShdr(elfstr[ElfStrGosymcounts]);
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC;
-			sh->off = fo;
-			sh->size = w;
-			sh->addralign = 1;
-			sh->addr = symdatva;
-
-			fo += w;
-			w = symsize;
-
 			sh = newElfShdr(elfstr[ElfStrGosymtab]);
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
-			sh->off = fo;
-			sh->size = w;
 			sh->addralign = 1;
-			sh->addr = symdatva + 8;
-
-			fo += w;
-			w = lcsize;
+			shsym(sh, lookup("symtab", 0));
 
 			sh = newElfShdr(elfstr[ElfStrGopclntab]);
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
-			sh->off = fo;
-			sh->size = w;
 			sh->addralign = 1;
-			sh->addr = symdatva + 8 + symsize;
+			shsym(sh, lookup("pclntab", 0));
 
 			dwarfaddelfheaders();
 		}
@@ -844,4 +796,67 @@ rnd(int32 v, int32 r)
 		c += r;
 	v -= c;
 	return v;
+}
+
+void
+genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+{
+	Auto *a;
+	Sym *s;
+	int h;
+
+	s = lookup("etext", 0);
+	if(s->type == STEXT)
+		put(s, s->name, 'T', s->value, s->size, s->version, 0);
+
+	for(h=0; h<NHASH; h++) {
+		for(s=hash[h]; s!=S; s=s->hash) {
+			switch(s->type) {
+			case SCONST:
+			case SRODATA:
+			case SDATA:
+			case SELFDATA:
+			case SMACHO:
+				if(!s->reachable)
+					continue;
+				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+				continue;
+
+			case SBSS:
+				if(!s->reachable)
+					continue;
+				put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+				continue;
+
+			case SFILE:
+				put(nil, s->name, 'f', s->value, 0, s->version, 0);
+				continue;
+			}
+		}
+	}
+
+	for(s = textp; s != nil; s = s->next) {
+		/* filenames first */
+		for(a=s->autom; a; a=a->link)
+			if(a->type == D_FILE)
+				put(nil, a->asym->name, 'z', a->aoffset, 0, 0, 0);
+			else
+			if(a->type == D_FILE1)
+				put(nil, a->asym->name, 'Z', a->aoffset, 0, 0, 0);
+
+		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
+
+		/* frame, auto and param after */
+		put(nil, ".frame", 'm', s->text->to.offset+4, 0, 0, 0);
+
+		for(a=s->autom; a; a=a->link)
+			if(a->type == D_AUTO)
+				put(nil, a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
+			else
+			if(a->type == D_PARAM)
+				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
+	}
+	if(debug['v'] || debug['n'])
+		Bprint(&bso, "symsize = %ud\n", symsize);
+	Bflush(&bso);
 }

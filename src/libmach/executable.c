@@ -66,7 +66,7 @@ static	int	adotout(int, Fhdr*, ExecHdr*);
 static	int	elfdotout(int, Fhdr*, ExecHdr*);
 static	int	machdotout(int, Fhdr*, ExecHdr*);
 static	int	armdotout(int, Fhdr*, ExecHdr*);
-static	void	setsym(Fhdr*, int32, int32, int32, vlong);
+static	void	setsym(Fhdr*, vlong, int32, vlong, int32, vlong, int32);
 static	void	setdata(Fhdr*, uvlong, int32, vlong, int32);
 static	void	settext(Fhdr*, uvlong, uvlong, int32, vlong);
 static	void	hswal(void*, int, uint32(*)(uint32));
@@ -427,7 +427,7 @@ adotout(int fd, Fhdr *fp, ExecHdr *hp)
 			hp->e.exechdr.text, sizeof(Exec));
 	setdata(fp, _round(pgsize+fp->txtsz+sizeof(Exec), pgsize),
 		hp->e.exechdr.data, fp->txtsz+sizeof(Exec), hp->e.exechdr.bss);
-	setsym(fp, hp->e.exechdr.syms, hp->e.exechdr.spsz, hp->e.exechdr.pcsz, fp->datoff+fp->datsz);
+	setsym(fp, fp->datoff+fp->datsz, hp->e.exechdr.syms, 0, hp->e.exechdr.spsz, 0, hp->e.exechdr.pcsz);
 	return 1;
 }
 
@@ -525,7 +525,7 @@ commonllp64(int unused, Fhdr *fp, ExecHdr *hp)
 	settext(fp, entry, pgsize+fp->hdrsz, hp->e.exechdr.text, fp->hdrsz);
 	setdata(fp, _round(pgsize+fp->txtsz+fp->hdrsz, pgsize),
 		hp->e.exechdr.data, fp->txtsz+fp->hdrsz, hp->e.exechdr.bss);
-	setsym(fp, hp->e.exechdr.syms, hp->e.exechdr.spsz, hp->e.exechdr.pcsz, fp->datoff+fp->datsz);
+	setsym(fp, fp->datoff+fp->datsz, hp->e.exechdr.syms, 0, hp->e.exechdr.spsz, 0, hp->e.exechdr.pcsz);
 
 	if(hp->e.exechdr.magic & DYN_MAGIC) {
 		fp->txtaddr = 0;
@@ -758,13 +758,12 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 			bsssz = ph[0].memsz - ph[0].filesz;
 			settext(fp, ep->elfentry | 0x80000000, txtaddr, txtsz, ph[0].offset);
 			setdata(fp, dataddr, ph[0].paddr, ph[0].offset + txtsz, bsssz);
-			setsym(fp, ph[1].filesz, 0, ph[1].memsz, ph[1].offset);
+			setsym(fp, ph[1].offset, ph[1].filesz, 0, 0, 0, ph[1].memsz);
 			free(ph);
 			return 1;
 		}
 
 		werrstr("No TEXT or DATA sections");
-error:
 		free(ph);
 		free(sh);
 		return 0;
@@ -773,12 +772,13 @@ error:
 	settext(fp, ep->elfentry, ph[it].vaddr, ph[it].memsz, ph[it].offset);
 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
 	if(is != -1)
-		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
+		setsym(fp, ph[is].offset, ph[is].filesz, 0, 0, 0, ph[is].memsz);
 	else if(sh != 0){
 		char *buf;
 		uvlong symsize = 0;
 		uvlong symoff = 0;
 		uvlong pclnsz = 0;
+		uvlong pclnoff = 0;
 
 		/* load shstrtab names */
 		buf = malloc(sh[ep->shstrndx].size);
@@ -795,15 +795,11 @@ error:
 				symoff = sh[i].offset;
 			}
 			if (strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
-				if (sh[i].offset != symoff+symsize) {
-					werrstr("pc line table not contiguous with symbol table");
-					free(buf);
-					goto error;
-				}
 				pclnsz = sh[i].size;
+				pclnoff = sh[i].offset;
 			}
 		}
-		setsym(fp, symsize, 0, pclnsz, symoff);
+		setsym(fp, symoff, symsize, 0, 0, pclnoff, pclnsz);
 		free(buf);
 	}
 done:
@@ -940,13 +936,12 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 			bsssz = ph[0].memsz - ph[0].filesz;
 			settext(fp, ep->elfentry | 0x80000000, txtaddr, txtsz, ph[0].offset);
 			setdata(fp, dataddr, ph[0].paddr, ph[0].offset + txtsz, bsssz);
-			setsym(fp, ph[1].filesz, 0, ph[1].memsz, ph[1].offset);
+			setsym(fp, ph[1].offset, ph[1].filesz, 0, 0, 0, ph[1].memsz);
 			free(ph);
 			return 1;
 		}
 
 		werrstr("No TEXT or DATA sections");
-error:
 		free(sh);
 		free(ph);
 		return 0;
@@ -955,12 +950,13 @@ error:
 	settext(fp, ep->elfentry, ph[it].vaddr, ph[it].memsz, ph[it].offset);
 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
 	if(is != -1)
-		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
+		setsym(fp, ph[is].offset, ph[is].filesz, 0, 0, 0, ph[is].memsz);
 	else if(sh != 0){
 		char *buf;
 		uvlong symsize = 0;
 		uvlong symoff = 0;
-		uvlong pclnsz = 0;
+		uvlong pclnsize = 0;
+		uvlong pclnoff = 0;
 
 		/* load shstrtab names */
 		buf = malloc(sh[ep->shstrndx].size);
@@ -977,15 +973,11 @@ error:
 				symoff = sh[i].offset;
 			}
 			if (strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
-				if (sh[i].offset != symoff+symsize) {
-					werrstr("pc line table not contiguous with symbol table");
-					free(buf);
-					goto error;
-				}
-				pclnsz = sh[i].size;
+				pclnsize = sh[i].size;
+				pclnoff = sh[i].offset;
 			}
 		}
-		setsym(fp, symsize, 0, pclnsz, symoff);
+		setsym(fp, symoff, symsize, 0, 0, pclnoff, pclnsize);
 		free(buf);
 	}
 done:
@@ -1209,7 +1201,7 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	settext(fp, textva+sizeof(Machhdr) + mp->sizeofcmds, textva, textsize, textoff);
 	setdata(fp, datava, datasize, dataoff, bsssize);
 	if(symtab != 0)
-		setsym(fp, symtab->filesize, 0, pclntab? pclntab->filesize : 0, symtab->fileoff);
+		setsym(fp, symtab->fileoff, symtab->filesize, 0, 0, 0, pclntab? pclntab->filesize : 0);
 	free(cmd);
 	free(cmdbuf);
 	return 1;
@@ -1230,7 +1222,7 @@ armdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	USED(fd);
 	settext(fp, hp->e.exechdr.entry, sizeof(Exec), hp->e.exechdr.text, sizeof(Exec));
 	setdata(fp, fp->txtsz, hp->e.exechdr.data, fp->txtsz, hp->e.exechdr.bss);
-	setsym(fp, hp->e.exechdr.syms, hp->e.exechdr.spsz, hp->e.exechdr.pcsz, fp->datoff+fp->datsz);
+	setsym(fp, fp->datoff+fp->datsz, hp->e.exechdr.syms, 0, hp->e.exechdr.spsz, 0, hp->e.exechdr.pcsz);
 
 	kbase = 0xF0000000;
 	if ((fp->entry & kbase) == kbase) {		/* Boot image */
@@ -1261,14 +1253,20 @@ setdata(Fhdr *fp, uvlong a, int32 s, vlong off, int32 bss)
 }
 
 static void
-setsym(Fhdr *fp, int32 symsz, int32 sppcsz, int32 lnpcsz, vlong symoff)
+setsym(Fhdr *fp, vlong symoff, int32 symsz, vlong sppcoff, int32 sppcsz, vlong lnpcoff, int32 lnpcsz)
 {
-	fp->symsz = symsz;
 	fp->symoff = symoff;
+	fp->symsz = symsz;
+	
+	if(sppcoff == 0)
+		sppcoff = symoff+symsz;
+	fp->sppcoff = symoff;
 	fp->sppcsz = sppcsz;
-	fp->sppcoff = fp->symoff+fp->symsz;
+
+	if(lnpcoff == 0)
+		lnpcoff = sppcoff + sppcsz;
+	fp->lnpcoff = lnpcoff;
 	fp->lnpcsz = lnpcsz;
-	fp->lnpcoff = fp->sppcoff+fp->sppcsz;
 }
 
 

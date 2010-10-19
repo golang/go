@@ -17,7 +17,7 @@
 #include "os.h"
 #include "arch.h"
 
-extern int32 symdat[];
+extern byte pclntab[], epclntab[], symtab[], esymtab[];
 
 typedef struct Sym Sym;
 struct Sym
@@ -32,25 +32,16 @@ struct Sym
 static void
 walksymtab(void (*fn)(Sym*))
 {
-	int32 *v;
 	byte *p, *ep, *q;
 	Sym s;
 
-	if(symdat == nil)
-		return;
-
-#ifdef __WINDOWS__
-	v = get_symdat_addr();
-	p = (byte*)v+8;
-#else
-	v = symdat;
-	p = (byte*)(symdat+2);
-#endif
-	ep = p + v[0];
+	p = symtab;
+	ep = esymtab;
 	while(p < ep) {
 		if(p + 7 > ep)
 			break;
 		s.value = ((uint32)p[0]<<24) | ((uint32)p[1]<<16) | ((uint32)p[2]<<8) | ((uint32)p[3]);
+
 		if(!(p[4]&0x80))
 			break;
 		s.symtype = p[4] & ~0x80;
@@ -127,8 +118,13 @@ dofunc(Sym *sym)
 		break;
 	case 'f':
 		if(fname == nil) {
-			if(sym->value >= nfname)
+			if(sym->value >= nfname) {
+				if(sym->value >= 0x10000) {
+					printf("invalid symbol file index %p\n", sym->value);
+					throw("mangled symbol table");
+				}
 				nfname = sym->value+1;
+			}
 			break;
 		}
 		fname[sym->value] = sym->name;
@@ -240,8 +236,10 @@ splitpcln(void)
 	uintptr pc;
 	byte *p, *ep;
 	Func *f, *ef;
-	int32 *v;
 	int32 pcquant;
+
+	if(pclntab == epclntab || nfunc == 0)
+		return;
 
 	switch(thechar) {
 	case '5':
@@ -252,19 +250,9 @@ splitpcln(void)
 		break;
 	}
 
-	if(symdat == nil)
-		return;
-
 	// pc/ln table bounds
-#ifdef __WINDOWS__
-	v = get_symdat_addr();
-	p = (byte*)v+8;
-#else
-	v = symdat;
-	p = (byte*)(symdat+2);
-#endif
-	p += v[0];
-	ep = p+v[1];
+	p = pclntab;
+	ep = epclntab;
 
 	f = func;
 	ef = func + nfunc;

@@ -337,7 +337,7 @@ Iconv(Fmt *fp)
 	// call fmtstrcpy to handle padding.
 	fmtstrinit(&fmt);
 	for(i=0; i<n; i++)
-		fmtprint(&fmt, "%.8ux", *p++);
+		fmtprint(&fmt, "%.2ux", *p++);
 	s = fmtstrflush(&fmt);
 	fmtstrcpy(fp, s);
 	free(s);

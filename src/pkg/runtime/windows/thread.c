@@ -22,7 +22,6 @@ void *SetLastError;
 
 static void *CreateEvent;
 static void *CreateThread;
-static void *GetModuleHandle;
 static void *WaitForSingleObject;
 
 static void*
@@ -60,7 +59,6 @@ osinit(void)
 	CreateEvent = get_proc_addr("kernel32.dll", "CreateEventA");
 	CreateThread = get_proc_addr("kernel32.dll", "CreateThread");
 	ExitProcess = get_proc_addr("kernel32.dll", "ExitProcess");
-	GetModuleHandle = get_proc_addr("kernel32.dll", "GetModuleHandleA");
 	GetStdHandle = get_proc_addr("kernel32.dll", "GetStdHandle");
 	SetEvent = get_proc_addr("kernel32.dll", "SetEvent");
 	VirtualAlloc = get_proc_addr("kernel32.dll", "VirtualAlloc");
@@ -153,24 +151,6 @@ write(int32 fd, void *buf, int32 n)
 	}
 	stdcall(WriteFile, 5, handle, buf, n, &written, 0);
 	return written;
-}
-
-void*
-get_symdat_addr(void)
-{
-	byte *mod, *p;
-	uint32 peh, add;
-	uint16 oph;
-
-	mod = stdcall(GetModuleHandle, 1, 0);
-	peh = *(uint32*)(mod+0x3c);
-	p = mod+peh+4;
-	oph = *(uint16*)(p+0x10);
-	p += 0x14+oph;
-	while(strcmp(p, (byte*)".symdat"))
-		p += 40;
-	add = *(uint32*)(p+0x0c);
-	return mod+add;
 }
 
 // Thread-safe allocation of an event.

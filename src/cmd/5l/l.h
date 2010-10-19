@@ -135,7 +135,7 @@ struct	Sym
 	int32	value;
 	int32	sig;
 	int32	size;
-	uchar	used;
+	uchar	special;
 	uchar	thumb;	// thumb code
 	uchar	foreign;	// called by arm if thumb, by thumb if arm
 	uchar	fnptr;	// used as fn ptr
@@ -212,7 +212,6 @@ enum
 	SXREF,
 	SFILE,
 	SCONST,
-	SFIXED,
 
 	LFROM		= 1<<0,
 	LTO		= 1<<1,
@@ -384,7 +383,6 @@ void	asmb(void);
 void	asmthumbmap(void);
 void	asmout(Prog*, Optab*, int32*);
 void	thumbasmout(Prog*, Optab*);
-void	asmsym(void);
 int32	atolwhex(char*);
 Prog*	brloop(Prog*);
 void	buildop(void);
@@ -433,7 +431,6 @@ void	prasm(Prog*);
 void	prepend(Prog*, Prog*);
 Prog*	prg(void);
 int	pseudo(Prog*);
-void	putsymb(char*, int, int32, int);
 int32	regoff(Adr*);
 int	relinv(int);
 int32	rnd(int32, int32);

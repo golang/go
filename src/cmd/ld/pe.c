@@ -205,13 +205,6 @@ asmbpe(void)
 		break;
 	}
 
-	if(!debug['s']) {
-		IMAGE_SECTION_HEADER *symsect;
-		symsect = new_section(".symdat", 8+symsize+lcsize, 0);
-		symsect->Characteristics = IMAGE_SCN_MEM_READ|
-			IMAGE_SCN_CNT_INITIALIZED_DATA;
-	}
-
 	add_import_table();
 
 	fh.NumberOfSections = nsect;

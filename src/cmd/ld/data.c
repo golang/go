@@ -607,7 +607,7 @@ dodata(void)
 	datap = nil;
 	for(h=0; h<NHASH; h++) {
 		for(s=hash[h]; s!=S; s=s->hash){
-			if(!s->reachable)
+			if(!s->reachable || s->special)
 				continue;
 			if(STEXT < s->type && s->type < SXREF) {
 				if(last == nil)
@@ -723,6 +723,8 @@ address(void)
 	for(s=segdata.sect; s != nil; s=s->next) {
 		s->vaddr = va;
 		va += s->len;
+		if(s == segdata.sect)
+			va += dynptrsize;
 		segdata.len = va - segdata.vaddr;
 	}
 	segdata.filelen = segdata.sect->len + dynptrsize;	// assume .data is first
@@ -748,8 +750,8 @@ address(void)
 	xdefine("edata", SBSS, data->vaddr + data->len);
 	xdefine("end", SBSS, segdata.vaddr + segdata.len);
 
-	if(debug['s'])
-		xdefine("symdat", SFIXED, 0);
-	else
-		xdefine("symdat", SFIXED, SYMDATVA);
+	sym = lookup("pclntab", 0);
+	xdefine("epclntab", SRODATA, sym->value + sym->size);
+	sym = lookup("symtab", 0);
+	xdefine("esymtab", SRODATA, sym->value + sym->size);
 }

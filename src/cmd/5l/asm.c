@@ -293,8 +293,7 @@ asmb(void)
 {
 	int32 t;
 	int a, dynsym;
-	uint32 va, fo, w, symo, startva;
-	uint32 symdatva = SYMDATVA;
+	uint32 va, fo, w, startva;
 	int strtabsize;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
@@ -302,7 +301,6 @@ asmb(void)
 	Section *sect;
 
 	strtabsize = 0;
-	symo = 0;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -333,6 +331,7 @@ asmb(void)
 	symsize = 0;
 	lcsize = 0;
 	if(!debug['s']) {
+		// TODO: rationalize
 		if(debug['v'])
 			Bprint(&bso, "%5.2f sym\n", cputime());
 		Bflush(&bso);
@@ -353,25 +352,11 @@ asmb(void)
 			break;
 		case 6:
 			OFFSET += segdata.filelen;
-			symo = rnd(OFFSET, INITRND);
-			seek(cout, symo + 8, 0);
+			seek(cout, rnd(OFFSET, INITRND), 0);
 			break;
 		}
 		if(!debug['s'])
-			asmsym();
-		if(debug['v'])
-			Bprint(&bso, "%5.2f pc\n", cputime());
-		Bflush(&bso);
-		if(!debug['s'])
-			asmlc();
-		if(!debug['s'])
 			asmthumbmap();
-		if(!debug['s'])
-			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
-		cflush();
-		seek(cout, symo, 0);
-		lputl(symsize);
-		lputl(lcsize);
 		cflush();
 	}
 
@@ -479,15 +464,6 @@ asmb(void)
 		elfphload(&segtext);
 		elfphload(&segdata);
 
-		if(!debug['s']) {
-			segsym.rwx = 04;
-			segsym.vaddr = symdatva;
-			segsym.len = rnd(8+symsize+lcsize, INITRND);
-			segsym.fileoff = symo;
-			segsym.filelen = segsym.len;
-			elfphload(&segsym);
-		}
-
 		/* Dynamic linking sections */
 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
 			/* S headers for dynamic linking */
@@ -576,38 +552,17 @@ asmb(void)
 			elfshbits(sect);
 
 		if (!debug['s']) {
-			fo = symo;
-			w = 8;
-
 			sh = newElfShdr(elfstr[ElfStrGosymtab]);
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
-			sh->off = fo;
-			sh->size = w;
-			sh->addralign = INITRND;
-			sh->addr = symdatva;
-
-			fo += w;
-			w = symsize;
-
-			sh = newElfShdr(elfstr[ElfStrGosymtab]);
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC;
-			sh->off = fo;
-			sh->size = w;
 			sh->addralign = 1;
-			sh->addr = symdatva + 8;
-
-			fo += w;
-			w = lcsize;
+			shsym(sh, lookup("symtab", 0));
 
 			sh = newElfShdr(elfstr[ElfStrGopclntab]);
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
-			sh->off = fo;
-			sh->size = w;
 			sh->addralign = 1;
-			sh->addr = symdatva + 8 + lcsize;
+			shsym(sh, lookup("pclntab", 0));
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
@@ -833,7 +788,7 @@ if(debug['P']) print("%ux: %P	type %d\n", (uint32)(p->pc), p, o->type);
 		break;
 
 	case 0:		/* pseudo ops */
-if(debug['G']) print("%ux: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr, p->from.sym->used);
+if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr);
 		break;
 
 	case 1:		/* op R,[R],R */
@@ -1914,3 +1869,65 @@ chipfloat(Ieee *e)
 	return -1;
 }
 
+
+void
+genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+{
+	Auto *a;
+	Sym *s;
+	int h;
+
+	s = lookup("etext", 0);
+	if(s->type == STEXT)
+		put(s, s->name, 'T', s->value, s->size, s->version, 0);
+
+	for(h=0; h<NHASH; h++) {
+		for(s=hash[h]; s!=S; s=s->hash) {
+			switch(s->type) {
+			case SCONST:
+			case SRODATA:
+			case SDATA:
+			case SELFDATA:
+				if(!s->reachable)
+					continue;
+				put(s, s->name, 'D', s->value, s->size, s->version, s->gotype);
+				continue;
+
+			case SBSS:
+				if(!s->reachable)
+					continue;
+				put(s, s->name, 'B', s->value, s->size, s->version, s->gotype);
+				continue;
+
+			case SFILE:
+				put(nil, s->name, 'f', s->value, 0, s->version, 0);
+				continue;
+			}
+		}
+	}
+
+	for(s = textp; s != nil; s = s->next) {
+		/* filenames first */
+		for(a=s->autom; a; a=a->link)
+			if(a->type == D_FILE)
+				put(nil, a->asym->name, 'z', a->aoffset, 0, 0, 0);
+			else
+			if(a->type == D_FILE1)
+				put(nil, a->asym->name, 'Z', a->aoffset, 0, 0, 0);
+
+		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
+
+		/* frame, auto and param after */
+		put(nil, ".frame", 'm', s->text->to.offset+4, 0, 0, 0);
+
+		for(a=s->autom; a; a=a->link)
+			if(a->type == D_AUTO)
+				put(nil, a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
+			else
+			if(a->type == D_PARAM)
+				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
+	}
+	if(debug['v'] || debug['n'])
+		Bprint(&bso, "symsize = %ud\n", symsize);
+	Bflush(&bso);
+}
