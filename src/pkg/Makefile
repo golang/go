@@ -96,7 +96,6 @@ DIRS=\
 	net/dict\
 	net/textproto\
 	netchan\
-	nntp\
 	os\
 	os/signal\
 	patch\
