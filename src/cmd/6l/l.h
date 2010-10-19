@@ -397,6 +397,7 @@ void	doprof2(void);
 void	dostkoff(void);
 vlong	entryvalue(void);
 void	follow(void);
+void	genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*));
 void	gethunk(void);
 void	gotypestrings(void);
 void	listinit(void);
