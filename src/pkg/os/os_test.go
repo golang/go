@@ -410,15 +410,24 @@ func TestRename(t *testing.T) {
 }
 
 func TestForkExec(t *testing.T) {
-	// TODO(brainman): Try to enable this test once ForkExec is working.
-	if syscall.OS == "windows" {
-		return
-	}
+	var cmd, adir, expect string
+	var args []string
 	r, w, err := Pipe()
 	if err != nil {
 		t.Fatalf("Pipe: %v", err)
 	}
-	pid, err := ForkExec("/bin/pwd", []string{"pwd"}, nil, "/", []*File{nil, w, Stderr})
+	if syscall.OS == "windows" {
+		cmd = Getenv("COMSPEC")
+		args = []string{Getenv("COMSPEC"), "/c cd"}
+		adir = Getenv("SystemRoot")
+		expect = Getenv("SystemRoot") + "\r\n"
+	} else {
+		cmd = "/bin/pwd"
+		args = []string{"pwd"}
+		adir = "/"
+		expect = "/\n"
+	}
+	pid, err := ForkExec(cmd, args, nil, adir, []*File{nil, w, Stderr})
 	if err != nil {
 		t.Fatalf("ForkExec: %v", err)
 	}
@@ -427,9 +436,9 @@ func TestForkExec(t *testing.T) {
 	var b bytes.Buffer
 	io.Copy(&b, r)
 	output := b.String()
-	expect := "/\n"
 	if output != expect {
-		t.Errorf("exec /bin/pwd returned %q wanted %q", output, expect)
+		args[0] = cmd
+		t.Errorf("exec %q returned %q wanted %q", strings.Join(args, " "), output, expect)
 	}
 	Wait(pid, 0)
 }
