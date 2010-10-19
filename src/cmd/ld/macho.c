@@ -411,7 +411,7 @@ domacholink(void)
 
 	linkoff = 0;
 	if(nlinkdata > 0 || nstrtab > 0) {
-		linkoff = rnd(HEADR+textsize, INITRND) + rnd(segdata.filelen - dynptrsize, INITRND);
+		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen - dynptrsize, INITRND);
 		seek(cout, linkoff, 0);
 
 		for(i = 0; i<nexpsym; ++i) {
@@ -420,7 +420,7 @@ domacholink(void)
 			if(s->type == SXREF)
 				diag("export of undefined symbol %s", s->name);
 			if (s->type != STEXT)
-				val += INITDAT;
+				val += segdata.vaddr;
 			p = linkdata+expsym[i].off;
 			p[0] = val;
 			p[1] = val >> 8;
@@ -477,7 +477,7 @@ asmbmacho(vlong symdatva, vlong symo)
 	ms->vsize = va;
 
 	/* text */
-	v = rnd(HEADR+textsize, INITRND);
+	v = rnd(HEADR+segtext.len, INITRND);
 	ms = newMachoSeg("__TEXT", 1);
 	ms->vaddr = va;
 	ms->vsize = v;
@@ -487,7 +487,7 @@ asmbmacho(vlong symdatva, vlong symo)
 
 	msect = newMachoSect(ms, "__text");
 	msect->addr = INITTEXT;
-	msect->size = textsize;
+	msect->size = segtext.sect->len;
 	msect->off = INITTEXT - va;
 	msect->flag = 0x400;	/* flag - some instructions */
 

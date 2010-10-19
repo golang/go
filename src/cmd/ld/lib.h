@@ -146,11 +146,19 @@ vlong	addsize(Sym*, Sym*);
 vlong	adduint8(Sym*, uint8);
 vlong	adduint16(Sym*, uint16);
 void	strnput(char*, int);
+void	dodata(void);
+void	address(void);
 
 int	pathchar(void);
 void*	mal(uint32);
 void	unmal(void*, uint32);
 void	mywhatsys(void);
+
+// relocation size bits
+enum {
+	Rbig = 128,
+	Rlittle = 64,
+};
 
 /* set by call to mywhatsys() */
 extern	char*	goroot;

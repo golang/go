@@ -335,7 +335,6 @@ asmb(void)
 	int32 v, magic;
 	int a, dynsym;
 	uint32 va, fo, w, symo, startva, machlink;
-	ulong expectpc;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
@@ -345,77 +344,23 @@ asmb(void)
 		Bprint(&bso, "%5.2f asmb\n", cputime());
 	Bflush(&bso);
 
-	seek(cout, HEADR, 0);
-	pc = INITTEXT;
-	codeblk(pc, segtext.sect->len);
-	pc += segtext.sect->len;
-
-	if(HEADTYPE == 8) {
-		int32 etext;
-		
-		etext = rnd(segtext.vaddr + segtext.filelen, 4096);
-		while(pc < etext) {
-			cput(0xf4);	// hlt
-			pc++;
-		}
-		pc = segrodata.vaddr;
-		cflush();
-	}
+	sect = segtext.sect;
+	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	codeblk(sect->vaddr, sect->len);
+	
+	// TODO: NaCl: pad with HLT
 
 	/* output read-only data in text segment */
 	sect = segtext.sect->next;
-	datblk(pc, sect->vaddr + sect->len - pc);
-
-	switch(HEADTYPE) {
-	default:
-		if(iself)
-			goto Elfseek;
-		diag("unknown header type %d", HEADTYPE);
-	case 0:
-		seek(cout, rnd(HEADR+textsize, 8192), 0);
-		break;
-	case 1:
-		textsize = rnd(HEADR+textsize, 4096)-HEADR;
-		seek(cout, textsize+HEADR, 0);
-		break;
-	case 2:
-		seek(cout, HEADR+textsize, 0);
-		break;
-	case 3:
-	case 4:
-		seek(cout, HEADR+rnd(textsize, INITRND), 0);
-		break;
-	case 6:
-		v = HEADR+textsize;
-		seek(cout, v, 0);
-		v = rnd(v, 4096) - v;
-		while(v > 0) {
-			cput(0);
-			v--;
-		}
-		cflush();
-		break;
-	case 8:
-		// Native Client only needs to round
-		// text segment file address to 4096 bytes,
-		// but text segment memory address rounds
-		// to INITRND (65536).
-		v = rnd(segrodata.fileoff+segrodata.filelen, 4096);
-		seek(cout, v, 0);
-		break;
-	Elfseek:
-	case 10:
-		v = rnd(segtext.fileoff+segtext.filelen, INITRND);
-		seek(cout, v, 0);
-		break;
-	}
+	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	datblk(sect->vaddr, sect->len);
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f datblk\n", cputime());
 	Bflush(&bso);
 
-	segdata.fileoff = seek(cout, 0, 1);
-	datblk(INITDAT, segdata.filelen);
+	seek(cout, segdata.fileoff, 0);
+	datblk(segdata.vaddr, segdata.filelen);
 
 	machlink = 0;
 	if(HEADTYPE == 6)
@@ -434,26 +379,26 @@ asmb(void)
 			if(iself)
 				goto Elfsym;
 		case 0:
-			seek(cout, rnd(HEADR+textsize, 8192)+segdata.filelen, 0);
+			seek(cout, rnd(HEADR+segtext.filelen, 8192)+segdata.filelen, 0);
 			break;
 		case 1:
-			seek(cout, rnd(HEADR+textsize, INITRND)+segdata.filelen, 0);
+			seek(cout, rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen, 0);
 			break;
 		case 2:
-			seek(cout, HEADR+textsize+segdata.filelen, 0);
-			symo = HEADR+textsize+segdata.filelen;
+			seek(cout, HEADR+segtext.filelen+segdata.filelen, 0);
+			symo = HEADR+segtext.filelen+segdata.filelen;
 			break;
 		case 3:
 		case 4:
 			debug['s'] = 1;
-			symo = HEADR+textsize+segdata.filelen;
+			symo = HEADR+segtext.filelen+segdata.filelen;
 			break;
 		case 6:
-			symo = rnd(HEADR+textsize, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		Elfsym:
 		case 10:
-			symo = rnd(HEADR+textsize, INITRND)+segdata.filelen;
+			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		}
@@ -493,17 +438,17 @@ asmb(void)
 	case 0:	/* garbage */
 		lput(0x160L<<16);		/* magic and sections */
 		lput(0L);			/* time and date */
-		lput(rnd(HEADR+textsize, 4096)+segdata.filelen);
+		lput(rnd(HEADR+segtext.filelen, 4096)+segdata.filelen);
 		lput(symsize);			/* nsyms */
 		lput((0x38L<<16)|7L);		/* size of optional hdr and flags */
 		lput((0413<<16)|0437L);		/* magic and version */
-		lput(rnd(HEADR+textsize, 4096));	/* sizes */
+		lput(rnd(HEADR+segtext.filelen, 4096));	/* sizes */
 		lput(segdata.filelen);
 		lput(segdata.len - segdata.filelen);
 		lput(entryvalue());		/* va of entry */
 		lput(INITTEXT-HEADR);		/* va of base of text */
-		lput(INITDAT);			/* va of base of data */
-		lput(INITDAT+segdata.filelen);		/* va of base of bss */
+		lput(segdata.vaddr);			/* va of base of data */
+		lput(segdata.vaddr+segdata.filelen);		/* va of base of bss */
 		lput(~0L);			/* gp reg mask */
 		lput(0L);
 		lput(0L);
@@ -525,19 +470,19 @@ asmb(void)
 		 * a.out header
 		 */
 		lputl(0x10b);			/* magic, version stamp */
-		lputl(rnd(textsize, INITRND));	/* text sizes */
+		lputl(rnd(segtext.filelen, INITRND));	/* text sizes */
 		lputl(segdata.filelen);			/* data sizes */
 		lputl(segdata.len - segdata.filelen);			/* bss sizes */
 		lput(entryvalue());		/* va of entry */
 		lputl(INITTEXT);		/* text start */
-		lputl(INITDAT);			/* data start */
+		lputl(segdata.vaddr);			/* data start */
 		/*
 		 * text section header
 		 */
 		s8put(".text");
 		lputl(HEADR);			/* pa */
 		lputl(HEADR);			/* va */
-		lputl(textsize);		/* text size */
+		lputl(segtext.filelen);		/* text size */
 		lputl(HEADR);			/* file offset */
 		lputl(0);			/* relocation */
 		lputl(0);			/* line numbers */
@@ -547,10 +492,10 @@ asmb(void)
 		 * data section header
 		 */
 		s8put(".data");
-		lputl(INITDAT);			/* pa */
-		lputl(INITDAT);			/* va */
+		lputl(segdata.vaddr);			/* pa */
+		lputl(segdata.vaddr);			/* va */
 		lputl(segdata.filelen);			/* data size */
-		lputl(HEADR+textsize);		/* file offset */
+		lputl(HEADR+segtext.filelen);		/* file offset */
 		lputl(0);			/* relocation */
 		lputl(0);			/* line numbers */
 		lputl(0);			/* relocation, line numbers */
@@ -559,8 +504,8 @@ asmb(void)
 		 * bss section header
 		 */
 		s8put(".bss");
-		lputl(INITDAT+segdata.filelen);		/* pa */
-		lputl(INITDAT+segdata.filelen);		/* va */
+		lputl(segdata.vaddr+segdata.filelen);		/* pa */
+		lputl(segdata.vaddr+segdata.filelen);		/* va */
 		lputl(segdata.len - segdata.filelen);			/* bss size */
 		lputl(0);			/* file offset */
 		lputl(0);			/* relocation */
@@ -574,16 +519,16 @@ asmb(void)
 		lputl(0);			/* pa */
 		lputl(0);			/* va */
 		lputl(symsize+lcsize);		/* comment size */
-		lputl(HEADR+textsize+segdata.filelen);	/* file offset */
-		lputl(HEADR+textsize+segdata.filelen);	/* offset of syms */
-		lputl(HEADR+textsize+segdata.filelen+symsize);/* offset of line numbers */
+		lputl(HEADR+segtext.filelen+segdata.filelen);	/* file offset */
+		lputl(HEADR+segtext.filelen+segdata.filelen);	/* offset of syms */
+		lputl(HEADR+segtext.filelen+segdata.filelen+symsize);/* offset of line numbers */
 		lputl(0);			/* relocation, line numbers */
 		lputl(0x200);			/* flags comment only */
 		break;
 	case 2:	/* plan9 */
 		magic = 4*11*11+7;
 		lput(magic);		/* magic */
-		lput(textsize);			/* sizes */
+		lput(segtext.filelen);			/* sizes */
 		lput(segdata.filelen);
 		lput(segdata.len - segdata.filelen);
 		lput(symsize);			/* nsyms */
@@ -596,7 +541,7 @@ asmb(void)
 		break;
 	case 4:
 		/* fake MS-DOS .EXE */
-		v = rnd(HEADR+textsize, INITRND)+segdata.filelen;
+		v = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
 		wputl(0x5A4D);			/* 'MZ' */
 		wputl(v % 512);			/* bytes in last page */
 		wputl(rnd(v, 512)/512);		/* total number of pages */
@@ -630,7 +575,7 @@ asmb(void)
 		fo = HEADR;
 		startva = INITTEXT - HEADR;
 		va = startva + fo;
-		w = textsize;
+		w = segtext.filelen;
 
 		/* This null SHdr must appear before all others */
 		sh = newElfShdr(elfstr[ElfStrEmpty]);

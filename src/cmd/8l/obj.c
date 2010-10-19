@@ -320,7 +320,6 @@ main(int argc, char *argv[])
 	doelf();
 	if(HEADTYPE == 6)
 		domacho();
-	dodata();
 	dostkoff();
 	if(debug['p'])
 		if(debug['1'])
@@ -328,6 +327,8 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	span();
+	dodata();
+	address();
 	reloc();
 	if(HEADTYPE == 10)
 		dope();
