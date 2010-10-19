@@ -34,7 +34,7 @@
 #include	"../ld/lib.h"
 
 void
-putsymb(char *s, int t, int32 v, int ver, Sym *go)
+putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
 {
 	int i, f;
 	vlong gv;
@@ -89,7 +89,7 @@ putsymb(char *s, int t, int32 v, int ver, Sym *go)
 }
 
 void
-asmsym(void)
+genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
 {
 	Auto *a;
 	Sym *s;
@@ -97,10 +97,10 @@ asmsym(void)
 
 	s = lookup("etext", 0);
 	if(s->type == STEXT)
-		putsymb(s->name, 'T', s->value, s->version, 0);
+		put(s->name, 'T', s->value, s->size, s->version, 0);
 
-	for(h=0; h<NHASH; h++)
-		for(s=hash[h]; s!=S; s=s->hash)
+	for(h=0; h<NHASH; h++) {
+		for(s=hash[h]; s!=S; s=s->hash) {
 			switch(s->type) {
 			case SCONST:
 			case SRODATA:
@@ -108,52 +108,60 @@ asmsym(void)
 			case SELFDATA:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'D', symaddr(s), s->version, s->gotype);
+				put(s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
 				continue;
 
 			case SMACHO:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'D', s->value+INITDAT+segdata.filelen-dynptrsize, s->version, s->gotype);
+				put(s->name, 'D', s->value+INITDAT+segdata.filelen-dynptrsize, s->size, s->version, s->gotype);
 				continue;
 
 			case SBSS:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'B', s->value+INITDAT, s->version, s->gotype);
+				put(s->name, 'B', s->value+INITDAT, s->size, s->version, s->gotype);
 				continue;
 
 			case SFIXED:
-				putsymb(s->name, 'B', s->value, s->version, s->gotype);
+				put(s->name, 'B', s->value, s->size, s->version, s->gotype);
 				continue;
 
 			case SFILE:
-				putsymb(s->name, 'f', s->value, s->version, 0);
+				put(s->name, 'f', s->value, 0, s->version, 0);
 				continue;
 			}
+		}
+	}
 
 	for(s = textp; s != nil; s = s->next) {
 		/* filenames first */
 		for(a=s->autom; a; a=a->link)
 			if(a->type == D_FILE)
-				putsymb(a->asym->name, 'z', a->aoffset, 0, 0);
+				put(a->asym->name, 'z', a->aoffset, 0, 0, 0);
 			else
 			if(a->type == D_FILE1)
-				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
+				put(a->asym->name, 'Z', a->aoffset, 0, 0, 0);
 
-		putsymb(s->name, 'T', s->value, s->version, s->gotype);
+		put(s->name, 'T', s->value, s->size, s->version, s->gotype);
 
 		/* frame, auto and param after */
-		putsymb(".frame", 'm', s->text->to.offset+4, 0, 0);
+		put(".frame", 'm', s->text->to.offset+4, 0, 0, 0);
 
 		for(a=s->autom; a; a=a->link)
 			if(a->type == D_AUTO)
-				putsymb(a->asym->name, 'a', -a->aoffset, 0, a->gotype);
+				put(a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
 			else
 			if(a->type == D_PARAM)
-				putsymb(a->asym->name, 'p', a->aoffset, 0, a->gotype);
+				put(a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
 	}
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %ud\n", symsize);
 	Bflush(&bso);
+}
+
+void
+asmsym(void)
+{
+	genasmsym(putsymb);
 }
