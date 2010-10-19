@@ -305,42 +305,29 @@ asmb(void)
 	symo = 0;
 
 	if(debug['v'])
-		Bprint(&bso, "%5.2f asm\n", cputime());
+		Bprint(&bso, "%5.2f asmb\n", cputime());
 	Bflush(&bso);
-	OFFSET = HEADR;
-	seek(cout, OFFSET, 0);
-	pc = INITTEXT;
-	codeblk(pc, segtext.sect->len);
-	pc += segtext.sect->len;
-	if(seek(cout, 0, 1) != pc - segtext.vaddr + segtext.fileoff)
-		diag("text phase error");
+
+	sect = segtext.sect;
+	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	codeblk(sect->vaddr, sect->len);
 
 	/* output read-only data in text segment */
 	sect = segtext.sect->next;
 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
 	datblk(sect->vaddr, sect->len);
 
-	/* output data segment */
-	cursym = nil;
-	switch(HEADTYPE) {
-	case 0:
-	case 1:
-	case 2:
-	case 5:
-		OFFSET = HEADR+textsize;
-		seek(cout, OFFSET, 0);
-		break;
-	case 3:
-		OFFSET = rnd(HEADR+textsize, 4096);
-		seek(cout, OFFSET, 0);
-		break;
-	case 6:
-		OFFSET = rnd(segtext.fileoff+segtext.filelen, INITRND);
-		seek(cout, OFFSET, 0);
-		break;
-	}
-	segdata.fileoff = seek(cout, 0, 1);
-	datblk(INITDAT, segdata.filelen);
+	if(debug['v'])
+		Bprint(&bso, "%5.2f datblk\n", cputime());
+	Bflush(&bso);
+
+	seek(cout, segdata.fileoff, 0);
+	datblk(segdata.vaddr, segdata.filelen);
+
+	/* output read-only data in text segment */
+	sect = segtext.sect->next;
+	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	datblk(sect->vaddr, sect->len);
 
 	/* output symbol table */
 	symsize = 0;

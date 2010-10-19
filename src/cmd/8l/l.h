@@ -272,9 +272,9 @@ EXTERN union
 
 EXTERN	int32	HEADR;
 EXTERN	int32	HEADTYPE;
-EXTERN	int32	INITDAT;
 EXTERN	int32	INITRND;
 EXTERN	int32	INITTEXT;
+EXTERN	int32	INITDAT;
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	Biobuf	bso;
 EXTERN	int32	casepc;
@@ -322,6 +322,7 @@ extern	char*	anames[];
 
 int	Aconv(Fmt*);
 int	Dconv(Fmt*);
+int	Iconv(Fmt*);
 int	Pconv(Fmt*);
 int	Rconv(Fmt*);
 int	Sconv(Fmt*);

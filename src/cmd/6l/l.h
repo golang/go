@@ -310,9 +310,9 @@ EXTERN union
 
 EXTERN	int32	HEADR;
 EXTERN	int32	HEADTYPE;
-EXTERN	vlong	INITDAT;
 EXTERN	int32	INITRND;
 EXTERN	vlong	INITTEXT;
+EXTERN	vlong	INITDAT;
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	Biobuf	bso;
 EXTERN	int	cbc;
@@ -344,7 +344,6 @@ EXTERN	char*	rpath;
 EXTERN	int32	spsize;
 EXTERN	Sym*	symlist;
 EXTERN	int32	symsize;
-EXTERN	vlong	textsize;
 EXTERN	int	tlsoffset;
 EXTERN	int	version;
 EXTERN	Prog	zprg;
@@ -367,6 +366,7 @@ extern	char*	anames[];
 
 int	Aconv(Fmt*);
 int	Dconv(Fmt*);
+int	Iconv(Fmt*);
 int	Pconv(Fmt*);
 int	Rconv(Fmt*);
 int	Sconv(Fmt*);

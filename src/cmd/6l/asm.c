@@ -344,7 +344,7 @@ phsh(ElfPhdr *ph, ElfShdr *sh)
 void
 asmb(void)
 {
-	int32 v, magic;
+	int32 magic;
 	int a, dynsym;
 	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
 	vlong symdatva = SYMDATVA;
@@ -357,45 +357,47 @@ asmb(void)
 		Bprint(&bso, "%5.2f asmb\n", cputime());
 	Bflush(&bso);
 
-	segtext.fileoff = 0;
 	elftextsh = 0;
 	elfsymsize = 0;
 	elfstro = 0;
 	elfsymo = 0;
-	seek(cout, HEADR, 0);
-	pc = INITTEXT;
-	codeblk(pc, segtext.sect->len);
-	pc += segtext.sect->len;
+	
+	if(debug['v'])
+		Bprint(&bso, "%5.2f codeblk\n", cputime());
+	Bflush(&bso);
+
+	sect = segtext.sect;
+	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	codeblk(sect->vaddr, sect->len);
 
 	/* output read-only data in text segment */
 	sect = segtext.sect->next;
-	datblk(pc, sect->vaddr + sect->len - pc);
+	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	datblk(sect->vaddr, sect->len);
+
+	if(debug['v'])
+		Bprint(&bso, "%5.2f datblk\n", cputime());
+	Bflush(&bso);
+
+	seek(cout, segdata.fileoff, 0);
+	datblk(segdata.vaddr, segdata.filelen);
+
+	machlink = 0;
+	if(HEADTYPE == 6)
+		machlink = domacholink();
 
 	switch(HEADTYPE) {
 	default:
 		diag("unknown header type %d", HEADTYPE);
 	case 2:
 	case 5:
-		seek(cout, HEADR+textsize, 0);
 		break;
 	case 6:
 		debug['8'] = 1;	/* 64-bit addresses */
-		v = HEADR+textsize;
-		seek(cout, v, 0);
-		v = rnd(v, 4096) - v;
-		while(v > 0) {
-			cput(0);
-			v--;
-		}
-		cflush();
 		break;
-
 	case 7:
 	case 9:
 		debug['8'] = 1;	/* 64-bit addresses */
-		v = rnd(HEADR+textsize, INITRND);
-		seek(cout, v, 0);
-		
 		/* index of elf text section; needed by asmelfsym, double-checked below */
 		/* !debug['d'] causes 8 extra sections before the .text section */
 		elftextsh = 1;
@@ -403,17 +405,6 @@ asmb(void)
 			elftextsh += 8;
 		break;
 	}
-
-	if(debug['v'])
-		Bprint(&bso, "%5.2f datblk\n", cputime());
-	Bflush(&bso);
-
-	segdata.fileoff = seek(cout, 0, 1);
-	datblk(INITDAT, segdata.filelen);
-
-	machlink = 0;
-	if(HEADTYPE == 6)
-		machlink = domacholink();
 
 	symsize = 0;
 	spsize = 0;
@@ -428,14 +419,14 @@ asmb(void)
 		case 2:
 		case 5:
 			debug['s'] = 1;
-			symo = HEADR+textsize+segdata.filelen;
+			symo = HEADR+segtext.len+segdata.filelen;
 			break;
 		case 6:
-			symo = rnd(HEADR+textsize, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		case 7:
 		case 9:
-			symo = rnd(HEADR+textsize, INITRND)+segdata.filelen;
+			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		}
@@ -490,7 +481,7 @@ asmb(void)
 		magic = 4*26*26+7;
 		magic |= 0x00008000;		/* fat header */
 		lputb(magic);			/* magic */
-		lputb(textsize);			/* sizes */
+		lputb(segtext.filelen);			/* sizes */
 		lputb(segdata.filelen);
 		lputb(segdata.len - segdata.filelen);
 		lputb(symsize);			/* nsyms */
@@ -503,7 +494,7 @@ asmb(void)
 	case 3:	/* plan9 */
 		magic = 4*26*26+7;
 		lputb(magic);			/* magic */
-		lputb(textsize);		/* sizes */
+		lputb(segtext.filelen);		/* sizes */
 		lputb(segdata.filelen);
 		lputb(segdata.len - segdata.filelen);
 		lputb(symsize);			/* nsyms */
@@ -522,7 +513,7 @@ asmb(void)
 		fo = HEADR;
 		startva = INITTEXT - HEADR;
 		va = startva + fo;
-		w = textsize;
+		w = segtext.filelen;
 
 		/* This null SHdr must appear before all others */
 		sh = newElfShdr(elfstr[ElfStrEmpty]);

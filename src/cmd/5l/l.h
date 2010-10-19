@@ -45,6 +45,8 @@ enum
 /* do not undefine this - code will be removed eventually */
 #define	CALLEEBX
 
+#define	dynptrsize	0
+
 typedef	struct	Adr	Adr;
 typedef	struct	Sym	Sym;
 typedef	struct	Autom	Auto;
@@ -262,7 +264,7 @@ enum
 	C_HREG,
 	C_OFFPC,		/* thumb */
 
-	C_ADDR,		/* relocatable address */
+	C_ADDR,		/* reference to relocatable address */
 
 	C_GOK,
 
@@ -369,6 +371,7 @@ EXTERN	Prog*	prog_modu;
 int	Aconv(Fmt*);
 int	Cconv(Fmt*);
 int	Dconv(Fmt*);
+int	Iconv(Fmt*);
 int	Nconv(Fmt*);
 int	Oconv(Fmt*);
 int	Pconv(Fmt*);

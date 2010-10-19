@@ -237,7 +237,6 @@ main(int argc, char *argv[])
 	doelf();
 	if(HEADTYPE == 6)
 		domacho();
-	dodata();
 	dostkoff();
 	paramspace = "SP";	/* (FP) now (SP) on output */
 	if(debug['p'])
@@ -246,6 +245,8 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	span();
+	dodata();
+	address();
 	reloc();
 	asmb();
 	undef();

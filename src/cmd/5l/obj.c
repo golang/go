@@ -255,11 +255,12 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	doelf();
-	dodata();
 	follow();
 	softfloat();
 	noops();
 	span();
+	dodata();
+	address();
 	reloc();
 	asmb();
 	undef();

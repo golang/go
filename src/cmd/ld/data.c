@@ -166,7 +166,21 @@ relocsym(Sym *s)
 		o += r->add;
 		switch(siz) {
 		default:
-			diag("bad reloc size %d", siz);
+			diag("bad reloc size %#ux", siz);
+		case 4 + Rbig:
+			fl = o;
+			s->p[off] = fl>>24;
+			s->p[off+1] = fl>>16;
+			s->p[off+2] = fl>>8;
+			s->p[off+3] = fl;
+			break;
+		case 4 + Rlittle:
+			fl = o;
+			s->p[off] = fl;
+			s->p[off+1] = fl>>8;
+			s->p[off+2] = fl>>16;
+			s->p[off+3] = fl>>24;
+			break;
 		case 4:
 			fl = o;
 			cast = (uchar*)&fl;
@@ -317,7 +331,7 @@ blk(Sym *allsym, int32 addr, int32 size)
 		if(sym->value >= eaddr)
 			break;
 		if(sym->value < addr) {
-			diag("phase error: addr=%#llx but sym=%#llx type=%d", addr, sym->value, sym->type);
+			diag("phase error: addr=%#llx but sym=%#llx type=%d", (vlong)addr, (vlong)sym->value, sym->type);
 			errorexit();
 		}
 		cursym = sym;
@@ -345,7 +359,7 @@ void
 codeblk(int32 addr, int32 size)
 {
 	Sym *sym;
-	int32 eaddr, i, n, epc;
+	int32 eaddr, n, epc;
 	Prog *p;
 	uchar *q;
 
@@ -379,7 +393,7 @@ codeblk(int32 addr, int32 size)
 			Bprint(&bso, "\n");
 		}
 		p = sym->text;
-		Bprint(&bso, "%-20s %.8llux| %P\n", sym->name, addr, p);
+		Bprint(&bso, "%.6llux\t%-20s | %P\n", addr, sym->name, p);
 		for(p = p->link; p != P; p = p->link) {
 			if(p->link != P)
 				epc = p->link->pc;
@@ -388,11 +402,7 @@ codeblk(int32 addr, int32 size)
 			Bprint(&bso, "%.6ux\t", p->pc);
 			q = sym->p + p->pc - sym->value;
 			n = epc - p->pc;
-			for(i=0; i<n; i++)
-				Bprint(&bso, "%.2ux", *q++);
-			for(; i < 10; i++)
-				Bprint(&bso, "  ");
-			Bprint(&bso, " | %P\n", p);
+			Bprint(&bso, "%-20.*I | %P\n", n, q, p);
 			addr += n;
 		}
 	}
@@ -593,9 +603,6 @@ dodata(void)
 		Bprint(&bso, "%5.2f dodata\n", cputime());
 	Bflush(&bso);
 
-	segdata.rwx = 06;
-	segdata.vaddr = 0;	/* span will += INITDAT */
-
 	last = nil;
 	datap = nil;
 	for(h=0; h<NHASH; h++) {
@@ -627,8 +634,6 @@ dodata(void)
 	 * so we can just walk it for each piece we want to emit.
 	 */
 
-	sect = addsection(&segtext, ".text", 05);	// set up for span TODO(rsc): clumsy
-	
 	/* read-only data */
 	sect = addsection(&segtext, ".rodata", 06);
 	sect->vaddr = 0;
@@ -666,7 +671,7 @@ dodata(void)
 		datsize += t;
 	}
 	sect->len = datsize - sect->vaddr;
-	segdata.filelen = datsize;
+	datsize += dynptrsize;
 
 	/* bss */
 	sect = addsection(&segdata, ".bss", 06);
@@ -690,15 +695,61 @@ dodata(void)
 		datsize += t;
 	}
 	sect->len = datsize - sect->vaddr;
-	segdata.len = datsize;
+}
 
-	xdefine("data", SBSS, 0);
-	xdefine("edata", SBSS, segdata.filelen);
-	xdefine("end", SBSS, segdata.len);
+// assign addresses
+void
+address(void)
+{
+	Section *s, *text, *data, *rodata, *bss;
+	Sym *sym;
+	uvlong va;
 
-	if(debug['s'] || HEADTYPE == 8)
+	va = INITTEXT;
+	segtext.rwx = 05;
+	segtext.vaddr = va;
+	segtext.fileoff = HEADR;
+	for(s=segtext.sect; s != nil; s=s->next) {
+		s->vaddr = va;
+		va += s->len;
+		segtext.len = va - INITTEXT;
+		va = rnd(va, INITRND);
+	}
+	segtext.filelen = segtext.len;
+
+	segdata.rwx = 06;
+	segdata.vaddr = va;
+	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
+	for(s=segdata.sect; s != nil; s=s->next) {
+		s->vaddr = va;
+		va += s->len;
+		segdata.len = va - segdata.vaddr;
+	}
+	segdata.filelen = segdata.sect->len + dynptrsize;	// assume .data is first
+	
+	text = segtext.sect;
+	rodata = segtext.sect->next;
+	data = segdata.sect;
+	bss = segdata.sect->next;
+
+	for(sym = datap; sym != nil; sym = sym->next) {
+		cursym = sym;
+		if(sym->type < SDATA)
+			sym->value += rodata->vaddr;
+		else
+			sym->value += data->vaddr;
+	}
+	
+	xdefine("text", STEXT, text->vaddr);
+	xdefine("etext", STEXT, text->vaddr + text->len);
+	xdefine("rodata", SRODATA, rodata->vaddr);
+	xdefine("erodata", SRODATA, rodata->vaddr + rodata->len);
+	xdefine("data", SBSS, data->vaddr);
+	xdefine("edata", SBSS, data->vaddr + data->len);
+	xdefine("end", SBSS, segdata.vaddr + segdata.len);
+
+	if(debug['s'])
 		xdefine("symdat", SFIXED, 0);
 	else
 		xdefine("symdat", SFIXED, SYMDATVA);
 }
-

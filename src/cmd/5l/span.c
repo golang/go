@@ -169,15 +169,12 @@ span(void)
 	int m, bflag, i, v;
 	int32 c, otxt, out[6];
 	int lastthumb = -1;
-	Section *rosect, *sect;
-	Sym *sym;
+	Section *sect;
 	uchar *bp;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f span\n", cputime());
 	Bflush(&bso);
-
-	xdefine("etext", STEXT, 0);
 
 	bflag = 0;
 	c = INITTEXT;
@@ -202,6 +199,7 @@ span(void)
 			pool.extra += brextra(p);
 
 		for(op = p, p = p->link; p != P; op = p, p = p->link) {
+			curp = p;
 			setarch(p);
 			p->pc = c;
 			o = oplook(p);
@@ -256,6 +254,7 @@ span(void)
 		for(cursym = textp; cursym != nil; cursym = cursym->next) {
 			cursym->value = c;
 			for(p = cursym->text; p != P; p = p->link) {
+				curp = p;
 				setarch(p);
 				p->pc = c;
 				if(thumb && isbranch(p))
@@ -319,6 +318,7 @@ span(void)
 		for(cursym = textp; cursym != nil; cursym = cursym->next) {
 			cursym->value = c;
 			for(p = cursym->text; p != P; oop = op, op = p, p = p->link) {
+				curp = p;
 				setarch(p);
 				if(p->pc != c)
 					again = 1;
@@ -369,8 +369,6 @@ span(void)
 		}
 	}
 	c = rnd(c, 8);
-	xdefine("etext", STEXT, c);
-	textsize = c - INITTEXT;
 	
 	/*
 	 * lay out the code.  all the pc-relative code references,
@@ -388,6 +386,7 @@ span(void)
 	
 		bp = cursym->p;
 		for(p = p->link; p != P; p = p->link) {
+			curp = p;
 			pc = p->pc;
 			curp = p;
 			o = oplook(p);
@@ -401,55 +400,9 @@ span(void)
 			}
 		}
 	}
-
-	rosect = segtext.sect->next;
-	if(rosect) {
-		if(INITRND)
-			c = rnd(c, INITRND);
-		rosect->vaddr = c;
-		c += rosect->len;
-	}
-
-	if(INITRND)
-		INITDAT = rnd(c, INITRND);
-	
-	if(debug['v'])
-		Bprint(&bso, "tsize = %ux\n", textsize);
-	Bflush(&bso);
-	
-	segtext.rwx = 05;
-	segtext.vaddr = INITTEXT - HEADR;
-	segtext.len = INITDAT - INITTEXT + HEADR;
-	segtext.filelen = segtext.len;
-	
-	sect = segtext.sect;
+	sect = addsection(&segtext, ".text", 05);
 	sect->vaddr = INITTEXT;
-	sect->len = textsize;
-
-	// Adjust everything now that we know INITDAT.
-	// This will get simpler when everything is relocatable
-	// and we can run span before dodata.
-
-	segdata.vaddr += INITDAT;
-	for(sect=segdata.sect; sect!=nil; sect=sect->next)
-		sect->vaddr += INITDAT;
-
-	xdefine("data", SBSS, INITDAT);
-	xdefine("edata", SBSS, INITDAT+segdata.filelen);
-	xdefine("end", SBSS, INITDAT+segdata.len);
-
-	for(sym=datap; sym!=nil; sym=sym->next) {
-		switch(sym->type) {
-		case SELFDATA:
-		case SRODATA:
-			sym->value += rosect->vaddr;
-			break;
-		case SDATA:
-		case SBSS:
-			sym->value += INITDAT;
-			break;
-		}
-	}
+	sect->len = c - INITTEXT;
 }
 
 /*
@@ -694,13 +647,9 @@ aclass(Adr *a)
 			}
 			s = a->sym;
 			t = s->type;
-			if(t == 0 || t == SXREF) {
-				diag("undefined external: %s in %s",
-					s->name, TNAME);
-				s->type = SDATA;
-			}
-			instoffset = s->value + a->offset;
+			instoffset = 0;	// s.b. unused but just in case
 			return C_ADDR;
+
 		case D_AUTO:
 			instoffset = autosize + a->offset;
 			t = immaddr(instoffset);
@@ -755,13 +704,8 @@ aclass(Adr *a)
 		case D_STATIC:
 			s = a->sym;
 			t = s->type;
-			if(t == 0 || t == SXREF) {
-				diag("undefined external: %s in %s",
-					s->name, TNAME);
-				s->type = SDATA;
-			}
-			instoffset = symaddr(s) + a->offset;
-			return C_LCON;
+			instoffset = 0;	// s.b. unused but just in case
+			return C_ADDR;
 		}
 		return C_GOK;
 
@@ -791,12 +735,7 @@ aclass(Adr *a)
 			if(s == S)
 				break;
 			t = s->type;
-			if(t == 0 || t == SXREF) {
-				diag("undefined external: %s in %s",
-					s->name, TNAME);
-				s->type = SDATA;
-			}
-			instoffset = symaddr(s) + a->offset;
+			instoffset = 0;	// s.b. unused but just in case
 			return C_LCON;
 
 		case D_AUTO:

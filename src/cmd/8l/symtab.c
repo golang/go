@@ -65,7 +65,7 @@ putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
 	if(go) {
 		if(!go->reachable)
 			sysfatal("unreachable type %s", go->name);
-		gv = go->value+INITDAT;
+		gv = symaddr(go);
 	}
 	lput(gv);
 
@@ -114,13 +114,13 @@ genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
 			case SMACHO:
 				if(!s->reachable)
 					continue;
-				put(s->name, 'D', s->value+INITDAT+segdata.filelen-dynptrsize, s->size, s->version, s->gotype);
+				put(s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
 				continue;
 
 			case SBSS:
 				if(!s->reachable)
 					continue;
-				put(s->name, 'B', s->value+INITDAT, s->size, s->version, s->gotype);
+				put(s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
 				continue;
 
 			case SFIXED:

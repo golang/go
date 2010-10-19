@@ -44,6 +44,7 @@ listinit(void)
 	fmtinstall('S', Sconv);
 	fmtinstall('N', Nconv);
 	fmtinstall('O', Oconv);		// C_type constants
+	fmtinstall('I', Iconv);
 }
 
 void
@@ -372,6 +373,35 @@ Sconv(Fmt *fp)
 	}
 	*p = 0;
 	return fmtstrcpy(fp, str);
+}
+
+int
+Iconv(Fmt *fp)
+{
+	int i, n;
+	uint32 *p;
+	char *s;
+	Fmt fmt;
+	
+	n = fp->prec;
+	fp->prec = 0;
+	if(!(fp->flags&FmtPrec) || n < 0)
+		return fmtstrcpy(fp, "%I");
+	fp->flags &= ~FmtPrec;
+	p = va_arg(fp->args, uint32*);
+
+	// format into temporary buffer and
+	// call fmtstrcpy to handle padding.
+	fmtstrinit(&fmt);
+	for(i=0; i<n/4; i++) {
+		if(i > 0)
+			fmtprint(&fmt, " ");
+		fmtprint(&fmt, "%.8ux", *p++);
+	}
+	s = fmtstrflush(&fmt);
+	fmtstrcpy(fp, s);
+	free(s);
+	return 0;
 }
 
 static char*

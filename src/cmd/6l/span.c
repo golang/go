@@ -137,18 +137,10 @@ span(void)
 	int32 v;
 	vlong c;
 	int n;
-	Sym *s;
-	Section *sect, *rosect;
+	Section *sect;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f span\n", cputime());
-
-	segtext.rwx = 05;
-	segtext.vaddr = INITTEXT - HEADR;
-	
-	xdefine("etext", STEXT, 0L);
-	xdefine("rodata", SRODATA, 0L);
-	xdefine("erodata", SRODATA, 0L);
 
 	// NOTE(rsc): If we get rid of the globals we should
 	// be able to parallelize these iterations.
@@ -184,7 +176,7 @@ span(void)
 	// Could parallelize here too, by assigning to text 
 	// and then letting threads copy down, but probably not worth it.
 	c = INITTEXT;
-	sect = segtext.sect;
+	sect = addsection(&segtext, ".text", 05);
 	sect->vaddr = c;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		cursym->value = c;
@@ -193,53 +185,6 @@ span(void)
 		c += cursym->size;
 	}
 	sect->len = c - sect->vaddr;
-	xdefine("etext", STEXT, c);
-	if(debug['v'])
-		Bprint(&bso, "etext = %llux\n", c);
-
-	xdefine("rodata", SRODATA, c);
-	if(INITRND)
-		c = rnd(c, INITRND);
-	rosect = segtext.sect->next;
-	rosect->vaddr = c;
-	c += rosect->len;
-	xdefine("erodata", SRODATA, c);
-	textsize = c - INITTEXT;
-	if(debug['v'])
-		Bprint(&bso, "erodata = %llux", c);
-	Bflush(&bso);
-
-	segtext.len = c - segtext.vaddr;
-	segtext.filelen = segtext.len;
-
-	if(INITRND)
-		c = rnd(c, INITRND);
-	INITDAT = c;
-	
-	// Adjust everything now that we know INITDAT.
-	// This will get simpler when everything is relocatable
-	// and we can run span before dodata.
-
-	segdata.vaddr += INITDAT;
-	for(sect=segdata.sect; sect!=nil; sect=sect->next)
-		sect->vaddr += INITDAT;
-
-	xdefine("data", SBSS, INITDAT);
-	xdefine("edata", SBSS, INITDAT+segdata.filelen);
-	xdefine("end", SBSS, INITDAT+segdata.len);
-
-	for(s=datap; s!=nil; s=s->next) {
-		switch(s->type) {
-		case SELFDATA:
-		case SRODATA:
-			s->value += rosect->vaddr;
-			break;
-		case SDATA:
-		case SBSS:
-			s->value += INITDAT;
-			break;
-		}
-	}
 }
 
 void
@@ -250,6 +195,7 @@ xdefine(char *p, int t, vlong v)
 	s = lookup(p, 0);
 	s->type = t;
 	s->value = v;
+	s->reachable = 1;
 }
 
 void
@@ -729,8 +675,8 @@ symaddr(Sym *s)
 		return s->value;
 	
 	case SMACHO:
-		return INITDAT + segdata.filelen - dynptrsize + s->value;
-	
+		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
+
 	default:
 		if(!s->reachable)
 			diag("unreachable symbol in symaddr - %s", s->name);
