@@ -74,15 +74,21 @@ func FrontPage(w http.ResponseWriter, req *http.Request) {
 // and sends the program's output as the HTTP response.
 func Compile(w http.ResponseWriter, req *http.Request) {
 	// x is the base name for .go, .6, executable files
-	x := "/tmp/compile" + strconv.Itoa(<-uniq)
+	x := os.TempDir() + "/compile" + strconv.Itoa(<-uniq)
+	src := x + ".go"
+	obj := x + "." + archChar
+	bin := x
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 
 	// write request Body to x.go
-	f, err := os.Open(x+".go", os.O_CREAT|os.O_WRONLY|os.O_TRUNC, 0666)
+	f, err := os.Open(src, os.O_CREAT|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		error(w, nil, err)
 		return
 	}
-	defer os.Remove(x + ".go")
+	defer os.Remove(src)
 	defer f.Close()
 	_, err = io.Copy(f, req.Body)
 	if err != nil {
@@ -92,23 +98,23 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 	f.Close()
 
 	// build x.go, creating x.6
-	out, err := run(archChar+"g", "-o", x+"."+archChar, x+".go")
-	defer os.Remove(x + "." + archChar)
+	out, err := run(archChar+"g", "-o", obj, src)
+	defer os.Remove(obj)
 	if err != nil {
 		error(w, out, err)
 		return
 	}
 
 	// link x.6, creating x (the program binary)
-	out, err = run(archChar+"l", "-o", x, x+"."+archChar)
-	defer os.Remove(x)
+	out, err = run(archChar+"l", "-o", bin, obj)
+	defer os.Remove(bin)
 	if err != nil {
 		error(w, out, err)
 		return
 	}
 
 	// run x
-	out, err = run(x)
+	out, err = run(bin)
 	if err != nil {
 		error(w, out, err)
 	}
@@ -150,6 +156,9 @@ func run(cmd ...string) ([]byte, os.Error) {
 	io.Copy(&buf, p.Stdout)
 	w, err := p.Wait(0)
 	p.Close()
+	if err != nil {
+		return nil, err
+	}
 
 	// set the error return value if the program had a non-zero exit status
 	if !w.Exited() || w.ExitStatus() != 0 {
