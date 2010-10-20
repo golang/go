@@ -843,10 +843,16 @@ type InterfaceValue struct {
 	value "interface"
 }
 
-// No Get because v.Interface() is available.
-
 // IsNil returns whether v is a nil interface value.
 func (v *InterfaceValue) IsNil() bool { return v.Interface() == nil }
+
+// No single uinptr Get because v.Interface() is available.
+
+// Get returns the two words that represent an interface in the runtime.
+// Those words are useful only when playing unsafe games.
+func (v *InterfaceValue) Get() [2]uintptr {
+	return *(*[2]uintptr)(v.addr)
+}
 
 // Elem returns the concrete value stored in the interface value v.
 func (v *InterfaceValue) Elem() Value { return NewValue(v.Interface()) }
