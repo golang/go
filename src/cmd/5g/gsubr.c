@@ -1835,14 +1835,20 @@ oindex:
 		gmove(&n2, reg);
 	}
 
-	if(*w == 1)
+	switch(*w) {
+	case 1:
 		gins(AADD, reg1, reg);
-	else if(*w == 2)
+		break;
+	case 2:
 		gshift(AADD, reg1, SHIFT_LL, 1, reg);
-	else if(*w == 4)
+		break;
+	case 4:
 		gshift(AADD, reg1, SHIFT_LL, 2, reg);
-	else if(*w == 8)
+		break;
+	case 8:
 		gshift(AADD, reg1, SHIFT_LL, 3, reg);
+		break;
+	}
 
 	naddr(reg1, a, 1);
 	a->type = D_OREG;
