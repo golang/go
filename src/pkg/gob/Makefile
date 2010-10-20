@@ -8,6 +8,7 @@ TARG=gob
 GOFILES=\
 	decode.go\
 	decoder.go\
+	doc.go\
 	encode.go\
 	encoder.go\
 	type.go\
