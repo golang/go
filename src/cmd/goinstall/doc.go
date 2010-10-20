@@ -50,8 +50,8 @@ if necessary.  The recognized code hosting sites are:
 
 	GitHub (Git)
 
-		import "github.com/user/project.git"
-		import "github.com/user/project.git/sub/directory"
+		import "github.com/user/project"
+		import "github.com/user/project/sub/directory"
 
 	Google Code Project Hosting (Mercurial, Subversion)
 
