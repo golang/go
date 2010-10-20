@@ -1292,10 +1292,8 @@ slicearray:
 	if(smallintconst(&nodes[2]) && smallintconst(&nodes[4])) {
 		v = mpgetfix(nodes[2].val.u.xval) *
 			mpgetfix(nodes[4].val.u.xval);
-		if(v != 0) {
-			nodconst(&n1, types[tptr], v);
-			gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
-		}
+		if(v != 0)
+			ginscon(optoas(OADD, types[tptr]), v, &nodes[0]);
 	} else {
 		regalloc(&n1, types[tptr], &nodes[2]);
 		gmove(&nodes[2], &n1);
@@ -1409,10 +1407,8 @@ sliceslice:
 		gins(optoas(OAS, types[tptr]), &n2, &n1);
 		v = mpgetfix(nodes[1].val.u.xval) *
 			mpgetfix(nodes[3].val.u.xval);
-		if(v != 0) {
-			nodconst(&n2, types[tptr], v);
-			gins(optoas(OADD, types[tptr]), &n2, &n1);
-		}
+		if(v != 0)
+			ginscon(optoas(OADD, types[tptr]), v, &n1);
 	} else {
 		gmove(&nodes[1], &n1);
 		if(!smallintconst(&nodes[3]) || mpgetfix(nodes[3].val.u.xval) != 1)

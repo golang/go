@@ -430,11 +430,33 @@ fatal("shouldnt be used");
 void
 gconreg(int as, vlong c, int reg)
 {
-	Node n1, n2;
+	Node nr;
+
+	nodreg(&nr, types[TINT64], reg);
+	ginscon(as, c, &nr);
+}
+
+/*
+ * generate
+ *	as $c, n
+ */
+void
+ginscon(int as, vlong c, Node *n2)
+{
+	Node n1, ntmp;
 
 	nodconst(&n1, types[TINT64], c);
-	nodreg(&n2, types[TINT64], reg);
-	gins(as, &n1, &n2);
+
+	if(as != AMOVQ && (c < -1LL<<31 || c >= 1LL<<31)) {
+		// cannot have 64-bit immediokate in ADD, etc.
+		// instead, MOV into register first.
+		regalloc(&ntmp, types[TINT64], N);
+		gins(AMOVQ, &n1, &ntmp);
+		gins(as, &ntmp, n2);
+		regfree(&ntmp);
+		return;
+	}
+	gins(as, &n1, n2);
 }
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
