@@ -4,7 +4,7 @@
 
 // Manual corrections: TODO(rsc): need to fix godefs
 //	remove duplicate PtraceRegs type
-//	change RawSockaddrUnix field to Path [108]int8 (was uint8()
+//	change RawSockaddrUnix field to Path [108]int8 (was uint8)
 //  add padding to EpollEvent
 
 package syscall

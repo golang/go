@@ -48,8 +48,8 @@ TEXT	·Syscall6(SB),7,$0
 	MOVW	24(SP), R4
 	MOVW	28(SP), R5
 	SWI		$0
-	MOVW	$0xfffff001, R1
-	CMP		R1, R0
+	MOVW	$0xfffff001, R6
+	CMP		R6, R0
 	BLS		ok6
 	MOVW	$-1, R1
 	MOVW	R1, 32(SP)	// r1
@@ -61,11 +61,43 @@ TEXT	·Syscall6(SB),7,$0
 	RET
 ok6:
 	MOVW	R0, 32(SP) // r1
+	MOVW	R1, 36(SP)	// r2
 	MOVW	$0, R0
-	MOVW	R0, 36(SP)	// r2
 	MOVW	R0, 40(SP)	// errno
 	BL		runtime·exitsyscall(SB)
 	RET
+
+#define SYS__LLSEEK 140  /* from zsysnum_linux_arm.go */
+// func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+// Implemented in assembly to avoid allocation when
+// taking the address of the return value newoffset.
+// Underlying system call is
+//	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
+TEXT ·Seek(SB),7,$0
+	BL	runtime·entersyscall(SB)
+	MOVW	$SYS__LLSEEK, R7	// syscall entry
+	MOVW	4(SP), R0	// fd
+	MOVW	12(SP), R1	// offset-high
+	MOVW	8(SP), R2	// offset-low
+	MOVW	$20(SP), R3
+	MOVW	16(SP), R4	// whence
+	SWI	$0
+	MOVW	$0xfffff001, R6
+	CMP	R6, R0
+	BLS	okseek
+	MOVW	$0, R1
+	MOVW	R1, 20(SP)
+	MOVW	R1, 24(SP)
+	RSB	$0, R0, R0
+	MOVW	R0, 28(SP)	// errno
+	BL	runtime·exitsyscall(SB)
+	RET
+okseek:
+	// system call filled in newoffset already
+	MOVW	$0, R0
+	MOVW	R0, 28(SP)	// errno
+	BL	runtime·exitsyscall(SB)
+	RET	
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 TEXT ·RawSyscall(SB),7,$0
@@ -90,3 +122,4 @@ ok1:
 	MOVW	R0, 24(SP)	// r2
 	MOVW	R0, 28(SP)	// errno
 	RET
+

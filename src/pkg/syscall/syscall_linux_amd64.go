@@ -17,6 +17,8 @@ package syscall
 //sys	Lchown(path string, uid int, gid int) (errno int)
 //sys	Listen(s int, n int) (errno int)
 //sys	Lstat(path string, stat *Stat_t) (errno int)
+//sys	Pread(fd int, p []byte, offset int64) (n int, errno int) = SYS_PREAD64
+//sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int) = SYS_PWRITE64
 //sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int)
 //sys	Setfsgid(gid int) (errno int)
