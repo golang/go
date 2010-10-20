@@ -95,6 +95,14 @@ if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
 fi
 ) || exit $?
 
+for i in ../misc/dashboard/builder ../misc/goplay
+do
+	(xcd $i
+	gomake clean
+	gomake
+	) || exit $?
+done
+
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench
 if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then

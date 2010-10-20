@@ -86,7 +86,7 @@ func main() {
 		}
 		for _, b := range builders {
 			if err := b.buildCommit(c); err != nil {
-				log.Stderr(err)
+				log.Println(err)
 			}
 			runQueuedBenchmark()
 		}
@@ -96,7 +96,7 @@ func main() {
 	for {
 		err := run(nil, goroot, "hg", "pull", "-u")
 		if err != nil {
-			log.Stderr("hg pull failed:", err)
+			log.Println("hg pull failed:", err)
 			time.Sleep(waitInterval)
 			continue
 		}
@@ -129,7 +129,7 @@ func runQueuedBenchmark() bool {
 
 func runBenchmark(r BenchRequest) {
 	// run benchmarks and send to dashboard
-	log.Stderrf("%s benchmarking %d", r.builder.name, r.commit.num)
+	log.Println(r.builder.name, "benchmarking", r.commit.num)
 	defer os.RemoveAll(r.path)
 	pkg := path.Join(r.path, "go", "src", "pkg")
 	bin := path.Join(r.path, "go", "bin")
@@ -140,11 +140,11 @@ func runBenchmark(r BenchRequest) {
 	}
 	benchLog, _, err := runLog(env, pkg, "gomake", "bench")
 	if err != nil {
-		log.Stderr("%s gomake bench:", r.builder.name, err)
+		log.Println(r.builder.name, "gomake bench:", err)
 		return
 	}
 	if err = r.builder.recordBenchmarks(benchLog, r.commit); err != nil {
-		log.Stderr("recordBenchmarks:", err)
+		log.Println("recordBenchmarks:", err)
 	}
 }
 
@@ -184,21 +184,21 @@ func (b *Builder) build() bool {
 	defer func() {
 		err := recover()
 		if err != nil {
-			log.Stderr("%s build: %s", b.name, err)
+			log.Println(b.name, "build:", err)
 		}
 	}()
 	c, err := b.nextCommit()
 	if err != nil {
-		log.Stderr(err)
+		log.Println(err)
 		return false
 	}
 	if c == nil {
 		return false
 	}
-	log.Stderrf("%s building %d", b.name, c.num)
+	log.Println(b.name, "building", c.num)
 	err = b.buildCommit(*c)
 	if err != nil {
-		log.Stderr(err)
+		log.Println(err)
 	}
 	return true
 }
