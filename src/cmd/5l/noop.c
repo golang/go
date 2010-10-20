@@ -37,6 +37,7 @@
 enum
 {
 	StackBig = 4096,
+	StackSmall = 128,
 };
 
 static	Sym*	sym_div;
@@ -296,7 +297,7 @@ noops(void)
 					// TODO(kaib): add more trampolines
 					// TODO(kaib): put stackguard in register
 					// TODO(kaib): add support for -K and underflow detection
-	
+
 					// MOVW			g_stackguard(g), R1
 					p = appendp(p);
 					p->as = AMOVW;
@@ -304,14 +305,31 @@ noops(void)
 					p->from.reg = REGG;
 					p->to.type = D_REG;
 					p->to.reg = 1;
-	
-					// CMP			R1, $-autosize(SP)
-					p = appendp(p);
-					p->as = ACMP;
-					p->from.type = D_REG;
-					p->from.reg = 1;
-					p->from.offset = -autosize;
-					p->reg = REGSP;
+					
+					if(autosize < StackSmall) {	
+						// CMP			R1, SP
+						p = appendp(p);
+						p->as = ACMP;
+						p->from.type = D_REG;
+						p->from.reg = 1;
+						p->reg = REGSP;
+					} else {
+						// MOVW		$-autosize(SP), R2
+						// CMP	R1, R2
+						p = appendp(p);
+						p->as = AMOVW;
+						p->from.type = D_CONST;
+						p->from.reg = REGSP;
+						p->from.offset = -autosize;
+						p->to.type = D_REG;
+						p->to.reg = 2;
+						
+						p = appendp(p);
+						p->as = ACMP;
+						p->from.type = D_REG;
+						p->from.reg = 1;
+						p->reg = 2;
+					}
 	
 					// MOVW.LO		$autosize, R1
 					p = appendp(p);
