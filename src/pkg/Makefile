@@ -204,32 +204,22 @@ endif
 ifeq ($(GOARCH),arm)
 # Tests that fail, probably 5g bugs.
 # Disable so that dashboard all.bash can catch regressions.
-NOTEST+=archive/tar
-NOTEST+=archive/zip
-NOTEST+=cmath
-NOTEST+=crypto/block
-NOTEST+=debug/dwarf
-NOTEST+=debug/elf
-NOTEST+=debug/macho
-NOTEST+=encoding/binary
-NOTEST+=exp/datafmt
-NOTEST+=exp/eval
-NOTEST+=expvar
-NOTEST+=flag
-NOTEST+=fmt
-NOTEST+=go/printer
-NOTEST+=gob
-NOTEST+=image/png
-NOTEST+=json
-NOTEST+=log
-NOTEST+=math
-NOTEST+=os
-NOTEST+=os/signal
-NOTEST+=strconv
-NOTEST+=syslog
-NOTEST+=template
-NOTEST+=testing/quick
-NOTEST+=xml
+NOTEST+=cmath  # floating point
+NOTEST+=crypto/block  # weird bit error
+NOTEST+=encoding/binary  # floating point?
+NOTEST+=exp/datafmt  # crash
+NOTEST+=exp/eval  # crash
+NOTEST+=flag  # floating point
+NOTEST+=fmt  # floating point
+NOTEST+=go/printer  # crash
+NOTEST+=gob  # floating point
+NOTEST+=image/png  # bit errors
+NOTEST+=json  # floating point
+NOTEST+=math  # floating point
+NOTEST+=os/signal  # crash
+NOTEST+=strconv  # floating point
+NOTEST+=syslog  # unix syslog
+NOTEST+=xml  # floating point
 endif
 
 TEST=\
