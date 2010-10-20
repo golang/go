@@ -646,8 +646,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
 //sys	Pause() (errno int)
 //sys	PivotRoot(newroot string, putold string) (errno int) = SYS_PIVOT_ROOT
-//sys	Pread(fd int, p []byte, offset int64) (n int, errno int) = SYS_PREAD64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int) = SYS_PWRITE64
 //sys	Read(fd int, p []byte) (n int, errno int)
 //sys	Readlink(path string, buf []byte) (n int, errno int)
 //sys	Rename(oldpath string, newpath string) (errno int)

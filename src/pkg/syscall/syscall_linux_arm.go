@@ -4,6 +4,8 @@
 
 package syscall
 
+import "unsafe"
+
 func Getpagesize() int { return 4096 }
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
@@ -20,6 +22,35 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	tv.Usec = int32(nsec % 1e9 / 1e3)
 	return
 }
+
+// Pread and Pwrite are special: they insert padding before the int64.
+// (Ftruncate and truncate are not; go figure.)
+
+func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+	var _p0 unsafe.Pointer
+	if len(p) > 0 {
+		_p0 = unsafe.Pointer(&p[0])
+	}
+	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), 0, uintptr(offset), uintptr(offset>>32))
+	n = int(r0)
+	errno = int(e1)
+	return
+}
+
+func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+	var _p0 unsafe.Pointer
+	if len(p) > 0 {
+		_p0 = unsafe.Pointer(&p[0])
+	}
+	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), 0, uintptr(offset), uintptr(offset>>32))
+	n = int(r0)
+	errno = int(e1)
+	return
+}
+
+// Seek is defined in assembly.
+
+func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
 //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
@@ -45,7 +76,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	Lchown(path string, uid int, gid int) (errno int)
 //sys	Listen(s int, n int) (errno int)
 //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
-//sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
 //sys	Setfsgid(gid int) (errno int)
 //sys	Setfsuid(uid int) (errno int)
