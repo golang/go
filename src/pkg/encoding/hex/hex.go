@@ -71,7 +71,7 @@ func Decode(dst, src []byte) (int, os.Error) {
 // fromHexChar converts a hex character into its value and a success flag.
 func fromHexChar(c byte) (byte, bool) {
 	switch {
-	case 0 <= c && c <= '9':
+	case '0' <= c && c <= '9':
 		return c - '0', true
 	case 'a' <= c && c <= 'f':
 		return c - 'a' + 10, true
