@@ -26,12 +26,12 @@ func fileInfoFromByHandleInfo(fi *FileInfo, name string, d *syscall.ByHandleFile
 
 func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) *FileInfo {
 	fi.Mode = 0
-	if fa == syscall.FILE_ATTRIBUTE_DIRECTORY {
+	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
 		fi.Mode = fi.Mode | syscall.S_IFDIR
 	} else {
 		fi.Mode = fi.Mode | syscall.S_IFREG
 	}
-	if fa == syscall.FILE_ATTRIBUTE_READONLY {
+	if fa&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		fi.Mode = fi.Mode | 0444
 	} else {
 		fi.Mode = fi.Mode | 0666
