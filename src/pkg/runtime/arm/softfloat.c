@@ -449,7 +449,7 @@ loadstore(uint32 *pc, uint32 *regs)
 	isload = i>>20&1;
 	p = i>>24&1;
 	ud = i>>23&1;
-	tlen = i>>(22 - 1)&1 | i>>15&1;	// NOTE(rsc): should this say i>>(22-1)&2 (not &1)?
+	tlen = i>>(22 - 1)&2 | i>>15&1;
 	wb = i>>21&1;
 	reg = i>>16 &0xf;
 	freg = i>>12 &0x7;
