@@ -458,13 +458,14 @@ cgen_asop(Node *n)
 		}
 		if(nr->ullman < UINF)
 		if(sudoaddable(a, nl, &addr, &w)) {
+			w = optoas(OAS, nl->type);
 			regalloc(&n2, nl->type, N);
-			p1 = gins(AMOVW, N, &n2);
+			p1 = gins(w, N, &n2);
 			p1->from = addr;
 			regalloc(&n3, nr->type, N);
 			cgen(nr, &n3);
 			gins(a, &n3, &n2);
-			p1 = gins(AMOVW, &n2, N);
+			p1 = gins(w, &n2, N);
 			p1->to = addr;
 			regfree(&n2);
 			regfree(&n3);
