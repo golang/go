@@ -184,6 +184,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 		t.RequestMethod = rr.RequestMethod
 		t.ProtoMajor = rr.ProtoMajor
 		t.ProtoMinor = rr.ProtoMinor
+		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
 	case *Request:
 		t.Header = rr.Header
 		t.ProtoMajor = rr.ProtoMajor
@@ -209,9 +210,6 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 	if err != nil {
 		return err
 	}
-
-	// Closing
-	t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
 
 	// Trailer
 	t.Trailer, err = fixTrailer(t.Header, t.TransferEncoding)
