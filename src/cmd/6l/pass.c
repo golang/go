@@ -469,7 +469,7 @@ dostkoff(void)
 
 			/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
 			moreconst1 = 0;
-			if(autoffset+160 > 4096)
+			if(autoffset+160+textarg > 4096)
 				moreconst1 = (autoffset+160) & ~7LL;
 			moreconst2 = textarg;
 

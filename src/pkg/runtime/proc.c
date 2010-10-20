@@ -749,6 +749,8 @@ newstack(void)
 	args = m->moreargs;
 	g1 = m->curg;
 
+	if(m->morebuf.sp < g1->stackguard - StackGuard)
+		throw("split stack overflow");
 
 	if(frame == 1 && args > 0 && m->morebuf.sp - sizeof(Stktop) - args - 32 > g1->stackguard) {
 		// special case: called from reflect.call (frame == 1)
