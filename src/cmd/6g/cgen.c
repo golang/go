@@ -537,9 +537,7 @@ agen(Node *n, Node *res)
 				gmove(&n1, &n3);
 			}
 
-			nodconst(&n2, types[tptr], v*w);
-			gins(optoas(OADD, types[tptr]), &n2, &n3);
-
+			ginscon(optoas(OADD, types[tptr]), v*w, &n3);
 			gmove(&n3, res);
 			regfree(&n3);
 			break;
@@ -596,8 +594,7 @@ agen(Node *n, Node *res)
 			p1->from.index = p1->from.type;
 			p1->from.type = p1->to.type + D_INDIR;
 		} else {
-			nodconst(&n1, t, w);
-			gins(optoas(OMUL, t), &n1, &n2);
+			ginscon(optoas(OMUL, t), w, &n2);
 			gins(optoas(OADD, types[tptr]), &n2, &n3);
 			gmove(&n3, res);
 		}
@@ -621,10 +618,8 @@ agen(Node *n, Node *res)
 			fatal("agen: bad ONAME class %#x", n->class);
 		}
 		cgen(n->heapaddr, res);
-		if(n->xoffset != 0) {
-			nodconst(&n1, types[TINT64], n->xoffset);
-			gins(optoas(OADD, types[tptr]), &n1, res);
-		}
+		if(n->xoffset != 0)
+			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
 		break;
 
 	case OIND:
@@ -633,10 +628,8 @@ agen(Node *n, Node *res)
 
 	case ODOT:
 		agen(nl, res);
-		if(n->xoffset != 0) {
-			nodconst(&n1, types[TINT64], n->xoffset);
-			gins(optoas(OADD, types[tptr]), &n1, res);
-		}
+		if(n->xoffset != 0)
+			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
 		break;
 
 	case ODOTPTR:
@@ -653,8 +646,7 @@ agen(Node *n, Node *res)
 				gins(ATESTB, nodintconst(0), &n1);
 				regfree(&n1);
 			}
-			nodconst(&n1, types[TINT64], n->xoffset);
-			gins(optoas(OADD, types[tptr]), &n1, res);
+			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
 		}
 		break;
 	}
