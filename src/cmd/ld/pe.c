@@ -86,6 +86,7 @@ pewrite(void)
 {
 	int i, j;
 
+	seek(cout, 0, 0);
 	ewrite(cout, dosstub, sizeof dosstub);
 	strnput("PE", 4);
 
@@ -102,7 +103,7 @@ pewrite(void)
 void
 dope(void)
 {
-	textsect = new_section(".text", textsize, 0);
+	textsect = new_section(".text", segtext.len, 0);
 	textsect->Characteristics = IMAGE_SCN_CNT_CODE|
 		IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
@@ -167,7 +168,6 @@ add_import_table(void)
 	for(f=fs; f->name; f++)
 		f->thunk += va;
 
-	vlong off = seek(cout, 0, 1);
 	seek(cout, 0, 2);
 	for(d=ds; ; d++) {
 		lputl(d->OriginalFirstThunk);
@@ -187,12 +187,13 @@ add_import_table(void)
 		lputl(f->thunk);
 	strnput("", isect->SizeOfRawData - size);
 	cflush();
-	seek(cout, off, 0);
 }
 
 void
 asmbpe(void)
 {
+	vlong eof;
+
 	switch(thechar) {
 	default:
 		diag("unknown PE architecture");
@@ -204,6 +205,10 @@ asmbpe(void)
 		fh.Machine = IMAGE_FILE_MACHINE_I386;
 		break;
 	}
+
+	// make sure the end of file is INITRND-aligned.
+	eof = seek(cout, 0, 2);
+	strnput("", rnd(eof, INITRND) - eof);
 
 	add_import_table();
 
