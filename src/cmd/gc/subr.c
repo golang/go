@@ -1046,6 +1046,9 @@ Jconv(Fmt *fp)
 	if(n->isddd != 0)
 		fmtprint(fp, " isddd(%d)", n->isddd);
 
+	if(n->implicit != 0)
+		fmtprint(fp, " implicit(%d)", n->implicit);
+
 	return 0;
 }
 
@@ -2047,6 +2050,7 @@ assignconv(Node *n, Type *t, char *context)
 	r = nod(op, n, N);
 	r->type = t;
 	r->typecheck = 1;
+	r->implicit = 1;
 	return r;
 }
 
