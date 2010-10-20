@@ -620,6 +620,12 @@ selunlock(Select *sel)
 }
 
 // selectgo(sel *byte);
+//
+// overwrites return pc on stack to signal which case of the select
+// to run, so cannot appear at the top of a split stack.
+// frame has 6 pointers and 4 int32 so 64 bytes max.
+// that's less than StackGuard-StackSmall, so okay.
+#pragma textflag 7
 void
 ·selectgo(Select *sel)
 {
