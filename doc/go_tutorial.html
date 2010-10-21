@@ -531,7 +531,7 @@ object.  We could write
     return n
 </pre>
 <p>
-but for simple structures like <code>File</code> it's easier to return the address of a nonce
+but for simple structures like <code>File</code> it's easier to return the address of a 
 composite literal, as is done here on line 21.
 <p>
 We can use the factory to construct some familiar, exported variables of type <code>*File</code>:
@@ -698,7 +698,7 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 19            case nr &lt; 0:
 20                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, f.String(), er.String())
 21                os.Exit(1)
-22            case nr == 0:  // EOF
+22            case nr == 0: // EOF
 23                return
 24            case nr &gt; 0:
 25                if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
@@ -709,7 +709,7 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 30    }
 <p>
 32    func main() {
-33        flag.Parse()   // Scans the arg list and sets up flags
+33        flag.Parse() // Scans the arg list and sets up flags
 34        if flag.NArg() == 0 {
 35            cat(file.Stdin)
 36        }
@@ -770,7 +770,7 @@ we have a second implementation of the <code>reader</code> interface.
 <p>
 <pre> <!-- progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/ -->
 31    type rotate13 struct {
-32        source    reader
+32        source reader
 33    }
 <p>
 35    func newRotate13(source reader) *rotate13 {
@@ -814,7 +814,7 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 61            case nr &lt; 0:
 62                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, r.String(), er.String())
 63                os.Exit(1)
-64            case nr == 0:  // EOF
+64            case nr == 0: // EOF
 65                return
 66            case nr &gt; 0:
 67                nw, ew := file.Stdout.Write(buf[0:nr])

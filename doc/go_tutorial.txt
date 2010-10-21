@@ -420,7 +420,7 @@ object.  We could write
 	n.name = name
 	return n
 
-but for simple structures like "File" it's easier to return the address of a nonce
+but for simple structures like "File" it's easier to return the address of a 
 composite literal, as is done here on line 21.
 
 We can use the factory to construct some familiar, exported variables of type "*File":
