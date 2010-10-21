@@ -539,6 +539,11 @@ gmove(Node *f, Node *t)
 	tt = simsimtype(t->type);
 	cvt = t->type;
 
+	if(iscomplex[ft] || iscomplex[tt]) {
+		complexmove(f, t);
+		return;
+	}
+
 	// cannot have two memory operands;
 	// except 64-bit, which always copies via registers anyway.
 	if(!is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))

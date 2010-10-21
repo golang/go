@@ -21,7 +21,8 @@ OFILES=\
 	ggen.$O\
 	gsubr.$O\
 	cgen.$O\
-	cgen64.$O
+	cgen64.$O\
+	cplx.$O\
 
 LIB=\
 	../gc/gc.a\

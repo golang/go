@@ -28,12 +28,6 @@ cgen(Node *n, Node *res)
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
-	// TODO compile complex
-	if(n != N && n->type != T && iscomplex[n->type->etype])
-		return;
-	if(res != N && res->type != T && iscomplex[res->type->etype])
-		return;
-
 	while(n->op == OCONVNOP)
 		n = n->left;
 
@@ -53,6 +47,7 @@ cgen(Node *n, Node *res)
 		goto ret;
 	}
 
+
 	// update addressability for string, slice
 	// can't do in walk because n->left->addable
 	// changes if n->left is an escaping local variable.
@@ -69,7 +64,9 @@ cgen(Node *n, Node *res)
 
 	// if both are addressable, move
 	if(n->addable && res->addable) {
-		if (is64(n->type) || is64(res->type) || n->op == OREGISTER || res->op == OREGISTER) {
+		if(is64(n->type) || is64(res->type) ||
+		   n->op == OREGISTER || res->op == OREGISTER ||
+		   iscomplex[n->type->etype] || iscomplex[res->type->etype]) {
 			gmove(n, res);
 		} else {
 			regalloc(&n1, n->type, N);
@@ -99,8 +96,13 @@ cgen(Node *n, Node *res)
 		return;
 	}
 
+	if(complexop(n, res)) {
+		complexgen(n, res);
+		return;
+	}
+
 	// if n is sudoaddable generate addr and move
-	if (!is64(n->type) && !is64(res->type)) {
+	if (!is64(n->type) && !is64(res->type) && !iscomplex[n->type->etype] && !iscomplex[res->type->etype]) {
 		a = optoas(OAS, n->type);
 		if(sudoaddable(a, n, &addr, &w)) {
 			if (res->op != OREGISTER) {

@@ -169,7 +169,7 @@ s2d(uint32 s)
 		return DNINF;
 	if ((s & ~(1ul << 31)) == FNAN)
 		return DNAN;
-	return (uint64)(s & 0x80000000) << 63 |	// sign
+	return (uint64)(s & 0x80000000) << 32 |	// sign
 		(uint64)((s >> 23 &0xff) + (DOUBLE_EXPBIAS - SINGLE_EXPBIAS)) << 52  |	// exponent
 		(uint64)(s & 0x7fffff) << 29;	// mantissa
 }
@@ -211,7 +211,10 @@ dataprocess(uint32* pc)
 	if (unary) {
 		switch (opcode) {
 		case 0: // mvf
-			m->freg[dest] = frhs(rhs);
+			fd = frhs(rhs);
+			if(prec == 0)
+				fd = s2d(d2s(fd));
+			m->freg[dest] = fd;
 			goto ret;
 		default:
 			goto undef;

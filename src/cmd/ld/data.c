@@ -387,13 +387,13 @@ codeblk(int32 addr, int32 size)
 			break;
 
 		if(addr < sym->value) {
-			Bprint(&bso, "%-20s %.8llux|", "_", addr);
+			Bprint(&bso, "%-20s %.8llux|", "_", (vlong)addr);
 			for(; addr < sym->value; addr++)
 				Bprint(&bso, " %.2ux", 0);
 			Bprint(&bso, "\n");
 		}
 		p = sym->text;
-		Bprint(&bso, "%.6llux\t%-20s | %P\n", addr, sym->name, p);
+		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)addr, sym->name, p);
 		for(p = p->link; p != P; p = p->link) {
 			if(p->link != P)
 				epc = p->link->pc;
@@ -408,7 +408,7 @@ codeblk(int32 addr, int32 size)
 	}
 
 	if(addr < eaddr) {
-		Bprint(&bso, "%-20s %.8llux|", "_", addr);
+		Bprint(&bso, "%-20s %.8llux|", "_", (vlong)addr);
 		for(; addr < eaddr; addr++)
 			Bprint(&bso, " %.2ux", 0);
 	}
