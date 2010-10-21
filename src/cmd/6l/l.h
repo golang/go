@@ -328,7 +328,6 @@ EXTERN	char	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Sym*	textp;
 EXTERN	Sym*	etextp;
-EXTERN	int	xrefresolv;
 EXTERN	char	ycover[Ymax*Ymax];
 EXTERN	uchar*	andptr;
 EXTERN	uchar*	rexptr;
