@@ -320,7 +320,6 @@ EXTERN	int32 	elfdatsize;
 EXTERN	char	debug[128];
 EXTERN	Sym*	etextp;
 EXTERN	char*	noname;
-EXTERN	int	xrefresolv;
 EXTERN	Prog*	lastp;
 EXTERN	int32	lcsize;
 EXTERN	char	literal[32];

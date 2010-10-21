@@ -147,6 +147,22 @@ addlib(char *src, char *obj)
 		strcat(name, comp);
 	}
 	cleanname(name);
+	
+	// runtime.a -> runtime
+	p = nil;
+	if(strlen(name) > 2 && name[strlen(name)-2] == '.') {
+		p = name+strlen(name)-2;
+		*p = '\0';
+	}
+	
+	// already loaded?
+	for(i=0; i<libraryp; i++)
+		if(strcmp(library[i].pkg, name) == 0)
+			return;
+	
+	// runtime -> runtime.a for search
+	if(p != nil)
+		*p = '.';
 
 	if(search) {
 		// try dot, -L "libdir", and then goroot.
@@ -160,8 +176,8 @@ addlib(char *src, char *obj)
 	cleanname(pname);
 
 	/* runtime.a -> runtime */
-	if(strlen(name) > 2 && name[strlen(name)-2] == '.')
-		name[strlen(name)-2] = '\0';
+	if(p != nil)
+		*p = '\0';
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, pname);
@@ -187,9 +203,9 @@ addlibpath(char *srcref, char *objref, char *file, char *pkg)
 		if(strcmp(file, library[i].file) == 0)
 			return;
 
-	if(debug['v'])
+	if(debug['v'] > 1)
 		Bprint(&bso, "%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s\n",
-		cputime(), srcref, objref, file, pkg);
+			cputime(), srcref, objref, file, pkg);
 
 	if(libraryp == nlibrary){
 		nlibrary = 50 + 2*libraryp;
@@ -220,8 +236,6 @@ loadlib(void)
 {
 	char pname[1024];
 	int i, found;
-	int32 h;
-	Sym *s;
 
 	found = 0;
 	for(i=0; i<nlibdir; i++) {
@@ -234,47 +248,51 @@ loadlib(void)
 			break;
 		}
 	}
-	if(!found) Bprint(&bso, "warning: unable to find runtime.a\n");
+	if(!found)
+		Bprint(&bso, "warning: unable to find runtime.a\n");
 
-loop:
-	xrefresolv = 0;
 	for(i=0; i<libraryp; i++) {
 		if(debug['v'])
 			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
 		objfile(library[i].file, library[i].pkg);
 	}
+}
 
-	if(xrefresolv)
-	for(h=0; h<nelem(hash); h++)
-	for(s = hash[h]; s != S; s = s->hash)
-		if(s->type == SXREF)
-			goto loop;
+/*
+ * look for the next file in an archive.
+ * adapted from libmach.
+ */
+int
+nextar(Biobuf *bp, int off, struct ar_hdr *a)
+{
+	int r;
+	int32 arsize;
 
+	if (off&01)
+		off++;
+	Bseek(bp, off, 0);
+	r = Bread(bp, a, SAR_HDR);
+	if(r != SAR_HDR)
+		return 0;
+	if(strncmp(a->fmag, ARFMAG, sizeof(a->fmag)))
+		return -1;
+	arsize = strtol(a->size, 0, 0);
+	if (arsize&1)
+		arsize++;
+	return arsize + SAR_HDR;
 }
 
 void
 objfile(char *file, char *pkg)
 {
-	int32 off, esym, cnt, l;
-	int work;
+	int32 off, l;
 	Biobuf *f;
-	Sym *s;
 	char magbuf[SARMAG];
-	char name[100], pname[150];
+	char pname[150];
 	struct ar_hdr arhdr;
-	char *e, *start, *stop, *x;
 
 	pkg = smprint("%i", pkg);
 
-	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
-		if(debug['9'])
-			sprint(name, "/%s/lib/lib", thestring);
-		else
-			sprint(name, "/usr/%clib/lib", thechar);
-		strcat(name, file+2);
-		strcat(name, ".a");
-		file = name;
-	}
 	if(debug['v'])
 		Bprint(&bso, "%5.2f ldobj: %s (%s)\n", cputime(), file, pkg);
 	Bflush(&bso);
@@ -292,9 +310,10 @@ objfile(char *file, char *pkg)
 		Bterm(f);
 		return;
 	}
-
-	l = Bread(f, &arhdr, SAR_HDR);
-	if(l != SAR_HDR) {
+	
+	/* skip over __.SYMDEF */
+	off = Boffset(f);
+	if((l = nextar(f, off, &arhdr)) <= 0) {
 		diag("%s: short read on archive file symbol header", file);
 		goto out;
 	}
@@ -302,88 +321,52 @@ objfile(char *file, char *pkg)
 		diag("%s: first entry not symbol header", file);
 		goto out;
 	}
-
-	esym = SARMAG + SAR_HDR + atolwhex(arhdr.size);
-	off = SARMAG + SAR_HDR;
-
-	if(debug['u']) {
-		struct ar_hdr pkghdr;
-		int n;
-
-		// Read next ar header to check for package safe bit.
-		Bseek(f, esym+(esym&1), 0);
-		l = Bread(f, &pkghdr, SAR_HDR);
-		if(l != SAR_HDR) {
-			diag("%s: short read on second archive header", file);
-			goto out;
-		}
-		if(strncmp(pkghdr.name, pkgname, strlen(pkgname))) {
-			diag("%s: second entry not package header", file);
-			goto out;
-		}
-		n = atolwhex(pkghdr.size);
-		ldpkg(f, pkg, n, file, Pkgdef);
+	off += l;
+	
+	/* skip over (or process) __.PKGDEF */
+	if((l = nextar(f, off, &arhdr)) <= 0) {
+		diag("%s: short read on archive file symbol header", file);
+		goto out;
 	}
+	if(strncmp(arhdr.name, pkgname, strlen(pkgname))) {
+		diag("%s: second entry not package header", file);
+		goto out;
+	}
+	off += l;
+
+	if(debug['u'])
+		ldpkg(f, pkg, atolwhex(arhdr.size), file, Pkgdef);
 
 	/*
-	 * just bang the whole symbol file into memory
+	 * load all the object files from the archive now.
+	 * this gives us sequential file access and keeps us
+	 * from needing to come back later to pick up more
+	 * objects.  it breaks the usual C archive model, but
+	 * this is Go, not C.  the common case in Go is that
+	 * we need to load all the objects, and then we throw away
+	 * the individual symbols that are unused.
+	 *
+	 * loading every object will also make it possible to
+	 * load foreign objects not referenced by __.SYMDEF.
 	 */
-	Bseek(f, off, 0);
-	cnt = esym - off;
-	start = mal(cnt + 10);
-	cnt = Bread(f, start, cnt);
-	if(cnt <= 0){
-		Bterm(f);
-		return;
-	}
-	stop = &start[cnt];
-	memset(stop, 0, 10);
-
-	work = 1;
-	while(work) {
-		if(debug['v'])
-			Bprint(&bso, "%5.2f library pass: %s\n", cputime(), file);
-		Bflush(&bso);
-		work = 0;
-		for(e = start; e < stop; e = strchr(e+5, 0) + 1) {
-			x = expandpkg(e+5, pkg);
-			s = lookup(x, 0);
-			if(x != e+5)
-				free(x);
-			if(s->type != SXREF)
-				continue;
-			sprint(pname, "%s(%s)", file, s->name);
-			if(debug['v'])
-				Bprint(&bso, "%5.2f library: %s\n", cputime(), pname);
-			Bflush(&bso);
-			l = e[1] & 0xff;
-			l |= (e[2] & 0xff) << 8;
-			l |= (e[3] & 0xff) << 16;
-			l |= (e[4] & 0xff) << 24;
-			Bseek(f, l, 0);
-			l = Bread(f, &arhdr, SAR_HDR);
-			if(l != SAR_HDR)
-				goto bad;
-			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
-				goto bad;
-			l = SARNAME;
-			while(l > 0 && arhdr.name[l-1] == ' ')
-				l--;
-			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
-			l = atolwhex(arhdr.size);
-			ldobj(f, pkg, l, pname, ArchiveObj);
-			if(s->type == SXREF) {
-				diag("%s: failed to load: %s", file, s->name);
-				errorexit();
-			}
-			work = 1;
-			xrefresolv = 1;
+	for(;;) {
+		l = nextar(f, off, &arhdr);
+		if(l == 0)
+			break;
+		if(l < 0) {
+			diag("%s: malformed archive", file);
+			goto out;
 		}
-	}
-	return;
+		off += l;
 
-bad:
-	diag("%s: bad or out of date archive", file);
+		l = SARNAME;
+		while(l > 0 && arhdr.name[l-1] == ' ')
+			l--;
+		snprint(pname, sizeof pname, "%s(%.*s)", file, utfnlen(arhdr.name, l), arhdr.name);
+		l = atolwhex(arhdr.size);
+		ldobj(f, pkg, l, pname, ArchiveObj);
+	}
+
 out:
 	Bterm(f);
 }
