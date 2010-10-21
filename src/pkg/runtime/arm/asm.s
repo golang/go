@@ -270,3 +270,6 @@ TEXT abort(SB),7,$-4
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
+TEXT	runcgocallback(SB),7,$0
+	MOVW	$0, R0
+	MOVW	(R0), R1
