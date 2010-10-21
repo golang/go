@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # Copyright 2006, 2007 Google Inc. All Rights Reserved.
 # Author: danderson@google.com (David Anderson)
