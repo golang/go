@@ -29,8 +29,11 @@ type ByteOrder interface {
 // allowing, e.g., order == binary.LittleEndian.
 type unused byte
 
-var LittleEndian ByteOrder = littleEndian(0)
-var BigEndian ByteOrder = bigEndian(0)
+// LittleEndian is the little-endian implementation of ByteOrder.
+var LittleEndian littleEndian
+
+// BigEndian is the big-endian implementation of ByteOrder.
+var BigEndian bigEndian
 
 type littleEndian unused
 
