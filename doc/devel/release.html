@@ -5,6 +5,42 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-10-20">2010-10-20</h3>
+
+<pre>
+This release removes the log package's deprecated functions.
+Code that has not been updated to use the new interface will break.
+See the previous release notes for details:
+	http://golang.org/doc/devel/release.html#2010-10-13
+
+Also included are major improvements to the linker. It is now faster, 
+uses less memory, and more parallelizable (but not yet parallel).
+
+The nntp package has been removed from the standard library.
+Its new home is the nntp-go project at Google Code:
+	http://code.google.com/p/nntp-go
+You can install it with goinstall:
+	goinstall nntp-go.googlecode.com/hg/nntp
+And import it in your code like so:
+	import "nntp-go.googlecode.com/hg/nntp"
+
+Other changes:
+* 6g: avoid too-large immediate constants.
+* 8l, runtime: initial support for Plan 9 (thanks Yuval Pavel Zholkover).
+* 6l, 8l: more improvements on exporting debug information (DWARF).
+* arm: code gen fixes. Most tests now pass, except for floating point code.
+* big: add random number generation (thanks Florian Uekermann).
+* gc: keep track of real actual type of identifiers,
+	report that shift must be unsigned integer,
+	select receive with implicit conversion.
+* goplay: fix to run under windows (thanks Yasuhiro Matsumoto).
+* http: do not close connection after sending HTTP/1.0 request.
+* netchan: add new method Hangup to terminate transmission on a channel.
+* os: change TestForkExec so it can run on windows (thanks Yasuhiro Matsumoto).
+* runtime: don't let select split stack.
+* syscall/arm: correct 64-bit system call arguments.
+</pre>
+
 <h3 id="2010-10-13">2010-10-13</h3>
 
 <pre>
