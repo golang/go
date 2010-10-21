@@ -44,7 +44,7 @@ import (
 )
 
 var n = flag.Int("n", 7, "count")
-var nCPU = flag.Int("ncpu", 2, "number of cpus")
+var nCPU = flag.Int("ncpu", 4, "number of cpus")
 
 type Job struct {
 	start []int

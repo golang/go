@@ -67,7 +67,7 @@ run() {
 fasta() {
 	runonly echo 'fasta -n 25000000'
 	run 'gcc -O2 fasta.c' a.out 25000000
-	#run 'gccgo -O2 fasta.go' a.out -n 25000000	#commented out until WriteString is in bufio
+	run 'gccgo -O2 fasta.go' a.out -n 25000000	#commented out until WriteString is in bufio
 	run 'gc fasta' $O.out -n 25000000
 	run 'gc_B fasta' $O.out -n 25000000
 }
@@ -115,7 +115,7 @@ regexdna() {
 	runonly a.out 100000 > x
 	runonly echo 'regex-dna 100000'
 	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
-#	run 'gccgo -O2 regex-dna.go' a.out <x	# pages badly; don't run
+#	run 'gccgo -O2 regex-dna.go' a.out <x	# restore after regexp.FindIndex is in library
 	run 'gc regex-dna' $O.out <x
 	run 'gc regex-dna-parallel' $O.out <x
 	run 'gc_B regex-dna' $O.out <x
@@ -135,8 +135,8 @@ knucleotide() {
 	runonly a.out 1000000 > x  # should be using 25000000
 	runonly echo 'k-nucleotide 1000000'
 	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
-	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
-	run 'gccgo -O2 k-nucleotide-parallel.go' a.out <x	# warning: pages badly!
+	run 'gccgo -O2 k-nucleotide.go' a.out <x
+	run 'gccgo -O2 k-nucleotide-parallel.go' a.out <x
 	run 'gc k-nucleotide' $O.out <x
 	run 'gc k-nucleotide-parallel' $O.out <x
 	run 'gc_B k-nucleotide' $O.out <x
@@ -162,7 +162,7 @@ meteor() {
 pidigits() {
 	runonly echo 'pidigits 10000'
 	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
-#	run 'gccgo -O2 pidigits.go' a.out -n 10000  # uncomment when gccgo library updated
+	run 'gccgo -O2 pidigits.go' a.out -n 10000
 	run 'gc pidigits' $O.out -n 10000
 	run 'gc_B  pidigits' $O.out -n 10000
 }
