@@ -5,6 +5,7 @@
 package websocket
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"http"
@@ -193,5 +194,79 @@ func TestTrailingSpaces(t *testing.T) {
 		if err != nil {
 			panic("Dial failed: " + err.String())
 		}
+	}
+}
+
+func TestSmallBuffer(t *testing.T) {
+	// http://code.google.com/p/go/issues/detail?id=1145
+	// Read should be able to handle reading a fragment of a frame.
+	once.Do(startServer)
+
+	// websocket.Dial()
+	client, err := net.Dial("tcp", "", serverAddr)
+	if err != nil {
+		t.Fatal("dialing", err)
+	}
+	ws, err := newClient("/echo", "localhost", "http://localhost",
+		"ws://localhost/echo", "", client, handshake)
+	if err != nil {
+		t.Errorf("WebSocket handshake error: %v", err)
+		return
+	}
+
+	msg := []byte("hello, world\n")
+	if _, err := ws.Write(msg); err != nil {
+		t.Errorf("Write: %v", err)
+	}
+	var small_msg = make([]byte, 8)
+	n, err := ws.Read(small_msg)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+	if !bytes.Equal(msg[:len(small_msg)], small_msg) {
+		t.Errorf("Echo: expected %q got %q", msg[:len(small_msg)], small_msg)
+	}
+	var second_msg = make([]byte, len(msg))
+	n, err = ws.Read(second_msg)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+	second_msg = second_msg[0:n]
+	if !bytes.Equal(msg[len(small_msg):], second_msg) {
+		t.Errorf("Echo: expected %q got %q", msg[len(small_msg):], second_msg)
+	}
+	ws.Close()
+
+}
+
+func testSkipLengthFrame(t *testing.T) {
+	b := []byte{'\x80', '\x01', 'x', 0, 'h', 'e', 'l', 'l', 'o', '\xff'}
+	buf := bytes.NewBuffer(b)
+	br := bufio.NewReader(buf)
+	bw := bufio.NewWriter(buf)
+	ws := newConn("http://127.0.0.1/", "ws://127.0.0.1/", "", bufio.NewReadWriter(br, bw), nil)
+	msg := make([]byte, 5)
+	n, err := ws.Read(msg)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+	if !bytes.Equal(b[4:8], msg[0:n]) {
+		t.Errorf("Read: expected %q got %q", msg[4:8], msg[0:n])
+	}
+}
+
+func testSkipNoUTF8Frame(t *testing.T) {
+	b := []byte{'\x01', 'n', '\xff', 0, 'h', 'e', 'l', 'l', 'o', '\xff'}
+	buf := bytes.NewBuffer(b)
+	br := bufio.NewReader(buf)
+	bw := bufio.NewWriter(buf)
+	ws := newConn("http://127.0.0.1/", "ws://127.0.0.1/", "", bufio.NewReadWriter(br, bw), nil)
+	msg := make([]byte, 5)
+	n, err := ws.Read(msg)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+	if !bytes.Equal(b[4:8], msg[0:n]) {
+		t.Errorf("Read: expected %q got %q", msg[4:8], msg[0:n])
 	}
 }
