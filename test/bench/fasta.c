@@ -41,10 +41,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef fwrite_unlocked
 // not available on OS X 
 #define fwrite_unlocked fwrite
 #define fputc_unlocked fputc
 #define fputs_unlocked fputs
+#endif
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
 #define unlikely(x) __builtin_expect((x), 0)
