@@ -82,7 +82,7 @@ func main() {
 	if *buildRevision != "" {
 		c, err := getCommit(*buildRevision)
 		if err != nil {
-			log.Exit("Error finding revision:", err)
+			log.Exit("Error finding revision: ", err)
 		}
 		for _, b := range builders {
 			if err := b.buildCommit(c); err != nil {
@@ -138,7 +138,8 @@ func runBenchmark(r BenchRequest) {
 		"GOARCH=" + r.builder.goarch,
 		"PATH=" + bin + ":" + os.Getenv("PATH"),
 	}
-	benchLog, _, err := runLog(env, pkg, "gomake", "bench")
+	logfile := path.Join(r.path, "bench.log")
+	benchLog, _, err := runLog(env, logfile, pkg, "gomake", "bench")
 	if err != nil {
 		log.Println(r.builder.name, "gomake bench:", err)
 		return
@@ -195,7 +196,6 @@ func (b *Builder) build() bool {
 	if c == nil {
 		return false
 	}
-	log.Println(b.name, "building", c.num)
 	err = b.buildCommit(*c)
 	if err != nil {
 		log.Println(err)
@@ -233,6 +233,8 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 		}
 	}()
 
+	log.Println(b.name, "building", c.num)
+
 	// create place in which to do work
 	workpath := path.Join(buildroot, b.name+"-"+strconv.Itoa(c.num))
 	err = os.Mkdir(workpath, mkdirPerm)
@@ -269,7 +271,8 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	srcDir := path.Join(workpath, "go", "src")
 
 	// build
-	buildLog, status, err := runLog(env, srcDir, *buildCmd)
+	logfile := path.Join(workpath, "build.log")
+	buildLog, status, err := runLog(env, logfile, srcDir, *buildCmd)
 	if err != nil {
 		return fmt.Errorf("all.bash: %s", err)
 	}
@@ -311,8 +314,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 		if err != nil {
 			return fmt.Errorf("tar: %s", err)
 		}
-		err = run(nil, workpath, "python",
-			path.Join(goroot, codePyScript),
+		err = run(nil, workpath, path.Join(goroot, codePyScript),
 			"-s", release,
 			"-p", codeProject,
 			"-u", b.codeUsername,
