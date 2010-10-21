@@ -175,7 +175,7 @@ cgen(Node *n, Node *res)
 	case OREAL:
 	case OIMAG:
 	case OCMPLX:
-		// TODO compile complex
+		fatal("unexpected complex");
 		return;
 
 	// these call bgen to get a bool value
