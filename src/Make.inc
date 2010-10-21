@@ -101,7 +101,7 @@ HOST_CC=quietgcc
 HOST_LD=quietgcc
 HOST_O=o
 HOST_YFLAGS=-d
-HOST_CFLAGS=-ggdb -I"$(GOROOT)/include" -O2 -fno-inline
+HOST_CFLAGS=-ggdb -I"$(GOROOT)/include" -O2
 PWD=$(shell pwd)
 
 # Make environment more standard.
