@@ -5,6 +5,13 @@
 #include "runtime.h"
 
 void
-initsig(int32 queue)
+initsig(int32)
 {
 }
+
+String
+signame(int32)
+{
+	return emptystring;
+}
+
