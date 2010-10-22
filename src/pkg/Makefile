@@ -208,9 +208,6 @@ NOTEST+=cmath        # software floating point (lack of) accuracy
 NOTEST+=math         # software floating point (lack of) accuracy
 NOTEST+=strconv      # software floating point (lack of) accuracy
 
-NOTEST+=fmt          # spurious uint overflow
-NOTEST+=gob          # something involving complex
-NOTEST+=json         # spurious uint overflow
 NOTEST+=os/signal    # crash
 endif
 
