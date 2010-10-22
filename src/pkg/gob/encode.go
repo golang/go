@@ -35,8 +35,7 @@ func newEncoderState(b *bytes.Buffer) *encoderState {
 // Otherwise the value is written in big-endian byte order preceded
 // by the byte length, negated.
 
-// encodeUint writes an encoded unsigned integer to state.b.  Sets state.err.
-// If state.err is already non-nil, it does nothing.
+// encodeUint writes an encoded unsigned integer to state.b.
 func encodeUint(state *encoderState, x uint64) {
 	if x <= 0x7F {
 		err := state.b.WriteByte(uint8(x))
@@ -60,8 +59,8 @@ func encodeUint(state *encoderState, x uint64) {
 }
 
 // encodeInt writes an encoded signed integer to state.w.
-// The low bit of the encoding says whether to bit complement the (other bits of the) uint to recover the int.
-// Sets state.err. If state.err is already non-nil, it does nothing.
+// The low bit of the encoding says whether to bit complement the (other bits of the)
+// uint to recover the int.
 func encodeInt(state *encoderState, i int64) {
 	var x uint64
 	if i < 0 {
@@ -319,8 +318,7 @@ type encEngine struct {
 
 const singletonField = 0
 
-func encodeSingle(engine *encEngine, b *bytes.Buffer, basep uintptr) (err os.Error) {
-	defer catchError(&err)
+func encodeSingle(engine *encEngine, b *bytes.Buffer, basep uintptr) {
 	state := newEncoderState(b)
 	state.fieldnum = singletonField
 	// There is no surrounding struct to frame the transmission, so we must
@@ -330,15 +328,13 @@ func encodeSingle(engine *encEngine, b *bytes.Buffer, basep uintptr) (err os.Err
 	p := unsafe.Pointer(basep) // offset will be zero
 	if instr.indir > 0 {
 		if p = encIndirect(p, instr.indir); p == nil {
-			return nil
+			return
 		}
 	}
 	instr.op(instr, state, p)
-	return
 }
 
-func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) (err os.Error) {
-	defer catchError(&err)
+func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) {
 	state := newEncoderState(b)
 	state.fieldnum = -1
 	for i := 0; i < len(engine.instr); i++ {
@@ -351,7 +347,6 @@ func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) (err os.Err
 		}
 		instr.op(instr, state, p)
 	}
-	return nil
 }
 
 func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, elemIndir int, length int) {
@@ -452,7 +447,7 @@ var encOpMap = []encOp{
 
 // Return the encoding op for the base type under rt and
 // the indirection count to reach it.
-func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int) {
 	typ, indir := indirect(rt)
 	var op encOp
 	k := typ.Kind()
@@ -468,10 +463,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 				break
 			}
 			// Slices have a header; we decode it to find the underlying array.
-			elemOp, indir, err := enc.encOpFor(t.Elem())
-			if err != nil {
-				return nil, 0, err
-			}
+			elemOp, indir := enc.encOpFor(t.Elem())
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				slice := (*reflect.SliceHeader)(p)
 				if slice.Len == 0 {
@@ -482,23 +474,14 @@ func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			}
 		case *reflect.ArrayType:
 			// True arrays have size in the type.
-			elemOp, indir, err := enc.encOpFor(t.Elem())
-			if err != nil {
-				return nil, 0, err
-			}
+			elemOp, indir := enc.encOpFor(t.Elem())
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i)
 				encodeArray(state.b, uintptr(p), elemOp, t.Elem().Size(), indir, t.Len())
 			}
 		case *reflect.MapType:
-			keyOp, keyIndir, err := enc.encOpFor(t.Key())
-			if err != nil {
-				return nil, 0, err
-			}
-			elemOp, elemIndir, err := enc.encOpFor(t.Elem())
-			if err != nil {
-				return nil, 0, err
-			}
+			keyOp, keyIndir := enc.encOpFor(t.Key())
+			elemOp, elemIndir := enc.encOpFor(t.Elem())
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				// Maps cannot be accessed by moving addresses around the way
 				// that slices etc. can.  We must recover a full reflection value for
@@ -513,10 +496,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			}
 		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.
-			_, err := enc.getEncEngine(typ)
-			if err != nil {
-				return nil, 0, err
-			}
+			enc.getEncEngine(typ)
 			info := mustGetTypeInfo(typ)
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i)
@@ -538,66 +518,65 @@ func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 		}
 	}
 	if op == nil {
-		return op, indir, os.ErrorString("gob enc: can't happen: encode type " + rt.String())
+		errorf("gob enc: can't happen: encode type %s", rt.String())
 	}
-	return op, indir, nil
+	return op, indir
 }
 
 // The local Type was compiled from the actual value, so we know it's compatible.
-func (enc *Encoder) compileEnc(rt reflect.Type) (*encEngine, os.Error) {
+func (enc *Encoder) compileEnc(rt reflect.Type) *encEngine {
 	srt, isStruct := rt.(*reflect.StructType)
 	engine := new(encEngine)
 	if isStruct {
 		engine.instr = make([]encInstr, srt.NumField()+1) // +1 for terminator
 		for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
 			f := srt.Field(fieldnum)
-			op, indir, err := enc.encOpFor(f.Type)
-			if err != nil {
-				return nil, err
-			}
+			op, indir := enc.encOpFor(f.Type)
 			engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)}
 		}
 		engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0}
 	} else {
 		engine.instr = make([]encInstr, 1)
-		op, indir, err := enc.encOpFor(rt)
-		if err != nil {
-			return nil, err
-		}
+		op, indir := enc.encOpFor(rt)
 		engine.instr[0] = encInstr{op, singletonField, indir, 0} // offset is zero
 	}
-	return engine, nil
+	return engine
 }
 
 // typeLock must be held (or we're in initialization and guaranteed single-threaded).
 // The reflection type must have all its indirections processed out.
-func (enc *Encoder) getEncEngine(rt reflect.Type) (*encEngine, os.Error) {
-	info, err := getTypeInfo(rt)
-	if err != nil {
-		return nil, err
+func (enc *Encoder) getEncEngine(rt reflect.Type) *encEngine {
+	info, err1 := getTypeInfo(rt)
+	if err1 != nil {
+		error(err1)
 	}
 	if info.encoder == nil {
 		// mark this engine as underway before compiling to handle recursive types.
 		info.encoder = new(encEngine)
-		info.encoder, err = enc.compileEnc(rt)
+		info.encoder = enc.compileEnc(rt)
 	}
-	return info.encoder, err
+	return info.encoder
 }
 
-func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value) os.Error {
+// Put this in a function so we can hold the lock only while compiling, not when encoding.
+func (enc *Encoder) lockAndGetEncEngine(rt reflect.Type) *encEngine {
+	typeLock.Lock()
+	defer typeLock.Unlock()
+	return enc.getEncEngine(rt)
+}
+
+func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value) (err os.Error) {
+	defer catchError(&err)
 	// Dereference down to the underlying object.
 	rt, indir := indirect(value.Type())
 	for i := 0; i < indir; i++ {
 		value = reflect.Indirect(value)
 	}
-	typeLock.Lock()
-	engine, err := enc.getEncEngine(rt)
-	typeLock.Unlock()
-	if err != nil {
-		return err
-	}
+	engine := enc.lockAndGetEncEngine(rt)
 	if value.Type().Kind() == reflect.Struct {
-		return encodeStruct(engine, b, value.Addr())
+		encodeStruct(engine, b, value.Addr())
+	} else {
+		encodeSingle(engine, b, value.Addr())
 	}
-	return encodeSingle(engine, b, value.Addr())
+	return nil
 }
