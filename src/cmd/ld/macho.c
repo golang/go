@@ -281,7 +281,7 @@ domacho(void)
 	char *p;
 	uchar *dat;
 	uint32 x;
-	Sym *s;
+	Sym *s, *smacho;
 	Sym **impsym;
 
 	ptrsize = 4;
@@ -352,10 +352,16 @@ domacho(void)
 		}
 	}
 
+	smacho = lookup("__nl_symbol_ptr", 0);
+	smacho->type = SMACHO;
+	smacho->reachable = 1;
 	for(h=0; h<nimpsym; h++) {
 		s = impsym[h];
-		s->type = SMACHO;
+		s->type = SMACHO | SSUB;
+		s->sub = smacho->sub;
+		smacho->sub = s;
 		s->value = (nexpsym+h) * ptrsize;
+		s->reachable = 1;
 
 		/* symbol table entry - darwin still puts _ prefixes on all C symbols */
 		x = nstrtab;
@@ -398,7 +404,9 @@ domacho(void)
 		dat[3] = x>>24;
 	}
 
-	dynptrsize = (nexpsym+nimpsym) * ptrsize;
+	smacho->size = (nexpsym+nimpsym) * ptrsize;
+	if(smacho->size == 0)
+		smacho->reachable = 0;
 }
 
 vlong
@@ -408,10 +416,13 @@ domacholink(void)
 	uchar *p;
 	Sym *s;
 	uint64 val;
+	Sym *smacho;
+	
+	smacho = lookup("__nl_symbol_ptr", 0);
 
 	linkoff = 0;
 	if(nlinkdata > 0 || nstrtab > 0) {
-		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen - dynptrsize, INITRND);
+		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen - smacho->size, INITRND);
 		seek(cout, linkoff, 0);
 
 		for(i = 0; i<nexpsym; ++i) {
@@ -452,6 +463,7 @@ asmbmacho(void)
 	MachoSeg *ms;
 	MachoDebug *md;
 	MachoLoad *ml;
+	Sym *smacho;
 
 	/* apple MACH */
 	va = INITTEXT - HEADR;
@@ -492,8 +504,9 @@ asmbmacho(void)
 	msect->flag = 0x400;	/* flag - some instructions */
 
 	/* data */
+	smacho = lookup("__nl_symbol_ptr", 0);
 	w = segdata.len;
-	ms = newMachoSeg("__DATA", 2+(dynptrsize>0));
+	ms = newMachoSeg("__DATA", 2+(smacho->size > 0));
 	ms->vaddr = va+v;
 	ms->vsize = w;
 	ms->fileoffset = v;
@@ -503,14 +516,14 @@ asmbmacho(void)
 
 	msect = newMachoSect(ms, "__data");
 	msect->addr = va+v;
-	msect->size = segdata.filelen - dynptrsize;
+	msect->size = segdata.filelen - smacho->size;
 	msect->off = v;
 
-	if(dynptrsize > 0) {
+	if(smacho->size > 0) {
 		msect = newMachoSect(ms, "__nl_symbol_ptr");
-		msect->addr = va+v+segdata.filelen - dynptrsize;
-		msect->size = dynptrsize;
-		msect->off = v+segdata.filelen - dynptrsize;
+		msect->addr = smacho->value;
+		msect->size = smacho->size;
+		msect->off = datoff(msect->addr);
 		msect->align = 2;
 		msect->flag = 6;	/* section with nonlazy symbol pointers */
 		/*
@@ -551,7 +564,7 @@ asmbmacho(void)
 	if(!debug['d']) {
 		int nsym;
 
-		nsym = dynptrsize/ptrsize;
+		nsym = smacho->size/ptrsize;
 
 		ms = newMachoSeg("__LINKEDIT", 0);
 		ms->vaddr = va+v+rnd(segdata.len, INITRND);

@@ -131,6 +131,7 @@ struct	Sym
 	int32	sig;
 	Sym*	hash;	// in hash table
 	Sym*	next;	// in text or data list
+	Sym*	sub;	// in SSUB list
 	vlong	value;
 	vlong	size;
 	Sym*	gotype;
@@ -175,12 +176,13 @@ enum
 	SELFDATA,
 	SRODATA,
 	SDATA,
+	SMACHO,
 	SBSS,
 
 	SXREF,
-	SMACHO,
 	SFILE,
 	SCONST,
+	SSUB	= 1<<8,
 
 	NHASH		= 10007,
 	NHUNK		= 100000,
@@ -354,7 +356,6 @@ EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
 EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
 extern	char	thechar;
-EXTERN	int	dynptrsize;
 EXTERN	int	elfstrsize;
 EXTERN	char*	elfstrdat;
 EXTERN	int	elftextsh;

@@ -132,6 +132,7 @@ struct	Sym
 	int32	sig;
 	Sym*	hash;	// in hash table
 	Sym*	next;	// in text or data list
+	Sym*	sub;	// in sub list
 	Sym*	gotype;
 	char*	file;
 	char*	dynimpname;
@@ -164,14 +165,16 @@ enum
 	/* order here is order in output file */
 	STEXT,
 	SELFDATA,
-	SRODATA,	// TODO(rsc): move
+	SRODATA,
 	SDATA,
+	SMACHO,	/* Mach-O __nl_symbol_ptr */
 	SBSS,
 
 	SXREF,
-	SMACHO,	// TODO(rsc): maybe move between DATA1 and BSS?
 	SFILE,
 	SCONST,
+	
+	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
 
 	NHASH		= 10007,
 	NHUNK		= 100000,
@@ -287,7 +290,6 @@ EXTERN	Prog*	curp;
 EXTERN	Sym*	cursym;
 EXTERN	Sym*	datap;
 EXTERN	int32	elfdatsize;
-EXTERN	int32	dynptrsize;
 EXTERN	char	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Sym*	etextp;

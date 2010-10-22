@@ -46,6 +46,9 @@ span1(Sym *s)
 	int n, m, i;
 
 	cursym = s;
+	
+	if(s->p != nil)
+		return;
 
 	for(p = s->text; p != P; p = p->link) {
 		p->back = 2;	// use short branches first time through
@@ -145,6 +148,8 @@ span(void)
 	// NOTE(rsc): If we get rid of the globals we should
 	// be able to parallelize these iterations.
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		if(cursym->p != nil)
+			continue;
 		// TODO: move into span1
 		for(p = cursym->text; p != P; p = p->link) {
 			n = 0;
@@ -671,15 +676,9 @@ relput8(Prog *p, Adr *a)
 vlong
 symaddr(Sym *s)
 {
-	switch(s->type) {
-	case SMACHO:
-		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
-
-	default:
-		if(!s->reachable)
-			diag("unreachable symbol in symaddr - %s", s->name);
-		return s->value;
-	}
+	if(!s->reachable)
+		diag("unreachable symbol in symaddr - %s", s->name);
+	return s->value;
 }
 
 static vlong

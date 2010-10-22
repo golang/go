@@ -503,15 +503,9 @@ relput4(Prog *p, Adr *a)
 int32
 symaddr(Sym *s)
 {
-	switch(s->type) {
-	case SMACHO:
-		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
-	
-	default:
-		if(!s->reachable)
-			diag("unreachable symbol in symaddr - %s", s->name);
-		return s->value;
-	}
+	if(!s->reachable)
+		diag("unreachable symbol in symaddr - %s", s->name);
+	return s->value;
 }
 
 static int32
