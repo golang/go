@@ -221,39 +221,39 @@ func (n Name) toRDNSequence() (ret rdnSequence) {
 	ret = make([]relativeDistinguishedNameSET, 9 /* maximum number of elements */ )
 	i := 0
 	if len(n.Country) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidCountry, n.Country}}
+		ret[i] = []attributeTypeAndValue{{oidCountry, n.Country}}
 		i++
 	}
 	if len(n.Organization) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidOrganization, n.Organization}}
+		ret[i] = []attributeTypeAndValue{{oidOrganization, n.Organization}}
 		i++
 	}
 	if len(n.OrganizationalUnit) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidOrganizationalUnit, n.OrganizationalUnit}}
+		ret[i] = []attributeTypeAndValue{{oidOrganizationalUnit, n.OrganizationalUnit}}
 		i++
 	}
 	if len(n.CommonName) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidCommonName, n.CommonName}}
+		ret[i] = []attributeTypeAndValue{{oidCommonName, n.CommonName}}
 		i++
 	}
 	if len(n.SerialNumber) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidSerialNumber, n.SerialNumber}}
+		ret[i] = []attributeTypeAndValue{{oidSerialNumber, n.SerialNumber}}
 		i++
 	}
 	if len(n.Locality) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidLocatity, n.Locality}}
+		ret[i] = []attributeTypeAndValue{{oidLocatity, n.Locality}}
 		i++
 	}
 	if len(n.Province) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidProvince, n.Province}}
+		ret[i] = []attributeTypeAndValue{{oidProvince, n.Province}}
 		i++
 	}
 	if len(n.StreetAddress) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidStreetAddress, n.StreetAddress}}
+		ret[i] = []attributeTypeAndValue{{oidStreetAddress, n.StreetAddress}}
 		i++
 	}
 	if len(n.PostalCode) > 0 {
-		ret[i] = []attributeTypeAndValue{attributeTypeAndValue{oidPostalCode, n.PostalCode}}
+		ret[i] = []attributeTypeAndValue{{oidPostalCode, n.PostalCode}}
 		i++
 	}
 

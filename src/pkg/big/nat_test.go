@@ -13,20 +13,20 @@ type cmpTest struct {
 
 
 var cmpTests = []cmpTest{
-	cmpTest{nil, nil, 0},
-	cmpTest{nil, nat{}, 0},
-	cmpTest{nat{}, nil, 0},
-	cmpTest{nat{}, nat{}, 0},
-	cmpTest{nat{0}, nat{0}, 0},
-	cmpTest{nat{0}, nat{1}, -1},
-	cmpTest{nat{1}, nat{0}, 1},
-	cmpTest{nat{1}, nat{1}, 0},
-	cmpTest{nat{0, _M}, nat{1}, 1},
-	cmpTest{nat{1}, nat{0, _M}, -1},
-	cmpTest{nat{1, _M}, nat{0, _M}, 1},
-	cmpTest{nat{0, _M}, nat{1, _M}, -1},
-	cmpTest{nat{16, 571956, 8794, 68}, nat{837, 9146, 1, 754489}, -1},
-	cmpTest{nat{34986, 41, 105, 1957}, nat{56, 7458, 104, 1957}, 1},
+	{nil, nil, 0},
+	{nil, nat{}, 0},
+	{nat{}, nil, 0},
+	{nat{}, nat{}, 0},
+	{nat{0}, nat{0}, 0},
+	{nat{0}, nat{1}, -1},
+	{nat{1}, nat{0}, 1},
+	{nat{1}, nat{1}, 0},
+	{nat{0, _M}, nat{1}, 1},
+	{nat{1}, nat{0, _M}, -1},
+	{nat{1, _M}, nat{0, _M}, 1},
+	{nat{0, _M}, nat{1, _M}, -1},
+	{nat{16, 571956, 8794, 68}, nat{837, 9146, 1, 754489}, -1},
+	{nat{34986, 41, 105, 1957}, nat{56, 7458, 104, 1957}, 1},
 }
 
 
@@ -47,24 +47,24 @@ type argNN struct {
 
 
 var sumNN = []argNN{
-	argNN{},
-	argNN{nat{1}, nil, nat{1}},
-	argNN{nat{1111111110}, nat{123456789}, nat{987654321}},
-	argNN{nat{0, 0, 0, 1}, nil, nat{0, 0, 0, 1}},
-	argNN{nat{0, 0, 0, 1111111110}, nat{0, 0, 0, 123456789}, nat{0, 0, 0, 987654321}},
-	argNN{nat{0, 0, 0, 1}, nat{0, 0, _M}, nat{0, 0, 1}},
+	{},
+	{nat{1}, nil, nat{1}},
+	{nat{1111111110}, nat{123456789}, nat{987654321}},
+	{nat{0, 0, 0, 1}, nil, nat{0, 0, 0, 1}},
+	{nat{0, 0, 0, 1111111110}, nat{0, 0, 0, 123456789}, nat{0, 0, 0, 987654321}},
+	{nat{0, 0, 0, 1}, nat{0, 0, _M}, nat{0, 0, 1}},
 }
 
 
 var prodNN = []argNN{
-	argNN{},
-	argNN{nil, nil, nil},
-	argNN{nil, nat{991}, nil},
-	argNN{nat{991}, nat{991}, nat{1}},
-	argNN{nat{991 * 991}, nat{991}, nat{991}},
-	argNN{nat{0, 0, 991 * 991}, nat{0, 991}, nat{0, 991}},
-	argNN{nat{1 * 991, 2 * 991, 3 * 991, 4 * 991}, nat{1, 2, 3, 4}, nat{991}},
-	argNN{nat{4, 11, 20, 30, 20, 11, 4}, nat{1, 2, 3, 4}, nat{4, 3, 2, 1}},
+	{},
+	{nil, nil, nil},
+	{nil, nat{991}, nil},
+	{nat{991}, nat{991}, nat{1}},
+	{nat{991 * 991}, nat{991}, nat{991}},
+	{nat{0, 0, 991 * 991}, nat{0, 991}, nat{0, 991}},
+	{nat{1 * 991, 2 * 991, 3 * 991, 4 * 991}, nat{1, 2, 3, 4}, nat{991}},
+	{nat{4, 11, 20, 30, 20, 11, 4}, nat{1, 2, 3, 4}, nat{4, 3, 2, 1}},
 }
 
 
@@ -118,18 +118,18 @@ type mulRangeN struct {
 
 
 var mulRangesN = []mulRangeN{
-	mulRangeN{0, 0, "0"},
-	mulRangeN{1, 1, "1"},
-	mulRangeN{1, 2, "2"},
-	mulRangeN{1, 3, "6"},
-	mulRangeN{10, 10, "10"},
-	mulRangeN{0, 100, "0"},
-	mulRangeN{0, 1e9, "0"},
-	mulRangeN{1, 0, "1"},                    // empty range
-	mulRangeN{100, 1, "1"},                  // empty range
-	mulRangeN{1, 10, "3628800"},             // 10!
-	mulRangeN{1, 20, "2432902008176640000"}, // 20!
-	mulRangeN{1, 100,
+	{0, 0, "0"},
+	{1, 1, "1"},
+	{1, 2, "2"},
+	{1, 3, "6"},
+	{10, 10, "10"},
+	{0, 100, "0"},
+	{0, 1e9, "0"},
+	{1, 0, "1"},                    // empty range
+	{100, 1, "1"},                  // empty range
+	{1, 10, "3628800"},             // 10!
+	{1, 20, "2432902008176640000"}, // 20!
+	{1, 100,
 		"933262154439441526816992388562667004907159682643816214685929" +
 			"638952175999932299156089414639761565182862536979208272237582" +
 			"51185210916864000000000000000000000000", // 100!
@@ -181,10 +181,10 @@ type str struct {
 
 
 var tab = []str{
-	str{nil, 10, "0"},
-	str{nat{1}, 10, "1"},
-	str{nat{10}, 10, "10"},
-	str{nat{1234567890}, 10, "1234567890"},
+	{nil, 10, "0"},
+	{nat{1}, 10, "1"},
+	{nat{10}, 10, "10"},
+	{nat{1234567890}, 10, "1234567890"},
 }
 
 
@@ -228,12 +228,12 @@ type shiftTest struct {
 
 
 var leftShiftTests = []shiftTest{
-	shiftTest{nil, 0, nil},
-	shiftTest{nil, 1, nil},
-	shiftTest{natOne, 0, natOne},
-	shiftTest{natOne, 1, natTwo},
-	shiftTest{nat{1 << (_W - 1)}, 1, nat{0}},
-	shiftTest{nat{1 << (_W - 1), 0}, 1, nat{0, 1}},
+	{nil, 0, nil},
+	{nil, 1, nil},
+	{natOne, 0, natOne},
+	{natOne, 1, natTwo},
+	{nat{1 << (_W - 1)}, 1, nat{0}},
+	{nat{1 << (_W - 1), 0}, 1, nat{0, 1}},
 }
 
 
@@ -252,13 +252,13 @@ func TestShiftLeft(t *testing.T) {
 
 
 var rightShiftTests = []shiftTest{
-	shiftTest{nil, 0, nil},
-	shiftTest{nil, 1, nil},
-	shiftTest{natOne, 0, natOne},
-	shiftTest{natOne, 1, nil},
-	shiftTest{natTwo, 1, natOne},
-	shiftTest{nat{0, 1}, 1, nat{1 << (_W - 1)}},
-	shiftTest{nat{2, 1, 1}, 1, nat{1<<(_W-1) + 1, 1 << (_W - 1)}},
+	{nil, 0, nil},
+	{nil, 1, nil},
+	{natOne, 0, natOne},
+	{natOne, 1, nil},
+	{natTwo, 1, natOne},
+	{nat{0, 1}, 1, nat{1 << (_W - 1)}},
+	{nat{2, 1, 1}, 1, nat{1<<(_W-1) + 1, 1 << (_W - 1)}},
 }
 
 
@@ -284,12 +284,12 @@ type modWTest struct {
 
 
 var modWTests32 = []modWTest{
-	modWTest{"23492635982634928349238759823742", "252341", "220170"},
+	{"23492635982634928349238759823742", "252341", "220170"},
 }
 
 
 var modWTests64 = []modWTest{
-	modWTest{"6527895462947293856291561095690465243862946", "524326975699234", "375066989628668"},
+	{"6527895462947293856291561095690465243862946", "524326975699234", "375066989628668"},
 }
 
 
@@ -336,12 +336,12 @@ type expNNTest struct {
 
 
 var expNNTests = []expNNTest{
-	expNNTest{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
-	expNNTest{"0x8000000000000000", "2", "6719", "4944"},
-	expNNTest{"0x8000000000000000", "3", "6719", "5447"},
-	expNNTest{"0x8000000000000000", "1000", "6719", "1603"},
-	expNNTest{"0x8000000000000000", "1000000", "6719", "3199"},
-	expNNTest{
+	{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
+	{"0x8000000000000000", "2", "6719", "4944"},
+	{"0x8000000000000000", "3", "6719", "5447"},
+	{"0x8000000000000000", "1000", "6719", "1603"},
+	{"0x8000000000000000", "1000000", "6719", "3199"},
+	{
 		"2938462938472983472983659726349017249287491026512746239764525612965293865296239471239874193284792387498274256129746192347",
 		"298472983472983471903246121093472394872319615612417471234712061",
 		"29834729834729834729347290846729561262544958723956495615629569234729836259263598127342374289365912465901365498236492183464",

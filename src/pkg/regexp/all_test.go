@@ -37,18 +37,18 @@ type stringError struct {
 }
 
 var bad_re = []stringError{
-	stringError{`*`, ErrBareClosure},
-	stringError{`(abc`, ErrUnmatchedLpar},
-	stringError{`abc)`, ErrUnmatchedRpar},
-	stringError{`x[a-z`, ErrUnmatchedLbkt},
-	stringError{`abc]`, ErrUnmatchedRbkt},
-	stringError{`[z-a]`, ErrBadRange},
-	stringError{`abc\`, ErrExtraneousBackslash},
-	stringError{`a**`, ErrBadClosure},
-	stringError{`a*+`, ErrBadClosure},
-	stringError{`a??`, ErrBadClosure},
-	stringError{`*`, ErrBareClosure},
-	stringError{`\x`, ErrBadBackslash},
+	{`*`, ErrBareClosure},
+	{`(abc`, ErrUnmatchedLpar},
+	{`abc)`, ErrUnmatchedRpar},
+	{`x[a-z`, ErrUnmatchedLbkt},
+	{`abc]`, ErrUnmatchedRbkt},
+	{`[z-a]`, ErrBadRange},
+	{`abc\`, ErrExtraneousBackslash},
+	{`a**`, ErrBadClosure},
+	{`a*+`, ErrBadClosure},
+	{`a??`, ErrBadClosure},
+	{`*`, ErrBareClosure},
+	{`\x`, ErrBadBackslash},
 }
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
@@ -115,64 +115,64 @@ type ReplaceTest struct {
 
 var replaceTests = []ReplaceTest{
 	// Test empty input and/or replacement, with pattern that matches the empty string.
-	ReplaceTest{"", "", "", ""},
-	ReplaceTest{"", "x", "", "x"},
-	ReplaceTest{"", "", "abc", "abc"},
-	ReplaceTest{"", "x", "abc", "xaxbxcx"},
+	{"", "", "", ""},
+	{"", "x", "", "x"},
+	{"", "", "abc", "abc"},
+	{"", "x", "abc", "xaxbxcx"},
 
 	// Test empty input and/or replacement, with pattern that does not match the empty string.
-	ReplaceTest{"b", "", "", ""},
-	ReplaceTest{"b", "x", "", ""},
-	ReplaceTest{"b", "", "abc", "ac"},
-	ReplaceTest{"b", "x", "abc", "axc"},
-	ReplaceTest{"y", "", "", ""},
-	ReplaceTest{"y", "x", "", ""},
-	ReplaceTest{"y", "", "abc", "abc"},
-	ReplaceTest{"y", "x", "abc", "abc"},
+	{"b", "", "", ""},
+	{"b", "x", "", ""},
+	{"b", "", "abc", "ac"},
+	{"b", "x", "abc", "axc"},
+	{"y", "", "", ""},
+	{"y", "x", "", ""},
+	{"y", "", "abc", "abc"},
+	{"y", "x", "abc", "abc"},
 
 	// Multibyte characters -- verify that we don't try to match in the middle
 	// of a character.
-	ReplaceTest{"[a-c]*", "x", "\u65e5", "x\u65e5x"},
-	ReplaceTest{"[^\u65e5]", "x", "abc\u65e5def", "xxx\u65e5xxx"},
+	{"[a-c]*", "x", "\u65e5", "x\u65e5x"},
+	{"[^\u65e5]", "x", "abc\u65e5def", "xxx\u65e5xxx"},
 
 	// Start and end of a string.
-	ReplaceTest{"^[a-c]*", "x", "abcdabc", "xdabc"},
-	ReplaceTest{"[a-c]*$", "x", "abcdabc", "abcdx"},
-	ReplaceTest{"^[a-c]*$", "x", "abcdabc", "abcdabc"},
-	ReplaceTest{"^[a-c]*", "x", "abc", "x"},
-	ReplaceTest{"[a-c]*$", "x", "abc", "x"},
-	ReplaceTest{"^[a-c]*$", "x", "abc", "x"},
-	ReplaceTest{"^[a-c]*", "x", "dabce", "xdabce"},
-	ReplaceTest{"[a-c]*$", "x", "dabce", "dabcex"},
-	ReplaceTest{"^[a-c]*$", "x", "dabce", "dabce"},
-	ReplaceTest{"^[a-c]*", "x", "", "x"},
-	ReplaceTest{"[a-c]*$", "x", "", "x"},
-	ReplaceTest{"^[a-c]*$", "x", "", "x"},
+	{"^[a-c]*", "x", "abcdabc", "xdabc"},
+	{"[a-c]*$", "x", "abcdabc", "abcdx"},
+	{"^[a-c]*$", "x", "abcdabc", "abcdabc"},
+	{"^[a-c]*", "x", "abc", "x"},
+	{"[a-c]*$", "x", "abc", "x"},
+	{"^[a-c]*$", "x", "abc", "x"},
+	{"^[a-c]*", "x", "dabce", "xdabce"},
+	{"[a-c]*$", "x", "dabce", "dabcex"},
+	{"^[a-c]*$", "x", "dabce", "dabce"},
+	{"^[a-c]*", "x", "", "x"},
+	{"[a-c]*$", "x", "", "x"},
+	{"^[a-c]*$", "x", "", "x"},
 
-	ReplaceTest{"^[a-c]+", "x", "abcdabc", "xdabc"},
-	ReplaceTest{"[a-c]+$", "x", "abcdabc", "abcdx"},
-	ReplaceTest{"^[a-c]+$", "x", "abcdabc", "abcdabc"},
-	ReplaceTest{"^[a-c]+", "x", "abc", "x"},
-	ReplaceTest{"[a-c]+$", "x", "abc", "x"},
-	ReplaceTest{"^[a-c]+$", "x", "abc", "x"},
-	ReplaceTest{"^[a-c]+", "x", "dabce", "dabce"},
-	ReplaceTest{"[a-c]+$", "x", "dabce", "dabce"},
-	ReplaceTest{"^[a-c]+$", "x", "dabce", "dabce"},
-	ReplaceTest{"^[a-c]+", "x", "", ""},
-	ReplaceTest{"[a-c]+$", "x", "", ""},
-	ReplaceTest{"^[a-c]+$", "x", "", ""},
+	{"^[a-c]+", "x", "abcdabc", "xdabc"},
+	{"[a-c]+$", "x", "abcdabc", "abcdx"},
+	{"^[a-c]+$", "x", "abcdabc", "abcdabc"},
+	{"^[a-c]+", "x", "abc", "x"},
+	{"[a-c]+$", "x", "abc", "x"},
+	{"^[a-c]+$", "x", "abc", "x"},
+	{"^[a-c]+", "x", "dabce", "dabce"},
+	{"[a-c]+$", "x", "dabce", "dabce"},
+	{"^[a-c]+$", "x", "dabce", "dabce"},
+	{"^[a-c]+", "x", "", ""},
+	{"[a-c]+$", "x", "", ""},
+	{"^[a-c]+$", "x", "", ""},
 
 	// Other cases.
-	ReplaceTest{"abc", "def", "abcdefg", "defdefg"},
-	ReplaceTest{"bc", "BC", "abcbcdcdedef", "aBCBCdcdedef"},
-	ReplaceTest{"abc", "", "abcdabc", "d"},
-	ReplaceTest{"x", "xXx", "xxxXxxx", "xXxxXxxXxXxXxxXxxXx"},
-	ReplaceTest{"abc", "d", "", ""},
-	ReplaceTest{"abc", "d", "abc", "d"},
-	ReplaceTest{".+", "x", "abc", "x"},
-	ReplaceTest{"[a-c]*", "x", "def", "xdxexfx"},
-	ReplaceTest{"[a-c]+", "x", "abcbcdcdedef", "xdxdedef"},
-	ReplaceTest{"[a-c]*", "x", "abcbcdcdedef", "xdxdxexdxexfx"},
+	{"abc", "def", "abcdefg", "defdefg"},
+	{"bc", "BC", "abcbcdcdedef", "aBCBCdcdedef"},
+	{"abc", "", "abcdabc", "d"},
+	{"x", "xXx", "xxxXxxx", "xXxxXxxXxXxXxxXxxXx"},
+	{"abc", "d", "", ""},
+	{"abc", "d", "abc", "d"},
+	{".+", "x", "abc", "x"},
+	{"[a-c]*", "x", "def", "xdxexfx"},
+	{"[a-c]+", "x", "abcbcdcdedef", "xdxdedef"},
+	{"[a-c]*", "x", "abcbcdcdedef", "xdxdxexdxexfx"},
 }
 
 type ReplaceFuncTest struct {
@@ -182,9 +182,9 @@ type ReplaceFuncTest struct {
 }
 
 var replaceFuncTests = []ReplaceFuncTest{
-	ReplaceFuncTest{"[a-c]", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxayxbyxcydef"},
-	ReplaceFuncTest{"[a-c]+", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxabcydef"},
-	ReplaceFuncTest{"[a-c]*", func(s string) string { return "x" + s + "y" }, "defabcdef", "xydxyexyfxabcydxyexyfxy"},
+	{"[a-c]", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxayxbyxcydef"},
+	{"[a-c]+", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxabcydef"},
+	{"[a-c]*", func(s string) string { return "x" + s + "y" }, "defabcdef", "xydxyexyfxabcydxyexyfxy"},
 }
 
 func TestReplaceAll(t *testing.T) {
@@ -234,9 +234,9 @@ type QuoteMetaTest struct {
 }
 
 var quoteMetaTests = []QuoteMetaTest{
-	QuoteMetaTest{``, ``},
-	QuoteMetaTest{`foo`, `foo`},
-	QuoteMetaTest{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`},
+	{``, ``},
+	{`foo`, `foo`},
+	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`},
 }
 
 func TestQuoteMeta(t *testing.T) {
@@ -275,16 +275,16 @@ type numSubexpCase struct {
 }
 
 var numSubexpCases = []numSubexpCase{
-	numSubexpCase{``, 0},
-	numSubexpCase{`.*`, 0},
-	numSubexpCase{`abba`, 0},
-	numSubexpCase{`ab(b)a`, 1},
-	numSubexpCase{`ab(.*)a`, 1},
-	numSubexpCase{`(.*)ab(.*)a`, 2},
-	numSubexpCase{`(.*)(ab)(.*)a`, 3},
-	numSubexpCase{`(.*)((a)b)(.*)a`, 4},
-	numSubexpCase{`(.*)(\(ab)(.*)a`, 3},
-	numSubexpCase{`(.*)(\(a\)b)(.*)a`, 3},
+	{``, 0},
+	{`.*`, 0},
+	{`abba`, 0},
+	{`ab(b)a`, 1},
+	{`ab(.*)a`, 1},
+	{`(.*)ab(.*)a`, 2},
+	{`(.*)(ab)(.*)a`, 3},
+	{`(.*)((a)b)(.*)a`, 4},
+	{`(.*)(\(ab)(.*)a`, 3},
+	{`(.*)(\(a\)b)(.*)a`, 3},
 }
 
 func TestNumSubexp(t *testing.T) {

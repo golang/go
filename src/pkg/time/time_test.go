@@ -25,21 +25,21 @@ type TimeTest struct {
 }
 
 var utctests = []TimeTest{
-	TimeTest{0, Time{1970, 1, 1, 0, 0, 0, Thursday, 0, "UTC"}},
-	TimeTest{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}},
-	TimeTest{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "UTC"}},
-	TimeTest{-11644473600, Time{1601, 1, 1, 0, 0, 0, Monday, 0, "UTC"}},
-	TimeTest{599529660, Time{1988, 12, 31, 0, 1, 0, Saturday, 0, "UTC"}},
-	TimeTest{978220860, Time{2000, 12, 31, 0, 1, 0, Sunday, 0, "UTC"}},
-	TimeTest{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "UTC"}},
-	TimeTest{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "UTC"}},
-	TimeTest{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "UTC"}},
-	TimeTest{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, Sunday, 0, "UTC"}},
+	{0, Time{1970, 1, 1, 0, 0, 0, Thursday, 0, "UTC"}},
+	{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}},
+	{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "UTC"}},
+	{-11644473600, Time{1601, 1, 1, 0, 0, 0, Monday, 0, "UTC"}},
+	{599529660, Time{1988, 12, 31, 0, 1, 0, Saturday, 0, "UTC"}},
+	{978220860, Time{2000, 12, 31, 0, 1, 0, Sunday, 0, "UTC"}},
+	{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "UTC"}},
+	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "UTC"}},
+	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "UTC"}},
+	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, Sunday, 0, "UTC"}},
 }
 
 var localtests = []TimeTest{
-	TimeTest{0, Time{1969, 12, 31, 16, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
-	TimeTest{1221681866, Time{2008, 9, 17, 13, 4, 26, Wednesday, -7 * 60 * 60, "PDT"}},
+	{0, Time{1969, 12, 31, 16, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
+	{1221681866, Time{2008, 9, 17, 13, 4, 26, Wednesday, -7 * 60 * 60, "PDT"}},
 }
 
 func same(t, u *Time) bool {
@@ -108,9 +108,9 @@ type TimeFormatTest struct {
 }
 
 var rfc3339Formats = []TimeFormatTest{
-	TimeFormatTest{Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}, "2008-09-17T20:04:26Z"},
-	TimeFormatTest{Time{1994, 9, 17, 20, 4, 26, Wednesday, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
-	TimeFormatTest{Time{2000, 12, 26, 1, 15, 6, Wednesday, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
+	{Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}, "2008-09-17T20:04:26Z"},
+	{Time{1994, 9, 17, 20, 4, 26, Wednesday, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
+	{Time{2000, 12, 26, 1, 15, 6, Wednesday, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
 }
 
 func TestRFC3339Conversion(t *testing.T) {
@@ -130,16 +130,16 @@ type FormatTest struct {
 }
 
 var formatTests = []FormatTest{
-	FormatTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010"},
-	FormatTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010"},
-	FormatTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010"},
-	FormatTest{"RFC822", RFC822, "04 Feb 10 2100 PST"},
-	FormatTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST"},
-	FormatTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST"},
-	FormatTest{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00"},
-	FormatTest{"Kitchen", Kitchen, "9:00PM"},
-	FormatTest{"am/pm", "3pm", "9pm"},
-	FormatTest{"AM/PM", "3PM", "9PM"},
+	{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010"},
+	{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010"},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010"},
+	{"RFC822", RFC822, "04 Feb 10 2100 PST"},
+	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST"},
+	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST"},
+	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00"},
+	{"Kitchen", Kitchen, "9:00PM"},
+	{"am/pm", "3pm", "9pm"},
+	{"AM/PM", "3PM", "9PM"},
 }
 
 func TestFormat(t *testing.T) {
@@ -163,16 +163,16 @@ type ParseTest struct {
 }
 
 var parseTests = []ParseTest{
-	ParseTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true, 1},
-	ParseTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true, 1},
-	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
-	ParseTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1},
-	ParseTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1},
-	ParseTest{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1},
-	ParseTest{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1},
+	{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true, 1},
+	{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true, 1},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
+	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1},
+	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1},
+	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1},
+	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1},
 	// Amount of white space should not matter.
-	ParseTest{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1},
-	ParseTest{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1},
+	{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1},
+	{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1},
 }
 
 func TestParse(t *testing.T) {
@@ -187,11 +187,11 @@ func TestParse(t *testing.T) {
 }
 
 var rubyTests = []ParseTest{
-	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
 	// Ignore the time zone in the test. If it parses, it'll be OK.
-	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0000 2010", false, true, 1},
-	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +0000 2010", false, true, 1},
-	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +1130 2010", false, true, 1},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0000 2010", false, true, 1},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +0000 2010", false, true, 1},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +1130 2010", false, true, 1},
 }
 
 // Problematic time zone format needs special tests.
@@ -272,11 +272,11 @@ type ParseErrorTest struct {
 }
 
 var parseErrorTests = []ParseErrorTest{
-	ParseErrorTest{ANSIC, "Feb  4 21:00:60 2010", "parse"}, // cannot parse Feb as Mon
-	ParseErrorTest{ANSIC, "Thu Feb  4 21:00:57 @2010", "parse"},
-	ParseErrorTest{ANSIC, "Thu Feb  4 21:00:60 2010", "second out of range"},
-	ParseErrorTest{ANSIC, "Thu Feb  4 21:61:57 2010", "minute out of range"},
-	ParseErrorTest{ANSIC, "Thu Feb  4 24:00:60 2010", "hour out of range"},
+	{ANSIC, "Feb  4 21:00:60 2010", "parse"}, // cannot parse Feb as Mon
+	{ANSIC, "Thu Feb  4 21:00:57 @2010", "parse"},
+	{ANSIC, "Thu Feb  4 21:00:60 2010", "second out of range"},
+	{ANSIC, "Thu Feb  4 21:61:57 2010", "minute out of range"},
+	{ANSIC, "Thu Feb  4 24:00:60 2010", "hour out of range"},
 }
 
 func TestParseErrors(t *testing.T) {

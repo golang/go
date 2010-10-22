@@ -40,7 +40,7 @@ func TestGitTable(t *testing.T) {
 
 var gitPairs = []testpair{
 	// Wikipedia example, adapted.
-	testpair{
+	{
 		"Man is distinguished, not only by his reason, but by this singular passion from " +
 			"other animals, which is a lust of the mind, that by a perseverance of delight in " +
 			"the continued and indefatigable generation of knowledge, exceeds the short " +
@@ -144,8 +144,8 @@ func TestDecodeCorrupt(t *testing.T) {
 		p int
 	}
 	examples := []corrupt{
-		corrupt{"v", 0},
-		corrupt{"!z!!!!!!!!!", 0},
+		{"v", 0},
+		{"!z!!!!!!!!!", 0},
 	}
 
 	for _, e := range examples {

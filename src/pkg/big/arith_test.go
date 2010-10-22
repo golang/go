@@ -13,17 +13,17 @@ type argWW struct {
 }
 
 var sumWW = []argWW{
-	argWW{0, 0, 0, 0, 0},
-	argWW{0, 1, 0, 0, 1},
-	argWW{0, 0, 1, 0, 1},
-	argWW{0, 1, 1, 0, 2},
-	argWW{12345, 67890, 0, 0, 80235},
-	argWW{12345, 67890, 1, 0, 80236},
-	argWW{_M, 1, 0, 1, 0},
-	argWW{_M, 0, 1, 1, 0},
-	argWW{_M, 1, 1, 1, 1},
-	argWW{_M, _M, 0, 1, _M - 1},
-	argWW{_M, _M, 1, 1, _M},
+	{0, 0, 0, 0, 0},
+	{0, 1, 0, 0, 1},
+	{0, 0, 1, 0, 1},
+	{0, 1, 1, 0, 2},
+	{12345, 67890, 0, 0, 80235},
+	{12345, 67890, 1, 0, 80236},
+	{_M, 1, 0, 1, 0},
+	{_M, 0, 1, 1, 0},
+	{_M, 1, 1, 1, 1},
+	{_M, _M, 0, 1, _M - 1},
+	{_M, _M, 1, 1, _M},
 }
 
 
@@ -59,15 +59,15 @@ type argVV struct {
 }
 
 var sumVV = []argVV{
-	argVV{},
-	argVV{nat{0}, nat{0}, nat{0}, 0},
-	argVV{nat{1}, nat{1}, nat{0}, 0},
-	argVV{nat{0}, nat{_M}, nat{1}, 1},
-	argVV{nat{80235}, nat{12345}, nat{67890}, 0},
-	argVV{nat{_M - 1}, nat{_M}, nat{_M}, 1},
-	argVV{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, nat{1, 0, 0, 0}, 1},
-	argVV{nat{0, 0, 0, _M}, nat{_M, _M, _M, _M - 1}, nat{1, 0, 0, 0}, 0},
-	argVV{nat{0, 0, 0, 0}, nat{_M, 0, _M, 0}, nat{1, _M, 0, _M}, 1},
+	{},
+	{nat{0}, nat{0}, nat{0}, 0},
+	{nat{1}, nat{1}, nat{0}, 0},
+	{nat{0}, nat{_M}, nat{1}, 1},
+	{nat{80235}, nat{12345}, nat{67890}, 0},
+	{nat{_M - 1}, nat{_M}, nat{_M}, 1},
+	{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, nat{1, 0, 0, 0}, 1},
+	{nat{0, 0, 0, _M}, nat{_M, _M, _M, _M - 1}, nat{1, 0, 0, 0}, 0},
+	{nat{0, 0, 0, 0}, nat{_M, 0, _M, 0}, nat{1, _M, 0, _M}, 1},
 }
 
 
@@ -115,57 +115,57 @@ type argVW struct {
 }
 
 var sumVW = []argVW{
-	argVW{},
-	argVW{nat{0}, nat{0}, 0, 0},
-	argVW{nat{1}, nat{0}, 1, 0},
-	argVW{nat{1}, nat{1}, 0, 0},
-	argVW{nat{0}, nat{_M}, 1, 1},
-	argVW{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, 1, 1},
+	{},
+	{nat{0}, nat{0}, 0, 0},
+	{nat{1}, nat{0}, 1, 0},
+	{nat{1}, nat{1}, 0, 0},
+	{nat{0}, nat{_M}, 1, 1},
+	{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, 1, 1},
 }
 
 var prodVW = []argVW{
-	argVW{},
-	argVW{nat{0}, nat{0}, 0, 0},
-	argVW{nat{0}, nat{_M}, 0, 0},
-	argVW{nat{0}, nat{0}, _M, 0},
-	argVW{nat{1}, nat{1}, 1, 0},
-	argVW{nat{22793}, nat{991}, 23, 0},
-	argVW{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0},
-	argVW{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0},
-	argVW{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0},
-	argVW{nat{_M << 1 & _M}, nat{_M}, 1 << 1, _M >> (_W - 1)},
-	argVW{nat{_M << 7 & _M}, nat{_M}, 1 << 7, _M >> (_W - 7)},
-	argVW{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
+	{},
+	{nat{0}, nat{0}, 0, 0},
+	{nat{0}, nat{_M}, 0, 0},
+	{nat{0}, nat{0}, _M, 0},
+	{nat{1}, nat{1}, 1, 0},
+	{nat{22793}, nat{991}, 23, 0},
+	{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0},
+	{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0},
+	{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0},
+	{nat{_M << 1 & _M}, nat{_M}, 1 << 1, _M >> (_W - 1)},
+	{nat{_M << 7 & _M}, nat{_M}, 1 << 7, _M >> (_W - 7)},
+	{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
 }
 
 var lshVW = []argVW{
-	argVW{},
-	argVW{nat{0}, nat{0}, 0, 0},
-	argVW{nat{0}, nat{0}, 1, 0},
-	argVW{nat{0}, nat{0}, 20, 0},
+	{},
+	{nat{0}, nat{0}, 0, 0},
+	{nat{0}, nat{0}, 1, 0},
+	{nat{0}, nat{0}, 20, 0},
 
-	argVW{nat{_M}, nat{_M}, 0, 0},
-	argVW{nat{_M << 1 & _M}, nat{_M}, 1, 1},
-	argVW{nat{_M << 20 & _M}, nat{_M}, 20, _M >> (_W - 20)},
+	{nat{_M}, nat{_M}, 0, 0},
+	{nat{_M << 1 & _M}, nat{_M}, 1, 1},
+	{nat{_M << 20 & _M}, nat{_M}, 20, _M >> (_W - 20)},
 
-	argVW{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
-	argVW{nat{_M << 1 & _M, _M, _M}, nat{_M, _M, _M}, 1, 1},
-	argVW{nat{_M << 20 & _M, _M, _M}, nat{_M, _M, _M}, 20, _M >> (_W - 20)},
+	{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
+	{nat{_M << 1 & _M, _M, _M}, nat{_M, _M, _M}, 1, 1},
+	{nat{_M << 20 & _M, _M, _M}, nat{_M, _M, _M}, 20, _M >> (_W - 20)},
 }
 
 var rshVW = []argVW{
-	argVW{},
-	argVW{nat{0}, nat{0}, 0, 0},
-	argVW{nat{0}, nat{0}, 1, 0},
-	argVW{nat{0}, nat{0}, 20, 0},
+	{},
+	{nat{0}, nat{0}, 0, 0},
+	{nat{0}, nat{0}, 1, 0},
+	{nat{0}, nat{0}, 20, 0},
 
-	argVW{nat{_M}, nat{_M}, 0, 0},
-	argVW{nat{_M >> 1}, nat{_M}, 1, _M << (_W - 1) & _M},
-	argVW{nat{_M >> 20}, nat{_M}, 20, _M << (_W - 20) & _M},
+	{nat{_M}, nat{_M}, 0, 0},
+	{nat{_M >> 1}, nat{_M}, 1, _M << (_W - 1) & _M},
+	{nat{_M >> 20}, nat{_M}, 20, _M << (_W - 20) & _M},
 
-	argVW{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
-	argVW{nat{_M, _M, _M >> 1}, nat{_M, _M, _M}, 1, _M << (_W - 1) & _M},
-	argVW{nat{_M, _M, _M >> 20}, nat{_M, _M, _M}, 20, _M << (_W - 20) & _M},
+	{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
+	{nat{_M, _M, _M >> 1}, nat{_M, _M, _M}, 1, _M << (_W - 1) & _M},
+	{nat{_M, _M, _M >> 20}, nat{_M, _M, _M}, 20, _M << (_W - 20) & _M},
 }
 
 
@@ -217,29 +217,29 @@ type argVWW struct {
 }
 
 var prodVWW = []argVWW{
-	argVWW{},
-	argVWW{nat{0}, nat{0}, 0, 0, 0},
-	argVWW{nat{991}, nat{0}, 0, 991, 0},
-	argVWW{nat{0}, nat{_M}, 0, 0, 0},
-	argVWW{nat{991}, nat{_M}, 0, 991, 0},
-	argVWW{nat{0}, nat{0}, _M, 0, 0},
-	argVWW{nat{991}, nat{0}, _M, 991, 0},
-	argVWW{nat{1}, nat{1}, 1, 0, 0},
-	argVWW{nat{992}, nat{1}, 1, 991, 0},
-	argVWW{nat{22793}, nat{991}, 23, 0, 0},
-	argVWW{nat{22800}, nat{991}, 23, 7, 0},
-	argVWW{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0, 0},
-	argVWW{nat{7, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 7, 0},
-	argVWW{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0, 0},
-	argVWW{nat{991, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 991, 0},
-	argVWW{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0, 0},
-	argVWW{nat{991, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 991, 0},
-	argVWW{nat{_M << 1 & _M}, nat{_M}, 1 << 1, 0, _M >> (_W - 1)},
-	argVWW{nat{_M<<1&_M + 1}, nat{_M}, 1 << 1, 1, _M >> (_W - 1)},
-	argVWW{nat{_M << 7 & _M}, nat{_M}, 1 << 7, 0, _M >> (_W - 7)},
-	argVWW{nat{_M<<7&_M + 1<<6}, nat{_M}, 1 << 7, 1 << 6, _M >> (_W - 7)},
-	argVWW{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, 0, _M >> (_W - 7)},
-	argVWW{nat{_M<<7&_M + 1<<6, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, 1 << 6, _M >> (_W - 7)},
+	{},
+	{nat{0}, nat{0}, 0, 0, 0},
+	{nat{991}, nat{0}, 0, 991, 0},
+	{nat{0}, nat{_M}, 0, 0, 0},
+	{nat{991}, nat{_M}, 0, 991, 0},
+	{nat{0}, nat{0}, _M, 0, 0},
+	{nat{991}, nat{0}, _M, 991, 0},
+	{nat{1}, nat{1}, 1, 0, 0},
+	{nat{992}, nat{1}, 1, 991, 0},
+	{nat{22793}, nat{991}, 23, 0, 0},
+	{nat{22800}, nat{991}, 23, 7, 0},
+	{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0, 0},
+	{nat{7, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 7, 0},
+	{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0, 0},
+	{nat{991, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 991, 0},
+	{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0, 0},
+	{nat{991, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 991, 0},
+	{nat{_M << 1 & _M}, nat{_M}, 1 << 1, 0, _M >> (_W - 1)},
+	{nat{_M<<1&_M + 1}, nat{_M}, 1 << 1, 1, _M >> (_W - 1)},
+	{nat{_M << 7 & _M}, nat{_M}, 1 << 7, 0, _M >> (_W - 7)},
+	{nat{_M<<7&_M + 1<<6}, nat{_M}, 1 << 7, 1 << 6, _M >> (_W - 7)},
+	{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, 0, _M >> (_W - 7)},
+	{nat{_M<<7&_M + 1<<6, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, 1 << 6, _M >> (_W - 7)},
 }
 
 
@@ -307,7 +307,7 @@ type mulWWTest struct {
 
 
 var mulWWTests = []mulWWTest{
-	mulWWTest{_M, _M, _M - 1, 1},
+	{_M, _M, _M - 1, 1},
 	// 32 bit only: mulWWTest{0xc47dfa8c, 50911, 0x98a4, 0x998587f4},
 }
 
@@ -332,8 +332,8 @@ var mulAddWWWTests = []mulAddWWWTest{
 	// TODO(agl): These will only work on 64-bit platforms.
 	// mulAddWWWTest{15064310297182388543, 0xe7df04d2d35d5d80, 13537600649892366549, 13644450054494335067, 10832252001440893781},
 	// mulAddWWWTest{15064310297182388543, 0xdab2f18048baa68d, 13644450054494335067, 12869334219691522700, 14233854684711418382},
-	mulAddWWWTest{_M, _M, 0, _M - 1, 1},
-	mulAddWWWTest{_M, _M, _M, _M, 0},
+	{_M, _M, 0, _M - 1, 1},
+	{_M, _M, _M, _M, 0},
 }
 
 

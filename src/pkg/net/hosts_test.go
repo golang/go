@@ -15,19 +15,19 @@ type hostTest struct {
 
 
 var hosttests = []hostTest{
-	hostTest{"odin", []IP{
+	{"odin", []IP{
 		IPv4(127, 0, 0, 2),
 		IPv4(127, 0, 0, 3),
 		ParseIP("::2"),
 	}},
-	hostTest{"thor", []IP{
+	{"thor", []IP{
 		IPv4(127, 1, 1, 1),
 	}},
-	hostTest{"loki", []IP{}},
-	hostTest{"ullr", []IP{
+	{"loki", []IP{}},
+	{"ullr", []IP{
 		IPv4(127, 1, 1, 2),
 	}},
-	hostTest{"ullrhost", []IP{
+	{"ullrhost", []IP{
 		IPv4(127, 1, 1, 2),
 	}},
 }

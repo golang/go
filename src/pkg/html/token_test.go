@@ -22,7 +22,7 @@ type tokenTest struct {
 var tokenTests = []tokenTest{
 	// A single text node. The tokenizer should not break text nodes on whitespace,
 	// nor should it normalize whitespace within a text node.
-	tokenTest{
+	{
 		"text",
 		"foo  bar",
 		[]string{
@@ -30,7 +30,7 @@ var tokenTests = []tokenTest{
 		},
 	},
 	// An entity.
-	tokenTest{
+	{
 		"entity",
 		"one &lt; two",
 		[]string{
@@ -39,7 +39,7 @@ var tokenTests = []tokenTest{
 	},
 	// A start, self-closing and end tag. The tokenizer does not care if the start
 	// and end tokens don't match; that is the job of the parser.
-	tokenTest{
+	{
 		"tags",
 		"<a>b<c/>d</e>",
 		[]string{
@@ -51,7 +51,7 @@ var tokenTests = []tokenTest{
 		},
 	},
 	// An attribute with a backslash.
-	tokenTest{
+	{
 		"backslash",
 		`<p id="a\"b">`,
 		[]string{
@@ -60,7 +60,7 @@ var tokenTests = []tokenTest{
 	},
 	// Entities, tag name and attribute key lower-casing, and whitespace
 	// normalization within a tag.
-	tokenTest{
+	{
 		"tricky",
 		"<p \t\n iD=\"a&quot;B\"  foo=\"bar\"><EM>te&lt;&amp;;xt</em></p>",
 		[]string{
@@ -73,7 +73,7 @@ var tokenTests = []tokenTest{
 	},
 	// A non-existant entity. Tokenizing and converting back to a string should
 	// escape the "&" to become "&amp;".
-	tokenTest{
+	{
 		"noSuchEntity",
 		`<a b="c&noSuchEntity;d">&lt;&alsoDoesntExist;&`,
 		[]string{

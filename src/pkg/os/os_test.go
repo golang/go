@@ -680,14 +680,14 @@ func TestSeek(t *testing.T) {
 		out    int64
 	}
 	var tests = []test{
-		test{0, 1, int64(len(data))},
-		test{0, 0, 0},
-		test{5, 0, 5},
-		test{0, 2, int64(len(data))},
-		test{0, 0, 0},
-		test{-1, 2, int64(len(data)) - 1},
-		test{1 << 33, 0, 1 << 33},
-		test{1 << 33, 2, 1<<33 + int64(len(data))},
+		{0, 1, int64(len(data))},
+		{0, 0, 0},
+		{5, 0, 5},
+		{0, 2, int64(len(data))},
+		{0, 0, 0},
+		{-1, 2, int64(len(data)) - 1},
+		{1 << 33, 0, 1 << 33},
+		{1 << 33, 2, 1<<33 + int64(len(data))},
 	}
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence)
@@ -709,17 +709,17 @@ type openErrorTest struct {
 }
 
 var openErrorTests = []openErrorTest{
-	openErrorTest{
+	{
 		sfdir + "/no-such-file",
 		O_RDONLY,
 		ENOENT,
 	},
-	openErrorTest{
+	{
 		sfdir,
 		O_WRONLY,
 		EISDIR,
 	},
-	openErrorTest{
+	{
 		sfdir + "/" + sfname + "/no-such-file",
 		O_WRONLY,
 		ENOTDIR,

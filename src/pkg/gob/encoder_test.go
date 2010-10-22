@@ -283,16 +283,16 @@ type SingleTest struct {
 }
 
 var singleTests = []SingleTest{
-	SingleTest{17, &testInt, ""},
-	SingleTest{float32(17.5), &testFloat32, ""},
-	SingleTest{"bike shed", &testString, ""},
-	SingleTest{[]string{"bike", "shed", "paint", "color"}, &testSlice, ""},
-	SingleTest{map[string]int{"seven": 7, "twelve": 12}, &testMap, ""},
-	SingleTest{[7]int{4, 55, 0, 0, 0, 0, 0}, &testArray, ""}, // case that once triggered a bug
-	SingleTest{[7]int{4, 55, 1, 44, 22, 66, 1234}, &testArray, ""},
+	{17, &testInt, ""},
+	{float32(17.5), &testFloat32, ""},
+	{"bike shed", &testString, ""},
+	{[]string{"bike", "shed", "paint", "color"}, &testSlice, ""},
+	{map[string]int{"seven": 7, "twelve": 12}, &testMap, ""},
+	{[7]int{4, 55, 0, 0, 0, 0, 0}, &testArray, ""}, // case that once triggered a bug
+	{[7]int{4, 55, 1, 44, 22, 66, 1234}, &testArray, ""},
 
 	// Decode errors
-	SingleTest{172, &testFloat32, "wrong type"},
+	{172, &testFloat32, "wrong type"},
 }
 
 func TestSingletons(t *testing.T) {

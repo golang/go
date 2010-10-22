@@ -16,7 +16,7 @@ type reqWriteTest struct {
 
 var reqWriteTests = []reqWriteTest{
 	// HTTP/1.1 => chunked coding; no body; no trailer
-	reqWriteTest{
+	{
 		Request{
 			Method: "GET",
 			RawURL: "http://www.techcrunch.com/",
@@ -61,7 +61,7 @@ var reqWriteTests = []reqWriteTest{
 			"Proxy-Connection: keep-alive\r\n\r\n",
 	},
 	// HTTP/1.1 => chunked coding; body; empty trailer
-	reqWriteTest{
+	{
 		Request{
 			Method: "GET",
 			URL: &URL{
@@ -83,7 +83,7 @@ var reqWriteTests = []reqWriteTest{
 			"6\r\nabcdef\r\n0\r\n\r\n",
 	},
 	// HTTP/1.1 POST => chunked coding; body; empty trailer
-	reqWriteTest{
+	{
 		Request{
 			Method: "POST",
 			URL: &URL{
@@ -107,7 +107,7 @@ var reqWriteTests = []reqWriteTest{
 			"6\r\nabcdef\r\n0\r\n\r\n",
 	},
 	// default to HTTP/1.1
-	reqWriteTest{
+	{
 		Request{
 			Method: "GET",
 			RawURL: "/search",

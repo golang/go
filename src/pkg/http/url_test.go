@@ -24,7 +24,7 @@ type URLTest struct {
 
 var urltests = []URLTest{
 	// no path
-	URLTest{
+	{
 		"http://www.google.com",
 		&URL{
 			Raw:          "http://www.google.com",
@@ -35,7 +35,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// path
-	URLTest{
+	{
 		"http://www.google.com/",
 		&URL{
 			Raw:          "http://www.google.com/",
@@ -48,7 +48,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// path with hex escaping
-	URLTest{
+	{
 		"http://www.google.com/file%20one%26two",
 		&URL{
 			Raw:          "http://www.google.com/file%20one%26two",
@@ -61,7 +61,7 @@ var urltests = []URLTest{
 		"http://www.google.com/file%20one&two",
 	},
 	// user
-	URLTest{
+	{
 		"ftp://webmaster@www.google.com/",
 		&URL{
 			Raw:          "ftp://webmaster@www.google.com/",
@@ -75,7 +75,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// escape sequence in username
-	URLTest{
+	{
 		"ftp://john%20doe@www.google.com/",
 		&URL{
 			Raw:          "ftp://john%20doe@www.google.com/",
@@ -89,7 +89,7 @@ var urltests = []URLTest{
 		"ftp://john%20doe@www.google.com/",
 	},
 	// query
-	URLTest{
+	{
 		"http://www.google.com/?q=go+language",
 		&URL{
 			Raw:          "http://www.google.com/?q=go+language",
@@ -103,7 +103,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// query with hex escaping: NOT parsed
-	URLTest{
+	{
 		"http://www.google.com/?q=go%20language",
 		&URL{
 			Raw:          "http://www.google.com/?q=go%20language",
@@ -117,7 +117,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// %20 outside query
-	URLTest{
+	{
 		"http://www.google.com/a%20b?q=c+d",
 		&URL{
 			Raw:          "http://www.google.com/a%20b?q=c+d",
@@ -131,7 +131,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// path without leading /, so no query parsing
-	URLTest{
+	{
 		"http:www.google.com/?q=go+language",
 		&URL{
 			Raw:        "http:www.google.com/?q=go+language",
@@ -143,7 +143,7 @@ var urltests = []URLTest{
 		"http:www.google.com/?q=go+language",
 	},
 	// path without leading /, so no query parsing
-	URLTest{
+	{
 		"http:%2f%2fwww.google.com/?q=go+language",
 		&URL{
 			Raw:        "http:%2f%2fwww.google.com/?q=go+language",
@@ -155,7 +155,7 @@ var urltests = []URLTest{
 		"http:%2f/www.google.com/?q=go+language",
 	},
 	// non-authority
-	URLTest{
+	{
 		"mailto:/webmaster@golang.org",
 		&URL{
 			Raw:     "mailto:/webmaster@golang.org",
@@ -166,7 +166,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// non-authority
-	URLTest{
+	{
 		"mailto:webmaster@golang.org",
 		&URL{
 			Raw:        "mailto:webmaster@golang.org",
@@ -178,7 +178,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// unescaped :// in query should not create a scheme
-	URLTest{
+	{
 		"/foo?query=http://bad",
 		&URL{
 			Raw:      "/foo?query=http://bad",
@@ -189,7 +189,7 @@ var urltests = []URLTest{
 		"",
 	},
 	// leading // without scheme shouldn't create an authority
-	URLTest{
+	{
 		"//foo",
 		&URL{
 			Raw:     "//foo",
@@ -199,7 +199,7 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	URLTest{
+	{
 		"http://user:password@google.com",
 		&URL{
 			Raw:          "http://user:password@google.com",
@@ -210,7 +210,7 @@ var urltests = []URLTest{
 		},
 		"http://user:******@google.com",
 	},
-	URLTest{
+	{
 		"http://user:longerpass@google.com",
 		&URL{
 			Raw:          "http://user:longerpass@google.com",
@@ -224,7 +224,7 @@ var urltests = []URLTest{
 }
 
 var urlnofragtests = []URLTest{
-	URLTest{
+	{
 		"http://www.google.com/?q=go+language#foo",
 		&URL{
 			Raw:          "http://www.google.com/?q=go+language#foo",
@@ -240,7 +240,7 @@ var urlnofragtests = []URLTest{
 }
 
 var urlfragtests = []URLTest{
-	URLTest{
+	{
 		"http://www.google.com/?q=go+language#foo",
 		&URL{
 			Raw:          "http://www.google.com/?q=go+language#foo",
@@ -254,7 +254,7 @@ var urlfragtests = []URLTest{
 		},
 		"",
 	},
-	URLTest{
+	{
 		"http://www.google.com/?q=go+language#foo%26bar",
 		&URL{
 			Raw:          "http://www.google.com/?q=go+language#foo%26bar",
@@ -333,57 +333,57 @@ type URLEscapeTest struct {
 }
 
 var unescapeTests = []URLEscapeTest{
-	URLEscapeTest{
+	{
 		"",
 		"",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"abc",
 		"abc",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"1%41",
 		"1A",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"1%41%42%43",
 		"1ABC",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"%4a",
 		"J",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"%6F",
 		"o",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"%", // not enough characters after %
 		"",
 		URLEscapeError("%"),
 	},
-	URLEscapeTest{
+	{
 		"%a", // not enough characters after %
 		"",
 		URLEscapeError("%a"),
 	},
-	URLEscapeTest{
+	{
 		"%1", // not enough characters after %
 		"",
 		URLEscapeError("%1"),
 	},
-	URLEscapeTest{
+	{
 		"123%45%6", // not enough characters after %
 		"",
 		URLEscapeError("%6"),
 	},
-	URLEscapeTest{
+	{
 		"%zzzzz", // invalid hex digits
 		"",
 		URLEscapeError("%zz"),
@@ -400,27 +400,27 @@ func TestURLUnescape(t *testing.T) {
 }
 
 var escapeTests = []URLEscapeTest{
-	URLEscapeTest{
+	{
 		"",
 		"",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"abc",
 		"abc",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"one two",
 		"one+two",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		"10%",
 		"10%25",
 		nil,
 	},
-	URLEscapeTest{
+	{
 		" ?&=#+%!<>#\"{}|\\^[]`☺\t",
 		"+%3f%26%3d%23%2b%25!%3c%3e%23%22%7b%7d%7c%5c%5e%5b%5d%60%e2%98%ba%09",
 		nil,
@@ -448,27 +448,27 @@ type CanonicalPathTest struct {
 }
 
 var canonicalTests = []CanonicalPathTest{
-	CanonicalPathTest{"", ""},
-	CanonicalPathTest{"/", "/"},
-	CanonicalPathTest{".", ""},
-	CanonicalPathTest{"./", ""},
-	CanonicalPathTest{"/a/", "/a/"},
-	CanonicalPathTest{"a/", "a/"},
-	CanonicalPathTest{"a/./", "a/"},
-	CanonicalPathTest{"./a", "a"},
-	CanonicalPathTest{"/a/../b", "/b"},
-	CanonicalPathTest{"a/../b", "b"},
-	CanonicalPathTest{"a/../../b", "../b"},
-	CanonicalPathTest{"a/.", "a/"},
-	CanonicalPathTest{"../.././a", "../../a"},
-	CanonicalPathTest{"/../.././a", "/../../a"},
-	CanonicalPathTest{"a/b/g/../..", "a/"},
-	CanonicalPathTest{"a/b/..", "a/"},
-	CanonicalPathTest{"a/b/.", "a/b/"},
-	CanonicalPathTest{"a/b/../../../..", "../.."},
-	CanonicalPathTest{"a./", "a./"},
-	CanonicalPathTest{"/../a/b/../../../", "/../../"},
-	CanonicalPathTest{"../a/b/../../../", "../../"},
+	{"", ""},
+	{"/", "/"},
+	{".", ""},
+	{"./", ""},
+	{"/a/", "/a/"},
+	{"a/", "a/"},
+	{"a/./", "a/"},
+	{"./a", "a"},
+	{"/a/../b", "/b"},
+	{"a/../b", "b"},
+	{"a/../../b", "../b"},
+	{"a/.", "a/"},
+	{"../.././a", "../../a"},
+	{"/../.././a", "/../../a"},
+	{"a/b/g/../..", "a/"},
+	{"a/b/..", "a/"},
+	{"a/b/.", "a/b/"},
+	{"a/b/../../../..", "../.."},
+	{"a./", "a./"},
+	{"/../a/b/../../../", "/../../"},
+	{"../a/b/../../../", "../../"},
 }
 
 func TestCanonicalPath(t *testing.T) {
@@ -487,8 +487,8 @@ type UserinfoTest struct {
 }
 
 var userinfoTests = []UserinfoTest{
-	UserinfoTest{"user", "password", "user:password"},
-	UserinfoTest{"foo:bar", "~!@#$%^&*()_+{}|[]\\-=`:;'\"<>?,./",
+	{"user", "password", "user:password"},
+	{"foo:bar", "~!@#$%^&*()_+{}|[]\\-=`:;'\"<>?,./",
 		"foo%3abar:~!%40%23$%25%5e&*()_+%7b%7d%7c%5b%5d%5c-=%60%3a;'%22%3c%3e?,.%2f"},
 }
 

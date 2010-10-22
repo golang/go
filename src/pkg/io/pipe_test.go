@@ -157,12 +157,12 @@ func (p pipeTest) String() string {
 }
 
 var pipeTests = []pipeTest{
-	pipeTest{true, nil, false},
-	pipeTest{true, nil, true},
-	pipeTest{true, ErrShortWrite, true},
-	pipeTest{false, nil, false},
-	pipeTest{false, nil, true},
-	pipeTest{false, ErrShortWrite, true},
+	{true, nil, false},
+	{true, nil, true},
+	{true, ErrShortWrite, true},
+	{false, nil, false},
+	{false, nil, true},
+	{false, ErrShortWrite, true},
 }
 
 func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {

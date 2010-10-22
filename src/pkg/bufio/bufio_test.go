@@ -80,10 +80,10 @@ type readMaker struct {
 }
 
 var readMakers = []readMaker{
-	readMaker{"full", func(r io.Reader) io.Reader { return r }},
-	readMaker{"byte", iotest.OneByteReader},
-	readMaker{"half", iotest.HalfReader},
-	readMaker{"data+err", iotest.DataErrReader},
+	{"full", func(r io.Reader) io.Reader { return r }},
+	{"byte", iotest.OneByteReader},
+	{"half", iotest.HalfReader},
+	{"data+err", iotest.DataErrReader},
 }
 
 // Call ReadString (which ends up calling everything else)
@@ -123,14 +123,14 @@ type bufReader struct {
 }
 
 var bufreaders = []bufReader{
-	bufReader{"1", func(b *Reader) string { return reads(b, 1) }},
-	bufReader{"2", func(b *Reader) string { return reads(b, 2) }},
-	bufReader{"3", func(b *Reader) string { return reads(b, 3) }},
-	bufReader{"4", func(b *Reader) string { return reads(b, 4) }},
-	bufReader{"5", func(b *Reader) string { return reads(b, 5) }},
-	bufReader{"7", func(b *Reader) string { return reads(b, 7) }},
-	bufReader{"bytes", readBytes},
-	bufReader{"lines", readLines},
+	{"1", func(b *Reader) string { return reads(b, 1) }},
+	{"2", func(b *Reader) string { return reads(b, 2) }},
+	{"3", func(b *Reader) string { return reads(b, 3) }},
+	{"4", func(b *Reader) string { return reads(b, 4) }},
+	{"5", func(b *Reader) string { return reads(b, 5) }},
+	{"7", func(b *Reader) string { return reads(b, 7) }},
+	{"bytes", readBytes},
+	{"lines", readLines},
 }
 
 var bufsizes = []int{
@@ -210,14 +210,14 @@ func readRuneSegments(t *testing.T, segments []string) {
 }
 
 var segmentList = [][]string{
-	[]string{},
-	[]string{""},
-	[]string{"日", "本語"},
-	[]string{"\u65e5", "\u672c", "\u8a9e"},
-	[]string{"\U000065e5", "\U0000672c", "\U00008a9e"},
-	[]string{"\xe6", "\x97\xa5\xe6", "\x9c\xac\xe8\xaa\x9e"},
-	[]string{"Hello", ", ", "World", "!"},
-	[]string{"Hello", ", ", "", "World", "!"},
+	{},
+	{""},
+	{"日", "本語"},
+	{"\u65e5", "\u672c", "\u8a9e"},
+	{"\U000065e5", "\U0000672c", "\U00008a9e"},
+	{"\xe6", "\x97\xa5\xe6", "\x9c\xac\xe8\xaa\x9e"},
+	{"Hello", ", ", "World", "!"},
+	{"Hello", ", ", "", "World", "!"},
 }
 
 func TestReadRune(t *testing.T) {
@@ -422,12 +422,12 @@ func (w errorWriterTest) Write(p []byte) (int, os.Error) {
 }
 
 var errorWriterTests = []errorWriterTest{
-	errorWriterTest{0, 1, nil, io.ErrShortWrite},
-	errorWriterTest{1, 2, nil, io.ErrShortWrite},
-	errorWriterTest{1, 1, nil, nil},
-	errorWriterTest{0, 1, os.EPIPE, os.EPIPE},
-	errorWriterTest{1, 2, os.EPIPE, os.EPIPE},
-	errorWriterTest{1, 1, os.EPIPE, os.EPIPE},
+	{0, 1, nil, io.ErrShortWrite},
+	{1, 2, nil, io.ErrShortWrite},
+	{1, 1, nil, nil},
+	{0, 1, os.EPIPE, os.EPIPE},
+	{1, 2, os.EPIPE, os.EPIPE},
+	{1, 1, os.EPIPE, os.EPIPE},
 }
 
 func TestWriteErrors(t *testing.T) {

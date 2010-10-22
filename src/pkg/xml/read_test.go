@@ -119,8 +119,8 @@ var rssFeed = Feed{
 	XMLName: Name{"http://www.w3.org/2005/Atom", "feed"},
 	Title:   "Code Review - My issues",
 	Link: []Link{
-		Link{Rel: "alternate", Href: "http://codereview.appspot.com/"},
-		Link{Rel: "self", Href: "http://codereview.appspot.com/rss/mine/rsc"},
+		{Rel: "alternate", Href: "http://codereview.appspot.com/"},
+		{Rel: "self", Href: "http://codereview.appspot.com/rss/mine/rsc"},
 	},
 	Id:      "http://codereview.appspot.com/",
 	Updated: "2009-10-04T01:35:58+00:00",
@@ -129,10 +129,10 @@ var rssFeed = Feed{
 		InnerXML: "<name>rietveld&lt;&gt;</name>",
 	},
 	Entry: []Entry{
-		Entry{
+		{
 			Title: "rietveld: an attempt at pubsubhubbub\n",
 			Link: []Link{
-				Link{Rel: "alternate", Href: "http://codereview.appspot.com/126085"},
+				{Rel: "alternate", Href: "http://codereview.appspot.com/126085"},
 			},
 			Updated: "2009-10-04T01:35:58+00:00",
 			Author: Person{
@@ -176,10 +176,10 @@ the top of feeds.py marked NOTE(rsc).
 `,
 			},
 		},
-		Entry{
+		{
 			Title: "rietveld: correct tab handling\n",
 			Link: []Link{
-				Link{Rel: "alternate", Href: "http://codereview.appspot.com/124106"},
+				{Rel: "alternate", Href: "http://codereview.appspot.com/124106"},
 			},
 			Updated: "2009-10-03T23:02:17+00:00",
 			Author: Person{
@@ -218,8 +218,8 @@ type FieldNameTest struct {
 }
 
 var FieldNameTests = []FieldNameTest{
-	FieldNameTest{"Profile-Image", "profileimage"},
-	FieldNameTest{"_score", "score"},
+	{"Profile-Image", "profileimage"},
+	{"_score", "score"},
 }
 
 func TestFieldName(t *testing.T) {

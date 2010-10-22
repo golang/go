@@ -55,7 +55,7 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, os.Er
 	out := new(dnsMsg)
 	out.id = uint16(rand.Int()) ^ uint16(time.Nanoseconds())
 	out.question = []dnsQuestion{
-		dnsQuestion{name, qtype, dnsClassINET},
+		{name, qtype, dnsClassINET},
 	}
 	out.recursion_desired = true
 	msg, ok := out.Pack()

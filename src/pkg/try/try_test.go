@@ -35,14 +35,14 @@ var testRE = regexp.MustCompile("a(.)(.)d")
 
 var tests = []Test{
 	// A simple expression.  The final value is a slice in case the expression is multivalue.
-	Test{"3+4", "3+4 = 7", A([]interface{}{7})},
+	{"3+4", "3+4 = 7", A([]interface{}{7})},
 	// A search for a function.
-	Test{"", "regexp QuoteMeta", A("([])", `\(\[\]\)`)},
+	{"", "regexp QuoteMeta", A("([])", `\(\[\]\)`)},
 	// A search for a function with multiple return values.
-	Test{"", "regexp MatchString", A("abc", "xabcd", true, nil)},
+	{"", "regexp MatchString", A("abc", "xabcd", true, nil)},
 	// Searches for methods.
-	Test{"", "regexp MatchString", A(testRE, "xabcde", true)},
-	Test{"", "regexp NumSubexp", A(testRE, 2)},
+	{"", "regexp MatchString", A(testRE, "xabcde", true)},
+	{"", "regexp NumSubexp", A(testRE, 2)},
 }
 
 func TestAll(t *testing.T) {

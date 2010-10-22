@@ -20,15 +20,15 @@ type parseTest struct {
 }
 
 var parseTests = []parseTest{
-	parseTest{
+	{
 		query: "a=1&b=2",
 		out:   stringMultimap{"a": []string{"1"}, "b": []string{"2"}},
 	},
-	parseTest{
+	{
 		query: "a=1&a=2&a=banana",
 		out:   stringMultimap{"a": []string{"1", "2", "banana"}},
 	},
-	parseTest{
+	{
 		query: "ascii=%3Ckey%3A+0x90%3E",
 		out:   stringMultimap{"ascii": []string{"<key: 0x90>"}},
 	},
@@ -94,10 +94,10 @@ type parseContentTypeTest struct {
 }
 
 var parseContentTypeTests = []parseContentTypeTest{
-	parseContentTypeTest{contentType: stringMap{"Content-Type": "text/plain"}},
-	parseContentTypeTest{contentType: stringMap{"Content-Type": ""}},
-	parseContentTypeTest{contentType: stringMap{"Content-Type": "text/plain; boundary="}},
-	parseContentTypeTest{
+	{contentType: stringMap{"Content-Type": "text/plain"}},
+	{contentType: stringMap{"Content-Type": ""}},
+	{contentType: stringMap{"Content-Type": "text/plain; boundary="}},
+	{
 		contentType: stringMap{"Content-Type": "application/unknown"},
 		error:       true,
 	},

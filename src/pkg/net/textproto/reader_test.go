@@ -18,12 +18,12 @@ type canonicalHeaderKeyTest struct {
 }
 
 var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
-	canonicalHeaderKeyTest{"a-b-c", "A-B-C"},
-	canonicalHeaderKeyTest{"a-1-c", "A-1-C"},
-	canonicalHeaderKeyTest{"User-Agent", "User-Agent"},
-	canonicalHeaderKeyTest{"uSER-aGENT", "User-Agent"},
-	canonicalHeaderKeyTest{"user-agent", "User-Agent"},
-	canonicalHeaderKeyTest{"USER-AGENT", "User-Agent"},
+	{"a-b-c", "A-B-C"},
+	{"a-1-c", "A-1-C"},
+	{"User-Agent", "User-Agent"},
+	{"uSER-aGENT", "User-Agent"},
+	{"user-agent", "User-Agent"},
+	{"USER-AGENT", "User-Agent"},
 }
 
 func TestCanonicalHeaderKey(t *testing.T) {
@@ -131,8 +131,8 @@ func TestReadMIMEHeader(t *testing.T) {
 	r := reader("my-key: Value 1  \r\nLong-key: Even \n Longer Value\r\nmy-Key: Value 2\r\n\n")
 	m, err := r.ReadMIMEHeader()
 	want := map[string][]string{
-		"My-Key":   []string{"Value 1", "Value 2"},
-		"Long-Key": []string{"Even Longer Value"},
+		"My-Key":   {"Value 1", "Value 2"},
+		"Long-Key": {"Even Longer Value"},
 	}
 	if !reflect.DeepEqual(m, want) || err != nil {
 		t.Fatalf("ReadMIMEHeader: %v, %v; want %v", m, err, want)

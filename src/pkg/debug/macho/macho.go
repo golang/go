@@ -47,8 +47,8 @@ const (
 )
 
 var cpuStrings = []intName{
-	intName{uint32(Cpu386), "Cpu386"},
-	intName{uint32(CpuAmd64), "CpuAmd64"},
+	{uint32(Cpu386), "Cpu386"},
+	{uint32(CpuAmd64), "CpuAmd64"},
 }
 
 func (i Cpu) String() string   { return stringName(uint32(i), cpuStrings, false) }
@@ -65,10 +65,10 @@ const (
 )
 
 var cmdStrings = []intName{
-	intName{uint32(LoadCmdSegment), "LoadCmdSegment"},
-	intName{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
-	intName{uint32(LoadCmdThread), "LoadCmdThread"},
-	intName{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
+	{uint32(LoadCmdSegment), "LoadCmdSegment"},
+	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
+	{uint32(LoadCmdThread), "LoadCmdThread"},
+	{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
 }
 
 func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }

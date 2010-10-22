@@ -22,13 +22,13 @@ type zlibTest struct {
 // http://www.zlib.net/zpipe.c
 
 var zlibTests = []zlibTest{
-	zlibTest{
+	{
 		"empty",
 		"",
 		[]byte{0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01},
 		nil,
 	},
-	zlibTest{
+	{
 		"goodbye",
 		"goodbye, world",
 		[]byte{
@@ -38,25 +38,25 @@ var zlibTests = []zlibTest{
 		},
 		nil,
 	},
-	zlibTest{
+	{
 		"bad header",
 		"",
 		[]byte{0x78, 0x9f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01},
 		HeaderError,
 	},
-	zlibTest{
+	{
 		"bad checksum",
 		"",
 		[]byte{0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0xff},
 		ChecksumError,
 	},
-	zlibTest{
+	{
 		"not enough data",
 		"",
 		[]byte{0x78, 0x9c, 0x03, 0x00, 0x00, 0x00},
 		io.ErrUnexpectedEOF,
 	},
-	zlibTest{
+	{
 		"excess data is silently ignored",
 		"",
 		[]byte{

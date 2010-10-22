@@ -36,55 +36,55 @@ type IndexTest struct {
 }
 
 var indexTests = []IndexTest{
-	IndexTest{"", "", 0},
-	IndexTest{"", "a", -1},
-	IndexTest{"", "foo", -1},
-	IndexTest{"fo", "foo", -1},
-	IndexTest{"foo", "foo", 0},
-	IndexTest{"oofofoofooo", "f", 2},
-	IndexTest{"oofofoofooo", "foo", 4},
-	IndexTest{"barfoobarfoo", "foo", 3},
-	IndexTest{"foo", "", 0},
-	IndexTest{"foo", "o", 1},
-	IndexTest{"abcABCabc", "A", 3},
+	{"", "", 0},
+	{"", "a", -1},
+	{"", "foo", -1},
+	{"fo", "foo", -1},
+	{"foo", "foo", 0},
+	{"oofofoofooo", "f", 2},
+	{"oofofoofooo", "foo", 4},
+	{"barfoobarfoo", "foo", 3},
+	{"foo", "", 0},
+	{"foo", "o", 1},
+	{"abcABCabc", "A", 3},
 	// cases with one byte strings - test special case in Index()
-	IndexTest{"", "a", -1},
-	IndexTest{"x", "a", -1},
-	IndexTest{"x", "x", 0},
-	IndexTest{"abc", "a", 0},
-	IndexTest{"abc", "b", 1},
-	IndexTest{"abc", "c", 2},
-	IndexTest{"abc", "x", -1},
+	{"", "a", -1},
+	{"x", "a", -1},
+	{"x", "x", 0},
+	{"abc", "a", 0},
+	{"abc", "b", 1},
+	{"abc", "c", 2},
+	{"abc", "x", -1},
 }
 
 var lastIndexTests = []IndexTest{
-	IndexTest{"", "", 0},
-	IndexTest{"", "a", -1},
-	IndexTest{"", "foo", -1},
-	IndexTest{"fo", "foo", -1},
-	IndexTest{"foo", "foo", 0},
-	IndexTest{"foo", "f", 0},
-	IndexTest{"oofofoofooo", "f", 7},
-	IndexTest{"oofofoofooo", "foo", 7},
-	IndexTest{"barfoobarfoo", "foo", 9},
-	IndexTest{"foo", "", 3},
-	IndexTest{"foo", "o", 2},
-	IndexTest{"abcABCabc", "A", 3},
-	IndexTest{"abcABCabc", "a", 6},
+	{"", "", 0},
+	{"", "a", -1},
+	{"", "foo", -1},
+	{"fo", "foo", -1},
+	{"foo", "foo", 0},
+	{"foo", "f", 0},
+	{"oofofoofooo", "f", 7},
+	{"oofofoofooo", "foo", 7},
+	{"barfoobarfoo", "foo", 9},
+	{"foo", "", 3},
+	{"foo", "o", 2},
+	{"abcABCabc", "A", 3},
+	{"abcABCabc", "a", 6},
 }
 
 var indexAnyTests = []IndexTest{
-	IndexTest{"", "", -1},
-	IndexTest{"", "a", -1},
-	IndexTest{"", "abc", -1},
-	IndexTest{"a", "", -1},
-	IndexTest{"a", "a", 0},
-	IndexTest{"aaa", "a", 0},
-	IndexTest{"abc", "xyz", -1},
-	IndexTest{"abc", "xcz", 2},
-	IndexTest{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
-	IndexTest{"aRegExp*", ".(|)*+?^$[]", 7},
-	IndexTest{dots + dots + dots, " ", -1},
+	{"", "", -1},
+	{"", "a", -1},
+	{"", "abc", -1},
+	{"a", "", -1},
+	{"a", "a", 0},
+	{"aaa", "a", 0},
+	{"abc", "xyz", -1},
+	{"abc", "xcz", 2},
+	{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
+	{"aRegExp*", ".(|)*+?^$[]", 7},
+	{dots + dots + dots, " ", -1},
 }
 
 // Execute f on each test case.  funcName should be the name of f; it's used
@@ -109,10 +109,10 @@ type ExplodeTest struct {
 }
 
 var explodetests = []ExplodeTest{
-	ExplodeTest{"", -1, []string{}},
-	ExplodeTest{abcd, 4, []string{"a", "b", "c", "d"}},
-	ExplodeTest{faces, 3, []string{"☺", "☻", "☹"}},
-	ExplodeTest{abcd, 2, []string{"a", "bcd"}},
+	{"", -1, []string{}},
+	{abcd, 4, []string{"a", "b", "c", "d"}},
+	{faces, 3, []string{"☺", "☻", "☹"}},
+	{abcd, 2, []string{"a", "bcd"}},
 }
 
 func TestExplode(t *testing.T) {
@@ -137,19 +137,19 @@ type SplitTest struct {
 }
 
 var splittests = []SplitTest{
-	SplitTest{abcd, "a", 0, nil},
-	SplitTest{abcd, "a", -1, []string{"", "bcd"}},
-	SplitTest{abcd, "z", -1, []string{"abcd"}},
-	SplitTest{abcd, "", -1, []string{"a", "b", "c", "d"}},
-	SplitTest{commas, ",", -1, []string{"1", "2", "3", "4"}},
-	SplitTest{dots, "...", -1, []string{"1", ".2", ".3", ".4"}},
-	SplitTest{faces, "☹", -1, []string{"☺☻", ""}},
-	SplitTest{faces, "~", -1, []string{faces}},
-	SplitTest{faces, "", -1, []string{"☺", "☻", "☹"}},
-	SplitTest{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
-	SplitTest{"1 2", " ", 3, []string{"1", "2"}},
-	SplitTest{"123", "", 2, []string{"1", "23"}},
-	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
+	{abcd, "a", 0, nil},
+	{abcd, "a", -1, []string{"", "bcd"}},
+	{abcd, "z", -1, []string{"abcd"}},
+	{abcd, "", -1, []string{"a", "b", "c", "d"}},
+	{commas, ",", -1, []string{"1", "2", "3", "4"}},
+	{dots, "...", -1, []string{"1", ".2", ".3", ".4"}},
+	{faces, "☹", -1, []string{"☺☻", ""}},
+	{faces, "~", -1, []string{faces}},
+	{faces, "", -1, []string{"☺", "☻", "☹"}},
+	{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
+	{"1 2", " ", 3, []string{"1", "2"}},
+	{"123", "", 2, []string{"1", "23"}},
+	{"123", "", 17, []string{"1", "2", "3"}},
 }
 
 func TestSplit(t *testing.T) {
@@ -170,19 +170,19 @@ func TestSplit(t *testing.T) {
 }
 
 var splitaftertests = []SplitTest{
-	SplitTest{abcd, "a", -1, []string{"a", "bcd"}},
-	SplitTest{abcd, "z", -1, []string{"abcd"}},
-	SplitTest{abcd, "", -1, []string{"a", "b", "c", "d"}},
-	SplitTest{commas, ",", -1, []string{"1,", "2,", "3,", "4"}},
-	SplitTest{dots, "...", -1, []string{"1...", ".2...", ".3...", ".4"}},
-	SplitTest{faces, "☹", -1, []string{"☺☻☹", ""}},
-	SplitTest{faces, "~", -1, []string{faces}},
-	SplitTest{faces, "", -1, []string{"☺", "☻", "☹"}},
-	SplitTest{"1 2 3 4", " ", 3, []string{"1 ", "2 ", "3 4"}},
-	SplitTest{"1 2 3", " ", 3, []string{"1 ", "2 ", "3"}},
-	SplitTest{"1 2", " ", 3, []string{"1 ", "2"}},
-	SplitTest{"123", "", 2, []string{"1", "23"}},
-	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
+	{abcd, "a", -1, []string{"a", "bcd"}},
+	{abcd, "z", -1, []string{"abcd"}},
+	{abcd, "", -1, []string{"a", "b", "c", "d"}},
+	{commas, ",", -1, []string{"1,", "2,", "3,", "4"}},
+	{dots, "...", -1, []string{"1...", ".2...", ".3...", ".4"}},
+	{faces, "☹", -1, []string{"☺☻☹", ""}},
+	{faces, "~", -1, []string{faces}},
+	{faces, "", -1, []string{"☺", "☻", "☹"}},
+	{"1 2 3 4", " ", 3, []string{"1 ", "2 ", "3 4"}},
+	{"1 2 3", " ", 3, []string{"1 ", "2 ", "3"}},
+	{"1 2", " ", 3, []string{"1 ", "2"}},
+	{"123", "", 2, []string{"1", "23"}},
+	{"123", "", 17, []string{"1", "2", "3"}},
 }
 
 func TestSplitAfter(t *testing.T) {
@@ -205,17 +205,17 @@ type FieldsTest struct {
 }
 
 var fieldstests = []FieldsTest{
-	FieldsTest{"", []string{}},
-	FieldsTest{" ", []string{}},
-	FieldsTest{" \t ", []string{}},
-	FieldsTest{"  abc  ", []string{"abc"}},
-	FieldsTest{"1 2 3 4", []string{"1", "2", "3", "4"}},
-	FieldsTest{"1  2  3  4", []string{"1", "2", "3", "4"}},
-	FieldsTest{"1\t\t2\t\t3\t4", []string{"1", "2", "3", "4"}},
-	FieldsTest{"1\u20002\u20013\u20024", []string{"1", "2", "3", "4"}},
-	FieldsTest{"\u2000\u2001\u2002", []string{}},
-	FieldsTest{"\n™\t™\n", []string{"™", "™"}},
-	FieldsTest{faces, []string{faces}},
+	{"", []string{}},
+	{" ", []string{}},
+	{" \t ", []string{}},
+	{"  abc  ", []string{"abc"}},
+	{"1 2 3 4", []string{"1", "2", "3", "4"}},
+	{"1  2  3  4", []string{"1", "2", "3", "4"}},
+	{"1\t\t2\t\t3\t4", []string{"1", "2", "3", "4"}},
+	{"1\u20002\u20013\u20024", []string{"1", "2", "3", "4"}},
+	{"\u2000\u2001\u2002", []string{}},
+	{"\n™\t™\n", []string{"™", "™"}},
+	{faces, []string{faces}},
 }
 
 func TestFields(t *testing.T) {
@@ -231,10 +231,10 @@ func TestFields(t *testing.T) {
 func TestFieldsFunc(t *testing.T) {
 	pred := func(c int) bool { return c == 'X' }
 	var fieldsFuncTests = []FieldsTest{
-		FieldsTest{"", []string{}},
-		FieldsTest{"XX", []string{}},
-		FieldsTest{"XXhiXXX", []string{"hi"}},
-		FieldsTest{"aXXbXXXcX", []string{"a", "b", "c"}},
+		{"", []string{}},
+		{"XX", []string{}},
+		{"XXhiXXX", []string{"hi"}},
+		{"aXXbXXXcX", []string{"a", "b", "c"}},
 	}
 	for _, tt := range fieldsFuncTests {
 		a := FieldsFunc(tt.s, pred)
@@ -262,40 +262,40 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
 }
 
 var upperTests = []StringTest{
-	StringTest{"", ""},
-	StringTest{"abc", "ABC"},
-	StringTest{"AbC123", "ABC123"},
-	StringTest{"azAZ09_", "AZAZ09_"},
-	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
+	{"", ""},
+	{"abc", "ABC"},
+	{"AbC123", "ABC123"},
+	{"azAZ09_", "AZAZ09_"},
+	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
 }
 
 var lowerTests = []StringTest{
-	StringTest{"", ""},
-	StringTest{"abc", "abc"},
-	StringTest{"AbC123", "abc123"},
-	StringTest{"azAZ09_", "azaz09_"},
-	StringTest{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
+	{"", ""},
+	{"abc", "abc"},
+	{"AbC123", "abc123"},
+	{"azAZ09_", "azaz09_"},
+	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
 }
 
 const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
 
 var trimSpaceTests = []StringTest{
-	StringTest{"", ""},
-	StringTest{"abc", "abc"},
-	StringTest{space + "abc" + space, "abc"},
-	StringTest{" ", ""},
-	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
-	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
-	StringTest{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
-	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
-	StringTest{" x\x80", "x\x80"},
-	StringTest{" x\xc0", "x\xc0"},
-	StringTest{"x \xc0\xc0 ", "x \xc0\xc0"},
-	StringTest{"x \xc0", "x \xc0"},
-	StringTest{"x \xc0 ", "x \xc0"},
-	StringTest{"x \xc0\xc0 ", "x \xc0\xc0"},
-	StringTest{"x ☺\xc0\xc0 ", "x ☺\xc0\xc0"},
-	StringTest{"x ☺ ", "x ☺"},
+	{"", ""},
+	{"abc", "abc"},
+	{space + "abc" + space, "abc"},
+	{" ", ""},
+	{" \t\r\n \t\t\r\r\n\n ", ""},
+	{" \t\r\n x\t\t\r\r\n\n ", "x"},
+	{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
+	{"1 \t\r\n2", "1 \t\r\n2"},
+	{" x\x80", "x\x80"},
+	{" x\xc0", "x\xc0"},
+	{"x \xc0\xc0 ", "x \xc0\xc0"},
+	{"x \xc0", "x \xc0"},
+	{"x \xc0 ", "x \xc0"},
+	{"x \xc0\xc0 ", "x \xc0\xc0"},
+	{"x ☺\xc0\xc0 ", "x ☺\xc0\xc0"},
+	{"x ☺ ", "x ☺"},
 }
 
 func tenRunes(rune int) string {
@@ -398,27 +398,27 @@ type TrimTest struct {
 }
 
 var trimTests = []TrimTest{
-	TrimTest{Trim, "abba", "a", "bb"},
-	TrimTest{Trim, "abba", "ab", ""},
-	TrimTest{TrimLeft, "abba", "ab", ""},
-	TrimTest{TrimRight, "abba", "ab", ""},
-	TrimTest{TrimLeft, "abba", "a", "bba"},
-	TrimTest{TrimRight, "abba", "a", "abb"},
-	TrimTest{Trim, "<tag>", "<>", "tag"},
-	TrimTest{Trim, "* listitem", " *", "listitem"},
-	TrimTest{Trim, `"quote"`, `"`, "quote"},
-	TrimTest{Trim, "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
+	{Trim, "abba", "a", "bb"},
+	{Trim, "abba", "ab", ""},
+	{TrimLeft, "abba", "ab", ""},
+	{TrimRight, "abba", "ab", ""},
+	{TrimLeft, "abba", "a", "bba"},
+	{TrimRight, "abba", "a", "abb"},
+	{Trim, "<tag>", "<>", "tag"},
+	{Trim, "* listitem", " *", "listitem"},
+	{Trim, `"quote"`, `"`, "quote"},
+	{Trim, "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
 	//empty string tests
-	TrimTest{Trim, "abba", "", "abba"},
-	TrimTest{Trim, "", "123", ""},
-	TrimTest{Trim, "", "", ""},
-	TrimTest{TrimLeft, "abba", "", "abba"},
-	TrimTest{TrimLeft, "", "123", ""},
-	TrimTest{TrimLeft, "", "", ""},
-	TrimTest{TrimRight, "abba", "", "abba"},
-	TrimTest{TrimRight, "", "123", ""},
-	TrimTest{TrimRight, "", "", ""},
-	TrimTest{TrimRight, "☺\xc0", "☺", "☺\xc0"},
+	{Trim, "abba", "", "abba"},
+	{Trim, "", "123", ""},
+	{Trim, "", "", ""},
+	{TrimLeft, "abba", "", "abba"},
+	{TrimLeft, "", "123", ""},
+	{TrimLeft, "", "", ""},
+	{TrimRight, "abba", "", "abba"},
+	{TrimRight, "", "123", ""},
+	{TrimRight, "", "", ""},
+	{TrimRight, "☺\xc0", "☺", "☺\xc0"},
 }
 
 func TestTrim(t *testing.T) {
@@ -471,13 +471,13 @@ func not(p predicate) predicate {
 }
 
 var trimFuncTests = []TrimFuncTest{
-	TrimFuncTest{isSpace, space + " hello " + space, "hello"},
-	TrimFuncTest{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51", "hello"},
-	TrimFuncTest{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", "hello"},
-	TrimFuncTest{not(isSpace), "hello" + space + "hello", space},
-	TrimFuncTest{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo", "\u0e50\u0e521234\u0e50\u0e51"},
-	TrimFuncTest{isValidRune, "ab\xc0a\xc0cd", "\xc0a\xc0"},
-	TrimFuncTest{not(isValidRune), "\xc0a\xc0", "a"},
+	{isSpace, space + " hello " + space, "hello"},
+	{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51", "hello"},
+	{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", "hello"},
+	{not(isSpace), "hello" + space + "hello", space},
+	{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo", "\u0e50\u0e521234\u0e50\u0e51"},
+	{isValidRune, "ab\xc0a\xc0cd", "\xc0a\xc0"},
+	{not(isValidRune), "\xc0a\xc0", "a"},
 }
 
 func TestTrimFunc(t *testing.T) {
@@ -496,25 +496,25 @@ type IndexFuncTest struct {
 }
 
 var indexFuncTests = []IndexFuncTest{
-	IndexFuncTest{"", isValidRune, -1, -1},
-	IndexFuncTest{"abc", isDigit, -1, -1},
-	IndexFuncTest{"0123", isDigit, 0, 3},
-	IndexFuncTest{"a1b", isDigit, 1, 1},
-	IndexFuncTest{space, isSpace, 0, len(space) - 3}, // last rune in space is 3 bytes
-	IndexFuncTest{"\u0e50\u0e5212hello34\u0e50\u0e51", isDigit, 0, 18},
-	IndexFuncTest{"\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", isUpper, 0, 34},
-	IndexFuncTest{"12\u0e50\u0e52hello34\u0e50\u0e51", not(isDigit), 8, 12},
+	{"", isValidRune, -1, -1},
+	{"abc", isDigit, -1, -1},
+	{"0123", isDigit, 0, 3},
+	{"a1b", isDigit, 1, 1},
+	{space, isSpace, 0, len(space) - 3}, // last rune in space is 3 bytes
+	{"\u0e50\u0e5212hello34\u0e50\u0e51", isDigit, 0, 18},
+	{"\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", isUpper, 0, 34},
+	{"12\u0e50\u0e52hello34\u0e50\u0e51", not(isDigit), 8, 12},
 
 	// tests of invalid UTF-8
-	IndexFuncTest{"\x801", isDigit, 1, 1},
-	IndexFuncTest{"\x80abc", isDigit, -1, -1},
-	IndexFuncTest{"\xc0a\xc0", isValidRune, 1, 1},
-	IndexFuncTest{"\xc0a\xc0", not(isValidRune), 0, 2},
-	IndexFuncTest{"\xc0☺\xc0", not(isValidRune), 0, 4},
-	IndexFuncTest{"\xc0☺\xc0\xc0", not(isValidRune), 0, 5},
-	IndexFuncTest{"ab\xc0a\xc0cd", not(isValidRune), 2, 4},
-	IndexFuncTest{"a\xe0\x80cd", not(isValidRune), 1, 2},
-	IndexFuncTest{"\x80\x80\x80\x80", not(isValidRune), 0, 3},
+	{"\x801", isDigit, 1, 1},
+	{"\x80abc", isDigit, -1, -1},
+	{"\xc0a\xc0", isValidRune, 1, 1},
+	{"\xc0a\xc0", not(isValidRune), 0, 2},
+	{"\xc0☺\xc0", not(isValidRune), 0, 4},
+	{"\xc0☺\xc0\xc0", not(isValidRune), 0, 5},
+	{"ab\xc0a\xc0cd", not(isValidRune), 2, 4},
+	{"a\xe0\x80cd", not(isValidRune), 1, 2},
+	{"\x80\x80\x80\x80", not(isValidRune), 0, 3},
 }
 
 func TestIndexFunc(t *testing.T) {
@@ -595,13 +595,13 @@ type RepeatTest struct {
 }
 
 var RepeatTests = []RepeatTest{
-	RepeatTest{"", "", 0},
-	RepeatTest{"", "", 1},
-	RepeatTest{"", "", 2},
-	RepeatTest{"-", "", 0},
-	RepeatTest{"-", "-", 1},
-	RepeatTest{"-", "----------", 10},
-	RepeatTest{"abc ", "abc abc abc ", 3},
+	{"", "", 0},
+	{"", "", 1},
+	{"", "", 2},
+	{"-", "", 0},
+	{"-", "-", 1},
+	{"-", "----------", 10},
+	{"abc ", "abc abc abc ", 3},
 }
 
 func TestRepeat(t *testing.T) {
@@ -633,13 +633,13 @@ type RunesTest struct {
 }
 
 var RunesTests = []RunesTest{
-	RunesTest{"", []int{}, false},
-	RunesTest{" ", []int{32}, false},
-	RunesTest{"ABC", []int{65, 66, 67}, false},
-	RunesTest{"abc", []int{97, 98, 99}, false},
-	RunesTest{"\u65e5\u672c\u8a9e", []int{26085, 26412, 35486}, false},
-	RunesTest{"ab\x80c", []int{97, 98, 0xFFFD, 99}, true},
-	RunesTest{"ab\xc0c", []int{97, 98, 0xFFFD, 99}, true},
+	{"", []int{}, false},
+	{" ", []int{32}, false},
+	{"ABC", []int{65, 66, 67}, false},
+	{"abc", []int{97, 98, 99}, false},
+	{"\u65e5\u672c\u8a9e", []int{26085, 26412, 35486}, false},
+	{"ab\x80c", []int{97, 98, 0xFFFD, 99}, true},
+	{"ab\xc0c", []int{97, 98, 0xFFFD, 99}, true},
 }
 
 func TestRunes(t *testing.T) {
@@ -689,25 +689,25 @@ type ReplaceTest struct {
 }
 
 var ReplaceTests = []ReplaceTest{
-	ReplaceTest{"hello", "l", "L", 0, "hello"},
-	ReplaceTest{"hello", "l", "L", -1, "heLLo"},
-	ReplaceTest{"hello", "x", "X", -1, "hello"},
-	ReplaceTest{"", "x", "X", -1, ""},
-	ReplaceTest{"radar", "r", "<r>", -1, "<r>ada<r>"},
-	ReplaceTest{"", "", "<>", -1, "<>"},
-	ReplaceTest{"banana", "a", "<>", -1, "b<>n<>n<>"},
-	ReplaceTest{"banana", "a", "<>", 1, "b<>nana"},
-	ReplaceTest{"banana", "a", "<>", 1000, "b<>n<>n<>"},
-	ReplaceTest{"banana", "an", "<>", -1, "b<><>a"},
-	ReplaceTest{"banana", "ana", "<>", -1, "b<>na"},
-	ReplaceTest{"banana", "", "<>", -1, "<>b<>a<>n<>a<>n<>a<>"},
-	ReplaceTest{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
-	ReplaceTest{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
-	ReplaceTest{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
-	ReplaceTest{"banana", "", "<>", 1, "<>banana"},
-	ReplaceTest{"banana", "a", "a", -1, "banana"},
-	ReplaceTest{"banana", "a", "a", 1, "banana"},
-	ReplaceTest{"☺☻☹", "", "<>", -1, "<>☺<>☻<>☹<>"},
+	{"hello", "l", "L", 0, "hello"},
+	{"hello", "l", "L", -1, "heLLo"},
+	{"hello", "x", "X", -1, "hello"},
+	{"", "x", "X", -1, ""},
+	{"radar", "r", "<r>", -1, "<r>ada<r>"},
+	{"", "", "<>", -1, "<>"},
+	{"banana", "a", "<>", -1, "b<>n<>n<>"},
+	{"banana", "a", "<>", 1, "b<>nana"},
+	{"banana", "a", "<>", 1000, "b<>n<>n<>"},
+	{"banana", "an", "<>", -1, "b<><>a"},
+	{"banana", "ana", "<>", -1, "b<>na"},
+	{"banana", "", "<>", -1, "<>b<>a<>n<>a<>n<>a<>"},
+	{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
+	{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
+	{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
+	{"banana", "", "<>", 1, "<>banana"},
+	{"banana", "a", "a", -1, "banana"},
+	{"banana", "a", "a", 1, "banana"},
+	{"☺☻☹", "", "<>", -1, "<>☺<>☻<>☹<>"},
 }
 
 func TestReplace(t *testing.T) {
@@ -723,13 +723,13 @@ type TitleTest struct {
 }
 
 var TitleTests = []TitleTest{
-	TitleTest{"", ""},
-	TitleTest{"a", "A"},
-	TitleTest{" aaa aaa aaa ", " Aaa Aaa Aaa "},
-	TitleTest{" Aaa Aaa Aaa ", " Aaa Aaa Aaa "},
-	TitleTest{"123a456", "123a456"},
-	TitleTest{"double-blind", "Double-Blind"},
-	TitleTest{"ÿøû", "Ÿøû"},
+	{"", ""},
+	{"a", "A"},
+	{" aaa aaa aaa ", " Aaa Aaa Aaa "},
+	{" Aaa Aaa Aaa ", " Aaa Aaa Aaa "},
+	{"123a456", "123a456"},
+	{"double-blind", "Double-Blind"},
+	{"ÿøû", "Ÿøû"},
 }
 
 func TestTitle(t *testing.T) {

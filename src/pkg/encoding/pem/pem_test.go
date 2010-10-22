@@ -15,14 +15,14 @@ type GetLineTest struct {
 }
 
 var getLineTests = []GetLineTest{
-	GetLineTest{"abc", "abc", ""},
-	GetLineTest{"abc\r", "abc\r", ""},
-	GetLineTest{"abc\n", "abc", ""},
-	GetLineTest{"abc\r\n", "abc", ""},
-	GetLineTest{"abc\nd", "abc", "d"},
-	GetLineTest{"abc\r\nd", "abc", "d"},
-	GetLineTest{"\nabc", "", "abc"},
-	GetLineTest{"\r\nabc", "", "abc"},
+	{"abc", "abc", ""},
+	{"abc\r", "abc\r", ""},
+	{"abc\n", "abc", ""},
+	{"abc\r\n", "abc", ""},
+	{"abc\nd", "abc", "d"},
+	{"abc\r\nd", "abc", "d"},
+	{"\nabc", "", "abc"},
+	{"\r\nabc", "", "abc"},
 }
 
 func TestGetLine(t *testing.T) {
@@ -63,12 +63,12 @@ type lineBreakerTest struct {
 const sixtyFourCharString = "0123456789012345678901234567890123456789012345678901234567890123"
 
 var lineBreakerTests = []lineBreakerTest{
-	lineBreakerTest{"", ""},
-	lineBreakerTest{"a", "a\n"},
-	lineBreakerTest{"ab", "ab\n"},
-	lineBreakerTest{sixtyFourCharString, sixtyFourCharString + "\n"},
-	lineBreakerTest{sixtyFourCharString + "X", sixtyFourCharString + "\nX\n"},
-	lineBreakerTest{sixtyFourCharString + sixtyFourCharString, sixtyFourCharString + "\n" + sixtyFourCharString + "\n"},
+	{"", ""},
+	{"a", "a\n"},
+	{"ab", "ab\n"},
+	{sixtyFourCharString, sixtyFourCharString + "\n"},
+	{sixtyFourCharString + "X", sixtyFourCharString + "\nX\n"},
+	{sixtyFourCharString + sixtyFourCharString, sixtyFourCharString + "\n" + sixtyFourCharString + "\n"},
 }
 
 func TestLineBreaker(t *testing.T) {

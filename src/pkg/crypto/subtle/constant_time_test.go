@@ -15,9 +15,9 @@ type TestConstantTimeCompareStruct struct {
 }
 
 var testConstandTimeCompareData = []TestConstantTimeCompareStruct{
-	TestConstantTimeCompareStruct{[]byte{}, []byte{}, 1},
-	TestConstantTimeCompareStruct{[]byte{0x11}, []byte{0x11}, 1},
-	TestConstantTimeCompareStruct{[]byte{0x12}, []byte{0x11}, 0},
+	{[]byte{}, []byte{}, 1},
+	{[]byte{0x11}, []byte{0x11}, 1},
+	{[]byte{0x12}, []byte{0x11}, 0},
 }
 
 func TestConstantTimeCompare(t *testing.T) {
@@ -34,11 +34,11 @@ type TestConstantTimeByteEqStruct struct {
 }
 
 var testConstandTimeByteEqData = []TestConstantTimeByteEqStruct{
-	TestConstantTimeByteEqStruct{0, 0, 1},
-	TestConstantTimeByteEqStruct{0, 1, 0},
-	TestConstantTimeByteEqStruct{1, 0, 0},
-	TestConstantTimeByteEqStruct{0xff, 0xff, 1},
-	TestConstantTimeByteEqStruct{0xff, 0xfe, 0},
+	{0, 0, 1},
+	{0, 1, 0},
+	{1, 0, 0},
+	{0xff, 0xff, 1},
+	{0xff, 0xfe, 0},
 }
 
 func byteEq(a, b uint8) int {

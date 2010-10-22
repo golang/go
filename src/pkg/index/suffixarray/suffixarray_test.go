@@ -20,7 +20,7 @@ type testCase struct {
 
 
 var testCases = []testCase{
-	testCase{
+	{
 		"empty string",
 		"",
 		[]string{
@@ -29,7 +29,7 @@ var testCases = []testCase{
 		},
 	},
 
-	testCase{
+	{
 		"all a's",
 		"aaaaaaaaaa", // 10 a's
 		[]string{
@@ -48,7 +48,7 @@ var testCases = []testCase{
 		},
 	},
 
-	testCase{
+	{
 		"abc",
 		"abc",
 		[]string{
@@ -61,7 +61,7 @@ var testCases = []testCase{
 		},
 	},
 
-	testCase{
+	{
 		"barbara*3",
 		"barbarabarbarabarbara",
 		[]string{
@@ -73,7 +73,7 @@ var testCases = []testCase{
 		},
 	},
 
-	testCase{
+	{
 		"typing drill",
 		"Now is the time for all good men to come to the aid of their country.",
 		[]string{

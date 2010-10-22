@@ -37,7 +37,7 @@ func TestFileApply(t *testing.T) {
 }
 
 var tests = []Test{
-	Test{
+	{
 		"hello, world\n",
 		"goodbye, world\n",
 		"Index: a\n" +
@@ -47,7 +47,7 @@ var tests = []Test{
 			"-hello, world\n" +
 			"+goodbye, world\n",
 	},
-	Test{
+	{
 		"hello, world\n",
 		"goodbye, world\n",
 		"Index: a\n" +
@@ -58,7 +58,7 @@ var tests = []Test{
 			"-hello, world\n" +
 			"+goodbye, world\n",
 	},
-	Test{
+	{
 		"hello, world\n",
 		"goodbye, world\n",
 		"diff a/a b/b\n" +
@@ -68,7 +68,7 @@ var tests = []Test{
 			"-hello, world\n" +
 			"+goodbye, world\n",
 	},
-	Test{
+	{
 		"hello, world",
 		"goodbye, world\n",
 		"diff --git a/a b/b\n" +
@@ -79,7 +79,7 @@ var tests = []Test{
 			"\\ No newline at end of file\n" +
 			"+goodbye, world\n",
 	},
-	Test{
+	{
 		"hello, world\n",
 		"goodbye, world",
 		"Index: a\n" +
@@ -90,7 +90,7 @@ var tests = []Test{
 			"+goodbye, world\n" +
 			"\\ No newline at end of file\n",
 	},
-	Test{
+	{
 		"hello, world",
 		"goodbye, world",
 		"Index: a\n" +
@@ -102,7 +102,7 @@ var tests = []Test{
 			"+goodbye, world\n" +
 			"\\ No newline at end of file\n",
 	},
-	Test{
+	{
 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\n",
 		"a\nB\nC\nD\ne\nf\ng\nj\nk\nl\nm\nN\n",
 		"Index: a\n" +
@@ -128,7 +128,7 @@ var tests = []Test{
 			"-n\n" +
 			"+N\n",
 	},
-	Test{
+	{
 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
 		"a\nb\nc\ng\nh\ni\nj\nk\nl\nm\nN\nO\np\nq\nr\ns\nt\nu\nv\nw\nd\ne\nf\nx\n",
 		"Index: a\n" +
@@ -167,7 +167,7 @@ var tests = []Test{
 			"-y\n" +
 			"-z\n",
 	},
-	Test{
+	{
 		"a\nb\nc\ng\nh\ni\nj\nk\nl\nm\nN\nO\np\nq\nr\ns\nt\nu\nv\nw\nd\ne\nf\nx\n",
 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
 		"Index: a\n" +
@@ -205,7 +205,7 @@ var tests = []Test{
 			"+y\n" +
 			"+z\n",
 	},
-	Test{
+	{
 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
 		"",
 		"Index: a\n" +
@@ -240,7 +240,7 @@ var tests = []Test{
 			"-y\n" +
 			"-z\n",
 	},
-	Test{
+	{
 		"",
 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
 		"Index: a\n" +
@@ -275,7 +275,7 @@ var tests = []Test{
 			"+y\n" +
 			"+z\n",
 	},
-	Test{
+	{
 		"\xc2\xd8\xf9\x63\x8c\xf7\xc6\x9b\xb0\x3c\x39\xfa\x08\x8e\x42\x8f" +
 			"\x1c\x7c\xaf\x54\x22\x87\xc3\xc5\x68\x9b\xe1\xbd\xbc\xc3\xe0\xda" +
 			"\xcc\xe3\x96\xda\xc2\xaf\xbb\x75\x79\x64\x86\x60\x8a\x43\x9e\x07" +
@@ -331,7 +331,7 @@ var tests = []Test{
 			"Gy(*Pb;D3Ms\n" +
 			"\n",
 	},
-	Test{
+	{
 		"\xc2\xd8\xf9\x63\x8c\xf7\xc6\x9b\xb0\x3c\x39\xfa\x08\x8e\x42\x8f" +
 			"\x1c\x7c\xaf\x54\x22\x87\xc3\xc5\x68\x9b\xe1\xbd\xbc\xc3\xe0\xda" +
 			"\xcc\xe3\x96\xda\xc2\xaf\xbb\x75\x79\x64\x86\x60\x8a\x43\x9e\x07" +
@@ -379,7 +379,7 @@ var tests = []Test{
 			"G1edVN^?m&S\n" +
 			"\n",
 	},
-	Test{
+	{
 		"",
 		"",
 		"Index: hello\n" +
