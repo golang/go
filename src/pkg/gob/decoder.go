@@ -24,6 +24,7 @@ type Decoder struct {
 	countState   *decodeState                            // reads counts from wire
 	buf          []byte
 	countBuf     [9]byte // counts may be uint64s (unlikely!), require 9 bytes
+	byteBuffer   *bytes.Buffer
 }
 
 // NewDecoder returns a new decoder that reads from the io.Reader.
@@ -31,13 +32,14 @@ func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder)
 	dec.r = r
 	dec.wireType = make(map[typeId]*wireType)
-	dec.state = newDecodeState(nil) // buffer set in Decode(); rest is unimportant
+	dec.state = newDecodeState(&dec.byteBuffer) // buffer set in Decode()
 	dec.decoderCache = make(map[reflect.Type]map[typeId]**decEngine)
 	dec.ignorerCache = make(map[typeId]**decEngine)
 
 	return dec
 }
 
+// recvType loads the definition of a type and reloads the Decoder's buffer.
 func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
 	if dec.wireType[id] != nil {
@@ -50,6 +52,9 @@ func (dec *Decoder) recvType(id typeId) {
 	dec.state.err = dec.decode(tWireType, reflect.NewValue(wire))
 	// Remember we've seen this type.
 	dec.wireType[id] = wire
+
+	// Load the next parcel.
+	dec.recv()
 }
 
 // Decode reads the next value from the connection and stores
@@ -67,38 +72,36 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	return dec.DecodeValue(value)
 }
 
-// DecodeValue reads the next value from the connection and stores
-// it in the data represented by the reflection value.
-// The value must be the correct type for the next
-// data item received.
-func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
-	// Make sure we're single-threaded through here.
-	dec.mutex.Lock()
-	defer dec.mutex.Unlock()
+// recv reads the next count-delimited item from the input. It is the converse
+// of Encoder.send.
+func (dec *Decoder) recv() {
+	// Read a count.
+	var nbytes uint64
+	nbytes, dec.state.err = decodeUintReader(dec.r, dec.countBuf[0:])
+	if dec.state.err != nil {
+		return
+	}
+	// Allocate the buffer.
+	if nbytes > uint64(len(dec.buf)) {
+		dec.buf = make([]byte, nbytes+1000)
+	}
+	dec.byteBuffer = bytes.NewBuffer(dec.buf[0:nbytes])
 
-	dec.state.err = nil
-	for {
-		// Read a count.
-		var nbytes uint64
-		nbytes, dec.state.err = decodeUintReader(dec.r, dec.countBuf[0:])
-		if dec.state.err != nil {
-			break
+	// Read the data
+	_, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes])
+	if dec.state.err != nil {
+		if dec.state.err == os.EOF {
+			dec.state.err = io.ErrUnexpectedEOF
 		}
-		// Allocate the buffer.
-		if nbytes > uint64(len(dec.buf)) {
-			dec.buf = make([]byte, nbytes+1000)
-		}
-		dec.state.b = bytes.NewBuffer(dec.buf[0:nbytes])
+		return
+	}
+}
 
-		// Read the data
-		_, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes])
-		if dec.state.err != nil {
-			if dec.state.err == os.EOF {
-				dec.state.err = io.ErrUnexpectedEOF
-			}
-			break
-		}
-
+// decodeValueFromBuffer grabs the next value from the input. The Decoder's
+// buffer already contains data.  If the next item in the buffer is a type
+// descriptor, it may be necessary to reload the buffer, but recvType does that.
+func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignore bool) {
+	for dec.state.b.Len() > 0 {
 		// Receive a type id.
 		id := typeId(decodeInt(dec.state))
 		if dec.state.err != nil {
@@ -116,6 +119,10 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 		}
 
 		// No, it's a value.
+		if ignore {
+			dec.byteBuffer.Reset()
+			break
+		}
 		// Make sure the type has been defined already or is a builtin type (for
 		// top-level singleton values).
 		if dec.wireType[id] == nil && builtinIdToType[id] == nil {
@@ -125,5 +132,22 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 		dec.state.err = dec.decode(id, value)
 		break
 	}
+}
+
+// DecodeValue reads the next value from the connection and stores
+// it in the data represented by the reflection value.
+// The value must be the correct type for the next
+// data item received.
+func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
+	// Make sure we're single-threaded through here.
+	dec.mutex.Lock()
+	defer dec.mutex.Unlock()
+
+	dec.state.err = nil
+	dec.recv()
+	if dec.state.err != nil {
+		return dec.state.err
+	}
+	dec.decodeValueFromBuffer(value, false)
 	return dec.state.err
 }

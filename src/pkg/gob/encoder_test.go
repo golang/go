@@ -135,7 +135,6 @@ func TestBadData(t *testing.T) {
 var unsupportedValues = []interface{}{
 	make(chan int),
 	func(a int) bool { return true },
-	new(interface{}),
 }
 
 func TestUnsupported(t *testing.T) {

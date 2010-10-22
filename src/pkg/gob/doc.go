@@ -126,6 +126,16 @@ integer field 0 with value 7 is transmitted as unsigned delta = 1, unsigned valu
 denotes the end of the struct.  That mark is a delta=0 value, which has
 representation (00).
 
+Interface types are not checked for compatibility; all interface types are
+treated, for transmission, as members of a single "interface" type, analogous to
+int or []byte - in effect they're all treated as interface{}.  Interface values
+are transmitted as a string identifying the concrete type being sent (a name
+that must be pre-defined by calling Register()), followed by the usual encoding
+of concrete (dynamic) value stored in the interface value.  (A nil interface
+value is identified by the empty string and transmits no value.) Upon receipt,
+the decoder verifies that the unpacked concrete item satisfies the interface of
+the receiving variable.
+
 The representation of types is described below.  When a type is defined on a given
 connection between an Encoder and Decoder, it is assigned a signed integer type
 id.  When Encoder.Encode(v) is called, it makes sure there is an id assigned for
@@ -140,17 +150,31 @@ description, constructed from these types:
 	type wireType struct {
 		s	structType;
 	}
-	type fieldType struct {
-		name	string;	// the name of the field.
-		id	int;	// the type id of the field, which must be already defined
+	type arrayType struct {
+		commonType
+		Elem typeId
+		Len  int
 	}
 	type commonType {
 		name	string;	// the name of the struct type
 		id	int;	// the id of the type, repeated for so it's inside the type
 	}
+	type sliceType struct {
+		commonType
+		Elem typeId
+	}
 	type structType struct {
 		commonType;
 		field	[]fieldType;	// the fields of the struct.
+	}
+	type fieldType struct {
+		name	string;	// the name of the field.
+		id	int;	// the type id of the field, which must be already defined
+	}
+	type mapType struct {
+		commonType
+		Key  typeId
+		Elem typeId
 	}
 
 If there are nested type ids, the types for all inner type ids must be defined
@@ -159,16 +183,23 @@ before the top-level type id is used to describe an encoded-v.
 For simplicity in setup, the connection is defined to understand these types a
 priori, as well as the basic gob types int, uint, etc.  Their ids are:
 
-	bool		1
-	int		2
-	uint		3
-	float		4
-	[]byte		5
-	string		6
-	wireType	7
-	structType	8
-	commonType	9
-	fieldType	10
+	bool        1
+	int         2
+	uint        3
+	float       4
+	[]byte      5
+	string      6
+	complex     7
+	interface   8
+	// gap for reserved ids.
+	wireType    16
+	arrayType  17
+	commonType 18
+	sliceType   19
+	structType  20
+	fieldType   21
+	// 22 is slice of fieldType.
+	mapType     23
 
 In summary, a gob stream looks like
 

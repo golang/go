@@ -28,10 +28,8 @@ func NewEncoder(w io.Writer) *Encoder {
 	enc := new(Encoder)
 	enc.w = w
 	enc.sent = make(map[reflect.Type]typeId)
-	enc.state = new(encoderState)
-	enc.state.b = new(bytes.Buffer) // the rest isn't important; all we need is buffer and writer
-	enc.countState = new(encoderState)
-	enc.countState.b = new(bytes.Buffer) // the rest isn't important; all we need is buffer and writer
+	enc.state = newEncoderState(new(bytes.Buffer))
+	enc.countState = newEncoderState(new(bytes.Buffer))
 	return enc
 }
 
@@ -74,7 +72,7 @@ func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 
 	switch rt := rt.(type) {
 	default:
-		// Basic types do not need to be described.
+		// Basic types and interfaces do not need to be described.
 		return
 	case *reflect.SliceType:
 		// If it's []uint8, don't send; it's considered basic.
@@ -92,7 +90,7 @@ func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 	case *reflect.StructType:
 		// structs must be sent so we know their fields.
 		break
-	case *reflect.ChanType, *reflect.FuncType, *reflect.InterfaceType:
+	case *reflect.ChanType, *reflect.FuncType:
 		// Probably a bad field in a struct.
 		enc.badType(rt)
 		return
@@ -115,7 +113,7 @@ func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 	// Id:
 	encodeInt(enc.state, -int64(info.id))
 	// Type:
-	encode(enc.state.b, reflect.NewValue(info.wire))
+	enc.encode(enc.state.b, reflect.NewValue(info.wire))
 	enc.send()
 	if enc.state.err != nil {
 		return
@@ -134,13 +132,44 @@ func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 	case reflect.ArrayOrSliceType:
 		enc.sendType(st.Elem())
 	}
-	return
+	return true
 }
 
 // Encode transmits the data item represented by the empty interface value,
 // guaranteeing that all necessary type information has been transmitted first.
 func (enc *Encoder) Encode(e interface{}) os.Error {
 	return enc.EncodeValue(reflect.NewValue(e))
+}
+
+// sendTypeId makes sure the remote side knows about this type.
+// It will send a descriptor if this is the first time the type has been
+// sent.  Regardless, it sends the id.
+func (enc *Encoder) sendTypeDescriptor(rt reflect.Type) {
+	// Make sure the type is known to the other side.
+	// First, have we already sent this type?
+	if _, alreadySent := enc.sent[rt]; !alreadySent {
+		// No, so send it.
+		sent := enc.sendType(rt)
+		if enc.state.err != nil {
+			return
+		}
+		// If the type info has still not been transmitted, it means we have
+		// a singleton basic type (int, []byte etc.) at top level.  We don't
+		// need to send the type info but we do need to update enc.sent.
+		if !sent {
+			typeLock.Lock()
+			info, err := getTypeInfo(rt)
+			typeLock.Unlock()
+			if err != nil {
+				enc.setError(err)
+				return
+			}
+			enc.sent[rt] = info.id
+		}
+	}
+
+	// Identify the type of this top-level value.
+	encodeInt(enc.state, int64(enc.sent[rt]))
 }
 
 // EncodeValue transmits the data item represented by the reflection value,
@@ -160,34 +189,13 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 		return enc.state.err
 	}
 
-	// Make sure the type is known to the other side.
-	// First, have we already sent this type?
-	if _, alreadySent := enc.sent[rt]; !alreadySent {
-		// No, so send it.
-		sent := enc.sendType(rt)
-		if enc.state.err != nil {
-			return enc.state.err
-		}
-		// If the type info has still not been transmitted, it means we have
-		// a singleton basic type (int, []byte etc.) at top level.  We don't
-		// need to send the type info but we do need to update enc.sent.
-		if !sent {
-			typeLock.Lock()
-			info, err := getTypeInfo(rt)
-			typeLock.Unlock()
-			if err != nil {
-				enc.setError(err)
-				return err
-			}
-			enc.sent[rt] = info.id
-		}
+	enc.sendTypeDescriptor(rt)
+	if enc.state.err != nil {
+		return enc.state.err
 	}
 
-	// Identify the type of this top-level value.
-	encodeInt(enc.state, int64(enc.sent[rt]))
-
 	// Encode the object.
-	err := encode(enc.state.b, value)
+	err := enc.encode(enc.state.b, value)
 	if err != nil {
 		enc.setError(err)
 	} else {

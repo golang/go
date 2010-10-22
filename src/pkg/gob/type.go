@@ -90,14 +90,22 @@ func (t *commonType) Name() string { return t.name }
 
 var (
 	// Primordial types, needed during initialization.
-	tBool   = bootstrapType("bool", false, 1)
-	tInt    = bootstrapType("int", int(0), 2)
-	tUint   = bootstrapType("uint", uint(0), 3)
-	tFloat  = bootstrapType("float", float64(0), 4)
-	tBytes  = bootstrapType("bytes", make([]byte, 0), 5)
-	tString = bootstrapType("string", "", 6)
-	// Types added to the language later, not needed during initialization.
-	tComplex typeId
+	tBool      = bootstrapType("bool", false, 1)
+	tInt       = bootstrapType("int", int(0), 2)
+	tUint      = bootstrapType("uint", uint(0), 3)
+	tFloat     = bootstrapType("float", float64(0), 4)
+	tBytes     = bootstrapType("bytes", make([]byte, 0), 5)
+	tString    = bootstrapType("string", "", 6)
+	tComplex   = bootstrapType("complex", 0+0i, 7)
+	tInterface = bootstrapType("interface", interface{}(nil), 8)
+	// Reserve some Ids for compatible expansion
+	tReserved7 = bootstrapType("_reserved1", struct{ r7 int }{}, 9)
+	tReserved6 = bootstrapType("_reserved1", struct{ r6 int }{}, 10)
+	tReserved5 = bootstrapType("_reserved1", struct{ r5 int }{}, 11)
+	tReserved4 = bootstrapType("_reserved1", struct{ r4 int }{}, 12)
+	tReserved3 = bootstrapType("_reserved1", struct{ r3 int }{}, 13)
+	tReserved2 = bootstrapType("_reserved1", struct{ r2 int }{}, 14)
+	tReserved1 = bootstrapType("_reserved1", struct{ r1 int }{}, 15)
 )
 
 // Predefined because it's needed by the Decoder
@@ -105,15 +113,13 @@ var tWireType = mustGetTypeInfo(reflect.Typeof(wireType{})).id
 
 func init() {
 	// Some magic numbers to make sure there are no surprises.
-	checkId(7, tWireType)
-	checkId(9, mustGetTypeInfo(reflect.Typeof(commonType{})).id)
-	checkId(11, mustGetTypeInfo(reflect.Typeof(structType{})).id)
-	checkId(12, mustGetTypeInfo(reflect.Typeof(fieldType{})).id)
-
-	// Complex was added after gob was written, so appears after the
-	// fundamental types are built.
-	tComplex = bootstrapType("complex", 0+0i, 15)
-	decIgnoreOpMap[tComplex] = ignoreTwoUints
+	checkId(16, tWireType)
+	checkId(17, mustGetTypeInfo(reflect.Typeof(arrayType{})).id)
+	checkId(18, mustGetTypeInfo(reflect.Typeof(commonType{})).id)
+	checkId(19, mustGetTypeInfo(reflect.Typeof(sliceType{})).id)
+	checkId(20, mustGetTypeInfo(reflect.Typeof(structType{})).id)
+	checkId(21, mustGetTypeInfo(reflect.Typeof(fieldType{})).id)
+	checkId(23, mustGetTypeInfo(reflect.Typeof(mapType{})).id)
 
 	builtinIdToType = make(map[typeId]gobType)
 	for k, v := range idToType {
@@ -234,7 +240,7 @@ func newStructType(name string) *structType {
 }
 
 // Step through the indirections on a type to discover the base type.
-// Return the number of indirections.
+// Return the base type and the number of indirections.
 func indirect(t reflect.Type) (rt reflect.Type, count int) {
 	rt = t
 	for {
@@ -268,6 +274,9 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 
 	case *reflect.StringType:
 		return tString.gobType(), nil
+
+	case *reflect.InterfaceType:
+		return tInterface.gobType(), nil
 
 	case *reflect.ArrayType:
 		gt, err := getType("", t.Elem())
@@ -330,14 +339,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 // getType returns the Gob type describing the given reflect.Type.
 // typeLock must be held.
 func getType(name string, rt reflect.Type) (gobType, os.Error) {
-	// Flatten the data structure by collapsing out pointers
-	for {
-		pt, ok := rt.(*reflect.PtrType)
-		if !ok {
-			break
-		}
-		rt = pt.Elem()
-	}
+	rt, _ = indirect(rt)
 	typ, present := types[rt]
 	if present {
 		return typ, nil
@@ -351,6 +353,7 @@ func getType(name string, rt reflect.Type) (gobType, os.Error) {
 
 func checkId(want, got typeId) {
 	if want != got {
+		fmt.Fprintf(os.Stderr, "checkId: %d should be %d\n", int(want), int(got))
 		panic("bootstrap type wrong id: " + got.Name() + " " + got.string() + " not " + want.string())
 	}
 }
@@ -443,4 +446,55 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 		panic("getTypeInfo: " + err.String())
 	}
 	return t
+}
+
+var (
+	nameToConcreteType = make(map[string]reflect.Type)
+	concreteTypeToName = make(map[reflect.Type]string)
+)
+
+// RegisterName is like Register but uses the provided name rather than the
+// type's default.
+func RegisterName(name string, value interface{}) {
+	if name == "" {
+		// reserved for nil
+		panic("attempt to register empty name")
+	}
+	rt, _ := indirect(reflect.Typeof(value))
+	// Check for incompatible duplicates.
+	if t, ok := nameToConcreteType[name]; ok && t != rt {
+		panic("gob: registering duplicate types for " + name)
+	}
+	if n, ok := concreteTypeToName[rt]; ok && n != name {
+		panic("gob: registering duplicate names for " + rt.String())
+	}
+	nameToConcreteType[name] = rt
+	concreteTypeToName[rt] = name
+}
+
+// Register records a type, identified by a value for that type, under its
+// internal type name.  That name will identify the concrete type of a value
+// sent or received as an interface variable.  Only types that will be
+// transferred as implementations of interface values need to be registered.
+// Expecting to be used only during initialization, it panics if the mapping
+// between types and names is not a bijection.
+func Register(value interface{}) {
+	// Default to printed representation for unnamed types
+	rt := reflect.Typeof(value)
+	name := rt.String()
+
+	// But for named types (or pointers to them), qualify with import path.
+	// Dereference one pointer looking for a named type.
+	star := ""
+	if rt.Name() == "" {
+		if pt, ok := rt.(*reflect.PtrType); ok {
+			star = "*"
+			rt = pt
+		}
+	}
+	if rt.Name() != "" {
+		name = star + rt.PkgPath() + "." + rt.Name()
+	}
+
+	RegisterName(name, value)
 }
