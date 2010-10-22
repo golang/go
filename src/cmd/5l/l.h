@@ -56,11 +56,9 @@ typedef	struct	Optab	Optab;
 typedef	struct	Oprang	Oprang;
 typedef	uchar	Opcross[32][2][32];
 typedef	struct	Count	Count;
-typedef	struct	Use	Use;
 
 #define	P		((Prog*)0)
 #define	S		((Sym*)0)
-#define	U		((Use*)0)
 #define	TNAME		(cursym?cursym->name:noname)
 
 struct	Adr
@@ -139,9 +137,9 @@ struct	Sym
 	uchar	thumb;	// thumb code
 	uchar	foreign;	// called by arm if thumb, by thumb if arm
 	uchar	fnptr;	// used as fn ptr
-	Use*		use;
 	Sym*	hash;	// in hash table
 	Sym*	next;	// in text or data list
+	Sym*	sub;
 	Sym*	gotype;
 	char*	file;
 	char*	dynimpname;
@@ -191,12 +189,6 @@ struct	Count
 	int32	count;
 	int32	outof;
 };
-struct	Use
-{
-	Prog*	p;	/* use */
-	Prog*	ct;	/* curtext */
-	Use*		link;
-};
 
 enum
 {
@@ -212,6 +204,8 @@ enum
 	SXREF,
 	SFILE,
 	SCONST,
+
+	SSUB	= 1<<8,
 
 	LFROM		= 1<<0,
 	LTO		= 1<<1,

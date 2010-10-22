@@ -393,6 +393,23 @@ codeblk(int32 addr, int32 size)
 			Bprint(&bso, "\n");
 		}
 		p = sym->text;
+		if(p == nil) {
+			Bprint(&bso, "%.6llux\t%-20s | foreign text\n", (vlong)addr, sym->name);
+			n = sym->size;
+			q = sym->p;
+			
+			while(n >= 16) {
+				Bprint(&bso, "%.6ux\t%-20.16I\n",  addr, q);
+				addr += 16;
+				q += 16;
+				n -= 16;
+			}
+			if(n > 0)
+				Bprint(&bso, "%.6ux\t%-20.*I\n", addr, n, q);
+			addr += n;
+			continue;
+		}
+			
 		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)addr, sym->name, p);
 		for(p = p->link; p != P; p = p->link) {
 			if(p->link != P)
@@ -671,7 +688,6 @@ dodata(void)
 		datsize += t;
 	}
 	sect->len = datsize - sect->vaddr;
-	datsize += dynptrsize;
 
 	/* bss */
 	sect = addsection(&segdata, ".bss", 06);
@@ -702,7 +718,7 @@ void
 address(void)
 {
 	Section *s, *text, *data, *rodata, *bss;
-	Sym *sym;
+	Sym *sym, *sub;
 	uvlong va;
 
 	va = INITTEXT;
@@ -723,11 +739,9 @@ address(void)
 	for(s=segdata.sect; s != nil; s=s->next) {
 		s->vaddr = va;
 		va += s->len;
-		if(s == segdata.sect)
-			va += dynptrsize;
 		segdata.len = va - segdata.vaddr;
 	}
-	segdata.filelen = segdata.sect->len + dynptrsize;	// assume .data is first
+	segdata.filelen = segdata.sect->len;	// assume .data is first
 	
 	text = segtext.sect;
 	rodata = segtext.sect->next;
@@ -740,6 +754,8 @@ address(void)
 			sym->value += rodata->vaddr;
 		else
 			sym->value += data->vaddr;
+		for(sub = sym->sub; sub != nil; sub = sub->sub)
+			sub->value += sym->value;
 	}
 	
 	xdefine("text", STEXT, text->vaddr);
