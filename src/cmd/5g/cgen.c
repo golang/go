@@ -170,8 +170,8 @@ cgen(Node *n, Node *res)
 	case OREAL:
 	case OIMAG:
 	case OCMPLX:
-		// TODO compile complex
-		return;
+		fatal("unexpected complex");
+		break;
 
 	// these call bgen to get a bool value
 	case OOROR:
@@ -828,12 +828,6 @@ bgen(Node *n, int true, Prog *to)
 	nl = n->left;
 	nr = n->right;
 
-	// TODO compile complex
-	if(nl != N && nl->type != T && iscomplex[nl->type->etype])
-		return;
-	if(nr != N && nr->type != T && iscomplex[nr->type->etype])
-		return;
-
 	if(n->type == T) {
 		convlit(&n, types[TBOOL]);
 		if(n->type == T)
@@ -954,6 +948,7 @@ bgen(Node *n, int true, Prog *to)
 				goto ret;
 			}				
 			a = brcom(a);
+			true = !true;
 		}
 
 		// make simplest on right
@@ -1011,6 +1006,11 @@ bgen(Node *n, int true, Prog *to)
 			regfree(&n1);
 			regfree(&n3);
 			regfree(&n4);
+			break;
+		}
+
+		if(iscomplex[nl->type->etype]) {
+			complexbool(a, nl, nr, true, to);
 			break;
 		}
 
