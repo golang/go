@@ -439,12 +439,12 @@ olsh_break:
 		p3 = gbranch(ABLO, T);
 
 		// shift == 32
+		p1 = gins(AMOVW, &bh, &al);
+		p1->scond = C_SCOND_EQ;
 		if(bh.type->etype == TINT32)
 			p1 = gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
 		else
-			p1 = gins(AEOR, &al, &al);
-		p1->scond = C_SCOND_EQ;
-		p1 = gins(AMOVW, &bh, &al);
+			p1 = gins(AEOR, &ah, &ah);
 		p1->scond = C_SCOND_EQ;
 		p4 = gbranch(ABEQ, T);
 
