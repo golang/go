@@ -40,8 +40,7 @@ var encodeT = []EncodeT{
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
 	b := new(bytes.Buffer)
-	encState := new(encoderState)
-	encState.b = b
+	encState := newEncoderState(b)
 	for _, tt := range encodeT {
 		b.Reset()
 		encodeUint(encState, tt.x)
@@ -52,7 +51,7 @@ func TestUintCodec(t *testing.T) {
 			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
 		}
 	}
-	decState := newDecodeState(b)
+	decState := newDecodeState(&b)
 	for u := uint64(0); ; u = (u + 1) * 7 {
 		b.Reset()
 		encodeUint(encState, u)
@@ -74,13 +73,12 @@ func TestUintCodec(t *testing.T) {
 
 func verifyInt(i int64, t *testing.T) {
 	var b = new(bytes.Buffer)
-	encState := new(encoderState)
-	encState.b = b
+	encState := newEncoderState(b)
 	encodeInt(encState, i)
 	if encState.err != nil {
 		t.Error("encodeInt:", i, encState.err)
 	}
-	decState := newDecodeState(b)
+	decState := newDecodeState(&b)
 	decState.buf = make([]byte, 8)
 	j := decodeInt(decState)
 	if decState.err != nil {
@@ -119,8 +117,7 @@ var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
 
 func newencoderState(b *bytes.Buffer) *encoderState {
 	b.Reset()
-	state := new(encoderState)
-	state.b = b
+	state := newEncoderState(b)
 	state.fieldnum = -1
 	return state
 }
@@ -335,7 +332,8 @@ func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p un
 }
 
 func newDecodeStateFromData(data []byte) *decodeState {
-	state := newDecodeState(bytes.NewBuffer(data))
+	b := bytes.NewBuffer(data)
+	state := newDecodeState(&b)
 	state.fieldnum = -1
 	return state
 }
@@ -1020,18 +1018,20 @@ func TestIgnoredFields(t *testing.T) {
 }
 
 type Bad0 struct {
-	inter interface{}
-	c     float
+	ch chan int
+	c  float
 }
+
+var nilEncoder *Encoder
 
 func TestInvalidField(t *testing.T) {
 	var bad0 Bad0
-	bad0.inter = 17
+	bad0.ch = make(chan int)
 	b := new(bytes.Buffer)
-	err := encode(b, reflect.NewValue(&bad0))
+	err := nilEncoder.encode(b, reflect.NewValue(&bad0))
 	if err == nil {
 		t.Error("expected error; got none")
-	} else if strings.Index(err.String(), "interface") < 0 {
+	} else if strings.Index(err.String(), "type") < 0 {
 		t.Error("expected type error; got", err)
 	}
 }
@@ -1101,5 +1101,132 @@ func TestIndirectSliceMapArray(t *testing.T) {
 	}
 	if len(****i.m) != 3 || (****i.m)["four"] != 4 || (****i.m)["five"] != 5 || (****i.m)["six"] != 6 {
 		t.Errorf("direct to indirect: ****i.m is %v not %v", ****i.m, d.m)
+	}
+}
+
+// An interface with several implementations
+type Squarer interface {
+	Square() int
+}
+
+type Int int
+
+func (i Int) Square() int {
+	return int(i * i)
+}
+
+type Float float
+
+func (f Float) Square() int {
+	return int(f * f)
+}
+
+type Vector []int
+
+func (v Vector) Square() int {
+	sum := 0
+	for _, x := range v {
+		sum += x * x
+	}
+	return sum
+}
+
+// A struct with interfaces in it.
+type InterfaceItem struct {
+	i             int
+	sq1, sq2, sq3 Squarer
+	f             float
+	sq            []Squarer
+}
+
+// The same struct without interfaces
+type NoInterfaceItem struct {
+	i int
+	f float
+}
+
+func TestInterface(t *testing.T) {
+	iVal := Int(3)
+	fVal := Float(5)
+	// Sending a Vector will require that the receiver define a type in the middle of
+	// receiving the value for item2.
+	vVal := Vector{1, 2, 3}
+	b := new(bytes.Buffer)
+	item1 := &InterfaceItem{1, iVal, fVal, vVal, 11.5, []Squarer{iVal, fVal, nil, vVal}}
+	// Register the types.
+	Register(Int(0))
+	Register(Float(0))
+	Register(Vector{})
+	err := NewEncoder(b).Encode(item1)
+	if err != nil {
+		t.Error("expected no encode error; got", err)
+	}
+
+	item2 := InterfaceItem{}
+	err = NewDecoder(b).Decode(&item2)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if item2.i != item1.i {
+		t.Error("normal int did not decode correctly")
+	}
+	if item2.sq1 == nil || item2.sq1.Square() != iVal.Square() {
+		t.Error("Int did not decode correctly")
+	}
+	if item2.sq2 == nil || item2.sq2.Square() != fVal.Square() {
+		t.Error("Float did not decode correctly")
+	}
+	if item2.sq3 == nil || item2.sq3.Square() != vVal.Square() {
+		t.Error("Vector did not decode correctly")
+	}
+	if item2.f != item1.f {
+		t.Error("normal float did not decode correctly")
+	}
+	// Now check that we received a slice of Squarers correctly, including a nil element
+	if len(item1.sq) != len(item2.sq) {
+		t.Fatalf("[]Squarer length wrong: got %d; expected %d", len(item2.sq), len(item1.sq))
+	}
+	for i, v1 := range item1.sq {
+		v2 := item2.sq[i]
+		if v1 == nil || v2 == nil {
+			if v1 != nil || v2 != nil {
+				t.Errorf("item %d inconsistent nils", i)
+			}
+			continue
+			if v1.Square() != v2.Square() {
+				t.Errorf("item %d inconsistent values: %v %v", v1, v2)
+			}
+		}
+	}
+
+}
+
+func TestIgnoreInterface(t *testing.T) {
+	iVal := Int(3)
+	fVal := Float(5)
+	// Sending a Vector will require that the receiver define a type in the middle of
+	// receiving the value for item2.
+	vVal := Vector{1, 2, 3}
+	b := new(bytes.Buffer)
+	item1 := &InterfaceItem{1, iVal, fVal, vVal, 11.5, nil}
+	// Register the types.
+	Register(Int(0))
+	Register(Float(0))
+	Register(Vector{})
+	err := NewEncoder(b).Encode(item1)
+	if err != nil {
+		t.Error("expected no encode error; got", err)
+	}
+
+	item2 := NoInterfaceItem{}
+	err = NewDecoder(b).Decode(&item2)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if item2.i != item1.i {
+		t.Error("normal int did not decode correctly")
+	}
+	if item2.f != item2.f {
+		t.Error("normal float did not decode correctly")
 	}
 }
