@@ -348,3 +348,11 @@ void
 {
 	write(fd, "\n", 1);
 }
+
+void
+·typestring(Eface e, String s)
+{
+	s = *e.type->string;
+	FLUSH(&s);
+}
+	
