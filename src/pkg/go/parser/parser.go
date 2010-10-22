@@ -961,18 +961,21 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 }
 
 
-func (p *parser) parseElement() ast.Expr {
+func (p *parser) parseElement(keyOk bool) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Element"))
 	}
 
-	x := p.parseExpr()
-	if p.tok == token.COLON {
-		colon := p.pos
-		p.next()
-		x = &ast.KeyValueExpr{x, colon, p.parseExpr()}
+	if p.tok == token.LBRACE {
+		return p.parseLiteralValue(nil)
 	}
 
+	x := p.parseExpr()
+	if keyOk && p.tok == token.COLON {
+		colon := p.pos
+		p.next()
+		x = &ast.KeyValueExpr{x, colon, p.parseElement(false)}
+	}
 	return x
 }
 
@@ -984,7 +987,7 @@ func (p *parser) parseElementList() []ast.Expr {
 
 	var list vector.Vector
 	for p.tok != token.RBRACE && p.tok != token.EOF {
-		list.Push(p.parseElement())
+		list.Push(p.parseElement(true))
 		if p.tok != token.COMMA {
 			break
 		}
@@ -995,9 +998,9 @@ func (p *parser) parseElementList() []ast.Expr {
 }
 
 
-func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
+func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "CompositeLit"))
+		defer un(trace(p, "LiteralValue"))
 	}
 
 	lbrace := p.expect(token.LBRACE)
@@ -1142,7 +1145,7 @@ L:
 			x = p.parseCallOrConversion(p.checkExprOrType(x))
 		case token.LBRACE:
 			if isLiteralType(x) && (p.exprLev >= 0 || !isTypeName(x)) {
-				x = p.parseCompositeLit(x)
+				x = p.parseLiteralValue(x)
 			} else {
 				break L
 			}

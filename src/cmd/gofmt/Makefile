@@ -8,6 +8,7 @@ TARG=gofmt
 GOFILES=\
 	gofmt.go\
 	rewrite.go\
+	simplify.go\
 
 include ../../Make.cmd
 
@@ -15,5 +16,4 @@ test: $(TARG)
 	./test.sh
 
 smoketest: $(TARG)
-	./test.sh "$(GOROOT)"/src/pkg/go/parser/parser.go
-
+	(cd testdata; ./test.sh)

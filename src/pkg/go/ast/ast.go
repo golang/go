@@ -168,7 +168,7 @@ type (
 
 	// A CompositeLit node represents a composite literal.
 	CompositeLit struct {
-		Type   Expr           // literal type
+		Type   Expr           // literal type; or nil
 		Lbrace token.Position // position of "{"
 		Elts   []Expr         // list of composite elements
 		Rbrace token.Position // position of "}"
@@ -318,8 +318,13 @@ type (
 // Pos() implementations for expression/type where the position
 // corresponds to the position of a sub-node.
 //
-func (x *FuncLit) Pos() token.Position        { return x.Type.Pos() }
-func (x *CompositeLit) Pos() token.Position   { return x.Type.Pos() }
+func (x *FuncLit) Pos() token.Position { return x.Type.Pos() }
+func (x *CompositeLit) Pos() token.Position {
+	if x.Type != nil {
+		return x.Type.Pos()
+	}
+	return x.Lbrace
+}
 func (x *SelectorExpr) Pos() token.Position   { return x.X.Pos() }
 func (x *IndexExpr) Pos() token.Position      { return x.X.Pos() }
 func (x *SliceExpr) Pos() token.Position      { return x.X.Pos() }

@@ -277,6 +277,27 @@ func _() {
 
 
 func _() {
+	_ = [][]int{
+		[]int{1},
+		[]int{1, 2},
+		[]int{1, 2, 3},
+	}
+	_ = [][]int{
+		{1},
+		[]int{1, 2},
+		[]int{1, 2, 3},
+	}
+	_ = [][]int{
+		{1},
+		{1, 2},
+		{1, 2, 3},
+	}
+	_ = [][]int{{1}, {1, 2}, {1, 2, 3}}
+}
+
+
+// various multi-line expressions
+func _() {
 	// do not add extra indentation to multi-line string lists
 	_ = "foo" + "bar"
 	_ = "foo" +
