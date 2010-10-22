@@ -27,31 +27,31 @@ type ZipTestFile struct {
 }
 
 var tests = []ZipTest{
-	ZipTest{
+	{
 		Name:    "test.zip",
 		Comment: "This is a zipfile comment.",
 		File: []ZipTestFile{
-			ZipTestFile{
+			{
 				Name:    "test.txt",
 				Content: []byte("This is a test text file.\n"),
 			},
-			ZipTestFile{
+			{
 				Name: "gophercolor16x16.png",
 				File: "gophercolor16x16.png",
 			},
 		},
 	},
-	ZipTest{
+	{
 		Name: "r.zip",
 		File: []ZipTestFile{
-			ZipTestFile{
+			{
 				Name: "r/r.zip",
 				File: "r.zip",
 			},
 		},
 	},
-	ZipTest{Name: "readme.zip"},
-	ZipTest{Name: "readme.notzip", Error: FormatError},
+	{Name: "readme.zip"},
+	{Name: "readme.notzip", Error: FormatError},
 }
 
 func TestReader(t *testing.T) {

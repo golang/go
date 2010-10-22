@@ -29,7 +29,7 @@ type cipherSuite struct {
 }
 
 var cipherSuites = []cipherSuite{
-	cipherSuite{TLS_RSA_WITH_RC4_128_SHA, 20, 16},
+	{TLS_RSA_WITH_RC4_128_SHA, 20, 16},
 }
 
 func (c *Conn) serverHandshake() os.Error {

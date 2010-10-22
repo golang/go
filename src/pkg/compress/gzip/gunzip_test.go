@@ -20,7 +20,7 @@ type gunzipTest struct {
 }
 
 var gunzipTests = []gunzipTest{
-	gunzipTest{ // has 1 empty fixed-huffman block
+	{ // has 1 empty fixed-huffman block
 		"empty.txt",
 		"empty.txt",
 		"",
@@ -32,7 +32,7 @@ var gunzipTests = []gunzipTest{
 		},
 		nil,
 	},
-	gunzipTest{ // has 1 non-empty fixed huffman block
+	{ // has 1 non-empty fixed huffman block
 		"hello.txt",
 		"hello.txt",
 		"hello world\n",
@@ -46,7 +46,7 @@ var gunzipTests = []gunzipTest{
 		},
 		nil,
 	},
-	gunzipTest{ // concatenation
+	{ // concatenation
 		"hello.txt",
 		"hello.txt x2",
 		"hello world\n" +
@@ -67,7 +67,7 @@ var gunzipTests = []gunzipTest{
 		},
 		nil,
 	},
-	gunzipTest{ // has a fixed huffman block with some length-distance pairs
+	{ // has a fixed huffman block with some length-distance pairs
 		"shesells.txt",
 		"shesells.txt",
 		"she sells seashells by the seashore\n",
@@ -83,7 +83,7 @@ var gunzipTests = []gunzipTest{
 		},
 		nil,
 	},
-	gunzipTest{ // has dynamic huffman blocks
+	{ // has dynamic huffman blocks
 		"gettysburg",
 		"gettysburg",
 		"  Four score and seven years ago our fathers brought forth on\n" +
@@ -221,7 +221,7 @@ var gunzipTests = []gunzipTest{
 		},
 		nil,
 	},
-	gunzipTest{ // has 1 non-empty fixed huffman block then garbage
+	{ // has 1 non-empty fixed huffman block then garbage
 		"hello.txt",
 		"hello.txt + garbage",
 		"hello world\n",
@@ -235,7 +235,7 @@ var gunzipTests = []gunzipTest{
 		},
 		HeaderError,
 	},
-	gunzipTest{ // has 1 non-empty fixed huffman block not enough header
+	{ // has 1 non-empty fixed huffman block not enough header
 		"hello.txt",
 		"hello.txt + garbage",
 		"hello world\n",
@@ -249,7 +249,7 @@ var gunzipTests = []gunzipTest{
 		},
 		io.ErrUnexpectedEOF,
 	},
-	gunzipTest{ // has 1 non-empty fixed huffman block but corrupt checksum
+	{ // has 1 non-empty fixed huffman block but corrupt checksum
 		"hello.txt",
 		"hello.txt + corrupt checksum",
 		"hello world\n",
@@ -263,7 +263,7 @@ var gunzipTests = []gunzipTest{
 		},
 		ChecksumError,
 	},
-	gunzipTest{ // has 1 non-empty fixed huffman block but corrupt size
+	{ // has 1 non-empty fixed huffman block but corrupt size
 		"hello.txt",
 		"hello.txt + corrupt size",
 		"hello world\n",

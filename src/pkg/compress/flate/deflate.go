@@ -53,19 +53,19 @@ type compressionLevel struct {
 }
 
 var levels = []compressionLevel{
-	compressionLevel{}, // 0
+	{}, // 0
 	// For levels 1-3 we don't bother trying with lazy matches
-	compressionLevel{3, 0, 8, 4, 4},
-	compressionLevel{3, 0, 16, 8, 5},
-	compressionLevel{3, 0, 32, 32, 6},
+	{3, 0, 8, 4, 4},
+	{3, 0, 16, 8, 5},
+	{3, 0, 32, 32, 6},
 	// Levels 4-9 use increasingly more lazy matching
 	// and increasingly stringent conditions for "good enough".
-	compressionLevel{4, 4, 16, 16, math.MaxInt32},
-	compressionLevel{8, 16, 32, 32, math.MaxInt32},
-	compressionLevel{8, 16, 128, 128, math.MaxInt32},
-	compressionLevel{8, 32, 128, 256, math.MaxInt32},
-	compressionLevel{32, 128, 258, 1024, math.MaxInt32},
-	compressionLevel{32, 258, 258, 4096, math.MaxInt32},
+	{4, 4, 16, 16, math.MaxInt32},
+	{8, 16, 32, 32, math.MaxInt32},
+	{8, 16, 128, 128, math.MaxInt32},
+	{8, 32, 128, 256, math.MaxInt32},
+	{32, 128, 258, 1024, math.MaxInt32},
+	{32, 258, 258, 4096, math.MaxInt32},
 }
 
 func (sw *syncPipeWriter) Close() os.Error {

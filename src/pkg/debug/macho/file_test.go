@@ -17,7 +17,7 @@ type fileTest struct {
 }
 
 var fileTests = []fileTest{
-	fileTest{
+	{
 		"testdata/gcc-386-darwin-exec",
 		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0xc, 0x3c0, 0x85},
 		[]*SegmentHeader{
@@ -42,7 +42,7 @@ var fileTests = []fileTest{
 			&SectionHeader{"__jump_table", "__IMPORT", 0x3000, 0xa, 0x2000, 0x6, 0x0, 0x0, 0x4000008},
 		},
 	},
-	fileTest{
+	{
 		"testdata/gcc-amd64-darwin-exec",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0xb, 0x568, 0x85},
 		[]*SegmentHeader{
@@ -69,7 +69,7 @@ var fileTests = []fileTest{
 			&SectionHeader{"__la_symbol_ptr", "__DATA", 0x100001058, 0x10, 0x1058, 0x2, 0x0, 0x0, 0x7},
 		},
 	},
-	fileTest{
+	{
 		"testdata/gcc-amd64-darwin-exec-debug",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0xa, 0x4, 0x5a0, 0},
 		[]*SegmentHeader{

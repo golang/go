@@ -18,16 +18,16 @@ type int64Test struct {
 }
 
 var int64TestData = []int64Test{
-	int64Test{[]byte{0x00}, true, 0},
-	int64Test{[]byte{0x7f}, true, 127},
-	int64Test{[]byte{0x00, 0x80}, true, 128},
-	int64Test{[]byte{0x01, 0x00}, true, 256},
-	int64Test{[]byte{0x80}, true, -128},
-	int64Test{[]byte{0xff, 0x7f}, true, -129},
-	int64Test{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true, -1},
-	int64Test{[]byte{0xff}, true, -1},
-	int64Test{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, true, -9223372036854775808},
-	int64Test{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false, 0},
+	{[]byte{0x00}, true, 0},
+	{[]byte{0x7f}, true, 127},
+	{[]byte{0x00, 0x80}, true, 128},
+	{[]byte{0x01, 0x00}, true, 256},
+	{[]byte{0x80}, true, -128},
+	{[]byte{0xff, 0x7f}, true, -129},
+	{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true, -1},
+	{[]byte{0xff}, true, -1},
+	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, true, -9223372036854775808},
+	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false, 0},
 }
 
 func TestParseInt64(t *testing.T) {
@@ -50,12 +50,12 @@ type bitStringTest struct {
 }
 
 var bitStringTestData = []bitStringTest{
-	bitStringTest{[]byte{}, false, []byte{}, 0},
-	bitStringTest{[]byte{0x00}, true, []byte{}, 0},
-	bitStringTest{[]byte{0x07, 0x00}, true, []byte{0x00}, 1},
-	bitStringTest{[]byte{0x07, 0x01}, false, []byte{}, 0},
-	bitStringTest{[]byte{0x07, 0x40}, false, []byte{}, 0},
-	bitStringTest{[]byte{0x08, 0x00}, false, []byte{}, 0},
+	{[]byte{}, false, []byte{}, 0},
+	{[]byte{0x00}, true, []byte{}, 0},
+	{[]byte{0x07, 0x00}, true, []byte{0x00}, 1},
+	{[]byte{0x07, 0x01}, false, []byte{}, 0},
+	{[]byte{0x07, 0x40}, false, []byte{}, 0},
+	{[]byte{0x08, 0x00}, false, []byte{}, 0},
 }
 
 func TestBitString(t *testing.T) {
@@ -95,12 +95,12 @@ type bitStringRightAlignTest struct {
 }
 
 var bitStringRightAlignTests = []bitStringRightAlignTest{
-	bitStringRightAlignTest{[]byte{0x80}, 1, []byte{0x01}},
-	bitStringRightAlignTest{[]byte{0x80, 0x80}, 9, []byte{0x01, 0x01}},
-	bitStringRightAlignTest{[]byte{}, 0, []byte{}},
-	bitStringRightAlignTest{[]byte{0xce}, 8, []byte{0xce}},
-	bitStringRightAlignTest{[]byte{0xce, 0x47}, 16, []byte{0xce, 0x47}},
-	bitStringRightAlignTest{[]byte{0x34, 0x50}, 12, []byte{0x03, 0x45}},
+	{[]byte{0x80}, 1, []byte{0x01}},
+	{[]byte{0x80, 0x80}, 9, []byte{0x01, 0x01}},
+	{[]byte{}, 0, []byte{}},
+	{[]byte{0xce}, 8, []byte{0xce}},
+	{[]byte{0xce, 0x47}, 16, []byte{0xce, 0x47}},
+	{[]byte{0x34, 0x50}, 12, []byte{0x03, 0x45}},
 }
 
 func TestBitStringRightAlign(t *testing.T) {
@@ -120,11 +120,11 @@ type objectIdentifierTest struct {
 }
 
 var objectIdentifierTestData = []objectIdentifierTest{
-	objectIdentifierTest{[]byte{}, false, []int{}},
-	objectIdentifierTest{[]byte{85}, true, []int{2, 5}},
-	objectIdentifierTest{[]byte{85, 0x02}, true, []int{2, 5, 2}},
-	objectIdentifierTest{[]byte{85, 0x02, 0xc0, 0x00}, true, []int{2, 5, 2, 0x2000}},
-	objectIdentifierTest{[]byte{85, 0x02, 0xc0, 0x80, 0x80, 0x80, 0x80}, false, []int{}},
+	{[]byte{}, false, []int{}},
+	{[]byte{85}, true, []int{2, 5}},
+	{[]byte{85, 0x02}, true, []int{2, 5, 2}},
+	{[]byte{85, 0x02, 0xc0, 0x00}, true, []int{2, 5, 2, 0x2000}},
+	{[]byte{85, 0x02, 0xc0, 0x80, 0x80, 0x80, 0x80}, false, []int{}},
 }
 
 func TestObjectIdentifier(t *testing.T) {
@@ -148,18 +148,18 @@ type timeTest struct {
 }
 
 var utcTestData = []timeTest{
-	timeTest{"910506164540-0700", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, -7 * 60 * 60, ""}},
-	timeTest{"910506164540+0730", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, 7*60*60 + 30*60, ""}},
-	timeTest{"910506234540Z", true, &time.Time{1991, 05, 06, 23, 45, 40, 0, 0, "UTC"}},
-	timeTest{"9105062345Z", true, &time.Time{1991, 05, 06, 23, 45, 0, 0, 0, "UTC"}},
-	timeTest{"a10506234540Z", false, nil},
-	timeTest{"91a506234540Z", false, nil},
-	timeTest{"9105a6234540Z", false, nil},
-	timeTest{"910506a34540Z", false, nil},
-	timeTest{"910506334a40Z", false, nil},
-	timeTest{"91050633444aZ", false, nil},
-	timeTest{"910506334461Z", false, nil},
-	timeTest{"910506334400Za", false, nil},
+	{"910506164540-0700", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, -7 * 60 * 60, ""}},
+	{"910506164540+0730", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, 7*60*60 + 30*60, ""}},
+	{"910506234540Z", true, &time.Time{1991, 05, 06, 23, 45, 40, 0, 0, "UTC"}},
+	{"9105062345Z", true, &time.Time{1991, 05, 06, 23, 45, 0, 0, 0, "UTC"}},
+	{"a10506234540Z", false, nil},
+	{"91a506234540Z", false, nil},
+	{"9105a6234540Z", false, nil},
+	{"910506a34540Z", false, nil},
+	{"910506334a40Z", false, nil},
+	{"91050633444aZ", false, nil},
+	{"910506334461Z", false, nil},
+	{"910506334400Za", false, nil},
 }
 
 func TestUTCTime(t *testing.T) {
@@ -177,10 +177,10 @@ func TestUTCTime(t *testing.T) {
 }
 
 var generalizedTimeTestData = []timeTest{
-	timeTest{"20100102030405Z", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 0, "UTC"}},
-	timeTest{"20100102030405", false, nil},
-	timeTest{"20100102030405+0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 6*60*60 + 7*60, ""}},
-	timeTest{"20100102030405-0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, -6*60*60 - 7*60, ""}},
+	{"20100102030405Z", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 0, "UTC"}},
+	{"20100102030405", false, nil},
+	{"20100102030405+0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 6*60*60 + 7*60, ""}},
+	{"20100102030405-0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, -6*60*60 - 7*60, ""}},
 }
 
 func TestGeneralizedTime(t *testing.T) {
@@ -204,18 +204,18 @@ type tagAndLengthTest struct {
 }
 
 var tagAndLengthData = []tagAndLengthTest{
-	tagAndLengthTest{[]byte{0x80, 0x01}, true, tagAndLength{2, 0, 1, false}},
-	tagAndLengthTest{[]byte{0xa0, 0x01}, true, tagAndLength{2, 0, 1, true}},
-	tagAndLengthTest{[]byte{0x02, 0x00}, true, tagAndLength{0, 2, 0, false}},
-	tagAndLengthTest{[]byte{0xfe, 0x00}, true, tagAndLength{3, 30, 0, true}},
-	tagAndLengthTest{[]byte{0x1f, 0x01, 0x00}, true, tagAndLength{0, 1, 0, false}},
-	tagAndLengthTest{[]byte{0x1f, 0x81, 0x00, 0x00}, true, tagAndLength{0, 128, 0, false}},
-	tagAndLengthTest{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, tagAndLength{0, 0x4001, 0, false}},
-	tagAndLengthTest{[]byte{0x00, 0x81, 0x01}, true, tagAndLength{0, 0, 1, false}},
-	tagAndLengthTest{[]byte{0x00, 0x82, 0x01, 0x00}, true, tagAndLength{0, 0, 256, false}},
-	tagAndLengthTest{[]byte{0x00, 0x83, 0x01, 0x00}, false, tagAndLength{}},
-	tagAndLengthTest{[]byte{0x1f, 0x85}, false, tagAndLength{}},
-	tagAndLengthTest{[]byte{0x30, 0x80}, false, tagAndLength{}},
+	{[]byte{0x80, 0x01}, true, tagAndLength{2, 0, 1, false}},
+	{[]byte{0xa0, 0x01}, true, tagAndLength{2, 0, 1, true}},
+	{[]byte{0x02, 0x00}, true, tagAndLength{0, 2, 0, false}},
+	{[]byte{0xfe, 0x00}, true, tagAndLength{3, 30, 0, true}},
+	{[]byte{0x1f, 0x01, 0x00}, true, tagAndLength{0, 1, 0, false}},
+	{[]byte{0x1f, 0x81, 0x00, 0x00}, true, tagAndLength{0, 128, 0, false}},
+	{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, tagAndLength{0, 0x4001, 0, false}},
+	{[]byte{0x00, 0x81, 0x01}, true, tagAndLength{0, 0, 1, false}},
+	{[]byte{0x00, 0x82, 0x01, 0x00}, true, tagAndLength{0, 0, 256, false}},
+	{[]byte{0x00, 0x83, 0x01, 0x00}, false, tagAndLength{}},
+	{[]byte{0x1f, 0x85}, false, tagAndLength{}},
+	{[]byte{0x30, 0x80}, false, tagAndLength{}},
 }
 
 func TestParseTagAndLength(t *testing.T) {
@@ -244,17 +244,17 @@ func newString(s string) *string { return &s }
 func newBool(b bool) *bool { return &b }
 
 var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
-	parseFieldParametersTest{"", fieldParameters{}},
-	parseFieldParametersTest{"ia5", fieldParameters{stringType: tagIA5String}},
-	parseFieldParametersTest{"printable", fieldParameters{stringType: tagPrintableString}},
-	parseFieldParametersTest{"optional", fieldParameters{optional: true}},
-	parseFieldParametersTest{"explicit", fieldParameters{explicit: true, tag: new(int)}},
-	parseFieldParametersTest{"optional,explicit", fieldParameters{optional: true, explicit: true, tag: new(int)}},
-	parseFieldParametersTest{"default:42", fieldParameters{defaultValue: newInt64(42)}},
-	parseFieldParametersTest{"tag:17", fieldParameters{tag: newInt(17)}},
-	parseFieldParametersTest{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
-	parseFieldParametersTest{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, newInt64(42), newInt(17), 0, false}},
-	parseFieldParametersTest{"set", fieldParameters{set: true}},
+	{"", fieldParameters{}},
+	{"ia5", fieldParameters{stringType: tagIA5String}},
+	{"printable", fieldParameters{stringType: tagPrintableString}},
+	{"optional", fieldParameters{optional: true}},
+	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
+	{"optional,explicit", fieldParameters{optional: true, explicit: true, tag: new(int)}},
+	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
+	{"tag:17", fieldParameters{tag: newInt(17)}},
+	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
+	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, newInt64(42), newInt(17), 0, false}},
+	{"set", fieldParameters{set: true}},
 }
 
 func TestParseFieldParameters(t *testing.T) {
@@ -290,20 +290,20 @@ type TestElementsAfterString struct {
 }
 
 var unmarshalTestData []unmarshalTest = []unmarshalTest{
-	unmarshalTest{[]byte{0x02, 0x01, 0x42}, newInt(0x42)},
-	unmarshalTest{[]byte{0x30, 0x08, 0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d}, &TestObjectIdentifierStruct{[]int{1, 2, 840, 113549}}},
-	unmarshalTest{[]byte{0x03, 0x04, 0x06, 0x6e, 0x5d, 0xc0}, &BitString{[]byte{110, 93, 192}, 18}},
-	unmarshalTest{[]byte{0x30, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &[]int{1, 2, 3}},
-	unmarshalTest{[]byte{0x02, 0x01, 0x10}, newInt(16)},
-	unmarshalTest{[]byte{0x13, 0x04, 't', 'e', 's', 't'}, newString("test")},
-	unmarshalTest{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, newString("test")},
-	unmarshalTest{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte("test"), []byte("\x16\x04test")}},
-	unmarshalTest{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}, []byte{4, 4, 1, 2, 3, 4}}},
-	unmarshalTest{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
-	unmarshalTest{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1, 2}},
-	unmarshalTest{[]byte{0x01, 0x01, 0x00}, newBool(false)},
-	unmarshalTest{[]byte{0x01, 0x01, 0x01}, newBool(true)},
-	unmarshalTest{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
+	{[]byte{0x02, 0x01, 0x42}, newInt(0x42)},
+	{[]byte{0x30, 0x08, 0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d}, &TestObjectIdentifierStruct{[]int{1, 2, 840, 113549}}},
+	{[]byte{0x03, 0x04, 0x06, 0x6e, 0x5d, 0xc0}, &BitString{[]byte{110, 93, 192}, 18}},
+	{[]byte{0x30, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &[]int{1, 2, 3}},
+	{[]byte{0x02, 0x01, 0x10}, newInt(16)},
+	{[]byte{0x13, 0x04, 't', 'e', 's', 't'}, newString("test")},
+	{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, newString("test")},
+	{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte("test"), []byte("\x16\x04test")}},
+	{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}, []byte{4, 4, 1, 2, 3, 4}}},
+	{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
+	{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1, 2}},
+	{[]byte{0x01, 0x01, 0x00}, newBool(false)},
+	{[]byte{0x01, 0x01, 0x01}, newBool(true)},
+	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
 }
 
 func TestUnmarshal(t *testing.T) {

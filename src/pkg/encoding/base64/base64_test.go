@@ -17,28 +17,28 @@ type testpair struct {
 
 var pairs = []testpair{
 	// RFC 3548 examples
-	testpair{"\x14\xfb\x9c\x03\xd9\x7e", "FPucA9l+"},
-	testpair{"\x14\xfb\x9c\x03\xd9", "FPucA9k="},
-	testpair{"\x14\xfb\x9c\x03", "FPucAw=="},
+	{"\x14\xfb\x9c\x03\xd9\x7e", "FPucA9l+"},
+	{"\x14\xfb\x9c\x03\xd9", "FPucA9k="},
+	{"\x14\xfb\x9c\x03", "FPucAw=="},
 
 	// RFC 4648 examples
-	testpair{"", ""},
-	testpair{"f", "Zg=="},
-	testpair{"fo", "Zm8="},
-	testpair{"foo", "Zm9v"},
-	testpair{"foob", "Zm9vYg=="},
-	testpair{"fooba", "Zm9vYmE="},
-	testpair{"foobar", "Zm9vYmFy"},
+	{"", ""},
+	{"f", "Zg=="},
+	{"fo", "Zm8="},
+	{"foo", "Zm9v"},
+	{"foob", "Zm9vYg=="},
+	{"fooba", "Zm9vYmE="},
+	{"foobar", "Zm9vYmFy"},
 
 	// Wikipedia examples
-	testpair{"sure.", "c3VyZS4="},
-	testpair{"sure", "c3VyZQ=="},
-	testpair{"sur", "c3Vy"},
-	testpair{"su", "c3U="},
-	testpair{"leasure.", "bGVhc3VyZS4="},
-	testpair{"easure.", "ZWFzdXJlLg=="},
-	testpair{"asure.", "YXN1cmUu"},
-	testpair{"sure.", "c3VyZS4="},
+	{"sure.", "c3VyZS4="},
+	{"sure", "c3VyZQ=="},
+	{"sur", "c3Vy"},
+	{"su", "c3U="},
+	{"leasure.", "bGVhc3VyZS4="},
+	{"easure.", "ZWFzdXJlLg=="},
+	{"asure.", "YXN1cmUu"},
+	{"sure.", "c3VyZS4="},
 }
 
 var bigtest = testpair{
@@ -142,12 +142,12 @@ func TestDecodeCorrupt(t *testing.T) {
 		p int
 	}
 	examples := []corrupt{
-		corrupt{"!!!!", 0},
-		corrupt{"x===", 1},
-		corrupt{"AA=A", 2},
-		corrupt{"AAA=AAAA", 3},
-		corrupt{"AAAAA", 4},
-		corrupt{"AAAAAA", 4},
+		{"!!!!", 0},
+		{"x===", 1},
+		{"AA=A", 2},
+		{"AAA=AAAA", 3},
+		{"AAAAA", 4},
+		{"AAAAAA", 4},
 	}
 
 	for _, e := range examples {

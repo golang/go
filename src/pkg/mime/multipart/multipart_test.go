@@ -60,13 +60,13 @@ func TestFormName(t *testing.T) {
 	p := new(Part)
 	p.Header = make(map[string]string)
 	tests := [...][2]string{
-		[2]string{`form-data; name="foo"`, "foo"},
-		[2]string{` form-data ; name=foo`, "foo"},
-		[2]string{`FORM-DATA;name="foo"`, "foo"},
-		[2]string{` FORM-DATA ; name="foo"`, "foo"},
-		[2]string{` FORM-DATA ; name="foo"`, "foo"},
-		[2]string{` FORM-DATA ; name=foo`, "foo"},
-		[2]string{` FORM-DATA ; filename="foo.txt"; name=foo; baz=quux`, "foo"},
+		{`form-data; name="foo"`, "foo"},
+		{` form-data ; name=foo`, "foo"},
+		{`FORM-DATA;name="foo"`, "foo"},
+		{` FORM-DATA ; name="foo"`, "foo"},
+		{` FORM-DATA ; name="foo"`, "foo"},
+		{` FORM-DATA ; name=foo`, "foo"},
+		{` FORM-DATA ; filename="foo.txt"; name=foo; baz=quux`, "foo"},
 	}
 	for _, test := range tests {
 		p.Header["Content-Disposition"] = test[0]

@@ -299,17 +299,17 @@ type Resrv struct {
 }
 
 var resrv = []Resrv{
-	Resrv{"binary", BINARY},
-	Resrv{"left", LEFT},
-	Resrv{"nonassoc", BINARY},
-	Resrv{"prec", PREC},
-	Resrv{"right", RIGHT},
-	Resrv{"start", START},
-	Resrv{"term", TERM},
-	Resrv{"token", TERM},
-	Resrv{"type", TYPEDEF},
-	Resrv{"union", UNION},
-	Resrv{"struct", UNION},
+	{"binary", BINARY},
+	{"left", LEFT},
+	{"nonassoc", BINARY},
+	{"prec", PREC},
+	{"right", RIGHT},
+	{"start", START},
+	{"term", TERM},
+	{"token", TERM},
+	{"type", TYPEDEF},
+	{"union", UNION},
+	{"struct", UNION},
 }
 
 var zznewstate = 0

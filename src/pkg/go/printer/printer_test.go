@@ -112,14 +112,14 @@ type entry struct {
 
 // Use gotest -update to create/update the respective golden files.
 var data = []entry{
-	entry{"empty.input", "empty.golden", 0},
-	entry{"comments.input", "comments.golden", 0},
-	entry{"comments.input", "comments.x", export},
-	entry{"linebreaks.input", "linebreaks.golden", 0},
-	entry{"expressions.input", "expressions.golden", 0},
-	entry{"expressions.input", "expressions.raw", rawFormat},
-	entry{"declarations.input", "declarations.golden", 0},
-	entry{"statements.input", "statements.golden", 0},
+	{"empty.input", "empty.golden", 0},
+	{"comments.input", "comments.golden", 0},
+	{"comments.input", "comments.x", export},
+	{"linebreaks.input", "linebreaks.golden", 0},
+	{"expressions.input", "expressions.golden", 0},
+	{"expressions.input", "expressions.raw", rawFormat},
+	{"declarations.input", "declarations.golden", 0},
+	{"statements.input", "statements.golden", 0},
 }
 
 

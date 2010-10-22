@@ -20,7 +20,7 @@ type reqTest struct {
 
 var reqTests = []reqTest{
 	// Baseline test; All Request fields included for template use
-	reqTest{
+	{
 		"GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
 			"Host: www.techcrunch.com\r\n" +
 			"User-Agent: Fake\r\n" +

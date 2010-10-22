@@ -10,10 +10,10 @@ import (
 
 func TestConsumeToken(t *testing.T) {
 	tests := [...][3]string{
-		[3]string{"foo bar", "foo", " bar"},
-		[3]string{"bar", "bar", ""},
-		[3]string{"", "", ""},
-		[3]string{" foo", "", " foo"},
+		{"foo bar", "foo", " bar"},
+		{"bar", "bar", ""},
+		{"", "", ""},
+		{" foo", "", " foo"},
 	}
 	for _, test := range tests {
 		token, rest := consumeToken(test[0])
@@ -31,14 +31,14 @@ func TestConsumeToken(t *testing.T) {
 
 func TestConsumeValue(t *testing.T) {
 	tests := [...][3]string{
-		[3]string{"foo bar", "foo", " bar"},
-		[3]string{"bar", "bar", ""},
-		[3]string{" bar ", "", " bar "},
-		[3]string{`"My value"end`, "My value", "end"},
-		[3]string{`"My value" end`, "My value", " end"},
-		[3]string{`"\\" rest`, "\\", " rest"},
-		[3]string{`"My \" value"end`, "My \" value", "end"},
-		[3]string{`"\" rest`, "", `"\" rest`},
+		{"foo bar", "foo", " bar"},
+		{"bar", "bar", ""},
+		{" bar ", "", " bar "},
+		{`"My value"end`, "My value", "end"},
+		{`"My value" end`, "My value", " end"},
+		{`"\\" rest`, "\\", " rest"},
+		{`"My \" value"end`, "My \" value", "end"},
+		{`"\" rest`, "", `"\" rest`},
 	}
 	for _, test := range tests {
 		value, rest := consumeValue(test[0])
@@ -56,16 +56,16 @@ func TestConsumeValue(t *testing.T) {
 
 func TestConsumeMediaParam(t *testing.T) {
 	tests := [...][4]string{
-		[4]string{" ; foo=bar", "foo", "bar", ""},
-		[4]string{"; foo=bar", "foo", "bar", ""},
-		[4]string{";foo=bar", "foo", "bar", ""},
-		[4]string{`;foo="bar"`, "foo", "bar", ""},
-		[4]string{`;foo="bar"; `, "foo", "bar", "; "},
-		[4]string{`;foo="bar"; foo=baz`, "foo", "bar", "; foo=baz"},
-		[4]string{` ; boundary=----CUT;`, "boundary", "----CUT", ";"},
-		[4]string{` ; key=value;  blah="value";name="foo" `, "key", "value", `;  blah="value";name="foo" `},
-		[4]string{`;  blah="value";name="foo" `, "blah", "value", `;name="foo" `},
-		[4]string{`;name="foo" `, "name", "foo", ` `},
+		{" ; foo=bar", "foo", "bar", ""},
+		{"; foo=bar", "foo", "bar", ""},
+		{";foo=bar", "foo", "bar", ""},
+		{`;foo="bar"`, "foo", "bar", ""},
+		{`;foo="bar"; `, "foo", "bar", "; "},
+		{`;foo="bar"; foo=baz`, "foo", "bar", "; foo=baz"},
+		{` ; boundary=----CUT;`, "boundary", "----CUT", ";"},
+		{` ; key=value;  blah="value";name="foo" `, "key", "value", `;  blah="value";name="foo" `},
+		{`;  blah="value";name="foo" `, "blah", "value", `;name="foo" `},
+		{`;name="foo" `, "name", "foo", ` `},
 	}
 	for _, test := range tests {
 		param, value, rest := consumeMediaParam(test[0])

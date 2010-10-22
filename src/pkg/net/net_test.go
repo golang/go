@@ -20,35 +20,35 @@ type DialErrorTest struct {
 }
 
 var dialErrorTests = []DialErrorTest{
-	DialErrorTest{
+	{
 		"datakit", "", "mh/astro/r70",
 		"dial datakit mh/astro/r70: unknown network datakit",
 	},
-	DialErrorTest{
+	{
 		"tcp", "", "127.0.0.1:☺",
 		"dial tcp 127.0.0.1:☺: unknown port tcp/☺",
 	},
-	DialErrorTest{
+	{
 		"tcp", "", "no-such-name.google.com.:80",
 		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no (.*)",
 	},
-	DialErrorTest{
+	{
 		"tcp", "", "no-such-name.no-such-top-level-domain.:80",
 		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.( on .*)?: no (.*)",
 	},
-	DialErrorTest{
+	{
 		"tcp", "", "no-such-name:80",
 		`dial tcp no-such-name:80: lookup no-such-name\.(.*\.)?( on .*)?: no (.*)`,
 	},
-	DialErrorTest{
+	{
 		"tcp", "", "mh/astro/r70:http",
 		"dial tcp mh/astro/r70:http: lookup mh/astro/r70: invalid domain name",
 	},
-	DialErrorTest{
+	{
 		"unix", "", "/etc/file-not-found",
 		"dial unix /etc/file-not-found: no such file or directory",
 	},
-	DialErrorTest{
+	{
 		"unix", "", "/etc/",
 		"dial unix /etc/: (permission denied|socket operation on non-socket|connection refused)",
 	},

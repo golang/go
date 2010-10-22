@@ -59,16 +59,16 @@ type matchHostnamesTest struct {
 }
 
 var matchHostnamesTests = []matchHostnamesTest{
-	matchHostnamesTest{"a.b.c", "a.b.c", true},
-	matchHostnamesTest{"a.b.c", "b.b.c", false},
-	matchHostnamesTest{"", "b.b.c", false},
-	matchHostnamesTest{"a.b.c", "", false},
-	matchHostnamesTest{"example.com", "example.com", true},
-	matchHostnamesTest{"example.com", "www.example.com", false},
-	matchHostnamesTest{"*.example.com", "www.example.com", true},
-	matchHostnamesTest{"*.example.com", "xyz.www.example.com", false},
-	matchHostnamesTest{"*.*.example.com", "xyz.www.example.com", true},
-	matchHostnamesTest{"*.www.*.com", "xyz.www.example.com", true},
+	{"a.b.c", "a.b.c", true},
+	{"a.b.c", "b.b.c", false},
+	{"", "b.b.c", false},
+	{"a.b.c", "", false},
+	{"example.com", "example.com", true},
+	{"example.com", "www.example.com", false},
+	{"*.example.com", "www.example.com", true},
+	{"*.example.com", "xyz.www.example.com", false},
+	{"*.*.example.com", "xyz.www.example.com", true},
+	{"*.www.*.com", "xyz.www.example.com", true},
 }
 
 func TestMatchHostnames(t *testing.T) {

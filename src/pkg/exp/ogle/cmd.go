@@ -84,8 +84,8 @@ type cmd struct {
 }
 
 var cmds = []cmd{
-	cmd{"load", cmdLoad},
-	cmd{"bt", cmdBt},
+	{"load", cmdLoad},
+	{"bt", cmdBt},
 }
 
 // getCmd attempts to parse an input line as a registered command.  If

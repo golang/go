@@ -109,210 +109,210 @@ type entry struct {
 
 
 var tests = []entry{
-	entry{
+	{
 		"1a",
 		8, 0, 1, '.', 0,
 		"",
 		"",
 	},
 
-	entry{
+	{
 		"1a debug",
 		8, 0, 1, '.', Debug,
 		"",
 		"",
 	},
 
-	entry{
+	{
 		"1b esc stripped",
 		8, 0, 1, '.', StripEscape,
 		"\xff\xff",
 		"",
 	},
 
-	entry{
+	{
 		"1b esc",
 		8, 0, 1, '.', 0,
 		"\xff\xff",
 		"\xff\xff",
 	},
 
-	entry{
+	{
 		"1c esc stripped",
 		8, 0, 1, '.', StripEscape,
 		"\xff\t\xff",
 		"\t",
 	},
 
-	entry{
+	{
 		"1c esc",
 		8, 0, 1, '.', 0,
 		"\xff\t\xff",
 		"\xff\t\xff",
 	},
 
-	entry{
+	{
 		"1d esc stripped",
 		8, 0, 1, '.', StripEscape,
 		"\xff\"foo\t\n\tbar\"\xff",
 		"\"foo\t\n\tbar\"",
 	},
 
-	entry{
+	{
 		"1d esc",
 		8, 0, 1, '.', 0,
 		"\xff\"foo\t\n\tbar\"\xff",
 		"\xff\"foo\t\n\tbar\"\xff",
 	},
 
-	entry{
+	{
 		"1e esc stripped",
 		8, 0, 1, '.', StripEscape,
 		"abc\xff\tdef", // unterminated escape
 		"abc\tdef",
 	},
 
-	entry{
+	{
 		"1e esc",
 		8, 0, 1, '.', 0,
 		"abc\xff\tdef", // unterminated escape
 		"abc\xff\tdef",
 	},
 
-	entry{
+	{
 		"2",
 		8, 0, 1, '.', 0,
 		"\n\n\n",
 		"\n\n\n",
 	},
 
-	entry{
+	{
 		"3",
 		8, 0, 1, '.', 0,
 		"a\nb\nc",
 		"a\nb\nc",
 	},
 
-	entry{
+	{
 		"4a",
 		8, 0, 1, '.', 0,
 		"\t", // '\t' terminates an empty cell on last line - nothing to print
 		"",
 	},
 
-	entry{
+	{
 		"4b",
 		8, 0, 1, '.', AlignRight,
 		"\t", // '\t' terminates an empty cell on last line - nothing to print
 		"",
 	},
 
-	entry{
+	{
 		"5",
 		8, 0, 1, '.', 0,
 		"*\t*",
 		"*.......*",
 	},
 
-	entry{
+	{
 		"5b",
 		8, 0, 1, '.', 0,
 		"*\t*\n",
 		"*.......*\n",
 	},
 
-	entry{
+	{
 		"5c",
 		8, 0, 1, '.', 0,
 		"*\t*\t",
 		"*.......*",
 	},
 
-	entry{
+	{
 		"5c debug",
 		8, 0, 1, '.', Debug,
 		"*\t*\t",
 		"*.......|*",
 	},
 
-	entry{
+	{
 		"5d",
 		8, 0, 1, '.', AlignRight,
 		"*\t*\t",
 		".......**",
 	},
 
-	entry{
+	{
 		"6",
 		8, 0, 1, '.', 0,
 		"\t\n",
 		"........\n",
 	},
 
-	entry{
+	{
 		"7a",
 		8, 0, 1, '.', 0,
 		"a) foo",
 		"a) foo",
 	},
 
-	entry{
+	{
 		"7b",
 		8, 0, 1, ' ', 0,
 		"b) foo\tbar",
 		"b) foo  bar",
 	},
 
-	entry{
+	{
 		"7c",
 		8, 0, 1, '.', 0,
 		"c) foo\tbar\t",
 		"c) foo..bar",
 	},
 
-	entry{
+	{
 		"7d",
 		8, 0, 1, '.', 0,
 		"d) foo\tbar\n",
 		"d) foo..bar\n",
 	},
 
-	entry{
+	{
 		"7e",
 		8, 0, 1, '.', 0,
 		"e) foo\tbar\t\n",
 		"e) foo..bar.....\n",
 	},
 
-	entry{
+	{
 		"7f",
 		8, 0, 1, '.', FilterHTML,
 		"f) f&lt;o\t<b>bar</b>\t\n",
 		"f) f&lt;o..<b>bar</b>.....\n",
 	},
 
-	entry{
+	{
 		"7g",
 		8, 0, 1, '.', FilterHTML,
 		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
 		"g) f&lt;o..<b>bar</b>..... non-terminated entity &amp",
 	},
 
-	entry{
+	{
 		"7g debug",
 		8, 0, 1, '.', FilterHTML | Debug,
 		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
 		"g) f&lt;o..|<b>bar</b>.....| non-terminated entity &amp",
 	},
 
-	entry{
+	{
 		"8",
 		8, 0, 1, '*', 0,
 		"Hello, world!\n",
 		"Hello, world!\n",
 	},
 
-	entry{
+	{
 		"9a",
 		1, 0, 0, '.', 0,
 		"1\t2\t3\t4\n" +
@@ -322,7 +322,7 @@ var tests = []entry{
 			"11222333344444\n",
 	},
 
-	entry{
+	{
 		"9b",
 		1, 0, 0, '.', FilterHTML,
 		"1\t2<!---\f--->\t3\t4\n" + // \f inside HTML is ignored
@@ -332,7 +332,7 @@ var tests = []entry{
 			"11222333344444\n",
 	},
 
-	entry{
+	{
 		"9c",
 		1, 0, 0, '.', 0,
 		"1\t2\t3\t4\f" + // \f causes a newline and flush
@@ -342,7 +342,7 @@ var tests = []entry{
 			"11222333344444\n",
 	},
 
-	entry{
+	{
 		"9c debug",
 		1, 0, 0, '.', Debug,
 		"1\t2\t3\t4\f" + // \f causes a newline and flush
@@ -353,21 +353,21 @@ var tests = []entry{
 			"11|222|3333|44444\n",
 	},
 
-	entry{
+	{
 		"10a",
 		5, 0, 0, '.', 0,
 		"1\t2\t3\t4\n",
 		"1....2....3....4\n",
 	},
 
-	entry{
+	{
 		"10b",
 		5, 0, 0, '.', 0,
 		"1\t2\t3\t4\t\n",
 		"1....2....3....4....\n",
 	},
 
-	entry{
+	{
 		"11",
 		8, 0, 1, '.', 0,
 		"本\tb\tc\n" +
@@ -379,7 +379,7 @@ var tests = []entry{
 			"aaa.....bbbb\n",
 	},
 
-	entry{
+	{
 		"12a",
 		8, 0, 1, ' ', AlignRight,
 		"a\tè\tc\t\n" +
@@ -391,7 +391,7 @@ var tests = []entry{
 			"     aaa    èèèè\n",
 	},
 
-	entry{
+	{
 		"12b",
 		2, 0, 0, ' ', 0,
 		"a\tb\tc\n" +
@@ -403,7 +403,7 @@ var tests = []entry{
 			"aaabbbb\n",
 	},
 
-	entry{
+	{
 		"12c",
 		8, 0, 1, '_', 0,
 		"a\tb\tc\n" +
@@ -415,7 +415,7 @@ var tests = []entry{
 			"aaa_____bbbb\n",
 	},
 
-	entry{
+	{
 		"13a",
 		4, 0, 1, '-', 0,
 		"4444\t日本語\t22\t1\t333\n" +
@@ -435,7 +435,7 @@ var tests = []entry{
 			"1------1------999999999-0000000000\n",
 	},
 
-	entry{
+	{
 		"13b",
 		4, 0, 3, '.', 0,
 		"4444\t333\t22\t1\t333\n" +
@@ -455,7 +455,7 @@ var tests = []entry{
 			"1........1........999999999...0000000000\n",
 	},
 
-	entry{
+	{
 		"13c",
 		8, 8, 1, '\t', FilterHTML,
 		"4444\t333\t22\t1\t333\n" +
@@ -475,7 +475,7 @@ var tests = []entry{
 			"1\t1\t<font color=red attr=日本語>999999999</font>\t0000000000\n",
 	},
 
-	entry{
+	{
 		"14",
 		1, 0, 2, ' ', AlignRight,
 		".0\t.3\t2.4\t-5.1\t\n" +
@@ -493,7 +493,7 @@ var tests = []entry{
 			"    .0         1.2   44.4   -13.3",
 	},
 
-	entry{
+	{
 		"14 debug",
 		1, 0, 2, ' ', AlignRight | Debug,
 		".0\t.3\t2.4\t-5.1\t\n" +
@@ -511,35 +511,35 @@ var tests = []entry{
 			"    .0|         1.2|   44.4|   -13.3|",
 	},
 
-	entry{
+	{
 		"15a",
 		4, 0, 0, '.', 0,
 		"a\t\tb",
 		"a.......b",
 	},
 
-	entry{
+	{
 		"15b",
 		4, 0, 0, '.', DiscardEmptyColumns,
 		"a\t\tb", // htabs - do not discard column
 		"a.......b",
 	},
 
-	entry{
+	{
 		"15c",
 		4, 0, 0, '.', DiscardEmptyColumns,
 		"a\v\vb",
 		"a...b",
 	},
 
-	entry{
+	{
 		"15d",
 		4, 0, 0, '.', AlignRight | DiscardEmptyColumns,
 		"a\v\vb",
 		"...ab",
 	},
 
-	entry{
+	{
 		"16a",
 		100, 100, 0, '\t', 0,
 		"a\tb\t\td\n" +
@@ -555,7 +555,7 @@ var tests = []entry{
 			"a\tb\tc\td\te\n",
 	},
 
-	entry{
+	{
 		"16b",
 		100, 100, 0, '\t', DiscardEmptyColumns,
 		"a\vb\v\vd\n" +
@@ -571,7 +571,7 @@ var tests = []entry{
 			"a\tb\tc\td\te\n",
 	},
 
-	entry{
+	{
 		"16b debug",
 		100, 100, 0, '\t', DiscardEmptyColumns | Debug,
 		"a\vb\v\vd\n" +
@@ -587,7 +587,7 @@ var tests = []entry{
 			"a\t|b\t|c\t|d\t|e\n",
 	},
 
-	entry{
+	{
 		"16c",
 		100, 100, 0, '\t', DiscardEmptyColumns,
 		"a\tb\t\td\n" + // hard tabs - do not discard column
@@ -603,7 +603,7 @@ var tests = []entry{
 			"a\tb\tc\td\te\n",
 	},
 
-	entry{
+	{
 		"16c debug",
 		100, 100, 0, '\t', DiscardEmptyColumns | Debug,
 		"a\tb\t\td\n" + // hard tabs - do not discard column

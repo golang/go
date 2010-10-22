@@ -30,18 +30,18 @@ type tester struct {
 
 var tests = []tester{
 	// individual pieces:
-	tester{0, "", ""},
-	tester{0, "XXX", "XXX"},
-	tester{Ldate, "", Rdate + " "},
-	tester{Ltime, "", Rtime + " "},
-	tester{Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
-	tester{Lmicroseconds, "", Rtime + Rmicroseconds + " "}, // microsec implies time
-	tester{Llongfile, "", Rlongfile + " "},
-	tester{Lshortfile, "", Rshortfile + " "},
-	tester{Llongfile | Lshortfile, "", Rshortfile + " "}, // shortfile overrides longfile
+	{0, "", ""},
+	{0, "XXX", "XXX"},
+	{Ldate, "", Rdate + " "},
+	{Ltime, "", Rtime + " "},
+	{Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
+	{Lmicroseconds, "", Rtime + Rmicroseconds + " "}, // microsec implies time
+	{Llongfile, "", Rlongfile + " "},
+	{Lshortfile, "", Rshortfile + " "},
+	{Llongfile | Lshortfile, "", Rshortfile + " "}, // shortfile overrides longfile
 	// everything at once:
-	tester{Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
-	tester{Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
+	{Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
+	{Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
 }
 
 // Test using Println("hello", 23, "world") or using Printf("hello %d world", 23)

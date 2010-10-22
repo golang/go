@@ -29,17 +29,17 @@ type parseIPTest struct {
 }
 
 var parseiptests = []parseIPTest{
-	parseIPTest{"127.0.1.2", IPv4(127, 0, 1, 2)},
-	parseIPTest{"127.0.0.1", IPv4(127, 0, 0, 1)},
-	parseIPTest{"127.0.0.256", nil},
-	parseIPTest{"abc", nil},
-	parseIPTest{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
-	parseIPTest{"2001:4860:0:2001::68",
+	{"127.0.1.2", IPv4(127, 0, 1, 2)},
+	{"127.0.0.1", IPv4(127, 0, 0, 1)},
+	{"127.0.0.256", nil},
+	{"abc", nil},
+	{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
+	{"2001:4860:0:2001::68",
 		IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01,
 			0, 0, 0, 0, 0, 0, 0x00, 0x68,
 		},
 	},
-	parseIPTest{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
+	{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
 }
 
 func TestParseIP(t *testing.T) {
@@ -58,28 +58,28 @@ type ipStringTest struct {
 
 var ipstringtests = []ipStringTest{
 	// cf. RFC 5952 (A Recommendation for IPv6 Address Text Representation)
-	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
 		0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
 		"2001:db8::123:12:1"},
-	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0x1},
 		"2001:db8::1"},
-	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1,
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1,
 		0, 0, 0, 0x1, 0, 0, 0, 0x1},
 		"2001:db8:0:1:0:1:0:1"},
-	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0,
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0,
 		0, 0x1, 0, 0, 0, 0x1, 0, 0},
 		"2001:db8:1:0:1:0:1:0"},
-	ipStringTest{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0,
+	{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0,
 		0, 0x1, 0, 0, 0, 0, 0, 0x1},
 		"2001::1:0:0:1"},
-	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
 		0, 0x1, 0, 0, 0, 0, 0, 0},
 		"2001:db8:0:0:1::"},
-	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
 		0, 0x1, 0, 0, 0, 0, 0, 0x1},
 		"2001:db8::1:0:0:1"},
-	ipStringTest{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0,
+	{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0,
 		0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD},
 		"2001:db8::a:b:c:d"},
 }

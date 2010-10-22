@@ -40,14 +40,14 @@ type Type struct {
 var (
 	boolType = &Type{Repr: "*boolType", Value: "BoolValue", Native: "bool", As: "asBool"}
 	uintType = &Type{Repr: "*uintType", Value: "UintValue", Native: "uint64", As: "asUint",
-		Sizes: []Size{Size{8, "uint8"}, Size{16, "uint16"}, Size{32, "uint32"}, Size{64, "uint64"}, Size{0, "uint"}},
+		Sizes: []Size{{8, "uint8"}, {16, "uint16"}, {32, "uint32"}, {64, "uint64"}, {0, "uint"}},
 	}
 	intType = &Type{Repr: "*intType", Value: "IntValue", Native: "int64", As: "asInt",
-		Sizes: []Size{Size{8, "int8"}, Size{16, "int16"}, Size{32, "int32"}, Size{64, "int64"}, Size{0, "int"}},
+		Sizes: []Size{{8, "int8"}, {16, "int16"}, {32, "int32"}, {64, "int64"}, {0, "int"}},
 	}
 	idealIntType = &Type{Repr: "*idealIntType", Value: "IdealIntValue", Native: "*big.Int", As: "asIdealInt", IsIdeal: true}
 	floatType    = &Type{Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat",
-		Sizes: []Size{Size{32, "float32"}, Size{64, "float64"}, Size{0, "float"}},
+		Sizes: []Size{{32, "float32"}, {64, "float64"}, {0, "float"}},
 	}
 	idealFloatType = &Type{Repr: "*idealFloatType", Value: "IdealFloatValue", Native: "*big.Rat", As: "asIdealFloat", IsIdeal: true}
 	stringType     = &Type{Repr: "*stringType", Value: "StringValue", Native: "string", As: "asString"}
@@ -93,41 +93,41 @@ var (
 )
 
 var unOps = []Op{
-	Op{Name: "Neg", Expr: "-v", ConstExpr: "val.Neg(val)", Types: numbers},
-	Op{Name: "Not", Expr: "!v", Types: bools},
-	Op{Name: "Xor", Expr: "^v", ConstExpr: "val.Not(val)", Types: integers},
+	{Name: "Neg", Expr: "-v", ConstExpr: "val.Neg(val)", Types: numbers},
+	{Name: "Not", Expr: "!v", Types: bools},
+	{Name: "Xor", Expr: "^v", ConstExpr: "val.Not(val)", Types: integers},
 }
 
 var binOps = []Op{
-	Op{Name: "Add", Expr: "l + r", ConstExpr: "l.Add(l, r)", Types: addable},
-	Op{Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(l, r)", Types: numbers},
-	Op{Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(l, r)", Types: numbers},
-	Op{Name: "Quo",
+	{Name: "Add", Expr: "l + r", ConstExpr: "l.Add(l, r)", Types: addable},
+	{Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(l, r)", Types: numbers},
+	{Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(l, r)", Types: numbers},
+	{Name: "Quo",
 		Body:      "if r == 0 { t.Abort(DivByZeroError{}) }; ret =  l / r",
 		ConstExpr: "l.Quo(l, r)",
 		Types:     numbers,
 	},
-	Op{Name: "Rem",
+	{Name: "Rem",
 		Body:      "if r == 0 { t.Abort(DivByZeroError{}) }; ret = l % r",
 		ConstExpr: "l.Rem(l, r)",
 		Types:     integers,
 	},
-	Op{Name: "And", Expr: "l & r", ConstExpr: "l.And(l, r)", Types: integers},
-	Op{Name: "Or", Expr: "l | r", ConstExpr: "l.Or(l, r)", Types: integers},
-	Op{Name: "Xor", Expr: "l ^ r", ConstExpr: "l.Xor(l, r)", Types: integers},
-	Op{Name: "AndNot", Expr: "l &^ r", ConstExpr: "l.AndNot(l, r)", Types: integers},
-	Op{Name: "Shl", Expr: "l << r", ConstExpr: "l.Lsh(l, uint(r.Value()))",
+	{Name: "And", Expr: "l & r", ConstExpr: "l.And(l, r)", Types: integers},
+	{Name: "Or", Expr: "l | r", ConstExpr: "l.Or(l, r)", Types: integers},
+	{Name: "Xor", Expr: "l ^ r", ConstExpr: "l.Xor(l, r)", Types: integers},
+	{Name: "AndNot", Expr: "l &^ r", ConstExpr: "l.AndNot(l, r)", Types: integers},
+	{Name: "Shl", Expr: "l << r", ConstExpr: "l.Lsh(l, uint(r.Value()))",
 		AsRightName: "asUint", Types: shiftable,
 	},
-	Op{Name: "Shr", Expr: "l >> r", ConstExpr: "new(big.Int).Rsh(l, uint(r.Value()))",
+	{Name: "Shr", Expr: "l >> r", ConstExpr: "new(big.Int).Rsh(l, uint(r.Value()))",
 		AsRightName: "asUint", Types: shiftable,
 	},
-	Op{Name: "Lss", Expr: "l < r", ConstExpr: "l.Cmp(r) < 0", ReturnType: "bool", Types: addable},
-	Op{Name: "Gtr", Expr: "l > r", ConstExpr: "l.Cmp(r) > 0", ReturnType: "bool", Types: addable},
-	Op{Name: "Leq", Expr: "l <= r", ConstExpr: "l.Cmp(r) <= 0", ReturnType: "bool", Types: addable},
-	Op{Name: "Geq", Expr: "l >= r", ConstExpr: "l.Cmp(r) >= 0", ReturnType: "bool", Types: addable},
-	Op{Name: "Eql", Expr: "l == r", ConstExpr: "l.Cmp(r) == 0", ReturnType: "bool", Types: cmpable},
-	Op{Name: "Neq", Expr: "l != r", ConstExpr: "l.Cmp(r) != 0", ReturnType: "bool", Types: cmpable},
+	{Name: "Lss", Expr: "l < r", ConstExpr: "l.Cmp(r) < 0", ReturnType: "bool", Types: addable},
+	{Name: "Gtr", Expr: "l > r", ConstExpr: "l.Cmp(r) > 0", ReturnType: "bool", Types: addable},
+	{Name: "Leq", Expr: "l <= r", ConstExpr: "l.Cmp(r) <= 0", ReturnType: "bool", Types: addable},
+	{Name: "Geq", Expr: "l >= r", ConstExpr: "l.Cmp(r) >= 0", ReturnType: "bool", Types: addable},
+	{Name: "Eql", Expr: "l == r", ConstExpr: "l.Cmp(r) == 0", ReturnType: "bool", Types: cmpable},
+	{Name: "Neq", Expr: "l != r", ConstExpr: "l.Cmp(r) != 0", ReturnType: "bool", Types: cmpable},
 }
 
 type Data struct {

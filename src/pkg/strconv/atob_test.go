@@ -17,18 +17,18 @@ type atobTest struct {
 }
 
 var atobtests = []atobTest{
-	atobTest{"", false, os.EINVAL},
-	atobTest{"asdf", false, os.EINVAL},
-	atobTest{"0", false, nil},
-	atobTest{"f", false, nil},
-	atobTest{"F", false, nil},
-	atobTest{"FALSE", false, nil},
-	atobTest{"false", false, nil},
-	atobTest{"1", true, nil},
-	atobTest{"t", true, nil},
-	atobTest{"T", true, nil},
-	atobTest{"TRUE", true, nil},
-	atobTest{"true", true, nil},
+	{"", false, os.EINVAL},
+	{"asdf", false, os.EINVAL},
+	{"0", false, nil},
+	{"f", false, nil},
+	{"F", false, nil},
+	{"FALSE", false, nil},
+	{"false", false, nil},
+	{"1", true, nil},
+	{"t", true, nil},
+	{"T", true, nil},
+	{"TRUE", true, nil},
+	{"true", true, nil},
 }
 
 func TestAtob(t *testing.T) {

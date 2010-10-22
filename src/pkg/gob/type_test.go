@@ -15,12 +15,12 @@ type typeT struct {
 }
 
 var basicTypes = []typeT{
-	typeT{tBool, "bool"},
-	typeT{tInt, "int"},
-	typeT{tUint, "uint"},
-	typeT{tFloat, "float"},
-	typeT{tBytes, "bytes"},
-	typeT{tString, "string"},
+	{tBool, "bool"},
+	{tInt, "int"},
+	{tUint, "uint"},
+	{tFloat, "float"},
+	{tBytes, "bytes"},
+	{tString, "string"},
 }
 
 func getTypeUnlocked(name string, rt reflect.Type) gobType {

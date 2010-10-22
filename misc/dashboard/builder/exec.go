@@ -58,8 +58,8 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string, 
 
 // Find bin in PATH if a relative or absolute path hasn't been specified
 func pathLookup(s string) (string, os.Error) {
-	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./")  || strings.HasPrefix(s, "../") {
+	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") {
 		return s, nil
-	} 
+	}
 	return exec.LookPath(s)
 }

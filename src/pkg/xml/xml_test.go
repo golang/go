@@ -36,16 +36,16 @@ var rawTokens = []Token{
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`),
 	),
 	CharData([]byte("\n")),
-	StartElement{Name{"", "body"}, []Attr{Attr{Name{"xmlns", "foo"}, "ns1"}, Attr{Name{"", "xmlns"}, "ns2"}, Attr{Name{"xmlns", "tag"}, "ns3"}}},
+	StartElement{Name{"", "body"}, []Attr{{Name{"xmlns", "foo"}, "ns1"}, {Name{"", "xmlns"}, "ns2"}, {Name{"xmlns", "tag"}, "ns3"}}},
 	CharData([]byte("\n  ")),
-	StartElement{Name{"", "hello"}, []Attr{Attr{Name{"", "lang"}, "en"}}},
+	StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}},
 	CharData([]byte("World <>'\" 白鵬翔")),
 	EndElement{Name{"", "hello"}},
 	CharData([]byte("\n  ")),
 	StartElement{Name{"", "goodbye"}, nil},
 	EndElement{Name{"", "goodbye"}},
 	CharData([]byte("\n  ")),
-	StartElement{Name{"", "outer"}, []Attr{Attr{Name{"foo", "attr"}, "value"}, Attr{Name{"xmlns", "tag"}, "ns4"}}},
+	StartElement{Name{"", "outer"}, []Attr{{Name{"foo", "attr"}, "value"}, {Name{"xmlns", "tag"}, "ns4"}}},
 	CharData([]byte("\n    ")),
 	StartElement{Name{"", "inner"}, nil},
 	EndElement{Name{"", "inner"}},
@@ -70,16 +70,16 @@ var cookedTokens = []Token{
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`),
 	),
 	CharData([]byte("\n")),
-	StartElement{Name{"ns2", "body"}, []Attr{Attr{Name{"xmlns", "foo"}, "ns1"}, Attr{Name{"", "xmlns"}, "ns2"}, Attr{Name{"xmlns", "tag"}, "ns3"}}},
+	StartElement{Name{"ns2", "body"}, []Attr{{Name{"xmlns", "foo"}, "ns1"}, {Name{"", "xmlns"}, "ns2"}, {Name{"xmlns", "tag"}, "ns3"}}},
 	CharData([]byte("\n  ")),
-	StartElement{Name{"ns2", "hello"}, []Attr{Attr{Name{"", "lang"}, "en"}}},
+	StartElement{Name{"ns2", "hello"}, []Attr{{Name{"", "lang"}, "en"}}},
 	CharData([]byte("World <>'\" 白鵬翔")),
 	EndElement{Name{"ns2", "hello"}},
 	CharData([]byte("\n  ")),
 	StartElement{Name{"ns2", "goodbye"}, nil},
 	EndElement{Name{"ns2", "goodbye"}},
 	CharData([]byte("\n  ")),
-	StartElement{Name{"ns2", "outer"}, []Attr{Attr{Name{"ns1", "attr"}, "value"}, Attr{Name{"xmlns", "tag"}, "ns4"}}},
+	StartElement{Name{"ns2", "outer"}, []Attr{{Name{"ns1", "attr"}, "value"}, {Name{"xmlns", "tag"}, "ns4"}}},
 	CharData([]byte("\n    ")),
 	StartElement{Name{"ns2", "inner"}, nil},
 	EndElement{Name{"ns2", "inner"}},
@@ -339,7 +339,7 @@ func TestCopyTokenCharData(t *testing.T) {
 }
 
 func TestCopyTokenStartElement(t *testing.T) {
-	elt := StartElement{Name{"", "hello"}, []Attr{Attr{Name{"", "lang"}, "en"}}}
+	elt := StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}}
 	var tok1 Token = elt
 	tok2 := CopyToken(tok1)
 	if !reflect.DeepEqual(tok1, tok2) {

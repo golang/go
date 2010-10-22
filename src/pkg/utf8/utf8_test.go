@@ -16,32 +16,32 @@ type Utf8Map struct {
 }
 
 var utf8map = []Utf8Map{
-	Utf8Map{0x0000, "\x00"},
-	Utf8Map{0x0001, "\x01"},
-	Utf8Map{0x007e, "\x7e"},
-	Utf8Map{0x007f, "\x7f"},
-	Utf8Map{0x0080, "\xc2\x80"},
-	Utf8Map{0x0081, "\xc2\x81"},
-	Utf8Map{0x00bf, "\xc2\xbf"},
-	Utf8Map{0x00c0, "\xc3\x80"},
-	Utf8Map{0x00c1, "\xc3\x81"},
-	Utf8Map{0x00c8, "\xc3\x88"},
-	Utf8Map{0x00d0, "\xc3\x90"},
-	Utf8Map{0x00e0, "\xc3\xa0"},
-	Utf8Map{0x00f0, "\xc3\xb0"},
-	Utf8Map{0x00f8, "\xc3\xb8"},
-	Utf8Map{0x00ff, "\xc3\xbf"},
-	Utf8Map{0x0100, "\xc4\x80"},
-	Utf8Map{0x07ff, "\xdf\xbf"},
-	Utf8Map{0x0800, "\xe0\xa0\x80"},
-	Utf8Map{0x0801, "\xe0\xa0\x81"},
-	Utf8Map{0xfffe, "\xef\xbf\xbe"},
-	Utf8Map{0xffff, "\xef\xbf\xbf"},
-	Utf8Map{0x10000, "\xf0\x90\x80\x80"},
-	Utf8Map{0x10001, "\xf0\x90\x80\x81"},
-	Utf8Map{0x10fffe, "\xf4\x8f\xbf\xbe"},
-	Utf8Map{0x10ffff, "\xf4\x8f\xbf\xbf"},
-	Utf8Map{0xFFFD, "\xef\xbf\xbd"},
+	{0x0000, "\x00"},
+	{0x0001, "\x01"},
+	{0x007e, "\x7e"},
+	{0x007f, "\x7f"},
+	{0x0080, "\xc2\x80"},
+	{0x0081, "\xc2\x81"},
+	{0x00bf, "\xc2\xbf"},
+	{0x00c0, "\xc3\x80"},
+	{0x00c1, "\xc3\x81"},
+	{0x00c8, "\xc3\x88"},
+	{0x00d0, "\xc3\x90"},
+	{0x00e0, "\xc3\xa0"},
+	{0x00f0, "\xc3\xb0"},
+	{0x00f8, "\xc3\xb8"},
+	{0x00ff, "\xc3\xbf"},
+	{0x0100, "\xc4\x80"},
+	{0x07ff, "\xdf\xbf"},
+	{0x0800, "\xe0\xa0\x80"},
+	{0x0801, "\xe0\xa0\x81"},
+	{0xfffe, "\xef\xbf\xbe"},
+	{0xffff, "\xef\xbf\xbf"},
+	{0x10000, "\xf0\x90\x80\x80"},
+	{0x10001, "\xf0\x90\x80\x81"},
+	{0x10fffe, "\xf4\x8f\xbf\xbe"},
+	{0x10ffff, "\xf4\x8f\xbf\xbf"},
+	{0xFFFD, "\xef\xbf\xbd"},
 }
 
 var testStrings = []string{
@@ -256,10 +256,10 @@ type RuneCountTest struct {
 }
 
 var runecounttests = []RuneCountTest{
-	RuneCountTest{"abcd", 4},
-	RuneCountTest{"☺☻☹", 3},
-	RuneCountTest{"1,2,3,4", 7},
-	RuneCountTest{"\xe2\x00", 2},
+	{"abcd", 4},
+	{"☺☻☹", 3},
+	{"1,2,3,4", 7},
+	{"\xe2\x00", 2},
 }
 
 func TestRuneCount(t *testing.T) {
