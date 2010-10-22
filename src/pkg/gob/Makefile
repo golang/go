@@ -11,6 +11,7 @@ GOFILES=\
 	doc.go\
 	encode.go\
 	encoder.go\
+	error.go\
 	type.go\
 
 include ../../Make.pkg

@@ -25,6 +25,7 @@ type Decoder struct {
 	buf          []byte
 	countBuf     [9]byte // counts may be uint64s (unlikely!), require 9 bytes
 	byteBuffer   *bytes.Buffer
+	err          os.Error
 }
 
 // NewDecoder returns a new decoder that reads from the io.Reader.
@@ -43,13 +44,16 @@ func NewDecoder(r io.Reader) *Decoder {
 func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
 	if dec.wireType[id] != nil {
-		dec.state.err = os.ErrorString("gob: duplicate type received")
+		dec.err = os.ErrorString("gob: duplicate type received")
 		return
 	}
 
 	// Type:
 	wire := new(wireType)
-	dec.state.err = dec.decode(tWireType, reflect.NewValue(wire))
+	dec.err = dec.decode(tWireType, reflect.NewValue(wire))
+	if dec.err != nil {
+		return
+	}
 	// Remember we've seen this type.
 	dec.wireType[id] = wire
 
@@ -66,8 +70,8 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	// If e represents a value as opposed to a pointer, the answer won't
 	// get back to the caller.  Make sure it's a pointer.
 	if value.Type().Kind() != reflect.Ptr {
-		dec.state.err = os.ErrorString("gob: attempt to decode into a non-pointer")
-		return dec.state.err
+		dec.err = os.ErrorString("gob: attempt to decode into a non-pointer")
+		return dec.err
 	}
 	return dec.DecodeValue(value)
 }
@@ -77,8 +81,8 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 func (dec *Decoder) recv() {
 	// Read a count.
 	var nbytes uint64
-	nbytes, dec.state.err = decodeUintReader(dec.r, dec.countBuf[0:])
-	if dec.state.err != nil {
+	nbytes, dec.err = decodeUintReader(dec.r, dec.countBuf[0:])
+	if dec.err != nil {
 		return
 	}
 	// Allocate the buffer.
@@ -88,10 +92,10 @@ func (dec *Decoder) recv() {
 	dec.byteBuffer = bytes.NewBuffer(dec.buf[0:nbytes])
 
 	// Read the data
-	_, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes])
-	if dec.state.err != nil {
-		if dec.state.err == os.EOF {
-			dec.state.err = io.ErrUnexpectedEOF
+	_, dec.err = io.ReadFull(dec.r, dec.buf[0:nbytes])
+	if dec.err != nil {
+		if dec.err == os.EOF {
+			dec.err = io.ErrUnexpectedEOF
 		}
 		return
 	}
@@ -104,7 +108,7 @@ func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignore bool) {
 	for dec.state.b.Len() > 0 {
 		// Receive a type id.
 		id := typeId(decodeInt(dec.state))
-		if dec.state.err != nil {
+		if dec.err != nil {
 			break
 		}
 
@@ -112,7 +116,7 @@ func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignore bool) {
 		if id < 0 { // 0 is the error state, handled above
 			// If the id is negative, we have a type.
 			dec.recvType(-id)
-			if dec.state.err != nil {
+			if dec.err != nil {
 				break
 			}
 			continue
@@ -126,10 +130,10 @@ func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignore bool) {
 		// Make sure the type has been defined already or is a builtin type (for
 		// top-level singleton values).
 		if dec.wireType[id] == nil && builtinIdToType[id] == nil {
-			dec.state.err = errBadType
+			dec.err = errBadType
 			break
 		}
-		dec.state.err = dec.decode(id, value)
+		dec.err = dec.decode(id, value)
 		break
 	}
 }
@@ -143,11 +147,11 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	dec.mutex.Lock()
 	defer dec.mutex.Unlock()
 
-	dec.state.err = nil
+	dec.err = nil
 	dec.recv()
-	if dec.state.err != nil {
-		return dec.state.err
+	if dec.err != nil {
+		return dec.err
 	}
 	dec.decodeValueFromBuffer(value, false)
-	return dec.state.err
+	return dec.err
 }
