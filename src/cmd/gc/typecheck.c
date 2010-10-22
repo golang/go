@@ -1776,7 +1776,7 @@ typecheckcomplit(Node **np)
 	int bad, i, len, nerr;
 	Node *l, *n, *hash[101];
 	NodeList *ll;
-	Type *t, *f;
+	Type *t, *f, *pushtype;
 	Sym *s;
 	int32 lno;
 
@@ -1784,11 +1784,38 @@ typecheckcomplit(Node **np)
 	lno = lineno;
 
 	memset(hash, 0, sizeof hash);
+	if(n->right == N) {
+		if(n->list != nil)
+			setlineno(n->list->n);
+		yyerror("missing type in composite literal");
+		goto error;
+	}
+
 	setlineno(n->right);
 	l = typecheck(&n->right /* sic */, Etype);
 	if((t = l->type) == T)
 		goto error;
 	nerr = nerrors;
+
+	// can omit type on composite literal values if the outer
+	// composite literal is array, slice, or map, and the 
+	// element type is itself a struct, array, slice, or map.
+	pushtype = T;
+	if(t->etype == TARRAY || t->etype == TMAP) {
+		pushtype = t->type;
+		if(pushtype != T) {
+			switch(pushtype->etype) {
+			case TSTRUCT:
+			case TARRAY:
+			case TMAP:
+				break;
+			default:
+				pushtype = T;
+				break;
+			}
+		}
+	}
+
 	switch(t->etype) {
 	default:
 		yyerror("invalid type for composite literal: %T", t);
@@ -1801,27 +1828,22 @@ typecheckcomplit(Node **np)
 		for(ll=n->list; ll; ll=ll->next) {
 			l = ll->n;
 			setlineno(l);
-			if(l->op == OKEY) {
-				typecheck(&l->left, Erv);
-				evconst(l->left);
-				i = nonnegconst(l->left);
-				if(i < 0) {
-					yyerror("array index must be non-negative integer constant");
-					i = -(1<<30);	// stay negative for a while
-				}
-				typecheck(&l->right, Erv);
-				defaultlit(&l->right, t->type);
-				l->right = assignconv(l->right, t->type, "array index");
-			} else {
-				typecheck(&ll->n, Erv);
-				defaultlit(&ll->n, t->type);
-				ll->n = assignconv(ll->n, t->type, "array index");
-				ll->n = nod(OKEY, nodintconst(i), ll->n);
-				ll->n->left->type = types[TINT];
-				ll->n->left->typecheck = 1;
+			if(l->op != OKEY) {
+				l = nod(OKEY, nodintconst(i), l);
+				l->left->type = types[TINT];
+				l->left->typecheck = 1;
+				ll->n = l;
+			}
+
+			typecheck(&l->left, Erv);
+			evconst(l->left);
+			i = nonnegconst(l->left);
+			if(i < 0) {
+				yyerror("array index must be non-negative integer constant");
+				i = -(1<<30);	// stay negative for a while
 			}
 			if(i >= 0)
-				indexdup(ll->n->left, hash, nelem(hash));
+				indexdup(l->left, hash, nelem(hash));
 			i++;
 			if(i > len) {
 				len = i;
@@ -1831,6 +1853,12 @@ typecheckcomplit(Node **np)
 					t->bound = -1;	// no more errors
 				}
 			}
+
+			if(l->right->op == OCOMPLIT && l->right->right == N && pushtype != T)
+				l->right->right = typenod(pushtype);
+			typecheck(&l->right, Erv);
+			defaultlit(&l->right, t->type);
+			l->right = assignconv(l->right, t->type, "array index");
 		}
 		if(t->bound == -100)
 			t->bound = len;
@@ -1848,13 +1876,17 @@ typecheckcomplit(Node **np)
 				yyerror("missing key in map literal");
 				continue;
 			}
+
 			typecheck(&l->left, Erv);
-			typecheck(&l->right, Erv);
 			defaultlit(&l->left, t->down);
-			defaultlit(&l->right, t->type);
 			l->left = assignconv(l->left, t->down, "map key");
-			l->right = assignconv(l->right, t->type, "map value");
 			keydup(l->left, hash, nelem(hash));
+
+			if(l->right->op == OCOMPLIT && l->right->right == N && pushtype != T)
+				l->right->right = typenod(pushtype);
+			typecheck(&l->right, Erv);
+			defaultlit(&l->right, t->type);
+			l->right = assignconv(l->right, t->type, "map value");
 		}
 		n->op = OMAPLIT;
 		break;
