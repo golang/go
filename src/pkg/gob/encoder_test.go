@@ -43,15 +43,15 @@ func TestEncoderDecoder(t *testing.T) {
 	et1 := new(ET1)
 	et1.a = 7
 	et1.et2 = new(ET2)
-	enc.Encode(et1)
-	if enc.state.err != nil {
-		t.Error("encoder fail:", enc.state.err)
+	err := enc.Encode(et1)
+	if err != nil {
+		t.Error("encoder fail:", err)
 	}
 	dec := NewDecoder(b)
 	newEt1 := new(ET1)
-	dec.Decode(newEt1)
-	if dec.state.err != nil {
-		t.Fatal("error decoding ET1:", dec.state.err)
+	err = dec.Decode(newEt1)
+	if err != nil {
+		t.Fatal("error decoding ET1:", err)
 	}
 
 	if !reflect.DeepEqual(et1, newEt1) {
@@ -63,9 +63,9 @@ func TestEncoderDecoder(t *testing.T) {
 
 	enc.Encode(et1)
 	newEt1 = new(ET1)
-	dec.Decode(newEt1)
-	if dec.state.err != nil {
-		t.Fatal("round 2: error decoding ET1:", dec.state.err)
+	err = dec.Decode(newEt1)
+	if err != nil {
+		t.Fatal("round 2: error decoding ET1:", err)
 	}
 	if !reflect.DeepEqual(et1, newEt1) {
 		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v", *et1, *newEt1)
@@ -75,13 +75,13 @@ func TestEncoderDecoder(t *testing.T) {
 	}
 
 	// Now test with a running encoder/decoder pair that we recognize a type mismatch.
-	enc.Encode(et1)
-	if enc.state.err != nil {
-		t.Error("round 3: encoder fail:", enc.state.err)
+	err = enc.Encode(et1)
+	if err != nil {
+		t.Error("round 3: encoder fail:", err)
 	}
 	newEt2 := new(ET2)
-	dec.Decode(newEt2)
-	if dec.state.err == nil {
+	err = dec.Decode(newEt2)
+	if err == nil {
 		t.Fatal("round 3: expected `bad type' error decoding ET2")
 	}
 }
@@ -94,17 +94,17 @@ func badTypeCheck(e interface{}, shouldFail bool, msg string, t *testing.T) {
 	et1 := new(ET1)
 	et1.a = 7
 	et1.et2 = new(ET2)
-	enc.Encode(et1)
-	if enc.state.err != nil {
-		t.Error("encoder fail:", enc.state.err)
+	err := enc.Encode(et1)
+	if err != nil {
+		t.Error("encoder fail:", err)
 	}
 	dec := NewDecoder(b)
-	dec.Decode(e)
-	if shouldFail && (dec.state.err == nil) {
+	err = dec.Decode(e)
+	if shouldFail && err == nil {
 		t.Error("expected error for", msg)
 	}
-	if !shouldFail && (dec.state.err != nil) {
-		t.Error("unexpected error for", msg, dec.state.err)
+	if !shouldFail && err != nil {
+		t.Error("unexpected error for", msg, err)
 	}
 }
 
@@ -118,9 +118,9 @@ func TestWrongTypeDecoder(t *testing.T) {
 func corruptDataCheck(s string, err os.Error, t *testing.T) {
 	b := bytes.NewBufferString(s)
 	dec := NewDecoder(b)
-	dec.Decode(new(ET2))
-	if dec.state.err != err {
-		t.Error("expected error", err, "got", dec.state.err)
+	err1 := dec.Decode(new(ET2))
+	if err1 != err {
+		t.Error("expected error", err, "got", err1)
 	}
 }
 
@@ -151,14 +151,14 @@ func TestUnsupported(t *testing.T) {
 func encAndDec(in, out interface{}) os.Error {
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
-	enc.Encode(in)
-	if enc.state.err != nil {
-		return enc.state.err
+	err := enc.Encode(in)
+	if err != nil {
+		return err
 	}
 	dec := NewDecoder(b)
-	dec.Decode(out)
-	if dec.state.err != nil {
-		return dec.state.err
+	err = dec.Decode(out)
+	if err != nil {
+		return err
 	}
 	return nil
 }

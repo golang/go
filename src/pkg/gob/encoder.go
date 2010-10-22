@@ -21,6 +21,7 @@ type Encoder struct {
 	state      *encoderState           // so we can encode integers, strings directly
 	countState *encoderState           // stage for writing counts
 	buf        []byte                  // for collecting the output.
+	err        os.Error
 }
 
 // NewEncoder returns a new encoder that will transmit on the io.Writer.
@@ -38,8 +39,8 @@ func (enc *Encoder) badType(rt reflect.Type) {
 }
 
 func (enc *Encoder) setError(err os.Error) {
-	if enc.state.err == nil { // remember the first.
-		enc.state.err = err
+	if enc.err == nil { // remember the first.
+		enc.err = err
 	}
 	enc.state.b.Reset()
 }
@@ -115,7 +116,7 @@ func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 	// Type:
 	enc.encode(enc.state.b, reflect.NewValue(info.wire))
 	enc.send()
-	if enc.state.err != nil {
+	if enc.err != nil {
 		return
 	}
 
@@ -150,7 +151,7 @@ func (enc *Encoder) sendTypeDescriptor(rt reflect.Type) {
 	if _, alreadySent := enc.sent[rt]; !alreadySent {
 		// No, so send it.
 		sent := enc.sendType(rt)
-		if enc.state.err != nil {
+		if enc.err != nil {
 			return
 		}
 		// If the type info has still not been transmitted, it means we have
@@ -180,18 +181,18 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 	enc.mutex.Lock()
 	defer enc.mutex.Unlock()
 
-	enc.state.err = nil
+	enc.err = nil
 	rt, _ := indirect(value.Type())
 
 	// Sanity check only: encoder should never come in with data present.
 	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
-		enc.state.err = os.ErrorString("encoder: buffer not empty")
-		return enc.state.err
+		enc.err = os.ErrorString("encoder: buffer not empty")
+		return enc.err
 	}
 
 	enc.sendTypeDescriptor(rt)
-	if enc.state.err != nil {
-		return enc.state.err
+	if enc.err != nil {
+		return enc.err
 	}
 
 	// Encode the object.
@@ -202,5 +203,5 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 		enc.send()
 	}
 
-	return enc.state.err
+	return enc.err
 }

@@ -37,16 +37,23 @@ var encodeT = []EncodeT{
 	{1 << 63, []byte{0xF8, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
 }
 
+// testError is meant to be used as a deferred function to turn a panic(gobError) into a
+// plain test.Error call.
+func testError(t *testing.T) {
+	if e := recover(); e != nil {
+		t.Error(e.(gobError).Error) // Will re-panic if not one of our errors, such as a runtime error.
+	}
+	return
+}
+
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
+	defer testError(t)
 	b := new(bytes.Buffer)
 	encState := newEncoderState(b)
 	for _, tt := range encodeT {
 		b.Reset()
 		encodeUint(encState, tt.x)
-		if encState.err != nil {
-			t.Error("encodeUint:", tt.x, encState.err)
-		}
 		if !bytes.Equal(tt.b, b.Bytes()) {
 			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
 		}
@@ -55,13 +62,7 @@ func TestUintCodec(t *testing.T) {
 	for u := uint64(0); ; u = (u + 1) * 7 {
 		b.Reset()
 		encodeUint(encState, u)
-		if encState.err != nil {
-			t.Error("encodeUint:", u, encState.err)
-		}
 		v := decodeUint(decState)
-		if decState.err != nil {
-			t.Error("DecodeUint:", u, decState.err)
-		}
 		if u != v {
 			t.Errorf("Encode/Decode: sent %#x received %#x", u, v)
 		}
@@ -72,18 +73,13 @@ func TestUintCodec(t *testing.T) {
 }
 
 func verifyInt(i int64, t *testing.T) {
+	defer testError(t)
 	var b = new(bytes.Buffer)
 	encState := newEncoderState(b)
 	encodeInt(encState, i)
-	if encState.err != nil {
-		t.Error("encodeInt:", i, encState.err)
-	}
 	decState := newDecodeState(&b)
 	decState.buf = make([]byte, 8)
 	j := decodeInt(decState)
-	if decState.err != nil {
-		t.Error("DecodeInt:", i, decState.err)
-	}
 	if i != j {
 		t.Errorf("Encode/Decode: sent %#x received %#x", uint64(i), uint64(j))
 	}
@@ -320,10 +316,8 @@ func TestScalarEncInstructions(t *testing.T) {
 }
 
 func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p unsafe.Pointer) {
+	defer testError(t)
 	v := int(decodeUint(state))
-	if state.err != nil {
-		t.Fatalf("decoding %s field: %v", typ, state.err)
-	}
 	if v+state.fieldnum != 6 {
 		t.Fatalf("decoding field number %d, got %d", 6, v+state.fieldnum)
 	}
