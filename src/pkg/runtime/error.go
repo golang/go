@@ -111,6 +111,8 @@ type stringer interface {
 	String() string
 }
 
+func typestring(interface{}) string
+
 // For calling from C.
 // Prints an argument passed to panic.
 // There's room for arbitrary complexity here, but we keep it
@@ -126,6 +128,6 @@ func printany(i interface{}) {
 	case string:
 		print(v)
 	default:
-		print(i)
+		print("(", typestring(i), ") ", i)
 	}
 }
