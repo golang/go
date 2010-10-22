@@ -856,7 +856,10 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.print(x.Rparen, token.RPAREN)
 
 	case *ast.CompositeLit:
-		p.expr1(x.Type, token.HighestPrec, depth, compositeLit, multiLine)
+		// composite literal elements that are composite literals themselves may have the type omitted
+		if x.Type != nil {
+			p.expr1(x.Type, token.HighestPrec, depth, compositeLit, multiLine)
+		}
 		p.print(x.Lbrace, token.LBRACE)
 		p.exprList(x.Lbrace, x.Elts, 1, commaSep|commaTerm, multiLine, x.Rbrace)
 		p.print(x.Rbrace, token.RBRACE)

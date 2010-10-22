@@ -24,6 +24,7 @@ var (
 	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
 	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
+	simplifyAST = flag.Bool("s", false, "simplify code")
 
 	// debugging support
 	comments = flag.Bool("comments", true, "print comments")
@@ -104,6 +105,10 @@ func processFile(f *os.File) os.Error {
 
 	if rewrite != nil {
 		file = rewrite(file)
+	}
+
+	if *simplifyAST {
+		simplify(file)
 	}
 
 	var res bytes.Buffer

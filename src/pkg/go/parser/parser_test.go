@@ -29,18 +29,20 @@ func TestParseIllegalInputs(t *testing.T) {
 
 
 var validPrograms = []interface{}{
+	"package main\n",
 	`package main;`,
-	`package main; import "fmt"; func main() { fmt.Println("Hello, World!") }` + "\n",
-	`package main; func main() { if f(T{}) {} }` + "\n",
-	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
-	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
-	`package main; func f(func() func() func())` + "\n",
-	`package main; func f(...T)` + "\n",
-	`package main; func f(float, ...int)` + "\n",
-	`package main; func f(x int, a ...int) { f(0, a...); f(1, a...,) }` + "\n",
-	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} }` + "\n",
-	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} }` + "\n",
-	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} }` + "\n",
+	`package main; import "fmt"; func main() { fmt.Println("Hello, World!") };`,
+	`package main; func main() { if f(T{}) {} };`,
+	`package main; func main() { _ = (<-chan int)(x) };`,
+	`package main; func main() { _ = (<-chan <-chan int)(x) };`,
+	`package main; func f(func() func() func());`,
+	`package main; func f(...T);`,
+	`package main; func f(float, ...int);`,
+	`package main; func f(x int, a ...int) { f(0, a...); f(1, a...,) };`,
+	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} };`,
+	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} };`,
+	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} };`,
+	`package main; var a = T{{1, 2}, {3, 4}}`,
 }
 
 
