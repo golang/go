@@ -975,5 +975,4 @@ void	elfsetstring(char*, int);
  * May waste some.
  * On FreeBSD, cannot be larger than a page.
  */
-#define	ELFRESERVE	2048
-
+#define	ELFRESERVE	3072

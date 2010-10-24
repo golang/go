@@ -9,6 +9,7 @@
  * data structures and must be kept in sync with this file:
  *
  *	../../cmd/gc/reflect.c
+ *	../../cmd/ld/dwarf.c
  *	../reflect/type.go
  *	type.h
  */

@@ -55,6 +55,7 @@ enum
 	DW_TAG_variant_part = 0x33,
 	DW_TAG_variable = 0x34,
 	DW_TAG_volatile_type = 0x35,
+	// Dwarf3
 	DW_TAG_dwarf_procedure = 0x36,
 	DW_TAG_restrict_type = 0x37,
 	DW_TAG_interface_type = 0x38,
@@ -65,6 +66,12 @@ enum
 	DW_TAG_imported_unit = 0x3d,
 	DW_TAG_condition = 0x3f,
 	DW_TAG_shared_type = 0x40,
+	// Dwarf4
+	DW_TAG_type_unit = 0x41,
+	DW_TAG_rvalue_reference_type = 0x42,
+	DW_TAG_template_alias = 0x43,
+
+	// User defined
 	DW_TAG_lo_user = 0x4080,
 	DW_TAG_hi_user = 0xffff,
 
@@ -84,7 +91,7 @@ enum
 	DW_CLS_BLOCK,
 	DW_CLS_CONSTANT,
 	DW_CLS_FLAG,
-	DW_CLS_PTR,     // lineptr, loclistptr, macptr, rangelistptr
+	DW_CLS_PTR,	// lineptr, loclistptr, macptr, rangelistptr
 	DW_CLS_REFERENCE,
 	DW_CLS_STRING
 };
@@ -151,6 +158,7 @@ enum
 	DW_AT_variable_parameter = 0x4b,	// flag
 	DW_AT_virtuality = 0x4c,	// constant
 	DW_AT_vtable_elem_location = 0x4d,	// block, loclistptr
+	// Dwarf3
 	DW_AT_allocated = 0x4e,	// block, constant, reference
 	DW_AT_associated = 0x4f,	// block, constant, reference
 	DW_AT_data_location = 0x50,	// block
@@ -178,6 +186,7 @@ enum
 	DW_AT_elemental = 0x66,	// flag
 	DW_AT_pure = 0x67,	// flag
 	DW_AT_recursive = 0x68,	// flag
+
 	DW_AT_lo_user = 0x2000,	// ---
 	DW_AT_hi_user = 0x3fff,	// ---
 
@@ -358,6 +367,7 @@ enum
 	DW_LANG_Fortran90 = 0x0008,
 	DW_LANG_Pascal83 = 0x0009,
 	DW_LANG_Modula2 = 0x000a,
+	// Dwarf3
 	DW_LANG_Java = 0x000b,
 	DW_LANG_C99 = 0x000c,
 	DW_LANG_Ada95 = 0x000d,
@@ -367,7 +377,8 @@ enum
 	DW_LANG_ObjC_plus_plus = 0x0011,
 	DW_LANG_UPC = 0x0012,
 	DW_LANG_D = 0x0013,
-	DW_LANG_Python = 0x0014,	// DWARF4
+	// Dwarf4
+	DW_LANG_Python = 0x0014,
 
 	DW_LANG_lo_user = 0x8000,
 	DW_LANG_Go = 0x8015,	// TODO(lvd) Temporary
@@ -428,6 +439,7 @@ enum
 	DW_LNS_set_basic_block = 0x07,
 	DW_LNS_const_add_pc = 0x08,
 	DW_LNS_fixed_advance_pc = 0x09,
+	// Dwarf3
 	DW_LNS_set_prologue_end = 0x0a,
 	DW_LNS_set_epilogue_begin = 0x0b,
 	DW_LNS_set_isa = 0x0c,
