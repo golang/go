@@ -116,7 +116,7 @@ $(pkgdir)/%.h: %.h
 clean: clean-local
 
 clean-local:
-	rm -f goc2c mkversion version.go */asm.h runtime.acid.*
+	rm -f goc2c mkversion version.go */asm.h runtime.acid.* $$(ls *.goc | sed 's/goc$$/c/')
 
 $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 	./mkasmh.sh >$@.x
