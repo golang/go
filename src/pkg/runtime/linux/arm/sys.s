@@ -147,7 +147,7 @@ TEXT clone(SB),7,$0
 	MOVW	$1234, R1
 	CMP	R0, R1
 	BEQ	2(PC)
-	B	abort(SB)
+	BL	abort(SB)
 
 	MOVW	0(R13), m
 	MOVW	4(R13), g
@@ -194,11 +194,6 @@ TEXT sigaltstack(SB),7,$0
 	RET
 
 TEXT sigignore(SB),7,$0
-	RET
-
-TEXT sigreturn(SB),7,$0
-	MOVW	R0, R0
-	B	abort(SB)
 	RET
 
 TEXT sigtramp(SB),7,$24
