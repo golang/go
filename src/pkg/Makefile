@@ -207,8 +207,6 @@ ifeq ($(GOARCH),arm)
 NOTEST+=cmath        # software floating point (lack of) accuracy
 NOTEST+=math         # software floating point (lack of) accuracy
 NOTEST+=strconv      # software floating point (lack of) accuracy
-
-NOTEST+=os/signal    # crash
 endif
 
 TEST=\
