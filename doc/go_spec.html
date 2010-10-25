@@ -1492,8 +1492,8 @@ Zero value:
 	nil
 
 Functions:
-	cap close closed cmplx copy imag len make
-	new panic print println real recover
+	append cap close closed cmplx copy imag len
+	make new panic print println real recover
 </pre>
 
 
@@ -4527,10 +4527,38 @@ m := make(map[string] int, 100)  // map with initial space for 100 elements
 </pre>
 
 
-<h3 id="Copying_slices">Copying slices</h3>
+<h3 id="Appending_and_copying_slices">Appending to and copying slices</h3>
 
 <p>
-The built-in function <code>copy</code> copies slice elements from
+Two built-in functions assist in common slice operations.
+</p>
+
+<p>
+The function <code>append</code> appends zero or more values <code>x</code>
+to a slice <code>s</code> and returns the resulting slice. Each value must be
+<a href="#Assignability">assignable</a> to the slice's element type.
+</p>
+
+<pre class="grammar">
+append(s []T, x ...T) []T
+</pre>
+
+<p>
+If the capacity of <code>s</code> is not large enough to fit the additional
+values, <code>append</code> allocates a new, sufficiently large slice that fits
+both the existing slice elements and the additional values. Thus, the returned
+slice may refer to a different underlying array. 
+</p>
+
+<pre>
+s0 := []int{0, 0}
+s1 := append(s0, 2)        // append a single element     s1 == []int{0, 0, 2}
+s2 := append(s1, 3, 5, 7)  // append multiple elements    s2 == []int{0, 0, 2, 3, 5, 7}
+s3 := append(s2, s0...)    // append a slice              s3 == []int{0, 0, 2, 3, 5, 7, 0, 0}
+</pre>
+
+<p>
+The function <code>copy</code> copies slice elements from
 a source <code>src</code> to a destination <code>dst</code> and returns the
 number of elements copied. Source and destination may overlap.
 Both arguments must have <a href="#Type_identity">identical</a> element type <code>T</code> and must be
