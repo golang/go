@@ -96,7 +96,7 @@ installed() {
 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
 	echo Installed commands in "$GOBIN".
 	case "$OLDPATH" in
-	*":$GOBIN" | *":$GOBIN:"*)
+	"$GOBIN:"* | *":$GOBIN" | *":$GOBIN:"*)
 		;;
 	*)
 		echo '***' "You need to add $GOBIN to your "'$PATH.' '***'
