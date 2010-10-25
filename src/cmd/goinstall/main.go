@@ -185,6 +185,11 @@ func install(pkg, parent string) {
 		return
 	}
 	for p := range m {
+		if p == "C" {
+			fmt.Fprintf(os.Stderr, "%s: %s: cgo packages are not supported yet. Try installing manually.\n", argv0, pkg)
+			errors = true
+			return
+		}
 		install(p, pkg)
 	}
 	if pkgname == "main" {
