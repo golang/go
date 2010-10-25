@@ -11,7 +11,7 @@ type Element struct {
 	// The front of the list has prev = nil, and the back has next = nil.
 	next, prev *Element
 
-	// Thie list to which this element belongs.
+	// The list to which this element belongs.
 	list *List
 
 	// The contents of this list element.
@@ -40,7 +40,7 @@ func (l *List) Init() *List {
 }
 
 // New returns an initialized list.
-func New() *List { return new(List).Init() }
+func New() *List { return new(List) }
 
 // Front returns the first element in the list.
 func (l *List) Front() *Element { return l.front }
@@ -127,9 +127,6 @@ func (l *List) insertBack(e *Element) {
 
 // PushFront inserts the value at the front of the list and returns a new Element containing the value.
 func (l *List) PushFront(value interface{}) *Element {
-	if l == nil {
-		l.Init()
-	}
 	e := &Element{nil, nil, l, value}
 	l.insertFront(e)
 	return e
@@ -137,9 +134,6 @@ func (l *List) PushFront(value interface{}) *Element {
 
 // PushBack inserts the value at the back of the list and returns a new Element containing the value.
 func (l *List) PushBack(value interface{}) *Element {
-	if l == nil {
-		l.Init()
-	}
 	e := &Element{nil, nil, l, value}
 	l.insertBack(e)
 	return e
