@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Oct 21, 2010 -->
+<!-- subtitle Version of Oct 25, 2010 -->
 
 <!--
 TODO
@@ -4534,13 +4534,17 @@ The built-in function <code>copy</code> copies slice elements from
 a source <code>src</code> to a destination <code>dst</code> and returns the
 number of elements copied. Source and destination may overlap.
 Both arguments must have <a href="#Type_identity">identical</a> element type <code>T</code> and must be
-<a href="#Assignability">assignable</a> to a slice
-of type <code>[]T</code>. The number of arguments copied is the minimum of
+<a href="#Assignability">assignable</a> to a slice of type <code>[]T</code>.
+The number of arguments copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
+As a special case, <code>copy</code> also accepts a destination argument assignable
+to type <code>[]byte</code> with a source argument of a string type.
+This form copies the bytes from the string into the byte slice.
 </p>
 
 <pre class="grammar">
 copy(dst, src []T) int
+copy(dst []byte, src string) int
 </pre>
 
 <p>
@@ -4550,8 +4554,10 @@ Examples:
 <pre>
 var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
 var s = make([]int, 6)
-n1 := copy(s, a[0:])  // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
-n2 := copy(s, s[2:])  // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
+var b = make([]byte, 5)
+n1 := copy(s, a[0:])            // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
+n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
+n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
 </pre>
 
 <h3 id="Complex_numbers">Assembling and disassembling complex numbers</h3>
