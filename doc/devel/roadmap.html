@@ -2,6 +2,7 @@
 
 <h2 id="Roadmap">Go Roadmap</h2>
 
+<p>
 This page lists features and ideas being developed or discussed by the
 Go team.  This list will be updated as work continues.
 
@@ -26,6 +27,9 @@ Variant types.  A way to define a type as being the union of some set
 of types.
 <li>
 Generics.  An active topic of discussion.
+<li>
+Methods for operators, to allow a type to use arithmetic notation for
+expressions.
 </ul>
 
 <h3 id="Implementation_roadmap">
@@ -38,13 +42,9 @@ with a cycle detector running in a separate core.
 <li>
 Debugger.
 <li>
-Native Client (NaCl) support.
-<li>
 App Engine support.
 <li>
 Improved CGO including some mechanism for calling back from C to Go.
-<li>
-SWIG support.
 <li>
 Improved implementation documentation.
 </ul>
@@ -56,24 +56,21 @@ Gc compiler roadmap</h4>
 <li>
 Implement goto restrictions.
 <li>
-Safe compilation mode: generate code that is guaranteed not to obtain
-an invalid memory address other than via <code>import "unsafe"</code>.
+Generate DWARF debug info.
 <li>
-Generate ELF debug info.
+Provide gdb support for runtime facilities.
 <li>
 Improved optimization.
 <li>
 5g: Better floating point support.
 </ul>
 
-<h4 id = "Gccgo_roadmap">
+<h4 id="Gccgo_roadmap">
 Gccgo compiler roadmap</h4>
 
 <ul>
 <li>
 Implement goto restrictions.
-<li>
-Implement garbage collection.
 <li>
 Use goroutines rather than threads.
 <li>
@@ -81,3 +78,33 @@ Separate gcc interface from frontend proper.
 <li>
 Use escape analysis to keep more data on stack.
 </ul>
+
+<h3 id="done">Done</h3>
+
+<ul>
+<li>
+Safe compilation mode: generate code that is guaranteed not to obtain an invalid memory address other than via <code>import "unsafe"</code>.
+<li>
+Gccgo: garbage collection.
+<li>
+Native Client (NaCl) support.
+<li>
+SWIG support.
+<li>		
+Simpler semicolon rules.
+<li>		
+A better definition of <code>...</code> in parameter lists.
+<li>		
+Explicit conversions from <code>string</code>		
+to <code>[]byte</code> and <code>[]int</code>.		
+<li>
+A function that will be run by the garbage collector when an item is freed
+(runtime.SetFinalizer).
+<li>
+Public continuous build and benchmark infrastructure (gobuilder).
+<li>
+Package manager (goinstall).
+<li>
+A means of recovering from a panic (recover).
+</ul>
+
