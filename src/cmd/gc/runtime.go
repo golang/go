@@ -48,6 +48,7 @@ func stringtosliceint(string) []int
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv int)
 func slicecopy(to any, fr any, wid uint32) int
+func slicestringcopy(to any, fr any) int
 
 // interface conversions
 func convI2E(elem any) (ret any)

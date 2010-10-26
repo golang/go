@@ -926,13 +926,18 @@ reswitch:
 			goto error;
 		defaultlit(&n->left, T);
 		defaultlit(&n->right, T);
+		
+		// copy([]byte, string)
+		if(isslice(n->left->type) && n->left->type->type == types[TUINT8] && n->right->type->etype == TSTRING)
+			goto ret;
+
 		if(!isslice(n->left->type) || !isslice(n->right->type)) {
 			if(!isslice(n->left->type) && !isslice(n->right->type))
 				yyerror("arguments to copy must be slices; have %lT, %lT", n->left->type, n->right->type);
 			else if(!isslice(n->left->type))
 				yyerror("first argument to copy should be slice; have %lT", n->left->type);
 			else
-				yyerror("second argument to copy should be slice; have %lT", n->right->type);
+				yyerror("second argument to copy should be slice or string; have %lT", n->right->type);
 			goto error;
 		}
 		if(!eqtype(n->left->type->type, n->right->type->type)) {

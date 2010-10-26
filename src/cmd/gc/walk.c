@@ -1261,7 +1261,10 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OCOPY:
-		fn = syslook("slicecopy", 1);
+		if(n->right->type->etype == TSTRING)
+			fn = syslook("slicestringcopy", 1);
+		else
+			fn = syslook("slicecopy", 1);
 		argtype(fn, n->left->type);
 		argtype(fn, n->right->type);
 		n = mkcall1(fn, n->type, init,

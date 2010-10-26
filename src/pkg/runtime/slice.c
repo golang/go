@@ -218,6 +218,24 @@ out:
 }
 
 void
+·slicestringcopy(Slice to, String fm, int32 ret)
+{
+	if(fm.len == 0 || to.len == 0) {
+		ret = 0;
+		goto out;
+	}
+	
+	ret = fm.len;
+	if(to.len < ret)
+		ret = to.len;
+	
+	memmove(to.array, fm.str, ret);
+
+out:
+	FLUSH(&ret);
+}
+
+void
 ·printslice(Slice a)
 {
 	prints("[");

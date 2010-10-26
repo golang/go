@@ -33,6 +33,7 @@ char *runtimeimport =
 	"func \"\".stringiter (? string, ? int) int\n"
 	"func \"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
 	"func \"\".slicecopy (to any, fr any, wid uint32) int\n"
+	"func \"\".slicestringcopy (to any, fr any) int\n"
 	"func \"\".convI2E (elem any) any\n"
 	"func \"\".convI2I (typ *uint8, elem any) any\n"
 	"func \"\".convT2E (typ *uint8, elem any) any\n"
