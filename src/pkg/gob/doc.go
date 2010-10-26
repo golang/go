@@ -122,7 +122,7 @@ field numbers are delta encoded for efficiency and the fields are always sent in
 order of increasing field number; the deltas are therefore unsigned.  The
 initialization for the delta encoding sets the field number to -1, so an unsigned
 integer field 0 with value 7 is transmitted as unsigned delta = 1, unsigned value
-= 7 or (01 0E).  Finally, after all the fields have been sent a terminating mark
+= 7 or (01 07).  Finally, after all the fields have been sent a terminating mark
 denotes the end of the struct.  That mark is a delta=0 value, which has
 representation (00).
 
@@ -148,7 +148,7 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
 description, constructed from these types:
 
 	type wireType struct {
-		s	structType;
+		s structType
 	}
 	type arrayType struct {
 		commonType
@@ -156,20 +156,20 @@ description, constructed from these types:
 		Len  int
 	}
 	type commonType {
-		name	string;	// the name of the struct type
-		id	int;	// the id of the type, repeated for so it's inside the type
+		name string // the name of the struct type
+		_id  int    // the id of the type, repeated for so it's inside the type
 	}
 	type sliceType struct {
 		commonType
 		Elem typeId
 	}
 	type structType struct {
-		commonType;
-		field	[]fieldType;	// the fields of the struct.
+		commonType
+		field []*fieldType // the fields of the struct.
 	}
 	type fieldType struct {
-		name	string;	// the name of the field.
-		id	int;	// the type id of the field, which must be already defined
+		name string // the name of the field.
+		id   int    // the type id of the field, which must be already defined
 	}
 	type mapType struct {
 		commonType
@@ -193,8 +193,8 @@ priori, as well as the basic gob types int, uint, etc.  Their ids are:
 	interface   8
 	// gap for reserved ids.
 	wireType    16
-	arrayType  17
-	commonType 18
+	arrayType   17
+	commonType  18
 	sliceType   19
 	structType  20
 	fieldType   21
@@ -212,13 +212,13 @@ package gob
 
 /*
 For implementers and the curious, here is an encoded example.  Given
-	type Point {x, y int}
+	type Point struct {x, y int}
 and the value
 	p := Point{22, 33}
 the bytes transmitted that encode p will be:
-	1f ff 81 03 01 01 05 50 6f 69 6e 74 01 ff 82 00 01 02 01 01 78
-	01 04 00 01 01 79 01 04 00 00 00 07 ff 82 01 2c 01 42 00 07 ff
-	82 01 2c 01 42 00
+	1f ff 81 03 01 01 05 50 6f 69 6e 74 01 ff 82 00
+	01 02 01 01 78 01 04 00 01 01 79 01 04 00 00 00
+	07 ff 82 01 2c 01 42 00
 They are determined as follows.
 
 Since this is the first transmission of type Point, the type descriptor
@@ -237,44 +237,44 @@ reserved).
 	// all its components), so we just need to send a *value* of type wireType
 	// that represents type "Point".
 	// Here starts the encoding of that value.
-	// Set the field number implicitly to zero; this is done at the beginning
+	// Set the field number implicitly to -1; this is done at the beginning
 	// of every struct, including nested structs.
-	03 	// Add 3 to field number; now 3 (wireType.structType; this is a struct).
+	03	// Add 3 to field number; now 2 (wireType.structType; this is a struct).
 		// structType starts with an embedded commonType, which appears
 		// as a regular structure here too.
-	01	// add 1 to field number (now 1); start of embedded commonType.
-	01	// add one to field number (now 1, the name of the type)
+	01	// add 1 to field number (now 0); start of embedded commonType.
+	01	// add 1 to field number (now 0, the name of the type)
 	05	// string is (unsigned) 5 bytes long
 	50 6f 69 6e 74	// wireType.structType.commonType.name = "Point"
-	01	// add one to field number (now 2, the id of the type)
+	01	// add 1 to field number (now 1, the id of the type)
 	ff 82	// wireType.structType.commonType._id = 65
-	00 	// end of embedded wiretype.structType.commonType struct
-	01	// add one to field number (now 2, the Field array in wireType.structType)
+	00	// end of embedded wiretype.structType.commonType struct
+	01	// add 1 to field number (now 1, the field array in wireType.structType)
 	02	// There are two fields in the type (len(structType.field))
-	01	// Start of first field structure; add 1 to get field number 1: field[0].name
+	01	// Start of first field structure; add 1 to get field number 0: field[0].name
 	01	// 1 byte
 	78	// structType.field[0].name = "x"
-	01	// Add 1 to get field number 2: field[0].id
+	01	// Add 1 to get field number 1: field[0].id
 	04	// structType.field[0].typeId is 2 (signed int).
-	00	// End of structType.field[0]; start structType.field[1]; set field number to 0.
-	01	// Add 1 to get field number 1: field[1].name
+	00	// End of structType.field[0]; start structType.field[1]; set field number to -1.
+	01	// Add 1 to get field number 0: field[1].name
 	01	// 1 byte
 	79	// structType.field[1].name = "y"
-	01	// Add 1 to get field number 2: field[0].id
+	01	// Add 1 to get field number 1: field[0].id
 	04	// struct.Type.field[1].typeId is 2 (signed int).
 	00	// End of structType.field[1]; end of structType.field.
 	00	// end of wireType.structType structure
 	00	// end of wireType structure
 
-Now we can send the Point value.  Again the field number resets to zero:
+Now we can send the Point value.  Again the field number resets to -1:
 
-	07 // this value is 7 bytes long
-	ff 82 // the type number, 65 (1 byte (-FF) followed by 65<<1)
-	01 // add one to field number, yielding field 1
-	2c // encoding of signed "22" (0x22 = 44 = 22<<1); Point.x = 22
-	01 // add one to field number, yielding field 2
-	42 // encoding of signed "33" (0x42 = 66 = 33<<1); Point.y = 33
-	00 // end of structure
+	07	// this value is 7 bytes long
+	ff 82	// the type number, 65 (1 byte (-FF) followed by 65<<1)
+	01	// add one to field number, yielding field 0
+	2c	// encoding of signed "22" (0x22 = 44 = 22<<1); Point.x = 22
+	01	// add one to field number, yielding field 1
+	42	// encoding of signed "33" (0x42 = 66 = 33<<1); Point.y = 33
+	00	// end of structure
 
 The type encoding is long and fairly intricate but we send it only once.
 If p is transmitted a second time, the type is already known so the
@@ -290,9 +290,9 @@ the argument to Encode will emit:
 
 Which represents:
 
-	03 // this value is 3 bytes long
-	04 // the type number, 2, represents an integer
-	00 // tag delta 0
-	06 // value 3
+	03	// this value is 3 bytes long
+	04	// the type number, 2, represents an integer
+	00	// tag delta 0
+	06	// value 3
 
 */
