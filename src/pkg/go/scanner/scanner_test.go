@@ -427,14 +427,11 @@ func TestSemis(t *testing.T) {
 }
 
 
-type seg struct {
+var segments = []struct {
 	srcline  string // a line of source text
 	filename string // filename for current token
 	line     int    // line number for current token
-}
-
-
-var segments = []seg{
+}{
 	// exactly one token per line since the test consumes one token per segment
 	{"  line1", "TestLineComments", 1},
 	{"\nline2", "TestLineComments", 2},
@@ -604,14 +601,12 @@ func checkError(t *testing.T, src string, tok token.Token, pos int, err string) 
 }
 
 
-type srcerr struct {
+var errors = []struct {
 	src string
 	tok token.Token
 	pos int
 	err string
-}
-
-var errors = []srcerr{
+}{
 	{"\"\"", token.STRING, 0, ""},
 	{"\"", token.STRING, 0, "string not terminated"},
 	{"/**/", token.COMMENT, 0, ""},
