@@ -25,6 +25,7 @@ GOFILES=\
 	error.go\
 	extern.go\
 	sig.go\
+	softfloat64.go\
 	type.go\
 	version.go\
 

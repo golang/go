@@ -558,6 +558,7 @@ void	reflect·call(byte*, byte*, uint32);
 void	·panic(Eface);
 void	·panicindex(void);
 void	·panicslice(void);
+
 /*
  * runtime c-called (but written in Go)
  */
@@ -565,6 +566,16 @@ void ·newError(String, Eface*);
 void	·printany(Eface);
 void	·newTypeAssertionError(Type*, Type*, Type*, String*, String*, String*, String*, Eface*);
 void	·newErrorString(String, Eface*);
+void	·fadd64c(uint64, uint64, uint64*);
+void	·fsub64c(uint64, uint64, uint64*);
+void	·fmul64c(uint64, uint64, uint64*);
+void	·fdiv64c(uint64, uint64, uint64*);
+void	·fneg64c(uint64, uint64*);
+void	·f32to64c(uint32, uint64*);
+void	·f64to32c(uint64, uint32*);
+void	·fcmp64c(uint64, uint64, int32*, bool*);
+void	·fintto64c(int64, uint64*);
+void	·f64tointc(uint64, int64*, bool*);
 
 /*
  * wrapped for go users
