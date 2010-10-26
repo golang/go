@@ -6,13 +6,10 @@ package big
 
 import "testing"
 
-type cmpTest struct {
+var cmpTests = []struct {
 	x, y nat
 	r    int
-}
-
-
-var cmpTests = []cmpTest{
+}{
 	{nil, nil, 0},
 	{nil, nat{}, 0},
 	{nat{}, nil, 0},
@@ -111,13 +108,10 @@ func TestFunNN(t *testing.T) {
 }
 
 
-type mulRangeN struct {
+var mulRangesN = []struct {
 	a, b uint64
 	prod string
-}
-
-
-var mulRangesN = []mulRangeN{
+}{
 	{0, 0, "0"},
 	{1, 1, "1"},
 	{1, 2, "2"},
@@ -173,14 +167,11 @@ func BenchmarkMul(b *testing.B) {
 }
 
 
-type str struct {
+var tab = []struct {
 	x nat
 	b int
 	s string
-}
-
-
-var tab = []str{
+}{
 	{nil, 10, "0"},
 	{nat{1}, 10, "1"},
 	{nat{10}, 10, "10"},
@@ -329,13 +320,10 @@ func TestTrailingZeroBits(t *testing.T) {
 }
 
 
-type expNNTest struct {
+var expNNTests = []struct {
 	x, y, m string
 	out     string
-}
-
-
-var expNNTests = []expNNTest{
+}{
 	{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
 	{"0x8000000000000000", "2", "6719", "4944"},
 	{"0x8000000000000000", "3", "6719", "5447"},
