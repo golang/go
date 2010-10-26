@@ -83,8 +83,8 @@ func test6() {
 }
 
 func test7() {
-	if syscall.ARCH == "arm" || syscall.OS == "nacl" {
-		// ARM doesn't have integer divide trap yet
+	if syscall.OS == "nacl" {
+		// NaCl cannot handle traps
 		return
 	}
 	defer mustRecover("divide by zero")

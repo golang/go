@@ -6,17 +6,9 @@
 
 package strconv
 
-import "runtime"
-
 func NewDecimal(i uint64) *decimal { return newDecimal(i) }
 
 func SetOptimize(b bool) bool {
-	if runtime.GOARCH == "arm" {
-		// optimize is always false on arm,
-		// because the software floating point
-		// has such terrible multiplication.
-		return false
-	}
 	old := optimize
 	optimize = b
 	return old

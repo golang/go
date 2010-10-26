@@ -64,6 +64,8 @@ TEXT _rt0_arm(SB),7,$-4
 TEXT mainstart(SB),7,$4
 	BL	main·init(SB)
 	BL	initdone(SB)
+	EOR	R0, R0
+	MOVW	R0, 0(R13)
 	BL	main·main(SB)
 	MOVW	$0, R0
 	MOVW	R0, 4(SP)
@@ -84,7 +86,7 @@ TEXT _dep_dummy(SB),7,$0
 	BL	_sfloat(SB)
 
 TEXT	breakpoint(SB),7,$0
-	BL	abort(SB)
+	// no breakpoint yet; let program exit
 	RET
 
 /*
