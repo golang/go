@@ -10,7 +10,6 @@ package main
 import (
 	"runtime"
 	"strings"
-	"syscall"
 )
 
 var didbug bool
@@ -44,7 +43,7 @@ func check(name string, f func(), err string) {
 			return
 		}
 	}()
-	
+
 	f()
 }
 
@@ -55,11 +54,8 @@ func main() {
 	var q *[10000]int
 	var i int
 
-	// not catching divide by zero on the arm.  is that even possible?
-	if syscall.ARCH != "arm" {
-		check("int-div-zero", func() { println(1/x) }, "integer divide by zero")
-		check("int64-div-zero", func() { println(1/x64) }, "integer divide by zero")
-	}
+	check("int-div-zero", func() { println(1 / x) }, "integer divide by zero")
+	check("int64-div-zero", func() { println(1 / x64) }, "integer divide by zero")
 
 	check("nil-deref", func() { println(p[0]) }, "nil pointer dereference")
 	check("nil-deref-1", func() { println(p[1]) }, "nil pointer dereference")
@@ -69,11 +65,13 @@ func main() {
 	var sl []int
 	check("array-bounds", func() { println(p[i]) }, "index out of range")
 	check("slice-bounds", func() { println(sl[i]) }, "index out of range")
-	
+
 	var inter interface{}
 	inter = 1
 	check("type-concrete", func() { println(inter.(string)) }, "int, not string")
 	check("type-interface", func() { println(inter.(m)) }, "missing method m")
 }
 
-type m interface{ m() }
+type m interface {
+	m()
+}

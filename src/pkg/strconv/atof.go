@@ -15,11 +15,9 @@ package strconv
 import (
 	"math"
 	"os"
-	"runtime"
 )
 
-// TODO(rsc): remove "arm" check
-var optimize = runtime.GOARCH != "arm" // can change for testing
+var optimize = true // can change for testing
 
 // TODO(rsc): Better truncation handling.
 func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {

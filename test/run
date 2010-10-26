@@ -56,16 +56,6 @@ filterout() {
 	grep '^'"$2"'$' $1 >/dev/null
 }
 
-if [ "$GOARCH" = "arm" ]; then
-	if [ "$GORUN" = "" ]; then
-		exclude="filterout fail-arm-native.txt"
-		golden=golden-arm-native.out
-	else
-		exclude="filterout fail-arm.txt"
-		golden=golden-arm.out
-	fi
-fi
-
 for dir in . ken chan interface nilptr syntax fixedbugs bugs
 do
 	echo

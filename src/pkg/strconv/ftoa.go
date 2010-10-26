@@ -11,7 +11,6 @@
 package strconv
 
 import "math"
-import "runtime"
 
 // TODO: move elsewhere?
 type floatInfo struct {
@@ -24,9 +23,6 @@ var float32info = floatInfo{23, 8, -127}
 var float64info = floatInfo{52, 11, -1023}
 
 func floatsize() int {
-	if runtime.GOARCH == "arm" { // TODO(rsc): remove
-		return 32
-	}
 	// Figure out whether float is float32 or float64.
 	// 1e-35 is representable in both, but 1e-70
 	// is too small for a float32.
