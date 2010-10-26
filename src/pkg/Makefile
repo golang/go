@@ -149,7 +149,6 @@ NOTEST=\
 	image/jpeg\
 	net/dict\
 	rand\
-	runtime\
 	runtime/pprof\
 	syscall\
 	testing/iotest\
@@ -199,14 +198,6 @@ NOTEST+=os/signal    # no signals
 NOTEST+=path         # tree walking does not work
 NOTEST+=syslog       # no network
 NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
-endif
-
-ifeq ($(GOARCH),arm)
-# Tests that fail, probably 5g bugs.
-# Disable so that dashboard all.bash can catch regressions.
-NOTEST+=cmath        # software floating point (lack of) accuracy
-NOTEST+=math         # software floating point (lack of) accuracy
-NOTEST+=strconv      # software floating point (lack of) accuracy
 endif
 
 TEST=\
