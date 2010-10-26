@@ -99,16 +99,13 @@ func check(t *testing.T, testname string, minwidth, tabwidth, padding int, padch
 }
 
 
-type entry struct {
+var tests = []struct {
 	testname                    string
 	minwidth, tabwidth, padding int
 	padchar                     byte
 	flags                       uint
 	src, expected               string
-}
-
-
-var tests = []entry{
+}{
 	{
 		"1a",
 		8, 0, 1, '.', 0,
