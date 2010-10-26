@@ -300,15 +300,12 @@ func TestFunVWW(t *testing.T) {
 }
 
 
-type mulWWTest struct {
+var mulWWTests = []struct {
 	x, y Word
 	q, r Word
-}
-
-
-var mulWWTests = []mulWWTest{
+}{
 	{_M, _M, _M - 1, 1},
-	// 32 bit only: mulWWTest{0xc47dfa8c, 50911, 0x98a4, 0x998587f4},
+	// 32 bit only: {0xc47dfa8c, 50911, 0x98a4, 0x998587f4},
 }
 
 
@@ -322,16 +319,13 @@ func TestMulWW(t *testing.T) {
 }
 
 
-type mulAddWWWTest struct {
+var mulAddWWWTests = []struct {
 	x, y, c Word
 	q, r    Word
-}
-
-
-var mulAddWWWTests = []mulAddWWWTest{
+}{
 	// TODO(agl): These will only work on 64-bit platforms.
-	// mulAddWWWTest{15064310297182388543, 0xe7df04d2d35d5d80, 13537600649892366549, 13644450054494335067, 10832252001440893781},
-	// mulAddWWWTest{15064310297182388543, 0xdab2f18048baa68d, 13644450054494335067, 12869334219691522700, 14233854684711418382},
+	// {15064310297182388543, 0xe7df04d2d35d5d80, 13537600649892366549, 13644450054494335067, 10832252001440893781},
+	// {15064310297182388543, 0xdab2f18048baa68d, 13644450054494335067, 12869334219691522700, 14233854684711418382},
 	{_M, _M, 0, _M - 1, 1},
 	{_M, _M, _M, _M, 0},
 }

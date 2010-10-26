@@ -7,12 +7,10 @@ package big
 import "testing"
 
 
-type setStringTest struct {
+var setStringTests = []struct {
 	in, out string
 	ok      bool
-}
-
-var setStringTests = []setStringTest{
+}{
 	{"0", "0", true},
 	{"-0", "0", true},
 	{"1", "1", true},
@@ -55,13 +53,11 @@ func TestRatSetString(t *testing.T) {
 }
 
 
-type floatStringTest struct {
+var floatStringTests = []struct {
 	in   string
 	prec int
 	out  string
-}
-
-var floatStringTests = []floatStringTest{
+}{
 	{"0", 0, "0"},
 	{"0", 4, "0"},
 	{"1", 0, "1"},
@@ -103,12 +99,10 @@ func TestRatSign(t *testing.T) {
 }
 
 
-type ratCmpTest struct {
+var ratCmpTests = []struct {
 	rat1, rat2 string
 	out        int
-}
-
-var ratCmpTests = []ratCmpTest{
+}{
 	{"0", "0/1", 0},
 	{"1/1", "1", 0},
 	{"-1", "-2/2", 0},
@@ -182,12 +176,10 @@ func testRatBin(t *testing.T, i int, name string, f ratBinFun, a ratBinArg) {
 }
 
 
-type ratBinTest struct {
+var ratBinTests = []struct {
 	x, y      string
 	sum, prod string
-}
-
-var ratBinTests = []ratBinTest{
+}{
 	{"0", "0", "0", "0"},
 	{"0", "1", "1", "0"},
 	{"-1", "0", "-1", "0"},

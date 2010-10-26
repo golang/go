@@ -186,13 +186,10 @@ func TestMul(t *testing.T) {
 }
 
 
-type mulRangeZ struct {
+var mulRangesZ = []struct {
 	a, b int64
 	prod string
-}
-
-
-var mulRangesZ = []mulRangeZ{
+}{
 	// entirely positive ranges are covered by mulRangesN
 	{-1, 1, "0"},
 	{-2, -1, "2"},
@@ -234,16 +231,13 @@ func TestMulRangeZ(t *testing.T) {
 }
 
 
-type stringTest struct {
+var stringTests = []struct {
 	in   string
 	out  string
 	base int
 	val  int64
 	ok   bool
-}
-
-
-var stringTests = []stringTest{
+}{
 	{in: "", ok: false},
 	{in: "a", ok: false},
 	{in: "z", ok: false},
@@ -353,15 +347,12 @@ func TestSetString(t *testing.T) {
 }
 
 
-type divisionSignsTest struct {
+// Examples from the Go Language Spec, section "Arithmetic operators"
+var divisionSignsTests = []struct {
 	x, y int64
 	q, r int64 // T-division
 	d, m int64 // Euclidian division
-}
-
-
-// Examples from the Go Language Spec, section "Arithmetic operators"
-var divisionSignsTests = []divisionSignsTest{
+}{
 	{5, 3, 1, 2, 1, 2},
 	{-5, 3, -1, -2, -2, 1},
 	{5, -3, -1, 2, -1, 2},
@@ -488,13 +479,10 @@ func checkQuo(x, y []byte) bool {
 }
 
 
-type quoTest struct {
+var quoTests = []struct {
 	x, y string
 	q, r string
-}
-
-
-var quoTests = []quoTest{
+}{
 	{
 		"476217953993950760840509444250624797097991362735329973741718102894495832294430498335824897858659711275234906400899559094370964723884706254265559534144986498357",
 		"9353930466774385905609975137998169297361893554149986716853295022578535724979483772383667534691121982974895531435241089241440253066816724367338287092081996",
@@ -551,13 +539,10 @@ func TestQuoStepD6(t *testing.T) {
 }
 
 
-type bitLenTest struct {
+var bitLenTests = []struct {
 	in  string
 	out int
-}
-
-
-var bitLenTests = []bitLenTest{
+}{
 	{"-1", 1},
 	{"0", 0},
 	{"1", 1},
@@ -588,13 +573,10 @@ func TestBitLen(t *testing.T) {
 }
 
 
-type expTest struct {
+var expTests = []struct {
 	x, y, m string
 	out     string
-}
-
-
-var expTests = []expTest{
+}{
 	{"5", "0", "", "1"},
 	{"-5", "0", "", "-1"},
 	{"5", "1", "", "5"},
@@ -664,13 +646,10 @@ func checkGcd(aBytes, bBytes []byte) bool {
 }
 
 
-type gcdTest struct {
+var gcdTests = []struct {
 	a, b    int64
 	d, x, y int64
-}
-
-
-var gcdTests = []gcdTest{
+}{
 	{120, 23, 1, -9, 47},
 }
 
@@ -928,12 +907,10 @@ func TestInt64(t *testing.T) {
 }
 
 
-type bitwiseTest struct {
+var bitwiseTests = []struct {
 	x, y                 string
 	and, or, xor, andNot string
-}
-
-var bitwiseTests = []bitwiseTest{
+}{
 	{"0x00", "0x00", "0x00", "0x00", "0x00", "0x00"},
 	{"0x00", "0x01", "0x00", "0x01", "0x01", "0x00"},
 	{"0x01", "0x00", "0x00", "0x01", "0x01", "0x01"},
@@ -1019,12 +996,10 @@ func TestBitwise(t *testing.T) {
 }
 
 
-type notTest struct {
+var notTests = []struct {
 	in  string
 	out string
-}
-
-var notTests = []notTest{
+}{
 	{"0", "-1"},
 	{"1", "-2"},
 	{"7", "-8"},
@@ -1055,12 +1030,10 @@ func TestNot(t *testing.T) {
 }
 
 
-type modInverseTest struct {
+var modInverseTests = []struct {
 	element string
 	prime   string
-}
-
-var modInverseTests = []modInverseTest{
+}{
 	{"1", "7"},
 	{"1", "13"},
 	{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
