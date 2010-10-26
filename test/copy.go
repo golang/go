@@ -23,6 +23,15 @@ var input32 = make([]uint32, N)
 var output32 = make([]uint32, N)
 var input64 = make([]uint64, N)
 var output64 = make([]uint64, N)
+var inputS string
+var outputS = make([]uint8, N)
+
+type my8 []uint8
+type my16 []uint16
+type my32 []uint32
+type my32b []uint32
+type my64 []uint64
+type myS string
 
 func u8(i int) uint8 {
 	i = 'a' + i%26
@@ -64,6 +73,7 @@ func reset() {
 	for i := range input8 {
 		input8[i] = u8(in)
 		output8[i] = u8(out)
+		outputS[i] = u8(out)
 		input16[i] = u16(in)
 		output16[i] = u16(out)
 		input32[i] = u32(in)
@@ -73,6 +83,7 @@ func reset() {
 		in++
 		out++
 	}
+	inputS = string(input8)
 }
 
 func clamp(n int) int {
@@ -95,13 +106,15 @@ func ncopied(length, in, out int) int {
 
 func doAllSlices(length, in, out int) {
 	reset()
-	n := copy(output8[out:clamp(out+length)], input8[in:clamp(in+length)])
+	n := copy(my8(output8[out:clamp(out+length)]), input8[in:clamp(in+length)])
 	verify8(length, in, out, n)
-	n = copy(output16[out:clamp(out+length)], input16[in:clamp(in+length)])
+	n = copy(my8(outputS[out:clamp(out+length)]), myS(inputS[in:clamp(in+length)]))
+	verifyS(length, in, out, n)
+	n = copy(my16(output16[out:clamp(out+length)]), input16[in:clamp(in+length)])
 	verify16(length, in, out, n)
-	n = copy(output32[out:clamp(out+length)], input32[in:clamp(in+length)])
+	n = copy(my32(output32[out:clamp(out+length)]), my32b(input32[in:clamp(in+length)]))
 	verify32(length, in, out, n)
-	n = copy(output64[out:clamp(out+length)], input64[in:clamp(in+length)])
+	n = copy(my64(output64[out:clamp(out+length)]), input64[in:clamp(in+length)])
 	verify64(length, in, out, n)
 }
 
@@ -140,6 +153,46 @@ func verify8(length, in, out, m int) {
 	for ; i < len(output8); i++ {
 		if output8[i] != u8(i+13) {
 			bad8("after8", i, length, in, out)
+			return
+		}
+	}
+}
+
+func badS(state string, i, length, in, out int) {
+	fmt.Printf("%s bad(%d %d %d): %c not %c:\n\t%s\n\t%s\n",
+		state,
+		length, in, out,
+		outputS[i],
+		uint8(i+13),
+		inputS, outputS)
+	os.Exit(1)
+}
+
+func verifyS(length, in, out, m int) {
+	n := ncopied(length, in, out)
+	if m != n {
+		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
+		return
+	}
+	// before
+	var i int
+	for i = 0; i < out; i++ {
+		if outputS[i] != u8(i+13) {
+			badS("beforeS", i, length, in, out)
+			return
+		}
+	}
+	// copied part
+	for ; i < out+n; i++ {
+		if outputS[i] != u8(i+in-out) {
+			badS("copiedS", i, length, in, out)
+			return
+		}
+	}
+	// after
+	for ; i < len(outputS); i++ {
+		if outputS[i] != u8(i+13) {
+			badS("afterS", i, length, in, out)
 			return
 		}
 	}
