@@ -149,24 +149,24 @@ importpath=$(gomake -s importpath)
 	echo 'import "testing"'
 	# test array
 	echo
-	echo 'var tests = []testing.Test {'
+	echo 'var tests = []testing.Test{'
 	for i in $tests
 	do
-		echo '	testing.Test{ "'$i'", '$i' },'
+		echo '	testing.Test{"'$i'", '$i'},'
 	done
 	echo '}'
 	# benchmark array
-	echo 'var benchmarks = []testing.Benchmark {'
+	echo 'var benchmarks = []testing.Benchmark{'
 	for i in $benchmarks
 	do
-		echo '	testing.Benchmark{ "'$i'", '$i' },'
+		echo '	testing.Benchmark{"'$i'", '$i'},'
 	done
 	echo '}'
 
 	# body
 	echo
 	echo 'func main() {'
-	echo '	testing.Main(tests);'
+	echo '	testing.Main(tests)'
 	echo '	testing.RunBenchmarks(benchmarks)'
 	echo '}'
 }>_testmain.go
