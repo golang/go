@@ -1195,6 +1195,51 @@ func TestInterface(t *testing.T) {
 
 }
 
+// A struct with all basic types, stored in interfaces.
+type BasicInterfaceItem struct {
+	Int, Int8, Int16, Int32, Int64      interface{}
+	Uint, Uint8, Uint16, Uint32, Uint64 interface{}
+	Float, Float32, Float64             interface{}
+	Complex, Complex64, Complex128      interface{}
+	Bool                                interface{}
+	String                              interface{}
+	Bytes                               interface{}
+}
+
+func TestInterfaceBasic(t *testing.T) {
+	b := new(bytes.Buffer)
+	item1 := &BasicInterfaceItem{
+		int(1), int8(1), int16(1), int32(1), int64(1),
+		uint(1), uint8(1), uint16(1), uint32(1), uint64(1),
+		float(1), float32(1), float64(1),
+		complex(0i), complex64(0i), complex128(0i),
+		true,
+		"hello",
+		[]byte("sailor"),
+	}
+	// Register the types.
+	err := NewEncoder(b).Encode(item1)
+	if err != nil {
+		t.Error("expected no encode error; got", err)
+	}
+
+	item2 := &BasicInterfaceItem{}
+	err = NewDecoder(b).Decode(&item2)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if !reflect.DeepEqual(item1, item2) {
+		t.Errorf("encode expected %v got %v", item1, item2)
+	}
+	// Hand check a couple for correct types.
+	if v, ok := item2.Bool.(bool); !ok || !v {
+		t.Error("boolean should be true")
+	}
+	if v, ok := item2.String.(string); !ok || v != item1.String.(string) {
+		t.Errorf("string should be %v is %v", item1.String, v)
+	}
+}
+
 func TestIgnoreInterface(t *testing.T) {
 	iVal := Int(3)
 	fVal := Float(5)

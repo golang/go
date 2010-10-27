@@ -132,6 +132,7 @@ func init() {
 		panic(fmt.Sprintln("nextId too large:", nextId))
 	}
 	nextId = firstUserId
+	registerBasics()
 }
 
 // Array type
@@ -497,4 +498,26 @@ func Register(value interface{}) {
 	}
 
 	RegisterName(name, value)
+}
+
+func registerBasics() {
+	Register(int(0))
+	Register(int8(0))
+	Register(int16(0))
+	Register(int32(0))
+	Register(int64(0))
+	Register(uint(0))
+	Register(uint8(0))
+	Register(uint16(0))
+	Register(uint32(0))
+	Register(uint64(0))
+	Register(float(0))
+	Register(float32(0))
+	Register(float64(0))
+	Register(complex(0i))
+	Register(complex64(0i))
+	Register(complex128(0i))
+	Register(false)
+	Register("")
+	Register([]byte(nil))
 }
