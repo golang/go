@@ -311,9 +311,8 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 				cr[0][3*x+3] = uint8(b >> 8)
 			}
 		case cbP8:
-			for x := b.Min.X; x < b.Max.X; x++ {
-				cr[0][x+1] = paletted.ColorIndexAt(x, y)
-			}
+			rowOffset := y * paletted.Stride
+			copy(cr[0][b.Min.X+1:], paletted.Pix[rowOffset+b.Min.X:rowOffset+b.Max.X])
 		case cbTCA8:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 			for x := b.Min.X; x < b.Max.X; x++ {
