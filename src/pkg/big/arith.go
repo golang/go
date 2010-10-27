@@ -56,161 +56,29 @@ func subWW_g(x, y, c Word) (z1, z0 Word) {
 
 
 // z1<<_W + z0 = x*y
+// Adapted from Warren, Hacker's Delight, p. 132.
 func mulWW_g(x, y Word) (z1, z0 Word) {
-	// Split x and y into 2 halfWords each, multiply
-	// the halfWords separately while avoiding overflow,
-	// and return the product as 2 Words.
-
-	if x < y {
-		x, y = y, x
-	}
-
-	if x < _B2 {
-		// y < _B2 because y <= x
-		// sub-digits of x and y are (0, x) and (0, y)
-		// z = z[0] = x*y
-		z0 = x * y
-		return
-	}
-
-	if y < _B2 {
-		// sub-digits of x and y are (x1, x0) and (0, y)
-		// x = (x1*_B2 + x0)
-		// y = (y1*_B2 + y0)
-		x1, x0 := x>>_W2, x&_M2
-
-		// x*y = t2*_B2*_B2 + t1*_B2 + t0
-		t0 := x0 * y
-		t1 := x1 * y
-
-		// compute result digits but avoid overflow
-		// z = z[1]*_B + z[0] = x*y
-		z0 = t1<<_W2 + t0
-		z1 = (t1 + t0>>_W2) >> _W2
-		return
-	}
-
-	// general case
-	// sub-digits of x and y are (x1, x0) and (y1, y0)
-	// x = (x1*_B2 + x0)
-	// y = (y1*_B2 + y0)
-	x1, x0 := x>>_W2, x&_M2
-	y1, y0 := y>>_W2, y&_M2
-
-	// x*y = t2*_B2*_B2 + t1*_B2 + t0
-	t0 := x0 * y0
-	// t1 := x1*y0 + x0*y1;
-	var c Word
-	t1 := x1 * y0
-	t1a := t1
-	t1 += x0 * y1
-	if t1 < t1a {
-		c++
-	}
-	t2 := x1*y1 + c*_B2
-
-	// compute result digits but avoid overflow
-	// z = z[1]*_B + z[0] = x*y
-	// This may overflow, but that's ok because we also sum t1 and t0 above
-	// and we take care of the overflow there.
-	z0 = t1<<_W2 + t0
-
-	// z1 = t2 + (t1 + t0>>_W2)>>_W2;
-	var c3 Word
-	z1 = t1 + t0>>_W2
-	if z1 < t1 {
-		c3++
-	}
-	z1 >>= _W2
-	z1 += c3 * _B2
-	z1 += t2
+	x0 := x & _M2
+	x1 := x >> _W2
+	y0 := y & _M2
+	y1 := y >> _W2
+	w0 := x0 * y0
+	t := x1*y0 + w0>>_W2
+	w1 := t & _M2
+	w2 := t >> _W2
+	w1 += x0 * y1
+	z1 = x1*y1 + w2 + w1>>_W2
+	z0 = x * y
 	return
 }
 
 
 // z1<<_W + z0 = x*y + c
 func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
-	// Split x and y into 2 halfWords each, multiply
-	// the halfWords separately while avoiding overflow,
-	// and return the product as 2 Words.
-
-	// TODO(gri) Should implement special cases for faster execution.
-
-	// general case
-	// sub-digits of x, y, and c are (x1, x0), (y1, y0), (c1, c0)
-	// x = (x1*_B2 + x0)
-	// y = (y1*_B2 + y0)
-	x1, x0 := x>>_W2, x&_M2
-	y1, y0 := y>>_W2, y&_M2
-	c1, c0 := c>>_W2, c&_M2
-
-	// x*y + c = t2*_B2*_B2 + t1*_B2 + t0
-	// (1<<32-1)^2 == 1<<64 - 1<<33 + 1, so there's space to add c0 in here.
-	t0 := x0*y0 + c0
-
-	// t1 := x1*y0 + x0*y1 + c1;
-	var c2 Word // extra carry
-	t1 := x1*y0 + c1
-	t1a := t1
-	t1 += x0 * y1
-	if t1 < t1a { // If the number got smaller then we overflowed.
-		c2++
+	z1, zz0 := mulWW(x, y)
+	if z0 = zz0 + c; z0 < zz0 {
+		z1++
 	}
-
-	t2 := x1*y1 + c2*_B2
-
-	// compute result digits but avoid overflow
-	// z = z[1]*_B + z[0] = x*y
-	// z0 = t1<<_W2 + t0;
-	// This may overflow, but that's ok because we also sum t1 and t0 below
-	// and we take care of the overflow there.
-	z0 = t1<<_W2 + t0
-
-	var c3 Word
-	z1 = t1 + t0>>_W2
-	if z1 < t1 {
-		c3++
-	}
-	z1 >>= _W2
-	z1 += t2 + c3*_B2
-
-	return
-}
-
-
-// q = (x1<<_W + x0 - r)/y
-// The most significant bit of y must be 1.
-func divStep(x1, x0, y Word) (q, r Word) {
-	d1, d0 := y>>_W2, y&_M2
-	q1, r1 := x1/d1, x1%d1
-	m := q1 * d0
-	r1 = r1*_B2 | x0>>_W2
-	if r1 < m {
-		q1--
-		r1 += y
-		if r1 >= y && r1 < m {
-			q1--
-			r1 += y
-		}
-	}
-	r1 -= m
-
-	r0 := r1 % d1
-	q0 := r1 / d1
-	m = q0 * d0
-	r0 = r0*_B2 | x0&_M2
-	if r0 < m {
-		q0--
-		r0 += y
-		if r0 >= y && r0 < m {
-			q0--
-			r0 += y
-		}
-	}
-	r0 -= m
-
-	q = q1*_B2 | q0
-	r = r0
 	return
 }
 
@@ -241,46 +109,48 @@ func leadingZeros(x Word) uint {
 }
 
 
-// q = (x1<<_W + x0 - r)/y
-func divWW_g(x1, x0, y Word) (q, r Word) {
-	if x1 == 0 {
-		q, r = x0/y, x0%y
-		return
+// q = (u1<<_W + u0 - r)/y
+// Adapted from Warren, Hacker's Delight, p. 152.
+func divWW_g(u1, u0, v Word) (q, r Word) {
+	if u1 >= v {
+		return 1<<_W - 1, 1<<_W - 1
 	}
 
-	var q0, q1 Word
-	z := leadingZeros(y)
-	if y > x1 {
-		if z != 0 {
-			y <<= z
-			x1 = (x1 << z) | (x0 >> (_W - z))
-			x0 <<= z
+	s := leadingZeros(v)
+	v <<= s
+
+	vn1 := v >> _W2
+	vn0 := v & _M2
+	un32 := u1<<s | u0>>(_W-s)
+	un10 := u0 << s
+	un1 := un10 >> _W2
+	un0 := un10 & _M2
+	q1 := un32 / vn1
+	rhat := un32 - q1*vn1
+
+again1:
+	if q1 >= _B2 || q1*vn0 > _B2*rhat+un1 {
+		q1--
+		rhat += vn1
+		if rhat < _B2 {
+			goto again1
 		}
-		q0, x0 = divStep(x1, x0, y)
-		q1 = 0
-	} else {
-		if z == 0 {
-			x1 -= y
-			q1 = 1
-		} else {
-			z1 := _W - z
-			y <<= z
-			x2 := x1 >> z1
-			x1 = (x1 << z) | (x0 >> z1)
-			x0 <<= z
-			q1, x1 = divStep(x2, x1, y)
+	}
+
+	un21 := un32*_B2 + un1 - q1*v
+	q0 := un21 / vn1
+	rhat = un21 - q0*vn1
+
+again2:
+	if q0 >= _B2 || q0*vn0 > _B2*rhat+un0 {
+		q0--
+		rhat += vn1
+		if rhat < _B2 {
+			goto again2
 		}
-
-		q0, x0 = divStep(x1, x0, y)
 	}
 
-	r = x0 >> z
-
-	if q1 != 0 {
-		panic("div out of range")
-	}
-
-	return q0, r
+	return q1*_B2 + q0, (un21*_B2 + un0 - q0*v) >> s
 }
 
 
