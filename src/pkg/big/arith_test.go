@@ -116,6 +116,7 @@ type argVW struct {
 
 var sumVW = []argVW{
 	{},
+	{nil, nil, 2, 2},
 	{nat{0}, nat{0}, 0, 0},
 	{nat{1}, nat{0}, 1, 0},
 	{nat{1}, nat{1}, 0, 0},
