@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Oct 26, 2010 -->
+<!-- subtitle Version of Oct 27, 2010 -->
 
 <!--
 TODO
@@ -2639,9 +2639,9 @@ within <code>Greeting</code>, <code>who</code> will have the value
 </p>
 
 <p>
-If the final argument is of slice type <code>[]T</code>, it may be passed unchanged as the value
-for a <code>...T</code> parameter if the argument is followed by <code>...</code>.
-In this case no new slice is created.
+If the final argument is assignable to a slice type <code>[]T</code>, it may be
+passed unchanged as the value for a <code>...T</code> parameter if the argument
+is followed by <code>...</code>. In this case no new slice is created.
 </p>
 
 <p>
@@ -4535,12 +4535,13 @@ Two built-in functions assist in common slice operations.
 
 <p>
 The function <code>append</code> appends zero or more values <code>x</code>
-to a slice <code>s</code> and returns the resulting slice. Each value must be
-<a href="#Assignability">assignable</a> to the slice's element type.
+to a slice <code>s</code> and returns the resulting slice, with the same type
+as s. Each value must be <a href="#Assignability">assignable</a> to the slice's
+element type.
 </p>
 
 <pre class="grammar">
-append(s []T, x ...T) []T
+append(s S, x ...T) S  // S is assignable to []T
 </pre>
 
 <p>
