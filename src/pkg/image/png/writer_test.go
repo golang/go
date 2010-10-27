@@ -5,6 +5,7 @@
 package png
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"io"
@@ -66,5 +67,20 @@ func TestWriter(t *testing.T) {
 			t.Error(fn, err)
 			continue
 		}
+	}
+}
+
+func BenchmarkEncodePaletted(b *testing.B) {
+	b.StopTimer()
+	img := image.NewPaletted(640, 480,
+		[]image.Color{
+			image.RGBAColor{0, 0, 0, 255},
+			image.RGBAColor{255, 255, 255, 255},
+		})
+	b.StartTimer()
+	buffer := new(bytes.Buffer)
+	for i := 0; i < b.N; i++ {
+		buffer.Reset()
+		Encode(buffer, img)
 	}
 }
