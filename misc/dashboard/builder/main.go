@@ -265,6 +265,8 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	env := []string{
 		"GOOS=" + b.goos,
 		"GOARCH=" + b.goarch,
+		"GOHOSTOS=" + os.Getenv("GOHOSTOS"),
+		"GOHOSTARCH=" + os.Getenv("GOHOSTARCH"),
 		"GOROOT_FINAL=/usr/local/go",
 		"PATH=" + os.Getenv("PATH"),
 	}
