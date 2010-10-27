@@ -24,7 +24,6 @@ char *runtimeimport =
 	"func \"\".cmpstring (? string, ? string) int\n"
 	"func \"\".slicestring (? string, ? int, ? int) string\n"
 	"func \"\".slicestring1 (? string, ? int) string\n"
-	"func \"\".indexstring (? string, ? int) uint8\n"
 	"func \"\".intstring (? int64) string\n"
 	"func \"\".slicebytetostring (? []uint8) string\n"
 	"func \"\".sliceinttostring (? []int) string\n"

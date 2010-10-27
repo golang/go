@@ -789,6 +789,8 @@ mkvar(Reg *r, Adr *a)
 
 			// if they overlaps, disable both
 			if(overlap(v->offset, v->width, o, w)) {
+				if(debug['R'])
+					print("disable %s\n", v->sym->name);
 				v->addr = 1;
 				flag = 1;
 			}
@@ -821,7 +823,7 @@ mkvar(Reg *r, Adr *a)
 	v->addr = flag;		// funny punning
 
 	if(debug['R'])
-		print("bit=%2d et=%2d w=%d %S %D\n", i, et, w, s, a);
+		print("bit=%2d et=%2d w=%d %S %D flag=%d\n", i, et, w, s, a, v->addr);
 	ostats.nvar++;
 
 	bit = blsh(i);

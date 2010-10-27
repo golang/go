@@ -1033,9 +1033,14 @@ walkexpr(Node **np, NodeList **init)
 
 		// if range of type cannot exceed static array bound,
 		// disable bounds check
-		if(!isslice(n->left->type))
+		if(isfixedarray(n->left->type))
 		if(n->right->type->width < 4)
 		if((1<<(8*n->right->type->width)) <= n->left->type->bound)
+			n->etype = 1;
+
+		if(isconst(n->left, CTSTR))
+		if(n->right->type->width < 4)
+		if((1<<(8*n->right->type->width)) <= n->left->val.u.sval->len)
 			n->etype = 1;
 
 		// check for static out of bounds
@@ -1043,12 +1048,20 @@ walkexpr(Node **np, NodeList **init)
 			v = mpgetfix(n->right->val.u.xval);
 			len = 1LL<<60;
 			t = n->left->type;
+			if(isconst(n->left, CTSTR))
+				len = n->left->val.u.sval->len;
 			if(t != T && isptr[t->etype])
 				t = t->type;
 			if(isfixedarray(t))
 				len = t->bound;
 			if(v < 0 || v >= (1LL<<31) || v >= len)
 				yyerror("index out of bounds");
+			else if(isconst(n->left, CTSTR)) {
+				// replace "abc"[2] with 'b'.
+				// delayed until now because "abc"[2] is not
+				// an ideal constant.
+				nodconst(n, n->type, n->left->val.u.sval->s[v]);
+			}
 		}
 		goto ret;
 
@@ -1250,14 +1263,6 @@ walkexpr(Node **np, NodeList **init)
 				conv(n->left, types[TSTRING]),
 				l);
 		}
-		goto ret;
-
-	case OINDEXSTR:
-		// TODO(rsc): should be done in back end
-		// sys_indexstring(s, i)
-		n = mkcall("indexstring", n->type, init,
-			conv(n->left, types[TSTRING]),
-			conv(n->right, types[TINT]));
 		goto ret;
 
 	case OCOPY:

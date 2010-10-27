@@ -1678,6 +1678,8 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
 		goto odot;
 
 	case OINDEX:
+		if(n->left->type->etype == TSTRING)
+			return 0;
 		cleani += 2;
 		reg = &clean[cleani-1];
 		reg1 = &clean[cleani-2];

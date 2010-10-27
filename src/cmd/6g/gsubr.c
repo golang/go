@@ -1784,6 +1784,8 @@ sudoaddable(int as, Node *n, Addr *a)
 		goto odot;
 
 	case OINDEX:
+		if(n->left->type->etype == TSTRING)
+			return 0;
 		goto oindex;
 	}
 	return 0;

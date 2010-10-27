@@ -652,7 +652,6 @@ tempname(Node *n, Type *t)
 	snprint(namebuf, sizeof(namebuf), "autotmp_%.4d", statuniqgen);
 	statuniqgen++;
 	s = lookup(namebuf);
-
 	memset(n, 0, sizeof(*n));
 	n->op = ONAME;
 	n->sym = s;
