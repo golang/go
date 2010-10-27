@@ -306,9 +306,7 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) {
 	if n >= cap(f.Sections) {
 		m := (n + 1) * 2
 		new := make([]*Section, n, m)
-		for i, sh := range f.Sections {
-			new[i] = sh
-		}
+		copy(new, f.Sections)
 		f.Sections = new
 	}
 	f.Sections = f.Sections[0 : n+1]

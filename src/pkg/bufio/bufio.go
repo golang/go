@@ -316,9 +316,7 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 			full = make([][]byte, 16)
 		} else if nfull >= len(full) {
 			newfull := make([][]byte, len(full)*2)
-			for i := 0; i < len(full); i++ {
-				newfull[i] = full[i]
-			}
+			copy(newfull, full)
 			full = newfull
 		}
 

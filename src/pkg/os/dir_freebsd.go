@@ -61,9 +61,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 			count--
 			if len(names) == cap(names) {
 				nnames := make([]string, len(names), 2*len(names))
-				for i := 0; i < len(names); i++ {
-					nnames[i] = names[i]
-				}
+				copy(nnames, names)
 				names = nnames
 			}
 			names = names[0 : len(names)+1]

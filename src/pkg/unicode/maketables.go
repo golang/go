@@ -496,9 +496,7 @@ func parseScript(line string, scripts map[string][]Script) {
 	s, ok := scripts[name]
 	if !ok || len(s) == cap(s) {
 		ns := make([]Script, len(s), len(s)+100)
-		for i, sc := range s {
-			ns[i] = sc
-		}
+		copy(ns, s)
 		s = ns
 	}
 	s = s[0 : len(s)+1]

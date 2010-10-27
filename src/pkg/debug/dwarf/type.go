@@ -454,9 +454,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 				n := len(t.Field)
 				if n >= cap(t.Field) {
 					fld := make([]*StructField, n, n*2)
-					for i, f := range t.Field {
-						fld[i] = f
-					}
+					copy(fld, t.Field)
 					t.Field = fld
 				}
 				t.Field = t.Field[0 : n+1]
@@ -505,9 +503,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 				n := len(t.Val)
 				if n >= cap(t.Val) {
 					val := make([]*EnumValue, n, n*2)
-					for i, f := range t.Val {
-						val[i] = f
-					}
+					copy(val, t.Val)
 					t.Val = val
 				}
 				t.Val = t.Val[0 : n+1]
@@ -561,9 +557,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			n := len(t.ParamType)
 			if n >= cap(t.ParamType) {
 				param := make([]Type, n, n*2)
-				for i, t := range t.ParamType {
-					param[i] = t
-				}
+				copy(param, t.ParamType)
 				t.ParamType = param
 			}
 			t.ParamType = t.ParamType[0 : n+1]

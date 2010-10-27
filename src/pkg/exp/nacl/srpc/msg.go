@@ -126,9 +126,7 @@ func (r *msgReceiver) recv() (*msg, os.Error) {
 	// The system call *did* update r.hdr.ndesc.
 	if r.hdr.ndesc > 0 {
 		m.rdesc = make([]int32, r.hdr.ndesc)
-		for i := range m.rdesc {
-			m.rdesc[i] = r.desc[i]
-		}
+		copy(m.rdesc, r.desc)
 	}
 
 	return m, nil
@@ -253,9 +251,7 @@ func (m *msg) wbytes(p []byte) { copy(m.grow(len(p)), p) }
 
 func (m *msg) wstring(s string) {
 	b := m.grow(len(s))
-	for i := range b {
-		b[i] = s[i]
-	}
+	copy(b, s)
 }
 
 // Parsing of RPC header and arguments.

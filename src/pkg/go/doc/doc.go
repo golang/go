@@ -277,11 +277,9 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 
 
 func copyCommentList(list []*ast.Comment) []*ast.Comment {
-	copy := make([]*ast.Comment, len(list))
-	for i, c := range list {
-		copy[i] = c
-	}
-	return copy
+	nlist := make([]*ast.Comment, len(list))
+	copy(nlist, list)
+	return nlist
 }
 
 

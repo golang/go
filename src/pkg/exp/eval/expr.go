@@ -1174,12 +1174,8 @@ func (a *exprInfo) compileCallExpr(b *block, l *expr, as []*expr) *expr {
 
 	// Gather argument and out types to initialize frame variables
 	vts := make([]Type, nin+nout)
-	for i, t := range lt.In {
-		vts[i] = t
-	}
-	for i, t := range lt.Out {
-		vts[i+nin] = t
-	}
+	copy(vts, lt.In)
+	copy(vts[nin:], lt.Out)
 
 	// Compile
 	lf := l.asFunc()

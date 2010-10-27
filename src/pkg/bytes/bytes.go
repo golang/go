@@ -325,9 +325,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 				// Grow the buffer.
 				maxbytes = maxbytes*2 + utf8.UTFMax
 				nb := make([]byte, maxbytes)
-				for i, c := range b[0:nbytes] {
-					nb[i] = c
-				}
+				copy(nb, b[0:nbytes])
 				b = nb
 			}
 			nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes])

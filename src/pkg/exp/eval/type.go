@@ -870,9 +870,7 @@ func NewInterfaceType(methods []IMethod, embeds []*InterfaceType) *InterfaceType
 
 	// Combine methods
 	allMethods := make([]IMethod, nMethods)
-	for i, m := range methods {
-		allMethods[i] = m
-	}
+	copy(allMethods, methods)
 	n := len(methods)
 	for _, e := range embeds {
 		for _, m := range e.methods {

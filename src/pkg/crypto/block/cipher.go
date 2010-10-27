@@ -49,10 +49,8 @@ func same(p, q []byte) bool {
 	return true
 }
 
-func copy(p []byte) []byte {
+func dup(p []byte) []byte {
 	q := make([]byte, len(p))
-	for i, b := range p {
-		q[i] = b
-	}
+	copy(q, p)
 	return q
 }

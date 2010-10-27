@@ -33,7 +33,7 @@ func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
 	x.c = c
 	x.blockSize = s / 8
 	x.cipherSize = b
-	x.iv = copy(iv)
+	x.iv = dup(iv)
 	x.tmp = make([]byte, b)
 	return x
 }

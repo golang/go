@@ -72,10 +72,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	n := _Block(d, p)
 	p = p[n:]
 	if len(p) > 0 {
-		for i, x := range p {
-			d.x[i] = x
-		}
-		d.nx = len(p)
+		d.nx = copy(d.x[:], p)
 	}
 	return
 }

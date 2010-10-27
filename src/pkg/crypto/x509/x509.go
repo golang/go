@@ -504,9 +504,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.E
 func appendString(in []string, v string) (out []string) {
 	if cap(in)-len(in) < 1 {
 		out = make([]string, len(in)+1, len(in)*2+1)
-		for i, v := range in {
-			out[i] = v
-		}
+		copy(out, in)
 	} else {
 		out = in[0 : len(in)+1]
 	}

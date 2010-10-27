@@ -25,7 +25,7 @@ type ctrStream struct {
 func newCTRStream(c Cipher, ctr []byte) *ctrStream {
 	x := new(ctrStream)
 	x.c = c
-	x.ctr = copy(ctr)
+	x.ctr = dup(ctr)
 	x.out = make([]byte, len(ctr))
 	return x
 }

@@ -170,9 +170,7 @@ func (cclass *_CharClass) addRange(a, b int) {
 	n := len(cclass.ranges)
 	if n >= cap(cclass.ranges) {
 		nr := make([]int, n, 2*n)
-		for i, j := range nr {
-			nr[i] = j
-		}
+		copy(nr, cclass.ranges)
 		cclass.ranges = nr
 	}
 	cclass.ranges = cclass.ranges[0 : n+2]
@@ -255,9 +253,7 @@ func (re *Regexp) add(i instr) instr {
 	i.setIndex(len(re.inst))
 	if n >= cap(re.inst) {
 		ni := make([]instr, n, 2*n)
-		for i, j := range re.inst {
-			ni[i] = j
-		}
+		copy(ni, re.inst)
 		re.inst = ni
 	}
 	re.inst = re.inst[0 : n+1]

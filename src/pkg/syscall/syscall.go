@@ -21,9 +21,7 @@ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 // containing the text of s.
 func StringByteSlice(s string) []byte {
 	a := make([]byte, len(s)+1)
-	for i := 0; i < len(s); i++ {
-		a[i] = s[i]
-	}
+	copy(a, s)
 	return a
 }
 

@@ -12,14 +12,6 @@ import (
 	"utf8"
 )
 
-// Copy from string to byte array at offset doff.  Assume there's room.
-func copyString(dst []byte, doff int, str string) {
-	for soff := 0; soff < len(str); soff++ {
-		dst[doff] = str[soff]
-		doff++
-	}
-}
-
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
@@ -99,8 +91,7 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 // value n is the length of s; err is always nil.
 func (b *Buffer) WriteString(s string) (n int, err os.Error) {
 	m := b.grow(len(s))
-	copyString(b.buf, m, s)
-	return len(s), nil
+	return copy(b.buf[m:], s), nil
 }
 
 // MinRead is the minimum slice size passed to a Read call by
@@ -259,7 +250,5 @@ func NewBuffer(buf []byte) *Buffer { return &Buffer{buf: buf} }
 // initial contents.  It is intended to prepare a buffer to read an existing
 // string.
 func NewBufferString(s string) *Buffer {
-	buf := make([]byte, len(s))
-	copyString(buf, 0, s)
-	return &Buffer{buf: buf}
+	return &Buffer{buf: []byte(s)}
 }
