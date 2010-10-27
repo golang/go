@@ -200,10 +200,6 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
 	l = hindex-lindex;
 	so.str = si.str + lindex;
 	so.len = l;
-
-//	alternate to create a new string
-//	so = gostringsize(l);
-//	mcpy(so.str, si.str+lindex, l);
 }
 
 func slicestring1(si String, lindex int32) (so String) {
@@ -216,18 +212,6 @@ func slicestring1(si String, lindex int32) (so String) {
 	l = si.len-lindex;
 	so.str = si.str + lindex;
 	so.len = l;
-
-//	alternate to create a new string
-//	so = gostringsize(l);
-//	mcpy(so.str, si.str+lindex, l);
-}
-
-func indexstring(s String, i int32) (b byte) {
-	if(i < 0 || i >= s.len) {
-		·panicindex();
-	}
-
-	b = s.str[i];
 }
 
 func intstring(v int64) (s String) {

@@ -230,8 +230,8 @@ cgen(Node *n, Node *res)
 			cgen(nl, res);
 			break;
 		}
-		mgen(nl, &n1, res);
 		tempname(&n2, n->type);
+		mgen(nl, &n1, res);
 		gmove(&n1, &n2);
 		gmove(&n2, res);
 		mfree(&n1);
@@ -518,9 +518,11 @@ agen(Node *n, Node *res)
 		p2 = nil;  // to be patched to panicindex.
 		w = n->type->width;
 		if(nr->addable) {
-			agenr(nl, &n3, res);
-			if(!isconst(nr, CTINT)) {
+			if(!isconst(nr, CTINT))
 				tempname(&tmp, types[TINT32]);
+			if(!isconst(nl, CTSTR))
+				agenr(nl, &n3, res);
+			if(!isconst(nr, CTINT)) {
 				p2 = cgenindex(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
@@ -532,13 +534,16 @@ agen(Node *n, Node *res)
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
-			regalloc(&n3, types[tptr], res);
-			agen(nl, &n3);
+			if(!isconst(nl, CTSTR)) {
+				regalloc(&n3, types[tptr], res);
+				agen(nl, &n3);
+			}
 		} else {
 			tempname(&tmp, types[TINT32]);
 			p2 = cgenindex(nr, &tmp);
 			nr = &tmp;
-			agenr(nl, &n3, res);
+			if(!isconst(nl, CTSTR))
+				agenr(nl, &n3, res);
 			regalloc(&n1, tmp.type, N);
 			gins(optoas(OAS, tmp.type), &tmp, &n1);
 		}
@@ -549,7 +554,7 @@ agen(Node *n, Node *res)
 
 		// explicit check for nil if array is large enough
 		// that we might derive too big a pointer.
-		if(!isslice(nl->type) && nl->type->width >= unmappedzero) {
+		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
 			regalloc(&n4, types[tptr], &n3);
 			gmove(&n3, &n4);
 			n4.op = OINDREG;
@@ -564,9 +569,10 @@ agen(Node *n, Node *res)
 
 		// constant index
 		if(isconst(nr, CTINT)) {
+			if(isconst(nl, CTSTR))
+				fatal("constant string constant index");
 			v = mpgetfix(nr->val.u.xval);
-			if(isslice(nl->type)) {
-
+			if(isslice(nl->type) || nl->type->etype == TSTRING) {
 				if(!debug['B'] && !n->etype) {
 					n1 = n3;
 					n1.op = OINDREG;
@@ -600,7 +606,9 @@ agen(Node *n, Node *res)
 
 		if(!debug['B'] && !n->etype) {
 			// check bounds
-			if(isslice(nl->type)) {
+			if(isconst(nl, CTSTR))
+				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);
+			else if(isslice(nl->type) || nl->type->etype == TSTRING) {
 				n1 = n3;
 				n1.op = OINDREG;
 				n1.type = types[tptr];
@@ -614,8 +622,17 @@ agen(Node *n, Node *res)
 			ginscall(panicindex, 0);
 			patch(p1, pc);
 		}
+		
+		if(isconst(nl, CTSTR)) {
+			regalloc(&n3, types[tptr], res);
+			p1 = gins(ALEAL, N, &n3);
+			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
+			p1->from.scale = 1;
+			p1->from.index = n2.val.u.reg;
+			goto indexdone;
+		}
 
-		if(isslice(nl->type)) {
+		if(isslice(nl->type) || nl->type->etype == TSTRING) {
 			n1 = n3;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
@@ -635,6 +652,7 @@ agen(Node *n, Node *res)
 			gmove(&n3, res);
 		}
 
+	indexdone:
 		gmove(&n3, res);
 		regfree(&n2);
 		regfree(&n3);
@@ -710,8 +728,14 @@ igen(Node *n, Node *a, Node *res)
 {
 	Node n1;
 
+	// release register for now, to avoid
+	// confusing tempname.
+	if(res != N && res->op == OREGISTER)
+		reg[res->val.u.reg]--;
 	tempname(&n1, types[tptr]);
 	agen(n, &n1);
+	if(res != N && res->op == OREGISTER)
+		reg[res->val.u.reg]++;
 	regalloc(a, types[tptr], res);
 	gmove(&n1, a);
 	a->op = OINDREG;

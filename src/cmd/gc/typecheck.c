@@ -614,7 +614,6 @@ reswitch:
 			if(n->right->type != T && !isint[n->right->type->etype])
 				yyerror("non-integer string index %#N", n->right);
 			n->type = types[TUINT8];
-			n->op = OINDEXSTR;
 			break;
 		}
 		goto ret;
@@ -2052,6 +2051,8 @@ islvalue(Node *n)
 	case OINDEX:
 		if(isfixedarray(n->left->type))
 			return islvalue(n->left);
+		if(n->left->type != T && n->left->type->etype == TSTRING)
+			return 0;
 		// fall through
 	case OIND:
 	case ODOTPTR:

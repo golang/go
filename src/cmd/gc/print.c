@@ -59,6 +59,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OPRINT:
 	case OPRINTN:
 	case OCALL:
+	case OCALLMETH:
+	case OCALLINTER:
+	case OCALLFUNC:
 	case OCONV:
 	case OCONVNOP:
 	case OMAKESLICE:
@@ -72,6 +75,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case ORECV:
 	case OCONVIFACE:
 	case OTPAREN:
+	case OINDEX:
+	case OINDEXMAP:
 		nprec = 7;
 		break;
 
@@ -328,7 +333,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 
 	case OINDEX:
 	case OINDEXMAP:
-	case OINDEXSTR:
 		exprfmt(f, n->left, 7);
 		fmtprint(f, "[");
 		exprfmt(f, n->right, 0);
