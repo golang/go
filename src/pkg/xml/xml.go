@@ -595,9 +595,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		n := len(attr)
 		if n >= cap(attr) {
 			nattr := make([]Attr, n, 2*cap(attr))
-			for i, a := range attr {
-				nattr[i] = a
-			}
+			copy(nattr, attr)
 			attr = nattr
 		}
 		attr = attr[0 : n+1]

@@ -396,9 +396,7 @@ func (p *Process) postEvent(ev Event) {
 		m = 4
 	}
 	posted := make([]Event, n+1, m)
-	for i, p := range p.posted {
-		posted[i] = p
-	}
+	copy(posted, p.posted)
 	posted[n] = ev
 	p.posted = posted
 }

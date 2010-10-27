@@ -45,8 +45,8 @@ func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac h
 	cmac.Write(buf) // 0
 	cmac.Write(iv)
 	sum := cmac.Sum()
-	ctrIV = copy(sum)
-	tag = copy(sum[0:tagBytes])
+	ctrIV = dup(sum)
+	tag = dup(sum[0:tagBytes])
 
 	cmac.Reset()
 	buf[n-1] = 1
@@ -237,8 +237,8 @@ func (x *eaxDecrypter) checkTag() os.Error {
 	finishEAX(x.tag, x.cr.cmac)
 	if !same(x.tag, x.cr.tag) {
 		e := new(EAXTagError)
-		e.Computed = copy(x.tag)
-		e.Read = copy(x.cr.tag)
+		e.Computed = dup(x.tag)
+		e.Read = dup(x.cr.tag)
 		return e
 	}
 	return nil

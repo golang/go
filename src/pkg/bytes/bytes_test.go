@@ -416,21 +416,11 @@ var trimSpaceTests = []StringTest{
 	{"x ☺ ", "x ☺"},
 }
 
-// Bytes returns a new slice containing the bytes in s.
-// Borrowed from strings to avoid dependency.
-func Bytes(s string) []byte {
-	b := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		b[i] = s[i]
-	}
-	return b
-}
-
 // Execute f on each test case.  funcName should be the name of f; it's used
 // in failure reports.
 func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCases []StringTest) {
 	for _, tc := range testCases {
-		actual := string(f(Bytes(tc.in)))
+		actual := string(f([]byte(tc.in)))
 		if actual != tc.out {
 			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out)
 		}
@@ -463,7 +453,7 @@ func TestMap(t *testing.T) {
 
 	// 1.  Grow.  This triggers two reallocations in Map.
 	maxRune := func(rune int) int { return unicode.MaxRune }
-	m := Map(maxRune, Bytes(a))
+	m := Map(maxRune, []byte(a))
 	expect := tenRunes(unicode.MaxRune)
 	if string(m) != expect {
 		t.Errorf("growing: expected %q got %q", expect, m)
@@ -471,21 +461,21 @@ func TestMap(t *testing.T) {
 
 	// 2. Shrink
 	minRune := func(rune int) int { return 'a' }
-	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)))
+	m = Map(minRune, []byte(tenRunes(unicode.MaxRune)))
 	expect = a
 	if string(m) != expect {
 		t.Errorf("shrinking: expected %q got %q", expect, m)
 	}
 
 	// 3. Rot13
-	m = Map(rot13, Bytes("a to zed"))
+	m = Map(rot13, []byte("a to zed"))
 	expect = "n gb mrq"
 	if string(m) != expect {
 		t.Errorf("rot13: expected %q got %q", expect, m)
 	}
 
 	// 4. Rot13^2
-	m = Map(rot13, Map(rot13, Bytes("a to zed")))
+	m = Map(rot13, Map(rot13, []byte("a to zed")))
 	expect = "a to zed"
 	if string(m) != expect {
 		t.Errorf("rot13: expected %q got %q", expect, m)
@@ -498,7 +488,7 @@ func TestMap(t *testing.T) {
 		}
 		return -1
 	}
-	m = Map(dropNotLatin, Bytes("Hello, 세계"))
+	m = Map(dropNotLatin, []byte("Hello, 세계"))
 	expect = "Hello"
 	if string(m) != expect {
 		t.Errorf("drop: expected %q got %q", expect, m)
@@ -526,9 +516,7 @@ var addtests = []AddTest{
 func TestAdd(t *testing.T) {
 	for _, test := range addtests {
 		b := make([]byte, len(test.s), test.cap)
-		for i := 0; i < len(test.s); i++ {
-			b[i] = test.s[i]
-		}
+		copy(b, test.s)
 		b = Add(b, []byte(test.t))
 		if string(b) != test.s+test.t {
 			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))

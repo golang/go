@@ -320,9 +320,7 @@ func words(buf []byte) []string {
 		}
 		if i == cap(s) {
 			ns := make([]string, 2*cap(s))
-			for j := range s {
-				ns[j] = s[j]
-			}
+			copy(ns, s)
 			s = ns
 		}
 		s = s[0 : i+1]

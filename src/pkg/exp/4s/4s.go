@@ -65,9 +65,7 @@ func audioServer() {
 			println(n, len(b)*2)
 		}
 		a := make([]uint16, n/2)
-		for i := range b {
-			a[i] = b[i]
-		}
+		copy(a, b)
 		n, err = av.AudioStream(a)
 	}
 }

@@ -71,9 +71,7 @@ func (tw *Writer) cString(b []byte, s string) {
 		}
 		return
 	}
-	for i, ch := range []byte(s) {
-		b[i] = ch
-	}
+	copy(b, s)
 	if len(s) < len(b) {
 		b[len(s)] = 0
 	}

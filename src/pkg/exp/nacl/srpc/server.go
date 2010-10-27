@@ -56,9 +56,7 @@ func Add(name, fmt string, handler Handler) {
 	n := len(rpcMethod)
 	if n >= cap(rpcMethod) {
 		a := make([]method, n, (n+4)*2)
-		for i := range a {
-			a[i] = rpcMethod[i]
-		}
+		copy(a, rpcMethod)
 		rpcMethod = a
 	}
 	rpcMethod = rpcMethod[0 : n+1]

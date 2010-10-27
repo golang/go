@@ -179,10 +179,7 @@ type StringReader struct {
 func (r *StringReader) Read(p []byte) (n int, err os.Error) {
 	if r.step < len(r.data) {
 		s := r.data[r.step]
-		for i := 0; i < len(s); i++ {
-			p[i] = s[i]
-		}
-		n = len(s)
+		n = copy(p, s)
 		r.step++
 	} else {
 		err = os.EOF

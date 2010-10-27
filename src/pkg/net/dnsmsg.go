@@ -430,10 +430,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 				}
 				msg[off] = byte(len(s))
 				off++
-				for i := 0; i < len(s); i++ {
-					msg[off+i] = s[i]
-				}
-				off += len(s)
+				off += copy(msg[off:], s)
 			}
 		}
 	}

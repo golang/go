@@ -29,7 +29,7 @@ func newOFBStream(c Cipher, iv []byte) *ofbStream {
 	if n != c.BlockSize() {
 		panic(fmt.Sprintln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize()))
 	}
-	x.iv = copy(iv)
+	x.iv = dup(iv)
 	return x
 }
 

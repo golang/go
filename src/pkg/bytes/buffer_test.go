@@ -132,7 +132,7 @@ func TestBasicOperations(t *testing.T) {
 		buf.Truncate(0)
 		check(t, "TestBasicOperations (3)", &buf, "")
 
-		n, err := buf.Write(Bytes(data[0:1]))
+		n, err := buf.Write([]byte(data[0:1]))
 		if n != 1 {
 			t.Errorf("wrote 1 byte, but n == %d", n)
 		}
@@ -144,7 +144,7 @@ func TestBasicOperations(t *testing.T) {
 		buf.WriteByte(data[1])
 		check(t, "TestBasicOperations (5)", &buf, "ab")
 
-		n, err = buf.Write(Bytes(data[2:26]))
+		n, err = buf.Write([]byte(data[2:26]))
 		if n != 24 {
 			t.Errorf("wrote 25 bytes, but n == %d", n)
 		}

@@ -89,9 +89,7 @@ func Environ() []string {
 			}
 			if len(r) == cap(r) {
 				nr := make([]string, len(r), 2*len(r))
-				for k := 0; k < len(r); k++ {
-					nr[k] = r[k]
-				}
+				copy(nr, r)
 				r = nr
 			}
 			r = r[0 : len(r)+1]

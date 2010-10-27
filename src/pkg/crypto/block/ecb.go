@@ -127,9 +127,7 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 	// Save it for next time.
 	if i < n {
 		p = p[i:n]
-		for j, v := range p {
-			x.buf[j] = v
-		}
+		copy(x.buf, p)
 		x.crypt = x.buf[0:len(p)]
 		n = i
 	}
@@ -191,11 +189,7 @@ func (x *ecbEncrypter) slidePlain() {
 	if len(x.plain) == 0 {
 		x.plain = x.buf[0:0]
 	} else if cap(x.plain) < cap(x.buf) {
-		// plain and buf share same data,
-		// but buf is before plain, so forward loop is correct
-		for i := 0; i < len(x.plain); i++ {
-			x.buf[i] = x.plain[i]
-		}
+		copy(x.buf, x.plain)
 		x.plain = x.buf[0:len(x.plain)]
 	}
 }

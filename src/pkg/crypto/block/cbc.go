@@ -27,7 +27,7 @@ func newCBC(c Cipher, iv []byte) *cbcCipher {
 	x := new(cbcCipher)
 	x.c = c
 	x.blockSize = n
-	x.iv = copy(iv)
+	x.iv = dup(iv)
 	x.tmp = make([]byte, n)
 	return x
 }
