@@ -318,13 +318,7 @@ func words(buf []byte) []string {
 		if start == p { // no text left
 			break
 		}
-		if i == cap(s) {
-			ns := make([]string, 2*cap(s))
-			copy(ns, s)
-			s = ns
-		}
-		s = s[0 : i+1]
-		s[i] = string(buf[start:p])
+		s = append(s, string(buf[start:p]))
 	}
 	return s
 }

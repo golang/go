@@ -43,14 +43,7 @@ type codeBuf struct {
 func newCodeBuf() *codeBuf { return &codeBuf{make(code, 0, 16)} }
 
 func (b *codeBuf) push(instr func(*Thread)) {
-	n := len(b.instrs)
-	if n >= cap(b.instrs) {
-		a := make(code, n, n*2)
-		copy(a, b.instrs)
-		b.instrs = a
-	}
-	b.instrs = b.instrs[0 : n+1]
-	b.instrs[n] = instr
+	b.instrs = append(b.instrs, instr)
 }
 
 func (b *codeBuf) nextPC() uint { return uint(len(b.instrs)) }

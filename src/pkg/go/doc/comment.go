@@ -62,16 +62,7 @@ func CommentText(comment *ast.CommentGroup) string {
 
 		// Walk lines, stripping trailing white space and adding to list.
 		for _, l := range cl {
-			l = stripTrailingWhitespace(l)
-			// Add to list.
-			n := len(lines)
-			if n+1 >= cap(lines) {
-				newlines := make([]string, n, 2*cap(lines))
-				copy(newlines, lines)
-				lines = newlines
-			}
-			lines = lines[0 : n+1]
-			lines[n] = l
+			lines = append(lines, stripTrailingWhitespace(l))
 		}
 	}
 

@@ -187,19 +187,19 @@ func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
 			case 5:
 				n.SerialNumber = value
 			case 6:
-				n.Country = appendString(n.Country, value)
+				n.Country = append(n.Country, value)
 			case 7:
-				n.Locality = appendString(n.Locality, value)
+				n.Locality = append(n.Locality, value)
 			case 8:
-				n.Province = appendString(n.Province, value)
+				n.Province = append(n.Province, value)
 			case 9:
-				n.StreetAddress = appendString(n.StreetAddress, value)
+				n.StreetAddress = append(n.StreetAddress, value)
 			case 10:
-				n.Organization = appendString(n.Organization, value)
+				n.Organization = append(n.Organization, value)
 			case 11:
-				n.OrganizationalUnit = appendString(n.OrganizationalUnit, value)
+				n.OrganizationalUnit = append(n.OrganizationalUnit, value)
 			case 17:
-				n.PostalCode = appendString(n.PostalCode, value)
+				n.PostalCode = append(n.PostalCode, value)
 			}
 		}
 	}
@@ -501,17 +501,6 @@ func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.E
 	panic("unreachable")
 }
 
-func appendString(in []string, v string) (out []string) {
-	if cap(in)-len(in) < 1 {
-		out = make([]string, len(in)+1, len(in)*2+1)
-		copy(out, in)
-	} else {
-		out = in[0 : len(in)+1]
-	}
-	out[len(in)] = v
-	return out
-}
-
 func parseCertificate(in *certificate) (*Certificate, os.Error) {
 	out := new(Certificate)
 	out.Raw = in.TBSCertificate.Raw
@@ -601,10 +590,10 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 					}
 					switch v.Tag {
 					case 1:
-						out.EmailAddresses = appendString(out.EmailAddresses, string(v.Bytes))
+						out.EmailAddresses = append(out.EmailAddresses, string(v.Bytes))
 						parsedName = true
 					case 2:
-						out.DNSNames = appendString(out.DNSNames, string(v.Bytes))
+						out.DNSNames = append(out.DNSNames, string(v.Bytes))
 						parsedName = true
 					}
 				}

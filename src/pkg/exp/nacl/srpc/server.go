@@ -53,14 +53,7 @@ var rpcMethod []method
 //	s	string
 //
 func Add(name, fmt string, handler Handler) {
-	n := len(rpcMethod)
-	if n >= cap(rpcMethod) {
-		a := make([]method, n, (n+4)*2)
-		copy(a, rpcMethod)
-		rpcMethod = a
-	}
-	rpcMethod = rpcMethod[0 : n+1]
-	rpcMethod[n] = method{name, fmt, handler}
+	rpcMethod = append(rpcMethod, method{name, fmt, handler})
 }
 
 // Serve accepts new SRPC connections from the file descriptor fd

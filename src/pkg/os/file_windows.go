@@ -157,13 +157,7 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 			continue
 		}
 		count--
-		if len(fi) == cap(fi) {
-			nfi := make([]FileInfo, len(fi), 2*len(fi))
-			copy(nfi, fi)
-			fi = nfi
-		}
-		fi = fi[0 : len(fi)+1]
-		fi[len(fi)-1] = f
+		fi = append(fi, f)
 	}
 	return fi, nil
 }

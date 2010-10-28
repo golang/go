@@ -318,11 +318,9 @@ func hgRename(dst, src string) os.Error {
 	return err
 }
 
-func copy(a []string) []string {
+func dup(a []string) []string {
 	b := make([]string, len(a))
-	for i, s := range a {
-		b[i] = s
-	}
+	copy(b, a)
 	return b
 }
 
@@ -379,7 +377,7 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 	return
 
 Error:
-	err = &runError{copy(argv), err}
+	err = &runError{dup(argv), err}
 	return
 }
 

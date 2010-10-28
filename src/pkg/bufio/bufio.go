@@ -293,7 +293,6 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 	// accumulating full buffers.
 	var frag []byte
 	var full [][]byte
-	nfull := 0
 	err = nil
 
 	for {
@@ -310,24 +309,12 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 		// Make a copy of the buffer.
 		buf := make([]byte, len(frag))
 		copy(buf, frag)
-
-		// Grow list if needed.
-		if full == nil {
-			full = make([][]byte, 16)
-		} else if nfull >= len(full) {
-			newfull := make([][]byte, len(full)*2)
-			copy(newfull, full)
-			full = newfull
-		}
-
-		// Save buffer
-		full[nfull] = buf
-		nfull++
+		full = append(full, buf)
 	}
 
 	// Allocate new buffer to hold the full pieces and the fragment.
 	n := 0
-	for i := 0; i < nfull; i++ {
+	for i := range full {
 		n += len(full[i])
 	}
 	n += len(frag)
@@ -335,9 +322,8 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 	// Copy full pieces and fragment in.
 	buf := make([]byte, n)
 	n = 0
-	for i := 0; i < nfull; i++ {
-		copy(buf[n:], full[i])
-		n += len(full[i])
+	for i := range full {
+		n += copy(buf[n:], full[i])
 	}
 	copy(buf[n:], frag)
 	return buf, err

@@ -161,10 +161,7 @@ func (f *flagVar) String() string {
 }
 
 func (f *flagVar) Set(value string) bool {
-	n := make(flagVar, len(*f)+1)
-	copy(n, *f)
-	*f = n
-	(*f)[len(*f)-1] = value
+	*f = append(*f, value)
 	return true
 }
 

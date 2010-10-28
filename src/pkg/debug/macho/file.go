@@ -302,15 +302,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 }
 
 func (f *File) pushSection(sh *Section, r io.ReaderAt) {
-	n := len(f.Sections)
-	if n >= cap(f.Sections) {
-		m := (n + 1) * 2
-		new := make([]*Section, n, m)
-		copy(new, f.Sections)
-		f.Sections = new
-	}
-	f.Sections = f.Sections[0 : n+1]
-	f.Sections[n] = sh
+	f.Sections = append(f.Sections, sh)
 	sh.sr = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
 	sh.ReaderAt = sh.sr
 }

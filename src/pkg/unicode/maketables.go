@@ -493,15 +493,7 @@ func parseScript(line string, scripts map[string][]Script) {
 		}
 	}
 	name := matches[3]
-	s, ok := scripts[name]
-	if !ok || len(s) == cap(s) {
-		ns := make([]Script, len(s), len(s)+100)
-		copy(ns, s)
-		s = ns
-	}
-	s = s[0 : len(s)+1]
-	s[len(s)-1] = Script{uint32(lo), uint32(hi), name}
-	scripts[name] = s
+	scripts[name] = append(scripts[name], Script{uint32(lo), uint32(hi), name})
 }
 
 // The script tables have a lot of adjacent elements. Fold them together.

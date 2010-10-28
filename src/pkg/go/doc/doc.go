@@ -277,11 +277,8 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 
 
 func copyCommentList(list []*ast.Comment) []*ast.Comment {
-	nlist := make([]*ast.Comment, len(list))
-	copy(nlist, list)
-	return nlist
+	return append([]*ast.Comment(nil), list...)
 }
-
 
 var (
 	bug_markers = regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*") // BUG(uid):

@@ -87,13 +87,7 @@ func Environ() []string {
 			if i <= from {
 				break
 			}
-			if len(r) == cap(r) {
-				nr := make([]string, len(r), 2*len(r))
-				copy(nr, r)
-				r = nr
-			}
-			r = r[0 : len(r)+1]
-			r[len(r)-1] = string(utf16.Decode(p[from:i]))
+			r = append(r, string(utf16.Decode(p[from:i])))
 			from = i + 1
 		}
 	}
