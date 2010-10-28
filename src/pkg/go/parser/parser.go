@@ -10,7 +10,6 @@
 package parser
 
 import (
-	"container/vector"
 	"fmt"
 	"go/ast"
 	"go/scanner"
@@ -45,7 +44,7 @@ type parser struct {
 	indent uint // indentation used for tracing output
 
 	// Comments
-	comments    vector.Vector     // list of *CommentGroup
+	comments    []*ast.CommentGroup
 	leadComment *ast.CommentGroup // the last lead comment
 	lineComment *ast.CommentGroup // the last line comment
 
@@ -155,23 +154,17 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 // token terminates a comment group.
 //
 func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int) {
-	var list vector.Vector
+	var list []*ast.Comment
 	endline = p.pos.Line
 	for p.tok == token.COMMENT && endline+1 >= p.pos.Line {
 		var comment *ast.Comment
 		comment, endline = p.consumeComment()
-		list.Push(comment)
-	}
-
-	// convert list
-	group := make([]*ast.Comment, len(list))
-	for i, x := range list {
-		group[i] = x.(*ast.Comment)
+		list = append(list, comment)
 	}
 
 	// add comment group to the comments list
-	comments = &ast.CommentGroup{group}
-	p.comments.Push(comments)
+	comments = &ast.CommentGroup{list}
+	p.comments = append(p.comments, comments)
 
 	return
 }
@@ -279,53 +272,36 @@ func (p *parser) parseIdent() *ast.Ident {
 }
 
 
-func (p *parser) parseIdentList() []*ast.Ident {
+func (p *parser) parseIdentList() (list []*ast.Ident) {
 	if p.trace {
 		defer un(trace(p, "IdentList"))
 	}
 
-	var list vector.Vector
-	list.Push(p.parseIdent())
+	list = append(list, p.parseIdent())
 	for p.tok == token.COMMA {
 		p.next()
-		list.Push(p.parseIdent())
+		list = append(list, p.parseIdent())
 	}
 
-	// convert vector
-	idents := make([]*ast.Ident, len(list))
-	for i, x := range list {
-		idents[i] = x.(*ast.Ident)
-	}
-
-	return idents
+	return
 }
 
 
 // ----------------------------------------------------------------------------
 // Common productions
 
-func makeExprList(list *vector.Vector) []ast.Expr {
-	exprs := make([]ast.Expr, len(*list))
-	for i, x := range *list {
-		exprs[i] = x.(ast.Expr)
-	}
-	return exprs
-}
-
-
-func (p *parser) parseExprList() []ast.Expr {
+func (p *parser) parseExprList() (list []ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "ExpressionList"))
 	}
 
-	var list vector.Vector
-	list.Push(p.parseExpr())
+	list = append(list, p.parseExpr())
 	for p.tok == token.COMMA {
 		p.next()
-		list.Push(p.parseExpr())
+		list = append(list, p.parseExpr())
 	}
 
-	return makeExprList(&list)
+	return
 }
 
 
@@ -394,9 +370,9 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
 }
 
 
-func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
-	idents := make([]*ast.Ident, len(*list))
-	for i, x := range *list {
+func (p *parser) makeIdentList(list []ast.Expr) []*ast.Ident {
+	idents := make([]*ast.Ident, len(list))
+	for i, x := range list {
 		ident, isIdent := x.(*ast.Ident)
 		if !isIdent {
 			pos := x.(ast.Expr).Pos()
@@ -433,8 +409,8 @@ func (p *parser) parseFieldDecl() *ast.Field {
 		idents = p.makeIdentList(list)
 	} else {
 		// ["*"] TypeName (AnonymousField)
-		typ = (*list)[0].(ast.Expr) // we always have at least one element
-		if len(*list) > 1 || !isTypeName(deref(typ)) {
+		typ = list[0] // we always have at least one element
+		if len(list) > 1 || !isTypeName(deref(typ)) {
 			pos := typ.Pos()
 			p.errorExpected(pos, "anonymous field")
 			typ = &ast.BadExpr{pos}
@@ -454,22 +430,16 @@ func (p *parser) parseStructType() *ast.StructType {
 
 	pos := p.expect(token.STRUCT)
 	lbrace := p.expect(token.LBRACE)
-	var list vector.Vector
+	var list []*ast.Field
 	for p.tok == token.IDENT || p.tok == token.MUL || p.tok == token.LPAREN {
 		// a field declaration cannot start with a '(' but we accept
 		// it here for more robust parsing and better error messages
 		// (parseFieldDecl will check and complain if necessary)
-		list.Push(p.parseFieldDecl())
+		list = append(list, p.parseFieldDecl())
 	}
 	rbrace := p.expect(token.RBRACE)
 
-	// convert vector
-	fields := make([]*ast.Field, len(list))
-	for i, x := range list {
-		fields[i] = x.(*ast.Field)
-	}
-
-	return &ast.StructType{pos, &ast.FieldList{lbrace, fields, rbrace}, false}
+	return &ast.StructType{pos, &ast.FieldList{lbrace, list, rbrace}, false}
 }
 
 
@@ -514,19 +484,18 @@ func (p *parser) parseVarType(isParam bool) ast.Expr {
 }
 
 
-func (p *parser) parseVarList(isParam bool) (*vector.Vector, ast.Expr) {
+func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "VarList"))
 	}
 
 	// a list of identifiers looks like a list of type names
-	var list vector.Vector
 	for {
 		// parseVarType accepts any type (including parenthesized ones)
 		// even though the syntax does not permit them here: we
 		// accept them all for more robust parsing and complain
 		// afterwards
-		list.Push(p.parseVarType(isParam))
+		list = append(list, p.parseVarType(isParam))
 		if p.tok != token.COMMA {
 			break
 		}
@@ -534,13 +503,13 @@ func (p *parser) parseVarList(isParam bool) (*vector.Vector, ast.Expr) {
 	}
 
 	// if we had a list of identifiers, it must be followed by a type
-	typ := p.tryVarType(isParam)
+	typ = p.tryVarType(isParam)
 
-	return &list, typ
+	return
 }
 
 
-func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
+func (p *parser) parseParameterList(ellipsisOk bool) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
 	}
@@ -549,8 +518,7 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 	if typ != nil {
 		// IdentifierList Type
 		idents := p.makeIdentList(list)
-		list.Resize(0, 0)
-		list.Push(&ast.Field{nil, idents, typ, nil, nil})
+		params = append(params, &ast.Field{nil, idents, typ, nil, nil})
 		if p.tok == token.COMMA {
 			p.next()
 		}
@@ -558,7 +526,7 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 		for p.tok != token.RPAREN && p.tok != token.EOF {
 			idents := p.parseIdentList()
 			typ := p.parseVarType(ellipsisOk)
-			list.Push(&ast.Field{nil, idents, typ, nil, nil})
+			params = append(params, &ast.Field{nil, idents, typ, nil, nil})
 			if p.tok != token.COMMA {
 				break
 			}
@@ -567,19 +535,13 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 
 	} else {
 		// Type { "," Type } (anonymous parameters)
-		// convert list of types into list of *Param
-		for i, x := range *list {
-			list.Set(i, &ast.Field{Type: x.(ast.Expr)})
+		params = make([]*ast.Field, len(list))
+		for i, x := range list {
+			params[i] = &ast.Field{Type: x}
 		}
 	}
 
-	// convert list
-	params := make([]*ast.Field, len(*list))
-	for i, x := range *list {
-		params[i] = x.(*ast.Field)
-	}
-
-	return params
+	return
 }
 
 
@@ -674,19 +636,13 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 
 	pos := p.expect(token.INTERFACE)
 	lbrace := p.expect(token.LBRACE)
-	var list vector.Vector
+	var list []*ast.Field
 	for p.tok == token.IDENT {
-		list.Push(p.parseMethodSpec())
+		list = append(list, p.parseMethodSpec())
 	}
 	rbrace := p.expect(token.RBRACE)
 
-	// convert vector
-	methods := make([]*ast.Field, len(list))
-	for i, x := range list {
-		methods[i] = x.(*ast.Field)
-	}
-
-	return &ast.InterfaceType{pos, &ast.FieldList{lbrace, methods, rbrace}, false}
+	return &ast.InterfaceType{pos, &ast.FieldList{lbrace, list, rbrace}, false}
 }
 
 
@@ -766,26 +722,16 @@ func (p *parser) tryType() ast.Expr { return p.tryRawType(false) }
 // ----------------------------------------------------------------------------
 // Blocks
 
-func makeStmtList(list *vector.Vector) []ast.Stmt {
-	stats := make([]ast.Stmt, len(*list))
-	for i, x := range *list {
-		stats[i] = x.(ast.Stmt)
-	}
-	return stats
-}
-
-
-func (p *parser) parseStmtList() []ast.Stmt {
+func (p *parser) parseStmtList() (list []ast.Stmt) {
 	if p.trace {
 		defer un(trace(p, "StatementList"))
 	}
 
-	var list vector.Vector
 	for p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE && p.tok != token.EOF {
-		list.Push(p.parseStmt())
+		list = append(list, p.parseStmt())
 	}
 
-	return makeStmtList(&list)
+	return
 }
 
 
@@ -941,10 +887,10 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 
 	lparen := p.expect(token.LPAREN)
 	p.exprLev++
-	var list vector.Vector
+	var list []ast.Expr
 	var ellipsis token.Position
 	for p.tok != token.RPAREN && p.tok != token.EOF && !ellipsis.IsValid() {
-		list.Push(p.parseExpr())
+		list = append(list, p.parseExpr())
 		if p.tok == token.ELLIPSIS {
 			ellipsis = p.pos
 			p.next()
@@ -957,7 +903,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	p.exprLev--
 	rparen := p.expect(token.RPAREN)
 
-	return &ast.CallExpr{fun, lparen, makeExprList(&list), ellipsis, rparen}
+	return &ast.CallExpr{fun, lparen, list, ellipsis, rparen}
 }
 
 
@@ -980,21 +926,20 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
 }
 
 
-func (p *parser) parseElementList() []ast.Expr {
+func (p *parser) parseElementList() (list []ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "ElementList"))
 	}
 
-	var list vector.Vector
 	for p.tok != token.RBRACE && p.tok != token.EOF {
-		list.Push(p.parseElement(true))
+		list = append(list, p.parseElement(true))
 		if p.tok != token.COMMA {
 			break
 		}
 		p.next()
 	}
 
-	return makeExprList(&list)
+	return
 }
 
 
@@ -1436,19 +1381,18 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 }
 
 
-func (p *parser) parseTypeList() []ast.Expr {
+func (p *parser) parseTypeList() (list []ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "TypeList"))
 	}
 
-	var list vector.Vector
-	list.Push(p.parseType())
+	list = append(list, p.parseType())
 	for p.tok == token.COMMA {
 		p.next()
-		list.Push(p.parseType())
+		list = append(list, p.parseType())
 	}
 
-	return makeExprList(&list)
+	return
 }
 
 
@@ -1498,12 +1442,12 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 
 	if isExprSwitch(s2) {
 		lbrace := p.expect(token.LBRACE)
-		var cases vector.Vector
+		var list []ast.Stmt
 		for p.tok == token.CASE || p.tok == token.DEFAULT {
-			cases.Push(p.parseCaseClause())
+			list = append(list, p.parseCaseClause())
 		}
 		rbrace := p.expect(token.RBRACE)
-		body := &ast.BlockStmt{lbrace, makeStmtList(&cases), rbrace}
+		body := &ast.BlockStmt{lbrace, list, rbrace}
 		p.expectSemi()
 		return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body}
 	}
@@ -1511,13 +1455,13 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	// type switch
 	// TODO(gri): do all the checks!
 	lbrace := p.expect(token.LBRACE)
-	var cases vector.Vector
+	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
-		cases.Push(p.parseTypeCaseClause())
+		list = append(list, p.parseTypeCaseClause())
 	}
 	rbrace := p.expect(token.RBRACE)
 	p.expectSemi()
-	body := &ast.BlockStmt{lbrace, makeStmtList(&cases), rbrace}
+	body := &ast.BlockStmt{lbrace, list, rbrace}
 	return &ast.TypeSwitchStmt{pos, s1, s2, body}
 }
 
@@ -1570,13 +1514,13 @@ func (p *parser) parseSelectStmt() *ast.SelectStmt {
 
 	pos := p.expect(token.SELECT)
 	lbrace := p.expect(token.LBRACE)
-	var cases vector.Vector
+	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
-		cases.Push(p.parseCommClause())
+		list = append(list, p.parseCommClause())
 	}
 	rbrace := p.expect(token.RBRACE)
 	p.expectSemi()
-	body := &ast.BlockStmt{lbrace, makeStmtList(&cases), rbrace}
+	body := &ast.BlockStmt{lbrace, list, rbrace}
 
 	return &ast.SelectStmt{pos, body}
 }
@@ -1775,26 +1719,20 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	doc := p.leadComment
 	pos := p.expect(keyword)
 	var lparen, rparen token.Position
-	var list vector.Vector
+	var list []ast.Spec
 	if p.tok == token.LPAREN {
 		lparen = p.pos
 		p.next()
 		for p.tok != token.RPAREN && p.tok != token.EOF {
-			list.Push(f(p, p.leadComment))
+			list = append(list, f(p, p.leadComment))
 		}
 		rparen = p.expect(token.RPAREN)
 		p.expectSemi()
 	} else {
-		list.Push(f(p, nil))
+		list = append(list, f(p, nil))
 	}
 
-	// convert vector
-	specs := make([]ast.Spec, len(list))
-	for i, x := range list {
-		specs[i] = x.(ast.Spec)
-	}
-
-	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen}
+	return &ast.GenDecl{doc, pos, keyword, lparen, list, rparen}
 }
 
 
@@ -1882,23 +1820,16 @@ func (p *parser) parseDecl() ast.Decl {
 }
 
 
-func (p *parser) parseDeclList() []ast.Decl {
+func (p *parser) parseDeclList() (list []ast.Decl) {
 	if p.trace {
 		defer un(trace(p, "DeclList"))
 	}
 
-	var list vector.Vector
 	for p.tok != token.EOF {
-		list.Push(p.parseDecl())
+		list = append(list, p.parseDecl())
 	}
 
-	// convert vector
-	decls := make([]ast.Decl, len(list))
-	for i, x := range list {
-		decls[i] = x.(ast.Decl)
-	}
-
-	return decls
+	return
 }
 
 
@@ -1923,30 +1854,17 @@ func (p *parser) parseFile() *ast.File {
 
 	if p.ErrorCount() == 0 && p.mode&PackageClauseOnly == 0 {
 		// import decls
-		var list vector.Vector
 		for p.tok == token.IMPORT {
-			list.Push(p.parseGenDecl(token.IMPORT, parseImportSpec))
+			decls = append(decls, p.parseGenDecl(token.IMPORT, parseImportSpec))
 		}
 
 		if p.mode&ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
-				list.Push(p.parseDecl())
+				decls = append(decls, p.parseDecl())
 			}
 		}
-
-		// convert declaration list
-		decls = make([]ast.Decl, len(list))
-		for i, x := range list {
-			decls[i] = x.(ast.Decl)
-		}
 	}
 
-	// convert comments list
-	comments := make([]*ast.CommentGroup, len(p.comments))
-	for i, x := range p.comments {
-		comments[i] = x.(*ast.CommentGroup)
-	}
-
-	return &ast.File{doc, pos, ident, decls, comments}
+	return &ast.File{doc, pos, ident, decls, p.comments}
 }
