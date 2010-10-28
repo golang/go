@@ -15,12 +15,16 @@ import (
 	"testing"
 )
 
-var serverAddr string
-var httpServerAddr string
-var once sync.Once
+var (
+	serverAddr, newServerAddr string
+	httpServerAddr            string
+	once, newOnce, httpOnce   sync.Once
+)
 
-const second = 1e9
-
+const (
+	second      = 1e9
+	newHttpPath = "/foo"
+)
 
 type Args struct {
 	A, B int
@@ -64,23 +68,42 @@ func (t *Arith) Error(args *Args, reply *Reply) os.Error {
 	panic("ERROR")
 }
 
-func startServer() {
-	Register(new(Arith))
-
+func listenTCP() (net.Listener, string) {
 	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
 	if e != nil {
 		log.Exitf("net.Listen tcp :0: %v", e)
 	}
-	serverAddr = l.Addr().String()
+	return l, l.Addr().String()
+}
+
+func startServer() {
+	Register(new(Arith))
+
+	var l net.Listener
+	l, serverAddr = listenTCP()
 	log.Println("Test RPC server listening on", serverAddr)
 	go Accept(l)
 
 	HandleHTTP()
-	l, e = net.Listen("tcp", "127.0.0.1:0") // any available address
-	if e != nil {
-		log.Printf("net.Listen tcp :0: %v", e)
-		os.Exit(1)
-	}
+	httpOnce.Do(startHttpServer)
+}
+
+func startNewServer() {
+	s := NewServer()
+	s.Register(new(Arith))
+
+	var l net.Listener
+	l, newServerAddr = listenTCP()
+	log.Println("NewServer test RPC server listening on", newServerAddr)
+	go Accept(l)
+
+	s.HandleHTTP(newHttpPath, "/bar")
+	httpOnce.Do(startHttpServer)
+}
+
+func startHttpServer() {
+	var l net.Listener
+	l, httpServerAddr = listenTCP()
 	httpServerAddr = l.Addr().String()
 	log.Println("Test HTTP RPC server listening on", httpServerAddr)
 	go http.Serve(l, nil)
@@ -88,8 +111,13 @@ func startServer() {
 
 func TestRPC(t *testing.T) {
 	once.Do(startServer)
+	testRPC(t, serverAddr)
+	newOnce.Do(startNewServer)
+	testRPC(t, newServerAddr)
+}
 
-	client, err := Dial("tcp", serverAddr)
+func testRPC(t *testing.T, addr string) {
+	client, err := Dial("tcp", addr)
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
@@ -175,8 +203,19 @@ func TestRPC(t *testing.T) {
 
 func TestHTTPRPC(t *testing.T) {
 	once.Do(startServer)
+	testHTTPRPC(t, "")
+	newOnce.Do(startNewServer)
+	testHTTPRPC(t, newHttpPath)
+}
 
-	client, err := DialHTTP("tcp", httpServerAddr)
+func testHTTPRPC(t *testing.T, path string) {
+	var client *Client
+	var err os.Error
+	if path == "" {
+		client, err = DialHTTP("tcp", httpServerAddr)
+	} else {
+		client, err = DialHTTPPath("tcp", httpServerAddr, path)
+	}
 	if err != nil {
 		t.Fatal("dialing", err)
 	}

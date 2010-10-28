@@ -61,8 +61,12 @@ func (m methodArray) Len() int           { return len(m) }
 func (m methodArray) Less(i, j int) bool { return m[i].name < m[j].name }
 func (m methodArray) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 
+type debugHTTP struct {
+	*Server
+}
+
 // Runs at /debug/rpc
-func debugHTTP(w http.ResponseWriter, req *http.Request) {
+func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Build a sorted version of the data.
 	var services = make(serviceArray, len(server.serviceMap))
 	i := 0
