@@ -9,7 +9,6 @@
 package typechecker
 
 import (
-	"container/vector"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -122,21 +121,20 @@ func (tc *typechecker) checkPackage(pkg *ast.Package) {
 	// TODO(gri) there's no file scope at the moment since we ignore imports
 
 	// phase 1: declare all global objects; also collect all function and method declarations
-	var funcs vector.Vector
+	var funcs []*ast.FuncDecl
 	for _, file := range pkg.Files {
 		for _, decl := range file.Decls {
 			tc.declGlobal(decl)
 			if f, isFunc := decl.(*ast.FuncDecl); isFunc {
-				funcs.Push(f)
+				funcs = append(funcs, f)
 			}
 		}
 	}
 
 	// phase 2: bind methods to their receiver base types
-	for _, decl := range funcs {
-		d := decl.(*ast.FuncDecl)
-		if d.Recv != nil {
-			tc.bindMethod(d)
+	for _, m := range funcs {
+		if m.Recv != nil {
+			tc.bindMethod(m)
 		}
 	}
 
@@ -149,9 +147,8 @@ func (tc *typechecker) checkPackage(pkg *ast.Package) {
 	assert(len(tc.cyclemap) == 0)
 
 	// 4: sequentially typecheck function and method bodies
-	for _, decl := range funcs {
-		d := decl.(*ast.FuncDecl)
-		tc.checkBlock(d.Body.List, d.Name.Obj.Type)
+	for _, f := range funcs {
+		tc.checkBlock(f.Body.List, f.Name.Obj.Type)
 	}
 
 	pkg.Scope = tc.topScope

@@ -27,7 +27,6 @@
 package typechecker
 
 import (
-	"container/vector"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -58,9 +57,7 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
 // expectedErrors collects the regular expressions of ERROR comments
 // found in the package files of pkg and returns them in sorted order
 // (by filename and position).
-func expectedErrors(t *testing.T, pkg *ast.Package) scanner.ErrorList {
-	var list vector.Vector
-
+func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
 	// scan all package files
 	for filename := range pkg.Files {
 		src, err := ioutil.ReadFile(filename)
@@ -80,21 +77,15 @@ func expectedErrors(t *testing.T, pkg *ast.Package) scanner.ErrorList {
 			case token.COMMENT:
 				s := errRx.FindSubmatch(lit)
 				if len(s) == 2 {
-					list.Push(&scanner.Error{prev, string(s[1])})
+					list = append(list, &scanner.Error{prev, string(s[1])})
 				}
 			default:
 				prev = pos
 			}
 		}
 	}
-
-	// convert list
-	errs := make(scanner.ErrorList, len(list))
-	for i, e := range list {
-		errs[i] = e.(*scanner.Error)
-	}
-	sort.Sort(errs) // multiple files may not be sorted
-	return errs
+	sort.Sort(list) // multiple files may not be sorted
+	return
 }
 
 
