@@ -810,6 +810,7 @@ goopnames[] =
 	[OANDAND]	= "&&",
 	[OANDNOT]	= "&^",
 	[OAND]		= "&",
+	[OAPPEND]	= "append",
 	[OAS]		= "=",
 	[OAS2]		= "=",
 	[OBREAK]	= "break",

@@ -36,6 +36,10 @@ func printf()
 // filled in by compiler: int n, string, string, ...
 func concatstring()
 
+// filled in by compiler: Type*, int n, Slice, ...
+func append()
+func appendslice(typ *byte, x any, y []any) any
+
 func cmpstring(string, string) int
 func slicestring(string, int, int) string
 func slicestring1(string, int) string

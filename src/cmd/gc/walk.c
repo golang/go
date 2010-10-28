@@ -18,6 +18,7 @@ static	NodeList*	paramstoheap(Type **argin, int out);
 static	NodeList*	reorder1(NodeList*);
 static	NodeList*	reorder3(NodeList*);
 static	Node*	addstr(Node*, NodeList**);
+static	Node*	append(Node*, NodeList**);
 
 static	NodeList*	walkdefstack;
 
@@ -1264,6 +1265,10 @@ walkexpr(Node **np, NodeList **init)
 				l);
 		}
 		goto ret;
+	
+	case OAPPEND:
+		n = append(n, init);
+		goto ret;
 
 	case OCOPY:
 		if(n->right->type->etype == TSTRING)
@@ -2302,5 +2307,46 @@ addstr(Node *n, NodeList **init)
 	walkexpr(&r, init);
 	r->type = n->type;
 	
+	return r;
+}
+
+static Node*
+append(Node *n, NodeList **init)
+{
+	int i, j;
+	Node *f, *r;
+	NodeList *in, *args;
+	
+	if(n->isddd) {
+		f = syslook("appendslice", 1);
+		argtype(f, n->type);
+		argtype(f, n->type->type);
+		argtype(f, n->type);
+		r = mkcall1(f, n->type, init, typename(n->type), n->list->n, n->list->next->n);
+		return r;
+	}
+
+	j = count(n->list) - 1;
+	f = syslook("append", 1);
+	f->type = T;
+	f->ntype = nod(OTFUNC, N, N);
+	in = list1(nod(ODCLFIELD, N, typenod(ptrto(types[TUINT8]))));	// type
+	in = list(in, nod(ODCLFIELD, N, typenod(types[TINT])));	// count
+	in = list(in, nod(ODCLFIELD, N, typenod(n->type)));	// slice
+	for(i=0; i<j; i++)
+		in = list(in, nod(ODCLFIELD, N, typenod(n->type->type)));
+	f->ntype->list = in;
+	f->ntype->rlist = list1(nod(ODCLFIELD, N, typenod(n->type)));
+	
+	args = list1(typename(n->type));
+	args = list(args, nodintconst(j));
+	args = concat(args, n->list);
+	
+	r = nod(OCALL, f, N);
+	r->list = args;
+	typecheck(&r, Erv);
+	walkexpr(&r, init);
+	r->type = n->type;
+
 	return r;
 }

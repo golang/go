@@ -21,6 +21,8 @@ char *runtimeimport =
 	"func \"\".printsp ()\n"
 	"func \"\".printf ()\n"
 	"func \"\".concatstring ()\n"
+	"func \"\".append ()\n"
+	"func \"\".appendslice (typ *uint8, x any, y []any) any\n"
 	"func \"\".cmpstring (? string, ? string) int\n"
 	"func \"\".slicestring (? string, ? int, ? int) string\n"
 	"func \"\".slicestring1 (? string, ? int) string\n"
