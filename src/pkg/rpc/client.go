@@ -162,14 +162,21 @@ func (c *gobClientCodec) Close() os.Error {
 }
 
 
-// DialHTTP connects to an HTTP RPC server at the specified network address.
+// DialHTTP connects to an HTTP RPC server at the specified network address
+// listening on the default HTTP RPC path.
 func DialHTTP(network, address string) (*Client, os.Error) {
+	return DialHTTPPath(network, address, DefaultRPCPath)
+}
+
+// DialHTTPPath connects to an HTTP RPC server 
+// at the specified network address and path.
+func DialHTTPPath(network, address, path string) (*Client, os.Error) {
 	var err os.Error
 	conn, err := net.Dial(network, "", address)
 	if err != nil {
 		return nil, err
 	}
-	io.WriteString(conn, "CONNECT "+rpcPath+" HTTP/1.0\n\n")
+	io.WriteString(conn, "CONNECT "+path+" HTTP/1.0\n\n")
 
 	// Require successful HTTP response
 	// before switching to RPC protocol.
