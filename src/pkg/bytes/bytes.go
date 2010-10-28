@@ -545,7 +545,7 @@ func resize(n int) int {
 // Add appends the contents of t to the end of s and returns the result.
 // If s has enough capacity, it is extended in place; otherwise a
 // new array is allocated and returned.
-func Add(s, t []byte) []byte {
+func Add(s, t []byte) []byte { // TODO
 	lens := len(s)
 	lent := len(t)
 	if lens+lent <= cap(s) {
@@ -562,7 +562,7 @@ func Add(s, t []byte) []byte {
 // AddByte appends byte t to the end of s and returns the result.
 // If s has enough capacity, it is extended in place; otherwise a
 // new array is allocated and returned.
-func AddByte(s []byte, t byte) []byte {
+func AddByte(s []byte, t byte) []byte { // TODO
 	lens := len(s)
 	if lens+1 <= cap(s) {
 		s = s[0 : lens+1]

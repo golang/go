@@ -29,15 +29,7 @@ var formats []format
 // Decode is the function that decodes the encoded image.
 // DecodeConfig is the function that decodes just its configuration.
 func RegisterFormat(name, magic string, decode func(io.Reader) (Image, os.Error), decodeConfig func(io.Reader) (Config, os.Error)) {
-	n := len(formats)
-	if n == cap(formats) {
-		x := make([]format, n+1, 2*n+4)
-		copy(x, formats)
-		formats = x
-	} else {
-		formats = formats[0 : n+1]
-	}
-	formats[n] = format{name, magic, decode, decodeConfig}
+	formats = append(formats, format{name, magic, decode, decodeConfig})
 }
 
 // A reader is an io.Reader that can also peek ahead.

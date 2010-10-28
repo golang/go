@@ -495,7 +495,7 @@ func (p *Package) gccCmd() []string {
 // returns the corresponding DWARF data and any messages
 // printed to standard error.
 func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
-	runGcc(stdin, concat(p.gccCmd(), p.GccOptions))
+	runGcc(stdin, append(p.gccCmd(), p.GccOptions...))
 
 	// Try to parse f as ELF and Mach-O and hope one works.
 	var f interface {
@@ -521,7 +521,7 @@ func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
 // and its included files.
 func (p *Package) gccDefines(stdin []byte) string {
 	base := []string{p.gccName(), p.gccMachine(), "-E", "-dM", "-xc", "-"}
-	stdout, _ := runGcc(stdin, concat(base, p.GccOptions))
+	stdout, _ := runGcc(stdin, append(base, p.GccOptions...))
 	return stdout
 }
 
@@ -530,7 +530,7 @@ func (p *Package) gccDefines(stdin []byte) string {
 // gcc to fail.
 func (p *Package) gccErrors(stdin []byte) string {
 	// TODO(rsc): require failure
-	args := concat(p.gccCmd(), p.GccOptions)
+	args := append(p.gccCmd(), p.GccOptions...)
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
 		os.Stderr.Write(stdin)

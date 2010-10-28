@@ -136,14 +136,6 @@ func (f *File) saveRef(x interface{}, context string) {
 		// so that we will be able to distinguish a "top-level C"
 		// from a local C.
 		if l, ok := sel.X.(*ast.Ident); ok && l.Name == "C" {
-			i := len(f.Ref)
-			if i >= cap(f.Ref) {
-				new := make([]*Ref, 2*i)
-				for j, v := range f.Ref {
-					new[j] = v
-				}
-				f.Ref = new
-			}
 			if context == "as2" {
 				context = "expr"
 			}
@@ -155,12 +147,11 @@ func (f *File) saveRef(x interface{}, context string) {
 				}
 				f.Name[goname] = name
 			}
-			f.Ref = f.Ref[0 : i+1]
-			f.Ref[i] = &Ref{
+			f.Ref = append(f.Ref, &Ref{
 				Name:    name,
 				Expr:    n,
 				Context: context,
-			}
+			})
 			return
 		}
 	}
@@ -186,20 +177,10 @@ func (f *File) saveExport(x interface{}, context string) {
 			error(c.Position, "export missing name")
 		}
 
-		if f.ExpFunc == nil {
-			f.ExpFunc = make([]*ExpFunc, 0, 8)
-		}
-		i := len(f.ExpFunc)
-		if i >= cap(f.ExpFunc) {
-			new := make([]*ExpFunc, i, 2*i)
-			copy(new, f.ExpFunc)
-			f.ExpFunc = new
-		}
-		f.ExpFunc = f.ExpFunc[0 : i+1]
-		f.ExpFunc[i] = &ExpFunc{
+		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
 			Func:    n,
 			ExpName: name,
-		}
+		})
 		break
 	}
 }

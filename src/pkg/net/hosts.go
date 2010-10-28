@@ -44,7 +44,7 @@ func readHosts() {
 			}
 			for i := 1; i < len(f); i++ {
 				h := f[i]
-				hs[h] = appendHost(hs[h], f[0])
+				hs[h] = append(hs[h], f[0])
 			}
 		}
 		// Update the data cache.
@@ -53,18 +53,6 @@ func readHosts() {
 		hosts.data = hs
 		file.close()
 	}
-}
-
-func appendHost(hosts []string, address string) []string {
-	n := len(hosts)
-	if n+1 > cap(hosts) { // reallocate
-		a := make([]string, n, 2*n+1)
-		copy(a, hosts)
-		hosts = a
-	}
-	hosts = hosts[0 : n+1]
-	hosts[n] = address
-	return hosts
 }
 
 // lookupStaticHosts looks up the addresses for the given host from /etc/hosts.

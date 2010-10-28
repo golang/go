@@ -167,17 +167,7 @@ func (cclass *_CharClass) print() {
 
 func (cclass *_CharClass) addRange(a, b int) {
 	// range is a through b inclusive
-	n := len(cclass.ranges)
-	if n >= cap(cclass.ranges) {
-		nr := make([]int, n, 2*n)
-		copy(nr, cclass.ranges)
-		cclass.ranges = nr
-	}
-	cclass.ranges = cclass.ranges[0 : n+2]
-	cclass.ranges[n] = a
-	n++
-	cclass.ranges[n] = b
-	n++
+	cclass.ranges = append(cclass.ranges, a, b)
 }
 
 func (cclass *_CharClass) matches(c int) bool {
@@ -249,15 +239,8 @@ func (nop *_Nop) kind() int { return _NOP }
 func (nop *_Nop) print()    { print("nop") }
 
 func (re *Regexp) add(i instr) instr {
-	n := len(re.inst)
 	i.setIndex(len(re.inst))
-	if n >= cap(re.inst) {
-		ni := make([]instr, n, 2*n)
-		copy(ni, re.inst)
-		re.inst = ni
-	}
-	re.inst = re.inst[0 : n+1]
-	re.inst[n] = i
+	re.inst = append(re.inst, i)
 	return i
 }
 

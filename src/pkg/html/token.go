@@ -374,26 +374,15 @@ func (z *Tokenizer) Token() Token {
 	case Text:
 		t.Data = string(z.Text())
 	case StartTag, EndTag, SelfClosingTag:
-		var (
-			attr []Attribute
-			a    int
-		)
+		var attr []Attribute
 		name, remaining := z.TagName()
 		for remaining {
 			var key, val []byte
 			key, val, remaining = z.TagAttr()
-			if a == len(attr) {
-				// Grow the attr slice.
-				n := 4 + 2*a
-				attr1 := make([]Attribute, n, n)
-				copy(attr1, attr)
-				attr = attr1
-			}
-			attr[a] = Attribute{string(key), string(val)}
-			a++
+			attr = append(attr, Attribute{string(key), string(val)})
 		}
 		t.Data = string(name)
-		t.Attr = attr[0:a]
+		t.Attr = attr
 	}
 	return t
 }

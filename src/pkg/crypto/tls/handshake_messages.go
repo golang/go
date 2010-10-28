@@ -315,19 +315,6 @@ func (m *serverHelloMsg) marshal() []byte {
 	return x
 }
 
-func append(slice []string, elem string) []string {
-	if len(slice) < cap(slice) {
-		slice = slice[0 : len(slice)+1]
-		slice[len(slice)-1] = elem
-		return slice
-	}
-
-	fresh := make([]string, len(slice)+1, cap(slice)*2+1)
-	copy(fresh, slice)
-	fresh[len(slice)] = elem
-	return fresh
-}
-
 func (m *serverHelloMsg) unmarshal(data []byte) bool {
 	if len(data) < 42 {
 		return false

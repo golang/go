@@ -66,16 +66,8 @@ func (s *Scope) Insert(obj *Object) *Object {
 
 
 func (s *Scope) append(obj *Object) {
-	n := len(s.Objects)
-	if n >= cap(s.Objects) {
-		new := make([]*Object, 2*n)
-		copy(new, s.Objects)
-		s.Objects = new
-	}
-	s.Objects = s.Objects[0 : n+1]
-	s.Objects[n] = obj
+	s.Objects = append(s.Objects, obj)
 }
-
 
 // ----------------------------------------------------------------------------
 // Objects

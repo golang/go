@@ -62,13 +62,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 				continue
 			}
 			count--
-			if len(names) == cap(names) {
-				nnames := make([]string, len(names), 2*len(names))
-				copy(nnames, names)
-				names = nnames
-			}
-			names = names[0 : len(names)+1]
-			names[len(names)-1] = name
+			names = append(names, name)
 		}
 	}
 	return names, nil
