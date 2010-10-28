@@ -78,10 +78,8 @@ func CommentText(comment *ast.CommentGroup) string {
 	lines = lines[0:n]
 
 	// Add final "" entry to get trailing newline from Join.
-	// The original loop always leaves room for one more.
 	if n > 0 && lines[n-1] != "" {
-		lines = lines[0 : n+1]
-		lines[n] = ""
+		lines = append(lines, "")
 	}
 
 	return strings.Join(lines, "\n")
