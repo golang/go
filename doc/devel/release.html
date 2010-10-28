@@ -5,6 +5,75 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-10-27">2010-10-27</h3>
+
+<pre>
+*** This release changes the encoding used by package gob. 
+    If you store gobs on disk, see below. ***
+
+The ARM port (5g) now passes all tests. The optimizer is not yet enabled, and
+floating point arithmetic is performed entirely in software. Work is underway
+to address both of these deficiencies.
+
+The syntax for arrays, slices, and maps of composite literals has been
+simplified. Within a composite literal of array, slice, or map type, elements
+that are themselves composite literals may elide the type if it is identical to
+the outer literal’s element type. For example, these expressions:
+	[][]int{[]int{1, 2, 3}, []int{4, 5}}
+	map[string]Point{“x”: Point{1.5, -3.5}, “y”: Point{0, 0}}
+can be simplified to:
+	[][]int{{1, 2, 3}, {4, 5}}
+	map[string]Point{“x”: {1.5, -3.5}, “y”: {0, 0}}
+Gofmt can make these simplifications mechanically when invoked with the 
+new -s flag.
+
+The built-in copy function can now copy bytes from a string value to a []byte.
+Code like this (for []byte b and string s): 
+	for i := 0; i < len(s); i++ {
+		b[i] = s[i]
+	}
+can be rewritten as:
+	copy(b, s)
+
+The gob package can now encode and decode interface values containing types
+registered ahead of time with the new Register function. These changes required
+a backwards-incompatible change to the wire format.  Data written with the old
+version of the package will not be readable with the new one, and vice versa.
+(Steps were made in this change to make sure this doesn’t happen again.) 
+We don’t know of anyone using gobs to create permanent data, but if you do this
+and need help converting, please let us know, and do not update to this release
+yet.  We will help you convert your data.
+
+Other changes:
+* 5g, 6g, 8g: generate code for string index instead of calling function.
+* 5l, 6l, 8l: introduce sub-symbols.
+* 6l/8l: global and local variables and type info.
+* Make.inc: delete unnecessary -fno-inline flag to quietgcc.
+* arm: precise float64 software floating point, bug fixes.
+* big: arm assembly, faster software mulWW, divWW.
+* build: only print "You need to add foo to PATH" when needed.
+* container/list: fix Remove bug and use pointer to self as identifier.
+* doc: show page title in browser title bar,
+        update roadmap.
+* encoding/binary: give LittleEndian, BigEndian specific types.
+* go/parser: consume auto-inserted semi when calling ParseExpr().
+* gobuilder: pass GOHOSTOS and GOHOSTARCH to build,
+        write build and benchmarking logs to disk.
+* goinstall: display helpful message when encountering a cgo package,
+        fix test for multiple package names (thanks Fazlul Shahriar).
+* gotest: generate correct gofmt-formatted _testmain.go.
+* image/png: speed up paletted encoding ~25% (thanks Brad Fitzpatrick).
+* misc: update python scripts to specify python2 as python3 is now "python".
+* net: fix comment on Dial to mention unix/unixgram.
+* rpc: expose Server type to allow multiple RPC Server instances.
+* runtime: print unknown types in panic.
+* spec: append built-in (not yet implemented).
+* src: gofmt -s -w src misc.
+        update code to use copy-from-string.
+* test/bench: update numbers.
+* websocket: fix short Read.
+</pre>
+
 <h3 id="2010-10-20">2010-10-20</h3>
 
 <pre>
