@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"utf8"
@@ -101,7 +102,7 @@ func (x *Xs) Scan(state ScanState, verb int) os.Error {
 	if err != nil {
 		return err
 	}
-	if !testing.MustCompile("^" + string(verb) + "+$").MatchString(tok) {
+	if !regexp.MustCompile("^" + string(verb) + "+$").MatchString(tok) {
 		return os.ErrorString("syntax error for xs")
 	}
 	*x = Xs(tok)
@@ -385,7 +386,7 @@ func TestScanf(t *testing.T) {
 
 func TestScanOverflow(t *testing.T) {
 	// different machines and different types report errors with different strings.
-	re := testing.MustCompile("overflow|too large|out of range|not representable")
+	re := regexp.MustCompile("overflow|too large|out of range|not representable")
 	for _, test := range overflowTests {
 		_, err := Sscan(test.text, test.in)
 		if err == nil {

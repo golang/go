@@ -151,6 +151,7 @@ NOTEST=\
 	rand\
 	runtime/pprof\
 	syscall\
+	testing\
 	testing/iotest\
 	try\
 	../libcgo\

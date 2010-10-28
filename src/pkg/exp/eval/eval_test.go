@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"regexp"
 	"testing"
 )
 
@@ -89,9 +90,9 @@ func (a test) run(t *testing.T, name string) {
 }
 
 func match(t *testing.T, err os.Error, pat string) bool {
-	ok, errstr := testing.MatchString(pat, err.String())
-	if errstr != "" {
-		t.Fatalf("compile regexp %s: %v", pat, errstr)
+	ok, err1 := regexp.MatchString(pat, err.String())
+	if err1 != nil {
+		t.Fatalf("compile regexp %s: %v", pat, err1)
 	}
 	return ok
 }

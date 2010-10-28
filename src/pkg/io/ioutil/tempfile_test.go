@@ -23,7 +23,7 @@ func TestTempFile(t *testing.T) {
 		t.Errorf("TempFile(dir, `ioutil_test`) = %v, %v", f, err)
 	}
 	if f != nil {
-		re := testing.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
+		re := regexp.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
 		if !re.MatchString(f.Name()) {
 			t.Errorf("TempFile(`"+dir+"`, `ioutil_test`) created bad name %s", f.Name())
 		}
