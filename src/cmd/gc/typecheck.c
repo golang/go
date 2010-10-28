@@ -730,7 +730,7 @@ reswitch:
 		typecheck(&n->left, Erv | Etype | Ecall);
 		l = n->left;
 		if(l->op == ONAME && l->etype != 0) {
-			if(n->isddd)
+			if(n->isddd && l->etype != OAPPEND)
 				yyerror("invalid use of ... with builtin %#N", l);
 			// builtin: OLEN, OCAP, etc.
 			n->op = l->etype;
@@ -903,6 +903,40 @@ reswitch:
 			ok |= Erv;
 		} else
 			ok |= Etop;
+		goto ret;
+
+	case OAPPEND:
+		ok |= Erv;
+		args = n->list;
+		if(args == nil) {
+			yyerror("missing arguments to append");
+			goto error;
+		}
+		typechecklist(args, Erv);
+		if((t = args->n->type) == T)
+			goto error;
+		n->type = t;
+		if(!isslice(t)) {
+			yyerror("first argument to append must be slice; have %lT", t);
+			goto error;
+		}
+		if(n->isddd) {
+			if(args->next == nil) {
+				yyerror("cannot use ... on first argument to append");
+				goto error;
+			}
+			if(args->next->next != nil) {
+				yyerror("too many arguments to append");
+				goto error;
+			}
+			args->next->n = assignconv(args->next->n, t->orig, "append");
+			goto ret;
+		}
+		for(args=args->next; args != nil; args=args->next) {
+			if(args->n->type == T)
+				continue;
+			args->n = assignconv(args->n, t->type, "append");
+		}
 		goto ret;
 
 	case OCOPY:

@@ -6,6 +6,8 @@
 #include	<libc.h>
 #include	<bio.h>
 
+#undef OAPPEND
+
 // avoid <ctype.h>
 #undef isblank
 #define isblank goisblank
@@ -349,6 +351,7 @@ enum
 	OADD, OSUB, OOR, OXOR, OADDSTR,
 	OADDR,
 	OANDAND,
+	OAPPEND,
 	OARRAY,
 	OARRAYBYTESTR, OARRAYRUNESTR,
 	OSTRARRAYBYTE, OSTRARRAYRUNE,

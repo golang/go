@@ -1531,6 +1531,7 @@ static	struct
 	"type",		LTYPE,		Txxx,		OXXX,
 	"var",		LVAR,		Txxx,		OXXX,
 
+	"append",		LNAME,		Txxx,		OAPPEND,
 	"cap",		LNAME,		Txxx,		OCAP,
 	"close",	LNAME,		Txxx,		OCLOSE,
 	"closed",	LNAME,		Txxx,		OCLOSED,

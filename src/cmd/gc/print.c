@@ -37,6 +37,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	}
 
 	switch(n->op) {
+	case OAPPEND:
 	case ONAME:
 	case ONONAME:
 	case OPACK:
@@ -400,6 +401,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		fmtprint(f, ")");
 		break;
 
+	case OAPPEND:
 	case OCAP:
 	case OCLOSE:
 	case OCLOSED:
