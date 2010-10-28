@@ -10,7 +10,6 @@ package printer
 
 import (
 	"bytes"
-	"container/vector"
 	"go/ast"
 	"go/token"
 )
@@ -718,23 +717,20 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
 
 // Convert an expression into an expression list split at the periods of
 // selector expressions.
-func selectorExprList(expr ast.Expr) []ast.Expr {
+func selectorExprList(expr ast.Expr) (list []ast.Expr) {
 	// split expression
-	var list vector.Vector
 	for expr != nil {
 		var suffix ast.Expr
 		expr, suffix = splitSelector(expr)
-		list.Push(suffix)
+		list = append(list, suffix)
 	}
 
-	// convert expression list
-	result := make([]ast.Expr, len(list))
-	i := len(result)
-	for _, x := range list {
-		i--
-		result[i] = x.(ast.Expr)
+	// reverse list
+	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
+		list[i], list[j] = list[j], list[i]
 	}
-	return result
+
+	return
 }
 
 
