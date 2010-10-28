@@ -135,19 +135,19 @@ func tRunner(t *T, test *Test) {
 
 // An internal function but exported because it is cross-package; part of the implementation
 // of gotest.
-func Main(tests []Test) {
+func Main(matchString func(pat, str string) (bool, os.Error), tests []Test) {
 	flag.Parse()
 	ok := true
 	if len(tests) == 0 {
 		println("testing: warning: no tests to run")
 	}
-	re, err := CompileRegexp(*match)
-	if err != "" {
-		println("invalid regexp for -match:", err)
-		os.Exit(1)
-	}
 	for i := 0; i < len(tests); i++ {
-		if !re.MatchString(tests[i].Name) {
+		matched, err := matchString(*match, tests[i].Name)
+		if err != nil {
+			println("invalid regexp for -match:", err)
+			os.Exit(1)
+		}
+		if !matched {
 			continue
 		}
 		if *chatty {
