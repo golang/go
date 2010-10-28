@@ -60,7 +60,6 @@ package regexp
 
 import (
 	"bytes"
-	"container/vector"
 	"io"
 	"os"
 	"strings"
@@ -117,7 +116,7 @@ type Regexp struct {
 	expr        string // the original expression
 	prefix      string // initial plain text string
 	prefixBytes []byte // initial plain text bytes
-	inst        *vector.Vector
+	inst        []instr
 	start       instr // first instruction of machine
 	prefixStart instr // where to start if there is a prefix
 	nbra        int   // number of brackets in expression, for subexpressions
@@ -190,8 +189,8 @@ func newChar(char int) *_Char {
 type _CharClass struct {
 	common
 	negate bool // is character class negated? ([^a-z])
-	// vector of int, stored pairwise: [a-z] is (a,z); x is (x,x):
-	ranges     *vector.IntVector
+	// slice of int, stored pairwise: [a-z] is (a,z); x is (x,x):
+	ranges     []int
 	cmin, cmax int
 }
 
@@ -202,9 +201,9 @@ func (cclass *_CharClass) print() {
 	if cclass.negate {
 		print(" (negated)")
 	}
-	for i := 0; i < cclass.ranges.Len(); i += 2 {
-		l := cclass.ranges.At(i)
-		r := cclass.ranges.At(i + 1)
+	for i := 0; i < len(cclass.ranges); i += 2 {
+		l := cclass.ranges[i]
+		r := cclass.ranges[i+1]
 		if l == r {
 			print(" [", string(l), "]")
 		} else {
@@ -215,8 +214,7 @@ func (cclass *_CharClass) print() {
 
 func (cclass *_CharClass) addRange(a, b int) {
 	// range is a through b inclusive
-	cclass.ranges.Push(a)
-	cclass.ranges.Push(b)
+	cclass.ranges = append(cclass.ranges, a, b)
 	if a < cclass.cmin {
 		cclass.cmin = a
 	}
@@ -229,7 +227,7 @@ func (cclass *_CharClass) matches(c int) bool {
 	if c < cclass.cmin || c > cclass.cmax {
 		return cclass.negate
 	}
-	ranges := []int(*cclass.ranges)
+	ranges := cclass.ranges
 	for i := 0; i < len(ranges); i = i + 2 {
 		if ranges[i] <= c && c <= ranges[i+1] {
 			return !cclass.negate
@@ -240,7 +238,7 @@ func (cclass *_CharClass) matches(c int) bool {
 
 func newCharClass() *_CharClass {
 	c := new(_CharClass)
-	c.ranges = new(vector.IntVector)
+	c.ranges = make([]int, 0, 4)
 	c.cmin = 0x10FFFF + 1 // MaxRune + 1
 	c.cmax = -1
 	return c
@@ -298,8 +296,8 @@ func (nop *_Nop) kind() int { return _NOP }
 func (nop *_Nop) print()    { print("nop") }
 
 func (re *Regexp) add(i instr) instr {
-	i.setIndex(re.inst.Len())
-	re.inst.Push(i)
+	i.setIndex(len(re.inst))
+	re.inst = append(re.inst, i)
 	return i
 }
 
@@ -380,15 +378,15 @@ func (p *parser) charClass() instr {
 				p.error(ErrBadRange)
 			}
 			// Is it [^\n]?
-			if cc.negate && cc.ranges.Len() == 2 &&
-				cc.ranges.At(0) == '\n' && cc.ranges.At(1) == '\n' {
+			if cc.negate && len(cc.ranges) == 2 &&
+				cc.ranges[0] == '\n' && cc.ranges[1] == '\n' {
 				nl := new(_NotNl)
 				p.re.add(nl)
 				return nl
 			}
 			// Special common case: "[a]" -> "a"
-			if !cc.negate && cc.ranges.Len() == 2 && cc.ranges.At(0) == cc.ranges.At(1) {
-				c := newChar(cc.ranges.At(0))
+			if !cc.negate && len(cc.ranges) == 2 && cc.ranges[0] == cc.ranges[1] {
+				c := newChar(cc.ranges[0])
 				p.re.add(c)
 				return c
 			}
@@ -606,8 +604,7 @@ func unNop(i instr) instr {
 }
 
 func (re *Regexp) eliminateNops() {
-	for i := 0; i < re.inst.Len(); i++ {
-		inst := re.inst.At(i).(instr)
+	for _, inst := range re.inst {
 		if inst.kind() == _END {
 			continue
 		}
@@ -621,8 +618,7 @@ func (re *Regexp) eliminateNops() {
 
 func (re *Regexp) dump() {
 	print("prefix <", re.prefix, ">\n")
-	for i := 0; i < re.inst.Len(); i++ {
-		inst := re.inst.At(i).(instr)
+	for _, inst := range re.inst {
 		print(inst.index(), ": ")
 		inst.print()
 		if inst.kind() != _END {
@@ -664,17 +660,17 @@ func (re *Regexp) setPrefix() {
 	var b []byte
 	var utf = make([]byte, utf8.UTFMax)
 	// First instruction is start; skip that.
-	i := re.inst.At(0).(instr).next().index()
+	i := re.inst[0].next().index()
 Loop:
-	for i < re.inst.Len() {
-		inst := re.inst.At(i).(instr)
+	for i < len(re.inst) {
+		inst := re.inst[i]
 		// stop if this is not a char
 		if inst.kind() != _CHAR {
 			break
 		}
 		// stop if this char can be followed by a match for an empty string,
 		// which includes closures, ^, and $.
-		switch re.inst.At(inst.next().index()).(instr).kind() {
+		switch re.inst[inst.next().index()].kind() {
 		case _BOT, _EOT, _ALT:
 			break Loop
 		}
@@ -683,7 +679,7 @@ Loop:
 		i = inst.next().index()
 	}
 	// point prefixStart instruction to first non-CHAR after prefix
-	re.prefixStart = re.inst.At(i).(instr)
+	re.prefixStart = re.inst[i]
 	re.prefixBytes = b
 	re.prefix = string(b)
 }
@@ -700,7 +696,7 @@ func Compile(str string) (regexp *Regexp, error os.Error) {
 		}
 	}()
 	regexp.expr = str
-	regexp.inst = new(vector.Vector)
+	regexp.inst = make([]instr, 0, 10)
 	regexp.doParse()
 	return
 }
@@ -830,8 +826,8 @@ func (a *matchArena) addState(s []state, inst instr, prefixed bool, match *match
 // If bytes == nil, scan str.
 func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 	var s [2][]state
-	s[0] = make([]state, 10)[0:0]
-	s[1] = make([]state, 10)[0:0]
+	s[0] = make([]state, 0, 10)
+	s[1] = make([]state, 0, 10)
 	in, out := 0, 1
 	var final state
 	found := false
