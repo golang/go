@@ -197,11 +197,11 @@ func (S *Scanner) scanComment(pos token.Position) {
 
 
 func (S *Scanner) findLineEnd(pos token.Position) bool {
-	// first '/' already consumed; assume S.ch == '/' || S.ch == '*'
+	// initial '/' already consumed; pos is position of '/'
 
 	// read ahead until a newline, EOF, or non-comment token is found
 	lineend := false
-	for pos1 := pos; S.ch >= 0; {
+	for pos1 := pos; S.ch == '/' || S.ch == '*'; {
 		if S.ch == '/' {
 			//-style comment always contains a newline
 			lineend = true
@@ -224,17 +224,13 @@ func (S *Scanner) findLineEnd(pos token.Position) bool {
 			break
 		}
 		pos1 = S.pos
-		S.next()
-		if S.ch != '/' && S.ch != '*' {
-			// non-comment token
-			break
-		}
+		S.next() // consume '/'
 	}
 
 	// reset position to where it was upon calling findLineEnd
 	S.pos = pos
 	S.offset = pos.Offset + 1
-	S.next()
+	S.next() // consume initial '/' again
 
 	return lineend
 }
