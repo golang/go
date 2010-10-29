@@ -1269,3 +1269,50 @@ func TestIgnoreInterface(t *testing.T) {
 		t.Error("normal float did not decode correctly")
 	}
 }
+
+// A type that won't be defined in the gob until we send it in an interface value.
+type OnTheFly struct {
+	a int
+}
+
+type DT struct {
+	//	X OnTheFly
+	a     int
+	b     string
+	c     float
+	i     interface{}
+	j     interface{}
+	i_nil interface{}
+	m     map[string]int
+	r     [3]int
+	s     []string
+}
+
+func TestDebug(t *testing.T) {
+	if debugFunc == nil {
+		return
+	}
+	Register(OnTheFly{})
+	var dt DT
+	dt.a = 17
+	dt.b = "hello"
+	dt.c = 3.14159
+	dt.i = 271828
+	dt.j = OnTheFly{3}
+	dt.i_nil = nil
+	dt.m = map[string]int{"one": 1, "two": 2}
+	dt.r = [3]int{11, 22, 33}
+	dt.s = []string{"hi", "joe"}
+	b := new(bytes.Buffer)
+	err := NewEncoder(b).Encode(dt)
+	if err != nil {
+		t.Fatal("encode:", err)
+	}
+	debugBuffer := bytes.NewBuffer(b.Bytes())
+	dt2 := &DT{}
+	err = NewDecoder(b).Decode(&dt2)
+	if err != nil {
+		t.Error("decode:", err)
+	}
+	debugFunc(debugBuffer)
+}
