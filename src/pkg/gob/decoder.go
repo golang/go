@@ -108,9 +108,6 @@ func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignore bool) {
 	for dec.state.b.Len() > 0 {
 		// Receive a type id.
 		id := typeId(decodeInt(dec.state))
-		if dec.err != nil {
-			break
-		}
 
 		// Is it a new type?
 		if id < 0 { // 0 is the error state, handled above
@@ -155,3 +152,7 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	dec.decodeValueFromBuffer(value, false)
 	return dec.err
 }
+
+// If enabled, Debug prints a human-readable representation of the gob data read from r.
+// If debug.go is compiled into the program it will override this link.
+var debugFunc func(io.Reader)
