@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Oct 27, 2010 -->
+<!-- subtitle Version of Oct 29, 2010 -->
 
 <!--
 TODO
@@ -4559,10 +4559,6 @@ s3 := append(s2, s0...)    // append a slice              s3 == []int{0, 0, 2, 3
 </pre>
 
 <p>
-<span class="alert">Note: <code>append</code> is not yet implemented.</span>
-</p>
-
-<p>
 The function <code>copy</code> copies slice elements from
 a source <code>src</code> to a destination <code>dst</code> and returns the
 number of elements copied. Source and destination may overlap.
@@ -5233,7 +5229,7 @@ The following minimal alignment properties are guaranteed:
 <h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
 <ul>
 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
-	<li><span class="alert">The <code>append</code> built-in function is not yet implemented.</span></li>
+	<li><span class="alert">Gccgo: The <code>append</code> built-in function is not yet implemented.</span></li>
 	<li><span class="alert">Gccgo: Method expressions are partially implemented.</span></li>
 	<li><span class="alert">Gccgo: allows only one init() function per source file.</span></li>
 </ul>
