@@ -6,7 +6,6 @@
 package doc
 
 import (
-	"container/vector"
 	"go/ast"
 	"go/token"
 	"regexp"
@@ -21,7 +20,7 @@ type typeDoc struct {
 	// if the type declaration hasn't been seen yet, decl is nil
 	decl *ast.GenDecl
 	// values, factory functions, and methods associated with the type
-	values    *vector.Vector // list of *ast.GenDecl (consts and vars)
+	values    []*ast.GenDecl // consts and vars
 	factories map[string]*ast.FuncDecl
 	methods   map[string]*ast.FuncDecl
 }
@@ -37,19 +36,17 @@ type typeDoc struct {
 type docReader struct {
 	doc     *ast.CommentGroup // package documentation, if any
 	pkgName string
-	values  *vector.Vector // list of *ast.GenDecl (consts and vars)
+	values  []*ast.GenDecl // consts and vars
 	types   map[string]*typeDoc
 	funcs   map[string]*ast.FuncDecl
-	bugs    *vector.Vector // list of *ast.CommentGroup
+	bugs    []*ast.CommentGroup
 }
 
 
 func (doc *docReader) init(pkgName string) {
 	doc.pkgName = pkgName
-	doc.values = new(vector.Vector)
 	doc.types = make(map[string]*typeDoc)
 	doc.funcs = make(map[string]*ast.FuncDecl)
-	doc.bugs = new(vector.Vector)
 }
 
 
@@ -96,7 +93,7 @@ func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 		return tdoc
 	}
 	// type wasn't found - add one without declaration
-	tdoc := &typeDoc{nil, new(vector.Vector), make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl)}
+	tdoc := &typeDoc{nil, nil, make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl)}
 	doc.types[name] = tdoc
 	return tdoc
 }
@@ -156,16 +153,16 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 
 	// determine values list
 	const threshold = 0.75
-	values := doc.values
+	values := &doc.values
 	if domName != "" && domFreq >= int(float(len(decl.Specs))*threshold) {
 		// typed entries are sufficiently frequent
 		typ := doc.lookupTypeDoc(domName)
 		if typ != nil {
-			values = typ.values // associate with that type
+			values = &typ.values // associate with that type
 		}
 	}
 
-	values.Push(decl)
+	*values = append(*values, decl)
 }
 
 
@@ -310,7 +307,7 @@ func (doc *docReader) addFile(src *ast.File) {
 				// non-empty BUG comment; collect comment without BUG prefix
 				list := copyCommentList(c.List)
 				list[0].Text = text[m[1]:]
-				doc.bugs.Push(&ast.CommentGroup{list})
+				doc.bugs = append(doc.bugs, &ast.CommentGroup{list})
 			}
 		}
 	}
@@ -385,11 +382,10 @@ func (p sortValueDoc) Less(i, j int) bool {
 }
 
 
-func makeValueDocs(v *vector.Vector, tok token.Token) []*ValueDoc {
-	d := make([]*ValueDoc, v.Len()) // big enough in any case
+func makeValueDocs(list []*ast.GenDecl, tok token.Token) []*ValueDoc {
+	d := make([]*ValueDoc, len(list)) // big enough in any case
 	n := 0
-	for i := range d {
-		decl := v.At(i).(*ast.GenDecl)
+	for i, decl := range list {
 		if decl.Tok == tok {
 			d[n] = &ValueDoc{CommentText(decl.Doc), decl, i}
 			n++
@@ -506,7 +502,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 			// file containing the explicit type declaration is missing or if
 			// an unqualified type name was used after a "." import)
 			// 1) move values
-			doc.values.AppendVector(old.values)
+			doc.values = append(doc.values, old.values...)
 			// 2) move factory functions
 			for name, f := range old.factories {
 				doc.funcs[name] = f
@@ -526,10 +522,10 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 }
 
 
-func makeBugDocs(v *vector.Vector) []string {
-	d := make([]string, v.Len())
-	for i := 0; i < v.Len(); i++ {
-		d[i] = CommentText(v.At(i).(*ast.CommentGroup))
+func makeBugDocs(list []*ast.CommentGroup) []string {
+	d := make([]string, len(list))
+	for i, g := range list {
+		d[i] = CommentText(g)
 	}
 	return d
 }
