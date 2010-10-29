@@ -153,6 +153,7 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	return dec.err
 }
 
-// If enabled, Debug prints a human-readable representation of the gob data read from r.
-// If debug.go is compiled into the program it will override this link.
+// If debug.go is compiled into the program , debugFunc prints a human-readable
+// representation of the gob data read from r by calling that file's Debug function.
+// Otherwise it is nil.
 var debugFunc func(io.Reader)

@@ -1,6 +1,7 @@
 package gob
 
 // This file is not normally included in the gob package.  Used only for debugging the package itself.
+// Add debug.go to the files listed in the Makefile to add Debug to the gob package.
 
 import (
 	"bytes"
@@ -14,7 +15,7 @@ import (
 var dump = false // If true, print the remaining bytes in the input buffer at each item.
 
 // Init installs the debugging facility. If this file is not compiled in the
-// package, Debug will be a no-op.
+// package, the test in codec_test.go is a no-op.
 func init() {
 	debugFunc = Debug
 }
