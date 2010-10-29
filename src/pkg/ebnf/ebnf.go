@@ -23,7 +23,6 @@
 package ebnf
 
 import (
-	"container/vector"
 	"go/scanner"
 	"go/token"
 	"os"
@@ -123,7 +122,7 @@ func isLexical(name string) bool {
 
 type verifier struct {
 	scanner.ErrorVector
-	worklist vector.Vector
+	worklist []*Production
 	reached  Grammar // set of productions reached from (and including) the root production
 	grammar  Grammar
 }
@@ -132,7 +131,7 @@ type verifier struct {
 func (v *verifier) push(prod *Production) {
 	name := prod.Name.String
 	if _, found := v.reached[name]; !found {
-		v.worklist.Push(prod)
+		v.worklist = append(v.worklist, prod)
 		v.reached[name] = prod
 	}
 }
@@ -205,14 +204,19 @@ func (v *verifier) verify(grammar Grammar, start string) {
 
 	// initialize verifier
 	v.ErrorVector.Reset()
-	v.worklist.Resize(0, 0)
+	v.worklist = v.worklist[0:0]
 	v.reached = make(Grammar)
 	v.grammar = grammar
 
 	// work through the worklist
 	v.push(root)
-	for v.worklist.Len() > 0 {
-		prod := v.worklist.Pop().(*Production)
+	for {
+		n := len(v.worklist) - 1
+		if n < 0 {
+			break
+		}
+		prod := v.worklist[n]
+		v.worklist = v.worklist[0:n]
 		v.verifyExpr(prod.Expr, isLexical(prod.Name.String))
 	}
 

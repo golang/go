@@ -5,7 +5,6 @@
 package ebnf
 
 import (
-	"container/vector"
 	"go/scanner"
 	"go/token"
 	"os"
@@ -116,36 +115,30 @@ func (p *parser) parseTerm() (x Expression) {
 
 
 func (p *parser) parseSequence() Expression {
-	var list vector.Vector
+	var list Sequence
 
 	for x := p.parseTerm(); x != nil; x = p.parseTerm() {
-		list.Push(x)
+		list = append(list, x)
 	}
 
 	// no need for a sequence if list.Len() < 2
-	switch list.Len() {
+	switch len(list) {
 	case 0:
 		return nil
 	case 1:
-		return list.At(0).(Expression)
+		return list[0]
 	}
 
-	// convert list into a sequence
-	seq := make(Sequence, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		seq[i] = list.At(i).(Expression)
-	}
-	return seq
+	return list
 }
 
 
 func (p *parser) parseExpression() Expression {
-	var list vector.Vector
+	var list Alternative
 
 	for {
-		x := p.parseSequence()
-		if x != nil {
-			list.Push(x)
+		if x := p.parseSequence(); x != nil {
+			list = append(list, x)
 		}
 		if p.tok != token.OR {
 			break
@@ -154,19 +147,14 @@ func (p *parser) parseExpression() Expression {
 	}
 
 	// no need for an Alternative node if list.Len() < 2
-	switch list.Len() {
+	switch len(list) {
 	case 0:
 		return nil
 	case 1:
-		return list.At(0).(Expression)
+		return list[0]
 	}
 
-	// convert list into an Alternative node
-	alt := make(Alternative, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		alt[i] = list.At(i).(Expression)
-	}
-	return alt
+	return list
 }
 
 
