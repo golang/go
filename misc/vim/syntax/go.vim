@@ -85,8 +85,8 @@ syn match       goType              /\<func\>/
 syn match       goDeclaration       /^func\>/
 
 " Predefined functions and values
-syn keyword     goBuiltins          cap close closed cmplx copy imag len make
-syn keyword     goBuiltins          new panic panicln print println real
+syn keyword     goBuiltins          append cap close closed cmplx copy imag len
+syn keyword     goBuiltins          make new panic print println real recover
 syn keyword     goConstants         iota true false nil
 
 hi def link     goBuiltins          Keyword
