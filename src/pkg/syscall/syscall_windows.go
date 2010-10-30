@@ -144,6 +144,7 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
 //sys	SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) = kernel32.SetEnvironmentVariableW
 //sys	SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int)
+//sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval=INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
 
 // syscall interface implementation for other packages
 
@@ -302,6 +303,21 @@ func getStdHandle(h int32) (fd int) {
 }
 
 func Stat(path string, stat *Stat_t) (errno int) {
+	// Remove trailing slash.
+	if path[len(path)-1] == '/' || path[len(path)-1] == '\\' {
+		// Check if we're given root directory ("\" or "c:\").
+		if len(path) == 1 || (len(path) == 3 && path[1] == ':') {
+			// TODO(brainman): Perhaps should fetch other fields, not just FileAttributes.
+			stat.Windata = Win32finddata{}
+			a, e := GetFileAttributes(StringToUTF16Ptr(path))
+			if e != 0 {
+				return e
+			}
+			stat.Windata.FileAttributes = a
+			return 0
+		}
+		path = path[:len(path)-1]
+	}
 	h, e := FindFirstFile(StringToUTF16Ptr(path), &stat.Windata)
 	if e != 0 {
 		return e
