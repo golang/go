@@ -303,6 +303,9 @@ func getStdHandle(h int32) (fd int) {
 }
 
 func Stat(path string, stat *Stat_t) (errno int) {
+	if len(path) == 0 {
+		return ERROR_PATH_NOT_FOUND
+	}
 	// Remove trailing slash.
 	if path[len(path)-1] == '/' || path[len(path)-1] == '\\' {
 		// Check if we're given root directory ("\" or "c:\").
