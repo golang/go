@@ -861,3 +861,27 @@ func TestAppend(t *testing.T) {
 		t.Fatalf("writeFile: have %q want %q", s, "new|append")
 	}
 }
+
+func TestStatDirWithTrailingSlash(t *testing.T) {
+	// Create new dir, in _obj so it will get
+	// cleaned up by make if not by us.
+	path := "_obj/_TestStatDirWithSlash_"
+	err := MkdirAll(path, 0777)
+	if err != nil {
+		t.Fatalf("MkdirAll %q: %s", path, err)
+	}
+
+	// Stat of path should succeed.
+	_, err = Stat(path)
+	if err != nil {
+		t.Fatal("stat failed:", err)
+	}
+
+	// Stat of path+"/" should succeed too.
+	_, err = Stat(path + "/")
+	if err != nil {
+		t.Fatal("stat failed:", err)
+	}
+
+	RemoveAll("_obj/_TestMkdirAll_")
+}
