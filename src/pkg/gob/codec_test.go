@@ -50,7 +50,7 @@ func testError(t *testing.T) {
 func TestUintCodec(t *testing.T) {
 	defer testError(t)
 	b := new(bytes.Buffer)
-	encState := newEncoderState(b)
+	encState := newEncoderState(nil, b)
 	for _, tt := range encodeT {
 		b.Reset()
 		encodeUint(encState, tt.x)
@@ -58,7 +58,7 @@ func TestUintCodec(t *testing.T) {
 			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
 		}
 	}
-	decState := newDecodeState(&b)
+	decState := newDecodeState(nil, &b)
 	for u := uint64(0); ; u = (u + 1) * 7 {
 		b.Reset()
 		encodeUint(encState, u)
@@ -75,9 +75,9 @@ func TestUintCodec(t *testing.T) {
 func verifyInt(i int64, t *testing.T) {
 	defer testError(t)
 	var b = new(bytes.Buffer)
-	encState := newEncoderState(b)
+	encState := newEncoderState(nil, b)
 	encodeInt(encState, i)
-	decState := newDecodeState(&b)
+	decState := newDecodeState(nil, &b)
 	decState.buf = make([]byte, 8)
 	j := decodeInt(decState)
 	if i != j {
@@ -113,7 +113,7 @@ var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
 
 func newencoderState(b *bytes.Buffer) *encoderState {
 	b.Reset()
-	state := newEncoderState(b)
+	state := newEncoderState(nil, b)
 	state.fieldnum = -1
 	return state
 }
@@ -327,7 +327,7 @@ func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p un
 
 func newDecodeStateFromData(data []byte) *decodeState {
 	b := bytes.NewBuffer(data)
-	state := newDecodeState(&b)
+	state := newDecodeState(nil, &b)
 	state.fieldnum = -1
 	return state
 }
@@ -1125,6 +1125,14 @@ func (v Vector) Square() int {
 	return sum
 }
 
+type Point struct {
+	a, b int
+}
+
+func (p Point) Square() int {
+	return p.a*p.a + p.b*p.b
+}
+
 // A struct with interfaces in it.
 type InterfaceItem struct {
 	i             int
@@ -1243,15 +1251,15 @@ func TestInterfaceBasic(t *testing.T) {
 func TestIgnoreInterface(t *testing.T) {
 	iVal := Int(3)
 	fVal := Float(5)
-	// Sending a Vector will require that the receiver define a type in the middle of
+	// Sending a Point will require that the receiver define a type in the middle of
 	// receiving the value for item2.
-	vVal := Vector{1, 2, 3}
+	pVal := Point{2, 3}
 	b := new(bytes.Buffer)
-	item1 := &InterfaceItem{1, iVal, fVal, vVal, 11.5, nil}
+	item1 := &InterfaceItem{1, iVal, fVal, pVal, 11.5, nil}
 	// Register the types.
 	Register(Int(0))
 	Register(Float(0))
-	Register(Vector{})
+	Register(Point{})
 	err := NewEncoder(b).Encode(item1)
 	if err != nil {
 		t.Error("expected no encode error; got", err)
