@@ -49,6 +49,7 @@ var silent = flag.Bool("s", false, "don't print result")
 var (
 	tmp1  = big.NewInt(0)
 	tmp2  = big.NewInt(0)
+	tmp3  = big.NewInt(0)
 	y2    = big.NewInt(0)
 	bigk  = big.NewInt(0)
 	numer = big.NewInt(1)
@@ -80,7 +81,6 @@ func extract_digit() int64 {
 }
 
 func next_term(k int64) {
-	// TODO(eds) If big.Int ever gets a Scale method, y2 and bigk could be int64
 	y2.SetInt64(k*2 + 1)
 	bigk.SetInt64(k)
 
@@ -92,8 +92,8 @@ func next_term(k int64) {
 }
 
 func eliminate_digit(d int64) {
-	tmp := big.NewInt(0).Set(denom)
-	accum.Sub(accum, tmp.Mul(tmp, big.NewInt(d)))
+	tmp3.SetInt64(d)
+	accum.Sub(accum, tmp3.Mul(denom, tmp3))
 	accum.Mul(accum, ten)
 	numer.Mul(numer, ten)
 }
