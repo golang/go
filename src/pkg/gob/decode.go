@@ -25,6 +25,7 @@ var (
 // The execution state of an instance of the decoder. A new state
 // is created for nested objects.
 type decodeState struct {
+	dec *Decoder
 	// The buffer is stored with an extra indirection because it may be replaced
 	// if we load a type during decode (when reading an interface value).
 	b        **bytes.Buffer
@@ -32,8 +33,9 @@ type decodeState struct {
 	buf      []byte
 }
 
-func newDecodeState(b **bytes.Buffer) *decodeState {
+func newDecodeState(dec *Decoder, b **bytes.Buffer) *decodeState {
 	d := new(decodeState)
+	d.dec = dec
 	d.b = b
 	d.buf = make([]byte, uint64Size)
 	return d
@@ -401,10 +403,10 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
 	return *(*uintptr)(up)
 }
 
-func decodeSingle(engine *decEngine, rtyp reflect.Type, b **bytes.Buffer, p uintptr, indir int) (err os.Error) {
+func (dec *Decoder) decodeSingle(engine *decEngine, rtyp reflect.Type, b **bytes.Buffer, p uintptr, indir int) (err os.Error) {
 	defer catchError(&err)
 	p = allocate(rtyp, p, indir)
-	state := newDecodeState(b)
+	state := newDecodeState(dec, b)
 	state.fieldnum = singletonField
 	basep := p
 	delta := int(decodeUint(state))
@@ -423,7 +425,7 @@ func decodeSingle(engine *decEngine, rtyp reflect.Type, b **bytes.Buffer, p uint
 func (dec *Decoder) decodeStruct(engine *decEngine, rtyp *reflect.StructType, b **bytes.Buffer, p uintptr, indir int) (err os.Error) {
 	defer catchError(&err)
 	p = allocate(rtyp, p, indir)
-	state := newDecodeState(b)
+	state := newDecodeState(dec, b)
 	state.fieldnum = -1
 	basep := p
 	for state.b.Len() > 0 {
@@ -450,9 +452,9 @@ func (dec *Decoder) decodeStruct(engine *decEngine, rtyp *reflect.StructType, b 
 	return nil
 }
 
-func ignoreStruct(engine *decEngine, b **bytes.Buffer) (err os.Error) {
+func (dec *Decoder) ignoreStruct(engine *decEngine, b **bytes.Buffer) (err os.Error) {
 	defer catchError(&err)
-	state := newDecodeState(b)
+	state := newDecodeState(dec, b)
 	state.fieldnum = -1
 	for state.b.Len() > 0 {
 		delta := int(decodeUint(state))
@@ -473,7 +475,7 @@ func ignoreStruct(engine *decEngine, b **bytes.Buffer) (err os.Error) {
 	return nil
 }
 
-func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.ErrorString) {
+func (dec *Decoder) decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.ErrorString) {
 	instr := &decInstr{elemOp, 0, elemIndir, 0, ovfl}
 	for i := 0; i < length; i++ {
 		up := unsafe.Pointer(p)
@@ -485,14 +487,14 @@ func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uint
 	}
 }
 
-func decodeArray(atyp *reflect.ArrayType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) {
+func (dec *Decoder) decodeArray(atyp *reflect.ArrayType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) {
 	if indir > 0 {
 		p = allocate(atyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
 	if n := decodeUint(state); n != uint64(length) {
 		errorf("gob: length mismatch in decodeArray")
 	}
-	decodeArrayHelper(state, p, elemOp, elemWid, length, elemIndir, ovfl)
+	dec.decodeArrayHelper(state, p, elemOp, elemWid, length, elemIndir, ovfl)
 }
 
 func decodeIntoValue(state *decodeState, op decOp, indir int, v reflect.Value, ovfl os.ErrorString) reflect.Value {
@@ -505,7 +507,7 @@ func decodeIntoValue(state *decodeState, op decOp, indir int, v reflect.Value, o
 	return v
 }
 
-func decodeMap(mtyp *reflect.MapType, state *decodeState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.ErrorString) {
+func (dec *Decoder) decodeMap(mtyp *reflect.MapType, state *decodeState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.ErrorString) {
 	if indir > 0 {
 		p = allocate(mtyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
@@ -526,21 +528,21 @@ func decodeMap(mtyp *reflect.MapType, state *decodeState, p uintptr, keyOp, elem
 	}
 }
 
-func ignoreArrayHelper(state *decodeState, elemOp decOp, length int) {
+func (dec *Decoder) ignoreArrayHelper(state *decodeState, elemOp decOp, length int) {
 	instr := &decInstr{elemOp, 0, 0, 0, os.ErrorString("no error")}
 	for i := 0; i < length; i++ {
 		elemOp(instr, state, nil)
 	}
 }
 
-func ignoreArray(state *decodeState, elemOp decOp, length int) {
+func (dec *Decoder) ignoreArray(state *decodeState, elemOp decOp, length int) {
 	if n := decodeUint(state); n != uint64(length) {
 		errorf("gob: length mismatch in ignoreArray")
 	}
-	ignoreArrayHelper(state, elemOp, length)
+	dec.ignoreArrayHelper(state, elemOp, length)
 }
 
-func ignoreMap(state *decodeState, keyOp, elemOp decOp) {
+func (dec *Decoder) ignoreMap(state *decodeState, keyOp, elemOp decOp) {
 	n := int(decodeUint(state))
 	keyInstr := &decInstr{keyOp, 0, 0, 0, os.ErrorString("no error")}
 	elemInstr := &decInstr{elemOp, 0, 0, 0, os.ErrorString("no error")}
@@ -550,7 +552,7 @@ func ignoreMap(state *decodeState, keyOp, elemOp decOp) {
 	}
 }
 
-func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) {
+func (dec *Decoder) decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) {
 	n := int(uintptr(decodeUint(state)))
 	if indir > 0 {
 		up := unsafe.Pointer(p)
@@ -566,11 +568,11 @@ func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp 
 	hdrp.Data = uintptr(unsafe.NewArray(atyp.Elem(), n))
 	hdrp.Len = n
 	hdrp.Cap = n
-	decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, n, elemIndir, ovfl)
+	dec.decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, n, elemIndir, ovfl)
 }
 
-func ignoreSlice(state *decodeState, elemOp decOp) {
-	ignoreArrayHelper(state, elemOp, int(decodeUint(state)))
+func (dec *Decoder) ignoreSlice(state *decodeState, elemOp decOp) {
+	dec.ignoreArrayHelper(state, elemOp, int(decodeUint(state)))
 }
 
 // setInterfaceValue sets an interface value to a concrete value through
@@ -610,7 +612,7 @@ func (dec *Decoder) decodeInterface(ityp *reflect.InterfaceType, state *decodeSt
 	}
 	// Read the concrete value.
 	value := reflect.MakeZero(typ)
-	dec.decodeValueFromBuffer(value, false)
+	dec.decodeValueFromBuffer(value, false, true)
 	if dec.err != nil {
 		error(dec.err)
 	}
@@ -631,10 +633,11 @@ func (dec *Decoder) ignoreInterface(state *decodeState) {
 	b := make([]byte, decodeUint(state))
 	_, err := state.b.Read(b)
 	if err != nil {
-		dec.decodeValueFromBuffer(nil, true)
-		if dec.err != nil {
-			error(err)
-		}
+		error(err)
+	}
+	dec.decodeValueFromBuffer(nil, true, true)
+	if dec.err != nil {
+		error(err)
 	}
 }
 
@@ -685,7 +688,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				decodeArray(t, state, uintptr(p), elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir, ovfl)
+				state.dec.decodeArray(t, state, uintptr(p), elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir, ovfl)
 			}
 
 		case *reflect.MapType:
@@ -697,7 +700,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				up := unsafe.Pointer(p)
-				decodeMap(t, state, uintptr(up), keyOp, elemOp, i.indir, keyIndir, elemIndir, ovfl)
+				state.dec.decodeMap(t, state, uintptr(up), keyOp, elemOp, i.indir, keyIndir, elemIndir, ovfl)
 			}
 
 		case *reflect.SliceType:
@@ -715,7 +718,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				decodeSlice(t, state, uintptr(p), elemOp, t.Elem().Size(), i.indir, elemIndir, ovfl)
+				state.dec.decodeSlice(t, state, uintptr(p), elemOp, t.Elem().Size(), i.indir, elemIndir, ovfl)
 			}
 
 		case *reflect.StructType:
@@ -764,7 +767,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 			elemId := wire.arrayT.Elem
 			elemOp := dec.decIgnoreOpFor(elemId)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				ignoreArray(state, elemOp, wire.arrayT.Len)
+				state.dec.ignoreArray(state, elemOp, wire.arrayT.Len)
 			}
 
 		case wire.mapT != nil:
@@ -773,14 +776,14 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 			keyOp := dec.decIgnoreOpFor(keyId)
 			elemOp := dec.decIgnoreOpFor(elemId)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				ignoreMap(state, keyOp, elemOp)
+				state.dec.ignoreMap(state, keyOp, elemOp)
 			}
 
 		case wire.sliceT != nil:
 			elemId := wire.sliceT.Elem
 			elemOp := dec.decIgnoreOpFor(elemId)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				ignoreSlice(state, elemOp)
+				state.dec.ignoreSlice(state, elemOp)
 			}
 
 		case wire.structT != nil:
@@ -791,7 +794,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				// indirect through enginePtr to delay evaluation for recursive structs
-				ignoreStruct(*enginePtr, state.b)
+				state.dec.ignoreStruct(*enginePtr, state.b)
 			}
 		}
 	}
@@ -931,7 +934,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, rt reflect.Type) (enginePtr
 	return
 }
 
-// When ignoring data, in effect we compile it into this type
+// When ignoring struct data, in effect we compile it into this type
 type emptyStruct struct{}
 
 var emptyStructType = reflect.Typeof(emptyStruct{})
@@ -965,7 +968,7 @@ func (dec *Decoder) decode(wireId typeId, val reflect.Value) os.Error {
 		}
 		return dec.decodeStruct(engine, st, dec.state.b, uintptr(val.Addr()), indir)
 	}
-	return decodeSingle(engine, rt, dec.state.b, uintptr(val.Addr()), indir)
+	return dec.decodeSingle(engine, rt, dec.state.b, uintptr(val.Addr()), indir)
 }
 
 func init() {

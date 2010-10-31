@@ -29,8 +29,8 @@ func NewEncoder(w io.Writer) *Encoder {
 	enc := new(Encoder)
 	enc.w = w
 	enc.sent = make(map[reflect.Type]typeId)
-	enc.state = newEncoderState(new(bytes.Buffer))
-	enc.countState = newEncoderState(new(bytes.Buffer))
+	enc.state = newEncoderState(enc, new(bytes.Buffer))
+	enc.countState = newEncoderState(enc, new(bytes.Buffer))
 	return enc
 }
 

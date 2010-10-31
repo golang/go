@@ -320,7 +320,8 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 			typ, _ := indirect(f.Type)
 			tname := typ.Name()
 			if tname == "" {
-				tname = f.Type.String()
+				t, _ := indirect(f.Type)
+				tname = t.String()
 			}
 			gt, err := getType(tname, f.Type)
 			if err != nil {

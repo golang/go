@@ -78,13 +78,13 @@ func (dec *Decoder) debug() {
 	if dec.err != nil {
 		return
 	}
-	dec.debugFromBuffer(0)
+	dec.debugFromBuffer(0, false)
 }
 
 // printFromBuffer prints the next value.  The buffer contains data, but it may
 // be a type descriptor and we may need to load more data to see the value;
 // printType takes care of that.
-func (dec *Decoder) debugFromBuffer(indent int) {
+func (dec *Decoder) debugFromBuffer(indent int, countPresent bool) {
 	for dec.state.b.Len() > 0 {
 		// Receive a type id.
 		id := typeId(decodeInt(dec.state))
@@ -105,6 +105,9 @@ func (dec *Decoder) debugFromBuffer(indent int) {
 		if dec.wireType[id] == nil && builtinIdToType[id] == nil {
 			dec.err = errBadType
 			break
+		}
+		if countPresent {
+			decodeUint(dec.state)
 		}
 		dec.debugPrint(indent, id)
 		break
@@ -261,7 +264,7 @@ func (dec *Decoder) printBuiltin(indent int, id typeId) {
 			fmt.Printf("nil interface")
 		} else {
 			fmt.Printf("interface value; type %q\n", b)
-			dec.debugFromBuffer(indent)
+			dec.debugFromBuffer(indent, true)
 		}
 	default:
 		fmt.Print("unknown\n")
@@ -272,7 +275,7 @@ func (dec *Decoder) debugStruct(indent int, id typeId, wire *wireType) {
 	tab(indent)
 	fmt.Printf("%s struct {\n", id.Name())
 	strct := wire.structT
-	state := newDecodeState(dec.state.b)
+	state := newDecodeState(dec, dec.state.b)
 	state.fieldnum = -1
 	for dec.err == nil {
 		delta := int(decodeUint(state))

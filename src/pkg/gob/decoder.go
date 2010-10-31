@@ -33,7 +33,7 @@ func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder)
 	dec.r = r
 	dec.wireType = make(map[typeId]*wireType)
-	dec.state = newDecodeState(&dec.byteBuffer) // buffer set in Decode()
+	dec.state = newDecodeState(dec, &dec.byteBuffer) // buffer set in Decode()
 	dec.decoderCache = make(map[reflect.Type]map[typeId]**decEngine)
 	dec.ignorerCache = make(map[typeId]**decEngine)
 
@@ -104,7 +104,7 @@ func (dec *Decoder) recv() {
 // decodeValueFromBuffer grabs the next value from the input. The Decoder's
 // buffer already contains data.  If the next item in the buffer is a type
 // descriptor, it may be necessary to reload the buffer, but recvType does that.
-func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignore bool) {
+func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignoreInterfaceValue, countPresent bool) {
 	for dec.state.b.Len() > 0 {
 		// Receive a type id.
 		id := typeId(decodeInt(dec.state))
@@ -119,16 +119,21 @@ func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignore bool) {
 			continue
 		}
 
-		// No, it's a value.
-		if ignore {
-			dec.byteBuffer.Reset()
-			break
-		}
 		// Make sure the type has been defined already or is a builtin type (for
 		// top-level singleton values).
 		if dec.wireType[id] == nil && builtinIdToType[id] == nil {
 			dec.err = errBadType
 			break
+		}
+		// An interface value is preceded by a byte count.
+		if countPresent {
+			count := int(decodeUint(dec.state))
+			if ignoreInterfaceValue {
+				// An interface value is preceded by a byte count. Just skip that many bytes.
+				dec.state.b.Next(int(count))
+				break
+			}
+			// Otherwise fall through and decode it.
 		}
 		dec.err = dec.decode(id, value)
 		break
@@ -149,7 +154,7 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	if dec.err != nil {
 		return dec.err
 	}
-	dec.decodeValueFromBuffer(value, false)
+	dec.decodeValueFromBuffer(value, false, false)
 	return dec.err
 }
 
