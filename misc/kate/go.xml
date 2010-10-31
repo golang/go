@@ -42,6 +42,7 @@
       <item> bool </item>
       <item> byte </item>
       <item> chan </item>
+      <item> complex </item>
       <item> complex64 </item>
       <item> complex128 </item>
       <item> float </item>
@@ -62,6 +63,7 @@
       <item> uint64 </item>
     </list>
     <list name="functions">
+      <item> append </item>
       <item> cap </item>
       <item> close </item>
       <item> closed </item>
