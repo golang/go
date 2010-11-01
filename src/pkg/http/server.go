@@ -225,6 +225,7 @@ func (w *response) WriteHeader(code int) {
 		// Must not have body.
 		w.header["Content-Type"] = "", false
 		w.header["Transfer-Encoding"] = "", false
+		w.chunking = false
 	}
 	if !w.req.ProtoAtLeast(1, 0) {
 		return
