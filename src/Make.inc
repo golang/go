@@ -101,7 +101,17 @@ HOST_CC=quietgcc
 HOST_LD=quietgcc
 HOST_O=o
 HOST_YFLAGS=-d
-HOST_CFLAGS=-ggdb -I"$(GOROOT)/include" -O2
+
+# These two variables can be overridden in the environment
+# to build with other flags.  They are like $CFLAGS and $LDFLAGS
+# in a more typical GNU build.  We are more explicit about the names
+# here because there are different compilers being run during the
+# build (both gcc and 6c, for example).
+HOST_EXTRA_CFLAGS?=-ggdb -O2
+HOST_EXTRA_LDFLAGS?=
+
+HOST_CFLAGS=-I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
+HOST_LDFLAGS=$(HOST_EXTRA_LDFLAGS)
 PWD=$(shell pwd)
 
 # Make environment more standard.
