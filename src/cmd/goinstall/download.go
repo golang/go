@@ -38,7 +38,7 @@ var launchpad = regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A
 
 // download checks out or updates pkg from the remote server.
 func download(pkg string) (string, os.Error) {
-	if strings.Index(pkg, "..") >= 0 {
+	if strings.Contains(pkg, "..") {
 		return "", os.ErrorString("invalid path (contains ..)")
 	}
 	if m := bitbucket.FindStringSubmatch(pkg); m != nil {
