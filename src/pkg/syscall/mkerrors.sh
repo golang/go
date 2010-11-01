@@ -24,6 +24,7 @@ includes_Linux='
 #include <sys/types.h>
 #include <sys/epoll.h>
 #include <sys/inotify.h>
+#include <sys/ioctl.h>
 #include <linux/ptrace.h>
 #include <linux/wait.h>
 #include <netpacket/packet.h>
@@ -91,6 +92,7 @@ done
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||
 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
+		$2 ~ /^SIO/ ||
 		$2 ~ /^W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", $2, $2)}
 		$2 ~ /^__WCOREFLAG$/ {next}
 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", substr($2,3), $2)}
