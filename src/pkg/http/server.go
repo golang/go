@@ -317,9 +317,9 @@ func errorKludge(w *response) {
 	// Is it a broken browser?
 	var msg string
 	switch agent := w.req.UserAgent; {
-	case strings.Index(agent, "MSIE") >= 0:
+	case strings.Contains(agent, "MSIE"):
 		msg = "Internet Explorer"
-	case strings.Index(agent, "Chrome/") >= 0:
+	case strings.Contains(agent, "Chrome/"):
 		msg = "Chrome"
 	default:
 		return

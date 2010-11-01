@@ -45,7 +45,7 @@ func LookPath(file string) (string, os.Error) {
 			}
 		}
 	}
-	if strings.Index(file, `\`) >= 0 || strings.Index(file, `/`) >= 0 {
+	if strings.Contains(file, `\`) || strings.Contains(file, `/`) {
 		if f, ok := canExec(file, exts); ok {
 			return f, nil
 		}
