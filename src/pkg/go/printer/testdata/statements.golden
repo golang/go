@@ -237,6 +237,8 @@ func _() {
 
 	if struct{ x bool }{false}.x {
 	}
+	if (struct{ x bool }{false}.x) == false {
+	}
 	if struct{ x bool }{false}.x == false {
 	}
 }
