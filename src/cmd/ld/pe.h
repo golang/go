@@ -72,9 +72,16 @@ typedef struct {
 	uint32 FirstThunk;
 } IMAGE_IMPORT_DESCRIPTOR;
 
-#define PERESERVE	0x1000
-#define PEALIGN		0x1000
 #define PEBASE		0x00400000
+// SectionAlignment must be greater than or equal to FileAlignment.
+// The default is the page size for the architecture.
+#define PESECTALIGN	0x1000
+// FileAlignment should be a power of 2 between 512 and 64 K, inclusive.
+// The default is 512. If the SectionAlignment is less than
+// the architecture's page size, then FileAlignment must match SectionAlignment.
+#define PEFILEALIGN	(2<<8)
+extern	int32	PESECTHEADR;
+extern	int32	PEFILEHEADR;
 
 enum {
 	IMAGE_FILE_MACHINE_I386 = 0x14c,
@@ -112,5 +119,4 @@ enum {
 };
 
 void peinit(void);
-void dope(void);
 void asmbpe(void);
