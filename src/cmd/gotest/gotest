@@ -153,17 +153,23 @@ importpath=$(gomake -s importpath)
 	echo 'var tests = []testing.Test{'
 	for i in $tests
 	do
-		echo '	testing.Test{"'$i'", '$i'},'
+		echo '	{"'$i'", '$i'},'
 	done
 	echo '}'
 	# benchmark array
-	echo 'var benchmarks = []testing.InternalBenchmark{'
-	for i in $benchmarks
-	do
-		echo '	testing.InternalBenchmark{"'$i'", '$i'},'
-	done
-	echo '}'
-
+	if [ "$benchmarks" = "" ]
+	then
+		# keep the empty array gofmt-safe.
+		# (not an issue for the test array, which is never empty.)
+		echo 'var benchmarks = []testing.InternalBenchmark{}'
+	else
+		echo 'var benchmarks = []testing.InternalBenchmark{'
+		for i in $benchmarks
+		do
+			echo '	{"'$i'", '$i'},'
+		done
+		echo '}'
+	fi
 	# body
 	echo
 	echo 'func main() {'
