@@ -223,14 +223,14 @@ func (p *Package) guessKinds(f *File) []*Name {
 		switch {
 		default:
 			continue
-		case strings.Index(line, ": useless type name in empty declaration") >= 0:
+		case strings.Contains(line, ": useless type name in empty declaration"):
 			what = "type"
 			isConst[i] = false
-		case strings.Index(line, ": statement with no effect") >= 0:
+		case strings.Contains(line, ": statement with no effect"):
 			what = "not-type" // const or func or var
-		case strings.Index(line, "undeclared") >= 0:
+		case strings.Contains(line, "undeclared"):
 			error(noPos, "%s", strings.TrimSpace(line[colon+1:]))
-		case strings.Index(line, "is not an integer constant") >= 0:
+		case strings.Contains(line, "is not an integer constant"):
 			isConst[i] = false
 			continue
 		}
