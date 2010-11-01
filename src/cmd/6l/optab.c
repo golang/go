@@ -783,7 +783,7 @@ Optab optab[] =
 	{ AMOVBWSX,	ymb_rl,	Pq, 0xbe },
 	{ AMOVBWZX,	ymb_rl,	Pq, 0xb6 },
 	{ AMOVO,	yxmov,	Pe, 0x6f,0x7f },
-	{ AMOVOU,	yxmov,	Pf2, 0x6f,0x7f },
+	{ AMOVOU,	yxmov,	Pf3, 0x6f,0x7f },
 	{ AMOVHLPS,	yxr,	Pm, 0x12 },
 	{ AMOVHPD,	yxmov,	Pe, 0x16,0x17 },
 	{ AMOVHPS,	yxmov,	Pm, 0x16,0x17 },
