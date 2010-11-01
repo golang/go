@@ -397,9 +397,13 @@ asmb(void)
 			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		Elfsym:
-		case 10:
 			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
+			break;
+		case 10:
+			// TODO(brainman): not sure what symo meant to be, but it is not used for Windows PE for now anyway
+			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
+			symo = rnd(symo, PEFILEALIGN);
 			break;
 		}
 		if(HEADTYPE != 10 && !debug['s']) {

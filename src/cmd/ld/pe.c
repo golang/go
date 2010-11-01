@@ -33,18 +33,20 @@ static char dosstub[] =
 	0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
+int32 PESECTHEADR;
+int32 PEFILEHEADR;
+
 static int pe64;
 static int nsect;
-static int sect_virt_begin;
-static int sect_raw_begin = PERESERVE;
+static int nextsectoff;
+static int nextfileoff;
 
 static IMAGE_FILE_HEADER fh;
 static IMAGE_OPTIONAL_HEADER oh;
 static IMAGE_SECTION_HEADER sh[16];
-static IMAGE_SECTION_HEADER *textsect, *datsect, *bsssect;
 
 static IMAGE_SECTION_HEADER*
-new_section(char *name, int size, int noraw)
+addpesection(char *name, int sectsize, int filesize, Segment *s)
 {
 	IMAGE_SECTION_HEADER *h;
 
@@ -54,15 +56,23 @@ new_section(char *name, int size, int noraw)
 	}
 	h = &sh[nsect++];
 	strncpy((char*)h->Name, name, sizeof(h->Name));
-	h->VirtualSize = size;
-	if(!sect_virt_begin)
-		sect_virt_begin = 0x1000;
-	h->VirtualAddress = sect_virt_begin;
-	sect_virt_begin = rnd(sect_virt_begin+size, 0x1000);
-	if(!noraw) {
-		h->SizeOfRawData = rnd(size, PEALIGN);
-		h->PointerToRawData = sect_raw_begin;
-		sect_raw_begin += h->SizeOfRawData;
+	h->VirtualSize = sectsize;
+	h->VirtualAddress = nextsectoff;
+	nextsectoff = rnd(nextsectoff+sectsize, PESECTALIGN);
+	h->PointerToRawData = nextfileoff;
+	if(filesize > 0) {
+		h->SizeOfRawData = rnd(filesize, PEFILEALIGN);
+		nextfileoff += h->SizeOfRawData;
+	}
+	if(s) {
+		if(s->vaddr-PEBASE != h->VirtualAddress) {
+			diag("%s.VirtualAddress = %#llux, want %#llux", name, (vlong)h->VirtualAddress, (vlong)(s->vaddr-PEBASE));
+			errorexit();
+		}
+		if(s->fileoff != h->PointerToRawData) {
+			diag("%s.PointerToRawData = %#llux, want %#llux", name, (vlong)h->PointerToRawData, (vlong)(s->fileoff));
+			errorexit();
+		}
 	}
 	return h;
 }
@@ -79,6 +89,11 @@ peinit(void)
 	default:
 		break;
 	}
+
+	PEFILEHEADR = rnd(sizeof(dosstub)+sizeof(fh)+sizeof(oh)+sizeof(sh), PEFILEALIGN);
+	PESECTHEADR = rnd(PEFILEHEADR, PESECTALIGN);
+	nextsectoff = PESECTHEADR;
+	nextfileoff = PEFILEHEADR;
 }
 
 static void
@@ -97,26 +112,6 @@ pewrite(void)
 	for (i=0; i<nsect; i++)
 		for (j=0; j<sizeof(sh[i]); j++)
 			cput(((char*)&sh[i])[j]);
-	strnput("", PERESERVE-0x400);
-}
-
-void
-dope(void)
-{
-	textsect = new_section(".text", segtext.len, 0);
-	textsect->Characteristics = IMAGE_SCN_CNT_CODE|
-		IMAGE_SCN_CNT_INITIALIZED_DATA|
-		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
-
-	datsect = new_section(".data", segdata.filelen, 0);
-	datsect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
-		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
-	if(segdata.vaddr != PEBASE+datsect->VirtualAddress)
-		diag("segdata.vaddr = %#llux, want %#llux", (vlong)segdata.vaddr, (vlong)(PEBASE+datsect->VirtualAddress));
-
-	bsssect = new_section(".bss", segdata.len - segdata.filelen, 1);
-	bsssect->Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA|
-		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 }
 
 static void
@@ -128,7 +123,7 @@ strput(char *s)
 }
 
 static void
-add_import_table(void)
+addimports(vlong fileoff)
 {
 	IMAGE_IMPORT_DESCRIPTOR ds[2], *d;
 	char *dllname = "kernel32.dll";
@@ -155,7 +150,7 @@ add_import_table(void)
 		size += sizeof(fs[0].thunk);
 
 	IMAGE_SECTION_HEADER *isect;
-	isect = new_section(".idata", size, 0);
+	isect = addpesection(".idata", size, size, 0);
 	isect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 	
@@ -168,7 +163,7 @@ add_import_table(void)
 	for(f=fs; f->name; f++)
 		f->thunk += va;
 
-	seek(cout, 0, 2);
+	seek(cout, fileoff, 0);
 	for(d=ds; ; d++) {
 		lputl(d->OriginalFirstThunk);
 		lputl(d->TimeDateStamp);
@@ -192,7 +187,7 @@ add_import_table(void)
 void
 asmbpe(void)
 {
-	vlong eof;
+	IMAGE_SECTION_HEADER *t, *d;
 
 	switch(thechar) {
 	default:
@@ -206,11 +201,16 @@ asmbpe(void)
 		break;
 	}
 
-	// make sure the end of file is INITRND-aligned.
-	eof = seek(cout, 0, 2);
-	strnput("", rnd(eof, INITRND) - eof);
+	t = addpesection(".text", segtext.len, segtext.len, &segtext);
+	t->Characteristics = IMAGE_SCN_CNT_CODE|
+		IMAGE_SCN_CNT_INITIALIZED_DATA|
+		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
 
-	add_import_table();
+	d = addpesection(".data", segdata.len, segdata.filelen, &segdata);
+	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
+		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+
+	addimports(nextfileoff);
 
 	fh.NumberOfSections = nsect;
 	fh.TimeDateStamp = time(0);
@@ -223,24 +223,24 @@ asmbpe(void)
 	oh.Magic = 0x10b;	// PE32
 	oh.MajorLinkerVersion = 1;
 	oh.MinorLinkerVersion = 0;
-	oh.SizeOfCode = textsect->SizeOfRawData;
-	oh.SizeOfInitializedData = datsect->SizeOfRawData;
-	oh.SizeOfUninitializedData = bsssect->SizeOfRawData;
+	oh.SizeOfCode = t->SizeOfRawData;
+	oh.SizeOfInitializedData = d->SizeOfRawData;
+	oh.SizeOfUninitializedData = 0;
 	oh.AddressOfEntryPoint = entryvalue()-PEBASE;
-	oh.BaseOfCode = textsect->VirtualAddress;
-	oh.BaseOfData = datsect->VirtualAddress;
+	oh.BaseOfCode = t->VirtualAddress;
+	oh.BaseOfData = d->VirtualAddress;
 
 	oh.ImageBase = PEBASE;
-	oh.SectionAlignment = 0x00001000;
-	oh.FileAlignment = PEALIGN;
+	oh.SectionAlignment = PESECTALIGN;
+	oh.FileAlignment = PEFILEALIGN;
 	oh.MajorOperatingSystemVersion = 4;
 	oh.MinorOperatingSystemVersion = 0;
 	oh.MajorImageVersion = 1;
 	oh.MinorImageVersion = 0;
 	oh.MajorSubsystemVersion = 4;
 	oh.MinorSubsystemVersion = 0;
-	oh.SizeOfImage = sect_virt_begin;
-	oh.SizeOfHeaders = PERESERVE;
+	oh.SizeOfImage = nextsectoff;
+	oh.SizeOfHeaders = PEFILEHEADR;
 	oh.Subsystem = 3;	// WINDOWS_CUI
 	oh.SizeOfStackReserve = 0x00200000;
 	oh.SizeOfStackCommit = 0x00001000;

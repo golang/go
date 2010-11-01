@@ -33,6 +33,7 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
+#include	"../ld/pe.h"
 
 /*
  * divide-and-conquer list-link
@@ -736,6 +737,8 @@ address(void)
 	segdata.rwx = 06;
 	segdata.vaddr = va;
 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
+	if(thechar == '8' && HEADTYPE == 10)	// Windows PE
+		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
 	for(s=segdata.sect; s != nil; s=s->next) {
 		s->vaddr = va;
 		va += s->len;

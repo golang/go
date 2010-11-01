@@ -265,13 +265,13 @@ main(int argc, char *argv[])
 		break;
 	case 10: /* PE executable */
 		peinit();
-		HEADR = PERESERVE;
+		HEADR = PEFILEHEADR;
 		if(INITTEXT == -1)
-			INITTEXT = PEBASE+0x1000;
+			INITTEXT = PEBASE+PESECTHEADR;
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
-			INITRND = 4096;
+			INITRND = PESECTALIGN;
 		break;
 	case 11:
 		tlsoffset = 0;
@@ -332,8 +332,6 @@ main(int argc, char *argv[])
 	dodata();
 	address();
 	reloc();
-	if(HEADTYPE == 10)
-		dope();
 	asmb();
 	undef();
 	if(debug['v']) {
