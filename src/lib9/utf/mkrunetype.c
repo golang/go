@@ -32,11 +32,9 @@
  * isdigitrune is true iff c is a numeric-digit category.
  */
 
+#include <u.h>
+#include <libc.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <libgen.h>
 #include "utf.h"
 #include "utfdef.h"
 
@@ -149,8 +147,8 @@ main(int argc, char *argv[]){
 	last = -1;
 	while(getunicodeline(in, fields, buf)){
 		code = getcode(fields[FIELD_CODE]);
-                if (code >= NRUNES)
-                  fatal("code-point value too big: %x", code);
+		if (code >= NRUNES)
+			fatal("code-point value too big: %x", code);
 		if(code <= last)
 			fatal("bad code sequence: %x then %x", last, code);
 		last = code;
@@ -588,8 +586,7 @@ mkisronly(const char* label, char* prop) {
 static void
 mktables(char *src, int usepairs)
 {
-	printf("/* generated automatically by mkrunetype.c from %s */\n\n",
-		basename(src));
+	printf("/* generated automatically by mkrunetype.c from %s */\n\n", src);
 
 	/*
 	 * we special case the space and digit tables, since they are assumed
@@ -703,8 +700,8 @@ getcode(char *s)
 	int i, code;
 
 	code = 0;
-        i = 0;
-        /* Parse a hex number */
+	i = 0;
+	/* Parse a hex number */
 	while(s[i]) {
 		code <<= 4;
 		if(s[i] >= '0' && s[i] <= '9')
@@ -713,7 +710,7 @@ getcode(char *s)
 			code += s[i] - 'A' + 10;
 		else
 			fatal("bad code char '%c'", s[i]);
-                i++;
+		i++;
 	}
 	return code;
 }
