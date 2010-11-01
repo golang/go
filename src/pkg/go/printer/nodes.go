@@ -796,9 +796,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.funcBody(x.Body, distance(x.Type.Pos(), p.pos), true, multiLine)
 
 	case *ast.ParenExpr:
-		p.print(token.LPAREN)
-		p.expr0(x.X, reduceDepth(depth), multiLine) // parentheses undo one level of depth
-		p.print(x.Rparen, token.RPAREN)
+		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
+			// don't print parentheses around an already parenthesized expression
+			// TODO(gri) consider making this more general and incorporate precedence levels
+			p.expr0(x.X, reduceDepth(depth), multiLine) // parentheses undo one level of depth
+		} else {
+			p.print(token.LPAREN)
+			p.expr0(x.X, reduceDepth(depth), multiLine) // parentheses undo one level of depth
+			p.print(x.Rparen, token.RPAREN)
+		}
 
 	case *ast.SelectorExpr:
 		parts := selectorExprList(expr)
@@ -969,16 +975,27 @@ func isTypeName(x ast.Expr) bool {
 }
 
 
-// TODO(gri): Decide if this should be used more broadly. The printing code
-//            knows when to insert parentheses for precedence reasons, but
-//            need to be careful to keep them around type expressions.
-func stripParens(x ast.Expr, inControlClause bool) ast.Expr {
-	for px, hasParens := x.(*ast.ParenExpr); hasParens; px, hasParens = x.(*ast.ParenExpr) {
-		x = px.X
-		if cx, isCompositeLit := x.(*ast.CompositeLit); inControlClause && isCompositeLit && isTypeName(cx.Type) {
-			// composite literals inside control clauses need parens if they start with a type name;
-			// don't strip innermost layer
-			return px
+func stripParens(x ast.Expr) ast.Expr {
+	if px, strip := x.(*ast.ParenExpr); strip {
+		// parentheses must not be stripped if there are any
+		// unparenthesized composite literals starting with
+		// a type name
+		ast.Inspect(px.X, func(node interface{}) bool {
+			switch x := node.(type) {
+			case *ast.ParenExpr:
+				// parentheses protect enclosed composite literals
+				return false
+			case *ast.CompositeLit:
+				if isTypeName(x.Type) {
+					strip = false // do not strip parentheses
+				}
+				return false
+			}
+			// in all other cases, keep inspecting
+			return true
+		})
+		if strip {
+			return stripParens(px.X)
 		}
 	}
 	return x
@@ -991,7 +1008,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 	if init == nil && post == nil {
 		// no semicolons required
 		if expr != nil {
-			p.expr(stripParens(expr, true), ignoreMultiLine)
+			p.expr(stripParens(expr), ignoreMultiLine)
 			needsBlank = true
 		}
 	} else {
@@ -1002,7 +1019,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 		}
 		p.print(token.SEMICOLON, blank)
 		if expr != nil {
-			p.expr(stripParens(expr, true), ignoreMultiLine)
+			p.expr(stripParens(expr), ignoreMultiLine)
 			needsBlank = true
 		}
 		if isForStmt {
@@ -1183,7 +1200,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 			p.expr(s.Value, multiLine)
 		}
 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
-		p.expr(stripParens(s.X, true), multiLine)
+		p.expr(stripParens(s.X), multiLine)
 		p.print(blank)
 		p.block(s.Body, 1)
 		*multiLine = true

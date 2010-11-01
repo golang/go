@@ -146,6 +146,23 @@ func _() {
 	switch ; ((((T{})))) {}
 
 	for _ = range (((T1{T{42}}))) {}
+
+	if x == (T{42}[0]) {}
+	if (x == T{42}[0]) {}
+	if (x == (T{42}[0])) {}
+	if (x == (((T{42}[0])))) {}
+	if (((x == (T{42}[0])))) {}
+	if x == a + b*(T{42}[0]) {}
+	if (x == a + b*T{42}[0]) {}
+	if (x == a + b*(T{42}[0])) {}
+	if (x == a + ((b * (T{42}[0])))) {}
+	if (((x == a + b * (T{42}[0])))) {}
+	if (((a + b * (T{42}[0])) == x)) {}
+	if (((a + b * (T{42}[0])))) == x {}
+
+	if (struct{x bool}{false}.x) {}
+	if (struct{x bool}{false}.x) == false {}
+	if (struct{x bool}{false}.x == false) {}
 }
 
 
