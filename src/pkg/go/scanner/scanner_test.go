@@ -610,8 +610,18 @@ var errors = []struct {
 	pos int
 	err string
 }{
-	{"\"\"", token.STRING, 0, ""},
-	{"\"", token.STRING, 0, "string not terminated"},
+	{`#`, token.ILLEGAL, 0, "illegal character '#' (U+23)"},
+	{`' '`, token.CHAR, 0, ""},
+	{`''`, token.CHAR, 0, "illegal character literal"},
+	{`'\8'`, token.CHAR, 2, "unknown escape sequence"},
+	{`'\08'`, token.CHAR, 3, "illegal character in escape sequence"},
+	{`'\x0g'`, token.CHAR, 4, "illegal character in escape sequence"},
+	{`'\Uffffffff'`, token.CHAR, 2, "escape sequence is invalid Unicode code point"},
+	{`'`, token.CHAR, 0, "character literal not terminated"},
+	{`""`, token.STRING, 0, ""},
+	{`"`, token.STRING, 0, "string not terminated"},
+	{"``", token.STRING, 0, ""},
+	{"`", token.STRING, 0, "string not terminated"},
 	{"/**/", token.COMMENT, 0, ""},
 	{"/*", token.COMMENT, 0, "comment not terminated"},
 	{"//\n", token.COMMENT, 0, ""},

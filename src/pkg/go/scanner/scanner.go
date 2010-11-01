@@ -368,13 +368,17 @@ func (S *Scanner) scanEscape(quote int) {
 	}
 
 	var x uint32
-	for ; i > 0; i-- {
+	for ; i > 0 && S.ch != quote && S.ch >= 0; i-- {
 		d := uint32(digitVal(S.ch))
-		if d > base {
+		if d >= base {
 			S.error(S.pos, "illegal character in escape sequence")
-			return
+			break
 		}
 		x = x*base + d
+		S.next()
+	}
+	// in case of an error, consume remaining chars
+	for ; i > 0 && S.ch != quote && S.ch >= 0; i-- {
 		S.next()
 	}
 	if x > max || 0xd800 <= x && x < 0xe000 {
