@@ -157,10 +157,10 @@ importpath=$(gomake -s importpath)
 	done
 	echo '}'
 	# benchmark array
-	echo 'var benchmarks = []testing.Benchmark{'
+	echo 'var benchmarks = []testing.InternalBenchmark{'
 	for i in $benchmarks
 	do
-		echo '	testing.Benchmark{"'$i'", '$i'},'
+		echo '	testing.InternalBenchmark{"'$i'", '$i'},'
 	done
 	echo '}'
 
