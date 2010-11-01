@@ -46,14 +46,27 @@ rbsearch(Rune c, Rune *t, int n, int ne)
  * chars as ideographic as well: 20000..2a6d6, and 2f800..2Fa1d.
  */
 static Rune __isideographicr[] = {
-	0x3006, 0x3007,			/* 3006 not in Unicode 2, in 2.1 */
+	0x3006, 0x3007,		/* 0x3006 added in 2.0.14 */
 	0x3021, 0x3029,
-	0x3038, 0x303a,			/* not in Unicode 2 or 2.1 */
-	0x3400, 0x4db5,			/* not in Unicode 2 or 2.1 */
-	0x4e00, 0x9fbb,			/* 0x9FA6..0x9FBB added for 4.1.0? */
+	0x3038, 0x303a,		/* added in 3.0.0 */
+	0x3400, 0x4db5,		/* added in 3.0.0 */
+
+	/* consecutive */
+	0x4e00, 0x9fa5,
+	0x9fa6, 0x9fbb,		/* added in 4.1.0 */
+	0x9fbc, 0x9fc3,		/* added in 5.1.0 */
+	0x9fc4, 0x9fcb,		/* added in 5.2.0 */
+
 	0xf900, 0xfa2d,
-        0x20000, 0x2A6D6,
-        0x2F800, 0x2FA1D,
+
+	/* consecutive */
+	0xfa30, 0xfa6a,		/* added in 5.1.0 */
+	0xfa6b, 0xfa6d,		/* added in 5.2.0 */
+
+	0xfa70, 0xfad9,		/* added in 4.1.0 */
+	0x20000, 0x2a6d6,	/* added in 3.1.0 */
+	0x2a700, 0x2b734,	/* added in 5.2.0 */
+	0x2f800, 0x2fa1d,	/* added in 3.1.0 */
 };
 
 int
@@ -67,4 +80,4 @@ isideographicrune(Rune c)
 	return 0;
 }
 
-#include "runetypebody-5.0.0.c"
+#include "runetypebody-5.2.0.c"
