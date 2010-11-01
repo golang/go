@@ -25,7 +25,7 @@ func LookPath(file string) (string, os.Error) {
 	// (only bypass the path if file begins with / or ./ or ../)
 	// but that would not match all the Unix shells.
 
-	if strings.Index(file, "/") >= 0 {
+	if strings.Contains(file, "/") {
 		if canExec(file) {
 			return file, nil
 		}

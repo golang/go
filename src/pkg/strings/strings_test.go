@@ -739,3 +739,24 @@ func TestTitle(t *testing.T) {
 		}
 	}
 }
+
+type ContainsTest struct {
+	str, substr string
+	expected    bool
+}
+
+var ContainsTests = []ContainsTest{
+	{"abc", "bc", true},
+	{"abc", "bcd", false},
+	{"abc", "", true},
+	{"", "a", false},
+}
+
+func TestContains(t *testing.T) {
+	for _, ct := range ContainsTests {
+		if Contains(ct.str, ct.substr) != ct.expected {
+			t.Errorf("Contains(%s, %s) = %v, want %v",
+				ct.str, ct.substr, !ct.expected, ct.expected)
+		}
+	}
+}

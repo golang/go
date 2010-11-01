@@ -439,7 +439,7 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 		// instead.  Clients that wish to use RawAuthority will have to
 		// interpret it themselves: RFC 2396 does not define the meaning.
 
-		if strings.Index(rawHost, "%") >= 0 {
+		if strings.Contains(rawHost, "%") {
 			// Host cannot contain escaped characters.
 			err = os.ErrorString("hexadecimal escape in host")
 			goto Error

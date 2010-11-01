@@ -57,7 +57,7 @@ func NewClient(conn net.Conn, host string) (*Client, os.Error) {
 		return nil, err
 	}
 	c := &Client{Text: text, conn: conn, serverName: host}
-	if strings.Index(msg, "ESMTP") >= 0 {
+	if strings.Contains(msg, "ESMTP") {
 		err = c.ehlo()
 	} else {
 		err = c.helo()

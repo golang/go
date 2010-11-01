@@ -382,7 +382,7 @@ var fmttests = []fmtTest{
 func TestSprintf(t *testing.T) {
 	for _, tt := range fmttests {
 		s := Sprintf(tt.fmt, tt.val)
-		if i := strings.Index(s, "0x"); i >= 0 && strings.Index(tt.out, "PTR") >= 0 {
+		if i := strings.Index(s, "0x"); i >= 0 && strings.Contains(tt.out, "PTR") {
 			j := i + 2
 			for ; j < len(s); j++ {
 				c := s[j]

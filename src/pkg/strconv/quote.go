@@ -234,7 +234,7 @@ func Unquote(s string) (t string, err os.Error) {
 	s = s[1 : n-1]
 
 	if quote == '`' {
-		if strings.Index(s, "`") >= 0 {
+		if strings.Contains(s, "`") {
 			return "", os.EINVAL
 		}
 		return s, nil
