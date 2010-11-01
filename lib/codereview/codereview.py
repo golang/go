@@ -1508,7 +1508,7 @@ def IsRietveldSubmitted(ui, clname, hex):
 	if feed is None:
 		return False
 	for sum in feed.findall("{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}summary"):
-		text = sum.findtext("", None).strip()
+		text = sum.text.strip()
 		m = re.match('\*\*\* Submitted as [^*]*?([0-9a-f]+) \*\*\*', text)
 		if m is not None and len(m.group(1)) >= 8 and hex.startswith(m.group(1)):
 			return True
@@ -1542,7 +1542,7 @@ def DownloadCL(ui, repo, clname):
 	# Find author - first entry will be author who created CL.
 	nick = None
 	for author in feed.findall("{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name"):
-		nick = author.findtext("", None).strip()
+		nick = author.text.strip()
 		break
 	if not nick:
 		return None, None, "CL has no author"
