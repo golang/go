@@ -12,6 +12,7 @@ import (
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
+	"debug/pe"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -504,7 +505,9 @@ func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
 	var err os.Error
 	if f, err = elf.Open(gccTmp); err != nil {
 		if f, err = macho.Open(gccTmp); err != nil {
-			fatal("cannot parse gcc output %s as ELF or Mach-O object", gccTmp)
+			if f, err = pe.Open(gccTmp); err != nil {
+				fatal("cannot parse gcc output %s as ELF or Mach-O or PE object", gccTmp)
+			}
 		}
 	}
 
