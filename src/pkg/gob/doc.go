@@ -134,8 +134,8 @@ that must be pre-defined by calling Register), followed by a byte count of the
 length of the following data (so the value can be skipped if it cannot be
 stored), followed by the usual encoding of concrete (dynamic) value stored in
 the interface value.  (A nil interface value is identified by the empty string
-and transmits a zero-length value.) Upon receipt, the decoder verifies that the
-unpacked concrete item satisfies the interface of the receiving variable.
+and transmits no value.) Upon receipt, the decoder verifies that the unpacked
+concrete item satisfies the interface of the receiving variable.
 
 The representation of types is described below.  When a type is defined on a given
 connection between an Encoder and Decoder, it is assigned a signed integer type
