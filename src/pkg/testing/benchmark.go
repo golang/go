@@ -15,7 +15,7 @@ var matchBenchmarks = flag.String("benchmarks", "", "regular expression to selec
 
 // An internal type but exported because it is cross-package; part of the implementation
 // of gotest.
-type Benchmark struct {
+type InternalBenchmark struct {
 	Name string
 	F    func(b *B)
 }
@@ -24,7 +24,7 @@ type Benchmark struct {
 // timing and to specify the number of iterations to run.
 type B struct {
 	N         int
-	benchmark Benchmark
+	benchmark InternalBenchmark
 	ns        int64
 	bytes     int64
 	start     int64
@@ -117,7 +117,7 @@ func roundUp(n int) int {
 // of benchmark iterations until the benchmark runs for a second in order
 // to get a reasonable measurement.  It prints timing information in this form
 //		testing.BenchmarkHello	100000		19 ns/op
-func (b *B) run() {
+func (b *B) run() BenchmarkResult {
 	// Run the benchmark for a single iteration in case it's expensive.
 	n := 1
 	b.runN(n)
@@ -138,17 +138,36 @@ func (b *B) run() {
 		n = roundUp(n)
 		b.runN(n)
 	}
-	ns := b.nsPerOp()
-	mb := ""
-	if ns > 0 && b.bytes > 0 {
-		mb = fmt.Sprintf("\t%7.2f MB/s", (float64(b.bytes)/1e6)/(float64(ns)/1e9))
+	return BenchmarkResult{b.N, b.ns, b.bytes}
+
+}
+
+// The results of a benchmark run.
+type BenchmarkResult struct {
+	N     int   // The number of iterations.
+	Ns    int64 // The total time taken.
+	Bytes int64 // The total number of bytes processed.
+}
+
+func (r BenchmarkResult) NsPerOp() int64 {
+	if r.N <= 0 {
+		return 0
 	}
-	fmt.Printf("%s\t%8d\t%10d ns/op%s\n", b.benchmark.Name, b.N, b.nsPerOp(), mb)
+	return r.Ns / int64(r.N)
+}
+
+func (r BenchmarkResult) String() string {
+	ns := r.NsPerOp()
+	mb := ""
+	if ns > 0 && r.Bytes > 0 {
+		mb = fmt.Sprintf("\t%7.2f MB/s", (float64(r.Bytes)/1e6)/(float64(ns)/1e9))
+	}
+	return fmt.Sprintf("%8d\t%10d ns/op%s", r.N, ns, mb)
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
 // of gotest.
-func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmarks []Benchmark) {
+func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmarks []InternalBenchmark) {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
 		return
@@ -163,6 +182,14 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 			continue
 		}
 		b := &B{benchmark: Benchmark}
-		b.run()
+		r := b.run()
+		fmt.Printf("%s\t%v\n", Benchmark.Name, r)
 	}
+}
+
+// Benchmark benchmarks a single function. Useful for creating
+// custom benchmarks that do not use gotest.
+func Benchmark(name string, f func(b *B)) BenchmarkResult {
+	b := &B{benchmark: InternalBenchmark{name, f}}
+	return b.run()
 }
