@@ -321,3 +321,22 @@ func Walk(v Visitor, node interface{}) {
 
 	v.Visit(nil)
 }
+
+
+type inspector func(node interface{}) bool
+
+func (f inspector) Visit(node interface{}) Visitor {
+	if node != nil && f(node) {
+		return f
+	}
+	return nil
+}
+
+
+// Inspect traverses an AST in depth-first order: If node != nil, it
+// invokes f(node). If f returns true, inspect invokes f for all the
+// non-nil children of node, recursively.
+//
+func Inspect(ast interface{}, f func(node interface{}) bool) {
+	Walk(inspector(f), ast)
+}
