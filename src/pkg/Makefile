@@ -50,6 +50,7 @@ DIRS=\
 	debug/macho\
 	debug/elf\
 	debug/gosym\
+	debug/pe\
 	debug/proc\
 	ebnf\
 	encoding/ascii85\

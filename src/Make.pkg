@@ -141,6 +141,7 @@ _CGO_CFLAGS_amd64=-m64
 _CGO_LDFLAGS_freebsd=-shared -lpthread -lm
 _CGO_LDFLAGS_linux=-shared -lpthread -lm
 _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+_CGO_LDFLAGS_windows=-shared -lm -mthreads
 
 # Compile x.cgo4.c with gcc to make package_x.so.
 
