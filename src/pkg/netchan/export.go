@@ -52,6 +52,7 @@ type expClient struct {
 	errored bool       // client has been sent an error
 	seqNum  int64      // sequences messages sent to client; has value of highest sent
 	ackNum  int64      // highest sequence number acknowledged
+	seqLock sync.Mutex // guarantees messages are in sequence, only locked under mu
 }
 
 func newClient(exp *Exporter, conn net.Conn) *expClient {
@@ -171,8 +172,10 @@ func (client *expClient) serveRecv(hdr header, count int64) {
 		client.mu.Lock()
 		client.seqNum++
 		hdr.seqNum = client.seqNum
-		err := client.encode(&hdr, payData, val.Interface())
+		client.seqLock.Lock() // guarantee ordering of messages
 		client.mu.Unlock()
+		err := client.encode(&hdr, payData, val.Interface())
+		client.seqLock.Unlock()
 		if err != nil {
 			expLog("error encoding client response:", err)
 			client.sendError(&hdr, err.String())
