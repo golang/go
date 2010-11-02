@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 var (
@@ -331,4 +332,53 @@ func TestRegistrationError(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error registering ReplyNotPublic")
 	}
+}
+
+type WriteFailCodec int
+
+func (WriteFailCodec) WriteRequest(*Request, interface{}) os.Error {
+	// the panic caused by this error used to not unlock a lock.
+	return os.NewError("fail")
+}
+
+func (WriteFailCodec) ReadResponseHeader(*Response) os.Error {
+	time.Sleep(60e9)
+	panic("unreachable")
+}
+
+func (WriteFailCodec) ReadResponseBody(interface{}) os.Error {
+	time.Sleep(60e9)
+	panic("unreachable")
+}
+
+func (WriteFailCodec) Close() os.Error {
+	return nil
+}
+
+func TestSendDeadlock(t *testing.T) {
+	client := NewClientWithCodec(WriteFailCodec(0))
+
+	done := make(chan bool)
+	go func() {
+		testSendDeadlock(client)
+		testSendDeadlock(client)
+		done <- true
+	}()
+	for i := 0; i < 50; i++ {
+		time.Sleep(100 * 1e6)
+		_, ok := <-done
+		if ok {
+			return
+		}
+	}
+	t.Fatal("deadlock")
+}
+
+func testSendDeadlock(client *Client) {
+	defer func() {
+		recover()
+	}()
+	args := &Args{7, 8}
+	reply := new(Reply)
+	client.Call("Arith.Add", args, reply)
 }
