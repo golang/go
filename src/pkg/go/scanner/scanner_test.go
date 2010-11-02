@@ -198,16 +198,16 @@ func newlineCount(s string) int {
 
 func checkPos(t *testing.T, lit string, pos, expected token.Position) {
 	if pos.Filename != expected.Filename {
-		t.Errorf("bad filename for %s: got %s, expected %s", lit, pos.Filename, expected.Filename)
+		t.Errorf("bad filename for %q: got %s, expected %s", lit, pos.Filename, expected.Filename)
 	}
 	if pos.Offset != expected.Offset {
-		t.Errorf("bad position for %s: got %d, expected %d", lit, pos.Offset, expected.Offset)
+		t.Errorf("bad position for %q: got %d, expected %d", lit, pos.Offset, expected.Offset)
 	}
 	if pos.Line != expected.Line {
-		t.Errorf("bad line for %s: got %d, expected %d", lit, pos.Line, expected.Line)
+		t.Errorf("bad line for %q: got %d, expected %d", lit, pos.Line, expected.Line)
 	}
 	if pos.Column != expected.Column {
-		t.Errorf("bad column for %s: got %d, expected %d", lit, pos.Column, expected.Column)
+		t.Errorf("bad column for %q: got %d, expected %d", lit, pos.Column, expected.Column)
 	}
 }
 
@@ -276,15 +276,15 @@ func checkSemi(t *testing.T, line string, mode uint) {
 				semiLit = ";"
 			}
 			// next token must be a semicolon
-			offs := pos.Offset + 1
+			semiPos := pos
+			semiPos.Offset++
+			semiPos.Column++
 			pos, tok, lit = S.Scan()
 			if tok == token.SEMICOLON {
-				if pos.Offset != offs {
-					t.Errorf("bad offset for %q: got %d, expected %d", line, pos.Offset, offs)
-				}
 				if string(lit) != semiLit {
 					t.Errorf(`bad literal for %q: got %q, expected %q`, line, lit, semiLit)
 				}
+				checkPos(t, line, pos, semiPos)
 			} else {
 				t.Errorf("bad token for %q: got %s, expected ;", line, tok.String())
 			}
@@ -399,11 +399,13 @@ var lines = []string{
 	"foo$/*\n*/",
 	"foo$/*comment*/    \n",
 	"foo$/*\n*/    ",
+
 	"foo    $// comment\n",
 	"foo    $/*comment*/\n",
 	"foo    $/*\n*/",
-
+	"foo    $/*  */ /* \n */ bar$/**/\n",
 	"foo    $/*0*/ /*1*/ /*2*/\n",
+
 	"foo    $/*comment*/    \n",
 	"foo    $/*0*/ /*1*/ /*2*/    \n",
 	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa$\n",
