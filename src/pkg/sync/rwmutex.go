@@ -21,7 +21,7 @@ type RWMutex struct {
 
 // RLock locks rw for reading.
 // If the lock is already locked for writing or there is a writer already waiting
-// to r the lock, RLock blocks until the writer has released the lock.
+// to release the lock, RLock blocks until the writer has released the lock.
 func (rw *RWMutex) RLock() {
 	// Use rw.r.Lock() to block granting the RLock if a goroutine
 	// is waiting for its Lock. This is the prevent starvation of W in
