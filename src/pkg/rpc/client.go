@@ -69,12 +69,12 @@ func (client *Client) send(c *Call) {
 	// Encode and send the request.
 	request := new(Request)
 	client.sending.Lock()
+	defer client.sending.Unlock()
 	request.Seq = c.seq
 	request.ServiceMethod = c.ServiceMethod
 	if err := client.codec.WriteRequest(request, c.Args); err != nil {
 		panic("rpc: client encode error: " + err.String())
 	}
-	client.sending.Unlock()
 }
 
 func (client *Client) input() {
