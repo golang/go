@@ -5,6 +5,43 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-11-02">2010-11-02</h3>
+
+<pre>
+This release includes a language change: the new built-in function, append.
+Append makes growing slices much simpler. See the spec for details:
+        http://golang.org/doc/go_spec.html#Appending_and_copying_slices
+
+Other changes:
+* 8l: pe generation fixes (thanks Alex Brainman).
+* doc: Effective Go: append and a few words about "..." args.
+* build: fiddle with make variables.
+* codereview: fix sync and download in Python 2.7 (thanks Fazlul Shahriar).
+* debug/pe, cgo: add windows support (thanks Wei Guangjing <vcc.163@gmail.com>).
+* go/ast: add Inspect function for easy AST inspection w/o a visitor.
+* go/printer: do not remove parens around composite literals starting with
+        a type name in control clauses.
+* go/scanner: bug fixes, revisions, and more tests.
+* gob: several fixes and documentation updates.
+* godoc: bug fix (bug introduced with revision 3ee58453e961).
+* gotest: print empty benchmark list in a way that gofmt will leave alone.
+* http server: correctly respond with 304 NotModified (thanks Michael Hoisie).
+* kate: update list of builtins (thanks Evan Shaw).
+* libutf: update to Unicode 5.2.0 to match pkg/unicode (thanks Anthony Martin).
+* misc/bbedit: update list of builtins (thanks Anthony Starks).
+* misc/vim: update list of builtins.
+* mkrunetype: install a Makefile and tweak it slightly so it can be built.
+* netchan: fix locking bug.
+* pidigits: minor improvements (thanks Evan Shaw).
+* rpc: fix client deadlock bug.
+* src: use append where appropriate (often instead of vector).
+* strings: add Contains helper function (thanks Brad Fitzpatrick).
+* syscall: SIO constants for Linux (thanks Albert Strasheim),
+        Stat(path) on windows (thanks Alex Brainman).
+* test/ken/convert.go: add conversion torture test.
+* testing: add Benchmark (thanks Roger Peppe).
+</pre>
+
 <h3 id="2010-10-27">2010-10-27</h3>
 
 <pre>
