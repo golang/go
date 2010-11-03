@@ -31,6 +31,7 @@ DIRS=\
 	crypto/aes\
 	crypto/block\
 	crypto/blowfish\
+	crypto/cast5\
 	crypto/hmac\
 	crypto/md4\
 	crypto/md5\
