@@ -215,7 +215,7 @@ expr0:
 
 type UnitsLex int
 
-func (_ UnitsLex) Lex(yylval *yySymType) int {
+func (UnitsLex) Lex(yylval *yySymType) int {
 	var c, i int
 
 	c = peekrune
@@ -280,7 +280,7 @@ numb:
 	return VAL
 }
 
-func (_ UnitsLex) Error(s string) {
+func (UnitsLex) Error(s string) {
 	Error("syntax error, last name: %v", sym)
 }
 
@@ -298,7 +298,7 @@ func main() {
 
 	f, err := os.Open(file, os.O_RDONLY, 0)
 	if err != nil {
-		fmt.Printf("error opening %v: %v\n", file, err)
+		fmt.Fprintf(os.Stderr, "error opening %v: %v\n", file, err)
 		os.Exit(1)
 	}
 	fi = bufio.NewReader(f)
@@ -390,7 +390,7 @@ func rdigit(c int) bool {
 
 func Error(s string, v ...interface{}) {
 	fmt.Printf("%v: %v\n\t", lineno, line)
-	fmt.Printf(s, v)
+	fmt.Printf(s, v...)
 	fmt.Printf("\n")
 
 	nerrors++
