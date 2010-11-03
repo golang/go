@@ -94,7 +94,7 @@ func TestEncodeDecode(t *testing.T) {
 	}
 
 	// Encrypt the input block
-	c.Encrypt(input, output)
+	c.Encrypt(output, input)
 
 	// Check that the output does not match the input
 	differs := false
@@ -112,7 +112,7 @@ func TestEncodeDecode(t *testing.T) {
 	// Decrypt the block we just encrypted
 	input = output
 	output = make([]byte, BlockSize)
-	c.Decrypt(input, output)
+	c.Decrypt(output, input)
 
 	// Check that the output from decrypt matches our initial input
 	for i := 0; i < len(input); i++ {
@@ -196,7 +196,7 @@ func TestCipherEncrypt(t *testing.T) {
 		}
 
 		out := make([]byte, len(tt.plainText))
-		c.Encrypt(tt.plainText, out)
+		c.Encrypt(out, tt.plainText)
 
 		for j := 0; j < len(out); j++ {
 			if out[j] != tt.cipherText[j] {
@@ -217,7 +217,7 @@ func TestCipherDecrypt(t *testing.T) {
 		}
 
 		out := make([]byte, len(tt.cipherText))
-		c.Decrypt(tt.cipherText, out)
+		c.Decrypt(out, tt.cipherText)
 
 		for j := 0; j < len(out); j++ {
 			if out[j] != tt.plainText[j] {

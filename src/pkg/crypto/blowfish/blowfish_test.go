@@ -163,7 +163,7 @@ func TestCipherEncrypt(t *testing.T) {
 			continue
 		}
 		ct := make([]byte, len(tt.out))
-		c.Encrypt(tt.in, ct)
+		c.Encrypt(ct, tt.in)
 		for j, v := range ct {
 			if v != tt.out[j] {
 				t.Errorf("Cipher.Encrypt, test vector #%d: cipher-text[%d] = %#x, expected %#x", i, j, v, tt.out[j])
@@ -181,7 +181,7 @@ func TestCipherDecrypt(t *testing.T) {
 			continue
 		}
 		pt := make([]byte, len(tt.in))
-		c.Decrypt(tt.out, pt)
+		c.Decrypt(pt, tt.out)
 		for j, v := range pt {
 			if v != tt.in[j] {
 				t.Errorf("Cipher.Decrypt, test vector #%d: plain-text[%d] = %#x, expected %#x", i, j, v, tt.in[j])

@@ -34,7 +34,7 @@ func newCBC(c Cipher, iv []byte) *cbcCipher {
 
 func (x *cbcCipher) BlockSize() int { return x.blockSize }
 
-func (x *cbcCipher) Encrypt(src, dst []byte) {
+func (x *cbcCipher) Encrypt(dst, src []byte) {
 	for i := 0; i < x.blockSize; i++ {
 		x.iv[i] ^= src[i]
 	}
@@ -44,8 +44,8 @@ func (x *cbcCipher) Encrypt(src, dst []byte) {
 	}
 }
 
-func (x *cbcCipher) Decrypt(src, dst []byte) {
-	x.c.Decrypt(src, x.tmp)
+func (x *cbcCipher) Decrypt(dst, src []byte) {
+	x.c.Decrypt(x.tmp, src)
 	for i := 0; i < x.blockSize; i++ {
 		x.tmp[i] ^= x.iv[i]
 		x.iv[i] = src[i]

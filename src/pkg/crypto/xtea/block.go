@@ -36,7 +36,7 @@ func uint32ToBlock(v0, v1 uint32, dst []byte) {
 }
 
 // encryptBlock encrypts a single 8 byte block using XTEA.
-func encryptBlock(c *Cipher, src, dst []byte) {
+func encryptBlock(c *Cipher, dst, src []byte) {
 	v0, v1 := blockToUint32(src)
 
 	// Two rounds of XTEA applied per loop
@@ -51,7 +51,7 @@ func encryptBlock(c *Cipher, src, dst []byte) {
 }
 
 // decryptBlock decrypt a single 8 byte block using XTEA.
-func decryptBlock(c *Cipher, src, dst []byte) {
+func decryptBlock(c *Cipher, dst, src []byte) {
 	v0, v1 := blockToUint32(src)
 
 	// Two rounds of XTEA applied per loop

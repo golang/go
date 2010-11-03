@@ -32,7 +32,7 @@ func newCTRStream(c Cipher, ctr []byte) *ctrStream {
 
 func (x *ctrStream) Next() []byte {
 	// Next block is encryption of counter.
-	x.c.Encrypt(x.ctr, x.out)
+	x.c.Encrypt(x.out, x.ctr)
 
 	// Increment counter
 	for i := len(x.ctr) - 1; i >= 0; i-- {

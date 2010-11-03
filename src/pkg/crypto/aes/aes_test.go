@@ -283,7 +283,7 @@ func TestEncryptBlock(t *testing.T) {
 		dec := make([]uint32, n)
 		expandKey(tt.key, enc, dec)
 		out := make([]byte, len(tt.in))
-		encryptBlock(enc, tt.in, out)
+		encryptBlock(enc, out, tt.in)
 		for j, v := range out {
 			if v != tt.out[j] {
 				t.Errorf("encryptBlock %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
@@ -301,7 +301,7 @@ func TestDecryptBlock(t *testing.T) {
 		dec := make([]uint32, n)
 		expandKey(tt.key, enc, dec)
 		plain := make([]byte, len(tt.in))
-		decryptBlock(dec, tt.out, plain)
+		decryptBlock(dec, plain, tt.out)
 		for j, v := range plain {
 			if v != tt.in[j] {
 				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
@@ -320,7 +320,7 @@ func TestCipherEncrypt(t *testing.T) {
 			continue
 		}
 		out := make([]byte, len(tt.in))
-		c.Encrypt(tt.in, out)
+		c.Encrypt(out, tt.in)
 		for j, v := range out {
 			if v != tt.out[j] {
 				t.Errorf("Cipher.Encrypt %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
@@ -339,7 +339,7 @@ func TestCipherDecrypt(t *testing.T) {
 			continue
 		}
 		plain := make([]byte, len(tt.in))
-		c.Decrypt(tt.out, plain)
+		c.Decrypt(plain, tt.out)
 		for j, v := range plain {
 			if v != tt.in[j] {
 				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])

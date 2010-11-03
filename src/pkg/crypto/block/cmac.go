@@ -52,7 +52,7 @@ func NewCMAC(c Cipher) hash.Hash {
 	if shift1(d.k1, d.k1) != 0 {
 		d.k1[n-1] ^= r
 	}
-	if shift1(d.k1, d.k2) != 0 {
+	if shift1(d.k2, d.k1) != 0 {
 		d.k2[n-1] ^= r
 	}
 

@@ -22,7 +22,7 @@ type IncCipher struct {
 
 func (c *IncCipher) BlockSize() int { return c.blockSize }
 
-func (c *IncCipher) Encrypt(src, dst []byte) {
+func (c *IncCipher) Encrypt(dst, src []byte) {
 	if !c.encrypting {
 		panic("encrypt: not encrypting")
 	}
@@ -35,7 +35,7 @@ func (c *IncCipher) Encrypt(src, dst []byte) {
 	}
 }
 
-func (c *IncCipher) Decrypt(src, dst []byte) {
+func (c *IncCipher) Decrypt(dst, src []byte) {
 	if c.encrypting {
 		panic("decrypt: not decrypting")
 	}
