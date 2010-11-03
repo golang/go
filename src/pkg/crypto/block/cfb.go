@@ -40,9 +40,9 @@ func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
 
 func (x *cfbCipher) BlockSize() int { return x.blockSize }
 
-func (x *cfbCipher) Encrypt(src, dst []byte) {
+func (x *cfbCipher) Encrypt(dst, src []byte) {
 	// Encrypt old IV and xor prefix with src to make dst.
-	x.c.Encrypt(x.iv, x.tmp)
+	x.c.Encrypt(x.tmp, x.iv)
 	for i := 0; i < x.blockSize; i++ {
 		dst[i] = src[i] ^ x.tmp[i]
 	}
@@ -57,9 +57,9 @@ func (x *cfbCipher) Encrypt(src, dst []byte) {
 	}
 }
 
-func (x *cfbCipher) Decrypt(src, dst []byte) {
+func (x *cfbCipher) Decrypt(dst, src []byte) {
 	// Encrypt [sic] old IV and xor prefix with src to make dst.
-	x.c.Encrypt(x.iv, x.tmp)
+	x.c.Encrypt(x.tmp, x.iv)
 	for i := 0; i < x.blockSize; i++ {
 		dst[i] = src[i] ^ x.tmp[i]
 	}

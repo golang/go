@@ -55,10 +55,10 @@ func (c *Cipher) BlockSize() int { return BlockSize }
 // Note that for amounts of data larger than a block,
 // it is not safe to just call Encrypt on successive blocks;
 // instead, use an encryption mode like CBC (see crypto/block/cbc.go).
-func (c *Cipher) Encrypt(src, dst []byte) { encryptBlock(c, src, dst) }
+func (c *Cipher) Encrypt(dst, src []byte) { encryptBlock(c, dst, src) }
 
 // Decrypt decrypts the 8 byte buffer src using the key k and stores the result in dst.
-func (c *Cipher) Decrypt(src, dst []byte) { decryptBlock(c, src, dst) }
+func (c *Cipher) Decrypt(dst, src []byte) { decryptBlock(c, dst, src) }
 
 // Reset zeros the table, so that it will no longer appear in the process's memory.
 func (c *Cipher) Reset() {

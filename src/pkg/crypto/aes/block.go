@@ -37,7 +37,7 @@
 package aes
 
 // Encrypt one block from src into dst, using the expanded key xk.
-func encryptBlock(xk []uint32, src, dst []byte) {
+func encryptBlock(xk []uint32, dst, src []byte) {
 	var s0, s1, s2, s3, t0, t1, t2, t3 uint32
 
 	s0 = uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
@@ -82,7 +82,7 @@ func encryptBlock(xk []uint32, src, dst []byte) {
 }
 
 // Decrypt one block from src into dst, using the expanded key xk.
-func decryptBlock(xk []uint32, src, dst []byte) {
+func decryptBlock(xk []uint32, dst, src []byte) {
 	var s0, s1, s2, s3, t0, t1, t2, t3 uint32
 
 	s0 = uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])

@@ -50,7 +50,7 @@ func (c *Cipher) BlockSize() int { return BlockSize }
 // Note that for amounts of data larger than a block,
 // it is not safe to just call Encrypt on successive blocks;
 // instead, use an encryption mode like CBC (see crypto/block/cbc.go).
-func (c *Cipher) Encrypt(src, dst []byte) {
+func (c *Cipher) Encrypt(dst, src []byte) {
 	l := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
 	r := uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
 	l, r = encryptBlock(l, r, c)
@@ -60,7 +60,7 @@ func (c *Cipher) Encrypt(src, dst []byte) {
 
 // Decrypt decrypts the 8-byte buffer src using the key k
 // and stores the result in dst.
-func (c *Cipher) Decrypt(src, dst []byte) {
+func (c *Cipher) Decrypt(dst, src []byte) {
 	l := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
 	r := uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
 	l, r = decryptBlock(l, r, c)
