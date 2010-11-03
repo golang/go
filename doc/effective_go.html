@@ -1470,7 +1470,7 @@ func Println(v ...interface{}) {
 }
 </pre>
 <p>
-We write <code>...</code> after <code>v</code> in the call to <code>Output</code> to tell the
+We write <code>...</code> after <code>v</code> in the nested call to <code>Sprintln</code> to tell the
 compiler to treat <code>v</code> as a list of arguments; otherwise it would just pass
 <code>v</code> as a single slice argument.
 <p>
