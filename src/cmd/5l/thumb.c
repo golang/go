@@ -251,7 +251,7 @@ thumbaclass(Adr *a, Prog *p)
 		return C_GOK;
 	case D_FCONST:
 		diag("D_FCONST in thumaclass");
-		return C_FCON;
+		return C_LFCON;
 	case D_CONST:
 		switch(a->name) {
 		case D_NONE:

@@ -49,20 +49,22 @@ listinit(void)
 int
 Pconv(Fmt *fp)
 {
-	char str[STRINGSZ];
+	char str[STRINGSZ], str1[STRINGSZ];
 	Prog *p;
 
 	p = va_arg(fp->args, Prog*);
 	sconsize = 8;
 	switch(p->as) {
 	default:
+		snprint(str1, sizeof(str1), "%A%C", p->as, p->scond);
 		if(p->reg == NREG)
-			snprint(str, sizeof(str), "%.4d (%L) %-7A%C	%D,%D", 
-				p->loc, p->lineno, p->as, p->scond, &p->from, &p->to);
-		else if (p->from.type != D_FREG)
-			snprint(str, sizeof(str), "%.4d (%L) %-7A%C	%D,R%d,%D", 
-				p->loc, p->lineno, p->as, p->scond, &p->from, p->reg, &p->to);
+			snprint(str, sizeof(str), "%.4d (%L) %-7s	%D,%D", 
+				p->loc, p->lineno, str1, &p->from, &p->to);
 		else
+		if (p->from.type != D_FREG) {
+			snprint(str, sizeof(str), "%.4d (%L) %-7s	%D,R%d,%D", 
+				p->loc, p->lineno, str1, &p->from, p->reg, &p->to);
+		} else
 			snprint(str, sizeof(str), "%.4d (%L) %-7A%C	%D,F%d,%D",
 				p->loc, p->lineno, p->as, p->scond, &p->from, p->reg, &p->to);
 		break;

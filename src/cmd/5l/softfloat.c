@@ -13,7 +13,10 @@ softfloat(void)
 	Prog *p, *next, *psfloat;
 	Sym *symsfloat;
 	int wasfloat;
-	
+
+	if(!debug['F'])
+		return;
+
 	symsfloat = lookup("_sfloat", 0);
 	psfloat = P;
 	if(symsfloat->type == STEXT)

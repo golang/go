@@ -712,7 +712,11 @@ aclass(Adr *a)
 		return C_GOK;
 
 	case D_FCONST:
-		return C_FCON;
+		if(chipzero(&a->ieee) >= 0)
+			return C_ZFCON;
+		if(chipfloat(&a->ieee) >= 0)
+			return C_SFCON;
+		return C_LFCON;
 
 	case D_CONST:
 	case D_CONST2:
@@ -847,6 +851,10 @@ cmp(int a, int b)
 		break;
 	case C_LACON:
 		if(b == C_RACON)
+			return 1;
+		break;
+	case C_LFCON:
+		if(b == C_ZFCON || b == C_SFCON)
 			return 1;
 		break;
 

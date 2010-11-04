@@ -193,16 +193,15 @@ Optab	optab[] =
 
 	{ AADDF,	C_FREG,	C_NONE,	C_FREG,		54, 4, 0 },
 	{ AADDF,	C_FREG,	C_REG,	C_FREG,		54, 4, 0 },
-	{ AADDF,	C_FCON,	C_NONE,	C_FREG,		54, 4, 0 },
-	{ AADDF,	C_FCON,	C_REG,	C_FREG,		54, 4, 0 },
-	{ AMOVF,	C_FCON,	C_NONE,	C_FREG,		54, 4, 0 },
 	{ AMOVF,	C_FREG, C_NONE, C_FREG,		54, 4, 0 },
 
-	{ ACMPF,	C_FREG,	C_REG,	C_NONE,		54, 4, 0 },
-	{ ACMPF,	C_FCON,	C_REG,	C_NONE,		54, 4, 0 },
+	{ AMOVF,	C_ZFCON,C_NONE,	C_FREG,		80, 4, 0 },
+	{ AMOVF,	C_SFCON,C_NONE,	C_FREG,		81, 4, 0 },
+	{ ACMPF,	C_FREG,	C_REG,	C_NONE,		82, 8, 0 },
+//	{ ACMPF,	C_FREG, C_NONE,	C_NONE,		82, 8, 0 },
 
-	{ AMOVFW,	C_FREG,	C_NONE,	C_REG,		55, 4, 0 },
-	{ AMOVFW,	C_REG,	C_NONE,	C_FREG,		55, 4, 0 },
+	{ AMOVFW,	C_FREG,	C_NONE,	C_REG,		55, 8, 0 },
+	{ AMOVFW,	C_REG,	C_NONE,	C_FREG,		55, 8, 0 },
 
 	{ AMOVW,	C_REG,	C_NONE,	C_FCR,		56, 4, 0 },
 	{ AMOVW,	C_FCR,	C_NONE,	C_REG,		57, 4, 0 },

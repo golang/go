@@ -209,7 +209,6 @@ void
 		return;
 	}
 
-
 	n = 7;	// digits printed
 	e = 0;	// exp
 	s = 0;	// sign
@@ -234,6 +233,7 @@ void
 		h = 5;
 		for(i=0; i<n; i++)
 			h /= 10;
+
 		v += h;
 		if(v >= 10) {
 			e++;

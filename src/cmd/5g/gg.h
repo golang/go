@@ -33,12 +33,13 @@ struct	Addr
 
 struct	Prog
 {
-	short	as;			// opcode
+	short	as;		// opcode
 	uint32	loc;		// pc offset in this func
 	uint32	lineno;		// source line that generated this
 	Addr	from;		// src address
-	Addr	to;			// dst address
+	Addr	to;		// dst address
 	Prog*	link;		// next instruction in this func
+	void*	regp;		// points to enclosing Reg struct
 	char	reg;		// doubles as width in DATA op
 	uchar	scond;
 };

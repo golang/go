@@ -104,10 +104,9 @@ compile(Node *fn)
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
-	/* TODO(kaib): Add back register optimizations
-	if(!debug['N'] || debug['R'] || debug['P'])
+	if(!debug['N'] || debug['R'] || debug['P']) {
 		regopt(ptxt);
-	*/
+	}
 
 	// fill in argument size
 	ptxt->to.type = D_CONST2;

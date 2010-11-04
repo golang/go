@@ -664,7 +664,8 @@ loop:
 		if(skip)
 			goto casedef;
 
-		if(p->from.type == D_FCONST && chipfloat(&p->from.ieee) < 0) {
+		if(p->from.type == D_FCONST && chipfloat(&p->from.ieee) < 0 &&
+		   (chipzero(&p->from.ieee) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
 			/* size sb 9 max */
 			sprint(literal, "$%ux", ieeedtof(&p->from.ieee));
 			s = lookup(literal, 0);
@@ -686,7 +687,8 @@ loop:
 		if(skip)
 			goto casedef;
 
-		if(p->from.type == D_FCONST && chipfloat(&p->from.ieee) < 0) {
+		if(p->from.type == D_FCONST && chipfloat(&p->from.ieee) < 0 &&
+		   (chipzero(&p->from.ieee) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
 			/* size sb 18 max */
 			sprint(literal, "$%ux.%ux",
 				p->from.ieee.l, p->from.ieee.h);
