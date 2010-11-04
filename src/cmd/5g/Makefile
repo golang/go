@@ -23,6 +23,7 @@ OFILES=\
 	cgen.$O\
 	cgen64.$O\
 	cplx.$O\
+	reg.$O\
 
 LIB=\
 	../gc/gc.a\

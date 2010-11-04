@@ -1246,38 +1246,41 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 
 	case 54:	/* floating point arith */
 		o1 = oprrr(p->as, p->scond);
-		if(p->from.type == D_FCONST) {
-			rf = chipfloat(&p->from.ieee);
-			if(rf < 0){
-				diag("invalid floating-point immediate\n%P", p);
-				rf = 0;
-			}
-			rf |= (1<<3);
-		} else
-			rf = p->from.reg;
+		rf = p->from.reg;
 		rt = p->to.reg;
 		r = p->reg;
-		if(p->to.type == D_NONE)
-			rt = 0;	/* CMP[FD] */
-		else if(o1 & (1<<15))
-			r = 0;	/* monadic */
-		else if(r == NREG)
+		if(r == NREG) {
 			r = rt;
+			if(p->as == AMOVF || p->as == AMOVD)
+				r = 0;
+		}
 		o1 |= rf | (r<<16) | (rt<<12);
 		break;
 
 	case 55:	/* floating point fix and float */
-		o1 = oprrr(p->as, p->scond);
 		rf = p->from.reg;
 		rt = p->to.reg;
-		if(p->to.type == D_NONE){
-			rt = 0;
-			diag("to.type==D_NONE (asm/fp)");
+		if(p->from.type == D_REG) {
+			// MOV R,FTMP
+			o1 = oprrr(AMOVWF+AEND, p->scond);
+			o1 |= (FREGTMP<<16);
+			o1 |= (rf<<12);
+
+			// CVT FTMP,F
+			o2 = oprrr(p->as, p->scond);
+			o2 |= (FREGTMP<<0);
+			o2 |= (rt<<12);
+		} else {
+			// CVT F,FTMP
+			o1 = oprrr(p->as, p->scond);
+			o1 |= (rf<<0);
+			o1 |= (FREGTMP<<12);
+
+			// MOV FTMP,R
+			o2 = oprrr(AMOVFW+AEND, p->scond);
+			o2 |= (FREGTMP<<16);
+			o2 |= (rt<<12);
 		}
-		if(p->from.type == D_REG)
-			o1 |= (rf<<12) | (rt<<16);
-		else
-			o1 |= rf | (rt<<12);
 		break;
 
 	case 56:	/* move to FP[CS]R */
@@ -1485,7 +1488,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= immrot(instoffset);
 		o1 |= p->to.reg << 16;
 		o1 |= REGTMP << 12;
-		o2 = 	oprrr(AADD, p->scond) | immrot(0) | (REGPC<<16) | (REGLINK<<12);	// mov PC, LR
+		o2 = oprrr(AADD, p->scond) | immrot(0) | (REGPC<<16) | (REGLINK<<12);	// mov PC, LR
 		o3 = ((p->scond&C_SCOND)<<28) | (0x12fff<<8) | (1<<4) | REGTMP;		// BX Rtmp
 		break;
 	case 76:	/* bx O(R) when returning from fn*/
@@ -1516,6 +1519,38 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= p->reg << 0;
 		o1 |= p->to.reg << 12;
 		o1 |= (p->scond & C_SCOND) << 28;
+		break;
+
+	case 80:	/* fmov zfcon,reg */
+		if((p->scond & C_SCOND) != C_SCOND_NONE)
+			diag("floating point cannot be conditional");	// cant happen
+		o1 = 0xf3000110;	// EOR 64
+
+		// always clears the double float register
+		r = p->to.reg;
+		o1 |= r << 0;
+		o1 |= r << 12;
+		o1 |= r << 16;
+		break;
+	case 81:	/* fmov sfcon,reg */
+		o1 = 0x0eb00a00;		// VMOV imm 32
+		if(p->as == AMOVD)
+			o1 = 0xeeb00b00;	// VMOV imm 64
+		o1 |= (p->scond & C_SCOND) << 28;
+		o1 |= p->to.reg << 12;
+		v = chipfloat(&p->from.ieee);
+		o1 |= (v&0xf) << 0;
+		o1 |= (v&0xf0) << 12;
+		break;
+	case 82:	/* fcmp reg,reg, */
+		o1 = oprrr(p->as, p->scond);
+		r = p->reg;
+		if(r == NREG) {
+			o1 |= (p->from.reg<<12) | (1<<16);
+		} else
+			o1 |= (r<<12) | (p->from.reg<<0);
+		o2 = 0x0ef1fa10;	// VMRS R15
+		o2 |= (p->scond & C_SCOND) << 28;
 		break;
 	}
 	
@@ -1623,26 +1658,38 @@ oprrr(int a, int sc)
 	case ASRA:	return o | (0xd<<21) | (2<<5);
 	case ASWI:	return o | (0xf<<24);
 
-	case AADDD:	return o | (0xe<<24) | (0x0<<20) | (1<<8) | (1<<7);
-	case AADDF:	return o | (0xe<<24) | (0x0<<20) | (1<<8);
-	case AMULD:	return o | (0xe<<24) | (0x1<<20) | (1<<8) | (1<<7);
-	case AMULF:	return o | (0xe<<24) | (0x1<<20) | (1<<8);
-	case ASUBD:	return o | (0xe<<24) | (0x2<<20) | (1<<8) | (1<<7);
-	case ASUBF:	return o | (0xe<<24) | (0x2<<20) | (1<<8);
-	case ADIVD:	return o | (0xe<<24) | (0x4<<20) | (1<<8) | (1<<7);
-	case ADIVF:	return o | (0xe<<24) | (0x4<<20) | (1<<8);
-	case ACMPD:
-	case ACMPF:	return o | (0xe<<24) | (0x9<<20) | (0xF<<12) | (1<<8) | (1<<4);	/* arguably, ACMPF should expand to RNDF, CMPD */
+	case AADDD:	return o | (0xe<<24) | (0x3<<20) | (0xb<<8) | (0<<4);
+	case AADDF:	return o | (0xe<<24) | (0x3<<20) | (0xa<<8) | (0<<4);
+	case ASUBD:	return o | (0xe<<24) | (0x3<<20) | (0xb<<8) | (4<<4);
+	case ASUBF:	return o | (0xe<<24) | (0x3<<20) | (0xa<<8) | (4<<4);
+	case AMULD:	return o | (0xe<<24) | (0x2<<20) | (0xb<<8) | (0<<4);
+	case AMULF:	return o | (0xe<<24) | (0x2<<20) | (0xa<<8) | (0<<4);
+	case ADIVD:	return o | (0xe<<24) | (0x8<<20) | (0xb<<8) | (0<<4);
+	case ADIVF:	return o | (0xe<<24) | (0x8<<20) | (0xa<<8) | (0<<4);
+	case ACMPD:	return o | (0xe<<24) | (0xb<<20) | (4<<16) | (0xb<<8) | (0xc<<4);
+	case ACMPF:	return o | (0xe<<24) | (0xb<<20) | (4<<16) | (0xa<<8) | (0xc<<4);
 
-	case AMOVF:
-	case AMOVDF:	return o | (0xe<<24) | (0x0<<20) | (1<<15) | (1<<8);
-	case AMOVD:
-	case AMOVFD:	return o | (0xe<<24) | (0x0<<20) | (1<<15) | (1<<8) | (1<<7);
+	case AMOVF:	return o | (0xe<<24) | (0xb<<20) | (0<<16) | (0xa<<8) | (4<<4);
+	case AMOVD:	return o | (0xe<<24) | (0xb<<20) | (0<<16) | (0xb<<8) | (4<<4);
 
-	case AMOVWF:	return o | (0xe<<24) | (0<<20) | (1<<8) | (1<<4);
-	case AMOVWD:	return o | (0xe<<24) | (0<<20) | (1<<8) | (1<<4) | (1<<7);
-	case AMOVFW:	return o | (0xe<<24) | (1<<20) | (1<<8) | (1<<4);
-	case AMOVDW:	return o | (0xe<<24) | (1<<20) | (1<<8) | (1<<4) | (1<<7);
+	case AMOVDF:	return o | (0xe<<24) | (0xb<<20) | (7<<16) | (0xa<<8) | (0xc<<4) |
+			(1<<8);	// dtof
+	case AMOVFD:	return o | (0xe<<24) | (0xb<<20) | (7<<16) | (0xa<<8) | (0xc<<4) |
+			(0<<8);	// dtof
+
+	case AMOVWF:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+				(0<<18) | (0<<16) | (0<<8) | (1<<7);	// toint, signed, double, round
+	case AMOVWD:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+				(0<<18) | (0<<16) | (1<<8) | (1<<7);	// toint, signed, double, round
+	case AMOVFW:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+				(1<<18) | (0<<16) | (0<<8) | (1<<7);	// toint, signed, double, round
+	case AMOVDW:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+				(1<<18) | (0<<16) | (1<<8) | (1<<7);	// toint, signed, double, round
+
+	case AMOVWF+AEND:	// copy WtoF
+		return o | (0xe<<24) | (0x0<<20) | (0xb<<8) | (1<<4);
+	case AMOVFW+AEND:	// copy FtoW
+		return o | (0xe<<24) | (0x1<<20) | (0xb<<8) | (1<<4);
 	}
 	diag("bad rrr %d", a);
 	prasm(curp);
@@ -1796,7 +1843,7 @@ ofsr(int a, int r, int32 v, int b, int sc, Prog *p)
 		o |= 1 << 24;
 	if(sc & C_WBIT)
 		o |= 1 << 21;
-	o |= (6<<25) | (1<<24) | (1<<23);
+	o |= (6<<25) | (1<<24) | (1<<23) | (10<<8);
 	if(v < 0) {
 		v = -v;
 		o ^= 1 << 23;
@@ -1809,13 +1856,12 @@ ofsr(int a, int r, int32 v, int b, int sc, Prog *p)
 	o |= (v>>2) & 0xFF;
 	o |= b << 16;
 	o |= r << 12;
-	o |= 1 << 8;
 
 	switch(a) {
 	default:
 		diag("bad fst %A", a);
 	case AMOVD:
-		o |= 1<<15;
+		o |= 1 << 8;
 	case AMOVF:
 		break;
 	}
@@ -1844,28 +1890,42 @@ omvl(Prog *p, Adr *a, int dr)
 	return o1;
 }
 
-static Ieee chipfloats[] = {
-	{0x00000000, 0x00000000}, /* 0 */
-	{0x00000000, 0x3ff00000}, /* 1 */
-	{0x00000000, 0x40000000}, /* 2 */
-	{0x00000000, 0x40080000}, /* 3 */
-	{0x00000000, 0x40100000}, /* 4 */
-	{0x00000000, 0x40140000}, /* 5 */
-	{0x00000000, 0x3fe00000}, /* .5 */
-	{0x00000000, 0x40240000}, /* 10 */
-};
+int
+chipzero(Ieee *e)
+{
+	if(e->l != 0 || e->h != 0)
+		return -1;
+	return 0;
+}
 
 int
 chipfloat(Ieee *e)
 {
-	Ieee *p;
 	int n;
+	ulong h;
 
-	for(n = sizeof(chipfloats)/sizeof(chipfloats[0]); --n >= 0;){
-		p = &chipfloats[n];
-		if(p->l == e->l && p->h == e->h)
-			return n;
-	}
+	if(e->l != 0 || (e->h&0xffff) != 0)
+		goto no;
+	h = e->h & 0x7fc00000;
+	if(h != 0x40000000 && h != 0x3fc00000)
+		goto no;
+	n = 0;
+
+	// sign bit (a)
+	if(e->h & 0x80000000)
+		n |= 1<<7;
+
+	// exp sign bit (b)
+	if(h == 0x3fc00000)
+		n |= 1<<6;
+
+	// rest of exp and mantissa (cd-efgh)
+	n |= (e->h >> 16) & 0x3f;
+
+//print("match %.8lux %.8lux %d\n", e->l, e->h, n);
+	return n;
+
+no:
 	return -1;
 }
 

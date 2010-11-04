@@ -225,7 +225,9 @@ enum
 	C_SCON,		/* 0xffff */
 	C_BCON,		/* thumb */
 	C_LCON,
-	C_FCON,
+	C_ZFCON,
+	C_SFCON,
+	C_LFCON,
 	C_GCON,		/* thumb */
 
 	C_RACON,
@@ -382,6 +384,7 @@ void	buildop(void);
 void	thumbbuildop(void);
 void	buildrep(int, int);
 void	cflush(void);
+int	chipzero(Ieee*);
 int	chipfloat(Ieee*);
 int	cmp(int, int);
 int	compound(Prog*);

@@ -128,7 +128,7 @@ Reg*	rega(void);
 int	rcmp(const void*, const void*);
 void	regopt(Prog*);
 void	addmove(Reg*, int, int, int);
-Bits	mkvar(Reg*, Adr*);
+Bits	mkvar(Reg *r, Adr *a, int);
 void	prop(Reg*, Bits, Bits);
 void	loopit(Reg*, int32);
 void	synch(Reg*, Bits);
