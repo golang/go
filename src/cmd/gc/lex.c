@@ -728,13 +728,9 @@ l0:
 		if(c1 == '/') {
 			c = getlinepragma();
 			for(;;) {
-				if(c == '\n') {
+				if(c == '\n' || c == EOF) {
 					ungetc(c);
 					goto l0;
-				}
-				if(c == EOF) {
-					yyerror("eof in comment");
-					errorexit();
 				}
 				c = getr();
 			}
