@@ -320,6 +320,8 @@ memequal(uint32 s, void *a, void *b)
 {
 	byte *ba, *bb, *aend;
 
+	if(a == b)
+	  return 1;
 	ba = a;
 	bb = b;
 	aend = ba+s;
