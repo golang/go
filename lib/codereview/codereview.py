@@ -1,3 +1,7 @@
+# coding=utf-8
+# (The line above is necessary so that I can use 世界 in the
+# *comment* below without Python getting all bent out of shape.)
+
 # Copyright 2007-2009 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -109,6 +113,34 @@ contributors = {}
 missing_codereview = None
 
 #######################################################################
+# RE: UNICODE STRING HANDLING
+#
+# Python distinguishes between the str (string of bytes)
+# and unicode (string of code points) types.  Most operations
+# work on either one just fine, but some (like regexp matching)
+# require unicode, and others (like write) require str.
+#
+# As befits the language, Python hides the distinction between
+# unicode and str by converting between them silently, but
+# *only* if all the bytes/code points involved are 7-bit ASCII.
+# This means that if you're not careful, your program works
+# fine on "hello, world" and fails on "hello, 世界".  And of course,
+# the obvious way to be careful - use static types - is unavailable.
+# So the only way is trial and error to find where to put explicit
+# conversions.
+#
+# Because more functions do implicit conversion to str (string of bytes)
+# than do implicit conversion to unicode (string of code points),
+# the convention in this module is to represent all text as str,
+# converting to unicode only when calling a unicode-only function
+# and then converting back to str as soon as possible.
+
+def typecheck(s, t):
+	if type(s) != t:
+		raise util.Abort("type check failed: %s has type %s != %s" % (repr(s), type(s), t))
+
+
+#######################################################################
 # Change list parsing.
 #
 # Change lists are stored in .hg/codereview/cl.nnnnnn
@@ -125,9 +157,9 @@ diff --git a/~rietveld~placeholder~ b/~rietveld~placeholder~
 new file mode 100644
 """
 
-
 class CL(object):
 	def __init__(self, name):
+		typecheck(name, str)
 		self.name = name
 		self.desc = ''
 		self.files = []
@@ -150,6 +182,7 @@ class CL(object):
 		s += "Files:\n"
 		for f in cl.files:
 			s += "\t" + f + "\n"
+		typecheck(s, str)
 		return s
 
 	def EditorText(self):
@@ -174,6 +207,7 @@ class CL(object):
 			for f in cl.files:
 				s += "\t" + f + "\n"
 			s += "\n"
+		typecheck(s, str)
 		return s
 
 	def PendingText(self):
@@ -188,6 +222,7 @@ class CL(object):
 		s += "\tFiles:\n"
 		for f in cl.files:
 			s += "\t\t" + f + "\n"
+		typecheck(s, str)
 		return s
 
 	def Flush(self, ui, repo):
@@ -215,6 +250,7 @@ class CL(object):
 			s = s[0:55] + "..."
 		if self.name != "new":
 			s = "code review %s: %s" % (self.name, s)
+		typecheck(s, str)
 		return s
 
 	def Upload(self, ui, repo, send_mail=False, gofmt=True, gofmt_just_warn=False):
@@ -290,14 +326,18 @@ class CL(object):
 			pmsg += "I'd like you to review this change.\n"
 		else:
 			pmsg += "Please take another look.\n"
+		typecheck(pmsg, str)
 		PostMessage(ui, self.name, pmsg, subject=self.Subject())
 		self.mailed = True
 		self.Flush(ui, repo)
 
 def GoodCLName(name):
+	typecheck(name, str)
 	return re.match("^[0-9]+$", name)
 
 def ParseCL(text, name):
+	typecheck(text, str)
+	typecheck(name, str)
 	sname = None
 	lineno = 0
 	sections = {
@@ -359,18 +399,22 @@ def ParseCL(text, name):
 	return cl, 0, ''
 
 def SplitCommaSpace(s):
+	typecheck(s, str)
 	s = s.strip()
 	if s == "":
 		return []
 	return re.split(", *", s)
 
 def CutDomain(s):
+	typecheck(s, str)
 	i = s.find('@')
 	if i >= 0:
 		s = s[0:i]
 	return s
 
 def JoinComma(l):
+	for s in l:
+		typecheck(s, str)
 	return ", ".join(l)
 
 def ExceptionDetail():
@@ -389,6 +433,7 @@ def IsLocalCL(ui, repo, name):
 
 # Load CL from disk and/or the web.
 def LoadCL(ui, repo, name, web=True):
+	typecheck(name, str)
 	set_status("loading CL " + name)
 	if not GoodCLName(name):
 		return None, "invalid CL name"
@@ -510,6 +555,7 @@ def RepoDir(ui, repo):
 	url = url[5:]
 	if url.endswith('/'):
 		url = url[:-1]
+	typecheck(url, str)
 	return url
 
 # Find (or make) code review directory.  On error, ui.warn and return None
@@ -524,10 +570,12 @@ def CodeReviewDir(ui, repo):
 		except:
 			ui.warn('cannot mkdir %s: %s\n' % (dir, ExceptionDetail()))
 			return None
+	typecheck(dir, str)
 	return dir
 
 # Strip maximal common leading white space prefix from text
 def StripCommon(text):
+	typecheck(text, str)
 	ws = None
 	for line in text.split('\n'):
 		line = line.rstrip()
@@ -556,17 +604,22 @@ def StripCommon(text):
 		t += line + '\n'
 	while len(t) >= 2 and t[-2:] == '\n\n':
 		t = t[:-1]
+	typecheck(t, str)
 	return t
 
 # Indent text with indent.
 def Indent(text, indent):
+	typecheck(text, str)
+	typecheck(indent, str)
 	t = ''
 	for line in text.split('\n'):
 		t += indent + line + '\n'
+	typecheck(t, str)
 	return t
 
 # Return the first line of l
 def line1(text):
+	typecheck(text, str)
 	return text.split('\n')[0]
 
 _change_prolog = """# Change list.
@@ -1492,7 +1545,7 @@ class FormParser(HTMLParser):
 			self.handle_data("&" + name + ";")
 	def handle_data(self, data):
 		if self.curdata is not None:
-			self.curdata += data.decode("utf-8").encode("utf-8")
+			self.curdata += data
 
 # XML parser
 def XMLGet(ui, path):
@@ -1632,6 +1685,10 @@ def MySend1(request_path, payload=None,
 				f.close()
 				# Translate \r\n into \n, because Rietveld doesn't.
 				response = response.replace('\r\n', '\n')
+				# who knows what urllib will give us
+				if type(response) == unicode:
+					response = response.encode("utf-8")
+				typecheck(response, str)
 				return response
 			except urllib2.HTTPError, e:
 				if tries > 3:
@@ -1650,11 +1707,13 @@ def MySend1(request_path, payload=None,
 
 def GetForm(url):
 	f = FormParser()
-	f.feed(MySend(url))
+	f.feed(MySend(url).decode("utf-8"))	# f.feed wants unicode
 	f.close()
+	# convert back to utf-8 to restore sanity
+	m = {}
 	for k,v in f.map.items():
-		f.map[k] = v.replace("\r\n", "\n");
-	return f.map
+		m[k.encode("utf-8")] = v.replace("\r\n", "\n").encode("utf-8")
+	return m
 
 # Fetch the settings for the CL, like reviewer and CC list, by
 # scraping the Rietveld editing forms.
@@ -2265,17 +2324,16 @@ def EncodeMultipartFormData(fields, files):
 	CRLF = '\r\n'
 	lines = []
 	for (key, value) in fields:
+		typecheck(key, str)
+		typecheck(value, str)
 		lines.append('--' + BOUNDARY)
 		lines.append('Content-Disposition: form-data; name="%s"' % key)
 		lines.append('')
-		if type(value) == unicode:
-			value = value.encode("utf-8")
 		lines.append(value)
 	for (key, filename, value) in files:
-		if type(filename) == unicode:
-			filename = filename.encode("utf-8")
-		if type(value) == unicode:
-			value = value.encode("utf-8")
+		typecheck(key, str)
+		typecheck(filename, str)
+		typecheck(value, str)
 		lines.append('--' + BOUNDARY)
 		lines.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
 		lines.append('Content-Type: %s' % GetContentType(filename))
