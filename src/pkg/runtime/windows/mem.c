@@ -16,25 +16,25 @@ enum {
 };
 
 void*
-SysAlloc(uintptr n)
+runtime·SysAlloc(uintptr n)
 {
-	return stdcall(VirtualAlloc, 4, nil, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 }
 
 void
-SysUnused(void *v, uintptr n)
+runtime·SysUnused(void *v, uintptr n)
 {
 	USED(v);
 	USED(n);
 }
 
 void
-SysFree(void *v, uintptr n)
+runtime·SysFree(void *v, uintptr n)
 {
-	stdcall(VirtualFree, 3, v, n, MEM_RELEASE);
+	runtime·stdcall(runtime·VirtualFree, 3, v, n, MEM_RELEASE);
 }
 
 void
-SysMemInit(void)
+runtime·SysMemInit(void)
 {
 }

@@ -5,8 +5,8 @@
 #include "defs.h"
 #include "os.h"
 
-extern SigTab sigtab[];
-extern int32 sys_umtx_op(uint32*, int32, uint32, void*, void*);
+extern SigTab runtime·sigtab[];
+extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
 
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
 // thus the code is largely similar. See linux/thread.c for comments.
@@ -16,11 +16,11 @@ umtx_wait(uint32 *addr, uint32 val)
 {
 	int32 ret;
 
-	ret = sys_umtx_op(addr, UMTX_OP_WAIT, val, nil, nil);
+	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT, val, nil, nil);
 	if(ret >= 0 || ret == -EINTR)
 		return;
 
-	printf("umtx_wait addr=%p val=%d ret=%d\n", addr, val, ret);
+	runtime·printf("umtx_wait addr=%p val=%d ret=%d\n", addr, val, ret);
 	*(int32*)0x1005 = 0x1005;
 }
 
@@ -29,11 +29,11 @@ umtx_wake(uint32 *addr)
 {
 	int32 ret;
 
-	ret = sys_umtx_op(addr, UMTX_OP_WAKE, 1, nil, nil);
+	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE, 1, nil, nil);
 	if(ret >= 0)
 		return;
 
-	printf("umtx_wake addr=%p ret=%d\n", addr, ret);
+	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
 	*(int32*)0x1006 = 0x1006;
 }
 
@@ -46,12 +46,12 @@ umtx_lock(Lock *l)
 again:
 	v = l->key;
 	if((v&1) == 0){
-		if(cas(&l->key, v, v|1))
+		if(runtime·cas(&l->key, v, v|1))
 			return;
 		goto again;
 	}
 
-	if(!cas(&l->key, v, v+2))
+	if(!runtime·cas(&l->key, v, v+2))
 		goto again;
 
 	umtx_wait(&l->key, v+2);
@@ -59,8 +59,8 @@ again:
 	for(;;){
 		v = l->key;
 		if(v < 2)
-			throw("bad lock key");
-		if(cas(&l->key, v, v-2))
+			runtime·throw("bad lock key");
+		if(runtime·cas(&l->key, v, v-2))
 			break;
 	}
 
@@ -75,8 +75,8 @@ umtx_unlock(Lock *l)
 again:
 	v = l->key;
 	if((v&1) == 0)
-		throw("unlock of unlocked lock");
-	if(!cas(&l->key, v, v&~1))
+		runtime·throw("unlock of unlocked lock");
+	if(!runtime·cas(&l->key, v, v&~1))
 		goto again;
 
 	if(v&~1)
@@ -84,53 +84,53 @@ again:
 }
 
 void
-lock(Lock *l)
+runtime·lock(Lock *l)
 {
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	m->locks++;
 	umtx_lock(l);
 }
 
 void 
-unlock(Lock *l)
+runtime·unlock(Lock *l)
 {
 	m->locks--;
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	umtx_unlock(l);
 }
 
 void
-destroylock(Lock*)
+runtime·destroylock(Lock*)
 {
 }
 
 // Event notifications.
 void
-noteclear(Note *n)
+runtime·noteclear(Note *n)
 {
 	n->lock.key = 0;
 	umtx_lock(&n->lock);
 }
 
 void
-notesleep(Note *n)
+runtime·notesleep(Note *n)
 {
 	umtx_lock(&n->lock);
 	umtx_unlock(&n->lock);
 }
 
 void
-notewakeup(Note *n)
+runtime·notewakeup(Note *n)
 {
 	umtx_unlock(&n->lock);
 }
 
-void thr_start(void*);
+void runtime·thr_start(void*);
 
 void
-newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	ThrParam param;
 
@@ -138,13 +138,13 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	USED(g);	// thr_start assumes g == m->g0
 
 	if(0){
-		printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, m->id, m->tls[0], &m);
 	}
 
-	runtime_memclr((byte*)&param, sizeof param);
+	runtime·memclr((byte*)&param, sizeof param);
 
-	param.start_func = thr_start;
+	param.start_func = runtime·thr_start;
 	param.arg = m;
 	param.stack_base = (int8*)g->stackbase;
 	param.stack_size = (byte*)stk - (byte*)g->stackbase;
@@ -155,45 +155,45 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 
 	m->tls[0] = m->id;	// so 386 asm can find it
 
-	thr_new(&param, sizeof param);
+	runtime·thr_new(&param, sizeof param);
 }
 
 void
-osinit(void)
+runtime·osinit(void)
 {
 }
 
 // Called to initialize a new m (including the bootstrap m).
 void
-minit(void)
+runtime·minit(void)
 {
 	// Initialize signal handling
-	m->gsignal = malg(32*1024);
-	signalstack(m->gsignal->stackguard, 32*1024);
+	m->gsignal = runtime·malg(32*1024);
+	runtime·signalstack(m->gsignal->stackguard, 32*1024);
 }
 
 void
-sigpanic(void)
+runtime·sigpanic(void)
 {
 	switch(g->sig) {
 	case SIGBUS:
 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
-			panicstring("invalid memory address or nil pointer dereference");
-		printf("unexpected fault address %p\n", g->sigcode1);
-		throw("fault");
+			runtime·panicstring("invalid memory address or nil pointer dereference");
+		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+		runtime·throw("fault");
 	case SIGSEGV:
 		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
-			panicstring("invalid memory address or nil pointer dereference");
-		printf("unexpected fault address %p\n", g->sigcode1);
-		throw("fault");
+			runtime·panicstring("invalid memory address or nil pointer dereference");
+		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+		runtime·throw("fault");
 	case SIGFPE:
 		switch(g->sigcode0) {
 		case FPE_INTDIV:
-			panicstring("integer divide by zero");
+			runtime·panicstring("integer divide by zero");
 		case FPE_INTOVF:
-			panicstring("integer overflow");
+			runtime·panicstring("integer overflow");
 		}
-		panicstring("floating point error");
+		runtime·panicstring("floating point error");
 	}
-	panicstring(sigtab[g->sig].name);
+	runtime·panicstring(runtime·sigtab[g->sig].name);
 }

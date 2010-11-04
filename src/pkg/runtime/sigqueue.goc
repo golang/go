@@ -47,14 +47,14 @@ static struct {
 } sig;
 
 void
-siginit(void)
+runtime·siginit(void)
 {
-	noteclear(&sig);
+	runtime·noteclear(&sig);
 }
 
 // Called from sighandler to send a signal back out of the signal handling thread.
 bool
-sigsend(int32 s)
+runtime·sigsend(int32 s)
 {
 	uint32 bit, mask;
 
@@ -65,11 +65,11 @@ sigsend(int32 s)
 		mask = sig.mask;
 		if(mask & bit)
 			break;		// signal already in queue
-		if(cas(&sig.mask, mask, mask|bit)) {
+		if(runtime·cas(&sig.mask, mask, mask|bit)) {
 			// Added to queue.
 			// Only send a wakeup for the first signal in each round.
 			if(mask == 0)
-				notewakeup(&sig);
+				runtime·notewakeup(&sig);
 			break;
 		}
 	}
@@ -78,22 +78,22 @@ sigsend(int32 s)
 
 // Called to receive a bitmask of queued signals.
 func Sigrecv() (m uint32) {
-	·entersyscall();
-	notesleep(&sig);
-	·exitsyscall();
-	noteclear(&sig);
+	runtime·entersyscall();
+	runtime·notesleep(&sig);
+	runtime·exitsyscall();
+	runtime·noteclear(&sig);
 	for(;;) {
 		m = sig.mask;
-		if(cas(&sig.mask, m, 0))
+		if(runtime·cas(&sig.mask, m, 0))
 			break;
 	}
 }
 
 func Signame(sig int32) (name String) {
-	name = signame(sig);
+	name = runtime·signame(sig);
 }
 
 func Siginit() {
-	initsig(SigQueue);
+	runtime·initsig(SigQueue);
 	sig.inuse = true;	// enable reception of signals; cannot disable
 }

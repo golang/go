@@ -10,7 +10,7 @@ package PACKAGE
 
 // emitted by compiler, not referred to by go programs
 
-func mal(int32) *any
+func new(int32) *any
 func panicindex()
 func panicslice()
 func throwreturn()
@@ -31,7 +31,7 @@ func printeface(any)
 func printslice(any)
 func printnl()
 func printsp()
-func printf()
+func goprintf()
 
 // filled in by compiler: int n, string, string, ...
 func concatstring()

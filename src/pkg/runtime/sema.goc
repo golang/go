@@ -39,7 +39,7 @@ semqueue(uint32 *addr, Sema *s)
 	s->addr = addr;
 	s->g = nil;
 
-	lock(&semlock);
+	runtime·lock(&semlock);
 	s->prev = semlast;
 	s->next = nil;
 	if(semlast)
@@ -47,13 +47,13 @@ semqueue(uint32 *addr, Sema *s)
 	else
 		semfirst = s;
 	semlast = s;
-	unlock(&semlock);
+	runtime·unlock(&semlock);
 }
 
 static void
 semdequeue(Sema *s)
 {
-	lock(&semlock);
+	runtime·lock(&semlock);
 	if(s->next)
 		s->next->prev = s->prev;
 	else
@@ -64,7 +64,7 @@ semdequeue(Sema *s)
 		semfirst = s->next;
 	s->prev = nil;
 	s->next = nil;
-	unlock(&semlock);
+	runtime·unlock(&semlock);
 }
 
 static void
@@ -72,15 +72,15 @@ semwakeup(uint32 *addr)
 {
 	Sema *s;
 
-	lock(&semlock);
+	runtime·lock(&semlock);
 	for(s=semfirst; s; s=s->next) {
 		if(s->addr == addr && s->g) {
-			ready(s->g);
+			runtime·ready(s->g);
 			s->g = nil;
 			break;
 		}
 	}
-	unlock(&semlock);
+	runtime·unlock(&semlock);
 }
 
 // Step 1 of sleep: make ourselves available for wakeup.
@@ -90,16 +90,16 @@ semwakeup(uint32 *addr)
 static void
 semsleep1(Sema *s)
 {
-	lock(&semlock);
+	runtime·lock(&semlock);
 	s->g = g;
-	unlock(&semlock);
+	runtime·unlock(&semlock);
 }
 
 // Decided not to go through with it: undo step 1.
 static void
 semsleepundo1(Sema *s)
 {
-	lock(&semlock);
+	runtime·lock(&semlock);
 	if(s->g != nil) {
 		s->g = nil;	// back ourselves out
 	} else {
@@ -111,7 +111,7 @@ semsleepundo1(Sema *s)
 			*(int32*)0x555 = 555;
 		g->readyonstop = 0;
 	}
-	unlock(&semlock);
+	runtime·unlock(&semlock);
 }
 
 // Step 2: wait for the wakeup.
@@ -120,7 +120,7 @@ semsleep2(Sema *s)
 {
 	USED(s);
 	g->status = Gwaiting;
-	gosched();
+	runtime·gosched();
 }
 
 static int32
@@ -129,7 +129,7 @@ cansemacquire(uint32 *addr)
 	uint32 v;
 
 	while((v = *addr) > 0)
-		if(cas(addr, v, v-1))
+		if(runtime·cas(addr, v, v-1))
 			return 1;
 	return 0;
 }
@@ -137,7 +137,7 @@ cansemacquire(uint32 *addr)
 // For now has no return value.
 // Might return an ok (not interrupted) bool in the future?
 void
-semacquire(uint32 *addr)
+runtime·semacquire(uint32 *addr)
 {
 	Sema s;
 
@@ -164,22 +164,22 @@ semacquire(uint32 *addr)
 }
 
 void
-semrelease(uint32 *addr)
+runtime·semrelease(uint32 *addr)
 {
 	uint32 v;
 
 	for(;;) {
 		v = *addr;
-		if(cas(addr, v, v+1))
+		if(runtime·cas(addr, v, v+1))
 			break;
 	}
 	semwakeup(addr);
 }
 
 func Semacquire(addr *uint32) {
-	semacquire(addr);
+	runtime·semacquire(addr);
 }
 
 func Semrelease(addr *uint32) {
-	semrelease(addr);
+	runtime·semrelease(addr);
 }

@@ -11,7 +11,7 @@
 static byte *allocp;
 
 void*
-SysAlloc(uintptr ask)
+runtime·SysAlloc(uintptr ask)
 {
 	extern byte end[];
 	byte *q;
@@ -24,12 +24,12 @@ SysAlloc(uintptr ask)
 
 	q = allocp;
 	allocp += ask;
-	·memclr(q, ask);
+	runtime·memclr(q, ask);
 	return q;
 }
 
 void
-SysFree(void *v, uintptr n)
+runtime·SysFree(void *v, uintptr n)
 {
 	// Push pointer back if this is a free
 	// of the most recent SysAlloc.
@@ -39,12 +39,12 @@ SysFree(void *v, uintptr n)
 }
 
 void
-SysUnused(void *v, uintptr n)
+runtime·SysUnused(void *v, uintptr n)
 {
 	USED(v, n);
 }
 
 void
-SysMemInit(void)
+runtime·SysMemInit(void)
 {
 }

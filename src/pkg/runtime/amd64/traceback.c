@@ -6,8 +6,8 @@
 #include "malloc.h"
 
 static uintptr isclosureentry(uintptr);
-void ·deferproc(void);
-void ·newproc(void);
+void runtime·deferproc(void);
+void runtime·newproc(void);
 
 // This code is also used for the 386 tracebacks.
 // Use uintptr for an appropriate word-sized integer.
@@ -35,7 +35,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 	}
 	
 	nascent = 0;
-	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)goexit) {
+	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)runtime·goexit) {
 		// Hasn't started yet.  g->sched is set up for goexit
 		// but goroutine will start at g->entry.
 		nascent = 1;
@@ -45,7 +45,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 	n = 0;
 	stk = (Stktop*)g->stackbase;
 	for(iter = 0; iter < 100 && n < m; iter++) {	// iter avoids looping forever
-		if(pc == (uintptr)·lessstack) {
+		if(pc == (uintptr)runtime·lessstack) {
 			// Hit top of stack segment.  Unwind to next segment.
 			pc = (uintptr)stk->gobuf.pc;
 			sp = stk->gobuf.sp;
@@ -53,14 +53,14 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 			continue;
 		}
 
-		if(pc <= 0x1000 || (f = findfunc(pc)) == nil) {
+		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
 			// Dangerous, but worthwhile: see if this is a closure:
 			//	ADDQ $wwxxyyzz, SP; RET
 			//	[48] 81 c4 zz yy xx ww c3
 			// The 0x48 byte is only on amd64.
 			p = (byte*)pc;
 			// We check p < p+8 to avoid wrapping and faulting if we lose track.
-			if(mheap.min < p && p < p+8 && p+8 < mheap.max &&  // pointer in allocated memory
+			if(runtime·mheap.min < p && p < p+8 && p+8 < runtime·mheap.max &&  // pointer in allocated memory
 			   (sizeof(uintptr) != 8 || *p++ == 0x48) &&  // skip 0x48 byte on amd64
 			   p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
 				sp += *(uint32*)(p+2);
@@ -85,14 +85,14 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 			// Print during crash.
 			//	main+0xf /home/rsc/go/src/runtime/x.go:23
 			//		main(0x1, 0x2, 0x3)
-			printf("%S", f->name);
+			runtime·printf("%S", f->name);
 			if(pc > f->entry)
-				printf("+%p", (uintptr)(pc - f->entry));
+				runtime·printf("+%p", (uintptr)(pc - f->entry));
 			tracepc = pc;	// back up to CALL instruction for funcline.
 			if(n > 0 && pc > f->entry)
 				tracepc--;
-			printf(" %S:%d\n", f->src, funcline(f, tracepc));
-			printf("\t%S(", f->name);
+			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
+			runtime·printf("\t%S(", f->name);
 			fp = (uintptr*)sp;
 			if(f->frame < sizeof(uintptr))
 				fp++;
@@ -100,14 +100,14 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 				fp += f->frame/sizeof(uintptr);
 			for(i = 0; i < f->args; i++) {
 				if(i != 0)
-					prints(", ");
-				·printhex(fp[i]);
+					runtime·prints(", ");
+				runtime·printhex(fp[i]);
 				if(i >= 4) {
-					prints(", ...");
+					runtime·prints(", ...");
 					break;
 				}
 			}
-			prints(")\n");
+			runtime·prints(")\n");
 			n++;
 		}
 		
@@ -123,26 +123,26 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
 		else
 			sp += f->frame;
 		pc = *((uintptr*)sp - 1);
-		if(f->entry == (uintptr)·deferproc || f->entry == (uintptr)·newproc)
+		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
 			sp += 2*sizeof(uintptr);
 	}
 	return n;
 }
 
 void
-traceback(byte *pc0, byte *sp, byte*, G *g)
+runtime·traceback(byte *pc0, byte *sp, byte*, G *g)
 {
 	gentraceback(pc0, sp, g, 0, nil, 100);
 }
 
 int32
-callers(int32 skip, uintptr *pcbuf, int32 m)
+runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
 {
 	byte *pc, *sp;
 
 	// our caller's pc, sp.
 	sp = (byte*)&skip;
-	pc = ·getcallerpc(&skip);
+	pc = runtime·getcallerpc(&skip);
 
 	return gentraceback(pc, sp, g, skip, pcbuf, m);
 }
@@ -154,7 +154,7 @@ isclosureentry(uintptr pc)
 	int32 i, siz;
 	
 	p = (byte*)pc;
-	if(p < mheap.min || p+32 > mheap.max)
+	if(p < runtime·mheap.min || p+32 > runtime·mheap.max)
 		return 0;
 	
 	// SUBQ $siz, SP

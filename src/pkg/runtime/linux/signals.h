@@ -8,7 +8,7 @@
 #define Q SigQueue
 #define P SigPanic
 
-SigTab sigtab[] = {
+SigTab runtime·sigtab[] = {
 	/* 0 */	0, "SIGNONE: no trap",
 	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
 	/* 2 */	Q+R, "SIGINT: interrupt",

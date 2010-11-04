@@ -23,23 +23,23 @@ TEXT _rt0_386(SB),7,$0
 	JMP	ok
 
 	// set up %gs
-	CALL	ldt0setup(SB)
+	CALL	runtime·ldt0setup(SB)
 
 	// store through it, to make sure it works
-	CMPL	isplan9(SB), $1
+	CMPL	runtime·isplan9(SB), $1
 	JEQ	ok
 	get_tls(BX)
 	MOVL	$0x123, g(BX)
-	MOVL	tls0(SB), AX
+	MOVL	runtime·tls0(SB), AX
 	CMPL	AX, $0x123
 	JEQ	ok
 	MOVL	AX, 0	// abort
 ok:
 	// set up m and g "registers"
 	get_tls(BX)
-	LEAL	g0(SB), CX
+	LEAL	runtime·g0(SB), CX
 	MOVL	CX, g(BX)
-	LEAL	m0(SB), AX
+	LEAL	runtime·m0(SB), AX
 	MOVL	AX, m(BX)
 
 	// save m->g0 = g0
@@ -49,46 +49,46 @@ ok:
 	LEAL	(-8192+104)(SP), AX	// TODO: 104?
 	MOVL	AX, g_stackguard(CX)
 	MOVL	SP, g_stackbase(CX)
-	CALL	emptyfunc(SB)	// fault if stack check is wrong
+	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
 	// convention is D is always cleared
 	CLD
 
-	CALL	check(SB)
+	CALL	runtime·check(SB)
 
 	// saved argc, argv
 	MOVL	120(SP), AX
 	MOVL	AX, 0(SP)
 	MOVL	124(SP), AX
 	MOVL	AX, 4(SP)
-	CALL	args(SB)
-	CALL	osinit(SB)
-	CALL	schedinit(SB)
+	CALL	runtime·args(SB)
+	CALL	runtime·osinit(SB)
+	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	PUSHL	$mainstart(SB)	// entry
+	PUSHL	$runtime·mainstart(SB)	// entry
 	PUSHL	$0	// arg size
-	CALL	·newproc(SB)
+	CALL	runtime·newproc(SB)
 	POPL	AX
 	POPL	AX
 
 	// start this M
-	CALL	mstart(SB)
+	CALL	runtime·mstart(SB)
 
 	INT $3
 	RET
 
-TEXT mainstart(SB),7,$0
+TEXT runtime·mainstart(SB),7,$0
 	CALL	main·init(SB)
-	CALL	initdone(SB)
+	CALL	runtime·initdone(SB)
 	CALL	main·main(SB)
 	PUSHL	$0
-	CALL	exit(SB)
+	CALL	runtime·exit(SB)
 	POPL	AX
 	INT $3
 	RET
 
-TEXT	breakpoint(SB),7,$0
+TEXT runtime·breakpoint(SB),7,$0
 	INT $3
 	RET
 
@@ -98,7 +98,7 @@ TEXT	breakpoint(SB),7,$0
 
 // uintptr gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT gosave(SB), 7, $0
+TEXT runtime·gosave(SB), 7, $0
 	MOVL	4(SP), AX		// gobuf
 	LEAL	4(SP), BX		// caller's SP
 	MOVL	BX, gobuf_sp(AX)
@@ -112,7 +112,7 @@ TEXT gosave(SB), 7, $0
 
 // void gogo(Gobuf*, uintptr)
 // restore state from Gobuf; longjmp
-TEXT gogo(SB), 7, $0
+TEXT runtime·gogo(SB), 7, $0
 	MOVL	8(SP), AX		// return 2nd arg
 	MOVL	4(SP), BX		// gobuf
 	MOVL	gobuf_g(BX), DX
@@ -126,7 +126,7 @@ TEXT gogo(SB), 7, $0
 // void gogocall(Gobuf*, void (*fn)(void))
 // restore state from Gobuf but then call fn.
 // (call fn, returning to state in Gobuf)
-TEXT gogocall(SB), 7, $0
+TEXT runtime·gogocall(SB), 7, $0
 	MOVL	8(SP), AX		// fn
 	MOVL	4(SP), BX		// gobuf
 	MOVL	gobuf_g(BX), DX
@@ -144,7 +144,7 @@ TEXT gogocall(SB), 7, $0
  */
 
 // Called during function prolog when more stack is needed.
-TEXT ·morestack(SB),7,$0
+TEXT runtime·morestack(SB),7,$0
 	// Cannot grow scheduler stack (m->g0).
 	get_tls(CX)
 	MOVL	m(CX), BX
@@ -178,7 +178,7 @@ TEXT ·morestack(SB),7,$0
 	MOVL	m_g0(BX), BP
 	MOVL	BP, g(CX)
 	MOVL	(m_sched+gobuf_sp)(BX), SP
-	CALL	newstack(SB)
+	CALL	runtime·newstack(SB)
 	MOVL	$0, 0x1003	// crash if newstack returns
 	RET
 
@@ -220,13 +220,13 @@ TEXT reflect·call(SB), 7, $0
 	get_tls(CX)
 	MOVL	BP, g(CX)
 	MOVL	(m_sched+gobuf_sp)(BX), SP
-	CALL	newstack(SB)
+	CALL	runtime·newstack(SB)
 	MOVL	$0, 0x1103	// crash if newstack returns
 	RET
 
 
 // Return point when leaving stack.
-TEXT ·lessstack(SB), 7, $0
+TEXT runtime·lessstack(SB), 7, $0
 	// Save return value in m->cret
 	get_tls(CX)
 	MOVL	m(CX), BX
@@ -236,7 +236,7 @@ TEXT ·lessstack(SB), 7, $0
 	MOVL	m_g0(BX), DX
 	MOVL	DX, g(CX)
 	MOVL	(m_sched+gobuf_sp)(BX), SP
-	CALL	oldstack(SB)
+	CALL	runtime·oldstack(SB)
 	MOVL	$0, 0x1004	// crash if oldstack returns
 	RET
 
@@ -248,7 +248,7 @@ TEXT ·lessstack(SB), 7, $0
 //		return 1;
 //	}else
 //		return 0;
-TEXT cas(SB), 7, $0
+TEXT runtime·cas(SB), 7, $0
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	MOVL	12(SP), CX
@@ -267,7 +267,7 @@ TEXT cas(SB), 7, $0
 //		return 1;
 //	}else
 //		return 0;
-TEXT casp(SB), 7, $0
+TEXT runtime·casp(SB), 7, $0
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	MOVL	12(SP), CX
@@ -284,14 +284,14 @@ TEXT casp(SB), 7, $0
 // 1. pop the caller
 // 2. sub 5 bytes from the callers return
 // 3. jmp to the argument
-TEXT jmpdefer(SB), 7, $0
+TEXT runtime·jmpdefer(SB), 7, $0
 	MOVL	4(SP), AX	// fn
 	MOVL	8(SP), BX	// caller sp
 	LEAL	-4(BX), SP	// caller sp after CALL
 	SUBL	$5, (SP)	// return to CALL again
 	JMP	AX	// but first run the deferred function
 
-TEXT	·memclr(SB),7,$0
+TEXT runtime·memclr(SB),7,$0
 	MOVL	4(SP), DI		// arg 1 addr
 	MOVL	8(SP), CX		// arg 2 count
 	ADDL	$3, CX
@@ -302,42 +302,42 @@ TEXT	·memclr(SB),7,$0
 	STOSL
 	RET
 
-TEXT	·getcallerpc+0(SB),7,$0
+TEXT runtime·getcallerpc(SB),7,$0
 	MOVL	x+0(FP),AX		// addr of first arg
 	MOVL	-4(AX),AX		// get calling pc
 	RET
 
-TEXT	·setcallerpc+0(SB),7,$0
+TEXT runtime·setcallerpc(SB),7,$0
 	MOVL	x+0(FP),AX		// addr of first arg
 	MOVL	x+4(FP), BX
 	MOVL	BX, -4(AX)		// set calling pc
 	RET
 
-TEXT getcallersp(SB), 7, $0
+TEXT runtime·getcallersp(SB), 7, $0
 	MOVL	sp+0(FP), AX
 	RET
 
-TEXT ldt0setup(SB),7,$16
+TEXT runtime·ldt0setup(SB),7,$16
 	// set up ldt 7 to point at tls0
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
 	// the entry number is just a hint.  setldt will set up GS with what it used.
 	MOVL	$7, 0(SP)
-	LEAL	tls0(SB), AX
+	LEAL	runtime·tls0(SB), AX
 	MOVL	AX, 4(SP)
 	MOVL	$32, 8(SP)	// sizeof(tls array)
-	CALL	setldt(SB)
+	CALL	runtime·setldt(SB)
 	RET
 
-TEXT emptyfunc(SB),0,$0
+TEXT runtime·emptyfunc(SB),0,$0
 	RET
 
-TEXT	abort(SB),7,$0
+TEXT runtime·abort(SB),7,$0
 	INT $0x3
 
 // runcgo(void(*fn)(void*), void *arg)
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
-TEXT	runcgo(SB),7,$16
+TEXT runtime·runcgo(SB),7,$16
 	MOVL	fn+0(FP), AX
 	MOVL	arg+4(FP), BX
 	MOVL	SP, CX
@@ -372,7 +372,7 @@ TEXT	runcgo(SB),7,$16
 // runcgocallback(G *g1, void* sp, void (*fn)(void))
 // Switch to g1 and sp, call fn, switch back.  fn's arguments are on
 // the new stack.
-TEXT	runcgocallback(SB),7,$32
+TEXT runtime·runcgocallback(SB),7,$32
 	MOVL	g1+0(FP), DX
 	MOVL	sp+4(FP), AX
 	MOVL	fn+8(FP), BX
@@ -401,7 +401,7 @@ TEXT	runcgocallback(SB),7,$32
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)
-TEXT stackcheck(SB), 7, $0
+TEXT runtime·stackcheck(SB), 7, $0
 	get_tls(CX)
 	MOVL	g(CX), AX
 	CMPL	g_stackbase(AX), SP
@@ -412,7 +412,4 @@ TEXT stackcheck(SB), 7, $0
 	INT	$3
 	RET
 
-GLOBL m0(SB), $1024
-GLOBL g0(SB), $1024
-GLOBL tls0(SB), $32
-GLOBL initcgo(SB), $4
+GLOBL runtime·tls0(SB), $32

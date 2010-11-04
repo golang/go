@@ -8,39 +8,39 @@
 int8 *goos = "plan9";
 
 void
-minit(void)
+runtime·minit(void)
 {
 }
 
 void
-osinit(void)
+runtime·osinit(void)
 {
 }
 
 void
-initsig(int32 queue)
+runtime·initsig(int32 queue)
 {
 }
 
 void
-exit(int32)
+runtime·exit(int32)
 {
-	exits(nil);
+	runtime·exits(nil);
 }
 
 void
-newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	USED(m, g, stk, fn);
 	
 	m->tls[0] = m->id;	// so 386 asm can find it
 	if(0){
-		printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
+		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, rfork, m->id, m->tls[0], &m);
 	}        
 	
 	if (rfork(RFPROC | RFMEM, stk, m, g, fn) < 0 )
-		throw("newosproc: rfork failed");
+		runtime·throw("newosproc: rfork failed");
 }
 
 // Blocking locks.
@@ -57,10 +57,10 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 // in Plan 9's user-level locks.
 
 void
-lock(Lock *l)
+runtime·lock(Lock *l)
 {
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	m->locks++;
 	
 	if(xadd(&l->key, 1) == 1)
@@ -72,21 +72,21 @@ lock(Lock *l)
 }
 
 void
-unlock(Lock *l)
+runtime·unlock(Lock *l)
 {
 	m->locks--;
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 
 	if(xadd(&l->key, -1) == 0)
 		return; // changed from 1 -> 0: no contention
 	
-	plan9_semrelease(&l->sema, 1);
+	runtime·plan9_semrelease(&l->sema, 1);
 }
 
 
 void 
-destroylock(Lock *l)
+runtime·destroylock(Lock *l)
 {
 	// nothing
 }
@@ -96,7 +96,7 @@ destroylock(Lock *l)
 // but when it's time to block, fall back on the kernel semaphore k.
 // This is the same algorithm used in Plan 9.
 void
-usemacquire(Usema *s)
+runtime·usemacquire(Usema *s)
 {
 	if((int32)xadd(&s->u, -1) < 0)
 		while(plan9_semacquire(&s->k, 1) < 0) {
@@ -105,31 +105,31 @@ usemacquire(Usema *s)
 }
 
 void
-usemrelease(Usema *s)
+runtime·usemrelease(Usema *s)
 {
 	if((int32)xadd(&s->u, 1) <= 0)
-		plan9_semrelease(&s->k, 1);
+		runtime·plan9_semrelease(&s->k, 1);
 }
 
 
 // Event notifications.
 void
-noteclear(Note *n)
+runtime·noteclear(Note *n)
 {
 	n->wakeup = 0;
 }
 
 void
-notesleep(Note *n)
+runtime·notesleep(Note *n)
 {
 	while(!n->wakeup)
-		usemacquire(&n->sema);
+		runtime·usemacquire(&n->sema);
 }
 
 void
-notewakeup(Note *n)
+runtime·notewakeup(Note *n)
 {
 	n->wakeup = 1;
-	usemrelease(&n->sema);
+	runtime·usemrelease(&n->sema);
 }
 

@@ -4,5 +4,5 @@
 
 // Native Client and Linux use the same linkage to main
 
-TEXT	_rt0_386_nacl(SB),7,$0
+TEXT _rt0_386_nacl(SB),7,$0
 	JMP	_rt0_386(SB)

@@ -4,7 +4,7 @@
 
 #include "amd64/asm.h"
 
-TEXT	_rt0_amd64(SB),7,$-8
+TEXT _rt0_amd64(SB),7,$-8
 	// copy arguments forward on an even stack
 	MOVQ	0(DI), AX		// argc
 	LEAQ	8(DI), BX		// argv
@@ -21,22 +21,22 @@ TEXT	_rt0_amd64(SB),7,$-8
 	JMP ok
 
 needtls:
-	LEAQ	tls0(SB), DI
-	CALL	settls(SB)
+	LEAQ	runtime·tls0(SB), DI
+	CALL	runtime·settls(SB)
 
 	// store through it, to make sure it works
 	get_tls(BX)
 	MOVQ	$0x123, g(BX)
-	MOVQ	tls0(SB), AX
+	MOVQ	runtime·tls0(SB), AX
 	CMPQ	AX, $0x123
 	JEQ 2(PC)
 	MOVL	AX, 0	// abort
 ok:
 	// set the per-goroutine and per-mach "registers"
 	get_tls(BX)
-	LEAQ	g0(SB), CX
+	LEAQ	runtime·g0(SB), CX
 	MOVQ	CX, g(BX)
-	LEAQ	m0(SB), AX
+	LEAQ	runtime·m0(SB), AX
 	MOVQ	AX, m(BX)
 
 	// save m->g0 = g0
@@ -48,40 +48,40 @@ ok:
 	MOVQ	SP, g_stackbase(CX)
 
 	CLD				// convention is D is always left cleared
-	CALL	check(SB)
+	CALL	runtime·check(SB)
 
 	MOVL	16(SP), AX		// copy argc
 	MOVL	AX, 0(SP)
 	MOVQ	24(SP), AX		// copy argv
 	MOVQ	AX, 8(SP)
-	CALL	args(SB)
-	CALL	osinit(SB)
-	CALL	schedinit(SB)
+	CALL	runtime·args(SB)
+	CALL	runtime·osinit(SB)
+	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	PUSHQ	$mainstart(SB)		// entry
+	PUSHQ	$runtime·mainstart(SB)		// entry
 	PUSHQ	$0			// arg size
-	CALL	·newproc(SB)
+	CALL	runtime·newproc(SB)
 	POPQ	AX
 	POPQ	AX
 
 	// start this M
-	CALL	mstart(SB)
+	CALL	runtime·mstart(SB)
 
-	CALL	notok(SB)		// never returns
+	CALL	runtime·notok(SB)		// never returns
 	RET
 
-TEXT mainstart(SB),7,$0
+TEXT runtime·mainstart(SB),7,$0
 	CALL	main·init(SB)
-	CALL	initdone(SB)
+	CALL	runtime·initdone(SB)
 	CALL	main·main(SB)
 	PUSHQ	$0
-	CALL	exit(SB)
+	CALL	runtime·exit(SB)
 	POPQ	AX
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT	breakpoint(SB),7,$0
+TEXT runtime·breakpoint(SB),7,$0
 	BYTE	$0xcc
 	RET
 
@@ -91,7 +91,7 @@ TEXT	breakpoint(SB),7,$0
 
 // uintptr gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT gosave(SB), 7, $0
+TEXT runtime·gosave(SB), 7, $0
 	MOVQ	8(SP), AX		// gobuf
 	LEAQ	8(SP), BX		// caller's SP
 	MOVQ	BX, gobuf_sp(AX)
@@ -105,7 +105,7 @@ TEXT gosave(SB), 7, $0
 
 // void gogo(Gobuf*, uintptr)
 // restore state from Gobuf; longjmp
-TEXT gogo(SB), 7, $0
+TEXT runtime·gogo(SB), 7, $0
 	MOVQ	16(SP), AX		// return 2nd arg
 	MOVQ	8(SP), BX		// gobuf
 	MOVQ	gobuf_g(BX), DX
@@ -119,7 +119,7 @@ TEXT gogo(SB), 7, $0
 // void gogocall(Gobuf*, void (*fn)(void))
 // restore state from Gobuf but then call fn.
 // (call fn, returning to state in Gobuf)
-TEXT gogocall(SB), 7, $0
+TEXT runtime·gogocall(SB), 7, $0
 	MOVQ	16(SP), AX		// fn
 	MOVQ	8(SP), BX		// gobuf
 	MOVQ	gobuf_g(BX), DX
@@ -138,7 +138,7 @@ TEXT gogocall(SB), 7, $0
 
 // Called during function prolog when more stack is needed.
 // Caller has already done get_tls(CX); MOVQ m(CX), BX.
-TEXT morestack(SB),7,$0
+TEXT runtime·morestack(SB),7,$0
 	// Cannot grow scheduler stack (m->g0).
 	MOVQ	m_g0(BX), SI
 	CMPQ	g(CX), SI
@@ -164,7 +164,7 @@ TEXT morestack(SB),7,$0
 	MOVQ	m_g0(BX), BP
 	MOVQ	BP, g(CX)
 	MOVQ	(m_sched+gobuf_sp)(BX), SP
-	CALL	newstack(SB)
+	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
 	RET
 
@@ -206,12 +206,12 @@ TEXT reflect·call(SB), 7, $0
 	get_tls(CX)
 	MOVQ	BP, g(CX)
 	MOVQ	(m_sched+gobuf_sp)(BX), SP
-	CALL	newstack(SB)
+	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1103	// crash if newstack returns
 	RET
 
 // Return point when leaving stack.
-TEXT ·lessstack(SB), 7, $0
+TEXT runtime·lessstack(SB), 7, $0
 	// Save return value in m->cret
 	get_tls(CX)
 	MOVQ	m(CX), BX
@@ -221,81 +221,81 @@ TEXT ·lessstack(SB), 7, $0
 	MOVQ	m_g0(BX), DX
 	MOVQ	DX, g(CX)
 	MOVQ	(m_sched+gobuf_sp)(BX), SP
-	CALL	oldstack(SB)
+	CALL	runtime·oldstack(SB)
 	MOVQ	$0, 0x1004	// crash if oldstack returns
 	RET
 
 // morestack trampolines
-TEXT	·morestack00+0(SB),7,$0
+TEXT runtime·morestack00(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
 	MOVQ	$0, AX
 	MOVQ	AX, m_moreframe(BX)
-	MOVQ	$morestack+0(SB), AX
+	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
-TEXT	·morestack01+0(SB),7,$0
+TEXT runtime·morestack01(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
 	SHLQ	$32, AX
 	MOVQ	AX, m_moreframe(BX)
-	MOVQ	$morestack+0(SB), AX
+	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
-TEXT	·morestack10+0(SB),7,$0
+TEXT runtime·morestack10(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
 	MOVLQZX	AX, AX
 	MOVQ	AX, m_moreframe(BX)
-	MOVQ	$morestack+0(SB), AX
+	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
-TEXT	·morestack11+0(SB),7,$0
+TEXT runtime·morestack11(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
 	MOVQ	AX, m_moreframe(BX)
-	MOVQ	$morestack+0(SB), AX
+	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
 // subcases of morestack01
 // with const of 8,16,...48
-TEXT	·morestack8(SB),7,$0
+TEXT runtime·morestack8(SB),7,$0
 	PUSHQ	$1
-	MOVQ	$·morestackx(SB), AX
+	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
-TEXT	·morestack16(SB),7,$0
+TEXT runtime·morestack16(SB),7,$0
 	PUSHQ	$2
-	MOVQ	$·morestackx(SB), AX
+	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
-TEXT	·morestack24(SB),7,$0
+TEXT runtime·morestack24(SB),7,$0
 	PUSHQ	$3
-	MOVQ	$·morestackx(SB), AX
+	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
-TEXT	·morestack32(SB),7,$0
+TEXT runtime·morestack32(SB),7,$0
 	PUSHQ	$4
-	MOVQ	$·morestackx(SB), AX
+	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
-TEXT	·morestack40(SB),7,$0
+TEXT runtime·morestack40(SB),7,$0
 	PUSHQ	$5
-	MOVQ	$·morestackx(SB), AX
+	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
-TEXT	·morestack48(SB),7,$0
+TEXT runtime·morestack48(SB),7,$0
 	PUSHQ	$6
-	MOVQ	$·morestackx(SB), AX
+	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
-TEXT	·morestackx(SB),7,$0
+TEXT morestack<>(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
 	POPQ	AX
 	SHLQ	$35, AX
 	MOVQ	AX, m_moreframe(BX)
-	MOVQ	$morestack(SB), AX
+	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
 // bool cas(int32 *val, int32 old, int32 new)
@@ -305,7 +305,7 @@ TEXT	·morestackx(SB),7,$0
 //		return 1;
 //	} else
 //		return 0;
-TEXT cas(SB), 7, $0
+TEXT runtime·cas(SB), 7, $0
 	MOVQ	8(SP), BX
 	MOVL	16(SP), AX
 	MOVL	20(SP), CX
@@ -322,7 +322,7 @@ TEXT cas(SB), 7, $0
 // 1. pop the caller
 // 2. sub 5 bytes from the callers return
 // 3. jmp to the argument
-TEXT jmpdefer(SB), 7, $0
+TEXT runtime·jmpdefer(SB), 7, $0
 	MOVQ	8(SP), AX	// fn
 	MOVQ	16(SP), BX	// caller sp
 	LEAQ	-8(BX), SP	// caller sp after CALL
@@ -332,7 +332,7 @@ TEXT jmpdefer(SB), 7, $0
 // runcgo(void(*fn)(void*), void *arg)
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
-TEXT runcgo(SB),7,$32
+TEXT runtime·runcgo(SB),7,$32
 	MOVQ	fn+0(FP), R12
 	MOVQ	arg+8(FP), R13
 	MOVQ	SP, CX
@@ -365,7 +365,7 @@ TEXT runcgo(SB),7,$32
 // runcgocallback(G *g1, void* sp, void (*fn)(void))
 // Switch to g1 and sp, call fn, switch back.  fn's arguments are on
 // the new stack.
-TEXT runcgocallback(SB),7,$48
+TEXT runtime·runcgocallback(SB),7,$48
 	MOVQ	g1+0(FP), DX
 	MOVQ	sp+8(FP), AX
 	MOVQ	fp+16(FP), BX
@@ -394,7 +394,7 @@ TEXT runcgocallback(SB),7,$48
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)
-TEXT stackcheck(SB), 7, $0
+TEXT runtime·stackcheck(SB), 7, $0
 	get_tls(CX)
 	MOVQ	g(CX), AX
 	CMPQ	g_stackbase(AX), SP
@@ -405,7 +405,7 @@ TEXT stackcheck(SB), 7, $0
 	INT	$3
 	RET
 
-TEXT	·memclr(SB),7,$0
+TEXT runtime·memclr(SB),7,$0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), CX		// arg 2 count
 	ADDL	$7, CX
@@ -416,20 +416,19 @@ TEXT	·memclr(SB),7,$0
 	STOSQ
 	RET
 
-TEXT	·getcallerpc+0(SB),7,$0
+TEXT runtime·getcallerpc(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	-8(AX),AX		// get calling pc
 	RET
 
-TEXT	·setcallerpc+0(SB),7,$0
+TEXT runtime·setcallerpc(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	x+8(FP), BX
 	MOVQ	BX, -8(AX)		// set calling pc
 	RET
 
-TEXT getcallersp(SB),7,$0
+TEXT runtime·getcallersp(SB),7,$0
 	MOVQ	sp+0(FP), AX
 	RET
 
-GLOBL initcgo(SB), $8
-GLOBL tls0(SB), $64
+GLOBL runtime·tls0(SB), $64

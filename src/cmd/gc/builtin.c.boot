@@ -1,6 +1,6 @@
 char *runtimeimport =
 	"package runtime\n"
-	"func \"\".mal (? int32) *any\n"
+	"func \"\".new (? int32) *any\n"
 	"func \"\".panicindex ()\n"
 	"func \"\".panicslice ()\n"
 	"func \"\".throwreturn ()\n"
@@ -19,7 +19,7 @@ char *runtimeimport =
 	"func \"\".printslice (? any)\n"
 	"func \"\".printnl ()\n"
 	"func \"\".printsp ()\n"
-	"func \"\".printf ()\n"
+	"func \"\".goprintf ()\n"
 	"func \"\".concatstring ()\n"
 	"func \"\".append ()\n"
 	"func \"\".appendslice (typ *uint8, x any, y []any) any\n"

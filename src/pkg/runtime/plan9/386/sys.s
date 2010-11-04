@@ -6,35 +6,35 @@
 #include "386/asm.h"
 
 // setldt(int entry, int address, int limit)
-TEXT setldt(SB),7,$0
+TEXT runtime·setldt(SB),7,$0
 	RET
 
-TEXT write(SB),7,$0
+TEXT runtime·write(SB),7,$0
 	MOVL    $20, AX
 	INT     $64
 	RET
 
-TEXT exits(SB),7,$0
+TEXT runtime·exits(SB),7,$0
 	MOVL    $8, AX
 	INT     $64
 	RET
 
-TEXT brk_(SB),7,$0
+TEXT runtime·brk_(SB),7,$0
 	MOVL    $24, AX
 	INT     $64
 	RET
 
-TEXT plan9_semacquire(SB),7,$0
+TEXT runtime·plan9_semacquire(SB),7,$0
 	MOVL	$37, AX
 	INT	$64
 	RET
 	
-TEXT plan9_semrelease(SB),7,$0
+TEXT runtime·plan9_semrelease(SB),7,$0
 	MOVL	$38, AX
 	INT	$64
 	RET
 	
-TEXT rfork(SB),7,$0
+TEXT runtime·rfork(SB),7,$0
 	MOVL    $19, AX // rfork
 	INT     $64
 
@@ -61,16 +61,16 @@ TEXT rfork(SB),7,$0
 	MOVL	0xdfffeff8, AX
 	MOVL	AX, m_procid(BX)	// save pid as m->procid
 
-	CALL	stackcheck(SB)	// smashes AX, CX
+	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	
 	MOVL	0(DX), DX	// paranoia; check they are not nil
 	MOVL	0(BX), BX
 	
 	// more paranoia; check that stack splitting code works
 	PUSHAL
-	CALL	emptyfunc(SB)
+	CALL	runtime·emptyfunc(SB)
 	POPAL
 	
 	CALL	SI	// fn()
-	CALL	exit(SB)
+	CALL	runtime·exit(SB)
 	RET

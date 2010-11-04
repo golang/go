@@ -39,8 +39,7 @@ enum
 	Rune1	= (1<<(Bit1+0*Bitx))-1,		/* 0000 0000 0111 1111 */
 	Rune2	= (1<<(Bit2+1*Bitx))-1,		/* 0000 0111 1111 1111 */
 	Rune3	= (1<<(Bit3+2*Bitx))-1,		/* 1111 1111 1111 1111 */
-	Rune4	= (1<<(Bit4+3*Bitx))-1,
-                                        /* 0001 1111 1111 1111 1111 1111 */
+	Rune4	= (1<<(Bit4+3*Bitx))-1,		/* 0001 1111 1111 1111 1111 1111 */
 
 	Maskx	= (1<<Bitx)-1,			/* 0011 1111 */
 	Testx	= Maskx ^ 0xFF,			/* 1100 0000 */
@@ -72,7 +71,7 @@ enum
  * reasons, we return 1 instead of 0.
  */
 int32
-charntorune(int32 *rune, uint8 *str, int32 length)
+runtime·charntorune(int32 *rune, uint8 *str, int32 length)
 {
 	int32 c, c1, c2, c3, l;
 
@@ -168,7 +167,7 @@ badlen:
 }
 
 int32
-runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
+runtime·runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
 {
 	/* Runes are signed, so convert to unsigned for range check. */
 	uint32 c;

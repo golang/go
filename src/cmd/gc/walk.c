@@ -1862,7 +1862,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 	if(defer) {
 		if(op == OPRINTN)
 			fmtprint(&fmt, "\n");
-		on = syslook("printf", 1);
+		on = syslook("goprintf", 1);
 		on->type = functype(nil, intypes, nil);
 		args->n = nod(OLITERAL, N, N);
 		args->n->val.ctype = CTSTR;
@@ -1891,7 +1891,7 @@ callnew(Type *t)
 	Node *fn;
 
 	dowidth(t);
-	fn = syslook("mal", 1);
+	fn = syslook("new", 1);
 	argtype(fn, t);
 	return mkcall1(fn, ptrto(t), nil, nodintconst(t->width));
 }

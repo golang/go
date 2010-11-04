@@ -4,7 +4,7 @@
 
 // Darwin and Linux use the same linkage to main
 
-TEXT	_rt0_amd64_darwin(SB),7,$-8
+TEXT _rt0_amd64_darwin(SB),7,$-8
 	MOVQ	$_rt0_amd64(SB), AX
 	MOVQ	SP, DI
 	JMP	AX

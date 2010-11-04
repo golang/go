@@ -14,7 +14,7 @@ enum
 };
 
 void*
-SysAlloc(uintptr ask)
+runtime·SysAlloc(uintptr ask)
 {
 	uintptr bl;
 	
@@ -27,7 +27,7 @@ SysAlloc(uintptr ask)
 }
 
 void
-SysFree(void *v, uintptr n)
+runtime·SysFree(void *v, uintptr n)
 {
 	// from tiny/mem.c
 	// Push pointer back if this is a free
@@ -38,12 +38,12 @@ SysFree(void *v, uintptr n)
 }
 
 void
-SysUnused(void *v, uintptr n)
+runtime·SysUnused(void *v, uintptr n)
 {
 	USED(v, n);
 }
 
 void
-SysMemInit(void)
+runtime·SysMemInit(void)
 {
 }

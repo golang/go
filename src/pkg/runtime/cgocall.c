@@ -7,16 +7,16 @@
 
 void *initcgo;	/* filled in by dynamic linker when Cgo is available */
 int64 ncgocall;
-void ·entersyscall(void);
-void ·exitsyscall(void);
+void runtime·entersyscall(void);
+void runtime·exitsyscall(void);
 
 void
-cgocall(void (*fn)(void*), void *arg)
+runtime·cgocall(void (*fn)(void*), void *arg)
 {
 	G *oldlock;
 
 	if(initcgo == nil)
-		throw("cgocall unavailable");
+		runtime·throw("cgocall unavailable");
 
 	ncgocall++;
 
@@ -34,9 +34,9 @@ cgocall(void (*fn)(void*), void *arg)
 	 * M to run goroutines while we are in the
 	 * foreign code.
 	 */
-	·entersyscall();
-	runcgo(fn, arg);
-	·exitsyscall();
+	runtime·entersyscall();
+	runtime·runcgo(fn, arg);
+	runtime·exitsyscall();
 
 	m->lockedg = oldlock;
 	if(oldlock == nil)
@@ -51,38 +51,38 @@ cgocall(void (*fn)(void*), void *arg)
 // arguments back where they came from, and finally returns to the old
 // stack.
 void
-cgocallback(void (*fn)(void), void *arg, int32 argsize)
+runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
 {
 	Gobuf oldsched, oldg1sched;
 	G *g1;
 	void *sp;
 
 	if(g != m->g0)
-		throw("bad g in cgocallback");
+		runtime·throw("bad g in cgocallback");
 
 	g1 = m->curg;
 	oldsched = m->sched;
 	oldg1sched = g1->sched;
 
-	startcgocallback(g1);
+	runtime·startcgocallback(g1);
 
 	sp = g1->sched.sp - argsize;
 	if(sp < g1->stackguard)
-		throw("g stack overflow in cgocallback");
-	mcpy(sp, arg, argsize);
+		runtime·throw("g stack overflow in cgocallback");
+	runtime·mcpy(sp, arg, argsize);
 
-	runcgocallback(g1, sp, fn);
+	runtime·runcgocallback(g1, sp, fn);
 
-	mcpy(arg, sp, argsize);
+	runtime·mcpy(arg, sp, argsize);
 
-	endcgocallback(g1);
+	runtime·endcgocallback(g1);
 
 	m->sched = oldsched;
 	g1->sched = oldg1sched;
 }
 
 void
-·Cgocalls(int64 ret)
+runtime·Cgocalls(int64 ret)
 {
 	ret = ncgocall;
 	FLUSH(&ret);
@@ -92,7 +92,7 @@ void (*_cgo_malloc)(void*);
 void (*_cgo_free)(void*);
 
 void*
-cmalloc(uintptr n)
+runtime·cmalloc(uintptr n)
 {
 	struct a {
 		uint64 n;
@@ -101,13 +101,13 @@ cmalloc(uintptr n)
 
 	a.n = n;
 	a.ret = nil;
-	cgocall(_cgo_malloc, &a);
+	runtime·cgocall(_cgo_malloc, &a);
 	return a.ret;
 }
 
 void
-cfree(void *p)
+runtime·cfree(void *p)
 {
-	cgocall(_cgo_free, p);
+	runtime·cgocall(_cgo_free, p);
 }
 

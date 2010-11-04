@@ -8,7 +8,7 @@
 #include "os.h"
 
 void
-initsig(int32 queue)
+runtime·initsig(int32 queue)
 {
 }
 

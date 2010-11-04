@@ -30,7 +30,7 @@
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
 
-TEXT write(SB),7,$0
+TEXT runtime·write(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
@@ -38,7 +38,7 @@ TEXT write(SB),7,$0
 	SWI	$0
 	RET
 
-TEXT exit(SB),7,$-4
+TEXT runtime·exit(SB),7,$-4
 	MOVW	0(FP), R0
 	MOVW	$SYS_exit_group, R7
 	SWI	$0
@@ -46,7 +46,7 @@ TEXT exit(SB),7,$-4
 	MOVW	$1002, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT exit1(SB),7,$-4
+TEXT runtime·exit1(SB),7,$-4
 	MOVW	0(FP), R0
 	MOVW	$SYS_exit, R7
 	SWI	$0
@@ -54,7 +54,7 @@ TEXT exit1(SB),7,$-4
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT ·mmap(SB),7,$0
+TEXT runtime·mmap(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
@@ -65,14 +65,14 @@ TEXT ·mmap(SB),7,$0
 	SWI	$0
 	RET
 
-TEXT ·munmap(SB),7,$0
+TEXT runtime·munmap(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	$SYS_munmap, R7
 	SWI	$0
 	RET
 
-TEXT gettime(SB),7,$32
+TEXT runtime·gettime(SB),7,$32
 	/* dummy version - return 0,0 */
 	MOVW	$0, R1
 	MOVW	0(FP), R0
@@ -101,7 +101,7 @@ TEXT gettime(SB),7,$32
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT futex(SB),7,$0
+TEXT runtime·futex(SB),7,$0
 	MOVW	4(SP), R0
 	MOVW	8(SP), R1
 	MOVW	12(SP), R2
@@ -114,7 +114,7 @@ TEXT futex(SB),7,$0
 
 
 // int32 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-TEXT clone(SB),7,$0
+TEXT runtime·clone(SB),7,$0
 	MOVW	flags+0(FP), R0
 	MOVW	stack+4(FP), R1
 	MOVW	$0, R2	// parent tid ptr
@@ -147,7 +147,7 @@ TEXT clone(SB),7,$0
 	MOVW	$1234, R1
 	CMP	R0, R1
 	BEQ	2(PC)
-	BL	abort(SB)
+	BL	runtime·abort(SB)
 
 	MOVW	0(R13), m
 	MOVW	4(R13), g
@@ -156,7 +156,7 @@ TEXT clone(SB),7,$0
 	MOVW	0(m), R0
 	MOVW	0(g), R0
 
-	BL	emptyfunc(SB)	// fault if stack check is wrong
+	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
 	// Initialize m->procid to Linux tid
 	MOVW	$SYS_gettid, R7
@@ -170,7 +170,7 @@ TEXT clone(SB),7,$0
 
 	MOVW	$0, R0
 	MOVW	R0, 4(R13)
-	BL	exit1(SB)
+	BL	runtime·exit1(SB)
 
 	// It shouldn't return
 	MOVW	$1234, R0
@@ -178,7 +178,7 @@ TEXT clone(SB),7,$0
 	MOVW	R0, (R1)
 
 
-TEXT cacheflush(SB),7,$0
+TEXT runtime·cacheflush(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	$0, R2
@@ -186,25 +186,25 @@ TEXT cacheflush(SB),7,$0
 	SWI	$0
 	RET
 
-TEXT sigaltstack(SB),7,$0
+TEXT runtime·sigaltstack(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	$SYS_sigaltstack, R7
 	SWI	$0
 	RET
 
-TEXT sigignore(SB),7,$0
+TEXT runtime·sigignore(SB),7,$0
 	RET
 
-TEXT sigtramp(SB),7,$24
+TEXT runtime·sigtramp(SB),7,$24
 	MOVW	m_gsignal(m), g
 	MOVW	R0, 4(R13)
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
-	BL	sighandler(SB)
+	BL	runtime·sighandler(SB)
 	RET
 
-TEXT rt_sigaction(SB),7,$0
+TEXT runtime·rt_sigaction(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
@@ -213,7 +213,7 @@ TEXT rt_sigaction(SB),7,$0
 	SWI	$0
 	RET
 
-TEXT sigreturn(SB),7,$0
+TEXT runtime·sigreturn(SB),7,$0
 	MOVW	$SYS_rt_sigreturn, R7
 	SWI	$0
 	RET

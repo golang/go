@@ -174,7 +174,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath str
 	fmt.Fprintf(fc, "void\n")
 	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
 	fmt.Fprintf(fc, "{\n")
-	fmt.Fprintf(fc, "\tcgocall(_cgo%s, &p);\n", n.Mangle)
+	fmt.Fprintf(fc, "\truntime·cgocall(_cgo%s, &p);\n", n.Mangle)
 	if n.AddError {
 		// gcc leaves errno in first word of interface at end of p.
 		// check whether it is zero; if so, turn interface into nil.
@@ -416,7 +416,7 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
 		fmt.Fprintf(fc, "\nvoid\n")
 		fmt.Fprintf(fc, "_cgoexp_%s(void *a, int32 n)\n", exp.ExpName)
 		fmt.Fprintf(fc, "{\n")
-		fmt.Fprintf(fc, "\tcgocallback(·%s, a, n);\n", goname)
+		fmt.Fprintf(fc, "\truntime·cgocallback(·%s, a, n);\n", goname)
 		fmt.Fprintf(fc, "}\n")
 
 		// Calling a function with a receiver from C requires
@@ -603,22 +603,22 @@ void ·_Cerrno(void*, int32);
 void
 ·_Cfunc_GoString(int8 *p, String s)
 {
-	s = gostring((byte*)p);
+	s = runtime·gostring((byte*)p);
 	FLUSH(&s);
 }
 
 void
 ·_Cfunc_GoStringN(int8 *p, int32 l, String s)
 {
-	s = gostringn((byte*)p, l);
+	s = runtime·gostringn((byte*)p, l);
 	FLUSH(&s);
 }
 
 void
 ·_Cfunc_CString(String s, int8 *p)
 {
-	p = cmalloc(s.len+1);
-	mcpy((byte*)p, s.str, s.len);
+	p = runtime·cmalloc(s.len+1);
+	runtime·mcpy((byte*)p, s.str, s.len);
 	p[s.len] = 0;
 	FLUSH(&p);
 }

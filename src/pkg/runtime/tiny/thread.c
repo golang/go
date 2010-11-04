@@ -7,22 +7,22 @@
 int8 *goos = "tiny";
 
 void
-minit(void)
+runtime·minit(void)
 {
 }
 
 void
-osinit(void)
+runtime·osinit(void)
 {
 }
 
 void
-initsig(int32 queue)
+runtime·initsig(int32 queue)
 {
 }
 
 void
-exit(int32)
+runtime·exit(int32)
 {
 	for(;;);
 }
@@ -31,56 +31,56 @@ exit(int32)
 // so no need for real concurrency or atomicity
 
 void
-newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	USED(m, g, stk, fn);
-	throw("newosproc");
+	runtime·throw("newosproc");
 }
 
 void
-lock(Lock *l)
+runtime·lock(Lock *l)
 {
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	m->locks++;
 	if(l->key != 0)
-		throw("deadlock");
+		runtime·throw("deadlock");
 	l->key = 1;
 }
 
 void
-unlock(Lock *l)
+runtime·unlock(Lock *l)
 {
 	m->locks--;
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	if(l->key != 1)
-		throw("unlock of unlocked lock");
+		runtime·throw("unlock of unlocked lock");
 	l->key = 0;
 }
 
 void 
-destroylock(Lock *l)
+runtime·destroylock(Lock *l)
 {
-    // nothing
+	// nothing
 }
 
 void
-noteclear(Note *n)
+runtime·noteclear(Note *n)
 {
 	n->lock.key = 0;
 }
 
 void
-notewakeup(Note *n)
+runtime·notewakeup(Note *n)
 {
 	n->lock.key = 1;
 }
 
 void
-notesleep(Note *n)
+runtime·notesleep(Note *n)
 {
 	if(n->lock.key != 1)
-		throw("notesleep");
+		runtime·throw("notesleep");
 }
 

@@ -63,11 +63,13 @@
 	}
  */
 
-#define	malloc		mal
+#define	malloc		runtime·mal
 #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
-#define	memset(a,b,c)	·memclr((byte*)(a), (uint32)(c))
-#define	memcpy(a,b,c)	mcpy((byte*)(a),(byte*)(b),(uint32)(c))
-#define	assert(a)	if(!(a)) throw("assert")
+#define	memset(a,b,c)	runtime·memclr((byte*)(a), (uint32)(c))
+#define	memcpy(a,b,c)	runtime·mcpy((byte*)(a),(byte*)(b),(uint32)(c))
+#define	assert(a)	if(!(a)) runtime·throw("assert")
+#define free(x)	runtime·free(x)
+#define memmove(a,b,c)	runtime·memmove(a, b, c)
 
 struct hash;		/* opaque */
 struct hash_subtable;	/* opaque */
@@ -114,12 +116,12 @@ struct hash_iter {
 
 /* Lookup *data in *h.   If the data is found, return 1 and place a pointer to
    the found element in *pres.   Otherwise return 0 and place 0 in *pres. */
-int32 hash_lookup (struct hash *h, void *data, void **pres);
+// int32 hash_lookup (struct hash *h, void *data, void **pres);
 
 /* Lookup *data in *h.  If the data is found, execute (*data_del) (arg, p)
    where p points to the data in the table, then remove it from *h and return
    1.  Otherwise return 0.  */
-int32 hash_remove (struct hash *h, void *data, void *arg);
+// int32 hash_remove (struct hash *h, void *data, void *arg);
 
 /* Lookup *data in *h.   If the data is found, return 1, and place a pointer
    to the found element in *pres.   Otherwise, return 0, allocate a region
@@ -129,10 +131,10 @@ int32 hash_remove (struct hash *h, void *data, void *arg);
 
    If using garbage collection, it is the caller's responsibility to
    add references for **pres if HASH_ADDED is returned. */
-int32 hash_insert (struct hash *h, void *data, void **pres);
+// int32 hash_insert (struct hash *h, void *data, void **pres);
 
 /* Return the number of elements in the table. */
-uint32 hash_count (struct hash *h);
+// uint32 hash_count (struct hash *h);
 
 /* The following call is useful only if not using garbage collection on the
    table.
@@ -141,18 +143,18 @@ uint32 hash_count (struct hash *h);
    If other memory pointed to by user data must be freed, the caller is
    responsible for doiing do by iterating over *h first; see
    hash_iter_init()/hash_next().  */
-void hash_destroy (struct hash *h);
+// void hash_destroy (struct hash *h);
 
 /*----- iteration -----*/
 
 /* Initialize *it from *h. */
-void hash_iter_init (struct hash *h, struct hash_iter *it);
+// void hash_iter_init (struct hash *h, struct hash_iter *it);
 
 /* Return the next used entry in the table which which *it was initialized. */
-void *hash_next (struct hash_iter *it);
+// void *hash_next (struct hash_iter *it);
 
 /*---- test interface ----*/
 /* Call (*data_visit) (arg, level, data) for every data entry in the table,
    whether used or not.   "level" is the subtable level, 0 means first level. */
 /* TESTING ONLY: DO NOT USE THIS ROUTINE IN NORMAL CODE */
-void hash_visit (struct hash *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg);
+// void hash_visit (struct hash *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg);

@@ -26,10 +26,10 @@ initsema(uint32 *psema)
 	if(*psema != 0)	// already have one
 		return;
 
-	sema = mutex_create();
+	sema = runtime·mutex_create();
 	if((int32)sema < 0) {
-		printf("mutex_create failed\n");
-		breakpoint();
+		runtime·printf("mutex_create failed\n");
+		runtime·breakpoint();
 	}
 	// mutex_create returns a file descriptor;
 	// shift it up and add the 1 bit so that can
@@ -37,7 +37,7 @@ initsema(uint32 *psema)
 	sema = (sema<<1) | 1;
 	if(!cas(psema, 0, sema)){
 		// Someone else filled it in.  Use theirs.
-		close(sema);
+		runtime·close(sema);
 		return;
 	}
 }
@@ -53,8 +53,8 @@ static void
 xlock(int32 fd)
 {
 	if(mutex_lock(fd) < 0) {
-		printf("mutex_lock failed\n");
-		breakpoint();
+		runtime·printf("mutex_lock failed\n");
+		runtime·breakpoint();
 	}
 }
 
@@ -62,33 +62,33 @@ static void
 xunlock(int32 fd)
 {
 	if(mutex_unlock(fd) < 0) {
-		printf("mutex_lock failed\n");
-		breakpoint();
+		runtime·printf("mutex_lock failed\n");
+		runtime·breakpoint();
 	}
 }
 
 void
-lock(Lock *l)
+runtime·lock(Lock *l)
 {
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	m->locks++;
 	if(l->sema == 0)
-		initsema(&l->sema);
-	xlock(l->sema>>1);
+		runtime·initsema(&l->sema);
+	runtime·xlock(l->sema>>1);
 }
 
 void
-unlock(Lock *l)
+runtime·unlock(Lock *l)
 {
 	m->locks--;
 	if(m->locks < 0)
-		throw("lock count");
-	xunlock(l->sema>>1);
+		runtime·throw("lock count");
+	runtime·xunlock(l->sema>>1);
 }
 
 void
-destroylock(Lock*)
+runtime·destroylock(Lock*)
 {
 }
 
@@ -108,36 +108,36 @@ destroylock(Lock*)
 // a lock be the thread that releases the lock, so this is safe.
 
 void
-noteclear(Note *n)
+runtime·noteclear(Note *n)
 {
 	if(n->lock.sema == 0)
-		initsema(&n->lock.sema);
-	xlock(n->lock.sema>>1);
+		runtime·initsema(&n->lock.sema);
+	runtime·xlock(n->lock.sema>>1);
 }
 
 void
-notewakeup(Note *n)
+runtime·notewakeup(Note *n)
 {
 	if(n->lock.sema == 0) {
-		printf("notewakeup without noteclear");
-		breakpoint();
+		runtime·printf("notewakeup without noteclear");
+		runtime·breakpoint();
 	}
-	xunlock(n->lock.sema>>1);
+	runtime·xunlock(n->lock.sema>>1);
 }
 
 void
-notesleep(Note *n)
+runtime·notesleep(Note *n)
 {
 	if(n->lock.sema == 0) {
-		printf("notesleep without noteclear");
-		breakpoint();
+		runtime·printf("notesleep without noteclear");
+		runtime·breakpoint();
 	}
-	xlock(n->lock.sema>>1);
-	xunlock(n->lock.sema>>1);	// Let other sleepers find out too.
+	runtime·xlock(n->lock.sema>>1);
+	runtime·xunlock(n->lock.sema>>1);	// Let other sleepers find out too.
 }
 
 void
-newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	void **vstk;
 
@@ -147,18 +147,18 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	vstk = stk;
 	*--vstk = nil;
 	if(thread_create(fn, vstk, m->tls, sizeof m->tls) < 0) {
-		printf("thread_create failed\n");
-		breakpoint();
+		runtime·printf("thread_create failed\n");
+		runtime·breakpoint();
 	}
 }
 
 void
-osinit(void)
+runtime·osinit(void)
 {
 }
 
 // Called to initialize a new m (including the bootstrap m).
 void
-minit(void)
+runtime·minit(void)
 {
 }

@@ -6,10 +6,10 @@ package runtime
 #include "runtime.h"
 #include "malloc.h"
 
-String	emptystring;
+String	runtime·emptystring;
 
 int32
-findnull(byte *s)
+runtime·findnull(byte *s)
 {
 	int32 l;
 
@@ -21,7 +21,7 @@ findnull(byte *s)
 }
 
 int32
-findnullw(uint16 *s)
+runtime·findnullw(uint16 *s)
 {
 	int32 l;
 
@@ -32,56 +32,56 @@ findnullw(uint16 *s)
 	return l;
 }
 
-int32 maxstring = 256;
+int32 runtime·maxstring = 256;
 
 String
-gostringsize(int32 l)
+runtime·gostringsize(int32 l)
 {
 	String s;
 
 	if(l == 0)
-		return emptystring;
-	s.str = mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
+		return runtime·emptystring;
+	s.str = runtime·mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
 	s.len = l;
-	if(l > maxstring)
-		maxstring = l;
+	if(l > runtime·maxstring)
+		runtime·maxstring = l;
 	return s;
 }
 
 String
-gostring(byte *str)
+runtime·gostring(byte *str)
 {
 	int32 l;
 	String s;
 
-	l = findnull(str);
-	s = gostringsize(l);
-	mcpy(s.str, str, l);
+	l = runtime·findnull(str);
+	s = runtime·gostringsize(l);
+	runtime·mcpy(s.str, str, l);
 	return s;
 }
 
 String
-gostringn(byte *str, int32 l)
+runtime·gostringn(byte *str, int32 l)
 {
-    String s;
+	String s;
 
-    s = gostringsize(l);
-    mcpy(s.str, str, l);
-    return s;
+	s = runtime·gostringsize(l);
+	runtime·mcpy(s.str, str, l);
+	return s;
 }
 
 String
-gostringnocopy(byte *str)
+runtime·gostringnocopy(byte *str)
 {
 	String s;
 	
 	s.str = str;
-	s.len = findnull(str);
+	s.len = runtime·findnull(str);
 	return s;
 }
 
 String
-gostringw(uint16 *str)
+runtime·gostringw(uint16 *str)
 {
 	int32 n, i;
 	byte buf[8];
@@ -89,17 +89,17 @@ gostringw(uint16 *str)
 
 	n = 0;
 	for(i=0; str[i]; i++)
-		n += runetochar(buf, str[i]);
-	s = gostringsize(n+4);
+		n += runtime·runetochar(buf, str[i]);
+	s = runtime·gostringsize(n+4);
 	n = 0;
 	for(i=0; str[i]; i++)
-		n += runetochar(s.str+n, str[i]);
+		n += runtime·runetochar(s.str+n, str[i]);
 	s.len = n;
 	return s;
 }
 
 String
-catstring(String s1, String s2)
+runtime·catstring(String s1, String s2)
 {
 	String s3;
 
@@ -108,13 +108,13 @@ catstring(String s1, String s2)
 	if(s2.len == 0)
 		return s1;
 
-	s3 = gostringsize(s1.len + s2.len);
-	mcpy(s3.str, s1.str, s1.len);
-	mcpy(s3.str+s1.len, s2.str, s2.len);
+	s3 = runtime·gostringsize(s1.len + s2.len);
+	runtime·mcpy(s3.str, s1.str, s1.len);
+	runtime·mcpy(s3.str+s1.len, s2.str, s2.len);
 	return s3;
 }
 
-String
+static String
 concatstring(int32 n, String *s)
 {
 	int32 i, l;
@@ -123,14 +123,14 @@ concatstring(int32 n, String *s)
 	l = 0;
 	for(i=0; i<n; i++) {
 		if(l + s[i].len < l)
-			throw("string concatenation too long");
+			runtime·throw("string concatenation too long");
 		l += s[i].len;
 	}
 	
-	out = gostringsize(l);
+	out = runtime·gostringsize(l);
 	l = 0;
 	for(i=0; i<n; i++) {
-		mcpy(out.str+l, s[i].str, s[i].len);
+		runtime·mcpy(out.str+l, s[i].str, s[i].len);
 		l += s[i].len;
 	}
 	return out;
@@ -143,7 +143,7 @@ func concatstring(n int32, s1 String) {
 	(&s1)[n] = concatstring(n, &s1);
 }
 
-uint32
+static int32
 cmpstring(String s1, String s2)
 {
 	uint32 i, l;
@@ -172,7 +172,7 @@ func cmpstring(s1 String, s2 String) (v int32) {
 }
 
 int32
-strcmp(byte *s1, byte *s2)
+runtime·strcmp(byte *s1, byte *s2)
 {
 	uint32 i;
 	byte c1, c2;
@@ -194,7 +194,7 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
 
 	if(lindex < 0 || lindex > si.len ||
 	   hindex < lindex || hindex > si.len) {
-	   	·panicslice();
+	   	runtime·panicslice();
 	}
 
 	l = hindex-lindex;
@@ -206,7 +206,7 @@ func slicestring1(si String, lindex int32) (so String) {
 	int32 l;
 
 	if(lindex < 0 || lindex > si.len) {
-		·panicslice();
+		runtime·panicslice();
 	}
 
 	l = si.len-lindex;
@@ -215,20 +215,20 @@ func slicestring1(si String, lindex int32) (so String) {
 }
 
 func intstring(v int64) (s String) {
-	s = gostringsize(8);
-	s.len = runetochar(s.str, v);
+	s = runtime·gostringsize(8);
+	s.len = runtime·runetochar(s.str, v);
 }
 
 func slicebytetostring(b Slice) (s String) {
-	s = gostringsize(b.len);
-	mcpy(s.str, b.array, s.len);
+	s = runtime·gostringsize(b.len);
+	runtime·mcpy(s.str, b.array, s.len);
 }
 
 func stringtoslicebyte(s String) (b Slice) {
-	b.array = mallocgc(s.len, RefNoPointers, 1, 1);
+	b.array = runtime·mallocgc(s.len, RefNoPointers, 1, 1);
 	b.len = s.len;
 	b.cap = s.len;
-	mcpy(b.array, s.str, s.len);
+	runtime·mcpy(b.array, s.str, s.len);
 }
 
 func sliceinttostring(b Slice) (s String) {
@@ -239,16 +239,16 @@ func sliceinttostring(b Slice) (s String) {
 	a = (int32*)b.array;
 	siz1 = 0;
 	for(i=0; i<b.len; i++) {
-		siz1 += runetochar(dum, a[i]);
+		siz1 += runtime·runetochar(dum, a[i]);
 	}
 
-	s = gostringsize(siz1+4);
+	s = runtime·gostringsize(siz1+4);
 	siz2 = 0;
 	for(i=0; i<b.len; i++) {
 		// check for race
 		if(siz2 >= siz1)
 			break;
-		siz2 += runetochar(s.str+siz2, a[i]);
+		siz2 += runtime·runetochar(s.str+siz2, a[i]);
 	}
 	s.len = siz2;
 }
@@ -264,17 +264,17 @@ func stringtosliceint(s String) (b Slice) {
 	ep = s.str+s.len;
 	n = 0;
 	while(p < ep) {
-		p += charntorune(&dum, p, ep-p);
+		p += runtime·charntorune(&dum, p, ep-p);
 		n++;
 	}
 
-	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1);
+	b.array = runtime·mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1);
 	b.len = n;
 	b.cap = n;
 	p = s.str;
 	r = (int32*)b.array;
 	while(p < ep)
-		p += charntorune(r++, p, ep-p);
+		p += runtime·charntorune(r++, p, ep-p);
 }
 
 enum
@@ -298,7 +298,7 @@ func stringiter(s String, k int32) (retk int32) {
 	}
 
 	// multi-char rune
-	retk = k + charntorune(&l, s.str+k, s.len-k);
+	retk = k + runtime·charntorune(&l, s.str+k, s.len-k);
 
 out:
 }
@@ -318,7 +318,7 @@ func stringiter2(s String, k int32) (retk int32, retv int32) {
 	}
 
 	// multi-char rune
-	retk = k + charntorune(&retv, s.str+k, s.len-k);
+	retk = k + runtime·charntorune(&retv, s.str+k, s.len-k);
 
 out:
 }

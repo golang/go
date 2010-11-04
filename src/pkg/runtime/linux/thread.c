@@ -6,7 +6,7 @@
 #include "defs.h"
 #include "os.h"
 
-extern SigTab sigtab[];
+extern SigTab runtime·sigtab[];
 
 // Linux futex.
 //
@@ -48,7 +48,7 @@ futexsleep(uint32 *addr, uint32 val)
 	// as an errno.  Libpthread ignores the return value
 	// here, and so can we: as it says a few lines up,
 	// spurious wakeups are allowed.
-	futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
+	runtime·futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
 }
 
 // If any procs are sleeping on addr, wake up at least one.
@@ -57,7 +57,7 @@ futexwakeup(uint32 *addr)
 {
 	int64 ret;
 
-	ret = futex(addr, FUTEX_WAKE, 1, nil, nil, 0);
+	ret = runtime·futex(addr, FUTEX_WAKE, 1, nil, nil, 0);
 
 	if(ret >= 0)
 		return;
@@ -66,11 +66,11 @@ futexwakeup(uint32 *addr)
 	// EAGAIN or EINTR, but if it does, it would be
 	// safe to loop and call futex again.
 
-	prints("futexwakeup addr=");
-	·printpointer(addr);
-	prints(" returned ");
-	·printint(ret);
-	prints("\n");
+	runtime·prints("futexwakeup addr=");
+	runtime·printpointer(addr);
+	runtime·prints(" returned ");
+	runtime·printint(ret);
+	runtime·prints("\n");
 	*(int32*)0x1006 = 0x1006;
 }
 
@@ -83,7 +83,7 @@ futexwakeup(uint32 *addr)
 // The uncontended case runs entirely in user space.
 // When contention is detected, we defer to the kernel (futex).
 //
-// A reminder: compare-and-swap cas(addr, old, new) does
+// A reminder: compare-and-swap runtime·cas(addr, old, new) does
 //	if(*addr == old) { *addr = new; return 1; }
 //	else return 0;
 // but atomically.
@@ -96,7 +96,7 @@ futexlock(Lock *l)
 again:
 	v = l->key;
 	if((v&1) == 0){
-		if(cas(&l->key, v, v|1)){
+		if(runtime·cas(&l->key, v, v|1)){
 			// Lock wasn't held; we grabbed it.
 			return;
 		}
@@ -104,7 +104,7 @@ again:
 	}
 
 	// Lock was held; try to add ourselves to the waiter count.
-	if(!cas(&l->key, v, v+2))
+	if(!runtime·cas(&l->key, v, v+2))
 		goto again;
 
 	// We're accounted for, now sleep in the kernel.
@@ -122,8 +122,8 @@ again:
 	for(;;){
 		v = l->key;
 		if(v < 2)
-			throw("bad lock key");
-		if(cas(&l->key, v, v-2))
+			runtime·throw("bad lock key");
+		if(runtime·cas(&l->key, v, v-2))
 			break;
 	}
 
@@ -140,8 +140,8 @@ futexunlock(Lock *l)
 again:
 	v = l->key;
 	if((v&1) == 0)
-		throw("unlock of unlocked lock");
-	if(!cas(&l->key, v, v&~1))
+		runtime·throw("unlock of unlocked lock");
+	if(!runtime·cas(&l->key, v, v&~1))
 		goto again;
 
 	// If there were waiters, wake one.
@@ -150,25 +150,25 @@ again:
 }
 
 void
-lock(Lock *l)
+runtime·lock(Lock *l)
 {
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	m->locks++;
 	futexlock(l);
 }
 
 void
-unlock(Lock *l)
+runtime·unlock(Lock *l)
 {
 	m->locks--;
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	futexunlock(l);
 }
 
 void
-destroylock(Lock*)
+runtime·destroylock(Lock*)
 {
 }
 
@@ -186,20 +186,20 @@ destroylock(Lock*)
 // you unlock the lock.
 
 void
-noteclear(Note *n)
+runtime·noteclear(Note *n)
 {
 	n->lock.key = 0;	// memset(n, 0, sizeof *n)
 	futexlock(&n->lock);
 }
 
 void
-notewakeup(Note *n)
+runtime·notewakeup(Note *n)
 {
 	futexunlock(&n->lock);
 }
 
 void
-notesleep(Note *n)
+runtime·notesleep(Note *n)
 {
 	futexlock(&n->lock);
 	futexunlock(&n->lock);	// Let other sleepers find out too.
@@ -230,7 +230,7 @@ enum
 };
 
 void
-newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	int32 ret;
 	int32 flags;
@@ -248,52 +248,52 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 
 	m->tls[0] = m->id;	// so 386 asm can find it
 	if(0){
-		printf("newosproc stk=%p m=%p g=%p fn=%p clone=%p id=%d/%d ostk=%p\n",
-			stk, m, g, fn, clone, m->id, m->tls[0], &m);
+		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p clone=%p id=%d/%d ostk=%p\n",
+			stk, m, g, fn, runtime·clone, m->id, m->tls[0], &m);
 	}
 
-	ret = clone(flags, stk, m, g, fn);
+	ret = runtime·clone(flags, stk, m, g, fn);
 
 	if(ret < 0)
 		*(int32*)123 = 123;
 }
 
 void
-osinit(void)
+runtime·osinit(void)
 {
 }
 
 // Called to initialize a new m (including the bootstrap m).
 void
-minit(void)
+runtime·minit(void)
 {
 	// Initialize signal handling.
-	m->gsignal = malg(32*1024);	// OS X wants >=8K, Linux >=2K
-	signalstack(m->gsignal->stackguard, 32*1024);
+	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+	runtime·signalstack(m->gsignal->stackguard, 32*1024);
 }
 
 void
-sigpanic(void)
+runtime·sigpanic(void)
 {
 	switch(g->sig) {
 	case SIGBUS:
 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
-			panicstring("invalid memory address or nil pointer dereference");
-		printf("unexpected fault address %p\n", g->sigcode1);
-		throw("fault");
+			runtime·panicstring("invalid memory address or nil pointer dereference");
+		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+		runtime·throw("fault");
 	case SIGSEGV:
 		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
-			panicstring("invalid memory address or nil pointer dereference");
-		printf("unexpected fault address %p\n", g->sigcode1);
-		throw("fault");
+			runtime·panicstring("invalid memory address or nil pointer dereference");
+		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+		runtime·throw("fault");
 	case SIGFPE:
 		switch(g->sigcode0) {
 		case FPE_INTDIV:
-			panicstring("integer divide by zero");
+			runtime·panicstring("integer divide by zero");
 		case FPE_INTOVF:
-			panicstring("integer overflow");
+			runtime·panicstring("integer overflow");
 		}
-		panicstring("floating point error");
+		runtime·panicstring("floating point error");
 	}
-	panicstring(sigtab[g->sig].name);
+	runtime·panicstring(runtime·sigtab[g->sig].name);
 }

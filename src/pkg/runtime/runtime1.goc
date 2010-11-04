@@ -6,5 +6,5 @@ package runtime
 #include "runtime.h"
 
 func GOMAXPROCS(n int32) (ret int32) {
-	ret = gomaxprocsfunc(n);
+	ret = runtime·gomaxprocsfunc(n);
 }

@@ -5,20 +5,20 @@
 #include "runtime.h"
 #include "os.h"
 
-extern void *get_kernel_module(void);
+extern void *runtime·get_kernel_module(void);
 
 // Also referenced by external packages
-void *CloseHandle;
-void *ExitProcess;
-void *GetStdHandle;
-void *SetEvent;
-void *WriteFile;
-void *VirtualAlloc;
-void *VirtualFree;
-void *LoadLibraryEx;
-void *GetProcAddress;
-void *GetLastError;
-void *SetLastError;
+void *runtime·CloseHandle;
+void *runtime·ExitProcess;
+void *runtime·GetStdHandle;
+void *runtime·SetEvent;
+void *runtime·WriteFile;
+void *runtime·VirtualAlloc;
+void *runtime·VirtualFree;
+void *runtime·LoadLibraryEx;
+void *runtime·GetProcAddress;
+void *runtime·GetLastError;
+void *runtime·SetLastError;
 
 static void *CreateEvent;
 static void *CreateThread;
@@ -39,7 +39,7 @@ get_proc_addr2(byte *base, byte *name)
 	ordinals = (uint16*)(base+*(uint32*)(exports+0x24));
 	for(i=0; i<entries; i++) {
 		byte *s = base+names[i];
-		if(!strcmp(name, s))
+		if(runtime·strcmp(name, s) == 0)
 			break;
 	}
 	if(i == entries)
@@ -48,39 +48,39 @@ get_proc_addr2(byte *base, byte *name)
 }
 
 void
-osinit(void)
+runtime·osinit(void)
 {
 	void *base;
 
-	base = get_kernel_module();
-	GetProcAddress = get_proc_addr2(base, (byte*)"GetProcAddress");
-	LoadLibraryEx = get_proc_addr2(base, (byte*)"LoadLibraryExA");
-	CloseHandle = get_proc_addr("kernel32.dll", "CloseHandle");
-	CreateEvent = get_proc_addr("kernel32.dll", "CreateEventA");
-	CreateThread = get_proc_addr("kernel32.dll", "CreateThread");
-	ExitProcess = get_proc_addr("kernel32.dll", "ExitProcess");
-	GetStdHandle = get_proc_addr("kernel32.dll", "GetStdHandle");
-	SetEvent = get_proc_addr("kernel32.dll", "SetEvent");
-	VirtualAlloc = get_proc_addr("kernel32.dll", "VirtualAlloc");
-	VirtualFree = get_proc_addr("kernel32.dll", "VirtualFree");
-	WaitForSingleObject = get_proc_addr("kernel32.dll", "WaitForSingleObject");
-	WriteFile = get_proc_addr("kernel32.dll", "WriteFile");
-	GetLastError = get_proc_addr("kernel32.dll", "GetLastError");
-	SetLastError = get_proc_addr("kernel32.dll", "SetLastError");
+	base = runtime·get_kernel_module();
+	runtime·GetProcAddress = get_proc_addr2(base, (byte*)"GetProcAddress");
+	runtime·LoadLibraryEx = get_proc_addr2(base, (byte*)"LoadLibraryExA");
+	runtime·CloseHandle = runtime·get_proc_addr("kernel32.dll", "CloseHandle");
+	CreateEvent = runtime·get_proc_addr("kernel32.dll", "CreateEventA");
+	CreateThread = runtime·get_proc_addr("kernel32.dll", "CreateThread");
+	runtime·ExitProcess = runtime·get_proc_addr("kernel32.dll", "ExitProcess");
+	runtime·GetStdHandle = runtime·get_proc_addr("kernel32.dll", "GetStdHandle");
+	runtime·SetEvent = runtime·get_proc_addr("kernel32.dll", "SetEvent");
+	runtime·VirtualAlloc = runtime·get_proc_addr("kernel32.dll", "VirtualAlloc");
+	runtime·VirtualFree = runtime·get_proc_addr("kernel32.dll", "VirtualFree");
+	WaitForSingleObject = runtime·get_proc_addr("kernel32.dll", "WaitForSingleObject");
+	runtime·WriteFile = runtime·get_proc_addr("kernel32.dll", "WriteFile");
+	runtime·GetLastError = runtime·get_proc_addr("kernel32.dll", "GetLastError");
+	runtime·SetLastError = runtime·get_proc_addr("kernel32.dll", "SetLastError");
 }
 
 // The arguments are strings.
 void*
-get_proc_addr(void *library, void *name)
+runtime·get_proc_addr(void *library, void *name)
 {
 	void *base;
 
-	base = stdcall(LoadLibraryEx, 3, library, 0, 0);
-	return stdcall(GetProcAddress, 2, base, name);
+	base = runtime·stdcall(runtime·LoadLibraryEx, 3, library, 0, 0);
+	return runtime·stdcall(runtime·GetProcAddress, 2, base, name);
 }
 
 void
-windows_goargs(void)
+runtime·windows_goargs(void)
 {
 	extern Slice os·Args;
 	extern Slice os·Envs;
@@ -92,48 +92,48 @@ windows_goargs(void)
 	int32 i, argc, envc;
 	uint16 *envp;
 
-	gcl = get_proc_addr("kernel32.dll", "GetCommandLineW");
-	clta = get_proc_addr("shell32.dll", "CommandLineToArgvW");
-	ges = get_proc_addr("kernel32.dll", "GetEnvironmentStringsW");
-	fes = get_proc_addr("kernel32.dll", "FreeEnvironmentStringsW");
+	gcl = runtime·get_proc_addr("kernel32.dll", "GetCommandLineW");
+	clta = runtime·get_proc_addr("shell32.dll", "CommandLineToArgvW");
+	ges = runtime·get_proc_addr("kernel32.dll", "GetEnvironmentStringsW");
+	fes = runtime·get_proc_addr("kernel32.dll", "FreeEnvironmentStringsW");
 
-	cmd = stdcall(gcl, 0);
-	env = stdcall(ges, 0);
-	argv = stdcall(clta, 2, cmd, &argc);
+	cmd = runtime·stdcall(gcl, 0);
+	env = runtime·stdcall(ges, 0);
+	argv = runtime·stdcall(clta, 2, cmd, &argc);
 
 	envc = 0;
 	for(envp=env; *envp; envc++)
-		envp += findnullw(envp)+1;
+		envp += runtime·findnullw(envp)+1;
 
-	gargv = malloc(argc*sizeof gargv[0]);
-	genvv = malloc(envc*sizeof genvv[0]);
+	gargv = runtime·malloc(argc*sizeof gargv[0]);
+	genvv = runtime·malloc(envc*sizeof genvv[0]);
 
 	for(i=0; i<argc; i++)
-		gargv[i] = gostringw(argv[i]);
+		gargv[i] = runtime·gostringw(argv[i]);
 	os·Args.array = (byte*)gargv;
 	os·Args.len = argc;
 	os·Args.cap = argc;
 
 	envp = env;
 	for(i=0; i<envc; i++) {
-		genvv[i] = gostringw(envp);
-		envp += findnullw(envp)+1;
+		genvv[i] = runtime·gostringw(envp);
+		envp += runtime·findnullw(envp)+1;
 	}
 	os·Envs.array = (byte*)genvv;
 	os·Envs.len = envc;
 	os·Envs.cap = envc;
 
-	stdcall(fes, 1, env);
+	runtime·stdcall(fes, 1, env);
 }
 
 void
-exit(int32 code)
+runtime·exit(int32 code)
 {
-	stdcall(ExitProcess, 1, code);
+	runtime·stdcall(runtime·ExitProcess, 1, code);
 }
 
 int32
-write(int32 fd, void *buf, int32 n)
+runtime·write(int32 fd, void *buf, int32 n)
 {
 	void *handle;
 	uint32 written;
@@ -141,15 +141,15 @@ write(int32 fd, void *buf, int32 n)
 	written = 0;
 	switch(fd) {
 	case 1:
-		handle = stdcall(GetStdHandle, 1, -11);
+		handle = runtime·stdcall(runtime·GetStdHandle, 1, -11);
 		break;
 	case 2:
-		handle = stdcall(GetStdHandle, 1, -12);
+		handle = runtime·stdcall(runtime·GetStdHandle, 1, -12);
 		break;
 	default:
 		return -1;
 	}
-	stdcall(WriteFile, 5, handle, buf, n, &written, 0);
+	runtime·stdcall(runtime·WriteFile, 5, handle, buf, n, &written, 0);
 	return written;
 }
 
@@ -159,10 +159,10 @@ initevent(void **pevent)
 {
 	void *event;
 
-	event = stdcall(CreateEvent, 4, 0, 0, 0, 0);
-	if(!casp(pevent, 0, event)) {
+	event = runtime·stdcall(CreateEvent, 4, 0, 0, 0, 0);
+	if(!runtime·casp(pevent, 0, event)) {
 		// Someone else filled it in.  Use theirs.
-		stdcall(CloseHandle, 1, event);
+		runtime·stdcall(runtime·CloseHandle, 1, event);
 	}
 }
 
@@ -173,96 +173,96 @@ eventlock(Lock *l)
 	if(l->event == 0)
 		initevent(&l->event);
 
-	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
-		stdcall(WaitForSingleObject, 2, l->event, -1);
+	if(runtime·xadd(&l->key, 1) > 1)	// someone else has it; wait
+		runtime·stdcall(WaitForSingleObject, 2, l->event, -1);
 }
 
 static void
 eventunlock(Lock *l)
 {
-	if(xadd(&l->key, -1) > 0)	// someone else is waiting
-		stdcall(SetEvent, 1, l->event);
+	if(runtime·xadd(&l->key, -1) > 0)	// someone else is waiting
+		runtime·stdcall(runtime·SetEvent, 1, l->event);
 }
 
 void
-lock(Lock *l)
+runtime·lock(Lock *l)
 {
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	m->locks++;
 	eventlock(l);
 }
 
 void
-unlock(Lock *l)
+runtime·unlock(Lock *l)
 {
 	m->locks--;
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	eventunlock(l);
 }
 
 void
-destroylock(Lock *l)
+runtime·destroylock(Lock *l)
 {
 	if(l->event != 0)
-		stdcall(CloseHandle, 1, l->event);
+		runtime·stdcall(runtime·CloseHandle, 1, l->event);
 }
 
 void
-noteclear(Note *n)
+runtime·noteclear(Note *n)
 {
 	eventlock(&n->lock);
 }
 
 void
-notewakeup(Note *n)
+runtime·notewakeup(Note *n)
 {
 	eventunlock(&n->lock);
 }
 
 void
-notesleep(Note *n)
+runtime·notesleep(Note *n)
 {
 	eventlock(&n->lock);
 	eventunlock(&n->lock);	// Let other sleepers find out too.
 }
 
 void
-newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	USED(stk);
 	USED(g);	// assuming g = m->g0
 	USED(fn);	// assuming fn = mstart
 
-	stdcall(CreateThread, 6, 0, 0, tstart_stdcall, m, 0, 0);
+	runtime·stdcall(CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
 }
 
 // Called to initialize a new m (including the bootstrap m).
 void
-minit(void)
+runtime·minit(void)
 {
 }
 
 // Calling stdcall on os stack.
 #pragma textflag 7
 void *
-stdcall(void *fn, int32 count, ...)
+runtime·stdcall(void *fn, int32 count, ...)
 {
-	return stdcall_raw(fn, count, (uintptr*)(&count + 1));
+	return runtime·stdcall_raw(fn, count, (uintptr*)(&count + 1));
 }
 
 void
-syscall(StdcallParams *p)
+runtime·syscall(StdcallParams *p)
 {
 	uintptr a;
 
-	·entersyscall();
+	runtime·entersyscall();
 	// TODO(brainman): Move calls to SetLastError and GetLastError
 	// to stdcall_raw to speed up syscall.
 	a = 0;
-	stdcall_raw(SetLastError, 1, &a);
-	p->r = (uintptr)stdcall_raw((void*)p->fn, p->n, p->args);
-	p->err = (uintptr)stdcall_raw(GetLastError, 0, &a);
-	·exitsyscall();
+	runtime·stdcall_raw(runtime·SetLastError, 1, &a);
+	p->r = (uintptr)runtime·stdcall_raw((void*)p->fn, p->n, p->args);
+	p->err = (uintptr)runtime·stdcall_raw(runtime·GetLastError, 0, &a);
+	runtime·exitsyscall();
 }

@@ -9,23 +9,23 @@
 //	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
 //	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
 void
-·closure(int32 siz, byte *fn, byte *arg0)
+runtime·closure(int32 siz, byte *fn, byte *arg0)
 {
 	byte *p, *q, **ret;
 	int32 i, n;
 	int32 pcrel;
 
-	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
-		throw("no closures in native client yet");
+	if(runtime·goos != nil && runtime·strcmp((uint8*)runtime·goos, (uint8*)"nacl") == 0)
+		runtime·throw("no closures in native client yet");
 
 	if(siz < 0 || siz%4 != 0)
-		throw("bad closure size");
+		runtime·throw("bad closure size");
 
 	ret = (byte**)((byte*)&arg0 + siz);
 
 	if(siz > 100) {
 		// TODO(rsc): implement stack growth preamble?
-		throw("closure too big");
+		runtime·throw("closure too big");
 	}
 
 	// compute size of new fn.
@@ -43,12 +43,12 @@ void
 	if(n%4)
 		n += 4 - n%4;
 
-	p = mal(n);
+	p = runtime·mal(n);
 	*ret = p;
 	q = p + n - siz;
 
 	if(siz > 0) {
-		mcpy(q, (byte*)&arg0, siz);
+		runtime·mcpy(q, (byte*)&arg0, siz);
 
 		// SUBL $siz, SP
 		*p++ = 0x81;
@@ -104,7 +104,5 @@ void
 	*p++ = 0xc3;
 
 	if(p > q)
-		throw("bad math in sys.closure");
+		runtime·throw("bad math in sys.closure");
 }
-
-
