@@ -379,9 +379,10 @@ enum
 	DW_LANG_D = 0x0013,
 	// Dwarf4
 	DW_LANG_Python = 0x0014,
+	// Dwarf5
+	DW_LANG_Go = 0x0016,
 
 	DW_LANG_lo_user = 0x8000,
-	DW_LANG_Go = 0x8015,	// TODO(lvd) Temporary
 	DW_LANG_hi_user = 0xffff,
 };
 
