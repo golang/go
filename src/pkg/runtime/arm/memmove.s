@@ -31,7 +31,7 @@ TMP = 3					/* N and TMP don't overlap */
 TMP1 = 4
 
 // TODO(kaib): This can be done with the existing registers of LR is re-used. Same for memset.
-TEXT memmove(SB), 7, $8
+TEXT runtime·memmove(SB), 7, $8
 	// save g and m
 	MOVW	R9, 4(R13)
 	MOVW	R10, 8(R13)

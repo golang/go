@@ -5,6 +5,6 @@
 #include "runtime.h"
 
 void
-gettime(int64*, int32*) 
+runtime·gettime(int64*, int32*) 
 {
 }

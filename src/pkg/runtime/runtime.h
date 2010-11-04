@@ -351,112 +351,108 @@ struct Panic
 /*
  * external data
  */
-extern	Alg	algarray[Amax];
-extern	String	emptystring;
-G*	allg;
-M*	allm;
-int32	goidgen;
-extern	int32	gomaxprocs;
-extern	int32	panicking;
-extern	int32	maxround;
-extern	int32	fd;	// usually 1; set to 2 when panicking
-extern	int32	gcwaiting;		// gc is waiting to run
-int8*	goos;
+extern	Alg	runtime·algarray[Amax];
+extern	String	runtime·emptystring;
+G*	runtime·allg;
+M*	runtime·allm;
+int32	runtime·goidgen;
+extern	int32	runtime·gomaxprocs;
+extern	int32	runtime·panicking;
+extern	int32	runtime·fd;	// usually 1; set to 2 when panicking
+extern	int32	runtime·gcwaiting;		// gc is waiting to run
+int8*	runtime·goos;
 
 /*
  * common functions and data
  */
-int32	strcmp(byte*, byte*);
-int32	findnull(byte*);
-int32	findnullw(uint16*);
-void	dump(byte*, int32);
-int32	runetochar(byte*, int32);
-int32	charntorune(int32*, uint8*, int32);
+int32	runtime·strcmp(byte*, byte*);
+int32	runtime·findnull(byte*);
+int32	runtime·findnullw(uint16*);
+void	runtime·dump(byte*, int32);
+int32	runtime·runetochar(byte*, int32);
+int32	runtime·charntorune(int32*, uint8*, int32);
 
 /*
  * very low level c-called
  */
-void	gogo(Gobuf*, uintptr);
-void	gogocall(Gobuf*, void(*)(void));
-uintptr	gosave(Gobuf*);
-void	·lessstack(void);
-void	goargs(void);
-void	FLUSH(void*);
-void*	getu(void);
-void	throw(int8*);
-void	panicstring(int8*);
-uint32	rnd(uint32, uint32);
-void	prints(int8*);
-void	printf(int8*, ...);
-byte*	mchr(byte*, byte, byte*);
-void	mcpy(byte*, byte*, uint32);
-int32	mcmp(byte*, byte*, uint32);
-void	memmove(void*, void*, uint32);
-void*	mal(uintptr);
-uint32	cmpstring(String, String);
-String	catstring(String, String);
-String	concatstring(int32, String*);
-String	gostring(byte*);
-String  gostringn(byte*, int32);
-String	gostringnocopy(byte*);
-String	gostringw(uint16*);
-void	initsig(int32);
-int32	gotraceback(void);
-void	traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
-void	tracebackothers(G*);
-int32	open(byte*, int32, ...);
-int32	write(int32, void*, int32);
-bool	cas(uint32*, uint32, uint32);
-bool	casp(void**, void*, void*);
-uint32	xadd(uint32 volatile*, int32);
-void	jmpdefer(byte*, void*);
-void	exit1(int32);
-void	ready(G*);
-byte*	getenv(int8*);
-int32	atoi(byte*);
-void	newosproc(M *m, G *g, void *stk, void (*fn)(void));
-void	signalstack(byte*, int32);
-G*	malg(int32);
-void	minit(void);
-Func*	findfunc(uintptr);
-int32	funcline(Func*, uint64);
-void*	stackalloc(uint32);
-void	stackfree(void*);
-MCache*	allocmcache(void);
-void	mallocinit(void);
-bool	ifaceeq(Iface, Iface);
-bool	efaceeq(Eface, Eface);
-uintptr	ifacehash(Iface);
-uintptr	efacehash(Eface);
-uintptr	nohash(uint32, void*);
-uint32	noequal(uint32, void*, void*);
-void*	malloc(uintptr size);
-void	free(void *v);
-void	addfinalizer(void*, void(*fn)(void*), int32);
-void	walkfintab(void (*fn)(void*));
-void	runpanic(Panic*);
-void*	getcallersp(void*);
+#define FLUSH(x)	USED(x)
 
-void	exit(int32);
-void	breakpoint(void);
-void	gosched(void);
-void	goexit(void);
-void	runcgo(void (*fn)(void*), void*);
-void	runcgocallback(G*, void*, void (*fn)());
-void	·entersyscall(void);
-void	·exitsyscall(void);
-void	startcgocallback(G*);
-void	endcgocallback(G*);
-G*	newproc1(byte*, byte*, int32, int32);
-void	siginit(void);
-bool	sigsend(int32 sig);
-void	gettime(int64*, int32*);
-int32	callers(int32, uintptr*, int32);
-int64	nanotime(void);
-void	panic(int32);
+void	runtime·gogo(Gobuf*, uintptr);
+void	runtime·gogocall(Gobuf*, void(*)(void));
+uintptr	runtime·gosave(Gobuf*);
+void	runtime·lessstack(void);
+void	runtime·goargs(void);
+void*	runtime·getu(void);
+void	runtime·throw(int8*);
+void	runtime·panicstring(int8*);
+uint32	runtime·rnd(uint32, uint32);
+void	runtime·prints(int8*);
+void	runtime·printf(int8*, ...);
+byte*	runtime·mchr(byte*, byte, byte*);
+void	runtime·mcpy(byte*, byte*, uint32);
+int32	runtime·mcmp(byte*, byte*, uint32);
+void	runtime·memmove(void*, void*, uint32);
+void*	runtime·mal(uintptr);
+String	runtime·catstring(String, String);
+String	runtime·gostring(byte*);
+String  runtime·gostringn(byte*, int32);
+String	runtime·gostringnocopy(byte*);
+String	runtime·gostringw(uint16*);
+void	runtime·initsig(int32);
+int32	runtime·gotraceback(void);
+void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+void	runtime·tracebackothers(G*);
+int32	runtime·write(int32, void*, int32);
+bool	runtime·cas(uint32*, uint32, uint32);
+bool	runtime·casp(void**, void*, void*);
+uint32	runtime·xadd(uint32 volatile*, int32);
+void	runtime·jmpdefer(byte*, void*);
+void	runtime·exit1(int32);
+void	runtime·ready(G*);
+byte*	runtime·getenv(int8*);
+int32	runtime·atoi(byte*);
+void	runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void));
+void	runtime·signalstack(byte*, int32);
+G*	runtime·malg(int32);
+void	runtime·minit(void);
+Func*	runtime·findfunc(uintptr);
+int32	runtime·funcline(Func*, uint64);
+void*	runtime·stackalloc(uint32);
+void	runtime·stackfree(void*);
+MCache*	runtime·allocmcache(void);
+void	runtime·mallocinit(void);
+bool	runtime·ifaceeq_c(Iface, Iface);
+bool	runtime·efaceeq_c(Eface, Eface);
+uintptr	runtime·ifacehash(Iface);
+uintptr	runtime·efacehash(Eface);
+uintptr	runtime·nohash(uint32, void*);
+uint32	runtime·noequal(uint32, void*, void*);
+void*	runtime·malloc(uintptr size);
+void	runtime·free(void *v);
+void	runtime·addfinalizer(void*, void(*fn)(void*), int32);
+void	runtime·walkfintab(void (*fn)(void*));
+void	runtime·runpanic(Panic*);
+void*	runtime·getcallersp(void*);
 
-#pragma	varargck	argpos	printf	1
+void	runtime·exit(int32);
+void	runtime·breakpoint(void);
+void	runtime·gosched(void);
+void	runtime·goexit(void);
+void	runtime·runcgo(void (*fn)(void*), void*);
+void	runtime·runcgocallback(G*, void*, void (*fn)());
+void	runtime·entersyscall(void);
+void	runtime·exitsyscall(void);
+void	runtime·startcgocallback(G*);
+void	runtime·endcgocallback(G*);
+G*	runtime·newproc1(byte*, byte*, int32, int32);
+void	runtime·siginit(void);
+bool	runtime·sigsend(int32 sig);
+void	runtime·gettime(int64*, int32*);
+int32	runtime·callers(int32, uintptr*, int32);
+int64	runtime·nanotime(void);
+void	runtime·dopanic(int32);
 
+#pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32
 #pragma	varargck	type	"d"	uint32
 #pragma	varargck	type	"D"	int64
@@ -473,8 +469,8 @@ void	panic(int32);
 
 // TODO(rsc): Remove. These are only temporary,
 // for the mark and sweep collector.
-void	stoptheworld(void);
-void	starttheworld(void);
+void	runtime·stoptheworld(void);
+void	runtime·starttheworld(void);
 
 /*
  * mutual exclusion locks.  in the uncontended case,
@@ -482,9 +478,9 @@ void	starttheworld(void);
  * but on the contention path they sleep in the kernel.
  * a zeroed Lock is unlocked (no need to initialize each lock).
  */
-void	lock(Lock*);
-void	unlock(Lock*);
-void	destroylock(Lock*);
+void	runtime·lock(Lock*);
+void	runtime·unlock(Lock*);
+void	runtime·destroylock(Lock*);
 
 /*
  * sleep and wakeup on one-time events.
@@ -495,33 +491,9 @@ void	destroylock(Lock*);
  * once notewakeup has been called, all the notesleeps
  * will return.  future notesleeps will return immediately.
  */
-void	noteclear(Note*);
-void	notesleep(Note*);
-void	notewakeup(Note*);
-
-/*
- * Redefine methods for the benefit of gcc, which does not support
- * UTF-8 characters in identifiers.
- */
-#ifndef __GNUC__
-#define runtime_memclr ·memclr
-#define runtime_getcallerpc ·getcallerpc
-#define runtime_mmap ·mmap
-#define runtime_munmap ·munmap
-#define runtime_printslice ·printslice
-#define runtime_printbool ·printbool
-#define runtime_printfloat ·printfloat
-#define runtime_printhex ·printhex
-#define runtime_printint ·printint
-#define runtime_printiface ·printiface
-#define runtime_printeface ·printeface
-#define runtime_printpc ·printpc
-#define runtime_printpointer ·printpointer
-#define runtime_printstring ·printstring
-#define runtime_printuint ·printuint
-#define runtime_printcomplex ·printcomplex
-#define runtime_setcallerpc ·setcallerpc
-#endif
+void	runtime·noteclear(Note*);
+void	runtime·notesleep(Note*);
+void	runtime·notewakeup(Note*);
 
 /*
  * This is consistent across Linux and BSD.
@@ -533,84 +505,83 @@ void	notewakeup(Note*);
 /*
  * low level go-called
  */
-uint8*	runtime_mmap(byte*, uintptr, int32, int32, int32, uint32);
-void	runtime_munmap(uint8*, uintptr);
-void	runtime_memclr(byte*, uint32);
-void	runtime_setcallerpc(void*, void*);
-void*	runtime_getcallerpc(void*);
+uint8*	runtime·mmap(byte*, uintptr, int32, int32, int32, uint32);
+void	runtime·munmap(uint8*, uintptr);
+void	runtime·memclr(byte*, uint32);
+void	runtime·setcallerpc(void*, void*);
+void*	runtime·getcallerpc(void*);
 
 /*
  * runtime go-called
  */
-void	runtime_printbool(bool);
-void	runtime_printfloat(float64);
-void	runtime_printint(int64);
-void	runtime_printiface(Iface);
-void	runtime_printeface(Eface);
-void	runtime_printstring(String);
-void	runtime_printpc(void*);
-void	runtime_printpointer(void*);
-void	runtime_printuint(uint64);
-void	runtime_printhex(uint64);
-void	runtime_printslice(Slice);
-void	runtime_printcomplex(Complex128);
+void	runtime·printbool(bool);
+void	runtime·printfloat(float64);
+void	runtime·printint(int64);
+void	runtime·printiface(Iface);
+void	runtime·printeface(Eface);
+void	runtime·printstring(String);
+void	runtime·printpc(void*);
+void	runtime·printpointer(void*);
+void	runtime·printuint(uint64);
+void	runtime·printhex(uint64);
+void	runtime·printslice(Slice);
+void	runtime·printcomplex(Complex128);
 void	reflect·call(byte*, byte*, uint32);
-void	·panic(Eface);
-void	·panicindex(void);
-void	·panicslice(void);
+void	runtime·panic(Eface);
+void	runtime·panicindex(void);
+void	runtime·panicslice(void);
 
 /*
  * runtime c-called (but written in Go)
  */
-void ·newError(String, Eface*);
-void	·printany(Eface);
-void	·newTypeAssertionError(Type*, Type*, Type*, String*, String*, String*, String*, Eface*);
-void	·newErrorString(String, Eface*);
-void	·fadd64c(uint64, uint64, uint64*);
-void	·fsub64c(uint64, uint64, uint64*);
-void	·fmul64c(uint64, uint64, uint64*);
-void	·fdiv64c(uint64, uint64, uint64*);
-void	·fneg64c(uint64, uint64*);
-void	·f32to64c(uint32, uint64*);
-void	·f64to32c(uint64, uint32*);
-void	·fcmp64c(uint64, uint64, int32*, bool*);
-void	·fintto64c(int64, uint64*);
-void	·f64tointc(uint64, int64*, bool*);
+void	runtime·newError(String, Eface*);
+void	runtime·printany(Eface);
+void	runtime·newTypeAssertionError(Type*, Type*, Type*, String*, String*, String*, String*, Eface*);
+void	runtime·newErrorString(String, Eface*);
+void	runtime·fadd64c(uint64, uint64, uint64*);
+void	runtime·fsub64c(uint64, uint64, uint64*);
+void	runtime·fmul64c(uint64, uint64, uint64*);
+void	runtime·fdiv64c(uint64, uint64, uint64*);
+void	runtime·fneg64c(uint64, uint64*);
+void	runtime·f32to64c(uint32, uint64*);
+void	runtime·f64to32c(uint64, uint32*);
+void	runtime·fcmp64c(uint64, uint64, int32*, bool*);
+void	runtime·fintto64c(int64, uint64*);
+void	runtime·f64tointc(uint64, int64*, bool*);
 
 /*
  * wrapped for go users
  */
-float64	Inf(int32 sign);
-float64	NaN(void);
-float32	float32frombits(uint32 i);
-uint32	float32tobits(float32 f);
-float64	float64frombits(uint64 i);
-uint64	float64tobits(float64 f);
-float64	frexp(float64 d, int32 *ep);
-bool	isInf(float64 f, int32 sign);
-bool	isNaN(float64 f);
-float64	ldexp(float64 d, int32 e);
-float64	modf(float64 d, float64 *ip);
-void	semacquire(uint32*);
-void	semrelease(uint32*);
-String	signame(int32 sig);
-int32	gomaxprocsfunc(int32 n);
+float64	runtime·Inf(int32 sign);
+float64	runtime·NaN(void);
+float32	runtime·float32frombits(uint32 i);
+uint32	runtime·float32tobits(float32 f);
+float64	runtime·float64frombits(uint64 i);
+uint64	runtime·float64tobits(float64 f);
+float64	runtime·frexp(float64 d, int32 *ep);
+bool	runtime·isInf(float64 f, int32 sign);
+bool	runtime·isNaN(float64 f);
+float64	runtime·ldexp(float64 d, int32 e);
+float64	runtime·modf(float64 d, float64 *ip);
+void	runtime·semacquire(uint32*);
+void	runtime·semrelease(uint32*);
+String	runtime·signame(int32 sig);
+int32	runtime·gomaxprocsfunc(int32 n);
 
+void	runtime·mapassign(Hmap*, byte*, byte*);
+void	runtime·mapaccess(Hmap*, byte*, byte*, bool*);
+struct hash_iter*	runtime·newmapiterinit(Hmap*);
+void	runtime·mapiternext(struct hash_iter*);
+bool	runtime·mapiterkey(struct hash_iter*, void*);
+void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
+Hmap*	runtime·makemap_c(Type*, Type*, int64);
 
-void	mapassign(Hmap*, byte*, byte*);
-void	mapaccess(Hmap*, byte*, byte*, bool*);
-struct hash_iter*	mapiterinit(Hmap*);
-void	mapiternext(struct hash_iter*);
-bool	mapiterkey(struct hash_iter*, void*);
-void	mapiterkeyvalue(struct hash_iter*, void*, void*);
-Hmap*	makemap(Type*, Type*, int64);
+Hchan*	runtime·makechan_c(Type*, int64);
+void	runtime·chansend(Hchan*, void*, bool*);
+void	runtime·chanrecv(Hchan*, void*, bool*);
+void	runtime·chanclose(Hchan*);
+bool	runtime·chanclosed(Hchan*);
+int32	runtime·chanlen(Hchan*);
+int32	runtime·chancap(Hchan*);
 
-Hchan*	makechan(Type*, int64);
-void	chansend(Hchan*, void*, bool*);
-void	chanrecv(Hchan*, void*, bool*);
-void	chanclose(Hchan*);
-bool	chanclosed(Hchan*);
-int32	chanlen(Hchan*);
-int32	chancap(Hchan*);
-
-void	ifaceE2I(struct InterfaceType*, Eface, Iface*);
+void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);

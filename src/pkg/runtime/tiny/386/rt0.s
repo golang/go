@@ -11,18 +11,18 @@ TEXT _rt0_386_tiny(SB), 7, $0
 	MOVL	AX, SP
 	
 	// Set up memory hardware.
-	CALL	msetup(SB)
+	CALL	runtime·msetup(SB)
 
 	// _rt0_386 expects to find argc, argv, envv on stack.
 	// Set up argv=["kernel"] and envv=[].
 	SUBL	$64, SP
 	MOVL	$1, 0(SP)
-	MOVL	$kernel(SB), 4(SP)
+	MOVL	$runtime·kernel(SB), 4(SP)
 	MOVL	$0, 8(SP)
 	MOVL	$0, 12(SP)
 	JMP	_rt0_386(SB)
 
-DATA kernel+0(SB)/7, $"kernel\z"
-GLOBL kernel(SB), $7
+DATA runtime·kernel(SB)/7, $"kernel\z"
+GLOBL runtime·kernel(SB), $7
 	
 

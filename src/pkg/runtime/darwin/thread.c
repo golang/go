@@ -6,13 +6,13 @@
 #include "defs.h"
 #include "os.h"
 
-extern SigTab sigtab[];
+extern SigTab runtime·sigtab[];
 
 static void
 unimplemented(int8 *name)
 {
-	prints(name);
-	prints(" not implemented\n");
+	runtime·prints(name);
+	runtime·prints(" not implemented\n");
 	*(int32*)1231 = 1231;
 }
 
@@ -29,10 +29,10 @@ initsema(uint32 *psema)
 	if(*psema != 0)	// already have one
 		return;
 
-	sema = mach_semcreate();
-	if(!cas(psema, 0, sema)){
+	sema = runtime·mach_semcreate();
+	if(!runtime·cas(psema, 0, sema)){
 		// Someone else filled it in.  Use theirs.
-		mach_semdestroy(sema);
+		runtime·mach_semdestroy(sema);
 		return;
 	}
 }
@@ -52,40 +52,40 @@ initsema(uint32 *psema)
 // in Plan 9's user-level locks.
 
 void
-lock(Lock *l)
+runtime·lock(Lock *l)
 {
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 	m->locks++;
 
-	if(xadd(&l->key, 1) > 1) {	// someone else has it; wait
+	if(runtime·xadd(&l->key, 1) > 1) {	// someone else has it; wait
 		// Allocate semaphore if needed.
 		if(l->sema == 0)
 			initsema(&l->sema);
-		mach_semacquire(l->sema);
+		runtime·mach_semacquire(l->sema);
 	}
 }
 
 void
-unlock(Lock *l)
+runtime·unlock(Lock *l)
 {
 	m->locks--;
 	if(m->locks < 0)
-		throw("lock count");
+		runtime·throw("lock count");
 
-	if(xadd(&l->key, -1) > 0) {	// someone else is waiting
+	if(runtime·xadd(&l->key, -1) > 0) {	// someone else is waiting
 		// Allocate semaphore if needed.
 		if(l->sema == 0)
 			initsema(&l->sema);
-		mach_semrelease(l->sema);
+		runtime·mach_semrelease(l->sema);
 	}
 }
 
 void
-destroylock(Lock *l)
+runtime·destroylock(Lock *l)
 {
 	if(l->sema != 0) {
-		mach_semdestroy(l->sema);
+		runtime·mach_semdestroy(l->sema);
 		l->sema = 0;
 	}
 }
@@ -95,79 +95,79 @@ destroylock(Lock *l)
 // but when it's time to block, fall back on the kernel semaphore k.
 // This is the same algorithm used in Plan 9.
 void
-usemacquire(Usema *s)
+runtime·usemacquire(Usema *s)
 {
-	if((int32)xadd(&s->u, -1) < 0) {
+	if((int32)runtime·xadd(&s->u, -1) < 0) {
 		if(s->k == 0)
 			initsema(&s->k);
-		mach_semacquire(s->k);
+		runtime·mach_semacquire(s->k);
 	}
 }
 
 void
-usemrelease(Usema *s)
+runtime·usemrelease(Usema *s)
 {
-	if((int32)xadd(&s->u, 1) <= 0) {
+	if((int32)runtime·xadd(&s->u, 1) <= 0) {
 		if(s->k == 0)
 			initsema(&s->k);
-		mach_semrelease(s->k);
+		runtime·mach_semrelease(s->k);
 	}
 }
 
 
 // Event notifications.
 void
-noteclear(Note *n)
+runtime·noteclear(Note *n)
 {
 	n->wakeup = 0;
 }
 
 void
-notesleep(Note *n)
+runtime·notesleep(Note *n)
 {
 	while(!n->wakeup)
-		usemacquire(&n->sema);
+		runtime·usemacquire(&n->sema);
 }
 
 void
-notewakeup(Note *n)
+runtime·notewakeup(Note *n)
 {
 	n->wakeup = 1;
-	usemrelease(&n->sema);
+	runtime·usemrelease(&n->sema);
 }
 
 
 // BSD interface for threading.
 void
-osinit(void)
+runtime·osinit(void)
 {
 	// Register our thread-creation callback (see {amd64,386}/sys.s)
 	// but only if we're not using cgo.  If we are using cgo we need
 	// to let the C pthread libary install its own thread-creation callback.
 	extern void (*libcgo_thread_start)(void*);
 	if(libcgo_thread_start == nil)
-		bsdthread_register();
+		runtime·bsdthread_register();
 }
 
 void
-newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	m->tls[0] = m->id;	// so 386 asm can find it
 	if(0){
-		printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, m->id, m->tls[0], &m);
 	}
-	if(bsdthread_create(stk, m, g, fn) < 0)
-		throw("cannot create new OS thread");
+	if(runtime·bsdthread_create(stk, m, g, fn) < 0)
+		runtime·throw("cannot create new OS thread");
 }
 
 // Called to initialize a new m (including the bootstrap m).
 void
-minit(void)
+runtime·minit(void)
 {
 	// Initialize signal handling.
-	m->gsignal = malg(32*1024);	// OS X wants >=8K, Linux >=2K
-	signalstack(m->gsignal->stackguard, 32*1024);
+	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+	runtime·signalstack(m->gsignal->stackguard, 32*1024);
 }
 
 // Mach IPC, to get at semaphores
@@ -176,8 +176,8 @@ minit(void)
 static void
 macherror(int32 r, int8 *fn)
 {
-	printf("mach error %s: %d\n", fn, r);
-	throw("mach error");
+	runtime·printf("mach error %s: %d\n", fn, r);
+	runtime·throw("mach error");
 }
 
 enum
@@ -199,7 +199,7 @@ mach_msg(MachHeader *h,
 	uint32 notify)
 {
 	// TODO: Loop on interrupt.
-	return mach_msg_trap(h, op, send_size, rcv_size, rcv_name, timeout, notify);
+	return runtime·mach_msg_trap(h, op, send_size, rcv_size, rcv_name, timeout, notify);
 }
 
 // Mach RPC (MIG)
@@ -229,7 +229,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	CodeMsg *c;
 
 	if((port = m->machport) == 0){
-		port = mach_reply_port();
+		port = runtime·mach_reply_port();
 		m->machport = port;
 	}
 
@@ -240,48 +240,48 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 
 	if(DebugMach){
 		p = (uint32*)h;
-		prints("send:\t");
+		runtime·prints("send:\t");
 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
-			prints(" ");
-			·printpointer((void*)p[i]);
+			runtime·prints(" ");
+			runtime·printpointer((void*)p[i]);
 			if(i%8 == 7)
-				prints("\n\t");
+				runtime·prints("\n\t");
 		}
 		if(i%8)
-			prints("\n");
+			runtime·prints("\n");
 	}
 
 	ret = mach_msg(h, MACH_SEND_MSG|MACH_RCV_MSG,
 		h->msgh_size, maxsize, port, 0, 0);
 	if(ret != 0){
 		if(DebugMach){
-			prints("mach_msg error ");
-			·printint(ret);
-			prints("\n");
+			runtime·prints("mach_msg error ");
+			runtime·printint(ret);
+			runtime·prints("\n");
 		}
 		return ret;
 	}
 
 	if(DebugMach){
 		p = (uint32*)h;
-		prints("recv:\t");
+		runtime·prints("recv:\t");
 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
-			prints(" ");
-			·printpointer((void*)p[i]);
+			runtime·prints(" ");
+			runtime·printpointer((void*)p[i]);
 			if(i%8 == 7)
-				prints("\n\t");
+				runtime·prints("\n\t");
 		}
 		if(i%8)
-			prints("\n");
+			runtime·prints("\n");
 	}
 
 	if(h->msgh_id != id+Reply){
 		if(DebugMach){
-			prints("mach_msg reply id mismatch ");
-			·printint(h->msgh_id);
-			prints(" != ");
-			·printint(id+Reply);
-			prints("\n");
+			runtime·prints("mach_msg reply id mismatch ");
+			runtime·printint(h->msgh_id);
+			runtime·prints(" != ");
+			runtime·printint(id+Reply);
+			runtime·prints("\n");
 		}
 		return -303;	// MIG_REPLY_MISMATCH
 	}
@@ -296,20 +296,20 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	if(h->msgh_size == sizeof(CodeMsg)
 	&& !(h->msgh_bits & MACH_MSGH_BITS_COMPLEX)){
 		if(DebugMach){
-			prints("mig result ");
-			·printint(c->code);
-			prints("\n");
+			runtime·prints("mig result ");
+			runtime·printint(c->code);
+			runtime·prints("\n");
 		}
 		return c->code;
 	}
 
 	if(h->msgh_size != rxsize){
 		if(DebugMach){
-			prints("mach_msg reply size mismatch ");
-			·printint(h->msgh_size);
-			prints(" != ");
-			·printint(rxsize);
-			prints("\n");
+			runtime·prints("mach_msg reply size mismatch ");
+			runtime·printint(h->msgh_size);
+			runtime·prints(" != ");
+			runtime·printint(rxsize);
+			runtime·prints("\n");
 		}
 		return -307;	// MIG_ARRAY_TOO_LARGE
 	}
@@ -363,7 +363,7 @@ struct Tmach_semdestroyMsg
 #pragma pack off
 
 uint32
-mach_semcreate(void)
+runtime·mach_semcreate(void)
 {
 	union {
 		Tmach_semcreateMsg tx;
@@ -374,7 +374,7 @@ mach_semcreate(void)
 
 	m.tx.h.msgh_bits = 0;
 	m.tx.h.msgh_size = sizeof(m.tx);
-	m.tx.h.msgh_remote_port = mach_task_self();
+	m.tx.h.msgh_remote_port = runtime·mach_task_self();
 	m.tx.h.msgh_id = Tmach_semcreate;
 	m.tx.ndr = zerondr;
 
@@ -392,7 +392,7 @@ mach_semcreate(void)
 }
 
 void
-mach_semdestroy(uint32 sem)
+runtime·mach_semdestroy(uint32 sem)
 {
 	union {
 		Tmach_semdestroyMsg tx;
@@ -402,7 +402,7 @@ mach_semdestroy(uint32 sem)
 
 	m.tx.h.msgh_bits = MACH_MSGH_BITS_COMPLEX;
 	m.tx.h.msgh_size = sizeof(m.tx);
-	m.tx.h.msgh_remote_port = mach_task_self();
+	m.tx.h.msgh_remote_port = runtime·mach_task_self();
 	m.tx.h.msgh_id = Tmach_semdestroy;
 	m.tx.body.msgh_descriptor_count = 1;
 	m.tx.semaphore.name = sem;
@@ -417,17 +417,17 @@ mach_semdestroy(uint32 sem)
 }
 
 // The other calls have simple system call traps in sys.s
-int32 mach_semaphore_wait(uint32 sema);
-int32 mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
-int32 mach_semaphore_signal(uint32 sema);
-int32 mach_semaphore_signal_all(uint32 sema);
+int32 runtime·mach_semaphore_wait(uint32 sema);
+int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
+int32 runtime·mach_semaphore_signal(uint32 sema);
+int32 runtime·mach_semaphore_signal_all(uint32 sema);
 
 void
-mach_semacquire(uint32 sem)
+runtime·mach_semacquire(uint32 sem)
 {
 	int32 r;
 
-	while((r = mach_semaphore_wait(sem)) != 0) {
+	while((r = runtime·mach_semaphore_wait(sem)) != 0) {
 		if(r == KERN_ABORTED)	// interrupted
 			continue;
 		macherror(r, "semaphore_wait");
@@ -435,11 +435,11 @@ mach_semacquire(uint32 sem)
 }
 
 void
-mach_semrelease(uint32 sem)
+runtime·mach_semrelease(uint32 sem)
 {
 	int32 r;
 
-	while((r = mach_semaphore_signal(sem)) != 0) {
+	while((r = runtime·mach_semaphore_signal(sem)) != 0) {
 		if(r == KERN_ABORTED)	// interrupted
 			continue;
 		macherror(r, "semaphore_signal");
@@ -447,27 +447,27 @@ mach_semrelease(uint32 sem)
 }
 
 void
-sigpanic(void)
+runtime·sigpanic(void)
 {
 	switch(g->sig) {
 	case SIGBUS:
 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
-			panicstring("invalid memory address or nil pointer dereference");
-		printf("unexpected fault address %p\n", g->sigcode1);
-		throw("fault");
+			runtime·panicstring("invalid memory address or nil pointer dereference");
+		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+		runtime·throw("fault");
 	case SIGSEGV:
 		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
-			panicstring("invalid memory address or nil pointer dereference");
-		printf("unexpected fault address %p\n", g->sigcode1);
-		throw("fault");
+			runtime·panicstring("invalid memory address or nil pointer dereference");
+		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+		runtime·throw("fault");
 	case SIGFPE:
 		switch(g->sigcode0) {
 		case FPE_INTDIV:
-			panicstring("integer divide by zero");
+			runtime·panicstring("integer divide by zero");
 		case FPE_INTOVF:
-			panicstring("integer overflow");
+			runtime·panicstring("integer overflow");
 		}
-		panicstring("floating point error");
+		runtime·panicstring("floating point error");
 	}
-	panicstring(sigtab[g->sig].name);
+	runtime·panicstring(runtime·sigtab[g->sig].name);
 }

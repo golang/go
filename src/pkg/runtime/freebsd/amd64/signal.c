@@ -7,7 +7,7 @@
 #include "signals.h"
 #include "os.h"
 
-extern void sigtramp(void);
+extern void runtime·sigtramp(void);
 
 typedef struct sigaction {
 	union {
@@ -19,41 +19,41 @@ typedef struct sigaction {
 } Sigaction;
 
 void
-dumpregs(Mcontext *r)
+runtime·dumpregs(Mcontext *r)
 {
-	printf("rax     %X\n", r->mc_rax);
-	printf("rbx     %X\n", r->mc_rbx);
-	printf("rcx     %X\n", r->mc_rcx);
-	printf("rdx     %X\n", r->mc_rdx);
-	printf("rdi     %X\n", r->mc_rdi);
-	printf("rsi     %X\n", r->mc_rsi);
-	printf("rbp     %X\n", r->mc_rbp);
-	printf("rsp     %X\n", r->mc_rsp);
-	printf("r8      %X\n", r->mc_r8 );
-	printf("r9      %X\n", r->mc_r9 );
-	printf("r10     %X\n", r->mc_r10);
-	printf("r11     %X\n", r->mc_r11);
-	printf("r12     %X\n", r->mc_r12);
-	printf("r13     %X\n", r->mc_r13);
-	printf("r14     %X\n", r->mc_r14);
-	printf("r15     %X\n", r->mc_r15);
-	printf("rip     %X\n", r->mc_rip);
-	printf("rflags  %X\n", r->mc_flags);
-	printf("cs      %X\n", r->mc_cs);
-	printf("fs      %X\n", r->mc_fs);
-	printf("gs      %X\n", r->mc_gs);
+	runtime·printf("rax     %X\n", r->mc_rax);
+	runtime·printf("rbx     %X\n", r->mc_rbx);
+	runtime·printf("rcx     %X\n", r->mc_rcx);
+	runtime·printf("rdx     %X\n", r->mc_rdx);
+	runtime·printf("rdi     %X\n", r->mc_rdi);
+	runtime·printf("rsi     %X\n", r->mc_rsi);
+	runtime·printf("rbp     %X\n", r->mc_rbp);
+	runtime·printf("rsp     %X\n", r->mc_rsp);
+	runtime·printf("r8      %X\n", r->mc_r8 );
+	runtime·printf("r9      %X\n", r->mc_r9 );
+	runtime·printf("r10     %X\n", r->mc_r10);
+	runtime·printf("r11     %X\n", r->mc_r11);
+	runtime·printf("r12     %X\n", r->mc_r12);
+	runtime·printf("r13     %X\n", r->mc_r13);
+	runtime·printf("r14     %X\n", r->mc_r14);
+	runtime·printf("r15     %X\n", r->mc_r15);
+	runtime·printf("rip     %X\n", r->mc_rip);
+	runtime·printf("rflags  %X\n", r->mc_flags);
+	runtime·printf("cs      %X\n", r->mc_cs);
+	runtime·printf("fs      %X\n", r->mc_fs);
+	runtime·printf("gs      %X\n", r->mc_gs);
 }
 
 String
-signame(int32 sig)
+runtime·signame(int32 sig)
 {
 	if(sig < 0 || sig >= NSIG)
-		return emptystring;
-	return gostringnocopy((byte*)sigtab[sig].name);
+		return runtime·emptystring;
+	return runtime·gostringnocopy((byte*)runtime·sigtab[sig].name);
 }
 
 void
-sighandler(int32 sig, Siginfo* info, void* context)
+runtime·sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
 	Mcontext *r;
@@ -63,7 +63,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
 	uc = context;
 	r = &uc->uc_mcontext;
 
-	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
+	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
 		// augmenting the stack frame would break
@@ -72,91 +72,91 @@ sighandler(int32 sig, Siginfo* info, void* context)
 		gp->sigcode0 = info->si_code;
 		gp->sigcode1 = (uintptr)info->si_addr;
 
-		// Only push sigpanic if r->mc_rip != 0.
+		// Only push runtime·sigpanic if r->mc_rip != 0.
 		// If r->mc_rip == 0, probably panicked because of a
 		// call to a nil func.  Not pushing that onto sp will
-		// make the trace look like a call to sigpanic instead.
-		// (Otherwise the trace will end at sigpanic and we
+		// make the trace look like a call to runtime·sigpanic instead.
+		// (Otherwise the trace will end at runtime·sigpanic and we
 		// won't get to see who faulted.)
 		if(r->mc_rip != 0) {
 			sp = (uintptr*)r->mc_rsp;
 			*--sp = r->mc_rip;
 			r->mc_rsp = (uintptr)sp;
 		}
-		r->mc_rip = (uintptr)sigpanic;
+		r->mc_rip = (uintptr)runtime·sigpanic;
 		return;
 	}
 
-	if(sigtab[sig].flags & SigQueue) {
-		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+	if(runtime·sigtab[sig].flags & SigQueue) {
+		if(runtime·sigsend(sig) || (runtime·sigtab[sig].flags & SigIgnore))
 			return;
-		exit(2);	// SIGINT, SIGTERM, etc
+		runtime·exit(2);	// SIGINT, SIGTERM, etc
 	}
 
-	if(panicking)	// traceback already printed
-		exit(2);
-	panicking = 1;
+	if(runtime·panicking)	// traceback already printed
+		runtime·exit(2);
+	runtime·panicking = 1;
 
 	if(sig < 0 || sig >= NSIG)
-		printf("Signal %d\n", sig);
+		runtime·printf("Signal %d\n", sig);
 	else
-		printf("%s\n", sigtab[sig].name);
+		runtime·printf("%s\n", runtime·sigtab[sig].name);
 
-	printf("PC=%X\n", r->mc_rip);
-	printf("\n");
+	runtime·printf("PC=%X\n", r->mc_rip);
+	runtime·printf("\n");
 
-	if(gotraceback()){
-		traceback((void*)r->mc_rip, (void*)r->mc_rsp, 0, g);
-		tracebackothers(g);
-		dumpregs(r);
+	if(runtime·gotraceback()){
+		runtime·traceback((void*)r->mc_rip, (void*)r->mc_rsp, 0, g);
+		runtime·tracebackothers(g);
+		runtime·dumpregs(r);
 	}
 
-	breakpoint();
-	exit(2);
+	runtime·breakpoint();
+	runtime·exit(2);
 }
 
 void
-sigignore(void)
+runtime·sigignore(void)
 {
 }
 
 void
-signalstack(byte *p, int32 n)
+runtime·signalstack(byte *p, int32 n)
 {
 	Sigaltstack st;
 
 	st.ss_sp = (int8*)p;
 	st.ss_size = n;
 	st.ss_flags = 0;
-	sigaltstack(&st, nil);
+	runtime·sigaltstack(&st, nil);
 }
 
 void
-initsig(int32 queue)
+runtime·initsig(int32 queue)
 {
 	static Sigaction sa;
 
-	siginit();
+	runtime·siginit();
 
 	int32 i;
 	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
 	sa.sa_mask = ~0x0ull;
 	
 	for(i = 0; i < NSIG; i++) {
-		if(sigtab[i].flags) {
-			if((sigtab[i].flags & SigQueue) != queue)
+		if(runtime·sigtab[i].flags) {
+			if((runtime·sigtab[i].flags & SigQueue) != queue)
 				continue;
-			if(sigtab[i].flags & (SigCatch | SigQueue))
-				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
+			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
+				sa.__sigaction_u.__sa_sigaction = (void*) runtime·sigtramp;
 			else
-				sa.__sigaction_u.__sa_sigaction = (void*) sigignore;
+				sa.__sigaction_u.__sa_sigaction = (void*) runtime·sigignore;
 
-			if(sigtab[i].flags & SigRestart)
+			if(runtime·sigtab[i].flags & SigRestart)
 				sa.sa_flags |= SA_RESTART;
 			else
 				sa.sa_flags &= ~SA_RESTART;
 
-			sigaction(i, &sa, nil);
+			runtime·sigaction(i, &sa, nil);
 		}
 	}
 }

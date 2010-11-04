@@ -17,8 +17,8 @@
 // Called to set up memory hardware.
 // Already running in 32-bit mode thanks to boot block,
 // but we need to install our new GDT that we can modify.
-TEXT msetup(SB), 7, $0
-	MOVL	gdtptr(SB), GDTR
+TEXT runtime·msetup(SB), 7, $0
+	MOVL	runtime·gdtptr(SB), GDTR
 	MOVL	$(1*8+0), AX
 	MOVW	AX, DS
 	MOVW	AX, ES
@@ -29,14 +29,14 @@ TEXT msetup(SB), 7, $0
 
 	// long jmp to cs:mret
 	BYTE	$0xEA
-	LONG $mret(SB)
+	LONG $runtime·mret(SB)
 	WORD $(2*8+0)
 	
-TEXT mret(SB), 7, $0
+TEXT runtime·mret(SB), 7, $0
 	RET
 
 // GDT memory
-TEXT gdt(SB), 7, $0
+TEXT runtime·gdt(SB), 7, $0
 	// null segment
 	LONG	$0
 	LONG	$0
@@ -54,14 +54,14 @@ TEXT gdt(SB), 7, $0
 	LONG	$0
 
 // GDT pseudo-descriptor
-TEXT gdtptr(SB), 7, $0
+TEXT runtime·gdtptr(SB), 7, $0
 	WORD	$(4*8)
-	LONG	$gdt(SB)
+	LONG	$runtime·gdt(SB)
 
 // Called to establish the per-thread segment.
 // Write to gdt[3] and reload the gdt register.
 // setldt(int entry, int address, int limit)
-TEXT setldt(SB),7,$32
+TEXT runtime·setldt(SB),7,$32
 	MOVL	address+4(FP), BX	// aka base
 	MOVL	limit+8(FP), CX
 
@@ -83,7 +83,7 @@ TEXT setldt(SB),7,$32
 	MOVB	CX, 6(AX)
 	MOVB	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
 
-	MOVL	gdtptr(SB), GDTR
+	MOVL	runtime·gdtptr(SB), GDTR
 
 	// Compute segment selector - (entry*8+0)
 	MOVL	$(3*8+0), AX

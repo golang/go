@@ -14,8 +14,8 @@ static void
 fabort(void)
 {
 	if (1) {
-		printf("Unsupported floating point instruction\n");
-		abort();
+		runtime·printf("Unsupported floating point instruction\n");
+		runtime·abort();
 	}
 }
 
@@ -88,7 +88,7 @@ precision(uint32 i)
 	case 0x80:
 		return 1;
 	default:
-		fabort();
+		runtime·fabort();
 	}
 	return 0;
 }
@@ -108,7 +108,7 @@ fprint(void)
 {
 	uint32 i;
 	for (i = 0; i < 8; i++) {
-		printf("\tf%d:\t%X\n", i, m->freg[i]);
+		runtime·printf("\tf%d:\t%X\n", i, m->freg[i]);
 	}
 }
 
@@ -117,7 +117,7 @@ d2s(uint64 d)
 {
 	uint32 x;
 	
-	·f64to32c(d, &x);
+	runtime·f64to32c(d, &x);
 	return x;
 }
 
@@ -126,7 +126,7 @@ s2d(uint32 s)
 {
 	uint64 x;
 	
-	·f32to64c(s, &x);
+	runtime·f32to64c(s, &x);
 	return x;
 }
 
@@ -147,16 +147,16 @@ dataprocess(uint32* pc)
 	lhs = i>>16 & 7;
 	rhs = i & 15;
 
-	prec = precision(i);
+	prec = runtime·precision(i);
 //	if (prec != 1)
 //		goto undef;
 
 	if (unary) {
 		switch (opcode) {
 		case 0: // mvf
-			fd = frhs(rhs);
+			fd = runtime·frhs(rhs);
 			if(prec == 0)
-				fd = s2d(d2s(fd));
+				fd = runtime·s2d(d2s(fd));
 			m->freg[dest] = fd;
 			goto ret;
 		default:
@@ -164,21 +164,21 @@ dataprocess(uint32* pc)
 		}
 	} else {
 		l = m->freg[lhs];
-		r = frhs(rhs);
+		r = runtime·frhs(rhs);
 		switch (opcode) {
 		default:
 			goto undef;
 		case 0:
-			·fadd64c(l, r, &m->freg[dest]);
+			runtime·fadd64c(l, r, &m->freg[dest]);
 			break;
 		case 1:
-			·fmul64c(l, r, &m->freg[dest]);
+			runtime·fmul64c(l, r, &m->freg[dest]);
 			break;
 		case 2:
-			·fsub64c(l, r, &m->freg[dest]);
+			runtime·fsub64c(l, r, &m->freg[dest]);
 			break;
 		case 4:
-			·fdiv64c(l, r, &m->freg[dest]);
+			runtime·fdiv64c(l, r, &m->freg[dest]);
 			break;
 		}
 		goto ret;
@@ -190,18 +190,18 @@ undef:
 
 ret:
 	if (trace || doabort) {
-		printf(" %p %x\t%s%s\tf%d, ", pc, *pc, opnames[opcode | unary<<4],
+		runtime·printf(" %p %x\t%s%s\tf%d, ", pc, *pc, opnames[opcode | unary<<4],
 			fpprec[prec], dest);
 		if (!unary)
-			printf("f%d, ", lhs);
+			runtime·printf("f%d, ", lhs);
 		if (rhs & 0x8)
-			printf("#%s\n", fpconst[rhs&0x7]);
+			runtime·printf("#%s\n", fpconst[rhs&0x7]);
 		else
-			printf("f%d\n", rhs&0x7);
-		fprint();
+			runtime·printf("f%d\n", rhs&0x7);
+		runtime·fprint();
 	}
 	if (doabort)
-		fabort();
+		runtime·fabort();
 }
 
 #define CPSR 14
@@ -225,8 +225,8 @@ compare(uint32 *pc, uint32 *regs)
 	rhs = i & 0xf;
 
 	l = m->freg[lhs];
-	r = frhs(rhs);
-	·fcmp64c(l, r, &cmp, &nan);
+	r = runtime·frhs(rhs);
+	runtime·fcmp64c(l, r, &cmp, &nan);
 	if (nan)
 		flags = FLAGS_C | FLAGS_V;
 	else if (cmp == 0)
@@ -237,11 +237,11 @@ compare(uint32 *pc, uint32 *regs)
 		flags = FLAGS_C;
 
 	if (trace) {
-		printf(" %p %x\tcmf\tf%d, ", pc, *pc, lhs);
+		runtime·printf(" %p %x\tcmf\tf%d, ", pc, *pc, lhs);
 		if (rhs & 0x8)
-			printf("#%s\n", fpconst[rhs&0x7]);
+			runtime·printf("#%s\n", fpconst[rhs&0x7]);
 		else
-			printf("f%d\n", rhs&0x7);
+			runtime·printf("f%d\n", rhs&0x7);
 	}
 	regs[CPSR] = regs[CPSR] & 0x0fffffff | flags;
 }
@@ -278,12 +278,12 @@ loadstore(uint32 *pc, uint32 *regs)
 		if (tlen)
 			m->freg[freg] = *((uint64*)addr);
 		else
-			m->freg[freg] = s2d(*((uint32*)addr));
+			m->freg[freg] = runtime·s2d(*((uint32*)addr));
 	else
 		if (tlen)
 			*((uint64*)addr) = m->freg[freg];
 		else
-			*((uint32*)addr) = d2s(m->freg[freg]);
+			*((uint32*)addr) = runtime·d2s(m->freg[freg]);
 	goto ret;
 
 undef:
@@ -292,18 +292,18 @@ undef:
 ret:
 	if (trace || doabort) {
 		if (isload)
-			printf(" %p %x\tldf", pc, *pc);
+			runtime·printf(" %p %x\tldf", pc, *pc);
 		else
-			printf(" %p %x\tstf", pc, *pc);
-		printf("%s\t\tf%d, %s%d(r%d)", fpprec[tlen], freg, ud ? "" : "-", offset, reg);
-		printf("\t\t// %p", regs[reg] + (ud ? offset : -offset));
+			runtime·printf(" %p %x\tstf", pc, *pc);
+		runtime·printf("%s\t\tf%d, %s%d(r%d)", fpprec[tlen], freg, ud ? "" : "-", offset, reg);
+		runtime·printf("\t\t// %p", regs[reg] + (ud ? offset : -offset));
 		if (coproc != 1 || p != 1 || wb != 0)
-			printf(" coproc: %d pre: %d wb %d", coproc, p, wb);
-		printf("\n");
-		fprint();
+			runtime·printf(" coproc: %d pre: %d wb %d", coproc, p, wb);
+		runtime·printf("\n");
+		runtime·fprint();
 	}
 	if (doabort)
-		fabort();
+		runtime·fabort();
 }
 
 static void
@@ -318,16 +318,16 @@ fltfix(uint32 *pc, uint32 *regs)
 	toarm = i>>20 & 0x1;
 	freg = i>>16 & 0x7;
 	reg = i>>12 & 0xf;
-	prec = precision(i);
+	prec = runtime·precision(i);
 
 	if (toarm) { // fix
 		f0 = m->freg[freg];
-		·f64tointc(f0, &val, &ok);
+		runtime·f64tointc(f0, &val, &ok);
 		if (!ok || (int32)val != val)
 			val = 0;
 		regs[reg] = val;
 	} else { // flt
-		·fintto64c((int32)regs[reg], &f0);
+		runtime·fintto64c((int32)regs[reg], &f0);
 		m->freg[freg] = f0;
 	}
 	goto ret;
@@ -335,13 +335,13 @@ fltfix(uint32 *pc, uint32 *regs)
 ret:
 	if (trace || doabort) {
 		if (toarm)
-			printf(" %p %x\tfix%s\t\tr%d, f%d\n", pc, *pc, fpprec[prec], reg, freg);
+			runtime·printf(" %p %x\tfix%s\t\tr%d, f%d\n", pc, *pc, fpprec[prec], reg, freg);
 		else
-			printf(" %p %x\tflt%s\t\tf%d, r%d\n", pc, *pc, fpprec[prec], freg, reg);
-		fprint();
+			runtime·printf(" %p %x\tflt%s\t\tf%d, r%d\n", pc, *pc, fpprec[prec], freg, reg);
+		runtime·fprint();
 	}
 	if (doabort)
-		fabort();
+		runtime·fabort();
 }
 
 // returns number of words that the fp instruction is occupying, 0 if next instruction isn't float.
@@ -367,7 +367,7 @@ stepflt(uint32 *pc, uint32 *regs)
 	c = i >> 25 & 7;
 	switch(c) {
 	case 6: // 110
-		loadstore(pc, regs);
+		runtime·loadstore(pc, regs);
 		return 1;
 	case 7: // 111
 		if (i>>24 & 1)
@@ -375,15 +375,15 @@ stepflt(uint32 *pc, uint32 *regs)
 
 		if (i>>4 & 1) { //data transfer
 			if ((i&0x00f0ff00) == 0x0090f100) {
-				compare(pc, regs);
+				runtime·compare(pc, regs);
 			} else if ((i&0x00e00f10) == 0x00000110) {
-				fltfix(pc, regs);
+				runtime·fltfix(pc, regs);
 			} else {
-				printf(" %p %x\t// case 7 fail\n", pc, i);
-				fabort();
+				runtime·printf(" %p %x\t// case 7 fail\n", pc, i);
+				runtime·fabort();
 			}
 		} else {
-			dataprocess(pc);
+			runtime·dataprocess(pc);
 		}
 		return 1;
 	}
@@ -410,11 +410,11 @@ stepflt(uint32 *pc, uint32 *regs)
 
 #pragma textflag 7
 uint32*
-_sfloat2(uint32 *lr, uint32 r0)
+runtime·_sfloat2(uint32 *lr, uint32 r0)
 {
 	uint32 skip;
 
-	while(skip = stepflt(lr, &r0))
+	while(skip = runtime·stepflt(lr, &r0))
 		lr += skip;
 	return lr;
 }

@@ -5,13 +5,13 @@
 #include "runtime.h"
 
 void
-initsig(int32)
+runtime·initsig(int32)
 {
 }
 
 String
-signame(int32)
+runtime·signame(int32)
 {
-	return emptystring;
+	return runtime·emptystring;
 }
 

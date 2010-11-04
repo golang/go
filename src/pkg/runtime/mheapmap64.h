@@ -51,10 +51,10 @@ struct MHeapMapNode3
 	MSpan *s[1<<MHeapMap_Level3Bits];
 };
 
-void	MHeapMap_Init(MHeapMap *m, void *(*allocator)(uintptr));
-bool	MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr npages);
-MSpan*	MHeapMap_Get(MHeapMap *m, PageID k);
-MSpan*	MHeapMap_GetMaybe(MHeapMap *m, PageID k);
-void	MHeapMap_Set(MHeapMap *m, PageID k, MSpan *v);
+void	runtime·MHeapMap_Init(MHeapMap *m, void *(*allocator)(uintptr));
+bool	runtime·MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr npages);
+MSpan*	runtime·MHeapMap_Get(MHeapMap *m, PageID k);
+MSpan*	runtime·MHeapMap_GetMaybe(MHeapMap *m, PageID k);
+void	runtime·MHeapMap_Set(MHeapMap *m, PageID k, MSpan *v);
 
 

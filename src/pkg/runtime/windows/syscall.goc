@@ -8,22 +8,22 @@ package syscall
 
 func loadlibraryex(filename uintptr) (handle uint32) {
 	StdcallParams p;
-	p.fn = (void*)LoadLibraryEx;
+	p.fn = (void*)runtime·LoadLibraryEx;
 	p.args[0] = filename;
 	p.args[1] = 0;
 	p.args[2] = 0;
 	p.n = 3;
-	syscall(&p);
+	runtime·syscall(&p);
 	handle = p.r;
 }
 
 func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
 	StdcallParams p;
-	p.fn = (void*)GetProcAddress;
+	p.fn = (void*)runtime·GetProcAddress;
 	p.args[0] = handle;
 	p.args[1] = procname;
 	p.n = 2;
-	syscall(&p);
+	runtime·syscall(&p);
 	proc = p.r;
 }
 
@@ -34,7 +34,7 @@ func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 u
 	p.args[1] = a2;
 	p.args[2] = a3;
 	p.n = 3;
-	syscall(&p);
+	runtime·syscall(&p);
 	r1 = p.r;
 	r2 = 0;
 	err = p.err;
@@ -50,7 +50,7 @@ func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 u
 	p.args[4] = a5;
 	p.args[5] = a6;
 	p.n = 6;
-	syscall(&p);
+	runtime·syscall(&p);
 	r1 = p.r;
 	r2 = 0;
 	err = p.err;
@@ -69,7 +69,7 @@ func Syscall9(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 u
 	p.args[7] = a8;
 	p.args[8] = a9;
 	p.n = 9;
-	syscall(&p);
+	runtime·syscall(&p);
 	r1 = p.r;
 	r2 = 0;
 	lasterr = p.err;
@@ -91,7 +91,7 @@ func Syscall12(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 
 	p.args[10] = a11;
 	p.args[11] = a12;
 	p.n = 12;
-	syscall(&p);
+	runtime·syscall(&p);
 	r1 = p.r;
 	r2 = 0;
 	lasterr = p.err;
@@ -104,7 +104,7 @@ func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r
 	p.args[1] = a2;
 	p.args[2] = a3;
 	p.n = 3;
-	syscall(&p);
+	runtime·syscall(&p);
 	r1 = p.r;
 	r2 = 0;
 	err = p.err;

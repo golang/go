@@ -31,7 +31,7 @@ TMP = 3					/* N and TMP don't overlap */
 // TODO(kaib): memset clobbers R9 and R10 (m and g). This makes the
 // registers unpredictable if (when) memset SIGSEGV's. Fix it by
 // moving the R4-R11 register bank.
-TEXT memset(SB), $0
+TEXT runtime·memset(SB), $0
 	MOVW	R0, R(TO)
 	MOVW	data+4(FP), R(4)
 	MOVW	n+8(FP), R(N)

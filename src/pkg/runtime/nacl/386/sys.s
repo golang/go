@@ -26,48 +26,48 @@
 
 #define SYSCALL(x)	$(0x10000+SYS_/**/x * 32)
 
-TEXT exit(SB),7,$4
+TEXT runtime·exit(SB),7,$4
 	MOVL	code+0(FP), AX
 	MOVL	AX, 0(SP)
 	CALL	SYSCALL(exit)
 	INT $3	// not reached
 	RET
 
-TEXT exit1(SB),7,$4
+TEXT runtime·exit1(SB),7,$4
 	MOVL	code+0(FP), AX
 	MOVL	AX, 0(SP)
 	CALL	SYSCALL(thread_exit)
 	INT $3	// not reached
 	RET
 
-TEXT write(SB),7,$0
+TEXT runtime·write(SB),7,$0
 	JMP	SYSCALL(write)
 
-TEXT close(SB),7,$0
+TEXT runtime·close(SB),7,$0
 	JMP	SYSCALL(close)
 
-TEXT mutex_create(SB),7,$0
+TEXT runtime·mutex_create(SB),7,$0
 	JMP	SYSCALL(mutex_create)
 
-TEXT mutex_lock(SB),7,$0
+TEXT runtime·mutex_lock(SB),7,$0
 	JMP	SYSCALL(mutex_lock)
 
-TEXT	mutex_unlock(SB),7,$0
+TEXT runtime·mutex_unlock(SB),7,$0
 	JMP	SYSCALL(mutex_unlock)
 
-TEXT thread_create(SB),7,$0
+TEXT runtime·thread_create(SB),7,$0
 	JMP	SYSCALL(thread_create)
 
-TEXT dyncode_copy(SB),7,$0
+TEXT runtime·dyncode_copy(SB),7,$0
 	JMP	SYSCALL(dyncode_copy)
 
 // For Native Client: a simple no-op function.
 // Inserting a call to this no-op is a simple way
 // to trigger an alignment.
-TEXT ·naclnop(SB),7,$0
+TEXT runtime·naclnop(SB),7,$0
 	RET
 
-TEXT ·mmap(SB),7,$24
+TEXT runtime·mmap(SB),7,$24
 	MOVL	a1+0(FP), BX
 	MOVL	a2+4(FP), CX	// round up to 64 kB boundary; silences nacl warning
 	ADDL	$(64*1024-1), CX
@@ -86,16 +86,16 @@ TEXT ·mmap(SB),7,$24
 	CMPL	AX, $0xfffff001
 	JLS	6(PC)
 	MOVL	$1, 0(SP)
-	MOVL	$mmap_failed(SB), 4(SP)
+	MOVL	$runtime·mmap_failed(SB), 4(SP)
 	MOVL	$12, 8(SP)	// "mmap failed\n"
 	CALL	SYSCALL(write)
 	INT $3
 	RET
 
-TEXT ·munmap(SB),7,$0
+TEXT runtime·munmap(SB),7,$0
 	JMP	SYSCALL(munmap)
 
-TEXT gettime(SB),7,$32
+TEXT runtime·gettime(SB),7,$32
 	LEAL	8(SP), BX
 	MOVL	BX, 0(SP)
 	MOVL	$0, 4(SP)
@@ -112,7 +112,7 @@ TEXT gettime(SB),7,$32
 	RET
 
 // setldt(int entry, int address, int limit)
-TEXT setldt(SB),7,$32
+TEXT runtime·setldt(SB),7,$32
 	// entry is ignored - nacl tells us the
 	// segment selector to use and stores it in GS.
 	MOVL	address+4(FP), BX
@@ -123,7 +123,7 @@ TEXT setldt(SB),7,$32
 	CMPL	AX, $0xfffff001
 	JLS	6(PC)
 	MOVL	$1, 0(SP)
-	MOVL	$tls_init_failed(SB), 4(SP)
+	MOVL	$runtime·tls_init_failed(SB), 4(SP)
 	MOVL	$16, 8(SP)	// "tls_init failed\n"
 	CALL	SYSCALL(write)
 	INT $3
@@ -133,10 +133,10 @@ TEXT setldt(SB),7,$32
 // broken NaCl process, so if something goes wrong,
 // print an error string before dying.
 
-DATA mmap_failed(SB)/8, $"mmap fai"
+DATA runtime·mmap_failed(SB)/8, $"mmap fai"
 DATA mmap_failed+8(SB)/4, $"led\n"
-GLOBL mmap_failed(SB), $12
+GLOBL runtime·mmap_failed(SB), $12
 
-DATA tls_init_failed(SB)/8, $"tls_init"
+DATA runtime·tls_init_failed(SB)/8, $"tls_init"
 DATA tls_init_failed+8(SB)/8, $" failed\n"
-GLOBL tls_init_failed(SB), $16
+GLOBL runtime·tls_init_failed(SB), $16

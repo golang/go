@@ -45,7 +45,7 @@ stkbucket(uintptr *stk, int32 nstk)
 	Bucket *b;
 
 	if(buckhash == nil) {
-		buckhash = SysAlloc(BuckHashSize*sizeof buckhash[0]);
+		buckhash = runtime·SysAlloc(BuckHashSize*sizeof buckhash[0]);
 		mstats.buckhash_sys += BuckHashSize*sizeof buckhash[0];
 	}
 
@@ -62,12 +62,12 @@ stkbucket(uintptr *stk, int32 nstk)
 	i = h%BuckHashSize;
 	for(b = buckhash[i]; b; b=b->next)
 		if(b->hash == h && b->nstk == nstk &&
-		   mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
+		   runtime·mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
 			return b;
 
-	b = mallocgc(sizeof *b + nstk*sizeof stk[0], RefNoProfiling, 0, 1);
+	b = runtime·mallocgc(sizeof *b + nstk*sizeof stk[0], RefNoProfiling, 0, 1);
 	bucketmem += sizeof *b + nstk*sizeof stk[0];
-	memmove(b->stk, stk, nstk*sizeof stk[0]);
+	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
 	b->hash = h;
 	b->nstk = nstk;
 	b->next = buckhash[i];
@@ -132,7 +132,7 @@ setaddrbucket(uintptr addr, Bucket *b)
 		if(ah->addr == (addr>>20))
 			goto found;
 
-	ah = mallocgc(sizeof *ah, RefNoProfiling, 0, 1);
+	ah = runtime·mallocgc(sizeof *ah, RefNoProfiling, 0, 1);
 	addrmem += sizeof *ah;
 	ah->next = addrhash[h];
 	ah->addr = addr>>20;
@@ -140,7 +140,7 @@ setaddrbucket(uintptr addr, Bucket *b)
 
 found:
 	if((e = addrfree) == nil) {
-		e = mallocgc(64*sizeof *e, RefNoProfiling, 0, 0);
+		e = runtime·mallocgc(64*sizeof *e, RefNoProfiling, 0, 0);
 		addrmem += 64*sizeof *e;
 		for(i=0; i+1<64; i++)
 			e[i].next = &e[i+1];
@@ -185,7 +185,7 @@ found:
 
 // Called by malloc to record a profiled block.
 void
-MProf_Malloc(void *p, uintptr size)
+runtime·MProf_Malloc(void *p, uintptr size)
 {
 	int32 nstk;
 	uintptr stk[32];
@@ -195,19 +195,19 @@ MProf_Malloc(void *p, uintptr size)
 		return;
 
 	m->nomemprof++;
-	nstk = callers(1, stk, 32);
-	lock(&proflock);
+	nstk = runtime·callers(1, stk, 32);
+	runtime·lock(&proflock);
 	b = stkbucket(stk, nstk);
 	b->allocs++;
 	b->alloc_bytes += size;
 	setaddrbucket((uintptr)p, b);
-	unlock(&proflock);
+	runtime·unlock(&proflock);
 	m->nomemprof--;
 }
 
 // Called when freeing a profiled block.
 void
-MProf_Free(void *p, uintptr size)
+runtime·MProf_Free(void *p, uintptr size)
 {
 	Bucket *b;
 
@@ -215,13 +215,13 @@ MProf_Free(void *p, uintptr size)
 		return;
 
 	m->nomemprof++;
-	lock(&proflock);
+	runtime·lock(&proflock);
 	b = getaddrbucket((uintptr)p);
 	if(b != nil) {
 		b->frees++;
 		b->free_bytes += size;
 	}
-	unlock(&proflock);
+	runtime·unlock(&proflock);
 	m->nomemprof--;
 }
 
@@ -257,7 +257,7 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
 	Bucket *b;
 	Record *r;
 
-	lock(&proflock);
+	runtime·lock(&proflock);
 	n = 0;
 	for(b=buckets; b; b=b->allnext)
 		if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
@@ -270,5 +270,5 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
 			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
 				record(r++, b);
 	}
-	unlock(&proflock);
+	runtime·unlock(&proflock);
 }

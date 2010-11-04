@@ -35,29 +35,29 @@ RecordSpan(void *vh, byte *p)
 
 // Initialize the heap; fetch memory using alloc.
 void
-MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
+runtime·MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
 {
 	uint32 i;
 
-	FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc, RecordSpan, h);
-	FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc, nil, nil);
-	MHeapMap_Init(&h->map, alloc);
+	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc, RecordSpan, h);
+	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc, nil, nil);
+	runtime·MHeapMap_Init(&h->map, alloc);
 	// h->mapcache needs no init
 	for(i=0; i<nelem(h->free); i++)
-		MSpanList_Init(&h->free[i]);
-	MSpanList_Init(&h->large);
+		runtime·MSpanList_Init(&h->free[i]);
+	runtime·MSpanList_Init(&h->large);
 	for(i=0; i<nelem(h->central); i++)
-		MCentral_Init(&h->central[i], i);
+		runtime·MCentral_Init(&h->central[i], i);
 }
 
 // Allocate a new span of npage pages from the heap
 // and record its size class in the HeapMap and HeapMapCache.
 MSpan*
-MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
+runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
 {
 	MSpan *s;
 
-	lock(h);
+	runtime·lock(h);
 	mstats.heap_alloc += m->mcache->local_alloc;
 	m->mcache->local_alloc = 0;
 	mstats.heap_objects += m->mcache->local_objects;
@@ -70,7 +70,7 @@ MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
 			mstats.heap_alloc += npage<<PageShift;
 		}
 	}
-	unlock(h);
+	runtime·unlock(h);
 	return s;
 }
 
@@ -82,7 +82,7 @@ MHeap_AllocLocked(MHeap *h, uintptr npage, int32 sizeclass)
 
 	// Try in fixed-size lists up to max.
 	for(n=npage; n < nelem(h->free); n++) {
-		if(!MSpanList_IsEmpty(&h->free[n])) {
+		if(!runtime·MSpanList_IsEmpty(&h->free[n])) {
 			s = h->free[n].next;
 			goto HaveSpan;
 		}
@@ -99,22 +99,22 @@ MHeap_AllocLocked(MHeap *h, uintptr npage, int32 sizeclass)
 HaveSpan:
 	// Mark span in use.
 	if(s->state != MSpanFree)
-		throw("MHeap_AllocLocked - MSpan not free");
+		runtime·throw("MHeap_AllocLocked - MSpan not free");
 	if(s->npages < npage)
-		throw("MHeap_AllocLocked - bad npages");
-	MSpanList_Remove(s);
+		runtime·throw("MHeap_AllocLocked - bad npages");
+	runtime·MSpanList_Remove(s);
 	s->state = MSpanInUse;
 
 	if(s->npages > npage) {
 		// Trim extra and put it back in the heap.
-		t = FixAlloc_Alloc(&h->spanalloc);
+		t = runtime·FixAlloc_Alloc(&h->spanalloc);
 		mstats.mspan_inuse = h->spanalloc.inuse;
 		mstats.mspan_sys = h->spanalloc.sys;
-		MSpan_Init(t, s->start + npage, s->npages - npage);
+		runtime·MSpan_Init(t, s->start + npage, s->npages - npage);
 		s->npages = npage;
-		MHeapMap_Set(&h->map, t->start - 1, s);
-		MHeapMap_Set(&h->map, t->start, t);
-		MHeapMap_Set(&h->map, t->start + t->npages - 1, t);
+		runtime·MHeapMap_Set(&h->map, t->start - 1, s);
+		runtime·MHeapMap_Set(&h->map, t->start, t);
+		runtime·MHeapMap_Set(&h->map, t->start + t->npages - 1, t);
 		t->state = MSpanInUse;
 		MHeap_FreeLocked(h, t);
 	}
@@ -123,7 +123,7 @@ HaveSpan:
 	// able to map interior pointer to containing span.
 	s->sizeclass = sizeclass;
 	for(n=0; n<npage; n++)
-		MHeapMap_Set(&h->map, s->start+n, s);
+		runtime·MHeapMap_Set(&h->map, s->start+n, s);
 	return s;
 }
 
@@ -171,11 +171,11 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	if(ask < HeapAllocChunk)
 		ask = HeapAllocChunk;
 
-	v = SysAlloc(ask);
+	v = runtime·SysAlloc(ask);
 	if(v == nil) {
 		if(ask > (npage<<PageShift)) {
 			ask = npage<<PageShift;
-			v = SysAlloc(ask);
+			v = runtime·SysAlloc(ask);
 		}
 		if(v == nil)
 			return false;
@@ -190,19 +190,19 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	// NOTE(rsc): In tcmalloc, if we've accumulated enough
 	// system allocations, the heap map gets entirely allocated
 	// in 32-bit mode.  (In 64-bit mode that's not practical.)
-	if(!MHeapMap_Preallocate(&h->map, ((uintptr)v>>PageShift) - 1, (ask>>PageShift) + 2)) {
-		SysFree(v, ask);
+	if(!runtime·MHeapMap_Preallocate(&h->map, ((uintptr)v>>PageShift) - 1, (ask>>PageShift) + 2)) {
+		runtime·SysFree(v, ask);
 		return false;
 	}
 
 	// Create a fake "in use" span and free it, so that the
 	// right coalescing happens.
-	s = FixAlloc_Alloc(&h->spanalloc);
+	s = runtime·FixAlloc_Alloc(&h->spanalloc);
 	mstats.mspan_inuse = h->spanalloc.inuse;
 	mstats.mspan_sys = h->spanalloc.sys;
-	MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
-	MHeapMap_Set(&h->map, s->start, s);
-	MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
+	runtime·MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
+	runtime·MHeapMap_Set(&h->map, s->start, s);
+	runtime·MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
 	s->state = MSpanInUse;
 	MHeap_FreeLocked(h, s);
 	return true;
@@ -212,9 +212,9 @@ MHeap_Grow(MHeap *h, uintptr npage)
 // Page number is guaranteed to be in map
 // and is guaranteed to be start or end of span.
 MSpan*
-MHeap_Lookup(MHeap *h, PageID p)
+runtime·MHeap_Lookup(MHeap *h, PageID p)
 {
-	return MHeapMap_Get(&h->map, p);
+	return runtime·MHeapMap_Get(&h->map, p);
 }
 
 // Look up the span at the given page number.
@@ -225,11 +225,11 @@ MHeap_Lookup(MHeap *h, PageID p)
 // other garbage in their middles, so we have to
 // check for that.
 MSpan*
-MHeap_LookupMaybe(MHeap *h, PageID p)
+runtime·MHeap_LookupMaybe(MHeap *h, PageID p)
 {
 	MSpan *s;
 
-	s = MHeapMap_GetMaybe(&h->map, p);
+	s = runtime·MHeapMap_GetMaybe(&h->map, p);
 	if(s == nil || p < s->start || p - s->start >= s->npages)
 		return nil;
 	if(s->state != MSpanInUse)
@@ -239,9 +239,9 @@ MHeap_LookupMaybe(MHeap *h, PageID p)
 
 // Free the span back into the heap.
 void
-MHeap_Free(MHeap *h, MSpan *s, int32 acct)
+runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 {
-	lock(h);
+	runtime·lock(h);
 	mstats.heap_alloc += m->mcache->local_alloc;
 	m->mcache->local_alloc = 0;
 	mstats.heap_objects += m->mcache->local_objects;
@@ -252,7 +252,7 @@ MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 		mstats.heap_objects--;
 	}
 	MHeap_FreeLocked(h, s);
-	unlock(h);
+	runtime·unlock(h);
 }
 
 static void
@@ -261,45 +261,45 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 	MSpan *t;
 
 	if(s->state != MSpanInUse || s->ref != 0) {
-		printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d\n", s, s->start<<PageShift, s->state, s->ref);
-		throw("MHeap_FreeLocked - invalid free");
+		runtime·printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d\n", s, s->start<<PageShift, s->state, s->ref);
+		runtime·throw("MHeap_FreeLocked - invalid free");
 	}
 	s->state = MSpanFree;
-	MSpanList_Remove(s);
+	runtime·MSpanList_Remove(s);
 
 	// Coalesce with earlier, later spans.
-	if((t = MHeapMap_Get(&h->map, s->start - 1)) != nil && t->state != MSpanInUse) {
+	if((t = runtime·MHeapMap_Get(&h->map, s->start - 1)) != nil && t->state != MSpanInUse) {
 		s->start = t->start;
 		s->npages += t->npages;
-		MHeapMap_Set(&h->map, s->start, s);
-		MSpanList_Remove(t);
+		runtime·MHeapMap_Set(&h->map, s->start, s);
+		runtime·MSpanList_Remove(t);
 		t->state = MSpanDead;
-		FixAlloc_Free(&h->spanalloc, t);
+		runtime·FixAlloc_Free(&h->spanalloc, t);
 		mstats.mspan_inuse = h->spanalloc.inuse;
 		mstats.mspan_sys = h->spanalloc.sys;
 	}
-	if((t = MHeapMap_Get(&h->map, s->start + s->npages)) != nil && t->state != MSpanInUse) {
+	if((t = runtime·MHeapMap_Get(&h->map, s->start + s->npages)) != nil && t->state != MSpanInUse) {
 		s->npages += t->npages;
-		MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
-		MSpanList_Remove(t);
+		runtime·MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
+		runtime·MSpanList_Remove(t);
 		t->state = MSpanDead;
-		FixAlloc_Free(&h->spanalloc, t);
+		runtime·FixAlloc_Free(&h->spanalloc, t);
 		mstats.mspan_inuse = h->spanalloc.inuse;
 		mstats.mspan_sys = h->spanalloc.sys;
 	}
 
 	// Insert s into appropriate list.
 	if(s->npages < nelem(h->free))
-		MSpanList_Insert(&h->free[s->npages], s);
+		runtime·MSpanList_Insert(&h->free[s->npages], s);
 	else
-		MSpanList_Insert(&h->large, s);
+		runtime·MSpanList_Insert(&h->large, s);
 
 	// TODO(rsc): IncrementalScavenge() to return memory to OS.
 }
 
 // Initialize a new span with the given start and npages.
 void
-MSpan_Init(MSpan *span, PageID start, uintptr npages)
+runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
 {
 	span->next = nil;
 	span->prev = nil;
@@ -313,7 +313,7 @@ MSpan_Init(MSpan *span, PageID start, uintptr npages)
 
 // Initialize an empty doubly-linked list.
 void
-MSpanList_Init(MSpan *list)
+runtime·MSpanList_Init(MSpan *list)
 {
 	list->state = MSpanListHead;
 	list->next = list;
@@ -321,7 +321,7 @@ MSpanList_Init(MSpan *list)
 }
 
 void
-MSpanList_Remove(MSpan *span)
+runtime·MSpanList_Remove(MSpan *span)
 {
 	if(span->prev == nil && span->next == nil)
 		return;
@@ -332,16 +332,16 @@ MSpanList_Remove(MSpan *span)
 }
 
 bool
-MSpanList_IsEmpty(MSpan *list)
+runtime·MSpanList_IsEmpty(MSpan *list)
 {
 	return list->next == list;
 }
 
 void
-MSpanList_Insert(MSpan *list, MSpan *span)
+runtime·MSpanList_Insert(MSpan *list, MSpan *span)
 {
 	if(span->next != nil || span->prev != nil)
-		throw("MSpanList_Insert");
+		runtime·throw("MSpanList_Insert");
 	span->next = list->next;
 	span->prev = list;
 	span->next->prev = span;

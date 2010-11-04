@@ -14,12 +14,12 @@
 //	}else
 //		return 0;
 
-TEXT	cas(SB),7,$0
+TEXT runtime·cas(SB),7,$0
 	MOVW	0(FP), R0	// *val
 	MOVW	4(FP), R1	// old
 	MOVW	8(FP), R2	// new
 	MOVW	$1, R3
-	MOVW	$cas_mutex(SB), R4
+	MOVW	$runtime·cas_mutex(SB), R4
 l:
 	SWPW	(R4), R3	// acquire mutex
 	CMP		$0, R3
@@ -39,5 +39,5 @@ fail0:
 	MOVW	$0, R0
 	RET
  
-DATA cas_mutex(SB)/4, $0
-GLOBL cas_mutex(SB), $4
+DATA runtime·cas_mutex(SB)/4, $0
+GLOBL runtime·cas_mutex(SB), $4

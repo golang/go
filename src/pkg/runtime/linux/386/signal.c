@@ -8,41 +8,41 @@
 #include "os.h"
 
 void
-dumpregs(Sigcontext *r)
+runtime·dumpregs(Sigcontext *r)
 {
-	printf("eax     %x\n", r->eax);
-	printf("ebx     %x\n", r->ebx);
-	printf("ecx     %x\n", r->ecx);
-	printf("edx     %x\n", r->edx);
-	printf("edi     %x\n", r->edi);
-	printf("esi     %x\n", r->esi);
-	printf("ebp     %x\n", r->ebp);
-	printf("esp     %x\n", r->esp);
-	printf("eip     %x\n", r->eip);
-	printf("eflags  %x\n", r->eflags);
-	printf("cs      %x\n", r->cs);
-	printf("fs      %x\n", r->fs);
-	printf("gs      %x\n", r->gs);
+	runtime·printf("eax     %x\n", r->eax);
+	runtime·printf("ebx     %x\n", r->ebx);
+	runtime·printf("ecx     %x\n", r->ecx);
+	runtime·printf("edx     %x\n", r->edx);
+	runtime·printf("edi     %x\n", r->edi);
+	runtime·printf("esi     %x\n", r->esi);
+	runtime·printf("ebp     %x\n", r->ebp);
+	runtime·printf("esp     %x\n", r->esp);
+	runtime·printf("eip     %x\n", r->eip);
+	runtime·printf("eflags  %x\n", r->eflags);
+	runtime·printf("cs      %x\n", r->cs);
+	runtime·printf("fs      %x\n", r->fs);
+	runtime·printf("gs      %x\n", r->gs);
 }
 
 /*
  * This assembler routine takes the args from registers, puts them on the stack,
  * and calls sighandler().
  */
-extern void sigtramp(void);
-extern void sigignore(void);	// just returns
-extern void sigreturn(void);	// calls sigreturn
+extern void runtime·sigtramp(void);
+extern void runtime·sigignore(void);	// just returns
+extern void runtime·sigreturn(void);	// calls runtime·sigreturn
 
 String
-signame(int32 sig)
+runtime·signame(int32 sig)
 {
 	if(sig < 0 || sig >= NSIG)
-		return emptystring;
-	return gostringnocopy((byte*)sigtab[sig].name);
+		return runtime·emptystring;
+	return runtime·gostringnocopy((byte*)runtime·sigtab[sig].name);
 }
 
 void
-sighandler(int32 sig, Siginfo* info, void* context)
+runtime·sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
 	Sigcontext *r;
@@ -52,7 +52,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
 	uc = context;
 	r = &uc->uc_mcontext;
 
-	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
+	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
 		// augmenting the stack frame would break
@@ -61,84 +61,84 @@ sighandler(int32 sig, Siginfo* info, void* context)
 		gp->sigcode0 = info->si_code;
 		gp->sigcode1 = ((uintptr*)info)[3];
 
-		// Only push sigpanic if r->eip != 0.
+		// Only push runtime·sigpanic if r->eip != 0.
 		// If r->eip == 0, probably panicked because of a
 		// call to a nil func.  Not pushing that onto sp will
-		// make the trace look like a call to sigpanic instead.
-		// (Otherwise the trace will end at sigpanic and we
+		// make the trace look like a call to runtime·sigpanic instead.
+		// (Otherwise the trace will end at runtime·sigpanic and we
 		// won't get to see who faulted.)
 		if(r->eip != 0) {
 			sp = (uintptr*)r->esp;
 			*--sp = r->eip;
 			r->esp = (uintptr)sp;
 		}
-		r->eip = (uintptr)sigpanic;
+		r->eip = (uintptr)runtime·sigpanic;
 		return;
 	}
 
-	if(sigtab[sig].flags & SigQueue) {
-		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+	if(runtime·sigtab[sig].flags & SigQueue) {
+		if(runtime·sigsend(sig) || (runtime·sigtab[sig].flags & SigIgnore))
 			return;
-		exit(2);	// SIGINT, SIGTERM, etc
+		runtime·exit(2);	// SIGINT, SIGTERM, etc
 	}
 
-	if(panicking)	// traceback already printed
-		exit(2);
-	panicking = 1;
+	if(runtime·panicking)	// traceback already printed
+		runtime·exit(2);
+	runtime·panicking = 1;
 
 	if(sig < 0 || sig >= NSIG)
-		printf("Signal %d\n", sig);
+		runtime·printf("Signal %d\n", sig);
 	else
-		printf("%s\n", sigtab[sig].name);
+		runtime·printf("%s\n", runtime·sigtab[sig].name);
 
-	printf("PC=%X\n", r->eip);
-	printf("\n");
+	runtime·printf("PC=%X\n", r->eip);
+	runtime·printf("\n");
 
-	if(gotraceback()){
-		traceback((void*)r->eip, (void*)r->esp, 0, m->curg);
-		tracebackothers(m->curg);
-		dumpregs(r);
+	if(runtime·gotraceback()){
+		runtime·traceback((void*)r->eip, (void*)r->esp, 0, m->curg);
+		runtime·tracebackothers(m->curg);
+		runtime·dumpregs(r);
 	}
 
-	breakpoint();
-	exit(2);
+	runtime·breakpoint();
+	runtime·exit(2);
 }
 
 void
-signalstack(byte *p, int32 n)
+runtime·signalstack(byte *p, int32 n)
 {
 	Sigaltstack st;
 
 	st.ss_sp = p;
 	st.ss_size = n;
 	st.ss_flags = 0;
-	sigaltstack(&st, nil);
+	runtime·sigaltstack(&st, nil);
 }
 
 void
-initsig(int32 queue)
+runtime·initsig(int32 queue)
 {
 	static Sigaction sa;
 
-	siginit();
+	runtime·siginit();
 
 	int32 i;
 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
 	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
-	sa.sa_restorer = (void*)sigreturn;
+	sa.sa_restorer = (void*)runtime·sigreturn;
 	for(i = 0; i<NSIG; i++) {
-		if(sigtab[i].flags) {
-			if((sigtab[i].flags & SigQueue) != queue)
+		if(runtime·sigtab[i].flags) {
+			if((runtime·sigtab[i].flags & SigQueue) != queue)
 				continue;
-			if(sigtab[i].flags & (SigCatch | SigQueue))
-				sa.k_sa_handler = (void*)sigtramp;
+			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
+				sa.k_sa_handler = (void*)runtime·sigtramp;
 			else
-				sa.k_sa_handler = (void*)sigignore;
-			if(sigtab[i].flags & SigRestart)
+				sa.k_sa_handler = (void*)runtime·sigignore;
+			if(runtime·sigtab[i].flags & SigRestart)
 				sa.sa_flags |= SA_RESTART;
 			else
 				sa.sa_flags &= ~SA_RESTART;
-			rt_sigaction(i, &sa, nil, 8);
+			runtime·rt_sigaction(i, &sa, nil, 8);
 		}
 	}
 }

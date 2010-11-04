@@ -8,17 +8,17 @@
 
 #include "386/asm.h"
 	
-TEXT sys_umtx_op(SB),7,$-4
+TEXT runtime·sys_umtx_op(SB),7,$-4
 	MOVL	$454, AX
 	INT	$0x80
 	RET
 
-TEXT thr_new(SB),7,$-4
+TEXT runtime·thr_new(SB),7,$-4
 	MOVL	$455, AX
 	INT	$0x80
 	RET
 
-TEXT thr_start(SB),7,$0
+TEXT runtime·thr_start(SB),7,$0
 	MOVL	mm+0(FP), AX
 	MOVL	m_g0(AX), BX
 	LEAL	m_tls(AX), BP
@@ -28,7 +28,7 @@ TEXT thr_start(SB),7,$0
 	PUSHL	$32
 	PUSHL	BP
 	PUSHL	DI
-	CALL	setldt(SB)
+	CALL	runtime·setldt(SB)
 	POPL	AX
 	POPL	AX
 	POPL	AX
@@ -37,36 +37,36 @@ TEXT thr_start(SB),7,$0
 	MOVL	BX, g(CX)
 	
 	MOVL	AX, m(CX)
-	CALL	stackcheck(SB)		// smashes AX
-	CALL	mstart(SB)
+	CALL	runtime·stackcheck(SB)		// smashes AX
+	CALL	runtime·mstart(SB)
 	MOVL	0, AX			// crash (not reached)
 
 // Exit the entire program (like C exit)
-TEXT exit(SB),7,$-4
+TEXT runtime·exit(SB),7,$-4
 	MOVL	$1, AX
 	INT	$0x80
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT exit1(SB),7,$-4
+TEXT runtime·exit1(SB),7,$-4
 	MOVL	$431, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT write(SB),7,$-4
+TEXT runtime·write(SB),7,$-4
 	MOVL	$4, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT	notok(SB),7,$0
+TEXT runtime·notok(SB),7,$0
 	MOVL	$0xf1, 0xf1
 	RET
 
-TEXT ·mmap(SB),7,$32
+TEXT runtime·mmap(SB),7,$32
 	LEAL arg0+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
@@ -82,14 +82,14 @@ TEXT ·mmap(SB),7,$32
 	INT	$0x80
 	RET
 
-TEXT ·munmap(SB),7,$-4
+TEXT runtime·munmap(SB),7,$-4
 	MOVL	$73, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT	gettime(SB), 7, $32
+TEXT runtime·gettime(SB), 7, $32
 	MOVL	$116, AX
 	LEAL	12(SP), BX
 	MOVL	BX, 4(SP)
@@ -106,14 +106,14 @@ TEXT	gettime(SB), 7, $32
 	MOVL	BX, (DI)
 	RET
 
-TEXT sigaction(SB),7,$-4
+TEXT runtime·sigaction(SB),7,$-4
 	MOVL	$416, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT sigtramp(SB),7,$40
+TEXT runtime·sigtramp(SB),7,$40
 	// g = m->gsignal
 	get_tls(DX)
 	MOVL	m(DX), BP
@@ -127,7 +127,7 @@ TEXT sigtramp(SB),7,$40
 	MOVL	AX, 0(SP)
 	MOVL	BX, 4(SP)
 	MOVL	CX, 8(SP)
-	CALL	sighandler(SB)
+	CALL	runtime·sighandler(SB)
 
 	// g = m->curg
 	get_tls(DX)
@@ -141,14 +141,14 @@ TEXT sigtramp(SB),7,$40
 	MOVL	AX, 4(SP)
 	MOVL	$417, AX	// sigreturn(ucontext)
 	INT	$0x80
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT sigaltstack(SB),7,$0
+TEXT runtime·sigaltstack(SB),7,$0
 	MOVL	$53, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
 /*
@@ -168,7 +168,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
 */
 
 // setldt(int entry, int address, int limit)
-TEXT setldt(SB),7,$32
+TEXT runtime·setldt(SB),7,$32
 	MOVL	address+4(FP), BX	// aka base
 	// see comment in linux/386/sys.s; freebsd is similar
 	ADDL	$0x8, BX
@@ -193,7 +193,7 @@ TEXT setldt(SB),7,$32
 	MOVL	$0xffffffff, 0(SP)	// auto-allocate entry and return in AX
 	MOVL	AX, 4(SP)
 	MOVL	$1, 8(SP)
-	CALL	i386_set_ldt(SB)
+	CALL	runtime·i386_set_ldt(SB)
 
 	// compute segment selector - (entry*8+7)
 	SHLL	$3, AX
@@ -201,7 +201,7 @@ TEXT setldt(SB),7,$32
 	MOVW	AX, GS
 	RET
 
-TEXT i386_set_ldt(SB),7,$16
+TEXT runtime·i386_set_ldt(SB),7,$16
 	LEAL	args+0(FP), AX	// 0(FP) == 4(SP) before SP got moved
 	MOVL	$0, 0(SP)	// syscall gap
 	MOVL	$1, 4(SP)
@@ -213,4 +213,4 @@ TEXT i386_set_ldt(SB),7,$16
 	INT	$3
 	RET
 
-GLOBL tlsoffset(SB),$4
+GLOBL runtime·tlsoffset(SB),$4

@@ -60,7 +60,7 @@ walksymtab(void (*fn)(Sym*))
 			}
 			p = q+2;
 		}else{
-			q = mchr(p, '\0', ep);
+			q = runtime·mchr(p, '\0', ep);
 			if(q == nil)
 				break;
 			p = q+1;
@@ -90,14 +90,14 @@ dofunc(Sym *sym)
 	case 'T':
 	case 'l':
 	case 'L':
-		if(strcmp(sym->name, (byte*)"etext") == 0)
+		if(runtime·strcmp(sym->name, (byte*)"etext") == 0)
 			break;
 		if(func == nil) {
 			nfunc++;
 			break;
 		}
 		f = &func[nfunc++];
-		f->name = gostringnocopy(sym->name);
+		f->name = runtime·gostringnocopy(sym->name);
 		f->entry = sym->value;
 		if(sym->symtype == 'L' || sym->symtype == 'l')
 			f->frame = -sizeof(uintptr);
@@ -120,8 +120,8 @@ dofunc(Sym *sym)
 		if(fname == nil) {
 			if(sym->value >= nfname) {
 				if(sym->value >= 0x10000) {
-					printf("invalid symbol file index %p\n", sym->value);
-					throw("mangled symbol table");
+					runtime·printf("invalid symbol file index %p\n", sym->value);
+					runtime·throw("mangled symbol table");
 				}
 				nfname = sym->value+1;
 			}
@@ -154,12 +154,12 @@ makepath(byte *buf, int32 nbuf, byte *path)
 		if(n >= nfname)
 			break;
 		q = fname[n];
-		len = findnull(q);
+		len = runtime·findnull(q);
 		if(p+1+len >= ep)
 			break;
 		if(p > buf && p[-1] != '/')
 			*p++ = '/';
-		mcpy(p, q, len+1);
+		runtime·mcpy(p, q, len+1);
 		p += len;
 	}
 }
@@ -185,7 +185,7 @@ dosrcline(Sym *sym)
 	switch(sym->symtype) {
 	case 't':
 	case 'T':
-		if(strcmp(sym->name, (byte*)"etext") == 0)
+		if(runtime·strcmp(sym->name, (byte*)"etext") == 0)
 			break;
 		f = &func[nfunc++];
 		// find source file
@@ -204,7 +204,7 @@ dosrcline(Sym *sym)
 			nfile = 0;
 			if(nfile == nelem(files))
 				return;
-			files[nfile].srcstring = gostring(srcbuf);
+			files[nfile].srcstring = runtime·gostring(srcbuf);
 			files[nfile].aline = 0;
 			files[nfile++].delta = 0;
 		} else {
@@ -215,7 +215,7 @@ dosrcline(Sym *sym)
 					incstart = sym->value;
 				if(nhist == 0 && nfile < nelem(files)) {
 					// new top-level file
-					files[nfile].srcstring = gostring(srcbuf);
+					files[nfile].srcstring = runtime·gostring(srcbuf);
 					files[nfile].aline = sym->value;
 					// this is "line 0"
 					files[nfile++].delta = sym->value - 1;
@@ -293,7 +293,7 @@ splitpcln(void)
 // (Source file is f->src.)
 // NOTE(rsc): If you edit this function, also edit extern.go:/FileLine
 int32
-funcline(Func *f, uint64 targetpc)
+runtime·funcline(Func *f, uint64 targetpc)
 {
 	byte *p, *ep;
 	uintptr pc;
@@ -348,9 +348,9 @@ buildfuncs(void)
 	walksymtab(dofunc);
 
 	// initialize tables
-	func = mal((nfunc+1)*sizeof func[0]);
+	func = runtime·mal((nfunc+1)*sizeof func[0]);
 	func[nfunc].entry = (uint64)etext;
-	fname = mal(nfname*sizeof fname[0]);
+	fname = runtime·mal(nfname*sizeof fname[0]);
 	nfunc = 0;
 	walksymtab(dofunc);
 
@@ -364,15 +364,15 @@ buildfuncs(void)
 }
 
 Func*
-findfunc(uintptr addr)
+runtime·findfunc(uintptr addr)
 {
 	Func *f;
 	int32 nf, n;
 
-	lock(&funclock);
+	runtime·lock(&funclock);
 	if(func == nil)
 		buildfuncs();
-	unlock(&funclock);
+	runtime·unlock(&funclock);
 
 	if(nfunc == 0)
 		return nil;
@@ -398,6 +398,6 @@ findfunc(uintptr addr)
 	// that the address was in the table bounds.
 	// this can only happen if the table isn't sorted
 	// by address or if the binary search above is buggy.
-	prints("findfunc unreachable\n");
+	runtime·prints("findfunc unreachable\n");
 	return nil;
 }

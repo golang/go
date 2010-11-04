@@ -4,7 +4,7 @@
 
 #include "386/asm.h"
 
-TEXT get_kernel_module(SB),7,$0
+TEXT runtime·get_kernel_module(SB),7,$0
 	MOVL	0x30(FS), AX		// get PEB
 	MOVL	0x0c(AX), AX		// get PEB_LDR_DATA
 	MOVL	0x1c(AX), AX		// get init order module list
@@ -13,7 +13,7 @@ TEXT get_kernel_module(SB),7,$0
 	RET
 
 // void *stdcall_raw(void *fn, int32 count, uintptr *args)
-TEXT stdcall_raw(SB),7,$4
+TEXT runtime·stdcall_raw(SB),7,$4
 	// Copy arguments from stack.
 	MOVL	fn+0(FP), AX
 	MOVL	count+4(FP), CX		// words
@@ -57,7 +57,7 @@ TEXT stdcall_raw(SB),7,$4
 	RET 
 
 // void tstart(M *newm);
-TEXT tstart(SB),7,$0
+TEXT runtime·tstart(SB),7,$0
 	MOVL	newm+4(SP), CX		// m
 	MOVL	m_g0(CX), DX		// g
 
@@ -84,9 +84,9 @@ TEXT tstart(SB),7,$0
 
 	PUSHL	DI			// original stack
 
-	CALL	stackcheck(SB)		// clobbers AX,CX
+	CALL	runtime·stackcheck(SB)		// clobbers AX,CX
 
-	CALL	mstart(SB)
+	CALL	runtime·mstart(SB)
 
 	POPL	DI			// original stack
 	MOVL	DI, SP
@@ -94,11 +94,11 @@ TEXT tstart(SB),7,$0
 	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT tstart_stdcall(SB),7,$0
+TEXT runtime·tstart_stdcall(SB),7,$0
 	MOVL	newm+4(SP), BX
 
 	PUSHL	BX
-	CALL	tstart+0(SB)
+	CALL	runtime·tstart(SB)
 	POPL	BX
 
 	// Adjust stack for stdcall to return properly.
@@ -111,13 +111,13 @@ TEXT tstart_stdcall(SB),7,$0
 	RET
 
 // setldt(int entry, int address, int limit)
-TEXT setldt(SB),7,$0
+TEXT runtime·setldt(SB),7,$0
 	MOVL	address+4(FP), CX
 	MOVL	CX, 0x2c(FS)
 	RET
 
 // for now, return 0,0.  only used for internal performance monitoring.
-TEXT gettime(SB),7,$0
+TEXT runtime·gettime(SB),7,$0
 	MOVL	sec+0(FP), DI
 	MOVL	$0, (DI)
 	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits

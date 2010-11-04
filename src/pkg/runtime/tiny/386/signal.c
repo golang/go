@@ -4,16 +4,16 @@
 
 #include "runtime.h"
 
-extern void ·write(int32 fd, void *v, int32 len, int32 cap);	// slice, spelled out
+extern void runtime·write(int32 fd, void *v, int32 len, int32 cap);	// slice, spelled out
 
 int32
-write(int32 fd, void *v, int32 len)
+runtime·write(int32 fd, void *v, int32 len)
 {
-	·write(fd, v, len, len);
+	runtime·write(fd, v, len, len);
 	return len;
 }
 
 void
-gettime(int64*, int32*) 
+runtime·gettime(int64*, int32*) 
 {
 }

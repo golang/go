@@ -10,31 +10,31 @@
 static void vprintf(int8*, byte*);
 
 void
-dump(byte *p, int32 n)
+runtime·dump(byte *p, int32 n)
 {
 	int32 i;
 
 	for(i=0; i<n; i++) {
-		·printpointer((byte*)(p[i]>>4));
-		·printpointer((byte*)(p[i]&0xf));
+		runtime·printpointer((byte*)(p[i]>>4));
+		runtime·printpointer((byte*)(p[i]&0xf));
 		if((i&15) == 15)
-			prints("\n");
+			runtime·prints("\n");
 		else
-			prints(" ");
+			runtime·prints(" ");
 	}
 	if(n & 15)
-		prints("\n");
+		runtime·prints("\n");
 }
 
 void
-prints(int8 *s)
+runtime·prints(int8 *s)
 {
-	write(fd, s, findnull((byte*)s));
+	runtime·write(runtime·fd, s, runtime·findnull((byte*)s));
 }
 
 #pragma textflag 7
 void
-printf(int8 *s, ...)
+runtime·printf(int8 *s, ...)
 {
 	byte *arg;
 
@@ -65,7 +65,7 @@ vprintf(int8 *s, byte *arg)
 		if(*p != '%')
 			continue;
 		if(p > lp)
-			write(fd, lp, p-lp);
+			runtime·write(runtime·fd, lp, p-lp);
 		p++;
 		narg = nil;
 		switch(*p) {
@@ -109,103 +109,101 @@ vprintf(int8 *s, byte *arg)
 		}
 		switch(*p) {
 		case 'a':
-			·printslice(*(Slice*)arg);
+			runtime·printslice(*(Slice*)arg);
 			break;
 		case 'd':
-			·printint(*(int32*)arg);
+			runtime·printint(*(int32*)arg);
 			break;
 		case 'D':
-			·printint(*(int64*)arg);
+			runtime·printint(*(int64*)arg);
 			break;
 		case 'e':
-			·printeface(*(Eface*)arg);
+			runtime·printeface(*(Eface*)arg);
 			break;
 		case 'f':
-			·printfloat(*(float64*)arg);
+			runtime·printfloat(*(float64*)arg);
 			break;
 		case 'C':
-			·printcomplex(*(Complex128*)arg);
+			runtime·printcomplex(*(Complex128*)arg);
 			break;
 		case 'i':
-			·printiface(*(Iface*)arg);
+			runtime·printiface(*(Iface*)arg);
 			break;
 		case 'p':
-			·printpointer(*(void**)arg);
+			runtime·printpointer(*(void**)arg);
 			break;
 		case 's':
-			prints(*(int8**)arg);
+			runtime·prints(*(int8**)arg);
 			break;
 		case 'S':
-			·printstring(*(String*)arg);
+			runtime·printstring(*(String*)arg);
 			break;
 		case 't':
-			·printbool(*(bool*)arg);
+			runtime·printbool(*(bool*)arg);
 			break;
 		case 'U':
-			·printuint(*(uint64*)arg);
+			runtime·printuint(*(uint64*)arg);
 			break;
 		case 'x':
-			·printhex(*(uint32*)arg);
+			runtime·printhex(*(uint32*)arg);
 			break;
 		case 'X':
-			·printhex(*(uint64*)arg);
+			runtime·printhex(*(uint64*)arg);
 			break;
-		case '!':
-			panic(-1);
 		}
 		arg = narg;
 		lp = p+1;
 	}
 	if(p > lp)
-		write(fd, lp, p-lp);
+		runtime·write(runtime·fd, lp, p-lp);
 
 //	unlock(&debuglock);
 }
 
 #pragma textflag 7
 void
-·printf(String s, ...)
+runtime·goprintf(String s, ...)
 {
 	// Can assume s has terminating NUL because only
-	// the Go compiler generates calls to ·printf, using
+	// the Go compiler generates calls to runtime·goprintf, using
 	// string constants, and all the string constants have NULs.
 	vprintf((int8*)s.str, (byte*)(&s+1));
 }
 
 void
-·printpc(void *p)
+runtime·printpc(void *p)
 {
-	prints("PC=");
-	·printhex((uint64)·getcallerpc(p));
+	runtime·prints("PC=");
+	runtime·printhex((uint64)runtime·getcallerpc(p));
 }
 
 void
-·printbool(bool v)
+runtime·printbool(bool v)
 {
 	if(v) {
-		write(fd, (byte*)"true", 4);
+		runtime·write(runtime·fd, (byte*)"true", 4);
 		return;
 	}
-	write(fd, (byte*)"false", 5);
+	runtime·write(runtime·fd, (byte*)"false", 5);
 }
 
 void
-·printfloat(float64 v)
+runtime·printfloat(float64 v)
 {
 	byte buf[20];
 	int32 e, s, i, n;
 	float64 h;
 
-	if(isNaN(v)) {
-		write(fd, "NaN", 3);
+	if(runtime·isNaN(v)) {
+		runtime·write(runtime·fd, "NaN", 3);
 		return;
 	}
-	if(isInf(v, 1)) {
-		write(fd, "+Inf", 4);
+	if(runtime·isInf(v, 1)) {
+		runtime·write(runtime·fd, "+Inf", 4);
 		return;
 	}
-	if(isInf(v, -1)) {
-		write(fd, "-Inf", 4);
+	if(runtime·isInf(v, -1)) {
+		runtime·write(runtime·fd, "-Inf", 4);
 		return;
 	}
 
@@ -264,20 +262,20 @@ void
 	buf[n+4] = (e/100) + '0';
 	buf[n+5] = (e/10)%10 + '0';
 	buf[n+6] = (e%10) + '0';
-	write(fd, buf, n+7);
+	runtime·write(runtime·fd, buf, n+7);
 }
 
 void
-·printcomplex(Complex128 v)
+runtime·printcomplex(Complex128 v)
 {
-	write(fd, "(", 1);
-	·printfloat(v.real);
-	·printfloat(v.imag);
-	write(fd, "i)", 2);
+	runtime·write(runtime·fd, "(", 1);
+	runtime·printfloat(v.real);
+	runtime·printfloat(v.imag);
+	runtime·write(runtime·fd, "i)", 2);
 }
 
 void
-·printuint(uint64 v)
+runtime·printuint(uint64 v)
 {
 	byte buf[100];
 	int32 i;
@@ -288,21 +286,21 @@ void
 			break;
 		v = v/10;
 	}
-	write(fd, buf+i, nelem(buf)-i);
+	runtime·write(runtime·fd, buf+i, nelem(buf)-i);
 }
 
 void
-·printint(int64 v)
+runtime·printint(int64 v)
 {
 	if(v < 0) {
-		write(fd, "-", 1);
+		runtime·write(runtime·fd, "-", 1);
 		v = -v;
 	}
-	·printuint(v);
+	runtime·printuint(v);
 }
 
 void
-·printhex(uint64 v)
+runtime·printhex(uint64 v)
 {
 	static int8 *dig = "0123456789abcdef";
 	byte buf[100];
@@ -315,42 +313,42 @@ void
 		buf[--i] = '0';
 	buf[--i] = 'x';
 	buf[--i] = '0';
-	write(fd, buf+i, nelem(buf)-i);
+	runtime·write(runtime·fd, buf+i, nelem(buf)-i);
 }
 
 void
-·printpointer(void *p)
+runtime·printpointer(void *p)
 {
-	·printhex((uint64)p);
+	runtime·printhex((uint64)p);
 }
 
 void
-·printstring(String v)
+runtime·printstring(String v)
 {
-	extern int32 maxstring;
+	extern int32 runtime·maxstring;
 
-	if(v.len > maxstring) {
-		write(fd, "[invalid string]", 16);
+	if(v.len > runtime·maxstring) {
+		runtime·write(runtime·fd, "[invalid string]", 16);
 		return;
 	}
 	if(v.len > 0)
-		write(fd, v.str, v.len);
+		runtime·write(runtime·fd, v.str, v.len);
 }
 
 void
-·printsp(void)
+runtime·printsp(void)
 {
-	write(fd, " ", 1);
+	runtime·write(runtime·fd, " ", 1);
 }
 
 void
-·printnl(void)
+runtime·printnl(void)
 {
-	write(fd, "\n", 1);
+	runtime·write(runtime·fd, "\n", 1);
 }
 
 void
-·typestring(Eface e, String s)
+runtime·typestring(Eface e, String s)
 {
 	s = *e.type->string;
 	FLUSH(&s);

@@ -24,11 +24,11 @@ gettype(void *typ)
  */
 
 func mapaccess(map *byte, key *byte, val *byte) (pres bool) {
-	mapaccess((Hmap*)map, key, val, &pres);
+	runtime·mapaccess((Hmap*)map, key, val, &pres);
 }
 
 func mapassign(map *byte, key *byte, val *byte) {
-	mapassign((Hmap*)map, key, val);
+	runtime·mapassign((Hmap*)map, key, val);
 }
 
 func maplen(map *byte) (len int32) {
@@ -37,22 +37,22 @@ func maplen(map *byte) (len int32) {
 }
 
 func mapiterinit(map *byte) (it *byte) {
-	it = (byte*)mapiterinit((Hmap*)map);
+	it = (byte*)runtime·newmapiterinit((Hmap*)map);
 }
 
 func mapiternext(it *byte) {
-	mapiternext((struct hash_iter*)it);
+	runtime·mapiternext((struct hash_iter*)it);
 }
 
 func mapiterkey(it *byte, key *byte) (ok bool) {
-	ok = mapiterkey((struct hash_iter*)it, key);
+	ok = runtime·mapiterkey((struct hash_iter*)it, key);
 }
 
 func makemap(typ *byte) (map *byte) {
 	MapType *t;
 
 	t = (MapType*)gettype(typ);
-	map = (byte*)makemap(t->key, t->elem, 0);
+	map = (byte*)runtime·makemap_c(t->key, t->elem, 0);
 }
 
 /*
@@ -67,31 +67,31 @@ func makechan(typ *byte, size uint32) (ch *byte) {
 	// in front of the raw ChanType.  the -2 below backs up
 	// to the interface value header.
 	t = (ChanType*)gettype(typ);
-	ch = (byte*)makechan(t->elem, size);
+	ch = (byte*)runtime·makechan_c(t->elem, size);
 }
 
 func chansend(ch *byte, val *byte, pres *bool) {
-	chansend((Hchan*)ch, val, pres);
+	runtime·chansend((Hchan*)ch, val, pres);
 }
 
 func chanrecv(ch *byte, val *byte, pres *bool) {
-	chanrecv((Hchan*)ch, val, pres);
+	runtime·chanrecv((Hchan*)ch, val, pres);
 }
 
 func chanclose(ch *byte) {
-	chanclose((Hchan*)ch);
+	runtime·chanclose((Hchan*)ch);
 }
 
 func chanclosed(ch *byte) (r bool) {
-	r = chanclosed((Hchan*)ch);
+	r = runtime·chanclosed((Hchan*)ch);
 }
 
 func chanlen(ch *byte) (r int32) {
-	r = chanlen((Hchan*)ch);
+	r = runtime·chanlen((Hchan*)ch);
 }
 
 func chancap(ch *byte) (r int32) {
-	r = chancap((Hchan*)ch);
+	r = runtime·chancap((Hchan*)ch);
 }
 
 
@@ -114,5 +114,5 @@ func setiface(typ *byte, x *byte, ret *byte) {
 		((Iface*)ret)->data = nil;
 		return;
 	}
-	ifaceE2I((InterfaceType*)gettype(typ), *(Eface*)x, (Iface*)ret);
+	runtime·ifaceE2I((InterfaceType*)gettype(typ), *(Eface*)x, (Iface*)ret);
 }

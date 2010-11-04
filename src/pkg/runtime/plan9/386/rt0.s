@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT	_rt0_386_plan9(SB),7, $0
+TEXT _rt0_386_plan9(SB),7, $0
 	MOVL	AX, _tos(SB)
 	
 	// move arguments down to make room for
@@ -27,6 +27,6 @@ argv_fix:
 	
 	JMP	_rt0_386(SB)
 
-DATA  isplan9+0(SB)/4, $1
-GLOBL isplan9(SB), $4
+DATA  runtime·isplan9(SB)/4, $1
+GLOBL runtime·isplan9(SB), $4
 GLOBL _tos(SB), $4

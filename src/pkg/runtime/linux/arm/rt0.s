@@ -2,5 +2,5 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT	_rt0_arm_linux(SB),7,$0
+TEXT _rt0_arm_linux(SB),7,$0
 	B	_rt0_arm(SB)

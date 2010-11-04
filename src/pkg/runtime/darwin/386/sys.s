@@ -8,47 +8,47 @@
 
 #include "386/asm.h"
 
-TEXT notok(SB),7,$0
+TEXT runtime·notok(SB),7,$0
 	MOVL	$0xf1, 0xf1
 	RET
 
 // Exit the entire program (like C exit)
-TEXT exit(SB),7,$0
+TEXT runtime·exit(SB),7,$0
 	MOVL	$1, AX
 	INT	$0x80
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT exit1(SB),7,$0
+TEXT runtime·exit1(SB),7,$0
 	MOVL	$361, AX
 	INT	$0x80
 	JAE 2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT write(SB),7,$0
+TEXT runtime·write(SB),7,$0
 	MOVL	$4, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT ·mmap(SB),7,$0
+TEXT runtime·mmap(SB),7,$0
 	MOVL	$197, AX
 	INT	$0x80
 	RET
 
-TEXT ·munmap(SB),7,$0
+TEXT runtime·munmap(SB),7,$0
 	MOVL	$73, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
 // void gettime(int64 *sec, int32 *usec)
-TEXT gettime(SB), 7, $32
+TEXT runtime·gettime(SB), 7, $32
 	LEAL	12(SP), AX	// must be non-nil, unused
 	MOVL	AX, 4(SP)
 	MOVL	$0, 8(SP)	// time zone pointer
@@ -63,11 +63,11 @@ TEXT gettime(SB), 7, $32
 	MOVL	DX, (DI)
 	RET
 
-TEXT sigaction(SB),7,$0
+TEXT runtime·sigaction(SB),7,$0
 	MOVL	$46, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
 // Sigtramp's job is to call the actual signal handler.
@@ -78,7 +78,7 @@ TEXT sigaction(SB),7,$0
 //	12(FP)	signal number
 //	16(FP)	siginfo
 //	20(FP)	context
-TEXT sigtramp(SB),7,$40
+TEXT runtime·sigtramp(SB),7,$40
 	get_tls(CX)
 
 	// save g
@@ -114,19 +114,19 @@ TEXT sigtramp(SB),7,$40
 	MOVL	BX, 8(SP)
 	MOVL	$184, AX	// sigreturn(ucontext, infostyle)
 	INT	$0x80
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
-TEXT sigaltstack(SB),7,$0
+TEXT runtime·sigaltstack(SB),7,$0
 	MOVL	$53, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
 // void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
 // System call args are: func arg stack pthread flags.
-TEXT bsdthread_create(SB),7,$32
+TEXT runtime·bsdthread_create(SB),7,$32
 	MOVL	$360, AX
 	// 0(SP) is where the caller PC would be; kernel skips it
 	MOVL	func+12(FP), BX
@@ -155,7 +155,7 @@ TEXT bsdthread_create(SB),7,$32
 //	DI = stack top
 //	SI = flags (= 0x1000000)
 //	SP = stack - C_32_STK_ALIGN
-TEXT bsdthread_start(SB),7,$0
+TEXT runtime·bsdthread_start(SB),7,$0
 	// set up ldt 7+id to point at m->tls.
 	// m->tls is at m+40.  newosproc left
 	// the m->id in tls[0].
@@ -167,7 +167,7 @@ TEXT bsdthread_start(SB),7,$0
 	PUSHL	$32	// sizeof tls
 	PUSHL	BP	// &tls
 	PUSHL	DI	// tls #
-	CALL	setldt(SB)
+	CALL	runtime·setldt(SB)
 	POPL	AX
 	POPL	AX
 	POPL	AX
@@ -178,18 +178,18 @@ TEXT bsdthread_start(SB),7,$0
 	MOVL	AX, g(BP)
 	MOVL	DX, m(BP)
 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
-	CALL	stackcheck(SB)		// smashes AX
+	CALL	runtime·stackcheck(SB)		// smashes AX
 	CALL	CX	// fn()
-	CALL	exit1(SB)
+	CALL	runtime·exit1(SB)
 	RET
 
 // void bsdthread_register(void)
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
-TEXT bsdthread_register(SB),7,$40
+TEXT runtime·bsdthread_register(SB),7,$40
 	MOVL	$366, AX
 	// 0(SP) is where kernel expects caller PC; ignored
-	MOVL	$bsdthread_start(SB), 4(SP)	// threadstart
+	MOVL	$runtime·bsdthread_start(SB), 4(SP)	// threadstart
 	MOVL	$0, 8(SP)	// wqthread, not used by us
 	MOVL	$0, 12(SP)	// pthsize, not used by us
 	MOVL	$0, 16(SP)	// dummy_value [sic]
@@ -197,7 +197,7 @@ TEXT bsdthread_register(SB),7,$40
 	MOVL	$0, 24(SP)	// dispatchqueue_offset
 	INT	$0x80
 	JAE	2(PC)
-	CALL	notok(SB)
+	CALL	runtime·notok(SB)
 	RET
 
 // Invoke Mach system call.
@@ -211,57 +211,57 @@ TEXT bsdthread_register(SB),7,$40
 // in the high 16 bits that seems to be the
 // argument count in bytes but is not always.
 // INT $0x80 works fine for those.
-TEXT sysenter(SB),7,$0
+TEXT runtime·sysenter(SB),7,$0
 	POPL	DX
 	MOVL	SP, CX
 	BYTE $0x0F; BYTE $0x34;  // SYSENTER
 	// returns to DX with SP set to CX
 
-TEXT mach_msg_trap(SB),7,$0
+TEXT runtime·mach_msg_trap(SB),7,$0
 	MOVL	$-31, AX
-	CALL	sysenter(SB)
+	CALL	runtime·sysenter(SB)
 	RET
 
-TEXT mach_reply_port(SB),7,$0
+TEXT runtime·mach_reply_port(SB),7,$0
 	MOVL	$-26, AX
-	CALL	sysenter(SB)
+	CALL	runtime·sysenter(SB)
 	RET
 
-TEXT mach_task_self(SB),7,$0
+TEXT runtime·mach_task_self(SB),7,$0
 	MOVL	$-28, AX
-	CALL	sysenter(SB)
+	CALL	runtime·sysenter(SB)
 	RET
 
 // Mach provides trap versions of the semaphore ops,
 // instead of requiring the use of RPC.
 
 // uint32 mach_semaphore_wait(uint32)
-TEXT mach_semaphore_wait(SB),7,$0
+TEXT runtime·mach_semaphore_wait(SB),7,$0
 	MOVL	$-36, AX
-	CALL	sysenter(SB)
+	CALL	runtime·sysenter(SB)
 	RET
 
 // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
-TEXT mach_semaphore_timedwait(SB),7,$0
+TEXT runtime·mach_semaphore_timedwait(SB),7,$0
 	MOVL	$-38, AX
-	CALL	sysenter(SB)
+	CALL	runtime·sysenter(SB)
 	RET
 
 // uint32 mach_semaphore_signal(uint32)
-TEXT mach_semaphore_signal(SB),7,$0
+TEXT runtime·mach_semaphore_signal(SB),7,$0
 	MOVL	$-33, AX
-	CALL	sysenter(SB)
+	CALL	runtime·sysenter(SB)
 	RET
 
 // uint32 mach_semaphore_signal_all(uint32)
-TEXT mach_semaphore_signal_all(SB),7,$0
+TEXT runtime·mach_semaphore_signal_all(SB),7,$0
 	MOVL	$-34, AX
-	CALL	sysenter(SB)
+	CALL	runtime·sysenter(SB)
 	RET
 
 // setldt(int entry, int address, int limit)
 // entry and limit are ignored.
-TEXT setldt(SB),7,$32
+TEXT runtime·setldt(SB),7,$32
 	MOVL	address+4(FP), BX	// aka base
 
 	/*

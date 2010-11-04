@@ -47,20 +47,20 @@ extern void cacheflush(byte* start, byte* end);
 
 #pragma textflag 7
 void
-·closure(int32 siz, byte *fn, byte *arg0)
+runtime·closure(int32 siz, byte *fn, byte *arg0)
 {
 	byte *p, *q, **ret;
 	uint32 *pc;
 	int32 n;
 
 	if(siz < 0 || siz%4 != 0)
-		throw("bad closure size");
+		runtime·throw("bad closure size");
 
 	ret = (byte**)((byte*)&arg0 + siz);
 
 	if(siz > 100) {
 		// TODO(kaib): implement stack growth preamble?
-		throw("closure too big");
+		runtime·throw("closure too big");
 	}
 
 	// size of new fn.
@@ -73,7 +73,7 @@ void
 	// store args aligned after code, so gc can find them.
 	n += siz;
 
-	p = mal(n);
+	p = runtime·mal(n);
 	*ret = p;
 	q = p + n - siz;
 
@@ -83,7 +83,7 @@ void
 	*pc++ = 0xe52de000 | (siz + 4);
 
 	if(siz > 0) {
-		mcpy(q, (byte*)&arg0, siz);
+		runtime·mcpy(q, (byte*)&arg0, siz);
 
 		//	MOVW	$vars(PC), R0
 		*pc = 0xe28f0000 | (int32)(q - (byte*)pc - 8);
@@ -122,8 +122,8 @@ void
 	p = (byte*)pc;
 
 	if(p > q)
-		throw("bad math in sys.closure");
+		runtime·throw("bad math in sys.closure");
 
-	cacheflush(*ret, q+siz);
+	runtime·cacheflush(*ret, q+siz);
 }
 

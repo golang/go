@@ -5,7 +5,7 @@
 #include "runtime.h"
 #include "malloc.h"
 
-Lock finlock;
+static Lock finlock;
 
 // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
 // Table size is power of 3 so that hash can be key % max.
@@ -44,7 +44,7 @@ addfintab(Fintab *t, void *k, Finalizer *v)
 	}
 
 	// cannot happen - table is known to be non-full
-	throw("finalizer table inconsistent");
+	runtime·throw("finalizer table inconsistent");
 
 ret:
 	t->key[i] = k;
@@ -77,7 +77,7 @@ lookfintab(Fintab *t, void *k, bool del)
 	}
 
 	// cannot happen - table is known to be non-full
-	throw("finalizer table inconsistent");
+	runtime·throw("finalizer table inconsistent");
 	return nil;
 }
 
@@ -85,7 +85,7 @@ static Fintab fintab;
 
 // add finalizer; caller is responsible for making sure not already in table
 void
-addfinalizer(void *p, void (*f)(void*), int32 nret)
+runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
 {
 	Fintab newtab;
 	int32 i;
@@ -95,28 +95,28 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 	
 	e = nil;
 	if(f != nil) {
-		e = mal(sizeof *e);
+		e = runtime·mal(sizeof *e);
 		e->fn = f;
 		e->nret = nret;
 	}
 
-	lock(&finlock);
-	if(!mlookup(p, &base, nil, nil, &ref) || p != base) {
-		unlock(&finlock);
-		throw("addfinalizer on invalid pointer");
+	runtime·lock(&finlock);
+	if(!runtime·mlookup(p, &base, nil, nil, &ref) || p != base) {
+		runtime·unlock(&finlock);
+		runtime·throw("addfinalizer on invalid pointer");
 	}
 	if(f == nil) {
 		if(*ref & RefHasFinalizer) {
 			lookfintab(&fintab, p, 1);
 			*ref &= ~RefHasFinalizer;
 		}
-		unlock(&finlock);
+		runtime·unlock(&finlock);
 		return;
 	}
 
 	if(*ref & RefHasFinalizer) {
-		unlock(&finlock);
-		throw("double finalizer");
+		runtime·unlock(&finlock);
+		runtime·throw("double finalizer");
 	}
 	*ref |= RefHasFinalizer;
 
@@ -124,7 +124,7 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 		// keep table at most 3/4 full:
 		// allocate new table and rehash.
 
-		runtime_memclr((byte*)&newtab, sizeof newtab);
+		runtime·memclr((byte*)&newtab, sizeof newtab);
 		newtab.max = fintab.max;
 		if(newtab.max == 0)
 			newtab.max = 3*3*3;
@@ -134,8 +134,8 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 			newtab.max *= 3;
 		}
 
-		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1);
-		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
+		newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1);
+		newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
 
 		for(i=0; i<fintab.max; i++) {
 			void *k;
@@ -144,39 +144,39 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
 			if(k != nil && k != (void*)-1)
 				addfintab(&newtab, k, fintab.val[i]);
 		}
-		free(fintab.key);
-		free(fintab.val);
+		runtime·free(fintab.key);
+		runtime·free(fintab.val);
 		fintab = newtab;
 	}
 
 	addfintab(&fintab, p, e);
-	unlock(&finlock);
+	runtime·unlock(&finlock);
 }
 
 // get finalizer; if del, delete finalizer.
 // caller is responsible for updating RefHasFinalizer bit.
 Finalizer*
-getfinalizer(void *p, bool del)
+runtime·getfinalizer(void *p, bool del)
 {
 	Finalizer *f;
 	
-	lock(&finlock);
+	runtime·lock(&finlock);
 	f = lookfintab(&fintab, p, del);
-	unlock(&finlock);
+	runtime·unlock(&finlock);
 	return f;
 }
 
 void
-walkfintab(void (*fn)(void*))
+runtime·walkfintab(void (*fn)(void*))
 {
 	void **key;
 	void **ekey;
 
-	lock(&finlock);
+	runtime·lock(&finlock);
 	key = fintab.key;
 	ekey = key + fintab.max;
 	for(; key < ekey; key++)
 		if(*key != nil && *key != ((void*)-1))
 			fn(*key);
-	unlock(&finlock);
+	runtime·unlock(&finlock);
 }

@@ -121,7 +121,7 @@ static byte closasm[64] = {
 #define codeptr(p) *(ClosureData***)((byte*)(p)+2)
 
 void
-finclosure(void *v)
+runtime·finclosure(void *v)
 {
 	byte *p;
 	ClosureFreeList *f;
@@ -130,10 +130,10 @@ finclosure(void *v)
 	p = clos.code + f->index*ClosureSize;
 	*codeptr(p) = nil;
 
-	lock(&clos);
+	runtime·lock(&clos);
 	f->next = clos.free;
 	clos.free = f;
-	unlock(&clos);
+	runtime·unlock(&clos);
 }
 
 #pragma textflag 7
@@ -141,7 +141,7 @@ finclosure(void *v)
 //	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
 //	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
 void
-·closure(int32 siz, byte *fn, byte *arg0)
+runtime·closure(int32 siz, byte *fn, byte *arg0)
 {
 	byte *p, **ret;
 	int32 e, i, n, off;
@@ -151,16 +151,16 @@ void
 	ClosureFreeList *f;
 
 	if(siz < 0 || siz%4 != 0)
-		throw("bad closure size");
+		runtime·throw("bad closure size");
 
 	ret = (byte**)((byte*)&arg0 + siz);
 
 	if(siz > 100) {
 		// TODO(rsc): implement stack growth preamble?
-		throw("closure too big");
+		runtime·throw("closure too big");
 	}
 
-	lock(&clos);
+	runtime·lock(&clos);
 	if(clos.free == nil) {
 		// Allocate more closures.
 		if(clos.code == nil) {
@@ -173,25 +173,25 @@ void
 		}
 		if(clos.ecode+ClosureChunk > rodata) {
 			// Last ditch effort: garbage collect and hope.
-			unlock(&clos);
-			gc(1);
-			lock(&clos);
+			runtime·unlock(&clos);
+			runtime·gc(1);
+			runtime·lock(&clos);
 			if(clos.free != nil)
 				goto alloc;
-			throw("ran out of room for closures in text segment");
+			runtime·throw("ran out of room for closures in text segment");
 		}
 
 		n = ClosureChunk/ClosureSize;
 		
 		// Allocate the pointer block as opaque to the
 		// garbage collector.  Finalizers will clean up.
-		block = mallocgc(n*sizeof block[0], RefNoPointers, 1, 1);
+		block = runtime·mallocgc(n*sizeof block[0], RefNoPointers, 1, 1);
 
 		// Pointers into the pointer block are getting added
 		// to the text segment; keep a pointer here in the data
 		// segment so that the garbage collector doesn't free
 		// the block itself.
-		l = mal(sizeof *l);
+		l = runtime·mal(sizeof *l);
 		l->block = block;
 		l->next = clos.datalist;
 		clos.datalist = l;
@@ -199,7 +199,7 @@ void
 		p = clos.buf;
 		off = (clos.ecode - clos.code)/ClosureSize;
 		for(i=0; i<n; i++) {
-			f = mal(sizeof *f);
+			f = runtime·mal(sizeof *f);
 			f->index = off++;
 			f->next = clos.free;
 			clos.free = f;
@@ -207,20 +207,20 @@ void
 			// There are two hard-coded immediate values in
 			// the assembly that need to be pp+i, one 2 bytes in
 			// and one 2 bytes after the 32-byte boundary.
-			mcpy(p, closasm, ClosureSize);
+			runtime·mcpy(p, closasm, ClosureSize);
 			*(ClosureData***)(p+2) = block+i;
 			*(ClosureData***)(p+32+2) = block+i;
 			p += ClosureSize;
 		}
 
 		if(p != clos.buf+sizeof clos.buf)
-			throw("bad buf math in closure");
+			runtime·throw("bad buf math in closure");
 
-		e = dyncode_copy(clos.ecode, clos.buf, ClosureChunk);
+		e = runtime·dyncode_copy(clos.ecode, clos.buf, ClosureChunk);
 		if(e != 0) {
 			fd = 2;
-			printf("dyncode_copy: error %d\n", e);
-			throw("dyncode_copy");
+			runtime·printf("dyncode_copy: error %d\n", e);
+			runtime·throw("dyncode_copy");
 		}
 		clos.ecode += ClosureChunk;
 	}
@@ -232,14 +232,14 @@ alloc:
 	f->next = nil;
 	p = clos.code + f->index*ClosureSize;
 
-	d = mal(sizeof(*d)+siz);
+	d = runtime·mal(sizeof(*d)+siz);
 	d->free = f;
 	d->fn = fn;
 	d->siz = siz;
-	mcpy((byte*)(d+1), (byte*)&arg0, siz);
+	runtime·mcpy((byte*)(d+1), (byte*)&arg0, siz);
 	*codeptr(p) = d;
-	addfinalizer(f, finclosure, 0);
-	unlock(&clos);
+	runtime·addfinalizer(f, finclosure, 0);
+	runtime·unlock(&clos);
 
 	*ret = p;
 }

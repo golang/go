@@ -30,7 +30,7 @@ arg=0
 
 /* replaced use of R10 by R11 because the former can be the data segment base register */
 
-TEXT	_mulv(SB), $0
+TEXT _mulv(SB), $0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R2	/* l0 */
 	MOVW	8(FP), R11	/* h0 */
@@ -52,7 +52,7 @@ D	= 2
 CC	= 3
 TMP	= 11
 
-TEXT	save<>(SB), 7, $0
+TEXT save<>(SB), 7, $0
 	MOVW	R(Q), 0(FP)
 	MOVW	R(N), 4(FP)
 	MOVW	R(D), 8(FP)
@@ -66,7 +66,7 @@ TEXT	save<>(SB), 7, $0
 /*	  MOVW	-1(R(D)), R(TMP)	/* divide by zero fault */
 s1:	 RET
 
-TEXT	rest<>(SB), 7, $0
+TEXT rest<>(SB), 7, $0
 	MOVW	0(FP), R(Q)
 	MOVW	4(FP), R(N)
 	MOVW	8(FP), R(D)
@@ -79,7 +79,7 @@ TEXT	rest<>(SB), 7, $0
 	ADD	$20, R13
 	B	(R14)
 
-TEXT	div<>(SB), 7, $0
+TEXT div<>(SB), 7, $0
 	MOVW	$32, R(CC)
 /*
  * skip zeros 8-at-a-time
@@ -114,7 +114,7 @@ loop:
 	BNE	loop
 	RET
 
-TEXT	_div(SB), 7, $16
+TEXT _div(SB), 7, $16
 	BL	save<>(SB)
 	CMP	$0, R(Q)
 	BGE	d1
@@ -135,7 +135,7 @@ d2:
 	RSB	$0, R(Q), R(TMP)
 	B	out
 
-TEXT	_mod(SB), 7, $16
+TEXT _mod(SB), 7, $16
 	BL	save<>(SB)
 	CMP	$0, R(D)
 	RSB.LT	$0, R(D), R(D)
@@ -150,13 +150,13 @@ m1:
 	MOVW	R(N), R(TMP)
 	B	out
 
-TEXT	_divu(SB), 7, $16
+TEXT _divu(SB), 7, $16
 	BL	save<>(SB)
 	BL	div<>(SB)
 	MOVW	R(Q), R(TMP)
 	B	out
 
-TEXT	_modu(SB), 7, $16
+TEXT _modu(SB), 7, $16
 	BL	save<>(SB)
 	BL	div<>(SB)
 	MOVW	R(N), R(TMP)
@@ -169,7 +169,7 @@ out:
 // trampoline for _sfloat2. passes LR as arg0 and
 // saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
 // be changed by _sfloat2.
-TEXT	_sfloat(SB), 7, $64 // 4 arg + 14*4 saved regs + cpsr
+TEXT _sfloat(SB), 7, $64 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	R14, 4(R13)
 	MOVW	R0, 8(R13)
 	MOVW	$12(R13), R0
