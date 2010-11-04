@@ -395,12 +395,14 @@ var lines = []string{
 	"var\n",
 
 	"foo$//comment\n",
+	"foo$//comment",
 	"foo$/*comment*/\n",
 	"foo$/*\n*/",
 	"foo$/*comment*/    \n",
 	"foo$/*\n*/    ",
 
 	"foo    $// comment\n",
+	"foo    $// comment",
 	"foo    $/*comment*/\n",
 	"foo    $/*\n*/",
 	"foo    $/*  */ /* \n */ bar$/**/\n",
@@ -410,7 +412,8 @@ var lines = []string{
 	"foo    $/*0*/ /*1*/ /*2*/    \n",
 	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa$\n",
 	"foo    $/* an EOF terminates a line */",
-	"foo    $/* an EOF terminates a line *//*",
+	"foo    $/* an EOF terminates a line */ /*",
+	"foo    $/* an EOF terminates a line */ //",
 
 	"package main$\n\nfunc main() {\n\tif {\n\t\treturn /* */ }$\n}$\n",
 	"package main$",
@@ -626,8 +629,6 @@ var errors = []struct {
 	{"`", token.STRING, 0, "string not terminated"},
 	{"/**/", token.COMMENT, 0, ""},
 	{"/*", token.COMMENT, 0, "comment not terminated"},
-	{"//\n", token.COMMENT, 0, ""},
-	{"//", token.COMMENT, 0, "comment not terminated"},
 	{"077", token.INT, 0, ""},
 	{"078.", token.FLOAT, 0, ""},
 	{"07801234567.", token.FLOAT, 0, ""},

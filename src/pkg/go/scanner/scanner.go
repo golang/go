@@ -183,29 +183,25 @@ func (S *Scanner) scanComment() {
 
 	if S.ch == '/' {
 		//-style comment
-		for S.ch >= 0 {
-			S.next()
-			if S.ch == '\n' {
-				// '\n' is not part of the comment for purposes of scanning
-				// (the comment ends on the same line where it started)
-				if col == 1 {
-					// comment starts at the beginning of the current line
-					S.interpretLineComment(S.src[offs:S.offset])
-				}
-				return
-			}
-		}
-
-	} else {
-		/*-style comment */
 		S.next()
-		for S.ch >= 0 {
-			ch := S.ch
+		for S.ch != '\n' && S.ch >= 0 {
 			S.next()
-			if ch == '*' && S.ch == '/' {
-				S.next()
-				return
-			}
+		}
+		if col == 1 {
+			// comment starts at the beginning of the current line
+			S.interpretLineComment(S.src[offs:S.offset])
+		}
+		return
+	}
+
+	/*-style comment */
+	S.next()
+	for S.ch >= 0 {
+		ch := S.ch
+		S.next()
+		if ch == '*' && S.ch == '/' {
+			S.next()
+			return
 		}
 	}
 
