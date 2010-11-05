@@ -6,7 +6,7 @@ function loadFeed() {
         var url = "http://blog.golang.org/feeds/posts/default";
         var divId = "blogFeed";
         var feed = new google.feeds.Feed(url);
-        feed.setNumEntries(5)
+        feed.setNumEntries(4)
         feed.load(function (result) {
                 var container = document.getElementById(divId)
                 if (result.error) {
