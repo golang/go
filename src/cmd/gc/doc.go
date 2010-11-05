@@ -32,7 +32,7 @@ Substitute 6g with 8g or 5g where appropriate.
 
 Flags:
 	-o file
-		output file, default 6.out for 6g, etc.
+		output file, default file.6 for 6g, etc.
 	-e
 		normally the compiler quits after 10 errors; -e prints all errors
 	-L
