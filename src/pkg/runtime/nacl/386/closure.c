@@ -219,6 +219,8 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 		e = runtime·dyncode_copy(clos.ecode, clos.buf, ClosureChunk);
 		if(e != 0) {
 			fd = 2;
+			if(e == -22)
+				runtime·throw("NaCl running with dyncode_copy disabled; export NACLDYNCODE=1 in your environment");
 			runtime·printf("dyncode_copy: error %d\n", e);
 			runtime·throw("dyncode_copy");
 		}
