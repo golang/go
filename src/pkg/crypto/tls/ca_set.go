@@ -12,14 +12,14 @@ import (
 
 // A CASet is a set of certificates.
 type CASet struct {
-	bySubjectKeyId map[string]*x509.Certificate
-	byName         map[string]*x509.Certificate
+	bySubjectKeyId map[string][]*x509.Certificate
+	byName         map[string][]*x509.Certificate
 }
 
 func NewCASet() *CASet {
 	return &CASet{
-		make(map[string]*x509.Certificate),
-		make(map[string]*x509.Certificate),
+		make(map[string][]*x509.Certificate),
+		make(map[string][]*x509.Certificate),
 	}
 }
 
@@ -27,13 +27,36 @@ func nameToKey(name *x509.Name) string {
 	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
 }
 
-// FindParent attempts to find the certificate in s which signs the given
-// certificate. If no such certificate can be found, it returns nil.
-func (s *CASet) FindParent(cert *x509.Certificate) (parent *x509.Certificate) {
+// FindVerifiedParent attempts to find the certificate in s which has signed
+// the given certificate. If no such certificate can be found or the signature
+// doesn't match, it returns nil.
+func (s *CASet) FindVerifiedParent(cert *x509.Certificate) (parent *x509.Certificate) {
+	var candidates []*x509.Certificate
+
 	if len(cert.AuthorityKeyId) > 0 {
-		return s.bySubjectKeyId[string(cert.AuthorityKeyId)]
+		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
 	}
-	return s.byName[nameToKey(&cert.Issuer)]
+	if len(candidates) == 0 {
+		candidates = s.byName[nameToKey(&cert.Issuer)]
+	}
+
+	for _, c := range candidates {
+		if cert.CheckSignatureFrom(c) == nil {
+			return c
+		}
+	}
+
+	return nil
+}
+
+// AddCert adds a certificate to the set
+func (s *CASet) AddCert(cert *x509.Certificate) {
+	if len(cert.SubjectKeyId) > 0 {
+		keyId := string(cert.SubjectKeyId)
+		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], cert)
+	}
+	name := nameToKey(&cert.Subject)
+	s.byName[name] = append(s.byName[name], cert)
 }
 
 // SetFromPEM attempts to parse a series of PEM encoded root certificates. It
@@ -57,10 +80,7 @@ func (s *CASet) SetFromPEM(pemCerts []byte) (ok bool) {
 			continue
 		}
 
-		if len(cert.SubjectKeyId) > 0 {
-			s.bySubjectKeyId[string(cert.SubjectKeyId)] = cert
-		}
-		s.byName[nameToKey(&cert.Subject)] = cert
+		s.AddCert(cert)
 		ok = true
 	}
 
