@@ -75,3 +75,31 @@ func TestMatch(t *testing.T) {
 		}
 	}
 }
+
+// contains returns true if vector contains the string s.
+func contains(vector []string, s string) bool {
+	for _, elem := range vector {
+		if elem == s {
+			return true
+		}
+	}
+	return false
+}
+
+var globTests = []struct {
+	pattern, result string
+}{
+	{"match.go", "match.go"},
+	{"mat?h.go", "match.go"},
+	{"*", "match.go"},
+	{"../*/match.go", "../path/match.go"},
+}
+
+func TestGlob(t *testing.T) {
+	for _, tt := range globTests {
+		matches := Glob(tt.pattern)
+		if !contains(matches, tt.result) {
+			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
+		}
+	}
+}

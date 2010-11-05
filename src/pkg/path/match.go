@@ -2,6 +2,7 @@ package path
 
 import (
 	"os"
+	"sort"
 	"strings"
 	"utf8"
 )
@@ -201,4 +202,73 @@ func getEsc(chunk string) (r int, nchunk string, err os.Error) {
 		err = ErrBadPattern
 	}
 	return
+}
+
+// Glob returns the names of all files matching pattern or nil
+// if there is no matching file. The syntax of patterns is the same
+// as in Match. The pattern may describe hierarchical names such as
+// /usr/*/bin/ed.
+//
+func Glob(pattern string) (matches []string) {
+	if !hasMeta(pattern) {
+		if _, err := os.Stat(pattern); err == nil {
+			return []string{pattern}
+		}
+		return nil
+	}
+
+	dir, file := Split(pattern)
+	switch dir {
+	case "":
+		dir = "."
+	case "/":
+		// nothing
+	default:
+		dir = dir[0 : len(dir)-1] // chop off trailing '/'
+	}
+
+	if hasMeta(dir) {
+		for _, d := range Glob(dir) {
+			matches = glob(d, file, matches)
+		}
+	} else {
+		return glob(dir, file, nil)
+	}
+	return matches
+}
+
+// glob searches for files matching pattern in the directory dir
+// and appends them to matches.
+func glob(dir, pattern string, matches []string) []string {
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDirectory() {
+		return nil
+	}
+	d, err := os.Open(dir, os.O_RDONLY, 0666)
+	if err != nil {
+		return nil
+	}
+	defer d.Close()
+
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return nil
+	}
+	sort.SortStrings(names)
+
+	for _, n := range names {
+		matched, err := Match(pattern, n)
+		if err != nil {
+			return matches
+		}
+		if matched {
+			matches = append(matches, Join(dir, n))
+		}
+	}
+	return matches
+}
+
+// hasMeta returns true if path contains any of the magic characters
+// recognized by Match.
+func hasMeta(path string) bool {
+	return strings.IndexAny(path, "*?[") != -1
 }
