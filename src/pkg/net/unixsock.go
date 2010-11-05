@@ -277,6 +277,11 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	return c.WriteToUnix(b, a)
 }
 
+// File returns a copy of the underlying os.File, set to blocking mode.
+// It is the caller's responsibility to close f when finished.
+// Closing c does not affect f, and closing f does not affect c.
+func (c *UnixConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+
 // DialUnix connects to the remote address raddr on the network net,
 // which must be "unix" or "unixgram".  If laddr is not nil, it is used
 // as the local address for the connection.
@@ -368,6 +373,11 @@ func (l *UnixListener) Close() os.Error {
 
 // Addr returns the listener's network address.
 func (l *UnixListener) Addr() Addr { return l.fd.laddr }
+
+// File returns a copy of the underlying os.File, set to blocking mode.
+// It is the caller's responsibility to close f when finished.
+// Closing c does not affect f, and closing f does not affect c.
+func (l *UnixListener) File() (f *os.File, err os.Error) { return l.fd.dup() }
 
 // ListenUnixgram listens for incoming Unix datagram packets addressed to the
 // local address laddr.  The returned connection c's ReadFrom

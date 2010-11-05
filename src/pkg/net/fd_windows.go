@@ -373,3 +373,8 @@ func init() {
 		initErr = os.NewSyscallError("WSAStartup", e)
 	}
 }
+
+func (fd *netFD) dup() (f *os.File, err os.Error) {
+	// TODO: Implement this
+	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
+}
