@@ -13,7 +13,7 @@ extern void *runtime·LoadLibraryEx;
 extern void *runtime·GetProcAddress;
 extern void *runtime·GetLastError;
 
-#define goargs windows_goargs
+#define runtime·goargs runtime·windows_goargs
 void runtime·windows_goargs(void);
 
 // Get start address of symbol data in memory.
