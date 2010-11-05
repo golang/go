@@ -404,7 +404,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 		return
 	}
 
-	typ := iv.Elem().Type()
+	typ, _ := indirect(iv.Elem().Type())
 	name, ok := concreteTypeToName[typ]
 	if !ok {
 		errorf("gob: type not registered for interface: %s", typ)
