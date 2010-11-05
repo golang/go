@@ -1225,7 +1225,6 @@ func TestInterfaceBasic(t *testing.T) {
 		"hello",
 		[]byte("sailor"),
 	}
-	// Register the types.
 	err := NewEncoder(b).Encode(item1)
 	if err != nil {
 		t.Error("expected no encode error; got", err)
@@ -1245,6 +1244,44 @@ func TestInterfaceBasic(t *testing.T) {
 	}
 	if v, ok := item2.String.(string); !ok || v != item1.String.(string) {
 		t.Errorf("string should be %v is %v", item1.String, v)
+	}
+}
+
+type String string
+
+type PtrInterfaceItem struct {
+	str interface{} // basic
+	Str interface{} // derived
+}
+
+// We'll send pointers; should receive values.
+// Also check that we can register T but send *T.
+func TestInterfacePointer(t *testing.T) {
+	b := new(bytes.Buffer)
+	str1 := "howdy"
+	str2 := String("kiddo")
+	item1 := &PtrInterfaceItem{
+		&str1,
+		&str2,
+	}
+	// Register the type.
+	Register(str2)
+	err := NewEncoder(b).Encode(item1)
+	if err != nil {
+		t.Error("expected no encode error; got", err)
+	}
+
+	item2 := &PtrInterfaceItem{}
+	err = NewDecoder(b).Decode(&item2)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	// Hand test for correct types and values.
+	if v, ok := item2.str.(string); !ok || v != str1 {
+		t.Errorf("basic string failed: %q should be %q", v, str1)
+	}
+	if v, ok := item2.Str.(String); !ok || v != str2 {
+		t.Errorf("derived type String failed: %q should be %q", v, str2)
 	}
 }
 
