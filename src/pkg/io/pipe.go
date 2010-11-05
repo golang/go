@@ -292,20 +292,14 @@ func Pipe() (*PipeReader, *PipeWriter) {
 	r.c2 = p.r2
 	r.cclose = p.rclose
 	r.done = p.done
-	// TODO(rsc): Should be able to write
-	//	runtime.SetFinalizer(r, (*PipeReader).finalizer)
-	// but 6g doesn't see the finalizer method.
-	runtime.SetFinalizer(&r.pipeHalf, (*pipeHalf).finalizer)
+	runtime.SetFinalizer(r, (*PipeReader).finalizer)
 
 	w := new(PipeWriter)
 	w.c1 = p.w1
 	w.c2 = p.w2
 	w.cclose = p.wclose
 	w.done = p.done
-	// TODO(rsc): Should be able to write
-	//	runtime.SetFinalizer(w, (*PipeWriter).finalizer)
-	// but 6g doesn't see the finalizer method.
-	runtime.SetFinalizer(&w.pipeHalf, (*pipeHalf).finalizer)
+	runtime.SetFinalizer(w, (*PipeWriter).finalizer)
 
 	return r, w
 }
