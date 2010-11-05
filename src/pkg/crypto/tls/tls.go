@@ -6,12 +6,13 @@
 package tls
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"io/ioutil"
 	"net"
 	"os"
-	"encoding/pem"
-	"crypto/rsa"
-	"crypto/x509"
+	"strings"
 )
 
 func Server(conn net.Conn, config *Config) *Conn {
@@ -67,7 +68,16 @@ func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	conn := Client(c, nil)
+
+	colonPos := strings.LastIndex(raddr, ":")
+	if colonPos == -1 {
+		colonPos = len(raddr)
+	}
+	hostname := raddr[:colonPos]
+
+	config := defaultConfig()
+	config.ServerName = hostname
+	conn := Client(c, config)
 	err = conn.Handshake()
 	if err == nil {
 		return conn, nil
