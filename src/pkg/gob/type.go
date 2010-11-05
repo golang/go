@@ -495,7 +495,11 @@ func Register(value interface{}) {
 		}
 	}
 	if rt.Name() != "" {
-		name = star + rt.PkgPath() + "." + rt.Name()
+		if rt.PkgPath() == "" {
+			name = star + rt.Name()
+		} else {
+			name = star + rt.PkgPath() + "." + rt.Name()
+		}
 	}
 
 	RegisterName(name, value)
