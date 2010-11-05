@@ -69,6 +69,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	Fchown(fd int, uid int, gid int) (errno int)
 //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
 //sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
+//sys	Ftruncate(fd int, length int64) (errno int) = SYS_FTRUNCATE64
 //sys	Getegid() (egid int)
 //sys	Geteuid() (euid int)
 //sys	Getgid() (gid int)
@@ -87,6 +88,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	Shutdown(fd int, how int) (errno int)
 //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
 //sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
+//sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64
 
 // Vsyscalls on amd64.
 //sys	Gettimeofday(tv *Timeval) (errno int)
