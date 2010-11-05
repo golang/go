@@ -208,6 +208,11 @@ func (c *TCPConn) SetNoDelay(noDelay bool) os.Error {
 	return setNoDelay(c.fd, noDelay)
 }
 
+// File returns a copy of the underlying os.File, set to blocking mode.
+// It is the caller's responsibility to close f when finished.
+// Closing c does not affect f, and closing f does not affect c.
+func (c *TCPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+
 // DialTCP is like Dial but can only connect to TCP networks
 // and returns a TCPConn structure.
 func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
@@ -281,3 +286,8 @@ func (l *TCPListener) Close() os.Error {
 
 // Addr returns the listener's network address, a *TCPAddr.
 func (l *TCPListener) Addr() Addr { return l.fd.laddr }
+
+// File returns a copy of the underlying os.File, set to blocking mode.
+// It is the caller's responsibility to close f when finished.
+// Closing c does not affect f, and closing f does not affect c.
+func (l *TCPListener) File() (f *os.File, err os.Error) { return l.fd.dup() }

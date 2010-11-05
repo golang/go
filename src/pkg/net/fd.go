@@ -517,3 +517,17 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	}
 	return nfd, nil
 }
+
+func (fd *netFD) dup() (f *os.File, err os.Error) {
+	ns, e := syscall.Dup(fd.sysfd)
+	if e != 0 {
+		return nil, &OpError{"dup", fd.net, fd.laddr, os.Errno(e)}
+	}
+
+	// We want blocking mode for the new fd, hence the double negative.
+	if e = syscall.SetNonblock(ns, false); e != 0 {
+		return nil, &OpError{"setnonblock", fd.net, fd.laddr, os.Errno(e)}
+	}
+
+	return os.NewFile(ns, fd.sysfile.Name()), nil
+}
