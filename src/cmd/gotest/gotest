@@ -150,7 +150,7 @@ importpath=$(gomake -s importpath)
 	echo 'import __regexp__ "regexp"' # rename in case tested package is called regexp
 	# test array
 	echo
-	echo 'var tests = []testing.Test{'
+	echo 'var tests = []testing.InternalTest{'
 	for i in $tests
 	do
 		echo '	{"'$i'", '$i'},'
