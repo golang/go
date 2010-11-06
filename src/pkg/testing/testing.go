@@ -123,19 +123,19 @@ func (t *T) Fatalf(format string, args ...interface{}) {
 
 // An internal type but exported because it is cross-package; part of the implementation
 // of gotest.
-type Test struct {
+type InternalTest struct {
 	Name string
 	F    func(*T)
 }
 
-func tRunner(t *T, test *Test) {
+func tRunner(t *T, test *InternalTest) {
 	test.F(t)
 	t.ch <- t
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
 // of gotest.
-func Main(matchString func(pat, str string) (bool, os.Error), tests []Test) {
+func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) {
 	flag.Parse()
 	ok := true
 	if len(tests) == 0 {
