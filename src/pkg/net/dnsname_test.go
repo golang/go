@@ -6,6 +6,7 @@ package net
 
 import (
 	"testing"
+	"runtime"
 )
 
 type testCase struct {
@@ -54,6 +55,9 @@ func getTestCases(ch chan<- *testCase) {
 }
 
 func TestDNSNames(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		return
+	}
 	ch := make(chan *testCase)
 	go getTestCases(ch)
 	for tc := range ch {
