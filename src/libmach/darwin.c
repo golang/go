@@ -807,8 +807,10 @@ ctlproc(int id, char *msg)
 
 		// Find Mach thread for pid and suspend it.
 		t = addpid(id, 1);
-		if(t == nil)
+		if(t == nil) {
+			fprint(2, "ctlproc attached: addpid: %r\n");
 			return -1;
+		}
 		if(me(thread_suspend(t->thread)) < 0){
 			fprint(2, "ctlproc attached: thread_suspend: %r\n");
 			return -1;
@@ -816,7 +818,12 @@ ctlproc(int id, char *msg)
 
 		// Let ptrace tell the process to keep going:
 		// then ptrace is out of the way and we're back in Mach land.
-		return ptrace(PT_CONTINUE, id, (caddr_t)1, 0);
+		if(ptrace(PT_CONTINUE, id, (caddr_t)1, 0) < 0) {
+			fprint(2, "ctlproc attached: ptrace continue: %r\n");
+			return -1;
+		}
+		
+		return 0;
 	}
 
 	// All the other control messages require a Thread structure.
