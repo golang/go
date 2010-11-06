@@ -17,7 +17,7 @@ fi
 DIR1=$(cd ..; pwd)
 DIR2=$(cd "$GOROOT"; pwd)
 if [ "$DIR1" != "$DIR2" ]; then
-	echo 'Suspicious $GOROOT '$GOROOT': does not match current directory.' 1>&2
+	echo 'Suspicious $GOROOT '"$GOROOT"': does not match current directory.' 1>&2
 	exit 1
 fi
 
@@ -29,7 +29,7 @@ if [ ! -d "$GOBIN" -a "$GOBIN" != "$GOROOT/bin" ]; then
 fi
 
 export OLDPATH=$PATH
-export PATH=/bin:/usr/bin:$GOBIN:$PATH
+export PATH=/bin:/usr/bin:"$GOBIN":$PATH
 
 MAKE=make
 if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
