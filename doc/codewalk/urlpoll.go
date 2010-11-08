@@ -52,9 +52,9 @@ func StateMonitor(updateInterval int64) chan<- State {
 
 // logState prints a state map.
 func logState(s map[string]string) {
-	log.Stdout("Current state:")
+	log.Println("Current state:")
 	for k, v := range s {
-		log.Stdoutf(" %s %s", k, v)
+		log.Printf(" %s %s", k, v)
 	}
 }
 
@@ -69,7 +69,7 @@ type Resource struct {
 func (r *Resource) Poll() string {
 	resp, err := http.Head(r.url)
 	if err != nil {
-		log.Stderr("Error", r.url, err)
+		log.Println("Error", r.url, err)
 		r.errCount++
 		return err.String()
 	}
