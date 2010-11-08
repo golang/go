@@ -11,7 +11,7 @@ type NumError struct {
 	Error os.Error
 }
 
-func (e *NumError) String() string { return "parsing " + e.Num + ": " + e.Error.String() }
+func (e *NumError) String() string { return `parsing "` + e.Num + `": ` + e.Error.String() }
 
 
 func computeIntsize() uint {
