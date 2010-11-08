@@ -8,6 +8,7 @@ TARG=os
 GOFILES=\
 	dir_$(GOOS).go\
 	error.go\
+	env.go\
 	exec.go\
 	file.go\
 	getwd.go\
