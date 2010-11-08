@@ -11,17 +11,17 @@ package os
 func Expand(s string, mapping func(string) string) string {
 	buf := make([]byte, 0, 2*len(s))
 	// ${} is all ASCII, so bytes are fine for this operation.
-	for i := 0; i < len(s); {
-		if s[i] != '$' || i == len(s)-1 {
-			buf = append(buf, s[i])
-			i++
-			continue
+	i := 0
+	for j := 0; j < len(s); j++ {
+		if s[j] == '$' && j+1 < len(s) {
+			buf = append(buf, []byte(s[i:j])...)
+			name, w := getShellName(s[j+1:])
+			buf = append(buf, []byte(mapping(name))...)
+			j += w
+			i = j + 1
 		}
-		name, w := getShellName(s[i+1:])
-		buf = append(buf, []byte(mapping(name))...)
-		i += 1 + w
 	}
-	return string(buf)
+	return string(buf) + s[i:]
 }
 
 // ShellExpand replaces ${var} or $var in the string according to the values
