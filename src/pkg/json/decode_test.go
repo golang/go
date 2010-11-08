@@ -23,6 +23,24 @@ type tx struct {
 
 var txType = reflect.Typeof((*tx)(nil)).(*reflect.PtrType).Elem().(*reflect.StructType)
 
+// A type that can unmarshal itself.
+
+type unmarshaler struct {
+	T bool
+}
+
+func (u *unmarshaler) UnmarshalJSON(b []byte) os.Error {
+	*u = unmarshaler{true} // All we need to see that UnmarshalJson is called.
+	return nil
+}
+
+var (
+	um0, um1 unmarshaler // target2 of unmarshaling
+	ump      = &um1
+	umtrue   = unmarshaler{true}
+)
+
+
 type unmarshalTest struct {
 	in  string
 	ptr interface{}
@@ -56,6 +74,10 @@ var unmarshalTests = []unmarshalTest{
 	{pallValueCompact, new(All), pallValue, nil},
 	{pallValueIndent, new(*All), &pallValue, nil},
 	{pallValueCompact, new(*All), &pallValue, nil},
+
+	// unmarshal interface test
+	{`{"T":false}`, &um0, umtrue, nil}, // use "false" so test will fail if custom unmarshaler is not called
+	{`{"T":false}`, &ump, &umtrue, nil},
 }
 
 func TestMarshal(t *testing.T) {

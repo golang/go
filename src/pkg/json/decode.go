@@ -128,7 +128,9 @@ func (d *decodeState) unmarshal(v interface{}) (err os.Error) {
 	}
 
 	d.scan.reset()
-	d.value(pv.Elem())
+	// We decode rv not pv.Elem because the Unmarshaler interface
+	// test must be applied at the top level of the value.
+	d.value(rv)
 	return d.savedError
 }
 
