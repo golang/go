@@ -783,7 +783,7 @@ decodetype_structfieldcount(Sym *s)
 }
 
 // Type.StructType.fields[]-> name, typ and offset. sizeof(structField) =  5*PtrSize
-static uchar*
+static char*
 decodetype_structfieldname(Sym *s, int i)
 {
 	Sym *p;
@@ -793,7 +793,7 @@ decodetype_structfieldname(Sym *s, int i)
 	p = decode_reloc(p, 0);			// string."foo"
 	if (p == nil)				// shouldn't happen.
 		return nil;
-	return p->p;				// the c-string
+	return (char*)p->p;    			// the c-string
 }
 
 static Sym*
@@ -1328,6 +1328,18 @@ newcfaoffsetattr(DWDie *die, int32 offs)
 	memmove(die->attr->data, block, i);
 }
 
+static char*
+mkvarname(char* name, int da)
+{
+	char buf[1024];
+	char *n;
+
+	snprint(buf, sizeof buf, "%s#%d", name, da);
+	n = mal(strlen(buf) + 1);
+	memmove(n, buf, strlen(buf));
+	return n;
+}
+
 /*
  * Walk prog table, emit line program and build DIE tree.
  */
@@ -1365,9 +1377,11 @@ writelines(void)
 	vlong unitstart;
 	vlong pc, epc, lc, llc, lline;
 	int currfile;
-	int i, lang;
+	int i, lang, da, dt;
 	Linehist *lh;
 	DWDie *dwinfo, *dwfunc, *dwvar;
+	DWDie *varhash[HASHSIZE];
+	char *n;
 
 	unitstart = -1;
 	epc = pc = 0;
@@ -1483,20 +1497,34 @@ writelines(void)
 			llc = lline;
 		}
 
+		da = 0;
+		dwfunc->hash = varhash;	 // enable indexing of children by name
+		memset(varhash, 0, sizeof varhash);
+
 		for(a = s->autom; a; a = a->link) {
 			switch (a->type) {
 			case D_AUTO:
-				dwvar = newdie(dwfunc, DW_ABRV_AUTO, a->asym->name);
+				dt = DW_ABRV_AUTO;
 				break;
 			case D_PARAM:
-				dwvar = newdie(dwfunc, DW_ABRV_PARAM, a->asym->name);
+				dt = DW_ABRV_PARAM;
 				break;
 			default:
 				continue;
 			}
+			if (strstr(a->asym->name, ".autotmp_"))
+				continue;
+			if (find(dwfunc, a->asym->name) != nil)
+				n = mkvarname(a->asym->name, da);
+			else
+				n = a->asym->name;
+			dwvar = newdie(dwfunc, dt, n);
 			newcfaoffsetattr(dwvar, a->aoffset);
 			newrefattr(dwvar, DW_AT_type, defgotype(a->gotype));
+			da++;
 		}
+
+		dwfunc->hash = nil;
 	}
 
 	flushunit(dwinfo, epc, unitstart);
