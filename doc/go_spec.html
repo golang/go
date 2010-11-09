@@ -956,7 +956,7 @@ struct {
 <p>
 A pointer type denotes the set of all pointers to variables of a given
 type, called the <i>base type</i> of the pointer.
-The value of an unitialized pointer is <code>nil</code>.
+The value of an uninitialized pointer is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -973,7 +973,7 @@ BaseType = Type .
 
 <p>
 A function type denotes the set of all functions with the same parameter
-and result types. The value of an unitialized variable of function type
+and result types. The value of an uninitialized variable of function type
 is <code>nil</code>.
 </p>
 
@@ -1022,7 +1022,7 @@ An interface type specifies a <a href="#Types">method set</a> called its <i>inte
 A variable of interface type can store a value of any type with a method set
 that is any superset of the interface. Such a type is said to
 <i>implement the interface</i>.
-The value of an unitialized variable of interface type is <code>nil</code>.
+The value of an uninitialized variable of interface type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -2929,7 +2929,7 @@ and string values. The result of a comparison is defined as follows:
 	String values are compared byte-wise (lexically).
 	</li>
 	<li>
-	Boolean values are are equal if they are either both
+	Boolean values are equal if they are either both
 	<code>true</code> or both <code>false</code>.
 	</li>
 	<li>
@@ -4206,7 +4206,7 @@ func complex_f2() (re float, im float) {
 }
 </pre>
 	</li>
-	<li>The expression list may be empty if the functions's result
+	<li>The expression list may be empty if the function's result
 		type specifies names for its result parameters (§<a href="#Function_Types">Function Types</a>).
 		The result parameters act as ordinary local variables
 		and the function may assign values to them as necessary.
