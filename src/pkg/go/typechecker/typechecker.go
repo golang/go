@@ -51,7 +51,7 @@ func CheckPackage(pkg *ast.Package, importer Importer) os.Error {
 //
 func CheckFile(file *ast.File, importer Importer) os.Error {
 	// create a single-file dummy package
-	pkg := &ast.Package{file.Name.Name, nil, map[string]*ast.File{file.Name.Position.Filename: file}}
+	pkg := &ast.Package{file.Name.Name, nil, map[string]*ast.File{file.Name.NamePos.Filename: file}}
 	return CheckPackage(pkg, importer)
 }
 

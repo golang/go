@@ -80,7 +80,7 @@ func genSnippet(d *ast.GenDecl, id *ast.Ident) *Snippet {
 	}
 
 	// only use the spec containing the id for the snippet
-	dd := &ast.GenDecl{d.Doc, d.Position, d.Tok, d.Lparen, []ast.Spec{s}, d.Rparen}
+	dd := &ast.GenDecl{d.Doc, d.Pos(), d.Tok, d.Lparen, []ast.Spec{s}, d.Rparen}
 
 	return newSnippet(dd, id)
 }
