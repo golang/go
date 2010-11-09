@@ -93,6 +93,9 @@ var indexTests = []BinOpTest{
 	{"abc", "b", 1},
 	{"abc", "c", 2},
 	{"abc", "x", -1},
+	{"barfoobarfooyyyzzzyyyzzzyyyzzzyyyxxxzzzyyy", "x", 33},
+	{"foofyfoobarfoobar", "y", 4},
+	{"oooooooooooooooooooooo", "r", -1},
 }
 
 var lastIndexTests = []BinOpTest{
@@ -173,6 +176,56 @@ func TestIndexByte(t *testing.T) {
 		posp := IndexBytePortable(a, b)
 		if posp != tt.i {
 			t.Errorf(`indexBytePortable(%q, '%c') = %v`, tt.a, b, posp)
+		}
+	}
+}
+
+// test a larger buffer with different sizes and alignments
+func TestIndexByteBig(t *testing.T) {
+	const n = 1024
+	b := make([]byte, n)
+	for i := 0; i < n; i++ {
+		// different start alignments
+		b1 := b[i:]
+		for j := 0; j < len(b1); j++ {
+			b1[j] = 'x'
+			pos := IndexByte(b1, 'x')
+			if pos != j {
+				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
+			}
+			b1[j] = 0
+			pos = IndexByte(b1, 'x')
+			if pos != -1 {
+				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
+			}
+		}
+		// different end alignments
+		b1 = b[:i]
+		for j := 0; j < len(b1); j++ {
+			b1[j] = 'x'
+			pos := IndexByte(b1, 'x')
+			if pos != j {
+				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
+			}
+			b1[j] = 0
+			pos = IndexByte(b1, 'x')
+			if pos != -1 {
+				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
+			}
+		}
+		// different start and end alignments
+		b1 = b[i/2 : n-(i+1)/2]
+		for j := 0; j < len(b1); j++ {
+			b1[j] = 'x'
+			pos := IndexByte(b1, 'x')
+			if pos != j {
+				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
+			}
+			b1[j] = 0
+			pos = IndexByte(b1, 'x')
+			if pos != -1 {
+				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
+			}
 		}
 	}
 }
