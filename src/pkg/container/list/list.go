@@ -54,10 +54,12 @@ func (l *List) Front() *Element { return l.front }
 // Back returns the last element in the list.
 func (l *List) Back() *Element { return l.back }
 
-// Remove removes the element from the list.
-func (l *List) Remove(e *Element) {
+// Remove removes the element from the list
+// and returns its Value.
+func (l *List) Remove(e *Element) interface{} {
 	l.remove(e)
 	e.list = nil // do what remove does not
+	return e.Value
 }
 
 // remove the element from the list, but do not clear the Element's list field.
