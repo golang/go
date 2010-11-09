@@ -174,7 +174,7 @@ func (f *File) saveExport(x interface{}, context string) {
 
 		name := strings.TrimSpace(string(c.Text[9:]))
 		if name == "" {
-			error(c.Position, "export missing name")
+			error(c.Pos(), "export missing name")
 		}
 
 		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
