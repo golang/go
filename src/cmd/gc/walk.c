@@ -1005,9 +1005,11 @@ walkexpr(Node **np, NodeList **init)
 		 */
 		et = n->left->type->etype;
 		if(iscomplex[et] && n->op == ODIV) {
-			n = mkcall("complex128div", n->type, init,
+			t = n->type;
+			n = mkcall("complex128div", types[TCOMPLEX128], init,
 				conv(n->left, types[TCOMPLEX128]),
 				conv(n->right, types[TCOMPLEX128]));
+			n = conv(n, t);
 			goto ret;
 		}
 		/*
