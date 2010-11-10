@@ -5,6 +5,36 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-11-10">2010-11-10</h3>
+
+<pre>
+The birthday release includes a new Search capability inside the sort package.
+It takes an unusual but very general and easy-to-use approach to searching
+arbitrary indexable sorted data.  See the documentation for details:
+    http://golang.org/pkg/sort/#Search
+
+The ARM port now uses the hardware floating point unit (VFP).  It still has a
+few bugs, mostly around conversions between unsigned integer and floating-point
+values, but it's stabilizing.
+
+In addition, there have been many smaller fixes and updates: 
+
+* 6l: generate dwarf variable names with disambiguating suffix.
+* container/list: make Remove return Value of removed element.
+    makes it easier to remove first or last item.
+* crypto: add cast5 (default PGP cipher),
+    switch block cipher methods to be destination first.
+* crypto/tls: use pool building for certificate checking
+* go/ast: change embedded token.Position fields to named fields
+    (preparation for a different position representation)
+* net: provide public access to file descriptors (thanks Keith Rarick)
+* os: add Expand function to evaluate environment variables.
+* path: add Glob (thanks Benny Siegert)
+* runtime: memequal optimization (thanks Graham Miller)
+    prefix all external symbols with "runtime·" to avoid
+    conflicts linking with external C libraries.
+</pre>
+
 <h3 id="2010-11-02">2010-11-02</h3>
 
 <pre>
