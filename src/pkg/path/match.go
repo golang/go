@@ -240,8 +240,12 @@ func Glob(pattern string) (matches []string) {
 // glob searches for files matching pattern in the directory dir
 // and appends them to matches.
 func glob(dir, pattern string, matches []string) []string {
-	if fi, err := os.Stat(dir); err != nil || !fi.IsDirectory() {
+	fi, err := os.Stat(dir)
+	if err != nil {
 		return nil
+	}
+	if !fi.IsDirectory() {
+		return matches
 	}
 	d, err := os.Open(dir, os.O_RDONLY, 0666)
 	if err != nil {
