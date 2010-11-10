@@ -6,6 +6,7 @@ include ../../Make.inc
 
 TARG=sort
 GOFILES=\
+	search.go\
 	sort.go\
 
 include ../../Make.pkg
