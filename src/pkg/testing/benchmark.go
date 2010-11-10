@@ -189,7 +189,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 
 // Benchmark benchmarks a single function. Useful for creating
 // custom benchmarks that do not use gotest.
-func Benchmark(name string, f func(b *B)) BenchmarkResult {
-	b := &B{benchmark: InternalBenchmark{name, f}}
+func Benchmark(f func(b *B)) BenchmarkResult {
+	b := &B{benchmark: InternalBenchmark{"", f}}
 	return b.run()
 }
