@@ -62,7 +62,7 @@ TEXT save<>(SB), 7, $0
 	MOVW	20(FP), R(D)		/* denominator */
 	CMP	$0, R(D)
 	BNE	s1
-	BL	panicdivide(SB)
+	BL	runtime·panicdivide(SB)
 /*	  MOVW	-1(R(D)), R(TMP)	/* divide by zero fault */
 s1:	 RET
 
@@ -178,7 +178,7 @@ TEXT _sfloat(SB), 7, $64 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	R1, 60(R13)
 	WORD	$0xe10f1000 // mrs r1, cpsr
 	MOVW	R1, 64(R13)
-	BL	_sfloat2(SB)
+	BL	runtime·_sfloat2(SB)
 	MOVW	R0, 0(R13)
 	MOVW	64(R13), R1
 	WORD	$0xe128f001	// msr cpsr_f, r1
