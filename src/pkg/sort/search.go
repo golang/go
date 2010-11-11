@@ -24,7 +24,7 @@ package sort
 //
 // If data[0] <= x and x <= data[n-1], Search returns the index i with:
 //
-//	data[i] <= x && x <= data[i+1]
+//	data[i] <= x && x < data[i+1]    (0 <= i < n)
 //
 // where data[n] is assumed to be larger than any x.  Thus, i is the index of x
 // if it is present in the data.  It is the responsibility of the caller to
