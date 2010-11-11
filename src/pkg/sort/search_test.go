@@ -55,6 +55,43 @@ func TestSearch(t *testing.T) {
 }
 
 
+// log2 computes the binary logarithm of x, rounded up to the next integer.
+// (log2(0) == 0, log2(1) == 0, log2(2) == 1, log2(3) == 2, etc.)
+//
+func log2(x int) int {
+	n := 0
+	for p := 1; p < x; p += p {
+		// p == 2**n
+		n++
+	}
+	// p/2 < x <= p == 2**n
+	return n
+}
+
+
+func TestSearchEfficiency(t *testing.T) {
+	n := 100
+	step := 1
+	for exp := 2; exp < 10; exp++ {
+		// n == 10**exp
+		// step == 10**(exp-2)
+		max := log2(n)
+		for x := 0; x < n; x += step {
+			count := 0
+			i := Search(n, func(i int) bool { count++; return i <= x })
+			if i != x {
+				t.Errorf("n = %d: expected index %d; got %d", n, x, i)
+			}
+			if count > max {
+				t.Errorf("n = %d, x = %d: expected <= %d calls; got %d", n, x, max, count)
+			}
+		}
+		n *= 10
+		step *= 10
+	}
+}
+
+
 // Smoke tests for convenience wrappers - not comprehensive.
 
 var fdata = []float{0: -3.14, 1: 0, 2: 1, 3: 2, 4: 1000.7}
