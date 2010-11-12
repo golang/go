@@ -9,7 +9,7 @@ import "testing"
 
 func f(a []int, x int) func(int) bool {
 	return func(i int) bool {
-		return a[i] <= x
+		return a[i] < x
 	}
 }
 
@@ -23,25 +23,26 @@ var tests = []struct {
 	i    int
 }{
 	{"empty", 0, nil, 0},
-	{"1 1", 1, func(i int) bool { return i <= 1 }, 0},
+	{"1 1", 1, func(i int) bool { return i < 1 }, 1},
 	{"1 false", 1, func(i int) bool { return false }, 0},
-	{"1 true", 1, func(i int) bool { return true }, 0},
-	{"1e9 991", 1e9, func(i int) bool { return i <= 991 }, 991},
+	{"1 true", 1, func(i int) bool { return true }, 1},
+	{"1e9 991", 1e9, func(i int) bool { return i < 991 }, 991},
 	{"1e9 false", 1e9, func(i int) bool { return false }, 0},
-	{"1e9 true", 1e9, func(i int) bool { return true }, 1e9 - 1},
+	{"1e9 true", 1e9, func(i int) bool { return true }, 1e9},
 	{"data -20", len(data), f(data, -20), 0},
 	{"data -10", len(data), f(data, -10), 0},
-	{"data -9", len(data), f(data, -9), 0},
-	{"data -6", len(data), f(data, -6), 0},
+	{"data -9", len(data), f(data, -9), 1},
+	{"data -6", len(data), f(data, -6), 1},
 	{"data -5", len(data), f(data, -5), 1},
 	{"data 3", len(data), f(data, 3), 5},
-	{"data 99", len(data), f(data, 99), 8},
-	{"data 100", len(data), f(data, 100), 11},
-	{"data 101", len(data), f(data, 101), 11},
+	{"data 11", len(data), f(data, 11), 8},
+	{"data 99", len(data), f(data, 99), 9},
+	{"data 100", len(data), f(data, 100), 9},
+	{"data 101", len(data), f(data, 101), 12},
 	{"data 10000", len(data), f(data, 10000), 13},
-	{"data 10001", len(data), f(data, 10001), 13},
-	{"descending a", 7, func(i int) bool { return []int{99, 99, 59, 42, 7, 0, -1, -1}[i] >= 7 }, 4},
-	{"descending 7", 1e9, func(i int) bool { return 1e9-i >= 7 }, 1e9 - 7},
+	{"data 10001", len(data), f(data, 10001), 14},
+	{"descending a", 7, func(i int) bool { return []int{99, 99, 59, 42, 7, 0, -1, -1}[i] > 7 }, 4},
+	{"descending 7", 1e9, func(i int) bool { return 1e9-i > 7 }, 1e9 - 7},
 }
 
 
@@ -78,7 +79,7 @@ func TestSearchEfficiency(t *testing.T) {
 		max := log2(n)
 		for x := 0; x < n; x += step {
 			count := 0
-			i := Search(n, func(i int) bool { count++; return i <= x })
+			i := Search(n, func(i int) bool { count++; return i < x })
 			if i != x {
 				t.Errorf("n = %d: expected index %d; got %d", n, x, i)
 			}
@@ -103,7 +104,7 @@ var wrappertests = []struct {
 	i      int
 }{
 	{"SearchInts", SearchInts(data, 11), 8},
-	{"SearchFloats", SearchFloats(fdata, 2.1), 3},
+	{"SearchFloats", SearchFloats(fdata, 2.1), 4},
 	{"SearchStrings", SearchStrings(sdata, ""), 0},
 	{"IntArray.Search", IntArray(data).Search(0), 2},
 	{"FloatArray.Search", FloatArray(fdata).Search(2.0), 3},
