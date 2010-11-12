@@ -1257,32 +1257,6 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= rf | (r<<16) | (rt<<12);
 		break;
 
-	case 55:	/* floating point fix and float */
-		rf = p->from.reg;
-		rt = p->to.reg;
-		if(p->from.type == D_REG) {
-			// MOV R,FTMP
-			o1 = oprrr(AMOVWF+AEND, p->scond);
-			o1 |= (FREGTMP<<16);
-			o1 |= (rf<<12);
-
-			// CVT FTMP,F
-			o2 = oprrr(p->as, p->scond);
-			o2 |= (FREGTMP<<0);
-			o2 |= (rt<<12);
-		} else {
-			// CVT F,FTMP
-			o1 = oprrr(p->as, p->scond);
-			o1 |= (rf<<0);
-			o1 |= (FREGTMP<<12);
-
-			// MOV FTMP,R
-			o2 = oprrr(AMOVFW+AEND, p->scond);
-			o2 |= (FREGTMP<<16);
-			o2 |= (rt<<12);
-		}
-		break;
-
 	case 56:	/* move to FP[CS]R */
 		o1 = ((p->scond & C_SCOND) << 28) | (0xe << 24) | (1<<8) | (1<<4);
 		o1 |= ((p->to.reg+1)<<21) | (p->from.reg << 12);
@@ -1520,8 +1494,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= p->to.reg << 12;
 		o1 |= (p->scond & C_SCOND) << 28;
 		break;
-
-	case 80:	/* fmov zfcon,reg */
+	case 80:	/* fmov zfcon,freg */
 		if((p->scond & C_SCOND) != C_SCOND_NONE)
 			diag("floating point cannot be conditional");	// cant happen
 		o1 = 0xf3000110;	// EOR 64
@@ -1532,7 +1505,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= r << 12;
 		o1 |= r << 16;
 		break;
-	case 81:	/* fmov sfcon,reg */
+	case 81:	/* fmov sfcon,freg */
 		o1 = 0x0eb00a00;		// VMOV imm 32
 		if(p->as == AMOVD)
 			o1 = 0xeeb00b00;	// VMOV imm 64
@@ -1542,15 +1515,55 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= (v&0xf) << 0;
 		o1 |= (v&0xf0) << 12;
 		break;
-	case 82:	/* fcmp reg,reg, */
+	case 82:	/* fcmp freg,freg, */
 		o1 = oprrr(p->as, p->scond);
-		r = p->reg;
-		if(r == NREG) {
-			o1 |= (p->from.reg<<12) | (1<<16);
-		} else
-			o1 |= (r<<12) | (p->from.reg<<0);
+		o1 |= (p->reg<<12) | (p->from.reg<<0);
 		o2 = 0x0ef1fa10;	// VMRS R15
 		o2 |= (p->scond & C_SCOND) << 28;
+		break;
+	case 83:	/* fcmp freg,, */
+		o1 = oprrr(p->as, p->scond);
+		o1 |= (p->from.reg<<12) | (1<<16);
+		o2 = 0x0ef1fa10;	// VMRS R15
+		o2 |= (p->scond & C_SCOND) << 28;
+		break;
+	case 84:	/* movfw freg,freg - truncate float-to-fix */
+		o1 = oprrr(p->as, p->scond);
+		o1 |= (p->from.reg<<0);
+		o1 |= (p->to.reg<<12);
+		break;
+	case 85:	/* movwf freg,freg - fix-to-float */
+		o1 = oprrr(p->as, p->scond);
+		o1 |= (p->from.reg<<0);
+		o1 |= (p->to.reg<<12);
+		break;
+	case 86:	/* movfw freg,reg - truncate float-to-fix */
+		// macro for movfw freg,FTMP; movw FTMP,reg
+		o1 = oprrr(p->as, p->scond);
+		o1 |= (p->from.reg<<0);
+		o1 |= (FREGTMP<<12);
+		o2 = oprrr(AMOVFW+AEND, p->scond);
+		o2 |= (FREGTMP<<16);
+		o2 |= (p->to.reg<<12);
+		break;
+	case 87:	/* movwf reg,freg - fix-to-float */
+		// macro for movw reg,FTMP; movwf FTMP,freg
+		o1 = oprrr(AMOVWF+AEND, p->scond);
+		o1 |= (p->from.reg<<12);
+		o1 |= (FREGTMP<<16);
+		o2 = oprrr(p->as, p->scond);
+		o2 |= (FREGTMP<<0);
+		o2 |= (p->to.reg<<12);
+		break;
+	case 88:	/* movw reg,freg  */
+		o1 = oprrr(AMOVWF+AEND, p->scond);
+		o1 |= (p->from.reg<<12);
+		o1 |= (p->to.reg<<16);
+		break;
+	case 89:	/* movw freg,reg  */
+		o1 = oprrr(AMOVFW+AEND, p->scond);
+		o1 |= (p->from.reg<<16);
+		o1 |= (p->to.reg<<12);
 		break;
 	}
 	
@@ -1677,14 +1690,27 @@ oprrr(int a, int sc)
 	case AMOVFD:	return o | (0xe<<24) | (0xb<<20) | (7<<16) | (0xa<<8) | (0xc<<4) |
 			(0<<8);	// dtof
 
-	case AMOVWF:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
-				(0<<18) | (0<<16) | (0<<8) | (1<<7);	// toint, signed, double, round
-	case AMOVWD:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
-				(0<<18) | (0<<16) | (1<<8) | (1<<7);	// toint, signed, double, round
-	case AMOVFW:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
-				(1<<18) | (0<<16) | (0<<8) | (1<<7);	// toint, signed, double, round
-	case AMOVDW:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
-				(1<<18) | (0<<16) | (1<<8) | (1<<7);	// toint, signed, double, round
+	case AMOVWF:
+			if((sc & C_UBIT) == 0)
+				o |= 1<<7;	/* signed */
+			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+				(0<<18) | (0<<8);	// toint, double
+	case AMOVWD:
+			if((sc & C_UBIT) == 0)
+				o |= 1<<7;	/* signed */
+			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+				(0<<18) | (1<<8);	// toint, double
+
+	case AMOVFW:
+			if((sc & C_UBIT) == 0)
+				o |= 1<<16;	/* signed */
+			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+				(1<<18) | (0<<8) | (1<<7);	// toint, double, trunc
+	case AMOVDW:
+			if((sc & C_UBIT) == 0)
+				o |= 1<<16;	/* signed */
+			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+				(1<<18) | (1<<8) | (1<<7);	// toint, double, trunc
 
 	case AMOVWF+AEND:	// copy WtoF
 		return o | (0xe<<24) | (0x0<<20) | (0xb<<8) | (1<<4);

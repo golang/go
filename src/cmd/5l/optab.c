@@ -195,14 +195,6 @@ Optab	optab[] =
 	{ AADDF,	C_FREG,	C_REG,	C_FREG,		54, 4, 0 },
 	{ AMOVF,	C_FREG, C_NONE, C_FREG,		54, 4, 0 },
 
-	{ AMOVF,	C_ZFCON,C_NONE,	C_FREG,		80, 4, 0 },
-	{ AMOVF,	C_SFCON,C_NONE,	C_FREG,		81, 4, 0 },
-	{ ACMPF,	C_FREG,	C_REG,	C_NONE,		82, 8, 0 },
-//	{ ACMPF,	C_FREG, C_NONE,	C_NONE,		82, 8, 0 },
-
-	{ AMOVFW,	C_FREG,	C_NONE,	C_REG,		55, 8, 0 },
-	{ AMOVFW,	C_REG,	C_NONE,	C_FREG,		55, 8, 0 },
-
 	{ AMOVW,	C_REG,	C_NONE,	C_FCR,		56, 4, 0 },
 	{ AMOVW,	C_FCR,	C_NONE,	C_REG,		57, 4, 0 },
 
@@ -243,6 +235,21 @@ Optab	optab[] =
 	{ AMOVHU,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM|V4 },
 	{ ALDREX,	C_SOREG,C_NONE,	C_REG,		77, 4, 0 },
 	{ ASTREX,	C_SOREG,C_REG,	C_REG,		78, 4, 0 },
+
+	{ AMOVF,	C_ZFCON,C_NONE,	C_FREG,		80, 4, 0 },
+	{ AMOVF,	C_SFCON,C_NONE,	C_FREG,		81, 4, 0 },
+
+	{ ACMPF,	C_FREG,	C_REG,	C_NONE,		82, 8, 0 },
+	{ ACMPF,	C_FREG, C_NONE,	C_NONE,		83, 8, 0 },
+
+	{ AMOVFW,	C_FREG,	C_NONE,	C_FREG,		84, 4, 0 },
+	{ AMOVWF,	C_FREG,	C_NONE,	C_FREG,		85, 4, 0 },
+
+	{ AMOVFW,	C_FREG,	C_NONE,	C_REG,		86, 8, 0 },
+	{ AMOVWF,	C_REG,	C_NONE,	C_FREG,		87, 8, 0 },
+
+	{ AMOVW,	C_REG,	C_NONE,	C_FREG,		88, 4, 0 },
+	{ AMOVW,	C_FREG,	C_NONE,	C_REG,		89, 4, 0 },
 
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };

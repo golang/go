@@ -88,7 +88,6 @@ _subv(Vlong *r, Vlong a, Vlong b)
 	r->hi = hi;
 }
 
-
 void
 _d2v(Vlong *y, double d)
 {
@@ -125,7 +124,7 @@ _d2v(Vlong *y, double d)
 	} else {
 		/* v = (hi||lo) << -sh */
 		sh = -sh;
-		if(sh <= 10) {
+		if(sh <= 11) {
 			ylo = xlo << sh;
 			yhi = (xhi << sh) | (xlo >> (32-sh));
 		} else {
@@ -157,6 +156,23 @@ runtime·float64toint64(double d, Vlong y)
 	_d2v(&y, d);
 }
 
+void
+runtime·float64touint64(double d, Vlong y)
+{
+	_d2v(&y, d);
+}
+
+double
+_ul2d(ulong u)
+{
+	// compensate for bug in c
+	if(u & SIGN(32)) {
+		u ^= SIGN(32);
+		return 2147483648. + u;
+	}
+	return u;
+}
+
 double
 _v2d(Vlong x)
 {
@@ -166,9 +182,9 @@ _v2d(Vlong x)
 			x.hi = ~x.hi;
 		} else
 			x.hi = -x.hi;
-		return -((long)x.hi*4294967296. + x.lo);
+		return -(_ul2d(x.hi)*4294967296. + _ul2d(x.lo));
 	}
-	return (long)x.hi*4294967296. + x.lo;
+	return x.hi*4294967296. + _ul2d(x.lo);
 }
 
 float
@@ -183,6 +199,11 @@ runtime·int64tofloat64(Vlong y, double d)
 	d = _v2d(y);
 }
 
+void
+runtime·uint64tofloat64(Vlong y, double d)
+{
+	d = _ul2d(y.hi)*4294967296. + _ul2d(y.lo);
+}
 
 static void
 dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
