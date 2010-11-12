@@ -142,6 +142,24 @@ func IndexAny(s, chars string) int {
 	return -1
 }
 
+// LastIndexAny returns the index of the last instance of any Unicode code
+// point from chars in s, or -1 if no Unicode code point from chars is
+// present in s.
+func LastIndexAny(s, chars string) int {
+	if len(chars) > 0 {
+		for i := len(s); i > 0; {
+			rune, size := utf8.DecodeLastRuneInString(s[0:i])
+			i -= size
+			for _, m := range chars {
+				if rune == m {
+					return i
+				}
+			}
+		}
+	}
+	return -1
+}
+
 // Generic split: splits after each instance of sep,
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep string, sepSave, n int) []string {
