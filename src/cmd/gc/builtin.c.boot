@@ -86,7 +86,9 @@ char *runtimeimport =
 	"func \"\".int64mod (? int64, ? int64) int64\n"
 	"func \"\".uint64mod (? uint64, ? uint64) uint64\n"
 	"func \"\".float64toint64 (? float64) int64\n"
+	"func \"\".float64touint64 (? float64) uint64\n"
 	"func \"\".int64tofloat64 (? int64) float64\n"
+	"func \"\".uint64tofloat64 (? uint64) float64\n"
 	"func \"\".complex128div (num complex128, den complex128) complex128\n"
 	"\n"
 	"$$\n";

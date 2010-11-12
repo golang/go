@@ -117,6 +117,8 @@ func uint64div(uint64, uint64) uint64
 func int64mod(int64, int64) int64
 func uint64mod(uint64, uint64) uint64
 func float64toint64(float64) int64
+func float64touint64(float64) uint64
 func int64tofloat64(int64) float64
+func uint64tofloat64(uint64) float64
 
 func complex128div(num complex128, den complex128) (quo complex128)
