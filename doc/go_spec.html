@@ -4744,6 +4744,7 @@ func IsPrintable(s string) (ok bool) {
 		// The return value will be true normally, false if a panic occurred.
 	}()
 	panicIfNotPrintable(s)	// will panic if validations fails.
+	return
 }
 </pre>
 
