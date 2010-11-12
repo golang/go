@@ -141,7 +141,7 @@ type FloatValue struct {
 
 // Get returns the underlying int value.
 func (v *FloatValue) Get() float64 {
-	switch v.typ.(*FloatType).Kind() {
+	switch v.typ.Kind() {
 	case Float:
 		return float64(*(*float)(v.addr))
 	case Float32:
@@ -157,7 +157,7 @@ func (v *FloatValue) Set(x float64) {
 	if !v.canSet {
 		panic(cannotSet)
 	}
-	switch v.typ.(*FloatType).Kind() {
+	switch v.typ.Kind() {
 	default:
 		panic("reflect: invalid float kind")
 	case Float:
@@ -190,7 +190,7 @@ type ComplexValue struct {
 
 // Get returns the underlying complex value.
 func (v *ComplexValue) Get() complex128 {
-	switch v.typ.(*ComplexType).Kind() {
+	switch v.typ.Kind() {
 	case Complex:
 		return complex128(*(*complex)(v.addr))
 	case Complex64:
@@ -206,7 +206,7 @@ func (v *ComplexValue) Set(x complex128) {
 	if !v.canSet {
 		panic(cannotSet)
 	}
-	switch v.typ.(*ComplexType).Kind() {
+	switch v.typ.Kind() {
 	default:
 		panic("reflect: invalid complex kind")
 	case Complex:
@@ -228,7 +228,7 @@ type IntValue struct {
 
 // Get returns the underlying int value.
 func (v *IntValue) Get() int64 {
-	switch v.typ.(*IntType).Kind() {
+	switch v.typ.Kind() {
 	case Int:
 		return int64(*(*int)(v.addr))
 	case Int8:
@@ -248,7 +248,7 @@ func (v *IntValue) Set(x int64) {
 	if !v.canSet {
 		panic(cannotSet)
 	}
-	switch v.typ.(*IntType).Kind() {
+	switch v.typ.Kind() {
 	default:
 		panic("reflect: invalid int kind")
 	case Int:
@@ -306,7 +306,7 @@ type UintValue struct {
 
 // Get returns the underlying uuint value.
 func (v *UintValue) Get() uint64 {
-	switch v.typ.(*UintType).Kind() {
+	switch v.typ.Kind() {
 	case Uint:
 		return uint64(*(*uint)(v.addr))
 	case Uint8:
@@ -328,7 +328,7 @@ func (v *UintValue) Set(x uint64) {
 	if !v.canSet {
 		panic(cannotSet)
 	}
-	switch v.typ.(*UintType).Kind() {
+	switch v.typ.Kind() {
 	default:
 		panic("reflect: invalid uint kind")
 	case Uint:
