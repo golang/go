@@ -128,6 +128,20 @@ var indexAnyTests = []BinOpTest{
 	{dots + dots + dots, " ", -1},
 }
 
+var lastIndexAnyTests = []BinOpTest{
+	{"", "", -1},
+	{"", "a", -1},
+	{"", "abc", -1},
+	{"a", "", -1},
+	{"a", "a", 0},
+	{"aaa", "a", 2},
+	{"abc", "xyz", -1},
+	{"abc", "ab", 1},
+	{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
+	{"a.RegExp*", ".(|)*+?^$[]", 8},
+	{dots + dots + dots, " ", -1},
+}
+
 var indexRuneTests = []BinOpTest{
 	{"", "a", -1},
 	{"", "☺", -1},
@@ -150,16 +164,21 @@ func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, tes
 	}
 }
 
-func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
-func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
-func TestIndexAny(t *testing.T) {
-	for _, test := range indexAnyTests {
+func runIndexAnyTests(t *testing.T, f func(s []byte, chars string) int, funcName string, testCases []BinOpTest) {
+	for _, test := range testCases {
 		a := []byte(test.a)
-		actual := IndexAny(a, test.b)
+		actual := f(a, test.b)
 		if actual != test.i {
-			t.Errorf("IndexAny(%q,%q) = %v; want %v", a, test.b, actual, test.i)
+			t.Errorf("%s(%q,%q) = %v; want %v", funcName, a, test.b, actual, test.i)
 		}
 	}
+}
+
+func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
+func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
+func TestIndexAny(t *testing.T)  { runIndexAnyTests(t, IndexAny, "IndexAny", indexAnyTests) }
+func TestLastIndexAny(t *testing.T) {
+	runIndexAnyTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests)
 }
 
 func TestIndexByte(t *testing.T) {
