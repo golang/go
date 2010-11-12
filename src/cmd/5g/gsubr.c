@@ -769,49 +769,55 @@ gmove(Node *f, Node *t)
 	*/
 	case CASE(TFLOAT32, TINT8):
 	case CASE(TFLOAT32, TUINT8):
-		fa = AMOVF;
-		a = AMOVFW;
-		ta = AMOVB;
-		goto fltconv;
-
 	case CASE(TFLOAT32, TINT16):
 	case CASE(TFLOAT32, TUINT16):
-		fa = AMOVF;
-		a = AMOVFW;
-		ta = AMOVH;
-		goto fltconv;
-
 	case CASE(TFLOAT32, TINT32):
 	case CASE(TFLOAT32, TUINT32):
-		fa = AMOVF;
-		a = AMOVFW;
-		ta = AMOVW;
-		goto fltconv;
+//	case CASE(TFLOAT32, TUINT64):
 
 	case CASE(TFLOAT64, TINT8):
 	case CASE(TFLOAT64, TUINT8):
-		fa = AMOVD;
-		a = AMOVDW;
-		ta = AMOVB;
-		goto fltconv;
-
 	case CASE(TFLOAT64, TINT16):
 	case CASE(TFLOAT64, TUINT16):
-		fa = AMOVD;
-		a = AMOVDW;
-		ta = AMOVH;
-		goto fltconv;
-
 	case CASE(TFLOAT64, TINT32):
 	case CASE(TFLOAT64, TUINT32):
-		fa = AMOVD;
-		a = AMOVDW;
+//	case CASE(TFLOAT64, TUINT64):
+		fa = AMOVF;
+		a = AMOVFW;
+		if(ft == TFLOAT64) {
+			fa = AMOVD;
+			a = AMOVDW;
+		}
 		ta = AMOVW;
-		goto fltconv;
+		switch(tt) {
+		case TINT8:
+			ta = AMOVB;
+			break;
+		case TUINT8:
+			ta = AMOVBU;
+			break;
+		case TINT16:
+			ta = AMOVH;
+			break;
+		case TUINT16:
+			ta = AMOVHU;
+			break;
+		}
 
-	case CASE(TFLOAT32, TUINT64):
-	case CASE(TFLOAT64, TUINT64):
-		fatal("gmove TFLOAT, UINT64 not implemented");
+		regalloc(&r1, types[ft], f);
+		regalloc(&r2, types[tt], t);
+		gins(fa, f, &r1);	// load to fpu
+		p1 = gins(a, &r1, &r1);	// convert to w
+		switch(tt) {
+		case TUINT8:
+		case TUINT16:
+		case TUINT32:
+			p1->scond |= C_UBIT;
+		}
+		gins(AMOVW, &r1, &r2);	// copy to cpu
+		gins(ta, &r2, t);	// store
+		regfree(&r1);
+		regfree(&r2);
 		return;
 
 	/*
@@ -819,45 +825,52 @@ gmove(Node *f, Node *t)
 	 */
 	case CASE(TINT8, TFLOAT32):
 	case CASE(TUINT8, TFLOAT32):
-		fa = AMOVB;
-		a = AMOVWF;
-		ta = AMOVF;
-		goto fltconv;
-
 	case CASE(TINT16, TFLOAT32):
 	case CASE(TUINT16, TFLOAT32):
-		fa = AMOVH;
-		a = AMOVWF;
-		ta = AMOVF;
-		goto fltconv;
-
 	case CASE(TINT32, TFLOAT32):
 	case CASE(TUINT32, TFLOAT32):
-		fa = AMOVW;
-		a = AMOVWF;
-		ta = AMOVF;
-		goto fltconv;
-
 	case CASE(TINT8, TFLOAT64):
 	case CASE(TUINT8, TFLOAT64):
-		fa = AMOVB;
-		a = AMOVWD;
-		ta = AMOVD;
-		goto fltconv;
-
 	case CASE(TINT16, TFLOAT64):
 	case CASE(TUINT16, TFLOAT64):
-		fa = AMOVH;
-		a = AMOVWD;
-		ta = AMOVD;
-		goto fltconv;
-
 	case CASE(TINT32, TFLOAT64):
 	case CASE(TUINT32, TFLOAT64):
 		fa = AMOVW;
-		a = AMOVWD;
-		ta = AMOVD;
-		goto fltconv;
+		switch(ft) {
+		case TINT8:
+			fa = AMOVB;
+			break;
+		case TUINT8:
+			fa = AMOVBU;
+			break;
+		case TINT16:
+			fa = AMOVH;
+			break;
+		case TUINT16:
+			fa = AMOVHU;
+			break;
+		}
+		a = AMOVWF;
+		ta = AMOVF;
+		if(tt == TFLOAT64) {
+			a = AMOVWD;
+			ta = AMOVD;
+		}
+		regalloc(&r1, types[ft], f);
+		regalloc(&r2, types[tt], t);
+		gins(fa, f, &r1);	// load to cpu
+		gins(AMOVW, &r1, &r2);	// copy to fpu
+		p1 = gins(a, &r2, &r2);	// convert
+		switch(ft) {
+		case TUINT8:
+		case TUINT16:
+		case TUINT32:
+			p1->scond |= C_UBIT;
+		}
+		gins(ta, &r2, t);	// store
+		regfree(&r1);
+		regfree(&r2);
+		return;
 
 	case CASE(TUINT64, TFLOAT32):
 	case CASE(TUINT64, TFLOAT64):
@@ -922,16 +935,6 @@ trunc64:
 	gins(a, &r1, t);
 	regfree(&r1);
 	splitclean();
-	return;
-
-fltconv:
-	regalloc(&r1, types[ft], f);
-	regalloc(&r2, types[tt], t);
-	gins(fa, f, &r1);
-	gins(a, &r1, &r2);
-	gins(ta, &r2, t);
-	regfree(&r1);
-	regfree(&r2);
 	return;
 
 fatal:

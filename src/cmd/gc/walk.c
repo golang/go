@@ -935,15 +935,25 @@ walkexpr(Node **np, NodeList **init)
 	case OCONV:
 	case OCONVNOP:
 		if(thechar == '5') {
-			if(isfloat[n->left->type->etype] &&
-			   (n->type->etype == TINT64 || n->type->etype == TUINT64)) {
-				n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
-				goto ret;
+			if(isfloat[n->left->type->etype]) {
+				if(n->type->etype == TINT64) {
+					n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
+					goto ret;
+				}
+				if(n->type->etype == TUINT64) {
+					n = mkcall("float64touint64", n->type, init, conv(n->left, types[TFLOAT64]));
+					goto ret;
+				}
 			}
-			if((n->left->type->etype == TINT64 || n->left->type->etype == TUINT64) &&
-			   isfloat[n->type->etype]) {
-				n = mkcall("int64tofloat64", n->type, init, conv(n->left, types[TINT64]));
-				goto ret;
+			if(isfloat[n->type->etype]) {
+				if(n->left->type->etype == TINT64) {
+					n = mkcall("int64tofloat64", n->type, init, conv(n->left, types[TINT64]));
+					goto ret;
+				}
+				if(n->left->type->etype == TUINT64) {
+					n = mkcall("uint64tofloat64", n->type, init, conv(n->left, types[TUINT64]));
+					goto ret;
+				}
 			}
 		}
 		walkexpr(&n->left, init);

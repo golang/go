@@ -189,7 +189,7 @@ enum	as
 #define	C_PBIT	(1<<5)
 #define	C_WBIT	(1<<6)
 #define	C_FBIT	(1<<7)	/* psr flags-only */
-#define	C_UBIT	(1<<7)	/* up bit */
+#define	C_UBIT	(1<<7)	/* up bit, unsigned bit */
 
 #define C_SCOND_EQ	0
 #define C_SCOND_NE	1

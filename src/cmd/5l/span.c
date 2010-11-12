@@ -1039,9 +1039,11 @@ buildop(void)
 			break;
 
 		case AMOVFW:
-			oprange[AMOVWF] = oprange[r];
-			oprange[AMOVWD] = oprange[r];
 			oprange[AMOVDW] = oprange[r];
+			break;
+
+		case AMOVWF:
+			oprange[AMOVWD] = oprange[r];
 			break;
 
 		case AMULL:
@@ -1050,6 +1052,7 @@ buildop(void)
 			oprange[AMULLU] = oprange[r];
 			oprange[AMULALU] = oprange[r];
 			break;
+
 		case ALDREX:
 		case ASTREX:
 			break;
