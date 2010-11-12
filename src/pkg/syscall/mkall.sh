@@ -144,7 +144,7 @@ nacl_386)
 	;;
 linux_arm)
 	mkerrors="$mkerrors"
-	mksyscall="./mksyscall.sh -l32"
+	mksyscall="./mksyscall.sh -b32"
 	mksysnum="./mksysnum_linux.sh /usr/include/asm/unistd.h"
 	mktypes="godefs -gsyscall"
 	;;
