@@ -197,7 +197,6 @@ endif
 
 # Disable tests that windows cannot run yet.
 ifeq ($(GOOS),windows)
-NOTEST+=exec         # no pipe
 NOTEST+=os/signal    # no signals
 NOTEST+=path         # tree walking does not work
 NOTEST+=syslog       # no network
