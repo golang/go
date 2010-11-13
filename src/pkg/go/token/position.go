@@ -1,0 +1,315 @@
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// TODO(gri) consider making this a separate package outside the go directory.
+
+package token
+
+import (
+	"fmt"
+	"sort"
+	"sync"
+)
+
+
+// Position describes an arbitrary source position
+// including the file, line, and column location.
+// A Position is valid if the line number is > 0.
+//
+type Position struct {
+	Filename string // filename, if any
+	Offset   int    // offset, starting at 0
+	Line     int    // line number, starting at 1
+	Column   int    // column number, starting at 1 (character count)
+}
+
+
+// TODO(gri): Remove Pos() below once all code is switched to using token.Pos.
+
+// Pos is an accessor method for anonymous Position fields.
+// It returns its receiver.
+//
+func (pos *Position) Pos() Position { return *pos }
+
+
+// IsValid returns true if the position is valid.
+func (pos *Position) IsValid() bool { return pos.Line > 0 }
+
+
+// String returns a string in one of several forms:
+//
+//	file:line:column    valid position with file name
+//      line:column         valid position without file name
+//      file                invalid position with file name
+//      -                   invalid position without file name
+//
+func (pos Position) String() string {
+	s := pos.Filename
+	if pos.IsValid() {
+		if s != "" {
+			s += ":"
+		}
+		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
+	}
+	if s == "" {
+		s = "-"
+	}
+	return s
+}
+
+
+// Pos is a compact encoding of a source position within a file set.
+// It can be converted into a Position for a more convenient, but much
+// larger, representation.
+//
+// To create the Pos value for a specific source location, first add
+// the respective file to the current file set (via FileSet.AddFile)
+// and then call File.Pos(offset) of that file with the offset of
+// the source location. Given a Pos value p for a specific file set
+// fset, the corresponding Position value is obtained by calling
+// fset.Position(p).
+//
+// Pos values can be compared directly with the usual comparison operators:
+// If two Pos values p and q are in the same file, comparing p and q is
+// equivalent to comparing the respective source file offsets. If p and q
+// are in different files, p < q is true if the file implied by p was added
+// to the respective file set before the file implied by q.
+//
+type Pos int
+
+
+// The zero value for Pos is NoPos; there is no file and line information
+// associated with it, and NoPos().IsValid() is false. NoPos is always
+// smaller than any other Pos value. The corresponding Position value
+// for NoPos is the zero value for Position.
+// 
+const NoPos Pos = 0
+
+
+// IsValid returns true if the position is valid.
+func (p Pos) IsValid() bool {
+	return p != NoPos
+}
+
+
+func searchFiles(a []*File, x int) int {
+	return sort.Search(len(a), func(i int) bool { return a[i].base <= x })
+}
+
+
+func (s *FileSet) file(p Pos) *File {
+	if i := searchFiles(s.files, int(p)); i < len(s.files) {
+		return s.files[i]
+	}
+	return nil
+}
+
+
+// Position converts a Pos in the fileset into a general Position.
+func (s *FileSet) Position(p Pos) (pos Position) {
+	if p != NoPos {
+		s.mutex.RLock()
+		if f := s.file(p); f != nil {
+			offset := int(p) - f.base
+			pos.Offset = offset
+			pos.Filename, pos.Line, pos.Column = f.info(offset)
+		}
+		s.mutex.RUnlock()
+	}
+	return
+}
+
+
+type lineInfo struct {
+	offset   int
+	filename string
+	line     int
+}
+
+
+// AddLineInfo adds alternative file and line number information for
+// a given file offset. The offset must be larger than the offset for
+// the previously added alternative line info and not larger than the
+// file size; otherwise the information is ignored.
+//
+// AddLineInfo is typically used to register alternative position
+// information for //line filename:line comments in source files.
+//
+func (f *File) AddLineInfo(offset int, filename string, line int) {
+	f.set.mutex.Lock()
+	if i := len(f.infos); i == 0 || f.infos[i-1].offset < offset && offset <= f.size {
+		f.infos = append(f.infos, lineInfo{offset, filename, line})
+	}
+	f.set.mutex.Unlock()
+}
+
+
+// A File is a handle for a file belonging to a FileSet.
+// A File has a name, size, and line offset table.
+//
+type File struct {
+	set  *FileSet
+	base int
+	size int
+	name string
+
+	// lines and infos are protected by set.mutex
+	lines []int
+	infos []lineInfo
+}
+
+
+// Name returns the file name of file f as registered with AddFile.
+func (f *File) Name() string {
+	return f.name
+}
+
+
+// Size returns the size of file f as registered with AddFile.
+func (f *File) Size() int {
+	return f.size
+}
+
+
+// LineCount returns the number of lines in file f.
+func (f *File) LineCount() int {
+	f.set.mutex.RLock()
+	n := len(f.lines)
+	f.set.mutex.RUnlock()
+	return n
+}
+
+
+// AddLine adds the line offset for a new line.
+// The line offset must be larger than the offset for the previous line
+// and not larger than the file size; otherwise the line offset is ignored.
+//
+func (f *File) AddLine(offset int) {
+	f.set.mutex.Lock()
+	if i := len(f.lines); i == 0 || f.lines[i-1] < offset && offset <= f.size {
+		f.lines = append(f.lines, offset)
+	}
+	f.set.mutex.Unlock()
+}
+
+
+// SetLines sets all line offsets for a file and returns true if successful.
+// Each line offset must be larger than the offset for the previous line
+// and not larger than the file size; otherwise the SetLines fails and returns
+// false.
+//
+func (f *File) SetLines(lines []int) bool {
+	// verify validity of lines table
+	size := f.size
+	for i, offset := range lines {
+		if i > 0 && offset <= lines[i-1] || size < offset {
+			return false
+		}
+	}
+
+	// set lines table
+	f.set.mutex.Lock()
+	f.lines = lines
+	f.set.mutex.Unlock()
+	return true
+}
+
+
+// Pos returns the Pos value for the given file offset;
+// the offset must be <= f.Size().
+// f.Pos(f.Offset(p)) == p.
+//
+func (f *File) Pos(offset int) Pos {
+	if offset > f.size {
+		panic("illegal file offset")
+	}
+	return Pos(offset + f.base)
+}
+
+
+// Offset returns the offset for the given file position p;
+// p must be a Pos value in that file.
+// f.Offset(f.Pos(offset)) == offset.
+//
+func (f *File) Offset(p Pos) int {
+	if int(p) < f.base || int(p) > f.base+f.size {
+		panic("illegal Pos value")
+	}
+	return int(p) - f.base
+}
+
+
+// Position returns the Position value for the given file offset;
+// the offset must be <= f.Size().
+//
+func (f *File) Position(offset int) Position {
+	if offset > f.size {
+		panic("illegal file offset")
+	}
+	return f.set.Position(Pos(offset + f.base))
+}
+
+
+func searchUints(a []int, x int) int {
+	return sort.Search(len(a), func(i int) bool { return a[i] <= x })
+}
+
+
+func searchLineInfos(a []lineInfo, x int) int {
+	return sort.Search(len(a), func(i int) bool { return a[i].offset <= x })
+}
+
+
+// info returns the file name, line, and column number for a file offset.
+func (f *File) info(offset int) (filename string, line, column int) {
+	filename = f.name
+	if i := searchUints(f.lines, offset); i < len(f.lines) {
+		line, column = i+1, offset-f.lines[i]+1
+	}
+	if i := searchLineInfos(f.infos, offset); i < len(f.infos) {
+		alt := &f.infos[i]
+		filename = alt.filename
+		if i := searchUints(f.lines, alt.offset); i < len(f.lines) {
+			line += alt.line - i - 1
+		}
+	}
+	return
+}
+
+
+// A FileSet represents a set of source files.
+type FileSet struct {
+	mutex sync.RWMutex  // protects the file set
+	base  int           // base offset for the next file
+	files []*File       // list of files in the order added to the set
+	index map[*File]int // file -> files index for quick lookup
+}
+
+
+// NewFileSet creates a new file set.
+func NewFileSet() *FileSet {
+	s := new(FileSet)
+	s.base = 1 // 0 == NoPos
+	s.index = make(map[*File]int)
+	return s
+}
+
+
+// AddFile adds a new file with a given filename and file size to a the
+// file set s and returns the file. Multiple files may have the same name.
+// File.Pos may be used to create file-specifiction position values from a
+// file offset.
+//
+func (s *FileSet) AddFile(filename string, size int) *File {
+	s.mutex.Lock()
+	f := &File{s, s.base, size, filename, []int{0}, nil}
+	s.base += size + 1 // +1 because EOF also has a position
+	if s.base < 0 {
+		panic("token.Pos offset overflow (> 2G of source code in file set)")
+	}
+	s.index[f] = len(s.files)
+	s.files = append(s.files, f)
+	s.mutex.Unlock()
+	return f
+}

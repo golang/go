@@ -8,10 +8,7 @@
 //
 package token
 
-import (
-	"fmt"
-	"strconv"
-)
+import "strconv"
 
 
 // Token is the set of lexical tokens of the Go programming language.
@@ -321,39 +318,3 @@ func (tok Token) IsOperator() bool { return operator_beg < tok && tok < operator
 // returns false otherwise.
 //
 func (tok Token) IsKeyword() bool { return keyword_beg < tok && tok < keyword_end }
-
-
-// Token source positions are represented by a Position value.
-// A Position is valid if the line number is > 0.
-//
-type Position struct {
-	Filename string // filename, if any
-	Offset   int    // byte offset, starting at 0
-	Line     int    // line number, starting at 1
-	Column   int    // column number, starting at 1 (character count)
-}
-
-
-// Pos is an accessor method for anonymous Position fields.
-// It returns its receiver.
-//
-func (pos *Position) Pos() Position { return *pos }
-
-
-// IsValid returns true if the position is valid.
-func (pos *Position) IsValid() bool { return pos.Line > 0 }
-
-
-func (pos Position) String() string {
-	s := pos.Filename
-	if pos.IsValid() {
-		if s != "" {
-			s += ":"
-		}
-		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
-	}
-	if s == "" {
-		s = "-"
-	}
-	return s
-}
