@@ -6,6 +6,7 @@ include ../../../Make.inc
 
 TARG=go/token
 GOFILES=\
+	position.go\
 	token.go\
 
 include ../../../Make.pkg
