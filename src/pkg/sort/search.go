@@ -27,7 +27,7 @@ package sort
 //	data[i-1] < x && x <= data[i]
 //
 // where data[-1] is assumed to be smaller than any x and data[n] is
-// assumed to be larger than any x.  Thus 0 <= i <= n and i is the first
+// assumed to be larger than any x.  Thus 0 <= i <= n and i is the smallest
 // index of x if x is present in the data.  It is the responsibility of
 // the caller to verify the actual presence by testing if i < n and
 // data[i] == x.
@@ -42,6 +42,7 @@ package sort
 //	} else {
 //		// elem is not present in data
 //	}
+//
 func Search(n int, f func(int) bool) int {
 	i, j := 0, n
 	for i+1 < j {
@@ -55,11 +56,11 @@ func Search(n int, f func(int) bool) int {
 			j = h
 		}
 	}
-	// test the final element that the loop did not.
+	// test the final element that the loop did not
 	if i < j && f(i) {
+		// data[i] < x
 		i++
 	}
-
 	return i
 }
 
