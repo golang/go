@@ -51,6 +51,7 @@ var (
 	verbose = flag.Bool("v", false, "verbose mode")
 
 	// file system roots
+	// TODO(gri) consider the invariant that goroot always end in '/'
 	goroot      = flag.String("goroot", runtime.GOROOT(), "Go root directory")
 	path        = flag.String("path", "", "additional package directories (colon-separated)")
 	filter      = flag.String("filter", "", "filter file containing permitted package directory paths")
@@ -260,9 +261,16 @@ func absolutePath(path, defaultRoot string) string {
 
 func relativePath(path string) string {
 	relpath := fsMap.ToRelative(path)
-	if relpath == "" && strings.HasPrefix(path, *goroot+"/") {
-		// no user-defined mapping found; use default mapping
-		relpath = path[len(*goroot)+1:]
+	if relpath == "" {
+		// prefix must end in '/'
+		prefix := *goroot
+		if len(prefix) > 0 && prefix[len(prefix)-1] != '/' {
+			prefix += "/"
+		}
+		if strings.HasPrefix(path, prefix) {
+			// no user-defined mapping found; use default mapping
+			relpath = path[len(prefix):]
+		}
 	}
 	// Only if path is an invalid absolute path is relpath == ""
 	// at this point. This should never happen since absolute paths
@@ -793,7 +801,7 @@ func readTemplates() {
 // Generic HTML wrapper
 
 func servePage(w http.ResponseWriter, title, subtitle, query string, content []byte) {
-	type Data struct {
+	d := struct {
 		Title    string
 		Subtitle string
 		PkgRoots []string
@@ -801,16 +809,14 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
 		Version  string
 		Menu     []byte
 		Content  []byte
-	}
-
-	d := Data{
-		Title:    title,
-		Subtitle: subtitle,
-		PkgRoots: fsMap.PrefixList(),
-		Query:    query,
-		Version:  runtime.Version(),
-		Menu:     nil,
-		Content:  content,
+	}{
+		title,
+		subtitle,
+		fsMap.PrefixList(),
+		query,
+		runtime.Version(),
+		nil,
+		content,
 	}
 
 	if err := godocHTML.Execute(&d, w); err != nil {
