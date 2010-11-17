@@ -94,7 +94,14 @@ func (p Pos) IsValid() bool {
 
 
 func searchFiles(a []*File, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].base <= x })
+	i := sort.Search(len(a), func(i int) bool { return a[i].base < x })
+	// TODO(gri) The code below is really unfortunate. With the old
+	//           semantics of sort.Search, it was possible to simply
+	//           return i! Need to rethink the Search API.
+	if i == 0 || i < len(a) && a[i].base == x {
+		return i
+	}
+	return i - 1
 }
 
 
@@ -150,9 +157,9 @@ func (f *File) AddLineInfo(offset int, filename string, line int) {
 //
 type File struct {
 	set  *FileSet
-	base int
-	size int
-	name string
+	name string // file name as provided to AddFile
+	base int    // Pos value range for this file is [base...base+size]
+	size int    // file size as provided to AddFile
 
 	// lines and infos are protected by set.mutex
 	lines []int
@@ -187,7 +194,7 @@ func (f *File) LineCount() int {
 //
 func (f *File) AddLine(offset int) {
 	f.set.mutex.Lock()
-	if i := len(f.lines); i == 0 || f.lines[i-1] < offset && offset <= f.size {
+	if i := len(f.lines); (i == 0 || f.lines[i-1] < offset) && offset <= f.size {
 		f.lines = append(f.lines, offset)
 	}
 	f.set.mutex.Unlock()
@@ -252,12 +259,26 @@ func (f *File) Position(offset int) Position {
 
 
 func searchUints(a []int, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i] <= x })
+	i := sort.Search(len(a), func(i int) bool { return a[i] < x })
+	// TODO(gri) The code below is really unfortunate. With the old
+	//           semantics of sort.Search, it was possible to simply
+	//           return i! Need to rethink the Search API.
+	if i == 0 || i < len(a) && a[i] == x {
+		return i
+	}
+	return i - 1
 }
 
 
 func searchLineInfos(a []lineInfo, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].offset <= x })
+	i := sort.Search(len(a), func(i int) bool { return a[i].offset < x })
+	// TODO(gri) The code below is really unfortunate. With the old
+	//           semantics of sort.Search, it was possible to simply
+	//           return i! Need to rethink the Search API.
+	if i == 0 || i < len(a) && a[i].offset == x {
+		return i
+	}
+	return i - 1
 }
 
 
@@ -298,18 +319,18 @@ func NewFileSet() *FileSet {
 
 // AddFile adds a new file with a given filename and file size to a the
 // file set s and returns the file. Multiple files may have the same name.
-// File.Pos may be used to create file-specifiction position values from a
+// File.Pos may be used to create file-specific position values from a
 // file offset.
 //
 func (s *FileSet) AddFile(filename string, size int) *File {
 	s.mutex.Lock()
-	f := &File{s, s.base, size, filename, []int{0}, nil}
+	defer s.mutex.Unlock()
+	f := &File{s, filename, s.base, size, []int{0}, nil}
 	s.base += size + 1 // +1 because EOF also has a position
 	if s.base < 0 {
 		panic("token.Pos offset overflow (> 2G of source code in file set)")
 	}
 	s.index[f] = len(s.files)
 	s.files = append(s.files, f)
-	s.mutex.Unlock()
 	return f
 }
