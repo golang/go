@@ -1808,20 +1808,57 @@ indexdup(Node *n, Node *hash[], ulong nhash)
 	hash[h] = n;
 }
 
+static int
+prime(ulong h)
+{
+	ulong n, sr;
+
+	sr = h;
+	for(n=0; n<3; n++)
+		sr = (sr + h/sr)/2;
+	for(n=3; n<sr; n+=2)
+		if(h%n == 0)
+			return 0;
+	return 1;
+}
+
+static ulong
+inithash(Node *n, Node ***hash, Node **autohash, ulong nautohash)
+{
+	ulong h;
+	NodeList *ll;
+
+	h = 0;
+	for(ll=n->list; ll; ll=ll->next)
+		h++;
+	h = 9*h/8;
+	if(h <= nautohash) {
+		*hash = autohash;
+		memset(*hash, 0, nautohash * sizeof(**hash));
+		return nautohash;
+	}
+	while(!prime(h))
+		h++;
+	*hash = mal(h * sizeof(**hash));
+	memset(*hash, 0, h * sizeof(**hash));
+	return h;
+}
+
 static void
 typecheckcomplit(Node **np)
 {
 	int bad, i, len, nerr;
-	Node *l, *n, *hash[101];
+	Node *l, *n, **hash;
 	NodeList *ll;
 	Type *t, *f, *pushtype;
 	Sym *s;
 	int32 lno;
+	ulong nhash;
+	Node *autohash[101];
 
 	n = *np;
 	lno = lineno;
 
-	memset(hash, 0, sizeof hash);
 	if(n->right == N) {
 		if(n->list != nil)
 			setlineno(n->list->n);
@@ -1861,6 +1898,8 @@ typecheckcomplit(Node **np)
 		break;
 
 	case TARRAY:
+		nhash = inithash(n, &hash, autohash, nelem(autohash));
+
 		len = 0;
 		i = 0;
 		for(ll=n->list; ll; ll=ll->next) {
@@ -1881,7 +1920,7 @@ typecheckcomplit(Node **np)
 				i = -(1<<30);	// stay negative for a while
 			}
 			if(i >= 0)
-				indexdup(l->left, hash, nelem(hash));
+				indexdup(l->left, hash, nhash);
 			i++;
 			if(i > len) {
 				len = i;
@@ -1906,6 +1945,8 @@ typecheckcomplit(Node **np)
 		break;
 
 	case TMAP:
+		nhash = inithash(n, &hash, autohash, nelem(autohash));
+
 		for(ll=n->list; ll; ll=ll->next) {
 			l = ll->n;
 			setlineno(l);
@@ -1918,7 +1959,7 @@ typecheckcomplit(Node **np)
 			typecheck(&l->left, Erv);
 			defaultlit(&l->left, t->down);
 			l->left = assignconv(l->left, t->down, "map key");
-			keydup(l->left, hash, nelem(hash));
+			keydup(l->left, hash, nhash);
 
 			if(l->right->op == OCOMPLIT && l->right->right == N && pushtype != T)
 				l->right->right = typenod(pushtype);
@@ -1953,6 +1994,8 @@ typecheckcomplit(Node **np)
 			if(f != nil)
 				yyerror("too few values in struct initializer");
 		} else {
+			nhash = inithash(n, &hash, autohash, nelem(autohash));
+
 			// keyed list
 			for(ll=n->list; ll; ll=ll->next) {
 				l = ll->n;
@@ -1983,7 +2026,7 @@ typecheckcomplit(Node **np)
 					continue;
 				}
 				s = f->sym;
-				fielddup(newname(s), hash, nelem(hash));
+				fielddup(newname(s), hash, nhash);
 				l->right = assignconv(l->right, f->type, "field value");
 			}
 		}
