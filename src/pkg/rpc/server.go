@@ -199,7 +199,19 @@ func isExported(name string) bool {
 //	- one return value, of type os.Error
 // It returns an error if the receiver is not an exported type or has no
 // suitable methods.
+// The client accesses each method using a string of the form "Type.Method",
+// where Type is the receiver's concrete type.
 func (server *Server) Register(rcvr interface{}) os.Error {
+	return server.register(rcvr, "", false)
+}
+
+// RegisterName is like Register but uses the provided name for the type 
+// instead of the receiver's concrete type.
+func (server *Server) RegisterName(name string, rcvr interface{}) os.Error {
+	return server.register(rcvr, name, true)
+}
+
+func (server *Server) register(rcvr interface{}, name string, useName bool) os.Error {
 	server.Lock()
 	defer server.Unlock()
 	if server.serviceMap == nil {
@@ -209,10 +221,13 @@ func (server *Server) Register(rcvr interface{}) os.Error {
 	s.typ = reflect.Typeof(rcvr)
 	s.rcvr = reflect.NewValue(rcvr)
 	sname := reflect.Indirect(s.rcvr).Type().Name()
+	if useName {
+		sname = name
+	}
 	if sname == "" {
 		log.Exit("rpc: no service name for type", s.typ.String())
 	}
-	if s.typ.PkgPath() != "" && !isExported(sname) {
+	if s.typ.PkgPath() != "" && !isExported(sname) && !useName {
 		s := "rpc Register: type " + sname + " is not exported"
 		log.Print(s)
 		return os.ErrorString(s)
@@ -429,14 +444,14 @@ func (server *Server) Accept(lis net.Listener) {
 	}
 }
 
-// Register publishes in the DefaultServer the set of methods 
-// of the receiver value that satisfy the following conditions:
-//	- exported method
-//	- two arguments, both pointers to exported structs
-//	- one return value, of type os.Error
-// It returns an error if the receiver is not an exported type or has no
-// suitable methods.
+// Register publishes the receiver's methods in the DefaultServer.
 func Register(rcvr interface{}) os.Error { return DefaultServer.Register(rcvr) }
+
+// RegisterName is like Register but uses the provided name for the type 
+// instead of the receiver's concrete type.
+func RegisterName(name string, rcvr interface{}) os.Error {
+	return DefaultServer.RegisterName(name, rcvr)
+}
 
 // A ServerCodec implements reading of RPC requests and writing of
 // RPC responses for the server side of an RPC session.
