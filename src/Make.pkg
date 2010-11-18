@@ -132,8 +132,7 @@ _cgo_export.o: _cgo_export.c _cgo_export.h
 # added _cgo_defun.$O to $OFILES, and added the installed copy of
 # package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
 
-RUNTIME_CFLAGS_amd64=-D_64BIT
-RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime" $(RUNTIME_CFLAGS_$(GOARCH))
+RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime"
 
 # Have to run gcc with the right size argument on hybrid 32/64 machines.
 _CGO_CFLAGS_386=-m32

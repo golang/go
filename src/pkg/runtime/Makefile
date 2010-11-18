@@ -12,13 +12,11 @@ SIZE_amd64=64
 SIZE_arm=32
 SIZE=$(SIZE_$(GOARCH))
 
-# Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
-CFLAGS_64=-D_64BIT
 # TODO(kaib): fix register allocation to honor extern register so we
 # can enable optimizations again.
 CFLAGS_arm=-N
 CFLAGS_windows=-D__WINDOWS__
-CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
 
 GOFILES=\
 	debug.go\
