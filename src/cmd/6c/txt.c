@@ -38,6 +38,7 @@ ginit(void)
 
 	thechar = '6';
 	thestring = "amd64";
+	dodefine("_64BIT");
 	listinit();
 	nstring = 0;
 	mnstring = 0;
