@@ -426,7 +426,7 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
 			printer.Fprint(fgo2, fn.Recv.List[0].Type)
 			forFieldList(fntype.Params,
 				func(i int, atype ast.Expr) {
-					fmt.Fprintf(fgo2, ", p%d", i)
+					fmt.Fprintf(fgo2, ", p%d ", i)
 					printer.Fprint(fgo2, atype)
 				})
 			fmt.Fprintf(fgo2, ")")
