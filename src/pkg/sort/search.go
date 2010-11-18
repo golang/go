@@ -6,61 +6,68 @@
 
 package sort
 
-// Search uses binary search to find the index i for a value x in an indexable
-// and sorted data structure of n elements.  The argument function f captures
-// the value to be searched for, how the elements are indexed, and how they are
-// sorted.  It will often be passed as a closure.  For instance, given a slice
-// of integers, []data, sorted in ascending order, the function
+// Search uses binary search to find and return the smallest index i
+// in [0, n) at which f(i) is false, assuming that on the range [0, n), 
+// f(i) == false implies f(i+1) == false.  That is, Search requires that
+// f is true for some (possibly empty) prefix of the input range [0, n)
+// and then false for the (possibly empty) remainder; Search returns
+// the first false index.  If there is no such index, Search returns n.
+// Search calls f(i) only for i in the range [0, n).
 //
-//	func(i int) bool { return data[i] < 23 }
+// A common use of Search is to find the index i for a value x in
+// a sorted, indexable data structure like an array or slice.
+// In this case, the argument f, typically a closure, captures the value
+// to be searched for, and how the data structure is indexed and
+// ordered.
 //
-// can be used to search for the value 23 in data.  The relationship expressed
-// by the function must be "less" if the elements are sorted in ascending
-// order or "greater" if they are sorted in descending order.
-// The function f will be called with values of i in the range 0 to n-1.
-// 
-// For brevity, this discussion assumes ascending sort order. For descending
-// order, replace < with >, and swap 'smaller' with 'larger'.
+// For instance, given a slice data sorted in ascending order,
+// the call Search(len(data), func(i int) bool { return data[i] < 23 })
+// returns the smallest index i such that data[i] >= 23.  If the caller
+// wants to find whether 23 is in the slice, it must test data[i] == 23
+// separately.
 //
-// Search returns the index i with:
+// Searching data sorted in descending order would use the >
+// operator instead of the < operator.
 //
-//	data[i-1] < x && x <= data[i]
+// To complete the example above, the following code tries to find the value
+// x in an integer slice data sorted in ascending order:
 //
-// where data[-1] is assumed to be smaller than any x and data[n] is
-// assumed to be larger than any x.  Thus 0 <= i <= n and i is the smallest
-// index of x if x is present in the data.  It is the responsibility of
-// the caller to verify the actual presence by testing if i < n and
-// data[i] == x.
-//
-// To complete the example above, the following code tries to find the element
-// elem in an integer slice data sorted in ascending order:
-//
-//	elem := 23
-//	i := sort.Search(len(data), func(i int) bool { return data[i] < elem })
-//	if i < len(data) && data[i] == elem {
-//		// elem is present at data[i]
+//	x := 23
+//	i := sort.Search(len(data), func(i int) bool { return data[i] < x })
+//	if i < len(data) && data[i] == x {
+//		// x is present at data[i]
 //	} else {
-//		// elem is not present in data
+//		// x is not present in data,
+//		// but i is the index where it would be inserted.
+//	}
+//
+// As a more whimsical example, this program guesses your number:
+//
+//	func GuessingGame() {
+//		var s string
+//		fmt.Printf("Pick an integer from 0 to 100.\n")
+//		answer := sort.Search(100, func(i int) bool {
+//			fmt.Printf("Is your number > %d? ", i)
+//			fmt.Scanf("%s", &s)
+//			return s != "" && s[0] == 'y'
+//		})
+//		fmt.Printf("Your number is %d.\n", answer)
 //	}
 //
 func Search(n int, f func(int) bool) int {
+	// Define f(-1) == true and f(n) == false.
+	// Invariant: f(i-1) == true, f(j) == false.
 	i, j := 0, n
-	for i+1 < j {
+	for i < j {
 		h := i + (j-i)/2 // avoid overflow when computing h
-		// i < h < j
+		// i ≤ h < j
 		if f(h) {
-			// data[h] < x
-			i = h + 1
+			i = h + 1 // preserves f(i-1) == true
 		} else {
-			// x <= data[h]
-			j = h
+			j = h // preserves f(j) == false
 		}
 	}
-	// test the final element that the loop did not
-	if i < j && f(i) {
-		// data[i] < x
-		i++
-	}
+	// i == j, f(i-1) == true, and f(j) (= f(i)) == false  =>  answer is i.
 	return i
 }
 
