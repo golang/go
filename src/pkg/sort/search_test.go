@@ -9,7 +9,7 @@ import "testing"
 
 func f(a []int, x int) func(int) bool {
 	return func(i int) bool {
-		return a[i] < x
+		return a[i] >= x
 	}
 }
 
@@ -23,12 +23,12 @@ var tests = []struct {
 	i    int
 }{
 	{"empty", 0, nil, 0},
-	{"1 1", 1, func(i int) bool { return i < 1 }, 1},
-	{"1 false", 1, func(i int) bool { return false }, 0},
-	{"1 true", 1, func(i int) bool { return true }, 1},
-	{"1e9 991", 1e9, func(i int) bool { return i < 991 }, 991},
-	{"1e9 false", 1e9, func(i int) bool { return false }, 0},
-	{"1e9 true", 1e9, func(i int) bool { return true }, 1e9},
+	{"1 1", 1, func(i int) bool { return i >= 1 }, 1},
+	{"1 true", 1, func(i int) bool { return true }, 0},
+	{"1 false", 1, func(i int) bool { return false }, 1},
+	{"1e9 991", 1e9, func(i int) bool { return i >= 991 }, 991},
+	{"1e9 true", 1e9, func(i int) bool { return true }, 0},
+	{"1e9 false", 1e9, func(i int) bool { return false }, 1e9},
 	{"data -20", len(data), f(data, -20), 0},
 	{"data -10", len(data), f(data, -10), 0},
 	{"data -9", len(data), f(data, -9), 1},
@@ -41,8 +41,9 @@ var tests = []struct {
 	{"data 101", len(data), f(data, 101), 12},
 	{"data 10000", len(data), f(data, 10000), 13},
 	{"data 10001", len(data), f(data, 10001), 14},
-	{"descending a", 7, func(i int) bool { return []int{99, 99, 59, 42, 7, 0, -1, -1}[i] > 7 }, 4},
-	{"descending 7", 1e9, func(i int) bool { return 1e9-i > 7 }, 1e9 - 7},
+	{"descending a", 7, func(i int) bool { return []int{99, 99, 59, 42, 7, 0, -1, -1}[i] <= 7 }, 4},
+	{"descending 7", 1e9, func(i int) bool { return 1e9-i <= 7 }, 1e9 - 7},
+	{"overflow", 2e9, func(i int) bool { return false }, 2e9},
 }
 
 
@@ -79,7 +80,7 @@ func TestSearchEfficiency(t *testing.T) {
 		max := log2(n)
 		for x := 0; x < n; x += step {
 			count := 0
-			i := Search(n, func(i int) bool { count++; return i < x })
+			i := Search(n, func(i int) bool { count++; return i >= x })
 			if i != x {
 				t.Errorf("n = %d: expected index %d; got %d", n, x, i)
 			}
@@ -116,6 +117,21 @@ func TestSearchWrappers(t *testing.T) {
 	for _, e := range wrappertests {
 		if e.result != e.i {
 			t.Errorf("%s: expected index %d; got %d", e.name, e.i, e.result)
+		}
+	}
+}
+
+
+// Abstract exhaustive test: all sizes up to 100,
+// all possible return values.  If there are any small
+// corner cases, this test exercises them.
+func TestSearchExhaustive(t *testing.T) {
+	for size := 0; size <= 100; size++ {
+		for targ := 0; targ <= size; targ++ {
+			i := Search(size, func(i int) bool { return i >= targ })
+			if i != targ {
+				t.Errorf("Search(%d, %d) = %d", size, targ, i)
+			}
 		}
 	}
 }
