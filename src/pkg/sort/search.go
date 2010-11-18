@@ -7,11 +7,11 @@
 package sort
 
 // Search uses binary search to find and return the smallest index i
-// in [0, n) at which f(i) is false, assuming that on the range [0, n), 
-// f(i) == false implies f(i+1) == false.  That is, Search requires that
-// f is true for some (possibly empty) prefix of the input range [0, n)
-// and then false for the (possibly empty) remainder; Search returns
-// the first false index.  If there is no such index, Search returns n.
+// in [0, n) at which f(i) is true, assuming that on the range [0, n), 
+// f(i) == true implies f(i+1) == true.  That is, Search requires that
+// f is false for some (possibly empty) prefix of the input range [0, n)
+// and then true for the (possibly empty) remainder; Search returns
+// the first true index.  If there is no such index, Search returns n.
 // Search calls f(i) only for i in the range [0, n).
 //
 // A common use of Search is to find the index i for a value x in
@@ -21,19 +21,19 @@ package sort
 // ordered.
 //
 // For instance, given a slice data sorted in ascending order,
-// the call Search(len(data), func(i int) bool { return data[i] < 23 })
+// the call Search(len(data), func(i int) bool { return data[i] >= 23 })
 // returns the smallest index i such that data[i] >= 23.  If the caller
 // wants to find whether 23 is in the slice, it must test data[i] == 23
 // separately.
 //
-// Searching data sorted in descending order would use the >
-// operator instead of the < operator.
+// Searching data sorted in descending order would use the <=
+// operator instead of the >= operator.
 //
 // To complete the example above, the following code tries to find the value
 // x in an integer slice data sorted in ascending order:
 //
 //	x := 23
-//	i := sort.Search(len(data), func(i int) bool { return data[i] < x })
+//	i := sort.Search(len(data), func(i int) bool { return data[i] >= x })
 //	if i < len(data) && data[i] == x {
 //		// x is present at data[i]
 //	} else {
@@ -47,7 +47,7 @@ package sort
 //		var s string
 //		fmt.Printf("Pick an integer from 0 to 100.\n")
 //		answer := sort.Search(100, func(i int) bool {
-//			fmt.Printf("Is your number > %d? ", i)
+//			fmt.Printf("Is your number <= %d? ", i)
 //			fmt.Scanf("%s", &s)
 //			return s != "" && s[0] == 'y'
 //		})
@@ -55,19 +55,19 @@ package sort
 //	}
 //
 func Search(n int, f func(int) bool) int {
-	// Define f(-1) == true and f(n) == false.
-	// Invariant: f(i-1) == true, f(j) == false.
+	// Define f(-1) == false and f(n) == true.
+	// Invariant: f(i-1) == false, f(j) == true.
 	i, j := 0, n
 	for i < j {
 		h := i + (j-i)/2 // avoid overflow when computing h
 		// i ≤ h < j
-		if f(h) {
-			i = h + 1 // preserves f(i-1) == true
+		if !f(h) {
+			i = h + 1 // preserves f(i-1) == false
 		} else {
-			j = h // preserves f(j) == false
+			j = h // preserves f(j) == true
 		}
 	}
-	// i == j, f(i-1) == true, and f(j) (= f(i)) == false  =>  answer is i.
+	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
 	return i
 }
 
@@ -78,7 +78,7 @@ func Search(n int, f func(int) bool) int {
 // as specified by Search. The array must be sorted in ascending order.
 //
 func SearchInts(a []int, x int) int {
-	return Search(len(a), func(i int) bool { return a[i] < x })
+	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
 
@@ -86,7 +86,7 @@ func SearchInts(a []int, x int) int {
 // as specified by Search. The array must be sorted in ascending order.
 // 
 func SearchFloats(a []float, x float) int {
-	return Search(len(a), func(i int) bool { return a[i] < x })
+	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
 
@@ -94,7 +94,7 @@ func SearchFloats(a []float, x float) int {
 // as specified by Search. The array must be sorted in ascending order.
 // 
 func SearchStrings(a []string, x string) int {
-	return Search(len(a), func(i int) bool { return a[i] < x })
+	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
 

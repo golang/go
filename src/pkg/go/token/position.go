@@ -94,7 +94,7 @@ func (p Pos) IsValid() bool {
 
 
 func searchFiles(a []*File, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].base <= x }) - 1
+	return sort.Search(len(a), func(i int) bool { return a[i].base > x }) - 1
 }
 
 
@@ -252,12 +252,12 @@ func (f *File) Position(offset int) Position {
 
 
 func searchUints(a []int, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i] <= x }) - 1
+	return sort.Search(len(a), func(i int) bool { return a[i] > x }) - 1
 }
 
 
 func searchLineInfos(a []lineInfo, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].offset <= x }) - 1
+	return sort.Search(len(a), func(i int) bool { return a[i].offset > x }) - 1
 }
 
 
