@@ -94,19 +94,12 @@ func (p Pos) IsValid() bool {
 
 
 func searchFiles(a []*File, x int) int {
-	i := sort.Search(len(a), func(i int) bool { return a[i].base < x })
-	// TODO(gri) The code below is really unfortunate. With the old
-	//           semantics of sort.Search, it was possible to simply
-	//           return i! Need to rethink the Search API.
-	if i == 0 || i < len(a) && a[i].base == x {
-		return i
-	}
-	return i - 1
+	return sort.Search(len(a), func(i int) bool { return a[i].base <= x }) - 1
 }
 
 
 func (s *FileSet) file(p Pos) *File {
-	if i := searchFiles(s.files, int(p)); i < len(s.files) {
+	if i := searchFiles(s.files, int(p)); i >= 0 {
 		return s.files[i]
 	}
 	return nil
@@ -259,39 +252,25 @@ func (f *File) Position(offset int) Position {
 
 
 func searchUints(a []int, x int) int {
-	i := sort.Search(len(a), func(i int) bool { return a[i] < x })
-	// TODO(gri) The code below is really unfortunate. With the old
-	//           semantics of sort.Search, it was possible to simply
-	//           return i! Need to rethink the Search API.
-	if i == 0 || i < len(a) && a[i] == x {
-		return i
-	}
-	return i - 1
+	return sort.Search(len(a), func(i int) bool { return a[i] <= x }) - 1
 }
 
 
 func searchLineInfos(a []lineInfo, x int) int {
-	i := sort.Search(len(a), func(i int) bool { return a[i].offset < x })
-	// TODO(gri) The code below is really unfortunate. With the old
-	//           semantics of sort.Search, it was possible to simply
-	//           return i! Need to rethink the Search API.
-	if i == 0 || i < len(a) && a[i].offset == x {
-		return i
-	}
-	return i - 1
+	return sort.Search(len(a), func(i int) bool { return a[i].offset <= x }) - 1
 }
 
 
 // info returns the file name, line, and column number for a file offset.
 func (f *File) info(offset int) (filename string, line, column int) {
 	filename = f.name
-	if i := searchUints(f.lines, offset); i < len(f.lines) {
+	if i := searchUints(f.lines, offset); i >= 0 {
 		line, column = i+1, offset-f.lines[i]+1
 	}
-	if i := searchLineInfos(f.infos, offset); i < len(f.infos) {
+	if i := searchLineInfos(f.infos, offset); i >= 0 {
 		alt := &f.infos[i]
 		filename = alt.filename
-		if i := searchUints(f.lines, alt.offset); i < len(f.lines) {
+		if i := searchUints(f.lines, alt.offset); i >= 0 {
 			line += alt.line - i - 1
 		}
 	}
