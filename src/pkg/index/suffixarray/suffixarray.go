@@ -54,21 +54,8 @@ func (x *Index) at(i int) []byte {
 }
 
 
-// Binary search according to "A Method of Programming", E.W. Dijkstra.
 func (x *Index) search(s []byte) int {
-	i, j := 0, len(x.sa)
-	// i < j for non-empty x
-	for i+1 < j {
-		// 0 <= i < j <= len(x.sa) && (x.at(i) <= s < x.at(j) || (s is not in x))
-		h := i + (j-i)/2 // i < h < j
-		if bytes.Compare(x.at(h), s) <= 0 {
-			i = h
-		} else { // s < x.at(h)
-			j = h
-		}
-	}
-	// i+1 == j for non-empty x
-	return i
+	return sort.Search(len(x.sa), func(i int) bool { return bytes.Compare(x.at(i), s) >= 0 })
 }
 
 
@@ -84,12 +71,7 @@ func (x *Index) Lookup(s []byte, n int) []int {
 	if len(s) > 0 && n != 0 {
 		// find matching suffix index i
 		i := x.search(s)
-		// x.at(i) <= s < x.at(i+1)
-
-		// ignore the first suffix if it is < s
-		if i < len(x.sa) && bytes.Compare(x.at(i), s) < 0 {
-			i++
-		}
+		// x.at(i-1) < s <= x.at(i)
 
 		// collect the following suffixes with matching prefixes
 		for (n < 0 || len(res) < n) && i < len(x.sa) && bytes.HasPrefix(x.at(i), s) {
