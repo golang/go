@@ -9,6 +9,8 @@ GOFILES=\
 	cbc.go\
 	cipher.go\
 	ctr.go\
-	io.go
+	io.go\
+	ocfb.go\
+	cfb.go
 
 include ../../../Make.pkg
