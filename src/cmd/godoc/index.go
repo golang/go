@@ -30,6 +30,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/scanner"
+	"io/ioutil"
 	"os"
 	pathutil "path"
 	"sort"
@@ -578,11 +579,6 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
 }
 
 
-func (x *Indexer) VisitDir(path string, f *os.FileInfo) bool {
-	return true
-}
-
-
 func pkgName(filename string) string {
 	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
 	if err != nil || file == nil {
@@ -592,11 +588,12 @@ func pkgName(filename string) string {
 }
 
 
-func (x *Indexer) VisitFile(path string, f *os.FileInfo) {
+func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
 	if !isGoFile(f) {
 		return
 	}
 
+	path := pathutil.Join(dirname, f.Name)
 	if excludeTestFiles && (!isPkgFile(f) || strings.HasPrefix(path, "test/")) {
 		return
 	}
@@ -637,15 +634,27 @@ type Index struct {
 func canonical(w string) string { return strings.ToLower(w) }
 
 
-// NewIndex creates a new index for the file tree rooted at root.
-func NewIndex(root string) *Index {
+// NewIndex creates a new index for the .go files
+// in the directories given by dirnames.
+//
+func NewIndex(dirnames <-chan string) *Index {
 	var x Indexer
 
 	// initialize Indexer
 	x.words = make(map[string]*IndexResult)
 
-	// collect all Spots
-	pathutil.Walk(root, &x, nil)
+	// index all files in the directories given by dirnames
+	for dirname := range dirnames {
+		list, err := ioutil.ReadDir(dirname)
+		if err != nil {
+			continue // ignore this directory
+		}
+		for _, f := range list {
+			if !f.IsDirectory() {
+				x.visitFile(dirname, f)
+			}
+		}
+	}
 
 	// for each word, reduce the RunLists into a LookupResult;
 	// also collect the word with its canonical spelling in a
