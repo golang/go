@@ -43,6 +43,7 @@ func (dt *delayTime) backoff(max int) {
 		v = max
 	}
 	dt.value = v
+	// don't change dt.timestamp - calling backoff indicates an error condition
 	dt.mutex.Unlock()
 }
 
@@ -66,6 +67,7 @@ var (
 	fsMap      Mapping // user-defined mapping
 	fsTree     RWValue // *Directory tree of packages, updated with each sync
 	pathFilter RWValue // filter used when building fsMap directory trees
+	fsModified RWValue // timestamp of last call to invalidateIndex
 
 	// http handlers
 	fileServer http.Handler // default file server
@@ -179,13 +181,21 @@ func readDirList(filename string) ([]string, os.Error) {
 }
 
 
-func updateFilterFile() {
-	// for each user-defined file system mapping, compute
-	// respective directory tree w/o filter for accuracy
+// updateMappedDirs computes the directory tree for
+// each user-defined file system mapping. If a filter
+// is provided, it is used to filter directories.
+//
+func updateMappedDirs(filter func(string) bool) {
 	fsMap.Iterate(func(path string, value *RWValue) bool {
-		value.set(newDirectory(path, nil, -1))
+		value.set(newDirectory(path, filter, -1))
 		return true
 	})
+	invalidateIndex()
+}
+
+
+func updateFilterFile() {
+	updateMappedDirs(nil) // no filter for accuracy
 
 	// collect directory tree leaf node paths
 	var buf bytes.Buffer
@@ -219,12 +229,7 @@ func initDirTrees() {
 		setPathFilter(list)
 	}
 
-	// for each user-defined file system mapping, compute
-	// respective directory tree quickly using pathFilter
-	go fsMap.Iterate(func(path string, value *RWValue) bool {
-		value.set(newDirectory(path, getPathFilter(), -1))
-		return true
-	})
+	go updateMappedDirs(getPathFilter()) // use filter for speed
 
 	// start filter update goroutine, if enabled.
 	if *filter != "" && *filterMin > 0 {
@@ -1350,16 +1355,62 @@ func search(w http.ResponseWriter, r *http.Request) {
 // ----------------------------------------------------------------------------
 // Indexer
 
+// invalidateIndex should be called whenever any of the file systems
+// under godoc's observation change so that the indexer is kicked on.
+//
+func invalidateIndex() {
+	fsModified.set(nil)
+}
+
+
+// indexUpToDate() returns true if the search index is not older
+// than any of the file systems under godoc's observation.
+//
+func indexUpToDate() bool {
+	_, fsTime := fsModified.get()
+	_, siTime := searchIndex.get()
+	return fsTime <= siTime
+}
+
+
+// feedDirnames feeds the directory names of all directories
+// under the file system given by root to channel c.
+//
+func feedDirnames(root *RWValue, c chan<- string) {
+	if dir, _ := root.get(); dir != nil {
+		for d := range dir.(*Directory).iter(false) {
+			c <- d.Path
+		}
+	}
+}
+
+
+// fsDirnames() returns a channel sending all directory names
+// of all the file systems under godoc's observation.
+//
+func fsDirnames() <-chan string {
+	c := make(chan string, 256) // asynchronous for fewer context switches
+	go func() {
+		feedDirnames(&fsTree, c)
+		fsMap.Iterate(func(_ string, root *RWValue) bool {
+			feedDirnames(root, c)
+			return true
+		})
+		close(c)
+	}()
+	return c
+}
+
+
 func indexer() {
 	for {
-		_, ts := fsTree.get()
-		if _, timestamp := searchIndex.get(); timestamp < ts {
+		if !indexUpToDate() {
 			// index possibly out of date - make a new one
-			// (could use a channel to send an explicit signal
-			// from the sync goroutine, but this solution is
-			// more decoupled, trivial, and works well enough)
+			if *verbose {
+				log.Printf("updating index...")
+			}
 			start := time.Nanoseconds()
-			index := NewIndex(*goroot)
+			index := NewIndex(fsDirnames())
 			stop := time.Nanoseconds()
 			searchIndex.set(index)
 			if *verbose {

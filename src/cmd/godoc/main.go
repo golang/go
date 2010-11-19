@@ -128,6 +128,7 @@ func dosync(w http.ResponseWriter, r *http.Request) {
 		//            Consider keeping separate time stamps so the web-
 		//            page can indicate this discrepancy.
 		fsTree.set(newDirectory(*goroot, nil, -1))
+		invalidateIndex()
 		fallthrough
 	case 1:
 		// sync failed because no files changed;
@@ -255,11 +256,11 @@ func main() {
 		}
 
 		// Initialize default directory tree with corresponding timestamp.
-		// Do it in two steps:
-		// 1) set timestamp right away so that the indexer is kicked on
-		fsTree.set(nil)
-		// 2) compute initial directory tree in a goroutine so that launch is quick
-		go func() { fsTree.set(newDirectory(*goroot, nil, -1)) }()
+		// (Do it in a goroutine so that launch is quick.)
+		go func() {
+			fsTree.set(newDirectory(*goroot, nil, -1))
+			invalidateIndex()
+		}()
 
 		// Initialize directory trees for user-defined file systems (-path flag).
 		initDirTrees()
