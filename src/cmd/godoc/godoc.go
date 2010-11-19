@@ -186,11 +186,13 @@ func readDirList(filename string) ([]string, os.Error) {
 // is provided, it is used to filter directories.
 //
 func updateMappedDirs(filter func(string) bool) {
-	fsMap.Iterate(func(path string, value *RWValue) bool {
-		value.set(newDirectory(path, filter, -1))
-		return true
-	})
-	invalidateIndex()
+	if !fsMap.IsEmpty() {
+		fsMap.Iterate(func(path string, value *RWValue) bool {
+			value.set(newDirectory(path, filter, -1))
+			return true
+		})
+		invalidateIndex()
+	}
 }
 
 
@@ -1323,7 +1325,7 @@ func lookup(query string) (result SearchResult) {
 	result.Query = query
 	if index, timestamp := searchIndex.get(); index != nil {
 		result.Hit, result.Alt, result.Illegal = index.(*Index).Lookup(query)
-		_, ts := fsTree.get()
+		_, ts := fsModified.get()
 		result.Accurate = timestamp >= ts
 	}
 	return
