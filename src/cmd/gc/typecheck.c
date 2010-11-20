@@ -1809,14 +1809,11 @@ indexdup(Node *n, Node *hash[], ulong nhash)
 }
 
 static int
-prime(ulong h)
+prime(ulong h, ulong sr)
 {
-	ulong n, sr;
+	ulong n;
 
-	sr = h;
-	for(n=0; n<3; n++)
-		sr = (sr + h/sr)/2;
-	for(n=3; n<sr; n+=2)
+	for(n=3; n<=sr; n+=2)
 		if(h%n == 0)
 			return 0;
 	return 1;
@@ -1825,20 +1822,37 @@ prime(ulong h)
 static ulong
 inithash(Node *n, Node ***hash, Node **autohash, ulong nautohash)
 {
-	ulong h;
+	ulong h, sr;
 	NodeList *ll;
+	int i;
 
+	// count the number of entries
 	h = 0;
 	for(ll=n->list; ll; ll=ll->next)
 		h++;
-	h = 9*h/8;
+
+	// if the auto hash table is
+	// large enough use it.
 	if(h <= nautohash) {
 		*hash = autohash;
 		memset(*hash, 0, nautohash * sizeof(**hash));
 		return nautohash;
 	}
-	while(!prime(h))
-		h++;
+
+	// make hash size odd and 12% larger than entries
+	h += h/8;
+	h |= 1;
+
+	// calculate sqrt of h
+	sr = h/2;
+	for(i=0; i<5; i++)
+		sr = (sr + h/sr)/2;
+
+	// check for primeality
+	while(!prime(h, sr))
+		h += 2;
+
+	// build and return a throw-away hash table
 	*hash = mal(h * sizeof(**hash));
 	memset(*hash, 0, h * sizeof(**hash));
 	return h;
