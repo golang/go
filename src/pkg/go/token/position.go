@@ -63,12 +63,15 @@ func (pos Position) String() string {
 // It can be converted into a Position for a more convenient, but much
 // larger, representation.
 //
-// To create the Pos value for a specific source location, first add
+// The Pos value for a given file is a number in the range [base, base+size],
+// where base and size are specified when adding the file to the file set via
+// AddFile.
+//
+// To create the Pos value for a specific source offset, first add
 // the respective file to the current file set (via FileSet.AddFile)
-// and then call File.Pos(offset) of that file with the offset of
-// the source location. Given a Pos value p for a specific file set
-// fset, the corresponding Position value is obtained by calling
-// fset.Position(p).
+// and then call File.Pos(offset) for that file. Given a Pos value p
+// for a specific file set fset, the corresponding Position value is
+// obtained by calling fset.Position(p).
 //
 // Pos values can be compared directly with the usual comparison operators:
 // If two Pos values p and q are in the same file, comparing p and q is
@@ -100,7 +103,11 @@ func searchFiles(a []*File, x int) int {
 
 func (s *FileSet) file(p Pos) *File {
 	if i := searchFiles(s.files, int(p)); i >= 0 {
-		return s.files[i]
+		f := s.files[i]
+		// f.base <= int(p) by definition of searchFiles
+		if int(p) <= f.base+f.size {
+			return f
+		}
 	}
 	return nil
 }
@@ -166,6 +173,12 @@ func (f *File) Name() string {
 }
 
 
+// Base returns the base offset of file f as registered with AddFile.
+func (f *File) Base() int {
+	return f.base
+}
+
+
 // Size returns the size of file f as registered with AddFile.
 func (f *File) Size() int {
 	return f.size
@@ -224,7 +237,7 @@ func (f *File) Pos(offset int) Pos {
 	if offset > f.size {
 		panic("illegal file offset")
 	}
-	return Pos(offset + f.base)
+	return Pos(f.base + offset)
 }
 
 
@@ -296,19 +309,43 @@ func NewFileSet() *FileSet {
 }
 
 
-// AddFile adds a new file with a given filename and file size to a the
-// file set s and returns the file. Multiple files may have the same name.
-// File.Pos may be used to create file-specific position values from a
-// file offset.
+// Base returns the minimum base offset that must be provided to
+// AddFile when adding the next file.
 //
-func (s *FileSet) AddFile(filename string, size int) *File {
+func (s *FileSet) Base() int {
+	return s.base
+}
+
+
+// AddFile adds a new file with a given filename, base offset, and file size
+// to the file set s and returns the file. Multiple files may have the same
+// name. The base offset must not be smaller than the FileSet's Base(), and
+// size must not be negative.
+//
+// Adding the file will set the file set's Base() value to base + size + 1
+// as the minimum base value for the next file. The following relationship
+// exists between a Pos value p for a given file offset offs:
+//
+//	int(p) = base + offs
+//
+// with offs in the range [0, size] and thus p in the range [base, base+size].
+// For convenience, File.Pos may be used to create file-specific position
+// values from a file offset.
+//
+func (s *FileSet) AddFile(filename string, base, size int) *File {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	f := &File{s, filename, s.base, size, []int{0}, nil}
-	s.base += size + 1 // +1 because EOF also has a position
-	if s.base < 0 {
+	if base < s.base || size < 0 {
+		panic("illegal base or size")
+	}
+	// base >= s.base && size >= 0
+	f := &File{s, filename, base, size, []int{0}, nil}
+	base += size + 1 // +1 because EOF also has a position
+	if base < 0 {
 		panic("token.Pos offset overflow (> 2G of source code in file set)")
 	}
+	// add the file to the file set
+	s.base = base
 	s.index[f] = len(s.files)
 	s.files = append(s.files, f)
 	return f

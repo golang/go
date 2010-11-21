@@ -78,10 +78,11 @@ func verifyPositions(t *testing.T, fset *FileSet, f *File, lines []int) {
 
 
 func TestPositions(t *testing.T) {
+	const delta = 7 // a non-zero base offset increment
 	fset := NewFileSet()
 	for _, test := range tests {
 		// add file and verify name and size
-		f := fset.AddFile(test.filename, test.size)
+		f := fset.AddFile(test.filename, fset.Base()+delta, test.size)
 		if f.Name() != test.filename {
 			t.Errorf("expected filename %q; got %q", test.filename, f.Name())
 		}
@@ -118,7 +119,7 @@ func TestPositions(t *testing.T) {
 
 func TestLineInfo(t *testing.T) {
 	fset := NewFileSet()
-	f := fset.AddFile("foo", 500)
+	f := fset.AddFile("foo", fset.Base(), 500)
 	lines := []int{0, 42, 77, 100, 210, 220, 277, 300, 333, 401}
 	// add lines individually and provide alternative line information
 	for _, offs := range lines {
