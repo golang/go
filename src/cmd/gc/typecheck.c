@@ -656,6 +656,7 @@ reswitch:
 		r = n->right;
 		if((t = r->type) == T)
 			goto error;
+		r = assignconv(r, l->type->type, "send");
 		// TODO: more aggressive
 		n->etype = 0;
 		n->type = T;
