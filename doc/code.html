@@ -177,6 +177,32 @@ Writing clean, idiomatic Go code is beyond the scope of this document.
 that topic.
 </p>
 
+<h2 id="Building_programs">Building programs</h2>
+<p>To build a Go program with gomake, create a Makefile alongside your program's
+source files. It should be similar to the example above, but include
+<code>Make.cmd</code> instead of <code>Make.pkg</code>:
+
+<pre>
+include $(GOROOT)/src/Make.inc
+
+TARG=helloworld
+GOFILES=\
+	helloworld.go\
+
+include $(GOROOT)/src/Make.cmd
+</pre>
+
+<p>Running <code>gomake build</code> will compile <code>helloworld.go</code>
+and produce an executable named <code>helloworld</code> in the current
+directory.
+</p>
+
+<p>
+Running <code>gomake install</code> will build <code>helloworld</code> if
+necessary and copy it to the <code>$GOBIN</code> directory
+(<code>$GOROOT/bin/</code> is the default).
+</p>
+
 <h2 id="Testing">Testing</h2>
 
 <p>
