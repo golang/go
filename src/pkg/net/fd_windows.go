@@ -243,8 +243,43 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 }
 
 func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
-	var r syscall.Sockaddr
-	return 0, r, nil
+	if fd == nil {
+		return 0, nil, os.EINVAL
+	}
+	if len(p) == 0 {
+		return 0, nil, nil
+	}
+	fd.rio.Lock()
+	defer fd.rio.Unlock()
+	fd.incref()
+	defer fd.decref()
+	if fd.sysfile == nil {
+		return 0, nil, os.EINVAL
+	}
+	// Submit receive request.
+	var pckt ioPacket
+	pckt.c = fd.cr
+	var done uint32
+	flags := uint32(0)
+	var rsa syscall.RawSockaddrAny
+	l := int32(unsafe.Sizeof(rsa))
+	e := syscall.WSARecvFrom(uint32(fd.sysfd), newWSABuf(p), 1, &done, &flags, &rsa, &l, &pckt.o, nil)
+	switch e {
+	case 0:
+		// IO completed immediately, but we need to get our completion message anyway.
+	case syscall.ERROR_IO_PENDING:
+		// IO started, and we have to wait for it's completion.
+	default:
+		return 0, nil, &OpError{"WSARecvFrom", fd.net, fd.laddr, os.Errno(e)}
+	}
+	// Wait for our request to complete.
+	r := <-pckt.c
+	if r.errno != 0 {
+		err = &OpError{"WSARecvFrom", fd.net, fd.laddr, os.Errno(r.errno)}
+	}
+	n = int(r.qty)
+	sa, _ = rsa.Sockaddr()
+	return
 }
 
 func (fd *netFD) Write(p []byte) (n int, err os.Error) {
@@ -281,7 +316,39 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 }
 
 func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
-	return 0, nil
+	if fd == nil {
+		return 0, os.EINVAL
+	}
+	if len(p) == 0 {
+		return 0, nil
+	}
+	fd.wio.Lock()
+	defer fd.wio.Unlock()
+	fd.incref()
+	defer fd.decref()
+	if fd.sysfile == nil {
+		return 0, os.EINVAL
+	}
+	// Submit send request.
+	var pckt ioPacket
+	pckt.c = fd.cw
+	var done uint32
+	e := syscall.WSASendto(uint32(fd.sysfd), newWSABuf(p), 1, &done, 0, sa, &pckt.o, nil)
+	switch e {
+	case 0:
+		// IO completed immediately, but we need to get our completion message anyway.
+	case syscall.ERROR_IO_PENDING:
+		// IO started, and we have to wait for it's completion.
+	default:
+		return 0, &OpError{"WSASendTo", fd.net, fd.laddr, os.Errno(e)}
+	}
+	// Wait for our request to complete.
+	r := <-pckt.c
+	if r.errno != 0 {
+		err = &OpError{"WSASendTo", fd.net, fd.laddr, os.Errno(r.errno)}
+	}
+	n = int(r.qty)
+	return
 }
 
 func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
