@@ -467,6 +467,8 @@ func Utimes(path string, tv []Timeval) (errno int) {
 //sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
 //sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecv
 //sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASend
+//sys	WSARecvFrom(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32,  from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecvFrom
+//sys	WSASendTo(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *RawSockaddrAny, tolen int32,  overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASendTo
 //sys	GetHostByName(name string) (h *Hostent, errno int) [failretval=nil] = ws2_32.gethostbyname
 //sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval=nil] = ws2_32.getservbyname
 //sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
@@ -630,6 +632,15 @@ func GetAcceptIOCPSockaddrs(attrs *byte) (lsa, rsa Sockaddr) {
 	GetAcceptExSockaddrs(attrs, 0, alen, alen, &lrsa, &llen, &rrsa, &rlen)
 	lsa, _ = lrsa.Sockaddr()
 	rsa, _ = rrsa.Sockaddr()
+	return
+}
+
+func WSASendto(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (errno int) {
+	rsa, l, err := to.sockaddr()
+	if err != 0 {
+		return err
+	}
+	errno = WSASendTo(s, bufs, bufcnt, sent, flags, (*RawSockaddrAny)(unsafe.Pointer(rsa)), l, overlapped, croutine)
 	return
 }
 
