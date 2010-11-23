@@ -5,6 +5,38 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-11-23">2010-11-23</h3>
+
+<pre>
+This release includes a backwards-incompatible package change to the
+sort.Search function (introduced in the last release).
+See the change for details and examples of how you might change your code:
+        http://code.google.com/p/go/source/detail?r=102866c369
+
+* build: automatically #define _64BIT in 6c.
+* cgo: print required space after parameter name in wrapper function.
+* crypto/cipher: new package to replace crypto/block (thanks Adam Langley).
+* crypto/elliptic: new package, implements elliptic curves over prime fields (thanks Adam Langley).
+* crypto/x509: policy OID support and fixes (thanks Adam Langley).
+* doc: add link to codewalks,
+        fix recover() documentation (thanks Anschel Schaffer-Cohen),
+        explain how to write Makefiles for commands.
+* exec: enable more tests on windows (thanks Alex Brainman).
+* gc: adjustable hash code in typecheck of composite literals
+        (thanks to vskrap, Andrey Mirtchovski, and Eoghan Sherry).
+* gc: better error message for bad type in channel send (thanks Anthony Martin).
+* godoc: bug fix in relativePath,
+        compute search index for all file systems under godoc's observation,
+        use correct time stamp to indicate accuracy of search result.
+* index/suffixarray: use sort.Search.
+* net: add ReadFrom and WriteTo windows version (thanks Wei Guangjing).
+* reflect: remove unnecessary casts in Get methods.
+* rpc: add RegisterName to allow override of default type name.
+* runtime: free memory allocated by windows CommandLineToArgv (thanks Alex Brainman).
+* sort: simplify Search (thanks Roger Peppe).
+* strings: add LastIndexAny (thanks Benny Siegert).
+</pre>
+
 <h3 id="2010-11-10">2010-11-10</h3>
 
 <pre>
