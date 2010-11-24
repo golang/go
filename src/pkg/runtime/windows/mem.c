@@ -15,10 +15,25 @@ enum {
 	PAGE_EXECUTE_READWRITE = 0x40,
 };
 
+static void
+abort(int8 *name)
+{
+	uintptr errno;
+
+	errno = (uintptr)runtime·stdcall(runtime·GetLastError, 0);
+	runtime·printf("%s failed with errno=%d\n", name, errno);
+	runtime·throw(name);
+}
+
 void*
 runtime·SysAlloc(uintptr n)
 {
-	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	void *v;
+
+	v = runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if(v == 0)
+		abort("VirtualAlloc");
+	return v;
 }
 
 void
@@ -31,7 +46,11 @@ runtime·SysUnused(void *v, uintptr n)
 void
 runtime·SysFree(void *v, uintptr n)
 {
-	runtime·stdcall(runtime·VirtualFree, 3, v, n, MEM_RELEASE);
+	uintptr r;
+
+	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, 0, MEM_RELEASE);
+	if(r == 0)
+		abort("VirtualFree");
 }
 
 void
