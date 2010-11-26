@@ -47,7 +47,7 @@ func (e *ReadError) String() string {
 // A WriteError reports an error encountered while writing output.
 type WriteError struct {
 	Offset int64    // byte offset where error occurred
-	Error  os.Error // error returned by underlying Read
+	Error  os.Error // error returned by underlying Write
 }
 
 func (e *WriteError) String() string {
