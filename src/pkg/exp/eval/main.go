@@ -25,7 +25,7 @@ func main() {
 			println(err.String())
 			os.Exit(1)
 		}
-		file, err := parser.ParseFile(*filename, data, nil, 0)
+		file, err := parser.ParseFile(*filename, data, 0)
 		if err != nil {
 			println(err.String())
 			os.Exit(1)
