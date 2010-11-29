@@ -255,6 +255,9 @@ func (f *fmt) fmt_sx(s string) {
 func (f *fmt) fmt_sX(s string) {
 	t := ""
 	for i := 0; i < len(s); i++ {
+		if i > 0 && f.space {
+			t += " "
+		}
 		v := s[i]
 		t += string(udigits[v>>4])
 		t += string(udigits[v&0xF])

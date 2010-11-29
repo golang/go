@@ -121,7 +121,8 @@ var fmttests = []fmtTest{
 	// basic bytes
 	{"%s", []byte("abc"), "abc"},
 	{"%x", []byte("abc"), "616263"},
-	{"% x", []byte("abc"), "61 62 63"},
+	{"% x", []byte("abc\xff"), "61 62 63 ff"},
+	{"% X", []byte("abc\xff"), "61 62 63 FF"},
 	{"%x", []byte("xyz"), "78797a"},
 	{"%X", []byte("xyz"), "78797A"},
 	{"%q", []byte("abc"), `"abc"`},

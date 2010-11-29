@@ -58,7 +58,7 @@
 			0X for hex (%#X); suppress 0x for %p (%#p);
 			print a raw (backquoted) string if possible for %q (%#q)
 		' '	(space) leave a space for elided sign in numbers (% d);
-			put spaces between bytes printing strings or slices in hex (% x)
+			put spaces between bytes printing strings or slices in hex (% x, % X)
 		0	pad with leading zeros rather than spaces
 
 	For each Printf-like function, there is also a Print function
