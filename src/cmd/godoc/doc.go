@@ -24,7 +24,7 @@ godoc first tries localhost:6060 and then http://golang.org.
 
 	godoc -q Reader Writer
 	godoc -q math.Sin
-	godoc -server=:6666 -q sin
+	godoc -server=:6060 -q sin
 
 With the -http flag, it runs as a web server and presents the documentation as a
 web page.
