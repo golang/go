@@ -112,7 +112,8 @@ sleb128put(vlong v)
  * the ordering of atributes in the Abbrevs and DIEs, and we will
  * always write them out in the order of declaration in the abbrev.
  * This implementation relies on tag, attr < 127, so they serialize as
- * a char, hence we do not support user-defined tags or attributes.
+ * a char.  Higher numbered user-defined tags or attributes can be used
+ * for storing internal data but won't be serialized.
  */
 typedef struct DWAttrForm DWAttrForm;
 struct DWAttrForm {
@@ -122,6 +123,7 @@ struct DWAttrForm {
 
 // Index into the abbrevs table below.
 // Keep in sync with ispubname() and ispubtype() below.
+// ispubtype considers >= NULLTYPE public
 enum
 {
 	DW_ABRV_NULL,
@@ -131,6 +133,7 @@ enum
 	DW_ABRV_AUTO,
 	DW_ABRV_PARAM,
 	DW_ABRV_STRUCTFIELD,
+	DW_ABRV_ARRAYRANGE,
 	DW_ABRV_NULLTYPE,
 	DW_ABRV_BASETYPE,
 	DW_ABRV_ARRAYTYPE,
@@ -177,7 +180,7 @@ static struct DWAbbrev {
 	{
 		DW_TAG_variable, DW_CHILDREN_no,
 		DW_AT_name,	 DW_FORM_string,
-		DW_AT_location,	 DW_FORM_addr,
+		DW_AT_location,	 DW_FORM_block1,
 		DW_AT_type,	 DW_FORM_ref_addr,
 		DW_AT_external,	 DW_FORM_flag,
 		0, 0
@@ -206,7 +209,16 @@ static struct DWAbbrev {
 		DW_AT_type,	 DW_FORM_ref_addr,
 		0, 0
 	},
+	/* ARRAYRANGE */
+	{
+		DW_TAG_subrange_type, DW_CHILDREN_no,
+		// No name!
+		DW_AT_type,	 DW_FORM_ref_addr,
+		DW_AT_upper_bound, DW_FORM_data1,
+		0, 0
+	},
 
+	// Below here are the types considered public by ispubtype
 	/* NULLTYPE */
 	{
 		DW_TAG_unspecified_type, DW_CHILDREN_no,
@@ -222,8 +234,9 @@ static struct DWAbbrev {
 		0, 0
 	},
 	/* ARRAYTYPE */
+	// child is subrange with upper bound
 	{
-		DW_TAG_array_type, DW_CHILDREN_no,
+		DW_TAG_array_type, DW_CHILDREN_yes,
 		DW_AT_name,	DW_FORM_string,
 		DW_AT_type,	DW_FORM_ref_addr,
 		DW_AT_byte_size, DW_FORM_udata,
@@ -449,6 +462,8 @@ mkindex(DWDie *die)
 	die->hash = mal(HASHSIZE * sizeof(DWDie*));
 }
 
+// Find child by AT_name using hashtable if available or linear scan
+// if not.
 static DWDie*
 find(DWDie *die, char* name)
 {
@@ -456,8 +471,10 @@ find(DWDie *die, char* name)
 	int h;
 
 	if (die->hash == nil) {
-		diag("lookup of %s in non-indexed DIE", name);
-		errorexit();
+		for (a = die->child; a != nil; a = a->link)
+			if (strcmp(name, getattr(a, DW_AT_name)->data) == 0)
+				return a;
+		return nil;
 	}
 
 	h = hashstr(name);
@@ -466,7 +483,6 @@ find(DWDie *die, char* name)
 	if (a == nil)
 		return nil;
 
-	// AT_name always exists.
 	if (strcmp(name, getattr(a, DW_AT_name)->data) == 0)
 		return a;
 
@@ -483,6 +499,17 @@ find(DWDie *die, char* name)
 		b = b->hlink;
 	}
 	return nil;
+}
+
+static DWDie*
+find_or_diag(DWDie *die, char* name)
+{
+	DWDie *r;
+
+	r = find(die, name);
+	if (r == nil)
+		diag("dwarf find: %s has no %s", getattr(die, DW_AT_name)->data, name);
+	return r;
 }
 
 static DWAttr*
@@ -587,6 +614,8 @@ putattr(int form, int cls, vlong value, char *data)
 	}
 }
 
+// Note that we can (and do) add arbitrary attributes to a DIE, but
+// only the ones actually listed in the Abbrev will be written out.
 static void
 putattrs(int abbrev, DWAttr* attr)
 {
@@ -595,7 +624,8 @@ putattrs(int abbrev, DWAttr* attr)
 
 	memset(attrs, 0, sizeof attrs);
 	for( ; attr; attr = attr->link)
-		attrs[attr->atr] = attr;
+		if (attr->atr < nelem(attrs))
+			attrs[attr->atr] = attr;
 	for(af = abbrevs[abbrev].attr; af->attr; af++)
 		if (attrs[af->attr])
 			putattr(af->form,
@@ -630,7 +660,7 @@ putdie(DWDie* die)
 static void
 reverselist(DWDie** list)
 {
-	DWDie *curr, * prev;
+	DWDie *curr, *prev;
 
 	curr = *list;
 	prev = nil;
@@ -667,6 +697,19 @@ newmemberoffsetattr(DWDie *die, int32 offs)
 		block[i++] = DW_OP_plus;
 	}
 	newattr(die, DW_AT_data_member_location, DW_CLS_BLOCK, i, mal(i));
+	memmove(die->attr->data, block, i);
+}
+
+static void
+newabslocexprattr(DWDie *die, vlong addr)
+{
+	char block[10];
+	int i;
+
+	i = 0;
+	block[i++] = DW_OP_constu;
+	i += uleb128enc(addr, block+i);
+	newattr(die, DW_AT_location, DW_CLS_BLOCK, i, mal(i));
 	memmove(die->attr->data, block, i);
 }
 
@@ -768,6 +811,12 @@ decodetype_arrayelem(Sym *s)
 	return decode_reloc(s, 5*PtrSize + 8);	// 0x1c / 0x30
 }
 
+static vlong
+decodetype_arraylen(Sym *s)
+{
+	return decode_inuxi(s->p + 6*PtrSize + 8, PtrSize);
+}
+
 // Type.PtrType.elem
 static Sym*
 decodetype_ptrelem(Sym *s)
@@ -793,7 +842,7 @@ decodetype_structfieldname(Sym *s, int i)
 	p = decode_reloc(p, 0);			// string."foo"
 	if (p == nil)				// shouldn't happen.
 		return nil;
-	return (char*)p->p;    			// the c-string
+	return (char*)p->p;			// the c-string
 }
 
 static Sym*
@@ -808,6 +857,14 @@ decodetype_structfieldoffs(Sym *s, int i)
 	return decode_inuxi(s->p + 10*PtrSize + 0x10 + i*5*PtrSize, 4);	 // 0x38  / 0x60
 }
 
+// Fake attributes for slices, maps and channel
+enum {
+	DW_AT_internal_elem_type = 250,	 // channels and slices
+	DW_AT_internal_key_type = 251,	 // maps
+	DW_AT_internal_val_type = 252,	 // maps
+	DW_AT_internal_location = 253,	 // params and locals
+};
+
 // Define gotype, for composite ones recurse into constituents.
 static DWDie*
 defgotype(Sym *gotype)
@@ -820,11 +877,11 @@ defgotype(Sym *gotype)
 	int i, nfields;
 
 	if (gotype == nil)
-		return find(&dwtypes, "<unspecified>");	 // must be defined before
+		return find_or_diag(&dwtypes, "<unspecified>");
 
 	if (strncmp("type.", gotype->name, 5) != 0) {
 		diag("Type name doesn't start with \".type\": %s", gotype->name);
-		return find(&dwtypes, "<unspecified>");
+		return find_or_diag(&dwtypes, "<unspecified>");
 	}
 	name = gotype->name + 5;  // Altenatively decode from Type.string
 
@@ -901,6 +958,10 @@ defgotype(Sym *gotype)
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		s = decodetype_arrayelem(gotype);
 		newrefattr(die, DW_AT_type, defgotype(s));
+		fld = newdie(die, DW_ABRV_ARRAYRANGE, "range");
+		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, decodetype_arraylen(gotype), 0);
+		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+
 		break;
 
 	case KindChan:
@@ -1014,7 +1075,7 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
 	case 'D':
 	case 'B':
 		dv = newdie(&dwglobals, DW_ABRV_VARIABLE, s);
-		newattr(dv, DW_AT_location, DW_CLS_ADDRESS, v, 0);
+		newabslocexprattr(dv, v);
 		if (ver == 0)
 			newattr(dv, DW_AT_external, DW_CLS_FLAG, 1, 0);
 		// fallthrough
@@ -1379,7 +1440,7 @@ writelines(void)
 	int currfile;
 	int i, lang, da, dt;
 	Linehist *lh;
-	DWDie *dwinfo, *dwfunc, *dwvar;
+	DWDie *dwinfo, *dwfunc, *dwvar, **dws;
 	DWDie *varhash[HASHSIZE];
 	char *n;
 
@@ -1521,6 +1582,16 @@ writelines(void)
 			dwvar = newdie(dwfunc, dt, n);
 			newcfaoffsetattr(dwvar, a->aoffset);
 			newrefattr(dwvar, DW_AT_type, defgotype(a->gotype));
+		       // push dwvar down dwfunc->child to keep order
+
+			newattr(dwvar, DW_AT_internal_location, DW_CLS_CONSTANT, a->aoffset, NULL);
+			dwfunc->child = dwvar->link;  // take dwvar out from the top of the list
+			for (dws = &dwfunc->child; *dws != nil; dws = &(*dws)->link)
+				if (a->aoffset > getattr(*dws, DW_AT_internal_location)->value)
+					break;
+			dwvar->link = *dws;
+			*dws = dwvar;
+
 			da++;
 		}
 
@@ -1795,7 +1866,7 @@ void
 dwarfemitdebugsections(void)
 {
 	vlong infoe;
-	DWDie* die;
+	DWDie *die;
 
 	mkindex(&dwroot);
 	mkindex(&dwtypes);
@@ -1806,6 +1877,9 @@ dwarfemitdebugsections(void)
 	newdie(&dwtypes, DW_ABRV_NULLTYPE, "void");
 	die = newdie(&dwtypes, DW_ABRV_PTRTYPE, "unsafe.Pointer");
 	newrefattr(die, DW_AT_type, find(&dwtypes, "void"));
+	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "uintptr");  // needed for array size
+	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_unsigned, 0);
+	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, PtrSize, 0);
 
 	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "<int32>");
 	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_signed, 0);
@@ -1833,7 +1907,7 @@ dwarfemitdebugsections(void)
 
 	infoo = cpos();
 	writeinfo();
-	infoe = cpos();
+	arangeso = pubtypeso = pubnameso = infoe = cpos();
 
 	if (fwdcount > 0) {
 		if (debug['v'])
@@ -1961,12 +2035,18 @@ dwarfaddmachoheaders(void)
 	MachoSeg *ms;
 
 	vlong fakestart;
+	int nsect;
 
 	// Zero vsize segments won't be loaded in memory, even so they
 	// have to be page aligned in the file.
 	fakestart = abbrevo & ~0xfff;
 
-	ms = newMachoSeg("__DWARF", 7);
+	nsect = 4;
+	if (pubnamessize > 0) nsect++;
+	if (pubtypessize > 0) nsect++;
+	if (arangessize	 > 0) nsect++;
+
+	ms = newMachoSeg("__DWARF", nsect);
 	ms->fileoffset = fakestart;
 	ms->filesize = abbrevo-fakestart;
 
