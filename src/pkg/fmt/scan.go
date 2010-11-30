@@ -546,8 +546,16 @@ func (s *ss) scanUint(verb int, bitSize int) uint64 {
 // we have at least some digits, but Atof will do that.
 func (s *ss) floatToken() string {
 	s.buf.Reset()
+	// NaN?
+	if s.accept("nN") && s.accept("aA") && s.accept("nN") {
+		return s.buf.String()
+	}
 	// leading sign?
 	s.accept(sign)
+	// Inf?
+	if s.accept("iI") && s.accept("nN") && s.accept("fF") {
+		return s.buf.String()
+	}
 	// digits?
 	for s.accept(decimalDigits) {
 	}

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	. "fmt"
 	"io"
+	"math"
 	"os"
 	"reflect"
 	"regexp"
@@ -79,6 +80,12 @@ var (
 	renamedComplex64Val  renamedComplex64
 	renamedComplex128Val renamedComplex128
 )
+
+type FloatTest struct {
+	text string
+	in   float64
+	out  float64
+}
 
 // Xs accepts any non-empty run of the verb character
 type Xs string
@@ -396,6 +403,57 @@ func TestScanOverflow(t *testing.T) {
 		if !re.MatchString(err.String()) {
 			t.Errorf("expected overflow error scanning %q: %s", test.text, err)
 		}
+	}
+}
+
+func verifyNaN(str string, t *testing.T) {
+	var f float
+	var f32 float32
+	var f64 float64
+	text := str + " " + str + " " + str
+	n, err := Fscan(strings.NewReader(text), &f, &f32, &f64)
+	if err != nil {
+		t.Errorf("got error scanning %q: %s", text, err)
+	}
+	if n != 3 {
+		t.Errorf("count error scanning %q: got %d", text, n)
+	}
+	if !math.IsNaN(float64(f)) || !math.IsNaN(float64(f32)) || !math.IsNaN(f64) {
+		t.Errorf("didn't get NaNs scanning %q: got %g %g %g", text, f, f32, f64)
+	}
+}
+
+func TestNaN(t *testing.T) {
+	for _, s := range []string{"nan", "NAN", "NaN"} {
+		verifyNaN(s, t)
+	}
+}
+
+func verifyInf(str string, t *testing.T) {
+	var f float
+	var f32 float32
+	var f64 float64
+	text := str + " " + str + " " + str
+	n, err := Fscan(strings.NewReader(text), &f, &f32, &f64)
+	if err != nil {
+		t.Errorf("got error scanning %q: %s", text, err)
+	}
+	if n != 3 {
+		t.Errorf("count error scanning %q: got %d", text, n)
+	}
+	sign := 1
+	if str[0] == '-' {
+		sign = -1
+	}
+	if !math.IsInf(float64(f), sign) || !math.IsInf(float64(f32), sign) || !math.IsInf(f64, sign) {
+		t.Errorf("didn't get right Infs scanning %q: got %g %g %g", text, f, f32, f64)
+	}
+}
+
+
+func TestInf(t *testing.T) {
+	for _, s := range []string{"inf", "+inf", "-inf", "INF", "-INF", "+INF", "Inf", "-Inf", "+Inf"} {
+		verifyInf(s, t)
 	}
 }
 
