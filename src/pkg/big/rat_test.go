@@ -257,3 +257,26 @@ func TestIssue820(t *testing.T) {
 		t.Errorf("got %s want %s", z, q)
 	}
 }
+
+
+var setFrac64Tests = []struct {
+	a, b int64
+	out  string
+}{
+	{0, 1, "0"},
+	{0, -1, "0"},
+	{1, 1, "1"},
+	{-1, 1, "-1"},
+	{1, -1, "-1"},
+	{-1, -1, "1"},
+	{-9223372036854775808, -9223372036854775808, "1"},
+}
+
+func TestRatSetFrac64Rat(t *testing.T) {
+	for i, test := range setFrac64Tests {
+		x := new(Rat).SetFrac64(test.a, test.b)
+		if x.RatString() != test.out {
+			t.Errorf("#%d got %s want %s", i, x.RatString(), test.out)
+		}
+	}
+}
