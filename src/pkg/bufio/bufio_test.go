@@ -337,7 +337,7 @@ func TestReadWriteRune(t *testing.T) {
 	// Write the runes out using WriteRune
 	buf := make([]byte, utf8.UTFMax)
 	for rune := 0; rune < NRune; rune++ {
-		size := utf8.EncodeRune(rune, buf)
+		size := utf8.EncodeRune(buf, rune)
 		nbytes, err := w.WriteRune(rune)
 		if err != nil {
 			t.Fatalf("WriteRune(0x%x) error: %s", rune, err)
@@ -351,7 +351,7 @@ func TestReadWriteRune(t *testing.T) {
 	r := NewReader(byteBuf)
 	// Read them back with ReadRune
 	for rune := 0; rune < NRune; rune++ {
-		size := utf8.EncodeRune(rune, buf)
+		size := utf8.EncodeRune(buf, rune)
 		nr, nbytes, err := r.ReadRune()
 		if nr != rune || nbytes != size || err != nil {
 			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)

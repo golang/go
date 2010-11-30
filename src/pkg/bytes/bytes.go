@@ -347,7 +347,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 				copy(nb, b[0:nbytes])
 				b = nb
 			}
-			nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes])
+			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], rune)
 		}
 		i += wid
 	}

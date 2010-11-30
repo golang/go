@@ -674,7 +674,7 @@ Loop:
 		case _BOT, _EOT, _ALT:
 			break Loop
 		}
-		n := utf8.EncodeRune(inst.(*_Char).char, utf)
+		n := utf8.EncodeRune(utf, inst.(*_Char).char)
 		b = bytes.Add(b, utf[0:n])
 		i = inst.next().index()
 	}

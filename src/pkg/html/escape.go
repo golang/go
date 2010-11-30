@@ -32,7 +32,7 @@ func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
 		}
 		x := entity[string(s[1:i])]
 		if x != 0 {
-			return dst + utf8.EncodeRune(x, b[dst:]), src + i
+			return dst + utf8.EncodeRune(b[dst:], x), src + i
 		}
 		break
 	}

@@ -272,7 +272,7 @@ func TestRuneIO(t *testing.T) {
 	var buf Buffer
 	n := 0
 	for r := 0; r < NRune; r++ {
-		size := utf8.EncodeRune(r, b[n:])
+		size := utf8.EncodeRune(b[n:], r)
 		nbytes, err := buf.WriteRune(r)
 		if err != nil {
 			t.Fatalf("WriteRune(0x%x) error: %s", r, err)
@@ -291,7 +291,7 @@ func TestRuneIO(t *testing.T) {
 
 	// Read it back with ReadRune
 	for r := 0; r < NRune; r++ {
-		size := utf8.EncodeRune(r, b)
+		size := utf8.EncodeRune(b, r)
 		nr, nbytes, err := buf.ReadRune()
 		if nr != r || nbytes != size || err != nil {
 			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
