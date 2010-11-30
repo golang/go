@@ -126,8 +126,7 @@
 
 	%p is not implemented
 	%T is not implemented
-	%e %E %f %F %g %g are all equivalent and scan any floating
-		point or complex value
+	%e %E %f %F %g %g are all equivalent and scan any floating point or complex value
 	%s and %v on strings scan a space-delimited token
 
 	Width is interpreted in the input text (%5s means at most
