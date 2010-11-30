@@ -26,6 +26,13 @@ GOFILES=\
 	softfloat64.go\
 	type.go\
 	version.go\
+	chan_defs.go\
+	hashmap_defs.go\
+	iface_defs.go\
+	malloc_defs.go\
+	mheapmap$(SIZE)_defs.go\
+	runtime_defs.go\
+	$(GOOS)/runtime_defs.go\
 
 GOFILES_tiny=\
 	tiny/io.go\
