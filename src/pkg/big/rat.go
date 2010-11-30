@@ -35,9 +35,8 @@ func (z *Rat) SetFrac(a, b *Int) *Rat {
 func (z *Rat) SetFrac64(a, b int64) *Rat {
 	z.a.SetInt64(a)
 	if b < 0 {
-		z.b.setUint64(uint64(-b))
+		b = -b
 		z.a.neg = !z.a.neg
-		return z.norm()
 	}
 	z.b = z.b.setUint64(uint64(b))
 	return z.norm()
