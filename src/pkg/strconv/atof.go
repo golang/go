@@ -19,6 +19,40 @@ import (
 
 var optimize = true // can change for testing
 
+func equalIgnoreCase(s1, s2 string) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+	for i := 0; i < len(s1); i++ {
+		c1 := s1[i]
+		if 'A' <= c1 && c1 <= 'Z' {
+			c1 += 'a' - 'A'
+		}
+		c2 := s2[i]
+		if 'A' <= c2 && c2 <= 'Z' {
+			c2 += 'a' - 'A'
+		}
+		if c1 != c2 {
+			return false
+		}
+	}
+	return true
+}
+
+func special(s string) (f float64, ok bool) {
+	switch {
+	case equalIgnoreCase(s, "nan"):
+		return math.NaN(), true
+	case equalIgnoreCase(s, "-inf"):
+		return math.Inf(-1), true
+	case equalIgnoreCase(s, "+inf"):
+		return math.Inf(1), true
+	case equalIgnoreCase(s, "inf"):
+		return math.Inf(1), true
+	}
+	return
+}
+
 // TODO(rsc): Better truncation handling.
 func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
 	i := 0
@@ -320,6 +354,10 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
 // away from the largest floating point number of the given size,
 // Atof32 returns f = ±Inf, err.Error = os.ERANGE.
 func Atof32(s string) (f float32, err os.Error) {
+	if val, ok := special(s); ok {
+		return float32(val), nil
+	}
+
 	neg, d, trunc, ok := stringToDecimal(s)
 	if !ok {
 		return 0, &NumError{s, os.EINVAL}
@@ -341,6 +379,10 @@ func Atof32(s string) (f float32, err os.Error) {
 // Except for the type of its result, its definition is the same as that
 // of Atof32.
 func Atof64(s string) (f float64, err os.Error) {
+	if val, ok := special(s); ok {
+		return val, nil
+	}
+
 	neg, d, trunc, ok := stringToDecimal(s)
 	if !ok {
 		return 0, &NumError{s, os.EINVAL}

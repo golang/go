@@ -37,6 +37,16 @@ var atoftests = []atofTest{
 	{"1e-20", "1e-20", nil},
 	{"625e-3", "0.625", nil},
 
+	// NaNs
+	{"nan", "NaN", nil},
+	{"NaN", "NaN", nil},
+	{"NAN", "NaN", nil},
+
+	// Infs
+	{"inf", "+Inf", nil},
+	{"-Inf", "-Inf", nil},
+	{"+INF", "+Inf", nil},
+
 	// largest float64
 	{"1.7976931348623157e308", "1.7976931348623157e+308", nil},
 	{"-1.7976931348623157e308", "-1.7976931348623157e+308", nil},
