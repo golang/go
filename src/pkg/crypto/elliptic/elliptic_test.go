@@ -298,3 +298,32 @@ func TestBaseMult(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkBaseMult(b *testing.B) {
+	b.ResetTimer()
+	p224 := P224()
+	e := p224BaseMultTests[25]
+	k, _ := new(big.Int).SetString(e.k, 10)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		p224.ScalarBaseMult(k.Bytes())
+	}
+}
+
+func TestMultiples(t *testing.T) {
+	p256 := P256()
+	x := p256.Gx
+	y := p256.Gy
+	Gz := new(big.Int).SetInt64(1)
+	z := Gz
+
+	for i := 1; i <= 16; i++ {
+		fmt.Printf("i: %d\n", i)
+		fmt.Printf("  %s\n  %s\n  %s\n", x.String(), y.String(), z.String())
+		if i == 1 {
+			x, y, z = p256.doubleJacobian(x, y, z)
+		} else {
+			x, y, z = p256.addJacobian(x, y, z, p256.Gx, p256.Gy, Gz)
+		}
+	}
+}
