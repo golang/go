@@ -6,9 +6,12 @@
 // fields
 package elliptic
 
-// WARNING: this implementation is simple but slow and not constant time.
-// A significant speedup could be obtained by using either a projective or
-// Jacobian transform.
+// This package operates, internally, on Jacobian coordinates. For a given
+// (x, y) position on the curve, the Jacobian coordinates are (x1, y1, z1)
+// where x = x1/z1² and y = y1/z1³. The greatest speedups come when the whole
+// calculation can be performed within the transform (as in ScalarMult and
+// ScalarBaseMult). But even for Add and Double, it's faster to apply and
+// reverse the transform than to operate in affine coordinates.
 
 import (
 	"big"
@@ -42,77 +45,155 @@ func (curve *Curve) IsOnCurve(x, y *big.Int) bool {
 	return x3.Cmp(y2) == 0
 }
 
+// affineFromJacobian reverses the Jacobian transform. See the comment at the
+// top of the file.
+func (curve *Curve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.Int) {
+	zinv := new(big.Int).ModInverse(z, curve.P)
+	zinvsq := new(big.Int).Mul(zinv, zinv)
+
+	xOut = new(big.Int).Mul(x, zinvsq)
+	xOut.Mod(xOut, curve.P)
+	zinvsq.Mul(zinvsq, zinv)
+	yOut = new(big.Int).Mul(y, zinvsq)
+	yOut.Mod(yOut, curve.P)
+	return
+}
+
 // Add returns the sum of (x1,y1) and (x2,y2)
 func (curve *Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
-	// x = (y2-y1)²/(x2-x1)²-x1-x2
-	y2my1 := new(big.Int).Sub(y2, y1)
-	if y2my1.Sign() < 0 {
-		y2my1.Add(y2my1, curve.P)
+	z := new(big.Int).SetInt64(1)
+	return curve.affineFromJacobian(curve.addJacobian(x1, y1, z, x2, y2, z))
+}
+
+// addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
+// (x2, y2, z2) and returns their sum, also in Jacobian form.
+func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big.Int, *big.Int) {
+	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
+	z1z1 := new(big.Int).Mul(z1, z1)
+	z1z1.Mod(z1z1, curve.P)
+	z2z2 := new(big.Int).Mul(z2, z2)
+	z2z2.Mod(z2z2, curve.P)
+
+	u1 := new(big.Int).Mul(x1, z2z2)
+	u1.Mod(u1, curve.P)
+	u2 := new(big.Int).Mul(x2, z1z1)
+	u2.Mod(u2, curve.P)
+	h := new(big.Int).Sub(u2, u1)
+	if h.Sign() == -1 {
+		h.Add(h, curve.P)
 	}
-	y2my1sq := new(big.Int).Mul(y2my1, y2my1)
-	x2mx1 := new(big.Int).Sub(x2, x1)
-	if x2mx1.Sign() < 0 {
-		x2mx1.Add(x2mx1, curve.P)
+	i := new(big.Int).Lsh(h, 1)
+	i.Mul(i, i)
+	j := new(big.Int).Mul(h, i)
+
+	s1 := new(big.Int).Mul(y1, z2)
+	s1.Mul(s1, z2z2)
+	s1.Mod(s1, curve.P)
+	s2 := new(big.Int).Mul(y2, z1)
+	s2.Mul(s2, z1z1)
+	s2.Mod(s2, curve.P)
+	r := new(big.Int).Sub(s2, s1)
+	if r.Sign() == -1 {
+		r.Add(r, curve.P)
 	}
-	x2mx1sq := new(big.Int).Mul(x2mx1, x2mx1)
-	x2mx1sqinv := new(big.Int).ModInverse(x2mx1sq, curve.P)
+	r.Lsh(r, 1)
+	v := new(big.Int).Mul(u1, i)
 
-	x := new(big.Int).Mul(y2my1sq, x2mx1sqinv)
-	x.Sub(x, x1)
-	x.Sub(x, x2)
-	x.Mod(x, curve.P)
+	x3 := new(big.Int).Set(r)
+	x3.Mul(x3, x3)
+	x3.Sub(x3, j)
+	x3.Sub(x3, v)
+	x3.Sub(x3, v)
+	x3.Mod(x3, curve.P)
 
-	// y = (2x1+x2)*(y2-y1)/(x2-x1)-(y2-y1)³/(x2-x1)³-y1
-	y := new(big.Int).Lsh(x1, 1)
-	y.Add(y, x2)
-	x2mx1inv := new(big.Int).ModInverse(x2mx1, curve.P)
-	x2mx1inv.Mul(y2my1, x2mx1inv)
-	y.Mul(y, x2mx1inv)
+	y3 := new(big.Int).Set(r)
+	v.Sub(v, x3)
+	y3.Mul(y3, v)
+	s1.Mul(s1, j)
+	s1.Lsh(s1, 1)
+	y3.Sub(y3, s1)
+	y3.Mod(y3, curve.P)
 
-	y2my1sq.Mul(y2my1sq, y2my1)
-	x2mx1sq.Mul(x2mx1sq, x2mx1)
-	x2mx1sqinv.ModInverse(x2mx1sq, curve.P)
-	y2my1sq.Mul(y2my1sq, x2mx1sqinv)
-	y.Sub(y, y2my1sq)
-	y.Sub(y, y1)
-	y.Mod(y, curve.P)
+	z3 := new(big.Int).Add(z1, z2)
+	z3.Mul(z3, z3)
+	z3.Sub(z3, z1z1)
+	if z3.Sign() == -1 {
+		z3.Add(z3, curve.P)
+	}
+	z3.Sub(z3, z2z2)
+	if z3.Sign() == -1 {
+		z3.Add(z3, curve.P)
+	}
+	z3.Mul(z3, h)
+	z3.Mod(z3, curve.P)
 
-	return x, y
+	return x3, y3, z3
 }
 
 // Double returns 2*(x,y)
-func (curve *Curve) Double(x, y *big.Int) (*big.Int, *big.Int) {
-	// x = (3x²-3)²/(2y)²-x-x
-	threexsqm3 := new(big.Int).Mul(x, x)
-	three := new(big.Int).SetInt64(3)
-	threexsqm3.Mul(threexsqm3, three)
-	threexsqm3.Sub(threexsqm3, three)
-	threexsqm3sq := new(big.Int).Mul(threexsqm3, threexsqm3)
+func (curve *Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+	z1 := new(big.Int).SetInt64(1)
+	return curve.affineFromJacobian(curve.doubleJacobian(x1, y1, z1))
+}
 
-	twoy := new(big.Int).Lsh(y, 1)
-	twoysq := new(big.Int).Mul(twoy, twoy)
-	twoysqinv := new(big.Int).ModInverse(twoysq, curve.P)
+// doubleJacobian takes a point in Jacobian coordinates, (x, y, z), and
+// returns its double, also in Jacobian form.
+func (curve *Curve) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, *big.Int) {
+	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2001-b
+	delta := new(big.Int).Mul(z, z)
+	delta.Mod(delta, curve.P)
+	gamma := new(big.Int).Mul(y, y)
+	gamma.Mod(gamma, curve.P)
+	alpha := new(big.Int).Sub(x, delta)
+	if alpha.Sign() == -1 {
+		alpha.Add(alpha, curve.P)
+	}
+	alpha2 := new(big.Int).Add(x, delta)
+	alpha.Mul(alpha, alpha2)
+	alpha2.Set(alpha)
+	alpha.Lsh(alpha, 1)
+	alpha.Add(alpha, alpha2)
 
-	outx := new(big.Int).Mul(threexsqm3sq, twoysqinv)
-	outx.Sub(outx, x)
-	outx.Sub(outx, x)
-	outx.Mod(outx, curve.P)
+	beta := alpha2.Mul(x, gamma)
 
-	// y = 3x*(3x²-3)/(2y)-(3x²-3)³/(2y)³-y
-	outy := new(big.Int).Mul(x, three)
-	outy.Mul(outy, threexsqm3)
-	twoyinv := new(big.Int).ModInverse(twoy, curve.P)
-	outy.Mul(outy, twoyinv)
+	x3 := new(big.Int).Mul(alpha, alpha)
+	beta8 := new(big.Int).Lsh(beta, 3)
+	x3.Sub(x3, beta8)
+	for x3.Sign() == -1 {
+		x3.Add(x3, curve.P)
+	}
+	x3.Mod(x3, curve.P)
 
-	threexsqm3sq.Mul(threexsqm3sq, threexsqm3)
-	twoysq.Mul(twoysq, twoy)
-	twoysqinv.ModInverse(twoysq, curve.P)
-	threexsqm3sq.Mul(threexsqm3sq, twoysqinv)
-	outy.Sub(outy, threexsqm3sq)
-	outy.Sub(outy, y)
-	outy.Mod(outy, curve.P)
+	z3 := new(big.Int).Add(y, z)
+	z3.Mul(z3, z3)
+	z3.Sub(z3, gamma)
+	if z3.Sign() == -1 {
+		z3.Add(z3, curve.P)
+	}
+	z3.Sub(z3, delta)
+	if z3.Sign() == -1 {
+		z3.Add(z3, curve.P)
+	}
+	z3.Mod(z3, curve.P)
 
-	return outx, outy
+	beta.Lsh(beta, 2)
+	beta.Sub(beta, x3)
+	if beta.Sign() == -1 {
+		beta.Add(beta, curve.P)
+	}
+	y3 := alpha.Mul(alpha, beta)
+
+	gamma.Mul(gamma, gamma)
+	gamma.Lsh(gamma, 3)
+	gamma.Mod(gamma, curve.P)
+
+	y3.Sub(y3, gamma)
+	if y3.Sign() == -1 {
+		y3.Add(y3, curve.P)
+	}
+	y3.Mod(y3, curve.P)
+
+	return x3, y3, z3
 }
 
 // ScalarMult returns k*(Bx,By) where k is a number in big-endian form.
@@ -125,20 +206,22 @@ func (curve *Curve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
 	// |k|, then we return nil, nil, because we cannot return the identity
 	// element.
 
+	Bz := new(big.Int).SetInt64(1)
 	x := Bx
 	y := By
+	z := Bz
 
 	seenFirstTrue := false
 	for _, byte := range k {
 		for bitNum := 0; bitNum < 8; bitNum++ {
 			if seenFirstTrue {
-				x, y = curve.Double(x, y)
+				x, y, z = curve.doubleJacobian(x, y, z)
 			}
 			if byte&0x80 == 0x80 {
 				if !seenFirstTrue {
 					seenFirstTrue = true
 				} else {
-					x, y = curve.Add(Bx, By, x, y)
+					x, y, z = curve.addJacobian(Bx, By, Bz, x, y, z)
 				}
 			}
 			byte <<= 1
@@ -149,7 +232,7 @@ func (curve *Curve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
 		return nil, nil
 	}
 
-	return x, y
+	return curve.affineFromJacobian(x, y, z)
 }
 
 // ScalarBaseMult returns k*G, where G is the base point of the group and k is
