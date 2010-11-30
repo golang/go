@@ -35,24 +35,6 @@ func Callers(skip int, pc []uintptr) int
 // given program counter address, or else nil.
 func FuncForPC(pc uintptr) *Func
 
-// NOTE(rsc): Func must match struct Func in runtime.h
-
-// Func records information about a function in the program,
-// in particular  the mapping from program counters to source
-// line numbers within that function.
-type Func struct {
-	name   string
-	typ    string
-	src    string
-	pcln   []byte
-	entry  uintptr
-	pc0    uintptr
-	ln0    int32
-	frame  int32
-	args   int32
-	locals int32
-}
-
 // Name returns the name of the function.
 func (f *Func) Name() string { return f.name }
 

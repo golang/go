@@ -195,6 +195,8 @@ type StructType struct {
 
 /*
  * Must match iface.c:/Itab and compilers.
+ * NOTE: this is the version used by the reflection code, there is another
+ * one in iface_defs.go that is closer to the original C version.
  */
 type Itable struct {
 	Itype  *Type // (*tab.inter).(*InterfaceType) is the interface type
