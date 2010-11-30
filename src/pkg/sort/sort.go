@@ -63,7 +63,7 @@ func swapRange(data Interface, a, b, n int) {
 }
 
 func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
-	m := (lo + hi) / 2
+	m := lo + (hi-lo)/2 // Written like this to avoid integer overflow.
 	if hi-lo > 40 {
 		// Tukey's ``Ninther,'' median of three medians of three.
 		s := (hi - lo) / 8
