@@ -482,7 +482,7 @@ func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
 			return b.WriteString(string(rune))
 		}
 	}
-	size = utf8.EncodeRune(rune, b.buf[b.n:])
+	size = utf8.EncodeRune(b.buf[b.n:], rune)
 	b.n += size
 	return size, nil
 }

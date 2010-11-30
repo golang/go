@@ -831,13 +831,13 @@ func unquote(s []byte) (t string, ok bool) {
 					if dec := utf16.DecodeRune(rune, rune1); dec != unicode.ReplacementChar {
 						// A valid pair; consume.
 						r += 6
-						w += utf8.EncodeRune(dec, b[w:])
+						w += utf8.EncodeRune(b[w:], dec)
 						break
 					}
 					// Invalid surrogate; fall back to replacement rune.
 					rune = unicode.ReplacementChar
 				}
-				w += utf8.EncodeRune(rune, b[w:])
+				w += utf8.EncodeRune(b[w:], rune)
 			}
 
 		// Quote, control characters are invalid.
@@ -854,7 +854,7 @@ func unquote(s []byte) (t string, ok bool) {
 		default:
 			rune, size := utf8.DecodeRune(s[r:])
 			r += size
-			w += utf8.EncodeRune(rune, b[w:])
+			w += utf8.EncodeRune(b[w:], rune)
 		}
 	}
 	return string(b[0:w]), true

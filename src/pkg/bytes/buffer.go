@@ -172,7 +172,7 @@ func (b *Buffer) WriteRune(r int) (n int, err os.Error) {
 		b.WriteByte(byte(r))
 		return 1, nil
 	}
-	n = utf8.EncodeRune(r, b.runeBytes[0:])
+	n = utf8.EncodeRune(b.runeBytes[0:], r)
 	b.Write(b.runeBytes[0:n])
 	return n, nil
 }

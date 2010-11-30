@@ -293,7 +293,7 @@ func RuneLen(rune int) int {
 
 // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
 // It returns the number of bytes written.
-func EncodeRune(rune int, p []byte) int {
+func EncodeRune(p []byte, rune int) int {
 	// Negative values are erroneous.  Making it unsigned addresses the problem.
 	r := uint(rune)
 
