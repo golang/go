@@ -6,6 +6,8 @@
 
 package runtime
 
+import "unsafe"
+
 const (
 	Windows = 1
 )
