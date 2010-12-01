@@ -573,45 +573,6 @@ func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTest
 
 func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
-type AddTest struct {
-	s, t string
-	cap  int
-}
-
-var addtests = []AddTest{
-	{"", "", 0},
-	{"a", "", 1},
-	{"a", "b", 1},
-	{"abc", "def", 100},
-}
-
-func TestAdd(t *testing.T) {
-	for _, test := range addtests {
-		b := make([]byte, len(test.s), test.cap)
-		copy(b, test.s)
-		b = Add(b, []byte(test.t))
-		if string(b) != test.s+test.t {
-			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))
-		}
-	}
-}
-
-func TestAddByte(t *testing.T) {
-	const N = 2e5
-	b := make([]byte, 0)
-	for i := 0; i < N; i++ {
-		b = AddByte(b, byte(i))
-	}
-	if len(b) != N {
-		t.Errorf("AddByte: too small; expected %d got %d", N, len(b))
-	}
-	for i, c := range b {
-		if c != byte(i) {
-			t.Fatalf("AddByte: b[%d] should be %d is %d", i, c, byte(i))
-		}
-	}
-}
-
 type RepeatTest struct {
 	in, out string
 	count   int

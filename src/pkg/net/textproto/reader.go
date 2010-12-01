@@ -51,8 +51,6 @@ func (r *Reader) ReadLineBytes() ([]byte, os.Error) {
 	return line[0:n], err
 }
 
-var space = []byte{' '}
-
 // ReadContinuedLine reads a possibly continued line from r,
 // eliding the final trailing ASCII white space.
 // Lines after the first are considered continuations if they
@@ -132,8 +130,8 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, os.Error) {
 		var cont []byte
 		cont, err = r.ReadLineBytes()
 		cont = trim(cont)
-		line = bytes.Add(line, space)
-		line = bytes.Add(line, cont)
+		line = append(line, ' ')
+		line = append(line, cont...)
 		if err != nil {
 			break
 		}

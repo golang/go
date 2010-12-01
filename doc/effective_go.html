@@ -794,7 +794,7 @@ func Contents(filename string) (string, os.Error) {
     buf := make([]byte, 100)
     for {
         n, err := f.Read(buf[0:])
-        result = bytes.Add(result, buf[0:n])
+        result = append(result, buf[0:n]...) // append is discussed later.
         if err != nil {
             if err == os.EOF {
                 break

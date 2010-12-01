@@ -5,7 +5,6 @@
 package json
 
 import (
-	"bytes"
 	"io"
 	"os"
 )
@@ -177,7 +176,7 @@ func (m *RawMessage) UnmarshalJSON(data []byte) os.Error {
 	if m == nil {
 		return os.NewError("json.RawMessage: UnmarshalJSON on nil pointer")
 	}
-	*m = bytes.Add((*m)[0:0], data)
+	*m = append((*m)[0:0], data...)
 	return nil
 }
 

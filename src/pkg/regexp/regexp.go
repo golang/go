@@ -675,7 +675,7 @@ Loop:
 			break Loop
 		}
 		n := utf8.EncodeRune(utf, inst.(*_Char).char)
-		b = bytes.Add(b, utf[0:n])
+		b = append(b, utf[0:n]...)
 		i = inst.next().index()
 	}
 	// point prefixStart instruction to first non-CHAR after prefix
