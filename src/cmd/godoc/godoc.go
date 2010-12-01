@@ -563,7 +563,7 @@ func writeText(w io.Writer, text []byte, html bool) {
 
 
 // Write anything to w; optionally html-escaped.
-func writeAny(w io.Writer, x interface{}, html bool) {
+func writeAny(w io.Writer, html bool, x interface{}) {
 	switch v := x.(type) {
 	case []byte:
 		writeText(w, v, html)
@@ -584,23 +584,23 @@ func writeAny(w io.Writer, x interface{}, html bool) {
 
 
 // Template formatter for "html" format.
-func htmlFmt(w io.Writer, x interface{}, format string) {
-	writeAny(w, x, true)
+func htmlFmt(w io.Writer, format string, x ...interface{}) {
+	writeAny(w, true, x[0])
 }
 
 
 // Template formatter for "html-esc" format.
-func htmlEscFmt(w io.Writer, x interface{}, format string) {
+func htmlEscFmt(w io.Writer, format string, x ...interface{}) {
 	var buf bytes.Buffer
-	writeAny(&buf, x, false)
+	writeAny(&buf, false, x[0])
 	template.HTMLEscape(w, buf.Bytes())
 }
 
 
 // Template formatter for "html-comment" format.
-func htmlCommentFmt(w io.Writer, x interface{}, format string) {
+func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
 	var buf bytes.Buffer
-	writeAny(&buf, x, false)
+	writeAny(&buf, false, x[0])
 	// TODO(gri) Provide list of words (e.g. function parameters)
 	//           to be emphasized by ToHTML.
 	doc.ToHTML(w, buf.Bytes(), nil) // does html-escaping
@@ -608,13 +608,13 @@ func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 
 
 // Template formatter for "" (default) format.
-func textFmt(w io.Writer, x interface{}, format string) {
-	writeAny(w, x, false)
+func textFmt(w io.Writer, format string, x ...interface{}) {
+	writeAny(w, false, x[0])
 }
 
 
 // Template formatter for the various "url-xxx" formats.
-func urlFmt(w io.Writer, x interface{}, format string) {
+func urlFmt(w io.Writer, format string, x ...interface{}) {
 	var path string
 	var line int
 
@@ -622,7 +622,7 @@ func urlFmt(w io.Writer, x interface{}, format string) {
 	type positioner interface {
 		Pos() token.Position
 	}
-	switch t := x.(type) {
+	switch t := x[0].(type) {
 	case string:
 		path = t
 	case positioner:
@@ -676,14 +676,14 @@ var infoKinds = [nKinds]string{
 
 
 // Template formatter for "infoKind" format.
-func infoKindFmt(w io.Writer, x interface{}, format string) {
-	fmt.Fprintf(w, infoKinds[x.(SpotKind)]) // infoKind entries are html-escaped
+func infoKindFmt(w io.Writer, format string, x ...interface{}) {
+	fmt.Fprintf(w, infoKinds[x[0].(SpotKind)]) // infoKind entries are html-escaped
 }
 
 
 // Template formatter for "infoLine" format.
-func infoLineFmt(w io.Writer, x interface{}, format string) {
-	info := x.(SpotInfo)
+func infoLineFmt(w io.Writer, format string, x ...interface{}) {
+	info := x[0].(SpotInfo)
 	line := info.Lori()
 	if info.IsIndex() {
 		index, _ := searchIndex.get()
@@ -702,8 +702,8 @@ func infoLineFmt(w io.Writer, x interface{}, format string) {
 
 
 // Template formatter for "infoSnippet" format.
-func infoSnippetFmt(w io.Writer, x interface{}, format string) {
-	info := x.(SpotInfo)
+func infoSnippetFmt(w io.Writer, format string, x ...interface{}) {
+	info := x[0].(SpotInfo)
 	text := `<span class="alert">no snippet text available</span>`
 	if info.IsIndex() {
 		index, _ := searchIndex.get()
@@ -716,30 +716,30 @@ func infoSnippetFmt(w io.Writer, x interface{}, format string) {
 
 
 // Template formatter for "padding" format.
-func paddingFmt(w io.Writer, x interface{}, format string) {
-	for i := x.(int); i > 0; i-- {
+func paddingFmt(w io.Writer, format string, x ...interface{}) {
+	for i := x[0].(int); i > 0; i-- {
 		fmt.Fprint(w, `<td width="25"></td>`)
 	}
 }
 
 
 // Template formatter for "time" format.
-func timeFmt(w io.Writer, x interface{}, format string) {
-	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(x.(int64)/1e9).String()))
+func timeFmt(w io.Writer, format string, x ...interface{}) {
+	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(x[0].(int64)/1e9).String()))
 }
 
 
 // Template formatter for "dir/" format.
-func dirslashFmt(w io.Writer, x interface{}, format string) {
-	if x.(*os.FileInfo).IsDirectory() {
+func dirslashFmt(w io.Writer, format string, x ...interface{}) {
+	if x[0].(*os.FileInfo).IsDirectory() {
 		w.Write([]byte{'/'})
 	}
 }
 
 
 // Template formatter for "localname" format.
-func localnameFmt(w io.Writer, x interface{}, format string) {
-	_, localname := pathutil.Split(x.(string))
+func localnameFmt(w io.Writer, format string, x ...interface{}) {
+	_, localname := pathutil.Split(x[0].(string))
 	template.HTMLEscape(w, []byte(localname))
 }
 

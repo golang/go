@@ -76,9 +76,12 @@ func plus1(v interface{}) string {
 	return fmt.Sprint(i + 1)
 }
 
-func writer(f func(interface{}) string) func(io.Writer, interface{}, string) {
-	return func(w io.Writer, v interface{}, format string) {
-		io.WriteString(w, f(v))
+func writer(f func(interface{}) string) func(io.Writer, string, ...interface{}) {
+	return func(w io.Writer, format string, v ...interface{}) {
+		if len(v) != 1 {
+			panic("test writer expected one arg")
+		}
+		io.WriteString(w, f(v[0]))
 	}
 }
 
@@ -601,7 +604,7 @@ func TestHTMLFormatterWithByte(t *testing.T) {
 	s := "Test string."
 	b := []byte(s)
 	var buf bytes.Buffer
-	HTMLFormatter(&buf, b, "")
+	HTMLFormatter(&buf, "", b)
 	bs := buf.String()
 	if bs != s {
 		t.Errorf("munged []byte, expected: %s got: %s", s, bs)
