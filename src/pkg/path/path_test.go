@@ -6,6 +6,7 @@ package path
 
 import (
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -83,7 +84,18 @@ var splittests = []SplitTest{
 	{"/", "/", ""},
 }
 
+var winsplittests = []SplitTest{
+	{`C:\Windows\System32`, `C:\Windows\`, `System32`},
+	{`C:\Windows\`, `C:\Windows\`, ``},
+	{`C:\Windows`, `C:\`, `Windows`},
+	{`C:Windows`, `C:`, `Windows`},
+	{`\\?\c:\`, `\\?\c:\`, ``},
+}
+
 func TestSplit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		splittests = append(splittests, winsplittests...)
+	}
 	for _, test := range splittests {
 		if d, f := Split(test.path); d != test.dir || f != test.file {
 			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file)
