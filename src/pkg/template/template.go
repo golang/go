@@ -55,9 +55,10 @@
 	map passed to the template set up routines or in the default
 	set ("html","str","") and is used to process the data for
 	output.  The formatter function has signature
-		func(wr io.Writer, data interface{}, formatter string)
-	where wr is the destination for output, data is the field
-	value, and formatter is its name at the invocation site.
+		func(wr io.Writer, formatter string, data ...interface{})
+	where wr is the destination for output, data holds the field
+	values at the instantiation, and formatter is its name at
+	the invocation site.
 */
 package template
 
@@ -101,7 +102,7 @@ const (
 
 // FormatterMap is the type describing the mapping from formatter
 // names to the functions that implement them.
-type FormatterMap map[string]func(io.Writer, interface{}, string)
+type FormatterMap map[string]func(io.Writer, string, ...interface{})
 
 // Built-in formatters.
 var builtins = FormatterMap{
@@ -690,13 +691,13 @@ func (t *Template) writeVariable(v *variableElement, st *state) {
 	// is it in user-supplied map?
 	if t.fmap != nil {
 		if fn, ok := t.fmap[formatter]; ok {
-			fn(st.wr, val, formatter)
+			fn(st.wr, formatter, val)
 			return
 		}
 	}
 	// is it in builtin map?
 	if fn, ok := builtins[formatter]; ok {
-		fn(st.wr, val, formatter)
+		fn(st.wr, formatter, val)
 		return
 	}
 	t.execError(st, v.linenum, "missing formatter %s for variable %s", formatter, v.name)

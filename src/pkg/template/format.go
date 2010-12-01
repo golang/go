@@ -16,12 +16,14 @@ import (
 // It is stored under the name "str" and is the default formatter.
 // You can override the default formatter by storing your default
 // under the name "" in your custom formatter map.
-func StringFormatter(w io.Writer, value interface{}, format string) {
-	if b, ok := value.([]byte); ok {
-		w.Write(b)
-		return
+func StringFormatter(w io.Writer, format string, value ...interface{}) {
+	if len(value) == 1 {
+		if b, ok := value[0].([]byte); ok {
+			w.Write(b)
+			return
+		}
 	}
-	fmt.Fprint(w, value)
+	fmt.Fprint(w, value...)
 }
 
 var (
@@ -60,11 +62,15 @@ func HTMLEscape(w io.Writer, s []byte) {
 }
 
 // HTMLFormatter formats arbitrary values for HTML
-func HTMLFormatter(w io.Writer, value interface{}, format string) {
-	b, ok := value.([]byte)
+func HTMLFormatter(w io.Writer, format string, value ...interface{}) {
+	ok := false
+	var b []byte
+	if len(value) == 1 {
+		b, ok = value[0].([]byte)
+	}
 	if !ok {
 		var buf bytes.Buffer
-		fmt.Fprint(&buf, value)
+		fmt.Fprint(&buf, value...)
 		b = buf.Bytes()
 	}
 	HTMLEscape(w, b)
