@@ -102,17 +102,13 @@ func Clean(path string) string {
 	return string(buf[0:w])
 }
 
-// Split splits path immediately following the final slash,
+// Split splits path immediately following the final path separator,
 // separating it into a directory and file name component.
-// If there is no slash in path, Split returns an empty dir and
+// If there is no separator in path, Split returns an empty dir and
 // file set to path.
 func Split(path string) (dir, file string) {
-	for i := len(path) - 1; i >= 0; i-- {
-		if path[i] == '/' {
-			return path[0 : i+1], path[i+1:]
-		}
-	}
-	return "", path
+	i := strings.LastIndexAny(path, PathSeps)
+	return path[:i+1], path[i+1:]
 }
 
 // Join joins any number of path elements into a single path, adding a
