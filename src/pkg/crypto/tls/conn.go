@@ -560,7 +560,7 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
 	// The handshake message unmarshallers
 	// expect to be able to keep references to data,
 	// so pass in a fresh copy that won't be overwritten.
-	data = bytes.Add(nil, data)
+	data = append([]byte(nil), data...)
 
 	if !m.unmarshal(data) {
 		c.sendAlert(alertUnexpectedMessage)

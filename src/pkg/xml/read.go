@@ -389,12 +389,12 @@ Loop:
 
 		case CharData:
 			if saveData != nil {
-				data = bytes.Add(data, t)
+				data = append(data, t...)
 			}
 
 		case Comment:
 			if saveComment != nil {
-				comment = bytes.Add(comment, t)
+				comment = append(comment, t...)
 			}
 		}
 	}
