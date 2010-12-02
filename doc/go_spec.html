@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Nov 4, 2010 -->
+<!-- subtitle Version of December 2, 2010 -->
 
 <!--
 TODO
@@ -1661,7 +1661,7 @@ TypeSpec     = identifier Type .
 type IntArray [16]int
 
 type (
-	Point struct { x, y float }
+	Point struct { x, y float64 }
 	Polar Point
 )
 
@@ -1878,13 +1878,13 @@ Given type <code>Point</code>, the declarations
 </p>
 
 <pre>
-func (p *Point) Length() float {
-	return Math.sqrt(p.x * p.x + p.y * p.y)
+func (p *Point) Length() float64 {
+	return math.Sqrt(p.x * p.x + p.y * p.y)
 }
 
-func (p *Point) Scale(factor float) {
-	p.x = p.x * factor
-	p.y = p.y * factor
+func (p *Point) Scale(factor float64) {
+	p.x *= factor
+	p.y *= factor
 }
 </pre>
 
@@ -1906,7 +1906,7 @@ argument.  For instance, the method <code>Scale</code> has type
 </p>
 
 <pre>
-func(p *Point, factor float)
+func(p *Point, factor float64)
 </pre>
 
 <p>
@@ -2025,8 +2025,8 @@ For struct literals the following rules apply:
 Given the declarations
 </p>
 <pre>
-type Point struct { x, y, z float }
-type Line struct { p, q Point }
+type Point3D struct { x, y, z float64 }
+type Line struct { p, q Point3D }
 </pre>
 
 <p>
@@ -2034,8 +2034,8 @@ one may write
 </p>
 
 <pre>
-origin := Point{}                            // zero value for Point
-line := Line{origin, Point{y: -4, z: 12.3}}  // zero value for line.q.x
+origin := Point3D{}                            // zero value for Point3D
+line := Line{origin, Point3D{y: -4, z: 12.3}}  // zero value for line.q.x
 </pre>
 
 <p>
@@ -2058,7 +2058,7 @@ Taking the address of a composite literal (§<a href="#Address_operators">Addres
 generates a unique pointer to an instance of the literal's value.
 </p>
 <pre>
-var pointer *Point = &amp;Point{y: 1000}
+var pointer *Point3D = &amp;Point3D{y: 1000}
 </pre>
 
 <p>
@@ -2210,7 +2210,7 @@ Point{1, 2}
 m["foo"]
 s[i : j + 1]
 obj.color
-Math.sin
+math.Sin
 f.p[i].x()
 </pre>
 
@@ -5199,12 +5199,13 @@ For the numeric types (§<a href="#Numeric_types">Numeric types</a>), the follow
 </p>
 
 <pre class="grammar">
-type                      size in bytes
+type                                 size in bytes
 
-byte, uint8, int8         1
-uint16, int16             2
-uint32, int32, float32    4
-uint64, int64, float64    8
+byte, uint8, int8                     1
+uint16, int16                         2
+uint32, int32, float32                4
+uint64, int64, float64, complex64     8
+complex128                           16
 </pre>
 
 <p>
