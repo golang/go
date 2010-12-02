@@ -85,10 +85,16 @@ func writer(f func(interface{}) string) func(io.Writer, string, ...interface{}) 
 	}
 }
 
+func multiword(w io.Writer, format string, value ...interface{}) {
+	for _, v := range value {
+		fmt.Fprintf(w, "<%v>", v)
+	}
+}
 
 var formatters = FormatterMap{
 	"uppercase": writer(uppercase),
 	"+1":        writer(plus1),
+	"multiword": multiword,
 }
 
 var tests = []*Test{
@@ -308,6 +314,18 @@ var tests = []*Test{
 
 		out: "HEADER=78\n" +
 			"Header=77\n",
+	},
+
+	&Test{
+		in: "{.section pdata }\n" +
+			"{header|uppercase}={integer header|multiword}\n" +
+			"{header|html}={header integer|multiword}\n" +
+			"{header|html}={header integer}\n" +
+			"{.end}\n",
+
+		out: "HEADER=<77><Header>\n" +
+			"Header=<Header><77>\n" +
+			"Header=Header77\n",
 	},
 
 	&Test{

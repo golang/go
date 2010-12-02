@@ -44,9 +44,11 @@
 	is present, ZZZ is executed between iterations of XXX.
 
 		{field}
+		{field1 field2 ...}
 		{field|formatter}
+		{field1 field2...|formatter}
 
-	Insert the value of the field into the output. Field is
+	Insert the value of the fields into the output. Each field is
 	first looked for in the cursor, as in .section and .repeated.
 	If it is not found, the search continues in outer sections
 	until the top level is reached.
@@ -58,7 +60,8 @@
 		func(wr io.Writer, formatter string, data ...interface{})
 	where wr is the destination for output, data holds the field
 	values at the instantiation, and formatter is its name at
-	the invocation site.
+	the invocation site.  The default formatter just concatenates
+	the string representations of the fields.
 */
 package template
 
@@ -124,11 +127,11 @@ type literalElement struct {
 	text []byte
 }
 
-// A variable to be evaluated
+// A variable invocation to be evaluated
 type variableElement struct {
 	linenum   int
-	name      string
-	formatter string // TODO(r): implement pipelines
+	word      []string // The fields in the invocation.
+	formatter string   // TODO(r): implement pipelines
 }
 
 // A .section block, possibly with a .or
@@ -351,7 +354,7 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 		t.parseError("empty directive")
 		return
 	}
-	if len(w) == 1 && w[0][0] != '.' {
+	if len(w) > 0 && w[0][0] != '.' {
 		tok = tokVariable
 		return
 	}
@@ -394,16 +397,18 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 // -- Parsing
 
 // Allocate a new variable-evaluation element.
-func (t *Template) newVariable(name_formatter string) (v *variableElement) {
-	name := name_formatter
+func (t *Template) newVariable(words []string) (v *variableElement) {
+	// The words are tokenized elements from the {item}. The last one may be of
+	// the form "|fmt".  For example: {a b c|d}
 	formatter := ""
-	bar := strings.Index(name_formatter, "|")
+	lastWord := words[len(words)-1]
+	bar := strings.Index(lastWord, "|")
 	if bar >= 0 {
-		name = name_formatter[0:bar]
-		formatter = name_formatter[bar+1:]
+		words[len(words)-1] = lastWord[0:bar]
+		formatter = lastWord[bar+1:]
 	}
 	// Probably ok, so let's build it.
-	v = &variableElement{t.linenum, name, formatter}
+	v = &variableElement{t.linenum, words, formatter}
 
 	// We could remember the function address here and avoid the lookup later,
 	// but it's more dynamic to let the user change the map contents underfoot.
@@ -449,7 +454,7 @@ func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
 		}
 		return
 	case tokVariable:
-		t.elems.Push(t.newVariable(w[0]))
+		t.elems.Push(t.newVariable(w))
 		return
 	}
 	return false, tok, w
@@ -687,20 +692,24 @@ func (t *Template) varValue(name string, st *state) reflect.Value {
 // If it has a formatter attached ({var|formatter}) run that too.
 func (t *Template) writeVariable(v *variableElement, st *state) {
 	formatter := v.formatter
-	val := t.varValue(v.name, st).Interface()
+	// Turn the words of the invocation into values.
+	val := make([]interface{}, len(v.word))
+	for i, word := range v.word {
+		val[i] = t.varValue(word, st).Interface()
+	}
 	// is it in user-supplied map?
 	if t.fmap != nil {
 		if fn, ok := t.fmap[formatter]; ok {
-			fn(st.wr, formatter, val)
+			fn(st.wr, formatter, val...)
 			return
 		}
 	}
 	// is it in builtin map?
 	if fn, ok := builtins[formatter]; ok {
-		fn(st.wr, formatter, val)
+		fn(st.wr, formatter, val...)
 		return
 	}
-	t.execError(st, v.linenum, "missing formatter %s for variable %s", formatter, v.name)
+	t.execError(st, v.linenum, "missing formatter %s for variable %s", formatter, v.word[0])
 }
 
 // Execute element i.  Return next index to execute.
