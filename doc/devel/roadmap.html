@@ -56,13 +56,11 @@ Gc compiler roadmap</h4>
 <li>
 Implement goto restrictions.
 <li>
-Generate DWARF debug info.
-<li>
-Provide gdb support for runtime facilities.
-<li>
 Improved optimization.
 <li>
 5g: Better floating point support.
+<li>
+Use escape analysis to keep more data on stack.
 </ul>
 
 <h4 id="Gccgo_roadmap">
@@ -82,6 +80,10 @@ Use escape analysis to keep more data on stack.
 <h3 id="done">Done</h3>
 
 <ul>
+<li>
+gc: Generate DWARF debug info.
+<li>
+gc: Provide gdb support for runtime facilities.
 <li>
 Safe compilation mode: generate code that is guaranteed not to obtain an invalid memory address other than via <code>import "unsafe"</code>.
 <li>
