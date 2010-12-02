@@ -644,3 +644,60 @@ func _(x ...func())
 func _(x ...func(...int))
 func _(x ...map[string]int)
 func _(x ...chan int)
+
+
+// these parameter lists must remain multi-line since they are multi-line in the source
+func _(bool,
+int) {
+}
+func _(x bool,
+y int) {
+}
+func _(x,
+y bool) {
+}
+func _(bool, // comment
+int) {
+}
+func _(x bool, // comment
+y int) {
+}
+func _(x, // comment
+y bool) {
+}
+func _(bool, // comment
+// comment
+int) {
+}
+func _(x bool, // comment
+// comment
+y int) {
+}
+func _(x, // comment
+// comment
+y bool) {
+}
+func _(bool,
+// comment
+int) {
+}
+func _(x bool,
+// comment
+y int) {
+}
+func _(x,
+// comment
+y bool) {
+}
+func _(x, // comment
+y,// comment
+z bool) {
+}
+func _(x, // comment
+	y,// comment
+	z bool) {
+}
+func _(x int,	// comment
+	y float,	// comment
+	z bool) {
+}
