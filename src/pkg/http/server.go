@@ -362,6 +362,7 @@ func (w *response) finishRequest() {
 		io.WriteString(w.conn.buf, "\r\n")
 	}
 	w.conn.buf.Flush()
+	w.req.Body.Close()
 }
 
 // Flush implements the ResponseWriter.Flush method.
