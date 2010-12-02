@@ -92,7 +92,7 @@ const (
 
 
 // Sets multiLine to true if the identifier list spans multiple lines.
-// If ident is set, a multi-line identifier list is indented after the
+// If indent is set, a multi-line identifier list is indented after the
 // first linebreak encountered.
 func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
 	// convert into an expression list so we can re-use exprList formatting
@@ -298,15 +298,27 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
 	p.print(fields.Opening, token.LPAREN)
 	if len(fields.List) > 0 {
+		var prevLine, line int
 		for i, par := range fields.List {
 			if i > 0 {
-				p.print(token.COMMA, blank)
+				p.print(token.COMMA)
+				if len(par.Names) > 0 {
+					line = par.Names[0].Pos().Line
+				} else {
+					line = par.Type.Pos().Line
+				}
+				if 0 < prevLine && prevLine < line && p.linebreak(line, 0, ignore, true) {
+					*multiLine = true
+				} else {
+					p.print(blank)
+				}
 			}
 			if len(par.Names) > 0 {
 				p.identList(par.Names, false, multiLine)
 				p.print(blank)
 			}
 			p.expr(par.Type, multiLine)
+			prevLine = par.Type.Pos().Line
 		}
 	}
 	p.print(fields.Closing, token.RPAREN)
