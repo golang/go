@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO:
+// TODO/NICETOHAVE:
 //   - eliminate DW_CLS_ if not used
 //   - package info in compilation units
 //   - assign global variables and types to their packages
@@ -10,6 +10,7 @@
 //   - gdb uses c syntax, meaning clumsy quoting is needed for go identifiers. eg
 //     ptype struct '[]uint8' and qualifiers need to be quoted away
 //   - lexical scoping is lost, so gdb gets confused as to which 'main.i' you mean.
+//   - file:line info for variables
 //
 #include	"l.h"
 #include	"lib.h"
@@ -26,7 +27,7 @@ static vlong abbrevo;
 static vlong abbrevsize;
 static vlong lineo;
 static vlong linesize;
-static vlong infoo;	 // also the base for DWDie->offs and reference attributes.
+static vlong infoo;	// also the base for DWDie->offs and reference attributes.
 static vlong infosize;
 static vlong frameo;
 static vlong framesize;
@@ -36,6 +37,10 @@ static vlong pubtypeso;
 static vlong pubtypessize;
 static vlong arangeso;
 static vlong arangessize;
+static vlong gdbscripto;
+static vlong gdbscriptsize;
+
+static char  gdbscript[1024];
 
 /*
  *  Basic I/O
@@ -71,7 +76,6 @@ uleb128enc(uvlong v, char* dst)
 	} while (c & 0x80);
 	return len;
 };
-
 
 static int
 sleb128enc(vlong v, char *dst)
@@ -133,6 +137,8 @@ enum
 	DW_ABRV_AUTO,
 	DW_ABRV_PARAM,
 	DW_ABRV_STRUCTFIELD,
+	DW_ABRV_FUNCTYPEPARAM,
+	DW_ABRV_DOTDOTDOT,
 	DW_ABRV_ARRAYRANGE,
 	DW_ABRV_NULLTYPE,
 	DW_ABRV_BASETYPE,
@@ -203,10 +209,23 @@ static struct DWAbbrev {
 	},
 	/* STRUCTFIELD */
 	{
-		DW_TAG_member, DW_CHILDREN_no,
-		DW_AT_name,	 DW_FORM_string,
-		DW_AT_data_member_location,	 DW_FORM_block1,
+		DW_TAG_member,	DW_CHILDREN_no,
+		DW_AT_name,	DW_FORM_string,
+		DW_AT_data_member_location, DW_FORM_block1,
 		DW_AT_type,	 DW_FORM_ref_addr,
+		0, 0
+	},
+	/* FUNCTYPEPARAM */
+	{
+		DW_TAG_formal_parameter, DW_CHILDREN_no,
+		// No name!
+		DW_AT_type,	 DW_FORM_ref_addr,
+		0, 0
+	},
+
+	/* DOTDOTDOT */
+	{
+		DW_TAG_unspecified_parameters, DW_CHILDREN_no,
 		0, 0
 	},
 	/* ARRAYRANGE */
@@ -246,14 +265,16 @@ static struct DWAbbrev {
 	/* CHANTYPE */
 	{
 		DW_TAG_typedef, DW_CHILDREN_no,
-		DW_AT_name,	 DW_FORM_string,
+		DW_AT_name,	DW_FORM_string,
+		DW_AT_type,	DW_FORM_ref_addr,
 		0, 0
 	},
 
 	/* FUNCTYPE */
 	{
-		DW_TAG_typedef, DW_CHILDREN_no,
-		DW_AT_name,	 DW_FORM_string,
+		DW_TAG_subroutine_type, DW_CHILDREN_yes,
+		DW_AT_name,	DW_FORM_string,
+//		DW_AT_type,	DW_FORM_ref_addr,
 		0, 0
 	},
 
@@ -268,6 +289,7 @@ static struct DWAbbrev {
 	{
 		DW_TAG_typedef, DW_CHILDREN_no,
 		DW_AT_name,	DW_FORM_string,
+		DW_AT_type,	DW_FORM_ref_addr,
 		0, 0
 	},
 
@@ -280,7 +302,6 @@ static struct DWAbbrev {
 	},
 
 	/* SLICETYPE */
-	// Children are data, len and cap of runtime::struct Slice.
 	{
 		DW_TAG_structure_type, DW_CHILDREN_yes,
 		DW_AT_name,	DW_FORM_string,
@@ -289,7 +310,6 @@ static struct DWAbbrev {
 	},
 
 	/* STRINGTYPE */
-	// Children are str and len of runtime::struct String.
 	{
 		DW_TAG_structure_type, DW_CHILDREN_yes,
 		DW_AT_name,	DW_FORM_string,
@@ -431,6 +451,19 @@ getattr(DWDie *die, uint8 attr)
 	return nil;
 }
 
+static void
+delattr(DWDie *die, uint8 attr)
+{
+	DWAttr **a;
+
+	a = &die->attr;
+	while (*a != nil)
+		if ((*a)->atr == attr)
+			*a = (*a)->link;
+		else
+			a = &((*a)->link);
+}
+
 // Every DIE has at least a DW_AT_name attribute (but it will only be
 // written out if it is listed in the abbrev).	If its parent is
 // keeping an index, the new DIE will be inserted there.
@@ -483,6 +516,7 @@ find(DWDie *die, char* name)
 	if (a == nil)
 		return nil;
 
+
 	if (strcmp(name, getattr(a, DW_AT_name)->data) == 0)
 		return a;
 
@@ -505,7 +539,6 @@ static DWDie*
 find_or_diag(DWDie *die, char* name)
 {
 	DWDie *r;
-
 	r = find(die, name);
 	if (r == nil)
 		diag("dwarf find: %s has no %s", getattr(die, DW_AT_name)->data, name);
@@ -626,6 +659,7 @@ putattrs(int abbrev, DWAttr* attr)
 	for( ; attr; attr = attr->link)
 		if (attr->atr < nelem(attrs))
 			attrs[attr->atr] = attr;
+
 	for(af = abbrevs[abbrev].attr; af->attr; af++)
 		if (attrs[af->attr])
 			putattr(af->form,
@@ -700,6 +734,8 @@ newmemberoffsetattr(DWDie *die, int32 offs)
 	memmove(die->attr->data, block, i);
 }
 
+// GDB doesn't like DW_FORM_addr for DW_AT_location, so emit a
+// location expression that evals to a const.
 static void
 newabslocexprattr(DWDie *die, vlong addr)
 {
@@ -750,14 +786,14 @@ enum {
 	KindNoPointers = 1<<7,
 };
 
-static Sym*
+static Reloc*
 decode_reloc(Sym *s, int32 off)
 {
 	int i;
 
 	for (i = 0; i < s->nr; i++)
 		if (s->r[i].off == off)
-			return s->r[i].sym;
+			return s->r + i;
 	return nil;
 }
 
@@ -804,11 +840,11 @@ decodetype_size(Sym *s)
 	return decode_inuxi(s->p + 2*PtrSize, PtrSize);	 // 0x8 / 0x10
 }
 
-// Type.ArrayType.elem
+// Type.ArrayType.elem and Type.SliceType.Elem
 static Sym*
 decodetype_arrayelem(Sym *s)
 {
-	return decode_reloc(s, 5*PtrSize + 8);	// 0x1c / 0x30
+	return decode_reloc(s, 5*PtrSize + 8)->sym;	// 0x1c / 0x30
 }
 
 static vlong
@@ -821,7 +857,64 @@ decodetype_arraylen(Sym *s)
 static Sym*
 decodetype_ptrelem(Sym *s)
 {
-	return decode_reloc(s, 5*PtrSize + 8);	// 0x1c / 0x30
+	return decode_reloc(s, 5*PtrSize + 8)->sym;	// 0x1c / 0x30
+}
+
+// Type.MapType.key, elem
+static Sym*
+decodetype_mapkey(Sym *s)
+{
+	return decode_reloc(s, 5*PtrSize + 8)->sym;	// 0x1c / 0x30
+}
+static Sym*
+decodetype_mapvalue(Sym *s)
+{
+	return decode_reloc(s, 6*PtrSize + 8)->sym;	// 0x20 / 0x38
+}
+
+// Type.ChanType.elem
+static Sym*
+decodetype_chanelem(Sym *s)
+{
+	return decode_reloc(s, 5*PtrSize + 8)->sym;	// 0x1c / 0x30
+}
+
+// Type.FuncType.dotdotdot
+static int
+decodetype_funcdotdotdot(Sym *s)
+{
+	return s->p[5*PtrSize + 8];
+}
+
+// Type.FuncType.in.len
+static int
+decodetype_funcincount(Sym *s)
+{
+	return decode_inuxi(s->p + 7*PtrSize + 8, 4);
+}
+
+static int
+decodetype_funcoutcount(Sym *s)
+{
+	return decode_inuxi(s->p + 8*PtrSize + 16, 4);
+}
+
+static Sym*
+decodetype_funcintype(Sym *s, int i)
+{
+	Reloc *r;
+
+	r = decode_reloc(s, 6*PtrSize + 8);
+	return decode_reloc(r->sym, r->add + i * PtrSize)->sym;
+}
+
+static Sym*
+decodetype_funcouttype(Sym *s, int i)
+{
+	Reloc *r;
+
+	r = decode_reloc(s, 7*PtrSize + 16);
+	return decode_reloc(r->sym, r->add + i * PtrSize)->sym;
 }
 
 // Type.StructType.fields.Slice::len
@@ -835,20 +928,21 @@ decodetype_structfieldcount(Sym *s)
 static char*
 decodetype_structfieldname(Sym *s, int i)
 {
-	Sym *p;
-	p = decode_reloc(s, 6*PtrSize + 0x10 + i*5*PtrSize);  // go.string."foo"  0x28 / 0x40
-	if (p == nil)				// embedded structs have a nil name.
+	Reloc* r;
+
+	r = decode_reloc(s, 6*PtrSize + 0x10 + i*5*PtrSize);   // go.string."foo"  0x28 / 0x40
+	if (r == nil)				// embedded structs have a nil name.
 		return nil;
-	p = decode_reloc(p, 0);			// string."foo"
-	if (p == nil)				// shouldn't happen.
+	r = decode_reloc(r->sym, 0);		// string."foo"
+	if (r == nil)				// shouldn't happen.
 		return nil;
-	return (char*)p->p;			// the c-string
+	return (char*)r->sym->p;		// the c-string
 }
 
 static Sym*
 decodetype_structfieldtype(Sym *s, int i)
 {
-	return decode_reloc(s, 8*PtrSize + 0x10 + i*5*PtrSize);	 //   0x30 / 0x50
+	return decode_reloc(s, 8*PtrSize + 0x10 + i*5*PtrSize)->sym;	 //   0x30 / 0x50
 }
 
 static vlong
@@ -865,13 +959,15 @@ enum {
 	DW_AT_internal_location = 253,	 // params and locals
 };
 
+static DWDie* defptrto(DWDie *dwtype);	// below
+
 // Define gotype, for composite ones recurse into constituents.
 static DWDie*
 defgotype(Sym *gotype)
 {
-	DWDie *die, *fld, *elem, *ptrelem;
+	DWDie *die, *fld;
 	Sym *s;
-	char *name, *ptrname, *f;
+	char *name, *f;
 	uint8 kind;
 	vlong bytesize;
 	int i, nfields;
@@ -891,18 +987,18 @@ defgotype(Sym *gotype)
 
 	if (0 && debug['v'] > 2) {
 		print("new type: %s @0x%08x [%d]", gotype->name, gotype->value, gotype->size);
-		for (i = 0; i < gotype->size; ++i) {
+		for (i = 0; i < gotype->size; i++) {
 			if (!(i%8)) print("\n\t%04x ", i);
 			print("%02x ", gotype->p[i]);
 		}
 		print("\n");
-		for (i = 0; i < gotype->nr; ++i) {
-			print("\t%02x %d %d %lld %s\n",
+		for (i = 0; i < gotype->nr; i++) {
+			print("\t0x%02x[%x] %d %s[%llx]\n",
 			      gotype->r[i].off,
 			      gotype->r[i].siz,
 			      gotype->r[i].type,
-			      gotype->r[i].add,
-			      gotype->r[i].sym->name);
+			      gotype->r[i].sym->name,
+			      gotype->r[i].add);
 		}
 	}
 
@@ -961,25 +1057,46 @@ defgotype(Sym *gotype)
 		fld = newdie(die, DW_ABRV_ARRAYRANGE, "range");
 		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, decodetype_arraylen(gotype), 0);
 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
-
 		break;
 
 	case KindChan:
 		die = newdie(&dwtypes, DW_ABRV_CHANTYPE, name);
-		// TODO: describe ../../pkg/runtime/chan.c::struct Hchan
+		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+		s = decodetype_chanelem(gotype);
+		newrefattr(die, DW_AT_internal_elem_type, defgotype(s));
 		break;
 
 	case KindFunc:
 		die = newdie(&dwtypes, DW_ABRV_FUNCTYPE, name);
+		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "void"));
+		nfields = decodetype_funcincount(gotype);
+		for (i = 0; i < nfields; i++) {
+			s = decodetype_funcintype(gotype, i);
+			fld = newdie(die, DW_ABRV_FUNCTYPEPARAM, s->name+5);
+			newrefattr(fld, DW_AT_type, defgotype(s));
+		}
+		if (decodetype_funcdotdotdot(gotype))
+			newdie(die, DW_ABRV_DOTDOTDOT, "...");
+		nfields = decodetype_funcoutcount(gotype);
+		for (i = 0; i < nfields; i++) {
+			s = decodetype_funcouttype(gotype, i);
+			fld = newdie(die, DW_ABRV_FUNCTYPEPARAM, s->name+5);
+			newrefattr(fld, DW_AT_type, defptrto(defgotype(s)));
+		}
+		die = defptrto(die);
 		break;
 
 	case KindInterface:
 		die = newdie(&dwtypes, DW_ABRV_IFACETYPE, name);
+		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		break;
 
 	case KindMap:
 		die = newdie(&dwtypes, DW_ABRV_MAPTYPE, name);
-		// TODO: describe ../../pkg/runtime/hashmap.c::struct hash
+		s = decodetype_mapkey(gotype);
+		newrefattr(die, DW_AT_internal_key_type, defgotype(s));
+		s = decodetype_mapvalue(gotype);
+		newrefattr(die, DW_AT_internal_val_type, defgotype(s));
 		break;
 
 	case KindPtr:
@@ -991,48 +1108,20 @@ defgotype(Sym *gotype)
 	case KindSlice:
 		die = newdie(&dwtypes, DW_ABRV_SLICETYPE, name);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
-		fld = newdie(die, DW_ABRV_STRUCTFIELD, "data");
-		// Synthesize *elemtype if not already exists.	Maybe
-		// this should be named '<*T>' to not stand in the way
-		// of the real definition of *T.
 		s = decodetype_arrayelem(gotype);
-		elem = defgotype(s);
-		ptrname = strdup(s->name + 4);	// skip "type" but leave the '.'
-		ptrname[0] = '*';		//  .. to stuff in the '*'
-		ptrelem = find(&dwtypes, ptrname);
-		if (ptrelem == nil) {
-			ptrelem = newdie(&dwtypes, DW_ABRV_PTRTYPE, ptrname);
-			newrefattr(ptrelem, DW_AT_type, elem);
-		} else {
-			free(ptrname);
-		}
-		newrefattr(fld, DW_AT_type, ptrelem);
-		newmemberoffsetattr(fld, 0);
-		fld = newdie(die, DW_ABRV_STRUCTFIELD, "len");
-		newrefattr(fld, DW_AT_type, find(&dwtypes, "<int32>"));
-		newmemberoffsetattr(fld, PtrSize);
-		fld = newdie(die, DW_ABRV_STRUCTFIELD, "cap");
-		newrefattr(fld, DW_AT_type, find(&dwtypes, "<int32>"));
-		newmemberoffsetattr(fld, PtrSize + 4);
-
+		newrefattr(die, DW_AT_internal_elem_type, defgotype(s));
 		break;
 
 	case KindString:
 		die = newdie(&dwtypes, DW_ABRV_STRINGTYPE, name);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
-		fld = newdie(die, DW_ABRV_STRUCTFIELD, "str");
-		newrefattr(fld, DW_AT_type, find(&dwtypes, "<byte*>"));
-		newmemberoffsetattr(fld, 0);
-		fld = newdie(die, DW_ABRV_STRUCTFIELD, "len");
-		newrefattr(fld, DW_AT_type, find(&dwtypes, "<int32>"));
-		newmemberoffsetattr(fld, PtrSize);
 		break;
 
 	case KindStruct:
 		die = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, name);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		nfields = decodetype_structfieldcount(gotype);
-		for (i = 0; i < nfields; ++i) {
+		for (i = 0; i < nfields; i++) {
 			f = decodetype_structfieldname(gotype, i);
 			s = decodetype_structfieldtype(gotype, i);
 			if (f == nil)
@@ -1051,11 +1140,274 @@ defgotype(Sym *gotype)
 	default:
 		diag("definition of unknown kind %d: %s", kind, gotype->name);
 		die = newdie(&dwtypes, DW_ABRV_TYPEDECL, name);
-		newrefattr(die, DW_AT_type, find(&dwtypes, "<unspecified>"));
+		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "<unspecified>"));
 	 }
 
 	return die;
- }
+}
+
+// Find or construct *T given T.
+static DWDie*
+defptrto(DWDie *dwtype)
+{
+	char ptrname[1024];
+	DWDie *die;
+
+	snprint(ptrname, sizeof ptrname, "*%s", getattr(dwtype, DW_AT_name)->data);
+	die = find(&dwtypes, ptrname);
+	if (die == nil) {
+		die = newdie(&dwtypes, DW_ABRV_PTRTYPE,
+			     strcpy(mal(strlen(ptrname)+1), ptrname));
+		newrefattr(die, DW_AT_type, dwtype);
+	}
+	return die;
+}
+
+// Copies src's children into dst. Copies attributes by value.
+// DWAttr.data is copied as pointer only.
+static void
+copychildren(DWDie *dst, DWDie *src)
+{
+	DWDie *c;
+	DWAttr *a;
+
+	for (src = src->child; src != nil; src = src->link) {
+		c = newdie(dst, src->abbrev, getattr(src, DW_AT_name)->data);
+		for (a = src->attr; a != nil; a = a->link)
+			newattr(c, a->atr, a->cls, a->value, a->data);
+		copychildren(c, src);
+	}
+	reverselist(&dst->child);
+}
+
+// Search children (assumed to have DW_TAG_member) for the one named
+// field and set it's DW_AT_type to dwtype
+static void
+substitutetype(DWDie *structdie, char *field, DWDie* dwtype)
+{
+	DWDie *child;
+	DWAttr *a;
+
+	child = find_or_diag(structdie, field);
+	if (child == nil)
+		return;
+
+	a = getattr(child, DW_AT_type);
+	if (a != nil)
+		a->data = (char*) dwtype;
+	else
+		newrefattr(child, DW_AT_type, dwtype);
+}
+
+static void
+synthesizestringtypes(DWDie* die)
+{
+	DWDie *prototype;
+
+	prototype = defgotype(lookup("type.runtime.string_", 0));
+	if (prototype == nil)
+		return;
+
+	for (; die != nil; die = die->link) {
+		if (die->abbrev != DW_ABRV_STRINGTYPE)
+			continue;
+		copychildren(die, prototype);
+	}
+}
+
+static void
+synthesizeslicetypes(DWDie *die)
+{
+	DWDie *prototype, *elem;
+
+	prototype = defgotype(lookup("type.runtime.slice",0));
+	if (prototype == nil)
+		return;
+
+	for (; die != nil; die = die->link) {
+		if (die->abbrev != DW_ABRV_SLICETYPE)
+			continue;
+		copychildren(die, prototype);
+		elem = (DWDie*) getattr(die, DW_AT_internal_elem_type)->data;
+		substitutetype(die, "array", defptrto(elem));
+	}
+}
+
+static char*
+mkinternaltypename(char *base, char *arg1, char *arg2)
+{
+	char buf[1024];
+	char *n;
+
+	if (arg2 == nil)
+		snprint(buf, sizeof buf, "%s<%s>", base, arg1);
+	else
+		snprint(buf, sizeof buf, "%s<%s,%s>", base, arg1, arg2);
+	n = mal(strlen(buf) + 1);
+	memmove(n, buf, strlen(buf));
+	return n;
+}
+
+
+// synthesizemaptypes is way too closely married to runtime/hashmap.c
+enum {
+	MaxValsize = 256 - 64
+};
+
+static void
+synthesizemaptypes(DWDie *die)
+{
+
+	DWDie *hash, *hash_subtable, *hash_entry,
+		*dwh, *dwhs, *dwhe, *keytype, *valtype, *fld;
+	int hashsize, keysize, valsize, datsize, valsize_in_hash, datavo;
+	DWAttr *a;
+
+	hash		= defgotype(lookup("type.runtime.hash",0));
+	hash_subtable	= defgotype(lookup("type.runtime.hash_subtable",0));
+	hash_entry	= defgotype(lookup("type.runtime.hash_entry",0));
+
+	if (hash == nil || hash_subtable == nil || hash_entry == nil)
+		return;
+
+	dwh = (DWDie*)getattr(find_or_diag(hash_entry, "hash"), DW_AT_type)->data;
+	if (dwh == nil)
+		return;
+
+	hashsize = getattr(dwh, DW_AT_byte_size)->value;
+
+	for (; die != nil; die = die->link) {
+		if (die->abbrev != DW_ABRV_MAPTYPE)
+			continue;
+
+		keytype = (DWDie*) getattr(die, DW_AT_internal_key_type)->data;
+		valtype = (DWDie*) getattr(die, DW_AT_internal_val_type)->data;
+
+		a = getattr(keytype, DW_AT_byte_size);
+		keysize = a ? a->value : PtrSize;  // We don't store size with Pointers
+
+		a = getattr(valtype, DW_AT_byte_size);
+		valsize = a ? a->value : PtrSize;
+
+		// This is what happens in hash_init and makemap_c
+		valsize_in_hash = valsize;
+		if (valsize > MaxValsize)
+			valsize_in_hash = PtrSize;
+		datavo = keysize;
+		if (valsize_in_hash >= PtrSize)
+			datavo = rnd(keysize, PtrSize);
+		datsize = datavo + valsize_in_hash;
+		if (datsize < PtrSize)
+			datsize = PtrSize;
+		datsize = rnd(datsize, PtrSize);
+
+		// Construct struct hash_entry<K,V>
+		dwhe = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+			mkinternaltypename("hash_entry",
+				getattr(keytype, DW_AT_name)->data,
+				getattr(valtype, DW_AT_name)->data));
+		copychildren(dwhe, hash_entry);
+		substitutetype(dwhe, "key", keytype);
+		if (valsize > MaxValsize)
+			valtype = defptrto(valtype);
+		substitutetype(dwhe, "val", valtype);
+		fld = find_or_diag(dwhe, "val");
+		delattr(fld, DW_AT_data_member_location);
+		newmemberoffsetattr(fld, hashsize + datavo);
+		newattr(dwhe, DW_AT_byte_size, DW_CLS_CONSTANT, hashsize + datsize, NULL);
+
+		// Construct hash_subtable<hash_entry<K,V>>
+		dwhs = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+			mkinternaltypename("hash_subtable",
+				getattr(keytype, DW_AT_name)->data,
+				getattr(valtype, DW_AT_name)->data));
+		copychildren(dwhs, hash_subtable);
+		substitutetype(dwhs, "end", defptrto(dwhe));
+		substitutetype(dwhs, "entry", dwhe);  // todo: []hash_entry with dynamic size
+		newattr(dwhs, DW_AT_byte_size, DW_CLS_CONSTANT,
+			getattr(hash_subtable, DW_AT_byte_size)->value, NULL);
+
+		// Construct hash<K,V>
+		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+			mkinternaltypename("hash",
+				getattr(keytype, DW_AT_name)->data,
+				getattr(valtype, DW_AT_name)->data));
+		copychildren(dwh, hash);
+		substitutetype(dwh, "st", defptrto(dwhs));
+		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
+			getattr(hash, DW_AT_byte_size)->value, NULL);
+
+		newrefattr(die, DW_AT_type, defptrto(dwh));
+	}
+}
+
+static void
+synthesizechantypes(DWDie *die)
+{
+	DWDie *sudog, *waitq, *link, *hchan,
+		*dws, *dww, *dwl, *dwh, *elemtype;
+	DWAttr *a;
+	int elemsize, linksize, sudogsize;
+
+	sudog = defgotype(lookup("type.runtime.sudoG",0));
+	waitq = defgotype(lookup("type.runtime.waitQ",0));
+	link  = defgotype(lookup("type.runtime.link",0));
+	hchan = defgotype(lookup("type.runtime.hChan",0));
+	if (sudog == nil || waitq == nil || link == nil || hchan == nil)
+		return;
+
+	sudogsize = getattr(sudog, DW_AT_byte_size)->value;
+	linksize = getattr(link, DW_AT_byte_size)->value;
+
+	for (; die != nil; die = die->link) {
+		if (die->abbrev != DW_ABRV_CHANTYPE)
+			continue;
+		elemtype = (DWDie*) getattr(die, DW_AT_internal_elem_type)->data;
+		a = getattr(elemtype, DW_AT_byte_size);
+		elemsize = a ? a->value : PtrSize;
+
+		// sudog<T>
+		dws = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+			mkinternaltypename("sudog",
+				getattr(elemtype, DW_AT_name)->data, NULL));
+		copychildren(dws, sudog);
+		substitutetype(dws, "elem", elemtype);
+		newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT,
+			sudogsize + (elemsize > 8 ? elemsize - 8 : 0), NULL);
+
+		// waitq<T>
+		dww = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+			mkinternaltypename("waitq", getattr(elemtype, DW_AT_name)->data, NULL));
+		copychildren(dww, waitq);
+		substitutetype(dww, "first", defptrto(dws));
+		substitutetype(dww, "last",  defptrto(dws));
+		newattr(dww, DW_AT_byte_size, DW_CLS_CONSTANT,
+			getattr(waitq, DW_AT_byte_size)->value, NULL);
+
+		// link<T>
+		dwl = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+			mkinternaltypename("link", getattr(elemtype, DW_AT_name)->data, NULL));
+		copychildren(dwl, link);
+		substitutetype(dwl, "link", defptrto(dwl));
+		substitutetype(dwl, "elem", elemtype);
+		newattr(dwl, DW_AT_byte_size, DW_CLS_CONSTANT,
+			linksize + (elemsize > 8 ? elemsize - 8 : 0), NULL);
+
+		// hchan<T>
+		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+			mkinternaltypename("hchan", getattr(elemtype, DW_AT_name)->data, NULL));
+		copychildren(dwh, hchan);
+		substitutetype(dwh, "senddataq", defptrto(dwl));
+		substitutetype(dwh, "recvdataq", defptrto(dwl));
+		substitutetype(dwh, "recvq", dww);
+		substitutetype(dwh, "sendq", dww);
+		substitutetype(dwh, "free", dws);
+		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
+			getattr(hchan, DW_AT_byte_size)->value, NULL);
+
+		newrefattr(die, DW_AT_type, defptrto(dwh));
+	}
+}
 
 // For use with pass.c::genasmsym
 static void
@@ -1063,15 +1415,20 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
 {
 	DWDie *dv, *dt;
 
-	if (gotype == nil) {
+	if (strncmp(s, "go.string.", 10) == 0)
 		return;
-	}
+	if (strncmp(s, "string.", 7) == 0)
+		return;
+	if (strncmp(s, "type.", 5) == 0)
+		return;
 
 	dv = nil;
 
 	switch (t) {
 	default:
 		return;
+	case 'd':
+	case 'b':
 	case 'D':
 	case 'B':
 		dv = newdie(&dwglobals, DW_ABRV_VARIABLE, s);
@@ -1099,7 +1456,6 @@ movetomodule(DWDie *parent)
 	for (die = dwroot.child->child; die->link != nil; die = die->link) /* nix */;
 	die->link = parent->child;
 }
-
 
 /*
  * Filename fragments for the line history stack.
@@ -1209,6 +1565,24 @@ addhistfile(char *zentry)
 	}
 	histfile[histfilesize++] = fname;
 	return histfilesize - 1;
+}
+
+// if the histfile stack contains ..../runtime/runtime_defs.go
+// use that to set gdbscript
+static void
+finddebugruntimepath()
+{
+	int i, l;
+	char *c;
+
+	for (i = 1; i < histfilesize; i++) {
+		if ((c = strstr(histfile[i], "runtime/runtime_defs.go")) != nil) {
+			l = c - histfile[i];
+			memmove(gdbscript, histfile[i], l);
+			memmove(gdbscript + l, "runtime/runtime-gdb.py", strlen("runtime/runtime-gdb.py") + 1);
+			break;
+		}
+	}
 }
 
 // Go's runtime C sources are sane, and Go sources nest only 1 level,
@@ -1435,14 +1809,14 @@ writelines(void)
 	Prog *q;
 	Sym *s;
 	Auto *a;
-	vlong unitstart;
+	vlong unitstart, offs;
 	vlong pc, epc, lc, llc, lline;
 	int currfile;
 	int i, lang, da, dt;
 	Linehist *lh;
 	DWDie *dwinfo, *dwfunc, *dwvar, **dws;
 	DWDie *varhash[HASHSIZE];
-	char *n;
+	char *n, *nn;
 
 	unitstart = -1;
 	epc = pc = 0;
@@ -1471,6 +1845,7 @@ writelines(void)
 			}
 
 			lang = guesslang(histfile[1]);
+			finddebugruntimepath();
 
 			dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, strdup(histfile[1]));
 			newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT,lang, 0);
@@ -1561,14 +1936,15 @@ writelines(void)
 		da = 0;
 		dwfunc->hash = varhash;	 // enable indexing of children by name
 		memset(varhash, 0, sizeof varhash);
-
 		for(a = s->autom; a; a = a->link) {
 			switch (a->type) {
 			case D_AUTO:
 				dt = DW_ABRV_AUTO;
+				offs = a->aoffset - PtrSize;
 				break;
 			case D_PARAM:
 				dt = DW_ABRV_PARAM;
+				offs = a->aoffset;
 				break;
 			default:
 				continue;
@@ -1579,15 +1955,20 @@ writelines(void)
 				n = mkvarname(a->asym->name, da);
 			else
 				n = a->asym->name;
-			dwvar = newdie(dwfunc, dt, n);
-			newcfaoffsetattr(dwvar, a->aoffset);
-			newrefattr(dwvar, DW_AT_type, defgotype(a->gotype));
-		       // push dwvar down dwfunc->child to keep order
+			// Drop the package prefix from locals and arguments.
+			nn = strrchr(n, '.');
+			if (nn)
+				n = nn + 1;
 
-			newattr(dwvar, DW_AT_internal_location, DW_CLS_CONSTANT, a->aoffset, NULL);
+			dwvar = newdie(dwfunc, dt, n);
+			newcfaoffsetattr(dwvar, offs);
+			newrefattr(dwvar, DW_AT_type, defgotype(a->gotype));
+
+			// push dwvar down dwfunc->child to preserve order
+			newattr(dwvar, DW_AT_internal_location, DW_CLS_CONSTANT, offs, NULL);
 			dwfunc->child = dwvar->link;  // take dwvar out from the top of the list
 			for (dws = &dwfunc->child; *dws != nil; dws = &(*dws)->link)
-				if (a->aoffset > getattr(*dws, DW_AT_internal_location)->value)
+				if (offs > getattr(*dws, DW_AT_internal_location)->value)
 					break;
 			dwvar->link = *dws;
 			*dws = dwvar;
@@ -1818,7 +2199,7 @@ writepub(int (*ispub)(DWDie*))
  *  because we need die->offs of dw_globals.
  */
 static vlong
-writearanges()
+writearanges(void)
 {
 	DWDie *compunit;
 	DWAttr *b, *e;
@@ -1853,6 +2234,21 @@ writearanges()
 	return sectionstart;
 }
 
+static vlong
+writegdbscript(void)
+{
+	vlong sectionstart;
+
+	sectionstart = cpos();
+
+	if (gdbscript[0]) {
+		cput(1);  // magic 1 byte?
+		strnput(gdbscript, strlen(gdbscript)+1);
+		cflush();
+	}
+	return sectionstart;
+}
+
 /*
  * This is the main entry point for generating dwarf.  After emitting
  * the mandatory debug_abbrev section, it calls writelines() to set up
@@ -1866,7 +2262,10 @@ void
 dwarfemitdebugsections(void)
 {
 	vlong infoe;
-	DWDie *die;
+	DWDie* die;
+
+	// For diagnostic messages.
+	newattr(&dwtypes, DW_AT_name, DW_CLS_STRING, strlen("dwtypes"), "dwtypes");
 
 	mkindex(&dwroot);
 	mkindex(&dwtypes);
@@ -1875,39 +2274,33 @@ dwarfemitdebugsections(void)
 	// Some types that must exist to define other ones.
 	newdie(&dwtypes, DW_ABRV_NULLTYPE, "<unspecified>");
 	newdie(&dwtypes, DW_ABRV_NULLTYPE, "void");
-	die = newdie(&dwtypes, DW_ABRV_PTRTYPE, "unsafe.Pointer");
-	newrefattr(die, DW_AT_type, find(&dwtypes, "void"));
+	newrefattr(newdie(&dwtypes, DW_ABRV_PTRTYPE, "unsafe.Pointer"),
+		DW_AT_type, find(&dwtypes, "void"));
 	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "uintptr");  // needed for array size
 	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_unsigned, 0);
 	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, PtrSize, 0);
 
-	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "<int32>");
-	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_signed, 0);
-	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, 4, 0);
-
-	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "<byte>");
-	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_unsigned, 0);
-	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, 1, 0);
-
-	die = newdie(&dwtypes, DW_ABRV_PTRTYPE, "<byte*>");
-	newrefattr(die, DW_AT_type, find(&dwtypes, "<byte>"));
-
 	genasmsym(defdwsymb);
-	reversetree(&dwtypes.child);
-	reversetree(&dwglobals.child);
 
 	writeabbrev();
 	writelines();
 	writeframes();
 
-	reversetree(&dwroot.child);
-	movetomodule(&dwtypes);	 // TODO: put before functions
-	movetomodule(&dwglobals);
+	synthesizestringtypes(dwtypes.child);
+	synthesizeslicetypes(dwtypes.child);
+	synthesizemaptypes(dwtypes.child);
+	synthesizechantypes(dwtypes.child);
 
+	reversetree(&dwroot.child);
+	reversetree(&dwtypes.child);
+	reversetree(&dwglobals.child);
+
+	movetomodule(&dwtypes);
+	movetomodule(&dwglobals);
 
 	infoo = cpos();
 	writeinfo();
-	arangeso = pubtypeso = pubnameso = infoe = cpos();
+	gdbscripto = arangeso = pubtypeso = pubnameso = infoe = cpos();
 
 	if (fwdcount > 0) {
 		if (debug['v'])
@@ -1925,13 +2318,15 @@ dwarfemitdebugsections(void)
 	}
 	infosize = infoe - infoo;
 
-	pubnameso = writepub(ispubname);
-	pubtypeso = writepub(ispubtype);
-	arangeso  = writearanges();
+	pubnameso  = writepub(ispubname);
+	pubtypeso  = writepub(ispubtype);
+	arangeso   = writearanges();
+	gdbscripto = writegdbscript();
 
-	pubnamessize = pubtypeso - pubnameso;
-	pubtypessize = arangeso - pubtypeso;
-	arangessize  = cpos() - arangeso;
+	pubnamessize  = pubtypeso - pubnameso;
+	pubtypessize  = arangeso - pubtypeso;
+	arangessize   = gdbscripto - arangeso;
+	gdbscriptsize = cpos() - gdbscripto;
 }
 
 /*
@@ -1950,6 +2345,7 @@ enum
 	ElfStrDebugPubTypes,
 	ElfStrDebugRanges,
 	ElfStrDebugStr,
+	ElfStrGDBScripts,
 	NElfStrDbg
 };
 
@@ -1969,6 +2365,7 @@ dwarfaddshstrings(Sym *shstrtab)
 	elfstrdbg[ElfStrDebugPubTypes] = addstring(shstrtab, ".debug_pubtypes");
 	elfstrdbg[ElfStrDebugRanges]   = addstring(shstrtab, ".debug_ranges");
 	elfstrdbg[ElfStrDebugStr]      = addstring(shstrtab, ".debug_str");
+	elfstrdbg[ElfStrGDBScripts]    = addstring(shstrtab, ".debug_gdb_scripts");
 }
 
 void
@@ -2023,6 +2420,14 @@ dwarfaddelfheaders(void)
 		sh->size = arangessize;
 		sh->addralign = 1;
 	}
+
+	if (gdbscriptsize) {
+		sh = newElfShdr(elfstrdbg[ElfStrGDBScripts]);
+		sh->type = SHT_PROGBITS;
+		sh->off = gdbscripto;
+		sh->size = gdbscriptsize;
+		sh->addralign = 1;
+	}
 }
 
 /*
@@ -2033,7 +2438,6 @@ dwarfaddmachoheaders(void)
 {
 	MachoSect *msect;
 	MachoSeg *ms;
-
 	vlong fakestart;
 	int nsect;
 
@@ -2042,9 +2446,14 @@ dwarfaddmachoheaders(void)
 	fakestart = abbrevo & ~0xfff;
 
 	nsect = 4;
-	if (pubnamessize > 0) nsect++;
-	if (pubtypessize > 0) nsect++;
-	if (arangessize	 > 0) nsect++;
+	if (pubnamessize  > 0)
+		nsect++;
+	if (pubtypessize  > 0)
+		nsect++;
+	if (arangessize	  > 0)
+		nsect++;
+	if (gdbscriptsize > 0)
+		nsect++;
 
 	ms = newMachoSeg("__DWARF", nsect);
 	ms->fileoffset = fakestart;
@@ -2088,6 +2497,14 @@ dwarfaddmachoheaders(void)
 		msect = newMachoSect(ms, "__debug_aranges");
 		msect->off = arangeso;
 		msect->size = arangessize;
+		ms->filesize += msect->size;
+	}
+
+	// TODO(lvd) fix gdb/python to load MachO (16 char section name limit)
+	if (gdbscriptsize > 0) {
+		msect = newMachoSect(ms, "__debug_gdb_scripts");
+		msect->off = gdbscripto;
+		msect->size = gdbscriptsize;
 		ms->filesize += msect->size;
 	}
 }
