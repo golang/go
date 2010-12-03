@@ -92,6 +92,9 @@ h1#title {
 #nav-main .quickref {
   color: #444;
 }
+#nav-main .quickref .sep {
+  color: #999;
+}
 #search {
   width: 100px;
   margin-left: 0.5em;
