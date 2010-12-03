@@ -5,6 +5,67 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-12-02">2010-12-02</h3>
+
+<pre>
+Several package changes in this release may require you to update your code if
+you use the bytes, template, or utf8 packages. In all cases, any outdated code
+will fail to compile rather than behave erroneously.
+
+The bytes package has changed. Its Add and AddByte functions have been removed,
+as their functionality is provided by the recently-introduced built-in function
+“append”. Any code that uses them will need to be changed:
+s = bytes.Add(s, b)    ->    s = append(s, b...)
+s = bytes.AddByte(b, c)    ->    s = append(s, b)
+s = bytes.Add(nil, c)    ->    append([]byte(nil), c)
+
+The template package has changed. Your code will need to be updated if it calls
+the HTMLFormatter or StringFormatter functions, or implements its own formatter
+functions. The function signature for formatter types has changed to:
+        func(wr io.Writer, formatter string, data ...interface{})
+to allow multiple arguments to the formatter.  No templates will need updating.
+See the change for examples:
+        http://code.google.com/p/go/source/detail?r=2c2be793120e
+
+The template change permits the implementation of multi-word variable
+instantiation for formatters. Before one could say
+        {field}
+or
+        {field|formatter}
+Now one can also say
+        {field1 field2 field3}
+or
+        {field1 field2 field3|formatter}
+and the fields are passed as successive arguments to the formatter,
+by analogy to fmt.Print.
+
+The utf8 package has changed. The order of EncodeRune’s arguments has been
+reversed to satisfy the convention of “destination first”.
+Any code that uses EncodeRune will need to be updated.
+
+Other changes:
+* [68]l: correct dwarf location for globals and ranges for arrays.
+* big: fix (*Rat) SetFrac64(a, b) when b < 0 (thanks Eoghan Sherry).
+* compress/flate: fix typo in comment (thanks Mathieu Lonjaret).
+* crypto/elliptic: use a Jacobian transform for better performance.
+* doc/code.html: fix reference to "gomake build" (thanks Anschel Schaffer-Cohen).
+* doc/roadmap: update gdb status.
+* doc/spec: fixed some omissions and type errors.
+* doc: some typo fixes (thanks Peter Mundy).
+* exp/eval: build fix for parser.ParseFile API change (thanks Anschel Schaffer-Cohen).
+* fmt: Scan accepts Inf and NaN,
+        allow "% X" as well as "% x".
+* go/printer: preserve newlines in func parameter lists (thanks Jamie Gennis).
+* http: consume request body before next request.
+* log: ensure writes are atomic (thanks Roger Peppe).
+* path: Windows support for Split (thanks Benny Siegert).
+* runtime: fix SysFree to really free memory on Windows (thanks Alex Brainman),
+        parallel definitions in Go for all C structs.
+* sort: avoid overflow in pivot calculation,
+        reduced stack depth to lg(n) in quickSort (thanks Stefan Nilsson).
+* strconv: Atof on Infs and NaNs.
+</pre>
+
 <h3 id="2010-11-23">2010-11-23</h3>
 
 <pre>
