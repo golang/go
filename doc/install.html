@@ -297,7 +297,7 @@ that receives a message summarizing each checkin to the Go repository.
 <h2 id="environment">Environment variables</h2>
 
 <p>
-The Go compilation environment can be customized by five environment variables.
+The Go compilation environment can be customized by environment variables.
 None are required by the build, but you may wish to set them
 to override the defaults.
 </p>
@@ -331,8 +331,8 @@ to override the defaults.
 </dt>
 <dd>
 	The name of the target operating system and compilation architecture.
-	These default to the local system's operating system and
-	architecture.
+	These default to the values of <code>$GOHOSTOS</code> and
+	<code>$GOHOSTARCH</code> respectively (described below).
 
 	<p>
 	Choices for <code>$GOOS</code> are <code>linux</code>,
@@ -375,6 +375,22 @@ to override the defaults.
 	<td></td><td><code>windows</code></td> <td><code>386</code></td> <td><i>incomplete</i></td>
 	</tr>
 	</table>
+</dd>
+
+<dt>
+<code>$GOHOSTOS</code> and <code>$GOHOSTARCH</code>
+</dt>
+<dd>
+	The name of the host operating system and compilation architecture.
+	These default to the local system's operating system and
+	architecture.
+
+	<p>
+	Valid choices are the same as for <code>$GOOS</code> and
+	<code>$GOARCH</code>, listed above.
+	The specified values must be compatible with the local system.
+	For example, you should not set <code>$GOHOSTARCH</code> to 
+	<code>arm</code> on an x86 system.
 </dd>
 
 <dt>
