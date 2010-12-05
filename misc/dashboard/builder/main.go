@@ -37,6 +37,7 @@ type BenchRequest struct {
 }
 
 var (
+	buildroot     = flag.String("buildroot", path.Join(os.TempDir(), "gobuilder"), "Directory under which to build")
 	dashboard     = flag.String("dashboard", "godashboard.appspot.com", "Go Dashboard Host")
 	runBenchmarks = flag.Bool("bench", false, "Run benchmarks")
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
@@ -45,8 +46,7 @@ var (
 )
 
 var (
-	buildroot     = path.Join(os.TempDir(), "gobuilder")
-	goroot        = path.Join(buildroot, "goroot")
+	goroot        string
 	releaseRegexp = regexp.MustCompile(`^release\.[0-9\-]+`)
 	benchRequests vector.Vector
 )
@@ -61,6 +61,7 @@ func main() {
 	if len(flag.Args()) == 0 {
 		flag.Usage()
 	}
+	goroot = path.Join(*buildroot, "goroot")
 	builders := make([]*Builder, len(flag.Args()))
 	for i, builder := range flag.Args() {
 		b, err := NewBuilder(builder)
@@ -69,13 +70,13 @@ func main() {
 		}
 		builders[i] = b
 	}
-	if err := os.RemoveAll(buildroot); err != nil {
-		log.Exitf("Error removing build root (%s): %s", buildroot, err)
+	if err := os.RemoveAll(*buildroot); err != nil {
+		log.Exitf("Error removing build root (%s): %s", *buildroot, err)
 	}
-	if err := os.Mkdir(buildroot, mkdirPerm); err != nil {
-		log.Exitf("Error making build root (%s): %s", buildroot, err)
+	if err := os.Mkdir(*buildroot, mkdirPerm); err != nil {
+		log.Exitf("Error making build root (%s): %s", *buildroot, err)
 	}
-	if err := run(nil, buildroot, "hg", "clone", hgUrl, goroot); err != nil {
+	if err := run(nil, *buildroot, "hg", "clone", hgUrl, goroot); err != nil {
 		log.Exit("Error cloning repository:", err)
 	}
 	// if specified, build revision and return
@@ -236,7 +237,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	log.Println(b.name, "building", c.num)
 
 	// create place in which to do work
-	workpath := path.Join(buildroot, b.name+"-"+strconv.Itoa(c.num))
+	workpath := path.Join(*buildroot, b.name+"-"+strconv.Itoa(c.num))
 	err = os.Mkdir(workpath, mkdirPerm)
 	if err != nil {
 		return
