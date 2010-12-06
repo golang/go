@@ -1662,14 +1662,19 @@ func TestErfc(t *testing.T) {
 }
 
 func TestExp(t *testing.T) {
+	testExp(t, Exp, "Exp")
+	testExp(t, ExpGo, "ExpGo")
+}
+
+func testExp(t *testing.T, Exp func(float64) float64, name string) {
 	for i := 0; i < len(vf); i++ {
 		if f := Exp(vf[i]); !close(exp[i], f) {
-			t.Errorf("Exp(%g) = %g, want %g", vf[i], f, exp[i])
+			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp[i])
 		}
 	}
 	for i := 0; i < len(vfexpSC); i++ {
 		if f := Exp(vfexpSC[i]); !alike(expSC[i], f) {
-			t.Errorf("Exp(%g) = %g, want %g", vfexpSC[i], f, expSC[i])
+			t.Errorf("%s(%g) = %g, want %g", name, vfexpSC[i], f, expSC[i])
 		}
 	}
 }
@@ -1689,14 +1694,26 @@ func TestExpm1(t *testing.T) {
 }
 
 func TestExp2(t *testing.T) {
+	testExp2(t, Exp2, "Exp2")
+	testExp2(t, Exp2Go, "Exp2Go")
+}
+
+func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
 	for i := 0; i < len(vf); i++ {
 		if f := Exp2(vf[i]); !close(exp2[i], f) {
-			t.Errorf("Exp2(%g) = %g, want %g", vf[i], f, exp2[i])
+			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp2[i])
 		}
 	}
 	for i := 0; i < len(vfexpSC); i++ {
 		if f := Exp2(vfexpSC[i]); !alike(expSC[i], f) {
-			t.Errorf("Exp2(%g) = %g, want %g", vfexpSC[i], f, expSC[i])
+			t.Errorf("%s(%g) = %g, want %g", name, vfexpSC[i], f, expSC[i])
+		}
+	}
+	for n := -1074; n < 1024; n++ {
+		f := Exp2(float64(n))
+		vf := Ldexp(1, n)
+		if f != vf {
+			t.Errorf("%s(%d) = %g, want %g", name, n, f, vf)
 		}
 	}
 }
@@ -2352,6 +2369,12 @@ func BenchmarkExp(b *testing.B) {
 	}
 }
 
+func BenchmarkExpGo(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ExpGo(.5)
+	}
+}
+
 func BenchmarkExpm1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Expm1(.5)
@@ -2361,6 +2384,12 @@ func BenchmarkExpm1(b *testing.B) {
 func BenchmarkExp2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Exp2(.5)
+	}
+}
+
+func BenchmarkExp2Go(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Exp2Go(.5)
 	}
 }
 
