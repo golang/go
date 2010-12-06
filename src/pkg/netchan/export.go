@@ -271,6 +271,7 @@ func NewExporter(network, localaddr string) (*Exporter, os.Error) {
 // addClient creates a new expClient and records its existence
 func (exp *Exporter) addClient(conn net.Conn) *expClient {
 	client := newClient(exp, conn)
+	exp.mu.Lock()
 	exp.clients[client] = true
 	exp.mu.Unlock()
 	return client
