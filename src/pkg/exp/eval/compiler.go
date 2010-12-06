@@ -11,24 +11,20 @@ import (
 )
 
 
-type positioned interface {
-	Pos() token.Position
-}
-
-
 // A compiler captures information used throughout an entire
 // compilation.  Currently it includes only the error handler.
 //
 // TODO(austin) This might actually represent package level, in which
 // case it should be package compiler.
 type compiler struct {
+	fset         *token.FileSet
 	errors       scanner.ErrorHandler
 	numErrors    int
 	silentErrors int
 }
 
-func (a *compiler) diagAt(pos positioned, format string, args ...interface{}) {
-	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args...))
+func (a *compiler) diagAt(pos token.Pos, format string, args ...interface{}) {
+	a.errors.Error(a.fset.Position(pos), fmt.Sprintf(format, args...))
 	a.numErrors++
 }
 
@@ -64,9 +60,9 @@ type label struct {
 	continuePC *uint
 	// The position where this label was resolved.  If it has not
 	// been resolved yet, an invalid position.
-	resolved token.Position
+	resolved token.Pos
 	// The position where this label was first jumped to.
-	used token.Position
+	used token.Pos
 }
 
 // A funcCompiler captures information used throughout the compilation

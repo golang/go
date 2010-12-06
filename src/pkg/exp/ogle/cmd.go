@@ -18,6 +18,7 @@ import (
 	"strings"
 )
 
+var fset = token.NewFileSet()
 var world *eval.World
 var curProc *Process
 
@@ -43,7 +44,7 @@ func Main() {
 		}
 
 		// Try line as code
-		code, err := world.Compile(string(line))
+		code, err := world.Compile(fset, string(line))
 		if err != nil {
 			scanner.PrintError(os.Stderr, err)
 			continue
@@ -63,8 +64,7 @@ func Main() {
 func newScanner(input []byte) (*scanner.Scanner, *scanner.ErrorVector) {
 	sc := new(scanner.Scanner)
 	ev := new(scanner.ErrorVector)
-	sc.Init("input", input, ev, 0)
-
+	sc.Init(fset, "input", input, ev, 0)
 	return sc, ev
 }
 
@@ -101,7 +101,7 @@ func getCmd(line []byte) (*cmd, []byte) {
 	slit := string(lit)
 	for i := range cmds {
 		if cmds[i].cmd == slit {
-			return &cmds[i], line[pos.Offset+len(lit):]
+			return &cmds[i], line[fset.Position(pos).Offset+len(lit):]
 		}
 	}
 	return nil, nil

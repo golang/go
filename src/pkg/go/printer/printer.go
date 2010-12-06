@@ -62,6 +62,7 @@ type printer struct {
 	// Configuration (does not change after initialization)
 	output io.Writer
 	Config
+	fset   *token.FileSet
 	errors chan os.Error
 
 	// Current state
@@ -94,9 +95,10 @@ type printer struct {
 }
 
 
-func (p *printer) init(output io.Writer, cfg *Config) {
+func (p *printer) init(output io.Writer, cfg *Config, fset *token.FileSet) {
 	p.output = output
 	p.Config = *cfg
+	p.fset = fset
 	p.errors = make(chan os.Error)
 	p.buffer = make([]whiteSpace, 0, 16) // whitespace sequences are short
 }
@@ -596,7 +598,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// shortcut common case of //-style comments
 	if text[1] == '/' {
-		p.writeCommentLine(comment, comment.Pos(), text)
+		p.writeCommentLine(comment, p.fset.Position(comment.Pos()), text)
 		return
 	}
 
@@ -608,7 +610,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 	// write comment lines, separated by formfeed,
 	// without a line break after the last line
 	linebreak := formfeeds[0:1]
-	pos := comment.Pos()
+	pos := p.fset.Position(comment.Pos())
 	for i, line := range lines {
 		if i > 0 {
 			p.write(linebreak)
@@ -669,14 +671,14 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
 	var last *ast.Comment
 	for ; p.commentBefore(next); p.cindex++ {
 		for _, c := range p.comments[p.cindex].List {
-			p.writeCommentPrefix(c.Pos(), next, last == nil, tok.IsKeyword())
+			p.writeCommentPrefix(p.fset.Position(c.Pos()), next, last == nil, tok.IsKeyword())
 			p.writeComment(c)
 			last = c
 		}
 	}
 
 	if last != nil {
-		if last.Text[1] == '*' && last.Pos().Line == next.Line {
+		if last.Text[1] == '*' && p.fset.Position(last.Pos()).Line == next.Line {
 			// the last comment is a /*-style comment and the next item
 			// follows on the same line: separate with an extra blank
 			p.write([]byte{' '})
@@ -842,9 +844,9 @@ func (p *printer) print(args ...interface{}) {
 				data = []byte(s)
 			}
 			tok = x
-		case token.Position:
+		case token.Pos:
 			if x.IsValid() {
-				next = x // accurate position of next item
+				next = p.fset.Position(x) // accurate position of next item
 			}
 			tok = p.lastTok
 		default:
@@ -873,7 +875,7 @@ func (p *printer) print(args ...interface{}) {
 // before the next position in the source code.
 //
 func (p *printer) commentBefore(next token.Position) bool {
-	return p.cindex < len(p.comments) && p.comments[p.cindex].List[0].Pos().Offset < next.Offset
+	return p.cindex < len(p.comments) && p.fset.Position(p.comments[p.cindex].List[0].Pos()).Offset < next.Offset
 }
 
 
@@ -1026,10 +1028,11 @@ type Config struct {
 
 // Fprint "pretty-prints" an AST node to output and returns the number
 // of bytes written and an error (if any) for a given configuration cfg.
+// Position information is interpreted relative to the file set fset.
 // The node type must be *ast.File, or assignment-compatible to ast.Expr,
 // ast.Decl, ast.Spec, or ast.Stmt.
 //
-func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
+func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) (int, os.Error) {
 	// redirect output through a trimmer to eliminate trailing whitespace
 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
 	// formatting information. The tabwriter could provide trimming
@@ -1061,7 +1064,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 
 	// setup printer and print node
 	var p printer
-	p.init(output, cfg)
+	p.init(output, cfg, fset)
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:
@@ -1111,7 +1114,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 // Fprint "pretty-prints" an AST node to output.
 // It calls Config.Fprint with default settings.
 //
-func Fprint(output io.Writer, node interface{}) os.Error {
-	_, err := (&Config{Tabwidth: 8}).Fprint(output, node) // don't care about number of bytes written
+func Fprint(output io.Writer, fset *token.FileSet, node interface{}) os.Error {
+	_, err := (&Config{Tabwidth: 8}).Fprint(output, fset, node) // don't care about number of bytes written
 	return err
 }

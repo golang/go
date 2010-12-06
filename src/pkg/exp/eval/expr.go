@@ -57,7 +57,7 @@ type expr struct {
 // compiled from it.
 type exprInfo struct {
 	*compiler
-	pos token.Position
+	pos token.Pos
 }
 
 func (a *exprInfo) newExpr(t Type, desc string) *expr {
@@ -65,7 +65,7 @@ func (a *exprInfo) newExpr(t Type, desc string) *expr {
 }
 
 func (a *exprInfo) diag(format string, args ...interface{}) {
-	a.diagAt(&a.pos, format, args...)
+	a.diagAt(a.pos, format, args...)
 }
 
 func (a *exprInfo) diagOpType(op token.Token, vt Type) {
@@ -229,7 +229,7 @@ func (a *expr) derefArray() *expr {
 //    multi-valued type.
 type assignCompiler struct {
 	*compiler
-	pos token.Position
+	pos token.Pos
 	// The RHS expressions.  This may include nil's for
 	// expressions that failed to compile.
 	rs []*expr
@@ -254,7 +254,7 @@ type assignCompiler struct {
 // assignCompiler with rmt set, but if type checking fails, slots in
 // the MultiType may be nil.  If rs contains nil's, type checking will
 // fail and these expressions given a nil type.
-func (a *compiler) checkAssign(pos token.Position, rs []*expr, errOp, errPosName string) (*assignCompiler, bool) {
+func (a *compiler) checkAssign(pos token.Pos, rs []*expr, errOp, errPosName string) (*assignCompiler, bool) {
 	c := &assignCompiler{
 		compiler:   a,
 		pos:        pos,
@@ -331,7 +331,7 @@ func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
 				pos = a.rs[lcount-1].pos
 			}
 		}
-		a.diagAt(&pos, "%s %ss for %s\n\t%s\n\t%s", msg, a.errPosName, a.errOp, lt, rmt)
+		a.diagAt(pos, "%s %ss for %s\n\t%s\n\t%s", msg, a.errPosName, a.errOp, lt, rmt)
 		return nil
 	}
 
@@ -453,7 +453,7 @@ func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
 // compileAssign compiles an assignment operation without the full
 // generality of an assignCompiler.  See assignCompiler for a
 // description of the arguments.
-func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*expr, errOp, errPosName string) func(Value, *Thread) {
+func (a *compiler) compileAssign(pos token.Pos, b *block, lt Type, rs []*expr, errOp, errPosName string) func(Value, *Thread) {
 	ac, ok := a.checkAssign(pos, rs, errOp, errPosName)
 	if !ok {
 		return nil
@@ -514,7 +514,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 			return nil
 		}
 		if a.constant {
-			a.diagAt(x, "function literal used in constant expression")
+			a.diagAt(x.Pos(), "function literal used in constant expression")
 			return nil
 		}
 		return ei.compileFuncLit(decl, fn)
@@ -571,12 +571,12 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 			return nil
 		}
 		if a.constant {
-			a.diagAt(x, "function call in constant context")
+			a.diagAt(x.Pos(), "function call in constant context")
 			return nil
 		}
 
 		if l.valType != nil {
-			a.diagAt(x, "type conversions not implemented")
+			a.diagAt(x.Pos(), "type conversions not implemented")
 			return nil
 		} else if ft, ok := l.t.(*FuncType); ok && ft.builtin != "" {
 			return ei.compileBuiltinCallExpr(a.block, ft, args)
@@ -654,13 +654,13 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 
 typeexpr:
 	if !callCtx {
-		a.diagAt(x, "type used as expression")
+		a.diagAt(x.Pos(), "type used as expression")
 		return nil
 	}
 	return ei.exprFromType(a.compileType(a.block, x))
 
 notimpl:
-	a.diagAt(x, "%T expression node not implemented", x)
+	a.diagAt(x.Pos(), "%T expression node not implemented", x)
 	return nil
 }
 
@@ -1920,7 +1920,7 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
 	}
 
 	if !lenExpr.t.isInteger() {
-		a.diagAt(expr, "array size must be an integer")
+		a.diagAt(expr.Pos(), "array size must be an integer")
 		return 0, false
 	}
 

@@ -38,7 +38,7 @@ type (
 	// An Expression node represents a production expression.
 	Expression interface {
 		// Pos is the position of the first character of the syntactic construct
-		Pos() token.Position
+		Pos() token.Pos
 	}
 
 	// An Alternative node represents a non-empty list of alternative expressions.
@@ -49,14 +49,14 @@ type (
 
 	// A Name node represents a production name.
 	Name struct {
-		token.Position
-		String string
+		StringPos token.Pos
+		String    string
 	}
 
 	// A Token node represents a literal.
 	Token struct {
-		token.Position
-		String string
+		StringPos token.Pos
+		String    string
 	}
 
 	// A List node represents a range of characters.
@@ -66,20 +66,20 @@ type (
 
 	// A Group node represents a grouped expression.
 	Group struct {
-		token.Position
-		Body Expression // (body)
+		Lparen token.Pos
+		Body   Expression // (body)
 	}
 
 	// An Option node represents an optional expression.
 	Option struct {
-		token.Position
-		Body Expression // [body]
+		Lbrack token.Pos
+		Body   Expression // [body]
 	}
 
 	// A Repetition node represents a repeated expression.
 	Repetition struct {
-		token.Position
-		Body Expression // {body}
+		Lbrace token.Pos
+		Body   Expression // {body}
 	}
 
 	// A Production node represents an EBNF production.
@@ -95,20 +95,15 @@ type (
 )
 
 
-func (x Alternative) Pos() token.Position {
-	return x[0].Pos() // the parser always generates non-empty Alternative
-}
-
-
-func (x Sequence) Pos() token.Position {
-	return x[0].Pos() // the parser always generates non-empty Sequences
-}
-
-
-func (x Range) Pos() token.Position { return x.Begin.Pos() }
-
-
-func (p *Production) Pos() token.Position { return p.Name.Pos() }
+func (x Alternative) Pos() token.Pos { return x[0].Pos() } // the parser always generates non-empty Alternative
+func (x Sequence) Pos() token.Pos    { return x[0].Pos() } // the parser always generates non-empty Sequences
+func (x *Name) Pos() token.Pos       { return x.StringPos }
+func (x *Token) Pos() token.Pos      { return x.StringPos }
+func (x *Range) Pos() token.Pos      { return x.Begin.Pos() }
+func (x *Group) Pos() token.Pos      { return x.Lparen }
+func (x *Option) Pos() token.Pos     { return x.Lbrack }
+func (x *Repetition) Pos() token.Pos { return x.Lbrace }
+func (x *Production) Pos() token.Pos { return x.Name.Pos() }
 
 
 // ----------------------------------------------------------------------------
@@ -121,10 +116,16 @@ func isLexical(name string) bool {
 
 
 type verifier struct {
+	fset *token.FileSet
 	scanner.ErrorVector
 	worklist []*Production
 	reached  Grammar // set of productions reached from (and including) the root production
 	grammar  Grammar
+}
+
+
+func (v *verifier) error(pos token.Pos, msg string) {
+	v.Error(v.fset.Position(pos), msg)
 }
 
 
@@ -140,7 +141,7 @@ func (v *verifier) push(prod *Production) {
 func (v *verifier) verifyChar(x *Token) int {
 	s := x.String
 	if utf8.RuneCountInString(s) != 1 {
-		v.Error(x.Pos(), "single char expected, found "+s)
+		v.error(x.Pos(), "single char expected, found "+s)
 		return 0
 	}
 	ch, _ := utf8.DecodeRuneInString(s)
@@ -166,12 +167,12 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 		if prod, found := v.grammar[x.String]; found {
 			v.push(prod)
 		} else {
-			v.Error(x.Pos(), "missing production "+x.String)
+			v.error(x.Pos(), "missing production "+x.String)
 		}
 		// within a lexical production references
 		// to non-lexical productions are invalid
 		if lexical && !isLexical(x.String) {
-			v.Error(x.Pos(), "reference to non-lexical production "+x.String)
+			v.error(x.Pos(), "reference to non-lexical production "+x.String)
 		}
 	case *Token:
 		// nothing to do for now
@@ -179,7 +180,7 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 		i := v.verifyChar(x.Begin)
 		j := v.verifyChar(x.End)
 		if i >= j {
-			v.Error(x.Pos(), "decreasing character range")
+			v.error(x.Pos(), "decreasing character range")
 		}
 	case *Group:
 		v.verifyExpr(x.Body, lexical)
@@ -193,16 +194,18 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 }
 
 
-func (v *verifier) verify(grammar Grammar, start string) {
+func (v *verifier) verify(fset *token.FileSet, grammar Grammar, start string) {
 	// find root production
 	root, found := grammar[start]
 	if !found {
-		var noPos token.Position
-		v.Error(noPos, "no start production "+start)
+		// token.NoPos doesn't require a file set;
+		// ok to set v.fset only afterwards
+		v.error(token.NoPos, "no start production "+start)
 		return
 	}
 
 	// initialize verifier
+	v.fset = fset
 	v.ErrorVector.Reset()
 	v.worklist = v.worklist[0:0]
 	v.reached = make(Grammar)
@@ -224,7 +227,7 @@ func (v *verifier) verify(grammar Grammar, start string) {
 	if len(v.reached) < len(v.grammar) {
 		for name, prod := range v.grammar {
 			if _, found := v.reached[name]; !found {
-				v.Error(prod.Pos(), name+" is unreachable")
+				v.error(prod.Pos(), name+" is unreachable")
 			}
 		}
 	}
@@ -236,8 +239,10 @@ func (v *verifier) verify(grammar Grammar, start string) {
 //	- all productions defined are used when beginning at start
 //	- lexical productions refer only to other lexical productions
 //
-func Verify(grammar Grammar, start string) os.Error {
+// Position information is interpreted relative to the file set fset.
+//
+func Verify(fset *token.FileSet, grammar Grammar, start string) os.Error {
 	var v verifier
-	v.verify(grammar, start)
+	v.verify(fset, grammar, start)
 	return v.GetError(scanner.Sorted)
 }

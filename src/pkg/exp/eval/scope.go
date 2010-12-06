@@ -15,11 +15,11 @@ import (
 
 // A definition can be a *Variable, *Constant, or Type.
 type Def interface {
-	Pos() token.Position
+	Pos() token.Pos
 }
 
 type Variable struct {
-	token.Position
+	VarPos token.Pos
 	// Index of this variable in the Frame structure
 	Index int
 	// Static type of this variable
@@ -30,10 +30,18 @@ type Variable struct {
 	Init Value
 }
 
+func (v *Variable) Pos() token.Pos {
+	return v.VarPos
+}
+
 type Constant struct {
-	token.Position
-	Type  Type
-	Value Value
+	ConstPos token.Pos
+	Type     Type
+	Value    Value
+}
+
+func (c *Constant) Pos() token.Pos {
+	return c.ConstPos
 }
 
 // A block represents a definition block in which a name may not be
@@ -111,12 +119,12 @@ func (b *block) ChildScope() *Scope {
 	return sub.scope
 }
 
-func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def) {
+func (b *block) DefineVar(name string, pos token.Pos, t Type) (*Variable, Def) {
 	if prev, ok := b.defs[name]; ok {
 		return nil, prev
 	}
 	v := b.defineSlot(t, false)
-	v.Position = pos
+	v.VarPos = pos
 	b.defs[name] = v
 	return v, nil
 }
@@ -135,11 +143,11 @@ func (b *block) defineSlot(t Type, temp bool) *Variable {
 			b.scope.maxVars = index + 1
 		}
 	}
-	v := &Variable{token.Position{}, index, t, nil}
+	v := &Variable{token.NoPos, index, t, nil}
 	return v
 }
 
-func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) (*Constant, Def) {
+func (b *block) DefineConst(name string, pos token.Pos, t Type, v Value) (*Constant, Def) {
 	if prev, ok := b.defs[name]; ok {
 		return nil, prev
 	}
@@ -148,7 +156,7 @@ func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) (*
 	return c, nil
 }
 
-func (b *block) DefineType(name string, pos token.Position, t Type) Type {
+func (b *block) DefineType(name string, pos token.Pos, t Type) Type {
 	if _, ok := b.defs[name]; ok {
 		return nil
 	}

@@ -367,7 +367,7 @@ func main() {
 				if i > 0 {
 					fmt.Println()
 				}
-				writeAny(os.Stdout, *html, d)
+				writeAny(os.Stdout, info.FSet, *html, d)
 				fmt.Println()
 			}
 			return

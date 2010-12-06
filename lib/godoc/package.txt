@@ -19,7 +19,7 @@ COMMAND DOCUMENTATION
 CONSTANTS
 
 {.repeated section @}
-{Decl}
+{Decl FSet}
 {Doc}
 {.end}
 {.end}
@@ -28,7 +28,7 @@ CONSTANTS
 VARIABLES
 
 {.repeated section @}
-{Decl}
+{Decl FSet}
 {Doc}
 {.end}
 {.end}
@@ -37,7 +37,7 @@ VARIABLES
 FUNCTIONS
 
 {.repeated section @}
-{Decl}
+{Decl FSet}
 {Doc}
 {.end}
 {.end}
@@ -46,22 +46,22 @@ FUNCTIONS
 TYPES
 
 {.repeated section @}
-{Decl}
+{Decl FSet}
 {Doc}
 {.repeated section Consts}
-{Decl}
+{Decl FSet}
 {Doc}
 {.end}
 {.repeated section Vars}
-{Decl}
+{Decl FSet}
 {Doc}
 {.end}
 {.repeated section Factories}
-{Decl}
+{Decl FSet}
 {Doc}
 {.end}
 {.repeated section Methods}
-{Decl}
+{Decl FSet}
 {Doc}
 {.end}
 {.end}

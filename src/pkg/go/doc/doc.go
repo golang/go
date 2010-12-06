@@ -66,7 +66,7 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
 	n2 := len(comments.List)
 	list := make([]*ast.Comment, n1+1+n2) // + 1 for separator line
 	copy(list, doc.doc.List)
-	list[n1] = &ast.Comment{token.Position{}, []byte("//")} // separator line
+	list[n1] = &ast.Comment{token.NoPos, []byte("//")} // separator line
 	copy(list[n1+1:], comments.List)
 	doc.doc = &ast.CommentGroup{list}
 }
@@ -249,7 +249,6 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 				doc.addValue(d)
 			case token.TYPE:
 				// types are handled individually
-				var noPos token.Position
 				for _, spec := range d.Specs {
 					// make a (fake) GenDecl node for this TypeSpec
 					// (we need to do this here - as opposed to just
@@ -262,7 +261,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					// makeTypeDocs below). Simpler data structures, but
 					// would lose GenDecl documentation if the TypeSpec
 					// has documentation as well.
-					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos})
+					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, token.NoPos, []ast.Spec{spec}, token.NoPos})
 					// A new GenDecl node is created, no need to nil out d.Doc.
 				}
 			}

@@ -11,6 +11,7 @@ import (
 	"exec"
 	"flag"
 	"fmt"
+	"go/token"
 	"io"
 	"io/ioutil"
 	"os"
@@ -27,6 +28,7 @@ func usage() {
 }
 
 var (
+	fset          = token.NewFileSet()
 	argv0         = os.Args[0]
 	errors        = false
 	parents       = make(map[string]string)

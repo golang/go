@@ -51,7 +51,7 @@ type Ref struct {
 	Context string // "type", "expr", "call", or "call2"
 }
 
-func (r *Ref) Pos() token.Position {
+func (r *Ref) Pos() token.Pos {
 	return (*r.Expr).Pos()
 }
 
@@ -102,6 +102,8 @@ var ptrSizeMap = map[string]int64{
 	"amd64": 8,
 	"arm":   4,
 }
+
+var fset = token.NewFileSet()
 
 func main() {
 	flag.Usage = usage
@@ -180,7 +182,7 @@ func (p *Package) Record(f *File) {
 	if p.PackageName == "" {
 		p.PackageName = f.Package
 	} else if p.PackageName != f.Package {
-		error(noPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
+		error(token.NoPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
 	}
 
 	if p.Typedef == nil {
@@ -190,7 +192,7 @@ func (p *Package) Record(f *File) {
 			if p.Typedef[k] == nil {
 				p.Typedef[k] = v
 			} else if !reflect.DeepEqual(p.Typedef[k], v) {
-				error(noPos, "inconsistent definitions for C type %s", k)
+				error(token.NoPos, "inconsistent definitions for C type %s", k)
 			}
 		}
 	}
@@ -202,7 +204,7 @@ func (p *Package) Record(f *File) {
 			if p.Name[k] == nil {
 				p.Name[k] = v
 			} else if !reflect.DeepEqual(p.Name[k], v) {
-				error(noPos, "inconsistent definitions for C.%s", k)
+				error(token.NoPos, "inconsistent definitions for C.%s", k)
 			}
 		}
 	}

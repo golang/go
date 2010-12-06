@@ -146,7 +146,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 			if _, err := strconv.Atoi(n.Define); err == nil {
 				ok = true
 			} else if n.Define[0] == '"' || n.Define[0] == '\'' {
-				_, err := parser.ParseExpr("", n.Define)
+				_, err := parser.ParseExpr(fset, "", n.Define)
 				if err == nil {
 					ok = true
 				}
@@ -229,7 +229,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		case strings.Contains(line, ": statement with no effect"):
 			what = "not-type" // const or func or var
 		case strings.Contains(line, "undeclared"):
-			error(noPos, "%s", strings.TrimSpace(line[colon+1:]))
+			error(token.NoPos, "%s", strings.TrimSpace(line[colon+1:]))
 		case strings.Contains(line, "is not an integer constant"):
 			isConst[i] = false
 			continue
@@ -257,7 +257,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		if n.Kind != "" {
 			continue
 		}
-		error(noPos, "could not determine kind of name for C.%s", n.Go)
+		error(token.NoPos, "could not determine kind of name for C.%s", n.Go)
 	}
 	if nerrors > 0 {
 		fatal("unresolved names")

@@ -22,13 +22,13 @@ const (
 
 type stmtCompiler struct {
 	*blockCompiler
-	pos token.Position
+	pos token.Pos
 	// This statement's label, or nil if it is not labeled.
 	stmtLabel *label
 }
 
 func (a *stmtCompiler) diag(format string, args ...interface{}) {
-	a.diagAt(&a.pos, format, args...)
+	a.diagAt(a.pos, format, args...)
 }
 
 /*
@@ -65,7 +65,7 @@ type flowBuf struct {
 	ents map[uint]*flowEnt
 	// gotos is a map from goto positions to information on the
 	// block at the point of the goto.
-	gotos map[*token.Position]*flowBlock
+	gotos map[token.Pos]*flowBlock
 	// labels is a map from label name to information on the block
 	// at the point of the label.  labels are tracked by name,
 	// since mutliple labels at the same PC can have different
@@ -74,7 +74,7 @@ type flowBuf struct {
 }
 
 func newFlowBuf(cb *codeBuf) *flowBuf {
-	return &flowBuf{cb, make(map[uint]*flowEnt), make(map[*token.Position]*flowBlock), make(map[string]*flowBlock)}
+	return &flowBuf{cb, make(map[uint]*flowEnt), make(map[token.Pos]*flowBlock), make(map[string]*flowBlock)}
 }
 
 // put creates a flow control point for the next PC in the code buffer.
@@ -123,8 +123,8 @@ func newFlowBlock(target string, b *block) *flowBlock {
 
 // putGoto captures the block at a goto statement.  This should be
 // called in addition to putting a flow control point.
-func (f *flowBuf) putGoto(pos token.Position, target string, b *block) {
-	f.gotos[&pos] = newFlowBlock(target, b)
+func (f *flowBuf) putGoto(pos token.Pos, target string, b *block) {
+	f.gotos[pos] = newFlowBlock(target, b)
 }
 
 // putLabel captures the block at a label.
@@ -212,13 +212,10 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) {
 func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 	v, prev := a.block.DefineVar(ident.Name, ident.Pos(), t)
 	if prev != nil {
-		// TODO(austin) It's silly that we have to capture
-		// Pos() in a variable.
-		pos := prev.Pos()
-		if pos.IsValid() {
-			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Name, &pos)
+		if prev.Pos().IsValid() {
+			a.diagAt(ident.Pos(), "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Name, a.fset.Position(prev.Pos()))
 		} else {
-			a.diagAt(ident, "variable %s redeclared in this block", ident.Name)
+			a.diagAt(ident.Pos(), "variable %s redeclared in this block", ident.Name)
 		}
 		return nil
 	}
@@ -385,9 +382,9 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 		if prev != nil {
 			pos := prev.Pos()
 			if pos.IsValid() {
-				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Name, &pos)
+				a.diagAt(d.Name.Pos(), "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Name, a.fset.Position(pos))
 			} else {
-				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Name)
+				a.diagAt(d.Name.Pos(), "identifier %s redeclared in this block", d.Name.Name)
 			}
 		}
 		fn := a.compileFunc(a.block, decl, d.Body)
@@ -419,7 +416,7 @@ func (a *stmtCompiler) compileLabeledStmt(s *ast.LabeledStmt) {
 	l, ok := a.labels[s.Label.Name]
 	if ok {
 		if l.resolved.IsValid() {
-			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Name, &l.resolved)
+			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Name, a.fset.Position(l.resolved))
 		}
 	} else {
 		pc := badPC
@@ -555,7 +552,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			// Check that it's an identifier
 			ident, ok = le.(*ast.Ident)
 			if !ok {
-				a.diagAt(le, "left side of := must be a name")
+				a.diagAt(le.Pos(), "left side of := must be a name")
 				// Suppress new defitions errors
 				nDefs++
 				continue
@@ -1012,12 +1009,12 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	for _, c := range s.Body.List {
 		clause, ok := c.(*ast.CaseClause)
 		if !ok {
-			a.diagAt(clause, "switch statement must contain case clauses")
+			a.diagAt(clause.Pos(), "switch statement must contain case clauses")
 			continue
 		}
 		if clause.Values == nil {
 			if hasDefault {
-				a.diagAt(clause, "switch statement contains more than one default case")
+				a.diagAt(clause.Pos(), "switch statement contains more than one default case")
 			}
 			hasDefault = true
 		} else {
@@ -1039,7 +1036,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 			case e == nil:
 				// Error reported by compileExpr
 			case cond == nil && !e.t.isBoolean():
-				a.diagAt(v, "'case' condition must be boolean")
+				a.diagAt(v.Pos(), "'case' condition must be boolean")
 			case cond == nil:
 				cases[i] = e.asBool()
 			case cond != nil:
@@ -1104,7 +1101,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 					// empty blocks to be empty
 					// statements.
 					if _, ok := s2.(*ast.EmptyStmt); !ok {
-						a.diagAt(s, "fallthrough statement must be final statement in case")
+						a.diagAt(s.Pos(), "fallthrough statement must be final statement in case")
 						break
 					}
 				}
@@ -1275,7 +1272,7 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) fu
 	// this if there were no errors compiling the body.
 	if len(decl.Type.Out) > 0 && fc.flow.reachesEnd(0) {
 		// XXX(Spec) Not specified.
-		a.diagAt(&body.Rbrace, "function ends without a return statement")
+		a.diagAt(body.Rbrace, "function ends without a return statement")
 		return nil
 	}
 
@@ -1290,7 +1287,7 @@ func (a *funcCompiler) checkLabels() {
 	nerr := a.numError()
 	for _, l := range a.labels {
 		if !l.resolved.IsValid() {
-			a.diagAt(&l.used, "label %s not defined", l.name)
+			a.diagAt(l.used, "label %s not defined", l.name)
 		}
 	}
 	if nerr != a.numError() {

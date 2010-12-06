@@ -116,6 +116,10 @@ func (s *FileSet) file(p Pos) *File {
 // Position converts a Pos in the fileset into a general Position.
 func (s *FileSet) Position(p Pos) (pos Position) {
 	if p != NoPos {
+		// TODO(gri) consider optimizing the case where p
+		//           is in the last file addded, or perhaps
+		//           looked at - will eliminate one level
+		//           of search
 		s.mutex.RLock()
 		if f := s.file(p); f != nil {
 			offset := int(p) - f.base
@@ -242,7 +246,7 @@ func (f *File) Pos(offset int) Pos {
 
 
 // Offset returns the offset for the given file position p;
-// p must be a Pos value in that file.
+// p must be a valid Pos value in that file.
 // f.Offset(f.Pos(offset)) == offset.
 //
 func (f *File) Offset(p Pos) int {
@@ -253,14 +257,27 @@ func (f *File) Offset(p Pos) int {
 }
 
 
-// Position returns the Position value for the given file offset;
-// the offset must be <= f.Size().
+// Line returns the line number for the given file position p;
+// p must be a Pos value in that file or NoPos.
 //
-func (f *File) Position(offset int) Position {
-	if offset > f.size {
-		panic("illegal file offset")
+func (f *File) Line(p Pos) int {
+	// TODO(gri) this can be implemented much more efficiently
+	return f.Position(p).Line
+}
+
+
+// Position returns the Position value for the given file position p;
+// p must be a Pos value in that file or NoPos.
+//
+func (f *File) Position(p Pos) (pos Position) {
+	if p != NoPos {
+		if int(p) < f.base || int(p) > f.base+f.size {
+			panic("illegal Pos value")
+		}
+		// TODO(gri) compute Position directly instead of going via the fset!
+		pos = f.set.Position(p)
 	}
-	return f.set.Position(Pos(offset + f.base))
+	return
 }
 
 

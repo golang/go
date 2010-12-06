@@ -71,7 +71,7 @@ func verifyPositions(t *testing.T, fset *FileSet, f *File, lines []int) {
 		}
 		line, col := linecol(lines, offs)
 		msg := fmt.Sprintf("%s (offs = %d, p = %d)", f.Name(), offs, p)
-		checkPos(t, msg, f.Position(offs), Position{f.Name(), offs, line, col})
+		checkPos(t, msg, f.Position(f.Pos(offs)), Position{f.Name(), offs, line, col})
 		checkPos(t, msg, fset.Position(p), Position{f.Name(), offs, line, col})
 	}
 }
@@ -131,7 +131,7 @@ func TestLineInfo(t *testing.T) {
 		p := f.Pos(offs)
 		_, col := linecol(lines, offs)
 		msg := fmt.Sprintf("%s (offs = %d, p = %d)", f.Name(), offs, p)
-		checkPos(t, msg, f.Position(offs), Position{"bar", offs, 42, col})
+		checkPos(t, msg, f.Position(f.Pos(offs)), Position{"bar", offs, 42, col})
 		checkPos(t, msg, fset.Position(p), Position{"bar", offs, 42, col})
 	}
 }

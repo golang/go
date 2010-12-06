@@ -429,6 +429,7 @@ type IndexResult struct {
 // interface for walking file trees, and the ast.Visitor interface for
 // walking Go ASTs.
 type Indexer struct {
+	fset     *token.FileSet          // file set for all indexed files
 	words    map[string]*IndexResult // RunLists of Spots
 	snippets vector.Vector           // vector of *Snippets, indexed by snippet indices
 	file     *File                   // current file
@@ -461,11 +462,11 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 
 		if kind == Use || x.decl == nil {
 			// not a declaration or no snippet required
-			info := makeSpotInfo(kind, id.Pos().Line, false)
+			info := makeSpotInfo(kind, x.fset.Position(id.Pos()).Line, false)
 			lists.Others.Push(Spot{x.file, info})
 		} else {
 			// a declaration with snippet
-			index := x.addSnippet(NewSnippet(x.decl, id))
+			index := x.addSnippet(NewSnippet(x.fset, x.decl, id))
 			info := makeSpotInfo(kind, index, true)
 			lists.Decls.Push(Spot{x.file, info})
 		}
@@ -579,8 +580,8 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
 }
 
 
-func pkgName(filename string) string {
-	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
+func pkgName(fset *token.FileSet, filename string) string {
+	file, err := parser.ParseFile(fset, filename, nil, parser.PackageClauseOnly)
 	if err != nil || file == nil {
 		return ""
 	}
@@ -598,11 +599,11 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
 		return
 	}
 
-	if excludeMainPackages && pkgName(path) == "main" {
+	if excludeMainPackages && pkgName(x.fset, path) == "main" {
 		return
 	}
 
-	file, err := parser.ParseFile(path, nil, parser.ParseComments)
+	file, err := parser.ParseFile(x.fset, path, nil, parser.ParseComments)
 	if err != nil {
 		return // ignore files with (parse) errors
 	}
@@ -641,6 +642,7 @@ func NewIndex(dirnames <-chan string) *Index {
 	var x Indexer
 
 	// initialize Indexer
+	x.fset = token.NewFileSet()
 	x.words = make(map[string]*IndexResult)
 
 	// index all files in the directories given by dirnames
@@ -655,6 +657,9 @@ func NewIndex(dirnames <-chan string) *Index {
 			}
 		}
 	}
+
+	// the file set is not needed after indexing - help GC and clear it
+	x.fset = nil
 
 	// for each word, reduce the RunLists into a LookupResult;
 	// also collect the word with its canonical spelling in a
@@ -714,7 +719,7 @@ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
 
 func isIdentifier(s string) bool {
 	var S scanner.Scanner
-	S.Init("", []byte(s), nil, 0)
+	S.Init(token.NewFileSet(), "", []byte(s), nil, 0)
 	if _, tok, _ := S.Scan(); tok == token.IDENT {
 		_, tok, _ := S.Scan()
 		return tok == token.EOF

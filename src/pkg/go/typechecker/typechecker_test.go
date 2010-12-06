@@ -44,6 +44,8 @@ import (
 
 const testDir = "./testdata" // location of test packages
 
+var fset = token.NewFileSet()
+
 var (
 	pkgPat = flag.String("pkg", ".*", "regular expression to select test packages by package name")
 	trace  = flag.Bool("trace", false, "print package names")
@@ -66,8 +68,8 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
 		}
 
 		var s scanner.Scanner
-		s.Init(filename, src, nil, scanner.ScanComments)
-		var prev token.Position // position of last non-comment token
+		s.Init(fset, filename, src, nil, scanner.ScanComments)
+		var prev token.Pos // position of last non-comment token
 	loop:
 		for {
 			pos, tok, lit := s.Scan()
@@ -77,7 +79,7 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
 			case token.COMMENT:
 				s := errRx.FindSubmatch(lit)
 				if len(s) == 2 {
-					list = append(list, &scanner.Error{prev, string(s[1])})
+					list = append(list, &scanner.Error{fset.Position(prev), string(s[1])})
 				}
 			default:
 				prev = pos
@@ -125,7 +127,7 @@ func TestTypeCheck(t *testing.T) {
 		t.Fatalf("illegal flag value %q: %s", *pkgPat, err)
 	}
 
-	pkgs, err := parser.ParseDir(testDir, testFilter, 0)
+	pkgs, err := parser.ParseDir(fset, testDir, testFilter, 0)
 	if err != nil {
 		scanner.PrintError(os.Stderr, err)
 		t.Fatalf("packages in %s contain syntax errors", testDir)
@@ -141,7 +143,7 @@ func TestTypeCheck(t *testing.T) {
 		}
 
 		xlist := expectedErrors(t, pkg)
-		err := CheckPackage(pkg, nil)
+		err := CheckPackage(fset, pkg, nil)
 		if err != nil {
 			if elist, ok := err.(scanner.ErrorList); ok {
 				// verify that errors match

@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"go/doc"
 	"go/parser"
+	"go/token"
 	"io/ioutil"
 	"os"
 	pathutil "path"
@@ -87,7 +88,7 @@ type treeBuilder struct {
 }
 
 
-func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
+func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
 	if b.pathFilter != nil && !b.pathFilter(path) {
 		return nil
 	}
@@ -115,7 +116,7 @@ func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
 			// though the directory doesn't contain any real package files - was bug)
 			if synopses[0] == "" {
 				// no "optimal" package synopsis yet; continue to collect synopses
-				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
+				file, err := parser.ParseFile(fset, pathutil.Join(path, d.Name), nil,
 					parser.ParseComments|parser.PackageClauseOnly)
 				if err == nil {
 					hasPkgFiles = true
@@ -148,7 +149,7 @@ func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
 		i := 0
 		for _, d := range list {
 			if isPkgDir(d) {
-				dd := b.newDirTree(pathutil.Join(path, d.Name), d.Name, depth+1)
+				dd := b.newDirTree(fset, pathutil.Join(path, d.Name), d.Name, depth+1)
 				if dd != nil {
 					dirs[i] = dd
 					i++
@@ -195,7 +196,9 @@ func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Dire
 		maxDepth = 1e6 // "infinity"
 	}
 	b := treeBuilder{pathFilter, maxDepth}
-	return b.newDirTree(root, d.Name, 0)
+	// the file set provided is only for local parsing, no position
+	// information escapes and thus we don't need to save the set
+	return b.newDirTree(token.NewFileSet(), root, d.Name, 0)
 }
 
 

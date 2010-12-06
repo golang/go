@@ -72,12 +72,11 @@ func fatal(msg string, args ...interface{}) {
 }
 
 var nerrors int
-var noPos token.Position
 
-func error(pos token.Position, msg string, args ...interface{}) {
+func error(pos token.Pos, msg string, args ...interface{}) {
 	nerrors++
 	if pos.IsValid() {
-		fmt.Fprintf(os.Stderr, "%s: ", pos)
+		fmt.Fprintf(os.Stderr, "%s: ", fset.Position(pos).String())
 	}
 	fmt.Fprintf(os.Stderr, msg, args...)
 	fmt.Fprintf(os.Stderr, "\n")

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// INCOMPLETE PACKAGE.
 // This package implements typechecking of a Go AST.
 // The result of the typecheck is an augmented AST
 // with object and type information for each identifier.
@@ -37,8 +38,9 @@ type Importer func(path string) ([]byte, os.Error)
 // If errors are reported, the AST may be incompletely augmented (fields
 // may be nil) or contain incomplete object, type, or scope information.
 //
-func CheckPackage(pkg *ast.Package, importer Importer) os.Error {
+func CheckPackage(fset *token.FileSet, pkg *ast.Package, importer Importer) os.Error {
 	var tc typechecker
+	tc.fset = fset
 	tc.importer = importer
 	tc.checkPackage(pkg)
 	return tc.GetError(scanner.Sorted)
@@ -49,10 +51,10 @@ func CheckPackage(pkg *ast.Package, importer Importer) os.Error {
 // CheckPackage. If the complete package consists of more than just
 // one file, the file may not typecheck without errors.
 //
-func CheckFile(file *ast.File, importer Importer) os.Error {
+func CheckFile(fset *token.FileSet, file *ast.File, importer Importer) os.Error {
 	// create a single-file dummy package
-	pkg := &ast.Package{file.Name.Name, nil, map[string]*ast.File{file.Name.NamePos.Filename: file}}
-	return CheckPackage(pkg, importer)
+	pkg := &ast.Package{file.Name.Name, nil, map[string]*ast.File{fset.Position(file.Name.NamePos).Filename: file}}
+	return CheckPackage(fset, pkg, importer)
 }
 
 
@@ -60,6 +62,7 @@ func CheckFile(file *ast.File, importer Importer) os.Error {
 // Typechecker state
 
 type typechecker struct {
+	fset *token.FileSet
 	scanner.ErrorVector
 	importer Importer
 	topScope *ast.Scope           // current top-most scope
@@ -68,8 +71,8 @@ type typechecker struct {
 }
 
 
-func (tc *typechecker) Errorf(pos token.Position, format string, args ...interface{}) {
-	tc.Error(pos, fmt.Sprintf(format, args...))
+func (tc *typechecker) Errorf(pos token.Pos, format string, args ...interface{}) {
+	tc.Error(tc.fset.Position(pos), fmt.Sprintf(format, args...))
 }
 
 

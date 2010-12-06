@@ -20,19 +20,21 @@ import (
 
 
 type ebnfParser struct {
-	out     io.Writer // parser output
-	src     []byte    // parser source
+	out     io.Writer   // parser output
+	src     []byte      // parser source
+	file    *token.File // for position information
 	scanner scanner.Scanner
-	prev    int            // offset of previous token
-	pos     token.Position // token position
-	tok     token.Token    // one token look-ahead
-	lit     []byte         // token literal
+	prev    int         // offset of previous token
+	pos     token.Pos   // token position
+	tok     token.Token // one token look-ahead
+	lit     []byte      // token literal
 }
 
 
 func (p *ebnfParser) flush() {
-	p.out.Write(p.src[p.prev:p.pos.Offset])
-	p.prev = p.pos.Offset
+	offs := p.file.Offset(p.pos)
+	p.out.Write(p.src[p.prev:offs])
+	p.prev = offs
 }
 
 
@@ -52,9 +54,9 @@ func (p *ebnfParser) Error(pos token.Position, msg string) {
 }
 
 
-func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
+func (p *ebnfParser) errorExpected(pos token.Pos, msg string) {
 	msg = "expected " + msg
-	if pos.Offset == p.pos.Offset {
+	if pos == p.pos {
 		// the error happened at the current position;
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'"
@@ -62,11 +64,11 @@ func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
 			msg += " " + string(p.lit)
 		}
 	}
-	p.Error(pos, msg)
+	p.Error(p.file.Position(pos), msg)
 }
 
 
-func (p *ebnfParser) expect(tok token.Token) token.Position {
+func (p *ebnfParser) expect(tok token.Token) token.Pos {
 	pos := p.pos
 	if p.tok != tok {
 		p.errorExpected(pos, "'"+tok.String()+"'")
@@ -148,11 +150,11 @@ func (p *ebnfParser) parseProduction() {
 }
 
 
-func (p *ebnfParser) parse(out io.Writer, src []byte) {
+func (p *ebnfParser) parse(fset *token.FileSet, out io.Writer, src []byte) {
 	// initialize ebnfParser
 	p.out = out
 	p.src = src
-	p.scanner.Init("", src, p, 0)
+	p.file = p.scanner.Init(fset, "", src, p, 0)
 	p.next() // initializes pos, tok, lit
 
 	// process source
@@ -171,6 +173,7 @@ var (
 
 
 func linkify(out io.Writer, src []byte) {
+	fset := token.NewFileSet()
 	for len(src) > 0 {
 		n := len(src)
 
@@ -192,7 +195,7 @@ func linkify(out io.Writer, src []byte) {
 		out.Write(src[0:i])
 		// parse and write EBNF
 		var p ebnfParser
-		p.parse(out, src[i:j])
+		p.parse(fset, out, src[i:j])
 
 		// advance
 		src = src[j:n]

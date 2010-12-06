@@ -12,12 +12,13 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/scanner"
+	"go/token"
 	"os"
 	"strings"
 )
 
 func parse(name string, flags uint) *ast.File {
-	ast1, err := parser.ParseFile(name, nil, flags)
+	ast1, err := parser.ParseFile(fset, name, nil, flags)
 	if err != nil {
 		if list, ok := err.(scanner.ErrorList); ok {
 			// If err is a scanner.ErrorList, its String will print just
@@ -76,7 +77,7 @@ func (f *File) ReadGo(name string) {
 		}
 	}
 	if !sawC {
-		error(noPos, `cannot find import "C"`)
+		error(token.NoPos, `cannot find import "C"`)
 	}
 
 	// In ast2, strip the import "C" line.
@@ -209,7 +210,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 
 	// everything else just recurs
 	default:
-		error(noPos, "unexpected type %T in walk", x, visit)
+		error(token.NoPos, "unexpected type %T in walk", x, visit)
 		panic("unexpected type")
 
 	case nil:

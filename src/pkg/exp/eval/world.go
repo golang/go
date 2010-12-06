@@ -41,14 +41,14 @@ type stmtCode struct {
 	code code
 }
 
-func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
+func (w *World) CompileStmtList(fset *token.FileSet, stmts []ast.Stmt) (Code, os.Error) {
 	if len(stmts) == 1 {
 		if s, ok := stmts[0].(*ast.ExprStmt); ok {
-			return w.CompileExpr(s.X)
+			return w.CompileExpr(fset, s.X)
 		}
 	}
 	errors := new(scanner.ErrorVector)
-	cc := &compiler{errors, 0, 0}
+	cc := &compiler{fset, errors, 0, 0}
 	cb := newCodeBuf()
 	fc := &funcCompiler{
 		compiler:     cc,
@@ -73,12 +73,12 @@ func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
 	return &stmtCode{w, fc.get()}, nil
 }
 
-func (w *World) CompileDeclList(decls []ast.Decl) (Code, os.Error) {
+func (w *World) CompileDeclList(fset *token.FileSet, decls []ast.Decl) (Code, os.Error) {
 	stmts := make([]ast.Stmt, len(decls))
 	for i, d := range decls {
 		stmts[i] = &ast.DeclStmt{d}
 	}
-	return w.CompileStmtList(stmts)
+	return w.CompileStmtList(fset, stmts)
 }
 
 func (s *stmtCode) Type() Type { return nil }
@@ -95,9 +95,9 @@ type exprCode struct {
 	eval func(Value, *Thread)
 }
 
-func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
+func (w *World) CompileExpr(fset *token.FileSet, e ast.Expr) (Code, os.Error) {
 	errors := new(scanner.ErrorVector)
-	cc := &compiler{errors, 0, 0}
+	cc := &compiler{fset, errors, 0, 0}
 
 	ec := cc.compileExpr(w.scope.block, false, e)
 	if ec == nil {
@@ -135,16 +135,16 @@ func (e *exprCode) Run() (Value, os.Error) {
 	return v, err
 }
 
-func (w *World) Compile(text string) (Code, os.Error) {
-	stmts, err := parser.ParseStmtList("input", text)
+func (w *World) Compile(fset *token.FileSet, text string) (Code, os.Error) {
+	stmts, err := parser.ParseStmtList(fset, "input", text)
 	if err == nil {
-		return w.CompileStmtList(stmts)
+		return w.CompileStmtList(fset, stmts)
 	}
 
 	// Otherwise try as DeclList.
-	decls, err1 := parser.ParseDeclList("input", text)
+	decls, err1 := parser.ParseDeclList(fset, "input", text)
 	if err1 == nil {
-		return w.CompileDeclList(decls)
+		return w.CompileDeclList(fset, decls)
 	}
 
 	// Have to pick an error.
@@ -162,13 +162,16 @@ func (e *RedefinitionError) String() string {
 	res := "identifier " + e.Name + " redeclared"
 	pos := e.Prev.Pos()
 	if pos.IsValid() {
-		res += "; previous declaration at " + pos.String()
+		// TODO: fix this - currently this code is not reached by the tests
+		//       need to get a file set (fset) from somewhere
+		//res += "; previous declaration at " + fset.Position(pos).String()
+		panic(0)
 	}
 	return res
 }
 
 func (w *World) DefineConst(name string, t Type, val Value) os.Error {
-	_, prev := w.scope.DefineConst(name, token.Position{}, t, val)
+	_, prev := w.scope.DefineConst(name, token.NoPos, t, val)
 	if prev != nil {
 		return &RedefinitionError{name, prev}
 	}
@@ -176,7 +179,7 @@ func (w *World) DefineConst(name string, t Type, val Value) os.Error {
 }
 
 func (w *World) DefineVar(name string, t Type, val Value) os.Error {
-	v, prev := w.scope.DefineVar(name, token.Position{}, t)
+	v, prev := w.scope.DefineVar(name, token.NoPos, t)
 	if prev != nil {
 		return &RedefinitionError{name, prev}
 	}

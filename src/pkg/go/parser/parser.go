@@ -35,6 +35,7 @@ const (
 
 // The parser structure holds the parser's internal state.
 type parser struct {
+	file *token.File
 	scanner.ErrorVector
 	scanner scanner.Scanner
 
@@ -49,9 +50,9 @@ type parser struct {
 	lineComment *ast.CommentGroup // the last line comment
 
 	// Next token
-	pos token.Position // token position
-	tok token.Token    // one token look-ahead
-	lit []byte         // token literal
+	pos token.Pos   // token position
+	tok token.Token // one token look-ahead
+	lit []byte      // token literal
 
 	// Non-syntactic parser control
 	exprLev int // < 0: in control clause, >= 0: in expression
@@ -68,8 +69,8 @@ func scannerMode(mode uint) uint {
 }
 
 
-func (p *parser) init(filename string, src []byte, mode uint) {
-	p.scanner.Init(filename, src, p, scannerMode(mode))
+func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uint) {
+	p.file = p.scanner.Init(fset, filename, src, p, scannerMode(mode))
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 	p.next()
@@ -83,7 +84,8 @@ func (p *parser) printTrace(a ...interface{}) {
 	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . " +
 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
 	const n = uint(len(dots))
-	fmt.Printf("%5d:%3d: ", p.pos.Line, p.pos.Column)
+	pos := p.file.Position(p.pos)
+	fmt.Printf("%5d:%3d: ", pos.Line, pos.Column)
 	i := 2 * p.indent
 	for ; i > n; i -= n {
 		fmt.Print(dots)
@@ -111,9 +113,9 @@ func un(p *parser) {
 func (p *parser) next0() {
 	// Because of one-token look-ahead, print the previous token
 	// when tracing as it provides a more readable output. The
-	// very first token (p.pos.Line == 0) is not initialized (it
-	// is token.ILLEGAL), so don't print it .
-	if p.trace && p.pos.Line > 0 {
+	// very first token (!p.pos.IsValid()) is not initialized
+	// (it is token.ILLEGAL), so don't print it .
+	if p.trace && p.pos.IsValid() {
 		s := p.tok.String()
 		switch {
 		case p.tok.IsLiteral():
@@ -132,7 +134,7 @@ func (p *parser) next0() {
 func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 	// /*-style comments may end on a different line than where they start.
 	// Scan the comment for '\n' chars and adjust endline accordingly.
-	endline = p.pos.Line
+	endline = p.file.Line(p.pos)
 	if p.lit[1] == '*' {
 		for _, b := range p.lit {
 			if b == '\n' {
@@ -155,8 +157,8 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 //
 func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int) {
 	var list []*ast.Comment
-	endline = p.pos.Line
-	for p.tok == token.COMMENT && endline+1 >= p.pos.Line {
+	endline = p.file.Line(p.pos)
+	for p.tok == token.COMMENT && endline+1 >= p.file.Line(p.pos) {
 		var comment *ast.Comment
 		comment, endline = p.consumeComment()
 		list = append(list, comment)
@@ -188,18 +190,18 @@ func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int)
 func (p *parser) next() {
 	p.leadComment = nil
 	p.lineComment = nil
-	line := p.pos.Line // current line
+	line := p.file.Line(p.pos) // current line
 	p.next0()
 
 	if p.tok == token.COMMENT {
 		var comment *ast.CommentGroup
 		var endline int
 
-		if p.pos.Line == line {
+		if p.file.Line(p.pos) == line {
 			// The comment is on same line as previous token; it
 			// cannot be a lead comment but may be a line comment.
 			comment, endline = p.consumeCommentGroup()
-			if p.pos.Line != endline {
+			if p.file.Line(p.pos) != endline {
 				// The next token is on a different line, thus
 				// the last comment group is a line comment.
 				p.lineComment = comment
@@ -212,7 +214,7 @@ func (p *parser) next() {
 			comment, endline = p.consumeCommentGroup()
 		}
 
-		if endline+1 == p.pos.Line {
+		if endline+1 == p.file.Line(p.pos) {
 			// The next token is following on the line immediately after the
 			// comment group, thus the last comment group is a lead comment.
 			p.leadComment = comment
@@ -221,9 +223,14 @@ func (p *parser) next() {
 }
 
 
-func (p *parser) errorExpected(pos token.Position, msg string) {
+func (p *parser) error(pos token.Pos, msg string) {
+	p.Error(p.file.Position(pos), msg)
+}
+
+
+func (p *parser) errorExpected(pos token.Pos, msg string) {
 	msg = "expected " + msg
-	if pos.Offset == p.pos.Offset {
+	if pos == p.pos {
 		// the error happened at the current position;
 		// make the error message more specific
 		if p.tok == token.SEMICOLON && p.lit[0] == '\n' {
@@ -235,11 +242,11 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 			}
 		}
 	}
-	p.Error(pos, msg)
+	p.error(pos, msg)
 }
 
 
-func (p *parser) expect(tok token.Token) token.Position {
+func (p *parser) expect(tok token.Token) token.Pos {
 	pos := p.pos
 	if p.tok != tok {
 		p.errorExpected(pos, "'"+tok.String()+"'")
@@ -461,11 +468,11 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
 		p.next()
 		typ := p.tryType() // don't use parseType so we can provide better error message
 		if typ == nil {
-			p.Error(pos, "'...' parameter is missing type")
+			p.error(pos, "'...' parameter is missing type")
 			typ = &ast.BadExpr{pos}
 		}
 		if p.tok != token.RPAREN {
-			p.Error(pos, "can use '...' with last parameter type only")
+			p.error(pos, "can use '...' with last parameter type only")
 		}
 		return &ast.Ellipsis{pos, typ}
 	}
@@ -618,7 +625,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 		// method
 		idents = []*ast.Ident{ident}
 		params, results := p.parseSignature()
-		typ = &ast.FuncType{noPos, params, results}
+		typ = &ast.FuncType{token.NoPos, params, results}
 	} else {
 		// embedded interface
 		typ = x
@@ -888,7 +895,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	lparen := p.expect(token.LPAREN)
 	p.exprLev++
 	var list []ast.Expr
-	var ellipsis token.Position
+	var ellipsis token.Pos
 	for p.tok != token.RPAREN && p.tok != token.EOF && !ellipsis.IsValid() {
 		list = append(list, p.parseExpr())
 		if p.tok == token.ELLIPSIS {
@@ -1063,7 +1070,7 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 		}
 	case *ast.ArrayType:
 		if len, isEllipsis := t.Len.(*ast.Ellipsis); isEllipsis {
-			p.Error(len.Pos(), "expected array length, found '...'")
+			p.error(len.Pos(), "expected array length, found '...'")
 			x = &ast.BadExpr{x.Pos()}
 		}
 	}
@@ -1189,7 +1196,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 				return &ast.LabeledStmt{label, p.parseStmt()}
 			}
 		}
-		p.Error(x[0].Pos(), "illegal label declaration")
+		p.error(x[0].Pos(), "illegal label declaration")
 		return &ast.BadStmt{x[0].Pos()}
 
 	case
@@ -1205,7 +1212,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 	}
 
 	if len(x) > 1 {
-		p.Error(x[0].Pos(), "only one expression allowed")
+		p.error(x[0].Pos(), "only one expression allowed")
 		// continue with first expression
 	}
 
@@ -1303,7 +1310,7 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 	if es, isExpr := s.(*ast.ExprStmt); isExpr {
 		return p.checkExpr(es.X)
 	}
-	p.Error(s.Pos(), "expected condition, found simple statement")
+	p.error(s.Pos(), "expected condition, found simple statement")
 	return &ast.BadExpr{s.Pos()}
 }
 
@@ -1718,7 +1725,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 
 	doc := p.leadComment
 	pos := p.expect(keyword)
-	var lparen, rparen token.Position
+	var lparen, rparen token.Pos
 	var list []ast.Spec
 	if p.tok == token.LPAREN {
 		lparen = p.pos
@@ -1747,7 +1754,7 @@ func (p *parser) parseReceiver() *ast.FieldList {
 	// must have exactly one receiver
 	if par.NumFields() != 1 {
 		p.errorExpected(pos, "exactly one receiver")
-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{noPos}}}
+		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{token.NoPos}}}
 		return par
 	}
 

@@ -10,10 +10,12 @@ import (
 	"flag"
 	"go/parser"
 	"go/scanner"
+	"go/token"
 	"io/ioutil"
 	"os"
 )
 
+var fset = token.NewFileSet()
 var filename = flag.String("f", "", "file to run")
 
 func main() {
@@ -25,12 +27,12 @@ func main() {
 			println(err.String())
 			os.Exit(1)
 		}
-		file, err := parser.ParseFile(*filename, data, 0)
+		file, err := parser.ParseFile(fset, *filename, data, 0)
 		if err != nil {
 			println(err.String())
 			os.Exit(1)
 		}
-		code, err := w.CompileDeclList(file.Decls)
+		code, err := w.CompileDeclList(fset, file.Decls)
 		if err != nil {
 			if list, ok := err.(scanner.ErrorList); ok {
 				for _, e := range list {
@@ -46,7 +48,7 @@ func main() {
 			println(err.String())
 			os.Exit(1)
 		}
-		code, err = w.Compile("init()")
+		code, err = w.Compile(fset, "init()")
 		if code != nil {
 			_, err := code.Run()
 			if err != nil {
@@ -54,7 +56,7 @@ func main() {
 				os.Exit(1)
 			}
 		}
-		code, err = w.Compile("main()")
+		code, err = w.Compile(fset, "main()")
 		if err != nil {
 			println(err.String())
 			os.Exit(1)
@@ -74,7 +76,7 @@ func main() {
 		if err != nil {
 			break
 		}
-		code, err := w.Compile(line)
+		code, err := w.Compile(fset, line)
 		if err != nil {
 			println(err.String())
 			continue
