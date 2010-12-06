@@ -88,9 +88,9 @@ func TestAfterQueuing(t *testing.T) {
 		}
 		ns := r.t - t0
 		target := int64(slot * Delta)
-		slop := int64(Delta) / 10
+		slop := int64(Delta) / 4
 		if ns < target-slop || ns > target+slop {
-			t.Fatalf("after queue slot %d arrived at %g, expected %g", slot, float64(ns), float64(target))
+			t.Fatalf("after queue slot %d arrived at %g, expected [%g,%g]", slot, float64(ns), float64(target-slop), float64(target+slop))
 		}
 	}
 }
