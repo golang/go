@@ -316,6 +316,8 @@ func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
 		p.fmt.integer(v, 8, signed, ldigits)
 	case 'x':
 		p.fmt.integer(v, 16, signed, ldigits)
+	case 'U':
+		p.fmtUnicode(v)
 	case 'X':
 		p.fmt.integer(v, 16, signed, udigits)
 	default:
@@ -323,13 +325,30 @@ func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
 	}
 }
 
-// fmt_sharpHex64 formats a uint64 in hexadecimal and prefixes it with 0x by
+// fmt0x64 formats a uint64 in hexadecimal and prefixes it with 0x by
 // temporarily turning on the sharp flag.
 func (p *pp) fmt0x64(v uint64) {
 	sharp := p.fmt.sharp
 	p.fmt.sharp = true // turn on 0x
 	p.fmt.integer(int64(v), 16, unsigned, ldigits)
 	p.fmt.sharp = sharp
+}
+
+// fmtUnicode formats a uint64 in U+1234 form by
+// temporarily turning on the unicode flag and tweaking the precision.
+func (p *pp) fmtUnicode(v int64) {
+	precPresent := p.fmt.precPresent
+	prec := p.fmt.prec
+	if !precPresent {
+		// If prec is already set, leave it alone; otherwise 4 is minimum.
+		p.fmt.prec = 4
+		p.fmt.precPresent = true
+	}
+	p.fmt.unicode = true // turn on U+
+	p.fmt.integer(int64(v), 16, unsigned, udigits)
+	p.fmt.unicode = false
+	p.fmt.prec = prec
+	p.fmt.precPresent = precPresent
 }
 
 func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {

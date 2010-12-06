@@ -388,9 +388,9 @@ func (s *ss) typeError(field interface{}, expected string) {
 var complexError = os.ErrorString("syntax error scanning complex number")
 var boolError = os.ErrorString("syntax error scanning boolean")
 
-// accepts checks the next rune in the input.  If it's a byte (sic) in the string, it puts it in the
-// buffer and returns true. Otherwise it return false.
-func (s *ss) accept(ok string) bool {
+// consume reads the next rune in the input and reports whether it is in the ok string.
+// If accept is true, it puts the character into the input token.
+func (s *ss) consume(ok string, accept bool) bool {
 	if s.wid >= s.maxWid {
 		return false
 	}
@@ -400,15 +400,23 @@ func (s *ss) accept(ok string) bool {
 	}
 	for i := 0; i < len(ok); i++ {
 		if int(ok[i]) == rune {
-			s.buf.WriteRune(rune)
-			s.wid++
+			if accept {
+				s.buf.WriteRune(rune)
+				s.wid++
+			}
 			return true
 		}
 	}
-	if rune != EOF {
+	if rune != EOF && accept {
 		s.UngetRune()
 	}
 	return false
+}
+
+// accept checks the next rune in the input.  If it's a byte (sic) in the string, it puts it in the
+// buffer and returns true. Otherwise it return false.
+func (s *ss) accept(ok string) bool {
+	return s.consume(ok, true)
 }
 
 // okVerb verifies that the verb is present in the list, setting s.err appropriately if not.
@@ -460,7 +468,7 @@ const (
 
 // getBase returns the numeric base represented by the verb and its digit string.
 func (s *ss) getBase(verb int) (base int, digits string) {
-	s.okVerb(verb, "bdoxXv", "integer") // sets s.err
+	s.okVerb(verb, "bdoUxXv", "integer") // sets s.err
 	base = 10
 	digits = decimalDigits
 	switch verb {
@@ -470,7 +478,7 @@ func (s *ss) getBase(verb int) (base int, digits string) {
 	case 'o':
 		base = 8
 		digits = octalDigits
-	case 'x', 'X':
+	case 'x', 'X', 'U':
 		base = 16
 		digits = hexadecimalDigits
 	}
@@ -506,7 +514,13 @@ func (s *ss) scanInt(verb int, bitSize int) int64 {
 	}
 	base, digits := s.getBase(verb)
 	s.skipSpace(false)
-	s.accept(sign) // If there's a sign, it will be left in the token buffer.
+	if verb == 'U' {
+		if !s.consume("U", false) || !s.consume("+", false) {
+			s.errorString("bad unicode format ")
+		}
+	} else {
+		s.accept(sign) // If there's a sign, it will be left in the token buffer.
+	}
 	tok := s.scanNumber(digits)
 	i, err := strconv.Btoi64(tok, base)
 	if err != nil {
@@ -528,6 +542,11 @@ func (s *ss) scanUint(verb int, bitSize int) uint64 {
 	}
 	base, digits := s.getBase(verb)
 	s.skipSpace(false)
+	if verb == 'U' {
+		if !s.consume("U", false) || !s.consume("+", false) {
+			s.errorString("bad unicode format ")
+		}
+	}
 	tok := s.scanNumber(digits)
 	i, err := strconv.Btoui64(tok, base)
 	if err != nil {
