@@ -36,10 +36,10 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	m->tls[0] = m->id;	// so 386 asm can find it
 	if(0){
 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
-			stk, m, g, fn, rfork, m->id, m->tls[0], &m);
+			stk, m, g, fn, runtime·rfork, m->id, m->tls[0], &m);
 	}        
 	
-	if (rfork(RFPROC | RFMEM, stk, m, g, fn) < 0 )
+	if (runtime·rfork(RFPROC | RFMEM, stk, m, g, fn) < 0 )
 		runtime·throw("newosproc: rfork failed");
 }
 
@@ -63,10 +63,10 @@ runtime·lock(Lock *l)
 		runtime·throw("lock count");
 	m->locks++;
 	
-	if(xadd(&l->key, 1) == 1)
+	if(runtime·xadd(&l->key, 1) == 1)
 		return; // changed from 0 -> 1; we hold lock
 	// otherwise wait in kernel
-	while(plan9_semacquire(&l->sema, 1) < 0) {
+	while(runtime·plan9_semacquire(&l->sema, 1) < 0) {
 		/* interrupted; try again */
 	}
 }
@@ -78,7 +78,7 @@ runtime·unlock(Lock *l)
 	if(m->locks < 0)
 		runtime·throw("lock count");
 
-	if(xadd(&l->key, -1) == 0)
+	if(runtime·xadd(&l->key, -1) == 0)
 		return; // changed from 1 -> 0: no contention
 	
 	runtime·plan9_semrelease(&l->sema, 1);
@@ -98,8 +98,8 @@ runtime·destroylock(Lock *l)
 void
 runtime·usemacquire(Usema *s)
 {
-	if((int32)xadd(&s->u, -1) < 0)
-		while(plan9_semacquire(&s->k, 1) < 0) {
+	if((int32)runtime·xadd(&s->u, -1) < 0)
+		while(runtime·plan9_semacquire(&s->k, 1) < 0) {
 			/* interrupted; try again */
 		}
 }
@@ -107,7 +107,7 @@ runtime·usemacquire(Usema *s)
 void
 runtime·usemrelease(Usema *s)
 {
-	if((int32)xadd(&s->u, 1) <= 0)
+	if((int32)runtime·xadd(&s->u, 1) <= 0)
 		runtime·plan9_semrelease(&s->k, 1);
 }
 

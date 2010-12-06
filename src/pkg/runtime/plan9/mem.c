@@ -20,7 +20,7 @@ runtime·SysAlloc(uintptr ask)
 	
 	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
 	bl = ((uintptr)bloc + Round) & ~Round;
-	if(brk_((void*)(bl + ask)) < 0)
+	if(runtime·brk_((void*)(bl + ask)) < 0)
 		return (void*)-1;
 	bloc = (byte*)bl + ask;
 	return (void*)bl;

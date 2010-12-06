@@ -739,6 +739,10 @@ address(void)
 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
 	if(thechar == '8' && HEADTYPE == 10)	// Windows PE
 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
+	if(thechar == '8' && HEADTYPE == 2) {	// Plan 9		
+		segdata.vaddr = va = rnd(va, 4096);
+		segdata.fileoff = segtext.fileoff + segtext.filelen;
+	}
 	for(s=segdata.sect; s != nil; s=s->next) {
 		s->vaddr = va;
 		va += s->len;

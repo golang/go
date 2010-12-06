@@ -8,3 +8,9 @@ void
 runtime·gettime(int64*, int32*) 
 {
 }
+
+String
+runtime·signame(int32)
+{
+	return runtime·emptystring;
+}
