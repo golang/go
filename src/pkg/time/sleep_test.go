@@ -8,6 +8,7 @@ import (
 	"os"
 	"syscall"
 	"testing"
+	"sort"
 	. "time"
 )
 
@@ -34,5 +35,62 @@ func TestAfter(t *testing.T) {
 	}
 	if min := start + delay; end < min {
 		t.Fatalf("After(%d) expect >= %d, got %d", delay, min, end)
+	}
+}
+
+func TestAfterTick(t *testing.T) {
+	const (
+		Delta = 100 * 1e6
+		Count = 10
+	)
+	t0 := Nanoseconds()
+	for i := 0; i < Count; i++ {
+		<-After(Delta)
+	}
+	t1 := Nanoseconds()
+	ns := t1 - t0
+	target := int64(Delta * Count)
+	slop := target * 2 / 10
+	if ns < target-slop || ns > target+slop {
+		t.Fatalf("%d ticks of %g ns took %g ns, expected %g", Count, float64(Delta), float64(ns), float64(target))
+	}
+}
+
+var slots = []int{5, 3, 6, 6, 6, 1, 1, 2, 7, 9, 4, 8, 0}
+
+type afterResult struct {
+	slot int
+	t    int64
+}
+
+func await(slot int, result chan<- afterResult, ac <-chan int64) {
+	result <- afterResult{slot, <-ac}
+}
+
+func TestAfterQueuing(t *testing.T) {
+	const (
+		Delta = 100 * 1e6
+	)
+	// make the result channel buffered because we don't want
+	// to depend on channel queueing semantics that might
+	// possibly change in the future.
+	result := make(chan afterResult, len(slots))
+
+	t0 := Nanoseconds()
+	for _, slot := range slots {
+		go await(slot, result, After(int64(slot)*Delta))
+	}
+	sort.SortInts(slots)
+	for _, slot := range slots {
+		r := <-result
+		if r.slot != slot {
+			t.Fatalf("after queue got slot %d, expected %d", r.slot, slot)
+		}
+		ns := r.t - t0
+		target := int64(slot * Delta)
+		slop := int64(Delta) / 10
+		if ns < target-slop || ns > target+slop {
+			t.Fatalf("after queue slot %d arrived at %g, expected %g", slot, float64(ns), float64(target))
+		}
 	}
 }
