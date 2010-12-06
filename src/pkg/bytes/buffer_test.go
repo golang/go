@@ -275,10 +275,10 @@ func TestRuneIO(t *testing.T) {
 		size := utf8.EncodeRune(b[n:], r)
 		nbytes, err := buf.WriteRune(r)
 		if err != nil {
-			t.Fatalf("WriteRune(0x%x) error: %s", r, err)
+			t.Fatalf("WriteRune(U+%.4x) error: %s", r, err)
 		}
 		if nbytes != size {
-			t.Fatalf("WriteRune(0x%x) expected %d, got %d", r, size, nbytes)
+			t.Fatalf("WriteRune(U+%.4x) expected %d, got %d", r, size, nbytes)
 		}
 		n += size
 	}
@@ -289,12 +289,27 @@ func TestRuneIO(t *testing.T) {
 		t.Fatalf("incorrect result from WriteRune: %q not %q", buf.Bytes(), b)
 	}
 
+	p := make([]byte, utf8.UTFMax)
 	// Read it back with ReadRune
 	for r := 0; r < NRune; r++ {
-		size := utf8.EncodeRune(b, r)
+		size := utf8.EncodeRune(p, r)
 		nr, nbytes, err := buf.ReadRune()
 		if nr != r || nbytes != size || err != nil {
-			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
+			t.Fatalf("ReadRune(U+%.4x) got U+%.4x,%d not U+%.4x,%d (err=%s)", r, nr, nbytes, r, size, err)
+		}
+	}
+
+	// Check that UnreadRune works
+	buf.Reset()
+	buf.Write(b)
+	for r := 0; r < NRune; r++ {
+		r1, size, _ := buf.ReadRune()
+		if err := buf.UnreadRune(); err != nil {
+			t.Fatalf("UnreadRune(U+%.4x) got error %q", r, err)
+		}
+		r2, nbytes, err := buf.ReadRune()
+		if r1 != r2 || r1 != r || nbytes != size || err != nil {
+			t.Fatalf("ReadRune(U+%.4x) after UnreadRune got U+%.4x,%d not U+%.4x,%d (err=%s)", r, r2, nbytes, r, size, err)
 		}
 	}
 }
