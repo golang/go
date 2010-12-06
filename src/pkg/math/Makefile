@@ -54,6 +54,7 @@ ALLGOFILES=\
 	copysign.go\
 	erf.go\
 	exp.go\
+	exp_port.go\
 	exp2.go\
 	expm1.go\
 	fabs.go\
