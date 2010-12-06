@@ -19,9 +19,10 @@ import (
 type parser struct {
 	scanner.ErrorVector
 	scanner scanner.Scanner
-	pos     token.Position // token position
-	tok     token.Token    // one token look-ahead
-	lit     []byte         // token literal
+	file    *token.File
+	pos     token.Pos   // token position
+	tok     token.Token // one token look-ahead
+	lit     []byte      // token literal
 
 	packs map[string]string // PackageName -> ImportPath
 	rules map[string]expr   // RuleName -> Expression
@@ -39,18 +40,23 @@ func (p *parser) next() {
 }
 
 
-func (p *parser) init(filename string, src []byte) {
+func (p *parser) init(fset *token.FileSet, filename string, src []byte) {
 	p.ErrorVector.Reset()
-	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
-	p.next()                                                    // initializes pos, tok, lit
+	p.file = p.scanner.Init(fset, filename, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
+	p.next()                                                                   // initializes pos, tok, lit
 	p.packs = make(map[string]string)
 	p.rules = make(map[string]expr)
 }
 
 
-func (p *parser) errorExpected(pos token.Position, msg string) {
+func (p *parser) error(pos token.Pos, msg string) {
+	p.Error(p.file.Position(pos), msg)
+}
+
+
+func (p *parser) errorExpected(pos token.Pos, msg string) {
 	msg = "expected " + msg
-	if pos.Offset == p.pos.Offset {
+	if pos == p.pos {
 		// the error happened at the current position;
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'"
@@ -58,11 +64,11 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 			msg += " " + string(p.lit)
 		}
 	}
-	p.Error(pos, msg)
+	p.error(pos, msg)
 }
 
 
-func (p *parser) expect(tok token.Token) token.Position {
+func (p *parser) expect(tok token.Token) token.Pos {
 	pos := p.pos
 	if p.tok != tok {
 		p.errorExpected(pos, "'"+tok.String()+"'")
@@ -87,7 +93,7 @@ func (p *parser) parseTypeName() (string, bool) {
 		if importPath, found := p.packs[name]; found {
 			name = importPath
 		} else {
-			p.Error(pos, "package not declared: "+name)
+			p.error(pos, "package not declared: "+name)
 		}
 		p.next()
 		name, isIdent = name+"."+p.parseIdentifier(), false
@@ -303,11 +309,11 @@ func (p *parser) parseFormat() {
 
 			// add package declaration
 			if !isIdent {
-				p.Error(pos, "illegal package name: "+name)
+				p.error(pos, "illegal package name: "+name)
 			} else if _, found := p.packs[name]; !found {
 				p.packs[name] = importPath
 			} else {
-				p.Error(pos, "package already declared: "+name)
+				p.error(pos, "package already declared: "+name)
 			}
 
 		case token.ASSIGN:
@@ -319,7 +325,7 @@ func (p *parser) parseFormat() {
 			if _, found := p.rules[name]; !found {
 				p.rules[name] = x
 			} else {
-				p.Error(pos, "format rule already declared: "+name)
+				p.error(pos, "format rule already declared: "+name)
 			}
 
 		default:
@@ -358,10 +364,10 @@ func remap(p *parser, name string) string {
 // there are no errors, the result is a Format and the error is nil.
 // Otherwise the format is nil and a non-empty ErrorList is returned.
 //
-func Parse(filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
+func Parse(fset *token.FileSet, filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
 	// parse source
 	var p parser
-	p.init(filename, src)
+	p.init(fset, filename, src)
 	p.parseFormat()
 
 	// add custom formatters, if any

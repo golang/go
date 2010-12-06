@@ -12,6 +12,7 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/scanner"
+	"go/token"
 	"io/ioutil"
 	"os"
 	pathutil "path"
@@ -39,6 +40,7 @@ var (
 
 
 var (
+	fset        = token.NewFileSet()
 	exitCode    = 0
 	rewrite     func(*ast.File) *ast.File
 	parserMode  uint
@@ -93,7 +95,7 @@ func processFile(f *os.File) os.Error {
 		return err
 	}
 
-	file, err := parser.ParseFile(f.Name(), src, parserMode)
+	file, err := parser.ParseFile(fset, f.Name(), src, parserMode)
 
 	if err != nil {
 		return err
@@ -112,7 +114,7 @@ func processFile(f *os.File) os.Error {
 	}
 
 	var res bytes.Buffer
-	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, file)
+	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, fset, file)
 	if err != nil {
 		return err
 	}

@@ -6,17 +6,19 @@
 
 {.section PAst}
 	<pre>
-	{@|html}
+	{@ FSet|html}
 	</pre>
 {.end}
 {.section PDoc}
 	<!-- PackageName is printed as title by the top-level template -->
 	{.section IsPkg}
+		{# ImportPath is a string - no need for FSet}
 		<p><code>import "{ImportPath|html-esc}"</code></p>
 	{.end}
 	{Doc|html-comment}
 	{.section IsPkg}
 		{.section Filenames}
+			{# Filenames are strings - no need for FSet}
 			<p>
 			<h4>Package files</h4>
 			<span style="font-size:90%">
@@ -31,44 +33,46 @@
 		<h2 id="Constants">Constants</h2>
 		{.repeated section @}
 			{Doc|html-comment}
-			<pre>{Decl|html}</pre>
+			<pre>{Decl FSet|html}</pre>
 		{.end}
 	{.end}
 	{.section Vars}
 		<h2 id="Variables">Variables</h2>
 		{.repeated section @}
 			{Doc|html-comment}
-			<pre>{Decl|html}</pre>
+			<pre>{Decl FSet|html}</pre>
 		{.end}
 	{.end}
 	{.section Funcs}
 		{.repeated section @}
-			<h2 id="{Name|html-esc}">func <a href="/{Decl|url-pos}">{Name|html-esc}</a></h2>
-			<p><code>{Decl|html}</code></p>
+			{# Name is a string - no need for FSet}
+			<h2 id="{Name|html-esc}">func <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h2>
+			<p><code>{Decl FSet|html}</code></p>
 			{Doc|html-comment}
 		{.end}
 	{.end}
 	{.section Types}
 		{.repeated section @}
-			<h2 id="{Type.Name|html-esc}">type <a href="/{Decl|url-pos}">{Type.Name|html-esc}</a></h2>
+			{# Type.Name is a string - no need for FSet}
+			<h2 id="{Type.Name FSet|html-esc}">type <a href="/{Decl FSet|url-pos}">{Type.Name FSet|html-esc}</a></h2>
 			{Doc|html-comment}
-			<p><pre>{Decl|html}</pre></p>
+			<p><pre>{Decl FSet|html}</pre></p>
 			{.repeated section Consts}
 				{Doc|html-comment}
-				<pre>{Decl|html}</pre>
+				<pre>{Decl FSet|html}</pre>
 			{.end}
 			{.repeated section Vars}
 				{Doc|html-comment}
-				<pre>{Decl|html}</pre>
+				<pre>{Decl FSet|html}</pre>
 			{.end}
 			{.repeated section Factories}
-				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func <a href="/{Decl|url-pos}">{Name|html-esc}</a></h3>
-				<p><code>{Decl|html}</code></p>
+				<h3 id="{Type.Name FSet|html-esc}.{Name|html-esc}">func <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h3>
+				<p><code>{Decl FSet|html}</code></p>
 				{Doc|html-comment}
 			{.end}
 			{.repeated section Methods}
-				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func ({Recv|html}) <a href="/{Decl|url-pos}">{Name|html-esc}</a></h3>
-				<p><code>{Decl|html}</code></p>
+				<h3 id="{Type.Name FSet|html-esc}.{Name|html-esc}">func ({Recv FSet|html}) <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h3>
+				<p><code>{Decl FSet|html}</code></p>
 				{Doc|html-comment}
 			{.end}
 		{.end}
@@ -83,12 +87,14 @@
 {.section PList}
 	<h2>Other packages</h2>
 	<p>
+	{# PLIst entries are strings - no need for FSet}
 	{.repeated section @}
-	<a href="?p={@|html}">{@|html}</a><br />
+	<a href="?p={@|html-esc}">{@|html-esc}</a><br />
 	{.end}
 	</p>
 {.end}
 {.section Dirs}
+	{# DirList entries are numbers and strings - no need for FSet}
 	<h2 id="Subdirectories">Subdirectories</h2>
 	<p>
 	<table class="layout">

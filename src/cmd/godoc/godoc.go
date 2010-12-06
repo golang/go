@@ -21,6 +21,7 @@ import (
 	pathutil "path"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"template"
 	"time"
@@ -104,27 +105,6 @@ func isParentOf(p, q string) bool {
 }
 
 
-// binarySearch returns an index i such that (a[i] <= s < a[i+1]) || (s is not in a).
-// The slice a must not be empty and sorted in increasing order.
-// (See "A Method of Programming", E.W. Dijkstra).
-//
-func binarySearch(a []string, s string) int {
-	i, j := 0, len(a)
-	// i < j for non-empty a
-	for i+1 < j {
-		// 0 <= i < j <= len(a) && (a[i] <= s < a[j] || (s is not in a))
-		h := i + (j-i)/2 // i < h < j
-		if a[h] <= s {
-			i = h
-		} else { // s < a[h]
-			j = h
-		}
-	}
-	// i+1 == j for non-empty a
-	return i
-}
-
-
 func setPathFilter(list []string) {
 	if len(list) == 0 {
 		pathFilter.set(nil)
@@ -134,14 +114,10 @@ func setPathFilter(list []string) {
 	// len(list) > 0
 	pathFilter.set(func(path string) bool {
 		// list is sorted in increasing order and for each path all its children are removed
-		i := binarySearch(list, path)
-		// At this point we have (list[i] <= path < list[i+1]) || (path is not in list),
-		// thus path must be either longer (a child) of list[i], or shorter (a parent)
-		// of list[i+1] - assuming an "infinitely extended" list. However, binarySearch
-		// will return a 0 if path < list[0], so we must be careful in that case.
-		return i == 0 && isParentOf(path, list[0]) ||
-			isParentOf(list[i], path) ||
-			i+1 < len(list) && isParentOf(path, list[i+1])
+		i := sort.Search(len(list), func(i int) bool { return list[i] > path })
+		// Now we have list[i-1] <= path < list[i].
+		// Path may be a child of list[i-1] or a parent of list[i].
+		return i > 0 && isParentOf(list[i-1], path) || i < len(list) && isParentOf(path, list[i])
 	})
 }
 
@@ -362,7 +338,7 @@ func (s *Styler) identId(name *ast.Ident) int {
 
 // writeObjInfo writes the popup info corresponding to obj to w.
 // The text is HTML-escaped and does not contain single quotes.
-func writeObjInfo(w io.Writer, obj *ast.Object) {
+func writeObjInfo(w io.Writer, fset *token.FileSet, obj *ast.Object) {
 	// for now, show object kind and name; eventually
 	// do something more interesting (show declaration,
 	// for instance)
@@ -373,7 +349,7 @@ func writeObjInfo(w io.Writer, obj *ast.Object) {
 	// show type if we know it
 	if obj.Type != nil && obj.Type.Expr != nil {
 		fmt.Fprint(w, " ")
-		writeNode(&aposescaper{w}, obj.Type.Expr, true, &defaultStyler)
+		writeNode(&aposescaper{w}, fset, obj.Type.Expr, true, &defaultStyler)
 	}
 }
 
@@ -382,7 +358,7 @@ func writeObjInfo(w io.Writer, obj *ast.Object) {
 // information: The i'th array entry is a single-quoted string with
 // the popup information for an identifier x with s.identId(x) == i,
 // for 0 <= i < s.idcount.
-func (s *Styler) idList() []byte {
+func (s *Styler) idList(fset *token.FileSet) []byte {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, "[")
 
@@ -400,7 +376,7 @@ func (s *Styler) idList() []byte {
 				fmt.Fprintf(&buf, "/* %4d */ ", id)
 			}
 			fmt.Fprint(&buf, "'")
-			writeObjInfo(&buf, obj)
+			writeObjInfo(&buf, fset, obj)
 			fmt.Fprint(&buf, "',\n")
 		}
 	}
@@ -539,7 +515,7 @@ func (p *tconv) Write(data []byte) (n int, err os.Error) {
 // Templates
 
 // Write an AST-node to w; optionally html-escaped.
-func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
+func writeNode(w io.Writer, fset *token.FileSet, node interface{}, html bool, styler printer.Styler) {
 	mode := printer.TabIndent | printer.UseSpaces
 	if html {
 		mode |= printer.GenHTML
@@ -548,7 +524,7 @@ func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) 
 	// to ensure a good outcome in most browsers (there may still
 	// be tabs in comments and strings, but converting those into
 	// the right number of spaces is much harder)
-	(&printer.Config{mode, *tabwidth, styler}).Fprint(&tconv{output: w}, node)
+	(&printer.Config{mode, *tabwidth, styler}).Fprint(&tconv{output: w}, fset, node)
 }
 
 
@@ -563,14 +539,14 @@ func writeText(w io.Writer, text []byte, html bool) {
 
 
 // Write anything to w; optionally html-escaped.
-func writeAny(w io.Writer, html bool, x interface{}) {
+func writeAny(w io.Writer, fset *token.FileSet, html bool, x interface{}) {
 	switch v := x.(type) {
 	case []byte:
 		writeText(w, v, html)
 	case string:
 		writeText(w, []byte(v), html)
 	case ast.Decl, ast.Expr, ast.Stmt, *ast.File:
-		writeNode(w, x, html, &defaultStyler)
+		writeNode(w, fset, x, html, &defaultStyler)
 	default:
 		if html {
 			var buf bytes.Buffer
@@ -583,16 +559,26 @@ func writeAny(w io.Writer, html bool, x interface{}) {
 }
 
 
+func fileset(x []interface{}) *token.FileSet {
+	if len(x) > 1 {
+		if fset, ok := x[1].(*token.FileSet); ok {
+			return fset
+		}
+	}
+	return nil
+}
+
+
 // Template formatter for "html" format.
 func htmlFmt(w io.Writer, format string, x ...interface{}) {
-	writeAny(w, true, x[0])
+	writeAny(w, fileset(x), true, x[0])
 }
 
 
 // Template formatter for "html-esc" format.
 func htmlEscFmt(w io.Writer, format string, x ...interface{}) {
 	var buf bytes.Buffer
-	writeAny(&buf, false, x[0])
+	writeAny(&buf, fileset(x), false, x[0])
 	template.HTMLEscape(w, buf.Bytes())
 }
 
@@ -600,7 +586,7 @@ func htmlEscFmt(w io.Writer, format string, x ...interface{}) {
 // Template formatter for "html-comment" format.
 func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
 	var buf bytes.Buffer
-	writeAny(&buf, false, x[0])
+	writeAny(&buf, fileset(x), false, x[0])
 	// TODO(gri) Provide list of words (e.g. function parameters)
 	//           to be emphasized by ToHTML.
 	doc.ToHTML(w, buf.Bytes(), nil) // does html-escaping
@@ -609,7 +595,7 @@ func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
 
 // Template formatter for "" (default) format.
 func textFmt(w io.Writer, format string, x ...interface{}) {
-	writeAny(w, false, x[0])
+	writeAny(w, fileset(x), false, x[0])
 }
 
 
@@ -620,7 +606,7 @@ func urlFmt(w io.Writer, format string, x ...interface{}) {
 
 	// determine path and position info, if any
 	type positioner interface {
-		Pos() token.Position
+		Pos() token.Pos
 	}
 	switch t := x[0].(type) {
 	case string:
@@ -628,9 +614,15 @@ func urlFmt(w io.Writer, format string, x ...interface{}) {
 	case positioner:
 		pos := t.Pos()
 		if pos.IsValid() {
+			pos := fileset(x).Position(pos)
 			path = pos.Filename
 			line = pos.Line
 		}
+	default:
+		// we should never reach here, but be resilient
+		// and assume the position is invalid (empty path,
+		// and line 0)
+		log.Printf("INTERNAL ERROR: urlFmt(%s) without a string or positioner", format)
 	}
 
 	// map path
@@ -902,7 +894,8 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 
 
 func serveGoSource(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
-	file, err := parser.ParseFile(abspath, nil, parser.ParseComments)
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, abspath, nil, parser.ParseComments)
 	if err != nil {
 		log.Printf("parser.ParseFile: %s", err)
 		serveError(w, r, relpath, err)
@@ -915,13 +908,13 @@ func serveGoSource(w http.ResponseWriter, r *http.Request, abspath, relpath stri
 
 	var buf bytes.Buffer
 	styler := newStyler(r.FormValue("h"))
-	writeNode(&buf, file, true, styler)
+	writeNode(&buf, fset, file, true, styler)
 
 	type SourceInfo struct {
 		IdList []byte
 		Source []byte
 	}
-	info := &SourceInfo{styler.idList(), buf.Bytes()}
+	info := &SourceInfo{styler.idList(fset), buf.Bytes()}
 
 	contents := applyTemplate(sourceHTML, "sourceHTML", info)
 	servePage(w, "Source file "+relpath, "", "", contents)
@@ -1102,6 +1095,7 @@ const (
 type PageInfo struct {
 	Dirname string          // directory containing the package
 	PList   []string        // list of package names found
+	FSet    *token.FileSet  // corresponding file set
 	PAst    *ast.File       // nil if no single AST with package exports
 	PDoc    *doc.PackageDoc // nil if no single package documentation
 	Dirs    *DirList        // nil if no directory information
@@ -1135,7 +1129,8 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 	}
 
 	// get package ASTs
-	pkgs, err := parser.ParseDir(abspath, filter, parser.ParseComments)
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, abspath, filter, parser.ParseComments)
 	if err != nil && pkgs == nil {
 		// only report directory read errors, ignore parse errors
 		// (may be able to extract partial package information)
@@ -1252,7 +1247,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		timestamp = time.Seconds()
 	}
 
-	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), timestamp, h.isPkg, nil}
+	return PageInfo{abspath, plist, fset, past, pdoc, dir.listing(true), timestamp, h.isPkg, nil}
 }
 
 

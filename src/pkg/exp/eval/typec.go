@@ -28,19 +28,19 @@ type typeCompiler struct {
 func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
 	_, _, def := a.block.Lookup(x.Name)
 	if def == nil {
-		a.diagAt(x, "%s: undefined", x.Name)
+		a.diagAt(x.Pos(), "%s: undefined", x.Name)
 		return nil
 	}
 	switch def := def.(type) {
 	case *Constant:
-		a.diagAt(x, "constant %v used as type", x.Name)
+		a.diagAt(x.Pos(), "constant %v used as type", x.Name)
 		return nil
 	case *Variable:
-		a.diagAt(x, "variable %v used as type", x.Name)
+		a.diagAt(x.Pos(), "variable %v used as type", x.Name)
 		return nil
 	case *NamedType:
 		if !allowRec && def.incomplete {
-			a.diagAt(x, "illegal recursive type")
+			a.diagAt(x.Pos(), "illegal recursive type")
 			return nil
 		}
 		if !def.incomplete && def.Def == nil {
@@ -68,7 +68,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
 	}
 
 	if _, ok := x.Len.(*ast.Ellipsis); ok {
-		a.diagAt(x.Len, "... array initailizers not implemented")
+		a.diagAt(x.Len.Pos(), "... array initailizers not implemented")
 		return nil
 	}
 	l, ok := a.compileArrayLen(a.block, x.Len)
@@ -76,7 +76,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
 		return nil
 	}
 	if l < 0 {
-		a.diagAt(x.Len, "array length must be non-negative")
+		a.diagAt(x.Len.Pos(), "array length must be non-negative")
 		return nil
 	}
 	if elem == nil {
@@ -86,11 +86,11 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
 	return NewArrayType(l, elem)
 }
 
-func (a *typeCompiler) compileFields(fields *ast.FieldList, allowRec bool) ([]Type, []*ast.Ident, []token.Position, bool) {
+func (a *typeCompiler) compileFields(fields *ast.FieldList, allowRec bool) ([]Type, []*ast.Ident, []token.Pos, bool) {
 	n := fields.NumFields()
 	ts := make([]Type, n)
 	ns := make([]*ast.Ident, n)
-	ps := make([]token.Position, n)
+	ps := make([]token.Pos, n)
 	bad := false
 
 	if fields != nil {
@@ -132,7 +132,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 	// uniqueness of field names inherited from anonymous fields
 	// at use time.
 	fields := make([]StructField, len(ts))
-	nameSet := make(map[string]token.Position, len(ts))
+	nameSet := make(map[string]token.Pos, len(ts))
 	for i := range fields {
 		// Compute field name and check anonymous fields
 		var name string
@@ -162,7 +162,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 			// *T, and T itself, may not be a pointer or
 			// interface type.
 			if nt == nil {
-				a.diagAt(&poss[i], "embedded type must T or *T, where T is a named type")
+				a.diagAt(poss[i], "embedded type must T or *T, where T is a named type")
 				bad = true
 				continue
 			}
@@ -172,7 +172,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 			lateCheck := a.lateCheck
 			a.lateCheck = func() bool {
 				if _, ok := nt.lit().(*PtrType); ok {
-					a.diagAt(&poss[i], "embedded type %v is a pointer type", nt)
+					a.diagAt(poss[i], "embedded type %v is a pointer type", nt)
 					return false
 				}
 				return lateCheck()
@@ -181,7 +181,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 
 		// Check name uniqueness
 		if prev, ok := nameSet[name]; ok {
-			a.diagAt(&poss[i], "field %s redeclared\n\tprevious declaration at %s", name, &prev)
+			a.diagAt(poss[i], "field %s redeclared\n\tprevious declaration at %s", name, a.fset.Position(prev))
 			bad = true
 			continue
 		}
@@ -227,7 +227,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
 	ts, names, poss, bad := a.compileFields(x.Methods, allowRec)
 
 	methods := make([]IMethod, len(ts))
-	nameSet := make(map[string]token.Position, len(ts))
+	nameSet := make(map[string]token.Pos, len(ts))
 	embeds := make([]*InterfaceType, len(ts))
 
 	var nm, ne int
@@ -242,7 +242,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
 			methods[nm].Type = ts[i].(*FuncType)
 			nm++
 			if prev, ok := nameSet[name]; ok {
-				a.diagAt(&poss[i], "method %s redeclared\n\tprevious declaration at %s", name, &prev)
+				a.diagAt(poss[i], "method %s redeclared\n\tprevious declaration at %s", name, a.fset.Position(prev))
 				bad = true
 				continue
 			}
@@ -251,7 +251,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
 			// Embedded interface
 			it, ok := ts[i].lit().(*InterfaceType)
 			if !ok {
-				a.diagAt(&poss[i], "embedded type must be an interface")
+				a.diagAt(poss[i], "embedded type must be an interface")
 				bad = true
 				continue
 			}
@@ -259,7 +259,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
 			ne++
 			for _, m := range it.methods {
 				if prev, ok := nameSet[m.Name]; ok {
-					a.diagAt(&poss[i], "method %s redeclared\n\tprevious declaration at %s", m.Name, &prev)
+					a.diagAt(poss[i], "method %s redeclared\n\tprevious declaration at %s", m.Name, a.fset.Position(prev))
 					bad = true
 					continue
 				}
@@ -288,13 +288,13 @@ func (a *typeCompiler) compileMapType(x *ast.MapType) Type {
 	// that can be map keys except for function types.
 	switch key.lit().(type) {
 	case *StructType:
-		a.diagAt(x, "map key cannot be a struct type")
+		a.diagAt(x.Pos(), "map key cannot be a struct type")
 		return nil
 	case *ArrayType:
-		a.diagAt(x, "map key cannot be an array type")
+		a.diagAt(x.Pos(), "map key cannot be an array type")
 		return nil
 	case *SliceType:
-		a.diagAt(x, "map key cannot be a slice type")
+		a.diagAt(x.Pos(), "map key cannot be a slice type")
 		return nil
 	}
 	return NewMapType(key, val)
@@ -339,14 +339,14 @@ func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type {
 		return a.compileType(x.X, allowRec)
 
 	case *ast.Ellipsis:
-		a.diagAt(x, "illegal use of ellipsis")
+		a.diagAt(x.Pos(), "illegal use of ellipsis")
 		return nil
 	}
-	a.diagAt(x, "expression used as type")
+	a.diagAt(x.Pos(), "expression used as type")
 	return nil
 
 notimpl:
-	a.diagAt(x, "compileType: %T not implemented", x)
+	a.diagAt(x.Pos(), "compileType: %T not implemented", x)
 	return nil
 }
 

@@ -29,7 +29,7 @@ func TypeFromNative(t reflect.Type) Type {
 	var nt *NamedType
 	if t.Name() != "" {
 		name := t.PkgPath() + "·" + t.Name()
-		nt = &NamedType{token.Position{}, name, nil, true, make(map[string]Method)}
+		nt = &NamedType{token.NoPos, name, nil, true, make(map[string]Method)}
 		evalTypes[t] = nt
 	}
 

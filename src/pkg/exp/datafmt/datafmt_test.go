@@ -7,11 +7,15 @@ package datafmt
 import (
 	"fmt"
 	"testing"
+	"go/token"
 )
 
 
+var fset = token.NewFileSet()
+
+
 func parse(t *testing.T, form string, fmap FormatterMap) Format {
-	f, err := Parse("", []byte(form), fmap)
+	f, err := Parse(fset, "", []byte(form), fmap)
 	if err != nil {
 		t.Errorf("Parse(%s): %v", form, err)
 		return nil

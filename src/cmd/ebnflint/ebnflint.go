@@ -10,12 +10,14 @@ import (
 	"flag"
 	"fmt"
 	"go/scanner"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"path"
 )
 
 
+var fset = token.NewFileSet()
 var start = flag.String("start", "Start", "name of start production")
 
 
@@ -92,12 +94,12 @@ func main() {
 		src = extractEBNF(src)
 	}
 
-	grammar, err := ebnf.Parse(filename, src)
+	grammar, err := ebnf.Parse(fset, filename, src)
 	if err != nil {
 		scanner.PrintError(os.Stderr, err)
 	}
 
-	if err = ebnf.Verify(grammar, *start); err != nil {
+	if err = ebnf.Verify(fset, grammar, *start); err != nil {
 		scanner.PrintError(os.Stderr, err)
 	}
 }

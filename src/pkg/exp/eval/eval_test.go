@@ -8,12 +8,16 @@ import (
 	"big"
 	"flag"
 	"fmt"
+	"go/token"
 	"log"
 	"os"
 	"reflect"
 	"regexp"
 	"testing"
 )
+
+// All tests are done using the same file set.
+var fset = token.NewFileSet()
 
 // Print each statement or expression before parsing it
 var noisy = false
@@ -49,7 +53,7 @@ func (a test) run(t *testing.T, name string) {
 			println("code:", src)
 		}
 
-		code, err := w.Compile(src)
+		code, err := w.Compile(fset, src)
 		if err != nil {
 			if j.cerr == "" {
 				t.Errorf("%s: Compile %s: %v", name, src, err)

@@ -37,7 +37,7 @@ func initRewrite() {
 // but there are problems with preserving formatting and also
 // with what a wildcard for a statement looks like.
 func parseExpr(s string, what string) ast.Expr {
-	x, err := parser.ParseExpr("input", s)
+	x, err := parser.ParseExpr(fset, "input", s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "parsing %s %s: %s\n", what, s, err)
 		os.Exit(2)
@@ -66,7 +66,7 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 }
 
 
-var positionType = reflect.Typeof(token.Position{})
+var positionType = reflect.Typeof(token.NoPos)
 var identType = reflect.Typeof((*ast.Ident)(nil))
 
 

@@ -26,7 +26,7 @@ func (tc *typechecker) closeScope() {
 
 // objPos computes the source position of the declaration of an object name.
 // Only required for error reporting, so doesn't have to be fast.
-func objPos(obj *ast.Object) (pos token.Position) {
+func objPos(obj *ast.Object) (pos token.Pos) {
 	switch d := obj.Decl.(type) {
 	case *ast.Field:
 		for _, n := range d.Names {
