@@ -39,7 +39,9 @@ func (p *ebnfParser) flush() {
 
 
 func (p *ebnfParser) next() {
-	p.flush()
+	if p.pos.IsValid() {
+		p.flush()
+	}
 	p.pos, p.tok, p.lit = p.scanner.Scan()
 	if p.tok.IsKeyword() {
 		// TODO Should keyword mapping always happen outside scanner?
