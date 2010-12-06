@@ -3139,7 +3139,7 @@ out:
 		c = yyTok2[1] /* unknown char */
 	}
 	if yyDebug >= 3 {
-		fmt.Printf("lex %.4x %s\n", uint(yychar), yyTokname(c))
+		fmt.Printf("lex %U %s\n", uint(yychar), yyTokname(c))
 	}
 	return c
 }

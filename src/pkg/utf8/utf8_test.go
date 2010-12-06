@@ -58,11 +58,11 @@ func TestFullRune(t *testing.T) {
 		m := utf8map[i]
 		b := []byte(m.str)
 		if !FullRune(b) {
-			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune)
+			t.Errorf("FullRune(%q) (%U) = false, want true", b, m.rune)
 		}
 		s := m.str
 		if !FullRuneInString(s) {
-			t.Errorf("FullRuneInString(%q) (rune %04x) = false, want true", s, m.rune)
+			t.Errorf("FullRuneInString(%q) (%U) = false, want true", s, m.rune)
 		}
 		b1 := b[0 : len(b)-1]
 		if FullRune(b1) {
@@ -172,7 +172,7 @@ func TestIntConversion(t *testing.T) {
 		i := 0
 		for _, r := range ts {
 			if r != runes[i] {
-				t.Errorf("%q[%d]: expected %c (U+%04x); got %c (U+%04x)", ts, i, runes[i], runes[i], r, r)
+				t.Errorf("%q[%d]: expected %c (%U); got %c (%U)", ts, i, runes[i], runes[i], r, r)
 			}
 			i++
 		}

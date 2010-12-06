@@ -275,10 +275,10 @@ func TestRuneIO(t *testing.T) {
 		size := utf8.EncodeRune(b[n:], r)
 		nbytes, err := buf.WriteRune(r)
 		if err != nil {
-			t.Fatalf("WriteRune(U+%.4x) error: %s", r, err)
+			t.Fatalf("WriteRune(%U) error: %s", r, err)
 		}
 		if nbytes != size {
-			t.Fatalf("WriteRune(U+%.4x) expected %d, got %d", r, size, nbytes)
+			t.Fatalf("WriteRune(%U) expected %d, got %d", r, size, nbytes)
 		}
 		n += size
 	}
@@ -295,7 +295,7 @@ func TestRuneIO(t *testing.T) {
 		size := utf8.EncodeRune(p, r)
 		nr, nbytes, err := buf.ReadRune()
 		if nr != r || nbytes != size || err != nil {
-			t.Fatalf("ReadRune(U+%.4x) got U+%.4x,%d not U+%.4x,%d (err=%s)", r, nr, nbytes, r, size, err)
+			t.Fatalf("ReadRune(%U) got %U,%d not %U,%d (err=%s)", r, nr, nbytes, r, size, err)
 		}
 	}
 
@@ -305,11 +305,11 @@ func TestRuneIO(t *testing.T) {
 	for r := 0; r < NRune; r++ {
 		r1, size, _ := buf.ReadRune()
 		if err := buf.UnreadRune(); err != nil {
-			t.Fatalf("UnreadRune(U+%.4x) got error %q", r, err)
+			t.Fatalf("UnreadRune(%U) got error %q", r, err)
 		}
 		r2, nbytes, err := buf.ReadRune()
 		if r1 != r2 || r1 != r || nbytes != size || err != nil {
-			t.Fatalf("ReadRune(U+%.4x) after UnreadRune got U+%.4x,%d not U+%.4x,%d (err=%s)", r, r2, nbytes, r, size, err)
+			t.Fatalf("ReadRune(%U) after UnreadRune got %U,%d not %U,%d (err=%s)", r, r2, nbytes, r, size, err)
 		}
 	}
 }
