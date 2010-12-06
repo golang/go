@@ -192,7 +192,7 @@ main(int argc, char *argv[])
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
-			INITRND = 4096;
+			INITRND = 1;
 		break;
 	case 3:	/* MS-DOS .COM */
 		HEADR = 0;
