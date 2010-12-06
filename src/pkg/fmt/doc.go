@@ -26,6 +26,7 @@
 		%o	base 8
 		%x	base 16, with lower-case letters for a-f
 		%X	base 16, with upper-case letters for A-F
+		%U	unicode format: U+1234; same as "U+%x" with 4 digits default
 	Floating-point and complex constituents:
 		%e	scientific notation, e.g. -1234.456e+78
 		%E	scientific notation, e.g. -1234.456E+78

@@ -222,6 +222,8 @@ var scanfTests = []ScanfTest{
 	{"%o", "075\n", &uintVal, uint(075)},
 	{"%x", "a75\n", &uintVal, uint(0xa75)},
 	{"%x", "A75\n", &uintVal, uint(0xa75)},
+	{"%U", "U+1234\n", &intVal, int(0x1234)},
+	{"%U", "U+4567\n", &uintVal, uint(0x4567)},
 
 	// Strings
 	{"%s", "using-%s\n", &stringVal, "using-%s"},
