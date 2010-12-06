@@ -459,7 +459,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	if f, ok := flag.Value.(*boolValue); ok { // special case: doesn't need an arg
 		if has_value {
 			if !f.Set(value) {
-				fmt.Fprintf(os.Stderr, "invalid boolean value %t for flag: -%s\n", value, name)
+				fmt.Fprintf(os.Stderr, "invalid boolean value %q for flag: -%s\n", value, name)
 				fail()
 			}
 		} else {
@@ -479,7 +479,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 		}
 		ok = flag.Value.Set(value)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "invalid value %s for flag: -%s\n", value, name)
+			fmt.Fprintf(os.Stderr, "invalid value %q for flag: -%s\n", value, name)
 			fail()
 		}
 	}
