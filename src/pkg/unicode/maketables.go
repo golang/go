@@ -157,7 +157,7 @@ func parseCategory(line string) (state State) {
 	char := &chars[point]
 	char.field = field
 	if char.codePoint != 0 {
-		die.Logf("point U+%04x reused\n")
+		die.Logf("point %U reused\n")
 	}
 	char.codePoint = lastChar
 	char.category = field[FGeneralCategory]
@@ -167,7 +167,7 @@ func parseCategory(line string) (state State) {
 		// Decimal digit
 		_, err := strconv.Atoi(field[FNumericValue])
 		if err != nil {
-			die.Log("U+%04x: bad numeric field: %s", point, err)
+			die.Log("%U: bad numeric field: %s", point, err)
 		}
 	case "Lu":
 		char.letter(field[FCodePoint], field[FSimpleLowercaseMapping], field[FSimpleTitlecaseMapping])
@@ -208,7 +208,7 @@ func (char *Char) letterValue(s string, cas string) int {
 	v, err := strconv.Btoui64(s, 16)
 	if err != nil {
 		char.dump(cas)
-		die.Logf("U+%04x: bad letter(%s): %s", char.codePoint, s, err)
+		die.Logf("%U: bad letter(%s): %s", char.codePoint, s, err)
 	}
 	return int(v)
 }
