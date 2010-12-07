@@ -4,7 +4,18 @@
 
 // A scanner for Go source text. Takes a []byte as source which can
 // then be tokenized through repeated calls to the Scan function.
-// For a sample use of a scanner, see the implementation of Tokenize.
+// Typical use:
+//
+//	var s Scanner
+//      fset := token.NewFileSet()  // position information is relative to fset
+//	s.Init(fset, filename, src, nil /* no error handler */, 0)
+//      for {
+//		pos, tok, lit := s.Scan()
+//		if tok == token.EOF {
+//			break
+//		}
+//		// do something here with pos, tok, and lit
+//	}
 //
 package scanner
 
@@ -19,8 +30,7 @@ import (
 
 // A Scanner holds the scanner's internal state while processing
 // a given text.  It can be allocated as part of another data
-// structure but must be initialized via Init before use. For
-// a sample use, see the implementation of Tokenize.
+// structure but must be initialized via Init before use.
 //
 type Scanner struct {
 	// immutable state
@@ -691,20 +701,4 @@ scanAgain:
 		S.insertSemi = insertSemi
 	}
 	return S.file.Pos(offs), tok, S.src[offs:S.offset]
-}
-
-
-// Tokenize calls a function f with the token position, token value, and token
-// text for each token in the source src. The other parameters have the same
-// meaning as for the Init function. Tokenize keeps scanning until f returns
-// false (usually when the token value is token.EOF). The result is the number
-// of errors encountered.
-//
-func Tokenize(set *token.FileSet, filename string, src []byte, err ErrorHandler, mode uint, f func(pos token.Pos, tok token.Token, lit []byte) bool) int {
-	var s Scanner
-	s.Init(set, filename, src, err, mode)
-	for f(s.Scan()) {
-		// action happens in f
-	}
-	return s.ErrorCount
 }

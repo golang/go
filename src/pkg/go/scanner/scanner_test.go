@@ -227,42 +227,46 @@ func TestScan(t *testing.T) {
 	whitespace_linecount := newlineCount(whitespace)
 
 	// verify scan
+	var s Scanner
+	s.Init(fset, "", []byte(src), &testErrorHandler{t}, ScanComments)
 	index := 0
 	epos := token.Position{"", 0, 1, 1} // expected position
-	nerrors := Tokenize(fset, "", []byte(src), &testErrorHandler{t}, ScanComments,
-		func(pos token.Pos, tok token.Token, litb []byte) bool {
-			e := elt{token.EOF, "", special}
-			if index < len(tokens) {
-				e = tokens[index]
-			}
-			lit := string(litb)
-			if tok == token.EOF {
-				lit = "<EOF>"
-				epos.Line = src_linecount
-				epos.Column = 1
-			}
-			checkPos(t, lit, pos, epos)
-			if tok != e.tok {
-				t.Errorf("bad token for %q: got %s, expected %s", lit, tok.String(), e.tok.String())
-			}
-			if e.tok.IsLiteral() && lit != e.lit {
-				t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, e.lit)
-			}
-			if tokenclass(tok) != e.class {
-				t.Errorf("bad class for %q: got %d, expected %d", lit, tokenclass(tok), e.class)
-			}
-			epos.Offset += len(lit) + len(whitespace)
-			epos.Line += newlineCount(lit) + whitespace_linecount
-			if tok == token.COMMENT && litb[1] == '/' {
-				// correct for unaccounted '/n' in //-style comment
-				epos.Offset++
-				epos.Line++
-			}
-			index++
-			return tok != token.EOF
-		})
-	if nerrors != 0 {
-		t.Errorf("found %d errors", nerrors)
+	for {
+		pos, tok, litb := s.Scan()
+		e := elt{token.EOF, "", special}
+		if index < len(tokens) {
+			e = tokens[index]
+		}
+		lit := string(litb)
+		if tok == token.EOF {
+			lit = "<EOF>"
+			epos.Line = src_linecount
+			epos.Column = 1
+		}
+		checkPos(t, lit, pos, epos)
+		if tok != e.tok {
+			t.Errorf("bad token for %q: got %s, expected %s", lit, tok.String(), e.tok.String())
+		}
+		if e.tok.IsLiteral() && lit != e.lit {
+			t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, e.lit)
+		}
+		if tokenclass(tok) != e.class {
+			t.Errorf("bad class for %q: got %d, expected %d", lit, tokenclass(tok), e.class)
+		}
+		epos.Offset += len(lit) + len(whitespace)
+		epos.Line += newlineCount(lit) + whitespace_linecount
+		if tok == token.COMMENT && litb[1] == '/' {
+			// correct for unaccounted '/n' in //-style comment
+			epos.Offset++
+			epos.Line++
+		}
+		index++
+		if tok == token.EOF {
+			break
+		}
+	}
+	if s.ErrorCount != 0 {
+		t.Errorf("found %d errors", s.ErrorCount)
 	}
 }
 
@@ -551,10 +555,13 @@ func TestStdErrorHander(t *testing.T) {
 		"@ @ @" // original file, line 1 again
 
 	v := new(ErrorVector)
-	nerrors := Tokenize(fset, "File1", []byte(src), v, 0,
-		func(pos token.Pos, tok token.Token, litb []byte) bool {
-			return tok != token.EOF
-		})
+	var s Scanner
+	s.Init(fset, "File1", []byte(src), v, 0)
+	for {
+		if _, tok, _ := s.Scan(); tok == token.EOF {
+			break
+		}
+	}
 
 	list := v.GetErrorList(Raw)
 	if len(list) != 9 {
@@ -574,8 +581,8 @@ func TestStdErrorHander(t *testing.T) {
 		PrintError(os.Stderr, list)
 	}
 
-	if v.ErrorCount() != nerrors {
-		t.Errorf("found %d errors, expected %d", v.ErrorCount(), nerrors)
+	if v.ErrorCount() != s.ErrorCount {
+		t.Errorf("found %d errors, expected %d", v.ErrorCount(), s.ErrorCount)
 	}
 }
 
