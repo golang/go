@@ -1192,3 +1192,10 @@ runtime·mid(uint32 ret)
 	ret = m->id;
 	FLUSH(&ret);
 }
+
+void
+runtime·Goroutines(int32 ret)
+{
+	ret = runtime·sched.gcount;
+	FLUSH(&ret);
+}
