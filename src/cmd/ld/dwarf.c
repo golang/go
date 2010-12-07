@@ -800,20 +800,25 @@ decode_reloc(Sym *s, int32 off)
 static uvlong
 decode_inuxi(uchar* p, int sz)
 {
-	uvlong r;
-	uchar *inuxi;
+	uint64 v;
+	uint32 l;
+	uchar *cast, *inuxi;
 	int i;
 
-	r = 0;
+	v = l = 0;
+	cast = nil;
 	inuxi = nil;
 	switch (sz) {
 	case 2:
+		cast = (uchar*)&l;
 		inuxi = inuxi2;
 		break;
 	case 4:
+		cast = (uchar*)&l;
 		inuxi = inuxi4;
 		break;
 	case 8:
+		cast = (uchar*)&v;
 		inuxi = inuxi8;
 		break;
 	default:
@@ -821,9 +826,10 @@ decode_inuxi(uchar* p, int sz)
 		errorexit();
 	}
 	for (i = 0; i < sz; i++)
-		r += p[i] << (8*inuxi[i]);
-
-	return r;
+		cast[inuxi[i]] = p[i];
+	if (sz == 8)
+		return v;
+	return l;
 }
 
 // Type.commonType.kind
