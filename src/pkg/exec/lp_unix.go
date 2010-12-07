@@ -29,7 +29,7 @@ func LookPath(file string) (string, os.Error) {
 		if canExec(file) {
 			return file, nil
 		}
-		return "", os.ENOENT
+		return "", &os.PathError{"lookpath", file, os.ENOENT}
 	}
 	pathenv := os.Getenv("PATH")
 	for _, dir := range strings.Split(pathenv, ":", -1) {
@@ -41,5 +41,5 @@ func LookPath(file string) (string, os.Error) {
 			return dir + "/" + file, nil
 		}
 	}
-	return "", os.ENOENT
+	return "", &os.PathError{"lookpath", file, os.ENOENT}
 }
