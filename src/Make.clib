@@ -19,7 +19,7 @@ $(QUOTED_GOROOT)/lib/$(LIB): $(LIB)
 	cp $(LIB) "$(GOROOT)/lib/$(LIB)"
 
 $(LIB): $(OFILES)
-	ar rsc $(LIB) $(OFILES)
+	$(HOST_AR) rsc $(LIB) $(OFILES)
 
 CLEANFILES+=y.tab.[ch] y.output a.out $(LIB)
 
