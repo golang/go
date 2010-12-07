@@ -2,16 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The following function allows one to dynamically
-// resolve DLL function names.
-// The arguments are strings.
-void *runtime·get_proc_addr(void *library, void *name);
-
-extern void *runtime·VirtualAlloc;
-extern void *runtime·VirtualFree;
 extern void *runtime·LoadLibraryEx;
 extern void *runtime·GetProcAddress;
-extern void *runtime·GetLastError;
 
 #define runtime·goargs runtime·windows_goargs
 void runtime·windows_goargs(void);

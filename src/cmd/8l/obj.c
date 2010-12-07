@@ -320,6 +320,8 @@ main(int argc, char *argv[])
 	doelf();
 	if(HEADTYPE == 6)
 		domacho();
+	if(HEADTYPE == 10)
+		dope();
 	dostkoff();
 	if(debug['p'])
 		if(debug['1'])

@@ -4,14 +4,6 @@
 
 #include "386/asm.h"
 
-TEXT runtime·get_kernel_module(SB),7,$0
-	MOVL	0x30(FS), AX		// get PEB
-	MOVL	0x0c(AX), AX		// get PEB_LDR_DATA
-	MOVL	0x1c(AX), AX		// get init order module list
-	MOVL	(AX), AX		// get next entry (kernel module)
-	MOVL	0x08(AX), AX		// get base of module
-	RET
-
 // void *stdcall_raw(void *fn, int32 count, uintptr *args)
 TEXT runtime·stdcall_raw(SB),7,$4
 	// Copy arguments from stack.
