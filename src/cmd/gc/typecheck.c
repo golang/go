@@ -263,7 +263,6 @@ reswitch:
 		n->type = dostruct(n->list, TINTER);
 		if(n->type == T)
 			goto error;
-		n->type = sortinter(n->type);
 		break;
 
 	case OTFUNC:
