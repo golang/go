@@ -592,8 +592,13 @@ nuxiinit(void)
 		if(i < 1)
 			inuxi1[i] = c;
 		inuxi4[i] = c;
-		inuxi8[i] = c;
-		inuxi8[i+4] = c+4;
+		if(c == i) {
+			inuxi8[i] = c;
+			inuxi8[i+4] = c+4;
+		} else {
+			inuxi8[i] = c+4;
+			inuxi8[i+4] = c;
+		}
 		fnuxi4[i] = c;
 		fnuxi8[i] = c;
 		fnuxi8[i+4] = c+4;
