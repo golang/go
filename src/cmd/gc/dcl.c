@@ -844,6 +844,8 @@ dostruct(NodeList *l, int et)
 		t->broke = 1;
 		return t;
 	}
+	if(et == TINTER)
+		t = sortinter(t);
 	if(!funarg)
 		checkwidth(t);
 	return t;

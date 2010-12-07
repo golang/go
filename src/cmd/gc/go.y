@@ -1726,7 +1726,6 @@ hidden_type_misc:
 |	LINTERFACE '{' ohidden_interfacedcl_list '}'
 	{
 		$$ = dostruct($3, TINTER);
-		$$ = sortinter($$);
 	}
 |	'*' hidden_type
 	{
