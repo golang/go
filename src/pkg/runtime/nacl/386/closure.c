@@ -38,7 +38,7 @@
 #include "malloc.h"
 
 // NaCl system call to copy data into text segment.
-extern int32 dyncode_copy(void*, void*, int32);
+extern int32 runtime·dyncode_copy(void*, void*, int32);
 
 enum{
 	// Allocate chunks of 4096 bytes worth of closures:
@@ -168,8 +168,8 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 			// segment and beginning of data.
 			clos.code = (byte*)(((uintptr)etext + 65535) & ~65535);
 			clos.ecode = clos.code;
-			mheap.closure_min = clos.code;
-			mheap.closure_max = rodata;
+			runtime·mheap.closure_min = clos.code;
+			runtime·mheap.closure_max = rodata;
 		}
 		if(clos.ecode+ClosureChunk > rodata) {
 			// Last ditch effort: garbage collect and hope.
@@ -218,7 +218,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 
 		e = runtime·dyncode_copy(clos.ecode, clos.buf, ClosureChunk);
 		if(e != 0) {
-			fd = 2;
+			runtime·fd = 2;
 			if(e == -22)
 				runtime·throw("NaCl running with dyncode_copy disabled; export NACLDYNCODE=1 in your environment");
 			runtime·printf("dyncode_copy: error %d\n", e);
@@ -240,7 +240,7 @@ alloc:
 	d->siz = siz;
 	runtime·mcpy((byte*)(d+1), (byte*)&arg0, siz);
 	*codeptr(p) = d;
-	runtime·addfinalizer(f, finclosure, 0);
+	runtime·addfinalizer(f, runtime·finclosure, 0);
 	runtime·unlock(&clos);
 
 	*ret = p;
