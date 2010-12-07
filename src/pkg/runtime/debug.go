@@ -26,6 +26,9 @@ func GOMAXPROCS(n int) int
 // Cgocalls returns the number of cgo calls made by the current process.
 func Cgocalls() int64
 
+// Goroutines returns the number of goroutines that currently exist.
+func Goroutines() int32
+
 type MemStatsType struct {
 	// General statistics.
 	// Not locked during update; approximate.
