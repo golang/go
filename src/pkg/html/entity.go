@@ -4,10 +4,6 @@
 
 package html
 
-import (
-	"utf8"
-)
-
 // entity is a map from HTML entity names to their values. The semicolon matters:
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/named-character-references.html
 // lists both "amp" and "amp;" as two separate entries.
@@ -2251,20 +2247,4 @@ var entity2 = map[string][2]int{
 	"vsubne;":                  {'\u228A', '\uFE00'},
 	"vsupnE;":                  {'\u2ACC', '\uFE00'},
 	"vsupne;":                  {'\u228B', '\uFE00'},
-}
-
-func init() {
-	// We verify that the length of UTF-8 encoding of each value is <= 1 + len(key).
-	// The +1 comes from the leading "&". This property implies that the length of
-	// unescaped text is <= the length of escaped text.
-	for k, v := range entity {
-		if 1+len(k) < utf8.RuneLen(v) {
-			panic("escaped entity &" + k + " is shorter than its UTF-8 encoding " + string(v))
-		}
-	}
-	for k, v := range entity2 {
-		if 1+len(k) < utf8.RuneLen(v[0])+utf8.RuneLen(v[1]) {
-			panic("escaped entity &" + k + " is shorter than its UTF-8 encoding " + string(v[0]) + string(v[1]))
-		}
-	}
 }
