@@ -101,6 +101,7 @@ HOST_CC=quietgcc
 HOST_LD=quietgcc
 HOST_O=o
 HOST_YFLAGS=-d
+HOST_AR?=ar
 
 # These two variables can be overridden in the environment
 # to build with other flags.  They are like $CFLAGS and $LDFLAGS
