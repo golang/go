@@ -106,12 +106,11 @@ func dump(n *Node) (string, os.Error) {
 	if n == nil || len(n.Child) == 0 {
 		return "", nil
 	}
-	if len(n.Child) > 1 {
-		return "too many children", nil
-	}
 	b := bytes.NewBuffer(nil)
-	if err := dumpLevel(b, n.Child[0], 0); err != nil {
-		return "", err
+	for _, child := range n.Child {
+		if err := dumpLevel(b, child, 0); err != nil {
+			return "", err
+		}
 	}
 	return b.String(), nil
 }
@@ -124,8 +123,8 @@ func TestParser(t *testing.T) {
 	for _, filename := range filenames {
 		rc := make(chan io.Reader)
 		go readDat(filename, rc)
-		// TODO(nigeltao): Process all test cases, not just the first three.
-		for i := 0; i < 3; i++ {
+		// TODO(nigeltao): Process all test cases, not just a subset.
+		for i := 0; i < 19; i++ {
 			// Parse the #data section.
 			doc, err := Parse(<-rc)
 			if err != nil {

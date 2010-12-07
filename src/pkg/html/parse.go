@@ -32,11 +32,6 @@ type Node struct {
 	Attr   []Attribute
 }
 
-// An insertion mode (section 10.2.3.1) is the state transition function from
-// a particular state in the HTML5 parser's state machine. In addition to
-// returning the next state, it also returns whether the token was consumed.
-type insertionMode func(*parser) (insertionMode, bool)
-
 // A parser implements the HTML5 parsing algorithm:
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#tree-construction
 type parser struct {
@@ -121,11 +116,12 @@ func (p *parser) read() os.Error {
 		p.tok.Attr = nil
 		return nil
 	}
-	if tokenType := p.tokenizer.Next(); tokenType == ErrorToken {
-		return p.tokenizer.Error()
-	}
+	p.tokenizer.Next()
 	p.tok = p.tokenizer.Token()
-	if p.tok.Type == SelfClosingTagToken {
+	switch p.tok.Type {
+	case ErrorToken:
+		return p.tokenizer.Error()
+	case SelfClosingTagToken:
 		p.hasSelfClosingToken = true
 		p.tok.Type = StartTagToken
 	}
@@ -136,6 +132,13 @@ func (p *parser) read() os.Error {
 func (p *parser) acknowledgeSelfClosingTag() {
 	p.hasSelfClosingToken = false
 }
+
+// An insertion mode (section 10.2.3.1) is the state transition function from
+// a particular state in the HTML5 parser's state machine. It updates the
+// parser's fields depending on parser.token (where ErrorToken means EOF). In
+// addition to returning the next insertionMode state, it also returns whether
+// the token was consumed.
+type insertionMode func(*parser) (insertionMode, bool)
 
 // Section 10.2.5.4.
 func initialInsertionMode(p *parser) (insertionMode, bool) {
@@ -151,6 +154,8 @@ func beforeHTMLInsertionMode(p *parser) (insertionMode, bool) {
 		implied bool
 	)
 	switch p.tok.Type {
+	case ErrorToken:
+		implied = true
 	case TextToken:
 		// TODO(nigeltao): distinguish whitespace text from others.
 		implied = true
@@ -162,7 +167,12 @@ func beforeHTMLInsertionMode(p *parser) (insertionMode, bool) {
 			implied = true
 		}
 	case EndTagToken:
-		// TODO.
+		switch p.tok.Data {
+		case "head", "body", "html", "br":
+			implied = true
+		default:
+			// Ignore the token.
+		}
 	}
 	if add || implied {
 		p.addChild(&Node{
@@ -182,6 +192,8 @@ func beforeHeadInsertionMode(p *parser) (insertionMode, bool) {
 		implied bool
 	)
 	switch p.tok.Type {
+	case ErrorToken:
+		implied = true
 	case TextToken:
 		// TODO(nigeltao): distinguish whitespace text from others.
 		implied = true
@@ -191,12 +203,17 @@ func beforeHeadInsertionMode(p *parser) (insertionMode, bool) {
 			add = true
 			attr = p.tok.Attr
 		case "html":
-			// TODO.
+			return inBodyInsertionMode, false
 		default:
 			implied = true
 		}
 	case EndTagToken:
-		// TODO.
+		switch p.tok.Data {
+		case "head", "body", "html", "br":
+			implied = true
+		default:
+			// Ignore the token.
+		}
 	}
 	if add || implied {
 		p.addChild(&Node{
@@ -215,7 +232,7 @@ func inHeadInsertionMode(p *parser) (insertionMode, bool) {
 		implied bool
 	)
 	switch p.tok.Type {
-	case TextToken:
+	case ErrorToken, TextToken:
 		implied = true
 	case StartTagToken:
 		switch p.tok.Data {
@@ -251,7 +268,7 @@ func afterHeadInsertionMode(p *parser) (insertionMode, bool) {
 		implied    bool
 	)
 	switch p.tok.Type {
-	case TextToken:
+	case ErrorToken, TextToken:
 		implied = true
 		framesetOK = true
 	case StartTagToken:
@@ -290,6 +307,8 @@ func afterHeadInsertionMode(p *parser) (insertionMode, bool) {
 func inBodyInsertionMode(p *parser) (insertionMode, bool) {
 	var endP bool
 	switch p.tok.Type {
+	case ErrorToken:
+		// No-op.
 	case TextToken:
 		p.addText(p.tok.Data)
 		p.framesetOK = false
@@ -363,6 +382,8 @@ func inBodyInsertionMode(p *parser) (insertionMode, bool) {
 // Section 10.2.5.22.
 func afterBodyInsertionMode(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
+	case ErrorToken:
+		// TODO.
 	case TextToken:
 		// TODO.
 	case StartTagToken:
@@ -395,6 +416,7 @@ func Parse(r io.Reader) (*Node, os.Error) {
 		scripting:  true,
 		framesetOK: true,
 	}
+	// Iterate until EOF. Any other error will cause an early return.
 	im, consumed := initialInsertionMode, true
 	for {
 		if consumed {
@@ -407,8 +429,11 @@ func Parse(r io.Reader) (*Node, os.Error) {
 		}
 		im, consumed = im(p)
 	}
-	// TODO(nigeltao): clean up, depending on the value of im.
-	// The specification's algorithm does clean up on reading an EOF 'token',
-	// but in go we represent EOF by an os.Error instead.
+	// Loop until the final token (the ErrorToken signifying EOF) is consumed.
+	for {
+		if im, consumed = im(p); consumed {
+			break
+		}
+	}
 	return p.doc, nil
 }
