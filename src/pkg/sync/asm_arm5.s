@@ -16,7 +16,7 @@ TEXT    ·cas(SB),7,$0
 	MOVW	4(FP), R1	// old
 	MOVW	8(FP), R2	// new
 	MOVW	$1, R3
-	MOVW	$cas_mutex(SB), R4
+	MOVW	$runtime·cas_mutex(SB), R4
 l:
 	SWPW	(R4), R3	// acquire mutex
 	CMP		$0, R3
