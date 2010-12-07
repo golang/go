@@ -7,6 +7,7 @@ package flag_test
 import (
 	. "flag"
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -178,5 +179,23 @@ func TestUserDefined(t *testing.T) {
 	expect := "[1 2 3]"
 	if v.String() != expect {
 		t.Errorf("expected value %q got %q", expect, v.String())
+	}
+}
+
+func TestChangingArgs(t *testing.T) {
+	ResetForTesting(func() { t.Fatal("bad parse") })
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"cmd", "-before", "subcmd", "-after", "args"}
+	before := Bool("before", false, "")
+	Parse()
+	cmd := Arg(0)
+	os.Args = Args()
+	after := Bool("after", false, "")
+	Parse()
+	args := Args()
+
+	if !*before || cmd != "subcmd" || !*after || len(args) != 1 || args[0] != "args" {
+		t.Fatal("expected true subcmd true [args] got %v %v %v %v", *before, cmd, *after, args)
 	}
 }
