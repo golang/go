@@ -363,6 +363,8 @@ importdot(Pkg *opkg, Node *pack)
 		for(s = hash[h]; s != S; s = s->link) {
 			if(s->pkg != opkg)
 				continue;
+			if(s->def == N)
+				continue;
 			if(!exportname(s->name) || utfrune(s->name, 0xb7))	// 0xb7 = center dot
 				continue;
 			s1 = lookup(s->name);
