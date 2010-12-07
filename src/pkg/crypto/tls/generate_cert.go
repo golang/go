@@ -40,7 +40,7 @@ func main() {
 		SerialNumber: []byte{0},
 		Subject: x509.Name{
 			CommonName:   *hostName,
-			Organization: "Acme Co",
+			Organization: []string{"Acme Co"},
 		},
 		NotBefore: time.SecondsToUTC(now - 300),
 		NotAfter:  time.SecondsToUTC(now + 60*60*24*365), // valid for 1 year.
