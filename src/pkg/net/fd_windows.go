@@ -445,3 +445,11 @@ func (fd *netFD) dup() (f *os.File, err os.Error) {
 	// TODO: Implement this
 	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
 }
+
+func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err os.Error) {
+	return 0, 0, 0, nil, os.EAFNOSUPPORT
+}
+
+func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err os.Error) {
+	return 0, 0, os.EAFNOSUPPORT
+}

@@ -277,6 +277,32 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	return c.WriteToUnix(b, a)
 }
 
+func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err os.Error) {
+	if !c.ok() {
+		return 0, 0, 0, nil, os.EINVAL
+	}
+	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
+	switch sa := sa.(type) {
+	case *syscall.SockaddrUnix:
+		addr = &UnixAddr{sa.Name, c.fd.proto == syscall.SOCK_DGRAM}
+	}
+	return
+}
+
+func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err os.Error) {
+	if !c.ok() {
+		return 0, 0, os.EINVAL
+	}
+	if addr != nil {
+		if addr.Datagram != (c.fd.proto == syscall.SOCK_DGRAM) {
+			return 0, 0, os.EAFNOSUPPORT
+		}
+		sa := &syscall.SockaddrUnix{Name: addr.Name}
+		return c.fd.WriteMsg(b, oob, sa)
+	}
+	return c.fd.WriteMsg(b, oob, nil)
+}
+
 // File returns a copy of the underlying os.File, set to blocking mode.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
