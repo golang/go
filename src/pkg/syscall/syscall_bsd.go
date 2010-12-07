@@ -485,6 +485,13 @@ func Futimes(fd int, tv []Timeval) (errno int) {
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
 
+func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recvflags int, errno int) {
+	return 0, 0, 0, EAFNOSUPPORT
+}
+
+func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
+	return EAFNOSUPPORT
+}
 
 // TODO: wrap
 //	Acct(name nil-string) (errno int)
@@ -495,5 +502,3 @@ func Futimes(fd int, tv []Timeval) (errno int) {
 //	Msync(addr *byte, len int, flags int) (errno int)
 //	Munmap(addr *byte, len int) (errno int)
 //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, errno int)
-//	Recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
-//	Sendmsg(s int, msg *Msghdr, flags int) (n int, errno int)

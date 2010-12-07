@@ -46,6 +46,8 @@ package syscall
 //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
 //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+//sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
 
 func Getpagesize() int { return 4096 }
 
@@ -72,3 +74,15 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 func (r *PtraceRegs) PC() uint64 { return r.Rip }
 
 func (r *PtraceRegs) SetPC(pc uint64) { r.Rip = pc }
+
+func (iov *Iovec) SetLen(length int) {
+	iov.Len = uint64(length)
+}
+
+func (msghdr *Msghdr) SetControllen(length int) {
+	msghdr.Controllen = uint64(length)
+}
+
+func (cmsg *Cmsghdr) SetLen(length int) {
+	cmsg.Len = uint64(length)
+}

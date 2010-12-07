@@ -151,6 +151,16 @@ func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int
 	return
 }
 
+func recvmsg(s int, msg *Msghdr, flags int) (n int, errno int) {
+	n, errno = socketcall(_RECVMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+	return
+}
+
+func sendmsg(s int, msg *Msghdr, flags int) (errno int) {
+	_, errno = socketcall(_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+	return
+}
+
 func Listen(s int, n int) (errno int) {
 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0)
 	return
@@ -176,3 +186,15 @@ func Statfs(path string, buf *Statfs_t) (errno int) {
 func (r *PtraceRegs) PC() uint64 { return uint64(uint32(r.Eip)) }
 
 func (r *PtraceRegs) SetPC(pc uint64) { r.Eip = int32(pc) }
+
+func (iov *Iovec) SetLen(length int) {
+	iov.Len = uint32(length)
+}
+
+func (msghdr *Msghdr) SetControllen(length int) {
+	msghdr.Controllen = uint32(length)
+}
+
+func (cmsg *Cmsghdr) SetLen(length int) {
+	cmsg.Len = uint32(length)
+}
