@@ -9,6 +9,7 @@ GOFILES=\
 	doc.go\
 	entity.go\
 	escape.go\
+	parse.go\
 	token.go\
 
 include ../../Make.pkg

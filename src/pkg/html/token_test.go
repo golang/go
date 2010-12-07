@@ -88,7 +88,7 @@ loop:
 	for _, tt := range tokenTests {
 		z := NewTokenizer(bytes.NewBuffer([]byte(tt.html)))
 		for i, s := range tt.tokens {
-			if z.Next() == Error {
+			if z.Next() == ErrorToken {
 				t.Errorf("%s token %d: want %q got error %v", tt.desc, i, s, z.Error())
 				continue loop
 			}
@@ -134,19 +134,19 @@ loop:
 	for {
 		tt := z.Next()
 		switch tt {
-		case Error:
+		case ErrorToken:
 			if z.Error() != os.EOF {
 				t.Error(z.Error())
 			}
 			break loop
-		case Text:
+		case TextToken:
 			if depth > 0 {
 				result.Write(z.Text())
 			}
-		case StartTag, EndTag:
+		case StartTagToken, EndTagToken:
 			tn, _ := z.TagName()
 			if len(tn) == 1 && tn[0] == 'a' {
-				if tt == StartTag {
+				if tt == StartTagToken {
 					depth++
 				} else {
 					depth--
