@@ -199,20 +199,13 @@ func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
 	return send(&req)
 }
 
+// TODO: remove this function when PostForm takes a multimap.
 func urlencode(data map[string]string) (b *bytes.Buffer) {
-	b = new(bytes.Buffer)
-	first := true
+	m := make(map[string][]string, len(data))
 	for k, v := range data {
-		if first {
-			first = false
-		} else {
-			b.WriteByte('&')
-		}
-		b.WriteString(URLEscape(k))
-		b.WriteByte('=')
-		b.WriteString(URLEscape(v))
+		m[k] = []string{v}
 	}
-	return
+	return bytes.NewBuffer([]byte(EncodeQuery(m)))
 }
 
 // Head issues a HEAD to the specified URL.

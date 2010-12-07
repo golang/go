@@ -515,3 +515,15 @@ func (url *URL) String() string {
 	}
 	return result
 }
+
+// EncodeQuery encodes the query represented as a multimap.
+func EncodeQuery(m map[string][]string) string {
+	parts := make([]string, 0, len(m)) // will be large enough for most uses
+	for k, vs := range m {
+		prefix := URLEscape(k) + "="
+		for _, v := range vs {
+			parts = append(parts, prefix+URLEscape(v))
+		}
+	}
+	return strings.Join(parts, "&")
+}
