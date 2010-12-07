@@ -511,19 +511,20 @@ func TestUnescapeUserinfo(t *testing.T) {
 type qMap map[string][]string
 
 type EncodeQueryTest struct {
-	m        qMap
-	expected string
+	m         qMap
+	expected  string
+	expected1 string
 }
 
 var encodeQueryTests = []EncodeQueryTest{
-	{nil, ""},
-	{qMap{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8"},
-	{qMap{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
+	{nil, "", ""},
+	{qMap{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8", "oe=utf8&q=puppies"},
+	{qMap{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7", "q=dogs&q=%26&q=7"},
 }
 
 func TestEncodeQuery(t *testing.T) {
 	for _, tt := range encodeQueryTests {
-		if q := EncodeQuery(tt.m); q != tt.expected {
+		if q := EncodeQuery(tt.m); q != tt.expected && q != tt.expected1 {
 			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
 		}
 	}
