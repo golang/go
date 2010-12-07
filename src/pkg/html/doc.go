@@ -15,7 +15,7 @@ which parses the next token and returns its type, or an error:
 
 	for {
 		tt := z.Next()
-		if tt == html.Error {
+		if tt == html.ErrorToken {
 			// ...
 			return ...
 		}
@@ -34,7 +34,7 @@ Entities (such as "&lt;") are unescaped, tag names and attribute keys are
 lower-cased, and attributes are collected into a []Attribute. For example:
 
 	for {
-		if z.Next() == html.Error {
+		if z.Next() == html.ErrorToken {
 			// Returning os.EOF indicates success.
 			return z.Error()
 		}
@@ -49,15 +49,15 @@ call to Next. For example, to extract an HTML page's anchor text:
 	for {
 		tt := z.Next()
 		switch tt {
-		case Error:
+		case ErrorToken:
 			return z.Error()
-		case Text:
+		case TextToken:
 			if depth > 0 {
 				// emitBytes should copy the []byte it receives,
 				// if it doesn't process it immediately.
 				emitBytes(z.Text())
 			}
-		case StartTag, EndTag:
+		case StartTagToken, EndTagToken:
 			tn, _ := z.TagName()
 			if len(tn) == 1 && tn[0] == 'a' {
 				if tt == StartTag {
@@ -68,6 +68,26 @@ call to Next. For example, to extract an HTML page's anchor text:
 			}
 		}
 	}
+
+Parsing is done by calling Parse with an io.Reader, which returns the root of
+the parse tree (the document element) as a *Node. It is the caller's
+responsibility to ensure that the Reader provides UTF-8 encoded HTML. For
+example, to process each anchor node in depth-first order:
+
+	doc, err := html.Parse(r)
+	if err != nil {
+		// ...
+	}
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			// Do something with n...
+		}
+		for _, c := range n.Child {
+			f(c)
+		}
+	}
+	f(doc)
 
 The relevant specifications include:
 http://www.whatwg.org/specs/web-apps/current-work/multipage/syntax.html and
@@ -82,6 +102,5 @@ package html
 // node. Specification compliance is verified by checking expected and actual
 // outputs over a test suite rather than aiming for algorithmic fidelity.
 
-// TODO(nigeltao): Implement a parser, not just a tokenizer.
 // TODO(nigeltao): Does a DOM API belong in this package or a separate one?
 // TODO(nigeltao): How does parsing interact with a JavaScript engine?
