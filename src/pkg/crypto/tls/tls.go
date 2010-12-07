@@ -15,19 +15,31 @@ import (
 	"strings"
 )
 
+// Server returns a new TLS server side connection
+// using conn as the underlying transport.
+// The configuration config must be non-nil and must have
+// at least one certificate.
 func Server(conn net.Conn, config *Config) *Conn {
 	return &Conn{conn: conn, config: config}
 }
 
+// Client returns a new TLS client side connection
+// using conn as the underlying transport.
+// Client interprets a nil configuration as equivalent to
+// the zero configuration; see the documentation of Config
+// for the defaults.
 func Client(conn net.Conn, config *Config) *Conn {
 	return &Conn{conn: conn, config: config, isClient: true}
 }
 
+// A Listener implements a network listener (net.Listener) for TLS connections.
 type Listener struct {
 	listener net.Listener
 	config   *Config
 }
 
+// Accept waits for and returns the next incoming TLS connection.
+// The returned connection c is a *tls.Conn.
 func (l *Listener) Accept() (c net.Conn, err os.Error) {
 	c, err = l.listener.Accept()
 	if err != nil {
@@ -37,8 +49,10 @@ func (l *Listener) Accept() (c net.Conn, err os.Error) {
 	return
 }
 
+// Close closes the listener.
 func (l *Listener) Close() os.Error { return l.listener.Close() }
 
+// Addr returns the listener's network address.
 func (l *Listener) Addr() net.Addr { return l.listener.Addr() }
 
 // NewListener creates a Listener which accepts connections from an inner
@@ -52,7 +66,11 @@ func NewListener(listener net.Listener, config *Config) (l *Listener) {
 	return
 }
 
-func Listen(network, laddr string, config *Config) (net.Listener, os.Error) {
+// Listen creates a TLS listener accepting connections on the
+// given network address using net.Listen.
+// The configuration config must be non-nil and must have
+// at least one certificate.
+func Listen(network, laddr string, config *Config) (*Listener, os.Error) {
 	if config == nil || len(config.Certificates) == 0 {
 		return nil, os.NewError("tls.Listen: no certificates in configuration")
 	}
@@ -63,7 +81,13 @@ func Listen(network, laddr string, config *Config) (net.Listener, os.Error) {
 	return NewListener(l, config), nil
 }
 
-func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
+// Dial connects to the given network address using net.Dial
+// and then initiates a TLS handshake, returning the resulting
+// TLS connection.
+// Dial interprets a nil configuration as equivalent to
+// the zero configuration; see the documentation of Config
+// for the defaults.
+func Dial(network, laddr, raddr string, config *Config) (*Conn, os.Error) {
 	c, err := net.Dial(network, laddr, raddr)
 	if err != nil {
 		return nil, err
@@ -75,15 +99,21 @@ func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
 	}
 	hostname := raddr[:colonPos]
 
-	config := defaultConfig()
-	config.ServerName = hostname
-	conn := Client(c, config)
-	err = conn.Handshake()
-	if err == nil {
-		return conn, nil
+	if config == nil {
+		config = defaultConfig()
 	}
-	c.Close()
-	return nil, err
+	if config.ServerName != "" {
+		// Make a copy to avoid polluting argument or default.
+		c := *config
+		c.ServerName = hostname
+		config = &c
+	}
+	conn := Client(c, config)
+	if err = conn.Handshake(); err != nil {
+		c.Close()
+		return nil, err
+	}
+	return conn, nil
 }
 
 // LoadX509KeyPair reads and parses a public/private key pair from a pair of

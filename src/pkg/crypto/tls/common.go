@@ -78,6 +78,7 @@ const (
 	// Rest of these are reserved by the TLS spec
 )
 
+// ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
 	HandshakeComplete  bool
 	CipherSuite        uint16
@@ -88,28 +89,65 @@ type ConnectionState struct {
 // has been passed to a TLS function it must not be modified.
 type Config struct {
 	// Rand provides the source of entropy for nonces and RSA blinding.
+	// If Rand is nil, TLS uses the cryptographic random reader in package
+	// crypto/rand.
 	Rand io.Reader
+
 	// Time returns the current time as the number of seconds since the epoch.
+	// If Time is nil, TLS uses the system time.Seconds.
 	Time func() int64
-	// Certificates contains one or more certificate chains.
+
+	// Certificates contains one or more certificate chains
+	// to present to the other side of the connection.
+	// Server configurations must include at least one certificate.
 	Certificates []Certificate
-	RootCAs      *CASet
+
+	// RootCAs defines the set of root certificate authorities
+	// that clients use when verifying server certificates.
+	// If RootCAs is nil, TLS uses the host's root CA set.
+	RootCAs *CASet
+
 	// NextProtos is a list of supported, application level protocols.
 	// Currently only server-side handling is supported.
 	NextProtos []string
+
 	// ServerName is included in the client's handshake to support virtual
 	// hosting.
 	ServerName string
-	// AuthenticateClient determines if a server will request a certificate
+
+	// AuthenticateClient controls whether a server will request a certificate
 	// from the client. It does not require that the client send a
-	// certificate nor, if it does, that the certificate is anything more
-	// than self-signed.
+	// certificate nor does it require that the certificate sent be
+	// anything more than self-signed.
 	AuthenticateClient bool
 }
 
+func (c *Config) rand() io.Reader {
+	r := c.Rand
+	if r == nil {
+		return rand.Reader
+	}
+	return r
+}
+
+func (c *Config) time() int64 {
+	t := c.Time
+	if t == nil {
+		t = time.Seconds
+	}
+	return t()
+}
+
+func (c *Config) rootCAs() *CASet {
+	s := c.RootCAs
+	if s == nil {
+		s = defaultRoots()
+	}
+	return s
+}
+
+// A Certificate is a chain of one or more certificates, leaf first.
 type Certificate struct {
-	// Certificate contains a chain of one or more certificates. Leaf
-	// certificate first.
 	Certificate [][]byte
 	PrivateKey  *rsa.PrivateKey
 }
@@ -143,14 +181,10 @@ func mutualVersion(vers uint16) (uint16, bool) {
 	return vers, true
 }
 
-// The defaultConfig is used in place of a nil *Config in the TLS server and client.
-var varDefaultConfig *Config
-
-var once sync.Once
+var emptyConfig Config
 
 func defaultConfig() *Config {
-	once.Do(initDefaultConfig)
-	return varDefaultConfig
+	return &emptyConfig
 }
 
 // Possible certificate files; stop after finding one.
@@ -162,7 +196,16 @@ var certFiles = []string{
 	"/usr/share/curl/curl-ca-bundle.crt", // OS X
 }
 
-func initDefaultConfig() {
+var once sync.Once
+
+func defaultRoots() *CASet {
+	once.Do(initDefaultRoots)
+	return varDefaultRoots
+}
+
+var varDefaultRoots *CASet
+
+func initDefaultRoots() {
 	roots := NewCASet()
 	for _, file := range certFiles {
 		data, err := ioutil.ReadFile(file)
@@ -171,10 +214,5 @@ func initDefaultConfig() {
 			break
 		}
 	}
-
-	varDefaultConfig = &Config{
-		Rand:    rand.Reader,
-		Time:    time.Seconds,
-		RootCAs: roots,
-	}
+	varDefaultRoots = roots
 }

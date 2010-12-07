@@ -111,7 +111,7 @@ func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
 		client, err = net.Dial("tcp", "", parsedUrl.Host)
 
 	case "wss":
-		client, err = tls.Dial("tcp", "", parsedUrl.Host)
+		client, err = tls.Dial("tcp", "", parsedUrl.Host, nil)
 
 	default:
 		err = ErrBadScheme

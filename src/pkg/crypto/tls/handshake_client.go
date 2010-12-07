@@ -30,12 +30,12 @@ func (c *Conn) clientHandshake() os.Error {
 		serverName:         c.config.ServerName,
 	}
 
-	t := uint32(c.config.Time())
+	t := uint32(c.config.time())
 	hello.random[0] = byte(t >> 24)
 	hello.random[1] = byte(t >> 16)
 	hello.random[2] = byte(t >> 8)
 	hello.random[3] = byte(t)
-	_, err := io.ReadFull(c.config.Rand, hello.random[4:])
+	_, err := io.ReadFull(c.config.rand(), hello.random[4:])
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return os.ErrorString("short read from Rand")
@@ -217,12 +217,12 @@ func (c *Conn) clientHandshake() os.Error {
 	preMasterSecret := make([]byte, 48)
 	preMasterSecret[0] = byte(hello.vers >> 8)
 	preMasterSecret[1] = byte(hello.vers)
-	_, err = io.ReadFull(c.config.Rand, preMasterSecret[2:])
+	_, err = io.ReadFull(c.config.rand(), preMasterSecret[2:])
 	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}
 
-	ckx.ciphertext, err = rsa.EncryptPKCS1v15(c.config.Rand, pub, preMasterSecret)
+	ckx.ciphertext, err = rsa.EncryptPKCS1v15(c.config.rand(), pub, preMasterSecret)
 	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}
@@ -235,7 +235,7 @@ func (c *Conn) clientHandshake() os.Error {
 		var digest [36]byte
 		copy(digest[0:16], finishedHash.serverMD5.Sum())
 		copy(digest[16:36], finishedHash.serverSHA1.Sum())
-		signed, err := rsa.SignPKCS1v15(c.config.Rand, c.config.Certificates[0].PrivateKey, rsa.HashMD5SHA1, digest[0:])
+		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, rsa.HashMD5SHA1, digest[0:])
 		if err != nil {
 			return c.sendAlert(alertInternalError)
 		}
