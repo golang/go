@@ -177,7 +177,9 @@ TEXT runtime·morestack(SB),7,$0
 	// Call newstack on m's scheduling stack.
 	MOVL	m_g0(BX), BP
 	MOVL	BP, g(CX)
-	MOVL	(m_sched+gobuf_sp)(BX), SP
+	MOVL	(m_sched+gobuf_sp)(BX), AX
+	MOVL	-4(AX), BX	// fault if CALL would, before smashing SP
+	MOVL	AX, SP
 	CALL	runtime·newstack(SB)
 	MOVL	$0, 0x1003	// crash if newstack returns
 	RET
