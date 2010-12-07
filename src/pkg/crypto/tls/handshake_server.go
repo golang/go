@@ -84,13 +84,13 @@ func (c *Conn) serverHandshake() os.Error {
 
 	hello.vers = vers
 	hello.cipherSuite = suite.id
-	t := uint32(config.Time())
+	t := uint32(config.time())
 	hello.random = make([]byte, 32)
 	hello.random[0] = byte(t >> 24)
 	hello.random[1] = byte(t >> 16)
 	hello.random[2] = byte(t >> 8)
 	hello.random[3] = byte(t)
-	_, err = io.ReadFull(config.Rand, hello.random[4:])
+	_, err = io.ReadFull(config.rand(), hello.random[4:])
 	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}
@@ -209,12 +209,12 @@ func (c *Conn) serverHandshake() os.Error {
 	}
 
 	preMasterSecret := make([]byte, 48)
-	_, err = io.ReadFull(config.Rand, preMasterSecret[2:])
+	_, err = io.ReadFull(config.rand(), preMasterSecret[2:])
 	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}
 
-	err = rsa.DecryptPKCS1v15SessionKey(config.Rand, config.Certificates[0].PrivateKey, ckx.ciphertext, preMasterSecret)
+	err = rsa.DecryptPKCS1v15SessionKey(config.rand(), config.Certificates[0].PrivateKey, ckx.ciphertext, preMasterSecret)
 	if err != nil {
 		return c.sendAlert(alertHandshakeFailure)
 	}

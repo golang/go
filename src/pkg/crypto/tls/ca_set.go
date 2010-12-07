@@ -16,6 +16,7 @@ type CASet struct {
 	byName         map[string][]*x509.Certificate
 }
 
+// NewCASet returns a new, empty CASet.
 func NewCASet() *CASet {
 	return &CASet{
 		make(map[string][]*x509.Certificate),

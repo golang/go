@@ -63,7 +63,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 			return nil, err
 		}
 	} else { // https
-		conn, err = tls.Dial("tcp", "", addr)
+		conn, err = tls.Dial("tcp", "", addr, nil)
 		if err != nil {
 			return nil, err
 		}
