@@ -3,30 +3,38 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# This script checks that the compilers emits the errors which we
-# expect.  Usage: errchk COMPILER [OPTS] SOURCEFILE.  This will run
-# the command COMPILER [OPTS] SOURCEFILE.  The compilation is expected
-# to fail; if it succeeds, this script will report an error.  The
-# stderr output of the compiler will be matched against comments in
-# SOURCEFILE.  For each line of the source file which should generate
-# an error, there should be a comment of the form // ERROR "regexp".
-# If the compiler generates an error for a line which has no such
-# commnt, this script will report an error.  Likewise if the compiler
-# does not generate an error for a line which has a comment, or if the
-# error message does not match the <regexp>.  The <regexp> syntax
-# is Perl but its best to stick to egrep.
+# This script checks that the compilers emit the errors which we expect.
+# Usage: errchk COMPILER [OPTS] SOURCEFILES.  This will run the command
+# COMPILER [OPTS] SOURCEFILES.  The compilation is expected to fail; if
+# it succeeds, this script will report an error.  The stderr output of
+# the compiler will be matched against comments in SOURCEFILES.  For each
+# line of the source files which should generate an error, there should
+# be a comment of the form // ERROR "regexp".  If the compiler generates
+# an error for a line which has no such comment, this script will report
+# an error.  Likewise if the compiler does not generate an error for a
+# line which has a comment, or if the error message does not match the
+# <regexp>.  The <regexp> syntax is Perl but its best to stick to egrep.
 
 use POSIX;
 
 if(@ARGV < 1) {
-	print STDERR "Usage: errchk COMPILER [OPTS] SOURCEFILE\n";
+	print STDERR "Usage: errchk COMPILER [OPTS] SOURCEFILES\n";
 	exit 1;
 }
 
-$file = $ARGV[@ARGV-1];
-open(SRC, $file) || die "BUG: errchk: open $file: $!";
-@src = <SRC>;
-close(SRC);
+# Grab SOURCEFILES
+foreach(reverse 0 .. @ARGV-1) {
+	unless($ARGV[$_] =~ /\.go$/) {
+		@file = @ARGV[$_+1 .. @ARGV-1];
+		last;
+	}
+}
+
+foreach $file (@file) {
+	open(SRC, $file) || die "BUG: errchk: open $file: $!";
+	$src{$file} = [<SRC>];
+	close(SRC);
+}
 
 # Run command
 $cmd = join(' ', @ARGV);
@@ -57,35 +65,45 @@ sub bug() {
 	}
 }
 
-$line = 0;
-foreach $src (@src) {
-	$line++;
-	next unless $src =~ m|// (GC_)?ERROR (.*)|;
-	$regexp = $2;
-	if($regexp !~ /^"([^"]*)"/) {
-		print STDERR "$file:$line: malformed regexp\n";
-		next;
-	}
-	$regexp = $1;
+sub chk {
+	my $file = shift;
+	my $line = 0;
+	my $regexp;
+	my @errmsg;
+	my @match;
+	foreach my $src (@{$src{$file}}) {
+		$line++;
+		next unless $src =~ m|// (GC_)?ERROR (.*)|;
+		$regexp = $2;
+		if($regexp !~ /^"([^"]*)"/) {
+			print STDERR "$file:$line: malformed regexp\n";
+			next;
+		}
+		$regexp = $1;
 
-	@errmsg = grep { /$file:$line[:[]/ } @out;
-	@out = grep { !/$file:$line[:[]/ } @out;
-	if(@errmsg == 0) {
-		bug();
-		print STDERR "errchk: $file:$line: missing expected error: '$regexp'\n";
-		next;
+		@errmsg = grep { /$file:$line[:[]/ } @out;
+		@out = grep { !/$file:$line[:[]/ } @out;
+		if(@errmsg == 0) {
+			bug();
+			print STDERR "errchk: $file:$line: missing expected error: '$regexp'\n";
+			next;
+		}
+		@match = grep { /$regexp/ } @errmsg;
+		if(@match == 0) {
+			bug();
+			print STDERR "errchk: $file:$line: error message does not match '$regexp'\n";
+			next;
+		}
 	}
-	@match = grep { /$regexp/ } @errmsg;
-	if(@match == 0) {
-		bug();
-		print STDERR "errchk: $file:$line: error message does not match '$regexp'\n";
-		next;
-	}
+}
+
+foreach $file (@file) {
+	chk($file)
 }
 
 if(@out != 0) {
 	bug();
-	print STDERR "errchk: $file: unmatched error messages:\n";
+	print STDERR "errchk: unmatched error messages:\n";
 	print STDERR "==================================================\n";
 	print STDERR @out;
 	print STDERR "==================================================\n";
