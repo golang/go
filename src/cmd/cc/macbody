@@ -63,7 +63,7 @@ getsym(void)
 		if(cp <= symb+NSYMB-4)
 			*cp++ = c;
 		c = getc();
-		if(isalnum(c) || c == '_' || c >= 0x80)
+		if(isalnum(c) || c == '_' || c >= 0x80 || c == '$')
 			continue;
 		unget(c);
 		break;
