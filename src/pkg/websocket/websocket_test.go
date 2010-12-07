@@ -155,7 +155,7 @@ func TestHTTP(t *testing.T) {
 	// specification, the server should abort the WebSocket connection.
 	_, _, err := http.Get(fmt.Sprintf("http://%s/echo", serverAddr))
 	if err == nil {
-		t.Errorf("Get: unexpected success")
+		t.Error("Get: unexpected success")
 		return
 	}
 	urlerr, ok := err.(*http.URLError)

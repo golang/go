@@ -31,7 +31,7 @@ func TestTicker(t *testing.T) {
 	Sleep(2 * Delta)
 	_, received := <-ticker.C
 	if received {
-		t.Fatalf("Ticker did not shut down")
+		t.Fatal("Ticker did not shut down")
 	}
 }
 

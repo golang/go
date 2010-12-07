@@ -111,7 +111,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
 	var b bytes.Buffer
 	_, err = io.Copy(&b, r)
 	if err != ChecksumError {
-		t.Errorf("%s: copy error=%v, want %v", err, ChecksumError)
+		t.Errorf("%s: copy error=%v, want %v", z.File[0].Name, err, ChecksumError)
 	}
 }
 
@@ -144,7 +144,7 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 	}
 	for i, b := range b.Bytes() {
 		if b != c[i] {
-			t.Errorf("%s: content[%d]=%q want %q", i, b, c[i])
+			t.Errorf("%s: content[%d]=%q want %q", f.Name, i, b, c[i])
 			return
 		}
 	}

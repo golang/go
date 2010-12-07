@@ -873,7 +873,7 @@ func TestMap(t *testing.T) {
 		// Check that value lookup is correct.
 		vv := mv.Elem(NewValue(k))
 		if vi := vv.(*IntValue).Get(); vi != int64(v) {
-			t.Errorf("Key %q: have value %d, want %d", vi, v)
+			t.Errorf("Key %q: have value %d, want %d", k, vi, v)
 		}
 
 		// Copy into new map.

@@ -35,7 +35,7 @@ func TestMkdirAll(t *testing.T) {
 	// Can't make directory named after file.
 	err = MkdirAll(fpath, 0777)
 	if err == nil {
-		t.Fatalf("MkdirAll %q: no error")
+		t.Fatalf("MkdirAll %q: no error", fpath)
 	}
 	perr, ok := err.(*PathError)
 	if !ok {
@@ -49,7 +49,7 @@ func TestMkdirAll(t *testing.T) {
 	ffpath := fpath + "/subdir"
 	err = MkdirAll(ffpath, 0777)
 	if err == nil {
-		t.Fatalf("MkdirAll %q: no error")
+		t.Fatalf("MkdirAll %q: no error", ffpath)
 	}
 	perr, ok = err.(*PathError)
 	if !ok {
@@ -135,7 +135,7 @@ func TestRemoveAll(t *testing.T) {
 			if err == nil {
 				t.Errorf("Can lstat %q after supposed RemoveAll", path)
 			}
-			t.Fatalf("RemoveAll %q succeeded with chmod 0 subdirectory", path, err)
+			t.Fatalf("RemoveAll %q succeeded with chmod 0 subdirectory: err %s", path, err)
 		}
 		perr, ok := err.(*PathError)
 		if !ok {

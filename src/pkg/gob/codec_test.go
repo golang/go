@@ -829,7 +829,7 @@ func TestNesting(t *testing.T) {
 	dec := NewDecoder(b)
 	err := dec.Decode(&drt)
 	if err != nil {
-		t.Errorf("decoder error:", err)
+		t.Error("decoder error:", err)
 	}
 	if drt.a != rt.a {
 		t.Errorf("nesting: encode expected %v got %v", *rt, drt)
@@ -1196,7 +1196,7 @@ func TestInterface(t *testing.T) {
 			}
 			continue
 			if v1.Square() != v2.Square() {
-				t.Errorf("item %d inconsistent values: %v %v", v1, v2)
+				t.Errorf("item %d inconsistent values: %v %v", i, v1, v2)
 			}
 		}
 	}

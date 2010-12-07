@@ -71,10 +71,10 @@ func TestDecoder(t *testing.T) {
 			}
 		}
 		if !reflect.DeepEqual(out, streamTest[0:i]) {
-			t.Errorf("decoding %d items: mismatch")
+			t.Errorf("decoding %d items: mismatch", i)
 			for j := range out {
 				if !reflect.DeepEqual(out[j], streamTest[j]) {
-					t.Errorf("#%d: have %v want %v", out[j], streamTest[j])
+					t.Errorf("#%d: have %v want %v", j, out[j], streamTest[j])
 				}
 			}
 			break

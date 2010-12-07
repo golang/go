@@ -47,7 +47,7 @@ func TestNew(t *testing.T) {
 func TestNewLogger(t *testing.T) {
 	f := NewLogger(LOG_INFO, 0)
 	if f == nil {
-		t.Errorf("NewLogger() failed")
+		t.Error("NewLogger() failed")
 	}
 }
 

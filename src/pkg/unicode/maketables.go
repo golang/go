@@ -329,7 +329,7 @@ func printCategories() {
 		for k, _ := range category {
 			fmt.Printf("\t%q: %s,\n", k, k)
 		}
-		fmt.Printf("}\n\n")
+		fmt.Print("}\n\n")
 	}
 
 	decl := make(sort.StringArray, len(list))
@@ -377,7 +377,7 @@ func printCategories() {
 	for _, d := range decl {
 		fmt.Print(d)
 	}
-	fmt.Println(")\n")
+	fmt.Print(")\n\n")
 }
 
 type Op func(code int) bool
@@ -597,7 +597,7 @@ func printScriptOrProperty(doProps bool) {
 		for k, _ := range table {
 			fmt.Printf("\t%q: %s,\n", k, k)
 		}
-		fmt.Printf("}\n\n")
+		fmt.Print("}\n\n")
 	}
 
 	decl := make(sort.StringArray, len(list))
@@ -618,14 +618,14 @@ func printScriptOrProperty(doProps bool) {
 		for _, s := range ranges {
 			fmt.Printf(format, s.Lo, s.Hi, s.Stride)
 		}
-		fmt.Printf("}\n\n")
+		fmt.Print("}\n\n")
 	}
 	decl.Sort()
 	fmt.Println("var (")
 	for _, d := range decl {
 		fmt.Print(d)
 	}
-	fmt.Println(")\n")
+	fmt.Print(")\n\n")
 }
 
 const (
@@ -792,7 +792,7 @@ func printCases() {
 		}
 		prevState = state
 	}
-	fmt.Printf("}\n")
+	fmt.Print("}\n")
 }
 
 func printCaseRange(lo, hi *caseState) {

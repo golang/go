@@ -94,7 +94,7 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 	var z Int
 	f(&z, a.x, a.y)
 	if !isNormalized(&z) {
-		t.Errorf("msg: %v is not normalized", z, msg)
+		t.Errorf("%s%v is not normalized", z, msg)
 	}
 	if (&z).Cmp(a.z) != 0 {
 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)

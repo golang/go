@@ -532,7 +532,7 @@ func TestScanMultiple(t *testing.T) {
 		t.Errorf("Sscan count error: expected 1: got %d", n)
 	}
 	if err == nil {
-		t.Errorf("Sscan expected error; got none", err)
+		t.Errorf("Sscan expected error; got none: %s", err)
 	}
 	if s != "asdf" {
 		t.Errorf("Sscan wrong values: got %q expected \"asdf\"", s)
@@ -547,7 +547,7 @@ func TestScanEmpty(t *testing.T) {
 		t.Errorf("Sscan count error: expected 1: got %d", n)
 	}
 	if err == nil {
-		t.Errorf("Sscan <one item> expected error; got none")
+		t.Error("Sscan <one item> expected error; got none")
 	}
 	if s1 != "abc" {
 		t.Errorf("Sscan wrong values: got %q expected \"abc\"", s1)
@@ -557,7 +557,7 @@ func TestScanEmpty(t *testing.T) {
 		t.Errorf("Sscan count error: expected 0: got %d", n)
 	}
 	if err == nil {
-		t.Errorf("Sscan <empty> expected error; got none")
+		t.Error("Sscan <empty> expected error; got none")
 	}
 	// Quoted empty string is OK.
 	n, err = Sscanf(`""`, "%q", &s1)

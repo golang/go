@@ -138,7 +138,7 @@ func TestNextValueBig(t *testing.T) {
 	var scan scanner
 	item, rest, err := nextValue(jsonBig, &scan)
 	if err != nil {
-		t.Fatalf("nextValue: ", err)
+		t.Fatalf("nextValue: %s", err)
 	}
 	if len(item) != len(jsonBig) || &item[0] != &jsonBig[0] {
 		t.Errorf("invalid item: %d %d", len(item), len(jsonBig))
@@ -149,7 +149,7 @@ func TestNextValueBig(t *testing.T) {
 
 	item, rest, err = nextValue(append(jsonBig, []byte("HELLO WORLD")...), &scan)
 	if err != nil {
-		t.Fatalf("nextValue extra: ", err)
+		t.Fatalf("nextValue extra: %s", err)
 	}
 	if len(item) != len(jsonBig) {
 		t.Errorf("invalid item: %d %d", len(item), len(jsonBig))
