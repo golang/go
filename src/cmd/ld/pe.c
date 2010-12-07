@@ -45,6 +45,25 @@ static IMAGE_FILE_HEADER fh;
 static IMAGE_OPTIONAL_HEADER oh;
 static IMAGE_SECTION_HEADER sh[16];
 
+typedef struct Imp Imp;
+struct Imp {
+	Sym* s;
+	long va;
+	long vb;
+	Imp* next;
+};
+
+typedef struct Dll Dll;
+struct Dll {
+	char* name;
+	int count;
+	Imp* ms;
+	Dll* next;
+};
+
+static Dll* dr;
+static int ndll, nimp, nsize;
+
 static IMAGE_SECTION_HEADER*
 addpesection(char *name, int sectsize, int filesize, Segment *s)
 {
@@ -122,66 +141,160 @@ strput(char *s)
 	cput('\0');
 }
 
-static void
-addimports(vlong fileoff)
+static Dll* 
+initdynimport(void)
 {
-	IMAGE_IMPORT_DESCRIPTOR ds[2], *d;
-	char *dllname = "kernel32.dll";
-	struct {
-		char *name;
-		uint32 thunk;
-	} *f, fs[] = {
-		{ "GetProcAddress", 0 },
-		{ "LoadLibraryExA", 0 },
-		{ 0, 0 }
-	};
+	Imp *m;
+	Dll *d;
+	Sym *s;
+	int i;
+	Sym *dynamic;
 
-	uint32 size = 0;
-	memset(ds, 0, sizeof(ds));
-	size += sizeof(ds);
-	ds[0].Name = size;
-	size += strlen(dllname) + 1;
-	for(f=fs; f->name; f++) {
-		f->thunk = size;
-		size += sizeof(uint16) + strlen(f->name) + 1;
+	dr = nil;
+	ndll = 0;
+	nimp = 0;
+	nsize = 0;
+	
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->hash) {
+		if(!s->reachable || !s->dynimpname)
+			continue;
+		nimp++;
+		for(d = dr; d != nil; d = d->next) {
+			if(strcmp(d->name,s->dynimplib) == 0) {
+				m = mal(sizeof *m);
+				m->s = s;
+				m->next = d->ms;
+				d->ms = m;
+				d->count++;
+				nsize += strlen(s->dynimpname)+2+1;
+				break;
+			}
+		}
+		if(d == nil) {
+			d = mal(sizeof *d);
+			d->name = s->dynimplib;
+			d->count = 1;
+			d->next = dr;
+			dr = d;
+			m = mal(sizeof *m);
+			m->s = s;
+			m->next = 0;
+			d->ms = m;
+			ndll++;
+			nsize += strlen(s->dynimpname)+2+1;
+			nsize += strlen(s->dynimplib)+1;
+		}
 	}
-	ds[0].FirstThunk = size;
-	for(f=fs; f->name; f++)
-		size += sizeof(fs[0].thunk);
+	
+	nsize += 20*ndll + 20;
+	nsize += 4*nimp + 4*ndll;
+	
+	dynamic = lookup(".windynamic", 0);
+	dynamic->reachable = 1;
+	dynamic->type = SWINDOWS;
+	for(d = dr; d != nil; d = d->next) {
+		for(m = d->ms; m != nil; m = m->next) {
+			m->s->type = SWINDOWS | SSUB;
+			m->s->sub = dynamic->sub;
+			dynamic->sub = m->s;
+			m->s->value = dynamic->size;
+			dynamic->size += 4;
+		}
+		dynamic->size += 4;
+	}
+		
+	return dr;
+}
 
+static void
+addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
+{
 	IMAGE_SECTION_HEADER *isect;
-	isect = addpesection(".idata", size, size, 0);
+	uint32 va;
+	int noff, aoff, o, last_fn, last_name_off, iat_off;
+	Imp *m;
+	Dll *d;
+	Sym* dynamic;
+	
+	isect = addpesection(".idata", nsize, nsize, 0);
 	isect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
-	
-	uint32 va = isect->VirtualAddress;
+	va = isect->VirtualAddress;
 	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = va;
 	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect->VirtualSize;
 
-	ds[0].Name += va;
-	ds[0].FirstThunk += va;
-	for(f=fs; f->name; f++)
-		f->thunk += va;
-
 	seek(cout, fileoff, 0);
-	for(d=ds; ; d++) {
-		lputl(d->OriginalFirstThunk);
-		lputl(d->TimeDateStamp);
-		lputl(d->ForwarderChain);
-		lputl(d->Name);
-		lputl(d->FirstThunk);
-		if(!d->Name) 
-			break;
+
+	dynamic = lookup(".windynamic", 0);
+	iat_off = dynamic->value - PEBASE; // FirstThunk allocated in .data
+	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = iat_off;
+	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].Size = dynamic->size;
+
+	noff = va + 20*ndll + 20;
+	aoff = noff + 4*nimp + 4*ndll;
+	last_fn = 0;
+	last_name_off = aoff;
+	for(d = dr; d != nil; d = d->next) {
+		lputl(noff);
+		lputl(0);
+		lputl(0);
+		lputl(last_name_off);
+		lputl(iat_off);
+		last_fn = d->count;
+		noff += 4*last_fn + 4;
+		aoff += 4*last_fn + 4;
+		iat_off += 4*last_fn + 4;
+		last_name_off += strlen(d->name)+1;
 	}
-	strput(dllname);
-	for(f=fs; f->name; f++) {
-		wputl(0);
-		strput(f->name);
+	lputl(0); //end
+	lputl(0);
+	lputl(0);
+	lputl(0);
+	lputl(0);
+	
+	// put OriginalFirstThunk
+	o = last_name_off;
+	for(d = dr; d != nil; d = d->next) {
+		for(m = d->ms; m != nil; m = m->next) {
+			lputl(o);
+			o += 2 + strlen(m->s->dynimpname) + 1;
+		}
+		lputl(0);
 	}
-	for(f=fs; f->name; f++)
-		lputl(f->thunk);
-	strnput("", isect->SizeOfRawData - size);
+	// put names
+	for(d = dr; d != nil; d = d->next) {
+		strput(d->name);
+	}
+	// put hint+name
+	for(d = dr; d != nil; d = d->next) {
+		for(m = d->ms; m != nil; m = m->next) {
+			wputl(0);
+			strput(m->s->dynimpname);
+		}
+	}
+	
+	strnput("", isect->SizeOfRawData - nsize);
 	cflush();
+
+	// put FirstThunk
+	o = last_name_off;
+	seek(cout, datsect->PointerToRawData + dynamic->value - PEBASE - datsect->VirtualAddress, 0);
+	for(d = dr; d != nil; d = d->next) {
+		for(m = d->ms; m != nil; m = m->next) {
+			lputl(o);
+			o += 2 + strlen(m->s->dynimpname) + 1;
+		}
+		lputl(0);
+	}
+	cflush();
+	seek(cout, 0, 2);
+}
+
+void
+dope(void)
+{
+	initdynimport();
 }
 
 void
@@ -210,7 +323,7 @@ asmbpe(void)
 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 
-	addimports(nextfileoff);
+	addimports(nextfileoff, d);
 
 	fh.NumberOfSections = nsect;
 	fh.TimeDateStamp = time(0);

@@ -820,6 +820,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 			case SDATA:
 			case SELFDATA:
 			case SMACHO:
+			case SWINDOWS:
 				if(!s->reachable)
 					continue;
 				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);

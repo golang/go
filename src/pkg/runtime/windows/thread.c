@@ -5,7 +5,15 @@
 #include "runtime.h"
 #include "os.h"
 
-extern void *runtime·get_kernel_module(void);
+#pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
+#pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
+#pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
+#pragma dynimport runtime·ExitProcess ExitProcess "kernel32.dll"
+#pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
+#pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
+#pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
+#pragma dynimport runtime·GetLastError GetLastError "kernel32.dll"
+#pragma dynimport runtime·SetLastError SetLastError "kernel32.dll"
 
 // Also referenced by external packages
 void *runtime·CloseHandle;
@@ -13,71 +21,37 @@ void *runtime·ExitProcess;
 void *runtime·GetStdHandle;
 void *runtime·SetEvent;
 void *runtime·WriteFile;
-void *runtime·VirtualAlloc;
-void *runtime·VirtualFree;
 void *runtime·LoadLibraryEx;
 void *runtime·GetProcAddress;
 void *runtime·GetLastError;
 void *runtime·SetLastError;
 
-static void *CreateEvent;
-static void *CreateThread;
-static void *WaitForSingleObject;
+#pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
+#pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
+#pragma dynimport runtime·GetModuleHandle GetModuleHandleA "kernel32.dll"
+#pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
 
-static void*
-get_proc_addr2(byte *base, byte *name)
-{
-	byte *pe_header, *exports;
-	uint32 entries, *addr, *names, i;
-	uint16 *ordinals;
-
-	pe_header = base+*(uint32*)(base+0x3c);
-	exports = base+*(uint32*)(pe_header+0x78);
-	entries = *(uint32*)(exports+0x18);
-	addr = (uint32*)(base+*(uint32*)(exports+0x1c));
-	names = (uint32*)(base+*(uint32*)(exports+0x20));
-	ordinals = (uint16*)(base+*(uint32*)(exports+0x24));
-	for(i=0; i<entries; i++) {
-		byte *s = base+names[i];
-		if(runtime·strcmp(name, s) == 0)
-			break;
-	}
-	if(i == entries)
-		return 0;
-	return base+addr[ordinals[i]];
-}
+void *runtime·CreateEvent;
+void *runtime·CreateThread;
+void *runtime·GetModuleHandle;
+void *runtime·WaitForSingleObject;
 
 void
 runtime·osinit(void)
 {
-	void *base;
-
-	base = runtime·get_kernel_module();
-	runtime·GetProcAddress = get_proc_addr2(base, (byte*)"GetProcAddress");
-	runtime·LoadLibraryEx = get_proc_addr2(base, (byte*)"LoadLibraryExA");
-	runtime·CloseHandle = runtime·get_proc_addr("kernel32.dll", "CloseHandle");
-	CreateEvent = runtime·get_proc_addr("kernel32.dll", "CreateEventA");
-	CreateThread = runtime·get_proc_addr("kernel32.dll", "CreateThread");
-	runtime·ExitProcess = runtime·get_proc_addr("kernel32.dll", "ExitProcess");
-	runtime·GetStdHandle = runtime·get_proc_addr("kernel32.dll", "GetStdHandle");
-	runtime·SetEvent = runtime·get_proc_addr("kernel32.dll", "SetEvent");
-	runtime·VirtualAlloc = runtime·get_proc_addr("kernel32.dll", "VirtualAlloc");
-	runtime·VirtualFree = runtime·get_proc_addr("kernel32.dll", "VirtualFree");
-	WaitForSingleObject = runtime·get_proc_addr("kernel32.dll", "WaitForSingleObject");
-	runtime·WriteFile = runtime·get_proc_addr("kernel32.dll", "WriteFile");
-	runtime·GetLastError = runtime·get_proc_addr("kernel32.dll", "GetLastError");
-	runtime·SetLastError = runtime·get_proc_addr("kernel32.dll", "SetLastError");
 }
 
-// The arguments are strings.
-void*
-runtime·get_proc_addr(void *library, void *name)
-{
-	void *base;
+#pragma dynimport runtime·GetCommandLine GetCommandLineW  "kernel32.dll"
+#pragma dynimport runtime·CommandLineToArgv CommandLineToArgvW  "shell32.dll"
+#pragma dynimport runtime·GetEnvironmentStrings GetEnvironmentStringsW  "kernel32.dll"
+#pragma dynimport runtime·FreeEnvironmentStrings FreeEnvironmentStringsW  "kernel32.dll"
+#pragma dynimport runtime·LocalFree LocalFree "kernel32.dll"
 
-	base = runtime·stdcall(runtime·LoadLibraryEx, 3, library, 0, 0);
-	return runtime·stdcall(runtime·GetProcAddress, 2, base, name);
-}
+void *runtime·GetCommandLine;
+void *runtime·CommandLineToArgv;
+void *runtime·GetEnvironmentStrings;
+void *runtime·FreeEnvironmentStrings;
+void *runtime·LocalFree;
 
 void
 runtime·windows_goargs(void)
@@ -85,22 +59,15 @@ runtime·windows_goargs(void)
 	extern Slice os·Args;
 	extern Slice os·Envs;
 
-	void *gcl, *clta, *ges, *fes, *lf;
 	uint16 *cmd, *env, **argv;
 	String *gargv;
 	String *genvv;
 	int32 i, argc, envc;
 	uint16 *envp;
 
-	gcl = runtime·get_proc_addr("kernel32.dll", "GetCommandLineW");
-	clta = runtime·get_proc_addr("shell32.dll", "CommandLineToArgvW");
-	ges = runtime·get_proc_addr("kernel32.dll", "GetEnvironmentStringsW");
-	lf = runtime·get_proc_addr("kernel32.dll", "LocalFree");
-	fes = runtime·get_proc_addr("kernel32.dll", "FreeEnvironmentStringsW");
-
-	cmd = runtime·stdcall(gcl, 0);
-	env = runtime·stdcall(ges, 0);
-	argv = runtime·stdcall(clta, 2, cmd, &argc);
+	cmd = runtime·stdcall(runtime·GetCommandLine, 0);
+	env = runtime·stdcall(runtime·GetEnvironmentStrings, 0);
+	argv = runtime·stdcall(runtime·CommandLineToArgv, 2, cmd, &argc);
 
 	envc = 0;
 	for(envp=env; *envp; envc++)
@@ -124,8 +91,8 @@ runtime·windows_goargs(void)
 	os·Envs.len = envc;
 	os·Envs.cap = envc;
 
-	runtime·stdcall(lf, 1, argv);
-	runtime·stdcall(fes, 1, env);
+	runtime·stdcall(runtime·LocalFree, 1, argv);
+	runtime·stdcall(runtime·FreeEnvironmentStrings, 1, env);
 }
 
 void
@@ -161,7 +128,7 @@ initevent(void **pevent)
 {
 	void *event;
 
-	event = runtime·stdcall(CreateEvent, 4, 0, 0, 0, 0);
+	event = runtime·stdcall(runtime·CreateEvent, 4, 0, 0, 0, 0);
 	if(!runtime·casp(pevent, 0, event)) {
 		// Someone else filled it in.  Use theirs.
 		runtime·stdcall(runtime·CloseHandle, 1, event);
@@ -176,7 +143,7 @@ eventlock(Lock *l)
 		initevent(&l->event);
 
 	if(runtime·xadd(&l->key, 1) > 1)	// someone else has it; wait
-		runtime·stdcall(WaitForSingleObject, 2, l->event, -1);
+		runtime·stdcall(runtime·WaitForSingleObject, 2, l->event, -1);
 }
 
 static void
@@ -237,7 +204,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	USED(g);	// assuming g = m->g0
 	USED(fn);	// assuming fn = mstart
 
-	runtime·stdcall(CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
+	runtime·stdcall(runtime·CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
 }
 
 // Called to initialize a new m (including the bootstrap m).

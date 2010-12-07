@@ -120,3 +120,5 @@ enum {
 
 void peinit(void);
 void asmbpe(void);
+void dope(void);
+
