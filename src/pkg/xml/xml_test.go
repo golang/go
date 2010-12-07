@@ -301,7 +301,7 @@ func TestIssue569(t *testing.T) {
 	err := Unmarshal(buf, &i)
 
 	if err != nil || i.Field_a != "abcd" {
-		t.Fatalf("Expecting abcd")
+		t.Fatal("Expecting abcd")
 	}
 }
 

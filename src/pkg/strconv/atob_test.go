@@ -46,7 +46,7 @@ func TestAtob(t *testing.T) {
 			}
 		} else {
 			if e != nil {
-				t.Errorf("%s: expected no error but got %s", test.in, test.err, e)
+				t.Errorf("%s: expected no error but got %s", test.in, e)
 			}
 			if b != test.out {
 				t.Errorf("%s: expected %t but got %t", test.in, test.out, b)

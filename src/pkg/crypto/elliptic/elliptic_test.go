@@ -290,7 +290,7 @@ func TestBaseMult(t *testing.T) {
 	for i, e := range p224BaseMultTests {
 		k, ok := new(big.Int).SetString(e.k, 10)
 		if !ok {
-			t.Errorf("%d: bad value for k: %s", e.k)
+			t.Errorf("%d: bad value for k: %s", i, e.k)
 		}
 		x, y := p224.ScalarBaseMult(k.Bytes())
 		if fmt.Sprintf("%x", x) != e.x || fmt.Sprintf("%x", y) != e.y {

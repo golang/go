@@ -127,59 +127,59 @@ func TestInsertDeleteClear(t *testing.T) {
 
 	for i := 0; i < n; i++ {
 		if a.Len() != i {
-			t.Errorf("T%: A) wrong Len() %d (expected %d)", a, a.Len(), i)
+			t.Errorf("%T: A) wrong Len() %d (expected %d)", a, a.Len(), i)
 		}
 		if len(a) != i {
-			t.Errorf("T%: A) wrong len() %d (expected %d)", a, len(a), i)
+			t.Errorf("%T: A) wrong len() %d (expected %d)", a, len(a), i)
 		}
 		a.Insert(0, int2Value(val(i)))
 		if elem2Value(a.Last()) != int2Value(val(0)) {
-			t.Error("T%: B", a)
+			t.Errorf("%T: B", a)
 		}
 	}
 	for i := n - 1; i >= 0; i-- {
 		if elem2Value(a.Last()) != int2Value(val(0)) {
-			t.Error("T%: C", a)
+			t.Errorf("%T: C", a)
 		}
 		if elem2Value(a.At(0)) != int2Value(val(i)) {
-			t.Error("T%: D", a)
+			t.Errorf("%T: D", a)
 		}
 		if elem2Value(a[0]) != int2Value(val(i)) {
-			t.Error("T%: D2", a)
+			t.Errorf("%T: D2", a)
 		}
 		a.Delete(0)
 		if a.Len() != i {
-			t.Errorf("T%: E) wrong Len() %d (expected %d)", a, a.Len(), i)
+			t.Errorf("%T: E) wrong Len() %d (expected %d)", a, a.Len(), i)
 		}
 		if len(a) != i {
-			t.Errorf("T%: E) wrong len() %d (expected %d)", a, len(a), i)
+			t.Errorf("%T: E) wrong len() %d (expected %d)", a, len(a), i)
 		}
 	}
 
 	if a.Len() != 0 {
-		t.Errorf("T%: F) wrong Len() %d (expected 0)", a, a.Len())
+		t.Errorf("%T: F) wrong Len() %d (expected 0)", a, a.Len())
 	}
 	if len(a) != 0 {
-		t.Errorf("T%: F) wrong len() %d (expected 0)", a, len(a))
+		t.Errorf("%T: F) wrong len() %d (expected 0)", a, len(a))
 	}
 	for i := 0; i < n; i++ {
 		a.Push(int2Value(val(i)))
 		if a.Len() != i+1 {
-			t.Errorf("T%: G) wrong Len() %d (expected %d)", a, a.Len(), i+1)
+			t.Errorf("%T: G) wrong Len() %d (expected %d)", a, a.Len(), i+1)
 		}
 		if len(a) != i+1 {
-			t.Errorf("T%: G) wrong len() %d (expected %d)", a, len(a), i+1)
+			t.Errorf("%T: G) wrong len() %d (expected %d)", a, len(a), i+1)
 		}
 		if elem2Value(a.Last()) != int2Value(val(i)) {
-			t.Error("T%: H", a)
+			t.Errorf("%T: H", a)
 		}
 	}
 	a.Resize(0, 0)
 	if a.Len() != 0 {
-		t.Errorf("T%: I wrong Len() %d (expected 0)", a, a.Len())
+		t.Errorf("%T: I wrong Len() %d (expected 0)", a, a.Len())
 	}
 	if len(a) != 0 {
-		t.Errorf("T%: I wrong len() %d (expected 0)", a, len(a))
+		t.Errorf("%T: I wrong len() %d (expected 0)", a, len(a))
 	}
 
 	const m = 5
@@ -189,21 +189,21 @@ func TestInsertDeleteClear(t *testing.T) {
 			x := val(i)
 			a.Push(int2Value(x))
 			if elem2Value(a.Pop()) != int2Value(x) {
-				t.Error("T%: J", a)
+				t.Errorf("%T: J", a)
 			}
 			if a.Len() != j+1 {
-				t.Errorf("T%: K) wrong Len() %d (expected %d)", a, a.Len(), j+1)
+				t.Errorf("%T: K) wrong Len() %d (expected %d)", a, a.Len(), j+1)
 			}
 			if len(a) != j+1 {
-				t.Errorf("T%: K) wrong len() %d (expected %d)", a, len(a), j+1)
+				t.Errorf("%T: K) wrong len() %d (expected %d)", a, len(a), j+1)
 			}
 		}
 	}
 	if a.Len() != m {
-		t.Errorf("T%: L) wrong Len() %d (expected %d)", a, a.Len(), m)
+		t.Errorf("%T: L) wrong Len() %d (expected %d)", a, a.Len(), m)
 	}
 	if len(a) != m {
-		t.Errorf("T%: L) wrong len() %d (expected %d)", a, len(a), m)
+		t.Errorf("%T: L) wrong len() %d (expected %d)", a, len(a), m)
 	}
 }
 
@@ -211,14 +211,14 @@ func TestInsertDeleteClear(t *testing.T) {
 func verify_slice(t *testing.T, x *Vector, elt, i, j int) {
 	for k := i; k < j; k++ {
 		if elem2Value(x.At(k)) != int2Value(elt) {
-			t.Errorf("T%: M) wrong [%d] element %v (expected %v)", x, k, elem2Value(x.At(k)), int2Value(elt))
+			t.Errorf("%T: M) wrong [%d] element %v (expected %v)", x, k, elem2Value(x.At(k)), int2Value(elt))
 		}
 	}
 
 	s := x.Slice(i, j)
 	for k, n := 0, j-i; k < n; k++ {
 		if elem2Value(s.At(k)) != int2Value(elt) {
-			t.Errorf("T%: N) wrong [%d] element %v (expected %v)", x, k, elem2Value(x.At(k)), int2Value(elt))
+			t.Errorf("%T: N) wrong [%d] element %v (expected %v)", x, k, elem2Value(x.At(k)), int2Value(elt))
 		}
 	}
 }
@@ -227,10 +227,10 @@ func verify_slice(t *testing.T, x *Vector, elt, i, j int) {
 func verify_pattern(t *testing.T, x *Vector, a, b, c int) {
 	n := a + b + c
 	if x.Len() != n {
-		t.Errorf("T%: O) wrong Len() %d (expected %d)", x, x.Len(), n)
+		t.Errorf("%T: O) wrong Len() %d (expected %d)", x, x.Len(), n)
 	}
 	if len(*x) != n {
-		t.Errorf("T%: O) wrong len() %d (expected %d)", x, len(*x), n)
+		t.Errorf("%T: O) wrong len() %d (expected %d)", x, len(*x), n)
 	}
 	verify_slice(t, x, 0, 0, a)
 	verify_slice(t, x, 1, a, a+b)

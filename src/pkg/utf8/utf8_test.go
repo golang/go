@@ -166,7 +166,7 @@ func TestIntConversion(t *testing.T) {
 	for _, ts := range testStrings {
 		runes := []int(ts)
 		if RuneCountInString(ts) != len(runes) {
-			t.Error("%q: expected %d runes; got %d", ts, len(runes), RuneCountInString(ts))
+			t.Errorf("%q: expected %d runes; got %d", ts, len(runes), RuneCountInString(ts))
 			break
 		}
 		i := 0

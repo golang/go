@@ -79,7 +79,7 @@ func importReceive(imp *Importer, t *testing.T, done chan bool) {
 			break
 		}
 		if v != 23+i {
-			t.Errorf("importReceive: bad value: expected %%d+%d=%d; got %+d", base, i, base+i, v)
+			t.Errorf("importReceive: bad value: expected %d+%d=%d; got %+d", base, i, base+i, v)
 		}
 	}
 	if done != nil {
