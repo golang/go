@@ -257,7 +257,7 @@ func TestWalk(t *testing.T) {
 	errors := make(chan os.Error, 64)
 	Walk(tree.name, v, errors)
 	if err, ok := <-errors; ok {
-		t.Error("no error expected, found: s", err)
+		t.Errorf("no error expected, found: %s", err)
 	}
 	checkMarks(t)
 
