@@ -98,3 +98,15 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 func (r *PtraceRegs) PC() uint64 { return 0 }
 
 func (r *PtraceRegs) SetPC(pc uint64) {}
+
+func (iov *Iovec) SetLen(length int) {
+	iov.Len = uint32(length)
+}
+
+func (msghdr *Msghdr) SetControllen(length int) {
+	msghdr.Controllen = uint32(length)
+}
+
+func (cmsg *Cmsghdr) SetLen(length int) {
+	cmsg.Len = uint32(length)
+}
