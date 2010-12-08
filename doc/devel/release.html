@@ -5,6 +5,57 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-12-08">2010-12-08</h3>
+
+<pre>
+This release includes some package changes. If you use the crypto/tls or
+go/parser packages your code may require changes.
+
+The crypto/tls package's Dial function now takes an additional *Config
+argument.  Most uses will pass nil to get the same default behavior as before.
+See the documentation for details:
+        http://golang.org/pkg/crypto/tls/#Config
+        http://golang.org/pkg/crypto/tls/#Dial
+
+The go/parser package's ParseFile function now takes a *token.FileSet as its
+first argument. This is a pointer to a data structure used to store
+position information. If you don't care about position information you
+can pass "token.NewFileSet()". See the documentation for details:
+        http://golang.org/pkg/go/parser/#ParseFile
+
+This release also splits the patent grant text out of the LICENSE file into a
+separate PATENTS file and changes it to be more like the WebM grant.
+These clarifications were made at the request of the Fedora project.
+
+Other changes:
+* [68]l: generate debug info for builtin structured types, prettyprinting in gdb.
+* 8l: add dynimport to import table in Windows PE (thanks Wei Guangjing).
+* 8l, runtime: fix Plan 9 386 build (thanks Yuval Pavel Zholkover).
+* all: fix broken calls to Printf etc.
+* bufio: make Reader.Read implement io.Reader semantics (thanks Roger Peppe).
+* build: allow archiver to be specified by HOST_AR (thanks Albert Strasheim).
+* bytes: add Buffer.UnreadRune, Buffer.UnreadByte (thanks Roger Peppe).
+* crypto/tls: fix build of certificate generation example (thanks Christian Himpel).
+* doc/install: describe GOHOSTOS and GOHOSTARCH.
+* errchk: accept multiple source files (thanks Eoghan Sherry).
+* exec.LookPath: return os.PathError instad of os.ENOENT (thanks Michael Hoisie)..
+* flag: fix format error in boolean error report,
+        handle multiple calls to flag.Parse.
+* fmt: add %U format for standard Unicode representation of code point values.
+* gc: fix method offsets of anonymous interfaces (thanks Eoghan Sherry),
+        skip undefined symbols in import . (thanks Eoghan Sherry).
+* go/scanner: remove Tokenize - was only used in tests
+* gobuilder: add buildroot command-line flag (thanks Devon H. O'Dell).
+* html: unescape numeric entities (thanks Ryan Hitchman).
+* http: Add EncodeQuery, helper for constructing query strings.
+* ld: fix dwarf decoding of 64-bit reflect values (thanks Eoghan Sherry).
+* math: improve accuracy of Exp2 (thanks Eoghan Sherry).
+* runtime: add Goroutines (thanks Keith Rarick).
+* sync: small naming fix for armv5 (thanks Dean Prichard).
+* syscall, net: Add Recvmsg and Sendmsg on Linux (thanks Albert Strasheim).
+* time: make After use fewer goroutines and host processes (thanks Roger Peppe).
+</pre>
+
 <h3 id="2010-12-02">2010-12-02</h3>
 
 <pre>
