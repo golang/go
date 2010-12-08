@@ -74,6 +74,8 @@ enum {
 	ElfStrGosymtab,
 	ElfStrGopclntab,
 	ElfStrShstrtab,
+	ElfStrRelPlt,
+	ElfStrPlt,
 	NElfStr
 };
 
@@ -95,11 +97,48 @@ needlib(char *name)
 	return 0;
 }
 
+int	nelfsym = 1;
+
+void
+adddynrel(Sym *s, Reloc *r)
+{
+	diag("adddynrel: unsupported binary format");
+}
+
+static void
+elfsetupplt(void)
+{
+	// TODO
+}
+
+int
+archreloc(Reloc *r, Sym *s, vlong *val)
+{
+	return -1;
+}
+
+void
+adddynlib(char *lib)
+{
+	Sym *s;
+	
+	if(!needlib(lib))
+		return;
+	
+	if(iself) {
+		s = lookup(".dynstr", 0);
+		if(s->size == 0)
+			addstring(s, "");
+		elfwritedynent(lookup(".dynamic", 0), DT_NEEDED, addstring(s, lib));
+	} else {
+		diag("adddynlib: unsupported binary format");
+	}
+}
+
 void
 doelf(void)
 {
-	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
-	int h, nsym, t;
+	Sym *s, *shstrtab, *dynstr;
 
 	if(!iself)
 		return;
@@ -130,6 +169,8 @@ doelf(void)
 		elfstr[ElfStrDynsym] = addstring(shstrtab, ".dynsym");
 		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
 		elfstr[ElfStrRel] = addstring(shstrtab, ".rel");
+		elfstr[ElfStrRelPlt] = addstring(shstrtab, ".rel.plt");
+		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
 
 		/* interpreter string */
 		s = lookup(".interp", 0);
@@ -146,7 +187,8 @@ doelf(void)
 		s = lookup(".dynstr", 0);
 		s->type = SELFDATA;
 		s->reachable = 1;
-		addstring(s, "");
+		if(s->size == 0)
+			addstring(s, "");
 		dynstr = s;
 
 		/* relocation table */
@@ -158,92 +200,35 @@ doelf(void)
 		s = lookup(".got", 0);
 		s->reachable = 1;
 		s->type = SELFDATA;
-
-		/* got.plt - ??? */
-		s = lookup(".got.plt", 0);
-		s->reachable = 1;
-		s->type = SELFDATA;
 		
 		/* hash */
 		s = lookup(".hash", 0);
 		s->reachable = 1;
 		s->type = SELFDATA;
 
+		/* got.plt */
+		s = lookup(".got.plt", 0);
+		s->reachable = 1;
+		s->type = SDATA;	// writable, so not SELFDATA
+		
+		s = lookup(".plt", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
+
+		s = lookup(".rel.plt", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
+		
+		elfsetupplt();
+
 		/* define dynamic elf table */
 		s = lookup(".dynamic", 0);
 		s->reachable = 1;
 		s->type = SELFDATA;
-		dynamic = s;
-
-		/*
-		 * relocation entries for dynimp symbols
-		 */
-		nsym = 1;	// sym 0 is reserved
-		for(h=0; h<NHASH; h++) {
-			for(s=hash[h]; s!=S; s=s->hash) {
-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
-					continue;
-
-				if(!s->dynexport) {
-					d = lookup(".rel", 0);
-					addaddr(d, s);
-					adduint32(d, ELF32_R_INFO(nsym, R_ARM_ABS32));
-				}
-
-				nsym++;
-
-				d = lookup(".dynsym", 0);
-				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
-				/* value */
-				if(!s->dynexport)
-					adduint32(d, 0);
-				else
-					addaddr(d, s);
-
-				/* size of object */
-				adduint32(d, 0);
-
-				/* type */
-				t = STB_GLOBAL << 4;
-				if(s->dynexport && s->type == STEXT)
-					t |= STT_FUNC;
-				else
-					t |= STT_OBJECT;
-				adduint8(d, t);
-
-				/* reserved */
-				adduint8(d, 0);
-
-				/* section where symbol is defined */
-				if(!s->dynexport)
-					adduint16(d, SHN_UNDEF);
-				else {
-					switch(s->type) {
-					default:
-					case STEXT:
-						t = 9;
-						break;
-					case SDATA:
-						t = 10;
-						break;
-					case SBSS:
-						t = 11;
-						break;
-					}
-					adduint16(d, t);
-				}
-
-				if(!s->dynexport && needlib(s->dynimplib))
-					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
-			}
-		}
-
-		elfdynhash(nsym);
 
 		/*
 		 * .dynamic table
 		 */
-		s = dynamic;
 		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
 		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
 		elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
@@ -254,6 +239,10 @@ doelf(void)
 		elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
 		if(rpath)
 			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
+		elfwritedynentsym(s, DT_PLTGOT, lookup(".got.plt", 0));
+		elfwritedynent(s, DT_PLTREL, DT_REL);
+		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
+		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
 		elfwritedynent(s, DT_NULL, 0);
 	}
 }
