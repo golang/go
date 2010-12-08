@@ -90,7 +90,7 @@ struct	Reloc
 {
 	int32	off;
 	uchar	siz;
-	uchar	type;
+	int16	type;
 	int32	add;
 	Sym*	sym;
 };
@@ -120,6 +120,7 @@ struct	Prog
 #define	regused	u0.u0regused
 #define	forwd	u0.u0forwd
 #define	datasize	reg
+#define	textflag	reg
 
 struct	Sym
 {
@@ -130,6 +131,9 @@ struct	Sym
 	uchar	reachable;
 	uchar	dynexport;
 	uchar	leaf;
+	int32	dynid;
+	int32	plt;
+	int32	got;
 	int32	value;
 	int32	sig;
 	int32	size;
@@ -139,7 +143,8 @@ struct	Sym
 	uchar	fnptr;	// used as fn ptr
 	Sym*	hash;	// in hash table
 	Sym*	next;	// in text or data list
-	Sym*	sub;
+	Sym*	sub;	// in SSUB list
+	Sym*	outer;	// container of sub
 	Sym*	gotype;
 	char*	file;
 	char*	dynimpname;
@@ -204,6 +209,7 @@ enum
 	SXREF,
 	SFILE,
 	SCONST,
+	SDYNIMPORT,
 
 	SSUB	= 1<<8,
 

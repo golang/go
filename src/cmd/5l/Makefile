@@ -12,6 +12,8 @@ OFILES=\
 	data.$O\
 	elf.$O\
 	enam.$O\
+	ldelf.$O\
+	ldmacho.$O\
 	lib.$O\
 	list.$O\
 	noop.$O\
