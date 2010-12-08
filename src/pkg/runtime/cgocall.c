@@ -15,8 +15,11 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 {
 	G *oldlock;
 
-	if(initcgo == nil)
+	if(!runtime·iscgo)
 		runtime·throw("cgocall unavailable");
+
+	if(fn == 0)
+		runtime·throw("cgocall nil");
 
 	ncgocall++;
 
@@ -94,7 +97,7 @@ void (*_cgo_free)(void*);
 void*
 runtime·cmalloc(uintptr n)
 {
-	struct a {
+	struct {
 		uint64 n;
 		void *ret;
 	} a;
