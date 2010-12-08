@@ -33,7 +33,7 @@ for dir in $dirs; do (
 		egrep "$dirpat" |
 		grep -v "^$dir\$" |
 		sed 's/$/.install/' |
-		sed 's;^C\.install;../cmd/cgo.install;' |
+		sed 's;^C\.install;runtime/cgo.install;' |
 		sort -u
 	)
 
