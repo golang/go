@@ -36,12 +36,9 @@ INSTALLFILES+=$(pkgdir)/$(TARG).a
 # The rest of the cgo rules are below, but these variable updates
 # must be done here so they apply to the main rules.
 ifdef CGOFILES
-CGOTARG=cgo_$(subst /,_,$(TARG))
-GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
-GOFILES+=_cgo_gotypes.go
-OFILES+=_cgo_defun.$O
+GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES)) _cgo_gotypes.go
 GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
-INSTALLFILES+=$(pkgdir)/$(CGOTARG).so
+OFILES+=_cgo_defun.$O _cgo_import.$O $(GCC_OFILES)
 endif
 
 PREREQ+=$(patsubst %,%.make,$(DEPS))
@@ -50,7 +47,9 @@ coverage:
 	gotest
 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
-CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.* *.so _obj _test _testmain.go *.exe
+CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.*
+CLEANFILES+=_cgo_.c _cgo_import.c _cgo_main.c
+CLEANFILES+=*.so _obj _test _testmain.go *.exe
 
 test:
 	gotest
@@ -122,17 +121,33 @@ _cgo_gotypes.go _cgo_export.c _cgo_export.h: _cgo_defun.c
 %.cgo1.go %.cgo2.c: _cgo_defun.c
 	@true
 
+# Compile rules for gcc source files.
 %.cgo2.o: %.cgo2.c
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
 
 _cgo_export.o: _cgo_export.c _cgo_export.h
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_export.c
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_export.c
+
+# To find out which symbols are needed from external libraries
+# and which libraries are needed, we build a simple a.out that
+# links all the objects we just created and then use cgo -dynimport
+# to inspect it.  That is, we make gcc tell us which dynamic symbols
+# and libraries are involved, instead of duplicating gcc's logic ourselves.
+_cgo_main.c:
+	echo 'int main() { return 0; }' >$@
+
+_cgo_main.o: _cgo_main.c
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_main.c
+
+_cgo1_.o: _cgo_main.o $(GCC_OFILES)
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS)
+
+_cgo_import.c: _cgo1_.o
+	cgo -dynimport _cgo1_.o >_$@ && mv -f _$@ $@
 
 # The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
 # added _cgo_defun.$O to $OFILES, and added the installed copy of
 # package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
-
-RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime"
 
 # Have to run gcc with the right size argument on hybrid 32/64 machines.
 _CGO_CFLAGS_386=-m32
@@ -142,23 +157,12 @@ _CGO_LDFLAGS_linux=-shared -lpthread -lm
 _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
 _CGO_LDFLAGS_windows=-shared -lm -mthreads
 
-# Compile x.cgo4.c with gcc to make package_x.so.
+# Have to compile the runtime header.
+RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime"
 
 # Compile _cgo_defun.c with 6c; needs access to the runtime headers.
 _cgo_defun.$O: _cgo_defun.c
 	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
-
-$(CGOTARG).so: $(GCC_OFILES) $(CGO_DEPS)
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
-
-$(pkgdir)/$(CGOTARG).so: $(CGOTARG).so
-	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
-	rm -f "$@"
-	cp $(CGOTARG).so "$@"
-
-ifneq ($(CGOFILES),)
-testpackage: $(CGOTARG).so
-endif
 
 # Generic build rules.
 # These come last so that the rules above can override them

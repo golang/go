@@ -6,6 +6,8 @@ package main
 
 import (
 	"bytes"
+	"debug/elf"
+	"debug/macho"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -36,6 +38,7 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
 	fmt.Fprintf(fgo2, "import \"os\"\n\n")
+	fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
 	fmt.Fprintf(fgo2, "func _Cerrno(dst *os.Error, x int) { *dst = os.Errno(x) }\n")
 
@@ -46,13 +49,19 @@ func (p *Package) writeDefs() {
 	}
 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
 
-	fmt.Fprintf(fc, cProlog, soprefix, soprefix, soprefix, soprefix, soprefix)
+	fmt.Fprintf(fc, cProlog)
 
+	var cVars []string
 	for _, n := range p.Name {
 		if n.Kind != "var" {
 			continue
 		}
-		fmt.Fprintf(fc, "#pragma dynimport ·%s %s \"%s%s.so\"\n", n.Mangle, n.C, soprefix, sopath)
+		cVars = append(cVars, n.C)
+
+		fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
+		fmt.Fprintf(fc, "void *·%s = &%s;\n", n.Mangle, n.C)
+		fmt.Fprintf(fc, "\n")
+
 		fmt.Fprintf(fgo2, "var %s ", n.Mangle)
 		printer.Fprint(fgo2, fset, &ast.StarExpr{X: n.Type.Go})
 		fmt.Fprintf(fgo2, "\n")
@@ -76,6 +85,42 @@ func (p *Package) writeDefs() {
 
 	fgo2.Close()
 	fc.Close()
+}
+
+func dynimport(obj string) (syms, imports []string) {
+	var f interface {
+		ImportedLibraries() ([]string, os.Error)
+		ImportedSymbols() ([]string, os.Error)
+	}
+	var isMacho bool
+	var err1, err2 os.Error
+	if f, err1 = elf.Open(obj); err1 != nil {
+		if f, err2 = macho.Open(obj); err2 != nil {
+			fatal("cannot parse %s as ELF (%v) or Mach-O (%v)", obj, err1, err2)
+		}
+		isMacho = true
+	}
+
+	var err os.Error
+	syms, err = f.ImportedSymbols()
+	if err != nil {
+		fatal("cannot load dynamic symbols: %v", err)
+	}
+	if isMacho {
+		// remove leading _ that OS X insists on
+		for i, s := range syms {
+			if len(s) >= 2 && s[0] == '_' {
+				syms[i] = s[1:]
+			}
+		}
+	}
+
+	imports, err = f.ImportedLibraries()
+	if err != nil {
+		fatal("cannot load dynamic imports: %v", err)
+	}
+
+	return
 }
 
 // Construct a gcc struct matching the 6c argument frame.
@@ -167,9 +212,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath str
 	_, argSize = p.structType(n)
 
 	// C wrapper calls into gcc, passing a pointer to the argument frame.
-	// Also emit #pragma to get a pointer to the gcc wrapper.
-	fmt.Fprintf(fc, "#pragma dynimport _cgo%s _cgo%s \"%s%s.so\"\n", n.Mangle, n.Mangle, soprefix, sopath)
-	fmt.Fprintf(fc, "void (*_cgo%s)(void*);\n", n.Mangle)
+	fmt.Fprintf(fc, "void _cgo%s(void*);\n", n.Mangle)
 	fmt.Fprintf(fc, "\n")
 	fmt.Fprintf(fc, "void\n")
 	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
@@ -211,6 +254,9 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	base = strings.Map(slashToUnderscore, base)
 	fgo1 := creat(base + ".cgo1.go")
 	fgcc := creat(base + ".cgo2.c")
+
+	p.GoFiles = append(p.GoFiles, base+".cgo1.go")
+	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
 
 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
@@ -591,12 +637,6 @@ char *CString(_GoString_);
 const cProlog = `
 #include "runtime.h"
 #include "cgocall.h"
-
-#pragma dynimport initcgo initcgo "%slibcgo.so"
-#pragma dynimport libcgo_thread_start libcgo_thread_start "%slibcgo.so"
-#pragma dynimport libcgo_set_scheduler libcgo_set_scheduler "%slibcgo.so"
-#pragma dynimport _cgo_malloc _cgo_malloc "%slibcgo.so"
-#pragma dynimport _cgo_free _cgo_free "%slibcgo.so"
 
 void ·_Cerrno(void*, int32);
 

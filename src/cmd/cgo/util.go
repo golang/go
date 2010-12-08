@@ -45,9 +45,8 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 		w0.Close()
 		c <- true
 	}()
-	var xstdout []byte // TODO(rsc): delete after 6g can take address of out parameter
 	go func() {
-		xstdout, _ = ioutil.ReadAll(r1)
+		stdout, _ = ioutil.ReadAll(r1)
 		r1.Close()
 		c <- true
 	}()
@@ -55,7 +54,6 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	r2.Close()
 	<-c
 	<-c
-	stdout = xstdout
 
 	w, err := os.Wait(pid, 0)
 	if err != nil {

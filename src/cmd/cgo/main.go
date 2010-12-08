@@ -31,6 +31,8 @@ type Package struct {
 	Typedef     map[string]ast.Expr // accumulated Typedef from Files
 	ExpFunc     []*ExpFunc          // accumulated ExpFunc from Files
 	Decl        []ast.Decl
+	GoFiles     []string // list of Go files
+	GccFiles    []string // list of gcc output files
 }
 
 // A File collects information about a single Go input file.
@@ -105,9 +107,31 @@ var ptrSizeMap = map[string]int64{
 
 var fset = token.NewFileSet()
 
+var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+
+	if *dynobj != "" {
+		// cgo -dynimport is essentially a separate helper command
+		// built into the cgo binary.  It scans a gcc-produced executable
+		// and dumps information about the imported symbols and the
+		// imported libraries.  The Make.pkg rules for cgo prepare an
+		// appropriate executable and then use its import information
+		// instead of needing to make the linkers duplicate all the
+		// specialized knowledge gcc has about where to look for imported
+		// symbols and which ones to use.
+		syms, imports := dynimport(*dynobj)
+		for _, sym := range syms {
+			fmt.Printf("#pragma dynimport %s %s %q\n", sym, sym, "")
+		}
+		for _, p := range imports {
+			fmt.Printf("#pragma dynimport %s %s %q\n", "_", "_", p)
+		}
+		return
+	}
+
 	args := flag.Args()
 	if len(args) < 1 {
 		usage()
@@ -209,19 +233,6 @@ func (p *Package) Record(f *File) {
 		}
 	}
 
-	if len(f.ExpFunc) > 0 {
-		n := len(p.ExpFunc)
-		ef := make([]*ExpFunc, n+len(f.ExpFunc))
-		copy(ef, p.ExpFunc)
-		copy(ef[n:], f.ExpFunc)
-		p.ExpFunc = ef
-	}
-
-	if len(f.AST.Decls) > 0 {
-		n := len(p.Decl)
-		d := make([]ast.Decl, n+len(f.AST.Decls))
-		copy(d, p.Decl)
-		copy(d[n:], f.AST.Decls)
-		p.Decl = d
-	}
+	p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)
+	p.Decl = append(p.Decl, f.AST.Decls...)
 }
