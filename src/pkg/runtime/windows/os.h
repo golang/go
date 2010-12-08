@@ -4,6 +4,7 @@
 
 extern void *runtime·LoadLibraryEx;
 extern void *runtime·GetProcAddress;
+extern void *runtime·GetLastError;
 
 #define runtime·goargs runtime·windows_goargs
 void runtime·windows_goargs(void);
