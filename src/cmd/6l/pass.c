@@ -289,24 +289,25 @@ patch(void)
 			if(s) {
 				if(debug['c'])
 					Bprint(&bso, "%s calls %s\n", TNAME, s->name);
-				switch(s->type) {
-				default:
+				if((s->type&~SSUB) != STEXT) {
 					/* diag prints TNAME first */
 					diag("undefined: %s", s->name);
 					s->type = STEXT;
 					s->value = vexit;
 					continue;	// avoid more error messages
-				case STEXT:
-					p->to.offset = s->value;
-					break;
 				}
+				if(s->text == nil)
+					continue;
 				p->to.type = D_BRANCH;
+				p->to.offset = s->text->pc;
+				p->pcond = s->text;
+				continue;
 			}
 		}
 		if(p->to.type != D_BRANCH)
 			continue;
 		c = p->to.offset;
-		for(q = textp->text; q != P;) {
+		for(q = cursym->text; q != P;) {
 			if(c == q->pc)
 				break;
 			if(q->forwd != P && c >= q->forwd->pc)
@@ -315,8 +316,8 @@ patch(void)
 				q = q->link;
 		}
 		if(q == P) {
-			diag("branch out of range in %s\n%P [%s]",
-				TNAME, p, p->to.sym ? p->to.sym->name : "<nil>");
+			diag("branch out of range in %s (%#ux)\n%P [%s]",
+				TNAME, c, p, p->to.sym ? p->to.sym->name : "<nil>");
 			p->to.type = D_NONE;
 		}
 		p->pcond = q;
@@ -387,6 +388,9 @@ dostkoff(void)
 	autoffset = 0;
 	deltasp = 0;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		if(cursym->text == nil || cursym->text->link == nil)
+			continue;
+
 		p = cursym->text;
 		parsetextconst(p->to.offset);
 		autoffset = textstksiz;

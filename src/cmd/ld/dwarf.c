@@ -1895,7 +1895,7 @@ writelines(void)
 			cput(DW_LNE_set_address);
 			addrput(pc);
 		}
-		if (!s->reachable)
+		if(s->text == nil)
 			continue;
 
 		if (unitstart < 0) {
@@ -1909,6 +1909,9 @@ writelines(void)
 		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, 0);
 		if (s->version == 0)
 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0);
+
+		if(s->text->link == nil)
+			continue;
 
 		for(q = s->text; q != P; q = q->link) {
 			lh = searchhist(q->line);
@@ -2054,7 +2057,7 @@ writeframes(void)
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		s = cursym;
-		if (!s->reachable)
+		if(s->text == nil)
 			continue;
 
 		fdeo = cpos();

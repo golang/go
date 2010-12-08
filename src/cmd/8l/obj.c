@@ -329,6 +329,7 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	span();
+	textaddress();
 	pclntab();
 	symtab();
 	dodata();

@@ -964,7 +964,7 @@ extern	int	numelfshdr;
 extern	int	iself;
 int	elfwriteinterp(void);
 void	elfinterp(ElfShdr*, uint64, char*);
-void	elfdynhash(int);
+void	elfdynhash(void);
 ElfPhdr* elfphload(Segment*);
 ElfShdr* elfshbits(Section*);
 void	elfsetstring(char*, int);
