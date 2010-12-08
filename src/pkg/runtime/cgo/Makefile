@@ -4,10 +4,18 @@
 
 include ../../../Make.inc
 
+ENABLED:=1
+
+ifeq ($(GOARCH),arm)
+ENABLED:=0
+endif
+
 TARG=runtime/cgo
 
 GOFILES=\
 	cgo.go\
+
+ifeq ($(ENABLED),1)
 
 # Unwarranted chumminess with Make.pkg's cgo rules.
 # Do not try this at home.
@@ -22,6 +30,8 @@ OFILES=\
 	$(GCC_OFILES)\
 
 CGO_LDFLAGS=-lpthread
+
+endif
 
 include ../../../Make.pkg
 

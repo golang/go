@@ -64,6 +64,8 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
 //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
 //sys	socketpair(domain int, typ int, flags int, fd *[2]int) (errno int)
+//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+//sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
 
 //sys	Chown(path string, uid int, gid int) (errno int)
 //sys	Fchown(fd int, uid int, gid int) (errno int)
