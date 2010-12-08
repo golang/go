@@ -132,7 +132,6 @@ DIRS=\
 	utf8\
 	websocket\
 	xml\
-	../libcgo\
 	../cmd/cgo\
 	../cmd/ebnflint\
 	../cmd/godoc\
@@ -159,7 +158,6 @@ NOTEST=\
 	testing\
 	testing/iotest\
 	try\
-	../libcgo\
 	../cmd/cgo\
 	../cmd/ebnflint\
 	../cmd/godoc\
@@ -248,5 +246,4 @@ deps:
 
 -include Make.deps
 
-../cmd/cgo.install: ../libcgo.install
 runtime/cgo.install: ../cmd/cgo.install
