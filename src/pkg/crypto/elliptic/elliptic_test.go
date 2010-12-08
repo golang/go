@@ -309,21 +309,3 @@ func BenchmarkBaseMult(b *testing.B) {
 		p224.ScalarBaseMult(k.Bytes())
 	}
 }
-
-func TestMultiples(t *testing.T) {
-	p256 := P256()
-	x := p256.Gx
-	y := p256.Gy
-	Gz := new(big.Int).SetInt64(1)
-	z := Gz
-
-	for i := 1; i <= 16; i++ {
-		fmt.Printf("i: %d\n", i)
-		fmt.Printf("  %s\n  %s\n  %s\n", x.String(), y.String(), z.String())
-		if i == 1 {
-			x, y, z = p256.doubleJacobian(x, y, z)
-		} else {
-			x, y, z = p256.addJacobian(x, y, z, p256.Gx, p256.Gy, Gz)
-		}
-	}
-}
