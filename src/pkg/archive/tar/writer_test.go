@@ -141,7 +141,7 @@ testLoop:
 			}
 		}
 		if err := tw.Close(); err != nil {
-			t.Errorf("test %d: Failed closing archive: %v", err)
+			t.Errorf("test %d: Failed closing archive: %v", i, err)
 			continue testLoop
 		}
 

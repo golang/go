@@ -196,6 +196,6 @@ func TestChangingArgs(t *testing.T) {
 	args := Args()
 
 	if !*before || cmd != "subcmd" || !*after || len(args) != 1 || args[0] != "args" {
-		t.Fatal("expected true subcmd true [args] got %v %v %v %v", *before, cmd, *after, args)
+		t.Fatalf("expected true subcmd true [args] got %v %v %v %v", *before, cmd, *after, args)
 	}
 }
