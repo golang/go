@@ -136,7 +136,7 @@ testLoop:
 			break
 		}
 		if hdr != nil || err != nil {
-			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err)
+			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, hdr, err)
 		}
 		f.Close()
 	}
