@@ -108,7 +108,8 @@ struct	Prog
 	uchar	back;
 	uchar	bigjmp;
 };
-#define datasize from.scale
+#define	datasize	from.scale
+#define	textflag	from.scale
 
 struct	Auto
 {

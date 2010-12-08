@@ -110,6 +110,7 @@ struct	Prog
 	char	mode;	/* 16, 32, or 64 */
 };
 #define	datasize	from.scale
+#define	textflag	from.scale
 
 struct	Auto
 {
