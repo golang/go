@@ -89,6 +89,9 @@ func TestPositions(t *testing.T) {
 		if f.Size() != test.size {
 			t.Errorf("%s: expected file size %d; got %d", f.Name(), test.size, f.Size())
 		}
+		if fset.File(f.Pos(0)) != f {
+			t.Errorf("%s: f.Pos(0) was not found in f", f.Name())
+		}
 
 		// add lines individually and verify all positions
 		for i, offset := range test.lines {
