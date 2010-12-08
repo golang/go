@@ -11,14 +11,11 @@ char *environ[] = { 0 };
 char *__progname;
 
 static void
-inittls(void)
+xinitcgo(void)
 {
 }
 
-void
-initcgo(void)
-{
-}
+void (*initcgo)(void) = xinitcgo;
 
 void
 libcgo_sys_thread_start(ThreadStart *ts)

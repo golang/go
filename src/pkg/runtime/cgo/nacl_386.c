@@ -4,10 +4,12 @@
 
 #include "libcgo.h"
 
-void
-initcgo(void)
+static void
+xinitcgo(void)
 {
 }
+
+void (*initcgo)(void) = xinitcgo;
 
 void
 libcgo_sys_thread_start(ThreadStart *ts)
