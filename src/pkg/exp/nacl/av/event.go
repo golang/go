@@ -435,7 +435,7 @@ func (w *Window) readEvents() {
 		}
 		r := reader(buf)
 		if err := binary.Read(&r, binary.LittleEndian, e); err != nil {
-			log.Print("unpacking %T event: %s", e, err)
+			log.Printf("unpacking %T event: %s", e, err)
 			continue
 		}
 		// log.Printf("%#v\n", e);
