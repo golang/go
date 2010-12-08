@@ -24,6 +24,9 @@ type File struct {
 	Loads     []Load
 	Sections  []*Section
 
+	Symtab   *Symtab
+	Dysymtab *Dysymtab
+
 	closer io.Closer
 }
 
@@ -112,6 +115,28 @@ func (s *Section) Data() ([]byte, os.Error) {
 // Open returns a new ReadSeeker reading the Mach-O section.
 func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
 
+// A Dylib represents a Mach-O load dynamic library command.
+type Dylib struct {
+	LoadBytes
+	Name           string
+	Time           uint32
+	CurrentVersion uint32
+	CompatVersion  uint32
+}
+
+// A Symtab represents a Mach-O symbol table command.
+type Symtab struct {
+	LoadBytes
+	SymtabCmd
+	Syms []Symbol
+}
+
+// A Dysymtab represents a Mach-O dynamic symbol table command.
+type Dysymtab struct {
+	LoadBytes
+	DysymtabCmd
+	IndirectSyms []uint32 // indices into Symtab.Syms
+}
 
 /*
  * Mach-O reader
@@ -217,6 +242,71 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		default:
 			f.Loads[i] = LoadBytes(cmddat)
 
+		case LoadCmdDylib:
+			var hdr DylibCmd
+			b := bytes.NewBuffer(cmddat)
+			if err := binary.Read(b, bo, &hdr); err != nil {
+				return nil, err
+			}
+			l := new(Dylib)
+			if hdr.Name >= uint32(len(cmddat)) {
+				return nil, &FormatError{offset, "invalid name in dynamic library command", hdr.Name}
+			}
+			l.Name = cstring(cmddat[hdr.Name:])
+			l.Time = hdr.Time
+			l.CurrentVersion = hdr.CurrentVersion
+			l.CompatVersion = hdr.CompatVersion
+			l.LoadBytes = LoadBytes(cmddat)
+			f.Loads[i] = l
+
+		case LoadCmdSymtab:
+			var hdr SymtabCmd
+			b := bytes.NewBuffer(cmddat)
+			if err := binary.Read(b, bo, &hdr); err != nil {
+				return nil, err
+			}
+			strtab := make([]byte, hdr.Strsize)
+			if _, err := r.ReadAt(strtab, int64(hdr.Stroff)); err != nil {
+				return nil, err
+			}
+			var symsz int
+			if f.Magic == Magic64 {
+				symsz = 16
+			} else {
+				symsz = 12
+			}
+			symdat := make([]byte, int(hdr.Nsyms)*symsz)
+			if _, err := r.ReadAt(symdat, int64(hdr.Symoff)); err != nil {
+				return nil, err
+			}
+			st, err := f.parseSymtab(symdat, strtab, cmddat, &hdr, offset)
+			if err != nil {
+				return nil, err
+			}
+			f.Loads[i] = st
+			f.Symtab = st
+
+		case LoadCmdDysymtab:
+			var hdr DysymtabCmd
+			b := bytes.NewBuffer(cmddat)
+			if err := binary.Read(b, bo, &hdr); err != nil {
+				return nil, err
+			}
+			dat := make([]byte, hdr.Nindirectsyms*4)
+			if _, err := r.ReadAt(dat, int64(hdr.Indirectsymoff)); err != nil {
+				return nil, err
+			}
+			x := make([]uint32, hdr.Nindirectsyms)
+			if err := binary.Read(bytes.NewBuffer(dat), bo, x); err != nil {
+				return nil, err
+			}
+			st := new(Dysymtab)
+			st.LoadBytes = LoadBytes(cmddat)
+			st.DysymtabCmd = hdr
+			st.IndirectSyms = x
+			f.Loads[i] = st
+			f.Dysymtab = st
+
 		case LoadCmdSegment:
 			var seg32 Segment32
 			b := bytes.NewBuffer(cmddat)
@@ -301,6 +391,43 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	return f, nil
 }
 
+func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset int64) (*Symtab, os.Error) {
+	bo := f.ByteOrder
+	symtab := make([]Symbol, hdr.Nsyms)
+	b := bytes.NewBuffer(symdat)
+	for i := range symtab {
+		var n Nlist64
+		if f.Magic == Magic64 {
+			if err := binary.Read(b, bo, &n); err != nil {
+				return nil, err
+			}
+		} else {
+			var n32 Nlist32
+			if err := binary.Read(b, bo, &n32); err != nil {
+				return nil, err
+			}
+			n.Name = n32.Name
+			n.Type = n32.Type
+			n.Sect = n32.Sect
+			n.Desc = n32.Desc
+			n.Value = uint64(n32.Value)
+		}
+		sym := &symtab[i]
+		if n.Name >= uint32(len(strtab)) {
+			return nil, &FormatError{offset, "invalid name in symbol table", n.Name}
+		}
+		sym.Name = cstring(strtab[n.Name:])
+		sym.Type = n.Type
+		sym.Sect = n.Sect
+		sym.Desc = n.Desc
+		sym.Value = n.Value
+	}
+	st := new(Symtab)
+	st.LoadBytes = LoadBytes(cmddat)
+	st.Syms = symtab
+	return st, nil
+}
+
 func (f *File) pushSection(sh *Section, r io.ReaderAt) {
 	f.Sections = append(f.Sections, sh)
 	sh.sr = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
@@ -357,4 +484,34 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 
 	abbrev, info, str := dat[0], dat[1], dat[2]
 	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+}
+
+// ImportedSymbols returns the names of all symbols
+// referred to by the binary f that are expected to be
+// satisfied by other libraries at dynamic load time.
+func (f *File) ImportedSymbols() ([]string, os.Error) {
+	if f.Dysymtab == nil || f.Symtab == nil {
+		return nil, &FormatError{0, "missing symbol table", nil}
+	}
+
+	st := f.Symtab
+	dt := f.Dysymtab
+	var all []string
+	for _, s := range st.Syms[dt.Iundefsym : dt.Iundefsym+dt.Nundefsym] {
+		all = append(all, s.Name)
+	}
+	return all, nil
+}
+
+// ImportedLibraries returns the paths of all libraries
+// referred to by the binary f that are expected to be
+// linked with the binary at dynamic link time.
+func (f *File) ImportedLibraries() ([]string, os.Error) {
+	var all []string
+	for _, l := range f.Loads {
+		if lib, ok := l.(*Dylib); ok {
+			all = append(all, lib.Name)
+		}
+	}
+	return all, nil
 }

@@ -59,16 +59,21 @@ type LoadCmd uint32
 
 const (
 	LoadCmdSegment    LoadCmd = 1
-	LoadCmdSegment64  LoadCmd = 25
+	LoadCmdSymtab     LoadCmd = 2
 	LoadCmdThread     LoadCmd = 4
 	LoadCmdUnixThread LoadCmd = 5 // thread+stack
+	LoadCmdDysymtab   LoadCmd = 11
+	LoadCmdDylib      LoadCmd = 12
+	LoadCmdDylinker   LoadCmd = 15
+	LoadCmdSegment64  LoadCmd = 25
 )
 
 var cmdStrings = []intName{
 	{uint32(LoadCmdSegment), "LoadCmdSegment"},
-	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
 	{uint32(LoadCmdThread), "LoadCmdThread"},
 	{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
+	{uint32(LoadCmdDylib), "LoadCmdDylib"},
+	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
 }
 
 func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }
@@ -104,6 +109,16 @@ type Segment32 struct {
 	Flag    uint32
 }
 
+// A DylibCmd is a Mach-O load dynamic library command.
+type DylibCmd struct {
+	Cmd            LoadCmd
+	Len            uint32
+	Name           uint32
+	Time           uint32
+	CurrentVersion uint32
+	CompatVersion  uint32
+}
+
 // A Section32 is a 32-bit Mach-O section header.
 type Section32 struct {
 	Name     [16]byte
@@ -133,6 +148,67 @@ type Section64 struct {
 	Reserve1 uint32
 	Reserve2 uint32
 	Reserve3 uint32
+}
+
+// A SymtabCmd is a Mach-O symbol table command.
+type SymtabCmd struct {
+	Cmd     LoadCmd
+	Len     uint32
+	Symoff  uint32
+	Nsyms   uint32
+	Stroff  uint32
+	Strsize uint32
+}
+
+// A DysymtabCmd is a Mach-O dynamic symbol table command.
+type DysymtabCmd struct {
+	Cmd            LoadCmd
+	Len            uint32
+	Ilocalsym      uint32
+	Nlocalsym      uint32
+	Iextdefsym     uint32
+	Nextdefsym     uint32
+	Iundefsym      uint32
+	Nundefsym      uint32
+	Tocoffset      uint32
+	Ntoc           uint32
+	Modtaboff      uint32
+	Nmodtab        uint32
+	Extrefsymoff   uint32
+	Nextrefsyms    uint32
+	Indirectsymoff uint32
+	Nindirectsyms  uint32
+	Extreloff      uint32
+	Nextrel        uint32
+	Locreloff      uint32
+	Nlocrel        uint32
+}
+
+// An Nlist32 is a Mach-O 32-bit symbol table entry.
+type Nlist32 struct {
+	Name  uint32
+	Type  uint8
+	Sect  uint8
+	Desc  uint16
+	Value uint32
+}
+
+// An Nlist64 is a Mach-O 64-bit symbol table entry.
+type Nlist64 struct {
+	Name  uint32
+	Type  uint8
+	Sect  uint8
+	Desc  uint16
+	Value uint64
+}
+
+// A Symbol is a Mach-O 32-bit or 64-bit symbol table entry.
+type Symbol struct {
+	Name  string
+	Type  uint8
+	Sect  uint8
+	Desc  uint16
+	Value uint64
 }
 
 // A Thread is a Mach-O thread state command.

@@ -1356,9 +1356,12 @@ type Sym32 struct {
 
 const Sym32Size = 16
 
-func ST_BIND(info uint8) SymBind              { return SymBind(info >> 4) }
-func ST_TYPE(bind SymBind, typ SymType) uint8 { return uint8(bind)<<4 | uint8(typ)&0xf }
-func ST_VISIBILITY(other uint8) SymVis        { return SymVis(other & 3) }
+func ST_BIND(info uint8) SymBind { return SymBind(info >> 4) }
+func ST_TYPE(info uint8) SymType { return SymType(info & 0xF) }
+func ST_INFO(bind SymBind, typ SymType) uint8 {
+	return uint8(bind)<<4 | uint8(typ)&0xf
+}
+func ST_VISIBILITY(other uint8) SymVis { return SymVis(other & 3) }
 
 /*
  * ELF64
