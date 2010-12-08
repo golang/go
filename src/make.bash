@@ -62,7 +62,7 @@ bash "$GOROOT"/src/clean.bash
 for i in lib9 libbio libmach cmd pkg
 do
 	case "$i-$GOOS-$GOARCH" in
-	libcgo-nacl-* | cmd/*-nacl-* | libcgo-linux-arm)
+	cmd/*-nacl-*)
 		;;
 	*)
 		# The ( ) here are to preserve the current directory
