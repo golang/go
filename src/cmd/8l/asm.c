@@ -126,6 +126,10 @@ enum {
 	ElfStrGosymtab,
 	ElfStrGopclntab,
 	ElfStrShstrtab,
+	ElfStrSymtab,
+	ElfStrStrtab,
+	ElfStrRelPlt,
+	ElfStrPlt,
 	NElfStr
 };
 
@@ -147,11 +151,380 @@ needlib(char *name)
 	return 0;
 }
 
+int	nelfsym = 1;
+
+static void	adddynsym(Sym*);
+static void	addpltsym(Sym*);
+static void	addgotsym(Sym*);
+
+void
+adddynrel(Sym *s, Reloc *r)
+{
+	Sym *targ, *rel, *got;
+
+	targ = r->sym;
+	cursym = s;
+
+	switch(r->type) {
+	default:
+		if(r->type >= 256) {
+			diag("unexpected relocation type %d", r->type);
+			return;
+		}
+		break;
+
+	// Handle relocations found in ELF object files.
+	case 256 + R_386_PC32:
+		if(targ->dynimpname)
+			diag("unexpected R_386_PC32 relocation for dynamic symbol %s", targ->name);
+		if(targ->type == 0 || targ->type == SXREF)
+			diag("unknown symbol %s in pcrel", targ->name);
+		r->type = D_PCREL;
+		r->add += 4;
+		return;
+
+	case 256 + R_386_PLT32:
+		addpltsym(targ);
+		r->type = D_PCREL;
+		r->sym = lookup(".plt", 0);
+		r->add += 4;
+		r->add += targ->plt;
+		return;		
+	
+	case 256 + R_386_GOT32:
+		addgotsym(targ);
+		r->type = D_CONST;	// write r->add during relocsym
+		r->sym = S;
+		r->add += targ->got;
+		return;
+	
+	case 256 + R_386_GOTOFF:
+		r->type = D_GOTOFF;
+		return;
+	
+	case 256 + R_386_GOTPC:
+		r->type = D_PCREL;
+		r->sym = lookup(".got", 0);
+		r->add += 4;
+		return;
+
+	case 256 + R_386_32:
+		if(targ->dynimpname)
+			diag("unexpected R_386_32 relocation for dynamic symbol %s", targ->name);
+		r->type = D_ADDR;
+		return;
+	
+	case 512 + MACHO_GENERIC_RELOC_VANILLA*2 + 0:
+		r->type = D_ADDR;
+		if(targ->dynimpname)
+			diag("unexpected reloc for dynamic symbol %s", targ->name);
+		return;
+	
+	case 512 + MACHO_GENERIC_RELOC_VANILLA*2 + 1:
+		if(targ->dynimpname) {
+			addpltsym(targ);
+			r->sym = lookup(".plt", 0);
+			r->add = targ->plt;
+			r->type = D_PCREL;
+			return;
+		}
+		r->type = D_PCREL;
+		if(targ->dynimpname)
+			diag("unexpected pc-relative reloc for dynamic symbol %s", targ->name);
+		return;
+	
+	case 512 + MACHO_FAKE_GOTPCREL:
+		addgotsym(targ);
+		r->sym = lookup(".got", 0);
+		r->add += targ->got;
+		r->type = D_PCREL;
+		return;
+	}
+	
+	// Handle references to ELF symbols from our own object files.
+	if(targ->dynimpname == nil)
+		return;
+
+	switch(r->type) {
+	case D_PCREL:
+		addpltsym(targ);
+		r->sym = lookup(".plt", 0);
+		r->add = targ->plt;
+		return;
+	
+	case D_ADDR:
+		if(s->type != SDATA)
+			break;
+		if(iself) {
+			adddynsym(targ);
+			rel = lookup(".rel", 0);
+			addaddrplus(rel, s, r->off);
+			adduint32(rel, ELF32_R_INFO(targ->dynid, R_386_32));
+			r->type = D_CONST;	// write r->add during relocsym
+			r->sym = S;
+			return;
+		}
+		if(HEADTYPE == 6 && s->size == PtrSize && r->off == 0) {
+			// Mach-O relocations are a royal pain to lay out.
+			// They use a compact stateful bytecode representation
+			// that is too much bother to deal with.
+			// Instead, interpret the C declaration
+			//	void *_Cvar_stderr = &stderr;
+			// as making _Cvar_stderr the name of a GOT entry
+			// for stderr.  This is separate from the usual GOT entry,
+			// just in case the C code assigns to the variable,
+			// and of course it only works for single pointers,
+			// but we only need to support cgo and that's all it needs.
+			adddynsym(targ);
+			got = lookup(".got", 0);
+			s->type = got->type | SSUB;
+			s->outer = got;
+			s->sub = got->sub;
+			got->sub = s;
+			s->value = got->size;
+			adduint32(got, 0);
+			adduint32(lookup(".linkedit.got", 0), targ->dynid);
+			r->type = 256;	// ignore during relocsym
+			return;
+		}
+		break;
+	}
+	
+	cursym = s;
+	diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ->name, r->type, targ->type);
+}
+
+static void
+elfsetupplt(void)
+{
+	Sym *plt, *got;
+	
+	plt = lookup(".plt", 0);
+	got = lookup(".got.plt", 0);
+	if(plt->size == 0) {
+		// pushl got+4
+		adduint8(plt, 0xff);
+		adduint8(plt, 0x35);
+		addaddrplus(plt, got, 4);
+		
+		// jmp *got+8
+		adduint8(plt, 0xff);
+		adduint8(plt, 0x25);
+		addaddrplus(plt, got, 8);
+
+		// zero pad
+		adduint32(plt, 0);
+		
+		// assume got->size == 0 too
+		addaddrplus(got, lookup(".dynamic", 0), 0);
+		adduint32(got, 0);
+		adduint32(got, 0);
+	}
+}
+
+int
+archreloc(Reloc *r, Sym *s, vlong *val)
+{
+	switch(r->type) {
+	case D_CONST:
+		*val = r->add;
+		return 0;
+	case D_GOTOFF:
+		*val = symaddr(r->sym) + r->add - symaddr(lookup(".got", 0));
+		return 0;
+	}
+	return -1;
+}
+
+static void
+addpltsym(Sym *s)
+{
+	Sym *plt, *got, *rel;
+	
+	if(s->plt >= 0)
+		return;
+
+	adddynsym(s);
+	
+	if(iself) {
+		plt = lookup(".plt", 0);
+		got = lookup(".got.plt", 0);
+		rel = lookup(".rel.plt", 0);
+		if(plt->size == 0)
+			elfsetupplt();
+		
+		// jmpq *got+size
+		adduint8(plt, 0xff);
+		adduint8(plt, 0x25);
+		addaddrplus(plt, got, got->size);
+		
+		// add to got: pointer to current pos in plt
+		addaddrplus(got, plt, plt->size);
+		
+		// pushl $x
+		adduint8(plt, 0x68);
+		adduint32(plt, rel->size);
+		
+		// jmp .plt
+		adduint8(plt, 0xe9);
+		adduint32(plt, -(plt->size+4));
+		
+		// rel
+		addaddrplus(rel, got, got->size-4);
+		adduint32(rel, ELF32_R_INFO(s->dynid, R_386_JMP_SLOT));
+		
+		s->plt = plt->size - 16;
+	} else if(HEADTYPE == 6) {	// Mach-O
+		// Same laziness as in 6l.
+		
+		Sym *plt;
+
+		plt = lookup(".plt", 0);
+
+		addgotsym(s);
+
+		adduint32(lookup(".linkedit.plt", 0), s->dynid);
+
+		// jmpq *got+size(IP)
+		s->plt = plt->size;
+
+		adduint8(plt, 0xff);
+		adduint8(plt, 0x25);
+		addaddrplus(plt, lookup(".got", 0), s->got);
+	} else {
+		diag("addpltsym: unsupported binary format");
+	}
+}
+
+static void
+addgotsym(Sym *s)
+{
+	Sym *got, *rel;
+	
+	if(s->got >= 0)
+		return;
+	
+	adddynsym(s);
+	got = lookup(".got", 0);
+	s->got = got->size;
+	adduint32(got, 0);
+	
+	if(iself) {
+		rel = lookup(".rel", 0);
+		addaddrplus(rel, got, s->got);
+		adduint32(rel, ELF32_R_INFO(s->dynid, R_386_GLOB_DAT));
+	} else if(HEADTYPE == 6) {	// Mach-O
+		adduint32(lookup(".linkedit.got", 0), s->dynid);
+	} else {
+		diag("addgotsym: unsupported binary format");
+	}
+}
+
+static void
+adddynsym(Sym *s)
+{
+	Sym *d, *str;
+	int t;
+	char *name;
+	
+	if(s->dynid >= 0)
+		return;
+	
+	if(iself) {
+		s->dynid = nelfsym++;
+		
+		d = lookup(".dynsym", 0);
+		
+		/* name */
+		name = s->dynimpname;
+		if(name == nil)
+			name = s->name;
+		adduint32(d, addstring(lookup(".dynstr", 0), name));
+		
+		/* value */
+		if(s->type == SDYNIMPORT)
+			adduint32(d, 0);
+		else
+			addaddr(d, s);
+		
+		/* size */
+		adduint32(d, 0);
+	
+		/* type */
+		t = STB_GLOBAL << 4;
+		if(s->dynexport && s->type == STEXT)
+			t |= STT_FUNC;
+		else
+			t |= STT_OBJECT;
+		adduint8(d, t);
+		adduint8(d, 0);
+	
+		/* shndx */
+		if(!s->dynexport && s->dynimpname != nil)
+			adduint16(d, SHN_UNDEF);
+		else {
+			switch(s->type) {
+			default:
+			case STEXT:
+				t = 11;
+				break;
+			case SRODATA:
+				t = 12;
+				break;
+			case SDATA:
+				t = 13;
+				break;
+			case SBSS:
+				t = 14;
+				break;
+			}
+			adduint16(d, t);
+		}
+	} else if(HEADTYPE == 6) {
+		// Mach-O symbol nlist32
+		d = lookup(".dynsym", 0);
+		name = s->dynimpname;
+		if(name == nil)
+			name = s->name;
+		s->dynid = d->size/12;
+		// darwin still puts _ prefixes on all C symbols
+		str = lookup(".dynstr", 0);
+		adduint32(d, str->size);
+		adduint8(str, '_');
+		addstring(str, name);
+		adduint8(d, 0x01);	// type - N_EXT - external symbol
+		adduint8(d, 0);	// section
+		adduint16(d, 0);	// desc
+		adduint32(d, 0);	// value
+	} else {
+		diag("adddynsym: unsupported binary format");
+	}
+}
+
+void
+adddynlib(char *lib)
+{
+	Sym *s;
+	
+	if(!needlib(lib))
+		return;
+	
+	if(iself) {
+		s = lookup(".dynstr", 0);
+		if(s->size == 0)
+			addstring(s, "");
+		elfwritedynent(lookup(".dynamic", 0), DT_NEEDED, addstring(s, lib));
+	} else if(HEADTYPE == 6) {	// Mach-O
+		machoadddynlib(lib);
+	} else {
+		diag("adddynlib: unsupported binary format");
+	}
+}
+
 void
 doelf(void)
 {
-	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
-	int h, nsym, t;
+	Sym *s, *shstrtab, *dynstr;
 
 	if(!iself)
 		return;
@@ -186,6 +559,8 @@ doelf(void)
 		elfstr[ElfStrDynsym] = addstring(shstrtab, ".dynsym");
 		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
 		elfstr[ElfStrRel] = addstring(shstrtab, ".rel");
+		elfstr[ElfStrRelPlt] = addstring(shstrtab, ".rel.plt");
+		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
 
 		/* interpreter string */
 		s = lookup(".interp", 0);
@@ -202,7 +577,8 @@ doelf(void)
 		s = lookup(".dynstr", 0);
 		s->reachable = 1;
 		s->type = SELFDATA;
-		addstring(s, "");
+		if(s->size == 0)
+			addstring(s, "");
 		dynstr = s;
 
 		/* relocation table */
@@ -213,88 +589,36 @@ doelf(void)
 		/* global offset table */
 		s = lookup(".got", 0);
 		s->reachable = 1;
-		s->type = SELFDATA;
-
-		/* got.plt - ??? */
-		s = lookup(".got.plt", 0);
+		s->type = SDATA;	// writable, so not SELFDATA
+		
+		/* hash */
+		s = lookup(".hash", 0);
 		s->reachable = 1;
 		s->type = SELFDATA;
+
+		/* got.plt */
+		s = lookup(".got.plt", 0);
+		s->reachable = 1;
+		s->type = SDATA;	// writable, so not SELFDATA
+		
+		s = lookup(".plt", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
+
+		s = lookup(".rel.plt", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
+
+		elfsetupplt();
 
 		/* define dynamic elf table */
 		s = lookup(".dynamic", 0);
 		s->reachable = 1;
 		s->type = SELFDATA;
-		dynamic = s;
-
-		/*
-		 * relocation entries for dynimport symbols
-		 */
-		nsym = 1;	// sym 0 is reserved
-		for(h=0; h<NHASH; h++) {
-			for(s=hash[h]; s!=S; s=s->hash) {
-				if(!s->reachable || (s->type != STEXT && s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
-					continue;
-
-				if(!s->dynexport) {
-					d = lookup(".rel", 0);
-					addaddr(d, s);
-					adduint32(d, ELF32_R_INFO(nsym, R_386_32));
-				}
-
-				nsym++;
-
-				d = lookup(".dynsym", 0);
-				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
-				/* value */
-				if(!s->dynexport)
-					adduint32(d, 0);
-				else
-					addaddr(d, s);
-
-				/* size of object */
-				adduint32(d, 0);
-
-				/* type */
-				t = STB_GLOBAL << 4;
-				if(s->dynexport && s->type == STEXT)
-					t |= STT_FUNC;
-				else
-					t |= STT_OBJECT;
-				adduint8(d, t);
-
-				/* reserved */
-				adduint8(d, 0);
-
-				/* section where symbol is defined */
-				if(!s->dynexport)
-					adduint16(d, SHN_UNDEF);
-				else {
-					switch(s->type) {
-					default:
-					case STEXT:
-						t = 9;
-						break;
-					case SDATA:
-						t = 10;
-						break;
-					case SBSS:
-						t = 11;
-						break;
-					}
-					adduint16(d, t);
-				}
-
-				if(!s->dynexport && needlib(s->dynimplib))
-					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
-			}
-		}
-
-		elfdynhash(nsym);
 
 		/*
 		 * .dynamic table
 		 */
-		s = dynamic;
 		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
 		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
 		elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
@@ -305,6 +629,10 @@ doelf(void)
 		elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
 		if(rpath)
 			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
+		elfwritedynentsym(s, DT_PLTGOT, lookup(".got.plt", 0));
+		elfwritedynent(s, DT_PLTREL, DT_REL);
+		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
+		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
 		elfwritedynent(s, DT_NULL, 0);
 	}
 }
@@ -364,6 +692,14 @@ asmb(void)
 	machlink = 0;
 	if(HEADTYPE == 6)
 		machlink = domacholink();
+
+	if(iself) {
+		/* index of elf text section; needed by asmelfsym, double-checked below */
+		/* !debug['d'] causes extra sections before the .text section */
+		elftextsh = 1;
+		if(!debug['d'])
+			elftextsh += 10;
+	}
 
 	symsize = 0;
 	spsize = 0;
@@ -635,6 +971,22 @@ asmb(void)
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
 			shsym(sh, lookup(".dynstr", 0));
+			
+			sh = newElfShdr(elfstr[ElfStrRelPlt]);
+			sh->type = SHT_REL;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = ELF32RELSIZE;
+			sh->addralign = 4;
+			sh->link = dynsym;
+			sh->info = eh->shnum;	// .plt
+			shsym(sh, lookup(".rel.plt", 0));
+			
+			sh = newElfShdr(elfstr[ElfStrPlt]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+			sh->entsize = 4;
+			sh->addralign = 4;
+			shsym(sh, lookup(".plt", 0));
 
 			sh = newElfShdr(elfstr[ElfStrHash]);
 			sh->type = SHT_HASH;
@@ -682,6 +1034,8 @@ asmb(void)
 		ph->flags = PF_W+PF_R;
 		ph->align = 4;
 
+		if(elftextsh != eh->shnum)
+			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
 			elfshbits(sect);
 		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
@@ -814,12 +1168,13 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 
 	for(h=0; h<NHASH; h++) {
 		for(s=hash[h]; s!=S; s=s->hash) {
-			switch(s->type) {
+			switch(s->type&~SSUB) {
 			case SCONST:
 			case SRODATA:
 			case SDATA:
 			case SELFDATA:
 			case SMACHO:
+			case SMACHOGOT:
 			case SWINDOWS:
 				if(!s->reachable)
 					continue;
@@ -840,6 +1195,9 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 	}
 
 	for(s = textp; s != nil; s = s->next) {
+		if(s->text == nil)
+			continue;
+
 		/* filenames first */
 		for(a=s->autom; a; a=a->link)
 			if(a->type == D_FILE)

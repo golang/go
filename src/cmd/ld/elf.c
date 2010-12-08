@@ -164,8 +164,7 @@ newElfPhdr(void)
 {
 	ElfPhdr *e;
 
-	e = malloc(sizeof *e);
-	memset(e, 0, sizeof *e);
+	e = mal(sizeof *e);
 	if (hdr.phnum >= NSECT)
 		diag("too many phdrs");
 	else
@@ -189,8 +188,7 @@ newElfShdr(vlong name)
 {
 	ElfShdr *e;
 
-	e = malloc(sizeof *e);
-	memset(e, 0, sizeof *e);
+	e = mal(sizeof *e);
 	e->name = name;
 	if (hdr.shnum >= NSECT) {
 		diag("too many shdrs");
@@ -332,17 +330,25 @@ elfinterp(ElfShdr *sh, uint64 startva, char *p)
 	sh->size = n;
 }
 
+extern int nelfsym;
+
 void
-elfdynhash(int nsym)
+elfdynhash(void)
 {
 	Sym *s, *sy;
 	int i, h, nbucket, b;
 	uchar *pc;
 	uint32 hc, g;
 	uint32 *chain, *buckets;
+	int nsym;
+	char *name;
+	
+	if(!iself)
+		return;
 
+	nsym = nelfsym;
 	s = lookup(".hash", 0);
-	s->type = SELFDATA;	// TODO: rodata
+	s->type = SELFDATA;
 	s->reachable = 1;
 
 	i = nsym;
@@ -353,17 +359,24 @@ elfdynhash(int nsym)
 	}
 
 	chain = malloc(nsym * sizeof(uint32));
-	memset(chain, 0, nsym * sizeof(uint32));
 	buckets = malloc(nbucket * sizeof(uint32));
+	if(chain == nil || buckets == nil) {
+		cursym = nil;
+		diag("out of memory");
+		errorexit();
+	}
+	memset(chain, 0, nsym * sizeof(uint32));
 	memset(buckets, 0, nbucket * sizeof(uint32));
-	i = 1;
 	for(h = 0; h<NHASH; h++) {
 		for(sy=hash[h]; sy!=S; sy=sy->hash) {
-			if (!sy->reachable || (sy->type != STEXT && sy->type != SDATA && sy->type != SBSS) || sy->dynimpname == nil)
+			if (sy->dynid <= 0)
 				continue;
 
 			hc = 0;
-			for(pc = (uchar*)sy->dynimpname; *pc; pc++) {
+			name = sy->dynimpname;
+			if(name == nil)
+				name = sy->name;
+			for(pc = (uchar*)name; *pc; pc++) {
 				hc = (hc<<4) + *pc;
 				g = hc & 0xf0000000;
 				hc ^= g >> 24;
@@ -371,9 +384,8 @@ elfdynhash(int nsym)
 			}
 
 			b = hc % nbucket;
-			chain[i] = buckets[b];
-			buckets[b] = i;
-			i++;
+			chain[sy->dynid] = buckets[b];
+			buckets[b] = sy->dynid;
 		}
 	}
 
@@ -386,6 +398,8 @@ elfdynhash(int nsym)
 
 	free(chain);
 	free(buckets);
+
+	elfwritedynent(lookup(".dynamic", 0), DT_NULL, 0);
 }
 
 ElfPhdr*

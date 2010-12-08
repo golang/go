@@ -374,32 +374,38 @@ out:
 void
 ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 {
-	static int files;
-	static char **filen;
-	char **nfilen, *line;
-	int i, n, c1, c2, c3;
+	char *line;
+	int n, c1, c2, c3, c4;
+	uint32 magic;
 	vlong import0, import1, eof;
 	char src[1024];
 
 	eof = Boffset(f) + len;
 	src[0] = '\0';
 
-	// don't load individual object more than once.
-	// happens with import of .6 files because of loop in xresolv.
-	// doesn't happen with .a because SYMDEF is consulted
-	// first to decide whether each individual object file is needed.
-	for(i=0; i<files; i++)
-		if(strcmp(filen[i], pn) == 0)
-			return;
-
-	if((files&15) == 0){
-		nfilen = malloc((files+16)*sizeof(char*));
-		memmove(nfilen, filen, files*sizeof(char*));
-		free(filen);
-		filen = nfilen;
-	}
 	pn = strdup(pn);
-	filen[files++] = pn;
+	
+	USED(c4);
+	USED(magic);
+
+	c1 = Bgetc(f);
+	c2 = Bgetc(f);
+	c3 = Bgetc(f);
+	c4 = Bgetc(f);
+	Bungetc(f);
+	Bungetc(f);
+	Bungetc(f);
+	Bungetc(f);
+	
+	magic = c1<<24 | c2<<16 | c3<<8 | c4;
+	if(magic == 0x7f454c46) {	// \x7F E L F
+		ldelf(f, pkg, len, pn);
+		return;
+	}
+	if((magic&~1) == 0xfeedface || (magic&~0x01000000) == 0xcefaedfe) {
+		ldmacho(f, pkg, len, pn);
+		return;
+	}
 
 	/* check the header */
 	line = Brdline(f, '\n');
@@ -471,6 +477,9 @@ lookup(char *symb, int v)
 	if(debug['v'] > 1)
 		Bprint(&bso, "lookup %s\n", symb);
 
+	s->dynid = -1;
+	s->plt = -1;
+	s->got = -1;
 	s->name = mal(l + 1);
 	memmove(s->name, symb, l);
 
@@ -766,11 +775,19 @@ mal(uint32 n)
 	n = (n+7)&~7;
 	if(n > NHUNK) {
 		v = malloc(n);
+		if(v == nil) {
+			diag("out of memory");
+			errorexit();
+		}
 		memset(v, 0, n);
 		return v;
 	}
 	if(n > nhunk) {
 		hunk = malloc(NHUNK);
+		if(hunk == nil) {
+			diag("out of memory");
+			errorexit();
+		}
 		nhunk = NHUNK;
 	}
 
@@ -1013,3 +1030,42 @@ mkfwd(void)
 		}
 	}
 }
+
+uint16
+le16(uchar *b)
+{
+	return b[0] | b[1]<<8;
+}
+
+uint32
+le32(uchar *b)
+{
+	return b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24;
+}
+
+uint64
+le64(uchar *b)
+{
+	return le32(b) | (uint64)le32(b+4)<<32;
+}
+
+uint16
+be16(uchar *b)
+{
+	return b[0]<<8 | b[1];
+}
+
+uint32
+be32(uchar *b)
+{
+	return b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
+}
+
+uint64
+be64(uchar *b)
+{
+	return (uvlong)be32(b)<<32 | be32(b+4);
+}
+
+Endian be = { be16, be32, be64 };
+Endian le = { le16, le32, le64 };

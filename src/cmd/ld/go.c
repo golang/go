@@ -266,6 +266,10 @@ expandpkg(char *t0, char *pkg)
 
 	// use malloc, not mal, so that caller can free
 	w0 = malloc(strlen(t0) + strlen(pkg)*n);
+	if(w0 == nil) {
+		diag("out of memory");
+		errorexit();
+	}
 	w = w0;
 	for(p=t=t0; (p=strstr(p, "\"\".")) != nil; p=t) {
 		memmove(w, t, p - t);
@@ -442,12 +446,21 @@ loaddynimport(char *file, char *pkg, char *p, int n)
 		// successful parse: now can edit the line
 		*strchr(name, ' ') = 0;
 		*strchr(def, ' ') = 0;
+		
+		if(strcmp(name, "_") == 0 && strcmp(def, "_") == 0) {
+			// allow #pragma dynimport _ _ "foo.so"
+			// to force a link of foo.so.
+			adddynlib(lib);
+			continue;
+		}
 
 		name = expandpkg(name, pkg);
-
 		s = lookup(name, 0);
-		s->dynimplib = lib;
-		s->dynimpname = def;
+		if(s->type == 0 || s->type == SXREF) {
+			s->dynimplib = lib;
+			s->dynimpname = def;
+			s->type = SDYNIMPORT;
+		}
 	}
 	return;
 
@@ -547,6 +560,10 @@ mark(Sym *s)
 		mark(s->r[i].sym);
 	if(s->gotype)
 		mark(s->gotype);
+	if(s->sub)
+		mark(s->sub);
+	if(s->outer)
+		mark(s->outer);
 }
 
 static char*

@@ -84,7 +84,7 @@ struct	Reloc
 {
 	int32	off;
 	uchar	siz;
-	uchar	type;
+	int32	type;
 	int64	add;
 	Sym*	sym;
 };
@@ -128,10 +128,14 @@ struct	Sym
 	uchar	reachable;
 	uchar	dynexport;
 	uchar	special;
+	int32	dynid;
 	int32	sig;
+	int32	plt;
+	int32	got;
 	Sym*	hash;	// in hash table
 	Sym*	next;	// in text or data list
 	Sym*	sub;	// in SSUB list
+	Sym*	outer;	// container of sub
 	vlong	value;
 	vlong	size;
 	Sym*	gotype;
@@ -174,14 +178,20 @@ enum
 	/* order here is order in output file */
 	STEXT		= 1,
 	SELFDATA,
+	SMACHOPLT,
 	SRODATA,
 	SDATA,
-	SMACHO,
+	SMACHOGOT,
 	SBSS,
 
 	SXREF,
+	SMACHODYNSTR,
+	SMACHODYNSYM,
+	SMACHOINDIRECTPLT,
+	SMACHOINDIRECTGOT,
 	SFILE,
 	SCONST,
+	SDYNIMPORT,
 	SSUB	= 1<<8,
 
 	NHASH		= 10007,
