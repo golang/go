@@ -25,14 +25,6 @@ type Position struct {
 }
 
 
-// TODO(gri): Remove Pos() below once all code is switched to using token.Pos.
-
-// Pos is an accessor method for anonymous Position fields.
-// It returns its receiver.
-//
-func (pos *Position) Pos() Position { return *pos }
-
-
 // IsValid returns true if the position is valid.
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
@@ -113,6 +105,28 @@ func (s *FileSet) file(p Pos) *File {
 }
 
 
+// File returns the file which contains the position p.
+// If no such file is found (for instance for p == NoPos),
+// the result is nil.
+//
+func (s *FileSet) File(p Pos) (f *File) {
+	if p != NoPos {
+		s.mutex.RLock()
+		f = s.file(p)
+		s.mutex.RUnlock()
+	}
+	return
+}
+
+
+func (f *File) position(p Pos) (pos Position) {
+	offset := int(p) - f.base
+	pos.Offset = offset
+	pos.Filename, pos.Line, pos.Column = f.info(offset)
+	return
+}
+
+
 // Position converts a Pos in the fileset into a general Position.
 func (s *FileSet) Position(p Pos) (pos Position) {
 	if p != NoPos {
@@ -122,9 +136,7 @@ func (s *FileSet) Position(p Pos) (pos Position) {
 		//           of search
 		s.mutex.RLock()
 		if f := s.file(p); f != nil {
-			offset := int(p) - f.base
-			pos.Offset = offset
-			pos.Filename, pos.Line, pos.Column = f.info(offset)
+			pos = f.position(p)
 		}
 		s.mutex.RUnlock()
 	}
@@ -274,8 +286,7 @@ func (f *File) Position(p Pos) (pos Position) {
 		if int(p) < f.base || int(p) > f.base+f.size {
 			panic("illegal Pos value")
 		}
-		// TODO(gri) compute Position directly instead of going via the fset!
-		pos = f.set.Position(p)
+		pos = f.position(p)
 	}
 	return
 }
@@ -309,6 +320,9 @@ func (f *File) info(offset int) (filename string, line, column int) {
 
 
 // A FileSet represents a set of source files.
+// Methods of file sets are synchronized; multiple goroutines
+// may invoke them concurrently.
+//
 type FileSet struct {
 	mutex sync.RWMutex  // protects the file set
 	base  int           // base offset for the next file
@@ -330,7 +344,11 @@ func NewFileSet() *FileSet {
 // AddFile when adding the next file.
 //
 func (s *FileSet) Base() int {
-	return s.base
+	s.mutex.RLock()
+	b := s.base
+	s.mutex.RUnlock()
+	return b
+
 }
 
 
