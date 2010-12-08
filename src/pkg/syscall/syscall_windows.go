@@ -729,7 +729,8 @@ type WaitStatus struct {
 }
 
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
-	handle, errno := OpenProcess(PROCESS_ALL_ACCESS, 0, uint32(pid))
+	const da = STANDARD_RIGHTS_READ | PROCESS_QUERY_INFORMATION | SYNCHRONIZE
+	handle, errno := OpenProcess(da, 0, uint32(pid))
 	if errno != 0 {
 		return 0, errno
 	}
