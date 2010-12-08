@@ -640,7 +640,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			p->as = ATEXT;
 			p->from.type = D_EXTERN;
 			p->from.sym = s;
-			p->from.scale = 7;
+			p->textflag = 7;
 			p->to.type = D_CONST;
 			p->link = nil;
 			p->pc = pc++;

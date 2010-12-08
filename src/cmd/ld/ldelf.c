@@ -660,12 +660,11 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 				diag("%s: duplicate definition of %s", pn, s->name);
 			// build a TEXT instruction with a unique pc
 			// just to make the rest of the linker happy.
-			// TODO: this is too 6l-specific ?
 			p = prg();
 			p->as = ATEXT;
 			p->from.type = D_EXTERN;
 			p->from.sym = s;
-			p->from.scale = 7;
+			p->textflag = 7;
 			p->to.type = D_CONST;
 			p->link = nil;
 			p->pc = pc++;
