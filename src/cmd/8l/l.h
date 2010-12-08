@@ -84,7 +84,7 @@ struct	Reloc
 {
 	int32	off;
 	uchar	siz;
-	uchar	type;
+	int32	type;
 	int32	add;
 	Sym*	sym;
 };
@@ -130,9 +130,13 @@ struct	Sym
 	int32	value;
 	int32	size;
 	int32	sig;
+	int32	dynid;
+	int32	plt;
+	int32	got;
 	Sym*	hash;	// in hash table
 	Sym*	next;	// in text or data list
 	Sym*	sub;	// in sub list
+	Sym*	outer;	// container of sub
 	Sym*	gotype;
 	char*	file;
 	char*	dynimpname;
@@ -165,16 +169,23 @@ enum
 	/* order here is order in output file */
 	STEXT,
 	SELFDATA,
+	SMACHOPLT,
 	SRODATA,
 	SDATA,
 	SMACHO,	/* Mach-O __nl_symbol_ptr */
+	SMACHOGOT,
 	SWINDOWS,
 	SBSS,
 
 	SXREF,
+	SMACHODYNSTR,
+	SMACHODYNSYM,
+	SMACHOINDIRECTPLT,
+	SMACHOINDIRECTGOT,
 	SFILE,
 	SCONST,
-	
+	SDYNIMPORT,
+
 	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
 
 	NHASH		= 10007,
@@ -317,7 +328,7 @@ EXTERN	int	dtype;
 EXTERN	int	tlsoffset;
 EXTERN	Sym*	adrgotype;	// type symbol on last Adr read
 EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
-
+EXTERN	int	elftextsh;
 
 extern	Optab	optab[];
 extern	char*	anames[];

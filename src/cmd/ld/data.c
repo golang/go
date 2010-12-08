@@ -35,6 +35,8 @@
 #include	"../ld/elf.h"
 #include	"../ld/pe.h"
 
+void	dynreloc(void);
+
 /*
  * divide-and-conquer list-link
  * sort of Sym* structures.
@@ -147,27 +149,49 @@ relocsym(Sym *s)
 	vlong o;
 	uchar *cast;
 	
+	cursym = s;
 	memset(&p, 0, sizeof p);
 	for(r=s->r; r<s->r+s->nr; r++) {
 		off = r->off;
 		siz = r->siz;
+		if(off < 0 || off+(siz&~Rbig) > s->np) {
+			diag("%s: invalid relocation %d+%d not in [%d,%d)", s->name, off, siz&~Rbig, 0, s->np);
+			continue;
+		}
+		if(r->sym != S && (r->sym->type == 0 || r->sym->type == SXREF)) {
+			diag("%s: not defined", r->sym->name);
+			continue;
+		}
+		if(r->type >= 256)
+			continue;
+
+		if(r->sym != S && (r->sym->type == SDYNIMPORT || r->sym->dynimpname != nil))
+			diag("unhandled relocation for %s (rtype %d)", r->sym->name, r->type);
+
+		if(r->sym != S && !r->sym->reachable)
+			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
+
 		switch(r->type) {
 		default:
-			diag("unknown reloc %d", r->type);
+			o = 0;
+			if(archreloc(r, s, &o) < 0)
+				diag("unknown reloc %d", r->type);
+			break;
 		case D_ADDR:
-			o = symaddr(r->sym);
+			o = symaddr(r->sym) + r->add;
 			break;
 		case D_PCREL:
-			o = symaddr(r->sym) - (s->value + r->off + r->siz);
+			o = symaddr(r->sym) + r->add - (s->value + r->off + r->siz);
 			break;
 		case D_SIZE:
-			o = r->sym->size;
+			o = r->sym->size + r->add;
 			break;
 		}
-		o += r->add;
+//print("relocate %s %p %s => %p %p %p %p [%p]\n", s->name, s->value+off, r->sym ? r->sym->name : "<nil>", (void*)symaddr(r->sym), (void*)s->value, (void*)r->off, (void*)r->siz, (void*)o);
 		switch(siz) {
 		default:
-			diag("bad reloc size %#ux", siz);
+			cursym = s;
+			diag("bad reloc size %#ux for %s", siz, r->sym->name);
 		case 4 + Rbig:
 			fl = o;
 			s->p[off] = fl>>24;
@@ -213,6 +237,33 @@ reloc(void)
 }
 
 void
+dynrelocsym(Sym *s)
+{
+	Reloc *r;
+
+	for(r=s->r; r<s->r+s->nr; r++)
+		if(r->sym->type == SDYNIMPORT || r->type >= 256)
+			adddynrel(s, r);
+}
+
+void
+dynreloc(void)
+{
+	Sym *s;
+	
+	if(debug['v'])
+		Bprint(&bso, "%5.2f reloc\n", cputime());
+	Bflush(&bso);
+
+	for(s=textp; s!=S; s=s->next)
+		dynrelocsym(s);
+	for(s=datap; s!=S; s=s->next)
+		dynrelocsym(s);
+	if(iself)
+		elfdynhash();
+}
+
+void
 symgrow(Sym *s, int32 siz)
 {
 	if(s->np >= siz)
@@ -240,7 +291,7 @@ savedata(Sym *s, Prog *p)
 	uchar *cast;
 	vlong o;
 	Reloc *r;
-	
+
 	off = p->from.offset;
 	siz = p->datasize;
 	symgrow(s, off+siz);
@@ -324,11 +375,13 @@ blk(Sym *allsym, int32 addr, int32 size)
 	uchar *p, *ep;
 
 	for(sym = allsym; sym != nil; sym = sym->next)
-		if(sym->value >= addr)
+		if(!(sym->type&SSUB) && sym->value >= addr)
 			break;
 
 	eaddr = addr+size;
 	for(; sym != nil; sym = sym->next) {
+		if(sym->type&SSUB)
+			continue;
 		if(sym->value >= eaddr)
 			break;
 		if(sym->value < addr) {
@@ -411,7 +464,7 @@ codeblk(int32 addr, int32 size)
 			continue;
 		}
 			
-		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)addr, sym->name, p);
+		Bprint(&bso, "%.6llux\t%-20s | %P\n", sym->value, sym->name, p);
 		for(p = p->link; p != P; p = p->link) {
 			if(p->link != P)
 				epc = p->link->pc;
@@ -522,6 +575,7 @@ adduintxx(Sym *s, uint64 v, int wid)
 	r = s->size;
 	s->size += wid;
 	symgrow(s, s->size);
+	assert(r+wid <= s->size);
 	fl = v;
 	cast = (uchar*)&fl;
 	switch(wid) {
@@ -571,7 +625,7 @@ adduint64(Sym *s, uint64 v)
 }
 
 vlong
-addaddr(Sym *s, Sym *t)
+addaddrplus(Sym *s, Sym *t, int32 add)
 {
 	vlong i;
 	Reloc *r;
@@ -587,7 +641,35 @@ addaddr(Sym *s, Sym *t)
 	r->off = i;
 	r->siz = PtrSize;
 	r->type = D_ADDR;
+	r->add = add;
 	return i;
+}
+
+vlong
+addpcrelplus(Sym *s, Sym *t, int32 add)
+{
+	vlong i;
+	Reloc *r;
+	
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	i = s->size;
+	s->size += 4;
+	symgrow(s, s->size);
+	r = addrel(s);
+	r->sym = t;
+	r->off = i;
+	r->add = add;
+	r->type = D_PCREL;
+	r->siz = 4;
+	return i;
+}
+
+vlong
+addaddr(Sym *s, Sym *t)
+{
+	return addaddrplus(s, t, 0);
 }
 
 vlong
@@ -615,7 +697,7 @@ dodata(void)
 {
 	int32 h, t, datsize;
 	Section *sect;
-	Sym *s, *last;
+	Sym *s, *last, **l;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f dodata\n", cputime());
@@ -645,6 +727,24 @@ dodata(void)
 			diag("%s: initialize bounds (%lld < %d)",
 				s->name, s->size, s->np);
 	}
+	
+	/*
+	 * now that we have the datap list, but before we start
+	 * to assign addresses, record all the necessary
+	 * dynamic relocations.  these will grow the relocation
+	 * symbol, which is itself data.
+	 */
+	dynreloc();
+	
+	/* some symbols may no longer belong in datap (Mach-O) */
+	for(l=&datap; (s=*l) != nil; ) {
+		if(s->type <= STEXT || SXREF <= s->type)
+			*l = s->next;
+		else
+			l = &s->next;
+	}
+	*l = nil;
+
 	datap = datsort(datap);
 
 	/*
@@ -714,6 +814,40 @@ dodata(void)
 	sect->len = datsize - sect->vaddr;
 }
 
+// assign addresses to text
+void
+textaddress(void)
+{
+	uvlong va;
+	Prog *p;
+	Section *sect;
+	Sym *sym, *sub;
+
+	addsection(&segtext, ".text", 05);
+
+	// Assign PCs in text segment.
+	// Could parallelize, by assigning to text 
+	// and then letting threads copy down, but probably not worth it.
+	sect = segtext.sect;
+	va = INITTEXT;
+	sect->vaddr = va;
+	for(sym = textp; sym != nil; sym = sym->next) {
+		if(sym->type & SSUB)
+			continue;
+		sym->value = 0;
+		for(sub = sym; sub != S; sub = sub->sub) {
+			sub->value += va;
+			for(p = sub->text; p != P; p = p->link)
+				p->pc += sub->value;
+		}
+		if(sym->size == 0 && sym->sub != S) {
+			cursym = sym;
+		}
+		va += sym->size;
+	}
+	sect->len = va - sect->vaddr;
+}
+
 // assign addresses
 void
 address(void)
@@ -723,7 +857,7 @@ address(void)
 	uvlong va;
 
 	va = INITTEXT;
-	segtext.rwx = 05;
+	segtext.rwx = 07;
 	segtext.vaddr = va;
 	segtext.fileoff = HEADR;
 	for(s=segtext.sect; s != nil; s=s->next) {

@@ -500,6 +500,8 @@ enum
 	D_CONST2 = D_INDIR+D_INDIR,
 	D_SIZE,	/* 8l internal */
 	D_PCREL,
+	D_GOTOFF,
+	D_GOTPCREL,
 
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,

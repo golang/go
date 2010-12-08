@@ -18,6 +18,8 @@ struct MachoSect {
 	uint32	reloc;
 	uint32	nreloc;
 	uint32	flag;
+	uint32	res1;
+	uint32	res2;
 };
 
 typedef struct MachoSeg MachoSeg;
@@ -70,6 +72,20 @@ enum {
 
 	MACHO32SYMSIZE = 12,
 	MACHO64SYMSIZE = 16,
+	
+	MACHO_X86_64_RELOC_UNSIGNED = 0,
+	MACHO_X86_64_RELOC_SIGNED = 1,
+	MACHO_X86_64_RELOC_BRANCH = 2,
+	MACHO_X86_64_RELOC_GOT_LOAD = 3,
+	MACHO_X86_64_RELOC_GOT = 4,
+	MACHO_X86_64_RELOC_SUBTRACTOR = 5,
+	MACHO_X86_64_RELOC_SIGNED_1 = 6,
+	MACHO_X86_64_RELOC_SIGNED_2 = 7,
+	MACHO_X86_64_RELOC_SIGNED_4 = 8,
+	
+	MACHO_GENERIC_RELOC_VANILLA = 0,
+	
+	MACHO_FAKE_GOTPCREL = 100,
 };
 
 void	domacho(void);

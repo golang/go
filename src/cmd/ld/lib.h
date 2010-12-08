@@ -125,8 +125,11 @@ void	pclntab(void);
 void	symtab(void);
 void	Lflag(char *arg);
 void	usage(void);
+void	adddynrel(Sym*, Reloc*);
 void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
 void	ldobj(Biobuf*, char*, int64, char*, int);
+void	ldelf(Biobuf*, char*, int64, char*);
+void	ldmacho(Biobuf*, char*, int64, char*);
 void	ldpkg(Biobuf*, char*, int64, char*, int);
 void	mark(Sym *s);
 void	mkfwd(void);
@@ -144,6 +147,8 @@ vlong	addstring(Sym*, char*);
 vlong	adduint32(Sym*, uint32);
 vlong	adduint64(Sym*, uint64);
 vlong	addaddr(Sym*, Sym*);
+vlong	addaddrplus(Sym*, Sym*, int32);
+vlong	addpcrelplus(Sym*, Sym*, int32);
 vlong	addsize(Sym*, Sym*);
 vlong	adduint8(Sym*, uint8);
 vlong	adduint16(Sym*, uint16);
@@ -152,13 +157,34 @@ void	asmelfsym64(void);
 void	strnput(char*, int);
 void	dodata(void);
 void	address(void);
+void	textaddress(void);
 void	genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*));
 vlong	datoff(vlong);
+void	adddynlib(char*);
+int	archreloc(Reloc*, Sym*, vlong*);
 
 int	pathchar(void);
 void*	mal(uint32);
 void	unmal(void*, uint32);
 void	mywhatsys(void);
+int	rbyoff(const void*, const void*);
+
+uint16	le16(uchar*);
+uint32	le32(uchar*);
+uint64	le64(uchar*);
+uint16	be16(uchar*);
+uint32	be32(uchar*);
+uint64	be64(uchar*);
+
+typedef struct Endian Endian;
+struct Endian
+{
+	uint16	(*e16)(uchar*);
+	uint32	(*e32)(uchar*);
+	uint64	(*e64)(uchar*);
+};
+
+extern Endian be, le;
 
 // relocation size bits
 enum {

@@ -14,6 +14,8 @@ OFILES=\
 	elf.$O\
 	enam.$O\
 	go.$O\
+	ldelf.$O\
+	ldmacho.$O\
 	lib.$O\
 	list.$O\
 	macho.$O\
