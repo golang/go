@@ -361,6 +361,7 @@ extern	int32	runtime·panicking;
 extern	int32	runtime·fd;	// usually 1; set to 2 when panicking
 extern	int32	runtime·gcwaiting;		// gc is waiting to run
 int8*	runtime·goos;
+extern	bool	runtime·iscgo;
 
 /*
  * common functions and data

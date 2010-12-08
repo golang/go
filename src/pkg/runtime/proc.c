@@ -8,6 +8,8 @@
 #include "malloc.h"
 #include "os.h"
 
+bool	runtime·iscgo;
+
 static void unwindstack(G*, byte*);
 
 typedef struct Sched Sched;
@@ -426,8 +428,11 @@ matchmg(void)
 			runtime·allm = m;
 			m->id = runtime·sched.mcount++;
 
-			if(libcgo_thread_start != nil) {
+			if(runtime·iscgo) {
 				CgoThreadStart ts;
+
+				if(libcgo_thread_start == nil)
+					runtime·throw("libcgo_thread_start missing");
 				// pthread_create will make us a stack.
 				m->g0 = runtime·malg(-1);
 				ts.m = m;

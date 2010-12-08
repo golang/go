@@ -109,6 +109,7 @@ DIRS=\
 	rpc\
 	rpc/jsonrpc\
 	runtime\
+	runtime/cgo\
 	runtime/pprof\
 	scanner\
 	smtp\
@@ -152,6 +153,7 @@ NOTEST=\
 	image/jpeg\
 	net/dict\
 	rand\
+	runtime/cgo\
 	runtime/pprof\
 	syscall\
 	testing\
@@ -247,3 +249,4 @@ deps:
 -include Make.deps
 
 ../cmd/cgo.install: ../libcgo.install
+runtime/cgo.install: ../cmd/cgo.install

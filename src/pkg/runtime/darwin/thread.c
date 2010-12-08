@@ -144,8 +144,7 @@ runtime·osinit(void)
 	// Register our thread-creation callback (see {amd64,386}/sys.s)
 	// but only if we're not using cgo.  If we are using cgo we need
 	// to let the C pthread libary install its own thread-creation callback.
-	extern void (*libcgo_thread_start)(void*);
-	if(libcgo_thread_start == nil)
+	if(!runtime·iscgo)
 		runtime·bsdthread_register();
 }
 
