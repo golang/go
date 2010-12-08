@@ -306,24 +306,25 @@ patch(void)
 				if(s) {
 					if(debug['c'])
 						Bprint(&bso, "%s calls %s\n", TNAME, s->name);
-					switch(s->type) {
-					default:
+					if((s->type&~SSUB) != STEXT) {
 						/* diag prints TNAME first */
 						diag("undefined: %s", s->name);
 						s->type = STEXT;
 						s->value = vexit;
 						continue;	// avoid more error messages
-					case STEXT:
-						p->to.offset = s->value;
-						break;
 					}
+					if(s->text == nil)
+						continue;
 					p->to.type = D_BRANCH;
+					p->to.offset = s->text->pc;
+					p->pcond = s->text;
+					continue;
 				}
 			}
 			if(p->to.type != D_BRANCH)
 				continue;
 			c = p->to.offset;
-			for(q = textp->text; q != P;) {
+			for(q = cursym->text; q != P;) {
 				if(c == q->pc)
 					break;
 				if(q->forwd != P && c >= q->forwd->pc)
@@ -332,7 +333,8 @@ patch(void)
 					q = q->link;
 			}
 			if(q == P) {
-				diag("branch out of range in %s\n%P", TNAME, p);
+				diag("branch out of range in %s (%#ux)\n%P [%s]",
+					TNAME, c, p, p->to.sym ? p->to.sym->name : "<nil>");
 				p->to.type = D_NONE;
 			}
 			p->pcond = q;
@@ -340,6 +342,9 @@ patch(void)
 	}
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		if(cursym->text == nil || cursym->p != nil)
+			continue;
+
 		for(p = cursym->text; p != P; p = p->link) {
 			p->mark = 0;	/* initialization for follow */
 			if(p->pcond != P) {
@@ -389,8 +394,10 @@ dostkoff(void)
 	}
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		p = cursym->text;
+		if(cursym->text == nil || cursym->text->link == nil)
+			continue;
 
+		p = cursym->text;
 		autoffset = p->to.offset;
 		if(autoffset < 0)
 			autoffset = 0;
@@ -639,5 +646,5 @@ undef(void)
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->hash)
 		if(s->type == SXREF)
-			diag("%s: not defined", s->name);
+			diag("%s(%d): not defined", s->name, s->version);
 }

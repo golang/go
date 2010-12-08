@@ -132,9 +132,8 @@ void
 span(void)
 {
 	Prog *p, *q;
-	int32 v, c;
+	int32 v;
 	int n;
-	Section *sect;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f span\n", cputime());
@@ -142,6 +141,9 @@ span(void)
 	// NOTE(rsc): If we get rid of the globals we should
 	// be able to parallelize these iterations.
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		if(cursym->text == nil || cursym->text->link == nil)
+			continue;
+
 		// TODO: move into span1
 		for(p = cursym->text; p != P; p = p->link) {
 			n = 0;
@@ -168,20 +170,6 @@ span(void)
 		}
 		span1(cursym);
 	}
-	
-	// Next, loop over symbols to assign actual PCs.
-	// Could parallelize here too, by assigning to text 
-	// and then letting threads copy down, but probably not worth it.
-	c = INITTEXT;
-	sect = addsection(&segtext, ".text", 05);
-	sect->vaddr = c;
-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		cursym->value = c;
-		for(p = cursym->text; p != P; p = p->link)
-			p->pc += c;
-		c += cursym->size;
-	}
-	sect->len = c - sect->vaddr;
 }
 
 void
@@ -1118,7 +1106,7 @@ found:
 			// Could handle this case by making D_PCREL
 			// record the Prog* instead of the Sym*, but let's
 			// wait until the need arises.
-			diag("call of non-TEXT");
+			diag("call of non-TEXT %P", q);
 			errorexit();
 		}
 		*andptr++ = op;

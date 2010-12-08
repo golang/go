@@ -245,6 +245,7 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	span();
+	textaddress();
 	pclntab();
 	symtab();
 	dodata();
@@ -627,7 +628,7 @@ loop:
 			if(s->type == 0) {
 				s->type = SDATA;
 				adduint32(s, ieeedtof(&p->from.ieee));
-				s->reachable = 1;
+				s->reachable = 0;
 			}
 			p->from.type = D_EXTERN;
 			p->from.sym = s;
@@ -662,7 +663,7 @@ loop:
 				s->type = SDATA;
 				adduint32(s, p->from.ieee.l);
 				adduint32(s, p->from.ieee.h);
-				s->reachable = 1;
+				s->reachable = 0;
 			}
 			p->from.type = D_EXTERN;
 			p->from.sym = s;
