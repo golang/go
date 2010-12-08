@@ -432,6 +432,7 @@ type Indexer struct {
 	fset     *token.FileSet          // file set for all indexed files
 	words    map[string]*IndexResult // RunLists of Spots
 	snippets vector.Vector           // vector of *Snippets, indexed by snippet indices
+	current  *token.File             // last file added to file set
 	file     *File                   // current file
 	decl     ast.Decl                // current decl
 	nspots   int                     // number of spots encountered
@@ -462,7 +463,7 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 
 		if kind == Use || x.decl == nil {
 			// not a declaration or no snippet required
-			info := makeSpotInfo(kind, x.fset.Position(id.Pos()).Line, false)
+			info := makeSpotInfo(kind, x.current.Line(id.Pos()), false)
 			lists.Others.Push(Spot{x.file, info})
 		} else {
 			// a declaration with snippet
@@ -608,6 +609,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
 		return // ignore files with (parse) errors
 	}
 
+	x.current = x.fset.File(file.Pos()) // file.Pos is in the current file
 	dir, _ := pathutil.Split(path)
 	pak := Pak{dir, file.Name.Name}
 	x.file = &File{path, pak}
@@ -658,8 +660,9 @@ func NewIndex(dirnames <-chan string) *Index {
 		}
 	}
 
-	// the file set is not needed after indexing - help GC and clear it
+	// the file set and current file are not needed after indexing - help GC and clear them
 	x.fset = nil
+	x.current = nil // contains reference to fset!
 
 	// for each word, reduce the RunLists into a LookupResult;
 	// also collect the word with its canonical spelling in a
