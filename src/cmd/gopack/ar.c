@@ -593,12 +593,26 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	vlong offset;
 	Dir *d;
 	static int lastobj = -1;
+	uchar buf[4];
 
 	if (!allobj)			/* non-object file encountered */
 		return;
 	offset = Boffset(b);
 	obj = objtype(b, 0);
 	if (obj < 0) {			/* not an object file */
+		/* maybe a foreign object file */
+		Bseek(b, offset, 0);
+		memset(buf, 0, sizeof buf);
+		Bread(b, buf, 4);
+		
+		/* maybe a foreign object file?  that's okay */
+		if((buf[0] == 0x7F && buf[1] == 'E' && buf[2] == 'L' && buf[3] == 'F') ||   // ELF
+		   (buf[0] == 0xFE && buf[1] == 0xED && buf[2] == 0xFA && (buf[3]&~1) == 0xCE) ||  // Mach-O big-endian
+		   (buf[3] == 0xFE && buf[2] == 0xED && buf[1] == 0xFA && (buf[0]&~1) == 0xCE)) {  // Mach-O little-endian
+			Bseek(b, offset, 0);
+			return;
+		}
+		
 		if (!gflag || strcmp(file, pkgdef) != 0) {  /* don't clear allobj if it's pkg defs */
 			fprint(2, "gopack: non-object file %s\n", file);
 			errors++;
