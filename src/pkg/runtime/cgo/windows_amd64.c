@@ -12,10 +12,12 @@ static void *threadentry(void*);
    Allocation granularity on Windows is typically 64 KB. */
 #define STACKSIZE (2*1024*1024)
 
-void
-initcgo(void)
+static void
+xinitcgo(void)
 {
 }
+
+void (*initcgo)(void) = xinitcgo;
 
 void
 libcgo_sys_thread_start(ThreadStart *ts)

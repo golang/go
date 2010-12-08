@@ -10,10 +10,12 @@ static void* threadentry(void*);
 char *environ[] = { 0 };
 char *__progname;
 
-void
-initcgo(void)
+static void
+xinitcgo(void)
 {
 }
+
+void (*initcgo)(void) = xinitcgo;
 
 void
 libcgo_sys_thread_start(ThreadStart *ts)
