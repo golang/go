@@ -61,7 +61,7 @@ putelfstr(char *s)
 }
 
 void
-putelfsymb(char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+putelfsym64(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 {
 	int bind, type, shndx, stroff;
 	
@@ -95,8 +95,47 @@ putelfsymb(char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 void
 asmelfsym64(void)
 {
-//	genasmsym(putelfsymb64);
+	genasmsym(putelfsym64);
 }
+
+void
+putelfsym32(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+{
+	int bind, type, shndx, stroff;
+	
+	bind = STB_GLOBAL;
+	switch(t) {
+	default:
+		return;
+	case 'T':
+		type = STT_FUNC;
+		shndx = elftextsh + 0;
+		break;
+	case 'D':
+		type = STT_OBJECT;
+		shndx = elftextsh + 1;
+		break;
+	case 'B':
+		type = STT_OBJECT;
+		shndx = elftextsh + 2;
+		break;
+	}
+	
+	stroff = putelfstr(s);
+	LPUT(stroff);	// string
+	LPUT(addr);
+	LPUT(size);
+	cput((bind<<4)|(type&0xF));
+	cput(0);
+	WPUT(shndx);
+}
+
+void
+asmelfsym32(void)
+{
+	genasmsym(putelfsym32);
+}
+
 
 static Sym *symt;
 
