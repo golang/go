@@ -130,23 +130,17 @@ func TestRemoveAll(t *testing.T) {
 		if err = Chmod(dpath, 0); err != nil {
 			t.Fatalf("Chmod %q 0: %s", dpath, err)
 		}
-		if err = RemoveAll(path); err == nil {
-			_, err := Lstat(path)
-			if err == nil {
-				t.Errorf("Can lstat %q after supposed RemoveAll", path)
-			}
-			t.Fatalf("RemoveAll %q succeeded with chmod 0 subdirectory: err %s", path, err)
-		}
-		perr, ok := err.(*PathError)
-		if !ok {
-			t.Fatalf("RemoveAll %q returned %T not *PathError", path, err)
-		}
-		if perr.Path != dpath {
-			t.Fatalf("RemoveAll %q failed at %q not %q", path, perr.Path, dpath)
-		}
-		if err = Chmod(dpath, 0777); err != nil {
-			t.Fatalf("Chmod %q 0777: %s", dpath, err)
-		}
+
+		// No error checking here: either RemoveAll
+		// will or won't be able to remove dpath;
+		// either way we want to see if it removes fpath
+		// and path/zzz.  Reasons why RemoveAll might
+		// succeed in removing dpath as well include:
+		//	* running as root
+		//	* running on a file system without permissions (FAT)
+		RemoveAll(path)
+		Chmod(dpath, 0777)
+
 		for _, s := range []string{fpath, path + "/zzz"} {
 			if _, err := Lstat(s); err == nil {
 				t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
