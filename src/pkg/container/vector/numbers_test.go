@@ -20,7 +20,7 @@ func s(n uint64) string {
 	lens := len(str)
 	a := make([]string, (lens+2)/3)
 	start := lens
-	for i, _ := range a {
+	for i := range a {
 		start -= 3
 		if start < 0 {
 			start = 0

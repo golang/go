@@ -1182,7 +1182,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		// (excluding the selected package, if any).
 		plist = make([]string, len(pkgs))
 		i := 0
-		for name, _ := range pkgs {
+		for name := range pkgs {
 			if pkg == nil || name != pkg.Name {
 				plist[i] = name
 				i++

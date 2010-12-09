@@ -40,7 +40,7 @@ type Index struct {
 //
 func New(data []byte) *Index {
 	sa := make([]int, len(data))
-	for i, _ := range sa {
+	for i := range sa {
 		sa[i] = i
 	}
 	x := &Index{data, sa}

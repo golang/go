@@ -550,7 +550,7 @@ func (t *StructType) fieldByNameFunc(match func(string) bool, mark map[*StructTy
 	var fi int // field index
 	n := 0     // number of matching fields at depth fd
 L:
-	for i, _ := range t.fields {
+	for i := range t.fields {
 		f := t.Field(i)
 		d := inf
 		switch {
