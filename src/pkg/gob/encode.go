@@ -473,7 +473,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int) {
 			elemOp, indir := enc.encOpFor(t.Elem())
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				slice := (*reflect.SliceHeader)(p)
-				if slice.Len == 0 {
+				if !state.sendZero && slice.Len == 0 {
 					return
 				}
 				state.update(i)
@@ -495,7 +495,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int) {
 				// the iteration.
 				v := reflect.NewValue(unsafe.Unreflect(t, unsafe.Pointer((p))))
 				mv := reflect.Indirect(v).(*reflect.MapValue)
-				if mv.Len() == 0 {
+				if !state.sendZero && mv.Len() == 0 {
 					return
 				}
 				state.update(i)
