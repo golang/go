@@ -7,9 +7,9 @@
 // Typical use:
 //
 //	var s Scanner
-//      fset := token.NewFileSet()  // position information is relative to fset
+//	fset := token.NewFileSet()  // position information is relative to fset
 //	s.Init(fset, filename, src, nil /* no error handler */, 0)
-//      for {
+//	for {
 //		pos, tok, lit := s.Scan()
 //		if tok == token.EOF {
 //			break
