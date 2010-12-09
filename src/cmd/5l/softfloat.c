@@ -29,6 +29,11 @@ softfloat(void)
 				p->cond->mark |= LABEL;
 		for(p = cursym->text; p != P; p = p->link) {
 			switch(p->as) {
+			case AMOVW:
+				if(p->to.type == D_FREG || p->from.type == D_FREG)
+					goto soft;
+				goto notsoft;
+
 			case AMOVWD:
 			case AMOVWF:
 			case AMOVDW:
@@ -37,6 +42,7 @@ softfloat(void)
 			case AMOVDF:
 			case AMOVF:
 			case AMOVD:
+
 			case ACMPF:
 			case ACMPD:
 			case AADDF:
@@ -47,13 +53,19 @@ softfloat(void)
 			case AMULD:
 			case ADIVF:
 			case ADIVD:
+				goto soft;
+
+			default:
+				goto notsoft;
+
+			soft:
 				if (psfloat == P)
 					diag("floats used with _sfloat not defined");
 				if (!wasfloat || (p->mark&LABEL)) {
 					next = prg();
 					*next = *p;
 	
-					// BL		_sfloat(SB)
+					// BL _sfloat(SB)
 					*p = zprg;
 					p->link = next;
 					p->as = ABL;
@@ -65,7 +77,8 @@ softfloat(void)
 					wasfloat = 1;
 				}
 				break;
-			default:
+
+			notsoft:
 				wasfloat = 0;
 			}
 		}
