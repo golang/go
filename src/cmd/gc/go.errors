@@ -35,6 +35,15 @@ static struct {
 	% loadsys package imports LTYPE LNAME ';'
 	"unexpected semicolon or newline in type declaration",
 
+	% loadsys package imports LCHAN '}'
+	"unexpected } in channel type",
+	
+	% loadsys package imports LCHAN ')'
+	"unexpected ) in channel type",
+	
+	% loadsys package imports LCHAN ','
+	"unexpected comma in channel type",
+
 	% loadsys package imports LFUNC LNAME '(' ')' '{' if_stmt ';' LELSE
 	"unexpected semicolon or newline before else",
 
