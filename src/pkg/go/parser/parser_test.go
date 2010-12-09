@@ -104,7 +104,7 @@ func TestParse4(t *testing.T) {
 		t.Errorf(`package "parser" not found`)
 		return
 	}
-	for filename, _ := range pkg.Files {
+	for filename := range pkg.Files {
 		if !nameFilter(filename) {
 			t.Errorf("unexpected package file: %s", filename)
 		}

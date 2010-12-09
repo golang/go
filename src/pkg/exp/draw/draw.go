@@ -268,7 +268,7 @@ func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 	dbase := dy0 * dst.Stride
 	i0, i1 := dbase+dx0, dbase+dx1
 	firstRow := dst.Pix[i0:i1]
-	for i, _ := range firstRow {
+	for i := range firstRow {
 		firstRow[i] = color
 	}
 	for y := dy0 + 1; y < dy1; y++ {

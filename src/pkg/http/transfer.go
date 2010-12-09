@@ -108,7 +108,7 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
 		// writing long headers, using HTTP line splitting
 		io.WriteString(w, "Trailer: ")
 		needComma := false
-		for k, _ := range t.Trailer {
+		for k := range t.Trailer {
 			k = CanonicalHeaderKey(k)
 			switch k {
 			case "Transfer-Encoding", "Trailer", "Content-Length":

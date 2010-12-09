@@ -326,7 +326,7 @@ func printCategories() {
 	if *tablelist == "all" {
 		fmt.Println("// Categories is the set of Unicode data tables.")
 		fmt.Println("var Categories = map[string] []Range {")
-		for k, _ := range category {
+		for k := range category {
 			fmt.Printf("\t%q: %s,\n", k, k)
 		}
 		fmt.Print("}\n\n")
@@ -594,7 +594,7 @@ func printScriptOrProperty(doProps bool) {
 			fmt.Println("// Scripts is the set of Unicode script tables.")
 			fmt.Println("var Scripts = map[string] []Range {")
 		}
-		for k, _ := range table {
+		for k := range table {
 			fmt.Printf("\t%q: %s,\n", k, k)
 		}
 		fmt.Print("}\n\n")

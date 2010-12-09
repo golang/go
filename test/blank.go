@@ -77,7 +77,7 @@ func main() {
 	if out != "123" {panic(out)}
 
 	sum := 0
-	for s, _ := range ints {
+	for s := range ints {
 		sum += s
 	}
 	if sum != 3 {panic(sum)}
