@@ -509,7 +509,7 @@ func (x *Indexer) visitSpec(spec ast.Spec, isVarDecl bool) {
 }
 
 
-func (x *Indexer) Visit(node interface{}) ast.Visitor {
+func (x *Indexer) Visit(node ast.Node) ast.Visitor {
 	// TODO(gri): methods in interface types are categorized as VarDecl
 	switch n := node.(type) {
 	case nil:

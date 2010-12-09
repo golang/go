@@ -70,17 +70,18 @@ type Comment struct {
 }
 
 
-func (c *Comment) Pos() token.Pos {
-	return c.Slash
-}
+func (c *Comment) Pos() token.Pos { return c.Slash }
 
 
 // A CommentGroup represents a sequence of comments
 // with no other tokens and no empty lines between.
 //
 type CommentGroup struct {
-	List []*Comment
+	List []*Comment // len(List) > 0
 }
+
+
+func (g *CommentGroup) Pos() token.Pos { return g.List[0].Pos() }
 
 
 // ----------------------------------------------------------------------------
@@ -113,6 +114,9 @@ type FieldList struct {
 	List    []*Field  // field list
 	Closing token.Pos // position of closing parenthesis/brace
 }
+
+
+func (list *FieldList) Pos() token.Pos { return list.Opening }
 
 
 // NumFields returns the number of (named and anonymous fields) in a FieldList.
@@ -294,7 +298,7 @@ type (
 	FuncType struct {
 		Func    token.Pos  // position of "func" keyword
 		Params  *FieldList // (incoming) parameters
-		Results *FieldList // (outgoing) results
+		Results *FieldList // (outgoing) results; or nil
 	}
 
 	// An InterfaceType node represents an interface type.
@@ -494,7 +498,7 @@ type (
 	BranchStmt struct {
 		TokPos token.Pos   // position of Tok
 		Tok    token.Token // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
-		Label  *Ident
+		Label  *Ident      // label name; or nil
 	}
 
 	// A BlockStmt node represents a braced statement list.
@@ -507,10 +511,10 @@ type (
 	// An IfStmt node represents an if statement.
 	IfStmt struct {
 		If   token.Pos // position of "if" keyword
-		Init Stmt
-		Cond Expr
+		Init Stmt      // initalization statement; or nil
+		Cond Expr      // condition; or nil
 		Body *BlockStmt
-		Else Stmt
+		Else Stmt // else branch; or nil
 	}
 
 	// A CaseClause represents a case of an expression switch statement.
@@ -523,9 +527,9 @@ type (
 
 	// A SwitchStmt node represents an expression switch statement.
 	SwitchStmt struct {
-		Switch token.Pos // position of "switch" keyword
-		Init   Stmt
-		Tag    Expr
+		Switch token.Pos  // position of "switch" keyword
+		Init   Stmt       // initalization statement; or nil
+		Tag    Expr       // tag expression; or nil
 		Body   *BlockStmt // CaseClauses only
 	}
 
@@ -539,8 +543,8 @@ type (
 
 	// An TypeSwitchStmt node represents a type switch statement.
 	TypeSwitchStmt struct {
-		Switch token.Pos // position of "switch" keyword
-		Init   Stmt
+		Switch token.Pos  // position of "switch" keyword
+		Init   Stmt       // initalization statement; or nil
 		Assign Stmt       // x := y.(type)
 		Body   *BlockStmt // TypeCaseClauses only
 	}
@@ -563,9 +567,9 @@ type (
 	// A ForStmt represents a for statement.
 	ForStmt struct {
 		For  token.Pos // position of "for" keyword
-		Init Stmt
-		Cond Expr
-		Post Stmt
+		Init Stmt      // initalization statement; or nil
+		Cond Expr      // condition; or nil
+		Post Stmt      // post iteration statement; or nil
 		Body *BlockStmt
 	}
 
@@ -779,4 +783,14 @@ type Package struct {
 	Name  string           // package name
 	Scope *Scope           // package scope; or nil
 	Files map[string]*File // Go source files by filename
+}
+
+
+func (p *Package) Pos() (pos token.Pos) {
+	// get the position of the package clause of the first file, if any
+	for _, f := range p.Files {
+		pos = f.Pos()
+		break
+	}
+	return
 }
