@@ -649,8 +649,8 @@ We can now use our new package:
 13    func main() {
 14        hello := []byte(&quot;hello, world\n&quot;)
 15        file.Stdout.Write(hello)
-16        file, err := file.Open(&quot;/does/not/exist&quot;,  0,  0)
-17        if file == nil {
+16        f, err := file.Open(&quot;/does/not/exist&quot;,  0,  0)
+17        if f == nil {
 18            fmt.Printf(&quot;can't open file; err=%s\n&quot;,  err.String())
 19            os.Exit(1)
 20        }
