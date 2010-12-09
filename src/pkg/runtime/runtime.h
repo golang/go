@@ -230,7 +230,9 @@ struct	M
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache	*mcache;
 	G*	lockedg;
-	uint64 freg[8];	// Floating point register storage used by ARM software fp routines
+	uint32	freglo[16];	// D[i] lsb and F[i]
+	uint32	freghi[16];	// D[i] msb and F[i+16]
+	uint32	fflag;		// floating point compare flags
 #ifdef __WINDOWS__
 	void*	gostack;	// bookmark to keep track of go stack during stdcall
 #endif
