@@ -16,6 +16,7 @@ package xml
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -871,6 +872,21 @@ Input:
 	data := p.buf.Bytes()
 	data = data[0 : len(data)-trunc]
 
+	// Inspect each rune for being a disallowed character.
+	buf := data
+	for len(buf) > 0 {
+		r, size := utf8.DecodeRune(buf)
+		if r == utf8.RuneError && size == 1 {
+			p.err = p.syntaxError("invalid UTF-8")
+			return nil
+		}
+		buf = buf[size:]
+		if !isInCharacterRange(r) {
+			p.err = p.syntaxError(fmt.Sprintf("illegal character code %U", r))
+			return nil
+		}
+	}
+
 	// Must rewrite \r and \r\n into \n.
 	w := 0
 	for r := 0; r < len(data); r++ {
@@ -885,6 +901,18 @@ Input:
 		w++
 	}
 	return data[0:w]
+}
+
+// Decide whether the given rune is in the XML Character Range, per
+// the Char production of http://www.xml.com/axml/testaxml.htm,
+// Section 2.2 Characters.
+func isInCharacterRange(rune int) (inrange bool) {
+	return rune == 0x09 ||
+		rune == 0x0A ||
+		rune == 0x0D ||
+		rune >= 0x20 && rune <= 0xDF77 ||
+		rune >= 0xE000 && rune <= 0xFFFD ||
+		rune >= 0x10000 && rune <= 0x10FFFF
 }
 
 // Get name space name: name with a : stuck in the middle.

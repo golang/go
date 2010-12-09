@@ -398,3 +398,44 @@ func TestEntityInsideCDATA(t *testing.T) {
 		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
 	}
 }
+
+
+// The last three tests (respectively one for characters in attribute
+// names and two for character entities) pass not because of code
+// changed for issue 1259, but instead pass with the given messages
+// from other parts of xml.Parser.  I provide these to note the
+// current behavior of situations where one might think that character
+// range checking would detect the error, but it does not in fact.
+
+var characterTests = []struct {
+	in  string
+	err string
+}{
+	{"\x12<doc/>", "illegal character code U+0012"},
+	{"<?xml version=\"1.0\"?>\x0b<doc/>", "illegal character code U+000B"},
+	{"\xef\xbf\xbe<doc/>", "illegal character code U+FFFE"},
+	{"<?xml version=\"1.0\"?><doc>\r\n<hiya/>\x07<toots/></doc>", "illegal character code U+0007"},
+	{"<?xml version=\"1.0\"?><doc \x12='value'>what's up</doc>", "expected attribute name in element"},
+	{"<doc>&\x01;</doc>", "invalid character entity &;"},
+	{"<doc>&\xef\xbf\xbe;</doc>", "invalid character entity &;"},
+}
+
+
+func TestDisallowedCharacters(t *testing.T) {
+
+	for i, tt := range characterTests {
+		p := NewParser(StringReader(tt.in))
+		var err os.Error
+
+		for err == nil {
+			_, err = p.Token()
+		}
+		synerr, ok := err.(*SyntaxError)
+		if !ok {
+			t.Fatalf("input %d p.Token() = _, %v, want _, *SyntaxError", i, err)
+		}
+		if synerr.Msg != tt.err {
+			t.Fatalf("input %d synerr.Msg wrong: want '%s', got '%s'", i, tt.err, synerr.Msg)
+		}
+	}
+}
