@@ -14,7 +14,7 @@ package os
 // and returns nil.
 func MkdirAll(path string, perm uint32) Error {
 	// If path exists, stop with success or error.
-	dir, err := Lstat(path)
+	dir, err := Stat(path)
 	if err == nil {
 		if dir.IsDirectory() {
 			return nil
