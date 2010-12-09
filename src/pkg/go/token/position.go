@@ -32,9 +32,9 @@ func (pos *Position) IsValid() bool { return pos.Line > 0 }
 // String returns a string in one of several forms:
 //
 //	file:line:column    valid position with file name
-//      line:column         valid position without file name
-//      file                invalid position with file name
-//      -                   invalid position without file name
+//	line:column         valid position without file name
+//	file                invalid position with file name
+//	-                   invalid position without file name
 //
 func (pos Position) String() string {
 	s := pos.Filename
