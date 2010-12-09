@@ -141,6 +141,12 @@ DIRS=\
 	../cmd/goyacc\
 	../cmd/hgpatch\
 
+ifeq ($(GOOS),linux)
+DIRS+=\
+	os/inotify\
+
+endif
+
 NOTEST=\
 	debug/proc\
 	exp/draw/x11\
@@ -245,6 +251,9 @@ nuke: nuke.dirs
 
 deps:
 	./deps.bash
+
+echo-dirs:
+	@echo $(DIRS)
 
 -include Make.deps
 
