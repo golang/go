@@ -29,6 +29,8 @@ includes_Linux='
 #include <sys/stat.h>
 #include <linux/ptrace.h>
 #include <linux/wait.h>
+#include <linux/if_tun.h>
+#include <net/if.h>
 #include <netpacket/packet.h>
 '
 
@@ -83,24 +85,27 @@ done
 	echo "${!indirect} $includes" | $GCC -x c - -E -dM $ccflags |
 	awk '
 		$1 != "#define" || $2 ~ /\(/ {next}
-		
+
 		$2 ~ /^E([ABCD]X|[BIS]P|[SD]I|S|FL)$/ {next}  # 386 registers
 		$2 ~ /^(SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))/ {next}
 		$2 ~ /^(SCM_SRCRT)$/ {next}
 		$2 ~ /^(MAP_FAILED)$/ {next}
 
+		$2 !~ /^ETH_/ &&
 		$2 ~ /^E[A-Z0-9_]+$/ ||
 		$2 ~ /^SIG[^_]/ ||
 		$2 ~ /^IN_/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|IFF)_/ ||
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||
+		$2 == "IFNAMSIZ" ||
+		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
 		$2 ~ /^SIO/ ||
 		$2 ~ /^W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", $2, $2)}
 		$2 ~ /^__WCOREFLAG$/ {next}
 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", substr($2,3), $2)}
-		
+
 		{next}
 	' | sort
 
