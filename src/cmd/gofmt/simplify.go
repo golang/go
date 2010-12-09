@@ -12,7 +12,7 @@ import (
 
 type simplifier struct{}
 
-func (s *simplifier) Visit(node interface{}) ast.Visitor {
+func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.CompositeLit:
 		// array, slice, and map composite literals may be simplified
@@ -61,7 +61,7 @@ func (s *simplifier) Visit(node interface{}) ast.Visitor {
 }
 
 
-func simplify(node interface{}) {
+func simplify(node ast.Node) {
 	var s simplifier
 	ast.Walk(&s, node)
 }

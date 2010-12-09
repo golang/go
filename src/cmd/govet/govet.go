@@ -139,7 +139,7 @@ func (f *File) checkFile(name string, file *ast.File) {
 }
 
 // Visit implements the ast.Visitor interface.
-func (f *File) Visit(node interface{}) ast.Visitor {
+func (f *File) Visit(node ast.Node) ast.Visitor {
 	// TODO: could return nil for nodes that cannot contain a CallExpr -
 	// will shortcut traversal.  Worthwhile?
 	switch n := node.(type) {
