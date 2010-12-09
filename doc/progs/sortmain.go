@@ -6,7 +6,7 @@ package main
 
 import (
 	"fmt"
-	"sort"
+	"./sort"
 )
 
 func ints() {
