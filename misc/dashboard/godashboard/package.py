@@ -242,7 +242,11 @@ class ProjectPage(webapp.RequestHandler):
             self.list({"submitMsg": "Your project has been submitted."})
 
     def list(self, additional_data={}):
-        data = memcache.get('view-project-data')
+        cache_key = 'view-project-data'
+        tag = self.request.get('tag', None)
+        if tag:
+            cache_key += '-'+tag
+        data = memcache.get(cache_key)
         admin = users.is_current_user_admin()
         if admin or not data:
             projects = Project.all().order('category').order('name')
@@ -255,7 +259,6 @@ class ProjectPage(webapp.RequestHandler):
                 for t in p.tags:
                     tags.add(t)
 
-            tag = self.request.get('tag', None)
             if tag:
                 projects = filter(lambda x: tag in x.tags, projects)
 
@@ -265,7 +268,7 @@ class ProjectPage(webapp.RequestHandler):
             data['projects'] = projects 
             data['admin']= admin
             if not admin:
-                memcache.set('view-project-data', data, time=CacheTimeout)
+                memcache.set(cache_key, data, time=CacheTimeout)
 
         for k, v in additional_data.items():
             data[k] = v
