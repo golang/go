@@ -10,11 +10,13 @@ import (
 )
 
 
-type compositeLitFinder struct{}
+type simplifier struct{}
 
-func (f *compositeLitFinder) Visit(node interface{}) ast.Visitor {
-	if outer, ok := node.(*ast.CompositeLit); ok {
+func (s *simplifier) Visit(node interface{}) ast.Visitor {
+	switch n := node.(type) {
+	case *ast.CompositeLit:
 		// array, slice, and map composite literals may be simplified
+		outer := n
 		var eltType ast.Expr
 		switch typ := outer.Type.(type) {
 		case *ast.ArrayType:
@@ -41,17 +43,25 @@ func (f *compositeLitFinder) Visit(node interface{}) ast.Visitor {
 				}
 			}
 
-			// node was simplified - stop walk
+			// node was simplified - stop walk (there are no subnodes to simplify)
 			return nil
+		}
+
+	case *ast.RangeStmt:
+		// range of the form: for x, _ = range v {...}
+		// can be simplified to: for x = range v {...}
+		if n.Value != nil {
+			if ident, ok := n.Value.(*ast.Ident); ok && ident.Name == "_" {
+				n.Value = nil
+			}
 		}
 	}
 
-	// not a composite literal or not simplified - continue walk
-	return f
+	return s
 }
 
 
 func simplify(node interface{}) {
-	var f compositeLitFinder
-	ast.Walk(&f, node)
+	var s simplifier
+	ast.Walk(&s, node)
 }
