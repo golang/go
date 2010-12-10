@@ -66,3 +66,27 @@
 	or a qualified identifier (such as <a href="search?q=math.Sin">math.Sin</a>).
 	</p>
 {.end}
+{.section Textual}
+	<h2 id="Textual">Textual occurences</h2>
+	<table class="layout">
+	<tr>
+		<th align=left>File</th>
+		<th align=left>Occurences</th>
+		<th align=left>Lines</th>
+	</tr>
+	{.repeated section @}
+		<tr>
+		<td>
+		<a href="/{Filename|url-src}?h={Query|html-esc}">{Filename|url-src}</a>:
+		</td>
+		{Lines|linelist}
+		</tr>
+	{.end}
+	</table>
+{.end}
+{.section Complete}
+{.or}
+	<p>
+	<span class="alert" style="font-size:120%">Incomplete list of results</span>
+	</p>
+{.end}

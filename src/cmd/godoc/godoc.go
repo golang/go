@@ -63,6 +63,7 @@ var (
 	// layout control
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
+	fulltextIndex  = flag.Bool("fulltext", false, "build full text index for string search results")
 
 	// file system mapping
 	fsMap      Mapping // user-defined mapping
@@ -736,6 +737,25 @@ func localnameFmt(w io.Writer, format string, x ...interface{}) {
 }
 
 
+// Template formatter for "linelist" format.
+func linelistFmt(w io.Writer, format string, x ...interface{}) {
+	const max = 20 // show at most this many lines
+	list := x[0].([]int)
+	// print number of occurences
+	fmt.Fprintf(w, "<td>%d</td>", len(list))
+	// print actual lines
+	// TODO(gri) should sort them
+	for i, line := range list {
+		if i < max {
+			fmt.Fprintf(w, "<td>%d</td>", line)
+		} else {
+			fmt.Fprint(w, "<td>...</td>")
+			break
+		}
+	}
+}
+
+
 var fmap = template.FormatterMap{
 	"":             textFmt,
 	"html":         htmlFmt,
@@ -751,6 +771,7 @@ var fmap = template.FormatterMap{
 	"time":         timeFmt,
 	"dir/":         dirslashFmt,
 	"localname":    localnameFmt,
+	"linelist":     linelistFmt,
 }
 
 
@@ -1309,17 +1330,23 @@ var searchIndex RWValue
 
 type SearchResult struct {
 	Query    string
-	Hit      *LookupResult
-	Alt      *AltWords
-	Illegal  bool
-	Accurate bool
+	Hit      *LookupResult // identifier occurences of Query
+	Alt      *AltWords     // alternative identifiers to look for
+	Illegal  bool          // true if Query for identifier search has incorrect syntax
+	Textual  []Positions   // textual occurences of Query
+	Complete bool          // true if all textual occurences of Query are reported
+	Accurate bool          // true if the index is not older than the indexed files
 }
 
 
 func lookup(query string) (result SearchResult) {
 	result.Query = query
 	if index, timestamp := searchIndex.get(); index != nil {
-		result.Hit, result.Alt, result.Illegal = index.(*Index).Lookup(query)
+		index := index.(*Index)
+		result.Hit, result.Alt, result.Illegal = index.Lookup(query)
+		// TODO(gri) should max be a flag?
+		const max = 5000 // show at most this many fulltext results
+		result.Textual, result.Complete = index.LookupString(query, max)
 		_, ts := fsModified.get()
 		result.Accurate = timestamp >= ts
 	}
@@ -1338,7 +1365,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var title string
-	if result.Hit != nil {
+	if result.Hit != nil || len(result.Textual) > 0 {
 		title = fmt.Sprintf(`Results for query %q`, query)
 	} else {
 		title = fmt.Sprintf(`No results found for query %q`, query)
@@ -1407,17 +1434,18 @@ func indexer() {
 				log.Printf("updating index...")
 			}
 			start := time.Nanoseconds()
-			index := NewIndex(fsDirnames())
+			index := NewIndex(fsDirnames(), *fulltextIndex)
 			stop := time.Nanoseconds()
 			searchIndex.set(index)
 			if *verbose {
 				secs := float64((stop-start)/1e6) / 1e3
-				nwords, nspots := index.Size()
-				log.Printf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots)
+				stats := index.Stats()
+				log.Printf("index updated (%gs, %d bytes of source, %d files, %d unique words, %d spots)",
+					secs, stats.Bytes, stats.Files, stats.Words, stats.Spots)
 			}
-			log.Printf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+			log.Printf("before GC: bytes = %d footprint = %d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 			runtime.GC()
-			log.Printf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+			log.Printf("after  GC: bytes = %d footprint = %d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 		}
 		time.Sleep(1 * 60e9) // try once a minute
 	}
