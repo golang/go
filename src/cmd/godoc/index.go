@@ -3,9 +3,9 @@
 // license that can be found in the LICENSE file.
 
 // This file contains the infrastructure to create an
-// (identifier) index for a set of Go files.
+// identifier and full-text index for a set of Go files.
 //
-// Basic indexing algorithm:
+// Algorithm for identifier index:
 // - traverse all .go files of the file tree specified by root
 // - for each word (identifier) encountered, collect all occurences (spots)
 //   into a list; this produces a list of spots for each word
@@ -21,15 +21,30 @@
 //   (the line number for spots with snippets is stored in the snippet)
 // - at the end, create lists of alternative spellings for a given
 //   word
+//
+// Algorithm for full text index:
+// - concatenate all source code in a byte buffer (in memory)
+// - add the files to a file set in lockstep as they are added to the byte
+//   buffer such that a byte buffer offset corresponds to the Pos value for
+//   that file location
+// - create a suffix array from the concatenated sources
+//
+// String lookup in full text index:
+// - use the suffix array to lookup a string's offsets - the offsets
+//   correspond to the Pos values relative to the file set
+// - translate the Pos values back into file and line information and
+//   sort the result
 
 package main
 
 import (
+	"bytes"
 	"container/vector"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"go/scanner"
+	"index/suffixarray"
 	"io/ioutil"
 	"os"
 	pathutil "path"
@@ -424,18 +439,28 @@ type IndexResult struct {
 }
 
 
+// Statistics provides statistics information for an index.
+type Statistics struct {
+	Bytes int // total size of indexed source files
+	Files int // number of indexed source files
+	Words int // number of different identifiers
+	Spots int // number of identifier occurences
+}
+
+
 // An Indexer maintains the data structures and provides the machinery
 // for indexing .go files under a file tree. It implements the path.Visitor
 // interface for walking file trees, and the ast.Visitor interface for
 // walking Go ASTs.
 type Indexer struct {
 	fset     *token.FileSet          // file set for all indexed files
+	sources  bytes.Buffer            // concatenated sources
 	words    map[string]*IndexResult // RunLists of Spots
 	snippets vector.Vector           // vector of *Snippets, indexed by snippet indices
 	current  *token.File             // last file added to file set
-	file     *File                   // current file
-	decl     ast.Decl                // current decl
-	nspots   int                     // number of spots encountered
+	file     *File                   // AST for current file
+	decl     ast.Decl                // AST for current decl
+	stats    Statistics
 }
 
 
@@ -472,7 +497,7 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 			lists.Decls.Push(Spot{x.file, info})
 		}
 
-		x.nspots++
+		x.stats.Spots++
 	}
 }
 
@@ -581,8 +606,10 @@ func (x *Indexer) Visit(node ast.Node) ast.Visitor {
 }
 
 
-func pkgName(fset *token.FileSet, filename string) string {
-	file, err := parser.ParseFile(fset, filename, nil, parser.PackageClauseOnly)
+func pkgName(filename string) string {
+	// use a new file set each time in order to not pollute the indexer's
+	// file set (which must stay in sync with the concatenated source code)
+	file, err := parser.ParseFile(token.NewFileSet(), filename, nil, parser.PackageClauseOnly)
 	if err != nil || file == nil {
 		return ""
 	}
@@ -590,7 +617,59 @@ func pkgName(fset *token.FileSet, filename string) string {
 }
 
 
+func (x *Indexer) addFile(filename string) *ast.File {
+	// open file
+	f, err := os.Open(filename, os.O_RDONLY, 0)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	// The file set's base offset and x.sources size must be in lock-step;
+	// this permits the direct mapping of suffix array lookup results to
+	// to corresponding Pos values.
+	//
+	// When a file is added to the file set, it's offset base increases by
+	// the size of the file + 1; and the initial base offset is 1. Add an
+	// extra byte to the sources here.
+	x.sources.WriteByte(0)
+
+	// If the sources length doesn't match the file set base at this point
+	// the file set implementation changed or we have another error.
+	base := x.fset.Base()
+	if x.sources.Len() != base {
+		panic("internal error - file base incorrect")
+	}
+
+	// append file contents to x.sources
+	if _, err := x.sources.ReadFrom(f); err != nil {
+		x.sources.Truncate(base) // discard possibly added data
+		return nil               // ignore files with I/O errors
+	}
+
+	// parse the file and in the process add it to the file set
+	src := x.sources.Bytes()[base:] // no need to reread the file
+	file, err := parser.ParseFile(x.fset, filename, src, parser.ParseComments)
+	if err != nil {
+		// do not discard the added source code in this case
+		// because the file has been added to the file set and
+		// the source size must match the file set base
+		// TODO(gri): given a FileSet.RemoveFile() one might be
+		//            able to discard the data here (worthwhile?)
+		return nil // ignore files with (parse) errors
+	}
+
+	return file
+}
+
+
 func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
+	// for now, exclude bug257.go as it causes problems with suffixarray
+	// TODO fix index/suffixarray
+	if f.Name == "bug257.go" {
+		return
+	}
+
 	if !isGoFile(f) {
 		return
 	}
@@ -600,20 +679,26 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
 		return
 	}
 
-	if excludeMainPackages && pkgName(x.fset, path) == "main" {
+	if excludeMainPackages && pkgName(path) == "main" {
 		return
 	}
 
-	file, err := parser.ParseFile(x.fset, path, nil, parser.ParseComments)
-	if err != nil {
-		return // ignore files with (parse) errors
+	file := x.addFile(path)
+	if file == nil {
+		return
 	}
 
+	// we've got a file to index
 	x.current = x.fset.File(file.Pos()) // file.Pos is in the current file
 	dir, _ := pathutil.Split(path)
 	pak := Pak{dir, file.Name.Name}
 	x.file = &File{path, pak}
 	ast.Walk(x, file)
+
+	// update statistics
+	// (count real file size as opposed to using the padded x.sources.Len())
+	x.stats.Bytes += x.current.Size()
+	x.stats.Files++
 }
 
 
@@ -627,10 +712,12 @@ type LookupResult struct {
 
 
 type Index struct {
+	fset     *token.FileSet           // file set used during indexing; nil if no textindex
+	suffixes *suffixarray.Index       // suffixes for concatenated sources; nil if no textindex
 	words    map[string]*LookupResult // maps words to hit lists
 	alts     map[string]*AltWords     // maps canonical(words) to lists of alternative spellings
 	snippets []*Snippet               // all snippets, indexed by snippet index
-	nspots   int                      // number of spots indexed (a measure of the index size)
+	stats    Statistics
 }
 
 
@@ -640,7 +727,7 @@ func canonical(w string) string { return strings.ToLower(w) }
 // NewIndex creates a new index for the .go files
 // in the directories given by dirnames.
 //
-func NewIndex(dirnames <-chan string) *Index {
+func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 	var x Indexer
 
 	// initialize Indexer
@@ -660,9 +747,14 @@ func NewIndex(dirnames <-chan string) *Index {
 		}
 	}
 
-	// the file set and current file are not needed after indexing - help GC and clear them
-	x.fset = nil
-	x.current = nil // contains reference to fset!
+	if !fulltextIndex {
+		// the file set, the current file, and the sources are
+		// not needed after indexing if no text index is built -
+		// help GC and clear them
+		x.fset = nil
+		x.sources.Reset()
+		x.current = nil // contains reference to fset!
+	}
 
 	// for each word, reduce the RunLists into a LookupResult;
 	// also collect the word with its canonical spelling in a
@@ -678,6 +770,7 @@ func NewIndex(dirnames <-chan string) *Index {
 		}
 		wlist.Push(&wordPair{canonical(w), w})
 	}
+	x.stats.Words = len(words)
 
 	// reduce the word list {canonical(w), w} into
 	// a list of AltWords runs {canonical(w), {w}}
@@ -696,14 +789,19 @@ func NewIndex(dirnames <-chan string) *Index {
 		snippets[i] = x.snippets.At(i).(*Snippet)
 	}
 
-	return &Index{words, alts, snippets, x.nspots}
+	// create text index
+	var suffixes *suffixarray.Index
+	if fulltextIndex {
+		suffixes = suffixarray.New(x.sources.Bytes())
+	}
+
+	return &Index{x.fset, suffixes, words, alts, snippets, x.stats}
 }
 
 
-// Size returns the number of different words and
-// spots indexed as a measure for the index size.
-func (x *Index) Size() (nwords int, nspots int) {
-	return len(x.words), x.nspots
+// Stats() returns index statistics.
+func (x *Index) Stats() Statistics {
+	return x.stats
 }
 
 
@@ -773,4 +871,72 @@ func (x *Index) Snippet(i int) *Snippet {
 		return x.snippets[i]
 	}
 	return nil
+}
+
+
+type positionList []struct {
+	filename string
+	line     int
+}
+
+func (list positionList) Len() int           { return len(list) }
+func (list positionList) Less(i, j int) bool { return list[i].filename < list[j].filename }
+func (list positionList) Swap(i, j int)      { list[i], list[j] = list[j], list[i] }
+
+
+// A Positions value specifies a file and line numbers within that file.
+type Positions struct {
+	Filename string
+	Lines    []int
+}
+
+
+// LookupString returns a list of positions where a string s is found
+// in the full text index and whether the result is complete or not.
+// At most n positions (filename and line) are returned. The result is
+// not complete if the index is not present or there are more than n
+// occurrences of s.
+//
+func (x *Index) LookupString(s string, n int) (result []Positions, complete bool) {
+	if x.suffixes == nil {
+		return
+	}
+
+	offsets := x.suffixes.Lookup([]byte(s), n+1)
+	if len(offsets) <= n {
+		complete = true
+	} else {
+		offsets = offsets[0:n]
+	}
+
+	// compute file names and lines and sort the list by filename
+	list := make(positionList, len(offsets))
+	for i, offs := range offsets {
+		// by construction, an offs corresponds to
+		// the Pos value for the file set - use it
+		// to get full Position information
+		pos := x.fset.Position(token.Pos(offs))
+		list[i].filename = pos.Filename
+		list[i].line = pos.Line
+	}
+	sort.Sort(list)
+
+	// compact positions with equal file names
+	var last string
+	var lines []int
+	for _, pos := range list {
+		if pos.filename != last {
+			if len(lines) > 0 {
+				result = append(result, Positions{last, lines})
+				lines = nil
+			}
+			last = pos.filename
+		}
+		lines = append(lines, pos.line)
+	}
+	if len(lines) > 0 {
+		result = append(result, Positions{last, lines})
+	}
+
+	return
 }

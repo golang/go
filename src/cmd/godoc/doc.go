@@ -47,6 +47,8 @@ The flags are:
 		width of tabs in units of spaces
 	-timestamps=true
 		show timestamps with directory listings
+	-fulltext=false
+		build full text index for string search results
 	-path=""
 		additional package directories (colon-separated)
 	-html
