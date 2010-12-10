@@ -126,31 +126,34 @@ void
 doar(Biobuf *bp)
 {
 	int offset, size, obj;
-	char membername[SARNAME];
+	char name[SARNAME];
 
 	multifile = 1;
 	for (offset = Boffset(bp);;offset += size) {
-		size = nextar(bp, offset, membername);
+		size = nextar(bp, offset, name);
 		if (size < 0) {
 			error("phase error on ar header %d", offset);
 			return;
 		}
 		if (size == 0)
 			return;
-		if (strcmp(membername, symname) == 0)
+		if (strcmp(name, symname) == 0)
 			continue;
 		obj = objtype(bp, 0);
 		if (obj < 0) {
+			// perhaps foreign object
+			if(strlen(name) > 2 && strcmp(name+strlen(name)-2, ".o") == 0)
+				return;
 			error("inconsistent file %s in %s",
-					membername, filename);
+					name, filename);
 			return;
 		}
 		if (!readar(bp, obj, offset+size, 1)) {
 			error("invalid symbol reference in file %s",
-					membername);
+					name);
 			return;
 		}
-		filename = membername;
+		filename = name;
 		nsym=0;
 		objtraverse(psym, 0);
 		printsyms(symptr, nsym);
