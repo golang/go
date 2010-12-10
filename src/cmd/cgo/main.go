@@ -11,10 +11,12 @@
 package main
 
 import (
+	"crypto/md5"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/token"
+	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -105,6 +107,8 @@ var ptrSizeMap = map[string]int64{
 	"arm":   4,
 }
 
+var cPrefix string
+
 var fset = token.NewFileSet()
 
 var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
@@ -169,6 +173,22 @@ func main() {
 		GccOptions: gccOptions,
 		Written:    make(map[string]bool),
 	}
+
+	// Need a unique prefix for the global C symbols that
+	// we use to coordinate between gcc and ourselves.
+	// We already put _cgo_ at the beginning, so the main
+	// concern is other cgo wrappers for the same functions.
+	// Use the beginning of the md5 of the input to disambiguate.
+	h := md5.New()
+	for _, input := range goFiles {
+		f, err := os.Open(input, os.O_RDONLY, 0)
+		if err != nil {
+			fatal("%s", err)
+		}
+		io.Copy(h, f)
+		f.Close()
+	}
+	cPrefix = fmt.Sprintf("_%x", h.Sum()[0:6])
 
 	for _, input := range goFiles {
 		f := new(File)

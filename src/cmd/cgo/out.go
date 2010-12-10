@@ -212,12 +212,12 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath str
 	_, argSize = p.structType(n)
 
 	// C wrapper calls into gcc, passing a pointer to the argument frame.
-	fmt.Fprintf(fc, "void _cgo%s(void*);\n", n.Mangle)
+	fmt.Fprintf(fc, "void _cgo%s%s(void*);\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fc, "\n")
 	fmt.Fprintf(fc, "void\n")
 	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
 	fmt.Fprintf(fc, "{\n")
-	fmt.Fprintf(fc, "\truntime·cgocall(_cgo%s, &p);\n", n.Mangle)
+	fmt.Fprintf(fc, "\truntime·cgocall(_cgo%s%s, &p);\n", cPrefix, n.Mangle)
 	if n.AddError {
 		// gcc leaves errno in first word of interface at end of p.
 		// check whether it is zero; if so, turn interface into nil.
@@ -292,7 +292,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// Gcc wrapper unpacks the C argument struct
 	// and calls the actual C function.
 	fmt.Fprintf(fgcc, "void\n")
-	fmt.Fprintf(fgcc, "_cgo%s(void *v)\n", n.Mangle)
+	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fgcc, "{\n")
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\tint e;\n") // assuming 32 bit (see comment above structType)
