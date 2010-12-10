@@ -124,7 +124,7 @@ func TestParser(t *testing.T) {
 		rc := make(chan io.Reader)
 		go readDat(filename, rc)
 		// TODO(nigeltao): Process all test cases, not just a subset.
-		for i := 0; i < 19; i++ {
+		for i := 0; i < 21; i++ {
 			// Parse the #data section.
 			doc, err := Parse(<-rc)
 			if err != nil {
