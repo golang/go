@@ -2263,9 +2263,9 @@ type floatTest struct {
 
 var floatTests = []floatTest{
 	{float64(MaxFloat64), "MaxFloat64", "1.7976931348623157e+308"},
-	{float64(MinFloat64), "MinFloat64", "5e-324"},
+	{float64(SmallestNonzeroFloat64), "SmallestNonzeroFloat64", "5e-324"},
 	{float32(MaxFloat32), "MaxFloat32", "3.4028235e+38"},
-	{float32(MinFloat32), "MinFloat32", "1e-45"},
+	{float32(SmallestNonzeroFloat32), "SmallestNonzeroFloat32", "1e-45"},
 }
 
 func TestFloatMinMax(t *testing.T) {
