@@ -16,15 +16,15 @@ type testCase struct {
 
 var tests = []testCase{
 	// RFC2181, section 11.
-	testCase{"_xmpp-server._tcp.google.com", true},
-	testCase{"_xmpp-server._tcp.google.com", true},
-	testCase{"foo.com", true},
-	testCase{"1foo.com", true},
-	testCase{"26.0.0.73.com", true},
-	testCase{"fo-o.com", true},
-	testCase{"fo1o.com", true},
-	testCase{"foo1.com", true},
-	testCase{"a.b..com", false},
+	{"_xmpp-server._tcp.google.com", true},
+	{"_xmpp-server._tcp.google.com", true},
+	{"foo.com", true},
+	{"1foo.com", true},
+	{"26.0.0.73.com", true},
+	{"fo-o.com", true},
+	{"fo1o.com", true},
+	{"foo1.com", true},
+	{"a.b..com", false},
 }
 
 func getTestCases(ch chan<- *testCase) {

@@ -16,7 +16,7 @@ type fileTest struct {
 }
 
 var fileTests = []fileTest{
-	fileTest{
+	{
 		"testdata/gcc-386-mingw-obj",
 		FileHeader{0x014c, 0x000c, 0x0, 0x64a, 0x1e, 0x0, 0x104},
 		[]*SectionHeader{
@@ -34,7 +34,7 @@ var fileTests = []fileTest{
 			&SectionHeader{".debug_aranges", 0, 0, 32, 1408, 1590, 0, 2, 0, 1108344832},
 		},
 	},
-	fileTest{
+	{
 		"testdata/gcc-386-mingw-exec",
 		FileHeader{0x014c, 0x000f, 0x4c6a1b60, 0x3c00, 0x282, 0xe0, 0x107},
 		[]*SectionHeader{

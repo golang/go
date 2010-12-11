@@ -88,7 +88,7 @@ func (w *Watcher) Close() os.Error {
 
 	// Send "quit" message to the reader goroutine
 	w.done <- true
-	for path, _ := range w.watches {
+	for path := range w.watches {
 		w.RemoveWatch(path)
 	}
 
