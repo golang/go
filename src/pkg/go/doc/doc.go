@@ -127,7 +127,7 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 			name := ""
 			switch {
 			case v.Type != nil:
-				// a type is present; determine it's name
+				// a type is present; determine its name
 				name = baseTypeName(v.Type)
 			case decl.Tok == token.CONST:
 				// no type is present but we have a constant declaration;
