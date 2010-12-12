@@ -7,8 +7,8 @@
 /*
  * machine size and rounding
  * alignment is dictated around
- * the size of a pointer, set in belexinit
- * (see ../6g/align.c).
+ * the size of a pointer, set in betypeinit
+ * (see ../6g/galign.c).
  */
 
 static int defercalc;
