@@ -399,7 +399,7 @@ blk(Sym *allsym, int32 addr, int32 size)
 		for(; addr < sym->value+sym->size; addr++)
 			cput(0);
 		if(addr != sym->value+sym->size) {
-			diag("phase error: addr=%#llx value+size=%#llx", addr, sym->value+sym->size);
+			diag("phase error: addr=%#llx value+size=%#llx", (vlong)addr, (vlong)sym->value+sym->size);
 			errorexit();
 		}
 	}
@@ -464,7 +464,7 @@ codeblk(int32 addr, int32 size)
 			continue;
 		}
 			
-		Bprint(&bso, "%.6llux\t%-20s | %P\n", sym->value, sym->name, p);
+		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)sym->value, sym->name, p);
 		for(p = p->link; p != P; p = p->link) {
 			if(p->link != P)
 				epc = p->link->pc;
@@ -725,7 +725,7 @@ dodata(void)
 			s->type = SDATA;
 		if(s->np > s->size)
 			diag("%s: initialize bounds (%lld < %d)",
-				s->name, s->size, s->np);
+				s->name, (vlong)s->size, s->np);
 	}
 	
 	/*

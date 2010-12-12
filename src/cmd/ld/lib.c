@@ -915,7 +915,7 @@ pclntab(void)
 			if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
 				if(debug['O'])
 					Bprint(&bso, "%6llux %P\n",
-						p->pc, p);
+						(vlong)p->pc, p);
 				continue;
 			}
 			if(debug['O'])
@@ -952,7 +952,7 @@ pclntab(void)
 						Bprint(&bso, " lc%d(%d,%d)\n",
 							s, 0, s);
 					Bprint(&bso, "%6llux %P\n",
-						p->pc, p);
+						(vlong)p->pc, p);
 				}
 				lcsize += 5;
 				continue;
@@ -964,14 +964,14 @@ pclntab(void)
 				if(debug['O']) {
 					Bprint(&bso, " lc+%d(%d)\n", s, 0+s);
 					Bprint(&bso, "%6llux %P\n",
-						p->pc, p);
+						(vlong)p->pc, p);
 				}
 			} else {
 				*bp = 64-s;	/* 65-128 -lc */
 				if(debug['O']) {
 					Bprint(&bso, " lc%d(%d)\n", s, 64-s);
 					Bprint(&bso, "%6llux %P\n",
-						p->pc, p);
+						(vlong)p->pc, p);
 				}
 			}
 			lcsize++;

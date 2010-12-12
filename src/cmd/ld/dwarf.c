@@ -1004,7 +1004,7 @@ defgotype(Sym *gotype)
 			      gotype->r[i].siz,
 			      gotype->r[i].type,
 			      gotype->r[i].sym->name,
-			      gotype->r[i].add);
+			      (vlong)gotype->r[i].add);
 		}
 	}
 
@@ -1927,7 +1927,7 @@ writelines(void)
 
 			lline = lh->line + q->line - lh->absline;
 			if (debug['v'] > 1)
-				print("%6llux %s[%lld] %P\n", q->pc, histfile[lh->file], lline, q);
+				print("%6llux %s[%lld] %P\n", (vlong)q->pc, histfile[lh->file], lline, q);
 
 			if (q->line == lc)
 				continue;
