@@ -361,7 +361,7 @@ func writeObjInfo(w io.Writer, fset *token.FileSet, obj *ast.Object) {
 // for 0 <= i < s.idcount.
 func (s *Styler) idList(fset *token.FileSet) []byte {
 	var buf bytes.Buffer
-	fmt.Fprintln(&buf, "[")
+	buf.WriteString("[\n")
 
 	if s.idcount > 0 {
 		// invert objmap: create an array [id]obj from map[obj]id
@@ -382,7 +382,7 @@ func (s *Styler) idList(fset *token.FileSet) []byte {
 		}
 	}
 
-	fmt.Fprintln(&buf, "]")
+	buf.WriteString("]\n")
 	return buf.Bytes()
 }
 
@@ -600,7 +600,15 @@ func textFmt(w io.Writer, format string, x ...interface{}) {
 }
 
 
-// Template formatter for the various "url-xxx" formats.
+// Template formatter for "urlquery-esc" format.
+func urlQueryEscFmt(w io.Writer, format string, x ...interface{}) {
+	var buf bytes.Buffer
+	writeAny(&buf, fileset(x), false, x[0])
+	template.HTMLEscape(w, []byte(http.URLEscape(string(buf.Bytes()))))
+}
+
+
+// Template formatter for the various "url-xxx" formats excluding url-esc.
 func urlFmt(w io.Writer, format string, x ...interface{}) {
 	var path string
 	var line int
@@ -737,21 +745,30 @@ func localnameFmt(w io.Writer, format string, x ...interface{}) {
 }
 
 
+// Template formatter for "numlines" format.
+func numlinesFmt(w io.Writer, format string, x ...interface{}) {
+	list := x[0].([]int)
+	fmt.Fprintf(w, "%d", len(list))
+}
+
+
 // Template formatter for "linelist" format.
 func linelistFmt(w io.Writer, format string, x ...interface{}) {
-	const max = 20 // show at most this many lines
 	list := x[0].([]int)
-	// print number of occurences
-	fmt.Fprintf(w, "<td>%d</td>", len(list))
-	// print actual lines
-	// TODO(gri) should sort them
-	for i, line := range list {
-		if i < max {
-			fmt.Fprintf(w, "<td>%d</td>", line)
-		} else {
-			fmt.Fprint(w, "<td>...</td>")
-			break
-		}
+	complete := x[1].(bool)
+
+	const max = 100 // show at most this many lines
+	if len(list) > max {
+		list = list[0:max]
+		complete = false
+	}
+	sort.SortInts(list)
+
+	for _, line := range list {
+		fmt.Fprintf(w, " %d", line)
+	}
+	if !complete {
+		fmt.Fprintf(w, " ...")
 	}
 }
 
@@ -761,6 +778,7 @@ var fmap = template.FormatterMap{
 	"html":         htmlFmt,
 	"html-esc":     htmlEscFmt,
 	"html-comment": htmlCommentFmt,
+	"urlquery-esc": urlQueryEscFmt,
 	"url-pkg":      urlFmt,
 	"url-src":      urlFmt,
 	"url-pos":      urlFmt,
@@ -771,6 +789,7 @@ var fmap = template.FormatterMap{
 	"time":         timeFmt,
 	"dir/":         dirslashFmt,
 	"localname":    localnameFmt,
+	"numlines":     numlinesFmt,
 	"linelist":     linelistFmt,
 }
 
@@ -998,6 +1017,35 @@ func isTextFile(path string) bool {
 }
 
 
+// HTMLSubst replaces all occurences of f in s with r and HTML-escapes
+// everything else in s (but not r). The result is written to w.
+//
+func HTMLSubst(w io.Writer, s, f, r []byte) {
+	for {
+		i := bytes.Index(s, f)
+		if i < 0 {
+			break
+		}
+		template.HTMLEscape(w, s[0:i])
+		w.Write(r)
+		s = s[i+len(f):]
+	}
+	template.HTMLEscape(w, s)
+}
+
+
+// highlight highlights all occurrences of h in s and writes the
+// HTML-escaped result to w.
+//
+func highlight(w io.Writer, s, h []byte) {
+	var r bytes.Buffer
+	r.WriteString(`<span class="highlight">`)
+	template.HTMLEscape(&r, h)
+	r.WriteString(`</span>`)
+	HTMLSubst(w, s, h, r.Bytes())
+}
+
+
 func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	src, err := ioutil.ReadFile(abspath)
 	if err != nil {
@@ -1007,9 +1055,14 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath stri
 	}
 
 	var buf bytes.Buffer
-	fmt.Fprintln(&buf, "<pre>")
-	template.HTMLEscape(&buf, src)
-	fmt.Fprintln(&buf, "</pre>")
+	buf.WriteString("<pre>\n")
+	g := r.FormValue("g")
+	if g != "" {
+		highlight(&buf, src, []byte(g))
+	} else {
+		template.HTMLEscape(&buf, src)
+	}
+	buf.WriteString("</pre>\n")
 
 	servePage(w, "Text file "+relpath, "", "", buf.Bytes())
 }
@@ -1066,6 +1119,10 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case ".go":
+		if r.FormValue("g") != "" {
+			serveTextFile(w, r, abspath, relpath)
+			return
+		}
 		serveGoSource(w, r, abspath, relpath)
 		return
 	}
@@ -1332,7 +1389,7 @@ type SearchResult struct {
 	Query    string
 	Hit      *LookupResult // identifier occurences of Query
 	Alt      *AltWords     // alternative identifiers to look for
-	Illegal  bool          // true if Query for identifier search has incorrect syntax
+	Found    int           // number of textual occurences found
 	Textual  []Positions   // textual occurences of Query
 	Complete bool          // true if all textual occurences of Query are reported
 	Accurate bool          // true if the index is not older than the indexed files
@@ -1343,10 +1400,10 @@ func lookup(query string) (result SearchResult) {
 	result.Query = query
 	if index, timestamp := searchIndex.get(); index != nil {
 		index := index.(*Index)
-		result.Hit, result.Alt, result.Illegal = index.Lookup(query)
+		result.Hit, result.Alt, _ = index.Lookup(query)
 		// TODO(gri) should max be a flag?
 		const max = 5000 // show at most this many fulltext results
-		result.Textual, result.Complete = index.LookupString(query, max)
+		result.Found, result.Textual, result.Complete = index.LookupString(query, max)
 		_, ts := fsModified.get()
 		result.Accurate = timestamp >= ts
 	}
@@ -1440,8 +1497,8 @@ func indexer() {
 			if *verbose {
 				secs := float64((stop-start)/1e6) / 1e3
 				stats := index.Stats()
-				log.Printf("index updated (%gs, %d bytes of source, %d files, %d unique words, %d spots)",
-					secs, stats.Bytes, stats.Files, stats.Words, stats.Spots)
+				log.Printf("index updated (%gs, %d bytes of source, %d files, %d lines, %d unique words, %d spots)",
+					secs, stats.Bytes, stats.Files, stats.Lines, stats.Words, stats.Spots)
 			}
 			log.Printf("before GC: bytes = %d footprint = %d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 			runtime.GC()
