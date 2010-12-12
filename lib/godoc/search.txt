@@ -1,5 +1,5 @@
 QUERY
-{Query}
+	{Query}
 
 {.section Accurate}
 {.or}
@@ -45,9 +45,18 @@ package {Pak.Name}
 {.end}
 {.end}
 {.end}
-{.section Illegal}
-ILLEGAL QUERY SYNTAX
+{.section Textual}
+{.section Complete}
+{Found} TEXTUAL OCCURENCES
+{.or}
+MORE THAN {Found} TEXTUAL OCCURENCES
+{.end}
 
-A legal query is a single identifier (such as ToLower)
-or a qualified identifier (such as math.Sin).
+{.repeated section @}
+{Lines|numlines}	{Filename|url-src}
+{.end}
+{.section Complete}
+{.or}
+...	...
+{.end}
 {.end}

@@ -443,6 +443,7 @@ type IndexResult struct {
 type Statistics struct {
 	Bytes int // total size of indexed source files
 	Files int // number of indexed source files
+	Lines int // number of lines (all files)
 	Words int // number of different identifiers
 	Spots int // number of identifier occurences
 }
@@ -699,6 +700,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
 	// (count real file size as opposed to using the padded x.sources.Len())
 	x.stats.Bytes += x.current.Size()
 	x.stats.Files++
+	x.stats.Lines += x.current.LineCount()
 }
 
 
@@ -891,13 +893,13 @@ type Positions struct {
 }
 
 
-// LookupString returns a list of positions where a string s is found
-// in the full text index and whether the result is complete or not.
-// At most n positions (filename and line) are returned. The result is
-// not complete if the index is not present or there are more than n
-// occurrences of s.
+// LookupString returns the number and list of positions where a string
+// s is found in the full text index and whether the result is complete
+// or not. At most n positions (filename and line) are returned (and thus
+// found <= n). The result is incomplete if the index is not present or
+// if there are more than n occurrences of s.
 //
-func (x *Index) LookupString(s string, n int) (result []Positions, complete bool) {
+func (x *Index) LookupString(s string, n int) (found int, result []Positions, complete bool) {
 	if x.suffixes == nil {
 		return
 	}
@@ -908,6 +910,7 @@ func (x *Index) LookupString(s string, n int) (result []Positions, complete bool
 	} else {
 		offsets = offsets[0:n]
 	}
+	found = len(offsets)
 
 	// compute file names and lines and sort the list by filename
 	list := make(positionList, len(offsets))
