@@ -513,7 +513,7 @@ func TestCopyArray(t *testing.T) {
 	ab := vb.(*PtrValue).Elem().(*SliceValue)
 	for tocopy := 1; tocopy <= 7; tocopy++ {
 		aa.SetLen(tocopy)
-		ArrayCopy(ab, aa)
+		Copy(ab, aa)
 		aa.SetLen(8)
 		for i := 0; i < tocopy; i++ {
 			if a[i] != b[i] {
