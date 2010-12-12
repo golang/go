@@ -1079,7 +1079,7 @@ checkoffset(Addr *a, int canemitcode)
 	if(a->offset < unmappedzero)
 		return;
 	if(!canemitcode)
-		fatal("checkoffset %#llx, cannot emit code", a->offset);
+		fatal("checkoffset %#x, cannot emit code", a->offset);
 
 	// cannot rely on unmapped nil page at 0 to catch
 	// reference with large offset.  instead, emit explicit
