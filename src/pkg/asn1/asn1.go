@@ -591,7 +591,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		sliceValue := v.(*reflect.SliceValue)
 		sliceValue.Set(reflect.MakeSlice(sliceValue.Type().(*reflect.SliceType), len(newSlice), len(newSlice)))
 		if err1 == nil {
-			reflect.ArrayCopy(sliceValue, reflect.NewValue(newSlice).(reflect.ArrayOrSliceValue))
+			reflect.Copy(sliceValue, reflect.NewValue(newSlice).(reflect.ArrayOrSliceValue))
 		}
 		err = err1
 		return
@@ -683,7 +683,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		sliceType := fieldType.(*reflect.SliceType)
 		if sliceType.Elem().Kind() == reflect.Uint8 {
 			val.Set(reflect.MakeSlice(sliceType, len(innerBytes), len(innerBytes)))
-			reflect.ArrayCopy(val, reflect.NewValue(innerBytes).(reflect.ArrayOrSliceValue))
+			reflect.Copy(val, reflect.NewValue(innerBytes).(reflect.ArrayOrSliceValue))
 			return
 		}
 		newSlice, err1 := parseSequenceOf(innerBytes, sliceType, sliceType.Elem())

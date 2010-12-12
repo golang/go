@@ -400,11 +400,11 @@ type ArrayOrSliceValue interface {
 	addr() addr
 }
 
-// ArrayCopy copies the contents of src into dst until either
+// Copy copies the contents of src into dst until either
 // dst has been filled or src has been exhausted.
 // It returns the number of elements copied.
 // The arrays dst and src must have the same element type.
-func ArrayCopy(dst, src ArrayOrSliceValue) int {
+func Copy(dst, src ArrayOrSliceValue) int {
 	// TODO: This will have to move into the runtime
 	// once the real gc goes in.
 	de := dst.Type().(ArrayOrSliceType).Elem()
@@ -439,7 +439,7 @@ func (v *ArrayValue) Set(x *ArrayValue) {
 		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ)
-	ArrayCopy(v, x)
+	Copy(v, x)
 }
 
 // Set sets v to the value x.

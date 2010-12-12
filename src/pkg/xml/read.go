@@ -233,7 +233,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				ncap = 4
 			}
 			new := reflect.MakeSlice(typ, n, ncap)
-			reflect.ArrayCopy(new, v)
+			reflect.Copy(new, v)
 			v.Set(new)
 		}
 		v.SetLen(n + 1)

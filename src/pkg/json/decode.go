@@ -344,7 +344,7 @@ func (d *decodeState) array(v reflect.Value) {
 				newcap = 4
 			}
 			newv := reflect.MakeSlice(sv.Type().(*reflect.SliceType), sv.Len(), newcap)
-			reflect.ArrayCopy(newv, sv)
+			reflect.Copy(newv, sv)
 			sv.Set(newv)
 		}
 		if i >= av.Len() && sv != nil {
