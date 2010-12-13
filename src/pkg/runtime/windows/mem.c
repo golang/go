@@ -27,8 +27,8 @@ abort(int8 *name)
 
 #pragma dynimport runtime·VirtualAlloc VirtualAlloc "kernel32.dll"
 #pragma dynimport runtime·VirtualFree VirtualFree "kernel32.dll"
-void *runtime·VirtualAlloc;
-void *runtime·VirtualFree;
+extern void *runtime·VirtualAlloc;
+extern void *runtime·VirtualFree;
 
 void*
 runtime·SysAlloc(uintptr n)

@@ -16,25 +16,25 @@
 #pragma dynimport runtime·SetLastError SetLastError "kernel32.dll"
 
 // Also referenced by external packages
-void *runtime·CloseHandle;
-void *runtime·ExitProcess;
-void *runtime·GetStdHandle;
-void *runtime·SetEvent;
-void *runtime·WriteFile;
-void *runtime·LoadLibraryEx;
-void *runtime·GetProcAddress;
-void *runtime·GetLastError;
-void *runtime·SetLastError;
+extern void *runtime·CloseHandle;
+extern void *runtime·ExitProcess;
+extern void *runtime·GetStdHandle;
+extern void *runtime·SetEvent;
+extern void *runtime·WriteFile;
+extern void *runtime·LoadLibraryEx;
+extern void *runtime·GetProcAddress;
+extern void *runtime·GetLastError;
+extern void *runtime·SetLastError;
 
 #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
 #pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
 #pragma dynimport runtime·GetModuleHandle GetModuleHandleA "kernel32.dll"
 #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
 
-void *runtime·CreateEvent;
-void *runtime·CreateThread;
-void *runtime·GetModuleHandle;
-void *runtime·WaitForSingleObject;
+extern void *runtime·CreateEvent;
+extern void *runtime·CreateThread;
+extern void *runtime·GetModuleHandle;
+extern void *runtime·WaitForSingleObject;
 
 void
 runtime·osinit(void)
@@ -47,11 +47,11 @@ runtime·osinit(void)
 #pragma dynimport runtime·FreeEnvironmentStrings FreeEnvironmentStringsW  "kernel32.dll"
 #pragma dynimport runtime·LocalFree LocalFree "kernel32.dll"
 
-void *runtime·GetCommandLine;
-void *runtime·CommandLineToArgv;
-void *runtime·GetEnvironmentStrings;
-void *runtime·FreeEnvironmentStrings;
-void *runtime·LocalFree;
+extern void *runtime·GetCommandLine;
+extern void *runtime·CommandLineToArgv;
+extern void *runtime·GetEnvironmentStrings;
+extern void *runtime·FreeEnvironmentStrings;
+extern void *runtime·LocalFree;
 
 void
 runtime·windows_goargs(void)
