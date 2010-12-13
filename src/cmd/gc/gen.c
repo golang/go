@@ -58,7 +58,7 @@ allocparams(void)
 		if(w >= MAXWIDTH)
 			fatal("bad width");
 		stksize += w;
-		stksize = rnd(stksize, w);
+		stksize = rnd(stksize, n->type->align);
 		n->xoffset = -stksize;
 	}
 	lineno = lno;
@@ -664,7 +664,7 @@ tempname(Node *n, Type *t)
 	dowidth(t);
 	w = t->width;
 	stksize += w;
-	stksize = rnd(stksize, w);
+	stksize = rnd(stksize, t->align);
 	n->xoffset = -stksize;
 	n->pun = anyregalloc();
 }

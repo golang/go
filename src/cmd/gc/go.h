@@ -154,6 +154,7 @@ struct	Type
 	uchar	deferwidth;
 	uchar	broke;
 	uchar	isddd;	// TFIELD is ... argument
+	uchar	align;
 
 	Node*	nod;		// canonical OTYPE node
 	Type*	orig;		// original type (type literal or predefined type)
@@ -751,7 +752,6 @@ EXTERN	int	hasdefer;		// flag that curfn has defer statetment
 
 EXTERN	Node*	curfn;
 
-EXTERN	int	maxround;
 EXTERN	int	widthptr;
 
 EXTERN	Node*	typesw;

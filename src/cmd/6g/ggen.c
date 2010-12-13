@@ -109,11 +109,11 @@ compile(Node *fn)
 	}
 
 	// fill in argument size
-	ptxt->to.offset = rnd(curfn->type->argwid, maxround);
+	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
 
 	// fill in final stack size
 	ptxt->to.offset <<= 32;
-	ptxt->to.offset |= rnd(stksize+maxarg, maxround);
+	ptxt->to.offset |= rnd(stksize+maxarg, widthptr);
 
 	if(debug['f'])
 		frame(0);

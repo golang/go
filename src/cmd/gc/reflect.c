@@ -577,7 +577,6 @@ dcommontype(Sym *s, int ot, Type *t)
 {
 	int i;
 	Sym *s1;
-	Type *elem;
 	char *p;
 
 	dowidth(t);
@@ -605,14 +604,8 @@ dcommontype(Sym *s, int ot, Type *t)
 	ot = duintptr(s, ot, t->width);
 	ot = duint32(s, ot, typehash(t));
 	ot = duint8(s, ot, algtype(t));
-	elem = t;
-	while(elem->etype == TARRAY && elem->bound >= 0)
-		elem = elem->type;
-	i = elem->width;
-	if(i > maxround)
-		i = maxround;
-	ot = duint8(s, ot, i);	// align
-	ot = duint8(s, ot, i);	// fieldAlign
+	ot = duint8(s, ot, t->align);	// align
+	ot = duint8(s, ot, t->align);	// fieldAlign
 	i = kinds[t->etype];
 	if(t->etype == TARRAY && t->bound < 0)
 		i = KindSlice;

@@ -16,15 +16,9 @@ static int defercalc;
 uint32
 rnd(uint32 o, uint32 r)
 {
-	if(maxround == 0)
+	if(r < 1 || r > 8 || (r&(r-1)) != 0)
 		fatal("rnd");
-
-	if(r > maxround)
-		r = maxround;
-	if(r != 0)
-		while(o%r != 0)
-			o++;
-	return o;
+	return (o+r-1)&~(r-1);
 }
 
 static void
@@ -43,29 +37,24 @@ offmod(Type *t)
 }
 
 static uint32
-arrayelemwidth(Type *t)
-{
-
-	while(t->etype == TARRAY && t->bound >= 0)
-		t = t->type;
-	return t->width;
-}
-
-static uint32
 widstruct(Type *t, uint32 o, int flag)
 {
 	Type *f;
-	int32 w, m;
-
+	int32 w, maxalign;
+	
+	maxalign = flag;
+	if(maxalign < 1)
+		maxalign = 1;
 	for(f=t->type; f!=T; f=f->down) {
 		if(f->etype != TFIELD)
 			fatal("widstruct: not TFIELD: %lT", f);
 		dowidth(f->type);
+		if(f->align > maxalign)
+			maxalign = f->align;
 		if(f->type->width < 0)
 			fatal("invalid width %lld", f->type->width);
 		w = f->type->width;
-		m = arrayelemwidth(f->type);
-		o = rnd(o, m);
+		o = rnd(o, f->type->align);
 		f->width = o;	// really offset for TFIELD
 		if(f->nname != N) {
 			// this same stackparam logic is in addrescapes
@@ -82,7 +71,8 @@ widstruct(Type *t, uint32 o, int flag)
 	}
 	// final width is rounded
 	if(flag)
-		o = rnd(o, maxround);
+		o = rnd(o, maxalign);
+	t->align = maxalign;
 
 	// type width only includes back to first field's offset
 	if(t->type == T)
@@ -100,7 +90,7 @@ dowidth(Type *t)
 	int lno;
 	Type *t1;
 
-	if(maxround == 0 || widthptr == 0)
+	if(widthptr == 0)
 		fatal("dowidth without betypeinit");
 
 	if(t == T)
@@ -124,6 +114,7 @@ dowidth(Type *t)
 	lno = lineno;
 	lineno = t->lineno;
 	t->width = -2;
+	t->align = 0;
 
 	et = t->etype;
 	switch(et) {
@@ -166,9 +157,11 @@ dowidth(Type *t)
 	case TFLOAT64:
 	case TCOMPLEX64:
 		w = 8;
+		t->align = widthptr;
 		break;
 	case TCOMPLEX128:
 		w = 16;
+		t->align = widthptr;
 		break;
 	case TPTR32:
 		w = 4;
@@ -180,6 +173,7 @@ dowidth(Type *t)
 		break;
 	case TINTER:		// implemented as 2 pointers
 		w = 2*widthptr;
+		t->align = widthptr;
 		offmod(t);
 		break;
 	case TCHAN:		// implemented as pointer
@@ -197,6 +191,7 @@ dowidth(Type *t)
 		dowidth(t->type);	// just in case
 		if(t1->type->width >= (1<<16))
 			yyerror("channel element type too large (>64kB)");
+		t->width = 1;
 		break;
 	case TMAP:		// implemented as pointer
 		w = widthptr;
@@ -217,6 +212,7 @@ dowidth(Type *t)
 		if(sizeof_String == 0)
 			fatal("early dowidth string");
 		w = sizeof_String;
+		t->align = widthptr;
 		break;
 	case TARRAY:
 		if(t->type == T)
@@ -235,11 +231,13 @@ dowidth(Type *t)
 				yyerror("type %lT larger than address space", t);
 			w = t->bound * t->type->width;
 			if(w == 0)
-				w = maxround;
+				w = 1;
+			t->align = t->type->align;
 		}
 		else if(t->bound == -1) {
 			w = sizeof_Array;
 			checkwidth(t->type);
+			t->align = widthptr;
 		}
 		else if(t->bound == -100)
 			yyerror("use of [...] array outside of array literal");
@@ -250,9 +248,9 @@ dowidth(Type *t)
 	case TSTRUCT:
 		if(t->funarg)
 			fatal("dowidth fn struct %T", t);
-		w = widstruct(t, 0, 1);
+		w = widstruct(t, 0, widthptr);
 		if(w == 0)
-			w = maxround;
+			w = 1;
 		break;
 
 	case TFUNC:
@@ -271,16 +269,22 @@ dowidth(Type *t)
 		// compute their widths as side-effect.
 		t1 = t->type;
 		w = widstruct(*getthis(t1), 0, 0);
-		w = widstruct(*getinarg(t1), w, 1);
-		w = widstruct(*getoutarg(t1), w, 1);
+		w = widstruct(*getinarg(t1), w, widthptr);
+		w = widstruct(*getoutarg(t1), w, widthptr);
 		t1->argwid = w;
+		t->align = 1;
 		break;
 	}
 
 	// catch all for error cases; avoid divide by zero later
 	if(w == 0)
-		w = maxround;
+		w = 1;
 	t->width = w;
+	if(t->align == 0) {
+		if(w > 8 || (w&(w-1)) != 0)
+			fatal("invalid alignment for %T", t);
+		t->align = w;
+	}
 	lineno = lno;
 
 	if(defercalc == 1)
@@ -596,10 +600,10 @@ typeinit(void)
 	Array_array = rnd(0, widthptr);
 	Array_nel = rnd(Array_array+widthptr, types[TUINT32]->width);
 	Array_cap = rnd(Array_nel+types[TUINT32]->width, types[TUINT32]->width);
-	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, maxround);
+	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, widthptr);
 
 	// string is same as slice wo the cap
-	sizeof_String = rnd(Array_nel+types[TUINT32]->width, maxround);
+	sizeof_String = rnd(Array_nel+types[TUINT32]->width, widthptr);
 
 	dowidth(types[TSTRING]);
 	dowidth(idealstring);

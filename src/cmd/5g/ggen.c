@@ -111,12 +111,12 @@ compile(Node *fn)
 	// fill in argument size
 	ptxt->to.type = D_CONST2;
 	ptxt->reg = 0; // flags
-	ptxt->to.offset2 = rnd(curfn->type->argwid, maxround);
+	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
 
 	// fill in final stack size
 	if(stksize > maxstksize)
 		maxstksize = stksize;
-	ptxt->to.offset = rnd(maxstksize+maxarg, maxround);
+	ptxt->to.offset = rnd(maxstksize+maxarg, widthptr);
 	maxstksize = 0;
 
 	if(debug['f'])
