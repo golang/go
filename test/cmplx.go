@@ -22,6 +22,7 @@ func main() {
 	c64 = cmplx(f32, f32)
 	c128 = cmplx(f64, f64)
 
+	_ = complex(0) // ok
 	_ = cmplx(f, f32)	// ERROR "cmplx"
 	_ = cmplx(f, f64)	// ERROR "cmplx"
 	_ = cmplx(f32, f)	// ERROR "cmplx"

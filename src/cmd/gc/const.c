@@ -202,8 +202,6 @@ convlit1(Node **np, Type *t, int explicit)
 				goto bad;
 			case CTFLT:
 			case CTINT:
-				if(explicit)
-					goto bad;
 				n->val = tocplx(n->val);
 				break;
 			case CTCPLX:
@@ -300,7 +298,7 @@ toflt(Val v)
 		f = mal(sizeof(*f));
 		mpmovefltflt(f, &v.u.cval->real);
 		if(mpcmpfltc(&v.u.cval->imag, 0) != 0)
-			yyerror("constant %#F truncated to real", v.u.fval);
+			yyerror("constant %#F%+#Fi truncated to real", &v.u.cval->real, &v.u.cval->imag);
 		v.ctype = CTFLT;
 		v.u.fval = f;
 		break;
@@ -324,9 +322,9 @@ toint(Val v)
 	case CTCPLX:
 		i = mal(sizeof(*i));
 		if(mpmovefltfix(i, &v.u.cval->real) < 0)
-			yyerror("constant %#F truncated to integer", v.u.fval);
+			yyerror("constant %#F%+#Fi truncated to integer", &v.u.cval->real, &v.u.cval->imag);
 		if(mpcmpfltc(&v.u.cval->imag, 0) != 0)
-			yyerror("constant %#F truncated to real", v.u.fval);
+			yyerror("constant %#F%+#Fi truncated to real", &v.u.cval->real, &v.u.cval->imag);
 		v.ctype = CTINT;
 		v.u.xval = i;
 		break;
