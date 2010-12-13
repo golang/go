@@ -115,7 +115,7 @@ outlstring(ushort *s, int32 n)
 	r = nstring;
 	while(n > 0) {
 		c = *s++;
-		if(align(0, types[TCHAR], Aarg1)) {
+		if(align(0, types[TCHAR], Aarg1, nil)) {
 			buf[0] = c>>8;
 			buf[1] = c;
 		} else {

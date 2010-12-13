@@ -49,8 +49,8 @@ widstruct(Type *t, uint32 o, int flag)
 		if(f->etype != TFIELD)
 			fatal("widstruct: not TFIELD: %lT", f);
 		dowidth(f->type);
-		if(f->align > maxalign)
-			maxalign = f->align;
+		if(f->type->align > maxalign)
+			maxalign = f->type->align;
 		if(f->type->width < 0)
 			fatal("invalid width %lld", f->type->width);
 		w = f->type->width;
@@ -248,9 +248,11 @@ dowidth(Type *t)
 	case TSTRUCT:
 		if(t->funarg)
 			fatal("dowidth fn struct %T", t);
-		w = widstruct(t, 0, widthptr);
+		w = widstruct(t, 0, 1);
 		if(w == 0)
 			w = 1;
+		//if(t->align < widthptr)
+		//	warn("align %d: %T\n", t->align, t);
 		break;
 
 	case TFUNC:
@@ -272,6 +274,8 @@ dowidth(Type *t)
 		w = widstruct(*getinarg(t1), w, widthptr);
 		w = widstruct(*getoutarg(t1), w, widthptr);
 		t1->argwid = w;
+		if(w%widthptr)
+			warn("bad type %T %d\n", t1, w);
 		t->align = 1;
 		break;
 	}

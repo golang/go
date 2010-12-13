@@ -1124,7 +1124,7 @@ reswitch:
 	case OPRINT:
 	case OPRINTN:
 		ok |= Etop;
-		typechecklist(n->list, Erv);
+		typechecklist(n->list, Erv | Eindir);  // Eindir: address does not escape
 		goto ret;
 
 	case OPANIC:

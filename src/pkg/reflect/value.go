@@ -730,8 +730,6 @@ type tiny struct {
 // Call calls the function fv with input parameters in.
 // It returns the function's output parameters as Values.
 func (fv *FuncValue) Call(in []Value) []Value {
-	var structAlign = Typeof((*tiny)(nil)).(*PtrType).Elem().Size()
-
 	t := fv.Type().(*FuncType)
 	nin := len(in)
 	if fv.first != nil && !fv.isInterface {
@@ -757,7 +755,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
 		size = (size + a - 1) &^ (a - 1)
 		size += tv.Size()
 	}
-	size = (size + structAlign - 1) &^ (structAlign - 1)
+	size = (size + ptrSize - 1) &^ (ptrSize - 1)
 	for i := 0; i < nout; i++ {
 		tv := t.Out(i)
 		a := uintptr(tv.Align())
@@ -767,9 +765,9 @@ func (fv *FuncValue) Call(in []Value) []Value {
 
 	// size must be > 0 in order for &args[0] to be valid.
 	// the argument copying is going to round it up to
-	// a multiple of 8 anyway, so make it 8 to begin with.
-	if size < 8 {
-		size = 8
+	// a multiple of ptrSize anyway, so make it ptrSize to begin with.
+	if size < ptrSize {
+		size = ptrSize
 	}
 
 	// round to pointer size
@@ -811,7 +809,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
 		memmove(addr(ptr+off), v.getAddr(), n)
 		off += n
 	}
-	off = (off + structAlign - 1) &^ (structAlign - 1)
+	off = (off + ptrSize - 1) &^ (ptrSize - 1)
 
 	// Call
 	call(*(**byte)(fv.addr), (*byte)(addr(ptr)), uint32(size))

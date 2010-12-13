@@ -306,6 +306,7 @@ enum {
  */
 #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
 #define	nil		((void*)0)
+#define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
 
 /*
  * known to compiler
