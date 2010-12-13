@@ -101,7 +101,7 @@ convlit1(Node **np, Type *t, int explicit)
 		break;
 	case OLSH:
 	case ORSH:
-		convlit1(&n->left, t, explicit);
+		convlit1(&n->left, t, explicit && isideal(n->left->type));
 		t = n->left->type;
 		if(t != T && !isint[t->etype]) {
 			yyerror("invalid operation: %#N (shift of type %T)", n, t);
