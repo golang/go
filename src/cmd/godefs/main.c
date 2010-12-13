@@ -133,7 +133,7 @@ Lang go =
 
 	"type %s struct {\n",
 	"type %s struct {\n",
-	"\tPad%d [%d]byte;\n",
+	"\tPad_godefs_%d [%d]byte;\n",
 	"}\n",
 
 	gotypefmt,
@@ -150,7 +150,7 @@ Lang c =
 
 	"typedef struct %s %s;\nstruct %s {\n",
 	"typedef union %s %s;\nunion %s {\n",
-	"\tbyte pad%d[%d];\n",
+	"\tbyte pad_godefs_%d[%d];\n",
 	"};\n",
 
 	ctypefmt,
@@ -391,7 +391,7 @@ Continue:
 				if(cutprefix(name))
 					name += prefix;
 				if(strcmp(name, "") == 0) {
-					snprint(nambuf, sizeof nambuf, "Pad%d", npad++);
+					snprint(nambuf, sizeof nambuf, "Pad_godefs_%d", npad++);
 					name = nambuf;
 				}
 				Bprint(bout, "\t%#lT;\n", name, f->type);
