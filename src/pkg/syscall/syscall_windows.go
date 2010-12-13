@@ -161,7 +161,10 @@ func Errstr(errno int) string {
 	if err != 0 {
 		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
 	}
-	return string(utf16.Decode(b[0 : n-1]))
+	// trim terminating \r and \n
+	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
+	}
+	return string(utf16.Decode(b[:n]))
 }
 
 func Exit(code int) { ExitProcess(uint32(code)) }
