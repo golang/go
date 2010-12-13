@@ -90,7 +90,7 @@ done
 # Implemented as a function so that all.bash can repeat the output
 # after run.bash finishes running all the tests.
 installed() {
-	eval $(gomake -f Make.inc go-env)
+	eval $(gomake --no-print-directory -f Make.inc go-env)
 	echo
 	echo ---
 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
