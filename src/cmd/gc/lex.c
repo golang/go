@@ -194,7 +194,7 @@ main(int argc, char *argv[])
 	fmtinstall('F', Fconv);		// big float numbers
 
 	betypeinit();
-	if(maxround == 0 || widthptr == 0)
+	if(widthptr == 0)
 		fatal("betypeinit failed");
 
 	lexinit();

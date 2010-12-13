@@ -25,7 +25,6 @@ Typedef	typedefs[] =
 void
 betypeinit(void)
 {
-	maxround = 4;
 	widthptr = 4;
 
 	zprog.link = P;
