@@ -541,8 +541,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		goto bad;
 	}
 	if(symtab == nil) {
-		werrstr("no symbol table");
-		goto bad;
+		// our work is done here - no symbols means nothing can refer to this file
+		return;
 	}
 
 	if(c->seg.fileoff+c->seg.filesz >= len) {
@@ -651,7 +651,6 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		}
 		sym->sym = s;
 	}
-	
 
 	// load relocations
 	for(i=0; i<c->seg.nsect; i++) {

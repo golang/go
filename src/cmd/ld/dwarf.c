@@ -1834,6 +1834,8 @@ writelines(void)
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		s = cursym;
+		if(s->text == P)
+			continue;
 
 		// Look for history stack.  If we find one,
 		// we're entering a new compilation unit
