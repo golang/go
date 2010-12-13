@@ -14,13 +14,16 @@ type Ticker struct {
 	C        <-chan int64 // The channel on which the ticks are delivered.
 	c        chan<- int64 // The same channel, but the end we use.
 	ns       int64
-	shutdown bool
+	shutdown chan bool // Buffered channel used to signal shutdown.
 	nextTick int64
 	next     *Ticker
 }
 
 // Stop turns off a ticker.  After Stop, no more ticks will be sent.
-func (t *Ticker) Stop() { t.shutdown = true }
+func (t *Ticker) Stop() {
+	// Make it non-blocking so multiple Stops don't block.
+	_ = t.shutdown <- true
+}
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking
 // channel only.  Useful for clients that have no need to shut down the ticker.
@@ -116,7 +119,7 @@ func tickerLoop() {
 			// that need it and determining the next wake time.
 			// TODO(r): list should be sorted in time order.
 			for t := tickers; t != nil; t = t.next {
-				if t.shutdown {
+				if _, ok := <-t.shutdown; ok {
 					// Ticker is done; remove it from list.
 					if prev == nil {
 						tickers = t.next
@@ -166,7 +169,13 @@ func NewTicker(ns int64) *Ticker {
 		return nil
 	}
 	c := make(chan int64, 1) //  See comment on send in tickerLoop
-	t := &Ticker{c, c, ns, false, Nanoseconds() + ns, nil}
+	t := &Ticker{
+		C:        c,
+		c:        c,
+		ns:       ns,
+		shutdown: make(chan bool, 1),
+		nextTick: Nanoseconds() + ns,
+	}
 	onceStartTickerLoop.Do(startTickerLoop)
 	// must be run in background so global Tickers can be created
 	go func() { newTicker <- t }()
