@@ -143,6 +143,35 @@ calling <code>hello</code> will print <code>"hello, world"</code>
 at some point in the future (perhaps after <code>hello</code> has returned).
 </p>
 
+<h3>Goroutine destruction</h3>
+
+<p>
+The exit of a goroutine is not guaranteed to happen before
+any event in the program.  For example, in this program:
+</p>
+
+<pre>
+var a string
+
+func hello() {
+	go func() { a = "hello" }()
+	print(a)
+}
+</pre>
+
+<p>
+the assignment to <code>a</code> is not followed by
+any synchronization event, so it is not guaranteed to be
+observed by any other goroutine.
+In fact, an aggressive compiler might delete the entire <code>go</code> statement.
+</p>
+
+<p>
+If the effects of a goroutine must be observed by another goroutine,
+use a synchronization mechanism such as a lock or channel
+communiation to establish a relative ordering.
+</p>
+
 <h3>Channel communication</h3>
 
 <p>
