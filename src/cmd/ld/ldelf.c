@@ -484,7 +484,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	// load string table for symbols into memory.
 	obj->symtab = section(obj, ".symtab");
 	if(obj->symtab == nil) {
-		diag("%s: elf object has no symbol table", pn);
+		// our work is done here - no symbols means nothing can refer to this file
 		return;
 	}
 	if(obj->symtab->link <= 0 || obj->symtab->link >= obj->nsect) {
