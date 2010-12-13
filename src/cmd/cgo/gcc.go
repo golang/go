@@ -593,9 +593,9 @@ type typeConv struct {
 	string                                 ast.Expr
 
 	ptrSize int64
-
-	tagGen int
 }
+
+var tagGen int
 
 func (c *typeConv) Init(ptrSize int64) {
 	c.ptrSize = ptrSize
@@ -799,8 +799,8 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		// Have to give it a name to simulate C "struct foo" references.
 		tag := dt.StructName
 		if tag == "" {
-			tag = "__" + strconv.Itoa(c.tagGen)
-			c.tagGen++
+			tag = "__" + strconv.Itoa(tagGen)
+			tagGen++
 		} else if t.C == "" {
 			t.C = dt.Kind + " " + tag
 		}

@@ -219,6 +219,9 @@ func main() {
 	}
 
 	p.writeDefs()
+	if nerrors > 0 {
+		os.Exit(2)
+	}
 }
 
 // Record what needs to be recorded about f.
