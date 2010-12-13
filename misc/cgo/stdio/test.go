@@ -15,7 +15,7 @@ package stdio
 #define SHIFT(x, y)  ((x)<<(y))
 #define KILO SHIFT(1, 10)
 
-enum {
+enum E {
 	Enum1 = 1,
 	Enum2 = 2,
 };
@@ -26,6 +26,28 @@ void uuid_generate(uuid_t x) {
 	x[0] = 0;
 }
 
+struct S {
+	int x;
+};
+
+extern enum E myConstFunc(struct S* const ctx, int const id, struct S **const filter);
+
+enum E myConstFunc(struct S *const ctx, int const id, struct S **const filter) { return 0; }
+
+// issue 1222
+typedef union {
+	long align;
+} xxpthread_mutex_t;
+
+struct ibv_async_event {
+	union {
+		int x;
+	} element;
+};
+
+struct ibv_context {
+	xxpthread_mutex_t mutex;
+};
 */
 import "C"
 import (
@@ -67,6 +89,10 @@ func Atol(s string) int {
 	return int(n)
 }
 
+func TestConst() {
+	C.myConstFunc(nil, 0, nil)
+}
+
 func TestEnum() {
 	if C.Enum1 != 1 || C.Enum2 != 2 {
 		println("bad enum", C.Enum1, C.Enum2)
@@ -105,9 +131,14 @@ var (
 	char  C.char
 )
 
+type Context struct {
+	ctx *C.struct_ibv_context
+}
+
 func Test() {
 	TestAlign()
 	TestAtol()
 	TestEnum()
 	TestErrno()
+	TestConst()
 }

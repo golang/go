@@ -9,6 +9,7 @@ CGOFILES=\
 	align.go\
 	file.go\
 	test.go\
+	test1.go\
 
 CLEANFILES+=hello fib chain run.out
 

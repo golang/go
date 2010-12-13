@@ -34,7 +34,7 @@ func (p *Package) writeDefs() {
 	// Write second Go output: definitions of _C_xxx.
 	// In a separate file so that the import of "unsafe" does not
 	// pollute the original file.
-	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n")
+	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n\n")
 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
 	fmt.Fprintf(fgo2, "import \"os\"\n\n")
@@ -259,7 +259,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
 
 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
-	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
+	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n\n")
 	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
 	printer.Fprint(fgo1, fset, f.AST)
 
@@ -602,7 +602,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			return r
 		}
 	}
-	error(e.Pos(), "unrecognized Go type %v", e)
+	error(e.Pos(), "unrecognized Go type %T", e)
 	return &Type{Size: 4, Align: 4, C: "int"}
 }
 
