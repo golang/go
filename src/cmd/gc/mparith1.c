@@ -475,6 +475,8 @@ Fconv(Fmt *fp)
 		// for well in range, convert to double and use print's %g
 		if(-900 < fvp->exp && fvp->exp < 900) {
 			d = mpgetflt(fvp);
+			if(d >= 0 && (fp->flags & FmtSign))
+				fmtprint(fp, "+");
 			return fmtprint(fp, "%g", d);
 		}
 		// TODO(rsc): for well out of range, print
