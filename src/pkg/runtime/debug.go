@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // Breakpoint() executes a breakpoint trap.
 func Breakpoint()
 
@@ -70,6 +72,15 @@ type MemStatsType struct {
 		Size    uint32
 		Mallocs uint64
 		Frees   uint64
+	}
+}
+
+var sizeof_C_MStats int // filled in by malloc.goc
+
+func init() {
+	if sizeof_C_MStats != unsafe.Sizeof(MemStats) {
+		println(sizeof_C_MStats, unsafe.Sizeof(MemStats))
+		panic("MStats vs MemStatsType size mismatch")
 	}
 }
 

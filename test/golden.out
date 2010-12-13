@@ -173,7 +173,3 @@ panic: interface conversion: interface is main.T, not main.T
 panic PC=xxx
 
 == bugs/
-
-=========== bugs/bug260.go
-FAIL
-BUG: bug260 failed

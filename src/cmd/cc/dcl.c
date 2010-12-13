@@ -552,9 +552,10 @@ void
 sualign(Type *t)
 {
 	Type *l;
-	int32 o, w;
+	int32 o, w, maxal;
 
 	o = 0;
+	maxal = 0;
 	switch(t->etype) {
 
 	case TSTRUCT:
@@ -577,13 +578,14 @@ sualign(Type *t)
 							l->sym->name);
 					else
 						diag(Z, "incomplete structure element");
-				w = align(w, l, Ael1);
+				w = align(w, l, Ael1, &maxal);
 				l->offset = w;
-				w = align(w, l, Ael2);
+				w = align(w, l, Ael2, &maxal);
 			}
 		}
-		w = align(w, t, Asu2);
+		w = align(w, t, Asu2, &maxal);
 		t->width = w;
+		t->align = maxal;
 		acidtype(t);
 		pickletype(t);
 		return;
@@ -600,12 +602,13 @@ sualign(Type *t)
 					diag(Z, "incomplete union element");
 			l->offset = 0;
 			l->shift = 0;
-			o = align(align(0, l, Ael1), l, Ael2);
+			o = align(align(0, l, Ael1, &maxal), l, Ael2, &maxal);
 			if(o > w)
 				w = o;
 		}
-		w = align(w, t, Asu2);
+		w = align(w, t, Asu2, &maxal);
 		t->width = w;
+		t->align = maxal;
 		acidtype(t);
 		pickletype(t);
 		return;
@@ -663,7 +666,7 @@ argmark(Node *n, int pass)
 {
 	Type *t;
 
-	autoffset = align(0, thisfn->link, Aarg0);
+	autoffset = align(0, thisfn->link, Aarg0, nil);
 	stkoff = 0;
 	for(; n->left != Z; n = n->left) {
 		if(n->op != OFUNC || n->left->op != ONAME)
@@ -745,9 +748,9 @@ loop:
 				firstarg = s;
 				firstargtype = s->type;
 			}
-			autoffset = align(autoffset, s->type, Aarg1);
+			autoffset = align(autoffset, s->type, Aarg1, nil);
 			s->offset = autoffset;
-			autoffset = align(autoffset, s->type, Aarg2);
+			autoffset = align(autoffset, s->type, Aarg2, nil);
 		} else
 			dodecl(pdecl, CXXX, types[TINT], n);
 		break;
@@ -1275,7 +1278,7 @@ adecl(int c, Type *t, Sym *s)
 	}
 	switch(c) {
 	case CAUTO:
-		autoffset = align(autoffset, t, Aaut3);
+		autoffset = align(autoffset, t, Aaut3, nil);
 		stkoff = maxround(stkoff, autoffset);
 		s->offset = -autoffset;
 		break;
@@ -1285,10 +1288,10 @@ adecl(int c, Type *t, Sym *s)
 			firstarg = s;
 			firstargtype = t;
 		}
-		autoffset = align(autoffset, t, Aarg1);
+		autoffset = align(autoffset, t, Aarg1, nil);
 		if(s)
 			s->offset = autoffset;
-		autoffset = align(autoffset, t, Aarg2);
+		autoffset = align(autoffset, t, Aarg2, nil);
 		break;
 	}
 }
@@ -1587,7 +1590,7 @@ contig(Sym *s, Node *n, int32 v)
 		if(v != 0)
 			diag(n, "automatic adjustable array: %s", s->name);
 		v = s->offset;
-		autoffset = align(autoffset, s->type, Aaut3);
+		autoffset = align(autoffset, s->type, Aaut3, nil);
 		s->offset = -autoffset;
 		stkoff = maxround(stkoff, autoffset);
 		symadjust(s, n, v - s->offset);

@@ -37,7 +37,7 @@ argsize(void)
 	int32 s;
 
 //print("t=%T\n", thisfn);
-	s = align(0, thisfn->link, Aarg0);
+	s = align(0, thisfn->link, Aarg0, nil);
 	for(t=thisfn->down; t!=T; t=t->down) {
 		switch(t->etype) {
 		case TVOID:
@@ -47,8 +47,8 @@ argsize(void)
 			s += 64;
 			break;
 		default:
-			s = align(s, t, Aarg1);
-			s = align(s, t, Aarg2);
+			s = align(s, t, Aarg1, nil);
+			s = align(s, t, Aarg2, nil);
 			break;
 		}
 //print("	%d %T\n", s, t);
@@ -99,7 +99,7 @@ codgen(Node *n, Node *nn)
 			nod1 = *nodret->left;
 			nod1.sym = firstarg;
 			nod1.type = firstargtype;
-			nod1.xoffset = align(0, firstargtype, Aarg1);
+			nod1.xoffset = align(0, firstargtype, Aarg1, nil);
 			nod1.etype = firstargtype->etype;
 			nodreg(&nod, &nod1, REGARG);
 			gmove(&nod, &nod1);

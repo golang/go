@@ -166,6 +166,7 @@ struct	Type
 	uchar	nbits;
 	uchar	etype;
 	uchar	garb;
+	uchar	align;
 };
 
 #define	T	((Type*)0)
@@ -785,7 +786,7 @@ int32	outlstring(ushort*, int32);
 void	sextern(Sym*, Node*, int32, int32);
 void	xcom(Node*);
 int32	exreg(Type*);
-int32	align(int32, Type*, int);
+int32	align(int32, Type*, int, int32*);
 int32	maxround(int32, int32);
 
 extern	schar	ewidth[];

@@ -57,7 +57,7 @@ vaddr(Node *n, int a)
 int32
 hi64v(Node *n)
 {
-	if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
+	if(align(0, types[TCHAR], Aarg1, nil))	/* isbigendian */
 		return (int32)(n->vconst) & ~0L;
 	else
 		return (int32)((uvlong)n->vconst>>32) & ~0L;
@@ -66,7 +66,7 @@ hi64v(Node *n)
 int32
 lo64v(Node *n)
 {
-	if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
+	if(align(0, types[TCHAR], Aarg1, nil))	/* isbigendian */
 		return (int32)((uvlong)n->vconst>>32) & ~0L;
 	else
 		return (int32)(n->vconst) & ~0L;

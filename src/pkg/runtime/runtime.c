@@ -258,6 +258,13 @@ runtime·check(void)
 	float64 j;
 	void* k;
 	uint16* l;
+	struct x1 {
+		byte x;
+	};
+	struct y1 {
+		struct x1 x1;
+		byte y;
+	};
 
 	if(sizeof(a) != 1) runtime·throw("bad a");
 	if(sizeof(b) != 1) runtime·throw("bad b");
@@ -271,7 +278,9 @@ runtime·check(void)
 	if(sizeof(j) != 8) runtime·throw("bad j");
 	if(sizeof(k) != sizeof(uintptr)) runtime·throw("bad k");
 	if(sizeof(l) != sizeof(uintptr)) runtime·throw("bad l");
-//	prints(1"check ok\n");
+	if(sizeof(struct x1) != 1) runtime·throw("bad sizeof x1");
+	if(offsetof(struct y1, y) != 1) runtime·throw("bad offsetof y1.y");
+	if(sizeof(struct y1) != 2) runtime·throw("bad sizeof y1");
 
 	uint32 z;
 	z = 1;

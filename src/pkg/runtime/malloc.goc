@@ -244,6 +244,8 @@ runtime·allocmcache(void)
 	return c;
 }
 
+int32 runtime·sizeof_C_MStats = sizeof(MStats);
+
 void
 runtime·mallocinit(void)
 {
