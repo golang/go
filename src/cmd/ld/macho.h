@@ -91,3 +91,4 @@ enum {
 void	domacho(void);
 vlong	domacholink(void);
 void	asmbmacho(void);
+void	machoadddynlib(char*);
