@@ -598,7 +598,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	//		alg uint8;
 	//		align uint8;
 	//		fieldAlign uint8;
-        //              kind uint8;
+	//		kind uint8;
 	//		string *string;
 	//		*nameInfo;
 	//	}
@@ -617,7 +617,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	if(t->etype == TARRAY && t->bound < 0)
 		i = KindSlice;
 	if(isptr[t->etype] && t->type->etype == TANY)
-                i = KindUnsafePointer;
+		i = KindUnsafePointer;
 	if(!haspointers(t))
 		i |= KindNoPointers;
 	ot = duint8(s, ot, i);  // kind
@@ -678,11 +678,10 @@ typename(Type *t)
 static Sym*
 dtypesym(Type *t)
 {
-	int ot, n, isddd;
+	int ot, n, isddd, dupok;
 	Sym *s, *s1, *s2;
 	Sig *a, *m;
-	Type *t1;
-	Sym *tsym;
+	Type *t1, *tbase;
 
 	if(isideal(t))
 		fatal("dtypesym %T", t);
@@ -695,30 +694,22 @@ dtypesym(Type *t)
 	// special case (look for runtime below):
 	// when compiling package runtime,
 	// emit the type structures for int, float, etc.
-	t1 = T;
-	if(isptr[t->etype])
-		t1 = t->type;
-	tsym = S;
-	if(t1)
-		tsym = t1->sym;
-	else
-		tsym = t->sym;
+	tbase = t;
+	if(isptr[t->etype] && t->sym == S && t->type->sym != S)
+		tbase = t->type;
+	dupok = tbase->sym == S;
 
 	if(compiling_runtime) {
-		if(t == types[t->etype])
+		if(tbase == types[tbase->etype])	// int, float, etc
 			goto ok;
-		if(t1 && t1 == types[t1->etype])
-			goto ok;
-		if(t1 && t1->etype == tptr && t1->type->etype == TANY)
+		if(tbase->etype == tptr && tbase->type->etype == TANY)	// unsafe.Pointer
 			goto ok;
 	}
 
-	// named types from other files are defined in those files
-	if(t->sym && !t->local)
+	// named types from other files are defined only by those files
+	if(tbase->sym && !tbase->local)
 		return s;
-	if(!t->sym && t1 && t1->sym && !t1->local)
-		return s;
-	if(isforw[t->etype] || (t1 && isforw[t1->etype]))
+	if(isforw[tbase->etype])
 		return s;
 
 ok:
@@ -813,7 +804,7 @@ ok:
 	case TPTR32:
 	case TPTR64:
 		if(t->type->etype == TANY) {
-                        // ../../pkg/runtime/type.go:/UnsafePointerType
+			// ../../pkg/runtime/type.go:/UnsafePointerType
 			ot = dcommontype(s, ot, t);
 			break;
 		}
@@ -854,7 +845,7 @@ ok:
 		break;
 	}
 
-	ggloblsym(s, ot, tsym == nil);
+	ggloblsym(s, ot, dupok);
 	return s;
 }
 
@@ -882,7 +873,7 @@ dumptypestructs(void)
 			continue;
 		t = n->type;
 		dtypesym(t);
-		if(t->sym && !isptr[t->etype])
+		if(t->sym)
 			dtypesym(ptrto(t));
 	}
 
