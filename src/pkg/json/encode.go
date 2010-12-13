@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"utf8"
 )
 
 // Marshal returns the JSON encoding of v.
@@ -127,6 +128,14 @@ type UnsupportedTypeError struct {
 
 func (e *UnsupportedTypeError) String() string {
 	return "json: unsupported type: " + e.Type.String()
+}
+
+type InvalidUTF8Error struct {
+	S string
+}
+
+func (e *InvalidUTF8Error) String() string {
+	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
 }
 
 type MarshalerError struct {
@@ -281,18 +290,36 @@ func (sv stringValues) get(i int) string   { return sv[i].(*reflect.StringValue)
 
 func (e *encodeState) string(s string) {
 	e.WriteByte('"')
-	for _, c := range s {
-		switch {
-		case c < 0x20:
-			e.WriteString(`\u00`)
-			e.WriteByte(hex[c>>4])
-			e.WriteByte(hex[c&0xF])
-		case c == '\\' || c == '"':
-			e.WriteByte('\\')
-			fallthrough
-		default:
-			e.WriteRune(c)
+	start := 0
+	for i := 0; i < len(s); {
+		if b := s[i]; b < utf8.RuneSelf {
+			if 0x20 <= b && b != '\\' && b != '"' {
+				i++
+				continue
+			}
+			if start < i {
+				e.WriteString(s[start:i])
+			}
+			if b == '\\' || b == '"' {
+				e.WriteByte('\\')
+				e.WriteByte(b)
+			} else {
+				e.WriteString(`\u00`)
+				e.WriteByte(hex[b>>4])
+				e.WriteByte(hex[b&0xF])
+			}
+			i++
+			start = i
+			continue
 		}
+		c, size := utf8.DecodeRuneInString(s[i:])
+		if c == utf8.RuneError && size == 1 {
+			e.error(&InvalidUTF8Error{s})
+		}
+		i += size
+	}
+	if start < len(s) {
+		e.WriteString(s[start:])
 	}
 	e.WriteByte('"')
 }
