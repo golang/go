@@ -36,11 +36,4 @@ runtime·SysFree(void *v, uintptr n)
 void
 runtime·SysMemInit(void)
 {
-	// Code generators assume that references to addresses
-	// on the first page will fault.  Map the page explicitly with
-	// no permissions, to head off possible bugs like the system
-	// allocating that page as the virtual address space fills.
-	// Ignore any error, since other systems might be smart
-	// enough to never allow anything there.
-//	mmap(nil, 4096, PROT_NONE, MAP_FIXED|MAP_ANON|MAP_PRIVATE, -1, 0);
 }
