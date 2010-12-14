@@ -7,8 +7,10 @@ package flate
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -79,7 +81,7 @@ func getLargeDataChunk() []byte {
 
 func TestDeflate(t *testing.T) {
 	for _, h := range deflateTests {
-		buffer := bytes.NewBuffer([]byte{})
+		buffer := bytes.NewBuffer(nil)
 		w := NewWriter(buffer, h.level)
 		w.Write(h.in)
 		w.Close()
@@ -90,21 +92,144 @@ func TestDeflate(t *testing.T) {
 	}
 }
 
+type syncBuffer struct {
+	buf    bytes.Buffer
+	mu     sync.RWMutex
+	closed bool
+	ready  chan bool
+}
+
+func newSyncBuffer() *syncBuffer {
+	return &syncBuffer{ready: make(chan bool, 1)}
+}
+
+func (b *syncBuffer) Read(p []byte) (n int, err os.Error) {
+	for {
+		b.mu.RLock()
+		n, err = b.buf.Read(p)
+		b.mu.RUnlock()
+		if n > 0 || b.closed {
+			return
+		}
+		<-b.ready
+	}
+	panic("unreachable")
+}
+
+func (b *syncBuffer) Write(p []byte) (n int, err os.Error) {
+	n, err = b.buf.Write(p)
+	_ = b.ready <- true
+	return
+}
+
+func (b *syncBuffer) WriteMode() {
+	b.mu.Lock()
+}
+
+func (b *syncBuffer) ReadMode() {
+	b.mu.Unlock()
+	_ = b.ready <- true
+}
+
+func (b *syncBuffer) Close() os.Error {
+	b.closed = true
+	_ = b.ready <- true
+	return nil
+}
+
+func testSync(t *testing.T, level int, input []byte, name string) {
+	if len(input) == 0 {
+		return
+	}
+
+	t.Logf("--testSync %d, %d, %s", level, len(input), name)
+	buf := newSyncBuffer()
+	buf1 := new(bytes.Buffer)
+	buf.WriteMode()
+	w := NewWriter(io.MultiWriter(buf, buf1), level)
+	r := NewReader(buf)
+
+	// Write half the input and read back.
+	for i := 0; i < 2; i++ {
+		var lo, hi int
+		if i == 0 {
+			lo, hi = 0, (len(input)+1)/2
+		} else {
+			lo, hi = (len(input)+1)/2, len(input)
+		}
+		t.Logf("#%d: write %d-%d", i, lo, hi)
+		if _, err := w.Write(input[lo:hi]); err != nil {
+			t.Errorf("testSync: write: %v", err)
+			return
+		}
+		if i == 0 {
+			if err := w.Flush(); err != nil {
+				t.Errorf("testSync: flush: %v", err)
+				return
+			}
+		} else {
+			if err := w.Close(); err != nil {
+				t.Errorf("testSync: close: %v", err)
+			}
+		}
+		buf.ReadMode()
+		out := make([]byte, hi-lo+1)
+		m, err := io.ReadAtLeast(r, out, hi-lo)
+		t.Logf("#%d: read %d", i, m)
+		if m != hi-lo || err != nil {
+			t.Errorf("testSync/%d (%d, %d, %s): read %d: %d, %v (%d left)", i, level, len(input), name, hi-lo, m, err, buf.buf.Len())
+			return
+		}
+		if !bytes.Equal(input[lo:hi], out[:hi-lo]) {
+			t.Errorf("testSync/%d: read wrong bytes: %x vs %x", i, input[lo:hi], out[:hi-lo])
+			return
+		}
+		if i == 0 && buf.buf.Len() != 0 {
+			t.Errorf("testSync/%d (%d, %d, %s): extra data after %d", i, level, len(input), name, hi-lo)
+		}
+		buf.WriteMode()
+	}
+	buf.ReadMode()
+	out := make([]byte, 10)
+	if n, err := r.Read(out); n > 0 || err != os.EOF {
+		t.Errorf("testSync (%d, %d, %s): final Read: %d, %v (hex: %x)", level, len(input), name, n, err, out[0:n])
+	}
+	if buf.buf.Len() != 0 {
+		t.Errorf("testSync (%d, %d, %s): extra data at end", level, len(input), name)
+	}
+	r.Close()
+
+	// stream should work for ordinary reader too
+	r = NewReader(buf1)
+	out, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Errorf("testSync: read: %s", err)
+		return
+	}
+	r.Close()
+	if !bytes.Equal(input, out) {
+		t.Errorf("testSync: decompress(compress(data)) != data: level=%d input=%s", level, name)
+	}
+}
+
+
 func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.Error {
-	buffer := bytes.NewBuffer([]byte{})
+	buffer := bytes.NewBuffer(nil)
 	w := NewWriter(buffer, level)
 	w.Write(input)
 	w.Close()
-	decompressor := NewReader(buffer)
-	decompressed, err := ioutil.ReadAll(decompressor)
+	r := NewReader(buffer)
+	out, err := ioutil.ReadAll(r)
 	if err != nil {
-		t.Errorf("reading decompressor: %s", err)
+		t.Errorf("read: %s", err)
 		return err
 	}
-	decompressor.Close()
-	if bytes.Compare(input, decompressed) != 0 {
+	r.Close()
+	if !bytes.Equal(input, out) {
 		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name)
 	}
+
+	testSync(t, level, input, name)
 	return nil
 }
 
