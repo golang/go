@@ -1028,7 +1028,6 @@ runtime·panic(Eface e)
 	}
 
 	// ran out of deferred calls - old-school panic now
-	runtime·fd = 2;
 	printpanics(g->panic);
 	runtime·dopanic(0);
 }

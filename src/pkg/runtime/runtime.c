@@ -9,7 +9,6 @@ enum {
 };
 
 int32	runtime·panicking	= 0;
-int32	runtime·fd		= 1;
 
 int32
 runtime·gotraceback(void)
@@ -25,7 +24,6 @@ runtime·gotraceback(void)
 void
 runtime·dopanic(int32 unused)
 {
-	runtime·fd = 2;
 	if(runtime·panicking) {
 		runtime·printf("double panic\n");
 		runtime·exit(3);
@@ -70,7 +68,6 @@ runtime·throwinit(void)
 void
 runtime·throw(int8 *s)
 {
-	runtime·fd = 2;
 	runtime·printf("throw: %s\n", s);
 	runtime·dopanic(0);
 	*(int32*)0 = 0;	// not reached

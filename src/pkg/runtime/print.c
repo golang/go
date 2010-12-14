@@ -29,7 +29,7 @@ runtime·dump(byte *p, int32 n)
 void
 runtime·prints(int8 *s)
 {
-	runtime·write(runtime·fd, s, runtime·findnull((byte*)s));
+	runtime·write(2, s, runtime·findnull((byte*)s));
 }
 
 #pragma textflag 7
@@ -65,7 +65,7 @@ vprintf(int8 *s, byte *arg)
 		if(*p != '%')
 			continue;
 		if(p > lp)
-			runtime·write(runtime·fd, lp, p-lp);
+			runtime·write(2, lp, p-lp);
 		p++;
 		narg = nil;
 		switch(*p) {
@@ -155,7 +155,7 @@ vprintf(int8 *s, byte *arg)
 		lp = p+1;
 	}
 	if(p > lp)
-		runtime·write(runtime·fd, lp, p-lp);
+		runtime·write(2, lp, p-lp);
 
 //	unlock(&debuglock);
 }
@@ -181,10 +181,10 @@ void
 runtime·printbool(bool v)
 {
 	if(v) {
-		runtime·write(runtime·fd, (byte*)"true", 4);
+		runtime·write(2, (byte*)"true", 4);
 		return;
 	}
-	runtime·write(runtime·fd, (byte*)"false", 5);
+	runtime·write(2, (byte*)"false", 5);
 }
 
 void
@@ -195,15 +195,15 @@ runtime·printfloat(float64 v)
 	float64 h;
 
 	if(runtime·isNaN(v)) {
-		runtime·write(runtime·fd, "NaN", 3);
+		runtime·write(2, "NaN", 3);
 		return;
 	}
 	if(runtime·isInf(v, 1)) {
-		runtime·write(runtime·fd, "+Inf", 4);
+		runtime·write(2, "+Inf", 4);
 		return;
 	}
 	if(runtime·isInf(v, -1)) {
-		runtime·write(runtime·fd, "-Inf", 4);
+		runtime·write(2, "-Inf", 4);
 		return;
 	}
 
@@ -262,16 +262,16 @@ runtime·printfloat(float64 v)
 	buf[n+4] = (e/100) + '0';
 	buf[n+5] = (e/10)%10 + '0';
 	buf[n+6] = (e%10) + '0';
-	runtime·write(runtime·fd, buf, n+7);
+	runtime·write(2, buf, n+7);
 }
 
 void
 runtime·printcomplex(Complex128 v)
 {
-	runtime·write(runtime·fd, "(", 1);
+	runtime·write(2, "(", 1);
 	runtime·printfloat(v.real);
 	runtime·printfloat(v.imag);
-	runtime·write(runtime·fd, "i)", 2);
+	runtime·write(2, "i)", 2);
 }
 
 void
@@ -286,14 +286,14 @@ runtime·printuint(uint64 v)
 			break;
 		v = v/10;
 	}
-	runtime·write(runtime·fd, buf+i, nelem(buf)-i);
+	runtime·write(2, buf+i, nelem(buf)-i);
 }
 
 void
 runtime·printint(int64 v)
 {
 	if(v < 0) {
-		runtime·write(runtime·fd, "-", 1);
+		runtime·write(2, "-", 1);
 		v = -v;
 	}
 	runtime·printuint(v);
@@ -313,7 +313,7 @@ runtime·printhex(uint64 v)
 		buf[--i] = '0';
 	buf[--i] = 'x';
 	buf[--i] = '0';
-	runtime·write(runtime·fd, buf+i, nelem(buf)-i);
+	runtime·write(2, buf+i, nelem(buf)-i);
 }
 
 void
@@ -328,23 +328,23 @@ runtime·printstring(String v)
 	extern int32 runtime·maxstring;
 
 	if(v.len > runtime·maxstring) {
-		runtime·write(runtime·fd, "[invalid string]", 16);
+		runtime·write(2, "[invalid string]", 16);
 		return;
 	}
 	if(v.len > 0)
-		runtime·write(runtime·fd, v.str, v.len);
+		runtime·write(2, v.str, v.len);
 }
 
 void
 runtime·printsp(void)
 {
-	runtime·write(runtime·fd, " ", 1);
+	runtime·write(2, " ", 1);
 }
 
 void
 runtime·printnl(void)
 {
-	runtime·write(runtime·fd, "\n", 1);
+	runtime·write(2, "\n", 1);
 }
 
 void
