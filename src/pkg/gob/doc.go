@@ -70,7 +70,7 @@ operation will fail.
 Structs, arrays and slices are also supported.  Strings and arrays of bytes are
 supported with a special, efficient representation (see below).
 
-Interfaces, functions, and channels cannot be sent in a gob.  Attempting
+Functions and channels cannot be sent in a gob.  Attempting
 to encode a value that contains one will fail.
 
 The rest of this comment documents the encoding, details that are not important
@@ -202,9 +202,14 @@ priori, as well as the basic gob types int, uint, etc.  Their ids are:
 	// 22 is slice of fieldType.
 	mapType     23
 
+Finally, each message created by a call to Encode is preceded by an encoded
+unsigned integer count of the number of bytes remaining in the message.  After
+the initial type name, interface values are wrapped the same way; in effect, the
+interface value acts like a recursive invocation of Encode.
+
 In summary, a gob stream looks like
 
-	((-type id, encoding of a wireType)* (type id, encoding of a value))*
+	(byteCount (-type id, encoding of a wireType)* (type id, encoding of a value))*
 
 where * signifies zero or more repetitions and the type id of a value must
 be predefined or be defined before the value in the stream.
