@@ -89,26 +89,61 @@ var (
 	ErrBadBackslash        = Error("illegal backslash escape")
 )
 
+const (
+	iStart     = iota // beginning of program
+	iEnd              // end of program: success
+	iBOT              // '^' beginning of text
+	iEOT              // '$' end of text
+	iChar             // 'a' regular character
+	iCharClass        // [a-z] character class
+	iAny              // '.' any character including newline
+	iNotNL            // [^\n] special case: any character but newline
+	iBra              // '(' parenthesized expression
+	iEbra             // ')'; end of '(' parenthesized expression
+	iAlt              // '|' alternation
+	iNop              // do nothing; makes it easy to link without patching
+)
+
 // An instruction executed by the NFA
-type instr interface {
-	kind() int   // the type of this instruction: _CHAR, _ANY, etc.
-	next() instr // the instruction to execute after this one
-	setNext(i instr)
-	index() int
-	setIndex(i int)
-	print()
+type instr struct {
+	kind  int    // the type of this instruction: iChar, iAny, etc.
+	index int    // used only in debugging; could be eliminated
+	next  *instr // the instruction to execute after this one
+	// Special fields valid only for some items.
+	char   int        // iChar
+	braNum int        // iBra, iEbra
+	cclass *charClass // iCharClass
+	left   *instr     // iAlt, other branch
 }
 
-// Fields and methods common to all instructions
-type common struct {
-	_next  instr
-	_index int
+func (i *instr) print() {
+	switch i.kind {
+	case iStart:
+		print("start")
+	case iEnd:
+		print("end")
+	case iBOT:
+		print("bot")
+	case iEOT:
+		print("eot")
+	case iChar:
+		print("char ", string(i.char))
+	case iCharClass:
+		i.cclass.print()
+	case iAny:
+		print("any")
+	case iNotNL:
+		print("notnl")
+	case iBra:
+		print("bra", i.braNum)
+	case iEbra:
+		print("ebra", i.braNum)
+	case iAlt:
+		print("alt(", i.left.index, ")")
+	case iNop:
+		print("nop")
+	}
 }
-
-func (c *common) next() instr     { return c._next }
-func (c *common) setNext(i instr) { c._next = i }
-func (c *common) index() int      { return c._index }
-func (c *common) setIndex(i int)  { c._index = i }
 
 // Regexp is the representation of a compiled regular expression.
 // The public interface is entirely through methods.
@@ -116,87 +151,20 @@ type Regexp struct {
 	expr        string // the original expression
 	prefix      string // initial plain text string
 	prefixBytes []byte // initial plain text bytes
-	inst        []instr
-	start       instr // first instruction of machine
-	prefixStart instr // where to start if there is a prefix
-	nbra        int   // number of brackets in expression, for subexpressions
+	inst        []*instr
+	start       *instr // first instruction of machine
+	prefixStart *instr // where to start if there is a prefix
+	nbra        int    // number of brackets in expression, for subexpressions
 }
 
-const (
-	_START     = iota // beginning of program
-	_END              // end of program: success
-	_BOT              // '^' beginning of text
-	_EOT              // '$' end of text
-	_CHAR             // 'a' regular character
-	_CHARCLASS        // [a-z] character class
-	_ANY              // '.' any character including newline
-	_NOTNL            // [^\n] special case: any character but newline
-	_BRA              // '(' parenthesized expression
-	_EBRA             // ')'; end of '(' parenthesized expression
-	_ALT              // '|' alternation
-	_NOP              // do nothing; makes it easy to link without patching
-)
-
-// --- START start of program
-type _Start struct {
-	common
-}
-
-func (start *_Start) kind() int { return _START }
-func (start *_Start) print()    { print("start") }
-
-// --- END end of program
-type _End struct {
-	common
-}
-
-func (end *_End) kind() int { return _END }
-func (end *_End) print()    { print("end") }
-
-// --- BOT beginning of text
-type _Bot struct {
-	common
-}
-
-func (bot *_Bot) kind() int { return _BOT }
-func (bot *_Bot) print()    { print("bot") }
-
-// --- EOT end of text
-type _Eot struct {
-	common
-}
-
-func (eot *_Eot) kind() int { return _EOT }
-func (eot *_Eot) print()    { print("eot") }
-
-// --- CHAR a regular character
-type _Char struct {
-	common
-	char int
-}
-
-func (char *_Char) kind() int { return _CHAR }
-func (char *_Char) print()    { print("char ", string(char.char)) }
-
-func newChar(char int) *_Char {
-	c := new(_Char)
-	c.char = char
-	return c
-}
-
-// --- CHARCLASS [a-z]
-
-type _CharClass struct {
-	common
+type charClass struct {
 	negate bool // is character class negated? ([^a-z])
 	// slice of int, stored pairwise: [a-z] is (a,z); x is (x,x):
 	ranges     []int
 	cmin, cmax int
 }
 
-func (cclass *_CharClass) kind() int { return _CHARCLASS }
-
-func (cclass *_CharClass) print() {
+func (cclass *charClass) print() {
 	print("charclass")
 	if cclass.negate {
 		print(" (negated)")
@@ -212,7 +180,7 @@ func (cclass *_CharClass) print() {
 	}
 }
 
-func (cclass *_CharClass) addRange(a, b int) {
+func (cclass *charClass) addRange(a, b int) {
 	// range is a through b inclusive
 	cclass.ranges = append(cclass.ranges, a, b)
 	if a < cclass.cmin {
@@ -223,7 +191,7 @@ func (cclass *_CharClass) addRange(a, b int) {
 	}
 }
 
-func (cclass *_CharClass) matches(c int) bool {
+func (cclass *charClass) matches(c int) bool {
 	if c < cclass.cmin || c > cclass.cmax {
 		return cclass.negate
 	}
@@ -236,67 +204,17 @@ func (cclass *_CharClass) matches(c int) bool {
 	return cclass.negate
 }
 
-func newCharClass() *_CharClass {
-	c := new(_CharClass)
-	c.ranges = make([]int, 0, 4)
-	c.cmin = 0x10FFFF + 1 // MaxRune + 1
-	c.cmax = -1
-	return c
+func newCharClass() *instr {
+	i := &instr{kind: iCharClass}
+	i.cclass = new(charClass)
+	i.cclass.ranges = make([]int, 0, 4)
+	i.cclass.cmin = 0x10FFFF + 1 // MaxRune + 1
+	i.cclass.cmax = -1
+	return i
 }
 
-// --- ANY any character
-type _Any struct {
-	common
-}
-
-func (any *_Any) kind() int { return _ANY }
-func (any *_Any) print()    { print("any") }
-
-// --- NOTNL any character but newline
-type _NotNl struct {
-	common
-}
-
-func (notnl *_NotNl) kind() int { return _NOTNL }
-func (notnl *_NotNl) print()    { print("notnl") }
-
-// --- BRA parenthesized expression
-type _Bra struct {
-	common
-	n int // subexpression number
-}
-
-func (bra *_Bra) kind() int { return _BRA }
-func (bra *_Bra) print()    { print("bra", bra.n) }
-
-// --- EBRA end of parenthesized expression
-type _Ebra struct {
-	common
-	n int // subexpression number
-}
-
-func (ebra *_Ebra) kind() int { return _EBRA }
-func (ebra *_Ebra) print()    { print("ebra ", ebra.n) }
-
-// --- ALT alternation
-type _Alt struct {
-	common
-	left instr // other branch
-}
-
-func (alt *_Alt) kind() int { return _ALT }
-func (alt *_Alt) print()    { print("alt(", alt.left.index(), ")") }
-
-// --- NOP no operation
-type _Nop struct {
-	common
-}
-
-func (nop *_Nop) kind() int { return _NOP }
-func (nop *_Nop) print()    { print("nop") }
-
-func (re *Regexp) add(i instr) instr {
-	i.setIndex(len(re.inst))
+func (re *Regexp) add(i *instr) *instr {
+	i.index = len(re.inst)
 	re.inst = append(re.inst, i)
 	return i
 }
@@ -364,8 +282,9 @@ func escape(c int) int {
 	return -1
 }
 
-func (p *parser) charClass() instr {
-	cc := newCharClass()
+func (p *parser) charClass() *instr {
+	i := newCharClass()
+	cc := i.cclass
 	if p.c() == '^' {
 		cc.negate = true
 		p.nextc()
@@ -380,18 +299,18 @@ func (p *parser) charClass() instr {
 			// Is it [^\n]?
 			if cc.negate && len(cc.ranges) == 2 &&
 				cc.ranges[0] == '\n' && cc.ranges[1] == '\n' {
-				nl := new(_NotNl)
+				nl := &instr{kind: iNotNL}
 				p.re.add(nl)
 				return nl
 			}
 			// Special common case: "[a]" -> "a"
 			if !cc.negate && len(cc.ranges) == 2 && cc.ranges[0] == cc.ranges[1] {
-				c := newChar(cc.ranges[0])
+				c := &instr{kind: iChar, char: cc.ranges[0]}
 				p.re.add(c)
 				return c
 			}
-			p.re.add(cc)
-			return cc
+			p.re.add(i)
+			return i
 		case '-': // do this before backslash processing
 			p.error(ErrBadRange)
 		case '\\':
@@ -428,7 +347,7 @@ func (p *parser) charClass() instr {
 	return nil
 }
 
-func (p *parser) term() (start, end instr) {
+func (p *parser) term() (start, end *instr) {
 	switch c := p.c(); c {
 	case '|', endOfFile:
 		return nil, nil
@@ -443,15 +362,15 @@ func (p *parser) term() (start, end instr) {
 		p.error(ErrUnmatchedRbkt)
 	case '^':
 		p.nextc()
-		start = p.re.add(new(_Bot))
+		start = p.re.add(&instr{kind: iBOT})
 		return start, start
 	case '$':
 		p.nextc()
-		start = p.re.add(new(_Eot))
+		start = p.re.add(&instr{kind: iEOT})
 		return start, start
 	case '.':
 		p.nextc()
-		start = p.re.add(new(_Any))
+		start = p.re.add(&instr{kind: iAny})
 		return start, start
 	case '[':
 		p.nextc()
@@ -472,12 +391,12 @@ func (p *parser) term() (start, end instr) {
 		}
 		p.nlpar--
 		p.nextc()
-		bra := new(_Bra)
+		bra := &instr{kind: iBra}
 		p.re.add(bra)
-		ebra := new(_Ebra)
+		ebra := &instr{kind: iEbra}
 		p.re.add(ebra)
-		bra.n = nbra
-		ebra.n = nbra
+		bra.braNum = nbra
+		ebra.braNum = nbra
 		if start == nil {
 			if end == nil {
 				p.error(ErrInternal)
@@ -485,9 +404,9 @@ func (p *parser) term() (start, end instr) {
 			}
 			start = ebra
 		} else {
-			end.setNext(ebra)
+			end.next = ebra
 		}
-		bra.setNext(start)
+		bra.next = start
 		return bra, ebra
 	case '\\':
 		c = p.nextc()
@@ -504,14 +423,14 @@ func (p *parser) term() (start, end instr) {
 		fallthrough
 	default:
 		p.nextc()
-		start = newChar(c)
+		start = &instr{kind: iChar, char: c}
 		p.re.add(start)
 		return start, start
 	}
 	panic("unreachable")
 }
 
-func (p *parser) closure() (start, end instr) {
+func (p *parser) closure() (start, end *instr) {
 	start, end = p.term()
 	if start == nil {
 		return
@@ -519,28 +438,28 @@ func (p *parser) closure() (start, end instr) {
 	switch p.c() {
 	case '*':
 		// (start,end)*:
-		alt := new(_Alt)
+		alt := &instr{kind: iAlt}
 		p.re.add(alt)
-		end.setNext(alt) // after end, do alt
+		end.next = alt   // after end, do alt
 		alt.left = start // alternate brach: return to start
 		start = alt      // alt becomes new (start, end)
 		end = alt
 	case '+':
 		// (start,end)+:
-		alt := new(_Alt)
+		alt := &instr{kind: iAlt}
 		p.re.add(alt)
-		end.setNext(alt) // after end, do alt
+		end.next = alt   // after end, do alt
 		alt.left = start // alternate brach: return to start
 		end = alt        // start is unchanged; end is alt
 	case '?':
 		// (start,end)?:
-		alt := new(_Alt)
+		alt := &instr{kind: iAlt}
 		p.re.add(alt)
-		nop := new(_Nop)
+		nop := &instr{kind: iNop}
 		p.re.add(nop)
 		alt.left = start // alternate branch is start
-		alt.setNext(nop) // follow on to nop
-		end.setNext(nop) // after end, go to nop
+		alt.next = nop   // follow on to nop
+		end.next = nop   // after end, go to nop
 		start = alt      // start is now alt
 		end = nop        // end is nop pointed to by both branches
 	default:
@@ -553,27 +472,27 @@ func (p *parser) closure() (start, end instr) {
 	return
 }
 
-func (p *parser) concatenation() (start, end instr) {
+func (p *parser) concatenation() (start, end *instr) {
 	for {
 		nstart, nend := p.closure()
 		switch {
 		case nstart == nil: // end of this concatenation
 			if start == nil { // this is the empty string
-				nop := p.re.add(new(_Nop))
+				nop := p.re.add(&instr{kind: iNop})
 				return nop, nop
 			}
 			return
 		case start == nil: // this is first element of concatenation
 			start, end = nstart, nend
 		default:
-			end.setNext(nstart)
+			end.next = nstart
 			end = nend
 		}
 	}
 	panic("unreachable")
 }
 
-func (p *parser) regexp() (start, end instr) {
+func (p *parser) regexp() (start, end *instr) {
 	start, end = p.concatenation()
 	for {
 		switch p.c() {
@@ -582,36 +501,35 @@ func (p *parser) regexp() (start, end instr) {
 		case '|':
 			p.nextc()
 			nstart, nend := p.concatenation()
-			alt := new(_Alt)
+			alt := &instr{kind: iAlt}
 			p.re.add(alt)
 			alt.left = start
-			alt.setNext(nstart)
-			nop := new(_Nop)
+			alt.next = nstart
+			nop := &instr{kind: iNop}
 			p.re.add(nop)
-			end.setNext(nop)
-			nend.setNext(nop)
+			end.next = nop
+			nend.next = nop
 			start, end = alt, nop
 		}
 	}
 	panic("unreachable")
 }
 
-func unNop(i instr) instr {
-	for i.kind() == _NOP {
-		i = i.next()
+func unNop(i *instr) *instr {
+	for i.kind == iNop {
+		i = i.next
 	}
 	return i
 }
 
 func (re *Regexp) eliminateNops() {
 	for _, inst := range re.inst {
-		if inst.kind() == _END {
+		if inst.kind == iEnd {
 			continue
 		}
-		inst.setNext(unNop(inst.next()))
-		if inst.kind() == _ALT {
-			alt := inst.(*_Alt)
-			alt.left = unNop(alt.left)
+		inst.next = unNop(inst.next)
+		if inst.kind == iAlt {
+			inst.left = unNop(inst.left)
 		}
 	}
 }
@@ -619,10 +537,10 @@ func (re *Regexp) eliminateNops() {
 func (re *Regexp) dump() {
 	print("prefix <", re.prefix, ">\n")
 	for _, inst := range re.inst {
-		print(inst.index(), ": ")
+		print(inst.index, ": ")
 		inst.print()
-		if inst.kind() != _END {
-			print(" -> ", inst.next().index())
+		if inst.kind != iEnd {
+			print(" -> ", inst.next.index)
 		}
 		print("\n")
 	}
@@ -630,12 +548,12 @@ func (re *Regexp) dump() {
 
 func (re *Regexp) doParse() {
 	p := newParser(re)
-	start := new(_Start)
+	start := &instr{kind: iStart}
 	re.add(start)
 	s, e := p.regexp()
-	start.setNext(s)
+	start.next = s
 	re.start = start
-	e.setNext(re.add(new(_End)))
+	e.next = re.add(&instr{kind: iEnd})
 
 	if debug {
 		re.dump()
@@ -659,27 +577,25 @@ func (re *Regexp) doParse() {
 func (re *Regexp) setPrefix() {
 	var b []byte
 	var utf = make([]byte, utf8.UTFMax)
+	var inst *instr
 	// First instruction is start; skip that.
-	i := re.inst[0].next().index()
 Loop:
-	for i < len(re.inst) {
-		inst := re.inst[i]
+	for inst = re.inst[0].next; inst.kind != iEnd; inst = inst.next {
 		// stop if this is not a char
-		if inst.kind() != _CHAR {
+		if inst.kind != iChar {
 			break
 		}
 		// stop if this char can be followed by a match for an empty string,
 		// which includes closures, ^, and $.
-		switch re.inst[inst.next().index()].kind() {
-		case _BOT, _EOT, _ALT:
+		switch inst.next.kind {
+		case iBOT, iEOT, iAlt:
 			break Loop
 		}
-		n := utf8.EncodeRune(utf, inst.(*_Char).char)
+		n := utf8.EncodeRune(utf, inst.char)
 		b = append(b, utf[0:n]...)
-		i = inst.next().index()
 	}
 	// point prefixStart instruction to first non-CHAR after prefix
-	re.prefixStart = re.inst[i]
+	re.prefixStart = inst
 	re.prefixBytes = b
 	re.prefix = string(b)
 }
@@ -696,7 +612,7 @@ func Compile(str string) (regexp *Regexp, error os.Error) {
 		}
 	}()
 	regexp.expr = str
-	regexp.inst = make([]instr, 0, 10)
+	regexp.inst = make([]*instr, 0, 10)
 	regexp.doParse()
 	return
 }
@@ -772,52 +688,51 @@ func (a *matchArena) noMatch() *matchVec {
 }
 
 type state struct {
-	inst     instr // next instruction to execute
-	prefixed bool  // this match began with a fixed prefix
+	inst     *instr // next instruction to execute
+	prefixed bool   // this match began with a fixed prefix
 	match    *matchVec
 }
 
 // Append new state to to-do list.  Leftmost-longest wins so avoid
 // adding a state that's already active.  The matchVec will be inc-ref'ed
 // if it is assigned to a state.
-func (a *matchArena) addState(s []state, inst instr, prefixed bool, match *matchVec, pos, end int) []state {
-	switch inst.kind() {
-	case _BOT:
+func (a *matchArena) addState(s []state, inst *instr, prefixed bool, match *matchVec, pos, end int) []state {
+	switch inst.kind {
+	case iBOT:
 		if pos == 0 {
-			s = a.addState(s, inst.next(), prefixed, match, pos, end)
+			s = a.addState(s, inst.next, prefixed, match, pos, end)
 		}
 		return s
-	case _EOT:
+	case iEOT:
 		if pos == end {
-			s = a.addState(s, inst.next(), prefixed, match, pos, end)
+			s = a.addState(s, inst.next, prefixed, match, pos, end)
 		}
 		return s
-	case _BRA:
-		n := inst.(*_Bra).n
+	case iBra:
+		n := inst.braNum
 		match.m[2*n] = pos
-		s = a.addState(s, inst.next(), prefixed, match, pos, end)
+		s = a.addState(s, inst.next, prefixed, match, pos, end)
 		return s
-	case _EBRA:
-		n := inst.(*_Ebra).n
+	case iEbra:
+		n := inst.braNum
 		match.m[2*n+1] = pos
-		s = a.addState(s, inst.next(), prefixed, match, pos, end)
+		s = a.addState(s, inst.next, prefixed, match, pos, end)
 		return s
 	}
-	index := inst.index()
 	l := len(s)
 	// States are inserted in order so it's sufficient to see if we have the same
 	// instruction; no need to see if existing match is earlier (it is).
 	for i := 0; i < l; i++ {
-		if s[i].inst.index() == index {
+		if s[i].inst == inst {
 			return s
 		}
 	}
 	s = append(s, state{inst, prefixed, match})
 	match.ref++
-	if inst.kind() == _ALT {
-		s = a.addState(s, inst.(*_Alt).left, prefixed, a.copy(match), pos, end)
+	if inst.kind == iAlt {
+		s = a.addState(s, inst.left, prefixed, a.copy(match), pos, end)
 		// give other branch a copy of this match vector
-		s = a.addState(s, inst.next(), prefixed, a.copy(match), pos, end)
+		s = a.addState(s, inst.next, prefixed, a.copy(match), pos, end)
 	}
 	return s
 }
@@ -860,7 +775,7 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 				s[out] = arena.addState(s[out], re.prefixStart, true, match, pos, end)
 				prefixed = false // next iteration should start at beginning of machine.
 			} else {
-				s[out] = arena.addState(s[out], re.start.next(), false, match, pos, end)
+				s[out] = arena.addState(s[out], re.start.next, false, match, pos, end)
 			}
 			arena.free(match) // if addState saved it, ref was incremented
 		}
@@ -886,29 +801,29 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 		}
 		pos += charwidth
 		for _, st := range s[in] {
-			switch st.inst.kind() {
-			case _BOT:
-			case _EOT:
-			case _CHAR:
-				if c == st.inst.(*_Char).char {
-					s[out] = arena.addState(s[out], st.inst.next(), st.prefixed, st.match, pos, end)
+			switch st.inst.kind {
+			case iBOT:
+			case iEOT:
+			case iChar:
+				if c == st.inst.char {
+					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match, pos, end)
 				}
-			case _CHARCLASS:
-				if st.inst.(*_CharClass).matches(c) {
-					s[out] = arena.addState(s[out], st.inst.next(), st.prefixed, st.match, pos, end)
+			case iCharClass:
+				if st.inst.cclass.matches(c) {
+					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match, pos, end)
 				}
-			case _ANY:
+			case iAny:
 				if c != endOfFile {
-					s[out] = arena.addState(s[out], st.inst.next(), st.prefixed, st.match, pos, end)
+					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match, pos, end)
 				}
-			case _NOTNL:
+			case iNotNL:
 				if c != endOfFile && c != '\n' {
-					s[out] = arena.addState(s[out], st.inst.next(), st.prefixed, st.match, pos, end)
+					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match, pos, end)
 				}
-			case _BRA:
-			case _EBRA:
-			case _ALT:
-			case _END:
+			case iBra:
+			case iEbra:
+			case iAlt:
+			case iEnd:
 				// choose leftmost longest
 				if !found || // first
 					st.match.m[0] < final.match.m[0] || // leftmost
