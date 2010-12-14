@@ -217,6 +217,7 @@ type decompressor struct {
 	// Output history, buffer.
 	hist  [maxHist]byte
 	hp    int  // current output position in buffer
+	hw    int  // have written hist[0:hw] already
 	hfull bool // buffer has filled at least once
 
 	// Temporary buffer (avoids repeated allocation).
@@ -497,6 +498,11 @@ func (f *decompressor) dataBlock() os.Error {
 		return CorruptInputError(f.roffset)
 	}
 
+	if n == 0 {
+		// 0-length block means sync
+		return f.flush()
+	}
+
 	// Read len bytes into history,
 	// writing as history fills.
 	for n > 0 {
@@ -560,19 +566,23 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, os.Error) {
 
 // Flush any buffered output to the underlying writer.
 func (f *decompressor) flush() os.Error {
-	if f.hp == 0 {
+	if f.hw == f.hp {
 		return nil
 	}
-	n, err := f.w.Write(f.hist[0:f.hp])
-	if n != f.hp && err == nil {
+	n, err := f.w.Write(f.hist[f.hw:f.hp])
+	if n != f.hp-f.hw && err == nil {
 		err = io.ErrShortWrite
 	}
 	if err != nil {
 		return &WriteError{f.woffset, err}
 	}
-	f.woffset += int64(f.hp)
-	f.hp = 0
-	f.hfull = true
+	f.woffset += int64(f.hp - f.hw)
+	f.hw = f.hp
+	if f.hp == len(f.hist) {
+		f.hp = 0
+		f.hw = 0
+		f.hfull = true
+	}
 	return nil
 }
 
@@ -583,9 +593,9 @@ func makeReader(r io.Reader) Reader {
 	return bufio.NewReader(r)
 }
 
-// Inflate reads DEFLATE-compressed data from r and writes
+// decompress reads DEFLATE-compressed data from r and writes
 // the uncompressed data to w.
-func (f *decompressor) decompressor(r io.Reader, w io.Writer) os.Error {
+func (f *decompressor) decompress(r io.Reader, w io.Writer) os.Error {
 	f.r = makeReader(r)
 	f.w = w
 	f.woffset = 0
@@ -605,6 +615,6 @@ func (f *decompressor) decompressor(r io.Reader, w io.Writer) os.Error {
 func NewReader(r io.Reader) io.ReadCloser {
 	var f decompressor
 	pr, pw := io.Pipe()
-	go func() { pw.CloseWithError(f.decompressor(r, pw)) }()
+	go func() { pw.CloseWithError(f.decompress(r, pw)) }()
 	return pr
 }
