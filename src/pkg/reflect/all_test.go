@@ -498,7 +498,54 @@ func TestFunctionValue(t *testing.T) {
 	assert(t, v.Type().String(), "func()")
 }
 
-func TestCopyArray(t *testing.T) {
+var appendTests = []struct {
+	orig, extra []int
+}{
+	{make([]int, 2, 4), []int{22}},
+	{make([]int, 2, 4), []int{22, 33, 44}},
+}
+
+func TestAppend(t *testing.T) {
+	for i, test := range appendTests {
+		origLen, extraLen := len(test.orig), len(test.extra)
+		want := append(test.orig, test.extra...)
+		// Convert extra from []int to []Value.
+		e0 := make([]Value, len(test.extra))
+		for j, e := range test.extra {
+			e0[j] = NewValue(e)
+		}
+		// Convert extra from []int to *SliceValue.
+		e1 := NewValue(test.extra).(*SliceValue)
+		// Test Append.
+		a0 := NewValue(test.orig).(*SliceValue)
+		have0 := Append(a0, e0...).Interface().([]int)
+		if !DeepEqual(have0, want) {
+			t.Errorf("Append #%d: have %v, want %v", i, have0, want)
+		}
+		// Check that the orig and extra slices were not modified.
+		if len(test.orig) != origLen {
+			t.Errorf("Append #%d origLen: have %v, want %v", i, len(test.orig), origLen)
+		}
+		if len(test.extra) != extraLen {
+			t.Errorf("Append #%d extraLen: have %v, want %v", i, len(test.extra), extraLen)
+		}
+		// Test AppendSlice.
+		a1 := NewValue(test.orig).(*SliceValue)
+		have1 := AppendSlice(a1, e1).Interface().([]int)
+		if !DeepEqual(have1, want) {
+			t.Errorf("AppendSlice #%d: have %v, want %v", i, have1, want)
+		}
+		// Check that the orig and extra slices were not modified.
+		if len(test.orig) != origLen {
+			t.Errorf("AppendSlice #%d origLen: have %v, want %v", i, len(test.orig), origLen)
+		}
+		if len(test.extra) != extraLen {
+			t.Errorf("AppendSlice #%d extraLen: have %v, want %v", i, len(test.extra), extraLen)
+		}
+	}
+}
+
+func TestCopy(t *testing.T) {
 	a := []int{1, 2, 3, 4, 10, 9, 8, 7}
 	b := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44}
 	c := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44}
