@@ -27,7 +27,7 @@ func isText(b []byte) bool {
 			// decoding error
 			return false
 		}
-		if 0x80 <= rune && rune <= 0x9F {
+		if 0x7F <= rune && rune <= 0x9F {
 			return false
 		}
 		if rune < ' ' {
