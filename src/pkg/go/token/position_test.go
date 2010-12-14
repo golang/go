@@ -138,3 +138,21 @@ func TestLineInfo(t *testing.T) {
 		checkPos(t, msg, fset.Position(p), Position{"bar", offs, 42, col})
 	}
 }
+
+
+func TestFiles(t *testing.T) {
+	fset := NewFileSet()
+	for i, test := range tests {
+		fset.AddFile(test.filename, fset.Base(), test.size)
+		j := 0
+		for g := range fset.Files() {
+			if g.Name() != tests[j].filename {
+				t.Errorf("expected filename = %s; got %s", tests[j].filename, g.Name())
+			}
+			j++
+		}
+		if j != i+1 {
+			t.Errorf("expected %d files; got %d", i+1, j)
+		}
+	}
+}
