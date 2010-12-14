@@ -98,8 +98,7 @@ const (
 	iCharClass        // [a-z] character class
 	iAny              // '.' any character including newline
 	iNotNL            // [^\n] special case: any character but newline
-	iBra              // '(' parenthesized expression
-	iEbra             // ')'; end of '(' parenthesized expression
+	iBra              // '(' parenthesized expression: 2*braNum for left, 2*braNum+1 for right
 	iAlt              // '|' alternation
 	iNop              // do nothing; makes it easy to link without patching
 )
@@ -135,9 +134,11 @@ func (i *instr) print() {
 	case iNotNL:
 		print("notnl")
 	case iBra:
-		print("bra", i.braNum)
-	case iEbra:
-		print("ebra", i.braNum)
+		if i.braNum&1 == 0 {
+			print("bra", i.braNum/2)
+		} else {
+			print("ebra", i.braNum/2)
+		}
 	case iAlt:
 		print("alt(", i.left.index, ")")
 	case iNop:
@@ -391,12 +392,10 @@ func (p *parser) term() (start, end *instr) {
 		}
 		p.nlpar--
 		p.nextc()
-		bra := &instr{kind: iBra}
+		bra := &instr{kind: iBra, braNum: 2 * nbra}
 		p.re.add(bra)
-		ebra := &instr{kind: iEbra}
+		ebra := &instr{kind: iBra, braNum: 2*nbra + 1}
 		p.re.add(ebra)
-		bra.braNum = nbra
-		ebra.braNum = nbra
 		if start == nil {
 			if end == nil {
 				p.error(ErrInternal)
@@ -709,13 +708,7 @@ func (a *matchArena) addState(s []state, inst *instr, prefixed bool, match *matc
 		}
 		return s
 	case iBra:
-		n := inst.braNum
-		match.m[2*n] = pos
-		s = a.addState(s, inst.next, prefixed, match, pos, end)
-		return s
-	case iEbra:
-		n := inst.braNum
-		match.m[2*n+1] = pos
+		match.m[inst.braNum] = pos
 		s = a.addState(s, inst.next, prefixed, match, pos, end)
 		return s
 	}
@@ -821,7 +814,6 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match, pos, end)
 				}
 			case iBra:
-			case iEbra:
 			case iAlt:
 			case iEnd:
 				// choose leftmost longest
