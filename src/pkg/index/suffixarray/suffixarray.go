@@ -49,10 +49,10 @@ func New(data []byte) *Index {
 }
 
 
-// Data returns the data over which the index was created.
+// Bytes returns the data over which the index was created.
 // It must not be modified.
 //
-func (x *Index) Data() []byte {
+func (x *Index) Bytes() []byte {
 	return x.data
 }
 
