@@ -354,3 +354,32 @@ func TestStructNonStruct(t *testing.T) {
 		t.Error("for non-struct/struct expected type error; got", err)
 	}
 }
+
+type interfaceIndirectTestI interface {
+	F() bool
+}
+
+type interfaceIndirectTestT struct{}
+
+func (this *interfaceIndirectTestT) F() bool {
+	return true
+}
+
+// A version of a bug reported on golang-nuts.  Also tests top-level
+// slice of interfaces.  The issue was registering *T caused T to be
+// stored as the concrete type.
+func TestInterfaceIndirect(t *testing.T) {
+	Register(&interfaceIndirectTestT{})
+	b := new(bytes.Buffer)
+	w := []interfaceIndirectTestI{&interfaceIndirectTestT{}}
+	err := NewEncoder(b).Encode(w)
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+
+	var r []interfaceIndirectTestI
+	err = NewDecoder(b).Decode(&r)
+	if err != nil {
+		t.Fatal("decode error:", err)
+	}
+}

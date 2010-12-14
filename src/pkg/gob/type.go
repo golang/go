@@ -470,7 +470,9 @@ func RegisterName(name string, value interface{}) {
 	if n, ok := concreteTypeToName[rt]; ok && n != name {
 		panic("gob: registering duplicate names for " + rt.String())
 	}
-	nameToConcreteType[name] = rt
+	// Store the name and type provided by the user....
+	nameToConcreteType[name] = reflect.Typeof(value)
+	// but the flattened type in the type table, since that's what decode needs.
 	concreteTypeToName[rt] = name
 }
 
