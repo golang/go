@@ -400,6 +400,52 @@ type ArrayOrSliceValue interface {
 	addr() addr
 }
 
+// grow grows the slice s so that it can hold extra more values, allocating
+// more capacity if needed. It also returns the old and new slice lengths.
+func grow(s *SliceValue, extra int) (*SliceValue, int, int) {
+	i0 := s.Len()
+	i1 := i0 + extra
+	if i1 < i0 {
+		panic("append: slice overflow")
+	}
+	m := s.Cap()
+	if i1 <= m {
+		return s.Slice(0, i1), i0, i1
+	}
+	if m == 0 {
+		m = extra
+	} else {
+		for m < i1 {
+			if i0 < 1024 {
+				m += m
+			} else {
+				m += m / 4
+			}
+		}
+	}
+	t := MakeSlice(s.Type().(*SliceType), i1, m)
+	Copy(t, s)
+	return t, i0, i1
+}
+
+// Append appends the values x to a slice s and returns the resulting slice.
+// Each x must have the same type as s' element type.
+func Append(s *SliceValue, x ...Value) *SliceValue {
+	s, i0, i1 := grow(s, len(x))
+	for i, j := i0, 0; i < i1; i, j = i+1, j+1 {
+		s.Elem(i).SetValue(x[j])
+	}
+	return s
+}
+
+// AppendSlice appends a slice t to a slice s and returns the resulting slice.
+// The slices s and t must have the same element type.
+func AppendSlice(s, t *SliceValue) *SliceValue {
+	s, i0, i1 := grow(s, t.Len())
+	Copy(s.Slice(i0, i1), t)
+	return s
+}
+
 // Copy copies the contents of src into dst until either
 // dst has been filled or src has been exhausted.
 // It returns the number of elements copied.
