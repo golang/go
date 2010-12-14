@@ -13,6 +13,8 @@ $(TARG): $(OFILES) $(LIB)
 
 $(OFILES): $(HFILES)
 
+CLEANFILES+=y.tab.[ch]
+
 clean:
 	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
 
