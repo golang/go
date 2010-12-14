@@ -23,6 +23,14 @@ var verbose = flag.Bool("v", false, "verbose")
 var printfuncs = flag.String("printfuncs", "", "comma-separated list of print function names to check")
 var exitCode = 0
 
+// setExit sets the value for os.Exit when it is called, later.  It
+// remembers the highest value.
+func setExit(err int) {
+	if err > exitCode {
+		exitCode = err
+	}
+}
+
 // Usage is a replacement usage function for the flags package.
 func Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
@@ -50,7 +58,7 @@ func main() {
 				var err os.Error
 				skip, err = strconv.Atoi(name[colon+1:])
 				if err != nil {
-					die(`illegal format for "Func:N" argument %q; %s`, name, err)
+					error(`illegal format for "Func:N" argument %q; %s`, name, err)
 				}
 				name = name[:colon]
 			}
@@ -79,17 +87,18 @@ func doFile(name string, reader io.Reader) {
 	fs := token.NewFileSet()
 	parsedFile, err := parser.ParseFile(fs, name, reader, 0)
 	if err != nil {
-		die("%s: %s", name, err)
+		error("%s: %s", name, err)
+		return
 	}
 	file := &File{fs.File(parsedFile.Pos())}
 	file.checkFile(name, parsedFile)
 }
 
-// die formats the error to standard error, adding program identification
-// and a newline, and exits the program.
-func die(format string, args ...interface{}) {
+// error formats the error to standard error, adding program
+// identification and a newline
+func error(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "govet: "+format+"\n", args...)
-	os.Exit(2)
+	setExit(2)
 }
 
 // Println is fmt.Println guarded by -v.
@@ -111,13 +120,13 @@ func Printf(format string, args ...interface{}) {
 // Bad reports an error and sets the exit code..
 func (f *File) Bad(pos token.Pos, args ...interface{}) {
 	f.Warn(pos, args...)
-	exitCode = 1
+	setExit(1)
 }
 
 // Badf reports a formatted error and sets the exit code.
 func (f *File) Badf(pos token.Pos, format string, args ...interface{}) {
 	f.Warnf(pos, format, args...)
-	exitCode = 1
+	setExit(1)
 }
 
 // Warn reports an error but does not set the exit code.
