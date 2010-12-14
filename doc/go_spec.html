@@ -596,7 +596,7 @@ which composes a new type from previously declared types.
 
 <pre class="ebnf">
 Type      = TypeName | TypeLit | "(" Type ")" .
-TypeName  = QualifiedIdent.
+TypeName  = QualifiedIdent .
 TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
 	    SliceType | MapType | ChannelType .
 </pre>
@@ -1831,7 +1831,7 @@ A function declaration binds an identifier to a function (§<a href="#Function_t
 
 <pre class="ebnf">
 FunctionDecl = "func" identifier Signature [ Body ] .
-Body         = Block.
+Body         = Block .
 </pre>
 
 <p>
