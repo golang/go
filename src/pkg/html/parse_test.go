@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -124,9 +125,14 @@ func TestParser(t *testing.T) {
 		rc := make(chan io.Reader)
 		go readDat(filename, rc)
 		// TODO(nigeltao): Process all test cases, not just a subset.
-		for i := 0; i < 21; i++ {
+		for i := 0; i < 22; i++ {
 			// Parse the #data section.
-			doc, err := Parse(<-rc)
+			b, err := ioutil.ReadAll(<-rc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			text := string(b)
+			doc, err := Parse(strings.NewReader(text))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -139,13 +145,13 @@ func TestParser(t *testing.T) {
 				t.Fatal(err)
 			}
 			// Compare the parsed tree to the #document section.
-			b, err := ioutil.ReadAll(<-rc)
+			b, err = ioutil.ReadAll(<-rc)
 			if err != nil {
 				t.Fatal(err)
 			}
 			expected := string(b)
 			if actual != expected {
-				t.Errorf("%s test #%d, actual vs expected:\n----\n%s----\n%s----", filename, i, actual, expected)
+				t.Errorf("%s test #%d %q, actual vs expected:\n----\n%s----\n%s----", filename, i, text, actual, expected)
 			}
 		}
 	}
