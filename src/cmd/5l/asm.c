@@ -105,6 +105,12 @@ adddynrel(Sym *s, Reloc *r)
 	diag("adddynrel: unsupported binary format");
 }
 
+void
+adddynsym(Sym *s)
+{
+	diag("adddynsym: not implemented");
+}
+
 static void
 elfsetupplt(void)
 {
