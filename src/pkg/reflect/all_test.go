@@ -549,15 +549,13 @@ func TestCopy(t *testing.T) {
 	a := []int{1, 2, 3, 4, 10, 9, 8, 7}
 	b := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44}
 	c := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44}
-	va := NewValue(&a)
-	vb := NewValue(&b)
 	for i := 0; i < len(b); i++ {
 		if b[i] != c[i] {
 			t.Fatalf("b != c before test")
 		}
 	}
-	aa := va.(*PtrValue).Elem().(*SliceValue)
-	ab := vb.(*PtrValue).Elem().(*SliceValue)
+	aa := NewValue(a).(*SliceValue)
+	ab := NewValue(b).(*SliceValue)
 	for tocopy := 1; tocopy <= 7; tocopy++ {
 		aa.SetLen(tocopy)
 		Copy(ab, aa)
