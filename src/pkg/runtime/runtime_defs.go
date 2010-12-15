@@ -55,19 +55,19 @@ type slice struct {
 }
 
 type gobuf struct {
-	sp *byte
-	pc *byte
+	sp unsafe.Pointer
+	pc unsafe.Pointer
 	g  *g_
 }
 
 type g_ struct {
-	stackguard  *byte
-	stackbase   *byte
+	stackguard  unsafe.Pointer
+	stackbase   unsafe.Pointer
 	defer_      *defer_
 	panic_      *panic_
 	sched       gobuf
-	stack0      *byte
-	entry       *byte
+	stack0      unsafe.Pointer
+	entry       unsafe.Pointer
 	alllink     *g_
 	param       unsafe.Pointer
 	status      int16
@@ -168,31 +168,29 @@ const (
 
 type defer_ struct {
 	siz  int32
-	sp   *byte
-	pc   *byte
-	fn   *byte
+	sp   unsafe.Pointer
+	pc   unsafe.Pointer
+	fn   unsafe.Pointer
 	link *defer_
 	args [8]byte // padded to actual size
 }
 
 type panic_ struct {
 	arg       eface
-	stackbase *byte
+	stackbase unsafe.Pointer
 	link      *panic_
 	recovered bool
 }
 
 /*
- * external data
-
-// extern	register	G*	g;
-// extern	register	M*	m;
+ * External data.
+ */
 
 var (
-	algarray    [amax]Alg
-	emptystring String
+	algarray    [amax]alg
+	emptystring string
 	allg        *g_
-	allm        *M
+	allm        *m_
 	goidgen     int32
 	gomaxprocs  int32
 	panicking   int32
@@ -200,5 +198,3 @@ var (
 	gcwaiting   int32
 	goos        *int8
 )
-
-*/
