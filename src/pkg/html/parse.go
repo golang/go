@@ -371,6 +371,13 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			} else {
 				p.addElement(p.tok.Data, p.tok.Attr)
 			}
+		case "h1", "h2", "h3", "h4", "h5", "h6":
+			// TODO: auto-insert </p> if necessary.
+			switch n := p.top(); n.Data {
+			case "h1", "h2", "h3", "h4", "h5", "h6":
+				p.pop()
+			}
+			p.addElement(p.tok.Data, p.tok.Attr)
 		case "b", "big", "code", "em", "font", "i", "s", "small", "strike", "strong", "tt", "u":
 			p.reconstructActiveFormattingElements()
 			p.addFormattingElement(p.tok.Data, p.tok.Attr)

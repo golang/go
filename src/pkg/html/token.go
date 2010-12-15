@@ -277,7 +277,7 @@ func (z *Tokenizer) trim(i int) int {
 	return k
 }
 
-// lower finds the largest alphabetic [a-zA-Z]* word at the start of z.buf[i:]
+// lower finds the largest alphabetic [0-9A-Za-z]* word at the start of z.buf[i:]
 // and returns that word lower-cased, as well as the trimmed cursor location
 // after that word.
 func (z *Tokenizer) lower(i int) ([]byte, int) {
@@ -285,8 +285,9 @@ func (z *Tokenizer) lower(i int) ([]byte, int) {
 loop:
 	for ; i < z.p1; i++ {
 		c := z.buf[i]
-		// TODO(nigeltao): Check what '0' <= c && c <= '9' should do.
 		switch {
+		case '0' <= c && c <= '9':
+			// No-op.
 		case 'A' <= c && c <= 'Z':
 			z.buf[i] = c + 'a' - 'A'
 		case 'a' <= c && c <= 'z':
