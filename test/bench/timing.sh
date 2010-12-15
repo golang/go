@@ -8,6 +8,12 @@ set -e
 eval $(gomake --no-print-directory -f ../../src/Make.inc go-env)
 PATH=.:$PATH
 
+havegccgo=false
+if which gccgo >/dev/null 2>&1
+then
+	havegccgo=true
+fi
+
 mode=run
 case X"$1" in
 X-test)
@@ -29,8 +35,6 @@ runonly() {
 		"$@"
 	fi
 }
-
-
 
 run() {
 	if [ $mode = test ]
@@ -55,6 +59,10 @@ run() {
 				rm -f /tmp/$$
 			esac
 		fi
+		return
+	fi
+	if ! $havegccgo && echo $1 | grep -q '^gccgo '
+	then
 		return
 	fi
 	echo -n '	'$1'	'
@@ -85,7 +93,7 @@ revcomp() {
 
 nbody() {
 	runonly echo 'nbody -n 50000000'
-	run 'gcc -O2 nbody.c' a.out 50000000
+	run 'gcc -O2 -lm nbody.c' a.out 50000000
 	run 'gccgo -O2 nbody.go' a.out -n 50000000
 	run 'gc nbody' $O.out -n 50000000
 	run 'gc_B nbody' $O.out -n 50000000
@@ -152,11 +160,11 @@ mandelbrot() {
 }
 
 meteor() {
-	runonly echo 'meteor 16000'
-	run 'gcc -O2 meteor-contest.c' a.out
-	run 'gccgo -O2 meteor-contest.go' a.out
-	run 'gc meteor-contest' $O.out
-	run 'gc_B  meteor-contest' $O.out
+	runonly echo 'meteor 2098'
+	run 'gcc -O2 meteor-contest.c' a.out 2098
+	run 'gccgo -O2 meteor-contest.go' a.out -n 2098
+	run 'gc meteor-contest' $O.out -n 2098
+	run 'gc_B  meteor-contest' $O.out -n 2098
 }
 
 pidigits() {
