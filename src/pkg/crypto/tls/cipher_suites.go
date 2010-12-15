@@ -16,9 +16,11 @@ import (
 // function. All cipher suites currently assume RSA key agreement.
 type cipherSuite struct {
 	// the lengths, in bytes, of the key material needed for each component.
-	keyLen, macLen, ivLen int
-	cipher                func(key, iv []byte, isRead bool) interface{}
-	mac                   func(macKey []byte) hash.Hash
+	keyLen int
+	macLen int
+	ivLen  int
+	cipher func(key, iv []byte, isRead bool) interface{}
+	mac    func(macKey []byte) hash.Hash
 }
 
 var cipherSuites = map[uint16]*cipherSuite{
@@ -47,7 +49,7 @@ func hmacSHA1(key []byte) hash.Hash {
 // ciphersuites and the id requested by the peer.
 func mutualCipherSuite(have []uint16, want uint16) (suite *cipherSuite, id uint16) {
 	for _, id := range have {
-		if want == id {
+		if id == want {
 			return cipherSuites[id], id
 		}
 	}
