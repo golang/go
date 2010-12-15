@@ -11,6 +11,7 @@
 //     ptype struct '[]uint8' and qualifiers need to be quoted away
 //   - lexical scoping is lost, so gdb gets confused as to which 'main.i' you mean.
 //   - file:line info for variables
+//   - make strings a typedef so prettyprinters can see the underlying string type
 //
 #include	"l.h"
 #include	"lib.h"
@@ -280,8 +281,9 @@ static struct DWAbbrev {
 
 	/* IFACETYPE */
 	{
-		DW_TAG_interface_type, DW_CHILDREN_no,
+		DW_TAG_typedef, DW_CHILDREN_yes,
 		DW_AT_name,	 DW_FORM_string,
+		DW_AT_type,	DW_FORM_ref_addr,
 		0, 0
 	},
 
@@ -957,6 +959,14 @@ decodetype_structfieldoffs(Sym *s, int i)
 	return decode_inuxi(s->p + 10*PtrSize + 0x10 + i*5*PtrSize, 4);	 // 0x38  / 0x60
 }
 
+// InterfaceTYpe.methods.len
+static vlong
+decodetype_ifacemethodcount(Sym *s)
+{
+	return decode_inuxi(s->p + 6*PtrSize + 8, 4);
+}
+
+
 // Fake attributes for slices, maps and channel
 enum {
 	DW_AT_internal_elem_type = 250,	 // channels and slices
@@ -1095,6 +1105,12 @@ defgotype(Sym *gotype)
 	case KindInterface:
 		die = newdie(&dwtypes, DW_ABRV_IFACETYPE, name);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+		nfields = decodetype_ifacemethodcount(gotype);
+		if (nfields == 0)
+			s = lookup("type.runtime.eface", 0);
+		else
+			s = lookup("type.runtime.iface", 0);
+		newrefattr(die, DW_AT_type, defgotype(s));
 		break;
 
 	case KindMap:
@@ -1425,8 +1441,13 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
 		return;
 	if (strncmp(s, "string.", 7) == 0)
 		return;
-	if (strncmp(s, "type.", 5) == 0)
+	if (strncmp(s, "type._.", 7) == 0)
 		return;
+
+	if (strncmp(s, "type.", 5) == 0) {
+		defgotype(sym);
+		return;
+	}
 
 	dv = nil;
 
@@ -2290,6 +2311,11 @@ dwarfemitdebugsections(void)
 	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "uintptr");  // needed for array size
 	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_unsigned, 0);
 	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, PtrSize, 0);
+
+	// Needed by the prettyprinter code for interface inspection.
+	defgotype(lookup("type.runtime.commonType",0));
+	defgotype(lookup("type.runtime.InterfaceType",0));
+	defgotype(lookup("type.runtime.itab",0));
 
 	genasmsym(defdwsymb);
 
