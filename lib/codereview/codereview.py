@@ -471,7 +471,7 @@ def LoadCL(ui, repo, name, web=True):
 	set_status("loaded CL " + name)
 	return cl, ''
 
-global_status = ""
+global_status = None
 
 def set_status(s):
 	# print >>sys.stderr, "\t", time.asctime(), s
