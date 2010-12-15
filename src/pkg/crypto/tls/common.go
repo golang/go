@@ -20,7 +20,7 @@ const (
 	maxHandshake    = 65536        // maximum handshake we support (protocol max is 16 MB)
 
 	minVersion = 0x0301 // minimum supported version - TLS 1.0
-	maxVersion = 0x0302 // maximum supported version - TLS 1.1
+	maxVersion = 0x0301 // maximum supported version - TLS 1.0
 )
 
 // TLS record types.
@@ -45,11 +45,6 @@ const (
 	typeFinished           uint8 = 20
 	typeCertificateStatus  uint8 = 22
 	typeNextProtocol       uint8 = 67 // Not IANA assigned
-)
-
-// TLS cipher suites.
-const (
-	TLS_RSA_WITH_RC4_128_SHA uint16 = 5
 )
 
 // TLS compression types.
@@ -120,6 +115,10 @@ type Config struct {
 	// certificate nor does it require that the certificate sent be
 	// anything more than self-signed.
 	AuthenticateClient bool
+
+	// CipherSuites is a list of supported cipher suites. If CipherSuites
+	// is nil, TLS uses a list of suites supported by the implementation.
+	CipherSuites []uint16
 }
 
 func (c *Config) rand() io.Reader {
@@ -146,6 +145,14 @@ func (c *Config) rootCAs() *CASet {
 	return s
 }
 
+func (c *Config) cipherSuites() []uint16 {
+	s := c.CipherSuites
+	if len(s) == 0 {
+		s = defaultCipherSuites()
+	}
+	return s
+}
+
 // A Certificate is a chain of one or more certificates, leaf first.
 type Certificate struct {
 	Certificate [][]byte
@@ -162,11 +169,6 @@ type record struct {
 type handshakeMessage interface {
 	marshal() []byte
 	unmarshal([]byte) bool
-}
-
-type encryptor interface {
-	// XORKeyStream xors the contents of the slice with bytes from the key stream.
-	XORKeyStream(buf []byte)
 }
 
 // mutualVersion returns the protocol version to use given the advertised
@@ -199,8 +201,18 @@ var certFiles = []string{
 var once sync.Once
 
 func defaultRoots() *CASet {
-	once.Do(initDefaultRoots)
+	once.Do(initDefaults)
 	return varDefaultRoots
+}
+
+func defaultCipherSuites() []uint16 {
+	once.Do(initDefaults)
+	return varDefaultCipherSuites
+}
+
+func initDefaults() {
+	initDefaultRoots()
+	initDefaultCipherSuites()
 }
 
 var varDefaultRoots *CASet
@@ -215,4 +227,15 @@ func initDefaultRoots() {
 		}
 	}
 	varDefaultRoots = roots
+}
+
+var varDefaultCipherSuites []uint16
+
+func initDefaultCipherSuites() {
+	varDefaultCipherSuites = make([]uint16, len(cipherSuites))
+	i := 0
+	for id, _ := range cipherSuites {
+		varDefaultCipherSuites[i] = id
+		i++
+	}
 }

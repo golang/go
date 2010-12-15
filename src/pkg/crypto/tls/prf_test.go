@@ -47,7 +47,7 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
 		in, _ := hex.DecodeString(test.preMasterSecret)
 		clientRandom, _ := hex.DecodeString(test.clientRandom)
 		serverRandom, _ := hex.DecodeString(test.serverRandom)
-		master, clientMAC, serverMAC, clientKey, serverKey := keysFromPreMasterSecret11(in, clientRandom, serverRandom, test.macLen, test.keyLen)
+		master, clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromPreMasterSecret10(in, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
 		masterString := hex.EncodeToString(master)
 		clientMACString := hex.EncodeToString(clientMAC)
 		serverMACString := hex.EncodeToString(serverMAC)
