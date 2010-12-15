@@ -23,9 +23,9 @@ func Modf(f float64) (int float64, frac float64) {
 	x := Float64bits(f)
 	e := uint(x>>shift)&mask - bias
 
-	// Keep the top 11+e bits, the integer part; clear the rest.
-	if e < 64-11 {
-		x &^= 1<<(64-11-e) - 1
+	// Keep the top 12+e bits, the integer part; clear the rest.
+	if e < 64-12 {
+		x &^= 1<<(64-12-e) - 1
 	}
 	int = Float64frombits(x)
 	frac = f - int

@@ -22,7 +22,7 @@ func Logb(x float64) float64 {
 	case x != x: // IsNaN(x):
 		return x
 	}
-	return float64(int((Float64bits(x)>>shift)&mask) - (bias + 1))
+	return float64(int((Float64bits(x)>>shift)&mask) - bias)
 }
 
 // Ilogb(x) returns the binary exponent of non-zero x as an integer.
@@ -43,5 +43,5 @@ func Ilogb(x float64) int {
 	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
 		return MaxInt32
 	}
-	return int((Float64bits(x)>>shift)&mask) - (bias + 1)
+	return int((Float64bits(x)>>shift)&mask) - bias
 }

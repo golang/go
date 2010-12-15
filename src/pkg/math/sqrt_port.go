@@ -113,7 +113,7 @@ func sqrtGo(x float64) float64 {
 		}
 		exp++
 	}
-	exp -= bias + 1 // unbias exponent
+	exp -= bias // unbias exponent
 	ix &^= mask << shift
 	ix |= 1 << shift
 	if exp&1 == 1 { // odd exp, double x to make it even
@@ -138,6 +138,6 @@ func sqrtGo(x float64) float64 {
 	if ix != 0 { // remainder, result not exact
 		q += q & 1 // round according to extra bit
 	}
-	ix = q>>1 + uint64(exp+bias)<<shift // significand + biased exponent
+	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
 	return Float64frombits(ix)
 }
