@@ -400,6 +400,7 @@ dpcheck(Node *n)
 
 	i = l->param;
 	b = n->right;
+	a = Z;
 	while(i > 0) {
 		b = nextarg(b, &a);
 		i--;

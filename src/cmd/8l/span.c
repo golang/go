@@ -822,22 +822,6 @@ subreg(Prog *p, int from, int to)
 		print("%P\n", p);
 }
 
-// nacl RET:
-//	POPL BX
-//	ANDL BX, $~31
-//	JMP BX
-uchar naclret[] = { 0x5b, 0x83, 0xe3, ~31, 0xff, 0xe3 };
-
-// nacl JMP BX:
-//	ANDL BX, $~31
-//	JMP BX
-uchar nacljmpbx[] = { 0x83, 0xe3, ~31, 0xff, 0xe3 };
-
-// nacl CALL BX:
-//	ANDL BX, $~31
-//	CALL BX
-uchar naclcallbx[] = { 0x83, 0xe3, ~31, 0xff, 0xd3 };
-
 void
 doasm(Prog *p)
 {
@@ -906,12 +890,6 @@ found:
 		break;
 
 	case Zlit:
-		if(HEADTYPE == 8 && p->as == ARET) {
-			// native client return.
-			for(z=0; z<sizeof(naclret); z++)
-				*andptr++ = naclret[z];
-			break;
-		}
 		for(; op = o->op[z]; z++)
 			*andptr++ = op;
 		break;
@@ -945,42 +923,6 @@ found:
 		break;
 
 	case Zo_m:
-		if(HEADTYPE == 8) {
-			Adr a;
-
-			switch(p->as) {
-			case AJMP:
-				if(p->to.type < D_AX || p->to.type > D_DI)
-					diag("indirect jmp must use register in native client");
-				// ANDL $~31, REG
-				*andptr++ = 0x83;
-				asmand(&p->to, 04);
-				*andptr++ = ~31;
-				// JMP REG
-				*andptr++ = 0xFF;
-				asmand(&p->to, 04);
-				return;
-
-			case ACALL:
-				a = p->to;
-				// native client indirect call
-				if(a.type < D_AX || a.type > D_DI) {
-					// MOVL target into BX
-					*andptr++ = 0x8b;
-					asmand(&p->to, reg[D_BX]);
-					memset(&a, 0, sizeof a);
-					a.type = D_BX;
-				}
-				// ANDL $~31, REG
-				*andptr++ = 0x83;
-				asmand(&a, 04);
-				*andptr++ = ~31;
-				// CALL REG
-				*andptr++ = 0xFF;
-				asmand(&a, 02);
-				return;
-			}
-		}
 		*andptr++ = op;
 		asmand(&p->to, o->op[z+1]);
 		break;
@@ -1004,12 +946,6 @@ found:
 		else
 			a = &p->to;
 		v = vaddr(a, nil);
-		if(HEADTYPE == 8 && p->as == AINT && v == 3) {
-			// native client disallows all INT instructions.
-			// translate INT $3 to HLT.
-			*andptr++ = 0xf4;
-			break;
-		}
 		*andptr++ = op;
 		*andptr++ = v;
 		break;
@@ -1380,51 +1316,8 @@ mfound:
 void
 asmins(Prog *p)
 {
-	if(HEADTYPE == 8) {
-		ulong npc;
-		static Prog *prefix;
-		
-		// TODO: adjust relocations, like 6l does for rex prefix
-
-		// native client
-		// - pad indirect jump targets (aka ATEXT) to 32-byte boundary
-		// - instructions cannot cross 32-byte boundary
-		// - end of call (return address) must be on 32-byte boundary
-		if(p->as == ATEXT)
-			p->pc += 31 & -p->pc;
-		if(p->as == ACALL) {
-			// must end on 32-byte boundary.
-			// doasm to find out how long the CALL encoding is.
-			andptr = and;
-			doasm(p);
-			npc = p->pc + (andptr - and);
-			p->pc += 31 & -npc;
-		}
-		if(p->as == AREP || p->as == AREPN) {
-			// save prefix for next instruction,
-			// so that inserted NOPs do not split (e.g.) REP / MOVSL sequence.
-			prefix = p;
-			andptr = and;
-			return;
-		}
-		andptr = and;
-		if(prefix)
-			doasm(prefix);
-		doasm(p);
-		npc = p->pc + (andptr - and);
-		if(andptr > and && (p->pc&~31) != ((npc-1)&~31)) {
-			// crossed 32-byte boundary; pad to boundary and try again
-			p->pc += 31 & -p->pc;
-			andptr = and;
-			if(prefix)
-				doasm(prefix);
-			doasm(p);
-		}
-		prefix = nil;
-	} else {
-		andptr = and;
-		doasm(p);
-	}
+	andptr = and;
+	doasm(p);
 	if(andptr > and+sizeof and) {
 		print("and[] is too short - %d byte instruction\n", andptr - and);
 		errorexit();

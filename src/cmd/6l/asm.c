@@ -415,7 +415,7 @@ addpltsym(Sym *s)
 static void
 addgotsym(Sym *s)
 {
-	Sym *got, *rela, *indir;
+	Sym *got, *rela;
 
 	if(s->got >= 0)
 		return;
@@ -975,8 +975,6 @@ asmb(void)
 		if(elftextsh != eh->shnum)
 			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
-			elfshbits(sect);
-		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
 			elfshbits(sect);
 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
 			elfshbits(sect);

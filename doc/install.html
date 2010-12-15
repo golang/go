@@ -62,7 +62,7 @@ support for segmented stacks, and a strong goroutine implementation.
 </p>
 
 <p>
-The compilers can target the FreeBSD, Linux, Native Client,
+The compilers can target the FreeBSD, Linux,
 and OS X (a.k.a. Darwin) operating systems.
 (A port to Microsoft Windows is in progress but incomplete.  See the 
 <a href="http://code.google.com/p/go/wiki/WindowsPort">Windows Port</a>
@@ -340,7 +340,6 @@ to override the defaults.
 	Choices for <code>$GOOS</code> are <code>linux</code>,
 	<code>freebsd</code>,
 	<code>darwin</code> (Mac OS X 10.5 or 10.6),
-	<code>nacl</code> (Native Client, an incomplete port),
 	and <code>windows</code> (Windows, an incomplete port).
 	Choices for <code>$GOARCH</code> are <code>amd64</code> (64-bit x86, the most mature port),
 	<code>386</code> (32-bit x86), and
@@ -370,9 +369,6 @@ to override the defaults.
 	</tr>
 	<tr>
 	<td></td><td><code>linux</code></td> <td><code>arm</code></td> <td><i>incomplete</i></td>
-	</tr>
-	<tr>
-	<td></td><td><code>nacl</code></td> <td><code>386</code></td>
 	</tr>
 	<tr>
 	<td></td><td><code>windows</code></td> <td><code>386</code></td> <td><i>incomplete</i></td>

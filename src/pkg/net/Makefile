@@ -41,13 +41,6 @@ GOFILES_linux=\
 	dnsconfig.go\
 	dnsclient.go\
 	port.go\
-	
-GOFILES_nacl=\
-	newpollserver.go\
-	fd.go\
-	dnsconfig.go\
-	dnsclient.go\
-	port.go\
 
 GOFILES_windows=\
 	resolv_windows.go\

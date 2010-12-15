@@ -535,8 +535,6 @@ asmb(void)
 
 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
 			elfshbits(sect);
-		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
-			elfshbits(sect);
 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
 			elfshbits(sect);
 

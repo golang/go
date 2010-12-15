@@ -76,22 +76,6 @@ scanblock(byte *b, int64 n)
 			obj = vp[i];
 			if(obj == nil)
 				continue;
-			if(runtime·mheap.closure_min != nil && runtime·mheap.closure_min <= (byte*)obj && (byte*)obj < runtime·mheap.closure_max) {
-				if((((uintptr)obj) & 63) != 0)
-					continue;
-	
-				// Looks like a Native Client closure.
-				// Actual pointer is pointed at by address in first instruction.
-				// Embedded pointer starts at byte 2.
-				// If it is f4f4f4f4 then that space hasn't been
-				// used for a closure yet (f4 is the HLT instruction).
-				// See nacl/386/closure.c for more.
-				void **pp;
-				pp = *(void***)((byte*)obj+2);
-				if(pp == (void**)0xf4f4f4f4)	// HLT... - not a closure after all
-					continue;
-				obj = *pp;
-			}
 			if(runtime·mheap.min <= (byte*)obj && (byte*)obj < runtime·mheap.max) {
 				if(runtime·mlookup(obj, &obj, &size, nil, &refp)) {
 					ref = *refp;

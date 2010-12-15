@@ -327,10 +327,6 @@ struct MHeap
 	byte *min;
 	byte *max;
 	
-	// range of addresses we might see in a Native Client closure
-	byte *closure_min;
-	byte *closure_max;
-
 	// central free lists for small size classes.
 	// the union makes sure that the MCentrals are
 	// spaced 64 bytes apart, so that each MCentral.Lock
