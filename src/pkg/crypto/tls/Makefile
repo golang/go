@@ -8,6 +8,7 @@ TARG=crypto/tls
 GOFILES=\
 	alert.go\
 	ca_set.go\
+	cipher_suites.go\
 	common.go\
 	conn.go\
 	handshake_client.go\

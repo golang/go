@@ -48,7 +48,7 @@ func TestGolden(t *testing.T) {
 			return
 		}
 		keystream := make([]byte, len(g.keystream))
-		c.XORKeyStream(keystream)
+		c.XORKeyStream(keystream, keystream)
 		for j, v := range keystream {
 			if g.keystream[j] != v {
 				t.Errorf("Failed at golden index %d", i)

@@ -44,8 +44,8 @@ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
 	}
 }
 
-// pRF11 implements the TLS 1.1 pseudo-random function, as defined in RFC 4346, section 5.
-func pRF11(result, secret, label, seed []byte) {
+// pRF10 implements the TLS 1.0 pseudo-random function, as defined in RFC 2246, section 5.
+func pRF10(result, secret, label, seed []byte) {
 	hashSHA1 := sha1.New
 	hashMD5 := md5.New
 
@@ -75,25 +75,32 @@ var clientFinishedLabel = []byte("client finished")
 var serverFinishedLabel = []byte("server finished")
 
 // keysFromPreMasterSecret generates the connection keys from the pre master
-// secret, given the lengths of the MAC and cipher keys, as defined in RFC
-// 4346, section 6.3.
-func keysFromPreMasterSecret11(preMasterSecret, clientRandom, serverRandom []byte, macLen, keyLen int) (masterSecret, clientMAC, serverMAC, clientKey, serverKey []byte) {
+// secret, given the lengths of the MAC key, cipher key and IV, as defined in
+// RFC 2246, section 6.3.
+func keysFromPreMasterSecret10(preMasterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
 	var seed [tlsRandomLength * 2]byte
 	copy(seed[0:len(clientRandom)], clientRandom)
 	copy(seed[len(clientRandom):], serverRandom)
 	masterSecret = make([]byte, masterSecretLength)
-	pRF11(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
+	pRF10(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
 
 	copy(seed[0:len(clientRandom)], serverRandom)
 	copy(seed[len(serverRandom):], clientRandom)
 
-	n := 2*macLen + 2*keyLen
+	n := 2*macLen + 2*keyLen + 2*ivLen
 	keyMaterial := make([]byte, n)
-	pRF11(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
-	clientMAC = keyMaterial[0:macLen]
-	serverMAC = keyMaterial[macLen : macLen*2]
-	clientKey = keyMaterial[macLen*2 : macLen*2+keyLen]
-	serverKey = keyMaterial[macLen*2+keyLen:]
+	pRF10(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
+	clientMAC = keyMaterial[:macLen]
+	keyMaterial = keyMaterial[macLen:]
+	serverMAC = keyMaterial[:macLen]
+	keyMaterial = keyMaterial[macLen:]
+	clientKey = keyMaterial[:keyLen]
+	keyMaterial = keyMaterial[keyLen:]
+	serverKey = keyMaterial[:keyLen]
+	keyMaterial = keyMaterial[keyLen:]
+	clientIV = keyMaterial[:ivLen]
+	keyMaterial = keyMaterial[ivLen:]
+	serverIV = keyMaterial[:ivLen]
 	return
 }
 
@@ -125,7 +132,7 @@ func finishedSum(md5, sha1, label, masterSecret []byte) []byte {
 	copy(seed, md5)
 	copy(seed[len(md5):], sha1)
 	out := make([]byte, finishedVerifyLength)
-	pRF11(out, masterSecret, label, seed)
+	pRF10(out, masterSecret, label, seed)
 	return out
 }
 
