@@ -30,6 +30,11 @@ import time
 import urllib2
 import sets
 
+# local imports
+import toutf8
+
+template.register_template_library('toutf8')
+
 # Storage model for package info recorded on server.
 # Just path, count, and time of last install.
 class Package(db.Model):
