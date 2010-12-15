@@ -15,6 +15,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -73,8 +74,13 @@ func main() {
 	if flag.NArg() == 0 {
 		doFile("stdin", os.Stdin)
 	} else {
-		for _, arg := range flag.Args() {
-			doFile(arg, nil)
+		for _, name := range flag.Args() {
+			// Is it a directory?
+			if fi, err := os.Stat(name); err == nil && fi.IsDirectory() {
+				walkDir(name)
+			} else {
+				doFile(name, nil)
+			}
 		}
 	}
 	os.Exit(exitCode)
@@ -83,7 +89,6 @@ func main() {
 // doFile analyzes one file.  If the reader is nil, the source code is read from the
 // named file.
 func doFile(name string, reader io.Reader) {
-	// TODO: process directories?
 	fs := token.NewFileSet()
 	parsedFile, err := parser.ParseFile(fs, name, reader, 0)
 	if err != nil {
@@ -92,6 +97,36 @@ func doFile(name string, reader io.Reader) {
 	}
 	file := &File{fs.File(parsedFile.Pos())}
 	file.checkFile(name, parsedFile)
+}
+
+// Visitor for path.Walk - trivial.  Just calls doFile on each file.
+// TODO: if govet becomes richer, might want to process
+// a directory (package) at a time.
+type V struct{}
+
+func (v V) VisitDir(path string, f *os.FileInfo) bool {
+	return true
+}
+
+func (v V) VisitFile(path string, f *os.FileInfo) {
+	if strings.HasSuffix(path, ".go") {
+		doFile(path, nil)
+	}
+}
+
+// walkDir recursively walks the tree looking for .go files.
+func walkDir(root string) {
+	errors := make(chan os.Error)
+	done := make(chan bool)
+	go func() {
+		for e := range errors {
+			error("walk error: %s", e)
+		}
+		done <- true
+	}()
+	path.Walk(root, V{}, errors)
+	close(errors)
+	<-done
 }
 
 // error formats the error to standard error, adding program
@@ -143,7 +178,7 @@ func (f *File) Warnf(pos token.Pos, format string, args ...interface{}) {
 
 // checkFile checks all the top-level declarations in a file.
 func (f *File) checkFile(name string, file *ast.File) {
-	Println("Checking", name)
+	Println("Checking file", name)
 	ast.Walk(f, file)
 }
 
