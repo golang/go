@@ -163,7 +163,6 @@ needlib(char *name)
 
 int nelfsym = 1;
 
-static void	adddynsym(Sym*);
 static void addpltsym(Sym*);
 static void addgotsym(Sym*);
 
@@ -437,7 +436,7 @@ addgotsym(Sym *s)
 	}
 }
 
-static void
+void
 adddynsym(Sym *s)
 {
 	Sym *d, *str;

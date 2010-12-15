@@ -31,6 +31,12 @@ OFILES=\
 
 CGO_LDFLAGS=-lpthread
 
+ifeq ($(GOOS),freebsd)
+OFILES+=\
+	freebsd.$O\
+
+endif
+
 endif
 
 include ../../../Make.pkg

@@ -165,9 +165,9 @@ relocsym(Sym *s)
 		if(r->type >= 256)
 			continue;
 
-		if(r->sym != S && (r->sym->type == SDYNIMPORT || r->sym->dynimpname != nil))
+		if(r->sym != S && r->sym->type == SDYNIMPORT)
 			if (thechar != '8' || HEADTYPE != 10) // Windows PE supports relocation references to dynamic import symbols
-				diag("unhandled relocation for %s (rtype %d)", r->sym->name, r->type);
+				diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
 
 		if(r->sym != S && !r->sym->reachable)
 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);

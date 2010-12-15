@@ -658,3 +658,12 @@ deadcode(void)
 	else
 		last->next = nil;
 }
+
+void
+addexport(void)
+{
+	int i;
+	
+	for(i=0; i<ndynexp; i++)
+		adddynsym(dynexp[i]);
+}
