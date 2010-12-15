@@ -147,7 +147,7 @@ func (c *Config) rootCAs() *CASet {
 
 func (c *Config) cipherSuites() []uint16 {
 	s := c.CipherSuites
-	if len(s) == 0 {
+	if s == nil {
 		s = defaultCipherSuites()
 	}
 	return s
