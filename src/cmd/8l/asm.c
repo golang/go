@@ -539,8 +539,6 @@ doelf(void)
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
 	addstring(shstrtab, ".elfdata");
-	if(HEADTYPE == 8)
-		addstring(shstrtab, ".closure");
 	addstring(shstrtab, ".rodata");
 	if(!debug['s']) {
 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
@@ -674,8 +672,6 @@ asmb(void)
 	sect = segtext.sect;
 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
 	codeblk(sect->vaddr, sect->len);
-	
-	// TODO: NaCl: pad with HLT
 
 	/* output read-only data in text segment */
 	sect = segtext.sect->next;
@@ -889,7 +885,7 @@ asmb(void)
 
 	Elfput:
 		/* elf 386 */
-		if(HEADTYPE == 8 || HEADTYPE == 11)
+		if(HEADTYPE == 11)
 			debug['d'] = 1;
 
 		eh = getElfEhdr();
@@ -901,17 +897,14 @@ asmb(void)
 		/* This null SHdr must appear before all others */
 		sh = newElfShdr(elfstr[ElfStrEmpty]);
 
-		/* program header info - but not on native client */
-		pph = nil;
-		if(HEADTYPE != 8) {
-			pph = newElfPhdr();
-			pph->type = PT_PHDR;
-			pph->flags = PF_R + PF_X;
-			pph->off = eh->ehsize;
-			pph->vaddr = INITTEXT - HEADR + pph->off;
-			pph->paddr = INITTEXT - HEADR + pph->off;
-			pph->align = INITRND;
-		}
+		/* program header info */
+		pph = newElfPhdr();
+		pph->type = PT_PHDR;
+		pph->flags = PF_R + PF_X;
+		pph->off = eh->ehsize;
+		pph->vaddr = INITTEXT - HEADR + pph->off;
+		pph->paddr = INITTEXT - HEADR + pph->off;
+		pph->align = INITRND;
 
 		if(!debug['d']) {
 			/* interpreter */
@@ -935,8 +928,6 @@ asmb(void)
 		}
 
 		elfphload(&segtext);
-		if(segrodata.len > 0)
-			elfphload(&segrodata);
 		elfphload(&segdata);
 
 		/* Dynamic linking sections */
@@ -1038,8 +1029,6 @@ asmb(void)
 			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
 			elfshbits(sect);
-		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
-			elfshbits(sect);
 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
 			elfshbits(sect);
 
@@ -1073,11 +1062,6 @@ asmb(void)
 		eh->ident[EI_DATA] = ELFDATA2LSB;
 		eh->ident[EI_VERSION] = EV_CURRENT;
 		switch(HEADTYPE) {
-		case 8:
-			eh->ident[EI_OSABI] = ELFOSABI_NACL;
-			eh->ident[EI_ABIVERSION] = 7;
-			eh->flags = 0x200000;	// aligned mod 32
-			break;
 		case 9:
 			eh->ident[EI_OSABI] = 9;
 			break;

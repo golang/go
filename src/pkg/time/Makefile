@@ -20,9 +20,6 @@ GOFILES_darwin=\
 GOFILES_linux=\
 	zoneinfo_unix.go\
 
-GOFILES_nacl=\
-	zoneinfo_unix.go\
-
 GOFILES_windows=\
 	zoneinfo_windows.go\
 

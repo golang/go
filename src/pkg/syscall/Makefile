@@ -30,10 +30,6 @@ GOFILES_linux=\
 	syscall_unix.go\
 	exec_unix.go\
 
-GOFILES_nacl=\
-	syscall_unix.go\
-	exec_unix.go\
-
 GOFILES_windows=\
 	exec_windows.go
 

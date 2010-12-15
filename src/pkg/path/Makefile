@@ -18,9 +18,6 @@ GOFILES_darwin=\
 GOFILES_linux=\
 	path_unix.go
 
-GOFILES_nacl=\
-	path_unix.go
-
 GOFILES_windows=\
 	path_windows.go
 

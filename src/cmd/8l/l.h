@@ -321,7 +321,6 @@ EXTERN	int32	spsize;
 EXTERN	Sym*	symlist;
 EXTERN	int32	symsize;
 EXTERN	Sym*	textp;
-EXTERN	int32	textpad;
 EXTERN	int32	textsize;
 EXTERN	int	version;
 EXTERN	Prog	zprg;

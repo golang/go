@@ -18,9 +18,6 @@ GOFILES_darwin=\
 GOFILES_linux=\
 	rand_unix.go\
 
-GOFILES_nacl=\
-	rand_unix.go\
-
 GOFILES_windows=\
 	rand_windows.go\
 

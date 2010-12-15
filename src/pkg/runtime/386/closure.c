@@ -15,9 +15,6 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 	int32 i, n;
 	int32 pcrel;
 
-	if(runtime·goos != nil && runtime·strcmp((uint8*)runtime·goos, (uint8*)"nacl") == 0)
-		runtime·throw("no closures in native client yet");
-
 	if(siz < 0 || siz%4 != 0)
 		runtime·throw("bad closure size");
 

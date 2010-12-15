@@ -165,9 +165,3 @@ ifeq ($(GOARCH),386)
 traceback.$O:	amd64/traceback.c
 	$(CC) $(CFLAGS) $<
 endif
-
-# NaCl closure is special.
-ifeq ($(GOOS),nacl)
-closure.$O: nacl/$(GOARCH)/closure.c
-	$(CC) $(CFLAGS) $<
-endif

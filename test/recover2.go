@@ -7,7 +7,6 @@
 // Test of recover for run-time errors.
 
 // TODO(rsc):
-//	integer divide by zero?
 //	null pointer accesses
 
 package main
@@ -15,7 +14,6 @@ package main
 import (
 	"os"
 	"strings"
-	"syscall"
 )
 
 var x = make([]byte, 10)
@@ -83,10 +81,6 @@ func test6() {
 }
 
 func test7() {
-	if syscall.OS == "nacl" {
-		// NaCl cannot handle traps
-		return
-	}
 	defer mustRecover("divide by zero")
 	var x, y int
 	println(x / y)

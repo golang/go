@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"syscall"
 )
 
 type Error interface {
@@ -163,7 +162,7 @@ func alike(a, b float64) bool {
 func main() {
 	bad := false
 	for _, t := range errorTests {
-		if t.err != "" && syscall.OS == "nacl" {
+		if t.err != "" {
 			continue
 		}
 		err := error(t.fn)

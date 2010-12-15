@@ -95,7 +95,6 @@ EXTERN	char*	thestring;
 
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;
-EXTERN	Segment	segrodata;	// NaCl only
 EXTERN	Segment	segsym;
 
 void	addlib(char *src, char *obj);

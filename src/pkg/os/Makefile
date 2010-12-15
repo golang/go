@@ -33,11 +33,6 @@ GOFILES_linux=\
 	file_unix.go\
 	sys_linux.go\
 
-GOFILES_nacl=\
-	env_unix.go\
-	file_unix.go\
-	sys_nacl.go\
-
 GOFILES_windows=\
 	env_windows.go\
 	file_windows.go\
