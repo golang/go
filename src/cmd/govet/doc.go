@@ -19,6 +19,7 @@ complains about arguments that look like format descriptor strings.
 Usage:
 
 	govet [flag] [file.go ...]
+	govet [flag] [directory ...] # Scan all .go files under directory, recursively
 
 The flags are:
 	-v
