@@ -313,6 +313,7 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	span();
+	addexport();
 	textaddress();
 	pclntab();
 	symtab();

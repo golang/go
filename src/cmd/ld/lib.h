@@ -161,6 +161,8 @@ void	genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*));
 vlong	datoff(vlong);
 void	adddynlib(char*);
 int	archreloc(Reloc*, Sym*, vlong*);
+void	adddynsym(Sym*);
+void	addexport(void);
 
 int	pathchar(void);
 void*	mal(uint32);

@@ -14,7 +14,7 @@ if [ -f $OUT ] && ! [ -w $OUT ]; then
 fi
 
 # Get list of directories from Makefile
-dirs=$(make echo-dirs)
+dirs=$(gomake echo-dirs)
 dirpat=$(echo $dirs C | sed 's/ /|/g; s/.*/^(&)$/')
 
 for dir in $dirs; do (
