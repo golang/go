@@ -90,7 +90,7 @@ mandelbrot 5500
 	gc mandelbrot	74.32u 0.00s 74.35r
 	gc_B mandelbrot	74.28u 0.01s 74.31r
 
-meteor 16000
+meteor 2100
 	# we don't know
 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
 	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.14r
@@ -209,7 +209,7 @@ mandelbrot 16000
 	gc mandelbrot	64.05u 0.02s 64.08r	# *** -14%
 	gc_B mandelbrot	64.10u 0.02s 64.14r	# *** -14%
 
-meteor 16000
+meteor 2100
 	# we don't know
 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
 	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.12r
@@ -307,7 +307,7 @@ mandelbrot 16000
 	gc mandelbrot	63.31u 0.01s 63.35r	# -1%
 	gc_B mandelbrot	63.29u 0.00s 63.31r	# -1%
 
-meteor 16000
+meteor 2100
 	# we don't know
 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
 	gccgo -O2 meteor-contest.go	0.11u 0.00s 0.12r
@@ -477,7 +477,7 @@ mandelbrot 16000
 	gc mandelbrot	66.05u 0.00s 66.07r	# -3%
 	gc_B mandelbrot	66.06u 0.00s 66.07r	# -3%
 
-meteor 16000
+meteor 2100
 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
 	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.12r
 	gc meteor-contest	0.17u 0.00s 0.17r
@@ -561,7 +561,7 @@ mandelbrot 16000
 	gc mandelbrot	64.85u 0.01s 64.94r
 	gc_B mandelbrot	65.02u 0.01s 65.14r
 
-meteor 16000
+meteor 2100
 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
 	gccgo -O2 meteor-contest.go	0.10u 0.00s 0.11r
 	gc meteor-contest	0.17u 0.00s 0.18r
