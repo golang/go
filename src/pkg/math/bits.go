@@ -10,7 +10,7 @@ const (
 	uvneginf = 0xFFF0000000000000
 	mask     = 0x7FF
 	shift    = 64 - 11 - 1
-	bias     = 1022
+	bias     = 1023
 )
 
 // Inf returns positive infinity if sign >= 0, negative infinity if sign < 0.

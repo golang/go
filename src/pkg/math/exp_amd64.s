@@ -84,7 +84,7 @@ TEXT ·Exp(SB),7,$0
 	MULSD   X1, X0
 	ADDSD   $1.0, X0
 	// return fr * 2**exponent
-	MOVL    $0x3FF, AX // bias + 1
+	MOVL    $0x3FF, AX // bias
 	ADDL    AX, BX
 	JLE     underflow
 	CMPL    BX, $0x7FF

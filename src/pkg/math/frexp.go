@@ -19,9 +19,9 @@ func Frexp(f float64) (frac float64, exp int) {
 		return f, 0
 	}
 	x := Float64bits(f)
-	exp = int((x>>shift)&mask) - bias
+	exp = int((x>>shift)&mask) - bias + 1
 	x &^= mask << shift
-	x |= bias << shift
+	x |= (-1 + bias) << shift
 	frac = Float64frombits(x)
 	return
 }
