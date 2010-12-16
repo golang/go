@@ -36,8 +36,6 @@ TEXT runtime·write(SB),7,$0
 	MOVL	24(SP), DX		// arg 3 count
 	MOVL	$(0x2000000+4), AX	// syscall entry
 	SYSCALL
-	JCC	2(PC)
-	CALL	runtime·notok(SB)
 	RET
 
 // void gettime(int64 *sec, int32 *usec)

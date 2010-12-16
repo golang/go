@@ -63,8 +63,6 @@ TEXT runtime·write(SB),7,$-8
 	MOVL	24(SP), DX		// arg 3 count
 	MOVL	$4, AX
 	SYSCALL
-	JCC	2(PC)
-	CALL	runtime·notok(SB)
 	RET
 
 TEXT runtime·gettime(SB), 7, $32
