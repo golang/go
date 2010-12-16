@@ -361,26 +361,3 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 		}
 	}
 }
-
-// Border aligns r.Min in dst with sp in src and then replaces pixels
-// in a w-pixel border around r in dst with the result of the Porter-Duff compositing
-// operation ``src over dst.''  If w is positive, the border extends w pixels inside r.
-// If w is negative, the border extends w pixels outside r.
-func Border(dst Image, r image.Rectangle, w int, src image.Image, sp image.Point) {
-	i := w
-	if i > 0 {
-		// inside r
-		Draw(dst, image.Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, sp)                                // top
-		Draw(dst, image.Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, sp.Add(image.Pt(0, i)))        // left
-		Draw(dst, image.Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, sp.Add(image.Pt(r.Dx()-i, i))) // right
-		Draw(dst, image.Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, sp.Add(image.Pt(0, r.Dy()-i)))     // bottom
-		return
-	}
-
-	// outside r;
-	i = -i
-	Draw(dst, image.Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, sp.Add(image.Pt(-i, -i))) // top
-	Draw(dst, image.Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, sp.Add(image.Pt(-i, 0)))      // left
-	Draw(dst, image.Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, sp.Add(image.Pt(r.Dx(), 0)))  // right
-	Draw(dst, image.Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, sp.Add(image.Pt(-i, 0)))  // bottom
-}
