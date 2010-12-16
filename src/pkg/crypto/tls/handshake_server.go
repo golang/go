@@ -34,12 +34,37 @@ func (c *Conn) serverHandshake() os.Error {
 
 	hello := new(serverHelloMsg)
 
+	supportedCurve := false
+Curves:
+	for _, curve := range clientHello.supportedCurves {
+		switch curve {
+		case curveP256, curveP384, curveP521:
+			supportedCurve = true
+			break Curves
+		}
+	}
+
+	supportedPointFormat := false
+	for _, pointFormat := range clientHello.supportedPoints {
+		if pointFormat == pointFormatUncompressed {
+			supportedPointFormat = true
+			break
+		}
+	}
+
+	ellipticOk := supportedCurve && supportedPointFormat
+
 	var suite *cipherSuite
 	var suiteId uint16
 	for _, id := range clientHello.cipherSuites {
 		for _, supported := range config.cipherSuites() {
 			if id == supported {
 				suite = cipherSuites[id]
+				// Don't select a ciphersuite which we can't
+				// support for this client.
+				if suite.elliptic && !ellipticOk {
+					continue
+				}
 				suiteId = id
 				break
 			}
@@ -88,6 +113,18 @@ func (c *Conn) serverHandshake() os.Error {
 	certMsg.certificates = config.Certificates[0].Certificate
 	finishedHash.Write(certMsg.marshal())
 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
+
+	keyAgreement := suite.ka()
+
+	skx, err := keyAgreement.generateServerKeyExchange(config, clientHello, hello)
+	if err != nil {
+		c.sendAlert(alertHandshakeFailure)
+		return err
+	}
+	if skx != nil {
+		finishedHash.Write(skx.marshal())
+		c.writeRecord(recordTypeHandshake, skx.marshal())
+	}
 
 	if config.AuthenticateClient {
 		// Request a client certificate
@@ -185,22 +222,11 @@ func (c *Conn) serverHandshake() os.Error {
 		finishedHash.Write(certVerify.marshal())
 	}
 
-	preMasterSecret := make([]byte, 48)
-	_, err = io.ReadFull(config.rand(), preMasterSecret[2:])
+	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, ckx)
 	if err != nil {
-		return c.sendAlert(alertInternalError)
+		c.sendAlert(alertHandshakeFailure)
+		return err
 	}
-
-	err = rsa.DecryptPKCS1v15SessionKey(config.rand(), config.Certificates[0].PrivateKey, ckx.ciphertext, preMasterSecret)
-	if err != nil {
-		return c.sendAlert(alertHandshakeFailure)
-	}
-	// We don't check the version number in the premaster secret. For one,
-	// by checking it, we would leak information about the validity of the
-	// encrypted pre-master secret. Secondly, it provides only a small
-	// benefit against a downgrade attack and some implementations send the
-	// wrong version anyway. See the discussion at the end of section
-	// 7.4.7.1 of RFC 4346.
 
 	masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
 		keysFromPreMasterSecret10(preMasterSecret, clientHello.random, hello.random, suite.macLen, suite.keyLen, suite.ivLen)

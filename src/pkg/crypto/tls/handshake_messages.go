@@ -14,6 +14,8 @@ type clientHelloMsg struct {
 	nextProtoNeg       bool
 	serverName         string
 	ocspStapling       bool
+	supportedCurves    []uint16
+	supportedPoints    []uint8
 }
 
 func (m *clientHelloMsg) marshal() []byte {
@@ -33,6 +35,14 @@ func (m *clientHelloMsg) marshal() []byte {
 	}
 	if len(m.serverName) > 0 {
 		extensionsLength += 5 + len(m.serverName)
+		numExtensions++
+	}
+	if len(m.supportedCurves) > 0 {
+		extensionsLength += 2 + 2*len(m.supportedCurves)
+		numExtensions++
+	}
+	if len(m.supportedPoints) > 0 {
+		extensionsLength += 1 + len(m.supportedPoints)
 		numExtensions++
 	}
 	if numExtensions > 0 {
@@ -116,6 +126,38 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[4] = 1 // OCSP type
 		// Two zero valued uint16s for the two lengths.
 		z = z[9:]
+	}
+	if len(m.supportedCurves) > 0 {
+		// http://tools.ietf.org/html/rfc4492#section-5.5.1
+		z[0] = byte(extensionSupportedCurves >> 8)
+		z[1] = byte(extensionSupportedCurves)
+		l := 2 + 2*len(m.supportedCurves)
+		z[2] = byte(l >> 8)
+		z[3] = byte(l)
+		l -= 2
+		z[4] = byte(l >> 8)
+		z[5] = byte(l)
+		z = z[6:]
+		for _, curve := range m.supportedCurves {
+			z[0] = byte(curve >> 8)
+			z[1] = byte(curve)
+			z = z[2:]
+		}
+	}
+	if len(m.supportedPoints) > 0 {
+		// http://tools.ietf.org/html/rfc4492#section-5.5.2
+		z[0] = byte(extensionSupportedPoints >> 8)
+		z[1] = byte(extensionSupportedPoints)
+		l := 1 + len(m.supportedPoints)
+		z[2] = byte(l >> 8)
+		z[3] = byte(l)
+		l--
+		z[4] = byte(l)
+		z = z[5:]
+		for _, pointFormat := range m.supportedPoints {
+			z[0] = byte(pointFormat)
+			z = z[1:]
+		}
 	}
 
 	m.raw = x
@@ -221,6 +263,33 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			m.nextProtoNeg = true
 		case extensionStatusRequest:
 			m.ocspStapling = length > 0 && data[0] == statusTypeOCSP
+		case extensionSupportedCurves:
+			// http://tools.ietf.org/html/rfc4492#section-5.5.1
+			if length < 2 {
+				return false
+			}
+			l := int(data[0])<<8 | int(data[1])
+			if l%2 == 1 || length != l+2 {
+				return false
+			}
+			numCurves := l / 2
+			m.supportedCurves = make([]uint16, numCurves)
+			d := data[2:]
+			for i := 0; i < numCurves; i++ {
+				m.supportedCurves[i] = uint16(d[0])<<8 | uint16(d[1])
+				d = d[2:]
+			}
+		case extensionSupportedPoints:
+			// http://tools.ietf.org/html/rfc4492#section-5.5.2
+			if length < 1 {
+				return false
+			}
+			l := int(data[0])
+			if length != l+1 {
+				return false
+			}
+			m.supportedPoints = make([]uint8, l)
+			copy(m.supportedPoints, data[1:])
 		}
 		data = data[length:]
 	}
@@ -466,6 +535,36 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
 	return true
 }
 
+type serverKeyExchangeMsg struct {
+	raw []byte
+	key []byte
+}
+
+func (m *serverKeyExchangeMsg) marshal() []byte {
+	if m.raw != nil {
+		return m.raw
+	}
+	length := len(m.key)
+	x := make([]byte, length+4)
+	x[0] = typeServerKeyExchange
+	x[1] = uint8(length >> 16)
+	x[2] = uint8(length >> 8)
+	x[3] = uint8(length)
+	copy(x[4:], m.key)
+
+	m.raw = x
+	return x
+}
+
+func (m *serverKeyExchangeMsg) unmarshal(data []byte) bool {
+	m.raw = data
+	if len(data) < 4 {
+		return false
+	}
+	m.key = data[4:]
+	return true
+}
+
 type certificateStatusMsg struct {
 	raw        []byte
 	statusType uint8
@@ -542,15 +641,13 @@ func (m *clientKeyExchangeMsg) marshal() []byte {
 	if m.raw != nil {
 		return m.raw
 	}
-	length := len(m.ciphertext) + 2
+	length := len(m.ciphertext)
 	x := make([]byte, length+4)
 	x[0] = typeClientKeyExchange
 	x[1] = uint8(length >> 16)
 	x[2] = uint8(length >> 8)
 	x[3] = uint8(length)
-	x[4] = uint8(len(m.ciphertext) >> 8)
-	x[5] = uint8(len(m.ciphertext))
-	copy(x[6:], m.ciphertext)
+	copy(x[4:], m.ciphertext)
 
 	m.raw = x
 	return x
@@ -558,14 +655,14 @@ func (m *clientKeyExchangeMsg) marshal() []byte {
 
 func (m *clientKeyExchangeMsg) unmarshal(data []byte) bool {
 	m.raw = data
-	if len(data) < 7 {
+	if len(data) < 4 {
 		return false
 	}
-	cipherTextLen := int(data[4])<<8 | int(data[5])
-	if len(data) != 6+cipherTextLen {
+	l := int(data[1])<<16 | int(data[2])<<8 | int(data[3])
+	if l != len(data)-4 {
 		return false
 	}
-	m.ciphertext = data[6:]
+	m.ciphertext = data[4:]
 	return true
 }
 
