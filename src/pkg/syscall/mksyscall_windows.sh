@@ -15,13 +15,13 @@
 #	* If go func name needs to be different from it's winapi dll name,
 #	  the winapi name could be specified at the end, after "=" sign, like
 #	  //sys LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryA
-#	* Each function, that returns errno, needs to supply a number,
+#	* Each function, that returns errno, needs to supply a condition,
 #	  that return value of winapi will be tested against to
 #	  detect failure. This would set errno to windows "last-error",
 #	  otherwise it will be 0. The value can be provided
 #	  at end of //sys declaration, like
-#	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval=-1] = LoadLibraryA
-#	  and is 0 by default.
+#	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval==-1] = LoadLibraryA
+#	  and is [failretval==0] by default.
 
 $cmdline = "mksyscall_windows.sh " . join(' ', @ARGV);
 $errors = 0;
@@ -74,12 +74,12 @@ while(<>) {
 	# Line must be of the form
 	#	func Open(path string, mode int, perm int) (fd int, errno int)
 	# Split into name, in params, out params.
-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval=(.*)\])?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
+	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval(.*)\])?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
 		$errors = 1;
 		next;
 	}
-	my ($func, $in, $out, $failretval, $modname, $sysname) = ($1, $2, $3, $4, $5, $6);
+	my ($func, $in, $out, $failcond, $modname, $sysname) = ($1, $2, $3, $4, $5, $6);
 
 	# Split argument lists on comma.
 	my @in = parseparamlist($in);
@@ -104,8 +104,8 @@ while(<>) {
 	$sysvarname = "proc$sysname";
 
 	# Returned value when failed
-	if($failretval eq "") {
-		$failretval = "0";
+	if($failcond eq "") {
+		$failcond = "==0";
 	}
 
 	# Decide which version of api is used: ascii or unicode.
@@ -226,9 +226,9 @@ while(<>) {
 				$failexpr = "!$name";
 			} elsif($name eq "errno") {
 				$ret[$i] = "r1";
-				$failexpr = "int(r1) == $failretval";
+				$failexpr = "int(r1) $failcond";
 			} else {
-				$failexpr = "$name == $failretval";
+				$failexpr = "$name $failcond";
 			}
 		}
 		if($name eq "errno") {

@@ -103,13 +103,13 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	GetVersion() (ver uint32, errno int)
 //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval=-1] = CreateFileW
+//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval==-1] = CreateFileW
 //sys	ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
 //sys	WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
-//sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval=0xffffffff]
+//sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval==0xffffffff]
 //sys	CloseHandle(handle int32) (ok bool, errno int)
-//sys	GetStdHandle(stdhandle int32) (handle int32, errno int) [failretval=-1]
-//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) [failretval=-1] = FindFirstFileW
+//sys	GetStdHandle(stdhandle int32) (handle int32, errno int) [failretval==-1]
+//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) [failretval==-1] = FindFirstFileW
 //sys	FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) = FindNextFileW
 //sys	FindClose(handle int32) (ok bool, errno int)
 //sys	GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int)
@@ -123,14 +123,14 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	SetEndOfFile(handle int32) (ok bool, errno int)
 //sys	GetSystemTimeAsFileTime(time *Filetime)
 //sys	sleep(msec uint32) = Sleep
-//sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval=0xffffffff]
+//sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval==0xffffffff]
 //sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
 //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
 //sys	CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, threadSecurity *int16, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation)  (ok bool, errno int) = CreateProcessW
 //sys	GetStartupInfo(startupInfo *StartupInfo)  (ok bool, errno int) = GetStartupInfoW
 //sys	GetCurrentProcess() (pseudoHandle int32, errno int)
 //sys	DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (ok bool, errno int)
-//sys	WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) [failretval=0xffffffff]
+//sys	WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) [failretval==0xffffffff]
 //sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
 //sys	CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int)
 //sys	GetFileType(filehandle uint32) (n uint32, errno int)
@@ -139,12 +139,15 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
 //sys OpenProcess(da uint32,b int, pid uint32) (handle uint32, errno int)
 //sys GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int)
-//sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval=nil] = kernel32.GetEnvironmentStringsW
+//sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval==nil] = kernel32.GetEnvironmentStringsW
 //sys	FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) = kernel32.FreeEnvironmentStringsW
 //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
 //sys	SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) = kernel32.SetEnvironmentVariableW
 //sys	SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int)
-//sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval=INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
+//sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
+//sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
+//sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
+//sys	LocalFree(hmem uint32) (handle uint32, errno int) [failretval!=0]
 
 // syscall interface implementation for other packages
 
@@ -457,23 +460,23 @@ func Utimes(path string, tv []Timeval) (errno int) {
 // net api calls
 
 //sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = wsock32.WSAStartup
-//sys	WSACleanup() (errno int) [failretval=-1] = wsock32.WSACleanup
-//sys	socket(af int32, typ int32, protocol int32) (handle int32, errno int) [failretval=-1] = wsock32.socket
-//sys	setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval=-1] = wsock32.setsockopt
-//sys	bind(s int32, name uintptr, namelen int32) (errno int) [failretval=-1] = wsock32.bind
-//sys	connect(s int32, name uintptr, namelen int32) (errno int) [failretval=-1] = wsock32.connect
-//sys	getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval=-1] = wsock32.getsockname
-//sys	getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval=-1] = wsock32.getpeername
-//sys	listen(s int32, backlog int32) (errno int) [failretval=-1] = wsock32.listen
-//sys	shutdown(s int32, how int32) (errno int) [failretval=-1] = wsock32.shutdown
+//sys	WSACleanup() (errno int) [failretval==-1] = wsock32.WSACleanup
+//sys	socket(af int32, typ int32, protocol int32) (handle int32, errno int) [failretval==-1] = wsock32.socket
+//sys	setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval==-1] = wsock32.setsockopt
+//sys	bind(s int32, name uintptr, namelen int32) (errno int) [failretval==-1] = wsock32.bind
+//sys	connect(s int32, name uintptr, namelen int32) (errno int) [failretval==-1] = wsock32.connect
+//sys	getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = wsock32.getsockname
+//sys	getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = wsock32.getpeername
+//sys	listen(s int32, backlog int32) (errno int) [failretval==-1] = wsock32.listen
+//sys	shutdown(s int32, how int32) (errno int) [failretval==-1] = wsock32.shutdown
 //sys	AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) = wsock32.AcceptEx
 //sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
-//sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecv
-//sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASend
-//sys	WSARecvFrom(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32,  from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecvFrom
-//sys	WSASendTo(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *RawSockaddrAny, tolen int32,  overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASendTo
-//sys	GetHostByName(name string) (h *Hostent, errno int) [failretval=nil] = ws2_32.gethostbyname
-//sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval=nil] = ws2_32.getservbyname
+//sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecv
+//sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSASend
+//sys	WSARecvFrom(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32,  from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecvFrom
+//sys	WSASendTo(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *RawSockaddrAny, tolen int32,  overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSASendTo
+//sys	GetHostByName(name string) (h *Hostent, errno int) [failretval==nil] = ws2_32.gethostbyname
+//sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval==nil] = ws2_32.getservbyname
 //sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
 //sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
 //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree

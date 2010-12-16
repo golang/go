@@ -8,6 +8,7 @@ import "unsafe"
 var (
 	modkernel32 = loadDll("kernel32.dll")
 	modadvapi32 = loadDll("advapi32.dll")
+	modshell32  = loadDll("shell32.dll")
 	modwsock32  = loadDll("wsock32.dll")
 	modws2_32   = loadDll("ws2_32.dll")
 	moddnsapi   = loadDll("dnsapi.dll")
@@ -61,6 +62,9 @@ var (
 	procSetEnvironmentVariableW    = getSysProcAddr(modkernel32, "SetEnvironmentVariableW")
 	procSetFileTime                = getSysProcAddr(modkernel32, "SetFileTime")
 	procGetFileAttributesW         = getSysProcAddr(modkernel32, "GetFileAttributesW")
+	procGetCommandLineW            = getSysProcAddr(modkernel32, "GetCommandLineW")
+	procCommandLineToArgvW         = getSysProcAddr(modshell32, "CommandLineToArgvW")
+	procLocalFree                  = getSysProcAddr(modkernel32, "LocalFree")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -793,6 +797,42 @@ func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
 	r0, _, e1 := Syscall(procGetFileAttributesW, uintptr(unsafe.Pointer(name)), 0, 0)
 	attrs = uint32(r0)
 	if attrs == INVALID_FILE_ATTRIBUTES {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetCommandLine() (cmd *uint16) {
+	r0, _, _ := Syscall(procGetCommandLineW, 0, 0, 0)
+	cmd = (*uint16)(unsafe.Pointer(r0))
+	return
+}
+
+func CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) {
+	r0, _, e1 := Syscall(procCommandLineToArgvW, uintptr(unsafe.Pointer(cmd)), uintptr(unsafe.Pointer(argc)), 0)
+	argv = (*[8192]*[8192]uint16)(unsafe.Pointer(r0))
+	if argv == nil {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func LocalFree(hmem uint32) (handle uint32, errno int) {
+	r0, _, e1 := Syscall(procLocalFree, uintptr(hmem), 0, 0)
+	handle = uint32(r0)
+	if handle != 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {

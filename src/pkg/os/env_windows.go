@@ -111,3 +111,18 @@ func TempDir() string {
 	}
 	return string(utf16.Decode(dirw[0:n]))
 }
+
+func init() {
+	var argc int32
+	Envs = Environ()
+	cmd := syscall.GetCommandLine()
+	argv, e := syscall.CommandLineToArgv(cmd, &argc)
+	if e != 0 {
+		return
+	}
+	defer syscall.LocalFree(uint32(uintptr(unsafe.Pointer(argv))))
+	Args = make([]string, argc)
+	for i, v := range (*argv)[:argc] {
+		Args[i] = string(syscall.UTF16ToString((*v)[:]))
+	}
+}
