@@ -71,13 +71,13 @@ func TestRejectBadProtocolVersion(t *testing.T) {
 }
 
 func TestNoSuiteOverlap(t *testing.T) {
-	clientHello := &clientHelloMsg{nil, 0x0301, nil, nil, []uint16{0xff00}, []uint8{0}, false, "", false}
+	clientHello := &clientHelloMsg{nil, 0x0301, nil, nil, []uint16{0xff00}, []uint8{0}, false, "", false, nil, nil}
 	testClientHelloFailure(t, clientHello, alertHandshakeFailure)
 
 }
 
 func TestNoCompressionOverlap(t *testing.T) {
-	clientHello := &clientHelloMsg{nil, 0x0301, nil, nil, []uint16{TLS_RSA_WITH_RC4_128_SHA}, []uint8{0xff}, false, "", false}
+	clientHello := &clientHelloMsg{nil, 0x0301, nil, nil, []uint16{TLS_RSA_WITH_RC4_128_SHA}, []uint8{0xff}, false, "", false, nil, nil}
 	testClientHelloFailure(t, clientHello, alertHandshakeFailure)
 }
 
@@ -160,7 +160,11 @@ func TestRunServer(t *testing.T) {
 		if err != nil {
 			break
 		}
-		c.Write([]byte("hello, world\n"))
+		_, err = c.Write([]byte("hello, world\n"))
+		if err != nil {
+			t.Errorf("error from TLS: %s", err)
+			break
+		}
 		c.Close()
 	}
 }
