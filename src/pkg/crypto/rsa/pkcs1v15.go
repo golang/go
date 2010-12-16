@@ -130,6 +130,9 @@ func nonZeroRandomBytes(s []byte, rand io.Reader) (err os.Error) {
 			if err != nil {
 				return
 			}
+			// In tests, the PRNG may return all zeros so we do
+			// this to break the loop.
+			s[i] ^= 0x42
 		}
 	}
 

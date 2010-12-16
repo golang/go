@@ -14,6 +14,7 @@ GOFILES=\
 	handshake_client.go\
 	handshake_messages.go\
 	handshake_server.go\
+	key_agreement.go\
 	prf.go\
 	tls.go\
 

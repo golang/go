@@ -651,6 +651,8 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
 		m = new(certificateRequestMsg)
 	case typeCertificateStatus:
 		m = new(certificateStatusMsg)
+	case typeServerKeyExchange:
+		m = new(serverKeyExchangeMsg)
 	case typeServerHelloDone:
 		m = new(serverHelloDoneMsg)
 	case typeClientKeyExchange:

@@ -26,6 +26,8 @@ func (c *Conn) clientHandshake() os.Error {
 		random:             make([]byte, 32),
 		ocspStapling:       true,
 		serverName:         c.config.ServerName,
+		supportedCurves:    []uint16{curveP256, curveP384, curveP521},
+		supportedPoints:    []uint8{pointFormatUncompressed},
 	}
 
 	t := uint32(c.config.time())
@@ -130,8 +132,7 @@ func (c *Conn) clientHandshake() os.Error {
 		cur = parent
 	}
 
-	pub, ok := certs[0].PublicKey.(*rsa.PublicKey)
-	if !ok {
+	if _, ok := certs[0].PublicKey.(*rsa.PublicKey); !ok {
 		return c.sendAlert(alertUnsupportedCertificate)
 	}
 
@@ -156,6 +157,23 @@ func (c *Conn) clientHandshake() os.Error {
 	msg, err = c.readHandshake()
 	if err != nil {
 		return err
+	}
+
+	keyAgreement := suite.ka()
+
+	skx, ok := msg.(*serverKeyExchangeMsg)
+	if ok {
+		finishedHash.Write(skx.marshal())
+		err = keyAgreement.processServerKeyExchange(c.config, hello, serverHello, certs[0], skx)
+		if err != nil {
+			c.sendAlert(alertUnexpectedMessage)
+			return err
+		}
+
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
 	}
 
 	transmitCert := false
@@ -215,22 +233,15 @@ func (c *Conn) clientHandshake() os.Error {
 		c.writeRecord(recordTypeHandshake, certMsg.marshal())
 	}
 
-	ckx := new(clientKeyExchangeMsg)
-	preMasterSecret := make([]byte, 48)
-	preMasterSecret[0] = byte(hello.vers >> 8)
-	preMasterSecret[1] = byte(hello.vers)
-	_, err = io.ReadFull(c.config.rand(), preMasterSecret[2:])
+	preMasterSecret, ckx, err := keyAgreement.generateClientKeyExchange(c.config, hello, certs[0])
 	if err != nil {
-		return c.sendAlert(alertInternalError)
+		c.sendAlert(alertInternalError)
+		return err
 	}
-
-	ckx.ciphertext, err = rsa.EncryptPKCS1v15(c.config.rand(), pub, preMasterSecret)
-	if err != nil {
-		return c.sendAlert(alertInternalError)
+	if ckx != nil {
+		finishedHash.Write(ckx.marshal())
+		c.writeRecord(recordTypeHandshake, ckx.marshal())
 	}
-
-	finishedHash.Write(ckx.marshal())
-	c.writeRecord(recordTypeHandshake, ckx.marshal())
 
 	if cert != nil {
 		certVerify := new(certificateVerifyMsg)

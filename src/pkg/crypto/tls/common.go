@@ -38,6 +38,7 @@ const (
 	typeClientHello        uint8 = 1
 	typeServerHello        uint8 = 2
 	typeCertificate        uint8 = 11
+	typeServerKeyExchange  uint8 = 12
 	typeCertificateRequest uint8 = 13
 	typeServerHelloDone    uint8 = 14
 	typeCertificateVerify  uint8 = 15
@@ -54,9 +55,25 @@ const (
 
 // TLS extension numbers
 var (
-	extensionServerName    uint16 = 0
-	extensionStatusRequest uint16 = 5
-	extensionNextProtoNeg  uint16 = 13172 // not IANA assigned
+	extensionServerName      uint16 = 0
+	extensionStatusRequest   uint16 = 5
+	extensionSupportedCurves uint16 = 10
+	extensionSupportedPoints uint16 = 11
+	extensionNextProtoNeg    uint16 = 13172 // not IANA assigned
+)
+
+// TLS Elliptic Curves
+// http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
+var (
+	curveP256 uint16 = 23
+	curveP384 uint16 = 24
+	curveP521 uint16 = 25
+)
+
+// TLS Elliptic Curve Point Formats
+// http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
+var (
+	pointFormatUncompressed uint8 = 0
 )
 
 // TLS CertificateStatusType (RFC 3546)
