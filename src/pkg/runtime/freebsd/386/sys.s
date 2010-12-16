@@ -58,8 +58,6 @@ TEXT runtime·exit1(SB),7,$-4
 TEXT runtime·write(SB),7,$-4
 	MOVL	$4, AX
 	INT	$0x80
-	JAE	2(PC)
-	CALL	runtime·notok(SB)
 	RET
 
 TEXT runtime·notok(SB),7,$0
