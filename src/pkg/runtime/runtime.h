@@ -370,7 +370,6 @@ extern	bool	runtime·iscgo;
  */
 int32	runtime·strcmp(byte*, byte*);
 int32	runtime·findnull(byte*);
-int32	runtime·findnullw(uint16*);
 void	runtime·dump(byte*, int32);
 int32	runtime·runetochar(byte*, int32);
 int32	runtime·charntorune(int32*, uint8*, int32);
@@ -400,7 +399,6 @@ String	runtime·catstring(String, String);
 String	runtime·gostring(byte*);
 String  runtime·gostringn(byte*, int32);
 String	runtime·gostringnocopy(byte*);
-String	runtime·gostringw(uint16*);
 void	runtime·initsig(int32);
 int32	runtime·gotraceback(void);
 void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);

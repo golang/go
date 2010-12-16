@@ -6,9 +6,6 @@ extern void *runtime·LoadLibraryEx;
 extern void *runtime·GetProcAddress;
 extern void *runtime·GetLastError;
 
-#define runtime·goargs runtime·windows_goargs
-void runtime·windows_goargs(void);
-
 // Get start address of symbol data in memory.
 void *runtime·get_symdat_addr(void);
 

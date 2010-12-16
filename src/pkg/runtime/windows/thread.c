@@ -28,71 +28,15 @@ extern void *runtime·SetLastError;
 
 #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
 #pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
-#pragma dynimport runtime·GetModuleHandle GetModuleHandleA "kernel32.dll"
 #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
 
 extern void *runtime·CreateEvent;
 extern void *runtime·CreateThread;
-extern void *runtime·GetModuleHandle;
 extern void *runtime·WaitForSingleObject;
 
 void
 runtime·osinit(void)
 {
-}
-
-#pragma dynimport runtime·GetCommandLine GetCommandLineW  "kernel32.dll"
-#pragma dynimport runtime·CommandLineToArgv CommandLineToArgvW  "shell32.dll"
-#pragma dynimport runtime·GetEnvironmentStrings GetEnvironmentStringsW  "kernel32.dll"
-#pragma dynimport runtime·FreeEnvironmentStrings FreeEnvironmentStringsW  "kernel32.dll"
-#pragma dynimport runtime·LocalFree LocalFree "kernel32.dll"
-
-extern void *runtime·GetCommandLine;
-extern void *runtime·CommandLineToArgv;
-extern void *runtime·GetEnvironmentStrings;
-extern void *runtime·FreeEnvironmentStrings;
-extern void *runtime·LocalFree;
-
-void
-runtime·windows_goargs(void)
-{
-	extern Slice os·Args;
-	extern Slice os·Envs;
-
-	uint16 *cmd, *env, **argv;
-	String *gargv;
-	String *genvv;
-	int32 i, argc, envc;
-	uint16 *envp;
-
-	cmd = runtime·stdcall(runtime·GetCommandLine, 0);
-	env = runtime·stdcall(runtime·GetEnvironmentStrings, 0);
-	argv = runtime·stdcall(runtime·CommandLineToArgv, 2, cmd, &argc);
-
-	envc = 0;
-	for(envp=env; *envp; envc++)
-		envp += runtime·findnullw(envp)+1;
-
-	gargv = runtime·malloc(argc*sizeof gargv[0]);
-	genvv = runtime·malloc(envc*sizeof genvv[0]);
-
-	for(i=0; i<argc; i++)
-		gargv[i] = runtime·gostringw(argv[i]);
-	os·Args.array = (byte*)gargv;
-	os·Args.len = argc;
-	os·Args.cap = argc;
-
-	envp = env;
-	for(i=0; i<envc; i++) {
-		genvv[i] = runtime·gostringw(envp);
-		envp += runtime·findnullw(envp)+1;
-	}
-	os·Envs.array = (byte*)genvv;
-	os·Envs.len = envc;
-	os·Envs.cap = envc;
-
-	runtime·stdcall(runtime·LocalFree, 1, argv);
-	runtime·stdcall(runtime·FreeEnvironmentStrings, 1, env);
 }
 
 void

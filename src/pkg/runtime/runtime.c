@@ -156,6 +156,10 @@ runtime·goargs(void)
 	String *genvv;
 	int32 i, envc;
 	
+	// for windows implementation see "os" package
+	if(Windows)
+		return;
+
 	if(runtime·isplan9)
 		envc=0;
 	else
