@@ -312,7 +312,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 }
 
 // This function never executes, but it serves as a simple test for the program.
-// Test with govet --funcs="Bad:1,Badf:1,Warn:1,Warnf:1" govet.go
+// Test with govet -printfuncs="Bad:1,Badf:1,Warn:1,Warnf:1" govet.go
 func BadFunctionUsedInTests() {
 	fmt.Println()                      // niladic call
 	fmt.Println("%s", "hi")            // % in call to Println
