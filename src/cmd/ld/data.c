@@ -857,7 +857,7 @@ address(void)
 	uvlong va;
 
 	va = INITTEXT;
-	segtext.rwx = 07;
+	segtext.rwx = 05;
 	segtext.vaddr = va;
 	segtext.fileoff = HEADR;
 	for(s=segtext.sect; s != nil; s=s->next) {
