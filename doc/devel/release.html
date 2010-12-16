@@ -5,6 +5,93 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-12-15">2010-12-15</h3>
+
+<pre>
+Package crypto/cipher has been started, to replace crypto/block.
+As part of the changes, rc4.Cipher’s XORKeyStream method signature has changed from
+        XORKeyStream(buf []byte)
+to
+        XORKeyStream(dst, src []byte)
+to implement the cipher.Stream interface.  If you use crypto/block, you’ll need
+to switch to crypto/cipher once it is complete.
+
+Package smtp’s StartTLS now takes a *tls.Config argument.
+
+Package reflect’s ArrayCopy has been renamed to Copy.  There are new functions
+Append and AppendSlice.
+
+The print/println bootstrapping functions now write to standard error.
+To write to standard output, use fmt.Print[ln].
+
+A new tool, govet, has been added to the Go distribution. Govet is a static
+checker for Go programs. At the moment, and for the forseeable future,
+it only checks arguments to print calls.
+
+The cgo tool for writing Go bindings for C code has changed so that it no
+longer uses stub .so files (like cgo_stdio.so).  Cgo-based packages using the
+standard Makefiles should build without any changes.  Any alternate build
+mechanisms will need to be updated.
+
+The C and Go compilers (6g, 6c, 8g, 8c, 5g, 5c) now align structs according to
+the maximum alignment of the fields they contain; previously they aligned
+structs to word boundaries.  This may break non-cgo-based code that attempts to
+mix C and Go.
+
+NaCl support has been removed. The recent linker changes broke NaCl support
+a month ago, and there are no known users of it.
+If necessary, the NaCl code can be recovered from the repository history.
+
+* 5g/8g, 8l, ld, prof: fix output of 32-bit values (thanks Eoghan Sherry).
+* [68]l and runtime: GDB support for interfaces and goroutines.
+* 6l, 8l: support for linking ELF and Mach-O .o files.
+* all: simplify two-variable ranges with unused second variable (thanks Ryan Hitchman).
+* arm: updated soft float support.
+* codereview: keep quiet when not in use (thanks Eoghan Sherry).
+* compress/flate: implement Flush, equivalent to zlib's Z_SYNC_FLUSH.
+* crypto/tls: use rand.Reader in cert generation example (thanks Anthony Martin).
+* dashboard: fix project tag filter.
+* debug/elf, debug/macho: add ImportedLibraries, ImportedSymbols.
+* doc/go_mem: goroutine exit is not special.
+* event.go: another print glitch from gocheck.
+* gc: bug fixes,
+        syntax error for incomplete chan type (thanks Ryan Hitchman).
+* go/ast: fix ast.Walk.
+* gob: document the byte count used in the encoding of values,
+        fix bug sending zero-length top-level slices and maps,
+        Register should use the original type, not the indirected one.
+* godashboard: support submitting projects with non-ascii names (thanks Ryan Hitchman)
+* godefs: guard against structs with pad fields
+* godoc: added textual search, to enable use -fulltext flag.
+* gofmt: simplify "x, _ = range y" to "x = range y".
+* gopack: allow ELF/Mach-O objects in .a files without clearing allobj.
+* go/token,scanner: fix comments so godoc aligns properly.
+* govet: on error continue to the next file (thanks Christopher Wedgwood).
+* html: improved parsing.
+* http: ServeFile handles Range header for partial requests.
+* json: check for invalid UTF-8.
+* ld: allow .o files with no symbols,
+        reading of ELF object files,
+        reading of Mach-O object files.
+* math: change float64 bias constant from 1022 to 1023 (thanks Eoghan Sherry),
+        rename the MinFloat constant to SmallestNonzeroFloat.
+* nm: silently ignore .o files in .a files.
+* os: fix test of RemoveAll.
+* os/inotify: new package (thanks Balazs Lecz).
+* os: make MkdirAll work with symlinks (thanks Ryan Hitchman).
+* regexp: simplify code for brackets, speed up by about 30%.
+* runtime/linux/386: set FPU to 64-bit precision.
+* runtime: remove paranoid mapping at 0.
+* suffixarray: add Bytes function.
+* syscall: add network interface constants for linux/386, linux/amd64 (thanks Mikio Hara).
+* syscall/windows: restrict access rights param of OpenProcess(),
+        remove \r and \n from error messages (thanks Alex Brainman).
+* test/bench: fixes to timing.sh (thanks Anthony Martin).
+* time: fix bug in Ticker: shutdown using channel rather than memory.
+* token/position: provide FileSet.File, provide files iterator.
+* xml: disallow invalid Unicode code points (thanks Nigel Kerr).
+</pre>
+
 <h3 id="2010-12-08">2010-12-08</h3>
 
 <pre>
