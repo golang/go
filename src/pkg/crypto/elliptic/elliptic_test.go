@@ -6,6 +6,7 @@ package elliptic
 
 import (
 	"big"
+	"crypto/rand"
 	"fmt"
 	"testing"
 )
@@ -307,5 +308,24 @@ func BenchmarkBaseMult(b *testing.B) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		p224.ScalarBaseMult(k.Bytes())
+	}
+}
+
+func TestMarshal(t *testing.T) {
+	p224 := P224()
+	_, x, y, err := p224.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	serialised := p224.Marshal(x, y)
+	xx, yy := p224.Unmarshal(serialised)
+	if xx == nil {
+		t.Error("failed to unmarshal")
+		return
+	}
+	if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
+		t.Error("unmarshal returned different values")
+		return
 	}
 }
