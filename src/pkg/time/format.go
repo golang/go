@@ -19,10 +19,12 @@ const (
 //	Mon Jan 2 15:04:05 MST 2006  (MST is GMT-0700)
 // which is Unix time 1136243045.
 // (Think of it as 01/02 03:04:05PM '06 -0700.)
-// An underscore _ represents a space that
-// may be replaced by a digit if the following number
-// (a day) has two digits; for compatibility with
-// fixed-width Unix time formats.
+// To define your own format, write down what the standard
+// time would look like formatted your way.
+//
+// Within the format string, an underscore _ represents a space that may be
+// replaced by a digit if the following number (a day) has two digits; for
+// compatibility with fixed-width Unix time formats.
 //
 // Numeric time zone offsets format as follows:
 //	-0700  ±hhmm
@@ -41,8 +43,8 @@ const (
 	RFC822Z = "02 Jan 06 1504 -0700"
 	RFC850  = "Monday, 02-Jan-06 15:04:05 MST"
 	RFC1123 = "Mon, 02 Jan 2006 15:04:05 MST"
-	Kitchen = "3:04PM"
 	RFC3339 = "2006-01-02T15:04:05Z07:00"
+	Kitchen = "3:04PM"
 )
 
 const (
@@ -232,7 +234,8 @@ func zeroPad(i int) string { return pad(i, "0") }
 // according to layout.  The layout defines the format by showing the
 // representation of a standard time, which is then used to describe
 // the time to be formatted.  Predefined layouts ANSIC, UnixDate,
-// RFC3339 and others describe standard representations.
+// RFC3339 and others describe standard representations. For more
+// information about the formats, see the documentation for ANSIC.
 func (t *Time) Format(layout string) string {
 	b := new(bytes.Buffer)
 	// Each iteration generates one std value.
@@ -414,7 +417,8 @@ func skip(value, prefix string) (string, os.Error) {
 // The layout defines the format by showing the representation of a standard
 // time, which is then used to describe the string to be parsed.  Predefined
 // layouts ANSIC, UnixDate, RFC3339 and others describe standard
-// representations.
+// representations.For more information about the formats, see the
+// documentation for ANSIC.
 //
 // Only those elements present in the value will be set in the returned time
 // structure.  Also, if the input string represents an inconsistent time
