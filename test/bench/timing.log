@@ -578,9 +578,17 @@ threadring 50000000
 	gccgo -O2 threadring.go	110.10u 516.48s 515.25r
 	gc threadring	40.39u 0.00s 40.40r
 
-
 chameneos 6000000
 	gcc -O2 chameneosredux.c -lpthread	18.20u 301.55s 83.10r
 	gccgo -O2 chameneosredux.go	52.22u 324.54s 201.21r
 	gc chameneosredux	13.52u 0.00s 13.54r
 
+Dec 14, 2010
+
+# Improved regex code (same algorithm) gets ~30%.
+
+regex-dna 100000
+	gcc -O2 regex-dna.c -lpcre	0.77u 0.01s 0.78r
+	gc regex-dna	6.80u 0.00s 6.81r
+	gc regex-dna-parallel	6.82u 0.01s 2.75r
+	gc_B regex-dna	6.69u 0.02s 6.70r
