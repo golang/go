@@ -116,8 +116,8 @@ _cgo_defun.c: $(CGOFILES)
 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
 endif
 
-# Ugly but necessary
-_cgo_gotypes.go _cgo_export.c _cgo_export.h: _cgo_defun.c
+# Ugly but necessary - cgo writes these files too.
+_cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c: _cgo_defun.c
 	@true
 
 %.cgo1.go %.cgo2.c: _cgo_defun.c
@@ -134,10 +134,6 @@ _cgo_gotypes.go _cgo_export.c _cgo_export.h: _cgo_defun.c
 # and libraries are involved, instead of duplicating gcc's logic ourselves.
 # After main we have to define all the symbols that will be provided
 # by Go code.  That's crosscall2 and any exported symbols.
-_cgo_main.c: _cgo_defun.c
-	echo 'int main() { return 0; }' >$@
-	echo 'int crosscall2;' >>$@
-	awk -F'(' '/^_cgoexp_/ {print "int " $$1 ";"}' _cgo_defun.c >>$@
 
 _cgo_main.o: _cgo_main.c
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_main.c
