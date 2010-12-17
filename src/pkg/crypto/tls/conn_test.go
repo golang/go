@@ -43,7 +43,7 @@ func TestRemovePadding(t *testing.T) {
 			expectedGood = 0
 		}
 		if good != expectedGood {
-			t.Errorf("#%d: wrong validity, want:%d got:%d", expectedGood, good)
+			t.Errorf("#%d: wrong validity, want:%d got:%d", i, expectedGood, good)
 		}
 		if good == 255 && len(payload) != test.expectedLen {
 			t.Errorf("#%d: got %d, want %d", i, len(payload), test.expectedLen)
