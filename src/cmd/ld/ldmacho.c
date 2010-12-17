@@ -32,6 +32,8 @@ enum {
 	MACHO_FAKE_GOTPCREL = 100,	// from macho.h
 	
 	N_EXT = 0x01,
+	N_TYPE = 0x1e,
+	N_STAB = 0xe0,
 };
 
 typedef struct MachoObj MachoObj;
@@ -596,6 +598,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	for(i=0; i<symtab->nsym; i++) {
 		int v;
 		sym = &symtab->sym[i];
+		if(sym->type&N_STAB)
+			continue;
 		// TODO: check sym->type against outer->type.
 		name = sym->name;
 		if(name[0] == '_' && name[1] != '\0')
@@ -632,7 +636,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			Prog *p;
 
 			if(s->text != P)
-				diag("%s: duplicate definition of %s", pn, s->name);
+				diag("%s sym#%d: duplicate definition of %s", pn, i, s->name);
 			// build a TEXT instruction with a unique pc
 			// just to make the rest of the linker happy.
 			// TODO: this is too 6l-specific ?
