@@ -44,6 +44,10 @@ include ../../../Make.pkg
 ifeq ($(ENABLED),1)
 _cgo_defun.c:
 	echo >$@
+
+_cgo_main.c:
+	echo 'int main() { return 0; }' >$@
+	echo 'void *crosscall2;' >>$@
 endif
 
 $(GOARCH).o: $(GOARCH).S

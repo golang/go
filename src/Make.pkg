@@ -114,7 +114,6 @@ dir:
 ifdef CGOFILES
 _cgo_defun.c: $(CGOFILES)
 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
-endif
 
 # Ugly but necessary - cgo writes these files too.
 _cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c: _cgo_defun.c
@@ -122,6 +121,7 @@ _cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c: _cgo_defun.c
 
 %.cgo1.go %.cgo2.c: _cgo_defun.c
 	@true
+endif
 
 # Compile rules for gcc source files.
 %.o: %.c
