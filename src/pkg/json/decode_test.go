@@ -112,7 +112,7 @@ func TestMarshalBadUTF8(t *testing.T) {
 		t.Fatal("Marshal returned data")
 	}
 	if _, ok := err.(*InvalidUTF8Error); !ok {
-		t.Fatal("Marshal did not return InvalidUTF8Error: %T %v", err, err)
+		t.Fatalf("Marshal did not return InvalidUTF8Error: %T %v", err, err)
 	}
 }
 
