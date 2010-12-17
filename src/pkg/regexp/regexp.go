@@ -599,8 +599,8 @@ Loop:
 	re.prefix = string(b)
 }
 
-// Expr returns the source text used to compile the regular expression.
-func (re *Regexp) Expr() string {
+// String returns the source text used to compile the regular expression.
+func (re *Regexp) String() string {
 	return re.expr
 }
 
@@ -849,6 +849,24 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 	return final.match.m
 }
 
+// LiteralPrefix returns a literal string that must begin any match
+// of the regular expression re.  It returns the boolean true if the
+// literal string comprises the entire regular expression.
+func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
+	c := make([]int, len(re.inst)-2) // minus start and end.
+	// First instruction is start; skip that.
+	i := 0
+	for inst := re.inst[0].next; inst.kind != iEnd; inst = inst.next {
+		// stop if this is not a char
+		if inst.kind != iChar {
+			return string(c[:i]), false
+		}
+		c[i] = inst.char
+		i++
+	}
+	return string(c[:i]), true
+}
+
 // MatchString returns whether the Regexp matches the string s.
 // The return value is a boolean: true for match, false for no match.
 func (re *Regexp) MatchString(s string) bool { return len(re.doExecute(s, nil, 0)) > 0 }
@@ -1001,18 +1019,6 @@ func QuoteMeta(s string) string {
 		j++
 	}
 	return string(b[0:j])
-}
-
-// HasMeta returns a boolean indicating whether the string contains
-// any regular expression metacharacters.
-func HasMeta(s string) bool {
-	// A byte loop is correct because all metacharacters are ASCII.
-	for i := 0; i < len(s); i++ {
-		if special(int(s[i])) {
-			return true
-		}
-	}
-	return false
 }
 
 // Find matches in slice b if b is non-nil, otherwise find matches in string s.
