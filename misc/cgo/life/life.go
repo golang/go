@@ -23,7 +23,7 @@ var chans [4]chan bool
 //export GoStart
 // Double return value is just for testing.
 func GoStart(i, xdim, ydim, xstart, xend, ystart, yend C.int, a *C.int, n *C.int) (int, int) {
-	c := make(chan bool)
+	c := make(chan bool, int(C.MYCONST))
 	go func() {
 		C.DoStep(xdim, ydim, xstart, xend, ystart, yend, a, n)
 		c <- true

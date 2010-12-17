@@ -30,6 +30,11 @@ func (p *Package) writeDefs() {
 
 	fgo2 := creat("_cgo_gotypes.go")
 	fc := creat("_cgo_defun.c")
+	fm := creat("_cgo_main.c")
+
+	// Write C main file for using gcc to resolve imports.
+	fmt.Fprintf(fm, "int main() { return 0; }\n")
+	fmt.Fprintf(fm, "int crosscall2;\n\n")
 
 	// Write second Go output: definitions of _C_xxx.
 	// In a separate file so that the import of "unsafe" does not
@@ -58,6 +63,9 @@ func (p *Package) writeDefs() {
 		}
 		cVars = append(cVars, n.C)
 
+		fmt.Fprintf(fm, "extern char %s[];\n", n.C)
+		fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+
 		fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
 		fmt.Fprintf(fc, "void *·%s = &%s;\n", n.Mangle, n.C)
 		fmt.Fprintf(fc, "\n")
@@ -81,7 +89,7 @@ func (p *Package) writeDefs() {
 		}
 	}
 
-	p.writeExports(fgo2, fc)
+	p.writeExports(fgo2, fc, fm)
 
 	fgo2.Close()
 	fc.Close()
@@ -320,7 +328,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
-func (p *Package) writeExports(fgo2, fc *os.File) {
+func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 	fgcc := creat("_cgo_export.c")
 	fgcch := creat("_cgo_export.h")
 
@@ -459,6 +467,8 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
 		fmt.Fprintf(fc, "{\n")
 		fmt.Fprintf(fc, "\truntime·cgocallback(·%s, a, n);\n", goname)
 		fmt.Fprintf(fc, "}\n")
+
+		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
 
 		// Calling a function with a receiver from C requires
 		// a Go wrapper function.

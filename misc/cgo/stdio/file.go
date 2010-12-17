@@ -26,6 +26,10 @@ type File C.FILE
 var Stdout = (*File)(C.stdout)
 var Stderr = (*File)(C.stderr)
 
+// Test reference to library symbol.
+// Stdout and stderr are too special to be a reliable test.
+var myerr = C.sys_errlist
+
 func (f *File) WriteString(s string) {
 	p := C.CString(s)
 	C.fputs(p, (*C.FILE)(f))

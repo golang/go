@@ -6,6 +6,8 @@
 #include "life.h"
 #include "_cgo_export.h"
 
+const int MYCONST = 0;
+
 // Do the actual manipulation of the life board in C.  This could be
 // done easily in Go, we are just using C for demonstration
 // purposes.
