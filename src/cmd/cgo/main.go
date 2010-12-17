@@ -232,18 +232,6 @@ func (p *Package) Record(f *File) {
 		error(token.NoPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
 	}
 
-	if p.Typedef == nil {
-		p.Typedef = f.Typedef
-	} else {
-		for k, v := range f.Typedef {
-			if p.Typedef[k] == nil {
-				p.Typedef[k] = v
-			} else if !reflect.DeepEqual(p.Typedef[k], v) {
-				error(token.NoPos, "inconsistent definitions for C type %s", k)
-			}
-		}
-	}
-
 	if p.Name == nil {
 		p.Name = f.Name
 	} else {

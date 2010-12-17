@@ -377,7 +377,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			}
 		}
 	}
-	f.Typedef = conv.typedef
 }
 
 // rewriteRef rewrites all the C.xxx references in f.AST to refer to the
@@ -596,11 +595,11 @@ type typeConv struct {
 }
 
 var tagGen int
+var typedef = make(map[string]ast.Expr)
 
 func (c *typeConv) Init(ptrSize int64) {
 	c.ptrSize = ptrSize
 	c.m = make(map[dwarf.Type]*Type)
-	c.typedef = make(map[string]ast.Expr)
 	c.bool = c.Ident("bool")
 	c.byte = c.Ident("byte")
 	c.int8 = c.Ident("int8")
@@ -808,7 +807,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		t.Go = name // publish before recursive calls
 		switch dt.Kind {
 		case "union", "class":
-			c.typedef[name.Name] = c.Opaque(t.Size)
+			typedef[name.Name] = c.Opaque(t.Size)
 			if t.C == "" {
 				t.C = fmt.Sprintf("typeof(unsigned char[%d])", t.Size)
 			}
@@ -818,7 +817,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 				t.C = csyntax
 			}
 			t.Align = align
-			c.typedef[name.Name] = g
+			typedef[name.Name] = g
 		}
 
 	case *dwarf.TypedefType:
@@ -837,8 +836,8 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		sub := c.Type(dt.Type)
 		t.Size = sub.Size
 		t.Align = sub.Align
-		if _, ok := c.typedef[name.Name]; !ok {
-			c.typedef[name.Name] = sub.Go
+		if _, ok := typedef[name.Name]; !ok {
+			typedef[name.Name] = sub.Go
 		}
 
 	case *dwarf.UcharType:
@@ -882,7 +881,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			}
 			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
 			name := c.Ident("_Ctype_" + s)
-			c.typedef[name.Name] = t.Go
+			typedef[name.Name] = t.Go
 			t.Go = name
 		}
 	}

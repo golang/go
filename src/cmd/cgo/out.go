@@ -42,7 +42,7 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
 	fmt.Fprintf(fgo2, "func _Cerrno(dst *os.Error, x int) { *dst = os.Errno(x) }\n")
 
-	for name, def := range p.Typedef {
+	for name, def := range typedef {
 		fmt.Fprintf(fgo2, "type %s ", name)
 		printer.Fprint(fgo2, fset, def)
 		fmt.Fprintf(fgo2, "\n")
@@ -321,10 +321,6 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
 func (p *Package) writeExports(fgo2, fc *os.File) {
-	if len(p.ExpFunc) == 0 {
-		return
-	}
-
 	fgcc := creat("_cgo_export.c")
 	fgcch := creat("_cgo_export.h")
 
@@ -424,7 +420,7 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
 		s += ")"
 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
 
-		fmt.Fprintf(fgcc, "extern _cgoexp_%s(void *, int);\n", exp.ExpName)
+		fmt.Fprintf(fgcc, "extern _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\t%s a;\n", ctype)
@@ -438,7 +434,7 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
 			func(i int, atype ast.Expr) {
 				fmt.Fprintf(fgcc, "\ta.p%d = p%d;\n", i, i)
 			})
-		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp_%s, &a, (int) sizeof a);\n", exp.ExpName)
+		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &a, (int) sizeof a);\n", cPrefix, exp.ExpName)
 		if gccResult != "void" {
 			if len(fntype.Results.List) == 1 && len(fntype.Results.List[0].Names) <= 1 {
 				fmt.Fprintf(fgcc, "\treturn a.r0;\n")
@@ -455,12 +451,11 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
 		// Build the wrapper function compiled by 6c/8c
 		goname := exp.Func.Name.Name
 		if fn.Recv != nil {
-			goname = "_cgoexpwrap_" + fn.Recv.List[0].Names[0].Name + "_" + goname
+			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
 		}
-		fmt.Fprintf(fc, "#pragma dynexport _cgoexp_%s _cgoexp_%s\n", exp.ExpName, exp.ExpName)
 		fmt.Fprintf(fc, "extern void ·%s();\n", goname)
 		fmt.Fprintf(fc, "\nvoid\n")
-		fmt.Fprintf(fc, "_cgoexp_%s(void *a, int32 n)\n", exp.ExpName)
+		fmt.Fprintf(fc, "_cgoexp%s_%s(void *a, int32 n)\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fc, "{\n")
 		fmt.Fprintf(fc, "\truntime·cgocallback(·%s, a, n);\n", goname)
 		fmt.Fprintf(fc, "}\n")
@@ -584,7 +579,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 				}
 			}
 		}
-		for name, def := range p.Typedef {
+		for name, def := range typedef {
 			if name == t.Name {
 				return p.cgoType(def)
 			}

@@ -19,7 +19,7 @@ ifeq ($(ENABLED),1)
 
 # Unwarranted chumminess with Make.pkg's cgo rules.
 # Do not try this at home.
-GCC_OFILES=\
+CGO_OFILES=\
 	$(GOARCH).o\
 	$(GOOS)_$(GOARCH).o\
 	util.o\
@@ -27,7 +27,7 @@ GCC_OFILES=\
 OFILES=\
 	iscgo.$O\
 	_cgo_import.$O\
-	$(GCC_OFILES)\
+	$(CGO_OFILES)\
 
 CGO_LDFLAGS=-lpthread
 
@@ -40,6 +40,11 @@ endif
 endif
 
 include ../../../Make.pkg
+
+ifeq ($(ENABLED),1)
+_cgo_defun.c:
+	echo >$@
+endif
 
 $(GOARCH).o: $(GOARCH).S
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $^
