@@ -11,6 +11,7 @@ package hmac
 import (
 	"crypto/md5"
 	"crypto/sha1"
+	"crypto/sha256"
 	"hash"
 	"os"
 )
@@ -94,3 +95,6 @@ func NewMD5(key []byte) hash.Hash { return New(md5.New, key) }
 
 // NewSHA1 returns a new HMAC-SHA1 hash using the given key.
 func NewSHA1(key []byte) hash.Hash { return New(sha1.New, key) }
+
+// NewSHA256 returns a new HMAC-SHA256 hash using the given key.
+func NewSHA256(key []byte) hash.Hash { return New(sha256.New, key) }
