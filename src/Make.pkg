@@ -37,8 +37,8 @@ INSTALLFILES+=$(pkgdir)/$(TARG).a
 # must be done here so they apply to the main rules.
 ifdef CGOFILES
 GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES)) _cgo_gotypes.go
-GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
-OFILES+=_cgo_defun.$O _cgo_import.$O $(GCC_OFILES)
+CGO_OFILES+=$(patsubst %.go,%.cgo2.o,$(CGOFILES)) _cgo_export.o
+OFILES+=_cgo_defun.$O _cgo_import.$O $(CGO_OFILES)
 endif
 
 PREREQ+=$(patsubst %,%.make,$(DEPS))
@@ -111,8 +111,10 @@ dir:
 #	x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
 #
 
+ifdef CGOFILES
 _cgo_defun.c: $(CGOFILES)
 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+endif
 
 # Ugly but necessary
 _cgo_gotypes.go _cgo_export.c _cgo_export.h: _cgo_defun.c
@@ -122,24 +124,25 @@ _cgo_gotypes.go _cgo_export.c _cgo_export.h: _cgo_defun.c
 	@true
 
 # Compile rules for gcc source files.
-%.cgo2.o: %.cgo2.c
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
-
-_cgo_export.o: _cgo_export.c _cgo_export.h
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_export.c
+%.o: %.c
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.c
 
 # To find out which symbols are needed from external libraries
 # and which libraries are needed, we build a simple a.out that
 # links all the objects we just created and then use cgo -dynimport
 # to inspect it.  That is, we make gcc tell us which dynamic symbols
 # and libraries are involved, instead of duplicating gcc's logic ourselves.
-_cgo_main.c:
+# After main we have to define all the symbols that will be provided
+# by Go code.  That's crosscall2 and any exported symbols.
+_cgo_main.c: _cgo_defun.c
 	echo 'int main() { return 0; }' >$@
+	echo 'int crosscall2;' >>$@
+	awk -F'(' '/^_cgoexp_/ {print "int " $$1 ";"}' _cgo_defun.c >>$@
 
 _cgo_main.o: _cgo_main.c
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_main.c
 
-_cgo1_.o: _cgo_main.o $(GCC_OFILES)
+_cgo1_.o: _cgo_main.o $(CGO_OFILES)
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS)
 
 _cgo_import.c: _cgo1_.o

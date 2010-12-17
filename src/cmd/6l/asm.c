@@ -193,14 +193,28 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 	
 	case 256 + R_X86_64_PLT32:
-		addpltsym(targ);
 		r->type = D_PCREL;
-		r->sym = lookup(".plt", 0);
 		r->add += 4;
-		r->add += targ->plt;
+		if(targ->dynimpname != nil) {
+			addpltsym(targ);
+			r->sym = lookup(".plt", 0);
+			r->add += targ->plt;
+		}
 		return;
 	
 	case 256 + R_X86_64_GOTPCREL:
+		if(targ->dynimpname == nil) {
+			// have symbol
+			// turn MOVQ of GOT entry into LEAQ of symbol itself
+			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
+				diag("unexpected GOT_LOAD reloc for non-dynamic symbol %s", targ->name);
+				return;
+			}
+			s->p[r->off-2] = 0x8d;
+			r->type = D_PCREL;
+			r->add += 4;
+			return;
+		}
 		addgotsym(targ);
 		r->type = D_PCREL;
 		r->sym = lookup(".got", 0);
@@ -244,8 +258,21 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 
 	case 512 + MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
+		if(targ->dynimpname == nil) {
+			// have symbol
+			// turn MOVQ of GOT entry into LEAQ of symbol itself
+			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
+				diag("unexpected GOT_LOAD reloc for non-dynamic symbol %s", targ->name);
+				return;
+			}
+			s->p[r->off-2] = 0x8d;
+			r->type = D_PCREL;
+			return;
+		}
+		// fall through
 	case 512 + MACHO_X86_64_RELOC_GOT*2 + 1:
-		// TODO: What is the difference between these two?
+		if(targ->dynimpname == nil)
+			diag("unexpected GOT reloc for non-dynamic symbol %s", targ->name);
 		addgotsym(targ);
 		r->type = D_PCREL;
 		r->sym = lookup(".got", 0);
@@ -446,9 +473,12 @@ adddynsym(Sym *s)
 	if(s->dynid >= 0)
 		return;
 
+	if(s->dynimpname == nil)
+		diag("adddynsym: no dynamic name for %s", s->name);
+
 	if(iself) {
 		s->dynid = nelfsym++;
-	
+
 		d = lookup(".dynsym", 0);
 		name = s->dynimpname;
 		if(name == nil)
@@ -512,10 +542,29 @@ adddynsym(Sym *s)
 		adduint32(d, str->size);
 		adduint8(str, '_');
 		addstring(str, name);
-		adduint8(d, 0x01);	// type - N_EXT - external symbol
-		adduint8(d, 0);	// section
+		if(s->type == SDYNIMPORT) {
+			adduint8(d, 0x01);	// type - N_EXT - external symbol
+			adduint8(d, 0);	// section
+		} else {
+			adduint8(d, 0x0f);
+			switch(s->type) {
+			default:
+			case STEXT:
+				adduint8(d, 1);
+				break;
+			case SDATA:
+				adduint8(d, 2);
+				break;
+			case SBSS:
+				adduint8(d, 4);
+				break;
+			}
+		}
 		adduint16(d, 0);	// desc
-		adduint64(d, 0);	// value
+		if(s->type == SDYNIMPORT)
+			adduint64(d, 0);	// value
+		else
+			addaddr(d, s);
 	} else {
 		diag("adddynsym: unsupported binary format");
 	}

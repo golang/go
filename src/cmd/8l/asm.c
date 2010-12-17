@@ -183,14 +183,27 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 
 	case 256 + R_386_PLT32:
-		addpltsym(targ);
 		r->type = D_PCREL;
-		r->sym = lookup(".plt", 0);
 		r->add += 4;
-		r->add += targ->plt;
+		if(targ->dynimpname != nil) {
+			addpltsym(targ);
+			r->sym = lookup(".plt", 0);
+			r->add += targ->plt;
+		}
 		return;		
 	
 	case 256 + R_386_GOT32:
+		if(targ->dynimpname == nil) {
+			// have symbol
+			// turn MOVL of GOT entry into LEAL of symbol itself
+			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
+				diag("unexpected GOT reloc for non-dynamic symbol %s", targ->name);
+				return;
+			}
+			s->p[r->off-2] = 0x8d;
+			r->type = D_GOTOFF;
+			return;
+		}
 		addgotsym(targ);
 		r->type = D_CONST;	// write r->add during relocsym
 		r->sym = S;
@@ -233,6 +246,17 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 	
 	case 512 + MACHO_FAKE_GOTPCREL:
+		if(targ->dynimpname == nil) {
+			// have symbol
+			// turn MOVL of GOT entry into LEAL of symbol itself
+			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
+				diag("unexpected GOT reloc for non-dynamic symbol %s", targ->name);
+				return;
+			}
+			s->p[r->off-2] = 0x8d;
+			r->type = D_PCREL;
+			return;
+		}
 		addgotsym(targ);
 		r->sym = lookup(".got", 0);
 		r->add += targ->got;
@@ -429,6 +453,9 @@ adddynsym(Sym *s)
 	if(s->dynid >= 0)
 		return;
 	
+	if(s->dynimpname == nil)
+		diag("adddynsym: no dynamic name for %s", s->name, *(int32*)0);
+
 	if(iself) {
 		s->dynid = nelfsym++;
 		
