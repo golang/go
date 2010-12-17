@@ -269,6 +269,18 @@ func TestQuoteMeta(t *testing.T) {
 	}
 }
 
+func TestHasMeta(t *testing.T) {
+	for _, tc := range quoteMetaTests {
+		// HasMeta should be false if QuoteMeta returns the original string;
+		// true otherwise.
+		quoted := QuoteMeta(tc.pattern)
+		if HasMeta(tc.pattern) != (quoted != tc.pattern) {
+			t.Errorf("HasMeta(`%s`) = %t; want %t",
+				tc.pattern, HasMeta(tc.pattern), quoted != tc.pattern)
+		}
+	}
+}
+
 type numSubexpCase struct {
 	input    string
 	expected int

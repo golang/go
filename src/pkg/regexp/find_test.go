@@ -119,7 +119,11 @@ func build(n int, x ...int) [][]int {
 
 func TestFind(t *testing.T) {
 	for _, test := range findTests {
-		result := MustCompile(test.pat).Find([]byte(test.text))
+		re := MustCompile(test.pat)
+		if re.Expr() != test.pat {
+			t.Errorf("Expr() = `%s`; should be `%s`", re.Expr(), test.pat)
+		}
+		result := re.Find([]byte(test.text))
 		switch {
 		case len(test.matches) == 0 && len(result) == 0:
 			// ok

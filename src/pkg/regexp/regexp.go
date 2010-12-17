@@ -599,6 +599,11 @@ Loop:
 	re.prefix = string(b)
 }
 
+// Expr returns the source text used to compile the regular expression.
+func (re *Regexp) Expr() string {
+	return re.expr
+}
+
 // Compile parses a regular expression and returns, if successful, a Regexp
 // object that can be used to match against text.
 func Compile(str string) (regexp *Regexp, error os.Error) {
@@ -996,6 +1001,18 @@ func QuoteMeta(s string) string {
 		j++
 	}
 	return string(b[0:j])
+}
+
+// HasMeta returns a boolean indicating whether the string contains
+// any regular expression metacharacters.
+func HasMeta(s string) bool {
+	// A byte loop is correct because all metacharacters are ASCII.
+	for i := 0; i < len(s); i++ {
+		if special(int(s[i])) {
+			return true
+		}
+	}
+	return false
 }
 
 // Find matches in slice b if b is non-nil, otherwise find matches in string s.
