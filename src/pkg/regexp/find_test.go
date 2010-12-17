@@ -120,8 +120,8 @@ func build(n int, x ...int) [][]int {
 func TestFind(t *testing.T) {
 	for _, test := range findTests {
 		re := MustCompile(test.pat)
-		if re.Expr() != test.pat {
-			t.Errorf("Expr() = `%s`; should be `%s`", re.Expr(), test.pat)
+		if re.String() != test.pat {
+			t.Errorf("String() = `%s`; should be `%s`", re.String(), test.pat)
 		}
 		result := re.Find([]byte(test.text))
 		switch {
