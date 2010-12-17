@@ -322,7 +322,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	uchar *p, *dp;
 	ElfHdrBytes *hdr;
 	ElfObj *obj;
-	ElfSect *sect, *rsect, *text, *data, *bss, *rodata;
+	ElfSect *sect, *rsect;
 	ElfSym sym;
 	Endian *e;
 	Reloc *r, *rp;
@@ -506,23 +506,13 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	// they are not as small as the section lists, but we'll need
 	// the memory anyway for the symbol images, so we might
 	// as well use one large chunk.
-	text = section(obj, ".text");
-	if(text && map(obj, text) < 0)
-		goto bad;
-	data = section(obj, ".data");
-	if(data && map(obj, data) < 0)
-		goto bad;
-	bss = section(obj, ".bss");
-	rodata = section(obj, ".rodata");
-	if(rodata && map(obj, rodata) < 0)
-		goto bad;
 	
 	// create symbols for mapped sections
 	for(i=0; i<obj->nsect; i++) {
 		sect = &obj->sect[i];
-		if(sect->type != ElfSectProgbits || !(sect->flags&ElfSectFlagAlloc))
+		if((sect->type != ElfSectProgbits && sect->type != ElfSectNobits) || !(sect->flags&ElfSectFlagAlloc))
 			continue;
-		if(map(obj, sect) < 0)
+		if(sect->type != ElfSectNobits && map(obj, sect) < 0)
 			goto bad;
 		
 		name = smprint("%s(%s)", pn, sect->name);
@@ -542,8 +532,10 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			s->type = STEXT;
 			break;
 		}
-		s->p = sect->base;
-		s->np = sect->size;
+		if(sect->type == ElfSectProgbits) {
+			s->p = sect->base;
+			s->np = sect->size;
+		}
 		s->size = sect->size;
 		if(s->type == STEXT) {
 			if(etextp)
@@ -598,7 +590,8 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			if(readsym(obj, info>>32, &sym) < 0)
 				goto bad;
 			if(sym.sym == nil) {
-				werrstr("reloc of invalid sym %s shndx=%d type=%d", sym.name, sym.shndx, sym.type);
+				werrstr("%s#%d: reloc of invalid sym #%d %s shndx=%d type=%d",
+					sect->sym->name, j, (int)(info>>32), sym.name, sym.shndx, sym.type);
 				goto bad;
 			}
 			rp->sym = sym.sym;
