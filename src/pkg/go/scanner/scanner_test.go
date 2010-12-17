@@ -449,20 +449,20 @@ var segments = []struct {
 	line     int    // line number for current token
 }{
 	// exactly one token per line since the test consumes one token per segment
-	{"  line1", "TestLineComments", 1},
-	{"\nline2", "TestLineComments", 2},
-	{"\nline3  //line File1.go:100", "TestLineComments", 3}, // bad line comment, ignored
-	{"\nline4", "TestLineComments", 4},
-	{"\n//line File1.go:100\n  line100", "File1.go", 100},
-	{"\n//line File2.go:200\n  line200", "File2.go", 200},
-	{"\n//line :1\n  line1", "", 1},
-	{"\n//line foo:42\n  line42", "foo", 42},
-	{"\n //line foo:42\n  line44", "foo", 44},           // bad line comment, ignored
-	{"\n//line foo 42\n  line46", "foo", 46},            // bad line comment, ignored
-	{"\n//line foo:42 extra text\n  line48", "foo", 48}, // bad line comment, ignored
-	{"\n//line foo:42\n  line42", "foo", 42},
-	{"\n//line foo:42\n  line42", "foo", 42},
-	{"\n//line File1.go:100\n  line100", "File1.go", 100},
+	{"  line1", "dir/TestLineComments", 1},
+	{"\nline2", "dir/TestLineComments", 2},
+	{"\nline3  //line File1.go:100", "dir/TestLineComments", 3}, // bad line comment, ignored
+	{"\nline4", "dir/TestLineComments", 4},
+	{"\n//line File1.go:100\n  line100", "dir/File1.go", 100},
+	{"\n//line File2.go:200\n  line200", "dir/File2.go", 200},
+	{"\n//line :1\n  line1", "dir", 1},
+	{"\n//line foo:42\n  line42", "dir/foo", 42},
+	{"\n //line foo:42\n  line44", "dir/foo", 44},           // bad line comment, ignored
+	{"\n//line foo 42\n  line46", "dir/foo", 46},            // bad line comment, ignored
+	{"\n//line foo:42 extra text\n  line48", "dir/foo", 48}, // bad line comment, ignored
+	{"\n//line /bar:42\n  line42", "/bar", 42},
+	{"\n//line ./foo:42\n  line42", "dir/foo", 42},
+	{"\n//line a/b/c/File1.go:100\n  line100", "dir/a/b/c/File1.go", 100},
 }
 
 
@@ -476,7 +476,7 @@ func TestLineComments(t *testing.T) {
 
 	// verify scan
 	var S Scanner
-	file := S.Init(fset, "TestLineComments", []byte(src), nil, 0)
+	file := S.Init(fset, "dir/TestLineComments", []byte(src), nil, 0)
 	for _, s := range segments {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)

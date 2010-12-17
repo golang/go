@@ -22,6 +22,7 @@ package scanner
 import (
 	"bytes"
 	"go/token"
+	"path"
 	"strconv"
 	"unicode"
 	"utf8"
@@ -35,6 +36,7 @@ import (
 type Scanner struct {
 	// immutable state
 	file *token.File  // source file handle
+	dir  string       // directory portion of file.Name()
 	src  []byte       // source
 	err  ErrorHandler // error reporting; or nil
 	mode uint         // scanning mode
@@ -111,6 +113,7 @@ const (
 func (S *Scanner) Init(fset *token.FileSet, filename string, src []byte, err ErrorHandler, mode uint) *token.File {
 	// Explicitly initialize all fields since a scanner may be reused.
 	S.file = fset.AddFile(filename, fset.Base(), len(src))
+	S.dir, _ = path.Split(filename)
 	S.src = src
 	S.err = err
 	S.mode = mode
@@ -174,8 +177,13 @@ func (S *Scanner) interpretLineComment(text []byte) {
 		if i := bytes.Index(text, []byte{':'}); i > 0 {
 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
 				// valid //line filename:line comment;
+				filename := path.Clean(string(text[len(prefix):i]))
+				if filename[0] != '/' {
+					// make filename relative to current directory
+					filename = path.Join(S.dir, filename)
+				}
 				// update scanner position
-				S.file.AddLineInfo(S.lineOffset, string(text[len(prefix):i]), line-1) // -1 since comment applies to next line
+				S.file.AddLineInfo(S.lineOffset, filename, line-1) // -1 since comment applies to next line
 			}
 		}
 	}
