@@ -86,8 +86,8 @@ func TestMapCounter(t *testing.T) {
 }
 
 func TestIntFunc(t *testing.T) {
-	x := int(4)
-	ix := IntFunc(func() int64 { return int64(x) })
+	x := int64(4)
+	ix := IntFunc(func() int64 { return x })
 	if s := ix.String(); s != "4" {
 		t.Errorf("ix.String() = %v, want 4", s)
 	}
@@ -95,5 +95,18 @@ func TestIntFunc(t *testing.T) {
 	x++
 	if s := ix.String(); s != "5" {
 		t.Errorf("ix.String() = %v, want 5", s)
+	}
+}
+
+func TestStringFunc(t *testing.T) {
+	x := "hello"
+	sx := StringFunc(func() string { return x })
+	if s, exp := sx.String(), `"hello"`; s != exp {
+		t.Errorf(`sx.String() = %q, want %q`, s, exp)
+	}
+
+	x = "goodbye"
+	if s, exp := sx.String(), `"goodbye"`; s != exp {
+		t.Errorf(`sx.String() = %q, want %q`, s, exp)
 	}
 }

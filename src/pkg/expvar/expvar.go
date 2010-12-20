@@ -152,7 +152,7 @@ func (v IntFunc) String() string { return strconv.Itoa64(v()) }
 // The function will be called each time the Var is evaluated.
 type StringFunc func() string
 
-func (f StringFunc) String() string { return f() }
+func (f StringFunc) String() string { return strconv.Quote(f()) }
 
 
 // All published variables.
