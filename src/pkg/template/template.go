@@ -673,7 +673,7 @@ func empty(v reflect.Value) bool {
 	case *reflect.SliceValue:
 		return v.Len() == 0
 	}
-	return true
+	return false
 }
 
 // Look up a variable or method, up through the parent if necessary.
