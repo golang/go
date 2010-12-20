@@ -197,6 +197,12 @@ var tests = []*Test{
 		out: " Header\n",
 	},
 
+	&Test{
+		in: "{.section integer}{@}{.end}",
+
+		out: "77",
+	},
+
 	// Repeated
 	&Test{
 		in: "{.section pdata }\n" +
