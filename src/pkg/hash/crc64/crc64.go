@@ -80,7 +80,7 @@ func (d *digest) Sum64() uint64 { return d.crc }
 func (d *digest) Sum() []byte {
 	p := make([]byte, 8)
 	s := d.Sum64()
-	p[0] = byte(s >> 54)
+	p[0] = byte(s >> 56)
 	p[1] = byte(s >> 48)
 	p[2] = byte(s >> 40)
 	p[3] = byte(s >> 32)
