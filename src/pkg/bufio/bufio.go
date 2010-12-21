@@ -148,7 +148,6 @@ func (b *Reader) Read(p []byte) (n int, err os.Error) {
 				b.lastByte = int(p[n-1])
 				b.lastRuneSize = -1
 			}
-			p = p[n:]
 			return n, b.err
 		}
 		b.fill()
@@ -161,7 +160,6 @@ func (b *Reader) Read(p []byte) (n int, err os.Error) {
 		n = b.w - b.r
 	}
 	copy(p[0:n], b.buf[b.r:])
-	p = p[n:]
 	b.r += n
 	b.lastByte = int(b.buf[b.r-1])
 	b.lastRuneSize = -1
