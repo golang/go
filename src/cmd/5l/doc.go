@@ -20,8 +20,8 @@ Original options are listed in the link above.
 
 Options new in this version:
 
--L dir1,dir2,..
-	Search for libraries (package files) in the comma-separated list of directories.
+-L dir1 -L dir2
+	Search for libraries (package files) in dir1, dir2, etc.
 	The default is the single location $GOROOT/pkg/$GOOS_arm.
 -r dir1:dir2:...
 	Set the dynamic linker search path when using ELF.
