@@ -175,7 +175,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 	for _, Benchmark := range benchmarks {
 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
 		if err != nil {
-			println("invalid regexp for -benchmarks:", err)
+			println("invalid regexp for -benchmarks:", err.String())
 			os.Exit(1)
 		}
 		if !matched {
