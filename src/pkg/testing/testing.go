@@ -144,7 +144,7 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
 	for i := 0; i < len(tests); i++ {
 		matched, err := matchString(*match, tests[i].Name)
 		if err != nil {
-			println("invalid regexp for -match:", err)
+			println("invalid regexp for -match:", err.String())
 			os.Exit(1)
 		}
 		if !matched {
