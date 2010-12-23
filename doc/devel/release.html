@@ -5,6 +5,29 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2010-12-22">2010-12-22</h3>
+
+<pre>
+A small release this week. The most significant change is that some 
+outstanding cgo issues were resolved.
+
+* cgo: handle references to symbols in shared libraries.
+* crypto/elliptic: add serialisation and key pair generation.
+* crypto/hmac: add HMAC-SHA256 (thanks Anthony Martin).
+* crypto/tls: add ECDHE support ("Elliptic Curve Diffie Hellman Ephemeral"),
+        add support code for generating handshake scripts for testing.
+* darwin, freebsd: ignore write failure (during print, panic).
+* exp/draw: remove Border function.
+* expvar: quote StringFunc output, same as String output.
+* hash/crc64: fix typo in Sum.
+* ld: allow relocations pointing at ELF .bss symbols, ignore stab symbols.
+* misc/cgo/life: fix, add to build.
+* regexp: add HasMeta, HasOperator, and String methods to Regexp.
+* suffixarray: implemented FindAllIndex regexp search.
+* test/bench: update numbers for regex-dna after speedup to regexp.
+* time: explain the formats a little better.
+</pre>
+
 <h3 id="2010-12-15">2010-12-15</h3>
 
 <pre>
