@@ -88,6 +88,7 @@ func download(pkg string) (string, os.Error) {
 type vcs struct {
 	cmd               string
 	metadir           string
+	checkout          string
 	clone             string
 	update            string
 	updateReleaseFlag string
@@ -101,6 +102,7 @@ type vcs struct {
 var hg = vcs{
 	cmd:               "hg",
 	metadir:           ".hg",
+	checkout:          "checkout",
 	clone:             "clone",
 	update:            "update",
 	updateReleaseFlag: "release",
@@ -113,18 +115,20 @@ var hg = vcs{
 var git = vcs{
 	cmd:               "git",
 	metadir:           ".git",
+	checkout:          "checkout",
 	clone:             "clone",
 	update:            "pull",
 	updateReleaseFlag: "release",
 	pull:              "fetch",
-	log:               "log",
-	logLimitFlag:      "-n1",
+	log:               "show-ref",
+	logLimitFlag:      "",
 	logReleaseFlag:    "release",
 }
 
 var svn = vcs{
 	cmd:               "svn",
 	metadir:           ".svn",
+	checkout:          "checkout",
 	clone:             "checkout",
 	update:            "update",
 	updateReleaseFlag: "release",
@@ -136,6 +140,7 @@ var svn = vcs{
 var bzr = vcs{
 	cmd:               "bzr",
 	metadir:           ".bzr",
+	checkout:          "checkout",
 	clone:             "branch",
 	update:            "update",
 	updateReleaseFlag: "-rrelease",
@@ -144,6 +149,22 @@ var bzr = vcs{
 	log:               "log",
 	logLimitFlag:      "-l1",
 	logReleaseFlag:    "-rrelease",
+}
+
+// Try to detect if a "release" tag exists.  If it does, update
+// to the tagged version, otherwise just update the current branch.
+// NOTE(_nil): svn will always fail because it is trying to get
+// the revision history of a file named "release" instead of
+// looking for a commit with a release tag
+func (v *vcs) updateRepo(dst string) os.Error {
+	if err := quietRun(dst, nil, v.cmd, v.log, v.logLimitFlag, v.logReleaseFlag); err == nil {
+		if err := run(dst, nil, v.cmd, v.checkout, v.updateReleaseFlag); err != nil {
+			return err
+		}
+	} else if err := run(dst, nil, v.cmd, v.update); err != nil {
+		return err
+	}
+	return nil
 }
 
 // vcsCheckout checks out repo into dst using vcs.
@@ -164,8 +185,9 @@ func vcsCheckout(vcs *vcs, dst, repo, dashpath string) os.Error {
 		if err := run("/", nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
 			return err
 		}
-		quietRun(dst, nil, vcs.cmd, vcs.update, vcs.updateReleaseFlag)
-
+		if err := vcs.updateRepo(dst); err != nil {
+			return err
+		}
 		// success on first installation - report
 		maybeReportToDashboard(dashpath)
 	} else if *update {
@@ -181,19 +203,8 @@ func vcsCheckout(vcs *vcs, dst, repo, dashpath string) os.Error {
 			}
 		}
 
-		// Try to detect if a "release" tag exists.  If it does, update
-		// to the tagged version.  If no tag is found, then update to the
-		// tip afterwards.
-		// NOTE(gustavo@niemeyer.net): What is the expected behavior with
-		// svn here? "svn log -l1 release" doesn't make sense in this
-		// context and will probably fail.
-		if err := quietRun(dst, nil, vcs.cmd, vcs.log, vcs.logLimitFlag, vcs.logReleaseFlag); err == nil {
-			if err := run(dst, nil, vcs.cmd, vcs.update, vcs.updateReleaseFlag); err != nil {
-				// The VCS supports tagging, has the "release" tag, but
-				// something else went wrong.  Report.
-				return err
-			}
-		} else if err := run(dst, nil, vcs.cmd, vcs.update); err != nil {
+		// Update to release or latest revision
+		if err := vcs.updateRepo(dst); err != nil {
 			return err
 		}
 	}
