@@ -6,7 +6,7 @@
 
 package cipher
 
-type ocfb struct {
+type ocfbEncrypter struct {
 	b       Block
 	fre     []byte
 	outUsed int
@@ -22,7 +22,7 @@ func NewOCFBEncrypter(block Block, randData []byte) (Stream, []byte) {
 		return nil, nil
 	}
 
-	x := &ocfb{
+	x := &ocfbEncrypter{
 		b:       block,
 		fre:     make([]byte, blockSize),
 		outUsed: 0,
@@ -42,6 +42,25 @@ func NewOCFBEncrypter(block Block, randData []byte) (Stream, []byte) {
 	return x, prefix
 }
 
+func (x *ocfbEncrypter) XORKeyStream(dst, src []byte) {
+	for i := 0; i < len(src); i++ {
+		if x.outUsed == len(x.fre) {
+			x.b.Encrypt(x.fre, x.fre)
+			x.outUsed = 0
+		}
+
+		x.fre[x.outUsed] ^= src[i]
+		dst[i] = x.fre[x.outUsed]
+		x.outUsed++
+	}
+}
+
+type ocfbDecrypter struct {
+	b       Block
+	fre     []byte
+	outUsed int
+}
+
 // NewOCFBDecrypter returns a Stream which decrypts data with OpenPGP's cipher
 // feedback mode using the given Block. Prefix must be the first blockSize + 2
 // bytes of the ciphertext, where blockSize is the Block's block size. If an
@@ -52,7 +71,7 @@ func NewOCFBDecrypter(block Block, prefix []byte) Stream {
 		return nil
 	}
 
-	x := &ocfb{
+	x := &ocfbDecrypter{
 		b:       block,
 		fre:     make([]byte, blockSize),
 		outUsed: 0,
@@ -78,14 +97,16 @@ func NewOCFBDecrypter(block Block, prefix []byte) Stream {
 	return x
 }
 
-func (x *ocfb) XORKeyStream(dst, src []byte) {
+func (x *ocfbDecrypter) XORKeyStream(dst, src []byte) {
 	for i := 0; i < len(src); i++ {
 		if x.outUsed == len(x.fre) {
 			x.b.Encrypt(x.fre, x.fre)
 			x.outUsed = 0
 		}
 
+		c := src[i]
 		dst[i] = x.fre[x.outUsed] ^ src[i]
+		x.fre[x.outUsed] = c
 		x.outUsed++
 	}
 }
