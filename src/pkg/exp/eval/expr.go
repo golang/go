@@ -595,9 +595,15 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 		return ei.compileIndexExpr(l, r)
 
 	case *ast.SliceExpr:
-		var hi *expr
+		var lo, hi *expr
 		arr := a.compile(x.X, false)
-		lo := a.compile(x.Index, false)
+		if x.Index == nil {
+			// beginning was omitted, so we need to provide it
+			ei := &exprInfo{a.compiler, x.Pos()}
+			lo = ei.compileIntLit("0")
+		} else {
+			lo = a.compile(x.Index, false)
+		}
 		if x.End == nil {
 			// End was omitted, so we need to compute len(x.X)
 			ei := &exprInfo{a.compiler, x.Pos()}
