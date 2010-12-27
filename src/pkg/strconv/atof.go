@@ -107,7 +107,7 @@ func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
 	// just be sure to move the decimal point by
 	// a lot (say, 100000).  it doesn't matter if it's
 	// not the exact number.
-	if i < len(s) && s[i] == 'e' {
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
 		i++
 		if i >= len(s) {
 			return
