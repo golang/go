@@ -203,7 +203,7 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
 // If dst implements the ReaderFrom interface,
 // the copy is implemented by calling dst.ReadFrom(src).
 func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
-	// If the writer has a ReadFrom method, use it to to do the copy.
+	// If the writer has a ReadFrom method, use it to do the copy.
 	// Avoids a buffer allocation and a copy.
 	if rt, ok := dst.(ReaderFrom); ok {
 		return rt.ReadFrom(LimitReader(src, n))
@@ -246,12 +246,12 @@ func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
 // Otherwise, if src implements the WriterTo interface,
 // the copy is implemented by calling src.WriteTo(dst).
 func Copy(dst Writer, src Reader) (written int64, err os.Error) {
-	// If the writer has a ReadFrom method, use it to to do the copy.
+	// If the writer has a ReadFrom method, use it to do the copy.
 	// Avoids an allocation and a copy.
 	if rt, ok := dst.(ReaderFrom); ok {
 		return rt.ReadFrom(src)
 	}
-	// Similarly, if the reader has a WriteTo method, use it to to do the copy.
+	// Similarly, if the reader has a WriteTo method, use it to do the copy.
 	if wt, ok := src.(WriterTo); ok {
 		return wt.WriteTo(dst)
 	}
