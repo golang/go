@@ -571,15 +571,20 @@ func (re *Regexp) doParse() {
 	}
 }
 
-// Extract regular text from the beginning of the pattern.
+// Extract regular text from the beginning of the pattern,
+// possibly after a leading iBOT.
 // That text can be used by doExecute to speed up matching.
 func (re *Regexp) setPrefix() {
 	var b []byte
 	var utf = make([]byte, utf8.UTFMax)
 	var inst *instr
-	// First instruction is start; skip that.
+	// First instruction is start; skip that.  Also skip any initial iBOT.
+	inst = re.inst[0].next
+	for inst.kind == iBOT {
+		inst = inst.next
+	}
 Loop:
-	for inst = re.inst[0].next; inst.kind != iEnd; inst = inst.next {
+	for ; inst.kind != iEnd; inst = inst.next {
 		// stop if this is not a char
 		if inst.kind != iChar {
 			break
@@ -748,14 +753,30 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 	if bytestr != nil {
 		end = len(bytestr)
 	}
+	anchored := re.inst[0].next.kind == iBOT
+	if anchored && pos > 0 {
+		return nil
+	}
 	// fast check for initial plain substring
 	prefixed := false // has this iteration begun by skipping a prefix?
 	if re.prefix != "" {
-		var advance int
-		if bytestr == nil {
-			advance = strings.Index(str[pos:], re.prefix)
+		advance := 0
+		if anchored {
+			if bytestr == nil {
+				if !strings.HasPrefix(str, re.prefix) {
+					return nil
+				}
+			} else {
+				if !bytes.HasPrefix(bytestr, re.prefixBytes) {
+					return nil
+				}
+			}
 		} else {
-			advance = bytes.Index(bytestr[pos:], re.prefixBytes)
+			if bytestr == nil {
+				advance = strings.Index(str[pos:], re.prefix)
+			} else {
+				advance = bytes.Index(bytestr[pos:], re.prefixBytes)
+			}
 		}
 		if advance == -1 {
 			return nil
