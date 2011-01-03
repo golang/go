@@ -78,6 +78,7 @@ var findTests = []FindTest{
 	{`axxb$`, "axxcb", nil},
 	{`data`, "daXY data", build(1, 5, 9)},
 	{`da(.)a$`, "daXY data", build(1, 5, 9, 7, 8)},
+	{`zx+`, "zzx", build(1, 1, 3)},
 
 	// can backslash-escape any punctuation
 	{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,

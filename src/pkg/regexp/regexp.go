@@ -758,7 +758,6 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 		return nil
 	}
 	// fast check for initial plain substring
-	prefixed := false // has this iteration begun by skipping a prefix?
 	if re.prefix != "" {
 		advance := 0
 		if anchored {
@@ -781,8 +780,7 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 		if advance == -1 {
 			return nil
 		}
-		pos += advance + len(re.prefix)
-		prefixed = true
+		pos += advance
 	}
 	arena := &matchArena{nil, 2 * (re.nbra + 1)}
 	for pos <= end {
@@ -790,12 +788,7 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 			// prime the pump if we haven't seen a match yet
 			match := arena.noMatch()
 			match.m[0] = pos
-			if prefixed {
-				s[out] = arena.addState(s[out], re.prefixStart, true, match, pos, end)
-				prefixed = false // next iteration should start at beginning of machine.
-			} else {
-				s[out] = arena.addState(s[out], re.start.next, false, match, pos, end)
-			}
+			s[out] = arena.addState(s[out], re.start.next, false, match, pos, end)
 			arena.free(match) // if addState saved it, ref was incremented
 		}
 		in, out = out, in // old out state is new in state
