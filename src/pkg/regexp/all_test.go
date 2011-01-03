@@ -377,3 +377,49 @@ func BenchmarkReplaceAll(b *testing.B) {
 		re.ReplaceAllString(x, "")
 	}
 }
+
+func BenchmarkAnchoredLiteralShortNonMatch(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcdefghijklmnopqrstuvwxyz")
+	re := MustCompile("^zbc(d|e)")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
+
+func BenchmarkAnchoredLiteralLongNonMatch(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcdefghijklmnopqrstuvwxyz")
+	for i := 0; i < 15; i++ {
+		x = append(x, x...)
+	}
+	re := MustCompile("^zbc(d|e)")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
+
+func BenchmarkAnchoredShortMatch(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcdefghijklmnopqrstuvwxyz")
+	re := MustCompile("^.bc(d|e)")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
+
+func BenchmarkAnchoredLongMatch(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcdefghijklmnopqrstuvwxyz")
+	for i := 0; i < 15; i++ {
+		x = append(x, x...)
+	}
+	re := MustCompile("^.bc(d|e)")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
