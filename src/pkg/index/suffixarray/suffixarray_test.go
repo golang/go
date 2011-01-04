@@ -101,11 +101,11 @@ var testCases = []testCase{
 }
 
 
-// find all occurences of s in source; report at most n occurences
+// find all occurrences of s in source; report at most n occurences
 func find(src, s string, n int) []int {
 	var res vector.IntVector
 	if s != "" && n != 0 {
-		// find at most n occurences of s in src
+		// find at most n occurrences of s in src
 		for i := -1; n < 0 || len(res) < n; {
 			j := strings.Index(src[i+1:], s)
 			if j < 0 {

@@ -178,7 +178,7 @@ func ParseFiles(fset *token.FileSet, filenames []string, mode uint) (pkgs map[st
 // information is recorded in the file set fset.
 //
 // If the directory couldn't be read, a nil map and the respective error are
-// returned. If a parse error occured, a non-nil but incomplete map and the
+// returned. If a parse error occurred, a non-nil but incomplete map and the
 // error are returned.
 //
 func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, os.Error) {
