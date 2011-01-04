@@ -90,8 +90,13 @@ func Walk(v Visitor, node Node) {
 		}
 
 	// Expressions
-	case *BadExpr, *Ident, *Ellipsis, *BasicLit:
+	case *BadExpr, *Ident, *BasicLit:
 		// nothing to do
+
+	case *Ellipsis:
+		if n.Elt != nil {
+			Walk(v, n.Elt)
+		}
 
 	case *FuncLit:
 		Walk(v, n.Type)
@@ -116,11 +121,11 @@ func Walk(v Visitor, node Node) {
 
 	case *SliceExpr:
 		Walk(v, n.X)
-		if n.Index != nil {
-			Walk(v, n.Index)
+		if n.Low != nil {
+			Walk(v, n.Low)
 		}
-		if n.End != nil {
-			Walk(v, n.End)
+		if n.High != nil {
+			Walk(v, n.High)
 		}
 
 	case *TypeAssertExpr:

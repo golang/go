@@ -251,7 +251,7 @@ func (p *parser) expect(tok token.Token) token.Pos {
 	if p.tok != tok {
 		p.errorExpected(pos, "'"+tok.String()+"'")
 	}
-	p.next() // make progress in any case
+	p.next() // make progress
 	return pos
 }
 
@@ -323,9 +323,10 @@ func (p *parser) parseType() ast.Expr {
 	typ := p.tryType()
 
 	if typ == nil {
-		p.errorExpected(p.pos, "type")
+		pos := p.pos
+		p.errorExpected(pos, "type")
 		p.next() // make progress
-		return &ast.BadExpr{p.pos}
+		return &ast.BadExpr{pos, p.pos}
 	}
 
 	return typ
@@ -417,10 +418,10 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	} else {
 		// ["*"] TypeName (AnonymousField)
 		typ = list[0] // we always have at least one element
-		if len(list) > 1 || !isTypeName(deref(typ)) {
+		if n := len(list); n > 1 || !isTypeName(deref(typ)) {
 			pos := typ.Pos()
 			p.errorExpected(pos, "anonymous field")
-			typ = &ast.BadExpr{pos}
+			typ = &ast.BadExpr{pos, list[n-1].End()}
 		}
 	}
 
@@ -469,7 +470,7 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
 		typ := p.tryType() // don't use parseType so we can provide better error message
 		if typ == nil {
 			p.error(pos, "'...' parameter is missing type")
-			typ = &ast.BadExpr{pos}
+			typ = &ast.BadExpr{pos, p.pos}
 		}
 		if p.tok != token.RPAREN {
 			p.error(pos, "can use '...' with last parameter type only")
@@ -483,9 +484,10 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
 func (p *parser) parseVarType(isParam bool) ast.Expr {
 	typ := p.tryVarType(isParam)
 	if typ == nil {
-		p.errorExpected(p.pos, "type")
+		pos := p.pos
+		p.errorExpected(pos, "type")
 		p.next() // make progress
-		typ = &ast.BadExpr{p.pos}
+		typ = &ast.BadExpr{pos, p.pos}
 	}
 	return typ
 }
@@ -826,9 +828,10 @@ func (p *parser) parseOperand() ast.Expr {
 		}
 	}
 
-	p.errorExpected(p.pos, "operand")
+	pos := p.pos
+	p.errorExpected(pos, "operand")
 	p.next() // make progress
-	return &ast.BadExpr{p.pos}
+	return &ast.BadExpr{pos, p.pos}
 }
 
 
@@ -984,7 +987,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 		if t.Type == nil {
 			// the form X.(type) is only allowed in type switch expressions
 			p.errorExpected(x.Pos(), "expression")
-			x = &ast.BadExpr{x.Pos()}
+			x = &ast.BadExpr{x.Pos(), x.End()}
 		}
 	case *ast.CallExpr:
 	case *ast.StarExpr:
@@ -992,13 +995,13 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 		if t.Op == token.RANGE {
 			// the range operator is only allowed at the top of a for statement
 			p.errorExpected(x.Pos(), "expression")
-			x = &ast.BadExpr{x.Pos()}
+			x = &ast.BadExpr{x.Pos(), x.End()}
 		}
 	case *ast.BinaryExpr:
 	default:
 		// all other nodes are not proper expressions
 		p.errorExpected(x.Pos(), "expression")
-		x = &ast.BadExpr{x.Pos()}
+		x = &ast.BadExpr{x.Pos(), x.End()}
 	}
 	return x
 }
@@ -1066,12 +1069,12 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 		if t.Op == token.RANGE {
 			// the range operator is only allowed at the top of a for statement
 			p.errorExpected(x.Pos(), "expression")
-			x = &ast.BadExpr{x.Pos()}
+			x = &ast.BadExpr{x.Pos(), x.End()}
 		}
 	case *ast.ArrayType:
 		if len, isEllipsis := t.Len.(*ast.Ellipsis); isEllipsis {
 			p.error(len.Pos(), "expected array length, found '...'")
-			x = &ast.BadExpr{x.Pos()}
+			x = &ast.BadExpr{x.Pos(), x.End()}
 		}
 	}
 
@@ -1190,14 +1193,15 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 	switch p.tok {
 	case token.COLON:
 		// labeled statement
+		colon := p.pos
 		p.next()
 		if labelOk && len(x) == 1 {
 			if label, isIdent := x[0].(*ast.Ident); isIdent {
-				return &ast.LabeledStmt{label, p.parseStmt()}
+				return &ast.LabeledStmt{label, colon, p.parseStmt()}
 			}
 		}
 		p.error(x[0].Pos(), "illegal label declaration")
-		return &ast.BadStmt{x[0].Pos()}
+		return &ast.BadStmt{x[0].Pos(), colon + 1}
 
 	case
 		token.DEFINE, token.ASSIGN, token.ADD_ASSIGN,
@@ -1218,7 +1222,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 
 	if p.tok == token.INC || p.tok == token.DEC {
 		// increment or decrement
-		s := &ast.IncDecStmt{x[0], p.tok}
+		s := &ast.IncDecStmt{x[0], p.pos, p.tok}
 		p.next() // consume "++" or "--"
 		return s
 	}
@@ -1247,7 +1251,7 @@ func (p *parser) parseGoStmt() ast.Stmt {
 	call := p.parseCallExpr()
 	p.expectSemi()
 	if call == nil {
-		return &ast.BadStmt{pos}
+		return &ast.BadStmt{pos, pos + 2} // len("go")
 	}
 
 	return &ast.GoStmt{pos, call}
@@ -1263,7 +1267,7 @@ func (p *parser) parseDeferStmt() ast.Stmt {
 	call := p.parseCallExpr()
 	p.expectSemi()
 	if call == nil {
-		return &ast.BadStmt{pos}
+		return &ast.BadStmt{pos, pos + 5} // len("defer")
 	}
 
 	return &ast.DeferStmt{pos, call}
@@ -1311,7 +1315,7 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 		return p.checkExpr(es.X)
 	}
 	p.error(s.Pos(), "expected condition, found simple statement")
-	return &ast.BadExpr{s.Pos()}
+	return &ast.BadExpr{s.Pos(), s.End()}
 }
 
 
@@ -1547,7 +1551,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		// possibly a for statement with a range clause; check assignment operator
 		if as.Tok != token.ASSIGN && as.Tok != token.DEFINE {
 			p.errorExpected(as.TokPos, "'=' or ':='")
-			return &ast.BadStmt{pos}
+			return &ast.BadStmt{pos, body.End()}
 		}
 		// check lhs
 		var key, value ast.Expr
@@ -1558,19 +1562,19 @@ func (p *parser) parseForStmt() ast.Stmt {
 			key = as.Lhs[0]
 		default:
 			p.errorExpected(as.Lhs[0].Pos(), "1 or 2 expressions")
-			return &ast.BadStmt{pos}
+			return &ast.BadStmt{pos, body.End()}
 		}
 		// check rhs
 		if len(as.Rhs) != 1 {
 			p.errorExpected(as.Rhs[0].Pos(), "1 expressions")
-			return &ast.BadStmt{pos}
+			return &ast.BadStmt{pos, body.End()}
 		}
 		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
 			// rhs is range expression; check lhs
 			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body}
 		} else {
 			p.errorExpected(s2.Pos(), "range clause")
-			return &ast.BadStmt{pos}
+			return &ast.BadStmt{pos, body.End()}
 		}
 	} else {
 		// regular for statement
@@ -1628,9 +1632,10 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 		s = &ast.EmptyStmt{p.pos}
 	default:
 		// no statement found
-		p.errorExpected(p.pos, "statement")
+		pos := p.pos
+		p.errorExpected(pos, "statement")
 		p.next() // make progress
-		s = &ast.BadStmt{p.pos}
+		s = &ast.BadStmt{pos, p.pos}
 	}
 
 	return
@@ -1754,7 +1759,8 @@ func (p *parser) parseReceiver() *ast.FieldList {
 	// must have exactly one receiver
 	if par.NumFields() != 1 {
 		p.errorExpected(pos, "exactly one receiver")
-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{token.NoPos}}}
+		// TODO determine a better range for BadExpr below
+		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{pos, pos}}}
 		return par
 	}
 
@@ -1763,7 +1769,7 @@ func (p *parser) parseReceiver() *ast.FieldList {
 	base := deref(recv.Type)
 	if _, isIdent := base.(*ast.Ident); !isIdent {
 		p.errorExpected(base.Pos(), "(unqualified) identifier")
-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{recv.Pos()}}}
+		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
 	}
 
 	return par
@@ -1818,8 +1824,8 @@ func (p *parser) parseDecl() ast.Decl {
 	default:
 		pos := p.pos
 		p.errorExpected(pos, "declaration")
-		decl := &ast.BadDecl{pos}
-		p.next() // make progress in any case
+		p.next() // make progress
+		decl := &ast.BadDecl{pos, p.pos}
 		return decl
 	}
 
