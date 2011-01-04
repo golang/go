@@ -1,5 +1,5 @@
 {.section PAst}
-{@}
+{@ FSet}
 {.end}
 {.section PDoc}
 {.section IsPkg}
@@ -12,7 +12,7 @@ COMMAND DOCUMENTATION
 {.end}
 {.section Doc}
 
-{@}
+{@ FSet}
 {.end}
 {.section Consts}
 
