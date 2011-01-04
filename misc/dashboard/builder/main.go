@@ -47,7 +47,7 @@ var (
 
 var (
 	goroot        string
-	releaseRegexp = regexp.MustCompile(`^release\.[0-9\-]+`)
+	releaseRegexp = regexp.MustCompile(`^release\.[0-9\-.]+`)
 	benchRequests vector.Vector
 )
 
@@ -312,7 +312,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 			return fmt.Errorf("clean.bash: %s", err)
 		}
 		// upload binary release
-		fn := fmt.Sprintf("%s.%s-%s.tar.gz", release, b.goos, b.goarch)
+		fn := fmt.Sprintf("go.%s.%s-%s.tar.gz", release, b.goos, b.goarch)
 		err = run(nil, workpath, "tar", "czf", fn, "go")
 		if err != nil {
 			return fmt.Errorf("tar: %s", err)
