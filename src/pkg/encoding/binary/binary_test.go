@@ -28,6 +28,15 @@ type Struct struct {
 	Array      [4]uint8
 }
 
+type T struct {
+	Int     int
+	Uint    uint
+	Float   float
+	Complex complex
+	Uintptr uintptr
+	Array   [4]int
+}
+
 var s = Struct{
 	0x01,
 	0x0203,
@@ -135,4 +144,21 @@ func TestWriteSlice(t *testing.T) {
 	buf := new(bytes.Buffer)
 	err := Write(buf, BigEndian, res)
 	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src)
+}
+
+func TestWriteT(t *testing.T) {
+	buf := new(bytes.Buffer)
+	ts := T{}
+	err := Write(buf, BigEndian, ts)
+	if err == nil {
+		t.Errorf("WriteT: have nil, want non-nil")
+	}
+
+	tv := reflect.Indirect(reflect.NewValue(ts)).(*reflect.StructValue)
+	for i, n := 0, tv.NumField(); i < n; i++ {
+		err = Write(buf, BigEndian, tv.Field(i).Interface())
+		if err == nil {
+			t.Errorf("WriteT.%v: have nil, want non-nil", tv.Field(i).Type())
+		}
+	}
 }
