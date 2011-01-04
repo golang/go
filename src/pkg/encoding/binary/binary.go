@@ -198,6 +198,10 @@ func sizeof(v reflect.Type) int {
 		return sum
 
 	case *reflect.UintType, *reflect.IntType, *reflect.FloatType, *reflect.ComplexType:
+		switch t := t.Kind(); t {
+		case reflect.Int, reflect.Uint, reflect.Uintptr, reflect.Float, reflect.Complex:
+			return -1
+		}
 		return int(v.Size())
 	}
 	return -1
