@@ -140,7 +140,7 @@ var svn = vcs{
 var bzr = vcs{
 	cmd:               "bzr",
 	metadir:           ".bzr",
-	checkout:          "checkout",
+	checkout:          "update",
 	clone:             "branch",
 	update:            "update",
 	updateReleaseFlag: "-rrelease",
