@@ -2857,8 +2857,8 @@ func QR(w http.ResponseWriter, req *http.Request) {
     templ.Execute(req.FormValue("s"), w)
 }
 
-func UrlHtmlFormatter(w io.Writer, v interface{}, fmt string) {
-    template.HTMLEscape(w, []byte(http.URLEscape(v.(string))))
+func UrlHtmlFormatter(w io.Writer, fmt string, v ...interface{}) {
+    template.HTMLEscape(w, []byte(http.URLEscape(v[0].(string))))
 }
 
 
