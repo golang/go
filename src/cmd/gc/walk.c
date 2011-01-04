@@ -975,13 +975,15 @@ walkexpr(Node **np, NodeList **init)
 		 * on 386, rewrite float ops into l = l op r.
 		 * everywhere, rewrite map ops into l = l op r.
 		 * everywhere, rewrite string += into l = l op r.
+		 * everywhere, rewrite complex /= into l = l op r.
 		 * TODO(rsc): Maybe this rewrite should be done always?
 		 */
 		et = n->left->type->etype;
 		if((widthptr == 4 && (et == TUINT64 || et == TINT64)) ||
 		   (thechar == '8' && isfloat[et]) ||
 		   l->op == OINDEXMAP ||
-		   et == TSTRING) {
+		   et == TSTRING ||
+		   (iscomplex[et] && n->etype == ODIV)) {
 			l = safeexpr(n->left, init);
 			a = l;
 			if(a->op == OINDEXMAP) {
