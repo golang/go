@@ -714,7 +714,7 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
 	case *ast.SliceExpr:
 		body, suffix = splitSelector(x.X)
 		if body != nil {
-			suffix = &ast.SliceExpr{suffix, x.Index, x.End}
+			suffix = &ast.SliceExpr{suffix, x.Low, x.High}
 			return
 		}
 	case *ast.TypeAssertExpr:
@@ -845,17 +845,17 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
 		p.print(token.LBRACK)
-		if x.Index != nil {
-			p.expr0(x.Index, depth+1, multiLine)
+		if x.Low != nil {
+			p.expr0(x.Low, depth+1, multiLine)
 		}
 		// blanks around ":" if both sides exist and either side is a binary expression
-		if depth <= 1 && x.Index != nil && x.End != nil && (isBinary(x.Index) || isBinary(x.End)) {
+		if depth <= 1 && x.Low != nil && x.High != nil && (isBinary(x.Low) || isBinary(x.High)) {
 			p.print(blank, token.COLON, blank)
 		} else {
 			p.print(token.COLON)
 		}
-		if x.End != nil {
-			p.expr0(x.End, depth+1, multiLine)
+		if x.High != nil {
+			p.expr0(x.High, depth+1, multiLine)
 		}
 		p.print(token.RBRACK)
 
@@ -1071,7 +1071,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 		// between (see writeWhitespace)
 		p.print(unindent)
 		p.expr(s.Label, multiLine)
-		p.print(token.COLON, indent)
+		p.print(s.Colon, token.COLON, indent)
 		if e, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty {
 			if !nextIsRBrace {
 				p.print(newline, e.Pos(), token.SEMICOLON)
@@ -1089,7 +1089,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 	case *ast.IncDecStmt:
 		const depth = 1
 		p.expr0(s.X, depth+1, multiLine)
-		p.print(s.Tok)
+		p.print(s.TokPos, s.Tok)
 
 	case *ast.AssignStmt:
 		var depth = 1

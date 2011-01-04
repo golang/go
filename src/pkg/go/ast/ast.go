@@ -34,8 +34,8 @@ import (
 
 // All node types implement the Node interface.
 type Node interface {
-	// Pos returns the (beginning) position of the node.
-	Pos() token.Pos
+	Pos() token.Pos // position of first character belonging to the node
+	End() token.Pos // position of first character immediately after the node
 }
 
 
@@ -71,6 +71,7 @@ type Comment struct {
 
 
 func (c *Comment) Pos() token.Pos { return c.Slash }
+func (c *Comment) End() token.Pos { return token.Pos(int(c.Slash) + len(c.Text)) }
 
 
 // A CommentGroup represents a sequence of comments
@@ -82,6 +83,7 @@ type CommentGroup struct {
 
 
 func (g *CommentGroup) Pos() token.Pos { return g.List[0].Pos() }
+func (g *CommentGroup) End() token.Pos { return g.List[len(g.List)-1].End() }
 
 
 // ----------------------------------------------------------------------------
@@ -108,6 +110,14 @@ func (f *Field) Pos() token.Pos {
 }
 
 
+func (f *Field) End() token.Pos {
+	if f.Tag != nil {
+		return f.Tag.End()
+	}
+	return f.Type.End()
+}
+
+
 // A FieldList represents a list of Fields, enclosed by parentheses or braces.
 type FieldList struct {
 	Opening token.Pos // position of opening parenthesis/brace
@@ -117,6 +127,7 @@ type FieldList struct {
 
 
 func (list *FieldList) Pos() token.Pos { return list.Opening }
+func (list *FieldList) End() token.Pos { return list.Closing + 1 }
 
 
 // NumFields returns the number of (named and anonymous fields) in a FieldList.
@@ -144,7 +155,7 @@ type (
 	// created.
 	//
 	BadExpr struct {
-		Begin token.Pos // beginning position of bad expression
+		From, To token.Pos // position range of bad expression
 	}
 
 	// An Ident node represents an identifier.
@@ -159,7 +170,7 @@ type (
 	//
 	Ellipsis struct {
 		Ellipsis token.Pos // position of "..."
-		Elt      Expr      // ellipsis element type (parameter lists only)
+		Elt      Expr      // ellipsis element type (parameter lists only); or nil
 	}
 
 	// A BasicLit node represents a literal of basic type.
@@ -179,7 +190,7 @@ type (
 	CompositeLit struct {
 		Type   Expr      // literal type; or nil
 		Lbrace token.Pos // position of "{"
-		Elts   []Expr    // list of composite elements
+		Elts   []Expr    // list of composite elements; or nil
 		Rbrace token.Pos // position of "}"
 	}
 
@@ -204,9 +215,9 @@ type (
 
 	// An SliceExpr node represents an expression followed by slice indices.
 	SliceExpr struct {
-		X     Expr // expression
-		Index Expr // beginning of slice range; or nil
-		End   Expr // end of slice range; or nil
+		X    Expr // expression
+		Low  Expr // begin of slice range; or nil
+		High Expr // end of slice range; or nil
 	}
 
 	// A TypeAssertExpr node represents an expression followed by a
@@ -221,7 +232,7 @@ type (
 	CallExpr struct {
 		Fun      Expr      // function expression
 		Lparen   token.Pos // position of "("
-		Args     []Expr    // function arguments
+		Args     []Expr    // function arguments; or nil
 		Ellipsis token.Pos // position of "...", if any
 		Rparen   token.Pos // position of ")"
 	}
@@ -324,9 +335,9 @@ type (
 )
 
 
-// Pos() implementations for expression/type nodes.
+// Pos and End implementations for expression/type nodes.
 //
-func (x *BadExpr) Pos() token.Pos  { return x.Begin }
+func (x *BadExpr) Pos() token.Pos  { return x.From }
 func (x *Ident) Pos() token.Pos    { return x.NamePos }
 func (x *Ellipsis) Pos() token.Pos { return x.Ellipsis }
 func (x *BasicLit) Pos() token.Pos { return x.ValuePos }
@@ -353,6 +364,40 @@ func (x *FuncType) Pos() token.Pos       { return x.Func }
 func (x *InterfaceType) Pos() token.Pos  { return x.Interface }
 func (x *MapType) Pos() token.Pos        { return x.Map }
 func (x *ChanType) Pos() token.Pos       { return x.Begin }
+
+
+func (x *BadExpr) End() token.Pos { return x.To }
+func (x *Ident) End() token.Pos   { return token.Pos(int(x.NamePos) + len(x.Name)) }
+func (x *Ellipsis) End() token.Pos {
+	if x.Elt != nil {
+		return x.Elt.End()
+	}
+	return x.Ellipsis + 3 // len("...")
+}
+func (x *BasicLit) End() token.Pos       { return token.Pos(int(x.ValuePos) + len(x.Value)) }
+func (x *FuncLit) End() token.Pos        { return x.Body.End() }
+func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
+func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
+func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
+func (x *IndexExpr) End() token.Pos      { return x.Index.End() }
+func (x *SliceExpr) End() token.Pos      { return x.High.End() }
+func (x *TypeAssertExpr) End() token.Pos { return x.Type.End() }
+func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
+func (x *StarExpr) End() token.Pos       { return x.X.End() }
+func (x *UnaryExpr) End() token.Pos      { return x.X.End() }
+func (x *BinaryExpr) End() token.Pos     { return x.Y.End() }
+func (x *KeyValueExpr) End() token.Pos   { return x.Value.End() }
+func (x *ArrayType) End() token.Pos      { return x.Elt.End() }
+func (x *StructType) End() token.Pos     { return x.Fields.End() }
+func (x *FuncType) End() token.Pos {
+	if x.Results != nil {
+		return x.Results.End()
+	}
+	return x.Params.End()
+}
+func (x *InterfaceType) End() token.Pos { return x.Methods.End() }
+func (x *MapType) End() token.Pos       { return x.Value.End() }
+func (x *ChanType) End() token.Pos      { return x.Value.End() }
 
 
 // exprNode() ensures that only expression/type nodes can be
@@ -429,7 +474,7 @@ type (
 	// created.
 	//
 	BadStmt struct {
-		Begin token.Pos // beginning position of bad statement
+		From, To token.Pos // position range of bad statement
 	}
 
 	// A DeclStmt node represents a declaration in a statement list.
@@ -448,6 +493,7 @@ type (
 	// A LabeledStmt node represents a labeled statement.
 	LabeledStmt struct {
 		Label *Ident
+		Colon token.Pos // position of ":"
 		Stmt  Stmt
 	}
 
@@ -460,8 +506,9 @@ type (
 
 	// An IncDecStmt node represents an increment or decrement statement.
 	IncDecStmt struct {
-		X   Expr
-		Tok token.Token // INC or DEC
+		X      Expr
+		TokPos token.Pos   // position of Tok
+		Tok    token.Token // INC or DEC
 	}
 
 	// An AssignStmt node represents an assignment or
@@ -489,7 +536,7 @@ type (
 	// A ReturnStmt node represents a return statement.
 	ReturnStmt struct {
 		Return  token.Pos // position of "return" keyword
-		Results []Expr
+		Results []Expr    // result expressions; or nil
 	}
 
 	// A BranchStmt node represents a break, continue, goto,
@@ -585,9 +632,9 @@ type (
 )
 
 
-// Pos() implementations for statement nodes.
+// Pos and End implementations for statement nodes.
 //
-func (s *BadStmt) Pos() token.Pos        { return s.Begin }
+func (s *BadStmt) Pos() token.Pos        { return s.From }
 func (s *DeclStmt) Pos() token.Pos       { return s.Decl.Pos() }
 func (s *EmptyStmt) Pos() token.Pos      { return s.Semicolon }
 func (s *LabeledStmt) Pos() token.Pos    { return s.Label.Pos() }
@@ -608,6 +655,63 @@ func (s *CommClause) Pos() token.Pos     { return s.Case }
 func (s *SelectStmt) Pos() token.Pos     { return s.Select }
 func (s *ForStmt) Pos() token.Pos        { return s.For }
 func (s *RangeStmt) Pos() token.Pos      { return s.For }
+
+
+func (s *BadStmt) End() token.Pos  { return s.To }
+func (s *DeclStmt) End() token.Pos { return s.Decl.End() }
+func (s *EmptyStmt) End() token.Pos {
+	return s.Semicolon + 1 /* len(";") */
+}
+func (s *LabeledStmt) End() token.Pos { return s.Stmt.End() }
+func (s *ExprStmt) End() token.Pos    { return s.X.End() }
+func (s *IncDecStmt) End() token.Pos {
+	return s.TokPos + 2 /* len("++") */
+}
+func (s *AssignStmt) End() token.Pos { return s.Rhs[len(s.Rhs)-1].End() }
+func (s *GoStmt) End() token.Pos     { return s.Call.End() }
+func (s *DeferStmt) End() token.Pos  { return s.Call.End() }
+func (s *ReturnStmt) End() token.Pos {
+	if n := len(s.Results); n > 0 {
+		return s.Results[n-1].End()
+	}
+	return s.Return + 6 // len("return")
+}
+func (s *BranchStmt) End() token.Pos {
+	if s.Label != nil {
+		return s.Label.End()
+	}
+	return token.Pos(int(s.TokPos) + len(s.Tok.String()))
+}
+func (s *BlockStmt) End() token.Pos { return s.Rbrace + 1 }
+func (s *IfStmt) End() token.Pos {
+	if s.Else != nil {
+		return s.Else.End()
+	}
+	return s.Body.End()
+}
+func (s *CaseClause) End() token.Pos {
+	if n := len(s.Body); n > 0 {
+		return s.Body[n-1].End()
+	}
+	return s.Colon + 1
+}
+func (s *SwitchStmt) End() token.Pos { return s.Body.End() }
+func (s *TypeCaseClause) End() token.Pos {
+	if n := len(s.Body); n > 0 {
+		return s.Body[n-1].End()
+	}
+	return s.Colon + 1
+}
+func (s *TypeSwitchStmt) End() token.Pos { return s.Body.End() }
+func (s *CommClause) End() token.Pos {
+	if n := len(s.Body); n > 0 {
+		return s.Body[n-1].End()
+	}
+	return s.Colon + 1
+}
+func (s *SelectStmt) End() token.Pos { return s.Body.End() }
+func (s *ForStmt) End() token.Pos    { return s.Body.End() }
+func (s *RangeStmt) End() token.Pos  { return s.Body.End() }
 
 
 // stmtNode() ensures that only statement nodes can be
@@ -662,7 +766,7 @@ type (
 	//
 	ValueSpec struct {
 		Doc     *CommentGroup // associated documentation; or nil
-		Names   []*Ident      // value names
+		Names   []*Ident      // value names (len(Names) > 0)
 		Type    Expr          // value type; or nil
 		Values  []Expr        // initial values; or nil
 		Comment *CommentGroup // line comments; or nil
@@ -678,7 +782,7 @@ type (
 )
 
 
-// Pos() implementations for spec nodes.
+// Pos and End implementations for spec nodes.
 //
 func (s *ImportSpec) Pos() token.Pos {
 	if s.Name != nil {
@@ -688,6 +792,19 @@ func (s *ImportSpec) Pos() token.Pos {
 }
 func (s *ValueSpec) Pos() token.Pos { return s.Names[0].Pos() }
 func (s *TypeSpec) Pos() token.Pos  { return s.Name.Pos() }
+
+
+func (s *ImportSpec) End() token.Pos { return s.Path.End() }
+func (s *ValueSpec) End() token.Pos {
+	if n := len(s.Values); n > 0 {
+		return s.Values[n-1].End()
+	}
+	if s.Type != nil {
+		return s.Type.End()
+	}
+	return s.Names[len(s.Names)-1].End()
+}
+func (s *TypeSpec) End() token.Pos { return s.Type.End() }
 
 
 // specNode() ensures that only spec nodes can be
@@ -706,7 +823,7 @@ type (
 	// created.
 	//
 	BadDecl struct {
-		Begin token.Pos // beginning position of bad declaration
+		From, To token.Pos // position range of bad declaration
 	}
 
 	// A GenDecl node (generic declaration node) represents an import,
@@ -740,11 +857,26 @@ type (
 )
 
 
-// Pos implementations for declaration nodes.
+// Pos and End implementations for declaration nodes.
 //
-func (d *BadDecl) Pos() token.Pos  { return d.Begin }
+func (d *BadDecl) Pos() token.Pos  { return d.From }
 func (d *GenDecl) Pos() token.Pos  { return d.TokPos }
 func (d *FuncDecl) Pos() token.Pos { return d.Type.Pos() }
+
+
+func (d *BadDecl) End() token.Pos { return d.To }
+func (d *GenDecl) End() token.Pos {
+	if d.Rparen.IsValid() {
+		return d.Rparen + 1
+	}
+	return d.Specs[0].End()
+}
+func (d *FuncDecl) End() token.Pos {
+	if d.Body != nil {
+		return d.Body.End()
+	}
+	return d.Type.End()
+}
 
 
 // declNode() ensures that only declaration nodes can be
@@ -768,12 +900,18 @@ type File struct {
 	Doc      *CommentGroup   // associated documentation; or nil
 	Package  token.Pos       // position of "package" keyword
 	Name     *Ident          // package name
-	Decls    []Decl          // top-level declarations
+	Decls    []Decl          // top-level declarations; or nil
 	Comments []*CommentGroup // list of all comments in the source file
 }
 
 
 func (f *File) Pos() token.Pos { return f.Package }
+func (f *File) End() token.Pos {
+	if n := len(f.Decls); n > 0 {
+		return f.Decls[n-1].End()
+	}
+	return f.Name.End()
+}
 
 
 // A Package node represents a set of source files
@@ -786,11 +924,5 @@ type Package struct {
 }
 
 
-func (p *Package) Pos() (pos token.Pos) {
-	// get the position of the package clause of the first file, if any
-	for _, f := range p.Files {
-		pos = f.Pos()
-		break
-	}
-	return
-}
+func (p *Package) Pos() token.Pos { return token.NoPos }
+func (p *Package) End() token.Pos { return token.NoPos }

@@ -597,19 +597,19 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 	case *ast.SliceExpr:
 		var lo, hi *expr
 		arr := a.compile(x.X, false)
-		if x.Index == nil {
+		if x.Low == nil {
 			// beginning was omitted, so we need to provide it
 			ei := &exprInfo{a.compiler, x.Pos()}
 			lo = ei.compileIntLit("0")
 		} else {
-			lo = a.compile(x.Index, false)
+			lo = a.compile(x.Low, false)
 		}
-		if x.End == nil {
+		if x.High == nil {
 			// End was omitted, so we need to compute len(x.X)
 			ei := &exprInfo{a.compiler, x.Pos()}
 			hi = ei.compileBuiltinCallExpr(a.block, lenType, []*expr{arr})
 		} else {
-			hi = a.compile(x.End, false)
+			hi = a.compile(x.High, false)
 		}
 		if arr == nil || lo == nil || hi == nil {
 			return nil

@@ -241,9 +241,11 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 		f.walk(&n.Index, "expr", visit)
 	case *ast.SliceExpr:
 		f.walk(&n.X, "expr", visit)
-		f.walk(&n.Index, "expr", visit)
-		if n.End != nil {
-			f.walk(&n.End, "expr", visit)
+		if n.Low != nil {
+			f.walk(&n.Low, "expr", visit)
+		}
+		if n.High != nil {
+			f.walk(&n.High, "expr", visit)
 		}
 	case *ast.TypeAssertExpr:
 		f.walk(&n.X, "expr", visit)
