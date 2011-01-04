@@ -42,13 +42,15 @@ var FloatSize = floatsize()
 // The format fmt is one of
 // 'b' (-ddddp±ddd, a binary exponent),
 // 'e' (-d.dddde±dd, a decimal exponent),
-// 'f' (-ddd.dddd, no exponent), or
-// 'g' ('e' for large exponents, 'f' otherwise).
+// 'E' (-d.ddddE±dd, a decimal exponent),
+// 'f' (-ddd.dddd, no exponent),
+// 'g' ('e' for large exponents, 'f' otherwise), or
+// 'G' ('E' for large exponents, 'f' otherwise).
 //
 // The precision prec controls the number of digits
-// (excluding the exponent) printed by the 'e', 'f', and 'g' formats.
-// For 'e' and 'f' it is the number of digits after the decimal point.
-// For 'g' it is the total number of digits.
+// (excluding the exponent) printed by the 'e', 'E', 'f', 'g', and 'G' formats.
+// For 'e', 'E', and 'f' it is the number of digits after the decimal point.
+// For 'g' and 'G' it is the total number of digits.
 // The special precision -1 uses the smallest number of digits
 // necessary such that Atof32 will return f exactly.
 //
