@@ -567,6 +567,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	var s, e int
 	var sa syscall.Sockaddr
 	for {
+		if fd.closing {
+			syscall.ForkLock.RUnlock()
+			return nil, os.EINVAL
+		}
 		s, sa, e = syscall.Accept(fd.sysfd)
 		if e != syscall.EAGAIN {
 			break
