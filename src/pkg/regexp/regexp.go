@@ -783,13 +783,16 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 		pos += advance
 	}
 	arena := &matchArena{nil, 2 * (re.nbra + 1)}
-	for pos <= end {
-		if !found {
+	for startPos := pos; pos <= end; {
+		if !found && (pos == startPos || !anchored) {
 			// prime the pump if we haven't seen a match yet
 			match := arena.noMatch()
 			match.m[0] = pos
 			s[out] = arena.addState(s[out], re.start.next, false, match, pos, end)
 			arena.free(match) // if addState saved it, ref was incremented
+		} else if len(s[out]) == 0 {
+			// machine has completed
+			break
 		}
 		in, out = out, in // old out state is new in state
 		// clear out old state
@@ -798,10 +801,6 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 			arena.free(state.match)
 		}
 		s[out] = old[0:0] // truncate state vector
-		if found && len(s[in]) == 0 {
-			// machine has completed
-			break
-		}
 		charwidth := 1
 		c := endOfFile
 		if pos < end {
