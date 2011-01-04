@@ -879,7 +879,7 @@ func (p *printer) commentBefore(next token.Position) bool {
 }
 
 
-// Flush prints any pending comments and whitespace occuring
+// Flush prints any pending comments and whitespace occurring
 // textually before the position of the next token tok. Flush
 // returns true if a pending formfeed character was dropped
 // from the whitespace buffer as a result of interspersing
@@ -922,7 +922,7 @@ const (
 )
 
 
-// Design note: It is tempting to eliminate extra blanks occuring in
+// Design note: It is tempting to eliminate extra blanks occurring in
 //              whitespace in this function as it could simplify some
 //              of the blanks logic in the node printing functions.
 //              However, this would mess up any formatting done by

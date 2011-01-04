@@ -656,7 +656,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 
 // Eval formats each argument according to the format
 // f and returns the resulting []byte and os.Error. If
-// an error occured, the []byte contains the partially
+// an error occurred, the []byte contains the partially
 // formatted result. An environment env may be passed
 // in which is available in custom formatters through
 // the state parameter.
