@@ -2792,7 +2792,7 @@ user-triggered errors.
 </p>
 
 <p>
-With this error handling in place, the <code>error</code> method
+With error handling in place, the <code>error</code> method
 makes it easy to report parse errors without worrying about unwinding
 the parse stack by hand.
 </p>
@@ -2802,6 +2802,17 @@ Useful though this pattern is, it should be used only within a package.
 <code>Parse</code> turns its internal <code>panic</code> calls into
 <code>os.Error</code> values; it does not expose <code>panics</code>
 to its client.  That is a good rule to follow.
+</p>
+
+<p>
+By the way, this re-panic idiom changes the panic value if an actual
+error occurs.  However, both the original and new failures will be
+presented in the crash report, so the root cause of the problem will
+still be visible.  Thus this simple re-panic approach is usually
+sufficient&mdash;it's a crash after all&mdash;but if you want to
+display only the original value, you can write a little more code to
+filter unexpected problems and re-panic with the original error.
+That's left as an exercise for the reader.
 </p>
 
 
