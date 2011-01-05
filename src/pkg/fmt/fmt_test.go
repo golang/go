@@ -45,11 +45,6 @@ func TestFmtInterface(t *testing.T) {
 	}
 }
 
-type fmtTest struct {
-	fmt string
-	val interface{}
-	out string
-}
 
 const b32 uint32 = 1<<32 - 1
 const b64 uint64 = 1<<64 - 1
@@ -106,7 +101,11 @@ func (p *P) String() string {
 
 var b byte
 
-var fmttests = []fmtTest{
+var fmttests = []struct {
+	fmt string
+	val interface{}
+	out string
+}{
 	{"%d", 12345, "12345"},
 	{"%v", 12345, "12345"},
 	{"%t", true, "true"},
@@ -439,6 +438,12 @@ func BenchmarkSprintfIntInt(b *testing.B) {
 	}
 }
 
+func BenchmarkSprintfPrefixedInt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Sprintf("This is some meaningless prefix text that needs to be scanned %d", 6)
+	}
+}
+
 func TestCountMallocs(t *testing.T) {
 	mallocs := 0 - runtime.MemStats.Mallocs
 	for i := 0; i < 100; i++ {
@@ -485,12 +490,10 @@ func (*flagPrinter) Format(f State, c int) {
 	io.WriteString(f, "["+s+"]")
 }
 
-type flagTest struct {
+var flagtests = []struct {
 	in  string
 	out string
-}
-
-var flagtests = []flagTest{
+}{
 	{"%a", "[%a]"},
 	{"%-a", "[%-a]"},
 	{"%+a", "[%+a]"},
@@ -524,11 +527,10 @@ func TestStructPrinter(t *testing.T) {
 	s.a = "abc"
 	s.b = "def"
 	s.c = 123
-	type Test struct {
+	var tests = []struct {
 		fmt string
 		out string
-	}
-	var tests = []Test{
+	}{
 		{"%v", "{abc def 123}"},
 		{"%+v", "{a:abc b:def c:123}"},
 	}
@@ -622,13 +624,11 @@ func TestFormatterPrintln(t *testing.T) {
 
 func args(a ...interface{}) []interface{} { return a }
 
-type starTest struct {
+var startests = []struct {
 	fmt string
 	in  []interface{}
 	out string
-}
-
-var startests = []starTest{
+}{
 	{"%*d", args(4, 42), "  42"},
 	{"%.*d", args(4, 42), "0042"},
 	{"%*.*d", args(8, 4, 42), "    0042"},
@@ -644,18 +644,9 @@ var startests = []starTest{
 	{"%*d", args(int32(4), 42), "%!(BADWIDTH)42"},
 }
 
-// TODO: there's no conversion from []T to ...T, but we can fake it.  These
-// functions do the faking.  We index the table by the length of the param list.
-var sprintf = []func(string, []interface{}) string{
-	0: func(f string, i []interface{}) string { return Sprintf(f) },
-	1: func(f string, i []interface{}) string { return Sprintf(f, i[0]) },
-	2: func(f string, i []interface{}) string { return Sprintf(f, i[0], i[1]) },
-	3: func(f string, i []interface{}) string { return Sprintf(f, i[0], i[1], i[2]) },
-}
-
 func TestWidthAndPrecision(t *testing.T) {
 	for _, tt := range startests {
-		s := sprintf[len(tt.in)](tt.fmt, tt.in)
+		s := Sprintf(tt.fmt, tt.in...)
 		if s != tt.out {
 			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
 		}

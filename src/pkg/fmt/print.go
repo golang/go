@@ -118,12 +118,7 @@ func (p *pp) Flag(b int) bool {
 }
 
 func (p *pp) add(c int) {
-	if c < utf8.RuneSelf {
-		p.buf.WriteByte(byte(c))
-	} else {
-		w := utf8.EncodeRune(p.runeBuf[0:], c)
-		p.buf.Write(p.runeBuf[0:w])
-	}
+	p.buf.WriteRune(c)
 }
 
 // Implement Write so we can call Fprintf on a pp (through State), for
@@ -825,12 +820,18 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 	end := len(format)
 	fieldnum := 0 // we process one field per non-trivial format
 	for i := 0; i < end; {
-		c, w := utf8.DecodeRuneInString(format[i:])
-		if c != '%' {
-			p.buf.WriteRune(c)
-			i += w
-			continue
+		lasti := i
+		for i < end && format[i] != '%' {
+			i++
 		}
+		if i > lasti {
+			p.buf.WriteString(format[lasti:i])
+		}
+		if i >= end {
+			// done processing format string
+			break
+		}
+
 		// Process one verb
 		i++
 		// flags and widths
@@ -876,7 +877,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			p.buf.Write(noVerbBytes)
 			continue
 		}
-		c, w = utf8.DecodeRuneInString(format[i:])
+		c, w := utf8.DecodeRuneInString(format[i:])
 		i += w
 		// percent is special - absorbs no operand
 		if c == '%' {
