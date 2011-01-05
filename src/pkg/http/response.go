@@ -86,10 +86,14 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
 		return nil, err
 	}
 	f := strings.Split(line, " ", 3)
-	if len(f) < 3 {
+	if len(f) < 2 {
 		return nil, &badStringError{"malformed HTTP response", line}
 	}
-	resp.Status = f[1] + " " + f[2]
+	reasonPhrase := ""
+	if len(f) > 2 {
+		reasonPhrase = f[2]
+	}
+	resp.Status = f[1] + " " + reasonPhrase
 	resp.StatusCode, err = strconv.Atoi(f[1])
 	if err != nil {
 		return nil, &badStringError{"malformed HTTP status code", f[1]}
