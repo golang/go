@@ -392,11 +392,22 @@ type wireType struct {
 	mapT    *mapType
 }
 
-func (w *wireType) name() string {
-	if w.structT != nil {
-		return w.structT.name
+func (w *wireType) string() string {
+	const unknown = "unknown type"
+	if w == nil {
+		return unknown
 	}
-	return "unknown"
+	switch {
+	case w.arrayT != nil:
+		return w.arrayT.name
+	case w.sliceT != nil:
+		return w.sliceT.name
+	case w.structT != nil:
+		return w.structT.name
+	case w.mapT != nil:
+		return w.mapT.name
+	}
+	return unknown
 }
 
 type typeInfo struct {
