@@ -218,9 +218,9 @@ mailing list.
 <p>
 Replace &ldquo;<code>&lt;enter description here&gt;</code>&rdquo;
 with a description of your change.
-The first line of the change description is conventionally
-a one-line summary of the change and is used as the
-subject for code review mail; the rest of the
+The first line of the change description is conventionally a one-line
+summary of the change, prefixed by the primary affected package,
+and is used as the subject for code review mail; the rest of the
 description elaborates.
 </p>
 
@@ -245,7 +245,7 @@ Reviewer: golang-dev@googlegroups.com
 CC: math-nuts@swtch.com
 
 Description:
-	Sin, Cos, Tan: improved precision for very large arguments
+	math: improved Sin, Cos and Tan precision for very large arguments.
 
 	See Bimmler and Shaney, ``Extreme sinusoids,'' J. Math 3(14).
 	Fixes issue 159.
