@@ -861,12 +861,22 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 	return true
 }
 
+// typeString returns a human-readable description of the type identified by remoteId.
+func (dec *Decoder) typeString(remoteId typeId) string {
+	if t := idToType[remoteId]; t != nil {
+		// globally known type.
+		return t.string()
+	}
+	return dec.wireType[remoteId].string()
+}
+
+
 func (dec *Decoder) compileSingle(remoteId typeId, rt reflect.Type) (engine *decEngine, err os.Error) {
 	engine = new(decEngine)
 	engine.instr = make([]decInstr, 1) // one item
 	name := rt.String()                // best we can do
 	if !dec.compatibleType(rt, remoteId) {
-		return nil, os.ErrorString("gob: wrong type received for local value " + name)
+		return nil, os.ErrorString("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
 	}
 	op, indir := dec.decOpFor(remoteId, rt, name)
 	ovfl := os.ErrorString(`value for "` + name + `" out of range`)
