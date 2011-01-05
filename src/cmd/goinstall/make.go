@@ -17,18 +17,27 @@ import (
 // For non-local packages or packages without Makefiles,
 // domake generates a standard Makefile and passes it
 // to make on standard input.
-func domake(dir, pkg string, local bool) os.Error {
+func domake(dir, pkg string, local bool) (err os.Error) {
+	needMakefile := true
 	if local {
 		_, err := os.Stat(dir + "/Makefile")
 		if err == nil {
-			return run(dir, nil, "gomake", "install")
+			needMakefile = false
 		}
 	}
-	makefile, err := makeMakefile(dir, pkg)
-	if err != nil {
-		return err
+	cmd := []string{"gomake"}
+	var makefile []byte
+	if needMakefile {
+		if makefile, err = makeMakefile(dir, pkg); err != nil {
+			return err
+		}
+		cmd = append(cmd, "-f-")
 	}
-	return run(dir, makefile, "gomake", "-f-", "install")
+	if *clean {
+		cmd = append(cmd, "clean")
+	}
+	cmd = append(cmd, "install")
+	return run(dir, makefile, cmd...)
 }
 
 // makeMakefile computes the standard Makefile for the directory dir
