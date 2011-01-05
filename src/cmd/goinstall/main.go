@@ -41,6 +41,7 @@ var (
 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
 	logPkgs           = flag.Bool("log", true, "log installed packages to $GOROOT/goinstall.log for use by -a")
 	update            = flag.Bool("u", false, "update already-downloaded packages")
+	clean             = flag.Bool("clean", false, "clean the package directory before installing")
 	verbose           = flag.Bool("v", false, "verbose")
 )
 
