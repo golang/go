@@ -1106,6 +1106,7 @@ Node*	nod(int op, Node *nleft, Node *nright);
 Node*	nodbool(int b);
 void	nodconst(Node *n, Type *t, int64 v);
 Node*	nodintconst(int64 v);
+Node*	nodfltconst(Mpflt *v);
 Node*	nodnil(void);
 int	parserline(void);
 Sym*	pkglookup(char *name, Pkg *pkg);

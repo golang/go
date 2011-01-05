@@ -829,6 +829,12 @@ reswitch:
 		case OIMAG:
 			if(!iscomplex[t->etype])
 				goto badcall1;
+			if(isconst(l, CTCPLX)){
+				if(n->op == OREAL)
+					n = nodfltconst(&l->val.u.cval->real);
+				else
+					n = nodfltconst(&l->val.u.cval->imag);
+			}
 			n->type = types[cplxsubtype(t->etype)];
 			goto ret;
 		}
