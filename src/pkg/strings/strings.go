@@ -215,8 +215,8 @@ func Fields(s string) []string {
 }
 
 // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)
-// and returns an array of slices of s. If no code points in s satisfy f(c), an empty slice
-// is returned.
+// and returns an array of slices of s. If all code points in s satisfy f(c) or the
+// string is empty, an empty slice is returned.
 func FieldsFunc(s string, f func(int) bool) []string {
 	// First count the fields.
 	n := 0
