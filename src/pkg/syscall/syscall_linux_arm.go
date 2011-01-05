@@ -88,6 +88,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	Setresuid(ruid int, euid int, suid int) (errno int)
 //sys	Setreuid(ruid int, euid int) (errno int)
 //sys	Shutdown(fd int, how int) (errno int)
+//sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, errno int)
 //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
 //sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
 //sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64

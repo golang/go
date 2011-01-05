@@ -30,6 +30,7 @@ package syscall
 //sys	Setresuid(ruid int, euid int, suid int) (errno int)
 //sys	Setreuid(ruid int, euid int) (errno int)
 //sys	Shutdown(fd int, how int) (errno int)
+//sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int)
 //sys	Stat(path string, stat *Stat_t) (errno int)
 //sys	Statfs(path string, buf *Statfs_t) (errno int)
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)

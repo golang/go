@@ -48,6 +48,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	Setresgid(rgid int, egid int, sgid int) (errno int) = SYS_SETRESGID32
 //sys	Setresuid(ruid int, euid int, suid int) (errno int) = SYS_SETRESUID32
 //sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
+//sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, errno int)
 //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
 //sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64
