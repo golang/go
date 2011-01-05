@@ -120,14 +120,36 @@ func (f *Field) End() token.Pos {
 
 // A FieldList represents a list of Fields, enclosed by parentheses or braces.
 type FieldList struct {
-	Opening token.Pos // position of opening parenthesis/brace
+	Opening token.Pos // position of opening parenthesis/brace, if any
 	List    []*Field  // field list
-	Closing token.Pos // position of closing parenthesis/brace
+	Closing token.Pos // position of closing parenthesis/brace, if any
 }
 
 
-func (list *FieldList) Pos() token.Pos { return list.Opening }
-func (list *FieldList) End() token.Pos { return list.Closing + 1 }
+func (f *FieldList) Pos() token.Pos {
+	if f.Opening.IsValid() {
+		return f.Opening
+	}
+	// the list should not be empty in this case;
+	// be conservative and guard against bad ASTs
+	if len(f.List) > 0 {
+		return f.List[0].Pos()
+	}
+	return token.NoPos
+}
+
+
+func (f *FieldList) End() token.Pos {
+	if f.Closing.IsValid() {
+		return f.Closing + 1
+	}
+	// the list should not be empty in this case;
+	// be conservative and guard against bad ASTs
+	if n := len(f.List); n > 0 {
+		return f.List[n-1].End()
+	}
+	return token.NoPos
+}
 
 
 // NumFields returns the number of (named and anonymous fields) in a FieldList.
