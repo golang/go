@@ -17,7 +17,7 @@ const OS = "freebsd"
 /*
  * Exposed directly
  */
-//sys	Access(path string, flags int) (errno int)
+//sys	Access(path string, mode uint32) (errno int)
 //sys	Adjtime(delta *Timeval, olddelta *Timeval) (errno int)
 //sys	Chdir(path string) (errno int)
 //sys	Chflags(path string, flags int) (errno int)

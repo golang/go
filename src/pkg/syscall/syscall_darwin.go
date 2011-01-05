@@ -25,7 +25,7 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
 /*
  * Exposed directly
  */
-//sys	Access(path string, flags int) (errno int)
+//sys	Access(path string, mode uint32) (errno int)
 //sys	Adjtime(delta *Timeval, olddelta *Timeval) (errno int)
 //sys	Chdir(path string) (errno int)
 //sys	Chflags(path string, flags int) (errno int)
