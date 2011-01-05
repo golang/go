@@ -592,6 +592,21 @@ nodintconst(int64 v)
 	return c;
 }
 
+Node*
+nodfltconst(Mpflt* v)
+{
+	Node *c;
+
+	c = nod(OLITERAL, N, N);
+	c->addable = 1;
+	c->val.u.fval = mal(sizeof(*c->val.u.fval));
+	mpmovefltflt(c->val.u.fval, v);
+	c->val.ctype = CTFLT;
+	c->type = types[TIDEAL];
+	ullmancalc(c);
+	return c;
+}
+
 void
 nodconst(Node *n, Type *t, int64 v)
 {
