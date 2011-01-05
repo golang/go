@@ -206,7 +206,12 @@ func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
 	// If the writer has a ReadFrom method, use it to do the copy.
 	// Avoids a buffer allocation and a copy.
 	if rt, ok := dst.(ReaderFrom); ok {
-		return rt.ReadFrom(LimitReader(src, n))
+		written, err = rt.ReadFrom(LimitReader(src, n))
+		if written < n && err == nil {
+			// rt stopped early; must have been EOF.
+			err = os.EOF
+		}
+		return
 	}
 	buf := make([]byte, 32*1024)
 	for written < n {
