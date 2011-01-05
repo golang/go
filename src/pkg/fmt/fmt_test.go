@@ -381,11 +381,13 @@ var fmttests = []fmtTest{
 	{"%p", 27, "%!p(int=27)"}, // not a pointer at all
 
 	// erroneous things
+	{"%s %", "hello", "hello %!(NOVERB)"},
+	{"%s %.2", "hello", "hello %!(NOVERB)"},
 	{"%d", "hello", "%!d(string=hello)"},
 	{"no args", "hello", "no args%!(EXTRA string=hello)"},
 	{"%s", nil, "%!s(<nil>)"},
 	{"%T", nil, "<nil>"},
-	{"%-1", 100, "%!1(int=100)"},
+	{"%-1", 100, "%!(NOVERB)%!(EXTRA int=100)"},
 }
 
 func TestSprintf(t *testing.T) {
@@ -638,7 +640,7 @@ var startests = []starTest{
 	{"%.*d", args(nil, 42), "%!(BADPREC)42"},
 	{"%*d", args(5, "foo"), "%!d(string=  foo)"},
 	{"%*% %d", args(20, 5), "% 5"},
-	{"%*", args(4), "%!(BADWIDTH)%!*(int=4)"},
+	{"%*", args(4), "%!(NOVERB)"},
 	{"%*d", args(int32(4), 42), "%!(BADWIDTH)42"},
 }
 
@@ -655,7 +657,7 @@ func TestWidthAndPrecision(t *testing.T) {
 	for _, tt := range startests {
 		s := sprintf[len(tt.in)](tt.fmt, tt.in)
 		if s != tt.out {
-			t.Errorf("got %q expected %q", s, tt.out)
+			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
 		}
 	}
 }

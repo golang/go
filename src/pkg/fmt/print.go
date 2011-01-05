@@ -26,6 +26,7 @@ var (
 	bytesBytes      = []byte("[]byte{")
 	widthBytes      = []byte("%!(BADWIDTH)")
 	precBytes       = []byte("%!(BADPREC)")
+	noVerbBytes     = []byte("%!(NOVERB)")
 )
 
 // State represents the printer state passed to custom formatters.
@@ -821,19 +822,16 @@ func intFromArg(a []interface{}, end, i, fieldnum int) (num int, isInt bool, new
 }
 
 func (p *pp) doPrintf(format string, a []interface{}) {
-	end := len(format) - 1
+	end := len(format)
 	fieldnum := 0 // we process one field per non-trivial format
-	for i := 0; i <= end; {
+	for i := 0; i < end; {
 		c, w := utf8.DecodeRuneInString(format[i:])
-		if c != '%' || i == end {
-			if w == 1 {
-				p.buf.WriteByte(byte(c))
-			} else {
-				p.buf.WriteString(format[i : i+w])
-			}
+		if c != '%' {
+			p.buf.WriteRune(c)
 			i += w
 			continue
 		}
+		// Process one verb
 		i++
 		// flags and widths
 		p.fmt.clearflags()
@@ -855,7 +853,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			}
 		}
 		// do we have width?
-		if format[i] == '*' {
+		if i < end && format[i] == '*' {
 			p.fmt.wid, p.fmt.widPresent, i, fieldnum = intFromArg(a, end, i, fieldnum)
 			if !p.fmt.widPresent {
 				p.buf.Write(widthBytes)
@@ -873,6 +871,10 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			} else {
 				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
 			}
+		}
+		if i >= end {
+			p.buf.Write(noVerbBytes)
+			continue
 		}
 		c, w = utf8.DecodeRuneInString(format[i:])
 		i += w
