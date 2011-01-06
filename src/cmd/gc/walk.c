@@ -960,15 +960,15 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OASOP:
-		n->left = safeexpr(n->left, init);
-		walkexpr(&n->left, init);
-		l = n->left;
-		walkexpr(&n->right, init);
 		if(n->etype == OANDNOT) {
 			n->etype = OAND;
 			n->right = nod(OCOM, n->right, N);
 			typecheck(&n->right, Erv);
 		}
+		n->left = safeexpr(n->left, init);
+		walkexpr(&n->left, init);
+		l = n->left;
+		walkexpr(&n->right, init);
 
 		/*
 		 * on 32-bit arch, rewrite 64-bit ops into l = l op r.
