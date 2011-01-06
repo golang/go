@@ -57,7 +57,7 @@ type cbcDecrypter cbc
 // NewCBCDecrypter returns a BlockMode which decrypts in cipher block chaining
 // mode, using the given Block. The length of iv must be the same as the
 // Block's block size as must match the iv used to encrypt the data.
-func NewCBCDecrypter(b Block, iv []byte) *cbcDecrypter {
+func NewCBCDecrypter(b Block, iv []byte) BlockMode {
 	return (*cbcDecrypter)(newCBC(b, iv))
 }
 
