@@ -38,6 +38,12 @@ threadentry(void *v)
 	ts.g->stackbase = (uintptr)&ts;
 
 	/*
+	 * libcgo_sys_thread_start set stackguard to stack size;
+	 * change to actual guard pointer.
+	 */
+	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+
+	/*
 	 * Set specific keys.  On FreeBSD/ELF, the thread local storage
 	 * is just before %fs:0.  Our dynamic 6.out's reserve 16 bytes
 	 * for the two words g and m at %fs:-16 and %fs:-8.
