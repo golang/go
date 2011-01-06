@@ -141,6 +141,10 @@ func (f *File) saveRef(x interface{}, context string) {
 				context = "expr"
 			}
 			goname := sel.Sel.Name
+			if goname == "errno" {
+				error(sel.Pos(), "cannot refer to errno directly; see documentation")
+				return
+			}
 			name := f.Name[goname]
 			if name == nil {
 				name = &Name{
