@@ -111,15 +111,18 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 	if m != nil && pattern.Type() == identType {
 		name := pattern.Interface().(*ast.Ident).Name
 		if isWildcard(name) {
-			if old, ok := m[name]; ok {
-				return match(nil, old, val)
+			// wildcards only match expressions
+			if _, ok := val.Interface().(ast.Expr); ok {
+				if old, ok := m[name]; ok {
+					return match(nil, old, val)
+				}
+				m[name] = val
+				return true
 			}
-			m[name] = val
-			return true
 		}
 	}
 
-	// Otherwise, the expressions must match recursively.
+	// Otherwise, pattern and val must match recursively.
 	if pattern == nil || val == nil {
 		return pattern == nil && val == nil
 	}
@@ -204,7 +207,7 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 
 	if pos != nil && pattern.Type() == positionType {
 		// use new position only if old position was valid in the first place
-		if old := pattern.Interface().(token.Position); !old.IsValid() {
+		if old := pattern.Interface().(token.Pos); !old.IsValid() {
 			return pattern
 		}
 		return pos
