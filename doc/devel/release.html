@@ -5,6 +5,46 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-01-06">2011-01-06</h3>
+
+<pre>
+This release includes several fixes and changes:
+
+* build: Make.pkg: use installed runtime.h for cgo.
+* cgo: disallow use of C.errno.
+* crypto/cipher: fix OCFB,
+        make NewCBCEncrypter return BlockMode.
+* doc: 6l: fix documentation of -L flag,
+        add golanguage.ru to foreign-language doc list,
+        effective go: explain the effect of repanicking better,
+        update Effective Go for template API change,
+        update contribution guidelines to prefix the change description.
+* encoding/binary: reject types with implementation-dependent sizes (thanks Patrick Gavlin).
+* exp/evalsimple fix handling of slices like s[:2] (thanks Sebastien Binet).
+* fmt: made format string handling more efficient,
+        normalize processing of format string.
+* gc: return constant floats for parts of complex constants (thanks Anthony Martin),
+        rewrite complex /= to l = l / r (thanks Patrick Gavlin),
+        fix &^=.
+* go/ast: provide complete node text range info.
+* gob: generate a better error message in one confusing place.
+* godoc: fix godoc -src (thanks Icarus Sparry).
+* goinstall: add -clean flag (thanks Kyle Lemons),
+        add checkout concept (thanks Caine Tighe),
+        fix -u for bzr (thanks Gustavo Niemeyer).
+* http: permit empty Reason-Phrase in response Status-Line.
+* io: fix Copyn EOF handling.
+* net: fix close of Listener (thanks Michael Hoisie).
+* regexp: fix performance bug, make anchored searches fail fast,
+        fix prefix bug.
+* runtime/cgo: fix stackguard on FreeBSD/amd64 (thanks Anthony Martin).
+* strconv: atof: added 'E' as valid token for exponent (thanks Stefan Nilsson),
+        update ftoa comment for 'E' and 'G'.
+* strings: fix description of FieldsFunc (thanks Roger Peppe).
+* syscall: correct Linux Splice definition,
+        make Access second argument consistently uint32.
+</pre>
+
 <h3 id="2010-12-22">2010-12-22</h3>
 
 <pre>
