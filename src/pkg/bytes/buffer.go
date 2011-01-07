@@ -291,7 +291,7 @@ func (b *Buffer) UnreadRune() os.Error {
 // read operation.  If write has happened since the last read, UnreadByte
 // returns an error.
 func (b *Buffer) UnreadByte() os.Error {
-	if b.lastRead == opReadRune || b.lastRead == opRead {
+	if b.lastRead != opReadRune && b.lastRead != opRead {
 		return os.ErrorString("bytes.Buffer: UnreadByte: previous operation was not a read")
 	}
 	b.lastRead = opInvalid
