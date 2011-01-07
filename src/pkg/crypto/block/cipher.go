@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The block package is deprecated, use cipher instead.
 // The block package implements standard block cipher modes
 // that can be wrapped around low-level block cipher implementations.
 // See http://csrc.nist.gov/groups/ST/toolkit/BCM/current_modes.html
