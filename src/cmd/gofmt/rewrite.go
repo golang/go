@@ -66,13 +66,19 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 }
 
 
-var positionType = reflect.Typeof(token.NoPos)
-var identType = reflect.Typeof((*ast.Ident)(nil))
-
-
-func isWildcard(s string) bool {
-	rune, size := utf8.DecodeRuneInString(s)
-	return size == len(s) && unicode.IsLower(rune)
+// setValue is a wrapper for x.SetValue(y); it protects
+// the caller from panics if x cannot be changed to y.
+func setValue(x, y reflect.Value) {
+	defer func() {
+		if x := recover(); x != nil {
+			if s, ok := x.(string); ok && strings.HasPrefix(s, "type mismatch") {
+				// x cannot be set to y - ignore this rewrite
+				return
+			}
+			panic(x)
+		}
+	}()
+	x.SetValue(y)
 }
 
 
@@ -86,18 +92,28 @@ func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value
 	case *reflect.SliceValue:
 		for i := 0; i < v.Len(); i++ {
 			e := v.Elem(i)
-			e.SetValue(f(e))
+			setValue(e, f(e))
 		}
 	case *reflect.StructValue:
 		for i := 0; i < v.NumField(); i++ {
 			e := v.Field(i)
-			e.SetValue(f(e))
+			setValue(e, f(e))
 		}
 	case *reflect.InterfaceValue:
 		e := v.Elem()
-		v.SetValue(f(e))
+		setValue(v, f(e))
 	}
 	return val
+}
+
+
+var positionType = reflect.Typeof(token.NoPos)
+var identType = reflect.Typeof((*ast.Ident)(nil))
+
+
+func isWildcard(s string) bool {
+	rune, size := utf8.DecodeRuneInString(s)
+	return size == len(s) && unicode.IsLower(rune)
 }
 
 
