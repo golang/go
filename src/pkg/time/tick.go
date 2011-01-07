@@ -5,6 +5,7 @@
 package time
 
 import (
+	"os"
 	"sync"
 )
 
@@ -163,10 +164,11 @@ var onceStartTickerLoop sync.Once
 
 // NewTicker returns a new Ticker containing a channel that will
 // send the time, in nanoseconds, every ns nanoseconds.  It adjusts the
-// intervals to make up for pauses in delivery of the ticks.
+// intervals to make up for pauses in delivery of the ticks. The value of
+// ns must be greater than zero; if not, NewTicker will panic.
 func NewTicker(ns int64) *Ticker {
 	if ns <= 0 {
-		return nil
+		panic(os.ErrorString("non-positive interval for NewTicker"))
 	}
 	c := make(chan int64, 1) //  See comment on send in tickerLoop
 	t := &Ticker{
