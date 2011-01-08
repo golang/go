@@ -154,10 +154,16 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		if(a->sym != S)
-			sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
-		else
-			sprint(str, "%d(APC)", a->offset);
+		if(a->branch == P || a->branch->loc == 0) {
+			if(a->sym != S)
+				sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
+			else
+				sprint(str, "%d(APC)", a->offset);
+		} else
+			if(a->sym != S)
+				sprint(str, "%s+%d(APC)", a->sym->name, a->branch->loc);
+			else
+				sprint(str, "%d(APC)", a->branch->loc);
 		break;
 
 	case D_FCONST:

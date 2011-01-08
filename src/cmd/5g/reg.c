@@ -34,9 +34,9 @@
 
 #define	P2R(p)	(Reg*)(p->reg)
 
-void	addsplits(void);
-int	onlyone;
-static	int	first	= 1;
+	void	addsplits(void);
+	int	noreturn(Prog *p);
+static	int	first	= 0;
 
 Reg*
 rega(void)
@@ -137,13 +137,24 @@ regopt(Prog *firstp)
 	uint32 vreg;
 	Bits bit;
 
-return;
-
-	if(first) {
+	if(first == 0) {
 		fmtinstall('Q', Qconv);
 //		exregoffset = D_R13;	// R14,R15 are external
-		first = 0;
 	}
+	first++;
+
+//if(!debug['K'])
+//	return;
+
+//if(first != 19) {
+//	return;
+//}
+
+//print("optimizing %S\n", curfn->nname->sym);
+
+//debug['R'] = 2;
+//debug['P'] = 2;
+
 
 	// count instructions
 	nr = 0;
@@ -152,7 +163,7 @@ return;
 
 	// if too big dont bother
 	if(nr >= 10000) {
-		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
+//		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
 		return;
 	}
 
@@ -178,7 +189,7 @@ return;
 	 * allocate pcs
 	 * find use and set of variables
 	 */
-print("pass 1\n");
+if(0) print("pass 1\n");
 	nr = 0;
 	for(p=firstp; p != P; p = p->link) {
 		switch(p->as) {
@@ -265,20 +276,15 @@ print("pass 1\n");
 			}
 		}
 	}
-	if(firstr == R) {
+	if(firstr == R)
 		return;
-	}
-
-onlyone++;
-if(onlyone != 1)
-	return;
 
 	/*
 	 * pass 2
 	 * turn branch references to pointers
 	 * build back pointers
 	 */
-print("pass 2\n");
+if(0) print("pass 2\n");
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
 		if(p->to.type == D_BRANCH) {
@@ -305,7 +311,7 @@ print("pass 2\n");
 	 * pass 2.5
 	 * find looping structure
 	 */
-print("pass 2.5\n");
+if(0) print("pass 2.5\n");
 	for(r = firstr; r != R; r = r->link)
 		r->active = 0;
 	change = 0;
@@ -317,7 +323,7 @@ print("pass 2.5\n");
 	 * 	back until flow graph is complete
 	 */
 loop1:
-print("loop 1\n");
+if(0) print("loop 1\n");
 	change = 0;
 	for(r = firstr; r != R; r = r->link)
 		r->active = 0;
@@ -325,7 +331,7 @@ print("loop 1\n");
 		if(r->prog->as == ARET)
 			prop(r, zbits, zbits);
 loop11:
-print("loop 11\n");
+if(0) print("loop 11\n");
 	/* pick up unreachable code */
 	i = 0;
 	for(r = firstr; r != R; r = r1) {
@@ -347,7 +353,7 @@ print("loop 11\n");
 	 * 	forward until graph is complete
 	 */
 loop2:
-print("loop 2\n");
+if(0) print("loop 2\n");
 	change = 0;
 	for(r = firstr; r != R; r = r->link)
 		r->active = 0;
@@ -357,7 +363,7 @@ print("loop 2\n");
 
 	addsplits();
 
-	if(debug['R'] && debug['v']) {
+	if(debug['R'] > 1) {
 		print("\nprop structure:\n");
 		for(r = firstr; r != R; r = r->link) {
 			print("%d:%P", r->loop, r->prog);
@@ -394,7 +400,7 @@ print("loop 2\n");
 	 * isolate regions
 	 * calculate costs (paint1)
 	 */
-print("pass 5\n");
+if(0) print("pass 5\n");
 	r = firstr;
 	if(r) {
 		for(z=0; z<BITS; z++)
@@ -429,7 +435,7 @@ print("pass 5\n");
 			rgp->enter = r;
 			rgp->varno = i;
 			change = 0;
-			if(debug['R'] && debug['v'])
+			if(debug['R'] > 1)
 				print("\n");
 			paint1(r, i);
 			bit.b[i/32] &= ~(1L<<(i%32));
@@ -442,7 +448,7 @@ print("pass 5\n");
 			rgp->cost = change;
 			nregion++;
 			if(nregion >= NRGN) {
-				if(debug['R'] && debug['v'])
+				if(debug['R'] > 1)
 					print("too many regions\n");
 				goto brk;
 			}
@@ -457,7 +463,6 @@ brk:
 	 * determine used registers (paint2)
 	 * replace code (paint3)
 	 */
-print("pass 6 -- %d regions\n", nregion);
 	rgp = region;
 	for(i=0; i<nregion; i++) {
 		bit = blsh(rgp->varno);
@@ -485,9 +490,9 @@ print("pass 6 -- %d regions\n", nregion);
 	 * pass 7
 	 * peep-hole on basic block
 	 */
-print("pass 7\n");
+if(0) print("pass 7\n");
 	if(!debug['R'] || debug['P']) {
-//		peep();
+		peep();
 	}
 
 	/*
@@ -495,9 +500,12 @@ print("pass 7\n");
 	 * eliminate nops
 	 * free aux structures
 	 */
-	for(p = firstr->prog; p != P; p = p->link){
-		while(p->link && p->link->as == ANOP)
+	for(p = firstp; p != P; p = p->link) {
+		while(p->link != P && p->link->as == ANOP)
 			p->link = p->link->link;
+		if(p->to.type == D_BRANCH)
+			while(p->to.branch != P && p->to.branch->as == ANOP)
+				p->to.branch = p->to.branch->link;
 	}
 	if(r1 != R) {
 		r1->link = freer;
@@ -562,15 +570,31 @@ addmove(Reg *r, int bn, int rn, int f)
 	if(a->etype == TARRAY || a->sym == S)
 		a->type = D_CONST;
 
-	p1->as = AMOVW;
-	if(v->etype == TINT8 || v->etype == TUINT8)
+	switch(v->etype) {
+	default:
+		print("What is this %E\n", v->etype);
+
+	case TINT32:
+	case TUINT32:
+	case TPTR32:
+	case TBOOL:
+		p1->as = AMOVW;
+		break;
+	case TINT8:
+	case TUINT8:
 		p1->as = AMOVB;
-	if(v->etype == TINT16 || v->etype == TUINT16)
+		break;
+	case TINT16:
+	case TUINT16:
 		p1->as = AMOVH;
-	if(v->etype == TFLOAT)
+		break;
+	case TFLOAT32:
 		p1->as = AMOVF;
-	if(v->etype == TFLOAT64)
+		break;
+	case TFLOAT64:
 		p1->as = AMOVD;
+		break;
+	}
 
 	p1->from.type = D_REG;
 	p1->from.reg = rn;
@@ -619,32 +643,72 @@ mkvar(Reg *r, Adr *a, int docon)
 	Bits bit;
 	Sym *s;
 
+	// mark registers used
 	t = a->type;
-	if(t == D_REG && a->reg != NREG)
-		r->regu |= RtoB(a->reg);
-	if(t == D_FREG && a->reg != NREG)
-		r->regu |= FtoB(a->reg);
-	s = a->sym;
-	o = a->offset;
-	et = a->etype;
-	if(s == S) {
-		if(t != D_CONST || !docon || a->reg != NREG)
-			goto none;
-		et = TINT32;
+	n = D_NONE;
+
+	switch(t) {
+	default:
+		print("type %d %d %D\n", t, a->name, a);
+		goto none;
+
+	case D_NONE:
+	case D_CONST:
+	case D_FCONST:
+	case D_BRANCH:
+		goto none;
+
+	case D_REGREG:
+		if(a->offset != NREG)
+			r->regu |= RtoB(a->offset);
+		// fallthrough
+
+	case D_REG:
+	case D_SHIFT:
+	case D_OREG:
+		if(a->reg != NREG)
+			r->regu |= RtoB(a->reg);
+		break;
+
+	case D_FREG:
+		if(a->reg != NREG)
+			r->regu |= FtoB(a->reg);
+		break;
 	}
-	if(t == D_CONST) {
-//		if(s == S && sval(o))
-//			goto none;
+
+	switch(a->name) {
+	default:
+		goto none;
+
+	case D_EXTERN:
+	case D_STATIC:
+	case D_AUTO:
+	case D_PARAM:
+		n = a->name;
+		break;
 	}
 
 	flag = 0;
+//	if(a->pun)
+//		flag = 1;
+
+	s = a->sym;
+	if(s == S)
+		goto none;
+	if(s->name[0] == '.')
+		goto none;
+	et = a->etype;
+	o = a->offset;
+	w = a->width;
+
 	for(i=0; i<nvar; i++) {
 		v = var+i;
 		if(v->sym == s && v->name == n) {
 			if(v->offset == o)
 			if(v->etype == et)
 			if(v->width == w)
-				return blsh(i);
+				if(!flag)
+					return blsh(i);
 
 			// if they overlaps, disable both
 			if(overlap(v->offset, v->width, o, w)) {
@@ -654,12 +718,11 @@ mkvar(Reg *r, Adr *a, int docon)
 		}
 	}
 
-//	if(a->pun)
-//		flag = 1;
-
 	switch(et) {
 	case 0:
 	case TFUNC:
+	case TARRAY:
+	case TSTRING:
 		goto none;
 	}
 
@@ -681,7 +744,7 @@ mkvar(Reg *r, Adr *a, int docon)
 	v->addr = flag;		// funny punning
 
 	if(debug['R'])
-		print("bit=%2d et=%2d %D\n", i, et, a);
+		print("bit=%2d et=%E pun=%d %D\n", i, et, flag, a);
 
 out:
 	bit = blsh(i);
@@ -692,9 +755,6 @@ out:
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
 
-//	if(v->etype != et || !typechlpfd[et])	/* funny punning */
-//		for(z=0; z<BITS; z++)
-//			addrs.b[z] |= bit.b[z];
 //	if(t == D_CONST) {
 //		if(s == S) {
 //			for(z=0; z<BITS; z++)
@@ -738,6 +798,8 @@ prop(Reg *r, Bits ref, Bits cal)
 		}
 		switch(r1->prog->as) {
 		case ABL:
+			if(noreturn(r1->prog))
+				break;
 			for(z=0; z<BITS; z++) {
 				cal.b[z] |= ref.b[z] | externs.b[z];
 				ref.b[z] = 0;
@@ -753,9 +815,10 @@ prop(Reg *r, Bits ref, Bits cal)
 
 		case ARET:
 			for(z=0; z<BITS; z++) {
-				cal.b[z] = externs.b[z];
+				cal.b[z] = externs.b[z] | ovar.b[z];
 				ref.b[z] = 0;
 			}
+			break;
 		}
 		for(z=0; z<BITS; z++) {
 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
@@ -1008,7 +1071,7 @@ paint1(Reg *r, int bn)
 
 	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb) {
 		change -= CLOAD * r->loop;
-		if(debug['R'] && debug['v'])
+		if(debug['R'] > 1)
 			print("%d%P\td %Q $%d\n", r->loop,
 				r->prog, blsh(bn), change);
 	}
@@ -1018,21 +1081,21 @@ paint1(Reg *r, int bn)
 
 		if(r->use1.b[z] & bb) {
 			change += CREF * r->loop;
-			if(debug['R'] && debug['v'])
+			if(debug['R'] > 1)
 				print("%d%P\tu1 %Q $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
 
 		if((r->use2.b[z]|r->set.b[z]) & bb) {
 			change += CREF * r->loop;
-			if(debug['R'] && debug['v'])
+			if(debug['R'] > 1)
 				print("%d%P\tu2 %Q $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb) {
 			change -= CLOAD * r->loop;
-			if(debug['R'] && debug['v'])
+			if(debug['R'] > 1)
 				print("%d%P\tst %Q $%d\n", r->loop,
 					p, blsh(bn), change);
 		}
@@ -1243,4 +1306,28 @@ BtoF(int32 b)
 	if(b == 0)
 		return 0;
 	return bitno(b) - 16;
+}
+
+static Sym*	symlist[10];
+
+int
+noreturn(Prog *p)
+{
+	Sym *s;
+	int i;
+
+	if(symlist[0] == S) {
+		symlist[0] = pkglookup("panicindex", runtimepkg);
+		symlist[1] = pkglookup("panicslice", runtimepkg);
+		symlist[2] = pkglookup("throwinit", runtimepkg);
+		symlist[3] = pkglookup("panic", runtimepkg);
+	}
+
+	s = p->to.sym;
+	if(s == S)
+		return 0;
+	for(i=0; symlist[i]!=S; i++)
+		if(s == symlist[i])
+			return 1;
+	return 0;
 }
