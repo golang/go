@@ -619,26 +619,59 @@ runtime·exitsyscall(void)
 	runtime·gosched();
 }
 
+// Restore the position of m's scheduler stack if we unwind the stack
+// through a cgo callback.
+static void
+runtime·unwindcgocallback(void **spaddr, void *sp)
+{
+	*spaddr = sp;
+}
+
 // Start scheduling g1 again for a cgo callback.
 void
 runtime·startcgocallback(G* g1)
 {
+	Defer *d;
+	uintptr arg;
+
 	runtime·lock(&runtime·sched);
 	g1->status = Grunning;
 	runtime·sched.msyscall--;
 	runtime·sched.mcpu++;
 	runtime·unlock(&runtime·sched);
+
+	// Add an entry to the defer stack which restores the old
+	// position of m's scheduler stack.  This is so that if the
+	// code we are calling panics, we won't lose the space on the
+	// scheduler stack.  Note that we are locked to this m here.
+	d = runtime·malloc(sizeof(*d) + 2*sizeof(void*) - sizeof(d->args));
+	d->fn = (byte*)runtime·unwindcgocallback;
+	d->siz = 2 * sizeof(uintptr);
+	((void**)d->args)[0] = &m->sched.sp;
+	((void**)d->args)[1] = m->sched.sp;
+	d->link = g1->defer;
+	g1->defer = d;
 }
 
 // Stop scheduling g1 after a cgo callback.
 void
 runtime·endcgocallback(G* g1)
 {
+	Defer *d;
+
 	runtime·lock(&runtime·sched);
 	g1->status = Gsyscall;
 	runtime·sched.mcpu--;
 	runtime·sched.msyscall++;
 	runtime·unlock(&runtime·sched);
+
+	// Remove the entry on the defer stack added by
+	// startcgocallback.
+	d = g1->defer;
+	if (d == nil || d->fn != (byte*)runtime·unwindcgocallback)
+		runtime·throw("bad defer entry in endcgocallback");
+	g1->defer = d->link;
+	runtime·free(d);
 }
 
 /*
