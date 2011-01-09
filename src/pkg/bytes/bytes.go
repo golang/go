@@ -547,7 +547,7 @@ func TrimRight(s []byte, cutset string) []byte {
 }
 
 // TrimSpace returns a subslice of s by slicing off all leading and
-// trailing white space, as as defined by Unicode.
+// trailing white space, as defined by Unicode.
 func TrimSpace(s []byte) []byte {
 	return TrimFunc(s, unicode.IsSpace)
 }
