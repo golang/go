@@ -47,11 +47,12 @@ func (a *alarmer) set(ns int64) {
 	case a.wakeTime > ns:
 		// Next tick we expect is too late; shut down the late runner
 		// and (after fallthrough) start a new wakeLoop.
-		a.wakeMeAt <- -1
+		close(a.wakeMeAt)
 		fallthrough
 	case a.wakeMeAt == nil:
 		// There's no wakeLoop, start one.
-		a.wakeMeAt = make(chan int64, 10)
+		a.wakeMeAt = make(chan int64)
+		a.wakeUp = make(chan bool, 1)
 		go wakeLoop(a.wakeMeAt, a.wakeUp)
 		fallthrough
 	case a.wakeTime == 0:
@@ -73,19 +74,10 @@ func startTickerLoop() {
 
 // wakeLoop delivers ticks at scheduled times, sleeping until the right moment.
 // If another, earlier Ticker is created while it sleeps, tickerLoop() will start a new
-// wakeLoop but they will share the wakeUp channel and signal that this one
-// is done by giving it a negative time request.
+// wakeLoop and signal that this one is done by closing the wakeMeAt channel.
 func wakeLoop(wakeMeAt chan int64, wakeUp chan bool) {
-	for {
-		wakeAt := <-wakeMeAt
-		if wakeAt < 0 { // tickerLoop has started another wakeLoop
-			return
-		}
-		now := Nanoseconds()
-		if wakeAt > now {
-			Sleep(wakeAt - now)
-			now = Nanoseconds()
-		}
+	for wakeAt := range wakeMeAt {
+		Sleep(wakeAt - Nanoseconds())
 		wakeUp <- true
 	}
 }
@@ -96,9 +88,7 @@ func wakeLoop(wakeMeAt chan int64, wakeUp chan bool) {
 func tickerLoop() {
 	// Represents the next alarm to be delivered.
 	var alarm alarmer
-	// All wakeLoops deliver wakeups to this channel.
-	alarm.wakeUp = make(chan bool, 10)
-	var now, prevTime, wakeTime int64
+	var now, wakeTime int64
 	var tickers *Ticker
 	for {
 		select {
@@ -110,10 +100,6 @@ func tickerLoop() {
 			alarm.set(t.nextTick)
 		case <-alarm.wakeUp:
 			now = Nanoseconds()
-			// Ignore an old time due to a dying wakeLoop
-			if now < prevTime {
-				continue
-			}
 			wakeTime = now + 1e15 // very long in the future
 			var prev *Ticker = nil
 			// Scan list of tickers, delivering updates to those
@@ -151,12 +137,12 @@ func tickerLoop() {
 			if tickers != nil {
 				// Please send wakeup at earliest required time.
 				// If there are no tickers, don't bother.
+				alarm.wakeTime = wakeTime
 				alarm.wakeMeAt <- wakeTime
 			} else {
 				alarm.wakeTime = 0
 			}
 		}
-		prevTime = now
 	}
 }
 
