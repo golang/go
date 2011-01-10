@@ -867,26 +867,27 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 		defer un(trace(p, "IndexOrSlice"))
 	}
 
-	p.expect(token.LBRACK)
+	lbrack := p.expect(token.LBRACK)
 	p.exprLev++
-	var index ast.Expr
+	var low, high ast.Expr
+	isSlice := false
 	if p.tok != token.COLON {
-		index = p.parseExpr()
+		low = p.parseExpr()
 	}
 	if p.tok == token.COLON {
+		isSlice = true
 		p.next()
-		var end ast.Expr
 		if p.tok != token.RBRACK {
-			end = p.parseExpr()
+			high = p.parseExpr()
 		}
-		x = &ast.SliceExpr{x, index, end}
-	} else {
-		x = &ast.IndexExpr{x, index}
 	}
 	p.exprLev--
-	p.expect(token.RBRACK)
+	rbrack := p.expect(token.RBRACK)
 
-	return x
+	if isSlice {
+		return &ast.SliceExpr{x, lbrack, low, high, rbrack}
+	}
+	return &ast.IndexExpr{x, lbrack, low, rbrack}
 }
 
 
