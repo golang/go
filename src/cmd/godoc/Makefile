@@ -8,6 +8,7 @@ TARG=godoc
 GOFILES=\
 	codewalk.go\
 	dirtrees.go\
+	format.go\
 	godoc.go\
 	index.go\
 	main.go\

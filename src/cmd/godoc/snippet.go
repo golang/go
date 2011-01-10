@@ -13,41 +13,21 @@ import (
 	"bytes"
 	"go/ast"
 	"go/token"
-	"go/printer"
 	"fmt"
 )
 
 
 type Snippet struct {
 	Line int
-	Text string
-}
-
-
-type snippetStyler struct {
-	Styler               // defined in godoc.go
-	highlight *ast.Ident // identifier to highlight
-}
-
-
-func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
-	return // no LineTag for snippets
-}
-
-
-func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
-	text = []byte(id.Name)
-	if s.highlight == id {
-		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
-	}
-	return
+	Text []byte
 }
 
 
 func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
+	// TODO instead of pretty-printing the node, should use the original source instead
 	var buf bytes.Buffer
-	writeNode(&buf, fset, decl, true, &snippetStyler{highlight: id})
-	return &Snippet{fset.Position(id.Pos()).Line, buf.String()}
+	writeNode(&buf, fset, decl, true)
+	return &Snippet{fset.Position(id.Pos()).Line, FormatText(buf.Bytes(), -1, true, id.Name, nil)}
 }
 
 
@@ -113,9 +93,11 @@ func NewSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) (s *Snippet) 
 
 	// handle failure gracefully
 	if s == nil {
+		var buf bytes.Buffer
+		fmt.Fprintf(&buf, `<span class="alert">could not generate a snippet for <span class="highlight">%s</span></span>`, id.Name)
 		s = &Snippet{
 			fset.Position(id.Pos()).Line,
-			fmt.Sprintf(`could not generate a snippet for <span class="highlight">%s</span>`, id.Name),
+			buf.Bytes(),
 		}
 	}
 	return

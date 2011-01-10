@@ -4,10 +4,9 @@
 	license that can be found in the LICENSE file.
 -->
 
-{.section Accurate}
-{.or}
+{.section Alert}
 	<p>
-	<span class="alert" style="font-size:120%">Indexing in progress - result may be inaccurate.</span>
+	<span class="alert" style="font-size:120%">{@}</span>
 	</p>
 {.end}
 {.section Alt}
@@ -27,7 +26,7 @@
 				{.repeated section Groups}
 					{.repeated section Infos}
 						<a href="/{File.Path|url-src}?h={Query|urlquery-esc}#L{@|infoLine}">{File.Path|url-src}:{@|infoLine}</a>
-						<pre>{@|infoSnippet}</pre>
+						{@|infoSnippet}
 					{.end}
 				{.end}
 			{.end}
@@ -59,11 +58,11 @@
 {.end}
 {.section Textual}
 	{.section Complete}
-		<h2 id="Textual">{Found|html-esc} textual occurences</h2>
+		<h2 id="Textual">{Found|html-esc} textual occurrences</h2>
 	{.or}
-		<h2 id="Textual">More than {Found|html-esc} textual occurences</h2>
+		<h2 id="Textual">More than {Found|html-esc} textual occurrences</h2>
 		<p>
-		<span class="alert" style="font-size:120%">Not all files or lines containing {Query|html-esc} are shown.</span>
+		<span class="alert" style="font-size:120%">Not all files or lines containing "{Query|html-esc}" are shown.</span>
 		</p>
 	{.end}
 	<p>
@@ -71,12 +70,16 @@
 	{.repeated section @}
 		<tr>
 		<td align="left" valign="top">
-		<a href="/{Filename|url-src}?g={Query|urlquery-esc}">{Filename|url-src}</a>:
+		<a href="/{Filename|url-src}?h={Query|urlquery-esc}">{Filename|url-src}</a>:
 		</td>
 		<td align="left" width="4"></td>
 		<th align="left" valign="top">{Lines|numlines}</th>
 		<td align="left" width="4"></td>
-		<td align="left">{Lines Complete|linelist}</td>
+		<td align="left">
+		{.repeated section Lines}
+			<a href="/{Filename|url-src}?h={Query|urlquery-esc}#L{@|html-esc}">{@|html-esc}</a>
+		{.end}
+		</td>
 		</tr>
 	{.end}
 	{.section Complete}

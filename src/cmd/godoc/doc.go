@@ -48,7 +48,7 @@ The flags are:
 	-timestamps=true
 		show timestamps with directory listings
 	-fulltext=false
-		build full text index for string search results
+		build full text index for regular expression queries
 	-path=""
 		additional package directories (colon-separated)
 	-html

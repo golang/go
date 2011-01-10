@@ -74,7 +74,7 @@ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.E
 func exec(rw http.ResponseWriter, args []string) (status int) {
 	r, w, err := os.Pipe()
 	if err != nil {
-		log.Printf("os.Pipe(): %v\n", err)
+		log.Printf("os.Pipe(): %v", err)
 		return 2
 	}
 
@@ -87,7 +87,7 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 	defer r.Close()
 	w.Close()
 	if err != nil {
-		log.Printf("os.ForkExec(%q): %v\n", bin, err)
+		log.Printf("os.ForkExec(%q): %v", bin, err)
 		return 2
 	}
 
@@ -96,7 +96,7 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 	wait, err := os.Wait(pid, 0)
 	if err != nil {
 		os.Stderr.Write(buf.Bytes())
-		log.Printf("os.Wait(%d, 0): %v\n", pid, err)
+		log.Printf("os.Wait(%d, 0): %v", pid, err)
 		return 2
 	}
 	status = wait.ExitStatus()
@@ -127,8 +127,7 @@ func dosync(w http.ResponseWriter, r *http.Request) {
 		// TODO(gri): The directory tree may be temporarily out-of-sync.
 		//            Consider keeping separate time stamps so the web-
 		//            page can indicate this discrepancy.
-		fsTree.set(newDirectory(*goroot, nil, -1))
-		invalidateIndex()
+		initFSTree()
 		fallthrough
 	case 1:
 		// sync failed because no files changed;
@@ -238,11 +237,14 @@ func main() {
 		// HTTP server mode.
 		var handler http.Handler = http.DefaultServeMux
 		if *verbose {
-			log.Printf("Go Documentation Server\n")
-			log.Printf("version = %s\n", runtime.Version())
-			log.Printf("address = %s\n", *httpAddr)
-			log.Printf("goroot = %s\n", *goroot)
-			log.Printf("tabwidth = %d\n", *tabwidth)
+			log.Printf("Go Documentation Server")
+			log.Printf("version = %s", runtime.Version())
+			log.Printf("address = %s", *httpAddr)
+			log.Printf("goroot = %s", *goroot)
+			log.Printf("tabwidth = %d", *tabwidth)
+			if *fulltextIndex {
+				log.Print("full text index enabled")
+			}
 			if !fsMap.IsEmpty() {
 				log.Print("user-defined mapping:")
 				fsMap.Fprint(os.Stderr)
@@ -257,10 +259,7 @@ func main() {
 
 		// Initialize default directory tree with corresponding timestamp.
 		// (Do it in a goroutine so that launch is quick.)
-		go func() {
-			fsTree.set(newDirectory(*goroot, nil, -1))
-			invalidateIndex()
-		}()
+		go initFSTree()
 
 		// Initialize directory trees for user-defined file systems (-path flag).
 		initDirTrees()

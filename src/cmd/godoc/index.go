@@ -7,7 +7,7 @@
 //
 // Algorithm for identifier index:
 // - traverse all .go files of the file tree specified by root
-// - for each word (identifier) encountered, collect all occurences (spots)
+// - for each word (identifier) encountered, collect all occurrences (spots)
 //   into a list; this produces a list of spots for each word
 // - reduce the lists: from a list of spots to a list of FileRuns,
 //   and from a list of FileRuns into a list of PakRuns
@@ -48,6 +48,7 @@ import (
 	"io/ioutil"
 	"os"
 	pathutil "path"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -247,7 +248,7 @@ type File struct {
 }
 
 
-// A Spot describes a single occurence of a word.
+// A Spot describes a single occurrence of a word.
 type Spot struct {
 	File *File
 	Info SpotInfo
@@ -435,7 +436,7 @@ const excludeTestFiles = false
 
 type IndexResult struct {
 	Decls  RunList // package-level declarations (with snippets)
-	Others RunList // all other occurences
+	Others RunList // all other occurrences
 }
 
 
@@ -445,7 +446,7 @@ type Statistics struct {
 	Files int // number of indexed source files
 	Lines int // number of lines (all files)
 	Words int // number of different identifiers
-	Spots int // number of identifier occurences
+	Spots int // number of identifier occurrences
 }
 
 
@@ -709,7 +710,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
 
 type LookupResult struct {
 	Decls  HitList // package-level declarations (with snippets)
-	Others HitList // all other occurences
+	Others HitList // all other occurrences
 }
 
 
@@ -833,14 +834,14 @@ func isIdentifier(s string) bool {
 
 // For a given query, which is either a single identifier or a qualified
 // identifier, Lookup returns a LookupResult, and a list of alternative
-// spellings, if any. If the query syntax is wrong, illegal is set.
-func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, illegal bool) {
+// spellings, if any. If the query syntax is wrong, an error is reported.
+func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, err os.Error) {
 	ss := strings.Split(query, ".", -1)
 
 	// check query syntax
 	for _, s := range ss {
 		if !isIdentifier(s) {
-			illegal = true
+			err = os.NewError("all query parts must be identifiers")
 			return
 		}
 	}
@@ -860,7 +861,7 @@ func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, illega
 		}
 
 	default:
-		illegal = true
+		err = os.NewError("query is not a (qualified) identifier")
 	}
 
 	return
@@ -886,60 +887,91 @@ func (list positionList) Less(i, j int) bool { return list[i].filename < list[j]
 func (list positionList) Swap(i, j int)      { list[i], list[j] = list[j], list[i] }
 
 
-// A Positions value specifies a file and line numbers within that file.
-type Positions struct {
+// unique returns the list sorted and with duplicate entries removed
+func unique(list []int) []int {
+	sort.SortInts(list)
+	var last int
+	i := 0
+	for _, x := range list {
+		if i == 0 || x != last {
+			last = x
+			list[i] = x
+			i++
+		}
+	}
+	return list[0:i]
+}
+
+
+// A FileLines value specifies a file and line numbers within that file.
+type FileLines struct {
 	Filename string
 	Lines    []int
 }
 
 
-// LookupString returns the number and list of positions where a string
-// s is found in the full text index and whether the result is complete
-// or not. At most n positions (filename and line) are returned (and thus
-// found <= n). The result is incomplete if the index is not present or
-// if there are more than n occurrences of s.
+// LookupRegexp returns the number of matches and the matches where a regular
+// expression r is found in the full text index. At most n matches are
+// returned (thus found <= n).
 //
-func (x *Index) LookupString(s string, n int) (found int, result []Positions, complete bool) {
-	if x.suffixes == nil {
+func (x *Index) LookupRegexp(r *regexp.Regexp, n int) (found int, result []FileLines) {
+	if x.suffixes == nil || n <= 0 {
 		return
 	}
+	// n > 0
 
-	offsets := x.suffixes.Lookup([]byte(s), n+1)
-	if len(offsets) <= n {
-		complete = true
-	} else {
-		offsets = offsets[0:n]
+	var list positionList
+	// FindAllIndex may returns matches that span across file boundaries.
+	// Such matches are unlikely, buf after eliminating them we may end up
+	// with fewer than n matches. If we don't have enough at the end, redo
+	// the search with an increased value n1, but only if FindAllIndex
+	// returned all the requested matches in the first place (if it
+	// returned fewer than that there cannot be more).
+	for n1 := n; found < n; n1 += n - found {
+		found = 0
+		matches := x.suffixes.FindAllIndex(r, n1)
+		// compute files, exclude matches that span file boundaries,
+		// and map offsets to file-local offsets
+		list = make(positionList, len(matches))
+		for _, m := range matches {
+			// by construction, an offset corresponds to the Pos value
+			// for the file set - use it to get the file and line
+			p := token.Pos(m[0])
+			if file := x.fset.File(p); file != nil {
+				if base := file.Base(); base <= m[1] && m[1] <= base+file.Size() {
+					// match [m[0], m[1]) is within the file boundaries
+					list[found].filename = file.Name()
+					list[found].line = file.Line(p)
+					found++
+				}
+			}
+		}
+		if found == n || len(matches) < n1 {
+			// found all matches or there's no chance to find more
+			break
+		}
 	}
-	found = len(offsets)
+	list = list[0:found]
+	sort.Sort(list) // sort by filename
 
-	// compute file names and lines and sort the list by filename
-	list := make(positionList, len(offsets))
-	for i, offs := range offsets {
-		// by construction, an offs corresponds to
-		// the Pos value for the file set - use it
-		// to get full Position information
-		pos := x.fset.Position(token.Pos(offs))
-		list[i].filename = pos.Filename
-		list[i].line = pos.Line
-	}
-	sort.Sort(list)
-
-	// compact positions with equal file names
+	// collect matches belonging to the same file
 	var last string
 	var lines []int
-	for _, pos := range list {
-		if pos.filename != last {
-			if len(lines) > 0 {
-				result = append(result, Positions{last, lines})
-				lines = nil
-			}
-			last = pos.filename
+	addLines := func() {
+		if len(lines) > 0 {
+			// remove duplicate lines
+			result = append(result, FileLines{last, unique(lines)})
+			lines = nil
 		}
-		lines = append(lines, pos.line)
 	}
-	if len(lines) > 0 {
-		result = append(result, Positions{last, lines})
+	for _, m := range list {
+		if m.filename != last {
+			addLines()
+			last = m.filename
+		}
+		lines = append(lines, m.line)
 	}
+	addLines()
 
 	return
 }
