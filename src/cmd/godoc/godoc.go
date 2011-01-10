@@ -55,6 +55,7 @@ var (
 	// file system roots
 	// TODO(gri) consider the invariant that goroot always end in '/'
 	goroot      = flag.String("goroot", runtime.GOROOT(), "Go root directory")
+	testDir     = flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
 	path        = flag.String("path", "", "additional package directories (colon-separated)")
 	filter      = flag.String("filter", "", "filter file containing permitted package directory paths")
 	filterMin   = flag.Int("filter_minutes", 0, "filter file update interval in minutes; disabled if <= 0")
@@ -63,7 +64,7 @@ var (
 	// layout control
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
-	fulltextIndex  = flag.Bool("fulltext", false, "build full text index for string search results")
+	fulltextIndex  = flag.Bool("fulltext", false, "build full text index for regular expression queries")
 
 	// file system mapping
 	fsMap      Mapping // user-defined mapping
@@ -92,6 +93,12 @@ func registerPublicHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/doc/codewalk/", codewalk)
 	mux.HandleFunc("/search", search)
 	mux.HandleFunc("/", serveFile)
+}
+
+
+func initFSTree() {
+	fsTree.set(newDirectory(pathutil.Join(*goroot, *testDir), nil, -1))
+	invalidateIndex()
 }
 
 
@@ -266,181 +273,6 @@ func relativePath(path string) string {
 
 
 // ----------------------------------------------------------------------------
-// HTML formatting support
-
-// aposescaper implements an io.Writer that escapes single quotes:
-// ' is written as \' . It is used to escape text such that it can
-// be used as the content of single-quoted string literals.
-type aposescaper struct {
-	w io.Writer
-}
-
-
-func (e *aposescaper) Write(p []byte) (n int, err os.Error) {
-	backslash := []byte{'\\'}
-	var i, m int
-	for j, b := range p {
-		if b == '\'' {
-			m, err = e.w.Write(p[i:j])
-			n += m
-			if err != nil {
-				return
-			}
-			_, err = e.w.Write(backslash)
-			if err != nil {
-				return
-			}
-			i = j
-		}
-	}
-	m, err = e.w.Write(p[i:])
-	n += m
-	return
-}
-
-
-// Styler implements a printer.Styler.
-type Styler struct {
-	linetags  bool
-	highlight string
-	objmap    map[*ast.Object]int
-	idcount   int
-}
-
-
-func newStyler(highlight string) *Styler {
-	return &Styler{true, highlight, make(map[*ast.Object]int), 0}
-}
-
-
-// identId returns a number >= 0 identifying the *ast.Object
-// denoted by name. If no object is denoted, the result is < 0.
-//
-// TODO(gri): Consider making this a mapping from popup info
-//            (for that name) to id, instead of *ast.Object
-//            to id. If a lot of the popup info is the same
-//            (e.g. type information), this will reduce the
-//            size of the html generated.
-func (s *Styler) identId(name *ast.Ident) int {
-	obj := name.Obj
-	if obj == nil || s.objmap == nil {
-		return -1
-	}
-	id, found := s.objmap[obj]
-	if !found {
-		// first occurence
-		id = s.idcount
-		s.objmap[obj] = id
-		s.idcount++
-	}
-	return id
-}
-
-
-// writeObjInfo writes the popup info corresponding to obj to w.
-// The text is HTML-escaped and does not contain single quotes.
-func writeObjInfo(w io.Writer, fset *token.FileSet, obj *ast.Object) {
-	// for now, show object kind and name; eventually
-	// do something more interesting (show declaration,
-	// for instance)
-	if obj.Kind != ast.Bad {
-		fmt.Fprintf(w, "%s ", obj.Kind)
-	}
-	template.HTMLEscape(w, []byte(obj.Name))
-	// show type if we know it
-	if obj.Type != nil && obj.Type.Expr != nil {
-		fmt.Fprint(w, " ")
-		writeNode(&aposescaper{w}, fset, obj.Type.Expr, true, &defaultStyler)
-	}
-}
-
-
-// idList returns a Javascript array (source) with identifier popup
-// information: The i'th array entry is a single-quoted string with
-// the popup information for an identifier x with s.identId(x) == i,
-// for 0 <= i < s.idcount.
-func (s *Styler) idList(fset *token.FileSet) []byte {
-	var buf bytes.Buffer
-	buf.WriteString("[\n")
-
-	if s.idcount > 0 {
-		// invert objmap: create an array [id]obj from map[obj]id
-		a := make([]*ast.Object, s.idcount)
-		for obj, id := range s.objmap {
-			a[id] = obj
-		}
-
-		// for each id, print object info as single-quoted Javascript string
-		for id, obj := range a {
-			printIndex := false // enable for debugging (but longer html)
-			if printIndex {
-				fmt.Fprintf(&buf, "/* %4d */ ", id)
-			}
-			fmt.Fprint(&buf, "'")
-			writeObjInfo(&buf, fset, obj)
-			fmt.Fprint(&buf, "',\n")
-		}
-	}
-
-	buf.WriteString("]\n")
-	return buf.Bytes()
-}
-
-
-// Use the defaultStyler when there is no specific styler.
-// The defaultStyler does not emit line tags since they may
-// interfere with tags emitted by templates.
-// TODO(gri): Should emit line tags at the beginning of a line;
-//            never in the middle of code.
-var defaultStyler Styler
-
-
-func (s *Styler) LineTag(line int) (text []byte, tag printer.HTMLTag) {
-	if s.linetags {
-		tag = printer.HTMLTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"}
-	}
-	return
-}
-
-
-func (s *Styler) Comment(c *ast.Comment, line []byte) (text []byte, tag printer.HTMLTag) {
-	text = line
-	// minimal syntax-coloring of comments for now - people will want more
-	// (don't do anything more until there's a button to turn it on/off)
-	tag = printer.HTMLTag{`<span class="comment">`, "</span>"}
-	return
-}
-
-
-func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
-	text = x.Value
-	return
-}
-
-
-func (s *Styler) Ident(name *ast.Ident) (text []byte, tag printer.HTMLTag) {
-	text = []byte(name.Name)
-	var str string
-	if id := s.identId(name); id >= 0 {
-		str = fmt.Sprintf(` id="%d"`, id)
-	}
-	if s.highlight == name.Name {
-		str += ` class="highlight"`
-	}
-	if str != "" {
-		tag = printer.HTMLTag{"<span" + str + ">", "</span>"}
-	}
-	return
-}
-
-
-func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
-	text = []byte(tok.String())
-	return
-}
-
-
-// ----------------------------------------------------------------------------
 // Tab conversion
 
 var spaces = []byte("                ") // 16 spaces seems like a good number
@@ -516,7 +348,7 @@ func (p *tconv) Write(data []byte) (n int, err os.Error) {
 // Templates
 
 // Write an AST-node to w; optionally html-escaped.
-func writeNode(w io.Writer, fset *token.FileSet, node interface{}, html bool, styler printer.Styler) {
+func writeNode(w io.Writer, fset *token.FileSet, node interface{}, html bool) {
 	mode := printer.TabIndent | printer.UseSpaces
 	if html {
 		mode |= printer.GenHTML
@@ -525,7 +357,7 @@ func writeNode(w io.Writer, fset *token.FileSet, node interface{}, html bool, st
 	// to ensure a good outcome in most browsers (there may still
 	// be tabs in comments and strings, but converting those into
 	// the right number of spaces is much harder)
-	(&printer.Config{mode, *tabwidth, styler}).Fprint(&tconv{output: w}, fset, node)
+	(&printer.Config{mode, *tabwidth, nil}).Fprint(&tconv{output: w}, fset, node)
 }
 
 
@@ -547,7 +379,7 @@ func writeAny(w io.Writer, fset *token.FileSet, html bool, x interface{}) {
 	case string:
 		writeText(w, []byte(v), html)
 	case ast.Decl, ast.Expr, ast.Stmt, *ast.File:
-		writeNode(w, fset, x, html, &defaultStyler)
+		writeNode(w, fset, x, html)
 	default:
 		if html {
 			var buf bytes.Buffer
@@ -612,20 +444,26 @@ func urlQueryEscFmt(w io.Writer, format string, x ...interface{}) {
 func urlFmt(w io.Writer, format string, x ...interface{}) {
 	var path string
 	var line int
+	var low, high int // selection
 
 	// determine path and position info, if any
 	type positioner interface {
 		Pos() token.Pos
+		End() token.Pos
 	}
 	switch t := x[0].(type) {
 	case string:
 		path = t
 	case positioner:
-		pos := t.Pos()
-		if pos.IsValid() {
-			pos := fileset(x).Position(pos)
+		fset := fileset(x)
+		if p := t.Pos(); p.IsValid() {
+			pos := fset.Position(p)
 			path = pos.Filename
 			line = pos.Line
+			low = pos.Offset
+		}
+		if p := t.End(); p.IsValid() {
+			high = fset.Position(p).Offset
 		}
 	default:
 		// we should never reach here, but be resilient
@@ -655,10 +493,22 @@ func urlFmt(w io.Writer, format string, x ...interface{}) {
 	case "url-src":
 		template.HTMLEscape(w, []byte(relpath))
 	case "url-pos":
+		template.HTMLEscape(w, []byte(relpath))
+		// selection ranges are of form "s=low:high"
+		if low < high {
+			fmt.Fprintf(w, "?s=%d:%d", low, high)
+			// if we have a selection, position the page
+			// such that the selection is a bit below the top
+			line -= 10
+			if line < 1 {
+				line = 1
+			}
+		}
 		// line id's in html-printed source are of the
 		// form "L%d" where %d stands for the line number
-		template.HTMLEscape(w, []byte(relpath))
-		fmt.Fprintf(w, "#L%d", line)
+		if line > 0 {
+			fmt.Fprintf(w, "#L%d", line)
+		}
 	}
 }
 
@@ -705,14 +555,14 @@ func infoLineFmt(w io.Writer, format string, x ...interface{}) {
 // Template formatter for "infoSnippet" format.
 func infoSnippetFmt(w io.Writer, format string, x ...interface{}) {
 	info := x[0].(SpotInfo)
-	text := `<span class="alert">no snippet text available</span>`
+	text := []byte(`<span class="alert">no snippet text available</span>`)
 	if info.IsIndex() {
 		index, _ := searchIndex.get()
 		// no escaping of snippet text needed;
 		// snippet text is escaped when generated
 		text = index.(*Index).Snippet(info.Lori()).Text
 	}
-	fmt.Fprint(w, text)
+	w.Write(text)
 }
 
 
@@ -752,27 +602,6 @@ func numlinesFmt(w io.Writer, format string, x ...interface{}) {
 }
 
 
-// Template formatter for "linelist" format.
-func linelistFmt(w io.Writer, format string, x ...interface{}) {
-	list := x[0].([]int)
-	complete := x[1].(bool)
-
-	const max = 100 // show at most this many lines
-	if len(list) > max {
-		list = list[0:max]
-		complete = false
-	}
-	sort.SortInts(list)
-
-	for _, line := range list {
-		fmt.Fprintf(w, " %d", line)
-	}
-	if !complete {
-		fmt.Fprintf(w, " ...")
-	}
-}
-
-
 var fmap = template.FormatterMap{
 	"":             textFmt,
 	"html":         htmlFmt,
@@ -790,7 +619,6 @@ var fmap = template.FormatterMap{
 	"dir/":         dirslashFmt,
 	"localname":    localnameFmt,
 	"numlines":     numlinesFmt,
-	"linelist":     linelistFmt,
 }
 
 
@@ -817,8 +645,7 @@ var (
 	packageHTML,
 	packageText,
 	searchHTML,
-	searchText,
-	sourceHTML *template.Template
+	searchText *template.Template
 )
 
 func readTemplates() {
@@ -832,7 +659,6 @@ func readTemplates() {
 	packageText = readTemplate("package.txt")
 	searchHTML = readTemplate("search.html")
 	searchText = readTemplate("search.txt")
-	sourceHTML = readTemplate("source.html")
 }
 
 
@@ -933,34 +759,6 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 }
 
 
-func serveGoSource(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, abspath, nil, parser.ParseComments)
-	if err != nil {
-		log.Printf("parser.ParseFile: %s", err)
-		serveError(w, r, relpath, err)
-		return
-	}
-
-	// TODO(gri) enable once we are confident it works for all files
-	// augment AST with types; ignore errors (partial type information ok)
-	// typechecker.CheckFile(file, nil)
-
-	var buf bytes.Buffer
-	styler := newStyler(r.FormValue("h"))
-	writeNode(&buf, fset, file, true, styler)
-
-	type SourceInfo struct {
-		IdList []byte
-		Source []byte
-	}
-	info := &SourceInfo{styler.idList(fset), buf.Bytes()}
-
-	contents := applyTemplate(sourceHTML, "sourceHTML", info)
-	servePage(w, "Source file "+relpath, "", "", contents)
-}
-
-
 func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 	if canonical := pathutil.Clean(r.URL.Path) + "/"; r.URL.Path != canonical {
 		http.Redirect(w, r, canonical, http.StatusMovedPermanently)
@@ -1017,36 +815,7 @@ func isTextFile(path string) bool {
 }
 
 
-// HTMLSubst replaces all occurences of f in s with r and HTML-escapes
-// everything else in s (but not r). The result is written to w.
-//
-func HTMLSubst(w io.Writer, s, f, r []byte) {
-	for {
-		i := bytes.Index(s, f)
-		if i < 0 {
-			break
-		}
-		template.HTMLEscape(w, s[0:i])
-		w.Write(r)
-		s = s[i+len(f):]
-	}
-	template.HTMLEscape(w, s)
-}
-
-
-// highlight highlights all occurrences of h in s and writes the
-// HTML-escaped result to w.
-//
-func highlight(w io.Writer, s, h []byte) {
-	var r bytes.Buffer
-	r.WriteString(`<span class="highlight">`)
-	template.HTMLEscape(&r, h)
-	r.WriteString(`</span>`)
-	HTMLSubst(w, s, h, r.Bytes())
-}
-
-
-func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
 	src, err := ioutil.ReadFile(abspath)
 	if err != nil {
 		log.Printf("ioutil.ReadFile: %s", err)
@@ -1054,17 +823,8 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath stri
 		return
 	}
 
-	var buf bytes.Buffer
-	buf.WriteString("<pre>\n")
-	g := r.FormValue("g")
-	if g != "" {
-		highlight(&buf, src, []byte(g))
-	} else {
-		template.HTMLEscape(&buf, src)
-	}
-	buf.WriteString("</pre>\n")
-
-	servePage(w, "Text file "+relpath, "", "", buf.Bytes())
+	contents := FormatText(src, 1, pathutil.Ext(abspath) == ".go", r.FormValue("h"), rangeSelection(r.FormValue("s")))
+	servePage(w, title+" "+relpath, "", "", contents)
 }
 
 
@@ -1119,11 +879,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case ".go":
-		if r.FormValue("g") != "" {
-			serveTextFile(w, r, abspath, relpath)
-			return
-		}
-		serveGoSource(w, r, abspath, relpath)
+		serveTextFile(w, r, abspath, relpath, "Source file")
 		return
 	}
 
@@ -1147,7 +903,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isTextFile(abspath) {
-		serveTextFile(w, r, abspath, relpath)
+		serveTextFile(w, r, abspath, relpath, "Text file")
 		return
 	}
 
@@ -1195,7 +951,7 @@ type httpHandler struct {
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
 // is extracted from the AST. If there is no corresponding package in the
 // directory, PageInfo.PAst and PageInfo.PDoc are nil. If there are no sub-
-// directories, PageInfo.Dirs is nil. If a directory read error occured,
+// directories, PageInfo.Dirs is nil. If a directory read error occurred,
 // PageInfo.Err is set to the respective error but the error is not logged.
 //
 func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
@@ -1386,26 +1142,57 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 var searchIndex RWValue
 
 type SearchResult struct {
-	Query    string
-	Hit      *LookupResult // identifier occurences of Query
-	Alt      *AltWords     // alternative identifiers to look for
-	Found    int           // number of textual occurences found
-	Textual  []Positions   // textual occurences of Query
-	Complete bool          // true if all textual occurences of Query are reported
-	Accurate bool          // true if the index is not older than the indexed files
+	Query string
+	Alert string // error or warning message
+
+	// identifier matches
+	Hit *LookupResult // identifier matches of Query
+	Alt *AltWords     // alternative identifiers to look for
+
+	// textual matches
+	Found    int         // number of textual occurrences found
+	Textual  []FileLines // textual matches of Query
+	Complete bool        // true if all textual occurrences of Query are reported
 }
 
 
 func lookup(query string) (result SearchResult) {
 	result.Query = query
+
+	// determine identifier lookup string and full text regexp
+	lookupStr := ""
+	lookupRx, err := regexp.Compile(query)
+	if err != nil {
+		result.Alert = "Error in query regular expression: " + err.String()
+		return
+	}
+	if prefix, complete := lookupRx.LiteralPrefix(); complete {
+		// otherwise we lookup "" (with no result) because
+		// identifier lookup doesn't support regexp search
+		lookupStr = prefix
+	}
+
 	if index, timestamp := searchIndex.get(); index != nil {
+		// identifier search
 		index := index.(*Index)
-		result.Hit, result.Alt, _ = index.Lookup(query)
+		result.Hit, result.Alt, err = index.Lookup(lookupStr)
+		if err != nil && !*fulltextIndex {
+			// ignore the error if there is full text search
+			// since it accepts that query regular expression
+			result.Alert = "Error in query string: " + err.String()
+			return
+		}
+
+		// textual search
 		// TODO(gri) should max be a flag?
-		const max = 5000 // show at most this many fulltext results
-		result.Found, result.Textual, result.Complete = index.LookupString(query, max)
-		_, ts := fsModified.get()
-		result.Accurate = timestamp >= ts
+		const max = 10000 // show at most this many fulltext results
+		result.Found, result.Textual = index.LookupRegexp(lookupRx, max+1)
+		result.Complete = result.Found <= max
+
+		// is the result accurate?
+		if _, ts := fsModified.get(); timestamp < ts {
+			result.Alert = "Indexing in progress: result may be inaccurate"
+		}
 	}
 	return
 }
@@ -1500,10 +1287,15 @@ func indexer() {
 				log.Printf("index updated (%gs, %d bytes of source, %d files, %d lines, %d unique words, %d spots)",
 					secs, stats.Bytes, stats.Files, stats.Lines, stats.Words, stats.Spots)
 			}
-			log.Printf("before GC: bytes = %d footprint = %d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+			log.Printf("before GC: bytes = %d footprint = %d", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 			runtime.GC()
-			log.Printf("after  GC: bytes = %d footprint = %d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+			log.Printf("after  GC: bytes = %d footprint = %d", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
 		}
-		time.Sleep(1 * 60e9) // try once a minute
+		var delay int64 = 60 * 1e9 // by default, try every 60s
+		if *testDir != "" {
+			// in test mode, try once a second for fast startup
+			delay = 1 * 1e9
+		}
+		time.Sleep(delay)
 	}
 }

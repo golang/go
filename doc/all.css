@@ -161,8 +161,29 @@ span.comment {
   color: #002090;
 }
 span.highlight {
-  background: #FFFF90;
+  background: #FF9900;
   font-weight: bold;
+}
+span.highlight-comment {
+  background: #FF9900;
+  font-weight: bold;
+  color: #002090;
+}
+span.selection {
+  background: #FFFF00
+}
+span.selection-comment {
+  color: #002090;
+  background: #FFFF00
+}
+span.selection-highlight {
+  background: #FF9900;
+  font-weight: bold;
+}
+span.selection-highlight-comment {
+  background: #FF9900;
+  font-weight: bold;
+  color: #002090;
 }
 span.alert {
   color: #D00000;

@@ -1,9 +1,8 @@
 QUERY
 	{Query}
 
-{.section Accurate}
-{.or}
-INDEXING IN PROGRESS - RESULT MAY BE INACCURATE
+{.section Alert}
+{@}
 
 {.end}
 {.section Alt}
