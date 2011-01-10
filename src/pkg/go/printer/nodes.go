@@ -139,13 +139,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 	prev := p.fset.Position(prev0)
 	next := p.fset.Position(next0)
 	line := p.fset.Position(list[0].Pos()).Line
-	endLine := next.Line
-	if endLine == 0 {
-		// TODO(gri): endLine may be incorrect as it is really the beginning
-		//            of the last list entry. There may be only one, very long
-		//            entry in which case line == endLine.
-		endLine = p.fset.Position(list[len(list)-1].Pos()).Line
-	}
+	endLine := p.fset.Position(list[len(list)-1].End()).Line
 
 	if prev.IsValid() && prev.Line == line && line == endLine {
 		// all list entries on a single line
@@ -708,13 +702,13 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
 	case *ast.IndexExpr:
 		body, suffix = splitSelector(x.X)
 		if body != nil {
-			suffix = &ast.IndexExpr{suffix, x.Index}
+			suffix = &ast.IndexExpr{suffix, x.Lbrack, x.Index, x.Rbrack}
 			return
 		}
 	case *ast.SliceExpr:
 		body, suffix = splitSelector(x.X)
 		if body != nil {
-			suffix = &ast.SliceExpr{suffix, x.Low, x.High}
+			suffix = &ast.SliceExpr{suffix, x.Lbrack, x.Low, x.High, x.Rbrack}
 			return
 		}
 	case *ast.TypeAssertExpr:
@@ -837,14 +831,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 	case *ast.IndexExpr:
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
-		p.print(token.LBRACK)
+		p.print(x.Lbrack, token.LBRACK)
 		p.expr0(x.Index, depth+1, multiLine)
-		p.print(token.RBRACK)
+		p.print(x.Rbrack, token.RBRACK)
 
 	case *ast.SliceExpr:
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
-		p.print(token.LBRACK)
+		p.print(x.Lbrack, token.LBRACK)
 		if x.Low != nil {
 			p.expr0(x.Low, depth+1, multiLine)
 		}
@@ -857,7 +851,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		if x.High != nil {
 			p.expr0(x.High, depth+1, multiLine)
 		}
-		p.print(token.RBRACK)
+		p.print(x.Rbrack, token.RBRACK)
 
 	case *ast.CallExpr:
 		if len(x.Args) > 1 {
