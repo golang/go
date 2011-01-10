@@ -11,11 +11,11 @@ import (
 	"container/heap"
 )
 
-// The event type represents a single After event.
+// The event type represents a single After or AfterFunc event.
 type event struct {
-	t        int64        // The absolute time that the event should fire.
-	c        chan<- int64 // The channel to send on.
-	sleeping bool         // A sleeper is sleeping for this event.
+	t        int64       // The absolute time that the event should fire.
+	f        func(int64) // The function to call when the event fires.
+	sleeping bool        // A sleeper is sleeping for this event.
 }
 
 type eventHeap []*event
@@ -55,15 +55,30 @@ func sleep(t, ns int64) (int64, os.Error) {
 // on the returned channel.
 func After(ns int64) <-chan int64 {
 	c := make(chan int64, 1)
-	t := ns + Nanoseconds()
+	after(ns, func(t int64) { c <- t })
+	return c
+}
+
+// AfterFunc waits at least ns nanoseconds before calling f
+// in its own goroutine.
+func AfterFunc(ns int64, f func()) {
+	after(ns, func(_ int64) {
+		go f()
+	})
+}
+
+// after is the implementation of After and AfterFunc.
+// When the current time is after ns, it calls f with the current time.
+// It assumes that f will not block.
+func after(ns int64, f func(int64)) {
+	t := Nanoseconds() + ns
 	eventMutex.Lock()
 	t0 := events[0].t
-	heap.Push(events, &event{t, c, false})
+	heap.Push(events, &event{t, f, false})
 	if t < t0 {
 		go sleeper()
 	}
 	eventMutex.Unlock()
-	return c
 }
 
 // sleeper continually looks at the earliest event in the queue, marks it
@@ -102,7 +117,7 @@ func sleeper() {
 			e = events[0]
 		}
 		for t >= e.t {
-			e.c <- t
+			e.f(t)
 			heap.Pop(events)
 			e = events[0]
 		}

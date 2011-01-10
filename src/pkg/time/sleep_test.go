@@ -26,6 +26,44 @@ func TestSleep(t *testing.T) {
 	}
 }
 
+// Test the basic function calling behavior. Correct queueing
+// behavior is tested elsewhere, since After and AfterFunc share
+// the same code.
+func TestAfterFunc(t *testing.T) {
+	i := 10
+	c := make(chan bool)
+	var f func()
+	f = func() {
+		i--
+		if i >= 0 {
+			AfterFunc(0, f)
+			Sleep(1e9)
+		} else {
+			c <- true
+		}
+	}
+
+	AfterFunc(0, f)
+	<-c
+}
+
+func BenchmarkAfterFunc(b *testing.B) {
+	i := b.N
+	c := make(chan bool)
+	var f func()
+	f = func() {
+		i--
+		if i >= 0 {
+			AfterFunc(0, f)
+		} else {
+			c <- true
+		}
+	}
+
+	AfterFunc(0, f)
+	<-c
+}
+
 func TestAfter(t *testing.T) {
 	const delay = int64(100e6)
 	start := Nanoseconds()
