@@ -102,7 +102,7 @@ excise(Reg *r)
 	p->scond = zprog.scond;
 	p->from = zprog.from;
 	p->to = zprog.to;
-	p->reg = zprog.reg; /**/
+	p->reg = zprog.reg;
 }
 
 static void
@@ -139,22 +139,16 @@ regopt(Prog *firstp)
 
 	if(first == 0) {
 		fmtinstall('Q', Qconv);
-//		exregoffset = D_R13;	// R14,R15 are external
 	}
 	first++;
 
-//if(!debug['K'])
-//	return;
-
-//if(first != 19) {
-//	return;
-//}
-
-//print("optimizing %S\n", curfn->nname->sym);
-
-//debug['R'] = 2;
-//debug['P'] = 2;
-
+	if(debug['K']) {
+		if(first != 20)
+			return;
+//		debug['R'] = 2;
+//		debug['P'] = 2;
+		print("optimizing %S\n", curfn->nname->sym);
+	}
 
 	// count instructions
 	nr = 0;
@@ -189,7 +183,6 @@ regopt(Prog *firstp)
 	 * allocate pcs
 	 * find use and set of variables
 	 */
-if(0) print("pass 1\n");
 	nr = 0;
 	for(p=firstp; p != P; p = p->link) {
 		switch(p->as) {
@@ -284,7 +277,6 @@ if(0) print("pass 1\n");
 	 * turn branch references to pointers
 	 * build back pointers
 	 */
-if(0) print("pass 2\n");
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
 		if(p->to.type == D_BRANCH) {
@@ -311,7 +303,6 @@ if(0) print("pass 2\n");
 	 * pass 2.5
 	 * find looping structure
 	 */
-if(0) print("pass 2.5\n");
 	for(r = firstr; r != R; r = r->link)
 		r->active = 0;
 	change = 0;
@@ -323,7 +314,6 @@ if(0) print("pass 2.5\n");
 	 * 	back until flow graph is complete
 	 */
 loop1:
-if(0) print("loop 1\n");
 	change = 0;
 	for(r = firstr; r != R; r = r->link)
 		r->active = 0;
@@ -331,7 +321,6 @@ if(0) print("loop 1\n");
 		if(r->prog->as == ARET)
 			prop(r, zbits, zbits);
 loop11:
-if(0) print("loop 11\n");
 	/* pick up unreachable code */
 	i = 0;
 	for(r = firstr; r != R; r = r1) {
@@ -353,7 +342,6 @@ if(0) print("loop 11\n");
 	 * 	forward until graph is complete
 	 */
 loop2:
-if(0) print("loop 2\n");
 	change = 0;
 	for(r = firstr; r != R; r = r->link)
 		r->active = 0;
@@ -400,7 +388,6 @@ if(0) print("loop 2\n");
 	 * isolate regions
 	 * calculate costs (paint1)
 	 */
-if(0) print("pass 5\n");
 	r = firstr;
 	if(r) {
 		for(z=0; z<BITS; z++)
@@ -490,7 +477,6 @@ brk:
 	 * pass 7
 	 * peep-hole on basic block
 	 */
-if(0) print("pass 7\n");
 	if(!debug['R'] || debug['P']) {
 		peep();
 	}
@@ -652,8 +638,12 @@ mkvar(Reg *r, Adr *a, int docon)
 		print("type %d %d %D\n", t, a->name, a);
 		goto none;
 
-	case D_NONE:
 	case D_CONST:
+		if(a->reg != NREG)
+			r->regu |= RtoB(a->reg);
+		// fallthrough
+
+	case D_NONE:
 	case D_FCONST:
 	case D_BRANCH:
 		goto none;
@@ -1028,9 +1018,6 @@ allreg(uint32 b, Rgn *r)
 		}
 		break;
 
-	case TINT64:
-	case TUINT64:
-	case TPTR64:
 	case TFLOAT32:
 	case TFLOAT64:
 	case TFLOAT:
@@ -1039,6 +1026,14 @@ allreg(uint32 b, Rgn *r)
 			r->regno = i+NREG;
 			return FtoB(i);
 		}
+		break;
+
+	case TINT64:
+	case TUINT64:
+	case TPTR64:
+	case TINTER:
+	case TSTRUCT:
+	case TARRAY:
 		break;
 	}
 	return 0;

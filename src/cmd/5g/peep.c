@@ -37,6 +37,7 @@ int	shiftprop(Reg *r);
 void	constprop(Adr *c1, Adr *v1, Reg *r);
 void	predicate(void);
 int	copyau1(Prog *p, Adr *v);
+int	isdconst(Addr *a);
 
 void
 peep(void)
@@ -81,30 +82,42 @@ loop1:
 	t = 0;
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
-		if(p->as == ASLL || p->as == ASRL || p->as == ASRA) {
+		switch(p->as) {
+		case ASLL:
+		case ASRL:
+		case ASRA:
 			/*
 			 * elide shift into D_SHIFT operand of subsequent instruction
 			 */
 			if(shiftprop(r)) {
 				excise(r);
 				t++;
+				break;
 			}
-		}
-		if(p->as == AMOVW || p->as == AMOVF || p->as == AMOVD)
-		if(regtyp(&p->to)) {
-			if(p->from.type == D_CONST)
+			break;
+
+		case AMOVW:
+		case AMOVF:
+		case AMOVD:
+			if(!regtyp(&p->to))
+				break;
+			if(isdconst(&p->from)) {
 				constprop(&p->from, &p->to, r->s1);
-			else
-			if(regtyp(&p->from))
-			if(p->from.type == p->to.type) {
-				if(copyprop(r)) {
-					excise(r);
-					t++;
-				} else
-				if(subprop(r) && copyprop(r)) {
-					excise(r);
-					t++;
-				}
+				break;
+			}
+			if(!regtyp(&p->from))
+				break;
+			if(p->from.type != p->to.type)
+				break;
+			if(copyprop(r)) {
+				excise(r);
+				t++;
+				break;
+			}
+			if(subprop(r) && copyprop(r)) {
+				excise(r);
+				t++;
+				break;
 			}
 		}
 	}
@@ -122,7 +135,7 @@ loop1:
 			/*
 			 * EOR -1,x,y => MVN x,y
 			 */
-			if(p->from.type == D_CONST && p->from.offset == -1) {
+			if(isdconst(&p->from) && p->from.offset == -1) {
 				p->as = AMVN;
 				p->from.type = D_REG;
 				if(p->reg != NREG)
@@ -170,7 +183,7 @@ loop1:
 			/*
 			 * elide CMP $0,x if calculation of x can set condition codes
 			 */
-			if(p->from.type != D_CONST || p->from.offset != 0)
+			if(isdconst(&p->from) || p->from.offset != 0)
 				continue;
 			r2 = r->s1;
 			if(r2 == R)
@@ -668,12 +681,14 @@ shiftprop(Reg *r)
 		}
 		break;
 	}
+
 	/* make the substitution */
 	p2->from.type = D_SHIFT;
 	p2->from.reg = NREG;
 	o = p->reg;
 	if(o == NREG)
 		o = p->to.reg;
+
 	switch(p->from.type){
 	case D_CONST:
 		o |= (p->from.offset&0x1f)<<7;
@@ -735,7 +750,7 @@ findinc(Reg *r, Reg *r2, Adr *v)
 		case 4: /* set and used */
 			p = r1->prog;
 			if(p->as == AADD)
-			if(p->from.type == D_CONST)
+			if(isdconst(&p->from))
 			if(p->from.offset > -4096 && p->from.offset < 4096)
 				return r1;
 		default:
@@ -990,7 +1005,6 @@ copyu(Prog *p, Adr *v, Adr *s)
 			return 1;
 		return 0;
 
-
 	case AADD:	/* read, read, write */
 	case ASUB:
 	case ARSB:
@@ -1192,6 +1206,10 @@ copyau(Adr *a, Adr *v)
 	if(copyas(a, v))
 		return 1;
 	if(v->type == D_REG) {
+		if(a->type == D_CONST && a->reg != NREG) {
+			if(v->reg == a->reg)
+				return 1;
+		} else
 		if(a->type == D_OREG) {
 			if(v->reg == a->reg)
 				return 1;
@@ -1320,19 +1338,22 @@ isbranch(Prog *p)
 int
 predicable(Prog *p)
 {
-	if (isbranch(p)
-		|| p->as == ANOP
-		|| p->as == AXXX
-		|| p->as == ADATA
-		|| p->as == AGLOBL
-		|| p->as == AGOK
-		|| p->as == AHISTORY
-		|| p->as == ANAME
-		|| p->as == ASIGNAME
-		|| p->as == ATEXT
-		|| p->as == AWORD
-		|| p->as == ABCASE
-		|| p->as == ACASE)
+	switch(p->as) {
+	case ANOP:
+	case AXXX:
+	case ADATA:
+	case AGLOBL:
+	case AGOK:
+	case AHISTORY:
+	case ANAME:
+	case ASIGNAME:
+	case ATEXT:
+	case AWORD:
+	case ABCASE:
+	case ACASE:
+		return 0;
+	}
+	if(isbranch(p))
 		return 0;
 	return 1;
 }
@@ -1347,18 +1368,23 @@ predicable(Prog *p)
 int
 modifiescpsr(Prog *p)
 {
-	return (p->scond&C_SBIT)
-		|| p->as == ATST
-		|| p->as == ATEQ
-		|| p->as == ACMN
-		|| p->as == ACMP
-		|| p->as == AMULU
-		|| p->as == ADIVU
-		|| p->as == AMUL
-		|| p->as == ADIV
-		|| p->as == AMOD
-		|| p->as == AMODU
-		|| p->as == ABL;
+	switch(p->as) {
+	case ATST:
+	case ATEQ:
+	case ACMN:
+	case ACMP:
+	case AMULU:
+	case ADIVU:
+	case AMUL:
+	case ADIV:
+	case AMOD:
+	case AMODU:
+	case ABL:
+		return 1;
+	}
+	if(p->scond & C_SBIT)
+		return 1;
+	return 0;
 }
 
 /*
@@ -1401,10 +1427,10 @@ joinsplit(Reg *r, Joininfo *j)
 	return Toolong;
 }
 
-Reg *
+Reg*
 successor(Reg *r)
 {
-	if (r->s1)
+	if(r->s1)
 		return r->s1;
 	else
 		return r->s2;
@@ -1418,23 +1444,24 @@ applypred(Reg *rstart, Joininfo *j, int cond, int branch)
 
 	if(j->len == 0)
 		return;
-	if (cond == Truecond)
+	if(cond == Truecond)
 		pred = predinfo[rstart->prog->as - ABEQ].scond;
 	else
 		pred = predinfo[rstart->prog->as - ABEQ].notscond;
 
-	for (r = j->start; ; r = successor(r)) {
+	for(r = j->start;; r = successor(r)) {
 		if (r->prog->as == AB) {
 			if (r != j->last || branch == Delbranch)
 				excise(r);
 			else {
-			  if (cond == Truecond)
-				r->prog->as = predinfo[rstart->prog->as - ABEQ].opcode;
-			  else
-				r->prog->as = predinfo[rstart->prog->as - ABEQ].notopcode;
+				if (cond == Truecond)
+					r->prog->as = predinfo[rstart->prog->as - ABEQ].opcode;
+				else
+					r->prog->as = predinfo[rstart->prog->as - ABEQ].notopcode;
 			}
 		}
-		else if (predicable(r->prog))
+		else
+		if (predicable(r->prog))
 			r->prog->scond = (r->prog->scond&~C_SCOND)|pred;
 		if (r->s1 != r->link) {
 			r->s1 = r->link;
@@ -1473,4 +1500,12 @@ predicate(void)
 			}
 		}
 	}
+}
+
+int
+isdconst(Addr *a)
+{
+	if(a->type == D_CONST && a->reg == NREG)
+		return 1;
+	return 0;
 }
