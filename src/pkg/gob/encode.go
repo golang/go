@@ -284,6 +284,9 @@ func encComplex128(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	}
 }
 
+func encNoOp(i *encInstr, state *encoderState, p unsafe.Pointer) {
+}
+
 // Byte arrays are encoded as an unsigned count followed by the raw bytes.
 func encUint8Array(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	b := *(*[]byte)(p)
@@ -539,6 +542,9 @@ func (enc *Encoder) compileEnc(rt reflect.Type) *encEngine {
 		for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
 			f := srt.Field(fieldnum)
 			op, indir := enc.encOpFor(f.Type)
+			if !isExported(f.Name) {
+				op = encNoOp
+			}
 			engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)}
 		}
 		engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0}

@@ -137,32 +137,32 @@ func (dec *Decoder) debugRecvType(id typeId) {
 func printWireType(wire *wireType) {
 	fmt.Printf("type definition {\n")
 	switch {
-	case wire.arrayT != nil:
-		printCommonType("array", &wire.arrayT.commonType)
-		fmt.Printf("\tlen %d\n\telemid %d\n", wire.arrayT.Len, wire.arrayT.Elem)
-	case wire.mapT != nil:
-		printCommonType("map", &wire.mapT.commonType)
-		fmt.Printf("\tkeyid %d\n", wire.mapT.Key)
-		fmt.Printf("\telemid %d\n", wire.mapT.Elem)
-	case wire.sliceT != nil:
-		printCommonType("slice", &wire.sliceT.commonType)
-		fmt.Printf("\telemid %d\n", wire.sliceT.Elem)
-	case wire.structT != nil:
-		printCommonType("struct", &wire.structT.commonType)
-		for i, field := range wire.structT.field {
-			fmt.Printf("\tfield %d:\t%s\tid=%d\n", i, field.name, field.id)
+	case wire.ArrayT != nil:
+		printCommonType("array", &wire.ArrayT.CommonType)
+		fmt.Printf("\tlen %d\n\telemid %d\n", wire.ArrayT.Len, wire.ArrayT.Elem)
+	case wire.MapT != nil:
+		printCommonType("map", &wire.MapT.CommonType)
+		fmt.Printf("\tkeyid %d\n", wire.MapT.Key)
+		fmt.Printf("\telemid %d\n", wire.MapT.Elem)
+	case wire.SliceT != nil:
+		printCommonType("slice", &wire.SliceT.CommonType)
+		fmt.Printf("\telemid %d\n", wire.SliceT.Elem)
+	case wire.StructT != nil:
+		printCommonType("struct", &wire.StructT.CommonType)
+		for i, field := range wire.StructT.Field {
+			fmt.Printf("\tfield %d:\t%s\tid=%d\n", i, field.Name, field.Id)
 		}
 	}
 	fmt.Printf("}\n")
 }
 
-func printCommonType(kind string, common *commonType) {
-	fmt.Printf("\t%s %q\n\tid: %d\n", kind, common.name, common._id)
+func printCommonType(kind string, common *CommonType) {
+	fmt.Printf("\t%s %q\n\tid: %d\n", kind, common.Name, common.Id)
 }
 
 func (dec *Decoder) debugPrint(indent int, id typeId) {
 	wire, ok := dec.wireType[id]
-	if ok && wire.structT != nil {
+	if ok && wire.StructT != nil {
 		dec.debugStruct(indent+1, id, wire)
 	} else {
 		dec.debugSingle(indent+1, id, wire)
@@ -193,32 +193,32 @@ func (dec *Decoder) printItem(indent int, id typeId) {
 		errorf("type id %d not defined\n", id)
 	}
 	switch {
-	case wire.arrayT != nil:
+	case wire.ArrayT != nil:
 		dec.printArray(indent, wire)
-	case wire.mapT != nil:
+	case wire.MapT != nil:
 		dec.printMap(indent, wire)
-	case wire.sliceT != nil:
+	case wire.SliceT != nil:
 		dec.printSlice(indent, wire)
-	case wire.structT != nil:
+	case wire.StructT != nil:
 		dec.debugStruct(indent, id, wire)
 	}
 }
 
 func (dec *Decoder) printArray(indent int, wire *wireType) {
-	elemId := wire.arrayT.Elem
+	elemId := wire.ArrayT.Elem
 	n := int(decodeUint(dec.state))
 	for i := 0; i < n && dec.err == nil; i++ {
 		dec.printItem(indent, elemId)
 	}
-	if n != wire.arrayT.Len {
+	if n != wire.ArrayT.Len {
 		tab(indent)
-		fmt.Printf("(wrong length for array: %d should be %d)\n", n, wire.arrayT.Len)
+		fmt.Printf("(wrong length for array: %d should be %d)\n", n, wire.ArrayT.Len)
 	}
 }
 
 func (dec *Decoder) printMap(indent int, wire *wireType) {
-	keyId := wire.mapT.Key
-	elemId := wire.mapT.Elem
+	keyId := wire.MapT.Key
+	elemId := wire.MapT.Elem
 	n := int(decodeUint(dec.state))
 	for i := 0; i < n && dec.err == nil; i++ {
 		dec.printItem(indent, keyId)
@@ -227,7 +227,7 @@ func (dec *Decoder) printMap(indent int, wire *wireType) {
 }
 
 func (dec *Decoder) printSlice(indent int, wire *wireType) {
-	elemId := wire.sliceT.Elem
+	elemId := wire.SliceT.Elem
 	n := int(decodeUint(dec.state))
 	for i := 0; i < n && dec.err == nil; i++ {
 		dec.printItem(indent, elemId)
@@ -273,8 +273,8 @@ func (dec *Decoder) printBuiltin(indent int, id typeId) {
 
 func (dec *Decoder) debugStruct(indent int, id typeId, wire *wireType) {
 	tab(indent)
-	fmt.Printf("%s struct {\n", id.Name())
-	strct := wire.structT
+	fmt.Printf("%s struct {\n", id.name())
+	strct := wire.StructT
 	state := newDecodeState(dec, dec.state.b)
 	state.fieldnum = -1
 	for dec.err == nil {
@@ -286,17 +286,17 @@ func (dec *Decoder) debugStruct(indent int, id typeId, wire *wireType) {
 			break
 		}
 		fieldNum := state.fieldnum + delta
-		if fieldNum < 0 || fieldNum >= len(strct.field) {
+		if fieldNum < 0 || fieldNum >= len(strct.Field) {
 			errorf("field number out of range")
 			break
 		}
 		tab(indent)
-		fmt.Printf("%s(%d):\n", wire.structT.field[fieldNum].name, fieldNum)
-		dec.printItem(indent+1, strct.field[fieldNum].id)
+		fmt.Printf("%s(%d):\n", wire.StructT.Field[fieldNum].Name, fieldNum)
+		dec.printItem(indent+1, strct.Field[fieldNum].Id)
 		state.fieldnum = fieldNum
 	}
 	tab(indent)
-	fmt.Printf(" } // end %s struct\n", id.Name())
+	fmt.Printf(" } // end %s struct\n", id.name())
 }
 
 func tab(indent int) {

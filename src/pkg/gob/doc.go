@@ -149,31 +149,34 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
 description, constructed from these types:
 
 	type wireType struct {
-		s structType
+		ArrayT  *ArrayType
+		SliceT  *SliceType
+		StructT *StructType
+		MapT    *MapType
 	}
-	type arrayType struct {
-		commonType
+	type ArrayType struct {
+		CommonType
 		Elem typeId
 		Len  int
 	}
-	type commonType {
-		name string // the name of the struct type
-		_id  int    // the id of the type, repeated for so it's inside the type
+	type CommonType {
+		Name string // the name of the struct type
+		Id  int    // the id of the type, repeated so it's inside the type
 	}
-	type sliceType struct {
-		commonType
+	type SliceType struct {
+		CommonType
 		Elem typeId
 	}
-	type structType struct {
-		commonType
-		field []*fieldType // the fields of the struct.
+	type StructType struct {
+		CommonType
+		Field []*fieldType // the fields of the struct.
 	}
-	type fieldType struct {
-		name string // the name of the field.
-		id   int    // the type id of the field, which must be already defined
+	type FieldType struct {
+		Name string // the name of the field.
+		Id   int    // the type id of the field, which must be already defined
 	}
-	type mapType struct {
-		commonType
+	type MapType struct {
+		CommonType
 		Key  typeId
 		Elem typeId
 	}
@@ -193,14 +196,14 @@ priori, as well as the basic gob types int, uint, etc.  Their ids are:
 	complex     7
 	interface   8
 	// gap for reserved ids.
-	wireType    16
-	arrayType   17
-	commonType  18
-	sliceType   19
-	structType  20
-	fieldType   21
+	WireType    16
+	ArrayType   17
+	CommonType  18
+	SliceType   19
+	StructType  20
+	FieldType   21
 	// 22 is slice of fieldType.
-	mapType     23
+	MapType     23
 
 Finally, each message created by a call to Encode is preceded by an encoded
 unsigned integer count of the number of bytes remaining in the message.  After
