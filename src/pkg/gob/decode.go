@@ -13,7 +13,9 @@ import (
 	"math"
 	"os"
 	"reflect"
+	"unicode"
 	"unsafe"
+	"utf8"
 )
 
 var (
@@ -684,7 +686,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 		switch t := typ.(type) {
 		case *reflect.ArrayType:
 			name = "element of " + name
-			elemId := dec.wireType[wireId].arrayT.Elem
+			elemId := dec.wireType[wireId].ArrayT.Elem
 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
@@ -693,8 +695,8 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 
 		case *reflect.MapType:
 			name = "element of " + name
-			keyId := dec.wireType[wireId].mapT.Key
-			elemId := dec.wireType[wireId].mapT.Elem
+			keyId := dec.wireType[wireId].MapT.Key
+			elemId := dec.wireType[wireId].MapT.Elem
 			keyOp, keyIndir := dec.decOpFor(keyId, t.Key(), name)
 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name)
 			ovfl := overflow(name)
@@ -713,7 +715,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 			if tt, ok := builtinIdToType[wireId]; ok {
 				elemId = tt.(*sliceType).Elem
 			} else {
-				elemId = dec.wireType[wireId].sliceT.Elem
+				elemId = dec.wireType[wireId].SliceT.Elem
 			}
 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name)
 			ovfl := overflow(name)
@@ -763,30 +765,30 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 		switch {
 		case wire == nil:
 			panic("internal error: can't find ignore op for type " + wireId.string())
-		case wire.arrayT != nil:
-			elemId := wire.arrayT.Elem
+		case wire.ArrayT != nil:
+			elemId := wire.ArrayT.Elem
 			elemOp := dec.decIgnoreOpFor(elemId)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				state.dec.ignoreArray(state, elemOp, wire.arrayT.Len)
+				state.dec.ignoreArray(state, elemOp, wire.ArrayT.Len)
 			}
 
-		case wire.mapT != nil:
-			keyId := dec.wireType[wireId].mapT.Key
-			elemId := dec.wireType[wireId].mapT.Elem
+		case wire.MapT != nil:
+			keyId := dec.wireType[wireId].MapT.Key
+			elemId := dec.wireType[wireId].MapT.Elem
 			keyOp := dec.decIgnoreOpFor(keyId)
 			elemOp := dec.decIgnoreOpFor(elemId)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				state.dec.ignoreMap(state, keyOp, elemOp)
 			}
 
-		case wire.sliceT != nil:
-			elemId := wire.sliceT.Elem
+		case wire.SliceT != nil:
+			elemId := wire.SliceT.Elem
 			elemOp := dec.decIgnoreOpFor(elemId)
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				state.dec.ignoreSlice(state, elemOp)
 			}
 
-		case wire.structT != nil:
+		case wire.StructT != nil:
 			// Generate a closure that calls out to the engine for the nested type.
 			enginePtr, err := dec.getIgnoreEnginePtr(wireId)
 			if err != nil {
@@ -829,18 +831,18 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 		return fw == tInterface
 	case *reflect.ArrayType:
 		wire, ok := dec.wireType[fw]
-		if !ok || wire.arrayT == nil {
+		if !ok || wire.ArrayT == nil {
 			return false
 		}
-		array := wire.arrayT
+		array := wire.ArrayT
 		return t.Len() == array.Len && dec.compatibleType(t.Elem(), array.Elem)
 	case *reflect.MapType:
 		wire, ok := dec.wireType[fw]
-		if !ok || wire.mapT == nil {
+		if !ok || wire.MapT == nil {
 			return false
 		}
-		mapType := wire.mapT
-		return dec.compatibleType(t.Key(), mapType.Key) && dec.compatibleType(t.Elem(), mapType.Elem)
+		MapType := wire.MapT
+		return dec.compatibleType(t.Key(), MapType.Key) && dec.compatibleType(t.Elem(), MapType.Elem)
 	case *reflect.SliceType:
 		// Is it an array of bytes?
 		if t.Elem().Kind() == reflect.Uint8 {
@@ -851,7 +853,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 		if tt, ok := builtinIdToType[fw]; ok {
 			sw = tt.(*sliceType)
 		} else {
-			sw = dec.wireType[fw].sliceT
+			sw = dec.wireType[fw].SliceT
 		}
 		elem, _ := indirect(t.Elem())
 		return sw != nil && dec.compatibleType(elem, sw.Elem)
@@ -885,6 +887,12 @@ func (dec *Decoder) compileSingle(remoteId typeId, rt reflect.Type) (engine *dec
 	return
 }
 
+// Is this an exported - upper case - name?
+func isExported(name string) bool {
+	rune, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(rune)
+}
+
 func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEngine, err os.Error) {
 	defer catchError(&err)
 	srt, ok := rt.(*reflect.StructType)
@@ -897,29 +905,32 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
 	if t, ok := builtinIdToType[remoteId]; ok {
 		wireStruct, _ = t.(*structType)
 	} else {
-		wireStruct = dec.wireType[remoteId].structT
+		wireStruct = dec.wireType[remoteId].StructT
 	}
 	if wireStruct == nil {
 		errorf("gob: type mismatch in decoder: want struct type %s; got non-struct", rt.String())
 	}
 	engine = new(decEngine)
-	engine.instr = make([]decInstr, len(wireStruct.field))
+	engine.instr = make([]decInstr, len(wireStruct.Field))
 	// Loop over the fields of the wire type.
-	for fieldnum := 0; fieldnum < len(wireStruct.field); fieldnum++ {
-		wireField := wireStruct.field[fieldnum]
+	for fieldnum := 0; fieldnum < len(wireStruct.Field); fieldnum++ {
+		wireField := wireStruct.Field[fieldnum]
+		if wireField.Name == "" {
+			errorf("gob: empty name for remote field of type %s", wireStruct.Name)
+		}
+		ovfl := overflow(wireField.Name)
 		// Find the field of the local type with the same name.
-		localField, present := srt.FieldByName(wireField.name)
-		ovfl := overflow(wireField.name)
+		localField, present := srt.FieldByName(wireField.Name)
 		// TODO(r): anonymous names
-		if !present {
-			op := dec.decIgnoreOpFor(wireField.id)
+		if !present || !isExported(wireField.Name) {
+			op := dec.decIgnoreOpFor(wireField.Id)
 			engine.instr[fieldnum] = decInstr{op, fieldnum, 0, 0, ovfl}
 			continue
 		}
-		if !dec.compatibleType(localField.Type, wireField.id) {
-			errorf("gob: wrong type (%s) for received field %s.%s", localField.Type, wireStruct.name, wireField.name)
+		if !dec.compatibleType(localField.Type, wireField.Id) {
+			errorf("gob: wrong type (%s) for received field %s.%s", localField.Type, wireStruct.Name, wireField.Name)
 		}
-		op, indir := dec.decOpFor(wireField.id, localField.Type, localField.Name)
+		op, indir := dec.decOpFor(wireField.Id, localField.Type, localField.Name)
 		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(localField.Offset), ovfl}
 		engine.numInstr++
 	}
@@ -972,7 +983,7 @@ func (dec *Decoder) decode(wireId typeId, val reflect.Value) os.Error {
 	}
 	engine := *enginePtr
 	if st, ok := rt.(*reflect.StructType); ok {
-		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].structT.field) > 0 {
+		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].StructT.Field) > 0 {
 			name := rt.Name()
 			return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
 		}

@@ -14,35 +14,35 @@ import (
 )
 
 type ET2 struct {
-	x string
+	X string
 }
 
 type ET1 struct {
-	a    int
-	et2  *ET2
-	next *ET1
+	A    int
+	Et2  *ET2
+	Next *ET1
 }
 
 // Like ET1 but with a different name for a field
 type ET3 struct {
-	a             int
-	et2           *ET2
-	differentNext *ET1
+	A             int
+	Et2           *ET2
+	DifferentNext *ET1
 }
 
 // Like ET1 but with a different type for a field
 type ET4 struct {
-	a    int
-	et2  float
-	next int
+	A    int
+	Et2  float
+	Next int
 }
 
 func TestEncoderDecoder(t *testing.T) {
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	et1 := new(ET1)
-	et1.a = 7
-	et1.et2 = new(ET2)
+	et1.A = 7
+	et1.Et2 = new(ET2)
 	err := enc.Encode(et1)
 	if err != nil {
 		t.Error("encoder fail:", err)
@@ -92,8 +92,8 @@ func badTypeCheck(e interface{}, shouldFail bool, msg string, t *testing.T) {
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	et1 := new(ET1)
-	et1.a = 7
-	et1.et2 = new(ET2)
+	et1.A = 7
+	et1.Et2 = new(ET2)
 	err := enc.Encode(et1)
 	if err != nil {
 		t.Error("encoder fail:", err)
@@ -166,7 +166,7 @@ func encAndDec(in, out interface{}) os.Error {
 func TestTypeToPtrType(t *testing.T) {
 	// Encode a T, decode a *T
 	type Type0 struct {
-		a int
+		A int
 	}
 	t0 := Type0{7}
 	t0p := (*Type0)(nil)
@@ -178,7 +178,7 @@ func TestTypeToPtrType(t *testing.T) {
 func TestPtrTypeToType(t *testing.T) {
 	// Encode a *T, decode a T
 	type Type1 struct {
-		a uint
+		A uint
 	}
 	t1p := &Type1{17}
 	var t1 Type1
@@ -189,26 +189,26 @@ func TestPtrTypeToType(t *testing.T) {
 
 func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
 	type Type2 struct {
-		a ****float
+		A ****float
 	}
 	t2 := Type2{}
-	t2.a = new(***float)
-	*t2.a = new(**float)
-	**t2.a = new(*float)
-	***t2.a = new(float)
-	****t2.a = 27.4
+	t2.A = new(***float)
+	*t2.A = new(**float)
+	**t2.A = new(*float)
+	***t2.A = new(float)
+	****t2.A = 27.4
 	t2pppp := new(***Type2)
 	if err := encAndDec(t2, t2pppp); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	if ****(****t2pppp).a != ****t2.a {
-		t.Errorf("wrong value after decode: %g not %g", ****(****t2pppp).a, ****t2.a)
+	if ****(****t2pppp).A != ****t2.A {
+		t.Errorf("wrong value after decode: %g not %g", ****(****t2pppp).A, ****t2.A)
 	}
 }
 
 func TestSlice(t *testing.T) {
 	type Type3 struct {
-		a []string
+		A []string
 	}
 	t3p := &Type3{[]string{"hello", "world"}}
 	var t3 Type3
@@ -231,11 +231,11 @@ func TestValueError(t *testing.T) {
 
 func TestArray(t *testing.T) {
 	type Type5 struct {
-		a [3]string
-		b [3]byte
+		A [3]string
+		B [3]byte
 	}
 	type Type6 struct {
-		a [2]string // can't hold t5.a
+		A [2]string // can't hold t5.a
 	}
 	t5 := Type5{[3]string{"hello", ",", "world"}, [3]byte{1, 2, 3}}
 	var t5p Type5
@@ -251,10 +251,10 @@ func TestArray(t *testing.T) {
 // Regression test for bug: must send zero values inside arrays
 func TestDefaultsInArray(t *testing.T) {
 	type Type7 struct {
-		b []bool
-		i []int
-		s []string
-		f []float
+		B []bool
+		I []int
+		S []string
+		F []float
 	}
 	t7 := Type7{
 		[]bool{false, false, true},
@@ -329,7 +329,7 @@ func TestSingletons(t *testing.T) {
 
 func TestStructNonStruct(t *testing.T) {
 	type Struct struct {
-		a string
+		A string
 	}
 	type NonStruct string
 	s := Struct{"hello"}

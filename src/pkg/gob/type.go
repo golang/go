@@ -29,7 +29,7 @@ const firstUserId = 64  // lowest id number granted to user
 type gobType interface {
 	id() typeId
 	setId(id typeId)
-	Name() string
+	name() string
 	string() string // not public; only for debugging
 	safeString(seen map[typeId]bool) string
 }
@@ -60,30 +60,30 @@ func (t typeId) string() string {
 }
 
 // Name returns the name of the type associated with the typeId.
-func (t typeId) Name() string {
+func (t typeId) name() string {
 	if t.gobType() == nil {
 		return "<nil>"
 	}
-	return t.gobType().Name()
+	return t.gobType().name()
 }
 
 // Common elements of all types.
-type commonType struct {
-	name string
-	_id  typeId
+type CommonType struct {
+	Name string
+	Id   typeId
 }
 
-func (t *commonType) id() typeId { return t._id }
+func (t *CommonType) id() typeId { return t.Id }
 
-func (t *commonType) setId(id typeId) { t._id = id }
+func (t *CommonType) setId(id typeId) { t.Id = id }
 
-func (t *commonType) string() string { return t.name }
+func (t *CommonType) string() string { return t.Name }
 
-func (t *commonType) safeString(seen map[typeId]bool) string {
-	return t.name
+func (t *CommonType) safeString(seen map[typeId]bool) string {
+	return t.Name
 }
 
-func (t *commonType) Name() string { return t.name }
+func (t *CommonType) name() string { return t.Name }
 
 // Create and check predefined types
 // The string for tBytes is "bytes" not "[]byte" to signify its specialness.
@@ -115,7 +115,7 @@ func init() {
 	// Some magic numbers to make sure there are no surprises.
 	checkId(16, tWireType)
 	checkId(17, mustGetTypeInfo(reflect.Typeof(arrayType{})).id)
-	checkId(18, mustGetTypeInfo(reflect.Typeof(commonType{})).id)
+	checkId(18, mustGetTypeInfo(reflect.Typeof(CommonType{})).id)
 	checkId(19, mustGetTypeInfo(reflect.Typeof(sliceType{})).id)
 	checkId(20, mustGetTypeInfo(reflect.Typeof(structType{})).id)
 	checkId(21, mustGetTypeInfo(reflect.Typeof(fieldType{})).id)
@@ -137,22 +137,22 @@ func init() {
 
 // Array type
 type arrayType struct {
-	commonType
+	CommonType
 	Elem typeId
 	Len  int
 }
 
 func newArrayType(name string, elem gobType, length int) *arrayType {
-	a := &arrayType{commonType{name: name}, elem.id(), length}
+	a := &arrayType{CommonType{Name: name}, elem.id(), length}
 	setTypeId(a)
 	return a
 }
 
 func (a *arrayType) safeString(seen map[typeId]bool) string {
-	if seen[a._id] {
-		return a.name
+	if seen[a.Id] {
+		return a.Name
 	}
-	seen[a._id] = true
+	seen[a.Id] = true
 	return fmt.Sprintf("[%d]%s", a.Len, a.Elem.gobType().safeString(seen))
 }
 
@@ -160,22 +160,22 @@ func (a *arrayType) string() string { return a.safeString(make(map[typeId]bool))
 
 // Map type
 type mapType struct {
-	commonType
+	CommonType
 	Key  typeId
 	Elem typeId
 }
 
 func newMapType(name string, key, elem gobType) *mapType {
-	m := &mapType{commonType{name: name}, key.id(), elem.id()}
+	m := &mapType{CommonType{Name: name}, key.id(), elem.id()}
 	setTypeId(m)
 	return m
 }
 
 func (m *mapType) safeString(seen map[typeId]bool) string {
-	if seen[m._id] {
-		return m.name
+	if seen[m.Id] {
+		return m.Name
 	}
-	seen[m._id] = true
+	seen[m.Id] = true
 	key := m.Key.gobType().safeString(seen)
 	elem := m.Elem.gobType().safeString(seen)
 	return fmt.Sprintf("map[%s]%s", key, elem)
@@ -185,21 +185,21 @@ func (m *mapType) string() string { return m.safeString(make(map[typeId]bool)) }
 
 // Slice type
 type sliceType struct {
-	commonType
+	CommonType
 	Elem typeId
 }
 
 func newSliceType(name string, elem gobType) *sliceType {
-	s := &sliceType{commonType{name: name}, elem.id()}
+	s := &sliceType{CommonType{Name: name}, elem.id()}
 	setTypeId(s)
 	return s
 }
 
 func (s *sliceType) safeString(seen map[typeId]bool) string {
-	if seen[s._id] {
-		return s.name
+	if seen[s.Id] {
+		return s.Name
 	}
-	seen[s._id] = true
+	seen[s.Id] = true
 	return fmt.Sprintf("[]%s", s.Elem.gobType().safeString(seen))
 }
 
@@ -207,26 +207,26 @@ func (s *sliceType) string() string { return s.safeString(make(map[typeId]bool))
 
 // Struct type
 type fieldType struct {
-	name string
-	id   typeId
+	Name string
+	Id   typeId
 }
 
 type structType struct {
-	commonType
-	field []*fieldType
+	CommonType
+	Field []*fieldType
 }
 
 func (s *structType) safeString(seen map[typeId]bool) string {
 	if s == nil {
 		return "<nil>"
 	}
-	if _, ok := seen[s._id]; ok {
-		return s.name
+	if _, ok := seen[s.Id]; ok {
+		return s.Name
 	}
-	seen[s._id] = true
-	str := s.name + " = struct { "
-	for _, f := range s.field {
-		str += fmt.Sprintf("%s %s; ", f.name, f.id.gobType().safeString(seen))
+	seen[s.Id] = true
+	str := s.Name + " = struct { "
+	for _, f := range s.Field {
+		str += fmt.Sprintf("%s %s; ", f.Name, f.Id.gobType().safeString(seen))
 	}
 	str += "}"
 	return str
@@ -235,7 +235,7 @@ func (s *structType) safeString(seen map[typeId]bool) string {
 func (s *structType) string() string { return s.safeString(make(map[typeId]bool)) }
 
 func newStructType(name string) *structType {
-	s := &structType{commonType{name: name}, nil}
+	s := &structType{CommonType{Name: name}, nil}
 	setTypeId(s)
 	return s
 }
@@ -329,7 +329,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 			}
 			field[i] = &fieldType{f.Name, gt.id()}
 		}
-		strType.field = field
+		strType.Field = field
 		return strType, nil
 
 	default:
@@ -356,7 +356,7 @@ func getType(name string, rt reflect.Type) (gobType, os.Error) {
 func checkId(want, got typeId) {
 	if want != got {
 		fmt.Fprintf(os.Stderr, "checkId: %d should be %d\n", int(want), int(got))
-		panic("bootstrap type wrong id: " + got.Name() + " " + got.string() + " not " + want.string())
+		panic("bootstrap type wrong id: " + got.name() + " " + got.string() + " not " + want.string())
 	}
 }
 
@@ -367,7 +367,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 	if present {
 		panic("bootstrap type already present: " + name + ", " + rt.String())
 	}
-	typ := &commonType{name: name}
+	typ := &CommonType{Name: name}
 	types[rt] = typ
 	setTypeId(typ)
 	checkId(expect, nextId)
@@ -386,10 +386,10 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 // To maintain binary compatibility, if you extend this type, always put
 // the new fields last.
 type wireType struct {
-	arrayT  *arrayType
-	sliceT  *sliceType
-	structT *structType
-	mapT    *mapType
+	ArrayT  *arrayType
+	SliceT  *sliceType
+	StructT *structType
+	MapT    *mapType
 }
 
 func (w *wireType) string() string {
@@ -398,14 +398,14 @@ func (w *wireType) string() string {
 		return unknown
 	}
 	switch {
-	case w.arrayT != nil:
-		return w.arrayT.name
-	case w.sliceT != nil:
-		return w.sliceT.name
-	case w.structT != nil:
-		return w.structT.name
-	case w.mapT != nil:
-		return w.mapT.name
+	case w.ArrayT != nil:
+		return w.ArrayT.Name
+	case w.SliceT != nil:
+		return w.SliceT.Name
+	case w.StructT != nil:
+		return w.StructT.Name
+	case w.MapT != nil:
+		return w.MapT.Name
 	}
 	return unknown
 }
@@ -436,16 +436,16 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 		t := info.id.gobType()
 		switch typ := rt.(type) {
 		case *reflect.ArrayType:
-			info.wire = &wireType{arrayT: t.(*arrayType)}
+			info.wire = &wireType{ArrayT: t.(*arrayType)}
 		case *reflect.MapType:
-			info.wire = &wireType{mapT: t.(*mapType)}
+			info.wire = &wireType{MapT: t.(*mapType)}
 		case *reflect.SliceType:
 			// []byte == []uint8 is a special case handled separately
 			if typ.Elem().Kind() != reflect.Uint8 {
-				info.wire = &wireType{sliceT: t.(*sliceType)}
+				info.wire = &wireType{SliceT: t.(*sliceType)}
 			}
 		case *reflect.StructType:
-			info.wire = &wireType{structT: t.(*structType)}
+			info.wire = &wireType{StructT: t.(*structType)}
 		}
 		typeInfoMap[rt] = info
 	}
