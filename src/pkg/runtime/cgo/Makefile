@@ -26,6 +26,7 @@ CGO_OFILES=\
 
 OFILES=\
 	iscgo.$O\
+	callbacks.$O\
 	_cgo_import.$O\
 	$(CGO_OFILES)\
 
