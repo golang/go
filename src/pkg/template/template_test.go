@@ -20,40 +20,40 @@ type Test struct {
 }
 
 type T struct {
-	item  string
-	value string
+	Item  string
+	Value string
 }
 
 type U struct {
-	mp map[string]int
+	Mp map[string]int
 }
 
 type S struct {
-	header        string
-	integer       int
-	raw           string
-	innerT        T
-	innerPointerT *T
-	data          []T
-	pdata         []*T
-	empty         []*T
-	emptystring   string
-	null          []*T
-	vec           *vector.Vector
-	true          bool
-	false         bool
-	mp            map[string]string
-	json          interface{}
-	innermap      U
-	stringmap     map[string]string
-	bytes         []byte
-	iface         interface{}
-	ifaceptr      interface{}
+	Header        string
+	Integer       int
+	Raw           string
+	InnerT        T
+	InnerPointerT *T
+	Data          []T
+	Pdata         []*T
+	Empty         []*T
+	Emptystring   string
+	Null          []*T
+	Vec           *vector.Vector
+	True          bool
+	False         bool
+	Mp            map[string]string
+	JSON          interface{}
+	Innermap      U
+	Stringmap     map[string]string
+	Bytes         []byte
+	Iface         interface{}
+	Ifaceptr      interface{}
 }
 
-func (s *S) pointerMethod() string { return "ptrmethod!" }
+func (s *S) PointerMethod() string { return "ptrmethod!" }
 
-func (s S) valueMethod() string { return "valmethod!" }
+func (s S) ValueMethod() string { return "valmethod!" }
 
 var t1 = T{"ItemNumber1", "ValueNumber1"}
 var t2 = T{"ItemNumber2", "ValueNumber2"}
@@ -112,48 +112,48 @@ var tests = []*Test{
 
 	// Variables at top level
 	&Test{
-		in: "{header}={integer}\n",
+		in: "{Header}={Integer}\n",
 
 		out: "Header=77\n",
 	},
 
 	// Method at top level
 	&Test{
-		in: "ptrmethod={pointerMethod}\n",
+		in: "ptrmethod={PointerMethod}\n",
 
 		out: "ptrmethod=ptrmethod!\n",
 	},
 
 	&Test{
-		in: "valmethod={valueMethod}\n",
+		in: "valmethod={ValueMethod}\n",
 
 		out: "valmethod=valmethod!\n",
 	},
 
 	// Section
 	&Test{
-		in: "{.section data }\n" +
+		in: "{.section Data }\n" +
 			"some text for the section\n" +
 			"{.end}\n",
 
 		out: "some text for the section\n",
 	},
 	&Test{
-		in: "{.section data }\n" +
-			"{header}={integer}\n" +
+		in: "{.section Data }\n" +
+			"{Header}={Integer}\n" +
 			"{.end}\n",
 
 		out: "Header=77\n",
 	},
 	&Test{
-		in: "{.section pdata }\n" +
-			"{header}={integer}\n" +
+		in: "{.section Pdata }\n" +
+			"{Header}={Integer}\n" +
 			"{.end}\n",
 
 		out: "Header=77\n",
 	},
 	&Test{
-		in: "{.section pdata }\n" +
+		in: "{.section Pdata }\n" +
 			"data present\n" +
 			"{.or}\n" +
 			"data not present\n" +
@@ -162,7 +162,7 @@ var tests = []*Test{
 		out: "data present\n",
 	},
 	&Test{
-		in: "{.section empty }\n" +
+		in: "{.section Empty }\n" +
 			"data present\n" +
 			"{.or}\n" +
 			"data not present\n" +
@@ -171,7 +171,7 @@ var tests = []*Test{
 		out: "data not present\n",
 	},
 	&Test{
-		in: "{.section null }\n" +
+		in: "{.section Null }\n" +
 			"data present\n" +
 			"{.or}\n" +
 			"data not present\n" +
@@ -180,10 +180,10 @@ var tests = []*Test{
 		out: "data not present\n",
 	},
 	&Test{
-		in: "{.section pdata }\n" +
-			"{header}={integer}\n" +
+		in: "{.section Pdata }\n" +
+			"{Header}={Integer}\n" +
 			"{.section @ }\n" +
-			"{header}={integer}\n" +
+			"{Header}={Integer}\n" +
 			"{.end}\n" +
 			"{.end}\n",
 
@@ -192,22 +192,23 @@ var tests = []*Test{
 	},
 
 	&Test{
-		in: "{.section data}{.end} {header}\n",
+		in: "{.section Data}{.end} {Header}\n",
 
 		out: " Header\n",
 	},
 
 	&Test{
-		in: "{.section integer}{@}{.end}",
+		in: "{.section Integer}{@}{.end}",
 
 		out: "77",
 	},
 
+
 	// Repeated
 	&Test{
-		in: "{.section pdata }\n" +
+		in: "{.section Pdata }\n" +
 			"{.repeated section @ }\n" +
-			"{item}={value}\n" +
+			"{Item}={Value}\n" +
 			"{.end}\n" +
 			"{.end}\n",
 
@@ -215,9 +216,9 @@ var tests = []*Test{
 			"ItemNumber2=ValueNumber2\n",
 	},
 	&Test{
-		in: "{.section pdata }\n" +
+		in: "{.section Pdata }\n" +
 			"{.repeated section @ }\n" +
-			"{item}={value}\n" +
+			"{Item}={Value}\n" +
 			"{.or}\n" +
 			"this should not appear\n" +
 			"{.end}\n" +
@@ -228,8 +229,8 @@ var tests = []*Test{
 	},
 	&Test{
 		in: "{.section @ }\n" +
-			"{.repeated section empty }\n" +
-			"{item}={value}\n" +
+			"{.repeated section Empty }\n" +
+			"{Item}={Value}\n" +
 			"{.or}\n" +
 			"this should appear: empty field\n" +
 			"{.end}\n" +
@@ -238,8 +239,8 @@ var tests = []*Test{
 		out: "this should appear: empty field\n",
 	},
 	&Test{
-		in: "{.repeated section pdata }\n" +
-			"{item}\n" +
+		in: "{.repeated section Pdata }\n" +
+			"{Item}\n" +
 			"{.alternates with}\n" +
 			"is\nover\nmultiple\nlines\n" +
 			"{.end}\n",
@@ -249,8 +250,8 @@ var tests = []*Test{
 			"ItemNumber2\n",
 	},
 	&Test{
-		in: "{.repeated section pdata }\n" +
-			"{item}\n" +
+		in: "{.repeated section Pdata }\n" +
+			"{Item}\n" +
 			"{.alternates with}\n" +
 			"is\nover\nmultiple\nlines\n" +
 			" {.end}\n",
@@ -260,9 +261,9 @@ var tests = []*Test{
 			"ItemNumber2\n",
 	},
 	&Test{
-		in: "{.section pdata }\n" +
+		in: "{.section Pdata }\n" +
 			"{.repeated section @ }\n" +
-			"{item}={value}\n" +
+			"{Item}={Value}\n" +
 			"{.alternates with}DIVIDER\n" +
 			"{.or}\n" +
 			"this should not appear\n" +
@@ -274,7 +275,7 @@ var tests = []*Test{
 			"ItemNumber2=ValueNumber2\n",
 	},
 	&Test{
-		in: "{.repeated section vec }\n" +
+		in: "{.repeated section Vec }\n" +
 			"{@}\n" +
 			"{.end}\n",
 
@@ -283,28 +284,28 @@ var tests = []*Test{
 	},
 	// Same but with a space before {.end}: was a bug.
 	&Test{
-		in: "{.repeated section vec }\n" +
+		in: "{.repeated section Vec }\n" +
 			"{@} {.end}\n",
 
 		out: "elt1 elt2 \n",
 	},
 	&Test{
-		in: "{.repeated section integer}{.end}",
+		in: "{.repeated section Integer}{.end}",
 
-		err: "line 1: .repeated: cannot repeat integer (type int)",
+		err: "line 1: .repeated: cannot repeat Integer (type int)",
 	},
 
 	// Nested names
 	&Test{
 		in: "{.section @ }\n" +
-			"{innerT.item}={innerT.value}\n" +
+			"{InnerT.Item}={InnerT.Value}\n" +
 			"{.end}",
 
 		out: "ItemNumber1=ValueNumber1\n",
 	},
 	&Test{
 		in: "{.section @ }\n" +
-			"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n" +
+			"{InnerT.Item}={.section InnerT}{.section Value}{@}{.end}{.end}\n" +
 			"{.end}",
 
 		out: "ItemNumber1=ValueNumber1\n",
@@ -313,9 +314,9 @@ var tests = []*Test{
 
 	// Formatters
 	&Test{
-		in: "{.section pdata }\n" +
-			"{header|uppercase}={integer|+1}\n" +
-			"{header|html}={integer|str}\n" +
+		in: "{.section Pdata }\n" +
+			"{Header|uppercase}={Integer|+1}\n" +
+			"{Header|html}={Integer|str}\n" +
 			"{.end}\n",
 
 		out: "HEADER=78\n" +
@@ -323,10 +324,10 @@ var tests = []*Test{
 	},
 
 	&Test{
-		in: "{.section pdata }\n" +
-			"{header|uppercase}={integer header|multiword}\n" +
-			"{header|html}={header integer|multiword}\n" +
-			"{header|html}={header integer}\n" +
+		in: "{.section Pdata }\n" +
+			"{Header|uppercase}={Integer Header|multiword}\n" +
+			"{Header|html}={Header Integer|multiword}\n" +
+			"{Header|html}={Header Integer}\n" +
 			"{.end}\n",
 
 		out: "HEADER=<77><Header>\n" +
@@ -335,29 +336,29 @@ var tests = []*Test{
 	},
 
 	&Test{
-		in: "{raw}\n" +
-			"{raw|html}\n",
+		in: "{Raw}\n" +
+			"{Raw|html}\n",
 
 		out: "&<>!@ #$%^\n" +
 			"&amp;&lt;&gt;!@ #$%^\n",
 	},
 
 	&Test{
-		in: "{.section emptystring}emptystring{.end}\n" +
-			"{.section header}header{.end}\n",
+		in: "{.section Emptystring}emptystring{.end}\n" +
+			"{.section Header}header{.end}\n",
 
 		out: "\nheader\n",
 	},
 
 	&Test{
-		in: "{.section true}1{.or}2{.end}\n" +
-			"{.section false}3{.or}4{.end}\n",
+		in: "{.section True}1{.or}2{.end}\n" +
+			"{.section False}3{.or}4{.end}\n",
 
 		out: "1\n4\n",
 	},
 
 	&Test{
-		in: "{bytes}",
+		in: "{Bytes}",
 
 		out: "hello",
 	},
@@ -365,32 +366,32 @@ var tests = []*Test{
 	// Maps
 
 	&Test{
-		in: "{mp.mapkey}\n",
+		in: "{Mp.mapkey}\n",
 
 		out: "Ahoy!\n",
 	},
 	&Test{
-		in: "{innermap.mp.innerkey}\n",
+		in: "{Innermap.Mp.innerkey}\n",
 
 		out: "55\n",
 	},
 	&Test{
-		in: "{.section innermap}{.section mp}{innerkey}{.end}{.end}\n",
+		in: "{.section Innermap}{.section Mp}{innerkey}{.end}{.end}\n",
 
 		out: "55\n",
 	},
 	&Test{
-		in: "{.section json}{.repeated section maps}{a}{b}{.end}{.end}\n",
+		in: "{.section JSON}{.repeated section maps}{a}{b}{.end}{.end}\n",
 
 		out: "1234\n",
 	},
 	&Test{
-		in: "{stringmap.stringkey1}\n",
+		in: "{Stringmap.stringkey1}\n",
 
 		out: "stringresult\n",
 	},
 	&Test{
-		in: "{.repeated section stringmap}\n" +
+		in: "{.repeated section Stringmap}\n" +
 			"{@}\n" +
 			"{.end}",
 
@@ -398,7 +399,7 @@ var tests = []*Test{
 			"stringresult\n",
 	},
 	&Test{
-		in: "{.repeated section stringmap}\n" +
+		in: "{.repeated section Stringmap}\n" +
 			"\t{@}\n" +
 			"{.end}",
 
@@ -409,22 +410,22 @@ var tests = []*Test{
 	// Interface values
 
 	&Test{
-		in: "{iface}",
+		in: "{Iface}",
 
 		out: "[1 2 3]",
 	},
 	&Test{
-		in: "{.repeated section iface}{@}{.alternates with} {.end}",
+		in: "{.repeated section Iface}{@}{.alternates with} {.end}",
 
 		out: "1 2 3",
 	},
 	&Test{
-		in: "{.section iface}{@}{.end}",
+		in: "{.section Iface}{@}{.end}",
 
 		out: "[1 2 3]",
 	},
 	&Test{
-		in: "{.section ifaceptr}{item} {value}{.end}",
+		in: "{.section Ifaceptr}{Item} {Value}{.end}",
 
 		out: "Item Value",
 	},
@@ -457,30 +458,30 @@ func TestAll(t *testing.T) {
 func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	s := new(S)
 	// initialized by hand for clarity.
-	s.header = "Header"
-	s.integer = 77
-	s.raw = "&<>!@ #$%^"
-	s.innerT = t1
-	s.data = []T{t1, t2}
-	s.pdata = []*T{&t1, &t2}
-	s.empty = []*T{}
-	s.null = nil
-	s.vec = new(vector.Vector)
-	s.vec.Push("elt1")
-	s.vec.Push("elt2")
-	s.true = true
-	s.false = false
-	s.mp = make(map[string]string)
-	s.mp["mapkey"] = "Ahoy!"
-	json.Unmarshal([]byte(`{"maps":[{"a":1,"b":2},{"a":3,"b":4}]}`), &s.json)
-	s.innermap.mp = make(map[string]int)
-	s.innermap.mp["innerkey"] = 55
-	s.stringmap = make(map[string]string)
-	s.stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
-	s.stringmap["stringkey2"] = "stringresult"
-	s.bytes = []byte("hello")
-	s.iface = []int{1, 2, 3}
-	s.ifaceptr = &T{"Item", "Value"}
+	s.Header = "Header"
+	s.Integer = 77
+	s.Raw = "&<>!@ #$%^"
+	s.InnerT = t1
+	s.Data = []T{t1, t2}
+	s.Pdata = []*T{&t1, &t2}
+	s.Empty = []*T{}
+	s.Null = nil
+	s.Vec = new(vector.Vector)
+	s.Vec.Push("elt1")
+	s.Vec.Push("elt2")
+	s.True = true
+	s.False = false
+	s.Mp = make(map[string]string)
+	s.Mp["mapkey"] = "Ahoy!"
+	json.Unmarshal([]byte(`{"maps":[{"a":1,"b":2},{"a":3,"b":4}]}`), &s.JSON)
+	s.Innermap.Mp = make(map[string]int)
+	s.Innermap.Mp["innerkey"] = 55
+	s.Stringmap = make(map[string]string)
+	s.Stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
+	s.Stringmap["stringkey2"] = "stringresult"
+	s.Bytes = []byte("hello")
+	s.Iface = []int{1, 2, 3}
+	s.Ifaceptr = &T{"Item", "Value"}
 
 	var buf bytes.Buffer
 	for _, test := range tests {
@@ -606,10 +607,10 @@ func TestCustomDelims(t *testing.T) {
 func TestVarIndirection(t *testing.T) {
 	s := new(S)
 	// initialized by hand for clarity.
-	s.innerPointerT = &t1
+	s.InnerPointerT = &t1
 
 	var buf bytes.Buffer
-	input := "{.section @}{innerPointerT}{.end}"
+	input := "{.section @}{InnerPointerT}{.end}"
 	tmpl, err := Parse(input, nil)
 	if err != nil {
 		t.Fatal("unexpected parse error:", err)

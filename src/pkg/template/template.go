@@ -73,6 +73,8 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"unicode"
+	"utf8"
 )
 
 // Errors returned during parsing and execution.  Users may extract the information and reformat
@@ -196,6 +198,12 @@ func (t *Template) execError(st *state, line int, err string, args ...interface{
 // The line number comes from the template state.
 func (t *Template) parseError(err string, args ...interface{}) {
 	panic(&Error{t.linenum, fmt.Sprintf(err, args...)})
+}
+
+// Is this an exported - upper case - name?
+func isExported(name string) bool {
+	rune, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(rune)
 }
 
 // -- Lexical analysis
@@ -596,6 +604,9 @@ func lookup(v reflect.Value, name string) reflect.Value {
 				m := typ.Method(i)
 				mtyp := m.Type
 				if m.Name == name && mtyp.NumIn() == 1 && mtyp.NumOut() == 1 {
+					if !isExported(name) {
+						return nil
+					}
 					return v.Method(i).Call(nil)[0]
 				}
 			}
@@ -606,6 +617,9 @@ func lookup(v reflect.Value, name string) reflect.Value {
 		case *reflect.InterfaceValue:
 			v = av.Elem()
 		case *reflect.StructValue:
+			if !isExported(name) {
+				return nil
+			}
 			return av.FieldByName(name)
 		case *reflect.MapValue:
 			return av.Elem(reflect.NewValue(name))
