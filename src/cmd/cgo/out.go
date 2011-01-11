@@ -180,7 +180,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 		fmt.Fprintf(&buf, "\t\tchar unused;\n") // avoid empty struct
 		off++
 	}
-	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "\t}")
 	return buf.String(), off
 }
 
