@@ -174,28 +174,25 @@ func install(pkg, parent string) {
 	}
 
 	// Install prerequisites.
-	files, m, pkgname, err := goFiles(dir, parent == "")
+	dirInfo, err := scanDir(dir, parent == "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
 		errors = true
 		visit[pkg] = done
 		return
 	}
-	if len(files) == 0 {
+	if len(dirInfo.goFiles) == 0 {
 		fmt.Fprintf(os.Stderr, "%s: %s: package has no files\n", argv0, pkg)
 		errors = true
 		visit[pkg] = done
 		return
 	}
-	for p := range m {
-		if p == "C" {
-			fmt.Fprintf(os.Stderr, "%s: %s: cgo packages are not supported yet. Try installing manually.\n", argv0, pkg)
-			errors = true
-			return
+	for _, p := range dirInfo.imports {
+		if p != "C" {
+			install(p, pkg)
 		}
-		install(p, pkg)
 	}
-	if pkgname == "main" {
+	if dirInfo.pkgName == "main" {
 		if !errors {
 			fmt.Fprintf(os.Stderr, "%s: %s's dependencies are installed.\n", argv0, pkg)
 		}

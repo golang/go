@@ -44,12 +44,38 @@ func domake(dir, pkg string, local bool) (err os.Error) {
 // installing as package pkg.  It includes all *.go files in the directory
 // except those in package main and those ending in _test.go.
 func makeMakefile(dir, pkg string) ([]byte, os.Error) {
-	files, _, _, err := goFiles(dir, false)
+	dirInfo, err := scanDir(dir, false)
 	if err != nil {
 		return nil, err
 	}
+
+	if len(dirInfo.cgoFiles) == 0 && len(dirInfo.cFiles) > 0 {
+		// When using cgo, .c files are compiled with gcc.  Without cgo,
+		// they may be intended for 6c.  Just error out for now.
+		return nil, os.ErrorString("C files found in non-cgo package")
+	}
+
+	cgoFiles := dirInfo.cgoFiles
+	isCgo := make(map[string]bool, len(cgoFiles))
+	for _, file := range cgoFiles {
+		isCgo[file] = true
+	}
+
+	oFiles := make([]string, 0, len(dirInfo.cFiles))
+	for _, file := range dirInfo.cFiles {
+		oFiles = append(oFiles, file[:len(file)-2]+".o")
+	}
+
+	goFiles := make([]string, 0, len(dirInfo.goFiles))
+	for _, file := range dirInfo.goFiles {
+		if !isCgo[file] {
+			goFiles = append(goFiles, file)
+		}
+	}
+
 	var buf bytes.Buffer
-	if err := makefileTemplate.Execute(&makedata{pkg, files}, &buf); err != nil {
+	md := makedata{pkg, goFiles, cgoFiles, oFiles}
+	if err := makefileTemplate.Execute(&md, &buf); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -57,19 +83,38 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 
 // makedata is the data type for the makefileTemplate.
 type makedata struct {
-	pkg   string   // package import path
-	files []string // list of .go files
+	pkg      string   // package import path
+	goFiles  []string // list of non-cgo .go files
+	cgoFiles []string // list of cgo .go files
+	oFiles   []string // list of ofiles for cgo
 }
 
 var makefileTemplate = template.MustParse(`
 include $(GOROOT)/src/Make.inc
 
 TARG={pkg}
+
+{.section goFiles}
 GOFILES=\
-{.repeated section files}
+{.repeated section goFiles}
 	{@}\
 {.end}
 
+{.end}
+{.section cgoFiles}
+CGOFILES=\
+{.repeated section cgoFiles}
+	{@}\
+{.end}
+
+{.end}
+{.section oFiles}
+CGO_OFILES=\
+{.repeated section oFiles}
+	{@}\
+{.end}
+
+{.end}
 include $(GOROOT)/src/Make.pkg
 `,
 	nil)
