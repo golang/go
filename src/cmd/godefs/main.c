@@ -373,6 +373,8 @@ Continue:
 				prefix = prefixlen(t);
 			for(j=0; j<t->nf; j++) {
 				f = &t->f[j];
+				if(f->type->kind == 0)
+					continue;
 				// padding
 				if(t->kind == Struct || lang == &go) {
 					if(f->offset%8 != 0 || f->size%8 != 0) {
