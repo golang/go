@@ -43,22 +43,22 @@ const (
 // A header is sent as a prefix to every transmission.  It will be followed by
 // a request structure, an error structure, or an arbitrary user payload structure.
 type header struct {
-	name        string
-	payloadType int
-	seqNum      int64
+	Name        string
+	PayloadType int
+	SeqNum      int64
 }
 
 // Sent with a header once per channel from importer to exporter to report
 // that it wants to bind to a channel with the specified direction for count
 // messages.  If count is -1, it means unlimited.
 type request struct {
-	count int64
-	dir   Dir
+	Count int64
+	Dir   Dir
 }
 
 // Sent with a header to report an error.
 type error struct {
-	error string
+	Error string
 }
 
 // Used to unify management of acknowledgements for import and export.
@@ -111,7 +111,7 @@ func (ed *encDec) decode(value reflect.Value) os.Error {
 // Encode a header and payload onto the connection.
 func (ed *encDec) encode(hdr *header, payloadType int, payload interface{}) os.Error {
 	ed.encLock.Lock()
-	hdr.payloadType = payloadType
+	hdr.PayloadType = payloadType
 	err := ed.enc.Encode(hdr)
 	if err == nil {
 		if payload != nil {

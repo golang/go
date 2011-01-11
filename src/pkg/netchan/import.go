@@ -78,7 +78,7 @@ func (imp *Importer) run() {
 			imp.shutdown()
 			return
 		}
-		switch hdr.payloadType {
+		switch hdr.PayloadType {
 		case payData:
 			// done lower in loop
 		case payError:
@@ -86,25 +86,25 @@ func (imp *Importer) run() {
 				impLog("error:", e)
 				return
 			}
-			if err.error != "" {
-				impLog("response error:", err.error)
-				if sent := imp.errors <- os.ErrorString(err.error); !sent {
+			if err.Error != "" {
+				impLog("response error:", err.Error)
+				if sent := imp.errors <- os.ErrorString(err.Error); !sent {
 					imp.shutdown()
 					return
 				}
 				continue // errors are not acknowledged.
 			}
 		case payClosed:
-			ich := imp.getChan(hdr.name)
+			ich := imp.getChan(hdr.Name)
 			if ich != nil {
 				ich.ch.Close()
 			}
 			continue // closes are not acknowledged.
 		default:
-			impLog("unexpected payload type:", hdr.payloadType)
+			impLog("unexpected payload type:", hdr.PayloadType)
 			return
 		}
-		ich := imp.getChan(hdr.name)
+		ich := imp.getChan(hdr.Name)
 		if ich == nil {
 			continue
 		}
@@ -113,8 +113,8 @@ func (imp *Importer) run() {
 			return
 		}
 		// Acknowledge receipt
-		ackHdr.name = hdr.name
-		ackHdr.seqNum = hdr.seqNum
+		ackHdr.Name = hdr.Name
+		ackHdr.SeqNum = hdr.SeqNum
 		imp.encode(ackHdr, payAck, nil)
 		// Create a new value for each received item.
 		value := reflect.MakeZero(ich.ch.Type().(*reflect.ChanType).Elem())
@@ -178,8 +178,8 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, n int)
 	}
 	imp.chans[name] = &chanDir{ch, dir}
 	// Tell the other side about this channel.
-	hdr := &header{name: name}
-	req := &request{count: int64(n), dir: dir}
+	hdr := &header{Name: name}
+	req := &request{Count: int64(n), Dir: dir}
 	if err = imp.encode(hdr, payRequest, req); err != nil {
 		impLog("request encode:", err)
 		return err
