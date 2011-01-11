@@ -164,6 +164,45 @@ func (l *Logger) Print(v ...interface{}) { l.Output(2, fmt.Sprint(v...)) }
 // Arguments are handled in the manner of fmt.Println.
 func (l *Logger) Println(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
 
+// Exit is equivalent to l.Print() followed by a call to os.Exit(1).
+func (l *Logger) Exit(v ...interface{}) {
+	l.Output(2, fmt.Sprint(v...))
+	os.Exit(1)
+}
+
+// Exitf is equivalent to l.Printf() followed by a call to os.Exit(1).
+func (l *Logger) Exitf(format string, v ...interface{}) {
+	l.Output(2, fmt.Sprintf(format, v...))
+	os.Exit(1)
+}
+
+// Exitln is equivalent to l.Println() followed by a call to os.Exit(1).
+func (l *Logger) Exitln(v ...interface{}) {
+	l.Output(2, fmt.Sprintln(v...))
+	os.Exit(1)
+}
+
+// Panic is equivalent to l.Print() followed by a call to panic().
+func (l *Logger) Panic(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	l.Output(2, s)
+	panic(s)
+}
+
+// Panicf is equivalent to l.Printf() followed by a call to panic().
+func (l *Logger) Panicf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	l.Output(2, s)
+	panic(s)
+}
+
+// Panicln is equivalent to l.Println() followed by a call to panic().
+func (l *Logger) Panicln(v ...interface{}) {
+	s := fmt.Sprintln(v...)
+	l.Output(2, s)
+	panic(s)
+}
+
 // SetOutput sets the output destination for the standard logger.
 func SetOutput(w io.Writer) {
 	std.out = w
