@@ -67,7 +67,7 @@ func newClient(exp *Exporter, conn net.Conn) *expClient {
 
 func (client *expClient) sendError(hdr *header, err string) {
 	error := &error{err}
-	expLog("sending error to client:", error.error)
+	expLog("sending error to client:", error.Error)
 	client.encode(hdr, payError, error) // ignore any encode error, hope client gets it
 	client.mu.Lock()
 	client.errored = true
@@ -77,14 +77,14 @@ func (client *expClient) sendError(hdr *header, err string) {
 func (client *expClient) getChan(hdr *header, dir Dir) *chanDir {
 	exp := client.exp
 	exp.mu.Lock()
-	ech, ok := exp.chans[hdr.name]
+	ech, ok := exp.chans[hdr.Name]
 	exp.mu.Unlock()
 	if !ok {
-		client.sendError(hdr, "no such channel: "+hdr.name)
+		client.sendError(hdr, "no such channel: "+hdr.Name)
 		return nil
 	}
 	if ech.dir != dir {
-		client.sendError(hdr, "wrong direction for channel: "+hdr.name)
+		client.sendError(hdr, "wrong direction for channel: "+hdr.Name)
 		return nil
 	}
 	return ech
@@ -106,24 +106,24 @@ func (client *expClient) run() {
 			expLog("error decoding client header:", err)
 			break
 		}
-		switch hdr.payloadType {
+		switch hdr.PayloadType {
 		case payRequest:
 			*req = request{}
 			if err := client.decode(reqValue); err != nil {
 				expLog("error decoding client request:", err)
 				break
 			}
-			switch req.dir {
+			switch req.Dir {
 			case Recv:
-				go client.serveRecv(*hdr, req.count)
+				go client.serveRecv(*hdr, req.Count)
 			case Send:
 				// Request to send is clear as a matter of protocol
 				// but not actually used by the implementation.
 				// The actual sends will have payload type payData.
 				// TODO: manage the count?
 			default:
-				error.error = "request: can't handle channel direction"
-				expLog(error.error, req.dir)
+				error.Error = "request: can't handle channel direction"
+				expLog(error.Error, req.Dir)
 				client.encode(hdr, payError, error)
 			}
 		case payData:
@@ -132,19 +132,19 @@ func (client *expClient) run() {
 			client.serveClosed(*hdr)
 		case payAck:
 			client.mu.Lock()
-			if client.ackNum != hdr.seqNum-1 {
+			if client.ackNum != hdr.SeqNum-1 {
 				// Since the sequence number is incremented and the message is sent
 				// in a single instance of locking client.mu, the messages are guaranteed
 				// to be sent in order.  Therefore receipt of acknowledgement N means
 				// all messages <=N have been seen by the recipient.  We check anyway.
-				expLog("sequence out of order:", client.ackNum, hdr.seqNum)
+				expLog("sequence out of order:", client.ackNum, hdr.SeqNum)
 			}
-			if client.ackNum < hdr.seqNum { // If there has been an error, don't back up the count. 
-				client.ackNum = hdr.seqNum
+			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count. 
+				client.ackNum = hdr.SeqNum
 			}
 			client.mu.Unlock()
 		default:
-			log.Exit("netchan export: unknown payload type", hdr.payloadType)
+			log.Exit("netchan export: unknown payload type", hdr.PayloadType)
 		}
 	}
 	client.exp.delClient(client)
@@ -171,7 +171,7 @@ func (client *expClient) serveRecv(hdr header, count int64) {
 		// number, not one beyond.
 		client.mu.Lock()
 		client.seqNum++
-		hdr.seqNum = client.seqNum
+		hdr.SeqNum = client.seqNum
 		client.seqLock.Lock() // guarantee ordering of messages
 		client.mu.Unlock()
 		err := client.encode(&hdr, payData, val.Interface())
