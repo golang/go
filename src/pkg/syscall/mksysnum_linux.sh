@@ -14,12 +14,20 @@ package syscall
 const(
 EOF
 
+sub fmt {
+	my ($name, $num) = @_;
+	$name =~ y/a-z/A-Z/;
+	print "	SYS_$name = $num;\n";
+}
+
+my $prev;
 while(<>){
 	if(/^#define __NR_(\w+)\s+([0-9]+)/){
-		my $name = "SYS_$1";
-		my $num = $2;
-		$name =~ y/a-z/A-Z/;
-		print "	$name = $num;\n";
+		$prev = $2;
+		fmt($1, $2);
+	}
+	elsif(/^#define __NR_(\w+)\s+\(\w+\+([0-9]+)\)/){
+		fmt($1, $prev+$2)
 	}
 }
 
