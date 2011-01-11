@@ -8,3 +8,10 @@ by the cgo tool.  See the documentation for the cgo command
 for details on using cgo.
 */
 package cgo
+
+// Supports _cgo_panic by converting a string constant to an empty
+// interface.
+
+func cgoStringToEface(s string, ret *interface{}) {
+	*ret = s
+}
