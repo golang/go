@@ -92,6 +92,7 @@ EXTERN	uchar	inuxi8[8];
 EXTERN	char*	outfile;
 EXTERN	int32	nsymbol;
 EXTERN	char*	thestring;
+EXTERN	int	ndynexp;
 
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;
@@ -140,6 +141,7 @@ void	codeblk(int32, int32);
 void	datblk(int32, int32);
 Sym*	datsort(Sym*);
 void	reloc(void);
+void	relocsym(Sym*);
 void	savedata(Sym*, Prog*);
 void	symgrow(Sym*, int32);
 vlong	addstring(Sym*, char*);

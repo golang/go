@@ -102,13 +102,6 @@ newMachoDebug(void)
 
 // Generic linking code.
 
-struct	Expsym
-{
-	int	off;
-	Sym*	s;
-} *expsym;
-static int nexpsym;
-
 static char **dylib;
 static int ndylib;
 
@@ -415,9 +408,9 @@ asmbmacho(void)
 		ml->data[0] = 0;	/* ilocalsym */
 		ml->data[1] = 0;	/* nlocalsym */
 		ml->data[2] = 0;	/* iextdefsym */
-		ml->data[3] = 0;	/* nextdefsym */	// TODO nexpsym
-		ml->data[4] = 0;	/* iundefsym */	// TODO nexpsym
-		ml->data[5] = s1->size / (macho64 ? 16 : 12);	/* nundefsym */
+		ml->data[3] = ndynexp;	/* nextdefsym */
+		ml->data[4] = ndynexp;	/* iundefsym */
+		ml->data[5] = (s1->size / (macho64 ? 16 : 12)) - ndynexp;	/* nundefsym */
 		ml->data[6] = 0;	/* tocoffset */
 		ml->data[7] = 0;	/* ntoc */
 		ml->data[8] = 0;	/* modtaboff */
@@ -480,6 +473,7 @@ domacholink(void)
 
 	// write data that will be linkedit section
 	s1 = lookup(".dynsym", 0);
+	relocsym(s1);
 	s2 = lookup(".dynstr", 0);
 	s3 = lookup(".linkedit.plt", 0);
 	s4 = lookup(".linkedit.got", 0);

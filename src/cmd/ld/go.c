@@ -71,7 +71,6 @@ static void loaddynexport(char*, char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
 
-static int ndynexp;
 static Sym **dynexp;
 
 void
