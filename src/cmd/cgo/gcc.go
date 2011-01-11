@@ -372,8 +372,12 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 		} else {
 			n.Type = conv.Type(types[i])
 			if enums[i] != 0 && n.Type.EnumValues != nil {
+				k := fmt.Sprintf("__cgo_enum__%d", i)
 				n.Kind = "const"
-				n.Const = strconv.Itoa64(n.Type.EnumValues[fmt.Sprintf("__cgo_enum__%d", i)])
+				n.Const = strconv.Itoa64(n.Type.EnumValues[k])
+				// Remove injected enum to ensure the value will deep-compare
+				// equally in future loads of the same constant.
+				n.Type.EnumValues[k] = 0, false
 			}
 		}
 	}
