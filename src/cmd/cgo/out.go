@@ -606,6 +606,11 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			}
 			return r
 		}
+	case *ast.SelectorExpr:
+		id, ok := t.X.(*ast.Ident)
+		if ok && id.Name == "unsafe" && t.Sel.Name == "Pointer" {
+			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "void*"}
+		}
 	}
 	error(e.Pos(), "unrecognized Go type %T", e)
 	return &Type{Size: 4, Align: 4, C: "int"}
