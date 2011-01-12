@@ -87,7 +87,7 @@ func (dec *Decoder) debug() {
 func (dec *Decoder) debugFromBuffer(indent int, countPresent bool) {
 	for dec.state.b.Len() > 0 {
 		// Receive a type id.
-		id := typeId(decodeInt(dec.state))
+		id := typeId(dec.state.decodeInt())
 
 		// Is it a new type?
 		if id < 0 { // 0 is the error state, handled above
@@ -107,7 +107,7 @@ func (dec *Decoder) debugFromBuffer(indent int, countPresent bool) {
 			break
 		}
 		if countPresent {
-			decodeUint(dec.state)
+			dec.state.decodeUint()
 		}
 		dec.debugPrint(indent, id)
 		break
@@ -175,7 +175,7 @@ func (dec *Decoder) debugSingle(indent int, id typeId, wire *wireType) {
 	if !ok && wire == nil {
 		errorf("type id %d not defined\n", id)
 	}
-	decodeUint(dec.state)
+	dec.state.decodeUint()
 	dec.printItem(indent, id)
 }
 
@@ -206,7 +206,7 @@ func (dec *Decoder) printItem(indent int, id typeId) {
 
 func (dec *Decoder) printArray(indent int, wire *wireType) {
 	elemId := wire.ArrayT.Elem
-	n := int(decodeUint(dec.state))
+	n := int(dec.state.decodeUint())
 	for i := 0; i < n && dec.err == nil; i++ {
 		dec.printItem(indent, elemId)
 	}
@@ -219,7 +219,7 @@ func (dec *Decoder) printArray(indent int, wire *wireType) {
 func (dec *Decoder) printMap(indent int, wire *wireType) {
 	keyId := wire.MapT.Key
 	elemId := wire.MapT.Elem
-	n := int(decodeUint(dec.state))
+	n := int(dec.state.decodeUint())
 	for i := 0; i < n && dec.err == nil; i++ {
 		dec.printItem(indent, keyId)
 		dec.printItem(indent+1, elemId)
@@ -228,7 +228,7 @@ func (dec *Decoder) printMap(indent int, wire *wireType) {
 
 func (dec *Decoder) printSlice(indent int, wire *wireType) {
 	elemId := wire.SliceT.Elem
-	n := int(decodeUint(dec.state))
+	n := int(dec.state.decodeUint())
 	for i := 0; i < n && dec.err == nil; i++ {
 		dec.printItem(indent, elemId)
 	}
@@ -238,27 +238,27 @@ func (dec *Decoder) printBuiltin(indent int, id typeId) {
 	tab(indent)
 	switch id {
 	case tBool:
-		if decodeInt(dec.state) == 0 {
+		if dec.state.decodeInt() == 0 {
 			fmt.Printf("false\n")
 		} else {
 			fmt.Printf("true\n")
 		}
 	case tInt:
-		fmt.Printf("%d\n", decodeInt(dec.state))
+		fmt.Printf("%d\n", dec.state.decodeInt())
 	case tUint:
-		fmt.Printf("%d\n", decodeUint(dec.state))
+		fmt.Printf("%d\n", dec.state.decodeUint())
 	case tFloat:
-		fmt.Printf("%g\n", floatFromBits(decodeUint(dec.state)))
+		fmt.Printf("%g\n", floatFromBits(dec.state.decodeUint()))
 	case tBytes:
-		b := make([]byte, decodeUint(dec.state))
+		b := make([]byte, dec.state.decodeUint())
 		dec.state.b.Read(b)
 		fmt.Printf("% x\n", b)
 	case tString:
-		b := make([]byte, decodeUint(dec.state))
+		b := make([]byte, dec.state.decodeUint())
 		dec.state.b.Read(b)
 		fmt.Printf("%q\n", b)
 	case tInterface:
-		b := make([]byte, decodeUint(dec.state))
+		b := make([]byte, dec.state.decodeUint())
 		dec.state.b.Read(b)
 		if len(b) == 0 {
 			fmt.Printf("nil interface")
@@ -278,7 +278,7 @@ func (dec *Decoder) debugStruct(indent int, id typeId, wire *wireType) {
 	state := newDecodeState(dec, dec.state.b)
 	state.fieldnum = -1
 	for dec.err == nil {
-		delta := int(decodeUint(state))
+		delta := int(state.decodeUint())
 		if delta < 0 {
 			errorf("gob decode: corrupted data: negative delta")
 		}

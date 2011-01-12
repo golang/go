@@ -37,7 +37,7 @@ func newEncoderState(enc *Encoder, b *bytes.Buffer) *encoderState {
 // by the byte length, negated.
 
 // encodeUint writes an encoded unsigned integer to state.b.
-func encodeUint(state *encoderState, x uint64) {
+func (state *encoderState) encodeUint(x uint64) {
 	if x <= 0x7F {
 		err := state.b.WriteByte(uint8(x))
 		if err != nil {
@@ -62,14 +62,14 @@ func encodeUint(state *encoderState, x uint64) {
 // encodeInt writes an encoded signed integer to state.w.
 // The low bit of the encoding says whether to bit complement the (other bits of the)
 // uint to recover the int.
-func encodeInt(state *encoderState, i int64) {
+func (state *encoderState) encodeInt(i int64) {
 	var x uint64
 	if i < 0 {
 		x = uint64(^i<<1) | 1
 	} else {
 		x = uint64(i << 1)
 	}
-	encodeUint(state, uint64(x))
+	state.encodeUint(uint64(x))
 }
 
 type encOp func(i *encInstr, state *encoderState, p unsafe.Pointer)
@@ -86,7 +86,7 @@ type encInstr struct {
 // If the instruction pointer is nil, do nothing
 func (state *encoderState) update(instr *encInstr) {
 	if instr != nil {
-		encodeUint(state, uint64(instr.field-state.fieldnum))
+		state.encodeUint(uint64(instr.field - state.fieldnum))
 		state.fieldnum = instr.field
 	}
 }
@@ -112,9 +112,9 @@ func encBool(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	if b || state.sendZero {
 		state.update(i)
 		if b {
-			encodeUint(state, 1)
+			state.encodeUint(1)
 		} else {
-			encodeUint(state, 0)
+			state.encodeUint(0)
 		}
 	}
 }
@@ -123,7 +123,7 @@ func encInt(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeInt(state, v)
+		state.encodeInt(v)
 	}
 }
 
@@ -131,7 +131,7 @@ func encUint(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -139,7 +139,7 @@ func encInt8(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int8)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeInt(state, v)
+		state.encodeInt(v)
 	}
 }
 
@@ -147,7 +147,7 @@ func encUint8(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint8)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -155,7 +155,7 @@ func encInt16(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int16)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeInt(state, v)
+		state.encodeInt(v)
 	}
 }
 
@@ -163,7 +163,7 @@ func encUint16(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint16)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -171,7 +171,7 @@ func encInt32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int32)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeInt(state, v)
+		state.encodeInt(v)
 	}
 }
 
@@ -179,7 +179,7 @@ func encUint32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint32)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -187,7 +187,7 @@ func encInt64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := *(*int64)(p)
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeInt(state, v)
+		state.encodeInt(v)
 	}
 }
 
@@ -195,7 +195,7 @@ func encUint64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := *(*uint64)(p)
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -203,7 +203,7 @@ func encUintptr(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uintptr)(p))
 	if v != 0 || state.sendZero {
 		state.update(i)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -228,7 +228,7 @@ func encFloat(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	if f != 0 || state.sendZero {
 		v := floatBits(float64(f))
 		state.update(i)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -237,7 +237,7 @@ func encFloat32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	if f != 0 || state.sendZero {
 		v := floatBits(float64(f))
 		state.update(i)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -246,7 +246,7 @@ func encFloat64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	if f != 0 || state.sendZero {
 		state.update(i)
 		v := floatBits(f)
-		encodeUint(state, v)
+		state.encodeUint(v)
 	}
 }
 
@@ -257,8 +257,8 @@ func encComplex(i *encInstr, state *encoderState, p unsafe.Pointer) {
 		rpart := floatBits(float64(real(c)))
 		ipart := floatBits(float64(imag(c)))
 		state.update(i)
-		encodeUint(state, rpart)
-		encodeUint(state, ipart)
+		state.encodeUint(rpart)
+		state.encodeUint(ipart)
 	}
 }
 
@@ -268,8 +268,8 @@ func encComplex64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 		rpart := floatBits(float64(real(c)))
 		ipart := floatBits(float64(imag(c)))
 		state.update(i)
-		encodeUint(state, rpart)
-		encodeUint(state, ipart)
+		state.encodeUint(rpart)
+		state.encodeUint(ipart)
 	}
 }
 
@@ -279,8 +279,8 @@ func encComplex128(i *encInstr, state *encoderState, p unsafe.Pointer) {
 		rpart := floatBits(real(c))
 		ipart := floatBits(imag(c))
 		state.update(i)
-		encodeUint(state, rpart)
-		encodeUint(state, ipart)
+		state.encodeUint(rpart)
+		state.encodeUint(ipart)
 	}
 }
 
@@ -292,7 +292,7 @@ func encUint8Array(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	b := *(*[]byte)(p)
 	if len(b) > 0 || state.sendZero {
 		state.update(i)
-		encodeUint(state, uint64(len(b)))
+		state.encodeUint(uint64(len(b)))
 		state.b.Write(b)
 	}
 }
@@ -302,14 +302,14 @@ func encString(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	s := *(*string)(p)
 	if len(s) > 0 || state.sendZero {
 		state.update(i)
-		encodeUint(state, uint64(len(s)))
+		state.encodeUint(uint64(len(s)))
 		io.WriteString(state.b, s)
 	}
 }
 
 // The end of a struct is marked by a delta field number of 0.
 func encStructTerminator(i *encInstr, state *encoderState, p unsafe.Pointer) {
-	encodeUint(state, 0)
+	state.encodeUint(0)
 }
 
 // Execution engine
@@ -357,7 +357,7 @@ func (enc *Encoder) encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid ui
 	state := newEncoderState(enc, b)
 	state.fieldnum = -1
 	state.sendZero = true
-	encodeUint(state, uint64(length))
+	state.encodeUint(uint64(length))
 	for i := 0; i < length; i++ {
 		elemp := p
 		up := unsafe.Pointer(elemp)
@@ -387,7 +387,7 @@ func (enc *Encoder) encodeMap(b *bytes.Buffer, mv *reflect.MapValue, keyOp, elem
 	state.fieldnum = -1
 	state.sendZero = true
 	keys := mv.Keys()
-	encodeUint(state, uint64(len(keys)))
+	state.encodeUint(uint64(len(keys)))
 	for _, key := range keys {
 		encodeReflectValue(state, key, keyOp, keyIndir)
 		encodeReflectValue(state, mv.Elem(key), elemOp, elemIndir)
@@ -403,7 +403,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 	state.fieldnum = -1
 	state.sendZero = true
 	if iv.IsNil() {
-		encodeUint(state, 0)
+		state.encodeUint(0)
 		return
 	}
 
@@ -413,7 +413,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 		errorf("gob: type not registered for interface: %s", typ)
 	}
 	// Send the name.
-	encodeUint(state, uint64(len(name)))
+	state.encodeUint(uint64(len(name)))
 	_, err := io.WriteString(state.b, name)
 	if err != nil {
 		error(err)
@@ -426,7 +426,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 	if err != nil {
 		error(err)
 	}
-	encodeUint(state, uint64(data.Len()))
+	state.encodeUint(uint64(data.Len()))
 	_, err = state.b.Write(data.Bytes())
 	if err != nil {
 		error(err)

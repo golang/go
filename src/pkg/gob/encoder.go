@@ -48,7 +48,7 @@ func (enc *Encoder) setError(err os.Error) {
 // Send the data item preceded by a unsigned count of its length.
 func (enc *Encoder) send() {
 	// Encode the length.
-	encodeUint(enc.countState, uint64(enc.state.b.Len()))
+	enc.countState.encodeUint(uint64(enc.state.b.Len()))
 	// Build the buffer.
 	countLen := enc.countState.b.Len()
 	total := countLen + enc.state.b.Len()
@@ -112,7 +112,7 @@ func (enc *Encoder) sendType(origt reflect.Type) (sent bool) {
 	}
 	// Send the pair (-id, type)
 	// Id:
-	encodeInt(enc.state, -int64(info.id))
+	enc.state.encodeInt(-int64(info.id))
 	// Type:
 	enc.encode(enc.state.b, reflect.NewValue(info.wire))
 	enc.send()
@@ -170,7 +170,7 @@ func (enc *Encoder) sendTypeDescriptor(rt reflect.Type) {
 	}
 
 	// Identify the type of this top-level value.
-	encodeInt(enc.state, int64(enc.sent[rt]))
+	enc.state.encodeInt(int64(enc.sent[rt]))
 }
 
 // EncodeValue transmits the data item represented by the reflection value,
