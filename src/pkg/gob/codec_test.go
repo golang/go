@@ -53,7 +53,7 @@ func TestUintCodec(t *testing.T) {
 	encState := newEncoderState(nil, b)
 	for _, tt := range encodeT {
 		b.Reset()
-		encodeUint(encState, tt.x)
+		encState.encodeUint(tt.x)
 		if !bytes.Equal(tt.b, b.Bytes()) {
 			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
 		}
@@ -61,8 +61,8 @@ func TestUintCodec(t *testing.T) {
 	decState := newDecodeState(nil, &b)
 	for u := uint64(0); ; u = (u + 1) * 7 {
 		b.Reset()
-		encodeUint(encState, u)
-		v := decodeUint(decState)
+		encState.encodeUint(u)
+		v := decState.decodeUint()
 		if u != v {
 			t.Errorf("Encode/Decode: sent %#x received %#x", u, v)
 		}
@@ -76,10 +76,10 @@ func verifyInt(i int64, t *testing.T) {
 	defer testError(t)
 	var b = new(bytes.Buffer)
 	encState := newEncoderState(nil, b)
-	encodeInt(encState, i)
+	encState.encodeInt(i)
 	decState := newDecodeState(nil, &b)
 	decState.buf = make([]byte, 8)
-	j := decodeInt(decState)
+	j := decState.decodeInt()
 	if i != j {
 		t.Errorf("Encode/Decode: sent %#x received %#x", uint64(i), uint64(j))
 	}
@@ -317,7 +317,7 @@ func TestScalarEncInstructions(t *testing.T) {
 
 func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p unsafe.Pointer) {
 	defer testError(t)
-	v := int(decodeUint(state))
+	v := int(state.decodeUint())
 	if v+state.fieldnum != 6 {
 		t.Fatalf("decoding field number %d, got %d", 6, v+state.fieldnum)
 	}

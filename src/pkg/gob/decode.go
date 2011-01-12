@@ -81,7 +81,7 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
 
 // decodeUint reads an encoded unsigned integer from state.r.
 // Does not check for overflow.
-func decodeUint(state *decodeState) (x uint64) {
+func (state *decodeState) decodeUint() (x uint64) {
 	b, err := state.b.ReadByte()
 	if err != nil {
 		error(err)
@@ -108,8 +108,8 @@ func decodeUint(state *decodeState) (x uint64) {
 
 // decodeInt reads an encoded signed integer from state.r.
 // Does not check for overflow.
-func decodeInt(state *decodeState) int64 {
-	x := decodeUint(state)
+func (state *decodeState) decodeInt() int64 {
+	x := state.decodeUint()
 	if x&1 != 0 {
 		return ^int64(x >> 1)
 	}
@@ -147,12 +147,12 @@ func decIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 }
 
 func ignoreUint(i *decInstr, state *decodeState, p unsafe.Pointer) {
-	decodeUint(state)
+	state.decodeUint()
 }
 
 func ignoreTwoUints(i *decInstr, state *decodeState, p unsafe.Pointer) {
-	decodeUint(state)
-	decodeUint(state)
+	state.decodeUint()
+	state.decodeUint()
 }
 
 func decBool(i *decInstr, state *decodeState, p unsafe.Pointer) {
@@ -162,7 +162,7 @@ func decBool(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	*(*bool)(p) = decodeInt(state) != 0
+	*(*bool)(p) = state.decodeInt() != 0
 }
 
 func decInt8(i *decInstr, state *decodeState, p unsafe.Pointer) {
@@ -172,7 +172,7 @@ func decInt8(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	v := decodeInt(state)
+	v := state.decodeInt()
 	if v < math.MinInt8 || math.MaxInt8 < v {
 		error(i.ovfl)
 	} else {
@@ -187,7 +187,7 @@ func decUint8(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	v := decodeUint(state)
+	v := state.decodeUint()
 	if math.MaxUint8 < v {
 		error(i.ovfl)
 	} else {
@@ -202,7 +202,7 @@ func decInt16(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	v := decodeInt(state)
+	v := state.decodeInt()
 	if v < math.MinInt16 || math.MaxInt16 < v {
 		error(i.ovfl)
 	} else {
@@ -217,7 +217,7 @@ func decUint16(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	v := decodeUint(state)
+	v := state.decodeUint()
 	if math.MaxUint16 < v {
 		error(i.ovfl)
 	} else {
@@ -232,7 +232,7 @@ func decInt32(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	v := decodeInt(state)
+	v := state.decodeInt()
 	if v < math.MinInt32 || math.MaxInt32 < v {
 		error(i.ovfl)
 	} else {
@@ -247,7 +247,7 @@ func decUint32(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	v := decodeUint(state)
+	v := state.decodeUint()
 	if math.MaxUint32 < v {
 		error(i.ovfl)
 	} else {
@@ -262,7 +262,7 @@ func decInt64(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	*(*int64)(p) = int64(decodeInt(state))
+	*(*int64)(p) = int64(state.decodeInt())
 }
 
 func decUint64(i *decInstr, state *decodeState, p unsafe.Pointer) {
@@ -272,7 +272,7 @@ func decUint64(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	*(*uint64)(p) = uint64(decodeUint(state))
+	*(*uint64)(p) = uint64(state.decodeUint())
 }
 
 // Floating-point numbers are transmitted as uint64s holding the bits
@@ -291,7 +291,7 @@ func floatFromBits(u uint64) float64 {
 }
 
 func storeFloat32(i *decInstr, state *decodeState, p unsafe.Pointer) {
-	v := floatFromBits(decodeUint(state))
+	v := floatFromBits(state.decodeUint())
 	av := v
 	if av < 0 {
 		av = -av
@@ -321,7 +321,7 @@ func decFloat64(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	*(*float64)(p) = floatFromBits(uint64(decodeUint(state)))
+	*(*float64)(p) = floatFromBits(uint64(state.decodeUint()))
 }
 
 // Complex numbers are just a pair of floating-point numbers, real part first.
@@ -343,8 +343,8 @@ func decComplex128(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	real := floatFromBits(uint64(decodeUint(state)))
-	imag := floatFromBits(uint64(decodeUint(state)))
+	real := floatFromBits(uint64(state.decodeUint()))
+	imag := floatFromBits(uint64(state.decodeUint()))
 	*(*complex128)(p) = cmplx(real, imag)
 }
 
@@ -356,7 +356,7 @@ func decUint8Array(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	b := make([]uint8, decodeUint(state))
+	b := make([]uint8, state.decodeUint())
 	state.b.Read(b)
 	*(*[]uint8)(p) = b
 }
@@ -369,13 +369,13 @@ func decString(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	b := make([]byte, decodeUint(state))
+	b := make([]byte, state.decodeUint())
 	state.b.Read(b)
 	*(*string)(p) = string(b)
 }
 
 func ignoreUint8Array(i *decInstr, state *decodeState, p unsafe.Pointer) {
-	b := make([]byte, decodeUint(state))
+	b := make([]byte, state.decodeUint())
 	state.b.Read(b)
 }
 
@@ -411,7 +411,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, rtyp reflect.Type, b **bytes
 	state := newDecodeState(dec, b)
 	state.fieldnum = singletonField
 	basep := p
-	delta := int(decodeUint(state))
+	delta := int(state.decodeUint())
 	if delta != 0 {
 		errorf("gob decode: corrupted data: non-zero delta for singleton")
 	}
@@ -431,7 +431,7 @@ func (dec *Decoder) decodeStruct(engine *decEngine, rtyp *reflect.StructType, b 
 	state.fieldnum = -1
 	basep := p
 	for state.b.Len() > 0 {
-		delta := int(decodeUint(state))
+		delta := int(state.decodeUint())
 		if delta < 0 {
 			errorf("gob decode: corrupted data: negative delta")
 		}
@@ -459,7 +459,7 @@ func (dec *Decoder) ignoreStruct(engine *decEngine, b **bytes.Buffer) (err os.Er
 	state := newDecodeState(dec, b)
 	state.fieldnum = -1
 	for state.b.Len() > 0 {
-		delta := int(decodeUint(state))
+		delta := int(state.decodeUint())
 		if delta < 0 {
 			errorf("gob ignore decode: corrupted data: negative delta")
 		}
@@ -493,7 +493,7 @@ func (dec *Decoder) decodeArray(atyp *reflect.ArrayType, state *decodeState, p u
 	if indir > 0 {
 		p = allocate(atyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
-	if n := decodeUint(state); n != uint64(length) {
+	if n := state.decodeUint(); n != uint64(length) {
 		errorf("gob: length mismatch in decodeArray")
 	}
 	dec.decodeArrayHelper(state, p, elemOp, elemWid, length, elemIndir, ovfl)
@@ -522,7 +522,7 @@ func (dec *Decoder) decodeMap(mtyp *reflect.MapType, state *decodeState, p uintp
 	// that slices etc. can.  We must recover a full reflection value for
 	// the iteration.
 	v := reflect.NewValue(unsafe.Unreflect(mtyp, unsafe.Pointer((p)))).(*reflect.MapValue)
-	n := int(decodeUint(state))
+	n := int(state.decodeUint())
 	for i := 0; i < n; i++ {
 		key := decodeIntoValue(state, keyOp, keyIndir, reflect.MakeZero(mtyp.Key()), ovfl)
 		elem := decodeIntoValue(state, elemOp, elemIndir, reflect.MakeZero(mtyp.Elem()), ovfl)
@@ -538,14 +538,14 @@ func (dec *Decoder) ignoreArrayHelper(state *decodeState, elemOp decOp, length i
 }
 
 func (dec *Decoder) ignoreArray(state *decodeState, elemOp decOp, length int) {
-	if n := decodeUint(state); n != uint64(length) {
+	if n := state.decodeUint(); n != uint64(length) {
 		errorf("gob: length mismatch in ignoreArray")
 	}
 	dec.ignoreArrayHelper(state, elemOp, length)
 }
 
 func (dec *Decoder) ignoreMap(state *decodeState, keyOp, elemOp decOp) {
-	n := int(decodeUint(state))
+	n := int(state.decodeUint())
 	keyInstr := &decInstr{keyOp, 0, 0, 0, os.ErrorString("no error")}
 	elemInstr := &decInstr{elemOp, 0, 0, 0, os.ErrorString("no error")}
 	for i := 0; i < n; i++ {
@@ -555,7 +555,7 @@ func (dec *Decoder) ignoreMap(state *decodeState, keyOp, elemOp decOp) {
 }
 
 func (dec *Decoder) decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) {
-	n := int(uintptr(decodeUint(state)))
+	n := int(uintptr(state.decodeUint()))
 	if indir > 0 {
 		up := unsafe.Pointer(p)
 		if *(*unsafe.Pointer)(up) == nil {
@@ -574,7 +574,7 @@ func (dec *Decoder) decodeSlice(atyp *reflect.SliceType, state *decodeState, p u
 }
 
 func (dec *Decoder) ignoreSlice(state *decodeState, elemOp decOp) {
-	dec.ignoreArrayHelper(state, elemOp, int(decodeUint(state)))
+	dec.ignoreArrayHelper(state, elemOp, int(state.decodeUint()))
 }
 
 // setInterfaceValue sets an interface value to a concrete value through
@@ -598,7 +598,7 @@ func (dec *Decoder) decodeInterface(ityp *reflect.InterfaceType, state *decodeSt
 	// Create an interface reflect.Value.  We need one even for the nil case.
 	ivalue := reflect.MakeZero(ityp).(*reflect.InterfaceValue)
 	// Read the name of the concrete type.
-	b := make([]byte, decodeUint(state))
+	b := make([]byte, state.decodeUint())
 	state.b.Read(b)
 	name := string(b)
 	if name == "" {
@@ -632,7 +632,7 @@ func (dec *Decoder) decodeInterface(ityp *reflect.InterfaceType, state *decodeSt
 
 func (dec *Decoder) ignoreInterface(state *decodeState) {
 	// Read the name of the concrete type.
-	b := make([]byte, decodeUint(state))
+	b := make([]byte, state.decodeUint())
 	_, err := state.b.Read(b)
 	if err != nil {
 		error(err)

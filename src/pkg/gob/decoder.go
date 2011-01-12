@@ -107,7 +107,7 @@ func (dec *Decoder) recv() {
 func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignoreInterfaceValue, countPresent bool) {
 	for dec.state.b.Len() > 0 {
 		// Receive a type id.
-		id := typeId(decodeInt(dec.state))
+		id := typeId(dec.state.decodeInt())
 
 		// Is it a new type?
 		if id < 0 { // 0 is the error state, handled above
@@ -127,7 +127,7 @@ func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignoreInterfaceVa
 		}
 		// An interface value is preceded by a byte count.
 		if countPresent {
-			count := int(decodeUint(dec.state))
+			count := int(dec.state.decodeUint())
 			if ignoreInterfaceValue {
 				// An interface value is preceded by a byte count. Just skip that many bytes.
 				dec.state.b.Next(int(count))
