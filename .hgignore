@@ -12,6 +12,7 @@ syntax:glob
 *~
 *.orig
 core
+_cgo_*
 _obj
 _test
 _testmain.go
