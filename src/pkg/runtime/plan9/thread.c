@@ -18,6 +18,11 @@ runtime·osinit(void)
 }
 
 void
+runtime·goenvs(void)
+{
+}
+
+void
 runtime·initsig(int32 queue)
 {
 }

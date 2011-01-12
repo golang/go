@@ -149,6 +149,12 @@ runtime·osinit(void)
 }
 
 void
+runtime·goenvs(void)
+{
+	runtime·goenvs_unix();
+}
+
+void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	m->tls[0] = m->id;	// so 386 asm can find it

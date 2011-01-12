@@ -17,6 +17,12 @@ runtime·osinit(void)
 }
 
 void
+runtime·goenvs(void)
+{
+	runtime·goenvs_unix();
+}
+
+void
 runtime·initsig(int32 queue)
 {
 }

@@ -111,6 +111,7 @@ runtime·schedinit(void)
 
 	runtime·mallocinit();
 	runtime·goargs();
+	runtime·goenvs();
 
 	// For debugging:
 	// Allocate internal symbol table representation now,
