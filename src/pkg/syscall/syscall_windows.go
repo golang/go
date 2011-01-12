@@ -684,6 +684,9 @@ func Chown(path string, uid int, gid int) (errno int)     { return EWINDOWS }
 func Lchown(path string, uid int, gid int) (errno int)    { return EWINDOWS }
 func Fchown(fd int, uid int, gid int) (errno int)         { return EWINDOWS }
 
+// TODO(brainman): use FlushFileBuffers Windows api to implement Fsync.
+func Fsync(fd int) (errno int) { return EWINDOWS }
+
 func Getuid() (uid int)                  { return -1 }
 func Geteuid() (euid int)                { return -1 }
 func Getgid() (gid int)                  { return -1 }

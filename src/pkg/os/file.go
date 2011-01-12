@@ -408,6 +408,19 @@ func (f *File) Truncate(size int64) Error {
 	return nil
 }
 
+// Sync commits the current contents of the file to stable storage.
+// Typically, this means flushing the file system's in-memory copy
+// of recently written data to disk.
+func (file *File) Sync() (err Error) {
+	if file == nil {
+		return EINVAL
+	}
+	if e := syscall.Fsync(file.fd); e != 0 {
+		return NewSyscallError("fsync", e)
+	}
+	return nil
+}
+
 // Chtimes changes the access and modification times of the named
 // file, similar to the Unix utime() or utimes() functions.
 //
