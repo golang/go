@@ -666,12 +666,6 @@ func (x *Indexer) addFile(filename string) *ast.File {
 
 
 func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
-	// for now, exclude bug257.go as it causes problems with suffixarray
-	// TODO fix index/suffixarray
-	if f.Name == "bug257.go" {
-		return
-	}
-
 	if !isGoFile(f) {
 		return
 	}
