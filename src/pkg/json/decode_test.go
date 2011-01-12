@@ -270,6 +270,8 @@ type All struct {
 
 	Interface  interface{}
 	PInterface *interface{}
+
+	unexported int
 }
 
 type Small struct {
