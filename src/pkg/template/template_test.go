@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -633,5 +634,27 @@ func TestHTMLFormatterWithByte(t *testing.T) {
 	bs := buf.String()
 	if bs != s {
 		t.Errorf("munged []byte, expected: %s got: %s", s, bs)
+	}
+}
+
+type UF struct {
+	I int
+	s string
+}
+
+func TestReferenceToUnexported(t *testing.T) {
+	u := &UF{3, "hello"}
+	var buf bytes.Buffer
+	input := "{.section @}{I}{s}{.end}"
+	tmpl, err := Parse(input, nil)
+	if err != nil {
+		t.Fatal("unexpected parse error:", err)
+	}
+	err = tmpl.Execute(u, &buf)
+	if err == nil {
+		t.Fatal("expected execute error, got none")
+	}
+	if strings.Index(err.String(), "not exported") < 0 {
+		t.Fatal("expected unexported error; got", err)
 	}
 }
