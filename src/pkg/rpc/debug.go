@@ -21,14 +21,14 @@ const debugText = `<html>
 	<title>Services</title>
 	{.repeated section @}
 	<hr>
-	Service {name}
+	Service {Name}
 	<hr>
 		<table>
 		<th align=center>Method</th><th align=center>Calls</th>
-		{.repeated section meth}
+		{.repeated section Method}
 			<tr>
-			<td align=left font=fixed>{name}({m.argType}, {m.replyType}) os.Error</td>
-			<td align=center>{m.numCalls}</td>
+			<td align=left font=fixed>{Name}({Type.ArgType}, {Type.ReplyType}) os.Error</td>
+			<td align=center>{Type.NumCalls}</td>
 			</tr>
 		{.end}
 		</table>
@@ -39,26 +39,26 @@ const debugText = `<html>
 var debug = template.MustParse(debugText, nil)
 
 type debugMethod struct {
-	m    *methodType
-	name string
+	Type *methodType
+	Name string
 }
 
 type methodArray []debugMethod
 
 type debugService struct {
-	s    *service
-	name string
-	meth methodArray
+	Service *service
+	Name    string
+	Method  methodArray
 }
 
 type serviceArray []debugService
 
 func (s serviceArray) Len() int           { return len(s) }
-func (s serviceArray) Less(i, j int) bool { return s[i].name < s[j].name }
+func (s serviceArray) Less(i, j int) bool { return s[i].Name < s[j].Name }
 func (s serviceArray) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func (m methodArray) Len() int           { return len(m) }
-func (m methodArray) Less(i, j int) bool { return m[i].name < m[j].name }
+func (m methodArray) Less(i, j int) bool { return m[i].Name < m[j].Name }
 func (m methodArray) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 
 type debugHTTP struct {
@@ -75,10 +75,10 @@ func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		services[i] = debugService{service, sname, make(methodArray, len(service.method))}
 		j := 0
 		for mname, method := range service.method {
-			services[i].meth[j] = debugMethod{method, mname}
+			services[i].Method[j] = debugMethod{method, mname}
 			j++
 		}
-		sort.Sort(services[i].meth)
+		sort.Sort(services[i].Method)
 		i++
 	}
 	server.Unlock()

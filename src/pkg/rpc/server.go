@@ -137,8 +137,8 @@ var typeOfOsError = reflect.Typeof(unusedError).(*reflect.PtrType).Elem()
 type methodType struct {
 	sync.Mutex // protects counters
 	method     reflect.Method
-	argType    *reflect.PtrType
-	replyType  *reflect.PtrType
+	ArgType    *reflect.PtrType
+	ReplyType  *reflect.PtrType
 	numCalls   uint
 }
 
@@ -285,7 +285,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 			log.Println("method", mname, "returns", returnType.String(), "not os.Error")
 			continue
 		}
-		s.method[mname] = &methodType{method: method, argType: argType, replyType: replyType}
+		s.method[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
 	}
 
 	if len(s.method) == 0 {
@@ -324,6 +324,13 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec Se
 		log.Println("rpc: writing response:", err)
 	}
 	sending.Unlock()
+}
+
+func (m *methodType) NumCalls() (n uint) {
+	m.Lock()
+	n = m.numCalls
+	m.Unlock()
+	return n
 }
 
 func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec) {
@@ -418,8 +425,8 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			continue
 		}
 		// Decode the argument value.
-		argv := _new(mtype.argType)
-		replyv := _new(mtype.replyType)
+		argv := _new(mtype.ArgType)
+		replyv := _new(mtype.ReplyType)
 		err = codec.ReadRequestBody(argv.Interface())
 		if err != nil {
 			log.Println("rpc: tearing down", serviceMethod[0], "connection:", err)
