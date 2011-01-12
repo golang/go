@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
+	"runtime"
 )
 
 // BUG(brainman): The Windows implementation does not implement SetTimeout.
@@ -28,15 +29,14 @@ type netFD struct {
 	closing bool
 
 	// immutable until Close
-	sysfd   int
-	family  int
-	proto   int
-	sysfile *os.File
-	cr      chan *ioResult
-	cw      chan *ioResult
-	net     string
-	laddr   Addr
-	raddr   Addr
+	sysfd  int
+	family int
+	proto  int
+	cr     chan *ioResult
+	cw     chan *ioResult
+	net    string
+	laddr  Addr
+	raddr  Addr
 
 	// owned by client
 	rdeadline_delta int64
@@ -149,14 +149,7 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err 
 		laddr:  laddr,
 		raddr:  raddr,
 	}
-	var ls, rs string
-	if laddr != nil {
-		ls = laddr.String()
-	}
-	if raddr != nil {
-		rs = raddr.String()
-	}
-	f.sysfile = os.NewFile(fd, net+":"+ls+"->"+rs)
+	runtime.SetFinalizer(f, (*netFD).Close)
 	return f, nil
 }
 
@@ -178,15 +171,16 @@ func (fd *netFD) decref() {
 		// can handle the extra OS processes.  Otherwise we'll need to
 		// use the pollserver for Close too.  Sigh.
 		syscall.SetNonblock(fd.sysfd, false)
-		fd.sysfile.Close()
-		fd.sysfile = nil
+		closesocket(fd.sysfd)
 		fd.sysfd = -1
+		// no need for a finalizer anymore
+		runtime.SetFinalizer(fd, nil)
 	}
 	fd.sysmu.Unlock()
 }
 
 func (fd *netFD) Close() os.Error {
-	if fd == nil || fd.sysfile == nil {
+	if fd == nil || fd.sysfd == -1 {
 		return os.EINVAL
 	}
 
@@ -213,7 +207,7 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	defer fd.rio.Unlock()
 	fd.incref()
 	defer fd.decref()
-	if fd.sysfile == nil {
+	if fd.sysfd == -1 {
 		return 0, os.EINVAL
 	}
 	// Submit receive request.
@@ -253,7 +247,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
 	defer fd.rio.Unlock()
 	fd.incref()
 	defer fd.decref()
-	if fd.sysfile == nil {
+	if fd.sysfd == -1 {
 		return 0, nil, os.EINVAL
 	}
 	// Submit receive request.
@@ -290,7 +284,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	defer fd.wio.Unlock()
 	fd.incref()
 	defer fd.decref()
-	if fd.sysfile == nil {
+	if fd.sysfd == -1 {
 		return 0, os.EINVAL
 	}
 	// Submit send request.
@@ -326,7 +320,7 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
 	defer fd.wio.Unlock()
 	fd.incref()
 	defer fd.decref()
-	if fd.sysfile == nil {
+	if fd.sysfd == -1 {
 		return 0, os.EINVAL
 	}
 	// Submit send request.
@@ -352,7 +346,7 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
 }
 
 func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
-	if fd == nil || fd.sysfile == nil {
+	if fd == nil || fd.sysfd == -1 {
 		return nil, os.EINVAL
 	}
 	fd.incref()
@@ -387,21 +381,21 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	case syscall.ERROR_IO_PENDING:
 		// IO started, and we have to wait for it's completion.
 	default:
-		syscall.Close(s)
+		closesocket(s)
 		return nil, &OpError{"AcceptEx", fd.net, fd.laddr, os.Errno(e)}
 	}
 
 	// Wait for peer connection.
 	r := <-pckt.c
 	if r.errno != 0 {
-		syscall.Close(s)
+		closesocket(s)
 		return nil, &OpError{"AcceptEx", fd.net, fd.laddr, os.Errno(r.errno)}
 	}
 
 	// Inherit properties of the listening socket.
 	e = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, fd.sysfd)
 	if e != 0 {
-		syscall.Close(s)
+		closesocket(s)
 		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, os.Errno(r.errno)}
 	}
 
@@ -422,15 +416,12 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 		laddr:  laddr,
 		raddr:  raddr,
 	}
-	var ls, rs string
-	if laddr != nil {
-		ls = laddr.String()
-	}
-	if raddr != nil {
-		rs = raddr.String()
-	}
-	f.sysfile = os.NewFile(s, fd.net+":"+ls+"->"+rs)
+	runtime.SetFinalizer(f, (*netFD).Close)
 	return f, nil
+}
+
+func closesocket(s int) (errno int) {
+	return syscall.Closesocket(int32(s))
 }
 
 func init() {

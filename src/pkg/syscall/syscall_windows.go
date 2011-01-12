@@ -469,6 +469,7 @@ func Utimes(path string, tv []Timeval) (errno int) {
 //sys	getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = wsock32.getpeername
 //sys	listen(s int32, backlog int32) (errno int) [failretval==-1] = wsock32.listen
 //sys	shutdown(s int32, how int32) (errno int) [failretval==-1] = wsock32.shutdown
+//sys	Closesocket(s int32) (errno int) [failretval==-1] = wsock32.closesocket
 //sys	AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) = wsock32.AcceptEx
 //sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
 //sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecv

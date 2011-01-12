@@ -75,6 +75,7 @@ var (
 	procgetpeername                = getSysProcAddr(modwsock32, "getpeername")
 	proclisten                     = getSysProcAddr(modwsock32, "listen")
 	procshutdown                   = getSysProcAddr(modwsock32, "shutdown")
+	procclosesocket                = getSysProcAddr(modwsock32, "closesocket")
 	procAcceptEx                   = getSysProcAddr(modwsock32, "AcceptEx")
 	procGetAcceptExSockaddrs       = getSysProcAddr(modwsock32, "GetAcceptExSockaddrs")
 	procWSARecv                    = getSysProcAddr(modws2_32, "WSARecv")
@@ -965,6 +966,20 @@ func listen(s int32, backlog int32) (errno int) {
 
 func shutdown(s int32, how int32) (errno int) {
 	r1, _, e1 := Syscall(procshutdown, uintptr(s), uintptr(how), 0)
+	if int(r1) == -1 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func Closesocket(s int32) (errno int) {
+	r1, _, e1 := Syscall(procclosesocket, uintptr(s), 0, 0)
 	if int(r1) == -1 {
 		if e1 != 0 {
 			errno = int(e1)
