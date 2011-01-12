@@ -83,34 +83,34 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 
 // makedata is the data type for the makefileTemplate.
 type makedata struct {
-	pkg      string   // package import path
-	goFiles  []string // list of non-cgo .go files
-	cgoFiles []string // list of cgo .go files
-	oFiles   []string // list of ofiles for cgo
+	Pkg      string   // package import path
+	GoFiles  []string // list of non-cgo .go files
+	CgoFiles []string // list of cgo .go files
+	OFiles   []string // list of ofiles for cgo
 }
 
 var makefileTemplate = template.MustParse(`
 include $(GOROOT)/src/Make.inc
 
-TARG={pkg}
+TARG={Pkg}
 
-{.section goFiles}
+{.section GoFiles}
 GOFILES=\
-{.repeated section goFiles}
+{.repeated section GoFiles}
 	{@}\
 {.end}
 
 {.end}
-{.section cgoFiles}
+{.section CgoFiles}
 CGOFILES=\
-{.repeated section cgoFiles}
+{.repeated section CgoFiles}
 	{@}\
 {.end}
 
 {.end}
-{.section oFiles}
+{.section OFiles}
 CGO_OFILES=\
-{.repeated section oFiles}
+{.repeated section OFiles}
 	{@}\
 {.end}
 
