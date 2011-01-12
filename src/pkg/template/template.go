@@ -596,7 +596,7 @@ func (t *Template) parse() {
 
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
-func lookup(v reflect.Value, name string) reflect.Value {
+func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value {
 	for v != nil {
 		typ := v.Type()
 		if n := v.Type().NumMethod(); n > 0 {
@@ -605,7 +605,7 @@ func lookup(v reflect.Value, name string) reflect.Value {
 				mtyp := m.Type
 				if m.Name == name && mtyp.NumIn() == 1 && mtyp.NumOut() == 1 {
 					if !isExported(name) {
-						return nil
+						t.execError(st, t.linenum, "name not exported: %s in type %s", name, st.data.Type())
 					}
 					return v.Method(i).Call(nil)[0]
 				}
@@ -618,7 +618,7 @@ func lookup(v reflect.Value, name string) reflect.Value {
 			v = av.Elem()
 		case *reflect.StructValue:
 			if !isExported(name) {
-				return nil
+				t.execError(st, t.linenum, "name not exported: %s in type %s", name, st.data.Type())
 			}
 			return av.FieldByName(name)
 		case *reflect.MapValue:
@@ -652,14 +652,14 @@ loop:
 // The value coming in (st.data) might need indirecting to reach
 // a struct while the return value is not indirected - that is,
 // it represents the actual named field.
-func (st *state) findVar(s string) reflect.Value {
+func (t *Template) findVar(st *state, s string) reflect.Value {
 	if s == "@" {
 		return st.data
 	}
 	data := st.data
 	for _, elem := range strings.Split(s, ".", -1) {
 		// Look up field; data must be a struct or map.
-		data = lookup(data, elem)
+		data = t.lookup(st, data, elem)
 		if data == nil {
 			return nil
 		}
@@ -692,7 +692,7 @@ func empty(v reflect.Value) bool {
 
 // Look up a variable or method, up through the parent if necessary.
 func (t *Template) varValue(name string, st *state) reflect.Value {
-	field := st.findVar(name)
+	field := t.findVar(st, name)
 	if field == nil {
 		if st.parent == nil {
 			t.execError(st, t.linenum, "name not found: %s in type %s", name, st.data.Type())
