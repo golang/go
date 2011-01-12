@@ -22,11 +22,6 @@ import (
 	"sort"
 )
 
-// BUG(gri): For larger data (10MB) which contains very long (say 100000)
-// contiguous sequences of identical bytes, index creation time will be extremely slow.
-
-// TODO(gri): Use a more sophisticated algorithm to create the suffix array.
-
 
 // Index implements a suffix array for fast substring search.
 type Index struct {
@@ -36,16 +31,9 @@ type Index struct {
 
 
 // New creates a new Index for data.
-// Index creation time is approximately O(N*log(N)) for N = len(data).
-//
+// Index creation time is O(N*log(N)) for N = len(data).
 func New(data []byte) *Index {
-	sa := make([]int, len(data))
-	for i := range sa {
-		sa[i] = i
-	}
-	x := &Index{data, sa}
-	sort.Sort((*index)(x))
-	return x
+	return &Index{data, qsufsort(data)}
 }
 
 
@@ -192,12 +180,3 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 	}
 	return
 }
-
-
-// index is used to hide the sort.Interface
-type index Index
-
-func (x *index) Len() int           { return len(x.sa) }
-func (x *index) Less(i, j int) bool { return bytes.Compare(x.at(i), x.at(j)) < 0 }
-func (x *index) Swap(i, j int)      { x.sa[i], x.sa[j] = x.sa[j], x.sa[i] }
-func (a *index) at(i int) []byte    { return a.data[a.sa[i]:] }
