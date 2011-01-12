@@ -44,10 +44,10 @@ func testLineReader(t *testing.T, input []byte) {
 		for {
 			line, isPrefix, err := l.ReadLine()
 			if len(line) > 0 && err != nil {
-				t.Errorf("ReadLine returned both data and error: %s\n")
+				t.Errorf("ReadLine returned both data and error: %s", err)
 			}
 			if isPrefix {
-				t.Errorf("ReadLine returned prefix\n")
+				t.Errorf("ReadLine returned prefix")
 			}
 			if err != nil {
 				if err != os.EOF {
