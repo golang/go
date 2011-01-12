@@ -152,34 +152,36 @@ int32 runtime·isplan9;
 void
 runtime·goargs(void)
 {
-	String *gargv;
-	String *genvv;
-	int32 i, envc;
+	String *s;
+	int32 i;
 	
 	// for windows implementation see "os" package
 	if(Windows)
 		return;
 
-	if(runtime·isplan9)
-		envc=0;
-	else
-		for(envc=0; argv[argc+1+envc] != 0; envc++)
-			;
-
-	gargv = runtime·malloc(argc*sizeof gargv[0]);
-	genvv = runtime·malloc(envc*sizeof genvv[0]);
-
+	s = runtime·malloc(argc*sizeof s[0]);
 	for(i=0; i<argc; i++)
-		gargv[i] = runtime·gostringnocopy(argv[i]);
-	os·Args.array = (byte*)gargv;
+		s[i] = runtime·gostringnocopy(argv[i]);
+	os·Args.array = (byte*)s;
 	os·Args.len = argc;
 	os·Args.cap = argc;
+}
 
-	for(i=0; i<envc; i++)
-		genvv[i] = runtime·gostringnocopy(argv[argc+1+i]);
-	os·Envs.array = (byte*)genvv;
-	os·Envs.len = envc;
-	os·Envs.cap = envc;
+void
+runtime·goenvs_unix(void)
+{
+	String *s;
+	int32 i, n;
+	
+	for(n=0; argv[argc+1+n] != 0; n++)
+		;
+
+	s = runtime·malloc(n*sizeof s[0]);
+	for(i=0; i<n; i++)
+		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
+	os·Envs.array = (byte*)s;
+	os·Envs.len = n;
+	os·Envs.cap = n;
 }
 
 // Atomic add and return new value.

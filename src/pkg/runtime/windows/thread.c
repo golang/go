@@ -39,6 +39,42 @@ runtime·osinit(void)
 {
 }
 
+#pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW  "kernel32.dll"
+#pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW  "kernel32.dll"
+
+extern void *runtime·GetEnvironmentStringsW;
+extern void *runtime·FreeEnvironmentStringsW;
+
+void
+runtime·goenvs(void)
+{
+	extern Slice os·Envs;
+
+	uint16 *env;
+	String *s;
+	int32 i, n;
+	uint16 *p;
+
+	env = runtime·stdcall(runtime·GetEnvironmentStringsW, 0);
+
+	n = 0;
+	for(p=env; *p; n++)
+		p += runtime·findnullw(p)+1;
+
+	s = runtime·malloc(n*sizeof s[0]);
+
+	p = env;
+	for(i=0; i<n; i++) {
+		s[i] = runtime·gostringw(p);
+		p += runtime·findnullw(p)+1;
+	}
+	os·Envs.array = (byte*)s;
+	os·Envs.len = n;
+	os·Envs.cap = n;
+
+	runtime·stdcall(runtime·FreeEnvironmentStringsW, 1, env);
+}
+
 void
 runtime·exit(int32 code)
 {

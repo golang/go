@@ -114,7 +114,6 @@ func TempDir() string {
 
 func init() {
 	var argc int32
-	Envs = Environ()
 	cmd := syscall.GetCommandLine()
 	argv, e := syscall.CommandLineToArgv(cmd, &argc)
 	if e != 0 {
