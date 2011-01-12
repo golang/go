@@ -6,6 +6,7 @@ include ../../../Make.inc
 
 TARG=index/suffixarray
 GOFILES=\
+	qsufsort.go\
 	suffixarray.go\
 
 include ../../../Make.pkg

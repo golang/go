@@ -5,6 +5,7 @@
 package suffixarray
 
 import (
+	"bytes"
 	"container/vector"
 	"regexp"
 	"sort"
@@ -204,9 +205,26 @@ func testLookups(t *testing.T, tc *testCase, x *Index, n int) {
 }
 
 
+// index is used to hide the sort.Interface
+type index Index
+
+func (x *index) Len() int           { return len(x.sa) }
+func (x *index) Less(i, j int) bool { return bytes.Compare(x.at(i), x.at(j)) < 0 }
+func (x *index) Swap(i, j int)      { x.sa[i], x.sa[j] = x.sa[j], x.sa[i] }
+func (a *index) at(i int) []byte    { return a.data[a.sa[i]:] }
+
+
+func testConstruction(t *testing.T, tc *testCase, x *Index) {
+	if !sort.IsSorted((*index)(x)) {
+		t.Errorf("testConstruction failed %s", tc.name)
+	}
+}
+
+
 func TestIndex(t *testing.T) {
 	for _, tc := range testCases {
 		x := New([]byte(tc.source))
+		testConstruction(t, &tc, x)
 		testLookups(t, &tc, x, 0)
 		testLookups(t, &tc, x, 1)
 		testLookups(t, &tc, x, 10)
