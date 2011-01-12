@@ -24,7 +24,7 @@ func kernelSupportsIPv6() bool {
 	}
 	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	if fd >= 0 {
-		syscall.Close(fd)
+		closesocket(fd)
 	}
 	return e == 0
 }

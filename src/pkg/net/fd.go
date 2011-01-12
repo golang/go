@@ -606,3 +606,7 @@ func (fd *netFD) dup() (f *os.File, err os.Error) {
 
 	return os.NewFile(ns, fd.sysfile.Name()), nil
 }
+
+func closesocket(s int) (errno int) {
+	return syscall.Close(s)
+}
