@@ -62,12 +62,48 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, 
 	if lw != nil {
 		selections = append(selections, links)
 	}
+
 	// compute the sequence of consecutive segment changes
 	changes := newMerger(selections)
+
 	// The i'th bit in bitset indicates that the text
 	// at the current offset is covered by selections[i].
 	bitset := 0
 	lastOffs := 0
+
+	// Text segments are written in a delayed fashion
+	// such that consecutive segments belonging to the
+	// same selection can be combined (peephole optimization).
+	// last describes the last segment which has not yet been written.
+	var last struct {
+		begin, end int // valid if begin < end
+		bitset     int
+	}
+
+	// flush writes the last delayed text segment
+	flush := func() {
+		if last.begin < last.end {
+			sw(w, text[last.begin:last.end], last.bitset)
+		}
+		last.begin = last.end // invalidate last
+	}
+
+	// segment runs the segment [lastOffs, end) with the selection
+	// indicated by bitset through the segment peephole optimizer.
+	segment := func(end int) {
+		if lastOffs < end { // ignore empty segments
+			if last.end != lastOffs || last.bitset != bitset {
+				// the last segment is not adjacent or
+				// differs from the new one
+				flush()
+				// start a new segment
+				last.begin = lastOffs
+			}
+			last.end = end
+			last.bitset = bitset
+		}
+	}
+
 	for {
 		// get the next segment change
 		index, offs, start := changes.next()
@@ -81,14 +117,15 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, 
 			// we have a link segment change:
 			// format the previous selection segment, write the
 			// link tag and start a new selection segment
-			sw(w, text[lastOffs:offs], bitset)
+			segment(offs)
+			flush()
 			lastOffs = offs
 			lw(w, offs, start)
 		} else {
 			// we have a selection change:
 			// format the previous selection segment, determine
 			// the new selection bitset and start a new segment 
-			sw(w, text[lastOffs:offs], bitset)
+			segment(offs)
 			lastOffs = offs
 			mask := 1 << uint(index)
 			if start {
@@ -98,7 +135,8 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, 
 			}
 		}
 	}
-	sw(w, text[lastOffs:], bitset)
+	segment(len(text))
+	flush()
 }
 
 
@@ -283,17 +321,15 @@ var endTag = []byte(`</span>`)
 
 
 func selectionTag(w io.Writer, text []byte, selections int) {
-	if len(text) > 0 {
-		if selections < len(startTags) {
-			if tag := startTags[selections]; len(tag) > 0 {
-				w.Write(tag)
-				template.HTMLEscape(w, text)
-				w.Write(endTag)
-				return
-			}
+	if selections < len(startTags) {
+		if tag := startTags[selections]; len(tag) > 0 {
+			w.Write(tag)
+			template.HTMLEscape(w, text)
+			w.Write(endTag)
+			return
 		}
-		template.HTMLEscape(w, text)
 	}
+	template.HTMLEscape(w, text)
 }
 
 
