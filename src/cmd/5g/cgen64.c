@@ -233,8 +233,7 @@ cgen64(Node *n, Node *res)
 			// shift is >= 1<<32
 			split64(r, &cl, &ch);
 			gmove(&ch, &s);
-			p1 = gins(AMOVW, &s, &s);
-			p1->scond |= C_SBIT;
+			p1 = gins(ATST, &s, N);
 			p6 = gbranch(ABNE, T);
 			gmove(&cl, &s);
 			splitclean();
@@ -242,8 +241,7 @@ cgen64(Node *n, Node *res)
 			gmove(r, &s);
 			p6 = P;
 		}
-		p1 = gins(AMOVW, &s, &s);
-		p1->scond |= C_SBIT;
+		p1 = gins(ATST, &s, N);
 
 		// shift == 0
 		p1 = gins(AMOVW, &bl, &al);
@@ -390,8 +388,7 @@ olsh_break:
 			// shift is >= 1<<32
 			split64(r, &cl, &ch);
 			gmove(&ch, &s);
-			p1 = gins(AMOVW, &s, &s);
-			p1->scond |= C_SBIT;
+			p1 = gins(ATST, &s, N);
 			p6 = gbranch(ABNE, T);
 			gmove(&cl, &s);
 			splitclean();
@@ -399,8 +396,7 @@ olsh_break:
 			gmove(r, &s);
 			p6 = P;
 		}
-		p1 = gins(AMOVW, &s, &s);
-		p1->scond |= C_SBIT;
+		p1 = gins(ATST, &s, N);
 
 		// shift == 0
 		p1 = gins(AMOVW, &bl, &al);

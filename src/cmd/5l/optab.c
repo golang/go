@@ -64,7 +64,7 @@ Optab	optab[] =
 	{ AB,		C_NONE,	C_NONE,	C_ROREG,	 6, 4, 0,	LPOOL },
 	{ ABL,		C_NONE,	C_NONE,	C_ROREG,	 7, 8, 0 },
 	{ ABX,		C_NONE,	C_NONE,	C_ROREG,	 75, 12, 0 },
-	{ ABXRET,		C_NONE,	C_NONE,	C_ROREG,	 76, 4, 0 },
+	{ ABXRET,	C_NONE,	C_NONE,	C_ROREG,	 76, 4, 0 },
 
 	{ ASLL,		C_RCON,	C_REG,	C_REG,		 8, 4, 0 },
 	{ ASLL,		C_RCON,	C_NONE,	C_REG,		 8, 4, 0 },
@@ -250,6 +250,8 @@ Optab	optab[] =
 
 	{ AMOVW,	C_REG,	C_NONE,	C_FREG,		88, 4, 0 },
 	{ AMOVW,	C_FREG,	C_NONE,	C_REG,		89, 4, 0 },
+
+	{ ATST,		C_REG,	C_NONE,	C_NONE,		90, 4, 0 },
 
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };

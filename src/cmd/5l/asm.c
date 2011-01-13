@@ -793,7 +793,8 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 			rt = 0;
 		if(p->as == AMOVW || p->as == AMVN)
 			r = 0;
-		else if(r == NREG)
+		else
+		if(r == NREG)
 			r = rt;
 		o1 |= rf | (r<<16) | (rt<<12);
 		break;
@@ -1557,6 +1558,12 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 = oprrr(AMOVFW+AEND, p->scond);
 		o1 |= (p->from.reg<<16);
 		o1 |= (p->to.reg<<12);
+		break;
+
+	case 90:	/* tst reg  */
+		o1 = oprrr(AMOVW, p->scond);
+		o1 |= p->from.reg | (p->from.reg<<12);
+		o1 |= 1 << 20;	// SBIT
 		break;
 	}
 	

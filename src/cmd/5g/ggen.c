@@ -595,8 +595,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	}
 
 	// test for shift being 0
-	p1 = gins(AMOVW, &n1, &n1);
-	p1->scond |= C_SBIT;
+	p1 = gins(ATST, &n1, N);
 	p3 = gbranch(ABEQ, T);
 
 	// test and fix up large shifts
