@@ -385,7 +385,25 @@ func split(s string, c byte, cutc bool) (string, string) {
 // ParseURL parses rawurl into a URL structure.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
+// The rawurl may be relative or absolute.
 func ParseURL(rawurl string) (url *URL, err os.Error) {
+	return parseURL(rawurl, false)
+}
+
+// ParseRequestURL parses rawurl into a URL structure.  It assumes that
+// rawurl was received from an HTTP request, so the rawurl is interpreted
+// only as an absolute URI or an absolute path.
+// The string rawurl is assumed not to have a #fragment suffix.
+// (Web browsers strip #fragment before sending the URL to a web server.)
+func ParseRequestURL(rawurl string) (url *URL, err os.Error) {
+	return parseURL(rawurl, true)
+}
+
+// parseURL parses a URL from a string in one of two contexts.  If
+// viaRequest is true, the URL is assumed to have arrived via an HTTP request,
+// in which case only absolute URLs or path-absolute relative URLs are allowed.
+// If viaRequest is false, all forms of relative URLs are allowed.
+func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 	if rawurl == "" {
 		err = os.ErrorString("empty url")
 		goto Error
@@ -400,7 +418,9 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 		goto Error
 	}
 
-	if url.Scheme != "" && (len(path) == 0 || path[0] != '/') {
+	leadingSlash := strings.HasPrefix(path, "/")
+
+	if url.Scheme != "" && !leadingSlash {
 		// RFC 2396:
 		// Absolute URI (has scheme) with non-rooted path
 		// is uninterpreted.  It doesn't even have a ?query.
@@ -412,6 +432,11 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 		}
 		url.OpaquePath = true
 	} else {
+		if viaRequest && !leadingSlash {
+			err = os.ErrorString("invalid URI for request")
+			goto Error
+		}
+
 		// Split off query before parsing path further.
 		url.RawPath = path
 		path, query := split(path, '?', false)
@@ -420,7 +445,8 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 		}
 
 		// Maybe path is //authority/path
-		if url.Scheme != "" && len(path) > 2 && path[0:2] == "//" {
+		if (url.Scheme != "" || !viaRequest) &&
+			strings.HasPrefix(path, "//") && !strings.HasPrefix(path, "///") {
 			url.RawAuthority, path = split(path[2:], '/', false)
 			url.RawPath = url.RawPath[2+len(url.RawAuthority):]
 		}

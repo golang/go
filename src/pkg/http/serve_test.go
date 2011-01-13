@@ -7,7 +7,9 @@
 package http
 
 import (
+	"bufio"
 	"bytes"
+	"io"
 	"os"
 	"net"
 	"testing"
@@ -131,5 +133,88 @@ func TestConsumingBodyOnNextConn(t *testing.T) {
 	t.Log("Waiting for EOF.")
 	if serveerr := <-servech; serveerr != os.EOF {
 		t.Errorf("Serve returned %q; expected EOF", serveerr)
+	}
+}
+
+type responseWriterMethodCall struct {
+	method                 string
+	headerKey, headerValue string // if method == "SetHeader"
+	bytesWritten           []byte // if method == "Write"
+	responseCode           int    // if method == "WriteHeader"
+}
+
+type recordingResponseWriter struct {
+	log []*responseWriterMethodCall
+}
+
+func (rw *recordingResponseWriter) RemoteAddr() string {
+	return "1.2.3.4"
+}
+
+func (rw *recordingResponseWriter) UsingTLS() bool {
+	return false
+}
+
+func (rw *recordingResponseWriter) SetHeader(k, v string) {
+	rw.log = append(rw.log, &responseWriterMethodCall{method: "SetHeader", headerKey: k, headerValue: v})
+}
+
+func (rw *recordingResponseWriter) Write(buf []byte) (int, os.Error) {
+	rw.log = append(rw.log, &responseWriterMethodCall{method: "Write", bytesWritten: buf})
+	return len(buf), nil
+}
+
+func (rw *recordingResponseWriter) WriteHeader(code int) {
+	rw.log = append(rw.log, &responseWriterMethodCall{method: "WriteHeader", responseCode: code})
+}
+
+func (rw *recordingResponseWriter) Flush() {
+	rw.log = append(rw.log, &responseWriterMethodCall{method: "Flush"})
+}
+
+func (rw *recordingResponseWriter) Hijack() (io.ReadWriteCloser, *bufio.ReadWriter, os.Error) {
+	panic("Not supported")
+}
+
+// Tests for http://code.google.com/p/go/issues/detail?id=900
+func TestMuxRedirectLeadingSlashes(t *testing.T) {
+	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
+	for _, path := range paths {
+		req, err := ReadRequest(bufio.NewReader(bytes.NewBufferString("GET " + path + " HTTP/1.1\r\nHost: test\r\n\r\n")))
+		if err != nil {
+			t.Errorf("%s", err)
+		}
+		mux := NewServeMux()
+		resp := new(recordingResponseWriter)
+		resp.log = make([]*responseWriterMethodCall, 0)
+
+		mux.ServeHTTP(resp, req)
+
+		dumpLog := func() {
+			t.Logf("For path %q:", path)
+			for _, call := range resp.log {
+				t.Logf("Got call: %s, header=%s, value=%s, buf=%q, code=%d", call.method,
+					call.headerKey, call.headerValue, call.bytesWritten, call.responseCode)
+			}
+		}
+
+		if len(resp.log) != 2 {
+			dumpLog()
+			t.Errorf("expected 2 calls to response writer; got %d", len(resp.log))
+			return
+		}
+
+		if resp.log[0].method != "SetHeader" ||
+			resp.log[0].headerKey != "Location" || resp.log[0].headerValue != "/foo.txt" {
+			dumpLog()
+			t.Errorf("Expected SetHeader of Location to /foo.txt")
+			return
+		}
+
+		if resp.log[1].method != "WriteHeader" || resp.log[1].responseCode != StatusMovedPermanently {
+			dumpLog()
+			t.Errorf("Expected WriteHeader of StatusMovedPermanently")
+			return
+		}
 	}
 }

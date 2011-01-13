@@ -69,6 +69,41 @@ var reqTests = []reqTest{
 
 		"abcdef\n",
 	},
+
+	// Tests that we don't parse a path that looks like a
+	// scheme-relative URI as a scheme-relative URI.
+	{
+		"GET //user@host/is/actually/a/path/ HTTP/1.1\r\n" +
+			"Host: test\r\n\r\n",
+
+		Request{
+			Method: "GET",
+			RawURL: "//user@host/is/actually/a/path/",
+			URL: &URL{
+				Raw:          "//user@host/is/actually/a/path/",
+				Scheme:       "",
+				RawPath:      "//user@host/is/actually/a/path/",
+				RawAuthority: "",
+				RawUserinfo:  "",
+				Host:         "",
+				Path:         "//user@host/is/actually/a/path/",
+				RawQuery:     "",
+				Fragment:     "",
+			},
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Header:        map[string]string{},
+			Close:         false,
+			ContentLength: -1,
+			Host:          "test",
+			Referer:       "",
+			UserAgent:     "",
+			Form:          map[string][]string{},
+		},
+
+		"",
+	},
 }
 
 func TestReadRequest(t *testing.T) {

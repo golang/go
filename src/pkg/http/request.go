@@ -504,7 +504,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}
 	}
 
-	if req.URL, err = ParseURL(req.RawURL); err != nil {
+	if req.URL, err = ParseRequestURL(req.RawURL); err != nil {
 		return nil, err
 	}
 
