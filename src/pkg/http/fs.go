@@ -174,7 +174,9 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 
 	w.WriteHeader(code)
 
-	io.Copyn(w, f, size)
+	if r.Method != "HEAD" {
+		io.Copyn(w, f, size)
+	}
 }
 
 // ServeFile replies to the request with the contents of the named file or directory.
