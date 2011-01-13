@@ -93,7 +93,7 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, 
 	segment := func(end int) {
 		if lastOffs < end { // ignore empty segments
 			if last.end != lastOffs || last.bitset != bitset {
-				// the last segment is not adjacent or
+				// the last segment is not adjacent to or
 				// differs from the new one
 				flush()
 				// start a new segment
