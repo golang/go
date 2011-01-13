@@ -181,7 +181,9 @@ func (c *conn) readRequest() (w *response, err os.Error) {
 	w.SetHeader("Content-Type", "text/html; charset=utf-8")
 	w.SetHeader("Date", time.UTC().Format(TimeFormat))
 
-	if req.ProtoAtLeast(1, 1) {
+	if req.Method == "HEAD" {
+		// do nothing
+	} else if req.ProtoAtLeast(1, 1) {
 		// HTTP/1.1 or greater: use chunked transfer encoding
 		// to avoid closing the connection at EOF.
 		w.chunking = true
@@ -268,7 +270,7 @@ func (w *response) Write(data []byte) (n int, err os.Error) {
 		return 0, nil
 	}
 
-	if w.status == StatusNotModified {
+	if w.status == StatusNotModified || w.req.Method == "HEAD" {
 		// Must not have body.
 		return 0, ErrBodyNotAllowed
 	}
@@ -495,11 +497,11 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 
 	// RFC2616 recommends that a short note "SHOULD" be included in the
 	// response because older user agents may not understand 301/307.
-	note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
-	if r.Method == "POST" {
-		note = ""
+	// Shouldn't send the response for POST or HEAD; that leaves GET.
+	if r.Method == "GET" {
+		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
+		fmt.Fprintln(w, note)
 	}
-	fmt.Fprintln(w, note)
 }
 
 func htmlEscape(s string) string {
