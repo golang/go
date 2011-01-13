@@ -962,7 +962,6 @@ buildop(void)
 			oprange[ABIC] = oprange[r];
 			break;
 		case ACMP:
-			oprange[ATST] = oprange[r];
 			oprange[ATEQ] = oprange[r];
 			oprange[ACMN] = oprange[r];
 			break;
@@ -1055,6 +1054,7 @@ buildop(void)
 
 		case ALDREX:
 		case ASTREX:
+		case ATST:
 			break;
 		}
 	}

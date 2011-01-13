@@ -89,11 +89,11 @@ loop1:
 			/*
 			 * elide shift into D_SHIFT operand of subsequent instruction
 			 */
-			if(shiftprop(r)) {
-				excise(r);
-				t++;
-				break;
-			}
+//			if(shiftprop(r)) {
+//				excise(r);
+//				t++;
+//				break;
+//			}
 			break;
 
 		case AMOVW:
@@ -101,10 +101,10 @@ loop1:
 		case AMOVD:
 			if(!regtyp(&p->to))
 				break;
-			if(isdconst(&p->from)) {
-				constprop(&p->from, &p->to, r->s1);
-				break;
-			}
+//			if(isdconst(&p->from)) {
+//				constprop(&p->from, &p->to, r->s1);
+//				break;
+//			}
 			if(!regtyp(&p->from))
 				break;
 			if(p->from.type != p->to.type)
@@ -166,87 +166,89 @@ loop1:
 		excise(r1);
 	}
 
-	for(r=firstr; r!=R; r=r->link) {
-		p = r->prog;
-		switch(p->as) {
-		case AMOVW:
-		case AMOVB:
-		case AMOVBU:
-			if(p->from.type == D_OREG && p->from.offset == 0)
-				xtramodes(r, &p->from);
-			else if(p->to.type == D_OREG && p->to.offset == 0)
-				xtramodes(r, &p->to);
-			else
-				continue;
-			break;
-		case ACMP:
-			/*
-			 * elide CMP $0,x if calculation of x can set condition codes
-			 */
-			if(isdconst(&p->from) || p->from.offset != 0)
-				continue;
-			r2 = r->s1;
-			if(r2 == R)
-				continue;
-			t = r2->prog->as;
-			switch(t) {
-			default:
-				continue;
-			case ABEQ:
-			case ABNE:
-			case ABMI:
-			case ABPL:
-				break;
-			case ABGE:
-				t = ABPL;
-				break;
-			case ABLT:
-				t = ABMI;
-				break;
-			case ABHI:
-				t = ABNE;
-				break;
-			case ABLS:
-				t = ABEQ;
-				break;
-			}
-			r1 = r;
-			do
-				r1 = uniqp(r1);
-			while (r1 != R && r1->prog->as == ANOP);
-			if(r1 == R)
-				continue;
-			p1 = r1->prog;
-			if(p1->to.type != D_REG)
-				continue;
-			if(p1->to.reg != p->reg)
-			if(!(p1->as == AMOVW && p1->from.type == D_REG && p1->from.reg == p->reg))
-				continue;
-			switch(p1->as) {
-			default:
-				continue;
-			case AMOVW:
-				if(p1->from.type != D_REG)
-					continue;
-			case AAND:
-			case AEOR:
-			case AORR:
-			case ABIC:
-			case AMVN:
-			case ASUB:
-			case ARSB:
-			case AADD:
-			case AADC:
-			case ASBC:
-			case ARSC:
-				break;
-			}
-			p1->scond |= C_SBIT;
-			r2->prog->as = t;
-			excise(r);
-			continue;
-		}
-	}
+//	for(r=firstr; r!=R; r=r->link) {
+//		p = r->prog;
+//		switch(p->as) {
+//		case AMOVW:
+//		case AMOVB:
+//		case AMOVBU:
+//			if(p->from.type == D_OREG && p->from.offset == 0)
+//				xtramodes(r, &p->from);
+//			else
+//			if(p->to.type == D_OREG && p->to.offset == 0)
+//				xtramodes(r, &p->to);
+//			else
+//				continue;
+//			break;
+//		case ACMP:
+//			/*
+//			 * elide CMP $0,x if calculation of x can set condition codes
+//			 */
+//			if(isdconst(&p->from) || p->from.offset != 0)
+//				continue;
+//			r2 = r->s1;
+//			if(r2 == R)
+//				continue;
+//			t = r2->prog->as;
+//			switch(t) {
+//			default:
+//				continue;
+//			case ABEQ:
+//			case ABNE:
+//			case ABMI:
+//			case ABPL:
+//				break;
+//			case ABGE:
+//				t = ABPL;
+//				break;
+//			case ABLT:
+//				t = ABMI;
+//				break;
+//			case ABHI:
+//				t = ABNE;
+//				break;
+//			case ABLS:
+//				t = ABEQ;
+//				break;
+//			}
+//			r1 = r;
+//			do
+//				r1 = uniqp(r1);
+//			while (r1 != R && r1->prog->as == ANOP);
+//			if(r1 == R)
+//				continue;
+//			p1 = r1->prog;
+//			if(p1->to.type != D_REG)
+//				continue;
+//			if(p1->to.reg != p->reg)
+//			if(!(p1->as == AMOVW && p1->from.type == D_REG && p1->from.reg == p->reg))
+//				continue;
+//
+//			switch(p1->as) {
+//			default:
+//				continue;
+//			case AMOVW:
+//				if(p1->from.type != D_REG)
+//					continue;
+//			case AAND:
+//			case AEOR:
+//			case AORR:
+//			case ABIC:
+//			case AMVN:
+//			case ASUB:
+//			case ARSB:
+//			case AADD:
+//			case AADC:
+//			case ASBC:
+//			case ARSC:
+//				break;
+//			}
+//			p1->scond |= C_SBIT;
+//			r2->prog->as = t;
+//			excise(r);
+//			continue;
+//		}
+//	}
 
 	predicate();
 }
@@ -331,7 +333,6 @@ subprop(Reg *r0)
 		case ABL:
 			return 0;
 
-		case ACMP:
 		case ACMN:
 		case AADD:
 		case ASUB:
@@ -346,8 +347,6 @@ subprop(Reg *r0)
 		case ADIV:
 		case ADIVU:
 
-		case ACMPF:
-		case ACMPD:
 		case AADDD:
 		case AADDF:
 		case ASUBD:
@@ -648,6 +647,7 @@ shiftprop(Reg *r)
 				print("\t=>%P", p1);
 		}
 	case ABIC:
+	case ATST:
 	case ACMP:
 	case ACMN:
 		if(p1->reg == n)
@@ -922,8 +922,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	switch(p->as) {
 
 	default:
-		if(debug['P'])
-			print(" (?)");
+		print("copyu: cant find %A\n", p->as);
 		return 2;
 
 	case AMOVM:
@@ -1028,6 +1027,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 
 	case ACMPF:
 	case ACMPD:
+	case ATST:
 	case ACMP:
 	case ACMN:
 	case ACASE:
@@ -1138,6 +1138,7 @@ a2type(Prog *p)
 
 	switch(p->as) {
 
+	case ATST:
 	case ACMP:
 	case ACMN:
 
@@ -1369,9 +1370,9 @@ int
 modifiescpsr(Prog *p)
 {
 	switch(p->as) {
-	case ATST:
 	case ATEQ:
 	case ACMN:
+	case ATST:
 	case ACMP:
 	case AMULU:
 	case ADIVU:

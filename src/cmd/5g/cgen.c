@@ -671,7 +671,8 @@ agen(Node *n, Node *res)
 			p1 = gins(AMOVW, N, &n3);
 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
 			p1->from.type = D_CONST;
-		} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
+		} else
+		if(isslice(nl->type) || nl->type->etype == TSTRING) {
 			n1 = n3;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
@@ -813,6 +814,28 @@ agenr(Node *n, Node *a, Node *res)
 	agen(n, a);
 }
 
+void
+gencmp0(Node *n, Type *t, int o, Prog *to)
+{
+	Node n1, n2, n3;
+	int a;
+
+	regalloc(&n1, t, N);
+	cgen(n, &n1);
+	a = optoas(OCMP, t);
+	if(a != ACMP) {
+		nodconst(&n2, t, 0);
+		regalloc(&n3, t, N);
+		gmove(&n2, &n3);
+		gcmp(a, &n1, &n3);
+		regfree(&n3);
+	} else
+		gins(ATST, &n1, N);
+	a = optoas(o, t);
+	patch(gbranch(optoas(o, t), t), to);
+	regfree(&n1);
+}
+
 /*
  * generate:
  *	if(n == true) goto to;
@@ -856,41 +879,16 @@ bgen(Node *n, int true, Prog *to)
 	switch(n->op) {
 	default:
 	def:
-		regalloc(&n1, n->type, N);
-		cgen(n, &n1);
-		nodconst(&n2, n->type, 0);
-		regalloc(&n3, n->type, N);
-		gmove(&n2, &n3);
-		gcmp(optoas(OCMP, n->type), &n1, &n3);
-		a = ABNE;
+		a = ONE;
 		if(!true)
-			a = ABEQ;
-		patch(gbranch(a, n->type), to);
-		regfree(&n1);
-		regfree(&n3);
+			a = OEQ;
+		gencmp0(n, n->type, a, to);
 		goto ret;
 
 	case OLITERAL:
 		// need to ask if it is bool?
 		if(!true == !n->val.u.bval)
 			patch(gbranch(AB, T), to);
-		goto ret;
-
-	case ONAME:
-		if(n->addable == 0)
-			goto def;
-		nodconst(&n1, n->type, 0);
-		regalloc(&n2, n->type, N);
-		regalloc(&n3, n->type, N);
-		gmove(&n1, &n2);
-		cgen(n, &n3);
-		gcmp(optoas(OCMP, n->type), &n2, &n3);
-		a = ABNE;
-		if(!true)
-			a = ABEQ;
-		patch(gbranch(a, n->type), to);
-		regfree(&n2);
-		regfree(&n3);
 		goto ret;
 
 	case OANDAND:
@@ -975,6 +973,16 @@ bgen(Node *n, int true, Prog *to)
 				yyerror("illegal array comparison");
 				break;
 			}
+
+			regalloc(&n1, types[tptr], N);
+			agen(nl, &n1);
+			n2 = n1;
+			n2.op = OINDREG;
+			n2.xoffset = Array_array;
+			gencmp0(&n2, types[tptr], a, to);
+			regfree(&n1);
+			break;
+
 			a = optoas(a, types[tptr]);
 			regalloc(&n1, types[tptr], N);
 			regalloc(&n3, types[tptr], N);
@@ -1000,6 +1008,16 @@ bgen(Node *n, int true, Prog *to)
 				yyerror("illegal interface comparison");
 				break;
 			}
+
+			regalloc(&n1, types[tptr], N);
+			agen(nl, &n1);
+			n2 = n1;
+			n2.op = OINDREG;
+			n2.xoffset = 0;
+			gencmp0(&n2, types[tptr], a, to);
+			regfree(&n1);
+			break;
+
 			a = optoas(a, types[tptr]);
 			regalloc(&n1, types[tptr], N);
 			regalloc(&n3, types[tptr], N);
@@ -1037,6 +1055,17 @@ bgen(Node *n, int true, Prog *to)
 			}
 			cmp64(nl, nr, a, to);
 			break;
+		}
+
+		if(nr->op == OLITERAL) {
+			if(nr->val.ctype == CTINT &&  mpgetfix(nr->val.u.xval) == 0) {
+				gencmp0(nl, nl->type, a, to);
+				break;
+			}
+			if(nr->val.ctype == CTNIL) {
+				gencmp0(nl, nl->type, a, to);
+				break;
+			}
 		}
 
 		a = optoas(a, nr->type);
