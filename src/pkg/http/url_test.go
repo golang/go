@@ -188,14 +188,48 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// leading // without scheme shouldn't create an authority
+	// leading // without scheme should create an authority
 	{
 		"//foo",
 		&URL{
-			Raw:     "//foo",
-			Scheme:  "",
-			RawPath: "//foo",
-			Path:    "//foo",
+			RawAuthority: "foo",
+			Raw:          "//foo",
+			Host:         "foo",
+			Scheme:       "",
+			RawPath:      "",
+			Path:         "",
+		},
+		"",
+	},
+	// leading // without scheme, with userinfo, path, and query
+	{
+		"//user@foo/path?a=b",
+		&URL{
+			Raw:          "//user@foo/path?a=b",
+			RawAuthority: "user@foo",
+			RawUserinfo:  "user",
+			Scheme:       "",
+			RawPath:      "/path?a=b",
+			Path:         "/path",
+			RawQuery:     "a=b",
+			Host:         "foo",
+		},
+		"",
+	},
+	// Three leading slashes isn't an authority, but doesn't return an error.
+	// (We can't return an error, as this code is also used via
+	// ServeHTTP -> ReadRequest -> ParseURL, which is arguably a
+	// different URL parsing context, but currently shares the
+	// same codepath)
+	{
+		"///threeslashes",
+		&URL{
+			RawAuthority: "",
+			Raw:          "///threeslashes",
+			Host:         "",
+			Scheme:       "",
+			RawPath:      "///threeslashes",
+			Path:         "///threeslashes",
 		},
 		"",
 	},
@@ -272,7 +306,7 @@ var urlfragtests = []URLTest{
 
 // more useful string for debugging than fmt's struct printer
 func ufmt(u *URL) string {
-	return fmt.Sprintf("%q, %q, %q, %q, %q, %q, %q, %q, %q",
+	return fmt.Sprintf("raw=%q, scheme=%q, rawpath=%q, auth=%q, userinfo=%q, host=%q, path=%q, rawq=%q, frag=%q",
 		u.Raw, u.Scheme, u.RawPath, u.RawAuthority, u.RawUserinfo,
 		u.Host, u.Path, u.RawQuery, u.Fragment)
 }
@@ -299,6 +333,40 @@ func TestParseURL(t *testing.T) {
 func TestParseURLReference(t *testing.T) {
 	DoTest(t, ParseURLReference, "ParseURLReference", urltests)
 	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests)
+}
+
+const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
+
+var parseRequestUrlTests = []struct {
+	url           string
+	expectedValid bool
+}{
+	{"http://foo.com", true},
+	{"http://foo.com/", true},
+	{"http://foo.com/path", true},
+	{"/", true},
+	{pathThatLooksSchemeRelative, true},
+	{"//not.a.user@%66%6f%6f.com/just/a/path/also", true},
+	{"foo.html", false},
+	{"../dir/", false},
+}
+
+func TestParseRequestURL(t *testing.T) {
+	for _, test := range parseRequestUrlTests {
+		_, err := ParseRequestURL(test.url)
+		valid := err == nil
+		if valid != test.expectedValid {
+			t.Errorf("Expected valid=%v for %q; got %v", test.expectedValid, test.url, valid)
+		}
+	}
+
+	url, err := ParseRequestURL(pathThatLooksSchemeRelative)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	if url.Path != pathThatLooksSchemeRelative {
+		t.Errorf("Expected path %q; got %q", pathThatLooksSchemeRelative, url.Path)
+	}
 }
 
 func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
