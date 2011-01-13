@@ -26,7 +26,7 @@ type Snippet struct {
 func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
 	// TODO instead of pretty-printing the node, should use the original source instead
 	var buf bytes.Buffer
-	writeNode(&buf, fset, decl, true)
+	writeNode(&buf, fset, decl, false)
 	return &Snippet{fset.Position(id.Pos()).Line, FormatText(buf.Bytes(), -1, true, id.Name, nil)}
 }
 
