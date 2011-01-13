@@ -5,6 +5,52 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-01-12">2011-01-12</h3>
+
+<pre>
+The json, gob, and template packages have changed, and code that uses them
+may need to be updated after this release. They will no longer read or write
+unexported struct fields. When marshalling a struct with json or gob the
+unexported fields will be silently ignored. Attempting to unmarshal json or
+gob data into an unexported field will generate an error. Accessing an
+unexported field from a template will cause the Execute function to return
+an error.
+
+Godoc now supports regular expression full text search, and this
+functionality is now available on golang.org.
+
+Other changes:
+* arm: initial cut at arm optimizer.
+* bytes.Buffer: Fix bug in UnreadByte.
+* cgo: export unsafe.Pointer as void*, fix enum const conflict,
+        output alignment fix (thanks Gustavo Niemeyer).
+* crypto/block: mark as deprecated.
+* crypto/openpgp: add error and armor.
+* crypto: add twofish package (thanks Berengar Lehr).
+* doc/spec: remove Maxalign from spec.
+* encoding/line: new package for reading lines from an io.Reader.
+* go/ast: correct end position for Index and TypeAssert expressions.
+* gob: make (en|dec)code(Ui|I)nt methods rather than functions.
+* godefs: better handling of enums.
+* gofmt: don't attempt certain illegal rewrites,
+        rewriter matches apply to expressions only.
+* goinstall: preliminary support for cgo packages (thanks Gustavo Niemeyer).
+* hg: add cgo/_cgo_* to .hgignore.
+* http: fix text displayed in Redirect.
+* ld: fix exported dynamic symbols on Mach-O,
+        permit a Mach-O symbol to be exported in the dynamic symbol table.
+* log: add methods for exit and panic.
+* net: use closesocket api instead of CloseHandle on Windows (thanks Alex Brainman).
+* netchan: make fields exported for gob change.
+* os: add Sync to *File, wraps syscall.Fsync.
+* runtime/cgo: Add callbacks to support SWIG.
+* runtime: Restore scheduler stack position if cgo callback panics.
+* suffixarray: faster creation algorithm (thanks Eric Eisner).
+* syscall: fix mksysnum_linux.sh (thanks Anthony Martin).
+* time.NewTicker: panic for intervals <= 0.
+* time: add AfterFunc to call a function after a duration (thanks Roger Peppe),
+        fix tick accuracy when using multiple Tickers (thanks Eoghan Sherry).</pre>
+
 <h3 id="2011-01-06">2011-01-06</h3>
 
 <pre>
