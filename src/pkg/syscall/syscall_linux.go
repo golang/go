@@ -257,8 +257,8 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 		sa.raw.Path[0] = 0
 	}
 
-	// length is family, name, NUL.
-	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0
+	// length is family (uint16), name, NUL.
+	return uintptr(unsafe.Pointer(&sa.raw)), 2 + _Socklen(n) + 1, 0
 }
 
 type SockaddrLinklayer struct {
