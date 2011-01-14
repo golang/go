@@ -69,8 +69,8 @@ func scannerMode(mode uint) uint {
 }
 
 
-func (p *parser) init(file *token.File, src []byte, mode uint) {
-	p.file = file
+func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uint) {
+	p.file = fset.AddFile(filename, fset.Base(), len(src))
 	p.scanner.Init(p.file, src, p, scannerMode(mode))
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
