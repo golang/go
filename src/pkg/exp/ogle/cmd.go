@@ -64,7 +64,8 @@ func Main() {
 func newScanner(input []byte) (*scanner.Scanner, *scanner.ErrorVector) {
 	sc := new(scanner.Scanner)
 	ev := new(scanner.ErrorVector)
-	sc.Init(fset, "input", input, ev, 0)
+	file := fset.AddFile("input", fset.Base(), len(input))
+	sc.Init(file, input, ev, 0)
 	return sc, ev
 }
 
