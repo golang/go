@@ -145,14 +145,15 @@ TEXT runtime·morestack(SB),7,$-4
 	BL.EQ	runtime·abort(SB)
 
 	// Save in m.
-	MOVW	R1, m_moreframe(m)
-	MOVW	R2, m_moreargs(m)
+	MOVW	R1, m_moreframesize(m)
+	MOVW	R2, m_moreargsize(m)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
 	MOVW	R3, (m_morebuf+gobuf_pc)(m)	// f's caller's PC
 	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// f's caller's SP
-	MOVW	SP, m_morefp(m)			// f's caller's SP
+	MOVW	$4(SP), R3			// f's argument pointer
+	MOVW	R3, m_moreargp(m)	
 	MOVW	g, (m_morebuf+gobuf_g)(m)
 
 	// Set m->morepc to f's PC.
@@ -185,14 +186,11 @@ TEXT reflect·call(SB), 7, $-4
 	MOVW	8(SP), R1			// arg frame
 	MOVW	12(SP), R2			// arg size
 
-	SUB	$4,R1				// add the saved LR to the frame
-	ADD	$4,R2
-
 	MOVW	R0, m_morepc(m)			// f's PC
-	MOVW	R1, m_morefp(m)			// argument frame pointer
-	MOVW	R2, m_moreargs(m)		// f's argument size
+	MOVW	R1, m_moreargp(m)		// f's argument pointer
+	MOVW	R2, m_moreargsize(m)		// f's argument size
 	MOVW	$1, R3
-	MOVW	R3, m_moreframe(m)		// f's frame size
+	MOVW	R3, m_moreframesize(m)		// f's frame size
 
 	// Call newstack on m's scheduling stack.
 	MOVW	m_g0(m), g
@@ -218,8 +216,9 @@ TEXT runtime·lessstack(SB), 7, $-4
 TEXT runtime·jmpdefer(SB), 7, $0
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
-	MOVW	4(SP), R0		// fn
-	MOVW	8(SP), SP
+	MOVW	fn+0(FP), R0
+	MOVW	argp+4(FP), SP
+	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
 	B		(R0)
 
 TEXT runtime·memclr(SB),7,$20

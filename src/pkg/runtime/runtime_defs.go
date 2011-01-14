@@ -84,32 +84,32 @@ type g_ struct {
 }
 
 type m_ struct {
-	g0        *g_
-	morepc    unsafe.Pointer
-	morefp    unsafe.Pointer
-	morebuf   gobuf
-	moreframe uint32
-	moreargs  uint32
-	cret      uintptr
-	procid    uint64
-	gsignal   *g_
-	tls       [8]uint32
-	sched     gobuf
-	curg      *g_
-	id        int32
-	mallocing int32
-	gcing     int32
-	locks     int32
-	nomemprof int32
-	waitnextg int32
-	havenextg note
-	nextg     *g_
-	alllink   *m_
-	schedlink *m_
-	machport  uint32
-	mcache    *mCache
-	lockedg   *g_
-	freg      [8]uint64
+	g0            *g_
+	morepc        unsafe.Pointer
+	moreargp      unsafe.Pointer
+	morebuf       gobuf
+	moreframesize uint32
+	moreargsize   uint32
+	cret          uintptr
+	procid        uint64
+	gsignal       *g_
+	tls           [8]uint32
+	sched         gobuf
+	curg          *g_
+	id            int32
+	mallocing     int32
+	gcing         int32
+	locks         int32
+	nomemprof     int32
+	waitnextg     int32
+	havenextg     note
+	nextg         *g_
+	alllink       *m_
+	schedlink     *m_
+	machport      uint32
+	mcache        *mCache
+	lockedg       *g_
+	freg          [8]uint64
 	// gostack	unsafe.Pointer  // __WINDOWS__
 }
 

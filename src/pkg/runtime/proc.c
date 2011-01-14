@@ -470,8 +470,8 @@ scheduler(void)
 			d = gp->defer;
 			gp->defer = d->link;
 			
-			// unwind to the stack frame with d->sp in it.
-			unwindstack(gp, d->sp);
+			// unwind to the stack frame with d's arguments in it.
+			unwindstack(gp, d->argp);
 
 			// make the deferproc for this d return again,
 			// this time returning 1.  function will jump to
@@ -481,7 +481,11 @@ scheduler(void)
 			// each call to deferproc.
 			// (the pc we're returning to does pop pop
 			// before it tests the return value.)
-			gp->sched.sp = runtime·getcallersp(d->sp - 2*sizeof(uintptr));
+			// on the arm there are 2 saved LRs mixed in too.
+			if(thechar == '5')
+				gp->sched.sp = (byte*)d->argp - 4*sizeof(uintptr);
+			else
+				gp->sched.sp = (byte*)d->argp - 2*sizeof(uintptr);
 			gp->sched.pc = d->pc;
 			gp->status = Grunning;
 			runtime·free(d);
@@ -633,7 +637,6 @@ void
 runtime·startcgocallback(G* g1)
 {
 	Defer *d;
-	uintptr arg;
 
 	runtime·lock(&runtime·sched);
 	g1->status = Grunning;
@@ -687,7 +690,7 @@ runtime·endcgocallback(G* g1)
  * the stack is allowed to protrude StackSmall bytes
  * below the stack guard.  functions with large frames
  * don't bother with the check and always call morestack.
- * the sequences are:
+ * the sequences are (for amd64, others are similar):
  *
  *	guard = g->stackguard
  *	frame = function's stack frame size
@@ -748,7 +751,7 @@ void
 runtime·oldstack(void)
 {
 	Stktop *top, old;
-	uint32 args;
+	uint32 argsize;
 	byte *sp;
 	G *g1;
 	static int32 goid;
@@ -759,10 +762,10 @@ runtime·oldstack(void)
 	top = (Stktop*)g1->stackbase;
 	sp = (byte*)top;
 	old = *top;
-	args = old.args;
-	if(args > 0) {
-		sp -= args;
-		runtime·mcpy(top->fp, sp, args);
+	argsize = old.argsize;
+	if(argsize > 0) {
+		sp -= argsize;
+		runtime·mcpy(top->argp, sp, argsize);
 	}
 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
 
@@ -777,22 +780,26 @@ runtime·oldstack(void)
 void
 runtime·newstack(void)
 {
-	int32 frame, args;
+	int32 framesize, argsize;
 	Stktop *top;
 	byte *stk, *sp;
 	G *g1;
 	Gobuf label;
-	bool free;
+	bool free, reflectcall;
 
-	frame = m->moreframe;
-	args = m->moreargs;
+	framesize = m->moreframesize;
+	argsize = m->moreargsize;
 	g1 = m->curg;
 
 	if(m->morebuf.sp < g1->stackguard - StackGuard)
 		runtime·throw("split stack overflow");
 
-	if(frame == 1 && args > 0 && m->morebuf.sp - sizeof(Stktop) - args - 32 > g1->stackguard) {
-		// special case: called from reflect.call (frame == 1)
+	reflectcall = framesize==1;
+	if(reflectcall)
+		framesize = 0;
+
+	if(reflectcall && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > g1->stackguard) {
+		// special case: called from reflect.call (framesize==1)
 		// to call code with an arbitrary argument size,
 		// and we have enough space on the current stack.
 		// the new Stktop* is necessary to unwind, but
@@ -802,14 +809,12 @@ runtime·newstack(void)
 		free = false;
 	} else {
 		// allocate new segment.
-		if(frame == 1)	// failed reflect.call hint
-			frame = 0;
-		frame += args;
-		if(frame < StackBig)
-			frame = StackBig;
-		frame += 1024;	// room for more functions, Stktop.
-		stk = runtime·stackalloc(frame);
-		top = (Stktop*)(stk+frame-sizeof(*top));
+		framesize += argsize;
+		if(framesize < StackBig)
+			framesize = StackBig;
+		framesize += 1024;	// room for more functions, Stktop.
+		stk = runtime·stackalloc(framesize);
+		top = (Stktop*)(stk+framesize-sizeof(*top));
 		free = true;
 	}
 
@@ -819,8 +824,8 @@ runtime·newstack(void)
 	top->stackbase = g1->stackbase;
 	top->stackguard = g1->stackguard;
 	top->gobuf = m->morebuf;
-	top->fp = m->morefp;
-	top->args = args;
+	top->argp = m->moreargp;
+	top->argsize = argsize;
 	top->free = free;
 	
 	// copy flag from panic
@@ -831,9 +836,14 @@ runtime·newstack(void)
 	g1->stackguard = stk + StackGuard;
 
 	sp = (byte*)top;
-	if(args > 0) {
-		sp -= args;
-		runtime·mcpy(sp, m->morefp, args);
+	if(argsize > 0) {
+		sp -= argsize;
+		runtime·mcpy(sp, m->moreargp, argsize);
+	}
+	if(thechar == '5') {
+		// caller would have saved its LR below args.
+		sp -= sizeof(void*);
+		*(void**)sp = nil;
 	}
 
 	// Continue as if lessstack had just called m->morepc
@@ -876,7 +886,13 @@ runtime·malg(int32 stacksize)
 void
 runtime·newproc(int32 siz, byte* fn, ...)
 {
-	runtime·newproc1(fn, (byte*)(&fn+1), siz, 0);
+	byte *argp;
+	
+	if(thechar == '5')
+		argp = (byte*)(&fn+2);  // skip caller's saved LR
+	else
+		argp = (byte*)(&fn+1);
+	runtime·newproc1(fn, argp, siz, 0);
 }
 
 G*
@@ -908,6 +924,11 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 	sp = newg->stackbase;
 	sp -= siz;
 	runtime·mcpy(sp, argp, narg);
+	if(thechar == '5') {
+		// caller's LR
+		sp -= sizeof(void*);
+		*(void**)sp = nil;
+	}
 
 	newg->sched.sp = sp;
 	newg->sched.pc = (byte*)runtime·goexit;
@@ -933,10 +954,13 @@ runtime·deferproc(int32 siz, byte* fn, ...)
 
 	d = runtime·malloc(sizeof(*d) + siz - sizeof(d->args));
 	d->fn = fn;
-	d->sp = (byte*)(&fn+1);
 	d->siz = siz;
 	d->pc = runtime·getcallerpc(&siz);
-	runtime·mcpy(d->args, d->sp, d->siz);
+	if(thechar == '5')
+		d->argp = (byte*)(&fn+2);  // skip caller's saved link register
+	else
+		d->argp = (byte*)(&fn+1);
+	runtime·mcpy(d->args, d->argp, d->siz);
 
 	d->link = g->defer;
 	g->defer = d;
@@ -955,19 +979,19 @@ void
 runtime·deferreturn(uintptr arg0)
 {
 	Defer *d;
-	byte *sp, *fn;
+	byte *argp, *fn;
 
 	d = g->defer;
 	if(d == nil)
 		return;
-	sp = runtime·getcallersp(&arg0);
-	if(d->sp != sp)
+	argp = (byte*)&arg0;
+	if(d->argp != argp)
 		return;
-	runtime·mcpy(d->sp, d->args, d->siz);
+	runtime·mcpy(argp, d->args, d->siz);
 	g->defer = d->link;
 	fn = d->fn;
 	runtime·free(d);
-	runtime·jmpdefer(fn, sp);
+	runtime·jmpdefer(fn, argp);
 }
 
 static void
@@ -983,7 +1007,7 @@ rundefer(void)
 }
 
 // Free stack frames until we hit the last one
-// or until we find the one that contains the sp.
+// or until we find the one that contains the argp.
 static void
 unwindstack(G *gp, byte *sp)
 {
@@ -1043,10 +1067,7 @@ runtime·panic(Eface e)
 		// take defer off list in case of recursive panic
 		g->defer = d->link;
 		g->ispanic = true;	// rock for newstack, where reflect.call ends up
-		if(thechar == '5')
-			reflect·call(d->fn, d->args+4, d->siz-4);	// reflect.call does not expect LR
-		else
-			reflect·call(d->fn, d->args, d->siz);
+		reflect·call(d->fn, d->args, d->siz);
 		if(p->recovered) {
 			g->panic = p->link;
 			runtime·free(p);
@@ -1068,12 +1089,10 @@ runtime·panic(Eface e)
 
 #pragma textflag 7	/* no split, or else g->stackguard is not the stack for fp */
 void
-runtime·recover(byte *fp, Eface ret)
+runtime·recover(byte *argp, Eface ret)
 {
 	Stktop *top, *oldtop;
 	Panic *p;
-
-	fp = runtime·getcallersp(fp);
 
 	// Must be a panic going on.
 	if((p = g->panic) == nil || p->recovered)
@@ -1097,11 +1116,11 @@ runtime·recover(byte *fp, Eface ret)
 	// allocated a second segment (see below),
 	// the fp is slightly above top - top->args.
 	// That condition can't happen normally though
-	// (stack pointer go down, not up), so we can accept
+	// (stack pointers go down, not up), so we can accept
 	// any fp between top and top - top->args as
 	// indicating the top of the segment.
 	top = (Stktop*)g->stackbase;
-	if(fp < (byte*)top - top->args || (byte*)top < fp)
+	if(argp < (byte*)top - top->argsize || (byte*)top < argp)
 		goto nomatch;
 
 	// The deferred call makes a new segment big enough
@@ -1117,7 +1136,7 @@ runtime·recover(byte *fp, Eface ret)
 	// bytes above top->fp) abuts the old top of stack.
 	// This is a correct test for both closure and non-closure code.
 	oldtop = (Stktop*)top->stackbase;
-	if(oldtop != nil && top->fp == (byte*)oldtop - top->args)
+	if(oldtop != nil && top->argp == (byte*)oldtop - top->argsize)
 		top = oldtop;
 
 	// Now we have the segment that was created to
