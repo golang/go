@@ -422,12 +422,16 @@ func _() {
 
 func ( /* comment1 */ T /* comment2 */ ) _()	{}
 
-func _() { /* one-liner */
+func _() { /* one-line functions with comments are formatted as multi-line functions */
 }
 
 func _() {
 	_ = 0
 	/* closing curly brace should be on new line */
+}
+
+func _() {
+	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */ }
 }
 
 
