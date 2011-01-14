@@ -48,7 +48,6 @@ _cgo_defun.c:
 
 _cgo_main.c:
 	echo 'int main() { return 0; }' >$@
-	echo 'void *crosscall2;' >>$@
 endif
 
 $(GOARCH).o: $(GOARCH).S
