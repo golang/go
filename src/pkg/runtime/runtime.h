@@ -205,12 +205,12 @@ struct	M
 	// The offsets of these fields are known to (hard-coded in) libmach.
 	G*	g0;		// goroutine with scheduling stack
 	void	(*morepc)(void);
-	void*	morefp;	// frame pointer for more stack
+	void*	moreargp;	// argument pointer for more stack
 	Gobuf	morebuf;	// gobuf arg to morestack
 
 	// Fields not known to debuggers.
-	uint32	moreframe;	// size arguments to morestack
-	uint32	moreargs;
+	uint32	moreframesize;	// size arguments to morestack
+	uint32	moreargsize;
 	uintptr	cret;		// return value from C
 	uint64	procid;		// for debuggers, but offset not hard-coded
 	G*	gsignal;	// signal-handling G
@@ -243,12 +243,9 @@ struct	Stktop
 	uint8*	stackguard;
 	uint8*	stackbase;
 	Gobuf	gobuf;
-	uint32	args;
+	uint32	argsize;
 
-	// Frame pointer: where args start in old frame.
-	// fp == gobuf.sp except in the case of a reflected
-	// function call, which uses an off-stack argument frame.
-	uint8*	fp;
+	uint8*	argp;  // pointer to arguments in old frame
 	bool	free;	// call stackfree for this frame?
 	bool	panic;	// is this frame the top of a panic?
 };
@@ -333,7 +330,7 @@ enum {
 struct Defer
 {
 	int32	siz;
-	byte*	sp;
+	byte*	argp;  // where args were copied from
 	byte*	pc;
 	byte*	fn;
 	Defer*	link;

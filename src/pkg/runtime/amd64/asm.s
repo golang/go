@@ -151,7 +151,7 @@ TEXT runtime·morestack(SB),7,$0
 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAQ	16(SP), AX	// f's caller's SP
 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
-	MOVQ	AX, (m_morefp)(BX)
+	MOVQ	AX, m_moreargp(BX)
 	get_tls(CX)
 	MOVQ	g(CX), SI
 	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
@@ -197,9 +197,9 @@ TEXT reflect·call(SB), 7, $0
 	MOVL	24(SP), CX	// arg size
 
 	MOVQ	AX, m_morepc(BX)	// f's PC
-	MOVQ	DX, m_morefp(BX)	// argument frame pointer
-	MOVL	CX, m_moreargs(BX)	// f's argument size
-	MOVL	$1, m_moreframe(BX)	// f's frame size
+	MOVQ	DX, m_moreargp(BX)	// argument frame pointer
+	MOVL	CX, m_moreargsize(BX)	// f's argument size
+	MOVL	$1, m_moreframesize(BX)	// f's frame size
 
 	// Call newstack on m's scheduling stack.
 	MOVQ	m_g0(BX), BP
@@ -230,7 +230,7 @@ TEXT runtime·morestack00(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
 	MOVQ	$0, AX
-	MOVQ	AX, m_moreframe(BX)
+	MOVQ	AX, m_moreframesize(BX)
 	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
@@ -238,7 +238,7 @@ TEXT runtime·morestack01(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
 	SHLQ	$32, AX
-	MOVQ	AX, m_moreframe(BX)
+	MOVQ	AX, m_moreframesize(BX)
 	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
@@ -246,14 +246,14 @@ TEXT runtime·morestack10(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
 	MOVLQZX	AX, AX
-	MOVQ	AX, m_moreframe(BX)
+	MOVQ	AX, m_moreframesize(BX)
 	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
 TEXT runtime·morestack11(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
-	MOVQ	AX, m_moreframe(BX)
+	MOVQ	AX, m_moreframesize(BX)
 	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
@@ -294,7 +294,7 @@ TEXT morestack<>(SB),7,$0
 	MOVQ	m(CX), BX
 	POPQ	AX
 	SHLQ	$35, AX
-	MOVQ	AX, m_moreframe(BX)
+	MOVQ	AX, m_moreframesize(BX)
 	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 

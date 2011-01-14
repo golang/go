@@ -340,13 +340,12 @@ noops(void)
 					p->to.type = D_REG;
 					p->to.reg = 1;
 	
-					// MOVW.LO		$args +4, R2
-					// also need to store the extra 4 bytes.
+					// MOVW.LO		$args, R2
 					p = appendp(p);
 					p->as = AMOVW;
 					p->scond = C_SCOND_LO;
 					p->from.type = D_CONST;
-					p->from.offset = ((cursym->text->to.offset2 + 3) & ~3) + 4;
+					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
 					p->to.type = D_REG;
 					p->to.reg = 2;
 	
@@ -391,12 +390,12 @@ noops(void)
 					p->to.type = D_REG;
 					p->to.reg = 1;
 	
-					// MOVW		$args +4, R2
+					// MOVW		$args, R2
 					// also need to store the extra 4 bytes.
 					p = appendp(p);
 					p->as = AMOVW;
 					p->from.type = D_CONST;
-					p->from.offset = ((cursym->text->to.offset2 + 3) & ~3) + 4;
+					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
 					p->to.type = D_REG;
 					p->to.reg = 2;
 	

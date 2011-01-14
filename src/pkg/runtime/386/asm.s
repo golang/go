@@ -156,8 +156,8 @@ TEXT runtime·morestack(SB),7,$0
 	// frame size in DX
 	// arg size in AX
 	// Save in m.
-	MOVL	DX, m_moreframe(BX)
-	MOVL	AX, m_moreargs(BX)
+	MOVL	DX, m_moreframesize(BX)
+	MOVL	AX, m_moreargsize(BX)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -165,7 +165,7 @@ TEXT runtime·morestack(SB),7,$0
 	MOVL	DI, (m_morebuf+gobuf_pc)(BX)
 	LEAL	8(SP), CX	// f's caller's SP
 	MOVL	CX, (m_morebuf+gobuf_sp)(BX)
-	MOVL	CX, (m_morefp)(BX)
+	MOVL	CX, m_moreargp(BX)
 	get_tls(CX)
 	MOVL	g(CX), SI
 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
@@ -213,9 +213,9 @@ TEXT reflect·call(SB), 7, $0
 	MOVL	12(SP), CX	// arg size
 
 	MOVL	AX, m_morepc(BX)	// f's PC
-	MOVL	DX, m_morefp(BX)	// argument frame pointer
-	MOVL	CX, m_moreargs(BX)	// f's argument size
-	MOVL	$1, m_moreframe(BX)	// f's frame size
+	MOVL	DX, m_moreargp(BX)	// f's argument pointer
+	MOVL	CX, m_moreargsize(BX)	// f's argument size
+	MOVL	$1, m_moreframesize(BX)	// f's frame size
 
 	// Call newstack on m's scheduling stack.
 	MOVL	m_g0(BX), BP
