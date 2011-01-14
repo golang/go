@@ -872,7 +872,10 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		}
 		p.print(x.Lbrace, token.LBRACE)
 		p.exprList(x.Lbrace, x.Elts, 1, commaSep|commaTerm, multiLine, x.Rbrace)
-		p.print(x.Rbrace, token.RBRACE)
+		// do not insert extra line breaks because of comments before
+		// the closing '}' as it might break the code if there is no
+		// trailing ','
+		p.print(noExtraLinebreak, x.Rbrace, token.RBRACE, noExtraLinebreak)
 
 	case *ast.Ellipsis:
 		p.print(token.ELLIPSIS)
@@ -1388,7 +1391,7 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 		if isLit {
 			sep = blank
 		}
-		p.print(sep, b.Pos(), token.LBRACE)
+		p.print(sep, b.Lbrace, token.LBRACE)
 		if len(b.List) > 0 {
 			p.print(blank)
 			for i, s := range b.List {
