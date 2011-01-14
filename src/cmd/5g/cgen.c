@@ -832,7 +832,7 @@ gencmp0(Node *n, Type *t, int o, Prog *to)
 	} else
 		gins(ATST, &n1, N);
 	a = optoas(o, t);
-	patch(gbranch(optoas(o, t), t), to);
+	patch(gbranch(a, t), to);
 	regfree(&n1);
 }
 

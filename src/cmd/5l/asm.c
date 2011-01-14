@@ -1559,11 +1559,9 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= (p->from.reg<<16);
 		o1 |= (p->to.reg<<12);
 		break;
-
 	case 90:	/* tst reg  */
-		o1 = oprrr(AMOVW, p->scond);
-		o1 |= p->from.reg | (p->from.reg<<12);
-		o1 |= 1 << 20;	// SBIT
+		o1 = oprrr(ACMP+AEND, p->scond);
+		o1 |= p->from.reg<<16;
 		break;
 	}
 	
@@ -1716,6 +1714,8 @@ oprrr(int a, int sc)
 		return o | (0xe<<24) | (0x0<<20) | (0xb<<8) | (1<<4);
 	case AMOVFW+AEND:	// copy FtoW
 		return o | (0xe<<24) | (0x1<<20) | (0xb<<8) | (1<<4);
+	case ACMP+AEND:	// cmp imm
+		return o | (0x3<<24) | (0x5<<20);
 	}
 	diag("bad rrr %d", a);
 	prasm(curp);
