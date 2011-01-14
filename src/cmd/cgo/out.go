@@ -34,7 +34,9 @@ func (p *Package) writeDefs() {
 
 	// Write C main file for using gcc to resolve imports.
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
-	fmt.Fprintf(fm, "int crosscall2;\n\n")
+	fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
+	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
+	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
 
 	// Write second Go output: definitions of _C_xxx.
 	// In a separate file so that the import of "unsafe" does not
