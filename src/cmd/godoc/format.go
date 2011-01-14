@@ -239,7 +239,9 @@ func lineSelection(text []byte) Selection {
 //
 func commentSelection(src []byte) Selection {
 	var s scanner.Scanner
-	file := s.Init(token.NewFileSet(), "", src, nil, scanner.ScanComments+scanner.InsertSemis)
+	fset := token.NewFileSet()
+	file := fset.AddFile("", fset.Base(), len(src))
+	s.Init(file, src, nil, scanner.ScanComments+scanner.InsertSemis)
 	return func() (seg []int) {
 		for {
 			pos, tok, lit := s.Scan()

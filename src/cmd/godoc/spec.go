@@ -156,7 +156,8 @@ func (p *ebnfParser) parse(fset *token.FileSet, out io.Writer, src []byte) {
 	// initialize ebnfParser
 	p.out = out
 	p.src = src
-	p.file = p.scanner.Init(fset, "", src, p, 0)
+	p.file = fset.AddFile("", fset.Base(), len(src))
+	p.scanner.Init(p.file, src, p, 0)
 	p.next() // initializes pos, tok, lit
 
 	// process source
