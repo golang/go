@@ -615,7 +615,7 @@ func TestExp(t *testing.T) {
 func TestIsNaN(t *testing.T) {
 	for i := 0; i < len(vcIsNaNSC); i++ {
 		if f := IsNaN(vcIsNaNSC[i]); isNaNSC[i] != f {
-			t.Errorf("IsNaN(%g) = %g, want %g", vcIsNaNSC[i], f, isNaNSC[i])
+			t.Errorf("IsNaN(%v) = %v, want %v", vcIsNaNSC[i], f, isNaNSC[i])
 		}
 	}
 }
