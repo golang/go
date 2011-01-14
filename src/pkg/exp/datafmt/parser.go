@@ -42,8 +42,9 @@ func (p *parser) next() {
 
 func (p *parser) init(fset *token.FileSet, filename string, src []byte) {
 	p.ErrorVector.Reset()
-	p.file = p.scanner.Init(fset, filename, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
-	p.next()                                                                   // initializes pos, tok, lit
+	p.file = fset.AddFile(filename, fset.Base(), len(src))
+	p.scanner.Init(p.file, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
+	p.next()                                                  // initializes pos, tok, lit
 	p.packs = make(map[string]string)
 	p.rules = make(map[string]expr)
 }

@@ -96,24 +96,28 @@ const (
 	InsertSemis                   // automatically insert semicolons
 )
 
-// TODO(gri) Would it be better to simply provide *token.File to Init
-//           instead of fset, and filename, and then return the file?
-//           It could cause an error/panic if the provided file.Size()
-//           doesn't match len(src).
-
-// Init prepares the scanner S to tokenize the text src. It sets the
-// scanner at the beginning of the source text, adds a new file with
-// the given filename to the file set fset, and returns that file.
+// Init prepares the scanner S to tokenize the text src by setting the
+// scanner at the beginning of src. The scanner uses the file set file
+// for position information and it adds line information for each line.
+// It is ok to re-use the same file when re-scanning the same file as
+// line information which is already present is ignored. Init causes a
+// panic if the file size does not match the src size.
 //
 // Calls to Scan will use the error handler err if they encounter a
 // syntax error and err is not nil. Also, for each error encountered,
 // the Scanner field ErrorCount is incremented by one. The mode parameter
 // determines how comments, illegal characters, and semicolons are handled.
 //
-func (S *Scanner) Init(fset *token.FileSet, filename string, src []byte, err ErrorHandler, mode uint) *token.File {
+// Note that Init may call err if there is an error in the first character
+// of the file.
+//
+func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint) {
 	// Explicitly initialize all fields since a scanner may be reused.
-	S.file = fset.AddFile(filename, fset.Base(), len(src))
-	S.dir, _ = path.Split(filename)
+	if file.Size() != len(src) {
+		panic("file size does not match src len")
+	}
+	S.file = file
+	S.dir, _ = path.Split(file.Name())
 	S.src = src
 	S.err = err
 	S.mode = mode
@@ -126,8 +130,6 @@ func (S *Scanner) Init(fset *token.FileSet, filename string, src []byte, err Err
 	S.ErrorCount = 0
 
 	S.next()
-
-	return S.file
 }
 
 

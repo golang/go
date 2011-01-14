@@ -177,7 +177,7 @@ func (p *parser) parse(fset *token.FileSet, filename string, src []byte) Grammar
 	// initialize parser
 	p.fset = fset
 	p.ErrorVector.Reset()
-	p.scanner.Init(fset, filename, src, p, 0)
+	p.scanner.Init(fset.AddFile(filename, fset.Base(), len(src)), src, p, 0)
 	p.next() // initializes pos, tok, lit
 
 	grammar := make(Grammar)

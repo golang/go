@@ -228,7 +228,7 @@ func TestScan(t *testing.T) {
 
 	// verify scan
 	var s Scanner
-	s.Init(fset, "", []byte(src), &testErrorHandler{t}, ScanComments)
+	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &testErrorHandler{t}, ScanComments)
 	index := 0
 	epos := token.Position{"", 0, 1, 1} // expected position
 	for {
@@ -273,7 +273,8 @@ func TestScan(t *testing.T) {
 
 func checkSemi(t *testing.T, line string, mode uint) {
 	var S Scanner
-	file := S.Init(fset, "TestSemis", []byte(line), nil, mode)
+	file := fset.AddFile("TestSemis", fset.Base(), len(line))
+	S.Init(file, []byte(line), nil, mode)
 	pos, tok, lit := S.Scan()
 	for tok != token.EOF {
 		if tok == token.ILLEGAL {
@@ -476,7 +477,8 @@ func TestLineComments(t *testing.T) {
 
 	// verify scan
 	var S Scanner
-	file := S.Init(fset, "dir/TestLineComments", []byte(src), nil, 0)
+	file := fset.AddFile("dir/TestLineComments", fset.Base(), len(src))
+	S.Init(file, []byte(src), nil, 0)
 	for _, s := range segments {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)
@@ -495,7 +497,8 @@ func TestInit(t *testing.T) {
 
 	// 1st init
 	src1 := "if true { }"
-	f1 := s.Init(fset, "", []byte(src1), nil, 0)
+	f1 := fset.AddFile("src1", fset.Base(), len(src1))
+	s.Init(f1, []byte(src1), nil, 0)
 	if f1.Size() != len(src1) {
 		t.Errorf("bad file size: got %d, expected %d", f1.Size(), len(src1))
 	}
@@ -508,7 +511,8 @@ func TestInit(t *testing.T) {
 
 	// 2nd init
 	src2 := "go true { ]"
-	f2 := s.Init(fset, "", []byte(src2), nil, 0)
+	f2 := fset.AddFile("src2", fset.Base(), len(src2))
+	s.Init(f2, []byte(src2), nil, 0)
 	if f2.Size() != len(src2) {
 		t.Errorf("bad file size: got %d, expected %d", f2.Size(), len(src2))
 	}
@@ -527,7 +531,8 @@ func TestIllegalChars(t *testing.T) {
 	var s Scanner
 
 	const src = "*?*$*@*"
-	file := s.Init(fset, "", []byte(src), &testErrorHandler{t}, AllowIllegalChars)
+	file := fset.AddFile("", fset.Base(), len(src))
+	s.Init(file, []byte(src), &testErrorHandler{t}, AllowIllegalChars)
 	for offs, ch := range src {
 		pos, tok, lit := s.Scan()
 		if poffs := file.Offset(pos); poffs != offs {
@@ -556,7 +561,7 @@ func TestStdErrorHander(t *testing.T) {
 
 	v := new(ErrorVector)
 	var s Scanner
-	s.Init(fset, "File1", []byte(src), v, 0)
+	s.Init(fset.AddFile("File1", fset.Base(), len(src)), []byte(src), v, 0)
 	for {
 		if _, tok, _ := s.Scan(); tok == token.EOF {
 			break
@@ -604,7 +609,7 @@ func (h *errorCollector) Error(pos token.Position, msg string) {
 func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
 	var s Scanner
 	var h errorCollector
-	s.Init(fset, "", []byte(src), &h, ScanComments)
+	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &h, ScanComments)
 	_, tok0, _ := s.Scan()
 	_, tok1, _ := s.Scan()
 	if tok0 != tok {
