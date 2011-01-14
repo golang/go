@@ -68,7 +68,8 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
 		}
 
 		var s scanner.Scanner
-		s.Init(fset, filename, src, nil, scanner.ScanComments)
+		file := fset.AddFile(filename, fset.Base(), len(src))
+		s.Init(file, src, nil, scanner.ScanComments)
 		var prev token.Pos // position of last non-comment token
 	loop:
 		for {
