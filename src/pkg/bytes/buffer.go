@@ -303,7 +303,7 @@ func (b *Buffer) UnreadByte() os.Error {
 
 // NewBuffer creates and initializes a new Buffer using buf as its initial
 // contents.  It is intended to prepare a Buffer to read existing data.  It
-// can also be used to to size the internal buffer for writing.  To do that,
+// can also be used to size the internal buffer for writing.  To do that,
 // buf should have the desired capacity but a length of zero.
 func NewBuffer(buf []byte) *Buffer { return &Buffer{buf: buf} }
 
