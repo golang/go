@@ -137,18 +137,16 @@ regopt(Prog *firstp)
 	uint32 vreg;
 	Bits bit;
 
-return;
-
 	if(first == 0) {
 		fmtinstall('Q', Qconv);
 	}
 	first++;
 
 	if(debug['K']) {
-		if(first != 2)
+		if(first != 1)
 			return;
-		debug['R'] = 2;
-		debug['P'] = 2;
+//		debug['R'] = 2;
+//		debug['P'] = 2;
 		print("optimizing %S\n", curfn->nname->sym);
 	}
 
@@ -644,21 +642,17 @@ mkvar(Reg *r, Adr *a, int docon)
 		print("type %d %d %D\n", t, a->name, a);
 		goto none;
 
-	case D_CONST:
-		if(a->reg != NREG)
-			r->regu |= RtoB(a->reg);
-		// fallthrough
-
 	case D_NONE:
 	case D_FCONST:
 	case D_BRANCH:
-		goto none;
+		break;
 
 	case D_REGREG:
 		if(a->offset != NREG)
 			r->regu |= RtoB(a->offset);
 		// fallthrough
 
+	case D_CONST:
 	case D_REG:
 	case D_SHIFT:
 	case D_OREG:
@@ -750,22 +744,8 @@ out:
 	if(n == D_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
-
-//	if(t == D_CONST) {
-//		if(s == S) {
-//			for(z=0; z<BITS; z++)
-//				consts.b[z] |= bit.b[z];
-//			return bit;
-//		}
-//		if(et != TARRAY)
-//			for(z=0; z<BITS; z++)
-//				addrs.b[z] |= bit.b[z];
-//		for(z=0; z<BITS; z++)
-//			params.b[z] |= bit.b[z];
-//		return bit;
-//	}
-//	if(t != D_OREG)
-//		goto none;
+	if(t == D_CONST)
+		setaddrs(bit);
 
 	return bit;
 
