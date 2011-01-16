@@ -137,6 +137,8 @@ regopt(Prog *firstp)
 	uint32 vreg;
 	Bits bit;
 
+return;
+
 	if(first == 0) {
 		fmtinstall('Q', Qconv);
 	}
