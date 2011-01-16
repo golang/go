@@ -137,18 +137,16 @@ regopt(Prog *firstp)
 	uint32 vreg;
 	Bits bit;
 
-return;
-
 	if(first == 0) {
 		fmtinstall('Q', Qconv);
 	}
 	first++;
 
 	if(debug['K']) {
-		if(first != 20)
+		if(first != 2)
 			return;
-//		debug['R'] = 2;
-//		debug['P'] = 2;
+		debug['R'] = 2;
+		debug['P'] = 2;
 		print("optimizing %S\n", curfn->nname->sym);
 	}
 
@@ -480,7 +478,7 @@ brk:
 	 * peep-hole on basic block
 	 */
 	if(!debug['R'] || debug['P']) {
-		peep();
+//		peep();
 	}
 
 	/*
@@ -562,19 +560,23 @@ addmove(Reg *r, int bn, int rn, int f)
 	default:
 		print("What is this %E\n", v->etype);
 
+	case TINT8:
+		p1->as = AMOVB;
+		break;
+	case TBOOL:
+	case TUINT8:
+		p1->as = AMOVBU;
+		break;
+	case TINT16:
+		p1->as = AMOVH;
+		break;
+	case TUINT16:
+		p1->as = AMOVHU;
+		break;
 	case TINT32:
 	case TUINT32:
 	case TPTR32:
-	case TBOOL:
 		p1->as = AMOVW;
-		break;
-	case TINT8:
-	case TUINT8:
-		p1->as = AMOVB;
-		break;
-	case TINT16:
-	case TUINT16:
-		p1->as = AMOVH;
 		break;
 	case TFLOAT32:
 		p1->as = AMOVF;
@@ -599,7 +601,7 @@ addmove(Reg *r, int bn, int rn, int f)
 			a->type = D_FREG;
 			a->reg = rn-NREG;
 		}
-		if(v->etype == TUINT8)
+		if(v->etype == TUINT8 || v->etype == TBOOL)
 			p1->as = AMOVBU;
 		if(v->etype == TUINT16)
 			p1->as = AMOVHU;
