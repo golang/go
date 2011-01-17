@@ -336,6 +336,7 @@ subprop(Reg *r0)
 		case ACMN:
 		case AADD:
 		case ASUB:
+		case ASBC:
 		case ARSB:
 		case ASLL:
 		case ASRL:
@@ -621,8 +622,8 @@ shiftprop(Reg *r)
 	case AADC:
 	case AORR:
 	case ASUB:
-	case ARSB:
 	case ASBC:
+	case ARSB:
 	case ARSC:
 		if(p1->reg == n || (p1->reg == NREG && p1->to.type == D_REG && p1->to.reg == n)) {
 			if(p1->from.type != D_REG)
@@ -1006,6 +1007,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 
 	case AADD:	/* read, read, write */
 	case ASUB:
+	case ASBC:
 	case ARSB:
 	case ASLL:
 	case ASRL:
