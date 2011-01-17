@@ -253,8 +253,7 @@ regopt(Prog *firstp)
 		 * funny
 		 */
 		case ABL:
-			for(z=0; z<BITS; z++)
-				addrs.b[z] |= bit.b[z];
+			setaddrs(bit);
 			break;
 		}
 
@@ -271,6 +270,18 @@ regopt(Prog *firstp)
 	}
 	if(firstr == R)
 		return;
+
+	for(i=0; i<nvar; i++) {
+		Var *v = var+i;
+		if(v->addr) {
+			bit = blsh(i);
+			for(z=0; z<BITS; z++)
+				addrs.b[z] |= bit.b[z];
+		}
+
+//		print("bit=%2d addr=%d et=%-6E w=%-2d s=%S + %lld\n",
+//			i, v->addr, v->etype, v->width, v->sym, v->offset);
+	}
 
 	/*
 	 * pass 2
@@ -637,6 +648,10 @@ mkvar(Reg *r, Adr *a, int docon)
 	t = a->type;
 	n = D_NONE;
 
+	flag = 0;
+//	if(a->pun)
+//		flag = 1;
+
 	switch(t) {
 	default:
 		print("type %d %d %D\n", t, a->name, a);
@@ -647,15 +662,19 @@ mkvar(Reg *r, Adr *a, int docon)
 	case D_BRANCH:
 		break;
 
+	case D_CONST:
+		flag = 1;
+		goto onereg;
+
 	case D_REGREG:
 		if(a->offset != NREG)
 			r->regu |= RtoB(a->offset);
-		// fallthrough
+		goto onereg;
 
-	case D_CONST:
 	case D_REG:
 	case D_SHIFT:
 	case D_OREG:
+	onereg:
 		if(a->reg != NREG)
 			r->regu |= RtoB(a->reg);
 		break;
@@ -677,10 +696,6 @@ mkvar(Reg *r, Adr *a, int docon)
 		n = a->name;
 		break;
 	}
-
-	flag = 0;
-//	if(a->pun)
-//		flag = 1;
 
 	s = a->sym;
 	if(s == S)
@@ -736,7 +751,6 @@ mkvar(Reg *r, Adr *a, int docon)
 	if(debug['R'])
 		print("bit=%2d et=%E pun=%d %D\n", i, et, flag, a);
 
-out:
 	bit = blsh(i);
 	if(n == D_EXTERN || n == D_STATIC)
 		for(z=0; z<BITS; z++)
@@ -744,8 +758,6 @@ out:
 	if(n == D_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
-	if(t == D_CONST)
-		setaddrs(bit);
 
 	return bit;
 
