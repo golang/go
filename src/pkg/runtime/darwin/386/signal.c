@@ -66,6 +66,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
 		gp->sig = sig;
 		gp->sigcode0 = info->si_code;
 		gp->sigcode1 = (uintptr)info->si_addr;
+		gp->sigpc = r->eip;
 
 		// Only push runtime·sigpanic if r->eip != 0.
 		// If r->eip == 0, probably panicked because of a
