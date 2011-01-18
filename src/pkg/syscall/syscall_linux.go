@@ -253,12 +253,15 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 	for i := 0; i < n; i++ {
 		sa.raw.Path[i] = int8(name[i])
 	}
+	// length is family (uint16), name, NUL.
+	sl := 2 + _Socklen(n) + 1
 	if sa.raw.Path[0] == '@' {
 		sa.raw.Path[0] = 0
+		// Don't count trailing NUL for abstract address.
+		sl--
 	}
 
-	// length is family (uint16), name, NUL.
-	return uintptr(unsafe.Pointer(&sa.raw)), 2 + _Socklen(n) + 1, 0
+	return uintptr(unsafe.Pointer(&sa.raw)), sl, 0
 }
 
 type SockaddrLinklayer struct {
