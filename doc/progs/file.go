@@ -22,9 +22,9 @@ func newFile(fd int, name string) *File {
 }
 
 var (
-	Stdin  = newFile(0, "/dev/stdin")
-	Stdout = newFile(1, "/dev/stdout")
-	Stderr = newFile(2, "/dev/stderr")
+	Stdin  = newFile(syscall.Stdin, "/dev/stdin")
+	Stdout = newFile(syscall.Stdout, "/dev/stdout")
+	Stderr = newFile(syscall.Stderr, "/dev/stderr")
 )
 
 func Open(name string, mode int, perm uint32) (file *File, err os.Error) {
