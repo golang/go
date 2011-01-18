@@ -538,9 +538,9 @@ We can use the factory to construct some familiar, exported variables of type <c
 <p>
 <pre> <!-- progs/file.go /var/ /^.$/ -->
 24    var (
-25        Stdin  = newFile(0, &quot;/dev/stdin&quot;)
-26        Stdout = newFile(1, &quot;/dev/stdout&quot;)
-27        Stderr = newFile(2, &quot;/dev/stderr&quot;)
+25        Stdin  = newFile(syscall.Stdin, &quot;/dev/stdin&quot;)
+26        Stdout = newFile(syscall.Stdout, &quot;/dev/stdout&quot;)
+27        Stderr = newFile(syscall.Stderr, &quot;/dev/stderr&quot;)
 28    )
 </pre>
 <p>
@@ -663,7 +663,7 @@ something from the directory of installed packages.
 (Also, ''<code>file.go</code>'' must be compiled before we can import the
 package.)
 <p>
-Now we can compile and run the program:
+Now we can compile and run the program. On Unix, this would be the result:
 <p>
 <pre>
     $ 6g file.go                       # compile file package
