@@ -269,9 +269,15 @@ walkdef(Node *n)
 		}
 		t = n->type;
 		if(t != T) {
-			convlit(&e, t);
-			if(!okforconst[t->etype])
+			if(!okforconst[t->etype]) {
 				yyerror("invalid constant type %T", t);
+				goto ret;
+			}
+			if(!isideal(e->type) && !eqtype(t, e->type)) {
+				yyerror("cannot use %+N as type %T in const initializer", e, t);
+				goto ret;
+			}
+			convlit(&e, t);
 		}
 		n->val = e->val;
 		n->type = e->type;
