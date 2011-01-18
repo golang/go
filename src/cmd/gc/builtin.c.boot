@@ -67,6 +67,7 @@ char *runtimeimport =
 	"func \"\".makechan (elem *uint8, hint int64) chan any\n"
 	"func \"\".chanrecv1 (hchan <-chan any) any\n"
 	"func \"\".chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
+	"func \"\".chanrecv3 (hchan <-chan any) (elem any, closed bool)\n"
 	"func \"\".chansend1 (hchan chan<- any, elem any)\n"
 	"func \"\".chansend2 (hchan chan<- any, elem any) bool\n"
 	"func \"\".closechan (hchan any)\n"

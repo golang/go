@@ -93,6 +93,7 @@ walkrange(Node *n)
 	Node *ohv1, *hv1, *hv2;	// hidden (old) val 1, 2
 	Node *ha, *hit;	// hidden aggregate, iterator
 	Node *hn, *hp;	// hidden len, pointer
+	Node *hb;  // hidden bool
 	Node *a, *v1, *v2;	// not hidden aggregate, val 1, 2
 	Node *fn, *tmp;
 	NodeList *body, *init;
@@ -199,9 +200,15 @@ walkrange(Node *n)
 	case TCHAN:
 		hv1 = nod(OXXX, N, n);
 		tempname(hv1, t->type);
+		hb = nod(OXXX, N, N);
+		tempname(hb, types[TBOOL]);
 
-		n->ntest = nod(ONOT, nod(OCLOSED, ha, N), N);
-		n->ntest->ninit = list1(nod(OAS, hv1, nod(ORECV, ha, N)));
+		n->ntest = nod(ONOT, hb, N);
+		a = nod(OAS2RECVCLOSED, N, N);
+		a->typecheck = 1;
+		a->list = list(list1(hv1), hb);
+		a->rlist = list1(nod(ORECV, ha, N));
+		n->ntest->ninit = list1(a);
 		body = list1(nod(OAS, v1, hv1));
 		break;
 
