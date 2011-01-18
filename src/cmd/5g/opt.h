@@ -69,6 +69,7 @@ struct	Reg
 
 	uint16	loop;		// x5 for every loop
 	uchar	refset;		// diagnostic generated
+	uchar	nomove;		// funny mov instruction
 
 	Reg*	p1;
 	Reg*	p2;
@@ -128,7 +129,7 @@ Reg*	rega(void);
 int	rcmp(const void*, const void*);
 void	regopt(Prog*);
 void	addmove(Reg*, int, int, int);
-Bits	mkvar(Reg *r, Adr *a, int);
+Bits	mkvar(Reg *r, Adr *a);
 void	prop(Reg*, Bits, Bits);
 void	loopit(Reg*, int32);
 void	synch(Reg*, Bits);
