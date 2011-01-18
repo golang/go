@@ -199,6 +199,7 @@ struct	G
 	int32	sig;
 	uintptr	sigcode0;
 	uintptr	sigcode1;
+	uintptr	sigpc;
 };
 struct	M
 {

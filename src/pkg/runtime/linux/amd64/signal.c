@@ -70,6 +70,7 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
 		gp->sig = sig;
 		gp->sigcode0 = info->si_code;
 		gp->sigcode1 = ((uintptr*)info)[2];
+		gp->sigpc = r->rip;
 
 		// Only push runtime·sigpanic if r->rip != 0.
 		// If r->rip == 0, probably panicked because of a

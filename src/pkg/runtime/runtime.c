@@ -30,11 +30,16 @@ runtime·dopanic(int32 unused)
 	}
 	runtime·panicking++;
 
-	runtime·printf("\npanic PC=%X\n", (uint64)(uintptr)&unused);
+	if(g->sig != 0)
+		runtime·printf("\n[signal %d code=%p addr=%p pc=%p]\n",
+			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
+
+	runtime·printf("\n");
 	if(runtime·gotraceback()){
 		runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
 		runtime·tracebackothers(g);
 	}
+	
 	runtime·breakpoint();  // so we can grab it in a debugger
 	runtime·exit(2);
 }

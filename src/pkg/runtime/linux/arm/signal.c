@@ -67,6 +67,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
 		gp->sig = sig;
 		gp->sigcode0 = info->si_code;
 		gp->sigcode1 = r->fault_address;
+		gp->sigpc = r->arm_pc;
 
 		// If this is a leaf function, we do smash LR,
 		// but we're not going back there anyway.

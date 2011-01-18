@@ -1070,6 +1070,8 @@ runtime·panic(Eface e)
 		reflect·call(d->fn, d->args, d->siz);
 		if(p->recovered) {
 			g->panic = p->link;
+			if(g->panic == nil)	// must be done with signal
+				g->sig = 0;
 			runtime·free(p);
 			// put recovering defer back on list
 			// for scheduler to find.
