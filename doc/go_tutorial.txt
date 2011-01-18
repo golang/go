@@ -482,7 +482,7 @@ something from the directory of installed packages.
 (Also, ''"file.go"'' must be compiled before we can import the
 package.)
 
-Now we can compile and run the program:
+Now we can compile and run the program. On Unix, this would be the result:
 
 	$ 6g file.go                       # compile file package
 	$ 6g helloworld3.go                # compile main package
