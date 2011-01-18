@@ -216,6 +216,22 @@ const (
 	F_VOLPOSMODE                = 0x4
 	F_WRITEBOOTSTRAP            = 0x2f
 	F_WRLCK                     = 0x3
+	IN_CLASSA_HOST              = 0xffffff
+	IN_CLASSA_MAX               = 0x80
+	IN_CLASSA_NET               = 0xff000000
+	IN_CLASSA_NSHIFT            = 0x18
+	IN_CLASSB_HOST              = 0xffff
+	IN_CLASSB_MAX               = 0x10000
+	IN_CLASSB_NET               = 0xffff0000
+	IN_CLASSB_NSHIFT            = 0x10
+	IN_CLASSC_HOST              = 0xff
+	IN_CLASSC_NET               = 0xffffff00
+	IN_CLASSC_NSHIFT            = 0x8
+	IN_CLASSD_HOST              = 0xfffffff
+	IN_CLASSD_NET               = 0xf0000000
+	IN_CLASSD_NSHIFT            = 0x1c
+	IN_LINKLOCALNETNUM          = 0xa9fe0000
+	IN_LOOPBACKNET              = 0x7f
 	IPPROTO_3PC                 = 0x22
 	IPPROTO_ADFS                = 0x44
 	IPPROTO_AH                  = 0x33
@@ -423,6 +439,22 @@ const (
 	IP_TOS                      = 0x3
 	IP_TRAFFIC_MGT_BACKGROUND   = 0x41
 	IP_TTL                      = 0x4
+	MSG_CTRUNC                  = 0x20
+	MSG_DONTROUTE               = 0x4
+	MSG_DONTWAIT                = 0x80
+	MSG_EOF                     = 0x100
+	MSG_EOR                     = 0x8
+	MSG_FLUSH                   = 0x400
+	MSG_HAVEMORE                = 0x2000
+	MSG_HOLD                    = 0x800
+	MSG_NEEDSA                  = 0x10000
+	MSG_OOB                     = 0x1
+	MSG_PEEK                    = 0x2
+	MSG_RCVMORE                 = 0x4000
+	MSG_SEND                    = 0x1000
+	MSG_TRUNC                   = 0x10
+	MSG_WAITALL                 = 0x40
+	MSG_WAITSTREAM              = 0x200
 	O_ACCMODE                   = 0x3
 	O_ALERT                     = 0x20000000
 	O_APPEND                    = 0x8
@@ -446,6 +478,9 @@ const (
 	O_SYNC                      = 0x80
 	O_TRUNC                     = 0x400
 	O_WRONLY                    = 0x1
+	SCM_CREDS                   = 0x3
+	SCM_RIGHTS                  = 0x1
+	SCM_TIMESTAMP               = 0x2
 	SHUT_RD                     = 0
 	SHUT_RDWR                   = 0x2
 	SHUT_WR                     = 0x1
@@ -577,7 +612,7 @@ const (
 	WNOHANG                     = 0x1
 	WNOWAIT                     = 0x20
 	WORDSIZE                    = 0x20
-	WSTOPPED                    = 0x7f
+	WSTOPPED                    = 0x8
 	WUNTRACED                   = 0x2
 )
 

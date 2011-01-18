@@ -67,10 +67,10 @@ type Waitmsg struct {
 
 // Options for Wait.
 const (
-	WNOHANG   = syscall.WNOHANG  // Don't wait if no process has exited.
-	WSTOPPED  = syscall.WSTOPPED // If set, status of stopped subprocesses is also reported.
-	WUNTRACED = WSTOPPED
-	WRUSAGE   = 1 << 20 // Record resource usage.
+	WNOHANG   = syscall.WNOHANG   // Don't wait if no process has exited.
+	WSTOPPED  = syscall.WSTOPPED  // If set, status of stopped subprocesses is also reported.
+	WUNTRACED = syscall.WUNTRACED // Usually an alias for WSTOPPED.
+	WRUSAGE   = 1 << 20           // Record resource usage.
 )
 
 // WRUSAGE must not be too high a bit, to avoid clashing with Linux's
