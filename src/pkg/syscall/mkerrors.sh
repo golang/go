@@ -35,9 +35,10 @@ includes_Linux='
 '
 
 includes_Darwin='
-#define __DARWIN_UNIX03 0
+#define _DARWIN_C_SOURCE
 #define KERNEL
 #define _DARWIN_USE_64_BIT_INODE
+#include <sys/cdefs.h>
 #include <sys/wait.h>
 #include <sys/event.h>
 '
