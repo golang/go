@@ -34,6 +34,31 @@ func TestInt(t *testing.T) {
 	}
 }
 
+func TestFloat(t *testing.T) {
+	reqs := NewFloat("requests-float")
+	if reqs.f != 0.0 {
+		t.Errorf("reqs.f = %v, want 0", reqs.f)
+	}
+	if reqs != Get("requests-float").(*Float) {
+		t.Errorf("Get() failed.")
+	}
+
+	reqs.Add(1.5)
+	reqs.Add(1.25)
+	if reqs.f != 2.75 {
+		t.Errorf("reqs.f = %v, want 2.75", reqs.f)
+	}
+
+	if s := reqs.String(); s != "2.75" {
+		t.Errorf("reqs.String() = %q, want \"4.64\"", s)
+	}
+
+	reqs.Add(-2)
+	if reqs.f != 0.75 {
+		t.Errorf("reqs.f = %v, want 0.75", reqs.f)
+	}
+}
+
 func TestString(t *testing.T) {
 	name := NewString("my-name")
 	if name.s != "" {
@@ -56,11 +81,15 @@ func TestMapCounter(t *testing.T) {
 	colours.Add("red", 1)
 	colours.Add("red", 2)
 	colours.Add("blue", 4)
+	colours.AddFloat("green", 4.125)
 	if x := colours.m["red"].(*Int).i; x != 3 {
 		t.Errorf("colours.m[\"red\"] = %v, want 3", x)
 	}
 	if x := colours.m["blue"].(*Int).i; x != 4 {
 		t.Errorf("colours.m[\"blue\"] = %v, want 4", x)
+	}
+	if x := colours.m["green"].(*Float).f; x != 4.125 {
+		t.Errorf("colours.m[\"green\"] = %v, want 3.14", x)
 	}
 
 	// colours.String() should be '{"red":3, "blue":4}',
@@ -95,6 +124,19 @@ func TestIntFunc(t *testing.T) {
 	x++
 	if s := ix.String(); s != "5" {
 		t.Errorf("ix.String() = %v, want 5", s)
+	}
+}
+
+func TestFloatFunc(t *testing.T) {
+	x := float64(8.5)
+	ix := FloatFunc(func() float64 { return x })
+	if s := ix.String(); s != "8.5" {
+		t.Errorf("ix.String() = %v, want 3.14", s)
+	}
+
+	x -= 1.25
+	if s := ix.String(); s != "7.25" {
+		t.Errorf("ix.String() = %v, want 4.34", s)
 	}
 }
 
