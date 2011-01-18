@@ -586,8 +586,7 @@ bcomplex(Node *n, Node *c)
 		*b->right = *nodconst(0);
 		b->right->type = n->type;
 		b->type = types[TLONG];
-		cgen(b, Z);
-		return 0;
+		n = b;
 	}
 	bool64(n);
 	boolgen(n, 1, Z);
