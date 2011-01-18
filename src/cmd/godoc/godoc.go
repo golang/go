@@ -1172,7 +1172,8 @@ func lookup(query string) (result SearchResult) {
 		lookupStr = prefix
 	}
 
-	if index, timestamp := searchIndex.get(); index != nil {
+	index, timestamp := searchIndex.get()
+	if index != nil {
 		// identifier search
 		index := index.(*Index)
 		result.Hit, result.Alt, err = index.Lookup(lookupStr)
@@ -1188,12 +1189,16 @@ func lookup(query string) (result SearchResult) {
 		const max = 10000 // show at most this many fulltext results
 		result.Found, result.Textual = index.LookupRegexp(lookupRx, max+1)
 		result.Complete = result.Found <= max
-
-		// is the result accurate?
-		if _, ts := fsModified.get(); timestamp < ts {
-			result.Alert = "Indexing in progress: result may be inaccurate"
-		}
 	}
+
+	// is the result accurate?
+	if _, ts := fsModified.get(); timestamp < ts {
+		// The index is older than the latest file system change
+		// under godoc's observation. Indexing may be in progress
+		// or start shortly (see indexer()).
+		result.Alert = "Indexing in progress: result may be inaccurate"
+	}
+
 	return
 }
 
