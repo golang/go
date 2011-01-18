@@ -983,7 +983,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 					return 2;
 			} else {
 		  		if(p->to.reg == v->reg)
-				return 2;
+					return 2;
 			}
 		}
 		if(s != A) {
