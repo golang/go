@@ -230,3 +230,71 @@ func TestFieldName(t *testing.T) {
 		}
 	}
 }
+
+const pathTestString = `
+<result>
+    <before>1</before>
+    <items>
+        <item>
+            <value>A</value>
+        </item>
+        <skip>
+            <value>B</value>
+        </skip>
+        <Item>
+            <Value>C</Value>
+            <Value>D</Value>
+        </Item>
+    </items>
+    <after>2</after>
+</result>
+`
+
+type PathTestItem struct {
+	Value string
+}
+
+type PathTestA struct {
+	Items         []PathTestItem ">item"
+	Before, After string
+}
+
+type PathTestB struct {
+	Other         []PathTestItem "items>Item"
+	Before, After string
+}
+
+type PathTestC struct {
+	Values        []string "items>item>value"
+	Before, After string
+}
+
+type PathTestSet struct {
+	Item []PathTestItem
+}
+
+type PathTestD struct {
+	Other         PathTestSet "items>"
+	Before, After string
+}
+
+var pathTests = []interface{}{
+	&PathTestA{Items: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
+	&PathTestB{Other: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
+	&PathTestC{Values: []string{"A", "C", "D"}, Before: "1", After: "2"},
+	&PathTestD{Other: PathTestSet{Item: []PathTestItem{{"A"}, {"D"}}}, Before: "1", After: "2"},
+}
+
+func TestUnmarshalPaths(t *testing.T) {
+	for _, pt := range pathTests {
+		p := reflect.MakeZero(reflect.NewValue(pt).Type()).(*reflect.PtrValue)
+		p.PointTo(reflect.MakeZero(p.Type().(*reflect.PtrType).Elem()))
+		v := p.Interface()
+		if err := Unmarshal(StringReader(pathTestString), v); err != nil {
+			t.Fatalf("Unmarshal: %s", err)
+		}
+		if !reflect.DeepEqual(v, pt) {
+			t.Fatalf("have %#v\nwant %#v", v, pt)
+		}
+	}
+}

@@ -39,6 +39,7 @@ import (
 //		Name	string
 //		Phone	string
 //		Email	[]Email
+//		Groups  []string "group>value"
 //	}
 //
 //	result := Result{Name: "name", Phone: "phone", Email: nil}
@@ -53,6 +54,10 @@ import (
 //			<addr>gre@work.com</addr>
 //		</email>
 //		<name>Grace R. Emlin</name>
+// 		<group>
+// 			<value>Friends</value>
+// 			<value>Squash</value>
+// 		</group>
 //		<address>123 Main Street</address>
 //	</result>
 //
@@ -65,10 +70,13 @@ import (
 //			Email{"home", "gre@example.com"},
 //			Email{"work", "gre@work.com"},
 //		},
+//		[]string{"Friends", "Squash"},
 //	}
 //
 // Note that the field r.Phone has not been modified and
-// that the XML <address> element was discarded.
+// that the XML <address> element was discarded. Also, the field
+// Groups was assigned considering the element path provided in the
+// field tag.
 //
 // Because Unmarshal uses the reflect package, it can only
 // assign to upper case fields.  Unmarshal uses a case-insensitive
@@ -97,6 +105,13 @@ import (
 //      The struct field may have type []byte or string.
 //      If there is no such field, the character data is discarded.
 //
+//   * If the XML element contains a sub-element whose name matches
+//      the prefix of a struct field tag formatted as "a>b>c", unmarshal
+//      will descend into the XML structure looking for elements with the
+//      given names, and will map the innermost elements to that struct field.
+//      A struct field tag starting with ">" is equivalent to one starting
+//      with the field name followed by ">".
+//
 //   * If the XML element contains a sub-element whose name
 //      matches a struct field whose tag is neither "attr" nor "chardata",
 //      Unmarshal maps the sub-element to that struct field.
@@ -104,7 +119,7 @@ import (
 //      maps the sub-element to that struct field.
 //
 // Unmarshal maps an XML element to a string or []byte by saving the
-// concatenation of that elements character data in the string or []byte.
+// concatenation of that element's character data in the string or []byte.
 //
 // Unmarshal maps an XML element to a slice by extending the length
 // of the slice and mapping the element to the newly created value.
@@ -211,7 +226,9 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		saveXMLData  []byte
 		sv           *reflect.StructValue
 		styp         *reflect.StructType
+		fieldPaths   map[string]fieldPath
 	)
+
 	switch v := val.(type) {
 	default:
 		return os.ErrorString("unknown type " + v.Type().String())
@@ -330,6 +347,23 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 						saveXMLIndex = p.savedOffset()
 					}
 				}
+
+			default:
+				i := strings.Index(f.Tag, ">")
+				if i != -1 {
+					if fieldPaths == nil {
+						fieldPaths = make(map[string]fieldPath)
+					}
+					path := strings.ToLower(f.Tag)
+					if i == 0 {
+						path = strings.ToLower(f.Name) + path
+					}
+					if path[len(path)-1] == '>' {
+						path = path[:len(path)-1]
+					}
+					s := strings.Split(path, ">", -1)
+					fieldPaths[s[0]] = fieldPath{s[1:], f.Index}
+				}
 			}
 		}
 	}
@@ -351,10 +385,21 @@ Loop:
 			// Sub-element.
 			// Look up by tag name.
 			if sv != nil {
-				k := fieldName(t.Name.Local)
+				k := strings.ToLower(fieldName(t.Name.Local))
+
+				if fieldPaths != nil {
+					if fp, ok := fieldPaths[k]; ok {
+						val := sv.FieldByIndex(fp.Index)
+						if err := p.unmarshalPath(val, &t, fp.Path); err != nil {
+							return err
+						}
+						continue Loop
+					}
+				}
+
 				match := func(s string) bool {
 					// check if the name matches ignoring case
-					if strings.ToLower(s) != strings.ToLower(k) {
+					if strings.ToLower(s) != k {
 						return false
 					}
 					// now check that it's public
@@ -468,6 +513,41 @@ Loop:
 	}
 
 	return nil
+}
+
+type fieldPath struct {
+	Path  []string
+	Index []int
+}
+
+// unmarshalPath finds the nested elements matching the
+// provided path and calls unmarshal on the tip elements.
+func (p *Parser) unmarshalPath(val reflect.Value, start *StartElement, path []string) os.Error {
+	if len(path) == 0 {
+		return p.unmarshal(val, start)
+	}
+	for {
+		tok, err := p.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case StartElement:
+			k := fieldName(t.Name.Local)
+			if k == path[0] {
+				if err := p.unmarshalPath(val, &t, path[1:]); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := p.Skip(); err != nil {
+				return err
+			}
+		case EndElement:
+			return nil
+		}
+	}
+	panic("unreachable")
 }
 
 // Have already read a start element.
