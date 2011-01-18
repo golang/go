@@ -38,7 +38,7 @@ type Var interface {
 	String() string
 }
 
-// Int is a 64-bit integer variable, and satisfies the Var interface.
+// Int is a 64-bit integer variable that satisfies the Var interface.
 type Int struct {
 	i  int64
 	mu sync.Mutex
@@ -58,7 +58,29 @@ func (v *Int) Set(value int64) {
 	v.i = value
 }
 
-// Map is a string-to-Var map variable, and satisfies the Var interface.
+// Float is a 64-bit float variable that satisfies the Var interface.
+type Float struct {
+	f  float64
+	mu sync.Mutex
+}
+
+func (v *Float) String() string { return strconv.Ftoa64(v.f, 'g', -1) }
+
+// Add adds delta to v.
+func (v *Float) Add(delta float64) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.f += delta
+}
+
+// Set sets v to value.
+func (v *Float) Set(value float64) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.f = value
+}
+
+// Map is a string-to-Var map variable that satisfies the Var interface.
 type Map struct {
 	m  map[string]Var
 	mu sync.Mutex
@@ -119,6 +141,22 @@ func (v *Map) Add(key string, delta int64) {
 	}
 }
 
+// AddFloat adds delta to the *Float value stored under the given map key.
+func (v *Map) AddFloat(key string, delta float64) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	av, ok := v.m[key]
+	if !ok {
+		av = new(Float)
+		v.m[key] = av
+	}
+
+	// Add to Float; ignore otherwise.
+	if iv, ok := av.(*Float); ok {
+		iv.Add(delta)
+	}
+}
+
 // TODO(rsc): Make sure map access in separate thread is safe.
 func (v *Map) iterate(c chan<- KeyValue) {
 	for k, v := range v.m {
@@ -147,6 +185,12 @@ func (v *String) Set(value string) { v.s = value }
 type IntFunc func() int64
 
 func (v IntFunc) String() string { return strconv.Itoa64(v()) }
+
+// FloatFunc wraps a func() float64 to create a value that satisfies the Var interface.
+// The function will be called each time the Var is evaluated.
+type FloatFunc func() float64
+
+func (v FloatFunc) String() string { return strconv.Ftoa64(v(), 'g', -1) }
 
 // StringFunc wraps a func() string to create value that satisfies the Var interface.
 // The function will be called each time the Var is evaluated.
@@ -188,6 +232,12 @@ func RemoveAll() {
 
 func NewInt(name string) *Int {
 	v := new(Int)
+	Publish(name, v)
+	return v
+}
+
+func NewFloat(name string) *Float {
+	v := new(Float)
 	Publish(name, v)
 	return v
 }
