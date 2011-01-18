@@ -75,7 +75,7 @@ func chansend(ch *byte, val *byte, pres *bool) {
 }
 
 func chanrecv(ch *byte, val *byte, pres *bool) {
-	runtime·chanrecv((Hchan*)ch, val, pres);
+	runtime·chanrecv((Hchan*)ch, val, pres, nil);
 }
 
 func chanclose(ch *byte) {

@@ -284,7 +284,7 @@ closed:
 }
 
 void
-runtime·chanrecv(Hchan* c, byte *ep, bool* pres)
+runtime·chanrecv(Hchan* c, byte *ep, bool *pres, bool *closed)
 {
 	SudoG *sg;
 	G *gp;
@@ -299,6 +299,9 @@ runtime·chanrecv(Hchan* c, byte *ep, bool* pres)
 		runtime·printf("chanrecv: chan=%p\n", c);
 
 	runtime·lock(c);
+	if(closed != nil)
+		*closed = false;
+
 loop:
 	if(c->dataqsiz > 0)
 		goto asynch;
@@ -387,6 +390,8 @@ asynch:
 	return;
 
 closed:
+	if(closed != nil)
+		*closed = true;
 	c->elemalg->copy(c->elemsize, ep, nil);
 	c->closed |= Rclosed;
 	incerr(c);
@@ -441,7 +446,7 @@ runtime·chanrecv1(Hchan* c, ...)
 	o = runtime·rnd(sizeof(c), Structrnd);
 	ae = (byte*)&c + o;
 
-	runtime·chanrecv(c, ae, nil);
+	runtime·chanrecv(c, ae, nil, nil);
 }
 
 // chanrecv2(hchan *chan any) (elem any, pres bool);
@@ -457,7 +462,23 @@ runtime·chanrecv2(Hchan* c, ...)
 	o = runtime·rnd(o+c->elemsize, 1);
 	ap = (byte*)&c + o;
 
-	runtime·chanrecv(c, ae, ap);
+	runtime·chanrecv(c, ae, ap, nil);
+}
+
+// chanrecv3(hchan *chan any) (elem any, closed bool);
+#pragma textflag 7
+void
+runtime·chanrecv3(Hchan* c, ...)
+{
+	int32 o;
+	byte *ae, *ac;
+
+	o = runtime·rnd(sizeof(c), Structrnd);
+	ae = (byte*)&c + o;
+	o = runtime·rnd(o+c->elemsize, 1);
+	ac = (byte*)&c + o;
+
+	runtime·chanrecv(c, ae, nil, ac);
 }
 
 // newselect(size uint32) (sel *byte);
