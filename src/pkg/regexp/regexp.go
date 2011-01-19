@@ -283,6 +283,24 @@ func escape(c int) int {
 	return -1
 }
 
+func (p *parser) checkBackslash() int {
+	c := p.c()
+	if c == '\\' {
+		c = p.nextc()
+		switch {
+		case c == endOfFile:
+			p.error(ErrExtraneousBackslash)
+		case ispunct(c):
+			// c is as delivered
+		case escape(c) >= 0:
+			c = int(escaped[escape(c)])
+		default:
+			p.error(ErrBadBackslash)
+		}
+	}
+	return c
+}
+
 func (p *parser) charClass() *instr {
 	i := newCharClass()
 	cc := i.cclass
@@ -314,20 +332,8 @@ func (p *parser) charClass() *instr {
 			return i
 		case '-': // do this before backslash processing
 			p.error(ErrBadRange)
-		case '\\':
-			c = p.nextc()
-			switch {
-			case c == endOfFile:
-				p.error(ErrExtraneousBackslash)
-			case ispunct(c):
-				// c is as delivered
-			case escape(c) >= 0:
-				c = int(escaped[escape(c)])
-			default:
-				p.error(ErrBadBackslash)
-			}
-			fallthrough
 		default:
+			c = p.checkBackslash()
 			p.nextc()
 			switch {
 			case left < 0: // first of pair
@@ -345,14 +351,14 @@ func (p *parser) charClass() *instr {
 			}
 		}
 	}
-	return nil
+	panic("unreachable")
 }
 
 func (p *parser) term() (start, end *instr) {
 	switch c := p.c(); c {
 	case '|', endOfFile:
 		return nil, nil
-	case '*', '+':
+	case '*', '+', '?':
 		p.error(ErrBareClosure)
 	case ')':
 		if p.nlpar == 0 {
@@ -407,20 +413,8 @@ func (p *parser) term() (start, end *instr) {
 		}
 		bra.next = start
 		return bra, ebra
-	case '\\':
-		c = p.nextc()
-		switch {
-		case c == endOfFile:
-			p.error(ErrExtraneousBackslash)
-		case ispunct(c):
-			// c is as delivered
-		case escape(c) >= 0:
-			c = int(escaped[escape(c)])
-		default:
-			p.error(ErrBadBackslash)
-		}
-		fallthrough
 	default:
+		c = p.checkBackslash()
 		p.nextc()
 		start = &instr{kind: iChar, char: c}
 		p.re.add(start)
