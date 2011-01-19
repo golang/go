@@ -19,16 +19,18 @@ var hostsPath = "/etc/hosts"
 // Simple cache.
 var hosts struct {
 	sync.Mutex
-	data map[string][]string
-	time int64
-	path string
+	byName map[string][]string
+	byAddr map[string][]string
+	time   int64
+	path   string
 }
 
 func readHosts() {
 	now, _, _ := os.Time()
 	hp := hostsPath
-	if len(hosts.data) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
+	if len(hosts.byName) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
 		hs := make(map[string][]string)
+		is := make(map[string][]string)
 		var file *file
 		if file, _ = open(hp); file == nil {
 			return
@@ -45,12 +47,14 @@ func readHosts() {
 			for i := 1; i < len(f); i++ {
 				h := f[i]
 				hs[h] = append(hs[h], f[0])
+				is[f[0]] = append(is[f[0]], h)
 			}
 		}
 		// Update the data cache.
 		hosts.time, _, _ = os.Time()
 		hosts.path = hp
-		hosts.data = hs
+		hosts.byName = hs
+		hosts.byAddr = is
 		file.close()
 	}
 }
@@ -60,9 +64,22 @@ func lookupStaticHost(host string) []string {
 	hosts.Lock()
 	defer hosts.Unlock()
 	readHosts()
-	if len(hosts.data) != 0 {
-		if ips, ok := hosts.data[host]; ok {
+	if len(hosts.byName) != 0 {
+		if ips, ok := hosts.byName[host]; ok {
 			return ips
+		}
+	}
+	return nil
+}
+
+// rlookupStaticHosts looks up the hosts for the given address from /etc/hosts.
+func lookupStaticAddr(addr string) []string {
+	hosts.Lock()
+	defer hosts.Unlock()
+	readHosts()
+	if len(hosts.byAddr) != 0 {
+		if hosts, ok := hosts.byAddr[addr]; ok {
+			return hosts
 		}
 	}
 	return nil
