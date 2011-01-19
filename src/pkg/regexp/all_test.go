@@ -38,6 +38,8 @@ type stringError struct {
 
 var bad_re = []stringError{
 	{`*`, ErrBareClosure},
+	{`+`, ErrBareClosure},
+	{`?`, ErrBareClosure},
 	{`(abc`, ErrUnmatchedLpar},
 	{`abc)`, ErrUnmatchedRpar},
 	{`x[a-z`, ErrUnmatchedLbkt},
@@ -47,7 +49,6 @@ var bad_re = []stringError{
 	{`a**`, ErrBadClosure},
 	{`a*+`, ErrBadClosure},
 	{`a??`, ErrBadClosure},
-	{`*`, ErrBareClosure},
 	{`\x`, ErrBadBackslash},
 }
 
