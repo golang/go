@@ -88,47 +88,32 @@ pragincomplete(void)
 		;
 }
 
-void
-gethunk(void)
-{
-	hunk = malloc(NHUNK);
-	memset(hunk, 0, NHUNK);
-	nhunk = NHUNK;
-}
-
 void*
 alloc(int32 n)
 {
 	void *p;
 
-	while((uintptr)hunk & MAXALIGN) {
-		hunk++;
-		nhunk--;
+	p = malloc(n);
+	if(p == nil) {
+		print("alloc out of mem\n");
+		exit(1);
 	}
-	while(nhunk < n)
-		gethunk();
-	p = hunk;
-	nhunk -= n;
-	hunk += n;
+	memset(p, 0, n);
 	return p;
 }
 
 void*
-allocn(void *p, int32 on, int32 n)
+allocn(void *p, int32 n, int32 d)
 {
-	void *q;
-
-	q = (uchar*)p + on;
-	if(q != hunk || nhunk < n) {
-		while(nhunk < on+n)
-			gethunk();
-		memmove(hunk, p, on);
-		p = hunk;
-		hunk += on;
-		nhunk -= on;
+	if(p == nil)
+		return alloc(n+d);
+	p = realloc(p, n+d);
+	if(p == nil) {
+		print("allocn out of mem\n");
+		exit(1);
 	}
-	hunk += n;
-	nhunk -= n;
+	if(d > 0)
+		memset((char*)p+n, 0, d);
 	return p;
 }
 
