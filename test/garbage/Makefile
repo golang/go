@@ -11,8 +11,8 @@ ALL=\
 
 all: $(addsuffix .out, $(ALL))
 
-%.$O: %.go
-	$(GC) $*.go
+%.$O: %.go stats.go
+	$(GC) $*.go stats.go
 
 %.out: %.$O
 	$(LD) -o $@ $*.$O

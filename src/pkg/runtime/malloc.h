@@ -176,6 +176,7 @@ struct MStats
 	uint64	sys;		// bytes obtained from system (should be sum of xxx_sys below)
 	uint64	nlookup;	// number of pointer lookups
 	uint64	nmalloc;	// number of mallocs
+	uint64	nfree;  // number of frees
 	
 	// Statistics about malloc heap.
 	// protected by mheap.Lock
@@ -199,7 +200,8 @@ struct MStats
 	// Statistics about garbage collector.
 	// Protected by stopping the world during GC.
 	uint64	next_gc;	// next GC (in heap_alloc time)
-	uint64	pause_ns;
+	uint64	pause_total_ns;
+	uint64	pause_ns[256];
 	uint32	numgc;
 	bool	enablegc;
 	bool	debuggc;
