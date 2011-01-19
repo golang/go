@@ -134,7 +134,7 @@ func TestServeFile(t *testing.T) {
 		if rt.code == StatusRequestedRangeNotSatisfiable {
 			continue
 		}
-		h := fmt.Sprintf("%d-%d/%d", rt.start, rt.end, testFileLength)
+		h := fmt.Sprintf("bytes %d-%d/%d", rt.start, rt.end-1, testFileLength)
 		if rt.r == "" {
 			h = ""
 		}

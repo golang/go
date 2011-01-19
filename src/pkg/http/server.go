@@ -229,6 +229,10 @@ func (w *response) WriteHeader(code int) {
 		w.header["Transfer-Encoding"] = "", false
 		w.chunking = false
 	}
+	// Cannot use Content-Length with non-identity Transfer-Encoding.
+	if w.chunking {
+		w.header["Content-Length"] = "", false
+	}
 	if !w.req.ProtoAtLeast(1, 0) {
 		return
 	}
