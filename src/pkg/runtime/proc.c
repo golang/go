@@ -733,6 +733,14 @@ runtime·endcgocallback(G* g1)
  */
 enum
 {
+#ifdef __WINDOWS__
+	// need enough room in guard area for exception handler.
+	// use larger stacks to compensate for larger stack guard.
+	StackSmall = 256,
+	StackGuard = 2048,
+	StackBig   = 8192,
+	StackExtra = StackGuard,
+#else
 	// byte offset of stack guard (g->stackguard) above bottom of stack.
 	StackGuard = 256,
 
@@ -745,6 +753,10 @@ enum
 	// the frame is allocated) is assumed not to be much bigger
 	// than this amount.  it may not be used efficiently if it is.
 	StackBig = 4096,
+
+	// extra room over frame size when allocating a stack.
+	StackExtra = 1024,
+#endif
 };
 
 void
@@ -812,7 +824,7 @@ runtime·newstack(void)
 		framesize += argsize;
 		if(framesize < StackBig)
 			framesize = StackBig;
-		framesize += 1024;	// room for more functions, Stktop.
+		framesize += StackExtra;	// room for more functions, Stktop.
 		stk = runtime·stackalloc(framesize);
 		top = (Stktop*)(stk+framesize-sizeof(*top));
 		free = true;
@@ -915,7 +927,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 		if(newg->stackguard - StackGuard != newg->stack0)
 			runtime·throw("invalid stack in newg");
 	} else {
-		newg = runtime·malg(4096);
+		newg = runtime·malg(StackBig);
 		newg->status = Gwaiting;
 		newg->alllink = runtime·allg;
 		runtime·allg = newg;

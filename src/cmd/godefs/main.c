@@ -196,7 +196,7 @@ main(int argc, char **argv)
 	av[n++] = "gcc";
 	av[n++] = "-fdollars-in-identifiers";
 	av[n++] = "-S";	// write assembly
-	av[n++] = "-gstabs";	// include stabs info
+	av[n++] = "-gstabs+";	// include stabs info
 	av[n++] = "-o";	// to ...
 	av[n++] = "-";	// ... stdout
 	av[n++] = "-xc";	// read C

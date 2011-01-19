@@ -48,12 +48,58 @@ TEXT runtime·stdcall_raw(SB),7,$4
 
 	RET 
 
+TEXT runtime·sigtramp(SB),7,$0
+	PUSHL	BP					// cdecl
+	PUSHL	0(FS)
+	CALL	runtime·sigtramp1(SB)
+	POPL	0(FS)
+	POPL	BP
+	RET
+
+TEXT runtime·sigtramp1(SB),0,$16-28
+	// unwinding?
+	MOVL	info+12(FP), BX
+	MOVL	4(BX), CX			// exception flags
+	ANDL	$6, CX
+	MOVL	$1, AX
+	JNZ		sigdone
+
+	// place ourselves at the top of the SEH chain to
+	// ensure SEH frames lie within thread stack bounds
+	MOVL	frame+16(FP), CX	// our SEH frame
+	MOVL	CX, 0(FS)
+
+	// copy arguments for call to sighandler
+	MOVL	BX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	context+20(FP), BX
+	MOVL	BX, 8(SP)
+	MOVL	dispatcher+24(FP), BX
+	MOVL	BX, 12(SP)
+
+	CALL	runtime·sighandler(SB)
+	TESTL	AX, AX
+	JZ		sigdone
+
+	// call windows default handler early
+	MOVL	4(SP), BX			// our SEH frame
+	MOVL	0(BX), BX			// SEH frame of default handler
+	MOVL	4(BX), AX			// handler function pointer
+	MOVL	BX, 4(SP)			// set establisher frame
+	CALL	AX
+
+sigdone:
+	RET
+
 // void tstart(M *newm);
 TEXT runtime·tstart(SB),7,$0
 	MOVL	newm+4(SP), CX		// m
 	MOVL	m_g0(CX), DX		// g
 
-	MOVL	SP, DI			// remember stack
+	// Set up SEH frame
+	PUSHL	$runtime·sigtramp(SB)
+	PUSHL	0(FS)
+	MOVL	SP, 0(FS)
 
 	// Layout new m scheduler stack on os stack.
 	MOVL	SP, AX
@@ -74,14 +120,14 @@ TEXT runtime·tstart(SB),7,$0
 	// Someday the convention will be D is always cleared.
 	CLD
 
-	PUSHL	DI			// original stack
-
 	CALL	runtime·stackcheck(SB)		// clobbers AX,CX
 
 	CALL	runtime·mstart(SB)
 
-	POPL	DI			// original stack
-	MOVL	DI, SP
+	// Pop SEH frame
+	MOVL	0(FS), SP
+	POPL	0(FS)
+	POPL	CX
 
 	RET
 

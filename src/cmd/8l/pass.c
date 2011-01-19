@@ -38,8 +38,15 @@ static void xfol(Prog*, Prog**);
 // see ../../pkg/runtime/proc.c:/StackGuard
 enum
 {
+#ifdef __WINDOWS__
+	// use larger stacks to compensate for larger stack guard,
+	// needed for exception handling.
+	StackSmall = 256,
+	StackBig = 8192,
+#else
 	StackSmall = 128,
 	StackBig = 4096,
+#endif
 };
 
 Prog*

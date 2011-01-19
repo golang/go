@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "defs.h"
 #include "os.h"
 
 #pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
@@ -214,4 +215,44 @@ runtime·syscall(StdcallParams *p)
 	p->r = (uintptr)runtime·stdcall_raw((void*)p->fn, p->n, p->args);
 	p->err = (uintptr)runtime·stdcall_raw(runtime·GetLastError, 0, &a);
 	runtime·exitsyscall();
+}
+
+uint32
+runtime·issigpanic(uint32 code)
+{
+	switch(code) {
+	case EXCEPTION_ACCESS_VIOLATION:
+	case EXCEPTION_INT_DIVIDE_BY_ZERO:
+	case EXCEPTION_INT_OVERFLOW:
+	case EXCEPTION_FLT_DENORMAL_OPERAND:
+	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+	case EXCEPTION_FLT_INEXACT_RESULT:
+	case EXCEPTION_FLT_OVERFLOW:
+	case EXCEPTION_FLT_UNDERFLOW:
+		return 1;
+	}
+	return 0;
+}
+
+void
+runtime·sigpanic(void)
+{
+	switch(g->sig) {
+	case EXCEPTION_ACCESS_VIOLATION:
+		if(g->sigcode1 < 0x1000)
+			runtime·panicstring("invalid memory address or nil pointer dereference");
+		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+		runtime·throw("fault");
+	case EXCEPTION_INT_DIVIDE_BY_ZERO:
+		runtime·panicstring("integer divide by zero");
+	case EXCEPTION_INT_OVERFLOW:
+		runtime·panicstring("integer overflow");
+	case EXCEPTION_FLT_DENORMAL_OPERAND:
+	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+	case EXCEPTION_FLT_INEXACT_RESULT:
+	case EXCEPTION_FLT_OVERFLOW:
+	case EXCEPTION_FLT_UNDERFLOW:
+		runtime·panicstring("floating point error");
+	}
+	runtime·throw("fault");
 }

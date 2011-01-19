@@ -53,6 +53,7 @@ runtime·SysFree(void *v, uintptr n)
 {
 	uintptr r;
 
+	USED(n);
 	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, 0, MEM_RELEASE);
 	if(r == 0)
 		abort("VirtualFree");
