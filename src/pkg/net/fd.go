@@ -417,7 +417,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 	var oserr os.Error
 	for {
 		var errno int
-		n, oobn, flags, errno = syscall.Recvmsg(fd.sysfd, p, oob, sa, 0)
+		n, oobn, flags, sa, errno = syscall.Recvmsg(fd.sysfd, p, oob, 0)
 		if errno == syscall.EAGAIN && fd.rdeadline >= 0 {
 			pollserver.WaitRead(fd)
 			continue

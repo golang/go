@@ -485,8 +485,8 @@ func Futimes(fd int, tv []Timeval) (errno int) {
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
 
-func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recvflags int, errno int) {
-	return 0, 0, 0, EAFNOSUPPORT
+func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, errno int) {
+	return 0, 0, 0, nil, EAFNOSUPPORT
 }
 
 func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
