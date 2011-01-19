@@ -15,6 +15,8 @@
 package net
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"rand"
 	"sync"
@@ -357,9 +359,59 @@ func LookupMX(name string) (entries []*MX, err os.Error) {
 		return
 	}
 	entries = make([]*MX, len(records))
-	for i := 0; i < len(records); i++ {
+	for i := range records {
 		r := records[i].(*dnsRR_MX)
 		entries[i] = &MX{r.Mx, r.Pref}
+	}
+	return
+}
+
+// reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
+// address addr suitable for rDNS (PTR) record lookup or an error if it fails
+// to parse the IP address.
+func reverseaddr(addr string) (arpa string, err os.Error) {
+	ip := ParseIP(addr)
+	if ip == nil {
+		return "", &DNSError{Error: "unrecognized address", Name: addr}
+	}
+	if ip.To4() != nil {
+		return fmt.Sprintf("%d.%d.%d.%d.in-addr.arpa.", ip[15], ip[14], ip[13], ip[12]), nil
+	}
+	// Must be IPv6
+	var buf bytes.Buffer
+	// Add it, in reverse, to the buffer
+	for i := len(ip) - 1; i >= 0; i-- {
+		s := fmt.Sprintf("%02x", ip[i])
+		buf.WriteByte(s[1])
+		buf.WriteByte('.')
+		buf.WriteByte(s[0])
+		buf.WriteByte('.')
+	}
+	// Append "ip6.arpa." and return (buf already has the final .)
+	return buf.String() + "ip6.arpa.", nil
+}
+
+// LookupAddr performs a reverse lookup for the given address, returning a list
+// of names mapping to that address.
+func LookupAddr(addr string) (name []string, err os.Error) {
+	name = lookupStaticAddr(addr)
+	if len(name) > 0 {
+		return
+	}
+	var arpa string
+	arpa, err = reverseaddr(addr)
+	if err != nil {
+		return
+	}
+	var records []dnsRR
+	_, records, err = lookup(arpa, dnsTypePTR)
+	if err != nil {
+		return
+	}
+	name = make([]string, len(records))
+	for i := range records {
+		r := records[i].(*dnsRR_PTR)
+		name[i] = r.Ptr
 	}
 	return
 }
