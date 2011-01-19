@@ -6,6 +6,7 @@ package xml
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -156,6 +157,18 @@ type UnmarshalError string
 
 func (e UnmarshalError) String() string { return string(e) }
 
+// A TagPathError represents an error in the unmarshalling process
+// caused by the use of field tags with conflicting paths.
+type TagPathError struct {
+	Struct       reflect.Type
+	Field1, Tag1 string
+	Field2, Tag2 string
+}
+
+func (e *TagPathError) String() string {
+	return fmt.Sprintf("%s field %q with tag %q conflicts with field %q with tag %q", e.Struct, e.Field1, e.Tag1, e.Field2, e.Tag2)
+}
+
 // The Parser's Unmarshal method is like xml.Unmarshal
 // except that it can be passed a pointer to the initial start element,
 // useful when a client reads some raw XML tokens itself
@@ -226,7 +239,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		saveXMLData  []byte
 		sv           *reflect.StructValue
 		styp         *reflect.StructType
-		fieldPaths   map[string]fieldPath
+		fieldPaths   map[string]pathInfo
 	)
 
 	switch v := val.(type) {
@@ -349,20 +362,21 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				}
 
 			default:
-				i := strings.Index(f.Tag, ">")
-				if i != -1 {
+				if strings.Contains(f.Tag, ">") {
 					if fieldPaths == nil {
-						fieldPaths = make(map[string]fieldPath)
+						fieldPaths = make(map[string]pathInfo)
 					}
 					path := strings.ToLower(f.Tag)
-					if i == 0 {
+					if strings.HasPrefix(f.Tag, ">") {
 						path = strings.ToLower(f.Name) + path
 					}
-					if path[len(path)-1] == '>' {
+					if strings.HasSuffix(f.Tag, ">") {
 						path = path[:len(path)-1]
 					}
-					s := strings.Split(path, ">", -1)
-					fieldPaths[s[0]] = fieldPath{s[1:], f.Index}
+					err := addFieldPath(sv, fieldPaths, path, f.Index)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -385,12 +399,11 @@ Loop:
 			// Sub-element.
 			// Look up by tag name.
 			if sv != nil {
-				k := strings.ToLower(fieldName(t.Name.Local))
+				k := fieldName(t.Name.Local)
 
 				if fieldPaths != nil {
-					if fp, ok := fieldPaths[k]; ok {
-						val := sv.FieldByIndex(fp.Index)
-						if err := p.unmarshalPath(val, &t, fp.Path); err != nil {
+					if _, found := fieldPaths[k]; found {
+						if err := p.unmarshalPaths(sv, fieldPaths, k, &t); err != nil {
 							return err
 						}
 						continue Loop
@@ -515,16 +528,50 @@ Loop:
 	return nil
 }
 
-type fieldPath struct {
-	Path  []string
-	Index []int
+type pathInfo struct {
+	fieldIdx []int
+	complete bool
 }
 
-// unmarshalPath finds the nested elements matching the
-// provided path and calls unmarshal on the tip elements.
-func (p *Parser) unmarshalPath(val reflect.Value, start *StartElement, path []string) os.Error {
-	if len(path) == 0 {
-		return p.unmarshal(val, start)
+// addFieldPath takes an element path such as "a>b>c" and fills the
+// paths map with all paths leading to it ("a", "a>b", and "a>b>c").
+// It is okay for paths to share a common, shorter prefix but not ok
+// for one path to itself be a prefix of another.
+func addFieldPath(sv *reflect.StructValue, paths map[string]pathInfo, path string, fieldIdx []int) os.Error {
+	if info, found := paths[path]; found {
+		return tagError(sv, info.fieldIdx, fieldIdx)
+	}
+	paths[path] = pathInfo{fieldIdx, true}
+	for {
+		i := strings.LastIndex(path, ">")
+		if i < 0 {
+			break
+		}
+		path = path[:i]
+		if info, found := paths[path]; found {
+			if info.complete {
+				return tagError(sv, info.fieldIdx, fieldIdx)
+			}
+		} else {
+			paths[path] = pathInfo{fieldIdx, false}
+		}
+	}
+	return nil
+
+}
+
+func tagError(sv *reflect.StructValue, idx1 []int, idx2 []int) os.Error {
+	t := sv.Type().(*reflect.StructType)
+	f1 := t.FieldByIndex(idx1)
+	f2 := t.FieldByIndex(idx2)
+	return &TagPathError{t, f1.Name, f1.Tag, f2.Name, f2.Tag}
+}
+
+// unmarshalPaths walks down an XML structure looking for
+// wanted paths, and calls unmarshal on them.
+func (p *Parser) unmarshalPaths(sv *reflect.StructValue, paths map[string]pathInfo, path string, start *StartElement) os.Error {
+	if info, _ := paths[path]; info.complete {
+		return p.unmarshal(sv.FieldByIndex(info.fieldIdx), start)
 	}
 	for {
 		tok, err := p.Token()
@@ -533,9 +580,9 @@ func (p *Parser) unmarshalPath(val reflect.Value, start *StartElement, path []st
 		}
 		switch t := tok.(type) {
 		case StartElement:
-			k := fieldName(t.Name.Local)
-			if k == path[0] {
-				if err := p.unmarshalPath(val, &t, path[1:]); err != nil {
+			k := path + ">" + fieldName(t.Name.Local)
+			if _, found := paths[k]; found {
+				if err := p.unmarshalPaths(sv, paths, k, &t); err != nil {
 					return err
 				}
 				continue

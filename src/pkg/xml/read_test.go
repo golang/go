@@ -235,16 +235,16 @@ const pathTestString = `
 <result>
     <before>1</before>
     <items>
-        <item>
+        <item1>
             <value>A</value>
-        </item>
-        <skip>
+        </item1>
+        <item2>
             <value>B</value>
-        </skip>
-        <Item>
+        </item2>
+        <Item1>
             <Value>C</Value>
             <Value>D</Value>
-        </Item>
+        </Item1>
     </items>
     <after>2</after>
 </result>
@@ -255,22 +255,23 @@ type PathTestItem struct {
 }
 
 type PathTestA struct {
-	Items         []PathTestItem ">item"
+	Items         []PathTestItem ">item1"
 	Before, After string
 }
 
 type PathTestB struct {
-	Other         []PathTestItem "items>Item"
+	Other         []PathTestItem "items>Item1"
 	Before, After string
 }
 
 type PathTestC struct {
-	Values        []string "items>item>value"
+	Values1       []string "items>item1>value"
+	Values2       []string "items>item2>value"
 	Before, After string
 }
 
 type PathTestSet struct {
-	Item []PathTestItem
+	Item1 []PathTestItem
 }
 
 type PathTestD struct {
@@ -281,8 +282,8 @@ type PathTestD struct {
 var pathTests = []interface{}{
 	&PathTestA{Items: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
 	&PathTestB{Other: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
-	&PathTestC{Values: []string{"A", "C", "D"}, Before: "1", After: "2"},
-	&PathTestD{Other: PathTestSet{Item: []PathTestItem{{"A"}, {"D"}}}, Before: "1", After: "2"},
+	&PathTestC{Values1: []string{"A", "C", "D"}, Values2: []string{"B"}, Before: "1", After: "2"},
+	&PathTestD{Other: PathTestSet{Item1: []PathTestItem{{"A"}, {"D"}}}, Before: "1", After: "2"},
 }
 
 func TestUnmarshalPaths(t *testing.T) {
@@ -295,6 +296,34 @@ func TestUnmarshalPaths(t *testing.T) {
 		}
 		if !reflect.DeepEqual(v, pt) {
 			t.Fatalf("have %#v\nwant %#v", v, pt)
+		}
+	}
+}
+
+type BadPathTestA struct {
+	First  string "items>item1"
+	Other  string "items>item2"
+	Second string "items>"
+}
+
+type BadPathTestB struct {
+	Other  string "items>item2>value"
+	First  string "items>item1"
+	Second string "items>item1>value"
+}
+
+var badPathTests = []struct {
+	v, e interface{}
+}{
+	{&BadPathTestA{}, &TagPathError{reflect.Typeof(BadPathTestA{}), "First", "items>item1", "Second", "items>"}},
+	{&BadPathTestB{}, &TagPathError{reflect.Typeof(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
+}
+
+func TestUnmarshalBadPaths(t *testing.T) {
+	for _, tt := range badPathTests {
+		err := Unmarshal(StringReader(pathTestString), tt.v)
+		if !reflect.DeepEqual(err, tt.e) {
+			t.Fatalf("Unmarshal with %#v didn't fail properly: %#v", tt.v, err)
 		}
 	}
 }
