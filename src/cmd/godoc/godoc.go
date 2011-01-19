@@ -64,7 +64,7 @@ var (
 	// layout control
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
-	fulltextIndex  = flag.Bool("fulltext", false, "build full text index for regular expression queries")
+	maxResults     = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
 
 	// file system mapping
 	fsMap      Mapping // user-defined mapping
@@ -1166,7 +1166,7 @@ func lookup(query string) (result SearchResult) {
 		// identifier search
 		var err os.Error
 		result.Hit, result.Alt, err = index.Lookup(query)
-		if err != nil && !*fulltextIndex {
+		if err != nil && *maxResults <= 0 {
 			// ignore the error if full text search is enabled
 			// since the query may be a valid regular expression
 			result.Alert = "Error in query string: " + err.String()
@@ -1174,17 +1174,21 @@ func lookup(query string) (result SearchResult) {
 		}
 
 		// full text search
-		if *fulltextIndex {
+		if *maxResults > 0 && query != "" {
 			rx, err := regexp.Compile(query)
 			if err != nil {
 				result.Alert = "Error in query regular expression: " + err.String()
 				return
 			}
-
-			// TODO(gri) should max be a flag?
-			const max = 10000 // show at most this many fulltext results
-			result.Found, result.Textual = index.LookupRegexp(rx, max+1)
-			result.Complete = result.Found <= max
+			// If we get maxResults+1 results we know that there are more than
+			// maxResults results and thus the result may be incomplete (to be
+			// precise, we should remove one result from the result set, but
+			// nobody is going to count the results on the result page).
+			result.Found, result.Textual = index.LookupRegexp(rx, *maxResults+1)
+			result.Complete = result.Found <= *maxResults
+			if !result.Complete {
+				result.Found-- // since we looked for maxResults+1
+			}
 		}
 	}
 
@@ -1280,7 +1284,7 @@ func indexer() {
 				log.Printf("updating index...")
 			}
 			start := time.Nanoseconds()
-			index := NewIndex(fsDirnames(), *fulltextIndex)
+			index := NewIndex(fsDirnames(), *maxResults > 0)
 			stop := time.Nanoseconds()
 			searchIndex.set(index)
 			if *verbose {
