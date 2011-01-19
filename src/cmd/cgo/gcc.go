@@ -27,13 +27,15 @@ var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
 var debugGcc = flag.Bool("debug-gcc", false, "print gcc invocations")
 
 var nameToC = map[string]string{
-	"schar":     "signed char",
-	"uchar":     "unsigned char",
-	"ushort":    "unsigned short",
-	"uint":      "unsigned int",
-	"ulong":     "unsigned long",
-	"longlong":  "long long",
-	"ulonglong": "unsigned long long",
+	"schar":         "signed char",
+	"uchar":         "unsigned char",
+	"ushort":        "unsigned short",
+	"uint":          "unsigned int",
+	"ulong":         "unsigned long",
+	"longlong":      "long long",
+	"ulonglong":     "unsigned long long",
+	"complexfloat":  "float complex",
+	"complexdouble": "double complex",
 }
 
 // cname returns the C name to use for C.s.
@@ -591,6 +593,7 @@ type typeConv struct {
 	int8, int16, int32, int64              ast.Expr
 	uint8, uint16, uint32, uint64, uintptr ast.Expr
 	float32, float64                       ast.Expr
+	complex64, complex128                  ast.Expr
 	void                                   ast.Expr
 	unsafePointer                          ast.Expr
 	string                                 ast.Expr
@@ -617,6 +620,8 @@ func (c *typeConv) Init(ptrSize int64) {
 	c.uintptr = c.Ident("uintptr")
 	c.float32 = c.Ident("float32")
 	c.float64 = c.Ident("float64")
+	c.complex64 = c.Ident("complex64")
+	c.complex128 = c.Ident("complex128")
 	c.unsafePointer = c.Ident("unsafe.Pointer")
 	c.void = c.Ident("void")
 	c.string = c.Ident("string")
@@ -648,6 +653,8 @@ var dwarfToName = map[string]string{
 	"long long int":          "longlong",
 	"long long unsigned int": "ulonglong",
 	"signed char":            "schar",
+	"float complex":          "complexfloat",
+	"double complex":         "complexdouble",
 }
 
 // Type returns a *Type with the same memory layout as
@@ -744,6 +751,19 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			t.Go = c.float32
 		case 8:
 			t.Go = c.float64
+		}
+		if t.Align = t.Size; t.Align >= c.ptrSize {
+			t.Align = c.ptrSize
+		}
+
+	case *dwarf.ComplexType:
+		switch t.Size {
+		default:
+			fatal("unexpected: %d-byte complex type - %s", t.Size, dtype)
+		case 8:
+			t.Go = c.complex64
+		case 16:
+			t.Go = c.complex128
 		}
 		if t.Align = t.Size; t.Align >= c.ptrSize {
 			t.Align = c.ptrSize

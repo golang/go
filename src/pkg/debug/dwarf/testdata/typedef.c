@@ -9,6 +9,7 @@ gcc -gdwarf-2 -m64 -c typedef.c && gcc -gdwarf-2 -m64 -o typedef.elf typedef.o
 OS X Mach-O:
 gcc -gdwarf-2 -m64 -c typedef.c -o typedef.macho
 */
+#include <complex.h>
 
 typedef volatile int* t_ptr_volatile_int;
 typedef const char *t_ptr_const_char;
@@ -16,6 +17,9 @@ typedef long t_long;
 typedef unsigned short t_ushort;
 typedef int t_func_int_of_float_double(float, double);
 typedef int (*t_ptr_func_int_of_float_double)(float, double);
+typedef int (*t_ptr_func_int_of_float_complex)(float complex);
+typedef int (*t_ptr_func_int_of_double_complex)(double complex);
+typedef int (*t_ptr_func_int_of_long_double_complex)(long double complex);
 typedef int *t_func_ptr_int_of_char_schar_uchar(char, signed char, unsigned char);
 typedef void t_func_void_of_char(char);
 typedef void t_func_void_of_void(void);
@@ -65,6 +69,9 @@ t_my_union *a12a;
 t_my_enum *a13;
 t_my_list *a14;
 t_my_tree *a15;
+t_ptr_func_int_of_float_complex *a16;
+t_ptr_func_int_of_double_complex *a17;
+t_ptr_func_int_of_long_double_complex *a18;
 
 int main()
 {
