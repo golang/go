@@ -399,6 +399,7 @@ dpcheck(Node *n)
 		return;
 
 	i = l->param;
+	a = nil;
 	b = n->right;
 	a = Z;
 	while(i > 0) {

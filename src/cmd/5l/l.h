@@ -276,7 +276,6 @@ enum
 
 	STRINGSZ	= 200,
 	NHASH		= 10007,
-	NHUNK		= 100000,
 	MINSIZ		= 64,
 	NENT		= 100,
 	MAXIO		= 8192,

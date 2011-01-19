@@ -59,7 +59,6 @@ typedef	struct	Bits	Bits;
 typedef	struct	Dynimp	Dynimp;
 typedef	struct	Dynexp	Dynexp;
 
-#define	NHUNK		50000L
 #define	BUFSIZ		8192
 #define	NSYMB		500
 #define	NHASH		1024
