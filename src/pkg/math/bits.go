@@ -47,3 +47,13 @@ func IsInf(f float64, sign int) bool {
 	//	return sign >= 0 && x == uvinf || sign <= 0 && x == uvneginf;
 	return sign >= 0 && f > MaxFloat64 || sign <= 0 && f < -MaxFloat64
 }
+
+// normalize returns a normal number y and exponent exp
+// satisfying x == y × 2**exp. It assumes x is finite and non-zero.
+func normalize(x float64) (y float64, exp int) {
+	const SmallestNormal = 2.2250738585072014e-308 // 2**-1022
+	if Fabs(x) < SmallestNormal {
+		return x * (1 << 52), -52
+	}
+	return x, 0
+}

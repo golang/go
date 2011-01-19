@@ -1112,6 +1112,33 @@ var jM3SC = []float64{
 	NaN(),
 }
 
+var vfldexpSC = []fi{
+	{0, 0},
+	{0, -1075},
+	{0, 1024},
+	{Copysign(0, -1), 0},
+	{Copysign(0, -1), -1075},
+	{Copysign(0, -1), 1024},
+	{Inf(1), 0},
+	{Inf(1), -1024},
+	{Inf(-1), 0},
+	{Inf(-1), -1024},
+	{NaN(), -1024},
+}
+var ldexpSC = []float64{
+	0,
+	0,
+	0,
+	Copysign(0, -1),
+	Copysign(0, -1),
+	Copysign(0, -1),
+	Inf(1),
+	Inf(1),
+	Inf(-1),
+	Inf(-1),
+	NaN(),
+}
+
 var vflgammaSC = []float64{
 	Inf(-1),
 	-3,
@@ -1438,6 +1465,65 @@ var yM3SC = []float64{
 	Inf(1),
 	0,
 	NaN(),
+}
+
+// arguments and expected results for boundary cases
+const (
+	SmallestNormalFloat64   = 2.2250738585072014e-308 // 2**-1022
+	LargestSubnormalFloat64 = SmallestNormalFloat64 - SmallestNonzeroFloat64
+)
+
+var vffrexpBC = []float64{
+	SmallestNormalFloat64,
+	LargestSubnormalFloat64,
+	SmallestNonzeroFloat64,
+	MaxFloat64,
+	-SmallestNormalFloat64,
+	-LargestSubnormalFloat64,
+	-SmallestNonzeroFloat64,
+	-MaxFloat64,
+}
+var frexpBC = []fi{
+	{0.5, -1021},
+	{0.99999999999999978, -1022},
+	{0.5, -1073},
+	{0.99999999999999989, 1024},
+	{-0.5, -1021},
+	{-0.99999999999999978, -1022},
+	{-0.5, -1073},
+	{-0.99999999999999989, 1024},
+}
+
+var vfldexpBC = []fi{
+	{SmallestNormalFloat64, -52},
+	{LargestSubnormalFloat64, -51},
+	{SmallestNonzeroFloat64, 1074},
+	{MaxFloat64, -(1023 + 1074)},
+	{1, -1075},
+	{-1, -1075},
+	{1, 1024},
+	{-1, 1024},
+}
+var ldexpBC = []float64{
+	SmallestNonzeroFloat64,
+	1e-323, // 2**-1073
+	1,
+	1e-323, // 2**-1073
+	0,
+	Copysign(0, -1),
+	Inf(1),
+	Inf(-1),
+}
+
+var logbBC = []float64{
+	-1022,
+	-1023,
+	-1074,
+	1023,
+	-1022,
+	-1023,
+	-1074,
+	1023,
 }
 
 func tolerance(a, b, e float64) bool {
@@ -1792,6 +1878,11 @@ func TestFrexp(t *testing.T) {
 			t.Errorf("Frexp(%g) = %g, %d, want %g, %d", vffrexpSC[i], f, j, frexpSC[i].f, frexpSC[i].i)
 		}
 	}
+	for i := 0; i < len(vffrexpBC); i++ {
+		if f, j := Frexp(vffrexpBC[i]); !alike(frexpBC[i].f, f) || frexpBC[i].i != j {
+			t.Errorf("Frexp(%g) = %g, %d, want %g, %d", vffrexpBC[i], f, j, frexpBC[i].f, frexpBC[i].i)
+		}
+	}
 }
 
 func TestGamma(t *testing.T) {
@@ -1831,6 +1922,11 @@ func TestIlogb(t *testing.T) {
 	for i := 0; i < len(vflogbSC); i++ {
 		if e := Ilogb(vflogbSC[i]); ilogbSC[i] != e {
 			t.Errorf("Ilogb(%g) = %d, want %d", vflogbSC[i], e, ilogbSC[i])
+		}
+	}
+	for i := 0; i < len(vffrexpBC); i++ {
+		if e := Ilogb(vffrexpBC[i]); int(logbBC[i]) != e {
+			t.Errorf("Ilogb(%g) = %d, want %d", vffrexpBC[i], e, int(logbBC[i]))
 		}
 	}
 }
@@ -1891,6 +1987,21 @@ func TestLdexp(t *testing.T) {
 			t.Errorf("Ldexp(%g, %d) = %g, want %g", frexpSC[i].f, frexpSC[i].i, f, vffrexpSC[i])
 		}
 	}
+	for i := 0; i < len(vfldexpSC); i++ {
+		if f := Ldexp(vfldexpSC[i].f, vfldexpSC[i].i); !alike(ldexpSC[i], f) {
+			t.Errorf("Ldexp(%g, %d) = %g, want %g", vfldexpSC[i].f, vfldexpSC[i].i, f, ldexpSC[i])
+		}
+	}
+	for i := 0; i < len(vffrexpBC); i++ {
+		if f := Ldexp(frexpBC[i].f, frexpBC[i].i); !alike(vffrexpBC[i], f) {
+			t.Errorf("Ldexp(%g, %d) = %g, want %g", frexpBC[i].f, frexpBC[i].i, f, vffrexpBC[i])
+		}
+	}
+	for i := 0; i < len(vfldexpBC); i++ {
+		if f := Ldexp(vfldexpBC[i].f, vfldexpBC[i].i); !alike(ldexpBC[i], f) {
+			t.Errorf("Ldexp(%g, %d) = %g, want %g", vfldexpBC[i].f, vfldexpBC[i].i, f, ldexpBC[i])
+		}
+	}
 }
 
 func TestLgamma(t *testing.T) {
@@ -1932,6 +2043,11 @@ func TestLogb(t *testing.T) {
 	for i := 0; i < len(vflogbSC); i++ {
 		if f := Logb(vflogbSC[i]); !alike(logbSC[i], f) {
 			t.Errorf("Logb(%g) = %g, want %g", vflogbSC[i], f, logbSC[i])
+		}
+	}
+	for i := 0; i < len(vffrexpBC); i++ {
+		if e := Logb(vffrexpBC[i]); !alike(logbBC[i], e) {
+			t.Errorf("Ilogb(%g) = %g, want %g", vffrexpBC[i], e, logbBC[i])
 		}
 	}
 }
