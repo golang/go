@@ -102,6 +102,23 @@ parsetypenum(char **pp, vlong *n1p, vlong *n2p)
 	return 0;
 }
 
+// Written to parse max/min of vlong correctly.
+static vlong
+parseoctal(char **pp)
+{
+	char *p;
+	vlong n;
+
+	p = *pp;
+	if(*p++ != '0')
+		return 0;
+	n = 0;
+	while(*p >= '0' && *p <= '9')
+		n = n << 3 | *p++ - '0';
+	*pp = p;
+	return n;
+}
+
 // Integer types are represented in stabs as a "range"
 // type with a lo and a hi value.  The lo and hi used to
 // be lo and hi for the type, but there are now odd
@@ -112,31 +129,24 @@ parsetypenum(char **pp, vlong *n1p, vlong *n2p)
 typedef struct Intrange Intrange;
 struct Intrange
 {
-	int signlo;	// sign of lo
 	vlong lo;
-	int signhi;	// sign of hi
 	vlong hi;
 	int kind;
 };
 
-// NOTE(rsc): Iant says that these might be different depending
-// on the gcc mode, though I haven't observed this yet.
 Intrange intranges[] = {
-	'+', 0, '+', 127, Int8,	// char
-	'-', 128, '+', 127, Int8,	// signed char
-	'+', 0, '+', 255, Uint8,
-	'-', 32768, '+', 32767, Int16,
-	'+', 0, '+', 65535, Uint16,
-	'-', 2147483648LL, '+', 2147483647LL, Int32,
-	'+', 0, '+', 4294967295LL, Uint32,
-
-	// abnormal cases
-	'-', 0, '+', 4294967295LL, Int64,
-	'+', 0, '-', 1, Uint64,
-
-	'+', 4, '+', 0, Float32,
-	'+', 8, '+', 0, Float64,
-	'+', 16, '+', 0, Void,
+	0, 127, Int8,		// char
+	-128, 127, Int8,	// signed char
+	0, 255, Uint8,
+	-32768, 32767, Int16,
+	0, 65535, Uint16,
+	-2147483648LL, 2147483647LL, Int32,
+	0, 4294967295LL, Uint32,
+	1LL << 63, ~(1LL << 63), Int64,
+	0, -1, Uint64,
+	4, 0, Float32,
+	8, 0, Float64,
+	16, 0, Void,
 };
 
 static int kindsize[] = {
@@ -158,7 +168,7 @@ parsedef(char **pp, char *name)
 {
 	char *p;
 	Type *t, *tt;
-	int i, signlo, signhi;
+	int i;
 	vlong n1, n2, lo, hi;
 	Field *f;
 	Intrange *r;
@@ -212,6 +222,11 @@ parsedef(char **pp, char *name)
 		fprint(2, "unknown type char %c\n", *p);
 		*pp = "";
 		return t;
+
+	case '@':	// type attribute
+		while (*++p != ';');
+		*pp = ++p;
+		return parsedef(pp, nil);
 
 	case '*':	// pointer
 		p++;
@@ -269,6 +284,10 @@ parsedef(char **pp, char *name)
 			return nil;
 		break;
 
+	case 'k':	// const
+		++*pp;
+		return parsedef(pp, nil);
+
 	case 'r':	// sub-range (used for integers)
 		p++;
 		if(parsedef(&p, nil) == nil)
@@ -280,23 +299,19 @@ parsedef(char **pp, char *name)
 				fprint(2, "range expected number: %s\n", p);
 			return nil;
 		}
-		if(*p == '-') {
-			signlo = '-';
-			p++;
-		} else
-			signlo = '+';
-		lo = strtoll(p, &p, 10);
+		if(*p == '0')
+			lo = parseoctal(&p);
+		else
+			lo = strtoll(p, &p, 10);
 		if(*p != ';' || *++p == ';') {
 			if(stabsdebug)
 				fprint(2, "range expected number: %s\n", p);
 			return nil;
 		}
-		if(*p == '-') {
-			signhi = '-';
-			p++;
-		} else
-			signhi = '+';
-		hi = strtoll(p, &p, 10);
+		if(*p == '0')
+			hi = parseoctal(&p);
+		else
+			hi = strtoll(p, &p, 10);
 		if(*p != ';') {
 			if(stabsdebug)
 				fprint(2, "range expected trailing semi: %s\n", p);
@@ -306,7 +321,7 @@ parsedef(char **pp, char *name)
 		t->size = hi+1;	// might be array size
 		for(i=0; i<nelem(intranges); i++) {
 			r = &intranges[i];
-			if(r->signlo == signlo && r->signhi == signhi && r->lo == lo && r->hi == hi) {
+			if(r->lo == lo && r->hi == hi) {
 				t->kind = r->kind;
 				break;
 			}

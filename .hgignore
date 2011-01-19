@@ -11,6 +11,8 @@ syntax:glob
 [568a].out
 *~
 *.orig
+*.exe
+.*.swp
 core
 _cgo_*
 _obj
