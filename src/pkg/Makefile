@@ -113,6 +113,7 @@ DIRS=\
 	rpc/jsonrpc\
 	runtime\
 	runtime/cgo\
+	runtime/debug\
 	runtime/pprof\
 	scanner\
 	smtp\
