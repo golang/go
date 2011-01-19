@@ -43,6 +43,7 @@ var (
 	procGetTimeZoneInformation     = getSysProcAddr(modkernel32, "GetTimeZoneInformation")
 	procCreateIoCompletionPort     = getSysProcAddr(modkernel32, "CreateIoCompletionPort")
 	procGetQueuedCompletionStatus  = getSysProcAddr(modkernel32, "GetQueuedCompletionStatus")
+	procCancelIo                   = getSysProcAddr(modkernel32, "CancelIo")
 	procCreateProcessW             = getSysProcAddr(modkernel32, "CreateProcessW")
 	procGetStartupInfoW            = getSysProcAddr(modkernel32, "GetStartupInfoW")
 	procGetCurrentProcess          = getSysProcAddr(modkernel32, "GetCurrentProcess")
@@ -499,6 +500,21 @@ func CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, thread
 
 func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int) {
 	r0, _, e1 := Syscall6(procGetQueuedCompletionStatus, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func CancelIo(s uint32) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procCancelIo, uintptr(s), 0, 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {

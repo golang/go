@@ -126,6 +126,7 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval==0xffffffff]
 //sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
 //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
+//sys	CancelIo(s uint32) (ok bool, errno int)
 //sys	CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, threadSecurity *int16, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation)  (ok bool, errno int) = CreateProcessW
 //sys	GetStartupInfo(startupInfo *StartupInfo)  (ok bool, errno int) = GetStartupInfoW
 //sys	GetCurrentProcess() (pseudoHandle int32, errno int)
