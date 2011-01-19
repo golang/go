@@ -242,8 +242,8 @@ func main() {
 			log.Printf("address = %s", *httpAddr)
 			log.Printf("goroot = %s", *goroot)
 			log.Printf("tabwidth = %d", *tabwidth)
-			if *fulltextIndex {
-				log.Print("full text index enabled")
+			if *maxResults > 0 {
+				log.Printf("maxresults = %d (full text index enabled)", *maxResults)
 			}
 			if !fsMap.IsEmpty() {
 				log.Print("user-defined mapping:")

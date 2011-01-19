@@ -47,8 +47,9 @@ The flags are:
 		width of tabs in units of spaces
 	-timestamps=true
 		show timestamps with directory listings
-	-fulltext=false
-		build full text index for regular expression queries
+	-maxresults=10000
+		maximum number of full text search results shown
+		(no full text index is built if maxresults <= 0)
 	-path=""
 		additional package directories (colon-separated)
 	-html
