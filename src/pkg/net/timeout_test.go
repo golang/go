@@ -8,14 +8,9 @@ import (
 	"os"
 	"testing"
 	"time"
-	"runtime"
 )
 
 func testTimeout(t *testing.T, network, addr string, readFrom bool) {
-	// Timeouts are not implemented on windows.
-	if runtime.GOOS == "windows" {
-		return
-	}
 	fd, err := Dial(network, "", addr)
 	if err != nil {
 		t.Errorf("dial %s %s failed: %v", network, addr, err)
