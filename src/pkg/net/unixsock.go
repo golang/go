@@ -20,6 +20,8 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 		proto = syscall.SOCK_STREAM
 	case "unixgram":
 		proto = syscall.SOCK_DGRAM
+	case "unixpacket":
+		proto = syscall.SOCK_SEQPACKET
 	}
 
 	var la, ra syscall.Sockaddr
@@ -48,9 +50,12 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 	}
 
 	f := sockaddrToUnix
-	if proto != syscall.SOCK_STREAM {
+	if proto == syscall.SOCK_DGRAM {
 		f = sockaddrToUnixgram
+	} else if proto == syscall.SOCK_SEQPACKET {
+		f = sockaddrToUnixpacket
 	}
+
 	fd, oserr := socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
 	if oserr != nil {
 		goto Error
@@ -67,30 +72,48 @@ Error:
 
 // UnixAddr represents the address of a Unix domain socket end point.
 type UnixAddr struct {
-	Name     string
-	Datagram bool
+	Name string
+	Net  string
 }
 
 func sockaddrToUnix(sa syscall.Sockaddr) Addr {
 	if s, ok := sa.(*syscall.SockaddrUnix); ok {
-		return &UnixAddr{s.Name, false}
+		return &UnixAddr{s.Name, "unix"}
 	}
 	return nil
 }
 
 func sockaddrToUnixgram(sa syscall.Sockaddr) Addr {
 	if s, ok := sa.(*syscall.SockaddrUnix); ok {
-		return &UnixAddr{s.Name, true}
+		return &UnixAddr{s.Name, "unixgram"}
 	}
 	return nil
 }
 
+func sockaddrToUnixpacket(sa syscall.Sockaddr) Addr {
+	if s, ok := sa.(*syscall.SockaddrUnix); ok {
+		return &UnixAddr{s.Name, "unixpacket"}
+	}
+	return nil
+}
+
+func protoToNet(proto int) string {
+	switch proto {
+	case syscall.SOCK_STREAM:
+		return "unix"
+	case syscall.SOCK_SEQPACKET:
+		return "unixpacket"
+	case syscall.SOCK_DGRAM:
+		return "unixgram"
+	default:
+		panic("protoToNet unknown protocol")
+	}
+	return ""
+}
+
 // Network returns the address's network name, "unix" or "unixgram".
 func (a *UnixAddr) Network() string {
-	if a == nil || !a.Datagram {
-		return "unix"
-	}
-	return "unixgram"
+	return a.Net
 }
 
 func (a *UnixAddr) String() string {
@@ -108,17 +131,17 @@ func (a *UnixAddr) toAddr() Addr {
 }
 
 // ResolveUnixAddr parses addr as a Unix domain socket address.
-// The string net gives the network name, "unix" or "unixgram".
+// The string net gives the network name, "unix", "unixgram" or
+// "unixpacket".
 func ResolveUnixAddr(net, addr string) (*UnixAddr, os.Error) {
-	var datagram bool
 	switch net {
 	case "unix":
+	case "unixpacket":
 	case "unixgram":
-		datagram = true
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	return &UnixAddr{addr, datagram}, nil
+	return &UnixAddr{addr, net}, nil
 }
 
 // UnixConn is an implementation of the Conn interface
@@ -234,7 +257,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) 
 	n, sa, err := c.fd.ReadFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
-		addr = &UnixAddr{sa.Name, c.fd.proto == syscall.SOCK_DGRAM}
+		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
 	}
 	return
 }
@@ -258,7 +281,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
 	if !c.ok() {
 		return 0, os.EINVAL
 	}
-	if addr.Datagram != (c.fd.proto == syscall.SOCK_DGRAM) {
+	if addr.Net != protoToNet(c.fd.proto) {
 		return 0, os.EAFNOSUPPORT
 	}
 	sa := &syscall.SockaddrUnix{Name: addr.Name}
@@ -284,7 +307,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
-		addr = &UnixAddr{sa.Name, c.fd.proto == syscall.SOCK_DGRAM}
+		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
 	}
 	return
 }
@@ -294,7 +317,7 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 		return 0, 0, os.EINVAL
 	}
 	if addr != nil {
-		if addr.Datagram != (c.fd.proto == syscall.SOCK_DGRAM) {
+		if addr.Net != protoToNet(c.fd.proto) {
 			return 0, 0, os.EAFNOSUPPORT
 		}
 		sa := &syscall.SockaddrUnix{Name: addr.Name}
@@ -330,11 +353,11 @@ type UnixListener struct {
 // ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
 // Net must be "unix" (stream sockets).
 func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
-	if net != "unix" && net != "unixgram" {
+	if net != "unix" && net != "unixgram" && net != "unixpacket" {
 		return nil, UnknownNetworkError(net)
 	}
 	if laddr != nil {
-		laddr = &UnixAddr{laddr.Name, net == "unixgram"} // make our own copy
+		laddr = &UnixAddr{laddr.Name, net} // make our own copy
 	}
 	fd, err := unixSocket(net, laddr, nil, "listen")
 	if err != nil {

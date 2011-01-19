@@ -59,7 +59,7 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 			return nil, err
 		}
 		return c, nil
-	case "unix", "unixgram":
+	case "unix", "unixgram", "unixpacket":
 		var la, ra *UnixAddr
 		if raddr != "" {
 			if ra, err = ResolveUnixAddr(net, raddr); err != nil {
@@ -102,7 +102,7 @@ Error:
 
 // Listen announces on the local network address laddr.
 // The network string net must be a stream-oriented
-// network: "tcp", "tcp4", "tcp6", or "unix".
+// network: "tcp", "tcp4", "tcp6", or "unix", or "unixpacket".
 func Listen(net, laddr string) (l Listener, err os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
@@ -117,7 +117,7 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
 			return nil, err
 		}
 		return l, nil
-	case "unix":
+	case "unix", "unixpacket":
 		var la *UnixAddr
 		if laddr != "" {
 			if la, err = ResolveUnixAddr(net, laddr); err != nil {
