@@ -510,44 +510,6 @@ func TestURLEscape(t *testing.T) {
 	}
 }
 
-type CanonicalPathTest struct {
-	in  string
-	out string
-}
-
-var canonicalTests = []CanonicalPathTest{
-	{"", ""},
-	{"/", "/"},
-	{".", ""},
-	{"./", ""},
-	{"/a/", "/a/"},
-	{"a/", "a/"},
-	{"a/./", "a/"},
-	{"./a", "a"},
-	{"/a/../b", "/b"},
-	{"a/../b", "b"},
-	{"a/../../b", "../b"},
-	{"a/.", "a/"},
-	{"../.././a", "../../a"},
-	{"/../.././a", "/../../a"},
-	{"a/b/g/../..", "a/"},
-	{"a/b/..", "a/"},
-	{"a/b/.", "a/b/"},
-	{"a/b/../../../..", "../.."},
-	{"a./", "a./"},
-	{"/../a/b/../../../", "/../../"},
-	{"../a/b/../../../", "../../"},
-}
-
-func TestCanonicalPath(t *testing.T) {
-	for _, tt := range canonicalTests {
-		actual := CanonicalPath(tt.in)
-		if tt.out != actual {
-			t.Errorf("CanonicalPath(%q) = %q, want %q", tt.in, actual, tt.out)
-		}
-	}
-}
-
 type UserinfoTest struct {
 	User     string
 	Password string
@@ -596,4 +558,118 @@ func TestEncodeQuery(t *testing.T) {
 			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
 		}
 	}
+}
+
+var resolvePathTests = []struct {
+	base, ref, expected string
+}{
+	{"a/b", ".", "a/"},
+	{"a/b", "c", "a/c"},
+	{"a/b", "..", ""},
+	{"a/", "..", ""},
+	{"a/", "../..", ""},
+	{"a/b/c", "..", "a/"},
+	{"a/b/c", "../d", "a/d"},
+	{"a/b/c", ".././d", "a/d"},
+	{"a/b", "./..", ""},
+	{"a/./b", ".", "a/./"},
+	{"a/../", ".", "a/../"},
+	{"a/.././b", "c", "a/.././c"},
+}
+
+func TestResolvePath(t *testing.T) {
+	for _, test := range resolvePathTests {
+		got := resolvePath(test.base, test.ref)
+		if got != test.expected {
+			t.Errorf("For %q + %q got %q; expected %q", test.base, test.ref, got, test.expected)
+		}
+	}
+}
+
+var resolveReferenceTests = []struct {
+	base, rel, expected string
+}{
+	// Absolute URL references
+	{"http://foo.com?a=b", "https://bar.com/", "https://bar.com/"},
+	{"http://foo.com/", "https://bar.com/?a=b", "https://bar.com/?a=b"},
+	{"http://foo.com/bar", "mailto:foo@example.com", "mailto:foo@example.com"},
+
+	// Path-absolute references
+	{"http://foo.com/bar", "/baz", "http://foo.com/baz"},
+	{"http://foo.com/bar?a=b#f", "/baz", "http://foo.com/baz"},
+	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
+
+	// Scheme-relative
+	{"https://foo.com/bar?a=b", "//bar.com/quux", "https://bar.com/quux"},
+
+	// Path-relative references:
+
+	// ... current directory
+	{"http://foo.com", ".", "http://foo.com/"},
+	{"http://foo.com/bar", ".", "http://foo.com/"},
+	{"http://foo.com/bar/", ".", "http://foo.com/bar/"},
+
+	// ... going down
+	{"http://foo.com", "bar", "http://foo.com/bar"},
+	{"http://foo.com/", "bar", "http://foo.com/bar"},
+	{"http://foo.com/bar/baz", "quux", "http://foo.com/bar/quux"},
+
+	// ... going up
+	{"http://foo.com/bar/baz", "../quux", "http://foo.com/quux"},
+	{"http://foo.com/bar/baz", "../../../../../quux", "http://foo.com/quux"},
+	{"http://foo.com/bar", "..", "http://foo.com/"},
+	{"http://foo.com/bar/baz", "./..", "http://foo.com/"},
+
+	// "." and ".." in the base aren't special
+	{"http://foo.com/dot/./dotdot/../foo/bar", "../baz", "http://foo.com/dot/./dotdot/../baz"},
+
+	// Triple dot isn't special
+	{"http://foo.com/bar", "...", "http://foo.com/..."},
+
+	// Fragment
+	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
+}
+
+func TestResolveReference(t *testing.T) {
+	mustParseURL := func(url string) *URL {
+		u, err := ParseURLReference(url)
+		if err != nil {
+			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+		}
+		return u
+	}
+	for _, test := range resolveReferenceTests {
+		base := mustParseURL(test.base)
+		rel := mustParseURL(test.rel)
+		url := base.ResolveReference(rel)
+		urlStr := url.String()
+		if urlStr != test.expected {
+			t.Errorf("Resolving %q + %q != %q; got %q", test.base, test.rel, test.expected, urlStr)
+		}
+	}
+
+	// Test that new instances are returned.
+	base := mustParseURL("http://foo.com/")
+	abs := base.ResolveReference(mustParseURL("."))
+	if base == abs {
+		t.Errorf("Expected no-op reference to return new URL instance.")
+	}
+	barRef := mustParseURL("http://bar.com/")
+	abs = base.ResolveReference(barRef)
+	if abs == barRef {
+		t.Errorf("Expected resolution of absolute reference to return new URL instance.")
+	}
+
+	// Test the convenience wrapper too
+	base = mustParseURL("http://foo.com/path/one/")
+	abs, _ = base.ParseURL("../two")
+	expected := "http://foo.com/path/two"
+	if abs.String() != expected {
+		t.Errorf("ParseURL wrapper got %q; expected %q", abs.String(), expected)
+	}
+	_, err := base.ParseURL("")
+	if err == nil {
+		t.Errorf("Expected an error from ParseURL wrapper parsing an empty string.")
+	}
+
 }
