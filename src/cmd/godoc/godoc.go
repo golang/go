@@ -1159,36 +1159,33 @@ type SearchResult struct {
 func lookup(query string) (result SearchResult) {
 	result.Query = query
 
-	// determine identifier lookup string and full text regexp
-	lookupStr := ""
-	lookupRx, err := regexp.Compile(query)
-	if err != nil {
-		result.Alert = "Error in query regular expression: " + err.String()
-		return
-	}
-	if prefix, complete := lookupRx.LiteralPrefix(); complete {
-		// otherwise we lookup "" (with no result) because
-		// identifier lookup doesn't support regexp search
-		lookupStr = prefix
-	}
-
 	index, timestamp := searchIndex.get()
 	if index != nil {
-		// identifier search
 		index := index.(*Index)
-		result.Hit, result.Alt, err = index.Lookup(lookupStr)
+
+		// identifier search
+		var err os.Error
+		result.Hit, result.Alt, err = index.Lookup(query)
 		if err != nil && !*fulltextIndex {
-			// ignore the error if there is full text search
-			// since it accepts that query regular expression
+			// ignore the error if full text search is enabled
+			// since the query may be a valid regular expression
 			result.Alert = "Error in query string: " + err.String()
 			return
 		}
 
-		// textual search
-		// TODO(gri) should max be a flag?
-		const max = 10000 // show at most this many fulltext results
-		result.Found, result.Textual = index.LookupRegexp(lookupRx, max+1)
-		result.Complete = result.Found <= max
+		// full text search
+		if *fulltextIndex {
+			rx, err := regexp.Compile(query)
+			if err != nil {
+				result.Alert = "Error in query regular expression: " + err.String()
+				return
+			}
+
+			// TODO(gri) should max be a flag?
+			const max = 10000 // show at most this many fulltext results
+			result.Found, result.Textual = index.LookupRegexp(rx, max+1)
+			result.Complete = result.Found <= max
+		}
 	}
 
 	// is the result accurate?
