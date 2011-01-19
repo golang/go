@@ -1134,8 +1134,12 @@ def mail(ui, repo, *pats, **opts):
 			return "no reviewers listed in CL"
 		cl.cc = Sub(cl.cc, defaultcc)
 		cl.reviewer = defaultcc
-		cl.Flush(ui, repo)		
-	cl.Mail(ui, repo)
+		cl.Flush(ui, repo)
+
+	if cl.files == []:
+		return "no changed files, not sending mail"
+
+	cl.Mail(ui, repo)		
 
 def nocommit(ui, repo, *pats, **opts):
 	"""(disabled when using this extension)"""
