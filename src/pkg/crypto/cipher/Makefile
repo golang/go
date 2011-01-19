@@ -7,10 +7,11 @@ include ../../../Make.inc
 TARG=crypto/cipher
 GOFILES=\
 	cbc.go\
+	cfb.go\
 	cipher.go\
 	ctr.go\
 	io.go\
 	ocfb.go\
-	cfb.go
+	ofb.go
 
 include ../../../Make.pkg
