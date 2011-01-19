@@ -450,7 +450,7 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
 	return sendto(fd, p, flags, ptr, n)
 }
 
-func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recvflags int, errno int) {
+func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, errno int) {
 	var msg Msghdr
 	var rsa RawSockaddrAny
 	msg.Name = (*byte)(unsafe.Pointer(&rsa))
@@ -477,6 +477,10 @@ func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recv
 	}
 	oobn = int(msg.Controllen)
 	recvflags = int(msg.Flags)
+	// source address is only specified if the socket is unconnected
+	if rsa.Addr.Family != 0 {
+		from, errno = anyToSockaddr(&rsa)
+	}
 	return
 }
 
