@@ -567,7 +567,8 @@ agen(Node *n, Node *res)
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
-		} else if(nl->addable) {
+		} else
+		if(nl->addable) {
 			if(!isconst(nr, CTINT)) {
 				tempname(&tmp, types[TINT32]);
 				p2 = cgenindex(nr, &tmp);
@@ -1092,11 +1093,17 @@ bgen(Node *n, int true, Prog *to)
 			break;
 		}
 
+		tempname(&n3, nl->type);
+		cgen(nl, &n3);
+
+		tempname(&tmp, nr->type);
+		cgen(nr, &tmp);
+
 		regalloc(&n1, nl->type, N);
-		cgen(nl, &n1);
+		gmove(&n3, &n1);
 
 		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
+		gmove(&tmp, &n2);
 
 		gcmp(optoas(OCMP, nr->type), &n1, &n2);
 		if(isfloat[nl->type->etype]) {
@@ -1109,7 +1116,6 @@ bgen(Node *n, int true, Prog *to)
 		} else {
 			patch(gbranch(a, nr->type), to);
 		}
-
 		regfree(&n1);
 		regfree(&n2);
 		break;
