@@ -36,7 +36,8 @@
 	String and slice of bytes:
 		%s	the uninterpreted bytes of the string or slice
 		%q	a double-quoted string safely escaped with Go syntax
-		%x	base 16 notation with two characters per byte
+		%x	base 16, lower-case, two characters per byte
+		%X	base 16, upper-case, two characters per byte
 	Pointer:
 		%p	base 16 notation, with leading 0x
 
