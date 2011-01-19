@@ -116,9 +116,14 @@ func TestUnixServer(t *testing.T) {
 	os.Remove("/tmp/gotest.net")
 	doTest(t, "unix", "/tmp/gotest.net", "/tmp/gotest.net")
 	os.Remove("/tmp/gotest.net")
+	if syscall.OS != "darwin" {
+		doTest(t, "unixpacket", "/tmp/gotest.net", "/tmp/gotest.net")
+		os.Remove("/tmp/gotest.net")
+	}
 	if syscall.OS == "linux" {
 		// Test abstract unix domain socket, a Linux-ism
 		doTest(t, "unix", "@gotest/net", "@gotest/net")
+		doTest(t, "unixpacket", "@gotest/net", "@gotest/net")
 	}
 }
 

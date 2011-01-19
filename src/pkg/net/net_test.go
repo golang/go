@@ -52,6 +52,14 @@ var dialErrorTests = []DialErrorTest{
 		"unix", "", "/etc/",
 		"dial unix /etc/: (permission denied|socket operation on non-socket|connection refused)",
 	},
+	{
+		"unixpacket", "", "/etc/file-not-found",
+		"dial unixpacket /etc/file-not-found: no such file or directory",
+	},
+	{
+		"unixpacket", "", "/etc/",
+		"dial unixpacket /etc/: (permission denied|socket operation on non-socket|connection refused)",
+	},
 }
 
 func TestDialError(t *testing.T) {
