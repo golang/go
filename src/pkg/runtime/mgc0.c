@@ -210,6 +210,7 @@ sweepspan(MSpan *s)
 		case RefNone:
 			// Free large object.
 			mstats.alloc -= s->npages<<PageShift;
+			mstats.nfree++;
 			runtime·memclr(p, s->npages<<PageShift);
 			if(ref & RefProfiled)
 				runtime·MProf_Free(p, s->npages<<PageShift);
@@ -251,6 +252,7 @@ sweepspan(MSpan *s)
 			if(size > sizeof(uintptr))
 				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
 			mstats.alloc -= size;
+			mstats.nfree++;
 			mstats.by_size[s->sizeclass].nfree++;
 			runtime·MCache_Free(c, p, s->sizeclass, size);
 			break;
@@ -381,7 +383,8 @@ runtime·gc(int32 force)
 
 	t1 = runtime·nanotime();
 	mstats.numgc++;
-	mstats.pause_ns += t1 - t0;
+	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t1 - t0;
+	mstats.pause_total_ns += t1 - t0;
 	if(mstats.debuggc)
 		runtime·printf("pause %D\n", t1-t0);
 	runtime·semrelease(&gcsema);

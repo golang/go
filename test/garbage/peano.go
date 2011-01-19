@@ -123,7 +123,6 @@ func verify() {
 
 
 func main() {
-	st := &runtime.MemStats
 	t0 := time.Nanoseconds()
 	verify()
 	for i := 0; i <= 9; i++ {
@@ -132,6 +131,5 @@ func main() {
 	runtime.GC()
 	t1 := time.Nanoseconds()
 
-	fmt.Printf("garbage.BenchmarkPeano 1 %d ns/op\n", t1-t0)
-	fmt.Printf("garbage.BenchmarkPeanoPause %d %d ns/op\n", st.NumGC, int64(st.PauseNs)/int64(st.NumGC))
+	gcstats("BenchmarkPeano", 1, t1-t0)
 }

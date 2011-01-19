@@ -11,12 +11,18 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/token"
 	"os"
 	"path"
 	"runtime"
 	"strings"
 	"time"
+	"http"
+	_ "http/pprof"
+	"log"
 )
+
+var serve = flag.String("serve", "", "serve http on this address at end")
 
 func isGoFile(dir *os.FileInfo) bool {
 	return dir.IsRegular() &&
@@ -30,7 +36,7 @@ func isPkgFile(dir *os.FileInfo) bool {
 }
 
 func pkgName(filename string) string {
-	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
+	file, err := parser.ParseFile(token.NewFileSet(), filename, nil, parser.PackageClauseOnly)
 	if err != nil || file == nil {
 		return ""
 	}
@@ -58,7 +64,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
 	}
 
 	// get package AST
-	pkgs, err := parser.ParseDir(dirpath, filter, parser.ParseComments)
+	pkgs, err := parser.ParseDir(token.NewFileSet(), dirpath, filter, parser.ParseComments)
 	if err != nil {
 		println("parse", dirpath, err.String())
 		panic("fail")
@@ -67,12 +73,19 @@ func parseDir(dirpath string) map[string]*ast.Package {
 }
 
 func main() {
+	runtime.GOMAXPROCS(4)
+	go func() {}()
+	go func() {}()
+	go func() {}()
 	st := &runtime.MemStats
+	packages = append(packages, packages...)
+	packages = append(packages, packages...)
 	n := flag.Int("n", 4, "iterations")
 	p := flag.Int("p", len(packages), "# of packages to keep in memory")
 	flag.BoolVar(&st.DebugGC, "d", st.DebugGC, "print GC debugging info (pause times)")
 	flag.Parse()
 
+	var lastParsed []map[string]*ast.Package
 	var t0 int64
 	pkgroot := runtime.GOROOT() + "/src/pkg/"
 	for pass := 0; pass < 2; pass++ {
@@ -81,7 +94,7 @@ func main() {
 		// than the normal pauses and would otherwise make
 		// the average look much better than it actually is.
 		st.NumGC = 0
-		st.PauseNs = 0
+		st.PauseTotalNs = 0
 		t0 = time.Nanoseconds()
 
 		for i := 0; i < *n; i++ {
@@ -89,7 +102,11 @@ func main() {
 			for j := range parsed {
 				parsed[j] = parseDir(pkgroot + packages[j%len(packages)])
 			}
+			if i+1 == *n && *serve != "" {
+				lastParsed = parsed
+			}
 		}
+		runtime.GC()
 		runtime.GC()
 	}
 	t1 := time.Nanoseconds()
@@ -97,17 +114,22 @@ func main() {
 	fmt.Printf("Alloc=%d/%d Heap=%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
 		st.Alloc, st.TotalAlloc,
 		st.Sys,
-		st.Mallocs, float64(st.PauseNs)/1e9,
-		st.NumGC, float64(st.PauseNs)/1e9/float64(st.NumGC))
+		st.Mallocs, float64(st.PauseTotalNs)/1e9,
+		st.NumGC, float64(st.PauseTotalNs)/1e9/float64(st.NumGC))
 
-	fmt.Printf("%10s %10s %10s\n", "size", "#alloc", "#free")
-	for _, s := range st.BySize {
-		fmt.Printf("%10d %10d %10d\n", s.Size, s.Mallocs, s.Frees)
-	}
-
+	/*
+		fmt.Printf("%10s %10s %10s\n", "size", "#alloc", "#free")
+		for _, s := range st.BySize {
+			fmt.Printf("%10d %10d %10d\n", s.Size, s.Mallocs, s.Frees)
+		}
+	*/
 	// Standard gotest benchmark output, collected by build dashboard.
-	fmt.Printf("garbage.BenchmarkParser %d %d ns/op\n", *n, (t1-t0)/int64(*n))
-	fmt.Printf("garbage.BenchmarkParserPause %d %d ns/op\n", st.NumGC, int64(st.PauseNs)/int64(st.NumGC))
+	gcstats("BenchmarkParser", *n, t1-t0)
+
+	if *serve != "" {
+		log.Exit(http.ListenAndServe(*serve, nil))
+		println(lastParsed)
+	}
 }
 
 
@@ -183,7 +205,6 @@ var packages = []string{
 	"math",
 	"mime",
 	"net",
-	"nntp",
 	"os",
 	"os/signal",
 	"patch",
@@ -195,6 +216,7 @@ var packages = []string{
 	"runtime",
 	"scanner",
 	"sort",
+	"smtp",
 	"strconv",
 	"strings",
 	"sync",
