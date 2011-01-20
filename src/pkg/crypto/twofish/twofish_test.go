@@ -37,8 +37,8 @@ func genSbox(qi int, x byte) byte {
 }
 
 func TestSbox(t *testing.T) {
-	for n := 0; n < 2; n++ {
-		for m := 0; m < 256; m++ {
+	for n := range sbox {
+		for m := range sbox[n] {
 			if genSbox(n, byte(m)) != sbox[n][m] {
 				t.Errorf("#%d|%d: sbox value = %d want %d", n, m, sbox[n][m], genSbox(n, byte(m)))
 			}
