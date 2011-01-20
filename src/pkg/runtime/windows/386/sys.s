@@ -46,10 +46,10 @@ TEXT runtime·stdcall_raw(SB),7,$4
 	// Someday the convention will be D is always cleared.
 	CLD
 
-	RET 
+	RET
 
 TEXT runtime·sigtramp(SB),7,$0
-	PUSHL	BP					// cdecl
+	PUSHL	BP			// cdecl
 	PUSHL	0(FS)
 	CALL	runtime·sigtramp1(SB)
 	POPL	0(FS)
@@ -59,10 +59,10 @@ TEXT runtime·sigtramp(SB),7,$0
 TEXT runtime·sigtramp1(SB),0,$16-28
 	// unwinding?
 	MOVL	info+12(FP), BX
-	MOVL	4(BX), CX			// exception flags
+	MOVL	4(BX), CX		// exception flags
 	ANDL	$6, CX
 	MOVL	$1, AX
-	JNZ		sigdone
+	JNZ	sigdone
 
 	// place ourselves at the top of the SEH chain to
 	// ensure SEH frames lie within thread stack bounds
@@ -79,13 +79,13 @@ TEXT runtime·sigtramp1(SB),0,$16-28
 
 	CALL	runtime·sighandler(SB)
 	TESTL	AX, AX
-	JZ		sigdone
+	JZ	sigdone
 
 	// call windows default handler early
-	MOVL	4(SP), BX			// our SEH frame
-	MOVL	0(BX), BX			// SEH frame of default handler
-	MOVL	4(BX), AX			// handler function pointer
-	MOVL	BX, 4(SP)			// set establisher frame
+	MOVL	4(SP), BX		// our SEH frame
+	MOVL	0(BX), BX		// SEH frame of default handler
+	MOVL	4(BX), AX		// handler function pointer
+	MOVL	BX, 4(SP)		// set establisher frame
 	CALL	AX
 
 sigdone:
@@ -120,7 +120,7 @@ TEXT runtime·tstart(SB),7,$0
 	// Someday the convention will be D is always cleared.
 	CLD
 
-	CALL	runtime·stackcheck(SB)		// clobbers AX,CX
+	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
 
 	CALL	runtime·mstart(SB)
 
@@ -158,7 +158,7 @@ TEXT runtime·setldt(SB),7,$0
 TEXT runtime·gettime(SB),7,$0
 	MOVL	sec+0(FP), DI
 	MOVL	$0, (DI)
-	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
+	MOVL	$0, 4(DI)		// zero extend 32 -> 64 bits
 	MOVL	usec+4(FP), DI
 	MOVL	$0, (DI)
 	RET
