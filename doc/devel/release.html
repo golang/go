@@ -5,6 +5,61 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-01-19">2011-01-19</h3>
+
+<pre>
+The 5g (ARM) compiler now has registerization enabled.  If you discover it
+causes bugs, use 5g -N to disable the registerizer and please let us know.
+
+The xml package now allows the extraction of nested XML tags by specifying
+struct tags of the form “parent>child”. See the XML documentation for an
+example: http://golang.org/pkg/xml/
+
+* 5a, 5l, 6a, 6l, 8a, 8l: handle out of memory, large allocations (thanks Jeff R. Allen).
+* 8l: pe changes (thanks Alex Brainman).
+* arm: fixes and improvements.
+* cc: fix vlong condition.
+* cgo: add complex float, complex double (thanks Sebastien Binet),
+        in _cgo_main.c define all provided symbols as functions.
+* codereview: don't mail change lists with no files (thanks Ryan Hitchman).
+* crypto/cipher: add OFB mode.
+* expvar: add Float.
+* fmt: document %X of string, []byte.
+* gc, runtime: make range on channel safe for multiple goroutines.
+* gc: fix typed constant declarations (thanks Anthony Martin).
+* go spec: adjust language for constant typing.
+* go/scanner: Make Init take a *token.File instead of a *token.FileSet.
+* godoc: bring back "indexing in progress" message,
+        don't double HTML-escape search result snippets,
+        enable qualified identifiers ("math.Sin") as query strings again,
+        peephole optimization for generated HTML,
+        remove tab before formatted section.
+* gofmt, go/printer: do not insert extra line breaks where they may break the code.
+* http: fix Content-Range and Content-Length in response (thanks Clement Skau),
+        fix scheme-relative URL parsing; add ParseRequestURL,
+        handle HEAD requests correctly,
+        support for relative URLs.
+* math: handle denormalized numbers in Frexp, Ilogb, Ldexp, and Logb (thanks Eoghan Sherry).
+* net, syscall: return source address in Recvmsg (thanks Albert Strasheim).
+* net: add LookupAddr (thanks Kyle Lemons),
+        add unixpacket (thanks Albert Strasheim),
+        avoid nil dereference if /etc/services can't be opened (thanks Corey Thomasson),
+        implement windows timeout (thanks Wei Guangjing).
+* netchan: do not block sends; implement flow control (thanks Roger Peppe).
+* regexp: reject bare ‘?’. (thanks Ben Lynn)
+* runtime/cgo: don't define crosscall2 in dummy _cgo_main.c.
+* runtime/debug: new package for printing stack traces from a running goroutine.
+* runtime: add per-pause gc stats,
+        fix arm reflect.call boundary case,
+        print signal information during panic.
+* spec: specify that int and uint have the same size.
+* syscall: correct WSTOPPED on OS X,
+        correct length of GNU/Linux abstract Unix domain sockaddr,
+        correct length of SockaddrUnix.
+* tutorial: make stdin, stdout, stderr work on Windows.
+* windows: implement exception handling (thanks Hector Chu).
+</pre>
+
 <h3 id="2011-01-12">2011-01-12</h3>
 
 <pre>
