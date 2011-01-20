@@ -6,49 +6,49 @@
 
 package main
 
-var a [12]complex
-var s []complex
-var c chan complex
+var a [12]complex128
+var s []complex128
+var c chan complex128
 var f struct {
-	c complex
+	c complex128
 }
-var m map[complex]complex
+var m map[complex128]complex128
 
 func main() {
-	// array of complex
+	// array of complex128
 	for i := 0; i < len(a); i++ {
-		a[i] = cmplx(float(i), float(-i))
+		a[i] = complex(float64(i), float64(-i))
 	}
 	println(a[5])
 
-	// slice of complex
-	s = make([]complex, len(a))
+	// slice of complex128
+	s = make([]complex128, len(a))
 	for i := 0; i < len(s); i++ {
 		s[i] = a[i]
 	}
 	println(s[5])
 
 	// chan
-	c = make(chan complex)
+	c = make(chan complex128)
 	go chantest(c)
 	println(<-c)
 
-	// pointer of complex
+	// pointer of complex128
 	v := a[5]
 	pv := &v
 	println(*pv)
 
-	// field of complex
+	// field of complex128
 	f.c = a[5]
 	println(f.c)
 
-	// map of complex
-	m = make(map[complex]complex)
+	// map of complex128
+	m = make(map[complex128]complex128)
 	for i := 0; i < len(s); i++ {
 		m[-a[i]] = a[i]
 	}
 	println(m[5i-5])
-	println(m[cmplx(-5, 5)])
+	println(m[complex(-5, 5)])
 }
 
-func chantest(c chan complex) { c <- a[5] }
+func chantest(c chan complex128) { c <- a[5] }

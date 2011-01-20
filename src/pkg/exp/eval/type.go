@@ -372,7 +372,6 @@ type floatType struct {
 var (
 	Float32Type = universe.DefineType("float32", universePos, &floatType{commonType{}, 32, "float32"})
 	Float64Type = universe.DefineType("float64", universePos, &floatType{commonType{}, 64, "float64"})
-	FloatType   = universe.DefineType("float", universePos, &floatType{commonType{}, 0, "float"})
 )
 
 func (t *floatType) compat(o Type, conv bool) bool {
@@ -394,9 +393,6 @@ func (t *floatType) Zero() Value {
 	case 64:
 		res := float64V(0)
 		return &res
-	case 0:
-		res := floatV(0)
-		return &res
 	}
 	panic("unexpected float bit count")
 }
@@ -408,9 +404,6 @@ var minFloat64Val *big.Rat
 
 func (t *floatType) minVal() *big.Rat {
 	bits := t.Bits
-	if bits == 0 {
-		bits = uint(8 * unsafe.Sizeof(float(0)))
-	}
 	switch bits {
 	case 32:
 		return minFloat32Val
@@ -423,9 +416,6 @@ func (t *floatType) minVal() *big.Rat {
 
 func (t *floatType) maxVal() *big.Rat {
 	bits := t.Bits
-	if bits == 0 {
-		bits = uint(8 * unsafe.Sizeof(float(0)))
-	}
 	switch bits {
 	case 32:
 		return maxFloat32Val

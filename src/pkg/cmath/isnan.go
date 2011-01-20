@@ -21,5 +21,5 @@ func IsNaN(x complex128) bool {
 // NaN returns a complex ``not-a-number'' value.
 func NaN() complex128 {
 	nan := math.NaN()
-	return cmplx(nan, nan)
+	return complex(nan, nan)
 }

@@ -33,7 +33,7 @@ type ET3 struct {
 // Like ET1 but with a different type for a field
 type ET4 struct {
 	A    int
-	Et2  float
+	Et2  float64
 	Next int
 }
 
@@ -189,13 +189,13 @@ func TestPtrTypeToType(t *testing.T) {
 
 func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
 	type Type2 struct {
-		A ****float
+		A ****float64
 	}
 	t2 := Type2{}
-	t2.A = new(***float)
-	*t2.A = new(**float)
-	**t2.A = new(*float)
-	***t2.A = new(float)
+	t2.A = new(***float64)
+	*t2.A = new(**float64)
+	**t2.A = new(*float64)
+	***t2.A = new(float64)
 	****t2.A = 27.4
 	t2pppp := new(***Type2)
 	if err := encAndDec(t2, t2pppp); err != nil {
@@ -254,13 +254,13 @@ func TestDefaultsInArray(t *testing.T) {
 		B []bool
 		I []int
 		S []string
-		F []float
+		F []float64
 	}
 	t7 := Type7{
 		[]bool{false, false, true},
 		[]int{0, 0, 1},
 		[]string{"hi", "", "there"},
-		[]float{0, 0, 1},
+		[]float64{0, 0, 1},
 	}
 	var t7p Type7
 	if err := encAndDec(t7, &t7p); err != nil {

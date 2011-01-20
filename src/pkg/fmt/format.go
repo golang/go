@@ -396,36 +396,3 @@ func (f *fmt) fmt_c128(v complex128, verb int) {
 	}
 	f.buf.Write(irparenBytes)
 }
-
-// float
-func (x *fmt) f(a float) {
-	if strconv.FloatSize == 32 {
-		x.fmt_f32(float32(a))
-	} else {
-		x.fmt_f64(float64(a))
-	}
-}
-
-func (x *fmt) e(a float) {
-	if strconv.FloatSize == 32 {
-		x.fmt_e32(float32(a))
-	} else {
-		x.fmt_e64(float64(a))
-	}
-}
-
-func (x *fmt) g(a float) {
-	if strconv.FloatSize == 32 {
-		x.fmt_g32(float32(a))
-	} else {
-		x.fmt_g64(float64(a))
-	}
-}
-
-func (x *fmt) fb(a float) {
-	if strconv.FloatSize == 32 {
-		x.fmt_fb32(float32(a))
-	} else {
-		x.fmt_fb64(float64(a))
-	}
-}

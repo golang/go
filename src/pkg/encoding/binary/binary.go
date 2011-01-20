@@ -199,7 +199,7 @@ func sizeof(v reflect.Type) int {
 
 	case *reflect.UintType, *reflect.IntType, *reflect.FloatType, *reflect.ComplexType:
 		switch t := t.Kind(); t {
-		case reflect.Int, reflect.Uint, reflect.Uintptr, reflect.Float, reflect.Complex:
+		case reflect.Int, reflect.Uint, reflect.Uintptr:
 			return -1
 		}
 		return int(v.Size())
@@ -331,12 +331,12 @@ func (d *decoder) value(v reflect.Value) {
 	case *reflect.ComplexValue:
 		switch v.Type().Kind() {
 		case reflect.Complex64:
-			v.Set(cmplx(
+			v.Set(complex(
 				float64(math.Float32frombits(d.uint32())),
 				float64(math.Float32frombits(d.uint32())),
 			))
 		case reflect.Complex128:
-			v.Set(cmplx(
+			v.Set(complex(
 				math.Float64frombits(d.uint64()),
 				math.Float64frombits(d.uint64()),
 			))

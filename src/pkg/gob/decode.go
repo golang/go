@@ -333,7 +333,7 @@ func decComplex64(i *decInstr, state *decodeState, p unsafe.Pointer) {
 		p = *(*unsafe.Pointer)(p)
 	}
 	storeFloat32(i, state, p)
-	storeFloat32(i, state, unsafe.Pointer(uintptr(p)+uintptr(unsafe.Sizeof(float(0)))))
+	storeFloat32(i, state, unsafe.Pointer(uintptr(p)+uintptr(unsafe.Sizeof(float32(0)))))
 }
 
 func decComplex128(i *decInstr, state *decodeState, p unsafe.Pointer) {
@@ -345,7 +345,7 @@ func decComplex128(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	}
 	real := floatFromBits(uint64(state.decodeUint()))
 	imag := floatFromBits(uint64(state.decodeUint()))
-	*(*complex128)(p) = cmplx(real, imag)
+	*(*complex128)(p) = complex(real, imag)
 }
 
 // uint8 arrays are encoded as an unsigned count followed by the raw bytes.
@@ -993,20 +993,6 @@ func (dec *Decoder) decode(wireId typeId, val reflect.Value) os.Error {
 }
 
 func init() {
-	var fop, cop decOp
-	switch reflect.Typeof(float(0)).Bits() {
-	case 32:
-		fop = decFloat32
-		cop = decComplex64
-	case 64:
-		fop = decFloat64
-		cop = decComplex128
-	default:
-		panic("gob: unknown size of float")
-	}
-	decOpMap[reflect.Float] = fop
-	decOpMap[reflect.Complex] = cop
-
 	var iop, uop decOp
 	switch reflect.Typeof(int(0)).Bits() {
 	case 32:

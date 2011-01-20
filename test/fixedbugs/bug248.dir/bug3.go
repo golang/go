@@ -26,7 +26,7 @@ type t0 int
 func (t0) M(p0.T) {}
 
 // t1 satisfies I1 and p1.I
-type t1 float
+type t1 float64
 
 func (t1) M(p1.T) {}
 

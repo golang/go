@@ -57,20 +57,20 @@ import "math"
 func Sqrt(x complex128) complex128 {
 	if imag(x) == 0 {
 		if real(x) == 0 {
-			return cmplx(0, 0)
+			return complex(0, 0)
 		}
 		if real(x) < 0 {
-			return cmplx(0, math.Sqrt(-real(x)))
+			return complex(0, math.Sqrt(-real(x)))
 		}
-		return cmplx(math.Sqrt(real(x)), 0)
+		return complex(math.Sqrt(real(x)), 0)
 	}
 	if real(x) == 0 {
 		if imag(x) < 0 {
 			r := math.Sqrt(-0.5 * imag(x))
-			return cmplx(r, -r)
+			return complex(r, -r)
 		}
 		r := math.Sqrt(0.5 * imag(x))
-		return cmplx(r, r)
+		return complex(r, r)
 	}
 	a := real(x)
 	b := imag(x)
@@ -97,7 +97,7 @@ func Sqrt(x complex128) complex128 {
 		r *= scale
 	}
 	if b < 0 {
-		return cmplx(t, -r)
+		return complex(t, -r)
 	}
-	return cmplx(t, r)
+	return complex(t, r)
 }

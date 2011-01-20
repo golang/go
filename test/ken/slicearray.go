@@ -8,8 +8,8 @@ package main
 
 var bx [10]byte
 var by []byte
-var fx [10]float
-var fy []float
+var fx [10]float64
+var fy []float64
 var lb, hb int
 var t int
 
@@ -87,7 +87,7 @@ func main() {
 	by = bx[2:8]
 	tstb()
 
-	// width 4 (float)
+	// width 4 (float64)
 	lb = 0
 	hb = 10
 	fy = fx[lb:hb]
@@ -204,7 +204,7 @@ func init() {
 	by = nil
 
 	for i := 0; i < len(fx); i++ {
-		fx[i] = float(i + 20)
+		fx[i] = float64(i + 20)
 	}
 	fy = nil
 }

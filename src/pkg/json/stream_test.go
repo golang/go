@@ -13,14 +13,14 @@ import (
 // Test values for the stream test.
 // One of each JSON kind.
 var streamTest = []interface{}{
-	float64(0.1),
+	0.1,
 	"hello",
 	nil,
 	true,
 	false,
 	[]interface{}{"a", "b", "c"},
 	map[string]interface{}{"K": "Kelvin", "ß": "long s"},
-	float64(3.14), // another value to make sure something can follow map
+	3.14, // another value to make sure something can follow map
 }
 
 var streamEncoded = `0.1

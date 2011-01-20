@@ -51,16 +51,16 @@ import "math"
 func Asin(x complex128) complex128 {
 	if imag(x) == 0 {
 		if math.Fabs(real(x)) > 1 {
-			return cmplx(math.Pi/2, 0) // DOMAIN error
+			return complex(math.Pi/2, 0) // DOMAIN error
 		}
-		return cmplx(math.Asin(real(x)), 0)
+		return complex(math.Asin(real(x)), 0)
 	}
-	ct := cmplx(-imag(x), real(x)) // i * x
+	ct := complex(-imag(x), real(x)) // i * x
 	xx := x * x
-	x1 := cmplx(1-real(xx), -imag(xx)) // 1 - x*x
-	x2 := Sqrt(x1)                     // x2 = sqrt(1 - x*x)
+	x1 := complex(1-real(xx), -imag(xx)) // 1 - x*x
+	x2 := Sqrt(x1)                       // x2 = sqrt(1 - x*x)
 	w := Log(ct + x2)
-	return cmplx(imag(w), -real(w)) // -i * w
+	return complex(imag(w), -real(w)) // -i * w
 }
 
 // Asinh returns the inverse hyperbolic sine of x.
@@ -68,13 +68,13 @@ func Asinh(x complex128) complex128 {
 	// TODO check range
 	if imag(x) == 0 {
 		if math.Fabs(real(x)) > 1 {
-			return cmplx(math.Pi/2, 0) // DOMAIN error
+			return complex(math.Pi/2, 0) // DOMAIN error
 		}
-		return cmplx(math.Asinh(real(x)), 0)
+		return complex(math.Asinh(real(x)), 0)
 	}
 	xx := x * x
-	x1 := cmplx(1+real(xx), imag(xx)) // 1 + x*x
-	return Log(x + Sqrt(x1))          // log(x + sqrt(1 + x*x))
+	x1 := complex(1+real(xx), imag(xx)) // 1 + x*x
+	return Log(x + Sqrt(x1))            // log(x + sqrt(1 + x*x))
 }
 
 // Complex circular arc cosine
@@ -93,16 +93,16 @@ func Asinh(x complex128) complex128 {
 // Acos returns the inverse cosine of x.
 func Acos(x complex128) complex128 {
 	w := Asin(x)
-	return cmplx(math.Pi/2-real(w), -imag(w))
+	return complex(math.Pi/2-real(w), -imag(w))
 }
 
 // Acosh returns the inverse hyperbolic cosine of x.
 func Acosh(x complex128) complex128 {
 	w := Acos(x)
 	if imag(w) <= 0 {
-		return cmplx(-imag(w), real(w)) // i * w
+		return complex(-imag(w), real(w)) // i * w
 	}
-	return cmplx(imag(w), -real(w)) // -i * w
+	return complex(imag(w), -real(w)) // -i * w
 }
 
 // Complex circular arc tangent
@@ -159,12 +159,12 @@ func Atan(x complex128) complex128 {
 	}
 	t = imag(x) + 1
 	c := (x2 + t*t) / b
-	return cmplx(w, 0.25*math.Log(c))
+	return complex(w, 0.25*math.Log(c))
 }
 
 // Atanh returns the inverse hyperbolic tangent of x.
 func Atanh(x complex128) complex128 {
-	z := cmplx(-imag(x), real(x)) // z = i * x
+	z := complex(-imag(x), real(x)) // z = i * x
 	z = Atan(z)
-	return cmplx(imag(z), -real(z)) // z = -i * z
+	return complex(imag(z), -real(z)) // z = -i * z
 }

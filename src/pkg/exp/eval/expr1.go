@@ -9,8 +9,8 @@ import (
 )
 
 /*
-* "As" functions.  These retrieve evaluator functions from an
-* expr, panicking if the requested evaluator has the wrong type.
+ * "As" functions.  These retrieve evaluator functions from an
+ * expr, panicking if the requested evaluator has the wrong type.
  */
 func (a *expr) asBool() func(*Thread) bool {
 	return a.eval.(func(*Thread) bool)
@@ -90,7 +90,7 @@ func (a *expr) asInterface() func(*Thread) interface{} {
 }
 
 /*
-* Operator generators.
+ * Operator generators.
  */
 
 func (a *expr) genConstant(v Value) {
@@ -392,13 +392,6 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 				ret = l + r
 				return float64(float64(ret))
 			}
-		case 0:
-			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t)
-				var ret float64
-				ret = l + r
-				return float64(float(ret))
-			}
 		default:
 			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
@@ -528,13 +521,6 @@ func (a *expr) genBinOpSub(l, r *expr) {
 				ret = l - r
 				return float64(float64(ret))
 			}
-		case 0:
-			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t)
-				var ret float64
-				ret = l - r
-				return float64(float(ret))
-			}
 		default:
 			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
@@ -656,13 +642,6 @@ func (a *expr) genBinOpMul(l, r *expr) {
 				var ret float64
 				ret = l * r
 				return float64(float64(ret))
-			}
-		case 0:
-			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t)
-				var ret float64
-				ret = l * r
-				return float64(float(ret))
 			}
 		default:
 			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
@@ -821,16 +800,6 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				}
 				ret = l / r
 				return float64(float64(ret))
-			}
-		case 0:
-			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t)
-				var ret float64
-				if r == 0 {
-					t.Abort(DivByZeroError{})
-				}
-				ret = l / r
-				return float64(float(ret))
 			}
 		default:
 			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)

@@ -53,7 +53,7 @@ import "math"
 func Sin(x complex128) complex128 {
 	s, c := math.Sincos(real(x))
 	sh, ch := sinhcosh(imag(x))
-	return cmplx(s*ch, c*sh)
+	return complex(s*ch, c*sh)
 }
 
 // Complex hyperbolic sine
@@ -73,7 +73,7 @@ func Sin(x complex128) complex128 {
 func Sinh(x complex128) complex128 {
 	s, c := math.Sincos(imag(x))
 	sh, ch := sinhcosh(real(x))
-	return cmplx(c*sh, s*ch)
+	return complex(c*sh, s*ch)
 }
 
 // Complex circular cosine
@@ -98,7 +98,7 @@ func Sinh(x complex128) complex128 {
 func Cos(x complex128) complex128 {
 	s, c := math.Sincos(real(x))
 	sh, ch := sinhcosh(imag(x))
-	return cmplx(c*ch, -s*sh)
+	return complex(c*ch, -s*sh)
 }
 
 // Complex hyperbolic cosine
@@ -117,7 +117,7 @@ func Cos(x complex128) complex128 {
 func Cosh(x complex128) complex128 {
 	s, c := math.Sincos(imag(x))
 	sh, ch := sinhcosh(real(x))
-	return cmplx(c*ch, s*sh)
+	return complex(c*ch, s*sh)
 }
 
 // calculate sinh and cosh

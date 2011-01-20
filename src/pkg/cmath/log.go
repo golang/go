@@ -55,7 +55,7 @@ import "math"
 
 // Log returns the natural logarithm of x.
 func Log(x complex128) complex128 {
-	return cmplx(math.Log(Abs(x)), Phase(x))
+	return complex(math.Log(Abs(x)), Phase(x))
 }
 
 // Log10 returns the decimal logarithm of x.

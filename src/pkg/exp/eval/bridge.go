@@ -43,8 +43,6 @@ func TypeFromNative(t reflect.Type) Type {
 			et = Float32Type
 		case reflect.Float64:
 			et = Float64Type
-		case reflect.Float:
-			et = FloatType
 		}
 	case *reflect.IntType:
 		switch t.Kind() {

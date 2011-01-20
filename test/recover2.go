@@ -58,7 +58,7 @@ func test3() {
 func test4() {
 	defer mustRecover("interface")
 	var x interface{} = 1
-	println(x.(float))
+	println(x.(float32))
 }
 
 type T struct {

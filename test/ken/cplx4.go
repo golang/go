@@ -15,7 +15,7 @@ const (
 	C1 = R + I // ADD(5,6)
 )
 
-func doprint(c complex) { fmt.Printf("c = %f\n", c) }
+func doprint(c complex128) { fmt.Printf("c = %f\n", c) }
 
 func main() {
 
@@ -32,12 +32,12 @@ func main() {
 	c2 := complex128(C1)
 	fmt.Printf("c = %G\n", c2)
 
-	// real, imag, cmplx
-	c3 := cmplx(real(c2)+3, imag(c2)-5) + c2
+	// real, imag, complex
+	c3 := complex(real(c2)+3, imag(c2)-5) + c2
 	fmt.Printf("c = %G\n", c3)
 
 	// compiler used to crash on nested divide
-	c4 := cmplx(real(c3/2), imag(c3/2))
+	c4 := complex(real(c3/2), imag(c3/2))
 	if c4 != c3/2 {
 		fmt.Printf("BUG: c3 = %G != c4 = %G\n", c3, c4)
 	}

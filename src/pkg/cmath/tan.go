@@ -64,7 +64,7 @@ func Tan(x complex128) complex128 {
 	if d == 0 {
 		return Inf()
 	}
-	return cmplx(math.Sin(2*real(x))/d, math.Sinh(2*imag(x))/d)
+	return complex(math.Sin(2*real(x))/d, math.Sinh(2*imag(x))/d)
 }
 
 // Complex hyperbolic tangent
@@ -85,7 +85,7 @@ func Tanh(x complex128) complex128 {
 	if d == 0 {
 		return Inf()
 	}
-	return cmplx(math.Sinh(2*real(x))/d, math.Sin(2*imag(x))/d)
+	return complex(math.Sinh(2*real(x))/d, math.Sin(2*imag(x))/d)
 }
 
 // Program to subtract nearest integer multiple of PI
@@ -114,11 +114,11 @@ func tanSeries(z complex128) float64 {
 	x = reducePi(x)
 	x = x * x
 	y = y * y
-	x2 := float64(1)
-	y2 := float64(1)
-	f := float64(1)
-	rn := float64(0)
-	d := float64(0)
+	x2 := 1.0
+	y2 := 1.0
+	f := 1.0
+	rn := 0.0
+	d := 0.0
 	for {
 		rn += 1
 		f *= rn
@@ -180,5 +180,5 @@ func Cot(x complex128) complex128 {
 	if d == 0 {
 		return Inf()
 	}
-	return cmplx(math.Sin(2*real(x))/d, -math.Sinh(2*imag(x))/d)
+	return complex(math.Sin(2*real(x))/d, -math.Sinh(2*imag(x))/d)
 }

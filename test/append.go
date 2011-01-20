@@ -193,7 +193,7 @@ func verifyInterface() {
 		case 2:
 			e[i] = fmt.Sprintf("%d", i)
 		case 3:
-			e[i] = float(i)
+			e[i] = float64(i)
 		}
 	}
 

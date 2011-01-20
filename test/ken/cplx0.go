@@ -13,7 +13,7 @@ const (
 	C1 = R + I // ADD(5,6)
 )
 
-func doprint(c complex) { println(c) }
+func doprint(c complex128) { println(c) }
 
 func main() {
 

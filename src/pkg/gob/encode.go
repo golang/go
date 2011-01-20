@@ -223,15 +223,6 @@ func floatBits(f float64) uint64 {
 	return v
 }
 
-func encFloat(i *encInstr, state *encoderState, p unsafe.Pointer) {
-	f := *(*float)(p)
-	if f != 0 || state.sendZero {
-		v := floatBits(float64(f))
-		state.update(i)
-		state.encodeUint(v)
-	}
-}
-
 func encFloat32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	f := *(*float32)(p)
 	if f != 0 || state.sendZero {
@@ -251,17 +242,6 @@ func encFloat64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 }
 
 // Complex numbers are just a pair of floating-point numbers, real part first.
-func encComplex(i *encInstr, state *encoderState, p unsafe.Pointer) {
-	c := *(*complex)(p)
-	if c != 0+0i || state.sendZero {
-		rpart := floatBits(float64(real(c)))
-		ipart := floatBits(float64(imag(c)))
-		state.update(i)
-		state.encodeUint(rpart)
-		state.encodeUint(ipart)
-	}
-}
-
 func encComplex64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	c := *(*complex64)(p)
 	if c != 0+0i || state.sendZero {
@@ -446,10 +426,8 @@ var encOpMap = []encOp{
 	reflect.Uint32:     encUint32,
 	reflect.Uint64:     encUint64,
 	reflect.Uintptr:    encUintptr,
-	reflect.Float:      encFloat,
 	reflect.Float32:    encFloat32,
 	reflect.Float64:    encFloat64,
-	reflect.Complex:    encComplex,
 	reflect.Complex64:  encComplex64,
 	reflect.Complex128: encComplex128,
 	reflect.String:     encString,

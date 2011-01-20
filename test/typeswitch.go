@@ -21,12 +21,15 @@ const (
 	Last
 )
 
-type S struct { a int }
+type S struct {
+	a int
+}
+
 var s S = S{1234}
 
 var c = make(chan int)
 
-var a	= []int{0,1,2,3}
+var a = []int{0, 1, 2, 3}
 
 var m = make(map[string]int)
 
@@ -68,10 +71,10 @@ func main() {
 			assert(x == true && i == Bool, "bool")
 		case int:
 			assert(x == 7 && i == Int, "int")
-		case float:
-			assert(x == 7.4 && i == Float, "float")
+		case float64:
+			assert(x == 7.4 && i == Float, "float64")
 		case string:
-			assert(x == "hello"&& i == String, "string")
+			assert(x == "hello" && i == String, "string")
 		case S:
 			assert(x.a == 1234 && i == Struct, "struct")
 		case chan int:

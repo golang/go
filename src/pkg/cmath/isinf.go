@@ -14,8 +14,8 @@ func IsInf(x complex128) bool {
 	return false
 }
 
-// Inf returns a complex infinity, cmplx(+Inf, +Inf).
+// Inf returns a complex infinity, complex(+Inf, +Inf).
 func Inf() complex128 {
 	inf := math.Inf(1)
-	return cmplx(inf, inf)
+	return complex(inf, inf)
 }

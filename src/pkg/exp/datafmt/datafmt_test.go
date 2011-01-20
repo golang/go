@@ -80,10 +80,10 @@ func TestCustomFormatters(t *testing.T) {
 	f = parse(t, ``, fmap1)
 	verify(t, f, `even odd even odd `, 0, 1, 2, 3)
 
-	f = parse(t, `/ =@:blank; float="#"`, fmap1)
+	f = parse(t, `/ =@:blank; float64="#"`, fmap1)
 	verify(t, f, `# # #`, 0.0, 1.0, 2.0)
 
-	f = parse(t, `float=@:nil`, fmap1)
+	f = parse(t, `float64=@:nil`, fmap1)
 	verify(t, f, ``, 0.0, 1.0, 2.0)
 
 	f = parse(t, `testing "testing"; ptr=*`, fmap2)
@@ -139,7 +139,7 @@ func TestBasicTypes(t *testing.T) {
 
 	const f = 3.141592
 	const fs = `3.141592`
-	check(t, `float  ="%g"`, fs, f)
+	check(t, `float64="%g"`, fs, f)
 	check(t, `float32="%g"`, fs, float32(f))
 	check(t, `float64="%g"`, fs, float64(f))
 }

@@ -1981,7 +1981,7 @@ func (a *expr) extractEffect(b *block, errOp string) (func(*Thread), *expr) {
 		case tempType.isInteger():
 			tempType = IntType
 		case tempType.isFloat():
-			tempType = FloatType
+			tempType = Float64Type
 		default:
 			log.Panicf("unexpected ideal type %v", tempType)
 		}

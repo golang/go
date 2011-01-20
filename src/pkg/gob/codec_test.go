@@ -254,18 +254,6 @@ func TestScalarEncInstructions(t *testing.T) {
 		}
 	}
 
-	// float
-	{
-		b.Reset()
-		data := struct{ a float }{17}
-		instr := &encInstr{encFloat, 6, 0, 0}
-		state := newencoderState(b)
-		instr.op(instr, state, unsafe.Pointer(&data))
-		if !bytes.Equal(floatResult, b.Bytes()) {
-			t.Errorf("float enc instructions: expected % x got % x", floatResult, b.Bytes())
-		}
-	}
-
 	// float32
 	{
 		b.Reset()
@@ -492,19 +480,6 @@ func TestScalarDecInstructions(t *testing.T) {
 		}
 	}
 
-	// float
-	{
-		var data struct {
-			a float
-		}
-		instr := &decInstr{decOpMap[reflect.Float], 6, 0, 0, ovfl}
-		state := newDecodeStateFromData(floatResult)
-		execDec("float", instr, state, t, unsafe.Pointer(&data))
-		if data.a != 17 {
-			t.Errorf("float a = %v not 17", data.a)
-		}
-	}
-
 	// float32
 	{
 		var data struct {
@@ -528,19 +503,6 @@ func TestScalarDecInstructions(t *testing.T) {
 		execDec("float64", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("float64 a = %v not 17", data.a)
-		}
-	}
-
-	// complex
-	{
-		var data struct {
-			a complex
-		}
-		instr := &decInstr{decOpMap[reflect.Complex], 6, 0, 0, ovfl}
-		state := newDecodeStateFromData(complexResult)
-		execDec("complex", instr, state, t, unsafe.Pointer(&data))
-		if data.a != 17+19i {
-			t.Errorf("complex a = %v not 17+19i", data.a)
 		}
 	}
 
@@ -605,8 +567,8 @@ func TestEndToEnd(t *testing.T) {
 	s2 := "string2"
 	type T1 struct {
 		A, B, C int
-		M       map[string]*float
-		N       *[3]float
+		M       map[string]*float64
+		N       *[3]float64
 		Strs    *[2]string
 		Int64s  *[]int64
 		RI      complex64
@@ -620,8 +582,8 @@ func TestEndToEnd(t *testing.T) {
 		A:      17,
 		B:      18,
 		C:      -5,
-		M:      map[string]*float{"pi": &pi, "e": &e},
-		N:      &[3]float{1.5, 2.5, 3.5},
+		M:      map[string]*float64{"pi": &pi, "e": &e},
+		N:      &[3]float64{1.5, 2.5, 3.5},
 		Strs:   &[2]string{s1, s2},
 		Int64s: &[]int64{77, 89, 123412342134},
 		RI:     17 - 23i,
@@ -799,7 +761,7 @@ func TestOverflow(t *testing.T) {
 	// complex64
 	b.Reset()
 	it = inputT{
-		Maxc: cmplx(math.MaxFloat32*2, math.MaxFloat32*2),
+		Maxc: complex(math.MaxFloat32*2, math.MaxFloat32*2),
 	}
 	type outc64 struct {
 		Maxc complex64
@@ -940,10 +902,10 @@ func TestAutoIndirection(t *testing.T) {
 type RT0 struct {
 	A int
 	B string
-	C float
+	C float64
 }
 type RT1 struct {
-	C      float
+	C      float64
 	B      string
 	A      int
 	NotSet string
@@ -973,13 +935,13 @@ type IT0 struct {
 	A        int64
 	B        string
 	Ignore_d []int
-	Ignore_e [3]float
+	Ignore_e [3]float64
 	Ignore_f bool
 	Ignore_g string
 	Ignore_h []byte
 	Ignore_i *RT1
 	Ignore_m map[string]int
-	C        float
+	C        float64
 }
 
 func TestIgnoredFields(t *testing.T) {
@@ -1013,7 +975,7 @@ func TestIgnoredFields(t *testing.T) {
 
 type Bad0 struct {
 	ch chan int
-	c  float
+	c  float64
 }
 
 var nilEncoder *Encoder
@@ -1109,7 +1071,7 @@ func (i Int) Square() int {
 	return int(i * i)
 }
 
-type Float float
+type Float float64
 
 func (f Float) Square() int {
 	return int(f * f)
@@ -1137,14 +1099,14 @@ func (p Point) Square() int {
 type InterfaceItem struct {
 	I             int
 	Sq1, Sq2, Sq3 Squarer
-	F             float
+	F             float64
 	Sq            []Squarer
 }
 
 // The same struct without interfaces
 type NoInterfaceItem struct {
 	I int
-	F float
+	F float64
 }
 
 func TestInterface(t *testing.T) {
@@ -1207,8 +1169,8 @@ func TestInterface(t *testing.T) {
 type BasicInterfaceItem struct {
 	Int, Int8, Int16, Int32, Int64      interface{}
 	Uint, Uint8, Uint16, Uint32, Uint64 interface{}
-	Float, Float32, Float64             interface{}
-	Complex, Complex64, Complex128      interface{}
+	Float32, Float64                    interface{}
+	Complex64, Complex128               interface{}
 	Bool                                interface{}
 	String                              interface{}
 	Bytes                               interface{}
@@ -1219,8 +1181,8 @@ func TestInterfaceBasic(t *testing.T) {
 	item1 := &BasicInterfaceItem{
 		int(1), int8(1), int16(1), int32(1), int64(1),
 		uint(1), uint8(1), uint16(1), uint32(1), uint64(1),
-		float(1), float32(1), float64(1),
-		complex(0i), complex64(0i), complex128(0i),
+		float32(1), 1.0,
+		complex64(0i), complex128(0i),
 		true,
 		"hello",
 		[]byte("sailor"),
@@ -1318,7 +1280,7 @@ func TestIgnoreInterface(t *testing.T) {
 type U struct {
 	A int
 	B string
-	c float
+	c float64
 	D uint
 }
 
@@ -1354,7 +1316,7 @@ type DT struct {
 	//	X OnTheFly
 	A     int
 	B     string
-	C     float
+	C     float64
 	I     interface{}
 	J     interface{}
 	I_nil interface{}

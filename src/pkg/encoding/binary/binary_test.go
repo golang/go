@@ -31,8 +31,6 @@ type Struct struct {
 type T struct {
 	Int     int
 	Uint    uint
-	Float   float
-	Complex complex
 	Uintptr uintptr
 	Array   [4]int
 }
@@ -49,11 +47,11 @@ var s = Struct{
 
 	math.Float32frombits(0x1f202122),
 	math.Float64frombits(0x232425262728292a),
-	cmplx(
+	complex(
 		math.Float32frombits(0x2b2c2d2e),
 		math.Float32frombits(0x2f303132),
 	),
-	cmplx(
+	complex(
 		math.Float64frombits(0x333435363738393a),
 		math.Float64frombits(0x3b3c3d3e3f404142),
 	),

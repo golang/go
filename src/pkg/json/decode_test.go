@@ -52,7 +52,7 @@ var unmarshalTests = []unmarshalTest{
 	// basic types
 	{`true`, new(bool), true, nil},
 	{`1`, new(int), 1, nil},
-	{`1.2`, new(float), 1.2, nil},
+	{`1.2`, new(float64), 1.2, nil},
 	{`-5`, new(int16), int16(-5), nil},
 	{`"a\u1234"`, new(string), "a\u1234", nil},
 	{`"http:\/\/"`, new(string), "http://", nil},
@@ -220,7 +220,6 @@ type All struct {
 	Uint32  uint32
 	Uint64  uint64
 	Uintptr uintptr
-	Float   float
 	Float32 float32
 	Float64 float64
 
@@ -238,7 +237,6 @@ type All struct {
 	PUint32  *uint32
 	PUint64  *uint64
 	PUintptr *uintptr
-	PFloat   *float
 	PFloat32 *float32
 	PFloat64 *float64
 
@@ -291,7 +289,6 @@ var allValue = All{
 	Uint32:  10,
 	Uint64:  11,
 	Uintptr: 12,
-	Float:   13.1,
 	Float32: 14.1,
 	Float64: 15.1,
 	Foo:     "foo",
@@ -312,7 +309,7 @@ var allValue = All{
 	ByteSlice:   []byte{27, 28, 29},
 	Small:       Small{Tag: "tag30"},
 	PSmall:      &Small{Tag: "tag31"},
-	Interface:   float64(5.2),
+	Interface:   5.2,
 }
 
 var pallValue = All{
@@ -328,7 +325,6 @@ var pallValue = All{
 	PUint32:    &allValue.Uint32,
 	PUint64:    &allValue.Uint64,
 	PUintptr:   &allValue.Uintptr,
-	PFloat:     &allValue.Float,
 	PFloat32:   &allValue.Float32,
 	PFloat64:   &allValue.Float64,
 	PString:    &allValue.String,
@@ -353,7 +349,6 @@ var allValueIndent = `{
 	"Uint32": 10,
 	"Uint64": 11,
 	"Uintptr": 12,
-	"Float": 13.1,
 	"Float32": 14.1,
 	"Float64": 15.1,
 	"bar": "foo",
@@ -369,7 +364,6 @@ var allValueIndent = `{
 	"PUint32": null,
 	"PUint64": null,
 	"PUintptr": null,
-	"PFloat": null,
 	"PFloat32": null,
 	"PFloat64": null,
 	"String": "16",
@@ -449,7 +443,6 @@ var pallValueIndent = `{
 	"Uint32": 0,
 	"Uint64": 0,
 	"Uintptr": 0,
-	"Float": 0,
 	"Float32": 0,
 	"Float64": 0,
 	"bar": "",
@@ -465,7 +458,6 @@ var pallValueIndent = `{
 	"PUint32": 10,
 	"PUint64": 11,
 	"PUintptr": 12,
-	"PFloat": 13.1,
 	"PFloat32": 14.1,
 	"PFloat64": 15.1,
 	"String": "",

@@ -16,24 +16,18 @@ const (
 	C1 = R + I // ADD(5,6)
 )
 
-var complexBits = reflect.Typeof(complex(0i)).Size() * 8
-
 func main() {
 	c0 := C1
 	c0 = (c0 + c0 + c0) / (c0 + c0 + 3i)
 	println(c0)
 
-	c := *(*complex)(unsafe.Pointer(&c0))
+	c := *(*complex128)(unsafe.Pointer(&c0))
 	println(c)
-
-	println(complexBits)
 
 	var a interface{}
 	switch c := reflect.NewValue(a).(type) {
 	case *reflect.ComplexValue:
-		if complexBits == 64 {
-			v := c.Get()
-			_, _ = complex64(v), true
-		}
+		v := c.Get()
+		_, _ = complex128(v), true
 	}
 }

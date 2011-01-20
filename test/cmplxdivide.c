@@ -72,7 +72,7 @@ main(void)
 		if(iscnan(n) && d == 0)
 			q = (NAN+NAN*I) / zero;
 
-		printf("\tTest{cmplx(%s, %s), cmplx(%s, %s), cmplx(%s, %s)},\n",
+		printf("\tTest{complex(%s, %s), complex(%s, %s), complex(%s, %s)},\n",
 			fmt(creal(n)), fmt(cimag(n)),
 			fmt(creal(d)), fmt(cimag(d)),
 			fmt(creal(q)), fmt(cimag(q)));

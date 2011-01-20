@@ -9,11 +9,16 @@ package main
 import "os"
 
 const (
-	x float = iota;
-	g float = 4.5 * iota;
-);
+	x float64 = iota
+	g float64 = 4.5 * iota
+)
 
 func main() {
-	if g == 0.0 { print("zero\n");}
-	if g != 4.5 { print(" fail\n"); os.Exit(1); }
+	if g == 0.0 {
+		print("zero\n")
+	}
+	if g != 4.5 {
+		print(" fail\n")
+		os.Exit(1)
+	}
 }

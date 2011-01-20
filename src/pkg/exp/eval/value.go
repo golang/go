@@ -307,16 +307,6 @@ func (v *float64V) Get(*Thread) float64 { return float64(*v) }
 
 func (v *float64V) Set(t *Thread, x float64) { *v = float64V(x) }
 
-type floatV float
-
-func (v *floatV) String() string { return fmt.Sprint(*v) }
-
-func (v *floatV) Assign(t *Thread, o Value) { *v = floatV(o.(FloatValue).Get(t)) }
-
-func (v *floatV) Get(*Thread) float64 { return float64(*v) }
-
-func (v *floatV) Set(t *Thread, x float64) { *v = floatV(x) }
-
 /*
  * Ideal float
  */

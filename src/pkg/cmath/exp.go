@@ -51,5 +51,5 @@ import "math"
 func Exp(x complex128) complex128 {
 	r := math.Exp(real(x))
 	s, c := math.Sincos(imag(x))
-	return cmplx(r*c, r*s)
+	return complex(r*c, r*s)
 }

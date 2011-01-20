@@ -20,7 +20,7 @@ type TU16 uint16
 type TU32 uint32
 type TU64 uint64
 type TUI uintptr
-type TF float
+type TF float64
 type TF32 float32
 type TF64 float64
 type TB bool
@@ -37,7 +37,7 @@ func (v TU16) String() string { return Sprintf("U16: %d", uint16(v)) }
 func (v TU32) String() string { return Sprintf("U32: %d", uint32(v)) }
 func (v TU64) String() string { return Sprintf("U64: %d", uint64(v)) }
 func (v TUI) String() string  { return Sprintf("UI: %d", uintptr(v)) }
-func (v TF) String() string   { return Sprintf("F: %f", float(v)) }
+func (v TF) String() string   { return Sprintf("F: %f", float64(v)) }
 func (v TF32) String() string { return Sprintf("F32: %f", float32(v)) }
 func (v TF64) String() string { return Sprintf("F64: %f", float64(v)) }
 func (v TB) String() string   { return Sprintf("B: %t", bool(v)) }

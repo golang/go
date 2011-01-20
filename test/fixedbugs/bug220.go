@@ -7,8 +7,8 @@
 package main
 
 func main() {
-	m := make(map[int]map[uint]float);
-	
-	m[0] = make(map[uint]float), false;	// 6g used to reject this
-	m[1] = nil;
+	m := make(map[int]map[uint]float64)
+
+	m[0] = make(map[uint]float64), false // 6g used to reject this
+	m[1] = nil
 }

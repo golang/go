@@ -30,7 +30,7 @@ eval: main.$O
 gen.$O: gen.go
 	$(GC) $<
 
-generate: gen.$O $(pkgdir)/$(TARG).a
+generate: gen.$O
 	$(LD) -o $@ $<;\
 	./generate > expr1.go;\
 	gofmt -w expr1.go

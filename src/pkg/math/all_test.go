@@ -2076,7 +2076,7 @@ func TestLog1p(t *testing.T) {
 			t.Errorf("Log1p(%g) = %g, want %g", a, f, log1p[i])
 		}
 	}
-	a := float64(9)
+	a := 9.0
 	if f := Log1p(a); f != Ln10 {
 		t.Errorf("Log1p(%g) = %g, want %g", a, f, Ln10)
 	}

@@ -48,7 +48,7 @@ func main() {
 	booltest(6+9i, false)
 }
 
-func booltest(a complex, r bool) {
+func booltest(a complex64, r bool) {
 	var b bool
 
 	b = a == C1
