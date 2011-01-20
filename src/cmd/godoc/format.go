@@ -360,12 +360,12 @@ func FormatText(text []byte, line int, goSource bool, pattern string, selection 
 	if pattern != "" {
 		highlights = regexpSelection(text, pattern)
 	}
-	if comments != nil || highlights != nil || selection != nil {
+	if line >= 0 || comments != nil || highlights != nil || selection != nil {
 		var lineTag LinkWriter
 		if line >= 0 {
 			lineTag = func(w io.Writer, _ int, start bool) {
 				if start {
-					fmt.Fprintf(w, "<a id=\"L%d\"></a>%5d\t", line, line)
+					fmt.Fprintf(w, "<a id=\"L%d\"></a><span class=\"ln\">%6d</span>\t", line, line)
 					line++
 				}
 			}
