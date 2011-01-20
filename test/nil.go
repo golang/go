@@ -10,14 +10,13 @@ type T struct {
 	i int
 }
 
-type IN interface {
-}
+type IN interface{}
 
 func main() {
 	var i *int
-	var f *float
+	var f *float32
 	var s *string
-	var m map[float] *int
+	var m map[float32]*int
 	var c chan int
 	var t *T
 	var in IN

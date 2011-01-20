@@ -151,7 +151,7 @@ func Gamma(x float64) float64 {
 	}
 
 	// Reduce argument
-	z := float64(1)
+	z := 1.0
 	for x >= 3 {
 		x = x - 1
 		z = z * x

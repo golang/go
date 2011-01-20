@@ -46,7 +46,7 @@ import "math"
 func Pow(x, y complex128) complex128 {
 	modulus := Abs(x)
 	if modulus == 0 {
-		return cmplx(0, 0)
+		return complex(0, 0)
 	}
 	r := math.Pow(modulus, real(y))
 	arg := Phase(x)
@@ -56,5 +56,5 @@ func Pow(x, y complex128) complex128 {
 		theta += imag(y) * math.Log(modulus)
 	}
 	s, c := math.Sincos(theta)
-	return cmplx(r*c, r*s)
+	return complex(r*c, r*s)
 }

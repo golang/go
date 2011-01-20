@@ -48,7 +48,6 @@ var typeTests = []pair{
 	{struct{ x uint16 }{}, "uint16"},
 	{struct{ x uint32 }{}, "uint32"},
 	{struct{ x uint64 }{}, "uint64"},
-	{struct{ x float }{}, "float"},
 	{struct{ x float32 }{}, "float32"},
 	{struct{ x float64 }{}, "float64"},
 	{struct{ x int8 }{}, "int8"},
@@ -244,8 +243,6 @@ func TestSet(t *testing.T) {
 			}
 		case *FloatValue:
 			switch v.Type().Kind() {
-			case Float:
-				v.Set(128.5)
 			case Float32:
 				v.Set(256.25)
 			case Float64:
@@ -253,8 +250,6 @@ func TestSet(t *testing.T) {
 			}
 		case *ComplexValue:
 			switch v.Type().Kind() {
-			case Complex:
-				v.Set(53200.0 + 100i)
 			case Complex64:
 				v.Set(532.125 + 10i)
 			case Complex128:
@@ -304,17 +299,13 @@ func TestSetValue(t *testing.T) {
 			}
 		case *FloatValue:
 			switch v.Type().Kind() {
-			case Float:
-				v.SetValue(NewValue(float(128.5)))
 			case Float32:
 				v.SetValue(NewValue(float32(256.25)))
 			case Float64:
-				v.SetValue(NewValue(float64(512.125)))
+				v.SetValue(NewValue(512.125))
 			}
 		case *ComplexValue:
 			switch v.Type().Kind() {
-			case Complex:
-				v.SetValue(NewValue(complex(53200.0 + 100i)))
 			case Complex64:
 				v.SetValue(NewValue(complex64(532.125 + 10i)))
 			case Complex128:
@@ -470,7 +461,7 @@ func TestInterfaceGet(t *testing.T) {
 	assert(t, v2.Type().String(), "interface { }")
 	i2 := v2.(*InterfaceValue).Interface()
 	v3 := NewValue(i2)
-	assert(t, v3.Type().String(), "float")
+	assert(t, v3.Type().String(), "float64")
 }
 
 func TestInterfaceValue(t *testing.T) {
@@ -482,11 +473,11 @@ func TestInterfaceValue(t *testing.T) {
 	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0)
 	assert(t, v2.Type().String(), "interface { }")
 	v3 := v2.(*InterfaceValue).Elem()
-	assert(t, v3.Type().String(), "float")
+	assert(t, v3.Type().String(), "float64")
 
 	i3 := v2.Interface()
-	if _, ok := i3.(float); !ok {
-		t.Error("v2.Interface() did not return float, got ", Typeof(i3))
+	if _, ok := i3.(float64); !ok {
+		t.Error("v2.Interface() did not return float64, got ", Typeof(i3))
 	}
 }
 
@@ -697,11 +688,11 @@ type _Complex struct {
 	a int
 	b [3]*_Complex
 	c *string
-	d map[float]float
+	d map[float64]float64
 }
 
 func TestDeepEqualComplexStruct(t *testing.T) {
-	m := make(map[float]float)
+	m := make(map[float64]float64)
 	stra, strb := "hello", "hello"
 	a, b := new(_Complex), new(_Complex)
 	*a = _Complex{5, [3]*_Complex{a, b, a}, &stra, m}
@@ -712,7 +703,7 @@ func TestDeepEqualComplexStruct(t *testing.T) {
 }
 
 func TestDeepEqualComplexStructInequality(t *testing.T) {
-	m := make(map[float]float)
+	m := make(map[float64]float64)
 	stra, strb := "hello", "helloo" // Difference is here
 	a, b := new(_Complex), new(_Complex)
 	*a = _Complex{5, [3]*_Complex{a, b, a}, &stra, m}
@@ -1317,12 +1308,12 @@ func TestImportPath(t *testing.T) {
 
 func TestDotDotDot(t *testing.T) {
 	// Test example from FuncType.DotDotDot documentation.
-	var f func(x int, y ...float)
+	var f func(x int, y ...float64)
 	typ := Typeof(f).(*FuncType)
 	if typ.NumIn() == 2 && typ.In(0) == Typeof(int(0)) {
 		sl, ok := typ.In(1).(*SliceType)
 		if ok {
-			if sl.Elem() == Typeof(float(0)) {
+			if sl.Elem() == Typeof(0.0) {
 				// ok
 				return
 			}
@@ -1330,7 +1321,7 @@ func TestDotDotDot(t *testing.T) {
 	}
 
 	// Failed
-	t.Errorf("want NumIn() = 2, In(0) = int, In(1) = []float")
+	t.Errorf("want NumIn() = 2, In(0) = int, In(1) = []float64")
 	s := fmt.Sprintf("have NumIn() = %d", typ.NumIn())
 	for i := 0; i < typ.NumIn(); i++ {
 		s += fmt.Sprintf(", In(%d) = %s", i, typ.In(i))

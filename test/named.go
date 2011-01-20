@@ -12,7 +12,7 @@ package main
 type Array [10]byte
 type Bool bool
 type Chan chan int
-type Float float
+type Float float32
 type Int int
 type Map map[int]byte
 type Slice []byte

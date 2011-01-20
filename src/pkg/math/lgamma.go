@@ -272,7 +272,7 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 		p := y * (S0 + y*(S1+y*(S2+y*(S3+y*(S4+y*(S5+y*S6))))))
 		q := 1 + y*(R1+y*(R2+y*(R3+y*(R4+y*(R5+y*R6)))))
 		lgamma = 0.5*y + p/q
-		z := float64(1) // Lgamma(1+s) = Log(s) + Lgamma(s)
+		z := 1.0 // Lgamma(1+s) = Log(s) + Lgamma(s)
 		switch i {
 		case 7:
 			z *= (y + 6)

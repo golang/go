@@ -17,6 +17,6 @@ const f struct{} = 6    // ERROR "convert|wrong|invalid"
 const g interface{} = 7 // ERROR "constant|wrong|invalid"
 const h bool = false
 const i int = 2
-const j float = 5
+const j float64 = 5
 
 func main() { println(a, b, c, d, e, f, g) }

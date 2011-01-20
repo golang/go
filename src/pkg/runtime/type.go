@@ -51,10 +51,8 @@ const (
 	kindUint32
 	kindUint64
 	kindUintptr
-	kindFloat
 	kindFloat32
 	kindFloat64
-	kindComplex
 	kindComplex64
 	kindComplex128
 	kindArray

@@ -17,7 +17,9 @@ func fFloat32(a float32) float32 { return a }
 
 func fFloat64(a float64) float64 { return a }
 
-func fFloat(a float) float { return a }
+func fComplex64(a complex64) complex64 { return a }
+
+func fComplex128(a complex128) complex128 { return a }
 
 func fInt16(a int16) int16 { return a }
 
@@ -71,7 +73,8 @@ func TestCheckEqual(t *testing.T) {
 	reportError("fBool", CheckEqual(fBool, fBool, nil), t)
 	reportError("fFloat32", CheckEqual(fFloat32, fFloat32, nil), t)
 	reportError("fFloat64", CheckEqual(fFloat64, fFloat64, nil), t)
-	reportError("fFloat", CheckEqual(fFloat, fFloat, nil), t)
+	reportError("fComplex64", CheckEqual(fComplex64, fComplex64, nil), t)
+	reportError("fComplex128", CheckEqual(fComplex128, fComplex128, nil), t)
 	reportError("fInt16", CheckEqual(fInt16, fInt16, nil), t)
 	reportError("fInt32", CheckEqual(fInt32, fInt32, nil), t)
 	reportError("fInt64", CheckEqual(fInt64, fInt64, nil), t)

@@ -23,7 +23,7 @@ type t0 int
 
 func (t0) M(p0.T) {}
 
-type t1 float
+type t1 float64
 
 func (t1) M(p1.T) {}
 

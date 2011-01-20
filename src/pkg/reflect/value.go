@@ -142,8 +142,6 @@ type FloatValue struct {
 // Get returns the underlying int value.
 func (v *FloatValue) Get() float64 {
 	switch v.typ.Kind() {
-	case Float:
-		return float64(*(*float)(v.addr))
 	case Float32:
 		return float64(*(*float32)(v.addr))
 	case Float64:
@@ -160,8 +158,6 @@ func (v *FloatValue) Set(x float64) {
 	switch v.typ.Kind() {
 	default:
 		panic("reflect: invalid float kind")
-	case Float:
-		*(*float)(v.addr) = float(x)
 	case Float32:
 		*(*float32)(v.addr) = float32(x)
 	case Float64:
@@ -191,8 +187,6 @@ type ComplexValue struct {
 // Get returns the underlying complex value.
 func (v *ComplexValue) Get() complex128 {
 	switch v.typ.Kind() {
-	case Complex:
-		return complex128(*(*complex)(v.addr))
 	case Complex64:
 		return complex128(*(*complex64)(v.addr))
 	case Complex128:
@@ -209,8 +203,6 @@ func (v *ComplexValue) Set(x complex128) {
 	switch v.typ.Kind() {
 	default:
 		panic("reflect: invalid complex kind")
-	case Complex:
-		*(*complex)(v.addr) = complex(x)
 	case Complex64:
 		*(*complex64)(v.addr) = complex64(x)
 	case Complex128:

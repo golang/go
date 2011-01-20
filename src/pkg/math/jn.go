@@ -132,7 +132,7 @@ func Jn(n int, x float64) float64 {
 			} else {
 				temp := x * 0.5
 				b = temp
-				a := float64(1)
+				a := 1.0
 				for i := 2; i <= n; i++ {
 					a *= float64(i) // a = n!
 					b *= temp       // b = (x/2)**n
@@ -181,7 +181,7 @@ func Jn(n int, x float64) float64 {
 				q0, q1 = q1, z*q1-q0
 			}
 			m := n + n
-			t := float64(0)
+			t := 0.0
 			for i := 2 * (n + k); i >= m; i -= 2 {
 				t = 1 / (float64(i)/x - t)
 			}

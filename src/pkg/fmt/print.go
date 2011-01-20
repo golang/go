@@ -573,25 +573,11 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	case bool:
 		p.fmtBool(f, verb, field)
 		return false
-	case float:
-		if floatBits == 32 {
-			p.fmtFloat32(float32(f), verb, field)
-		} else {
-			p.fmtFloat64(float64(f), verb, field)
-		}
-		return false
 	case float32:
 		p.fmtFloat32(f, verb, field)
 		return false
 	case float64:
 		p.fmtFloat64(f, verb, field)
-		return false
-	case complex:
-		if complexBits == 64 {
-			p.fmtComplex64(complex64(f), verb, field)
-		} else {
-			p.fmtComplex128(complex128(f), verb, field)
-		}
 		return false
 	case complex64:
 		p.fmtComplex64(complex64(f), verb, field)

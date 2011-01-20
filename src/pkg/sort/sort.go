@@ -166,15 +166,15 @@ func (p IntArray) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p IntArray) Sort() { Sort(p) }
 
 
-// FloatArray attaches the methods of Interface to []float, sorting in increasing order.
-type FloatArray []float
+// Float64Array attaches the methods of Interface to []float64, sorting in increasing order.
+type Float64Array []float64
 
-func (p FloatArray) Len() int           { return len(p) }
-func (p FloatArray) Less(i, j int) bool { return p[i] < p[j] }
-func (p FloatArray) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p Float64Array) Len() int           { return len(p) }
+func (p Float64Array) Less(i, j int) bool { return p[i] < p[j] }
+func (p Float64Array) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // Sort is a convenience method.
-func (p FloatArray) Sort() { Sort(p) }
+func (p Float64Array) Sort() { Sort(p) }
 
 
 // StringArray attaches the methods of Interface to []string, sorting in increasing order.
@@ -192,15 +192,15 @@ func (p StringArray) Sort() { Sort(p) }
 
 // SortInts sorts an array of ints in increasing order.
 func SortInts(a []int) { Sort(IntArray(a)) }
-// SortFloats sorts an array of floats in increasing order.
-func SortFloats(a []float) { Sort(FloatArray(a)) }
+// SortFloat64s sorts an array of float64s in increasing order.
+func SortFloat64s(a []float64) { Sort(Float64Array(a)) }
 // SortStrings sorts an array of strings in increasing order.
 func SortStrings(a []string) { Sort(StringArray(a)) }
 
 
 // IntsAreSorted tests whether an array of ints is sorted in increasing order.
 func IntsAreSorted(a []int) bool { return IsSorted(IntArray(a)) }
-// FloatsAreSorted tests whether an array of floats is sorted in increasing order.
-func FloatsAreSorted(a []float) bool { return IsSorted(FloatArray(a)) }
+// Float64sAreSorted tests whether an array of float64s is sorted in increasing order.
+func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Array(a)) }
 // StringsAreSorted tests whether an array of strings is sorted in increasing order.
 func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)) }

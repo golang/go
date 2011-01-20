@@ -17,8 +17,8 @@ const (
 	x int = iota
 	y = iota
 	z = 1 << iota
-	f float = 2 * iota
-	g float = 4.5 * float(iota)
+	f float32 = 2 * iota
+	g float32 = 4.5 * float32(iota)
 )
 
 const (
@@ -57,7 +57,7 @@ const (
 )
 
 const (
-	p = float(iota)
+	p = float32(iota)
 	q
 	r
 )
@@ -68,9 +68,9 @@ const (
 )
 
 const (
-	abit, amask = 1 << iota, 1 << iota - 1
-	bbit, bmask = 1 << iota, 1 << iota - 1
-	cbit, cmask = 1 << iota, 1 << iota - 1
+	abit, amask = 1 << iota, 1<<iota - 1
+	bbit, bmask = 1 << iota, 1<<iota - 1
+	cbit, cmask = 1 << iota, 1<<iota - 1
 )
 
 func main() {

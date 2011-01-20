@@ -209,9 +209,6 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 	case p.runtime.PFloat64Type:
 		t = eval.Float64Type
 		mk = mkFloat64
-	case p.runtime.PFloatType:
-		t = eval.FloatType
-		mk = mkFloat
 	case p.runtime.PStringType:
 		t = eval.StringType
 		mk = mkString

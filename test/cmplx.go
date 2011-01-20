@@ -7,26 +7,19 @@
 package main
 
 var (
-	f float
 	f32 float32
 	f64 float64
 
-	c complex
-	c64 complex64
+	c64  complex64
 	c128 complex128
 )
-	
+
 func main() {
 	// ok
-	c = cmplx(f, f)
-	c64 = cmplx(f32, f32)
-	c128 = cmplx(f64, f64)
+	c64 = complex(f32, f32)
+	c128 = complex(f64, f64)
 
-	_ = complex(0) // ok
-	_ = cmplx(f, f32)	// ERROR "cmplx"
-	_ = cmplx(f, f64)	// ERROR "cmplx"
-	_ = cmplx(f32, f)	// ERROR "cmplx"
-	_ = cmplx(f32, f64)	// ERROR "cmplx"
-	_ = cmplx(f64, f)	// ERROR "cmplx"
-	_ = cmplx(f64, f32)	// ERROR "cmplx"
+	_ = complex128(0)     // ok
+	_ = complex(f32, f64) // ERROR "complex"
+	_ = complex(f64, f32) // ERROR "complex"
 }

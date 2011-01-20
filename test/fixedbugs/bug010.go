@@ -7,14 +7,14 @@
 package main
 
 
-func f(i int, f float) {
-	i = 8;
-	f = 8.0;
-	return;
+func f(i int, f float64) {
+	i = 8
+	f = 8.0
+	return
 }
 
 func main() {
-	f(3, float(5))
+	f(3, float64(5))
 }
 
 /*

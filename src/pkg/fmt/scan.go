@@ -640,7 +640,7 @@ func (s *ss) scanComplex(verb int, n int) complex128 {
 	sreal, simag := s.complexTokens()
 	real := s.convertFloat(sreal, n/2)
 	imag := s.convertFloat(simag, n/2)
-	return cmplx(real, imag)
+	return complex(real, imag)
 }
 
 // convertString returns the string represented by the next input characters.
@@ -772,8 +772,6 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	switch v := field.(type) {
 	case *bool:
 		*v = s.scanBool(verb)
-	case *complex:
-		*v = complex(s.scanComplex(verb, int(complexBits)))
 	case *complex64:
 		*v = complex64(s.scanComplex(verb, 64))
 	case *complex128:
@@ -802,11 +800,6 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		*v = uintptr(s.scanUint(verb, uintptrBits))
 	// Floats are tricky because you want to scan in the precision of the result, not
 	// scan in high precision and convert, in order to preserve the correct error condition.
-	case *float:
-		if s.okVerb(verb, floatVerbs, "float") {
-			s.skipSpace(false)
-			*v = float(s.convertFloat(s.floatToken(), int(floatBits)))
-		}
 	case *float32:
 		if s.okVerb(verb, floatVerbs, "float32") {
 			s.skipSpace(false)

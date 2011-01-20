@@ -51,21 +51,25 @@ func main() {
 	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
 }
 
-type M interface { M() }
+type M interface {
+	M()
+}
+
 var m M
 
-var _ = m.(int)	// ERROR "impossible type assertion"
+var _ = m.(int) // ERROR "impossible type assertion"
 
 type Int int
-func (Int) M(float) {}
 
-var _ = m.(Int)	// ERROR "impossible type assertion"
+func (Int) M(float64) {}
+
+var _ = m.(Int) // ERROR "impossible type assertion"
 
 var ii int
 var jj Int
 
-var m1 M = ii	// ERROR "incompatible|missing"
-var m2 M = jj	// ERROR "incompatible|wrong type for M method"
+var m1 M = ii // ERROR "incompatible|missing"
+var m2 M = jj // ERROR "incompatible|wrong type for M method"
 
-var m3 = M(ii)	// ERROR "invalid|missing"
-var m4 = M(jj)	// ERROR "invalid|wrong type for M method"
+var m3 = M(ii) // ERROR "invalid|missing"
+var m4 = M(jj) // ERROR "invalid|wrong type for M method"

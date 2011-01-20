@@ -50,13 +50,11 @@ var (
 	uint16Val            uint16
 	uint32Val            uint32
 	uint64Val            uint64
-	floatVal             float
 	float32Val           float32
 	float64Val           float64
 	stringVal            string
 	stringVal1           string
 	bytesVal             []byte
-	complexVal           complex
 	complex64Val         complex64
 	complex128Val        complex128
 	renamedBoolVal       renamedBool
@@ -73,10 +71,8 @@ var (
 	renamedUintptrVal    renamedUintptr
 	renamedStringVal     renamedString
 	renamedBytesVal      renamedBytes
-	renamedFloatVal      renamedFloat
 	renamedFloat32Val    renamedFloat32
 	renamedFloat64Val    renamedFloat64
-	renamedComplexVal    renamedComplex
 	renamedComplex64Val  renamedComplex64
 	renamedComplex128Val renamedComplex128
 )
@@ -161,12 +157,12 @@ var scanTests = []ScanTest{
 	{"30\n", &uint64Val, uint64(30)},
 	{"255\n", &uint8Val, uint8(255)},
 	{"32767\n", &int16Val, int16(32767)},
-	{"2.3\n", &floatVal, 2.3},
+	{"2.3\n", &float64Val, 2.3},
 	{"2.3e1\n", &float32Val, float32(2.3e1)},
-	{"2.3e2\n", &float64Val, float64(2.3e2)},
+	{"2.3e2\n", &float64Val, 2.3e2},
 	{"2.35\n", &stringVal, "2.35"},
 	{"2345678\n", &bytesVal, []byte("2345678")},
-	{"(3.4e1-2i)\n", &complexVal, 3.4e1 - 2i},
+	{"(3.4e1-2i)\n", &complex128Val, 3.4e1 - 2i},
 	{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
 	{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
 	{"hello\n", &stringVal, "hello"},
@@ -256,10 +252,8 @@ var scanfTests = []ScanfTest{
 	{"%d", "113\n", &renamedUintptrVal, renamedUintptr(113)},
 	{"%s", "114\n", &renamedStringVal, renamedString("114")},
 	{"%q", "\"1155\"\n", &renamedBytesVal, renamedBytes([]byte("1155"))},
-	{"%g", "115.1\n", &renamedFloatVal, renamedFloat(115.1)},
 	{"%g", "116e1\n", &renamedFloat32Val, renamedFloat32(116e1)},
 	{"%g", "-11.7e+1", &renamedFloat64Val, renamedFloat64(-11.7e+1)},
-	{"%g", "11+5.1i\n", &renamedComplexVal, renamedComplex(11 + 5.1i)},
 	{"%g", "11+6e1i\n", &renamedComplex64Val, renamedComplex64(11 + 6e1i)},
 	{"%g", "-11.+7e+1i", &renamedComplex128Val, renamedComplex128(-11. + 7e+1i)},
 
@@ -288,15 +282,15 @@ var overflowTests = []ScanTest{
 	{"65536", &uint16Val, 0},
 	{"1e100", &float32Val, 0},
 	{"1e500", &float64Val, 0},
-	{"(1e100+0i)", &complexVal, 0},
+	{"(1e100+0i)", &complex64Val, 0},
 	{"(1+1e100i)", &complex64Val, 0},
 	{"(1-1e500i)", &complex128Val, 0},
 }
 
 var i, j, k int
-var f float
+var f float64
 var s, t string
-var c complex
+var c complex128
 var x, y Xs
 
 var multiTests = []ScanfMultiTest{
@@ -307,7 +301,7 @@ var multiTests = []ScanfMultiTest{
 	{"%2d.%3d", "66.777", args(&i, &j), args(66, 777), ""},
 	{"%d, %d", "23, 18", args(&i, &j), args(23, 18), ""},
 	{"%3d22%3d", "33322333", args(&i, &j), args(333, 333), ""},
-	{"%6vX=%3fY", "3+2iX=2.5Y", args(&c, &f), args((3 + 2i), float(2.5)), ""},
+	{"%6vX=%3fY", "3+2iX=2.5Y", args(&c, &f), args((3 + 2i), 2.5), ""},
 	{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
 	{"%c%c%c", "2\u50c2X", args(&i, &j, &k), args('2', '\u50c2', 'X'), ""},
 
@@ -409,7 +403,7 @@ func TestScanOverflow(t *testing.T) {
 }
 
 func verifyNaN(str string, t *testing.T) {
-	var f float
+	var f float64
 	var f32 float32
 	var f64 float64
 	text := str + " " + str + " " + str
@@ -432,7 +426,7 @@ func TestNaN(t *testing.T) {
 }
 
 func verifyInf(str string, t *testing.T) {
-	var f float
+	var f float64
 	var f32 float32
 	var f64 float64
 	text := str + " " + str + " " + str

@@ -173,8 +173,8 @@ func toValue(val interface{}) Value {
 		return &r
 	case *big.Int:
 		return &idealIntV{val}
-	case float:
-		r := floatV(val)
+	case float64:
+		r := float64V(val)
 		return &r
 	case *big.Rat:
 		return &idealFloatV{val}
@@ -244,7 +244,7 @@ func newTestWorld() *World {
 	def("i", IntType, 1)
 	def("i2", IntType, 2)
 	def("u", UintType, uint(1))
-	def("f", FloatType, 1.0)
+	def("f", Float64Type, 1.0)
 	def("s", StringType, "abc")
 	def("t", NewStructType([]StructField{{"a", IntType, false}}), vstruct{1})
 	def("ai", NewArrayType(2, IntType), varray{1, 2})

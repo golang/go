@@ -5,10 +5,11 @@
 // license that can be found in the LICENSE file.
 
 package main
-func f(a float) float {
-	e := 1.0;
-	e = e * a;
-	return e;
+
+func f(a float64) float64 {
+	e := 1.0
+	e = e * a
+	return e
 }
 
 /*

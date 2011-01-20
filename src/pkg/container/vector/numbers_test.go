@@ -46,7 +46,7 @@ func TestVectorNums(t *testing.T) {
 	v.Resize(0, 0)
 	runtime.GC()
 	n := m.Alloc - m0.Alloc
-	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
+	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float64(n)/memTestN)
 }
 
 
@@ -64,7 +64,7 @@ func TestIntVectorNums(t *testing.T) {
 	v.Resize(0, 0)
 	runtime.GC()
 	n := m.Alloc - m0.Alloc
-	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
+	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float64(n)/memTestN)
 }
 
 
@@ -82,7 +82,7 @@ func TestStringVectorNums(t *testing.T) {
 	v.Resize(0, 0)
 	runtime.GC()
 	n := m.Alloc - m0.Alloc
-	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
+	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float64(n)/memTestN)
 }
 
 

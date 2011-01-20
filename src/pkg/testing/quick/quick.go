@@ -60,18 +60,16 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	switch concrete := t.(type) {
 	case *reflect.BoolType:
 		return reflect.NewValue(rand.Int()&1 == 0), true
-	case *reflect.FloatType, *reflect.IntType, *reflect.UintType:
+	case *reflect.FloatType, *reflect.IntType, *reflect.UintType, *reflect.ComplexType:
 		switch t.Kind() {
 		case reflect.Float32:
 			return reflect.NewValue(randFloat32(rand)), true
 		case reflect.Float64:
 			return reflect.NewValue(randFloat64(rand)), true
-		case reflect.Float:
-			if t.Size() == 4 {
-				return reflect.NewValue(float(randFloat32(rand))), true
-			} else {
-				return reflect.NewValue(float(randFloat64(rand))), true
-			}
+		case reflect.Complex64:
+			return reflect.NewValue(complex(randFloat32(rand), randFloat32(rand))), true
+		case reflect.Complex128:
+			return reflect.NewValue(complex(randFloat64(rand), randFloat64(rand))), true
 		case reflect.Int16:
 			return reflect.NewValue(int16(randInt64(rand))), true
 		case reflect.Int32:
@@ -157,7 +155,7 @@ type Config struct {
 	MaxCount int
 	// MaxCountScale is a non-negative scale factor applied to the default
 	// maximum. If zero, the default is unchanged.
-	MaxCountScale float
+	MaxCountScale float64
 	// If non-nil, rand is a source of random numbers. Otherwise a default
 	// pseudo-random source will be used.
 	Rand *rand.Rand
@@ -183,7 +181,7 @@ func (c *Config) getMaxCount() (maxCount int) {
 	maxCount = c.MaxCount
 	if maxCount == 0 {
 		if c.MaxCountScale != 0 {
-			maxCount = int(c.MaxCountScale * float(*defaultMaxCount))
+			maxCount = int(c.MaxCountScale * float64(*defaultMaxCount))
 		} else {
 			maxCount = *defaultMaxCount
 		}

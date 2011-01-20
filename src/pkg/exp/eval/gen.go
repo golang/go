@@ -47,7 +47,7 @@ var (
 	}
 	idealIntType = &Type{Repr: "*idealIntType", Value: "IdealIntValue", Native: "*big.Int", As: "asIdealInt", IsIdeal: true}
 	floatType    = &Type{Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat",
-		Sizes: []Size{{32, "float32"}, {64, "float64"}, {0, "float"}},
+		Sizes: []Size{{32, "float32"}, {64, "float64"}},
 	}
 	idealFloatType = &Type{Repr: "*idealFloatType", Value: "IdealFloatValue", Native: "*big.Rat", As: "asIdealFloat", IsIdeal: true}
 	stringType     = &Type{Repr: "*stringType", Value: "StringValue", Native: "string", As: "asString"}

@@ -243,7 +243,7 @@ out:
 // Compute exact floating-point integer from d's digits.
 // Caller is responsible for avoiding overflow.
 func decimalAtof64Int(neg bool, d *decimal) float64 {
-	f := float64(0)
+	f := 0.0
 	for i := 0; i < d.nd; i++ {
 		f = f*10 + float64(d.d[i]-'0')
 	}
@@ -399,17 +399,6 @@ func Atof64(s string) (f float64, err os.Error) {
 	}
 	return f, err
 }
-
-// Atof is like Atof32 or Atof64, depending on the size of float.
-func Atof(s string) (f float, err os.Error) {
-	if FloatSize == 32 {
-		f1, err1 := Atof32(s)
-		return float(f1), err1
-	}
-	f1, err1 := Atof64(s)
-	return float(f1), err1
-}
-
 
 // AtofN converts the string s to a 64-bit floating-point number,
 // but it rounds the result assuming that it will be stored in a value

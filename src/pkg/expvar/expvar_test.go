@@ -128,7 +128,7 @@ func TestIntFunc(t *testing.T) {
 }
 
 func TestFloatFunc(t *testing.T) {
-	x := float64(8.5)
+	x := 8.5
 	ix := FloatFunc(func() float64 { return x })
 	if s := ix.String(); s != "8.5" {
 		t.Errorf("ix.String() = %v, want 3.14", s)

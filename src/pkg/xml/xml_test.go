@@ -227,7 +227,6 @@ type allScalars struct {
 	Uint32  uint32
 	Uint64  uint64
 	Uintptr uintptr
-	Float   float
 	Float32 float32
 	Float64 float64
 	String  string
@@ -249,7 +248,6 @@ var all = allScalars{
 	Uint32:  9,
 	Uint64:  10,
 	Uintptr: 11,
-	Float:   12.0,
 	Float32: 13.0,
 	Float64: 14.0,
 	String:  "15",

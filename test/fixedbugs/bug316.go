@@ -9,7 +9,7 @@
 package main
 
 const (
-	c = cmplx(1, 2)
+	c = complex(1, 2)
 	r = real(c) // was: const initializer must be constant
 	i = imag(c) // was: const initializer must be constant
 )

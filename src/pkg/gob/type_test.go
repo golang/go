@@ -135,8 +135,8 @@ type Foo struct {
 	b int32 // will become int
 	c string
 	d []byte
-	e *float      // will become float
-	f ****float64 // will become float
+	e *float64    // will become float64
+	f ****float64 // will become float64
 	g *Bar
 	h *Bar // should not interpolate the definition of Bar again
 	i *Foo // will not explode

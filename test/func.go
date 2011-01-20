@@ -21,10 +21,10 @@ func f2(a int) {
 }
 
 func f3(a, b int) int {
-	return a+b
+	return a + b
 }
 
-func f4(a, b int, c float) int {
+func f4(a, b int, c float32) int {
 	return (a+b)/2 + int(c)
 }
 
@@ -36,12 +36,12 @@ func f6(a int) (r int) {
 	return 6
 }
 
-func f7(a int) (x int, y float) {
+func f7(a int) (x int, y float32) {
 	return 7, 7.0
 }
 
 
-func f8(a int) (x int, y float) {
+func f8(a int) (x int, y float32) {
 	return 8, 8.0
 }
 
@@ -49,12 +49,12 @@ type T struct {
 	x, y int
 }
 
-func (t *T) m10(a int, b float) int {
-	return (t.x+a) * (t.y+int(b))
+func (t *T) m10(a int, b float32) int {
+	return (t.x + a) * (t.y + int(b))
 }
 
 
-func f9(a int) (i int, f float) {
+func f9(a int) (i int, f float32) {
 	i = 9
 	f = 9.0
 	return

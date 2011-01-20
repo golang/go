@@ -11,9 +11,9 @@ type T struct {
 	x int
 	y (int)
 	int
-	*float
+	*float64
 	// not legal according to spec
-	(complex)  // ERROR "non-declaration|expected|parenthesize"
+	(complex128)  // ERROR "non-declaration|expected|parenthesize"
 	(*string)  // ERROR "non-declaration|expected|parenthesize"
 	*(bool)    // ERROR "non-declaration|expected|parenthesize"
 }

@@ -88,9 +88,6 @@ func (r *Rand) Float64() float64 { return float64(r.Int63()) / (1 << 63) }
 // Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
 func (r *Rand) Float32() float32 { return float32(r.Float64()) }
 
-// Float returns, as a float, a pseudo-random number in [0.0,1.0).
-func (r *Rand) Float() float { return float(r.Float64()) }
-
 // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
 func (r *Rand) Perm(n int) []int {
 	m := make([]int, n)
@@ -139,9 +136,6 @@ func Float64() float64 { return globalRand.Float64() }
 
 // Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
 func Float32() float32 { return globalRand.Float32() }
-
-// Float returns, as a float, a pseudo-random number in [0.0,1.0).
-func Float() float { return globalRand.Float() }
 
 // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
 func Perm(n int) []int { return globalRand.Perm(n) }

@@ -5,11 +5,11 @@
 // license that can be found in the LICENSE file.
 
 // Valid program, gccgo reported an error.
-// bug307.go:14:6: error: cmplx arguments must have identical types
+// bug307.go:14:6: error: complex arguments must have identical types
 
 package main
 
 func main() {
 	var f float64
-	_ = cmplx(1 / f, 0)
+	_ = complex(1/f, 0)
 }

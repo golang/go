@@ -8,51 +8,51 @@
 
 package main
 
-func f1() int { return 1 }
-func f2() (float, int) { return 1, 2 }
-func f3() (float, int, string) { return 1, 2, "3" }
+func f1() int                    { return 1 }
+func f2() (float32, int)         { return 1, 2 }
+func f3() (float32, int, string) { return 1, 2, "3" }
 
 func main() {
 	{
 		// simple redeclaration
 		i := f1()
-		i := f1()	// ERROR "redeclared|no new"
+		i := f1() // ERROR "redeclared|no new"
 		_ = i
 	}
 	{
 		// change of type for f
 		i, f, s := f3()
-		f, g, t := f3()	// ERROR "redeclared|cannot assign|incompatible"
+		f, g, t := f3() // ERROR "redeclared|cannot assign|incompatible"
 		_, _, _, _, _ = i, f, s, g, t
 	}
 	{
 		// change of type for i
 		i, f, s := f3()
-		j, i, t := f3()	// ERROR "redeclared|cannot assign|incompatible"
+		j, i, t := f3() // ERROR "redeclared|cannot assign|incompatible"
 		_, _, _, _, _ = i, f, s, j, t
 	}
 	{
 		// no new variables
 		i, f, s := f3()
-		i, f := f2()	// ERROR "redeclared|no new"
+		i, f := f2() // ERROR "redeclared|no new"
 		_, _, _ = i, f, s
 	}
 	{
 		// single redeclaration
 		i, f, s := f3()
-		i := f1()		// ERROR "redeclared|no new|incompatible"
+		i := f1() // ERROR "redeclared|no new|incompatible"
 		_, _, _ = i, f, s
 	}
-		// double redeclaration
+	// double redeclaration
 	{
 		i, f, s := f3()
-		i, f := f2()	// ERROR "redeclared|no new"
+		i, f := f2() // ERROR "redeclared|no new"
 		_, _, _ = i, f, s
 	}
 	{
 		// triple redeclaration
 		i, f, s := f3()
-		i, f, s := f3()	// ERROR "redeclared|no new"
+		i, f, s := f3() // ERROR "redeclared|no new"
 		_, _, _ = i, f, s
 	}
 }

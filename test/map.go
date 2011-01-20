@@ -21,73 +21,73 @@ func P(a []string) string {
 		}
 		s += `"` + a[i] + `"`
 	}
-	s +="}"
+	s += "}"
 	return s
 }
 
 func main() {
 	// Test a map literal.
-	mlit := map[string] int { "0":0, "1":1, "2":2, "3":3, "4":4 }
+	mlit := map[string]int{"0": 0, "1": 1, "2": 2, "3": 3, "4": 4}
 	for i := 0; i < len(mlit); i++ {
-		s := string([]byte{byte(i)+'0'})
+		s := string([]byte{byte(i) + '0'})
 		if mlit[s] != i {
 			fmt.Printf("mlit[%s] = %d\n", s, mlit[s])
 		}
 	}
 
-	mib := make(map[int] bool)
-	mii := make(map[int] int)
-	mfi := make(map[float] int)
-	mif := make(map[int] float)
-	msi := make(map[string] int)
-	mis := make(map[int] string)
-	mss := make(map[string] string)
-	mspa := make(map[string] []string)
+	mib := make(map[int]bool)
+	mii := make(map[int]int)
+	mfi := make(map[float32]int)
+	mif := make(map[int]float32)
+	msi := make(map[string]int)
+	mis := make(map[int]string)
+	mss := make(map[string]string)
+	mspa := make(map[string][]string)
 	// BUG need an interface map both ways too
 
 	type T struct {
-		i int64	// can't use string here; struct values are only compared at the top level
-		f float
+		i int64 // can't use string here; struct values are only compared at the top level
+		f float32
 	}
-	mipT := make(map[int] *T)
-	mpTi := make(map[*T] int)
-	mit := make(map[int] T)
-//	mti := make(map[T] int)
+	mipT := make(map[int]*T)
+	mpTi := make(map[*T]int)
+	mit := make(map[int]T)
+	//	mti := make(map[T] int)
 
-	type M map[int] int
-	mipM := make(map[int] M)
+	type M map[int]int
+	mipM := make(map[int]M)
 
-	var apT [2*count]*T
+	var apT [2 * count]*T
 
 	for i := 0; i < count; i++ {
 		s := strconv.Itoa(i)
-		s10 := strconv.Itoa(i*10)
-		f := float(i)
-		t := T{int64(i),f}
+		s10 := strconv.Itoa(i * 10)
+		f := float32(i)
+		t := T{int64(i), f}
 		apT[i] = new(T)
 		apT[i].i = int64(i)
 		apT[i].f = f
-		apT[2*i] = new(T)	// need twice as many entries as we use, for the nonexistence check
+		apT[2*i] = new(T) // need twice as many entries as we use, for the nonexistence check
 		apT[2*i].i = int64(i)
 		apT[2*i].f = f
-		m := M{i: i+1}
+		m := M{i: i + 1}
 		mib[i] = (i != 0)
-		mii[i] = 10*i
-		mfi[float(i)] = 10*i
-		mif[i] = 10.0*f
+		mii[i] = 10 * i
+		mfi[float32(i)] = 10 * i
+		mif[i] = 10.0 * f
 		mis[i] = s
 		msi[s] = i
 		mss[s] = s10
 		mss[s] = s10
 		as := make([]string, 2)
-			as[0] = s10
-			as[1] = s10
+		as[0] = s10
+		as[1] = s10
 		mspa[s] = as
 		mipT[i] = apT[i]
 		mpTi[apT[i]] = i
 		mipM[i] = m
 		mit[i] = t
-	//	mti[t] = i
+		//	mti[t] = i
 	}
 
 	// test len
@@ -121,15 +121,15 @@ func main() {
 	if len(mpTi) != count {
 		fmt.Printf("len(mpTi) = %d\n", len(mpTi))
 	}
-//	if len(mti) != count {
-//		fmt.Printf("len(mti) = %d\n", len(mti))
-//	}
+	//	if len(mti) != count {
+	//		fmt.Printf("len(mti) = %d\n", len(mti))
+	//	}
 	if len(mipM) != count {
 		fmt.Printf("len(mipM) = %d\n", len(mipM))
 	}
-//	if len(mti) != count {
-//		fmt.Printf("len(mti) = %d\n", len(mti))
-//	}
+	//	if len(mti) != count {
+	//		fmt.Printf("len(mti) = %d\n", len(mti))
+	//	}
 	if len(mit) != count {
 		fmt.Printf("len(mit) = %d\n", len(mit))
 	}
@@ -137,25 +137,25 @@ func main() {
 	// test construction directly
 	for i := 0; i < count; i++ {
 		s := strconv.Itoa(i)
-		s10 := strconv.Itoa(i*10)
-		f := float(i)
+		s10 := strconv.Itoa(i * 10)
+		f := float32(i)
 		// BUG m := M(i, i+1)
 		if mib[i] != (i != 0) {
 			fmt.Printf("mib[%d] = %t\n", i, mib[i])
 		}
-		if(mii[i] != 10*i) {
+		if mii[i] != 10*i {
 			fmt.Printf("mii[%d] = %d\n", i, mii[i])
 		}
-		if(mfi[f] != 10*i) {
+		if mfi[f] != 10*i {
 			fmt.Printf("mfi[%d] = %d\n", i, mfi[f])
 		}
-		if(mif[i] != 10.0*f) {
+		if mif[i] != 10.0*f {
 			fmt.Printf("mif[%d] = %g\n", i, mif[i])
 		}
-		if(mis[i] != s) {
+		if mis[i] != s {
 			fmt.Printf("mis[%d] = %s\n", i, mis[i])
 		}
-		if(msi[s] != i) {
+		if msi[s] != i {
 			fmt.Printf("msi[%s] = %d\n", s, msi[s])
 		}
 		if mss[s] != s10 {
@@ -166,22 +166,22 @@ func main() {
 				fmt.Printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j])
 			}
 		}
-		if(mipT[i].i != int64(i) || mipT[i].f != f) {
+		if mipT[i].i != int64(i) || mipT[i].f != f {
 			fmt.Printf("mipT[%d] = %v\n", i, mipT[i])
 		}
-		if(mpTi[apT[i]] != i) {
+		if mpTi[apT[i]] != i {
 			fmt.Printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]])
 		}
-	//	if(mti[t] != i) {
-	//		fmt.Printf("mti[%s] = %s\n", s, mti[t])
-	//	}
-		if (mipM[i][i] != i + 1) {
+		//	if(mti[t] != i) {
+		//		fmt.Printf("mti[%s] = %s\n", s, mti[t])
+		//	}
+		if mipM[i][i] != i+1 {
 			fmt.Printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i])
 		}
-	//	if(mti[t] != i) {
-	//		fmt.Printf("mti[%v] = %d\n", t, mti[t])
-	//	}
-		if(mit[i].i != int64(i) || mit[i].f != f) {
+		//	if(mti[t] != i) {
+		//		fmt.Printf("mti[%v] = %d\n", t, mti[t])
+		//	}
+		if mit[i].i != int64(i) || mit[i].f != f {
 			fmt.Printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f)
 		}
 	}
@@ -190,7 +190,7 @@ func main() {
 	// failed lookups yield a false value for the boolean.
 	for i := 0; i < count; i++ {
 		s := strconv.Itoa(i)
-		f := float(i)
+		f := float32(i)
 		{
 			_, b := mib[i]
 			if !b {
@@ -311,23 +311,23 @@ func main() {
 				fmt.Printf("tuple existence assign: mit[%d]\n", i)
 			}
 		}
-//		{
-//			_, b := mti[t]
-//			if !b {
-//				fmt.Printf("tuple existence decl: mti[%d]\n", i)
-//			}
-//			_, b = mti[t]
-//			if !b {
-//				fmt.Printf("tuple existence assign: mti[%d]\n", i)
-//			}
-//		}
+		//		{
+		//			_, b := mti[t]
+		//			if !b {
+		//				fmt.Printf("tuple existence decl: mti[%d]\n", i)
+		//			}
+		//			_, b = mti[t]
+		//			if !b {
+		//				fmt.Printf("tuple existence assign: mti[%d]\n", i)
+		//			}
+		//		}
 	}
 
 	// test nonexistence with tuple check
 	// failed lookups yield a false value for the boolean.
 	for i := count; i < 2*count; i++ {
 		s := strconv.Itoa(i)
-		f := float(i)
+		f := float32(i)
 		{
 			_, b := mib[i]
 			if b {
@@ -438,16 +438,16 @@ func main() {
 				fmt.Printf("tuple nonexistence assign: mipM[%d]", i)
 			}
 		}
-//		{
-//			_, b := mti[t]
-//			if b {
-//				fmt.Printf("tuple nonexistence decl: mti[%d]", i)
-//			}
-//			_, b = mti[t]
-//			if b {
-//				fmt.Printf("tuple nonexistence assign: mti[%d]", i)
-//			}
-//		}
+		//		{
+		//			_, b := mti[t]
+		//			if b {
+		//				fmt.Printf("tuple nonexistence decl: mti[%d]", i)
+		//			}
+		//			_, b = mti[t]
+		//			if b {
+		//				fmt.Printf("tuple nonexistence assign: mti[%d]", i)
+		//			}
+		//		}
 		{
 			_, b := mit[i]
 			if b {
@@ -460,32 +460,31 @@ func main() {
 		}
 	}
 
-
 	// tests for structured map element updates
 	for i := 0; i < count; i++ {
 		s := strconv.Itoa(i)
-		mspa[s][i % 2] = "deleted"
-		if mspa[s][i % 2] != "deleted" {
-			fmt.Printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2])
+		mspa[s][i%2] = "deleted"
+		if mspa[s][i%2] != "deleted" {
+			fmt.Printf("update mspa[%s][%d] = %s\n", s, i%2, mspa[s][i%2])
 		}
 
 		mipT[i].i += 1
 		if mipT[i].i != int64(i)+1 {
 			fmt.Printf("update mipT[%d].i = %d\n", i, mipT[i].i)
 		}
-		mipT[i].f = float(i + 1)
-		if (mipT[i].f != float(i + 1)) {
+		mipT[i].f = float32(i + 1)
+		if mipT[i].f != float32(i+1) {
 			fmt.Printf("update mipT[%d].f = %g\n", i, mipT[i].f)
 		}
 
 		mipM[i][i]++
-		if mipM[i][i] != (i + 1) + 1 {
+		if mipM[i][i] != (i+1)+1 {
 			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i])
 		}
 	}
 
 	// test range on nil map
-	var mnil map[string] int
+	var mnil map[string]int
 	for _, _ = range mnil {
 		panic("range mnil")
 	}

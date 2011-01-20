@@ -166,22 +166,6 @@ func (s *stringValue) Set(val string) bool {
 
 func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
 
-// -- Float Value
-type floatValue float
-
-func newFloatValue(val float, p *float) *floatValue {
-	*p = val
-	return (*floatValue)(p)
-}
-
-func (f *floatValue) Set(s string) bool {
-	v, err := strconv.Atof(s)
-	*f = floatValue(v)
-	return err == nil
-}
-
-func (f *floatValue) String() string { return fmt.Sprintf("%v", *f) }
-
 // -- Float64 Value
 type float64Value float64
 
@@ -382,20 +366,6 @@ func StringVar(p *string, name, value string, usage string) {
 func String(name, value string, usage string) *string {
 	p := new(string)
 	StringVar(p, name, value, usage)
-	return p
-}
-
-// FloatVar defines a float flag with specified name, default value, and usage string.
-// The argument p points to a float variable in which to store the value of the flag.
-func FloatVar(p *float, name string, value float, usage string) {
-	Var(newFloatValue(value, p), name, usage)
-}
-
-// Float defines a float flag with specified name, default value, and usage string.
-// The return value is the address of a float variable that stores the value of the flag.
-func Float(name string, value float, usage string) *float {
-	p := new(float)
-	FloatVar(p, name, value, usage)
 	return p
 }
 

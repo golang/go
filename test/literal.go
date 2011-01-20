@@ -18,7 +18,7 @@ func assert(cond bool, msg string) {
 	}
 }
 
-func equal(a, b float) bool {
+func equal(a, b float32) bool {
 	return a == b
 }
 
@@ -116,23 +116,23 @@ func main() {
 	_, _, _, _ = u30, u31, u32, u33
 
 	// float
-	var f00 float = 3.14159
-	var f01 float = -3.14159
-	var f02 float = +3.14159
-	var f03 float = 0.0
-	var f04 float = .0
-	var f05 float = 0.
-	var f06 float = -0.0
-	var f07 float = 1e10
-	var f08 float = -1e10
-	var f09 float = 1e-10
-	var f10 float = 1e+10
-	var f11 float = 1.e-10
-	var f12 float = 1.e+10
-	var f13 float = .1e-10
-	var f14 float = .1e+10
-	var f15 float = 1.1e-10
-	var f16 float = 1.1e+10
+	var f00 float32 = 3.14159
+	var f01 float32 = -3.14159
+	var f02 float32 = +3.14159
+	var f03 float32 = 0.0
+	var f04 float32 = .0
+	var f05 float32 = 0.
+	var f06 float32 = -0.0
+	var f07 float32 = 1e10
+	var f08 float32 = -1e10
+	var f09 float32 = 1e-10
+	var f10 float32 = 1e+10
+	var f11 float32 = 1.e-10
+	var f12 float32 = 1.e+10
+	var f13 float32 = .1e-10
+	var f14 float32 = .1e+10
+	var f15 float32 = 1.1e-10
+	var f16 float32 = 1.1e+10
 	assert(f01 == -f00, "f01")
 	assert(f02 == -f01, "f02")
 	assert(f03 == f04, "f03")

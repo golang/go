@@ -355,15 +355,15 @@ var expSC = []complex128{
 	NaN(),
 }
 var vcIsNaNSC = []complex128{
-	cmplx(math.Inf(-1), math.Inf(-1)),
-	cmplx(math.Inf(-1), math.NaN()),
-	cmplx(math.NaN(), math.Inf(-1)),
-	cmplx(0, math.NaN()),
-	cmplx(math.NaN(), 0),
-	cmplx(math.Inf(1), math.Inf(1)),
-	cmplx(math.Inf(1), math.NaN()),
-	cmplx(math.NaN(), math.Inf(1)),
-	cmplx(math.NaN(), math.NaN()),
+	complex(math.Inf(-1), math.Inf(-1)),
+	complex(math.Inf(-1), math.NaN()),
+	complex(math.NaN(), math.Inf(-1)),
+	complex(0, math.NaN()),
+	complex(math.NaN(), 0),
+	complex(math.Inf(1), math.Inf(1)),
+	complex(math.Inf(1), math.NaN()),
+	complex(math.NaN(), math.Inf(1)),
+	complex(math.NaN(), math.NaN()),
 }
 var isNaNSC = []bool{
 	false,
@@ -656,7 +656,7 @@ func TestPolar(t *testing.T) {
 	}
 }
 func TestPow(t *testing.T) {
-	var a = cmplx(float64(3), float64(3))
+	var a = complex(3.0, 3.0)
 	for i := 0; i < len(vc); i++ {
 		if f := Pow(a, vc[i]); !cSoclose(pow[i], f, 4e-15) {
 			t.Errorf("Pow(%g, %g) = %g, want %g", a, vc[i], f, pow[i])
@@ -743,82 +743,82 @@ func TestTanh(t *testing.T) {
 
 func BenchmarkAbs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Abs(cmplx(2.5, 3.5))
+		Abs(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAcos(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Acos(cmplx(2.5, 3.5))
+		Acos(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAcosh(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Acosh(cmplx(2.5, 3.5))
+		Acosh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAsin(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Asin(cmplx(2.5, 3.5))
+		Asin(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAsinh(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Asinh(cmplx(2.5, 3.5))
+		Asinh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAtan(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Atan(cmplx(2.5, 3.5))
+		Atan(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAtanh(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Atanh(cmplx(2.5, 3.5))
+		Atanh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkConj(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Conj(cmplx(2.5, 3.5))
+		Conj(complex(2.5, 3.5))
 	}
 }
 func BenchmarkCos(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Cos(cmplx(2.5, 3.5))
+		Cos(complex(2.5, 3.5))
 	}
 }
 func BenchmarkCosh(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Cosh(cmplx(2.5, 3.5))
+		Cosh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkExp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Exp(cmplx(2.5, 3.5))
+		Exp(complex(2.5, 3.5))
 	}
 }
 func BenchmarkLog(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Log(cmplx(2.5, 3.5))
+		Log(complex(2.5, 3.5))
 	}
 }
 func BenchmarkLog10(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Log10(cmplx(2.5, 3.5))
+		Log10(complex(2.5, 3.5))
 	}
 }
 func BenchmarkPhase(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Phase(cmplx(2.5, 3.5))
+		Phase(complex(2.5, 3.5))
 	}
 }
 func BenchmarkPolar(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Polar(cmplx(2.5, 3.5))
+		Polar(complex(2.5, 3.5))
 	}
 }
 func BenchmarkPow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Pow(cmplx(2.5, 3.5), cmplx(2.5, 3.5))
+		Pow(complex(2.5, 3.5), complex(2.5, 3.5))
 	}
 }
 func BenchmarkRect(b *testing.B) {
@@ -828,26 +828,26 @@ func BenchmarkRect(b *testing.B) {
 }
 func BenchmarkSin(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Sin(cmplx(2.5, 3.5))
+		Sin(complex(2.5, 3.5))
 	}
 }
 func BenchmarkSinh(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Sinh(cmplx(2.5, 3.5))
+		Sinh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkSqrt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Sqrt(cmplx(2.5, 3.5))
+		Sqrt(complex(2.5, 3.5))
 	}
 }
 func BenchmarkTan(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Tan(cmplx(2.5, 3.5))
+		Tan(complex(2.5, 3.5))
 	}
 }
 func BenchmarkTanh(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Tanh(cmplx(2.5, 3.5))
+		Tanh(complex(2.5, 3.5))
 	}
 }

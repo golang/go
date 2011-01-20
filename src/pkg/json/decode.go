@@ -749,7 +749,7 @@ func (d *decodeState) literalInterface() interface{} {
 		}
 		n, err := strconv.Atof64(string(item))
 		if err != nil {
-			d.saveError(&UnmarshalTypeError{"number " + string(item), reflect.Typeof(float64(0))})
+			d.saveError(&UnmarshalTypeError{"number " + string(item), reflect.Typeof(0.0)})
 		}
 		return n
 	}

@@ -602,7 +602,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 				case ac.rmt.Elems[i].isInteger():
 					lt = IntType
 				case ac.rmt.Elems[i].isFloat():
-					lt = FloatType
+					lt = Float64Type
 				default:
 					log.Panicf("unexpected ideal type %v", rs[i].t)
 				}

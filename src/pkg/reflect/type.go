@@ -264,10 +264,8 @@ const (
 	Uint32
 	Uint64
 	Uintptr
-	Float
 	Float32
 	Float64
-	Complex
 	Complex64
 	Complex128
 	Array
@@ -306,9 +304,10 @@ var kindNames = []string{
 	Uint32:        "uint32",
 	Uint64:        "uint64",
 	Uintptr:       "uintptr",
-	Float:         "float",
 	Float32:       "float32",
 	Float64:       "float64",
+	Complex64:     "complex64",
+	Complex128:    "complex128",
 	Array:         "array",
 	Chan:          "chan",
 	Func:          "func",

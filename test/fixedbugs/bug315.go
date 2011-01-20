@@ -9,7 +9,7 @@
 package main
 
 func main() {
-	a := cmplx(2, 2)
+	a := complex(2, 2)
 	a /= 2
 }
 
