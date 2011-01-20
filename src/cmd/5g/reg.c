@@ -143,7 +143,7 @@ regopt(Prog *firstp)
 	first++;
 
 	if(debug['K']) {
-		if(first != 4)
+		if(first != 1)
 			return;
 //		debug['R'] = 2;
 //		debug['P'] = 2;
@@ -191,21 +191,6 @@ regopt(Prog *firstp)
 		case ANAME:
 		case ASIGNAME:
 			continue;
-
-		case AMOVW:
-			// mark instructions that set SP
-			if(p->to.type == D_REG) {
-				switch(p->to.reg) {
-				case REGSP:
-				case REGLINK:
-				case REGPC:
-					r->nomove = 1;
-					break;
-				}
-			}
-			if(p->scond != C_SCOND_NONE)
-				r->nomove = 1;
-			break;
 		}
 		r = rega();
 		nr++;
@@ -323,6 +308,7 @@ regopt(Prog *firstp)
 	if(debug['R']) {
 		p = firstr->prog;
 		print("\n%L %D\n", p->lineno, &p->from);
+		print("	addr = %Q\n", addrs);
 	}
 
 	/*
@@ -386,6 +372,7 @@ loop2:
 					r->refahead.b[z] | r->calahead.b[z] |
 					r->refbehind.b[z] | r->calbehind.b[z] |
 					r->use1.b[z] | r->use2.b[z];
+				bit.b[z] &= ~addrs.b[z];
 			}
 
 			if(bany(&bit)) {
@@ -511,18 +498,61 @@ brk:
 	 * last pass
 	 * eliminate nops
 	 * free aux structures
+	 * adjust the stack pointer
+	 *	MOVW.W 	R1,-12(R13)			<<- start
+	 *	MOVW   	R0,R1
+	 *	MOVW   	R1,8(R13)
+	 *	MOVW   	$0,R1
+	 *	MOVW   	R1,4(R13)
+	 *	BL     	,runtime.newproc+0(SB)
+	 *	MOVW   	&ft+-32(SP),R7			<<- adjust
+	 *	MOVW   	&j+-40(SP),R6			<<- adjust
+	 *	MOVW   	autotmp_0003+-24(SP),R5		<<- adjust
+	 *	MOVW   	$12(R13),R13			<<- finish
 	 */
+	vreg = 0;
 	for(p = firstp; p != P; p = p->link) {
 		while(p->link != P && p->link->as == ANOP)
 			p->link = p->link->link;
 		if(p->to.type == D_BRANCH)
 			while(p->to.branch != P && p->to.branch->as == ANOP)
 				p->to.branch = p->to.branch->link;
+		if(p->as == AMOVW && p->to.reg == 13) {
+			if(p->scond & C_WBIT) {
+				vreg = -p->to.offset;		// in adjust region
+//				print("%P adjusting %d\n", p, vreg);
+				continue;
+			}
+			if(p->from.type == D_CONST && p->to.type == D_REG) {
+				if(p->from.offset != vreg)
+					print("in and out different\n");
+//				print("%P finish %d\n", p, vreg);
+				vreg = 0;	// done adjust region
+				continue;
+			}
+
+//			print("%P %d %d from type\n", p, p->from.type, D_CONST);
+//			print("%P %d %d to type\n\n", p, p->to.type, D_REG);
+		}
+
+		if(p->as == AMOVW && vreg != 0) {
+			if(p->from.sym != S)
+			if(p->from.name == D_AUTO || p->from.name == D_PARAM) {
+				p->from.offset += vreg;
+//				print("%P adjusting from %d %d\n", p, vreg, p->from.type);
+			}
+			if(p->to.sym != S)
+			if(p->to.name == D_AUTO || p->to.name == D_PARAM) {
+				p->to.offset += vreg;
+//				print("%P adjusting to %d %d\n", p, vreg, p->from.type);
+			}
+		}
 	}
 	if(r1 != R) {
 		r1->link = freer;
 		freer = firstr;
 	}
+
 }
 
 void
@@ -1207,12 +1237,6 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 			break;
 		r = r1;
 	}
-
-	// horrible hack to prevent loading a
-	// variable after a call (to defer) but
-	// before popping the SP.
-	if(r->prog->as == ABL && r->nomove)
-		r = r->p1;
 
 	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb)
 		addmove(r, bn, rn, 0);

@@ -69,7 +69,6 @@ struct	Reg
 
 	uint16	loop;		// x5 for every loop
 	uchar	refset;		// diagnostic generated
-	uchar	nomove;		// funny mov instruction
 
 	Reg*	p1;
 	Reg*	p2;
