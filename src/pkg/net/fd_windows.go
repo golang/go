@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
-	"runtime"
 )
 
 // IO completion result parameters.
