@@ -99,6 +99,7 @@ enum {
 	IMAGE_SCN_MEM_EXECUTE = 0x20000000,
 	IMAGE_SCN_MEM_READ = 0x40000000,
 	IMAGE_SCN_MEM_WRITE = 0x80000000,
+	IMAGE_SCN_MEM_DISCARDABLE = 0x2000000,
 
 	IMAGE_DIRECTORY_ENTRY_EXPORT = 0,
 	IMAGE_DIRECTORY_ENTRY_IMPORT = 1,
@@ -121,6 +122,8 @@ enum {
 void peinit(void);
 void asmbpe(void);
 void dope(void);
+
+IMAGE_SECTION_HEADER* newPEDWARFSection(char *name, vlong size);
 
 // X64
 typedef struct {

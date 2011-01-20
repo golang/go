@@ -27,3 +27,4 @@ void dwarfaddshstrings(Sym *shstrtab);
  */
 void dwarfaddelfheaders(void);
 void dwarfaddmachoheaders(void);
+void dwarfaddpeheaders(void);

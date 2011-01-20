@@ -10,6 +10,7 @@
 #include "l.h"
 #include "../ld/lib.h"
 #include "../ld/pe.h"
+#include "../ld/dwarf.h"
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
@@ -32,6 +33,9 @@ static char dosstub[] =
 	0x6d, 0x6f, 0x64, 0x65, 0x2e, 0x0d, 0x0d, 0x0a,
 	0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
+
+static char symnames[256]; 
+static int  nextsymoff;
 
 int32 PESECTHEADR;
 int32 PEFILEHEADR;
@@ -307,6 +311,60 @@ dope(void)
 	initdynimport();
 }
 
+/*
+ * For more than 8 characters section names, name contains a slash (/) that is 
+ * followed by an ASCII representation of a decimal number that is an offset into 
+ * the string table. 
+ * reference: pecoff_v8.docx Page 24.
+ * <http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx>
+ */
+IMAGE_SECTION_HEADER*
+newPEDWARFSection(char *name, vlong size)
+{
+	IMAGE_SECTION_HEADER *h;
+	char s[8];
+
+	if(nextsymoff+strlen(name)+1 > sizeof(symnames)) {
+		diag("pe string table is full");
+		errorexit();
+	}
+
+	strcpy(&symnames[nextsymoff], name);
+	sprint(s, "/%d\0", nextsymoff+4);
+	nextsymoff += strlen(name);
+	symnames[nextsymoff] = 0;
+	nextsymoff ++;
+	h = addpesection(s, size, size, 0);
+	h->Characteristics = IMAGE_SCN_MEM_READ|
+		IMAGE_SCN_MEM_DISCARDABLE;
+
+	return h;
+}
+
+static void
+addsymtable(void)
+{
+	IMAGE_SECTION_HEADER *h;
+	int i, size;
+	
+	if(nextsymoff == 0)
+		return;
+	
+	size  = nextsymoff + 4;
+	h = addpesection(".symtab", size, size, 0);
+	h->Characteristics = IMAGE_SCN_MEM_READ|
+		IMAGE_SCN_MEM_DISCARDABLE;
+	fh.PointerToSymbolTable = cpos();
+	fh.NumberOfSymbols = 0;
+	// put symbol string table
+	lputl(size);
+	for (i=0; i<nextsymoff; i++)
+		cput(symnames[i]);
+	strnput("", h->SizeOfRawData - size);
+	cflush();
+}
+
+
 void
 asmbpe(void)
 {
@@ -334,7 +392,12 @@ asmbpe(void)
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 
 	addimports(nextfileoff, d);
+	
+	if(!debug['s'])
+		dwarfaddpeheaders();
 
+	addsymtable();
+		
 	fh.NumberOfSections = nsect;
 	fh.TimeDateStamp = time(0);
 	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
@@ -402,3 +465,4 @@ asmbpe(void)
 
 	pewrite();
 }
+
