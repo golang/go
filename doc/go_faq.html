@@ -665,11 +665,16 @@ of Effective Go</a> for more details.
 Why is <code>int</code> 32 bits on 64 bit machines?</h3>
 
 <p>
-The size of <code>int</code> and <code>float</code> is implementation-specific.
+The sizes of <code>int</code> and <code>uint</code> are implementation-specific
+but the same as each other on a given platform.
 The 64 bit Go compilers (both 6g and gccgo) use a 32 bit representation for
-both <code>int</code> and <code>float</code>.  Code that relies on a particular
-size of value should use an explicitly sized type, like <code>int64</code> or
-<code>float64</code>.
+<code>int</code>.  Code that relies on a particular
+size of value should use an explicitly sized type, like <code>int64</code>.
+On the other hand, floating-point scalars and complex
+numbers are always sized: <code>float32</code>, <code>complex64</code>,
+etc., because programmers should be aware of precision when using
+floating-point numbers.
+The default size of a floating-point constant is <code>float64</code>.
 </p>
 
 <h2 id="Concurrency">Concurrency</h2>

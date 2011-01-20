@@ -1124,14 +1124,14 @@ you can pass a pointer to the array.
 </p>
 
 <pre>
-func Sum(a *[3]float) (sum float) {
+func Sum(a *[3]float64) (sum float64) {
     for _, v := range *a {
         sum += v
     }
     return
 }
 
-array := [...]float{7.0, 8.5, 9.1}
+array := [...]float64{7.0, 8.5, 9.1}
 x := Sum(&amp;array)  // Note the explicit address-of operator
 </pre>
 
@@ -1233,7 +1233,8 @@ Maps are a convenient and powerful built-in data structure to associate
 values of different types.
 The key can be of any type for which the equality operator is defined,
 such as integers,
-floats, strings, pointers, and interfaces (as long as the dynamic type
+floating point and complex numbers,
+strings, pointers, and interfaces (as long as the dynamic type
 supports equality).  Structs, arrays and slices cannot be used as map keys,
 because equality is not defined on those types.
 Like slices, maps are a reference type. If you pass a map to a function
@@ -1806,7 +1807,7 @@ Because the two types (<code>Sequence</code> and <code>[]int</code>)
 are the same if we ignore the type name, it's legal to convert between them.
 The conversion doesn't create a new value, it just temporarily acts
 as though the existing value has a new type.
-(There are other legal conversions, such as from integer to float, that
+(There are other legal conversions, such as from integer to floating point, that
 do create a new value.)
 </p>
 <p>
