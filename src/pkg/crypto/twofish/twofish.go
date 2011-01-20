@@ -51,9 +51,9 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 	var S [4 * 4]byte
 	for i := 0; i < k; i++ {
 		// Computes [y0 y1 y2 y3] = rs . [x0 x1 x2 x3 x4 x5 x6 x7]
-		for j := 0; j < 4; j++ {
-			for k := 0; k < 8; k++ {
-				S[4*i+j] ^= gfMult(key[8*i+k], rs[j][k], rsPolynomial)
+		for j, rsRow := range rs {
+			for k, rsVal := range rsRow {
+				S[4*i+j] ^= gfMult(key[8*i+k], rsVal, rsPolynomial)
 			}
 		}
 	}
@@ -63,13 +63,13 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 	var tmp [4]byte
 	for i := byte(0); i < 20; i++ {
 		// A = h(p * 2x, Me)
-		for j := 0; j < 4; j++ {
+		for j := range tmp {
 			tmp[j] = 2 * i
 		}
 		A := h(tmp[:], key, 0)
 
 		// B = rolc(h(p * (2x + 1), Mo), 8)
-		for j := 0; j < 4; j++ {
+		for j := range tmp {
 			tmp[j] = 2*i + 1
 		}
 		B := h(tmp[:], key, 1)
@@ -84,21 +84,21 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 	// Calculate sboxes
 	switch k {
 	case 2:
-		for i := 0; i <= 255; i++ {
+		for i := range c.s[0] {
 			c.s[0][i] = mdsColumnMult(sbox[1][sbox[0][sbox[0][byte(i)]^S[0]]^S[4]], 0)
 			c.s[1][i] = mdsColumnMult(sbox[0][sbox[0][sbox[1][byte(i)]^S[1]]^S[5]], 1)
 			c.s[2][i] = mdsColumnMult(sbox[1][sbox[1][sbox[0][byte(i)]^S[2]]^S[6]], 2)
 			c.s[3][i] = mdsColumnMult(sbox[0][sbox[1][sbox[1][byte(i)]^S[3]]^S[7]], 3)
 		}
 	case 3:
-		for i := 0; i < 256; i++ {
+		for i := range c.s[0] {
 			c.s[0][i] = mdsColumnMult(sbox[1][sbox[0][sbox[0][sbox[1][byte(i)]^S[0]]^S[4]]^S[8]], 0)
 			c.s[1][i] = mdsColumnMult(sbox[0][sbox[0][sbox[1][sbox[1][byte(i)]^S[1]]^S[5]]^S[9]], 1)
 			c.s[2][i] = mdsColumnMult(sbox[1][sbox[1][sbox[0][sbox[0][byte(i)]^S[2]]^S[6]]^S[10]], 2)
 			c.s[3][i] = mdsColumnMult(sbox[0][sbox[1][sbox[1][sbox[0][byte(i)]^S[3]]^S[7]]^S[11]], 3)
 		}
 	default:
-		for i := 0; i < 256; i++ {
+		for i := range c.s[0] {
 			c.s[0][i] = mdsColumnMult(sbox[1][sbox[0][sbox[0][sbox[1][sbox[1][byte(i)]^S[0]]^S[4]]^S[8]]^S[12]], 0)
 			c.s[1][i] = mdsColumnMult(sbox[0][sbox[0][sbox[1][sbox[1][sbox[0][byte(i)]^S[1]]^S[5]]^S[9]]^S[13]], 1)
 			c.s[2][i] = mdsColumnMult(sbox[1][sbox[1][sbox[0][sbox[0][sbox[0][byte(i)]^S[2]]^S[6]]^S[10]]^S[14]], 2)
@@ -112,10 +112,10 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 // Reset zeros the key data, so that it will no longer appear in the process's
 // memory.
 func (c *Cipher) Reset() {
-	for i := 0; i < 40; i++ {
+	for i := range c.k {
 		c.k[i] = 0
 	}
-	for i := 0; i < 4; i++ {
+	for i := range c.s {
 		for j := 0; j < 265; j++ {
 			c.s[i][j] = 0
 		}
@@ -213,7 +213,7 @@ func gfMult(a, b byte, p uint32) byte {
 	return byte(result)
 }
 
-// mdsColumnMult calculates y{col} where [y0 y1 y2 y3] = MDS . [x0]
+// mdsColumnMult calculates y{col} where [y0 y1 y2 y3] = MDS · [x0]
 func mdsColumnMult(in byte, col int) uint32 {
 	mul01 := in
 	mul5B := gfMult(in, 0x5B, mdsPolynomial)
@@ -236,7 +236,7 @@ func mdsColumnMult(in byte, col int) uint32 {
 // h implements the S-box generation function. See [TWOFISH] 4.3.5
 func h(in, key []byte, offset int) uint32 {
 	var y [4]byte
-	for x := 0; x < 4; x++ {
+	for x := range y {
 		y[x] = in[x]
 	}
 	switch len(key) / 8 {
@@ -260,7 +260,7 @@ func h(in, key []byte, offset int) uint32 {
 	}
 	// [y0 y1 y2 y3] = MDS . [x0 x1 x2 x3]
 	var mdsMult uint32
-	for i := 0; i < 4; i++ {
+	for i := range y {
 		mdsMult ^= mdsColumnMult(y[i], i)
 	}
 	return mdsMult
@@ -270,42 +270,42 @@ func h(in, key []byte, offset int) uint32 {
 // Note that for amounts of data larger than a block,
 // it is not safe to just call Encrypt on successive blocks;
 // instead, use an encryption mode like CBC (see crypto/block/cbc.go).
-func (skey *Cipher) Encrypt(dst, src []byte) {
-	S1 := skey.s[0]
-	S2 := skey.s[1]
-	S3 := skey.s[2]
-	S4 := skey.s[3]
+func (c *Cipher) Encrypt(dst, src []byte) {
+	S1 := c.s[0]
+	S2 := c.s[1]
+	S3 := c.s[2]
+	S4 := c.s[3]
 
 	// Load input
-	a := load32l(src[0:4])
-	b := load32l(src[4:8])
-	c := load32l(src[8:12])
-	d := load32l(src[12:16])
+	ia := load32l(src[0:4])
+	ib := load32l(src[4:8])
+	ic := load32l(src[8:12])
+	id := load32l(src[12:16])
 
 	// Pre-whitening
-	a ^= skey.k[0]
-	b ^= skey.k[1]
-	c ^= skey.k[2]
-	d ^= skey.k[3]
+	ia ^= c.k[0]
+	ib ^= c.k[1]
+	ic ^= c.k[2]
+	id ^= c.k[3]
 
 	for i := 0; i < 8; i++ {
-		k := skey.k[8+i*4 : 12+i*4]
-		t2 := S2[byte(b)] ^ S3[byte(b>>8)] ^ S4[byte(b>>16)] ^ S1[byte(b>>24)]
-		t1 := S1[byte(a)] ^ S2[byte(a>>8)] ^ S3[byte(a>>16)] ^ S4[byte(a>>24)] + t2
-		c = ror(c^(t1+k[0]), 1)
-		d = rol(d, 1) ^ (t2 + t1 + k[1])
+		k := c.k[8+i*4 : 12+i*4]
+		t2 := S2[byte(ib)] ^ S3[byte(ib>>8)] ^ S4[byte(ib>>16)] ^ S1[byte(ib>>24)]
+		t1 := S1[byte(ia)] ^ S2[byte(ia>>8)] ^ S3[byte(ia>>16)] ^ S4[byte(ia>>24)] + t2
+		ic = ror(ic^(t1+k[0]), 1)
+		id = rol(id, 1) ^ (t2 + t1 + k[1])
 
-		t2 = S2[byte(d)] ^ S3[byte(d>>8)] ^ S4[byte(d>>16)] ^ S1[byte(d>>24)]
-		t1 = S1[byte(c)] ^ S2[byte(c>>8)] ^ S3[byte(c>>16)] ^ S4[byte(c>>24)] + t2
-		a = ror(a^(t1+k[2]), 1)
-		b = rol(b, 1) ^ (t2 + t1 + k[3])
+		t2 = S2[byte(id)] ^ S3[byte(id>>8)] ^ S4[byte(id>>16)] ^ S1[byte(id>>24)]
+		t1 = S1[byte(ic)] ^ S2[byte(ic>>8)] ^ S3[byte(ic>>16)] ^ S4[byte(ic>>24)] + t2
+		ia = ror(ia^(t1+k[2]), 1)
+		ib = rol(ib, 1) ^ (t2 + t1 + k[3])
 	}
 
 	// Output with "undo last swap"
-	ta := c ^ skey.k[4]
-	tb := d ^ skey.k[5]
-	tc := a ^ skey.k[6]
-	td := b ^ skey.k[7]
+	ta := ic ^ c.k[4]
+	tb := id ^ c.k[5]
+	tc := ia ^ c.k[6]
+	td := ib ^ c.k[7]
 
 	store32l(dst[0:4], ta)
 	store32l(dst[4:8], tb)
@@ -314,11 +314,11 @@ func (skey *Cipher) Encrypt(dst, src []byte) {
 }
 
 // Decrypt decrypts a 16-byte block from src to dst, which may overlap.
-func (skey *Cipher) Decrypt(dst, src []byte) {
-	S1 := skey.s[0]
-	S2 := skey.s[1]
-	S3 := skey.s[2]
-	S4 := skey.s[3]
+func (c *Cipher) Decrypt(dst, src []byte) {
+	S1 := c.s[0]
+	S2 := c.s[1]
+	S3 := c.s[2]
+	S4 := c.s[3]
 
 	// Load input
 	ta := load32l(src[0:4])
@@ -327,32 +327,32 @@ func (skey *Cipher) Decrypt(dst, src []byte) {
 	td := load32l(src[12:16])
 
 	// Undo undo final swap
-	a := tc ^ skey.k[6]
-	b := td ^ skey.k[7]
-	c := ta ^ skey.k[4]
-	d := tb ^ skey.k[5]
+	ia := tc ^ c.k[6]
+	ib := td ^ c.k[7]
+	ic := ta ^ c.k[4]
+	id := tb ^ c.k[5]
 
 	for i := 8; i > 0; i-- {
-		k := skey.k[4+i*4 : 8+i*4]
-		t2 := S2[byte(d)] ^ S3[byte(d>>8)] ^ S4[byte(d>>16)] ^ S1[byte(d>>24)]
-		t1 := S1[byte(c)] ^ S2[byte(c>>8)] ^ S3[byte(c>>16)] ^ S4[byte(c>>24)] + t2
-		a = rol(a, 1) ^ (t1 + k[2])
-		b = ror(b^(t2+t1+k[3]), 1)
+		k := c.k[4+i*4 : 8+i*4]
+		t2 := S2[byte(id)] ^ S3[byte(id>>8)] ^ S4[byte(id>>16)] ^ S1[byte(id>>24)]
+		t1 := S1[byte(ic)] ^ S2[byte(ic>>8)] ^ S3[byte(ic>>16)] ^ S4[byte(ic>>24)] + t2
+		ia = rol(ia, 1) ^ (t1 + k[2])
+		ib = ror(ib^(t2+t1+k[3]), 1)
 
-		t2 = S2[byte(b)] ^ S3[byte(b>>8)] ^ S4[byte(b>>16)] ^ S1[byte(b>>24)]
-		t1 = S1[byte(a)] ^ S2[byte(a>>8)] ^ S3[byte(a>>16)] ^ S4[byte(a>>24)] + t2
-		c = rol(c, 1) ^ (t1 + k[0])
-		d = ror(d^(t2+t1+k[1]), 1)
+		t2 = S2[byte(ib)] ^ S3[byte(ib>>8)] ^ S4[byte(ib>>16)] ^ S1[byte(ib>>24)]
+		t1 = S1[byte(ia)] ^ S2[byte(ia>>8)] ^ S3[byte(ia>>16)] ^ S4[byte(ia>>24)] + t2
+		ic = rol(ic, 1) ^ (t1 + k[0])
+		id = ror(id^(t2+t1+k[1]), 1)
 	}
 
 	// Undo pre-whitening
-	a ^= skey.k[0]
-	b ^= skey.k[1]
-	c ^= skey.k[2]
-	d ^= skey.k[3]
+	ia ^= c.k[0]
+	ib ^= c.k[1]
+	ic ^= c.k[2]
+	id ^= c.k[3]
 
-	store32l(dst[0:4], a)
-	store32l(dst[4:8], b)
-	store32l(dst[8:12], c)
-	store32l(dst[12:16], d)
+	store32l(dst[0:4], ia)
+	store32l(dst[4:8], ib)
+	store32l(dst[8:12], ic)
+	store32l(dst[12:16], id)
 }
