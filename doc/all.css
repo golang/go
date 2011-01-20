@@ -157,6 +157,10 @@ h1#title {
 pre.ebnf, pre.grammar {
   background: #FFFFE0;
 }
+span.ln {
+  font-size: 80%;
+  color: #777777;
+}
 span.comment {
   color: #002090;
 }
