@@ -69,6 +69,7 @@ void
 main(int argc, char *argv[])
 {
 	int c, i;
+	char *p;
 
 	Binit(&bso, 1, OWRITE);
 	cout = -1;
@@ -80,6 +81,10 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
+	
+	p = getenv("GOARM");
+	if(p != nil && strcmp(p, "5") == 0)
+		debug['F'] = 1;
 
 	ARGBEGIN {
 	default:
