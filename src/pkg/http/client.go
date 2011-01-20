@@ -120,6 +120,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 	// TODO: if/when we add cookie support, the redirected request shouldn't
 	// necessarily supply the same cookies as the original.
 	// TODO: set referrer header on redirects.
+	var base *URL
 	for redirect := 0; ; redirect++ {
 		if redirect >= 10 {
 			err = os.ErrorString("stopped after 10 redirects")
@@ -127,7 +128,12 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 		}
 
 		var req Request
-		if req.URL, err = ParseURL(url); err != nil {
+		if base == nil {
+			req.URL, err = ParseURL(url)
+		} else {
+			req.URL, err = base.ParseURL(url)
+		}
+		if err != nil {
 			break
 		}
 		url = req.URL.String()
@@ -140,6 +146,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 				err = os.ErrorString(fmt.Sprintf("%d response missing Location header", r.StatusCode))
 				break
 			}
+			base = req.URL
 			continue
 		}
 		finalURL = url
