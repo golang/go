@@ -20,6 +20,9 @@ Original options are listed in the link above.
 
 Options new in this version:
 
+-F
+	Force use of software floating point.
+	Also implied by setting GOARM=5 in the environment.
 -L dir1 -L dir2
 	Search for libraries (package files) in dir1, dir2, etc.
 	The default is the single location $GOROOT/pkg/$GOOS_arm.
