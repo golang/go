@@ -412,11 +412,9 @@ typeinit(void)
 
 	isfloat[TFLOAT32] = 1;
 	isfloat[TFLOAT64] = 1;
-	isfloat[TFLOAT] = 1;
 
 	iscomplex[TCOMPLEX64] = 1;
 	iscomplex[TCOMPLEX128] = 1;
-	iscomplex[TCOMPLEX] = 1;
 
 	isptr[TPTR32] = 1;
 	isptr[TPTR64] = 1;

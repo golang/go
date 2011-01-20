@@ -748,7 +748,6 @@ addmove(Reg *r, int bn, int rn, int f)
 	case TPTR64:
 		p1->as = AMOVQ;
 		break;
-	case TFLOAT:
 	case TFLOAT32:
 		p1->as = AMOVSS;
 		break;
@@ -1180,7 +1179,6 @@ allreg(uint32 b, Rgn *r)
 
 	case TFLOAT32:
 	case TFLOAT64:
-	case TFLOAT:
 		i = BtoF(~b);
 		if(i && r->cost > 0) {
 			r->regno = i;

@@ -174,7 +174,7 @@ cgen(Node *n, Node *res)
 
 	case OREAL:
 	case OIMAG:
-	case OCMPLX:
+	case OCOMPLEX:
 		fatal("unexpected complex");
 		return;
 

@@ -419,10 +419,8 @@ enum {
 	KindUint32,
 	KindUint64,
 	KindUintptr,
-	KindFloat,
 	KindFloat32,
 	KindFloat64,
-	KindComplex,
 	KindComplex64,
 	KindComplex128,
 	KindArray,
@@ -453,7 +451,6 @@ kinds[] =
 	[TINT64]	= KindInt64,
 	[TUINT64]	= KindUint64,
 	[TUINTPTR]	= KindUintptr,
-	[TFLOAT]	= KindFloat,
 	[TFLOAT32]	= KindFloat32,
 	[TFLOAT64]	= KindFloat64,
 	[TBOOL]		= KindBool,
@@ -466,7 +463,6 @@ kinds[] =
 	[TMAP]		= KindMap,
 	[TARRAY]		= KindArray,
 	[TFUNC]		= KindFunc,
-	[TCOMPLEX]	= KindComplex,
 	[TCOMPLEX64]	= KindComplex64,
 	[TCOMPLEX128]	= KindComplex128,
 };
@@ -485,10 +481,8 @@ structnames[] =
 	[TINT64]	= "*runtime.IntType",
 	[TUINT64]	= "*runtime.UintType",
 	[TUINTPTR]	= "*runtime.UintType",
-	[TCOMPLEX]	= "*runtime.ComplexType",
 	[TCOMPLEX64]	= "*runtime.ComplexType",
 	[TCOMPLEX128]	= "*runtime.ComplexType",
-	[TFLOAT]	= "*runtime.FloatType",
 	[TFLOAT32]	= "*runtime.FloatType",
 	[TFLOAT64]	= "*runtime.FloatType",
 	[TBOOL]		= "*runtime.BoolType",
@@ -542,7 +536,6 @@ haspointers(Type *t)
 	case TINT64:
 	case TUINT64:
 	case TUINTPTR:
-	case TFLOAT:
 	case TFLOAT32:
 	case TFLOAT64:
 	case TBOOL:

@@ -917,14 +917,12 @@ gen_as_init(Node *n)
 	case TPTR64:
 	case TFLOAT32:
 	case TFLOAT64:
-	case TFLOAT:
 		gused(N); // in case the data is the dest of a goto
 		gdata(&nam, nr, nr->type->width);
 		break;
 
 	case TCOMPLEX64:
 	case TCOMPLEX128:
-	case TCOMPLEX:
 		gused(N); // in case the data is the dest of a goto
 		gdatacomplex(&nam, nr->val.u.cval);
 		break;

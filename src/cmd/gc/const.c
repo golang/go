@@ -980,10 +980,10 @@ defaultlit(Node **np, Type *t)
 		n->type = types[TINT];
 		goto num;
 	case CTFLT:
-		n->type = types[TFLOAT];
+		n->type = types[TFLOAT64];
 		goto num;
 	case CTCPLX:
-		n->type = types[TCOMPLEX];
+		n->type = types[TCOMPLEX128];
 		goto num;
 	num:
 		if(t != T) {
@@ -1034,13 +1034,13 @@ defaultlit2(Node **lp, Node **rp, int force)
 	if(!force)
 		return;
 	if(isconst(l, CTCPLX) || isconst(r, CTCPLX)) {
-		convlit(lp, types[TCOMPLEX]);
-		convlit(rp, types[TCOMPLEX]);
+		convlit(lp, types[TCOMPLEX128]);
+		convlit(rp, types[TCOMPLEX128]);
 		return;
 	}
 	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
-		convlit(lp, types[TFLOAT]);
-		convlit(rp, types[TFLOAT]);
+		convlit(lp, types[TFLOAT64]);
+		convlit(rp, types[TFLOAT64]);
 		return;
 	}
 	convlit(lp, types[TINT]);

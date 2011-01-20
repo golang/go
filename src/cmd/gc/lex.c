@@ -1531,7 +1531,7 @@ static	struct
 	"cap",		LNAME,		Txxx,		OCAP,
 	"close",	LNAME,		Txxx,		OCLOSE,
 	"closed",	LNAME,		Txxx,		OCLOSED,
-	"cmplx",	LNAME,		Txxx,		OCMPLX,
+	"complex",	LNAME,		Txxx,		OCOMPLEX,
 	"copy",		LNAME,		Txxx,		OCOPY,
 	"imag",		LNAME,		Txxx,		OIMAG,
 	"len",		LNAME,		Txxx,		OLEN,

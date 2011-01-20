@@ -84,7 +84,7 @@ maybe:
 	case OSUB:
 	case OMUL:
 	case OMINUS:
-	case OCMPLX:
+	case OCOMPLEX:
 	case OREAL:
 	case OIMAG:
 		goto yes;
@@ -120,7 +120,7 @@ complexgen(Node *n, Node *res)
 
 	// pick off float/complex opcodes
 	switch(n->op) {
-	case OCMPLX:
+	case OCOMPLEX:
 		if(res->addable) {
 			subnode(&n1, &n2, res);
 			tempname(&tmp, n1.type);
@@ -195,7 +195,7 @@ complexgen(Node *n, Node *res)
 	case OSUB:
 	case OMUL:
 	case OMINUS:
-	case OCMPLX:
+	case OCOMPLEX:
 	case OREAL:
 	case OIMAG:
 		break;

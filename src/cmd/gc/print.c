@@ -365,8 +365,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 		fmtprint(f, ")");
 		break;
 
-	case OCMPLX:
-		fmtprint(f, "cmplx(");
+	case OCOMPLEX:
+		fmtprint(f, "complex(");
 		exprfmt(f, n->left, 0);
 		fmtprint(f, ", ");
 		exprfmt(f, n->right, 0);
