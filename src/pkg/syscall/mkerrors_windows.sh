@@ -152,7 +152,7 @@ struct {
 int
 main(void)
 {
-	int i, j, e, iota = 1;
+	int i, e, iota = 1;
 	char buf[1024];
 
 	printf("\n// Go names for Windows errors.\n");
@@ -169,11 +169,6 @@ main(void)
 	printf("\n// Invented values to support what package os and others expects.\n");
 	printf("const (\n");
 	for(i=0; i<nelem(errors); i++) {
-		e = errors[i].value;
-		strcpy(buf, strerror(e));
-		// lowercase first letter: Bad -> bad, but STREAM -> STREAM.
-		if(A <= buf[0] && buf[0] <= Z && a <= buf[1] && buf[1] <= z)
-			buf[0] += a - A;
 		printf("\t%s", errors[i].name);
 		if(iota) {
 			printf(" = APPLICATION_ERROR + iota");
@@ -189,9 +184,6 @@ main(void)
 	printf("var errors = [...]string {\n");
 	for(i=0; i<nelem(errors); i++) {
 		e = errors[i].value;
-		for(j=0; j<i; j++)
-			if(errors[j].value == e)	// duplicate value
-				goto next;
 		strcpy(buf, strerror(e));
 		// lowercase first letter: Bad -> bad, but STREAM -> STREAM.
 		if(A <= buf[0] && buf[0] <= Z && a <= buf[1] && buf[1] <= z)
