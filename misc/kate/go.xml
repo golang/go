@@ -42,10 +42,8 @@
       <item> bool </item>
       <item> byte </item>
       <item> chan </item>
-      <item> complex </item>
       <item> complex64 </item>
       <item> complex128 </item>
-      <item> float </item>
       <item> float32 </item>
       <item> float64 </item>
       <item> int </item>
@@ -67,7 +65,7 @@
       <item> cap </item>
       <item> close </item>
       <item> closed </item>
-      <item> cmplx </item>
+      <item> complex </item>
       <item> copy </item>
       <item> imag </item>
       <item> len </item>
