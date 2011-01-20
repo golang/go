@@ -2607,7 +2607,7 @@ class MercurialVCS(VersionControlSystem):
 			self.base_rev = self.options.revision
 		else:
 			mqparent, err = RunShellWithReturnCode(['hg', 'log', '--rev', 'qparent', '--template={node}'])
-			if not err:
+			if not err and mqparent != "":
 				self.base_rev = mqparent
 			else:
 				self.base_rev = RunShell(["hg", "parents", "-q"]).split(':')[1].strip()
