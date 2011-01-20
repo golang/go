@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"debug/elf"
 	"debug/macho"
+	"debug/pe"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -103,12 +104,14 @@ func dynimport(obj string) (syms, imports []string) {
 		ImportedSymbols() ([]string, os.Error)
 	}
 	var isMacho bool
-	var err1, err2 os.Error
+	var err1, err2, err3 os.Error
 	if f, err1 = elf.Open(obj); err1 != nil {
-		if f, err2 = macho.Open(obj); err2 != nil {
-			fatal("cannot parse %s as ELF (%v) or Mach-O (%v)", obj, err1, err2)
+		if f, err2 = pe.Open(obj); err2 != nil {
+			if f, err3 = macho.Open(obj); err3 != nil {
+				fatal("cannot parse %s as ELF (%v) or PE (%v) or Mach-O (%v)", obj, err1, err2, err3)
+			}
+			isMacho = true
 		}
-		isMacho = true
 	}
 
 	var err os.Error

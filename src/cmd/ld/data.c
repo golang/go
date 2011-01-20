@@ -240,6 +240,33 @@ void
 dynrelocsym(Sym *s)
 {
 	Reloc *r;
+	
+	if(thechar == '8' && HEADTYPE == 10) { // Windows PE
+		Sym *rel, *targ;
+		
+		rel = lookup(".rel", 0);
+		if(s == rel)
+			return;
+		for(r=s->r; r<s->r+s->nr; r++) {
+			targ = r->sym;
+			if(r->sym->plt == -2) { // make dynimport JMP table for PE object files.
+				targ->plt = rel->size;
+				r->sym = rel;
+				r->add = targ->plt;
+				
+				// jmp *addr
+				adduint8(rel, 0xff);
+				adduint8(rel, 0x25);
+				addaddr(rel, targ);
+				adduint8(rel, 0x90);
+				adduint8(rel, 0x90);
+			} else if(r->sym->plt >= 0) {
+				r->sym = rel;
+				r->add = targ->plt;
+			}
+		}
+		return;
+	}
 
 	for(r=s->r; r<s->r+s->nr; r++)
 		if(r->sym->type == SDYNIMPORT || r->type >= 256)

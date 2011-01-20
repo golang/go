@@ -14,6 +14,7 @@ OFILES=\
 	enam.$O\
 	ldelf.$O\
 	ldmacho.$O\
+	ldpe.$O\
 	lib.$O\
 	list.$O\
 	noop.$O\

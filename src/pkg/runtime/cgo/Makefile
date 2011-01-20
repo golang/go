@@ -30,7 +30,11 @@ OFILES=\
 	_cgo_import.$O\
 	$(CGO_OFILES)\
 
+ifeq ($(GOOS),windows)
+CGO_LDFLAGS=-lm -mthreads
+else
 CGO_LDFLAGS=-lpthread
+endif
 
 ifeq ($(GOOS),freebsd)
 OFILES+=\

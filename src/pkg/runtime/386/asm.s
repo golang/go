@@ -18,9 +18,10 @@ TEXT _rt0_386(SB),7,$0
 	// we set up GS ourselves.
 	MOVL	initcgo(SB), AX
 	TESTL	AX, AX
-	JZ	3(PC)
+	JZ	4(PC)
 	CALL	AX
-	JMP	ok
+	CMPL runtime·iswindows(SB), $0
+	JEQ ok
 
 	// set up %gs
 	CALL	runtime·ldt0setup(SB)
