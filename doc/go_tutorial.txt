@@ -189,13 +189,18 @@ started; for instance, "os.Args" is a slice used by the
 An Interlude about Types
 ----
 
-Go has some familiar types such as "int" and "float", which represent
+Go has some familiar types such as "int" and "uint" (unsigned "int"), which represent
 values of the ''appropriate'' size for the machine. It also defines
 explicitly-sized types such as "int8", "float64", and so on, plus
-unsigned integer types such as "uint", "uint32", etc.  These are
-distinct types; even if "int" and "int32" are both 32 bits in size,
+unsigned integer types such as "uint", "uint32", etc.
+These are distinct types; even if "int" and "int32" are both 32 bits in size,
 they are not the same type.  There is also a "byte" synonym for
 "uint8", which is the element type for strings.
+
+Floating-point types are always sized: "float32" and "float64",
+plus "complex64" (two "float32s") and "complex128"
+(two "float64s").  Complex numbers are outside the
+scope of this tutorial.
 
 Speaking of "string", that's a built-in type as well.  Strings are
 <i>immutable values</i>&mdash;they are not just arrays of "byte" values.
@@ -362,13 +367,14 @@ language specification but here are some illustrative examples:
 	a := uint64(0)    // equivalent; uses a "conversion"
 	i := 0x1234       // i gets default type: int
 	var j int = 1e6   // legal - 1000000 is representable in an int
-	x := 1.5          // a float
+	x := 1.5          // a float64, the default type for floating constants
 	i3div2 := 3/2     // integer division - result is 1
-	f3div2 := 3./2.   // floating point division - result is 1.5
+	f3div2 := 3./2.   // floating-point division - result is 1.5
 
 Conversions only work for simple cases such as converting "ints" of one
-sign or size to another, and between "ints" and "floats", plus a few other
-simple cases.  There are no automatic numeric conversions of any kind in Go,
+sign or size to another and between integers and floating-point numbers,
+plus a couple of other instances outside the scope of a tutorial.
+There are no automatic numeric conversions of any kind in Go,
 other than that of making constants have concrete size and type when
 assigned to a variable.
 
