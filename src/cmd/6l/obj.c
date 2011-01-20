@@ -36,6 +36,7 @@
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
 #include	"../ld/dwarf.h"
+#include	"../ld/pe.h"
 #include	<ar.h>
 
 char	*noname		= "<none>";
@@ -133,6 +134,9 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "freebsd") == 0)
 			HEADTYPE = 9;
 		else
+		if(strcmp(goos, "windows") == 0)
+			HEADTYPE = 10;
+		else
 			print("goos is not known: %s\n", goos);
 	}
 
@@ -200,6 +204,16 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
+	case 10: /* PE executable */
+		peinit();
+		HEADR = PEFILEHEADR;
+		if(INITTEXT == -1)
+			INITTEXT = PEBASE+PESECTHEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = PESECTALIGN;
+		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)
 		print("warning: -D0x%llux is ignored because of -R0x%ux\n",
@@ -245,6 +259,8 @@ main(int argc, char *argv[])
 		else
 			doprof2();
 	span();
+	if(HEADTYPE == 10)
+		dope();
 	addexport();
 	textaddress();
 	pclntab();

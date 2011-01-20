@@ -871,7 +871,7 @@ address(void)
 	segdata.rwx = 06;
 	segdata.vaddr = va;
 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
-	if(thechar == '8' && HEADTYPE == 10)	// Windows PE
+	if((thechar == '6' || thechar == '8') && HEADTYPE == 10)	// Windows PE
 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
 	if(thechar == '8' && HEADTYPE == 2) {	// Plan 9		
 		segdata.vaddr = va = rnd(va, 4096);
