@@ -81,3 +81,7 @@ func LookupPort(network, service string) (port int, err os.Error) {
 func isDomainName(s string) bool {
 	panic("unimplemented")
 }
+
+func resolveaddr(addr string) (arpa string, err os.Error) {
+	panic("unimplemented")
+}

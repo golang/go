@@ -7,6 +7,7 @@ package net
 import (
 	"flag"
 	"regexp"
+	"runtime"
 	"testing"
 )
 
@@ -103,6 +104,9 @@ var revAddrTests = []struct {
 }
 
 func TestReverseAddress(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		return
+	}
 	for i, tt := range revAddrTests {
 		a, e := reverseaddr(tt.Addr)
 		if len(tt.ErrPrefix) > 0 && e == nil {
