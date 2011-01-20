@@ -70,7 +70,6 @@
 		<string>chan</string>
 		<string>complex64</string>
 		<string>complex128</string>
-		<string>float</string>
 		<string>float32</string>
 		<string>float64</string>
 		<string>int</string>
