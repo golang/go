@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of January 13, 2011 -->
+<!-- subtitle Version of January 18, 2011 -->
 
 <!--
 TODO
@@ -11,7 +11,7 @@ TODO
     (struct{T} vs struct {T T} vs struct {t T})
 [ ] need explicit language about the result type of operations
 [ ] may want to have some examples for the types of shift operations
-[ ] should string(1<<s) and float(1<<s) be valid?
+[ ] should string(1<<s) and float32(1<<s) be valid?
 [ ] should probably write something about evaluation order of statements even
 	though obvious
 [ ] review language on implicit dereferencing
@@ -531,7 +531,7 @@ the result value of some built-in functions such as
 <code>cap</code> or <code>len</code> applied to
 <a href="#Length_and_capacity">some expressions</a>,
 <code>real</code> and <code>imag</code> applied to a complex constant
-and <code>cmplx</code> applied to numeric constants.
+and <code>complex</code> applied to numeric constants.
 The boolean truth values are represented by the predeclared constants
 <code>true</code> and <code>false</code>. The predeclared identifier
 <a href="#Iota">iota</a> denotes an integer constant.
@@ -700,8 +700,6 @@ There is also a set of predeclared numeric types with implementation-specific si
 <pre class="grammar">
 uint     either 32 or 64 bits
 int      same size as uint
-float    either 32 or 64 bits
-complex  real and imaginary parts have type float
 uintptr  an unsigned integer large enough to store the uninterpreted bits of a pointer value
 </pre>
 
@@ -871,8 +869,8 @@ struct {}
 // A struct with 6 fields.
 struct {
 	x, y int
-	u float
-	_ float  // padding
+	u float32
+	_ float32  // padding
 	A *[]int
 	F func()
 }
@@ -1007,10 +1005,10 @@ func()
 func(x int)
 func() int
 func(prefix string, values ...int)
-func(a, b int, z float) bool
-func(a, b int, z float) (bool)
-func(a, b int, z float, opt ...interface{}) (success bool)
-func(int, int, float) (float, *[]int)
+func(a, b int, z float32) bool
+func(a, b int, z float32) (bool)
+func(a, b int, z float64, opt ...interface{}) (success bool)
+func(int, int, float64) (float64, *[]int)
 func(n int) func(p *T)
 </pre>
 
@@ -1146,7 +1144,7 @@ failure will cause a <a href="#Run_time_panics">run-time panic</a>.
 
 <pre>
 map [string] int
-map [*T] struct { x, y float }
+map [*T] struct { x, y float64 }
 map [string] interface {}
 </pre>
 
@@ -1197,7 +1195,7 @@ A channel may be constrained only to send or only to receive by
 
 <pre>
 chan T         // can be used to send and receive values of type T
-chan&lt;- float   // can only be used to send floats
+chan&lt;- float64 // can only be used to send float64s
 &lt;-chan int     // can only be used to receive ints
 </pre>
 
@@ -1291,8 +1289,8 @@ type (
 	T1 []string
 	T2 struct { a, b int }
 	T3 struct { a, c int }
-	T4 func(int, float) *T0
-	T5 func(x int, y float) *[]string
+	T4 func(int, float64) *T0
+	T5 func(x int, y float64) *[]string
 )
 </pre>
 
@@ -1304,13 +1302,13 @@ these types are identical:
 T0 and T0
 []int and []int
 struct { a, b *T5 } and struct { a, b *T5 }
-func(x int, y float) *[]string and func(int, float) (result *[]string)
+func(x int, y float64) *[]string and func(int, float64) (result *[]string)
 </pre>
 
 <p>
 <code>T0</code> and <code>T1</code> are different because they are named types
-with distinct declarations; <code>func(int, float) *T0</code> and
-<code>func(x int, y float) *[]string</code> are different because <code>T0</code>
+with distinct declarations; <code>func(int, float64) *T0</code> and
+<code>func(x int, y float64) *[]string</code> are different because <code>T0</code>
 is different from <code>[]string</code>.
 </p>
 
@@ -1483,7 +1481,7 @@ Basic types:
 	int8 int16 int32 int64 string uint8 uint16 uint32 uint64
 
 Architecture-specific convenience types:
-	complex float int uint uintptr
+	int uint uintptr
 
 Constants:
 	true false iota
@@ -1492,7 +1490,7 @@ Zero value:
 	nil
 
 Functions:
-	append cap close closed cmplx copy imag len
+	append cap close closed complex copy imag len
 	make new panic print println real recover
 </pre>
 
@@ -1561,7 +1559,7 @@ const (
 	eof = -1             // untyped integer constant
 )
 const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo", untyped integer and string constants
-const u, v float = 0, 3      // u = 0.0, v = 3.0
+const u, v float32 = 0, 3    // u = 0.0, v = 3.0
 </pre>
 
 <p>
@@ -1614,9 +1612,9 @@ const (
 )
 
 const (
-	u       = iota * 42  // u == 0     (untyped integer constant)
-	v float = iota * 42  // v == 42.0  (float constant)
-	w       = iota * 42  // w == 84    (untyped integer constant)
+	u         = iota * 42  // u == 0     (untyped integer constant)
+	v float64 = iota * 42  // v == 42.0  (float64 constant)
+	w         = iota * 42  // w == 84    (untyped integer constant)
 )
 
 const x = iota  // x == 0 (iota has been reset)
@@ -1736,9 +1734,9 @@ VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList 
 
 <pre>
 var i int
-var U, V, W float
+var U, V, W float64
 var k = 0
-var x, y float = -1, -2
+var x, y float32 = -1, -2
 var (
 	i int
 	u, v, s = 2.0, 3.0, "bar"
@@ -1763,7 +1761,7 @@ of the expression list.
 <p>
 If the type is absent and the corresponding expression evaluates to an
 untyped <a href="#Constants">constant</a>, the type of the declared variable
-is <code>bool</code>, <code>int</code>, <code>float</code>, or <code>string</code>
+is <code>bool</code>, <code>int</code>, <code>float64</code>, or <code>string</code>
 respectively, depending on whether the value is a boolean, integer,
 floating-point, or string constant:
 </p>
@@ -1771,7 +1769,7 @@ floating-point, or string constant:
 <pre>
 var b = true    // t has type bool
 var i = 0       // i has type int
-var f = 3.0     // f has type float
+var f = 3.0     // f has type float64
 var s = "OMDB"  // s has type string
 </pre>
 
@@ -2132,11 +2130,11 @@ primes := []int{2, 3, 5, 7, 9, 11, 13, 17, 19, 991}
 // vowels[ch] is true if ch is a vowel
 vowels := [128]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': true}
 
-// the array [10]float{-1, 0, 0, 0, -0.1, -0.1, 0, 0, 0, -1}
-filter := [10]float{-1, 4: -0.1, -0.1, 9: -1}
+// the array [10]float32{-1, 0, 0, 0, -0.1, -0.1, 0, 0, 0, -1}
+filter := [10]float32{-1, 4: -0.1, -0.1, 9: -1}
 
 // frequencies in Hz for equal-tempered scale (A4 = 440Hz)
-noteFrequency := map[string]float{
+noteFrequency := map[string]float32{
 	"C0": 16.35, "D0": 18.35, "E0": 20.60, "F0": 21.83,
 	"G0": 24.50, "A0": 27.50, "B0": 30.87,
 }
@@ -2155,7 +2153,7 @@ FunctionLit = FunctionType Body .
 </pre>
 
 <pre>
-func(a, b int, z float) bool { return a*b &lt; int(z) }
+func(a, b int, z float64) bool { return a*b &lt; int(z) }
 </pre>
 
 <p>
@@ -2713,11 +2711,11 @@ the left operand alone.
 
 <pre>
 var s uint = 33
-var i = 1&lt;&lt;s          // 1 has type int
-var j = int32(1&lt;&lt;s)   // 1 has type int32; j == 0
-var u = uint64(1&lt;&lt;s)  // 1 has type uint64; u == 1&lt;&lt;33
-var f = float(1&lt;&lt;s)   // illegal: 1 has type float, cannot shift
-var g = float(1&lt;&lt;33)  // legal; 1&lt;&lt;33 is a constant shift operation; g == 1&lt;&lt;33
+var i = 1&lt;&lt;s            // 1 has type int
+var j = int32(1&lt;&lt;s)     // 1 has type int32; j == 0
+var u = uint64(1&lt;&lt;s)    // 1 has type uint64; u == 1&lt;&lt;33
+var f = float32(1&lt;&lt;s)   // illegal: 1 has type float32, cannot shift
+var g = float32(1&lt;&lt;33)  // legal; 1&lt;&lt;33 is a constant shift operation; g == 1&lt;&lt;33
 </pre>
 
 <h3 id="Operator_precedence">Operator precedence</h3>
@@ -3128,8 +3126,8 @@ Consider a struct type <code>T</code> with two methods,
 type T struct {
 	a int
 }
-func (tv  T) Mv(a int)   int   { return 0 }  // value receiver
-func (tp *T) Mp(f float) float { return 1 }  // pointer receiver
+func (tv  T) Mv(a int)     int     { return 0 }  // value receiver
+func (tp *T) Mp(f float32) float32 { return 1 }  // pointer receiver
 var t T
 </pre>
 
@@ -3174,7 +3172,7 @@ yields a function value representing <code>Mp</code> with signature
 </p>
 
 <pre>
-func(tp *T, f float) float
+func(tp *T, f float32) float32
 </pre>
 
 <p>
@@ -3422,14 +3420,14 @@ result is an untyped complex constant.
 Complex constants are always constructed from
 constant expressions involving imaginary
 literals or constants derived from them, or calls of the built-in function
-<a href="#Complex_numbers"><code>cmplx</code></a>.
+<a href="#Complex_numbers"><code>complex</code></a>.
 </p>
 
 <pre>
 const Σ = 1 - 0.707i
 const Δ = Σ + 2.0e-4 - 1/1i
 const Φ = iota * 1i
-const iΓ = cmplx(0, Γ)
+const iΓ = complex(0, Γ)
 </pre>
 
 <p>
@@ -3680,8 +3678,8 @@ In assignments, each value must be
 <a href="#Assignability">assignable</a> to the type of the
 operand to which it is assigned. If an untyped <a href="#Constants">constant</a>
 is assigned to a variable of interface type, the constant is <a href="#Conversions">converted</a>
-to type <code>bool</code>, <code>int</code>, <code>float</code>,
-<code>complex</code> or <code>string</code>
+to type <code>bool</code>, <code>int</code>, <code>float64</code>,
+<code>complex128</code> or <code>string</code>
 respectively, depending on whether the value is a boolean, integer, floating-point,
 complex, or string constant.
 </p>
@@ -3847,9 +3845,9 @@ case nil:
 	printString("x is nil")
 case int:
 	printInt(i)  // i is an int
-case float:
-	printFloat(i)  // i is a float
-case func(int) float:
+case float64:
+	printFloat64(i)  // i is a float64
+case func(int) float64:
 	printFunction(i)  // i is a function
 case bool, string:
 	printString("type is bool or string")  // i is an interface{}
@@ -3868,9 +3866,9 @@ if v == nil {
 	printString("x is nil")
 } else if i, is_int := v.(int); is_int {
 	printInt(i)  // i is an int
-} else if i, is_float := v.(float); is_float {
-	printFloat(i)  // i is a float
-} else if i, is_func := v.(func(int) float); is_func {
+} else if i, is_float64 := v.(float64); is_float64 {
+	printFloat64(i)  // i is a float64
+} else if i, is_func := v.(func(int) float64); is_func {
 	printFunction(i)  // i is a function
 } else {
 	i1, is_bool := v.(bool)
@@ -4189,7 +4187,7 @@ func simple_f() int {
 	return 2
 }
 
-func complex_f1() (re float, im float) {
+func complex_f1() (re float64, im float64) {
 	return -7.0, -4.0
 }
 </pre>
@@ -4201,7 +4199,7 @@ func complex_f1() (re float, im float) {
 		"return" statement listing these variables, at which point the
 		rules of the previous case apply.
 <pre>
-func complex_f2() (re float, im float) {
+func complex_f2() (re float64, im float64) {
 	return complex_f1()
 }
 </pre>
@@ -4212,7 +4210,7 @@ func complex_f2() (re float, im float) {
 		and the function may assign values to them as necessary.
 		The "return" statement returns the values of these variables.
 <pre>
-func complex_f3() (re float, im float) {
+func complex_f3() (re float64, im float64) {
 	re = 7.0
 	im = 4.0
 	return
@@ -4474,7 +4472,7 @@ For instance
 </p>
 
 <pre>
-type S struct { a int; b float }
+type S struct { a int; b float64 }
 new(S)
 </pre>
 
@@ -4593,29 +4591,28 @@ n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
 
 <p>
 Three functions assemble and disassemble complex numbers.
-The built-in function <code>cmplx</code> constructs a complex
+The built-in function <code>complex</code> constructs a complex
 value from a floating-point real and imaginary part, while
 <code>real</code> and <code>imag</code>
 extract the real and imaginary parts of a complex value.
 </p>
 
 <pre class="grammar">
-cmplx(realPart, imaginaryPart floatT) complexT
+complex(realPart, imaginaryPart floatT) complexT
 real(complexT) floatT
 imag(complexT) floatT
 </pre>
 
 <p>
 The type of the arguments and return value correspond.
-For <code>cmplx</code>, the two arguments must be of the same
+For <code>complex</code>, the two arguments must be of the same
 floating-point type and the return type is the complex type
 with the corresponding floating-point constituents:
-<code>complex</code> for <code>float</code>,
 <code>complex64</code> for <code>float32</code>,
 <code>complex128</code> for <code>float64</code>.
 The <code>real</code> and <code>imag</code> functions
 together form the inverse, so for a complex value <code>z</code>,
-<code>z</code> <code>==</code> <code>cmplx(real(z),</code> <code>imag(z))</code>.
+<code>z</code> <code>==</code> <code>complex(real(z),</code> <code>imag(z))</code>.
 </p>
 
 <p>
@@ -4624,12 +4621,12 @@ value is a constant.
 </p>
 
 <pre>
-var a = cmplx(2, -2)  // has type complex
-var b = cmplx(1.0, -1.4)  // has type complex
-x := float32(math.Cos(math.Pi/2))
-var c64 = cmplx(5, -x)  // has type complex64
-var im = imag(b)  // has type float
-var rl = real(c64)  // type float32
+var a = complex(2, -2)             // complex128
+var b = complex(1.0, -1.4)         // complex128
+x := float32(math.Cos(math.Pi/2))  // float32
+var c64 = complex(5, -x)           // complex64
+var im = imag(b)                   // float64
+var rl = real(c64)                 // float32
 </pre>
 
 <h3 id="Handling_panics">Handling panics</h3>
@@ -4984,7 +4981,7 @@ After
 </p>
 
 <pre>
-type T struct { i int; f float; next *T }
+type T struct { i int; f float64; next *T }
 t := new(T)
 </pre>
 
