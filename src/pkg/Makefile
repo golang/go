@@ -58,6 +58,7 @@ DIRS=\
 	debug/proc\
 	ebnf\
 	encoding/ascii85\
+	encoding/base32\
 	encoding/base64\
 	encoding/binary\
 	encoding/git85\
