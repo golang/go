@@ -78,10 +78,35 @@ func LookupPort(network, service string) (port int, err os.Error) {
 	return int(syscall.Ntohs(s.Port)), nil
 }
 
+// TODO(brainman): Following code is only to get tests running.
+
 func isDomainName(s string) bool {
 	panic("unimplemented")
 }
 
-func resolveaddr(addr string) (arpa string, err os.Error) {
+func reverseaddr(addr string) (arpa string, err os.Error) {
 	panic("unimplemented")
 }
+
+// DNSError represents a DNS lookup error.
+type DNSError struct {
+	Error     string // description of the error
+	Name      string // name looked for
+	Server    string // server used
+	IsTimeout bool
+}
+
+func (e *DNSError) String() string {
+	if e == nil {
+		return "<nil>"
+	}
+	s := "lookup " + e.Name
+	if e.Server != "" {
+		s += " on " + e.Server
+	}
+	s += ": " + e.Error
+	return s
+}
+
+func (e *DNSError) Timeout() bool   { return e.IsTimeout }
+func (e *DNSError) Temporary() bool { return e.IsTimeout }
