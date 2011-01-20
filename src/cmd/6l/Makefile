@@ -16,6 +16,7 @@ OFILES=\
 	go.$O\
 	ldelf.$O\
 	ldmacho.$O\
+	ldpe.$O\
 	lib.$O\
 	list.$O\
 	macho.$O\

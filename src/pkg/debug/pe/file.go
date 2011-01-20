@@ -49,6 +49,17 @@ type Section struct {
 	sr *io.SectionReader
 }
 
+type ImportDirectory struct {
+	OriginalFirstThunk uint32
+	TimeDateStamp      uint32
+	ForwarderChain     uint32
+	Name               uint32
+	FirstThunk         uint32
+
+	dll string
+	rva []uint32
+}
+
 // Data reads and returns the contents of the PE section.
 func (s *Section) Data() ([]byte, os.Error) {
 	dat := make([]byte, s.sr.Size())
@@ -228,4 +239,71 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 
 	abbrev, info, str := dat[0], dat[1], dat[2]
 	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+}
+
+// ImportedSymbols returns the names of all symbols
+// referred to by the binary f that are expected to be
+// satisfied by other libraries at dynamic load time.
+// It does not return weak symbols.
+func (f *File) ImportedSymbols() ([]string, os.Error) {
+	ds := f.Section(".idata")
+	if ds == nil {
+		// not dynamic, so no libraries
+		return nil, nil
+	}
+	d, err := ds.Data()
+	if err != nil {
+		return nil, err
+	}
+	var ida []ImportDirectory
+	for len(d) > 0 {
+		var dt ImportDirectory
+		dt.OriginalFirstThunk = binary.LittleEndian.Uint32(d[0:4])
+		dt.Name = binary.LittleEndian.Uint32(d[12:16])
+		dt.FirstThunk = binary.LittleEndian.Uint32(d[16:20])
+		d = d[20:]
+		if dt.OriginalFirstThunk == 0 {
+			break
+		}
+		ida = append(ida, dt)
+	}
+	for i, _ := range ida {
+		for len(d) > 0 {
+			va := binary.LittleEndian.Uint32(d[0:4])
+			d = d[4:]
+			if va == 0 {
+				break
+			}
+			ida[i].rva = append(ida[i].rva, va)
+		}
+	}
+	for _, _ = range ida {
+		for len(d) > 0 {
+			va := binary.LittleEndian.Uint32(d[0:4])
+			d = d[4:]
+			if va == 0 {
+				break
+			}
+		}
+	}
+	names, _ := ds.Data()
+	var all []string
+	for _, dt := range ida {
+		dt.dll, _ = getString(names, int(dt.Name-ds.VirtualAddress))
+		for _, va := range dt.rva {
+			fn, _ := getString(names, int(va-ds.VirtualAddress+2))
+			all = append(all, fn+":"+dt.dll)
+		}
+	}
+
+	return all, nil
+}
+
+// ImportedLibraries returns the names of all libraries
+// referred to by the binary f that are expected to be
+// linked with the binary at dynamic link time.
+func (f *File) ImportedLibraries() ([]string, os.Error) {
+	// TODO
+	// cgo -dynimport don't use this for windows PE, so just return.
+	return nil, nil
 }

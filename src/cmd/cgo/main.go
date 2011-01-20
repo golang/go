@@ -20,6 +20,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"runtime"
 )
 
 // A Package collects information about the package we're going to write.
@@ -127,6 +128,13 @@ func main() {
 		// specialized knowledge gcc has about where to look for imported
 		// symbols and which ones to use.
 		syms, imports := dynimport(*dynobj)
+		if runtime.GOOS == "windows" {
+			for _, sym := range syms {
+				ss := strings.Split(sym, ":", -1)
+				fmt.Printf("#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
+			}
+			return
+		}
 		for _, sym := range syms {
 			fmt.Printf("#pragma dynimport %s %s %q\n", sym, sym, "")
 		}

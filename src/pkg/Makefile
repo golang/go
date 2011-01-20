@@ -151,10 +151,6 @@ DIRS+=\
 
 endif
 
-ifeq ($(GOOS),windows)
-DIRS:=$(filter-out runtime/cgo,$(DIRS))
-endif
-
 NOTEST=\
 	debug/proc\
 	exp/draw/x11\

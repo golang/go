@@ -297,6 +297,13 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 void
 dope(void)
 {
+	Sym *rel;
+
+	/* relocation table */
+	rel = lookup(".rel", 0);
+	rel->reachable = 1;
+	rel->type = SELFDATA;
+
 	initdynimport();
 }
 

@@ -153,6 +153,7 @@ runtime·args(int32 c, uint8 **v)
 }
 
 int32 runtime·isplan9;
+int32 runtime·iswindows;
 
 void
 runtime·goargs(void)

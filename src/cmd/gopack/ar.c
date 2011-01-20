@@ -607,6 +607,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 		
 		/* maybe a foreign object file?  that's okay */
 		if((buf[0] == 0x7F && buf[1] == 'E' && buf[2] == 'L' && buf[3] == 'F') ||   // ELF
+		   (buf[0] == 0x4c && buf[1] == 0x01 || buf[0] == 0x64 && buf[1] == 0x86) || // Windows PE
 		   (buf[0] == 0xFE && buf[1] == 0xED && buf[2] == 0xFA && (buf[3]&~1) == 0xCE) ||  // Mach-O big-endian
 		   (buf[3] == 0xFE && buf[2] == 0xED && buf[1] == 0xFA && (buf[0]&~1) == 0xCE)) {  // Mach-O little-endian
 			Bseek(b, offset, 0);

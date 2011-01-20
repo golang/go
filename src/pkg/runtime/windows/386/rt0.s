@@ -9,3 +9,6 @@ TEXT _rt0_386_windows(SB),7,$0
 	MOVL	SP, 0(FS)
 
 	JMP	_rt0_386(SB)
+
+DATA  runtime·iswindows(SB)/4, $1
+GLOBL runtime·iswindows(SB), $4
