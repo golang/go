@@ -1095,7 +1095,6 @@ allreg(uint32 b, Rgn *r)
 
 	case TFLOAT32:
 	case TFLOAT64:
-	case TFLOAT:
 		break;
 	}
 	return 0;

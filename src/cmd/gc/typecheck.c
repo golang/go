@@ -852,7 +852,7 @@ reswitch:
 		n->type = types[TINT];
 		goto ret;
 
-	case OCMPLX:
+	case OCOMPLEX:
 		ok |= Erv;
 		if(twoarg(n) < 0)
 			goto error;
@@ -865,7 +865,7 @@ reswitch:
 		n->right = r;
 		if(l->type->etype != r->type->etype) {
 		badcmplx:
-			yyerror("invalid operation: %#N (cmplx of types %T, %T)", n, l->type, r->type);
+			yyerror("invalid operation: %#N (complex of types %T, %T)", n, l->type, r->type);
 			goto error;
 		}
 		switch(l->type->etype) {
@@ -873,9 +873,6 @@ reswitch:
 			goto badcmplx;
 		case TIDEAL:
 			t = types[TIDEAL];
-			break;
-		case TFLOAT:
-			t = types[TCOMPLEX];
 			break;
 		case TFLOAT32:
 			t = types[TCOMPLEX64];

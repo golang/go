@@ -169,7 +169,7 @@ cgen(Node *n, Node *res)
 
 	case OREAL:
 	case OIMAG:
-	case OCMPLX:
+	case OCOMPLEX:
 		fatal("unexpected complex");
 		break;
 
@@ -879,7 +879,6 @@ bgen(Node *n, int true, Prog *to)
 
 	switch(n->op) {
 	default:
-	def:
 		a = ONE;
 		if(!true)
 			a = OEQ;

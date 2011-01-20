@@ -768,10 +768,8 @@ enum {
 	KindUint32,
 	KindUint64,
 	KindUintptr,
-	KindFloat,
 	KindFloat32,
 	KindFloat64,
-	KindComplex,
 	KindComplex64,
 	KindComplex128,
 	KindArray,
@@ -1049,7 +1047,6 @@ defgotype(Sym *gotype)
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		break;
 
-	case KindFloat:
 	case KindFloat32:
 	case KindFloat64:
 		die = newdie(&dwtypes, DW_ABRV_BASETYPE, name);
@@ -1057,7 +1054,6 @@ defgotype(Sym *gotype)
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		break;
 
-	case KindComplex:
 	case KindComplex64:
 	case KindComplex128:
 		die = newdie(&dwtypes, DW_ABRV_BASETYPE, name);

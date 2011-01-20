@@ -836,7 +836,7 @@ goopnames[] =
 	[OCASE]		= "case",
 	[OCLOSED]	= "closed",
 	[OCLOSE]	= "close",
-	[OCMPLX]	= "cmplx",
+	[OCOMPLEX]	= "complex",
 	[OCOM]		= "^",
 	[OCONTINUE]	= "continue",
 	[OCOPY]		= "copy",
@@ -993,10 +993,8 @@ etnames[] =
 	[TINT64]	= "INT64",
 	[TUINT64]	= "UINT64",
 	[TUINTPTR]	= "UINTPTR",
-	[TFLOAT]	= "FLOAT",
 	[TFLOAT32]	= "FLOAT32",
 	[TFLOAT64]	= "FLOAT64",
-	[TCOMPLEX]	= "COMPLEX",
 	[TCOMPLEX64]	= "COMPLEX64",
 	[TCOMPLEX128]	= "COMPLEX128",
 	[TBOOL]		= "BOOL",
@@ -1117,10 +1115,8 @@ basicnames[] =
 	[TINT64]	= "int64",
 	[TUINT64]	= "uint64",
 	[TUINTPTR]	= "uintptr",
-	[TFLOAT]	= "float",
 	[TFLOAT32]	= "float32",
 	[TFLOAT64]	= "float64",
-	[TCOMPLEX]	= "complex",
 	[TCOMPLEX64]	= "complex64",
 	[TCOMPLEX128]	= "complex128",
 	[TBOOL]		= "bool",
@@ -1752,8 +1748,6 @@ int
 cplxsubtype(int et)
 {
 	switch(et) {
-	case TCOMPLEX:
-		return TFLOAT;
 	case TCOMPLEX64:
 		return TFLOAT32;
 	case TCOMPLEX128:
