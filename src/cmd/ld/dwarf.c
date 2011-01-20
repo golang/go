@@ -19,6 +19,7 @@
 #include	"../ld/dwarf_defs.h"
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
+#include	"../ld/pe.h"
 
 /*
  * Offsets and sizes of the debug_* sections in the cout file.
@@ -2277,6 +2278,13 @@ writegdbscript(void)
 	return sectionstart;
 }
 
+static void
+align(vlong size)
+{
+	if((thechar == '6' || thechar == '8') && HEADTYPE == 10) // Only Windows PE need section align.
+		strnput("", rnd(size, PEFILEALIGN) - size);
+}
+
 /*
  * This is the main entry point for generating dwarf.  After emitting
  * the mandatory debug_abbrev section, it calls writelines() to set up
@@ -2316,8 +2324,11 @@ dwarfemitdebugsections(void)
 	genasmsym(defdwsymb);
 
 	writeabbrev();
+	align(abbrevsize);
 	writelines();
+	align(linesize);
 	writeframes();
+	align(framesize);
 
 	synthesizestringtypes(dwtypes.child);
 	synthesizeslicetypes(dwtypes.child);
@@ -2350,16 +2361,23 @@ dwarfemitdebugsections(void)
 		}
 	}
 	infosize = infoe - infoo;
+	align(infosize);
 
 	pubnameso  = writepub(ispubname);
-	pubtypeso  = writepub(ispubtype);
-	arangeso   = writearanges();
-	gdbscripto = writegdbscript();
+	pubnamessize  = cpos() - pubnameso;
+	align(pubnamessize);
 
-	pubnamessize  = pubtypeso - pubnameso;
-	pubtypessize  = arangeso - pubtypeso;
-	arangessize   = gdbscripto - arangeso;
+	pubtypeso  = writepub(ispubtype);
+	pubtypessize  = cpos() - pubtypeso;
+	align(pubtypessize);
+
+	arangeso   = writearanges();
+	arangessize   = cpos() - arangeso;
+	align(arangessize);
+
+	gdbscripto = writegdbscript();
 	gdbscriptsize = cpos() - gdbscripto;
+	align(gdbscriptsize);
 }
 
 /*
@@ -2540,4 +2558,25 @@ dwarfaddmachoheaders(void)
 		msect->size = gdbscriptsize;
 		ms->filesize += msect->size;
 	}
+}
+
+/*
+ * Windows PE
+ */
+void
+dwarfaddpeheaders(void)
+{
+	dwarfemitdebugsections();
+	newPEDWARFSection(".debug_abbrev", abbrevsize);
+	newPEDWARFSection(".debug_line", linesize);
+	newPEDWARFSection(".debug_frame", framesize);
+	newPEDWARFSection(".debug_info", infosize);
+	if (pubnamessize > 0)
+		newPEDWARFSection(".debug_pubnames", pubnamessize);
+	if (pubtypessize > 0)
+		newPEDWARFSection(".debug_pubtypes", pubtypessize);
+	if (arangessize > 0)
+		newPEDWARFSection(".debug_aranges", arangessize);
+	if (gdbscriptsize > 0)
+		newPEDWARFSection(".debug_gdb_scripts", gdbscriptsize);
 }
