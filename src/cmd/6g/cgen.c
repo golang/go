@@ -431,9 +431,6 @@ agen(Node *n, Node *res)
 	if(n == N || n->type == T)
 		return;
 
-	if(!isptr[res->type->etype] && res->type->etype != TUINTPTR)
-		fatal("agen: not tptr: %T", res->type);
-
 	while(n->op == OCONVNOP)
 		n = n->left;
 
