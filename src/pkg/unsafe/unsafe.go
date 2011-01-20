@@ -14,8 +14,9 @@ type ArbitraryType int
 // Pointer represents a pointer to an arbitrary type.  There are three special operations
 // available for type Pointer that are not available for other types.
 //	1) A pointer value of any type can be converted to a Pointer.
-//	2) A uintptr can be converted to a Pointer.
-//	3) A Pointer can be converted to a uintptr.
+//	2) A Pointer can be converted to a pointer value of any type.
+//	3) A uintptr can be converted to a Pointer.
+//	4) A Pointer can be converted to a uintptr.
 // Pointer therefore allows a program to defeat the type system and read and write
 // arbitrary memory. It should be used with extreme care.
 type Pointer *ArbitraryType
