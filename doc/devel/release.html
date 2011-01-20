@@ -5,6 +5,20 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-01-20">2011-01-20</h3>
+
+<pre>
+This release removes the float and complex types from the language.
+
+The default type for a floating point literal is now float64, and
+the default type for a complex literal is now complex128.
+
+Existing code that uses float or complex must be rewritten to
+use explicitly sized types.
+
+The two-argument constructor cmplx is now spelled complex.
+</pre>
+
 <h3 id="2011-01-19">2011-01-19</h3>
 
 <pre>
