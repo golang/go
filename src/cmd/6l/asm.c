@@ -35,6 +35,7 @@
 #include	"../ld/elf.h"
 #include	"../ld/dwarf.h"
 #include	"../ld/macho.h"
+#include	"../ld/pe.h"
 
 #define	Dbufslop	100
 
@@ -782,6 +783,8 @@ asmb(void)
 		if(!debug['d'])
 			elftextsh += 10;
 		break;
+	case 10:
+		break;
 	}
 
 	symsize = 0;
@@ -807,6 +810,10 @@ asmb(void)
 			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
+		case 10:
+			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
+			symo = rnd(symo, PEFILEALIGN);
+			break;
 		}
 		/*
 		 * the symbol information is stored as
@@ -829,7 +836,7 @@ asmb(void)
 		lputl(symsize);
 		lputl(lcsize);
 		cflush();
-		if(!debug['s']) {
+		if(HEADTYPE != 10 && !debug['s']) {
 			elfsymo = symo+8+symsize+lcsize;
 			seek(cout, elfsymo, 0);
 			asmelfsym64();
@@ -1090,6 +1097,9 @@ asmb(void)
 		if(a+elfwriteinterp() > ELFRESERVE)
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		break;
+	case 10:
+		asmbpe();
+		break;
 	}
 	cflush();
 }
@@ -1143,6 +1153,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 			case SDATA:
 			case SELFDATA:
 			case SMACHOGOT:
+			case SWINDOWS:
 				if(!s->reachable)
 					continue;
 				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);

@@ -122,3 +122,36 @@ void peinit(void);
 void asmbpe(void);
 void dope(void);
 
+// X64
+typedef struct {
+	uint16 Magic;
+	uint8  MajorLinkerVersion;
+	uint8  MinorLinkerVersion;
+	uint32 SizeOfCode;
+	uint32 SizeOfInitializedData;
+	uint32 SizeOfUninitializedData;
+	uint32 AddressOfEntryPoint;
+	uint32 BaseOfCode;
+	uint64 ImageBase;
+	uint32 SectionAlignment;
+	uint32 FileAlignment;
+	uint16 MajorOperatingSystemVersion;
+	uint16 MinorOperatingSystemVersion;
+	uint16 MajorImageVersion;
+	uint16 MinorImageVersion;
+	uint16 MajorSubsystemVersion;
+	uint16 MinorSubsystemVersion;
+	uint32 Win32VersionValue;
+	uint32 SizeOfImage;
+	uint32 SizeOfHeaders;
+	uint32 CheckSum;
+	uint16 Subsystem;
+	uint16 DllCharacteristics;
+	uint64 SizeOfStackReserve;
+	uint64 SizeOfStackCommit;
+	uint64 SizeOfHeapReserve;
+	uint64 SizeOfHeapCommit;
+	uint32 LoaderFlags;
+	uint32 NumberOfRvaAndSizes;
+	IMAGE_DATA_DIRECTORY DataDirectory[16];
+} PE64_IMAGE_OPTIONAL_HEADER;

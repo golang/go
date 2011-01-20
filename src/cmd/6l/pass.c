@@ -277,6 +277,29 @@ patch(void)
 	vexit = s->value;
 	for(cursym = textp; cursym != nil; cursym = cursym->next)
 	for(p = cursym->text; p != P; p = p->link) {
+		if(HEADTYPE == 10) { 
+			// Windows
+			// Convert
+			//   op   n(GS), reg
+			// to
+			//   MOVL 0x58(GS), reg
+			//   op   n(reg), reg
+			// The purpose of this patch is to fix some accesses
+			// to extern register variables (TLS) on Windows, as
+			// a different method is used to access them.
+			if(p->from.type == D_INDIR+D_GS
+			&& p->to.type >= D_AX && p->to.type <= D_DI 
+			&& p->from.offset != 0x58) {
+				q = appendp(p);
+				q->from = p->from;
+				q->from.type = D_INDIR + p->to.type;
+				q->to = p->to;
+				q->as = p->as;
+				p->as = AMOVQ;
+				p->from.type = D_INDIR+D_GS;
+				p->from.offset = 0x58;
+			}
+		}
 		if(HEADTYPE == 7 || HEADTYPE == 9) {
 			// ELF uses FS instead of GS.
 			if(p->from.type == D_INDIR+D_GS)
@@ -411,6 +434,21 @@ dostkoff(void)
 				p->from.type = D_INDIR+D_GS;
 			p->from.offset = tlsoffset+0;
 			p->to.type = D_CX;
+			if(HEADTYPE == 10) { // Windows
+				// movq %gs:0x58, %rcx
+				// movq (%rcx), %rcx
+				p->as = AMOVQ;
+				p->from.type = D_INDIR+D_GS;
+				p->from.offset = 0x58;
+				p->to.type = D_CX;
+
+			
+				p = appendp(p);
+				p->as = AMOVQ;
+				p->from.type = D_INDIR+D_CX;
+				p->from.offset = 0;
+				p->to.type = D_CX;
+			}
 
 			if(debug['K']) {
 				// 6l -K means check not only for stack
