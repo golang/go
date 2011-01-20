@@ -180,10 +180,4 @@ importpath=$(gomake -s importpath)
 
 $GC _testmain.go
 $GL _testmain.$O
-
-# Set dynamic linker library path, no matter what it's called,
-# to include the current directory while running $O.out,
-# so that cgo libraries can be tested without installation.
-LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH \
-DYLD_LIBRARY_PATH=.:$DYLD_LIBRARY_PATH \
 $E ./$O.out "$@"
