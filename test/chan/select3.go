@@ -97,13 +97,9 @@ func main() {
 		}
 	})
 
-	// sending (a small number of times) to a closed channel is not specified
-	// but the current implementation doesn't block: test that different
-	// implementations behave the same
-	testBlock(never, func() {
-		for i := 0; i < 10; i++ {
-			closedch <- 7
-		}
+	// sending to a closed channel panics.
+	testPanic(always, func() {
+		closedch <- 7
 	})
 
 	// receiving from a non-ready channel always blocks
@@ -189,13 +185,13 @@ func main() {
 		}
 	})
 
-	// selects with closed channels don't block
+	// selects with closed channels behave like ordinary operations
 	testBlock(never, func() {
 		select {
 		case <-closedch:
 		}
 	})
-	testBlock(never, func() {
+	testPanic(always, func() {
 		select {
 		case closedch <- 7:
 		}

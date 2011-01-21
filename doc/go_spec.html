@@ -4394,7 +4394,7 @@ BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
 <p>
 For a channel <code>c</code>, the built-in function <code>close(c)</code>
 marks the channel as unable to accept more values through a send operation;
-values sent to a closed channel are ignored.
+sending to or closing a closed channel causes a <a href="#Run_time_panics">run-time panic</a>.
 After calling <code>close</code>, and after any previously
 sent values have been received, receive operations will return
 the zero value for the channel's type without blocking.

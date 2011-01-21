@@ -100,6 +100,15 @@ func (c SChan) Impl() string {
 	return "(select)"
 }
 
+func shouldPanic(f func()) {
+	defer func() {
+		if recover() == nil {
+			panic("did not panic")
+		}
+	}()
+	f()
+}
+
 func test1(c Chan) {
 	// not closed until the close signal (a zero value) has been received.
 	if c.Closed() {
@@ -128,18 +137,15 @@ func test1(c Chan) {
 	}
 
 	// send should work with ,ok too: sent a value without blocking, so ok == true.
-	ok := c.Nbsend(1)
-	if !ok {
-		println("test1: send on closed got not ok", c.Impl())
-	}
+	shouldPanic(func(){c.Nbsend(1)})
 
-	// but the value should have been discarded.
+	// the value should have been discarded.
 	if x := c.Recv(); x != 0 {
 		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl())
 	}
 
 	// similarly Send.
-	c.Send(2)
+	shouldPanic(func(){c.Send(2)})
 	if x := c.Recv(); x != 0 {
 		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl())
 	}
