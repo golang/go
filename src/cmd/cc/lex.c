@@ -147,7 +147,7 @@ main(int argc, char *argv[])
 		 * if we're writing acid to standard output, don't compile
 		 * concurrently, to avoid interleaving output.
 		 */
-		if(((!debug['a'] && !debug['Z']) || debug['n']) &&
+		if((!debug['a'] || debug['n']) &&
 		    (p = getenv("NPROC")) != nil)
 			nproc = atol(p);	/* */
 		c = 0;
@@ -220,8 +220,6 @@ compile(char *file, char **defs, int ndef)
 			p = utfrune(outfile, 0);
 			if(debug['a'] && debug['n'])
 				strcat(p, ".acid");
-			else if(debug['Z'] && debug['n'])
-				strcat(p, "_pickle.c");
 			else {
 				p[0] = '.';
 				p[1] = thechar;
@@ -246,7 +244,7 @@ compile(char *file, char **defs, int ndef)
 	 * if we're writing acid to standard output, don't keep scratching
 	 * outbuf.
 	 */
-	if((debug['a'] || debug['Z']) && !debug['n']) {
+	if(debug['a'] && !debug['n']) {
 		if (first) {
 			outfile = 0;
 			Binit(&outbuf, dup(1, -1), OWRITE);
@@ -325,7 +323,7 @@ compile(char *file, char **defs, int ndef)
 			newfile(file, -1);
 	}
 	yyparse();
-	if(!debug['a'] && !debug['Z'])
+	if(!debug['a'])
 		gclean();
 	return nerrors;
 }

@@ -587,7 +587,6 @@ sualign(Type *t)
 		t->width = w;
 		t->align = maxal;
 		acidtype(t);
-		pickletype(t);
 		return;
 
 	case TUNION:
@@ -610,7 +609,6 @@ sualign(Type *t)
 		t->width = w;
 		t->align = maxal;
 		acidtype(t);
-		pickletype(t);
 		return;
 
 	default:
