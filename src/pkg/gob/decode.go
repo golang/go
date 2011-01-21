@@ -49,14 +49,15 @@ func overflow(name string) os.ErrorString {
 
 // decodeUintReader reads an encoded unsigned integer from an io.Reader.
 // Used only by the Decoder to read the message length.
-func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
-	_, err = r.Read(buf[0:1])
+func decodeUintReader(r io.Reader, buf []byte) (x uint64, width int, err os.Error) {
+	width = 1
+	_, err = r.Read(buf[0:width])
 	if err != nil {
 		return
 	}
 	b := buf[0]
 	if b <= 0x7f {
-		return uint64(b), nil
+		return uint64(b), width, nil
 	}
 	nb := -int(int8(b))
 	if nb > uint64Size {
@@ -75,6 +76,7 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
 	for i := 0; i < n; i++ {
 		x <<= 8
 		x |= uint64(buf[i])
+		width++
 	}
 	return
 }

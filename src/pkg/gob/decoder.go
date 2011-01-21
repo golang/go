@@ -58,7 +58,7 @@ func (dec *Decoder) recvType(id typeId) {
 	dec.wireType[id] = wire
 
 	// Load the next parcel.
-	dec.recv()
+	dec.recvMessage()
 }
 
 // Decode reads the next value from the connection and stores
@@ -76,23 +76,28 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	return dec.DecodeValue(value)
 }
 
-// recv reads the next count-delimited item from the input. It is the converse
-// of Encoder.send.
-func (dec *Decoder) recv() {
+// recvMessage reads the next count-delimited item from the input. It is the converse
+// of Encoder.writeMessage.
+func (dec *Decoder) recvMessage() {
 	// Read a count.
 	var nbytes uint64
-	nbytes, dec.err = decodeUintReader(dec.r, dec.countBuf[0:])
+	nbytes, _, dec.err = decodeUintReader(dec.r, dec.countBuf[0:])
 	if dec.err != nil {
 		return
 	}
+	dec.readMessage(int(nbytes), dec.r)
+}
+
+// readMessage reads the next nbytes bytes from the input.
+func (dec *Decoder) readMessage(nbytes int, r io.Reader) {
 	// Allocate the buffer.
-	if nbytes > uint64(len(dec.buf)) {
+	if nbytes > len(dec.buf) {
 		dec.buf = make([]byte, nbytes+1000)
 	}
 	dec.byteBuffer = bytes.NewBuffer(dec.buf[0:nbytes])
 
 	// Read the data
-	_, dec.err = io.ReadFull(dec.r, dec.buf[0:nbytes])
+	_, dec.err = io.ReadFull(r, dec.buf[0:nbytes])
 	if dec.err != nil {
 		if dec.err == os.EOF {
 			dec.err = io.ErrUnexpectedEOF
@@ -103,7 +108,7 @@ func (dec *Decoder) recv() {
 
 // decodeValueFromBuffer grabs the next value from the input. The Decoder's
 // buffer already contains data.  If the next item in the buffer is a type
-// descriptor, it may be necessary to reload the buffer, but recvType does that.
+// descriptor, it will be necessary to reload the buffer; recvType does that.
 func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignoreInterfaceValue, countPresent bool) {
 	for dec.state.b.Len() > 0 {
 		// Receive a type id.
@@ -150,7 +155,7 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	defer dec.mutex.Unlock()
 
 	dec.err = nil
-	dec.recv()
+	dec.recvMessage()
 	if dec.err != nil {
 		return dec.err
 	}
