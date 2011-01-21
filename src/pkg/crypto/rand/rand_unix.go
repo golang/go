@@ -29,15 +29,14 @@ type devReader struct {
 
 func (r *devReader) Read(b []byte) (n int, err os.Error) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.f == nil {
 		f, err := os.Open(r.name, os.O_RDONLY, 0)
 		if f == nil {
-			r.mu.Unlock()
 			return 0, err
 		}
 		r.f = f
 	}
-	r.mu.Unlock()
 	return r.f.Read(b)
 }
 
