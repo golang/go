@@ -1307,6 +1307,31 @@ func TestUnexportedFields(t *testing.T) {
 	}
 }
 
+var singletons = []interface{}{
+	true,
+	7,
+	3.2,
+	"hello",
+	[3]int{11, 22, 33},
+	[]float32{0.5, 0.25, 0.125},
+	map[string]int{"one": 1, "two": 2},
+}
+
+func TestDebugSingleton(t *testing.T) {
+	if debugFunc == nil {
+		return
+	}
+	b := new(bytes.Buffer)
+	// Accumulate a number of values and print them out all at once.
+	for _, x := range singletons {
+		err := NewEncoder(b).Encode(x)
+		if err != nil {
+			t.Fatal("encode:", err)
+		}
+	}
+	debugFunc(b)
+}
+
 // A type that won't be defined in the gob until we send it in an interface value.
 type OnTheFly struct {
 	A int
@@ -1325,7 +1350,7 @@ type DT struct {
 	S     []string
 }
 
-func TestDebug(t *testing.T) {
+func TestDebugStruct(t *testing.T) {
 	if debugFunc == nil {
 		return
 	}
