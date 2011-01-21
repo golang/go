@@ -20,7 +20,6 @@ OFILES=\
 	mac.$O\
 	dcl.$O\
 	acid.$O\
-	pickle.$O\
 	bits.$O\
 	com.$O\
 	scon.$O\

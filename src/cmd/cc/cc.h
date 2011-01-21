@@ -744,11 +744,6 @@ void	acidtype(Type*);
 void	acidvar(Sym*);
 
 /*
- * pickle.c
- */
-void	pickletype(Type*);
-
-/*
  * bits.c
  */
 Bits	bor(Bits, Bits);
