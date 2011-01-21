@@ -27,7 +27,7 @@ var tests = []testCase{
 	{"a.b..com", false},
 }
 
-func getTestCases(ch chan<- *testCase) {
+func getTestCases(ch chan<- testCase) {
 	defer close(ch)
 	var char59 = ""
 	var char63 = ""
@@ -39,17 +39,17 @@ func getTestCases(ch chan<- *testCase) {
 	char64 = char63 + "a"
 
 	for _, tc := range tests {
-		ch <- &tc
+		ch <- tc
 	}
 
-	ch <- &testCase{char63 + ".com", true}
-	ch <- &testCase{char64 + ".com", false}
+	ch <- testCase{char63 + ".com", true}
+	ch <- testCase{char64 + ".com", false}
 	// 255 char name is fine:
-	ch <- &testCase{char59 + "." + char63 + "." + char63 + "." +
+	ch <- testCase{char59 + "." + char63 + "." + char63 + "." +
 		char63 + ".com",
 		true}
 	// 256 char name is bad:
-	ch <- &testCase{char59 + "a." + char63 + "." + char63 + "." +
+	ch <- testCase{char59 + "a." + char63 + "." + char63 + "." +
 		char63 + ".com",
 		false}
 }
@@ -58,7 +58,7 @@ func TestDNSNames(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		return
 	}
-	ch := make(chan *testCase)
+	ch := make(chan testCase)
 	go getTestCases(ch)
 	for tc := range ch {
 		if isDomainName(tc.name) != tc.result {
