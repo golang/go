@@ -8,10 +8,10 @@ package main
 
 type T struct { }
 func (t *T) M(int, string)	// GCCGO_ERROR "previous"
-func (t *T) M(int, float) { }   // ERROR "redeclared|redefinition"
+func (t *T) M(int, float64) { }   // ERROR "redeclared|redefinition"
 
 func f(int, string)	// GCCGO_ERROR "previous"
-func f(int, float) { }  // ERROR "redeclared|redefinition"
+func f(int, float64) { }  // ERROR "redeclared|redefinition"
 
 func g(a int, b string)  // GCCGO_ERROR "previous"
 func g(a int, c string)  // ERROR "redeclared|redefinition"
