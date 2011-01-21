@@ -56,6 +56,34 @@ typechecklist(NodeList *l, int top)
 		typecheck(&l->n, top);
 }
 
+static char* typekind[] = {
+	[TINT]		= "int",
+	[TUINT]		= "uint",
+	[TINT8]		= "int8",
+	[TUINT8]	= "uint8",
+	[TINT16]	= "int16",
+	[TUINT16]	= "uint16",
+	[TINT32]	= "int32",
+	[TUINT32]	= "uint32",
+	[TINT64]	= "int64",
+	[TUINT64]	= "uint64",
+	[TUINTPTR]	= "uintptr",
+	[TCOMPLEX64]	= "complex64",
+	[TCOMPLEX128]	= "complex128",
+	[TFLOAT32]	= "float32",
+	[TFLOAT64]	= "float64",
+	[TBOOL]		= "bool",
+	[TSTRING]	= "string",
+	[TPTR32]	= "pointer",
+	[TPTR64]	= "pointer",
+	[TSTRUCT]	= "struct",
+	[TINTER]	= "interface",
+	[TCHAN]		= "chan",
+	[TMAP]		= "map",
+	[TARRAY]	= "array",
+	[TFUNC]		= "func",
+};
+
 /*
  * type check node *np.
  * replaces *np with a new pointer in some cases.
@@ -372,21 +400,25 @@ reswitch:
 			et = t->etype;
 		}
 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
-		badbinary:
 			defaultlit2(&l, &r, 1);
-			yyerror("invalid operation: %#N (type %T %#O %T)", n, l->type, op, r->type);
+			yyerror("invalid operation: %#N (mismatched types %T and %T)", n, l->type, r->type);
 			goto error;
 		}
-		if(!okfor[op][et])
-			goto badbinary;
+		if(!okfor[op][et]) {
+		notokfor:
+			yyerror("invalid operation: %#N (operator %#O not defined on %s)", n, op, typekind[et]);
+			goto error;
+		}
 		// okfor allows any array == array;
 		// restrict to slice == nil and nil == slice.
 		if(l->type->etype == TARRAY && !isslice(l->type))
-			goto badbinary;
+			goto notokfor;
 		if(r->type->etype == TARRAY && !isslice(r->type))
-			goto badbinary;
-		if(isslice(l->type) && !isnil(l) && !isnil(r))
-			goto badbinary;
+			goto notokfor;
+		if(isslice(l->type) && !isnil(l) && !isnil(r)) {
+			yyerror("invalid operation: %#N (slice can only be compared to nil)", n);
+			goto error;
+		}
 		t = l->type;
 		if(iscmp[n->op]) {
 			evconst(n);
