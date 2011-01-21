@@ -11,8 +11,6 @@ enum
 {
 	Wclosed		= 0x0001,	// writer has closed
 	Rclosed		= 0x0002,	// reader has seen close
-	Eincr		= 0x0004,	// increment errors
-	Emax		= 0x0800,	// error limit before throw
 };
 
 typedef	struct	Link	Link;
@@ -151,16 +149,6 @@ runtime·makechan(Type *elem, int64 hint, Hchan *ret)
 	FLUSH(&ret);
 }
 
-static void
-incerr(Hchan* c)
-{
-	c->closed += Eincr;
-	if(c->closed & Emax) {
-		// Note that channel locks may still be held at this point.
-		runtime·throw("too many operations on a closed channel");
-	}
-}
-
 /*
  * generic single channel send/recv
  * if the bool pointer is nil,
@@ -276,10 +264,8 @@ asynch:
 	return;
 
 closed:
-	incerr(c);
-	if(pres != nil)
-		*pres = true;
 	runtime·unlock(c);
+	runtime·panicstring("send on closed channel");
 }
 
 void
@@ -393,7 +379,6 @@ closed:
 		*closed = true;
 	c->elemalg->copy(c->elemsize, ep, nil);
 	c->closed |= Rclosed;
-	incerr(c);
 	if(pres != nil)
 		*pres = true;
 	runtime·unlock(c);
@@ -863,7 +848,6 @@ rclose:
 	if(cas->u.elemp != nil)
 		c->elemalg->copy(c->elemsize, cas->u.elemp, nil);
 	c->closed |= Rclosed;
-	incerr(c);
 	goto retc;
 
 syncsend:
@@ -876,12 +860,6 @@ syncsend:
 	gp = sg->g;
 	gp->param = sg;
 	runtime·ready(gp);
-	goto retc;
-
-sclose:
-	// send on closed channel
-	incerr(c);
-	goto retc;
 
 retc:
 	selunlock(sel);
@@ -891,6 +869,12 @@ retc:
 	as = (byte*)&sel + cas->so;
 	freesel(sel);
 	*as = true;
+	return;
+
+sclose:
+	// send on closed channel
+	selunlock(sel);
+	runtime·panicstring("send on closed channel");
 }
 
 // closechan(sel *byte);
@@ -904,7 +888,11 @@ runtime·closechan(Hchan *c)
 		runtime·gosched();
 
 	runtime·lock(c);
-	incerr(c);
+	if(c->closed & Wclosed) {
+		runtime·unlock(c);
+		runtime·panicstring("close of closed channel");
+	}
+
 	c->closed |= Wclosed;
 
 	// release all readers
