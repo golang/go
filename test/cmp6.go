@@ -11,6 +11,10 @@ func use(bool) {}
 type T1 *int
 type T2 *int
 
+type T3 struct {}
+
+var t3 T3
+
 func main() {
 	// Arguments to comparison must be
 	// assignable one to the other (or vice versa)
@@ -39,4 +43,7 @@ func main() {
 	use(p2 == p2)
 	use(p3 == p1)
 	use(p3 == p2)
+	
+	// Comparison of structs should have a good message
+	use(t3 == t3)	// ERROR "struct"
 }
