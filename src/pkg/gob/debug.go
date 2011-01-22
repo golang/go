@@ -409,18 +409,8 @@ func (deb *debugger) typeDefinition(indent tab, id typeId, n int) int {
 
 
 // Value:
-//	ConcreteValue | InterfaceValue
-func (deb *debugger) value(indent tab, id typeId, n int) int {
-	if id == tInterface {
-		return deb.interfaceValue(indent, n)
-	}
-	return deb.concreteValue(indent, id, n)
-}
-
-
-// ConcreteValue:
 //	SingletonValue | StructValue
-func (deb *debugger) concreteValue(indent tab, id typeId, n int) int {
+func (deb *debugger) value(indent tab, id typeId, n int) int {
 	wire, ok := deb.wireType[id]
 	if ok && wire.StructT != nil {
 		return deb.structValue(indent, id, n)
@@ -429,7 +419,7 @@ func (deb *debugger) concreteValue(indent tab, id typeId, n int) int {
 }
 
 // SingletonValue:
-//	int(0) FieldValue
+//	uint(0) FieldValue
 func (deb *debugger) singletonValue(indent tab, id typeId, n int) int {
 	deb.dump(n, "Singleton value")
 	// is it a builtin type?
@@ -438,7 +428,7 @@ func (deb *debugger) singletonValue(indent tab, id typeId, n int) int {
 	if !ok && wire == nil {
 		errorf("type id %d not defined", id)
 	}
-	m, w := deb.readInt()
+	m, w := deb.readUint()
 	if m != 0 {
 		errorf("expected zero; got %d", n)
 	}
@@ -537,9 +527,14 @@ func (deb *debugger) printWireType(indent tab, wire *wireType) {
 }
 
 // fieldValue prints a value of any type, such as a struct field.
+// FieldValue:
+//	builtinValue | ArrayValue | MapValue | SliceValue | StructValue | InterfaceValue
 func (deb *debugger) fieldValue(indent tab, id typeId, n int) int {
 	_, ok := builtinIdToType[id]
 	if ok {
+		if id == tInterface {
+			return deb.interfaceValue(indent, n)
+		}
 		return deb.printBuiltin(indent, id, n)
 	}
 	wire, ok := deb.wireType[id]
@@ -561,8 +556,6 @@ func (deb *debugger) fieldValue(indent tab, id typeId, n int) int {
 
 // printBuiltin prints a value not of a fundamental type, that is,
 // one whose type is known to gobs at bootstrap time.
-// That includes interfaces, although they may require
-// more unpacking down the line.
 func (deb *debugger) printBuiltin(indent tab, id typeId, n int) int {
 	switch id {
 	case tBool:
@@ -597,8 +590,6 @@ func (deb *debugger) printBuiltin(indent tab, id typeId, n int) int {
 		deb.r.Read(b)
 		fmt.Fprintf(os.Stderr, "%s%q\n", indent, b)
 		return w + int(x)
-	case tInterface:
-		return deb.interfaceValue(indent, n)
 	default:
 		fmt.Print("unknown\n")
 	}
@@ -607,7 +598,7 @@ func (deb *debugger) printBuiltin(indent tab, id typeId, n int) int {
 
 
 // ArrayValue:
-//	uint(n) Value*n
+//	uint(n) FieldValue*n
 func (deb *debugger) arrayValue(indent tab, wire *wireType, n int) int {
 	elemId := wire.ArrayT.Elem
 	u, w := deb.readUint()
@@ -622,7 +613,7 @@ func (deb *debugger) arrayValue(indent tab, wire *wireType, n int) int {
 }
 
 // MapValue:
-//	uint(n) (Value Value)*n  [n (key, value) pairs]
+//	uint(n) (FieldValue FieldValue)*n  [n (key, value) pairs]
 func (deb *debugger) mapValue(indent tab, wire *wireType, n int) int {
 	keyId := wire.MapT.Key
 	elemId := wire.MapT.Elem
@@ -636,7 +627,7 @@ func (deb *debugger) mapValue(indent tab, wire *wireType, n int) int {
 }
 
 // SliceValue:
-//	uint(n) (n Values)
+//	uint(n) (n FieldValue)
 func (deb *debugger) sliceValue(indent tab, wire *wireType, n int) int {
 	elemId := wire.SliceT.Elem
 	u, w := deb.readUint()
@@ -648,7 +639,7 @@ func (deb *debugger) sliceValue(indent tab, wire *wireType, n int) int {
 }
 
 // StructValue:
-//	(int(fieldDelta) FieldValue)*
+//	(uint(fieldDelta) FieldValue)*
 func (deb *debugger) structValue(indent tab, id typeId, n int) int {
 	deb.dump(n, "Start of struct value of %q id=%d\n<<\n", id.name(), id)
 	fmt.Fprintf(os.Stderr, "%s%s struct {\n", indent, id.name())

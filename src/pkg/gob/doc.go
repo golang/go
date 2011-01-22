@@ -240,11 +240,11 @@ TypedValue:
 TypeDefinition:
 	int(-typeId) encodingOfWireType
 Value:
-	ConcreteValue | InterfaceValue
-ConcreteValue:
 	SingletonValue | StructValue
 SingletonValue:
-	int(0) FieldValue
+	uint(0) FieldValue
+FieldValue:
+	builtinValue | ArrayValue | MapValue | SliceValue | StructValue | InterfaceValue
 InterfaceValue:
 	NilInterfaceValue | NonNilInterfaceValue
 NilInterfaceValue:
@@ -258,11 +258,11 @@ InterfaceContents:
 DelimitedValue:
 	uint(length) Value
 ArrayValue:
-	uint(n) Value*n [n elements]
+	uint(n) FieldValue*n [n elements]
 MapValue:
-	uint(n) (Value Value)*n  [n (key, value) pairs]
+	uint(n) (FieldValue FieldValue)*n  [n (key, value) pairs]
 SliceValue:
-	uint(n) Value*n [n elements]
+	uint(n) FieldValue*n [n elements]
 StructValue:
 	(uint(fieldDelta) FieldValue)*
 */
