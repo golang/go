@@ -36,3 +36,7 @@ struct StdcallParams
 void runtime·syscall(StdcallParams *p);
 uint32 runtime·issigpanic(uint32);
 void runtime·sigpanic(void);
+
+// Windows dll function to go callback entry.
+void runtime·compilecallback(byte *code, void *fn, uint32 argsize);
+void* runtime·callbackasm(void);

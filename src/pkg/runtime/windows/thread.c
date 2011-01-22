@@ -205,7 +205,15 @@ runtime·stdcall(void *fn, int32 count, ...)
 void
 runtime·syscall(StdcallParams *p)
 {
+	G *oldlock;
 	uintptr a;
+
+	/*
+	 * Lock g to m to ensure we stay on the same stack if we do a callback.
+	 */
+	oldlock = m->lockedg;
+	m->lockedg = g;
+	g->lockedm = m;
 
 	runtime·entersyscall();
 	// TODO(brainman): Move calls to SetLastError and GetLastError
@@ -215,6 +223,10 @@ runtime·syscall(StdcallParams *p)
 	p->r = (uintptr)runtime·stdcall_raw((void*)p->fn, p->n, p->args);
 	p->err = (uintptr)runtime·stdcall_raw(runtime·GetLastError, 0, &a);
 	runtime·exitsyscall();
+
+	m->lockedg = oldlock;
+	if(oldlock == nil)
+		g->lockedm = nil;
 }
 
 uint32
@@ -255,4 +267,76 @@ runtime·sigpanic(void)
 		runtime·panicstring("floating point error");
 	}
 	runtime·throw("fault");
+}
+
+// Call back from windows dll into go.
+void
+runtime·compilecallback(byte *code, void *fn, uint32 argsize)
+{
+	byte *p;
+
+	p = code;
+	// SUBL $12, SP
+	*p++ = 0x83;
+	*p++ = 0xec;
+	*p++ = 0x0c;
+	// PUSH argsize
+	*p++ = 0x68;
+	*(uint32*)p = argsize;
+	p += 4;
+	// PUSH fn
+	*p++ = 0x68;
+	*(uint32*)p = (uint32)fn;
+	p += 4;
+	// MOV callbackasm, AX
+	void* (*x)(void) = runtime·callbackasm;
+	*p++ = 0xb8;
+	*(uint32*)p = (uint32)x;
+	p += 4;
+	// CALL AX
+	*p++ = 0xff;
+	*p = 0xd0;
+}
+
+enum { StackGuard = 2048 }; // defined in proc.c
+
+#pragma textflag 7
+void*
+runtime·callback(void *arg, void (*fn)(void), int32 argsize)
+{
+	Gobuf msched, g1sched;
+	G *g1;
+	void *sp, *gostack;
+	void **p;
+	USED(argsize);
+
+
+	if(g != m->g0)
+		runtime·throw("bad g in callback");
+
+	g1 = m->curg;
+
+	gostack = m->gostack;		// preserve previous call stack parameters
+	msched = m->sched;
+	g1sched = g1->sched;
+
+	runtime·startcgocallback(g1);
+
+	sp = g1->sched.sp - 4 - 4;	// one input, one output
+
+	if(sp < g1->stackguard - StackGuard + 4) // +4 for return address
+		runtime·throw("g stack overflow in callback");
+	
+	p = sp;
+	p[0] = arg;
+
+	runtime·runcgocallback(g1, sp, fn);
+
+	runtime·endcgocallback(g1);
+
+	g1->sched = g1sched; 
+	m->sched = msched;
+	m->gostack = gostack;		// restore previous call stack parameters
+
+	return p[1];
 }

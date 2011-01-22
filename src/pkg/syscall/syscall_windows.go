@@ -94,6 +94,26 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 	return p
 }
 
+// callback from windows dll back to go
+
+func compileCallback(code *byte, fn CallbackFunc, argsize int)
+
+type CallbackFunc func(args *uintptr) (r uintptr)
+
+type Callback struct {
+	code [50]byte // have to be big enough to fit asm written in it by compileCallback
+}
+
+func (cb *Callback) ExtFnEntry() uint32 {
+	return uint32(uintptr(unsafe.Pointer(&cb.code[0])))
+}
+
+func NewCallback(fn CallbackFunc, argsize int) *Callback {
+	cb := Callback{}
+	compileCallback(&cb.code[0], fn, argsize)
+	return &cb
+}
+
 // windows api calls
 
 //sys	GetLastError() (lasterrno int)

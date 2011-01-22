@@ -27,6 +27,10 @@ func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
 	proc = p.r;
 }
 
+func compileCallback(code *byte, fn uintptr, argsize uint32) {
+	runtime·compilecallback(code, (void*)fn, argsize);
+}
+
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
 	StdcallParams p;
 	p.fn = (void*)trap;

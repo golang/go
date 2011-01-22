@@ -47,7 +47,7 @@ ok:
 	MOVL	CX, m_g0(AX)
 
 	// create istack out of the OS stack
-	LEAL	(-8192+104)(SP), AX	// TODO: 104?
+	LEAL	(-16*1024+104)(SP), AX	// TODO: 104?
 	MOVL	AX, g_stackguard(CX)
 	MOVL	SP, g_stackbase(CX)
 	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
