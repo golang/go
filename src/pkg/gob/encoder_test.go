@@ -220,7 +220,7 @@ func TestSlice(t *testing.T) {
 func TestValueError(t *testing.T) {
 	// Encode a *T, decode a T
 	type Type4 struct {
-		a int
+		A int
 	}
 	t4p := &Type4{3}
 	var t4 Type4 // note: not a pointer.

@@ -1088,11 +1088,11 @@ func (v Vector) Square() int {
 }
 
 type Point struct {
-	a, b int
+	X, Y int
 }
 
 func (p Point) Square() int {
-	return p.a*p.a + p.b*p.b
+	return p.X*p.X + p.Y*p.Y
 }
 
 // A struct with interfaces in it.

@@ -264,9 +264,6 @@ func encComplex128(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	}
 }
 
-func encNoOp(i *encInstr, state *encoderState, p unsafe.Pointer) {
-}
-
 // Byte arrays are encoded as an unsigned count followed by the raw bytes.
 func encUint8Array(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	b := *(*[]byte)(p)
@@ -516,16 +513,18 @@ func (enc *Encoder) compileEnc(rt reflect.Type) *encEngine {
 	srt, isStruct := rt.(*reflect.StructType)
 	engine := new(encEngine)
 	if isStruct {
-		engine.instr = make([]encInstr, srt.NumField()+1) // +1 for terminator
-		for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
-			f := srt.Field(fieldnum)
-			op, indir := enc.encOpFor(f.Type)
+		for fieldNum := 0; fieldNum < srt.NumField(); fieldNum++ {
+			f := srt.Field(fieldNum)
 			if !isExported(f.Name) {
-				op = encNoOp
+				continue
 			}
-			engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)}
+			op, indir := enc.encOpFor(f.Type)
+			engine.instr = append(engine.instr, encInstr{op, fieldNum, indir, uintptr(f.Offset)})
 		}
-		engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0}
+		if srt.NumField() > 0 && len(engine.instr) == 0 {
+			errorf("type %s has no exported fields", rt)
+		}
+		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, 0, 0})
 	} else {
 		engine.instr = make([]encInstr, 1)
 		op, indir := enc.encOpFor(rt)
