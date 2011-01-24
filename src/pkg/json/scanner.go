@@ -416,7 +416,7 @@ func state0(s *scanner, c int) int {
 		s.step = stateDot
 		return scanContinue
 	}
-	if c == 'e' {
+	if c == 'e' || c == 'E' {
 		s.step = stateE
 		return scanContinue
 	}
@@ -440,7 +440,7 @@ func stateDot0(s *scanner, c int) int {
 		s.step = stateDot0
 		return scanContinue
 	}
-	if c == 'e' {
+	if c == 'e' || c == 'E' {
 		s.step = stateE
 		return scanContinue
 	}
