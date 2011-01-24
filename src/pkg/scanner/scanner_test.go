@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"utf8"
 )
 
 
@@ -408,7 +409,7 @@ func TestScanWhitespace(t *testing.T) {
 func testError(t *testing.T, src, msg string, tok int) {
 	s := new(Scanner).Init(bytes.NewBufferString(src))
 	errorCalled := false
-	s.Error = func(s *Scanner, m string) {
+	s.Error = func(_ *Scanner, m string) {
 		if !errorCalled {
 			// only look at first error
 			if m != msg {
@@ -431,6 +432,8 @@ func testError(t *testing.T, src, msg string, tok int) {
 
 
 func TestError(t *testing.T) {
+	testError(t, "\x00", "illegal character NUL", 0)
+	testError(t, "\xff", "illegal UTF-8 encoding", utf8.RuneError)
 	testError(t, `01238`, "illegal octal number", Int)
 	testError(t, `'\"'`, "illegal char escape", Char)
 	testError(t, `'aa'`, "illegal char literal", Char)
@@ -467,6 +470,7 @@ func TestPos(t *testing.T) {
 	s := new(Scanner).Init(bytes.NewBufferString("abc\n012\n\nx"))
 	s.Mode = 0
 	s.Whitespace = 0
+	s.Peek() // get a defined position
 	checkPos(t, s, 0, 1, 1, 'a')
 	checkPos(t, s, 1, 1, 2, 'b')
 	checkPos(t, s, 2, 1, 3, 'c')
