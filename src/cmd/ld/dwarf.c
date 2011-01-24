@@ -798,6 +798,17 @@ decode_reloc(Sym *s, int32 off)
 	return nil;
 }
 
+static Sym*
+decode_reloc_sym(Sym *s, int32 off)
+{
+	Reloc *r;
+
+	r = decode_reloc(s,off);
+	if (r == nil)
+		return nil;
+	return r->sym;
+}
+
 static uvlong
 decode_inuxi(uchar* p, int sz)
 {
@@ -851,7 +862,7 @@ decodetype_size(Sym *s)
 static Sym*
 decodetype_arrayelem(Sym *s)
 {
-	return decode_reloc(s, 5*PtrSize + 8)->sym;	// 0x1c / 0x30
+	return decode_reloc_sym(s, 5*PtrSize + 8);	// 0x1c / 0x30
 }
 
 static vlong
@@ -864,26 +875,26 @@ decodetype_arraylen(Sym *s)
 static Sym*
 decodetype_ptrelem(Sym *s)
 {
-	return decode_reloc(s, 5*PtrSize + 8)->sym;	// 0x1c / 0x30
+	return decode_reloc_sym(s, 5*PtrSize + 8);	// 0x1c / 0x30
 }
 
 // Type.MapType.key, elem
 static Sym*
 decodetype_mapkey(Sym *s)
 {
-	return decode_reloc(s, 5*PtrSize + 8)->sym;	// 0x1c / 0x30
+	return decode_reloc_sym(s, 5*PtrSize + 8);	// 0x1c / 0x30
 }
 static Sym*
 decodetype_mapvalue(Sym *s)
 {
-	return decode_reloc(s, 6*PtrSize + 8)->sym;	// 0x20 / 0x38
+	return decode_reloc_sym(s, 6*PtrSize + 8);	// 0x20 / 0x38
 }
 
 // Type.ChanType.elem
 static Sym*
 decodetype_chanelem(Sym *s)
 {
-	return decode_reloc(s, 5*PtrSize + 8)->sym;	// 0x1c / 0x30
+	return decode_reloc_sym(s, 5*PtrSize + 8);	// 0x1c / 0x30
 }
 
 // Type.FuncType.dotdotdot
@@ -912,7 +923,9 @@ decodetype_funcintype(Sym *s, int i)
 	Reloc *r;
 
 	r = decode_reloc(s, 6*PtrSize + 8);
-	return decode_reloc(r->sym, r->add + i * PtrSize)->sym;
+	if (r == nil)
+		return nil;
+	return decode_reloc_sym(r->sym, r->add + i * PtrSize);
 }
 
 static Sym*
@@ -921,7 +934,9 @@ decodetype_funcouttype(Sym *s, int i)
 	Reloc *r;
 
 	r = decode_reloc(s, 7*PtrSize + 16);
-	return decode_reloc(r->sym, r->add + i * PtrSize)->sym;
+	if (r == nil)
+		return nil;
+	return decode_reloc_sym(r->sym, r->add + i * PtrSize);
 }
 
 // Type.StructType.fields.Slice::len
@@ -935,21 +950,20 @@ decodetype_structfieldcount(Sym *s)
 static char*
 decodetype_structfieldname(Sym *s, int i)
 {
-	Reloc* r;
-
-	r = decode_reloc(s, 6*PtrSize + 0x10 + i*5*PtrSize);   // go.string."foo"  0x28 / 0x40
-	if (r == nil)				// embedded structs have a nil name.
+	// go.string."foo"  0x28 / 0x40
+	s = decode_reloc_sym(s, 6*PtrSize + 0x10 + i*5*PtrSize);
+	if (s == nil)			// embedded structs have a nil name.
 		return nil;
-	r = decode_reloc(r->sym, 0);		// string."foo"
-	if (r == nil)				// shouldn't happen.
+	s = decode_reloc_sym(s, 0);	// string."foo"
+	if (s == nil)			// shouldn't happen.
 		return nil;
-	return (char*)r->sym->p;		// the c-string
+	return (char*)s->p;		// the c-string
 }
 
 static Sym*
 decodetype_structfieldtype(Sym *s, int i)
 {
-	return decode_reloc(s, 8*PtrSize + 0x10 + i*5*PtrSize)->sym;	 //   0x30 / 0x50
+	return decode_reloc_sym(s, 8*PtrSize + 0x10 + i*5*PtrSize);	//   0x30 / 0x50
 }
 
 static vlong
