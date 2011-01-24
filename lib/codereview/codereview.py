@@ -911,7 +911,7 @@ def CheckGofmt(ui, repo, files, just_warn):
 	if not files:
 		return
 	try:
-		cmd = subprocess.Popen(["gofmt", "-l"] + files, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+		cmd = subprocess.Popen(["gofmt", "-l"] + files, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=sys.platform != "win32")
 		cmd.stdin.close()
 	except:
 		raise util.Abort("gofmt: " + ExceptionDetail())
