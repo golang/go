@@ -98,18 +98,18 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, os.Er
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
-func answer(name, server string, dns *dnsMsg, qtype uint16) (addrs []dnsRR, err os.Error) {
+func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
 	addrs = make([]dnsRR, 0, len(dns.answer))
 
 	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
-		return nil, &DNSError{Error: noSuchHost, Name: name}
+		return "", nil, &DNSError{Error: noSuchHost, Name: name}
 	}
 	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly.
-		return nil, &DNSError{Error: "server misbehaving", Name: name, Server: server}
+		return "", nil, &DNSError{Error: "server misbehaving", Name: name, Server: server}
 	}
 
 	// Look for the name.
@@ -137,19 +137,19 @@ Cname:
 			}
 		}
 		if len(addrs) == 0 {
-			return nil, &DNSError{Error: noSuchHost, Name: name, Server: server}
+			return "", nil, &DNSError{Error: noSuchHost, Name: name, Server: server}
 		}
-		return addrs, nil
+		return name, addrs, nil
 	}
 
-	return nil, &DNSError{Error: "too many redirects", Name: name, Server: server}
+	return "", nil, &DNSError{Error: "too many redirects", Name: name, Server: server}
 }
 
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
-func tryOneName(cfg *dnsConfig, name string, qtype uint16) (addrs []dnsRR, err os.Error) {
+func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
 	if len(cfg.servers) == 0 {
-		return nil, &DNSError{Error: "no DNS servers", Name: name}
+		return "", nil, &DNSError{Error: "no DNS servers", Name: name}
 	}
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
@@ -170,7 +170,7 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (addrs []dnsRR, err o
 			err = merr
 			continue
 		}
-		addrs, err = answer(name, server, msg, qtype)
+		cname, addrs, err = answer(name, server, msg, qtype)
 		if err == nil || err.(*DNSError).Error == noSuchHost {
 			break
 		}
@@ -261,9 +261,8 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
 			rname += "."
 		}
 		// Can try as ordinary name.
-		addrs, err = tryOneName(cfg, rname, qtype)
+		cname, addrs, err = tryOneName(cfg, rname, qtype)
 		if err == nil {
-			cname = rname
 			return
 		}
 	}
@@ -277,9 +276,8 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
 		if rname[len(rname)-1] != '.' {
 			rname += "."
 		}
-		addrs, err = tryOneName(cfg, rname, qtype)
+		cname, addrs, err = tryOneName(cfg, rname, qtype)
 		if err == nil {
-			cname = rname
 			return
 		}
 	}
@@ -289,9 +287,8 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
 	if !rooted {
 		rname += "."
 	}
-	addrs, err = tryOneName(cfg, rname, qtype)
+	cname, addrs, err = tryOneName(cfg, rname, qtype)
 	if err == nil {
-		cname = rname
 		return
 	}
 	return
