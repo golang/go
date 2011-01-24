@@ -522,9 +522,27 @@ func TestMapDriverType(t *testing.T) {
 		t.Error("unexpected execute error:", err)
 	}
 	s := b.String()
-	expected := "template: Ahoy!"
-	if s != expected {
-		t.Errorf("failed passing string as data: expected %q got %q", "template: Ahoy!", s)
+	expect := "template: Ahoy!"
+	if s != expect {
+		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+	}
+}
+
+func TestMapNoEntry(t *testing.T) {
+	mp := make(map[string]int)
+	tmpl, err := Parse("template: {notthere}!", nil)
+	if err != nil {
+		t.Error("unexpected parse error:", err)
+	}
+	var b bytes.Buffer
+	err = tmpl.Execute(mp, &b)
+	if err != nil {
+		t.Error("unexpected execute error:", err)
+	}
+	s := b.String()
+	expect := "template: 0!"
+	if s != expect {
+		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
 	}
 }
 
@@ -539,8 +557,9 @@ func TestStringDriverType(t *testing.T) {
 		t.Error("unexpected execute error:", err)
 	}
 	s := b.String()
-	if s != "template: hello" {
-		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
+	expect := "template: hello"
+	if s != expect {
+		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
 	}
 }
 
@@ -555,18 +574,18 @@ func TestTwice(t *testing.T) {
 		t.Error("unexpected parse error:", err)
 	}
 	s := b.String()
-	text := "template: hello"
-	if s != text {
-		t.Errorf("failed passing string as data: expected %q got %q", text, s)
+	expect := "template: hello"
+	if s != expect {
+		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
 	}
 	err = tmpl.Execute("hello", &b)
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
 	s = b.String()
-	text += text
-	if s != text {
-		t.Errorf("failed passing string as data: expected %q got %q", text, s)
+	expect += expect
+	if s != expect {
+		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
 	}
 }
 

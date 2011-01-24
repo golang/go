@@ -622,7 +622,10 @@ func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value
 			}
 			return av.FieldByName(name)
 		case *reflect.MapValue:
-			return av.Elem(reflect.NewValue(name))
+			if v := av.Elem(reflect.NewValue(name)); v != nil {
+				return v
+			}
+			return reflect.MakeZero(typ.(*reflect.MapType).Elem())
 		default:
 			return nil
 		}
