@@ -50,27 +50,33 @@ func (x *Index) at(i int) []byte {
 }
 
 
-func (x *Index) search(s []byte) int {
-	return sort.Search(len(x.sa), func(i int) bool { return bytes.Compare(x.at(i), s) >= 0 })
+// lookupAll returns a slice into the matching region of the index.
+// The runtime is O(log(N)*len(s)).
+func (x *Index) lookupAll(s []byte) []int {
+	// find matching suffix index range [i:j]
+	// find the first index where s would be the prefix
+	i := sort.Search(len(x.sa), func(i int) bool { return bytes.Compare(x.at(i), s) >= 0 })
+	// starting at i, find the first index at which s is not a prefix
+	j := i + sort.Search(len(x.sa)-i, func(j int) bool { return !bytes.HasPrefix(x.at(j+i), s) })
+	return x.sa[i:j]
 }
 
 
 // Lookup returns an unsorted list of at most n indices where the byte string s
 // occurs in the indexed data. If n < 0, all occurrences are returned.
 // The result is nil if s is empty, s is not found, or n == 0.
-// Lookup time is O((log(N) + len(result))*len(s)) where N is the
+// Lookup time is O(log(N)*len(s) + len(result)) where N is the
 // size of the indexed data.
 //
 func (x *Index) Lookup(s []byte, n int) (result []int) {
 	if len(s) > 0 && n != 0 {
-		// find matching suffix index i
-		i := x.search(s)
-		// x.at(i-1) < s <= x.at(i)
-
-		// collect the following suffixes with matching prefixes
-		for (n < 0 || len(result) < n) && i < len(x.sa) && bytes.HasPrefix(x.at(i), s) {
-			result = append(result, x.sa[i])
-			i++
+		matches := x.lookupAll(s)
+		if len(matches) < n || n < 0 {
+			n = len(matches)
+		}
+		if n > 0 {
+			result = make([]int, n)
+			copy(result, matches)
 		}
 	}
 	return
