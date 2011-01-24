@@ -144,7 +144,7 @@ type Scanner struct {
 	// the token text's head may be buffered in tokBuf while the token text's
 	// tail is stored in srcBuf.
 	tokBuf bytes.Buffer // token text head that is not in srcBuf anymore
-	tokPos int          // token text tail position (srcBuf index)
+	tokPos int          // token text tail position (srcBuf index); valid if >= 0
 	tokEnd int          // token text tail end (srcBuf index)
 
 	// One character look-ahead
@@ -175,13 +175,14 @@ type Scanner struct {
 }
 
 
-// Init initializes a Scanner with a new source and returns itself.
+// Init initializes a Scanner with a new source and returns s.
 // Error is set to nil, ErrorCount is set to 0, Mode is set to GoTokens,
 // and Whitespace is set to GoWhitespace.
 func (s *Scanner) Init(src io.Reader) *Scanner {
 	s.src = src
 
 	// initialize source buffer
+	// (the first call to next() will fill it by calling src.Read)
 	s.srcBuf[0] = utf8.RuneSelf // sentinel
 	s.srcPos = 0
 	s.srcEnd = 0
@@ -192,10 +193,11 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
 	s.column = 0
 
 	// initialize token text buffer
+	// (required for first call to next()).
 	s.tokPos = -1
 
 	// initialize one character look-ahead
-	s.ch = s.next()
+	s.ch = -1 // no char read yet
 
 	// initialize public fields
 	s.Error = nil
@@ -222,15 +224,20 @@ func (s *Scanner) next() int {
 			if s.tokPos >= 0 {
 				s.tokBuf.Write(s.srcBuf[s.tokPos:s.srcPos])
 				s.tokPos = 0
+				// s.tokEnd is set by Scan()
 			}
 			// move unread bytes to beginning of buffer
 			copy(s.srcBuf[0:], s.srcBuf[s.srcPos:s.srcEnd])
 			s.srcBufOffset += s.srcPos
 			// read more bytes
+			// (an io.Reader must return os.EOF when it reaches
+			// the end of what it is reading - simply returning
+			// n == 0 will make this loop retry forever; but the
+			// error is in the reader implementation in that case)
 			i := s.srcEnd - s.srcPos
 			n, err := s.src.Read(s.srcBuf[i:bufLen])
-			s.srcEnd = i + n
 			s.srcPos = 0
+			s.srcEnd = i + n
 			s.srcBuf[s.srcEnd] = utf8.RuneSelf // sentinel
 			if err != nil {
 				if s.srcEnd == 0 {
@@ -238,8 +245,12 @@ func (s *Scanner) next() int {
 				}
 				if err != os.EOF {
 					s.error(err.String())
-					break
 				}
+				// If err == EOF, we won't be getting more
+				// bytes; break to avoid infinite loop. If
+				// err is something else, we don't know if
+				// we can get more bytes; thus also break.
+				break
 			}
 		}
 		// at least one byte
@@ -251,7 +262,7 @@ func (s *Scanner) next() int {
 			if ch == utf8.RuneError && width == 1 {
 				s.error("illegal UTF-8 encoding")
 			}
-			s.srcPos += width - 1
+			s.srcPos += width - 1 // -1 because of s.srcPos++ below
 		}
 	}
 
@@ -272,13 +283,13 @@ func (s *Scanner) next() int {
 
 // Next reads and returns the next Unicode character.
 // It returns EOF at the end of the source. It reports
-// a read error by calling s.Error, if set, or else
-// prints an error message to os.Stderr. Next does not
+// a read error by calling s.Error, if not nil; otherwise
+// it prints an error message to os.Stderr. Next does not
 // update the Scanner's Position field; use Pos() to
 // get the current position.
 func (s *Scanner) Next() int {
 	s.tokPos = -1 // don't collect token text
-	ch := s.ch
+	ch := s.Peek()
 	s.ch = s.next()
 	return ch
 }
@@ -288,6 +299,9 @@ func (s *Scanner) Next() int {
 // the scanner. It returns EOF if the scanner's position is at the last
 // character of the source.
 func (s *Scanner) Peek() int {
+	if s.ch < 0 {
+		s.ch = s.next()
+	}
 	return s.ch
 }
 
@@ -511,10 +525,10 @@ func (s *Scanner) scanComment(ch int) {
 // Scan reads the next token or Unicode character from source and returns it.
 // It only recognizes tokens t for which the respective Mode bit (1<<-t) is set.
 // It returns EOF at the end of the source. It reports scanner errors (read and
-// token errors) by calling s.Error, if set; otherwise it prints an error message
-// to os.Stderr.
+// token errors) by calling s.Error, if not nil; otherwise it prints an error
+// message to os.Stderr.
 func (s *Scanner) Scan() int {
-	ch := s.ch
+	ch := s.Peek()
 
 	// reset token text position
 	s.tokPos = -1
