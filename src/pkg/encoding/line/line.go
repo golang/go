@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements a Reader which handles reading \r and \r\n
-// deliminated lines.
+// The line package implements a Reader that reads lines delimited by '\n' or ' \r\n'.
 package line
 
 import (
@@ -11,8 +10,7 @@ import (
 	"os"
 )
 
-// Reader reads lines from an io.Reader (which may use either '\n' or
-// '\r\n').
+// Reader reads lines, delimited by '\n' or \r\n', from an io.Reader.
 type Reader struct {
 	buf      []byte
 	consumed int
@@ -20,11 +18,13 @@ type Reader struct {
 	err      os.Error
 }
 
-func NewReader(in io.Reader, maxLineLength int) *Reader {
+// NewReader returns a new Reader that will read successive
+// lines from the input Reader.
+func NewReader(input io.Reader, maxLineLength int) *Reader {
 	return &Reader{
 		buf:      make([]byte, 0, maxLineLength),
 		consumed: 0,
-		in:       in,
+		in:       input,
 	}
 }
 
