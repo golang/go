@@ -573,6 +573,16 @@ def CodeReviewDir(ui, repo):
 	typecheck(dir, str)
 	return dir
 
+# Turn leading tabs into spaces, so that the common white space
+# prefix doesn't get confused when people's editors write out 
+# some lines with spaces, some with tabs.  Only a heuristic
+# (some editors don't use 8 spaces either) but a useful one.
+def TabsToSpaces(line):
+	i = 0
+	while i < len(line) and line[i] == '\t':
+		i += 1
+	return ' '*(8*i) + line[i:]
+
 # Strip maximal common leading white space prefix from text
 def StripCommon(text):
 	typecheck(text, str)
@@ -581,6 +591,7 @@ def StripCommon(text):
 		line = line.rstrip()
 		if line == '':
 			continue
+		line = TabsToSpaces(line)
 		white = line[:len(line)-len(line.lstrip())]
 		if ws == None:
 			ws = white
@@ -597,6 +608,7 @@ def StripCommon(text):
 	t = ''
 	for line in text.split('\n'):
 		line = line.rstrip()
+		line = TabsToSpaces(line)
 		if line.startswith(ws):
 			line = line[len(ws):]
 		if line == '' and t == '':
@@ -638,28 +650,53 @@ def effective_revpair(repo):
 	return cmdutil.revpair(repo, None)
 
 # Return list of changed files in repository that match pats.
-def ChangedFiles(ui, repo, pats, opts):
-	# Find list of files being operated on.
+# Warn about patterns that did not match.
+def matchpats(ui, repo, pats, opts):
 	matcher = cmdutil.match(repo, pats, opts)
 	node1, node2 = effective_revpair(repo)
-	modified, added, removed = repo.status(node1, node2, matcher)[:3]
+	modified, added, removed, deleted, unknown, ignored, clean = repo.status(node1, node2, matcher, ignored=True, clean=True, unknown=True)
+	return (modified, added, removed, deleted, unknown, ignored, clean)
+
+# Return list of changed files in repository that match pats.
+# The patterns came from the command line, so we warn
+# if they have no effect or cannot be understood.
+def ChangedFiles(ui, repo, pats, opts, taken=None):
+	taken = taken or {}
+	# Run each pattern separately so that we can warn about
+	# patterns that didn't do anything useful.
+	for p in pats:
+		modified, added, removed, deleted, unknown, ignored, clean = matchpats(ui, repo, [p], opts)
+		redo = False
+		for f in unknown:
+			promptadd(ui, repo, f)
+			redo = True
+		for f in deleted:
+			promptremove(ui, repo, f)
+			redo = True
+		if redo:
+			modified, added, removed, deleted, unknown, ignored, clean = matchpats(ui, repo, [p], opts)
+		for f in modified + added + removed:
+			if f in taken:
+				ui.warn("warning: %s already in CL %s\n" % (f, taken[f].name))
+		if not modified and not added and not removed:
+			ui.warn("warning: %s did not match any modified files\n" % (p,))
+
+	# Again, all at once (eliminates duplicates)
+	modified, added, removed = matchpats(ui, repo, pats, opts)[:3]
 	l = modified + added + removed
 	l.sort()
+	if taken:
+		l = Sub(l, taken.keys())
 	return l
 
 # Return list of changed files in repository that match pats and still exist.
 def ChangedExistingFiles(ui, repo, pats, opts):
-	matcher = cmdutil.match(repo, pats, opts)
-	node1, node2 = effective_revpair(repo)
-	modified, added, _ = repo.status(node1, node2, matcher)[:3]
+	modified, added = matchpats(ui, repo, pats, opts)[:2]
 	l = modified + added
 	l.sort()
 	return l
 
 # Return list of files claimed by existing CLs
-def TakenFiles(ui, repo):
-	return Taken(ui, repo).keys()
-
 def Taken(ui, repo):
 	all = LoadAllCL(ui, repo, web=False)
 	taken = {}
@@ -670,7 +707,7 @@ def Taken(ui, repo):
 
 # Return list of changed files that are not claimed by other CLs
 def DefaultFiles(ui, repo, pats, opts):
-	return Sub(ChangedFiles(ui, repo, pats, opts), TakenFiles(ui, repo))
+	return ChangedFiles(ui, repo, pats, opts, taken=Taken(ui, repo))
 
 def Sub(l1, l2):
 	return [l for l in l1 if l not in l2]
@@ -701,6 +738,39 @@ def Incoming(ui, repo, opts):
 	_, incoming, _ = findcommonincoming(repo, getremote(ui, repo, opts))
 	return incoming
 
+desc_re = '^(.+: |tag release\.|release\.|fix build)'
+
+desc_msg = '''Your CL description appears not to use the standard form.
+
+The first line of your change description is conventionally a
+one-line summary of the change, prefixed by the primary affected package,
+and is used as the subject for code review mail; the rest of the description
+elaborates.
+
+Examples:
+
+	encoding/rot13: new package
+
+	math: add IsInf, IsNaN
+	
+	net: fix cname in LookupHost
+
+	unicode: update to Unicode 5.0.2
+
+'''
+
+	
+
+def promptremove(ui, repo, f):
+	if promptyesno(ui, "hg remove %s (y/n)?" % (f,)):
+		if commands.remove(ui, repo, 'path:'+f) != 0:
+			ui.warn("error removing %s" % (f,))
+
+def promptadd(ui, repo, f):
+	if promptyesno(ui, "hg add %s (y/n)?" % (f,)):
+		if commands.add(ui, repo, 'path:'+f) != 0:
+			ui.warn("error adding %s" % (f,))
+
 def EditCL(ui, repo, cl):
 	set_status(None)	# do not show status
 	s = cl.EditorText()
@@ -711,13 +781,54 @@ def EditCL(ui, repo, cl):
 			if not promptyesno(ui, "error parsing change list: line %d: %s\nre-edit (y/n)?" % (line, err)):
 				return "change list not modified"
 			continue
-		cl.desc = clx.desc;
+		
+		# Check description.
+		if clx.desc == '':
+			if promptyesno(ui, "change list should have a description\nre-edit (y/n)?"):
+				continue
+		elif not re.match(desc_re, clx.desc.split('\n')[0]):
+			if promptyesno(ui, desc_msg + "re-edit (y/n)?"):
+				continue
+
+		# Check file list for files that need to be hg added or hg removed
+		# or simply aren't understood.
+		pats = ['path:'+f for f in clx.files]
+		modified, added, removed, deleted, unknown, ignored, clean = matchpats(ui, repo, pats, {})
+		files = []
+		for f in clx.files:
+			if f in modified or f in added or f in removed:
+				files.append(f)
+				continue
+			if f in deleted:
+				promptremove(ui, repo, f)
+				files.append(f)
+				continue
+			if f in unknown:
+				promptadd(ui, repo, f)
+				files.append(f)
+				continue
+			if f in ignored:
+				ui.warn("error: %s is excluded by .hgignore; omitting\n" % (f,))
+				continue
+			if f in clean:
+				ui.warn("warning: %s is listed in the CL but unchanged\n" % (f,))
+				files.append(f)
+				continue
+			p = repo.root + '/' + f
+			if os.path.isfile(p):
+				ui.warn("warning: %s is a file but not known to hg\n" % (f,))
+				files.append(f)
+				continue
+			if os.path.isdir(p):
+				ui.warn("error: %s is a directory, not a file; omitting\n" % (f,))
+				continue
+			ui.warn("error: %s does not exist; omitting\n" % (f,))
+		clx.files = files
+
+		cl.desc = clx.desc
 		cl.reviewer = clx.reviewer
 		cl.cc = clx.cc
 		cl.files = clx.files
-		if cl.desc == '':
-			if promptyesno(ui, "change list should have description\nre-edit (y/n)?"):
-				continue
 		break
 	return ""
 
@@ -736,7 +847,7 @@ def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
 	else:
 		cl = CL("new")
 		cl.local = True
-		cl.files = Sub(ChangedFiles(ui, repo, pats, opts), TakenFiles(ui, repo))
+		cl.files = ChangedFiles(ui, repo, pats, opts, taken=Taken(ui, repo))
 		if not cl.files:
 			return None, "no files changed"
 	if opts.get('reviewer'):
@@ -758,10 +869,11 @@ def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
 # which expands the syntax @clnumber to mean the files
 # in that CL.
 original_match = None
-def ReplacementForCmdutilMatch(repo, pats=[], opts={}, globbed=False, default='relpath'):
+def ReplacementForCmdutilMatch(repo, pats=None, opts=None, globbed=False, default='relpath'):
 	taken = []
 	files = []
 	pats = pats or []
+	opts = opts or {}
 	for p in pats:
 		if p.startswith('@'):
 			taken.append(p)
@@ -895,9 +1007,7 @@ def change(ui, repo, *pats, **opts):
 		name = "new"
 		cl = CL("new")
 		dirty[cl] = True
-		files = ChangedFiles(ui, repo, pats, opts)
-		taken = TakenFiles(ui, repo)
-		files = Sub(files, taken)
+		files = ChangedFiles(ui, repo, pats, opts, taken=Taken(ui, repo))
 
 	if opts["delete"] or opts["deletelocal"]:
 		if opts["delete"] and opts["deletelocal"]:
@@ -2284,10 +2394,18 @@ def GetRpcServer(options):
 
 	def GetUserCredentials():
 		"""Prompts the user for a username and password."""
+		# Disable status prints so they don't obscure the password prompt.
+		global global_status
+		st = global_status
+		global_status = None
+
 		email = options.email
 		if email is None:
 			email = GetEmail("Email (login for uploading to %s)" % options.server)
 		password = getpass.getpass("Password for %s: " % email)
+
+		# Put status back.
+		global_status = st
 		return (email, password)
 
 	# If this is the dev_appserver, use fake authentication.
