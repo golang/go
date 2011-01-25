@@ -298,8 +298,6 @@ runtime·compilecallback(byte *code, void *fn, uint32 argsize)
 	*p = 0xd0;
 }
 
-enum { StackGuard = 2048 }; // defined in proc.c
-
 #pragma textflag 7
 void*
 runtime·callback(void *arg, void (*fn)(void), int32 argsize)
