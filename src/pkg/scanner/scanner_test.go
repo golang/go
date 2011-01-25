@@ -448,39 +448,99 @@ func TestError(t *testing.T) {
 }
 
 
-func checkPos(t *testing.T, s *Scanner, offset, line, column, char int) {
-	pos := s.Pos()
-	if pos.Offset != offset {
-		t.Errorf("offset = %d, want %d", pos.Offset, offset)
-	}
-	if pos.Line != line {
-		t.Errorf("line = %d, want %d", pos.Line, line)
-	}
-	if pos.Column != column {
-		t.Errorf("column = %d, want %d", pos.Column, column)
-	}
-	ch := s.Scan()
-	if ch != char {
-		t.Errorf("ch = %s, want %s", TokenString(ch), TokenString(char))
+func checkPos(t *testing.T, got, want Position) {
+	if got.Offset != want.Offset || got.Line != want.Line || got.Column != want.Column {
+		t.Errorf("got offset, line, column = %d, %d, %d; want %d, %d, %d",
+			got.Offset, got.Line, got.Column, want.Offset, want.Line, want.Column)
 	}
 }
 
 
+func checkNextPos(t *testing.T, s *Scanner, offset, line, column, char int) {
+	if ch := s.Next(); ch != char {
+		t.Errorf("ch = %s, want %s", TokenString(ch), TokenString(char))
+	}
+	want := Position{Offset: offset, Line: line, Column: column}
+	checkPos(t, s.Pos(), want)
+}
+
+
+func checkScanPos(t *testing.T, s *Scanner, offset, line, column, char int) {
+	want := Position{Offset: offset, Line: line, Column: column}
+	checkPos(t, s.Pos(), want)
+	if ch := s.Scan(); ch != char {
+		t.Errorf("ch = %s, want %s", TokenString(ch), TokenString(char))
+		if string(ch) != s.TokenText() {
+			t.Errorf("tok = %q, want %q", s.TokenText(), string(ch))
+		}
+	}
+	checkPos(t, s.Position, want)
+}
+
+
 func TestPos(t *testing.T) {
-	s := new(Scanner).Init(bytes.NewBufferString("abc\n012\n\nx"))
+	// corner case: empty source
+	s := new(Scanner).Init(bytes.NewBufferString(""))
+	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
+	s.Peek() // peek doesn't affect the position
+	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
+
+	// corner case: source with only a newline
+	s = new(Scanner).Init(bytes.NewBufferString("\n"))
+	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
+	checkNextPos(t, s, 1, 2, 1, '\n')
+	// after EOF position doesn't change
+	for i := 10; i > 0; i-- {
+		checkScanPos(t, s, 1, 2, 1, EOF)
+	}
+
+	// corner case: source with only a single character
+	s = new(Scanner).Init(bytes.NewBufferString("本"))
+	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
+	checkNextPos(t, s, 3, 1, 2, '本')
+	// after EOF position doesn't change
+	for i := 10; i > 0; i-- {
+		checkScanPos(t, s, 3, 1, 2, EOF)
+	}
+
+	// positions after calling Next
+	s = new(Scanner).Init(bytes.NewBufferString("  foo६४  \n\n本語\n"))
+	checkNextPos(t, s, 1, 1, 2, ' ')
+	s.Peek() // peek doesn't affect the position
+	checkNextPos(t, s, 2, 1, 3, ' ')
+	checkNextPos(t, s, 3, 1, 4, 'f')
+	checkNextPos(t, s, 4, 1, 5, 'o')
+	checkNextPos(t, s, 5, 1, 6, 'o')
+	checkNextPos(t, s, 8, 1, 7, '६')
+	checkNextPos(t, s, 11, 1, 8, '४')
+	checkNextPos(t, s, 12, 1, 9, ' ')
+	checkNextPos(t, s, 13, 1, 10, ' ')
+	checkNextPos(t, s, 14, 2, 1, '\n')
+	checkNextPos(t, s, 15, 3, 1, '\n')
+	checkNextPos(t, s, 18, 3, 2, '本')
+	checkNextPos(t, s, 21, 3, 3, '語')
+	checkNextPos(t, s, 22, 4, 1, '\n')
+	// after EOF position doesn't change
+	for i := 10; i > 0; i-- {
+		checkScanPos(t, s, 22, 4, 1, EOF)
+	}
+
+	// positions after calling Scan
+	s = new(Scanner).Init(bytes.NewBufferString("abc\n本語\n\nx"))
 	s.Mode = 0
 	s.Whitespace = 0
-	s.Peek() // get a defined position
-	checkPos(t, s, 0, 1, 1, 'a')
-	checkPos(t, s, 1, 1, 2, 'b')
-	checkPos(t, s, 2, 1, 3, 'c')
-	checkPos(t, s, 3, 2, 0, '\n')
-	checkPos(t, s, 4, 2, 1, '0')
-	checkPos(t, s, 5, 2, 2, '1')
-	checkPos(t, s, 6, 2, 3, '2')
-	checkPos(t, s, 7, 3, 0, '\n')
-	checkPos(t, s, 8, 4, 0, '\n')
-	checkPos(t, s, 9, 4, 1, 'x')
-	checkPos(t, s, 9, 4, 1, EOF)
-	checkPos(t, s, 9, 4, 1, EOF) // after EOF, position doesn't change
+	checkScanPos(t, s, 0, 1, 1, 'a')
+	s.Peek() // peek doesn't affect the position
+	checkScanPos(t, s, 1, 1, 2, 'b')
+	checkScanPos(t, s, 2, 1, 3, 'c')
+	checkScanPos(t, s, 3, 1, 4, '\n')
+	checkScanPos(t, s, 4, 2, 1, '本')
+	checkScanPos(t, s, 7, 2, 2, '語')
+	checkScanPos(t, s, 10, 2, 3, '\n')
+	checkScanPos(t, s, 11, 3, 1, '\n')
+	checkScanPos(t, s, 12, 4, 1, 'x')
+	// after EOF position doesn't change
+	for i := 10; i > 0; i-- {
+		checkScanPos(t, s, 13, 4, 2, EOF)
+	}
 }
