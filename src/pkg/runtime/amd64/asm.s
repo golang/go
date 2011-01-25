@@ -407,9 +407,9 @@ TEXT runtime·stackcheck(SB), 7, $0
 
 TEXT runtime·memclr(SB),7,$0
 	MOVQ	8(SP), DI		// arg 1 addr
-	MOVL	16(SP), CX		// arg 2 count
-	ADDL	$7, CX
-	SHRL	$3, CX
+	MOVQ	16(SP), CX		// arg 2 count
+	ADDQ	$7, CX
+	SHRQ	$3, CX
 	MOVQ	$0, AX
 	CLD
 	REP

@@ -282,13 +282,17 @@ static struct {
 	FixAlloc;
 } stacks;
 
+enum {
+	FixedStack = StackBig + StackExtra
+};
+
 void*
 runtime·stackalloc(uint32 n)
 {
 	void *v;
 	uint32 *ref;
 
-	if(m->mallocing || m->gcing) {
+	if(m->mallocing || m->gcing || n == FixedStack) {
 		runtime·lock(&stacks);
 		if(stacks.size == 0)
 			runtime·FixAlloc_Init(&stacks, n, runtime·SysAlloc, nil, nil);
@@ -310,9 +314,9 @@ runtime·stackalloc(uint32 n)
 }
 
 void
-runtime·stackfree(void *v)
+runtime·stackfree(void *v, uintptr n)
 {
-	if(m->mallocing || m->gcing) {
+	if(m->mallocing || m->gcing || n == FixedStack) {
 		runtime·lock(&stacks);
 		runtime·FixAlloc_Free(&stacks, v);
 		mstats.stacks_inuse = stacks.inuse;
