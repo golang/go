@@ -246,8 +246,8 @@ struct	Stktop
 	Gobuf	gobuf;
 	uint32	argsize;
 
-	uint8*	argp;  // pointer to arguments in old frame
-	bool	free;	// call stackfree for this frame?
+	uint8*	argp;	// pointer to arguments in old frame
+	uintptr	free;	// if free>0, call stackfree using free as size
 	bool	panic;	// is this frame the top of a panic?
 };
 struct	Alg
@@ -421,7 +421,7 @@ void	runtime·minit(void);
 Func*	runtime·findfunc(uintptr);
 int32	runtime·funcline(Func*, uint64);
 void*	runtime·stackalloc(uint32);
-void	runtime·stackfree(void*);
+void	runtime·stackfree(void*, uintptr);
 MCache*	runtime·allocmcache(void);
 void	runtime·mallocinit(void);
 bool	runtime·ifaceeq_c(Iface, Iface);
@@ -506,11 +506,11 @@ void	runtime·notewakeup(Note*);
 #define EACCES		13
 
 /*
- * low level go-called
+ * low level C-called
  */
 uint8*	runtime·mmap(byte*, uintptr, int32, int32, int32, uint32);
 void	runtime·munmap(uint8*, uintptr);
-void	runtime·memclr(byte*, uint32);
+void	runtime·memclr(byte*, uintptr);
 void	runtime·setcallerpc(void*, void*);
 void*	runtime·getcallerpc(void*);
 
@@ -588,3 +588,84 @@ int32	runtime·chanlen(Hchan*);
 int32	runtime·chancap(Hchan*);
 
 void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
+
+/*
+ * Stack layout parameters.
+ * Known to linkers.
+ *
+ * The per-goroutine g->stackguard is set to point
+ * StackGuard bytes above the bottom of the stack.
+ * Each function compares its stack pointer against
+ * g->stackguard to check for overflow.  To cut one
+ * instruction from the check sequence for functions
+ * with tiny frames, the stack is allowed to protrude
+ * StackSmall bytes below the stack guard.  Functions
+ * with large frames don't bother with the check and
+ * always call morestack.  The sequences are
+ * (for amd64, others are similar):
+ *
+ * 	guard = g->stackguard
+ * 	frame = function's stack frame size
+ * 	argsize = size of function arguments (call + return)
+ *
+ * 	stack frame size <= StackSmall:
+ * 		CMPQ guard, SP
+ * 		JHI 3(PC)
+ * 		MOVQ m->morearg, $(argsize << 32)
+ * 		CALL morestack(SB)
+ *
+ * 	stack frame size > StackSmall but < StackBig
+ * 		LEAQ (frame-StackSmall)(SP), R0
+ * 		CMPQ guard, R0
+ * 		JHI 3(PC)
+ * 		MOVQ m->morearg, $(argsize << 32)
+ * 		CALL morestack(SB)
+ *
+ * 	stack frame size >= StackBig:
+ * 		MOVQ m->morearg, $((argsize << 32) | frame)
+ * 		CALL morestack(SB)
+ *
+ * The bottom StackGuard - StackSmall bytes are important:
+ * there has to be enough room to execute functions that
+ * refuse to check for stack overflow, either because they
+ * need to be adjacent to the actual caller's frame (deferproc)
+ * or because they handle the imminent stack overflow (morestack).
+ *
+ * For example, deferproc might call malloc, which does one
+ * of the above checks (without allocating a full frame),
+ * which might trigger a call to morestack.  This sequence
+ * needs to fit in the bottom section of the stack.  On amd64,
+ * morestack's frame is 40 bytes, and deferproc's frame is 56 bytes.
+ * That fits well within the StackGuard - StackSmall = 128 bytes
+ * at the bottom.  There may be other sequences lurking or yet to
+ * be written that require more stack.  Morestack checks to make
+ * sure the stack has not completely overflowed and should catch
+ * such sequences.
+ */
+enum
+{
+#ifdef __WINDOWS__
+	// need enough room in guard area for exception handler.
+	// use larger stacks to compensate for larger stack guard.
+	StackSmall = 256,
+	StackGuard = 2048,
+	StackBig   = 8192,
+	StackExtra = StackGuard,
+#else
+	// byte offset of stack guard (g->stackguard) above bottom of stack.
+	StackGuard = 256,
+
+	// checked frames are allowed to protrude below the guard by
+	// this many bytes.  this saves an instruction in the checking
+	// sequence when the stack frame is tiny.
+	StackSmall = 128,
+
+	// extra space in the frame (beyond the function for which
+	// the frame is allocated) is assumed not to be much bigger
+	// than this amount.  it may not be used efficiently if it is.
+	StackBig = 4096,
+
+	// extra room over frame size when allocating a stack.
+	StackExtra = 1024,
+#endif
+};

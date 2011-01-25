@@ -678,87 +678,6 @@ runtime·endcgocallback(G* g1)
 	runtime·free(d);
 }
 
-/*
- * stack layout parameters.
- * known to linkers.
- *
- * g->stackguard is set to point StackGuard bytes
- * above the bottom of the stack.  each function
- * compares its stack pointer against g->stackguard
- * to check for overflow.  to cut one instruction from
- * the check sequence for functions with tiny frames,
- * the stack is allowed to protrude StackSmall bytes
- * below the stack guard.  functions with large frames
- * don't bother with the check and always call morestack.
- * the sequences are (for amd64, others are similar):
- *
- *	guard = g->stackguard
- *	frame = function's stack frame size
- *	argsize = size of function arguments (call + return)
- *
- *	stack frame size <= StackSmall:
- *		CMPQ guard, SP
- *		JHI 3(PC)
- *		MOVQ m->morearg, $(argsize << 32)
- *		CALL sys.morestack(SB)
- *
- *	stack frame size > StackSmall but < StackBig
- *		LEAQ (frame-StackSmall)(SP), R0
- *		CMPQ guard, R0
- *		JHI 3(PC)
- *		MOVQ m->morearg, $(argsize << 32)
- *		CALL sys.morestack(SB)
- *
- *	stack frame size >= StackBig:
- *		MOVQ m->morearg, $((argsize << 32) | frame)
- *		CALL sys.morestack(SB)
- *
- * the bottom StackGuard - StackSmall bytes are important:
- * there has to be enough room to execute functions that
- * refuse to check for stack overflow, either because they
- * need to be adjacent to the actual caller's frame (sys.deferproc)
- * or because they handle the imminent stack overflow (sys.morestack).
- *
- * for example, sys.deferproc might call malloc,
- * which does one of the above checks (without allocating a full frame),
- * which might trigger a call to sys.morestack.
- * this sequence needs to fit in the bottom section of the stack.
- * on amd64, sys.morestack's frame is 40 bytes, and
- * sys.deferproc's frame is 56 bytes.  that fits well within
- * the StackGuard - StackSmall = 128 bytes at the bottom.
- * there may be other sequences lurking or yet to be written
- * that require more stack.  sys.morestack checks to make sure
- * the stack has not completely overflowed and should
- * catch such sequences.
- */
-enum
-{
-#ifdef __WINDOWS__
-	// need enough room in guard area for exception handler.
-	// use larger stacks to compensate for larger stack guard.
-	StackSmall = 256,
-	StackGuard = 2048,
-	StackBig   = 8192,
-	StackExtra = StackGuard,
-#else
-	// byte offset of stack guard (g->stackguard) above bottom of stack.
-	StackGuard = 256,
-
-	// checked frames are allowed to protrude below the guard by
-	// this many bytes.  this saves an instruction in the checking
-	// sequence when the stack frame is tiny.
-	StackSmall = 128,
-
-	// extra space in the frame (beyond the function for which
-	// the frame is allocated) is assumed not to be much bigger
-	// than this amount.  it may not be used efficiently if it is.
-	StackBig = 4096,
-
-	// extra room over frame size when allocating a stack.
-	StackExtra = 1024,
-#endif
-};
-
 void
 runtime·oldstack(void)
 {
@@ -781,8 +700,8 @@ runtime·oldstack(void)
 	}
 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
 
-	if(old.free)
-		runtime·stackfree(g1->stackguard - StackGuard);
+	if(old.free != 0)
+		runtime·stackfree(g1->stackguard - StackGuard, old.free);
 	g1->stackbase = old.stackbase;
 	g1->stackguard = old.stackguard;
 
@@ -797,7 +716,8 @@ runtime·newstack(void)
 	byte *stk, *sp;
 	G *g1;
 	Gobuf label;
-	bool free, reflectcall;
+	bool reflectcall;
+	uintptr free;
 
 	framesize = m->moreframesize;
 	argsize = m->moreargsize;
@@ -818,7 +738,7 @@ runtime·newstack(void)
 		// we don't need to create a new segment.
 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
 		stk = g1->stackguard - StackGuard;
-		free = false;
+		free = 0;
 	} else {
 		// allocate new segment.
 		framesize += argsize;
@@ -827,7 +747,7 @@ runtime·newstack(void)
 		framesize += StackExtra;	// room for more functions, Stktop.
 		stk = runtime·stackalloc(framesize);
 		top = (Stktop*)(stk+framesize-sizeof(*top));
-		free = true;
+		free = framesize;
 	}
 
 //printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n",
@@ -1036,8 +956,8 @@ unwindstack(G *gp, byte *sp)
 			break;
 		gp->stackbase = top->stackbase;
 		gp->stackguard = top->stackguard;
-		if(top->free)
-			runtime·stackfree(stk);
+		if(top->free != 0)
+			runtime·stackfree(stk, top->free);
 	}
 
 	if(sp != nil && (sp < gp->stackguard - StackGuard || gp->stackbase < sp)) {
