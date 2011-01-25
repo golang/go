@@ -64,6 +64,18 @@ func BenchmarkAfterFunc(b *testing.B) {
 	<-c
 }
 
+func BenchmarkAfter(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		<-After(1)
+	}
+}
+
+func BenchmarkStop(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		NewTimer(1e9).Stop()
+	}
+}
+
 func TestAfter(t *testing.T) {
 	const delay = int64(100e6)
 	start := Nanoseconds()
@@ -91,6 +103,30 @@ func TestAfterTick(t *testing.T) {
 	slop := target * 2 / 10
 	if ns < target-slop || ns > target+slop {
 		t.Fatalf("%d ticks of %g ns took %g ns, expected %g", Count, float64(Delta), float64(ns), float64(target))
+	}
+}
+
+func TestAfterStop(t *testing.T) {
+	const msec = 1e6
+	AfterFunc(100*msec, func() {})
+	t0 := NewTimer(50 * msec)
+	c1 := make(chan bool, 1)
+	t1 := AfterFunc(150*msec, func() { c1 <- true })
+	c2 := After(200 * msec)
+	if !t0.Stop() {
+		t.Fatalf("failed to stop event 0")
+	}
+	if !t1.Stop() {
+		t.Fatalf("failed to stop event 1")
+	}
+	<-c2
+	_, ok0 := <-t0.C
+	_, ok1 := <-c1
+	if ok0 || ok1 {
+		t.Fatalf("events were not stopped")
+	}
+	if t1.Stop() {
+		t.Fatalf("Stop returned true twice")
 	}
 }
 
