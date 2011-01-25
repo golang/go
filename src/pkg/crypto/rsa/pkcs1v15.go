@@ -175,7 +175,7 @@ var hashPrefixes = [][]byte{
 	{}, // A special TLS case which doesn't use an ASN1 prefix.
 }
 
-// SignPKCS1v15 calcuates the signature of hashed using RSASSA-PSS-SIGN from RSA PKCS#1 v1.5.
+// SignPKCS1v15 calculates the signature of hashed using RSASSA-PKCS1-V1_5-SIGN from RSA PKCS#1 v1.5.
 // Note that hashed must be the result of hashing the input message using the
 // given hash function.
 func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash PKCS1v15Hash, hashed []byte) (s []byte, err os.Error) {
