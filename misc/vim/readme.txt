@@ -21,3 +21,17 @@ commands:
   ln -s $GOROOT/misc/vim/ftdetect/gofiletype.vim $HOME/.vim/ftdetect/
   ln -s $GOROOT/misc/vim/syntax/go.vim $HOME/.vim/syntax
   echo "syntax on" >> $HOME/.vimrc
+
+
+Vim filetype plugins for Go
+===========================
+
+To install one of the available filetype plugins for Go:
+
+  1. Same as 1 above.
+  2. Copy or link one or more plugins from ftplugin/go/*.vim to the
+     Go-specific ftplugin directory underneath your vim runtime directory
+     (normally $HOME/.vim/ftplugin/go/*.vim).
+  3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
+
+     filetype plugin on
