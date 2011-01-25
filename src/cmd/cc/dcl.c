@@ -130,6 +130,7 @@ loop:
 		if(debug['d'])
 			dbgdecl(s);
 		acidvar(s);
+		godefvar(s);
 		s->varlineno = lineno;
 		break;
 	}
@@ -587,6 +588,7 @@ sualign(Type *t)
 		t->width = w;
 		t->align = maxal;
 		acidtype(t);
+		godeftype(t);
 		return;
 
 	case TUNION:
@@ -609,6 +611,7 @@ sualign(Type *t)
 		t->width = w;
 		t->align = maxal;
 		acidtype(t);
+		godeftype(t);
 		return;
 
 	default:
@@ -1536,6 +1539,7 @@ doenum(Sym *s, Node *n)
 	if(debug['d'])
 		dbgdecl(s);
 	acidvar(s);
+	godefvar(s);
 }
 
 void

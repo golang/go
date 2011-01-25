@@ -59,15 +59,20 @@ pathchar(void)
  *	-d		print declarations
  *	-D name		define
  *	-F		format specification check
+ *	-G		print pgen stuff
+ *	-g		print cgen trees
  *	-i		print initialization
  *	-I path		include
  *	-l		generate little-endian code
  *	-L		print every NAME symbol
  *	-M		constant multiplication
  *	-m		print add/sub/mul trees
- *	-n		print acid to file (%.c=%.acid) (with -a or -aa)
+ *	-n		print acid or godefs to file (%.c=%.acid) (with -a or -aa)
  *	-o file		output file
  *	-p		use standard cpp ANSI preprocessor (not on windows)
+ *	-p		something with peepholes
+ *	-q		print equivalent Go code for variables and types (lower-case identifiers)
+ *	-Q		print equivalent Go code for variables and types (upper-case identifiers)
  *	-r		print registerization
  *	-s		print structure offsets (with -a or -aa)
  *	-S		print assembly
@@ -121,7 +126,7 @@ main(int argc, char *argv[])
 		p = ARGF();
 		if(p) {
 			if(ndef%8 == 0)
-				defs = allocn(defs, ndef*sizeof(char *), 
+				defs = allocn(defs, ndef*sizeof(char *),
 					8*sizeof(char *));
 			defs[ndef++] = p;
 			dodefine(p);
@@ -147,7 +152,7 @@ main(int argc, char *argv[])
 		 * if we're writing acid to standard output, don't compile
 		 * concurrently, to avoid interleaving output.
 		 */
-		if((!debug['a'] || debug['n']) &&
+		if(((!debug['a'] && !debug['q'] && !debug['Q']) || debug['n']) &&
 		    (p = getenv("NPROC")) != nil)
 			nproc = atol(p);	/* */
 		c = 0;
@@ -220,6 +225,8 @@ compile(char *file, char **defs, int ndef)
 			p = utfrune(outfile, 0);
 			if(debug['a'] && debug['n'])
 				strcat(p, ".acid");
+			else if((debug['q'] || debug['Q']) && debug['n'])
+				strcat(p, ".go");
 			else {
 				p[0] = '.';
 				p[1] = thechar;
@@ -244,7 +251,7 @@ compile(char *file, char **defs, int ndef)
 	 * if we're writing acid to standard output, don't keep scratching
 	 * outbuf.
 	 */
-	if(debug['a'] && !debug['n']) {
+	if((debug['a'] || debug['q'] || debug['Q']) && !debug['n']) {
 		if (first) {
 			outfile = 0;
 			Binit(&outbuf, dup(1, -1), OWRITE);
@@ -323,7 +330,7 @@ compile(char *file, char **defs, int ndef)
 			newfile(file, -1);
 	}
 	yyparse();
-	if(!debug['a'])
+	if(!debug['a'] && !debug['q'] && !debug['Q'])
 		gclean();
 	return nerrors;
 }
@@ -1307,6 +1314,7 @@ cinit(void)
 	fmtinstall('L', Lconv);
 	fmtinstall('Q', Qconv);
 	fmtinstall('|', VBconv);
+	fmtinstall('U', Uconv);
 }
 
 int
@@ -1552,7 +1560,7 @@ setinclude(char *p)
 				return;
 
 		if(ninclude%8 == 0)
-			include = allocn(include, ninclude*sizeof(char *), 
+			include = allocn(include, ninclude*sizeof(char *),
 				8*sizeof(char *));
 		include[ninclude++] = p;
 	}
@@ -1593,7 +1601,7 @@ ensuresymb(int32 n)
 	if(symb == nil) {
 		symb = alloc(NSYMB+1);
 		nsymb = NSYMB;
-	}	
+	}
 
 	if(n > nsymb) {
 		symb = allocn(symb, nsymb, n+1-nsymb);
