@@ -28,7 +28,7 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 type Wndclassex struct {
 	Size       uint32
 	Style      uint32
-	WndProc    uint32
+	WndProc    uintptr
 	ClsExtra   int32
 	WndExtra   int32
 	Instance   uint32

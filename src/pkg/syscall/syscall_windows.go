@@ -104,10 +104,11 @@ type Callback struct {
 	code [50]byte // have to be big enough to fit asm written in it by compileCallback
 }
 
-func (cb *Callback) ExtFnEntry() uint32 {
-	return uint32(uintptr(unsafe.Pointer(&cb.code[0])))
+func (cb *Callback) ExtFnEntry() uintptr {
+	return uintptr(unsafe.Pointer(&cb.code[0]))
 }
 
+// argsize is in words
 func NewCallback(fn CallbackFunc, argsize int) *Callback {
 	cb := Callback{}
 	compileCallback(&cb.code[0], fn, argsize)

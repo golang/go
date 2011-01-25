@@ -95,7 +95,7 @@ func rungui() int {
 	}
 
 	// Create callback
-	wproc := syscall.NewCallback(WndProc, 4*4)
+	wproc := syscall.NewCallback(WndProc, 4)
 
 	// RegisterClassEx
 	wcname := syscall.StringToUTF16Ptr("myWindowClass")

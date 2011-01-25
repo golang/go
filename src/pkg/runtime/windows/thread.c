@@ -276,13 +276,13 @@ runtime·compilecallback(byte *code, void *fn, uint32 argsize)
 	byte *p;
 
 	p = code;
-	// SUBL $12, SP
+	// SUBL $16, SP
 	*p++ = 0x83;
 	*p++ = 0xec;
-	*p++ = 0x0c;
-	// PUSH argsize
+	*p++ = 0x10;
+	// PUSH argsize * 4
 	*p++ = 0x68;
-	*(uint32*)p = argsize;
+	*(uint32*)p = argsize << 2;
 	p += 4;
 	// PUSH fn
 	*p++ = 0x68;
@@ -308,8 +308,8 @@ runtime·callback(void *arg, void (*fn)(void), int32 argsize)
 	G *g1;
 	void *sp, *gostack;
 	void **p;
-	USED(argsize);
 
+	USED(argsize);
 
 	if(g != m->g0)
 		runtime·throw("bad g in callback");
@@ -326,7 +326,7 @@ runtime·callback(void *arg, void (*fn)(void), int32 argsize)
 
 	if(sp < g1->stackguard - StackGuard + 4) // +4 for return address
 		runtime·throw("g stack overflow in callback");
-	
+
 	p = sp;
 	p[0] = arg;
 

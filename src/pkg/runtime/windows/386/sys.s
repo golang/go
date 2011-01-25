@@ -84,9 +84,8 @@ TEXT runtime·sigtramp1(SB),0,$16-28
 	// call windows default handler early
 	MOVL	4(SP), BX		// our SEH frame
 	MOVL	0(BX), BX		// SEH frame of default handler
-	MOVL	4(BX), AX		// handler function pointer
 	MOVL	BX, 4(SP)		// set establisher frame
-	CALL	AX
+	CALL	4(BX)
 
 sigdone:
 	RET
@@ -94,7 +93,7 @@ sigdone:
 // Called from dynamic function created by ../thread.c compilecallback,
 // running on Windows stack (not Go stack).
 // Returns straight to DLL.
-// EBX, ESI, EDI registers and DF flag are preserved
+// EBX, EBP, ESI, EDI registers and DF flag are preserved
 // as required by windows callback convention.
 // On entry to the function the stack looks like:
 //
@@ -102,17 +101,19 @@ sigdone:
 // 4(SP)  - address of go func we need to call
 // 8(SP)  - total size of arguments
 // 12(SP) - room to save BX register
-// 16(SP) - room to save SI
-// 20(SP) - room to save DI
-// 24(SP) - return address to DLL
-// 28(SP) - beginning of arguments
+// 16(SP) - room to save BP
+// 20(SP) - room to save SI
+// 24(SP) - room to save DI
+// 28(SP) - return address to DLL
+// 32(SP) - beginning of arguments
 //
 TEXT runtime·callbackasm+0(SB),7,$0
 	MOVL	BX, 12(SP)		// save registers as required for windows callback
-	MOVL	SI, 16(SP)
-	MOVL	DI, 20(SP)
+	MOVL	BP, 16(SP)
+	MOVL	SI, 20(SP)
+	MOVL	DI, 24(SP)
 
-	LEAL	args+28(SP), AX
+	LEAL	args+32(SP), AX
 	MOVL	AX, 0(SP)
 
 	CLD
@@ -120,13 +121,14 @@ TEXT runtime·callbackasm+0(SB),7,$0
 	CALL	runtime·callback(SB)
 
 	MOVL	12(SP), BX		// restore registers as required for windows callback
-	MOVL	16(SP), SI
-	MOVL	20(SP), DI
+	MOVL	16(SP), BP
+	MOVL	20(SP), SI
+	MOVL	24(SP), DI
 	CLD
 
-	MOVL	ret+24(SP), CX
+	MOVL	ret+28(SP), CX
 	MOVL	size+8(SP), DX
-	ADDL	$28, DX
+	ADDL	$32, DX
 	ADDL	DX, SP
 	JMP	CX
 
@@ -144,7 +146,7 @@ TEXT runtime·tstart(SB),7,$0
 	MOVL	SP, AX
 	SUBL	$256, AX		// just some space for ourselves
 	MOVL	AX, g_stackbase(DX)
-	SUBL	$(16*1024), AX		// stack size
+	SUBL	$(64*1024), AX		// stack size
 	MOVL	AX, g_stackguard(DX)
 
 	// Set up tls.
