@@ -744,6 +744,13 @@ void	acidtype(Type*);
 void	acidvar(Sym*);
 
 /*
+ * godefs.c
+ */
+int	Uconv(Fmt*);
+void	godeftype(Type*);
+void	godefvar(Sym*);
+
+/*
  * bits.c
  */
 Bits	bor(Bits, Bits);
