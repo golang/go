@@ -36,7 +36,7 @@ rm -f "$GOBIN"/gomake
 ) >"$GOBIN"/gomake
 chmod +x "$GOBIN"/gomake
 
-if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
+if [ -d /selinux -a -f /selinux/booleans/allow_execstack -a -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled; then
 	if ! cat /selinux/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
 		echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "
 		echo "Go. You can enable the features that Go needs via the following "
