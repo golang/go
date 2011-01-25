@@ -43,3 +43,14 @@ func TestTeardown(t *testing.T) {
 		ticker.Stop()
 	}
 }
+
+func BenchmarkTicker(b *testing.B) {
+	ticker := NewTicker(1)
+	b.ResetTimer()
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		<-ticker.C
+	}
+	b.StopTimer()
+	ticker.Stop()
+}
