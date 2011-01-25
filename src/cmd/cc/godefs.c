@@ -209,11 +209,11 @@ printtypename(Type *t)
 		else if(t->tag)
 			n = t->tag->name;
 		if(strcmp(n, "String") == 0){
-			n = "string";
+			Bprint(&outbuf, "string");
 		} else if(strcmp(n, "Slice") == 0){
-			n = "[]byte";
-		}
-		Bprint(&outbuf, n);
+			Bprint(&outbuf, "[]byte");
+		} else
+			Bprint(&outbuf, "%U", n);
 		break;
 	case TFUNC:
 		Bprint(&outbuf, "func(", t);
@@ -330,7 +330,7 @@ godefvar(Sym *s)
 	Type *t, *t1;
 	char n;
 
-	if(dontrun('q'))
+	if(dontrun())
 		return;
 
 	t = s->type;
