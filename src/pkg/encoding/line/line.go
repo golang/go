@@ -28,6 +28,26 @@ func NewReader(input io.Reader, maxLineLength int) *Reader {
 	}
 }
 
+// Read reads from any buffered data past the last line read, or from the underlying
+// io.Reader if the buffer is empty.
+func (l *Reader) Read(p []byte) (n int, err os.Error) {
+	l.removeConsumedFromBuffer()
+	if len(l.buf) > 0 {
+		n = copy(p, l.buf)
+		l.consumed += n
+		return
+	}
+	return l.in.Read(p)
+}
+
+func (l *Reader) removeConsumedFromBuffer() {
+	if l.consumed > 0 {
+		n := copy(l.buf, l.buf[l.consumed:])
+		l.buf = l.buf[:n]
+		l.consumed = 0
+	}
+}
+
 // ReadLine tries to return a single line, not including the end-of-line bytes.
 // If the line was found to be longer than the maximum length then isPrefix is
 // set and the beginning of the line is returned. The rest of the line will be
@@ -36,11 +56,7 @@ func NewReader(input io.Reader, maxLineLength int) *Reader {
 // the Reader and is only valid until the next call to ReadLine. ReadLine
 // either returns a non-nil line or it returns an error, never both.
 func (l *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
-	if l.consumed > 0 {
-		n := copy(l.buf, l.buf[l.consumed:])
-		l.buf = l.buf[:n]
-		l.consumed = 0
-	}
+	l.removeConsumedFromBuffer()
 
 	if len(l.buf) == 0 && l.err != nil {
 		err = l.err
