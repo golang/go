@@ -34,9 +34,6 @@ GOFILES=\
 	runtime_defs.go\
 	$(GOOS)/runtime_defs.go\
 
-GOFILES_tiny=\
-	tiny/io.go\
-
 OFILES_windows=\
 	syscall.$O\
 
