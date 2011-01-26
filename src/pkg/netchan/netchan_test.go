@@ -395,7 +395,7 @@ func TestCrossConnect(t *testing.T) {
 		t.Fatal("new importer:", err)
 	}
 
-	go crossExport(e1, e2, t)
+	crossExport(e1, e2, t)
 	crossImport(i1, i2, t)
 }
 
@@ -413,7 +413,7 @@ func crossExport(e1, e2 *Exporter, t *testing.T) {
 		t.Fatal("exportReceive:", err)
 	}
 
-	crossLoop("export", s, r, t)
+	go crossLoop("export", s, r, t)
 }
 
 // Import side of cross-traffic.
