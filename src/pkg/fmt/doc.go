@@ -26,7 +26,7 @@
 		%o	base 8
 		%x	base 16, with lower-case letters for a-f
 		%X	base 16, with upper-case letters for A-F
-		%U	unicode format: U+1234; same as "U+%x" with 4 digits default
+		%U	Unicode format: U+1234; same as "U+%x" with 4 digits default
 	Floating-point and complex constituents:
 		%e	scientific notation, e.g. -1234.456e+78
 		%E	scientific notation, e.g. -1234.456E+78
@@ -44,14 +44,19 @@
 	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
 	Similarly, there is no need to specify the size of the operand (int8, int64).
 
-	For numeric values, the width and precision flags control
-	formatting; width sets the width of the field, precision the
-	number of places after the decimal, if appropriate.  The
-	format %6.2f prints 123.45. The width of a field is the number
-	of Unicode code points in the string. This differs from C's printf where
-	the field width is the number of bytes.  Either or both of the
-	flags may be replaced with the character '*', causing their values
-	to be obtained from the next operand, which must be of type int.
+	The width and precision control formatting and are in units of Unicode
+	code points.  (This differs from C's printf where the units are numbers
+	of bytes.) Either or both of the flags may be replaced with the
+	character '*', causing their values to be obtained from the next
+	operand, which must be of type int.
+
+	For numeric values, width sets the width of the field and precision
+	sets the number of places after the decimal, if appropriate.  For
+	example, the format %6.2f prints 123.45.
+
+	For strings, width is the minimum number of characters to output,
+	padding with spaces if necessary, and precision is the maximum
+	number of characters to output, truncating if necessary.
 
 	Other flags:
 		+	always print a sign for numeric values
