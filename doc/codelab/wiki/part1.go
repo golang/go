@@ -6,28 +6,28 @@ import (
 	"os"
 )
 
-type page struct {
-	title string
-	body  []byte
+type Page struct {
+	Title string
+	Body  []byte
 }
 
-func (p *page) save() os.Error {
-	filename := p.title + ".txt"
-	return ioutil.WriteFile(filename, p.body, 0600)
+func (p *Page) save() os.Error {
+	filename := p.Title + ".txt"
+	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
-func loadPage(title string) (*page, os.Error) {
+func loadPage(title string) (*Page, os.Error) {
 	filename := title + ".txt"
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	return &page{title: title, body: body}, nil
+	return &Page{Title: title, Body: body}, nil
 }
 
 func main() {
-	p1 := &page{title: "TestPage", body: []byte("This is a sample page.")}
+	p1 := &Page{Title: "TestPage", Body: []byte("This is a sample Page.")}
 	p1.save()
 	p2, _ := loadPage("TestPage")
-	fmt.Println(string(p2.body))
+	fmt.Println(string(p2.Body))
 }

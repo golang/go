@@ -71,27 +71,27 @@ declaration.
 <p>
 Let's start by defining the data structures. A wiki consists of a series of
 interconnected pages, each of which has a title and a body (the page content).
-Here, we define <code>page</code> as a struct with two fields representing
+Here, we define <code>Page</code> as a struct with two fields representing
 the title and body.
 </p>
 
 <pre>
-!./srcextract.bin -src=part1.go -name=page
+!./srcextract.bin -src=part1.go -name=Page
 </pre>
 
 <p>
 The type <code>[]byte</code> means "a <code>byte</code> slice". 
 (See <a href="http://golang.org/doc/effective_go.html#slices">Effective Go</a> 
 for more on slices.)  
-The <code>body</code> element is a <code>[]byte</code> rather than
+The <code>Body</code> element is a <code>[]byte</code> rather than
 <code>string</code> because that is the type expected by the <code>io</code>
 libraries we will use, as you'll see below.
 </p>
 
 <p>
-The <code>page</code> struct describes how page data will be stored in memory. 
+The <code>Page</code> struct describes how page data will be stored in memory. 
 But what about persistent storage? We can address that by creating a 
-<code>save</code> method on <code>page</code>:
+<code>save</code> method on <code>Page</code>:
 </p>
 
 <pre>
@@ -100,13 +100,13 @@ But what about persistent storage? We can address that by creating a
 
 <p>
 This method's signature reads: "This is a method named <code>save</code> that
-takes as its receiver <code>p</code>, a pointer to <code>page</code> . It takes
+takes as its receiver <code>p</code>, a pointer to <code>Page</code> . It takes
 no parameters, and returns a value of type <code>os.Error</code>." 
 </p>
 
 <p>
-This method will save the <code>page</code>'s <code>body</code> to a text 
-file. For simplicity, we will use the <code>title</code> as the file name.
+This method will save the <code>Page</code>'s <code>Body</code> to a text 
+file. For simplicity, we will use the <code>Title</code> as the file name.
 </p>
 
 <p>
@@ -114,7 +114,7 @@ The <code>save</code> method returns an <code>os.Error</code> value because
 that is the return type of <code>WriteFile</code> (a standard library function
 that writes a byte slice to a file).  The <code>save</code> method returns the
 error value, to let the application handle it should anything go wrong while
-writing the file.  If all goes well, <code>page.save()</code> will return
+writing the file.  If all goes well, <code>Page.save()</code> will return
 <code>nil</code> (the zero-value for pointers, interfaces, and some other 
 types).
 </p>
@@ -136,8 +136,8 @@ We will want to load pages, too:
 
 <p>
 The function <code>loadPage</code> constructs the file name from
-<code>title</code>, reads the file's contents into a new
-<code>page</code>, and returns a pointer to that new <code>page</code>.
+<code>Title</code>, reads the file's contents into a new
+<code>Page</code>, and returns a pointer to that new <code>page</code>.
 </p>
 
 <p>
@@ -151,7 +151,7 @@ error return value (in essence, assigning the value to nothing).
 <p>
 But what happens if <code>ReadFile</code> encounters an error?  For example,
 the file might not exist. We should not ignore such errors.  Let's modify the
-function to return <code>*page</code> and <code>os.Error</code>.
+function to return <code>*Page</code> and <code>os.Error</code>.
 </p>
 
 <pre>
@@ -160,7 +160,7 @@ function to return <code>*page</code> and <code>os.Error</code>.
 
 <p>
 Callers of this function can now check the second parameter; if it is
-<code>nil</code> then it has successfully loaded a page. If not, it will be an
+<code>nil</code> then it has successfully loaded a Page. If not, it will be an
 <code>os.Error</code> that can be handled by the caller (see the <a
 href="http://golang.org/pkg/os/#Error">os package documentation</a> for 
 details).
@@ -179,7 +179,7 @@ written:
 <p>
 After compiling and executing this code, a file named <code>TestPage.txt</code>
 would be created, containing the contents of <code>p1</code>. The file would
-then be read into the struct <code>p2</code>, and its <code>body</code> element
+then be read into the struct <code>p2</code>, and its <code>Body</code> element
 printed to the screen.
 </p>
 
@@ -334,7 +334,7 @@ href="http://localhost:8080/view/test">http://localhost:8080/view/test</a></code
 should show a page titled "test" containing the words "Hello world".
 </p>
 
-<h2>Editing pages</h2>
+<h2>Editing Pages</h2>
 
 <p>
 A wiki is not a wiki without the ability to edit pages. Let's create two new
@@ -353,7 +353,7 @@ First, we add them to <code>main()</code>:
 
 <p>
 The function <code>editHandler</code> loads the page 
-(or, if it doesn't exist, create an empty <code>page</code> struct), 
+(or, if it doesn't exist, create an empty <code>Page</code> struct), 
 and displays an HTML form.
 </p>
 
@@ -413,15 +413,15 @@ The function <code>template.ParseFile</code> will read the contents of
 
 <p>
 The method <code>t.Execute</code> replaces all occurrences of 
-<code>{title}</code> and <code>{body}</code> with the values of 
-<code>p.title</code> and <code>p.body</code>, and writes the resultant
+<code>{Title}</code> and <code>{Body}</code> with the values of 
+<code>p.Title</code> and <code>p.Body</code>, and writes the resultant
 HTML to the <code>http.ResponseWriter</code>.
 </p>
 
 <p>
-Note that we've used <code>{body|html}</code> in the above template.  
+Note that we've used <code>{Body|html}</code> in the above template.  
 The <code>|html</code> part asks the template engine to pass the value
-<code>body</code> through the <code>html</code> formatter before outputting it,
+<code>Body</code> through the <code>html</code> formatter before outputting it,
 which escapes HTML characters (such as replacing <code>&gt;</code> with 
 <code>&amp;gt;</code>). 
 This will prevent user data from corrupting the form HTML. 
@@ -472,8 +472,8 @@ The handlers are now shorter and simpler.
 <p>
 What if you visit <code>/view/APageThatDoesntExist</code>? The program will 
 crash. This is because it ignores the error return value from
-<code>loadPage</code>. Instead, if the requested page doesn't exist, it should 
-redirect the client to the edit page so the content may be created:
+<code>loadPage</code>. Instead, if the requested Page doesn't exist, it should 
+redirect the client to the edit Page so the content may be created:
 </p>
 
 <pre>
@@ -486,7 +486,7 @@ The <code>http.Redirect</code> function adds an HTTP status code of
 header to the HTTP response.
 </p>
 
-<h2>Saving pages</h2>
+<h2>Saving Pages</h2>
 
 <p>
 The function <code>saveHandler</code> will handle the form submission. 
@@ -498,7 +498,7 @@ The function <code>saveHandler</code> will handle the form submission.
 
 <p>
 The page title (provided in the URL) and the form's only field, 
-<code>body</code>, are stored in a new <code>page</code>. 
+<code>Body</code>, are stored in a new <code>Page</code>. 
 The <code>save()</code> method is then called to write the data to a file,
 and the client is redirected to the <code>/view/</code> page.
 </p>
@@ -506,7 +506,7 @@ and the client is redirected to the <code>/view/</code> page.
 <p>
 The value returned by <code>FormValue</code> is of type <code>string</code>.
 We must convert that value to <code>[]byte</code> before it will fit into 
-the <code>page</code> struct.  We use <code>[]byte(body)</code> to perform
+the <code>Page</code> struct.  We use <code>[]byte(body)</code> to perform
 the conversion.
 </p>
 
@@ -610,7 +610,7 @@ Then we can create a global variable to store our validation regexp:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noclosure.go -name=titleValidator
+!./srcextract.bin -src=final-noclosure.go -name=TitleValidator
 </pre>
 
 <p>
@@ -624,7 +624,7 @@ the expression compilation fails, while <code>Compile</code> returns an
 
 <p>
 Now, let's write a function that extracts the title string from the request 
-URL, and tests it against our <code>titleValidator</code> expression:
+URL, and tests it against our <code>TitleValidator</code> expression:
 </p>
 
 <pre>
@@ -708,7 +708,7 @@ The closure returned by <code>makeHandler</code> is a function that takes
 an <code>http.ResponseWriter</code> and <code>http.Request</code> (in other
 words, an <code>http.HandlerFunc</code>). 
 The closure extracts the <code>title</code> from the request path, and
-validates it with the <code>titleValidator</code> regexp. If the
+validates it with the <code>TitleValidator</code> regexp. If the
 <code>title</code> is invalid, an error will be written to the
 <code>ResponseWriter</code> using the <code>http.NotFound</code> function. 
 If the <code>title</code> is valid, the enclosed handler function

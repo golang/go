@@ -8,5 +8,5 @@ import (
 
 func main() {
 	b, _ := ioutil.ReadAll(os.Stdin)
-	template.HTMLFormatter(os.Stdout, b, "")
+	template.HTMLFormatter(os.Stdout, "", b)
 }
