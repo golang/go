@@ -6,12 +6,14 @@ package net
 
 import (
 	"flag"
+	"fmt"
 	"io"
+	"strings"
 	"syscall"
 	"testing"
 )
 
-// If an IPv6 tunnel is running (see go/stubl), we can try dialing a real IPv6 address.
+// If an IPv6 tunnel is running, we can try dialing a real IPv6 address.
 var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
 // fd is already connected to the destination, port 80.
@@ -40,16 +42,16 @@ func doDial(t *testing.T, network, addr string) {
 }
 
 var googleaddrs = []string{
-	"74.125.19.99:80",
+	"%d.%d.%d.%d:80",
 	"www.google.com:80",
-	"74.125.19.99:http",
+	"%d.%d.%d.%d:http",
 	"www.google.com:http",
-	"074.125.019.099:0080",
-	"[::ffff:74.125.19.99]:80",
-	"[::ffff:4a7d:1363]:80",
-	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
-	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
-	"[0:0:0:0:0:ffff::74.125.19.99]:80",
+	"%03d.%03d.%03d.%03d:0080",
+	"[::ffff:%d.%d.%d.%d]:80",
+	"[::ffff:%02x%02x:%02x%02x]:80",
+	"[0:0:0:0:0000:ffff:%d.%d.%d.%d]:80",
+	"[0:0:0:0:000000:ffff:%d.%d.%d.%d]:80",
+	"[0:0:0:0:0:ffff::%d.%d.%d.%d]:80",
 	"[2001:4860:0:2001::68]:80", // ipv6.google.com; removed if ipv6 flag not set
 }
 
@@ -57,6 +59,24 @@ func TestDialGoogle(t *testing.T) {
 	// If no ipv6 tunnel, don't try the last address.
 	if !*ipv6 {
 		googleaddrs[len(googleaddrs)-1] = ""
+	}
+
+	// Insert an actual IP address for google.com
+	// into the table.
+
+	_, addrs, err := LookupHost("www.google.com")
+	if err != nil {
+		t.Fatalf("lookup www.google.com: %v", err)
+	}
+	if len(addrs) == 0 {
+		t.Fatalf("no addresses for www.google.com")
+	}
+	ip := ParseIP(addrs[0]).To4()
+
+	for i, s := range googleaddrs {
+		if strings.Contains(s, "%") {
+			googleaddrs[i] = fmt.Sprintf(s, ip[0], ip[1], ip[2], ip[3])
+		}
 	}
 
 	for i := 0; i < len(googleaddrs); i++ {
