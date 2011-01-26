@@ -25,7 +25,7 @@ func runEcho(fd io.ReadWriter, done chan<- int) {
 
 	for {
 		n, err := fd.Read(buf[0:])
-		if err != nil || n == 0 {
+		if err != nil || n == 0 || string(buf[:n]) == "END" {
 			break
 		}
 		fd.Write(buf[0:n])
@@ -79,6 +79,13 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 	if n != len(b) || err1 != nil {
 		t.Fatalf("fd.Read() = %d, %v (want %d, nil)", n, err1, len(b))
 	}
+
+	// Send explicit ending for unixpacket.
+	// Older Linux kernels do stop reads on close.
+	if network == "unixpacket" {
+		fd.Write([]byte("END"))
+	}
+
 	fd.Close()
 }
 
