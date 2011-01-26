@@ -793,7 +793,7 @@ Consider the following program:
 func main() {
 	done := make(chan bool)
 
-	values = []string{ "a", "b", "c" }
+	values := []string{ "a", "b", "c" }
 	for _, v := range values {
 		go func() {
 			fmt.Println(v)
@@ -802,7 +802,7 @@ func main() {
 	}
 
 	// wait for all goroutines to complete before exiting
-	for i := range values {
+	for _ = range values {
 		&lt;-done 
 	}
 }
@@ -823,7 +823,7 @@ could modify the inner loop to read:
 
 <pre>
 	for _, v := range values {
-		go func(<b>u</b>) {
+		go func(<b>u</b> string) {
 			fmt.Println(<b>u</b>)
 			done &lt;- true
 		}(<b>v</b>)
