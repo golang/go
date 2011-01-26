@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of January 18, 2011 -->
+<!-- subtitle Version of January 26, 2011 -->
 
 <!--
 TODO
@@ -2053,7 +2053,7 @@ For array and slice literals the following rules apply:
 
 <p>
 Taking the address of a composite literal (§<a href="#Address_operators">Address operators</a>)
-generates a unique pointer to an instance of the literal's value.
+generates a pointer to a unique instance of the literal's value.
 </p>
 <pre>
 var pointer *Point3D = &amp;Point3D{y: 1000}
@@ -2983,15 +2983,19 @@ The right operand is evaluated conditionally.
 <h3 id="Address_operators">Address operators</h3>
 
 <p>
-The address-of operator <code>&amp;</code> generates the address of its operand,
-which must be <i>addressable</i>,
+For an operand <code>x</code> of type <code>T</code>, the address operation
+<code>&amp;x</code> generates a pointer of type <code>*T</code> to <code>x</code>.
+The operand must be <i>addressable</i>,
 that is, either a variable, pointer indirection, or slice indexing
-operation;
-or a field selector of an addressable struct operand;
+operation; or a field selector of an addressable struct operand;
 or an array indexing operation of an addressable array.
-Given an operand of pointer type, the pointer indirection
-operator <code>*</code> retrieves the value pointed
-to by the operand.
+As an exception to the addressability requirement, <code>x</code> may also be a
+<a href="#Composite_literals">composite literal</a>.
+</p>
+<p>
+For an operand <code>x</code> of pointer type <code>*T</code>, the pointer
+indirection <code>*x</code> denotes the value of type <code>T</code> pointed
+to by <code>x</code>.
 </p>
 
 <pre>
