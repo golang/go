@@ -14,7 +14,7 @@ index.html: srcextract.bin htmlify.bin
 	awk '/^!/{system(substr($$0,2)); next} {print}' "$$@" < wiki.html > index.html
 
 test: final.bin
-	./test.sh
+	bash ./test.sh
 	rm -f final.6 final.bin
 
 %.bin: %.$O
