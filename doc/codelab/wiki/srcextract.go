@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/ast"
+	"go/token"
 	"log"
 	"os"
 )
@@ -25,7 +26,8 @@ func main() {
 		os.Exit(2)
 	}
 	// load file
-	file, err := parser.ParseFile(*srcFn, nil, 0)
+	fs := token.NewFileSet()
+	file, err := parser.ParseFile(fs, *srcFn, nil, 0)
 	if err != nil {
 		log.Exit(err)
 	}
@@ -47,7 +49,7 @@ func main() {
 		os.Exit(1)
 	}
 	b := new(bytes.Buffer)
-	p.Fprint(b, file)
+	p.Fprint(b, fs, file)
 	// drop package declaration
 	if !*showPkg {
 		for {

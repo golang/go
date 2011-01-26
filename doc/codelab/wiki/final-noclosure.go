@@ -8,23 +8,23 @@ import (
 	"template"
 )
 
-type page struct {
-	title string
-	body  []byte
+type Page struct {
+	Title string
+	Body  []byte
 }
 
-func (p *page) save() os.Error {
-	filename := p.title + ".txt"
-	return ioutil.WriteFile(filename, p.body, 0600)
+func (p *Page) save() os.Error {
+	filename := p.Title + ".txt"
+	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
-func loadPage(title string) (*page, os.Error) {
+func loadPage(title string) (*Page, os.Error) {
 	filename := title + ".txt"
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	return &page{title: title, body: body}, nil
+	return &Page{Title: title, Body: body}, nil
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +47,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := loadPage(title)
 	if err != nil {
-		p = &page{title: title}
+		p = &Page{Title: title}
 	}
 	renderTemplate(w, "edit", p)
 }
@@ -58,7 +58,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body := r.FormValue("body")
-	p := &page{title: title, body: []byte(body)}
+	p := &Page{Title: title, Body: []byte(body)}
 	err = p.save()
 	if err != nil {
 		http.Error(w, err.String(), http.StatusInternalServerError)
@@ -67,7 +67,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
-func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
+func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	t, err := template.ParseFile(tmpl+".html", nil)
 	if err != nil {
 		http.Error(w, err.String(), http.StatusInternalServerError)
