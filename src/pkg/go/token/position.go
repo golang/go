@@ -153,7 +153,7 @@ type lineInfo struct {
 
 // AddLineInfo adds alternative file and line number information for
 // a given file offset. The offset must be larger than the offset for
-// the previously added alternative line info and not larger than the
+// the previously added alternative line info and smaller than the
 // file size; otherwise the information is ignored.
 //
 // AddLineInfo is typically used to register alternative position
@@ -161,7 +161,7 @@ type lineInfo struct {
 //
 func (f *File) AddLineInfo(offset int, filename string, line int) {
 	f.set.mutex.Lock()
-	if i := len(f.infos); i == 0 || f.infos[i-1].offset < offset && offset <= f.size {
+	if i := len(f.infos); i == 0 || f.infos[i-1].offset < offset && offset < f.size {
 		f.infos = append(f.infos, lineInfo{offset, filename, line})
 	}
 	f.set.mutex.Unlock()
@@ -212,27 +212,30 @@ func (f *File) LineCount() int {
 
 // AddLine adds the line offset for a new line.
 // The line offset must be larger than the offset for the previous line
-// and not larger than the file size; otherwise the line offset is ignored.
+// and smaller than the file size; otherwise the line offset is ignored.
 //
 func (f *File) AddLine(offset int) {
 	f.set.mutex.Lock()
-	if i := len(f.lines); (i == 0 || f.lines[i-1] < offset) && offset <= f.size {
+	if i := len(f.lines); (i == 0 || f.lines[i-1] < offset) && offset < f.size {
 		f.lines = append(f.lines, offset)
 	}
 	f.set.mutex.Unlock()
 }
 
 
-// SetLines sets all line offsets for a file and returns true if successful.
+// SetLines sets the line offsets for a file and returns true if successful.
+// The line offsets are the offsets of the first character of each line;
+// for instance for the content "ab\nc\n" the line offsets are {0, 3}.
+// An empty file has an empty line offset table.
 // Each line offset must be larger than the offset for the previous line
-// and not larger than the file size; otherwise the SetLines fails and returns
+// and smaller than the file size; otherwise SetLines fails and returns
 // false.
 //
 func (f *File) SetLines(lines []int) bool {
 	// verify validity of lines table
 	size := f.size
 	for i, offset := range lines {
-		if i > 0 && offset <= lines[i-1] || size < offset {
+		if i > 0 && offset <= lines[i-1] || size <= offset {
 			return false
 		}
 	}
@@ -242,6 +245,27 @@ func (f *File) SetLines(lines []int) bool {
 	f.lines = lines
 	f.set.mutex.Unlock()
 	return true
+}
+
+
+// SetLinesForContent sets the line offsets for the given file content.
+func (f *File) SetLinesForContent(content []byte) {
+	var lines []int
+	line := 0
+	for offset, b := range content {
+		if line >= 0 {
+			lines = append(lines, line)
+		}
+		line = -1
+		if b == '\n' {
+			line = offset + 1
+		}
+	}
+
+	// set lines table
+	f.set.mutex.Lock()
+	f.lines = lines
+	f.set.mutex.Unlock()
 }
 
 
