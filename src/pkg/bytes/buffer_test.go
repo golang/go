@@ -6,6 +6,7 @@ package bytes_test
 
 import (
 	. "bytes"
+	"os"
 	"rand"
 	"testing"
 	"utf8"
@@ -238,7 +239,7 @@ func TestMixedReadsAndWrites(t *testing.T) {
 func TestNil(t *testing.T) {
 	var b *Buffer
 	if b.String() != "<nil>" {
-		t.Errorf("expcted <nil>; got %q", b.String())
+		t.Errorf("expected <nil>; got %q", b.String())
 	}
 }
 
@@ -344,6 +345,30 @@ func TestNext(t *testing.T) {
 					}
 				}
 			}
+		}
+	}
+}
+
+var readBytesTests = []struct {
+	buffer   []byte
+	delim    byte
+	expected []byte
+	err      os.Error
+}{
+	{err: os.EOF},
+	{[]byte{}, 0, []byte{}, os.EOF},
+	{[]byte("a\x00"), 0, []byte("a\x00"), nil},
+	{[]byte("hello\x01world"), 1, []byte("hello\x01"), nil},
+	{[]byte("foo\nbar"), 0, []byte("foo\nbar"), os.EOF},
+	{[]byte("alpha beta gamma"), ' ', []byte("alpha "), nil},
+}
+
+func TestReadBytes(t *testing.T) {
+	for _, test := range readBytesTests {
+		buf := NewBuffer(test.buffer)
+		bytes, err := buf.ReadBytes(test.delim)
+		if !Equal(bytes, test.expected) || err != test.err {
+			t.Errorf("expected %q, %v got %q, %v", test.expected, test.err, bytes, err)
 		}
 	}
 }

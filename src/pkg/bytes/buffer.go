@@ -301,6 +301,35 @@ func (b *Buffer) UnreadByte() os.Error {
 	return nil
 }
 
+// ReadBytes reads until the first occurrence of delim in the input,
+// returning a slice containing the data up to and including the delimiter.
+// If ReadBytes encounters an error before finding a delimiter,
+// it returns the data read before the error and the error itself (often os.EOF).
+// ReadBytes returns err != nil if and only if the returned data does not end in
+// delim.
+func (b *Buffer) ReadBytes(delim byte) (line []byte, err os.Error) {
+	i := IndexByte(b.buf[b.off:], delim)
+	size := i + 1 - b.off
+	if i < 0 {
+		size = len(b.buf) - b.off
+		err = os.EOF
+	}
+	line = make([]byte, size)
+	copy(line, b.buf[b.off:])
+	return
+}
+
+// ReadString reads until the first occurrence of delim in the input,
+// returning a string containing the data up to and including the delimiter.
+// If ReadString encounters an error before finding a delimiter,
+// it returns the data read before the error and the error itself (often os.EOF).
+// ReadString returns err != nil if and only if the returned data does not end
+// in delim.
+func (b *Buffer) ReadString(delim byte) (line string, err os.Error) {
+	bytes, err := b.ReadBytes(delim)
+	return string(bytes), err
+}
+
 // NewBuffer creates and initializes a new Buffer using buf as its initial
 // contents.  It is intended to prepare a Buffer to read existing data.  It
 // can also be used to size the internal buffer for writing.  To do that,

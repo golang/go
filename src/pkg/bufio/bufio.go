@@ -286,7 +286,8 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 // returning a slice containing the data up to and including the delimiter.
 // If ReadBytes encounters an error before finding a delimiter,
 // it returns the data read before the error and the error itself (often os.EOF).
-// ReadBytes returns err != nil if and only if line does not end in delim.
+// ReadBytes returns err != nil if and only if the returned data does not end in
+// delim.
 func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 	// Use ReadSlice to look for array,
 	// accumulating full buffers.
@@ -332,7 +333,8 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 // returning a string containing the data up to and including the delimiter.
 // If ReadString encounters an error before finding a delimiter,
 // it returns the data read before the error and the error itself (often os.EOF).
-// ReadString returns err != nil if and only if line does not end in delim.
+// ReadString returns err != nil if and only if the returned data does not end in
+// delim.
 func (b *Reader) ReadString(delim byte) (line string, err os.Error) {
 	bytes, e := b.ReadBytes(delim)
 	return string(bytes), e
