@@ -716,7 +716,8 @@ var whitelisted = map[string]bool{
 
 
 // isWhitelisted returns true if a file is on the list
-// of "permitted" files for indexing.
+// of "permitted" files for indexing. The filename must
+// be the directory-local name of the file.
 func isWhitelisted(filename string) bool {
 	key := path.Ext(filename)
 	if key == "" {
@@ -745,7 +746,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
 		}
 		goFile = true
 
-	case !includeNonGoFiles || !isWhitelisted(filename):
+	case !includeNonGoFiles || !isWhitelisted(f.Name):
 		return
 	}
 
