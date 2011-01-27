@@ -3,16 +3,30 @@ package main
 import (
 	"http"
 	"flag"
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"strings"
 )
 
-var post = flag.String("post", "", "urlencoded form data to POST")
+var (
+	post = flag.String("post", "", "urlencoded form data to POST")
+	port = flag.Bool("port", false, "find open port and print to stdout")
+)
 
 func main() {
 	flag.Parse()
+	if *port {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			log.Exit(err)
+		}
+		defer l.Close()
+		fmt.Print(l.Addr().(*net.TCPAddr).Port)
+		return
+	}
 	url := flag.Arg(0)
 	if url == "" {
 		log.Exit("no url supplied")
