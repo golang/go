@@ -198,4 +198,6 @@ endif
 hi def link     goExtraType         Type
 hi def link     goSpaceError        Error
 
+syn sync minlines=500
+
 let b:current_syntax = "go"
