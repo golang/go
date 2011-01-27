@@ -13,9 +13,9 @@ CLEANFILES+=index.html srcextract.bin htmlify.bin
 index.html: srcextract.bin htmlify.bin
 	awk '/^!/{system(substr($$0,2)); next} {print}' "$$@" < wiki.html > index.html
 
-test: final.bin
+test: final.bin get.bin
 	bash ./test.sh
-	rm -f final.6 final.bin
+	rm -f final.6 final.bin get.6 get.bin
 
 %.bin: %.$O
 	$(LD) -o $@ $<
