@@ -206,15 +206,15 @@ adddynrel(Sym *s, Reloc *r)
 	case 256 + R_X86_64_GOTPCREL:
 		if(targ->dynimpname == nil || targ->dynexport) {
 			// have symbol
-			// turn MOVQ of GOT entry into LEAQ of symbol itself
-			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
-				diag("unexpected GOT_LOAD reloc for non-dynamic symbol %s", targ->name);
+			if(r->off >= 2 && s->p[r->off-2] == 0x8b) {
+				// turn MOVQ of GOT entry into LEAQ of symbol itself
+				s->p[r->off-2] = 0x8d;
+				r->type = D_PCREL;
+				r->add += 4;
 				return;
 			}
-			s->p[r->off-2] = 0x8d;
-			r->type = D_PCREL;
-			r->add += 4;
-			return;
+			// unknown instruction (CMOV* maybe), use GOT
+			targ->dynimpname = targ->name;
 		}
 		addgotsym(targ);
 		r->type = D_PCREL;
