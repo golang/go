@@ -25,7 +25,6 @@ import (
 	"strings"
 	"template"
 	"time"
-	"utf8"
 )
 
 
@@ -56,7 +55,7 @@ var (
 	// TODO(gri) consider the invariant that goroot always end in '/'
 	goroot      = flag.String("goroot", runtime.GOROOT(), "Go root directory")
 	testDir     = flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
-	path        = flag.String("path", "", "additional package directories (colon-separated)")
+	pkgPath     = flag.String("path", "", "additional package directories (colon-separated)")
 	filter      = flag.String("filter", "", "filter file containing permitted package directory paths")
 	filterMin   = flag.Int("filter_minutes", 0, "filter file update interval in minutes; disabled if <= 0")
 	filterDelay delayTime // actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
@@ -80,7 +79,7 @@ var (
 
 
 func initHandlers() {
-	fsMap.Init(*path)
+	fsMap.Init(*pkgPath)
 	fileServer = http.FileServer(*goroot, "")
 	cmdHandler = httpHandler{"/cmd/", pathutil.Join(*goroot, "src/cmd"), false}
 	pkgHandler = httpHandler{"/pkg/", pathutil.Join(*goroot, "src/pkg"), true}
@@ -768,53 +767,6 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 }
 
 
-// TODO(gri): Should have a mapping from extension to handler, eventually.
-
-// textExt[x] is true if the extension x indicates a text file, and false otherwise.
-var textExt = map[string]bool{
-	".css": false, // must be served raw
-	".js":  false, // must be served raw
-}
-
-
-func isTextFile(path string) bool {
-	// if the extension is known, use it for decision making
-	if isText, found := textExt[pathutil.Ext(path)]; found {
-		return isText
-	}
-
-	// the extension is not known; read an initial chunk of
-	// file and check if it looks like correct UTF-8; if it
-	// does, it's probably a text file
-	f, err := os.Open(path, os.O_RDONLY, 0)
-	if err != nil {
-		return false
-	}
-	defer f.Close()
-
-	var buf [1024]byte
-	n, err := f.Read(buf[0:])
-	if err != nil {
-		return false
-	}
-
-	s := string(buf[0:n])
-	n -= utf8.UTFMax // make sure there's enough bytes for a complete unicode char
-	for i, c := range s {
-		if i > n {
-			break
-		}
-		if c == 0xFFFD || c < ' ' && c != '\n' && c != '\t' {
-			// decoding error or control character - not a text file
-			return false
-		}
-	}
-
-	// likely a text file
-	return true
-}
-
-
 func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
 	src, err := ioutil.ReadFile(abspath)
 	if err != nil {
@@ -922,7 +874,7 @@ type PageInfoMode uint
 
 const (
 	exportsOnly PageInfoMode = 1 << iota // only keep exported stuff
-	genDoc                               // generate documentation
+	genDoc      // generate documentation
 )
 
 
