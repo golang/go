@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of January 26, 2011 -->
+<!-- subtitle Version of January 27, 2011 -->
 
 <!--
 TODO
@@ -3027,28 +3027,7 @@ value is transmitted on the channel.
 A send on an unbuffered channel can proceed if a receiver is ready.
 A send on a buffered channel can proceed if there is room in the buffer.
 </p>
-<p>
-If the send operation appears in an expression context, the value
-of the expression is a boolean and the operation is non-blocking.
-The value of the boolean reports true if the communication succeeded,
-false if it did not. (The channel and
-the expression to be sent are evaluated regardless.)
-These two examples are equivalent:
-</p>
 
-<pre>
-ok := ch &lt;- 3
-if ok { print("sent") } else { print("not sent") }
-
-if ch &lt;- 3 { print("sent") } else { print("not sent") }
-</pre>
-
-<p>
-In other words, if the program tests the value of a send operation,
-the send is non-blocking and the value of the expression is the
-success of the operation.  If the program does not test the value,
-the operation blocks until it succeeds.
-</p>
 <p>
 The receive operation uses the prefix unary operator "&lt;-".
 The value of the expression is the value received, whose type
@@ -3073,8 +3052,11 @@ f(&lt;-ch)
 &lt;-strobe  // wait until clock pulse
 </pre>
 
+<!--
+    TODO(rsc): Add after a release or two without any x,ok := <-c.
+
 <p>
-If a receive expression is used in an assignment or initialization of the form
+A receive expression used in an assignment or initialization of the form
 </p>
 
 <pre>
@@ -3084,14 +3066,13 @@ var x, ok = &lt;-ch
 </pre>
 
 <p>
-the receive operation becomes non-blocking.
-If the operation can proceed, the boolean variable
-<code>ok</code> will be set to <code>true</code>
-and the value stored in <code>x</code>; otherwise
-<code>ok</code> is set
-to <code>false</code> and <code>x</code> is set to the
-zero value for its type (§<a href="#The_zero_value">The zero value</a>).
+yields an additional result.
+The boolean variable <code>ok</code> indicates whether
+the received value was sent on the channel (<code>true</code>)
+or is a <a href="#The_zero_value">zero value</a> returned
+because the channel is closed and empty (<code>false</code>).
 </p>
+-->
 
 <p>
 Except in a communications clause of a <a href="#Select_statements">select statement</a>,
@@ -4097,6 +4078,9 @@ SelectStmt = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" { Statement ";" } .
 CommCase = "case" ( SendExpr | RecvExpr) | "default" .
 SendExpr =  Expression "&lt;-" Expression .
+<!-- TODO(rsc):
+RecvExpr =  [ Expression [ "," Expression ] ( "=" | ":=" ) ] "&lt;-" Expression .
+-->
 RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
 </pre>
 
@@ -4128,6 +4112,7 @@ in the "select" statement.
 If multiple cases can proceed, a pseudo-random fair choice is made to decide
 which single communication will execute.
 <p>
+<!-- TODO(rsc): s/variable/& or &s/ -->
 The receive case may declare a new variable using a
 <a href="#Short_variable_declarations">short variable declaration</a>.
 </p>
@@ -4140,6 +4125,14 @@ case i1 = &lt;-c1:
 	print("received ", i1, " from c1\n")
 case c2 &lt;- i2:
 	print("sent ", i2, " to c2\n")
+<!-- TODO(rsc): add , c3 to channel list above too
+case i3, ok := &lt;-c3:
+	if ok {
+		print("received ", i3, " from c3\n")
+	} else {
+		print("c3 is closed\n")
+	}
+-->
 default:
 	print("no communication\n")
 }
@@ -4393,6 +4386,7 @@ BuiltinCall = identifier "(" [ BuiltinArgs [ "," ] ] ")" .
 BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
 </pre>
 
+<!-- TODO(rsc): s/.and.closed//g -->
 <h3 id="Close_and_closed">Close and closed</h3>
 
 <p>
@@ -4402,6 +4396,11 @@ sending to or closing a closed channel causes a <a href="#Run_time_panics">run-t
 After calling <code>close</code>, and after any previously
 sent values have been received, receive operations will return
 the zero value for the channel's type without blocking.
+
+<!-- TODO(rsc): delete next sentence, replace with
+  The multi-valued <a href="#Communication_operators">receive operation</a>
+  returns a received value along with an indication of whether the channel is closed.
+-->
 After at least one such zero value has been
 received, <code>closed(c)</code> returns true.
 </p>
