@@ -223,7 +223,7 @@ func TestScan(t *testing.T) {
 	for _, e := range tokens {
 		src += e.lit + whitespace
 	}
-	src_linecount := newlineCount(src) + 1
+	src_linecount := newlineCount(src)
 	whitespace_linecount := newlineCount(whitespace)
 
 	// verify scan
@@ -241,7 +241,7 @@ func TestScan(t *testing.T) {
 		if tok == token.EOF {
 			lit = "<EOF>"
 			epos.Line = src_linecount
-			epos.Column = 1
+			epos.Column = 2
 		}
 		checkPos(t, lit, pos, epos)
 		if tok != e.tok {
