@@ -170,8 +170,10 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			 (symbuf[2] == 0) && (symbuf[3] == 0)) {
 			l = le32(&symbuf[4]);
 			obj->pesym[i].name = (char*)&obj->snames[l];
-		} else {
-			obj->pesym[i].name = strdup((char*)symbuf);
+		} else { // sym name length <= 8
+			obj->pesym[i].name = mal(9);
+			strncpy(obj->pesym[i].name, (char*)symbuf, 8);
+			obj->pesym[i].name[8] = 0;
 		}
 		obj->pesym[i].value = le32(&symbuf[8]);
 		obj->pesym[i].sectnum = le16(&symbuf[12]);
