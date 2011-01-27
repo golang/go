@@ -124,9 +124,9 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 	// Wildcard matches any expression.  If it appears multiple
 	// times in the pattern, it must match the same expression
 	// each time.
-	if m != nil && pattern.Type() == identType {
+	if m != nil && pattern != nil && pattern.Type() == identType {
 		name := pattern.Interface().(*ast.Ident).Name
-		if isWildcard(name) {
+		if isWildcard(name) && val != nil {
 			// wildcards only match expressions
 			if _, ok := val.Interface().(ast.Expr); ok {
 				if old, ok := m[name]; ok {
