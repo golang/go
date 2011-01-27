@@ -68,6 +68,9 @@ struct Dll {
 
 static Dll* dr;
 
+static Sym *dexport[1024];
+static int nexport;
+
 static IMAGE_SECTION_HEADER*
 addpesection(char *name, int sectsize, int filesize, Segment *s)
 {
@@ -169,7 +172,7 @@ initdynimport(void)
 	
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->hash) {
-		if(!s->reachable || !s->dynimpname)
+		if(!s->reachable || !s->dynimpname || s->dynexport)
 			continue;
 		for(d = dr; d != nil; d = d->next) {
 			if(strcmp(d->name,s->dynimplib) == 0) {
@@ -298,6 +301,101 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	seek(cout, 0, 2);
 }
 
+static int
+scmp(const void *p1, const void *p2)
+{
+	Sym *s1, *s2;
+
+	s1 = *(Sym**)p1;
+	s2 = *(Sym**)p2;
+	return strcmp(s1->dynimpname, s2->dynimpname);
+}
+
+static void
+initdynexport(void)
+{
+	int i;
+	Sym *s;
+	
+	nexport = 0;
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->hash) {
+		if(!s->reachable || !s->dynimpname || !s->dynexport)
+			continue;
+		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
+			diag("pe dynexport table is full");
+			errorexit();
+		}
+		
+		dexport[nexport] = s;
+		nexport++;
+	}
+	
+	qsort(dexport, nexport, sizeof dexport[0], scmp);
+}
+
+void
+addexports(vlong fileoff)
+{
+	IMAGE_SECTION_HEADER *sect;
+	IMAGE_EXPORT_DIRECTORY e;
+	int size, i, va, va_name, va_addr, va_na, v;
+	Sym *s;
+
+	size = sizeof e + 10*nexport + strlen(outfile) + 1;
+	for(i=0; i<nexport; i++)
+		size += strlen(dexport[i]->dynimpname) + 1;
+	
+	if (nexport == 0)
+		return;
+		
+	sect = addpesection(".edata", size, size, 0);
+	sect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_MEM_READ;
+	va = sect->VirtualAddress;
+	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = va;
+	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect->VirtualSize;
+
+	seek(cout, fileoff, 0);
+	va_name = va + sizeof e + nexport*4;
+	va_addr = va + sizeof e;
+	va_na = va + sizeof e + nexport*8;
+
+	e.Characteristics = 0;
+	e.MajorVersion = 0;
+	e.MinorVersion = 0;
+	e.NumberOfFunctions = nexport;
+	e.NumberOfNames = nexport;
+	e.Name = va + sizeof e + nexport*10; // Program names.
+	e.Base = 1;
+	e.AddressOfFunctions = va_addr;
+	e.AddressOfNames = va_name;
+	e.AddressOfNameOrdinals = va_na;
+	// put IMAGE_EXPORT_DIRECTORY
+	for (i=0; i<sizeof(e); i++)
+		cput(((char*)&e)[i]);
+	// put EXPORT Address Table
+	for(i=0; i<nexport; i++)
+		lputl(dexport[i]->value - PEBASE);		
+	// put EXPORT Name Pointer Table
+	v = e.Name + strlen(outfile)+1;
+	for(i=0; i<nexport; i++) {
+		lputl(v);
+		v += strlen(dexport[i]->dynimpname)+1;
+	}
+	// put EXPORT Ordinal Table
+	for(i=0; i<nexport; i++)
+		wputl(i);
+	// put Names
+	strnput(outfile, strlen(outfile)+1);
+	for(i=0; i<nexport; i++)
+		strnput(dexport[i]->dynimpname, strlen(dexport[i]->dynimpname)+1);
+	strnput("", sect->SizeOfRawData - size);
+	cflush();
+
+	seek(cout, 0, 2);
+}
+
+
 void
 dope(void)
 {
@@ -309,6 +407,7 @@ dope(void)
 	rel->type = SELFDATA;
 
 	initdynimport();
+	initdynexport();
 }
 
 /*
@@ -392,6 +491,8 @@ asmbpe(void)
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 
 	addimports(nextfileoff, d);
+	
+	addexports(nextfileoff);
 	
 	if(!debug['s'])
 		dwarfaddpeheaders();

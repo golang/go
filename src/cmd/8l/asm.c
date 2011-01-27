@@ -520,7 +520,7 @@ adddynsym(Sym *s)
 		adduint8(d, 0);	// section
 		adduint16(d, 0);	// desc
 		adduint32(d, 0);	// value
-	} else {
+	} else if(HEADTYPE != 10) {
 		diag("adddynsym: unsupported binary format");
 	}
 }
@@ -540,7 +540,7 @@ adddynlib(char *lib)
 		elfwritedynent(lookup(".dynamic", 0), DT_NEEDED, addstring(s, lib));
 	} else if(HEADTYPE == 6) {	// Mach-O
 		machoadddynlib(lib);
-	} else {
+	} else if(HEADTYPE != 10) {
 		diag("adddynlib: unsupported binary format");
 	}
 }
