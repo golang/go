@@ -196,4 +196,13 @@ func main() {
 		case closedch <- 7:
 		}
 	})
+	
+	// select should not get confused if it sees itself
+	testBlock(always, func() {
+		c := make(chan int)
+		select {
+		case c <- 1:
+		case <-c:
+		}
+	})
 }

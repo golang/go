@@ -732,25 +732,12 @@ loop:
 
 		switch(cas->send) {
 		case 0:	// recv
-			if(c->dataqsiz > 0) {
-				if(c->qcount > 0)
-					runtime·throw("select: pass 2 async recv");
-			} else {
-				if(dequeue(&c->sendq, c))
-					runtime·throw("select: pass 2 sync recv");
-			}
 			enqueue(&c->recvq, sg);
 			break;
 		
 		case 1:	// send
-			if(c->dataqsiz > 0) {
-				if(c->qcount < c->dataqsiz)
-					runtime·throw("select: pass 2 async send");
-			} else {
-				if(dequeue(&c->recvq, c))
-					runtime·throw("select: pass 2 sync send");
+			if(c->dataqsiz == 0)
 				c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
-			}
 			enqueue(&c->sendq, sg);
 			break;
 		}
