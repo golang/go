@@ -405,7 +405,6 @@ func TestNestedInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatal("Encode:", err)
 	}
-	Debug(bytes.NewBuffer(buf.Bytes()))
 	err = d.Decode(&v)
 	if err != nil {
 		t.Fatal("Decode:", err)
