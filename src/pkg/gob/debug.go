@@ -98,26 +98,38 @@ func (p *peekReader) peek(b []byte) (n int, err os.Error) {
 	return n, e
 }
 
+type debugger struct {
+	mutex          sync.Mutex
+	remain         int  // the number of bytes known to remain in the input
+	remainingKnown bool // the value of 'remain' is valid
+	r              *peekReader
+	wireType       map[typeId]*wireType
+	tmp            []byte // scratch space for decoding uints.
+}
+
 // dump prints the next nBytes of the input.
 // It arranges to print the output aligned from call to
 // call, to make it easy to see what has been consumed.
-func (deb *debugger) dump(nBytes int, format string, args ...interface{}) {
+func (deb *debugger) dump(format string, args ...interface{}) {
 	if !dumpBytes {
 		return
 	}
 	fmt.Fprintf(os.Stderr, format+" ", args...)
-	if nBytes < 0 {
-		fmt.Fprintf(os.Stderr, "nbytes is negative! %d\n", nBytes)
+	if !deb.remainingKnown {
 		return
 	}
-	data := make([]byte, nBytes)
+	if deb.remain < 0 {
+		fmt.Fprintf(os.Stderr, "remaining byte count is negative! %d\n", deb.remain)
+		return
+	}
+	data := make([]byte, deb.remain)
 	n, _ := deb.r.peek(data)
 	if n == 0 {
 		os.Stderr.Write(empty)
 		return
 	}
 	b := new(bytes.Buffer)
-	fmt.Fprint(b, "{\n")
+	fmt.Fprintf(b, "[%d]{\n", deb.remain)
 	// Blanks until first byte
 	lineLength := 0
 	if n := len(data); n%10 != 0 {
@@ -141,13 +153,6 @@ func (deb *debugger) dump(nBytes int, format string, args ...interface{}) {
 	os.Stderr.Write(b.Bytes())
 }
 
-type debugger struct {
-	mutex    sync.Mutex
-	r        *peekReader
-	wireType map[typeId]*wireType
-	tmp      []byte // scratch space for decoding uints.
-}
-
 // Debug prints a human-readable representation of the gob data read from r.
 func Debug(r io.Reader) {
 	fmt.Fprintln(os.Stderr, "Start of debugging")
@@ -156,37 +161,36 @@ func Debug(r io.Reader) {
 		wireType: make(map[typeId]*wireType),
 		tmp:      make([]byte, 16),
 	}
+	if b, ok := r.(*bytes.Buffer); ok {
+		deb.remain = b.Len()
+		deb.remainingKnown = true
+	}
 	deb.gobStream()
 }
 
-// toInt turns an encoded uint64 into an int, according to the marshaling rules.
-func toInt(x uint64) int64 {
-	i := int64(x >> 1)
-	if x&1 != 0 {
-		i = ^i
+// note that we've consumed some bytes
+func (deb *debugger) consumed(n int) {
+	if deb.remainingKnown {
+		deb.remain -= n
 	}
-	return i
 }
 
-// readInt returns the next int, which must be present,
-// and the number of bytes it consumed.
+// int64 decodes and returns the next integer, which must be present.
 // Don't call this if you could be at EOF.
-func (deb *debugger) readInt() (i int64, w int) {
-	var u uint64
-	u, w = deb.readUint()
-	return toInt(u), w
+func (deb *debugger) int64() int64 {
+	return toInt(deb.uint64())
 }
 
-// readUint returns the next uint, which must be present.
-// and the number of bytes it consumed.
+// uint64 returns and decodes the next unsigned integer, which must be present.
 // Don't call this if you could be at EOF.
 // TODO: handle errors better.
-func (deb *debugger) readUint() (x uint64, w int) {
+func (deb *debugger) uint64() uint64 {
 	n, w, err := decodeUintReader(deb.r, deb.tmp)
 	if err != nil {
 		errorf("debug: read error: %s", err)
 	}
-	return n, w
+	deb.consumed(w)
+	return n
 }
 
 // GobStream:
@@ -208,8 +212,8 @@ func (deb *debugger) delimitedMessage(indent tab) bool {
 		if n < 0 {
 			return false
 		}
-		deb.dump(int(n), "Message of length %d", n)
-		deb.message(indent, n)
+		deb.dump("Delimited message of length %d", n)
+		deb.message(indent)
 	}
 	return true
 }
@@ -220,18 +224,19 @@ func (deb *debugger) delimitedMessage(indent tab) bool {
 // an EOF is acceptable now.  If it is and one is found,
 // the return value is negative.
 func (deb *debugger) loadBlock(eofOK bool) int {
-	n64, _, err := decodeUintReader(deb.r, deb.tmp)
+	n64, w, err := decodeUintReader(deb.r, deb.tmp) // deb.uint64 will error at EOF
 	if err != nil {
 		if eofOK && err == os.EOF {
 			return -1
 		}
 		errorf("debug: unexpected error: %s", err)
 	}
+	deb.consumed(w)
 	n := int(n64)
 	if n < 0 {
 		errorf("huge value for message length: %d", n64)
 	}
-	return n
+	return int(n)
 }
 
 // Message:
@@ -242,209 +247,198 @@ func (deb *debugger) loadBlock(eofOK bool) int {
 //	uint(lengthOfTypeDefinition) TypeDefinition
 // TypedValue:
 //	int(typeId) Value
-func (deb *debugger) message(indent tab, n int) bool {
+func (deb *debugger) message(indent tab) bool {
 	for {
 		// Convert the uint64 to a signed integer typeId
-		uid, w := deb.readInt()
+		uid := deb.int64()
 		id := typeId(uid)
-		n -= w
-		deb.dump(n, "type id=%d", id)
+		deb.dump("type id=%d", id)
 		if id < 0 {
-			n -= deb.typeDefinition(indent, -id, n)
-			n = deb.loadBlock(false)
-			deb.dump(n, "Message of length %d", n)
+			deb.typeDefinition(indent, -id)
+			n := deb.loadBlock(false)
+			deb.dump("Message of length %d", n)
 			continue
 		} else {
-			deb.value(indent, id, n)
+			deb.value(indent, id)
 			break
 		}
 	}
 	return true
 }
 
+// Helper methods to make it easy to scan a type descriptor.
+
+// common returns the CommonType at the input point.
+func (deb *debugger) common() CommonType {
+	fieldNum := -1
+	name := ""
+	id := typeId(0)
+	for {
+		delta := deb.delta(-1)
+		if delta == 0 {
+			break
+		}
+		fieldNum += delta
+		switch fieldNum {
+		case 0:
+			name = deb.string()
+		case 1:
+			// Id typeId
+			id = deb.typeId()
+		default:
+			errorf("corrupted CommonType")
+		}
+	}
+	return CommonType{name, id}
+}
+
+// uint returns the unsigned int at the input point, as a uint (not uint64).
+func (deb *debugger) uint() uint {
+	return uint(deb.uint64())
+}
+
+// int returns the signed int at the input point, as an int (not int64).
+func (deb *debugger) int() int {
+	return int(deb.int64())
+}
+
+// typeId returns the type id at the input point.
+func (deb *debugger) typeId() typeId {
+	return typeId(deb.int64())
+}
+
+// string returns the string at the input point.
+func (deb *debugger) string() string {
+	x := int(deb.uint64())
+	b := make([]byte, x)
+	nb, _ := deb.r.Read(b)
+	if nb != x {
+		errorf("corrupted type")
+	}
+	deb.consumed(nb)
+	return string(b)
+}
+
+// delta returns the field delta at the input point.  The expect argument,
+// if non-negative, identifies what the value should be.
+func (deb *debugger) delta(expect int) int {
+	delta := int(deb.uint64())
+	if delta < 0 || (expect >= 0 && delta != expect) {
+		errorf("gob decode: corrupted type: delta %d expected %d", delta, expect)
+	}
+	return delta
+}
+
 // TypeDefinition:
 //	[int(-typeId) (already read)] encodingOfWireType
-func (deb *debugger) typeDefinition(indent tab, id typeId, n int) int {
-	deb.dump(n, "type definition for id %d", id)
+func (deb *debugger) typeDefinition(indent tab, id typeId) {
+	deb.dump("type definition for id %d", id)
 	// Encoding is of a wireType. Decode the structure as usual
 	fieldNum := -1
-	m := 0
-
-	// Closures to make it easy to scan.
-
-	// Read a uint from the input
-	getUint := func() uint {
-		i, w := deb.readUint()
-		m += w
-		n -= w
-		return uint(i)
-	}
-	// Read an int from the input
-	getInt := func() int {
-		i, w := deb.readInt()
-		m += w
-		n -= w
-		return int(i)
-	}
-	// Read a string from the input
-	getString := func() string {
-		u, w := deb.readUint()
-		x := int(u)
-		m += w
-		n -= w
-		b := make([]byte, x)
-		nb, _ := deb.r.Read(b)
-		if nb != x {
-			errorf("corrupted type")
-		}
-		m += x
-		n -= x
-		return string(b)
-	}
-	// Read a typeId from the input
-	getTypeId := func() typeId {
-		return typeId(getInt())
-	}
-	// Read a delta from the input.
-	getDelta := func(expect int) int {
-		u, w := deb.readUint()
-		m += w
-		n -= w
-		delta := int(u)
-		if delta < 0 || (expect >= 0 && delta != expect) {
-			errorf("gob decode: corrupted type: delta %d expected %d", delta, expect)
-		}
-		return int(u)
-	}
-	// Read a CommonType from the input
-	common := func() CommonType {
-		fieldNum := -1
-		name := ""
-		id := typeId(0)
-		for {
-			delta := getDelta(-1)
-			if delta == 0 {
-				break
-			}
-			fieldNum += delta
-			switch fieldNum {
-			case 0:
-				name = getString()
-			case 1:
-				// Id typeId
-				id = getTypeId()
-			default:
-				errorf("corrupted CommonType")
-			}
-		}
-		return CommonType{name, id}
-	}
-
 	wire := new(wireType)
 	// A wireType defines a single field.
-	delta := getDelta(-1)
+	delta := deb.delta(-1)
 	fieldNum += delta
 	switch fieldNum {
 	case 0: // array type, one field of {{Common}, elem, length}
 		// Field number 0 is CommonType
-		getDelta(1)
-		com := common()
+		deb.delta(1)
+		com := deb.common()
 		// Field number 1 is type Id of elem
-		getDelta(1)
-		id := getTypeId()
+		deb.delta(1)
+		id := deb.typeId()
 		// Field number 3 is length
-		getDelta(1)
-		length := getInt()
+		deb.delta(1)
+		length := deb.int()
 		wire.ArrayT = &arrayType{com, id, length}
 
 	case 1: // slice type, one field of {{Common}, elem}
 		// Field number 0 is CommonType
-		getDelta(1)
-		com := common()
+		deb.delta(1)
+		com := deb.common()
 		// Field number 1 is type Id of elem
-		getDelta(1)
-		id := getTypeId()
+		deb.delta(1)
+		id := deb.typeId()
 		wire.SliceT = &sliceType{com, id}
 
 	case 2: // struct type, one field of {{Common}, []fieldType}
 		// Field number 0 is CommonType
-		getDelta(1)
-		com := common()
+		deb.delta(1)
+		com := deb.common()
 		// Field number 1 is slice of FieldType
-		getDelta(1)
-		numField := int(getUint())
+		deb.delta(1)
+		numField := int(deb.uint())
 		field := make([]*fieldType, numField)
 		for i := 0; i < numField; i++ {
 			field[i] = new(fieldType)
-			getDelta(1) // field 0 of fieldType: name
-			field[i].Name = getString()
-			getDelta(1) // field 1 of fieldType: id
-			field[i].Id = getTypeId()
-			getDelta(0) // end of fieldType
+			deb.delta(1) // field 0 of fieldType: name
+			field[i].Name = deb.string()
+			deb.delta(1) // field 1 of fieldType: id
+			field[i].Id = deb.typeId()
+			deb.delta(0) // end of fieldType
 		}
 		wire.StructT = &structType{com, field}
 
 	case 3: // map type, one field of {{Common}, key, elem}
 		// Field number 0 is CommonType
-		getDelta(1)
-		com := common()
+		deb.delta(1)
+		com := deb.common()
 		// Field number 1 is type Id of key
-		getDelta(1)
-		keyId := getTypeId()
+		deb.delta(1)
+		keyId := deb.typeId()
 		wire.SliceT = &sliceType{com, id}
 		// Field number 2 is type Id of elem
-		getDelta(1)
-		elemId := getTypeId()
+		deb.delta(1)
+		elemId := deb.typeId()
 		wire.MapT = &mapType{com, keyId, elemId}
 	default:
 		errorf("bad field in type %d", fieldNum)
 	}
 	deb.printWireType(indent, wire)
-	getDelta(0) // end inner type (arrayType, etc.)
-	getDelta(0) // end wireType
+	deb.delta(0) // end inner type (arrayType, etc.)
+	deb.delta(0) // end wireType
 	// Remember we've seen this type.
 	deb.wireType[id] = wire
-	return m
 }
 
 
 // Value:
 //	SingletonValue | StructValue
-func (deb *debugger) value(indent tab, id typeId, n int) int {
+func (deb *debugger) value(indent tab, id typeId) {
 	wire, ok := deb.wireType[id]
 	if ok && wire.StructT != nil {
-		return deb.structValue(indent, id, n)
+		deb.structValue(indent, id)
+	} else {
+		deb.singletonValue(indent, id)
 	}
-	return deb.singletonValue(indent, id, n)
 }
 
 // SingletonValue:
 //	uint(0) FieldValue
-func (deb *debugger) singletonValue(indent tab, id typeId, n int) int {
-	deb.dump(n, "Singleton value")
+func (deb *debugger) singletonValue(indent tab, id typeId) {
+	deb.dump("Singleton value")
 	// is it a builtin type?
 	wire := deb.wireType[id]
 	_, ok := builtinIdToType[id]
 	if !ok && wire == nil {
 		errorf("type id %d not defined", id)
 	}
-	m, w := deb.readUint()
+	m := deb.uint64()
 	if m != 0 {
-		errorf("expected zero; got %d", n)
+		errorf("expected zero; got %d", m)
 	}
-	return w + deb.fieldValue(indent, id, n-w)
+	deb.fieldValue(indent, id)
 }
 
 // InterfaceValue:
 //	NilInterfaceValue | NonNilInterfaceValue
-func (deb *debugger) interfaceValue(indent tab, n int) int {
-	deb.dump(n, "Start of interface value")
-	nameLen, w := deb.readUint()
-	n -= w
-	if n == 0 {
-		return w + deb.nilInterfaceValue(indent)
+func (deb *debugger) interfaceValue(indent tab) {
+	deb.dump("Start of interface value")
+	if nameLen := deb.uint64(); nameLen == 0 {
+		deb.nilInterfaceValue(indent)
+	} else {
+		deb.nonNilInterfaceValue(indent, int(nameLen))
 	}
-	return w + deb.nonNilInterfaceValue(indent, int(nameLen), n)
 }
 
 // NilInterfaceValue:
@@ -463,35 +457,27 @@ func (deb *debugger) nilInterfaceValue(indent tab) int {
 //	int(concreteTypeId) DelimitedValue
 // DelimitedValue:
 //	uint(length) Value
-func (deb *debugger) nonNilInterfaceValue(indent tab, nameLen, n int) int {
+func (deb *debugger) nonNilInterfaceValue(indent tab, nameLen int) {
 	// ConcreteTypeName
 	b := make([]byte, nameLen)
 	deb.r.Read(b) // TODO: CHECK THESE READS!!
-	w := nameLen
-	n -= nameLen
+	deb.consumed(nameLen)
 	name := string(b)
-	fmt.Fprintf(os.Stderr, "%sinterface value, type %q length %d\n", indent, name, n)
 
 	for {
-		x, width := deb.readInt()
-		n -= w
-		w += width
-		id := typeId(x)
+		id := deb.typeId()
 		if id < 0 {
-			deb.typeDefinition(indent, -id, n)
-			n = deb.loadBlock(false)
-			deb.dump(n, "Message of length %d", n)
+			deb.typeDefinition(indent, -id)
+			n := deb.loadBlock(false)
+			deb.dump("Nested message of length %d", n)
 		} else {
 			// DelimitedValue
-			x, width := deb.readUint() // in case we want to ignore the value; we don't.
-			n -= w
-			w += width
-			fmt.Fprintf(os.Stderr, "%sinterface value, type %q id=%d; length %d\n", indent, name, id, x)
-			ZZ := w + deb.value(indent, id, int(x))
-			return ZZ
+			x := deb.uint64() // in case we want to ignore the value; we don't.
+			fmt.Fprintf(os.Stderr, "%sinterface value, type %q id=%d; valueLength %d\n", indent, name, id, x)
+			deb.value(indent, id)
+			break
 		}
 	}
-	panic("not reached")
 }
 
 // printCommonType prints a common type; used by printWireType.
@@ -529,13 +515,15 @@ func (deb *debugger) printWireType(indent tab, wire *wireType) {
 // fieldValue prints a value of any type, such as a struct field.
 // FieldValue:
 //	builtinValue | ArrayValue | MapValue | SliceValue | StructValue | InterfaceValue
-func (deb *debugger) fieldValue(indent tab, id typeId, n int) int {
+func (deb *debugger) fieldValue(indent tab, id typeId) {
 	_, ok := builtinIdToType[id]
 	if ok {
 		if id == tInterface {
-			return deb.interfaceValue(indent, n)
+			deb.interfaceValue(indent)
+		} else {
+			deb.printBuiltin(indent, id)
 		}
-		return deb.printBuiltin(indent, id, n)
+		return
 	}
 	wire, ok := deb.wireType[id]
 	if !ok {
@@ -543,105 +531,104 @@ func (deb *debugger) fieldValue(indent tab, id typeId, n int) int {
 	}
 	switch {
 	case wire.ArrayT != nil:
-		return deb.arrayValue(indent, wire, n)
+		deb.arrayValue(indent, wire)
 	case wire.MapT != nil:
-		return deb.mapValue(indent, wire, n)
+		deb.mapValue(indent, wire)
 	case wire.SliceT != nil:
-		return deb.sliceValue(indent, wire, n)
+		deb.sliceValue(indent, wire)
 	case wire.StructT != nil:
-		return deb.structValue(indent, id, n)
+		deb.structValue(indent, id)
+	default:
+		panic("bad wire type for field")
 	}
-	panic("unreached")
 }
 
 // printBuiltin prints a value not of a fundamental type, that is,
 // one whose type is known to gobs at bootstrap time.
-func (deb *debugger) printBuiltin(indent tab, id typeId, n int) int {
+func (deb *debugger) printBuiltin(indent tab, id typeId) {
 	switch id {
 	case tBool:
-		x, w := deb.readInt()
+		x := deb.int64()
 		if x == 0 {
 			fmt.Fprintf(os.Stderr, "%sfalse\n", indent)
 		} else {
 			fmt.Fprintf(os.Stderr, "%strue\n", indent)
 		}
-		return w
 	case tInt:
-		x, w := deb.readInt()
+		x := deb.int64()
 		fmt.Fprintf(os.Stderr, "%s%d\n", indent, x)
-		return w
 	case tUint:
-		x, w := deb.readInt()
+		x := deb.int64()
 		fmt.Fprintf(os.Stderr, "%s%d\n", indent, x)
-		return w
 	case tFloat:
-		x, w := deb.readUint()
+		x := deb.uint64()
 		fmt.Fprintf(os.Stderr, "%s%g\n", indent, floatFromBits(x))
-		return w
+	case tComplex:
+		r := deb.uint64()
+		i := deb.uint64()
+		fmt.Fprintf(os.Stderr, "%s%g+%gi\n", indent, floatFromBits(r), floatFromBits(i))
 	case tBytes:
-		x, w := deb.readUint()
+		x := int(deb.uint64())
 		b := make([]byte, x)
 		deb.r.Read(b)
+		deb.consumed(x)
 		fmt.Fprintf(os.Stderr, "%s{% x}=%q\n", indent, b, b)
-		return w + int(x)
 	case tString:
-		x, w := deb.readUint()
+		x := int(deb.uint64())
 		b := make([]byte, x)
 		deb.r.Read(b)
+		deb.consumed(x)
 		fmt.Fprintf(os.Stderr, "%s%q\n", indent, b)
-		return w + int(x)
 	default:
-		fmt.Print("unknown\n")
+		panic("unknown builtin")
 	}
-	panic("unknown builtin")
 }
 
 
 // ArrayValue:
 //	uint(n) FieldValue*n
-func (deb *debugger) arrayValue(indent tab, wire *wireType, n int) int {
+func (deb *debugger) arrayValue(indent tab, wire *wireType) {
 	elemId := wire.ArrayT.Elem
-	u, w := deb.readUint()
+	u := deb.uint64()
 	length := int(u)
 	for i := 0; i < length; i++ {
-		w += deb.fieldValue(indent, elemId, n-w)
+		deb.fieldValue(indent, elemId)
 	}
 	if length != wire.ArrayT.Len {
 		fmt.Fprintf(os.Stderr, "%s(wrong length for array: %d should be %d)\n", indent, length, wire.ArrayT.Len)
 	}
-	return w
 }
 
 // MapValue:
 //	uint(n) (FieldValue FieldValue)*n  [n (key, value) pairs]
-func (deb *debugger) mapValue(indent tab, wire *wireType, n int) int {
+func (deb *debugger) mapValue(indent tab, wire *wireType) {
 	keyId := wire.MapT.Key
 	elemId := wire.MapT.Elem
-	u, w := deb.readUint()
+	u := deb.uint64()
 	length := int(u)
 	for i := 0; i < length; i++ {
-		w += deb.fieldValue(indent+1, keyId, n-w)
-		w += deb.fieldValue(indent+1, elemId, n-w)
+		deb.fieldValue(indent+1, keyId)
+		deb.fieldValue(indent+1, elemId)
 	}
-	return w
 }
 
 // SliceValue:
 //	uint(n) (n FieldValue)
-func (deb *debugger) sliceValue(indent tab, wire *wireType, n int) int {
+func (deb *debugger) sliceValue(indent tab, wire *wireType) {
 	elemId := wire.SliceT.Elem
-	u, w := deb.readUint()
+	u := deb.uint64()
 	length := int(u)
+	deb.dump("Start of slice of length %d", length)
+
 	for i := 0; i < length; i++ {
-		w += deb.fieldValue(indent, elemId, n-w)
+		deb.fieldValue(indent, elemId)
 	}
-	return w
 }
 
 // StructValue:
 //	(uint(fieldDelta) FieldValue)*
-func (deb *debugger) structValue(indent tab, id typeId, n int) int {
-	deb.dump(n, "Start of struct value of %q id=%d\n<<\n", id.name(), id)
+func (deb *debugger) structValue(indent tab, id typeId) {
+	deb.dump("Start of struct value of %q id=%d\n<<\n", id.name(), id)
 	fmt.Fprintf(os.Stderr, "%s%s struct {\n", indent, id.name())
 	wire, ok := deb.wireType[id]
 	if !ok {
@@ -650,26 +637,20 @@ func (deb *debugger) structValue(indent tab, id typeId, n int) int {
 	strct := wire.StructT
 	fieldNum := -1
 	indent++
-	w := 0
 	for {
-		delta, wid := deb.readUint()
-		w += wid
-		n -= wid
+		delta := deb.uint64()
 		if delta == 0 { // struct terminator is zero delta fieldnum
 			break
 		}
 		fieldNum += int(delta)
 		if fieldNum < 0 || fieldNum >= len(strct.Field) {
-			deb.dump(n, "field number out of range: prevField=%d delta=%d", fieldNum-int(delta), delta)
+			deb.dump("field number out of range: prevField=%d delta=%d", fieldNum-int(delta), delta)
 			break
 		}
 		fmt.Fprintf(os.Stderr, "%sfield %d:\t%s\n", indent, fieldNum, wire.StructT.Field[fieldNum].Name)
-		wid = deb.fieldValue(indent+1, strct.Field[fieldNum].Id, n)
-		w += wid
-		n -= wid
+		deb.fieldValue(indent+1, strct.Field[fieldNum].Id)
 	}
 	indent--
 	fmt.Fprintf(os.Stderr, "%s} // end %s struct\n", indent, id.name())
-	deb.dump(n, ">> End of struct value of type %d %q", id, id.name())
-	return w
+	deb.dump(">> End of struct value of type %d %q", id, id.name())
 }
