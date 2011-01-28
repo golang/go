@@ -19,7 +19,6 @@
 //		used to manage storage used by the allocator.
 //	MHeap: the malloc heap, managed at page (4096-byte) granularity.
 //	MSpan: a run of pages managed by the MHeap.
-//	MHeapMap: a mapping from page IDs to MSpans.
 //	MCentral: a shared free list for a given size class.
 //	MCache: a per-thread (in Go, per-M) cache for small objects.
 //	MStats: allocation statistics.
@@ -84,7 +83,6 @@
 typedef struct FixAlloc	FixAlloc;
 typedef struct MCentral	MCentral;
 typedef struct MHeap	MHeap;
-typedef struct MHeapMap	MHeapMap;
 typedef struct MSpan	MSpan;
 typedef struct MStats	MStats;
 typedef struct MLink	MLink;
@@ -108,13 +106,16 @@ enum
 	MaxMCacheSize = 2<<20,		// Maximum bytes in one MCache
 	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
-};
 
+	// Number of bits in page to span calculations (4k pages).
+	// On 64-bit, we limit the arena to 16G, so 22 bits suffices.
+	// On 32-bit, we don't bother limiting anything: 20 bits for 4G.
 #ifdef _64BIT
-#include "mheapmap64.h"
+	MHeapMap_Bits = 22,
 #else
-#include "mheapmap32.h"
+	MHeapMap_Bits = 20,
 #endif
+};
 
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
 struct MLink
@@ -124,7 +125,8 @@ struct MLink
 
 // SysAlloc obtains a large chunk of zeroed memory from the
 // operating system, typically on the order of a hundred kilobytes
-// or a megabyte.
+// or a megabyte.  If the pointer argument is non-nil, the caller
+// wants a mapping there or nowhere.
 //
 // SysUnused notifies the operating system that the contents
 // of the memory region are no longer needed and can be reused
@@ -134,11 +136,19 @@ struct MLink
 // SysFree returns it unconditionally; this is only used if
 // an out-of-memory error has been detected midway through
 // an allocation.  It is okay if SysFree is a no-op.
+//
+// SysReserve reserves address space without allocating memory.
+// If the pointer passed to it is non-nil, the caller wants the
+// reservation there, but SysReserve can still choose another
+// location if that one is unavailable.
+//
+// SysMap maps previously reserved address space for use.
 
 void*	runtime·SysAlloc(uintptr nbytes);
 void	runtime·SysFree(void *v, uintptr nbytes);
 void	runtime·SysUnused(void *v, uintptr nbytes);
-void	runtime·SysMemInit(void);
+void	runtime·SysMap(void *v, uintptr nbytes);
+void*	runtime·SysReserve(void *v, uintptr nbytes);
 
 // FixAlloc is a simple free-list allocator for fixed size objects.
 // Malloc uses a FixAlloc wrapped around SysAlloc to manages its
@@ -194,7 +204,6 @@ struct MStats
 	uint64	mspan_sys;
 	uint64	mcache_inuse;	// MCache structures
 	uint64	mcache_sys;
-	uint64	heapmap_sys;	// heap map
 	uint64	buckhash_sys;	// profiling bucket hash table
 	
 	// Statistics about garbage collector.
@@ -323,11 +332,13 @@ struct MHeap
 	MSpan *allspans;
 
 	// span lookup
-	MHeapMap map;
+	MSpan *map[1<<MHeapMap_Bits];
 
 	// range of addresses we might see in the heap
-	byte *min;
-	byte *max;
+	byte *bitmap;
+	byte *arena_start;
+	byte *arena_used;
+	byte *arena_end;
 	
 	// central free lists for small size classes.
 	// the union makes sure that the MCentrals are
@@ -346,17 +357,14 @@ extern MHeap runtime·mheap;
 void	runtime·MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
 MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct);
 void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
-MSpan*	runtime·MHeap_Lookup(MHeap *h, PageID p);
-MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, PageID p);
+MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
+MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
 void	runtime·MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
+void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
 
 void*	runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s, uint32 **ref);
 void	runtime·gc(int32 force);
-
-void*	runtime·SysAlloc(uintptr);
-void	runtime·SysUnused(void*, uintptr);
-void	runtime·SysFree(void*, uintptr);
 
 enum
 {

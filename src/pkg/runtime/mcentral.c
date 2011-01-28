@@ -118,8 +118,7 @@ MCentral_Free(MCentral *c, void *v)
 	int32 size;
 
 	// Find span for v.
-	page = (uintptr)v >> PageShift;
-	s = runtime·MHeap_Lookup(&runtime·mheap, page);
+	s = runtime·MHeap_Lookup(&runtime·mheap, v);
 	if(s == nil || s->ref == 0)
 		runtime·throw("invalid free");
 

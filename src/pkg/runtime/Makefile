@@ -30,7 +30,6 @@ GOFILES=\
 	hashmap_defs.go\
 	iface_defs.go\
 	malloc_defs.go\
-	mheapmap$(SIZE)_defs.go\
 	runtime_defs.go\
 	$(GOOS)/runtime_defs.go\
 
@@ -70,7 +69,6 @@ OFILES=\
 	mfixalloc.$O\
 	mgc0.$O\
 	mheap.$O\
-	mheapmap$(SIZE).$O\
 	mprof.$O\
 	msize.$O\
 	print.$O\

@@ -138,7 +138,7 @@ TEXT runtime·bsdthread_create(SB),7,$32
 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
 	INT	$0x80
 	JAE	3(PC)
-	MOVL	$-1, AX
+	NEGL	AX
 	RET
 	MOVL	$0, AX
 	RET
