@@ -30,15 +30,17 @@ type decodeState struct {
 	dec *Decoder
 	// The buffer is stored with an extra indirection because it may be replaced
 	// if we load a type during decode (when reading an interface value).
-	b        **bytes.Buffer
+	b        *bytes.Buffer
 	fieldnum int // the last field number read.
 	buf      []byte
 }
 
-func newDecodeState(dec *Decoder, b **bytes.Buffer) *decodeState {
+// We pass the bytes.Buffer separately for easier testing of the infrastructure
+// without requiring a full Decoder.
+func newDecodeState(dec *Decoder, buf *bytes.Buffer) *decodeState {
 	d := new(decodeState)
 	d.dec = dec
-	d.b = b
+	d.b = buf
 	d.buf = make([]byte, uint64Size)
 	return d
 }
@@ -407,10 +409,10 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
 	return *(*uintptr)(up)
 }
 
-func (dec *Decoder) decodeSingle(engine *decEngine, rtyp reflect.Type, b **bytes.Buffer, p uintptr, indir int) (err os.Error) {
+func (dec *Decoder) decodeSingle(engine *decEngine, rtyp reflect.Type, p uintptr, indir int) (err os.Error) {
 	defer catchError(&err)
 	p = allocate(rtyp, p, indir)
-	state := newDecodeState(dec, b)
+	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = singletonField
 	basep := p
 	delta := int(state.decodeUint())
@@ -426,10 +428,10 @@ func (dec *Decoder) decodeSingle(engine *decEngine, rtyp reflect.Type, b **bytes
 	return nil
 }
 
-func (dec *Decoder) decodeStruct(engine *decEngine, rtyp *reflect.StructType, b **bytes.Buffer, p uintptr, indir int) (err os.Error) {
+func (dec *Decoder) decodeStruct(engine *decEngine, rtyp *reflect.StructType, p uintptr, indir int) (err os.Error) {
 	defer catchError(&err)
 	p = allocate(rtyp, p, indir)
-	state := newDecodeState(dec, b)
+	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = -1
 	basep := p
 	for state.b.Len() > 0 {
@@ -456,9 +458,9 @@ func (dec *Decoder) decodeStruct(engine *decEngine, rtyp *reflect.StructType, b 
 	return nil
 }
 
-func (dec *Decoder) ignoreStruct(engine *decEngine, b **bytes.Buffer) (err os.Error) {
+func (dec *Decoder) ignoreStruct(engine *decEngine) (err os.Error) {
 	defer catchError(&err)
-	state := newDecodeState(dec, b)
+	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = -1
 	for state.b.Len() > 0 {
 		delta := int(state.decodeUint())
@@ -614,9 +616,17 @@ func (dec *Decoder) decodeInterface(ityp *reflect.InterfaceType, state *decodeSt
 	if !ok {
 		errorf("gob: name not registered for interface: %q", name)
 	}
+	// Read the type id of the concrete value.
+	concreteId := dec.decodeTypeSequence(true)
+	if concreteId < 0 {
+		error(dec.err)
+	}
+	// Byte count of value is next; we don't care what it is (it's there
+	// in case we want to ignore the value by skipping it completely).
+	state.decodeUint()
 	// Read the concrete value.
 	value := reflect.MakeZero(typ)
-	dec.decodeValueFromBuffer(value, false, true)
+	dec.decodeValue(concreteId, value)
 	if dec.err != nil {
 		error(dec.err)
 	}
@@ -639,10 +649,12 @@ func (dec *Decoder) ignoreInterface(state *decodeState) {
 	if err != nil {
 		error(err)
 	}
-	dec.decodeValueFromBuffer(nil, true, true)
-	if dec.err != nil {
-		error(err)
+	id := dec.decodeTypeSequence(true)
+	if id < 0 {
+		error(dec.err)
 	}
+	// At this point, the decoder buffer contains the value. Just toss it.
+	state.b.Reset()
 }
 
 // Index by Go types.
@@ -733,7 +745,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				// indirect through enginePtr to delay evaluation for recursive structs
-				err = dec.decodeStruct(*enginePtr, t, state.b, uintptr(p), i.indir)
+				err = dec.decodeStruct(*enginePtr, t, uintptr(p), i.indir)
 				if err != nil {
 					error(err)
 				}
@@ -798,7 +810,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				// indirect through enginePtr to delay evaluation for recursive structs
-				state.dec.ignoreStruct(*enginePtr, state.b)
+				state.dec.ignoreStruct(*enginePtr)
 			}
 		}
 	}
@@ -907,7 +919,11 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
 	if t, ok := builtinIdToType[remoteId]; ok {
 		wireStruct, _ = t.(*structType)
 	} else {
-		wireStruct = dec.wireType[remoteId].StructT
+		wire := dec.wireType[remoteId]
+		if wire == nil {
+			error(errBadType)
+		}
+		wireStruct = wire.StructT
 	}
 	if wireStruct == nil {
 		errorf("gob: type mismatch in decoder: want struct type %s; got non-struct", rt.String())
@@ -976,7 +992,7 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
 	return
 }
 
-func (dec *Decoder) decode(wireId typeId, val reflect.Value) os.Error {
+func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) os.Error {
 	// Dereference down to the underlying struct type.
 	rt, indir := indirect(val.Type())
 	enginePtr, err := dec.getDecEnginePtr(wireId, rt)
@@ -989,9 +1005,9 @@ func (dec *Decoder) decode(wireId typeId, val reflect.Value) os.Error {
 			name := rt.Name()
 			return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
 		}
-		return dec.decodeStruct(engine, st, dec.state.b, uintptr(val.Addr()), indir)
+		return dec.decodeStruct(engine, st, uintptr(val.Addr()), indir)
 	}
-	return dec.decodeSingle(engine, rt, dec.state.b, uintptr(val.Addr()), indir)
+	return dec.decodeSingle(engine, rt, uintptr(val.Addr()), indir)
 }
 
 func init() {

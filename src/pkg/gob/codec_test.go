@@ -58,7 +58,7 @@ func TestUintCodec(t *testing.T) {
 			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
 		}
 	}
-	decState := newDecodeState(nil, &b)
+	decState := newDecodeState(nil, b)
 	for u := uint64(0); ; u = (u + 1) * 7 {
 		b.Reset()
 		encState.encodeUint(u)
@@ -77,7 +77,7 @@ func verifyInt(i int64, t *testing.T) {
 	var b = new(bytes.Buffer)
 	encState := newEncoderState(nil, b)
 	encState.encodeInt(i)
-	decState := newDecodeState(nil, &b)
+	decState := newDecodeState(nil, b)
 	decState.buf = make([]byte, 8)
 	j := decState.decodeInt()
 	if i != j {
@@ -315,7 +315,7 @@ func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p un
 
 func newDecodeStateFromData(data []byte) *decodeState {
 	b := bytes.NewBuffer(data)
-	state := newDecodeState(nil, &b)
+	state := newDecodeState(nil, b)
 	state.fieldnum = -1
 	return state
 }
@@ -1162,7 +1162,6 @@ func TestInterface(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 // A struct with all basic types, stored in interfaces.
@@ -1182,7 +1181,7 @@ func TestInterfaceBasic(t *testing.T) {
 		int(1), int8(1), int16(1), int32(1), int64(1),
 		uint(1), uint8(1), uint16(1), uint32(1), uint64(1),
 		float32(1), 1.0,
-		complex64(0i), complex128(0i),
+		complex64(1i), complex128(1i),
 		true,
 		"hello",
 		[]byte("sailor"),
