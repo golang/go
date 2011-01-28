@@ -19,6 +19,7 @@ test: get.bin
 
 %.bin: %.$O
 	$(LD) -o $@ $<
-%.$O:
+
+%.$O: %.go
 	$(GC) $*.go
 
