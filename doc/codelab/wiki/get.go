@@ -13,18 +13,18 @@ import (
 
 var (
 	post = flag.String("post", "", "urlencoded form data to POST")
-	port = flag.Bool("port", false, "find open port and print to stdout")
+	addr = flag.Bool("addr", false, "find open address and print to stdout")
 )
 
 func main() {
 	flag.Parse()
-	if *port {
+	if *addr {
 		l, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			log.Exit(err)
 		}
 		defer l.Close()
-		fmt.Print(l.Addr().(*net.TCPAddr).Port)
+		fmt.Print(l.Addr())
 		return
 	}
 	url := flag.Arg(0)
