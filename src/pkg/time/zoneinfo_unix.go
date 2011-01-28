@@ -18,6 +18,7 @@ import (
 const (
 	headerSize = 4 + 16 + 4*7
 	zoneDir    = "/usr/share/zoneinfo/"
+	zoneDir2   = "/usr/share/lib/zoneinfo/"
 )
 
 // Simple I/O interface to binary blob of data.
@@ -216,7 +217,11 @@ func setupZone() {
 	case err == os.ENOENV:
 		zones, _ = readinfofile("/etc/localtime")
 	case len(tz) > 0:
-		zones, _ = readinfofile(zoneDir + tz)
+		var ok bool
+		zones, ok = readinfofile(zoneDir + tz)
+		if !ok {
+			zones, _ = readinfofile(zoneDir2 + tz)
+		}
 	case len(tz) == 0:
 		// do nothing: use UTC
 	}
