@@ -12,12 +12,11 @@ runtime·SysAlloc(uintptr n)
 	p = runtime·mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
 	if(p < (void*)4096) {
 		if(p == (void*)EACCES) {
-			runtime·printf("mmap: access denied\n");
-			runtime·printf("If you're running SELinux, enable execmem for this process.\n");
+			runtime·printf("runtime: mmap: access denied\n");
+			runtime·printf("if you're running SELinux, enable execmem for this process.\n");
 			runtime·exit(2);
 		}
-		runtime·printf("mmap: errno=%p\n", p);
-		runtime·throw("mmap");
+		return nil;
 	}
 	return p;
 }
@@ -37,7 +36,19 @@ runtime·SysFree(void *v, uintptr n)
 	runtime·munmap(v, n);
 }
 
-void
-runtime·SysMemInit(void)
+void*
+runtime·SysReserve(void *v, uintptr n)
 {
+	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+}
+
+void
+runtime·SysMap(void *v, uintptr n)
+{
+	void *p;
+	
+	mstats.sys += n;
+	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+	if(p != v)
+		runtime·throw("runtime: cannot map pages in arena address space");
 }

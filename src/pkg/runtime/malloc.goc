@@ -175,7 +175,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp, uint32 **ref)
 	MSpan *s;
 
 	mstats.nlookup++;
-	s = runtime·MHeap_LookupMaybe(&runtime·mheap, (uintptr)v>>PageShift);
+	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
 	if(sp)
 		*sp = s;
 	if(s == nil) {
@@ -249,13 +249,76 @@ int32 runtime·sizeof_C_MStats = sizeof(MStats);
 void
 runtime·mallocinit(void)
 {
-	runtime·SysMemInit();
+	byte *p;
+	uintptr arena_size;
+
 	runtime·InitSizes();
+
+	if(sizeof(void*) == 8) {
+		// On a 64-bit machine, allocate from a single contiguous reservation.
+		// 16 GB should be big enough for now.
+		//
+		// The code will work with the reservation at any address, but ask
+		// SysReserve to use 0x000000f800000000 if possible.
+		// Allocating a 16 GB region takes away 36 bits, and the amd64
+		// doesn't let us choose the top 17 bits, so that leaves the 11 bits
+		// in the middle of 0x00f8 for us to choose.  Choosing 0x00f8 means
+		// that the valid memory addresses will begin 0x00f8, 0x00f9, 0x00fa, 0x00fb.
+		// None of the bytes f8 f9 fa fb can appear in valid UTF-8, and
+		// they are otherwise as far from ff (likely a common byte) as possible.
+		// Choosing 0x00 for the leading 6 bits was more arbitrary, but it
+		// is not a common ASCII code point either.  Using 0x11f8 instead
+		// caused out of memory errors on OS X during thread allocations.
+		// These choices are both for debuggability and to reduce the
+		// odds of the conservative garbage collector not collecting memory
+		// because some non-pointer block of memory had a bit pattern
+		// that matched a memory address.
+		arena_size = 16LL<<30;
+		p = runtime·SysReserve((void*)(0x00f8ULL<<32), arena_size);
+		if(p == nil)
+			runtime·throw("runtime: cannot reserve arena virtual address space");
+		runtime·mheap.arena_start = p;
+		runtime·mheap.arena_used = p;
+		runtime·mheap.arena_end = p + arena_size;
+	} else {
+		// On a 32-bit machine, we'll take what we can get for each allocation
+		// and maintain arena_start and arena_end as min, max we've seen.
+		runtime·mheap.arena_start = (byte*)0xffffffff;
+		runtime·mheap.arena_end = 0;
+	}
+
+	// Initialize the rest of the allocator.	
 	runtime·MHeap_Init(&runtime·mheap, runtime·SysAlloc);
 	m->mcache = runtime·allocmcache();
 
 	// See if it works.
 	runtime·free(runtime·malloc(1));
+}
+
+void*
+runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+{
+	byte *p;
+	
+	if(sizeof(void*) == 8) {
+		// Keep taking from our reservation.
+		if(h->arena_end - h->arena_used < n)
+			return nil;
+		p = h->arena_used;
+		runtime·SysMap(p, n);
+		h->arena_used += n;
+		return p;
+	} else {
+		// Take what we can get from the OS.
+		p = runtime·SysAlloc(n);
+		if(p == nil)
+			return nil;
+		if(p+n > h->arena_used)
+			h->arena_used = p+n;
+		if(p > h->arena_end)
+			h->arena_end = p;
+		return p;		
+	}
 }
 
 // Runtime stubs.

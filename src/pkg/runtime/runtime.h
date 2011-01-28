@@ -436,6 +436,7 @@ void	runtime·addfinalizer(void*, void(*fn)(void*), int32);
 void	runtime·walkfintab(void (*fn)(void*));
 void	runtime·runpanic(Panic*);
 void*	runtime·getcallersp(void*);
+int32	runtime·mcount(void);
 
 void	runtime·exit(int32);
 void	runtime·breakpoint(void);

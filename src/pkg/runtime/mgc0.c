@@ -76,7 +76,7 @@ scanblock(byte *b, int64 n)
 			obj = vp[i];
 			if(obj == nil)
 				continue;
-			if(runtime·mheap.min <= (byte*)obj && (byte*)obj < runtime·mheap.max) {
+			if(runtime·mheap.arena_start <= (byte*)obj && (byte*)obj < runtime·mheap.arena_end) {
 				if(runtime·mlookup(obj, &obj, &size, nil, &refp)) {
 					ref = *refp;
 					switch(ref & ~RefFlags) {

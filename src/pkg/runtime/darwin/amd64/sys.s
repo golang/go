@@ -141,7 +141,7 @@ TEXT runtime·bsdthread_create(SB),7,$0
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL
 	JCC 3(PC)
-	MOVL	$-1, AX
+	NEGL	AX
 	RET
 	MOVL	$0, AX
 	RET

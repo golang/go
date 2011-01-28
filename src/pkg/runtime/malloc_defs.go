@@ -88,7 +88,6 @@ type mHeap struct {
 	free        [maxMHeapList]mSpan
 	large       mSpan
 	allspans    *mSpan
-	map_        mHeapMap
 	min         *byte
 	max         *byte
 	closure_min *byte

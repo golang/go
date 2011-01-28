@@ -157,13 +157,17 @@ runtime·goenvs(void)
 void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
+	int32 errno;
+
 	m->tls[0] = m->id;	// so 386 asm can find it
 	if(0){
 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, m->id, m->tls[0], &m);
 	}
-	if(runtime·bsdthread_create(stk, m, g, fn) < 0)
-		runtime·throw("cannot create new OS thread");
+	if((errno = runtime·bsdthread_create(stk, m, g, fn)) < 0) {
+		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), -errno);
+		runtime·throw("runtime.newosproc");
+	}
 }
 
 // Called to initialize a new m (including the bootstrap m).

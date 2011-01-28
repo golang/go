@@ -88,7 +88,6 @@ func WriteHeapProfile(w io.Writer) os.Error {
 	fmt.Fprintf(b, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
 	fmt.Fprintf(b, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
 	fmt.Fprintf(b, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
-	fmt.Fprintf(b, "# MHeapMapSys = %d\n", s.MHeapMapSys)
 	fmt.Fprintf(b, "# BuckHashSys = %d\n", s.BuckHashSys)
 
 	fmt.Fprintf(b, "# NextGC = %d\n", s.NextGC)

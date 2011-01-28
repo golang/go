@@ -1190,3 +1190,9 @@ runtime·Goroutines(int32 ret)
 	ret = runtime·sched.gcount;
 	FLUSH(&ret);
 }
+
+int32
+runtime·mcount(void)
+{
+	return runtime·sched.mcount;
+}
