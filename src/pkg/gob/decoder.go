@@ -17,14 +17,13 @@ import (
 type Decoder struct {
 	mutex        sync.Mutex                              // each item must be received atomically
 	r            io.Reader                               // source of the data
+	buf          bytes.Buffer                            // buffer for more efficient i/o from r
 	wireType     map[typeId]*wireType                    // map from remote ID to local description
 	decoderCache map[reflect.Type]map[typeId]**decEngine // cache of compiled engines
 	ignorerCache map[typeId]**decEngine                  // ditto for ignored objects
-	state        *decodeState                            // reads data from in-memory buffer
 	countState   *decodeState                            // reads counts from wire
-	buf          []byte
-	countBuf     [9]byte // counts may be uint64s (unlikely!), require 9 bytes
-	byteBuffer   *bytes.Buffer
+	countBuf     []byte                                  // used for decoding integers while parsing messages
+	tmp          []byte                                  // temporary storage for i/o; saves reallocating
 	err          os.Error
 }
 
@@ -33,32 +32,123 @@ func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder)
 	dec.r = r
 	dec.wireType = make(map[typeId]*wireType)
-	dec.state = newDecodeState(dec, &dec.byteBuffer) // buffer set in Decode()
 	dec.decoderCache = make(map[reflect.Type]map[typeId]**decEngine)
 	dec.ignorerCache = make(map[typeId]**decEngine)
+	dec.countBuf = make([]byte, 9) // counts may be uint64s (unlikely!), require 9 bytes
 
 	return dec
 }
 
-// recvType loads the definition of a type and reloads the Decoder's buffer.
+// recvType loads the definition of a type.
 func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
-	if dec.wireType[id] != nil {
+	if id < firstUserId || dec.wireType[id] != nil {
 		dec.err = os.ErrorString("gob: duplicate type received")
 		return
 	}
 
 	// Type:
 	wire := new(wireType)
-	dec.err = dec.decode(tWireType, reflect.NewValue(wire))
+	dec.err = dec.decodeValue(tWireType, reflect.NewValue(wire))
 	if dec.err != nil {
 		return
 	}
 	// Remember we've seen this type.
 	dec.wireType[id] = wire
+}
 
-	// Load the next parcel.
-	dec.recvMessage()
+// recvMessage reads the next count-delimited item from the input. It is the converse
+// of Encoder.writeMessage. It returns false on EOF or other error reading the message.
+func (dec *Decoder) recvMessage() bool {
+	// Read a count.
+	nbytes, _, err := decodeUintReader(dec.r, dec.countBuf)
+	if err != nil {
+		dec.err = err
+		return false
+	}
+	dec.readMessage(int(nbytes))
+	return dec.err == nil
+}
+
+// readMessage reads the next nbytes bytes from the input.
+func (dec *Decoder) readMessage(nbytes int) {
+	// Allocate the buffer.
+	if cap(dec.tmp) < nbytes {
+		dec.tmp = make([]byte, nbytes+100) // room to grow
+	}
+	dec.tmp = dec.tmp[:nbytes]
+
+	// Read the data
+	_, dec.err = io.ReadFull(dec.r, dec.tmp)
+	if dec.err != nil {
+		if dec.err == os.EOF {
+			dec.err = io.ErrUnexpectedEOF
+		}
+		return
+	}
+	dec.buf.Write(dec.tmp)
+}
+
+// toInt turns an encoded uint64 into an int, according to the marshaling rules.
+func toInt(x uint64) int64 {
+	i := int64(x >> 1)
+	if x&1 != 0 {
+		i = ^i
+	}
+	return i
+}
+
+func (dec *Decoder) nextInt() int64 {
+	n, _, err := decodeUintReader(&dec.buf, dec.countBuf)
+	if err != nil {
+		dec.err = err
+	}
+	return toInt(n)
+}
+
+func (dec *Decoder) nextUint() uint64 {
+	n, _, err := decodeUintReader(&dec.buf, dec.countBuf)
+	if err != nil {
+		dec.err = err
+	}
+	return n
+}
+
+// decodeTypeSequence parses:
+// TypeSequence
+//	(TypeDefinition DelimitedTypeDefinition*)?
+// and returns the type id of the next value.  It returns -1 at
+// EOF.  Upon return, the remainder of dec.buf is the value to be
+// decoded.  If this is an interface value, it can be ignored by
+// simply resetting that buffer.
+func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+	for dec.err == nil {
+		if dec.buf.Len() == 0 {
+			if !dec.recvMessage() {
+				break
+			}
+		}
+		// Receive a type id.
+		id := typeId(dec.nextInt())
+		if id >= 0 {
+			// Value follows.
+			return id
+		}
+		// Type definition for (-id) follows.
+		dec.recvType(-id)
+		// When decoding an interface, after a type there may be a
+		// DelimitedValue still in the buffer.  Skip its count.
+		// (Alternatively, the buffer is empty and the byte count
+		// will be absorbed by recvMessage.)
+		if dec.buf.Len() > 0 {
+			if !isInterface {
+				dec.err = os.ErrorString("extra data in buffer")
+				break
+			}
+			dec.nextUint()
+		}
+	}
+	return -1
 }
 
 // Decode reads the next value from the connection and stores
@@ -76,75 +166,6 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	return dec.DecodeValue(value)
 }
 
-// recvMessage reads the next count-delimited item from the input. It is the converse
-// of Encoder.writeMessage.
-func (dec *Decoder) recvMessage() {
-	// Read a count.
-	var nbytes uint64
-	nbytes, _, dec.err = decodeUintReader(dec.r, dec.countBuf[0:])
-	if dec.err != nil {
-		return
-	}
-	dec.readMessage(int(nbytes), dec.r)
-}
-
-// readMessage reads the next nbytes bytes from the input.
-func (dec *Decoder) readMessage(nbytes int, r io.Reader) {
-	// Allocate the buffer.
-	if nbytes > len(dec.buf) {
-		dec.buf = make([]byte, nbytes+1000)
-	}
-	dec.byteBuffer = bytes.NewBuffer(dec.buf[0:nbytes])
-
-	// Read the data
-	_, dec.err = io.ReadFull(r, dec.buf[0:nbytes])
-	if dec.err != nil {
-		if dec.err == os.EOF {
-			dec.err = io.ErrUnexpectedEOF
-		}
-		return
-	}
-}
-
-// decodeValueFromBuffer grabs the next value from the input. The Decoder's
-// buffer already contains data.  If the next item in the buffer is a type
-// descriptor, it will be necessary to reload the buffer; recvType does that.
-func (dec *Decoder) decodeValueFromBuffer(value reflect.Value, ignoreInterfaceValue, countPresent bool) {
-	for dec.state.b.Len() > 0 {
-		// Receive a type id.
-		id := typeId(dec.state.decodeInt())
-
-		// Is it a new type?
-		if id < 0 { // 0 is the error state, handled above
-			// If the id is negative, we have a type.
-			dec.recvType(-id)
-			if dec.err != nil {
-				break
-			}
-			continue
-		}
-
-		// Make sure the type has been defined already or is a builtin type (for
-		// top-level singleton values).
-		if dec.wireType[id] == nil && builtinIdToType[id] == nil {
-			dec.err = errBadType
-			break
-		}
-		// An interface value is preceded by a byte count.
-		if countPresent {
-			count := int(dec.state.decodeUint())
-			if ignoreInterfaceValue {
-				// An interface value is preceded by a byte count. Just skip that many bytes.
-				dec.state.b.Next(int(count))
-				break
-			}
-			// Otherwise fall through and decode it.
-		}
-		dec.err = dec.decode(id, value)
-		break
-	}
-}
-
 // DecodeValue reads the next value from the connection and stores
 // it in the data represented by the reflection value.
 // The value must be the correct type for the next
@@ -154,12 +175,12 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	dec.mutex.Lock()
 	defer dec.mutex.Unlock()
 
+	dec.buf.Reset() // In case data lingers from previous invocation.
 	dec.err = nil
-	dec.recvMessage()
-	if dec.err != nil {
-		return dec.err
+	id := dec.decodeTypeSequence(false)
+	if id >= 0 {
+		dec.err = dec.decodeValue(id, value)
 	}
-	dec.decodeValueFromBuffer(value, false, false)
 	return dec.err
 }
 

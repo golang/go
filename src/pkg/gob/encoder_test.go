@@ -383,3 +383,47 @@ func TestInterfaceIndirect(t *testing.T) {
 		t.Fatal("decode error:", err)
 	}
 }
+
+// Another bug from golang-nuts, involving nested interfaces.
+type Bug0Outer struct {
+	Bug0Field interface{}
+}
+
+type Bug0Inner struct {
+	A int
+}
+
+func TestNestedInterfaces(t *testing.T) {
+	var buf bytes.Buffer
+	e := NewEncoder(&buf)
+	d := NewDecoder(&buf)
+	Register(new(Bug0Outer))
+	Register(new(Bug0Inner))
+	f := &Bug0Outer{&Bug0Outer{&Bug0Inner{7}}}
+	var v interface{} = f
+	err := e.Encode(&v)
+	if err != nil {
+		t.Fatal("Encode:", err)
+	}
+	Debug(bytes.NewBuffer(buf.Bytes()))
+	err = d.Decode(&v)
+	if err != nil {
+		t.Fatal("Decode:", err)
+	}
+	// Make sure it decoded correctly.
+	outer1, ok := v.(*Bug0Outer)
+	if !ok {
+		t.Fatalf("v not Bug0Outer: %T", v)
+	}
+	outer2, ok := outer1.Bug0Field.(*Bug0Outer)
+	if !ok {
+		t.Fatalf("v.Bug0Field not Bug0Outer: %T", outer1.Bug0Field)
+	}
+	inner, ok := outer2.Bug0Field.(*Bug0Inner)
+	if !ok {
+		t.Fatalf("v.Bug0Field.Bug0Field not Bug0Inner: %T", outer2.Bug0Field)
+	}
+	if inner.A != 7 {
+		t.Fatalf("final value %d; expected %d", inner.A, 7)
+	}
+}

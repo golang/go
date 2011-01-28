@@ -395,17 +395,21 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 	if err != nil {
 		error(err)
 	}
-	// Send (and maybe first define) the type id.
-	enc.sendTypeDescriptor(typ)
-	// Encode the value into a new buffer.
+	// Define the type id if necessary.
+	enc.sendTypeDescriptor(enc.writer(), state, typ)
+	// Send the type id.
+	enc.sendTypeId(state, typ)
+	// Encode the value into a new buffer.  Any nested type definitions
+	// should be written to b, before the encoded value.
+	enc.pushWriter(b)
 	data := new(bytes.Buffer)
 	err = enc.encode(data, iv.Elem())
 	if err != nil {
 		error(err)
 	}
-	state.encodeUint(uint64(data.Len()))
-	_, err = state.b.Write(data.Bytes())
-	if err != nil {
+	enc.popWriter()
+	enc.writeMessage(b, data)
+	if enc.err != nil {
 		error(err)
 	}
 }
