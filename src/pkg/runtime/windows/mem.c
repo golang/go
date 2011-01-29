@@ -34,7 +34,7 @@ void*
 runtime·SysAlloc(uintptr n)
 {
 	mstats.sys += n;
-	return runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 }
 
 void
@@ -55,7 +55,7 @@ runtime·SysFree(void *v, uintptr n)
 		abort("VirtualFree");
 }
 
-void
+void*
 runtime·SysReserve(void *v, uintptr n)
 {
 	return runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, 0);
