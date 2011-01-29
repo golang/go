@@ -49,6 +49,10 @@ static IMAGE_FILE_HEADER fh;
 static IMAGE_OPTIONAL_HEADER oh;
 static PE64_IMAGE_OPTIONAL_HEADER oh64;
 static IMAGE_SECTION_HEADER sh[16];
+static IMAGE_DATA_DIRECTORY* dd;
+
+#define	set(n, v)	(pe64 ? (oh64.n = v) : (oh.n = v))
+#define	put(v)		(pe64 ? vputl(v) : lputl(v))
 
 typedef struct Imp Imp;
 struct Imp {
@@ -106,18 +110,23 @@ addpesection(char *name, int sectsize, int filesize, Segment *s)
 void
 peinit(void)
 {
+	int32 l;
+
 	switch(thechar) {
 	// 64-bit architectures
 	case '6':
 		pe64 = 1;
-		PEFILEHEADR = rnd(sizeof(dosstub)+sizeof(fh)+sizeof(oh64)+sizeof(sh), PEFILEALIGN);
+		l = sizeof(oh64);
+		dd = oh64.DataDirectory;
 		break;
 	// 32-bit architectures
 	default:
-		PEFILEHEADR = rnd(sizeof(dosstub)+sizeof(fh)+sizeof(oh)+sizeof(sh), PEFILEALIGN);
+		l = sizeof(oh);
+		dd = oh.DataDirectory;
 		break;
 	}
 	
+	PEFILEHEADR = rnd(sizeof(dosstub)+sizeof(fh)+l+sizeof(sh), PEFILEALIGN);
 	PESECTHEADR = rnd(PEFILEHEADR, PESECTALIGN);
 	nextsectoff = PESECTHEADR;
 	nextfileoff = PEFILEHEADR;
@@ -126,24 +135,20 @@ peinit(void)
 static void
 pewrite(void)
 {
-	int i, j;
-
 	seek(cout, 0, 0);
 	ewrite(cout, dosstub, sizeof dosstub);
 	strnput("PE", 4);
-
-	for (i=0; i<sizeof(fh); i++)
-		cput(((char*)&fh)[i]);
-	if(pe64) { 
-		for (i=0; i<sizeof(oh64); i++)
-			cput(((char*)&oh64)[i]);
-	} else {
-		for (i=0; i<sizeof(oh); i++)
-			cput(((char*)&oh)[i]);
-	}
-	for (i=0; i<nsect; i++)
-		for (j=0; j<sizeof(sh[i]); j++)
-			cput(((char*)&sh[i])[j]);
+	cflush();
+	// TODO: This code should not assume that the
+	// memory representation is little-endian or
+	// that the structs are packed identically to
+	// their file representation.
+	ewrite(cout, &fh, sizeof fh);
+	if(pe64)
+		ewrite(cout, &oh64, sizeof oh64);
+	else
+		ewrite(cout, &oh, sizeof oh);
+	ewrite(cout, &sh, nsect * sizeof sh[0]);
 }
 
 static void
@@ -247,8 +252,8 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	for(d = dr; d != nil; d = d->next) {
 		d->thunkoff = cpos() - n;
 		for(m = d->ms; m != nil; m = m->next)
-			pe64 ? vputl(m->off) : lputl(m->off);
-		pe64 ? vputl(0): lputl(0);
+			put(m->off);
+		put(0);
 	}
 
 	// add pe section and pad it at the end
@@ -264,8 +269,8 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	seek(cout, datsect->PointerToRawData + ftbase, 0);
 	for(d = dr; d != nil; d = d->next) {
 		for(m = d->ms; m != nil; m = m->next)
-			pe64 ? vputl(m->off) : lputl(m->off);
-		pe64 ? vputl(0): lputl(0);
+			put(m->off);
+		put(0);
 	}
 	cflush();
 	
@@ -286,17 +291,10 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	cflush();
 	
 	// update data directory
-	if(pe64) {
-		oh64.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect->VirtualAddress;
-		oh64.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect->VirtualSize;
-		oh64.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = dynamic->value - PEBASE;
-		oh64.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].Size = dynamic->size;
-	} else {
-		oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect->VirtualAddress;
-		oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect->VirtualSize;
-		oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = dynamic->value - PEBASE;
-		oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].Size = dynamic->size;
-	}
+	dd[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect->VirtualAddress;
+	dd[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect->VirtualSize;
+	dd[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = dynamic->value - PEBASE;
+	dd[IMAGE_DIRECTORY_ENTRY_IAT].Size = dynamic->size;
 
 	seek(cout, 0, 2);
 }
@@ -340,7 +338,6 @@ addexports(vlong fileoff)
 	IMAGE_SECTION_HEADER *sect;
 	IMAGE_EXPORT_DIRECTORY e;
 	int size, i, va, va_name, va_addr, va_na, v;
-	Sym *s;
 
 	size = sizeof e + 10*nexport + strlen(outfile) + 1;
 	for(i=0; i<nexport; i++)
@@ -352,8 +349,8 @@ addexports(vlong fileoff)
 	sect = addpesection(".edata", size, size, 0);
 	sect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_MEM_READ;
 	va = sect->VirtualAddress;
-	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = va;
-	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect->VirtualSize;
+	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = va;
+	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect->VirtualSize;
 
 	seek(cout, fileoff, 0);
 	va_name = va + sizeof e + nexport*4;
@@ -394,7 +391,6 @@ addexports(vlong fileoff)
 
 	seek(cout, 0, 2);
 }
-
 
 void
 dope(void)
@@ -463,7 +459,6 @@ addsymtable(void)
 	cflush();
 }
 
-
 void
 asmbpe(void)
 {
@@ -486,7 +481,7 @@ asmbpe(void)
 		IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
 
-	d = addpesection(".data", segdata.len, pe64 ? segdata.len : segdata.filelen, &segdata);
+	d = addpesection(".data", segdata.len, segdata.filelen, &segdata);
 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 
@@ -503,67 +498,39 @@ asmbpe(void)
 	fh.TimeDateStamp = time(0);
 	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
 		IMAGE_FILE_EXECUTABLE_IMAGE|IMAGE_FILE_DEBUG_STRIPPED;
-
 	if (pe64) {
 		fh.SizeOfOptionalHeader = sizeof(oh64);
-		oh64.Magic = 0x20b;	// PE32+
-		oh64.MajorLinkerVersion = 1;
-		oh64.MinorLinkerVersion = 0;
-		oh64.SizeOfCode = t->SizeOfRawData;
-		oh64.SizeOfInitializedData = d->SizeOfRawData;
-		oh64.SizeOfUninitializedData = 0;
-		oh64.AddressOfEntryPoint = entryvalue()-PEBASE;
-		oh64.BaseOfCode = t->VirtualAddress;
-
-		oh64.ImageBase = PEBASE;
-		oh64.SectionAlignment = PESECTALIGN;
-		oh64.FileAlignment = PEFILEALIGN;
-		oh64.MajorOperatingSystemVersion = 4;
-		oh64.MinorOperatingSystemVersion = 0;
-		oh64.MajorImageVersion = 1;
-		oh64.MinorImageVersion = 0;
-		oh64.MajorSubsystemVersion = 4;
-		oh64.MinorSubsystemVersion = 0;
-		oh64.SizeOfImage = nextsectoff;
-		oh64.SizeOfHeaders = PEFILEHEADR;
-		oh64.Subsystem = 3;	// WINDOWS_CUI
-		oh64.SizeOfStackReserve = 0x00200000;
-		oh64.SizeOfStackCommit = 0x00001000;
-		oh64.SizeOfHeapReserve = 0x00100000;
-		oh64.SizeOfHeapCommit = 0x00001000;
-		oh64.NumberOfRvaAndSizes = 16;
+		set(Magic, 0x20b);	// PE32+
 	} else {
 		fh.SizeOfOptionalHeader = sizeof(oh);
 		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE;
-		oh.Magic = 0x10b;	// PE32
-		oh.MajorLinkerVersion = 1;
-		oh.MinorLinkerVersion = 0;
-		oh.SizeOfCode = t->SizeOfRawData;
-		oh.SizeOfInitializedData = d->SizeOfRawData;
-		oh.SizeOfUninitializedData = 0;
-		oh.AddressOfEntryPoint = entryvalue()-PEBASE;
-		oh.BaseOfCode = t->VirtualAddress;
+		set(Magic, 0x10b);	// PE32
 		oh.BaseOfData = d->VirtualAddress;
-
-		oh.ImageBase = PEBASE;
-		oh.SectionAlignment = PESECTALIGN;
-		oh.FileAlignment = PEFILEALIGN;
-		oh.MajorOperatingSystemVersion = 4;
-		oh.MinorOperatingSystemVersion = 0;
-		oh.MajorImageVersion = 1;
-		oh.MinorImageVersion = 0;
-		oh.MajorSubsystemVersion = 4;
-		oh.MinorSubsystemVersion = 0;
-		oh.SizeOfImage = nextsectoff;
-		oh.SizeOfHeaders = PEFILEHEADR;
-		oh.Subsystem = 3;	// WINDOWS_CUI
-		oh.SizeOfStackReserve = 0x00200000;
-		oh.SizeOfStackCommit = 0x00001000;
-		oh.SizeOfHeapReserve = 0x00100000;
-		oh.SizeOfHeapCommit = 0x00001000;
-		oh.NumberOfRvaAndSizes = 16;
 	}
+	set(MajorLinkerVersion, 1);
+	set(MinorLinkerVersion, 0);
+	set(SizeOfCode, t->SizeOfRawData);
+	set(SizeOfInitializedData, d->SizeOfRawData);
+	set(SizeOfUninitializedData, 0);
+	set(AddressOfEntryPoint, entryvalue()-PEBASE);
+	set(BaseOfCode, t->VirtualAddress);
+	set(ImageBase, PEBASE);
+	set(SectionAlignment, PESECTALIGN);
+	set(FileAlignment, PEFILEALIGN);
+	set(MajorOperatingSystemVersion, 4);
+	set(MinorOperatingSystemVersion, 0);
+	set(MajorImageVersion, 1);
+	set(MinorImageVersion, 0);
+	set(MajorSubsystemVersion, 4);
+	set(MinorSubsystemVersion, 0);
+	set(SizeOfImage, nextsectoff);
+	set(SizeOfHeaders, PEFILEHEADR);
+	set(Subsystem, 3);	// WINDOWS_CUI
+	set(SizeOfStackReserve, 0x00200000);
+	set(SizeOfStackCommit, 0x00001000);
+	set(SizeOfHeapReserve, 0x00100000);
+	set(SizeOfHeapCommit, 0x00001000);
+	set(NumberOfRvaAndSizes, 16);
 
 	pewrite();
 }
-
