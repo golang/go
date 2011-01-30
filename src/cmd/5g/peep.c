@@ -333,6 +333,9 @@ subprop(Reg *r0)
 		case ABL:
 			return 0;
 
+		case AMULLU:
+		case AMULA:
+
 		case ACMN:
 		case AADD:
 		case ASUB:
@@ -344,9 +347,13 @@ subprop(Reg *r0)
 		case AORR:
 		case AAND:
 		case AEOR:
+		case AMVN:
 		case AMUL:
+		case AMULU:
 		case ADIV:
 		case ADIVU:
+		case AMOD:
+		case AMODU:
 
 		case AADDD:
 		case AADDF:
@@ -1005,7 +1012,12 @@ copyu(Prog *p, Adr *v, Adr *s)
 			return 1;
 		return 0;
 
+	case AMULLU:	/* read, read, write, write */
+	case AMULA:
+		return 2;
+
 	case AADD:	/* read, read, write */
+	case AADC:
 	case ASUB:
 	case ASBC:
 	case ARSB:
@@ -1015,9 +1027,13 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AORR:
 	case AAND:
 	case AEOR:
+	case AMVN:
 	case AMUL:
+	case AMULU:
 	case ADIV:
 	case ADIVU:
+	case AMOD:
+	case AMODU:
 	case AADDF:
 	case AADDD:
 	case ASUBF:
@@ -1144,6 +1160,9 @@ a2type(Prog *p)
 	case ACMP:
 	case ACMN:
 
+	case AMULLU:
+	case AMULA:
+
 	case AADD:
 	case ASUB:
 	case ARSB:
@@ -1153,9 +1172,13 @@ a2type(Prog *p)
 	case AORR:
 	case AAND:
 	case AEOR:
+	case AMVN:
 	case AMUL:
+	case AMULU:
 	case ADIV:
 	case ADIVU:
+	case AMOD:
+	case AMODU:
 		return D_REG;
 
 	case ACMPF:
@@ -1372,12 +1395,15 @@ int
 modifiescpsr(Prog *p)
 {
 	switch(p->as) {
+	case AMULLU:
+	case AMULA:
+	case AMULU:
+	case ADIVU:
+
 	case ATEQ:
 	case ACMN:
 	case ATST:
 	case ACMP:
-	case AMULU:
-	case ADIVU:
 	case AMUL:
 	case ADIV:
 	case AMOD:

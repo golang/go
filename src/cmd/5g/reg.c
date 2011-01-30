@@ -143,7 +143,7 @@ regopt(Prog *firstp)
 	first++;
 
 	if(debug['K']) {
-		if(first != 1)
+		if(first != 13)
 			return;
 //		debug['R'] = 2;
 //		debug['P'] = 2;
@@ -491,7 +491,7 @@ brk:
 	 * peep-hole on basic block
 	 */
 	if(!debug['R'] || debug['P']) {
-//		peep();
+		peep();
 	}
 
 	/*
