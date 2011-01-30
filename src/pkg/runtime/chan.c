@@ -296,7 +296,8 @@ loop:
 
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
-		c->elemalg->copy(c->elemsize, ep, sg->elem);
+		if(ep != nil)
+			c->elemalg->copy(c->elemsize, ep, sg->elem);
 		c->elemalg->copy(c->elemsize, sg->elem, nil);
 
 		gp = sg->g;
@@ -311,7 +312,6 @@ loop:
 
 	if(pres != nil) {
 		runtime·unlock(c);
-		c->elemalg->copy(c->elemsize, ep, nil);
 		*pres = false;
 		return;
 	}
@@ -328,7 +328,8 @@ loop:
 	if(sg == nil)
 		goto loop;
 
-	c->elemalg->copy(c->elemsize, ep, sg->elem);
+	if(ep != nil)
+		c->elemalg->copy(c->elemsize, ep, sg->elem);
 	c->elemalg->copy(c->elemsize, sg->elem, nil);
 	freesg(c, sg);
 	runtime·unlock(c);
@@ -341,7 +342,6 @@ asynch:
 
 		if(pres != nil) {
 			runtime·unlock(c);
-			c->elemalg->copy(c->elemsize, ep, nil);
 			*pres = false;
 			return;
 		}
@@ -354,7 +354,8 @@ asynch:
 		runtime·lock(c);
 		goto asynch;
 	}
-	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
+	if(ep != nil)
+		c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
 	c->elemalg->copy(c->elemsize, c->recvdataq->elem, nil);
 	c->recvdataq = c->recvdataq->link;
 	c->qcount--;
@@ -377,7 +378,8 @@ asynch:
 closed:
 	if(closed != nil)
 		*closed = true;
-	c->elemalg->copy(c->elemsize, ep, nil);
+	if(ep != nil)
+		c->elemalg->copy(c->elemsize, ep, nil);
 	c->closed |= Rclosed;
 	if(pres != nil)
 		*pres = true;
@@ -441,12 +443,18 @@ runtime·chanrecv2(Hchan* c, ...)
 	int32 o;
 	byte *ae, *ap;
 
+	if(c == nil)
+		runtime·panicstring("receive from nil channel");
+
 	o = runtime·rnd(sizeof(c), Structrnd);
 	ae = (byte*)&c + o;
 	o = runtime·rnd(o+c->elemsize, 1);
 	ap = (byte*)&c + o;
 
 	runtime·chanrecv(c, ae, ap, nil);
+	
+	if(!*ap)
+		c->elemalg->copy(c->elemsize, ae, nil);
 }
 
 // chanrecv3(hchan *chan any) (elem any, closed bool);
@@ -456,6 +464,9 @@ runtime·chanrecv3(Hchan* c, ...)
 {
 	int32 o;
 	byte *ae, *ac;
+	
+	if(c == nil)
+		runtime·panicstring("range over nil channel");
 
 	o = runtime·rnd(sizeof(c), Structrnd);
 	ae = (byte*)&c + o;
@@ -464,6 +475,66 @@ runtime·chanrecv3(Hchan* c, ...)
 
 	runtime·chanrecv(c, ae, nil, ac);
 }
+
+// func selectnbsend(c chan any, elem any) bool
+//
+// compiler implements
+//
+//	select {
+//	case c <- v:
+//		... foo
+//	default:
+//		... bar
+//	}
+//
+// as
+//
+//	if c != nil && selectnbsend(c, v) {
+//		... foo
+//	} else {
+//		... bar
+//	}
+//
+#pragma textflag 7
+void
+runtime·selectnbsend(Hchan *c, ...)
+{
+	int32 o;
+	byte *ae, *ap;
+
+	o = runtime·rnd(sizeof(c), c->elemalign);
+	ae = (byte*)&c + o;
+	o = runtime·rnd(o+c->elemsize, Structrnd);
+	ap = (byte*)&c + o;
+
+	runtime·chansend(c, ae, ap);
+}
+
+// func selectnbrecv(elem *any, c chan any) bool
+//
+// compiler implements
+//
+//	select {
+//	case v = <-c:
+//		... foo
+//	default:
+//		... bar
+//	}
+//
+// as
+//
+//	if c != nil && selectnbrecv(&v, c) {
+//		... foo
+//	} else {
+//		... bar
+//	}
+//
+#pragma textflag 7
+void
+runtime·selectnbrecv(byte *v, Hchan *c, bool ok)
+{
+	runtime·chanrecv(c, v, &ok, nil);
+}	
 
 // newselect(size uint32) (sel *byte);
 #pragma textflag 7
@@ -625,6 +696,13 @@ selunlock(Select *sel)
 	}
 }
 
+void
+runtime·block(void)
+{
+	g->status = Gwaiting;	// forever
+	runtime·gosched();
+}
+
 // selectgo(sel *byte);
 //
 // overwrites return pc on stack to signal which case of the select
@@ -648,13 +726,13 @@ runtime·selectgo(Select *sel)
 	if(debug)
 		runtime·printf("select: sel=%p\n", sel);
 
-	if(sel->ncase < 2) {
-		if(sel->ncase < 1) {
-			g->status = Gwaiting;	// forever
-			runtime·gosched();
-		}
-		// TODO: make special case of one.
-	}
+	// The compiler rewrites selects that statically have
+	// only 0 or 1 cases plus default into simpler constructs.
+	// The only way we can end up with such small sel->ncase
+	// values here is for a larger select in which most channels
+	// have been nilled out.  The general code handles those
+	// cases correctly, and they are rare enough not to bother
+	// optimizing (and needing to test).
 
 	// generate permuted order
 	for(i=0; i<sel->ncase; i++)

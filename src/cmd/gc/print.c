@@ -48,6 +48,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case ODOTMETH:
 	case ODOTTYPE:
 	case ODOTTYPE2:
+	case OXDOT:
 	case OARRAYBYTESTR:
 	case OCAP:
 	case OCLOSE:

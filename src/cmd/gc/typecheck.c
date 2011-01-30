@@ -18,7 +18,7 @@ static int	onearg(Node*, char*, ...);
 static int	twoarg(Node*);
 static int	lookdot(Node*, Type*, int);
 static int	looktypedot(Node*, Type*, int);
-static void	typecheckaste(int, int, Type*, NodeList*, char*);
+static void	typecheckaste(int, Node*, int, Type*, NodeList*, char*);
 static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
 static int	nokeys(NodeList*);
 static void	typecheckcomplit(Node**);
@@ -504,7 +504,7 @@ reswitch:
 		l = n->left;
 		if((t = l->type) == T)
 			goto error;
-		if(!(top & Eindir))
+		if(!(top & Eindir) && !n->etype)
 			addrescapes(n->left);
 		n->type = ptrto(t);
 		goto ret;
@@ -668,6 +668,13 @@ reswitch:
 		goto ret;
 
 	case OSEND:
+		if(0 && top == Erv) {
+			// can happen because grammar for if header accepts
+			// simple_stmt for condition.  Falling through would give
+			// an error "c <- v used as value" but we can do better.
+			yyerror("send statement %#N used as value; use select for non-blocking send", n);
+			goto error;
+		}
 		ok |= Etop | Erv;
 		l = typecheck(&n->left, Erv);
 		typecheck(&n->right, Erv);
@@ -801,7 +808,7 @@ reswitch:
 
 		case ODOTMETH:
 			n->op = OCALLMETH;
-			typecheckaste(OCALL, 0, getthisx(t), list1(l->left), "method receiver");
+			typecheckaste(OCALL, n->left, 0, getthisx(t), list1(l->left), "method receiver");
 			break;
 
 		default:
@@ -812,7 +819,7 @@ reswitch:
 			}
 			break;
 		}
-		typecheckaste(OCALL, n->isddd, getinargx(t), n->list, "function argument");
+		typecheckaste(OCALL, n->left, n->isddd, getinargx(t), n->list, "function argument");
 		ok |= Etop;
 		if(t->outtuple == 0)
 			goto ret;
@@ -1246,7 +1253,7 @@ reswitch:
 		}
 		if(curfn->type->outnamed && n->list == nil)
 			goto ret;
-		typecheckaste(ORETURN, 0, getoutargx(curfn->type), n->list, "return argument");
+		typecheckaste(ORETURN, nil, 0, getoutargx(curfn->type), n->list, "return argument");
 		goto ret;
 
 	case OSELECT:
@@ -1591,7 +1598,7 @@ nokeys(NodeList *l)
  * typecheck assignment: type list = expression list
  */
 static void
-typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
+typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *desc)
 {
 	Type *t, *tl, *tn;
 	Node *n;
@@ -1610,16 +1617,24 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
 			if(tl->isddd) {
 				for(; tn; tn=tn->down) {
 					exportassignok(tn->type, desc);
-					if(assignop(tn->type, tl->type->type, &why) == 0)
-						yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
+					if(assignop(tn->type, tl->type->type, &why) == 0) {
+						if(call != N)
+							yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type->type, desc, call, why);
+						else
+							yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
+					}
 				}
 				goto out;
 			}
 			if(tn == T)
 				goto notenough;
 			exportassignok(tn->type, desc);
-			if(assignop(tn->type, tl->type, &why) == 0)
-				yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
+			if(assignop(tn->type, tl->type, &why) == 0) {
+				if(call != N)
+					yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type, desc, call, why);
+				else
+					yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
+			}
 			tn = tn->down;
 		}
 		if(tn != T)
@@ -1664,19 +1679,29 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
 	}
 	if(nl != nil)
 		goto toomany;
-	if(isddd)
-		yyerror("invalid use of ... in %#O", op);
+	if(isddd) {
+		if(call != N)
+			yyerror("invalid use of ... in call to %#N", call);
+		else
+			yyerror("invalid use of ... in %#O", op);
+	}
 
 out:
 	lineno = lno;
 	return;
 
 notenough:
-	yyerror("not enough arguments to %#O", op);
+	if(call != N)
+		yyerror("not enough arguments in call to %#N", call);
+	else
+		yyerror("not enough arguments to %#O", op);
 	goto out;
 
 toomany:
-	yyerror("too many arguments to %#O", op);
+	if(call != N)
+		yyerror("too many arguments in call to %#N", call);
+	else
+		yyerror("too many arguments to %#O", op);
 	goto out;
 }
 
@@ -2360,6 +2385,8 @@ typecheckas2(Node *n)
 		case ORECV:
 			n->op = OAS2RECV;
 			goto common;
+			yyerror("cannot use multiple-value assignment for non-blocking receive; use select");
+			goto out;
 		case ODOTTYPE:
 			n->op = OAS2DOTTYPE;
 			r->op = ODOTTYPE2;

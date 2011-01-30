@@ -99,11 +99,15 @@ func chansend2(hchan chan<- any, elem any) (pres bool)
 func closechan(hchan any)
 func closedchan(hchan any) bool
 
+func selectnbsend(hchan chan<- any, elem any) bool
+func selectnbrecv(elem *any, hchan <-chan any) bool
+
 func newselect(size int) (sel *byte)
 func selectsend(sel *byte, hchan chan<- any, elem any) (selected bool)
 func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
 func selectdefault(sel *byte) (selected bool)
 func selectgo(sel *byte)
+func block()
 
 func makeslice(typ *byte, nel int64, cap int64) (ary []any)
 func sliceslice1(old []any, lb uint64, width uint64) (ary []any)
