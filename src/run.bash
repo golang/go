@@ -104,7 +104,10 @@ fi
 ) || exit $?
 
 (xcd ../doc/codelab/wiki
-gomake test) || exit $?
+if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
+	gomake test
+fi
+) || exit $?
 
 for i in ../misc/dashboard/builder ../misc/goplay
 do
