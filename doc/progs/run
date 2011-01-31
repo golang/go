@@ -29,9 +29,8 @@ for i in \
 	sieve.go \
 	sieve1.go \
 	server1.go \
+	strings.go \
 ; do
-	BASE=$(basename $i .go)
-
 	$GC $i
 done
 
@@ -58,6 +57,7 @@ testit helloworld "" "Hello, world; or Καλημέρα κόσμε; or こんに
 testit helloworld3 "" "hello, world can't open file; err=no such file or directory"
 testit echo "hello, world" "hello, world"
 testit sum "" "6"
+testit strings "" ""
 
 alphabet=abcdefghijklmnopqrstuvwxyz
 rot13=nopqrstuvwxyzabcdefghijklm
