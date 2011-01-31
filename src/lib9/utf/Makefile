@@ -14,3 +14,19 @@ OFILES=\
 	mkrunetype.$O\
 
 include ../../Make.ccmd
+
+UnicodeData-%.txt:
+	curl http://www.unicode.org/Public/$*/ucd/UnicodeData.txt >_$@
+	mv _$@ $@
+
+runetypebody-%.c: mkrunetype UnicodeData-%.txt
+	mkrunetype -p UnicodeData-$*.txt >_$@
+	mv _$@ $@
+
+CLEANFILES+=UnicodeData.txt
+
+UNICODE_VERSION=6.0.0
+
+test: mkrunetype UnicodeData-$(UNICODE_VERSION).txt
+	mkrunetype -c UnicodeData-$(UNICODE_VERSION).txt
+
