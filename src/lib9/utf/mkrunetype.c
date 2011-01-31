@@ -93,8 +93,9 @@ usage(void)
 	exit(1);
 }
 
-int
-main(int argc, char *argv[]){
+void
+main(int argc, char *argv[])
+{
 	FILE *in;
 	char buf[MAX_LINE], buf2[MAX_LINE];
 	char *fields[NFIELDS + 1], *fields2[NFIELDS + 1];
@@ -239,7 +240,7 @@ main(int argc, char *argv[]){
 	}else{
 		mktables(argv[0], usepairs);
 	}
-	return 0;
+	exit(0);
 }
 
 /*
@@ -562,7 +563,8 @@ mkto(const char* label, int* map, int usepairs)
 
 // Make only range tables and a function for is<label>rune.
 static void
-mkisronly(const char* label, char* prop) {
+mkisronly(const char* label, char* prop)
+{
 	mkisrange(label, prop, 1);
 	printf(
 		"int\n"
