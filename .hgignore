@@ -21,6 +21,9 @@ _test
 _testmain.go
 y.tab.[ch]
 doc/htmlgen
+misc/cgo/life/run.out
+misc/dashboard/builder/gobuilder
+misc/goplay/goplay
 src/Make.inc
 src/cmd/6a/6a
 src/cmd/?l/enam.c
@@ -38,7 +41,9 @@ src/pkg/runtime/*/asm.h
 src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
 src/pkg/runtime/runtime.acid.*
+src/pkg/runtime/runtime_defs.go
 src/pkg/runtime/version.go
+src/pkg/unicode/maketables
 src/pkg/github.com/
 src/pkg/*.googlecode.com/
 test/pass.out
