@@ -4078,11 +4078,11 @@ SelectStmt = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" { Statement ";" } .
 CommCase = "case" ( SendExpr | RecvExpr) | "default" .
 SendExpr =  Expression "&lt;-" Expression .
+RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
+</pre>
 <!-- TODO(rsc):
 RecvExpr =  [ Expression [ "," Expression ] ( "=" | ":=" ) ] "&lt;-" Expression .
 -->
-RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
-</pre>
 
 <p>
 For all the send and receive expressions in the "select"
