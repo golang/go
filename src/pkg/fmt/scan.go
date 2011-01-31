@@ -303,15 +303,11 @@ func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
 }
 
 
-// A leaky bucket of reusable ss structures.
-var ssFree = make(chan *ss, 100)
+var ssFree = newCache(func() interface{} { return new(ss) })
 
-// Allocate a new ss struct.  Probably can grab the previous one from ssFree.
+// Allocate a new ss struct or grab a cached one.
 func newScanState(r io.Reader, nlIsSpace bool) *ss {
-	s, ok := <-ssFree
-	if !ok {
-		s = new(ss)
-	}
+	s := ssFree.get().(*ss)
 	if rr, ok := r.(readRuner); ok {
 		s.rr = rr
 	} else {
@@ -333,7 +329,7 @@ func (s *ss) free() {
 	}
 	s.buf.Reset()
 	s.rr = nil
-	_ = ssFree <- s
+	ssFree.put(s)
 }
 
 // skipSpace skips spaces and maybe newlines.

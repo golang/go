@@ -256,7 +256,10 @@ func (nch *netChan) send(val reflect.Value) {
 		nch.sendCh = make(chan reflect.Value, nch.size)
 		go nch.sender()
 	}
-	if ok := nch.sendCh <- val; !ok {
+	select {
+	case nch.sendCh <- val:
+		// ok
+	default:
 		// TODO: should this be more resilient?
 		panic("netchan: remote sender sent more values than allowed")
 	}
@@ -318,8 +321,11 @@ func (nch *netChan) acked() {
 	if nch.dir != Send {
 		panic("recv on wrong direction of channel")
 	}
-	if ok := nch.ackCh <- true; !ok {
-		panic("netchan: remote receiver sent too many acks")
+	select {
+	case nch.ackCh <- true:
+		// ok
+	default:
 		// TODO: should this be more resilient?
+		panic("netchan: remote receiver sent too many acks")
 	}
 }

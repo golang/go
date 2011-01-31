@@ -76,7 +76,6 @@ func main() {
 	var i64 int64
 	var b bool
 	var s string
-	var ok bool
 
 	var sync = make(chan bool)
 
@@ -86,35 +85,45 @@ func main() {
 		cb := make(chan bool, buffer)
 		cs := make(chan string, buffer)
 
-		i32, ok = <-c32
-		if ok {
+		select {
+		case i32 = <-c32:
 			panic("blocked i32sender")
+		default:
 		}
 
-		i64, ok = <-c64
-		if ok {
+		select {
+		case i64 = <-c64:
 			panic("blocked i64sender")
+		default:
 		}
 
-		b, ok = <-cb
-		if ok {
+		select {
+		case b = <-cb:
 			panic("blocked bsender")
+		default:
 		}
 
-		s, ok = <-cs
-		if ok {
+		select {
+		case s = <-cs:
 			panic("blocked ssender")
+		default:
 		}
 
 		go i32receiver(c32, sync)
 		try := 0
-		for !(c32 <- 123) {
-			try++
-			if try > maxTries {
-				println("i32receiver buffer=", buffer)
-				panic("fail")
+	Send32:
+		for {
+			select {
+			case c32 <- 123:
+				break Send32
+			default:
+				try++
+				if try > maxTries {
+					println("i32receiver buffer=", buffer)
+					panic("fail")
+				}
+				sleep()
 			}
-			sleep()
 		}
 		<-sync
 
@@ -123,13 +132,19 @@ func main() {
 			<-sync
 		}
 		try = 0
-		for i32, ok = <-c32; !ok; i32, ok = <-c32 {
-			try++
-			if try > maxTries {
-				println("i32sender buffer=", buffer)
-				panic("fail")
+	Recv32:
+		for {
+			select {
+			case i32 = <-c32:
+				break Recv32
+			default:
+				try++
+				if try > maxTries {
+					println("i32sender buffer=", buffer)
+					panic("fail")
+				}
+				sleep()
 			}
-			sleep()
 		}
 		if i32 != 234 {
 			panic("i32sender value")
@@ -140,12 +155,18 @@ func main() {
 
 		go i64receiver(c64, sync)
 		try = 0
-		for !(c64 <- 123456) {
-			try++
-			if try > maxTries {
-				panic("i64receiver")
+	Send64:
+		for {
+			select {
+			case c64 <- 123456:
+				break Send64
+			default:
+				try++
+				if try > maxTries {
+					panic("i64receiver")
+				}
+				sleep()
 			}
-			sleep()
 		}
 		<-sync
 
@@ -154,12 +175,18 @@ func main() {
 			<-sync
 		}
 		try = 0
-		for i64, ok = <-c64; !ok; i64, ok = <-c64 {
-			try++
-			if try > maxTries {
-				panic("i64sender")
+	Recv64:
+		for {
+			select {
+			case i64 = <-c64:
+				break Recv64
+			default:
+				try++
+				if try > maxTries {
+					panic("i64sender")
+				}
+				sleep()
 			}
-			sleep()
 		}
 		if i64 != 234567 {
 			panic("i64sender value")
@@ -170,12 +197,18 @@ func main() {
 
 		go breceiver(cb, sync)
 		try = 0
-		for !(cb <- true) {
-			try++
-			if try > maxTries {
-				panic("breceiver")
+	SendBool:
+		for {
+			select {
+			case cb <- true:
+				break SendBool
+			default:
+				try++
+				if try > maxTries {
+					panic("breceiver")
+				}
+				sleep()
 			}
-			sleep()
 		}
 		<-sync
 
@@ -184,12 +217,18 @@ func main() {
 			<-sync
 		}
 		try = 0
-		for b, ok = <-cb; !ok; b, ok = <-cb {
-			try++
-			if try > maxTries {
-				panic("bsender")
+	RecvBool:
+		for {
+			select {
+			case b = <-cb:
+				break RecvBool
+			default:
+				try++
+				if try > maxTries {
+					panic("bsender")
+				}
+				sleep()
 			}
-			sleep()
 		}
 		if !b {
 			panic("bsender value")
@@ -200,12 +239,18 @@ func main() {
 
 		go sreceiver(cs, sync)
 		try = 0
-		for !(cs <- "hello") {
-			try++
-			if try > maxTries {
-				panic("sreceiver")
+	SendString:
+		for {
+			select {
+			case cs <- "hello":
+				break SendString
+			default:
+				try++
+				if try > maxTries {
+					panic("sreceiver")
+				}
+				sleep()
 			}
-			sleep()
 		}
 		<-sync
 
@@ -214,12 +259,18 @@ func main() {
 			<-sync
 		}
 		try = 0
-		for s, ok = <-cs; !ok; s, ok = <-cs {
-			try++
-			if try > maxTries {
-				panic("ssender")
+	RecvString:
+		for {
+			select {
+			case s = <-cs:
+				break RecvString
+			default:
+				try++
+				if try > maxTries {
+					panic("ssender")
+				}
+				sleep()
 			}
-			sleep()
 		}
 		if s != "hello again" {
 			panic("ssender value")

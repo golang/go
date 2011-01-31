@@ -73,6 +73,7 @@ sub chk {
 	my @match;
 	foreach my $src (@{$src{$file}}) {
 		$line++;
+		next if $src =~ m|////|;  # double comment disables ERROR
 		next unless $src =~ m|// (GC_)?ERROR (.*)|;
 		$regexp = $2;
 		if($regexp !~ /^"([^"]*)"/) {

@@ -140,13 +140,16 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
 	listening <- c.LocalAddr().String()
 	c.SetReadTimeout(10e6) // 10ms
 	var buf [1000]byte
+Run:
 	for {
 		n, addr, err := c.ReadFrom(buf[0:])
 		if e, ok := err.(Error); ok && e.Timeout() {
-			if done <- 1 {
-				break
+			select {
+			case done <- 1:
+				break Run
+			default:
+				continue Run
 			}
-			continue
 		}
 		if err != nil {
 			break
