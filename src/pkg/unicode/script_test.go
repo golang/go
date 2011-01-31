@@ -14,7 +14,7 @@ type T struct {
 	script string
 }
 
-// Hand-chosen tests from Unicode 5.1.0, mostly to discover when new
+// Hand-chosen tests from Unicode 5.1.0 & 6.0..0, mostly to discover when new
 // scripts and categories arise.
 var inTest = []T{
 	{0x06e2, "Arabic"},
@@ -22,11 +22,13 @@ var inTest = []T{
 	{0x10b20, "Avestan"},
 	{0x1b37, "Balinese"},
 	{0xa6af, "Bamum"},
+	{0x1be1, "Batak"},
 	{0x09c2, "Bengali"},
 	{0x3115, "Bopomofo"},
 	{0x282d, "Braille"},
 	{0x1a1a, "Buginese"},
 	{0x1747, "Buhid"},
+	{0x11011, "Brahmi"},
 	{0x156d, "Canadian_Aboriginal"},
 	{0x102a9, "Carian"},
 	{0xaa4d, "Cham"},
@@ -72,6 +74,7 @@ var inTest = []T{
 	{0x10290, "Lycian"},
 	{0x10930, "Lydian"},
 	{0x0d42, "Malayalam"},
+	{0x0843, "Mandaic"},
 	{0xabd0, "Meetei_Mayek"},
 	{0x1822, "Mongolian"},
 	{0x104c, "Myanmar"},
@@ -204,7 +207,7 @@ func TestScripts(t *testing.T) {
 		}
 	}
 	for k := range notTested {
-		t.Error("not tested:", k)
+		t.Error("script not tested:", k)
 	}
 }
 
@@ -223,7 +226,7 @@ func TestCategories(t *testing.T) {
 		notTested[test.script] = false, false
 	}
 	for k := range notTested {
-		t.Error("not tested:", k)
+		t.Error("category not tested:", k)
 	}
 }
 
@@ -242,6 +245,6 @@ func TestProperties(t *testing.T) {
 		notTested[test.script] = false, false
 	}
 	for k := range notTested {
-		t.Error("not tested:", k)
+		t.Error("property not tested:", k)
 	}
 }
