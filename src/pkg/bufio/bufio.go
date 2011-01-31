@@ -385,6 +385,9 @@ func (b *Writer) Flush() os.Error {
 	if b.err != nil {
 		return b.err
 	}
+	if b.n == 0 {
+		return nil
+	}
 	n, e := b.wr.Write(b.buf[0:b.n])
 	if n < b.n && e == nil {
 		e = io.ErrShortWrite
