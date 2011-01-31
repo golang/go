@@ -1,4 +1,4 @@
-// ! $G $D/$F.go
+// errchk $G -e $D/$F.go
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,8 +7,8 @@
 package main
 
 func main() {
-	var i int = 100;
-	i = i << -3;  // BUG: should not compile (negative shift)
+	var i int = 100
+	i = i << -3 // ERROR "overflows"
 }
 
 /*

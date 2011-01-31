@@ -123,9 +123,6 @@ panic: interface conversion: *main.S is not main.I2: missing method Name
 
 == fixedbugs/
 
-=========== fixedbugs/bug016.go
-fixedbugs/bug016.go:11: constant -3 overflows uint
-
 =========== fixedbugs/bug027.go
 hi
 0 44444
@@ -147,9 +144,6 @@ outer loop top k 0
 inner loop top i 0
 do break
 broke
-
-=========== fixedbugs/bug081.go
-fixedbugs/bug081.go:9: typechecking loop
 
 =========== fixedbugs/bug093.go
 M

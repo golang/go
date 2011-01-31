@@ -153,7 +153,11 @@ func (w *Watcher) readEvents() {
 	for {
 		n, errno = syscall.Read(w.fd, buf[0:])
 		// See if there is a message on the "done" channel
-		_, done := <-w.done
+		var done bool
+		select {
+		case done = <-w.done:
+		default:
+		}
 
 		// If EOF or a "done" message is received
 		if n == 0 || done {

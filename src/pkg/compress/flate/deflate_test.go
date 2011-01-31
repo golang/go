@@ -116,9 +116,16 @@ func (b *syncBuffer) Read(p []byte) (n int, err os.Error) {
 	panic("unreachable")
 }
 
+func (b *syncBuffer) signal() {
+	select {
+	case b.ready <- true:
+	default:
+	}
+}
+
 func (b *syncBuffer) Write(p []byte) (n int, err os.Error) {
 	n, err = b.buf.Write(p)
-	_ = b.ready <- true
+	b.signal()
 	return
 }
 
@@ -128,12 +135,12 @@ func (b *syncBuffer) WriteMode() {
 
 func (b *syncBuffer) ReadMode() {
 	b.mu.Unlock()
-	_ = b.ready <- true
+	b.signal()
 }
 
 func (b *syncBuffer) Close() os.Error {
 	b.closed = true
-	_ = b.ready <- true
+	b.signal()
 	return nil
 }
 

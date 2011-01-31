@@ -122,10 +122,13 @@ func (c *conn) writeSocket() {
 func (c *conn) Screen() draw.Image { return c.img }
 
 func (c *conn) FlushImage() {
-	// We do the send (the <- operator) in an expression context, rather than in
-	// a statement context, so that it does not block, and fails if the buffered
-	// channel is full (in which case there already is a flush request pending).
-	_ = c.flush <- false
+	select {
+	case c.flush <- false:
+		// Flush notification sent.
+	default:
+		// Could not send.
+		// Flush notification must be pending already.
+	}
 }
 
 func (c *conn) Close() os.Error {

@@ -91,11 +91,13 @@ func (imp *Importer) run() {
 			}
 			if err.Error != "" {
 				impLog("response error:", err.Error)
-				if sent := imp.errors <- os.ErrorString(err.Error); !sent {
+				select {
+				case imp.errors <- os.ErrorString(err.Error):
+					continue // errors are not acknowledged
+				default:
 					imp.shutdown()
 					return
 				}
-				continue // errors are not acknowledged.
 			}
 		case payClosed:
 			nch := imp.getChan(hdr.Id, false)

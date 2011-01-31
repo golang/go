@@ -120,10 +120,12 @@ func TestAfterStop(t *testing.T) {
 		t.Fatalf("failed to stop event 1")
 	}
 	<-c2
-	_, ok0 := <-t0.C
-	_, ok1 := <-c1
-	if ok0 || ok1 {
-		t.Fatalf("events were not stopped")
+	select {
+	case <-t0.C:
+		t.Fatalf("event 0 was not stopped")
+	case <-c1:
+		t.Fatalf("event 1 was not stopped")
+	default:
 	}
 	if t1.Stop() {
 		t.Fatalf("Stop returned true twice")

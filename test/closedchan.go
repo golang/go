@@ -21,14 +21,21 @@ type Chan interface {
 	Impl() string
 }
 
-// direct channel operations
+// direct channel operations when possible
 type XChan chan int
+
 func (c XChan) Send(x int) {
 	c <- x
 }
 
 func (c XChan) Nbsend(x int) bool {
-	return c <- x
+	select {
+	case c <- x:
+		return true
+	default:
+		return false
+	}
+	panic("nbsend")
 }
 
 func (c XChan) Recv() int {
@@ -36,8 +43,13 @@ func (c XChan) Recv() int {
 }
 
 func (c XChan) Nbrecv() (int, bool) {
-	x, ok := <-c
-	return x, ok
+	select {
+	case x := <-c:
+		return x, true
+	default:
+		return 0, false
+	}
+	panic("nbrecv")
 }
 
 func (c XChan) Close() {
@@ -54,6 +66,7 @@ func (c XChan) Impl() string {
 
 // indirect operations via select
 type SChan chan int
+
 func (c SChan) Send(x int) {
 	select {
 	case c <- x:
@@ -62,10 +75,10 @@ func (c SChan) Send(x int) {
 
 func (c SChan) Nbsend(x int) bool {
 	select {
-	case c <- x:
-		return true
 	default:
 		return false
+	case c <- x:
+		return true
 	}
 	panic("nbsend")
 }
@@ -80,10 +93,10 @@ func (c SChan) Recv() int {
 
 func (c SChan) Nbrecv() (int, bool) {
 	select {
-	case x := <-c:
-		return x, true
 	default:
 		return 0, false
+	case x := <-c:
+		return x, true
 	}
 	panic("nbrecv")
 }
@@ -99,6 +112,62 @@ func (c SChan) Closed() bool {
 func (c SChan) Impl() string {
 	return "(select)"
 }
+
+// indirect operations via larger selects
+var dummy = make(chan bool)
+
+type SSChan chan int
+
+func (c SSChan) Send(x int) {
+	select {
+	case c <- x:
+	case <-dummy:
+	}
+}
+
+func (c SSChan) Nbsend(x int) bool {
+	select {
+	default:
+		return false
+	case <-dummy:
+	case c <- x:
+		return true
+	}
+	panic("nbsend")
+}
+
+func (c SSChan) Recv() int {
+	select {
+	case <-dummy:
+	case x := <-c:
+		return x
+	}
+	panic("recv")
+}
+
+func (c SSChan) Nbrecv() (int, bool) {
+	select {
+	case <-dummy:
+	default:
+		return 0, false
+	case x := <-c:
+		return x, true
+	}
+	panic("nbrecv")
+}
+
+func (c SSChan) Close() {
+	close(c)
+}
+
+func (c SSChan) Closed() bool {
+	return closed(c)
+}
+
+func (c SSChan) Impl() string {
+	return "(select)"
+}
+
 
 func shouldPanic(f func()) {
 	defer func() {
@@ -137,7 +206,7 @@ func test1(c Chan) {
 	}
 
 	// send should work with ,ok too: sent a value without blocking, so ok == true.
-	shouldPanic(func(){c.Nbsend(1)})
+	shouldPanic(func() { c.Nbsend(1) })
 
 	// the value should have been discarded.
 	if x := c.Recv(); x != 0 {
@@ -145,7 +214,7 @@ func test1(c Chan) {
 	}
 
 	// similarly Send.
-	shouldPanic(func(){c.Send(2)})
+	shouldPanic(func() { c.Send(2) })
 	if x := c.Recv(); x != 0 {
 		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl())
 	}
@@ -195,9 +264,12 @@ func closedasync() chan int {
 func main() {
 	test1(XChan(closedsync()))
 	test1(SChan(closedsync()))
+	test1(SSChan(closedsync()))
 
 	testasync1(XChan(closedasync()))
 	testasync1(SChan(closedasync()))
+	testasync1(SSChan(closedasync()))
 	testasync2(XChan(closedasync()))
 	testasync2(SChan(closedasync()))
+	testasync2(SSChan(closedasync()))
 }

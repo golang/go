@@ -220,11 +220,16 @@ func (s *pollServer) Run() {
 				nn, _ = s.pr.Read(scratch[0:])
 			}
 			// Read from channels
-			for fd, ok := <-s.cr; ok; fd, ok = <-s.cr {
-				s.AddFD(fd, 'r')
-			}
-			for fd, ok := <-s.cw; ok; fd, ok = <-s.cw {
-				s.AddFD(fd, 'w')
+		Update:
+			for {
+				select {
+				case fd := <-s.cr:
+					s.AddFD(fd, 'r')
+				case fd := <-s.cw:
+					s.AddFD(fd, 'w')
+				default:
+					break Update
+				}
 			}
 		} else {
 			netfd := s.LookupFD(fd, mode)
