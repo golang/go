@@ -32,7 +32,7 @@ func main() {
 
 var dataURL = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
 var url = flag.String("url",
-	"http://www.unicode.org/Public/5.2.0/ucd/",
+	"http://www.unicode.org/Public/6.0.0/ucd/",
 	"URL of Unicode database directory")
 var tablelist = flag.String("tables",
 	"all",
@@ -382,7 +382,7 @@ func printCategories() {
 
 type Op func(code int) bool
 
-const format = "\tRange{0x%04x, 0x%04x, %d},\n"
+const format = "\t{0x%04x, 0x%04x, %d},\n"
 
 func dumpRange(header string, inCategory Op) {
 	fmt.Print(header)
@@ -805,14 +805,14 @@ func printCaseRange(lo, hi *caseState) {
 	}
 	switch {
 	case hi.point > lo.point && lo.isUpperLower():
-		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
+		fmt.Printf("\t{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
 			lo.point, hi.point)
 	case hi.point > lo.point && lo.isLowerUpper():
 		logger.Exitf("LowerUpper sequence: should not happen: U+%04X.  If it's real, need to fix To()", lo.point)
-		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
+		fmt.Printf("\t{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
 			lo.point, hi.point)
 	default:
-		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{%d, %d, %d}},\n",
+		fmt.Printf("\t{0x%04X, 0x%04X, d{%d, %d, %d}},\n",
 			lo.point, hi.point,
 			lo.deltaToUpper, lo.deltaToLower, lo.deltaToTitle)
 	}
