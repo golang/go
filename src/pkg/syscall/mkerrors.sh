@@ -41,6 +41,11 @@ includes_Darwin='
 #include <sys/cdefs.h>
 #include <sys/wait.h>
 #include <sys/event.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <net/if.h>
+#include <netinet/ip.h>
+#include <netinet/ip_mroute.h>
 '
 
 includes_FreeBSD='
