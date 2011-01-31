@@ -98,7 +98,8 @@ type FuncType struct {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go ...\n")
+	fmt.Fprint(os.Stderr, "usage: cgo -- [compiler options] file.go ...\n")
+	flag.PrintDefaults()
 	os.Exit(2)
 }
 
