@@ -63,7 +63,7 @@ typedef	struct	Eface		Eface;
 typedef	struct	Type		Type;
 typedef	struct	Defer		Defer;
 typedef	struct	Panic		Panic;
-typedef	struct	hash		Hmap;
+typedef	struct	Hmap		Hmap;
 typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;

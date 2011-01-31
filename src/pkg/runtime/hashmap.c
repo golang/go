@@ -9,7 +9,7 @@
 /* Return a pointer to the struct/union of type "type"
    whose "field" field is addressed by pointer "p". */
 
-struct hash {	   /* a hash table; initialize with hash_init() */
+struct Hmap {	   /* a hash table; initialize with hash_init() */
 	uint32 count;	  /* elements in table - must be first */
 
 	uint8 datasize;   /* amount of data to store in entry */
@@ -82,7 +82,7 @@ struct hash_subtable {
 
 /* return a hash layer with 2**power empty entries */
 static struct hash_subtable *
-hash_subtable_new (struct hash *h, int32 power, int32 used)
+hash_subtable_new (Hmap *h, int32 power, int32 used)
 {
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
 	int32 bytes = elemsize << power;
@@ -127,7 +127,7 @@ init_sizes (int64 hint, int32 *init_power, int32 *max_power)
 }
 
 static void
-hash_init (struct hash *h,
+hash_init (Hmap *h,
 		int32 datasize,
 		hash_hash_t (*data_hash) (uint32, void *),
 		uint32 (*data_eq) (uint32, void *, void *),
@@ -200,10 +200,10 @@ hash_remove_n (struct hash_subtable *st, struct hash_entry *dst_e, int32 n)
 
 static int32
 hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
-		struct hash *h, void *data, void **pres);
+		Hmap *h, void *data, void **pres);
 
 static void
-hash_conv (struct hash *h,
+hash_conv (Hmap *h,
 		struct hash_subtable *st, int32 flags,
 		hash_hash_t hash,
 		struct hash_entry *e)
@@ -266,7 +266,7 @@ hash_conv (struct hash *h,
 }
 
 static void
-hash_grow (struct hash *h, struct hash_subtable **pst, int32 flags)
+hash_grow (Hmap *h, struct hash_subtable **pst, int32 flags)
 {
 	struct hash_subtable *old_st = *pst;
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
@@ -290,7 +290,7 @@ hash_grow (struct hash *h, struct hash_subtable **pst, int32 flags)
 }
 
 static int32
-hash_lookup (struct hash *h, void *data, void **pres)
+hash_lookup (Hmap *h, void *data, void **pres)
 {
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
 	hash_hash_t hash = (*h->data_hash) (h->keysize, data) & ~HASH_MASK;
@@ -331,7 +331,7 @@ hash_lookup (struct hash *h, void *data, void **pres)
 }
 
 static int32
-hash_remove (struct hash *h, void *data, void *arg)
+hash_remove (Hmap *h, void *data, void *arg)
 {
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
 	hash_hash_t hash = (*h->data_hash) (h->keysize, data) & ~HASH_MASK;
@@ -374,7 +374,7 @@ hash_remove (struct hash *h, void *data, void *arg)
 
 static int32
 hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
-				 struct hash *h, void *data, void **pres)
+				 Hmap *h, void *data, void **pres)
 {
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
 
@@ -455,7 +455,7 @@ hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
 }
 
 static int32
-hash_insert (struct hash *h, void *data, void **pres)
+hash_insert (Hmap *h, void *data, void **pres)
 {
 	int32 rc = hash_insert_internal (&h->st, 0, (*h->data_hash) (h->keysize, data), h, data, pres);
 
@@ -464,7 +464,7 @@ hash_insert (struct hash *h, void *data, void **pres)
 }
 
 static uint32
-hash_count (struct hash *h)
+hash_count (Hmap *h)
 {
 	return (h->count);
 }
@@ -571,7 +571,7 @@ hash_next (struct hash_iter *it)
 }
 
 static void
-hash_iter_init (struct hash *h, struct hash_iter *it)
+hash_iter_init (Hmap *h, struct hash_iter *it)
 {
 	it->elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
 	it->changes = h->changes;
@@ -607,7 +607,7 @@ clean_st (struct hash_subtable *st, int32 *slots, int32 *used)
 }
 
 static void
-hash_destroy (struct hash *h)
+hash_destroy (Hmap *h)
 {
 	int32 slots = 0;
 	int32 used = 0;
@@ -646,7 +646,7 @@ hash_visit_internal (struct hash_subtable *st,
 }
 
 static void
-hash_visit (struct hash *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg)
+hash_visit (Hmap *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg)
 {
 	hash_visit_internal (h->st, 0, 0, data_visit, arg);
 }

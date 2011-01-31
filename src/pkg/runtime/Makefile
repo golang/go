@@ -26,12 +26,7 @@ GOFILES=\
 	softfloat64.go\
 	type.go\
 	version.go\
-	chan_defs.go\
-	hashmap_defs.go\
-	iface_defs.go\
-	malloc_defs.go\
 	runtime_defs.go\
-	$(GOOS)/runtime_defs.go\
 
 OFILES_windows=\
 	syscall.$O\
@@ -117,7 +112,7 @@ $(pkgdir)/%.h: %.h
 clean: clean-local
 
 clean-local:
-	rm -f goc2c mkversion version.go */asm.h runtime.acid.* $$(ls *.goc | sed 's/goc$$/c/')
+	rm -f goc2c mkversion version.go */asm.h runtime.acid.* runtime_defs.go $$(ls *.goc | sed 's/goc$$/c/')
 
 $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 	./mkasmh.sh >$@.x
@@ -160,3 +155,7 @@ ifeq ($(GOARCH),386)
 traceback.$O:	amd64/traceback.c
 	$(CC) $(CFLAGS) $<
 endif
+
+runtime_defs.go: proc.c iface.c hashmap.c chan.c
+	CC="$(CC)" CFLAGS="$(CFLAGS)" ./mkgodefs.sh $^ > $@.x
+	mv -f $@.x $@

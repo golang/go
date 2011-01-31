@@ -454,19 +454,6 @@ getattr(DWDie *die, uint8 attr)
 	return nil;
 }
 
-static void
-delattr(DWDie *die, uint8 attr)
-{
-	DWAttr **a;
-
-	a = &die->attr;
-	while (*a != nil)
-		if ((*a)->atr == attr)
-			*a = (*a)->link;
-		else
-			a = &((*a)->link);
-}
-
 // Every DIE has at least a DW_AT_name attribute (but it will only be
 // written out if it is listed in the abbrev).	If its parent is
 // keeping an index, the new DIE will be inserted there.
@@ -990,6 +977,20 @@ enum {
 
 static DWDie* defptrto(DWDie *dwtype);	// below
 
+// Lookup predefined types
+static Sym*
+lookup_or_diag(char *n)
+{
+	Sym *s;
+
+	s = lookup(n, 0);
+	if (s->size == 0) {
+		diag("dwarf: missing type: %s", n);
+		errorexit();
+	}
+	return s;
+}
+
 // Define gotype, for composite ones recurse into constituents.
 static DWDie*
 defgotype(Sym *gotype)
@@ -1008,7 +1009,7 @@ defgotype(Sym *gotype)
 		diag("Type name doesn't start with \".type\": %s", gotype->name);
 		return find_or_diag(&dwtypes, "<unspecified>");
 	}
-	name = gotype->name + 5;  // Altenatively decode from Type.string
+	name = gotype->name + 5;  // could also decode from Type.string
 
 	die = find(&dwtypes, name);
 	if (die != nil)
@@ -1118,9 +1119,9 @@ defgotype(Sym *gotype)
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		nfields = decodetype_ifacemethodcount(gotype);
 		if (nfields == 0)
-			s = lookup("type.runtime.eface", 0);
+			s = lookup_or_diag("type.runtime.eface");
 		else
-			s = lookup("type.runtime.iface", 0);
+			s = lookup_or_diag("type.runtime.iface");
 		newrefattr(die, DW_AT_type, defgotype(s));
 		break;
 
@@ -1237,7 +1238,7 @@ synthesizestringtypes(DWDie* die)
 {
 	DWDie *prototype;
 
-	prototype = defgotype(lookup("type.runtime.string_", 0));
+	prototype = defgotype(lookup_or_diag("type.runtime._string"));
 	if (prototype == nil)
 		return;
 
@@ -1253,7 +1254,7 @@ synthesizeslicetypes(DWDie *die)
 {
 	DWDie *prototype, *elem;
 
-	prototype = defgotype(lookup("type.runtime.slice",0));
+	prototype = defgotype(lookup_or_diag("type.runtime.slice"));
 	if (prototype == nil)
 		return;
 
@@ -1292,22 +1293,22 @@ synthesizemaptypes(DWDie *die)
 {
 
 	DWDie *hash, *hash_subtable, *hash_entry,
-		*dwh, *dwhs, *dwhe, *keytype, *valtype, *fld;
+		*dwh, *dwhs, *dwhe, *dwhash, *keytype, *valtype, *fld;
 	int hashsize, keysize, valsize, datsize, valsize_in_hash, datavo;
 	DWAttr *a;
 
-	hash		= defgotype(lookup("type.runtime.hash",0));
-	hash_subtable	= defgotype(lookup("type.runtime.hash_subtable",0));
-	hash_entry	= defgotype(lookup("type.runtime.hash_entry",0));
+	hash		= defgotype(lookup_or_diag("type.runtime.hmap"));
+	hash_subtable	= defgotype(lookup_or_diag("type.runtime.hash_subtable"));
+	hash_entry	= defgotype(lookup_or_diag("type.runtime.hash_entry"));
 
 	if (hash == nil || hash_subtable == nil || hash_entry == nil)
 		return;
 
-	dwh = (DWDie*)getattr(find_or_diag(hash_entry, "hash"), DW_AT_type)->data;
-	if (dwh == nil)
+	dwhash = (DWDie*)getattr(find_or_diag(hash_entry, "hash"), DW_AT_type)->data;
+	if (dwhash == nil)
 		return;
 
-	hashsize = getattr(dwh, DW_AT_byte_size)->value;
+	hashsize = getattr(dwhash, DW_AT_byte_size)->value;
 
 	for (; die != nil; die = die->link) {
 		if (die->abbrev != DW_ABRV_MAPTYPE)
@@ -1339,13 +1340,19 @@ synthesizemaptypes(DWDie *die)
 			mkinternaltypename("hash_entry",
 				getattr(keytype, DW_AT_name)->data,
 				getattr(valtype, DW_AT_name)->data));
-		copychildren(dwhe, hash_entry);
-		substitutetype(dwhe, "key", keytype);
+
+		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "hash");
+		newrefattr(fld, DW_AT_type, dwhash);
+		newmemberoffsetattr(fld, 0);
+
+		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "key");
+		newrefattr(fld, DW_AT_type, keytype);
+		newmemberoffsetattr(fld, hashsize);
+
+		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "val");
 		if (valsize > MaxValsize)
 			valtype = defptrto(valtype);
-		substitutetype(dwhe, "val", valtype);
-		fld = find_or_diag(dwhe, "val");
-		delattr(fld, DW_AT_data_member_location);
+		newrefattr(fld, DW_AT_type, valtype);
 		newmemberoffsetattr(fld, hashsize + datavo);
 		newattr(dwhe, DW_AT_byte_size, DW_CLS_CONSTANT, hashsize + datsize, NULL);
 
@@ -1382,10 +1389,10 @@ synthesizechantypes(DWDie *die)
 	DWAttr *a;
 	int elemsize, linksize, sudogsize;
 
-	sudog = defgotype(lookup("type.runtime.sudoG",0));
-	waitq = defgotype(lookup("type.runtime.waitQ",0));
-	link  = defgotype(lookup("type.runtime.link",0));
-	hchan = defgotype(lookup("type.runtime.hChan",0));
+	sudog = defgotype(lookup_or_diag("type.runtime.sudog"));
+	waitq = defgotype(lookup_or_diag("type.runtime.waitq"));
+	link  = defgotype(lookup_or_diag("type.runtime.link"));
+	hchan = defgotype(lookup_or_diag("type.runtime.hchan"));
 	if (sudog == nil || waitq == nil || link == nil || hchan == nil)
 		return;
 
@@ -2331,9 +2338,9 @@ dwarfemitdebugsections(void)
 	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, PtrSize, 0);
 
 	// Needed by the prettyprinter code for interface inspection.
-	defgotype(lookup("type.runtime.commonType",0));
-	defgotype(lookup("type.runtime.InterfaceType",0));
-	defgotype(lookup("type.runtime.itab",0));
+	defgotype(lookup_or_diag("type.runtime.commonType"));
+	defgotype(lookup_or_diag("type.runtime.InterfaceType"));
+	defgotype(lookup_or_diag("type.runtime.itab"));
 
 	genasmsym(defdwsymb);
 

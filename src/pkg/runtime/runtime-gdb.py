@@ -161,7 +161,7 @@ def is_iface(val):
 
 def is_eface(val):
 	try:
-		return str(val['type_'].type) == "runtime.Type *" \
+		return str(val['_type'].type) == "struct runtime._type *" \
 		      and str(val['data'].type) == "void *"
 	except:
 		pass
@@ -185,14 +185,14 @@ def iface_dtype(obj):
 	"Decode type of the data field of an eface or iface struct."
 
 	if is_iface(obj):
-		go_type_ptr = obj['tab']['Type']
+		go_type_ptr = obj['tab']['_type']
 	elif is_eface(obj):
-		go_type_ptr = obj['type_']
+		go_type_ptr = obj['_type']
 	else:
 		return
 
 	ct = gdb.lookup_type("struct runtime.commonType").pointer()
-	dynamic_go_type = go_type_ptr['data'].cast(ct).dereference()
+	dynamic_go_type = go_type_ptr['ptr'].cast(ct).dereference()
 	dtype_name = dynamic_go_type['string'].dereference()['str'].string()
 	type_size = int(dynamic_go_type['size'])
 	uintptr_size = int(dynamic_go_type['size'].type.sizeof)  # size is itself an uintptr

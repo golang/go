@@ -70,7 +70,7 @@
 #define free(x)	runtime·free(x)
 #define memmove(a,b,c)	runtime·memmove(a, b, c)
 
-struct hash;		/* opaque */
+struct Hmap;		/* opaque */
 struct hash_subtable;	/* opaque */
 struct hash_entry;	/* opaque */
 
@@ -83,7 +83,7 @@ struct hash_iter {
 	int32	changes;	/* number of changes observed last time */
 	int32	i;		/* stack pointer in subtable_state */
 	hash_hash_t last_hash;	/* last hash value returned */
-	struct hash *h;		/* the hash table */
+	struct Hmap *h;		/* the hash table */
 	struct hash_iter_sub {
 		struct hash_entry *e;		/* pointer into subtable */
 		struct hash_entry *start;	/* start of subtable */
