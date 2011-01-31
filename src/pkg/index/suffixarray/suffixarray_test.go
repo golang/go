@@ -99,6 +99,12 @@ var testCases = []testCase{
 			"to (come|the)?",
 		},
 	},
+
+	{
+		"godoc simulation",
+		"package main\n\nimport(\n    \"rand\"\n    ",
+		[]string{},
+	},
 }
 
 

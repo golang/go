@@ -146,19 +146,25 @@ func (x *suffixSortable) Swap(i, j int)      { x.sa[i], x.sa[j] = x.sa[j], x.sa[
 
 
 func (x *suffixSortable) updateGroups(offset int) {
-	prev := len(x.sa) - 1
-	group := x.inv[x.sa[prev]+x.h]
-	for i := prev; i >= 0; i-- {
-		if g := x.inv[x.sa[i]+x.h]; g < group {
-			if prev == i+1 { // previous group had size 1 and is thus sorted
-				x.sa[i+1] = -1
-			}
+	bounds := make([]int, 0, 4)
+	group := x.inv[x.sa[0]+x.h]
+	for i := 1; i < len(x.sa); i++ {
+		if g := x.inv[x.sa[i]+x.h]; g > group {
+			bounds = append(bounds, i)
 			group = g
-			prev = i
 		}
-		x.inv[x.sa[i]] = prev + offset
-		if prev == 0 { // first group has size 1 and is thus sorted
-			x.sa[0] = -1
+	}
+	bounds = append(bounds, len(x.sa))
+
+	// update the group numberings after all new groups are determined
+	prev := 0
+	for _, b := range bounds {
+		for i := prev; i < b; i++ {
+			x.inv[x.sa[i]] = offset + b - 1
 		}
+		if b-prev == 1 {
+			x.sa[prev] = -1
+		}
+		prev = b
 	}
 }
