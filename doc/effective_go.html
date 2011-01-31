@@ -2526,39 +2526,49 @@ var serverChan = make(chan *Buffer)
 
 func client() {
     for {
-        b, ok := &lt;-freeList  // grab a buffer if available
-        if !ok {              // if not, allocate a new one
+        var b *Buffer
+        // Grab a buffer if available; allocate if not.
+        select {
+        case b = &lt;-freeList:
+            // Got one; nothing more to do.
+        default:
+            // None free, so allocate a new one.
             b = new(Buffer)
         }
-        load(b)              // read next message from the net
-        serverChan &lt;- b      // send to server
+        load(b)              // Read next message from the net.
+        serverChan &lt;- b      // Send to server.
     }
 }
 </pre>
 <p>
-The server loop receives messages from the client, processes them,
+The server loop receives each message from the client, processes it,
 and returns the buffer to the free list.
 </p>
 <pre>
 func server() {
     for {
-        b := &lt;-serverChan    // wait for work
+        b := &lt;-serverChan    // Wait for work.
         process(b)
-        _ = freeList &lt;- b    // reuse buffer if room
+        // Reuse buffer if there's room.
+        select {
+        case freeList &lt;- b:
+            // Buffer on free list; nothing more to do.
+        default:
+            // Free list full, just carry on.
+        }
     }
 }
 </pre>
 <p>
-The client's non-blocking receive from <code>freeList</code> obtains a
-buffer if one is available; otherwise the client allocates
-a fresh one.
-The server's non-blocking send on freeList puts <code>b</code> back
+The client attempts to retrieve a buffer from <code>freeList</code>;
+if none is available, it allocates a fresh one.
+The server's send to <code>freeList</code> puts <code>b</code> back
 on the free list unless the list is full, in which case the
 buffer is dropped on the floor to be reclaimed by
 the garbage collector.
-(The assignment of the send operation to the blank identifier
-makes it non-blocking but ignores whether
-the operation succeeded.)
+(The <code>default</code> clauses in the <code>select</code>
+statements execute when no other case is ready,
+meaning that the <code>selects</code> never block.)
 This implementation builds a leaky bucket free list
 in just a few lines, relying on the buffered channel and
 the garbage collector for bookkeeping.
