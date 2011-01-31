@@ -207,9 +207,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 
 	for _, line := range strings.Split(stderr, "\n", -1) {
 		if len(line) < 9 || line[0:9] != "cgo-test:" {
-			if len(line) > 8 && line[0:8] == "<stdin>:" {
-				fatal("gcc produced unexpected output:\n%s\non input:\n%s", line, b.Bytes())
-			}
+			// the user will see any compiler errors when the code is compiled later.
 			continue
 		}
 		line = line[9:]
@@ -570,10 +568,6 @@ func runGcc(stdin []byte, args []string) (string, string) {
 		os.Stderr.Write(stderr)
 	}
 	if !ok {
-		fmt.Fprint(os.Stderr, "Error running gcc:\n")
-		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
-		os.Stderr.Write(stdin)
-		fmt.Fprint(os.Stderr, "EOF\n")
 		os.Stderr.Write(stderr)
 		os.Exit(2)
 	}
