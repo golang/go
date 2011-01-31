@@ -764,6 +764,7 @@ expr:
 	{
 		$$ = nod(ORSH, $1, $3);
 	}
+	/* not an expression anymore, but left in so we can give a good error */
 |	expr LCOMM expr
 	{
 		$$ = nod(OSEND, $1, $3);
