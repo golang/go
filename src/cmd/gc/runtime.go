@@ -92,10 +92,8 @@ func mapiter2(hiter *any) (key any, val any)
 // *byte is really *runtime.Type
 func makechan(elem *byte, hint int64) (hchan chan any)
 func chanrecv1(hchan <-chan any) (elem any)
-func chanrecv2(hchan <-chan any) (elem any, pres bool)
 func chanrecv3(hchan <-chan any) (elem any, closed bool)
 func chansend1(hchan chan<- any, elem any)
-func chansend2(hchan chan<- any, elem any) (pres bool)
 func closechan(hchan any)
 func closedchan(hchan any) bool
 

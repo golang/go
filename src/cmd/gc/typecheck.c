@@ -668,10 +668,7 @@ reswitch:
 		goto ret;
 
 	case OSEND:
-		if(0 && top == Erv) {
-			// can happen because grammar for if header accepts
-			// simple_stmt for condition.  Falling through would give
-			// an error "c <- v used as value" but we can do better.
+		if(top & Erv) {
 			yyerror("send statement %#N used as value; use select for non-blocking send", n);
 			goto error;
 		}
@@ -698,10 +695,6 @@ reswitch:
 		// TODO: more aggressive
 		n->etype = 0;
 		n->type = T;
-		if(top & Erv) {
-			n->op = OSENDNB;
-			n->type = types[TBOOL];
-		}
 		goto ret;
 
 	case OSLICE:
@@ -2383,8 +2376,6 @@ typecheckas2(Node *n)
 			n->op = OAS2MAPR;
 			goto common;
 		case ORECV:
-			n->op = OAS2RECV;
-			goto common;
 			yyerror("cannot use multiple-value assignment for non-blocking receive; use select");
 			goto out;
 		case ODOTTYPE:

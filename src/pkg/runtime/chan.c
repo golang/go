@@ -402,25 +402,6 @@ runtime·chansend1(Hchan* c, ...)
 	runtime·chansend(c, ae, nil);
 }
 
-// chansend2(hchan *chan any, elem any) (pres bool);
-#pragma textflag 7
-void
-runtime·chansend2(Hchan* c, ...)
-{
-	int32 o;
-	byte *ae, *ap;
-
-	if(c == nil)
-		runtime·panicstring("send to nil channel");
-
-	o = runtime·rnd(sizeof(c), c->elemalign);
-	ae = (byte*)&c + o;
-	o = runtime·rnd(o+c->elemsize, Structrnd);
-	ap = (byte*)&c + o;
-
-	runtime·chansend(c, ae, ap);
-}
-
 // chanrecv1(hchan *chan any) (elem any);
 #pragma textflag 7
 void
@@ -433,28 +414,6 @@ runtime·chanrecv1(Hchan* c, ...)
 	ae = (byte*)&c + o;
 
 	runtime·chanrecv(c, ae, nil, nil);
-}
-
-// chanrecv2(hchan *chan any) (elem any, pres bool);
-#pragma textflag 7
-void
-runtime·chanrecv2(Hchan* c, ...)
-{
-	int32 o;
-	byte *ae, *ap;
-
-	if(c == nil)
-		runtime·panicstring("receive from nil channel");
-
-	o = runtime·rnd(sizeof(c), Structrnd);
-	ae = (byte*)&c + o;
-	o = runtime·rnd(o+c->elemsize, 1);
-	ap = (byte*)&c + o;
-
-	runtime·chanrecv(c, ae, ap, nil);
-	
-	if(!*ap)
-		c->elemalg->copy(c->elemsize, ae, nil);
 }
 
 // chanrecv3(hchan *chan any) (elem any, closed bool);

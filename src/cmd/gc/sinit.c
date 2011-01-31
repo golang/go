@@ -94,7 +94,6 @@ init1(Node *n, NodeList **out)
 		case OAS2FUNC:
 		case OAS2MAPR:
 		case OAS2DOTTYPE:
-		case OAS2RECV:
 		case OAS2RECVCLOSED:
 			if(n->defn->initorder)
 				break;
