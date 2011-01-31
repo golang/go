@@ -37,7 +37,7 @@ func (e Errno) Temporary() bool {
 }
 
 func (e Errno) Timeout() bool {
-	return e == Errno(syscall.EAGAIN) || e == Errno(syscall.EWOULDBLOCK)
+	return e == Errno(syscall.EAGAIN) || e == Errno(syscall.EWOULDBLOCK) || e == Errno(syscall.ETIMEDOUT)
 }
 
 // Commonly known Unix errors.
@@ -79,6 +79,7 @@ var (
 	ECONNREFUSED Error = Errno(syscall.ECONNREFUSED)
 	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG)
 	EAFNOSUPPORT Error = Errno(syscall.EAFNOSUPPORT)
+	ETIMEDOUT    Error = Errno(syscall.ETIMEDOUT)
 )
 
 // PathError records an error and the operation and file path that caused it.
