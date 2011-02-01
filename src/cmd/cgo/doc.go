@@ -23,6 +23,15 @@ the package.  For example:
 	// #include <errno.h>
 	import "C"
 
+CFLAGS and LDFLAGS may be defined with pseudo #cgo directives
+within these comments to tweak the behavior of gcc.  Values defined
+in multiple directives are concatenated together.  For example:
+
+	// #cgo CFLAGS: -DPNG_DEBUG=1
+	// #cgo LDFLAGS: -lpng
+	// #include <png.h>
+	import "C"
+
 C identifiers or field names that are keywords in Go can be
 accessed by prefixing them with an underscore: if x points at
 a C struct with a field named "type", x._type accesses the field.

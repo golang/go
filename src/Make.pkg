@@ -48,7 +48,7 @@ coverage:
 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
 CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.*
-CLEANFILES+=_cgo_.c _cgo_import.c _cgo_main.c
+CLEANFILES+=_cgo_.c _cgo_import.c _cgo_main.c _cgo_flags _cgo_run
 CLEANFILES+=*.so _obj _test _testmain.go *.exe
 
 test:
@@ -112,11 +112,21 @@ dir:
 #
 
 ifdef CGOFILES
-_cgo_defun.c: $(CGOFILES)
+_cgo_run: $(CGOFILES)
+	@touch _cgo_run
 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
 
+# _CGO_CFLAGS and _CGO_LDFLAGS are defined via the evaluation of _cgo_flags.
+# The include happens before the commands in the recipe run,
+# so it cannot be done in the same recipe that runs cgo.
+_cgo_flags: _cgo_run
+	$(eval include _cgo_flags)
+
+# Include any previous flags in case cgo files are up to date.
+-include _cgo_flags
+
 # Ugly but necessary - cgo writes these files too.
-_cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c: _cgo_defun.c
+_cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c _cgo_defun.c: _cgo_flags
 	@true
 
 %.cgo1.go %.cgo2.c: _cgo_defun.c
@@ -125,7 +135,7 @@ endif
 
 # Compile rules for gcc source files.
 %.o: %.c
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.c
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) $*.c
 
 # To find out which symbols are needed from external libraries
 # and which libraries are needed, we build a simple a.out that
@@ -136,10 +146,10 @@ endif
 # by Go code.  That's crosscall2 and any exported symbols.
 
 _cgo_main.o: _cgo_main.c
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_main.c
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) _cgo_main.c
 
 _cgo1_.o: _cgo_main.o $(CGO_OFILES)
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS)
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS) $(_CGO_LDFLAGS)
 
 _cgo_import.c: _cgo1_.o
 	cgo -dynimport _cgo1_.o >_$@ && mv -f _$@ $@

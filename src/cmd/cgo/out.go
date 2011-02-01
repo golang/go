@@ -33,6 +33,12 @@ func (p *Package) writeDefs() {
 	fc := creat("_cgo_defun.c")
 	fm := creat("_cgo_main.c")
 
+	fflg := creat("_cgo_flags")
+	for k, v := range p.CgoFlags {
+		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, v)
+	}
+	fflg.Close()
+
 	// Write C main file for using gcc to resolve imports.
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
 	fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
