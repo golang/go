@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of January 27, 2011 -->
+<!-- subtitle Version of February 1, 2011 -->
 
 <!--
 TODO
@@ -2667,9 +2667,7 @@ Operators combine operands into expressions.
 Expression = UnaryExpr | Expression binary_op UnaryExpr .
 UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
 
-binary_op  = log_op | com_op | rel_op | add_op | mul_op .
-log_op     = "||" | "&amp;&amp;" .
-com_op     = "&lt;-" .
+binary_op  = "||" | "&amp;&amp;" | rel_op | add_op | mul_op .
 rel_op     = "==" | "!=" | "&lt;" | "&lt;=" | ">" | ">=" .
 add_op     = "+" | "-" | "|" | "^" .
 mul_op     = "*" | "/" | "%" | "&lt;&lt;" | "&gt;&gt;" | "&amp;" | "&amp;^" .
@@ -2726,18 +2724,17 @@ statements, not expressions, they fall
 outside the operator hierarchy.
 As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
 <p>
-There are six precedence levels for binary operators.
+There are five precedence levels for binary operators.
 Multiplication operators bind strongest, followed by addition
-operators, comparison operators, <code>&lt;-</code> (channel send),
-<code>&amp;&amp;</code> (logical and), and finally <code>||</code> (logical or):
+operators, comparison operators, <code>&amp;&amp;</code> (logical and),
+and finally <code>||</code> (logical or):
 </p>
 
 <pre class="grammar">
 Precedence    Operator
-    6             *  /  %  &lt;&lt;  &gt;&gt;  &amp;  &amp;^
-    5             +  -  |  ^
-    4             ==  !=  &lt;  &lt;=  >  >=
-    3             &lt;-
+    5             *  /  %  &lt;&lt;  &gt;&gt;  &amp;  &amp;^
+    4             +  -  |  ^
+    3             ==  !=  &lt;  &lt;=  >  >=
     2             &amp;&amp;
     1             ||
 </pre>
@@ -3005,51 +3002,21 @@ to by <code>x</code>.
 *pf(x)
 </pre>
 
-<h3 id="Communication_operators">Communication operators</h3>
+
+<h3 id="Receive_operator">Receive operator</h3>
 
 <p>
-The term <i>channel</i> means "value of <a href="#Channel_types">channel type</a>".
-</p>
-<p>
-The send operation uses the binary operator "&lt;-", which operates on
-a channel and a value (expression):
-</p>
-
-<pre>
-ch &lt;- 3
-</pre>
-
-<p>
-The send operation sends the value on the channel.  Both the channel
-and the expression are evaluated before communication begins.
-Communication blocks until the send can proceed, at which point the
-value is transmitted on the channel.
-A send on an unbuffered channel can proceed if a receiver is ready.
-A send on a buffered channel can proceed if there is room in the buffer.
-</p>
-
-<p>
-The receive operation uses the prefix unary operator "&lt;-".
-The value of the expression is the value received, whose type
-is the element type of the channel.
-</p>
-
-<pre>
-&lt;-ch
-</pre>
-
-<p>
-The expression blocks until a value is available, which then can
-be assigned to a variable or used like any other expression.
-If the receive expression does not save the value, the value is
-discarded.
+For an operand <code>ch</code> of <a href="#Channel_types">channel type</a>,
+the value of the receive operation <code>&lt;-ch</code> is the value received
+from the channel <code>ch</code>. The type of the value is the element type of
+the channel. The expression blocks until a value is available.
 </p>
 
 <pre>
 v1 := &lt;-ch
 v2 = &lt;-ch
 f(&lt;-ch)
-&lt;-strobe  // wait until clock pulse
+&lt;-strobe  // wait until clock pulse and discard received value
 </pre>
 
 <!--
@@ -3075,8 +3042,7 @@ because the channel is closed and empty (<code>false</code>).
 -->
 
 <p>
-Except in a communications clause of a <a href="#Select_statements">select statement</a>,
-sending or receiving from a <code>nil</code> channel causes a
+Receiving from a <code>nil</code> channel causes a
 <a href="#Run_time_panics">run-time panic</a>.
 </p>
 
@@ -3086,6 +3052,7 @@ sending or receiving from a <code>nil</code> channel causes a
 need to be presented regarding send, receive, select, and goroutines.</span>
 </p>
 --->
+
 
 <h3 id="Method_expressions">Method expressions</h3>
 
@@ -3508,7 +3475,7 @@ Statement =
 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
 	DeferStmt .
 
-SimpleStmt = EmptyStmt | ExpressionStmt | IncDecStmt | Assignment | ShortVarDecl .
+SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
 </pre>
 
 
@@ -3543,7 +3510,7 @@ Error: log.Crash("error encountered")
 <h3 id="Expression_statements">Expression statements</h3>
 
 <p>
-Function calls, method calls, and channel operations
+Function calls, method calls, and receive operations
 can appear in statement context.
 </p>
 
@@ -3553,9 +3520,42 @@ ExpressionStmt = Expression .
 </pre>
 
 <pre>
-f(x+y)
+h(x+y)
+f.Close()
 &lt;-ch
 </pre>
+
+
+<h3 id="Send_statements">Send statements</h3>
+
+<p>
+A send statement sends a value on a channel.
+The channel expression must be of <a href="#Channel_types">channel type</a>
+and the type of the value must be <a href="#Assignability">assignable</a>
+to the channel's element type.
+</p>
+
+<pre class="ebnf">
+SendStmt = Channel "&lt;-" Expression .
+Channel  = Expression .
+</pre>
+
+<p>
+Both the channel and the value expression are evaluated before communication
+begins. Communication blocks until the send can proceed, at which point the
+value is transmitted on the channel.
+A send on an unbuffered channel can proceed if a receiver is ready.
+A send on a buffered channel can proceed if there is room in the buffer.
+</p>
+
+<pre>
+ch &lt;- 3
+</pre>
+
+<p>
+Sending to a <code>nil</code> channel causes a
+<a href="#Run_time_panics">run-time panic</a>.
+</p>
 
 
 <h3 id="IncDec_statements">IncDec statements</h3>
@@ -4076,18 +4076,19 @@ cases all referring to communication operations.
 <pre class="ebnf">
 SelectStmt = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" { Statement ";" } .
-CommCase = "case" ( SendExpr | RecvExpr) | "default" .
-SendExpr =  Expression "&lt;-" Expression .
-RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
+CommCase   = "case" ( SendStmt | RecvStmt ) | "default" .
+RecvStmt   = [ Expression ( "=" | ":=" ) ] RecvExpr .
+RecvExpr   = Expression .
 </pre>
 <!-- TODO(rsc):
-RecvExpr =  [ Expression [ "," Expression ] ( "=" | ":=" ) ] "&lt;-" Expression .
+RecvStmt =  [ Expression [ "," Expression ] ( "=" | ":=" ) ] RecvExpr .
 -->
 
 <p>
-For all the send and receive expressions in the "select"
+RecvExpr must be a <a href="#Receive_operator">receive operation</a>.
+For all the cases in the "select"
 statement, the channel expressions are evaluated in top-to-bottom order, along with
-any expressions that appear on the right hand side of send expressions.
+any expressions that appear on the right hand side of send statements.
 A channel may be <code>nil</code>,
 which is equivalent to that case not
 being present in the select statement
@@ -4398,7 +4399,7 @@ sent values have been received, receive operations will return
 the zero value for the channel's type without blocking.
 
 <!-- TODO(rsc): delete next sentence, replace with
-  The multi-valued <a href="#Communication_operators">receive operation</a>
+  The multi-valued <a href="#Receive_operator">receive operation</a>
   returns a received value along with an indication of whether the channel is closed.
 -->
 After at least one such zero value has been
