@@ -139,6 +139,32 @@ def typecheck(s, t):
 	if type(s) != t:
 		raise util.Abort("type check failed: %s has type %s != %s" % (repr(s), type(s), t))
 
+# If we have to pass unicode instead of str, ustr does that conversion clearly.
+def ustr(s):
+	typecheck(s, str)
+	return s.decode("utf-8")
+
+# Even with those, Mercurial still sometimes turns unicode into str
+# and then tries to use it as ascii.  Change Mercurial's default.
+def set_mercurial_encoding_to_utf8():
+	from mercurial import encoding
+	encoding.encoding = 'utf-8'
+
+set_mercurial_encoding_to_utf8()
+
+# Even with those we still run into problems.
+# I tried to do things by the book but could not convince
+# Mercurial to let me check in a change with UTF-8 in the
+# CL description or author field, no matter how many conversions
+# between str and unicode I inserted and despite changing the
+# default encoding.  I'm tired of this game, so set the default
+# encoding for all of Python to 'utf-8', not 'ascii'.
+def default_to_utf8():
+	import sys
+	reload(sys)  # site.py deleted setdefaultencoding; get it back
+	sys.setdefaultencoding('utf-8')
+
+default_to_utf8()
 
 #######################################################################
 # Change list parsing.
@@ -1319,6 +1345,9 @@ def submit(ui, repo, *pats, **opts):
 	if missing_codereview:
 		return missing_codereview
 
+	# We already called this on startup but sometimes Mercurial forgets.
+	set_mercurial_encoding_to_utf8()
+
 	repo.ui.quiet = True
 	if not opts["no_incoming"] and Incoming(ui, repo, opts):
 		return "local repository out of date; must sync before submit"
@@ -1331,6 +1360,7 @@ def submit(ui, repo, *pats, **opts):
 	if cl.copied_from:
 		user = cl.copied_from
 	userline = CheckContributor(ui, repo, user)
+	typecheck(userline, str)
 
 	about = ""
 	if cl.reviewer:
@@ -1360,6 +1390,7 @@ def submit(ui, repo, *pats, **opts):
 
 	if cl.copied_from:
 		about += "\nCommitter: " + CheckContributor(ui, repo, None) + "\n"
+	typecheck(about, str)
 
 	if not cl.mailed and not cl.copied_from:		# in case this is TBR
 		cl.Mail(ui, repo)
@@ -1368,7 +1399,9 @@ def submit(ui, repo, *pats, **opts):
 	date = opts.get('date')
 	if date:
 		opts['date'] = util.parsedate(date)
+		typecheck(opts['date'], str)
 	opts['message'] = cl.desc.rstrip() + "\n\n" + about
+	typecheck(opts['message'], str)
 
 	if opts['dryrun']:
 		print "NOT SUBMITTING:"
@@ -1380,7 +1413,7 @@ def submit(ui, repo, *pats, **opts):
 		return "dry run; not submitted"
 
 	m = match.exact(repo.root, repo.getcwd(), cl.files)
-	node = repo.commit(opts['message'], userline, opts.get('date'), m)
+	node = repo.commit(ustr(opts['message']), ustr(userline), opts.get('date'), m)
 	if not node:
 		return "nothing changed"
 
@@ -1821,7 +1854,7 @@ def MySend1(request_path, payload=None,
 
 def GetForm(url):
 	f = FormParser()
-	f.feed(MySend(url).decode("utf-8"))	# f.feed wants unicode
+	f.feed(ustr(MySend(url)))	# f.feed wants unicode
 	f.close()
 	# convert back to utf-8 to restore sanity
 	m = {}
