@@ -7,6 +7,7 @@ package exec
 
 import (
 	"os"
+	"strconv"
 )
 
 // Arguments to Run.
@@ -27,6 +28,16 @@ type Cmd struct {
 	Stdout *os.File
 	Stderr *os.File
 	Pid    int
+}
+
+// PathError records the name of a binary that was not
+// found on the current $PATH.
+type PathError struct {
+	Name string
+}
+
+func (e *PathError) String() string {
+	return "command " + strconv.Quote(e.Name) + " not found in $PATH"
 }
 
 // Given mode (DevNull, etc), return file for child
