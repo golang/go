@@ -10,9 +10,14 @@ package ripemd160
 // http://homes.esat.kuleuven.be/~cosicart/pdf/AB-9601/AB-9601.pdf.
 
 import (
+	"crypto"
 	"hash"
 	"os"
 )
+
+func init() {
+	crypto.RegisterHash(crypto.RIPEMD160, New)
+}
 
 // The size of the checksum in bytes.
 const Size = 20

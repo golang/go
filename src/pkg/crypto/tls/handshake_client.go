@@ -5,6 +5,7 @@
 package tls
 
 import (
+	"crypto"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -248,7 +249,7 @@ func (c *Conn) clientHandshake() os.Error {
 		var digest [36]byte
 		copy(digest[0:16], finishedHash.serverMD5.Sum())
 		copy(digest[16:36], finishedHash.serverSHA1.Sum())
-		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, rsa.HashMD5SHA1, digest[0:])
+		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest[0:])
 		if err != nil {
 			return c.sendAlert(alertInternalError)
 		}

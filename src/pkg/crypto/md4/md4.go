@@ -6,9 +6,14 @@
 package md4
 
 import (
+	"crypto"
 	"hash"
 	"os"
 )
+
+func init() {
+	crypto.RegisterHash(crypto.MD4, New)
+}
 
 // The size of an MD4 checksum in bytes.
 const Size = 16

@@ -28,6 +28,7 @@ DIRS=\
 	container/list\
 	container/ring\
 	container/vector\
+	crypto\
 	crypto/aes\
 	crypto/block\
 	crypto/blowfish\
@@ -154,6 +155,7 @@ DIRS+=\
 endif
 
 NOTEST=\
+	crypto\
 	debug/proc\
 	exp/draw/x11\
 	go/ast\

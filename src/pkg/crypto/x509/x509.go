@@ -9,6 +9,7 @@ import (
 	"asn1"
 	"big"
 	"container/vector"
+	"crypto"
 	"crypto/rsa"
 	"crypto/sha1"
 	"hash"
@@ -374,12 +375,12 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
 	// TODO(agl): don't ignore the path length constraint.
 
 	var h hash.Hash
-	var hashType rsa.PKCS1v15Hash
+	var hashType crypto.Hash
 
 	switch c.SignatureAlgorithm {
 	case SHA1WithRSA:
 		h = sha1.New()
-		hashType = rsa.HashSHA1
+		hashType = crypto.SHA1
 	default:
 		return UnsupportedAlgorithmError{}
 	}
@@ -840,7 +841,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 	h.Write(tbsCertContents)
 	digest := h.Sum()
 
-	signature, err := rsa.SignPKCS1v15(rand, priv, rsa.HashSHA1, digest)
+	signature, err := rsa.SignPKCS1v15(rand, priv, crypto.SHA1, digest)
 	if err != nil {
 		return
 	}
