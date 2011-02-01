@@ -352,6 +352,7 @@ EXTERN	int	nerrors;
 EXTERN	char*	noname;
 EXTERN	char*	outfile;
 EXTERN	vlong	pc;
+EXTERN	char*	interpreter;
 EXTERN	char*	rpath;
 EXTERN	int32	spsize;
 EXTERN	Sym*	symlist;

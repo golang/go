@@ -915,14 +915,17 @@ asmb(void)
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
-			switch(HEADTYPE) {
-			case 7:
-				elfinterp(sh, startva, linuxdynld);
-				break;
-			case 9:
-				elfinterp(sh, startva, freebsddynld);
-				break;
+			if(interpreter == nil) {
+				switch(HEADTYPE) {
+				case 7:
+					interpreter = linuxdynld;
+					break;
+				case 9:
+					interpreter = freebsddynld;
+					break;
+				}
 			}
+			elfinterp(sh, startva, interpreter);
 
 			ph = newElfPhdr();
 			ph->type = PT_INTERP;

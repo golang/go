@@ -64,7 +64,7 @@ char	*thestring 	= "386";
 void
 usage(void)
 {
-	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.8\n");
+	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.8\n");
 	exits("usage");
 }
 
@@ -101,6 +101,9 @@ main(int argc, char *argv[])
 		break;
 	case 'H':
 		HEADTYPE = atolwhex(EARGF(usage()));
+		break;
+	case 'I':
+		interpreter = EARGF(usage());
 		break;
 	case 'L':
 		Lflag(EARGF(usage()));
