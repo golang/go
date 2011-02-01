@@ -539,9 +539,8 @@ func RedirectHandler(url string, code int) Handler {
 // patterns and calls the handler for the pattern that
 // most closely matches the URL.
 //
-// Patterns named fixed paths, like "/favicon.ico",
-// or subtrees, like "/images/" (note the trailing slash).
-// Patterns must begin with /.
+// Patterns named fixed, rooted paths, like "/favicon.ico",
+// or rooted subtrees, like "/images/" (note the trailing slash).
 // Longer patterns take precedence over shorter ones, so that
 // if there are handlers registered for both "/images/"
 // and "/images/thumbnails/", the latter handler will be
@@ -549,11 +548,11 @@ func RedirectHandler(url string, code int) Handler {
 // former will receiver requests for any other paths in the
 // "/images/" subtree.
 //
-// In the future, the pattern syntax may be relaxed to allow
-// an optional host-name at the beginning of the pattern,
-// so that a handler might register for the two patterns
-// "/codesearch" and "codesearch.google.com/"
-// without taking over requests for http://www.google.com/.
+// Patterns may optionally begin with a host name, restricting matches to
+// URLs on that host only.  Host-specific patterns take precedence over
+// general patterns, so that a handler might register for the two patterns
+// "/codesearch" and "codesearch.google.com/" without also taking over
+// requests for "http://www.google.com/".
 //
 // ServeMux also takes care of sanitizing the URL request path,
 // redirecting any request containing . or .. elements to an
@@ -598,6 +597,23 @@ func cleanPath(p string) string {
 	return np
 }
 
+// Find a handler on a handler map given a path string
+// Most-specific (longest) pattern wins
+func (mux *ServeMux) match(path string) Handler {
+	var h Handler
+	var n = 0
+	for k, v := range mux.m {
+		if !pathMatch(k, path) {
+			continue
+		}
+		if h == nil || len(k) > n {
+			n = len(k)
+			h = v
+		}
+	}
+	return h
+}
+
 // ServeHTTP dispatches the request to the handler whose
 // pattern most closely matches the request URL.
 func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
@@ -607,18 +623,10 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusMovedPermanently)
 		return
 	}
-
-	// Most-specific (longest) pattern wins.
-	var h Handler
-	var n = 0
-	for k, v := range mux.m {
-		if !pathMatch(k, r.URL.Path) {
-			continue
-		}
-		if h == nil || len(k) > n {
-			n = len(k)
-			h = v
-		}
+	// Host-specific pattern takes precedence over generic ones
+	h := mux.match(r.Host + r.URL.Path)
+	if h == nil {
+		h = mux.match(r.URL.Path)
 	}
 	if h == nil {
 		h = NotFoundHandler()
@@ -628,7 +636,7 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 
 // Handle registers the handler for the given pattern.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
-	if pattern == "" || pattern[0] != '/' {
+	if pattern == "" {
 		panic("http: invalid pattern " + pattern)
 	}
 

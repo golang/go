@@ -136,6 +136,71 @@ func TestConsumingBodyOnNextConn(t *testing.T) {
 	}
 }
 
+type stringHandler string
+
+func (s stringHandler) ServeHTTP(w ResponseWriter, r *Request) {
+	w.SetHeader("Result", string(s))
+}
+
+var handlers = []struct {
+	pattern string
+	msg     string
+}{
+	{"/", "Default"},
+	{"/someDir/", "someDir"},
+	{"someHost.com/someDir/", "someHost.com/someDir"},
+}
+
+var vtests = []struct {
+	url      string
+	expected string
+}{
+	{"http://localhost/someDir/apage", "someDir"},
+	{"http://localhost/otherDir/apage", "Default"},
+	{"http://someHost.com/someDir/apage", "someHost.com/someDir"},
+	{"http://otherHost.com/someDir/apage", "someDir"},
+	{"http://otherHost.com/aDir/apage", "Default"},
+}
+
+func TestHostHandlers(t *testing.T) {
+	for _, h := range handlers {
+		Handle(h.pattern, stringHandler(h.msg))
+	}
+	l, err := net.Listen("tcp", "127.0.0.1:0") // any port
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	go Serve(l, nil)
+	conn, err := net.Dial("tcp", "", l.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	cc := NewClientConn(conn, nil)
+	for _, vt := range vtests {
+		var r *Response
+		var req Request
+		if req.URL, err = ParseURL(vt.url); err != nil {
+			t.Errorf("cannot parse url: %v", err)
+			continue
+		}
+		if err := cc.Write(&req); err != nil {
+			t.Errorf("writing request: %v", err)
+			continue
+		}
+		r, err := cc.Read()
+		if err != nil {
+			t.Errorf("reading response: %v", err)
+			continue
+		}
+		s := r.Header["Result"]
+		if s != vt.expected {
+			t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
+		}
+	}
+}
+
 type responseWriterMethodCall struct {
 	method                 string
 	headerKey, headerValue string // if method == "SetHeader"
