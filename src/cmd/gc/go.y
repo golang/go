@@ -422,11 +422,18 @@ simple_stmt:
 |	expr_list LCOLAS expr_list
 	{
 		if($3->n->op == OTYPESW) {
+			Node *n;
+			
+			n = N;
 			if($3->next != nil)
 				yyerror("expr.(type) must be alone in list");
-			else if($1->next != nil)
+			if($1->next != nil)
 				yyerror("argument count mismatch: %d = %d", count($1), 1);
-			$$ = nod(OTYPESW, $1->n, $3->n->right);
+			else if($1->n->op != ONAME && $1->n->op != OTYPE && $1->n->op != ONONAME)
+				yyerror("invalid variable name %#N in type switch", $1->n);
+			else
+				n = $1->n;
+			$$ = nod(OTYPESW, n, $3->n->right);
 			break;
 		}
 		$$ = colas($1, $3);
