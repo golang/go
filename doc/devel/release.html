@@ -5,6 +5,151 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-02-01">2011-02-01</h3>
+
+<pre>
+This release includes significant changes to channel operations and minor
+changes to the log package. Your code will require modification if it uses
+channels in non-blocking communications or the log package's Exit functions.
+
+Non-blocking channel operations have been removed from the language.
+The equivalent operations have always been possible using a select statement
+with a default clause.  If a default clause is present in a select, that clause
+will execute (only) if no other is ready, which allows one to avoid blocking on
+a communication.
+
+For example, the old non-blocking send operation,
+
+	if ch <- v {
+		// sent
+	} else {
+		// not sent
+	}
+
+should be rewritten as,
+
+	select {
+	case ch <- v:
+		// sent
+	default:
+		// not sent
+	}
+
+Similarly, this receive,
+
+	v, ok := <-ch
+	if ok {
+		// received
+	} else {
+		// not received
+	}
+
+should be rewritten as,
+
+	select {
+	case v := <-ch:
+		// received
+	default:
+		// not received
+	}
+
+This change is a prelude to redefining the 'comma-ok' syntax for a receive.
+In a later release, a receive expression will return the received value and an
+optional boolean indicating whether the channel has been closed. These changes
+are being made in two stages to prevent this semantic change from silently
+breaking code that uses 'comma-ok' with receives.
+There are no plans to have a boolean expression form for sends.
+
+Sends to a closed channel will panic immediately. Previously, an unspecified
+number of sends would fail silently before causing a panic.
+
+The log package's Exit, Exitf, and Exitln functions have been renamed Fatal,
+Fatalf, and Fatalln respectively. This brings them in line with the naming of
+the testing package. 
+
+The port to the "tiny" operating system has been removed. It is unmaintained
+and untested. It was a toy to show that Go can run on raw hardware and it
+served its purpose. The source code will of course remain in the repository
+history, so it could be brought back if needed later.
+
+This release also changes some of the internal structure of the memory
+allocator in preparation for other garbage collector changes. 
+If you run into problems, please let us know.
+There is one known issue that we are aware of but have not debugged yet:
+	http://code.google.com/p/go/issues/detail?id=1464&.
+
+Other changes in this release:
+* 5l: document -F, force it on old ARMs (software floating point emulation)
+* 6g: fix registerization of temporaries (thanks Eoghan Sherry),
+        fix uint64(uintptr(unsafe.Pointer(&x))).
+* 6l: Relocate CMOV* instructions (thanks Gustavo Niemeyer),
+        windows/amd64 port (thanks Wei Guangjing).
+* 8l: add PE dynexport, emit DWARF in Windows PE, and
+        code generation fixes (thanks Wei Guangjing).
+* bufio: make Flush a no-op when the buffer is empty.
+* bytes: Add Buffer.ReadBytes, Buffer.ReadString (thanks Evan Shaw).
+* cc: mode to generate go-code for types and variables.
+* cgo: define CGO_CFLAGS and CGO_LDFLAGS in Go files (thanks Gustavo Niemeyer),
+        windows/386 port (thanks Wei Guangjing).
+* codereview: fix windows (thanks Hector Chu),
+        handle file patterns better,
+        more ASCII vs. Unicode nonsense.
+* crypto/dsa: add support for DSA.
+* crypto/openpgp: add s2k.
+* crypto/rand: use defer to unlock mutex (thanks Anschel Schaffer-Cohen).
+* crypto/rsa: correct docstring for SignPKCS1v15.
+* crypto: add package, a common place to store identifiers for hash functions.
+* doc/codelab/wiki: update to work with template changes, add to run.bash.
+* doc/spec: clarify address operators.
+* ebnflint: exit with non-zero status on error.
+* encoding/base32: new package (thanks Miek Gieben).
+* encoding/line: make it an io.Reader too.
+* exec: use custom error for LookPath (thanks Gustavo Niemeyer).
+* fmt/doc: define width and precision for strings.
+* gc: clearer error for struct == struct,
+        fix send precedence,
+        handle invalid name in type switch,
+        special case code for single-op blocking and non-blocking selects.
+* go/scanner: fix build (adjust scanner EOF linecount).
+* gob: better debugging, commentary,
+        make nested interfaces work,
+        report an error when encoding a non-empty struct with no public fields.
+* godoc: full text index for whitelisted non-Go files,
+        show line numbers for non-go files (bug fix).
+* gofmt -r: match(...) arguments may be nil; add missing guards.
+* govet: add Panic to the list of functions.
+* http: add host patterns (thanks Jose Luis Vázquez González),
+        follow relative redirect in Get.
+* json: handle capital floating point exponent (1E100) (thanks Pieter Droogendijk).
+* ld: add -I option to set ELF interpreter,
+        more robust decoding of reflection type info in generating dwarf.
+* lib9: update to Unicode 6.0.0.
+* make.bash: stricter selinux test (don't complain unless it is enabled).
+* misc/vim: Import/Drop commands (thanks Gustavo Niemeyer),
+        set 'syntax sync' to a large value (thanks Yasuhiro Matsumoto).
+* net: fix race condition in test,
+        return cname in LookupHost.
+* netchan: avoid race condition in test,
+        fixed documentation for import (thanks Anschel Schaffer-Cohen).
+* os: add ETIMEDOUT (thanks Albert Strasheim).
+* runtime: generate Go defs for C types,
+        implementation of callback functions for windows (thanks Alex Brainman),
+        make Walk web browser example work (thanks Hector Chu),
+        make select fairer,
+        prefer fixed stack allocator over general memory allocator,
+        simpler heap map, memory allocation.
+* scanner: fix Position returned by Scan, Pos,
+        don't read ahead in Init.
+* suffixarray: use binary search for both ends of Lookup (thanks Eric Eisner).
+* syscall: add missing network interface constants (thanks Mikio Hara).
+* template: treat map keys as zero, not non-existent (thanks Roger Peppe).
+* time: allow cancelling of After events (thanks Roger Peppe),
+        support Solaris zoneinfo directory.
+* token/position: added SetLinesForContent.
+* unicode: update to unicode 6.0.0.
+* unsafe: add missing case to doc for Pointer.
+</pre>
+
 <h3 id="2011-01-20">2011-01-20</h3>
 
 <pre>
@@ -26,7 +171,7 @@ The 5g (ARM) compiler now has registerization enabled.  If you discover it
 causes bugs, use 5g -N to disable the registerizer and please let us know.
 
 The xml package now allows the extraction of nested XML tags by specifying
-struct tags of the form “parent>child”. See the XML documentation for an
+struct tags of the form "parent>child". See the XML documentation for an
 example: http://golang.org/pkg/xml/
 
 * 5a, 5l, 6a, 6l, 8a, 8l: handle out of memory, large allocations (thanks Jeff R. Allen).
@@ -60,7 +205,7 @@ example: http://golang.org/pkg/xml/
         avoid nil dereference if /etc/services can't be opened (thanks Corey Thomasson),
         implement windows timeout (thanks Wei Guangjing).
 * netchan: do not block sends; implement flow control (thanks Roger Peppe).
-* regexp: reject bare ‘?’. (thanks Ben Lynn)
+* regexp: reject bare '?'. (thanks Ben Lynn)
 * runtime/cgo: don't define crosscall2 in dummy _cgo_main.c.
 * runtime/debug: new package for printing stack traces from a running goroutine.
 * runtime: add per-pause gc stats,
@@ -187,16 +332,16 @@ outstanding cgo issues were resolved.
 
 <pre>
 Package crypto/cipher has been started, to replace crypto/block.
-As part of the changes, rc4.Cipher’s XORKeyStream method signature has changed from
+As part of the changes, rc4.Cipher's XORKeyStream method signature has changed from
         XORKeyStream(buf []byte)
 to
         XORKeyStream(dst, src []byte)
-to implement the cipher.Stream interface.  If you use crypto/block, you’ll need
+to implement the cipher.Stream interface.  If you use crypto/block, you'll need
 to switch to crypto/cipher once it is complete.
 
-Package smtp’s StartTLS now takes a *tls.Config argument.
+Package smtp's StartTLS now takes a *tls.Config argument.
 
-Package reflect’s ArrayCopy has been renamed to Copy.  There are new functions
+Package reflect's ArrayCopy has been renamed to Copy.  There are new functions
 Append and AppendSlice.
 
 The print/println bootstrapping functions now write to standard error.
@@ -330,7 +475,7 @@ will fail to compile rather than behave erroneously.
 
 The bytes package has changed. Its Add and AddByte functions have been removed,
 as their functionality is provided by the recently-introduced built-in function
-“append”. Any code that uses them will need to be changed:
+"append". Any code that uses them will need to be changed:
 s = bytes.Add(s, b)    ->    s = append(s, b...)
 s = bytes.AddByte(b, c)    ->    s = append(s, b)
 s = bytes.Add(nil, c)    ->    append([]byte(nil), c)
@@ -355,8 +500,8 @@ or
 and the fields are passed as successive arguments to the formatter,
 by analogy to fmt.Print.
 
-The utf8 package has changed. The order of EncodeRune’s arguments has been
-reversed to satisfy the convention of “destination first”.
+The utf8 package has changed. The order of EncodeRune's arguments has been
+reversed to satisfy the convention of "destination first".
 Any code that uses EncodeRune will need to be updated.
 
 Other changes:
@@ -494,12 +639,12 @@ to address both of these deficiencies.
 The syntax for arrays, slices, and maps of composite literals has been
 simplified. Within a composite literal of array, slice, or map type, elements
 that are themselves composite literals may elide the type if it is identical to
-the outer literal’s element type. For example, these expressions:
+the outer literal's element type. For example, these expressions:
 	[][]int{[]int{1, 2, 3}, []int{4, 5}}
-	map[string]Point{“x”: Point{1.5, -3.5}, “y”: Point{0, 0}}
+	map[string]Point{"x": Point{1.5, -3.5}, "y": Point{0, 0}}
 can be simplified to:
 	[][]int{{1, 2, 3}, {4, 5}}
-	map[string]Point{“x”: {1.5, -3.5}, “y”: {0, 0}}
+	map[string]Point{"x": {1.5, -3.5}, "y": {0, 0}}
 Gofmt can make these simplifications mechanically when invoked with the 
 new -s flag.
 
@@ -515,8 +660,8 @@ The gob package can now encode and decode interface values containing types
 registered ahead of time with the new Register function. These changes required
 a backwards-incompatible change to the wire format.  Data written with the old
 version of the package will not be readable with the new one, and vice versa.
-(Steps were made in this change to make sure this doesn’t happen again.) 
-We don’t know of anyone using gobs to create permanent data, but if you do this
+(Steps were made in this change to make sure this doesn't happen again.) 
+We don't know of anyone using gobs to create permanent data, but if you do this
 and need help converting, please let us know, and do not update to this release
 yet.  We will help you convert your data.
 
@@ -612,7 +757,7 @@ For full details, see the change description:
 
 The language change is that uses of pointers to interface values no longer
 automatically dereference the pointer.  A pointer to an interface value is more
-often a beginner’s bug than correct code.
+often a beginner's bug than correct code.
 
 The package exp/iterable has been removed. It was an interesting experiment,
 but it encourages writing inefficient code and has outlived its utility.
