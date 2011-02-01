@@ -491,7 +491,7 @@ brk:
 	 * peep-hole on basic block
 	 */
 	if(!debug['R'] || debug['P']) {
-		peep();
+//		peep();
 	}
 
 	/*
