@@ -44,7 +44,7 @@ func main() {
 	if err != 0 {
 		abort("GetProcAddress", err)
 	}
-	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0)
+	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0, 0)
 	print_version(uint32(r))
 }
 
@@ -72,9 +72,11 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 // dll helpers
 
-// implemented in ../pkg/runtime/windows/syscall.cgo
-func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, lasterr uintptr)
-func Syscall12(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, lasterr uintptr)
+// implemented in ../runtime/windows/syscall.cgo
+func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr)
+func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr)
 func loadlibraryex(filename uintptr) (handle uint32)
 func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
 
@@ -94,26 +96,11 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 	return p
 }
 
-// callback from windows dll back to go
-
-func compileCallback(code *byte, fn CallbackFunc, argsize int)
-
-type CallbackFunc func(args *uintptr) (r uintptr)
-
-type Callback struct {
-	code [50]byte // have to be big enough to fit asm written in it by compileCallback
-}
-
-func (cb *Callback) ExtFnEntry() uintptr {
-	return uintptr(unsafe.Pointer(&cb.code[0]))
-}
-
-// argsize is in words
-func NewCallback(fn CallbackFunc, argsize int) *Callback {
-	cb := Callback{}
-	compileCallback(&cb.code[0], fn, argsize)
-	return &cb
-}
+// Converts a Go function to a function pointer conforming
+// to the stdcall calling convention.  This is useful when
+// interoperating with Windows code requiring callbacks.
+// Implemented in ../runtime/windows/syscall.cgo
+func NewCallback(fn interface{}) uintptr
 
 // windows api calls
 

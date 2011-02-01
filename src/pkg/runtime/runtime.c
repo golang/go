@@ -31,7 +31,7 @@ runtime·dopanic(int32 unused)
 	runtime·panicking++;
 
 	if(g->sig != 0)
-		runtime·printf("\n[signal %d code=%p addr=%p pc=%p]\n",
+		runtime·printf("\n[signal %x code=%p addr=%p pc=%p]\n",
 			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
 
 	runtime·printf("\n");

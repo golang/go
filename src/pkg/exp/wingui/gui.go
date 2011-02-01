@@ -30,12 +30,7 @@ var (
 )
 
 // WinProc called by windows to notify us of all windows events we might be interested in.
-func WndProc(args *uintptr) uintptr {
-	p := (*[4]int32)(unsafe.Pointer(args))
-	hwnd := uint32(p[0])
-	msg := uint32(p[1])
-	wparam := int32(p[2])
-	lparam := int32(p[3])
+func WndProc(hwnd, msg uint32, wparam, lparam int32) uintptr {
 	var rc int32
 	switch msg {
 	case WM_CREATE:
@@ -95,13 +90,13 @@ func rungui() int {
 	}
 
 	// Create callback
-	wproc := syscall.NewCallback(WndProc, 4)
+	wproc := syscall.NewCallback(WndProc)
 
 	// RegisterClassEx
 	wcname := syscall.StringToUTF16Ptr("myWindowClass")
 	var wc Wndclassex
 	wc.Size = uint32(unsafe.Sizeof(wc))
-	wc.WndProc = wproc.ExtFnEntry()
+	wc.WndProc = wproc
 	wc.Instance = mh
 	wc.Icon = myicon
 	wc.Cursor = mycursor

@@ -3,48 +3,47 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "type.h"
 #include "defs.h"
 #include "os.h"
 
-#pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
-#pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
 #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
-#pragma dynimport runtime·ExitProcess ExitProcess "kernel32.dll"
-#pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
-#pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
-#pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
-#pragma dynimport runtime·GetLastError GetLastError "kernel32.dll"
-#pragma dynimport runtime·SetLastError SetLastError "kernel32.dll"
-
-// Also referenced by external packages
-extern void *runtime·CloseHandle;
-extern void *runtime·ExitProcess;
-extern void *runtime·GetStdHandle;
-extern void *runtime·SetEvent;
-extern void *runtime·WriteFile;
-extern void *runtime·LoadLibraryEx;
-extern void *runtime·GetProcAddress;
-extern void *runtime·GetLastError;
-extern void *runtime·SetLastError;
-
 #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
 #pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
+#pragma dynimport runtime·ExitProcess ExitProcess "kernel32.dll"
+#pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
+#pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
+#pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
+#pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
+#pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
+#pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
+#pragma dynimport runtime·QueryPerformanceFrequency QueryPerformanceFrequency "kernel32.dll"
+#pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
 #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+#pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
 
+extern void *runtime·CloseHandle;
 extern void *runtime·CreateEvent;
 extern void *runtime·CreateThread;
+extern void *runtime·ExitProcess;
+extern void *runtime·FreeEnvironmentStringsW;
+extern void *runtime·GetEnvironmentStringsW;
+extern void *runtime·GetProcAddress;
+extern void *runtime·GetStdHandle;
+extern void *runtime·LoadLibraryEx;
+extern void *runtime·QueryPerformanceCounter;
+extern void *runtime·QueryPerformanceFrequency;
+extern void *runtime·SetEvent;
 extern void *runtime·WaitForSingleObject;
+extern void *runtime·WriteFile;
+
+static int64 timerfreq;
 
 void
 runtime·osinit(void)
 {
+	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
 }
-
-#pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW  "kernel32.dll"
-#pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW  "kernel32.dll"
-
-extern void *runtime·GetEnvironmentStringsW;
-extern void *runtime·FreeEnvironmentStringsW;
 
 void
 runtime·goenvs(void)
@@ -194,6 +193,17 @@ runtime·minit(void)
 {
 }
 
+void
+runtime·gettime(int64 *sec, int32 *usec)
+{
+	int64 count;
+
+	runtime·stdcall(runtime·QueryPerformanceCounter, 1, &count);
+	*sec = count / timerfreq;
+	count %= timerfreq;
+	*usec = count*1000000 / timerfreq;
+}
+
 // Calling stdcall on os stack.
 #pragma textflag 7
 void *
@@ -202,11 +212,11 @@ runtime·stdcall(void *fn, int32 count, ...)
 	return runtime·stdcall_raw(fn, count, (uintptr*)(&count + 1));
 }
 
-void
-runtime·syscall(StdcallParams *p)
+uintptr
+runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err)
 {
 	G *oldlock;
-	uintptr a;
+	uintptr ret;
 
 	/*
 	 * Lock g to m to ensure we stay on the same stack if we do a callback.
@@ -216,17 +226,17 @@ runtime·syscall(StdcallParams *p)
 	g->lockedm = m;
 
 	runtime·entersyscall();
-	// TODO(brainman): Move calls to SetLastError and GetLastError
-	// to stdcall_raw to speed up syscall.
-	a = 0;
-	runtime·stdcall_raw(runtime·SetLastError, 1, &a);
-	p->r = (uintptr)runtime·stdcall_raw((void*)p->fn, p->n, p->args);
-	p->err = (uintptr)runtime·stdcall_raw(runtime·GetLastError, 0, &a);
+	runtime·setlasterror(0);
+	ret = (uintptr)runtime·stdcall_raw(fn, nargs, args);
+	if(err)
+		*err = runtime·getlasterror();
 	runtime·exitsyscall();
 
 	m->lockedg = oldlock;
 	if(oldlock == nil)
 		g->lockedm = nil;
+
+	return ret;
 }
 
 uint32
@@ -270,71 +280,56 @@ runtime·sigpanic(void)
 }
 
 // Call back from windows dll into go.
-void
-runtime·compilecallback(byte *code, void *fn, uint32 argsize)
+byte *
+runtime·compilecallback(Eface fn, bool cleanstack)
 {
-	byte *p;
+	Func *f;
+	int32 argsize, n;
+	byte *ret, *p;
 
-	p = code;
-	// SUBL $16, SP
-	*p++ = 0x83;
-	*p++ = 0xec;
-	*p++ = 0x10;
-	// PUSH argsize * 4
-	*p++ = 0x68;
-	*(uint32*)p = argsize << 2;
-	p += 4;
-	// PUSH fn
-	*p++ = 0x68;
-	*(uint32*)p = (uint32)fn;
-	p += 4;
-	// MOV callbackasm, AX
-	void* (*x)(void) = runtime·callbackasm;
+	if(fn.type->kind != KindFunc)
+		runtime·panicstring("not a function");
+	if((f = runtime·findfunc((uintptr)fn.data)) == nil)
+		runtime·throw("cannot find function");
+	argsize = (f->args-2) * 4;
+
+	// compute size of new fn.
+	// must match code laid out below.
+	n = 1+4;		// MOVL fn, AX
+	n += 1+4;		// MOVL argsize, DX
+	n += 1+4;		// MOVL callbackasm, CX
+	n += 2;			// CALL CX
+	n += 1;			// RET
+	if(cleanstack)
+		n += 2;		// ... argsize
+
+	ret = p = runtime·mal(n);
+
+	// MOVL fn, AX
 	*p++ = 0xb8;
-	*(uint32*)p = (uint32)x;
+	*(uint32*)p = (uint32)fn.data;
 	p += 4;
-	// CALL AX
+
+	// MOVL argsize, DX
+	*p++ = 0xba;
+	*(uint32*)p = argsize;
+	p += 4;
+
+	// MOVL callbackasm, CX
+	*p++ = 0xb9;
+	*(uint32*)p = (uint32)runtime·callbackasm;
+	p += 4;
+
+	// CALL CX
 	*p++ = 0xff;
-	*p = 0xd0;
-}
+	*p++ = 0xd1;
 
-#pragma textflag 7
-void*
-runtime·callback(void *arg, void (*fn)(void), int32 argsize)
-{
-	Gobuf msched, g1sched;
-	G *g1;
-	void *sp, *gostack;
-	void **p;
+	// RET argsize?
+	if(cleanstack) {
+		*p++ = 0xc2;
+		*(uint16*)p = argsize;
+	} else
+		*p = 0xc3;
 
-	USED(argsize);
-
-	if(g != m->g0)
-		runtime·throw("bad g in callback");
-
-	g1 = m->curg;
-
-	gostack = m->gostack;		// preserve previous call stack parameters
-	msched = m->sched;
-	g1sched = g1->sched;
-
-	runtime·startcgocallback(g1);
-
-	sp = g1->sched.sp - 4 - 4;	// one input, one output
-
-	if(sp < g1->stackguard - StackGuard + 4) // +4 for return address
-		runtime·throw("g stack overflow in callback");
-
-	p = sp;
-	p[0] = arg;
-
-	runtime·runcgocallback(g1, sp, fn);
-
-	runtime·endcgocallback(g1);
-
-	g1->sched = g1sched; 
-	m->sched = msched;
-	m->gostack = gostack;		// restore previous call stack parameters
-
-	return p[1];
+	return ret;
 }

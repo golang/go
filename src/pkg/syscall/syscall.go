@@ -13,10 +13,6 @@
 // errno is an operating system error number describing the failure.
 package syscall
 
-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
-func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-
 // StringByteSlice returns a NUL-terminated slice of bytes
 // containing the text of s.
 func StringByteSlice(s string) []byte {
