@@ -93,9 +93,10 @@ static void fixlbrace(int);
 %type	<type>	hidden_type_func
 %type	<type>	hidden_type_recv_chan hidden_type_non_recv_chan
 
+%left		LCOMM	/* outside the usual hierarchy; here for good error messages */
+
 %left		LOROR
 %left		LANDAND
-%left		LCOMM
 %left		LEQ LNE LLE LGE LLT LGT
 %left		'+' '-' '|' '^'
 %left		'*' '/' '%' '&' LLSH LRSH LANDNOT
