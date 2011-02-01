@@ -9,8 +9,9 @@ package ocsp
 
 import (
 	"asn1"
+	"crypto"
 	"crypto/rsa"
-	"crypto/sha1"
+	_ "crypto/sha1"
 	"crypto/x509"
 	"os"
 	"time"
@@ -168,8 +169,8 @@ func ParseResponse(bytes []byte) (*Response, os.Error) {
 		return nil, x509.UnsupportedAlgorithmError{}
 	}
 
-	h := sha1.New()
-	hashType := rsa.HashSHA1
+	hashType := crypto.SHA1
+	h := hashType.New()
 
 	pub := ret.Certificate.PublicKey.(*rsa.PublicKey)
 	h.Write(basicResp.TBSResponseData.Raw)

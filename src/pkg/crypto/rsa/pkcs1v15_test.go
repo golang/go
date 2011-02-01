@@ -7,6 +7,7 @@ package rsa
 import (
 	"big"
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/base64"
@@ -165,7 +166,7 @@ func TestSignPKCS1v15(t *testing.T) {
 		h.Write([]byte(test.in))
 		digest := h.Sum()
 
-		s, err := SignPKCS1v15(nil, rsaPrivateKey, HashSHA1, digest)
+		s, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.SHA1, digest)
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}
@@ -185,7 +186,7 @@ func TestVerifyPKCS1v15(t *testing.T) {
 
 		sig, _ := hex.DecodeString(test.out)
 
-		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, HashSHA1, digest, sig)
+		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.SHA1, digest, sig)
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}

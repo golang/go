@@ -6,9 +6,14 @@
 package md5
 
 import (
+	"crypto"
 	"hash"
 	"os"
 )
+
+func init() {
+	crypto.RegisterHash(crypto.MD5, New)
+}
 
 // The size of an MD5 checksum in bytes.
 const Size = 16

@@ -6,9 +6,14 @@
 package sha1
 
 import (
+	"crypto"
 	"hash"
 	"os"
 )
+
+func init() {
+	crypto.RegisterHash(crypto.SHA1, New)
+}
 
 // The size of a SHA1 checksum in bytes.
 const Size = 20

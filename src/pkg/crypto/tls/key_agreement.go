@@ -6,6 +6,7 @@ package tls
 
 import (
 	"big"
+	"crypto"
 	"crypto/elliptic"
 	"crypto/md5"
 	"crypto/rsa"
@@ -143,7 +144,7 @@ Curve:
 	copy(serverECDHParams[4:], ecdhePublic)
 
 	md5sha1 := md5SHA1Hash(clientHello.random, hello.random, serverECDHParams)
-	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey, rsa.HashMD5SHA1, md5sha1)
+	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey, crypto.MD5SHA1, md5sha1)
 	if err != nil {
 		return nil, os.ErrorString("failed to sign ECDHE parameters: " + err.String())
 	}
@@ -216,7 +217,7 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
 	sig = sig[2:]
 
 	md5sha1 := md5SHA1Hash(clientHello.random, serverHello.random, serverECDHParams)
-	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), rsa.HashMD5SHA1, md5sha1, sig)
+	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), crypto.MD5SHA1, md5sha1, sig)
 
 Error:
 	return os.ErrorString("invalid ServerKeyExchange")

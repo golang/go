@@ -6,9 +6,15 @@
 package sha512
 
 import (
+	"crypto"
 	"hash"
 	"os"
 )
+
+func init() {
+	crypto.RegisterHash(crypto.SHA384, New384)
+	crypto.RegisterHash(crypto.SHA512, New)
+}
 
 // The size of a SHA512 checksum in bytes.
 const Size = 64
