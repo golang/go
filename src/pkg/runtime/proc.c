@@ -723,8 +723,10 @@ runtime·newstack(void)
 	argsize = m->moreargsize;
 	g1 = m->curg;
 
-	if(m->morebuf.sp < g1->stackguard - StackGuard)
-		runtime·throw("split stack overflow");
+	if(m->morebuf.sp < g1->stackguard - StackGuard) {
+		runtime·printf("runtime: split stack overflow: %p < %p\n", m->morebuf.sp, g1->stackguard - StackGuard);
+		runtime·throw("runtime: split stack overflow");
+	}
 
 	reflectcall = framesize==1;
 	if(reflectcall)
