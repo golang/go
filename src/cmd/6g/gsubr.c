@@ -246,7 +246,7 @@ anyregalloc(void)
 {
 	int i, j;
 
-	for(i=D_AL; i<=D_DI; i++) {
+	for(i=D_AX; i<=D_R15; i++) {
 		if(reg[i] == 0)
 			goto ok;
 		for(j=0; j<nelem(resvd); j++)
