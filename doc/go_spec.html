@@ -2588,7 +2588,7 @@ func Join(s, t string) string {
 }
 
 if Join(Split(value, len(value)/2)) != value {
-	log.Crash("test fails")
+	log.Panic("test fails")
 }
 </pre>
 
@@ -3503,7 +3503,7 @@ Label       = identifier .
 </pre>
 
 <pre>
-Error: log.Crash("error encountered")
+Error: log.Panic("error encountered")
 </pre>
 
 
