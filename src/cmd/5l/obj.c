@@ -61,7 +61,7 @@ linkername[] =
 void
 usage(void)
 {
-	fprint(2, "usage: 5l [-E entry] [-H head] [-L dir] [-T text] [-D data] [-R rnd] [-r path] [-o out] main.5\n");
+	fprint(2, "usage: 5l [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-D data] [-R rnd] [-r path] [-o out] main.5\n");
 	errorexit();
 }
 
@@ -99,6 +99,9 @@ main(int argc, char *argv[])
 		break;
 	case 'E':
 		INITENTRY = EARGF(usage());
+		break;
+	case 'I':
+		interpreter = EARGF(usage());
 		break;
 	case 'L':
 		Lflag(EARGF(usage()));

@@ -58,7 +58,7 @@ char*	paramspace	= "FP";
 void
 usage(void)
 {
-	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.6\n");
+	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.6\n");
 	exits("usage");
 }
 
@@ -95,6 +95,9 @@ main(int argc, char *argv[])
 		break;
 	case 'H':
 		HEADTYPE = atolwhex(EARGF(usage()));
+		break;
+	case 'I':
+		interpreter = EARGF(usage());
 		break;
 	case 'L':
 		Lflag(EARGF(usage()));

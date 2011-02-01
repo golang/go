@@ -448,7 +448,9 @@ asmb(void)
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
-			elfinterp(sh, startva, linuxdynld);
+			if(interpreter == nil)
+				interpreter = linuxdynld;
+			elfinterp(sh, startva, interpreter);
 
 			ph = newElfPhdr();
 			ph->type = PT_INTERP;
