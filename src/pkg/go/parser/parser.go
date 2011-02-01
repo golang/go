@@ -1193,18 +1193,6 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 	x := p.parseExprList()
 
 	switch p.tok {
-	case token.COLON:
-		// labeled statement
-		colon := p.pos
-		p.next()
-		if labelOk && len(x) == 1 {
-			if label, isIdent := x[0].(*ast.Ident); isIdent {
-				return &ast.LabeledStmt{label, colon, p.parseStmt()}
-			}
-		}
-		p.error(x[0].Pos(), "illegal label declaration")
-		return &ast.BadStmt{x[0].Pos(), colon + 1}
-
 	case
 		token.DEFINE, token.ASSIGN, token.ADD_ASSIGN,
 		token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN,
@@ -1218,11 +1206,29 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 	}
 
 	if len(x) > 1 {
-		p.error(x[0].Pos(), "only one expression allowed")
+		p.errorExpected(x[0].Pos(), "1 expression")
 		// continue with first expression
 	}
 
-	if p.tok == token.INC || p.tok == token.DEC {
+	switch p.tok {
+	case token.COLON:
+		// labeled statement
+		colon := p.pos
+		p.next()
+		if label, isIdent := x[0].(*ast.Ident); labelOk && isIdent {
+			return &ast.LabeledStmt{label, colon, p.parseStmt()}
+		}
+		p.error(x[0].Pos(), "illegal label declaration")
+		return &ast.BadStmt{x[0].Pos(), colon + 1}
+
+	case token.ARROW:
+		// send statement
+		arrow := p.pos
+		p.next() // consume "<-"
+		y := p.parseExpr()
+		return &ast.SendStmt{x[0], arrow, y}
+
+	case token.INC, token.DEC:
 		// increment or decrement
 		s := &ast.IncDecStmt{x[0], p.pos, p.tok}
 		p.next() // consume "++" or "--"
@@ -1486,28 +1492,52 @@ func (p *parser) parseCommClause() *ast.CommClause {
 
 	// CommCase
 	pos := p.pos
-	var tok token.Token
-	var lhs, rhs ast.Expr
+	var comm ast.Stmt
 	if p.tok == token.CASE {
 		p.next()
+		lhs := p.parseExprList()
 		if p.tok == token.ARROW {
-			// RecvExpr without assignment
-			rhs = p.parseExpr()
-		} else {
-			// SendExpr or RecvExpr
-			rhs = p.parseExpr()
-			if p.tok == token.ASSIGN || p.tok == token.DEFINE {
-				// RecvExpr with assignment
-				tok = p.tok
-				p.next()
-				lhs = rhs
-				if p.tok == token.ARROW {
-					rhs = p.parseExpr()
-				} else {
-					p.expect(token.ARROW) // use expect() error handling
-				}
+			// SendStmt
+			if len(lhs) > 1 {
+				p.errorExpected(lhs[0].Pos(), "1 expression")
+				// continue with first expression
 			}
-			// else SendExpr
+			arrow := p.pos
+			p.next()
+			rhs := p.parseExpr()
+			comm = &ast.SendStmt{lhs[0], arrow, rhs}
+		} else {
+			// RecvStmt
+			pos := p.pos
+			tok := p.tok
+			var rhs ast.Expr
+			if p.tok == token.ASSIGN || p.tok == token.DEFINE {
+				// RecvStmt with assignment
+				if len(lhs) > 2 {
+					p.errorExpected(lhs[0].Pos(), "1 or 2 expressions")
+					// continue with first two expressions
+					lhs = lhs[0:2]
+				}
+				p.next()
+				rhs = p.parseExpr()
+			} else {
+				// rhs must be single receive operation
+				if len(lhs) > 1 {
+					p.errorExpected(lhs[0].Pos(), "1 expression")
+					// continue with first expression
+				}
+				rhs = lhs[0]
+				lhs = nil // there is no lhs
+			}
+			if x, isUnary := rhs.(*ast.UnaryExpr); !isUnary || x.Op != token.ARROW {
+				p.errorExpected(rhs.Pos(), "send or receive operation")
+				rhs = &ast.BadExpr{rhs.Pos(), rhs.End()}
+			}
+			if lhs != nil {
+				comm = &ast.AssignStmt{lhs, pos, tok, []ast.Expr{rhs}}
+			} else {
+				comm = &ast.ExprStmt{rhs}
+			}
 		}
 	} else {
 		p.expect(token.DEFAULT)
@@ -1516,7 +1546,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
 	colon := p.expect(token.COLON)
 	body := p.parseStmtList()
 
-	return &ast.CommClause{pos, tok, lhs, rhs, colon, body}
+	return &ast.CommClause{pos, comm, colon, body}
 }
 
 
@@ -1568,7 +1598,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		}
 		// check rhs
 		if len(as.Rhs) != 1 {
-			p.errorExpected(as.Rhs[0].Pos(), "1 expressions")
+			p.errorExpected(as.Rhs[0].Pos(), "1 expression")
 			return &ast.BadStmt{pos, body.End()}
 		}
 		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {

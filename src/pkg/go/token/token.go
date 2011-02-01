@@ -252,8 +252,8 @@ func (tok Token) String() string {
 //
 const (
 	LowestPrec  = 0 // non-operators
-	UnaryPrec   = 7
-	HighestPrec = 8
+	UnaryPrec   = 6
+	HighestPrec = 7
 )
 
 
@@ -267,14 +267,12 @@ func (op Token) Precedence() int {
 		return 1
 	case LAND:
 		return 2
-	case ARROW:
-		return 3
 	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
-		return 4
+		return 3
 	case ADD, SUB, OR, XOR:
-		return 5
+		return 4
 	case MUL, QUO, REM, SHL, SHR, AND, AND_NOT:
-		return 6
+		return 5
 	}
 	return LowestPrec
 }
