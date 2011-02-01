@@ -23,7 +23,7 @@ func exportSend(exp *Exporter, n int, t *testing.T, done chan bool) {
 	}
 	go func() {
 		for i := 0; i < n; i++ {
-			ch <- base+i
+			ch <- base + i
 		}
 		close(ch)
 		if done != nil {
@@ -61,7 +61,7 @@ func importSend(imp *Importer, n int, t *testing.T, done chan bool) {
 	}
 	go func() {
 		for i := 0; i < n; i++ {
-			ch <- base+i
+			ch <- base + i
 		}
 		close(ch)
 		if done != nil {

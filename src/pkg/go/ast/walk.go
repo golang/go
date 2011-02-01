@@ -258,11 +258,8 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Body)
 
 	case *CommClause:
-		if n.Lhs != nil {
-			Walk(v, n.Lhs)
-		}
-		if n.Rhs != nil {
-			Walk(v, n.Rhs)
+		if n.Comm != nil {
+			Walk(v, n.Comm)
 		}
 		walkStmtList(v, n.Body)
 

@@ -506,12 +506,12 @@ const (
 )
 
 
-func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
+func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 	switch e.Op.Precedence() {
+	case 4:
+		has4 = true
 	case 5:
 		has5 = true
-	case 6:
-		has6 = true
 	}
 
 	switch l := e.X.(type) {
@@ -521,9 +521,9 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
 			// pretend this is an *ast.ParenExpr and do nothing.
 			break
 		}
-		h5, h6, mp := walkBinary(l)
+		h4, h5, mp := walkBinary(l)
+		has4 = has4 || h4
 		has5 = has5 || h5
-		has6 = has6 || h6
 		if maxProblem < mp {
 			maxProblem = mp
 		}
@@ -536,25 +536,25 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
 			// pretend this is an *ast.ParenExpr and do nothing.
 			break
 		}
-		h5, h6, mp := walkBinary(r)
+		h4, h5, mp := walkBinary(r)
+		has4 = has4 || h4
 		has5 = has5 || h5
-		has6 = has6 || h6
 		if maxProblem < mp {
 			maxProblem = mp
 		}
 
 	case *ast.StarExpr:
 		if e.Op.String() == "/" {
-			maxProblem = 6
+			maxProblem = 5
 		}
 
 	case *ast.UnaryExpr:
 		switch e.Op.String() + r.Op.String() {
 		case "/*", "&&", "&^":
-			maxProblem = 6
+			maxProblem = 5
 		case "++", "--":
-			if maxProblem < 5 {
-				maxProblem = 5
+			if maxProblem < 4 {
+				maxProblem = 4
 			}
 		}
 	}
@@ -563,20 +563,20 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
 
 
 func cutoff(e *ast.BinaryExpr, depth int) int {
-	has5, has6, maxProblem := walkBinary(e)
+	has4, has5, maxProblem := walkBinary(e)
 	if maxProblem > 0 {
 		return maxProblem + 1
 	}
-	if has5 && has6 {
+	if has4 && has5 {
 		if depth == 1 {
-			return 6
+			return 5
 		}
-		return 5
+		return 4
 	}
 	if depth == 1 {
-		return 7
+		return 6
 	}
-	return 5
+	return 4
 }
 
 
@@ -603,15 +603,14 @@ func reduceDepth(depth int) int {
 // (Algorithm suggestion by Russ Cox.)
 //
 // The precedences are:
-//	6             *  /  %  <<  >>  &  &^
-//	5             +  -  |  ^
-//	4             ==  !=  <  <=  >  >=
-//	3             <-
+//	5             *  /  %  <<  >>  &  &^
+//	4             +  -  |  ^
+//	3             ==  !=  <  <=  >  >=
 //	2             &&
 //	1             ||
 //
-// The only decision is whether there will be spaces around levels 5 and 6.
-// There are never spaces at level 7 (unary), and always spaces at levels 4 and below.
+// The only decision is whether there will be spaces around levels 4 and 5.
+// There are never spaces at level 6 (unary), and always spaces at levels 3 and below.
 //
 // To choose the cutoff, look at the whole expression but excluding primary
 // expressions (function calls, parenthesized exprs), and apply these rules:
@@ -619,21 +618,21 @@ func reduceDepth(depth int) int {
 //	1) If there is a binary operator with a right side unary operand
 //	   that would clash without a space, the cutoff must be (in order):
 //
-//		/*	7
-//		&&	7
-//		&^	7
-//		++	6
-//		--	6
+//		/*	6
+//		&&	6
+//		&^	6
+//		++	5
+//		--	5
 //
 //         (Comparison operators always have spaces around them.)
 //
-//	2) If there is a mix of level 6 and level 5 operators, then the cutoff
-//	   is 6 (use spaces to distinguish precedence) in Normal mode
-//	   and 5 (never use spaces) in Compact mode.
+//	2) If there is a mix of level 5 and level 4 operators, then the cutoff
+//	   is 5 (use spaces to distinguish precedence) in Normal mode
+//	   and 4 (never use spaces) in Compact mode.
 //
-//	3) If there are no level 5 operators or no level 6 operators, then the
-//	   cutoff is 7 (always use spaces) in Normal mode
-//	   and 5 (never use spaces) in Compact mode.
+//	3) If there are no level 4 operators or no level 5 operators, then the
+//	   cutoff is 6 (always use spaces) in Normal mode
+//	   and 4 (never use spaces) in Compact mode.
 //
 // Sets multiLine to true if the binary expression spans multiple lines.
 func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiLine *bool) {
@@ -1083,6 +1082,12 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 		const depth = 1
 		p.expr0(s.X, depth, multiLine)
 
+	case *ast.SendStmt:
+		const depth = 1
+		p.expr0(s.Chan, depth, multiLine)
+		p.print(blank, s.Arrow, token.ARROW, blank)
+		p.expr0(s.Value, depth, multiLine)
+
 	case *ast.IncDecStmt:
 		const depth = 1
 		p.expr0(s.X, depth+1, multiLine)
@@ -1179,13 +1184,9 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 		*multiLine = true
 
 	case *ast.CommClause:
-		if s.Rhs != nil {
+		if s.Comm != nil {
 			p.print(token.CASE, blank)
-			if s.Lhs != nil {
-				p.expr(s.Lhs, multiLine)
-				p.print(blank, s.Tok, blank)
-			}
-			p.expr(s.Rhs, multiLine)
+			p.stmt(s.Comm, false, ignoreMultiLine)
 		} else {
 			p.print(token.DEFAULT)
 		}

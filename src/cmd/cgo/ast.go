@@ -305,6 +305,9 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 		f.walk(n.Stmt, "stmt", visit)
 	case *ast.ExprStmt:
 		f.walk(&n.X, "expr", visit)
+	case *ast.SendStmt:
+		f.walk(&n.Chan, "expr", visit)
+		f.walk(&n.Value, "expr", visit)
 	case *ast.IncDecStmt:
 		f.walk(&n.X, "expr", visit)
 	case *ast.AssignStmt:
@@ -343,8 +346,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 		f.walk(n.Assign, "stmt", visit)
 		f.walk(n.Body, "stmt", visit)
 	case *ast.CommClause:
-		f.walk(n.Lhs, "expr", visit)
-		f.walk(n.Rhs, "expr", visit)
+		f.walk(n.Comm, "stmt", visit)
 		f.walk(n.Body, "stmt", visit)
 	case *ast.SelectStmt:
 		f.walk(n.Body, "stmt", visit)

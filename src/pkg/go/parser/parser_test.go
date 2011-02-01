@@ -46,6 +46,7 @@ var validPrograms = []interface{}{
 	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} };`,
 	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} };`,
 	`package main; var a = T{{1, 2}, {3, 4}}`,
+	`package main; func f() { select { case <- c: case c <- d: case c <- <- d: case <-c <- d: } };`,
 }
 
 

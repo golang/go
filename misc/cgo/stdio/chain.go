@@ -23,7 +23,7 @@ func link(left chan<- int, right <-chan int) {
 	for {
 		v := <-right
 		stdio.Stdout.WriteString(strconv.Itoa(v) + "\n")
-		left <- 1+v
+		left <- 1 + v
 	}
 }
 

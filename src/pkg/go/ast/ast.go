@@ -535,6 +535,13 @@ type (
 		X Expr // expression
 	}
 
+	// A SendStmt node represents a send statement.
+	SendStmt struct {
+		Chan  Expr
+		Arrow token.Pos // position of "<-"
+		Value Expr
+	}
+
 	// An IncDecStmt node represents an increment or decrement statement.
 	IncDecStmt struct {
 		X      Expr
@@ -629,11 +636,10 @@ type (
 
 	// A CommClause node represents a case of a select statement.
 	CommClause struct {
-		Case     token.Pos   // position of "case" or "default" keyword
-		Tok      token.Token // ASSIGN or DEFINE (valid only if Lhs != nil)
-		Lhs, Rhs Expr        // Rhs == nil means default case
-		Colon    token.Pos   // position of ":"
-		Body     []Stmt      // statement list; or nil
+		Case  token.Pos // position of "case" or "default" keyword
+		Comm  Stmt      // send or receive statement; nil means default case
+		Colon token.Pos // position of ":"
+		Body  []Stmt    // statement list; or nil
 	}
 
 	// An SelectStmt node represents a select statement.
@@ -670,6 +676,7 @@ func (s *DeclStmt) Pos() token.Pos       { return s.Decl.Pos() }
 func (s *EmptyStmt) Pos() token.Pos      { return s.Semicolon }
 func (s *LabeledStmt) Pos() token.Pos    { return s.Label.Pos() }
 func (s *ExprStmt) Pos() token.Pos       { return s.X.Pos() }
+func (s *SendStmt) Pos() token.Pos       { return s.Chan.Pos() }
 func (s *IncDecStmt) Pos() token.Pos     { return s.X.Pos() }
 func (s *AssignStmt) Pos() token.Pos     { return s.Lhs[0].Pos() }
 func (s *GoStmt) Pos() token.Pos         { return s.Go }
@@ -695,6 +702,7 @@ func (s *EmptyStmt) End() token.Pos {
 }
 func (s *LabeledStmt) End() token.Pos { return s.Stmt.End() }
 func (s *ExprStmt) End() token.Pos    { return s.X.End() }
+func (s *SendStmt) End() token.Pos    { return s.Value.End() }
 func (s *IncDecStmt) End() token.Pos {
 	return s.TokPos + 2 /* len("++") */
 }
@@ -753,6 +761,7 @@ func (s *DeclStmt) stmtNode()       {}
 func (s *EmptyStmt) stmtNode()      {}
 func (s *LabeledStmt) stmtNode()    {}
 func (s *ExprStmt) stmtNode()       {}
+func (s *SendStmt) stmtNode()       {}
 func (s *IncDecStmt) stmtNode()     {}
 func (s *AssignStmt) stmtNode()     {}
 func (s *GoStmt) stmtNode()         {}
