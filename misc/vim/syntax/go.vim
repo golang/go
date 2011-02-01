@@ -198,6 +198,11 @@ endif
 hi def link     goExtraType         Type
 hi def link     goSpaceError        Error
 
+" Search backwards for a global declaration to start processing the syntax.
+"syn sync match goSync grouphere NONE /^\(const\|var\|type\|func\)\>/
+
+" There's a bug in the implementation of grouphere. For now, use the
+" following as a more expensive/less precise workaround.
 syn sync minlines=500
 
 let b:current_syntax = "go"
