@@ -32,11 +32,9 @@
 " The backslash is the default maplocalleader, so it is possible that
 " your vim is set to use a different character (:help maplocalleader).
 "
-
-if exists("s:loaded") || exists("b:did_ftplugin")
+if exists("b:did_ftplugin")
     finish
 endif
-let s:loaded = 1
 
 command! -buffer -nargs=? Drop call s:SwitchImport(0, '', <f-args>)
 command! -buffer -nargs=1 Import call s:SwitchImport(1, '', <f-args>)
@@ -44,7 +42,7 @@ command! -buffer -nargs=* ImportAs call s:SwitchImport(1, <f-args>)
 map <buffer> <LocalLeader>f :Import fmt<CR>
 map <buffer> <LocalLeader>F :Drop fmt<CR>
 
-function s:SwitchImport(enabled, localname, path)
+function! s:SwitchImport(enabled, localname, path)
     let view = winsaveview()
     let path = a:path
 
@@ -196,7 +194,7 @@ function s:SwitchImport(enabled, localname, path)
 
 endfunction
 
-function s:Error(s)
+function! s:Error(s)
     echohl Error | echo a:s | echohl None
 endfunction
 
