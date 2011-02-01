@@ -127,7 +127,7 @@ func main() {
 	gcstats("BenchmarkParser", *n, t1-t0)
 
 	if *serve != "" {
-		log.Exit(http.ListenAndServe(*serve, nil))
+		log.Fatal(http.ListenAndServe(*serve, nil))
 		println(lastParsed)
 	}
 }

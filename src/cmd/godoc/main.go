@@ -227,7 +227,7 @@ func main() {
 	}
 
 	if *tabwidth < 0 {
-		log.Exitf("negative tabwidth %d", *tabwidth)
+		log.Fatalf("negative tabwidth %d", *tabwidth)
 	}
 
 	initHandlers()
@@ -284,7 +284,7 @@ func main() {
 
 		// Start http server.
 		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
-			log.Exitf("ListenAndServe %s: %v", *httpAddr, err)
+			log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
 		}
 
 		return
@@ -301,7 +301,7 @@ func main() {
 		for i := 0; i < flag.NArg(); i++ {
 			res, err := remoteSearch(flag.Arg(i))
 			if err != nil {
-				log.Exitf("remoteSearch: %s", err)
+				log.Fatalf("remoteSearch: %s", err)
 			}
 			io.Copy(os.Stdout, res.Body)
 		}
@@ -344,7 +344,7 @@ func main() {
 		info = cmdHandler.getPageInfo(abspath, relpath, "", mode)
 	}
 	if info.Err != nil {
-		log.Exitf("%v", info.Err)
+		log.Fatalf("%v", info.Err)
 	}
 
 	// If we have more than one argument, use the remaining arguments for filtering
@@ -352,7 +352,7 @@ func main() {
 		args := flag.Args()[1:]
 		rx := makeRx(args)
 		if rx == nil {
-			log.Exitf("illegal regular expression from %v", args)
+			log.Fatalf("illegal regular expression from %v", args)
 		}
 
 		filter := func(s string) bool { return rx.MatchString(s) }

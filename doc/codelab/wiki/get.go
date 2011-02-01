@@ -21,7 +21,7 @@ func main() {
 	if *addr {
 		l, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			log.Exit(err)
+			log.Fatal(err)
 		}
 		defer l.Close()
 		fmt.Print(l.Addr())
@@ -29,7 +29,7 @@ func main() {
 	}
 	url := flag.Arg(0)
 	if url == "" {
-		log.Exit("no url supplied")
+		log.Fatal("no url supplied")
 	}
 	var r *http.Response
 	var err os.Error
@@ -40,11 +40,11 @@ func main() {
 		r, _, err = http.Get(url)
 	}
 	if err != nil {
-		log.Exit(err)
+		log.Fatal(err)
 	}
 	defer r.Body.Close()
 	_, err = io.Copy(os.Stdout, r.Body)
 	if err != nil {
-		log.Exit(err)
+		log.Fatal(err)
 	}
 }

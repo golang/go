@@ -27,7 +27,7 @@ func TestLookPathNotFound(t *testing.T) {
 			t.Fatal("LookPath error is not a PathError")
 		}
 		if perr.Name != name {
-			t.Fatal("want PathError name %q, got %q", name, perr.Name)
+			t.Fatalf("want PathError name %q, got %q", name, perr.Name)
 		}
 	}
 }

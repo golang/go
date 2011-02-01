@@ -42,7 +42,7 @@ func main() {
 	case "386":
 		archChar = "8"
 	default:
-		log.Exitln("unrecognized GOARCH:", runtime.GOARCH)
+		log.Fatalln("unrecognized GOARCH:", runtime.GOARCH)
 	}
 
 	// source of unique numbers
@@ -54,7 +54,7 @@ func main() {
 
 	http.HandleFunc("/", FrontPage)
 	http.HandleFunc("/compile", Compile)
-	log.Exit(http.ListenAndServe(*httpListen, nil))
+	log.Fatal(http.ListenAndServe(*httpListen, nil))
 }
 
 // FrontPage is an HTTP handler that renders the goplay interface. 

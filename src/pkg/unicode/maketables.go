@@ -141,11 +141,11 @@ const (
 func parseCategory(line string) (state State) {
 	field := strings.Split(line, ";", -1)
 	if len(field) != NumField {
-		logger.Exitf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
+		logger.Fatalf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
 	}
 	point, err := strconv.Btoui64(field[FCodePoint], 16)
 	if err != nil {
-		logger.Exitf("%.5s...: %s", line, err)
+		logger.Fatalf("%.5s...: %s", line, err)
 	}
 	lastChar = uint32(point)
 	if point == 0 {
@@ -157,7 +157,7 @@ func parseCategory(line string) (state State) {
 	char := &chars[point]
 	char.field = field
 	if char.codePoint != 0 {
-		logger.Exitf("point %U reused", point)
+		logger.Fatalf("point %U reused", point)
 	}
 	char.codePoint = lastChar
 	char.category = field[FGeneralCategory]
@@ -167,7 +167,7 @@ func parseCategory(line string) (state State) {
 		// Decimal digit
 		_, err := strconv.Atoi(field[FNumericValue])
 		if err != nil {
-			logger.Exitf("%U: bad numeric field: %s", point, err)
+			logger.Fatalf("%U: bad numeric field: %s", point, err)
 		}
 	case "Lu":
 		char.letter(field[FCodePoint], field[FSimpleLowercaseMapping], field[FSimpleTitlecaseMapping])
@@ -208,7 +208,7 @@ func (char *Char) letterValue(s string, cas string) int {
 	v, err := strconv.Btoui64(s, 16)
 	if err != nil {
 		char.dump(cas)
-		logger.Exitf("%U: bad letter(%s): %s", char.codePoint, s, err)
+		logger.Fatalf("%U: bad letter(%s): %s", char.codePoint, s, err)
 	}
 	return int(v)
 }
@@ -242,7 +242,7 @@ func version() string {
 			return f
 		}
 	}
-	logger.Exit("unknown version")
+	logger.Fatal("unknown version")
 	return "Unknown"
 }
 
@@ -260,10 +260,10 @@ func loadChars() {
 	}
 	resp, _, err := http.Get(*dataURL)
 	if err != nil {
-		logger.Exit(err)
+		logger.Fatal(err)
 	}
 	if resp.StatusCode != 200 {
-		logger.Exit("bad GET status for UnicodeData.txt", resp.Status)
+		logger.Fatal("bad GET status for UnicodeData.txt", resp.Status)
 	}
 	input := bufio.NewReader(resp.Body)
 	var first uint32 = 0
@@ -273,21 +273,21 @@ func loadChars() {
 			if err == os.EOF {
 				break
 			}
-			logger.Exit(err)
+			logger.Fatal(err)
 		}
 		switch parseCategory(line[0 : len(line)-1]) {
 		case SNormal:
 			if first != 0 {
-				logger.Exitf("bad state normal at U+%04X", lastChar)
+				logger.Fatalf("bad state normal at U+%04X", lastChar)
 			}
 		case SFirst:
 			if first != 0 {
-				logger.Exitf("bad state first at U+%04X", lastChar)
+				logger.Fatalf("bad state first at U+%04X", lastChar)
 			}
 			first = lastChar
 		case SLast:
 			if first == 0 {
-				logger.Exitf("bad state last at U+%04X", lastChar)
+				logger.Fatalf("bad state last at U+%04X", lastChar)
 			}
 			for i := first + 1; i <= lastChar; i++ {
 				chars[i] = chars[first]
@@ -336,7 +336,7 @@ func printCategories() {
 	ndecl := 0
 	for _, name := range list {
 		if _, ok := category[name]; !ok {
-			logger.Exit("unknown category", name)
+			logger.Fatal("unknown category", name)
 		}
 		// We generate an UpperCase name to serve as concise documentation and an _UnderScored
 		// name to store the data.  This stops godoc dumping all the tables but keeps them
@@ -437,11 +437,11 @@ func dumpRange(header string, inCategory Op) {
 func fullCategoryTest(list []string) {
 	for _, name := range list {
 		if _, ok := category[name]; !ok {
-			logger.Exit("unknown category", name)
+			logger.Fatal("unknown category", name)
 		}
 		r, ok := unicode.Categories[name]
 		if !ok {
-			logger.Exit("unknown table", name)
+			logger.Fatal("unknown table", name)
 		}
 		if name == "letter" {
 			verifyRange(name, letterOp, r)
@@ -475,21 +475,21 @@ func parseScript(line string, scripts map[string][]Script) {
 	}
 	field := strings.Split(line, ";", -1)
 	if len(field) != 2 {
-		logger.Exitf("%s: %d fields (expected 2)\n", line, len(field))
+		logger.Fatalf("%s: %d fields (expected 2)\n", line, len(field))
 	}
 	matches := scriptRe.FindStringSubmatch(line)
 	if len(matches) != 4 {
-		logger.Exitf("%s: %d matches (expected 3)\n", line, len(matches))
+		logger.Fatalf("%s: %d matches (expected 3)\n", line, len(matches))
 	}
 	lo, err := strconv.Btoui64(matches[1], 16)
 	if err != nil {
-		logger.Exitf("%.5s...: %s", line, err)
+		logger.Fatalf("%.5s...: %s", line, err)
 	}
 	hi := lo
 	if len(matches[2]) > 2 { // ignore leading ..
 		hi, err = strconv.Btoui64(matches[2][2:], 16)
 		if err != nil {
-			logger.Exitf("%.5s...: %s", line, err)
+			logger.Fatalf("%.5s...: %s", line, err)
 		}
 	}
 	name := matches[3]
@@ -515,11 +515,11 @@ func foldAdjacent(r []Script) []unicode.Range {
 func fullScriptTest(list []string, installed map[string][]unicode.Range, scripts map[string][]Script) {
 	for _, name := range list {
 		if _, ok := scripts[name]; !ok {
-			logger.Exit("unknown script", name)
+			logger.Fatal("unknown script", name)
 		}
 		_, ok := installed[name]
 		if !ok {
-			logger.Exit("unknown table", name)
+			logger.Fatal("unknown table", name)
 		}
 		for _, script := range scripts[name] {
 			for r := script.lo; r <= script.hi; r++ {
@@ -551,10 +551,10 @@ func printScriptOrProperty(doProps bool) {
 	var err os.Error
 	resp, _, err := http.Get(*url + file)
 	if err != nil {
-		logger.Exit(err)
+		logger.Fatal(err)
 	}
 	if resp.StatusCode != 200 {
-		logger.Exit("bad GET status for ", file, ":", resp.Status)
+		logger.Fatal("bad GET status for ", file, ":", resp.Status)
 	}
 	input := bufio.NewReader(resp.Body)
 	for {
@@ -563,7 +563,7 @@ func printScriptOrProperty(doProps bool) {
 			if err == os.EOF {
 				break
 			}
-			logger.Exit(err)
+			logger.Fatal(err)
 		}
 		parseScript(line[0:len(line)-1], table)
 	}
@@ -808,7 +808,7 @@ func printCaseRange(lo, hi *caseState) {
 		fmt.Printf("\t{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
 			lo.point, hi.point)
 	case hi.point > lo.point && lo.isLowerUpper():
-		logger.Exitf("LowerUpper sequence: should not happen: U+%04X.  If it's real, need to fix To()", lo.point)
+		logger.Fatalf("LowerUpper sequence: should not happen: U+%04X.  If it's real, need to fix To()", lo.point)
 		fmt.Printf("\t{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
 			lo.point, hi.point)
 	default:

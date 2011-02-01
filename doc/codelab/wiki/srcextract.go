@@ -29,7 +29,7 @@ func main() {
 	fs := token.NewFileSet()
 	file, err := parser.ParseFile(fs, *srcFn, nil, 0)
 	if err != nil {
-		log.Exit(err)
+		log.Fatal(err)
 	}
 	// create printer
 	p := &printer.Config{

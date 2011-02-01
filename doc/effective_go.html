@@ -1653,7 +1653,7 @@ correctness of the program state before real execution begins.
 <pre>
 func init() {
     if USER == "" {
-        log.Exit("$USER not set")
+        log.Fatal("$USER not set")
     }
     if HOME == "" {
         HOME = "/usr/" + USER
@@ -2871,7 +2871,7 @@ func main() {
     http.Handle("/", http.HandlerFunc(QR))
     err := http.ListenAndServe(*addr, nil)
     if err != nil {
-        log.Exit("ListenAndServe:", err)
+        log.Fatal("ListenAndServe:", err)
     }
 }
 
