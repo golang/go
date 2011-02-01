@@ -105,7 +105,7 @@ while(<>) {
 
 	# Returned value when failed
 	if($failcond eq "") {
-		$failcond = "==0";
+		$failcond = "== 0";
 	}
 
 	# Decide which version of api is used: ascii or unicode.
@@ -135,8 +135,8 @@ while(<>) {
 			# Convert slice into pointer, length.
 			# Have to be careful not to take address of &a[0] if len == 0:
 			# pass nil in that case.
-			$text .= "\tvar _p$n *$1;\n";
-			$text .= "\tif len($name) > 0 { _p$n = \&${name}[0]; }\n";
+			$text .= "\tvar _p$n *$1\n";
+			$text .= "\tif len($name) > 0 {\n\t\t_p$n = \&$name\[0]\n\t}\n";
 			push @args, "uintptr(unsafe.Pointer(_p$n))", "uintptr(len($name))";
 			$n++;
 		} elsif($type eq "int64" && $_32bit ne "") {
@@ -146,14 +146,15 @@ while(<>) {
 				push @args, "uintptr($name)", "uintptr($name >> 32)";
 			}
 		} elsif($type eq "bool") {
- 			$text .= "\tvar _p$n uint32;\n";
-			$text .= "\tif $name { _p$n = 1; } else { _p$n = 0;}\n";
+ 			$text .= "\tvar _p$n uint32\n";
+			$text .= "\tif $name {\n\t\t_p$n = 1\n\t} else {\n\t\t_p$n = 0\n\t}\n";
 			push @args, "uintptr(_p$n)";
 		} else {
 			push @args, "uintptr($name)";
 		}
 		push @pin, sprintf "\"%s=\", %s, ", $name, $name;
 	}
+	my $nargs = @args;
 
 	# Determine which form to use; pad args with zeros.
 	my $asm = "Syscall";
@@ -182,7 +183,7 @@ while(<>) {
 
 	# Actual call.
 	my $args = join(', ', @args);
-	my $call = "$asm($sysvarname, $args)";
+	my $call = "$asm($sysvarname, $nargs, $args)";
 
 	# Assign return values.
 	my $body = "";
@@ -235,29 +236,29 @@ while(<>) {
 			# Set errno to "last error" only if returned value indicate failure
 			$body .= "\tif $failexpr {\n";
 			$body .= "\t\tif $reg != 0 {\n";
-			$body .= "\t\t\t$name = $type($reg);\n";
+			$body .= "\t\t\t$name = $type($reg)\n";
 			$body .= "\t\t} else {\n";
-			$body .= "\t\t\t$name = EINVAL;\n";
+			$body .= "\t\t\t$name = EINVAL\n";
 			$body .= "\t\t}\n";
 			$body .= "\t} else {\n";
-			$body .= "\t\t$name = 0;\n";
+			$body .= "\t\t$name = 0\n";
 			$body .= "\t}\n";
 		} else {
-			$body .= "\t$name = $rettype($reg);\n";
+			$body .= "\t$name = $rettype($reg)\n";
 		}
 		push @pout, sprintf "\"%s=\", %s, ", $name, $name;
 	}
 	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
-		$text .= "\t$call;\n";
+		$text .= "\t$call\n";
 	} else {
-		$text .= "\t$ret[0], $ret[1], $ret[2] := $call;\n";
+		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
 	}
 	$text .= $body;
 	if(0) {
 		$text .= sprintf 'print("SYSCALL: %s(", %s") (", %s")\n")%s', $func, join('", ", ', @pin), join('", ", ', @pout), "\n";
 	}
 
-	$text .= "\treturn;\n";
+	$text .= "\treturn\n";
 	$text .= "}\n\n";
 }
 

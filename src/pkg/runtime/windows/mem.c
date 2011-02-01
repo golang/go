@@ -15,16 +15,6 @@ enum {
 	PAGE_EXECUTE_READWRITE = 0x40,
 };
 
-static void
-abort(int8 *name)
-{
-	uintptr errno;
-
-	errno = (uintptr)runtime·stdcall(runtime·GetLastError, 0);
-	runtime·printf("%s failed with errno=%d\n", name, errno);
-	runtime·throw(name);
-}
-
 #pragma dynimport runtime·VirtualAlloc VirtualAlloc "kernel32.dll"
 #pragma dynimport runtime·VirtualFree VirtualFree "kernel32.dll"
 extern void *runtime·VirtualAlloc;
@@ -52,7 +42,7 @@ runtime·SysFree(void *v, uintptr n)
 	mstats.sys -= n;
 	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, 0, MEM_RELEASE);
 	if(r == 0)
-		abort("VirtualFree");
+		runtime·throw("runtime: failed to release pages");
 }
 
 void*

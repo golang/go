@@ -6,110 +6,62 @@ package syscall
 #include "runtime.h"
 #include "os.h"
 
-func loadlibraryex(filename uintptr) (handle uint32) {
-	StdcallParams p;
-	p.fn = (void*)runtime·LoadLibraryEx;
-	p.args[0] = filename;
-	p.args[1] = 0;
-	p.args[2] = 0;
-	p.n = 3;
-	runtime·syscall(&p);
-	handle = p.r;
+func loadlibraryex(filename uintptr) (handle uintptr) {
+	uintptr args[3] = { filename };
+	handle = runtime·syscall(runtime·LoadLibraryEx, 3, args, nil);
 }
 
-func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
-	StdcallParams p;
-	p.fn = (void*)runtime·GetProcAddress;
-	p.args[0] = handle;
-	p.args[1] = procname;
-	p.n = 2;
-	runtime·syscall(&p);
-	proc = p.r;
+func getprocaddress(handle uintptr, procname uintptr) (proc uintptr) {
+	USED(procname);
+	proc = runtime·syscall(runtime·GetProcAddress, 2, &handle, nil);
 }
 
-func compileCallback(code *byte, fn uintptr, argsize uint32) {
-	runtime·compilecallback(code, (void*)fn, argsize);
+func NewCallback(fn Eface) (code uintptr) {
+	code = (uintptr)runtime·compilecallback(fn, true);
 }
 
-func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	StdcallParams p;
-	p.fn = (void*)trap;
-	p.args[0] = a1;
-	p.args[1] = a2;
-	p.args[2] = a3;
-	p.n = 3;
-	runtime·syscall(&p);
-	r1 = p.r;
+func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	USED(a2);
+	USED(a3);
+	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
 	r2 = 0;
-	err = p.err;
 }
 
-func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	StdcallParams p;
-	p.fn = (void*)trap;
-	p.args[0] = a1;
-	p.args[1] = a2;
-	p.args[2] = a3;
-	p.args[3] = a4;
-	p.args[4] = a5;
-	p.args[5] = a6;
-	p.n = 6;
-	runtime·syscall(&p);
-	r1 = p.r;
+func Syscall6(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
 	r2 = 0;
-	err = p.err;
 }
 
-func Syscall9(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
-	StdcallParams p;
-	p.fn = (void*)trap;
-	p.args[0] = a1;
-	p.args[1] = a2;
-	p.args[2] = a3;
-	p.args[3] = a4;
-	p.args[4] = a5;
-	p.args[5] = a6;
-	p.args[6] = a7;
-	p.args[7] = a8;
-	p.args[8] = a9;
-	p.n = 9;
-	runtime·syscall(&p);
-	r1 = p.r;
+func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	USED(a7);
+	USED(a8);
+	USED(a9);
+	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
 	r2 = 0;
-	lasterr = p.err;
 }
 
-func Syscall12(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
-	StdcallParams p;
-	p.fn = (void*)trap;
-	p.args[0] = a1;
-	p.args[1] = a2;
-	p.args[2] = a3;
-	p.args[3] = a4;
-	p.args[4] = a5;
-	p.args[5] = a6;
-	p.args[6] = a7;
-	p.args[7] = a8;
-	p.args[8] = a9;
-	p.args[9] = a10;
-	p.args[10] = a11;
-	p.args[11] = a12;
-	p.n = 12;
-	runtime·syscall(&p);
-	r1 = p.r;
+func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	USED(a7);
+	USED(a8);
+	USED(a9);
+	USED(a10);
+	USED(a11);
+	USED(a12);
+	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
 	r2 = 0;
-	lasterr = p.err;
-}
-
-func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	StdcallParams p;
-	p.fn = (void*)trap;
-	p.args[0] = a1;
-	p.args[1] = a2;
-	p.args[2] = a3;
-	p.n = 3;
-	runtime·syscall(&p);
-	r1 = p.r;
-	r2 = 0;
-	err = p.err;
 }

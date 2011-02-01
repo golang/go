@@ -235,7 +235,7 @@ struct	M
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags
 #ifdef __WINDOWS__
-	void*	gostack;	// bookmark to keep track of go stack during stdcall
+	void*	sehframe;
 #endif
 };
 struct	Stktop
@@ -443,7 +443,7 @@ void	runtime·breakpoint(void);
 void	runtime·gosched(void);
 void	runtime·goexit(void);
 void	runtime·runcgo(void (*fn)(void*), void*);
-void	runtime·runcgocallback(G*, void*, void (*fn)());
+uintptr	runtime·runcgocallback(G*, void*, void (*fn)());
 void	runtime·entersyscall(void);
 void	runtime·exitsyscall(void);
 void	runtime·startcgocallback(G*);

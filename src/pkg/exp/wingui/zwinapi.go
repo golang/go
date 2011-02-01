@@ -29,7 +29,7 @@ var (
 )
 
 func GetModuleHandle(modname *uint16) (handle uint32, errno int) {
-	r0, _, e1 := syscall.Syscall(procGetModuleHandleW, uintptr(unsafe.Pointer(modname)), 0, 0)
+	r0, _, e1 := syscall.Syscall(procGetModuleHandleW, 1, uintptr(unsafe.Pointer(modname)), 0, 0)
 	handle = uint32(r0)
 	if handle == 0 {
 		if e1 != 0 {
@@ -44,7 +44,7 @@ func GetModuleHandle(modname *uint16) (handle uint32, errno int) {
 }
 
 func RegisterClassEx(wndclass *Wndclassex) (atom uint16, errno int) {
-	r0, _, e1 := syscall.Syscall(procRegisterClassExW, uintptr(unsafe.Pointer(wndclass)), 0, 0)
+	r0, _, e1 := syscall.Syscall(procRegisterClassExW, 1, uintptr(unsafe.Pointer(wndclass)), 0, 0)
 	atom = uint16(r0)
 	if atom == 0 {
 		if e1 != 0 {
@@ -59,7 +59,7 @@ func RegisterClassEx(wndclass *Wndclassex) (atom uint16, errno int) {
 }
 
 func CreateWindowEx(exstyle uint32, classname *uint16, windowname *uint16, style uint32, x int32, y int32, width int32, height int32, wndparent uint32, menu uint32, instance uint32, param uintptr) (hwnd uint32, errno int) {
-	r0, _, e1 := syscall.Syscall12(procCreateWindowExW, uintptr(exstyle), uintptr(unsafe.Pointer(classname)), uintptr(unsafe.Pointer(windowname)), uintptr(style), uintptr(x), uintptr(y), uintptr(width), uintptr(height), uintptr(wndparent), uintptr(menu), uintptr(instance), uintptr(param))
+	r0, _, e1 := syscall.Syscall12(procCreateWindowExW, 12, uintptr(exstyle), uintptr(unsafe.Pointer(classname)), uintptr(unsafe.Pointer(windowname)), uintptr(style), uintptr(x), uintptr(y), uintptr(width), uintptr(height), uintptr(wndparent), uintptr(menu), uintptr(instance), uintptr(param))
 	hwnd = uint32(r0)
 	if hwnd == 0 {
 		if e1 != 0 {
@@ -74,13 +74,13 @@ func CreateWindowEx(exstyle uint32, classname *uint16, windowname *uint16, style
 }
 
 func DefWindowProc(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult int32) {
-	r0, _, _ := syscall.Syscall6(procDefWindowProcW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
+	r0, _, _ := syscall.Syscall6(procDefWindowProcW, 4, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
 	lresult = int32(r0)
 	return
 }
 
 func DestroyWindow(hwnd uint32) (ok bool, errno int) {
-	r0, _, e1 := syscall.Syscall(procDestroyWindow, uintptr(hwnd), 0, 0)
+	r0, _, e1 := syscall.Syscall(procDestroyWindow, 1, uintptr(hwnd), 0, 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {
@@ -95,18 +95,18 @@ func DestroyWindow(hwnd uint32) (ok bool, errno int) {
 }
 
 func PostQuitMessage(exitcode int32) {
-	syscall.Syscall(procPostQuitMessage, uintptr(exitcode), 0, 0)
+	syscall.Syscall(procPostQuitMessage, 1, uintptr(exitcode), 0, 0)
 	return
 }
 
 func ShowWindow(hwnd uint32, cmdshow int32) (ok bool) {
-	r0, _, _ := syscall.Syscall(procShowWindow, uintptr(hwnd), uintptr(cmdshow), 0)
+	r0, _, _ := syscall.Syscall(procShowWindow, 2, uintptr(hwnd), uintptr(cmdshow), 0)
 	ok = bool(r0 != 0)
 	return
 }
 
 func UpdateWindow(hwnd uint32) (ok bool, errno int) {
-	r0, _, e1 := syscall.Syscall(procUpdateWindow, uintptr(hwnd), 0, 0)
+	r0, _, e1 := syscall.Syscall(procUpdateWindow, 1, uintptr(hwnd), 0, 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {
@@ -121,7 +121,7 @@ func UpdateWindow(hwnd uint32) (ok bool, errno int) {
 }
 
 func GetMessage(msg *Msg, hwnd uint32, MsgFilterMin uint32, MsgFilterMax uint32) (ret int32, errno int) {
-	r0, _, e1 := syscall.Syscall6(procGetMessageW, uintptr(unsafe.Pointer(msg)), uintptr(hwnd), uintptr(MsgFilterMin), uintptr(MsgFilterMax), 0, 0)
+	r0, _, e1 := syscall.Syscall6(procGetMessageW, 4, uintptr(unsafe.Pointer(msg)), uintptr(hwnd), uintptr(MsgFilterMin), uintptr(MsgFilterMax), 0, 0)
 	ret = int32(r0)
 	if ret == -1 {
 		if e1 != 0 {
@@ -136,19 +136,19 @@ func GetMessage(msg *Msg, hwnd uint32, MsgFilterMin uint32, MsgFilterMax uint32)
 }
 
 func TranslateMessage(msg *Msg) (ok bool) {
-	r0, _, _ := syscall.Syscall(procTranslateMessage, uintptr(unsafe.Pointer(msg)), 0, 0)
+	r0, _, _ := syscall.Syscall(procTranslateMessage, 1, uintptr(unsafe.Pointer(msg)), 0, 0)
 	ok = bool(r0 != 0)
 	return
 }
 
 func DispatchMessage(msg *Msg) (ret int32) {
-	r0, _, _ := syscall.Syscall(procDispatchMessageW, uintptr(unsafe.Pointer(msg)), 0, 0)
+	r0, _, _ := syscall.Syscall(procDispatchMessageW, 1, uintptr(unsafe.Pointer(msg)), 0, 0)
 	ret = int32(r0)
 	return
 }
 
 func LoadIcon(instance uint32, iconname *uint16) (icon uint32, errno int) {
-	r0, _, e1 := syscall.Syscall(procLoadIconW, uintptr(instance), uintptr(unsafe.Pointer(iconname)), 0)
+	r0, _, e1 := syscall.Syscall(procLoadIconW, 2, uintptr(instance), uintptr(unsafe.Pointer(iconname)), 0)
 	icon = uint32(r0)
 	if icon == 0 {
 		if e1 != 0 {
@@ -163,7 +163,7 @@ func LoadIcon(instance uint32, iconname *uint16) (icon uint32, errno int) {
 }
 
 func LoadCursor(instance uint32, cursorname *uint16) (cursor uint32, errno int) {
-	r0, _, e1 := syscall.Syscall(procLoadCursorW, uintptr(instance), uintptr(unsafe.Pointer(cursorname)), 0)
+	r0, _, e1 := syscall.Syscall(procLoadCursorW, 2, uintptr(instance), uintptr(unsafe.Pointer(cursorname)), 0)
 	cursor = uint32(r0)
 	if cursor == 0 {
 		if e1 != 0 {
@@ -178,7 +178,7 @@ func LoadCursor(instance uint32, cursorname *uint16) (cursor uint32, errno int) 
 }
 
 func SetCursor(cursor uint32) (precursor uint32, errno int) {
-	r0, _, e1 := syscall.Syscall(procSetCursor, uintptr(cursor), 0, 0)
+	r0, _, e1 := syscall.Syscall(procSetCursor, 1, uintptr(cursor), 0, 0)
 	precursor = uint32(r0)
 	if precursor == 0 {
 		if e1 != 0 {
@@ -193,13 +193,13 @@ func SetCursor(cursor uint32) (precursor uint32, errno int) {
 }
 
 func SendMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult int32) {
-	r0, _, _ := syscall.Syscall6(procSendMessageW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
+	r0, _, _ := syscall.Syscall6(procSendMessageW, 4, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
 	lresult = int32(r0)
 	return
 }
 
 func PostMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (ok bool, errno int) {
-	r0, _, e1 := syscall.Syscall6(procPostMessageW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
+	r0, _, e1 := syscall.Syscall6(procPostMessageW, 4, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {

@@ -57,6 +57,7 @@ runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
 		gp->sig = info->ExceptionCode;
 		gp->sigcode0 = info->ExceptionInformation[0];
 		gp->sigcode1 = info->ExceptionInformation[1];
+		gp->sigpc = r->Eip;
 
 		// Only push runtime·sigpanic if r->eip != 0.
 		// If r->eip == 0, probably panicked because of a
