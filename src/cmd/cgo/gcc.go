@@ -21,6 +21,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
@@ -57,6 +58,107 @@ func cname(s string) string {
 		return "enum " + s[len("enum_"):]
 	}
 	return s
+}
+
+// ParseFlags extracts #cgo CFLAGS and LDFLAGS options from the file
+// preamble. Multiple occurrences are concatenated with a separating space,
+// even across files.
+func (p *Package) ParseFlags(f *File, srcfile string) {
+	linesIn := strings.Split(f.Preamble, "\n", -1)
+	linesOut := make([]string, 0, len(linesIn))
+	for _, line := range linesIn {
+		l := strings.TrimSpace(line)
+		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(int(l[4])) {
+			linesOut = append(linesOut, line)
+			continue
+		}
+
+		l = strings.TrimSpace(l[4:])
+		fields := strings.Split(l, ":", 2)
+		if len(fields) != 2 {
+			fatal("%s: bad #cgo line: %s", srcfile, line)
+		}
+
+		k := fields[0]
+		v := strings.TrimSpace(fields[1])
+		if k != "CFLAGS" && k != "LDFLAGS" {
+			fatal("%s: unsupported #cgo option %s", srcfile, k)
+		}
+		args, err := splitQuoted(v)
+		if err != nil {
+			fatal("%s: bad #cgo option %s: %s", srcfile, k, err.String())
+		}
+		if oldv, ok := p.CgoFlags[k]; ok {
+			p.CgoFlags[k] = oldv + " " + v
+		} else {
+			p.CgoFlags[k] = v
+		}
+		if k == "CFLAGS" {
+			p.GccOptions = append(p.GccOptions, args...)
+		}
+	}
+	f.Preamble = strings.Join(linesOut, "\n")
+}
+
+// splitQuoted splits the string s around each instance of one or more consecutive
+// white space characters while taking into account quotes and escaping, and
+// returns an array of substrings of s or an empty list if s contains only white space.
+// Single quotes and double quotes are recognized to prevent splitting within the
+// quoted region, and are removed from the resulting substrings. If a quote in s
+// isn't closed err will be set and r will have the unclosed argument as the
+// last element.  The backslash is used for escaping.
+//
+// For example, the following string:
+//
+//     `a b:"c d" 'e''f'  "g\""`
+//
+// Would be parsed as:
+//
+//     []string{"a", "b:c d", "ef", `g"`}
+//
+func splitQuoted(s string) (r []string, err os.Error) {
+	var args []string
+	arg := make([]int, len(s))
+	escaped := false
+	quoted := false
+	quote := 0
+	i := 0
+	for _, rune := range s {
+		switch {
+		case escaped:
+			escaped = false
+		case rune == '\\':
+			escaped = true
+			continue
+		case quote != 0:
+			if rune == quote {
+				quote = 0
+				continue
+			}
+		case rune == '"' || rune == '\'':
+			quoted = true
+			quote = rune
+			continue
+		case unicode.IsSpace(rune):
+			if quoted || i > 0 {
+				quoted = false
+				args = append(args, string(arg[:i]))
+				i = 0
+			}
+			continue
+		}
+		arg[i] = rune
+		i++
+	}
+	if quoted || i > 0 {
+		args = append(args, string(arg[:i]))
+	}
+	if quote != 0 {
+		err = os.ErrorString("unclosed quote")
+	} else if escaped {
+		err = os.ErrorString("unfinished escaping")
+	}
+	return args, err
 }
 
 // Translate rewrites f.AST, the original Go input, to remove
