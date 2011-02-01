@@ -118,6 +118,12 @@ var ftoatests = []ftoaTest{
 	{0.5, 'f', 1, "0.5"},
 	{0.5, 'f', 0, "0"},
 	{1.5, 'f', 0, "2"},
+
+	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+	{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
+	// TODO: uncomment after fixing issue 1463.
+	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+	// {2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
 }
 
 func TestFtoa(t *testing.T) {
