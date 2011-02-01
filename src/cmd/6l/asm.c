@@ -213,7 +213,8 @@ adddynrel(Sym *s, Reloc *r)
 				r->add += 4;
 				return;
 			}
-			// unknown instruction (CMOV* maybe), use GOT
+			// fall back to using GOT and hope for the best (CMOV*)
+			// TODO: just needs relocation, no need to put in .dynsym
 			targ->dynimpname = targ->name;
 		}
 		addgotsym(targ);
