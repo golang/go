@@ -50,7 +50,7 @@ func read() {
 			break
 		}
 		if err != nil {
-			log.Exit(err)
+			log.Fatal(err)
 		}
 		n := len(lines)
 		lines = lines[0 : n+1]

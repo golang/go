@@ -169,7 +169,7 @@ func (client *expClient) run() {
 				nch.acked()
 			}
 		default:
-			log.Exit("netchan export: unknown payload type", hdr.PayloadType)
+			log.Fatal("netchan export: unknown payload type", hdr.PayloadType)
 		}
 	}
 	client.exp.delClient(client)

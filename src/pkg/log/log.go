@@ -4,11 +4,11 @@
 
 // Simple logging package. It defines a type, Logger, with methods
 // for formatting output. It also has a predefined 'standard' Logger
-// accessible through helper functions Print[f|ln], Exit[f|ln], and
+// accessible through helper functions Print[f|ln], Fatal[f|ln], and
 // Panic[f|ln], which are easier to use than creating a Logger manually.
 // That logger writes to standard error and prints the date and time
 // of each logged message.
-// The Exit functions call os.Exit(1) after writing the log message.
+// The Fatal functions call os.Exit(1) after writing the log message.
 // The Panic functions call panic after writing the log message.
 package log
 
@@ -164,20 +164,20 @@ func (l *Logger) Print(v ...interface{}) { l.Output(2, fmt.Sprint(v...)) }
 // Arguments are handled in the manner of fmt.Println.
 func (l *Logger) Println(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
 
-// Exit is equivalent to l.Print() followed by a call to os.Exit(1).
-func (l *Logger) Exit(v ...interface{}) {
+// Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
+func (l *Logger) Fatal(v ...interface{}) {
 	l.Output(2, fmt.Sprint(v...))
 	os.Exit(1)
 }
 
-// Exitf is equivalent to l.Printf() followed by a call to os.Exit(1).
-func (l *Logger) Exitf(format string, v ...interface{}) {
+// Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
+func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.Output(2, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
-// Exitln is equivalent to l.Println() followed by a call to os.Exit(1).
-func (l *Logger) Exitln(v ...interface{}) {
+// Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
+func (l *Logger) Fatalln(v ...interface{}) {
 	l.Output(2, fmt.Sprintln(v...))
 	os.Exit(1)
 }
@@ -238,20 +238,20 @@ func Println(v ...interface{}) {
 	std.Output(2, fmt.Sprintln(v...))
 }
 
-// Exit is equivalent to Print() followed by a call to os.Exit(1).
-func Exit(v ...interface{}) {
+// Fatal is equivalent to Print() followed by a call to os.Exit(1).
+func Fatal(v ...interface{}) {
 	std.Output(2, fmt.Sprint(v...))
 	os.Exit(1)
 }
 
-// Exitf is equivalent to Printf() followed by a call to os.Exit(1).
-func Exitf(format string, v ...interface{}) {
+// Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
+func Fatalf(format string, v ...interface{}) {
 	std.Output(2, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
-// Exitln is equivalent to Println() followed by a call to os.Exit(1).
-func Exitln(v ...interface{}) {
+// Fatalln is equivalent to Println() followed by a call to os.Exit(1).
+func Fatalln(v ...interface{}) {
 	std.Output(2, fmt.Sprintln(v...))
 	os.Exit(1)
 }

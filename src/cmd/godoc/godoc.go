@@ -625,11 +625,11 @@ func readTemplate(name string) *template.Template {
 	path := pathutil.Join(*goroot, "lib/godoc/"+name)
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Exitf("ReadFile %s: %v", path, err)
+		log.Fatalf("ReadFile %s: %v", path, err)
 	}
 	t, err := template.Parse(string(data), fmap)
 	if err != nil {
-		log.Exitf("%s: %v", name, err)
+		log.Fatalf("%s: %v", name, err)
 	}
 	return t
 }
@@ -874,7 +874,7 @@ type PageInfoMode uint
 
 const (
 	exportsOnly PageInfoMode = 1 << iota // only keep exported stuff
-	genDoc      // generate documentation
+	genDoc                               // generate documentation
 )
 
 

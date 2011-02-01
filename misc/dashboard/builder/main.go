@@ -66,24 +66,24 @@ func main() {
 	for i, builder := range flag.Args() {
 		b, err := NewBuilder(builder)
 		if err != nil {
-			log.Exit(err)
+			log.Fatal(err)
 		}
 		builders[i] = b
 	}
 	if err := os.RemoveAll(*buildroot); err != nil {
-		log.Exitf("Error removing build root (%s): %s", *buildroot, err)
+		log.Fatalf("Error removing build root (%s): %s", *buildroot, err)
 	}
 	if err := os.Mkdir(*buildroot, mkdirPerm); err != nil {
-		log.Exitf("Error making build root (%s): %s", *buildroot, err)
+		log.Fatalf("Error making build root (%s): %s", *buildroot, err)
 	}
 	if err := run(nil, *buildroot, "hg", "clone", hgUrl, goroot); err != nil {
-		log.Exit("Error cloning repository:", err)
+		log.Fatal("Error cloning repository:", err)
 	}
 	// if specified, build revision and return
 	if *buildRevision != "" {
 		c, err := getCommit(*buildRevision)
 		if err != nil {
-			log.Exit("Error finding revision: ", err)
+			log.Fatal("Error finding revision: ", err)
 		}
 		for _, b := range builders {
 			if err := b.buildCommit(c); err != nil {

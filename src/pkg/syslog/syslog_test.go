@@ -28,7 +28,7 @@ func runSyslog(c net.PacketConn, done chan<- string) {
 func startServer(done chan<- string) {
 	c, e := net.ListenPacket("udp", "127.0.0.1:0")
 	if e != nil {
-		log.Exitf("net.ListenPacket failed udp :0 %v", e)
+		log.Fatalf("net.ListenPacket failed udp :0 %v", e)
 	}
 	serverAddr = c.LocalAddr().String()
 	c.SetReadTimeout(100e6) // 100ms

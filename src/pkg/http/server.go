@@ -711,7 +711,7 @@ func Serve(l net.Listener, handler Handler) os.Error {
 //		http.HandleFunc("/hello", HelloServer)
 //		err := http.ListenAndServe(":12345", nil)
 //		if err != nil {
-//			log.Exit("ListenAndServe: ", err.String())
+//			log.Fatal("ListenAndServe: ", err.String())
 //		}
 //	}
 func ListenAndServe(addr string, handler Handler) os.Error {
@@ -745,7 +745,7 @@ func ListenAndServe(addr string, handler Handler) os.Error {
 //		log.Printf("About to listen on 10443. Go to https://127.0.0.1:10443/")
 //		err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
 //		if err != nil {
-//			log.Exit(err)
+//			log.Fatal(err)
 //		}
 //	}
 //

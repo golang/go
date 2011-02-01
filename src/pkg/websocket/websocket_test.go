@@ -24,7 +24,7 @@ func echoServer(ws *Conn) { io.Copy(ws, ws) }
 func startServer() {
 	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
 	if e != nil {
-		log.Exitf("net.Listen tcp :0 %v", e)
+		log.Fatalf("net.Listen tcp :0 %v", e)
 	}
 	serverAddr = l.Addr().String()
 	log.Print("Test WebSocket server listening on ", serverAddr)

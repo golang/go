@@ -73,7 +73,7 @@
 		rpc.HandleHTTP()
 		l, e := net.Listen("tcp", ":1234")
 		if e != nil {
-			log.Exit("listen error:", e)
+			log.Fatal("listen error:", e)
 		}
 		go http.Serve(l, nil)
 
@@ -82,7 +82,7 @@
 
 		client, err := rpc.DialHTTP("tcp", serverAddress + ":1234")
 		if err != nil {
-			log.Exit("dialing:", err)
+			log.Fatal("dialing:", err)
 		}
 
 	Then it can make a remote call:
@@ -92,7 +92,7 @@
 		var reply int
 		err = client.Call("Arith.Multiply", args, &reply)
 		if err != nil {
-			log.Exit("arith error:", err)
+			log.Fatal("arith error:", err)
 		}
 		fmt.Printf("Arith: %d*%d=%d", args.A, args.B, *reply)
 
@@ -225,7 +225,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 		sname = name
 	}
 	if sname == "" {
-		log.Exit("rpc: no service name for type", s.typ.String())
+		log.Fatal("rpc: no service name for type", s.typ.String())
 	}
 	if s.typ.PkgPath() != "" && !isExported(sname) && !useName {
 		s := "rpc Register: type " + sname + " is not exported"
@@ -445,7 +445,7 @@ func (server *Server) Accept(lis net.Listener) {
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
-			log.Exit("rpc.Serve: accept:", err.String()) // TODO(r): exit?
+			log.Fatal("rpc.Serve: accept:", err.String()) // TODO(r): exit?
 		}
 		go server.ServeConn(conn)
 	}
