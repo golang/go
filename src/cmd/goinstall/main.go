@@ -244,8 +244,7 @@ func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
 func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
 	bin, err := exec.LookPath(cmd[0])
 	if err != nil {
-		// report binary as well as the error
-		return os.NewError(cmd[0] + ": " + err.String())
+		return err
 	}
 	p, err := exec.Run(bin, cmd, os.Environ(), dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
 	if *verbose {
