@@ -210,6 +210,7 @@ var printfList = map[string]int{
 	"Errorf":  0,
 	"Fatalf":  0,
 	"Fprintf": 1,
+	"Panicf":  0,
 	"Printf":  0,
 	"Sprintf": 0,
 }
@@ -220,6 +221,7 @@ var printList = map[string]int{
 	"Error":  0,
 	"Fatal":  0,
 	"Fprint": 1, "Fprintln": 1,
+	"Panic": 0, "Panicln": 0,
 	"Print": 0, "Println": 0,
 	"Sprint": 0, "Sprintln": 0,
 }
