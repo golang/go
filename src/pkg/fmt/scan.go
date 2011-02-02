@@ -7,6 +7,7 @@ package fmt
 import (
 	"bytes"
 	"io"
+	"math"
 	"os"
 	"reflect"
 	"strconv"
@@ -459,7 +460,7 @@ const (
 	hexadecimalDigits = "0123456789aAbBcCdDeEfF"
 	sign              = "+-"
 	period            = "."
-	exponent          = "eE"
+	exponent          = "eEp"
 )
 
 // getBase returns the numeric base represented by the verb and its digit string.
@@ -617,6 +618,27 @@ func (s *ss) complexTokens() (real, imag string) {
 
 // convertFloat converts the string to a float64value.
 func (s *ss) convertFloat(str string, n int) float64 {
+	if p := strings.Index(str, "p"); p >= 0 {
+		// Atof doesn't handle power-of-2 exponents,
+		// but they're easy to evaluate.
+		f, err := strconv.AtofN(str[:p], n)
+		if err != nil {
+			// Put full string into error.
+			if e, ok := err.(*strconv.NumError); ok {
+				e.Num = str
+			}
+			s.error(err)
+		}
+		n, err := strconv.Atoi(str[p+1:])
+		if err != nil {
+			// Put full string into error.
+			if e, ok := err.(*strconv.NumError); ok {
+				e.Num = str
+			}
+			s.error(err)
+		}
+		return math.Ldexp(f, n)
+	}
 	f, err := strconv.AtofN(str, n)
 	if err != nil {
 		s.error(err)
@@ -747,7 +769,7 @@ func (s *ss) hexString() string {
 	return s.buf.String()
 }
 
-const floatVerbs = "eEfFgGv"
+const floatVerbs = "beEfFgGv"
 
 // scanOne scans a single value, deriving the scanner from the type of the argument.
 func (s *ss) scanOne(verb int, field interface{}) {
