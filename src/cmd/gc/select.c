@@ -157,7 +157,7 @@ walkselect(Node *sel)
 			if(n->left == N || isblank(n->left))
 				n->left = nodnil();
 			else if(n->left->op == ONAME &&
-					(!n->colas || (n->class&PHEAP) == 0) &&
+					(!n->colas || (n->left->class&PHEAP) == 0) &&
 					convertop(ch->type->type, n->left->type, nil) == OCONVNOP) {
 				n->left = nod(OADDR, n->left, N);
 				n->left->etype = 1;  // pointer does not escape
@@ -170,9 +170,9 @@ walkselect(Node *sel)
 				typecheck(&a, Erv);
 				r = nod(OAS, n->left, tmp);
 				typecheck(&r, Etop);
+				cas->nbody = concat(list1(r), cas->nbody);
 				cas->nbody = concat(n->ninit, cas->nbody);
 				n->ninit = nil;
-				cas->nbody = concat(list1(r), cas->nbody);
 				n->left = a;
 			}
 		}
