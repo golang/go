@@ -528,14 +528,22 @@ void
 runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
 {
 	Func *f;
+	uintptr pc;
 
-	if(runtime·callers(1+skip, &retpc, 1) == 0 || (f = runtime·findfunc(retpc-1)) == nil) {
+	if(runtime·callers(1+skip, &retpc, 1) == 0) {
 		retfile = runtime·emptystring;
 		retline = 0;
 		retbool = false;
+	} else if((f = runtime·findfunc(retpc)) == nil) {
+		retfile = runtime·emptystring;
+		retline = 0;
+		retbool = true;  // have retpc at least
 	} else {
 		retfile = f->src;
-		retline = runtime·funcline(f, retpc-1);
+		pc = retpc;
+		if(pc > f->entry)
+			pc--;
+		retline = runtime·funcline(f, pc);
 		retbool = true;
 	}
 	FLUSH(&retfile);
