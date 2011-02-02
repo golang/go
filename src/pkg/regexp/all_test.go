@@ -316,9 +316,9 @@ func TestNumSubexp(t *testing.T) {
 }
 
 func BenchmarkLiteral(b *testing.B) {
-	x := strings.Repeat("x", 50)
+	x := strings.Repeat("x", 50) + "y"
 	b.StopTimer()
-	re := MustCompile(x)
+	re := MustCompile("y")
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
@@ -329,9 +329,9 @@ func BenchmarkLiteral(b *testing.B) {
 }
 
 func BenchmarkNotLiteral(b *testing.B) {
-	x := strings.Repeat("x", 49)
+	x := strings.Repeat("x", 50) + "y"
 	b.StopTimer()
-	re := MustCompile("^" + x)
+	re := MustCompile(".y")
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
