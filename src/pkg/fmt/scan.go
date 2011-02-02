@@ -16,18 +16,11 @@ import (
 	"utf8"
 )
 
-// readRuner is the interface to something that can read runes.  If
-// the object provided to Scan does not satisfy this interface, the
-// object will be wrapped by a readRune object.
-type readRuner interface {
-	ReadRune() (rune int, size int, err os.Error)
-}
-
-// unreadRuner is the interface to something that can unread runes.
+// runeUnreader is the interface to something that can unread runes.
 // If the object provided to Scan does not satisfy this interface,
 // a local buffer will be used to back up the input, but its contents
 // will be lost when Scan returns.
-type unreadRuner interface {
+type runeUnreader interface {
 	UnreadRune() os.Error
 }
 
@@ -138,15 +131,15 @@ const EOF = -1
 
 // ss is the internal implementation of ScanState.
 type ss struct {
-	rr         readRuner    // where to read input
-	buf        bytes.Buffer // token accumulator
-	nlIsSpace  bool         // whether newline counts as white space
-	peekRune   int          // one-rune lookahead
-	prevRune   int          // last rune returned by GetRune
-	atEOF      bool         // already read EOF
-	maxWid     int          // max width of field, in runes
-	widPresent bool         // width was specified
-	wid        int          // width consumed so far; used in accept()
+	rr         io.RuneReader // where to read input
+	buf        bytes.Buffer  // token accumulator
+	nlIsSpace  bool          // whether newline counts as white space
+	peekRune   int           // one-rune lookahead
+	prevRune   int           // last rune returned by GetRune
+	atEOF      bool          // already read EOF
+	maxWid     int           // max width of field, in runes
+	widPresent bool          // width was specified
+	wid        int           // width consumed so far; used in accept()
 }
 
 func (s *ss) GetRune() (rune int, err os.Error) {
@@ -216,7 +209,7 @@ func (s *ss) mustGetRune() (rune int) {
 
 
 func (s *ss) UngetRune() {
-	if u, ok := s.rr.(unreadRuner); ok {
+	if u, ok := s.rr.(runeUnreader); ok {
 		u.UnreadRune()
 	} else {
 		s.peekRune = s.prevRune
@@ -247,7 +240,7 @@ func (s *ss) Token() (tok string, err os.Error) {
 
 // readRune is a structure to enable reading UTF-8 encoded code points
 // from an io.Reader.  It is used if the Reader given to the scanner does
-// not already implement ReadRuner.
+// not already implement io.RuneReader.
 type readRune struct {
 	reader  io.Reader
 	buf     [utf8.UTFMax]byte // used only inside ReadRune
@@ -309,7 +302,7 @@ var ssFree = newCache(func() interface{} { return new(ss) })
 // Allocate a new ss struct or grab a cached one.
 func newScanState(r io.Reader, nlIsSpace bool) *ss {
 	s := ssFree.get().(*ss)
-	if rr, ok := r.(readRuner); ok {
+	if rr, ok := r.(io.RuneReader); ok {
 		s.rr = rr
 	} else {
 		s.rr = &readRune{reader: r}
