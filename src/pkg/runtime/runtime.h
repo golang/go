@@ -419,7 +419,7 @@ void	runtime·signalstack(byte*, int32);
 G*	runtime·malg(int32);
 void	runtime·minit(void);
 Func*	runtime·findfunc(uintptr);
-int32	runtime·funcline(Func*, uint64);
+int32	runtime·funcline(Func*, uintptr);
 void*	runtime·stackalloc(uint32);
 void	runtime·stackfree(void*, uintptr);
 MCache*	runtime·allocmcache(void);

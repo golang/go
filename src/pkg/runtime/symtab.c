@@ -258,28 +258,49 @@ splitpcln(void)
 	ef = func + nfunc;
 	pc = func[0].entry;	// text base
 	f->pcln.array = p;
-	f->pc0 = pc - pcquant;
+	f->pc0 = pc;
 	line = 0;
-	for(; p < ep; p++) {
-		if(f < ef && pc > (f+1)->entry) {
+	for(;;) {
+		while(p < ep && *p > 128)
+			pc += pcquant * (*p++ - 128);
+		// runtime·printf("pc<%p targetpc=%p line=%d\n", pc, targetpc, line);
+		if(*p == 0) {
+			if(p+5 > ep)
+				break;
+			// 4 byte add to line
+			line += (p[1]<<24) | (p[2]<<16) | (p[3]<<8) | p[4];
+			p += 5;
+		} else if(*p <= 64)
+			line += *p++;
+		else
+			line -= *p++ - 64;
+		
+		// pc, line now match.
+		// Because the state machine begins at pc==entry and line==0,
+		// it can happen - just at the beginning! - that the update may
+		// have updated line but left pc alone, to tell us the true line
+		// number for pc==entry.  In that case, update f->ln0.
+		// Having the correct initial line number is important for choosing
+		// the correct file in dosrcline above.
+		if(f == func && pc == f->pc0) {
+			f->pcln.array = p;
+			f->pc0 = pc + pcquant;
+			f->ln0 = line;
+		}
+
+		if(f < ef && pc >= (f+1)->entry) {
 			f->pcln.len = p - f->pcln.array;
 			f->pcln.cap = f->pcln.len;
 			f++;
 			f->pcln.array = p;
-			f->pc0 = pc;
+			// pc0 and ln0 are the starting values for
+			// the loop over f->pcln, so pc must be 
+			// adjusted by the same pcquant update
+			// that we're going to do as we continue our loop.
+			f->pc0 = pc + pcquant;
 			f->ln0 = line;
 		}
-		if(*p == 0) {
-			// 4 byte add to line
-			line += (p[1]<<24) | (p[2]<<16) | (p[3]<<8) | p[4];
-			p += 4;
-		} else if(*p <= 64) {
-			line += *p;
-		} else if(*p <= 128) {
-			line -= *p - 64;
-		} else {
-			pc += pcquant*(*p - 129);
-		}
+
 		pc += pcquant;
 	}
 	if(f < ef) {
@@ -293,12 +314,16 @@ splitpcln(void)
 // (Source file is f->src.)
 // NOTE(rsc): If you edit this function, also edit extern.go:/FileLine
 int32
-runtime·funcline(Func *f, uint64 targetpc)
+runtime·funcline(Func *f, uintptr targetpc)
 {
 	byte *p, *ep;
 	uintptr pc;
 	int32 line;
 	int32 pcquant;
+	
+	enum {
+		debug = 0
+	};
 	
 	switch(thechar) {
 	case '5':
@@ -313,17 +338,41 @@ runtime·funcline(Func *f, uint64 targetpc)
 	ep = p + f->pcln.len;
 	pc = f->pc0;
 	line = f->ln0;
-	for(; p < ep && pc <= targetpc; p++) {
+	if(debug && !runtime·panicking)
+		runtime·printf("funcline start pc=%p targetpc=%p line=%d tab=%p+%d\n",
+			pc, targetpc, line, p, (int32)f->pcln.len);
+	for(;;) {
+		// Table is a sequence of updates.
+
+		// Each update says first how to adjust the pc,
+		// in possibly multiple instructions...
+		while(p < ep && *p > 128)
+			pc += pcquant * (*p++ - 128);
+
+		if(debug && !runtime·panicking)
+			runtime·printf("pc<%p targetpc=%p line=%d\n", pc, targetpc, line);
+		
+		// If the pc has advanced too far or we're out of data,
+		// stop and the last known line number.
+		if(pc > targetpc || p >= ep)
+			break;
+
+		// ... and then how to adjust the line number,
+		// in a single instruction.
 		if(*p == 0) {
+			if(p+5 > ep)
+				break;
 			line += (p[1]<<24) | (p[2]<<16) | (p[3]<<8) | p[4];
-			p += 4;
-		} else if(*p <= 64) {
-			line += *p;
-		} else if(*p <= 128) {
-			line -= *p - 64;
-		} else {
-			pc += pcquant*(*p - 129);
-		}
+			p += 5;
+		} else if(*p <= 64)
+			line += *p++;
+		else
+			line -= *p++ - 64;
+		// Now pc, line pair is consistent.
+		if(debug && !runtime·panicking)
+			runtime·printf("pc=%p targetpc=%p line=%d\n", pc, targetpc, line);
+
+		// PC increments implicitly on each iteration.
 		pc += pcquant;
 	}
 	return line;

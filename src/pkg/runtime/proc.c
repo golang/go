@@ -752,8 +752,8 @@ runtime·newstack(void)
 		free = framesize;
 	}
 
-//printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n",
-//frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
+//runtime·printf("newstack framesize=%d argsize=%d morepc=%p moreargp=%p gobuf=%p, %p top=%p old=%p\n",
+//framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, g1->stackbase);
 
 	top->stackbase = g1->stackbase;
 	top->stackguard = g1->stackguard;
@@ -761,7 +761,7 @@ runtime·newstack(void)
 	top->argp = m->moreargp;
 	top->argsize = argsize;
 	top->free = free;
-	
+
 	// copy flag from panic
 	top->panic = g1->ispanic;
 	g1->ispanic = false;

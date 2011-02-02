@@ -60,31 +60,47 @@ func (f *Func) Entry() uintptr { return f.entry }
 // counter within f.
 func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	// NOTE(rsc): If you edit this function, also edit
-	// symtab.c:/^funcline.
+	// symtab.c:/^funcline.  That function also has the
+	// comments explaining the logic.
+	targetpc := pc
+
 	var pcQuant uintptr = 1
 	if GOARCH == "arm" {
 		pcQuant = 4
 	}
 
-	targetpc := pc
 	p := f.pcln
 	pc = f.pc0
 	line = int(f.ln0)
-	file = f.src
-	for i := 0; i < len(p) && pc <= targetpc; i++ {
-		switch {
-		case p[i] == 0:
-			line += int(p[i+1]<<24) | int(p[i+2]<<16) | int(p[i+3]<<8) | int(p[i+4])
-			i += 4
-		case p[i] <= 64:
-			line += int(p[i])
-		case p[i] <= 128:
-			line -= int(p[i] - 64)
-		default:
-			pc += pcQuant * uintptr(p[i]-129)
+	i := 0
+	//print("FileLine start pc=", pc, " targetpc=", targetpc, " line=", line,
+	//	" tab=", p, " ", p[0], " quant=", pcQuant, " GOARCH=", GOARCH, "\n")
+	for {
+		for i < len(p) && p[i] > 128 {
+			pc += pcQuant * uintptr(p[i]-128)
+			i++
 		}
+		//print("pc<", pc, " targetpc=", targetpc, " line=", line, "\n")
+		if pc > targetpc || i >= len(p) {
+			break
+		}
+		if p[i] == 0 {
+			if i+5 > len(p) {
+				break
+			}
+			line += int(p[i+1]<<24) | int(p[i+2]<<16) | int(p[i+3]<<8) | int(p[i+4])
+			i += 5
+		} else if p[i] <= 64 {
+			line += int(p[i])
+			i++
+		} else {
+			line -= int(p[i] - 64)
+			i++
+		}
+		//print("pc=", pc, " targetpc=", targetpc, " line=", line, "\n")
 		pc += pcQuant
 	}
+	file = f.src
 	return
 }
 
