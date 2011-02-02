@@ -26,7 +26,11 @@ GOFILES=\
 	softfloat64.go\
 	type.go\
 	version.go\
+	version_$(GOOS).go\
+	version_$(GOARCH).go\
 	runtime_defs.go\
+
+CLEANFILES+=version.go version_*.go
 
 OFILES_windows=\
 	syscall.$O\
@@ -126,6 +130,12 @@ mkversion: mkversion.c
 
 version.go: mkversion
 	./mkversion >version.go
+
+version_$(GOARCH).go:
+	(echo 'package runtime'; echo 'const theGoarch = "$(GOARCH)"') >$@
+
+version_$(GOOS).go:
+	(echo 'package runtime'; echo 'const theGoos = "$(GOOS)"') >$@
 
 %.c:	%.goc goc2c
 	./goc2c `pwd`/$< > $@.tmp
