@@ -288,7 +288,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	var b bytes.Buffer
 	b.WriteString(builtinProlog)
 	b.WriteString(f.Preamble)
-	b.WriteString("void f(void) {\n")
+	b.WriteString("void __cgo__f__(void) {\n")
 	b.WriteString("#line 0 \"cgo-test\"\n")
 	for i, n := range toSniff {
 		fmt.Fprintf(&b, "%s; enum { _cgo_enum_%d = %s }; /* cgo-test:%d */\n", n.C, i, n.C, i)
