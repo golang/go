@@ -163,7 +163,7 @@ type Parser struct {
 	//	"quot": `"`,
 	Entity map[string]string
 
-	r         io.ReadByter
+	r         io.ByteReader
 	buf       bytes.Buffer
 	saved     *bytes.Buffer
 	stk       *stack
@@ -191,7 +191,7 @@ func NewParser(r io.Reader) *Parser {
 	// Assume that if reader has its own
 	// ReadByte, it's efficient enough.
 	// Otherwise, use bufio.
-	if rb, ok := r.(io.ReadByter); ok {
+	if rb, ok := r.(io.ByteReader); ok {
 		p.r = rb
 	} else {
 		p.r = bufio.NewReader(r)

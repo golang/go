@@ -150,20 +150,20 @@ type WriterAt interface {
 	WriteAt(p []byte, off int64) (n int, err os.Error)
 }
 
-// ReadByter is the interface that wraps the ReadByte method.
+// ByteReader is the interface that wraps the ReadByte method.
 //
 // ReadByte reads and returns the next byte from the input.
 // If no byte is available, err will be set.
-type ReadByter interface {
+type ByteReader interface {
 	ReadByte() (c byte, err os.Error)
 }
 
-// ReadRuner is the interface that wraps the ReadRune method.
+// RuneReader is the interface that wraps the ReadRune method.
 //
 // ReadRune reads a single UTF-8 encoded Unicode character
 // and returns the rune and its size in bytes. If no character is
 // available, err will be set.
-type ReadRuner interface {
+type RuneReader interface {
 	ReadRune() (rune int, size int, err os.Error)
 }
 
