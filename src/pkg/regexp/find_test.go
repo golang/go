@@ -381,7 +381,7 @@ func TestFindSubmatchIndex(t *testing.T) {
 	}
 }
 
-func TestFindStringSubmatchndex(t *testing.T) {
+func TestFindStringSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
 		testFindSubmatchIndex(&test, MustCompile(test.pat).FindStringSubmatchIndex(test.text), t)
 	}
@@ -452,7 +452,7 @@ func TestFindAllSubmatchIndex(t *testing.T) {
 	}
 }
 
-func TestFindAllStringSubmatchndex(t *testing.T) {
+func TestFindAllStringSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
 		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllStringSubmatchIndex(test.text, -1), t)
 	}
