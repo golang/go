@@ -195,6 +195,10 @@ func Walk(v Visitor, node Node) {
 	case *ExprStmt:
 		Walk(v, n.X)
 
+	case *SendStmt:
+		Walk(v, n.Chan)
+		Walk(v, n.Value)
+
 	case *IncDecStmt:
 		Walk(v, n.X)
 
