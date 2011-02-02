@@ -253,7 +253,7 @@ class CL(object):
 
 	def Flush(self, ui, repo):
 		if self.name == "new":
-			self.Upload(ui, repo, gofmt_just_warn=True)
+			self.Upload(ui, repo, gofmt_just_warn=True, creating=True)
 		dir = CodeReviewDir(ui, repo)
 		path = dir + '/cl.' + self.name
 		f = open(path+'!', "w")
@@ -279,8 +279,8 @@ class CL(object):
 		typecheck(s, str)
 		return s
 
-	def Upload(self, ui, repo, send_mail=False, gofmt=True, gofmt_just_warn=False):
-		if not self.files:
+	def Upload(self, ui, repo, send_mail=False, gofmt=True, gofmt_just_warn=False, creating=False, quiet=False):
+		if not self.files and not creating:
 			ui.warn("no files in change list\n")
 		if ui.configbool("codereview", "force_gofmt", True) and gofmt:
 			CheckFormat(ui, repo, self.files, just_warn=gofmt_just_warn)
@@ -292,15 +292,20 @@ class CL(object):
 			("cc", JoinComma(self.cc)),
 			("description", self.desc),
 			("base_hashes", ""),
-			# Would prefer not to change the subject
-			# on reupload, but /upload requires it.
-			("subject", self.Subject()),
 		]
 
 		if self.name != "new":
 			form_fields.append(("issue", self.name))
 		vcs = None
-		if self.files:
+		# We do not include files when creating the issue,
+		# because we want the patch sets to record the repository
+		# and base revision they are diffs against.  We use the patch
+		# set message for that purpose, but there is no message with
+		# the first patch set.  Instead the message gets used as the
+		# new CL's overall subject.  So omit the diffs when creating
+		# and then we'll run an immediate upload.
+		# This has the effect that every CL begins with an empty "Patch set 1".
+		if self.files and not creating:
 			vcs = MercurialVCS(upload_options, ui, repo)
 			data = vcs.GenerateDiff(self.files)
 			files = vcs.GetBaseFiles(data)
@@ -311,6 +316,12 @@ class CL(object):
 				uploaded_diff_file = [("data", "data.diff", data)]
 		else:
 			uploaded_diff_file = [("data", "data.diff", emptydiff)]
+		
+		if vcs and self.name != "new":
+			form_fields.append(("subject", "diff -r " + vcs.base_rev + " " + getremote(ui, repo, {}).path))
+		else:
+			# First upload sets the subject for the CL itself.
+			form_fields.append(("subject", self.Subject()))
 		ctype, body = EncodeMultipartFormData(form_fields, uploaded_diff_file)
 		response_body = MySend("/upload", body, content_type=ctype)
 		patchset = None
@@ -320,7 +331,10 @@ class CL(object):
 			msg = lines[0]
 			patchset = lines[1].strip()
 			patches = [x.split(" ", 1) for x in lines[2:]]
-		ui.status(msg + "\n")
+		if response_body.startswith("Issue updated.") and quiet:
+			pass
+		else:
+			ui.status(msg + "\n")
 		set_status("uploaded CL metadata + diffs")
 		if not response_body.startswith("Issue created.") and not response_body.startswith("Issue updated."):
 			raise util.Abort("failed to update issue: " + response_body)
@@ -342,14 +356,15 @@ class CL(object):
 		self.Flush(ui, repo)
 		return
 
-	def Mail(self, ui,repo):
+	def Mail(self, ui, repo):
 		pmsg = "Hello " + JoinComma(self.reviewer)
 		if self.cc:
 			pmsg += " (cc: %s)" % (', '.join(self.cc),)
 		pmsg += ",\n"
 		pmsg += "\n"
+		repourl = getremote(ui, repo, {}).path
 		if not self.mailed:
-			pmsg += "I'd like you to review this change.\n"
+			pmsg += "I'd like you to review this change to\n" + repourl + "\n"
 		else:
 			pmsg += "Please take another look.\n"
 		typecheck(pmsg, str)
@@ -1082,7 +1097,10 @@ def change(ui, repo, *pats, **opts):
 		dirty[cl] = True
 
 	for d, _ in dirty.items():
+		name = d.name
 		d.Flush(ui, repo)
+		if name == "new":
+			d.Upload(ui, repo, quiet=True)
 
 	if opts["stdout"]:
 		ui.write(cl.EditorText())
