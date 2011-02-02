@@ -158,6 +158,15 @@ type ReadByter interface {
 	ReadByte() (c byte, err os.Error)
 }
 
+// ReadRuner is the interface that wraps the ReadRune method.
+//
+// ReadRune reads a single UTF-8 encoded Unicode character
+// and returns the rune and its size in bytes. If no character is
+// available, err will be set.
+type ReadRuner interface {
+	ReadRune() (rune int, size int, err os.Error)
+}
+
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
 func WriteString(w Writer, s string) (n int, err os.Error) {
 	return w.Write([]byte(s))
