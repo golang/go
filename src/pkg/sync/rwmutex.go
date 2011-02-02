@@ -64,12 +64,10 @@ func (rw *RWMutex) Lock() {
 	rw.r.Unlock()
 }
 
-// Unlock unlocks rw for writing.
-// It is a run-time error if rw is not locked for writing
-// on entry to Unlock.
+// Unlock unlocks rw for writing.  It is a run-time error if rw is
+// not locked for writing on entry to Unlock.
 //
-// Like for Mutexes,
-// a locked RWMutex is not associated with a particular goroutine.
-// It is allowed for one goroutine to RLock (Lock) an RWMutex and then
+// As with Mutexes, a locked RWMutex is not associated with a particular
+// goroutine.  One goroutine may RLock (Lock) an RWMutex and then
 // arrange for another goroutine to RUnlock (Unlock) it.
 func (rw *RWMutex) Unlock() { rw.w.Unlock() }
