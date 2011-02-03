@@ -48,7 +48,7 @@ runtime·SysFree(void *v, uintptr n)
 void*
 runtime·SysReserve(void *v, uintptr n)
 {
-	return runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, 0);
+	return runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 }
 
 void

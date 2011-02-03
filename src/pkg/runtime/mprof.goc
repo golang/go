@@ -65,7 +65,7 @@ stkbucket(uintptr *stk, int32 nstk)
 		   runtime·mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
 			return b;
 
-	b = runtime·mallocgc(sizeof *b + nstk*sizeof stk[0], RefNoProfiling, 0, 1);
+	b = runtime·mallocgc(sizeof *b + nstk*sizeof stk[0], FlagNoProfiling, 0, 1);
 	bucketmem += sizeof *b + nstk*sizeof stk[0];
 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
 	b->hash = h;
@@ -132,7 +132,7 @@ setaddrbucket(uintptr addr, Bucket *b)
 		if(ah->addr == (addr>>20))
 			goto found;
 
-	ah = runtime·mallocgc(sizeof *ah, RefNoProfiling, 0, 1);
+	ah = runtime·mallocgc(sizeof *ah, FlagNoProfiling, 0, 1);
 	addrmem += sizeof *ah;
 	ah->next = addrhash[h];
 	ah->addr = addr>>20;
@@ -140,7 +140,7 @@ setaddrbucket(uintptr addr, Bucket *b)
 
 found:
 	if((e = addrfree) == nil) {
-		e = runtime·mallocgc(64*sizeof *e, RefNoProfiling, 0, 0);
+		e = runtime·mallocgc(64*sizeof *e, FlagNoProfiling, 0, 0);
 		addrmem += 64*sizeof *e;
 		for(i=0; i+1<64; i++)
 			e[i].next = &e[i+1];

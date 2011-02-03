@@ -36,14 +36,13 @@ fastrand1(void)
 // Small objects are allocated from the per-thread cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 void*
-runtime·mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
+runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 {
 	int32 sizeclass, rate;
 	MCache *c;
 	uintptr npages;
 	MSpan *s;
 	void *v;
-	uint32 *ref;
 
 	if(runtime·gcwaiting && g != m->g0 && m->locks == 0)
 		runtime·gosched();
@@ -65,12 +64,6 @@ runtime·mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 		mstats.alloc += size;
 		mstats.total_alloc += size;
 		mstats.by_size[sizeclass].nmalloc++;
-
-		if(!runtime·mlookup(v, nil, nil, nil, &ref)) {
-			runtime·printf("malloc %D; runtime·mlookup failed\n", (uint64)size);
-			runtime·throw("malloc runtime·mlookup");
-		}
-		*ref = RefNone | refflag;
 	} else {
 		// TODO(rsc): Report tracebacks for very large allocations.
 
@@ -87,13 +80,14 @@ runtime·mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 		v = (void*)(s->start << PageShift);
 
 		// setup for mark sweep
-		s->gcref0 = RefNone | refflag;
-		ref = &s->gcref0;
+		runtime·markspan(v, 0, 0, true);
 	}
+	if(!(flag & FlagNoGC))
+		runtime·markallocated(v, size, (flag&FlagNoPointers) != 0);
 
 	m->mallocing = 0;
 
-	if(!(refflag & RefNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
+	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
 		if(size >= rate)
 			goto profile;
 		if(m->mcache->next_sample > size)
@@ -104,7 +98,7 @@ runtime·mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
 				rate = 0x3fffffff;
 			m->mcache->next_sample = fastrand1() % (2*rate);
 		profile:
-			*ref |= RefProfiled;
+			runtime·setblockspecial(v);
 			runtime·MProf_Malloc(v, size);
 		}
 	}
@@ -124,33 +118,35 @@ runtime·malloc(uintptr size)
 void
 runtime·free(void *v)
 {
-	int32 sizeclass, size;
+	int32 sizeclass;
 	MSpan *s;
 	MCache *c;
-	uint32 prof, *ref;
+	uint32 prof;
+	uintptr size;
 
 	if(v == nil)
 		return;
+	
+	// If you change this also change mgc0.c:/^sweepspan,
+	// which has a copy of the guts of free.
 
 	if(m->mallocing)
 		runtime·throw("malloc/free - deadlock");
 	m->mallocing = 1;
 
-	if(!runtime·mlookup(v, nil, nil, &s, &ref)) {
+	if(!runtime·mlookup(v, nil, nil, &s)) {
 		runtime·printf("free %p: not an allocated block\n", v);
 		runtime·throw("free runtime·mlookup");
 	}
-	prof = *ref & RefProfiled;
-	*ref = RefFree;
+	prof = runtime·blockspecial(v);
 
 	// Find size class for v.
 	sizeclass = s->sizeclass;
 	if(sizeclass == 0) {
 		// Large object.
-		if(prof)
-			runtime·MProf_Free(v, s->npages<<PageShift);
-		mstats.alloc -= s->npages<<PageShift;
-		runtime·memclr(v, s->npages<<PageShift);
+		size = s->npages<<PageShift;
+		*(uintptr*)(s->start<<PageShift) = 1;	// mark as "needs to be zeroed"
+		runtime·unmarkspan(v, 1<<PageShift);
 		runtime·MHeap_Free(&runtime·mheap, s, 1);
 	} else {
 		// Small object.
@@ -158,19 +154,20 @@ runtime·free(void *v)
 		size = runtime·class_to_size[sizeclass];
 		if(size > sizeof(uintptr))
 			((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
-		if(prof)
-			runtime·MProf_Free(v, size);
-		mstats.alloc -= size;
 		mstats.by_size[sizeclass].nfree++;
 		runtime·MCache_Free(c, v, sizeclass, size);
 	}
+	runtime·markfreed(v, size);
+	mstats.alloc -= size;
+	if(prof)
+		runtime·MProf_Free(v, size);
 	m->mallocing = 0;
 }
 
 int32
-runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp, uint32 **ref)
+runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 {
-	uintptr n, nobj, i;
+	uintptr n, i;
 	byte *p;
 	MSpan *s;
 
@@ -179,12 +176,11 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp, uint32 **ref)
 	if(sp)
 		*sp = s;
 	if(s == nil) {
+		runtime·checkfreed(v, 1);
 		if(base)
 			*base = nil;
 		if(size)
 			*size = 0;
-		if(ref)
-			*ref = 0;
 		return 0;
 	}
 
@@ -195,14 +191,11 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp, uint32 **ref)
 			*base = p;
 		if(size)
 			*size = s->npages<<PageShift;
-		if(ref)
-			*ref = &s->gcref0;
 		return 1;
 	}
 
-	if((byte*)v >= (byte*)s->gcref) {
-		// pointers into the gc ref counts
-		// do not count as pointers.
+	if((byte*)v >= (byte*)s->limit) {
+		// pointers past the last block do not count as pointers.
 		return 0;
 	}
 
@@ -212,21 +205,6 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp, uint32 **ref)
 		*base = p + i*n;
 	if(size)
 		*size = n;
-
-	// good for error checking, but expensive
-	if(0) {
-		nobj = (s->npages << PageShift) / (n + RefcountOverhead);
-		if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
-			runtime·printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
-				s->state, s, p, s->sizeclass, (uint64)nobj, (uint64)n, (uint64)s->npages);
-			runtime·printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
-				s->sizeclass, v, p, s->gcref, (uint64)s->npages<<PageShift,
-				(uint64)nobj, (uint64)n, s->gcref + nobj, p+(s->npages<<PageShift));
-			runtime·throw("bad gcref");
-		}
-	}
-	if(ref)
-		*ref = &s->gcref[i];
 
 	return 1;
 }
@@ -246,14 +224,20 @@ runtime·allocmcache(void)
 
 int32 runtime·sizeof_C_MStats = sizeof(MStats);
 
+#define MaxArena32 (2U<<30)
+
 void
 runtime·mallocinit(void)
 {
 	byte *p;
-	uintptr arena_size;
+	uintptr arena_size, bitmap_size;
+	extern byte end[];
 
 	runtime·InitSizes();
 
+	// Set up the allocation arena, a contiguous area of memory where
+	// allocated data will be found.  The arena begins with a bitmap large
+	// enough to hold 4 bits per allocated word.
 	if(sizeof(void*) == 8) {
 		// On a 64-bit machine, allocate from a single contiguous reservation.
 		// 16 GB should be big enough for now.
@@ -273,19 +257,44 @@ runtime·mallocinit(void)
 		// odds of the conservative garbage collector not collecting memory
 		// because some non-pointer block of memory had a bit pattern
 		// that matched a memory address.
+		//
+		// Actually we reserve 17 GB (because the bitmap ends up being 1 GB)
+		// but it hardly matters: fc is not valid UTF-8 either, and we have to
+		// allocate 15 GB before we get that far.
 		arena_size = 16LL<<30;
-		p = runtime·SysReserve((void*)(0x00f8ULL<<32), arena_size);
+		bitmap_size = arena_size / (sizeof(void*)*8/4);
+		p = runtime·SysReserve((void*)(0x00f8ULL<<32), bitmap_size + arena_size);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
-		runtime·mheap.arena_start = p;
-		runtime·mheap.arena_used = p;
-		runtime·mheap.arena_end = p + arena_size;
 	} else {
-		// On a 32-bit machine, we'll take what we can get for each allocation
-		// and maintain arena_start and arena_end as min, max we've seen.
-		runtime·mheap.arena_start = (byte*)0xffffffff;
-		runtime·mheap.arena_end = 0;
+		// On a 32-bit machine, we can't typically get away
+		// with a giant virtual address space reservation.
+		// Instead we map the memory information bitmap
+		// immediately after the data segment, large enough
+		// to handle another 2GB of mappings (256 MB),
+		// along with a reservation for another 512 MB of memory.
+		// When that gets used up, we'll start asking the kernel
+		// for any memory anywhere and hope it's in the 2GB
+		// following the bitmap (presumably the executable begins
+		// near the bottom of memory, so we'll have to use up
+		// most of memory before the kernel resorts to giving out
+		// memory before the beginning of the text segment).
+		//
+		// Alternatively we could reserve 512 MB bitmap, enough
+		// for 4GB of mappings, and then accept any memory the
+		// kernel threw at us, but normally that's a waste of 512 MB
+		// of address space, which is probably too much in a 32-bit world.
+		bitmap_size = MaxArena32 / (sizeof(void*)*8/4);
+		arena_size = 512<<20;
+
+		p = (void*)(((uintptr)end + 64*1024 - 1) & ~(64*1024-1));
+		if(runtime·SysReserve(p, bitmap_size + arena_size) != p)
+			runtime·throw("runtime: cannot reserve memory bitmap virtual address space");
 	}
+	runtime·mheap.bitmap = p;
+	runtime·mheap.arena_start = p + bitmap_size;
+	runtime·mheap.arena_used = runtime·mheap.arena_start;
+	runtime·mheap.arena_end = runtime·mheap.arena_start + arena_size;
 
 	// Initialize the rest of the allocator.	
 	runtime·MHeap_Init(&runtime·mheap, runtime·SysAlloc);
@@ -299,26 +308,41 @@ void*
 runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 {
 	byte *p;
-	
-	if(sizeof(void*) == 8) {
+
+	if(n <= h->arena_end - h->arena_used) {
 		// Keep taking from our reservation.
-		if(h->arena_end - h->arena_used < n)
-			return nil;
 		p = h->arena_used;
 		runtime·SysMap(p, n);
 		h->arena_used += n;
+		runtime·MHeap_MapBits(h);
 		return p;
-	} else {
-		// Take what we can get from the OS.
-		p = runtime·SysAlloc(n);
-		if(p == nil)
-			return nil;
-		if(p+n > h->arena_used)
-			h->arena_used = p+n;
-		if(p > h->arena_end)
-			h->arena_end = p;
-		return p;		
 	}
+	
+	// On 64-bit, our reservation is all we have.
+	if(sizeof(void*) == 8)
+		return nil;
+
+	// On 32-bit, once the reservation is gone we can
+	// try to get memory at a location chosen by the OS
+	// and hope that it is in the range we allocated bitmap for.
+	p = runtime·SysAlloc(n);
+	if(p == nil)
+		return nil;
+
+	if(p < h->arena_start || p+n - h->arena_start >= MaxArena32) {
+		runtime·printf("runtime: memory allocated by OS not in usable range");
+		runtime·SysFree(p, n);
+		return nil;
+	}
+
+	if(p+n > h->arena_used) {
+		h->arena_used = p+n;
+		if(h->arena_used > h->arena_end)
+			h->arena_end = h->arena_used;
+		runtime·MHeap_MapBits(h);
+	}
+	
+	return p;
 }
 
 // Runtime stubs.
@@ -353,7 +377,6 @@ void*
 runtime·stackalloc(uint32 n)
 {
 	void *v;
-	uint32 *ref;
 
 	if(m->mallocing || m->gcing || n == FixedStack) {
 		runtime·lock(&stacks);
@@ -369,11 +392,7 @@ runtime·stackalloc(uint32 n)
 		runtime·unlock(&stacks);
 		return v;
 	}
-	v = runtime·mallocgc(n, RefNoProfiling, 0, 0);
-	if(!runtime·mlookup(v, nil, nil, nil, &ref))
-		runtime·throw("stackalloc runtime·mlookup");
-	*ref = RefStack;
-	return v;
+	return runtime·mallocgc(n, FlagNoProfiling|FlagNoGC, 0, 0);
 }
 
 void
@@ -399,7 +418,7 @@ func Free(p *byte) {
 }
 
 func Lookup(p *byte) (base *byte, size uintptr) {
-	runtime·mlookup(p, &base, &size, nil, nil);
+	runtime·mlookup(p, &base, &size, nil);
 }
 
 func GC() {
@@ -422,7 +441,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		runtime·printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
 		goto throw;
 	}
-	if(!runtime·mlookup(obj.data, &base, &size, nil, nil) || obj.data != base) {
+	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
 		runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
 		goto throw;
 	}

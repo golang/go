@@ -41,7 +41,7 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
 	ret->cap = cap;
 
 	if((t->elem->kind&KindNoPointers))
-		ret->array = runtime·mallocgc(size, RefNoPointers, 1, 1);
+		ret->array = runtime·mallocgc(size, FlagNoPointers, 1, 1);
 	else
 		ret->array = runtime·mal(size);
 }

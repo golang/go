@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "malloc.h"
 
+// TODO(rsc): Why not just use mheap.Lock?
 static Lock finlock;
 
 // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
@@ -101,24 +102,21 @@ runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
 	}
 
 	runtime·lock(&finlock);
-	if(!runtime·mlookup(p, &base, nil, nil, &ref) || p != base) {
+	if(!runtime·mlookup(p, &base, nil, nil) || p != base) {
 		runtime·unlock(&finlock);
 		runtime·throw("addfinalizer on invalid pointer");
 	}
 	if(f == nil) {
-		if(*ref & RefHasFinalizer) {
-			lookfintab(&fintab, p, 1);
-			*ref &= ~RefHasFinalizer;
-		}
+		lookfintab(&fintab, p, 1);
 		runtime·unlock(&finlock);
 		return;
 	}
 
-	if(*ref & RefHasFinalizer) {
+	if(lookfintab(&fintab, p, 0)) {
 		runtime·unlock(&finlock);
 		runtime·throw("double finalizer");
 	}
-	*ref |= RefHasFinalizer;
+	runtime·setblockspecial(p);
 
 	if(fintab.nkey >= fintab.max/2+fintab.max/4) {
 		// keep table at most 3/4 full:
@@ -134,7 +132,7 @@ runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
 			newtab.max *= 3;
 		}
 
-		newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1);
+		newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], FlagNoPointers, 0, 1);
 		newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
 
 		for(i=0; i<fintab.max; i++) {

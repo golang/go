@@ -180,7 +180,9 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	// Allocate a multiple of 64kB (16 pages).
 	npage = (npage+15)&~15;
 	ask = npage<<PageShift;
-	if(ask < HeapAllocChunk)
+	if(ask > h->arena_end - h->arena_used)
+		return false;
+	if(ask < HeapAllocChunk && HeapAllocChunk <= h->arena_end - h->arena_used)
 		ask = HeapAllocChunk;
 
 	v = runtime·MHeap_SysAlloc(h, ask);
@@ -193,11 +195,6 @@ MHeap_Grow(MHeap *h, uintptr npage)
 			return false;
 	}
 	mstats.heap_sys += ask;
-
-	if((byte*)v < h->arena_start || h->arena_start == nil)
-		h->arena_start = v;
-	if((byte*)v+ask > h->arena_end)
-		h->arena_end = (byte*)v+ask;
 
 	// Create a fake "in use" span and free it, so that the
 	// right coalescing happens.
@@ -370,10 +367,14 @@ runtime·MSpanList_IsEmpty(MSpan *list)
 void
 runtime·MSpanList_Insert(MSpan *list, MSpan *span)
 {
-	if(span->next != nil || span->prev != nil)
+	if(span->next != nil || span->prev != nil) {
+		runtime·printf("failed MSpanList_Insert %p %p %p\n", span, span->next, span->prev);
 		runtime·throw("MSpanList_Insert");
+	}
 	span->next = list->next;
 	span->prev = list;
 	span->next->prev = span;
 	span->prev->next = span;
 }
+
+

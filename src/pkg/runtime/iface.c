@@ -702,7 +702,7 @@ unsafe·New(Eface typ, void *ret)
 	t = (Type*)((Eface*)typ.data-1);
 
 	if(t->kind&KindNoPointers)
-		ret = runtime·mallocgc(t->size, RefNoPointers, 1, 1);
+		ret = runtime·mallocgc(t->size, FlagNoPointers, 1, 1);
 	else
 		ret = runtime·mal(t->size);
 	FLUSH(&ret);
@@ -722,7 +722,7 @@ unsafe·NewArray(Eface typ, uint32 n, void *ret)
 	
 	size = n*t->size;
 	if(t->kind&KindNoPointers)
-		ret = runtime·mallocgc(size, RefNoPointers, 1, 1);
+		ret = runtime·mallocgc(size, FlagNoPointers, 1, 1);
 	else
 		ret = runtime·mal(size);
 	FLUSH(&ret);
