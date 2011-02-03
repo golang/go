@@ -31,6 +31,7 @@ const (
 	SizeofSockaddrAny   = 0x6c
 	SizeofSockaddrUnix  = 0x6a
 	SizeofLinger        = 0x8
+	SizeofIpMreq        = 0x8
 	SizeofMsghdr        = 0x1c
 	SizeofCmsghdr       = 0xc
 	PTRACE_TRACEME      = 0
@@ -102,8 +103,8 @@ type Stat_t struct {
 	Gen           uint32
 	Lspare        int32
 	Birthtimespec Timespec
-	Pad0          uint32
-	Pad1          uint32
+	Pad_godefs_0  uint32
+	Pad_godefs_1  uint32
 }
 
 type Statfs_t struct {
@@ -192,6 +193,11 @@ type Linger struct {
 type Iovec struct {
 	Base *byte
 	Len  uint32
+}
+
+type IpMreq struct {
+	Multiaddr [4]byte /* in_addr */
+	Interface [4]byte /* in_addr */
 }
 
 type Msghdr struct {

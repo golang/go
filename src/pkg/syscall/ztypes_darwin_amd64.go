@@ -17,6 +17,7 @@ const (
 	SizeofSockaddrAny   = 0x6c
 	SizeofSockaddrUnix  = 0x6a
 	SizeofLinger        = 0x8
+	SizeofIpMreq        = 0x8
 	SizeofMsghdr        = 0x30
 	SizeofCmsghdr       = 0xc
 	PTRACE_TRACEME      = 0
@@ -40,9 +41,9 @@ type Timespec struct {
 }
 
 type Timeval struct {
-	Sec  int64
-	Usec int32
-	Pad0 [4]byte
+	Sec          int64
+	Usec         int32
+	Pad_godefs_0 [4]byte
 }
 
 type Rusage struct {
@@ -79,7 +80,7 @@ type Stat_t struct {
 	Uid           uint32
 	Gid           uint32
 	Rdev          int32
-	Pad0          [4]byte
+	Pad_godefs_0  [4]byte
 	Atimespec     Timespec
 	Mtimespec     Timespec
 	Ctimespec     Timespec
@@ -129,9 +130,9 @@ type Fstore_t struct {
 }
 
 type Radvisory_t struct {
-	Offset int64
-	Count  int32
-	Pad0   [4]byte
+	Offset       int64
+	Count        int32
+	Pad_godefs_0 [4]byte
 }
 
 type Fbootstraptransfer_t struct {
@@ -147,13 +148,13 @@ type Log2phys_t struct {
 }
 
 type Dirent struct {
-	Ino     uint64
-	Seekoff uint64
-	Reclen  uint16
-	Namlen  uint16
-	Type    uint8
-	Name    [1024]int8
-	Pad0    [3]byte
+	Ino          uint64
+	Seekoff      uint64
+	Reclen       uint16
+	Namlen       uint16
+	Type         uint8
+	Name         [1024]int8
+	Pad_godefs_0 [3]byte
 }
 
 type RawSockaddrInet4 struct {
@@ -202,16 +203,21 @@ type Iovec struct {
 	Len  uint64
 }
 
+type IpMreq struct {
+	Multiaddr [4]byte /* in_addr */
+	Interface [4]byte /* in_addr */
+}
+
 type Msghdr struct {
-	Name       *byte
-	Namelen    uint32
-	Pad0       [4]byte
-	Iov        *Iovec
-	Iovlen     int32
-	Pad1       [4]byte
-	Control    *byte
-	Controllen uint32
-	Flags      int32
+	Name         *byte
+	Namelen      uint32
+	Pad_godefs_0 [4]byte
+	Iov          *Iovec
+	Iovlen       int32
+	Pad_godefs_1 [4]byte
+	Control      *byte
+	Controllen   uint32
+	Flags        int32
 }
 
 type Cmsghdr struct {
