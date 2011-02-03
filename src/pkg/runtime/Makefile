@@ -111,7 +111,7 @@ include ../../Make.pkg
 
 $(pkgdir)/%.h: %.h
 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
-	cp $< $@
+	cp $< "$@"
 
 clean: clean-local
 
@@ -138,7 +138,7 @@ version_$(GOOS).go:
 	(echo 'package runtime'; echo 'const theGoos = "$(GOOS)"') >$@
 
 %.c:	%.goc goc2c
-	./goc2c `pwd`/$< > $@.tmp
+	./goc2c "`pwd`/$<" > $@.tmp
 	mv -f $@.tmp $@
 
 %.$O:	$(GOARCH)/%.c
