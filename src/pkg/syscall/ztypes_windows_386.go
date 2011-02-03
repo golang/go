@@ -74,6 +74,7 @@ const (
 	OPEN_ALWAYS       = 4
 	TRUNCATE_EXISTING = 5
 
+	HANDLE_FLAG_INHERIT    = 0x00000001
 	STARTF_USESTDHANDLES   = 0x00000100
 	DUPLICATE_CLOSE_SOURCE = 0x00000001
 	DUPLICATE_SAME_ACCESS  = 0x00000002
@@ -170,6 +171,12 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	tv.Sec = int32(nsec / 1e9)
 	tv.Usec = int32(nsec % 1e9 / 1e3)
 	return
+}
+
+type SecurityAttributes struct {
+	Length             uint32
+	SecurityDescriptor uintptr
+	InheritHandle      uint32
 }
 
 type Overlapped struct {
