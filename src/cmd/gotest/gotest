@@ -119,6 +119,12 @@ nmgrep() {
 	done
 }
 
+localname() {
+	# The package main has been renamed to __main__ when imported.
+	# Adjust its uses.
+	echo $1 | sed 's/^main\./__main__./'
+}
+
 importpath=$(gomake -s importpath)
 {
 	# test functions are named TestFoo
@@ -139,9 +145,20 @@ importpath=$(gomake -s importpath)
 	echo
 	# imports
 	if echo "$tests" | egrep -v '_test\.' >/dev/null; then
-		if [ "$importpath" != "testing" ]; then
+		case "$importpath" in
+		testing)
+			;;
+		main)
+			# Import path main is reserved, so import with
+			# explicit reference to ./_test/main instead.
+			# Also, the file we are writing defines a function named main,
+			# so rename this import to __main__ to avoid name conflict.
+			echo 'import __main__ "./_test/main"'
+			;;
+		*)
 			echo 'import "'$importpath'"'
-		fi
+			;;
+		esac
 	fi
 	if $havex; then
 		echo 'import "./_xtest_"'
@@ -153,23 +170,20 @@ importpath=$(gomake -s importpath)
 	echo 'var tests = []testing.InternalTest{'
 	for i in $tests
 	do
-		echo '	{"'$i'", '$i'},'
+		j=$(localname $i)
+		echo '	{"'$i'", '$j'},'
 	done
 	echo '}'
 	# benchmark array
-	if [ "$benchmarks" = "" ]
-	then
-		# keep the empty array gofmt-safe.
-		# (not an issue for the test array, which is never empty.)
-		echo 'var benchmarks = []testing.InternalBenchmark{}'
-	else
-		echo 'var benchmarks = []testing.InternalBenchmark{'
-		for i in $benchmarks
-		do
-			echo '	{"'$i'", '$i'},'
-		done
-		echo '}'
-	fi
+	# The comment makes the multiline declaration
+	# gofmt-safe even when there are no benchmarks.
+	echo 'var benchmarks = []testing.InternalBenchmark{ //'
+	for i in $benchmarks
+	do
+		j=$(localname $i)
+		echo '	{"'$i'", '$j'},'
+	done
+	echo '}'
 	# body
 	echo
 	echo 'func main() {'
