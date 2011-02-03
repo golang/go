@@ -116,6 +116,7 @@ func (e *encoding) Close() (err os.Error) {
 	if err != nil {
 		return
 	}
+	e.breaker.Close()
 
 	var checksumBytes [3]byte
 	checksumBytes[0] = byte(e.crc >> 16)
@@ -144,11 +145,9 @@ func Encode(out io.Writer, blockType string, headers map[string]string) (w io.Wr
 		}
 	}
 
-	if len(headers) > 0 {
-		_, err := out.Write(newline)
-		if err != nil {
-			return
-		}
+	_, err = out.Write(newline)
+	if err != nil {
+		return
 	}
 
 	e := &encoding{
