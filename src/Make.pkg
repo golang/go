@@ -113,8 +113,8 @@ dir:
 
 ifdef CGOFILES
 _cgo_run: $(CGOFILES)
-	@touch _cgo_run
 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+	touch _cgo_run
 
 # _CGO_CFLAGS and _CGO_LDFLAGS are defined via the evaluation of _cgo_flags.
 # The include happens before the commands in the recipe run,
