@@ -5,6 +5,14 @@
 #include "386/asm.h"
 
 TEXT _rt0_386(SB),7,$0
+	// Linux, Windows start the FPU in extended double precision.
+	// Other operating systems use double precision.
+	// Change to double precision to match them,
+	// and to match other hardware that only has double.
+	PUSHL $0x27F
+	FLDCW	0(SP)
+	POPL AX
+
 	// copy arguments forward on an even stack
 	MOVL	0(SP), AX		// argc
 	LEAL	4(SP), BX		// argv
