@@ -167,7 +167,7 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
 _CGO_LDFLAGS_windows=-shared -lm -mthreads
 
 # Have to compile the runtime header.
-RUNTIME_CFLAGS=-I"$(pkgdir)"
+RUNTIME_CFLAGS=-I$(pkgdir)
 
 # Compile _cgo_defun.c with 6c; needs access to the runtime headers.
 _cgo_defun.$O: _cgo_defun.c
