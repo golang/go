@@ -107,7 +107,7 @@ func escapeAddQuotes(s string) string {
 
 
 func CloseOnExec(fd int) {
-	return
+	SetHandleInformation(int32(fd), HANDLE_FLAG_INHERIT, 0)
 }
 
 func SetNonblock(fd int, nonblocking bool) (errno int) {
@@ -143,6 +143,12 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 	startupInfo.StdInput = 0
 	startupInfo.StdOutput = 0
 	startupInfo.StdErr = 0
+
+	// Acquire the fork lock so that no other threads
+	// create new fds that are not yet close-on-exec
+	// before we fork.
+	ForkLock.Lock()
+	defer ForkLock.Unlock()
 
 	var currentProc, _ = GetCurrentProcess()
 	if len(fd) > 0 && fd[0] > 0 {

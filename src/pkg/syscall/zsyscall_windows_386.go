@@ -66,6 +66,7 @@ var (
 	procGetCommandLineW            = getSysProcAddr(modkernel32, "GetCommandLineW")
 	procCommandLineToArgvW         = getSysProcAddr(modshell32, "CommandLineToArgvW")
 	procLocalFree                  = getSysProcAddr(modkernel32, "LocalFree")
+	procSetHandleInformation       = getSysProcAddr(modkernel32, "SetHandleInformation")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -180,7 +181,7 @@ func ExitProcess(exitcode uint32) {
 	return
 }
 
-func CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) {
+func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) {
 	r0, _, e1 := Syscall9(procCreateFileW, 7, uintptr(unsafe.Pointer(name)), uintptr(access), uintptr(mode), uintptr(unsafe.Pointer(sa)), uintptr(createmode), uintptr(attrs), uintptr(templatefile), 0, 0)
 	handle = int32(r0)
 	if handle == -1 {
@@ -368,7 +369,7 @@ func SetCurrentDirectory(path *uint16) (ok bool, errno int) {
 	return
 }
 
-func CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) {
+func CreateDirectory(path *uint16, sa *SecurityAttributes) (ok bool, errno int) {
 	r0, _, e1 := Syscall(procCreateDirectoryW, 2, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(sa)), 0)
 	ok = bool(r0 != 0)
 	if !ok {
@@ -630,8 +631,8 @@ func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
 	return
 }
 
-func CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall6(procCreatePipe, 4, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(lpsa)), uintptr(size), 0, 0)
+func CreatePipe(readhandle *uint32, writehandle *uint32, sa *SecurityAttributes, size uint32) (ok bool, errno int) {
+	r0, _, e1 := Syscall6(procCreatePipe, 4, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(sa)), uintptr(size), 0, 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {
@@ -850,6 +851,21 @@ func LocalFree(hmem uint32) (handle uint32, errno int) {
 	r0, _, e1 := Syscall(procLocalFree, 1, uintptr(hmem), 0, 0)
 	handle = uint32(r0)
 	if handle != 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func SetHandleInformation(handle int32, mask uint32, flags uint32) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procSetHandleInformation, 3, uintptr(handle), uintptr(mask), uintptr(flags))
+	ok = bool(r0 != 0)
+	if !ok {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {

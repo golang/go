@@ -111,7 +111,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	GetVersion() (ver uint32, errno int)
 //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval==-1] = CreateFileW
+//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval==-1] = CreateFileW
 //sys	ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
 //sys	WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
 //sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval==0xffffffff]
@@ -123,7 +123,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int)
 //sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) = GetCurrentDirectoryW
 //sys	SetCurrentDirectory(path *uint16) (ok bool, errno int) = SetCurrentDirectoryW
-//sys	CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) = CreateDirectoryW
+//sys	CreateDirectory(path *uint16, sa *SecurityAttributes) (ok bool, errno int) = CreateDirectoryW
 //sys	RemoveDirectory(path *uint16) (ok bool, errno int) = RemoveDirectoryW
 //sys	DeleteFile(path *uint16) (ok bool, errno int) = DeleteFileW
 //sys	MoveFile(from *uint16, to *uint16) (ok bool, errno int) = MoveFileW
@@ -141,7 +141,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (ok bool, errno int)
 //sys	WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) [failretval==0xffffffff]
 //sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
-//sys	CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int)
+//sys	CreatePipe(readhandle *uint32, writehandle *uint32, sa *SecurityAttributes, size uint32) (ok bool, errno int)
 //sys	GetFileType(filehandle uint32) (n uint32, errno int)
 //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
 //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
@@ -157,6 +157,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
 //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
 //sys	LocalFree(hmem uint32) (handle uint32, errno int) [failretval!=0]
+//sys	SetHandleInformation(handle int32, mask uint32, flags uint32) (ok bool, errno int)
 
 // syscall interface implementation for other packages
 
@@ -181,6 +182,13 @@ func Errstr(errno int) string {
 
 func Exit(code int) { ExitProcess(uint32(code)) }
 
+func makeInheritSa() *SecurityAttributes {
+	var sa SecurityAttributes
+	sa.Length = uint32(unsafe.Sizeof(sa))
+	sa.InheritHandle = 1
+	return &sa
+}
+
 func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	if len(path) == 0 {
 		return -1, ERROR_FILE_NOT_FOUND
@@ -202,6 +210,10 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
 		access |= FILE_APPEND_DATA
 	}
 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
+	var sa *SecurityAttributes
+	if mode&O_CLOEXEC == 0 {
+		sa = makeInheritSa()
+	}
 	var createmode uint32
 	switch {
 	case mode&O_CREAT != 0:
@@ -215,7 +227,7 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	default:
 		createmode = OPEN_EXISTING
 	}
-	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, nil, createmode, FILE_ATTRIBUTE_NORMAL, 0)
+	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
 	return int(h), int(e)
 }
 
@@ -439,7 +451,7 @@ func Pipe(p []int) (errno int) {
 		return EINVAL
 	}
 	var r, w uint32
-	if ok, errno := CreatePipe(&r, &w, nil, 0); !ok {
+	if ok, errno := CreatePipe(&r, &w, makeInheritSa(), 0); !ok {
 		return errno
 	}
 	p[0] = int(r)
