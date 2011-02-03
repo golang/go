@@ -148,8 +148,6 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 		}
 		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
 			fprint(2, "%s: %s: not package main (package %s)\n", argv0, filename, name);
-		else if(strcmp(pkg, "main") != 0 && strcmp(name, "main") == 0)
-			fprint(2, "%s: %s: importing %s, found package main", argv0, filename, pkg);
 		loadpkgdata(filename, pkg, p0, p1 - p0);
 	}
 

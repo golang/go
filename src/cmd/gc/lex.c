@@ -423,6 +423,15 @@ importfile(Val *f, int line)
 		errorexit();
 	}
 
+	// The package name main is no longer reserved,
+	// but we reserve the import path "main" to identify
+	// the main package, just as we reserve the import 
+	// path "math" to identify the standard math package.
+	if(strcmp(f->u.sval->s, "main") == 0) {
+		yyerror("cannot import \"main\"");
+		errorexit();
+	}
+
 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
 		if(safemode) {
 			yyerror("cannot import package unsafe");

@@ -242,14 +242,6 @@ import_package:
 		
 		if(safemode && !curio.importsafe)
 			yyerror("cannot import unsafe package %Z", importpkg->path);
-
-		// NOTE(rsc): This is no longer a technical restriction:
-		// the 6g tool chain would work just fine without giving
-		// special meaning to a package being named main.
-		// Other implementations might need the restriction
-		// (gccgo does), so it stays in the language and the compiler.
-		if(strcmp($2->name, "main") == 0)
-			yyerror("cannot import package main");
 	}
 
 import_safety:
