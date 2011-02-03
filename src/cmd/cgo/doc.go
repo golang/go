@@ -25,9 +25,12 @@ the package.  For example:
 
 CFLAGS and LDFLAGS may be defined with pseudo #cgo directives
 within these comments to tweak the behavior of gcc.  Values defined
-in multiple directives are concatenated together.  For example:
+in multiple directives are concatenated together.  Options prefixed
+by $GOOS, $GOARCH, or $GOOS/$GOARCH are only defined in matching
+systems.  For example:
 
 	// #cgo CFLAGS: -DPNG_DEBUG=1
+	// #cgo linux CFLAGS: -DLINUX=1
 	// #cgo LDFLAGS: -lpng
 	// #include <png.h>
 	import "C"
