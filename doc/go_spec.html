@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of February 1, 2011 -->
+<!-- subtitle Version of February 3, 2011 -->
 
 <!--
 TODO
@@ -5064,8 +5064,12 @@ The importing of packages, by construction, guarantees that there can
 be no cyclic dependencies in initialization.
 </p>
 <p>
-A complete program, possibly created by linking multiple packages,
-must have one package called <code>main</code>, with a function
+A complete program is created by linking a single, unimported package
+called the <i>main package</i> with all the packages it imports, transitively.
+The main package must
+have package name <code>main</code> and
+declare a function <code>main</code> that takes no 
+arguments and returns no value.
 </p>
 
 <pre>
@@ -5073,20 +5077,12 @@ func main() { ... }
 </pre>
 
 <p>
-defined.
-The function <code>main.main()</code> takes no arguments and returns no value.
+Program execution begins by initializing the main package and then
+invoking the function <code>main</code>.
 </p>
 <p>
-Program execution begins by initializing the <code>main</code> package and then
-invoking <code>main.main()</code>.
-</p>
-<p>
-When <code>main.main()</code> returns, the program exits.  It does not wait for
-other (non-<code>main</code>) goroutines to complete.
-</p>
-<p>
-Implementation restriction: The compiler assumes package <code>main</code>
-is not imported by any other package.
+When the function <code>main</code> returns, the program exits.
+It does not wait for other (non-<code>main</code>) goroutines to complete.
 </p>
 
 <h2 id="Run_time_panics">Run-time panics</h2>
