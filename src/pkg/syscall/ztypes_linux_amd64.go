@@ -18,6 +18,7 @@ const (
 	SizeofSockaddrUnix      = 0x6e
 	SizeofSockaddrLinklayer = 0x14
 	SizeofLinger            = 0x8
+	SizeofIpMreq            = 0x8
 	SizeofMsghdr            = 0x38
 	SizeofCmsghdr           = 0x10
 	SizeofUcred             = 0xc
@@ -45,40 +46,40 @@ type Timeval struct {
 }
 
 type Timex struct {
-	Modes     uint32
-	Pad0      [4]byte
-	Offset    int64
-	Freq      int64
-	Maxerror  int64
-	Esterror  int64
-	Status    int32
-	Pad1      [4]byte
-	Constant  int64
-	Precision int64
-	Tolerance int64
-	Time      Timeval
-	Tick      int64
-	Ppsfreq   int64
-	Jitter    int64
-	Shift     int32
-	Pad2      [4]byte
-	Stabil    int64
-	Jitcnt    int64
-	Calcnt    int64
-	Errcnt    int64
-	Stbcnt    int64
-	Tai       int32
-	Pad3      int32
-	Pad4      int32
-	Pad5      int32
-	Pad6      int32
-	Pad7      int32
-	Pad8      int32
-	Pad9      int32
-	Pad10     int32
-	Pad11     int32
-	Pad12     int32
-	Pad13     int32
+	Modes         uint32
+	Pad_godefs_0  [4]byte
+	Offset        int64
+	Freq          int64
+	Maxerror      int64
+	Esterror      int64
+	Status        int32
+	Pad_godefs_1  [4]byte
+	Constant      int64
+	Precision     int64
+	Tolerance     int64
+	Time          Timeval
+	Tick          int64
+	Ppsfreq       int64
+	Jitter        int64
+	Shift         int32
+	Pad_godefs_2  [4]byte
+	Stabil        int64
+	Jitcnt        int64
+	Calcnt        int64
+	Errcnt        int64
+	Stbcnt        int64
+	Tai           int32
+	Pad_godefs_3  int32
+	Pad_godefs_4  int32
+	Pad_godefs_5  int32
+	Pad_godefs_6  int32
+	Pad_godefs_7  int32
+	Pad_godefs_8  int32
+	Pad_godefs_9  int32
+	Pad_godefs_10 int32
+	Pad_godefs_11 int32
+	Pad_godefs_12 int32
+	Pad_godefs_13 int32
 }
 
 type Time_t int64
@@ -154,12 +155,12 @@ type Statfs_t struct {
 }
 
 type Dirent struct {
-	Ino    uint64
-	Off    int64
-	Reclen uint16
-	Type   uint8
-	Name   [256]int8
-	Pad0   [5]byte
+	Ino          uint64
+	Off          int64
+	Reclen       uint16
+	Type         uint8
+	Name         [256]int8
+	Pad_godefs_0 [5]byte
 }
 
 type RawSockaddrInet4 struct {
@@ -214,16 +215,21 @@ type Iovec struct {
 	Len  uint64
 }
 
+type IpMreq struct {
+	Multiaddr [4]byte /* in_addr */
+	Interface [4]byte /* in_addr */
+}
+
 type Msghdr struct {
-	Name       *byte
-	Namelen    uint32
-	Pad0       [4]byte
-	Iov        *Iovec
-	Iovlen     uint64
-	Control    *byte
-	Controllen uint64
-	Flags      int32
-	Pad1       [4]byte
+	Name         *byte
+	Namelen      uint32
+	Pad_godefs_0 [4]byte
+	Iov          *Iovec
+	Iovlen       uint64
+	Control      *byte
+	Controllen   uint64
+	Flags        int32
+	Pad_godefs_1 [4]byte
 }
 
 type Cmsghdr struct {
@@ -280,22 +286,22 @@ type FdSet struct {
 }
 
 type Sysinfo_t struct {
-	Uptime    int64
-	Loads     [3]uint64
-	Totalram  uint64
-	Freeram   uint64
-	Sharedram uint64
-	Bufferram uint64
-	Totalswap uint64
-	Freeswap  uint64
-	Procs     uint16
-	Pad       uint16
-	Pad0      [4]byte
-	Totalhigh uint64
-	Freehigh  uint64
-	Unit      uint32
-	X_f       [2]int8
-	Pad1      [4]byte
+	Uptime       int64
+	Loads        [3]uint64
+	Totalram     uint64
+	Freeram      uint64
+	Sharedram    uint64
+	Bufferram    uint64
+	Totalswap    uint64
+	Freeswap     uint64
+	Procs        uint16
+	Pad          uint16
+	Pad_godefs_0 [4]byte
+	Totalhigh    uint64
+	Freehigh     uint64
+	Unit         uint32
+	X_f          [0]int8
+	Pad_godefs_1 [4]byte
 }
 
 type Utsname struct {
@@ -308,12 +314,12 @@ type Utsname struct {
 }
 
 type Ustat_t struct {
-	Tfree  int32
-	Pad0   [4]byte
-	Tinode uint64
-	Fname  [6]int8
-	Fpack  [6]int8
-	Pad1   [4]byte
+	Tfree        int32
+	Pad_godefs_0 [4]byte
+	Tinode       uint64
+	Fname        [6]int8
+	Fpack        [6]int8
+	Pad_godefs_1 [4]byte
 }
 
 type EpollEvent struct {

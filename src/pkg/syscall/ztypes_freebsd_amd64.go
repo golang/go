@@ -31,6 +31,7 @@ const (
 	SizeofSockaddrAny   = 0x6c
 	SizeofSockaddrUnix  = 0x6a
 	SizeofLinger        = 0x8
+	SizeofIpMreq        = 0x8
 	SizeofMsghdr        = 0x30
 	SizeofCmsghdr       = 0xc
 	PTRACE_TRACEME      = 0
@@ -102,8 +103,8 @@ type Stat_t struct {
 	Gen           uint32
 	Lspare        int32
 	Birthtimespec Timespec
-	Pad0          uint8
-	Pad1          uint8
+	Pad_godefs_0  uint8
+	Pad_godefs_1  uint8
 }
 
 type Statfs_t struct {
@@ -132,13 +133,13 @@ type Statfs_t struct {
 }
 
 type Flock_t struct {
-	Start  int64
-	Len    int64
-	Pid    int32
-	Type   int16
-	Whence int16
-	Sysid  int32
-	Pad0   [4]byte
+	Start        int64
+	Len          int64
+	Pid          int32
+	Type         int16
+	Whence       int16
+	Sysid        int32
+	Pad_godefs_0 [4]byte
 }
 
 type Dirent struct {
@@ -195,16 +196,21 @@ type Iovec struct {
 	Len  uint64
 }
 
+type IpMreq struct {
+	Multiaddr [4]byte /* in_addr */
+	Interface [4]byte /* in_addr */
+}
+
 type Msghdr struct {
-	Name       *byte
-	Namelen    uint32
-	Pad0       [4]byte
-	Iov        *Iovec
-	Iovlen     int32
-	Pad1       [4]byte
-	Control    *byte
-	Controllen uint32
-	Flags      int32
+	Name         *byte
+	Namelen      uint32
+	Pad_godefs_0 [4]byte
+	Iov          *Iovec
+	Iovlen       int32
+	Pad_godefs_1 [4]byte
+	Control      *byte
+	Controllen   uint32
+	Flags        int32
 }
 
 type Cmsghdr struct {

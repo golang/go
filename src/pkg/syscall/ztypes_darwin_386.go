@@ -17,6 +17,7 @@ const (
 	SizeofSockaddrAny   = 0x6c
 	SizeofSockaddrUnix  = 0x6a
 	SizeofLinger        = 0x8
+	SizeofIpMreq        = 0x8
 	SizeofMsghdr        = 0x1c
 	SizeofCmsghdr       = 0xc
 	PTRACE_TRACEME      = 0
@@ -144,13 +145,13 @@ type Log2phys_t struct {
 }
 
 type Dirent struct {
-	Ino     uint64
-	Seekoff uint64
-	Reclen  uint16
-	Namlen  uint16
-	Type    uint8
-	Name    [1024]int8
-	Pad0    [3]byte
+	Ino          uint64
+	Seekoff      uint64
+	Reclen       uint16
+	Namlen       uint16
+	Type         uint8
+	Name         [1024]int8
+	Pad_godefs_0 [3]byte
 }
 
 type RawSockaddrInet4 struct {
@@ -197,6 +198,11 @@ type Linger struct {
 type Iovec struct {
 	Base *byte
 	Len  uint32
+}
+
+type IpMreq struct {
+	Multiaddr [4]byte /* in_addr */
+	Interface [4]byte /* in_addr */
 }
 
 type Msghdr struct {
