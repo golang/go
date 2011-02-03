@@ -104,12 +104,12 @@ The following terms are used to denote specific Unicode character classes:
 <pre class="ebnf">
 unicode_char   = /* an arbitrary Unicode code point */ .
 unicode_letter = /* a Unicode code point classified as "Letter" */ .
-unicode_digit  = /* a Unicode code point classified as "Digit" */ .
+unicode_digit  = /* a Unicode code point classified as "Decimal Digit" */ .
 </pre>
 
 <p>
-In <a href="http://www.unicode.org/versions/Unicode5.2.0/">The Unicode Standard 5.2</a>,
-Section 4.5 General Category-Normative
+In <a href="http://www.unicode.org/versions/Unicode6.0.0/">The Unicode Standard 6.0</a>,
+Section 4.5 "General Category"
 defines a set of character categories.  Go treats
 those characters in category Lu, Ll, Lt, Lm, or Lo as Unicode letters,
 and those in category Nd as Unicode digits.
