@@ -9,6 +9,7 @@ GOFILES=\
 	mutex.go\
 	once.go \
 	rwmutex.go\
+	waitgroup.go\
 
 # 386-specific object files
 OFILES_386=\
