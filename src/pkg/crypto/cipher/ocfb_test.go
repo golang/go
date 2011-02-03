@@ -11,29 +11,34 @@ import (
 	"testing"
 )
 
-func TestOCFB(t *testing.T) {
+func testOCFB(t *testing.T, resync OCFBResyncOption) {
 	block, err := aes.NewCipher(commonKey128)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	plaintext := []byte("this is the plaintext")
+	plaintext := []byte("this is the plaintext, which is long enough to span several blocks.")
 	randData := make([]byte, block.BlockSize())
 	rand.Reader.Read(randData)
-	ocfb, prefix := NewOCFBEncrypter(block, randData)
+	ocfb, prefix := NewOCFBEncrypter(block, randData, resync)
 	ciphertext := make([]byte, len(plaintext))
 	ocfb.XORKeyStream(ciphertext, plaintext)
 
-	ocfbdec := NewOCFBDecrypter(block, prefix)
+	ocfbdec := NewOCFBDecrypter(block, prefix, resync)
 	if ocfbdec == nil {
-		t.Error("NewOCFBDecrypter failed")
+		t.Error("NewOCFBDecrypter failed (resync: %t)", resync)
 		return
 	}
 	plaintextCopy := make([]byte, len(plaintext))
 	ocfbdec.XORKeyStream(plaintextCopy, ciphertext)
 
 	if !bytes.Equal(plaintextCopy, plaintext) {
-		t.Errorf("got: %x, want: %x", plaintextCopy, plaintext)
+		t.Errorf("got: %x, want: %x (resync: %t)", plaintextCopy, plaintext, resync)
 	}
+}
+
+func TestOCFB(t *testing.T) {
+	testOCFB(t, OCFBNoResync)
+	testOCFB(t, OCFBResync)
 }
