@@ -27,3 +27,22 @@ CLEANFILES+=$(TARG)
 
 nuke: clean
 	rm -f $(QUOTED_GOBIN)/$(TARG)
+
+# for gotest
+testpackage: _test/main.a
+
+testpackage-clean:
+	rm -f _test/main.a _gotest_.$O
+
+testpackage: _test/main.a
+
+_test/main.a: _gotest_.$O
+	@mkdir -p _test
+	rm -f $@
+	gopack grc $@ _gotest_.$O
+
+_gotest_.$O: $(GOFILES) $(GOTESTFILES)
+	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+
+importpath:
+	echo main
