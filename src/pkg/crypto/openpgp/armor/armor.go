@@ -112,7 +112,7 @@ func (l *lineReader) Read(p []byte) (n int, err os.Error) {
 		return 0, os.EOF
 	}
 
-	if len(line) != 64 {
+	if len(line) > 64 {
 		return 0, ArmorCorrupt
 	}
 

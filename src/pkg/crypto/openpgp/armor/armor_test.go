@@ -34,7 +34,7 @@ func TestDecodeEncode(t *testing.T) {
 		t.Error(err)
 	}
 
-	if adler32.Checksum(contents) != 0x789d7f00 {
+	if adler32.Checksum(contents) != 0x27b144be {
 		t.Errorf("contents: got: %x", contents)
 	}
 
@@ -73,13 +73,11 @@ func TestLongHeader(t *testing.T) {
 const armorExample1 = `-----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.10 (GNU/Linux)
 
-iQEcBAABAgAGBQJMtFESAAoJEKsQXJGvOPsVj40H/1WW6jaMXv4BW+1ueDSMDwM8
-kx1fLOXbVM5/Kn5LStZNt1jWWnpxdz7eq3uiqeCQjmqUoRde3YbB2EMnnwRbAhpp
-cacnAvy9ZQ78OTxUdNW1mhX5bS6q1MTEJnl+DcyigD70HG/yNNQD7sOPMdYQw0TA
-byQBwmLwmTsuZsrYqB68QyLHI+DUugn+kX6Hd2WDB62DKa2suoIUIHQQCd/ofwB3
-WfCYInXQKKOSxu2YOg2Eb4kLNhSMc1i9uKUWAH+sdgJh7NBgdoE4MaNtBFkHXRvv
-okWuf3+xA9ksp1npSY/mDvgHijmjvtpRDe6iUeqfCn8N9u9CBg8geANgaG8+QA4=
-=wfQG
+iJwEAAECAAYFAk1Fv/0ACgkQo01+GMIMMbsYTwQAiAw+QAaNfY6WBdplZ/uMAccm
+4g+81QPmTSGHnetSb6WBiY13kVzK4HQiZH8JSkmmroMLuGeJwsRTEL4wbjRyUKEt
+p1xwUZDECs234F1xiG5enc5SGlRtP7foLBz9lOsjx+LEcA4sTl5/2eZR9zyFZqWW
+TxRjs+fJCIFuo71xb1g=
+=/teI
 -----END PGP SIGNATURE-----`
 
 const armorLongLine = `-----BEGIN PGP SIGNATURE-----
