@@ -54,7 +54,8 @@ widstruct(Type *t, uint32 o, int flag)
 		if(f->type->width < 0)
 			fatal("invalid width %lld", f->type->width);
 		w = f->type->width;
-		o = rnd(o, f->type->align);
+		if(f->type->align > 0)
+			o = rnd(o, f->type->align);
 		f->width = o;	// really offset for TFIELD
 		if(f->nname != N) {
 			// this same stackparam logic is in addrescapes

@@ -203,6 +203,7 @@ fatal(char *fmt, ...)
 
 	flusherrors();
 
+*(int*)0=0;
 	print("%L: internal compiler error: ", lineno);
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
@@ -213,7 +214,7 @@ fatal(char *fmt, ...)
 	if(strncmp(getgoversion(), "release", 7) == 0) {
 		print("\n");
 		print("Please file a bug report including a short program that triggers the error.\n");
-		print("http://code.google.com/p/go/issues/entry?template=compilerbug");
+		print("http://code.google.com/p/go/issues/entry?template=compilerbug\n");
 	}
 	hcrash();
 	errorexit();

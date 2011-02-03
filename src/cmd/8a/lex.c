@@ -189,7 +189,7 @@ assemble(char *file)
 	pass = 1;
 	pinit(file);
 
-	Bprint(&obuf, "%s\n", thestring);
+	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
 
 	for(i=0; i<nDlist; i++)
 		dodefine(Dlist[i]);

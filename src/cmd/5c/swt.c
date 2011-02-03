@@ -373,7 +373,7 @@ outcode(void)
 		}
 	}
 
-	Bprint(&outbuf, "%s\n", thestring);
+	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
 	if(ndynimp > 0 || ndynexp > 0) {
 		int i;
 
