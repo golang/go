@@ -131,6 +131,7 @@ Arfile *astart, *amiddle, *aend;	/* Temp file control block pointers */
 int	allobj = 1;			/* set when all members are object files of the same type */
 int	symdefsize;			/* size of symdef file */
 char	*pkgstmt;		/* string "package foo" */
+char	*objhdr;		/* string "go object darwin 386 release.2010-01-01 2345+" */
 int	dupfound;			/* flag for duplicate symbol */
 Hashchain	*hash[NHASH];		/* hash table of text symbols */
 
@@ -246,6 +247,8 @@ main(int argc, char *argv[])
 	argc -= 3;
 	argv += 3;
 	(*comfun)(cp, argc, argv);	/* do the command */
+	if(errors && cflag)
+		remove(cp);
 	cp = 0;
 	while (argc--) {
 		if (*argv) {
@@ -590,10 +593,11 @@ void
 scanobj(Biobuf *b, Arfile *ap, long size)
 {
 	int obj;
-	vlong offset;
+	vlong offset, offset1;
 	Dir *d;
 	static int lastobj = -1;
 	uchar buf[4];
+	char *p, *t;
 
 	if (!allobj)			/* non-object file encountered */
 		return;
@@ -628,14 +632,32 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 		Bseek(b, offset, 0);
 		return;
 	}
-	if (lastobj >= 0 && obj != lastobj) {
+
+	offset1 = Boffset(b);
+	Bseek(b, offset, 0);
+	p = Brdstr(b, '\n', 1);
+	Bseek(b, offset1, 0);
+	if(p == nil || strncmp(p, "go object ", 10) != 0) {
+		fprint(2, "gopack: malformed object file %s\n", file);
+		errors++;
+		Bseek(b, offset, 0);
+		free(p);
+		return;
+	}
+	
+	if ((lastobj >= 0 && obj != lastobj) || (objhdr != nil && strcmp(p, objhdr) != 0)) {
 		fprint(2, "gopack: inconsistent object file %s\n", file);
 		errors++;
 		allobj = 0;
-		Bseek(b, offset, 0);
+		free(p);
 		return;
 	}
 	lastobj = obj;
+	if(objhdr == nil)
+		objhdr = p;
+	else
+		free(p);
+		
 	if (!readar(b, obj, offset+size, 0)) {
 		fprint(2, "gopack: invalid symbol reference in file %s\n", file);
 		errors++;
@@ -677,7 +699,7 @@ char*	importblock;
 void
 getpkgdef(char **datap, int *lenp)
 {
-	char *tag;
+	char *tag, *hdr;
 
 	if(pkgname == nil) {
 		pkgname = "__emptyarchive__";
@@ -688,7 +710,11 @@ getpkgdef(char **datap, int *lenp)
 	if(safe || Sflag)
 		tag = "safe";
 
-	*datap = smprint("import\n$$\npackage %s %s\n%s\n$$\n", pkgname, tag, importblock);
+	hdr = "empty archive";
+	if(objhdr != nil)
+		hdr = objhdr;
+
+	*datap = smprint("%s\nimport\n$$\npackage %s %s\n%s\n$$\n", hdr, pkgname, tag, importblock);
 	*lenp = strlen(*datap);
 }
 

@@ -116,34 +116,24 @@ objtype(Biobuf *bp, char **name)
 	int i;
 	char buf[MAXIS];
 	int c;
-
-Retry:
-	if(Bread(bp, buf, MAXIS) < MAXIS)
-		return -1;
-	Bseek(bp, -MAXIS, 1);
-	for (i = 0; i < Maxobjtype; i++) {
-		if (obj[i].is && (*obj[i].is)(buf)) {
-			if (name)
-				*name = obj[i].name;
-			return i;
-		}
-	}
+	char *p;
 
 	/*
-	 * Maybe there's an import block we need to skip
+	 * Look for import block.
 	 */
-	for(i = 0; i < MAXIS; i++) {
-		if(isalpha(buf[i]) || isdigit(buf[i]))
-			continue;
-		if(i == 0 || buf[i] != '\n')
-			return -1;
-		break;
-	}
+	p = Brdline(bp, '\n');
+	if(p == nil)
+		return -1;
+	if(Blinelen(bp) < 10 || strncmp(p, "go object ", 10) != 0)
+		return -1;
+	Bseek(bp, -1, 1);
 
 	/*
 	 * Found one.  Skip until "\n!\n"
 	 */
-	while((c = Bgetc(bp)) != Beof) {
+	for(;;) {
+		if((c = Bgetc(bp)) == Beof)
+			return -1;
 		if(c != '\n')
 			continue;
 		c = Bgetc(bp);
@@ -156,8 +146,20 @@ Retry:
 			Bungetc(bp);
 			continue;
 		}
-		goto Retry;
+		break;
 	}
+
+	if(Bread(bp, buf, MAXIS) < MAXIS)
+		return -1;
+	Bseek(bp, -MAXIS, 1);
+	for (i = 0; i < Maxobjtype; i++) {
+		if (obj[i].is && (*obj[i].is)(buf)) {
+			if (name)
+				*name = obj[i].name;
+			return i;
+		}
+	}
+
 	return -1;
 }
 

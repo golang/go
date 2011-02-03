@@ -378,10 +378,10 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 	int n, c1, c2, c3, c4;
 	uint32 magic;
 	vlong import0, import1, eof;
-	char src[1024];
+	char *fld[10], *s, *t;
+	int nfld;
 
 	eof = Boffset(f) + len;
-	src[0] = '\0';
 
 	pn = strdup(pn);
 	
@@ -415,22 +415,34 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 	line = Brdline(f, '\n');
 	if(line == nil) {
 		if(Blinelen(f) > 0) {
-			diag("%s: malformed object file", pn);
+			diag("%s: not an object file", pn);
 			return;
 		}
 		goto eof;
 	}
 	n = Blinelen(f) - 1;
-	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
-		if(line)
-			line[n] = '\0';
+	line[n] = '\0';
+	if(strncmp(line, "go object ", 10) != 0) {
 		if(strlen(pn) > 3 && strcmp(pn+strlen(pn)-3, ".go") == 0) {
 			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thechar, pn, thechar, thechar);
 			errorexit();
 		}
-		diag("file not %s [%s]\n", thestring, line);
+		if(strcmp(line, thestring) == 0) {
+			// old header format: just $GOOS
+			diag("%s: stale object file", pn);
+			return;
+		}
+		diag("%s: not an object file", pn);
 		return;
 	}
+	t = smprint("%s %s %s", getgoos(), thestring, getgoversion());
+	if(strcmp(line+10, t) != 0) {
+		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
+		free(t);
+		return;
+	}
+	free(t);
+	line[n] = '\n';
 
 	/* skip over exports and other info -- ends with \n!\n */
 	import0 = Boffset(f);

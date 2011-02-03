@@ -11,17 +11,16 @@ fi
 
 # Get numerical revision
 VERSION=$(hg identify -n 2>/dev/null)
-if [ $? = 0 ]; then
-	TAG=$(hg identify -t | sed 's!/release!!')
-else
+if [ $? != 0 ]; then
 	OLD=$(hg identify | sed 1q)
 	VERSION=$(echo $OLD | awk '{print $1}')
-	TAG=$(echo $OLD | awk '{print $2}' | sed 's!/release!!')
 fi
 
-# Append tag if not 'tip'
-if [[ "$TAG" != "tip" ]]; then
-	VERSION="$VERSION $TAG"
+# Find most recent known release tag.
+TAG=$(hg tags | awk '$1~/^release\./ {print $1}' | sed -n 1p)
+
+if [ "$TAG" != "" ]; then
+	VERSION="$TAG $VERSION"
 fi
 
 echo $VERSION
