@@ -69,7 +69,8 @@ type MemStatsType struct {
 
 	// Per-size allocation statistics.
 	// Not locked during update; approximate.
-	BySize [67]struct {
+	// 61 is NumSizeClasses in the C code.
+	BySize [61]struct {
 		Size    uint32
 		Mallocs uint64
 		Frees   uint64

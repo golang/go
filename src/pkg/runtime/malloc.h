@@ -97,8 +97,14 @@ typedef	uintptr	PageID;		// address >> PageShift
 
 enum
 {
+	// Computed constant.  The definition of MaxSmallSize and the
+	// algorithm in msize.c produce some number of different allocation
+	// size classes.  NumSizeClasses is that number.  It's needed here
+	// because there are static arrays of this length; when msize runs its
+	// size choosing algorithm it double-checks that NumSizeClasses agrees.
+	NumSizeClasses = 61,
+
 	// Tunable constants.
-	NumSizeClasses = 67,		// Number of size classes (must match msize.c)
 	MaxSmallSize = 32<<10,
 
 	FixAllocChunk = 128<<10,	// Chunk size for FixAlloc
@@ -290,10 +296,7 @@ struct MSpan
 	uint32	ref;		// number of allocated objects in this span
 	uint32	sizeclass;	// size class
 	uint32	state;		// MSpanInUse etc
-	union {
-		uint32	*gcref;	// sizeclass > 0
-		uint32	gcref0;	// sizeclass == 0
-	};
+	byte	*limit;	// end of data in span
 };
 
 void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
@@ -336,6 +339,7 @@ struct MHeap
 
 	// range of addresses we might see in the heap
 	byte *bitmap;
+	uintptr bitmap_mapped;
 	byte *arena_start;
 	byte *arena_used;
 	byte *arena_end;
@@ -359,26 +363,29 @@ MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct
 void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
 MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
 MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
-void	runtime·MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
+void	runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *size, int32 *npages, int32 *nobj);
 void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
+void	runtime·MHeap_MapBits(MHeap *h);
 
 void*	runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
-int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s, uint32 **ref);
+int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
+void	runtime·markallocated(void *v, uintptr n, bool noptr);
+void	runtime·checkallocated(void *v, uintptr n);
+void	runtime·markfreed(void *v, uintptr n);
+void	runtime·checkfreed(void *v, uintptr n);
+int32	runtime·checking;
+void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+void	runtime·unmarkspan(void *v, uintptr size);
+bool	runtime·blockspecial(void*);
+void	runtime·setblockspecial(void*);
 
 enum
 {
-	RefcountOverhead = 4,	// one uint32 per object
-
-	RefFree = 0,	// must be zero
-	RefStack,		// stack segment - don't free and don't scan for pointers
-	RefNone,		// no references
-	RefSome,		// some references
-	RefNoPointers = 0x80000000U,	// flag - no pointers here
-	RefHasFinalizer = 0x40000000U,	// flag - has finalizer
-	RefProfiled = 0x20000000U,	// flag - is in profiling table
-	RefNoProfiling = 0x10000000U,	// flag - must not profile
-	RefFlags = 0xFFFF0000U,
+	// flags to malloc
+	FlagNoPointers = 1<<0,	// no pointers here
+	FlagNoProfiling = 1<<1,	// must not profile
+	FlagNoGC = 1<<2,	// must not free or scan for pointers
 };
 
 void	runtime·MProf_Malloc(void*, uintptr);
