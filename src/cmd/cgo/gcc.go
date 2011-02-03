@@ -19,6 +19,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
@@ -66,6 +67,8 @@ func cname(s string) string {
 func (p *Package) ParseFlags(f *File, srcfile string) {
 	linesIn := strings.Split(f.Preamble, "\n", -1)
 	linesOut := make([]string, 0, len(linesIn))
+
+NextLine:
 	for _, line := range linesIn {
 		l := strings.TrimSpace(line)
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(int(l[4])) {
@@ -79,11 +82,29 @@ func (p *Package) ParseFlags(f *File, srcfile string) {
 			fatal("%s: bad #cgo line: %s", srcfile, line)
 		}
 
-		k := fields[0]
-		v := strings.TrimSpace(fields[1])
+		var k string
+		kf := strings.Fields(fields[0])
+		switch len(kf) {
+		case 1:
+			k = kf[0]
+		case 2:
+			k = kf[1]
+			switch kf[0] {
+			case runtime.GOOS:
+			case runtime.GOARCH:
+			case runtime.GOOS + "/" + runtime.GOARCH:
+			default:
+				continue NextLine
+			}
+		default:
+			fatal("%s: bad #cgo option: %s", srcfile, fields[0])
+		}
+
 		if k != "CFLAGS" && k != "LDFLAGS" {
 			fatal("%s: unsupported #cgo option %s", srcfile, k)
 		}
+
+		v := strings.TrimSpace(fields[1])
 		args, err := splitQuoted(v)
 		if err != nil {
 			fatal("%s: bad #cgo option %s: %s", srcfile, k, err.String())
