@@ -1142,12 +1142,11 @@ def clpatch(ui, repo, clname, **opts):
 	if err != "":
 		return err
 	try:
-		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=True)
+		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=sys.platform != "win32")
 	except:
 		return "hgpatch: " + ExceptionDetail()
-	if os.fork() == 0:
-		cmd.stdin.write(patch)
-		os._exit(0)
+
+	cmd.stdin.write(patch)
 	cmd.stdin.close()
 	out = cmd.stdout.read()
 	if cmd.wait() != 0 and not opts["ignore_hgpatch_failure"]:
