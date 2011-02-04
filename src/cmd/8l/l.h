@@ -363,7 +363,7 @@ void	follow(void);
 void	instinit(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
-void	lput(int32);
+void	lputb(int32);
 void	lputl(int32);
 void	vputl(uvlong);
 void	strnput(char*, int);
