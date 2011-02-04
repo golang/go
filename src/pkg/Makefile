@@ -211,19 +211,19 @@ test.dirs: $(addsuffix .test, $(TEST))
 bench.dirs: $(addsuffix .bench, $(BENCH))
 
 %.clean:
-	+cd $* && gomake clean
+	+cd $* && $(MAKE) clean
 
 %.install:
-	+cd $* && gomake install
+	+cd $* && $(MAKE) install
 
 %.nuke:
-	+cd $* && gomake nuke
+	+cd $* && $(MAKE) nuke
 
 %.test:
-	+cd $* && gomake test
+	+cd $* && $(MAKE) test
 
 %.bench:
-	+cd $* && gomake bench
+	+cd $* && $(MAKE) bench
 
 clean: clean.dirs
 
