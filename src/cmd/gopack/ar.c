@@ -597,7 +597,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	Dir *d;
 	static int lastobj = -1;
 	uchar buf[4];
-	char *p, *t;
+	char *p;
 
 	if (!allobj)			/* non-object file encountered */
 		return;
