@@ -1,0 +1,8 @@
+// $G $D/$F.dir/lib.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out || echo BUG: fails incorrectly
+
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Test case for issue 1402.
+ignored
