@@ -430,7 +430,6 @@ func (a *AltWords) filter(s string) *AltWords {
 // Indexer
 
 // Adjust these flags as seems best.
-const includeNonGoFiles = true
 const includeMainPackages = true
 const includeTestFiles = true
 
@@ -728,7 +727,7 @@ func isWhitelisted(filename string) bool {
 }
 
 
-func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
+func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool) {
 	if !f.IsRegular() {
 		return
 	}
@@ -746,7 +745,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
 		}
 		goFile = true
 
-	case !includeNonGoFiles || !isWhitelisted(f.Name):
+	case !fulltextIndex || !isWhitelisted(f.Name):
 		return
 	}
 
@@ -811,7 +810,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 		}
 		for _, f := range list {
 			if !f.IsDirectory() {
-				x.visitFile(dirname, f)
+				x.visitFile(dirname, f, fulltextIndex)
 			}
 		}
 	}
