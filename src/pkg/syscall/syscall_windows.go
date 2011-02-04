@@ -136,6 +136,8 @@ func NewCallback(fn interface{}) uintptr
 //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
 //sys	CancelIo(s uint32) (ok bool, errno int)
 //sys	CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, threadSecurity *int16, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation)  (ok bool, errno int) = CreateProcessW
+//sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle uint32, errno int)
+//sys	GetExitCodeProcess(handle uint32, exitcode *uint32) (ok bool, errno int)
 //sys	GetStartupInfo(startupInfo *StartupInfo)  (ok bool, errno int) = GetStartupInfoW
 //sys	GetCurrentProcess() (pseudoHandle int32, errno int)
 //sys	DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (ok bool, errno int)
@@ -146,8 +148,6 @@ func NewCallback(fn interface{}) uintptr
 //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
 //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
 //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
-//sys OpenProcess(da uint32,b int, pid uint32) (handle uint32, errno int)
-//sys GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int)
 //sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval==nil] = kernel32.GetEnvironmentStringsW
 //sys	FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) = kernel32.FreeEnvironmentStringsW
 //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
@@ -672,6 +672,32 @@ func WSASendto(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
 	return
 }
 
+// Invented structures to support what package os expects.
+type Rusage struct{}
+
+type WaitStatus struct {
+	Status   uint32
+	ExitCode uint32
+}
+
+func (w WaitStatus) Exited() bool { return true }
+
+func (w WaitStatus) ExitStatus() int { return int(w.ExitCode) }
+
+func (w WaitStatus) Signal() int { return -1 }
+
+func (w WaitStatus) CoreDump() bool { return false }
+
+func (w WaitStatus) Stopped() bool { return false }
+
+func (w WaitStatus) Continued() bool { return false }
+
+func (w WaitStatus) StopSignal() int { return -1 }
+
+func (w WaitStatus) Signaled() bool { return true }
+
+func (w WaitStatus) TrapCause() int { return -1 }
+
 // TODO(brainman): fix all needed for net
 
 func Accept(fd int) (nfd int, sa Sockaddr, errno int)                        { return 0, nil, EWINDOWS }
@@ -735,67 +761,3 @@ const (
 	SYS_EXIT
 	SYS_READ
 )
-
-type Rusage struct {
-	Utime    Timeval
-	Stime    Timeval
-	Maxrss   int32
-	Ixrss    int32
-	Idrss    int32
-	Isrss    int32
-	Minflt   int32
-	Majflt   int32
-	Nswap    int32
-	Inblock  int32
-	Oublock  int32
-	Msgsnd   int32
-	Msgrcv   int32
-	Nsignals int32
-	Nvcsw    int32
-	Nivcsw   int32
-}
-
-type WaitStatus struct {
-	Status   uint32
-	ExitCode uint32
-}
-
-func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
-	const da = STANDARD_RIGHTS_READ | PROCESS_QUERY_INFORMATION | SYNCHRONIZE
-	handle, errno := OpenProcess(da, 0, uint32(pid))
-	if errno != 0 {
-		return 0, errno
-	}
-	defer CloseHandle(int32(handle))
-	e, errno := WaitForSingleObject(int32(handle), INFINITE)
-	var c uint32
-	if ok, errno := GetExitCodeProcess(handle, &c); !ok {
-		return 0, errno
-	}
-	*wstatus = WaitStatus{e, c}
-	return pid, 0
-}
-
-
-func (w WaitStatus) Exited() bool { return w.Status == WAIT_OBJECT_0 }
-
-func (w WaitStatus) ExitStatus() int {
-	if w.Status == WAIT_OBJECT_0 {
-		return int(w.ExitCode)
-	}
-	return -1
-}
-
-func (WaitStatus) Signal() int { return -1 }
-
-func (WaitStatus) CoreDump() bool { return false }
-
-func (WaitStatus) Stopped() bool { return false }
-
-func (WaitStatus) Continued() bool { return false }
-
-func (WaitStatus) StopSignal() int { return -1 }
-
-func (w WaitStatus) Signaled() bool { return w.Status == WAIT_OBJECT_0 }
-
-func (WaitStatus) TrapCause() int { return -1 }

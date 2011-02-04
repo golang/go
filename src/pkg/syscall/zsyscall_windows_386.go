@@ -45,6 +45,8 @@ var (
 	procGetQueuedCompletionStatus  = getSysProcAddr(modkernel32, "GetQueuedCompletionStatus")
 	procCancelIo                   = getSysProcAddr(modkernel32, "CancelIo")
 	procCreateProcessW             = getSysProcAddr(modkernel32, "CreateProcessW")
+	procOpenProcess                = getSysProcAddr(modkernel32, "OpenProcess")
+	procGetExitCodeProcess         = getSysProcAddr(modkernel32, "GetExitCodeProcess")
 	procGetStartupInfoW            = getSysProcAddr(modkernel32, "GetStartupInfoW")
 	procGetCurrentProcess          = getSysProcAddr(modkernel32, "GetCurrentProcess")
 	procDuplicateHandle            = getSysProcAddr(modkernel32, "DuplicateHandle")
@@ -55,8 +57,6 @@ var (
 	procCryptAcquireContextW       = getSysProcAddr(modadvapi32, "CryptAcquireContextW")
 	procCryptReleaseContext        = getSysProcAddr(modadvapi32, "CryptReleaseContext")
 	procCryptGenRandom             = getSysProcAddr(modadvapi32, "CryptGenRandom")
-	procOpenProcess                = getSysProcAddr(modkernel32, "OpenProcess")
-	procGetExitCodeProcess         = getSysProcAddr(modkernel32, "GetExitCodeProcess")
 	procGetEnvironmentStringsW     = getSysProcAddr(modkernel32, "GetEnvironmentStringsW")
 	procFreeEnvironmentStringsW    = getSysProcAddr(modkernel32, "FreeEnvironmentStringsW")
 	procGetEnvironmentVariableW    = getSysProcAddr(modkernel32, "GetEnvironmentVariableW")
@@ -550,6 +550,42 @@ func CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, thr
 	return
 }
 
+func OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle uint32, errno int) {
+	var _p0 uint32
+	if inheritHandle {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r0, _, e1 := Syscall(procOpenProcess, 3, uintptr(da), uintptr(_p0), uintptr(pid))
+	handle = uint32(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetExitCodeProcess(handle uint32, exitcode *uint32) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procGetExitCodeProcess, 2, uintptr(handle), uintptr(unsafe.Pointer(exitcode)), 0)
+	ok = bool(r0 != 0)
+	if !ok {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
 func GetStartupInfo(startupInfo *StartupInfo) (ok bool, errno int) {
 	r0, _, e1 := Syscall(procGetStartupInfoW, 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
 	ok = bool(r0 != 0)
@@ -693,36 +729,6 @@ func CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) {
 
 func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) {
 	r0, _, e1 := Syscall(procCryptGenRandom, 3, uintptr(provhandle), uintptr(buflen), uintptr(unsafe.Pointer(buf)))
-	ok = bool(r0 != 0)
-	if !ok {
-		if e1 != 0 {
-			errno = int(e1)
-		} else {
-			errno = EINVAL
-		}
-	} else {
-		errno = 0
-	}
-	return
-}
-
-func OpenProcess(da uint32, b int, pid uint32) (handle uint32, errno int) {
-	r0, _, e1 := Syscall(procOpenProcess, 3, uintptr(da), uintptr(b), uintptr(pid))
-	handle = uint32(r0)
-	if handle == 0 {
-		if e1 != 0 {
-			errno = int(e1)
-		} else {
-			errno = EINVAL
-		}
-	} else {
-		errno = 0
-	}
-	return
-}
-
-func GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procGetExitCodeProcess, 2, uintptr(h), uintptr(unsafe.Pointer(c)), 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {

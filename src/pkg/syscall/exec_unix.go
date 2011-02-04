@@ -310,3 +310,9 @@ func Exec(argv0 string, argv []string, envv []string) (err int) {
 		uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0])))
 	return int(err1)
 }
+
+// StartProcess wraps ForkExec for package os.
+func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []int) (pid, handle int, err int) {
+	pid, err = forkExec(argv0, argv, envv, false, dir, fd)
+	return pid, 0, err
+}

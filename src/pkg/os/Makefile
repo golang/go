@@ -22,21 +22,25 @@ GOFILES_freebsd=\
 	env_unix.go\
 	file_unix.go\
 	sys_bsd.go\
+	exec_unix.go\
 
 GOFILES_darwin=\
 	env_unix.go\
 	file_unix.go\
 	sys_bsd.go\
+	exec_unix.go\
 
 GOFILES_linux=\
 	env_unix.go\
 	file_unix.go\
 	sys_linux.go\
+	exec_unix.go\
 
 GOFILES_windows=\
 	env_windows.go\
 	file_windows.go\
 	sys_windows.go\
+	exec_windows.go\
 
 GOFILES+=$(GOFILES_$(GOOS))
 

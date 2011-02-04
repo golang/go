@@ -99,15 +99,16 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(rw, "pipe: %s\n", err)
 		return
 	}
-	pid, err := os.ForkExec("/bin/date", []string{"date"}, os.Environ(), "", []*os.File{nil, w, w})
+	p, err := os.StartProcess("/bin/date", []string{"date"}, os.Environ(), "", []*os.File{nil, w, w})
 	defer r.Close()
 	w.Close()
 	if err != nil {
 		fmt.Fprintf(rw, "fork/exec: %s\n", err)
 		return
 	}
+	defer p.Release()
 	io.Copy(rw, r)
-	wait, err := os.Wait(pid, 0)
+	wait, err := p.Wait(0)
 	if err != nil {
 		fmt.Fprintf(rw, "wait: %s\n", err)
 		return

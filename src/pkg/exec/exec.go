@@ -22,12 +22,12 @@ const (
 // Stdin, Stdout, and Stderr are Files representing pipes
 // connected to the running command's standard input, output, and error,
 // or else nil, depending on the arguments to Run.
-// Pid is the running command's operating system process ID.
+// Process represents the underlying operating system process.
 type Cmd struct {
-	Stdin  *os.File
-	Stdout *os.File
-	Stderr *os.File
-	Pid    int
+	Stdin   *os.File
+	Stdout  *os.File
+	Stderr  *os.File
+	Process *os.Process
 }
 
 // PathError records the name of a binary that was not
@@ -88,24 +88,24 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 // If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
 // of the returned Cmd is the other end of the pipe.
 // Otherwise the field in Cmd is nil.
-func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
-	p = new(Cmd)
+func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int) (c *Cmd, err os.Error) {
+	c = new(Cmd)
 	var fd [3]*os.File
 
-	if fd[0], p.Stdin, err = modeToFiles(stdin, 0); err != nil {
+	if fd[0], c.Stdin, err = modeToFiles(stdin, 0); err != nil {
 		goto Error
 	}
-	if fd[1], p.Stdout, err = modeToFiles(stdout, 1); err != nil {
+	if fd[1], c.Stdout, err = modeToFiles(stdout, 1); err != nil {
 		goto Error
 	}
 	if stderr == MergeWithStdout {
 		fd[2] = fd[1]
-	} else if fd[2], p.Stderr, err = modeToFiles(stderr, 2); err != nil {
+	} else if fd[2], c.Stderr, err = modeToFiles(stderr, 2); err != nil {
 		goto Error
 	}
 
 	// Run command.
-	p.Pid, err = os.ForkExec(name, argv, envv, dir, fd[0:])
+	c.Process, err = os.StartProcess(name, argv, envv, dir, fd[0:])
 	if err != nil {
 		goto Error
 	}
@@ -118,7 +118,7 @@ func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int
 	if fd[2] != os.Stderr && fd[2] != fd[1] {
 		fd[2].Close()
 	}
-	return p, nil
+	return c, nil
 
 Error:
 	if fd[0] != os.Stdin && fd[0] != nil {
@@ -130,63 +130,67 @@ Error:
 	if fd[2] != os.Stderr && fd[2] != nil && fd[2] != fd[1] {
 		fd[2].Close()
 	}
-	if p.Stdin != nil {
-		p.Stdin.Close()
+	if c.Stdin != nil {
+		c.Stdin.Close()
 	}
-	if p.Stdout != nil {
-		p.Stdout.Close()
+	if c.Stdout != nil {
+		c.Stdout.Close()
 	}
-	if p.Stderr != nil {
-		p.Stderr.Close()
+	if c.Stderr != nil {
+		c.Stderr.Close()
+	}
+	if c.Process != nil {
+		c.Process.Release()
 	}
 	return nil, err
 }
 
-// Wait waits for the running command p,
-// returning the Waitmsg returned by os.Wait and an error.
-// The options are passed through to os.Wait.
-// Setting options to 0 waits for p to exit;
+// Wait waits for the running command c,
+// returning the Waitmsg returned when the process exits.
+// The options are passed to the process's Wait method.
+// Setting options to 0 waits for c to exit;
 // other options cause Wait to return for other
 // process events; see package os for details.
-func (p *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
-	if p.Pid <= 0 {
+func (c *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
+	if c.Process == nil {
 		return nil, os.ErrorString("exec: invalid use of Cmd.Wait")
 	}
-	w, err := os.Wait(p.Pid, options)
+	w, err := c.Process.Wait(options)
 	if w != nil && (w.Exited() || w.Signaled()) {
-		p.Pid = -1
+		c.Process.Release()
+		c.Process = nil
 	}
 	return w, err
 }
 
-// Close waits for the running command p to exit,
+// Close waits for the running command c to exit,
 // if it hasn't already, and then closes the non-nil file descriptors
-// p.Stdin, p.Stdout, and p.Stderr.
-func (p *Cmd) Close() os.Error {
-	if p.Pid > 0 {
+// c.Stdin, c.Stdout, and c.Stderr.
+func (c *Cmd) Close() os.Error {
+	if c.Process != nil {
 		// Loop on interrupt, but
 		// ignore other errors -- maybe
 		// caller has already waited for pid.
-		_, err := p.Wait(0)
+		_, err := c.Wait(0)
 		for err == os.EINTR {
-			_, err = p.Wait(0)
+			_, err = c.Wait(0)
 		}
 	}
 
 	// Close the FDs that are still open.
 	var err os.Error
-	if p.Stdin != nil && p.Stdin.Fd() >= 0 {
-		if err1 := p.Stdin.Close(); err1 != nil {
+	if c.Stdin != nil && c.Stdin.Fd() >= 0 {
+		if err1 := c.Stdin.Close(); err1 != nil {
 			err = err1
 		}
 	}
-	if p.Stdout != nil && p.Stdout.Fd() >= 0 {
-		if err1 := p.Stdout.Close(); err1 != nil && err != nil {
+	if c.Stdout != nil && c.Stdout.Fd() >= 0 {
+		if err1 := c.Stdout.Close(); err1 != nil && err != nil {
 			err = err1
 		}
 	}
-	if p.Stderr != nil && p.Stderr != p.Stdout && p.Stderr.Fd() >= 0 {
-		if err1 := p.Stderr.Close(); err1 != nil && err != nil {
+	if c.Stderr != nil && c.Stderr != c.Stdout && c.Stderr.Fd() >= 0 {
+		if err1 := c.Stderr.Close(); err1 != nil && err != nil {
 			err = err1
 		}
 	}
