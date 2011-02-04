@@ -25,8 +25,8 @@ for i in lib9 libbio libmach cmd pkg \
 do(
 	cd "$GOROOT"/src/$i || exit 1
 	if test -f clean.bash; then
-		bash clean.bash
+		bash clean.bash --gomake $MAKE
 	else
-		gomake clean
+		$MAKE clean
 	fi
 )done
