@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of February 3, 2011 -->
+<!-- subtitle Version of February 4, 2011 -->
 
 <!--
 TODO
@@ -4647,13 +4647,6 @@ func recover() interface{}
 </pre>
 
 <p>
-<span class="alert">TODO: Most of this text could move to the respective
-comments in <code>runtime.go</code> once the functions are implemented.
-They are here, at least for now, for reference and discussion.
-</span>
-</p>
-
-<p>
 When a function <code>F</code> calls <code>panic</code>, normal
 execution of <code>F</code> stops immediately.  Any functions whose
 execution was <a href="#Defer_statements">deferred</a> by the
@@ -4668,117 +4661,43 @@ the argument to <code>panic</code>.  This termination sequence is
 called <i>panicking</i>.
 </p>
 
+<pre>
+panic(42)
+panic("unreachable")
+panic(Error("cannot parse"))
+</pre>
+
 <p>
 The <code>recover</code> function allows a program to manage behavior
 of a panicking goroutine.  Executing a <code>recover</code> call
-inside a deferred function (but not any function called by it) stops
+<i>inside</i> a deferred function (but not any function called by it) stops
 the panicking sequence by restoring normal execution, and retrieves
 the error value passed to the call of <code>panic</code>.  If
 <code>recover</code> is called outside the deferred function it will
-not stop a panicking sequence.  In this case, and when the goroutine
-is not panicking, <code>recover</code> returns <code>nil</code>.
+not stop a panicking sequence.  In this case, or when the goroutine
+is not panicking, or if the argument supplied to <code>panic</code>
+was <code>nil</code>, <code>recover</code> returns <code>nil</code>.
 </p>
 
 <p>
-If the function defined here,
+The <code>protect</code> function in the example below invokes
+the function argument <code>g</code> and protects callers from
+run-time panics raised by <code>g</code>.
 </p>
 
 <pre>
-func f(hideErrors bool) {
+func protect(g func()) {
 	defer func() {
+		log.Println("done")  // Println executes normally even in there is a panic
 		if x := recover(); x != nil {
-			println("panicking with value", x)
-			if !hideErrors {
-				panic(x)  // go back to panicking
-			}
+			log.Printf("runtime panic: %v", x)
 		}
-		println("function returns normally") // executes only when hideErrors==true
-	}()
-	println("before")
-	p()
-	println("after")	// never executes
-}
-
-func p() {
-	panic(3)
+	}
+	log.Println("start")
+	g()
 }
 </pre>
 
-<p>
-is called with <code>hideErrors=true</code>, it prints
-</p>
-
-<pre>
-before
-panicking with value 3
-function returns normally
-</pre>
-
-<p>
-and resumes normal execution in the function that called <code>f</code>. Otherwise, it prints
-</p>
-
-<pre>
-before
-panicking with value 3
-</pre>
-
-<p>
-and, absent further <code>recover</code> calls, terminates the program.
-</p>
-
-<p>
-Since deferred functions run before assigning the return values to the caller
-of the deferring function, a deferred invocation of a function literal may modify the
-invoking function's return values in the event of a panic. This permits a function to protect its
-caller from panics that occur in functions it calls.
-</p>
-
-<pre>
-func IsPrintable(s string) (ok bool) {
-	ok = true
-	defer func() {
-		if recover() != nil {
-			println("input is not printable")
-			ok = false
-		}
-		// Panicking has stopped; execution will resume normally in caller.
-		// The return value will be true normally, false if a panic occurred.
-	}()
-	panicIfNotPrintable(s)	// will panic if validations fails.
-	return
-}
-</pre>
-
-<!---
-<p>
-A deferred function that calls <code>recover</code> will see the
-argument passed to <code>panic</code>.  However, functions called
-<i>from</i> the deferred function run normally, without behaving as
-though they are panicking.  This allows deferred code to run normally
-in case recovery is necessary and guarantees that functions that manage
-their own panics will not fail incorrectly.  The function
-</p>
-
-<pre>
-func g() {
-	s := ReadString()
-	defer func() {
-		if IsPrintable(s) {
-			println("finished processing", s)
-		} else {
-			println("finished processing unprintable string")
-		}
-	}()
-	Analyze(s)
-}
-</pre>
-
-<p>
-will not cause <code>IsPrintable</code> to print <code>"input is not printable"</code>
-due to a <code>panic</code> triggered by the call to <code>Analyze</code>.
-</p>
--->
 
 <h3 id="Bootstrapping">Bootstrapping</h3>
 

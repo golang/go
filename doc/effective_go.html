@@ -824,7 +824,7 @@ executions.  Here's a silly example.
 </p>
 
 <pre>
-for i := 0; i < 5; i++ {
+for i := 0; i &lt; 5; i++ {
     defer fmt.Printf("%d ", i)
 }
 </pre>
@@ -1486,7 +1486,7 @@ for a min function that chooses the least of a list of integers:
 func Min(a ...int) int {
     min := int(^uint(0) >> 1)  // largest int
     for _, i := range a {
-        if i < min {
+        if i &lt; min {
             min = i
         }
     }
@@ -2670,7 +2670,7 @@ suppresses the usual check for a <code>return</code> statement.
 // A toy implementation of cube root using Newton's method.
 func CubeRoot(x float64) float64 {
     z := x/3   // Arbitrary intitial value
-    for i := 0; i < 1e6; i++ {
+    for i := 0; i &lt; 1e6; i++ {
         prevz := z
         z -= (z*z*z-x) / (3*z*z)
         if veryClose(z, prevz) {
@@ -2727,7 +2727,7 @@ inside a server without killing the other executing goroutines.
 </p>
 
 <pre>
-func server(workChan <-chan *Work) {
+func server(workChan &lt;-chan *Work) {
     for work := range workChan {
         go safelyDo(work)
     }
@@ -2751,7 +2751,16 @@ calling <code>recover</code> handles the condition completely.
 </p>
 
 <p>
-Note that with this recovery pattern in place, the <code>do</code>
+Because <code>recover</code> always returns <code>nil</code> unless called directly
+from a deferred function, deferred code can call library routines that themselves
+use <code>panic</code> and <code>recover</code> without failing.  As an example,
+the deferred function in <code>safelyDo</code> might call a logging function before
+calling <code>recover</code>, and that logging code would run unaffected
+by the panicking state.
+</p>
+
+<p>
+With our recovery pattern in place, the <code>do</code>
 function (and anything it calls) can get out of any bad situation
 cleanly by calling <code>panic</code>.  We can use that idea to
 simplify error handling in complex software.  Let's look at an
