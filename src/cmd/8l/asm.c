@@ -67,14 +67,14 @@ wputl(ushort w)
 }
 
 void
-wput(ushort w)
+wputb(ushort w)
 {
 	cput(w>>8);
 	cput(w);
 }
 
 void
-lput(int32 l)
+lputb(int32 l)
 {
 	cput(l>>24);
 	cput(l>>16);
@@ -688,6 +688,8 @@ asmb(void)
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
 	Section *sect;
+	Sym *sym;
+	int i;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -741,7 +743,7 @@ asmb(void)
 			seek(cout, rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen, 0);
 			break;
 		case 2:
-			seek(cout, HEADR+segtext.filelen+segdata.filelen, 0);
+			symo = HEADR+segtext.filelen+segdata.filelen;
 			break;
 		case 3:
 		case 4:
@@ -761,11 +763,27 @@ asmb(void)
 			symo = rnd(symo, PEFILEALIGN);
 			break;
 		}
-		if(HEADTYPE != 10 && !debug['s']) {
+		if(!debug['s']) {
 			seek(cout, symo, 0);
-			if(debug['v'])
-				Bprint(&bso, "%5.2f dwarf\n", cputime());
-			dwarfemitdebugsections();
+			
+			if(HEADTYPE == 2) {
+				asmplan9sym();
+				cflush();
+				
+				sym = lookup("pclntab", 0);
+				if(sym != nil) {
+					lcsize = sym->np;
+					for(i=0; i < lcsize; i++)
+						cput(sym->p[i]);
+					
+					cflush();
+				}
+				
+			} else if(HEADTYPE != 10) {
+				if(debug['v'])
+					Bprint(&bso, "%5.2f dwarf\n", cputime());
+				dwarfemitdebugsections();
+			}
 		}
 	}
 	if(debug['v'])
@@ -777,25 +795,25 @@ asmb(void)
 		if(iself)
 			goto Elfput;
 	case 0:	/* garbage */
-		lput(0x160L<<16);		/* magic and sections */
-		lput(0L);			/* time and date */
-		lput(rnd(HEADR+segtext.filelen, 4096)+segdata.filelen);
-		lput(symsize);			/* nsyms */
-		lput((0x38L<<16)|7L);		/* size of optional hdr and flags */
-		lput((0413<<16)|0437L);		/* magic and version */
-		lput(rnd(HEADR+segtext.filelen, 4096));	/* sizes */
-		lput(segdata.filelen);
-		lput(segdata.len - segdata.filelen);
-		lput(entryvalue());		/* va of entry */
-		lput(INITTEXT-HEADR);		/* va of base of text */
-		lput(segdata.vaddr);			/* va of base of data */
-		lput(segdata.vaddr+segdata.filelen);		/* va of base of bss */
-		lput(~0L);			/* gp reg mask */
-		lput(0L);
-		lput(0L);
-		lput(0L);
-		lput(0L);
-		lput(~0L);			/* gp value ?? */
+		lputb(0x160L<<16);		/* magic and sections */
+		lputb(0L);			/* time and date */
+		lputb(rnd(HEADR+segtext.filelen, 4096)+segdata.filelen);
+		lputb(symsize);			/* nsyms */
+		lputb((0x38L<<16)|7L);		/* size of optional hdr and flags */
+		lputb((0413<<16)|0437L);		/* magic and version */
+		lputb(rnd(HEADR+segtext.filelen, 4096));	/* sizes */
+		lputb(segdata.filelen);
+		lputb(segdata.len - segdata.filelen);
+		lputb(entryvalue());		/* va of entry */
+		lputb(INITTEXT-HEADR);		/* va of base of text */
+		lputb(segdata.vaddr);			/* va of base of data */
+		lputb(segdata.vaddr+segdata.filelen);		/* va of base of bss */
+		lputb(~0L);			/* gp reg mask */
+		lputb(0L);
+		lputb(0L);
+		lputb(0L);
+		lputb(0L);
+		lputb(~0L);			/* gp value ?? */
 		break;
 		lputl(0);			/* x */
 	case 1:	/* unix coff */
@@ -814,7 +832,7 @@ asmb(void)
 		lputl(rnd(segtext.filelen, INITRND));	/* text sizes */
 		lputl(segdata.filelen);			/* data sizes */
 		lputl(segdata.len - segdata.filelen);			/* bss sizes */
-		lput(entryvalue());		/* va of entry */
+		lputb(entryvalue());		/* va of entry */
 		lputl(INITTEXT);		/* text start */
 		lputl(segdata.vaddr);			/* data start */
 		/*
@@ -868,14 +886,14 @@ asmb(void)
 		break;
 	case 2:	/* plan9 */
 		magic = 4*11*11+7;
-		lput(magic);		/* magic */
-		lput(segtext.filelen);			/* sizes */
-		lput(segdata.filelen);
-		lput(segdata.len - segdata.filelen);
-		lput(symsize);			/* nsyms */
-		lput(entryvalue());		/* va of entry */
-		lput(spsize);			/* sp offsets */
-		lput(lcsize);			/* line offsets */
+		lputb(magic);		/* magic */
+		lputb(segtext.filelen);			/* sizes */
+		lputb(segdata.filelen);
+		lputb(segdata.len - segdata.filelen);
+		lputb(symsize);			/* nsyms */
+		lputb(entryvalue());		/* va of entry */
+		lputb(spsize);			/* sp offsets */
+		lputb(lcsize);			/* line offsets */
 		break;
 	case 3:
 		/* MS-DOS .COM */

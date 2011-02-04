@@ -156,6 +156,7 @@ vlong	adduint8(Sym*, uint8);
 vlong	adduint16(Sym*, uint16);
 void	asmsym(void);
 void	asmelfsym64(void);
+void	asmplan9sym(void);
 void	strnput(char*, int);
 void	dodata(void);
 void	address(void);
