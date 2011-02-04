@@ -32,10 +32,11 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	if err != nil {
 		fatal("%s", err)
 	}
-	pid, err := os.ForkExec(cmd, argv, os.Environ(), "", []*os.File{r0, w1, w2})
+	p, err := os.StartProcess(cmd, argv, os.Environ(), "", []*os.File{r0, w1, w2})
 	if err != nil {
 		fatal("%s", err)
 	}
+	defer p.Release()
 	r0.Close()
 	w1.Close()
 	w2.Close()
@@ -55,7 +56,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	<-c
 	<-c
 
-	w, err := os.Wait(pid, 0)
+	w, err := p.Wait(0)
 	if err != nil {
 		fatal("%s", err)
 	}

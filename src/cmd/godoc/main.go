@@ -83,20 +83,21 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 	if *verbose {
 		log.Printf("executing %v", args)
 	}
-	pid, err := os.ForkExec(bin, args, os.Environ(), *goroot, fds)
+	p, err := os.StartProcess(bin, args, os.Environ(), *goroot, fds)
 	defer r.Close()
 	w.Close()
 	if err != nil {
-		log.Printf("os.ForkExec(%q): %v", bin, err)
+		log.Printf("os.StartProcess(%q): %v", bin, err)
 		return 2
 	}
+	defer p.Release()
 
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
-	wait, err := os.Wait(pid, 0)
+	wait, err := p.Wait(0)
 	if err != nil {
 		os.Stderr.Write(buf.Bytes())
-		log.Printf("os.Wait(%d, 0): %v", pid, err)
+		log.Printf("os.Wait(%d, 0): %v", p.Pid, err)
 		return 2
 	}
 	status = wait.ExitStatus()

@@ -5,17 +5,29 @@
 package os
 
 import (
+	"runtime"
 	"syscall"
 )
 
-// ForkExec forks the current process and invokes Exec with the program, arguments,
-// and environment specified by name, argv, and envv.  It returns the process
-// id of the forked process and an Error, if any.  The fd array specifies the
+// Process stores the information about a process created by StartProcess.
+type Process struct {
+	Pid    int
+	handle int
+}
+
+func newProcess(pid, handle int) *Process {
+	p := &Process{pid, handle}
+	runtime.SetFinalizer(p, (*Process).Release)
+	return p
+}
+
+// StartProcess starts a new process with the program, arguments,
+// and environment specified by name, argv, and envv. The fd array specifies the
 // file descriptors to be set up in the new process: fd[0] will be Unix file
 // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
 // will cause the child to have no open file descriptor with that index.
 // If dir is not empty, the child chdirs into the directory before execing the program.
-func ForkExec(name string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
+func StartProcess(name string, argv []string, envv []string, dir string, fd []*File) (p *Process, err Error) {
 	if envv == nil {
 		envv = Environ()
 	}
@@ -29,17 +41,17 @@ func ForkExec(name string, argv []string, envv []string, dir string, fd []*File)
 		}
 	}
 
-	p, e := syscall.ForkExec(name, argv, envv, dir, intfd)
+	pid, h, e := syscall.StartProcess(name, argv, envv, dir, intfd)
 	if e != 0 {
-		return 0, &PathError{"fork/exec", name, Errno(e)}
+		return nil, &PathError{"fork/exec", name, Errno(e)}
 	}
-	return p, nil
+	return newProcess(pid, h), nil
 }
 
 // Exec replaces the current process with an execution of the
 // named binary, with arguments argv and environment envv.
 // If successful, Exec never returns.  If it fails, it returns an Error.
-// ForkExec is almost always a better way to execute a program.
+// StartProcess is almost always a better way to execute a program.
 func Exec(name string, argv []string, envv []string) Error {
 	if envv == nil {
 		envv = Environ()
@@ -65,37 +77,18 @@ type Waitmsg struct {
 	Rusage             *syscall.Rusage // System-dependent resource usage info.
 }
 
-// Options for Wait.
-const (
-	WNOHANG   = syscall.WNOHANG   // Don't wait if no process has exited.
-	WSTOPPED  = syscall.WSTOPPED  // If set, status of stopped subprocesses is also reported.
-	WUNTRACED = syscall.WUNTRACED // Usually an alias for WSTOPPED.
-	WRUSAGE   = 1 << 20           // Record resource usage.
-)
-
-// WRUSAGE must not be too high a bit, to avoid clashing with Linux's
-// WCLONE, WALL, and WNOTHREAD flags, which sit in the top few bits of
-// the options
-
 // Wait waits for process pid to exit or stop, and then returns a
 // Waitmsg describing its status and an Error, if any. The options
 // (WNOHANG etc.) affect the behavior of the Wait call.
+// Wait is equivalent to calling FindProcess and then Wait
+// and Release on the result.
 func Wait(pid int, options int) (w *Waitmsg, err Error) {
-	var status syscall.WaitStatus
-	var rusage *syscall.Rusage
-	if options&WRUSAGE != 0 {
-		rusage = new(syscall.Rusage)
-		options ^= WRUSAGE
+	p, e := FindProcess(pid)
+	if e != nil {
+		return nil, e
 	}
-	pid1, e := syscall.Wait4(pid, &status, options, rusage)
-	if e != 0 {
-		return nil, NewSyscallError("wait", e)
-	}
-	w = new(Waitmsg)
-	w.Pid = pid1
-	w.WaitStatus = status
-	w.Rusage = rusage
-	return w, nil
+	defer p.Release()
+	return p.Wait(options)
 }
 
 // Convert i to decimal string.

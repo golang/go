@@ -117,13 +117,9 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 
 // TODO(kardia): Add trace
 //The command and arguments are passed via the Command line parameter.
-func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int) (pid int, err int) {
-	if traceme == true {
-		return 0, EWINDOWS
-	}
-
+func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []int) (pid, handle int, err int) {
 	if len(fd) > 3 {
-		return 0, EWINDOWS
+		return 0, 0, EWINDOWS
 	}
 
 	//CreateProcess will throw an error if the dir is not set to a valid dir
@@ -153,19 +149,19 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 	var currentProc, _ = GetCurrentProcess()
 	if len(fd) > 0 && fd[0] > 0 {
 		if ok, err := DuplicateHandle(currentProc, int32(fd[0]), currentProc, &startupInfo.StdInput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
-			return 0, err
+			return 0, 0, err
 		}
 		defer CloseHandle(int32(startupInfo.StdInput))
 	}
 	if len(fd) > 1 && fd[1] > 0 {
 		if ok, err := DuplicateHandle(currentProc, int32(fd[1]), currentProc, &startupInfo.StdOutput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
-			return 0, err
+			return 0, 0, err
 		}
 		defer CloseHandle(int32(startupInfo.StdOutput))
 	}
 	if len(fd) > 2 && fd[2] > 0 {
 		if ok, err := DuplicateHandle(currentProc, int32(fd[2]), currentProc, &startupInfo.StdErr, 0, true, DUPLICATE_SAME_ACCESS); !ok {
-			return 0, err
+			return 0, 0, err
 		}
 		defer CloseHandle(int32(startupInfo.StdErr))
 	}
@@ -188,19 +184,10 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 
 	if ok {
 		pid = int(processInfo.ProcessId)
-		CloseHandle(processInfo.Process)
+		handle = int(processInfo.Process)
 		CloseHandle(processInfo.Thread)
 	}
 	return
-}
-
-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
-	return forkExec(argv0, argv, envv, false, dir, fd)
-}
-
-// PtraceForkExec is like ForkExec, but starts the child in a traced state.
-func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
-	return forkExec(argv0, argv, envv, true, dir, fd)
 }
 
 // Ordinary exec.
