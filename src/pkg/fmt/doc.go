@@ -139,6 +139,10 @@
 	%e %E %f %F %g %g are all equivalent and scan any floating point or complex value
 	%s and %v on strings scan a space-delimited token
 
+	The familiar base-setting prefixes 0 (octal) and 0x
+	(hexadecimal) are accepted when scanning integers without a
+	format or with the %v verb.
+
 	Width is interpreted in the input text (%5s means at most
 	five runes of input will be read to scan a string) but there
 	is no syntax for scanning with a precision (no %5.2f, just

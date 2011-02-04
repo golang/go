@@ -388,19 +388,26 @@ func (s *ss) consume(ok string, accept bool) bool {
 	if rune == EOF {
 		return false
 	}
-	for i := 0; i < len(ok); i++ {
-		if int(ok[i]) == rune {
-			if accept {
-				s.buf.WriteRune(rune)
-				s.wid++
-			}
-			return true
+	if strings.IndexRune(ok, rune) >= 0 {
+		if accept {
+			s.buf.WriteRune(rune)
+			s.wid++
 		}
+		return true
 	}
 	if rune != EOF && accept {
 		s.UngetRune()
 	}
 	return false
+}
+
+// peek reports whether the next character is in the ok string, without consuming it.
+func (s *ss) peek(ok string) bool {
+	rune := s.getRune()
+	if rune != EOF {
+		s.UngetRune()
+	}
+	return strings.IndexRune(ok, rune) >= 0
 }
 
 // accept checks the next rune in the input.  If it's a byte (sic) in the string, it puts it in the
@@ -476,8 +483,8 @@ func (s *ss) getBase(verb int) (base int, digits string) {
 }
 
 // scanNumber returns the numerical string with specified digits starting here.
-func (s *ss) scanNumber(digits string) string {
-	if !s.accept(digits) {
+func (s *ss) scanNumber(digits string, haveDigits bool) string {
+	if !haveDigits && !s.accept(digits) {
 		s.errorString("expected integer")
 	}
 	for s.accept(digits) {
@@ -496,22 +503,44 @@ func (s *ss) scanRune(bitSize int) int64 {
 	return rune
 }
 
+// scanBasePrefix reports whether the integer begins with a 0 or 0x,
+// and returns the base, digit string, and whether a zero was found.
+// It is called only if the verb is %v.
+func (s *ss) scanBasePrefix() (base int, digits string, found bool) {
+	if !s.peek("0") {
+		return 10, decimalDigits, false
+	}
+	s.accept("0")
+	found = true // We've put a digit into the token buffer.
+	// Special cases for '0' && '0x'
+	base, digits = 8, octalDigits
+	if s.peek("xX") {
+		s.consume("xX", false)
+		base, digits = 16, hexadecimalDigits
+	}
+	return
+}
+
 // scanInt returns the value of the integer represented by the next
 // token, checking for overflow.  Any error is stored in s.err.
 func (s *ss) scanInt(verb int, bitSize int) int64 {
 	if verb == 'c' {
 		return s.scanRune(bitSize)
 	}
-	base, digits := s.getBase(verb)
 	s.skipSpace(false)
+	base, digits := s.getBase(verb)
+	haveDigits := false
 	if verb == 'U' {
 		if !s.consume("U", false) || !s.consume("+", false) {
 			s.errorString("bad unicode format ")
 		}
 	} else {
 		s.accept(sign) // If there's a sign, it will be left in the token buffer.
+		if verb == 'v' {
+			base, digits, haveDigits = s.scanBasePrefix()
+		}
 	}
-	tok := s.scanNumber(digits)
+	tok := s.scanNumber(digits, haveDigits)
 	i, err := strconv.Btoi64(tok, base)
 	if err != nil {
 		s.error(err)
@@ -530,14 +559,17 @@ func (s *ss) scanUint(verb int, bitSize int) uint64 {
 	if verb == 'c' {
 		return uint64(s.scanRune(bitSize))
 	}
-	base, digits := s.getBase(verb)
 	s.skipSpace(false)
+	base, digits := s.getBase(verb)
+	haveDigits := false
 	if verb == 'U' {
 		if !s.consume("U", false) || !s.consume("+", false) {
 			s.errorString("bad unicode format ")
 		}
+	} else if verb == 'v' {
+		base, digits, haveDigits = s.scanBasePrefix()
 	}
-	tok := s.scanNumber(digits)
+	tok := s.scanNumber(digits, haveDigits)
 	i, err := strconv.Btoui64(tok, base)
 	if err != nil {
 		s.error(err)

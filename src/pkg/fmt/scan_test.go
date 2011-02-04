@@ -129,10 +129,20 @@ func newReader(s string) *myStringReader {
 }
 
 var scanTests = []ScanTest{
-	// Numbers
+	// Basic types
 	{"T\n", &boolVal, true},  // boolean test vals toggle to be sure they are written
 	{"F\n", &boolVal, false}, // restored to zero value
 	{"21\n", &intVal, 21},
+	{"0\n", &intVal, 0},
+	{"000\n", &intVal, 0},
+	{"0x10\n", &intVal, 0x10},
+	{"-0x10\n", &intVal, -0x10},
+	{"0377\n", &intVal, 0377},
+	{"-0377\n", &intVal, -0377},
+	{"0\n", &uintVal, uint(0)},
+	{"000\n", &uintVal, uint(0)},
+	{"0x10\n", &uintVal, uint(0x10)},
+	{"0377\n", &uintVal, uint(0377)},
 	{"22\n", &int8Val, int8(22)},
 	{"23\n", &int16Val, int16(23)},
 	{"24\n", &int32Val, int32(24)},
@@ -201,6 +211,8 @@ var scanfTests = []ScanfTest{
 	{"%v", "TRUE\n", &boolVal, true},
 	{"%t", "false\n", &boolVal, false},
 	{"%v", "-71\n", &intVal, -71},
+	{"%v", "0377\n", &intVal, 0377},
+	{"%v", "0x44\n", &intVal, 0x44},
 	{"%d", "72\n", &intVal, 72},
 	{"%c", "a\n", &intVal, 'a'},
 	{"%c", "\u5072\n", &intVal, 0x5072},
