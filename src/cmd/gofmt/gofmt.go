@@ -113,19 +113,20 @@ func processFile(f *os.File) os.Error {
 		simplify(file)
 	}
 
-	var res bytes.Buffer
-	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, fset, file)
+	var buf bytes.Buffer
+	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&buf, fset, file)
 	if err != nil {
 		return err
 	}
+	res := buf.Bytes()
 
-	if bytes.Compare(src, res.Bytes()) != 0 {
+	if !bytes.Equal(src, res) {
 		// formatting has changed
 		if *list {
 			fmt.Fprintln(os.Stdout, f.Name())
 		}
 		if *write {
-			err = ioutil.WriteFile(f.Name(), res.Bytes(), 0)
+			err = ioutil.WriteFile(f.Name(), res, 0)
 			if err != nil {
 				return err
 			}
@@ -133,7 +134,7 @@ func processFile(f *os.File) os.Error {
 	}
 
 	if !*list && !*write {
-		_, err = os.Stdout.Write(res.Bytes())
+		_, err = os.Stdout.Write(res)
 	}
 
 	return err
