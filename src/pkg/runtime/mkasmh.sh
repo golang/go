@@ -84,6 +84,7 @@ esac
 echo
 
 awk '
+{ gsub(/\r/, ""); }
 /^aggr G$/ { aggr="g" }
 /^aggr M$/ { aggr = "m" }
 /^aggr Gobuf$/ { aggr = "gobuf" }
