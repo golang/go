@@ -53,6 +53,13 @@
 	If it is not found, the search continues in outer sections
 	until the top level is reached.
 
+	If the field value is a pointer, leading asterisks indicate
+	that the value to be inserted should be evaluated through the
+	pointer.  For example, if x.p is of type *int, {x.p} will
+	insert the value of the pointer but {*x.p} will insert the
+	value of the underlying integer.  If the value is nil or not a
+	pointer, asterisks have no effect.
+
 	If a formatter is specified, it must be named in the formatter
 	map passed to the template set up routines or in the default
 	set ("html","str","") and is used to process the data for
@@ -633,6 +640,23 @@ func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value
 	return v
 }
 
+// indirectPtr returns the item numLevels levels of indirection below the value.
+// It is forgiving: if the value is not a pointer, it returns it rather than giving
+// an error.  If the pointer is nil, it is returned as is.
+func indirectPtr(v reflect.Value, numLevels int) reflect.Value {
+	for i := numLevels; v != nil && i > 0; i++ {
+		if p, ok := v.(*reflect.PtrValue); ok {
+			if p.IsNil() {
+				return v
+			}
+			v = p.Elem()
+		} else {
+			break
+		}
+	}
+	return v
+}
+
 // Walk v through pointers and interfaces, extracting the elements within.
 func indirect(v reflect.Value) reflect.Value {
 loop:
@@ -654,12 +678,16 @@ loop:
 // The special name "@" (the "cursor") denotes the current data.
 // The value coming in (st.data) might need indirecting to reach
 // a struct while the return value is not indirected - that is,
-// it represents the actual named field.
+// it represents the actual named field. Leading stars indicate
+// levels of indirection to be applied to the value.
 func (t *Template) findVar(st *state, s string) reflect.Value {
-	if s == "@" {
-		return st.data
-	}
 	data := st.data
+	flattenedName := strings.TrimLeft(s, "*")
+	numStars := len(s) - len(flattenedName)
+	s = flattenedName
+	if s == "@" {
+		return indirectPtr(data, numStars)
+	}
 	for _, elem := range strings.Split(s, ".", -1) {
 		// Look up field; data must be a struct or map.
 		data = t.lookup(st, data, elem)
@@ -667,7 +695,7 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
 			return nil
 		}
 	}
-	return data
+	return indirectPtr(data, numStars)
 }
 
 // Is there no data to look at?

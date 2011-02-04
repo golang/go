@@ -31,7 +31,10 @@ type U struct {
 
 type S struct {
 	Header        string
+	HeaderPtr     *string
 	Integer       int
+	IntegerPtr    *int
+	NilPtr        *int
 	Raw           string
 	InnerT        T
 	InnerPointerT *T
@@ -47,6 +50,7 @@ type S struct {
 	JSON          interface{}
 	Innermap      U
 	Stringmap     map[string]string
+	Ptrmap        map[string]*string
 	Bytes         []byte
 	Iface         interface{}
 	Ifaceptr      interface{}
@@ -116,6 +120,24 @@ var tests = []*Test{
 		in: "{Header}={Integer}\n",
 
 		out: "Header=77\n",
+	},
+
+	&Test{
+		in: "Pointers: {*HeaderPtr}={*IntegerPtr}\n",
+
+		out: "Pointers: Header=77\n",
+	},
+
+	&Test{
+		in: "Stars but not pointers: {*Header}={*Integer}\n",
+
+		out: "Stars but not pointers: Header=77\n",
+	},
+
+	&Test{
+		in: "nil pointer: {*NilPtr}={*Integer}\n",
+
+		out: "nil pointer: <nil>=77\n",
 	},
 
 	// Method at top level
@@ -407,6 +429,20 @@ var tests = []*Test{
 		out: "\tstringresult\n" +
 			"\tstringresult\n",
 	},
+	&Test{
+		in: "{*Ptrmap.stringkey1}\n",
+
+		out: "pointedToString\n",
+	},
+	&Test{
+		in: "{.repeated section Ptrmap}\n" +
+			"{*@}\n" +
+			"{.end}",
+
+		out: "pointedToString\n" +
+			"pointedToString\n",
+	},
+
 
 	// Interface values
 
@@ -460,7 +496,9 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	s := new(S)
 	// initialized by hand for clarity.
 	s.Header = "Header"
+	s.HeaderPtr = &s.Header
 	s.Integer = 77
+	s.IntegerPtr = &s.Integer
 	s.Raw = "&<>!@ #$%^"
 	s.InnerT = t1
 	s.Data = []T{t1, t2}
@@ -480,6 +518,10 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	s.Stringmap = make(map[string]string)
 	s.Stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
 	s.Stringmap["stringkey2"] = "stringresult"
+	s.Ptrmap = make(map[string]*string)
+	x := "pointedToString"
+	s.Ptrmap["stringkey1"] = &x // the same value so repeated section is order-independent
+	s.Ptrmap["stringkey2"] = &x
 	s.Bytes = []byte("hello")
 	s.Iface = []int{1, 2, 3}
 	s.Ifaceptr = &T{"Item", "Value"}
