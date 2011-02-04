@@ -5049,8 +5049,8 @@ func Alignof(variable ArbitraryType) int
 func Offsetof(selector ArbitraryType) int
 func Sizeof(variable ArbitraryType) int
 
-func Reflect(val interface {}) (typ runtime.Type, addr uintptr)
-func Typeof(val interface {}) reflect.Type
+func Reflect(val interface{}) (typ runtime.Type, addr uintptr)
+func Typeof(val interface{}) (typ interface{})
 func Unreflect(typ runtime.Type, addr uintptr) interface{}
 </pre>
 
