@@ -35,7 +35,6 @@ type S struct {
 	Integer       int
 	IntegerPtr    *int
 	NilPtr        *int
-	Raw           string
 	InnerT        T
 	InnerPointerT *T
 	Data          []T
@@ -51,7 +50,6 @@ type S struct {
 	Innermap      U
 	Stringmap     map[string]string
 	Ptrmap        map[string]*string
-	Bytes         []byte
 	Iface         interface{}
 	Ifaceptr      interface{}
 }
@@ -334,38 +332,6 @@ var tests = []*Test{
 		out: "ItemNumber1=ValueNumber1\n",
 	},
 
-
-	// Formatters
-	&Test{
-		in: "{.section Pdata }\n" +
-			"{Header|uppercase}={Integer|+1}\n" +
-			"{Header|html}={Integer|str}\n" +
-			"{.end}\n",
-
-		out: "HEADER=78\n" +
-			"Header=77\n",
-	},
-
-	&Test{
-		in: "{.section Pdata }\n" +
-			"{Header|uppercase}={Integer Header|multiword}\n" +
-			"{Header|html}={Header Integer|multiword}\n" +
-			"{Header|html}={Header Integer}\n" +
-			"{.end}\n",
-
-		out: "HEADER=<77><Header>\n" +
-			"Header=<Header><77>\n" +
-			"Header=Header77\n",
-	},
-
-	&Test{
-		in: "{Raw}\n" +
-			"{Raw|html}\n",
-
-		out: "&<>!@ #$%^\n" +
-			"&amp;&lt;&gt;!@ #$%^\n",
-	},
-
 	&Test{
 		in: "{.section Emptystring}emptystring{.end}\n" +
 			"{.section Header}header{.end}\n",
@@ -378,12 +344,6 @@ var tests = []*Test{
 			"{.section False}3{.or}4{.end}\n",
 
 		out: "1\n4\n",
-	},
-
-	&Test{
-		in: "{Bytes}",
-
-		out: "hello",
 	},
 
 	// Maps
@@ -499,7 +459,6 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	s.HeaderPtr = &s.Header
 	s.Integer = 77
 	s.IntegerPtr = &s.Integer
-	s.Raw = "&<>!@ #$%^"
 	s.InnerT = t1
 	s.Data = []T{t1, t2}
 	s.Pdata = []*T{&t1, &t2}
@@ -522,7 +481,6 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	x := "pointedToString"
 	s.Ptrmap["stringkey1"] = &x // the same value so repeated section is order-independent
 	s.Ptrmap["stringkey2"] = &x
-	s.Bytes = []byte("hello")
 	s.Iface = []int{1, 2, 3}
 	s.Ifaceptr = &T{"Item", "Value"}
 
@@ -717,5 +675,89 @@ func TestReferenceToUnexported(t *testing.T) {
 	}
 	if strings.Index(err.String(), "not exported") < 0 {
 		t.Fatal("expected unexported error; got", err)
+	}
+}
+
+var formatterTests = []Test{
+	{
+		in: "{Header|uppercase}={Integer|+1}\n" +
+			"{Header|html}={Integer|str}\n",
+
+		out: "HEADER=78\n" +
+			"Header=77\n",
+	},
+
+	{
+		in: "{Header|uppercase}={Integer Header|multiword}\n" +
+			"{Header|html}={Header Integer|multiword}\n" +
+			"{Header|html}={Header Integer}\n",
+
+		out: "HEADER=<77><Header>\n" +
+			"Header=<Header><77>\n" +
+			"Header=Header77\n",
+	},
+	{
+		in: "{Raw}\n" +
+			"{Raw|html}\n",
+
+		out: "a <&> b\n" +
+			"a &lt;&amp;&gt; b\n",
+	},
+	{
+		in:  "{Bytes}",
+		out: "hello",
+	},
+	{
+		in:  "{Raw|uppercase|html|html}",
+		out: "A &amp;lt;&amp;amp;&amp;gt; B",
+	},
+	{
+		in:  "{Header Integer|multiword|html}",
+		out: "&lt;Header&gt;&lt;77&gt;",
+	},
+	{
+		in:  "{Integer|no_formatter|html}",
+		err: `unknown formatter: "no_formatter"`,
+	},
+	{
+		in:  "{Integer|||||}", // empty string is a valid formatter
+		out: "77",
+	},
+}
+
+func TestFormatters(t *testing.T) {
+	data := map[string]interface{}{
+		"Header":  "Header",
+		"Integer": 77,
+		"Raw":     "a <&> b",
+		"Bytes":   []byte("hello"),
+	}
+	for _, c := range formatterTests {
+		tmpl, err := Parse(c.in, formatters)
+		if err != nil {
+			if c.err == "" {
+				t.Error("unexpected parse error:", err)
+				continue
+			}
+			if strings.Index(err.String(), c.err) < 0 {
+				t.Error("unexpected error: expected %q, got %q", c.err, err.String())
+				continue
+			}
+		} else {
+			if c.err != "" {
+				t.Errorf("For %q, expected error, got none.", c.in)
+				continue
+			}
+			buf := bytes.NewBuffer(nil)
+			err = tmpl.Execute(data, buf)
+			if err != nil {
+				t.Error("unexpected Execute error: ", err)
+				continue
+			}
+			actual := buf.String()
+			if actual != c.out {
+				t.Errorf("for %q: expected %q but got %q.", c.in, c.out, actual)
+			}
+		}
 	}
 }
