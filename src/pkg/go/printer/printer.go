@@ -34,6 +34,12 @@ const (
 )
 
 
+const (
+	esc2 = '\xfe'                        // an escape byte that cannot occur in regular UTF-8
+	_    = 1 / (esc2 - tabwriter.Escape) // cause compiler error if esc2 == tabwriter.Escape
+)
+
+
 var (
 	esc       = []byte{tabwriter.Escape}
 	htab      = []byte{'\t'}
@@ -843,6 +849,19 @@ func (p *printer) print(args ...interface{}) {
 			escData = append(escData, tabwriter.Escape)
 			data = escData
 			tok = x.Kind
+			// If we have a raw string that spans multiple lines and
+			// the opening quote (`) is on a line preceded only by
+			// indentation, we don't want to write that indentation
+			// because the following lines of the raw string are not
+			// indented. It's easiest to correct the output at the end
+			// via the trimmer (because of the complex handling of
+			// white space).
+			// Mark multi-line raw strings by replacing the opening
+			// quote with esc2 and have the trimmer take care of fixing
+			// it up. (Do this _after_ making a copy of data!)
+			if data[1] == '`' && bytes.IndexByte(data, '\n') > 0 {
+				data[1] = esc2
+			}
 		case token.Token:
 			s := x.String()
 			if mayCombine(p.lastTok, s[0]) {
@@ -927,19 +946,24 @@ func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
 // through unchanged.
 //
 type trimmer struct {
-	output io.Writer
-	space  bytes.Buffer
-	state  int
+	output  io.Writer
+	state   int
+	space   bytes.Buffer
+	hasText bool
 }
 
 
 // trimmer is implemented as a state machine.
 // It can be in one of the following states:
 const (
-	inSpace = iota
-	inEscape
-	inText
+	inSpace  = iota // inside space
+	atEscape        // inside space and the last char was an opening tabwriter.Escape
+	inEscape        // inside text bracketed by tabwriter.Escapes
+	inText          // inside text
 )
+
+
+var backquote = []byte{'`'}
 
 
 // Design note: It is tempting to eliminate extra blanks occurring in
@@ -949,7 +973,13 @@ const (
 //              the tabwriter.
 
 func (p *trimmer) Write(data []byte) (n int, err os.Error) {
-	m := 0 // if p.state != inSpace, data[m:n] is unwritten
+	// invariants:
+	// p.state == inSpace, atEscape:
+	//	p.space is unwritten
+	//	p.hasText indicates if there is any text on this line
+	// p.state == inEscape, inText:
+	//	data[m:n] is unwritten
+	m := 0
 	var b byte
 	for n, b = range data {
 		if b == '\v' {
@@ -960,37 +990,55 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 			switch b {
 			case '\t', ' ':
 				p.space.WriteByte(b) // WriteByte returns no errors
-			case '\f', '\n':
+			case '\n', '\f':
 				p.space.Reset()                        // discard trailing space
 				_, err = p.output.Write(newlines[0:1]) // write newline
+				p.hasText = false
 			case tabwriter.Escape:
-				_, err = p.output.Write(p.space.Bytes())
-				p.space.Reset()
-				p.state = inEscape
-				m = n + 1 // drop tabwriter.Escape
+				p.state = atEscape
 			default:
 				_, err = p.output.Write(p.space.Bytes())
-				p.space.Reset()
 				p.state = inText
 				m = n
+			}
+		case atEscape:
+			// discard indentation if we have a multi-line raw string
+			// (see printer.print for details)
+			if b != esc2 || p.hasText {
+				_, err = p.output.Write(p.space.Bytes())
+			}
+			p.state = inEscape
+			m = n
+			if b == esc2 {
+				_, err = p.output.Write(backquote) // convert back
+				m++
 			}
 		case inEscape:
 			if b == tabwriter.Escape {
 				_, err = p.output.Write(data[m:n])
 				p.state = inSpace
+				p.space.Reset()
+				p.hasText = true
 			}
 		case inText:
 			switch b {
 			case '\t', ' ':
 				_, err = p.output.Write(data[m:n])
 				p.state = inSpace
+				p.space.Reset()
 				p.space.WriteByte(b) // WriteByte returns no errors
-			case '\f':
-				data[n] = '\n' // convert to newline
+				p.hasText = true
+			case '\n', '\f':
+				_, err = p.output.Write(data[m:n])
+				p.state = inSpace
+				p.space.Reset()
+				_, err = p.output.Write(newlines[0:1]) // write newline
+				p.hasText = false
 			case tabwriter.Escape:
 				_, err = p.output.Write(data[m:n])
-				p.state = inEscape
-				m = n + 1 // drop tabwriter.Escape
+				p.state = atEscape
+				p.space.Reset()
+				p.hasText = true
 			}
 		}
 		if err != nil {
@@ -999,9 +1047,12 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 	}
 	n = len(data)
 
-	if p.state != inSpace {
+	switch p.state {
+	case inEscape, inText:
 		_, err = p.output.Write(data[m:n])
 		p.state = inSpace
+		p.space.Reset()
+		p.hasText = true
 	}
 
 	return
