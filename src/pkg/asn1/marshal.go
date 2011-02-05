@@ -317,7 +317,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 	switch v := value.(type) {
 	case *reflect.BoolValue:
 		if v.Get() {
-			return out.WriteByte(1)
+			return out.WriteByte(255)
 		} else {
 			return out.WriteByte(0)
 		}
