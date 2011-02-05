@@ -57,6 +57,7 @@ Curves:
 
 	var suite *cipherSuite
 	var suiteId uint16
+FindCipherSuite:
 	for _, id := range clientHello.cipherSuites {
 		for _, supported := range config.cipherSuites() {
 			if id == supported {
@@ -67,7 +68,7 @@ Curves:
 					continue
 				}
 				suiteId = id
-				break
+				break FindCipherSuite
 			}
 		}
 	}
