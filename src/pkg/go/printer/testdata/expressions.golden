@@ -248,6 +248,77 @@ they must not be removed`
 
 
 func _() {
+	// smart handling of indentation for multi-line raw strings
+	var _ = ``
+	var _ = `foo`
+	var _ = `foo
+bar`
+
+	var _ = ``
+	var _ = `foo`
+	var _ =
+	// the next line should not be indented
+`foo
+bar`
+
+	var _ =	// comment
+	``
+	var _ =	// comment
+	`foo`
+	var _ =	// comment
+	// the next line should not be indented
+`foo
+bar`
+
+	var _ = /* comment */ ``
+	var _ = /* comment */ `foo`
+	var _ = /* comment */ `foo
+bar`
+
+	var _ =	/* comment */
+	``
+	var _ =	/* comment */
+	`foo`
+	var _ =	/* comment */
+	// the next line should not be indented
+`foo
+bar`
+
+	var board = []int(
+`...........
+...........
+....●●●....
+....●●●....
+..●●●●●●●..
+..●●●○●●●..
+..●●●●●●●..
+....●●●....
+....●●●....
+...........
+...........
+`)
+
+	var state = S{
+		"foo",
+		// the next line should not be indented
+`...........
+...........
+....●●●....
+....●●●....
+..●●●●●●●..
+..●●●○●●●..
+..●●●●●●●..
+....●●●....
+....●●●....
+...........
+...........
+`,
+		"bar",
+	}
+}
+
+
+func _() {
 	// one-line function literals (body is on a single line)
 	_ = func() {}
 	_ = func() int { return 0 }
