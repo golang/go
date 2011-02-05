@@ -124,13 +124,21 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
 		return
 	}
 
-	certDERBlock, _ := pem.Decode(certPEMBlock)
-	if certDERBlock == nil {
+	var certDERBlock *pem.Block
+	for {
+		certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
+		if certDERBlock == nil {
+			break
+		}
+		if certDERBlock.Type == "CERTIFICATE" {
+			cert.Certificate = append(cert.Certificate, certDERBlock.Bytes)
+		}
+	}
+
+	if len(cert.Certificate) == 0 {
 		err = os.ErrorString("crypto/tls: failed to parse certificate PEM data")
 		return
 	}
-
-	cert.Certificate = [][]byte{certDERBlock.Bytes}
 
 	keyPEMBlock, err := ioutil.ReadFile(keyFile)
 	if err != nil {
@@ -153,7 +161,7 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
 
 	// We don't need to parse the public key for TLS, but we so do anyway
 	// to check that it looks sane and matches the private key.
-	x509Cert, err := x509.ParseCertificate(certDERBlock.Bytes)
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return
 	}
