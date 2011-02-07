@@ -365,7 +365,7 @@ void	listinit(void);
 Sym*	lookup(char*, int);
 void	lputb(int32);
 void	lputl(int32);
-void	vputl(uvlong);
+void	vputl(uint64);
 void	strnput(char*, int);
 void	main(int, char*[]);
 void*	mal(uint32);
