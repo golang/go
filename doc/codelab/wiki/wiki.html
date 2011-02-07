@@ -477,7 +477,7 @@ redirect the client to the edit Page so the content may be created:
 </p>
 
 <pre>
-!./srcextract.bin -src=final.go -name=viewHandler
+!./srcextract.bin -src=final-noclosure.go -name=viewHandler
 </pre>
 
 <p>
@@ -539,7 +539,7 @@ Now let's fix up <code>saveHandler</code>:
 </p>
 
 <pre>
-!./srcextract.bin -src=final.go -name=saveHandler
+!./srcextract.bin -src=final-noclosure.go -name=saveHandler
 </pre>
 
 <p>
@@ -610,7 +610,7 @@ Then we can create a global variable to store our validation regexp:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noclosure.go -name=TitleValidator
+!./srcextract.bin -src=final-noclosure.go -name=titleValidator
 </pre>
 
 <p>
