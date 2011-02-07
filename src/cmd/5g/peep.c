@@ -99,6 +99,8 @@ loop1:
 		case AMOVW:
 		case AMOVF:
 		case AMOVD:
+			if(p->scond)
+				break;
 			if(!regtyp(&p->to))
 				break;
 //			if(isdconst(&p->from)) {
@@ -335,6 +337,7 @@ subprop(Reg *r0)
 
 		case AMULLU:
 		case AMULA:
+		case AMVN:
 
 		case ACMN:
 		case AADD:
@@ -347,7 +350,6 @@ subprop(Reg *r0)
 		case AORR:
 		case AAND:
 		case AEOR:
-		case AMVN:
 		case AMUL:
 		case AMULU:
 		case ADIV:
@@ -1014,6 +1016,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 
 	case AMULLU:	/* read, read, write, write */
 	case AMULA:
+	case AMVN:
 		return 2;
 
 	case AADD:	/* read, read, write */
@@ -1027,7 +1030,6 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AORR:
 	case AAND:
 	case AEOR:
-	case AMVN:
 	case AMUL:
 	case AMULU:
 	case ADIV:
