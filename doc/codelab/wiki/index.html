@@ -573,7 +573,11 @@ redirect the client to the edit Page so the content may be created:
 </p>
 
 <pre>
-func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
 		http.Redirect(w, r, &#34;/edit/&#34;+title, http.StatusFound)
@@ -658,10 +662,14 @@ Now let's fix up <code>saveHandler</code>:
 </p>
 
 <pre>
-func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
+func saveHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	body := r.FormValue(&#34;body&#34;)
 	p := &amp;Page{Title: title, Body: []byte(body)}
-	err := p.save()
+	err = p.save()
 	if err != nil {
 		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
@@ -747,6 +755,7 @@ Then we can create a global variable to store our validation regexp:
 </p>
 
 <pre>
+var titleValidator = regexp.MustCompile(&#34;^[a-zA-Z0-9]+$&#34;)
 </pre>
 
 <p>
