@@ -429,6 +429,7 @@ vlong	rnd(vlong, vlong);
 void	span(void);
 void	undef(void);
 vlong	symaddr(Sym*);
+void	vputb(uint64);
 void	vputl(uint64);
 void	wputb(uint16);
 void	wputl(uint16);

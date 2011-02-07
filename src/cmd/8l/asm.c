@@ -59,45 +59,6 @@ entryvalue(void)
 	return s->value;
 }
 
-void
-wputl(ushort w)
-{
-	cput(w);
-	cput(w>>8);
-}
-
-void
-wputb(ushort w)
-{
-	cput(w>>8);
-	cput(w);
-}
-
-void
-lputb(int32 l)
-{
-	cput(l>>24);
-	cput(l>>16);
-	cput(l>>8);
-	cput(l);
-}
-
-void
-lputl(int32 l)
-{
-	cput(l);
-	cput(l>>8);
-	cput(l>>16);
-	cput(l>>24);
-}
-
-void
-vputl(uvlong l)
-{
-	lputl(l >> 32);
-	lputl(l);
-}
-
 vlong
 datoff(vlong addr)
 {

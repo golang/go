@@ -378,8 +378,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 	int n, c1, c2, c3, c4;
 	uint32 magic;
 	vlong import0, import1, eof;
-	char *fld[10], *s, *t;
-	int nfld;
+	char *t;
 
 	eof = Boffset(f) + len;
 
