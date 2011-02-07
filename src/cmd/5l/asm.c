@@ -637,13 +637,6 @@ wput(int32 l)
 		cflush();
 }
 
-void
-wputl(ushort w)
-{
-	cput(w);
-	cput(w>>8);
-}
-
 
 void
 hput(int32 l)
@@ -665,20 +658,6 @@ lput(int32 l)
 	cbp[1] = l>>16;
 	cbp[2] = l>>8;
 	cbp[3] = l;
-	cbp += 4;
-	cbc -= 4;
-	if(cbc <= 0)
-		cflush();
-}
-
-void
-lputl(int32 l)
-{
-
-	cbp[3] = l>>24;
-	cbp[2] = l>>16;
-	cbp[1] = l>>8;
-	cbp[0] = l;
 	cbp += 4;
 	cbc -= 4;
 	if(cbc <= 0)

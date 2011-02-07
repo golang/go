@@ -410,6 +410,7 @@ Sym*	lookup(char*, int);
 void	cput(int);
 void	hput(int32);
 void	lput(int32);
+void	lputb(int32);
 void	lputl(int32);
 void*	mysbrk(uint32);
 void	names(void);
