@@ -260,7 +260,7 @@ vputb(uint64 v)
 }
 
 void
-vputl(uvlong v)
+vputl(uint64 v)
 {
 	lputl(v);
 	lputl(v >> 32);
