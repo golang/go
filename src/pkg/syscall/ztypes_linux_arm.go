@@ -23,6 +23,7 @@ const (
 	SizeofSockaddrUnix      = 0x6e
 	SizeofSockaddrLinklayer = 0x14
 	SizeofLinger            = 0x8
+	SizeofIpMreq            = 0x8
 	SizeofMsghdr            = 0x1c
 	SizeofCmsghdr           = 0xc
 	SizeofUcred             = 0xc
@@ -219,6 +220,11 @@ type Linger struct {
 type Iovec struct {
 	Base *byte
 	Len  uint32
+}
+
+type IpMreq struct {
+	Multiaddr [4]byte /* in_addr */
+	Interface [4]byte /* in_addr */
 }
 
 type Msghdr struct {
