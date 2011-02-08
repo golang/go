@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of February 4, 2011 -->
+<!-- subtitle Version of February 8, 2011 -->
 
 <!--
 TODO
@@ -610,6 +610,17 @@ type literals.
 </p>
 
 <p>
+The <i>static type</i> (or just <i>type</i>) of a variable is the
+type defined by its declaration.  Variables of interface type
+also have a distinct <i>dynamic type</i>, which
+is the actual type of the value stored in the variable at run-time.
+The dynamic type may vary during execution but is always
+<a href="#Assignability">assignable</a>
+to the static type of the interface variable.  For non-interface
+types, the dynamic type is always the static type.
+</p>
+
+<p>
 Each type <code>T</code> has an <i>underlying type</i>: If <code>T</code>
 is a predeclared type or a type literal, the corresponding underlying
 type is <code>T</code> itself. Otherwise, <code>T</code>'s underlying type
@@ -630,6 +641,7 @@ is <code>string</code>. The underlying type of <code>[]T1</code>, <code>T3</code
 and <code>T4</code> is <code>[]T1</code>.
 </p>
 
+<h3 id="Method_sets">Method sets</h3>
 <p>
 A type may have a <i>method set</i> associated with it
 (§<a href="#Interface_types">Interface types</a>, §<a href="#Method_declarations">Method declarations</a>).
@@ -641,16 +653,6 @@ is the set of all methods with receiver <code>*T</code> or <code>T</code>
 (that is, it also contains the method set of <code>T</code>).
 Any other type has an empty method set.
 In a method set, each method must have a unique name.
-</p>
-<p>
-The <i>static type</i> (or just <i>type</i>) of a variable is the
-type defined by its declaration.  Variables of interface type
-also have a distinct <i>dynamic type</i>, which
-is the actual type of the value stored in the variable at run-time.
-The dynamic type may vary during execution but is always
-<a href="#Assignability">assignable</a>
-to the static type of the interface variable.  For non-interface
-types, the dynamic type is always the static type.
 </p>
 
 
@@ -917,7 +919,8 @@ a type named <code>T</code>:
 </p>
 <ul>
 	<li>If <code>S</code> contains an anonymous field <code>T</code>, the
-	    method set of <code>S</code> includes the method set of <code>T</code>.
+	    <a href="#Method_sets">method set</a> of <code>S</code> includes the
+	    method set of <code>T</code>.
 	</li>
 
 	<li>If <code>S</code> contains an anonymous field <code>*T</code>, the
@@ -1016,7 +1019,7 @@ func(n int) func(p *T)
 <h3 id="Interface_types">Interface types</h3>
 
 <p>
-An interface type specifies a <a href="#Types">method set</a> called its <i>interface</i>.
+An interface type specifies a <a href="#Method_sets">method set</a> called its <i>interface</i>.
 A variable of interface type can store a value of any type with a method set
 that is any superset of the interface. Such a type is said to
 <i>implement the interface</i>.
@@ -1678,7 +1681,7 @@ type Cipher interface {
 
 <p>
 The declared type does not inherit any <a href="#Method_declarations">methods</a>
-bound to the existing type, but the <a href="#Types">method set</a>
+bound to the existing type, but the <a href="#Method_sets">method set</a>
 of an interface type or of elements of a composite type remains unchanged:
 </p>
 
@@ -1690,6 +1693,10 @@ func (m *Mutex) Unlock()  { /* Unlock implementation */ }
 
 // NewMutex has the same composition as Mutex but its method set is empty.
 type NewMutex Mutex
+
+// The method set of the <a href="#Pointer_types">base type</a> of PtrMutex remains unchanged,
+// but the method set of PtrMutex is empty.
+type PtrMutex *Mutex
 
 // The method set of *PrintableMutex contains the methods
 // Lock and Unlock bound to its anonymous field Mutex.
@@ -2594,8 +2601,8 @@ if Join(Split(value, len(value)/2)) != value {
 </pre>
 
 <p>
-A method call <code>x.m()</code> is valid if the method set of
-(the type of) <code>x</code> contains <code>m</code> and the
+A method call <code>x.m()</code> is valid if the <a href="#Method_sets">method set</a>
+of (the type of) <code>x</code> contains <code>m</code> and the
 argument list can be assigned to the parameter list of <code>m</code>.
 If <code>x</code> is <a href="#Address_operators">addressable</a> and <code>&amp;x</code>'s method
 set contains <code>m</code>, <code>x.m()</code> is shorthand
@@ -3058,7 +3065,7 @@ need to be presented regarding send, receive, select, and goroutines.</span>
 <h3 id="Method_expressions">Method expressions</h3>
 
 <p>
-If <code>M</code> is in the method set of type <code>T</code>,
+If <code>M</code> is in the <a href="#Method_sets">method set</a> of type <code>T</code>,
 <code>T.M</code> is a function that is callable as a regular function
 with the same arguments as <code>M</code> prefixed by an additional
 argument that is the receiver of the method.
