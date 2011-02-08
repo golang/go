@@ -118,7 +118,9 @@ func (client *expClient) run() {
 	for {
 		*hdr = header{}
 		if err := client.decode(hdrValue); err != nil {
-			expLog("error decoding client header:", err)
+			if err != os.EOF {
+				expLog("error decoding client header:", err)
+			}
 			break
 		}
 		switch hdr.PayloadType {
