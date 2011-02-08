@@ -366,7 +366,8 @@ subprop(Reg *r0)
 		case ADIVD:
 		case ADIVF:
 			if(p->to.type == v1->type)
-			if(p->to.reg == v1->reg) {
+			if(p->to.reg == v1->reg)
+			if(p->scond == 0) {
 				if(p->reg == NREG)
 					p->reg = p->to.reg;
 				goto gotit;
@@ -378,6 +379,7 @@ subprop(Reg *r0)
 		case AMOVW:
 			if(p->to.type == v1->type)
 			if(p->to.reg == v1->reg)
+			if(p->scond == 0)
 				goto gotit;
 			break;
 
