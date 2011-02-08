@@ -291,7 +291,7 @@ extern	char*	getgoarch(void);
 extern	char*	getgoroot(void);
 extern	char*	getgoversion(void);
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 struct timespec {
 	int tv_sec;
 	long tv_nsec;
