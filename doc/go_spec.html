@@ -2897,8 +2897,8 @@ Comparison operators compare two operands and yield a value of type <code>bool</
 <pre class="grammar">
 ==    equal
 !=    not equal
-<     less
-<=    less or equal
+&lt;     less
+&lt;=    less or equal
 >     greater
 >=    greater or equal
 </pre>
@@ -4012,7 +4012,7 @@ the channel until the channel is closed; it does not produce the zero value sent
 before the channel is closed
 (§<a href="#Close_and_closed"><code>close</code> and <code>closed</code></a>).
 </li>
-</ol
+</ol>
 
 <p>
 The iteration values are assigned to the respective
@@ -4444,7 +4444,7 @@ At any time the following relationship holds:
 </p>
 
 <pre>
-0 <= len(s) <= cap(s)
+0 &lt;= len(s) &lt;= cap(s)
 </pre>
 
 <p>
