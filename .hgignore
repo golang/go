@@ -43,6 +43,7 @@ src/pkg/runtime/mkversion
 src/pkg/runtime/runtime.acid.*
 src/pkg/runtime/runtime_defs.go
 src/pkg/runtime/version.go
+src/pkg/runtime/version_*.go
 src/pkg/unicode/maketables
 src/pkg/github.com/
 src/pkg/*.googlecode.com/
