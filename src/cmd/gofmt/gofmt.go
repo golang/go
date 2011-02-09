@@ -114,7 +114,7 @@ func processFile(f *os.File) os.Error {
 	}
 
 	var buf bytes.Buffer
-	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&buf, fset, file)
+	_, err = (&printer.Config{printerMode, *tabWidth}).Fprint(&buf, fset, file)
 	if err != nil {
 		return err
 	}

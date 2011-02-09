@@ -5,7 +5,7 @@
 -->
 
 {.section PAst}
-	<pre>{@ FSet|html}</pre>
+	<pre>{@ FSet|html-esc}</pre>
 {.end}
 {.section PDoc}
 	<!-- PackageName is printed as title by the top-level template -->
@@ -31,46 +31,45 @@
 		<h2 id="Constants">Constants</h2>
 		{.repeated section @}
 			{Doc|html-comment}
-			<pre>{Decl FSet|html}</pre>
+			<pre>{Decl FSet|html-esc}</pre>
 		{.end}
 	{.end}
 	{.section Vars}
 		<h2 id="Variables">Variables</h2>
 		{.repeated section @}
 			{Doc|html-comment}
-			<pre>{Decl FSet|html}</pre>
+			<pre>{Decl FSet|html-esc}</pre>
 		{.end}
 	{.end}
 	{.section Funcs}
 		{.repeated section @}
 			{# Name is a string - no need for FSet}
 			<h2 id="{Name|html-esc}">func <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h2>
-			<p><code>{Decl FSet|html}</code></p>
+			<p><code>{Decl FSet|html-esc}</code></p>
 			{Doc|html-comment}
 		{.end}
 	{.end}
 	{.section Types}
 		{.repeated section @}
-			{# Type.Name is a string - no need for FSet}
 			<h2 id="{Type.Name FSet|html-esc}">type <a href="/{Decl FSet|url-pos}">{Type.Name FSet|html-esc}</a></h2>
 			{Doc|html-comment}
-			<p><pre>{Decl FSet|html}</pre></p>
+			<p><pre>{Decl FSet|html-esc}</pre></p>
 			{.repeated section Consts}
 				{Doc|html-comment}
-				<pre>{Decl FSet|html}</pre>
+				<pre>{Decl FSet|html-esc}</pre>
 			{.end}
 			{.repeated section Vars}
 				{Doc|html-comment}
-				<pre>{Decl FSet|html}</pre>
+				<pre>{Decl FSet|html-esc}</pre>
 			{.end}
 			{.repeated section Factories}
 				<h3 id="{Type.Name FSet|html-esc}.{Name|html-esc}">func <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h3>
-				<p><code>{Decl FSet|html}</code></p>
+				<p><code>{Decl FSet|html-esc}</code></p>
 				{Doc|html-comment}
 			{.end}
 			{.repeated section Methods}
-				<h3 id="{Type.Name FSet|html-esc}.{Name|html-esc}">func ({Recv FSet|html}) <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h3>
-				<p><code>{Decl FSet|html}</code></p>
+				<h3 id="{Type.Name FSet|html-esc}.{Name|html-esc}">func ({Recv FSet|html-esc}) <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h3>
+				<p><code>{Decl FSet|html-esc}</code></p>
 				{Doc|html-comment}
 			{.end}
 		{.end}
