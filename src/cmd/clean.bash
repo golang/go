@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file.
 
 gomake=gomake
-if [ $1 == "--gomake" -a "$2" != "" ]; then
+if [ "$1" == "--gomake" -a "$2" != "" ]; then
 	gomake=$2
 fi
 
