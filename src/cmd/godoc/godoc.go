@@ -674,7 +674,7 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
 		content,
 	}
 
-	if err := godocHTML.Execute(&d, w); err != nil {
+	if err := godocHTML.Execute(w, &d); err != nil {
 		log.Printf("godocHTML.Execute: %s", err)
 	}
 }
@@ -742,7 +742,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 
 func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 	var buf bytes.Buffer
-	if err := t.Execute(data, &buf); err != nil {
+	if err := t.Execute(&buf, data); err != nil {
 		log.Printf("%s.Execute: %s", name, err)
 	}
 	return buf.Bytes()

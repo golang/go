@@ -368,7 +368,7 @@ func main() {
 	if err != nil {
 		log.Exit(err)
 	}
-	err = t.Execute(data, os.Stdout)
+	err = t.Execute(os.Stdout, data)
 	if err != nil {
 		log.Exit(err)
 	}

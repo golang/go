@@ -381,7 +381,7 @@ func main() {
 		}
 	}
 
-	if err := packageText.Execute(info, os.Stdout); err != nil {
+	if err := packageText.Execute(os.Stdout, info); err != nil {
 		log.Printf("packageText.Execute: %s", err)
 	}
 }

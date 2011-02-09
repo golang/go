@@ -2885,7 +2885,7 @@ func main() {
 }
 
 func QR(w http.ResponseWriter, req *http.Request) {
-    templ.Execute(req.FormValue("s"), w)
+    templ.Execute(w, req.FormValue("s"))
 }
 
 func UrlHtmlFormatter(w io.Writer, fmt string, v ...interface{}) {

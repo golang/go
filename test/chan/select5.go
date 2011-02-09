@@ -49,7 +49,7 @@ func main() {
 }
 
 func run(t *template.Template, a interface{}, out io.Writer) {
-	if err := t.Execute(a, out); err != nil {
+	if err := t.Execute(out, a); err != nil {
 		panic(err)
 	}
 }

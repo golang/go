@@ -972,7 +972,7 @@ func (t *Template) ParseFile(filename string) (err os.Error) {
 
 // Execute applies a parsed template to the specified data object,
 // generating output to wr.
-func (t *Template) Execute(data interface{}, wr io.Writer) (err os.Error) {
+func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
 	// Extract the driver data.
 	val := reflect.NewValue(data)
 	defer checkError(&err)

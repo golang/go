@@ -66,7 +66,7 @@ func FrontPage(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		data = helloWorld
 	}
-	frontPage.Execute(data, w)
+	frontPage.Execute(w, data)
 }
 
 // Compile is an HTTP handler that reads Go source code from the request,
@@ -123,7 +123,7 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 	if *htmlOutput {
 		w.Write(out)
 	} else {
-		output.Execute(out, w)
+		output.Execute(w, out)
 	}
 }
 
@@ -132,9 +132,9 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 func error(w http.ResponseWriter, out []byte, err os.Error) {
 	w.WriteHeader(404)
 	if out != nil {
-		output.Execute(out, w)
+		output.Execute(w, out)
 	} else {
-		output.Execute(err.String(), w)
+		output.Execute(w, err.String())
 	}
 }
 
