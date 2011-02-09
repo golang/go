@@ -274,7 +274,7 @@ func relativePath(path string) string {
 // ----------------------------------------------------------------------------
 // Tab conversion
 
-var spaces = []byte("                ") // 16 spaces seems like a good number
+var spaces = []byte("                                ") // 32 spaces seems like a good number
 
 const (
 	indenting = iota
@@ -291,25 +291,31 @@ type tconv struct {
 
 func (p *tconv) writeIndent() (err os.Error) {
 	i := p.indent
-	for i > len(spaces) {
+	for i >= len(spaces) {
 		i -= len(spaces)
 		if _, err = p.output.Write(spaces); err != nil {
 			return
 		}
 	}
-	_, err = p.output.Write(spaces[0:i])
+	// i < len(spaces)
+	if i > 0 {
+		_, err = p.output.Write(spaces[0:i])
+	}
 	return
 }
 
 
 func (p *tconv) Write(data []byte) (n int, err os.Error) {
+	if len(data) == 0 {
+		return
+	}
 	pos := 0 // valid if p.state == collecting
 	var b byte
 	for n, b = range data {
 		switch p.state {
 		case indenting:
 			switch b {
-			case '\t', '\v':
+			case '\t':
 				p.indent += *tabwidth
 			case '\n':
 				p.indent = 0
@@ -336,7 +342,7 @@ func (p *tconv) Write(data []byte) (n int, err os.Error) {
 		}
 	}
 	n = len(data)
-	if p.state == collecting {
+	if pos < n && p.state == collecting {
 		_, err = p.output.Write(data[pos:])
 	}
 	return
@@ -352,6 +358,10 @@ func writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
 	// to ensure a good outcome in most browsers (there may still
 	// be tabs in comments and strings, but converting those into
 	// the right number of spaces is much harder)
+	//
+	// TODO(gri) rethink printer flags - perhaps tconv can be eliminated
+	//           with an another printer mode (which is more efficiently
+	//           implemented in the printer than here with another layer)
 	mode := printer.TabIndent | printer.UseSpaces
 	(&printer.Config{mode, *tabwidth}).Fprint(&tconv{output: w}, fset, x)
 }
