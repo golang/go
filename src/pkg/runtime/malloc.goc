@@ -286,10 +286,16 @@ runtime·mallocinit(void)
 		// of address space, which is probably too much in a 32-bit world.
 		bitmap_size = MaxArena32 / (sizeof(void*)*8/4);
 		arena_size = 512<<20;
-
-		p = (void*)(((uintptr)end + 64*1024 - 1) & ~(64*1024-1));
-		if(runtime·SysReserve(p, bitmap_size + arena_size) != p)
-			runtime·throw("runtime: cannot reserve memory bitmap virtual address space");
+		
+		// SysReserve treats the address we ask for, end, as a hint,
+		// not as an absolute requirement.  If we ask for the end
+		// of the data segment but the operating system requires
+		// a little more space before we can start allocating, it will
+		// give out a slightly higher pointer.  That's fine.  
+		// Run with what we get back.
+		p = runtime·SysReserve(end, bitmap_size + arena_size);
+		if(p == nil)
+			runtime·throw("runtime: cannot reserve arena virtual address space");
 	}
 	runtime·mheap.bitmap = p;
 	runtime·mheap.arena_start = p + bitmap_size;
