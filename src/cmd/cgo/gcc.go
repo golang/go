@@ -774,6 +774,8 @@ var dwarfToName = map[string]string{
 	"double complex":         "complexdouble",
 }
 
+const signedDelta = 64
+
 // Type returns a *Type with the same memory layout as
 // dtype when used as the type of a variable or a struct field.
 func (c *typeConv) Type(dtype dwarf.Type) *Type {
@@ -839,7 +841,19 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		t.Align = 1
 
 	case *dwarf.EnumType:
-		switch t.Size {
+		if t.Align = t.Size; t.Align >= c.ptrSize {
+			t.Align = c.ptrSize
+		}
+		t.C = "enum " + dt.EnumName
+		signed := 0
+		t.EnumValues = make(map[string]int64)
+		for _, ev := range dt.Val {
+			t.EnumValues[ev.Name] = ev.Val
+			if ev.Val < 0 {
+				signed = signedDelta
+			}
+		}
+		switch t.Size + int64(signed) {
 		default:
 			fatal("unexpected: %d-byte enum type - %s", t.Size, dtype)
 		case 1:
@@ -850,14 +864,14 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			t.Go = c.uint32
 		case 8:
 			t.Go = c.uint64
-		}
-		if t.Align = t.Size; t.Align >= c.ptrSize {
-			t.Align = c.ptrSize
-		}
-		t.C = "enum " + dt.EnumName
-		t.EnumValues = make(map[string]int64)
-		for _, ev := range dt.Val {
-			t.EnumValues[ev.Name] = ev.Val
+		case 1 + signedDelta:
+			t.Go = c.int8
+		case 2 + signedDelta:
+			t.Go = c.int16
+		case 4 + signedDelta:
+			t.Go = c.int32
+		case 8 + signedDelta:
+			t.Go = c.int64
 		}
 
 	case *dwarf.FloatType:
