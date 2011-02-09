@@ -67,6 +67,7 @@ var (
 	procCommandLineToArgvW         = getSysProcAddr(modshell32, "CommandLineToArgvW")
 	procLocalFree                  = getSysProcAddr(modkernel32, "LocalFree")
 	procSetHandleInformation       = getSysProcAddr(modkernel32, "SetHandleInformation")
+	procFlushFileBuffers           = getSysProcAddr(modkernel32, "FlushFileBuffers")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -870,6 +871,21 @@ func LocalFree(hmem uint32) (handle uint32, errno int) {
 
 func SetHandleInformation(handle int32, mask uint32, flags uint32) (ok bool, errno int) {
 	r0, _, e1 := Syscall(procSetHandleInformation, 3, uintptr(handle), uintptr(mask), uintptr(flags))
+	ok = bool(r0 != 0)
+	if !ok {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func FlushFileBuffers(handle int32) (ok bool, errno int) {
+	r0, _, e1 := Syscall(procFlushFileBuffers, 1, uintptr(handle), 0, 0)
 	ok = bool(r0 != 0)
 	if !ok {
 		if e1 != 0 {

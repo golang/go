@@ -158,6 +158,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
 //sys	LocalFree(hmem uint32) (handle uint32, errno int) [failretval!=0]
 //sys	SetHandleInformation(handle int32, mask uint32, flags uint32) (ok bool, errno int)
+//sys	FlushFileBuffers(handle int32) (ok bool, errno int)
 
 // syscall interface implementation for other packages
 
@@ -478,6 +479,13 @@ func Utimes(path string, tv []Timeval) (errno int) {
 	return 0
 }
 
+func Fsync(fd int) (errno int) {
+	if ok, e := FlushFileBuffers(int32(fd)); !ok {
+		return e
+	}
+	return 0
+}
+
 // net api calls
 
 //sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = wsock32.WSAStartup
@@ -731,9 +739,6 @@ func Fchmod(fd int, mode uint32) (errno int)              { return EWINDOWS }
 func Chown(path string, uid int, gid int) (errno int)     { return EWINDOWS }
 func Lchown(path string, uid int, gid int) (errno int)    { return EWINDOWS }
 func Fchown(fd int, uid int, gid int) (errno int)         { return EWINDOWS }
-
-// TODO(brainman): use FlushFileBuffers Windows api to implement Fsync.
-func Fsync(fd int) (errno int) { return EWINDOWS }
 
 func Getuid() (uid int)                  { return -1 }
 func Geteuid() (euid int)                { return -1 }
