@@ -35,12 +35,12 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 	// iteration
 	n = 0
 	s := 0
-	for p := range r.Iter() {
+	r.Do(func(p interface{}) {
 		n++
 		if p != nil {
 			s += p.(int)
 		}
-	}
+	})
 	if n != N {
 		t.Errorf("number of forward iterations == %d; expected %d", n, N)
 	}
@@ -127,16 +127,6 @@ func makeN(n int) *Ring {
 	}
 	return r
 }
-
-
-func sum(r *Ring) int {
-	s := 0
-	for p := range r.Iter() {
-		s += p.(int)
-	}
-	return s
-}
-
 
 func sumN(n int) int { return (n*n + n) / 2 }
 

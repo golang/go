@@ -138,16 +138,13 @@ func (r *Ring) Len() int {
 }
 
 
-func (r *Ring) Iter() <-chan interface{} {
-	c := make(chan interface{})
-	go func() {
-		if r != nil {
-			c <- r.Value
-			for p := r.Next(); p != r; p = p.next {
-				c <- p.Value
-			}
+// Do calls function f on each element of the ring, in forward order.
+// The behavior of Do is undefined if f changes *r.
+func (r *Ring) Do(f func(interface{})) {
+	if r != nil {
+		f(r.Value)
+		for p := r.Next(); p != r; p = p.next {
+			f(p.Value)
 		}
-		close(c)
-	}()
-	return c
+	}
 }
