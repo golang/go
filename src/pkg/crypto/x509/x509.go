@@ -331,6 +331,10 @@ type Certificate struct {
 	DNSNames       []string
 	EmailAddresses []string
 
+	// Name constraints
+	PermittedDNSDomainsCritical bool // if true then the name constraints are marked critical.
+	PermittedDNSDomains         []string
+
 	PolicyIdentifiers []asn1.ObjectIdentifier
 }
 
@@ -475,6 +479,18 @@ type policyInformation struct {
 	// policyQualifiers omitted
 }
 
+// RFC 5280, 4.2.1.10
+type nameConstraints struct {
+	Permitted []generalSubtree "optional,tag:0"
+	Excluded  []generalSubtree "optional,tag:1"
+}
+
+type generalSubtree struct {
+	Name string "tag:2,optional,ia5"
+	Min  int    "optional,tag:0"
+	Max  int    "optional,tag:1"
+}
+
 func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.Error) {
 	switch algo {
 	case RSA:
@@ -603,6 +619,43 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 				// If we didn't parse any of the names then we
 				// fall through to the critical check below.
 
+			case 30:
+				// RFC 5280, 4.2.1.10
+
+				// NameConstraints ::= SEQUENCE {
+				//      permittedSubtrees       [0]     GeneralSubtrees OPTIONAL,
+				//      excludedSubtrees        [1]     GeneralSubtrees OPTIONAL }
+				//
+				// GeneralSubtrees ::= SEQUENCE SIZE (1..MAX) OF GeneralSubtree
+				//
+				// GeneralSubtree ::= SEQUENCE {
+				//      base                    GeneralName,
+				//      minimum         [0]     BaseDistance DEFAULT 0,
+				//      maximum         [1]     BaseDistance OPTIONAL }
+				//
+				// BaseDistance ::= INTEGER (0..MAX)
+
+				var constraints nameConstraints
+				_, err := asn1.Unmarshal(e.Value, &constraints)
+				if err != nil {
+					return nil, err
+				}
+
+				if len(constraints.Excluded) > 0 && e.Critical {
+					return out, UnhandledCriticalExtension{}
+				}
+
+				for _, subtree := range constraints.Permitted {
+					if subtree.Min > 0 || subtree.Max > 0 || len(subtree.Name) == 0 {
+						if e.Critical {
+							return out, UnhandledCriticalExtension{}
+						}
+						continue
+					}
+					out.PermittedDNSDomains = append(out.PermittedDNSDomains, subtree.Name)
+				}
+				continue
+
 			case 35:
 				// RFC 5280, 4.2.1.1
 				var a authKeyId
@@ -699,10 +752,11 @@ var (
 	oidExtensionBasicConstraints    = []int{2, 5, 29, 19}
 	oidExtensionSubjectAltName      = []int{2, 5, 29, 17}
 	oidExtensionCertificatePolicies = []int{2, 5, 29, 32}
+	oidExtensionNameConstraints     = []int{2, 5, 29, 30}
 )
 
 func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
-	ret = make([]extension, 6 /* maximum number of elements. */ )
+	ret = make([]extension, 7 /* maximum number of elements. */ )
 	n := 0
 
 	if template.KeyUsage != 0 {
@@ -779,6 +833,22 @@ func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
 		n++
 	}
 
+	if len(template.PermittedDNSDomains) > 0 {
+		ret[n].Id = oidExtensionNameConstraints
+		ret[n].Critical = template.PermittedDNSDomainsCritical
+
+		var out nameConstraints
+		out.Permitted = make([]generalSubtree, len(template.PermittedDNSDomains))
+		for i, permitted := range template.PermittedDNSDomains {
+			out.Permitted[i] = generalSubtree{Name: permitted}
+		}
+		ret[n].Value, err = asn1.Marshal(out)
+		if err != nil {
+			return
+		}
+		n++
+	}
+
 	// Adding another extension here? Remember to update the maximum number
 	// of elements in the make() at the top of the function.
 
@@ -793,7 +863,8 @@ var (
 // CreateSelfSignedCertificate creates a new certificate based on
 // a template. The following members of template are used: SerialNumber,
 // Subject, NotBefore, NotAfter, KeyUsage, BasicConstraintsValid, IsCA,
-// MaxPathLen, SubjectKeyId, DNSNames.
+// MaxPathLen, SubjectKeyId, DNSNames, PermittedDNSDomainsCritical,
+// PermittedDNSDomains.
 //
 // The certificate is signed by parent. If parent is equal to template then the
 // certificate is self-signed. The parameter pub is the public key of the

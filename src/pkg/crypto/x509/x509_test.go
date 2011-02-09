@@ -171,7 +171,8 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		IsCA:                  true,
 		DNSNames:              []string{"test.example.com"},
 
-		PolicyIdentifiers: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+		PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+		PermittedDNSDomains: []string{".example.com", "example.com"},
 	}
 
 	derBytes, err := CreateCertificate(random, &template, &template, &priv.PublicKey, priv)
@@ -188,6 +189,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 	if len(cert.PolicyIdentifiers) != 1 || !cert.PolicyIdentifiers[0].Equal(template.PolicyIdentifiers[0]) {
 		t.Errorf("Failed to parse policy identifiers: got:%#v want:%#v", cert.PolicyIdentifiers, template.PolicyIdentifiers)
+	}
+
+	if len(cert.PermittedDNSDomains) != 2 || cert.PermittedDNSDomains[0] != ".example.com" || cert.PermittedDNSDomains[1] != "example.com" {
+		t.Errorf("Failed to parse name constraints: %#v", cert.PermittedDNSDomains)
 	}
 
 	err = cert.CheckSignatureFrom(cert)
