@@ -64,17 +64,21 @@ cgen64(Node *n, Node *res)
 		return;
 
 	case OCOM:
+		regalloc(&t1, lo1.type, N);
+		gmove(ncon(-1), &t1);
+
 		split64(res, &lo2, &hi2);
 		regalloc(&n1, lo1.type, N);
 
 		gins(AMOVW, &lo1, &n1);
-		gins(AMVN, &n1, &n1);
+		gins(AEOR, &t1, &n1);
 		gins(AMOVW, &n1, &lo2);
 
 		gins(AMOVW, &hi1, &n1);
-		gins(AMVN, &n1, &n1);
+		gins(AEOR, &t1, &n1);
 		gins(AMOVW, &n1, &hi2);
 
+		regfree(&t1);
 		regfree(&n1);
 		splitclean();
 		splitclean();
