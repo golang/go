@@ -172,6 +172,20 @@ type transferReader struct {
 	Trailer          map[string]string
 }
 
+// bodyAllowedForStatus returns whether a given response status code
+// permits a body.  See RFC2616, section 4.4.
+func bodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204:
+		return false
+	case status == 304:
+		return false
+	}
+	return true
+}
+
 // msg is *Request or *Response.
 func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 	t := &transferReader{}
@@ -215,6 +229,19 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 	t.Trailer, err = fixTrailer(t.Header, t.TransferEncoding)
 	if err != nil {
 		return err
+	}
+
+	// If there is no Content-Length or chunked Transfer-Encoding on a *Response
+	// and the status is not 1xx, 204 or 304, then the body is unbounded.
+	// See RFC2616, section 4.4.
+	switch msg.(type) {
+	case *Response:
+		if t.ContentLength == -1 &&
+			!chunked(t.TransferEncoding) &&
+			bodyAllowedForStatus(t.StatusCode) {
+			// Unbounded body.
+			t.Close = true
+		}
 	}
 
 	// Prepare body reader.  ContentLength < 0 means chunked encoding
