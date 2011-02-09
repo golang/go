@@ -492,7 +492,7 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 			t.Error("unexpected parse error: ", err)
 			continue
 		}
-		err = tmpl.Execute(s, &buf)
+		err = tmpl.Execute(&buf, s)
 		if test.err == "" {
 			if err != nil {
 				t.Error("unexpected execute error:", err)
@@ -517,7 +517,7 @@ func TestMapDriverType(t *testing.T) {
 		t.Error("unexpected parse error:", err)
 	}
 	var b bytes.Buffer
-	err = tmpl.Execute(mp, &b)
+	err = tmpl.Execute(&b, mp)
 	if err != nil {
 		t.Error("unexpected execute error:", err)
 	}
@@ -535,7 +535,7 @@ func TestMapNoEntry(t *testing.T) {
 		t.Error("unexpected parse error:", err)
 	}
 	var b bytes.Buffer
-	err = tmpl.Execute(mp, &b)
+	err = tmpl.Execute(&b, mp)
 	if err != nil {
 		t.Error("unexpected execute error:", err)
 	}
@@ -552,7 +552,7 @@ func TestStringDriverType(t *testing.T) {
 		t.Error("unexpected parse error:", err)
 	}
 	var b bytes.Buffer
-	err = tmpl.Execute("hello", &b)
+	err = tmpl.Execute(&b, "hello")
 	if err != nil {
 		t.Error("unexpected execute error:", err)
 	}
@@ -569,7 +569,7 @@ func TestTwice(t *testing.T) {
 		t.Error("unexpected parse error:", err)
 	}
 	var b bytes.Buffer
-	err = tmpl.Execute("hello", &b)
+	err = tmpl.Execute(&b, "hello")
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
@@ -578,7 +578,7 @@ func TestTwice(t *testing.T) {
 	if s != expect {
 		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
 	}
-	err = tmpl.Execute("hello", &b)
+	err = tmpl.Execute(&b, "hello")
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
@@ -614,7 +614,7 @@ func TestCustomDelims(t *testing.T) {
 				continue
 			}
 			var b bytes.Buffer
-			err = tmpl.Execute("hello", &b)
+			err = tmpl.Execute(&b, "hello")
 			s := b.String()
 			if s != "template: hello"+ldelim+rdelim {
 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
@@ -635,7 +635,7 @@ func TestVarIndirection(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected parse error:", err)
 	}
-	err = tmpl.Execute(s, &buf)
+	err = tmpl.Execute(&buf, s)
 	if err != nil {
 		t.Fatal("unexpected execute error:", err)
 	}
@@ -669,7 +669,7 @@ func TestReferenceToUnexported(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected parse error:", err)
 	}
-	err = tmpl.Execute(u, &buf)
+	err = tmpl.Execute(&buf, u)
 	if err == nil {
 		t.Fatal("expected execute error, got none")
 	}
@@ -749,7 +749,7 @@ func TestFormatters(t *testing.T) {
 				continue
 			}
 			buf := bytes.NewBuffer(nil)
-			err = tmpl.Execute(data, buf)
+			err = tmpl.Execute(buf, data)
 			if err != nil {
 				t.Error("unexpected Execute error: ", err)
 				continue

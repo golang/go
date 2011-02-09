@@ -75,7 +75,7 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 
 	var buf bytes.Buffer
 	md := makedata{pkg, goFiles, cgoFiles, oFiles}
-	if err := makefileTemplate.Execute(&md, &buf); err != nil {
+	if err := makefileTemplate.Execute(&buf, &md); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
