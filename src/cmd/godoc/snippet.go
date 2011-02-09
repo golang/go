@@ -25,9 +25,14 @@ type Snippet struct {
 
 func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
 	// TODO instead of pretty-printing the node, should use the original source instead
-	var buf bytes.Buffer
-	writeNode(&buf, fset, decl, false)
-	return &Snippet{fset.Position(id.Pos()).Line, FormatText(buf.Bytes(), -1, true, id.Name, nil)}
+	var buf1 bytes.Buffer
+	writeNode(&buf1, fset, decl)
+	// wrap text with <pre> tag
+	var buf2 bytes.Buffer
+	buf2.WriteString("<pre>")
+	FormatText(&buf2, buf1.Bytes(), -1, true, id.Name, nil)
+	buf2.WriteString("</pre>")
+	return &Snippet{fset.Position(id.Pos()).Line, buf2.Bytes()}
 }
 
 

@@ -11,7 +11,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"go/scanner"
 	"go/token"
@@ -335,12 +334,12 @@ func selectionTag(w io.Writer, text []byte, selections int) {
 }
 
 
-// FormatText HTML-escapes text and returns it wrapped in <pre> tags.
-// Conscutive text segments are wrapped in HTML spans (with tags as
+// FormatText HTML-escapes text and writes it to w.
+// Consecutive text segments are wrapped in HTML spans (with tags as
 // defined by startTags and endTag) as follows:
 //
-//	- if line >= 0, line numbers are printed before each line, starting
-//	  with the value of line
+//	- if line >= 0, line number (ln) spans are inserted before each line,
+//	  starting with the value of line
 //	- if the text is Go source, comments get the "comment" span class
 //	- each occurrence of the regular expression pattern gets the "highlight"
 //	  span class
@@ -349,10 +348,7 @@ func selectionTag(w io.Writer, text []byte, selections int) {
 // Comments, highlights, and selections may overlap arbitrarily; the respective
 // HTML span classes are specified in the startTags variable.
 //
-func FormatText(text []byte, line int, goSource bool, pattern string, selection Selection) []byte {
-	var buf bytes.Buffer
-	buf.WriteString("<pre>\n")
-
+func FormatText(w io.Writer, text []byte, line int, goSource bool, pattern string, selection Selection) {
 	var comments, highlights Selection
 	if goSource {
 		comments = commentSelection(text)
@@ -370,11 +366,8 @@ func FormatText(text []byte, line int, goSource bool, pattern string, selection 
 				}
 			}
 		}
-		FormatSelections(&buf, text, lineTag, lineSelection(text), selectionTag, comments, highlights, selection)
+		FormatSelections(w, text, lineTag, lineSelection(text), selectionTag, comments, highlights, selection)
 	} else {
-		template.HTMLEscape(&buf, text)
+		template.HTMLEscape(w, text)
 	}
-
-	buf.WriteString("</pre>\n")
-	return buf.Bytes()
 }
