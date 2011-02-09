@@ -133,20 +133,20 @@ loop1:
 		switch(p->as) {
 		default:
 			continue;
-		case AEOR:
-			/*
-			 * EOR -1,x,y => MVN x,y
-			 */
-			if(isdconst(&p->from) && p->from.offset == -1) {
-				p->as = AMVN;
-				p->from.type = D_REG;
-				if(p->reg != NREG)
-					p->from.reg = p->reg;
-				else
-					p->from.reg = p->to.reg;
-				p->reg = NREG;
-			}
-			continue;
+//		case AEOR:
+//			/*
+//			 * EOR -1,x,y => MVN x,y
+//			 */
+//			if(isdconst(&p->from) && p->from.offset == -1) {
+//				p->as = AMVN;
+//				p->from.type = D_REG;
+//				if(p->reg != NREG)
+//					p->from.reg = p->reg;
+//				else
+//					p->from.reg = p->to.reg;
+//				p->reg = NREG;
+//			}
+//			continue;
 		case AMOVH:
 		case AMOVHU:
 		case AMOVB:
@@ -337,7 +337,7 @@ subprop(Reg *r0)
 
 		case AMULLU:
 		case AMULA:
-		case AMVN:
+//		case AMVN:
 
 		case ACMN:
 		case AADD:
@@ -666,7 +666,7 @@ shiftprop(Reg *r)
 			FAIL("can't swap");
 		if(p1->reg == NREG && p1->to.reg == n)
 			FAIL("shift result used twice");
-	case AMVN:
+//	case AMVN:
 		if(p1->from.type == D_SHIFT)
 			FAIL("shift result used in shift");
 		if(p1->from.type != D_REG || p1->from.reg != n)
@@ -1018,7 +1018,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 
 	case AMULLU:	/* read, read, write, write */
 	case AMULA:
-	case AMVN:
+//	case AMVN:
 		return 2;
 
 	case AADD:	/* read, read, write */
@@ -1176,7 +1176,7 @@ a2type(Prog *p)
 	case AORR:
 	case AAND:
 	case AEOR:
-	case AMVN:
+//	case AMVN:
 	case AMUL:
 	case AMULU:
 	case ADIV:
