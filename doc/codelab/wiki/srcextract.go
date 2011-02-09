@@ -35,10 +35,6 @@ func main() {
 	p := &printer.Config{
 		Mode:     0,
 		Tabwidth: 8,
-		Styler:   nil,
-	}
-	if *html {
-		p.Mode = printer.GenHTML
 	}
 	// create filter
 	filter := func(name string) bool {
