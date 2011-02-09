@@ -187,7 +187,7 @@ NOBENCH=\
 
 # Disable tests that depend on an external network.
 ifeq ($(DISABLE_NET_TESTS),1)
-NOTEST+=http net
+NOTEST+=http net syslog
 endif
 
 # Disable tests that windows cannot run yet.
