@@ -121,6 +121,8 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
 	n = int(r0)
@@ -134,6 +136,8 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
 	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
 		_p0 = unsafe.Pointer(&buf[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
 	errno = int(e1)
@@ -155,6 +159,8 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
 	var _p0 unsafe.Pointer
 	if len(mib) > 0 {
 		_p0 = unsafe.Pointer(&mib[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	_, _, e1 := Syscall6(SYS___SYSCTL, uintptr(_p0), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen))
 	errno = int(e1)
@@ -377,6 +383,8 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
 		_p0 = unsafe.Pointer(&buf[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES64, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
 	n = int(r0)
@@ -414,6 +422,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
 		_p0 = unsafe.Pointer(&buf[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_GETFSSTAT64, uintptr(_p0), uintptr(len(buf)), uintptr(flags))
 	n = int(r0)
@@ -601,6 +611,8 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
 	n = int(r0)
@@ -614,6 +626,8 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
 	n = int(r0)
@@ -627,6 +641,8 @@ func Read(fd int, p []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
 	n = int(r0)
@@ -640,6 +656,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
 		_p0 = unsafe.Pointer(&buf[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
 	n = int(r0)
@@ -871,6 +889,8 @@ func Write(fd int, p []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
 	n = int(r0)

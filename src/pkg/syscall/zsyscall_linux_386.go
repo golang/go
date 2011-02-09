@@ -53,6 +53,8 @@ func Getcwd(buf []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
 		_p0 = unsafe.Pointer(&buf[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
 	n = int(r0)
@@ -184,6 +186,8 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(events) > 0 {
 		_p0 = unsafe.Pointer(&events[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
 	n = int(r0)
@@ -277,6 +281,8 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
 		_p0 = unsafe.Pointer(&buf[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
 	n = int(r0)
@@ -391,6 +397,8 @@ func Klogctl(typ int, buf []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
 		_p0 = unsafe.Pointer(&buf[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(_p0), uintptr(len(buf)))
 	n = int(r0)
@@ -468,6 +476,8 @@ func Read(fd int, p []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
 	n = int(r0)
@@ -481,6 +491,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(buf) > 0 {
 		_p0 = unsafe.Pointer(&buf[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
 	n = int(r0)
@@ -518,6 +530,8 @@ func Setdomainname(p []byte) (errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(_p0), uintptr(len(p)), 0)
 	errno = int(e1)
@@ -530,6 +544,8 @@ func Sethostname(p []byte) (errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(_p0), uintptr(len(p)), 0)
 	errno = int(e1)
@@ -688,6 +704,8 @@ func Write(fd int, p []byte) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
 	n = int(r0)
@@ -823,6 +841,8 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
 	n = int(r0)
@@ -836,6 +856,8 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
 		_p0 = unsafe.Pointer(&p[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
 	n = int(r0)

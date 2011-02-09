@@ -98,14 +98,11 @@ while(<>) {
 		} elsif($type =~ /^\[\](.*)/) {
 			# Convert slice into pointer, length.
 			# Have to be careful not to take address of &a[0] if len == 0:
-			# pass nil in that case.
+			# pass dummy pointer in that case.
+			# Used to pass nil, but some OSes or simulators reject write(fd, nil, 0).
 			$text .= "\tvar _p$n unsafe.Pointer\n";
 			$text .= "\tif len($name) > 0 {\n\t\t_p$n = unsafe.Pointer(\&${name}[0])\n\t}";
-			if($nacl) {
-				# NaCl rejects zero length write with nil pointer,
-				# so use non-nil pointer.
-				$text .= " else {\n\t\t_p$n = unsafe.Pointer(&_zero[0])\n\t}";
-			}
+			$text .= " else {\n\t\t_p$n = unsafe.Pointer(&_zero)\n\t}";
 			$text .= "\n";
 			push @args, "uintptr(_p$n)", "uintptr(len($name))";
 			$n++;

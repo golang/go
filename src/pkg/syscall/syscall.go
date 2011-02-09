@@ -24,3 +24,7 @@ func StringByteSlice(s string) []byte {
 // StringBytePtr returns a pointer to a NUL-terminated array of bytes
 // containing the text of s.
 func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
+
+// Single-word zero for use when we need a valid pointer to 0 bytes.
+// See mksyscall.sh.
+var _zero uintptr
