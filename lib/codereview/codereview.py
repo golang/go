@@ -1146,10 +1146,8 @@ def clpatch(ui, repo, clname, **opts):
 	except:
 		return "hgpatch: " + ExceptionDetail()
 
-	cmd.stdin.write(patch)
-	cmd.stdin.close()
-	out = cmd.stdout.read()
-	if cmd.wait() != 0 and not opts["ignore_hgpatch_failure"]:
+	out, err = cmd.communicate(patch)
+	if cmd.returncode != 0 and not opts["ignore_hgpatch_failure"]:
 		return "hgpatch failed"
 	cl.local = True
 	cl.files = out.strip().split()
