@@ -44,6 +44,47 @@ var respTests = []respTest{
 		"Body here\n",
 	},
 
+	// Unchunked HTTP/1.1 response without Content-Length or
+	// Connection headers.
+	{
+		"HTTP/1.1 200 OK\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			RequestMethod: "GET",
+			Close:         true,
+			ContentLength: -1,
+		},
+
+		"Body here\n",
+	},
+
+	// Unchunked HTTP/1.1 204 response without Content-Length.
+	{
+		"HTTP/1.1 204 No Content\r\n" +
+			"\r\n" +
+			"Body should not be read!\n",
+
+		Response{
+			Status:        "204 No Content",
+			StatusCode:    204,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			RequestMethod: "GET",
+			Close:         false,
+			ContentLength: 0,
+		},
+
+		"",
+	},
+
 	// Unchunked response with Content-Length.
 	{
 		"HTTP/1.0 200 OK\r\n" +
