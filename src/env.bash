@@ -38,7 +38,7 @@ fi
 
 # Tried to use . <($MAKE ...) here, but it cannot set environment
 # variables in the version of bash that ships with OS X.  Amazing.
-eval $($MAKE --no-print-directory -f Make.inc go-env | egrep 'GOARCH|GOOS|GO_ENV')
+eval $($MAKE --no-print-directory -f Make.inc go-env | egrep 'GOARCH|GOOS|GOHOSTARCH|GOHOSTOS|GO_ENV')
 
 # Shell doesn't tell us whether make succeeded,
 # so Make.inc generates a fake variable name.
