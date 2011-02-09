@@ -42,9 +42,7 @@ TMP2FILE=/tmp/gotest2-$$-$USER
 
 # don't run the machine out of memory: limit individual processes to 4GB.
 # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
-# Linux charges reserved but not mapped addresses to ulimit -v
-# so we have to use ulimit -m.
-ulimit -m 4000000
+ulimit -v 4000000
 
 # no core files please
 ulimit -c 0

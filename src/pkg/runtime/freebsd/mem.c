@@ -33,6 +33,12 @@ runtime·SysFree(void *v, uintptr n)
 void*
 runtime·SysReserve(void *v, uintptr n)
 {
+	// On 64-bit, people with ulimit -v set complain if we reserve too
+	// much address space.  Instead, assume that the reservation is okay
+	// and check the assumption in SysMap.
+	if(sizeof(void*) == 8)
+		return v;
+	
 	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
 }
 
@@ -42,6 +48,17 @@ runtime·SysMap(void *v, uintptr n)
 	void *p;
 	
 	mstats.sys += n;
+
+	// On 64-bit, we don't actually have v reserved, so tread carefully.
+	if(sizeof(void*) == 8) {
+		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+		if(p != v) {
+			runtime·printf("runtime: address space conflict: map(%v) = %v\n", v, p);
+			runtime·throw("runtime: address space conflict");
+		}
+		return;
+	}
+
 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
 	if(p != v)
 		runtime·throw("runtime: cannot map pages in arena address space");
