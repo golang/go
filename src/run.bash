@@ -102,6 +102,8 @@ time ./run
 
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../doc/codelab/wiki
+gomake clean
+gomake
 gomake test
 ) || exit $?
 
