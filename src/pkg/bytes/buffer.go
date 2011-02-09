@@ -154,17 +154,20 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
 }
 
 // WriteTo writes data to w until the buffer is drained or an error
-// occurs. The return value n is the number of bytes written.
+// occurs. The return value n is the number of bytes written; it always
+// fits into an int, but it is int64 to match the io.WriterTo interface.
 // Any error encountered during the write is also returned.
 func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
 	b.lastRead = opInvalid
-	for b.off < len(b.buf) {
+	if b.off < len(b.buf) {
 		m, e := w.Write(b.buf[b.off:])
-		n += int64(m)
 		b.off += m
+		n = int64(m)
 		if e != nil {
 			return n, e
 		}
+		// otherwise all bytes were written, by definition of
+		// Write method in io.Writer
 	}
 	// Buffer is now empty; reset.
 	b.Truncate(0)
