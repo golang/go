@@ -99,7 +99,7 @@ loop1:
 		case AMOVW:
 		case AMOVF:
 		case AMOVD:
-			if(p->scond)
+			if(p->scond != C_SCOND_NONE)
 				break;
 			if(!regtyp(&p->to))
 				break;
@@ -367,7 +367,7 @@ subprop(Reg *r0)
 		case ADIVF:
 			if(p->to.type == v1->type)
 			if(p->to.reg == v1->reg)
-			if(p->scond == 0) {
+			if(p->scond == C_SCOND_NONE) {
 				if(p->reg == NREG)
 					p->reg = p->to.reg;
 				goto gotit;
@@ -379,7 +379,7 @@ subprop(Reg *r0)
 		case AMOVW:
 			if(p->to.type == v1->type)
 			if(p->to.reg == v1->reg)
-			if(p->scond == 0)
+			if(p->scond == C_SCOND_NONE)
 				goto gotit;
 			break;
 
