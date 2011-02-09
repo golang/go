@@ -48,7 +48,6 @@ peep(void)
 /*
  * complete R structure
  */
-	t = 0;
 	for(r=firstr; r!=R; r=r1) {
 		r1 = r->link;
 		if(r1 == R)
@@ -68,7 +67,6 @@ peep(void)
 			r1->p1 = r2;
 
 			r = r2;
-			t++;
 
 		case ADATA:
 		case AGLOBL:
@@ -77,8 +75,10 @@ peep(void)
 			p = p->link;
 		}
 	}
+//dumpit("begin", firstr);
 
 loop1:
+
 	t = 0;
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
@@ -99,40 +99,38 @@ loop1:
 		case AMOVW:
 		case AMOVF:
 		case AMOVD:
-			if(p->scond != C_SCOND_NONE)
-				break;
-			if(!regtyp(&p->to))
-				break;
-//			if(isdconst(&p->from)) {
-//				constprop(&p->from, &p->to, r->s1);
-//				break;
-//			}
-			if(!regtyp(&p->from))
-				break;
-			if(p->from.type != p->to.type)
-				break;
-			if(copyprop(r)) {
-				excise(r);
-				t++;
-				break;
+			if(regtyp(&p->from))
+			if(p->from.type == p->to.type)
+			if(p->scond == C_SCOND_NONE) {
+				if(copyprop(r)) {
+					excise(r);
+					t++;
+					break;
+				}
+				if(subprop(r) && copyprop(r)) {
+					excise(r);
+					t++;
+					break;
+				}
 			}
-			if(subprop(r) && copyprop(r)) {
-				excise(r);
-				t++;
-				break;
+			break;
+
+			if(p->scond == C_SCOND_NONE)
+			if(regtyp(&p->to))
+			if(isdconst(&p->from)) {
+				constprop(&p->from, &p->to, r->s1);
 			}
+			break;
 		}
 	}
 	if(t)
 		goto loop1;
-	/*
-	 * look for MOVB x,R; MOVB R,R
-	 */
+
+return;
+
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
-		default:
-			continue;
 //		case AEOR:
 //			/*
 //			 * EOR -1,x,y => MVN x,y
@@ -146,26 +144,30 @@ loop1:
 //					p->from.reg = p->to.reg;
 //				p->reg = NREG;
 //			}
-//			continue;
+//			break;
+
 		case AMOVH:
 		case AMOVHU:
 		case AMOVB:
 		case AMOVBU:
+			/*
+			 * look for MOVB x,R; MOVB R,R
+			 */
 			if(p->to.type != D_REG)
-				continue;
+				break;
+			if(r1 == R)
+				break;
+			p1 = r1->prog;
+			if(p1->as != p->as)
+				break;
+			if(p1->from.type != D_REG || p1->from.reg != p->to.reg)
+				break;
+			if(p1->to.type != D_REG || p1->to.reg != p->to.reg)
+				break;
+			excise(r1);
 			break;
 		}
 		r1 = r->link;
-		if(r1 == R)
-			continue;
-		p1 = r1->prog;
-		if(p1->as != p->as)
-			continue;
-		if(p1->from.type != D_REG || p1->from.reg != p->to.reg)
-			continue;
-		if(p1->to.type != D_REG || p1->to.reg != p->to.reg)
-			continue;
-		excise(r1);
 	}
 
 //	for(r=firstr; r!=R; r=r->link) {
@@ -975,7 +977,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		}
 		return 0;
 
-	case ANOP:	/* read, write */
+	case ANOP:	/* read,, write */
 	case AMOVW:
 	case AMOVF:
 	case AMOVD:
@@ -1047,12 +1049,12 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ADIVF:
 	case ADIVD:
 
-	case ACMPF:
+	case ACMPF:	/* read, read, */
 	case ACMPD:
-	case ATST:
 	case ACMP:
 	case ACMN:
 	case ACASE:
+	case ATST:	/* read,, */
 		if(s != A) {
 			if(copysub(&p->from, v, s, 1))
 				return 1;
@@ -1154,53 +1156,6 @@ copyu(Prog *p, Adr *v, Adr *s)
 	return 0;
 }
 
-int
-a2type(Prog *p)
-{
-
-	switch(p->as) {
-
-	case ATST:
-	case ACMP:
-	case ACMN:
-
-	case AMULLU:
-	case AMULA:
-
-	case AADD:
-	case ASUB:
-	case ARSB:
-	case ASLL:
-	case ASRL:
-	case ASRA:
-	case AORR:
-	case AAND:
-	case AEOR:
-//	case AMVN:
-	case AMUL:
-	case AMULU:
-	case ADIV:
-	case ADIVU:
-	case AMOD:
-	case AMODU:
-		return D_REG;
-
-	case ACMPF:
-	case ACMPD:
-
-	case AADDF:
-	case AADDD:
-	case ASUBF:
-	case ASUBD:
-	case AMULF:
-	case AMULD:
-	case ADIVF:
-	case ADIVD:
-		return D_FREG;
-	}
-	return D_NONE;
-}
-
 /*
  * direct reference,
  * could be set/use depending on
@@ -1260,17 +1215,33 @@ copyau(Adr *a, Adr *v)
 	return 0;
 }
 
+/*
+ * compare v to the center
+ * register in p (p->reg)
+ * the trick is that this
+ * register might be D_REG
+ * D_FREG. there are basically
+ * two cases,
+ *	ADD r,r,r
+ *	CMP r,r,
+ */
 int
 copyau1(Prog *p, Adr *v)
 {
 
-	if(regtyp(v)) {
-		if(a2type(p) == v->type)
-		if(p->reg == v->reg) {
-			if(a2type(p) != v->type)
-				print("botch a2type %P\n", p);
-			return 1;
+	if(regtyp(v))
+	if(p->reg == v->reg) {
+		if(p->to.type != D_NONE) {
+			if(v->type == p->to.type)
+				return 1;
+			return 0;
 		}
+		if(p->from.type != D_NONE) {
+			if(v->type == p->from.type)
+				return 1;
+			return 0;
+		}
+		print("copyau1: cant tell %P\n", p);
 	}
 	return 0;
 }
@@ -1483,24 +1454,24 @@ applypred(Reg *rstart, Joininfo *j, int cond, int branch)
 		pred = predinfo[rstart->prog->as - ABEQ].notscond;
 
 	for(r = j->start;; r = successor(r)) {
-		if (r->prog->as == AB) {
-			if (r != j->last || branch == Delbranch)
+		if(r->prog->as == AB) {
+			if(r != j->last || branch == Delbranch)
 				excise(r);
 			else {
-				if (cond == Truecond)
+				if(cond == Truecond)
 					r->prog->as = predinfo[rstart->prog->as - ABEQ].opcode;
 				else
 					r->prog->as = predinfo[rstart->prog->as - ABEQ].notopcode;
 			}
 		}
 		else
-		if (predicable(r->prog))
+		if(predicable(r->prog))
 			r->prog->scond = (r->prog->scond&~C_SCOND)|pred;
-		if (r->s1 != r->link) {
+		if(r->s1 != r->link) {
 			r->s1 = r->link;
 			r->link->p1 = r;
 		}
-		if (r == j->last)
+		if(r == j->last)
 			break;
 	}
 }
