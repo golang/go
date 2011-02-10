@@ -48,7 +48,14 @@ runtime·SysFree(void *v, uintptr n)
 void*
 runtime·SysReserve(void *v, uintptr n)
 {
-	return runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	// v is just a hint.
+	// First try at v.
+	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if(v != nil)
+		return v;
+	
+	// Next let the kernel choose the address.
+	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 }
 
 void
