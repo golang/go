@@ -140,10 +140,10 @@ regopt(Prog *firstp)
 	if(first == 0) {
 		fmtinstall('Q', Qconv);
 	}
-	first++;
 
+	first++;
 	if(debug['K']) {
-		if(first != 2)
+		if(first != 13)
 			return;
 //		debug['R'] = 2;
 //		debug['P'] = 2;
