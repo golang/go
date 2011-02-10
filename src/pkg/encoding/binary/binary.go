@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements translation between
-// unsigned integer values and byte sequences.
+// Package binary implements translation between
+// unsigned integer values and byte sequences
+// and the reading and writing of fixed-size values.
 package binary
 
 import (
