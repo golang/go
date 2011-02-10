@@ -113,10 +113,9 @@ func LoadLibrary(libname string) (handle uint32, errno int) {
 	return
 }
 
-func FreeLibrary(handle uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procFreeLibrary, 1, uintptr(handle), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func FreeLibrary(handle uint32) (errno int) {
+	r1, _, e1 := Syscall(procFreeLibrary, 1, uintptr(handle), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -197,14 +196,13 @@ func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes
 	return
 }
 
-func ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int) {
+func ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (errno int) {
 	var _p0 *byte
 	if len(buf) > 0 {
 		_p0 = &buf[0]
 	}
-	r0, _, e1 := Syscall6(procReadFile, 5, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+	r1, _, e1 := Syscall6(procReadFile, 5, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -216,14 +214,13 @@ func ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (o
 	return
 }
 
-func WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int) {
+func WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (errno int) {
 	var _p0 *byte
 	if len(buf) > 0 {
 		_p0 = &buf[0]
 	}
-	r0, _, e1 := Syscall6(procWriteFile, 5, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+	r1, _, e1 := Syscall6(procWriteFile, 5, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -250,10 +247,9 @@ func SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence 
 	return
 }
 
-func CloseHandle(handle int32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procCloseHandle, 1, uintptr(handle), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func CloseHandle(handle int32) (errno int) {
+	r1, _, e1 := Syscall(procCloseHandle, 1, uintptr(handle), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -295,10 +291,9 @@ func FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) 
 	return
 }
 
-func FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procFindNextFileW, 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func FindNextFile(handle int32, data *Win32finddata) (errno int) {
+	r1, _, e1 := Syscall(procFindNextFileW, 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -310,10 +305,9 @@ func FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) {
 	return
 }
 
-func FindClose(handle int32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procFindClose, 1, uintptr(handle), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func FindClose(handle int32) (errno int) {
+	r1, _, e1 := Syscall(procFindClose, 1, uintptr(handle), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -325,10 +319,9 @@ func FindClose(handle int32) (ok bool, errno int) {
 	return
 }
 
-func GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procGetFileInformationByHandle, 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (errno int) {
+	r1, _, e1 := Syscall(procGetFileInformationByHandle, 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -355,10 +348,9 @@ func GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) {
 	return
 }
 
-func SetCurrentDirectory(path *uint16) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procSetCurrentDirectoryW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func SetCurrentDirectory(path *uint16) (errno int) {
+	r1, _, e1 := Syscall(procSetCurrentDirectoryW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -370,10 +362,9 @@ func SetCurrentDirectory(path *uint16) (ok bool, errno int) {
 	return
 }
 
-func CreateDirectory(path *uint16, sa *SecurityAttributes) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procCreateDirectoryW, 2, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(sa)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func CreateDirectory(path *uint16, sa *SecurityAttributes) (errno int) {
+	r1, _, e1 := Syscall(procCreateDirectoryW, 2, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(sa)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -385,10 +376,9 @@ func CreateDirectory(path *uint16, sa *SecurityAttributes) (ok bool, errno int) 
 	return
 }
 
-func RemoveDirectory(path *uint16) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procRemoveDirectoryW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func RemoveDirectory(path *uint16) (errno int) {
+	r1, _, e1 := Syscall(procRemoveDirectoryW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -400,10 +390,9 @@ func RemoveDirectory(path *uint16) (ok bool, errno int) {
 	return
 }
 
-func DeleteFile(path *uint16) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procDeleteFileW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func DeleteFile(path *uint16) (errno int) {
+	r1, _, e1 := Syscall(procDeleteFileW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -415,10 +404,9 @@ func DeleteFile(path *uint16) (ok bool, errno int) {
 	return
 }
 
-func MoveFile(from *uint16, to *uint16) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procMoveFileW, 2, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func MoveFile(from *uint16, to *uint16) (errno int) {
+	r1, _, e1 := Syscall(procMoveFileW, 2, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -430,10 +418,9 @@ func MoveFile(from *uint16, to *uint16) (ok bool, errno int) {
 	return
 }
 
-func GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procGetComputerNameW, 2, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func GetComputerName(buf *uint16, n *uint32) (errno int) {
+	r1, _, e1 := Syscall(procGetComputerNameW, 2, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -445,10 +432,9 @@ func GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) {
 	return
 }
 
-func SetEndOfFile(handle int32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procSetEndOfFile, 1, uintptr(handle), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func SetEndOfFile(handle int32) (errno int) {
+	r1, _, e1 := Syscall(procSetEndOfFile, 1, uintptr(handle), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -500,10 +486,9 @@ func CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, thread
 	return
 }
 
-func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall6(procGetQueuedCompletionStatus, 5, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (errno int) {
+	r1, _, e1 := Syscall6(procGetQueuedCompletionStatus, 5, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -515,10 +500,9 @@ func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlap
 	return
 }
 
-func CancelIo(s uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procCancelIo, 1, uintptr(s), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func CancelIo(s uint32) (errno int) {
+	r1, _, e1 := Syscall(procCancelIo, 1, uintptr(s), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -530,16 +514,15 @@ func CancelIo(s uint32) (ok bool, errno int) {
 	return
 }
 
-func CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, threadSecurity *int16, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (ok bool, errno int) {
+func CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, threadSecurity *int16, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (errno int) {
 	var _p0 uint32
 	if inheritHandles {
 		_p0 = 1
 	} else {
 		_p0 = 0
 	}
-	r0, _, e1 := Syscall12(procCreateProcessW, 10, uintptr(unsafe.Pointer(appName)), uintptr(unsafe.Pointer(commandLine)), uintptr(unsafe.Pointer(procSecurity)), uintptr(unsafe.Pointer(threadSecurity)), uintptr(_p0), uintptr(creationFlags), uintptr(unsafe.Pointer(env)), uintptr(unsafe.Pointer(currentDir)), uintptr(unsafe.Pointer(startupInfo)), uintptr(unsafe.Pointer(outProcInfo)), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+	r1, _, e1 := Syscall12(procCreateProcessW, 10, uintptr(unsafe.Pointer(appName)), uintptr(unsafe.Pointer(commandLine)), uintptr(unsafe.Pointer(procSecurity)), uintptr(unsafe.Pointer(threadSecurity)), uintptr(_p0), uintptr(creationFlags), uintptr(unsafe.Pointer(env)), uintptr(unsafe.Pointer(currentDir)), uintptr(unsafe.Pointer(startupInfo)), uintptr(unsafe.Pointer(outProcInfo)), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -572,10 +555,9 @@ func OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle uint32, errn
 	return
 }
 
-func GetExitCodeProcess(handle uint32, exitcode *uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procGetExitCodeProcess, 2, uintptr(handle), uintptr(unsafe.Pointer(exitcode)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func GetExitCodeProcess(handle uint32, exitcode *uint32) (errno int) {
+	r1, _, e1 := Syscall(procGetExitCodeProcess, 2, uintptr(handle), uintptr(unsafe.Pointer(exitcode)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -587,10 +569,9 @@ func GetExitCodeProcess(handle uint32, exitcode *uint32) (ok bool, errno int) {
 	return
 }
 
-func GetStartupInfo(startupInfo *StartupInfo) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procGetStartupInfoW, 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func GetStartupInfo(startupInfo *StartupInfo) (errno int) {
+	r1, _, e1 := Syscall(procGetStartupInfoW, 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -617,16 +598,15 @@ func GetCurrentProcess() (pseudoHandle int32, errno int) {
 	return
 }
 
-func DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (ok bool, errno int) {
+func DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (errno int) {
 	var _p0 uint32
 	if bInheritHandle {
 		_p0 = 1
 	} else {
 		_p0 = 0
 	}
-	r0, _, e1 := Syscall9(procDuplicateHandle, 7, uintptr(hSourceProcessHandle), uintptr(hSourceHandle), uintptr(hTargetProcessHandle), uintptr(unsafe.Pointer(lpTargetHandle)), uintptr(dwDesiredAccess), uintptr(_p0), uintptr(dwOptions), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+	r1, _, e1 := Syscall9(procDuplicateHandle, 7, uintptr(hSourceProcessHandle), uintptr(hSourceHandle), uintptr(hTargetProcessHandle), uintptr(unsafe.Pointer(lpTargetHandle)), uintptr(dwDesiredAccess), uintptr(_p0), uintptr(dwOptions), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -668,10 +648,9 @@ func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
 	return
 }
 
-func CreatePipe(readhandle *uint32, writehandle *uint32, sa *SecurityAttributes, size uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall6(procCreatePipe, 4, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(sa)), uintptr(size), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func CreatePipe(readhandle *uint32, writehandle *uint32, sa *SecurityAttributes, size uint32) (errno int) {
+	r1, _, e1 := Syscall6(procCreatePipe, 4, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(sa)), uintptr(size), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -698,10 +677,9 @@ func GetFileType(filehandle uint32) (n uint32, errno int) {
 	return
 }
 
-func CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall6(procCryptAcquireContextW, 5, uintptr(unsafe.Pointer(provhandle)), uintptr(unsafe.Pointer(container)), uintptr(unsafe.Pointer(provider)), uintptr(provtype), uintptr(flags), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (errno int) {
+	r1, _, e1 := Syscall6(procCryptAcquireContextW, 5, uintptr(unsafe.Pointer(provhandle)), uintptr(unsafe.Pointer(container)), uintptr(unsafe.Pointer(provider)), uintptr(provtype), uintptr(flags), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -713,10 +691,9 @@ func CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16
 	return
 }
 
-func CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procCryptReleaseContext, 2, uintptr(provhandle), uintptr(flags), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func CryptReleaseContext(provhandle uint32, flags uint32) (errno int) {
+	r1, _, e1 := Syscall(procCryptReleaseContext, 2, uintptr(provhandle), uintptr(flags), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -728,10 +705,9 @@ func CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) {
 	return
 }
 
-func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procCryptGenRandom, 3, uintptr(provhandle), uintptr(buflen), uintptr(unsafe.Pointer(buf)))
-	ok = bool(r0 != 0)
-	if !ok {
+func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (errno int) {
+	r1, _, e1 := Syscall(procCryptGenRandom, 3, uintptr(provhandle), uintptr(buflen), uintptr(unsafe.Pointer(buf)))
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -758,10 +734,9 @@ func GetEnvironmentStrings() (envs *uint16, errno int) {
 	return
 }
 
-func FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procFreeEnvironmentStringsW, 1, uintptr(unsafe.Pointer(envs)), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func FreeEnvironmentStrings(envs *uint16) (errno int) {
+	r1, _, e1 := Syscall(procFreeEnvironmentStringsW, 1, uintptr(unsafe.Pointer(envs)), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -788,10 +763,9 @@ func GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32
 	return
 }
 
-func SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procSetEnvironmentVariableW, 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func SetEnvironmentVariable(name *uint16, value *uint16) (errno int) {
+	r1, _, e1 := Syscall(procSetEnvironmentVariableW, 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -803,10 +777,9 @@ func SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) {
 	return
 }
 
-func SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int) {
-	r0, _, e1 := Syscall6(procSetFileTime, 4, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (errno int) {
+	r1, _, e1 := Syscall6(procSetFileTime, 4, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -869,10 +842,9 @@ func LocalFree(hmem uint32) (handle uint32, errno int) {
 	return
 }
 
-func SetHandleInformation(handle int32, mask uint32, flags uint32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procSetHandleInformation, 3, uintptr(handle), uintptr(mask), uintptr(flags))
-	ok = bool(r0 != 0)
-	if !ok {
+func SetHandleInformation(handle int32, mask uint32, flags uint32) (errno int) {
+	r1, _, e1 := Syscall(procSetHandleInformation, 3, uintptr(handle), uintptr(mask), uintptr(flags))
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -884,10 +856,9 @@ func SetHandleInformation(handle int32, mask uint32, flags uint32) (ok bool, err
 	return
 }
 
-func FlushFileBuffers(handle int32) (ok bool, errno int) {
-	r0, _, e1 := Syscall(procFlushFileBuffers, 1, uintptr(handle), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func FlushFileBuffers(handle int32) (errno int) {
+	r1, _, e1 := Syscall(procFlushFileBuffers, 1, uintptr(handle), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -1046,10 +1017,9 @@ func Closesocket(s int32) (errno int) {
 	return
 }
 
-func AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) {
-	r0, _, e1 := Syscall9(procAcceptEx, 8, uintptr(ls), uintptr(as), uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(overlapped)), 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (errno int) {
+	r1, _, e1 := Syscall9(procAcceptEx, 8, uintptr(ls), uintptr(as), uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(overlapped)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {

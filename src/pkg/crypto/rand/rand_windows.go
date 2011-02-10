@@ -28,15 +28,15 @@ func (r *rngReader) Read(b []byte) (n int, err os.Error) {
 	if r.prov == 0 {
 		const provType = syscall.PROV_RSA_FULL
 		const flags = syscall.CRYPT_VERIFYCONTEXT | syscall.CRYPT_SILENT
-		ok, errno := syscall.CryptAcquireContext(&r.prov, nil, nil, provType, flags)
-		if !ok {
+		errno := syscall.CryptAcquireContext(&r.prov, nil, nil, provType, flags)
+		if errno != 0 {
 			r.mu.Unlock()
 			return 0, os.NewSyscallError("CryptAcquireContext", errno)
 		}
 	}
 	r.mu.Unlock()
-	ok, errno := syscall.CryptGenRandom(r.prov, uint32(len(b)), &b[0])
-	if !ok {
+	errno := syscall.CryptGenRandom(r.prov, uint32(len(b)), &b[0])
+	if errno != 0 {
 		return 0, os.NewSyscallError("CryptGenRandom", errno)
 	}
 	return len(b), nil

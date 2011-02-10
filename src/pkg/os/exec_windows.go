@@ -20,7 +20,8 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 		return nil, ErrorString("os: unexpected result from WaitForSingleObject")
 	}
 	var ec uint32
-	if ok, e := syscall.GetExitCodeProcess(uint32(p.handle), &ec); !ok {
+	e = syscall.GetExitCodeProcess(uint32(p.handle), &ec)
+	if e != 0 {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
 	return &Waitmsg{p.Pid, syscall.WaitStatus{s, ec}, new(syscall.Rusage)}, nil
@@ -30,7 +31,8 @@ func (p *Process) Release() Error {
 	if p.handle == -1 {
 		return EINVAL
 	}
-	if ok, e := syscall.CloseHandle(int32(p.handle)); !ok {
+	e := syscall.CloseHandle(int32(p.handle))
+	if e != 0 {
 		return NewSyscallError("CloseHandle", e)
 	}
 	p.handle = -1

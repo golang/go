@@ -79,10 +79,9 @@ func DefWindowProc(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult
 	return
 }
 
-func DestroyWindow(hwnd uint32) (ok bool, errno int) {
-	r0, _, e1 := syscall.Syscall(procDestroyWindow, 1, uintptr(hwnd), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func DestroyWindow(hwnd uint32) (errno int) {
+	r1, _, e1 := syscall.Syscall(procDestroyWindow, 1, uintptr(hwnd), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -99,16 +98,15 @@ func PostQuitMessage(exitcode int32) {
 	return
 }
 
-func ShowWindow(hwnd uint32, cmdshow int32) (ok bool) {
+func ShowWindow(hwnd uint32, cmdshow int32) (wasvisible bool) {
 	r0, _, _ := syscall.Syscall(procShowWindow, 2, uintptr(hwnd), uintptr(cmdshow), 0)
-	ok = bool(r0 != 0)
+	wasvisible = bool(r0 != 0)
 	return
 }
 
-func UpdateWindow(hwnd uint32) (ok bool, errno int) {
-	r0, _, e1 := syscall.Syscall(procUpdateWindow, 1, uintptr(hwnd), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func UpdateWindow(hwnd uint32) (errno int) {
+	r1, _, e1 := syscall.Syscall(procUpdateWindow, 1, uintptr(hwnd), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
@@ -135,9 +133,9 @@ func GetMessage(msg *Msg, hwnd uint32, MsgFilterMin uint32, MsgFilterMax uint32)
 	return
 }
 
-func TranslateMessage(msg *Msg) (ok bool) {
+func TranslateMessage(msg *Msg) (done bool) {
 	r0, _, _ := syscall.Syscall(procTranslateMessage, 1, uintptr(unsafe.Pointer(msg)), 0, 0)
-	ok = bool(r0 != 0)
+	done = bool(r0 != 0)
 	return
 }
 
@@ -198,10 +196,9 @@ func SendMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult i
 	return
 }
 
-func PostMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (ok bool, errno int) {
-	r0, _, e1 := syscall.Syscall6(procPostMessageW, 4, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
-	ok = bool(r0 != 0)
-	if !ok {
+func PostMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (errno int) {
+	r1, _, e1 := syscall.Syscall6(procPostMessageW, 4, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {

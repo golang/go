@@ -85,7 +85,7 @@ type ioPacket struct {
 func (s *pollServer) getCompletedIO() (ov *syscall.Overlapped, result *ioResult, err os.Error) {
 	var r ioResult
 	var o *syscall.Overlapped
-	_, e := syscall.GetQueuedCompletionStatus(s.iocp, &r.qty, &r.key, &o, syscall.INFINITE)
+	e := syscall.GetQueuedCompletionStatus(s.iocp, &r.qty, &r.key, &o, syscall.INFINITE)
 	switch {
 	case e == 0:
 		// Dequeued successfully completed io packet.
@@ -270,7 +270,7 @@ func timeoutIO() {
 		case writeto:
 			e = syscall.WSASendto(uint32(o.fd.sysfd), o.pckt.w, 1, o.done, 0, *o.sa, &o.pckt.o, nil)
 		case cancel:
-			_, e = syscall.CancelIo(uint32(o.fd.sysfd))
+			e = syscall.CancelIo(uint32(o.fd.sysfd))
 		}
 		o.c <- e
 	}

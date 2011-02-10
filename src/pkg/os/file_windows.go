@@ -83,9 +83,9 @@ func (file *File) Close() Error {
 	}
 	var e int
 	if file.isdir() {
-		_, e = syscall.FindClose(int32(file.fd))
+		e = syscall.FindClose(int32(file.fd))
 	} else {
-		_, e = syscall.CloseHandle(int32(file.fd))
+		e = syscall.CloseHandle(int32(file.fd))
 	}
 	var err Error
 	if e != 0 {
@@ -100,7 +100,8 @@ func (file *File) Close() Error {
 
 func (file *File) statFile(name string) (fi *FileInfo, err Error) {
 	var stat syscall.ByHandleFileInformation
-	if ok, e := syscall.GetFileInformationByHandle(int32(file.fd), &stat); !ok {
+	e := syscall.GetFileInformationByHandle(int32(file.fd), &stat)
+	if e != 0 {
 		return nil, &PathError{"stat", file.name, Errno(e)}
 	}
 	return fileInfoFromByHandleInfo(new(FileInfo), file.name, &stat), nil
@@ -142,7 +143,7 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 		if di.usefirststat {
 			di.usefirststat = false
 		} else {
-			_, e := syscall.FindNextFile(int32(file.fd), &di.stat.Windata)
+			e := syscall.FindNextFile(int32(file.fd), &di.stat.Windata)
 			if e != 0 {
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break

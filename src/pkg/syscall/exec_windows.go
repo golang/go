@@ -148,19 +148,22 @@ func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []i
 
 	var currentProc, _ = GetCurrentProcess()
 	if len(fd) > 0 && fd[0] > 0 {
-		if ok, err := DuplicateHandle(currentProc, int32(fd[0]), currentProc, &startupInfo.StdInput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
+		err := DuplicateHandle(currentProc, int32(fd[0]), currentProc, &startupInfo.StdInput, 0, true, DUPLICATE_SAME_ACCESS)
+		if err != 0 {
 			return 0, 0, err
 		}
 		defer CloseHandle(int32(startupInfo.StdInput))
 	}
 	if len(fd) > 1 && fd[1] > 0 {
-		if ok, err := DuplicateHandle(currentProc, int32(fd[1]), currentProc, &startupInfo.StdOutput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
+		err := DuplicateHandle(currentProc, int32(fd[1]), currentProc, &startupInfo.StdOutput, 0, true, DUPLICATE_SAME_ACCESS)
+		if err != 0 {
 			return 0, 0, err
 		}
 		defer CloseHandle(int32(startupInfo.StdOutput))
 	}
 	if len(fd) > 2 && fd[2] > 0 {
-		if ok, err := DuplicateHandle(currentProc, int32(fd[2]), currentProc, &startupInfo.StdErr, 0, true, DUPLICATE_SAME_ACCESS); !ok {
+		err := DuplicateHandle(currentProc, int32(fd[2]), currentProc, &startupInfo.StdErr, 0, true, DUPLICATE_SAME_ACCESS)
+		if err != 0 {
 			return 0, 0, err
 		}
 		defer CloseHandle(int32(startupInfo.StdErr))
@@ -170,7 +173,7 @@ func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []i
 	}
 	// argv0 must not be longer then 256 chars
 	// but the entire cmd line can have up to 32k chars (msdn)
-	ok, err := CreateProcess(
+	err = CreateProcess(
 		nil,
 		StringToUTF16Ptr(escapeAddQuotes(argv0)+" "+stringJoin(argv[1:], " ", escapeAddQuotes)),
 		nil,  //ptr to struct lpProcessAttributes
@@ -182,7 +185,7 @@ func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []i
 		startupInfo,
 		processInfo)
 
-	if ok {
+	if err != 0 {
 		pid = int(processInfo.ProcessId)
 		handle = int(processInfo.Process)
 		CloseHandle(processInfo.Thread)
