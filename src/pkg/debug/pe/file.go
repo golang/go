@@ -57,7 +57,6 @@ type ImportDirectory struct {
 	FirstThunk         uint32
 
 	dll string
-	rva []uint32
 }
 
 // Data reads and returns the contents of the PE section.
@@ -267,32 +266,26 @@ func (f *File) ImportedSymbols() ([]string, os.Error) {
 		}
 		ida = append(ida, dt)
 	}
-	for i, _ := range ida {
-		for len(d) > 0 {
-			va := binary.LittleEndian.Uint32(d[0:4])
-			d = d[4:]
-			if va == 0 {
-				break
-			}
-			ida[i].rva = append(ida[i].rva, va)
-		}
-	}
-	for _, _ = range ida {
-		for len(d) > 0 {
-			va := binary.LittleEndian.Uint32(d[0:4])
-			d = d[4:]
-			if va == 0 {
-				break
-			}
-		}
-	}
 	names, _ := ds.Data()
 	var all []string
 	for _, dt := range ida {
 		dt.dll, _ = getString(names, int(dt.Name-ds.VirtualAddress))
-		for _, va := range dt.rva {
-			fn, _ := getString(names, int(va-ds.VirtualAddress+2))
-			all = append(all, fn+":"+dt.dll)
+		d, _ = ds.Data()
+		// seek to OriginalFirstThunk
+		d = d[dt.OriginalFirstThunk-ds.VirtualAddress:]
+		for len(d) > 0 {
+			va := binary.LittleEndian.Uint32(d[0:4])
+			d = d[4:]
+			if va == 0 {
+				break
+			}
+			if va&0x80000000 > 0 { // is Ordinal
+				// TODO add dynimport ordinal support.
+				//ord := va&0x0000FFFF
+			} else {
+				fn, _ := getString(names, int(va-ds.VirtualAddress+2))
+				all = append(all, fn+":"+dt.dll)
+			}
 		}
 	}
 
