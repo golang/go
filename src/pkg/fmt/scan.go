@@ -30,7 +30,7 @@ type runeUnreader interface {
 type ScanState interface {
 	// GetRune reads the next rune (Unicode code point) from the input.
 	GetRune() (rune int, err os.Error)
-	// UngetRune causes the next call to GetRune to return the rune.
+	// UngetRune causes the next call to GetRune to return the same rune.
 	UngetRune()
 	// Width returns the value of the width option and whether it has been set.
 	// The unit is Unicode code points.
