@@ -35,9 +35,8 @@ import (
 //
 // Struct values encode as JSON objects.  Each struct field becomes
 // a member of the object.  By default the object's key name is the
-// struct field name converted to lower case.  If the struct field
-// has a tag, that tag will be used as the name instead.
-// Only exported fields will be encoded.
+// struct field name.  If the struct field has a tag, that tag will 
+// be used as the name instead.  Only exported fields will be encoded.
 //
 // Map values encode as JSON objects.
 // The map's key type must be string; the object keys are used directly
