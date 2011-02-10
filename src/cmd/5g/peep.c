@@ -339,7 +339,8 @@ subprop(Reg *r0)
 
 		case AMULLU:
 		case AMULA:
-//		case AMVN:
+		case AMVN:
+			return 0;
 
 		case ACMN:
 		case AADD:
@@ -985,6 +986,8 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AMOVHU:
 	case AMOVB:
 	case AMOVBU:
+	case AMOVFW:
+	case AMOVWF:
 	case AMOVDW:
 	case AMOVWD:
 	case AMOVFD:
@@ -1020,7 +1023,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 
 	case AMULLU:	/* read, read, write, write */
 	case AMULA:
-//	case AMVN:
+	case AMVN:
 		return 2;
 
 	case AADD:	/* read, read, write */
@@ -1192,15 +1195,15 @@ copyau(Adr *a, Adr *v)
 		return 1;
 	if(v->type == D_REG) {
 		if(a->type == D_CONST && a->reg != NREG) {
-			if(v->reg == a->reg)
+			if(a->reg == v->reg)
 				return 1;
 		} else
 		if(a->type == D_OREG) {
-			if(v->reg == a->reg)
+			if(a->reg == v->reg)
 				return 1;
 		} else
 		if(a->type == D_REGREG) {
-			if(v->reg == a->reg)
+			if(a->reg == v->reg)
 				return 1;
 			if(a->offset == v->reg)
 				return 1;
