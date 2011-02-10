@@ -53,13 +53,12 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 // (arg/argsize) on to the stack, calls the function, copies the
 // arguments back where they came from, and finally returns to the old
 // stack.
-uintptr
+void
 runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
 {
 	Gobuf oldsched, oldg1sched;
 	G *g1;
 	void *sp;
-	uintptr ret;
 
 	if(g != m->g0)
 		runtime·throw("bad g in cgocallback");
@@ -71,11 +70,11 @@ runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
 	runtime·startcgocallback(g1);
 
 	sp = g1->sched.sp - argsize;
-	if(sp < g1->stackguard - StackGuard + 4) // +4 for return address
+	if(sp < g1->stackguard - StackGuard + 8) // +8 for return address
 		runtime·throw("g stack overflow in cgocallback");
 	runtime·mcpy(sp, arg, argsize);
 
-	ret = runtime·runcgocallback(g1, sp, fn);
+	runtime·runcgocallback(g1, sp, fn);
 
 	runtime·mcpy(arg, sp, argsize);
 
@@ -83,8 +82,6 @@ runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
 
 	m->sched = oldsched;
 	g1->sched = oldg1sched;
-
-	return ret;
 }
 
 void

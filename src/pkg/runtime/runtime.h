@@ -443,7 +443,7 @@ void	runtime·breakpoint(void);
 void	runtime·gosched(void);
 void	runtime·goexit(void);
 void	runtime·runcgo(void (*fn)(void*), void*);
-uintptr	runtime·runcgocallback(G*, void*, void (*fn)());
+void	runtime·runcgocallback(G*, void*, void (*fn)());
 void	runtime·entersyscall(void);
 void	runtime·exitsyscall(void);
 void	runtime·startcgocallback(G*);
