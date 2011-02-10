@@ -51,7 +51,8 @@ func WndProc(hwnd, msg uint32, wparam, lparam int32) uintptr {
 	case WM_COMMAND:
 		switch uint32(lparam) {
 		case bh:
-			if ok, e := PostMessage(hwnd, WM_CLOSE, 0, 0); !ok {
+			e := PostMessage(hwnd, WM_CLOSE, 0, 0)
+			if e != 0 {
 				abortErrNo("PostMessage", e)
 			}
 		default:
@@ -125,7 +126,7 @@ func rungui() int {
 	ShowWindow(wh, SW_SHOWDEFAULT)
 
 	// UpdateWindow
-	if _, e := UpdateWindow(wh); e != 0 {
+	if e := UpdateWindow(wh); e != 0 {
 		abortErrNo("UpdateWindow", e)
 	}
 
