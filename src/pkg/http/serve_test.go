@@ -9,10 +9,13 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"net"
 	"testing"
+	"time"
 )
 
 type dummyAddr string
@@ -282,4 +285,67 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestServerTimeouts(t *testing.T) {
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: 0})
+	if err != nil {
+		t.Fatalf("listen error: %v", err)
+	}
+	addr, _ := l.Addr().(*net.TCPAddr)
+
+	reqNum := 0
+	handler := HandlerFunc(func(res ResponseWriter, req *Request) {
+		reqNum++
+		fmt.Fprintf(res, "req=%d", reqNum)
+	})
+
+	const second = 1000000000 /* nanos */
+	server := &Server{Handler: handler, ReadTimeout: 0.25 * second, WriteTimeout: 0.25 * second}
+	go server.Serve(l)
+
+	url := fmt.Sprintf("http://localhost:%d/", addr.Port)
+
+	// Hit the HTTP server successfully.
+	r, _, err := Get(url)
+	if err != nil {
+		t.Fatalf("http Get #1: %v", err)
+	}
+	got, _ := ioutil.ReadAll(r.Body)
+	expected := "req=1"
+	if string(got) != expected {
+		t.Errorf("Unexpected response for request #1; got %q; expected %q",
+			string(got), expected)
+	}
+
+	// Slow client that should timeout.
+	t1 := time.Nanoseconds()
+	conn, err := net.Dial("tcp", "", fmt.Sprintf("localhost:%d", addr.Port))
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	buf := make([]byte, 1)
+	n, err := conn.Read(buf)
+	latency := time.Nanoseconds() - t1
+	if n != 0 || err != os.EOF {
+		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, os.EOF)
+	}
+	if latency < second*0.20 /* fudge from 0.25 above */ {
+		t.Errorf("got EOF after %d ns, want >= %d", latency, second*0.20)
+	}
+
+	// Hit the HTTP server successfully again, verifying that the
+	// previous slow connection didn't run our handler.  (that we
+	// get "req=2", not "req=3")
+	r, _, err = Get(url)
+	if err != nil {
+		t.Fatalf("http Get #2: %v", err)
+	}
+	got, _ = ioutil.ReadAll(r.Body)
+	expected = "req=2"
+	if string(got) != expected {
+		t.Errorf("Get #2 got %q, want %q", string(got), expected)
+	}
+
+	l.Close()
 }
