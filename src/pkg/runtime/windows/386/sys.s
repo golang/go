@@ -107,7 +107,11 @@ sigdone:
 // DX = total size of arguments
 //
 TEXT runtime·callbackasm+0(SB),7,$0
+	// preserve whatever's at the memory location that
+	// the callback will use to store the return value
 	LEAL	8(SP), CX
+	PUSHL	0(CX)(DX*1)
+	ADDL	$4, DX			// extend argsize by size of return value
 
 	// save registers as required for windows callback
 	PUSHL	0(FS)
@@ -129,7 +133,7 @@ TEXT runtime·callbackasm+0(SB),7,$0
 	CALL	runtime·cgocallback(SB)
 
 	// restore registers as required for windows callback
-	POPL	CX
+	POPL	AX
 	POPL	CX
 	POPL	DX
 	POPL	BX
@@ -139,6 +143,8 @@ TEXT runtime·callbackasm+0(SB),7,$0
 	POPL	0(FS)
 	CLD
 
+	MOVL	-4(CX)(DX*1), AX
+	POPL	-4(CX)(DX*1)
 	RET
 
 // void tstart(M *newm);
