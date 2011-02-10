@@ -740,7 +740,7 @@ func TestFormatters(t *testing.T) {
 				continue
 			}
 			if strings.Index(err.String(), c.err) < 0 {
-				t.Error("unexpected error: expected %q, got %q", c.err, err.String())
+				t.Errorf("unexpected error: expected %q, got %q", c.err, err.String())
 				continue
 			}
 		} else {

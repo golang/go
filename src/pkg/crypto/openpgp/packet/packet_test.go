@@ -115,7 +115,7 @@ func TestPartialLengthReader(t *testing.T) {
 
 		got := fmt.Sprintf("%x", out)
 		if got != test.hexOutput {
-			t.Errorf("%d: got:%s want:%s", test.hexOutput, got)
+			t.Errorf("%d: got:%s want:%s", i, test.hexOutput, got)
 		}
 	}
 }
