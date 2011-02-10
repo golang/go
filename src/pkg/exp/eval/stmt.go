@@ -908,7 +908,7 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
 		return
 
 	default:
-		log.Panic("Unexpected branch token %v", s.Tok)
+		log.Panicf("Unexpected branch token %v", s.Tok)
 	}
 
 	a.flow.put1(false, pc)

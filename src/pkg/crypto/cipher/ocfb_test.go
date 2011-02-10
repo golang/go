@@ -27,7 +27,7 @@ func testOCFB(t *testing.T, resync OCFBResyncOption) {
 
 	ocfbdec := NewOCFBDecrypter(block, prefix, resync)
 	if ocfbdec == nil {
-		t.Error("NewOCFBDecrypter failed (resync: %t)", resync)
+		t.Errorf("NewOCFBDecrypter failed (resync: %t)", resync)
 		return
 	}
 	plaintextCopy := make([]byte, len(plaintext))
