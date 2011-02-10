@@ -670,6 +670,39 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 // read requests and then call handler to reply to them.
 // Handler is typically nil, in which case the DefaultServeMux is used.
 func Serve(l net.Listener, handler Handler) os.Error {
+	srv := &Server{Handler: handler}
+	return srv.Serve(l)
+}
+
+// A Server defines parameters for running an HTTP server.
+type Server struct {
+	Addr         string  // TCP address to listen on, ":http" if empty
+	Handler      Handler // handler to invoke, http.DefaultServeMux if nil
+	ReadTimeout  int64   // the net.Conn.SetReadTimeout value for new connections
+	WriteTimeout int64   // the net.Conn.SetWriteTimeout value for new connections
+}
+
+// ListenAndServe listens on the TCP network address srv.Addr and then
+// calls Serve to handle requests on incoming connections.  If
+// srv.Addr is blank, ":http" is used.
+func (srv *Server) ListenAndServe() os.Error {
+	addr := srv.Addr
+	if addr == "" {
+		addr = ":http"
+	}
+	l, e := net.Listen("tcp", addr)
+	if e != nil {
+		return e
+	}
+	return srv.Serve(l)
+}
+
+// Serve accepts incoming connections on the Listener l, creating a
+// new service thread for each.  The service threads read requests and
+// then call srv.Handler to reply to them.
+func (srv *Server) Serve(l net.Listener) os.Error {
+	defer l.Close()
+	handler := srv.Handler
 	if handler == nil {
 		handler = DefaultServeMux
 	}
@@ -677,6 +710,12 @@ func Serve(l net.Listener, handler Handler) os.Error {
 		rw, e := l.Accept()
 		if e != nil {
 			return e
+		}
+		if srv.ReadTimeout != 0 {
+			rw.SetReadTimeout(srv.ReadTimeout)
+		}
+		if srv.WriteTimeout != 0 {
+			rw.SetWriteTimeout(srv.WriteTimeout)
 		}
 		c, err := newConn(rw, handler)
 		if err != nil {
@@ -715,13 +754,8 @@ func Serve(l net.Listener, handler Handler) os.Error {
 //		}
 //	}
 func ListenAndServe(addr string, handler Handler) os.Error {
-	l, e := net.Listen("tcp", addr)
-	if e != nil {
-		return e
-	}
-	e = Serve(l, handler)
-	l.Close()
-	return e
+	server := &Server{Addr: addr, Handler: handler}
+	return server.ListenAndServe()
 }
 
 // ListenAndServeTLS acts identically to ListenAndServe, except that it
