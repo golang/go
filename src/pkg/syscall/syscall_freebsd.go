@@ -14,6 +14,18 @@ package syscall
 
 const OS = "freebsd"
 
+type SockaddrDatalink struct {
+	Len    uint8
+	Family uint8
+	Index  uint16
+	Type   uint8
+	Nlen   uint8
+	Alen   uint8
+	Slen   uint8
+	Data   [46]int8
+	raw    RawSockaddrDatalink
+}
+
 /*
  * Exposed directly
  */

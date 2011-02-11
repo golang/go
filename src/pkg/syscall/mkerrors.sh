@@ -38,23 +38,28 @@ includes_Darwin='
 #define _DARWIN_C_SOURCE
 #define KERNEL
 #define _DARWIN_USE_64_BIT_INODE
-#include <sys/cdefs.h>
-#include <sys/wait.h>
+#include <sys/types.h>
 #include <sys/event.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
+#include <sys/wait.h>
 #include <net/if.h>
+#include <net/route.h>
+#include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
 '
 
 includes_FreeBSD='
-#include <sys/wait.h>
+#include <sys/types.h>
 #include <sys/event.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <net/route.h>
+#include <sys/sysctl.h>
+#include <sys/wait.h>
 #include <net/if.h>
+#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
@@ -105,16 +110,22 @@ done
 		$2 ~ /^(MAP_FAILED)$/ {next}
 
 		$2 !~ /^ETH_/ &&
+		$2 !~ /^EPROC_/ &&
+		$2 !~ /^EQUIV_/ &&
+		$2 !~ /^EXPR_/ &&
 		$2 ~ /^E[A-Z0-9_]+$/ ||
 		$2 ~ /^SIG[^_]/ ||
 		$2 ~ /^IN_/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|IFF)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|IFF|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||
 		$2 == "IFNAMSIZ" ||
+		$2 == "CTL_NET" ||
+		$2 == "CTL_MAXNAME" ||
 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
-		$2 ~ /^SIO/ ||
+		$2 ~ /^SIOC/ ||
+		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", $2, $2)}
 		$2 ~ /^__WCOREFLAG$/ {next}
 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", substr($2,3), $2)}

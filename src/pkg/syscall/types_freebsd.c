@@ -7,14 +7,11 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
  */
 
 #define KERNEL
-#include <sys/cdefs.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <signal.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/event.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -26,9 +23,14 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
-#include <unistd.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/route.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 // Machine characteristics; for internal use.
 
@@ -101,6 +103,7 @@ union sockaddr_all {
 	struct sockaddr_in s2;	// these pad it out
 	struct sockaddr_in6 s3;
 	struct sockaddr_un s4;
+	struct sockaddr_dl s5;
 };
 
 struct sockaddr_any {
@@ -111,6 +114,7 @@ struct sockaddr_any {
 typedef struct sockaddr_in $RawSockaddrInet4;
 typedef struct sockaddr_in6 $RawSockaddrInet6;
 typedef struct sockaddr_un $RawSockaddrUnix;
+typedef struct sockaddr_dl $RawSockaddrDatalink;
 typedef struct sockaddr $RawSockaddr;
 typedef struct sockaddr_any $RawSockaddrAny;
 typedef socklen_t $_Socklen;
@@ -125,6 +129,7 @@ enum {
 	$SizeofSockaddrInet6 = sizeof(struct sockaddr_in6),
 	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
+	$SizeofSockaddrDatalink = sizeof(struct sockaddr_dl),
 	$SizeofLinger = sizeof(struct linger),
 	$SizeofIpMreq = sizeof(struct ip_mreq),
 	$SizeofMsghdr = sizeof(struct msghdr),
@@ -146,3 +151,19 @@ typedef struct kevent $Kevent_t;
 // Select
 
 typedef fd_set $FdSet;
+
+// Routing and interface messages
+
+enum {
+	$SizeofIfMsghdr = sizeof(struct if_msghdr),
+	$SizeofIfData = sizeof(struct if_data),
+	$SizeofIfaMsghdr = sizeof(struct ifa_msghdr),
+	$SizeofRtMsghdr = sizeof(struct rt_msghdr),
+	$SizeofRtMetrics = sizeof(struct rt_metrics),
+};
+
+typedef struct if_msghdr $IfMsghdr;
+typedef struct if_data $IfData;
+typedef struct ifa_msghdr $IfaMsghdr;
+typedef struct rt_msghdr $RtMsghdr;
+typedef struct rt_metrics $RtMetrics;
