@@ -43,6 +43,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 )
 
 // Report as tests are run; default is silent for success.
@@ -153,16 +154,19 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
 		if *chatty {
 			println("=== RUN ", tests[i].Name)
 		}
+		ns := -time.Nanoseconds()
 		t := new(T)
 		t.ch = make(chan *T)
 		go tRunner(t, &tests[i])
 		<-t.ch
+		ns += time.Nanoseconds()
+		tstr := fmt.Sprintf("(%.1f seconds)", float64(ns)/1e9)
 		if t.failed {
-			println("--- FAIL:", tests[i].Name)
+			println("--- FAIL:", tests[i].Name, tstr)
 			print(t.errors)
 			ok = false
 		} else if *chatty {
-			println("--- PASS:", tests[i].Name)
+			println("--- PASS:", tests[i].Name, tstr)
 			print(t.errors)
 		}
 	}
