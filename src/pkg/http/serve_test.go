@@ -192,7 +192,7 @@ func TestHostHandlers(t *testing.T) {
 			t.Errorf("writing request: %v", err)
 			continue
 		}
-		r, err := cc.Read()
+		r, err := cc.Read(&req)
 		if err != nil {
 			t.Errorf("reading response: %v", err)
 			continue
