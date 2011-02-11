@@ -641,7 +641,6 @@ const (
 	SIOCSIFTXQLEN                    = 0x8943
 	SIOCSPGRP                        = 0x8902
 	SIOCSRARP                        = 0x8962
-	SIOGIFINDEX                      = 0x8933
 	SOCK_CLOEXEC                     = 0x80000
 	SOCK_DCCP                        = 0x6
 	SOCK_DGRAM                       = 0x2
