@@ -7,15 +7,12 @@
 package s2k
 
 import (
-	"crypto/md5"
+	"crypto"
 	"crypto/openpgp/error"
-	"crypto/ripemd160"
-	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
 	"hash"
 	"io"
 	"os"
+	"strconv"
 )
 
 // Simple writes to out the result of computing the Simple S2K function (RFC
@@ -87,9 +84,13 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
 		return
 	}
 
-	h := hashFuncFromType(buf[1])
+	hash, ok := HashIdToHash(buf[1])
+	if !ok {
+		return nil, error.UnsupportedError("hash for S2K function: " + strconv.Itoa(int(buf[1])))
+	}
+	h := hash.New()
 	if h == nil {
-		return nil, error.UnsupportedError("hash for S2K function")
+		return nil, error.UnsupportedError("hash not availible: " + strconv.Itoa(int(hash)))
 	}
 
 	switch buf[0] {
@@ -122,25 +123,38 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
 	return nil, error.UnsupportedError("S2K function")
 }
 
-// hashFuncFromType returns a hash.Hash which corresponds to the given hash
-// type byte. See RFC 4880, section 9.4.
-func hashFuncFromType(hashType byte) hash.Hash {
-	switch hashType {
-	case 1:
-		return md5.New()
-	case 2:
-		return sha1.New()
-	case 3:
-		return ripemd160.New()
-	case 8:
-		return sha256.New()
-	case 9:
-		return sha512.New384()
-	case 10:
-		return sha512.New()
-	case 11:
-		return sha256.New224()
-	}
+// hashToHashIdMapping contains pairs relating OpenPGP's hash identifier with
+// Go's crypto.Hash type. See RFC 4880, section 9.4.
+var hashToHashIdMapping = []struct {
+	id   byte
+	hash crypto.Hash
+}{
+	{1, crypto.MD5},
+	{2, crypto.SHA1},
+	{3, crypto.RIPEMD160},
+	{8, crypto.SHA256},
+	{9, crypto.SHA384},
+	{10, crypto.SHA512},
+	{11, crypto.SHA224},
+}
 
-	return nil
+// HashIdToHash returns a crypto.Hash which corresponds to the given OpenPGP
+// hash id.
+func HashIdToHash(id byte) (h crypto.Hash, ok bool) {
+	for _, m := range hashToHashIdMapping {
+		if m.id == id {
+			return m.hash, true
+		}
+	}
+	return 0, false
+}
+
+// HashIdToHash returns an OpenPGP hash id which corresponds the given Hash.
+func HashToHashId(h crypto.Hash) (id byte, ok bool) {
+	for _, m := range hashToHashIdMapping {
+		if m.hash == h {
+			return m.id, true
+		}
+	}
+	return 0, false
 }
