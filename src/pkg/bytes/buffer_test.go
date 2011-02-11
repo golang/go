@@ -350,25 +350,36 @@ func TestNext(t *testing.T) {
 }
 
 var readBytesTests = []struct {
-	buffer   []byte
+	buffer   string
 	delim    byte
-	expected []byte
+	expected []string
 	err      os.Error
 }{
-	{err: os.EOF},
-	{[]byte{}, 0, []byte{}, os.EOF},
-	{[]byte("a\x00"), 0, []byte("a\x00"), nil},
-	{[]byte("hello\x01world"), 1, []byte("hello\x01"), nil},
-	{[]byte("foo\nbar"), 0, []byte("foo\nbar"), os.EOF},
-	{[]byte("alpha beta gamma"), ' ', []byte("alpha "), nil},
+	{"", 0, []string{""}, os.EOF},
+	{"a\x00", 0, []string{"a\x00"}, nil},
+	{"abbbaaaba", 'b', []string{"ab", "b", "b", "aaab"}, nil},
+	{"hello\x01world", 1, []string{"hello\x01"}, nil},
+	{"foo\nbar", 0, []string{"foo\nbar"}, os.EOF},
+	{"alpha\nbeta\ngamma\n", '\n', []string{"alpha\n", "beta\n", "gamma\n"}, nil},
+	{"alpha\nbeta\ngamma", '\n', []string{"alpha\n", "beta\n", "gamma"}, os.EOF},
 }
 
 func TestReadBytes(t *testing.T) {
 	for _, test := range readBytesTests {
-		buf := NewBuffer(test.buffer)
-		bytes, err := buf.ReadBytes(test.delim)
-		if !Equal(bytes, test.expected) || err != test.err {
-			t.Errorf("expected %q, %v got %q, %v", test.expected, test.err, bytes, err)
+		buf := NewBufferString(test.buffer)
+		var err os.Error
+		for _, expected := range test.expected {
+			var bytes []byte
+			bytes, err = buf.ReadBytes(test.delim)
+			if string(bytes) != expected {
+				t.Errorf("expected %q, got %q", expected, bytes)
+			}
+			if err != nil {
+				break
+			}
+		}
+		if err != test.err {
+			t.Errorf("expected error %v, got %v", test.err, err)
 		}
 	}
 }

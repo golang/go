@@ -312,13 +312,14 @@ func (b *Buffer) UnreadByte() os.Error {
 // delim.
 func (b *Buffer) ReadBytes(delim byte) (line []byte, err os.Error) {
 	i := IndexByte(b.buf[b.off:], delim)
-	size := i + 1 - b.off
+	size := i + 1
 	if i < 0 {
 		size = len(b.buf) - b.off
 		err = os.EOF
 	}
 	line = make([]byte, size)
 	copy(line, b.buf[b.off:])
+	b.off += size
 	return
 }
 
