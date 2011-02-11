@@ -297,6 +297,9 @@ runtime·mallocinit(void)
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
 	}
+	if((uintptr)p & (((uintptr)1<<PageShift)-1))
+		runtime·throw("runtime: SysReserve returned unaligned address");
+
 	runtime·mheap.bitmap = p;
 	runtime·mheap.arena_start = p + bitmap_size;
 	runtime·mheap.arena_used = runtime·mheap.arena_start;
