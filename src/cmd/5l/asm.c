@@ -1470,15 +1470,24 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= (p->scond & C_SCOND) << 28;
 		break;
 	case 80:	/* fmov zfcon,freg */
-		if((p->scond & C_SCOND) != C_SCOND_NONE)
-			diag("floating point cannot be conditional");	// cant happen
-		o1 = 0xf3000110;	// EOR 64
-
-		// always clears the double float register
+		if(p->as == AMOVD) {
+			o1 = 0xeeb00b00;	// VMOV imm 64
+			o2 = oprrr(ASUBD, p->scond);
+		} else {
+			o1 = 0x0eb00a00;	// VMOV imm 32
+			o2 = oprrr(ASUBF, p->scond);
+		}
+		v = 0x70;	// 1.0
 		r = p->to.reg;
-		o1 |= r << 0;
+
+		// movf $1.0, r
+		o1 |= (p->scond & C_SCOND) << 28;
 		o1 |= r << 12;
-		o1 |= r << 16;
+		o1 |= (v&0xf) << 0;
+		o1 |= (v&0xf0) << 12;
+
+		// subf r,r,r
+		o2 |= r | (r<<16) | (r<<12);
 		break;
 	case 81:	/* fmov sfcon,freg */
 		o1 = 0x0eb00a00;		// VMOV imm 32
