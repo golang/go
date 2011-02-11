@@ -60,10 +60,10 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
 			continue // ignore empty paths (don't assume ".")
 		}
 		// len(path) > 0: normalize path
-		if path[0] != '/' {
-			path = pathutil.Join(cwd, path)
-		} else {
+		if pathutil.IsAbs(path) {
 			path = pathutil.Clean(path)
+		} else {
+			path = pathutil.Join(cwd, path)
 		}
 		// we have a non-empty absolute path
 		if filter != nil && !filter(path) {
