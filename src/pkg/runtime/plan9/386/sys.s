@@ -58,9 +58,10 @@ TEXT runtime·rfork(SB),7,$0
 	MOVL	BX, m(AX)
 
 	// Initialize AX from _tos->pid
-	MOVL	0xdfffeff8, AX
+	MOVL	_tos(SB), AX
+	MOVL	tos_pid(AX), AX
 	MOVL	AX, m_procid(BX)	// save pid as m->procid
-
+	
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	
 	MOVL	0(DX), DX	// paranoia; check they are not nil

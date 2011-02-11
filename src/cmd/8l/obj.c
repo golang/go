@@ -188,6 +188,7 @@ main(int argc, char *argv[])
 			INITRND = 0;
 		break;
 	case 2:	/* plan 9 */
+		tlsoffset = -8;
 		HEADR = 32L;
 		if(INITTEXT == -1)
 			INITTEXT = 4096+32;

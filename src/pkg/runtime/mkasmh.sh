@@ -25,9 +25,9 @@ case "$GOARCH" in
 		echo '#define	m(r)	4(r)'
 		;;
 	plan9)
-		echo '#define	get_tls(r)'
-		echo '#define	g(r)	0xdfffefc0'
-		echo '#define	m(r)	0xdfffefc4'
+		echo '#define	get_tls(r)	MOVL _tos(SB), r '
+		echo '#define	g(r)	-8(r)'
+		echo '#define	m(r)	-4(r)'
 		;;
 	linux)
 		# On Linux systems, what we call 0(GS) and 4(GS) for g and m
