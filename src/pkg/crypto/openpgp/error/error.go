@@ -5,6 +5,10 @@
 // This package contains common error types for the OpenPGP packages.
 package error
 
+import (
+	"strconv"
+)
+
 // A StructuralError is returned when OpenPGP data is found to be syntactically
 // invalid.
 type StructuralError string
@@ -44,3 +48,17 @@ func (ki keyIncorrect) String() string {
 }
 
 var KeyIncorrectError = keyIncorrect(0)
+
+type unknownIssuer int
+
+func (unknownIssuer) String() string {
+	return "signature make by unknown entity"
+}
+
+var UnknownIssuerError = unknownIssuer(0)
+
+type UnknownPacketTypeError uint8
+
+func (upte UnknownPacketTypeError) String() string {
+	return "unknown OpenPGP packet type: " + strconv.Itoa(int(upte))
+}
