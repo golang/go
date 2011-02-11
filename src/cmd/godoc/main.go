@@ -217,7 +217,6 @@ func makeRx(names []string) (rx *regexp.Regexp) {
 	return
 }
 
-
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -318,7 +317,7 @@ func main() {
 	}
 	relpath := path
 	abspath := path
-	if len(path) > 0 && path[0] != '/' {
+	if !pathutil.IsAbs(path) {
 		abspath = absolutePath(path, pkgHandler.fsRoot)
 	} else {
 		relpath = relativePath(path)
@@ -339,7 +338,7 @@ func main() {
 
 	if info.Err != nil || info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
 		// try again, this time assume it's a command
-		if len(path) > 0 && path[0] != '/' {
+		if !pathutil.IsAbs(path) {
 			abspath = absolutePath(path, cmdHandler.fsRoot)
 		}
 		info = cmdHandler.getPageInfo(abspath, relpath, "", mode)
