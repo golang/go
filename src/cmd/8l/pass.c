@@ -250,6 +250,7 @@ patch(void)
 	Prog *p, *q;
 	Sym *s;
 	int32 vexit;
+	Sym *plan9_tos;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f mkfwd\n", cputime());
@@ -260,6 +261,10 @@ patch(void)
 	Bflush(&bso);
 	s = lookup("exit", 0);
 	vexit = s->value;
+	
+	if(HEADTYPE == 2)
+		plan9_tos = lookup("_tos", 0);
+	
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
 			if(HEADTYPE == 10) {	// Windows
@@ -303,9 +308,15 @@ patch(void)
 			if(HEADTYPE == 2) {	// Plan 9
 				if(p->from.type == D_INDIR+D_GS
 				&& p->to.type >= D_AX && p->to.type <= D_DI) {
+					q = appendp(p);
+					q->from = p->from;
+					q->from.type = D_INDIR + p->to.type;
+					q->to = p->to;
+					q->as = p->as;
 					p->as = AMOVL;
-					p->from.type = D_ADDR+D_STATIC;
-					p->from.offset += 0xdfffefc0;
+					p->from.type = D_EXTERN;
+					p->from.sym = plan9_tos;
+					p->from.offset = 0;
 				}
 			}
 			if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
@@ -389,6 +400,7 @@ dostkoff(void)
 	int a;
 	Prog *pmorestack;
 	Sym *symmorestack;
+	Sym *plan9_tos;
 
 	pmorestack = P;
 	symmorestack = lookup("runtime.morestack", 0);
@@ -399,6 +411,9 @@ dostkoff(void)
 		pmorestack = symmorestack->text;
 		symmorestack->text->from.scale |= NOSPLIT;
 	}
+	
+	if(HEADTYPE == 2)	
+		plan9_tos = lookup("_tos", 0);
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		if(cursym->text == nil || cursym->text->link == nil)
@@ -443,9 +458,15 @@ dostkoff(void)
 			
 			case 2:	// Plan 9
 				p->as = AMOVL;
-				p->from.type = D_ADDR+D_STATIC;
-				p->from.offset = 0xdfffefc0;
+				p->from.type = D_EXTERN;
+				p->from.sym = plan9_tos;
 				p->to.type = D_CX;
+				
+				p = appendp(p);
+				p->as = AMOVL;
+				p->from.type = D_INDIR+D_CX;
+				p->from.offset = tlsoffset + 0;
+				p->to.type = D_CX;				
 				break;
 			
 			default:
