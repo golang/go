@@ -6,37 +6,43 @@ package syscall
 
 // Constants
 const (
-	sizeofPtr           = 0x4
-	sizeofShort         = 0x2
-	sizeofInt           = 0x4
-	sizeofLong          = 0x4
-	sizeofLongLong      = 0x8
-	O_CLOEXEC           = 0
-	S_IFMT              = 0xf000
-	S_IFIFO             = 0x1000
-	S_IFCHR             = 0x2000
-	S_IFDIR             = 0x4000
-	S_IFBLK             = 0x6000
-	S_IFREG             = 0x8000
-	S_IFLNK             = 0xa000
-	S_IFSOCK            = 0xc000
-	S_ISUID             = 0x800
-	S_ISGID             = 0x400
-	S_ISVTX             = 0x200
-	S_IRUSR             = 0x100
-	S_IWUSR             = 0x80
-	S_IXUSR             = 0x40
-	SizeofSockaddrInet4 = 0x10
-	SizeofSockaddrInet6 = 0x1c
-	SizeofSockaddrAny   = 0x6c
-	SizeofSockaddrUnix  = 0x6a
-	SizeofLinger        = 0x8
-	SizeofIpMreq        = 0x8
-	SizeofMsghdr        = 0x1c
-	SizeofCmsghdr       = 0xc
-	PTRACE_TRACEME      = 0
-	PTRACE_CONT         = 0x7
-	PTRACE_KILL         = 0x8
+	sizeofPtr              = 0x4
+	sizeofShort            = 0x2
+	sizeofInt              = 0x4
+	sizeofLong             = 0x4
+	sizeofLongLong         = 0x8
+	O_CLOEXEC              = 0
+	S_IFMT                 = 0xf000
+	S_IFIFO                = 0x1000
+	S_IFCHR                = 0x2000
+	S_IFDIR                = 0x4000
+	S_IFBLK                = 0x6000
+	S_IFREG                = 0x8000
+	S_IFLNK                = 0xa000
+	S_IFSOCK               = 0xc000
+	S_ISUID                = 0x800
+	S_ISGID                = 0x400
+	S_ISVTX                = 0x200
+	S_IRUSR                = 0x100
+	S_IWUSR                = 0x80
+	S_IXUSR                = 0x40
+	SizeofSockaddrInet4    = 0x10
+	SizeofSockaddrInet6    = 0x1c
+	SizeofSockaddrAny      = 0x6c
+	SizeofSockaddrUnix     = 0x6a
+	SizeofSockaddrDatalink = 0x36
+	SizeofLinger           = 0x8
+	SizeofIpMreq           = 0x8
+	SizeofMsghdr           = 0x1c
+	SizeofCmsghdr          = 0xc
+	PTRACE_TRACEME         = 0
+	PTRACE_CONT            = 0x7
+	PTRACE_KILL            = 0x8
+	SizeofIfMsghdr         = 0x60
+	SizeofIfData           = 0x50
+	SizeofIfaMsghdr        = 0x14
+	SizeofRtMsghdr         = 0x5c
+	SizeofRtMetrics        = 0x38
 )
 
 // Types
@@ -172,6 +178,17 @@ type RawSockaddrUnix struct {
 	Path   [104]int8
 }
 
+type RawSockaddrDatalink struct {
+	Len    uint8
+	Family uint8
+	Index  uint16
+	Type   uint8
+	Nlen   uint8
+	Alen   uint8
+	Slen   uint8
+	Data   [46]int8
+}
+
 type RawSockaddr struct {
 	Len    uint8
 	Family uint8
@@ -227,4 +244,85 @@ type Kevent_t struct {
 
 type FdSet struct {
 	X__fds_bits [32]uint32
+}
+
+type IfMsghdr struct {
+	Msglen       uint16
+	Version      uint8
+	Type         uint8
+	Addrs        int32
+	Flags        int32
+	Index        uint16
+	Pad_godefs_0 [2]byte
+	Data         IfData
+}
+
+type IfData struct {
+	Type        uint8
+	Physical    uint8
+	Addrlen     uint8
+	Hdrlen      uint8
+	Link_state  uint8
+	Spare_char1 uint8
+	Spare_char2 uint8
+	Datalen     uint8
+	Mtu         uint32
+	Metric      uint32
+	Baudrate    uint32
+	Ipackets    uint32
+	Ierrors     uint32
+	Opackets    uint32
+	Oerrors     uint32
+	Collisions  uint32
+	Ibytes      uint32
+	Obytes      uint32
+	Imcasts     uint32
+	Omcasts     uint32
+	Iqdrops     uint32
+	Noproto     uint32
+	Hwassist    uint32
+	Epoch       int32
+	Lastchange  Timeval
+}
+
+type IfaMsghdr struct {
+	Msglen       uint16
+	Version      uint8
+	Type         uint8
+	Addrs        int32
+	Flags        int32
+	Index        uint16
+	Pad_godefs_0 [2]byte
+	Metric       int32
+}
+
+type RtMsghdr struct {
+	Msglen       uint16
+	Version      uint8
+	Type         uint8
+	Index        uint16
+	Pad_godefs_0 [2]byte
+	Flags        int32
+	Addrs        int32
+	Pid          int32
+	Seq          int32
+	Errno        int32
+	Fmask        int32
+	Inits        uint32
+	Rmx          RtMetrics
+}
+
+type RtMetrics struct {
+	Locks    uint32
+	Mtu      uint32
+	Hopcount uint32
+	Expire   uint32
+	Recvpipe uint32
+	Sendpipe uint32
+	Ssthresh uint32
+	Rtt      uint32
+	Rttvar   uint32
+	Pksent   uint32
+	Weight   uint32
+	Filler   [3]uint32
 }

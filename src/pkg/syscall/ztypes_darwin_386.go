@@ -6,23 +6,29 @@ package syscall
 
 // Constants
 const (
-	sizeofPtr           = 0x4
-	sizeofShort         = 0x2
-	sizeofInt           = 0x4
-	sizeofLong          = 0x4
-	sizeofLongLong      = 0x8
-	O_CLOEXEC           = 0
-	SizeofSockaddrInet4 = 0x10
-	SizeofSockaddrInet6 = 0x1c
-	SizeofSockaddrAny   = 0x6c
-	SizeofSockaddrUnix  = 0x6a
-	SizeofLinger        = 0x8
-	SizeofIpMreq        = 0x8
-	SizeofMsghdr        = 0x1c
-	SizeofCmsghdr       = 0xc
-	PTRACE_TRACEME      = 0
-	PTRACE_CONT         = 0x7
-	PTRACE_KILL         = 0x8
+	sizeofPtr              = 0x4
+	sizeofShort            = 0x2
+	sizeofInt              = 0x4
+	sizeofLong             = 0x4
+	sizeofLongLong         = 0x8
+	O_CLOEXEC              = 0
+	SizeofSockaddrInet4    = 0x10
+	SizeofSockaddrInet6    = 0x1c
+	SizeofSockaddrAny      = 0x6c
+	SizeofSockaddrUnix     = 0x6a
+	SizeofSockaddrDatalink = 0x14
+	SizeofLinger           = 0x8
+	SizeofIpMreq           = 0x8
+	SizeofMsghdr           = 0x1c
+	SizeofCmsghdr          = 0xc
+	PTRACE_TRACEME         = 0
+	PTRACE_CONT            = 0x7
+	PTRACE_KILL            = 0x8
+	SizeofIfMsghdr         = 0x70
+	SizeofIfData           = 0x60
+	SizeofIfaMsghdr        = 0x14
+	SizeofRtMsghdr         = 0x5c
+	SizeofRtMetrics        = 0x38
 )
 
 // Types
@@ -177,6 +183,17 @@ type RawSockaddrUnix struct {
 	Path   [104]int8
 }
 
+type RawSockaddrDatalink struct {
+	Len    uint8
+	Family uint8
+	Index  uint16
+	Type   uint8
+	Nlen   uint8
+	Alen   uint8
+	Slen   uint8
+	Data   [12]int8
+}
+
 type RawSockaddr struct {
 	Len    uint8
 	Family uint8
@@ -232,4 +249,88 @@ type Kevent_t struct {
 
 type FdSet struct {
 	Bits [32]int32
+}
+
+type IfMsghdr struct {
+	Msglen       uint16
+	Version      uint8
+	Type         uint8
+	Addrs        int32
+	Flags        int32
+	Index        uint16
+	Pad_godefs_0 [2]byte
+	Data         IfData
+}
+
+type IfData struct {
+	Type       uint8
+	Typelen    uint8
+	Physical   uint8
+	Addrlen    uint8
+	Hdrlen     uint8
+	Recvquota  uint8
+	Xmitquota  uint8
+	Unused1    uint8
+	Mtu        uint32
+	Metric     uint32
+	Baudrate   uint32
+	Ipackets   uint32
+	Ierrors    uint32
+	Opackets   uint32
+	Oerrors    uint32
+	Collisions uint32
+	Ibytes     uint32
+	Obytes     uint32
+	Imcasts    uint32
+	Omcasts    uint32
+	Iqdrops    uint32
+	Noproto    uint32
+	Recvtiming uint32
+	Xmittiming uint32
+	Lastchange Timeval
+	Unused2    uint32
+	Hwassist   uint32
+	Reserved1  uint32
+	Reserved2  uint32
+}
+
+type IfaMsghdr struct {
+	Msglen       uint16
+	Version      uint8
+	Type         uint8
+	Addrs        int32
+	Flags        int32
+	Index        uint16
+	Pad_godefs_0 [2]byte
+	Metric       int32
+}
+
+type RtMsghdr struct {
+	Msglen       uint16
+	Version      uint8
+	Type         uint8
+	Index        uint16
+	Pad_godefs_0 [2]byte
+	Flags        int32
+	Addrs        int32
+	Pid          int32
+	Seq          int32
+	Errno        int32
+	Use          int32
+	Inits        uint32
+	Rmx          RtMetrics
+}
+
+type RtMetrics struct {
+	Locks    uint32
+	Mtu      uint32
+	Hopcount uint32
+	Expire   int32
+	Recvpipe uint32
+	Sendpipe uint32
+	Ssthresh uint32
+	Rtt      uint32
+	Rttvar   uint32
+	Pksent   uint32
+	Filler   [4]uint32
 }

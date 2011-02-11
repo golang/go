@@ -223,8 +223,40 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), 0
 }
 
+func (sa *SockaddrDatalink) sockaddr() (uintptr, _Socklen, int) {
+	if sa.Index == 0 {
+		return 0, 0, EINVAL
+	}
+	sa.raw.Len = sa.Len
+	sa.raw.Family = AF_LINK
+	sa.raw.Index = sa.Index
+	sa.raw.Type = sa.Type
+	sa.raw.Nlen = sa.Nlen
+	sa.raw.Alen = sa.Alen
+	sa.raw.Slen = sa.Slen
+	for i := 0; i < len(sa.raw.Data); i++ {
+		sa.raw.Data[i] = sa.Data[i]
+	}
+	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrDatalink, 0
+}
+
 func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 	switch rsa.Addr.Family {
+	case AF_LINK:
+		pp := (*RawSockaddrDatalink)(unsafe.Pointer(rsa))
+		sa := new(SockaddrDatalink)
+		sa.Len = pp.Len
+		sa.Family = pp.Family
+		sa.Index = pp.Index
+		sa.Type = pp.Type
+		sa.Nlen = pp.Nlen
+		sa.Alen = pp.Alen
+		sa.Slen = pp.Slen
+		for i := 0; i < len(sa.Data); i++ {
+			sa.Data[i] = pp.Data[i]
+		}
+		return sa, 0
+
 	case AF_UNIX:
 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
 		if pp.Len < 3 || pp.Len > SizeofSockaddrUnix {
@@ -399,7 +431,6 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
 
 // Translate "kern.hostname" to []_C_int{0,1,2,3}.
 func nametomib(name string) (mib []_C_int, errno int) {
-	const CTL_MAXNAME = 12
 	const siz = uintptr(unsafe.Sizeof(mib[0]))
 
 	// NOTE(rsc): It seems strange to set the buffer to have
@@ -469,6 +500,27 @@ func SysctlUint32(name string) (value uint32, errno int) {
 		return 0, EIO
 	}
 	return *(*uint32)(unsafe.Pointer(&buf[0])), 0
+}
+
+func SysctlNetRoute(fourth, fifth, sixth int) (value []byte, errno int) {
+	mib := []_C_int{CTL_NET, AF_ROUTE, 0, _C_int(fourth), _C_int(fifth), _C_int(sixth)}
+
+	// Find size.
+	n := uintptr(0)
+	if errno = sysctl(mib, nil, &n, nil, 0); errno != 0 {
+		return nil, errno
+	}
+	if n == 0 {
+		return nil, 0
+	}
+
+	// Read into buffer of that size.
+	b := make([]byte, n)
+	if errno = sysctl(mib, &b[0], &n, nil, 0); errno != 0 {
+		return nil, errno
+	}
+
+	return b[0:n], 0
 }
 
 //sys	utimes(path string, timeval *[2]Timeval) (errno int)
