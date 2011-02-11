@@ -53,9 +53,14 @@ func (m *Mutex) Lock() {
 // It is allowed for one goroutine to lock a Mutex and then
 // arrange for another goroutine to unlock it.
 func (m *Mutex) Unlock() {
-	if xadd(&m.key, -1) == 0 {
+	switch v := xadd(&m.key, -1); {
+	case v == 0:
 		// changed from 1 to 0; no contention
 		return
+	case int32(v) == -1:
+		// changed from 0 to -1: wasn't locked
+		// (or there are 4 billion goroutines waiting)
+		panic("sync: unlock of unlocked mutex")
 	}
 	runtime.Semrelease(&m.sema)
 }
