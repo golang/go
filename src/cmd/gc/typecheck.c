@@ -96,7 +96,7 @@ typecheck(Node **np, int top)
 	Node *n, *l, *r;
 	NodeList *args;
 	int lno, ok, ntop;
-	Type *t, *missing, *have;
+	Type *t, *tp, *missing, *have;
 	Sym *sym;
 	Val v;
 	char *why;
@@ -552,6 +552,7 @@ reswitch:
 			ok = Erv;
 			goto ret;
 		}
+		tp = t;
 		if(isptr[t->etype] && t->type->etype != TINTER) {
 			t = t->type;
 			if(t == T)
@@ -563,7 +564,7 @@ reswitch:
 			if(lookdot(n, t, 1))
 				yyerror("%#N undefined (cannot refer to unexported field or method %S)", n, n->right->sym);
 			else
-				yyerror("%#N undefined (type %T has no field or method %S)", n, t, n->right->sym);
+				yyerror("%#N undefined (type %T has no field or method %S)", n, tp, n->right->sym);
 			goto error;
 		}
 		switch(n->op) {
