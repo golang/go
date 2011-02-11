@@ -89,3 +89,16 @@ func BenchmarkContendedMutex(b *testing.B) {
 	<-c
 	<-c
 }
+
+func TestMutexPanic(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("unlock of unlocked mutex did not panic")
+		}
+	}()
+
+	var mu Mutex
+	mu.Lock()
+	mu.Unlock()
+	mu.Unlock()
+}
