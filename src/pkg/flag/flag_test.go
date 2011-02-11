@@ -106,7 +106,7 @@ func TestParse(t *testing.T) {
 		"-bool",
 		"-bool2=true",
 		"--int", "22",
-		"--int64", "23",
+		"--int64", "0x23",
 		"-uint", "24",
 		"--uint64", "25",
 		"-string", "hello",
@@ -125,8 +125,8 @@ func TestParse(t *testing.T) {
 	if *intFlag != 22 {
 		t.Error("int flag should be 22, is ", *intFlag)
 	}
-	if *int64Flag != 23 {
-		t.Error("int64 flag should be 23, is ", *int64Flag)
+	if *int64Flag != 0x23 {
+		t.Error("int64 flag should be 0x23, is ", *int64Flag)
 	}
 	if *uintFlag != 24 {
 		t.Error("uint flag should be 24, is ", *uintFlag)
