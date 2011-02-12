@@ -64,7 +64,7 @@ func FtoaN(f float64, fmt byte, prec int, n int) string {
 }
 
 func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
-	neg := bits>>flt.expbits>>flt.mantbits != 0
+	neg := bits>>(flt.expbits+flt.mantbits) != 0
 	exp := int(bits>>flt.mantbits) & (1<<flt.expbits - 1)
 	mant := bits & (uint64(1)<<flt.mantbits - 1)
 
