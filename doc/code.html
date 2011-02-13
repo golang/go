@@ -160,9 +160,9 @@ is the package's default name for imports.
 Go's convention is that the package name is the last element of the
 import path: the package imported as <code>"crypto/rot13"</code>
 should be named <code>rot13</code>.
-At the moment, the Go tools impose a restriction that package names are unique
-across all packages linked into a single binary, but that restriction
-will be lifted soon.
+There is no requirement that package names be unique
+across all packages linked into a single binary,
+only that the import paths (their full file names) be unique.
 </p>
 
 <p>
