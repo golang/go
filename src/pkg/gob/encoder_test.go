@@ -384,6 +384,57 @@ func TestInterfaceIndirect(t *testing.T) {
 	}
 }
 
+func TestDecodeIntoEmptyStruct(t *testing.T) {
+	type Empty struct{}
+	empty := &Empty{}
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	err := enc.Encode(&struct{ A int }{23})
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	dec := NewDecoder(b)
+	err = dec.Decode(empty)
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+}
+
+func TestStructDecodeIntoNil(t *testing.T) {
+	nonempty := &struct{ A int }{23}
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	err := enc.Encode(nonempty)
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	dec := NewDecoder(b)
+	err = dec.Decode(nil)
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	if b.Len() != 0 {
+		t.Fatalf("%d bytes remain after decode", b.Len())
+	}
+}
+
+func TestSingletonDecodeIntoNil(t *testing.T) {
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	err := enc.Encode("hello world")
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	dec := NewDecoder(b)
+	err = dec.Decode(nil)
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	if b.Len() != 0 {
+		t.Fatalf("%d bytes remain after decode", b.Len())
+	}
+}
+
 // Another bug from golang-nuts, involving nested interfaces.
 type Bug0Outer struct {
 	Bug0Field interface{}
