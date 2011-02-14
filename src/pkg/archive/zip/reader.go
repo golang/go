@@ -42,6 +42,10 @@ type File struct {
 	bodyOffset   int64
 }
 
+func (f *File) hasDataDescriptor() bool {
+	return f.Flags&0x8 != 0
+}
+
 // OpenReader will open the Zip file specified by name and return a Reader.
 func OpenReader(name string) (*Reader, os.Error) {
 	f, err := os.Open(name, os.O_RDONLY, 0644)
@@ -93,7 +97,16 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
 			return
 		}
 	}
-	r := io.NewSectionReader(f.zipr, off+f.bodyOffset, int64(f.CompressedSize))
+	size := int64(f.CompressedSize)
+	if f.hasDataDescriptor() {
+		if size == 0 {
+			// permit SectionReader to see the rest of the file
+			size = f.zipsize - (off + f.bodyOffset)
+		} else {
+			size += dataDescriptorLen
+		}
+	}
+	r := io.NewSectionReader(f.zipr, off+f.bodyOffset, size)
 	switch f.Method {
 	case 0: // store (no compression)
 		rc = nopCloser{r}
@@ -103,7 +116,7 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
 		err = UnsupportedMethod
 	}
 	if rc != nil {
-		rc = &checksumReader{rc, crc32.NewIEEE(), f.CRC32}
+		rc = &checksumReader{rc, crc32.NewIEEE(), f, r}
 	}
 	return
 }
@@ -111,7 +124,8 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
 type checksumReader struct {
 	rc   io.ReadCloser
 	hash hash.Hash32
-	sum  uint32
+	f    *File
+	zipr io.Reader // for reading the data descriptor
 }
 
 func (r *checksumReader) Read(b []byte) (n int, err os.Error) {
@@ -120,7 +134,12 @@ func (r *checksumReader) Read(b []byte) (n int, err os.Error) {
 	if err != os.EOF {
 		return
 	}
-	if r.hash.Sum32() != r.sum {
+	if r.f.hasDataDescriptor() {
+		if err = readDataDescriptor(r.zipr, r.f); err != nil {
+			return
+		}
+	}
+	if r.hash.Sum32() != r.f.CRC32 {
 		err = ChecksumError
 	}
 	return
@@ -202,6 +221,18 @@ func readDirectoryHeader(f *File, r io.Reader) (err os.Error) {
 	f.Name = string(readByteSlice(r, filenameLength))
 	f.Extra = readByteSlice(r, extraLength)
 	f.Comment = string(readByteSlice(r, commentLength))
+	return
+}
+
+func readDataDescriptor(r io.Reader, f *File) (err os.Error) {
+	defer func() {
+		if rerr, ok := recover().(os.Error); ok {
+			err = rerr
+		}
+	}()
+	read(r, &f.CRC32)
+	read(r, &f.CompressedSize)
+	read(r, &f.UncompressedSize)
 	return
 }
 
