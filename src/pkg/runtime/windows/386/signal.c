@@ -27,12 +27,7 @@ runtime·dumpregs(Context *r)
 void
 runtime·initsig(int32)
 {
-}
-
-String
-runtime·signame(int32)
-{
-	return runtime·emptystring;
+	runtime·siginit();
 }
 
 uint32

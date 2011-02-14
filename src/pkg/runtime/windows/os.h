@@ -20,6 +20,7 @@ uint32 runtime·tstart_stdcall(M *newm);
 
 uint32 runtime·issigpanic(uint32);
 void runtime·sigpanic(void);
+uint32 runtime·ctrlhandler(uint32 type);
 
 // Windows dll function to go callback entry.
 byte *runtime·compilecallback(Eface fn, bool cleanstack);

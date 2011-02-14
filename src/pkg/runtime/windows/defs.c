@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include <signal.h>
 #include <stdarg.h>
 #include <windef.h>
 #include <winbase.h>
+#include <wincon.h>
 
 enum {
 	$PROT_NONE = 0,
@@ -14,6 +16,10 @@ enum {
 
 	$MAP_ANON = 1,
 	$MAP_PRIVATE = 2,
+
+	$SIGINT = SIGINT,
+	$CTRL_C_EVENT = CTRL_C_EVENT,
+	$CTRL_BREAK_EVENT = CTRL_BREAK_EVENT,
 
 	$EXCEPTION_ACCESS_VIOLATION = STATUS_ACCESS_VIOLATION,
 	$EXCEPTION_BREAKPOINT = STATUS_BREAKPOINT,
