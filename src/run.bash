@@ -30,26 +30,17 @@ xcd() {
 	builtin cd "$GOROOT"/src/$1
 }
 
-maketest() {
-	for i
-	do
-		(
-			xcd $i
-			if $rebuild; then
-				gomake clean
-				time gomake
-				gomake install
-			fi
-			gomake test
-		) || exit $?
-	done
-}
+if $rebuild; then
+	(xcd pkg
+		gomake clean
+		time gomake
+		gomake install
+	) || exit $i
+fi
 
-maketest \
-	pkg \
-
-# all of these are subtly different
-# from what maketest does.
+(xcd pkg
+gomake test
+) || exit $?
 
 (xcd pkg/sync;
 if $rebuild; then
@@ -126,3 +117,5 @@ done
 ./run
 ) || exit $?
 
+echo
+echo ALL TESTS PASSED
