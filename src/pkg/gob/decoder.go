@@ -183,12 +183,8 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	dec.buf.Reset() // In case data lingers from previous invocation.
 	dec.err = nil
 	id := dec.decodeTypeSequence(false)
-	if id >= 0 {
-		// A nil value means "ignore the data".  Since it's already read into
-		// the decoder's buffer, all we need to do is not bother to decode it.
-		if value != nil {
-			dec.err = dec.decodeValue(id, value)
-		}
+	if dec.err == nil {
+		dec.err = dec.decodeValue(id, value)
 	}
 	return dec.err
 }

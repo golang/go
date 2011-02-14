@@ -481,6 +481,19 @@ func (dec *Decoder) ignoreStruct(engine *decEngine) (err os.Error) {
 	return nil
 }
 
+func (dec *Decoder) ignoreSingle(engine *decEngine) (err os.Error) {
+	defer catchError(&err)
+	state := newDecodeState(dec, &dec.buf)
+	state.fieldnum = singletonField
+	delta := int(state.decodeUint())
+	if delta != 0 {
+		errorf("gob decode: corrupted data: non-zero delta for singleton")
+	}
+	instr := &engine.instr[singletonField]
+	instr.op(instr, state, unsafe.Pointer(nil))
+	return nil
+}
+
 func (dec *Decoder) decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.ErrorString) {
 	instr := &decInstr{elemOp, 0, elemIndir, 0, ovfl}
 	for i := 0; i < length; i++ {
@@ -653,8 +666,8 @@ func (dec *Decoder) ignoreInterface(state *decodeState) {
 	if id < 0 {
 		error(dec.err)
 	}
-	// At this point, the decoder buffer contains the value. Just toss it.
-	state.b.Reset()
+	// At this point, the decoder buffer contains a delimited value. Just toss it.
+	state.b.Next(int(state.decodeUint()))
 }
 
 // Index by Go types.
@@ -901,6 +914,16 @@ func (dec *Decoder) compileSingle(remoteId typeId, rt reflect.Type) (engine *dec
 	return
 }
 
+func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err os.Error) {
+	engine = new(decEngine)
+	engine.instr = make([]decInstr, 1) // one item
+	op := dec.decIgnoreOpFor(remoteId)
+	ovfl := overflow(dec.typeString(remoteId))
+	engine.instr[0] = decInstr{op, 0, 0, 0, ovfl}
+	engine.numInstr = 1
+	return
+}
+
 // Is this an exported - upper case - name?
 func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
@@ -984,7 +1007,12 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
 		// To handle recursive types, mark this engine as underway before compiling.
 		enginePtr = new(*decEngine)
 		dec.ignorerCache[wireId] = enginePtr
-		*enginePtr, err = dec.compileDec(wireId, emptyStructType)
+		wire := dec.wireType[wireId]
+		if wire != nil && wire.StructT != nil {
+			*enginePtr, err = dec.compileDec(wireId, emptyStructType)
+		} else {
+			*enginePtr, err = dec.compileIgnoreSingle(wireId)
+		}
 		if err != nil {
 			dec.ignorerCache[wireId] = nil, false
 		}
@@ -993,6 +1021,10 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
 }
 
 func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) os.Error {
+	// If the value is nil, it means we should just ignore this item.
+	if val == nil {
+		return dec.decodeIgnoredValue(wireId)
+	}
 	// Dereference down to the underlying struct type.
 	rt, indir := indirect(val.Type())
 	enginePtr, err := dec.getDecEnginePtr(wireId, rt)
@@ -1008,6 +1040,18 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) os.Error {
 		return dec.decodeStruct(engine, st, uintptr(val.Addr()), indir)
 	}
 	return dec.decodeSingle(engine, rt, uintptr(val.Addr()), indir)
+}
+
+func (dec *Decoder) decodeIgnoredValue(wireId typeId) os.Error {
+	enginePtr, err := dec.getIgnoreEnginePtr(wireId)
+	if err != nil {
+		return err
+	}
+	wire := dec.wireType[wireId]
+	if wire != nil && wire.StructT != nil {
+		return dec.ignoreStruct(*enginePtr)
+	}
+	return dec.ignoreSingle(*enginePtr)
 }
 
 func init() {
