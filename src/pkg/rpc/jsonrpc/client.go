@@ -98,6 +98,9 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
 }
 
 func (c *clientCodec) ReadResponseBody(x interface{}) os.Error {
+	if x == nil {
+		return nil
+	}
 	return json.Unmarshal(*c.resp.Result, x)
 }
 
