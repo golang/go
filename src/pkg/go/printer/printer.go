@@ -145,11 +145,13 @@ func (p *printer) nlines(n, min int) int {
 // write0 does not indent after newlines, and does not HTML-escape or update p.pos.
 //
 func (p *printer) write0(data []byte) {
-	n, err := p.output.Write(data)
-	p.written += n
-	if err != nil {
-		p.errors <- err
-		runtime.Goexit()
+	if len(data) > 0 {
+		n, err := p.output.Write(data)
+		p.written += n
+		if err != nil {
+			p.errors <- err
+			runtime.Goexit()
+		}
 	}
 }
 
@@ -254,14 +256,13 @@ func (p *printer) writeItem(pos token.Position, data []byte) {
 // If there is any pending whitespace, it consumes as much of
 // it as is likely to help position the comment nicely.
 // pos is the comment position, next the position of the item
-// after all pending comments, isFirst indicates if this is the
-// first comment in a group of comments, and isKeyword indicates
-// if the next item is a keyword.
+// after all pending comments, prev is the previous comment in
+// a group of comments (or nil), and isKeyword indicates if the
+// next item is a keyword.
 //
-func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeyword bool) {
-	if !p.last.IsValid() {
-		// there was no preceeding item and the comment is the
-		// first item to be printed - don't write any whitespace
+func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment, isKeyword bool) {
+	if p.written == 0 {
+		// the comment is the first item to be printed - don't write any whitespace
 		return
 	}
 
@@ -271,11 +272,12 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 		return
 	}
 
-	if pos.IsValid() && pos.Line == p.last.Line {
+	if pos.Line == p.last.Line && (prev == nil || prev.Text[1] != '/') {
 		// comment on the same line as last item:
 		// separate with at least one separator
 		hasSep := false
-		if isFirst {
+		if prev == nil {
+			// first comment of a comment group
 			j := 0
 			for i, ch := range p.buffer {
 				switch ch {
@@ -312,7 +314,8 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 	} else {
 		// comment on a different line:
 		// separate with at least one line break
-		if isFirst {
+		if prev == nil {
+			// first comment of a comment group
 			j := 0
 			for i, ch := range p.buffer {
 				switch ch {
@@ -344,10 +347,14 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 		}
 		// use formfeeds to break columns before a comment;
 		// this is analogous to using formfeeds to separate
-		// individual lines of /*-style comments
-		// (if !pos.IsValid(), pos.Line == 0, and this will
-		// print no newlines)
-		p.writeNewlines(pos.Line-p.last.Line, true)
+		// individual lines of /*-style comments - but make
+		// sure there is at least one line break if the previous
+		// comment was a line comment
+		n := pos.Line - p.last.Line // if !pos.IsValid(), pos.Line == 0, and n will be 0
+		if n <= 0 && prev != nil && prev.Text[1] == '/' {
+			n = 1
+		}
+		p.writeNewlines(n, true)
 	}
 }
 
@@ -611,7 +618,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
 	var last *ast.Comment
 	for ; p.commentBefore(next); p.cindex++ {
 		for _, c := range p.comments[p.cindex].List {
-			p.writeCommentPrefix(p.fset.Position(c.Pos()), next, last == nil, tok.IsKeyword())
+			p.writeCommentPrefix(p.fset.Position(c.Pos()), next, last, tok.IsKeyword())
 			p.writeComment(c)
 			last = c
 		}
