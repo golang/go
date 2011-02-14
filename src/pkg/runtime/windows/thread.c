@@ -18,6 +18,7 @@
 #pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
 #pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
 #pragma dynimport runtime·QueryPerformanceFrequency QueryPerformanceFrequency "kernel32.dll"
+#pragma dynimport runtime·SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
 #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
 #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
 #pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
@@ -33,6 +34,7 @@ extern void *runtime·GetStdHandle;
 extern void *runtime·LoadLibraryEx;
 extern void *runtime·QueryPerformanceCounter;
 extern void *runtime·QueryPerformanceFrequency;
+extern void *runtime·SetConsoleCtrlHandler;
 extern void *runtime·SetEvent;
 extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
@@ -43,6 +45,7 @@ void
 runtime·osinit(void)
 {
 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
+	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, 1);
 }
 
 void
@@ -161,6 +164,7 @@ runtime·destroylock(Lock *l)
 void
 runtime·noteclear(Note *n)
 {
+	n->lock.key = 0;	// memset(n, 0, sizeof *n)
 	eventlock(&n->lock);
 }
 
@@ -277,6 +281,41 @@ runtime·sigpanic(void)
 		runtime·panicstring("floating point error");
 	}
 	runtime·throw("fault");
+}
+
+String
+runtime·signame(int32 sig)
+{
+	int8 *s;
+
+	switch(sig) {
+	case SIGINT:
+		s = "SIGINT: interrupt";
+		break;
+	default:
+		return runtime·emptystring;
+	}
+	return runtime·gostringnocopy((byte*)s);
+}
+
+uint32
+runtime·ctrlhandler1(uint32 type)
+{
+	int32 s;
+
+	switch(type) {
+	case CTRL_C_EVENT:
+	case CTRL_BREAK_EVENT:
+		s = SIGINT;
+		break;
+	default:
+		return 0;
+	}
+
+	if(runtime·sigsend(s))
+		return 1;
+	runtime·exit(2);	// SIGINT, SIGTERM, etc
+	return 0;
 }
 
 // Call back from windows dll into go.

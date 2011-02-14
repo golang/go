@@ -99,6 +99,45 @@ TEXT runtime·sigtramp1(SB),0,$16-28
 sigdone:
 	RET
 
+// Windows runs the ctrl handler in a new thread.
+TEXT runtime·ctrlhandler(SB),7,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	PUSHL	BX
+	PUSHL	SI
+	PUSHL	DI
+	PUSHL	0x2c(FS)
+	MOVL	SP, BX
+
+	// setup dummy m, g
+	SUBL	$(m_sehframe+4), SP	// at least space for m_sehframe
+	LEAL	m_tls(SP), CX
+	MOVL	CX, 0x2c(FS)
+	MOVL	SP, m(CX)
+	MOVL	SP, DX
+	SUBL	$8, SP			// space for g_stack{guard,base}
+	MOVL	SP, g(CX)
+	MOVL	SP, m_g0(DX)
+	LEAL	-4096(SP), CX
+	MOVL	CX, g_stackguard(SP)
+	MOVL	BX, g_stackbase(SP)
+
+	PUSHL	8(BP)
+	CALL	runtime·ctrlhandler1(SB)
+	POPL	CX
+
+	get_tls(CX)
+	MOVL	g(CX), CX
+	MOVL	g_stackbase(CX), SP
+	POPL	0x2c(FS)
+	POPL	DI
+	POPL	SI
+	POPL	BX
+	POPL	BP
+	MOVL	0(SP), CX
+	ADDL	$8, SP
+	JMP	CX
+
 // Called from dynamic function created by ../thread.c compilecallback,
 // running on Windows stack (not Go stack).
 // BX, BP, SI, DI registers and DF flag are preserved
