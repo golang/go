@@ -184,11 +184,17 @@ runtime·notesleep(Note *n)
 void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
+	void *thandle;
+
 	USED(stk);
 	USED(g);	// assuming g = m->g0
 	USED(fn);	// assuming fn = mstart
 
-	runtime·stdcall(runtime·CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
+	thandle = runtime·stdcall(runtime·CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
+	if(thandle == 0) {
+		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), runtime·getlasterror());
+		runtime·throw("runtime.newosproc");
+	}
 }
 
 // Called to initialize a new m (including the bootstrap m).
