@@ -18,13 +18,13 @@ import (
 )
 
 var (
-	lines   = make([][]byte, 0, 10000) // assume big enough
-	linebuf = make([]byte, 10000)      // assume big enough
+	lines = make([][]byte, 0, 2000) // probably big enough; grows if not
 
 	empty   = []byte("")
 	newline = []byte("\n")
 	tab     = []byte("\t")
 	quote   = []byte(`"`)
+	indent  = []byte{' ', ' ', ' ', ' '}
 
 	sectionMarker = []byte("----\n")
 	preStart      = []byte("<pre>")
@@ -52,9 +52,7 @@ func read() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		n := len(lines)
-		lines = lines[0 : n+1]
-		lines[n] = line
+		lines = append(lines, line)
 	}
 }
 
@@ -173,19 +171,7 @@ func trim(l []byte) []byte {
 	return l
 }
 
-// expand tabs to 4 spaces. don't worry about columns.
+// expand tabs to spaces. don't worry about columns.
 func expandTabs(l []byte) []byte {
-	j := 0 // position in linebuf.
-	for _, c := range l {
-		if c == '\t' {
-			for k := 0; k < 4; k++ {
-				linebuf[j] = ' '
-				j++
-			}
-		} else {
-			linebuf[j] = c
-			j++
-		}
-	}
-	return linebuf[0:j]
+	return bytes.Replace(l, tab, indent, -1)
 }
