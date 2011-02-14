@@ -53,7 +53,9 @@ type Client struct {
 // The client calls WriteRequest to write a request to the connection
 // and calls ReadResponseHeader and ReadResponseBody in pairs
 // to read responses.  The client calls Close when finished with the
-// connection.
+// connection. ReadResponseBody may be called with a nil
+// argument to force the body of the response to be read and then
+// discarded.
 type ClientCodec interface {
 	WriteRequest(*Request, interface{}) os.Error
 	ReadResponseHeader(*Response) os.Error
@@ -89,7 +91,6 @@ func (client *Client) send(c *Call) {
 
 func (client *Client) input() {
 	var err os.Error
-	var marker struct{}
 	for err == nil {
 		response := new(Response)
 		err = client.codec.ReadResponseHeader(response)
@@ -115,7 +116,7 @@ func (client *Client) input() {
 			// any subsequent requests will get the ReadResponseBody
 			// error if there is one.
 			c.Error = ServerError(response.Error)
-			err = client.codec.ReadResponseBody(&marker)
+			err = client.codec.ReadResponseBody(nil)
 			if err != nil {
 				err = os.ErrorString("reading error body: " + err.String())
 			}

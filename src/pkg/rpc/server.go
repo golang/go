@@ -302,7 +302,7 @@ type InvalidRequest struct {
 	Marker int
 }
 
-var invalidRequest = InvalidRequest{1}
+var invalidRequest = InvalidRequest{}
 
 func _new(t *reflect.PtrType) *reflect.PtrValue {
 	v := reflect.MakeZero(t).(*reflect.PtrValue)
@@ -399,7 +399,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 				break
 			}
 			// discard body
-			codec.ReadRequestBody(new(interface{}))
+			codec.ReadRequestBody(nil)
 
 			// send a response if we actually managed to read a header.
 			if req != nil {
@@ -486,7 +486,8 @@ func RegisterName(name string, rcvr interface{}) os.Error {
 // The server calls ReadRequestHeader and ReadRequestBody in pairs
 // to read requests from the connection, and it calls WriteResponse to
 // write a response back.  The server calls Close when finished with the
-// connection.
+// connection. ReadRequestBody may be called with a nil
+// argument to force the body of the request to be read and discarded.
 type ServerCodec interface {
 	ReadRequestHeader(*Request) os.Error
 	ReadRequestBody(interface{}) os.Error
