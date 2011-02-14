@@ -5,10 +5,13 @@ This document is a tutorial introduction to the basics of the Go programming
 language, intended for programmers familiar with C or C++. It is not a comprehensive
 guide to the language; at the moment the document closest to that is the
 <a href='/doc/go_spec.html'>language specification</a>.
-After you've read this tutorial, you might want to look at
+After you've read this tutorial, you should look at
 <a href='/doc/effective_go.html'>Effective Go</a>,
-which digs deeper into how the language is used.
-Also, slides from a 3-day course about Go are available:
+which digs deeper into how the language is used and
+talks about the style and idioms of programming in Go.
+Also, slides from a 3-day course about Go are available.
+Although they're badly out of date, they provide some
+background and a lot of examples:
 <a href='/doc/GoCourseDay1.pdf'>Day 1</a>,
 <a href='/doc/GoCourseDay2.pdf'>Day 2</a>,
 <a href='/doc/GoCourseDay3.pdf'>Day 3</a>.
@@ -258,11 +261,11 @@ of course you can change a string <i>variable</i> simply by
 reassigning it.  This snippet from <code>strings.go</code> is legal code:
 <p>
 <pre> <!-- progs/strings.go /hello/ /ciao/ -->
-11        s := &quot;hello&quot;
-12        if s[1] != 'e' { os.Exit(1) }
-13        s = &quot;good bye&quot;
-14        var p *string = &amp;s
-15        *p = &quot;ciao&quot;
+10        s := &quot;hello&quot;
+11        if s[1] != 'e' { os.Exit(1) }
+12        s = &quot;good bye&quot;
+13        var p *string = &amp;s
+14        *p = &quot;ciao&quot;
 </pre>
 <p>
 However the following statements are illegal because they would modify
