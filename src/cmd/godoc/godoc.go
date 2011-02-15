@@ -896,6 +896,11 @@ type PageInfo struct {
 }
 
 
+func (info *PageInfo) IsEmpty() bool {
+	return info.Err != nil || info.PAst == nil && info.PDoc == nil && info.Dirs == nil
+}
+
+
 type httpHandler struct {
 	pattern string // url pattern; e.g. "/pkg/"
 	fsRoot  string // file system root to which the pattern is mapped

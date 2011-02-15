@@ -217,6 +217,7 @@ func makeRx(names []string) (rx *regexp.Regexp) {
 	return
 }
 
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -336,12 +337,17 @@ func main() {
 	//            if there are multiple packages in a directory.
 	info := pkgHandler.getPageInfo(abspath, relpath, "", mode)
 
-	if info.Err != nil || info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
+	if info.IsEmpty() {
 		// try again, this time assume it's a command
 		if !pathutil.IsAbs(path) {
 			abspath = absolutePath(path, cmdHandler.fsRoot)
 		}
-		info = cmdHandler.getPageInfo(abspath, relpath, "", mode)
+		cmdInfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)
+		// only use the cmdInfo if it actually contains a result
+		// (don't hide errors reported from looking up a package)
+		if !cmdInfo.IsEmpty() {
+			info = cmdInfo
+		}
 	}
 	if info.Err != nil {
 		log.Fatalf("%v", info.Err)
