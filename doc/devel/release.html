@@ -5,6 +5,112 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-02-01">2011-02-15</h3>
+
+<pre>
+This release includes changes to the io and template packages.
+You may need to update your code.
+
+The io.ReadByter and io.ReadRuner interface types have been renamed to
+io.ByteReader and io.RuneReader respectively.
+
+The order of arguments to template.Execute has been reversed to be consistent
+the notion of "destination first", as with io.Copy, fmt.Fprint, and others.
+
+Gotest now works for package main in directories using Make.cmd-based makefiles.
+
+The memory allocation runtime problems from the last release are not completely
+fixed.  The virtual memory exhaustion problems encountered by people using
+ulimit -v have been fixed, but there remain known garbage collector problems
+when using GOMAXPROCS > 1.
+
+Other changes:
+* 5l: stopped generating 64-bit eor.
+* 8l: more work on plan9 support (thanks Yuval Pavel Zholkover).
+* archive/zip: handle files with data descriptors.
+* arm: working peep-hole optimizer.
+* asn1: marshal true as 255, not 1.
+* buffer.go: minor optimization, expanded comment.
+* build: drop syslog on DISABLE_NET_TESTS=1 (thanks Gustavo Niemeyer),
+       allow clean.bash to work on fresh checkout,
+       change "all tests pass" message to be more obvious,
+       fix spaces in GOROOT (thanks Christopher Nielsen).
+* bytes: fix bug in buffer.ReadBytes (thanks Evan Shaw).
+* 5g: better int64 code,
+       don’t use MVN instruction.
+* cgo: don't run cgo when not compiling (thanks Gustavo Niemeyer),
+       fix _cgo_run timestamp file order (thanks Gustavo Niemeyer),
+       fix handling of signed enumerations (thanks Gustavo Niemeyer),
+       os/arch dependent #cgo directives (thanks Gustavo Niemeyer),
+       rename internal f to avoid conflict with possible C global named f.
+* codereview: fix hgpatch on windows (thanks Yasuhiro Matsumoto),
+       record repository, base revision,
+       use cmd.communicate (thanks Yasuhiro Matsumoto).
+* container/ring: replace Iter() with Do().
+* crypto/cipher: add resync open to OCFB mode.
+* crypto/openpgp/armor: bug fixes.
+* crypto/openpgp/packet: new subpackage.
+* crypto/tls: load a chain of certificates from a file,
+       select best cipher suite, not worst.
+* crypto/x509: add support for name constraints.
+* debug/pe: ImportedSymbols fixes (thanks Wei Guangjing).
+* doc/code: update to reflect that package names need not be unique.
+* doc/codelab/wiki: a bunch of fixes (thanks Andrey Mirtchovski).
+* doc/install: update for new versions of Mercurial.
+* encoding/line: fix line returned after EOF.
+* flag: allow hexadecimal (0xFF) and octal (0377) input for integer flags.
+* fmt.Scan: scan binary-exponent floating format, 2.4p-3,
+       hexadecimal (0xFF) and octal (0377) integers.
+* fmt: document %%; also %b for floating point.
+* gc, ld: detect stale or incompatible object files,
+       package name main no longer reserved.
+* gc: correct receiver in method missing error (thanks Lorenzo Stoakes),
+       correct rounding of denormal constants (thanks Eoghan Sherry),
+       select receive bug fix.
+* go/printer, gofmt: smarter handling of multi-line raw strings.
+* go/printer: line comments must always end in a newline,
+       remove notion of "Styler", remove HTML mode.
+* gob: allow Decode(nil) and have it just discard the next value.
+* godoc: use IsAbs to test for absolute paths (fix for win32) (thanks Yasuhiro Matsumoto),
+       don't hide package lookup error if there's no command with the same name.
+* gotest: enable unit tests for main programs.
+* http: add Server type supporting timeouts,
+       add pipelining to ClientConn, ServerConn (thanks Petar Maymounkov),
+       handle unchunked, un-lengthed HTTP/1.1 responses.
+* io: add RuneReader.
+* json: correct Marshal documentation.
+* netchan: graceful handling of closed connection (thanks Graham Miller).
+* os: implement new Process API (thanks Alex Brainman).
+* regexp tests: make some benchmarks more meaningful.
+* regexp: add support for matching against text read from RuneReader interface.
+* rpc: make more tolerant of errors, properly discard values (thanks Roger Peppe).
+* runtime: detect failed thread creation on Windows,
+       faster allocator, garbage collector,
+       fix virtual memory exhaustion,
+       implemented windows console ctrl handler (SIGINT) (thanks Hector Chu),
+       more detailed panic traces, line number work,
+       improved Windows callback handling (thanks Hector Chu).
+* spec: adjust notion of Assignability,
+       allow import of packages named main,
+       clarification re: method sets of newly declared pointer types,
+       fix a few typos (thanks Anthony Martin),
+       fix Typeof() return type (thanks Gustavo Niemeyer),
+       move to Unicode 6.0.
+* sync: diagnose Unlock of unlocked Mutex,
+       new Waitgroup type (thanks Gustavo Niemeyer).
+* syscall: add SetsockoptIpMreq (thanks Dave Cheney),
+       add sockaddr_dl, sysctl with routing message support for darwin, freebsd (thanks Mikio Hara),
+       do not use NULL for zero-length read, write,
+       implement windows version of Fsync (thanks Alex Brainman),
+       make ForkExec acquire the ForkLock under windows (thanks Hector Chu),
+       make windows API return errno instead of bool (thanks Alex Brainman),
+       remove obsolete socket IO control (thanks Mikio Hara).
+* template: add simple formatter chaining (thanks Kyle Consalus),
+       allow a leading '*' to indirect through a pointer.
+* testing: include elapsed time in test output
+* windows: replace remaining __MINGW32__ instances with _WIN32 (thanks Joe Poirier).
+</pre>
+
 <h3 id="2011-02-01">2011-02-01</h3>
 
 <pre>
