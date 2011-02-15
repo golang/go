@@ -57,7 +57,7 @@ func (c *Conn) clientHandshake() os.Error {
 
 	vers, ok := mutualVersion(serverHello.vers)
 	if !ok {
-		c.sendAlert(alertProtocolVersion)
+		return c.sendAlert(alertProtocolVersion)
 	}
 	c.vers = vers
 	c.haveVers = true
