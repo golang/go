@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of February 8, 2011 -->
+<!-- subtitle Version of February 15, 2011 -->
 
 <!--
 TODO
@@ -1227,9 +1227,11 @@ make(chan int, 100)
 
 <p>
 The capacity, in number of elements, sets the size of the buffer in the channel. If the
-capacity is greater than zero, the channel is asynchronous: provided the
-buffer is not full, sends can succeed without blocking. If the capacity is zero
-or absent, the communication succeeds only when both a sender and receiver are ready.
+capacity is greater than zero, the channel is asynchronous: communication operations 
+succeed without blocking if the buffer is not full (sends) or not empty (receives),
+and elements are received in the order they are sent.
+If the capacity is zero or absent, the communication succeeds only when both a sender and
+receiver are ready.
 </p>
 
 <p>
