@@ -105,6 +105,9 @@ func (l *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
 		l.buf = l.buf[:oldLen+n]
 		if readErr != nil {
 			l.err = readErr
+			if len(l.buf) == 0 {
+				return nil, false, readErr
+			}
 		}
 	}
 	panic("unreachable")

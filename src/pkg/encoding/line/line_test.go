@@ -7,6 +7,7 @@ package line
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -106,5 +107,27 @@ func TestReadAfterLines(t *testing.T) {
 	}
 	if outbuf.String() != restData {
 		t.Errorf("bad result for Read: got %q; expected %q", outbuf.String(), restData)
+	}
+}
+
+func TestReadEmptyBuffer(t *testing.T) {
+	l := NewReader(bytes.NewBuffer(nil), 10)
+	line, isPrefix, err := l.ReadLine()
+	if err != os.EOF {
+		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
+	}
+}
+
+func TestLinesAfterRead(t *testing.T) {
+	l := NewReader(bytes.NewBuffer([]byte("foo")), 10)
+	_, err := ioutil.ReadAll(l)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	line, isPrefix, err := l.ReadLine()
+	if err != os.EOF {
+		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
 	}
 }
