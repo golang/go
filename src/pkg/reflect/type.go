@@ -235,10 +235,16 @@ type Type interface {
 	// Kind returns the specific kind of this type.
 	Kind() Kind
 
-	// For non-interface types, Method returns the i'th method with receiver T.
-	// For interface types, Method returns the i'th method in the interface.
-	// NumMethod returns the number of such methods.
+	// Method returns the i'th method in the type's method set.
+	//
+	// For a non-interface type T or *T, the returned Method's Type and Func
+	// fields describe a function whose first argument is the receiver.
+	//
+	// For an interface type, the returned Method's Type field gives the
+	// method signature, without a receiver, and the Func field is nil.
 	Method(int) Method
+
+	// NumMethods returns the number of methods in the type's method set.
 	NumMethod() int
 	uncommon() *uncommonType
 }
@@ -444,7 +450,7 @@ func (t *FuncType) Out(i int) Type {
 // NumOut returns the number of function output parameters.
 func (t *FuncType) NumOut() int { return len(t.out) }
 
-// Method returns the i'th interface method.
+// Method returns the i'th method in the type's method set.
 func (t *InterfaceType) Method(i int) (m Method) {
 	if i < 0 || i >= len(t.methods) {
 		return
@@ -458,7 +464,7 @@ func (t *InterfaceType) Method(i int) (m Method) {
 	return
 }
 
-// NumMethod returns the number of interface methods.
+// NumMethod returns the number of interface methods in the type's method set.
 func (t *InterfaceType) NumMethod() int { return len(t.methods) }
 
 // Key returns the map key type.
