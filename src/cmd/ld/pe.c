@@ -526,7 +526,7 @@ asmbpe(void)
 	set(SizeOfImage, nextsectoff);
 	set(SizeOfHeaders, PEFILEHEADR);
 	set(Subsystem, 3);	// WINDOWS_CUI
-	set(SizeOfStackReserve, 0x00200000);
+	set(SizeOfStackReserve, 0x0040000);
 	set(SizeOfStackCommit, 0x00001000);
 	set(SizeOfHeapReserve, 0x00100000);
 	set(SizeOfHeapCommit, 0x00001000);
