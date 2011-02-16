@@ -663,7 +663,7 @@ runfinq(void)
 void
 runtime·markallocated(void *v, uintptr n, bool noptr)
 {
-	uintptr *b, bits, off, shift;
+	uintptr *b, obits, bits, off, shift;
 
 	if(0)
 		runtime·printf("markallocated %p+%p\n", v, n);
@@ -675,17 +675,27 @@ runtime·markallocated(void *v, uintptr n, bool noptr)
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 
-	bits = (*b & ~(bitMask<<shift)) | (bitAllocated<<shift);
-	if(noptr)
-		bits |= bitNoPointers<<shift;
-	*b = bits;
+	for(;;) {
+		obits = *b;
+		bits = (obits & ~(bitMask<<shift)) | (bitAllocated<<shift);
+		if(noptr)
+			bits |= bitNoPointers<<shift;
+		if(runtime·gomaxprocs == 1) {
+			*b = bits;
+			break;
+		} else {
+			// gomaxprocs > 1: use atomic op
+			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
+				break;
+		}
+	}
 }
 
 // mark the block at v of size n as freed.
 void
 runtime·markfreed(void *v, uintptr n)
 {
-	uintptr *b, off, shift;
+	uintptr *b, obits, bits, off, shift;
 
 	if(0)
 		runtime·printf("markallocated %p+%p\n", v, n);
@@ -697,7 +707,18 @@ runtime·markfreed(void *v, uintptr n)
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 
-	*b = (*b & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
+	for(;;) {
+		obits = *b;
+		bits = (obits & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
+		if(runtime·gomaxprocs == 1) {
+			*b = bits;
+			break;
+		} else {
+			// gomaxprocs > 1: use atomic op
+			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
+				break;
+		}
+	}
 }
 
 // check that the block at v of size n is marked freed.
@@ -739,6 +760,10 @@ runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 	if(leftover)	// mark a boundary just past end of last block too
 		n++;
 	for(; n-- > 0; p += size) {
+		// Okay to use non-atomic ops here, because we control
+		// the entire span, and each bitmap word has bits for only
+		// one span, so no other goroutines are changing these
+		// bitmap words.
 		off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;  // word offset
 		b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 		shift = off % wordsPerBitmapWord;
@@ -763,6 +788,10 @@ runtime·unmarkspan(void *v, uintptr n)
 	n /= PtrSize;
 	if(n%wordsPerBitmapWord != 0)
 		runtime·throw("unmarkspan: unaligned length");
+	// Okay to use non-atomic ops here, because we control
+	// the entire span, and each bitmap word has bits for only
+	// one span, so no other goroutines are changing these
+	// bitmap words.
 	n /= wordsPerBitmapWord;
 	while(n-- > 0)
 		*b-- = 0;
@@ -783,13 +812,24 @@ runtime·blockspecial(void *v)
 void
 runtime·setblockspecial(void *v)
 {
-	uintptr *b, off, shift;
+	uintptr *b, off, shift, bits, obits;
 
 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 
-	*b |= bitSpecial<<shift;
+	for(;;) {
+		obits = *b;
+		bits = obits | (bitSpecial<<shift);
+		if(runtime·gomaxprocs == 1) {
+			*b = bits;
+			break;
+		} else {
+			// gomaxprocs > 1: use atomic op
+			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
+				break;
+		}
+	}
 }
  
 void
