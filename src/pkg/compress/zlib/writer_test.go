@@ -12,8 +12,8 @@ import (
 )
 
 var filenames = []string{
-	"testdata/e.txt",
-	"testdata/pi.txt",
+	"../testdata/e.txt",
+	"../testdata/pi.txt",
 }
 
 // Tests that compressing and then decompressing the given file at the given compression level
