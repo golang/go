@@ -80,6 +80,8 @@ var (
 	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG)
 	EAFNOSUPPORT Error = Errno(syscall.EAFNOSUPPORT)
 	ETIMEDOUT    Error = Errno(syscall.ETIMEDOUT)
+	ENODATA      Error = Errno(syscall.ENODATA)
+	ENOTCONN     Error = Errno(syscall.ENOTCONN)
 )
 
 // PathError records an error and the operation and file path that caused it.

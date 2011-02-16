@@ -424,6 +424,8 @@ const (
 	MAP_SHARED                       = 0x1
 	MAP_STACK                        = 0x20000
 	MAP_TYPE                         = 0xf
+	MCL_CURRENT                      = 0x1
+	MCL_FUTURE                       = 0x2
 	MSG_CMSG_CLOEXEC                 = 0x40000000
 	MSG_CONFIRM                      = 0x800
 	MSG_CTRUNC                       = 0x8
