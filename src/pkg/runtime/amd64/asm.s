@@ -317,6 +317,26 @@ TEXT runtime·cas(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
+// bool casp(void **val, void *old, void *new)
+// Atomically:
+//	if(*val == old){
+//		*val = new;
+//		return 1;
+//	} else
+//		return 0;
+TEXT runtime·casp(SB), 7, $0
+	MOVQ	8(SP), BX
+	MOVQ	16(SP), AX
+	MOVQ	24(SP), CX
+	LOCK
+	CMPXCHGQ	CX, 0(BX)
+	JZ 3(PC)
+	MOVL	$0, AX
+	RET
+	MOVL	$1, AX
+	RET
+
+
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller

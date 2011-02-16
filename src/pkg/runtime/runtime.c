@@ -8,7 +8,7 @@ enum {
 	maxround = sizeof(uintptr),
 };
 
-int32	runtime·panicking	= 0;
+uint32	runtime·panicking;
 
 int32
 runtime·gotraceback(void)
@@ -21,14 +21,24 @@ runtime·gotraceback(void)
 	return runtime·atoi(p);
 }
 
+static Lock paniclk;
+
+void
+runtime·startpanic(void)
+{
+	if(m->dying) {
+		runtime·printf("panic during panic\n");
+		runtime·exit(3);
+	}
+	m->dying = 1;
+	runtime·xadd(&runtime·panicking, 1);
+	runtime·lock(&paniclk);
+}
+
 void
 runtime·dopanic(int32 unused)
 {
-	if(runtime·panicking) {
-		runtime·printf("double panic\n");
-		runtime·exit(3);
-	}
-	runtime·panicking++;
+	static bool didothers;
 
 	if(g->sig != 0)
 		runtime·printf("\n[signal %x code=%p addr=%p pc=%p]\n",
@@ -37,9 +47,23 @@ runtime·dopanic(int32 unused)
 	runtime·printf("\n");
 	if(runtime·gotraceback()){
 		runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
-		runtime·tracebackothers(g);
+		if(!didothers) {
+			didothers = true;
+			runtime·tracebackothers(g);
+		}
 	}
-	
+	runtime·unlock(&paniclk);
+	if(runtime·xadd(&runtime·panicking, -1) != 0) {
+		// Some other m is panicking too.
+		// Let it print what it needs to print.
+		// Wait forever without chewing up cpu.
+		// It will exit when it's done.
+		static Lock deadlock;
+		runtime·lock(&deadlock);
+		runtime·lock(&deadlock);
+	}
+
+	runtime·panicking = 1;  // so we don't dump another stack trace for breakpoint trap
 	runtime·breakpoint();  // so we can grab it in a debugger
 	runtime·exit(2);
 }
@@ -73,6 +97,7 @@ runtime·throwinit(void)
 void
 runtime·throw(int8 *s)
 {
+	runtime·startpanic();
 	runtime·printf("throw: %s\n", s);
 	runtime·dopanic(0);
 	*(int32*)0 = 0;	// not reached
