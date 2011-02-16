@@ -63,6 +63,7 @@ var (
 	procSetEnvironmentVariableW    = getSysProcAddr(modkernel32, "SetEnvironmentVariableW")
 	procSetFileTime                = getSysProcAddr(modkernel32, "SetFileTime")
 	procGetFileAttributesW         = getSysProcAddr(modkernel32, "GetFileAttributesW")
+	procSetFileAttributesW         = getSysProcAddr(modkernel32, "SetFileAttributesW")
 	procGetCommandLineW            = getSysProcAddr(modkernel32, "GetCommandLineW")
 	procCommandLineToArgvW         = getSysProcAddr(modshell32, "CommandLineToArgvW")
 	procLocalFree                  = getSysProcAddr(modkernel32, "LocalFree")
@@ -795,6 +796,20 @@ func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
 	r0, _, e1 := Syscall(procGetFileAttributesW, 1, uintptr(unsafe.Pointer(name)), 0, 0)
 	attrs = uint32(r0)
 	if attrs == INVALID_FILE_ATTRIBUTES {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func SetFileAttributes(name *uint16, attrs uint32) (errno int) {
+	r0, _, e1 := Syscall(procSetFileAttributesW, 2, uintptr(unsafe.Pointer(name)), uintptr(attrs), 0)
+	if int(r0) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
