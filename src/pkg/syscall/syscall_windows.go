@@ -154,6 +154,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	SetEnvironmentVariable(name *uint16, value *uint16) (errno int) = kernel32.SetEnvironmentVariableW
 //sys	SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (errno int)
 //sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
+//sys	SetFileAttributes(name *uint16, attrs uint32) (errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.SetFileAttributesW
 //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
 //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
 //sys	LocalFree(hmem uint32) (handle uint32, errno int) [failretval!=0]
@@ -718,11 +719,31 @@ func Fchdir(fd int) (errno int)                           { return EWINDOWS }
 func Link(oldpath, newpath string) (errno int)            { return EWINDOWS }
 func Symlink(path, link string) (errno int)               { return EWINDOWS }
 func Readlink(path string, buf []byte) (n int, errno int) { return 0, EWINDOWS }
-func Chmod(path string, mode uint32) (errno int)          { return EWINDOWS }
-func Fchmod(fd int, mode uint32) (errno int)              { return EWINDOWS }
-func Chown(path string, uid int, gid int) (errno int)     { return EWINDOWS }
-func Lchown(path string, uid int, gid int) (errno int)    { return EWINDOWS }
-func Fchown(fd int, uid int, gid int) (errno int)         { return EWINDOWS }
+
+func Chmod(path string, mode uint32) (errno int) {
+	attrs, errno := GetFileAttributes(StringToUTF16Ptr(path))
+	if errno != 0 {
+		return
+	}
+
+	if mode == 0 {
+		return EINVAL
+	}
+
+	if mode&S_IWRITE != 0 {
+		attrs &^= FILE_ATTRIBUTE_READONLY
+	} else if attrs&FILE_ATTRIBUTE_READONLY == 0 {
+		attrs |= FILE_ATTRIBUTE_READONLY
+	}
+
+	errno = SetFileAttributes(StringToUTF16Ptr(path), attrs)
+	return
+}
+
+func Fchmod(fd int, mode uint32) (errno int)           { return EWINDOWS }
+func Chown(path string, uid int, gid int) (errno int)  { return EWINDOWS }
+func Lchown(path string, uid int, gid int) (errno int) { return EWINDOWS }
+func Fchown(fd int, uid int, gid int) (errno int)      { return EWINDOWS }
 
 func Getuid() (uid int)                  { return -1 }
 func Geteuid() (euid int)                { return -1 }
