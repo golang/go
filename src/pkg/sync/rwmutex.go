@@ -71,3 +71,14 @@ func (rw *RWMutex) Lock() {
 // goroutine.  One goroutine may RLock (Lock) an RWMutex and then
 // arrange for another goroutine to RUnlock (Unlock) it.
 func (rw *RWMutex) Unlock() { rw.w.Unlock() }
+
+// RLocker returns a Locker interface that implements
+// the Lock and Unlock methods by calling rw.RLock and rw.RUnlock.
+func (rw *RWMutex) RLocker() Locker {
+	return (*rlocker)(rw)
+}
+
+type rlocker RWMutex
+
+func (r *rlocker) Lock()   { (*RWMutex)(r).RLock() }
+func (r *rlocker) Unlock() { (*RWMutex)(r).RUnlock() }
