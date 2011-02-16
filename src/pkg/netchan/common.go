@@ -6,7 +6,7 @@ package netchan
 
 import (
 	"gob"
-	"net"
+	"io"
 	"os"
 	"reflect"
 	"sync"
@@ -93,7 +93,7 @@ type encDec struct {
 	enc     *gob.Encoder
 }
 
-func newEncDec(conn net.Conn) *encDec {
+func newEncDec(conn io.ReadWriter) *encDec {
 	return &encDec{
 		dec: gob.NewDecoder(conn),
 		enc: gob.NewEncoder(conn),
@@ -199,9 +199,10 @@ func (cs *clientSet) sync(timeout int64) os.Error {
 // are delivered into the local channel.
 type netChan struct {
 	*chanDir
-	name string
-	id   int
-	size int // buffer size of channel.
+	name   string
+	id     int
+	size   int // buffer size of channel.
+	closed bool
 
 	// sender-specific state
 	ackCh chan bool // buffered with space for all the acks we need
@@ -227,6 +228,9 @@ func newNetChan(name string, id int, ch *chanDir, ed *encDec, size int, count in
 
 // Close the channel.
 func (nch *netChan) close() {
+	if nch.closed {
+		return
+	}
 	if nch.dir == Recv {
 		if nch.sendCh != nil {
 			// If the sender goroutine is active, close the channel to it.
@@ -239,6 +243,7 @@ func (nch *netChan) close() {
 		nch.ch.Close()
 		close(nch.ackCh)
 	}
+	nch.closed = true
 }
 
 // Send message from remote side to local receiver.
