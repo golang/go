@@ -123,7 +123,8 @@ regexdna() {
 	runonly a.out 100000 > x
 	runonly echo 'regex-dna 100000'
 	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
-#	run 'gccgo -O2 regex-dna.go' a.out <x	# restore after regexp.FindIndex is in library
+	run 'gccgo -O2 regex-dna.go' a.out <x
+	run 'gccgo -O2 regex-dna-parallel.go' a.out <x
 	run 'gc regex-dna' $O.out <x
 	run 'gc regex-dna-parallel' $O.out <x
 	run 'gc_B regex-dna' $O.out <x
