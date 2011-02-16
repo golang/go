@@ -31,6 +31,40 @@ type readClose struct {
 	io.Closer
 }
 
+// matchNoProxy returns true if requests to addr should not use a proxy,
+// according to the NO_PROXY or no_proxy environment variable.
+func matchNoProxy(addr string) bool {
+	if len(addr) == 0 {
+		return false
+	}
+	no_proxy := os.Getenv("NO_PROXY")
+	if len(no_proxy) == 0 {
+		no_proxy = os.Getenv("no_proxy")
+	}
+	if no_proxy == "*" {
+		return true
+	}
+
+	addr = strings.ToLower(strings.TrimSpace(addr))
+	if hasPort(addr) {
+		addr = addr[:strings.LastIndex(addr, ":")]
+	}
+
+	for _, p := range strings.Split(no_proxy, ",", -1) {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if len(p) == 0 {
+			continue
+		}
+		if hasPort(p) {
+			p = p[:strings.LastIndex(p, ":")]
+		}
+		if addr == p || (p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:])) {
+			return true
+		}
+	}
+	return false
+}
+
 // Send issues an HTTP request.  Caller should close resp.Body when done reading it.
 //
 // TODO: support persistent connections (multiple requests on a single connection).
@@ -56,22 +90,81 @@ func send(req *Request) (resp *Response, err os.Error) {
 		req.Header["Authorization"] = "Basic " + string(encoded)
 	}
 
-	var conn io.ReadWriteCloser
-	if req.URL.Scheme == "http" {
-		conn, err = net.Dial("tcp", "", addr)
+	var proxyURL *URL
+	proxyAuth := ""
+	proxy := os.Getenv("HTTP_PROXY")
+	if proxy == "" {
+		proxy = os.Getenv("http_proxy")
+	}
+	if matchNoProxy(addr) {
+		proxy = ""
+	}
+
+	if proxy != "" {
+		proxyURL, err = ParseURL(proxy)
 		if err != nil {
-			return nil, err
+			return nil, os.ErrorString("invalid proxy address")
+		}
+		addr = proxyURL.Host
+		proxyInfo := proxyURL.RawUserinfo
+		if proxyInfo != "" {
+			enc := base64.URLEncoding
+			encoded := make([]byte, enc.EncodedLen(len(proxyInfo)))
+			enc.Encode(encoded, []byte(proxyInfo))
+			proxyAuth = "Basic " + string(encoded)
+		}
+	}
+
+	// Connect to server or proxy.
+	conn, err := net.Dial("tcp", "", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.URL.Scheme == "http" {
+		// Include proxy http header if needed.
+		if proxyAuth != "" {
+			req.Header["Proxy-Authorization"] = proxyAuth
 		}
 	} else { // https
-		conn, err = tls.Dial("tcp", "", addr, nil)
-		if err != nil {
+		if proxyURL != nil {
+			// Ask proxy for direct connection to server.
+			// addr defaults above to ":https" but we need to use numbers
+			addr = req.URL.Host
+			if !hasPort(addr) {
+				addr += ":443"
+			}
+			fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\n", addr)
+			fmt.Fprintf(conn, "Host: %s\r\n", addr)
+			if proxyAuth != "" {
+				fmt.Fprintf(conn, "Proxy-Authorization: %s\r\n", proxyAuth)
+			}
+			fmt.Fprintf(conn, "\r\n")
+
+			// Read response.
+			// Okay to use and discard buffered reader here, because
+			// TLS server will not speak until spoken to.
+			br := bufio.NewReader(conn)
+			resp, err := ReadResponse(br, "CONNECT")
+			if err != nil {
+				return nil, err
+			}
+			if resp.StatusCode != 200 {
+				f := strings.Split(resp.Status, " ", 2)
+				return nil, os.ErrorString(f[1])
+			}
+		}
+
+		// Initiate TLS and check remote host name against certificate.
+		conn = tls.Client(conn, nil)
+		if err = conn.(*tls.Conn).Handshake(); err != nil {
 			return nil, err
 		}
 		h := req.URL.Host
 		if hasPort(h) {
-			h = h[0:strings.LastIndex(h, ":")]
+			h = h[:strings.LastIndex(h, ":")]
 		}
-		if err := conn.(*tls.Conn).VerifyHostname(h); err != nil {
+		if err = conn.(*tls.Conn).VerifyHostname(h); err != nil {
 			return nil, err
 		}
 	}
