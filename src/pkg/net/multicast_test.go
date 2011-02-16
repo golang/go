@@ -1,0 +1,56 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package net
+
+import (
+	"testing"
+)
+
+func TestMulticastJoinAndLeave(t *testing.T) {
+	addr := &UDPAddr{
+		IP:   IPv4zero,
+		Port: 0,
+	}
+	// open a UDPConn
+	conn, err := ListenUDP("udp4", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	// try to join group
+	mcast := IPv4(224, 0, 0, 251)
+	err = conn.JoinGroup(mcast)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// try to leave group
+	err = conn.LeaveGroup(mcast)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestJoinFailureWithIPv6Address(t *testing.T) {
+	addr := &UDPAddr{
+		IP:   IPv4zero,
+		Port: 0,
+	}
+
+	// open a UDPConn
+	conn, err := ListenUDP("udp4", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	// try to join group
+	mcast := ParseIP("ff02::1")
+	err = conn.JoinGroup(mcast)
+	if err == nil {
+		t.Fatal("JoinGroup succeeded, should fail")
+	}
+	t.Logf("%s", err)
+}

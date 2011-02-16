@@ -279,3 +279,44 @@ func (c *UDPConn) BindToDevice(device string) os.Error {
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
 func (c *UDPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+
+var errInvalidMulticast = os.ErrorString("invalid IPv4 multicast address")
+
+// JoinGroup joins the IPv4 multicast group named by addr.
+// The UDPConn must use the "udp4" network.
+func (c *UDPConn) JoinGroup(addr IP) os.Error {
+	if !c.ok() {
+		return os.EINVAL
+	}
+	ip := addr.To4()
+	if ip == nil {
+		return &OpError{"joingroup", "udp", &IPAddr{ip}, errInvalidMulticast}
+	}
+	mreq := &syscall.IpMreq{
+		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
+	}
+	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIpMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
+	if err != nil {
+		return &OpError{"joingroup", "udp", &IPAddr{ip}, err}
+	}
+	return nil
+}
+
+// LeaveGroup exits the IPv4 multicast group named by addr.
+func (c *UDPConn) LeaveGroup(addr IP) os.Error {
+	if !c.ok() {
+		return os.EINVAL
+	}
+	ip := addr.To4()
+	if ip == nil {
+		return &OpError{"leavegroup", "udp", &IPAddr{ip}, errInvalidMulticast}
+	}
+	mreq := &syscall.IpMreq{
+		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
+	}
+	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIpMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
+	if err != nil {
+		return &OpError{"leavegroup", "udp", &IPAddr{ip}, err}
+	}
+	return nil
+}
