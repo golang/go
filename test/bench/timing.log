@@ -592,3 +592,85 @@ regex-dna 100000
 	gc regex-dna	6.80u 0.00s 6.81r
 	gc regex-dna-parallel	6.82u 0.01s 2.75r
 	gc_B regex-dna	6.69u 0.02s 6.70r
+
+Feb 15, 2011
+
+# Improved GC, still single-threaded but more efficient
+
+fasta -n 25000000
+	gcc -O2 fasta.c	3.40u 0.00s 3.40r
+	gccgo -O2 fasta.go	3.51u 0.00s 3.50r
+	gc fasta	3.66u 0.01s 3.66r
+	gc_B fasta	3.66u 0.00s 3.66r
+
+reverse-complement < output-of-fasta-25000000
+	gcc -O2 reverse-complement.c	1.86u 1.29s 4.93r
+	gccgo -O2 reverse-complement.go	2.18u 0.41s 2.60r
+	gc reverse-complement	1.67u 0.48s 2.15r
+	gc_B reverse-complement	1.71u 0.45s 2.15r
+
+nbody -n 50000000
+	gcc -O2 -lm nbody.c	21.64u 0.00s 21.64r
+	gccgo -O2 nbody.go	21.46u 0.00s 21.45r
+	gc nbody	29.07u 0.00s 29.06r
+	gc_B nbody	31.61u 0.00s 31.61r
+
+binary-tree 15 # too slow to use 20
+	gcc -O2 binary-tree.c -lm	0.88u 0.00s 0.87r
+	gccgo -O2 binary-tree.go	2.74u 0.07s 2.81r
+	gccgo -O2 binary-tree-freelist.go	0.01u 0.00s 0.00r
+	gc binary-tree	4.22u 0.02s 4.24r
+	gc binary-tree-freelist	0.54u 0.02s 0.55r
+
+fannkuch 12
+	gcc -O2 fannkuch.c	57.64u 0.00s 57.64r
+	gccgo -O2 fannkuch.go	65.79u 0.00s 65.82r
+	gccgo -O2 fannkuch-parallel.go	160.91u 0.02s 43.90r
+	gc fannkuch	126.36u 0.03s 126.53r
+	gc fannkuch-parallel	175.23u 0.04s 45.49r
+	gc_B fannkuch	89.23u 0.00s 89.24r
+
+regex-dna 100000
+	gcc -O2 regex-dna.c -lpcre	0.77u 0.01s 0.80r
+	gccgo -O2 regex-dna.go	12.38u 0.10s 12.52r
+	gccgo -O2 regex-dna-parallel.go	43.96u 4.64s 15.11r
+	gc regex-dna	7.03u 0.01s 7.05r
+	gc regex-dna-parallel	6.85u 0.05s 2.70r
+	gc_B regex-dna	6.87u 0.02s 6.89r
+
+spectral-norm 5500
+	gcc -O2 spectral-norm.c -lm	12.29u 0.00s 12.28r
+	gccgo -O2 spectral-norm.go	11.79u 0.00s 11.79r
+	gc spectral-norm	24.00u 0.02s 24.05r
+	gc_B spectral-norm	24.59u 0.01s 24.59r
+
+k-nucleotide 1000000
+	gcc -O2 k-nucleotide.c	9.75u 0.07s 9.82r
+	gccgo -O2 k-nucleotide.go	8.92u 0.06s 8.98r
+	gccgo -O2 k-nucleotide-parallel.go	8.40u 0.04s 2.76r
+	gc k-nucleotide	17.01u 0.03s 17.04r
+	gc k-nucleotide-parallel	16.51u 0.08s 6.21r
+	gc_B k-nucleotide	16.94u 0.08s 17.02r
+
+mandelbrot 16000
+	gcc -O2 mandelbrot.c	54.60u 0.00s 54.66r
+	gccgo -O2 mandelbrot.go	59.38u 0.00s 59.41r
+	gc mandelbrot	64.93u 0.04s 65.08r
+	gc_B mandelbrot	64.85u 0.03s 64.92r
+
+meteor 2098
+	gcc -O2 meteor-contest.c	0.10u 0.01s 0.10r
+	gccgo -O2 meteor-contest.go	0.11u 0.00s 0.11r
+	gc meteor-contest	0.18u 0.00s 0.17r
+	gc_B meteor-contest	0.17u 0.00s 0.16r
+
+pidigits 10000
+	gcc -O2 pidigits.c -lgmp	2.24u 0.00s 2.23r
+	gccgo -O2 pidigits.go	14.05u 0.00s 14.06r
+	gc pidigits	6.34u 0.05s 6.38r
+	gc_B pidigits	6.37u 0.02s 6.38r
+
+threadring 50000000
+	gcc -O2 threadring.c	30.50u 258.05s 325.72r
+	gccgo -O2 threadring.go	92.87u 748.39s 728.46r
+	gc threadring	38.03u 0.01s 38.04r
