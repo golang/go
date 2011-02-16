@@ -63,7 +63,6 @@ struct Sched {
 	int32 mcount;	// number of ms that have been created
 	int32 mcpu;	// number of ms executing on cpu
 	int32 mcpumax;	// max number of ms allowed on cpu
-	int32 gomaxprocs;
 	int32 msyscall;	// number of ms in system calls
 
 	int32 predawn;	// running initialization, don't run new gs.
@@ -73,6 +72,7 @@ struct Sched {
 };
 
 Sched runtime·sched;
+int32 gomaxprocs;
 
 // Scheduling helpers.  Sched must be locked.
 static void gput(G*);	// put/get on ghead/gtail
@@ -116,13 +116,13 @@ runtime·schedinit(void)
 	// For debugging:
 	// Allocate internal symbol table representation now,
 	// so that we don't need to call malloc when we crash.
-	// findfunc(0);
+	// runtime·findfunc(0);
 
-	runtime·sched.gomaxprocs = 1;
+	runtime·gomaxprocs = 1;
 	p = runtime·getenv("GOMAXPROCS");
 	if(p != nil && (n = runtime·atoi(p)) != 0)
-		runtime·sched.gomaxprocs = n;
-	runtime·sched.mcpumax = runtime·sched.gomaxprocs;
+		runtime·gomaxprocs = n;
+	runtime·sched.mcpumax = runtime·gomaxprocs;
 	runtime·sched.mcount = 1;
 	runtime·sched.predawn = 1;
 
@@ -376,7 +376,7 @@ runtime·starttheworld(void)
 {
 	runtime·lock(&runtime·sched);
 	runtime·gcwaiting = 0;
-	runtime·sched.mcpumax = runtime·sched.gomaxprocs;
+	runtime·sched.mcpumax = runtime·gomaxprocs;
 	matchmg();
 	runtime·unlock(&runtime·sched);
 }
@@ -1019,6 +1019,7 @@ runtime·panic(Eface e)
 	}
 
 	// ran out of deferred calls - old-school panic now
+	runtime·startpanic();
 	printpanics(g->panic);
 	runtime·dopanic(0);
 }
@@ -1151,10 +1152,10 @@ runtime·gomaxprocsfunc(int32 n)
 	int32 ret;
 
 	runtime·lock(&runtime·sched);
-	ret = runtime·sched.gomaxprocs;
+	ret = runtime·gomaxprocs;
 	if (n <= 0)
 		n = ret;
-	runtime·sched.gomaxprocs = n;
+	runtime·gomaxprocs = n;
 	runtime·sched.mcpumax = n;
 	// handle fewer procs?
 	if(runtime·sched.mcpu > runtime·sched.mcpumax) {

@@ -224,6 +224,7 @@ struct	M
 	int32	locks;
 	int32	nomemprof;
 	int32	waitnextg;
+	int32	dying;
 	Note	havenextg;
 	G*	nextg;
 	M*	alllink;	// on allm
@@ -358,7 +359,7 @@ G*	runtime·allg;
 M*	runtime·allm;
 int32	runtime·goidgen;
 extern	int32	runtime·gomaxprocs;
-extern	int32	runtime·panicking;
+extern	uint32	runtime·panicking;
 extern	int32	runtime·gcwaiting;		// gc is waiting to run
 int8*	runtime·goos;
 extern	bool	runtime·iscgo;
@@ -455,6 +456,7 @@ void	runtime·gettime(int64*, int32*);
 int32	runtime·callers(int32, uintptr*, int32);
 int64	runtime·nanotime(void);
 void	runtime·dopanic(int32);
+void	runtime·startpanic(void);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32
