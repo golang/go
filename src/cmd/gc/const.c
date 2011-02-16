@@ -1051,12 +1051,12 @@ int
 cmpslit(Node *l, Node *r)
 {
 	int32 l1, l2, i, m;
-	char *s1, *s2;
+	uchar *s1, *s2;
 
 	l1 = l->val.u.sval->len;
 	l2 = r->val.u.sval->len;
-	s1 = l->val.u.sval->s;
-	s2 = r->val.u.sval->s;
+	s1 = (uchar*)l->val.u.sval->s;
+	s2 = (uchar*)r->val.u.sval->s;
 
 	m = l1;
 	if(l2 < m)
