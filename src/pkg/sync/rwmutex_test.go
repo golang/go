@@ -112,3 +112,38 @@ func TestRWMutex(t *testing.T) {
 	HammerRWMutex(10, 10, 1000)
 	HammerRWMutex(10, 5, 10000)
 }
+
+func TestRLocker(t *testing.T) {
+	var wl RWMutex
+	var rl Locker
+	wlocked := make(chan bool, 1)
+	rlocked := make(chan bool, 1)
+	rl = wl.RLocker()
+	n := 10
+	go func() {
+		for i := 0; i < n; i++ {
+			rl.Lock()
+			rl.Lock()
+			rlocked <- true
+			wl.Lock()
+			wlocked <- true
+		}
+	}()
+	for i := 0; i < n; i++ {
+		<-rlocked
+		rl.Unlock()
+		select {
+		case <-wlocked:
+			t.Fatal("RLocker() didn't read-lock it")
+		default:
+		}
+		rl.Unlock()
+		<-wlocked
+		select {
+		case <-rlocked:
+			t.Fatal("RLocker() didn't respect the write lock")
+		default:
+		}
+		wl.Unlock()
+	}
+}

@@ -6,6 +6,7 @@ include ../../Make.inc
 
 TARG=sync
 GOFILES=\
+	cond.go\
 	mutex.go\
 	once.go \
 	rwmutex.go\

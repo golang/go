@@ -21,6 +21,12 @@ type Mutex struct {
 	sema uint32
 }
 
+// A Locker represents an object that can be locked and unlocked.
+type Locker interface {
+	Lock()
+	Unlock()
+}
+
 // Add delta to *val, and return the new *val in a thread-safe way. If multiple
 // goroutines call xadd on the same val concurrently, the changes will be
 // serialized, and all the deltas will be added in an undefined order.
