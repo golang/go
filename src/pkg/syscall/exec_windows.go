@@ -185,7 +185,7 @@ func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []i
 		startupInfo,
 		processInfo)
 
-	if err != 0 {
+	if err == 0 {
 		pid = int(processInfo.ProcessId)
 		handle = int(processInfo.Process)
 		CloseHandle(processInfo.Thread)
