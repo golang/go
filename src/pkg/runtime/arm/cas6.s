@@ -27,3 +27,26 @@ fail:
 	MOVW	$0, R0
 	RET
 
+// bool casp(void **p, void *old, void *new)
+// Atomically:
+//	if(*p == old){
+//		*p = new;
+//		return 1;
+//	}else
+//		return 0;
+TEXT runtime·casp(SB), 7, $0
+	MOVW	0(FP), R1	// *p
+	MOVW	4(FP), R2	// old
+	MOVW	8(FP), R3	// new
+lp:
+	LDREX	(R1), R0
+	CMP		R0, R2
+	BNE		failp
+	STREX	R3, (R1), R0
+	CMP		$0, R0
+	BNE		lp
+	MOVW	$1, R0
+	RET
+failp:
+	MOVW	$0, R0
+	RET
