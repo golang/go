@@ -1613,7 +1613,7 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 					exportassignok(tn->type, desc);
 					if(assignop(tn->type, tl->type->type, &why) == 0) {
 						if(call != N)
-							yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type->type, desc, call, why);
+							yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type->type, call, why);
 						else
 							yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
 					}
@@ -1625,7 +1625,7 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 			exportassignok(tn->type, desc);
 			if(assignop(tn->type, tl->type, &why) == 0) {
 				if(call != N)
-					yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type, desc, call, why);
+					yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type, call, why);
 				else
 					yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
 			}

@@ -1909,8 +1909,12 @@ assignop(Type *src, Type *dst, char **why)
 		return 0;
 	}
 	if(src->etype == TINTER && dst->etype != TBLANK) {
-		if(why != nil)
-			*why = ": need type assertion";
+		if(why != nil) {
+			if(isptrto(dst, TINTER))
+				*why = smprint(":\n\t%T is interface, not pointer to interface", src);
+			else	
+				*why = ": need type assertion";
+		}
 		return 0;
 	}
 
