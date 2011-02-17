@@ -184,6 +184,17 @@ const defaultUserAgent = "Go http package"
 // If Body is present, Write forces "Transfer-Encoding: chunked" as a header
 // and then closes Body when finished sending it.
 func (req *Request) Write(w io.Writer) os.Error {
+	return req.write(w, false)
+}
+
+// WriteProxy is like Write but writes the request in the form
+// expected by an HTTP proxy.  It includes the scheme and host
+// name in the URI instead of using a separate Host: header line.
+func (req *Request) WriteProxy(w io.Writer) os.Error {
+	return req.write(w, true)
+}
+
+func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 	host := req.Host
 	if host == "" {
 		host = req.URL.Host
@@ -197,10 +208,19 @@ func (req *Request) Write(w io.Writer) os.Error {
 		}
 	}
 
+	if usingProxy {
+		if uri == "" || uri[0] != '/' {
+			uri = "/" + uri
+		}
+		uri = req.URL.Scheme + "://" + host + uri
+	}
+
 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
 
 	// Header lines
-	fmt.Fprintf(w, "Host: %s\r\n", host)
+	if !usingProxy {
+		fmt.Fprintf(w, "Host: %s\r\n", host)
+	}
 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent))
 	if req.Referer != "" {
 		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer)

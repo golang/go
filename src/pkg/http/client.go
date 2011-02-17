@@ -92,18 +92,24 @@ func send(req *Request) (resp *Response, err os.Error) {
 
 	var proxyURL *URL
 	proxyAuth := ""
-	proxy := os.Getenv("HTTP_PROXY")
-	if proxy == "" {
-		proxy = os.Getenv("http_proxy")
-	}
-	if matchNoProxy(addr) {
-		proxy = ""
+	proxy := ""
+	if !matchNoProxy(addr) {
+		proxy = os.Getenv("HTTP_PROXY")
+		if proxy == "" {
+			proxy = os.Getenv("http_proxy")
+		}
 	}
 
 	if proxy != "" {
-		proxyURL, err = ParseURL(proxy)
+		proxyURL, err = ParseRequestURL(proxy)
 		if err != nil {
 			return nil, os.ErrorString("invalid proxy address")
+		}
+		if proxyURL.Host == "" {
+			proxyURL, err = ParseRequestURL("http://" + proxy)
+			if err != nil {
+				return nil, os.ErrorString("invalid proxy address")
+			}
 		}
 		addr = proxyURL.Host
 		proxyInfo := proxyURL.RawUserinfo
