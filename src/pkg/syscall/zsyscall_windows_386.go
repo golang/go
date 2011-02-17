@@ -808,8 +808,8 @@ func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
 }
 
 func SetFileAttributes(name *uint16, attrs uint32) (errno int) {
-	r0, _, e1 := Syscall(procSetFileAttributesW, 2, uintptr(unsafe.Pointer(name)), uintptr(attrs), 0)
-	if int(r0) == 0 {
+	r1, _, e1 := Syscall(procSetFileAttributesW, 2, uintptr(unsafe.Pointer(name)), uintptr(attrs), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {
