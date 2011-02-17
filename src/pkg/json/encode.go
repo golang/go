@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"unicode"
 	"utf8"
 )
 
@@ -35,8 +36,9 @@ import (
 //
 // Struct values encode as JSON objects.  Each struct field becomes
 // a member of the object.  By default the object's key name is the
-// struct field name.  If the struct field has a tag, that tag will 
-// be used as the name instead.  Only exported fields will be encoded.
+// struct field name.  If the struct field has a non-empty tag consisting
+// of only Unicode letters, digits, and underscores, that tag will be used
+// as the name instead.  Only exported fields will be encoded.
 //
 // Map values encode as JSON objects.
 // The map's key type must be string; the object keys are used directly
@@ -230,7 +232,7 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 			} else {
 				e.WriteByte(',')
 			}
-			if f.Tag != "" {
+			if isValidTag(f.Tag) {
 				e.string(f.Tag)
 			} else {
 				e.string(f.Name)
@@ -283,6 +285,18 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		e.error(&UnsupportedTypeError{v.Type()})
 	}
 	return
+}
+
+func isValidTag(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c != '_' && !unicode.IsLetter(c) && !unicode.IsDigit(c) {
+			return false
+		}
+	}
+	return true
 }
 
 // stringValues is a slice of reflect.Value holding *reflect.StringValue.
