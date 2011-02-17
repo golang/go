@@ -8,11 +8,15 @@ For full details, see the <a href="http://code.google.com/p/go/source/list">Merc
 <h3 id="2011-02-15">2011-02-15</h3>
 
 <pre>
-This release includes changes to the io and template packages.
+This release includes changes to the io, os, and template packages.
 You may need to update your code.
 
 The io.ReadByter and io.ReadRuner interface types have been renamed to
 io.ByteReader and io.RuneReader respectively.
+
+The os package's ForkExec function has been superseded by the new StartProcess
+function and an API built around the Process type:
+	http://golang.org/pkg/os/#Process
 
 The order of arguments to template.Execute has been reversed to be consistent
 the notion of "destination first", as with io.Copy, fmt.Fprint, and others.
