@@ -5,10 +5,6 @@
 # This is the server part of the package dashboard.
 # It must be run by App Engine.
 
-mail_to      = "adg@golang.org"
-mail_from    = "Go Dashboard <adg@golang.org>"
-mail_subject = "New Project Submitted"
-
 from google.appengine.api import memcache
 from google.appengine.runtime import DeadlineExceededError
 from google.appengine.ext import db
@@ -32,6 +28,7 @@ import sets
 
 # local imports
 import toutf8
+import const
 
 template.register_template_library('toutf8')
 
@@ -241,7 +238,9 @@ class ProjectPage(webapp.RequestHandler):
 		
             path = os.path.join(os.path.dirname(__file__), 'project-notify.txt')
             mail.send_mail(
-                sender=mail_from, to=mail_to, subject=mail_subject,
+                sender=const.mail_from,
+                to=const.mail_submit_to,
+                subject=const.mail_submit_subject,
                 body=template.render(path, {'project': p}))
 
             self.list({"submitMsg": "Your project has been submitted."})

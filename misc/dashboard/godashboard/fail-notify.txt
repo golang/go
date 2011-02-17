@@ -1,0 +1,6 @@
+Change {{node}} broke the {{builder}} build:
+http://godashboard.appspot.com/log/{{loghash}}
+
+{{desc}}
+
+http://code.google.com/p/go/source/detail?r={{node}}

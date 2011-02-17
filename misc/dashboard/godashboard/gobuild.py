@@ -5,6 +5,7 @@
 # This is the server part of the continuous build system for Go. It must be run
 # by AppEngine.
 
+from google.appengine.api import mail
 from google.appengine.api import memcache
 from google.appengine.runtime import DeadlineExceededError
 from google.appengine.ext import db
@@ -24,6 +25,7 @@ import bz2
 
 # local imports
 import key
+import const
 
 # The majority of our state are commit objects. One of these exists for each of
 # the commits known to the build system. Their key names are of the form
@@ -46,6 +48,8 @@ class Commit(db.Model):
     # name> "`" <log hash>. If the log hash is empty, then the build was
     # successful.
     builds = db.StringListProperty()
+
+    fail_notification_sent = db.BooleanProperty()
 
 class Benchmark(db.Model):		
     name = db.StringProperty()		
@@ -259,7 +263,7 @@ class Init(webapp.RequestHandler):
         commit.num = 0
         commit.node = node
         commit.parentnode = ''
-        commit.user = self.request.get('user')
+        commit.user = self.request.get('user').encode('utf8')
         commit.date = date
         commit.desc = self.request.get('desc').encode('utf8')
 
@@ -285,34 +289,37 @@ class Build(webapp.RequestHandler):
             l.put()
 
         date = parseDate(self.request.get('date'))
+        user = self.request.get('user').encode('utf8')
+        desc = self.request.get('desc').encode('utf8')
         node = self.request.get('node')
-        parent = self.request.get('parent')
-        if not validNode(node) or not validNode(parent) or date is None:
+        parenthash = self.request.get('parent')
+        if not validNode(node) or not validNode(parenthash) or date is None:
             logging.error("Not valid node ('%s') or bad date (%s %s)", node, date, self.request.get('date'))
             self.response.set_status(500)
             return
 
         q = Commit.all()
-        q.filter('node =', parent)
-        p = q.get()
-        if p is None:
-            logging.error('Cannot find parent %s of node %s' % (parent, node))
+        q.filter('node =', parenthash)
+        parent = q.get()
+        if parent is None:
+            logging.error('Cannot find parent %s of node %s' % (parenthash, node))
             self.response.set_status(404)
             return
-        parentnum, _ = p.key().name().split('-', 1)
+        parentnum, _ = parent.key().name().split('-', 1)
         nodenum = int(parentnum, 16) + 1
 
+        key_name = '%08x-%s' % (nodenum, node)
+
         def add_build():
-            key_name = '%08x-%s' % (nodenum, node)
             n = Commit.get_by_key_name(key_name)
             if n is None:
                 n = Commit(key_name = key_name)
                 n.num = nodenum
                 n.node = node
-                n.parentnode = parent
-                n.user = self.request.get('user')
+                n.parentnode = parenthash
+                n.user = user
                 n.date = date
-                n.desc = self.request.get('desc').encode('utf8')
+                n.desc = desc
             s = '%s`%s' % (builder, loghash)
             for i, b in enumerate(n.builds):
                 if b.split('`', 1)[0] == builder:
@@ -333,7 +340,38 @@ class Build(webapp.RequestHandler):
         memcache.delete(key)
         memcache.delete('hw')
 
+        def mark_sent():
+            n = Commit.get_by_key_name(key_name)
+            n.fail_notification_sent = True
+            n.put()
+
+        n = Commit.get_by_key_name(key_name)
+        if loghash and not failed(parent, builder) and not n.fail_notification_sent:
+            subject = const.mail_fail_subject % (builder, desc.split("\n")[0])
+            path = os.path.join(os.path.dirname(__file__), 'fail-notify.txt')
+            body = template.render(path, {
+                "builder": builder,
+                "node": node,
+                "user": user,
+                "desc": desc, 
+                "loghash": loghash
+            })
+            mail.send_mail(
+                sender=const.mail_from,
+                to=const.mail_fail_to,
+                subject=subject,
+                body=body
+            )
+            db.run_in_transaction(mark_sent)
+
         self.response.set_status(200)
+
+def failed(c, builder):
+    for i, b in enumerate(c.builds):
+        p = b.split('`', 1)
+        if p[0] == builder:
+            return len(p[1]) > 0
+    return False
 
 class Benchmarks(webapp.RequestHandler):
     def json(self):
