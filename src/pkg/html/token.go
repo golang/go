@@ -377,9 +377,9 @@ func (z *Tokenizer) Text() []byte {
 }
 
 // TagName returns the lower-cased name of a tag token (the `img` out of
-// `<IMG SRC="foo">`), and whether the tag has attributes.
+// `<IMG SRC="foo">`) and whether the tag has attributes.
 // The contents of the returned slice may change on the next call to Next.
-func (z *Tokenizer) TagName() (name []byte, remaining bool) {
+func (z *Tokenizer) TagName() (name []byte, hasAttr bool) {
 	i := z.p0 + 1
 	if i >= z.p1 {
 		z.p0 = z.p1
@@ -389,14 +389,14 @@ func (z *Tokenizer) TagName() (name []byte, remaining bool) {
 		i++
 	}
 	name, z.p0 = z.lower(i)
-	remaining = z.p0 != z.p1
+	hasAttr = z.p0 != z.p1
 	return
 }
 
 // TagAttr returns the lower-cased key and unescaped value of the next unparsed
-// attribute for the current tag token, and whether there are more attributes.
+// attribute for the current tag token and whether there are more attributes.
 // The contents of the returned slices may change on the next call to Next.
-func (z *Tokenizer) TagAttr() (key, val []byte, remaining bool) {
+func (z *Tokenizer) TagAttr() (key, val []byte, moreAttr bool) {
 	key, i := z.lower(z.p0)
 	// Get past the "=\"".
 	if i == z.p1 || z.buf[i] != '=' {
@@ -432,7 +432,7 @@ loop:
 		}
 	}
 	val, z.p0 = z.buf[i:dst], z.trim(src)
-	remaining = z.p0 != z.p1
+	moreAttr = z.p0 != z.p1
 	return
 }
 
@@ -445,10 +445,10 @@ func (z *Tokenizer) Token() Token {
 		t.Data = string(z.Text())
 	case StartTagToken, EndTagToken, SelfClosingTagToken:
 		var attr []Attribute
-		name, remaining := z.TagName()
-		for remaining {
+		name, moreAttr := z.TagName()
+		for moreAttr {
 			var key, val []byte
-			key, val, remaining = z.TagAttr()
+			key, val, moreAttr = z.TagAttr()
 			attr = append(attr, Attribute{string(key), string(val)})
 		}
 		t.Data = string(name)
