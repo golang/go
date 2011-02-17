@@ -781,6 +781,9 @@ runtime·mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
 {
 	byte *res;
 
+	if(h == nil)
+		runtime·panicstring("lookup in nil map");
+
 	if(runtime·gcwaiting)
 		runtime·gosched();
 
@@ -801,6 +804,9 @@ runtime·mapaccess1(Hmap *h, ...)
 {
 	byte *ak, *av;
 	bool pres;
+
+	if(h == nil)
+		runtime·panicstring("lookup in nil map");
 
 	ak = (byte*)&h + h->ko1;
 	av = (byte*)&h + h->vo1;
@@ -827,6 +833,9 @@ runtime·mapaccess2(Hmap *h, ...)
 {
 	byte *ak, *av, *ap;
 
+	if(h == nil)
+		runtime·panicstring("lookup in nil map");
+
 	ak = (byte*)&h + h->ko1;
 	av = (byte*)&h + h->vo1;
 	ap = (byte*)&h + h->po1;
@@ -851,6 +860,9 @@ runtime·mapassign(Hmap *h, byte *ak, byte *av)
 {
 	byte *res;
 	int32 hit;
+
+	if(h == nil)
+		runtime·panicstring("assignment to entry in nil map");
 
 	if(runtime·gcwaiting)
 		runtime·gosched();
@@ -889,6 +901,9 @@ runtime·mapassign1(Hmap *h, ...)
 {
 	byte *ak, *av;
 
+	if(h == nil)
+		runtime·panicstring("assignment to entry in nil map");
+
 	ak = (byte*)&h + h->ko2;
 	av = (byte*)&h + h->vo2;
 
@@ -901,6 +916,9 @@ void
 runtime·mapassign2(Hmap *h, ...)
 {
 	byte *ak, *av, *ap;
+
+	if(h == nil)
+		runtime·panicstring("assignment to entry in nil map");
 
 	ak = (byte*)&h + h->ko2;
 	av = (byte*)&h + h->vo2;
