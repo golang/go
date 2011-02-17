@@ -466,13 +466,15 @@ func (d *decodeState) object(v reflect.Value) {
 		} else {
 			var f reflect.StructField
 			var ok bool
-			// First try for field with that tag.
 			st := sv.Type().(*reflect.StructType)
-			for i := 0; i < sv.NumField(); i++ {
-				f = st.Field(i)
-				if f.Tag == key {
-					ok = true
-					break
+			// First try for field with that tag.
+			if isValidTag(key) {
+				for i := 0; i < sv.NumField(); i++ {
+					f = st.Field(i)
+					if f.Tag == key {
+						ok = true
+						break
+					}
 				}
 			}
 			if !ok {

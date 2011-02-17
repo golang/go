@@ -40,6 +40,11 @@ var (
 	umtrue   = unmarshaler{true}
 )
 
+type badTag struct {
+	X string
+	Y string "y"
+	Z string "@#*%(#@"
+}
 
 type unmarshalTest struct {
 	in  string
@@ -61,6 +66,9 @@ var unmarshalTests = []unmarshalTest{
 	{"null", new(interface{}), nil, nil},
 	{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.Typeof("")}},
 	{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+
+	// skip invalid tags
+	{`{"X":"a", "y":"b", "Z":"c"}`, new(badTag), badTag{"a", "b", "c"}, nil},
 
 	// syntax errors
 	{`{"X": "foo", "Y"}`, nil, nil, SyntaxError("invalid character '}' after object key")},
