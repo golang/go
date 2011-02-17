@@ -5,10 +5,14 @@
 package net
 
 import (
+	"runtime"
 	"testing"
 )
 
 func TestMulticastJoinAndLeave(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		return
+	}
 	addr := &UDPAddr{
 		IP:   IPv4zero,
 		Port: 0,
