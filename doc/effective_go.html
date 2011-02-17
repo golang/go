@@ -194,9 +194,13 @@ Comments do not need extra formatting such as banners of stars.
 The generated output may not even be presented in a fixed-width font, so don't depend
 on spacing for alignment&mdash;<code>godoc</code>, like <code>gofmt</code>,
 takes care of that.
-Finally, the comments are uninterpreted plain text, so HTML and other
+The comments are uninterpreted plain text, so HTML and other
 annotations such as <code>_this_</code> will reproduce <i>verbatim</i> and should
 not be used.
+Depending on the context, <code>godoc</code> might not even
+reformat comments, so make sure they look good straight up:
+use correct spelling, punctuation, and sentence structure,
+fold long lines, and so on.
 </p>
 
 <p>
