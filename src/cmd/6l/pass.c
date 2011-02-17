@@ -289,7 +289,7 @@ patch(void)
 			// a different method is used to access them.
 			if(p->from.type == D_INDIR+D_GS
 			&& p->to.type >= D_AX && p->to.type <= D_DI 
-			&& p->from.offset != 0x58) {
+			&& p->from.offset <= 8) {
 				q = appendp(p);
 				q->from = p->from;
 				q->from.type = D_INDIR + p->to.type;

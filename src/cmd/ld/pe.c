@@ -500,6 +500,7 @@ asmbpe(void)
 		IMAGE_FILE_EXECUTABLE_IMAGE|IMAGE_FILE_DEBUG_STRIPPED;
 	if (pe64) {
 		fh.SizeOfOptionalHeader = sizeof(oh64);
+		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE;
 		set(Magic, 0x20b);	// PE32+
 	} else {
 		fh.SizeOfOptionalHeader = sizeof(oh);
