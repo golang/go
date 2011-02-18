@@ -47,8 +47,8 @@ import (
 )
 
 // Report as tests are run; default is silent for success.
-var chatty = flag.Bool("v", false, "verbose: print additional output")
-var match = flag.String("match", "", "regular expression to select tests to run")
+var chatty = flag.Bool("test.v", false, "verbose: print additional output")
+var match = flag.String("test.run", "", "regular expression to select tests to run")
 
 
 // Insert final newline if needed and tabs after internal newlines.
@@ -145,7 +145,7 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
 	for i := 0; i < len(tests); i++ {
 		matched, err := matchString(*match, tests[i].Name)
 		if err != nil {
-			println("invalid regexp for -match:", err.String())
+			println("invalid regexp for -test.run:", err.String())
 			os.Exit(1)
 		}
 		if !matched {
