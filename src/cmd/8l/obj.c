@@ -44,7 +44,6 @@
 #endif
 
 char	*noname		= "<none>";
-char	thechar		= '8';
 char	*thestring 	= "386";
 
 /*
@@ -161,8 +160,6 @@ main(int argc, char *argv[])
 	}
 
 	libinit();
-	if(rpath == nil)
-		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
 
 	switch(HEADTYPE) {
 	default:

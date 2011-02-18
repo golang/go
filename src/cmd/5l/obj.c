@@ -41,7 +41,6 @@
 #endif
 
 char	*noname		= "<none>";
-char	thechar		= '5';
 char	*thestring 	= "arm";
 
 /*
@@ -133,8 +132,6 @@ main(int argc, char *argv[])
 		usage();
 
 	libinit();
-	if(rpath == nil)
-		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
 
 	if(!debug['9'] && !debug['U'] && !debug['B'])
 		debug[DEFAULT] = 1;
@@ -265,6 +262,7 @@ main(int argc, char *argv[])
 	follow();
 	softfloat();
 	noops();
+	dostkcheck();
 	span();
 	pclntab();
 	symtab();
