@@ -129,7 +129,7 @@ mkversion: mkversion.c
 	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
 
 version.go: mkversion
-	./mkversion >version.go
+	GOROOT="$(GOROOT_FINAL)" ./mkversion >version.go
 
 version_$(GOARCH).go:
 	(echo 'package runtime'; echo 'const theGoarch = "$(GOARCH)"') >$@
