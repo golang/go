@@ -21,6 +21,7 @@ _test
 _testmain.go
 y.tab.[ch]
 doc/htmlgen
+doc/codelab/wiki/*.bin
 misc/cgo/life/run.out
 misc/dashboard/builder/gobuilder
 misc/goplay/goplay
