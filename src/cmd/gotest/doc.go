@@ -42,15 +42,15 @@ The resulting binary, called (for amd64) 6.out, has a couple of
 arguments.
 
 Usage:
-	6.out [-v] [-match pattern] [-benchmarks pattern]
+	6.out [-test.v] [-test.run pattern] [-test.bench pattern]
 
-The -v flag causes the tests to be logged as they run.  The -match
-flag causes only those tests whose names match the regular expression
-pattern to be run. By default all tests are run silently.  If all
-the specified test pass, 6.out prints PASS and exits with a 0 exit
-code.  If any tests fail, it prints FAIL and exits with a non-zero
-code.  The -benchmarks flag is analogous to the -match flag, but
-applies to benchmarks.  No benchmarks run by default.
+The -test.v flag causes the tests to be logged as they run.  The
+-test.run flag causes only those tests whose names match the regular
+expression pattern to be run. By default all tests are run silently.
+If all the specified test pass, 6.out prints PASS and exits with a 0
+exit code.  If any tests fail, it prints FAIL and exits with a
+non-zero code.  The -test.bench flag is analogous to the -test.run
+flag, but applies to benchmarks.  No benchmarks run by default.
 
 */
 package documentation

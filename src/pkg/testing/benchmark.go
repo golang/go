@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var matchBenchmarks = flag.String("benchmarks", "", "regular expression to select benchmarks to run")
+var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
 
 // An internal type but exported because it is cross-package; part of the implementation
 // of gotest.
@@ -175,7 +175,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 	for _, Benchmark := range benchmarks {
 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
 		if err != nil {
-			println("invalid regexp for -benchmarks:", err.String())
+			println("invalid regexp for -test.bench:", err.String())
 			os.Exit(1)
 		}
 		if !matched {
