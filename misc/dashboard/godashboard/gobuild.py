@@ -351,13 +351,14 @@ class Build(webapp.RequestHandler):
             path = os.path.join(os.path.dirname(__file__), 'fail-notify.txt')
             body = template.render(path, {
                 "builder": builder,
-                "node": node,
+                "node": node[:12],
                 "user": user,
                 "desc": desc, 
                 "loghash": loghash
             })
             mail.send_mail(
                 sender=const.mail_from,
+                reply_to=const.mail_fail_reply_to,
                 to=const.mail_fail_to,
                 subject=subject,
                 body=body
