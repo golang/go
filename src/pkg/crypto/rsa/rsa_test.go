@@ -66,7 +66,7 @@ func TestEncryptOAEP(t *testing.T) {
 				t.Errorf("#%d,%d error: %s", i, j, err)
 			}
 			if bytes.Compare(out, message.out) != 0 {
-				t.Errorf("#%d,%d bad result: %s (want %s)", i, j, out, message.out)
+				t.Errorf("#%d,%d bad result: %x (want %x)", i, j, out, message.out)
 			}
 		}
 	}

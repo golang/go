@@ -274,6 +274,14 @@ func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, lab
 	m.SetBytes(em)
 	c := encrypt(new(big.Int), pub, m)
 	out = c.Bytes()
+
+	if len(out) < k {
+		// If the output is too small, we need to left-pad with zeros.
+		t := make([]byte, k)
+		copy(t[k-len(out):], out)
+		out = t
+	}
+
 	return
 }
 
