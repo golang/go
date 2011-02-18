@@ -91,6 +91,7 @@ func registerPublicHandlers(mux *http.ServeMux) {
 	mux.Handle(pkgHandler.pattern, &pkgHandler)
 	mux.HandleFunc("/doc/codewalk/", codewalk)
 	mux.HandleFunc("/search", search)
+	mux.Handle("/robots.txt", fileServer)
 	mux.HandleFunc("/", serveFile)
 }
 
