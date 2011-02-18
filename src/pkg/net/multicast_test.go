@@ -13,6 +13,7 @@ func TestMulticastJoinAndLeave(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		return
 	}
+
 	addr := &UDPAddr{
 		IP:   IPv4zero,
 		Port: 0,
@@ -25,7 +26,7 @@ func TestMulticastJoinAndLeave(t *testing.T) {
 	defer conn.Close()
 
 	// try to join group
-	mcast := IPv4(224, 0, 0, 251)
+	mcast := IPv4(224, 0, 0, 254)
 	err = conn.JoinGroup(mcast)
 	if err != nil {
 		t.Fatal(err)
@@ -50,6 +51,7 @@ func TestJoinFailureWithIPv6Address(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+
 	// try to join group
 	mcast := ParseIP("ff02::1")
 	err = conn.JoinGroup(mcast)
