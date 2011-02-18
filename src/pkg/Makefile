@@ -211,19 +211,19 @@ test.dirs: $(addsuffix .test, $(TEST))
 bench.dirs: $(addsuffix .bench, $(BENCH))
 
 %.clean:
-	+cd $* && $(MAKE) clean
+	+$(MAKE) -C $* clean
 
 %.install:
-	+cd $* && $(MAKE) install
+	+$(MAKE) -C $* install
 
 %.nuke:
-	+cd $* && $(MAKE) nuke
+	+$(MAKE) -C $* nuke
 
 %.test:
-	+cd $* && $(MAKE) test
+	+$(MAKE) -C $* test
 
 %.bench:
-	+cd $* && $(MAKE) bench
+	+$(MAKE) -C $* bench	
 
 clean: clean.dirs
 
