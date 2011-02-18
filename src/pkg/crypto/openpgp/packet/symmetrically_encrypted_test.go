@@ -54,7 +54,7 @@ func testMDCReader(t *testing.T) {
 
 		err = mdcReader.Close()
 		if err != nil {
-			t.Errorf("stride: %d, error on Close: %s", err)
+			t.Errorf("stride: %d, error on Close: %s", stride, err)
 		}
 	}
 
