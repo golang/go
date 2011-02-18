@@ -8,7 +8,8 @@
 //
 //	var s Scanner
 //	fset := token.NewFileSet()  // position information is relative to fset
-//	s.Init(fset, filename, src, nil /* no error handler */, 0)
+//      file := fset.AddFile(filename, fset.Base(), len(src))  // register file
+//	s.Init(file, src, nil /* no error handler */, 0)
 //	for {
 //		pos, tok, lit := s.Scan()
 //		if tok == token.EOF {
