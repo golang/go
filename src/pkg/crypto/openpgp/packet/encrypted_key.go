@@ -20,8 +20,8 @@ type EncryptedKey struct {
 	KeyId      uint64
 	Algo       PublicKeyAlgorithm
 	Encrypted  []byte
-	CipherFunc CipherFunction // only valid after a sucessful Decrypt
-	Key        []byte         // only valid after a sucessful Decrypt
+	CipherFunc CipherFunction // only valid after a successful Decrypt
+	Key        []byte         // only valid after a successful Decrypt
 }
 
 func (e *EncryptedKey) parse(r io.Reader) (err os.Error) {
