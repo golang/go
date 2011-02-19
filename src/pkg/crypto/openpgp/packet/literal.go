@@ -14,11 +14,11 @@ import (
 type LiteralData struct {
 	IsBinary bool
 	FileName string
-	Time     uint32 // Unix epoc time. Either creation time or modification time. 0 means undefined.
+	Time     uint32 // Unix epoch time. Either creation time or modification time. 0 means undefined.
 	Body     io.Reader
 }
 
-// ForEyesOnly return whether the contents of the LiteralData have been marked
+// ForEyesOnly returns whether the contents of the LiteralData have been marked
 // as especially sensitive.
 func (l *LiteralData) ForEyesOnly() bool {
 	return l.FileName == "_CONSOLE"

@@ -300,7 +300,7 @@ type SignatureType uint8
 
 const (
 	SigTypeBinary        SignatureType = 0
-	SigTypeText          SignatureType = 1
+	SigTypeText          = 1
 	SigTypeGenericCert   = 0x10
 	SigTypePersonaCert   = 0x11
 	SigTypeCasualCert    = 0x12
