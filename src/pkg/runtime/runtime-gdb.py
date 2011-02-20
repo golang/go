@@ -13,7 +13,7 @@ path to this file based on the path to the runtime package.
 #    - pretty printing only works for the 'native' strings. E.g. 'type
 #      foo string' will make foo a plain struct in the eyes of gdb,
 #      circumventing the pretty print triggering.
-#    -
+
 
 import sys, re
 
@@ -39,7 +39,8 @@ class StringTypePrinter:
 		return 'string'
 
 	def to_string(self):
-		return self.val['str']
+		l = int(self.val['len'])
+		return self.val['str'].string("utf-8", "ignore", l)
 
 
 class SliceTypePrinter:
