@@ -4,14 +4,11 @@ IHDR {
     using color palette;
 }
 gAMA {1.0000}
-sBIT {
-    red: 1; green: 1; blue: 1;
-}
 PLTE {
-    (  0,255,  0)     # rgb = (0x00,0xff,0x00) green1
-    (255,  0,  0)     # rgb = (0xff,0x00,0x00) red1
-    (255,255,  0)     # rgb = (0xff,0xff,0x00) yellow1
-    (  0,  0,255)     # rgb = (0x00,0x00,0xff) blue1
+    (  0,255,  0)     # rgb = (0x00,0xff,0x00)
+    (255,  0,  0)     # rgb = (0xff,0x00,0x00)
+    (255,255,  0)     # rgb = (0xff,0xff,0x00)
+    (  0,  0,255)     # rgb = (0x00,0x00,0xff)
 }
 IMAGE {
     pixels hex
