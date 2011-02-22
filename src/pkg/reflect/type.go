@@ -163,6 +163,10 @@ type SliceType struct {
 	elem       *runtime.Type
 }
 
+// arrayOrSliceType is an unexported method that guarantees only
+// arrays and slices implement ArrayOrSliceType.
+func (*SliceType) arrayOrSliceType() {}
+
 // Struct field
 type structField struct {
 	name    *string
@@ -396,6 +400,10 @@ func (t *ArrayType) Len() int { return int(t.len) }
 
 // Elem returns the type of the array's elements.
 func (t *ArrayType) Elem() Type { return toType(*t.elem) }
+
+// arrayOrSliceType is an unexported method that guarantees only
+// arrays and slices implement ArrayOrSliceType.
+func (*ArrayType) arrayOrSliceType() {}
 
 // Dir returns the channel direction.
 func (t *ChanType) Dir() ChanDir { return ChanDir(t.dir) }
@@ -675,6 +683,7 @@ func toType(i interface{}) Type {
 type ArrayOrSliceType interface {
 	Type
 	Elem() Type
+	arrayOrSliceType() // Guarantees only Array and Slice implement this interface.
 }
 
 // Typeof returns the reflection Type of the value in the interface{}.
