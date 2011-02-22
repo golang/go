@@ -80,7 +80,8 @@ func (enc *Encoder) writeMessage(w io.Writer, b *bytes.Buffer) {
 
 func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Type) (sent bool) {
 	// Drill down to the base type.
-	rt, _ := indirect(origt)
+	ut := userType(origt)
+	rt := ut.base
 
 	switch rt := rt.(type) {
 	default:
@@ -125,7 +126,7 @@ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Typ
 	// Id:
 	state.encodeInt(-int64(info.id))
 	// Type:
-	enc.encode(state.b, reflect.NewValue(info.wire))
+	enc.encode(state.b, reflect.NewValue(info.wire), wireTypeUserInfo)
 	enc.writeMessage(w, state.b)
 	if enc.err != nil {
 		return
@@ -153,15 +154,16 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 	return enc.EncodeValue(reflect.NewValue(e))
 }
 
-// sendTypeId makes sure the remote side knows about this type.
+// sendTypeDescriptor makes sure the remote side knows about this type.
 // It will send a descriptor if this is the first time the type has been
 // sent.
-func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, rt reflect.Type) {
+func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, ut *userTypeInfo) {
 	// Make sure the type is known to the other side.
-	// First, have we already sent this type?
-	if _, alreadySent := enc.sent[rt]; !alreadySent {
+	// First, have we already sent this (base) type?
+	base := ut.base
+	if _, alreadySent := enc.sent[base]; !alreadySent {
 		// No, so send it.
-		sent := enc.sendType(w, state, rt)
+		sent := enc.sendType(w, state, base)
 		if enc.err != nil {
 			return
 		}
@@ -170,21 +172,21 @@ func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, rt refl
 		// need to send the type info but we do need to update enc.sent.
 		if !sent {
 			typeLock.Lock()
-			info, err := getTypeInfo(rt)
+			info, err := getTypeInfo(base)
 			typeLock.Unlock()
 			if err != nil {
 				enc.setError(err)
 				return
 			}
-			enc.sent[rt] = info.id
+			enc.sent[base] = info.id
 		}
 	}
 }
 
 // sendTypeId sends the id, which must have already been defined.
-func (enc *Encoder) sendTypeId(state *encoderState, rt reflect.Type) {
+func (enc *Encoder) sendTypeId(state *encoderState, ut *userTypeInfo) {
 	// Identify the type of this top-level value.
-	state.encodeInt(int64(enc.sent[rt]))
+	state.encodeInt(int64(enc.sent[ut.base]))
 }
 
 // EncodeValue transmits the data item represented by the reflection value,
@@ -199,18 +201,18 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 	enc.w = enc.w[0:1]
 
 	enc.err = nil
-	rt, _ := indirect(value.Type())
+	ut := userType(value.Type())
 
 	state := newEncoderState(enc, new(bytes.Buffer))
 
-	enc.sendTypeDescriptor(enc.writer(), state, rt)
-	enc.sendTypeId(state, rt)
+	enc.sendTypeDescriptor(enc.writer(), state, ut)
+	enc.sendTypeId(state, ut)
 	if enc.err != nil {
 		return enc.err
 	}
 
 	// Encode the object.
-	err := enc.encode(state.b, value)
+	err := enc.encode(state.b, value, ut)
 	if err != nil {
 		enc.setError(err)
 	} else {

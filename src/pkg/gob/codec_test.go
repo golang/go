@@ -984,7 +984,7 @@ func TestInvalidField(t *testing.T) {
 	var bad0 Bad0
 	bad0.ch = make(chan int)
 	b := new(bytes.Buffer)
-	err := nilEncoder.encode(b, reflect.NewValue(&bad0))
+	err := nilEncoder.encode(b, reflect.NewValue(&bad0), userType(reflect.Typeof(&bad0)))
 	if err == nil {
 		t.Error("expected error; got none")
 	} else if strings.Index(err.String(), "type") < 0 {

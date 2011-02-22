@@ -11,12 +11,43 @@ import (
 	"sync"
 )
 
-// Reflection types are themselves interface values holding structs
-// describing the type.  Each type has a different struct so that struct can
-// be the kind.  For example, if typ is the reflect type for an int8, typ is
-// a pointer to a reflect.Int8Type struct; if typ is the reflect type for a
-// function, typ is a pointer to a reflect.FuncType struct; we use the type
-// of that pointer as the kind.
+// userTypeInfo stores the information associated with a type the user has handed
+// to the package.  It's computed once and stored in a map keyed by reflection
+// type.
+type userTypeInfo struct {
+	user  reflect.Type // the type the user handed us
+	base  reflect.Type // the base type after all indirections
+	indir int          // number of indirections to reach the base type
+}
+
+var (
+	// Protected by an RWMutex because we read it a lot and write
+	// it only when we see a new type, typically when compiling.
+	userTypeLock  sync.RWMutex
+	userTypeCache = make(map[reflect.Type]*userTypeInfo)
+)
+
+// userType returns, and saves, the information associated with user-provided type rt
+func userType(rt reflect.Type) *userTypeInfo {
+	userTypeLock.RLock()
+	ut := userTypeCache[rt]
+	userTypeLock.RUnlock()
+	if ut != nil {
+		return ut
+	}
+	// Now set the value under the write lock.
+	userTypeLock.Lock()
+	defer userTypeLock.Unlock()
+	if ut = userTypeCache[rt]; ut != nil {
+		// Lost the race; not a problem.
+		return ut
+	}
+	ut = new(userTypeInfo)
+	ut.user = rt
+	ut.base, ut.indir = indirect(rt)
+	userTypeCache[rt] = ut
+	return ut
+}
 
 // A typeId represents a gob Type as an integer that can be passed on the wire.
 // Internally, typeIds are used as keys to a map to recover the underlying type info.
@@ -110,6 +141,7 @@ var (
 
 // Predefined because it's needed by the Decoder
 var tWireType = mustGetTypeInfo(reflect.Typeof(wireType{})).id
+var wireTypeUserInfo *userTypeInfo // userTypeInfo of (*wireType)
 
 func init() {
 	// Some magic numbers to make sure there are no surprises.
@@ -133,6 +165,7 @@ func init() {
 	}
 	nextId = firstUserId
 	registerBasics()
+	wireTypeUserInfo = userType(reflect.Typeof((*wireType)(nil)))
 }
 
 // Array type
@@ -317,10 +350,10 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 		field := make([]*fieldType, t.NumField())
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			typ, _ := indirect(f.Type)
+			typ := userType(f.Type).base
 			tname := typ.Name()
 			if tname == "" {
-				t, _ := indirect(f.Type)
+				t := userType(f.Type).base
 				tname = t.String()
 			}
 			gt, err := getType(tname, f.Type)
@@ -341,7 +374,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 // getType returns the Gob type describing the given reflect.Type.
 // typeLock must be held.
 func getType(name string, rt reflect.Type) (gobType, os.Error) {
-	rt, _ = indirect(rt)
+	rt = userType(rt).base
 	typ, present := types[rt]
 	if present {
 		return typ, nil
@@ -371,6 +404,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 	types[rt] = typ
 	setTypeId(typ)
 	checkId(expect, nextId)
+	userType(rt) // might as well cache it now
 	return nextId
 }
 
@@ -473,18 +507,18 @@ func RegisterName(name string, value interface{}) {
 		// reserved for nil
 		panic("attempt to register empty name")
 	}
-	rt, _ := indirect(reflect.Typeof(value))
+	base := userType(reflect.Typeof(value)).base
 	// Check for incompatible duplicates.
-	if t, ok := nameToConcreteType[name]; ok && t != rt {
+	if t, ok := nameToConcreteType[name]; ok && t != base {
 		panic("gob: registering duplicate types for " + name)
 	}
-	if n, ok := concreteTypeToName[rt]; ok && n != name {
-		panic("gob: registering duplicate names for " + rt.String())
+	if n, ok := concreteTypeToName[base]; ok && n != name {
+		panic("gob: registering duplicate names for " + base.String())
 	}
 	// Store the name and type provided by the user....
 	nameToConcreteType[name] = reflect.Typeof(value)
 	// but the flattened type in the type table, since that's what decode needs.
-	concreteTypeToName[rt] = name
+	concreteTypeToName[base] = name
 }
 
 // Register records a type, identified by a value for that type, under its
