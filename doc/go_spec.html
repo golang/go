@@ -2744,7 +2744,7 @@ and finally <code>||</code> (logical or):
 Precedence    Operator
     5             *  /  %  &lt;&lt;  &gt;&gt;  &amp;  &amp;^
     4             +  -  |  ^
-    3             ==  !=  &lt;  &lt;=  >  >=
+    3             ==  !=  &lt;  &lt;=  &gt;  &gt;=
     2             &amp;&amp;
     1             ||
 </pre>
@@ -2760,7 +2760,7 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 x &lt;= f()
 ^a &gt;&gt; b
 f() || g()
-x == y+1 &amp;&amp; &lt;-chan_ptr > 0
+x == y+1 &amp;&amp; &lt;-chan_ptr &gt; 0
 </pre>
 
 
@@ -3686,17 +3686,16 @@ complex, or string constant.
 "If" statements specify the conditional execution of two branches
 according to the value of a boolean expression.  If the expression
 evaluates to true, the "if" branch is executed, otherwise, if
-present, the "else" branch is executed.  A missing condition
-is equivalent to <code>true</code>.
+present, the "else" branch is executed.
 </p>
 
 <pre class="ebnf">
-IfStmt    = "if" [ SimpleStmt ";" ] [ Expression ] Block [ "else" Statement ] .
+IfStmt    = "if" [ SimpleStmt ";" ] Expression Block [ "else" Statement ] .
 </pre>
 
 <pre>
-if x > 0 {
-	return true;
+if x &gt; max {
+	x = max
 }
 </pre>
 
@@ -3708,7 +3707,7 @@ executes before the expression is evaluated.
 <pre>
 if x := f(); x &lt; y {
 	return x
-} else if x > z {
+} else if x &gt; z {
 	return z
 } else {
 	return y
