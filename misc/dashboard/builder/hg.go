@@ -46,7 +46,12 @@ func getCommit(rev string) (c Commit, err os.Error) {
 func getCommitParts(rev string) (parts []string, err os.Error) {
 	const format = "{rev}>{node}>{author|escape}>{date}>{desc}"
 	s, _, err := runLog(nil, "", goroot,
-		"hg", "log", "-r", rev, "-l", "1", "--template", format)
+		"hg", "log",
+		"--encoding", "utf-8",
+		"--rev", rev,
+		"--limit", "1",
+		"--template", format,
+	)
 	if err != nil {
 		return
 	}
