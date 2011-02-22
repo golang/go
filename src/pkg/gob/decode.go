@@ -409,9 +409,9 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
 	return *(*uintptr)(up)
 }
 
-func (dec *Decoder) decodeSingle(engine *decEngine, rtyp reflect.Type, p uintptr, indir int) (err os.Error) {
+func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr) (err os.Error) {
 	defer catchError(&err)
-	p = allocate(rtyp, p, indir)
+	p = allocate(ut.base, p, ut.indir)
 	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = singletonField
 	basep := p
@@ -428,9 +428,13 @@ func (dec *Decoder) decodeSingle(engine *decEngine, rtyp reflect.Type, p uintptr
 	return nil
 }
 
-func (dec *Decoder) decodeStruct(engine *decEngine, rtyp *reflect.StructType, p uintptr, indir int) (err os.Error) {
+// Indir is for the value, not the type.  At the time of the call it may
+// differ from ut.indir, which was computed when the engine was built.
+// This state cannot arise for decodeSingle, which is called directly
+// from the user's value, not from the innards of an engine.
+func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr, indir int) (err os.Error) {
 	defer catchError(&err)
-	p = allocate(rtyp, p, indir)
+	p = allocate(ut.base.(*reflect.StructType), p, indir)
 	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = -1
 	basep := p
@@ -702,7 +706,9 @@ var decIgnoreOpMap = map[typeId]decOp{
 // Return the decoding op for the base type under rt and
 // the indirection count to reach it.
 func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int) {
-	typ, indir := indirect(rt)
+	ut := userType(rt)
+	typ := ut.base
+	indir := ut.indir
 	var op decOp
 	k := typ.Kind()
 	if int(k) < len(decOpMap) {
@@ -757,8 +763,8 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 				error(err)
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				// indirect through enginePtr to delay evaluation for recursive structs
-				err = dec.decodeStruct(*enginePtr, t, uintptr(p), i.indir)
+				// indirect through enginePtr to delay evaluation for recursive structs.
+				err = dec.decodeStruct(*enginePtr, userType(typ), uintptr(p), i.indir)
 				if err != nil {
 					error(err)
 				}
@@ -837,7 +843,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 // Answers the question for basic types, arrays, and slices.
 // Structs are considered ok; fields will be checked later.
 func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
-	fr, _ = indirect(fr)
+	fr = userType(fr).base
 	switch t := fr.(type) {
 	default:
 		// map, chan, etc: cannot handle.
@@ -882,7 +888,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 		} else {
 			sw = dec.wireType[fw].SliceT
 		}
-		elem, _ := indirect(t.Elem())
+		elem := userType(t.Elem()).base
 		return sw != nil && dec.compatibleType(elem, sw.Elem)
 	case *reflect.StructType:
 		return true
@@ -1026,20 +1032,22 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) os.Error {
 		return dec.decodeIgnoredValue(wireId)
 	}
 	// Dereference down to the underlying struct type.
-	rt, indir := indirect(val.Type())
-	enginePtr, err := dec.getDecEnginePtr(wireId, rt)
+	ut := userType(val.Type())
+	base := ut.base
+	indir := ut.indir
+	enginePtr, err := dec.getDecEnginePtr(wireId, base)
 	if err != nil {
 		return err
 	}
 	engine := *enginePtr
-	if st, ok := rt.(*reflect.StructType); ok {
+	if st, ok := base.(*reflect.StructType); ok {
 		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].StructT.Field) > 0 {
-			name := rt.Name()
+			name := base.Name()
 			return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
 		}
-		return dec.decodeStruct(engine, st, uintptr(val.Addr()), indir)
+		return dec.decodeStruct(engine, ut, uintptr(val.Addr()), indir)
 	}
-	return dec.decodeSingle(engine, rt, uintptr(val.Addr()), indir)
+	return dec.decodeSingle(engine, ut, uintptr(val.Addr()))
 }
 
 func (dec *Decoder) decodeIgnoredValue(wireId typeId) os.Error {

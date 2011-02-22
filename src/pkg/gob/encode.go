@@ -384,10 +384,10 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 		return
 	}
 
-	typ, _ := indirect(iv.Elem().Type())
-	name, ok := concreteTypeToName[typ]
+	ut := userType(iv.Elem().Type())
+	name, ok := concreteTypeToName[ut.base]
 	if !ok {
-		errorf("gob: type not registered for interface: %s", typ)
+		errorf("gob: type not registered for interface: %s", ut.base)
 	}
 	// Send the name.
 	state.encodeUint(uint64(len(name)))
@@ -396,14 +396,14 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 		error(err)
 	}
 	// Define the type id if necessary.
-	enc.sendTypeDescriptor(enc.writer(), state, typ)
+	enc.sendTypeDescriptor(enc.writer(), state, ut)
 	// Send the type id.
-	enc.sendTypeId(state, typ)
+	enc.sendTypeId(state, ut)
 	// Encode the value into a new buffer.  Any nested type definitions
 	// should be written to b, before the encoded value.
 	enc.pushWriter(b)
 	data := new(bytes.Buffer)
-	err = enc.encode(data, iv.Elem())
+	err = enc.encode(data, iv.Elem(), ut)
 	if err != nil {
 		error(err)
 	}
@@ -437,7 +437,9 @@ var encOpMap = []encOp{
 // Return the encoding op for the base type under rt and
 // the indirection count to reach it.
 func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int) {
-	typ, indir := indirect(rt)
+	ut := userType(rt)
+	typ := ut.base
+	indir := ut.indir
 	var op encOp
 	k := typ.Kind()
 	if int(k) < len(encOpMap) {
@@ -559,14 +561,12 @@ func (enc *Encoder) lockAndGetEncEngine(rt reflect.Type) *encEngine {
 	return enc.getEncEngine(rt)
 }
 
-func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value) (err os.Error) {
+func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInfo) (err os.Error) {
 	defer catchError(&err)
-	// Dereference down to the underlying object.
-	rt, indir := indirect(value.Type())
-	for i := 0; i < indir; i++ {
+	for i := 0; i < ut.indir; i++ {
 		value = reflect.Indirect(value)
 	}
-	engine := enc.lockAndGetEncEngine(rt)
+	engine := enc.lockAndGetEncEngine(ut.base)
 	if value.Type().Kind() == reflect.Struct {
 		enc.encodeStruct(b, engine, value.Addr())
 	} else {
