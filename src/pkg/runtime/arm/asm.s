@@ -12,10 +12,10 @@ TEXT _rt0_arm(SB),7,$-4
 	// use R13 instead of SP to avoid linker rewriting the offsets
 	MOVW	0(R13), R0		// argc
 	MOVW	$4(R13), R1		// argv
-	SUB	$128, R13		// plenty of scratch
+	SUB	$64, R13		// plenty of scratch
 	AND	$~7, R13
-	MOVW	R0, 120(R13)		// save argc, argv away
-	MOVW	R1, 124(R13)
+	MOVW	R0, 60(R13)		// save argc, argv away
+	MOVW	R1, 64(R13)
 
 	// set up m and g registers
 	// g is R10, m is R9
@@ -34,9 +34,9 @@ TEXT _rt0_arm(SB),7,$-4
 	BL	runtime·check(SB)
 
 	// saved argc, argv
-	MOVW	120(R13), R0
+	MOVW	60(R13), R0
 	MOVW	R0, 4(R13)
-	MOVW	124(R13), R1
+	MOVW	64(R13), R1
 	MOVW	R1, 8(R13)
 	BL	runtime·args(SB)
 	BL	runtime·osinit(SB)

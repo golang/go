@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "stack.h"
 
 enum {
 	maxround = sizeof(uintptr),

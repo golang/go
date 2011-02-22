@@ -74,7 +74,6 @@ extern	int	nlibdir;
 extern	int	cout;
 
 EXTERN	char*	INITENTRY;
-EXTERN	char	thechar;
 EXTERN	char*	thestring;
 EXTERN	Library*	library;
 EXTERN	int	libraryp;
@@ -167,6 +166,7 @@ void	adddynlib(char*);
 int	archreloc(Reloc*, Sym*, vlong*);
 void	adddynsym(Sym*);
 void	addexport(void);
+void	dostkcheck(void);
 
 int	pathchar(void);
 void*	mal(uint32);

@@ -209,16 +209,25 @@ runtime·convT2E(Type *t, ...)
 	copyin(t, elem, &ret->data);
 }
 
+static void assertI2Tret(Type *t, Iface i, byte *ret);
+
 // func ifaceI2T(typ *byte, iface any) (ret any)
 #pragma textflag 7
 void
 runtime·assertI2T(Type *t, Iface i, ...)
 {
-	Itab *tab;
 	byte *ret;
-	Eface err;
 
 	ret = (byte*)(&i+1);
+	assertI2Tret(t, i, ret);
+}
+
+static void
+assertI2Tret(Type *t, Iface i, byte *ret)
+{
+	Itab *tab;
+	Eface err;
+
 	tab = i.tab;
 	if(tab == nil) {
 		runtime·newTypeAssertionError(nil, nil, t,
@@ -258,15 +267,23 @@ runtime·assertI2T2(Type *t, Iface i, ...)
 	copyout(t, &i.data, ret);
 }
 
+static void assertE2Tret(Type *t, Eface e, byte *ret);
+
 // func ifaceE2T(typ *byte, iface any) (ret any)
 #pragma textflag 7
 void
 runtime·assertE2T(Type *t, Eface e, ...)
 {
 	byte *ret;
-	Eface err;
 
 	ret = (byte*)(&e+1);
+	assertE2Tret(t, e, ret);
+}
+
+static void
+assertE2Tret(Type *t, Eface e, byte *ret)
+{
+	Eface err;
 
 	if(e.type == nil) {
 		runtime·newTypeAssertionError(nil, nil, t,
@@ -307,7 +324,6 @@ runtime·assertE2T2(Type *t, Eface e, ...)
 }
 
 // func convI2E(elem any) (ret any)
-#pragma textflag 7
 void
 runtime·convI2E(Iface i, Eface ret)
 {
@@ -322,7 +338,6 @@ runtime·convI2E(Iface i, Eface ret)
 }
 
 // func ifaceI2E(typ *byte, iface any) (ret any)
-#pragma textflag 7
 void
 runtime·assertI2E(InterfaceType* inter, Iface i, Eface ret)
 {
@@ -343,7 +358,6 @@ runtime·assertI2E(InterfaceType* inter, Iface i, Eface ret)
 }
 
 // func ifaceI2E2(typ *byte, iface any) (ret any, ok bool)
-#pragma textflag 7
 void
 runtime·assertI2E2(InterfaceType* inter, Iface i, Eface ret, bool ok)
 {
@@ -364,7 +378,6 @@ runtime·assertI2E2(InterfaceType* inter, Iface i, Eface ret, bool ok)
 }
 
 // func convI2I(typ *byte, elem any) (ret any)
-#pragma textflag 7
 void
 runtime·convI2I(InterfaceType* inter, Iface i, Iface ret)
 {
@@ -399,7 +412,6 @@ runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
 }
 
 // func ifaceI2I(sigi *byte, iface any) (ret any)
-#pragma textflag 7
 void
 runtime·assertI2I(InterfaceType* inter, Iface i, Iface ret)
 {
@@ -407,7 +419,6 @@ runtime·assertI2I(InterfaceType* inter, Iface i, Iface ret)
 }
 
 // func ifaceI2I2(sigi *byte, iface any) (ret any, ok bool)
-#pragma textflag 7
 void
 runtime·assertI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
 {
@@ -446,7 +457,6 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 }
 
 // func ifaceE2I(sigi *byte, iface any) (ret any)
-#pragma textflag 7
 void
 runtime·assertE2I(InterfaceType* inter, Eface e, Iface ret)
 {
@@ -454,7 +464,6 @@ runtime·assertE2I(InterfaceType* inter, Eface e, Iface ret)
 }
 
 // ifaceE2I2(sigi *byte, iface any) (ret any, ok bool)
-#pragma textflag 7
 void
 runtime·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
 {
@@ -474,7 +483,6 @@ runtime·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
 }
 
 // func ifaceE2E(typ *byte, iface any) (ret any)
-#pragma textflag 7
 void
 runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
 {
@@ -494,7 +502,6 @@ runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
 }
 
 // func ifaceE2E2(iface any) (ret any, ok bool)
-#pragma textflag 7
 void
 runtime·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
 {

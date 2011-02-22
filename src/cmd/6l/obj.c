@@ -40,7 +40,6 @@
 #include	<ar.h>
 
 char	*noname		= "<none>";
-char	thechar		= '6';
 char*	thestring 	= "amd64";
 char*	paramspace	= "FP";
 
@@ -253,6 +252,7 @@ main(int argc, char *argv[])
 	if(HEADTYPE == 6)
 		domacho();
 	dostkoff();
+	dostkcheck();
 	paramspace = "SP";	/* (FP) now (SP) on output */
 	if(debug['p'])
 		if(debug['1'])

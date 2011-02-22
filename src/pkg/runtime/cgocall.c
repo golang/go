@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "stack.h"
 #include "cgocall.h"
 
 void *initcgo;	/* filled in by dynamic linker when Cgo is available */
@@ -70,7 +71,7 @@ runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
 	runtime·startcgocallback(g1);
 
 	sp = g1->sched.sp - argsize;
-	if(sp < g1->stackguard - StackGuard + 8) // +8 for return address
+	if(sp < g1->stackguard - StackGuard - StackSystem + 8) // +8 for return address
 		runtime·throw("g stack overflow in cgocallback");
 	runtime·mcpy(sp, arg, argsize);
 

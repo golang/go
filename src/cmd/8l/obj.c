@@ -44,7 +44,6 @@
 #endif
 
 char	*noname		= "<none>";
-char	thechar		= '8';
 char	*thestring 	= "386";
 
 /*

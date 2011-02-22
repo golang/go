@@ -98,6 +98,10 @@ Pconv(Fmt *fp)
 		fmtprint(fp, "(%d)	DWORD	%D %D", p->line, &p->from, &p->to);
 		break;
 	}
+	
+	if(p->spadj)
+		fmtprint(fp, "  (spadj%+d)", p->spadj);
+
 	return 0;
 }
 

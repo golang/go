@@ -41,7 +41,6 @@
 #endif
 
 char	*noname		= "<none>";
-char	thechar		= '5';
 char	*thestring 	= "arm";
 
 /*
@@ -263,6 +262,7 @@ main(int argc, char *argv[])
 	follow();
 	softfloat();
 	noops();
+	dostkcheck();
 	span();
 	pclntab();
 	symtab();

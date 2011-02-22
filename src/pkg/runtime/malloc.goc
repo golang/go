@@ -8,6 +8,7 @@
 
 package runtime
 #include "runtime.h"
+#include "stack.h"
 #include "malloc.h"
 #include "defs.h"
 #include "type.h"
@@ -385,7 +386,7 @@ static struct {
 } stacks;
 
 enum {
-	FixedStack = StackBig + StackExtra
+	FixedStack = StackMin,
 };
 
 void*

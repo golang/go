@@ -39,6 +39,7 @@
 
 enum
 {
+	thechar = '8',
 	PtrSize = 4
 };
 
@@ -110,6 +111,7 @@ struct	Prog
 };
 #define	datasize	from.scale
 #define	textflag	from.scale
+#define	iscall(p)	((p)->as == ACALL)
 
 struct	Auto
 {
@@ -128,6 +130,7 @@ struct	Sym
 	uchar	reachable;
 	uchar	dynexport;
 	uchar	special;
+	uchar	stkcheck;
 	int32	value;
 	int32	size;
 	int32	sig;
