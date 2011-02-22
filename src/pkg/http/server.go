@@ -657,10 +657,12 @@ func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Re
 
 // Handle registers the handler for the given pattern
 // in the DefaultServeMux.
+// The documentation for ServeMux explains how patterns are matched.
 func Handle(pattern string, handler Handler) { DefaultServeMux.Handle(pattern, handler) }
 
 // HandleFunc registers the handler function for the given pattern
 // in the DefaultServeMux.
+// The documentation for ServeMux explains how patterns are matched.
 func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 	DefaultServeMux.HandleFunc(pattern, handler)
 }
