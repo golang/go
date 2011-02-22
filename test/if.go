@@ -45,18 +45,6 @@ func main() {
 	assertequal(count, 0, "if false one")
 
 	count = 0
-	if {
-		count = count + 1
-	}
-	assertequal(count, 1, "if empty")
-
-	count = 0
-	if one := 1; true {
-		count = count + one
-	}
-	assertequal(count, 1, "if empty one")
-
-	count = 0
 	if i5 < i7 {
 		count = count + 1
 	}
