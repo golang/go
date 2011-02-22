@@ -7,8 +7,8 @@
 package main
 
 func main() {
-	if {} else L1: ;
-	if {} else L2: main() ;
+	if true {} else L1: ;
+	if true {} else L2: main() ;
 }
 
 /*
