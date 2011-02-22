@@ -640,10 +640,15 @@ if_stmt:
 	{
 		markdcl();
 	}
-	if_header loop_body
+	if_header
+	{
+		if($3->ntest == N)
+			yyerror("missing condition in if statement");
+	}
+	loop_body
 	{
 		$$ = $3;
-		$$->nbody = $4;
+		$$->nbody = $5;
 		// no popdcl; maybe there's an LELSE
 	}
 
