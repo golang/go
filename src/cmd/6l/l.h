@@ -39,6 +39,7 @@
 
 enum
 {
+	thechar = '6',
 	PtrSize = 8
 };
 
@@ -111,6 +112,7 @@ struct	Prog
 };
 #define	datasize	from.scale
 #define	textflag	from.scale
+#define	iscall(p)	((p)->as == ACALL)
 
 struct	Auto
 {
@@ -129,6 +131,7 @@ struct	Sym
 	uchar	reachable;
 	uchar	dynexport;
 	uchar	special;
+	uchar	stkcheck;
 	int32	dynid;
 	int32	sig;
 	int32	plt;
@@ -367,7 +370,6 @@ EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
 
 EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
-extern	char	thechar;
 EXTERN	int	elfstrsize;
 EXTERN	char*	elfstrdat;
 EXTERN	int	elftextsh;

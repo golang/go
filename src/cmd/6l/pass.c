@@ -32,15 +32,9 @@
 
 #include	"l.h"
 #include	"../ld/lib.h"
+#include "../../pkg/runtime/stack.h"
 
 static void xfol(Prog*, Prog**);
-
-// see ../../runtime/proc.c:/StackGuard
-enum
-{
-	StackSmall = 128,
-	StackBig = 4096,
-};
 
 Prog*
 brchain(Prog *p)

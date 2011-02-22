@@ -31,6 +31,8 @@
 
 #include	"l.h"
 #include	"lib.h"
+#include	"../../pkg/runtime/stack.h"
+
 #include	<ar.h>
 
 int iconv(Fmt*);
@@ -1084,3 +1086,181 @@ be64(uchar *b)
 
 Endian be = { be16, be32, be64 };
 Endian le = { le16, le32, le64 };
+
+typedef struct Chain Chain;
+struct Chain
+{
+	Sym *sym;
+	Chain *up;
+	int limit;  // limit on entry to sym
+};
+
+static int stkcheck(Chain*, int);
+static void stkprint(Chain*, int);
+static void stkbroke(Chain*, int);
+static Sym *morestack;
+static Sym *newstack;
+
+enum
+{
+	HasLinkRegister = (thechar == '5'),
+	CallSize = (!HasLinkRegister)*PtrSize,  // bytes of stack required for a call
+};
+
+void
+dostkcheck(void)
+{
+	Chain ch;
+	Sym *s;
+	
+	morestack = lookup("runtime.morestack", 0);
+	newstack = lookup("runtime.newstack", 0);
+
+	// First the nosplits on their own.
+	for(s = textp; s != nil; s = s->next) {
+		if(s->text == nil || s->text->link == nil || (s->text->textflag & NOSPLIT) == 0)
+			continue;
+		cursym = s;
+		ch.up = nil;
+		ch.sym = s;
+		ch.limit = StackLimit - CallSize;
+		stkcheck(&ch, 0);
+		s->stkcheck = 1;
+	}
+	
+	// Check calling contexts.
+	// Some nosplits get called a little further down,
+	// like newproc and deferproc.  We could hard-code
+	// that knowledge but it's more robust to look at
+	// the actual call sites.
+	for(s = textp; s != nil; s = s->next) {
+		if(s->text == nil || s->text->link == nil || (s->text->textflag & NOSPLIT) != 0)
+			continue;
+		cursym = s;
+		ch.up = nil;
+		ch.sym = s;
+		ch.limit = StackLimit - CallSize;
+		stkcheck(&ch, 0);
+	}
+}
+
+static int
+stkcheck(Chain *up, int depth)
+{
+	Chain ch, ch1;
+	Prog *p;
+	Sym *s;
+	int limit, prolog;
+	
+	limit = up->limit;
+	s = up->sym;
+	p = s->text;
+	
+	// Small optimization: don't repeat work at top.
+	if(s->stkcheck && limit == StackLimit-CallSize)
+		return 0;
+	
+	if(depth > 100) {
+		diag("nosplit stack check too deep");
+		stkbroke(up, 0);
+		return -1;
+	}
+
+	if(p == nil || p->link == nil) {
+		// external function.
+		// should never be called directly.
+		// only diagnose the direct caller.
+		if(depth == 1)
+			diag("call to external function %s", s->name);
+		return -1;
+	}
+
+	if(limit < 0) {
+		stkbroke(up, limit);
+		return -1;
+	}
+
+	// morestack looks like it calls functions,
+	// but it switches the stack pointer first.
+	if(s == morestack)
+		return 0;
+
+	ch.up = up;
+	prolog = (s->text->textflag & NOSPLIT) == 0;
+	for(p = s->text; p != P; p = p->link) {
+		limit -= p->spadj;
+		if(prolog && p->spadj != 0) {
+			// The first stack adjustment in a function with a
+			// split-checking prologue marks the end of the
+			// prologue.  Assuming the split check is correct,
+			// after the adjustment there should still be at least
+			// StackLimit bytes available below the stack pointer.
+			// If this is not the top call in the chain, no need
+			// to duplicate effort, so just stop.
+			if(depth > 0)
+				return 0;
+			prolog = 0;
+			limit = StackLimit;
+		}
+		if(limit < 0) {
+			stkbroke(up, limit);
+			return -1;
+		}
+		if(iscall(p)) {
+			limit -= CallSize;
+			ch.limit = limit;
+			if(p->to.type == D_BRANCH) {
+				// Direct call.
+				ch.sym = p->to.sym;
+				if(stkcheck(&ch, depth+1) < 0)
+					return -1;
+			} else {
+				// Indirect call.  Assume it is a splitting function,
+				// so we have to make sure it can call morestack.
+				limit -= CallSize;
+				ch.sym = nil;
+				ch1.limit = limit;
+				ch1.up = &ch;
+				ch1.sym = morestack;
+				if(stkcheck(&ch1, depth+2) < 0)
+					return -1;
+				limit += CallSize;
+			}
+			limit += CallSize;
+		}
+		
+	}
+	return 0;
+}
+
+static void
+stkbroke(Chain *ch, int limit)
+{
+	diag("nosplit stack overflow");
+	stkprint(ch, limit);
+}
+
+static void
+stkprint(Chain *ch, int limit)
+{
+	char *name;
+
+	if(ch->sym)
+		name = ch->sym->name;
+	else
+		name = "function pointer";
+
+	if(ch->up == nil) {
+		// top of chain.  ch->sym != nil.
+		if(ch->sym->text->textflag & NOSPLIT)
+			print("\t%d\tassumed on entry to %s\n", ch->limit, name);
+		else
+			print("\t%d\tguaranteed after split check in %s\n", ch->limit, name);
+	} else {
+		stkprint(ch->up, ch->limit + (!HasLinkRegister)*PtrSize);
+		if(!HasLinkRegister)
+			print("\t%d\ton entry to %s\n", ch->limit, name);
+	}
+	if(ch->limit != limit)
+		print("\t%d\tafter %s uses %d\n", limit, name, ch->limit - limit);
+}

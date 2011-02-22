@@ -7,6 +7,7 @@
 #include "defs.h"
 #include "malloc.h"
 #include "os.h"
+#include "stack.h"
 
 bool	runtime·iscgo;
 
@@ -701,7 +702,7 @@ runtime·oldstack(void)
 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
 
 	if(old.free != 0)
-		runtime·stackfree(g1->stackguard - StackGuard, old.free);
+		runtime·stackfree(g1->stackguard - StackGuard - StackSystem, old.free);
 	g1->stackbase = old.stackbase;
 	g1->stackguard = old.stackguard;
 
@@ -739,14 +740,15 @@ runtime·newstack(void)
 		// the new Stktop* is necessary to unwind, but
 		// we don't need to create a new segment.
 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
-		stk = g1->stackguard - StackGuard;
+		stk = g1->stackguard - StackGuard - StackSystem;
 		free = 0;
 	} else {
 		// allocate new segment.
 		framesize += argsize;
-		if(framesize < StackBig)
-			framesize = StackBig;
 		framesize += StackExtra;	// room for more functions, Stktop.
+		if(framesize < StackMin)
+			framesize = StackMin;
+		framesize += StackSystem;
 		stk = runtime·stackalloc(framesize);
 		top = (Stktop*)(stk+framesize-sizeof(*top));
 		free = framesize;
@@ -767,7 +769,7 @@ runtime·newstack(void)
 	g1->ispanic = false;
 
 	g1->stackbase = (byte*)top;
-	g1->stackguard = stk + StackGuard;
+	g1->stackguard = stk + StackGuard + StackSystem;
 
 	sp = (byte*)top;
 	if(argsize > 0) {
@@ -798,10 +800,10 @@ runtime·malg(int32 stacksize)
 
 	g = runtime·malloc(sizeof(G));
 	if(stacksize >= 0) {
-		stk = runtime·stackalloc(stacksize + StackGuard);
+		stk = runtime·stackalloc(StackSystem + stacksize);
 		g->stack0 = stk;
-		g->stackguard = stk + StackGuard;
-		g->stackbase = stk + StackGuard + stacksize - sizeof(Stktop);
+		g->stackguard = stk + StackSystem + StackGuard;
+		g->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
 		runtime·memclr(g->stackbase, sizeof(Stktop));
 	}
 	return g;
@@ -846,10 +848,10 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 
 	if((newg = gfget()) != nil){
 		newg->status = Gwaiting;
-		if(newg->stackguard - StackGuard != newg->stack0)
+		if(newg->stackguard - StackGuard - StackSystem != newg->stack0)
 			runtime·throw("invalid stack in newg");
 	} else {
-		newg = runtime·malg(StackBig);
+		newg = runtime·malg(StackMin);
 		newg->status = Gwaiting;
 		newg->alllink = runtime·allg;
 		runtime·allg = newg;
@@ -1099,7 +1101,7 @@ nomatch:
 static void
 gfput(G *g)
 {
-	if(g->stackguard - StackGuard != g->stack0)
+	if(g->stackguard - StackGuard - StackSystem != g->stack0)
 		runtime·throw("invalid stack in gfput");
 	g->schedlink = runtime·sched.gfree;
 	runtime·sched.gfree = g;

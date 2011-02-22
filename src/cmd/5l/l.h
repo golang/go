@@ -35,6 +35,7 @@
 
 enum
 {
+	thechar = '5',
 	PtrSize = 4
 };
 
@@ -109,6 +110,7 @@ struct	Prog
 	Prog*	dlink;
 	int32	pc;
 	int32	line;
+	int32	spadj;
 	uchar	mark;
 	uchar	optab;
 	uchar	as;
@@ -122,6 +124,8 @@ struct	Prog
 #define	datasize	reg
 #define	textflag	reg
 
+#define	iscall(p)	((p)->as == ABL)
+
 struct	Sym
 {
 	char*	name;
@@ -131,6 +135,7 @@ struct	Sym
 	uchar	reachable;
 	uchar	dynexport;
 	uchar	leaf;
+	uchar	stkcheck;
 	int32	dynid;
 	int32	plt;
 	int32	got;

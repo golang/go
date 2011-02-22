@@ -227,7 +227,7 @@ noops(void)
 #ifdef CALLEEBX
 				if(p->from.sym->foreign){
 					if(thumb)
-						// don't allow literal pool to seperate these
+						// don't allow literal pool to separate these
 						p = adword(0xe28f7001, 0xe12fff17, p); // arm add 1, pc, r7 and bx r7
 						// p = aword(0xe12fff17, aword(0xe28f7001, p)); // arm add 1, pc, r7 and bx r7
 					else
@@ -282,6 +282,7 @@ noops(void)
 					q1->to.type = D_OREG;
 					q1->to.offset = -autosize;
 					q1->to.reg = REGSP;
+					q1->spadj = autosize;
 					q1->link = p->link;
 					p->link = q1;
 				} else if (autosize < StackBig) {
@@ -376,6 +377,7 @@ noops(void)
 					p->to.type = D_OREG;
 					p->to.offset = -autosize;
 					p->to.reg = REGSP;
+					p->spadj = autosize;
 				} else { // > StackBig
 					// MOVW		$autosize, R1
 					// MOVW		$args, R2
@@ -424,6 +426,7 @@ noops(void)
 					p->to.type = D_OREG;
 					p->to.offset = -autosize;
 					p->to.reg = REGSP;
+					p->spadj = autosize;
 				}
 				break;
 	
@@ -527,9 +530,20 @@ noops(void)
 					p->from.reg = REGSP;
 					p->to.type = D_REG;
 					p->to.reg = REGPC;
+					// no spadj because it doesn't fall through
 				}
 				break;
 	
+			case AADD:
+				if(p->from.type == D_CONST && p->from.reg == NREG && p->to.type == D_REG && p->to.reg == REGSP)
+					p->spadj = -p->from.offset;
+				break;
+
+			case ASUB:
+				if(p->from.type == D_CONST && p->from.reg == NREG && p->to.type == D_REG && p->to.reg == REGSP)
+					p->spadj = p->from.offset;
+				break;
+
 			case ADIV:
 			case ADIVU:
 			case AMOD:
@@ -635,6 +649,7 @@ noops(void)
 				p->reg = NREG;
 				p->to.type = D_REG;
 				p->to.reg = REGSP;
+				p->spadj = -8;
 	
 				/* SUB $8,SP */
 				q1->as = ASUB;
@@ -644,6 +659,7 @@ noops(void)
 				q1->reg = NREG;
 				q1->to.type = D_REG;
 				q1->to.reg = REGSP;
+				p->spadj = 8;
 	
 				break;
 			case AMOVW:
@@ -653,6 +669,12 @@ noops(void)
 					if(a->type == D_CONST && ((a->name == D_NONE && a->reg == REGSP) || a->name == D_AUTO || a->name == D_PARAM) && (a->offset & 3))
 						diag("SP offset not multiple of 4");
 				}
+				if((p->scond & C_WBIT) && p->to.type == D_OREG && p->to.reg == REGSP)
+					p->spadj = -p->to.offset;
+				if((p->scond & C_PBIT) && p->from.type == D_OREG && p->from.reg == REGSP && p->to.reg != REGPC)
+					p->spadj = -p->from.offset;
+				if(p->from.type == D_CONST && p->from.reg == REGSP && p->to.type == D_REG && p->to.reg == REGSP)
+					p->spadj = -p->from.offset;
 				break;
 			case AMOVB:
 			case AMOVBU:

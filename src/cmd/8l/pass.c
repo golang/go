@@ -262,6 +262,7 @@ patch(void)
 	s = lookup("exit", 0);
 	vexit = s->value;
 	
+	plan9_tos = S;
 	if(HEADTYPE == 2)
 		plan9_tos = lookup("_tos", 0);
 	
@@ -412,6 +413,7 @@ dostkoff(void)
 		symmorestack->text->from.scale |= NOSPLIT;
 	}
 	
+	plan9_tos = S;
 	if(HEADTYPE == 2)	
 		plan9_tos = lookup("_tos", 0);
 
