@@ -12,10 +12,16 @@ func use(x interface{})	{}
 func _() {
 	if true {
 	}
+	if true {
+	}	// no semicolon printed
 	if expr {
 	}
 	if expr {
+	}	// no semicolon printed
+	if expr {
 	}	// no parens printed
+	if expr {
+	}	// no semicolon and parens printed
 	if x := expr; true {
 		use(x)
 	}
@@ -29,10 +35,16 @@ func _() {
 func _() {
 	switch {
 	}
+	switch {
+	}	// no semicolon printed
 	switch expr {
 	}
 	switch expr {
+	}	// no semicolon printed
+	switch expr {
 	}	// no parens printed
+	switch expr {
+	}	// no semicolon and parens printed
 	switch x := expr; {
 	default:
 		use(
