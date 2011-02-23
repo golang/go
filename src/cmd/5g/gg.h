@@ -27,6 +27,7 @@ struct	Addr
 	uchar	type;
 	char	name;
 	char	reg;
+	char pun;
 	uchar	etype;
 };
 #define	A	((Addr*)0)
