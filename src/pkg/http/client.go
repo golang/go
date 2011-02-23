@@ -171,6 +171,9 @@ func (c *Client) Get(url string) (r *Response, finalURL string, err os.Error) {
 		}
 
 		var req Request
+		req.Method = "GET"
+		req.ProtoMajor = 1
+		req.ProtoMinor = 1
 		if base == nil {
 			req.URL, err = ParseURL(url)
 		} else {
