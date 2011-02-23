@@ -20,7 +20,7 @@ They should have signature
 	func TestXXX(t *testing.T) { ... }
 
 Benchmark functions can be written as well; they will be run only
-when the -benchmarks flag is provided.  Benchmarks should have
+when the -test.bench flag is provided.  Benchmarks should have
 signature
 
 	func BenchmarkXXX(b *testing.B) { ... }

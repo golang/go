@@ -12,7 +12,7 @@
 //
 // Functions of the form
 //     func BenchmarkXxx(*testing.B)
-// are considered benchmarks, and are executed by gotest when the -benchmarks
+// are considered benchmarks, and are executed by gotest when the -test.bench
 // flag is provided.
 //
 // A sample benchmark function looks like this:

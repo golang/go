@@ -55,7 +55,7 @@ test:
 	gotest
 
 bench:
-	gotest -benchmarks=. -match="Do not run tests"
+	gotest -test.bench=. -test.run="Do not run tests"
 
 nuke: clean
 	rm -f $(pkgdir)/$(TARG).a
