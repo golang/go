@@ -13,7 +13,7 @@ package bzip2
 // as the symbol will be at the front of the list after the first access.
 type moveToFrontDecoder struct {
 	// Rather than actually keep the list in memory, the symbols are stored
-	// as a circular, double linked list which the symbol indexed by head
+	// as a circular, double linked list with the symbol indexed by head
 	// at the front of the list.
 	symbols []byte
 	next    []uint8
@@ -24,6 +24,10 @@ type moveToFrontDecoder struct {
 // newMTFDecoder creates a move-to-front decoder with an explicit initial list
 // of symbols.
 func newMTFDecoder(symbols []byte) *moveToFrontDecoder {
+	if len(symbols) > 256 {
+		panic("too many symbols")
+	}
+
 	m := &moveToFrontDecoder{
 		symbols: symbols,
 		next:    make([]uint8, len(symbols)),

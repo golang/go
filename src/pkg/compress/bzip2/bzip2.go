@@ -141,6 +141,8 @@ func (bz2 *reader) read(buf []byte) (n int, err os.Error) {
 
 		if bz2.lastByte == int(b) {
 			bz2.byteRepeats++
+		} else {
+			bz2.byteRepeats = 0
 		}
 		bz2.lastByte = int(b)
 
@@ -229,6 +231,18 @@ func (bz2 *reader) readBlock() (err os.Error) {
 		treeIndexes[i] = uint8(mtfTreeDecoder.Decode(c))
 	}
 
+	// The list of symbols for the move-to-front transform is taken from
+	// the previously decoded symbol bitmap.
+	symbols := make([]byte, numSymbols)
+	nextSymbol := 0
+	for i := 0; i < 256; i++ {
+		if symbolPresent[i] {
+			symbols[nextSymbol] = byte(i)
+			nextSymbol++
+		}
+	}
+	mtf := newMTFDecoder(symbols)
+
 	numSymbols += 2 // to account for RUNA and RUNB symbols
 	huffmanTrees := make([]huffmanTree, numHuffmanTrees)
 
@@ -258,18 +272,6 @@ func (bz2 *reader) readBlock() (err os.Error) {
 			return err
 		}
 	}
-
-	// The list of symbols for the move-to-front transform is taken from
-	// the previously decoded symbol bitmap.
-	symbols := make([]byte, numSymbols)
-	nextSymbol := 0
-	for i := 0; i < 256; i++ {
-		if symbolPresent[i] {
-			symbols[nextSymbol] = byte(i)
-			nextSymbol++
-		}
-	}
-	mtf := newMTFDecoder(symbols)
 
 	selectorIndex := 1 // the next tree index to use
 	currentHuffmanTree := huffmanTrees[treeIndexes[0]]
