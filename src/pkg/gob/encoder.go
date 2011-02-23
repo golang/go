@@ -200,9 +200,12 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 	// Remove any nested writers remaining due to previous errors.
 	enc.w = enc.w[0:1]
 
-	enc.err = nil
-	ut := userType(value.Type())
+	ut, err := validUserType(value.Type())
+	if err != nil {
+		return err
+	}
 
+	enc.err = nil
 	state := newEncoderState(enc, new(bytes.Buffer))
 
 	enc.sendTypeDescriptor(enc.writer(), state, ut)
@@ -212,7 +215,7 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 	}
 
 	// Encode the object.
-	err := enc.encode(state.b, value, ut)
+	err = enc.encode(state.b, value, ut)
 	if err != nil {
 		enc.setError(err)
 	} else {

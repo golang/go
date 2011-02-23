@@ -410,7 +410,6 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
 }
 
 func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr) (err os.Error) {
-	defer catchError(&err)
 	p = allocate(ut.base, p, ut.indir)
 	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = singletonField
@@ -433,7 +432,6 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr)
 // This state cannot arise for decodeSingle, which is called directly
 // from the user's value, not from the innards of an engine.
 func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr, indir int) (err os.Error) {
-	defer catchError(&err)
 	p = allocate(ut.base.(*reflect.StructType), p, indir)
 	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = -1
@@ -463,7 +461,6 @@ func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr,
 }
 
 func (dec *Decoder) ignoreStruct(engine *decEngine) (err os.Error) {
-	defer catchError(&err)
 	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = -1
 	for state.b.Len() > 0 {
@@ -486,7 +483,6 @@ func (dec *Decoder) ignoreStruct(engine *decEngine) (err os.Error) {
 }
 
 func (dec *Decoder) ignoreSingle(engine *decEngine) (err os.Error) {
-	defer catchError(&err)
 	state := newDecodeState(dec, &dec.buf)
 	state.fieldnum = singletonField
 	delta := int(state.decodeUint())
@@ -937,7 +933,6 @@ func isExported(name string) bool {
 }
 
 func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEngine, err os.Error) {
-	defer catchError(&err)
 	srt, ok := rt.(*reflect.StructType)
 	if !ok {
 		return dec.compileSingle(remoteId, rt)
@@ -1026,7 +1021,8 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
 	return
 }
 
-func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) os.Error {
+func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) (err os.Error) {
+	defer catchError(&err)
 	// If the value is nil, it means we should just ignore this item.
 	if val == nil {
 		return dec.decodeIgnoredValue(wireId)

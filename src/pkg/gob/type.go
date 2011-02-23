@@ -27,28 +27,63 @@ var (
 	userTypeCache = make(map[reflect.Type]*userTypeInfo)
 )
 
-// userType returns, and saves, the information associated with user-provided type rt
-func userType(rt reflect.Type) *userTypeInfo {
+// validType returns, and saves, the information associated with user-provided type rt.
+// If the user type is not valid, err will be non-nil.  To be used when the error handler
+// is not set up.
+func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 	userTypeLock.RLock()
-	ut := userTypeCache[rt]
+	ut = userTypeCache[rt]
 	userTypeLock.RUnlock()
 	if ut != nil {
-		return ut
+		return
 	}
 	// Now set the value under the write lock.
 	userTypeLock.Lock()
 	defer userTypeLock.Unlock()
 	if ut = userTypeCache[rt]; ut != nil {
 		// Lost the race; not a problem.
-		return ut
+		return
 	}
 	ut = new(userTypeInfo)
+	ut.base = rt
 	ut.user = rt
-	ut.base, ut.indir = indirect(rt)
+	// A type that is just a cycle of pointers (such as type T *T) cannot
+	// be represented in gobs, which need some concrete data.  We use a
+	// cycle detection algorithm from Knuth, Vol 2, Section 3.1, Ex 6,
+	// pp 539-540.  As we step through indirections, run another type at
+	// half speed. If they meet up, there's a cycle.
+	// TODO: still need to deal with self-referential non-structs such
+	// as type T map[string]T but that is a larger undertaking - and can
+	// be useful, not always erroneous.
+	slowpoke := ut.base // walks half as fast as ut.base
+	for {
+		pt, ok := ut.base.(*reflect.PtrType)
+		if !ok {
+			break
+		}
+		ut.base = pt.Elem()
+		if ut.base == slowpoke { // ut.base lapped slowpoke
+			// recursive pointer type.
+			return nil, os.ErrorString("can't represent recursive pointer type " + ut.base.String())
+		}
+		if ut.indir%2 == 0 {
+			slowpoke = slowpoke.(*reflect.PtrType).Elem()
+		}
+		ut.indir++
+	}
 	userTypeCache[rt] = ut
-	return ut
+	return
 }
 
+// userType returns, and saves, the information associated with user-provided type rt.
+// If the user type is not valid, it calls error.
+func userType(rt reflect.Type) *userTypeInfo {
+	ut, err := validUserType(rt)
+	if err != nil {
+		error(err)
+	}
+	return ut
+}
 // A typeId represents a gob Type as an integer that can be passed on the wire.
 // Internally, typeIds are used as keys to a map to recover the underlying type info.
 type typeId int32
@@ -271,21 +306,6 @@ func newStructType(name string) *structType {
 	s := &structType{CommonType{Name: name}, nil}
 	setTypeId(s)
 	return s
-}
-
-// Step through the indirections on a type to discover the base type.
-// Return the base type and the number of indirections.
-func indirect(t reflect.Type) (rt reflect.Type, count int) {
-	rt = t
-	for {
-		pt, ok := rt.(*reflect.PtrType)
-		if !ok {
-			break
-		}
-		rt = pt.Elem()
-		count++
-	}
-	return
 }
 
 func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
