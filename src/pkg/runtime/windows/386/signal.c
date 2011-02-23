@@ -85,7 +85,6 @@ runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
 		runtime·dumpregs(r);
 	}
 
-	runtime·breakpoint();
 	runtime·exit(2);
 	return 0;
 }

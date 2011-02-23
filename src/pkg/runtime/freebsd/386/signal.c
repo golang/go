@@ -103,7 +103,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		runtime·dumpregs(r);
 	}
 
-	runtime·breakpoint();
 	runtime·exit(2);
 }
 
