@@ -8,6 +8,7 @@ package http
 
 import (
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -36,5 +37,27 @@ func TestClientHead(t *testing.T) {
 	}
 	if _, ok := r.Header["Last-Modified"]; !ok {
 		t.Error("Last-Modified header not found.")
+	}
+}
+
+type recordingTransport struct {
+	req *Request
+}
+
+func (t *recordingTransport) Do(req *Request) (resp *Response, err os.Error) {
+	t.req = req
+	return nil, os.NewError("dummy impl")
+}
+
+func TestGetRequestFormat(t *testing.T) {
+	tr := &recordingTransport{}
+	client := &Client{transport: tr}
+	url := "http://dummy.faketld/"
+	client.Get(url) // Note: doesn't hit network
+	if tr.req.Method != "GET" {
+		t.Fatalf("expected method %q; got %q", "GET", tr.req.Method)
+	}
+	if tr.req.URL.String() != url {
+		t.Fatalf("expected URL %q; got %q", url, tr.req.URL.String())
 	}
 }
