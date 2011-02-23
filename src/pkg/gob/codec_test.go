@@ -973,17 +973,31 @@ func TestIgnoredFields(t *testing.T) {
 	}
 }
 
-type Bad0 struct {
-	ch chan int
-	c  float64
+
+func TestBadRecursiveType(t *testing.T) {
+	type Rec ***Rec
+	var rec Rec
+	b := new(bytes.Buffer)
+	err := NewEncoder(b).Encode(&rec)
+	if err == nil {
+		t.Error("expected error; got none")
+	} else if strings.Index(err.String(), "recursive") < 0 {
+		t.Error("expected recursive type error; got", err)
+	}
+	// Can't test decode easily because we can't encode one, so we can't pass one to a Decoder.
 }
 
-var nilEncoder *Encoder
+type Bad0 struct {
+	CH chan int
+	C  float64
+}
+
 
 func TestInvalidField(t *testing.T) {
 	var bad0 Bad0
-	bad0.ch = make(chan int)
+	bad0.CH = make(chan int)
 	b := new(bytes.Buffer)
+	var nilEncoder *Encoder
 	err := nilEncoder.encode(b, reflect.NewValue(&bad0), userType(reflect.Typeof(&bad0)))
 	if err == nil {
 		t.Error("expected error; got none")
