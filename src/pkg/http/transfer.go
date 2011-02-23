@@ -21,7 +21,7 @@ type transferWriter struct {
 	ContentLength    int64
 	Close            bool
 	TransferEncoding []string
-	Trailer          map[string]string
+	Trailer          Header
 }
 
 func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
@@ -159,7 +159,7 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
 
 type transferReader struct {
 	// Input
-	Header        map[string]string
+	Header        Header
 	StatusCode    int
 	RequestMethod string
 	ProtoMajor    int
@@ -169,7 +169,7 @@ type transferReader struct {
 	ContentLength    int64
 	TransferEncoding []string
 	Close            bool
-	Trailer          map[string]string
+	Trailer          Header
 }
 
 // bodyAllowedForStatus returns whether a given response status code
@@ -289,14 +289,14 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
 
 // Sanitize transfer encoding
-func fixTransferEncoding(header map[string]string) ([]string, os.Error) {
+func fixTransferEncoding(header Header) ([]string, os.Error) {
 	raw, present := header["Transfer-Encoding"]
 	if !present {
 		return nil, nil
 	}
 
-	header["Transfer-Encoding"] = "", false
-	encodings := strings.Split(raw, ",", -1)
+	header["Transfer-Encoding"] = nil, false
+	encodings := strings.Split(raw[0], ",", -1)
 	te := make([]string, 0, len(encodings))
 	// TODO: Even though we only support "identity" and "chunked"
 	// encodings, the loop below is designed with foresight. One
@@ -321,7 +321,7 @@ func fixTransferEncoding(header map[string]string) ([]string, os.Error) {
 		// Chunked encoding trumps Content-Length. See RFC 2616
 		// Section 4.4. Currently len(te) > 0 implies chunked
 		// encoding.
-		header["Content-Length"] = "", false
+		header["Content-Length"] = nil, false
 		return te, nil
 	}
 
@@ -331,7 +331,7 @@ func fixTransferEncoding(header map[string]string) ([]string, os.Error) {
 // Determine the expected body length, using RFC 2616 Section 4.4. This
 // function is not a method, because ultimately it should be shared by
 // ReadResponse and ReadRequest.
-func fixLength(status int, requestMethod string, header map[string]string, te []string) (int64, os.Error) {
+func fixLength(status int, requestMethod string, header Header, te []string) (int64, os.Error) {
 
 	// Logic based on response type or status
 	if noBodyExpected(requestMethod) {
@@ -351,23 +351,21 @@ func fixLength(status int, requestMethod string, header map[string]string, te []
 	}
 
 	// Logic based on Content-Length
-	if cl, present := header["Content-Length"]; present {
-		cl = strings.TrimSpace(cl)
-		if cl != "" {
-			n, err := strconv.Atoi64(cl)
-			if err != nil || n < 0 {
-				return -1, &badStringError{"bad Content-Length", cl}
-			}
-			return n, nil
-		} else {
-			header["Content-Length"] = "", false
+	cl := strings.TrimSpace(header.Get("Content-Length"))
+	if cl != "" {
+		n, err := strconv.Atoi64(cl)
+		if err != nil || n < 0 {
+			return -1, &badStringError{"bad Content-Length", cl}
 		}
+		return n, nil
+	} else {
+		header.Del("Content-Length")
 	}
 
 	// Logic based on media type. The purpose of the following code is just
 	// to detect whether the unsupported "multipart/byteranges" is being
 	// used. A proper Content-Type parser is needed in the future.
-	if strings.Contains(strings.ToLower(header["Content-Type"]), "multipart/byteranges") {
+	if strings.Contains(strings.ToLower(header.Get("Content-Type")), "multipart/byteranges") {
 		return -1, ErrNotSupported
 	}
 
@@ -378,24 +376,19 @@ func fixLength(status int, requestMethod string, header map[string]string, te []
 // Determine whether to hang up after sending a request and body, or
 // receiving a response and body
 // 'header' is the request headers
-func shouldClose(major, minor int, header map[string]string) bool {
+func shouldClose(major, minor int, header Header) bool {
 	if major < 1 {
 		return true
 	} else if major == 1 && minor == 0 {
-		v, present := header["Connection"]
-		if !present {
-			return true
-		}
-		v = strings.ToLower(v)
-		if !strings.Contains(v, "keep-alive") {
+		if !strings.Contains(strings.ToLower(header.Get("Connection")), "keep-alive") {
 			return true
 		}
 		return false
-	} else if v, present := header["Connection"]; present {
+	} else {
 		// TODO: Should split on commas, toss surrounding white space,
 		// and check each field.
-		if v == "close" {
-			header["Connection"] = "", false
+		if strings.ToLower(header.Get("Connection")) == "close" {
+			header.Del("Connection")
 			return true
 		}
 	}
@@ -403,14 +396,14 @@ func shouldClose(major, minor int, header map[string]string) bool {
 }
 
 // Parse the trailer header
-func fixTrailer(header map[string]string, te []string) (map[string]string, os.Error) {
-	raw, present := header["Trailer"]
-	if !present {
+func fixTrailer(header Header, te []string) (Header, os.Error) {
+	raw := header.Get("Trailer")
+	if raw == "" {
 		return nil, nil
 	}
 
-	header["Trailer"] = "", false
-	trailer := make(map[string]string)
+	header.Del("Trailer")
+	trailer := make(Header)
 	keys := strings.Split(raw, ",", -1)
 	for _, key := range keys {
 		key = CanonicalHeaderKey(strings.TrimSpace(key))
@@ -418,7 +411,7 @@ func fixTrailer(header map[string]string, te []string) (map[string]string, os.Er
 		case "Transfer-Encoding", "Trailer", "Content-Length":
 			return nil, &badStringError{"bad trailer key", key}
 		}
-		trailer[key] = ""
+		trailer.Del(key)
 	}
 	if len(trailer) == 0 {
 		return nil, nil

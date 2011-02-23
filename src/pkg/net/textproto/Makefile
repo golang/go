@@ -6,6 +6,7 @@ include ../../../Make.inc
 
 TARG=net/textproto
 GOFILES=\
+	header.go\
 	pipeline.go\
 	reader.go\
 	textproto.go\

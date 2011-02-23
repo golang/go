@@ -85,9 +85,9 @@ func send(req *Request) (resp *Response, err os.Error) {
 		encoded := make([]byte, enc.EncodedLen(len(info)))
 		enc.Encode(encoded, []byte(info))
 		if req.Header == nil {
-			req.Header = make(map[string]string)
+			req.Header = make(Header)
 		}
-		req.Header["Authorization"] = "Basic " + string(encoded)
+		req.Header.Set("Authorization", "Basic "+string(encoded))
 	}
 
 	var proxyURL *URL
@@ -130,7 +130,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 	if req.URL.Scheme == "http" {
 		// Include proxy http header if needed.
 		if proxyAuth != "" {
-			req.Header["Proxy-Authorization"] = proxyAuth
+			req.Header.Set("Proxy-Authorization", proxyAuth)
 		}
 	} else { // https
 		if proxyURL != nil {
@@ -241,7 +241,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 		}
 		if shouldRedirect(r.StatusCode) {
 			r.Body.Close()
-			if url = r.GetHeader("Location"); url == "" {
+			if url = r.Header.Get("Location"); url == "" {
 				err = os.ErrorString(fmt.Sprintf("%d response missing Location header", r.StatusCode))
 				break
 			}
@@ -266,8 +266,8 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 	req.ProtoMinor = 1
 	req.Close = true
 	req.Body = nopCloser{body}
-	req.Header = map[string]string{
-		"Content-Type": bodyType,
+	req.Header = Header{
+		"Content-Type": {bodyType},
 	}
 	req.TransferEncoding = []string{"chunked"}
 
@@ -291,9 +291,9 @@ func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
 	req.Close = true
 	body := urlencode(data)
 	req.Body = nopCloser{body}
-	req.Header = map[string]string{
-		"Content-Type":   "application/x-www-form-urlencoded",
-		"Content-Length": strconv.Itoa(body.Len()),
+	req.Header = Header{
+		"Content-Type":   {"application/x-www-form-urlencoded"},
+		"Content-Length": {strconv.Itoa(body.Len())},
 	}
 	req.ContentLength = int64(body.Len())
 

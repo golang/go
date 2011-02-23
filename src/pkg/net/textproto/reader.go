@@ -402,7 +402,7 @@ func (r *Reader) ReadDotLines() ([]string, os.Error) {
 // ReadMIMEHeader reads a MIME-style header from r.
 // The header is a sequence of possibly continued Key: Value lines
 // ending in a blank line.
-// The returned map m maps CanonicalHeaderKey(key) to a
+// The returned map m maps CanonicalMIMEHeaderKey(key) to a
 // sequence of values in the same order encountered in the input.
 //
 // For example, consider this input:
@@ -415,12 +415,12 @@ func (r *Reader) ReadDotLines() ([]string, os.Error) {
 // Given that input, ReadMIMEHeader returns the map:
 //
 //	map[string][]string{
-//		"My-Key": []string{"Value 1", "Value 2"},
-//		"Long-Key": []string{"Even Longer Value"},
+//		"My-Key": {"Value 1", "Value 2"},
+//		"Long-Key": {"Even Longer Value"},
 //	}
 //
-func (r *Reader) ReadMIMEHeader() (map[string][]string, os.Error) {
-	m := make(map[string][]string)
+func (r *Reader) ReadMIMEHeader() (MIMEHeader, os.Error) {
+	m := make(MIMEHeader)
 	for {
 		kv, err := r.ReadContinuedLineBytes()
 		if len(kv) == 0 {
@@ -432,7 +432,7 @@ func (r *Reader) ReadMIMEHeader() (map[string][]string, os.Error) {
 		if i < 0 || bytes.IndexByte(kv[0:i], ' ') >= 0 {
 			return m, ProtocolError("malformed MIME header line: " + string(kv))
 		}
-		key := CanonicalHeaderKey(string(kv[0:i]))
+		key := CanonicalMIMEHeaderKey(string(kv[0:i]))
 
 		// Skip initial spaces in value.
 		i++ // skip colon
@@ -452,12 +452,12 @@ func (r *Reader) ReadMIMEHeader() (map[string][]string, os.Error) {
 	panic("unreachable")
 }
 
-// CanonicalHeaderKey returns the canonical format of the
+// CanonicalMIMEHeaderKey returns the canonical format of the
 // MIME header key s.  The canonicalization converts the first
 // letter and any letter following a hyphen to upper case;
 // the rest are converted to lowercase.  For example, the
 // canonical key for "accept-encoding" is "Accept-Encoding".
-func CanonicalHeaderKey(s string) string {
+func CanonicalMIMEHeaderKey(s string) string {
 	// Quick check for canonical encoding.
 	needUpper := true
 	for i := 0; i < len(s); i++ {

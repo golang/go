@@ -74,7 +74,9 @@ func TestQuery(t *testing.T) {
 func TestPostQuery(t *testing.T) {
 	req := &Request{Method: "POST"}
 	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar&both=x")
-	req.Header = map[string]string{"Content-Type": "application/x-www-form-urlencoded; boo!"}
+	req.Header = Header{
+		"Content-Type": {"application/x-www-form-urlencoded; boo!"},
+	}
 	req.Body = nopCloser{strings.NewReader("z=post&both=y")}
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
@@ -87,18 +89,18 @@ func TestPostQuery(t *testing.T) {
 	}
 }
 
-type stringMap map[string]string
+type stringMap map[string][]string
 type parseContentTypeTest struct {
 	contentType stringMap
 	error       bool
 }
 
 var parseContentTypeTests = []parseContentTypeTest{
-	{contentType: stringMap{"Content-Type": "text/plain"}},
-	{contentType: stringMap{"Content-Type": ""}},
-	{contentType: stringMap{"Content-Type": "text/plain; boundary="}},
+	{contentType: stringMap{"Content-Type": {"text/plain"}}},
+	{contentType: stringMap{}}, // Non-existent keys are not placed. The value nil is illegal.
+	{contentType: stringMap{"Content-Type": {"text/plain; boundary="}}},
 	{
-		contentType: stringMap{"Content-Type": "application/unknown"},
+		contentType: stringMap{"Content-Type": {"application/unknown"}},
 		error:       true,
 	},
 }
@@ -107,7 +109,7 @@ func TestPostContentTypeParsing(t *testing.T) {
 	for i, test := range parseContentTypeTests {
 		req := &Request{
 			Method: "POST",
-			Header: test.contentType,
+			Header: Header(test.contentType),
 			Body:   nopCloser{bytes.NewBufferString("body")},
 		}
 		err := req.ParseForm()
@@ -123,7 +125,7 @@ func TestPostContentTypeParsing(t *testing.T) {
 func TestMultipartReader(t *testing.T) {
 	req := &Request{
 		Method: "POST",
-		Header: stringMap{"Content-Type": `multipart/form-data; boundary="foo123"`},
+		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
 		Body:   nopCloser{new(bytes.Buffer)},
 	}
 	multipart, err := req.MultipartReader()
@@ -131,7 +133,7 @@ func TestMultipartReader(t *testing.T) {
 		t.Errorf("expected multipart; error: %v", err)
 	}
 
-	req.Header = stringMap{"Content-Type": "text/plain"}
+	req.Header = Header{"Content-Type": {"text/plain"}}
 	multipart, err = req.MultipartReader()
 	if multipart != nil {
 		t.Errorf("unexpected multipart for text/plain")
