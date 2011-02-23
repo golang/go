@@ -172,6 +172,25 @@ func TestUnmarshalMarshal(t *testing.T) {
 	}
 }
 
+func TestLargeByteSlice(t *testing.T) {
+	s0 := make([]byte, 2000)
+	for i := range s0 {
+		s0[i] = byte(i)
+	}
+	b, err := Marshal(s0)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	var s1 []byte
+	if err := Unmarshal(b, &s1); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if bytes.Compare(s0, s1) != 0 {
+		t.Errorf("Marshal large byte slice")
+		diff(t, s0, s1)
+	}
+}
+
 type Xint struct {
 	X int
 }
@@ -420,11 +439,7 @@ var allValueIndent = `{
 		"str25",
 		"str26"
 	],
-	"ByteSlice": [
-		27,
-		28,
-		29
-	],
+	"ByteSlice": "Gxwd",
 	"Small": {
 		"Tag": "tag30"
 	},
@@ -510,7 +525,7 @@ var pallValueIndent = `{
 	"EmptySlice": [],
 	"NilSlice": [],
 	"StringSlice": [],
-	"ByteSlice": [],
+	"ByteSlice": "",
 	"Small": {
 		"Tag": ""
 	},
