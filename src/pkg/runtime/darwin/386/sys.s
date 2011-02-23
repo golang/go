@@ -80,33 +80,34 @@ TEXT runtime·sigtramp(SB),7,$40
 	get_tls(CX)
 
 	// save g
-	MOVL	g(CX), BP
-	MOVL	BP, 20(SP)
+	MOVL	g(CX), DI
+	MOVL	DI, 20(SP)
 	
 	// g = m->gsignal
 	MOVL	m(CX), BP
 	MOVL	m_gsignal(BP), BP
 	MOVL	BP, g(CX)
 
-	MOVL	handler+0(FP), DI
-	// 4(FP) is sigstyle
-	MOVL	signo+8(FP), AX
-	MOVL	siginfo+12(FP), BX
-	MOVL	context+16(FP), CX
-
-	MOVL	AX, 0(SP)
+	// copy arguments to sighandler
+	MOVL	sig+8(FP), BX
+	MOVL	BX, 0(SP)
+	MOVL	info+12(FP), BX
 	MOVL	BX, 4(SP)
-	MOVL	CX, 8(SP)
-	CALL	DI
+	MOVL	context+16(FP), BX
+	MOVL	BX, 8(SP)
+	MOVL	DI, 12(SP)
+	
+	MOVL	handler+0(FP), BX
+	CALL	BX
 
 	// restore g
 	get_tls(CX)
-	MOVL	20(SP), BP
-	MOVL	BP, g(CX)
+	MOVL	20(SP), DI
+	MOVL	DI, g(CX)
 
+	// call sigreturn
 	MOVL	context+16(FP), CX
 	MOVL	style+4(FP), BX
-
 	MOVL	$0, 0(SP)	// "caller PC" - ignored
 	MOVL	CX, 4(SP)
 	MOVL	BX, 8(SP)

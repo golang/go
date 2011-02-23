@@ -64,8 +64,8 @@ TEXT runtime·sigtramp(SB),7,$64
 	get_tls(BX)
 
 	// save g
-	MOVQ	g(BX), BP
-	MOVQ	BP, 40(SP)
+	MOVQ	g(BX), R10
+	MOVQ	R10, 40(SP)
 
 	// g = m->gsignal
 	MOVQ	m(BX), BP
@@ -75,12 +75,14 @@ TEXT runtime·sigtramp(SB),7,$64
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
 	MOVQ	DX, 16(SP)
+	MOVQ	R10, 24(SP)
+
 	CALL	runtime·sighandler(SB)
 
 	// restore g
 	get_tls(BX)
-	MOVQ	40(SP), BP
-	MOVQ	BP, g(BX)
+	MOVQ	40(SP), R10
+	MOVQ	R10, g(BX)
 	RET
 
 TEXT runtime·sigignore(SB),7,$0

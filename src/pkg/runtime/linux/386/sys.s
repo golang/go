@@ -56,12 +56,12 @@ TEXT runtime·rt_sigaction(SB),7,$0
 	INT	$0x80
 	RET
 
-TEXT runtime·sigtramp(SB),7,$40
+TEXT runtime·sigtramp(SB),7,$44
 	get_tls(CX)
 	
 	// save g
-	MOVL	g(CX), BX
-	MOVL	BX, 20(SP)
+	MOVL	g(CX), DI
+	MOVL	DI, 20(SP)
 	
 	// g = m->gsignal
 	MOVL	m(CX), BX
@@ -75,6 +75,7 @@ TEXT runtime·sigtramp(SB),7,$40
 	MOVL	BX, 4(SP)
 	MOVL	context+8(FP), BX
 	MOVL	BX, 8(SP)
+	MOVL	DI, 12(SP)
 
 	CALL	runtime·sighandler(SB)
 	

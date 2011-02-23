@@ -45,17 +45,16 @@ runtime·signame(int32 sig)
 }
 
 void
-runtime·sighandler(int32 sig, Siginfo* info, void* context)
+runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 {
 	Ucontext *uc;
 	Mcontext *r;
-	G *gp;
 	uintptr *sp;
 
 	uc = context;
 	r = &uc->uc_mcontext;
 
-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
 		// augmenting the stack frame would break
@@ -99,8 +98,8 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
 	runtime·printf("\n");
 
 	if(runtime·gotraceback()){
-		runtime·traceback((void*)r->mc_eip, (void*)r->mc_esp, 0, m->curg);
-		runtime·tracebackothers(m->curg);
+		runtime·traceback((void*)r->mc_eip, (void*)r->mc_esp, 0, gp);
+		runtime·tracebackothers(gp);
 		runtime·dumpregs(r);
 	}
 
