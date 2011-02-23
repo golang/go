@@ -23,6 +23,7 @@ DIRS=\
 	cmath\
 	compress/flate\
 	compress/gzip\
+	compress/lzw \
 	compress/zlib\
 	container/heap\
 	container/list\
