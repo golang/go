@@ -271,7 +271,7 @@ patch(void)
 	vexit = s->value;
 	for(cursym = textp; cursym != nil; cursym = cursym->next)
 	for(p = cursym->text; p != P; p = p->link) {
-		if(HEADTYPE == 10) { 
+		if(HEADTYPE == Hwindows) { 
 			// Windows
 			// Convert
 			//   op   n(GS), reg
@@ -294,7 +294,7 @@ patch(void)
 				p->from.offset = 0x58;
 			}
 		}
-		if(HEADTYPE == 7 || HEADTYPE == 9) {
+		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd) {
 			// ELF uses FS instead of GS.
 			if(p->from.type == D_INDIR+D_GS)
 				p->from.type = D_INDIR+D_FS;
@@ -422,13 +422,13 @@ dostkoff(void)
 		if(!(p->from.scale & NOSPLIT)) {
 			p = appendp(p);	// load g into CX
 			p->as = AMOVQ;
-			if(HEADTYPE == 7 || HEADTYPE == 9)	// ELF uses FS
+			if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd)	// ELF uses FS
 				p->from.type = D_INDIR+D_FS;
 			else
 				p->from.type = D_INDIR+D_GS;
 			p->from.offset = tlsoffset+0;
 			p->to.type = D_CX;
-			if(HEADTYPE == 10) { // Windows
+			if(HEADTYPE == Hwindows) {
 				// movq %gs:0x58, %rcx
 				// movq (%rcx), %rcx
 				p->as = AMOVQ;

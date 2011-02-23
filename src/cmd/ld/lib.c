@@ -1264,3 +1264,16 @@ stkprint(Chain *ch, int limit)
 	if(ch->limit != limit)
 		print("\t%d\tafter %s uses %d\n", limit, name, ch->limit - limit);
 }
+
+int
+headtype(char *name)
+{
+	int i;
+
+	for(i=0; headers[i].name; i++)
+		if(strcmp(name, headers[i].name) == 0)
+			return headers[i].val;
+	fprint(2, "unknown header type -H %s\n", name);
+	errorexit();
+	return -1;  // not reached
+}

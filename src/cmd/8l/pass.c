@@ -263,12 +263,12 @@ patch(void)
 	vexit = s->value;
 	
 	plan9_tos = S;
-	if(HEADTYPE == 2)
+	if(HEADTYPE == Hplan9x32)
 		plan9_tos = lookup("_tos", 0);
 	
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
-			if(HEADTYPE == 10) {	// Windows
+			if(HEADTYPE == Hwindows) {
 				// Convert
 				//   op	  n(GS), reg
 				// to
@@ -289,7 +289,7 @@ patch(void)
 					p->from.offset = 0x2C;
 				}
 			}
-			if(HEADTYPE == 7) {	// Linux
+			if(HEADTYPE == Hlinux) {
 				// Running binaries under Xen requires using
 				//	MOVL 0(GS), reg
 				// and then off(reg) instead of saying off(GS) directly
@@ -306,7 +306,7 @@ patch(void)
 					p->from.offset = 0;
 				}
 			}
-			if(HEADTYPE == 2) {	// Plan 9
+			if(HEADTYPE == Hplan9x32) {
 				if(p->from.type == D_INDIR+D_GS
 				&& p->to.type >= D_AX && p->to.type <= D_DI) {
 					q = appendp(p);
@@ -414,7 +414,7 @@ dostkoff(void)
 	}
 	
 	plan9_tos = S;
-	if(HEADTYPE == 2)	
+	if(HEADTYPE == Hplan9x32)
 		plan9_tos = lookup("_tos", 0);
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
@@ -432,7 +432,7 @@ dostkoff(void)
 		if(!(p->from.scale & NOSPLIT)) {
 			p = appendp(p);	// load g into CX
 			switch(HEADTYPE) {
-			case 10:	// Windows
+			case Hwindows:
 				p->as = AMOVL;
 				p->from.type = D_INDIR+D_FS;
 				p->from.offset = 0x2c;
@@ -445,7 +445,7 @@ dostkoff(void)
 				p->to.type = D_CX;
 				break;
 			
-			case 7:	// Linux
+			case Hlinux:
 				p->as = AMOVL;
 				p->from.type = D_INDIR+D_GS;
 				p->from.offset = 0;
@@ -458,7 +458,7 @@ dostkoff(void)
 				p->to.type = D_CX;
 				break;
 			
-			case 2:	// Plan 9
+			case Hplan9x32:
 				p->as = AMOVL;
 				p->from.type = D_EXTERN;
 				p->from.sym = plan9_tos;

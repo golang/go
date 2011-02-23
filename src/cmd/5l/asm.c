@@ -331,21 +331,21 @@ asmb(void)
 			Bprint(&bso, "%5.2f sym\n", cputime());
 		Bflush(&bso);
 		switch(HEADTYPE) {
-		case 0:
-		case 1:
-		case 4:
-		case 5:
+		case Hnoheader:
+		case Hrisc:
+		case Hixp1200:
+		case Hipaq:
 			debug['s'] = 1;
 			break;
-		case 2:
+		case Hplan9x32:
 			OFFSET = HEADR+textsize+segdata.filelen;
 			seek(cout, OFFSET, 0);
 			break;
-		case 3:
+		case Hnetbsd:
 			OFFSET += rnd(segdata.filelen, 4096);
 			seek(cout, OFFSET, 0);
 			break;
-		case 6:
+		case Hlinux:
 			OFFSET += segdata.filelen;
 			seek(cout, rnd(OFFSET, INITRND), 0);
 			break;
@@ -362,9 +362,9 @@ asmb(void)
 	OFFSET = 0;
 	seek(cout, OFFSET, 0);
 	switch(HEADTYPE) {
-	case 0:	/* no header */
+	case Hnoheader:	/* no header */
 		break;
-	case 1:	/* aif for risc os */
+	case Hrisc:	/* aif for risc os */
 		lputl(0xe1a00000);		/* NOP - decompress code */
 		lputl(0xe1a00000);		/* NOP - relocation code */
 		lputl(0xeb000000 + 12);		/* BL - zero init code */
@@ -394,7 +394,7 @@ asmb(void)
 			lputl(0xe1a00000);	/* NOP - zero init code */
 		lputl(0xe1a0f00e);		/* B (R14) - zero init return */
 		break;
-	case 2:	/* plan 9 */
+	case Hplan9x32:	/* plan 9 */
 		lput(0x647);			/* magic */
 		lput(textsize);			/* sizes */
 		lput(segdata.filelen);
@@ -404,7 +404,7 @@ asmb(void)
 		lput(0L);
 		lput(lcsize);
 		break;
-	case 3:	/* boot for NetBSD */
+	case Hnetbsd:	/* boot for NetBSD */
 		lput((143<<16)|0413);		/* magic */
 		lputl(rnd(HEADR+textsize, 4096));
 		lputl(rnd(segdata.filelen, 4096));
@@ -414,15 +414,15 @@ asmb(void)
 		lputl(0L);
 		lputl(0L);
 		break;
-	case 4: /* boot for IXP1200 */
+	case Hixp1200: /* boot for IXP1200 */
 		break;
-	case 5: /* boot for ipaq */
+	case Hipaq: /* boot for ipaq */
 		lputl(0xe3300000);		/* nop */
 		lputl(0xe3300000);		/* nop */
 		lputl(0xe3300000);		/* nop */
 		lputl(0xe3300000);		/* nop */
 		break;
-	case 6:
+	case Hlinux:
 		/* elf arm */
 		eh = getElfEhdr();
 		fo = HEADR;

@@ -246,7 +246,7 @@ adddynrel(Sym *s, Reloc *r)
 			r->sym = S;
 			return;
 		}
-		if(HEADTYPE == 6 && s->size == PtrSize && r->off == 0) {
+		if(HEADTYPE == Hdarwin && s->size == PtrSize && r->off == 0) {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -356,7 +356,7 @@ addpltsym(Sym *s)
 		adduint32(rel, ELF32_R_INFO(s->dynid, R_386_JMP_SLOT));
 		
 		s->plt = plt->size - 16;
-	} else if(HEADTYPE == 6) {	// Mach-O
+	} else if(HEADTYPE == Hdarwin) {
 		// Same laziness as in 6l.
 		
 		Sym *plt;
@@ -395,7 +395,7 @@ addgotsym(Sym *s)
 		rel = lookup(".rel", 0);
 		addaddrplus(rel, got, s->got);
 		adduint32(rel, ELF32_R_INFO(s->dynid, R_386_GLOB_DAT));
-	} else if(HEADTYPE == 6) {	// Mach-O
+	} else if(HEADTYPE == Hdarwin) {
 		adduint32(lookup(".linkedit.got", 0), s->dynid);
 	} else {
 		diag("addgotsym: unsupported binary format");
@@ -465,7 +465,7 @@ adddynsym(Sym *s)
 			}
 			adduint16(d, t);
 		}
-	} else if(HEADTYPE == 6) {
+	} else if(HEADTYPE == Hdarwin) {
 		// Mach-O symbol nlist32
 		d = lookup(".dynsym", 0);
 		name = s->dynimpname;
@@ -481,7 +481,7 @@ adddynsym(Sym *s)
 		adduint8(d, 0);	// section
 		adduint16(d, 0);	// desc
 		adduint32(d, 0);	// value
-	} else if(HEADTYPE != 10) {
+	} else if(HEADTYPE != Hwindows) {
 		diag("adddynsym: unsupported binary format");
 	}
 }
@@ -499,9 +499,9 @@ adddynlib(char *lib)
 		if(s->size == 0)
 			addstring(s, "");
 		elfwritedynent(lookup(".dynamic", 0), DT_NEEDED, addstring(s, lib));
-	} else if(HEADTYPE == 6) {	// Mach-O
+	} else if(HEADTYPE == Hdarwin) {
 		machoadddynlib(lib);
-	} else if(HEADTYPE != 10) {
+	} else if(HEADTYPE != Hwindows) {
 		diag("adddynlib: unsupported binary format");
 	}
 }
@@ -673,7 +673,7 @@ asmb(void)
 	datblk(segdata.vaddr, segdata.filelen);
 
 	machlink = 0;
-	if(HEADTYPE == 6)
+	if(HEADTYPE == Hdarwin)
 		machlink = domacholink();
 
 	if(iself) {
@@ -697,28 +697,28 @@ asmb(void)
 		default:
 			if(iself)
 				goto Elfsym;
-		case 0:
+		case Hgarbunix:
 			seek(cout, rnd(HEADR+segtext.filelen, 8192)+segdata.filelen, 0);
 			break;
-		case 1:
+		case Hunixcoff:
 			seek(cout, rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen, 0);
 			break;
-		case 2:
+		case Hplan9x32:
 			symo = HEADR+segtext.filelen+segdata.filelen;
 			break;
-		case 3:
-		case 4:
+		case Hmsdoscom:
+		case Hmsdosexe:
 			debug['s'] = 1;
 			symo = HEADR+segtext.filelen+segdata.filelen;
 			break;
-		case 6:
+		case Hdarwin:
 			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		Elfsym:
 			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
-		case 10:
+		case Hwindows:
 			// TODO(brainman): not sure what symo meant to be, but it is not used for Windows PE for now anyway
 			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
 			symo = rnd(symo, PEFILEALIGN);
@@ -727,7 +727,7 @@ asmb(void)
 		if(!debug['s']) {
 			seek(cout, symo, 0);
 			
-			if(HEADTYPE == 2) {
+			if(HEADTYPE == Hplan9x32) {
 				asmplan9sym();
 				cflush();
 				
@@ -740,7 +740,7 @@ asmb(void)
 					cflush();
 				}
 				
-			} else if(HEADTYPE != 10) {
+			} else if(HEADTYPE != Hwindows) {
 				if(debug['v'])
 					Bprint(&bso, "%5.2f dwarf\n", cputime());
 				dwarfemitdebugsections();
@@ -755,7 +755,7 @@ asmb(void)
 	default:
 		if(iself)
 			goto Elfput;
-	case 0:	/* garbage */
+	case Hgarbunix:	/* garbage */
 		lputb(0x160L<<16);		/* magic and sections */
 		lputb(0L);			/* time and date */
 		lputb(rnd(HEADR+segtext.filelen, 4096)+segdata.filelen);
@@ -777,7 +777,7 @@ asmb(void)
 		lputb(~0L);			/* gp value ?? */
 		break;
 		lputl(0);			/* x */
-	case 1:	/* unix coff */
+	case Hunixcoff:	/* unix coff */
 		/*
 		 * file header
 		 */
@@ -845,7 +845,7 @@ asmb(void)
 		lputl(0);			/* relocation, line numbers */
 		lputl(0x200);			/* flags comment only */
 		break;
-	case 2:	/* plan9 */
+	case Hplan9x32:	/* plan9 */
 		magic = 4*11*11+7;
 		lputb(magic);		/* magic */
 		lputb(segtext.filelen);			/* sizes */
@@ -856,10 +856,10 @@ asmb(void)
 		lputb(spsize);			/* sp offsets */
 		lputb(lcsize);			/* line offsets */
 		break;
-	case 3:
+	case Hmsdoscom:
 		/* MS-DOS .COM */
 		break;
-	case 4:
+	case Hmsdosexe:
 		/* fake MS-DOS .EXE */
 		v = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
 		wputl(0x5A4D);			/* 'MZ' */
@@ -882,13 +882,13 @@ asmb(void)
 		wputl(0x0000);			/* overlay number */
 		break;
 
-	case 6:
+	case Hdarwin:
 		asmbmacho();
 		break;
 
 	Elfput:
 		/* elf 386 */
-		if(HEADTYPE == 11)
+		if(HEADTYPE == Htiny)
 			debug['d'] = 1;
 
 		eh = getElfEhdr();
@@ -917,10 +917,10 @@ asmb(void)
 			sh->addralign = 1;
 			if(interpreter == nil) {
 				switch(HEADTYPE) {
-				case 7:
+				case Hlinux:
 					interpreter = linuxdynld;
 					break;
-				case 9:
+				case Hfreebsd:
 					interpreter = freebsddynld;
 					break;
 				}
@@ -1068,7 +1068,7 @@ asmb(void)
 		eh->ident[EI_DATA] = ELFDATA2LSB;
 		eh->ident[EI_VERSION] = EV_CURRENT;
 		switch(HEADTYPE) {
-		case 9:
+		case Hfreebsd:
 			eh->ident[EI_OSABI] = 9;
 			break;
 		}
@@ -1093,7 +1093,7 @@ asmb(void)
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		break;
 
-	case 10:
+	case Hwindows:
 		asmbpe();
 		break;
 	}

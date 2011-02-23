@@ -262,7 +262,7 @@ adddynrel(Sym *s, Reloc *r)
 			r->type = 256;	// ignore during relocsym
 			return;
 		}
-		if(HEADTYPE == 6 && s->size == PtrSize && r->off == 0) {
+		if(HEADTYPE == Hdarwin && s->size == PtrSize && r->off == 0) {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -365,7 +365,7 @@ addpltsym(Sym *s)
 		adduint64(rela, 0);
 		
 		s->plt = plt->size - 16;
-	} else if(HEADTYPE == 6) {	// Mach-O
+	} else if(HEADTYPE == Hdarwin) {
 		// To do lazy symbol lookup right, we're supposed
 		// to tell the dynamic loader which library each 
 		// symbol comes from and format the link info
@@ -412,7 +412,7 @@ addgotsym(Sym *s)
 		addaddrplus(rela, got, s->got);
 		adduint64(rela, ELF64_R_INFO(s->dynid, R_X86_64_GLOB_DAT));
 		adduint64(rela, 0);
-	} else if(HEADTYPE == 6) {	// Mach-O
+	} else if(HEADTYPE == Hdarwin) {
 		adduint32(lookup(".linkedit.got", 0), s->dynid);
 	} else {
 		diag("addgotsym: unsupported binary format");
@@ -486,7 +486,7 @@ adddynsym(Sym *s)
 			elfwritedynent(lookup(".dynamic", 0), DT_NEEDED,
 				addstring(lookup(".dynstr", 0), s->dynimplib));
 		}
-	} else if(HEADTYPE == 6) {
+	} else if(HEADTYPE == Hdarwin) {
 		// Mach-o symbol nlist64
 		d = lookup(".dynsym", 0);
 		name = s->dynimpname;
@@ -539,7 +539,7 @@ adddynlib(char *lib)
 		if(s->size == 0)
 			addstring(s, "");
 		elfwritedynent(lookup(".dynamic", 0), DT_NEEDED, addstring(s, lib));
-	} else if(HEADTYPE == 6) {	// Mach-O
+	} else if(HEADTYPE == Hdarwin) {
 		machoadddynlib(lib);
 	} else {
 		diag("adddynlib: unsupported binary format");
@@ -551,7 +551,7 @@ doelf(void)
 {
 	Sym *s, *shstrtab, *dynstr;
 
-	if(HEADTYPE != 7 && HEADTYPE != 9)
+	if(HEADTYPE != Hlinux && HEADTYPE != Hfreebsd)
 		return;
 
 	/* predefine strings we need for section headers */
@@ -717,20 +717,20 @@ asmb(void)
 	datblk(segdata.vaddr, segdata.filelen);
 
 	machlink = 0;
-	if(HEADTYPE == 6)
+	if(HEADTYPE == Hdarwin)
 		machlink = domacholink();
 
 	switch(HEADTYPE) {
 	default:
 		diag("unknown header type %d", HEADTYPE);
-	case 2:
-	case 5:
+	case Hplan9x32:
+	case Helf:
 		break;
-	case 6:
+	case Hdarwin:
 		debug['8'] = 1;	/* 64-bit addresses */
 		break;
-	case 7:
-	case 9:
+	case Hlinux:
+	case Hfreebsd:
 		debug['8'] = 1;	/* 64-bit addresses */
 		/* index of elf text section; needed by asmelfsym, double-checked below */
 		/* !debug['d'] causes extra sections before the .text section */
@@ -738,7 +738,7 @@ asmb(void)
 		if(!debug['d'])
 			elftextsh += 10;
 		break;
-	case 10:
+	case Hwindows:
 		break;
 	}
 
@@ -752,20 +752,20 @@ asmb(void)
 		Bflush(&bso);
 		switch(HEADTYPE) {
 		default:
-		case 2:
-		case 5:
+		case Hplan9x32:
+		case Helf:
 			debug['s'] = 1;
 			symo = HEADR+segtext.len+segdata.filelen;
 			break;
-		case 6:
+		case Hdarwin:
 			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
 			break;
-		case 7:
-		case 9:
+		case Hlinux:
+		case Hfreebsd:
 			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
-		case 10:
+		case Hwindows:
 			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
 			symo = rnd(symo, PEFILEALIGN);
 			break;
@@ -791,7 +791,7 @@ asmb(void)
 		lputl(symsize);
 		lputl(lcsize);
 		cflush();
-		if(HEADTYPE != 10 && !debug['s']) {
+		if(HEADTYPE != Hwindows && !debug['s']) {
 			elfsymo = symo+8+symsize+lcsize;
 			seek(cout, elfsymo, 0);
 			asmelfsym64();
@@ -813,7 +813,7 @@ asmb(void)
 	seek(cout, 0L, 0);
 	switch(HEADTYPE) {
 	default:
-	case 2:	/* plan9 */
+	case Hplan9x32:	/* plan9 */
 		magic = 4*26*26+7;
 		magic |= 0x00008000;		/* fat header */
 		lputb(magic);			/* magic */
@@ -827,7 +827,7 @@ asmb(void)
 		lputb(lcsize);			/* line offsets */
 		vputb(vl);			/* va of entry */
 		break;
-	case 3:	/* plan9 */
+	case Hplan9x64:	/* plan9 */
 		magic = 4*26*26+7;
 		lputb(magic);			/* magic */
 		lputb(segtext.filelen);		/* sizes */
@@ -838,11 +838,11 @@ asmb(void)
 		lputb(spsize);			/* sp offsets */
 		lputb(lcsize);			/* line offsets */
 		break;
-	case 6:
+	case Hdarwin:
 		asmbmacho();
 		break;
-	case 7:
-	case 9:
+	case Hlinux:
+	case Hfreebsd:
 		/* elf amd-64 */
 
 		eh = getElfEhdr();
@@ -871,10 +871,10 @@ asmb(void)
 			sh->addralign = 1;
 			if(interpreter == nil) {
 				switch(HEADTYPE) {
-				case 7:
+				case Hlinux:
 					interpreter = linuxdynld;
 					break;
-				case 9:
+				case Hfreebsd:
 					interpreter = freebsddynld;
 					break;
 				}
@@ -1032,7 +1032,7 @@ asmb(void)
 		eh->ident[EI_MAG1] = 'E';
 		eh->ident[EI_MAG2] = 'L';
 		eh->ident[EI_MAG3] = 'F';
-		if(HEADTYPE == 9)
+		if(HEADTYPE == Hfreebsd)
 			eh->ident[EI_OSABI] = 9;
 		eh->ident[EI_CLASS] = ELFCLASS64;
 		eh->ident[EI_DATA] = ELFDATA2LSB;
@@ -1055,7 +1055,7 @@ asmb(void)
 		if(a+elfwriteinterp() > ELFRESERVE)
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		break;
-	case 10:
+	case Hwindows:
 		asmbpe();
 		break;
 	}

@@ -46,18 +46,33 @@
 char	*noname		= "<none>";
 char	*thestring 	= "386";
 
+Header headers[] = {
+   "garbunix", Hgarbunix,
+   "unixcoff", Hunixcoff,
+   "plan9", Hplan9x32,
+   "msdoscom", Hmsdoscom,
+   "msdosexe", Hmsdosexe,
+   "darwin", Hdarwin,
+   "linux", Hlinux,
+   "nacl", Hnacl,
+   "freebsd", Hfreebsd,
+   "windows", Hwindows,
+   "tiny", Htiny,
+   0, 0
+};
+
 /*
- *	-H0 -T0x40004C -D0x10000000	is garbage unix
- *	-H1 -T0xd0 -R4			is unix coff
- *	-H2 -T4128 -R4096		is plan9 format
- *	-H3 -Tx -Rx			is MS-DOS .COM
- *	-H4 -Tx -Rx			is fake MS-DOS .EXE
- *	-H6 -Tx -Rx			is Apple Mach-O
- *	-H7 -Tx -Rx			is Linux ELF32
- *	-H8 -Tx -Rx			was Google Native Client
- *	-H9 -Tx -Rx			is FreeBSD ELF32
- *	-H10 -Tx -Rx			is MS Windows PE
- *	-H11 -Tx -Rx			is tiny (os image)
+ *	-Hgarbunix -T0x40004C -D0x10000000	is garbage unix
+ *	-Hunixcoff -T0xd0 -R4			is unix coff
+ *	-Hplan9 -T4128 -R4096			is plan9 format
+ *	-Hmsdoscom -Tx -Rx			is MS-DOS .COM
+ *	-Hmsdosexe -Tx -Rx			is fake MS-DOS .EXE
+ *	-Hdarwin -Tx -Rx			is Apple Mach-O
+ *	-Hlinux -Tx -Rx				is Linux ELF32
+ *	-Hnacl -Tx -Rx				was Google Native Client
+ *	-Hfreebsd -Tx -Rx			is FreeBSD ELF32
+ *	-Hwindows -Tx -Rx			is MS Windows PE32
+ *	-Htiny -Tx -Rx				is tiny (os image)
  */
 
 void
@@ -99,7 +114,7 @@ main(int argc, char *argv[])
 		INITENTRY = EARGF(usage());
 		break;
 	case 'H':
-		HEADTYPE = atolwhex(EARGF(usage()));
+		HEADTYPE = headtype(EARGF(usage()));
 		break;
 	case 'I':
 		interpreter = EARGF(usage());
@@ -129,31 +144,11 @@ main(int argc, char *argv[])
 
 	mywhatsys();	// get goos
 
-	if(HEADTYPE == -1) {
-		HEADTYPE = 2;
-		if(strcmp(goos, "linux") == 0)
-			HEADTYPE = 7;
-		else
-		if(strcmp(goos, "darwin") == 0)
-			HEADTYPE = 6;
-		else
-		if(strcmp(goos, "freebsd") == 0)
-			HEADTYPE = 9;
-		else
-		if(strcmp(goos, "windows") == 0)
-			HEADTYPE = 10;
-		else
-		if(strcmp(goos, "tiny") == 0)
-			HEADTYPE = 11;
-		else
-		if(strcmp(goos, "plan9") == 0)
-			HEADTYPE = 2;
-		else
-			print("goos is not known: %s\n", goos);
-	}
+	if(HEADTYPE == -1)
+		HEADTYPE = headtype(goos);
 
 	if(outfile == nil) {
-		if(HEADTYPE == 10)
+		if(HEADTYPE == Hwindows)
 			outfile = "8.out.exe";
 		else
 			outfile = "8.out";
@@ -166,7 +161,7 @@ main(int argc, char *argv[])
 		diag("unknown -H option");
 		errorexit();
 
-	case 0:	/* this is garbage */
+	case Hgarbunix:	/* this is garbage */
 		HEADR = 20L+56L;
 		if(INITTEXT == -1)
 			INITTEXT = 0x40004CL;
@@ -175,7 +170,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 0;
 		break;
-	case 1:	/* is unix coff */
+	case Hunixcoff:	/* is unix coff */
 		HEADR = 0xd0L;
 		if(INITTEXT == -1)
 			INITTEXT = 0xd0;
@@ -184,7 +179,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 0;
 		break;
-	case 2:	/* plan 9 */
+	case Hplan9x32:	/* plan 9 */
 		tlsoffset = -8;
 		HEADR = 32L;
 		if(INITTEXT == -1)
@@ -194,7 +189,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 1;
 		break;
-	case 3:	/* MS-DOS .COM */
+	case Hmsdoscom:	/* MS-DOS .COM */
 		HEADR = 0;
 		if(INITTEXT == -1)
 			INITTEXT = 0x0100;
@@ -203,7 +198,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4;
 		break;
-	case 4:	/* fake MS-DOS .EXE */
+	case Hmsdosexe:	/* fake MS-DOS .EXE */
 		HEADR = 0x200;
 		if(INITTEXT == -1)
 			INITTEXT = 0x0100;
@@ -215,7 +210,7 @@ main(int argc, char *argv[])
 		if(debug['v'])
 			Bprint(&bso, "HEADR = 0x%d\n", HEADR);
 		break;
-	case 6:	/* apple MACH */
+	case Hdarwin:	/* apple MACH */
 		/*
 		 * OS X system constant - offset from %gs to our TLS.
 		 * Explained in ../../libcgo/darwin_386.c.
@@ -230,8 +225,8 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
-	case 7:	/* elf32 executable */
-	case 9:
+	case Hlinux:	/* elf32 executable */
+	case Hfreebsd:
 		/*
 		 * ELF uses TLS offsets negative from %gs.
 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
@@ -248,7 +243,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
-	case 10: /* PE executable */
+	case Hwindows: /* PE executable */
 		peinit();
 		HEADR = PEFILEHEADR;
 		if(INITTEXT == -1)
@@ -258,7 +253,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = PESECTALIGN;
 		break;
-	case 11:
+	case Htiny:
 		tlsoffset = 0;
 		elfinit();
 		HEADR = ELFRESERVE;
@@ -303,9 +298,9 @@ main(int argc, char *argv[])
 	patch();
 	follow();
 	doelf();
-	if(HEADTYPE == 6)
+	if(HEADTYPE == Hdarwin)
 		domacho();
-	if(HEADTYPE == 10)
+	if(HEADTYPE == Hwindows)
 		dope();
 	dostkoff();
 	if(debug['p'])

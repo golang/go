@@ -25,10 +25,16 @@ Options new in this version:
 	Elide the dynamic linking header.  With this option, the binary
 	is statically linked and does not refer to dynld.  Without this option
 	(the default), the binary's contents are identical but it is loaded with dynld.
--H6
+-Hplan9
+	Write Plan 9 32-bit format binaries (default when $GOOS is plan9)
+-Hdarwin
 	Write Apple Mach-O binaries (default when $GOOS is darwin)
--H7
+-Hlinux
 	Write Linux ELF binaries (default when $GOOS is linux)
+-Hfreebsd
+	Write FreeBSD ELF binaries (default when $GOOS is freebsd)
+-Hwindows
+	Write Windows PE32 binaries (default when $GOOS is windows)
 -I interpreter
 	Set the ELF dynamic linker to use.
 -L dir1 -L dir2
