@@ -43,12 +43,24 @@
 char	*noname		= "<none>";
 char	*thestring 	= "arm";
 
+Header headers[] = {
+   "noheader", Hnoheader,
+   "risc", Hrisc,
+   "plan9", Hplan9x32,
+   "netbsd", Hnetbsd,
+   "ixp1200", Hixp1200,
+   "ipaq", Hipaq,
+   "linux", Hlinux,
+   0, 0
+};
+
 /*
- *	-H1 -T0x10005000 -R4		is aif for risc os
- *	-H2 -T4128 -R4096		is plan9 format
- *	-H3 -T0xF0000020 -R4		is NetBSD format
- *	-H4				is IXP1200 (raw)
- *	-H5 -T0xC0008010 -R1024		is ipaq
+ *	-Hrisc -T0x10005000 -R4		is aif for risc os
+ *	-Hplan9 -T4128 -R4096		is plan9 format
+ *	-Hnetbsd -T0xF0000020 -R4	is NetBSD format
+ *	-Hixp1200			is IXP1200 (raw)
+ *	-Hipaq -T0xC0008010 -R1024	is ipaq
+ *	-Hlinux -Tx -Rx			is linux elf
  */
 
 static char*
@@ -118,7 +130,7 @@ main(int argc, char *argv[])
 		rpath = EARGF(usage());
 		break;
 	case 'H':
-		HEADTYPE = atolwhex(EARGF(usage()));
+		HEADTYPE = headtype(EARGF(usage()));
 		/* do something about setting INITTEXT */
 		break;
 	case 'V':
@@ -137,18 +149,18 @@ main(int argc, char *argv[])
 		debug[DEFAULT] = 1;
 	if(HEADTYPE == -1) {
 		if(debug['U'])
-			HEADTYPE = 0;
+			HEADTYPE = Hnoheader;
 		if(debug['B'])
-			HEADTYPE = 1;
+			HEADTYPE = Hrisc;
 		if(debug['9'])
-			HEADTYPE = 2;
-		HEADTYPE = 6;
+			HEADTYPE = Hplan9x32;
+		HEADTYPE = Hlinux;
 	}
 	switch(HEADTYPE) {
 	default:
 		diag("unknown -H option");
 		errorexit();
-	case 0:	/* no header */
+	case Hnoheader:	/* no header */
 		HEADR = 0L;
 		if(INITTEXT == -1)
 			INITTEXT = 0;
@@ -157,7 +169,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4;
 		break;
-	case 1:	/* aif for risc os */
+	case Hrisc:	/* aif for risc os */
 		HEADR = 128L;
 		if(INITTEXT == -1)
 			INITTEXT = 0x10005000 + HEADR;
@@ -166,7 +178,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4;
 		break;
-	case 2:	/* plan 9 */
+	case Hplan9x32:	/* plan 9 */
 		HEADR = 32L;
 		if(INITTEXT == -1)
 			INITTEXT = 4128;
@@ -175,7 +187,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
-	case 3:	/* boot for NetBSD */
+	case Hnetbsd:	/* boot for NetBSD */
 		HEADR = 32L;
 		if(INITTEXT == -1)
 			INITTEXT = 0xF0000020L;
@@ -184,7 +196,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
-	case 4: /* boot for IXP1200 */
+	case Hixp1200: /* boot for IXP1200 */
 		HEADR = 0L;
 		if(INITTEXT == -1)
 			INITTEXT = 0x0;
@@ -193,7 +205,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4;
 		break;
-	case 5: /* boot for ipaq */
+	case Hipaq: /* boot for ipaq */
 		HEADR = 16L;
 		if(INITTEXT == -1)
 			INITTEXT = 0xC0008010;
@@ -202,7 +214,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 1024;
 		break;
-	case 6:	/* arm elf */
+	case Hlinux:	/* arm elf */
 		debug['d'] = 1;	// no dynamic linking
 		elfinit();
 		HEADR = ELFRESERVE;

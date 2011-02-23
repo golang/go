@@ -241,7 +241,7 @@ dynrelocsym(Sym *s)
 {
 	Reloc *r;
 	
-	if(thechar == '8' && HEADTYPE == 10) { // Windows PE
+	if(HEADTYPE == Hwindows) {
 		Sym *rel, *targ;
 		
 		rel = lookup(".rel", 0);
@@ -898,9 +898,9 @@ address(void)
 	segdata.rwx = 06;
 	segdata.vaddr = va;
 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
-	if((thechar == '6' || thechar == '8') && HEADTYPE == 10)	// Windows PE
+	if(HEADTYPE == Hwindows)
 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
-	if(thechar == '8' && HEADTYPE == 2) {	// Plan 9		
+	if(HEADTYPE == Hplan9x32) {
 		segdata.vaddr = va = rnd(va, 4096);
 		segdata.fileoff = segtext.fileoff + segtext.filelen;
 	}

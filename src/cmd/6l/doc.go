@@ -28,10 +28,14 @@ Options new in this version:
 -e
 	Emit an extra ELF-compatible symbol table useful with tools such as
 	nm, gdb, and oprofile. This option makes the binary file considerably larger.
--H6
+-Hdarwin
 	Write Apple Mach-O binaries (default when $GOOS is darwin)
--H7
+-Hlinux
 	Write Linux ELF binaries (default when $GOOS is linux)
+-Hfreebsd
+	Write FreeBSD ELF binaries (default when $GOOS is freebsd)
+-Hwindows
+	Write Windows PE32+ binaries (default when $GOOS is windows)
 -I interpreter
 	Set the ELF dynamic linker to use.
 -L dir1 -L dir2

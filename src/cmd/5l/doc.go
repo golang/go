@@ -23,6 +23,8 @@ Options new in this version:
 -F
 	Force use of software floating point.
 	Also implied by setting GOARM=5 in the environment.
+-Hlinux
+	Write Linux ELF binaries (default when $GOOS is linux)
 -I interpreter
 	Set the ELF dynamic linker to use.
 -L dir1 -L dir2

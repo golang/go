@@ -2302,7 +2302,7 @@ writegdbscript(void)
 static void
 align(vlong size)
 {
-	if((thechar == '6' || thechar == '8') && HEADTYPE == 10) // Only Windows PE need section align.
+	if(HEADTYPE == Hwindows) // Only Windows PE need section align.
 		strnput("", rnd(size, PEFILEALIGN) - size);
 }
 
