@@ -149,6 +149,17 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
 			continue;
 		}
 		
+		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && g == m->g0) {
+			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
+			g = m->curg;
+			stk = (Stktop*)g->stackbase;
+			sp = stk->gobuf.sp;
+			pc = (uintptr)stk->gobuf.pc;
+			fp = nil;
+			lr = 0;
+			continue;
+		}	
+		
 		// Unwind to next frame.
 		pc = lr;
 		lr = 0;
