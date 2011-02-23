@@ -1168,6 +1168,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 			a->etype = simtype[n->type->etype];
 			a->width = n->type->width;
 		}
+		a->pun = n->pun;
 		a->offset = n->xoffset;
 		a->sym = n->sym;
 		if(a->sym == S)

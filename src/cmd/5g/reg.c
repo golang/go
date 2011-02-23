@@ -697,8 +697,8 @@ mkvar(Reg *r, Adr *a)
 	n = D_NONE;
 
 	flag = 0;
-//	if(a->pun)
-//		flag = 1;
+	if(a->pun)
+		flag = 1;
 
 	switch(t) {
 	default:
