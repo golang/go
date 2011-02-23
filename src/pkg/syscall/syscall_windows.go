@@ -653,26 +653,6 @@ func Shutdown(fd, how int) (errno int) {
 	return int(shutdown(int32(fd), int32(how)))
 }
 
-func AcceptIOCP(iocpfd, fd int, o *Overlapped) (attrs *byte, errno int) {
-	// Will ask for local and remote address only.
-	rsa := make([]RawSockaddrAny, 2)
-	attrs = (*byte)(unsafe.Pointer(&rsa[0]))
-	alen := uint32(unsafe.Sizeof(rsa[0]))
-	var done uint32
-	errno = AcceptEx(uint32(iocpfd), uint32(fd), attrs, 0, alen, alen, &done, o)
-	return
-}
-
-func GetAcceptIOCPSockaddrs(attrs *byte) (lsa, rsa Sockaddr) {
-	var lrsa, rrsa *RawSockaddrAny
-	var llen, rlen int32
-	alen := uint32(unsafe.Sizeof(*lrsa))
-	GetAcceptExSockaddrs(attrs, 0, alen, alen, &lrsa, &llen, &rrsa, &rlen)
-	lsa, _ = lrsa.Sockaddr()
-	rsa, _ = rrsa.Sockaddr()
-	return
-}
-
 func WSASendto(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (errno int) {
 	rsa, l, err := to.sockaddr()
 	if err != 0 {
