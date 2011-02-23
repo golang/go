@@ -149,7 +149,7 @@ func TestServeFile(t *testing.T) {
 }
 
 func getBody(t *testing.T, req Request) (*Response, []byte) {
-	r, err := send(&req)
+	r, err := send(&req, DefaultTransport)
 	if err != nil {
 		t.Fatal(req.URL.String(), "send:", err)
 	}

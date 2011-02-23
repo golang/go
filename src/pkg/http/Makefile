@@ -18,6 +18,7 @@ GOFILES=\
 	server.go\
 	status.go\
 	transfer.go\
+	transport.go\
 	url.go\
 
 include ../../Make.pkg

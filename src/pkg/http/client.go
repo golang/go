@@ -7,17 +7,36 @@
 package http
 
 import (
-	"bufio"
 	"bytes"
-	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"strconv"
 	"strings"
 )
+
+// A Client is an HTTP client.
+// It is not yet possible to create custom Clients; use DefaultClient.
+type Client struct {
+	transport ClientTransport // if nil, DefaultTransport is used
+}
+
+// DefaultClient is the default Client and is used by Get, Head, and Post.
+var DefaultClient = &Client{}
+
+// ClientTransport is an interface representing the ability to execute a
+// single HTTP transaction, obtaining the Response for a given Request.
+type ClientTransport interface {
+	// Do executes a single HTTP transaction, returning the Response for the
+	// request req.  Do should not attempt to interpret the response.
+	// In particular, Do must return err == nil if it obtained a response,
+	// regardless of the response's HTTP status code.  A non-nil err should
+	// be reserved for failure to obtain a response.  Similarly, Do should
+	// not attempt to handle higher-level protocol details such as redirects,
+	// authentication, or cookies.
+	Do(req *Request) (resp *Response, err os.Error)
+}
 
 // Given a string of the form "host", "host:port", or "[ipv6::address]:port",
 // return true if the string includes a port.
@@ -65,19 +84,25 @@ func matchNoProxy(addr string) bool {
 	return false
 }
 
-// Send issues an HTTP request.  Caller should close resp.Body when done reading it.
+// Do sends an HTTP request and returns an HTTP response, following
+// policy (e.g. redirects, cookies, auth) as configured on the client.
+//
+// Callers should close resp.Body when done reading it.
+//
+// Generally Get, Post, or PostForm will be used instead of Do.
+func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
+	return send(req, c.transport)
+}
+
+
+// send issues an HTTP request.  Caller should close resp.Body when done reading it.
 //
 // TODO: support persistent connections (multiple requests on a single connection).
 // send() method is nonpublic because, when we refactor the code for persistent
 // connections, it may no longer make sense to have a method with this signature.
-func send(req *Request) (resp *Response, err os.Error) {
-	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
-		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
-	}
-
-	addr := req.URL.Host
-	if !hasPort(addr) {
-		addr += ":" + req.URL.Scheme
+func send(req *Request, t ClientTransport) (resp *Response, err os.Error) {
+	if t == nil {
+		t = DefaultTransport
 	}
 	info := req.URL.RawUserinfo
 	if len(info) > 0 {
@@ -89,108 +114,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 		}
 		req.Header.Set("Authorization", "Basic "+string(encoded))
 	}
-
-	var proxyURL *URL
-	proxyAuth := ""
-	proxy := ""
-	if !matchNoProxy(addr) {
-		proxy = os.Getenv("HTTP_PROXY")
-		if proxy == "" {
-			proxy = os.Getenv("http_proxy")
-		}
-	}
-
-	if proxy != "" {
-		proxyURL, err = ParseRequestURL(proxy)
-		if err != nil {
-			return nil, os.ErrorString("invalid proxy address")
-		}
-		if proxyURL.Host == "" {
-			proxyURL, err = ParseRequestURL("http://" + proxy)
-			if err != nil {
-				return nil, os.ErrorString("invalid proxy address")
-			}
-		}
-		addr = proxyURL.Host
-		proxyInfo := proxyURL.RawUserinfo
-		if proxyInfo != "" {
-			enc := base64.URLEncoding
-			encoded := make([]byte, enc.EncodedLen(len(proxyInfo)))
-			enc.Encode(encoded, []byte(proxyInfo))
-			proxyAuth = "Basic " + string(encoded)
-		}
-	}
-
-	// Connect to server or proxy.
-	conn, err := net.Dial("tcp", "", addr)
-	if err != nil {
-		return nil, err
-	}
-
-	if req.URL.Scheme == "http" {
-		// Include proxy http header if needed.
-		if proxyAuth != "" {
-			req.Header.Set("Proxy-Authorization", proxyAuth)
-		}
-	} else { // https
-		if proxyURL != nil {
-			// Ask proxy for direct connection to server.
-			// addr defaults above to ":https" but we need to use numbers
-			addr = req.URL.Host
-			if !hasPort(addr) {
-				addr += ":443"
-			}
-			fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\n", addr)
-			fmt.Fprintf(conn, "Host: %s\r\n", addr)
-			if proxyAuth != "" {
-				fmt.Fprintf(conn, "Proxy-Authorization: %s\r\n", proxyAuth)
-			}
-			fmt.Fprintf(conn, "\r\n")
-
-			// Read response.
-			// Okay to use and discard buffered reader here, because
-			// TLS server will not speak until spoken to.
-			br := bufio.NewReader(conn)
-			resp, err := ReadResponse(br, "CONNECT")
-			if err != nil {
-				return nil, err
-			}
-			if resp.StatusCode != 200 {
-				f := strings.Split(resp.Status, " ", 2)
-				return nil, os.ErrorString(f[1])
-			}
-		}
-
-		// Initiate TLS and check remote host name against certificate.
-		conn = tls.Client(conn, nil)
-		if err = conn.(*tls.Conn).Handshake(); err != nil {
-			return nil, err
-		}
-		h := req.URL.Host
-		if hasPort(h) {
-			h = h[:strings.LastIndex(h, ":")]
-		}
-		if err = conn.(*tls.Conn).VerifyHostname(h); err != nil {
-			return nil, err
-		}
-	}
-
-	err = req.Write(conn)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-
-	reader := bufio.NewReader(conn)
-	resp, err = ReadResponse(reader, req.Method)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-
-	resp.Body = readClose{resp.Body, conn}
-
-	return
+	return t.Do(req)
 }
 
 // True if the specified HTTP status code is one for which the Get utility should
@@ -215,11 +139,31 @@ func shouldRedirect(statusCode int) bool {
 // input URL unless redirects were followed.
 //
 // Caller should close r.Body when done reading it.
+//
+// Get is a convenience wrapper around DefaultClient.Get.
 func Get(url string) (r *Response, finalURL string, err os.Error) {
+	return DefaultClient.Get(url)
+}
+
+// Get issues a GET to the specified URL.  If the response is one of the following
+// redirect codes, it follows the redirect, up to a maximum of 10 redirects:
+//
+//    301 (Moved Permanently)
+//    302 (Found)
+//    303 (See Other)
+//    307 (Temporary Redirect)
+//
+// finalURL is the URL from which the response was fetched -- identical to the
+// input URL unless redirects were followed.
+//
+// Caller should close r.Body when done reading it.
+func (c *Client) Get(url string) (r *Response, finalURL string, err os.Error) {
 	// TODO: if/when we add cookie support, the redirected request shouldn't
 	// necessarily supply the same cookies as the original.
 	// TODO: set referrer header on redirects.
 	var base *URL
+	// TODO: remove this hard-coded 10 and use the Client's policy
+	// (ClientConfig) instead.
 	for redirect := 0; ; redirect++ {
 		if redirect >= 10 {
 			err = os.ErrorString("stopped after 10 redirects")
@@ -236,7 +180,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 			break
 		}
 		url = req.URL.String()
-		if r, err = send(&req); err != nil {
+		if r, err = send(&req, c.transport); err != nil {
 			break
 		}
 		if shouldRedirect(r.StatusCode) {
@@ -259,7 +203,16 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 // Post issues a POST to the specified URL.
 //
 // Caller should close r.Body when done reading it.
+//
+// Post is a wrapper around DefaultClient.Post
 func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
+	return DefaultClient.Post(url, bodyType, body)
+}
+
+// Post issues a POST to the specified URL.
+//
+// Caller should close r.Body when done reading it.
+func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
 	var req Request
 	req.Method = "POST"
 	req.ProtoMajor = 1
@@ -276,14 +229,24 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 		return nil, err
 	}
 
-	return send(&req)
+	return send(&req, c.transport)
 }
 
 // PostForm issues a POST to the specified URL, 
 // with data's keys and values urlencoded as the request body.
 //
 // Caller should close r.Body when done reading it.
+//
+// PostForm is a wrapper around DefaultClient.PostForm
 func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
+	return DefaultClient.PostForm(url, data)
+}
+
+// PostForm issues a POST to the specified URL, 
+// with data's keys and values urlencoded as the request body.
+//
+// Caller should close r.Body when done reading it.
+func (c *Client) PostForm(url string, data map[string]string) (r *Response, err os.Error) {
 	var req Request
 	req.Method = "POST"
 	req.ProtoMajor = 1
@@ -302,7 +265,7 @@ func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
 		return nil, err
 	}
 
-	return send(&req)
+	return send(&req, c.transport)
 }
 
 // TODO: remove this function when PostForm takes a multimap.
@@ -315,13 +278,20 @@ func urlencode(data map[string]string) (b *bytes.Buffer) {
 }
 
 // Head issues a HEAD to the specified URL.
+//
+// Head is a wrapper around DefaultClient.Head
 func Head(url string) (r *Response, err os.Error) {
+	return DefaultClient.Head(url)
+}
+
+// Head issues a HEAD to the specified URL.
+func (c *Client) Head(url string) (r *Response, err os.Error) {
 	var req Request
 	req.Method = "HEAD"
 	if req.URL, err = ParseURL(url); err != nil {
 		return
 	}
-	return send(&req)
+	return send(&req, c.transport)
 }
 
 type nopCloser struct {
