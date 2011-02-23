@@ -217,7 +217,7 @@ var stmtTests = []test{
 	Val2("if false { i = 2 } else { i = 3 }; i2 = 4", "i", 3, "i2", 4),
 	Val2("if i == i2 { i = 2 } else { i = 3 }; i2 = 4", "i", 3, "i2", 4),
 	// Omit optional parts
-	Val2("if { i = 2 } else { i = 3 }; i2 = 4", "i", 2, "i2", 4),
+	Val2("if true { i = 2 } else { i = 3 }; i2 = 4", "i", 2, "i2", 4),
 	Val2("if true { i = 2 }; i2 = 4", "i", 2, "i2", 4),
 	Val2("if false { i = 2 }; i2 = 4", "i", 1, "i2", 4),
 	// Init
@@ -243,11 +243,11 @@ var stmtTests = []test{
 	CErr("fn1 := func() int { if true { return 1 } }", "return"),
 	CErr("fn1 := func() int { if true { } }", "return"),
 	Run("fn1 := func() int { if true { }; return 1 }"),
-	CErr("fn1 := func() int { if { } }", "return"),
-	CErr("fn1 := func() int { if { } else { return 2 } }", "return"),
-	Run("fn1 := func() int { if { return 1 } }"),
-	Run("fn1 := func() int { if { return 1 } else { } }"),
-	Run("fn1 := func() int { if { return 1 } else { } }"),
+	CErr("fn1 := func() int { if true { } }", "return"),
+	CErr("fn1 := func() int { if true { } else { return 2 } }", "return"),
+	Run("fn1 := func() int { if true { return 1 }; return 0 }"),
+	Run("fn1 := func() int { if true { return 1 } else { }; return 0 }"),
+	Run("fn1 := func() int { if true { return 1 } else { }; return 0 }"),
 
 	// Switch
 	Val1("switch { case false: i += 2; case true: i += 4; default: i += 8 }", "i", 1+4),
