@@ -599,31 +599,29 @@ runtime·selectrecv(Select *sel, Hchan *c, ...)
 }
 
 
-static void selectdefault(Select**);
+static void selectdefault(Select*, void*);
 
 // selectdefault(sel *byte) (selected bool);
 #pragma textflag 7
 void
 runtime·selectdefault(Select *sel, ...)
 {
-	selectdefault(&sel);
+	selectdefault(sel, runtime·getcallerpc(&sel));
 }
 
 static void
-selectdefault(Select **selp)
+selectdefault(Select *sel, void *callerpc)
 {
-	Select *sel;
 	int32 i;
 	Scase *cas;
 
-	sel = *selp;
 	i = sel->ncase;
 	if(i >= sel->tcase)
 		runtime·throw("selectdefault: too many cases");
 	sel->ncase = i+1;
 	cas = runtime·mal(sizeof *cas);
 	sel->scase[i] = cas;
-	cas->pc = runtime·getcallerpc(selp);
+	cas->pc = callerpc;
 	cas->chan = nil;
 
 	cas->so = runtime·rnd(sizeof(sel), Structrnd);
@@ -682,7 +680,7 @@ runtime·block(void)
 	runtime·gosched();
 }
 
-static void selectgo(Select**);
+static void* selectgo(Select**);
 
 // selectgo(sel *byte);
 //
@@ -692,10 +690,10 @@ static void selectgo(Select**);
 void
 runtime·selectgo(Select *sel)
 {
-	selectgo(&sel);
+	runtime·setcallerpc(&sel, selectgo(&sel));
 }
 
-static void
+static void*
 selectgo(Select **selp)
 {
 	Select *sel;
@@ -705,6 +703,7 @@ selectgo(Select **selp)
 	SudoG *sg;
 	G *gp;
 	byte *as;
+	void *pc;
 
 	sel = *selp;
 	if(runtime·gcwaiting)
@@ -917,16 +916,18 @@ retc:
 	selunlock(sel);
 
 	// return to pc corresponding to chosen case
-	runtime·setcallerpc(selp, cas->pc);
+	
+	pc = cas->pc;
 	as = (byte*)selp + cas->so;
 	freesel(sel);
 	*as = true;
-	return;
+	return pc;
 
 sclose:
 	// send on closed channel
 	selunlock(sel);
 	runtime·panicstring("send on closed channel");
+	return nil;  // not reached
 }
 
 // closechan(sel *byte);

@@ -659,7 +659,7 @@ noops(void)
 				q1->reg = NREG;
 				q1->to.type = D_REG;
 				q1->to.reg = REGSP;
-				p->spadj = 8;
+				q1->spadj = 8;
 	
 				break;
 			case AMOVW:
