@@ -10,19 +10,13 @@ func use(x interface{})	{}
 
 // Formatting of if-statement headers.
 func _() {
-	if {
-	}
-	if {
-	}	// no semicolon printed
-	if expr {
+	if true {
 	}
 	if expr {
-	}	// no semicolon printed
+	}
 	if expr {
 	}	// no parens printed
-	if expr {
-	}	// no semicolon and parens printed
-	if x := expr; {
+	if x := expr; true {
 		use(x)
 	}
 	if x := expr; expr {
@@ -35,16 +29,10 @@ func _() {
 func _() {
 	switch {
 	}
-	switch {
-	}	// no semicolon printed
 	switch expr {
 	}
 	switch expr {
-	}	// no semicolon printed
-	switch expr {
 	}	// no parens printed
-	switch expr {
-	}	// no semicolon and parens printed
 	switch x := expr; {
 	default:
 		use(
@@ -354,14 +342,14 @@ func _() {
 
 
 func _() {
-	if {
+	if true {
 		_ = 0
 	}
 	_ = 0	// the indentation here should not be affected by the long label name
 AnOverlongLabel:
 	_ = 0
 
-	if {
+	if true {
 		_ = 0
 	}
 	_ = 0
