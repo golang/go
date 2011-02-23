@@ -61,7 +61,7 @@ func TestRunClient(t *testing.T) {
 
 // Script of interaction with gnutls implementation.
 // The values for this test are obtained by building and running in client mode:
-//   % gotest -match "TestRunClient" -connect
+//   % gotest -test.run "TestRunClient" -connect
 // and then:
 //   % gnutls-serv -p 10443 --debug 100 --x509keyfile key.pem --x509certfile cert.pem -a > /tmp/log 2>&1
 //   % python parse-gnutls-cli-debug-log.py < /tmp/log

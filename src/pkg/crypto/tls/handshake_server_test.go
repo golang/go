@@ -194,7 +194,7 @@ var testPrivateKey = &rsa.PrivateKey{
 
 // Script of interaction with gnutls implementation.
 // The values for this test are obtained by building and running in server mode:
-//   % gotest -match "TestRunServer" -serve
+//   % gotest -test.run "TestRunServer" -serve
 // and then:
 //   % gnutls-cli --insecure --debug 100 -p 10443 localhost > /tmp/log 2>&1
 //   % python parse-gnutls-cli-debug-log.py < /tmp/log
