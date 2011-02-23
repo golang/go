@@ -11,9 +11,12 @@ func use(x interface{}) {}
 // Formatting of if-statement headers.
 func _() {
 	if true {}
+	if; true {}  // no semicolon printed
 	if expr{}
+	if;expr{}  // no semicolon printed
 	if (expr){}  // no parens printed
-	if x:=expr; true {
+	if;((expr)){}  // no semicolon and parens printed
+	if x:=expr;true{
 	use(x)}
 	if x:=expr; expr {use(x)}
 }
@@ -22,8 +25,11 @@ func _() {
 // Formatting of switch-statement headers.
 func _() {
 	switch {}
+	switch;{}  // no semicolon printed
 	switch expr {}
+	switch;expr{}  // no semicolon printed
 	switch (expr) {}  // no parens printed
+	switch;((expr)){}  // no semicolon and parens printed
 	switch x := expr; { default:use(
 x)
 	}
@@ -112,7 +118,7 @@ func _() {
 	if (((x))) {}
 	if ([]T{}) {}
 	if (([]T{})) {}
-	if (((([]T{})))) {}
+	if ; (((([]T{})))) {}
 
 	for (x) {}
 	for (((x))) {}
@@ -123,21 +129,21 @@ func _() {
 	switch (x) {}
 	switch (((x))) {}
 	switch ([]T{}) {}
-	switch (((([]T{})))) {}
+	switch ; (((([]T{})))) {}
 
 	for _ = range ((([]T{T{42}}))) {}
 
 	// leave parentheses - composite literals start with a type name
 	if (T{}) {}
 	if ((T{})) {}
-	if ((((T{})))) {}
+	if ; ((((T{})))) {}
 
 	for (T{}) {}
 	for ((T{})) {}
 	for ; ((((T{})))) ; {}
 
 	switch (T{}) {}
-	switch ((((T{})))) {}
+	switch ; ((((T{})))) {}
 
 	for _ = range (((T1{T{42}}))) {}
 

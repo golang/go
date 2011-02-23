@@ -1339,13 +1339,18 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 	{
 		prevLev := p.exprLev
 		p.exprLev = -1
-		s = p.parseSimpleStmt(false)
 		if p.tok == token.SEMICOLON {
 			p.next()
 			x = p.parseExpr()
 		} else {
-			x = p.makeExpr(s)
-			s = nil
+			s = p.parseSimpleStmt(false)
+			if p.tok == token.SEMICOLON {
+				p.next()
+				x = p.parseExpr()
+			} else {
+				x = p.makeExpr(s)
+				s = nil
+			}
 		}
 		p.exprLev = prevLev
 	}
@@ -1447,7 +1452,9 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	if p.tok != token.LBRACE {
 		prevLev := p.exprLev
 		p.exprLev = -1
-		s2 = p.parseSimpleStmt(false)
+		if p.tok != token.SEMICOLON {
+			s2 = p.parseSimpleStmt(false)
+		}
 		if p.tok == token.SEMICOLON {
 			p.next()
 			s1 = s2
@@ -1580,7 +1587,6 @@ func (p *parser) parseForStmt() ast.Stmt {
 	if p.tok != token.LBRACE {
 		prevLev := p.exprLev
 		p.exprLev = -1
-
 		if p.tok != token.SEMICOLON {
 			s2 = p.parseSimpleStmt(false)
 		}
@@ -1596,7 +1602,6 @@ func (p *parser) parseForStmt() ast.Stmt {
 				s3 = p.parseSimpleStmt(false)
 			}
 		}
-
 		p.exprLev = prevLev
 	}
 
