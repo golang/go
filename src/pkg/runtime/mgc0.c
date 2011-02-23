@@ -380,6 +380,7 @@ mark(void)
 			break;
 		case Grunning:
 		case Grecovery:
+		case Gstackalloc:
 			if(gp != g)
 				runtime·throw("mark - world not stopped");
 			scanstack(gp);

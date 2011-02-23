@@ -104,6 +104,7 @@ enum
 	Gmoribund,
 	Gdead,
 	Grecovery,
+	Gstackalloc,
 };
 enum
 {

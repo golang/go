@@ -394,6 +394,12 @@ runtime·stackalloc(uint32 n)
 {
 	void *v;
 
+	// Stackalloc must be called on scheduler stack, so that we
+	// never try to grow the stack during the code that stackalloc runs.
+	// Doing so would cause a deadlock (issue 1547).
+	if(g != m->g0)
+		runtime·throw("stackalloc not on scheduler stack");
+
 	if(m->mallocing || m->gcing || n == FixedStack) {
 		runtime·lock(&stacks);
 		if(stacks.size == 0)

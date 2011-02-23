@@ -253,8 +253,10 @@ readylocked(G *g)
 	}
 
 	// Mark runnable.
-	if(g->status == Grunnable || g->status == Grunning || g->status == Grecovery)
+	if(g->status == Grunnable || g->status == Grunning || g->status == Grecovery || g->status == Gstackalloc) {
+		runtime·printf("goroutine %d has status %d\n", g->goid, g->status);
 		runtime·throw("bad g->status in ready");
+	}
 	g->status = Grunnable;
 
 	gput(g);
@@ -492,6 +494,13 @@ scheduler(void)
 			runtime·free(d);
 			runtime·gogo(&gp->sched, 1);
 		}
+		
+		if(gp->status == Gstackalloc) {
+			// switched to scheduler stack to call stackalloc.
+			gp->param = runtime·stackalloc((uintptr)gp->param);
+			gp->status = Grunning;
+			runtime·gogo(&gp->sched, 1);
+		}
 
 		// Jumped here via runtime·gosave/gogo, so didn't
 		// execute lock(&runtime·sched) above.
@@ -509,6 +518,8 @@ scheduler(void)
 		switch(gp->status){
 		case Grunnable:
 		case Gdead:
+		case Grecovery:
+		case Gstackalloc:
 			// Shouldn't have been running!
 			runtime·throw("bad gp->status in sched");
 		case Grunning:
@@ -795,18 +806,35 @@ runtime·newstack(void)
 G*
 runtime·malg(int32 stacksize)
 {
-	G *g;
+	G *newg;
 	byte *stk;
+	int32 oldstatus;
 
-	g = runtime·malloc(sizeof(G));
+	newg = runtime·malloc(sizeof(G));
 	if(stacksize >= 0) {
-		stk = runtime·stackalloc(StackSystem + stacksize);
-		g->stack0 = stk;
-		g->stackguard = stk + StackSystem + StackGuard;
-		g->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
-		runtime·memclr(g->stackbase, sizeof(Stktop));
+		if(g == m->g0) {
+			// running on scheduler stack already.
+			stk = runtime·stackalloc(StackSystem + stacksize);
+		} else {
+			// have to call stackalloc on scheduler stack.
+			oldstatus = g->status;
+			g->param = (void*)(StackSystem + stacksize);
+			g->status = Gstackalloc;
+			// next two lines are runtime·gosched without the check
+			// of m->locks.  we're almost certainly holding a lock,
+			// but this is not a real rescheduling so it's okay.
+			if(runtime·gosave(&g->sched) == 0)
+				runtime·gogo(&m->sched, 1);
+			stk = g->param;
+			g->param = nil;
+			g->status = oldstatus;
+		}
+		newg->stack0 = stk;
+		newg->stackguard = stk + StackSystem + StackGuard;
+		newg->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
+		runtime·memclr(newg->stackbase, sizeof(Stktop));
 	}
-	return g;
+	return newg;
 }
 
 /*
