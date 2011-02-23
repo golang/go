@@ -7,8 +7,9 @@
 package json
 
 import (
-	"os"
 	"bytes"
+	"encoding/base64"
+	"os"
 	"reflect"
 	"runtime"
 	"sort"
@@ -32,7 +33,8 @@ import (
 // String values encode as JSON strings, with each invalid UTF-8 sequence
 // replaced by the encoding of the Unicode replacement character U+FFFD.
 //
-// Array and slice values encode as JSON arrays.
+// Array and slice values encode as JSON arrays, except that
+// []byte encodes as a base64-encoded string.
 //
 // Struct values encode as JSON objects.  Each struct field becomes
 // a member of the object.  By default the object's key name is the
@@ -178,6 +180,8 @@ func (e *encodeState) error(err os.Error) {
 	panic(err)
 }
 
+var byteSliceType = reflect.Typeof([]byte(nil))
+
 func (e *encodeState) reflectValue(v reflect.Value) {
 	if v == nil {
 		e.WriteString("null")
@@ -264,6 +268,24 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		e.WriteByte('}')
 
 	case reflect.ArrayOrSliceValue:
+		if v.Type() == byteSliceType {
+			e.WriteByte('"')
+			s := v.Interface().([]byte)
+			if len(s) < 1024 {
+				// for small buffers, using Encode directly is much faster.
+				dst := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
+				base64.StdEncoding.Encode(dst, s)
+				e.Write(dst)
+			} else {
+				// for large buffers, avoid unnecessary extra temporary
+				// buffer space.
+				enc := base64.NewEncoder(base64.StdEncoding, e)
+				enc.Write(s)
+				enc.Close()
+			}
+			e.WriteByte('"')
+			break
+		}
 		e.WriteByte('[')
 		n := v.Len()
 		for i := 0; i < n; i++ {

@@ -9,6 +9,7 @@ package json
 
 import (
 	"container/vector"
+	"encoding/base64"
 	"os"
 	"reflect"
 	"runtime"
@@ -570,17 +571,29 @@ func (d *decodeState) literal(v reflect.Value) {
 		}
 
 	case '"': // string
-		s, ok := unquote(item)
+		s, ok := unquoteBytes(item)
 		if !ok {
 			d.error(errPhase)
 		}
 		switch v := v.(type) {
 		default:
 			d.saveError(&UnmarshalTypeError{"string", v.Type()})
+		case *reflect.SliceValue:
+			if v.Type() != byteSliceType {
+				d.saveError(&UnmarshalTypeError{"string", v.Type()})
+				break
+			}
+			b := make([]byte, base64.StdEncoding.DecodedLen(len(s)))
+			n, err := base64.StdEncoding.Decode(b, s)
+			if err != nil {
+				d.saveError(err)
+				break
+			}
+			v.Set(reflect.NewValue(b[0:n]).(*reflect.SliceValue))
 		case *reflect.StringValue:
-			v.Set(s)
+			v.Set(string(s))
 		case *reflect.InterfaceValue:
-			v.Set(reflect.NewValue(s))
+			v.Set(reflect.NewValue(string(s)))
 		}
 
 	default: // number
@@ -774,12 +787,43 @@ func getu4(s []byte) int {
 // unquote converts a quoted JSON string literal s into an actual string t.
 // The rules are different than for Go, so cannot use strconv.Unquote.
 func unquote(s []byte) (t string, ok bool) {
+	s, ok = unquoteBytes(s)
+	t = string(s)
+	return
+}
+
+func unquoteBytes(s []byte) (t []byte, ok bool) {
 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
 		return
 	}
+	s = s[1 : len(s)-1]
+
+	// Check for unusual characters. If there are none,
+	// then no unquoting is needed, so return a slice of the
+	// original bytes.
+	r := 0
+	for r < len(s) {
+		c := s[r]
+		if c == '\\' || c == '"' || c < ' ' {
+			break
+		}
+		if c < utf8.RuneSelf {
+			r++
+			continue
+		}
+		rune, size := utf8.DecodeRune(s[r:])
+		if rune == utf8.RuneError && size == 1 {
+			break
+		}
+		r += size
+	}
+	if r == len(s) {
+		return s, true
+	}
+
 	b := make([]byte, len(s)+2*utf8.UTFMax)
-	w := 0
-	for r := 1; r < len(s)-1; {
+	w := copy(b, s[0:r])
+	for r < len(s) {
 		// Out of room?  Can only happen if s is full of
 		// malformed UTF-8 and we're replacing each
 		// byte with RuneError.
@@ -791,7 +835,7 @@ func unquote(s []byte) (t string, ok bool) {
 		switch c := s[r]; {
 		case c == '\\':
 			r++
-			if r >= len(s)-1 {
+			if r >= len(s) {
 				return
 			}
 			switch s[r] {
@@ -859,5 +903,5 @@ func unquote(s []byte) (t string, ok bool) {
 			w += utf8.EncodeRune(b[w:], rune)
 		}
 	}
-	return string(b[0:w]), true
+	return b[0:w], true
 }
