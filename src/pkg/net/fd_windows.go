@@ -318,7 +318,7 @@ func (fd *netFD) Read(buf []byte) (n int, err os.Error) {
 	o.Init(fd, buf)
 	n, err = iosrv.ExecIO(&o, fd.rdeadline_delta)
 	if err == nil && n == 0 {
-		err = &OpError{o.Name(), o.fd.net, o.fd.laddr, os.EOF}
+		err = os.EOF
 	}
 	return
 }
