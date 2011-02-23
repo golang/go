@@ -197,11 +197,24 @@ TEXT runtime·sigignore(SB),7,$0
 	RET
 
 TEXT runtime·sigtramp(SB),7,$24
+	// save g
+	MOVW	g, R3
+	MOVW	g, 20(R13)
+	
+	// g = m->gsignal
 	MOVW	m_gsignal(m), g
+
+	// copy arguments for call to sighandler
 	MOVW	R0, 4(R13)
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
+	MOVW	R3, 16(R13)
+
 	BL	runtime·sighandler(SB)
+	
+	// restore g
+	MOVW	20(R13), g
+
 	RET
 
 TEXT runtime·rt_sigaction(SB),7,$0

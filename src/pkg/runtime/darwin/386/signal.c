@@ -34,20 +34,19 @@ runtime·signame(int32 sig)
 }
 
 void
-runtime·sighandler(int32 sig, Siginfo *info, void *context)
+runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 {
 	Ucontext *uc;
 	Mcontext *mc;
 	Regs *r;
 	uintptr *sp;
-	G *gp;
 	byte *pc;
 
 	uc = context;
 	mc = uc->uc_mcontext;
 	r = &mc->ss;
 
-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
 		// Work around Leopard bug that doesn't set FPE_INTDIV.
 		// Look at instruction to see if it is a divide.
 		// Not necessary in Snow Leopard (si_code will be != 0).
@@ -103,8 +102,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
 	runtime·printf("\n");
 
 	if(runtime·gotraceback()){
-		runtime·traceback((void*)r->eip, (void*)r->esp, 0, m->curg);
-		runtime·tracebackothers(m->curg);
+		runtime·traceback((void*)r->eip, (void*)r->esp, 0, gp);
+		runtime·tracebackothers(gp);
 		runtime·dumpregs(r);
 	}
 

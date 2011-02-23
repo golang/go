@@ -66,8 +66,8 @@ TEXT runtime·sigtramp(SB),7,$64
 	get_tls(BX)
 	
 	// save g
-	MOVQ	g(BX), BP
-	MOVQ	BP, 40(SP)
+	MOVQ	g(BX), R10
+	MOVQ	R10, 48(SP)
 	
 	// g = m->gsignal
 	MOVQ	m(BX), BP
@@ -77,18 +77,21 @@ TEXT runtime·sigtramp(SB),7,$64
 	MOVL	DX, 0(SP)
 	MOVQ	CX, 8(SP)
 	MOVQ	R8, 16(SP)
-	MOVQ	R8, 24(SP)	// save ucontext
-	MOVQ	SI, 32(SP)	// save infostyle
+	MOVQ	R10, 24(SP)
+
+	MOVQ	R8, 32(SP)	// save ucontext
+	MOVQ	SI, 40(SP)	// save infostyle
 	CALL	DI
 
 	// restore g
 	get_tls(BX)
-	MOVQ	40(SP), BP
-	MOVQ	BP, g(BX)
+	MOVQ	48(SP), R10
+	MOVQ	R10, g(BX)
 
+	// call sigreturn
 	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
-	MOVQ	24(SP), DI	// saved ucontext
-	MOVQ	32(SP), SI	// saved infostyle
+	MOVQ	32(SP), DI	// saved ucontext
+	MOVQ	40(SP), SI	// saved infostyle
 	SYSCALL
 	INT $3	// not reached
 
