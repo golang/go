@@ -1327,44 +1327,29 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 }
 
 
-func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
-	if p.tok != token.LBRACE {
-		prevLev := p.exprLev
-		p.exprLev = -1
-
-		if p.tok != token.SEMICOLON {
-			s1 = p.parseSimpleStmt(false)
-		}
-		if p.tok == token.SEMICOLON {
-			p.next()
-			if p.tok != token.LBRACE && p.tok != token.SEMICOLON {
-				s2 = p.parseSimpleStmt(false)
-			}
-			if isForStmt {
-				// for statements have a 3rd section
-				p.expectSemi()
-				if p.tok != token.LBRACE {
-					s3 = p.parseSimpleStmt(false)
-				}
-			}
-		} else {
-			s1, s2 = nil, s1
-		}
-
-		p.exprLev = prevLev
-	}
-
-	return s1, s2, s3
-}
-
-
 func (p *parser) parseIfStmt() *ast.IfStmt {
 	if p.trace {
 		defer un(trace(p, "IfStmt"))
 	}
 
 	pos := p.expect(token.IF)
-	s1, s2, _ := p.parseControlClause(false)
+
+	var s ast.Stmt
+	var x ast.Expr
+	{
+		prevLev := p.exprLev
+		p.exprLev = -1
+		s = p.parseSimpleStmt(false)
+		if p.tok == token.SEMICOLON {
+			p.next()
+			x = p.parseExpr()
+		} else {
+			x = p.makeExpr(s)
+			s = nil
+		}
+		p.exprLev = prevLev
+	}
+
 	body := p.parseBlockStmt()
 	var else_ ast.Stmt
 	if p.tok == token.ELSE {
@@ -1374,7 +1359,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 		p.expectSemi()
 	}
 
-	return &ast.IfStmt{pos, s1, p.makeExpr(s2), body, else_}
+	return &ast.IfStmt{pos, s, x, body, else_}
 }
 
 
@@ -1457,7 +1442,22 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	}
 
 	pos := p.expect(token.SWITCH)
-	s1, s2, _ := p.parseControlClause(false)
+
+	var s1, s2 ast.Stmt
+	if p.tok != token.LBRACE {
+		prevLev := p.exprLev
+		p.exprLev = -1
+		s2 = p.parseSimpleStmt(false)
+		if p.tok == token.SEMICOLON {
+			p.next()
+			s1 = s2
+			s2 = nil
+			if p.tok != token.LBRACE {
+				s2 = p.parseSimpleStmt(false)
+			}
+		}
+		p.exprLev = prevLev
+	}
 
 	if isExprSwitch(s2) {
 		lbrace := p.expect(token.LBRACE)
@@ -1575,7 +1575,31 @@ func (p *parser) parseForStmt() ast.Stmt {
 	}
 
 	pos := p.expect(token.FOR)
-	s1, s2, s3 := p.parseControlClause(true)
+
+	var s1, s2, s3 ast.Stmt
+	if p.tok != token.LBRACE {
+		prevLev := p.exprLev
+		p.exprLev = -1
+
+		if p.tok != token.SEMICOLON {
+			s2 = p.parseSimpleStmt(false)
+		}
+		if p.tok == token.SEMICOLON {
+			p.next()
+			s1 = s2
+			s2 = nil
+			if p.tok != token.SEMICOLON {
+				s2 = p.parseSimpleStmt(false)
+			}
+			p.expectSemi()
+			if p.tok != token.LBRACE {
+				s3 = p.parseSimpleStmt(false)
+			}
+		}
+
+		p.exprLev = prevLev
+	}
+
 	body := p.parseBlockStmt()
 	p.expectSemi()
 
