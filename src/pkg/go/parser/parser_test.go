@@ -18,6 +18,7 @@ var illegalInputs = []interface{}{
 	3.14,
 	[]byte(nil),
 	"foo!",
+	`package p; func f() { if /* should have condition */ {} };`,
 }
 
 

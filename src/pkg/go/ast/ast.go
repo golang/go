@@ -597,7 +597,7 @@ type (
 	IfStmt struct {
 		If   token.Pos // position of "if" keyword
 		Init Stmt      // initalization statement; or nil
-		Cond Expr      // condition; or nil
+		Cond Expr      // condition
 		Body *BlockStmt
 		Else Stmt // else branch; or nil
 	}

@@ -227,9 +227,7 @@ func Walk(v Visitor, node Node) {
 		if n.Init != nil {
 			Walk(v, n.Init)
 		}
-		if n.Cond != nil {
-			Walk(v, n.Cond)
-		}
+		Walk(v, n.Cond)
 		Walk(v, n.Body)
 		if n.Else != nil {
 			Walk(v, n.Else)
