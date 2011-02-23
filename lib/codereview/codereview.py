@@ -1136,11 +1136,14 @@ def clpatch(ui, repo, clname, **opts):
 		return missing_codereview
 
 	cl, patch, err = DownloadCL(ui, repo, clname)
+	if err != "":
+		return err
+	if patch == emptydiff:
+		return "codereview issue %s has no diff" % clname
+
 	argv = ["hgpatch"]
 	if opts["no_incoming"]:
 		argv += ["--checksync=false"]
-	if err != "":
-		return err
 	try:
 		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=sys.platform != "win32")
 	except:
@@ -1151,6 +1154,8 @@ def clpatch(ui, repo, clname, **opts):
 		return "hgpatch failed"
 	cl.local = True
 	cl.files = out.strip().split()
+	if not cl.files:
+		return "codereview issue %s has no diff" % clname
 	files = ChangedFiles(ui, repo, [], opts)
 	extra = Sub(cl.files, files)
 	if extra:
