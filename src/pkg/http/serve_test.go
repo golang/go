@@ -197,7 +197,7 @@ func TestHostHandlers(t *testing.T) {
 			t.Errorf("reading response: %v", err)
 			continue
 		}
-		s := r.Header["Result"]
+		s := r.Header.Get("Result")
 		if s != vt.expected {
 			t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
 		}

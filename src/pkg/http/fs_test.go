@@ -109,7 +109,7 @@ func TestServeFile(t *testing.T) {
 
 	// set up the Request (re-used for all tests)
 	var req Request
-	req.Header = make(map[string]string)
+	req.Header = make(Header)
 	if req.URL, err = ParseURL("http://" + serverAddr + "/ServeFile"); err != nil {
 		t.Fatal("ParseURL:", err)
 	}
@@ -123,9 +123,9 @@ func TestServeFile(t *testing.T) {
 
 	// Range tests
 	for _, rt := range ServeFileRangeTests {
-		req.Header["Range"] = "bytes=" + rt.r
+		req.Header.Set("Range", "bytes="+rt.r)
 		if rt.r == "" {
-			req.Header["Range"] = ""
+			req.Header["Range"] = nil
 		}
 		r, body := getBody(t, req)
 		if r.StatusCode != rt.code {
@@ -138,8 +138,9 @@ func TestServeFile(t *testing.T) {
 		if rt.r == "" {
 			h = ""
 		}
-		if r.Header["Content-Range"] != h {
-			t.Errorf("header mismatch: range=%q: got %q, want %q", rt.r, r.Header["Content-Range"], h)
+		cr := r.Header.Get("Content-Range")
+		if cr != h {
+			t.Errorf("header mismatch: range=%q: got %q, want %q", rt.r, cr, h)
 		}
 		if !equal(body, file[rt.start:rt.end]) {
 			t.Errorf("body mismatch: range=%q: got %q, want %q", rt.r, body, file[rt.start:rt.end])

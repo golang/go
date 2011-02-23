@@ -104,7 +104,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 		}
 	}
 
-	if t, _ := time.Parse(TimeFormat, r.Header["If-Modified-Since"]); t != nil && d.Mtime_ns/1e9 <= t.Seconds() {
+	if t, _ := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); t != nil && d.Mtime_ns/1e9 <= t.Seconds() {
 		w.WriteHeader(StatusNotModified)
 		return
 	}
@@ -153,7 +153,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 
 	// handle Content-Range header.
 	// TODO(adg): handle multiple ranges
-	ranges, err := parseRange(r.Header["Range"], size)
+	ranges, err := parseRange(r.Header.Get("Range"), size)
 	if err != nil || len(ranges) > 1 {
 		Error(w, err.String(), StatusRequestedRangeNotSatisfiable)
 		return

@@ -26,10 +26,10 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
 	{"USER-AGENT", "User-Agent"},
 }
 
-func TestCanonicalHeaderKey(t *testing.T) {
+func TestCanonicalMIMEHeaderKey(t *testing.T) {
 	for _, tt := range canonicalHeaderKeyTests {
-		if s := CanonicalHeaderKey(tt.in); s != tt.out {
-			t.Errorf("CanonicalHeaderKey(%q) = %q, want %q", tt.in, s, tt.out)
+		if s := CanonicalMIMEHeaderKey(tt.in); s != tt.out {
+			t.Errorf("CanonicalMIMEHeaderKey(%q) = %q, want %q", tt.in, s, tt.out)
 		}
 	}
 }
@@ -130,7 +130,7 @@ func TestReadDotBytes(t *testing.T) {
 func TestReadMIMEHeader(t *testing.T) {
 	r := reader("my-key: Value 1  \r\nLong-key: Even \n Longer Value\r\nmy-Key: Value 2\r\n\n")
 	m, err := r.ReadMIMEHeader()
-	want := map[string][]string{
+	want := MIMEHeader{
 		"My-Key":   {"Value 1", "Value 2"},
 		"Long-Key": {"Even Longer Value"},
 	}

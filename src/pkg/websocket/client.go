@@ -245,20 +245,20 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
 	}
 
 	// Step 41. check websocket headers.
-	if resp.Header["Upgrade"] != "WebSocket" ||
-		strings.ToLower(resp.Header["Connection"]) != "upgrade" {
+	if resp.Header.Get("Upgrade") != "WebSocket" ||
+		strings.ToLower(resp.Header.Get("Connection")) != "upgrade" {
 		return ErrBadUpgrade
 	}
 
-	if resp.Header["Sec-Websocket-Origin"] != origin {
+	if resp.Header.Get("Sec-Websocket-Origin") != origin {
 		return ErrBadWebSocketOrigin
 	}
 
-	if resp.Header["Sec-Websocket-Location"] != location {
+	if resp.Header.Get("Sec-Websocket-Location") != location {
 		return ErrBadWebSocketLocation
 	}
 
-	if protocol != "" && resp.Header["Sec-Websocket-Protocol"] != protocol {
+	if protocol != "" && resp.Header.Get("Sec-Websocket-Protocol") != protocol {
 		return ErrBadWebSocketProtocol
 	}
 
@@ -304,17 +304,17 @@ func draft75handshake(resourceName, host, origin, location, protocol string, br 
 	if resp.Status != "101 Web Socket Protocol Handshake" {
 		return ErrBadStatus
 	}
-	if resp.Header["Upgrade"] != "WebSocket" ||
-		resp.Header["Connection"] != "Upgrade" {
+	if resp.Header.Get("Upgrade") != "WebSocket" ||
+		resp.Header.Get("Connection") != "Upgrade" {
 		return ErrBadUpgrade
 	}
-	if resp.Header["Websocket-Origin"] != origin {
+	if resp.Header.Get("Websocket-Origin") != origin {
 		return ErrBadWebSocketOrigin
 	}
-	if resp.Header["Websocket-Location"] != location {
+	if resp.Header.Get("Websocket-Location") != location {
 		return ErrBadWebSocketLocation
 	}
-	if protocol != "" && resp.Header["Websocket-Protocol"] != protocol {
+	if protocol != "" && resp.Header.Get("Websocket-Protocol") != protocol {
 		return ErrBadWebSocketProtocol
 	}
 	return

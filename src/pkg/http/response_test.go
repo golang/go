@@ -34,8 +34,8 @@ var respTests = []respTest{
 			ProtoMajor:    1,
 			ProtoMinor:    0,
 			RequestMethod: "GET",
-			Header: map[string]string{
-				"Connection": "close", // TODO(rsc): Delete?
+			Header: Header{
+				"Connection": {"close"}, // TODO(rsc): Delete?
 			},
 			Close:         true,
 			ContentLength: -1,
@@ -100,9 +100,9 @@ var respTests = []respTest{
 			ProtoMajor:    1,
 			ProtoMinor:    0,
 			RequestMethod: "GET",
-			Header: map[string]string{
-				"Connection":     "close", // TODO(rsc): Delete?
-				"Content-Length": "10",    // TODO(rsc): Delete?
+			Header: Header{
+				"Connection":     {"close"}, // TODO(rsc): Delete?
+				"Content-Length": {"10"},    // TODO(rsc): Delete?
 			},
 			Close:         true,
 			ContentLength: 10,
@@ -128,7 +128,7 @@ var respTests = []respTest{
 			ProtoMajor:       1,
 			ProtoMinor:       0,
 			RequestMethod:    "GET",
-			Header:           map[string]string{},
+			Header:           Header{},
 			Close:            true,
 			ContentLength:    -1,
 			TransferEncoding: []string{"chunked"},
@@ -155,7 +155,7 @@ var respTests = []respTest{
 			ProtoMajor:       1,
 			ProtoMinor:       0,
 			RequestMethod:    "GET",
-			Header:           map[string]string{},
+			Header:           Header{},
 			Close:            true,
 			ContentLength:    -1, // TODO(rsc): Fix?
 			TransferEncoding: []string{"chunked"},
@@ -175,7 +175,7 @@ var respTests = []respTest{
 			ProtoMajor:    1,
 			ProtoMinor:    0,
 			RequestMethod: "GET",
-			Header:        map[string]string{},
+			Header:        Header{},
 			Close:         true,
 			ContentLength: -1,
 		},
@@ -194,7 +194,7 @@ var respTests = []respTest{
 			ProtoMajor:    1,
 			ProtoMinor:    0,
 			RequestMethod: "GET",
-			Header:        map[string]string{},
+			Header:        Header{},
 			Close:         true,
 			ContentLength: -1,
 		},
