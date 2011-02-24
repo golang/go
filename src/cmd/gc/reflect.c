@@ -592,7 +592,8 @@ dcommontype(Sym *s, int ot, Type *t)
 	//		fieldAlign uint8;
 	//		kind uint8;
 	//		string *string;
-	//		*nameInfo;
+	//		*extraType;
+	//		ptrToThis *Type
 	//	}
 	ot = duintptr(s, ot, t->width);
 	ot = duint32(s, ot, typehash(t));
@@ -616,7 +617,7 @@ dcommontype(Sym *s, int ot, Type *t)
 		ot = dsymptr(s, ot, s1, 0);	// extraType
 	else
 		ot = duintptr(s, ot, 0);
-
+	ot = duintptr(s, ot, 0);  // ptr type (placeholder for now)
 	return ot;
 }
 

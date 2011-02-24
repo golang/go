@@ -9,7 +9,7 @@
  * data structures and must be kept in sync with this file:
  *
  *	../../cmd/gc/reflect.c
- *	../../cmd/ld/dwarf.c
+ *	../../cmd/ld/dwarf.c decodetype_*
  *	../reflect/type.go
  *	type.h
  */
@@ -35,6 +35,7 @@ type commonType struct {
 	kind          uint8   // enumeration for C
 	string        *string // string form; unnecessary  but undeniably useful
 	*uncommonType         // (relatively) uncommon fields
+	ptrToThis     *Type   // pointer to this type, if used in binary or has methods
 }
 
 // Values for commonType.kind.

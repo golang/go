@@ -31,6 +31,7 @@ struct CommonType
 	uint8 kind;
 	String *string;
 	UncommonType *x;
+	Type *ptrto;
 };
 
 enum {
