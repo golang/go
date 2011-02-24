@@ -550,6 +550,8 @@ mark(Sym *s)
 
 	if(s == S || s->reachable)
 		return;
+	if(strncmp(s->name, "weak.", 5) == 0)
+		return;
 	s->reachable = 1;
 	if(s->text)
 		marktext(s);
@@ -654,6 +656,35 @@ deadcode(void)
 		textp = nil;
 	else
 		last->next = nil;
+	
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->hash)
+		if(strncmp(s->name, "weak.", 5) == 0) {
+			s->special = 1;  // do not lay out in data segment
+			s->reachable = 1;
+		}
+}
+
+void
+doweak(void)
+{
+	int i;
+	Sym *s, *t;
+
+	// resolve weak references only if
+	// target symbol will be in binary anyway.
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->hash) {
+		if(strncmp(s->name, "weak.", 5) == 0) {
+			t = lookup(s->name+5, s->version);
+			if(t->type != 0 && t->reachable) {
+				s->value = t->value;
+				s->type = t->type;
+			} else
+				s->value = 0;
+			continue;
+		}
+	}
 }
 
 void

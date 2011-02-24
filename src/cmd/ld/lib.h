@@ -167,6 +167,8 @@ int	archreloc(Reloc*, Sym*, vlong*);
 void	adddynsym(Sym*);
 void	addexport(void);
 void	dostkcheck(void);
+void	undef(void);
+void	doweak(void);
 
 int	pathchar(void);
 void*	mal(uint32);
