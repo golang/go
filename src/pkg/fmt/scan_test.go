@@ -673,3 +673,62 @@ func TestUnreadRuneWithBufio(t *testing.T) {
 		t.Errorf("expected αb; got %q", a)
 	}
 }
+
+type TwoLines string
+
+// Attempt to read two lines into the object.  Scanln should prevent this
+// because it stops at newline; Scan and Scanf should be fine.
+func (t *TwoLines) Scan(state ScanState, verb int) os.Error {
+	chars := make([]int, 0, 100)
+	for nlCount := 0; nlCount < 2; {
+		c, err := state.GetRune()
+		if err != nil {
+			return err
+		}
+		chars = append(chars, c)
+		if c == '\n' {
+			nlCount++
+		}
+	}
+	*t = TwoLines(string(chars))
+	return nil
+}
+
+func TestMultiLine(t *testing.T) {
+	input := "abc\ndef\n"
+	// Sscan should work
+	var tscan TwoLines
+	n, err := Sscan(input, &tscan)
+	if n != 1 {
+		t.Errorf("Sscan: expected 1 item; got %d", n)
+	}
+	if err != nil {
+		t.Errorf("Sscan: expected no error; got %s", err)
+	}
+	if string(tscan) != input {
+		t.Errorf("Sscan: expected %q; got %q", input, tscan)
+	}
+	// Sscanf should work
+	var tscanf TwoLines
+	n, err = Sscanf(input, "%s", &tscanf)
+	if n != 1 {
+		t.Errorf("Sscanf: expected 1 item; got %d", n)
+	}
+	if err != nil {
+		t.Errorf("Sscanf: expected no error; got %s", err)
+	}
+	if string(tscanf) != input {
+		t.Errorf("Sscanf: expected %q; got %q", input, tscanf)
+	}
+	// Sscanln should not work
+	var tscanln TwoLines
+	n, err = Sscanln(input, &tscanln)
+	if n != 0 {
+		t.Errorf("Sscanln: expected 0 items; got %d: %q", n, tscanln)
+	}
+	if err == nil {
+		t.Error("Sscanln: expected error; got none")
+	} else if err != io.ErrUnexpectedEOF {
+		t.Errorf("Sscanln: expected io.ErrUnexpectedEOF (ha!); got %s", err)
+	}
+}
