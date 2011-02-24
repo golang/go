@@ -148,8 +148,13 @@ func readDirList(filename string) ([]string, os.Error) {
 	}
 	// create a sorted list of valid directory names
 	filter := func(path string) bool {
-		d, err := os.Lstat(path)
-		return err == nil && isPkgDir(d)
+		d, e := os.Lstat(path)
+		if e != nil && err == nil {
+			// remember first error and return it from readDirList
+			// so we have at least some information if things go bad
+			err = e
+		}
+		return e == nil && isPkgDir(d)
 	}
 	list := canonicalizePaths(strings.Split(string(contents), "\n", -1), filter)
 	// for each parent path, remove all it's children q
@@ -161,7 +166,7 @@ func readDirList(filename string) ([]string, os.Error) {
 			i++
 		}
 	}
-	return list[0:i], nil
+	return list[0:i], err
 }
 
 
