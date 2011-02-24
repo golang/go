@@ -526,7 +526,10 @@ asmbpe(void)
 	set(MinorSubsystemVersion, 0);
 	set(SizeOfImage, nextsectoff);
 	set(SizeOfHeaders, PEFILEHEADR);
-	set(Subsystem, 3);	// WINDOWS_CUI
+	if(strcmp(headstring, "windowsgui") == 0)
+		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI);
+	else
+		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_CUI);
 	set(SizeOfStackReserve, 0x0040000);
 	set(SizeOfStackCommit, 0x00001000);
 	set(SizeOfHeapReserve, 0x00100000);

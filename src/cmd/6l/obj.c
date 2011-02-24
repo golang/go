@@ -51,6 +51,7 @@ Header headers[] = {
    "linux", Hlinux,
    "freebsd", Hfreebsd,
    "windows", Hwindows,
+   "windowsgui", Hwindows,
    0, 0
 };
 

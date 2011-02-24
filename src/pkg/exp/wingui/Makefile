@@ -6,6 +6,8 @@ GOOS=windows
 
 include ../../../Make.inc
 
+LD:=$(LD) -Hwindowsgui
+
 TARG=wingui
 
 GOFILES=\
