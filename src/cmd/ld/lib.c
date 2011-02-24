@@ -1271,8 +1271,10 @@ headtype(char *name)
 	int i;
 
 	for(i=0; headers[i].name; i++)
-		if(strcmp(name, headers[i].name) == 0)
+		if(strcmp(name, headers[i].name) == 0) {
+			headstring = headers[i].name;
 			return headers[i].val;
+		}
 	fprint(2, "unknown header type -H %s\n", name);
 	errorexit();
 	return -1;  // not reached
