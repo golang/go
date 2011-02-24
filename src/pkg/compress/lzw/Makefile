@@ -7,5 +7,6 @@ include ../../../Make.inc
 TARG=compress/lzw
 GOFILES=\
 	reader.go\
+	writer.go\
 
 include ../../../Make.pkg
