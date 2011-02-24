@@ -48,6 +48,7 @@ type commonType struct {
 	kind       uint8
 	string     *string
 	*uncommonType
+	ptrToThis *runtime.Type
 }
 
 type method struct {
