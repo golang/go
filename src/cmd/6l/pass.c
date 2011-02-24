@@ -718,15 +718,3 @@ atolwhex(char *s)
 		n = -n;
 	return n;
 }
-
-void
-undef(void)
-{
-	int i;
-	Sym *s;
-
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash)
-		if(s->type == SXREF)
-			diag("%s: not defined", s->name);
-}

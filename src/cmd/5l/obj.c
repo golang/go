@@ -280,6 +280,7 @@ main(int argc, char *argv[])
 	symtab();
 	dodata();
 	address();
+	doweak();
 	reloc();
 	asmb();
 	undef();
