@@ -95,7 +95,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
 // atomically renames that file to the file named by filename.
 //
 func writeFileAtomically(filename string, data []byte) os.Error {
-	f, err := ioutil.TempFile(cwd, filename)
+	f, err := ioutil.TempFile(pathutil.Split(filename))
 	if err != nil {
 		return err
 	}
