@@ -29,6 +29,8 @@ type runeUnreader interface {
 // to discover the next space-delimited token.
 type ScanState interface {
 	// GetRune reads the next rune (Unicode code point) from the input.
+	// If invoked during Scanln, Fscanln, or Sscanln, GetRune() will
+	// return EOF after returning the first '\n'.
 	GetRune() (rune int, err os.Error)
 	// UngetRune causes the next call to GetRune to return the same rune.
 	UngetRune()
@@ -44,7 +46,7 @@ type ScanState interface {
 // Scanner is implemented by any value that has a Scan method, which scans
 // the input for the representation of a value and stores the result in the
 // receiver, which must be a pointer to be useful.  The Scan method is called
-// for any argument to Scan or Scanln that implements it.
+// for any argument to Scan, Scanf, or Scanln that implements it.
 type Scanner interface {
 	Scan(state ScanState, verb int) os.Error
 }
@@ -96,7 +98,7 @@ func Sscanf(str string, format string, a ...interface{}) (n int, err os.Error) {
 // returns the number of items successfully scanned.  If that is less
 // than the number of arguments, err will report why.
 func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
-	s := newScanState(r, true)
+	s := newScanState(r, true, false)
 	n, err = s.doScan(a)
 	s.free()
 	return
@@ -105,7 +107,7 @@ func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
 // Fscanln is similar to Fscan, but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
-	s := newScanState(r, false)
+	s := newScanState(r, false, true)
 	n, err = s.doScan(a)
 	s.free()
 	return
@@ -115,7 +117,7 @@ func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
 // values into successive arguments as determined by the format.  It
 // returns the number of items successfully parsed.
 func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err os.Error) {
-	s := newScanState(r, false)
+	s := newScanState(r, false, false)
 	n, err = s.doScanf(format, a)
 	s.free()
 	return
@@ -134,6 +136,7 @@ type ss struct {
 	rr         io.RuneReader // where to read input
 	buf        bytes.Buffer  // token accumulator
 	nlIsSpace  bool          // whether newline counts as white space
+	nlIsEnd    bool          // whether newline terminates scan
 	peekRune   int           // one-rune lookahead
 	prevRune   int           // last rune returned by GetRune
 	atEOF      bool          // already read EOF
@@ -147,6 +150,11 @@ func (s *ss) GetRune() (rune int, err os.Error) {
 		rune = s.peekRune
 		s.prevRune = rune
 		s.peekRune = -1
+		return
+	}
+	if s.nlIsEnd && s.prevRune == '\n' {
+		rune = EOF
+		err = os.EOF
 		return
 	}
 	rune, _, err = s.rr.ReadRune()
@@ -300,7 +308,7 @@ func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
 var ssFree = newCache(func() interface{} { return new(ss) })
 
 // Allocate a new ss struct or grab a cached one.
-func newScanState(r io.Reader, nlIsSpace bool) *ss {
+func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) *ss {
 	s := ssFree.get().(*ss)
 	if rr, ok := r.(io.RuneReader); ok {
 		s.rr = rr
@@ -308,6 +316,8 @@ func newScanState(r io.Reader, nlIsSpace bool) *ss {
 		s.rr = &readRune{reader: r}
 	}
 	s.nlIsSpace = nlIsSpace
+	s.nlIsEnd = nlIsEnd
+	s.prevRune = -1
 	s.peekRune = -1
 	s.atEOF = false
 	s.maxWid = 0
@@ -804,6 +814,9 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	if v, ok := field.(Scanner); ok {
 		err = v.Scan(s, verb)
 		if err != nil {
+			if err == os.EOF {
+				err = io.ErrUnexpectedEOF
+			}
 			s.error(err)
 		}
 		return
