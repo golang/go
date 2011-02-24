@@ -9,7 +9,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -77,9 +76,7 @@ func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
 	}
 
 	// Connect to server or proxy
-	log.Printf("Temporary necessary log statement to work around http://code.google.com/p/go/issues/detail?id=1547")
 	conn, err := net.Dial("tcp", "", addr)
-	log.Printf("Temporary necessary log statement to work around http://code.google.com/p/go/issues/detail?id=1547")
 	if err != nil {
 		return nil, err
 	}
