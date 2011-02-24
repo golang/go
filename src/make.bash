@@ -61,29 +61,24 @@ bash "$GOROOT"/src/clean.bash
 # pkg builds libcgo and the Go programs in cmd.
 for i in lib9 libbio libmach cmd pkg
 do
-	case "$i-$GOOS-$GOARCH" in
-	cmd/*-nacl-*)
-		;;
-	*)
-		# The ( ) here are to preserve the current directory
-		# for the next round despite the cd $i below.
-		# set -e does not apply to ( ) so we must explicitly
-		# test the exit status.
-		(
-			echo; echo; echo %%%% making $i %%%%; echo
-			cd "$GOROOT"/src/$i
-			case $i in
-			cmd)
-				bash make.bash
-				;;
-			pkg)
-				gomake install
-				;;
-			*)
-				gomake install
-			esac
-		)  || exit 1
-	esac
+	# The ( ) here are to preserve the current directory
+	# for the next round despite the cd $i below.
+	# set -e does not apply to ( ) so we must explicitly
+	# test the exit status.
+	(
+		echo; echo; echo %%%% making $i %%%%; echo
+		cd "$GOROOT"/src/$i
+		case $i in
+		cmd)
+			bash make.bash
+			;;
+		pkg)
+			gomake install
+			;;
+		*)
+			gomake install
+		esac
+	)  || exit 1
 done
 
 # Print post-install messages.
