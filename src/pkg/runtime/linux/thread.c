@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "defs.h"
 #include "os.h"
+#include "stack.h"
 
 extern SigTab runtime·sigtab[];
 
@@ -274,7 +275,7 @@ runtime·minit(void)
 {
 	// Initialize signal handling.
 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
-	runtime·signalstack(m->gsignal->stackguard, 32*1024);
+	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
 }
 
 void
