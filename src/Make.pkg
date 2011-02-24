@@ -176,11 +176,9 @@ _cgo_defun.$O: _cgo_defun.c
 # Generic build rules.
 # These come last so that the rules above can override them
 # for more specific file names.
-%.$O: %.c
+%.$O: %.c $(HFILES)
 	$(CC) $(CFLAGS) $*.c
 
 %.$O: %.s
 	$(AS) $*.s
-
-%.$O: $(HFILES)
 

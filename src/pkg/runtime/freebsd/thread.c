@@ -4,6 +4,7 @@
 #include "runtime.h"
 #include "defs.h"
 #include "os.h"
+#include "stack.h"
 
 extern SigTab runtime·sigtab[];
 extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
@@ -175,7 +176,7 @@ runtime·minit(void)
 {
 	// Initialize signal handling
 	m->gsignal = runtime·malg(32*1024);
-	runtime·signalstack(m->gsignal->stackguard, 32*1024);
+	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
 }
 
 void
