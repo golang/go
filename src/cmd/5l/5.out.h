@@ -179,6 +179,9 @@ enum	as
 
 	ALDREX,
 	ASTREX,
+	
+	ALDREXD,
+	ASTREXD,
 
 	ALAST,
 };
