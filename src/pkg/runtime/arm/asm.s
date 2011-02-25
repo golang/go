@@ -274,3 +274,34 @@ TEXT runtime·abort(SB),7,$-4
 TEXT runtime·runcgocallback(SB),7,$0
 	MOVW	$0, R0
 	MOVW	(R0), R1
+
+// bool armcas(int32 *val, int32 old, int32 new)
+// Atomically:
+//	if(*val == old){
+//		*val = new;
+//		return 1;
+//	}else
+//		return 0;
+//
+// To implement runtime·cas in ../$GOOS/arm/sys.s
+// using the native instructions, use:
+//
+//	TEXT runtime·cas(SB),7,$0
+//		B	runtime·armcas(SB)
+//
+TEXT runtime·armcas(SB),7,$0
+	MOVW	valptr+0(FP), R1
+	MOVW	old+4(FP), R2
+	MOVW	new+8(FP), R3
+casl:
+	LDREX	(R1), R0
+	CMP		R0, R2
+	BNE		casfail
+	STREX	R3, (R1), R0
+	CMP		$0, R0
+	BNE		casl
+	MOVW	$1, R0
+	RET
+casfail:
+	MOVW	$0, R0
+	RET
