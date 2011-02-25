@@ -131,6 +131,7 @@ DIRS=\
 	strconv\
 	strings\
 	sync\
+	sync/atomic\
 	syscall\
 	syslog\
 	tabwriter\
