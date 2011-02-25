@@ -392,6 +392,11 @@ enum	as
 	ACMPXCHGB,
 	ACMPXCHGL,
 	ACMPXCHGW,
+	ACMPXCHG8B,
+	
+	AXADDB,
+	AXADDL,
+	AXADDW,
 
 	/* conditional move */
 	ACMOVLCC,
