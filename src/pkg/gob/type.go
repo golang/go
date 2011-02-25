@@ -52,9 +52,6 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 	// cycle detection algorithm from Knuth, Vol 2, Section 3.1, Ex 6,
 	// pp 539-540.  As we step through indirections, run another type at
 	// half speed. If they meet up, there's a cycle.
-	// TODO: still need to deal with self-referential non-structs such
-	// as type T map[string]T but that is a larger undertaking - and can
-	// be useful, not always erroneous.
 	slowpoke := ut.base // walks half as fast as ut.base
 	for {
 		pt, ok := ut.base.(*reflect.PtrType)
@@ -210,10 +207,16 @@ type arrayType struct {
 	Len  int
 }
 
-func newArrayType(name string, elem gobType, length int) *arrayType {
-	a := &arrayType{CommonType{Name: name}, elem.id(), length}
-	setTypeId(a)
+func newArrayType(name string) *arrayType {
+	a := &arrayType{CommonType{Name: name}, 0, 0}
 	return a
+}
+
+func (a *arrayType) init(elem gobType, len int) {
+	// Set our type id before evaluating the element's, in case it's our own.
+	setTypeId(a)
+	a.Elem = elem.id()
+	a.Len = len
 }
 
 func (a *arrayType) safeString(seen map[typeId]bool) string {
@@ -233,10 +236,16 @@ type mapType struct {
 	Elem typeId
 }
 
-func newMapType(name string, key, elem gobType) *mapType {
-	m := &mapType{CommonType{Name: name}, key.id(), elem.id()}
-	setTypeId(m)
+func newMapType(name string) *mapType {
+	m := &mapType{CommonType{Name: name}, 0, 0}
 	return m
+}
+
+func (m *mapType) init(key, elem gobType) {
+	// Set our type id before evaluating the element's, in case it's our own.
+	setTypeId(m)
+	m.Key = key.id()
+	m.Elem = elem.id()
 }
 
 func (m *mapType) safeString(seen map[typeId]bool) string {
@@ -257,10 +266,15 @@ type sliceType struct {
 	Elem typeId
 }
 
-func newSliceType(name string, elem gobType) *sliceType {
-	s := &sliceType{CommonType{Name: name}, elem.id()}
-	setTypeId(s)
+func newSliceType(name string) *sliceType {
+	s := &sliceType{CommonType{Name: name}, 0}
 	return s
+}
+
+func (s *sliceType) init(elem gobType) {
+	// Set our type id before evaluating the element's, in case it's our own.
+	setTypeId(s)
+	s.Elem = elem.id()
 }
 
 func (s *sliceType) safeString(seen map[typeId]bool) string {
@@ -304,11 +318,26 @@ func (s *structType) string() string { return s.safeString(make(map[typeId]bool)
 
 func newStructType(name string) *structType {
 	s := &structType{CommonType{Name: name}, nil}
+	// For historical reasons we set the id here rather than init.
+	// Se the comment in newTypeObject for details.
 	setTypeId(s)
 	return s
 }
 
+func (s *structType) init(field []*fieldType) {
+	s.Field = field
+}
+
 func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
+	var err os.Error
+	var type0, type1 gobType
+	defer func() {
+		if err != nil {
+			types[rt] = nil, false
+		}
+	}()
+	// Install the top-level type before the subtypes (e.g. struct before
+	// fields) so recursive types can be constructed safely.
 	switch t := rt.(type) {
 	// All basic types are easy: they are predefined.
 	case *reflect.BoolType:
@@ -333,40 +362,55 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 		return tInterface.gobType(), nil
 
 	case *reflect.ArrayType:
-		gt, err := getType("", t.Elem())
+		at := newArrayType(name)
+		types[rt] = at
+		type0, err = getType("", t.Elem())
 		if err != nil {
 			return nil, err
 		}
-		return newArrayType(name, gt, t.Len()), nil
+		// Historical aside:
+		// For arrays, maps, and slices, we set the type id after the elements
+		// are constructed. This is to retain the order of type id allocation after
+		// a fix made to handle recursive types, which changed the order in
+		// which types are built.  Delaying the setting in this way preserves
+		// type ids while allowing recursive types to be described. Structs,
+		// done below, were already handling recursion correctly so they
+		// assign the top-level id before those of the field.
+		at.init(type0, t.Len())
+		return at, nil
 
 	case *reflect.MapType:
-		kt, err := getType("", t.Key())
+		mt := newMapType(name)
+		types[rt] = mt
+		type0, err = getType("", t.Key())
 		if err != nil {
 			return nil, err
 		}
-		vt, err := getType("", t.Elem())
+		type1, err = getType("", t.Elem())
 		if err != nil {
 			return nil, err
 		}
-		return newMapType(name, kt, vt), nil
+		mt.init(type0, type1)
+		return mt, nil
 
 	case *reflect.SliceType:
 		// []byte == []uint8 is a special case
 		if t.Elem().Kind() == reflect.Uint8 {
 			return tBytes.gobType(), nil
 		}
-		gt, err := getType(t.Elem().Name(), t.Elem())
+		st := newSliceType(name)
+		types[rt] = st
+		type0, err = getType(t.Elem().Name(), t.Elem())
 		if err != nil {
 			return nil, err
 		}
-		return newSliceType(name, gt), nil
+		st.init(type0)
+		return st, nil
 
 	case *reflect.StructType:
-		// Install the struct type itself before the fields so recursive
-		// structures can be constructed safely.
-		strType := newStructType(name)
-		types[rt] = strType
-		idToType[strType.id()] = strType
+		st := newStructType(name)
+		types[rt] = st
+		idToType[st.id()] = st
 		field := make([]*fieldType, t.NumField())
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
@@ -382,8 +426,8 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 			}
 			field[i] = &fieldType{f.Name, gt.id()}
 		}
-		strType.Field = field
-		return strType, nil
+		st.init(field)
+		return st, nil
 
 	default:
 		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String())
@@ -435,7 +479,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 // For bootstrapping purposes, we assume that the recipient knows how
 // to decode a wireType; it is exactly the wireType struct here, interpreted
 // using the gob rules for sending a structure, except that we assume the
-// ids for wireType and structType are known.  The relevant pieces
+// ids for wireType and structType etc. are known.  The relevant pieces
 // are built in encode.go's init() function.
 // To maintain binary compatibility, if you extend this type, always put
 // the new fields last.

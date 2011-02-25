@@ -342,7 +342,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a int
 		}
-		instr := &decInstr{decOpMap[reflect.Int], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpTable[reflect.Int], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(signedResult)
 		execDec("int", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
@@ -355,7 +355,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a uint
 		}
-		instr := &decInstr{decOpMap[reflect.Uint], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpTable[reflect.Uint], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
 		execDec("uint", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
@@ -446,7 +446,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a uintptr
 		}
-		instr := &decInstr{decOpMap[reflect.Uintptr], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpTable[reflect.Uintptr], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
 		execDec("uintptr", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
@@ -511,7 +511,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a complex64
 		}
-		instr := &decInstr{decOpMap[reflect.Complex64], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpTable[reflect.Complex64], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(complexResult)
 		execDec("complex", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17+19i {
@@ -524,7 +524,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a complex128
 		}
-		instr := &decInstr{decOpMap[reflect.Complex128], 6, 0, 0, ovfl}
+		instr := &decInstr{decOpTable[reflect.Complex128], 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(complexResult)
 		execDec("complex", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17+19i {

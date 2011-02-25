@@ -249,6 +249,24 @@ func TestArray(t *testing.T) {
 	}
 }
 
+func TestRecursiveMapType(t *testing.T) {
+	type recursiveMap map[string]recursiveMap
+	r1 := recursiveMap{"A": recursiveMap{"B": nil, "C": nil}, "D": nil}
+	r2 := make(recursiveMap)
+	if err := encAndDec(r1, &r2); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRecursiveSliceType(t *testing.T) {
+	type recursiveSlice []recursiveSlice
+	r1 := recursiveSlice{0: recursiveSlice{0: nil}, 1: nil}
+	r2 := make(recursiveSlice, 0)
+	if err := encAndDec(r1, &r2); err != nil {
+		t.Error(err)
+	}
+}
+
 // Regression test for bug: must send zero values inside arrays
 func TestDefaultsInArray(t *testing.T) {
 	type Type7 struct {
