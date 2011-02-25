@@ -213,9 +213,10 @@ func initDirTrees() {
 	if *filter != "" {
 		list, err := readDirList(*filter)
 		if err != nil {
-			log.Printf("%s", err)
-		} else if len(list) == 0 {
-			log.Printf("no directory paths in file %s", *filter)
+			log.Printf("readDirList(%s): %s", *filter, err)
+		}
+		if *verbose || len(list) == 0 {
+			log.Printf("found %d directory paths in file %s", len(list), *filter)
 		}
 		setPathFilter(list)
 	}

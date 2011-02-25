@@ -12,6 +12,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/ioutil"
+	"log"
 	"os"
 	pathutil "path"
 	"strings"
@@ -100,7 +101,13 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		return &Directory{depth, path, name, "", nil}
 	}
 
-	list, _ := ioutil.ReadDir(path) // ignore errors
+	list, err := ioutil.ReadDir(path)
+	if err != nil {
+		// newDirTree is called with a path that should be a package
+		// directory; errors here should not happen, but if they do,
+		// we want to know about them
+		log.Printf("ioutil.ReadDir(%s): %s", path, err)
+	}
 
 	// determine number of subdirectories and if there are package files
 	ndirs := 0
@@ -188,8 +195,16 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 // (i.e., in this case the tree may contain directories w/o any package files).
 //
 func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Directory {
-	d, err := os.Lstat(root)
-	if err != nil || !isPkgDir(d) {
+	// The root could be a symbolic link so use os.Stat not os.Lstat.
+	d, err := os.Stat(root)
+	// If we fail here, report detailed error messages; otherwise
+	// is is hard to see why a directory tree was not built.
+	switch {
+	case err != nil:
+		log.Printf("newDirectory(%s): %s", root, err)
+		return nil
+	case !isPkgDir(d):
+		log.Printf("newDirectory(%s): not a package directory", root)
 		return nil
 	}
 	if maxDepth < 0 {
