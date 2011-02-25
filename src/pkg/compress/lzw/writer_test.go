@@ -98,3 +98,14 @@ func TestWriter(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkEncoder(b *testing.B) {
+	b.StopTimer()
+	buf, _ := ioutil.ReadFile("../testdata/e.txt")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		w := NewWriter(devNull{}, LSB, 8)
+		w.Write(buf)
+		w.Close()
+	}
+}
