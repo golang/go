@@ -22,8 +22,7 @@
 //
 package atomic
 
-// BUG(rsc):
-// On ARM, the 64-bit functions use instructions unavailable before ARM 11.
+// BUG(rsc): On ARM, the 64-bit functions use instructions unavailable before ARM 11.
 //
 // On x86-32, the 64-bit functions use instructions unavailable before the Pentium.
 
