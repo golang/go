@@ -1054,6 +1054,8 @@ buildop(void)
 
 		case ALDREX:
 		case ASTREX:
+		case ALDREXD:
+		case ASTREXD:
 		case ATST:
 			break;
 		}

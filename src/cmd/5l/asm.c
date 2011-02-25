@@ -1463,7 +1463,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		aclass(&p->from);
 		if(instoffset != 0)
 			diag("offset must be zero in STREX");
-		o1 = (0x3<<23) | (0xf9<<4);
+		o1 = (0x18<<20) | (0xf90);
 		o1 |= p->from.reg << 16;
 		o1 |= p->reg << 0;
 		o1 |= p->to.reg << 12;
@@ -1552,6 +1552,25 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 	case 90:	/* tst reg  */
 		o1 = oprrr(ACMP+AEND, p->scond);
 		o1 |= p->from.reg<<16;
+		break;
+	case 91:	/* ldrexd oreg,reg */
+		aclass(&p->from);
+		if(instoffset != 0)
+			diag("offset must be zero in LDREX");
+		o1 = (0x1b<<20) | (0xf9f);
+		o1 |= p->from.reg << 16;
+		o1 |= p->to.reg << 12;
+		o1 |= (p->scond & C_SCOND) << 28;
+		break;
+	case 92:	/* strexd reg,oreg,reg */
+		aclass(&p->from);
+		if(instoffset != 0)
+			diag("offset must be zero in STREX");
+		o1 = (0x1a<<20) | (0xf90);
+		o1 |= p->from.reg << 16;
+		o1 |= p->reg << 0;
+		o1 |= p->to.reg << 12;
+		o1 |= (p->scond & C_SCOND) << 28;
 		break;
 	}
 	
