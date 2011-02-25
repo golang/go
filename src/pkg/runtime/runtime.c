@@ -64,8 +64,6 @@ runtime·dopanic(int32 unused)
 		runtime·lock(&deadlock);
 	}
 
-	runtime·panicking = 1;  // so we don't dump another stack trace for breakpoint trap
-	runtime·breakpoint();  // so we can grab it in a debugger
 	runtime·exit(2);
 }
 
