@@ -99,6 +99,9 @@ func decode(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os.
 		// The c == hi case is a special case.
 		suffix [1 << maxWidth]uint8
 		prefix [1 << maxWidth]uint16
+		// buf is a scratch buffer for reconstituting the bytes that a code expands to.
+		// Code suffixes are written right-to-left from the end of the buffer.
+		buf [1 << maxWidth]byte
 	)
 
 	// Loop over the code stream, converting codes into decompressed bytes.
@@ -131,9 +134,6 @@ func decode(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os.
 		case code == eof:
 			return w.Flush()
 		case code <= hi:
-			// buf is a scratch buffer for reconstituting the bytes that a code expands to.
-			// Code suffixes are written right-to-left from the end of the buffer.
-			var buf [1 << maxWidth]byte
 			c, i := code, len(buf)-1
 			if code == hi {
 				// code == hi is a special case which expands to the last expansion

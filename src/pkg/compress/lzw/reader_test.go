@@ -7,6 +7,7 @@ package lzw
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -107,5 +108,25 @@ func TestReader(t *testing.T) {
 		if s != tt.raw {
 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
 		}
+	}
+}
+
+type devNull struct{}
+
+func (devNull) Write(p []byte) (int, os.Error) {
+	return len(p), nil
+}
+
+func BenchmarkDecoder(b *testing.B) {
+	b.StopTimer()
+	buf0, _ := ioutil.ReadFile("../testdata/e.txt")
+	compressed := bytes.NewBuffer(nil)
+	w := NewWriter(compressed, LSB, 8)
+	io.Copy(w, bytes.NewBuffer(buf0))
+	w.Close()
+	buf1 := compressed.Bytes()
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		io.Copy(devNull{}, NewReader(bytes.NewBuffer(buf1), LSB, 8))
 	}
 }
