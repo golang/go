@@ -79,7 +79,7 @@ func checkSignedMessage(t *testing.T, signedHex, expected string) {
 		t.Errorf("bad UnverifiedBody got:%s want:%s", string(contents), expected)
 	}
 	if md.SignatureError != nil || md.Signature == nil {
-		t.Error("failed to validate: %s", md.SignatureError)
+		t.Errorf("failed to validate: %s", md.SignatureError)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestSignedEncryptedMessage(t *testing.T) {
 	}
 
 	if md.SignatureError != nil || md.Signature == nil {
-		t.Error("failed to validate: %s", md.SignatureError)
+		t.Errorf("failed to validate: %s", md.SignatureError)
 	}
 }
 
@@ -200,12 +200,12 @@ func testDetachedSignature(t *testing.T, kring KeyRing, signature io.Reader, sig
 		return
 	}
 	if signer == nil {
-		t.Errorf("%s: signer is nil")
+		t.Errorf("%s: signer is nil", tag)
 		return
 	}
 	expectedSignerKeyId := uint64(0xa34d7e18c20c31bb)
 	if signer.PrimaryKey.KeyId != expectedSignerKeyId {
-		t.Errorf("%s: wrong signer got:%x want:%x", signer.PrimaryKey.KeyId, expectedSignerKeyId)
+		t.Errorf("%s: wrong signer got:%x want:%x", tag, signer.PrimaryKey.KeyId, expectedSignerKeyId)
 	}
 }
 
