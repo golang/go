@@ -261,13 +261,13 @@ func Read(r io.Reader) (p Packet, err os.Error) {
 	case packetTypePrivateKey, packetTypePrivateSubkey:
 		pk := new(PrivateKey)
 		if tag == packetTypePrivateSubkey {
-			pk.IsSubKey = true
+			pk.IsSubkey = true
 		}
 		p = pk
 	case packetTypePublicKey, packetTypePublicSubkey:
 		pk := new(PublicKey)
 		if tag == packetTypePublicSubkey {
-			pk.IsSubKey = true
+			pk.IsSubkey = true
 		}
 		p = pk
 	case packetTypeCompressed:

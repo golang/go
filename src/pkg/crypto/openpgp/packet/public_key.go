@@ -23,7 +23,7 @@ type PublicKey struct {
 	PublicKey    interface{} // Either a *rsa.PublicKey or *dsa.PublicKey
 	Fingerprint  [20]byte
 	KeyId        uint64
-	IsSubKey     bool
+	IsSubkey     bool
 
 	n, e, p, q, g, y parsedMPI
 }
