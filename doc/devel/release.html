@@ -5,6 +5,89 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-02-24">2011-02-24</h3>
+
+<pre>
+This release includes changes to the http package and a small language change.
+Your code will require changes if it manipulates http Headers or omits the
+condition in if statements.
+
+The new http.Header type replaces map[string]string in the Header and Trailer
+fields of http.Request and http.Response.
+A Header value can be manipulated via its Get, Set, Add, and Del methods.
+See http://golang.org/pkg/http/#Header
+
+The condition is now mandatory in if statements.
+Previously it would default to true, as in switch and for statements.
+This code is now illegal:
+	if x := foo(); {
+		// code that is always executed
+	}
+The same effect can be achieved like this:
+	if x := foo(); true {
+		// code
+	}
+Or, in a simpler form:
+	{
+		x := foo()
+		// code
+	}
+
+Other changes:
+* 6l: new -Hwindowsgui flag allows to build windows gui pe (thanks Alex Brainman),
+	pe fixes (thanks Wei Guangjing).
+* 8l, 6l: allow for more os threads to be created on Windows (thanks Alex Brainman),
+* build: reduce the use of subshells in recursive make, and
+	remove unused NaCl conditional from make.bash (thanks Dave Cheney).
+* codereview: fix clpatch with empty diffs (thanks Gustavo Niemeyer).
+* compress/bzip2: add package.
+* compress/lzw: implement a decoder.
+* crypto/openpgp: add package.
+* crypto/rand: add read buffer to speed up small requests (thanks Albert Strasheim).
+* crypto/rsa: left-pad OAEP results when needed.
+* crypto/tls: make protocol negotiation failure fatal.
+* fmt: stop giving characters to the Scan method of Scanner when we hit a newline in Scanln.
+* gc: interface error message fixes,
+	make string const comparison unsigned (thanks Jeff R. Allen).
+* go spec: minor clarification on channel types.
+* go/ast, parser: condition in if statement is mandatory.
+* gob: compute information about a user's type once.
+	protect against pure recursive types.
+* godoc: accept symbolic links as path names provided to -path,
+	add robots.txt, log errors when reading filter files.
+* html: tokenize HTML comments.
+* http: add proxy support (thanks Yasuhiro Matsumoto),
+	implement with net/textproto (thanks Petar Maymounkov),
+	send full URL in proxy requests,
+	introduce start of Client and ClientTransport.
+* image/png: support for more formats (thanks Mikael Tillenius).
+* json: only use alphanumeric tags,
+	use base64 to encode []byte (thanks Roger Peppe).
+* ld: detect stack overflow due to NOSPLIT, drop rpath, support weak symbols.
+* misc/dashboard/builder: talk to hg with utf-8 encoding.
+* misc/dashboard: notify golang-dev on build failure.
+* net: *netFD.Read to return os.EOF on eof under windows (thanks Alex Brainman),
+	add IPv4 multicast to UDPConn (thanks Dave Cheney),
+	more accurate IPv4-in-IPv6 API test (thanks Mikio Hara),
+	reject invalid net:proto network names (thanks Olivier Antoine).
+* netchan: allow use of arbitrary connections (thanks Roger Peppe).
+* os: add ENODATA and ENOTCONN (thanks Albert Strasheim).
+* reflect: add a couple of sentences explaining how Methods operate,
+	add a secret method to ArrayOrSliceType to ensure it’s only implemented by arrays and slices,
+	add pointer word to CommonType (placeholder for future work).
+* runtime-gdb.py: gdb pretty printer for go strings properly handles length.
+* runtime: various bug fixes, more complete stack traces,
+	record $GOROOT_FINAL for runtime.GOROOT.
+* spec: delete incorrect mention of selector working on pointer to interface type.
+* sync: add Cond (thanks Gustavo Niemeyer).
+* syscall: add MCL_* flags for mlockall (thanks Albert Strasheim),
+	implement chmod() for win32 (thanks Yasuhiro Matsumoto).
+* test/bench: update timings for new GC.
+* testing: rename cmdline flags to avoid conflicts (thanks Gustavo Niemeyer).
+* textproto: introduce Header type (thanks Petar Maymounkov).
+* websocket: use new interface to access Header.
+</pre>
+
 <h3 id="2011-02-15">2011-02-15</h3>
 
 <pre>
