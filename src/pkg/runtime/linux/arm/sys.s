@@ -230,3 +230,21 @@ TEXT runtime·sigreturn(SB),7,$0
 	MOVW	$SYS_rt_sigreturn, R7
 	SWI	$0
 	RET
+
+// Use kernel version instead of native armcas in ../../arm.s.
+// See ../../../sync/atomic/asm_linux_arm.s for details.
+TEXT cas<>(SB),7,$0
+	MOVW	$0xffff0fc0, PC
+
+TEXT runtime·cas(SB),7,$0
+	MOVW	valptr+0(FP), R2
+	MOVW	old+4(FP), R0
+	MOVW	new+8(FP), R1
+	BL	cas<>(SB)
+	MOVW	$0, R0
+	MOVW.CS	$1, R0
+	RET
+
+TEXT runtime·casp(SB),7,$0
+	B	runtime·cas(SB)
+
