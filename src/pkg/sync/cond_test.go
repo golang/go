@@ -11,7 +11,7 @@ import (
 func TestCondSignal(t *testing.T) {
 	var m Mutex
 	c := NewCond(&m)
-	n := 1000
+	n := 2
 	running := make(chan bool, n)
 	awake := make(chan bool, n)
 	for i := 0; i < n; i++ {

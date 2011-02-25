@@ -4,6 +4,8 @@
 
 package sync
 
+import "sync/atomic"
+
 // An RWMutex is a reader/writer mutual exclusion lock.
 // The lock can be held by an arbitrary number of readers
 // or a single writer.
@@ -14,9 +16,9 @@ package sync
 // Writers take priority over Readers: no new RLocks
 // are granted while a blocked Lock call is waiting.
 type RWMutex struct {
-	w           Mutex  // held if there are pending readers or writers
-	r           Mutex  // held if the w is being rd
-	readerCount uint32 // number of pending readers
+	w           Mutex // held if there are pending readers or writers
+	r           Mutex // held if the w is being rd
+	readerCount int32 // number of pending readers
 }
 
 // RLock locks rw for reading.
@@ -33,7 +35,7 @@ func (rw *RWMutex) RLock() {
 	//   B: rw.RUnlock()
 	//   ... (new readers come and go indefinitely, W is starving)
 	rw.r.Lock()
-	if xadd(&rw.readerCount, 1) == 1 {
+	if atomic.AddInt32(&rw.readerCount, 1) == 1 {
 		// The first reader locks rw.w, so writers will be blocked
 		// while the readers have the RLock.
 		rw.w.Lock()
@@ -46,7 +48,7 @@ func (rw *RWMutex) RLock() {
 // It is a run-time error if rw is not locked for reading
 // on entry to RUnlock.
 func (rw *RWMutex) RUnlock() {
-	if xadd(&rw.readerCount, -1) == 0 {
+	if atomic.AddInt32(&rw.readerCount, -1) == 0 {
 		// last reader finished, enable writers
 		rw.w.Unlock()
 	}
