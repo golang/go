@@ -76,7 +76,15 @@ func (d *decoder) readMSB() (uint16, os.Error) {
 // decode decompresses bytes from r and writes them to pw.
 // read specifies how to decode bytes into codes.
 // litWidth is the width in bits of literal codes.
-func decode(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os.Error), litWidth uint) os.Error {
+func decode(r io.Reader, read func(*decoder) (uint16, os.Error), litWidth int, pw *io.PipeWriter) {
+	br, ok := r.(io.ByteReader)
+	if !ok {
+		br = bufio.NewReader(r)
+	}
+	pw.CloseWithError(decode1(pw, br, read, uint(litWidth)))
+}
+
+func decode1(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os.Error), litWidth uint) os.Error {
 	const (
 		maxWidth    = 12
 		invalidCode = 0xffff
@@ -197,12 +205,6 @@ func NewReader(r io.Reader, order Order, litWidth int) io.ReadCloser {
 		pw.CloseWithError(fmt.Errorf("lzw: litWidth %d out of range", litWidth))
 		return pr
 	}
-	go func() {
-		br, ok := r.(io.ByteReader)
-		if !ok {
-			br = bufio.NewReader(r)
-		}
-		pw.CloseWithError(decode(pw, br, read, uint(litWidth)))
-	}()
+	go decode(r, read, litWidth, pw)
 	return pr
 }
