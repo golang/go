@@ -185,6 +185,52 @@ func TestRawToken(t *testing.T) {
 	}
 }
 
+// Ensure that directives (specifically !DOCTYPE) include the complete
+// text of any nested directives, noting that < and > do not change
+// nesting depth if they are in single or double quotes.
+
+var nestedDirectivesInput = `
+<!DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]>
+<!DOCTYPE [<!ENTITY xlt ">">]>
+<!DOCTYPE [<!ENTITY xlt "<">]>
+<!DOCTYPE [<!ENTITY xlt '>'>]>
+<!DOCTYPE [<!ENTITY xlt '<'>]>
+<!DOCTYPE [<!ENTITY xlt '">'>]>
+<!DOCTYPE [<!ENTITY xlt "'<">]>
+`
+
+var nestedDirectivesTokens = []Token{
+	CharData([]byte("\n")),
+	Directive([]byte(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`)),
+	CharData([]byte("\n")),
+	Directive([]byte(`DOCTYPE [<!ENTITY xlt ">">]`)),
+	CharData([]byte("\n")),
+	Directive([]byte(`DOCTYPE [<!ENTITY xlt "<">]`)),
+	CharData([]byte("\n")),
+	Directive([]byte(`DOCTYPE [<!ENTITY xlt '>'>]`)),
+	CharData([]byte("\n")),
+	Directive([]byte(`DOCTYPE [<!ENTITY xlt '<'>]`)),
+	CharData([]byte("\n")),
+	Directive([]byte(`DOCTYPE [<!ENTITY xlt '">'>]`)),
+	CharData([]byte("\n")),
+	Directive([]byte(`DOCTYPE [<!ENTITY xlt "'<">]`)),
+	CharData([]byte("\n")),
+}
+
+func TestNestedDirectives(t *testing.T) {
+	p := NewParser(StringReader(nestedDirectivesInput))
+
+	for i, want := range nestedDirectivesTokens {
+		have, err := p.Token()
+		if err != nil {
+			t.Fatalf("token %d: unexpected error: %s", i, err)
+		}
+		if !reflect.DeepEqual(have, want) {
+			t.Errorf("token %d = %#v want %#v", i, have, want)
+		}
+	}
+}
+
 func TestToken(t *testing.T) {
 	p := NewParser(StringReader(testInput))
 

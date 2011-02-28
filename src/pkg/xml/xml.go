@@ -541,17 +541,36 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		}
 
 		// Probably a directive: <!DOCTYPE ...>, <!ENTITY ...>, etc.
-		// We don't care, but accumulate for caller.
+		// We don't care, but accumulate for caller. Quoted angle
+		// brackets do not count for nesting.
 		p.buf.Reset()
 		p.buf.WriteByte(b)
+		inquote := uint8(0)
+		depth := 0
 		for {
 			if b, ok = p.mustgetc(); !ok {
 				return nil, p.err
 			}
-			if b == '>' {
+			if inquote == 0 && b == '>' && depth == 0 {
 				break
 			}
 			p.buf.WriteByte(b)
+			switch {
+			case b == inquote:
+				inquote = 0
+
+			case inquote != 0:
+				// in quotes, no special action
+
+			case b == '\'' || b == '"':
+				inquote = b
+
+			case b == '>' && inquote == 0:
+				depth--
+
+			case b == '<' && inquote == 0:
+				depth++
+			}
 		}
 		return Directive(p.buf.Bytes()), nil
 	}
