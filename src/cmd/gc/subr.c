@@ -203,7 +203,6 @@ fatal(char *fmt, ...)
 
 	flusherrors();
 
-*(int*)0=0;
 	print("%L: internal compiler error: ", lineno);
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);

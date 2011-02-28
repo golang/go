@@ -318,7 +318,7 @@ reswitch:
 			n->left = N;
 			goto ret;
 		}
-		if(!isptr[t->etype]) {
+		if(!isptr[t->etype] || (t->type != T && t->type->etype == TANY) /* unsafe.Pointer */) {
 			yyerror("invalid indirect of %+N", n->left);
 			goto error;
 		}
