@@ -24,7 +24,8 @@
 		- The result of invoking a niladic single-valued method with that name
 		  (result = data.field())
 
-	Major constructs ({} are metacharacters; [] marks optional elements):
+	Major constructs ({} are the default delimiters for template actions;
+	[] are the notation in this comment for optional elements):
 
 		{# comment }
 
@@ -74,6 +75,11 @@
 	Multiple formatters separated by the pipeline character | are
 	executed sequentially, with each formatter receiving the bytes
 	emitted by the one to its left.
+
+	The delimiter strings get their default value, "{" and "}", from
+	JSON-template.  They may be set to any non-empty, space-free
+	string using the SetDelims method.  Their value can be printed
+	in the output using {.meta-left} and {.meta-right}.
 */
 package template
 
