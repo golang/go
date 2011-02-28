@@ -166,6 +166,18 @@ runtime·tracebackothers(G *me)
 	}
 }
 
+// Mark this g as m's idle goroutine.
+// This functionality might be used in environments where programs
+// are limited to a single thread, to simulate a select-driven
+// network server.  It is not exposed via the standard runtime API.
+void
+runtime·idlegoroutine(void)
+{
+	if(g->idlem != nil)
+		runtime·throw("g is already an idle goroutine");
+	g->idlem = m;
+}
+
 // Put on `g' queue.  Sched must be locked.
 static void
 gput(G *g)
@@ -175,6 +187,18 @@ gput(G *g)
 	// If g is wired, hand it off directly.
 	if(runtime·sched.mcpu < runtime·sched.mcpumax && (m = g->lockedm) != nil) {
 		mnextg(m, g);
+		return;
+	}
+	
+	// If g is the idle goroutine for an m, hand it off.
+	if(g->idlem != nil) {
+		if(g->idlem->idleg != nil) {
+			runtime·printf("m%d idle out of sync: g%d g%d\n",
+				g->idlem->id,
+				g->idlem->idleg->goid, g->goid);
+			runtime·throw("runtime: double idle");
+		}
+		g->idlem->idleg = g;
 		return;
 	}
 
@@ -199,6 +223,9 @@ gget(void)
 		if(runtime·sched.ghead == nil)
 			runtime·sched.gtail = nil;
 		runtime·sched.gwait--;
+	} else if(m->idleg != nil) {
+		g = m->idleg;
+		m->idleg = nil;
 	}
 	return g;
 }
@@ -532,6 +559,7 @@ scheduler(void)
 				gp->lockedm = nil;
 				m->lockedg = nil;
 			}
+			gp->idlem = nil;
 			unwindstack(gp, nil);
 			gfput(gp);
 			if(--runtime·sched.gcount == 0)
