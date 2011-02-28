@@ -698,7 +698,6 @@ const (
 	SIOCGIFBRDADDR              = 0xc0206923
 	SIOCGIFCAP                  = 0xc020691f
 	SIOCGIFCONF                 = 0xc0106924
-	SIOCGIFCONF32               = 0xc0086924
 	SIOCGIFDESCR                = 0xc020692a
 	SIOCGIFDSTADDR              = 0xc0206922
 	SIOCGIFFLAGS                = 0xc0206911
