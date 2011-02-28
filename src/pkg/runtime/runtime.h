@@ -197,6 +197,7 @@ struct	G
 	bool	ispanic;
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
+	M*	idlem;
 	int32	sig;
 	uintptr	sigcode0;
 	uintptr	sigcode1;
@@ -233,6 +234,7 @@ struct	M
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache	*mcache;
 	G*	lockedg;
+	G*	idleg;
 	uint32	freglo[16];	// D[i] lsb and F[i]
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags
