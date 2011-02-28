@@ -29,7 +29,7 @@ if [ ! -d "$GOBIN" -a "$GOBIN" != "$GOROOT/bin" ]; then
 fi
 
 export OLDPATH=$PATH
-export PATH=/bin:/usr/bin:"$GOBIN":$PATH
+export PATH="$GOBIN":/bin:/usr/bin:$PATH
 
 MAKE=make
 if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
