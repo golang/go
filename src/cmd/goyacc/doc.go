@@ -17,7 +17,8 @@ Yacc adepts will have no trouble adapting to this form of the tool.
 
 The file units.y in this directory is a yacc grammar for a version of
 the Unix tool units, also written in Go and largely transliterated
-from the Plan 9 C version.
+from the Plan 9 C version. It needs the flag "-p units_" (see
+below).
 
 The generated parser is reentrant. Parse expects to be given an
 argument that conforms to the following interface:
@@ -31,8 +32,14 @@ Lex should return the token identifier, and place other token
 information in lval (which replaces the usual yylval).
 Error is equivalent to yyerror in the original yacc.
 
-Code inside the parser may refer to the variable yylex
+Code inside the parser may refer to the variable yylex,
 which holds the yyLexer passed to Parse.
+
+The "-p prefix" flag to goyacc sets the prefix, by default yy, that
+begins the names of symbols, including types, the parser, and the
+lexer, generated and referenced by goyacc's generated code.  Setting
+it to distinct values allows multiple grammars to be used in a
+single binary.
 
 */
 package documentation

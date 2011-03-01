@@ -11,7 +11,7 @@ GOFILES=\
 include ../../Make.cmd
 
 units: goyacc units.y
-	./goyacc units.y
+	./goyacc -p units_ units.y
 	$(GC) y.go
 	$(LD) -o units y.$O
 
