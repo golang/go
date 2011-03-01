@@ -6,6 +6,9 @@
 // Distributed under the terms of the Lucent Public License Version 1.02
 // See http://plan9.bell-labs.com/plan9/license.html
 
+// Generate parser with prefix "units_":
+//	goyacc -p "units_"
+
 %{
 
 // units.y
@@ -215,7 +218,7 @@ expr0:
 
 type UnitsLex int
 
-func (UnitsLex) Lex(yylval *yySymType) int {
+func (UnitsLex) Lex(yylval *units_SymType) int {
 	var c, i int
 
 	c = peekrune
@@ -319,7 +322,7 @@ func main() {
 			continue
 		}
 		peekrune = ':'
-		yyParse(UnitsLex(0))
+		units_Parse(UnitsLex(0))
 	}
 
 	/*
@@ -340,7 +343,7 @@ func main() {
 		}
 		peekrune = '?'
 		nerrors = 0
-		yyParse(UnitsLex(0))
+		units_Parse(UnitsLex(0))
 		if nerrors != 0 {
 			continue
 		}
