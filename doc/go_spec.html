@@ -4698,7 +4698,7 @@ func protect(g func()) {
 	defer func() {
 		log.Println("done")  // Println executes normally even in there is a panic
 		if x := recover(); x != nil {
-			log.Printf("runtime panic: %v", x)
+			log.Printf("run time panic: %v", x)
 		}
 	}
 	log.Println("start")

@@ -555,7 +555,7 @@ When you want the equivalent of a virtual function, use an interface.
 A variable which has an interface type may be converted to have a
 different interface type using a special construct called a type assertion.
 This is implemented dynamically
-at runtime, like C++ <code>dynamic_cast</code>.  Unlike
+at run time, like C++ <code>dynamic_cast</code>.  Unlike
 <code>dynamic_cast</code>, there does
 not need to be any declared relationship between the two interfaces.
 
@@ -589,7 +589,7 @@ must unbox using a type assertion to recover
 values of the contained type.  As the typing is dynamic rather
 than static, there is no equivalent of the way that a C++ template may
 inline the relevant operations.  The operations are fully type-checked
-at runtime, but all operations will involve a function call.
+at run time, but all operations will involve a function call.
 
 <pre>
 type iterator interface {
