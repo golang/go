@@ -316,7 +316,7 @@ func atoi(s string, i int) (n, i1 int, ok bool) {
 }
 
 // ParseHTTPVersion parses a HTTP version string.
-// "HTTP/1.2" returns (1, 2, true).
+// "HTTP/1.0" returns (1, 0, true).
 func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	if len(vers) < 5 || vers[0:5] != "HTTP/" {
 		return 0, 0, false
