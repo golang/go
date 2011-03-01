@@ -106,7 +106,7 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
 
 	resp.Proto = f[0]
 	var ok bool
-	if resp.ProtoMajor, resp.ProtoMinor, ok = parseHTTPVersion(resp.Proto); !ok {
+	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", resp.Proto}
 	}
 
