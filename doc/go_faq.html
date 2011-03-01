@@ -677,6 +677,28 @@ floating-point numbers.
 The default size of a floating-point constant is <code>float64</code>.
 </p>
 
+<h3 id="stack_or_heap">
+How do I know whether a variable is allocated on the heap or the stack?</h3>
+
+<p>
+From a correctness standpoint, you don't need to know.
+Each variable in Go exists as long as there are references to it.
+The storage location chosen by the implementation is irrelevant to the
+semantics of the language.
+
+<p>
+The storage location does have an effect on writing efficient programs.
+When possible, the Go compilers will allocate variables that are
+local to a function in that function's stack frame.  However, if the
+compiler cannot prove that the variable is not referenced after the
+function returns, then the compiler must allocate the variable on the
+garbage-collected heap to avoid dangling pointer errors.
+
+<p>
+In the current compilers, the analysis is crude: if a variable has its address
+taken, that variable is allocated on the heap. We are working to improve this
+analysis so that more data is kept on the stack. 
+
 <h2 id="Concurrency">Concurrency</h2>
 
 <h3 id="What_operations_are_atomic_What_about_mutexes">
@@ -933,6 +955,21 @@ compiled with a version of the Plan 9 C compiler that supports
 segmented stacks for goroutines.
 Work is underway to provide the same stack management in
 <code>gccgo</code>.
+
+<h3 id="Why_is_my_trivial_program_such_a_large_binary">
+Why is my trivial program such a large binary?</h3>
+
+<p>
+The gc tool chain (<code>5l</code>, <code>6l</code>, and <code>8l</code>) only
+generate statically linked binaries.  All Go binaries therefore include the Go
+run-time, along with the run-time type information necessary to support dynamic
+type checks, reflection, and even panic-time stack traces.
+
+<p>
+A trivial C "hello, world" program compiled and linked statically using gcc
+on Linux is around 750 kB.  An equivalent Go program is around 1.8 MB, but
+that includes a more powerful runtime.  We believe that with some effort
+the size of Go binaries can be reduced.
 
 <h2 id="Performance">Performance</h2>
 
