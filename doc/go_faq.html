@@ -730,7 +730,7 @@ Why doesn't my multi-goroutine program use multiple CPUs?</h3>
 
 <p>
 Under the gc compilers you must set <code>GOMAXPROCS</code> to allow the
-runtime to utilise more than one OS thread. Under <code>gccgo</code> an OS
+run-time support to utilise more than one OS thread. Under <code>gccgo</code> an OS
 thread will be created for each goroutine, and <code>GOMAXPROCS</code> is
 effectively equal to the number of running goroutines.  
 </p>
@@ -738,7 +738,7 @@ effectively equal to the number of running goroutines.
 <p>
 Programs that perform concurrent computation should benefit from an increase in
 <code>GOMAXPROCS</code>. (See the <a
-href="http://golang.org/pkg/runtime/#GOMAXPROCS">runtime package
+href="http://golang.org/pkg/runtime/#GOMAXPROCS"><code>runtime</code> package's
 documentation</a>.)
 </p>
 
@@ -759,8 +759,8 @@ penalty involved in sending data between threads.
 </p>
 
 <p>
-The Go runtime's scheduler is not as good as it needs to be. In future, it
-should recognise such cases and optimize its use of OS threads. For now,
+Go's goroutine scheduler is not as good as it needs to be. In future, it
+should recognize such cases and optimize its use of OS threads. For now,
 <code>GOMAXPROCS</code> should be set on a per-application basis.
 </p>
 
@@ -942,13 +942,13 @@ parser are already available in <a href="/pkg/go/"><code>/pkg/go</code></a>.)
 We also considered using LLVM for <code>6g</code> but we felt it was too large and
 slow to meet our performance goals.
 
-<h3 id="How_is_the_runtime_implemented">
-How is the runtime implemented?</h3>
+<h3 id="How_is_the_run_time_support_implemented">
+How is the run-time support implemented?</h3>
 
 <p>
-Again due to bootstrapping issues, the runtime is mostly in C (with a
+Again due to bootstrapping issues, the run-time code is mostly in C (with a
 tiny bit of assembler) although Go is capable of implementing most of
-it now. <code>Gccgo</code>'s runtime uses <code>glibc</code>.
+it now. <code>Gccgo</code>'s run-time support uses <code>glibc</code>.
 <code>Gc</code> uses a custom library, to keep the footprint under
 control; it is
 compiled with a version of the Plan 9 C compiler that supports
@@ -968,7 +968,7 @@ type checks, reflection, and even panic-time stack traces.
 <p>
 A trivial C "hello, world" program compiled and linked statically using gcc
 on Linux is around 750 kB.  An equivalent Go program is around 1.8 MB, but
-that includes a more powerful runtime.  We believe that with some effort
+that includes more powerful run-time support.  We believe that with some effort
 the size of Go binaries can be reduced.
 
 <h2 id="Performance">Performance</h2>

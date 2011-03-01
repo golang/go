@@ -54,7 +54,7 @@ architectures.
 </dl>
 
 <p>
-Except for things like low-level operating system interface code, the runtime
+Except for things like low-level operating system interface code, the run-time
 support is the same in all ports and includes a mark-and-sweep garbage collector
 (a fancier one is in the works), efficient array and string slicing,
 support for segmented stacks, and a strong goroutine implementation.
@@ -419,9 +419,9 @@ to override the defaults.
 <code>$GOARM</code> (arm, default=6)
 </dt>
 <dd>
-	The ARM architecture version the runtime libraries should target.
+	The ARM architecture version the run-time libraries should target.
 	ARMv6 cores have more efficient synchronization primitives. Setting
-	<code>$GOARM</code> to 5 will compile the runtime libraries using
+	<code>$GOARM</code> to 5 will compile the run-time libraries using
 	just SWP instructions that work on older architectures as well.
 	Running v6 code on an older core will cause an illegal instruction trap.
 </dd>
