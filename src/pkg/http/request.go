@@ -315,8 +315,9 @@ func atoi(s string, i int) (n, i1 int, ok bool) {
 	return n, i, true
 }
 
-// Parse HTTP version: "HTTP/1.2" -> (1, 2, true).
-func parseHTTPVersion(vers string) (int, int, bool) {
+// ParseHTTPVersion parses a HTTP version string.
+// "HTTP/1.2" returns (1, 2, true).
+func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	if len(vers) < 5 || vers[0:5] != "HTTP/" {
 		return 0, 0, false
 	}
@@ -324,7 +325,6 @@ func parseHTTPVersion(vers string) (int, int, bool) {
 	if !ok || i >= len(vers) || vers[i] != '.' {
 		return 0, 0, false
 	}
-	var minor int
 	minor, i, ok = atoi(vers, i+1)
 	if !ok || i != len(vers) {
 		return 0, 0, false
@@ -416,7 +416,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	}
 	req.Method, req.RawURL, req.Proto = f[0], f[1], f[2]
 	var ok bool
-	if req.ProtoMajor, req.ProtoMinor, ok = parseHTTPVersion(req.Proto); !ok {
+	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}
 	}
 
