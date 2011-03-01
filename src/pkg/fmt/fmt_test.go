@@ -400,7 +400,6 @@ func TestSprintf(t *testing.T) {
 			s = s[0:i] + "PTR" + s[j:]
 		}
 		if s != tt.out {
-			println(s, "XXX", tt.out)
 			if _, ok := tt.val.(string); ok {
 				// Don't requote the already-quoted strings.
 				// It's too confusing to read the errors.
