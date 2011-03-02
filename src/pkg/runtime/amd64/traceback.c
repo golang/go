@@ -182,6 +182,17 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
 		sp = fp;
 		fp = nil;
 	}
+	
+	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil) {
+		runtime·printf("----- goroutine created by -----\n%S", f->name);
+		if(pc > f->entry)
+			runtime·printf("+%p", (uintptr)(pc - f->entry));
+		tracepc = pc;	// back up to CALL instruction for funcline.
+		if(n > 0 && pc > f->entry)
+			tracepc--;
+		runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
+	}
+		
 	return n;
 }
 

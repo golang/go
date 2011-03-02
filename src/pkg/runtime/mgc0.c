@@ -585,7 +585,7 @@ runtime·gc(int32 force)
 	if(fp != nil) {
 		// kick off or wake up goroutine to run queued finalizers
 		if(fing == nil)
-			fing = runtime·newproc1((byte*)runfinq, nil, 0, 0);
+			fing = runtime·newproc1((byte*)runfinq, nil, 0, 0, runtime·gc);
 		else if(fingwait) {
 			fingwait = 0;
 			runtime·ready(fing);

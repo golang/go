@@ -884,11 +884,11 @@ runtime·newproc(int32 siz, byte* fn, ...)
 		argp = (byte*)(&fn+2);  // skip caller's saved LR
 	else
 		argp = (byte*)(&fn+1);
-	runtime·newproc1(fn, argp, siz, 0);
+	runtime·newproc1(fn, argp, siz, 0, runtime·getcallerpc(&siz));
 }
 
 G*
-runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 {
 	byte *sp;
 	G *newg;
@@ -926,6 +926,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
 	newg->sched.pc = (byte*)runtime·goexit;
 	newg->sched.g = newg;
 	newg->entry = fn;
+	newg->gopc = (uintptr)callerpc;
 
 	runtime·sched.gcount++;
 	runtime·goidgen++;
