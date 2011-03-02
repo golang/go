@@ -2268,7 +2268,7 @@ syslook(char *name, int copy)
 
 	s = pkglookup(name, runtimepkg);
 	if(s == S || s->def == N)
-		fatal("looksys: cant find runtime.%s", name);
+		fatal("syslook: can't find runtime.%s", name);
 
 	if(!copy)
 		return s->def;
