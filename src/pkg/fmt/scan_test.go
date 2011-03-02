@@ -87,21 +87,7 @@ type FloatTest struct {
 type Xs string
 
 func (x *Xs) Scan(state ScanState, verb int) os.Error {
-	var tok string
-	var c int
-	var err os.Error
-	wid, present := state.Width()
-	if !present {
-		tok, err = state.Token()
-	} else {
-		for i := 0; i < wid; i++ {
-			c, err = state.GetRune()
-			if err != nil {
-				break
-			}
-			tok += string(c)
-		}
-	}
+	tok, err := state.Token()
 	if err != nil {
 		return err
 	}
@@ -113,6 +99,26 @@ func (x *Xs) Scan(state ScanState, verb int) os.Error {
 }
 
 var xVal Xs
+
+// IntString accepts an integer followed immediately by a string.
+// It tests the embedding of a scan within a scan.
+type IntString struct {
+	i int
+	s string
+}
+
+func (s *IntString) Scan(state ScanState, verb int) os.Error {
+	if _, err := Fscan(state, &s.i); err != nil {
+		return err
+	}
+
+	if _, err := Fscan(state, &s.s); err != nil {
+		return err
+	}
+	return nil
+}
+
+var intStringVal IntString
 
 // myStringReader implements Read but not ReadRune, allowing us to test our readRune wrapper
 // type that creates something that can read runes given only Read().
@@ -200,8 +206,9 @@ var scanTests = []ScanTest{
 	{"114\n", &renamedStringVal, renamedString("114")},
 	{"115\n", &renamedBytesVal, renamedBytes([]byte("115"))},
 
-	// Custom scanner.
+	// Custom scanners.
 	{"  vvv ", &xVal, Xs("vvv")},
+	{" 1234hello", &intStringVal, IntString{1234, "hello"}},
 
 	// Fixed bugs
 	{"2147483648\n", &int64Val, int64(2147483648)}, // was: integer overflow
@@ -308,6 +315,7 @@ var f float64
 var s, t string
 var c complex128
 var x, y Xs
+var z IntString
 
 var multiTests = []ScanfMultiTest{
 	{"", "", nil, nil, ""},
@@ -321,8 +329,9 @@ var multiTests = []ScanfMultiTest{
 	{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
 	{"%c%c%c", "2\u50c2X", args(&i, &j, &k), args('2', '\u50c2', 'X'), ""},
 
-	// Custom scanner.
+	// Custom scanners.
 	{"%2e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
+	{"%4v%s", "12abcd", args(&z, &s), args(IntString{12, "ab"}, "cd"), ""},
 
 	// Errors
 	{"%t", "23 18", args(&i), nil, "bad verb"},
@@ -345,7 +354,11 @@ func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}
 		}
 		n, err := scan(r, test.in)
 		if err != nil {
-			t.Errorf("%s got error scanning %q: %s", name, test.text, err)
+			m := ""
+			if n > 0 {
+				m = Sprintf(" (%d fields ok)", n)
+			}
+			t.Errorf("%s got error scanning %q: %s%s", name, test.text, err, m)
 			continue
 		}
 		if n != 1 {
@@ -681,7 +694,7 @@ type TwoLines string
 func (t *TwoLines) Scan(state ScanState, verb int) os.Error {
 	chars := make([]int, 0, 100)
 	for nlCount := 0; nlCount < 2; {
-		c, err := state.GetRune()
+		c, _, err := state.ReadRune()
 		if err != nil {
 			return err
 		}
