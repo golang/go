@@ -51,6 +51,12 @@ exportname(char *s)
 	return isupperrune(r);
 }
 
+static int
+initname(char *s)
+{
+	return strcmp(s, "init") == 0;
+}
+
 void
 autoexport(Node *n, int ctxt)
 {
@@ -60,7 +66,7 @@ autoexport(Node *n, int ctxt)
 		return;
 	if(n->ntype && n->ntype->op == OTFUNC && n->ntype->left)	// method
 		return;
-	if(exportname(n->sym->name) || strcmp(n->sym->name, "init") == 0)
+	if(exportname(n->sym->name) || initname(n->sym->name))
 		exportsym(n);
 	else
 		packagesym(n);
@@ -304,7 +310,7 @@ importsym(Sym *s, int op)
 
 	// mark the symbol so it is not reexported
 	if(s->def == N) {
-		if(exportname(s->name))
+		if(exportname(s->name) || initname(s->name))
 			s->flags |= SymExport;
 		else
 			s->flags |= SymPackage;	// package scope
@@ -374,7 +380,7 @@ importvar(Sym *s, Type *t, int ctxt)
 {
 	Node *n;
 
-	if(!exportname(s->name) && !mypackage(s))
+	if(!exportname(s->name) && !initname(s->name) && !mypackage(s))
 		return;
 
 	importsym(s, ONAME);
