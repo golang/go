@@ -44,6 +44,9 @@ func domake(dir, pkg string, local bool) (err os.Error) {
 // installing as package pkg.  It includes all *.go files in the directory
 // except those in package main and those ending in _test.go.
 func makeMakefile(dir, pkg string) ([]byte, os.Error) {
+	if !safeName(pkg) {
+		return nil, os.ErrorString("unsafe name: " + pkg)
+	}
 	dirInfo, err := scanDir(dir, false)
 	if err != nil {
 		return nil, err
@@ -58,16 +61,25 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 	cgoFiles := dirInfo.cgoFiles
 	isCgo := make(map[string]bool, len(cgoFiles))
 	for _, file := range cgoFiles {
+		if !safeName(file) {
+			return nil, os.ErrorString("bad name: " + file)
+		}
 		isCgo[file] = true
 	}
 
 	oFiles := make([]string, 0, len(dirInfo.cFiles))
 	for _, file := range dirInfo.cFiles {
+		if !safeName(file) {
+			return nil, os.ErrorString("unsafe name: " + file)
+		}
 		oFiles = append(oFiles, file[:len(file)-2]+".o")
 	}
 
 	goFiles := make([]string, 0, len(dirInfo.goFiles))
 	for _, file := range dirInfo.goFiles {
+		if !safeName(file) {
+			return nil, os.ErrorString("unsafe name: " + file)
+		}
 		if !isCgo[file] {
 			goFiles = append(goFiles, file)
 		}
@@ -79,6 +91,17 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+var safeBytes = []byte("+-./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
+
+func safeName(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c < 0x80 && bytes.IndexByte(safeBytes, c) < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // makedata is the data type for the makefileTemplate.
