@@ -202,6 +202,7 @@ struct	G
 	uintptr	sigcode0;
 	uintptr	sigcode1;
 	uintptr	sigpc;
+	uintptr	gopc;	// pc of go statement that created this goroutine
 };
 struct	M
 {
@@ -452,7 +453,7 @@ void	runtime·entersyscall(void);
 void	runtime·exitsyscall(void);
 void	runtime·startcgocallback(G*);
 void	runtime·endcgocallback(G*);
-G*	runtime·newproc1(byte*, byte*, int32, int32);
+G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
 void	runtime·siginit(void);
 bool	runtime·sigsend(int32 sig);
 void	runtime·gettime(int64*, int32*);
