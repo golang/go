@@ -36,7 +36,7 @@ INSTALLFILES+=$(pkgdir)/$(TARG).a
 # The rest of the cgo rules are below, but these variable updates
 # must be done here so they apply to the main rules.
 ifdef CGOFILES
-GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES)) _cgo_gotypes.go
+GOFILES+=$(patsubst %.go,_obj/%.cgo1.go,$(CGOFILES)) _obj/_cgo_gotypes.go
 CGO_OFILES+=$(patsubst %.go,%.cgo2.o,$(CGOFILES)) _cgo_export.o
 OFILES+=_cgo_defun.$O _cgo_import.$O $(CGO_OFILES)
 endif
@@ -47,8 +47,6 @@ coverage:
 	gotest
 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
-CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.*
-CLEANFILES+=_cgo_.c _cgo_import.c _cgo_main.c _cgo_flags _cgo_run _gcc_main.c
 CLEANFILES+=*.so _obj _test _testmain.go *.exe
 
 test:
@@ -61,7 +59,7 @@ nuke: clean
 	rm -f $(pkgdir)/$(TARG).a
 
 testpackage-clean:
-	rm -f _test/$(TARG).a _gotest_.$O
+	rm -f _test/$(TARG).a
 
 install: $(INSTALLFILES)
 
@@ -103,39 +101,42 @@ dir:
 # x.go and y.go.
 
 # Cgo translates each x.go file listed in $(CGOFILES) into a basic
-# translation of x.go, called x.cgo1.go. Additionally, three other
+# translation of x.go, called _obj/x.cgo1.go. Additionally, three other
 # files are created:
 #
-#	_cgo_gotypes.go	- declarations needed for all .go files in the package; imports "unsafe"
-#	_cgo_defun.c	- C trampoline code to be compiled with 6c and linked into the package
-#	x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
+#	_obj/_cgo_gotypes.go	- declarations needed for all .go files in the package; imports "unsafe"
+#	_obj/_cgo_defun.c	- C trampoline code to be compiled with 6c and linked into the package
+#	_obj/x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
 #
 
 ifdef CGOFILES
-_cgo_run: $(CGOFILES)
+_obj/_cgo_run: $(CGOFILES)
 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
-	touch _cgo_run
+	touch _obj/_cgo_run
 
 # _CGO_CFLAGS and _CGO_LDFLAGS are defined via the evaluation of _cgo_flags.
 # The include happens before the commands in the recipe run,
 # so it cannot be done in the same recipe that runs cgo.
-_load_cgo_flags: _cgo_run
-	$(eval include _cgo_flags)
+_obj/_load_cgo_flags: _obj/_cgo_run
+	$(eval include _obj/_cgo_flags)
 
 # Include any previous flags in case cgo files are up to date.
--include _cgo_flags
+-include _obj/_cgo_flags
 
 # Ugly but necessary - cgo writes these files too.
-_cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c _cgo_defun.c: _load_cgo_flags
+_obj/_cgo_gotypes.go _obj/_cgo_export.c _obj/_cgo_export.h _obj/_cgo_main.c _obj/_cgo_defun.c: _obj/_load_cgo_flags
 	@true
 
-%.cgo1.go %.cgo2.c: _cgo_defun.c
+_obj/%.cgo1.go _obj/%.cgo2.c: _obj/_cgo_defun.c
 	@true
 endif
 
 # Compile rules for gcc source files.
 %.o: %.c
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) $*.c
+
+%.o: _obj/%.c
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -I . -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) $^
 
 # To find out which symbols are needed from external libraries
 # and which libraries are needed, we build a simple a.out that
@@ -145,14 +146,11 @@ endif
 # After main we have to define all the symbols that will be provided
 # by Go code.  That's crosscall2 and any exported symbols.
 
-_cgo_main.o: _cgo_main.c
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) _cgo_main.c
-
 _cgo1_.o: _cgo_main.o $(CGO_OFILES)
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS) $(_CGO_LDFLAGS)
 
-_cgo_import.c: _cgo1_.o
-	cgo -dynimport _cgo1_.o >_$@ && mv -f _$@ $@
+_obj/_cgo_import.c: _cgo1_.o
+	cgo -dynimport _cgo1_.o >$@_ && mv -f $@_ $@
 
 # The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
 # added _cgo_defun.$O to $OFILES, and added the installed copy of
@@ -170,15 +168,17 @@ _CGO_LDFLAGS_windows=-shared -lm -mthreads
 RUNTIME_CFLAGS=-I$(pkgdir)
 
 # Compile _cgo_defun.c with 6c; needs access to the runtime headers.
-_cgo_defun.$O: _cgo_defun.c
-	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
+_cgo_defun.$O: _obj/_cgo_defun.c
+	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) -I . -o "$@" _obj/_cgo_defun.c
 
 # Generic build rules.
 # These come last so that the rules above can override them
 # for more specific file names.
 %.$O: %.c $(HFILES)
-	$(CC) $(CFLAGS) $*.c
+	$(CC) $(CFLAGS) -o "$@" $*.c
+
+%.$O: _obj/%.c $(HFILES)
+	$(CC) $(CFLAGS) -I . -o "$@" _obj/$*.c
 
 %.$O: %.s
 	$(AS) $*.s
-

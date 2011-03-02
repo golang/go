@@ -215,6 +215,10 @@ func main() {
 		fs[i] = f
 	}
 
+	// make sure that _obj directory exists, so that we can write
+	// all the output files there.
+	os.Mkdir("_obj", 0777)
+
 	for i, input := range goFiles {
 		f := fs[i]
 		p.Translate(f)

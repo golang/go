@@ -20,20 +20,11 @@ import (
 // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
 func (p *Package) writeDefs() {
-	// The path for the shared object is slash-free so that ELF loaders
-	// will treat it as a relative path.  We rewrite slashes to underscores.
-	sopath := "cgo_" + strings.Map(slashToUnderscore, p.PackagePath)
-	soprefix := ""
-	if os.Getenv("GOOS") == "darwin" {
-		// OS X requires its own prefix for a relative path
-		soprefix = "@rpath/"
-	}
+	fgo2 := creat("_obj/_cgo_gotypes.go")
+	fc := creat("_obj/_cgo_defun.c")
+	fm := creat("_obj/_cgo_main.c")
 
-	fgo2 := creat("_cgo_gotypes.go")
-	fc := creat("_cgo_defun.c")
-	fm := creat("_cgo_main.c")
-
-	fflg := creat("_cgo_flags")
+	fflg := creat("_obj/_cgo_flags")
 	for k, v := range p.CgoFlags {
 		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, v)
 	}
@@ -94,7 +85,7 @@ func (p *Package) writeDefs() {
 
 	for _, n := range p.Name {
 		if n.FuncType != nil {
-			p.writeDefsFunc(fc, fgo2, n, soprefix, sopath)
+			p.writeDefsFunc(fc, fgo2, n)
 		}
 	}
 
@@ -195,7 +186,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 	return buf.String(), off
 }
 
-func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath string) {
+func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	name := n.Go
 	gtype := n.FuncType.Go
 	if n.AddError {
@@ -271,8 +262,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 		base = base[0 : len(base)-3]
 	}
 	base = strings.Map(slashToUnderscore, base)
-	fgo1 := creat(base + ".cgo1.go")
-	fgcc := creat(base + ".cgo2.c")
+	fgo1 := creat("_obj/" + base + ".cgo1.go")
+	fgcc := creat("_obj/" + base + ".cgo2.c")
 
 	p.GoFiles = append(p.GoFiles, base+".cgo1.go")
 	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
@@ -340,7 +331,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
 func (p *Package) writeExports(fgo2, fc, fm *os.File) {
-	fgcc := creat("_cgo_export.c")
+	fgcc := creat("_obj/_cgo_export.c")
 	fgcch := creat("_cgo_export.h")
 
 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
