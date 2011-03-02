@@ -47,7 +47,7 @@ coverage:
 	gotest
 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
-CLEANFILES+=*.so _obj _test _testmain.go *.exe
+CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo*
 
 test:
 	gotest
@@ -150,6 +150,7 @@ _cgo1_.o: _cgo_main.o $(CGO_OFILES)
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS) $(_CGO_LDFLAGS)
 
 _obj/_cgo_import.c: _cgo1_.o
+	@mkdir -p _obj
 	cgo -dynimport _cgo1_.o >$@_ && mv -f $@_ $@
 
 # The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
