@@ -22,11 +22,6 @@ rm -f "$GOROOT"/lib/*.a
 for i in lib9 libbio libmach cmd pkg \
 	../misc/cgo/gmp ../misc/cgo/stdio \
 	../test/bench ../test/garbage
-do(
-	cd "$GOROOT"/src/$i || exit 1
-	if test -f clean.bash; then
-		bash clean.bash --gomake $MAKE
-	else
-		$MAKE clean
-	fi
-)done
+do
+	gomake -C "$GOROOT/src/$i" clean
+done
