@@ -36,6 +36,9 @@ type ClientTransport interface {
 	// be reserved for failure to obtain a response.  Similarly, Do should
 	// not attempt to handle higher-level protocol details such as redirects,
 	// authentication, or cookies.
+	//
+	// Transports may modify the request. The request Headers field is
+	// guaranteed to be initalized.
 	Do(req *Request) (resp *Response, err os.Error)
 }
 
@@ -109,6 +112,14 @@ func send(req *Request, t ClientTransport) (resp *Response, err os.Error) {
 			return
 		}
 	}
+
+	// Most the callers of send (Get, Post, et al) don't need
+	// Headers, leaving it uninitialized.  We guarantee to the
+	// ClientTransport that this has been initialized, though.
+	if req.Header == nil {
+		req.Header = Header(make(map[string][]string))
+	}
+
 	info := req.URL.RawUserinfo
 	if len(info) > 0 {
 		enc := base64.URLEncoding
