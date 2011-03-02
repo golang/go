@@ -13,16 +13,16 @@ import (
 
 func TestUnmarshalFeed(t *testing.T) {
 	var f Feed
-	if err := Unmarshal(StringReader(rssFeedString), &f); err != nil {
+	if err := Unmarshal(StringReader(atomFeedString), &f); err != nil {
 		t.Fatalf("Unmarshal: %s", err)
 	}
-	if !reflect.DeepEqual(f, rssFeed) {
-		t.Fatalf("have %#v\nwant %#v", f, rssFeed)
+	if !reflect.DeepEqual(f, atomFeed) {
+		t.Fatalf("have %#v\nwant %#v", f, atomFeed)
 	}
 }
 
 // hget http://codereview.appspot.com/rss/mine/rsc
-const rssFeedString = `
+const atomFeedString = `
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-us"><title>Code Review - My issues</title><link href="http://codereview.appspot.com/" rel="alternate"></link><li-nk href="http://codereview.appspot.com/rss/mine/rsc" rel="self"></li-nk><id>http://codereview.appspot.com/</id><updated>2009-10-04T01:35:58+00:00</updated><author><name>rietveld&lt;&gt;</name></author><entry><title>rietveld: an attempt at pubsubhubbub
 </title><link hre-f="http://codereview.appspot.com/126085" rel="alternate"></link><updated>2009-10-04T01:35:58+00:00</updated><author><name>email-address-removed</name></author><id>urn:md5:134d9179c41f806be79b3a5f7877d19a</id><summary type="html">
@@ -115,7 +115,7 @@ type Text struct {
 
 type Time string
 
-var rssFeed = Feed{
+var atomFeed = Feed{
 	XMLName: Name{"http://www.w3.org/2005/Atom", "feed"},
 	Title:   "Code Review - My issues",
 	Link: []Link{
