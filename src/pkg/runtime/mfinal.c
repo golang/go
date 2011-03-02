@@ -92,7 +92,6 @@ runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
 {
 	Fintab newtab;
 	int32 i;
-	uint32 *ref;
 	byte *base;
 	Finalizer *e;
 	
