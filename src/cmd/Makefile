@@ -55,11 +55,9 @@ clean: $(patsubst %,%.clean,$(CLEANDIRS))
 	@echo
 	$(MAKE) -C $* install
 
-gc.install: cc.install
-
-$(O)c.install: cc.install
-
+gc.install $(O)c.install: cc.install
 $(O)g.install: gc.install
+$(O)a.install $(O)c.install $(O)g.install: $(O)l.install
 
 %.clean:
 	$(MAKE) -C $* clean
