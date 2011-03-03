@@ -46,6 +46,7 @@ func TempFile(dir, prefix string) (f *os.File, err os.Error) {
 
 	nconflict := 0
 	for i := 0; i < 10000; i++ {
+		// TODO(rsc): use filepath.Join
 		name := dir + "/" + prefix + nextSuffix()
 		f, err = os.Open(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 		if pe, ok := err.(*os.PathError); ok && pe.Error == os.EEXIST {
@@ -53,6 +54,37 @@ func TempFile(dir, prefix string) (f *os.File, err os.Error) {
 				rand = reseed()
 			}
 			continue
+		}
+		break
+	}
+	return
+}
+
+// TempDir creates a new temporary directory in the directory dir
+// with a name beginning with prefix and returns the path of the
+// new directory.  If dir is the empty string, TempDir uses the
+// default directory for temporary files (see os.TempDir).
+// Multiple programs calling TempDir simultaneously
+// will not choose the same directory.  It is the caller's responsibility
+// to remove the directory when no longer needed.
+func TempDir(dir, prefix string) (name string, err os.Error) {
+	if dir == "" {
+		dir = os.TempDir()
+	}
+
+	nconflict := 0
+	for i := 0; i < 10000; i++ {
+		// TODO(rsc): use filepath.Join
+		try := dir + "/" + prefix + nextSuffix()
+		err = os.Mkdir(try, 0700)
+		if pe, ok := err.(*os.PathError); ok && pe.Error == os.EEXIST {
+			if nconflict++; nconflict > 10 {
+				rand = reseed()
+			}
+			continue
+		}
+		if err == nil {
+			name = try
 		}
 		break
 	}
