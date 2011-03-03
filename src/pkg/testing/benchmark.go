@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 )
 
@@ -64,6 +65,9 @@ func (b *B) nsPerOp() int64 {
 
 // runN runs a single benchmark for the specified number of iterations.
 func (b *B) runN(n int) {
+	// Try to get a comparable environment for each run
+	// by clearing garbage from previous runs.
+	runtime.GC()
 	b.N = n
 	b.ResetTimer()
 	b.StartTimer()
