@@ -6,6 +6,7 @@ package fmt_test
 
 import (
 	"bufio"
+	"bytes"
 	. "fmt"
 	"io"
 	"math"
@@ -743,5 +744,121 @@ func TestMultiLine(t *testing.T) {
 		t.Error("Sscanln: expected error; got none")
 	} else if err != io.ErrUnexpectedEOF {
 		t.Errorf("Sscanln: expected io.ErrUnexpectedEOF (ha!); got %s", err)
+	}
+}
+
+// RecursiveInt accepts an string matching %d.%d.%d....
+// and parses it into a linked list.
+// It allows us to benchmark recursive descent style scanners.
+type RecursiveInt struct {
+	i    int
+	next *RecursiveInt
+}
+
+func (r *RecursiveInt) Scan(state ScanState, verb int) (err os.Error) {
+	_, err = Fscan(state, &r.i)
+	if err != nil {
+		return
+	}
+	next := new(RecursiveInt)
+	_, err = Fscanf(state, ".%v", next)
+	if err != nil {
+		if err == os.ErrorString("input does not match format") || err == io.ErrUnexpectedEOF {
+			err = nil
+		}
+		return
+	}
+	r.next = next
+	return
+}
+
+// Perform the same scanning task as RecursiveInt.Scan
+// but without recurring through scanner, so we can compare
+// performance more directly.
+func scanInts(r *RecursiveInt, b *bytes.Buffer) (err os.Error) {
+	r.next = nil
+	_, err = Fscan(b, &r.i)
+	if err != nil {
+		return
+	}
+	var c int
+	c, _, err = b.ReadRune()
+	if err != nil {
+		if err == os.EOF {
+			err = nil
+		}
+		return
+	}
+	if c != '.' {
+		return
+	}
+	next := new(RecursiveInt)
+	err = scanInts(next, b)
+	if err == nil {
+		r.next = next
+	}
+	return
+}
+
+func makeInts(n int) []byte {
+	var buf bytes.Buffer
+	Fprintf(&buf, "1")
+	for i := 1; i < n; i++ {
+		Fprintf(&buf, ".%d", i+1)
+	}
+	return buf.Bytes()
+}
+
+func TestScanInts(t *testing.T) {
+	testScanInts(t, scanInts)
+	testScanInts(t, func(r *RecursiveInt, b *bytes.Buffer) (err os.Error) {
+		_, err = Fscan(b, r)
+		return
+	})
+}
+
+const intCount = 1000
+
+func testScanInts(t *testing.T, scan func(*RecursiveInt, *bytes.Buffer) os.Error) {
+	r := new(RecursiveInt)
+	ints := makeInts(intCount)
+	buf := bytes.NewBuffer(ints)
+	err := scan(r, buf)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	i := 1
+	for ; r != nil; r = r.next {
+		if r.i != i {
+			t.Fatal("bad scan: expected %d got %d", i, r.i)
+		}
+		i++
+	}
+	if i-1 != intCount {
+		t.Fatal("bad scan count: expected %d got %d", intCount, i-1)
+	}
+}
+
+func BenchmarkScanInts(b *testing.B) {
+	b.ResetTimer()
+	ints := makeInts(intCount)
+	var r RecursiveInt
+	for i := b.N - 1; i >= 0; i-- {
+		buf := bytes.NewBuffer(ints)
+		b.StartTimer()
+		scanInts(&r, buf)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkScanRecursiveInt(b *testing.B) {
+	b.ResetTimer()
+	ints := makeInts(intCount)
+	var r RecursiveInt
+	for i := b.N - 1; i >= 0; i-- {
+		buf := bytes.NewBuffer(ints)
+		b.StartTimer()
+		Fscan(buf, &r)
+		b.StopTimer()
 	}
 }

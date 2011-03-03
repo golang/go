@@ -103,18 +103,18 @@ func Sscanf(str string, format string, a ...interface{}) (n int, err os.Error) {
 // returns the number of items successfully scanned.  If that is less
 // than the number of arguments, err will report why.
 func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
-	s := newScanState(r, true, false)
+	s, old := newScanState(r, true, false)
 	n, err = s.doScan(a)
-	s.free()
+	s.free(old)
 	return
 }
 
 // Fscanln is similar to Fscan, but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
-	s := newScanState(r, false, true)
+	s, old := newScanState(r, false, true)
 	n, err = s.doScan(a)
-	s.free()
+	s.free(old)
 	return
 }
 
@@ -122,9 +122,9 @@ func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
 // values into successive arguments as determined by the format.  It
 // returns the number of items successfully parsed.
 func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err os.Error) {
-	s := newScanState(r, false, false)
+	s, old := newScanState(r, false, false)
 	n, err = s.doScanf(format, a)
-	s.free()
+	s.free(old)
 	return
 }
 
@@ -138,15 +138,24 @@ const EOF = -1
 
 // ss is the internal implementation of ScanState.
 type ss struct {
-	rr        io.RuneReader // where to read input
-	buf       bytes.Buffer  // token accumulator
-	nlIsSpace bool          // whether newline counts as white space
-	nlIsEnd   bool          // whether newline terminates scan
-	peekRune  int           // one-rune lookahead
-	prevRune  int           // last rune returned by ReadRune
-	atEOF     bool          // already read EOF
-	maxWid    int           // max width of field, in runes
-	wid       int           // width consumed so far; used in accept()
+	rr       io.RuneReader // where to read input
+	buf      bytes.Buffer  // token accumulator
+	peekRune int           // one-rune lookahead
+	prevRune int           // last rune returned by ReadRune
+	count    int           // runes consumed so far.
+	atEOF    bool          // already read EOF
+	ssave
+}
+
+// ssave holds the parts of ss that need to be
+// saved and restored on recursive scans.
+type ssave struct {
+	validSave  bool // is or was a part of an actual ss.
+	nlIsEnd    bool // whether newline terminates scan
+	nlIsSpace  bool // whether newline counts as white space
+	fieldLimit int  // max value of ss.count for this field; fieldLimit <= limit
+	limit      int  // max value of ss.count.
+	maxWid     int  // width of this field.
 }
 
 // The Read method is only in ScanState so that ScanState
@@ -158,21 +167,21 @@ func (s *ss) Read(buf []byte) (n int, err os.Error) {
 
 func (s *ss) ReadRune() (rune int, size int, err os.Error) {
 	if s.peekRune >= 0 {
-		s.wid++
+		s.count++
 		rune = s.peekRune
 		size = utf8.RuneLen(rune)
 		s.prevRune = rune
 		s.peekRune = -1
 		return
 	}
-	if s.atEOF || s.nlIsEnd && s.prevRune == '\n' || s.wid >= s.maxWid {
+	if s.atEOF || s.nlIsEnd && s.prevRune == '\n' || s.count >= s.fieldLimit {
 		err = os.EOF
 		return
 	}
 
 	rune, size, err = s.rr.ReadRune()
 	if err == nil {
-		s.wid++
+		s.count++
 		s.prevRune = rune
 	} else if err == os.EOF {
 		s.atEOF = true
@@ -217,7 +226,7 @@ func (s *ss) UnreadRune() os.Error {
 	} else {
 		s.peekRune = s.prevRune
 	}
-	s.wid--
+	s.count--
 	return nil
 }
 
@@ -305,8 +314,19 @@ func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
 var ssFree = newCache(func() interface{} { return new(ss) })
 
 // Allocate a new ss struct or grab a cached one.
-func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) *ss {
-	s := ssFree.get().(*ss)
+func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
+	// If the reader is a *ss, then we've got a recursive
+	// call to Scan, so re-use the scan state.
+	s, ok := r.(*ss)
+	if ok {
+		old = s.ssave
+		s.limit = s.fieldLimit
+		s.nlIsEnd = nlIsEnd || s.nlIsEnd
+		s.nlIsSpace = nlIsSpace
+		return
+	}
+
+	s = ssFree.get().(*ss)
 	if rr, ok := r.(io.RuneReader); ok {
 		s.rr = rr
 	} else {
@@ -317,12 +337,20 @@ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) *ss {
 	s.prevRune = -1
 	s.peekRune = -1
 	s.atEOF = false
+	s.limit = hugeWid
+	s.fieldLimit = hugeWid
 	s.maxWid = hugeWid
-	return s
+	s.validSave = true
+	return
 }
 
 // Save used ss structs in ssFree; avoid an allocation per invocation.
-func (s *ss) free() {
+func (s *ss) free(old ssave) {
+	// If it was used recursively, just restore the old state.
+	if old.validSave {
+		s.ssave = old
+		return
+	}
 	// Don't hold on to ss structs with large buffers.
 	if cap(s.buf.Bytes()) > 1024 {
 		return
@@ -1014,7 +1042,10 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.E
 		if !widPresent {
 			s.maxWid = hugeWid
 		}
-		s.wid = 0
+		s.fieldLimit = s.limit
+		if f := s.count + s.maxWid; f < s.fieldLimit {
+			s.fieldLimit = f
+		}
 
 		c, w := utf8.DecodeRuneInString(format[i:])
 		i += w
@@ -1027,7 +1058,7 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.E
 
 		s.scanOne(c, field)
 		numProcessed++
-		s.maxWid = hugeWid
+		s.fieldLimit = s.limit
 	}
 	if numProcessed < len(a) {
 		s.errorString("too many operands")
