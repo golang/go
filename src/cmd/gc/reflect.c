@@ -10,6 +10,7 @@
 
 static	NodeList*	signatlist;
 static	Sym*	dtypesym(Type*);
+static	Sym*	weaktypesym(Type*);
 
 static int
 sigcmp(Sig *a, Sig *b)
@@ -570,9 +571,17 @@ dcommontype(Sym *s, int ot, Type *t)
 {
 	int i;
 	Sym *s1;
+	Sym *sptr;
 	char *p;
 
 	dowidth(t);
+	
+	sptr = nil;
+	if(t->sym != nil && !isptr[t->etype])
+		sptr = dtypesym(ptrto(t));
+	else
+		sptr = weaktypesym(ptrto(t));
+
 	s1 = dextratype(t);
 
 	// empty interface pointing at this type.
@@ -617,7 +626,7 @@ dcommontype(Sym *s, int ot, Type *t)
 		ot = dsymptr(s, ot, s1, 0);	// extraType
 	else
 		ot = duintptr(s, ot, 0);
-	ot = duintptr(s, ot, 0);  // ptr type (placeholder for now)
+	ot = dsymptr(s, ot, sptr, 0);  // ptr to type
 	return ot;
 }
 
@@ -660,6 +669,25 @@ typename(Type *t)
 	n->addable = 1;
 	n->ullman = 2;
 	return n;
+}
+
+static Sym*
+weaktypesym(Type *t)
+{
+	char *p;
+	Sym *s;
+	static Pkg *weak;
+	
+	if(weak == nil) {
+		weak = mkpkg(strlit("weak.type"));
+		weak->name = "weak.type";
+		weak->prefix = "weak.type";  // not weak%2etype
+	}
+	
+	p = smprint("%#-T", t);
+	s = pkglookup(p, weak);
+	free(p);
+	return s;
 }
 
 static Sym*
