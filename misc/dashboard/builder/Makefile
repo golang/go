@@ -10,5 +10,6 @@ GOFILES=\
 	hg.go\
 	http.go\
 	main.go\
+	package.go\
 
 include ../../../src/Make.cmd

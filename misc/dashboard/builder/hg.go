@@ -1,8 +1,13 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -56,4 +61,26 @@ func getCommitParts(rev string) (parts []string, err os.Error) {
 		return
 	}
 	return strings.Split(s, ">", 5), nil
+}
+
+var revisionRe = regexp.MustCompile(`([0-9]+):[0-9a-f]+$`)
+
+// getTag fetches a Commit by finding the first hg tag that matches re.
+func getTag(re *regexp.Regexp) (c Commit, tag string, err os.Error) {
+	o, _, err := runLog(nil, "", goroot, "hg", "tags")
+	for _, l := range strings.Split(o, "\n", -1) {
+		tag = re.FindString(l)
+		if tag == "" {
+			continue
+		}
+		s := revisionRe.FindStringSubmatch(l)
+		if s == nil {
+			err = os.NewError("couldn't find revision number")
+			return
+		}
+		c, err = getCommit(s[1])
+		return
+	}
+	err = os.NewError("no matching tag found")
+	return
 }

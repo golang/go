@@ -38,6 +38,15 @@ Optional flags:
 
   -release: Build and deliver binary release archive
 
+  -rev=N: Build revision N and exit
+  
+  -cmd="./all.bash": Build command (specify absolute or relative to go/src)
+
+  -v: Verbose logging
+
+  -external: External package builder mode (will not report Go build
+     state to dashboard, issue releases, or run benchmarks)
+
 The key file should be located at $HOME/.gobuilder or, for a builder-specific
 key, $HOME/.gobuilder-$BUILDER (eg, $HOME/.gobuilder-linux-amd64).
 
