@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"os"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -348,4 +349,86 @@ func TestServerTimeouts(t *testing.T) {
 	}
 
 	l.Close()
+}
+
+// TestIdentityResponse verifies that a handler can unset 
+func TestIdentityResponse(t *testing.T) {
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("failed to listen on a port: %v", err)
+	}
+	defer l.Close()
+	urlBase := "http://" + l.Addr().String() + "/"
+
+	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+		rw.SetHeader("Content-Length", "3")
+		rw.SetHeader("Transfer-Encoding", req.FormValue("te"))
+		switch {
+		case req.FormValue("overwrite") == "1":
+			_, err := rw.Write([]byte("foo TOO LONG"))
+			if err != ErrContentLength {
+				t.Errorf("expected ErrContentLength; got %v", err)
+			}
+		case req.FormValue("underwrite") == "1":
+			rw.SetHeader("Content-Length", "500")
+			rw.Write([]byte("too short"))
+		default:
+			rw.Write([]byte("foo"))
+		}
+	})
+
+	server := &Server{Handler: handler}
+	go server.Serve(l)
+
+	// Note: this relies on the assumption (which is true) that
+	// Get sends HTTP/1.1 or greater requests.  Otherwise the
+	// server wouldn't have the choice to send back chunked
+	// responses.
+	for _, te := range []string{"", "identity"} {
+		url := urlBase + "?te=" + te
+		res, _, err := Get(url)
+		if err != nil {
+			t.Fatalf("error with Get of %s: %v", url, err)
+		}
+		if cl, expected := res.ContentLength, int64(3); cl != expected {
+			t.Errorf("for %s expected res.ContentLength of %d; got %d", url, expected, cl)
+		}
+		if cl, expected := res.Header.Get("Content-Length"), "3"; cl != expected {
+			t.Errorf("for %s expected Content-Length header of %q; got %q", url, expected, cl)
+		}
+		if tl, expected := len(res.TransferEncoding), 0; tl != expected {
+			t.Errorf("for %s expected len(res.TransferEncoding) of %d; got %d (%v)",
+				url, expected, tl, res.TransferEncoding)
+		}
+	}
+
+	// Verify that ErrContentLength is returned
+	url := urlBase + "?overwrite=1"
+	_, _, err = Get(url)
+	if err != nil {
+		t.Fatalf("error with Get of %s: %v", url, err)
+	}
+
+	// Verify that the connection is closed when the declared Content-Length
+	// is larger than what the handler wrote.
+	conn, err := net.Dial("tcp", "", l.Addr().String())
+	if err != nil {
+		t.Fatalf("error dialing: %v", err)
+	}
+	_, err = conn.Write([]byte("GET /?underwrite=1 HTTP/1.1\r\nHost: foo\r\n\r\n"))
+	if err != nil {
+		t.Fatalf("error writing: %v", err)
+	}
+	// The next ReadAll will hang for a failing test, so use a Timer instead
+	// to fail more traditionally
+	timer := time.AfterFunc(2e9, func() {
+		t.Fatalf("Timeout expired in ReadAll.")
+	})
+	defer timer.Stop()
+	got, _ := ioutil.ReadAll(conn)
+	expectedSuffix := "\r\n\r\ntoo short"
+	if !strings.HasSuffix(string(got), expectedSuffix) {
+		t.Fatalf("Expected output to end with %q; got response body %q",
+			expectedSuffix, string(got))
+	}
 }
