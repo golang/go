@@ -11,7 +11,7 @@ import (
 )
 
 const ptrSize = uintptr(unsafe.Sizeof((*byte)(nil)))
-const cannotSet = "cannot set value obtained via unexported struct field"
+const cannotSet = "cannot set value obtained from unexported struct field"
 
 type addr unsafe.Pointer
 
@@ -51,20 +51,32 @@ type Value interface {
 	// Interface returns the value as an interface{}.
 	Interface() interface{}
 
-	// CanSet returns whether the value can be changed.
+	// CanSet returns true if the value can be changed.
 	// Values obtained by the use of non-exported struct fields
 	// can be used in Get but not Set.
-	// If CanSet() returns false, calling the type-specific Set
-	// will cause a crash.
+	// If CanSet returns false, calling the type-specific Set will panic.
 	CanSet() bool
 
 	// SetValue assigns v to the value; v must have the same type as the value.
 	SetValue(v Value)
 
-	// Addr returns a pointer to the underlying data.
-	// It is for advanced clients that also
-	// import the "unsafe" package.
-	Addr() uintptr
+	// CanAddr returns true if the value's address can be obtained with Addr.
+	// Such values are called addressable.  A value is addressable if it is
+	// an element of a slice, an element of an addressable array,
+	// a field of an addressable struct, the result of dereferencing a pointer,
+	// or the result of a call to NewValue, MakeChan, MakeMap, or MakeZero.
+	// If CanAddr returns false, calling Addr will panic.
+	CanAddr() bool
+
+	// Addr returns the address of the value.
+	// If the value is not addressable, Addr panics.
+	// Addr is typically used to obtain a pointer to a struct field or slice element
+	// in order to call a method that requires a pointer receiver.
+	Addr() *PtrValue
+
+	// UnsafeAddr returns a pointer to the underlying data.
+	// It is for advanced clients that also import the "unsafe" package.
+	UnsafeAddr() uintptr
 
 	// Method returns a FuncValue corresponding to the value's i'th method.
 	// The arguments to a Call on the returned FuncValue
@@ -75,19 +87,42 @@ type Value interface {
 	getAddr() addr
 }
 
+// flags for value
+const (
+	canSet   uint32 = 1 << iota // can set value (write to *v.addr)
+	canAddr                     // can take address of value
+	canStore                    // can store through value (write to **v.addr)
+)
+
 // value is the common implementation of most values.
 // It is embedded in other, public struct types, but always
 // with a unique tag like "uint" or "float" so that the client cannot
 // convert from, say, *UintValue to *FloatValue.
 type value struct {
-	typ    Type
-	addr   addr
-	canSet bool
+	typ  Type
+	addr addr
+	flag uint32
 }
 
 func (v *value) Type() Type { return v.typ }
 
-func (v *value) Addr() uintptr { return uintptr(v.addr) }
+func (v *value) Addr() *PtrValue {
+	if !v.CanAddr() {
+		panic("reflect: cannot take address of value")
+	}
+	a := v.addr
+	flag := canSet
+	if v.CanSet() {
+		flag |= canStore
+	}
+	// We could safely set canAddr here too -
+	// the caller would get the address of a -
+	// but it doesn't match the Go model.
+	// The language doesn't let you say &&v.
+	return newValue(PtrTo(v.typ), addr(&a), flag).(*PtrValue)
+}
+
+func (v *value) UnsafeAddr() uintptr { return uintptr(v.addr) }
 
 func (v *value) getAddr() addr { return v.addr }
 
@@ -109,7 +144,10 @@ func (v *value) Interface() interface{} {
 	return unsafe.Unreflect(v.typ, unsafe.Pointer(v.addr))
 }
 
-func (v *value) CanSet() bool { return v.canSet }
+func (v *value) CanSet() bool { return v.flag&canSet != 0 }
+
+func (v *value) CanAddr() bool { return v.flag&canAddr != 0 }
+
 
 /*
  * basic types
@@ -125,7 +163,7 @@ func (v *BoolValue) Get() bool { return *(*bool)(v.addr) }
 
 // Set sets v to the value x.
 func (v *BoolValue) Set(x bool) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	*(*bool)(v.addr) = x
@@ -152,7 +190,7 @@ func (v *FloatValue) Get() float64 {
 
 // Set sets v to the value x.
 func (v *FloatValue) Set(x float64) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	switch v.typ.Kind() {
@@ -197,7 +235,7 @@ func (v *ComplexValue) Get() complex128 {
 
 // Set sets v to the value x.
 func (v *ComplexValue) Set(x complex128) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	switch v.typ.Kind() {
@@ -237,7 +275,7 @@ func (v *IntValue) Get() int64 {
 
 // Set sets v to the value x.
 func (v *IntValue) Set(x int64) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	switch v.typ.Kind() {
@@ -282,7 +320,7 @@ func (v *StringValue) Get() string { return *(*string)(v.addr) }
 
 // Set sets v to the value x.
 func (v *StringValue) Set(x string) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	*(*string)(v.addr) = x
@@ -317,7 +355,7 @@ func (v *UintValue) Get() uint64 {
 
 // Set sets v to the value x.
 func (v *UintValue) Set(x uint64) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	switch v.typ.Kind() {
@@ -361,7 +399,7 @@ func (v *UnsafePointerValue) Get() uintptr { return uintptr(*(*unsafe.Pointer)(v
 
 // Set sets v to the value x.
 func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	*(*unsafe.Pointer)(v.addr) = x
@@ -473,7 +511,7 @@ func (v *ArrayValue) addr() addr { return v.value.addr }
 // Set assigns x to v.
 // The new value x must have the same type as v.
 func (v *ArrayValue) Set(x *ArrayValue) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ)
@@ -491,7 +529,7 @@ func (v *ArrayValue) Elem(i int) Value {
 		panic("array index out of bounds")
 	}
 	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size())
-	return newValue(typ, p, v.canSet)
+	return newValue(typ, p, v.flag)
 }
 
 /*
@@ -537,7 +575,7 @@ func (v *SliceValue) SetLen(n int) {
 // Set assigns x to v.
 // The new value x must have the same type as v.
 func (v *SliceValue) Set(x *SliceValue) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ)
@@ -566,7 +604,14 @@ func (v *SliceValue) Slice(beg, end int) *SliceValue {
 	s.Data = uintptr(v.addr()) + uintptr(beg)*typ.Elem().Size()
 	s.Len = end - beg
 	s.Cap = cap - beg
-	return newValue(typ, addr(s), v.canSet).(*SliceValue)
+
+	// Like the result of Addr, we treat Slice as an
+	// unaddressable temporary, so don't set canAddr.
+	flag := canSet
+	if v.flag&canStore != 0 {
+		flag |= canStore
+	}
+	return newValue(typ, addr(s), flag).(*SliceValue)
 }
 
 // Elem returns the i'th element of v.
@@ -577,7 +622,11 @@ func (v *SliceValue) Elem(i int) Value {
 		panic("reflect: slice index out of range")
 	}
 	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size())
-	return newValue(typ, p, v.canSet)
+	flag := canAddr
+	if v.flag&canStore != 0 {
+		flag |= canSet | canStore
+	}
+	return newValue(typ, p, flag)
 }
 
 // MakeSlice creates a new zero-initialized slice value
@@ -588,7 +637,7 @@ func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
 		Len:  len,
 		Cap:  cap,
 	}
-	return newValue(typ, addr(s), true).(*SliceValue)
+	return newValue(typ, addr(s), canAddr|canSet|canStore).(*SliceValue)
 }
 
 /*
@@ -606,7 +655,7 @@ func (v *ChanValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
 // Set assigns x to v.
 // The new value x must have the same type as v.
 func (v *ChanValue) Set(x *ChanValue) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ)
@@ -733,7 +782,7 @@ func (v *FuncValue) Get() uintptr { return *(*uintptr)(v.addr) }
 // Set assigns x to v.
 // The new value x must have the same type as v.
 func (v *FuncValue) Set(x *FuncValue) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ)
@@ -754,7 +803,7 @@ func (v *value) Method(i int) *FuncValue {
 	}
 	p := &t.methods[i]
 	fn := p.tfn
-	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), true}, first: v, isInterface: false}
+	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), 0}, first: v, isInterface: false}
 	return fv
 }
 
@@ -763,6 +812,17 @@ func call(fn, arg *byte, n uint32)
 
 type tiny struct {
 	b byte
+}
+
+// Interface returns the fv as an interface value.
+// If fv is a method obtained by invoking Value.Method
+// (as opposed to Type.Method), Interface cannot return an
+// interface value, so it panics.
+func (fv *FuncValue) Interface() interface{} {
+	if fv.first != nil {
+		panic("FuncValue: cannot create interface value for method with bound receiver")
+	}
+	return fv.value.Interface()
 }
 
 // Call calls the function fv with input parameters in.
@@ -902,7 +962,7 @@ func (v *InterfaceValue) Set(x Value) {
 	if x != nil {
 		i = x.Interface()
 	}
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	// Two different representations; see comment in Get.
@@ -933,11 +993,11 @@ func (v *InterfaceValue) Method(i int) *FuncValue {
 
 	// Interface is two words: itable, data.
 	tab := *(**runtime.Itable)(v.addr)
-	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr) + ptrSize), true}
+	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr) + ptrSize), 0}
 
 	// Function pointer is at p.perm in the table.
 	fn := tab.Fn[i]
-	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), true}, first: data, isInterface: true}
+	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), 0}, first: data, isInterface: true}
 	return fv
 }
 
@@ -956,7 +1016,7 @@ func (v *MapValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
 // Set assigns x to v.
 // The new value x must have the same type as v.
 func (v *MapValue) Set(x *MapValue) {
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	if x == nil {
@@ -1075,14 +1135,17 @@ func (v *PtrValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
 func (v *PtrValue) Get() uintptr { return *(*uintptr)(v.addr) }
 
 // Set assigns x to v.
-// The new value x must have the same type as v.
+// The new value x must have the same type as v, and x.Elem().CanSet() must be true.
 func (v *PtrValue) Set(x *PtrValue) {
 	if x == nil {
 		*(**uintptr)(v.addr) = nil
 		return
 	}
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
+	}
+	if x.flag&canStore == 0 {
+		panic("cannot copy pointer obtained from unexported struct field")
 	}
 	typesMustMatch(v.typ, x.typ)
 	// TODO: This will have to move into the runtime
@@ -1112,7 +1175,7 @@ func (v *PtrValue) PointTo(x Value) {
 	typesMustMatch(v.typ.(*PtrType).Elem(), x.Type())
 	// TODO: This will have to move into the runtime
 	// once the new gc goes in.
-	*(*uintptr)(v.addr) = x.Addr()
+	*(*uintptr)(v.addr) = x.UnsafeAddr()
 }
 
 // Elem returns the value that v points to.
@@ -1121,7 +1184,11 @@ func (v *PtrValue) Elem() Value {
 	if v.IsNil() {
 		return nil
 	}
-	return newValue(v.typ.(*PtrType).Elem(), *(*addr)(v.addr), v.canSet)
+	flag := canAddr
+	if v.flag&canStore != 0 {
+		flag |= canSet | canStore
+	}
+	return newValue(v.typ.(*PtrType).Elem(), *(*addr)(v.addr), flag)
 }
 
 // Indirect returns the value that v points to.
@@ -1148,7 +1215,7 @@ type StructValue struct {
 func (v *StructValue) Set(x *StructValue) {
 	// TODO: This will have to move into the runtime
 	// once the gc goes in.
-	if !v.canSet {
+	if !v.CanSet() {
 		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ)
@@ -1165,7 +1232,12 @@ func (v *StructValue) Field(i int) Value {
 		return nil
 	}
 	f := t.Field(i)
-	return newValue(f.Type, addr(uintptr(v.addr)+f.Offset), v.canSet && f.PkgPath == "")
+	flag := v.flag
+	if f.PkgPath != "" {
+		// unexported field
+		flag &^= canSet | canStore
+	}
+	return newValue(f.Type, addr(uintptr(v.addr)+f.Offset), flag)
 }
 
 // FieldByIndex returns the nested field corresponding to index.
@@ -1221,11 +1293,11 @@ func NewValue(i interface{}) Value {
 		return nil
 	}
 	t, a := unsafe.Reflect(i)
-	return newValue(toType(t), addr(a), true)
+	return newValue(toType(t), addr(a), canSet|canAddr|canStore)
 }
 
-func newValue(typ Type, addr addr, canSet bool) Value {
-	v := value{typ, addr, canSet}
+func newValue(typ Type, addr addr, flag uint32) Value {
+	v := value{typ, addr, flag}
 	switch typ.(type) {
 	case *ArrayType:
 		return &ArrayValue{v}
@@ -1266,5 +1338,5 @@ func MakeZero(typ Type) Value {
 	if typ == nil {
 		return nil
 	}
-	return newValue(typ, addr(unsafe.New(typ)), true)
+	return newValue(typ, addr(unsafe.New(typ)), canSet|canAddr|canStore)
 }

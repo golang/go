@@ -356,7 +356,7 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
 	if v == nil {
 		errorf("gob: encodeReflectValue: nil element")
 	}
-	op(nil, state, unsafe.Pointer(v.Addr()))
+	op(nil, state, unsafe.Pointer(v.UnsafeAddr()))
 }
 
 func (enc *Encoder) encodeMap(b *bytes.Buffer, mv *reflect.MapValue, keyOp, elemOp encOp, keyIndir, elemIndir int) {
@@ -575,9 +575,9 @@ func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInf
 	}
 	engine := enc.lockAndGetEncEngine(ut.base)
 	if value.Type().Kind() == reflect.Struct {
-		enc.encodeStruct(b, engine, value.Addr())
+		enc.encodeStruct(b, engine, value.UnsafeAddr())
 	} else {
-		enc.encodeSingle(b, engine, value.Addr())
+		enc.encodeSingle(b, engine, value.UnsafeAddr())
 	}
 	return nil
 }

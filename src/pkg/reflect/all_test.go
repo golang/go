@@ -1093,6 +1093,18 @@ func TestMethod(t *testing.T) {
 		t.Errorf("Value Method returned %d; want 250", i)
 	}
 
+	// Curried method of pointer.
+	i = NewValue(&p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
+	if i != 250 {
+		t.Errorf("Value Method returned %d; want 250", i)
+	}
+
+	// Curried method of pointer to value.
+	i = NewValue(p).Addr().Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
+	if i != 250 {
+		t.Errorf("Value Method returned %d; want 250", i)
+	}
+
 	// Curried method of interface value.
 	// Have to wrap interface value in a struct to get at it.
 	// Passing it to NewValue directly would
@@ -1388,5 +1400,68 @@ func TestEmbeddedMethods(t *testing.T) {
 	f := (*outerInt).m
 	if v := f(o); v != 2 {
 		t.Errorf("f(o) = %d, want 2", v)
+	}
+}
+
+func TestPtrTo(t *testing.T) {
+	var i int
+
+	typ := Typeof(i)
+	for i = 0; i < 100; i++ {
+		typ = PtrTo(typ)
+	}
+	for i = 0; i < 100; i++ {
+		typ = typ.(*PtrType).Elem()
+	}
+	if typ != Typeof(i) {
+		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, Typeof(i))
+	}
+}
+
+func TestAddr(t *testing.T) {
+	var p struct {
+		X, Y int
+	}
+
+	v := NewValue(&p)
+	v = v.(*PtrValue).Elem()
+	v = v.Addr()
+	v = v.(*PtrValue).Elem()
+	v = v.(*StructValue).Field(0)
+	v.(*IntValue).Set(2)
+	if p.X != 2 {
+		t.Errorf("Addr.Elem.Set failed to set value")
+	}
+
+	// Again but take address of the NewValue value.
+	// Exercises generation of PtrTypes not present in the binary.
+	v = NewValue(&p)
+	v = v.Addr()
+	v = v.(*PtrValue).Elem()
+	v = v.(*PtrValue).Elem()
+	v = v.Addr()
+	v = v.(*PtrValue).Elem()
+	v = v.(*StructValue).Field(0)
+	v.(*IntValue).Set(3)
+	if p.X != 3 {
+		t.Errorf("Addr.Elem.Set failed to set value")
+	}
+
+	// Starting without pointer we should get changed value
+	// in interface.
+	v = NewValue(p)
+	v0 := v
+	v = v.Addr()
+	v = v.(*PtrValue).Elem()
+	v = v.(*StructValue).Field(0)
+	v.(*IntValue).Set(4)
+	if p.X != 3 { // should be unchanged from last time
+		t.Errorf("somehow value Set changed original p")
+	}
+	p = v0.Interface().(struct {
+		X, Y int
+	})
+	if p.X != 4 {
+		t.Errorf("Addr.Elem.Set valued to set value in top value")
 	}
 }
