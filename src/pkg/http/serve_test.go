@@ -353,7 +353,7 @@ func TestServerTimeouts(t *testing.T) {
 
 // TestIdentityResponse verifies that a handler can unset 
 func TestIdentityResponse(t *testing.T) {
-	l, err := net.Listen("tcp", ":0")
+	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to listen on a port: %v", err)
 	}
