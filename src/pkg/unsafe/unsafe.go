@@ -41,13 +41,14 @@ func Typeof(i interface{}) (typ interface{})
 
 // Reflect unpacks an interface value into its type and the address of a copy of the
 // internal value.
-func Reflect(i interface{}) (typ interface{}, addr uintptr)
+func Reflect(i interface{}) (typ interface{}, addr Pointer)
 
-// Unreflect inverts Reflect: Given a type and a pointer, it returns an empty interface value
-// with those contents.  The typ is assumed to contain a pointer to a runtime type;
-// the type information in the interface{} is ignored, so that, for example, both
+// Unreflect inverts Reflect: Given a type and a pointer to a value, it returns an
+// empty interface value with contents the type and the value (not the pointer to
+// the value).  The typ is assumed to contain a pointer to a runtime type; the type
+// information in the interface{} is ignored, so that, for example, both
 // *reflect.StructType and *runtime.StructType can be passed for typ.
-func Unreflect(typ interface{}, addr uintptr) (ret interface{})
+func Unreflect(typ interface{}, addr Pointer) (ret interface{})
 
 // New allocates and returns a pointer to memory for a new value of the given type.
 // The typ is assumed to hold a pointer to a runtime type.
