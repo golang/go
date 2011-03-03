@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of February 22, 2011 -->
+<!-- subtitle Version of March 3, 2011 -->
 
 <!--
 TODO
@@ -1431,8 +1431,8 @@ Go is lexically scoped using blocks:
 	<li>The scope of a predeclared identifier is the universe block.</li>
 
 	<li>The scope of an identifier denoting a constant, type, variable,
-	    or function declared at top level (outside any function) is the
-	    package block.</li>
+	    or function (but not method) declared at top level (outside any
+	    function) is the package block.</li>
 
 	<li>The scope of an imported package identifier is the file block
 	    of the file containing the import declaration.</li>
@@ -5152,7 +5152,6 @@ The following minimal alignment properties are guaranteed:
 <h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
 <ul>
 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
-	<li><span class="alert">Gccgo: The <code>append</code> built-in function is not yet implemented.</span></li>
 	<li><span class="alert">Gccgo: Method expressions are partially implemented.</span></li>
 	<li><span class="alert">Gccgo: allows only one init() function per source file.</span></li>
 </ul>
