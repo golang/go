@@ -172,7 +172,6 @@ NOTEST=\
 	go/token\
 	hash\
 	http/pprof\
-	image\
 	image/jpeg\
 	net/dict\
 	rand\
