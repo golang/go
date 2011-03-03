@@ -30,14 +30,15 @@ type reader struct {
 	blockSize int  // blockSize in bytes, i.e. 900 * 1024.
 	eof       bool
 	buf       []byte    // stores Burrows-Wheeler transformed data.
-	rle       []byte    // stores the RLE compressed data.
-	c         [256]uint // the `C' and `P' arrays for the inverse BWT.
-	p         []uint
+	c         [256]uint // the `C' array for the inverse BWT.
+	tt        []uint32  // mirrors the `tt' array in the bzip2 source and contains the P array in the upper 24 bits.
+	tPos      uint32    // Index of the next output byte in tt.
 
-	preRLE      []byte // contains the RLE data still to be processed.
-	lastByte    int    // the last byte value seen.
-	byteRepeats uint   // the number of repeats of lastByte seen.
-	repeats     uint   // the number of copies of lastByte to output.
+	preRLE      []uint32 // contains the RLE data still to be processed.
+	preRLEUsed  int      // number of entries of preRLE used.
+	lastByte    int      // the last byte value seen.
+	byteRepeats uint     // the number of repeats of lastByte seen.
+	repeats     uint     // the number of copies of lastByte to output.
 }
 
 // NewReader returns an io.Reader which decompresses bzip2 data from r.
@@ -71,9 +72,7 @@ func (bz2 *reader) setup() os.Error {
 	}
 
 	bz2.blockSize = 100 * 1024 * (int(level) - '0')
-	bz2.buf = make([]byte, bz2.blockSize)
-	bz2.rle = make([]byte, bz2.blockSize)
-	bz2.p = make([]uint, bz2.blockSize)
+	bz2.tt = make([]uint32, bz2.blockSize)
 	return nil
 }
 
@@ -110,7 +109,7 @@ func (bz2 *reader) read(buf []byte) (n int, err os.Error) {
 	// maximum expansion. Thus we process blocks all at once, except for
 	// the RLE which we decompress as required.
 
-	for (bz2.repeats > 0 || len(bz2.preRLE) > 0) && n < len(buf) {
+	for (bz2.repeats > 0 || bz2.preRLEUsed < len(bz2.preRLE)) && n < len(buf) {
 		// We have RLE data pending.
 
 		// The run-length encoding works like this:
@@ -130,8 +129,10 @@ func (bz2 *reader) read(buf []byte) (n int, err os.Error) {
 			continue
 		}
 
-		b := bz2.preRLE[0]
-		bz2.preRLE = bz2.preRLE[1:]
+		bz2.tPos = bz2.preRLE[bz2.tPos]
+		b := byte(bz2.tPos)
+		bz2.tPos >>= 8
+		bz2.preRLEUsed++
 
 		if bz2.byteRepeats == 3 {
 			bz2.repeats = uint(b)
@@ -306,6 +307,12 @@ func (bz2 *reader) readBlock() (err os.Error) {
 			}
 			repeat += repeat_power << v
 			repeat_power <<= 1
+
+			// This limit of 2 million comes from the bzip2 source
+			// code. It prevents repeat from overflowing.
+			if repeat > 2*1024*1024 {
+				return StructuralError("repeat count too large")
+			}
 			continue
 		}
 
@@ -314,8 +321,7 @@ func (bz2 *reader) readBlock() (err os.Error) {
 			// replicate the last output symbol.
 			for i := 0; i < repeat; i++ {
 				b := byte(mtf.First())
-				bz2.buf[bufIndex] = b
-				bz2.p[bufIndex] = bz2.c[b]
+				bz2.tt[bufIndex] = uint32(b)
 				bz2.c[b]++
 				bufIndex++
 			}
@@ -336,16 +342,20 @@ func (bz2 *reader) readBlock() (err os.Error) {
 		// doesn't need to be encoded and we have |v-1| in the next
 		// line.
 		b := byte(mtf.Decode(int(v - 1)))
-		bz2.buf[bufIndex] = b
-		bz2.p[bufIndex] = bz2.c[b]
+		bz2.tt[bufIndex] = uint32(b)
 		bz2.c[b]++
 		bufIndex++
 	}
 
+	if origPtr >= uint(bufIndex) {
+		return StructuralError("origPtr out of bounds")
+	}
+
 	// We have completed the entropy decoding. Now we can perform the
 	// inverse BWT and setup the RLE buffer.
-	inverseBWT(bz2.rle, bz2.buf[:bufIndex], origPtr, bz2.c[:], bz2.p[:bufIndex])
-	bz2.preRLE = bz2.rle[:bufIndex]
+	bz2.preRLE = bz2.tt[:bufIndex]
+	bz2.preRLEUsed = 0
+	bz2.tPos = inverseBWT(bz2.preRLE, origPtr, bz2.c[:])
 	bz2.lastByte = -1
 	bz2.byteRepeats = 0
 	bz2.repeats = 0
@@ -355,19 +365,26 @@ func (bz2 *reader) readBlock() (err os.Error) {
 
 // inverseBWT implements the inverse Burrows-Wheeler transform as described in
 // http://www.hpl.hp.com/techreports/Compaq-DEC/SRC-RR-124.pdf, section 4.2.
-// In that document, origPtr is called `I' and c and p are the `C' and `P'
-// arrays after the first pass over the data. They are arguments here because
-// we merge the first pass with the Huffman decoding.
-func inverseBWT(out, in []byte, origPtr uint, c, p []uint) {
+// In that document, origPtr is called `I' and c is the `C' array after the
+// first pass over the data. It's an argument here because we merge the first
+// pass with the Huffman decoding.
+//
+// This also implements the `single array' method from the bzip2 source code
+// which leaves the output, still shuffled, in the bottom 8 bits of tt with the
+// index of the next byte in the top 24-bits. The index of the first byte is
+// returned.
+func inverseBWT(tt []uint32, origPtr uint, c []uint) uint32 {
 	sum := uint(0)
 	for i := 0; i < 256; i++ {
 		sum += c[i]
 		c[i] = sum - c[i]
 	}
 
-	i := origPtr
-	for j := len(in) - 1; j >= 0; j-- {
-		out[j] = in[i]
-		i = p[i] + c[in[i]]
+	for i := range tt {
+		b := tt[i] & 0xff
+		tt[c[b]] |= uint32(i) << 8
+		c[b]++
 	}
+
+	return tt[origPtr] >> 8
 }
