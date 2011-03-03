@@ -23,11 +23,31 @@ func TestTempFile(t *testing.T) {
 		t.Errorf("TempFile(dir, `ioutil_test`) = %v, %v", f, err)
 	}
 	if f != nil {
+		f.Close()
+		os.Remove(f.Name())
 		re := regexp.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
 		if !re.MatchString(f.Name()) {
 			t.Errorf("TempFile(`"+dir+"`, `ioutil_test`) created bad name %s", f.Name())
 		}
-		os.Remove(f.Name())
 	}
-	f.Close()
+}
+
+func TestTempDir(t *testing.T) {
+	name, err := TempDir("/_not_exists_", "foo")
+	if name != "" || err == nil {
+		t.Errorf("TempDir(`/_not_exists_`, `foo`) = %v, %v", name, err)
+	}
+
+	dir := os.TempDir()
+	name, err = TempDir(dir, "ioutil_test")
+	if name == "" || err != nil {
+		t.Errorf("TempDir(dir, `ioutil_test`) = %v, %v", name, err)
+	}
+	if name != "" {
+		os.Remove(name)
+		re := regexp.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
+		if !re.MatchString(name) {
+			t.Errorf("TempDir(`"+dir+"`, `ioutil_test`) created bad name %s", name)
+		}
+	}
 }
