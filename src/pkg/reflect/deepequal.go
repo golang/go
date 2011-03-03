@@ -31,8 +31,8 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 
 	// if depth > 10 { panic("deepValueEqual") }	// for debugging
 
-	addr1 := v1.Addr()
-	addr2 := v2.Addr()
+	addr1 := v1.UnsafeAddr()
+	addr2 := v2.UnsafeAddr()
 	if addr1 > addr2 {
 		// Canonicalize order to reduce number of entries in visited.
 		addr1, addr2 = addr2, addr1

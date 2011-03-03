@@ -518,7 +518,7 @@ func (dec *Decoder) decodeArray(atyp *reflect.ArrayType, state *decodeState, p u
 
 func decodeIntoValue(state *decodeState, op decOp, indir int, v reflect.Value, ovfl os.ErrorString) reflect.Value {
 	instr := &decInstr{op, 0, indir, 0, ovfl}
-	up := unsafe.Pointer(v.Addr())
+	up := unsafe.Pointer(v.UnsafeAddr())
 	if indir > 1 {
 		up = decIndirect(up, indir)
 	}
@@ -1052,9 +1052,9 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) (err os.Error)
 			name := base.Name()
 			return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
 		}
-		return dec.decodeStruct(engine, ut, uintptr(val.Addr()), indir)
+		return dec.decodeStruct(engine, ut, uintptr(val.UnsafeAddr()), indir)
 	}
-	return dec.decodeSingle(engine, ut, uintptr(val.Addr()))
+	return dec.decodeSingle(engine, ut, uintptr(val.UnsafeAddr()))
 }
 
 func (dec *Decoder) decodeIgnoredValue(wireId typeId) os.Error {

@@ -18,6 +18,7 @@ package reflect
 import (
 	"runtime"
 	"strconv"
+	"sync"
 	"unsafe"
 )
 
@@ -251,6 +252,8 @@ type Type interface {
 
 	// NumMethods returns the number of methods in the type's method set.
 	NumMethod() int
+
+	common() *commonType
 	uncommon() *uncommonType
 }
 
@@ -361,6 +364,8 @@ func (t *commonType) FieldAlign() int { return int(t.fieldAlign) }
 
 func (t *commonType) Kind() Kind { return Kind(t.kind & kindMask) }
 
+func (t *commonType) common() *commonType { return t }
+
 func (t *uncommonType) Method(i int) (m Method) {
 	if t == nil || i < 0 || i >= len(t.methods) {
 		return
@@ -374,7 +379,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	}
 	m.Type = toType(*p.typ).(*FuncType)
 	fn := p.tfn
-	m.Func = &FuncValue{value: value{m.Type, addr(&fn), true}}
+	m.Func = &FuncValue{value: value{m.Type, addr(&fn), canSet}}
 	return
 }
 
@@ -689,3 +694,84 @@ type ArrayOrSliceType interface {
 
 // Typeof returns the reflection Type of the value in the interface{}.
 func Typeof(i interface{}) Type { return toType(unsafe.Typeof(i)) }
+
+// ptrMap is the cache for PtrTo.
+var ptrMap struct {
+	sync.RWMutex
+	m map[Type]*PtrType
+}
+
+// runtimePtrType is the runtime layout for a *PtrType.
+// The memory immediately before the *PtrType is always
+// the canonical runtime.Type to be used for a *runtime.Type
+// describing this PtrType.
+type runtimePtrType struct {
+	runtime.Type
+	runtime.PtrType
+}
+
+// PtrTo returns the pointer type with element t.
+// For example, if t represents type Foo, PtrTo(t) represents *Foo.
+func PtrTo(t Type) *PtrType {
+	// If t records its pointer-to type, use it.
+	ct := t.common()
+	if p := ct.ptrToThis; p != nil {
+		return toType(*p).(*PtrType)
+	}
+
+	// Otherwise, synthesize one.
+	// This only happens for pointers with no methods.
+	// We keep the mapping in a map on the side, because
+	// this operation is rare and a separate map lets us keep
+	// the type structures in read-only memory.
+	ptrMap.RLock()
+	if m := ptrMap.m; m != nil {
+		if p := m[t]; p != nil {
+			ptrMap.RUnlock()
+			return p
+		}
+	}
+	ptrMap.RUnlock()
+	ptrMap.Lock()
+	if ptrMap.m == nil {
+		ptrMap.m = make(map[Type]*PtrType)
+	}
+	p := ptrMap.m[t]
+	if p != nil {
+		// some other goroutine won the race and created it
+		ptrMap.Unlock()
+		return p
+	}
+
+	// runtime.Type value is always right before type structure.
+	// 2*ptrSize is size of interface header
+	rt := (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - uintptr(unsafe.Sizeof(runtime.Type(nil)))))
+
+	rp := new(runtimePtrType)
+	rp.Type = &rp.PtrType
+
+	// initialize rp.PtrType using *byte's PtrType as a prototype.
+	// have to do assignment as PtrType, not runtime.PtrType,
+	// in order to write to unexported fields.
+	p = (*PtrType)(unsafe.Pointer(&rp.PtrType))
+	bp := (*PtrType)(unsafe.Pointer(unsafe.Typeof((*byte)(nil)).(*runtime.PtrType)))
+	*p = *bp
+
+	s := "*" + *ct.string
+	p.string = &s
+
+	// For the type structures linked into the binary, the
+	// compiler provides a good hash of the string.
+	// Create a good hash for the new string by using
+	// the FNV-1 hash's mixing function to combine the
+	// old hash and the new "*".
+	p.hash = ct.hash*16777619 ^ '*'
+
+	p.uncommonType = nil
+	p.ptrToThis = nil
+	p.elem = rt
+
+	ptrMap.m[t] = (*PtrType)(unsafe.Pointer(&rp.PtrType))
+	ptrMap.Unlock()
+	return p
+}
