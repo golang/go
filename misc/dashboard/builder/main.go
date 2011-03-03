@@ -1,3 +1,7 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -15,12 +19,23 @@ import (
 )
 
 const (
-	codeProject  = "go"
-	codePyScript = "misc/dashboard/googlecode_upload.py"
-	hgUrl        = "https://go.googlecode.com/hg/"
-	waitInterval = 10e9 // time to wait before checking for new revs
-	mkdirPerm    = 0750
+	codeProject      = "go"
+	codePyScript     = "misc/dashboard/googlecode_upload.py"
+	hgUrl            = "https://go.googlecode.com/hg/"
+	waitInterval     = 10e9 // time to wait before checking for new revs
+	mkdirPerm        = 0750
+	pkgBuildInterval = 1e9 * 60 * 60 * 24 // rebuild packages every 24 hours
 )
+
+// These variables are copied from the gobuilder's environment
+// to the envv of its subprocesses.
+var extraEnv = []string{
+	"GOHOSTOS",
+	"GOHOSTARCH",
+	"PATH",
+	"DISABLE_NET_TESTS",
+	"GOARM",
+}
 
 type Builder struct {
 	name         string
@@ -43,6 +58,8 @@ var (
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")
+	external      = flag.Bool("external", false, "Build external packages")
+	verbose       = flag.Bool("v", false, "verbose")
 )
 
 var (
@@ -70,6 +87,8 @@ func main() {
 		}
 		builders[i] = b
 	}
+
+	// set up work environment
 	if err := os.RemoveAll(*buildroot); err != nil {
 		log.Fatalf("Error removing build root (%s): %s", *buildroot, err)
 	}
@@ -79,6 +98,7 @@ func main() {
 	if err := run(nil, *buildroot, "hg", "clone", hgUrl, goroot); err != nil {
 		log.Fatal("Error cloning repository:", err)
 	}
+
 	// if specified, build revision and return
 	if *buildRevision != "" {
 		c, err := getCommit(*buildRevision)
@@ -93,6 +113,16 @@ func main() {
 		}
 		return
 	}
+
+	// external package build mode
+	if *external {
+		if len(builders) != 1 {
+			log.Fatal("only one goos-goarch should be specified with -external")
+		}
+		builders[0].buildExternal()
+	}
+
+	// go continuous build mode (default)
 	// check for new commits and build them
 	for {
 		err := run(nil, goroot, "hg", "pull", "-u")
@@ -179,6 +209,44 @@ func NewBuilder(builder string) (*Builder, os.Error) {
 	return b, nil
 }
 
+// buildExternal downloads and builds external packages, and
+// reports their build status to the dashboard.
+// It will re-build all packages after pkgBuildInterval nanoseconds or
+// a new release tag is found.
+func (b *Builder) buildExternal() {
+	var prevTag string
+	var nextBuild int64
+	for {
+		time.Sleep(waitInterval)
+		err := run(nil, goroot, "hg", "pull", "-u")
+		if err != nil {
+			log.Println("hg pull failed:", err)
+			continue
+		}
+		c, tag, err := getTag(releaseRegexp)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		if *verbose {
+			log.Println("latest release:", tag)
+		}
+		// don't rebuild if there's no new release
+		// and it's been less than pkgBuildInterval
+		// nanoseconds since the last build.
+		if tag == prevTag && time.Nanoseconds() < nextBuild {
+			continue
+		}
+		// buildCommit will also build the packages
+		if err := b.buildCommit(c); err != nil {
+			log.Println(err)
+			continue
+		}
+		prevTag = tag
+		nextBuild = time.Nanoseconds() + pkgBuildInterval
+	}
+}
+
 // build checks for a new commit for this builder
 // and builds it if one is found. 
 // It returns true if a build was attempted.
@@ -262,23 +330,23 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 		return
 	}
 
-	// set up environment for build/bench execution
-	env := []string{
-		"GOOS=" + b.goos,
-		"GOARCH=" + b.goarch,
-		"GOHOSTOS=" + os.Getenv("GOHOSTOS"),
-		"GOHOSTARCH=" + os.Getenv("GOHOSTARCH"),
-		"GOROOT_FINAL=/usr/local/go",
-		"PATH=" + os.Getenv("PATH"),
-	}
 	srcDir := path.Join(workpath, "go", "src")
 
 	// build
 	logfile := path.Join(workpath, "build.log")
-	buildLog, status, err := runLog(env, logfile, srcDir, *buildCmd)
+	buildLog, status, err := runLog(b.envv(), logfile, srcDir, *buildCmd)
 	if err != nil {
 		return fmt.Errorf("all.bash: %s", err)
 	}
+
+	// if we're in external mode, build all packages and return
+	if *external {
+		if status != 0 {
+			return os.NewError("go build failed")
+		}
+		return b.buildPackages(workpath, c)
+	}
+
 	if status != 0 {
 		// record failure
 		return b.recordResult(buildLog, c)
@@ -307,7 +375,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	// if this is a release, create tgz and upload to google code
 	if release := releaseRegexp.FindString(c.desc); release != "" {
 		// clean out build state
-		err = run(env, srcDir, "./clean.bash", "--nopkg")
+		err = run(b.envv(), srcDir, "./clean.bash", "--nopkg")
 		if err != nil {
 			return fmt.Errorf("clean.bash: %s", err)
 		}
@@ -327,6 +395,19 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
 	}
 
 	return
+}
+
+// envv returns an environment for build/bench execution
+func (b *Builder) envv() []string {
+	e := []string{
+		"GOOS=" + b.goos,
+		"GOARCH=" + b.goarch,
+		"GOROOT_FINAL=/usr/local/go",
+	}
+	for _, k := range extraEnv {
+		e = append(e, k+"="+os.Getenv(k))
+	}
+	return e
 }
 
 func isDirectory(name string) bool {

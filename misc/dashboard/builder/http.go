@@ -1,3 +1,7 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -6,8 +10,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"http"
+	"json"
+	"log"
 	"os"
 	"regexp"
+	"strconv"
 )
 
 // getHighWater returns the current highwater revision hash for this builder
@@ -63,7 +70,46 @@ func (b *Builder) recordBenchmarks(benchLog string, c Commit) os.Error {
 	})
 }
 
+// getPackages fetches a list of package paths from the dashboard
+func getPackages() (pkgs []string, err os.Error) {
+	r, _, err := http.Get(fmt.Sprintf("http://%v/package?fmt=json", *dashboard))
+	if err != nil {
+		return
+	}
+	defer r.Body.Close()
+	d := json.NewDecoder(r.Body)
+	var resp struct {
+		Packages []struct {
+			Path string
+		}
+	}
+	if err = d.Decode(&resp); err != nil {
+		return
+	}
+	for _, p := range resp.Packages {
+		pkgs = append(pkgs, p.Path)
+	}
+	return
+}
+
+// updatePackage sends package build results and info to the dashboard
+func (b *Builder) updatePackage(pkg string, state bool, buildLog, info string, c Commit) os.Error {
+	args := map[string]string{
+		"builder": b.name,
+		"key":     b.key,
+		"path":    pkg,
+		"state":   strconv.Btoa(state),
+		"log":     buildLog,
+		"info":    info,
+		"go_rev":  strconv.Itoa(c.num),
+	}
+	return httpCommand("package", args)
+}
+
 func httpCommand(cmd string, args map[string]string) os.Error {
+	if *verbose {
+		log.Println("httpCommand", cmd, args)
+	}
 	url := fmt.Sprintf("http://%v/%v", *dashboard, cmd)
 	_, err := http.PostForm(url, args)
 	return err
