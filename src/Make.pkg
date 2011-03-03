@@ -111,6 +111,7 @@ dir:
 
 ifdef CGOFILES
 _obj/_cgo_run: $(CGOFILES)
+	@mkdir -p _obj
 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
 	touch _obj/_cgo_run
 
