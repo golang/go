@@ -680,8 +680,10 @@ doweak(void)
 			if(t->type != 0 && t->reachable) {
 				s->value = t->value;
 				s->type = t->type;
-			} else
+			} else {
+				s->type = SCONST;
 				s->value = 0;
+			}
 			continue;
 		}
 	}
