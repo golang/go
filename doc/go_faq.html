@@ -508,6 +508,71 @@ Regarding operator overloading, it seems more a convenience than an absolute
 requirement.  Again, things are simpler without it.
 </p>
 
+<h3 id="implements_interface">
+Why doesn't Go have "implements" declarations?</h3>
+
+<p>
+A Go type satisfies an interface by implementing the methods of that interface,
+nothing more.  This property allows interfaces to be defined and used without
+having to modify existing code.  It enables a kind of "duck typing" that
+promotes separation of concerns and improves code re-use, and makes it easier
+to build on patterns that emerge as the code develops.
+The semantics of interfaces is one of the main reasons for Go's nimble,
+lightweight feel.
+</p>
+
+<p>
+See the <a href="#inheritance">question on type inheritance</a> for more detail.
+</p>
+
+<h3 id="guarantee_satisfies_interface">
+How can I guarantee my type satisfies an interface?</h3>
+
+<p>
+You can ask the compiler to check that the type <code>T</code> implements the
+interface <code>I</code> by attempting an assignment:
+</p>
+
+<pre>
+type T struct{}
+var _ I = T{}
+</pre>
+
+<p>
+If <code>T</code> doesn't implement <code>I</code>, the mistake will be caught
+at compile time.
+</p>
+
+<p>
+If you wish the users of an interface to explicitly declare that they implement
+it, you can add a method with a descriptive name to the interface's method set.
+For example:
+</p>
+
+<pre>
+type Fooer interface {
+	Foo()
+	ImplementsFooer()
+}
+</pre>
+
+<p>
+A type must then implement the <code>ImplementsFooer</code> method to be a
+<code>Fooer</code>, clearly documenting the fact.
+</p>
+
+<pre>
+type Bar struct{}
+func (b Bar) ImplementsFooer() {}
+func (b Bar) Foo() {}
+</pre>
+
+<p>
+Most code doesn't make use of such constraints, since they limit the utility of 
+the interface idea. Sometimes, though, they're necessary to resolve ambiguities
+among similar interfaces.
+</p>
+
 
 <h2 id="values">Values</h2>
 
