@@ -96,7 +96,9 @@ DIRS=\
 	hash/crc64\
 	html\
 	http\
+	http/cgi\
 	http/pprof\
+	http/httptest\
 	image\
 	image/jpeg\
 	image/png\
@@ -172,6 +174,7 @@ NOTEST=\
 	go/token\
 	hash\
 	http/pprof\
+	http/httptest\
 	image/jpeg\
 	net/dict\
 	rand\
