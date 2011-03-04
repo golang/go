@@ -12,6 +12,7 @@ import (
 	"http"
 	"http/httptest"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -57,7 +58,21 @@ readlines:
 	return rw
 }
 
+func skipTest(t *testing.T) bool {
+	if runtime.GOOS == "windows" {
+		// No Perl on Windows, needed by test.cgi
+		// TODO: make the child process be Go, not Perl.
+		t.Logf("Skipping test on Windows; no Perl.")
+		return true
+	}
+	return false
+}
+
+
 func TestCGIBasicGet(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	h := &Handler{
 		Path: "testdata/test.cgi",
 		Root: "/test.cgi",
@@ -91,6 +106,9 @@ func TestCGIBasicGet(t *testing.T) {
 }
 
 func TestCGIBasicGetAbsPath(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	pwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd error: %v", err)
@@ -108,6 +126,9 @@ func TestCGIBasicGetAbsPath(t *testing.T) {
 }
 
 func TestPathInfo(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	h := &Handler{
 		Path: "testdata/test.cgi",
 		Root: "/test.cgi",
@@ -124,6 +145,9 @@ func TestPathInfo(t *testing.T) {
 }
 
 func TestPathInfoDirRoot(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	h := &Handler{
 		Path: "testdata/test.cgi",
 		Root: "/myscript/",
@@ -139,6 +163,9 @@ func TestPathInfoDirRoot(t *testing.T) {
 }
 
 func TestPathInfoNoRoot(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	h := &Handler{
 		Path: "testdata/test.cgi",
 		Root: "",
@@ -154,6 +181,9 @@ func TestPathInfoNoRoot(t *testing.T) {
 }
 
 func TestCGIBasicPost(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	postReq := `POST /test.cgi?a=b HTTP/1.0
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
@@ -180,6 +210,9 @@ func chunk(s string) string {
 
 // The CGI spec doesn't allow chunked requests.
 func TestCGIPostChunked(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	postReq := `POST /test.cgi?a=b HTTP/1.1
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
