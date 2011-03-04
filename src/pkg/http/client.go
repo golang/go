@@ -20,15 +20,15 @@ import (
 // that uses DefaultTransport.
 // Client is not yet very configurable.
 type Client struct {
-	Transport ClientTransport // if nil, DefaultTransport is used
+	Transport Transport // if nil, DefaultTransport is used
 }
 
 // DefaultClient is the default Client and is used by Get, Head, and Post.
 var DefaultClient = &Client{}
 
-// ClientTransport is an interface representing the ability to execute a
+// Transport is an interface representing the ability to execute a
 // single HTTP transaction, obtaining the Response for a given Request.
-type ClientTransport interface {
+type Transport interface {
 	// Do executes a single HTTP transaction, returning the Response for the
 	// request req.  Do should not attempt to interpret the response.
 	// In particular, Do must return err == nil if it obtained a response,
@@ -104,7 +104,7 @@ func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
 // TODO: support persistent connections (multiple requests on a single connection).
 // send() method is nonpublic because, when we refactor the code for persistent
 // connections, it may no longer make sense to have a method with this signature.
-func send(req *Request, t ClientTransport) (resp *Response, err os.Error) {
+func send(req *Request, t Transport) (resp *Response, err os.Error) {
 	if t == nil {
 		t = DefaultTransport
 		if t == nil {
@@ -115,7 +115,7 @@ func send(req *Request, t ClientTransport) (resp *Response, err os.Error) {
 
 	// Most the callers of send (Get, Post, et al) don't need
 	// Headers, leaving it uninitialized.  We guarantee to the
-	// ClientTransport that this has been initialized, though.
+	// Transport that this has been initialized, though.
 	if req.Header == nil {
 		req.Header = Header(make(map[string][]string))
 	}
