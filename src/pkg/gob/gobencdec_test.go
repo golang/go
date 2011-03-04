@@ -30,7 +30,7 @@ type ValueGobber string // encodes with a value, decodes with a pointer.
 
 // The relevant methods
 
-func (g *ByteStruct) _GobEncode() ([]byte, os.Error) {
+func (g *ByteStruct) GobEncode() ([]byte, os.Error) {
 	b := make([]byte, 3)
 	b[0] = g.a
 	b[1] = g.a + 1
@@ -38,7 +38,7 @@ func (g *ByteStruct) _GobEncode() ([]byte, os.Error) {
 	return b, nil
 }
 
-func (g *ByteStruct) _GobDecode(data []byte) os.Error {
+func (g *ByteStruct) GobDecode(data []byte) os.Error {
 	if g == nil {
 		return os.ErrorString("NIL RECEIVER")
 	}
@@ -55,11 +55,11 @@ func (g *ByteStruct) _GobDecode(data []byte) os.Error {
 	return nil
 }
 
-func (g *StringStruct) _GobEncode() ([]byte, os.Error) {
+func (g *StringStruct) GobEncode() ([]byte, os.Error) {
 	return []byte(g.s), nil
 }
 
-func (g *StringStruct) _GobDecode(data []byte) os.Error {
+func (g *StringStruct) GobDecode(data []byte) os.Error {
 	// Expect N sequential-valued bytes.
 	if len(data) == 0 {
 		return os.EOF
@@ -74,20 +74,20 @@ func (g *StringStruct) _GobDecode(data []byte) os.Error {
 	return nil
 }
 
-func (g *Gobber) _GobEncode() ([]byte, os.Error) {
+func (g *Gobber) GobEncode() ([]byte, os.Error) {
 	return []byte(fmt.Sprintf("VALUE=%d", *g)), nil
 }
 
-func (g *Gobber) _GobDecode(data []byte) os.Error {
+func (g *Gobber) GobDecode(data []byte) os.Error {
 	_, err := fmt.Sscanf(string(data), "VALUE=%d", (*int)(g))
 	return err
 }
 
-func (v ValueGobber) _GobEncode() ([]byte, os.Error) {
+func (v ValueGobber) GobEncode() ([]byte, os.Error) {
 	return []byte(fmt.Sprintf("VALUE=%s", v)), nil
 }
 
-func (v *ValueGobber) _GobDecode(data []byte) os.Error {
+func (v *ValueGobber) GobDecode(data []byte) os.Error {
 	_, err := fmt.Sscanf(string(data), "VALUE=%s", (*string)(v))
 	return err
 }
@@ -232,7 +232,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
 	x := &GobTest2{}
 	err = dec.Decode(x)
 	if err == nil {
-		t.Fatal("expected decode error for mistmatched fields (encoder to non-decoder)")
+		t.Fatal("expected decode error for mismatched fields (encoder to non-decoder)")
 	}
 	if strings.Index(err.String(), "type") < 0 {
 		t.Fatal("expected type error; got", err)
