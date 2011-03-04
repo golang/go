@@ -155,6 +155,16 @@ func (deb *debugger) dump(format string, args ...interface{}) {
 
 // Debug prints a human-readable representation of the gob data read from r.
 func Debug(r io.Reader) {
+	err := debug(r)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gob debug: %s\n", err)
+	}
+}
+
+// debug implements Debug, but catches panics and returns
+// them as errors to be printed by Debug.
+func debug(r io.Reader) (err os.Error) {
+	defer catchError(&err)
 	fmt.Fprintln(os.Stderr, "Start of debugging")
 	deb := &debugger{
 		r:        newPeekReader(r),
@@ -166,6 +176,7 @@ func Debug(r io.Reader) {
 		deb.remainingKnown = true
 	}
 	deb.gobStream()
+	return
 }
 
 // note that we've consumed some bytes
@@ -386,11 +397,15 @@ func (deb *debugger) typeDefinition(indent tab, id typeId) {
 		// Field number 1 is type Id of key
 		deb.delta(1)
 		keyId := deb.typeId()
-		wire.SliceT = &sliceType{com, id}
 		// Field number 2 is type Id of elem
 		deb.delta(1)
 		elemId := deb.typeId()
 		wire.MapT = &mapType{com, keyId, elemId}
+	case 4: // GobEncoder type, one field of {{Common}}
+		// Field number 0 is CommonType
+		deb.delta(1)
+		com := deb.common()
+		wire.GobEncoderT = &gobEncoderType{com}
 	default:
 		errorf("bad field in type %d", fieldNum)
 	}
@@ -507,6 +522,8 @@ func (deb *debugger) printWireType(indent tab, wire *wireType) {
 		for i, field := range wire.StructT.Field {
 			fmt.Fprintf(os.Stderr, "%sfield %d:\t%s\tid=%d\n", indent+1, i, field.Name, field.Id)
 		}
+	case wire.GobEncoderT != nil:
+		deb.printCommonType(indent, "GobEncoder", &wire.GobEncoderT.CommonType)
 	}
 	indent--
 	fmt.Fprintf(os.Stderr, "%s}\n", indent)
@@ -538,6 +555,8 @@ func (deb *debugger) fieldValue(indent tab, id typeId) {
 		deb.sliceValue(indent, wire)
 	case wire.StructT != nil:
 		deb.structValue(indent, id)
+	case wire.GobEncoderT != nil:
+		deb.gobEncoderValue(indent, id)
 	default:
 		panic("bad wire type for field")
 	}
@@ -653,4 +672,18 @@ func (deb *debugger) structValue(indent tab, id typeId) {
 	indent--
 	fmt.Fprintf(os.Stderr, "%s} // end %s struct\n", indent, id.name())
 	deb.dump(">> End of struct value of type %d %q", id, id.name())
+}
+
+// GobEncoderValue:
+//	uint(n) byte*n
+func (deb *debugger) gobEncoderValue(indent tab, id typeId) {
+	len := deb.uint64()
+	deb.dump("GobEncoder value of %q id=%d, length %d\n", id.name(), id, len)
+	fmt.Fprintf(os.Stderr, "%s%s (implements GobEncoder)\n", indent, id.name())
+	data := make([]byte, len)
+	_, err := deb.r.Read(data)
+	if err != nil {
+		errorf("gobEncoder data read: %s", err)
+	}
+	fmt.Fprintf(os.Stderr, "%s[% .2x]\n", indent+1, data)
 }

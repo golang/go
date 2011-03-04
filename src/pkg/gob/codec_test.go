@@ -303,7 +303,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	}
 }
 
-func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p unsafe.Pointer) {
+func execDec(typ string, instr *decInstr, state *decoderState, t *testing.T, p unsafe.Pointer) {
 	defer testError(t)
 	v := int(state.decodeUint())
 	if v+state.fieldnum != 6 {
@@ -313,7 +313,7 @@ func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p un
 	state.fieldnum = 6
 }
 
-func newDecodeStateFromData(data []byte) *decodeState {
+func newDecodeStateFromData(data []byte) *decoderState {
 	b := bytes.NewBuffer(data)
 	state := newDecodeState(nil, b)
 	state.fieldnum = -1

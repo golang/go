@@ -15,9 +15,13 @@ import (
 // to the package.  It's computed once and stored in a map keyed by reflection
 // type.
 type userTypeInfo struct {
-	user  reflect.Type // the type the user handed us
-	base  reflect.Type // the base type after all indirections
-	indir int          // number of indirections to reach the base type
+	user         reflect.Type // the type the user handed us
+	base         reflect.Type // the base type after all indirections
+	indir        int          // number of indirections to reach the base type
+	isGobEncoder bool         // does the type implement _GobEncoder?
+	isGobDecoder bool         // does the type implement _GobDecoder?
+	encIndir     int8         // number of indirections to reach the receiver type; may be negative
+	decIndir     int8         // number of indirections to reach the receiver type; may be negative
 }
 
 var (
@@ -68,8 +72,81 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 		}
 		ut.indir++
 	}
+	ut.isGobEncoder, ut.encIndir = implementsGobEncoder(ut.user)
+	ut.isGobDecoder, ut.decIndir = implementsGobDecoder(ut.user)
 	userTypeCache[rt] = ut
+	if ut.encIndir != 0 || ut.decIndir != 0 {
+		// There are checks in lots of other places, but putting this here means we won't even
+		// attempt to encode/decode this type.
+		// TODO: make it possible to handle types that are indirect to the implementation,
+		// such as a structure field of type T when *T implements GobDecoder.
+		return nil, os.ErrorString("TODO: gob can't handle indirections to GobEncoder/Decoder")
+	}
 	return
+}
+
+const (
+	gobEncodeMethodName = "_GobEncode"
+	gobDecodeMethodName = "_GobDecode"
+)
+
+// implementsGobEncoder reports whether the type implements the interface. It also
+// returns the number of indirections required to get to the implementation.
+// TODO: when reflection makes it possible, should also be prepared to climb up
+// one level if we're not on a pointer (implementation could be on *T for our T).
+// That will mean that indir could be < 0, which is sure to cause problems, but
+// we ignore them now as indir is always >= 0 now.
+func implementsGobEncoder(rt reflect.Type) (implements bool, indir int8) {
+	if rt == nil {
+		return
+	}
+	// The type might be a pointer, or it might not, and we need to keep
+	// dereferencing to the base type until we find an implementation.
+	for {
+		if rt.NumMethod() > 0 { // avoid allocations etc. unless there's some chance
+			if _, ok := reflect.MakeZero(rt).Interface().(_GobEncoder); ok {
+				return true, indir
+			}
+		}
+		if p, ok := rt.(*reflect.PtrType); ok {
+			indir++
+			if indir > 100 { // insane number of indirections
+				return false, 0
+			}
+			rt = p.Elem()
+			continue
+		}
+		break
+	}
+	return false, 0
+}
+
+// implementsGobDecoder reports whether the type implements the interface. It also
+// returns the number of indirections required to get to the implementation.
+// TODO: see comment on implementsGobEncoder.
+func implementsGobDecoder(rt reflect.Type) (implements bool, indir int8) {
+	if rt == nil {
+		return
+	}
+	// The type might be a pointer, or it might not, and we need to keep
+	// dereferencing to the base type until we find an implementation.
+	for {
+		if rt.NumMethod() > 0 { // avoid allocations etc. unless there's some chance
+			if _, ok := reflect.MakeZero(rt).Interface().(_GobDecoder); ok {
+				return true, indir
+			}
+		}
+		if p, ok := rt.(*reflect.PtrType); ok {
+			indir++
+			if indir > 100 { // insane number of indirections
+				return false, 0
+			}
+			rt = p.Elem()
+			continue
+		}
+		break
+	}
+	return false, 0
 }
 
 // userType returns, and saves, the information associated with user-provided type rt.
@@ -229,6 +306,23 @@ func (a *arrayType) safeString(seen map[typeId]bool) string {
 
 func (a *arrayType) string() string { return a.safeString(make(map[typeId]bool)) }
 
+// GobEncoder type (something that implements the _GobEncoder interface)
+type gobEncoderType struct {
+	CommonType
+}
+
+func newGobEncoderType(name string) *gobEncoderType {
+	g := &gobEncoderType{CommonType{Name: name}}
+	setTypeId(g)
+	return g
+}
+
+func (g *gobEncoderType) safeString(seen map[typeId]bool) string {
+	return g.Name
+}
+
+func (g *gobEncoderType) string() string { return g.Name }
+
 // Map type
 type mapType struct {
 	CommonType
@@ -328,7 +422,16 @@ func (s *structType) init(field []*fieldType) {
 	s.Field = field
 }
 
-func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
+// newTypeObject allocates a gobType for the reflection type rt.
+// Unless ut represents a GobEncoder, rt should be the base type
+// of ut.
+// This is only called from the encoding side. The decoding side
+// works through typeIds and userTypeInfos alone.
+func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.Error) {
+	// Does this type implement GobEncoder?
+	if ut.isGobEncoder {
+		return newGobEncoderType(name), nil
+	}
 	var err os.Error
 	var type0, type1 gobType
 	defer func() {
@@ -364,7 +467,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 	case *reflect.ArrayType:
 		at := newArrayType(name)
 		types[rt] = at
-		type0, err = getType("", t.Elem())
+		type0, err = getBaseType("", t.Elem())
 		if err != nil {
 			return nil, err
 		}
@@ -382,11 +485,11 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 	case *reflect.MapType:
 		mt := newMapType(name)
 		types[rt] = mt
-		type0, err = getType("", t.Key())
+		type0, err = getBaseType("", t.Key())
 		if err != nil {
 			return nil, err
 		}
-		type1, err = getType("", t.Elem())
+		type1, err = getBaseType("", t.Elem())
 		if err != nil {
 			return nil, err
 		}
@@ -400,7 +503,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 		}
 		st := newSliceType(name)
 		types[rt] = st
-		type0, err = getType(t.Elem().Name(), t.Elem())
+		type0, err = getBaseType(t.Elem().Name(), t.Elem())
 		if err != nil {
 			return nil, err
 		}
@@ -413,6 +516,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 		idToType[st.id()] = st
 		field := make([]*fieldType, t.NumField())
 		for i := 0; i < t.NumField(); i++ {
+			// TODO: don't send unexported fields.
 			f := t.Field(i)
 			typ := userType(f.Type).base
 			tname := typ.Name()
@@ -420,7 +524,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 				t := userType(f.Type).base
 				tname = t.String()
 			}
-			gt, err := getType(tname, f.Type)
+			gt, err := getBaseType(tname, f.Type)
 			if err != nil {
 				return nil, err
 			}
@@ -435,15 +539,24 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 	return nil, nil
 }
 
-// getType returns the Gob type describing the given reflect.Type.
+// getBaseType returns the Gob type describing the given reflect.Type's base type.
 // typeLock must be held.
-func getType(name string, rt reflect.Type) (gobType, os.Error) {
-	rt = userType(rt).base
+func getBaseType(name string, rt reflect.Type) (gobType, os.Error) {
+	ut := userType(rt)
+	return getType(name, ut, ut.base)
+}
+
+// getType returns the Gob type describing the given reflect.Type.
+// Should be called only when handling GobEncoders/Decoders,
+// which may be pointers.  All other types are handled through the
+//  base type, never a pointer.
+// typeLock must be held.
+func getType(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.Error) {
 	typ, present := types[rt]
 	if present {
 		return typ, nil
 	}
-	typ, err := newTypeObject(name, rt)
+	typ, err := newTypeObject(name, ut, rt)
 	if err == nil {
 		types[rt] = typ
 	}
@@ -484,10 +597,11 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 // To maintain binary compatibility, if you extend this type, always put
 // the new fields last.
 type wireType struct {
-	ArrayT  *arrayType
-	SliceT  *sliceType
-	StructT *structType
-	MapT    *mapType
+	ArrayT      *arrayType
+	SliceT      *sliceType
+	StructT     *structType
+	MapT        *mapType
+	GobEncoderT *gobEncoderType
 }
 
 func (w *wireType) string() string {
@@ -504,6 +618,8 @@ func (w *wireType) string() string {
 		return w.StructT.Name
 	case w.MapT != nil:
 		return w.MapT.Name
+	case w.GobEncoderT != nil:
+		return w.GobEncoderT.Name
 	}
 	return unknown
 }
@@ -516,23 +632,43 @@ type typeInfo struct {
 
 var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
 
-// The reflection type must have all its indirections processed out.
 // typeLock must be held.
-func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
-	if rt.Kind() == reflect.Ptr {
-		panic("pointer type in getTypeInfo: " + rt.String())
+func getTypeInfo(ut *userTypeInfo) (*typeInfo, os.Error) {
+
+	if ut.isGobEncoder {
+		// TODO: clean up this code - too much duplication.
+		info, ok := typeInfoMap[ut.user]
+		if ok {
+			return info, nil
+		}
+		// We want the user type, not the base type.
+		userType, err := getType(ut.user.Name(), ut, ut.user)
+		if err != nil {
+			return nil, err
+		}
+		info = new(typeInfo)
+		gt, err := getBaseType(ut.base.Name(), ut.base)
+		if err != nil {
+			return nil, err
+		}
+		info.id = gt.id()
+		info.wire = &wireType{GobEncoderT: userType.id().gobType().(*gobEncoderType)}
+		typeInfoMap[ut.user] = info
+		return info, nil
 	}
-	info, ok := typeInfoMap[rt]
+
+	base := ut.base
+	info, ok := typeInfoMap[base]
 	if !ok {
 		info = new(typeInfo)
-		name := rt.Name()
-		gt, err := getType(name, rt)
+		name := base.Name()
+		gt, err := getBaseType(name, base)
 		if err != nil {
 			return nil, err
 		}
 		info.id = gt.id()
 		t := info.id.gobType()
-		switch typ := rt.(type) {
+		switch typ := base.(type) {
 		case *reflect.ArrayType:
 			info.wire = &wireType{ArrayT: t.(*arrayType)}
 		case *reflect.MapType:
@@ -545,19 +681,26 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 		case *reflect.StructType:
 			info.wire = &wireType{StructT: t.(*structType)}
 		}
-		typeInfoMap[rt] = info
+		typeInfoMap[base] = info
 	}
 	return info, nil
 }
 
 // Called only when a panic is acceptable and unexpected.
 func mustGetTypeInfo(rt reflect.Type) *typeInfo {
-	t, err := getTypeInfo(rt)
+	t, err := getTypeInfo(userType(rt))
 	if err != nil {
 		panic("getTypeInfo: " + err.String())
 	}
 	return t
 }
+
+type _GobEncoder interface {
+	_GobEncode() ([]byte, os.Error)
+} // use _ prefix until we get it working properly
+type _GobDecoder interface {
+	_GobDecode([]byte) os.Error
+} // use _ prefix until we get it working properly
 
 var (
 	nameToConcreteType = make(map[string]reflect.Type)
