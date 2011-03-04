@@ -449,7 +449,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value, index int) {
 	// TODO: should we catch panics from the called method?
 	// We know it's a GobEncoder, so just call the method directly.
-	data, err := v.Interface().(_GobEncoder)._GobEncode()
+	data, err := v.Interface().(GobEncoder).GobEncode()
 	if err != nil {
 		error(err)
 	}

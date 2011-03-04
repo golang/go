@@ -738,7 +738,7 @@ func (dec *Decoder) decodeGobDecoder(state *decoderState, v reflect.Value, index
 		error(err)
 	}
 	// We know it's a GobDecoder, so just call the method directly.
-	err = v.Interface().(_GobDecoder)._GobDecode(b)
+	err = v.Interface().(GobDecoder).GobDecode(b)
 	if err != nil {
 		error(err)
 	}

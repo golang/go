@@ -18,8 +18,8 @@ type userTypeInfo struct {
 	user         reflect.Type // the type the user handed us
 	base         reflect.Type // the base type after all indirections
 	indir        int          // number of indirections to reach the base type
-	isGobEncoder bool         // does the type implement _GobEncoder?
-	isGobDecoder bool         // does the type implement _GobDecoder?
+	isGobEncoder bool         // does the type implement GobEncoder?
+	isGobDecoder bool         // does the type implement GobDecoder?
 	encIndir     int8         // number of indirections to reach the receiver type; may be negative
 	decIndir     int8         // number of indirections to reach the receiver type; may be negative
 }
@@ -86,8 +86,8 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 }
 
 const (
-	gobEncodeMethodName = "_GobEncode"
-	gobDecodeMethodName = "_GobDecode"
+	gobEncodeMethodName = "GobEncode"
+	gobDecodeMethodName = "GobDecode"
 )
 
 // implementsGobEncoder reports whether the type implements the interface. It also
@@ -104,7 +104,7 @@ func implementsGobEncoder(rt reflect.Type) (implements bool, indir int8) {
 	// dereferencing to the base type until we find an implementation.
 	for {
 		if rt.NumMethod() > 0 { // avoid allocations etc. unless there's some chance
-			if _, ok := reflect.MakeZero(rt).Interface().(_GobEncoder); ok {
+			if _, ok := reflect.MakeZero(rt).Interface().(GobEncoder); ok {
 				return true, indir
 			}
 		}
@@ -132,7 +132,7 @@ func implementsGobDecoder(rt reflect.Type) (implements bool, indir int8) {
 	// dereferencing to the base type until we find an implementation.
 	for {
 		if rt.NumMethod() > 0 { // avoid allocations etc. unless there's some chance
-			if _, ok := reflect.MakeZero(rt).Interface().(_GobDecoder); ok {
+			if _, ok := reflect.MakeZero(rt).Interface().(GobDecoder); ok {
 				return true, indir
 			}
 		}
@@ -306,7 +306,7 @@ func (a *arrayType) safeString(seen map[typeId]bool) string {
 
 func (a *arrayType) string() string { return a.safeString(make(map[typeId]bool)) }
 
-// GobEncoder type (something that implements the _GobEncoder interface)
+// GobEncoder type (something that implements the GobEncoder interface)
 type gobEncoderType struct {
 	CommonType
 }
@@ -695,12 +695,40 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 	return t
 }
 
-type _GobEncoder interface {
-	_GobEncode() ([]byte, os.Error)
-} // use _ prefix until we get it working properly
-type _GobDecoder interface {
-	_GobDecode([]byte) os.Error
-} // use _ prefix until we get it working properly
+// GobEncoder is the interface describing data that provides its own
+// representation for encoding values for transmission to a GobDecoder.
+// A type that implements GobEncoder and GobDecoder has complete
+// control over the representation of its data and may therefore
+// contain things such as private fields, channels, and functions,
+// which are not usually transmissable in gob streams.
+//
+// Note: Since gobs can be stored permanently, It is good design
+// to guarantee the encoding used by a GobEncoder is stable as the
+// software evolves.  For instance, it might make sense for GobEncode
+// to include a version number in the encoding.
+// 
+// Note: At the moment, the type implementing GobEncoder must
+// be exactly the type passed to Encode.  For example, if *T implements
+// GobEncoder, the data item must be of type *T, not T or **T.
+type GobEncoder interface {
+	// GobEncode returns a byte slice representing the encoding of the
+	// receiver for transmission to a GobDecoder, usually of the same
+	// concrete type.
+	GobEncode() ([]byte, os.Error)
+}
+
+// GobDecoder is the interface describing data that provides its own
+// routine for decoding transmitted values sent by a GobEncoder.
+//
+// Note: At the moment, the type implementing GobDecoder must
+// be exactly the type passed to Decode.  For example, if *T implements
+// GobDecoder, the data item must be of type *T, not T or **T.
+type GobDecoder interface {
+	// GobDecode overwrites the receiver, which must be a pointer,
+	// with the value represented by the byte slice, which was written
+	// by GobEncode, usually for the same concrete type.
+	GobDecode([]byte) os.Error
+}
 
 var (
 	nameToConcreteType = make(map[string]reflect.Type)
