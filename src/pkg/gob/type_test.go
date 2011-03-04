@@ -26,7 +26,7 @@ var basicTypes = []typeT{
 func getTypeUnlocked(name string, rt reflect.Type) gobType {
 	typeLock.Lock()
 	defer typeLock.Unlock()
-	t, err := getType(name, rt)
+	t, err := getBaseType(name, rt)
 	if err != nil {
 		panic("getTypeUnlocked: " + err.String())
 	}

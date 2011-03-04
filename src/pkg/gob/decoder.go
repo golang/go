@@ -21,7 +21,7 @@ type Decoder struct {
 	wireType     map[typeId]*wireType                    // map from remote ID to local description
 	decoderCache map[reflect.Type]map[typeId]**decEngine // cache of compiled engines
 	ignorerCache map[typeId]**decEngine                  // ditto for ignored objects
-	countState   *decodeState                            // reads counts from wire
+	countState   *decoderState                           // reads counts from wire
 	countBuf     []byte                                  // used for decoding integers while parsing messages
 	tmp          []byte                                  // temporary storage for i/o; saves reallocating
 	err          os.Error
