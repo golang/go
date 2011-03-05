@@ -191,9 +191,16 @@ func testSync(t *testing.T, level int, input []byte, name string) {
 			t.Errorf("testSync/%d: read wrong bytes: %x vs %x", i, input[lo:hi], out[:hi-lo])
 			return
 		}
-		if i == 0 && buf.buf.Len() != 0 {
-			t.Errorf("testSync/%d (%d, %d, %s): extra data after %d", i, level, len(input), name, hi-lo)
-		}
+		// This test originally checked that after reading
+		// the first half of the input, there was nothing left
+		// in the read buffer (buf.buf.Len() != 0) but that is
+		// not necessarily the case: the write Flush may emit
+		// some extra framing bits that are not necessary
+		// to process to obtain the first half of the uncompressed
+		// data.  The test ran correctly most of the time, because
+		// the background goroutine had usually read even
+		// those extra bits by now, but it's not a useful thing to
+		// check.
 		buf.WriteMode()
 	}
 	buf.ReadMode()
