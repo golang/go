@@ -109,7 +109,7 @@ typedef struct Hashchain
 
 		/* constants and flags */
 char	*man =		"mrxtdpq";
-char	*opt =		"uvnbailoS";
+char	*opt =		"uvnbailogS";
 char	artemp[] =	"/tmp/vXXXXX";
 char	movtemp[] =	"/tmp/v1XXXXX";
 char	tailtemp[] =	"/tmp/v2XXXXX";
