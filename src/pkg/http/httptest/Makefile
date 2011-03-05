@@ -7,5 +7,6 @@ include ../../../Make.inc
 TARG=http/httptest
 GOFILES=\
 	recorder.go\
+	server.go\
 
 include ../../../Make.pkg

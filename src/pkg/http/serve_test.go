@@ -171,13 +171,10 @@ func TestHostHandlers(t *testing.T) {
 	for _, h := range handlers {
 		Handle(h.pattern, stringHandler(h.msg))
 	}
-	l, err := net.Listen("tcp", "127.0.0.1:0") // any port
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	go Serve(l, nil)
-	conn, err := net.Dial("tcp", "", l.Addr().String())
+	ts := httptest.NewServer(nil)
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", "", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,13 +293,6 @@ func TestServerTimeouts(t *testing.T) {
 
 // TestIdentityResponse verifies that a handler can unset 
 func TestIdentityResponse(t *testing.T) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to listen on a port: %v", err)
-	}
-	defer l.Close()
-	urlBase := "http://" + l.Addr().String() + "/"
-
 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
 		rw.SetHeader("Content-Length", "3")
 		rw.SetHeader("Transfer-Encoding", req.FormValue("te"))
@@ -320,15 +310,15 @@ func TestIdentityResponse(t *testing.T) {
 		}
 	})
 
-	server := &Server{Handler: handler}
-	go server.Serve(l)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
 
 	// Note: this relies on the assumption (which is true) that
 	// Get sends HTTP/1.1 or greater requests.  Otherwise the
 	// server wouldn't have the choice to send back chunked
 	// responses.
 	for _, te := range []string{"", "identity"} {
-		url := urlBase + "?te=" + te
+		url := ts.URL + "/?te=" + te
 		res, _, err := Get(url)
 		if err != nil {
 			t.Fatalf("error with Get of %s: %v", url, err)
@@ -346,15 +336,15 @@ func TestIdentityResponse(t *testing.T) {
 	}
 
 	// Verify that ErrContentLength is returned
-	url := urlBase + "?overwrite=1"
-	_, _, err = Get(url)
+	url := ts.URL + "/?overwrite=1"
+	_, _, err := Get(url)
 	if err != nil {
 		t.Fatalf("error with Get of %s: %v", url, err)
 	}
 
 	// Verify that the connection is closed when the declared Content-Length
 	// is larger than what the handler wrote.
-	conn, err := net.Dial("tcp", "", l.Addr().String())
+	conn, err := net.Dial("tcp", "", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("error dialing: %v", err)
 	}
