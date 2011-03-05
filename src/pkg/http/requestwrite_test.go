@@ -10,8 +10,10 @@ import (
 )
 
 type reqWriteTest struct {
-	Req Request
-	Raw string
+	Req      Request
+	Body     []byte
+	Raw      string
+	RawProxy string
 }
 
 var reqWriteTests = []reqWriteTest{
@@ -50,8 +52,19 @@ var reqWriteTests = []reqWriteTest{
 			Form:      map[string][]string{},
 		},
 
+		nil,
+
 		"GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
 			"Host: www.techcrunch.com\r\n" +
+			"User-Agent: Fake\r\n" +
+			"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
+			"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n" +
+			"Accept-Encoding: gzip,deflate\r\n" +
+			"Accept-Language: en-us,en;q=0.5\r\n" +
+			"Keep-Alive: 300\r\n" +
+			"Proxy-Connection: keep-alive\r\n\r\n",
+
+		"GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
 			"User-Agent: Fake\r\n" +
 			"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
 			"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n" +
@@ -72,12 +85,18 @@ var reqWriteTests = []reqWriteTest{
 			ProtoMajor:       1,
 			ProtoMinor:       1,
 			Header:           map[string][]string{},
-			Body:             nopCloser{bytes.NewBufferString("abcdef")},
 			TransferEncoding: []string{"chunked"},
 		},
 
+		[]byte("abcdef"),
+
 		"GET /search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Transfer-Encoding: chunked\r\n\r\n" +
+			"6\r\nabcdef\r\n0\r\n\r\n",
+
+		"GET http://www.google.com/search HTTP/1.1\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			"6\r\nabcdef\r\n0\r\n\r\n",
@@ -95,12 +114,19 @@ var reqWriteTests = []reqWriteTest{
 			ProtoMinor:       1,
 			Header:           map[string][]string{},
 			Close:            true,
-			Body:             nopCloser{bytes.NewBufferString("abcdef")},
 			TransferEncoding: []string{"chunked"},
 		},
 
+		[]byte("abcdef"),
+
 		"POST /search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Connection: close\r\n" +
+			"Transfer-Encoding: chunked\r\n\r\n" +
+			"6\r\nabcdef\r\n0\r\n\r\n",
+
+		"POST http://www.google.com/search HTTP/1.1\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
@@ -114,8 +140,15 @@ var reqWriteTests = []reqWriteTest{
 			Host:   "www.google.com",
 		},
 
+		nil,
+
 		"GET /search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"\r\n",
+
+		// Looks weird but RawURL overrides what WriteProxy would choose.
+		"GET /search HTTP/1.1\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"\r\n",
 	},
@@ -124,6 +157,9 @@ var reqWriteTests = []reqWriteTest{
 func TestRequestWrite(t *testing.T) {
 	for i := range reqWriteTests {
 		tt := &reqWriteTests[i]
+		if tt.Body != nil {
+			tt.Req.Body = nopCloser{bytes.NewBuffer(tt.Body)}
+		}
 		var braw bytes.Buffer
 		err := tt.Req.Write(&braw)
 		if err != nil {
@@ -133,6 +169,21 @@ func TestRequestWrite(t *testing.T) {
 		sraw := braw.String()
 		if sraw != tt.Raw {
 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, sraw)
+			continue
+		}
+
+		if tt.Body != nil {
+			tt.Req.Body = nopCloser{bytes.NewBuffer(tt.Body)}
+		}
+		var praw bytes.Buffer
+		err = tt.Req.WriteProxy(&praw)
+		if err != nil {
+			t.Errorf("error writing #%d: %s", i, err)
+			continue
+		}
+		sraw = praw.String()
+		if sraw != tt.RawProxy {
+			t.Errorf("Test Proxy %d, expecting:\n%s\nGot:\n%s\n", i, tt.RawProxy, sraw)
 			continue
 		}
 	}

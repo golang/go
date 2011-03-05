@@ -55,7 +55,10 @@ func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
 		}
 	}
 
+	var write = (*Request).Write
+
 	if proxy != "" {
+		write = (*Request).WriteProxy
 		proxyURL, err = ParseRequestURL(proxy)
 		if err != nil {
 			return nil, os.ErrorString("invalid proxy address")
@@ -130,7 +133,7 @@ func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
 		}
 	}
 
-	err = req.Write(conn)
+	err = write(req, conn)
 	if err != nil {
 		conn.Close()
 		return nil, err
