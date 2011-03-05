@@ -6,30 +6,6 @@
 // displaying time.
 package time
 
-import (
-	"os"
-)
-
-// Seconds reports the number of seconds since the Unix epoch,
-// January 1, 1970 00:00:00 UTC.
-func Seconds() int64 {
-	sec, _, err := os.Time()
-	if err != nil {
-		panic(err)
-	}
-	return sec
-}
-
-// Nanoseconds reports the number of nanoseconds since the Unix epoch,
-// January 1, 1970 00:00:00 UTC.
-func Nanoseconds() int64 {
-	sec, nsec, err := os.Time()
-	if err != nil {
-		panic(err)
-	}
-	return sec*1e9 + nsec
-}
-
 // Days of the week.
 const (
 	Sunday = iota
