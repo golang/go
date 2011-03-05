@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Implementation of TempServer
+// Implementation of Server
 
 package httptest
 
@@ -36,7 +36,7 @@ func NewServer(handler http.Handler) *Server {
 	return ts
 }
 
-// Close shuts down the temporary server.
+// Close shuts down the server.
 func (s *Server) Close() {
 	s.Listener.Close()
 }
