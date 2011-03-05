@@ -190,6 +190,8 @@ func (req *Request) Write(w io.Writer) os.Error {
 // WriteProxy is like Write but writes the request in the form
 // expected by an HTTP proxy.  It includes the scheme and host
 // name in the URI instead of using a separate Host: header line.
+// If req.RawURL is non-empty, WriteProxy uses it unchanged
+// instead of URL but still omits the Host: header.
 func (req *Request) WriteProxy(w io.Writer) os.Error {
 	return req.write(w, true)
 }
@@ -206,13 +208,12 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 		if req.URL.RawQuery != "" {
 			uri += "?" + req.URL.RawQuery
 		}
-	}
-
-	if usingProxy {
-		if uri == "" || uri[0] != '/' {
-			uri = "/" + uri
+		if usingProxy {
+			if uri == "" || uri[0] != '/' {
+				uri = "/" + uri
+			}
+			uri = req.URL.Scheme + "://" + host + uri
 		}
-		uri = req.URL.Scheme + "://" + host + uri
 	}
 
 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
