@@ -180,7 +180,6 @@ func (p *Package) structType(n *Name) (string, int64) {
 	}
 	if off == 0 {
 		fmt.Fprintf(&buf, "\t\tchar unused;\n") // avoid empty struct
-		off++
 	}
 	fmt.Fprintf(&buf, "\t}")
 	return buf.String(), off
@@ -225,6 +224,9 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	fmt.Fprintf(fc, "void _cgo%s%s(void*);\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fc, "\n")
 	fmt.Fprintf(fc, "void\n")
+	if argSize == 0 {
+		argSize++
+	}
 	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
 	fmt.Fprintf(fc, "{\n")
 	fmt.Fprintf(fc, "\truntime·cgocall(_cgo%s%s, &p);\n", cPrefix, n.Mangle)
@@ -392,7 +394,6 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		}
 		if ctype == "struct {\n" {
 			ctype += "\t\tchar unused;\n" // avoid empty struct
-			off++
 		}
 		ctype += "\t}"
 
@@ -444,7 +445,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 			func(i int, atype ast.Expr) {
 				fmt.Fprintf(fgcc, "\ta.p%d = p%d;\n", i, i)
 			})
-		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &a, (int) sizeof a);\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &a, %d);\n", cPrefix, exp.ExpName, off)
 		if gccResult != "void" {
 			if len(fntype.Results.List) == 1 && len(fntype.Results.List[0].Names) <= 1 {
 				fmt.Fprintf(fgcc, "\treturn a.r0;\n")
