@@ -163,7 +163,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 			off += pad
 		}
 		qual := ""
-		if t.C[len(t.C)-1] == '*' {
+		if c := t.C.String(); c[len(c)-1] == '*' {
 			qual = "const "
 		}
 		fmt.Fprintf(&buf, "\t\t%s%s r;\n", qual, t.C)
@@ -403,7 +403,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		if fntype.Results == nil || len(fntype.Results.List) == 0 {
 			gccResult = "void"
 		} else if len(fntype.Results.List) == 1 && len(fntype.Results.List[0].Names) <= 1 {
-			gccResult = p.cgoType(fntype.Results.List[0].Type).C
+			gccResult = p.cgoType(fntype.Results.List[0].Type).C.String()
 		} else {
 			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
 			fmt.Fprintf(fgcch, "struct %s_return {\n", exp.ExpName)
@@ -418,7 +418,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		// Build the wrapper function compiled by gcc.
 		s := fmt.Sprintf("%s %s(", gccResult, exp.ExpName)
 		if fn.Recv != nil {
-			s += p.cgoType(fn.Recv.List[0].Type).C
+			s += p.cgoType(fn.Recv.List[0].Type).C.String()
 			s += " recv"
 		}
 		forFieldList(fntype.Params,
@@ -534,24 +534,28 @@ func forFieldList(fl *ast.FieldList, fn func(int, ast.Expr)) {
 	}
 }
 
+func c(repr string, args ...interface{}) *TypeRepr {
+	return &TypeRepr{repr, args}
+}
+
 // Map predeclared Go types to Type.
 var goTypes = map[string]*Type{
-	"int":        &Type{Size: 4, Align: 4, C: "int"},
-	"uint":       &Type{Size: 4, Align: 4, C: "uint"},
-	"int8":       &Type{Size: 1, Align: 1, C: "schar"},
-	"uint8":      &Type{Size: 1, Align: 1, C: "uchar"},
-	"int16":      &Type{Size: 2, Align: 2, C: "short"},
-	"uint16":     &Type{Size: 2, Align: 2, C: "ushort"},
-	"int32":      &Type{Size: 4, Align: 4, C: "int"},
-	"uint32":     &Type{Size: 4, Align: 4, C: "uint"},
-	"int64":      &Type{Size: 8, Align: 8, C: "int64"},
-	"uint64":     &Type{Size: 8, Align: 8, C: "uint64"},
-	"float":      &Type{Size: 4, Align: 4, C: "float"},
-	"float32":    &Type{Size: 4, Align: 4, C: "float"},
-	"float64":    &Type{Size: 8, Align: 8, C: "double"},
-	"complex":    &Type{Size: 8, Align: 8, C: "__complex float"},
-	"complex64":  &Type{Size: 8, Align: 8, C: "__complex float"},
-	"complex128": &Type{Size: 16, Align: 16, C: "__complex double"},
+	"int":        &Type{Size: 4, Align: 4, C: c("int")},
+	"uint":       &Type{Size: 4, Align: 4, C: c("uint")},
+	"int8":       &Type{Size: 1, Align: 1, C: c("schar")},
+	"uint8":      &Type{Size: 1, Align: 1, C: c("uchar")},
+	"int16":      &Type{Size: 2, Align: 2, C: c("short")},
+	"uint16":     &Type{Size: 2, Align: 2, C: c("ushort")},
+	"int32":      &Type{Size: 4, Align: 4, C: c("int")},
+	"uint32":     &Type{Size: 4, Align: 4, C: c("uint")},
+	"int64":      &Type{Size: 8, Align: 8, C: c("int64")},
+	"uint64":     &Type{Size: 8, Align: 8, C: c("uint64")},
+	"float":      &Type{Size: 4, Align: 4, C: c("float")},
+	"float32":    &Type{Size: 4, Align: 4, C: c("float")},
+	"float64":    &Type{Size: 8, Align: 8, C: c("double")},
+	"complex":    &Type{Size: 8, Align: 8, C: c("__complex float")},
+	"complex64":  &Type{Size: 8, Align: 8, C: c("__complex float")},
+	"complex128": &Type{Size: 16, Align: 16, C: c("__complex double")},
 }
 
 // Map an ast type to a Type.
@@ -559,21 +563,21 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 	switch t := e.(type) {
 	case *ast.StarExpr:
 		x := p.cgoType(t.X)
-		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: x.C + "*"}
+		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("%s*", x.C)}
 	case *ast.ArrayType:
 		if t.Len == nil {
-			return &Type{Size: p.PtrSize + 8, Align: p.PtrSize, C: "GoSlice"}
+			return &Type{Size: p.PtrSize + 8, Align: p.PtrSize, C: c("GoSlice")}
 		}
 	case *ast.StructType:
 		// TODO
 	case *ast.FuncType:
-		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "void*"}
+		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
 	case *ast.InterfaceType:
-		return &Type{Size: 3 * p.PtrSize, Align: p.PtrSize, C: "GoInterface"}
+		return &Type{Size: 3 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
 	case *ast.MapType:
-		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "GoMap"}
+		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoMap")}
 	case *ast.ChanType:
-		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "GoChan"}
+		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoChan")}
 	case *ast.Ident:
 		// Look up the type in the top level declarations.
 		// TODO: Handle types defined within a function.
@@ -598,10 +602,10 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			}
 		}
 		if t.Name == "uintptr" {
-			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "uintptr"}
+			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("uintptr")}
 		}
 		if t.Name == "string" {
-			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: "GoString"}
+			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: c("GoString")}
 		}
 		if r, ok := goTypes[t.Name]; ok {
 			if r.Align > p.PtrSize {
@@ -612,11 +616,11 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 	case *ast.SelectorExpr:
 		id, ok := t.X.(*ast.Ident)
 		if ok && id.Name == "unsafe" && t.Sel.Name == "Pointer" {
-			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "void*"}
+			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
 		}
 	}
 	error(e.Pos(), "unrecognized Go type %T", e)
-	return &Type{Size: 4, Align: 4, C: "int"}
+	return &Type{Size: 4, Align: 4, C: c("int")}
 }
 
 const gccProlog = `
