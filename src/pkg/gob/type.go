@@ -9,6 +9,8 @@ import (
 	"os"
 	"reflect"
 	"sync"
+	"unicode"
+	"utf8"
 )
 
 // userTypeInfo stores the information associated with a type the user has handed
@@ -418,10 +420,6 @@ func newStructType(name string) *structType {
 	return s
 }
 
-func (s *structType) init(field []*fieldType) {
-	s.Field = field
-}
-
 // newTypeObject allocates a gobType for the reflection type rt.
 // Unless ut represents a GobEncoder, rt should be the base type
 // of ut.
@@ -514,10 +512,11 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
 		st := newStructType(name)
 		types[rt] = st
 		idToType[st.id()] = st
-		field := make([]*fieldType, t.NumField())
 		for i := 0; i < t.NumField(); i++ {
-			// TODO: don't send unexported fields.
 			f := t.Field(i)
+			if !isExported(f.Name) {
+				continue
+			}
 			typ := userType(f.Type).base
 			tname := typ.Name()
 			if tname == "" {
@@ -528,15 +527,20 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
 			if err != nil {
 				return nil, err
 			}
-			field[i] = &fieldType{f.Name, gt.id()}
+			st.Field = append(st.Field, &fieldType{f.Name, gt.id()})
 		}
-		st.init(field)
 		return st, nil
 
 	default:
 		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String())
 	}
 	return nil, nil
+}
+
+// isExported reports whether this is an exported - upper case - name.
+func isExported(name string) bool {
+	rune, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(rune)
 }
 
 // getBaseType returns the Gob type describing the given reflect.Type's base type.
