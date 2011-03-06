@@ -476,20 +476,10 @@ func verifyInf(str string, t *testing.T) {
 	}
 }
 
-
 func TestInf(t *testing.T) {
 	for _, s := range []string{"inf", "+inf", "-inf", "INF", "-INF", "+INF", "Inf", "-Inf", "+Inf"} {
 		verifyInf(s, t)
 	}
-}
-
-// TODO: there's no conversion from []T to ...T, but we can fake it.  These
-// functions do the faking.  We index the table by the length of the param list.
-var fscanf = []func(io.Reader, string, []interface{}) (int, os.Error){
-	0: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f) },
-	1: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0]) },
-	2: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0], i[1]) },
-	3: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0], i[1], i[2]) },
 }
 
 func testScanfMulti(name string, t *testing.T) {
@@ -501,7 +491,7 @@ func testScanfMulti(name string, t *testing.T) {
 		} else {
 			r = newReader(test.text)
 		}
-		n, err := fscanf[len(test.in)](r, test.format, test.in)
+		n, err := Fscanf(r, test.format, test.in...)
 		if err != nil {
 			if test.err == "" {
 				t.Errorf("got error scanning (%q, %q): %q", test.format, test.text, err)

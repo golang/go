@@ -107,7 +107,7 @@ func (f *fmt) writePadding(n int, padding []byte) {
 }
 
 // Append b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus)
-// clear flags aftewards.
+// clear flags afterwards.
 func (f *fmt) pad(b []byte) {
 	var padding []byte
 	var left, right int
@@ -124,7 +124,7 @@ func (f *fmt) pad(b []byte) {
 }
 
 // append s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
-// clear flags aftewards.
+// clear flags afterwards.
 func (f *fmt) padString(s string) {
 	var padding []byte
 	var left, right int
