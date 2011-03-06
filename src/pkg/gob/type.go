@@ -638,55 +638,47 @@ var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
 
 // typeLock must be held.
 func getTypeInfo(ut *userTypeInfo) (*typeInfo, os.Error) {
+	rt := ut.base
+	if ut.isGobEncoder {
+		// We want the user type, not the base type.
+		rt = ut.user
+	}
+	info, ok := typeInfoMap[rt]
+	if ok {
+		return info, nil
+	}
+	info = new(typeInfo)
+	gt, err := getBaseType(rt.Name(), rt)
+	if err != nil {
+		return nil, err
+	}
+	info.id = gt.id()
 
 	if ut.isGobEncoder {
-		// TODO: clean up this code - too much duplication.
-		info, ok := typeInfoMap[ut.user]
-		if ok {
-			return info, nil
-		}
-		// We want the user type, not the base type.
-		userType, err := getType(ut.user.Name(), ut, ut.user)
+		userType, err := getType(rt.Name(), ut, rt)
 		if err != nil {
 			return nil, err
 		}
-		info = new(typeInfo)
-		gt, err := getBaseType(ut.base.Name(), ut.base)
-		if err != nil {
-			return nil, err
-		}
-		info.id = gt.id()
 		info.wire = &wireType{GobEncoderT: userType.id().gobType().(*gobEncoderType)}
 		typeInfoMap[ut.user] = info
 		return info, nil
 	}
 
-	base := ut.base
-	info, ok := typeInfoMap[base]
-	if !ok {
-		info = new(typeInfo)
-		name := base.Name()
-		gt, err := getBaseType(name, base)
-		if err != nil {
-			return nil, err
+	t := info.id.gobType()
+	switch typ := rt.(type) {
+	case *reflect.ArrayType:
+		info.wire = &wireType{ArrayT: t.(*arrayType)}
+	case *reflect.MapType:
+		info.wire = &wireType{MapT: t.(*mapType)}
+	case *reflect.SliceType:
+		// []byte == []uint8 is a special case handled separately
+		if typ.Elem().Kind() != reflect.Uint8 {
+			info.wire = &wireType{SliceT: t.(*sliceType)}
 		}
-		info.id = gt.id()
-		t := info.id.gobType()
-		switch typ := base.(type) {
-		case *reflect.ArrayType:
-			info.wire = &wireType{ArrayT: t.(*arrayType)}
-		case *reflect.MapType:
-			info.wire = &wireType{MapT: t.(*mapType)}
-		case *reflect.SliceType:
-			// []byte == []uint8 is a special case handled separately
-			if typ.Elem().Kind() != reflect.Uint8 {
-				info.wire = &wireType{SliceT: t.(*sliceType)}
-			}
-		case *reflect.StructType:
-			info.wire = &wireType{StructT: t.(*structType)}
-		}
-		typeInfoMap[base] = info
+	case *reflect.StructType:
+		info.wire = &wireType{StructT: t.(*structType)}
 	}
+	typeInfoMap[rt] = info
 	return info, nil
 }
 
