@@ -238,6 +238,10 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 		dirp = StringBytePtr(dir)
 	}
 
+	if OS == "freebsd" && len(argv[0]) > len(argv0) {
+		argvp[0] = argv0p
+	}
+
 	// Acquire the fork lock so that no other threads
 	// create new fds that are not yet close-on-exec
 	// before we fork.
