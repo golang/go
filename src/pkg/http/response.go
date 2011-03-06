@@ -46,6 +46,9 @@ type Response struct {
 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
 	Header Header
 
+	// SetCookie records the Set-Cookie requests sent with the response.
+	SetCookie []*Cookie
+
 	// Body represents the response body.
 	Body io.ReadCloser
 
@@ -124,6 +127,8 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
 		return nil, err
 	}
 
+	resp.SetCookie = readSetCookies(resp.Header)
+
 	return resp, nil
 }
 
@@ -190,6 +195,10 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	// Rest of header
 	err = writeSortedKeyValue(w, resp.Header, respExcludeHeader)
 	if err != nil {
+		return err
+	}
+
+	if err = writeSetCookies(w, resp.SetCookie); err != nil {
 		return err
 	}
 
