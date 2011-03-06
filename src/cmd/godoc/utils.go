@@ -10,7 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	pathutil "path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -60,10 +60,10 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
 			continue // ignore empty paths (don't assume ".")
 		}
 		// len(path) > 0: normalize path
-		if pathutil.IsAbs(path) {
-			path = pathutil.Clean(path)
+		if filepath.IsAbs(path) {
+			path = filepath.Clean(path)
 		} else {
-			path = pathutil.Join(cwd, path)
+			path = filepath.Join(cwd, path)
 		}
 		// we have a non-empty absolute path
 		if filter != nil && !filter(path) {
@@ -95,7 +95,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
 // atomically renames that file to the file named by filename.
 //
 func writeFileAtomically(filename string, data []byte) os.Error {
-	f, err := ioutil.TempFile(pathutil.Split(filename))
+	f, err := ioutil.TempFile(filepath.Split(filename))
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ var textExt = map[string]bool{
 //
 func isTextFile(filename string) bool {
 	// if the extension is known, use it for decision making
-	if isText, found := textExt[pathutil.Ext(filename)]; found {
+	if isText, found := textExt[filepath.Ext(filename)]; found {
 		return isText
 	}
 

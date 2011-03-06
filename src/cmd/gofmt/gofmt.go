@@ -15,7 +15,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
-	pathutil "path"
+	"path/filepath"
 	"strings"
 )
 
@@ -181,7 +181,7 @@ func walkDir(path string) {
 		done <- true
 	}()
 	// walk the tree
-	pathutil.Walk(path, v, v)
+	filepath.Walk(path, v, v)
 	close(v) // terminate error handler loop
 	<-done   // wait for all errors to be reported
 }

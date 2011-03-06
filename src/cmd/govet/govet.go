@@ -15,7 +15,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -99,7 +99,7 @@ func doFile(name string, reader io.Reader) {
 	file.checkFile(name, parsedFile)
 }
 
-// Visitor for path.Walk - trivial.  Just calls doFile on each file.
+// Visitor for filepath.Walk - trivial.  Just calls doFile on each file.
 // TODO: if govet becomes richer, might want to process
 // a directory (package) at a time.
 type V struct{}
@@ -124,7 +124,7 @@ func walkDir(root string) {
 		}
 		done <- true
 	}()
-	path.Walk(root, V{}, errors)
+	filepath.Walk(root, V{}, errors)
 	close(errors)
 	<-done
 }

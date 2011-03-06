@@ -23,7 +23,7 @@ package scanner
 import (
 	"bytes"
 	"go/token"
-	"path"
+	"path/filepath"
 	"strconv"
 	"unicode"
 	"utf8"
@@ -118,7 +118,7 @@ func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint
 		panic("file size does not match src len")
 	}
 	S.file = file
-	S.dir, _ = path.Split(file.Name())
+	S.dir, _ = filepath.Split(file.Name())
 	S.src = src
 	S.err = err
 	S.mode = mode
@@ -180,10 +180,10 @@ func (S *Scanner) interpretLineComment(text []byte) {
 		if i := bytes.Index(text, []byte{':'}); i > 0 {
 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
 				// valid //line filename:line comment;
-				filename := path.Clean(string(text[len(prefix):i]))
+				filename := filepath.Clean(string(text[len(prefix):i]))
 				if filename[0] != '/' {
 					// make filename relative to current directory
-					filename = path.Join(S.dir, filename)
+					filename = filepath.Join(S.dir, filename)
 				}
 				// update scanner position
 				S.file.AddLineInfo(S.lineOffset, filename, line-1) // -1 since comment applies to next line

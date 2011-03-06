@@ -14,7 +14,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	pathutil "path"
+	"path/filepath"
 	"strings"
 	"unicode"
 )
@@ -32,7 +32,7 @@ type Directory struct {
 func isGoFile(f *os.FileInfo) bool {
 	return f.IsRegular() &&
 		!strings.HasPrefix(f.Name, ".") && // ignore .files
-		pathutil.Ext(f.Name) == ".go"
+		filepath.Ext(f.Name) == ".go"
 }
 
 
@@ -123,7 +123,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 			// though the directory doesn't contain any real package files - was bug)
 			if synopses[0] == "" {
 				// no "optimal" package synopsis yet; continue to collect synopses
-				file, err := parser.ParseFile(fset, pathutil.Join(path, d.Name), nil,
+				file, err := parser.ParseFile(fset, filepath.Join(path, d.Name), nil,
 					parser.ParseComments|parser.PackageClauseOnly)
 				if err == nil {
 					hasPkgFiles = true
@@ -156,7 +156,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		i := 0
 		for _, d := range list {
 			if isPkgDir(d) {
-				dd := b.newDirTree(fset, pathutil.Join(path, d.Name), d.Name, depth+1)
+				dd := b.newDirTree(fset, filepath.Join(path, d.Name), d.Name, depth+1)
 				if dd != nil {
 					dirs[i] = dd
 					i++

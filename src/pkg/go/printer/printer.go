@@ -12,7 +12,7 @@ import (
 	"go/token"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 	"tabwriter"
 )
@@ -244,7 +244,7 @@ func (p *printer) writeItem(pos token.Position, data []byte) {
 	}
 	if debug {
 		// do not update p.pos - use write0
-		_, filename := path.Split(pos.Filename)
+		_, filename := filepath.Split(pos.Filename)
 		p.write0([]byte(fmt.Sprintf("[%s:%d:%d]", filename, pos.Line, pos.Column)))
 	}
 	p.write(data)

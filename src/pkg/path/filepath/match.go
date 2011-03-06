@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package path
+package filepath
 
 import (
 	"os"
+	"sort"
 	"strings"
 	"utf8"
 )
@@ -18,8 +19,8 @@ var ErrBadPattern = os.NewError("syntax error in pattern")
 //	pattern:
 //		{ term }
 //	term:
-//		'*'         matches any sequence of non-/ characters
-//		'?'         matches any single non-/ character
+//		'*'         matches any sequence of non-Separator characters
+//		'?'         matches any single non-Separator character
 //		'[' [ '^' ] { character-range } ']'
 //		            character class (must be non-empty)
 //		c           matches character c (c != '*', '?', '\\', '[')
@@ -41,7 +42,7 @@ Pattern:
 		star, chunk, pattern = scanChunk(pattern)
 		if star && chunk == "" {
 			// Trailing * matches rest of string unless it has a /.
-			return strings.Index(name, "/") < 0, nil
+			return strings.Index(name, string(Separator)) < 0, nil
 		}
 		// Look for match at current position.
 		t, ok, err := matchChunk(chunk, name)
@@ -58,7 +59,7 @@ Pattern:
 		if star {
 			// Look for match skipping i+1 bytes.
 			// Cannot skip /.
-			for i := 0; i < len(name) && name[i] != '/'; i++ {
+			for i := 0; i < len(name) && name[i] != Separator; i++ {
 				t, ok, err := matchChunk(chunk, name[i+1:])
 				if ok {
 					// if we're the last chunk, make sure we exhausted the name
@@ -156,7 +157,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
 			}
 
 		case '?':
-			if s[0] == '/' {
+			if s[0] == Separator {
 				return
 			}
 			_, n := utf8.DecodeRuneInString(s)
@@ -204,4 +205,78 @@ func getEsc(chunk string) (r int, nchunk string, err os.Error) {
 		err = ErrBadPattern
 	}
 	return
+}
+
+// Glob returns the names of all files matching pattern or nil
+// if there is no matching file. The syntax of patterns is the same
+// as in Match. The pattern may describe hierarchical names such as
+// /usr/*/bin/ed (assuming the Separator is '/').
+//
+func Glob(pattern string) (matches []string) {
+	if !hasMeta(pattern) {
+		if _, err := os.Stat(pattern); err == nil {
+			return []string{pattern}
+		}
+		return nil
+	}
+
+	dir, file := Split(pattern)
+	switch dir {
+	case "":
+		dir = "."
+	case string(Separator):
+		// nothing
+	default:
+		dir = dir[0 : len(dir)-1] // chop off trailing separator
+	}
+
+	if hasMeta(dir) {
+		for _, d := range Glob(dir) {
+			matches = glob(d, file, matches)
+		}
+	} else {
+		return glob(dir, file, nil)
+	}
+	return matches
+}
+
+// glob searches for files matching pattern in the directory dir
+// and appends them to matches.
+func glob(dir, pattern string, matches []string) []string {
+	fi, err := os.Stat(dir)
+	if err != nil {
+		return nil
+	}
+	if !fi.IsDirectory() {
+		return matches
+	}
+	d, err := os.Open(dir, os.O_RDONLY, 0666)
+	if err != nil {
+		return nil
+	}
+	defer d.Close()
+
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return nil
+	}
+	sort.SortStrings(names)
+
+	for _, n := range names {
+		matched, err := Match(pattern, n)
+		if err != nil {
+			return matches
+		}
+		if matched {
+			matches = append(matches, Join(dir, n))
+		}
+	}
+	return matches
+}
+
+// hasMeta returns true if path contains any of the magic characters
+// recognized by Match.
+func hasMeta(path string) bool {
+	// TODO(niemeyer): Should other magic characters be added here?
+	return strings.IndexAny(path, "*?[") >= 0
 }

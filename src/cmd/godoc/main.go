@@ -36,7 +36,7 @@ import (
 	"io"
 	"log"
 	"os"
-	pathutil "path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -314,14 +314,14 @@ func main() {
 	if len(path) > 0 && path[0] == '.' {
 		// assume cwd; don't assume -goroot
 		cwd, _ := os.Getwd() // ignore errors
-		path = pathutil.Join(cwd, path)
+		path = filepath.Join(cwd, path)
 	}
 	relpath := path
 	abspath := path
-	if !pathutil.IsAbs(path) {
+	if !filepath.IsAbs(path) {
 		abspath = absolutePath(path, pkgHandler.fsRoot)
 	} else {
-		relpath = relativePath(path)
+		relpath = relativeURL(path)
 	}
 
 	var mode PageInfoMode
@@ -339,7 +339,7 @@ func main() {
 
 	if info.IsEmpty() {
 		// try again, this time assume it's a command
-		if !pathutil.IsAbs(path) {
+		if !filepath.IsAbs(path) {
 			abspath = absolutePath(path, cmdHandler.fsRoot)
 		}
 		cmdInfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)

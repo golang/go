@@ -7,13 +7,13 @@
 package main
 
 import (
-	"path"
-	"os"
-	"log"
-	"strings"
-	"strconv"
 	"go/ast"
 	"go/parser"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 
@@ -64,7 +64,7 @@ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
 		if !strings.HasSuffix(d.Name, ".go") || strings.HasSuffix(d.Name, "_test.go") {
 			continue
 		}
-		filename := path.Join(dir, d.Name)
+		filename := filepath.Join(dir, d.Name)
 		pf, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
 		if err != nil {
 			return nil, err

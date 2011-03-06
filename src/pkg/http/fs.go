@@ -11,7 +11,7 @@ import (
 	"io"
 	"mime"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -112,7 +112,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {
-		index := name + indexPage
+		index := name + filepath.FromSlash(indexPage)
 		ff, err := os.Open(index, os.O_RDONLY, 0)
 		if err == nil {
 			defer ff.Close()
@@ -135,7 +135,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 	code := StatusOK
 
 	// use extension to find content type.
-	ext := path.Ext(name)
+	ext := filepath.Ext(name)
 	if ctype := mime.TypeByExtension(ext); ctype != "" {
 		w.SetHeader("Content-Type", ctype)
 	} else {
@@ -202,7 +202,7 @@ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		return
 	}
 	path = path[len(f.prefix):]
-	serveFile(w, r, f.root+"/"+path, true)
+	serveFile(w, r, filepath.Join(f.root, filepath.FromSlash(path)), true)
 }
 
 // httpRange specifies the byte range to be sent to the client.
