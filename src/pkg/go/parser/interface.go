@@ -14,7 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	pathutil "path"
+	"path/filepath"
 )
 
 
@@ -198,7 +198,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool, 
 	for i := 0; i < len(list); i++ {
 		d := &list[i]
 		if filter == nil || filter(d) {
-			filenames[n] = pathutil.Join(path, d.Name)
+			filenames[n] = filepath.Join(path, d.Name)
 			n++
 		}
 	}

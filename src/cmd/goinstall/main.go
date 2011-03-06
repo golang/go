@@ -15,7 +15,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -34,7 +34,7 @@ var (
 	parents       = make(map[string]string)
 	root          = runtime.GOROOT()
 	visit         = make(map[string]status)
-	logfile       = path.Join(root, "goinstall.log")
+	logfile       = filepath.Join(root, "goinstall.log")
 	installedPkgs = make(map[string]bool)
 
 	allpkg            = flag.Bool("a", false, "install all previously installed packages")
@@ -59,7 +59,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
 		os.Exit(1)
 	}
-	root += "/src/pkg/"
+	root += filepath.FromSlash("/src/pkg/")
 
 	// special case - "unsafe" is already installed
 	visit["unsafe"] = done
@@ -160,7 +160,7 @@ func install(pkg, parent string) {
 		dir = pkg
 		local = true
 	} else if isStandardPath(pkg) {
-		dir = path.Join(root, pkg)
+		dir = filepath.Join(root, filepath.FromSlash(pkg))
 		local = true
 	} else {
 		var err os.Error
@@ -216,7 +216,8 @@ func install(pkg, parent string) {
 
 // Is this a local path?  /foo ./foo ../foo . ..
 func isLocalPath(s string) bool {
-	return strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") || s == "." || s == ".."
+	const sep = string(filepath.Separator)
+	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
 }
 
 // Is this a standard package path?  strings container/vector etc.

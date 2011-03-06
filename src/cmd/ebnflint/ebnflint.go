@@ -13,7 +13,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 )
 
 
@@ -91,7 +91,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if path.Ext(filename) == ".html" {
+	if filepath.Ext(filename) == ".html" {
 		src = extractEBNF(src)
 	}
 

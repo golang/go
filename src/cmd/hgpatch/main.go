@@ -14,7 +14,7 @@ import (
 	"io/ioutil"
 	"os"
 	"patch"
-	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -186,7 +186,7 @@ func main() {
 
 // make parent directory for name, if necessary
 func makeParent(name string) {
-	parent, _ := path.Split(name)
+	parent, _ := filepath.Split(name)
 	chk(mkdirAll(parent, 0755))
 }
 

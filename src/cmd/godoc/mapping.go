@@ -10,7 +10,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	pathutil "path"
+	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -59,10 +60,10 @@ type mapping struct {
 }
 
 
-// Init initializes the Mapping from a list of ':'-separated
-// paths. Empty paths are ignored; relative paths are assumed
-// to be relative to the current working directory and converted
-// to absolute paths. For each path of the form:
+// Init initializes the Mapping from a list of paths separated by
+// filepath.ListSeparator. Empty paths are ignored; relative paths
+// are assumed to be relative to the current working directory and
+// converted to absolute paths. For each path of the form:
 //
 //	dirname/localname
 //
@@ -71,7 +72,7 @@ type mapping struct {
 //	localname -> path
 //
 // is added to the Mapping object, in the order of occurrence.
-// For instance, the argument:
+// For instance, under Unix, the argument:
 //
 //	/home/user:/home/build/public
 //
@@ -81,12 +82,12 @@ type mapping struct {
 //	public -> /home/build/public
 //
 func (m *Mapping) Init(paths string) {
-	pathlist := canonicalizePaths(strings.Split(paths, ":", -1), nil)
+	pathlist := canonicalizePaths(filepath.SplitList(paths), nil)
 	list := make([]mapping, len(pathlist))
 
 	// create mapping list
 	for i, path := range pathlist {
-		_, prefix := pathutil.Split(path)
+		_, prefix := filepath.Split(path)
 		list[i] = mapping{prefix, path, new(RWValue)}
 	}
 
@@ -147,7 +148,7 @@ func (m *Mapping) Fprint(w io.Writer) {
 
 
 func splitFirst(path string) (head, tail string) {
-	i := strings.Index(path, "/")
+	i := strings.Index(path, string(filepath.Separator))
 	if i > 0 {
 		// 0 < i < len(path)
 		return path[0:i], path[i+1:]
@@ -156,22 +157,23 @@ func splitFirst(path string) (head, tail string) {
 }
 
 
-// ToAbsolute maps a relative path to an absolute path using the Mapping
-// specified by the receiver. If the path cannot be mapped, the empty
-// string is returned.
+// ToAbsolute maps a slash-separated relative path to an absolute filesystem
+// path using the Mapping specified by the receiver. If the path cannot
+// be mapped, the empty string is returned.
 //
-func (m *Mapping) ToAbsolute(path string) string {
-	prefix, tail := splitFirst(path)
+func (m *Mapping) ToAbsolute(spath string) string {
+	fpath := filepath.FromSlash(spath)
+	prefix, tail := splitFirst(fpath)
 	for _, e := range m.list {
 		switch {
 		case e.prefix == prefix:
 			// use tail
 		case e.prefix == "":
-			tail = path
+			tail = fpath
 		default:
 			continue // no match
 		}
-		abspath := pathutil.Join(e.path, tail)
+		abspath := filepath.Join(e.path, tail)
 		if _, err := os.Stat(abspath); err == nil {
 			return abspath
 		}
@@ -181,15 +183,16 @@ func (m *Mapping) ToAbsolute(path string) string {
 }
 
 
-// ToRelative maps an absolute path to a relative path using the Mapping
-// specified by the receiver. If the path cannot be mapped, the empty
-// string is returned.
+// ToRelative maps an absolute filesystem path to a relative slash-separated
+// path using the Mapping specified by the receiver. If the path cannot
+// be mapped, the empty string is returned.
 //
-func (m *Mapping) ToRelative(path string) string {
+func (m *Mapping) ToRelative(fpath string) string {
 	for _, e := range m.list {
-		if strings.HasPrefix(path, e.path) {
+		if strings.HasPrefix(fpath, e.path) {
+			spath := filepath.ToSlash(fpath)
 			// /absolute/prefix/foo -> prefix/foo
-			return pathutil.Join(e.prefix, path[len(e.path):]) // Join will remove a trailing '/'
+			return path.Join(e.prefix, spath[len(e.path):]) // Join will remove a trailing '/'
 		}
 	}
 	return "" // no match

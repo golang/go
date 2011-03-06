@@ -47,7 +47,7 @@ import (
 	"index/suffixarray"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -718,7 +718,7 @@ var whitelisted = map[string]bool{
 // of "permitted" files for indexing. The filename must
 // be the directory-local name of the file.
 func isWhitelisted(filename string) bool {
-	key := path.Ext(filename)
+	key := filepath.Ext(filename)
 	if key == "" {
 		// file has no extension - use entire filename
 		key = filename
@@ -732,7 +732,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool) 
 		return
 	}
 
-	filename := path.Join(dirname, f.Name)
+	filename := filepath.Join(dirname, f.Name)
 	goFile := false
 
 	switch {
@@ -757,7 +757,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool) 
 	if fast != nil {
 		// we've got a Go file to index
 		x.current = file
-		dir, _ := path.Split(filename)
+		dir, _ := filepath.Split(filename)
 		pak := Pak{dir, fast.Name.Name}
 		x.file = &File{filename, pak}
 		ast.Walk(x, fast)

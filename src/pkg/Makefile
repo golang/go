@@ -118,6 +118,7 @@ DIRS=\
 	os/signal\
 	patch\
 	path\
+	path/filepath\
 	rand\
 	reflect\
 	regexp\
