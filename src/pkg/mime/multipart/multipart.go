@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"io"
 	"mime"
+	"net/textproto"
 	"os"
 	"regexp"
 	"strings"
@@ -40,7 +41,7 @@ type Part struct {
 	// The headers of the body, if any, with the keys canonicalized
 	// in the same fashion that the Go http.Request headers are.
 	// i.e. "foo-bar" changes case to "Foo-Bar"
-	Header map[string]string
+	Header textproto.MIMEHeader
 
 	buffer *bytes.Buffer
 	mr     *multiReader
@@ -51,8 +52,8 @@ type Part struct {
 func (p *Part) FormName() string {
 	// See http://tools.ietf.org/html/rfc2183 section 2 for EBNF
 	// of Content-Disposition value format.
-	v, ok := p.Header["Content-Disposition"]
-	if !ok {
+	v := p.Header.Get("Content-Disposition")
+	if v == "" {
 		return ""
 	}
 	d, params := mime.ParseMediaType(v)
@@ -85,7 +86,7 @@ var devNull = devNullWriter(false)
 
 func newPart(mr *multiReader) (bp *Part, err os.Error) {
 	bp = new(Part)
-	bp.Header = make(map[string]string)
+	bp.Header = make(map[string][]string)
 	bp.mr = mr
 	bp.buffer = new(bytes.Buffer)
 	if err = bp.populateHeaders(); err != nil {
@@ -104,10 +105,7 @@ func (bp *Part) populateHeaders() os.Error {
 			return nil
 		}
 		if matches := headerRegexp.FindStringSubmatch(line); len(matches) == 3 {
-			key := matches[1]
-			value := matches[2]
-			// TODO: canonicalize headers ala http.Request.Header?
-			bp.Header[key] = value
+			bp.Header.Add(matches[1], matches[2])
 			continue
 		}
 		return os.NewError("Unexpected header line found parsing multipart body")

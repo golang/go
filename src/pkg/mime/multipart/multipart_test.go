@@ -58,7 +58,7 @@ func expectEq(t *testing.T, expected, actual, what string) {
 
 func TestFormName(t *testing.T) {
 	p := new(Part)
-	p.Header = make(map[string]string)
+	p.Header = make(map[string][]string)
 	tests := [...][2]string{
 		{`form-data; name="foo"`, "foo"},
 		{` form-data ; name=foo`, "foo"},
@@ -69,7 +69,7 @@ func TestFormName(t *testing.T) {
 		{` FORM-DATA ; filename="foo.txt"; name=foo; baz=quux`, "foo"},
 	}
 	for _, test := range tests {
-		p.Header["Content-Disposition"] = test[0]
+		p.Header.Set("Content-Disposition", test[0])
 		expected := test[1]
 		actual := p.FormName()
 		if actual != expected {
@@ -114,11 +114,14 @@ never read data
 		t.Error("Expected part1")
 		return
 	}
-	if part.Header["Header1"] != "value1" {
+	if part.Header.Get("Header1") != "value1" {
 		t.Error("Expected Header1: value")
 	}
-	if part.Header["foo-bar"] != "baz" {
+	if part.Header.Get("foo-bar") != "baz" {
 		t.Error("Expected foo-bar: baz")
+	}
+	if part.Header.Get("Foo-Bar") != "baz" {
+		t.Error("Expected Foo-Bar: baz")
 	}
 	buf.Reset()
 	io.Copy(buf, part)
@@ -131,7 +134,7 @@ never read data
 		t.Error("Expected part2")
 		return
 	}
-	if part.Header["foo-bar"] != "bazb" {
+	if part.Header.Get("foo-bar") != "bazb" {
 		t.Error("Expected foo-bar: bazb")
 	}
 	buf.Reset()
