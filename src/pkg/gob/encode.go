@@ -606,13 +606,14 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 		rt = ut.user
 	}
 	if !ut.isGobEncoder && isStruct {
-		for fieldNum := 0; fieldNum < srt.NumField(); fieldNum++ {
+		for fieldNum, wireFieldNum := 0, 0; fieldNum < srt.NumField(); fieldNum++ {
 			f := srt.Field(fieldNum)
 			if !isExported(f.Name) {
 				continue
 			}
 			op, indir := enc.encOpFor(f.Type, seen)
-			engine.instr = append(engine.instr, encInstr{*op, fieldNum, indir, uintptr(f.Offset)})
+			engine.instr = append(engine.instr, encInstr{*op, wireFieldNum, indir, uintptr(f.Offset)})
+			wireFieldNum++
 		}
 		if srt.NumField() > 0 && len(engine.instr) == 0 {
 			errorf("type %s has no exported fields", rt)

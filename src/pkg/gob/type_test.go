@@ -126,27 +126,27 @@ func TestMapType(t *testing.T) {
 }
 
 type Bar struct {
-	x string
+	X string
 }
 
 // This structure has pointers and refers to itself, making it a good test case.
 type Foo struct {
-	a int
-	b int32 // will become int
-	c string
-	d []byte
-	e *float64    // will become float64
-	f ****float64 // will become float64
-	g *Bar
-	h *Bar // should not interpolate the definition of Bar again
-	i *Foo // will not explode
+	A int
+	B int32 // will become int
+	C string
+	D []byte
+	E *float64    // will become float64
+	F ****float64 // will become float64
+	G *Bar
+	H *Bar // should not interpolate the definition of Bar again
+	I *Foo // will not explode
 }
 
 func TestStructType(t *testing.T) {
 	sstruct := getTypeUnlocked("Foo", reflect.Typeof(Foo{}))
 	str := sstruct.string()
 	// If we can print it correctly, we built it correctly.
-	expected := "Foo = struct { a int; b int; c string; d bytes; e float; f float; g Bar = struct { x string; }; h Bar; i Foo; }"
+	expected := "Foo = struct { A int; B int; C string; D bytes; E float; F float; G Bar = struct { X string; }; H Bar; I Foo; }"
 	if str != expected {
 		t.Errorf("struct printed as %q; expected %q", str, expected)
 	}

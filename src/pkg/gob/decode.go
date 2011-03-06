@@ -13,9 +13,7 @@ import (
 	"math"
 	"os"
 	"reflect"
-	"unicode"
 	"unsafe"
-	"utf8"
 )
 
 var (
@@ -1071,12 +1069,6 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
 	engine.instr[0] = decInstr{op, 0, 0, 0, ovfl}
 	engine.numInstr = 1
 	return
-}
-
-// isExported reports whether this is an exported - upper case - name.
-func isExported(name string) bool {
-	rune, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(rune)
 }
 
 // compileDec compiles the decoder engine for a value.  If the value is not a struct,
