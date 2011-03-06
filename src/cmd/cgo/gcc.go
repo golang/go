@@ -776,6 +776,32 @@ var dwarfToName = map[string]string{
 
 const signedDelta = 64
 
+// String returns the current type representation.  Format arguments
+// are assembled within this method so that any changes in mutable
+// values are taken into account.
+func (tr *TypeRepr) String() string {
+	if len(tr.Repr) == 0 {
+		return ""
+	}
+	if len(tr.FormatArgs) == 0 {
+		return tr.Repr
+	}
+	return fmt.Sprintf(tr.Repr, tr.FormatArgs...)
+}
+
+// Empty returns true if the result of String would be "".
+func (tr *TypeRepr) Empty() bool {
+	return len(tr.Repr) == 0
+}
+
+// Set modifies the type representation.
+// If fargs are provided, repr is used as a format for fmt.Sprintf.
+// Otherwise, repr is used unprocessed as the type representation.
+func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
+	tr.Repr = repr
+	tr.FormatArgs = fargs
+}
+
 // Type returns a *Type with the same memory layout as
 // dtype when used as the type of a variable or a struct field.
 func (c *typeConv) Type(dtype dwarf.Type) *Type {
@@ -789,16 +815,15 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	t := new(Type)
 	t.Size = dtype.Size()
 	t.Align = -1
-	t.C = dtype.Common().Name
-	t.EnumValues = nil
+	t.C = &TypeRepr{Repr: dtype.Common().Name}
 	c.m[dtype] = t
 
 	if t.Size < 0 {
 		// Unsized types are [0]byte
 		t.Size = 0
 		t.Go = c.Opaque(0)
-		if t.C == "" {
-			t.C = "void"
+		if t.C.Empty() {
+			t.C.Set("void")
 		}
 		return t
 	}
@@ -827,7 +852,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		sub := c.Type(dt.Type)
 		t.Align = sub.Align
 		gt.Elt = sub.Go
-		t.C = fmt.Sprintf("typeof(%s[%d])", sub.C, dt.Count)
+		t.C.Set("typeof(%s[%d])", sub.C, dt.Count)
 
 	case *dwarf.BoolType:
 		t.Go = c.bool
@@ -844,7 +869,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		if t.Align = t.Size; t.Align >= c.ptrSize {
 			t.Align = c.ptrSize
 		}
-		t.C = "enum " + dt.EnumName
+		t.C.Set("enum " + dt.EnumName)
 		signed := 0
 		t.EnumValues = make(map[string]int64)
 		for _, ev := range dt.Val {
@@ -932,7 +957,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		// Translate void* as unsafe.Pointer
 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
 			t.Go = c.unsafePointer
-			t.C = "void*"
+			t.C.Set("void*")
 			break
 		}
 
@@ -940,7 +965,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		t.Go = gt // publish before recursive call
 		sub := c.Type(dt.Type)
 		gt.X = sub.Go
-		t.C = sub.C + "*"
+		t.C.Set("%s*", sub.C)
 
 	case *dwarf.QualType:
 		// Ignore qualifier.
@@ -955,21 +980,21 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		if tag == "" {
 			tag = "__" + strconv.Itoa(tagGen)
 			tagGen++
-		} else if t.C == "" {
-			t.C = dt.Kind + " " + tag
+		} else if t.C.Empty() {
+			t.C.Set(dt.Kind + " " + tag)
 		}
 		name := c.Ident("_Ctype_" + dt.Kind + "_" + tag)
 		t.Go = name // publish before recursive calls
 		switch dt.Kind {
 		case "union", "class":
 			typedef[name.Name] = c.Opaque(t.Size)
-			if t.C == "" {
-				t.C = fmt.Sprintf("typeof(unsigned char[%d])", t.Size)
+			if t.C.Empty() {
+				t.C.Set("typeof(unsigned char[%d])", t.Size)
 			}
 		case "struct":
 			g, csyntax, align := c.Struct(dt)
-			if t.C == "" {
-				t.C = csyntax
+			if t.C.Empty() {
+				t.C.Set(csyntax)
 			}
 			t.Align = align
 			typedef[name.Name] = g
@@ -1024,7 +1049,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 
 	case *dwarf.VoidType:
 		t.Go = c.void
-		t.C = "void"
+		t.C.Set("void")
 	}
 
 	switch dtype.(type) {
@@ -1041,7 +1066,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		}
 	}
 
-	if t.C == "" {
+	if t.C.Empty() {
 		fatal("internal error: did not create C name for %s", dtype)
 	}
 
@@ -1056,11 +1081,13 @@ func (c *typeConv) FuncArg(dtype dwarf.Type) *Type {
 	case *dwarf.ArrayType:
 		// Arrays are passed implicitly as pointers in C.
 		// In Go, we must be explicit.
+		tr := &TypeRepr{}
+		tr.Set("%s*", t.C)
 		return &Type{
 			Size:  c.ptrSize,
 			Align: c.ptrSize,
 			Go:    &ast.StarExpr{X: t.Go},
-			C:     t.C + "*",
+			C:     tr,
 		}
 	case *dwarf.TypedefType:
 		// C has much more relaxed rules than Go for
@@ -1189,7 +1216,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 
 		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[f.Name])}, Type: t.Go}
 		off += t.Size
-		buf.WriteString(t.C)
+		buf.WriteString(t.C.String())
 		buf.WriteString(" ")
 		buf.WriteString(f.Name)
 		buf.WriteString("; ")
