@@ -92,6 +92,9 @@ type Request struct {
 	// following a hyphen uppercase and the rest lowercase.
 	Header Header
 
+	// Cookie records the HTTP cookies sent with the request.
+	Cookie []*Cookie
+
 	// The message body.
 	Body io.ReadCloser
 
@@ -246,6 +249,10 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 	// "User-Agent" and "Referer".
 	err = writeSortedKeyValue(w, req.Header, reqExcludeHeader)
 	if err != nil {
+		return err
+	}
+
+	if err = writeCookies(w, req.Cookie); err != nil {
 		return err
 	}
 
@@ -484,6 +491,8 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	if err != nil {
 		return nil, err
 	}
+
+	req.Cookie = readCookies(req.Header)
 
 	return req, nil
 }
