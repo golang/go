@@ -20,7 +20,7 @@ TEXT runtime·stdcall_raw(SB),7,$0
 	CMPL	g(DI), SI
 	MOVL	SP, BX
 	JEQ	2(PC)
-	MOVL	(m_sched+gobuf_sp)(DX), SP
+	MOVL	(g_sched+gobuf_sp)(SI), SP
 	PUSHL	BX
 	PUSHL	g(DI)
 	MOVL	SI, g(DI)
