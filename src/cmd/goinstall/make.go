@@ -52,12 +52,6 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 		return nil, err
 	}
 
-	if len(dirInfo.cgoFiles) == 0 && len(dirInfo.cFiles) > 0 {
-		// When using cgo, .c files are compiled with gcc.  Without cgo,
-		// they may be intended for 6c.  Just error out for now.
-		return nil, os.ErrorString("C files found in non-cgo package")
-	}
-
 	cgoFiles := dirInfo.cgoFiles
 	isCgo := make(map[string]bool, len(cgoFiles))
 	for _, file := range cgoFiles {
@@ -65,14 +59,6 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 			return nil, os.ErrorString("bad name: " + file)
 		}
 		isCgo[file] = true
-	}
-
-	cgoOFiles := make([]string, 0, len(dirInfo.cFiles))
-	for _, file := range dirInfo.cFiles {
-		if !safeName(file) {
-			return nil, os.ErrorString("unsafe name: " + file)
-		}
-		cgoOFiles = append(cgoOFiles, file[:len(file)-2]+".o")
 	}
 
 	goFiles := make([]string, 0, len(dirInfo.goFiles))
@@ -85,7 +71,21 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 		}
 	}
 
-	oFiles := make([]string, 0, len(dirInfo.sFiles))
+	oFiles := make([]string, 0, len(dirInfo.cFiles)+len(dirInfo.sFiles))
+	cgoOFiles := make([]string, 0, len(dirInfo.cFiles))
+	for _, file := range dirInfo.cFiles {
+		if !safeName(file) {
+			return nil, os.ErrorString("unsafe name: " + file)
+		}
+		// When cgo is in use, C files are compiled with gcc,
+		// otherwise they're compiled with gc.
+		if len(cgoFiles) > 0 {
+			cgoOFiles = append(cgoOFiles, file[:len(file)-2]+".o")
+		} else {
+			oFiles = append(oFiles, file[:len(file)-2]+".$O")
+		}
+	}
+
 	for _, file := range dirInfo.sFiles {
 		if !safeName(file) {
 			return nil, os.ErrorString("unsafe name: " + file)
