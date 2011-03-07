@@ -91,7 +91,6 @@ time gomake ogle
 time ./run
 ) || exit $?
 
-[ "$GOHOSTOS" == windows ] ||
 (xcd ../doc/codelab/wiki
 gomake clean
 gomake

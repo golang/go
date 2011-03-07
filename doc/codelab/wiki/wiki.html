@@ -76,7 +76,7 @@ the title and body.
 </p>
 
 <pre>
-!./srcextract.bin -src=part1.go -name=Page
+!srcextract.bin -src=part1.go -name=Page
 </pre>
 
 <p>
@@ -95,7 +95,7 @@ But what about persistent storage? We can address that by creating a
 </p>
 
 <pre>
-!./srcextract.bin -src=part1.go -name=save
+!srcextract.bin -src=part1.go -name=save
 </pre>
 
 <p>
@@ -131,7 +131,7 @@ We will want to load pages, too:
 </p>
 
 <pre>
-!./srcextract.bin -src=part1-noerror.go -name=loadPage
+!srcextract.bin -src=part1-noerror.go -name=loadPage
 </pre>
 
 <p>
@@ -155,7 +155,7 @@ function to return <code>*Page</code> and <code>os.Error</code>.
 </p>
 
 <pre>
-!./srcextract.bin -src=part1.go -name=loadPage
+!srcextract.bin -src=part1.go -name=loadPage
 </pre>
 
 <p>
@@ -173,7 +173,7 @@ written:
 </p>
 
 <pre>
-!./srcextract.bin -src=part1.go -name=main
+!srcextract.bin -src=part1.go -name=main
 </pre>
 
 <p>
@@ -211,7 +211,7 @@ Here's a full working example of a simple web server:
 </p>
 
 <pre>
-!./htmlify.bin < http-sample.go
+!htmlify.bin < http-sample.go
 </pre>
 
 <p>
@@ -276,9 +276,9 @@ Let's create a handler to view a wiki page:
 </p>
 
 <pre>
-!./srcextract.bin -src=part2.go -name=lenPath
+!srcextract.bin -src=part2.go -name=lenPath
 
-!./srcextract.bin -src=part2.go -name=viewHandler
+!srcextract.bin -src=part2.go -name=viewHandler
 </pre>
 
 <p>
@@ -309,7 +309,7 @@ any requests under the path <code>/view/</code>.
 </p>
 
 <pre>
-!./srcextract.bin -src=part2.go -name=main
+!srcextract.bin -src=part2.go -name=main
 </pre>
 
 <p>
@@ -348,7 +348,7 @@ First, we add them to <code>main()</code>:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noclosure.go -name=main
+!srcextract.bin -src=final-noclosure.go -name=main
 </pre>
 
 <p>
@@ -358,7 +358,7 @@ and displays an HTML form.
 </p>
 
 <pre>
-!./srcextract.bin -src=notemplate.go -name=editHandler
+!srcextract.bin -src=notemplate.go -name=editHandler
 </pre>
 
 <p>
@@ -394,7 +394,7 @@ Open a new file named <code>edit.html</code>, and add the following lines:
 </p>
 
 <pre>
-!./htmlify.bin < edit.html
+!htmlify.bin < edit.html
 </pre>
 
 <p>
@@ -403,7 +403,7 @@ HTML:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noerror.go -name=editHandler
+!srcextract.bin -src=final-noerror.go -name=editHandler
 </pre>
 
 <p>
@@ -438,7 +438,7 @@ While we're working with templates, let's create a template for our
 </p>
 
 <pre>
-!./htmlify.bin < view.html
+!htmlify.bin < view.html
 </pre>
 
 <p>
@@ -446,7 +446,7 @@ Modify <code>viewHandler</code> accordingly:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noerror.go -name=viewHandler
+!srcextract.bin -src=final-noerror.go -name=viewHandler
 </pre>
 
 <p>
@@ -456,11 +456,11 @@ to its own function:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-template.go -name=viewHandler
+!srcextract.bin -src=final-template.go -name=viewHandler
 
-!./srcextract.bin -src=final-template.go -name=editHandler
+!srcextract.bin -src=final-template.go -name=editHandler
 
-!./srcextract.bin -src=final-template.go -name=renderTemplate
+!srcextract.bin -src=final-template.go -name=renderTemplate
 </pre>
 
 <p>
@@ -477,7 +477,7 @@ redirect the client to the edit Page so the content may be created:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noclosure.go -name=viewHandler
+!srcextract.bin -src=final-noclosure.go -name=viewHandler
 </pre>
 
 <p>
@@ -493,7 +493,7 @@ The function <code>saveHandler</code> will handle the form submission.
 </p>
 
 <pre>
-!./srcextract.bin -src=final-template.go -name=saveHandler
+!srcextract.bin -src=final-template.go -name=saveHandler
 </pre>
 
 <p>
@@ -525,7 +525,7 @@ First, let's handle the errors in <code>renderTemplate</code>:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-parsetemplate.go -name=renderTemplate
+!srcextract.bin -src=final-parsetemplate.go -name=renderTemplate
 </pre>
 
 <p>
@@ -539,7 +539,7 @@ Now let's fix up <code>saveHandler</code>:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noclosure.go -name=saveHandler
+!srcextract.bin -src=final-noclosure.go -name=saveHandler
 </pre>
 
 <p>
@@ -564,7 +564,7 @@ our <code>*Template</code> values, keyed by <code>string</code>
 </p>
 
 <pre>
-!./srcextract.bin -src=final.go -name=templates
+!srcextract.bin -src=final.go -name=templates
 </pre>
 
 <p>
@@ -577,7 +577,7 @@ be loaded the only sensible thing to do is exit the program.
 </p>
 
 <pre>
-!./srcextract.bin -src=final.go -name=init
+!srcextract.bin -src=final.go -name=init
 </pre>
 
 <p>
@@ -593,7 +593,7 @@ the <code>Execute</code> method on the appropriate <code>Template</code> from
 <code>templates</code>:
 
 <pre>
-!./srcextract.bin -src=final.go -name=renderTemplate
+!srcextract.bin -src=final.go -name=renderTemplate
 </pre>
 
 <h2>Validation</h2>
@@ -610,7 +610,7 @@ Then we can create a global variable to store our validation regexp:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noclosure.go -name=titleValidator
+!srcextract.bin -src=final-noclosure.go -name=titleValidator
 </pre>
 
 <p>
@@ -628,7 +628,7 @@ URL, and tests it against our <code>TitleValidator</code> expression:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noclosure.go -name=getTitle
+!srcextract.bin -src=final-noclosure.go -name=getTitle
 </pre>
 
 <p>
@@ -643,11 +643,11 @@ Let's put a call to <code>getTitle</code> in each of the handlers:
 </p>
 
 <pre>
-!./srcextract.bin -src=final-noclosure.go -name=viewHandler
+!srcextract.bin -src=final-noclosure.go -name=viewHandler
 
-!./srcextract.bin -src=final-noclosure.go -name=editHandler
+!srcextract.bin -src=final-noclosure.go -name=editHandler
 
-!./srcextract.bin -src=final-noclosure.go -name=saveHandler
+!srcextract.bin -src=final-noclosure.go -name=saveHandler
 </pre>
 
 <h2>Introducing Function Literals and Closures</h2>
@@ -700,7 +700,7 @@ Now we can take the code from <code>getTitle</code> and use it here
 </p>
 
 <pre>
-!./srcextract.bin -src=final.go -name=makeHandler
+!srcextract.bin -src=final.go -name=makeHandler
 </pre>
 
 <p>
@@ -723,7 +723,7 @@ package:
 </p>
 
 <pre>
-!./srcextract.bin -src=final.go -name=main
+!srcextract.bin -src=final.go -name=main
 </pre>
 
 <p>
@@ -732,11 +732,11 @@ making them much simpler:
 </p>
 
 <pre>
-!./srcextract.bin -src=final.go -name=viewHandler
+!srcextract.bin -src=final.go -name=viewHandler
 
-!./srcextract.bin -src=final.go -name=editHandler
+!srcextract.bin -src=final.go -name=editHandler
 
-!./srcextract.bin -src=final.go -name=saveHandler
+!srcextract.bin -src=final.go -name=saveHandler
 </pre>
 
 <h2>Try it out!</h2>
