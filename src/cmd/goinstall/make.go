@@ -67,12 +67,12 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 		isCgo[file] = true
 	}
 
-	oFiles := make([]string, 0, len(dirInfo.cFiles))
+	cgoOFiles := make([]string, 0, len(dirInfo.cFiles))
 	for _, file := range dirInfo.cFiles {
 		if !safeName(file) {
 			return nil, os.ErrorString("unsafe name: " + file)
 		}
-		oFiles = append(oFiles, file[:len(file)-2]+".o")
+		cgoOFiles = append(cgoOFiles, file[:len(file)-2]+".o")
 	}
 
 	goFiles := make([]string, 0, len(dirInfo.goFiles))
@@ -85,8 +85,16 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
 		}
 	}
 
+	oFiles := make([]string, 0, len(dirInfo.sFiles))
+	for _, file := range dirInfo.sFiles {
+		if !safeName(file) {
+			return nil, os.ErrorString("unsafe name: " + file)
+		}
+		oFiles = append(oFiles, file[:len(file)-2]+".$O")
+	}
+
 	var buf bytes.Buffer
-	md := makedata{pkg, goFiles, cgoFiles, oFiles}
+	md := makedata{pkg, goFiles, oFiles, cgoFiles, cgoOFiles}
 	if err := makefileTemplate.Execute(&buf, &md); err != nil {
 		return nil, err
 	}
@@ -106,10 +114,11 @@ func safeName(s string) bool {
 
 // makedata is the data type for the makefileTemplate.
 type makedata struct {
-	Pkg      string   // package import path
-	GoFiles  []string // list of non-cgo .go files
-	CgoFiles []string // list of cgo .go files
-	OFiles   []string // list of ofiles for cgo
+	Pkg       string   // package import path
+	GoFiles   []string // list of non-cgo .go files
+	OFiles    []string // list of .$O files
+	CgoFiles  []string // list of cgo .go files
+	CgoOFiles []string // list of cgo .o files, without extension
 }
 
 var makefileTemplate = template.MustParse(`
@@ -124,6 +133,13 @@ GOFILES=\
 {.end}
 
 {.end}
+{.section OFiles}
+OFILES=\
+{.repeated section OFiles}
+	{@}\
+{.end}
+
+{.end}
 {.section CgoFiles}
 CGOFILES=\
 {.repeated section CgoFiles}
@@ -131,9 +147,9 @@ CGOFILES=\
 {.end}
 
 {.end}
-{.section OFiles}
+{.section CgoOFiles}
 CGO_OFILES=\
-{.repeated section OFiles}
+{.repeated section CgoOFiles}
 	{@}\
 {.end}
 
