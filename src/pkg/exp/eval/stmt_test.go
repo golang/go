@@ -27,7 +27,7 @@ var stmtTests = []test{
 	CErr("i, u := 1, 2", atLeastOneDecl),
 	Val2("i, x := 2, f", "i", 2, "x", 1.0),
 	// Various errors
-	CErr("1 := 2", "left side of := must be a name"),
+	CErr("1 := 2", "expected identifier"),
 	CErr("c, a := 1, 1", "cannot assign"),
 	// Unpacking
 	Val2("x, y := oneTwo()", "x", 1, "y", 2),

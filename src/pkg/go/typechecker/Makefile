@@ -7,6 +7,7 @@ include ../../../Make.inc
 TARG=go/typechecker
 GOFILES=\
 	scope.go\
+	type.go\
 	typechecker.go\
 	universe.go\
 

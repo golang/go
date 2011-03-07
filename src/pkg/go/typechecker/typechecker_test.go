@@ -93,7 +93,7 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
 
 
 func testFilter(f *os.FileInfo) bool {
-	return strings.HasSuffix(f.Name, ".go") && f.Name[0] != '.'
+	return strings.HasSuffix(f.Name, ".src") && f.Name[0] != '.'
 }
 
 
