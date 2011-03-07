@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -279,6 +280,10 @@ func (v *TestVisitor) VisitFile(path string, f *os.FileInfo) {
 }
 
 func TestWalk(t *testing.T) {
+	// TODO(brainman): enable test once Windows version is implemented.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	makeTree(t)
 
 	// 1) ignore error handling, expect none
