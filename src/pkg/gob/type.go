@@ -74,14 +74,12 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 		}
 		ut.indir++
 	}
-	ut.isGobEncoder, ut.encIndir = implementsGobEncoder(ut.user)
-	ut.isGobDecoder, ut.decIndir = implementsGobDecoder(ut.user)
+	ut.isGobEncoder, ut.encIndir = implementsInterface(ut.user, gobEncoderCheck)
+	ut.isGobDecoder, ut.decIndir = implementsInterface(ut.user, gobDecoderCheck)
 	userTypeCache[rt] = ut
-	if ut.encIndir != 0 || ut.decIndir != 0 {
+	if ut.encIndir > 0 || ut.decIndir > 0 {
 		// There are checks in lots of other places, but putting this here means we won't even
 		// attempt to encode/decode this type.
-		// TODO: make it possible to handle types that are indirect to the implementation,
-		// such as a structure field of type T when *T implements GobDecoder.
 		return nil, os.ErrorString("TODO: gob can't handle indirections to GobEncoder/Decoder")
 	}
 	return
@@ -92,51 +90,41 @@ const (
 	gobDecodeMethodName = "GobDecode"
 )
 
-// implementsGobEncoder reports whether the type implements the interface. It also
-// returns the number of indirections required to get to the implementation.
-// TODO: when reflection makes it possible, should also be prepared to climb up
-// one level if we're not on a pointer (implementation could be on *T for our T).
-// That will mean that indir could be < 0, which is sure to cause problems, but
-// we ignore them now as indir is always >= 0 now.
-func implementsGobEncoder(rt reflect.Type) (implements bool, indir int8) {
-	if rt == nil {
-		return
+// implements returns whether the type implements the interface, as encoded
+// in the check function.
+func implements(typ reflect.Type, check func(typ reflect.Type) bool) bool {
+	if typ.NumMethod() == 0 { // avoid allocations etc. unless there's some chance
+		return false
 	}
-	// The type might be a pointer, or it might not, and we need to keep
-	// dereferencing to the base type until we find an implementation.
-	for {
-		if rt.NumMethod() > 0 { // avoid allocations etc. unless there's some chance
-			if _, ok := reflect.MakeZero(rt).Interface().(GobEncoder); ok {
-				return true, indir
-			}
-		}
-		if p, ok := rt.(*reflect.PtrType); ok {
-			indir++
-			if indir > 100 { // insane number of indirections
-				return false, 0
-			}
-			rt = p.Elem()
-			continue
-		}
-		break
-	}
-	return false, 0
+	return check(typ)
 }
 
-// implementsGobDecoder reports whether the type implements the interface. It also
-// returns the number of indirections required to get to the implementation.
-// TODO: see comment on implementsGobEncoder.
-func implementsGobDecoder(rt reflect.Type) (implements bool, indir int8) {
-	if rt == nil {
+// gobEncoderCheck makes the type assertion a boolean function.
+func gobEncoderCheck(typ reflect.Type) bool {
+	_, ok := reflect.MakeZero(typ).Interface().(GobEncoder)
+	return ok
+}
+
+// gobDecoderCheck makes the type assertion a boolean function.
+func gobDecoderCheck(typ reflect.Type) bool {
+	_, ok := reflect.MakeZero(typ).Interface().(GobDecoder)
+	return ok
+}
+
+// implementsInterface reports whether the type implements the
+// interface. (The actual check is done through the provided function.)
+// It also returns the number of indirections required to get to the
+// implementation.
+func implementsInterface(typ reflect.Type, check func(typ reflect.Type) bool) (success bool, indir int8) {
+	if typ == nil {
 		return
 	}
-	// The type might be a pointer, or it might not, and we need to keep
+	rt := typ
+	// The type might be a pointer and we need to keep
 	// dereferencing to the base type until we find an implementation.
 	for {
-		if rt.NumMethod() > 0 { // avoid allocations etc. unless there's some chance
-			if _, ok := reflect.MakeZero(rt).Interface().(GobDecoder); ok {
-				return true, indir
-			}
+		if implements(typ, check) {
+			return true, indir
 		}
 		if p, ok := rt.(*reflect.PtrType); ok {
 			indir++
@@ -147,6 +135,13 @@ func implementsGobDecoder(rt reflect.Type) (implements bool, indir int8) {
 			continue
 		}
 		break
+	}
+	// No luck yet, but if this is a base type (non-pointer), the pointer might satisfy.
+	if _, ok := typ.(*reflect.PtrType); !ok {
+		// Not a pointer, but does the pointer work?
+		if implements(reflect.PtrTo(typ), check) {
+			return true, -1
+		}
 	}
 	return false, 0
 }
@@ -702,10 +697,11 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 // to guarantee the encoding used by a GobEncoder is stable as the
 // software evolves.  For instance, it might make sense for GobEncode
 // to include a version number in the encoding.
-// 
+//
 // Note: At the moment, the type implementing GobEncoder must
-// be exactly the type passed to Encode.  For example, if *T implements
-// GobEncoder, the data item must be of type *T, not T or **T.
+// be more indirect than the type passed to Decode.  For example, if
+// if *T implements GobDecoder, the data item must be of type *T or T,
+// not **T or ***T.
 type GobEncoder interface {
 	// GobEncode returns a byte slice representing the encoding of the
 	// receiver for transmission to a GobDecoder, usually of the same
@@ -717,8 +713,9 @@ type GobEncoder interface {
 // routine for decoding transmitted values sent by a GobEncoder.
 //
 // Note: At the moment, the type implementing GobDecoder must
-// be exactly the type passed to Decode.  For example, if *T implements
-// GobDecoder, the data item must be of type *T, not T or **T.
+// be more indirect than the type passed to Decode.  For example, if
+// if *T implements GobDecoder, the data item must be of type *T or T,
+// not **T or ***T.
 type GobDecoder interface {
 	// GobDecode overwrites the receiver, which must be a pointer,
 	// with the value represented by the byte slice, which was written

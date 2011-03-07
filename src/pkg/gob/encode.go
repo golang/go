@@ -573,8 +573,11 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 // GobEncoder.
 func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 	rt := ut.user
-	if ut.encIndir != 0 {
-		errorf("gob: TODO: can't handle indirection to reach GobEncoder")
+	if ut.encIndir > 0 {
+		errorf("gob: TODO: can't handle >0 indirections to reach GobEncoder")
+	}
+	if ut.encIndir == -1 {
+		rt = reflect.PtrTo(rt)
 	}
 	index := -1
 	for i := 0; i < rt.NumMethod(); i++ {
@@ -588,8 +591,15 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 	}
 	var op encOp
 	op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
-		// TODO: this will need fixing when ut.encIndr != 0.
-		v := reflect.NewValue(unsafe.Unreflect(rt, p))
+		var v reflect.Value
+		switch {
+		case ut.encIndir == 0:
+			v = reflect.NewValue(unsafe.Unreflect(rt, p))
+		case ut.encIndir == -1:
+			v = reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
+		default:
+			errorf("gob: TODO: can't handle >0 indirections to reach GobEncoder")
+		}
 		state.update(i)
 		state.enc.encodeGobEncoder(state.b, v, index)
 	}

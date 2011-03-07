@@ -128,6 +128,11 @@ type GobTestIgnoreEncoder struct {
 	X int // guarantee we have  something in common with GobTest*
 }
 
+type GobTestValueEncDec struct {
+	X int          // guarantee we have  something in common with GobTest*
+	G StringStruct // not a pointer.
+}
+
 func TestGobEncoderField(t *testing.T) {
 	b := new(bytes.Buffer)
 	// First a field that's a structure.
@@ -159,6 +164,27 @@ func TestGobEncoderField(t *testing.T) {
 	}
 	if *y.G != 23 {
 		t.Errorf("expected '23 got %d", *y.G)
+	}
+}
+
+// Even though the field is a value, we can still take its address
+// and should be able to call the methods.
+func TestGobEncoderValueField(t *testing.T) {
+	b := new(bytes.Buffer)
+	// First a field that's a structure.
+	enc := NewEncoder(b)
+	err := enc.Encode(GobTestValueEncDec{17, StringStruct{"HIJKL"}})
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	dec := NewDecoder(b)
+	x := new(GobTestValueEncDec)
+	err = dec.Decode(x)
+	if err != nil {
+		t.Fatal("decode error:", err)
+	}
+	if x.G.s != "HIJKL" {
+		t.Errorf("expected `HIJKL` got %s", x.G.s)
 	}
 }
 

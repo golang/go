@@ -936,8 +936,11 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 // GobDecoder.
 func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
 	rt := ut.user
-	if ut.decIndir != 0 {
-		errorf("gob: TODO: can't handle indirection to reach GobDecoder")
+	if ut.decIndir > 0 {
+		errorf("gob: TODO: can't handle >0 indirections to reach GobDecoder")
+	}
+	if ut.decIndir == -1 {
+		rt = reflect.PtrTo(rt)
 	}
 	index := -1
 	for i := 0; i < rt.NumMethod(); i++ {
@@ -953,9 +956,16 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
 	op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
 		// Allocate the underlying data, but hold on to the address we have,
 		// since it's known to be the receiver's address.
-		// TODO: fix this up when decIndir can be non-zero.
 		allocate(ut.base, uintptr(p), ut.indir)
-		v := reflect.NewValue(unsafe.Unreflect(rt, p))
+		var v reflect.Value
+		switch {
+		case ut.decIndir == 0:
+			v = reflect.NewValue(unsafe.Unreflect(rt, p))
+		case ut.decIndir == -1:
+			v = reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
+		default:
+			errorf("gob: TODO: can't handle >0 indirections to reach GobDecoder")
+		}
 		state.dec.decodeGobDecoder(state, v, index)
 	}
 	return &op, int(ut.decIndir)
