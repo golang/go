@@ -5,6 +5,57 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-03-07">2011-03-07</h3>
+
+<pre>
+Changes in this release:
+* build: fixes and simplifications (thanks Dave Cheney),
+        move $GOBIN ahead of /bin, /usr/bin in build $PATH.
+* bzip2: speed up decompression.
+* cgo: fix dwarf type parsing (thanks Gustavo Niemeyer),
+        put temporary source files in _obj (thanks Roger Peppe),
+        fix bug involving 0-argument callbacks.
+* compress/lzw: optimizations.
+* doc: add FAQ about "implements",
+        add FAQ about large binaries ,
+        add FAQ about stack vs heap allocation,
+        add internationalization to roadmap,
+        describe platform-specific conventions in code.html.
+* fmt: allow recursive calls to Fscan etc (thanks Roger Peppe),
+        make %#p suppress leading 0x.
+* gc, gopack: add some missing flags to the docs.
+* gc: fix init of packages named main (thanks Gustavo Niemeyer),
+* gob: make recursive map and slice types work, and other fixes.
+        tentative support for GobEncoder/GobDecoder interfaces.
+* gobuilder: add -package flag to build external packages and -v for verbose.
+* gofmt: exclude test file that is not legal Go.
+* goinstall: protect against malicious filenames (thanks Roger Peppe).
+* goyacc: provide -p flag to set prefix for names, documentation update.
+* http: add cookie support (thanks Petar Maymounkov),
+        allow handlers to send non-chunked responses,
+        export ParseHTTPVersion,
+        expose Client's Transport,
+        use WriteProxy,
+        rename ClientTransport to Transport.
+* http/cgi: new package.
+* http/httptest: new package.
+* image: add a decoding test for common file formats.
+* io/ioutil: add TempDir.
+* mime/multipart: Header changed from map to MIMEHeader
+* path/filepath: new OS-specific path support (thanks Gustavo Niemeyer).
+* reflect: add PtrTo, add Value.Addr (old Addr is now UnsafeAddr).
+* runtime: use kernel-supplied compare-and-swap on linux/arm.
+* spec: minor clarification of scope rule for functions.
+* sync/atomic: new package to expose atomic operations.
+* syscall: regenerate zerrors_freebsd_amd64.go (thanks Mikio Hara),
+        work around FreeBSD execve kernel bug (thanks Devon H. O'Dell).
+* template: document the delimiters.
+* testing: run GC before each benchmark run (thanks Roger Peppe).
+* unsafe: fix the documentation.
+* websocket: use httptest.Server for tests (thanks Robert Hencke).
+* xml: permit nested directives (thanks Chris Dollin).
+</pre>
+
 <h3 id="2011-02-24">2011-02-24</h3>
 
 <pre>
