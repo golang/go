@@ -6,7 +6,7 @@ package rpc
 
 import (
 	"fmt"
-	"http"
+	"http/httptest"
 	"log"
 	"net"
 	"os"
@@ -103,11 +103,9 @@ func startNewServer() {
 }
 
 func startHttpServer() {
-	var l net.Listener
-	l, httpServerAddr = listenTCP()
-	httpServerAddr = l.Addr().String()
+	server := httptest.NewServer(nil)
+	httpServerAddr = server.Listener.Addr().String()
 	log.Println("Test HTTP RPC server listening on", httpServerAddr)
-	go http.Serve(l, nil)
 }
 
 func TestRPC(t *testing.T) {
