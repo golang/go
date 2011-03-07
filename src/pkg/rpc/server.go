@@ -166,12 +166,6 @@ type Response struct {
 	Error         string // error, if any.
 }
 
-// ClientInfo records information about an RPC client connection.
-type ClientInfo struct {
-	LocalAddr  string
-	RemoteAddr string
-}
-
 // Server represents an RPC Server.
 type Server struct {
 	sync.Mutex // protects the serviceMap
@@ -268,13 +262,6 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 		if replyType.Elem().PkgPath() != "" && !isExported(replyType.Elem().Name()) {
 			log.Println(mname, "reply type not exported:", replyType)
 			continue
-		}
-		if mtype.NumIn() == 4 {
-			t := mtype.In(3)
-			if t != reflect.Typeof((*ClientInfo)(nil)) {
-				log.Println(mname, "last argument not *ClientInfo")
-				continue
-			}
 		}
 		// Method needs one out: os.Error.
 		if mtype.NumOut() != 1 {
