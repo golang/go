@@ -84,7 +84,7 @@ var reqWriteTests = []reqWriteTest{
 			},
 			ProtoMajor:       1,
 			ProtoMinor:       1,
-			Header:           map[string][]string{},
+			Header:           Header{},
 			TransferEncoding: []string{"chunked"},
 		},
 
@@ -112,7 +112,7 @@ var reqWriteTests = []reqWriteTest{
 			},
 			ProtoMajor:       1,
 			ProtoMinor:       1,
-			Header:           map[string][]string{},
+			Header:           Header{},
 			Close:            true,
 			TransferEncoding: []string{"chunked"},
 		},
