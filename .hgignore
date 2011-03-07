@@ -37,6 +37,7 @@ src/cmd/gc/opnames.h
 src/cmd/gc/y.output
 src/cmd/gc/y1.tab.c
 src/cmd/gc/yerr.h
+src/cmd/goinstall/syslist.go
 src/pkg/Make.deps
 src/pkg/exp/ogle/ogle
 src/pkg/os/signal/unix.go
