@@ -89,7 +89,7 @@ TEXT runtime·breakpoint(SB),7,$0
  *  go-routine
  */
 
-// uintptr gosave(Gobuf*)
+// void gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB), 7, $0
 	MOVQ	8(SP), AX		// gobuf
@@ -100,7 +100,6 @@ TEXT runtime·gosave(SB), 7, $0
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	BX, gobuf_g(AX)
-	MOVL	$0, AX			// return 0
 	RET
 
 // void gogo(Gobuf*, uintptr)
@@ -132,6 +131,35 @@ TEXT runtime·gogocall(SB), 7, $0
 	JMP	AX
 	POPQ	BX	// not reached
 
+// void mcall(void (*fn)(G*))
+// Switch to m->g0's stack, call fn(g).
+// Fn must never return.  It should gogo(&g->gobuf)
+// to keep running g.
+TEXT runtime·mcall(SB), 7, $0
+	MOVQ	fn+0(FP), DI
+	
+	get_tls(CX)
+	MOVQ	g(CX), AX	// save state in g->gobuf
+	MOVQ	0(SP), BX	// caller's PC
+	MOVQ	BX, (g_sched+gobuf_pc)(AX)
+	LEAQ	8(SP), BX	// caller's SP
+	MOVQ	BX, (g_sched+gobuf_sp)(AX)
+	MOVQ	AX, (g_sched+gobuf_g)(AX)
+
+	// switch to m->g0 & its stack, call fn
+	MOVQ	m(CX), BX
+	MOVQ	m_g0(BX), SI
+	CMPQ	SI, AX	// if g == m->g0 call badmcall
+	JNE	2(PC)
+	CALL	runtime·badmcall(SB)
+	MOVQ	SI, g(CX)	// g = m->g0
+	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->gobuf.sp
+	PUSHQ	AX
+	CALL	DI
+	POPQ	AX
+	CALL	runtime·badmcall2(SB)
+	RET
+
 /*
  * support for morestack
  */
@@ -160,10 +188,10 @@ TEXT runtime·morestack(SB),7,$0
 	MOVQ	0(SP), AX
 	MOVQ	AX, m_morepc(BX)
 
-	// Call newstack on m's scheduling stack.
+	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BP
 	MOVQ	BP, g(CX)
-	MOVQ	(m_sched+gobuf_sp)(BX), SP
+	MOVQ	(g_sched+gobuf_sp)(BP), SP
 	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
 	RET
@@ -201,11 +229,11 @@ TEXT reflect·call(SB), 7, $0
 	MOVL	CX, m_moreargsize(BX)	// f's argument size
 	MOVL	$1, m_moreframesize(BX)	// f's frame size
 
-	// Call newstack on m's scheduling stack.
+	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BP
 	get_tls(CX)
 	MOVQ	BP, g(CX)
-	MOVQ	(m_sched+gobuf_sp)(BX), SP
+	MOVQ	(g_sched+gobuf_sp)(BP), SP
 	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1103	// crash if newstack returns
 	RET
@@ -217,10 +245,10 @@ TEXT runtime·lessstack(SB), 7, $0
 	MOVQ	m(CX), BX
 	MOVQ	AX, m_cret(BX)
 
-	// Call oldstack on m's scheduling stack.
-	MOVQ	m_g0(BX), DX
-	MOVQ	DX, g(CX)
-	MOVQ	(m_sched+gobuf_sp)(BX), SP
+	// Call oldstack on m->g0's stack.
+	MOVQ	m_g0(BX), BP
+	MOVQ	BP, g(CX)
+	MOVQ	(g_sched+gobuf_sp)(BP), SP
 	CALL	runtime·oldstack(SB)
 	MOVQ	$0, 0x1004	// crash if oldstack returns
 	RET
@@ -336,7 +364,6 @@ TEXT runtime·casp(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
-
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller
@@ -349,68 +376,119 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	SUBQ	$5, (SP)	// return to CALL again
 	JMP	AX	// but first run the deferred function
 
-// runcgo(void(*fn)(void*), void *arg)
+// Dummy function to use in saved gobuf.PC,
+// to match SP pointing at a return address.
+// The gobuf.PC is unused by the contortions here
+// but setting it to return will make the traceback code work.
+TEXT return<>(SB),7,$0
+	RET
+
+// asmcgocall(void(*fn)(void*), void *arg)
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
-TEXT runtime·runcgo(SB),7,$32
-	MOVQ	fn+0(FP), R12
-	MOVQ	arg+8(FP), R13
-	MOVQ	SP, CX
+// See cgocall.c for more details.
+TEXT runtime·asmcgocall(SB),7,$0
+	MOVQ	fn+0(FP), AX
+	MOVQ	arg+8(FP), BX
+	MOVQ	SP, DX
 
 	// Figure out if we need to switch to m->g0 stack.
-	get_tls(DI)
-	MOVQ	m(DI), DX
-	MOVQ	m_g0(DX), SI
-	CMPQ	g(DI), SI
-	JEQ	2(PC)
-	MOVQ	(m_sched+gobuf_sp)(DX), SP
+	// We get called to create new OS threads too, and those
+	// come in on the m->g0 stack already.
+	get_tls(CX)
+	MOVQ	m(CX), BP
+	MOVQ	m_g0(BP), SI
+	MOVQ	g(CX), DI
+	CMPQ	SI, DI
+	JEQ	6(PC)
+	MOVQ	SP, (g_sched+gobuf_sp)(DI)
+	MOVQ	$return<>(SB), (g_sched+gobuf_pc)(DI)
+	MOVQ	DI, (g_sched+gobuf_g)(DI)
+	MOVQ	SI, g(CX)
+	MOVQ	(g_sched+gobuf_sp)(SI), SP
 
 	// Now on a scheduling stack (a pthread-created stack).
 	SUBQ	$32, SP
 	ANDQ	$~15, SP	// alignment for gcc ABI
-	MOVQ	g(DI), BP
-	MOVQ	BP, 16(SP)
-	MOVQ	SI, g(DI)
-	MOVQ	CX, 8(SP)
-	MOVQ	R13, DI		// DI = first argument in AMD64 ABI
-	CALL	R12
+	MOVQ	DI, 16(SP)	// save g
+	MOVQ	DX, 8(SP)	// save SP
+	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+	CALL	AX
 
 	// Restore registers, g, stack pointer.
-	get_tls(DI)
-	MOVQ	16(SP), SI
-	MOVQ	SI, g(DI)
+	get_tls(CX)
+	MOVQ	16(SP), DI
+	MOVQ	DI, g(CX)
 	MOVQ	8(SP), SP
 	RET
 
-// runcgocallback(G *g1, void* sp, void (*fn)(void))
-// Switch to g1 and sp, call fn, switch back.  fn's arguments are on
-// the new stack.
-TEXT runtime·runcgocallback(SB),7,$48
-	MOVQ	g1+0(FP), DX
-	MOVQ	sp+8(FP), AX
-	MOVQ	fp+16(FP), BX
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// See cgocall.c for more details.
+TEXT runtime·cgocallback(SB),7,$24
+	MOVQ	fn+0(FP), AX
+	MOVQ	frame+8(FP), BX
+	MOVQ	framesize+16(FP), DX
 
-	// We are running on m's scheduler stack.  Save current SP
-	// into m->sched.sp so that a recursive call to runcgo doesn't
-	// clobber our stack, and also so that we can restore
-	// the SP when the call finishes.  Reusing m->sched.sp
-	// for this purpose depends on the fact that there is only
-	// one possible gosave of m->sched.
+	// Save current m->g0->sched.sp on stack and then set it to SP.
 	get_tls(CX)
-	MOVQ	DX, g(CX)
-	MOVQ	m(CX), CX
-	MOVQ	SP, (m_sched+gobuf_sp)(CX)
+	MOVQ	m(CX), BP
+	MOVQ	m_g0(BP), SI
+	PUSHQ	(g_sched+gobuf_sp)(SI)
+	MOVQ	SP, (g_sched+gobuf_sp)(SI)
 
-	// Set new SP, call fn
-	MOVQ	AX, SP
-	CALL	BX
+	// Switch to m->curg stack and call runtime.cgocallback
+	// with the three arguments.  Because we are taking over
+	// the execution of m->curg but *not* resuming what had
+	// been running, we need to save that information (m->curg->gobuf)
+	// so that we can restore it when we're done. 
+	// We can restore m->curg->gobuf.sp easily, because calling
+	// runtime.cgocallback leaves SP unchanged upon return.
+	// To save m->curg->gobuf.pc, we push it onto the stack.
+	// This has the added benefit that it looks to the traceback
+	// routine like cgocallback is going to return to that
+	// PC (because we defined cgocallback to have
+	// a frame size of 24, the same amount that we use below),
+	// so that the traceback will seamlessly trace back into
+	// the earlier calls.
+	MOVQ	m_curg(BP), SI
+	MOVQ	SI, g(CX)
+	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
 
-	// Restore old g and SP, return
+	// Push gobuf.pc
+	MOVQ	(g_sched+gobuf_pc)(SI), BP
+	SUBQ	$8, DI
+	MOVQ	BP, 0(DI)
+
+	// Push arguments to cgocallbackg.
+	// Frame size here must match the frame size above
+	// to trick traceback routines into doing the right thing.
+	SUBQ	$24, DI
+	MOVQ	AX, 0(DI)
+	MOVQ	BX, 8(DI)
+	MOVQ	DX, 16(DI)
+	
+	// Switch stack and make the call.
+	MOVQ	DI, SP
+	CALL	runtime·cgocallbackg(SB)
+
+	// Restore g->gobuf (== m->curg->gobuf) from saved values.
 	get_tls(CX)
-	MOVQ	m(CX), DX
-	MOVQ	m_g0(DX), BX
-	MOVQ	BX, g(CX)
-	MOVQ	(m_sched+gobuf_sp)(DX), SP
+	MOVQ	g(CX), SI
+	MOVQ	24(SP), BP
+	MOVQ	BP, (g_sched+gobuf_pc)(SI)
+	LEAQ	(24+8)(SP), DI
+	MOVQ	DI, (g_sched+gobuf_sp)(SI)
+
+	// Switch back to m->g0's stack and restore m->g0->sched.sp.
+	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
+	// so we do not have to restore it.)
+	MOVQ	m(CX), BP
+	MOVQ	m_g0(BP), SI
+	MOVQ	SI, g(CX)
+	MOVQ	(g_sched+gobuf_sp)(SI), SP
+	POPQ	(g_sched+gobuf_sp)(SI)
+
+	// Done!
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)
