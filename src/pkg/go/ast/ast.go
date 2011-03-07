@@ -937,11 +937,13 @@ func (d *FuncDecl) declNode() {}
 // via Doc and Comment fields.
 //
 type File struct {
-	Doc      *CommentGroup   // associated documentation; or nil
-	Package  token.Pos       // position of "package" keyword
-	Name     *Ident          // package name
-	Decls    []Decl          // top-level declarations; or nil
-	Comments []*CommentGroup // list of all comments in the source file
+	Doc        *CommentGroup   // associated documentation; or nil
+	Package    token.Pos       // position of "package" keyword
+	Name       *Ident          // package name
+	Decls      []Decl          // top-level declarations; or nil
+	Scope      *Scope          // package scope
+	Unresolved []*Ident        // unresolved global identifiers
+	Comments   []*CommentGroup // list of all comments in the source file
 }
 
 
@@ -959,7 +961,7 @@ func (f *File) End() token.Pos {
 //
 type Package struct {
 	Name  string           // package name
-	Scope *Scope           // package scope; or nil
+	Scope *Scope           // package scope
 	Files map[string]*File // Go source files by filename
 }
 
