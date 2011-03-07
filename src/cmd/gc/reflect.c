@@ -466,6 +466,7 @@ kinds[] =
 	[TFUNC]		= KindFunc,
 	[TCOMPLEX64]	= KindComplex64,
 	[TCOMPLEX128]	= KindComplex128,
+	[TUNSAFEPTR]	= KindUnsafePointer,
 };
 
 static char*
@@ -488,6 +489,7 @@ structnames[] =
 	[TFLOAT64]	= "*runtime.FloatType",
 	[TBOOL]		= "*runtime.BoolType",
 	[TSTRING]	= "*runtime.StringType",
+	[TUNSAFEPTR] =	"*runtime.UnsafePointerType",
 
 	[TPTR32]	= "*runtime.PtrType",
 	[TPTR64]	= "*runtime.PtrType",
@@ -513,9 +515,6 @@ typestruct(Type *t)
 
 	if(isslice(t))
 		name = "*runtime.SliceType";
-
-	if(isptr[et] && t->type->etype == TANY)
-		name = "*runtime.UnsafePointerType";
 
 	return pkglookup(name, typepkg);
 }
@@ -553,6 +552,7 @@ haspointers(Type *t)
 	case TSTRING:
 	case TPTR32:
 	case TPTR64:
+	case TUNSAFEPTR:
 	case TINTER:
 	case TCHAN:
 	case TMAP:
@@ -612,8 +612,6 @@ dcommontype(Sym *s, int ot, Type *t)
 	i = kinds[t->etype];
 	if(t->etype == TARRAY && t->bound < 0)
 		i = KindSlice;
-	if(isptr[t->etype] && t->type->etype == TANY)
-		i = KindUnsafePointer;
 	if(!haspointers(t))
 		i |= KindNoPointers;
 	ot = duint8(s, ot, i);  // kind
@@ -714,12 +712,8 @@ dtypesym(Type *t)
 		tbase = t->type;
 	dupok = tbase->sym == S;
 
-	if(compiling_runtime) {
-		if(tbase == types[tbase->etype])	// int, float, etc
-			goto ok;
-		if(tbase->etype == tptr && tbase->type->etype == TANY)	// unsafe.Pointer
-			goto ok;
-	}
+	if(compiling_runtime && tbase == types[tbase->etype])	// int, float, etc
+		goto ok;
 
 	// named types from other files are defined only by those files
 	if(tbase->sym && !tbase->local)
@@ -908,7 +902,7 @@ dumptypestructs(void)
 		for(i=1; i<=TBOOL; i++)
 			dtypesym(ptrto(types[i]));
 		dtypesym(ptrto(types[TSTRING]));
-		dtypesym(ptrto(pkglookup("Pointer", unsafepkg)->def->type));
+		dtypesym(ptrto(types[TUNSAFEPTR]));
 		
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(runtimepkg);

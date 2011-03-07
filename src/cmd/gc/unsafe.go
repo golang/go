@@ -8,7 +8,7 @@
 
 package PACKAGE
 
-type Pointer *any
+type Pointer uintptr // not really; filled in by compiler
 
 func Offsetof(any) int
 func Sizeof(any) int

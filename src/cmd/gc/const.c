@@ -155,6 +155,7 @@ convlit1(Node **np, Type *t, int explicit)
 		case TMAP:
 		case TCHAN:
 		case TFUNC:
+		case TUNSAFEPTR:
 			break;
 		}
 		break;

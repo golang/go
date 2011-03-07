@@ -96,7 +96,7 @@ char *runtimeimport =
 	"$$\n";
 char *unsafeimport =
 	"package unsafe\n"
-	"type \"\".Pointer *any\n"
+	"type \"\".Pointer uintptr\n"
 	"func \"\".Offsetof (? any) int\n"
 	"func \"\".Sizeof (? any) int\n"
 	"func \"\".Alignof (? any) int\n"

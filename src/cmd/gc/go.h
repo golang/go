@@ -459,9 +459,10 @@ enum
 	TFIELD,
 	TANY,
 	TSTRING,
+	TUNSAFEPTR,
 
 	// pseudo-types for literals
-	TIDEAL,			// 32
+	TIDEAL,			// 33
 	TNIL,
 	TBLANK,
 
