@@ -22,6 +22,7 @@ type dirInfo struct {
 	goFiles  []string // .go files within dir (including cgoFiles)
 	cgoFiles []string // .go files that import "C"
 	cFiles   []string // .c files within dir
+	sFiles   []string // .s files within dir
 	imports  []string // All packages imported by goFiles
 	pkgName  string   // Name of package within dir
 }
@@ -51,6 +52,7 @@ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
 	goFiles := make([]string, 0, len(dirs))
 	cgoFiles := make([]string, 0, len(dirs))
 	cFiles := make([]string, 0, len(dirs))
+	sFiles := make([]string, 0, len(dirs))
 	importsm := make(map[string]bool)
 	pkgName := ""
 	for i := range dirs {
@@ -61,13 +63,22 @@ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
 		if !goodOSArch(d.Name) {
 			continue
 		}
-		if strings.HasSuffix(d.Name, ".c") {
+
+		switch filepath.Ext(d.Name) {
+		case ".go":
+			if strings.HasSuffix(d.Name, "_test.go") {
+				continue
+			}
+		case ".c":
 			cFiles = append(cFiles, d.Name)
 			continue
-		}
-		if !strings.HasSuffix(d.Name, ".go") || strings.HasSuffix(d.Name, "_test.go") {
+		case ".s":
+			sFiles = append(sFiles, d.Name)
+			continue
+		default:
 			continue
 		}
+
 		filename := filepath.Join(dir, d.Name)
 		pf, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
 		if err != nil {
@@ -110,7 +121,7 @@ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
 		imports[i] = p
 		i++
 	}
-	return &dirInfo{goFiles, cgoFiles, cFiles, imports, pkgName}, nil
+	return &dirInfo{goFiles, cgoFiles, cFiles, sFiles, imports, pkgName}, nil
 }
 
 // goodOSArch returns false if the filename contains a $GOOS or $GOARCH
