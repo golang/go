@@ -17,7 +17,7 @@ var writeSetCookiesTests = []struct {
 }{
 	{
 		[]*Cookie{&Cookie{Name: "cookie-1", Value: "v$1", MaxAge: -1}},
-		"Set-Cookie: Cookie-1=v$1\r\n",
+		"Set-Cookie: cookie-1=v$1\r\n",
 	},
 }
 
@@ -39,7 +39,7 @@ var writeCookiesTests = []struct {
 }{
 	{
 		[]*Cookie{&Cookie{Name: "cookie-1", Value: "v$1", MaxAge: -1}},
-		"Cookie: Cookie-1=v$1\r\n",
+		"Cookie: cookie-1=v$1\r\n",
 	},
 }
 
