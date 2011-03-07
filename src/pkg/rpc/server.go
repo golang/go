@@ -527,7 +527,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, "405 must CONNECT\n")
 		return
 	}
-	conn, _, err := w.Hijack()
+	conn, _, err := w.(http.Hijacker).Hijack()
 	if err != nil {
 		log.Print("rpc hijacking ", w.RemoteAddr(), ": ", err.String())
 		return

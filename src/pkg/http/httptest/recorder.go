@@ -6,17 +6,13 @@
 package httptest
 
 import (
-	"bufio"
 	"bytes"
 	"http"
-	"io"
 	"os"
 )
 
 // ResponseRecorder is an implementation of http.ResponseWriter that
 // records its mutations for later inspection in tests.
-//
-// Note that Hijack is not implemented and simply panics.
 type ResponseRecorder struct {
 	Code    int           // the HTTP response code from WriteHeader
 	Header  http.Header   // if non-nil, the headers to populate
@@ -80,9 +76,4 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
 // Flush sets rw.Flushed to true.
 func (rw *ResponseRecorder) Flush() {
 	rw.Flushed = true
-}
-
-// Hijack is not implemented in ResponseRecorder and instead panics.
-func (rw *ResponseRecorder) Hijack() (io.ReadWriteCloser, *bufio.ReadWriter, os.Error) {
-	panic("Hijack not implemented in ResponseRecorder")
 }

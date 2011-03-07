@@ -58,7 +58,7 @@ func getKeyNumber(s string) (r uint32) {
 
 // ServeHTTP implements the http.Handler interface for a Web Socket
 func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	rwc, buf, err := w.Hijack()
+	rwc, buf, err := w.(http.Hijacker).Hijack()
 	if err != nil {
 		panic("Hijack failed: " + err.String())
 		return
@@ -184,7 +184,7 @@ func (f Draft75Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	rwc, buf, err := w.Hijack()
+	rwc, buf, err := w.(http.Hijacker).Hijack()
 	if err != nil {
 		panic("Hijack failed: " + err.String())
 		return
