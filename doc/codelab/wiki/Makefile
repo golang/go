@@ -11,7 +11,7 @@ include ../../../src/Make.common
 CLEANFILES+=index.html srcextract.bin htmlify.bin
 
 index.html: srcextract.bin htmlify.bin
-	awk '/^!/{system(substr($$0,2)); next} {print}' "$$@" < wiki.html > index.html
+	PATH=.:$$PATH awk '/^!/{system(substr($$0,2)); next} {print}' < wiki.html | tr -d '\r' > index.html
 
 test: get.bin
 	bash ./test.sh

@@ -12,7 +12,7 @@ gomake get.bin
 addr=$(./get.bin -addr)
 sed s/:8080/$addr/ < final.go > final-test.go
 gomake final-test.bin
-./final-test.bin &
+(./final-test.bin) &
 wiki_pid=$!
 
 sleep 1
