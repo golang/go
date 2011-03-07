@@ -27,9 +27,7 @@ var porttests = []portTest{
 	{"tcp", "smtp", 25, true},
 	{"tcp", "time", 37, true},
 	{"tcp", "domain", 53, true},
-	{"tcp", "gopher", 70, true},
 	{"tcp", "finger", 79, true},
-	{"tcp", "http", 80, true},
 
 	{"udp", "echo", 7, true},
 	{"udp", "tftp", 69, true},
