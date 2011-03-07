@@ -39,7 +39,7 @@ Optional flags:
   -release: Build and deliver binary release archive
 
   -rev=N: Build revision N and exit
-  
+
   -cmd="./all.bash": Build command (specify absolute or relative to go/src)
 
   -v: Verbose logging
