@@ -318,7 +318,7 @@ reswitch:
 			n->left = N;
 			goto ret;
 		}
-		if(!isptr[t->etype] || (t->type != T && t->type->etype == TANY) /* unsafe.Pointer */) {
+		if(!isptr[t->etype]) {
 			yyerror("invalid indirect of %+N", n->left);
 			goto error;
 		}
@@ -1316,7 +1316,7 @@ ret:
 
 	// TODO(rsc): should not need to check importpkg,
 	// but reflect mentions unsafe.Pointer.
-	if(safemode && !incannedimport && !importpkg && isptrto(t, TANY))
+	if(safemode && !incannedimport && !importpkg && t->etype == TUNSAFEPTR)
 		yyerror("cannot use unsafe.Pointer");
 
 	evconst(n);

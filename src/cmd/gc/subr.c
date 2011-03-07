@@ -1144,7 +1144,7 @@ Tpretty(Fmt *fp, Type *t)
 	&& t->sym != S
 	&& !(fp->flags&FmtLong)) {
 		s = t->sym;
-		if(t == types[t->etype])
+		if(t == types[t->etype] && t->etype != TUNSAFEPTR)
 			return fmtprint(fp, "%s", s->name);
 		if(exporting) {
 			if(fp->flags & FmtShort)
@@ -1304,6 +1304,11 @@ Tpretty(Fmt *fp, Type *t)
 		if(t->sym)
 			return fmtprint(fp, "undefined %S", t->sym);
 		return fmtprint(fp, "undefined");
+	
+	case TUNSAFEPTR:
+		if(exporting)
+			return fmtprint(fp, "\"unsafe\".Pointer");
+		return fmtprint(fp, "unsafe.Pointer");
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
@@ -1345,6 +1350,9 @@ Tconv(Fmt *fp)
 			return 0;
 		}
 	}
+
+	if(sharp || exporting)
+		fatal("missing %E case during export", t->etype);
 
 	et = t->etype;
 	fmtprint(fp, "%E ", et);
@@ -1864,7 +1872,7 @@ assignop(Type *src, Type *dst, char **why)
 	if(why != nil)
 		*why = "";
 
-	if(safemode && (isptrto(src, TANY) || isptrto(dst, TANY))) {
+	if(safemode && src != T && src->etype == TUNSAFEPTR) {
 		yyerror("cannot use unsafe.Pointer");
 		errorexit();
 	}
@@ -2028,11 +2036,11 @@ convertop(Type *src, Type *dst, char **why)
 	}
 	
 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
-	if((isptr[src->etype] || src->etype == TUINTPTR) && isptrto(dst, TANY))
+	if((isptr[src->etype] || src->etype == TUINTPTR) && dst->etype == TUNSAFEPTR)
 		return OCONVNOP;
 
 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
-	if(isptrto(src, TANY) && (isptr[dst->etype] || dst->etype == TUINTPTR))
+	if(src->etype == TUNSAFEPTR && (isptr[dst->etype] || dst->etype == TUINTPTR))
 		return OCONVNOP;
 
 	return 0;

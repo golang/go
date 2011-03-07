@@ -11,4 +11,5 @@ import "unsafe"
 func main() {
 	var x unsafe.Pointer
 	println(*x) // ERROR "invalid indirect.*unsafe.Pointer"
+	var _ = (unsafe.Pointer)(nil).foo  // ERROR "no field or method foo"
 }

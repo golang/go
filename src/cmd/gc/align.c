@@ -172,6 +172,9 @@ dowidth(Type *t)
 		w = 8;
 		checkwidth(t->type);
 		break;
+	case TUNSAFEPTR:
+		w = widthptr;
+		break;
 	case TINTER:		// implemented as 2 pointers
 		w = 2*widthptr;
 		t->align = widthptr;
@@ -400,6 +403,13 @@ typeinit(void)
 
 	types[TPTR64] = typ(TPTR64);
 	dowidth(types[TPTR64]);
+	
+	t = typ(TUNSAFEPTR);
+	types[TUNSAFEPTR] = t;
+	t->sym = pkglookup("Pointer", unsafepkg);
+	t->sym->def = typenod(t);
+	
+	dowidth(types[TUNSAFEPTR]);
 
 	tptr = TPTR32;
 	if(widthptr == 8)
@@ -481,6 +491,7 @@ typeinit(void)
 
 	okforeq[TPTR32] = 1;
 	okforeq[TPTR64] = 1;
+	okforeq[TUNSAFEPTR] = 1;
 	okforeq[TINTER] = 1;
 	okforeq[TMAP] = 1;
 	okforeq[TCHAN] = 1;
@@ -570,6 +581,7 @@ typeinit(void)
 	simtype[TMAP] = tptr;
 	simtype[TCHAN] = tptr;
 	simtype[TFUNC] = tptr;
+	simtype[TUNSAFEPTR] = tptr;
 
 	/* pick up the backend typedefs */
 	for(i=0; typedefs[i].name; i++) {
