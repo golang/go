@@ -83,24 +83,25 @@ type ResponseWriter interface {
 	Flush()
 }
 
-// A Hijacker is an HTTP request which be taken over by an HTTP handler.
+// The Hijacker interface is implemented by ResponseWriters that allow
+// an HTTP handler to take over the connection.
 type Hijacker interface {
 	// Hijack lets the caller take over the connection.
 	// After a call to Hijack(), the HTTP server library
 	// will not do anything else with the connection.
 	// It becomes the caller's responsibility to manage
 	// and close the connection.
-	Hijack() (io.ReadWriteCloser, *bufio.ReadWriter, os.Error)
+	Hijack() (net.Conn, *bufio.ReadWriter, os.Error)
 }
 
 // A conn represents the server side of an HTTP connection.
 type conn struct {
-	remoteAddr string             // network address of remote side
-	handler    Handler            // request handler
-	rwc        io.ReadWriteCloser // i/o connection
-	buf        *bufio.ReadWriter  // buffered rwc
-	hijacked   bool               // connection has been hijacked by handler
-	usingTLS   bool               // a flag indicating connection over TLS
+	remoteAddr string            // network address of remote side
+	handler    Handler           // request handler
+	rwc        net.Conn          // i/o connection
+	buf        *bufio.ReadWriter // buffered rwc
+	hijacked   bool              // connection has been hijacked by handler
+	usingTLS   bool              // a flag indicating connection over TLS
 }
 
 // A response represents the server side of an HTTP response.
@@ -475,8 +476,9 @@ func (c *conn) serve() {
 	c.close()
 }
 
-// Hijack impements the ResponseWriter.Hijack method.
-func (w *response) Hijack() (rwc io.ReadWriteCloser, buf *bufio.ReadWriter, err os.Error) {
+// Hijack implements the Hijacker.Hijack method. Our response is both a ResponseWriter
+// and a Hijacker.
+func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err os.Error) {
 	if w.conn.hijacked {
 		return nil, nil, ErrHijacked
 	}
