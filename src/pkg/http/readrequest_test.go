@@ -93,7 +93,7 @@ var reqTests = []reqTest{
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
-			Header:        map[string][]string{},
+			Header:        Header{},
 			Close:         false,
 			ContentLength: -1,
 			Host:          "test",

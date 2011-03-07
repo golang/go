@@ -67,10 +67,9 @@ type Response struct {
 	// ReadResponse nor Response.Write ever closes a connection.
 	Close bool
 
-	// Trailer maps trailer keys to values.  Like for Header, if the
-	// response has multiple trailer lines with the same key, they will be
-	// concatenated, delimited by commas.
-	Trailer map[string][]string
+	// Trailer maps trailer keys to values, in the same
+	// format as the header.
+	Trailer Header
 }
 
 // ReadResponse reads and returns an HTTP response from r.  The RequestMethod
@@ -193,7 +192,7 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	}
 
 	// Rest of header
-	err = writeSortedKeyValue(w, resp.Header, respExcludeHeader)
+	err = writeSortedHeader(w, resp.Header, respExcludeHeader)
 	if err != nil {
 		return err
 	}
@@ -215,16 +214,16 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	return nil
 }
 
-func writeSortedKeyValue(w io.Writer, kvm map[string][]string, exclude map[string]bool) os.Error {
-	keys := make([]string, 0, len(kvm))
-	for k := range kvm {
+func writeSortedHeader(w io.Writer, h Header, exclude map[string]bool) os.Error {
+	keys := make([]string, 0, len(h))
+	for k := range h {
 		if !exclude[k] {
 			keys = append(keys, k)
 		}
 	}
 	sort.SortStrings(keys)
 	for _, k := range keys {
-		for _, v := range kvm[k] {
+		for _, v := range h[k] {
 			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
 				return err
 			}

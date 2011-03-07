@@ -117,7 +117,7 @@ func send(req *Request, t Transport) (resp *Response, err os.Error) {
 	// Headers, leaving it uninitialized.  We guarantee to the
 	// Transport that this has been initialized, though.
 	if req.Header == nil {
-		req.Header = Header(make(map[string][]string))
+		req.Header = make(Header)
 	}
 
 	info := req.URL.RawUserinfo
