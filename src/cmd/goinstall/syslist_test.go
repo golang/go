@@ -11,17 +11,22 @@ import (
 var (
 	thisOS    = runtime.GOOS
 	thisArch  = runtime.GOARCH
-	otherOS   = "freebsd"
-	otherArch = "arm"
+	otherOS   = anotherOS()
+	otherArch = anotherArch()
 )
 
-func init() {
-	if thisOS == otherOS {
-		otherOS = "linux"
+func anotherOS() string {
+	if thisOS != "darwin" {
+		return "darwin"
 	}
-	if thisArch == otherArch {
-		otherArch = "amd64"
+	return "linux"
+}
+
+func anotherArch() string {
+	if thisArch != "amd64" {
+		return "amd64"
 	}
+	return "386"
 }
 
 type GoodFileTest struct {
