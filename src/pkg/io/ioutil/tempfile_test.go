@@ -7,6 +7,7 @@ package ioutil_test
 import (
 	. "io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 )
@@ -25,7 +26,7 @@ func TestTempFile(t *testing.T) {
 	if f != nil {
 		f.Close()
 		os.Remove(f.Name())
-		re := regexp.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
+		re := regexp.MustCompile("^" + regexp.QuoteMeta(filepath.Join(dir, "ioutil_test")) + "[0-9]+$")
 		if !re.MatchString(f.Name()) {
 			t.Errorf("TempFile(`"+dir+"`, `ioutil_test`) created bad name %s", f.Name())
 		}
@@ -45,7 +46,7 @@ func TestTempDir(t *testing.T) {
 	}
 	if name != "" {
 		os.Remove(name)
-		re := regexp.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
+		re := regexp.MustCompile("^" + regexp.QuoteMeta(filepath.Join(dir, "ioutil_test")) + "[0-9]+$")
 		if !re.MatchString(name) {
 			t.Errorf("TempDir(`"+dir+"`, `ioutil_test`) created bad name %s", name)
 		}
