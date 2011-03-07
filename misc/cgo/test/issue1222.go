@@ -4,7 +4,7 @@
 
 // This file contains test cases for cgo.
 
-package stdio
+package cgotest
 
 /*
 // issue 1222

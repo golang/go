@@ -93,14 +93,13 @@ TEXT runtime·breakpoint(SB),7,$0
  *  go-routine
  */
 
-// uintptr gosave(Gobuf*)
+// void gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB), 7, $-4
 	MOVW	0(FP), R0		// gobuf
 	MOVW	SP, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
 	MOVW	g, gobuf_g(R0)
-	MOVW	$0, R0			// return 0
 	RET
 
 // void gogo(Gobuf*, uintptr)
@@ -126,6 +125,30 @@ TEXT runtime·gogocall(SB), 7, $-4
 	MOVW	gobuf_sp(R0), SP	// restore SP
 	MOVW	gobuf_pc(R0), LR
 	MOVW	R1, PC
+
+// void mcall(void (*fn)(G*))
+// Switch to m->g0's stack, call fn(g).
+// Fn must never return.  It should gogo(&g->gobuf)
+// to keep running g.
+TEXT runtime·mcall(SB), 7, $-4
+	MOVW	fn+0(FP), R0
+
+	// Save caller state in g->gobuf.
+	MOVW	SP, (g_sched+gobuf_sp)(g)
+	MOVW	LR, (g_sched+gobuf_pc)(g)
+	MOVW	g, (g_sched+gobuf_g)(g)
+
+	// Switch to m->g0 & its stack, call fn.
+	MOVW	g, R1
+	MOVW	m_g0(m), g
+	CMP	g, R1
+	BL.EQ	runtime·badmcall(SB)
+	MOVW	(g_sched+gobuf_sp)(g), SP
+	SUB	$8, SP
+	MOVW	R1, 4(SP)
+	BL	(R0)
+	BL	runtime·badmcall2(SB)
+	RET
 
 /*
  * support for morestack
@@ -159,9 +182,9 @@ TEXT runtime·morestack(SB),7,$-4
 	// Set m->morepc to f's PC.
 	MOVW	LR, m_morepc(m)
 
-	// Call newstack on m's scheduling stack.
+	// Call newstack on m->g0's stack.
 	MOVW	m_g0(m), g
-	MOVW	(m_sched+gobuf_sp)(m), SP
+	MOVW	(g_sched+gobuf_sp)(g), SP
 	B	runtime·newstack(SB)
 
 // Called from reflection library.  Mimics morestack,
@@ -192,9 +215,9 @@ TEXT reflect·call(SB), 7, $-4
 	MOVW	$1, R3
 	MOVW	R3, m_moreframesize(m)		// f's frame size
 
-	// Call newstack on m's scheduling stack.
+	// Call newstack on m->g0's stack.
 	MOVW	m_g0(m), g
-	MOVW	(m_sched+gobuf_sp)(m), SP
+	MOVW	(g_sched+gobuf_sp)(g), SP
 	B	runtime·newstack(SB)
 
 // Return point when leaving stack.
@@ -203,9 +226,9 @@ TEXT runtime·lessstack(SB), 7, $-4
 	// Save return value in m->cret
 	MOVW	R0, m_cret(m)
 
-	// Call oldstack on m's scheduling stack.
+	// Call oldstack on m->g0's stack.
 	MOVW	m_g0(m), g
-	MOVW	(m_sched+gobuf_sp)(m), SP
+	MOVW	(g_sched+gobuf_sp)(g), SP
 	B	runtime·oldstack(SB)
 
 // void jmpdefer(fn, sp);
@@ -220,6 +243,12 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	MOVW	argp+4(FP), SP
 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
 	B		(R0)
+
+TEXT	runtime·asmcgocall(SB),7,$0
+	B	runtime·cgounimpl(SB)
+
+TEXT	runtime·cgocallback(SB),7,$0
+	B	runtime·cgounimpl(SB)
 
 TEXT runtime·memclr(SB),7,$20
 	MOVW	0(FP), R0
@@ -248,30 +277,10 @@ TEXT runtime·getcallersp(SB),7,$-4
 	MOVW	$-4(R0), R0
 	RET
 
-// runcgo(void(*fn)(void*), void *arg)
-// Just call fn(arg), but first align the stack
-// appropriately for the gcc ABI.
-// TODO(kaib): figure out the arm-gcc ABI
-TEXT runtime·runcgo(SB),7,$16
-	BL	runtime·abort(SB)
-//	MOVL	fn+0(FP), AX
-//	MOVL	arg+4(FP), BX
-//	MOVL	SP, CX
-//	ANDL	$~15, SP	// alignment for gcc ABI
-//	MOVL	CX, 4(SP)
-//	MOVL	BX, 0(SP)
-//	CALL	AX
-//	MOVL	4(SP), SP
-//	RET
-
 TEXT runtime·emptyfunc(SB),0,$0
 	RET
 
 TEXT runtime·abort(SB),7,$-4
-	MOVW	$0, R0
-	MOVW	(R0), R1
-
-TEXT runtime·runcgocallback(SB),7,$0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 

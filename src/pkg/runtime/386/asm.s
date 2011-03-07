@@ -105,7 +105,7 @@ TEXT runtime·breakpoint(SB),7,$0
  *  go-routine
  */
 
-// uintptr gosave(Gobuf*)
+// void gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB), 7, $0
 	MOVL	4(SP), AX		// gobuf
@@ -116,7 +116,6 @@ TEXT runtime·gosave(SB), 7, $0
 	get_tls(CX)
 	MOVL	g(CX), BX
 	MOVL	BX, gobuf_g(AX)
-	MOVL	$0, AX			// return 0
 	RET
 
 // void gogo(Gobuf*, uintptr)
@@ -147,6 +146,35 @@ TEXT runtime·gogocall(SB), 7, $0
 	PUSHL	BX
 	JMP	AX
 	POPL	BX	// not reached
+
+// void mcall(void (*fn)(G*))
+// Switch to m->g0's stack, call fn(g).
+// Fn must never return.  It should gogo(&g->gobuf)
+// to keep running g.
+TEXT runtime·mcall(SB), 7, $0
+	MOVL	fn+0(FP), DI
+	
+	get_tls(CX)
+	MOVL	g(CX), AX	// save state in g->gobuf
+	MOVL	0(SP), BX	// caller's PC
+	MOVL	BX, (g_sched+gobuf_pc)(AX)
+	LEAL	4(SP), BX	// caller's SP
+	MOVL	BX, (g_sched+gobuf_sp)(AX)
+	MOVL	AX, (g_sched+gobuf_g)(AX)
+
+	// switch to m->g0 & its stack, call fn
+	MOVL	m(CX), BX
+	MOVL	m_g0(BX), SI
+	CMPL	SI, AX	// if g == m->g0 call badmcall
+	JNE	2(PC)
+	CALL	runtime·badmcall(SB)
+	MOVL	SI, g(CX)	// g = m->g0
+	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->gobuf.sp
+	PUSHL	AX
+	CALL	DI
+	POPL	AX
+	CALL	runtime·badmcall2(SB)
+	RET
 
 /*
  * support for morestack
@@ -183,10 +211,10 @@ TEXT runtime·morestack(SB),7,$0
 	MOVL	0(SP), AX
 	MOVL	AX, m_morepc(BX)
 
-	// Call newstack on m's scheduling stack.
+	// Call newstack on m->g0's stack.
 	MOVL	m_g0(BX), BP
 	MOVL	BP, g(CX)
-	MOVL	(m_sched+gobuf_sp)(BX), AX
+	MOVL	(g_sched+gobuf_sp)(BP), AX
 	MOVL	-4(AX), BX	// fault if CALL would, before smashing SP
 	MOVL	AX, SP
 	CALL	runtime·newstack(SB)
@@ -226,11 +254,11 @@ TEXT reflect·call(SB), 7, $0
 	MOVL	CX, m_moreargsize(BX)	// f's argument size
 	MOVL	$1, m_moreframesize(BX)	// f's frame size
 
-	// Call newstack on m's scheduling stack.
+	// Call newstack on m->g0's stack.
 	MOVL	m_g0(BX), BP
 	get_tls(CX)
 	MOVL	BP, g(CX)
-	MOVL	(m_sched+gobuf_sp)(BX), SP
+	MOVL	(g_sched+gobuf_sp)(BP), SP
 	CALL	runtime·newstack(SB)
 	MOVL	$0, 0x1103	// crash if newstack returns
 	RET
@@ -243,10 +271,10 @@ TEXT runtime·lessstack(SB), 7, $0
 	MOVL	m(CX), BX
 	MOVL	AX, m_cret(BX)
 
-	// Call oldstack on m's scheduling stack.
-	MOVL	m_g0(BX), DX
-	MOVL	DX, g(CX)
-	MOVL	(m_sched+gobuf_sp)(BX), SP
+	// Call oldstack on m->g0's stack.
+	MOVL	m_g0(BX), BP
+	MOVL	BP, g(CX)
+	MOVL	(g_sched+gobuf_sp)(BP), SP
 	CALL	runtime·oldstack(SB)
 	MOVL	$0, 0x1004	// crash if oldstack returns
 	RET
@@ -302,6 +330,133 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	SUBL	$5, (SP)	// return to CALL again
 	JMP	AX	// but first run the deferred function
 
+// Dummy function to use in saved gobuf.PC,
+// to match SP pointing at a return address.
+// The gobuf.PC is unused by the contortions here
+// but setting it to return will make the traceback code work.
+TEXT return<>(SB),7,$0
+	RET
+
+// asmcgocall(void(*fn)(void*), void *arg)
+// Call fn(arg) on the scheduler stack,
+// aligned appropriately for the gcc ABI.
+// See cgocall.c for more details.
+TEXT runtime·asmcgocall(SB),7,$0
+	MOVL	fn+0(FP), AX
+	MOVL	arg+4(FP), BX
+	MOVL	SP, DX
+
+	// Figure out if we need to switch to m->g0 stack.
+	// We get called to create new OS threads too, and those
+	// come in on the m->g0 stack already.
+	get_tls(CX)
+	MOVL	m(CX), BP
+	MOVL	m_g0(BP), SI
+	MOVL	g(CX), DI
+	CMPL	SI, DI
+	JEQ	6(PC)
+	MOVL	SP, (g_sched+gobuf_sp)(DI)
+	MOVL	$return<>(SB), (g_sched+gobuf_pc)(DI)
+	MOVL	DI, (g_sched+gobuf_g)(DI)
+	MOVL	SI, g(CX)
+	MOVL	(g_sched+gobuf_sp)(SI), SP
+
+	// Now on a scheduling stack (a pthread-created stack).
+	SUBL	$32, SP
+	ANDL	$~15, SP	// alignment, perhaps unnecessary
+	MOVL	DI, 8(SP)	// save g
+	MOVL	DX, 4(SP)	// save SP
+	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
+	CALL	AX
+
+	// Restore registers, g, stack pointer.
+	get_tls(CX)
+	MOVL	8(SP), DI
+	MOVL	DI, g(CX)
+	MOVL	4(SP), SP
+	RET
+
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// See cgocall.c for more details.
+TEXT runtime·cgocallback(SB),7,$12
+	MOVL	fn+0(FP), AX
+	MOVL	frame+4(FP), BX
+	MOVL	framesize+8(FP), DX
+
+	// Save current m->g0->sched.sp on stack and then set it to SP.
+	get_tls(CX)
+	MOVL	m(CX), BP
+	MOVL	m_g0(BP), SI
+	PUSHL	(g_sched+gobuf_sp)(SI)
+	MOVL	SP, (g_sched+gobuf_sp)(SI)
+
+	// Switch to m->curg stack and call runtime.cgocallback
+	// with the three arguments.  Because we are taking over
+	// the execution of m->curg but *not* resuming what had
+	// been running, we need to save that information (m->curg->gobuf)
+	// so that we can restore it when we're done. 
+	// We can restore m->curg->gobuf.sp easily, because calling
+	// runtime.cgocallback leaves SP unchanged upon return.
+	// To save m->curg->gobuf.pc, we push it onto the stack.
+	// This has the added benefit that it looks to the traceback
+	// routine like cgocallback is going to return to that
+	// PC (because we defined cgocallback to have
+	// a frame size of 12, the same amount that we use below),
+	// so that the traceback will seamlessly trace back into
+	// the earlier calls.
+	MOVL	m_curg(BP), SI
+	MOVL	SI, g(CX)
+	MOVL	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
+
+	// Push gobuf.pc
+	MOVL	(g_sched+gobuf_pc)(SI), BP
+	SUBL	$4, DI
+	MOVL	BP, 0(DI)
+
+	// Push arguments to cgocallbackg.
+	// Frame size here must match the frame size above
+	// to trick traceback routines into doing the right thing.
+	SUBL	$12, DI
+	MOVL	AX, 0(DI)
+	MOVL	BX, 4(DI)
+	MOVL	DX, 8(DI)
+	
+	// Switch stack and make the call.
+	MOVL	DI, SP
+	CALL	runtime·cgocallbackg(SB)
+
+	// Restore g->gobuf (== m->curg->gobuf) from saved values.
+	get_tls(CX)
+	MOVL	g(CX), SI
+	MOVL	12(SP), BP
+	MOVL	BP, (g_sched+gobuf_pc)(SI)
+	LEAL	(12+4)(SP), DI
+	MOVL	DI, (g_sched+gobuf_sp)(SI)
+
+	// Switch back to m->g0's stack and restore m->g0->sched.sp.
+	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
+	// so we do not have to restore it.)
+	MOVL	m(CX), BP
+	MOVL	m_g0(BP), SI
+	MOVL	SI, g(CX)
+	MOVL	(g_sched+gobuf_sp)(SI), SP
+	POPL	(g_sched+gobuf_sp)(SI)
+
+	// Done!
+	RET
+
+// check that SP is in range [g->stackbase, g->stackguard)
+TEXT runtime·stackcheck(SB), 7, $0
+	get_tls(CX)
+	MOVL	g(CX), AX
+	CMPL	g_stackbase(AX), SP
+	JHI	2(PC)
+	INT	$3
+	CMPL	SP, g_stackguard(AX)
+	JHI	2(PC)
+	INT	$3
+	RET
+
 TEXT runtime·memclr(SB),7,$0
 	MOVL	4(SP), DI		// arg 1 addr
 	MOVL	8(SP), CX		// arg 2 count
@@ -344,83 +499,5 @@ TEXT runtime·emptyfunc(SB),0,$0
 
 TEXT runtime·abort(SB),7,$0
 	INT $0x3
-
-// runcgo(void(*fn)(void*), void *arg)
-// Call fn(arg) on the scheduler stack,
-// aligned appropriately for the gcc ABI.
-TEXT runtime·runcgo(SB),7,$16
-	MOVL	fn+0(FP), AX
-	MOVL	arg+4(FP), BX
-	MOVL	SP, CX
-
-	// Figure out if we need to switch to m->g0 stack.
-	get_tls(DI)
-	MOVL	m(DI), DX
-	MOVL	m_g0(DX), SI
-	CMPL	g(DI), SI
-	JEQ	2(PC)
-	MOVL	(m_sched+gobuf_sp)(DX), SP
-
-	// Now on a scheduling stack (a pthread-created stack).
-	SUBL	$16, SP
-	ANDL	$~15, SP	// alignment for gcc ABI
-	MOVL	g(DI), BP
-	MOVL	BP, 8(SP)
-	MOVL	SI, g(DI)
-	MOVL	CX, 4(SP)
-	MOVL	BX, 0(SP)
-	CALL	AX
-	
-	// Back; switch to original g and stack, re-establish
-	// "DF is clear" invariant.
-	CLD
-	get_tls(DI)
-	MOVL	8(SP), SI
-	MOVL	SI, g(DI)
-	MOVL	4(SP), SP
-	RET
-
-// runcgocallback(G *g1, void* sp, void (*fn)(void))
-// Switch to g1 and sp, call fn, switch back.  fn's arguments are on
-// the new stack.
-TEXT runtime·runcgocallback(SB),7,$32
-	MOVL	g1+0(FP), DX
-	MOVL	sp+4(FP), AX
-	MOVL	fn+8(FP), BX
-
-	// We are running on m's scheduler stack.  Save current SP
-	// into m->sched.sp so that a recursive call to runcgo doesn't
-	// clobber our stack, and also so that we can restore
-	// the SP when the call finishes.  Reusing m->sched.sp
-	// for this purpose depends on the fact that there is only
-	// one possible gosave of m->sched.
-	get_tls(CX)
-	MOVL	DX, g(CX)
-	MOVL	m(CX), CX
-	MOVL	SP, (m_sched+gobuf_sp)(CX)
-
-	// Set new SP, call fn
-	MOVL	AX, SP
-	CALL	BX
-
-	// Restore old g and SP, return
-	get_tls(CX)
-	MOVL	m(CX), DX
-	MOVL	m_g0(DX), BX
-	MOVL	BX, g(CX)
-	MOVL	(m_sched+gobuf_sp)(DX), SP
-	RET
-
-// check that SP is in range [g->stackbase, g->stackguard)
-TEXT runtime·stackcheck(SB), 7, $0
-	get_tls(CX)
-	MOVL	g(CX), AX
-	CMPL	g_stackbase(AX), SP
-	JHI	2(PC)
-	INT	$3
-	CMPL	SP, g_stackguard(AX)
-	JHI	2(PC)
-	INT	$3
-	RET
 
 GLOBL runtime·tls0(SB), $32

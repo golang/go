@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains test cases for cgo.
+// Basic test cases for cgo.
 
-package stdio
+package cgotest
 
 /*
 #include <stdio.h>
@@ -52,6 +52,7 @@ struct ibv_context {
 import "C"
 import (
 	"os"
+	"testing"
 	"unsafe"
 )
 
@@ -89,38 +90,35 @@ func Atol(s string) int {
 	return int(n)
 }
 
-func TestConst() {
+func TestConst(t *testing.T) {
 	C.myConstFunc(nil, 0, nil)
 }
 
-func TestEnum() {
+func TestEnum(t *testing.T) {
 	if C.Enum1 != 1 || C.Enum2 != 2 {
-		println("bad enum", C.Enum1, C.Enum2)
+		t.Error("bad enum", C.Enum1, C.Enum2)
 	}
 }
 
-func TestAtol() {
+func TestAtol(t *testing.T) {
 	l := Atol("123")
 	if l != 123 {
-		println("Atol 123: ", l)
-		panic("bad atol")
+		t.Error("Atol 123: ", l)
 	}
 }
 
-func TestErrno() {
+func TestErrno(t *testing.T) {
 	n, err := Strtol("asdf", 123)
 	if n != 0 || err != os.EINVAL {
-		println("Strtol: ", n, err)
-		panic("bad strtol")
+		t.Error("Strtol: ", n, err)
 	}
 }
 
-func TestMultipleAssign() {
-	p := C.CString("123")
+func TestMultipleAssign(t *testing.T) {
+	p := C.CString("234")
 	n, m := C.strtol(p, nil, 345), C.strtol(p, nil, 10)
 	if n != 0 || m != 234 {
-		println("Strtol x2: ", n, m)
-		panic("bad strtol x2")
+		t.Fatal("Strtol x2: ", n, m)
 	}
 	C.free(unsafe.Pointer(p))
 }
@@ -133,12 +131,4 @@ var (
 
 type Context struct {
 	ctx *C.struct_ibv_context
-}
-
-func Test() {
-	TestAlign()
-	TestAtol()
-	TestEnum()
-	TestErrno()
-	TestConst()
 }

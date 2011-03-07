@@ -21,6 +21,7 @@ fi
 rm -f "$GOROOT"/lib/*.a
 for i in lib9 libbio libmach cmd pkg \
 	../misc/cgo/gmp ../misc/cgo/stdio \
+	../misc/cgo/life ../misc/cgo/test \
 	../test/bench ../test/garbage
 do
 	gomake -C "$GOROOT/src/$i" clean
