@@ -8,7 +8,18 @@ For full details, see the <a href="http://code.google.com/p/go/source/list">Merc
 <h3 id="2011-03-07">2011-03-07</h3>
 
 <pre>
-Changes in this release:
+This release includes changes to the reflect and path packages.
+Code that uses reflect or path may need to be updated.
+
+The reflect package's Value.Addr method has been renamed to Value.UnsafeAddr.
+Code that uses the Addr method will have to call UnsafeAddr instead.
+
+The path package has been split into two packages: path and path/filepath.
+Package path manipulates slash-separated paths, regardless of operating system.
+Package filepath implements the local operating system's native file paths.
+OS-specific functioanlity in pacakge path, such as Walk, moved to filepath.
+
+Other changes:
 * build: fixes and simplifications (thanks Dave Cheney),
         move $GOBIN ahead of /bin, /usr/bin in build $PATH.
 * bzip2: speed up decompression.
