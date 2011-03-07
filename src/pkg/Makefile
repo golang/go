@@ -94,6 +94,7 @@ DIRS=\
 	hash/adler32\
 	hash/crc32\
 	hash/crc64\
+	hash/fnv\
 	html\
 	http\
 	http/cgi\
