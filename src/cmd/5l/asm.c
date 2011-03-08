@@ -1985,6 +1985,9 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 			case SRODATA:
 			case SDATA:
 			case SELFDATA:
+			case STYPE:
+			case SSTRING:
+			case SGOSTRING:
 				if(!s->reachable)
 					continue;
 				put(s, s->name, 'D', s->value, s->size, s->version, s->gotype);
