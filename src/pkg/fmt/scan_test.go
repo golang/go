@@ -820,12 +820,12 @@ func testScanInts(t *testing.T, scan func(*RecursiveInt, *bytes.Buffer) os.Error
 	i := 1
 	for ; r != nil; r = r.next {
 		if r.i != i {
-			t.Fatal("bad scan: expected %d got %d", i, r.i)
+			t.Fatalf("bad scan: expected %d got %d", i, r.i)
 		}
 		i++
 	}
 	if i-1 != intCount {
-		t.Fatal("bad scan count: expected %d got %d", intCount, i-1)
+		t.Fatalf("bad scan count: expected %d got %d", intCount, i-1)
 	}
 }
 
