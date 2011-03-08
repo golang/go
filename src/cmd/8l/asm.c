@@ -1167,6 +1167,9 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 			case SELFDATA:
 			case SMACHO:
 			case SMACHOGOT:
+			case STYPE:
+			case SSTRING:
+			case SGOSTRING:
 			case SWINDOWS:
 				if(!s->reachable)
 					continue;
