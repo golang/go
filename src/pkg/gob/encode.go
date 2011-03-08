@@ -92,11 +92,14 @@ func (state *encoderState) update(instr *encInstr) {
 	}
 }
 
-// Each encoder is responsible for handling any indirections associated
-// with the data structure.  If any pointer so reached is nil, no bytes are written.
-// If the data item is zero, no bytes are written.
-// Otherwise, the output (for a scalar) is the field number, as an encoded integer,
-// followed by the field data in its appropriate format.
+// Each encoder for a composite is responsible for handling any
+// indirections associated with the elements of the data structure.
+// If any pointer so reached is nil, no bytes are written.  If the
+// data item is zero, no bytes are written.  Single values - ints,
+// strings etc. - are indirected before calling their encoders.
+// Otherwise, the output (for a scalar) is the field number, as an
+// encoded integer, followed by the field data in its appropriate
+// format.
 
 // encIndirect dereferences p indir times and returns the result.
 func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
@@ -569,41 +572,40 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 	return &op, indir
 }
 
+// methodIndex returns which method of rt implements the method.
+func methodIndex(rt reflect.Type, method string) int {
+	for i := 0; i < rt.NumMethod(); i++ {
+		if rt.Method(i).Name == method {
+			return i
+		}
+	}
+	panic("can't find method " + method)
+}
+
 // gobEncodeOpFor returns the op for a type that is known to implement
 // GobEncoder.
 func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 	rt := ut.user
-	if ut.encIndir > 0 {
-		errorf("gob: TODO: can't handle >0 indirections to reach GobEncoder")
-	}
 	if ut.encIndir == -1 {
 		rt = reflect.PtrTo(rt)
-	}
-	index := -1
-	for i := 0; i < rt.NumMethod(); i++ {
-		if rt.Method(i).Name == gobEncodeMethodName {
-			index = i
-			break
+	} else if ut.encIndir > 0 {
+		for i := int8(0); i < ut.encIndir; i++ {
+			rt = rt.(*reflect.PtrType).Elem()
 		}
-	}
-	if index < 0 {
-		panic("can't find GobEncode method")
 	}
 	var op encOp
 	op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 		var v reflect.Value
-		switch {
-		case ut.encIndir == 0:
-			v = reflect.NewValue(unsafe.Unreflect(rt, p))
-		case ut.encIndir == -1:
+		if ut.encIndir == -1 {
+			// Need to climb up one level to turn value into pointer.
 			v = reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
-		default:
-			errorf("gob: TODO: can't handle >0 indirections to reach GobEncoder")
+		} else {
+			v = reflect.NewValue(unsafe.Unreflect(rt, p))
 		}
 		state.update(i)
-		state.enc.encodeGobEncoder(state.b, v, index)
+		state.enc.encodeGobEncoder(state.b, v, methodIndex(rt, gobEncodeMethodName))
 	}
-	return &op, int(ut.encIndir)
+	return &op, int(ut.encIndir) // encIndir: op will get called with p == address of receiver.
 }
 
 // compileEnc returns the engine to compile the type.
@@ -666,9 +668,6 @@ func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInf
 	indir := ut.indir
 	if ut.isGobEncoder {
 		indir = int(ut.encIndir)
-		if indir != 0 {
-			errorf("TODO: can't handle indirection in GobEncoder value")
-		}
 	}
 	for i := 0; i < indir; i++ {
 		value = reflect.Indirect(value)

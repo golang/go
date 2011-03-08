@@ -172,9 +172,6 @@ func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, ut *use
 	rt := ut.base
 	if ut.isGobEncoder {
 		rt = ut.user
-		if ut.encIndir != 0 {
-			panic("TODO: can't handle non-zero encIndir")
-		}
 	}
 	if _, alreadySent := enc.sent[rt]; !alreadySent {
 		// No, so send it.
