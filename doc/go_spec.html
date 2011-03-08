@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of March 3, 2011 -->
+<!-- subtitle Version of March 7, 2011 -->
 
 <!--
 TODO
@@ -4212,7 +4212,7 @@ func complex_f2() (re float64, im float64) {
 </pre>
 	</li>
 	<li>The expression list may be empty if the function's result
-		type specifies names for its result parameters (§<a href="#Function_Types">Function Types</a>).
+		type specifies names for its result parameters (§<a href="#Function_types">Function Types</a>).
 		The result parameters act as ordinary local variables
 		and the function may assign values to them as necessary.
 		The "return" statement returns the values of these variables.
@@ -4222,6 +4222,11 @@ func complex_f3() (re float64, im float64) {
 	im = 4.0
 	return
 }
+
+func (devnull) Write(p []byte) (n int, _ os.Error) {
+	n = len(p)
+	return
+} 
 </pre>
 	</li>
 </ol>
