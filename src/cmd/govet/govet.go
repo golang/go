@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"utf8"
 )
 
 var verbose = flag.Bool("v", false, "verbose")
@@ -265,22 +266,64 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 	}
 	// Hard part: check formats against args.
 	// Trivial but useful test: count.
-	numPercent := 0
-	for i := 0; i < len(lit.Value); i++ {
+	numArgs := 0
+	for i, w := 0, 0; i < len(lit.Value); i += w {
+		w = 1
 		if lit.Value[i] == '%' {
-			if i+1 < len(lit.Value) && lit.Value[i+1] == '%' {
-				// %% doesn't count.
-				i++
-			} else {
-				numPercent++
-			}
+			nbytes, nargs := parsePrintfVerb(lit.Value[i:])
+			w = nbytes
+			numArgs += nargs
 		}
 	}
 	expect := len(call.Args) - (skip + 1)
-	if numPercent != expect {
-		f.Badf(call.Pos(), "wrong number of formatting directives in %s call: %d percent(s) for %d args", name, numPercent, expect)
+	if numArgs != expect {
+		f.Badf(call.Pos(), "wrong number of args in %s call: %d needed but %d args", name, numArgs, expect)
 	}
 }
+
+// parsePrintfVerb returns the number of bytes and number of arguments
+// consumed by the Printf directive that begins s, including its percent sign
+// and verb.
+func parsePrintfVerb(s []byte) (nbytes, nargs int) {
+	// There's guaranteed a percent sign.
+	nbytes = 1
+	end := len(s)
+	// There may be flags
+FlagLoop:
+	for nbytes < end {
+		switch s[nbytes] {
+		case '#', '0', '+', '-', ' ':
+			nbytes++
+		default:
+			break FlagLoop
+		}
+	}
+	getNum := func() {
+		if nbytes < end && s[nbytes] == '*' {
+			nbytes++
+			nargs++
+		} else {
+			for nbytes < end && '0' <= s[nbytes] && s[nbytes] <= '9' {
+				nbytes++
+			}
+		}
+	}
+	// There may be a width
+	getNum()
+	// If there's a period, there may be a precision.
+	if nbytes < end && s[nbytes] == '.' {
+		nbytes++
+		getNum()
+	}
+	// Now a verb.
+	c, w := utf8.DecodeRune(s[nbytes:])
+	nbytes += w
+	if c != '%' {
+		nargs++
+	}
+	return
+}
+
 
 var terminalNewline = []byte(`\n"`) // \n at end of interpreted string
 
@@ -320,6 +363,8 @@ func BadFunctionUsedInTests() {
 	fmt.Println("%s", "hi")            // % in call to Println
 	fmt.Printf("%s", "hi", 3)          // wrong # percents
 	fmt.Printf("%s%%%d", "hi", 3)      // right # percents
+	fmt.Printf("%.*d", 3, 3)           // right # percents, with a *
+	fmt.Printf("%.*d", 3, 3, 3)        // wrong # percents, with a *
 	Printf("now is the time", "buddy") // no %s
 	f := new(File)
 	f.Warn(0, "%s", "hello", 3)  // % in call to added function
