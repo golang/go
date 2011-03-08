@@ -260,7 +260,9 @@ var Usage = func() {
 
 var panicOnError = false
 
-func fail() {
+// failf prints to standard output a formatted error and Usage, and then exits the program.
+func failf(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, a...)
 	Usage()
 	if panicOnError {
 		panic("flag parse error")
@@ -415,8 +417,7 @@ func (f *allFlags) parseOne() (ok bool) {
 	}
 	name := s[num_minuses:]
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
-		fmt.Fprintln(os.Stderr, "bad flag syntax:", s)
-		fail()
+		failf("bad flag syntax: %s\n", s)
 	}
 
 	// it's a flag. does it have an argument?
@@ -434,14 +435,12 @@ func (f *allFlags) parseOne() (ok bool) {
 	m := flags.formal
 	flag, alreadythere := m[name] // BUG
 	if !alreadythere {
-		fmt.Fprintf(os.Stderr, "flag provided but not defined: -%s\n", name)
-		fail()
+		failf("flag provided but not defined: -%s\n", name)
 	}
 	if fv, ok := flag.Value.(*boolValue); ok { // special case: doesn't need an arg
 		if has_value {
 			if !fv.Set(value) {
-				fmt.Fprintf(os.Stderr, "invalid boolean value %q for flag: -%s\n", value, name)
-				fail()
+				failf("invalid boolean value %q for flag: -%s\n", value, name)
 			}
 		} else {
 			fv.Set("true")
@@ -454,13 +453,11 @@ func (f *allFlags) parseOne() (ok bool) {
 			value, f.args = f.args[0], f.args[1:]
 		}
 		if !has_value {
-			fmt.Fprintf(os.Stderr, "flag needs an argument: -%s\n", name)
-			fail()
+			failf("flag needs an argument: -%s\n", name)
 		}
 		ok = flag.Value.Set(value)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "invalid value %q for flag: -%s\n", value, name)
-			fail()
+			failf("invalid value %q for flag: -%s\n", value, name)
 		}
 	}
 	flags.actual[name] = flag
