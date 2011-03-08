@@ -138,23 +138,35 @@ func TestIndexRune(t *testing.T) {
 	}
 }
 
+const benchmarkString = "some_text=some☺value"
+
 func BenchmarkIndexRune(b *testing.B) {
-	if got := IndexRune("some_text=some☺value", '☺'); got != 14 {
+	if got := IndexRune(benchmarkString, '☺'); got != 14 {
 		panic("wrong index: got=" + strconv.Itoa(got))
 	}
 	for i := 0; i < b.N; i++ {
-		IndexRune("some_text=some☺value", '☺')
+		IndexRune(benchmarkString, '☺')
 	}
 }
 
-func BenchmarkIndexByte(b *testing.B) {
-	if got := IndexRune("some_text=some☺value", 'v'); got != 17 {
+func BenchmarkIndexRuneFastPath(b *testing.B) {
+	if got := IndexRune(benchmarkString, 'v'); got != 17 {
 		panic("wrong index: got=" + strconv.Itoa(got))
 	}
 	for i := 0; i < b.N; i++ {
-		IndexRune("some_text=some☺value", 'v')
+		IndexRune(benchmarkString, 'v')
 	}
 }
+
+func BenchmarkIndex(b *testing.B) {
+	if got := Index(benchmarkString, "v"); got != 17 {
+		panic("wrong index: got=" + strconv.Itoa(got))
+	}
+	for i := 0; i < b.N; i++ {
+		Index(benchmarkString, "v")
+	}
+}
+
 
 type ExplodeTest struct {
 	s string
