@@ -35,3 +35,16 @@ To install one of the available filetype plugins for Go:
   3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
 
      filetype plugin on
+
+
+Vim indentation plugin for Go
+=============================
+
+To install automatic indentation for Go:
+
+  1. Same as 1 above.
+  2. Copy or link indent/go.vim to the indent directory underneath your vim
+     runtime directory (normally $HOME/.vim/indent).
+  3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
+
+     filetype indent on
