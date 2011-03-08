@@ -77,11 +77,6 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 	ut.isGobEncoder, ut.encIndir = implementsInterface(ut.user, gobEncoderCheck)
 	ut.isGobDecoder, ut.decIndir = implementsInterface(ut.user, gobDecoderCheck)
 	userTypeCache[rt] = ut
-	if ut.encIndir > 0 || ut.decIndir > 0 {
-		// There are checks in lots of other places, but putting this here means we won't even
-		// attempt to encode/decode this type.
-		return nil, os.ErrorString("TODO: gob can't handle indirections to GobEncoder/Decoder")
-	}
 	return
 }
 
@@ -123,7 +118,7 @@ func implementsInterface(typ reflect.Type, check func(typ reflect.Type) bool) (s
 	// The type might be a pointer and we need to keep
 	// dereferencing to the base type until we find an implementation.
 	for {
-		if implements(typ, check) {
+		if implements(rt, check) {
 			return true, indir
 		}
 		if p, ok := rt.(*reflect.PtrType); ok {
@@ -697,11 +692,6 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 // to guarantee the encoding used by a GobEncoder is stable as the
 // software evolves.  For instance, it might make sense for GobEncode
 // to include a version number in the encoding.
-//
-// Note: At the moment, the type implementing GobEncoder must
-// be more indirect than the type passed to Decode.  For example, if
-// if *T implements GobDecoder, the data item must be of type *T or T,
-// not **T or ***T.
 type GobEncoder interface {
 	// GobEncode returns a byte slice representing the encoding of the
 	// receiver for transmission to a GobDecoder, usually of the same
@@ -711,11 +701,6 @@ type GobEncoder interface {
 
 // GobDecoder is the interface describing data that provides its own
 // routine for decoding transmitted values sent by a GobEncoder.
-//
-// Note: At the moment, the type implementing GobDecoder must
-// be more indirect than the type passed to Decode.  For example, if
-// if *T implements GobDecoder, the data item must be of type *T or T,
-// not **T or ***T.
 type GobDecoder interface {
 	// GobDecode overwrites the receiver, which must be a pointer,
 	// with the value represented by the byte slice, which was written

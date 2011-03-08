@@ -936,37 +936,29 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 // GobDecoder.
 func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
 	rt := ut.user
-	if ut.decIndir > 0 {
-		errorf("gob: TODO: can't handle >0 indirections to reach GobDecoder")
-	}
 	if ut.decIndir == -1 {
 		rt = reflect.PtrTo(rt)
-	}
-	index := -1
-	for i := 0; i < rt.NumMethod(); i++ {
-		if rt.Method(i).Name == gobDecodeMethodName {
-			index = i
-			break
+	} else if ut.decIndir > 0 {
+		for i := int8(0); i < ut.decIndir; i++ {
+			rt = rt.(*reflect.PtrType).Elem()
 		}
-	}
-	if index < 0 {
-		panic("can't find GobDecode method")
 	}
 	var op decOp
 	op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
 		// Allocate the underlying data, but hold on to the address we have,
-		// since it's known to be the receiver's address.
+		// since we need it to get to the receiver's address.
 		allocate(ut.base, uintptr(p), ut.indir)
 		var v reflect.Value
-		switch {
-		case ut.decIndir == 0:
-			v = reflect.NewValue(unsafe.Unreflect(rt, p))
-		case ut.decIndir == -1:
+		if ut.decIndir == -1 {
+			// Need to climb up one level to turn value into pointer.
 			v = reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
-		default:
-			errorf("gob: TODO: can't handle >0 indirections to reach GobDecoder")
+		} else {
+			if ut.decIndir > 0 {
+				p = decIndirect(p, int(ut.decIndir))
+			}
+			v = reflect.NewValue(unsafe.Unreflect(rt, p))
 		}
-		state.dec.decodeGobDecoder(state, v, index)
+		state.dec.decodeGobDecoder(state, v, methodIndex(rt, gobDecodeMethodName))
 	}
 	return &op, int(ut.decIndir)
 
@@ -1190,9 +1182,6 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) (err os.Error)
 	indir := ut.indir
 	if ut.isGobDecoder {
 		indir = int(ut.decIndir)
-		if indir != 0 {
-			errorf("TODO: can't handle indirection in GobDecoder value")
-		}
 	}
 	enginePtr, err := dec.getDecEnginePtr(wireId, ut)
 	if err != nil {
