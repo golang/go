@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements the host side of CGI (being the webserver
+// parent process).
+
 // Package cgi implements CGI (Common Gateway Interface) as specified
 // in RFC 3875.
 //
@@ -12,6 +15,7 @@
 package cgi
 
 import (
+	"bytes"
 	"encoding/line"
 	"exec"
 	"fmt"
@@ -19,7 +23,7 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,10 +33,12 @@ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
 
 // Handler runs an executable in a subprocess with a CGI environment.
 type Handler struct {
-	Path   string      // path to the CGI executable
-	Root   string      // root URI prefix of handler or empty for "/"
+	Path string // path to the CGI executable
+	Root string // root URI prefix of handler or empty for "/"
+
 	Env    []string    // extra environment variables to set, if any
 	Logger *log.Logger // optional log for errors or nil to use log.Print
+	Args   []string    // optional arguments to pass to child process
 }
 
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -73,9 +79,20 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		"SERVER_PORT=" + port,
 	}
 
-	for k, _ := range req.Header {
+	if len(req.Cookie) > 0 {
+		b := new(bytes.Buffer)
+		for idx, c := range req.Cookie {
+			if idx > 0 {
+				b.Write([]byte("; "))
+			}
+			fmt.Fprintf(b, "%s=%s", c.Name, c.Value)
+		}
+		env = append(env, "HTTP_COOKIE="+b.String())
+	}
+
+	for k, v := range req.Header {
 		k = strings.Map(upperCaseAndUnderscore, k)
-		env = append(env, "HTTP_"+k+"="+req.Header.Get(k))
+		env = append(env, "HTTP_"+k+"="+strings.Join(v, ", "))
 	}
 
 	if req.ContentLength > 0 {
@@ -89,15 +106,17 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		env = append(env, h.Env...)
 	}
 
-	// TODO: use filepath instead of path when available
-	cwd, pathBase := path.Split(h.Path)
+	cwd, pathBase := filepath.Split(h.Path)
 	if cwd == "" {
 		cwd = "."
 	}
 
+	args := []string{h.Path}
+	args = append(args, h.Args...)
+
 	cmd, err := exec.Run(
 		pathBase,
-		[]string{h.Path},
+		args,
 		env,
 		cwd,
 		exec.Pipe,        // stdin

@@ -176,6 +176,28 @@ func TestPathInfoDirRoot(t *testing.T) {
 	runCgiTest(t, h, "GET /myscript/bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
 
+func TestDupHeaders(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
+	h := &Handler{
+		Path: "testdata/test.cgi",
+	}
+	expectedMap := map[string]string{
+		"env-REQUEST_URI":     "/myscript/bar?a=b",
+		"env-SCRIPT_FILENAME": "testdata/test.cgi",
+		"env-HTTP_COOKIE":     "nom=NOM; yum=YUM",
+		"env-HTTP_X_FOO":      "val1, val2",
+	}
+	runCgiTest(t, h, "GET /myscript/bar?a=b HTTP/1.0\n"+
+		"Cookie: nom=NOM\n"+
+		"Cookie: yum=YUM\n"+
+		"X-Foo: val1\n"+
+		"X-Foo: val2\n"+
+		"Host: example.com\n\n",
+		expectedMap)
+}
+
 func TestPathInfoNoRoot(t *testing.T) {
 	if skipTest(t) {
 		return

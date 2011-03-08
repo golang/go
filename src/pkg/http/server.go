@@ -6,7 +6,6 @@
 
 // TODO(rsc):
 //	logging
-//	cgi support
 //	post support
 
 package http

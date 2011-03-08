@@ -12,7 +12,7 @@ my $q = CGI->new;
 my $params = $q->Vars;
 
 my $NL = "\r\n";
-$NL = "\n" if 1 || $params->{mode} eq "NL";
+$NL = "\n" if $params->{mode} eq "NL";
 
 my $p = sub {
   print "$_[0]$NL";
