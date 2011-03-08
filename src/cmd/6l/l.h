@@ -132,6 +132,7 @@ struct	Sym
 	uchar	dynexport;
 	uchar	special;
 	uchar	stkcheck;
+	uchar	hide;
 	int32	dynid;
 	int32	sig;
 	int32	plt;
@@ -177,28 +178,6 @@ struct	Movtab
 
 enum
 {
-	Sxxx,
-	
-	/* order here is order in output file */
-	STEXT		= 1,
-	SELFDATA,
-	SMACHOPLT,
-	SRODATA,
-	SDATA,
-	SMACHOGOT,
-	SWINDOWS,
-	SBSS,
-
-	SXREF,
-	SMACHODYNSTR,
-	SMACHODYNSYM,
-	SMACHOINDIRECTPLT,
-	SMACHOINDIRECTGOT,
-	SFILE,
-	SCONST,
-	SDYNIMPORT,
-	SSUB	= 1<<8,
-
 	NHASH		= 10007,
 	MINSIZ		= 8,
 	STRINGSZ	= 200,

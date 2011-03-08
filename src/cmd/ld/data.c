@@ -732,6 +732,7 @@ dodata(void)
 
 	last = nil;
 	datap = nil;
+
 	for(h=0; h<NHASH; h++) {
 		for(s=hash[h]; s!=S; s=s->hash){
 			if(!s->reachable || s->special)
@@ -786,7 +787,7 @@ dodata(void)
 	s = datap;
 	for(; s != nil && s->type < SDATA; s = s->next) {
 		s->type = SRODATA;
-		t = rnd(s->size, 4);
+		t = rnd(s->size, PtrSize);
 		s->size = t;
 		s->value = datsize;
 		datsize += t;

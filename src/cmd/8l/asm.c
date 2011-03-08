@@ -1158,6 +1158,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 
 	for(h=0; h<NHASH; h++) {
 		for(s=hash[h]; s!=S; s=s->hash) {
+			if(s->hide)
+				continue;
 			switch(s->type&~SSUB) {
 			case SCONST:
 			case SRODATA:
