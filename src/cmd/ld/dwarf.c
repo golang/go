@@ -1117,7 +1117,6 @@ defgotype(Sym *gotype)
 			fld = newdie(die, DW_ABRV_FUNCTYPEPARAM, s->name+5);
 			newrefattr(fld, DW_AT_type, defptrto(defgotype(s)));
 		}
-		die = defptrto(die);
 		break;
 
 	case KindInterface:
