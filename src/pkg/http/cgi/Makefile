@@ -6,6 +6,7 @@ include ../../../Make.inc
 
 TARG=http/cgi
 GOFILES=\
-	cgi.go\
+	child.go\
+	host.go\
 
 include ../../../Make.pkg
