@@ -28,8 +28,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// Where symbol table data gets mapped into memory.
-#define SYMDATVA 0x99LL<<24
+enum
+{
+	Sxxx,
+	
+	/* order here is order in output file */
+	STEXT,
+	SELFDATA,
+	SMACHOPLT,
+	STYPE,
+	SSTRING,
+	SGOSTRING,
+	SRODATA,
+	SDATA,
+	SMACHO,	/* Mach-O __nl_symbol_ptr */
+	SMACHOGOT,
+	SWINDOWS,
+	SBSS,
+
+	SXREF,
+	SMACHODYNSTR,
+	SMACHODYNSYM,
+	SMACHOINDIRECTPLT,
+	SMACHOINDIRECTGOT,
+	SFILE,
+	SCONST,
+	SDYNIMPORT,
+
+	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
+};
 
 typedef struct Library Library;
 struct Library

@@ -662,6 +662,7 @@ deadcode(void)
 		if(strncmp(s->name, "weak.", 5) == 0) {
 			s->special = 1;  // do not lay out in data segment
 			s->reachable = 1;
+			s->hide = 1;
 		}
 }
 

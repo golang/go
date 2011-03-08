@@ -136,6 +136,7 @@ struct	Sym
 	uchar	dynexport;
 	uchar	leaf;
 	uchar	stkcheck;
+	uchar	hide;
 	int32	dynid;
 	int32	plt;
 	int32	got;
@@ -202,22 +203,6 @@ struct	Count
 
 enum
 {
-	Sxxx,
-	
-	/* order here is order in output file */
-	STEXT		= 1,
-	SRODATA,
-	SELFDATA,
-	SDATA,
-	SBSS,
-
-	SXREF,
-	SFILE,
-	SCONST,
-	SDYNIMPORT,
-
-	SSUB	= 1<<8,
-
 	LFROM		= 1<<0,
 	LTO		= 1<<1,
 	LPOOL		= 1<<2,

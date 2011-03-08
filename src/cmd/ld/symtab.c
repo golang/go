@@ -340,6 +340,9 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 void
 symtab(void)
 {
+	int32 h;
+	Sym *s;
+
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
 	xdefine("text", STEXT, 0);
@@ -351,11 +354,50 @@ symtab(void)
 	xdefine("end", SBSS, 0);
 	xdefine("epclntab", SRODATA, 0);
 	xdefine("esymtab", SRODATA, 0);
+	
+	// pseudo-symbols to mark locations of type, string, and go string data.
+	s = lookup("type.*", 0);
+	s->type = STYPE;
+	s->size = 0;
+	s->reachable = 1;
+
+	s = lookup("string.*", 0);
+	s->type = SSTRING;
+	s->size = 0;
+	s->reachable = 1;
+
+	s = lookup("go.string.*", 0);
+	s->type = SGOSTRING;
+	s->size = 0;
+	s->reachable = 1;
 
 	symt = lookup("symtab", 0);
 	symt->type = SRODATA;
 	symt->size = 0;
 	symt->reachable = 1;
+	
+	// assign specific types so that they sort together.
+	// within a type they sort by size, so the .* symbols
+	// just defined above will be first.
+	// hide the specific symbols.
+	for(h=0; h<NHASH; h++) {
+		for(s=hash[h]; s!=S; s=s->hash){
+			if(!s->reachable || s->special || s->type != SRODATA)
+				continue;
+			if(strncmp(s->name, "type.", 5) == 0) {
+				s->type = STYPE;
+				s->hide = 1;
+			}
+			if(strncmp(s->name, "string.", 7) == 0) {
+				s->type = SSTRING;
+				s->hide = 1;
+			}
+			if(strncmp(s->name, "go.string.", 10) == 0) {
+				s->type = SGOSTRING;
+				s->hide = 1;
+			}
+		}
+	}
 
 	genasmsym(putsymb);
 }
