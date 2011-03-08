@@ -260,7 +260,7 @@ var Usage = func() {
 
 var panicOnError = false
 
-// failf prints to standard output a formatted error and Usage, and then exits the program.
+// failf prints to standard error a formatted error and Usage, and then exits the program.
 func failf(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	Usage()
