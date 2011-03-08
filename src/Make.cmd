@@ -23,7 +23,7 @@ install: $(QUOTED_GOBIN)/$(TARG)
 $(QUOTED_GOBIN)/$(TARG): $(TARG)
 	cp -f $(TARG) $(QUOTED_GOBIN)
 
-CLEANFILES+=$(TARG)
+CLEANFILES+=$(TARG) _test _testmain.go
 
 nuke: clean
 	rm -f $(QUOTED_GOBIN)/$(TARG)
