@@ -61,7 +61,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	err = t.Execute(p, w)
+	err = t.Execute(w, p)
 	if err != nil {
 		http.Error(w, err.String(), http.StatusInternalServerError)
 	}
