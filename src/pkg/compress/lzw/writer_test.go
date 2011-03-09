@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -99,13 +100,33 @@ func TestWriter(t *testing.T) {
 	}
 }
 
-func BenchmarkEncoder(b *testing.B) {
+func benchmarkEncoder(b *testing.B, n int) {
 	b.StopTimer()
-	buf, _ := ioutil.ReadFile("../testdata/e.txt")
+	b.SetBytes(int64(n))
+	buf0, _ := ioutil.ReadFile("../testdata/e.txt")
+	buf0 = buf0[:10000]
+	buf1 := make([]byte, n)
+	for i := 0; i < n; i += len(buf0) {
+		copy(buf1[i:], buf0)
+	}
+	buf0 = nil
+	runtime.GC()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		w := NewWriter(devNull{}, LSB, 8)
-		w.Write(buf)
+		w.Write(buf1)
 		w.Close()
 	}
+}
+
+func BenchmarkEncoder1e4(b *testing.B) {
+	benchmarkEncoder(b, 1e4)
+}
+
+func BenchmarkEncoder1e5(b *testing.B) {
+	benchmarkEncoder(b, 1e5)
+}
+
+func BenchmarkEncoder1e6(b *testing.B) {
+	benchmarkEncoder(b, 1e6)
 }
