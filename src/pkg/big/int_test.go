@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"gob"
 	"testing"
 	"testing/quick"
 )
@@ -1050,6 +1051,44 @@ func TestModInverse(t *testing.T) {
 		inverse.Mod(inverse, &prime)
 		if inverse.Cmp(one) != 0 {
 			t.Errorf("#%d: failed (e·e^(-1)=%s)", i, inverse)
+		}
+	}
+}
+
+
+var gobEncodingTests = []string{
+	"0",
+	"1",
+	"2",
+	"10",
+	"42",
+	"1234567890",
+	"298472983472983471903246121093472394872319615612417471234712061",
+}
+
+func TestGobEncoding(t *testing.T) {
+	var medium bytes.Buffer
+	enc := gob.NewEncoder(&medium)
+	dec := gob.NewDecoder(&medium)
+	for i, test := range gobEncodingTests {
+		for j := 0; j < 2; j++ {
+			medium.Reset() // empty buffer for each test case (in case of failures)
+			stest := test
+			if j == 0 {
+				stest = "-" + test
+			}
+			var tx Int
+			tx.SetString(stest, 10)
+			if err := enc.Encode(&tx); err != nil {
+				t.Errorf("#%d%c: encoding failed: %s", i, 'a'+j, err)
+			}
+			var rx Int
+			if err := dec.Decode(&rx); err != nil {
+				t.Errorf("#%d%c: decoding failed: %s", i, 'a'+j, err)
+			}
+			if rx.Cmp(&tx) != 0 {
+				t.Errorf("#%d%c: transmission failed: got %s want %s", i, 'a'+j, &rx, &tx)
+			}
 		}
 	}
 }
