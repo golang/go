@@ -379,6 +379,16 @@ const (
 	IP_TOS                           = 0x1
 	IP_TTL                           = 0x2
 	IP_UNBLOCK_SOURCE                = 0x25
+	LINUX_REBOOT_CMD_CAD_OFF         = 0
+	LINUX_REBOOT_CMD_CAD_ON          = 0x89abcdef
+	LINUX_REBOOT_CMD_HALT            = 0xcdef0123
+	LINUX_REBOOT_CMD_KEXEC           = 0x45584543
+	LINUX_REBOOT_CMD_POWER_OFF       = 0x4321fedc
+	LINUX_REBOOT_CMD_RESTART         = 0x1234567
+	LINUX_REBOOT_CMD_RESTART2        = 0xa1b2c3d4
+	LINUX_REBOOT_CMD_SW_SUSPEND      = 0xd000fce2
+	LINUX_REBOOT_MAGIC1              = 0xfee1dead
+	LINUX_REBOOT_MAGIC2              = 0x28121969
 	NAME_MAX                         = 0xff
 	O_ACCMODE                        = 0x3
 	O_APPEND                         = 0x400
