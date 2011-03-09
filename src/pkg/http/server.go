@@ -70,7 +70,16 @@ type ResponseWriter interface {
 	// Thus explicit calls to WriteHeader are mainly used to
 	// send error codes.
 	WriteHeader(int)
+}
 
+// The Flusher interface is implemented by ResponseWriters that allow
+// an HTTP handler to flush buffered data to the client.
+//
+// Note that even for ResponseWriters that support Flush,
+// if the client is connected through an HTTP proxy,
+// the buffered data may not reach the client until the response
+// completes.
+type Flusher interface {
 	// Flush sends any buffered data to the client.
 	Flush()
 }
