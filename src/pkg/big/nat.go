@@ -1065,3 +1065,50 @@ NextRandom:
 
 	return true
 }
+
+
+// bytes writes the value of z into buf using big-endian encoding.
+// len(buf) must be >= len(z)*_S. The value of z is encoded in the
+// slice buf[i:]. The number i of unused bytes at the beginning of
+// buf is returned as result.
+func (z nat) bytes(buf []byte) (i int) {
+	i = len(buf)
+	for _, d := range z {
+		for j := 0; j < _S; j++ {
+			i--
+			buf[i] = byte(d)
+			d >>= 8
+		}
+	}
+
+	for i < len(buf) && buf[i] == 0 {
+		i++
+	}
+
+	return
+}
+
+
+// setBytes interprets buf as the bytes of a big-endian unsigned
+// integer, sets z to that value, and returns z.
+func (z nat) setBytes(buf []byte) nat {
+	z = z.make((len(buf) + _S - 1) / _S)
+
+	k := 0
+	s := uint(0)
+	var d Word
+	for i := len(buf); i > 0; i-- {
+		d |= Word(buf[i-1]) << s
+		if s += 8; s == _S*8 {
+			z[k] = d
+			k++
+			s = 0
+			d = 0
+		}
+	}
+	if k < len(z) {
+		z[k] = d
+	}
+
+	return z.norm()
+}

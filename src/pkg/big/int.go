@@ -8,6 +8,7 @@ package big
 
 import (
 	"fmt"
+	"os"
 	"rand"
 )
 
@@ -393,62 +394,19 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 }
 
 
-// SetBytes interprets b as the bytes of a big-endian, unsigned integer and
-// sets z to that value.
-func (z *Int) SetBytes(b []byte) *Int {
-	const s = _S
-	z.abs = z.abs.make((len(b) + s - 1) / s)
-
-	j := 0
-	for len(b) >= s {
-		var w Word
-
-		for i := s; i > 0; i-- {
-			w <<= 8
-			w |= Word(b[len(b)-i])
-		}
-
-		z.abs[j] = w
-		j++
-		b = b[0 : len(b)-s]
-	}
-
-	if len(b) > 0 {
-		var w Word
-
-		for i := len(b); i > 0; i-- {
-			w <<= 8
-			w |= Word(b[len(b)-i])
-		}
-
-		z.abs[j] = w
-	}
-
-	z.abs = z.abs.norm()
+// SetBytes interprets buf as the bytes of a big-endian unsigned
+// integer, sets z to that value, and returns z.
+func (z *Int) SetBytes(buf []byte) *Int {
+	z.abs = z.abs.setBytes(buf)
 	z.neg = false
 	return z
 }
 
 
-// Bytes returns the absolute value of x as a big-endian byte array.
+// Bytes returns the absolute value of z as a big-endian byte slice.
 func (z *Int) Bytes() []byte {
-	const s = _S
-	b := make([]byte, len(z.abs)*s)
-
-	for i, w := range z.abs {
-		wordBytes := b[(len(z.abs)-i-1)*s : (len(z.abs)-i)*s]
-		for j := s - 1; j >= 0; j-- {
-			wordBytes[j] = byte(w)
-			w >>= 8
-		}
-	}
-
-	i := 0
-	for i < len(b) && b[i] == 0 {
-		i++
-	}
-
-	return b[i:]
+	buf := make([]byte, len(z.abs)*_S)
+	return buf[z.abs.bytes(buf):]
 }
 
 
@@ -738,4 +696,35 @@ func (z *Int) Not(x *Int) *Int {
 	z.abs = z.abs.add(x.abs, natOne)
 	z.neg = true // z cannot be zero if x is positive
 	return z
+}
+
+
+// Gob codec version. Permits backward-compatible changes to the encoding.
+const version byte = 1
+
+// GobEncode implements the gob.GobEncoder interface.
+func (z *Int) GobEncode() ([]byte, os.Error) {
+	buf := make([]byte, len(z.abs)*_S+1) // extra byte for version and sign bit
+	i := z.abs.bytes(buf) - 1            // i >= 0
+	b := version << 1                    // make space for sign bit
+	if z.neg {
+		b |= 1
+	}
+	buf[i] = b
+	return buf[i:], nil
+}
+
+
+// GobDecode implements the gob.GobDecoder interface.
+func (z *Int) GobDecode(buf []byte) os.Error {
+	if len(buf) == 0 {
+		return os.NewError("Int.GobDecode: no data")
+	}
+	b := buf[0]
+	if b>>1 != version {
+		return os.NewError(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
+	}
+	z.neg = b&1 != 0
+	z.abs = z.abs.setBytes(buf[1:])
+	return nil
 }
