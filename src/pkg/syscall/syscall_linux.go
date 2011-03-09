@@ -722,6 +722,7 @@ func Reboot(cmd int) (errno int) {
 //sys	Mkdirat(dirfd int, path string, mode uint32) (errno int)
 //sys	Mknod(path string, mode uint32, dev int) (errno int)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (errno int)
+//sys	Mount(source string, target string, fstype string, flags int, data string) (errno int)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
 //sys	Pause() (errno int)
 //sys	PivotRoot(newroot string, putold string) (errno int) = SYS_PIVOT_ROOT
@@ -747,6 +748,7 @@ func Reboot(cmd int) (errno int) {
 //sys	Uname(buf *Utsname) (errno int)
 //sys	Unlink(path string) (errno int)
 //sys	Unlinkat(dirfd int, path string) (errno int)
+//sys	Unmount(target string, flags int) (errno int) = SYS_UMOUNT2
 //sys	Unshare(flags int) (errno int)
 //sys	Ustat(dev int, ubuf *Ustat_t) (errno int)
 //sys	Utime(path string, buf *Utimbuf) (errno int)

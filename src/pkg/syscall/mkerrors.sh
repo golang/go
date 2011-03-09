@@ -26,6 +26,7 @@ includes_Linux='
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <linux/ptrace.h>
 #include <linux/wait.h>
@@ -123,6 +124,7 @@ done
 		$2 == "IFNAMSIZ" ||
 		$2 == "CTL_NET" ||
 		$2 == "CTL_MAXNAME" ||
+		$2 ~ /^(MS|MNT)_/ ||
 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
