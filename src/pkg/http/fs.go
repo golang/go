@@ -108,7 +108,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 		w.WriteHeader(StatusNotModified)
 		return
 	}
-	w.SetHeader("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
+	w.Header().Set("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
 
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {
@@ -137,16 +137,16 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 	// use extension to find content type.
 	ext := filepath.Ext(name)
 	if ctype := mime.TypeByExtension(ext); ctype != "" {
-		w.SetHeader("Content-Type", ctype)
+		w.Header().Set("Content-Type", ctype)
 	} else {
 		// read first chunk to decide between utf-8 text and binary
 		var buf [1024]byte
 		n, _ := io.ReadFull(f, buf[:])
 		b := buf[:n]
 		if isText(b) {
-			w.SetHeader("Content-Type", "text-plain; charset=utf-8")
+			w.Header().Set("Content-Type", "text-plain; charset=utf-8")
 		} else {
-			w.SetHeader("Content-Type", "application/octet-stream") // generic binary
+			w.Header().Set("Content-Type", "application/octet-stream") // generic binary
 		}
 		f.Seek(0, 0) // rewind to output whole file
 	}
@@ -166,11 +166,11 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 		}
 		size = ra.length
 		code = StatusPartialContent
-		w.SetHeader("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, d.Size))
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, d.Size))
 	}
 
-	w.SetHeader("Accept-Ranges", "bytes")
-	w.SetHeader("Content-Length", strconv.Itoa64(size))
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Content-Length", strconv.Itoa64(size))
 
 	w.WriteHeader(code)
 

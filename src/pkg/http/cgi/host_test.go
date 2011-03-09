@@ -111,10 +111,10 @@ func TestCGIBasicGet(t *testing.T) {
 	}
 	replay := runCgiTest(t, h, "GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 
-	if expected, got := "text/html", replay.Header.Get("Content-Type"); got != expected {
+	if expected, got := "text/html", replay.Header().Get("Content-Type"); got != expected {
 		t.Errorf("got a Content-Type of %q; expected %q", got, expected)
 	}
-	if expected, got := "X-Test-Value", replay.Header.Get("X-Test-Header"); got != expected {
+	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
 		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
 	}
 }

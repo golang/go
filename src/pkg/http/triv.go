@@ -56,7 +56,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 var booleanflag = flag.Bool("boolean", true, "another flag for testing")
 
 func FlagServer(w http.ResponseWriter, req *http.Request) {
-	w.SetHeader("content-type", "text/plain; charset=utf-8")
+	w.Header.Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprint(w, "Flags:\n")
 	flag.VisitAll(func(f *flag.Flag) {
 		if f.Value.String() != f.DefValue {
@@ -93,7 +93,7 @@ func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 // exec a program, redirecting output
 func DateServer(rw http.ResponseWriter, req *http.Request) {
-	rw.SetHeader("content-type", "text/plain; charset=utf-8")
+	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	r, w, err := os.Pipe()
 	if err != nil {
 		fmt.Fprintf(rw, "pipe: %s\n", err)

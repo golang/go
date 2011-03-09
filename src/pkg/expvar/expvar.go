@@ -269,7 +269,7 @@ func Iter() <-chan KeyValue {
 }
 
 func expvarHandler(w http.ResponseWriter, r *http.Request) {
-	w.SetHeader("content-type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintf(w, "{\n")
 	first := true
 	for name, value := range vars {

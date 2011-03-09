@@ -111,7 +111,7 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 		os.Stderr.Write(buf.Bytes())
 	}
 	if rw != nil {
-		rw.SetHeader("content-type", "text/plain; charset=utf-8")
+		rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		rw.Write(buf.Bytes())
 	}
 
