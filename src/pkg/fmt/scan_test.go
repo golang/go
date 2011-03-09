@@ -88,14 +88,15 @@ type FloatTest struct {
 type Xs string
 
 func (x *Xs) Scan(state ScanState, verb int) os.Error {
-	tok, err := state.Token()
+	tok, err := state.Token(true, func(r int) bool { return r == verb })
 	if err != nil {
 		return err
 	}
-	if !regexp.MustCompile("^" + string(verb) + "+$").MatchString(tok) {
+	s := string(tok)
+	if !regexp.MustCompile("^" + string(verb) + "+$").MatchString(s) {
 		return os.ErrorString("syntax error for xs")
 	}
-	*x = Xs(tok)
+	*x = Xs(s)
 	return nil
 }
 
@@ -113,9 +114,11 @@ func (s *IntString) Scan(state ScanState, verb int) os.Error {
 		return err
 	}
 
-	if _, err := Fscan(state, &s.s); err != nil {
+	tok, err := state.Token(true, nil)
+	if err != nil {
 		return err
 	}
+	s.s = string(tok)
 	return nil
 }
 
@@ -331,7 +334,7 @@ var multiTests = []ScanfMultiTest{
 	{"%c%c%c", "2\u50c2X", args(&i, &j, &k), args('2', '\u50c2', 'X'), ""},
 
 	// Custom scanners.
-	{"%2e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
+	{"%e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
 	{"%4v%s", "12abcd", args(&z, &s), args(IntString{12, "ab"}, "cd"), ""},
 
 	// Errors
