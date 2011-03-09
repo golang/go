@@ -667,6 +667,11 @@ func PtraceAttach(pid int) (errno int) { return ptrace(PTRACE_ATTACH, pid, 0, 0)
 
 func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0) }
 
+//sys	reboot(magic1 uint, magic2 uint, cmd int, arg string) (errno int)
+func Reboot(cmd int) (errno int) {
+	return reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, "")
+}
+
 // Sendto
 // Recvfrom
 // Socketpair
@@ -842,7 +847,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
 // Quotactl
 // Readahead
 // Readv
-// Reboot
 // RemapFilePages
 // Removexattr
 // RequestKey
