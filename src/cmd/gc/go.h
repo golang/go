@@ -441,20 +441,20 @@ enum
 	TCOMPLEX64,		// 12
 	TCOMPLEX128,
 
-	TFLOAT32,		// 15
+	TFLOAT32,		// 14
 	TFLOAT64,
 
-	TBOOL,			// 18
+	TBOOL,			// 16
 
-	TPTR32, TPTR64,		// 19
+	TPTR32, TPTR64,		// 17
 
-	TFUNC,			// 21
+	TFUNC,			// 19
 	TARRAY,
 	T_old_DARRAY,
-	TSTRUCT,		// 24
+	TSTRUCT,		// 22
 	TCHAN,
 	TMAP,
-	TINTER,			// 27
+	TINTER,			// 25
 	TFORW,
 	TFIELD,
 	TANY,
@@ -462,7 +462,7 @@ enum
 	TUNSAFEPTR,
 
 	// pseudo-types for literals
-	TIDEAL,			// 33
+	TIDEAL,			// 31
 	TNIL,
 	TBLANK,
 
