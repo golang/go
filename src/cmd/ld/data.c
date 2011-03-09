@@ -788,7 +788,6 @@ dodata(void)
 	for(; s != nil && s->type < SDATA; s = s->next) {
 		s->type = SRODATA;
 		t = rnd(s->size, PtrSize);
-		s->size = t;
 		s->value = datsize;
 		datsize += t;
 	}
@@ -835,7 +834,6 @@ dodata(void)
 			datsize = rnd(datsize, 4);
 		else
 			datsize = rnd(datsize, 8);
-		s->size = t;
 		s->value = datsize;
 		datsize += t;
 	}
