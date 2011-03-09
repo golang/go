@@ -34,7 +34,17 @@ const (
 type Writer struct {
 	priority Priority
 	prefix   string
-	conn     net.Conn
+	conn     serverConn
+}
+
+type serverConn interface {
+	writeBytes(p Priority, prefix string, b []byte) (int, os.Error)
+	writeString(p Priority, prefix string, s string) (int, os.Error)
+	close() os.Error
+}
+
+type netConn struct {
+	conn net.Conn
 }
 
 // New establishes a new connection to the system log daemon.
@@ -52,31 +62,15 @@ func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, e
 	if prefix == "" {
 		prefix = os.Args[0]
 	}
-	var conn net.Conn
+	var conn serverConn
 	if network == "" {
 		conn, err = unixSyslog()
 	} else {
-		conn, err = net.Dial(network, "", raddr)
+		var c net.Conn
+		c, err = net.Dial(network, "", raddr)
+		conn = netConn{c}
 	}
 	return &Writer{priority, prefix, conn}, err
-}
-
-func unixSyslog() (conn net.Conn, err os.Error) {
-	logTypes := []string{"unixgram", "unix"}
-	logPaths := []string{"/dev/log", "/var/run/syslog"}
-	var raddr string
-	for _, network := range logTypes {
-		for _, path := range logPaths {
-			raddr = path
-			conn, err := net.Dial(network, "", raddr)
-			if err != nil {
-				continue
-			} else {
-				return conn, nil
-			}
-		}
-	}
-	return nil, os.ErrorString("Unix syslog delivery error")
 }
 
 // Write sends a log message to the syslog daemon.
@@ -84,14 +78,14 @@ func (w *Writer) Write(b []byte) (int, os.Error) {
 	if w.priority > LOG_DEBUG || w.priority < LOG_EMERG {
 		return 0, os.EINVAL
 	}
-	return fmt.Fprintf(w.conn, "<%d>%s: %s\n", w.priority, w.prefix, b)
+	return w.conn.writeBytes(w.priority, w.prefix, b)
 }
 
 func (w *Writer) writeString(p Priority, s string) (int, os.Error) {
-	return fmt.Fprintf(w.conn, "<%d>%s: %s\n", p, w.prefix, s)
+	return w.conn.writeString(p, w.prefix, s)
 }
 
-func (w *Writer) Close() os.Error { return w.conn.Close() }
+func (w *Writer) Close() os.Error { return w.conn.close() }
 
 // Emerg logs a message using the LOG_EMERG priority.
 func (w *Writer) Emerg(m string) (err os.Error) {
@@ -129,6 +123,18 @@ func (w *Writer) Info(m string) (err os.Error) {
 func (w *Writer) Debug(m string) (err os.Error) {
 	_, err = w.writeString(LOG_DEBUG, m)
 	return err
+}
+
+func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, os.Error) {
+	return fmt.Fprintf(n.conn, "<%d>%s: %s\n", p, prefix, b)
+}
+
+func (n netConn) writeString(p Priority, prefix string, s string) (int, os.Error) {
+	return fmt.Fprintf(n.conn, "<%d>%s: %s\n", p, prefix, s)
+}
+
+func (n netConn) close() os.Error {
+	return n.conn.Close()
 }
 
 // NewLogger provides an object that implements the full log.Logger interface,
