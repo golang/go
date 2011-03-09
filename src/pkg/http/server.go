@@ -54,17 +54,10 @@ type ResponseWriter interface {
 	// UsingTLS returns true if the client is connected using TLS
 	UsingTLS() bool
 
-	// SetHeader sets a header line in the eventual response.
-	// For example, SetHeader("Content-Type", "text/html; charset=utf-8")
-	// will result in the header line
-	//
-	//	Content-Type: text/html; charset=utf-8
-	//
-	// being sent. UTF-8 encoded HTML is the default setting for
-	// Content-Type in this library, so users need not make that
-	// particular call. Calls to SetHeader after WriteHeader (or Write)
-	// are ignored. An empty value removes the header if previously set.
-	SetHeader(string, string)
+	// Header returns the header map that will be sent by WriteHeader.
+	// Changing the header after a call to WriteHeader (or Write) has
+	// no effect.
+	Header() Header
 
 	// Write writes the data to the connection as part of an HTTP reply.
 	// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
@@ -106,14 +99,14 @@ type conn struct {
 // A response represents the server side of an HTTP response.
 type response struct {
 	conn          *conn
-	req           *Request          // request for this response
-	chunking      bool              // using chunked transfer encoding for reply body
-	wroteHeader   bool              // reply header has been written
-	wroteContinue bool              // 100 Continue response was written
-	header        map[string]string // reply header parameters
-	written       int64             // number of bytes written in body
-	contentLength int64             // explicitly-declared Content-Length; or -1
-	status        int               // status code passed to WriteHeader
+	req           *Request // request for this response
+	chunking      bool     // using chunked transfer encoding for reply body
+	wroteHeader   bool     // reply header has been written
+	wroteContinue bool     // 100 Continue response was written
+	header        Header   // reply header parameters
+	written       int64    // number of bytes written in body
+	contentLength int64    // explicitly-declared Content-Length; or -1
+	status        int      // status code passed to WriteHeader
 
 	// close connection after this reply.  set on request and
 	// updated after response from handler if there's a
@@ -174,7 +167,7 @@ func (c *conn) readRequest() (w *response, err os.Error) {
 	w = new(response)
 	w.conn = c
 	w.req = req
-	w.header = make(map[string]string)
+	w.header = make(Header)
 	w.contentLength = -1
 
 	// Expect 100 Continue support
@@ -185,21 +178,16 @@ func (c *conn) readRequest() (w *response, err os.Error) {
 	return w, nil
 }
 
-// UsingTLS implements the ResponseWriter.UsingTLS
 func (w *response) UsingTLS() bool {
 	return w.conn.usingTLS
 }
 
-// RemoteAddr implements the ResponseWriter.RemoteAddr method
 func (w *response) RemoteAddr() string { return w.conn.remoteAddr }
 
-// SetHeader implements the ResponseWriter.SetHeader method
-// An empty value removes the header from the map.
-func (w *response) SetHeader(hdr, val string) {
-	w.header[CanonicalHeaderKey(hdr)] = val, val != ""
+func (w *response) Header() Header {
+	return w.header
 }
 
-// WriteHeader implements the ResponseWriter.WriteHeader method
 func (w *response) WriteHeader(code int) {
 	if w.conn.hijacked {
 		log.Print("http: response.WriteHeader on hijacked connection")
@@ -214,46 +202,47 @@ func (w *response) WriteHeader(code int) {
 	if code == StatusNotModified {
 		// Must not have body.
 		for _, header := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
-			if w.header[header] != "" {
+			if w.header.Get(header) != "" {
 				// TODO: return an error if WriteHeader gets a return parameter
 				// or set a flag on w to make future Writes() write an error page?
 				// for now just log and drop the header.
 				log.Printf("http: StatusNotModified response with header %q defined", header)
-				w.header[header] = "", false
+				w.header.Del(header)
 			}
 		}
 	} else {
 		// Default output is HTML encoded in UTF-8.
-		if w.header["Content-Type"] == "" {
-			w.SetHeader("Content-Type", "text/html; charset=utf-8")
+		if w.header.Get("Content-Type") == "" {
+			w.header.Set("Content-Type", "text/html; charset=utf-8")
 		}
 	}
 
-	if w.header["Date"] == "" {
-		w.SetHeader("Date", time.UTC().Format(TimeFormat))
+	if w.header.Get("Date") == "" {
+		w.Header().Set("Date", time.UTC().Format(TimeFormat))
 	}
 
 	// Check for a explicit (and valid) Content-Length header.
 	var hasCL bool
 	var contentLength int64
-	if clenStr, ok := w.header["Content-Length"]; ok {
+	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
 		var err os.Error
 		contentLength, err = strconv.Atoi64(clenStr)
 		if err == nil {
 			hasCL = true
 		} else {
 			log.Printf("http: invalid Content-Length of %q sent", clenStr)
-			w.SetHeader("Content-Length", "")
+			w.header.Set("Content-Length", "")
 		}
 	}
 
-	te, hasTE := w.header["Transfer-Encoding"]
+	te := w.header.Get("Transfer-Encoding")
+	hasTE := te != ""
 	if hasCL && hasTE && te != "identity" {
 		// TODO: return an error if WriteHeader gets a return parameter
 		// For now just ignore the Content-Length.
 		log.Printf("http: WriteHeader called with both Transfer-Encoding of %q and a Content-Length of %d",
 			te, contentLength)
-		w.SetHeader("Content-Length", "")
+		w.header.Set("Content-Length", "")
 		hasCL = false
 	}
 
@@ -262,7 +251,7 @@ func (w *response) WriteHeader(code int) {
 	} else if hasCL {
 		w.chunking = false
 		w.contentLength = contentLength
-		w.SetHeader("Transfer-Encoding", "")
+		w.header.Del("Transfer-Encoding")
 	} else if w.req.ProtoAtLeast(1, 1) {
 		// HTTP/1.1 or greater: use chunked transfer encoding
 		// to avoid closing the connection at EOF.
@@ -270,20 +259,20 @@ func (w *response) WriteHeader(code int) {
 		// might have set.  Deal with that as need arises once we have a valid
 		// use case.
 		w.chunking = true
-		w.SetHeader("Transfer-Encoding", "chunked")
+		w.header.Set("Transfer-Encoding", "chunked")
 	} else {
 		// HTTP version < 1.1: cannot do chunked transfer
 		// encoding and we don't know the Content-Length so
 		// signal EOF by closing connection.
 		w.closeAfterReply = true
-		w.chunking = false                   // redundant
-		w.SetHeader("Transfer-Encoding", "") // in case already set
+		w.chunking = false                // redundant
+		w.header.Del("Transfer-Encoding") // in case already set
 	}
 
 	if w.req.wantsHttp10KeepAlive() && (w.req.Method == "HEAD" || hasCL) {
 		_, connectionHeaderSet := w.header["Connection"]
 		if !connectionHeaderSet {
-			w.SetHeader("Connection", "keep-alive")
+			w.header.Set("Connection", "keep-alive")
 		}
 	} else if !w.req.ProtoAtLeast(1, 1) {
 		// Client did not ask to keep connection alive.
@@ -292,7 +281,7 @@ func (w *response) WriteHeader(code int) {
 
 	// Cannot use Content-Length with non-identity Transfer-Encoding.
 	if w.chunking {
-		w.SetHeader("Content-Length", "")
+		w.header.Set("Content-Length", "")
 	}
 	if !w.req.ProtoAtLeast(1, 0) {
 		return
@@ -307,13 +296,10 @@ func (w *response) WriteHeader(code int) {
 		text = "status code " + codestring
 	}
 	io.WriteString(w.conn.buf, proto+" "+codestring+" "+text+"\r\n")
-	for k, v := range w.header {
-		io.WriteString(w.conn.buf, k+": "+v+"\r\n")
-	}
+	writeSortedHeader(w.conn.buf, w.header, nil)
 	io.WriteString(w.conn.buf, "\r\n")
 }
 
-// Write implements the ResponseWriter.Write method
 func (w *response) Write(data []byte) (n int, err os.Error) {
 	if w.conn.hijacked {
 		log.Print("http: response.Write on hijacked connection")
@@ -388,7 +374,7 @@ func errorKludge(w *response) {
 	msg += " would ignore this error page if this text weren't here.\n"
 
 	// Is it text?  ("Content-Type" is always in the map)
-	baseType := strings.Split(w.header["Content-Type"], ";", 2)[0]
+	baseType := strings.Split(w.header.Get("Content-Type"), ";", 2)[0]
 	switch baseType {
 	case "text/html":
 		io.WriteString(w, "<!-- ")
@@ -408,8 +394,8 @@ func (w *response) finishRequest() {
 	// If this was an HTTP/1.0 request with keep-alive and we sent a Content-Length
 	// back, we can make this a keep-alive response ...
 	if w.req.wantsHttp10KeepAlive() {
-		_, sentLength := w.header["Content-Length"]
-		if sentLength && w.header["Connection"] == "keep-alive" {
+		sentLength := w.header.Get("Content-Length") != ""
+		if sentLength && w.header.Get("Connection") == "keep-alive" {
 			w.closeAfterReply = false
 		}
 	}
@@ -431,7 +417,6 @@ func (w *response) finishRequest() {
 	}
 }
 
-// Flush implements the ResponseWriter.Flush method.
 func (w *response) Flush() {
 	if !w.wroteHeader {
 		w.WriteHeader(StatusOK)
@@ -504,7 +489,7 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 
 // Error replies to the request with the specified error message and HTTP code.
 func Error(w ResponseWriter, error string, code int) {
-	w.SetHeader("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(code)
 	fmt.Fprintln(w, error)
 }
@@ -557,7 +542,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		}
 	}
 
-	w.SetHeader("Location", url)
+	w.Header().Set("Location", url)
 	w.WriteHeader(code)
 
 	// RFC2616 recommends that a short note "SHOULD" be included in the
@@ -680,7 +665,7 @@ func (mux *ServeMux) match(path string) Handler {
 func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 	// Clean path to canonical form and redirect.
 	if p := cleanPath(r.URL.Path); p != r.URL.Path {
-		w.SetHeader("Location", p)
+		w.Header().Set("Location", p)
 		w.WriteHeader(StatusMovedPermanently)
 		return
 	}
@@ -833,7 +818,7 @@ func ListenAndServe(addr string, handler Handler) os.Error {
 //	)
 //
 //	func handler(w http.ResponseWriter, req *http.Request) {
-//		w.SetHeader("Content-Type", "text/plain")
+//		w.Header().Set("Content-Type", "text/plain")
 //		w.Write([]byte("This is an example server.\n"))
 //	}
 //

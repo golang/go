@@ -14,11 +14,10 @@ import (
 // ResponseRecorder is an implementation of http.ResponseWriter that
 // records its mutations for later inspection in tests.
 type ResponseRecorder struct {
-	Code    int           // the HTTP response code from WriteHeader
-	Header  http.Header   // if non-nil, the headers to populate
-	Body    *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
-	Flushed bool
-
+	Code           int           // the HTTP response code from WriteHeader
+	HeaderMap      http.Header   // the HTTP response headers
+	Body           *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
+	Flushed        bool
 	FakeRemoteAddr string // the fake RemoteAddr to return, or "" for DefaultRemoteAddr
 	FakeUsingTLS   bool   // whether to return true from the UsingTLS method
 }
@@ -26,8 +25,8 @@ type ResponseRecorder struct {
 // NewRecorder returns an initialized ResponseRecorder.
 func NewRecorder() *ResponseRecorder {
 	return &ResponseRecorder{
-		Header: http.Header(make(map[string][]string)),
-		Body:   new(bytes.Buffer),
+		HeaderMap: make(http.Header),
+		Body:      new(bytes.Buffer),
 	}
 }
 
@@ -49,15 +48,9 @@ func (rw *ResponseRecorder) UsingTLS() bool {
 	return rw.FakeUsingTLS
 }
 
-// SetHeader populates rw.Header, if non-nil.
-func (rw *ResponseRecorder) SetHeader(k, v string) {
-	if rw.Header != nil {
-		if v == "" {
-			rw.Header.Del(k)
-		} else {
-			rw.Header.Set(k, v)
-		}
-	}
+// Header returns the response headers.
+func (rw *ResponseRecorder) Header() http.Header {
+	return rw.HeaderMap
 }
 
 // Write always succeeds and writes to rw.Body, if not nil.

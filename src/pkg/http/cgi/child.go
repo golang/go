@@ -149,12 +149,8 @@ func (r *response) RemoteAddr() string {
 	return os.Getenv("REMOTE_ADDR")
 }
 
-func (r *response) SetHeader(k, v string) {
-	if v == "" {
-		r.header.Del(k)
-	} else {
-		r.header.Set(k, v)
-	}
+func (r *response) Header() http.Header {
+	return r.header
 }
 
 func (r *response) Write(p []byte) (n int, err os.Error) {

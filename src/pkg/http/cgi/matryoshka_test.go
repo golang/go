@@ -43,10 +43,10 @@ func TestHostingOurselves(t *testing.T) {
 	}
 	replay := runCgiTest(t, h, "GET /test.go?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 
-	if expected, got := "text/html; charset=utf-8", replay.Header.Get("Content-Type"); got != expected {
+	if expected, got := "text/html; charset=utf-8", replay.Header().Get("Content-Type"); got != expected {
 		t.Errorf("got a Content-Type of %q; expected %q", got, expected)
 	}
-	if expected, got := "X-Test-Value", replay.Header.Get("X-Test-Header"); got != expected {
+	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
 		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
 	}
 }
@@ -58,7 +58,7 @@ func TestBeChildCGIProcess(t *testing.T) {
 		return
 	}
 	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.SetHeader("X-Test-Header", "X-Test-Value")
+		rw.Header().Set("X-Test-Header", "X-Test-Value")
 		fmt.Fprintf(rw, "test=Hello CGI-in-CGI\n")
 		req.ParseForm()
 		for k, vv := range req.Form {

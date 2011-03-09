@@ -702,7 +702,7 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
 
 
 func serveText(w http.ResponseWriter, text []byte) {
-	w.SetHeader("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write(text)
 }
 

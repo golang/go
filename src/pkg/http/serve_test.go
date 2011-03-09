@@ -144,7 +144,7 @@ func TestConsumingBodyOnNextConn(t *testing.T) {
 type stringHandler string
 
 func (s stringHandler) ServeHTTP(w ResponseWriter, r *Request) {
-	w.SetHeader("Result", string(s))
+	w.Header().Set("Result", string(s))
 }
 
 var handlers = []struct {
@@ -216,7 +216,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 
 		mux.ServeHTTP(resp, req)
 
-		if loc, expected := resp.Header.Get("Location"), "/foo.txt"; loc != expected {
+		if loc, expected := resp.Header().Get("Location"), "/foo.txt"; loc != expected {
 			t.Errorf("Expected Location header set to %q; got %q", expected, loc)
 			return
 		}
@@ -294,8 +294,8 @@ func TestServerTimeouts(t *testing.T) {
 // TestIdentityResponse verifies that a handler can unset 
 func TestIdentityResponse(t *testing.T) {
 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
-		rw.SetHeader("Content-Length", "3")
-		rw.SetHeader("Transfer-Encoding", req.FormValue("te"))
+		rw.Header().Set("Content-Length", "3")
+		rw.Header().Set("Transfer-Encoding", req.FormValue("te"))
 		switch {
 		case req.FormValue("overwrite") == "1":
 			_, err := rw.Write([]byte("foo TOO LONG"))
@@ -303,7 +303,7 @@ func TestIdentityResponse(t *testing.T) {
 				t.Errorf("expected ErrContentLength; got %v", err)
 			}
 		case req.FormValue("underwrite") == "1":
-			rw.SetHeader("Content-Length", "500")
+			rw.Header().Set("Content-Length", "500")
 			rw.Write([]byte("too short"))
 		default:
 			rw.Write([]byte("foo"))

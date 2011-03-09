@@ -41,14 +41,14 @@ func init() {
 // command line, with arguments separated by NUL bytes.
 // The package initialization registers it as /debug/pprof/cmdline.
 func Cmdline(w http.ResponseWriter, r *http.Request) {
-	w.SetHeader("content-type", "text/plain; charset=utf-8")
+	w.Header().Set("content-type", "text/plain; charset=utf-8")
 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
 }
 
 // Heap responds with the pprof-formatted heap profile.
 // The package initialization registers it as /debug/pprof/heap.
 func Heap(w http.ResponseWriter, r *http.Request) {
-	w.SetHeader("content-type", "text/plain; charset=utf-8")
+	w.Header().Set("content-type", "text/plain; charset=utf-8")
 	pprof.WriteHeapProfile(w)
 }
 
@@ -56,7 +56,7 @@ func Heap(w http.ResponseWriter, r *http.Request) {
 // responding with a table mapping program counters to function names.
 // The package initialization registers it as /debug/pprof/symbol.
 func Symbol(w http.ResponseWriter, r *http.Request) {
-	w.SetHeader("content-type", "text/plain; charset=utf-8")
+	w.Header().Set("content-type", "text/plain; charset=utf-8")
 
 	// We don't know how many symbols we have, but we
 	// do have symbol information.  Pprof only cares whether
