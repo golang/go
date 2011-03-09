@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -117,16 +118,34 @@ func (devNull) Write(p []byte) (int, os.Error) {
 	return len(p), nil
 }
 
-func BenchmarkDecoder(b *testing.B) {
+func benchmarkDecoder(b *testing.B, n int) {
 	b.StopTimer()
+	b.SetBytes(int64(n))
 	buf0, _ := ioutil.ReadFile("../testdata/e.txt")
+	buf0 = buf0[:10000]
 	compressed := bytes.NewBuffer(nil)
 	w := NewWriter(compressed, LSB, 8)
-	io.Copy(w, bytes.NewBuffer(buf0))
+	for i := 0; i < n; i += len(buf0) {
+		io.Copy(w, bytes.NewBuffer(buf0))
+	}
 	w.Close()
 	buf1 := compressed.Bytes()
+	buf0, compressed, w = nil, nil, nil
+	runtime.GC()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		io.Copy(devNull{}, NewReader(bytes.NewBuffer(buf1), LSB, 8))
 	}
+}
+
+func BenchmarkDecoder1e4(b *testing.B) {
+	benchmarkDecoder(b, 1e4)
+}
+
+func BenchmarkDecoder1e5(b *testing.B) {
+	benchmarkDecoder(b, 1e5)
+}
+
+func BenchmarkDecoder1e6(b *testing.B) {
+	benchmarkDecoder(b, 1e6)
 }
