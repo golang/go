@@ -475,7 +475,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 		p = &amp;Page{Title: title}
 	}
 	t, _ := template.ParseFile(&#34;edit.html&#34;, nil)
-	t.Execute(p, w)
+	t.Execute(w, p)
 }
 </pre>
 
@@ -527,7 +527,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
 	t, _ := template.ParseFile(&#34;view.html&#34;, nil)
-	t.Execute(p, w)
+	t.Execute(w, p)
 }
 </pre>
 
@@ -555,7 +555,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	t, _ := template.ParseFile(tmpl+&#34;.html&#34;, nil)
-	t.Execute(p, w)
+	t.Execute(w, p)
 }
 </pre>
 
@@ -644,7 +644,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 		http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
-	err = t.Execute(p, w)
+	err = t.Execute(w, p)
 	if err != nil {
 		http.Error(w, err.String(), http.StatusInternalServerError)
 	}
