@@ -436,6 +436,9 @@ const (
 	MAP_TYPE                         = 0xf
 	MCL_CURRENT                      = 0x1
 	MCL_FUTURE                       = 0x2
+	MNT_DETACH                       = 0x2
+	MNT_EXPIRE                       = 0x4
+	MNT_FORCE                        = 0x1
 	MSG_CMSG_CLOEXEC                 = 0x40000000
 	MSG_CONFIRM                      = 0x800
 	MSG_CTRUNC                       = 0x8
@@ -454,6 +457,22 @@ const (
 	MSG_TRUNC                        = 0x20
 	MSG_TRYHARD                      = 0x4
 	MSG_WAITALL                      = 0x100
+	MS_ASYNC                         = 0x1
+	MS_BIND                          = 0x1000
+	MS_INVALIDATE                    = 0x2
+	MS_MANDLOCK                      = 0x40
+	MS_MGC_MSK                       = 0xffff0000
+	MS_MGC_VAL                       = 0xc0ed0000
+	MS_NOATIME                       = 0x400
+	MS_NODEV                         = 0x4
+	MS_NODIRATIME                    = 0x800
+	MS_NOEXEC                        = 0x8
+	MS_NOSUID                        = 0x2
+	MS_RDONLY                        = 0x1
+	MS_REMOUNT                       = 0x20
+	MS_RMT_MASK                      = 0xc51
+	MS_SYNC                          = 0x4
+	MS_SYNCHRONOUS                   = 0x10
 	NAME_MAX                         = 0xff
 	O_ACCMODE                        = 0x3
 	O_APPEND                         = 0x400
@@ -712,6 +731,7 @@ const (
 	SO_TIMESTAMPING                  = 0x25
 	SO_TIMESTAMPNS                   = 0x23
 	SO_TYPE                          = 0x3
+	S_APPEND                         = 0x100
 	S_BLKSIZE                        = 0x200
 	S_IEXEC                          = 0x40
 	S_IFBLK                          = 0x6000
@@ -722,6 +742,7 @@ const (
 	S_IFMT                           = 0xf000
 	S_IFREG                          = 0x8000
 	S_IFSOCK                         = 0xc000
+	S_IMMUTABLE                      = 0x200
 	S_IREAD                          = 0x100
 	S_IRGRP                          = 0x20
 	S_IROTH                          = 0x4
@@ -739,6 +760,7 @@ const (
 	S_IXGRP                          = 0x8
 	S_IXOTH                          = 0x1
 	S_IXUSR                          = 0x40
+	S_WRITE                          = 0x80
 	TCP_CONGESTION                   = 0xd
 	TCP_CORK                         = 0x3
 	TCP_DEFER_ACCEPT                 = 0x9
