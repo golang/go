@@ -285,9 +285,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 }
 
 // A value sent as a placeholder for the response when the server receives an invalid request.
-type InvalidRequest struct {
-	Marker int
-}
+type InvalidRequest struct{}
 
 var invalidRequest = InvalidRequest{}
 
