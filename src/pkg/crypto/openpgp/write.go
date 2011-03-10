@@ -39,7 +39,7 @@ func DetachSignText(w io.Writer, signer *Entity, message io.Reader) os.Error {
 // ArmoredDetachSignText signs message (after canonicalising the line endings)
 // with the private key from signer (which must already have been decrypted)
 // and writes an armored signature to w.
-func SignTextDetachedArmored(w io.Writer, signer *Entity, message io.Reader) os.Error {
+func ArmoredDetachSignText(w io.Writer, signer *Entity, message io.Reader) os.Error {
 	return armoredDetachSign(w, signer, message, packet.SigTypeText)
 }
 
