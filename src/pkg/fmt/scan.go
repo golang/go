@@ -139,7 +139,7 @@ type scanError struct {
 	err os.Error
 }
 
-const EOF = -1
+const eof = -1
 
 // ss is the internal implementation of ScanState.
 type ss struct {
@@ -207,7 +207,7 @@ func (s *ss) getRune() (rune int) {
 	rune, _, err := s.ReadRune()
 	if err != nil {
 		if err == os.EOF {
-			return EOF
+			return eof
 		}
 		s.error(err)
 	}
@@ -219,7 +219,7 @@ func (s *ss) getRune() (rune int) {
 // syntax error.
 func (s *ss) mustReadRune() (rune int) {
 	rune = s.getRune()
-	if rune == EOF {
+	if rune == eof {
 		s.error(io.ErrUnexpectedEOF)
 	}
 	return
@@ -378,7 +378,7 @@ func (s *ss) free(old ssave) {
 func (s *ss) skipSpace(stopAtNewline bool) {
 	for {
 		rune := s.getRune()
-		if rune == EOF {
+		if rune == eof {
 			return
 		}
 		if rune == '\n' {
@@ -409,7 +409,7 @@ func (s *ss) token(skipSpace bool, f func(int) bool) []byte {
 	// read until white space or newline
 	for {
 		rune := s.getRune()
-		if rune == EOF {
+		if rune == eof {
 			break
 		}
 		if !f(rune) {
@@ -433,7 +433,7 @@ var boolError = os.ErrorString("syntax error scanning boolean")
 // If accept is true, it puts the character into the input token.
 func (s *ss) consume(ok string, accept bool) bool {
 	rune := s.getRune()
-	if rune == EOF {
+	if rune == eof {
 		return false
 	}
 	if strings.IndexRune(ok, rune) >= 0 {
@@ -442,7 +442,7 @@ func (s *ss) consume(ok string, accept bool) bool {
 		}
 		return true
 	}
-	if rune != EOF && accept {
+	if rune != eof && accept {
 		s.UnreadRune()
 	}
 	return false
@@ -451,7 +451,7 @@ func (s *ss) consume(ok string, accept bool) bool {
 // peek reports whether the next character is in the ok string, without consuming it.
 func (s *ss) peek(ok string) bool {
 	rune := s.getRune()
-	if rune != EOF {
+	if rune != eof {
 		s.UnreadRune()
 	}
 	return strings.IndexRune(ok, rune) >= 0
@@ -814,7 +814,7 @@ func (s *ss) hexDigit(digit int) int {
 // There must be either two hexadecimal digits or a space character in the input.
 func (s *ss) hexByte() (b byte, ok bool) {
 	rune1 := s.getRune()
-	if rune1 == EOF {
+	if rune1 == eof {
 		return
 	}
 	if unicode.IsSpace(rune1) {
@@ -970,7 +970,7 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err os.Error) {
 	if !s.nlIsSpace {
 		for {
 			rune := s.getRune()
-			if rune == '\n' || rune == EOF {
+			if rune == '\n' || rune == eof {
 				break
 			}
 			if !unicode.IsSpace(rune) {
@@ -1010,7 +1010,7 @@ func (s *ss) advance(format string) (i int) {
 			// There was space in the format, so there should be space (EOF)
 			// in the input.
 			inputc := s.getRune()
-			if inputc == EOF {
+			if inputc == eof {
 				return
 			}
 			if !unicode.IsSpace(inputc) {
