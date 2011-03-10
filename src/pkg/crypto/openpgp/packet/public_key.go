@@ -241,7 +241,7 @@ func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Er
 
 // A parsedMPI is used to store the contents of a big integer, along with the
 // bit length that was specified in the original input. This allows the MPI to
-// be reserialised exactly.
+// be reserialized exactly.
 type parsedMPI struct {
 	bytes     []byte
 	bitLength uint16
