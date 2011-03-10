@@ -30,15 +30,19 @@ func NotNilFilter(_ string, value reflect.Value) bool {
 
 
 // Fprint prints the (sub-)tree starting at AST node x to w.
+// If fset != nil, position information is interpreted relative
+// to that file set. Otherwise positions are printed as integer
+// values (file set specific offsets).
 //
 // A non-nil FieldFilter f may be provided to control the output:
 // struct fields for which f(fieldname, fieldvalue) is true are
 // are printed; all others are filtered from the output.
 //
-func Fprint(w io.Writer, x interface{}, f FieldFilter) (n int, err os.Error) {
+func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (n int, err os.Error) {
 	// setup printer
 	p := printer{
 		output: w,
+		fset:   fset,
 		filter: f,
 		ptrmap: make(map[interface{}]int),
 		last:   '\n', // force printing of line number on first line
@@ -65,14 +69,15 @@ func Fprint(w io.Writer, x interface{}, f FieldFilter) (n int, err os.Error) {
 
 
 // Print prints x to standard output, skipping nil fields.
-// Print(x) is the same as Fprint(os.Stdout, x, NotNilFilter).
-func Print(x interface{}) (int, os.Error) {
-	return Fprint(os.Stdout, x, NotNilFilter)
+// Print(fset, x) is the same as Fprint(os.Stdout, fset, x, NotNilFilter).
+func Print(fset *token.FileSet, x interface{}) (int, os.Error) {
+	return Fprint(os.Stdout, fset, x, NotNilFilter)
 }
 
 
 type printer struct {
 	output  io.Writer
+	fset    *token.FileSet
 	filter  FieldFilter
 	ptrmap  map[interface{}]int // *reflect.PtrValue -> line number
 	written int                 // number of bytes written to output
@@ -137,16 +142,6 @@ func (p *printer) printf(format string, args ...interface{}) {
 // probably be in a different package.
 
 func (p *printer) print(x reflect.Value) {
-	// Note: This test is only needed because AST nodes
-	//       embed a token.Position, and thus all of them
-	//       understand the String() method (but it only
-	//       applies to the Position field).
-	// TODO: Should reconsider this AST design decision.
-	if pos, ok := x.Interface().(token.Position); ok {
-		p.printf("%s", pos)
-		return
-	}
-
 	if !NotNilFilter("", x) {
 		p.printf("nil")
 		return
@@ -212,6 +207,11 @@ func (p *printer) print(x reflect.Value) {
 		p.printf("}")
 
 	default:
-		p.printf("%v", x.Interface())
+		value := x.Interface()
+		// position values can be printed nicely if we have a file set
+		if pos, ok := value.(token.Pos); ok && p.fset != nil {
+			value = p.fset.Position(pos)
+		}
+		p.printf("%v", value)
 	}
 }
