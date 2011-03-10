@@ -4,20 +4,28 @@
 
 // Tests for client.go
 
-package http
+package http_test
 
 import (
+	"fmt"
+	. "http"
+	"http/httptest"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
 
-func TestClient(t *testing.T) {
-	// TODO: add a proper test suite.  Current test merely verifies that
-	// we can retrieve the Google robots.txt file.
+var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+	w.Header().Set("Last-Modified", "sometime")
+	fmt.Fprintf(w, "User-agent: go\nDisallow: /something/")
+})
 
-	r, _, err := Get("http://www.google.com/robots.txt")
+func TestClient(t *testing.T) {
+	ts := httptest.NewServer(robotsTxtHandler)
+	defer ts.Close()
+
+	r, _, err := Get(ts.URL)
 	var b []byte
 	if err == nil {
 		b, err = ioutil.ReadAll(r.Body)
@@ -31,7 +39,10 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientHead(t *testing.T) {
-	r, err := Head("http://www.google.com/robots.txt")
+	ts := httptest.NewServer(robotsTxtHandler)
+	defer ts.Close()
+
+	r, err := Head(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
