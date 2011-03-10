@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -95,6 +96,9 @@ type ConnectionState struct {
 	HandshakeComplete  bool
 	CipherSuite        uint16
 	NegotiatedProtocol string
+
+	// the certificate chain that was presented by the other side
+	PeerCertificates []*x509.Certificate
 }
 
 // A Config structure is used to configure a TLS client or server. After one
