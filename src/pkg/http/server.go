@@ -48,12 +48,6 @@ type Handler interface {
 // A ResponseWriter interface is used by an HTTP handler to
 // construct an HTTP response.
 type ResponseWriter interface {
-	// RemoteAddr returns the address of the client that sent the current request
-	RemoteAddr() string
-
-	// UsingTLS returns true if the client is connected using TLS
-	UsingTLS() bool
-
 	// Header returns the header map that will be sent by WriteHeader.
 	// Changing the header after a call to WriteHeader (or Write) has
 	// no effect.
@@ -97,12 +91,12 @@ type Hijacker interface {
 
 // A conn represents the server side of an HTTP connection.
 type conn struct {
-	remoteAddr string            // network address of remote side
-	handler    Handler           // request handler
-	rwc        net.Conn          // i/o connection
-	buf        *bufio.ReadWriter // buffered rwc
-	hijacked   bool              // connection has been hijacked by handler
-	usingTLS   bool              // a flag indicating connection over TLS
+	remoteAddr string               // network address of remote side
+	handler    Handler              // request handler
+	rwc        net.Conn             // i/o connection
+	buf        *bufio.ReadWriter    // buffered rwc
+	hijacked   bool                 // connection has been hijacked by handler
+	tlsState   *tls.ConnectionState // or nil when not using TLS        
 }
 
 // A response represents the server side of an HTTP response.
@@ -130,10 +124,15 @@ func newConn(rwc net.Conn, handler Handler) (c *conn, err os.Error) {
 	c.remoteAddr = rwc.RemoteAddr().String()
 	c.handler = handler
 	c.rwc = rwc
-	_, c.usingTLS = rwc.(*tls.Conn)
 	br := bufio.NewReader(rwc)
 	bw := bufio.NewWriter(rwc)
 	c.buf = bufio.NewReadWriter(br, bw)
+
+	if tlsConn, ok := rwc.(*tls.Conn); ok {
+		c.tlsState = new(tls.ConnectionState)
+		*c.tlsState = tlsConn.ConnectionState()
+	}
+
 	return c, nil
 }
 
@@ -173,6 +172,9 @@ func (c *conn) readRequest() (w *response, err os.Error) {
 		return nil, err
 	}
 
+	req.RemoteAddr = c.remoteAddr
+	req.TLS = c.tlsState
+
 	w = new(response)
 	w.conn = c
 	w.req = req
@@ -186,12 +188,6 @@ func (c *conn) readRequest() (w *response, err os.Error) {
 	}
 	return w, nil
 }
-
-func (w *response) UsingTLS() bool {
-	return w.conn.usingTLS
-}
-
-func (w *response) RemoteAddr() string { return w.conn.remoteAddr }
 
 func (w *response) Header() Header {
 	return w.header

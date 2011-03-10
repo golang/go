@@ -152,7 +152,7 @@ func usage() {
 
 func loggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		log.Printf("%s\t%s", w.RemoteAddr(), req.URL)
+		log.Printf("%s\t%s", req.RemoteAddr, req.URL)
 		h.ServeHTTP(w, req)
 	})
 }

@@ -98,7 +98,7 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var location string
-	if w.UsingTLS() {
+	if req.TLS != nil {
 		location = "wss://" + req.Host + req.URL.RawPath
 	} else {
 		location = "ws://" + req.Host + req.URL.RawPath
@@ -192,7 +192,7 @@ func (f Draft75Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer rwc.Close()
 
 	var location string
-	if w.UsingTLS() {
+	if req.TLS != nil {
 		location = "wss://" + req.Host + req.URL.RawPath
 	} else {
 		location = "ws://" + req.Host + req.URL.RawPath
