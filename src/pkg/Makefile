@@ -37,6 +37,7 @@ DIRS=\
 	crypto/cast5\
 	crypto/cipher\
 	crypto/dsa\
+	crypto/ecdsa\
 	crypto/elliptic\
 	crypto/hmac\
 	crypto/md4\
