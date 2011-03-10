@@ -8,6 +8,7 @@ import (
 	. "flag"
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 )
 
@@ -76,6 +77,12 @@ func TestEverything(t *testing.T) {
 		for k, v := range m {
 			t.Log(k, *v)
 		}
+	}
+	// Now test they're visited in sort order.
+	var flagNames []string
+	Visit(func(f *Flag) { flagNames = append(flagNames, f.Name) })
+	if !sort.StringsAreSorted(flagNames) {
+		t.Errorf("flag names not sorted: %v", flagNames)
 	}
 }
 
