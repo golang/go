@@ -579,7 +579,8 @@ func methodIndex(rt reflect.Type, method string) int {
 			return i
 		}
 	}
-	panic("can't find method " + method)
+	errorf("gob: internal error: can't find method %s", method)
+	return 0
 }
 
 // gobEncodeOpFor returns the op for a type that is known to implement
@@ -628,7 +629,7 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 			wireFieldNum++
 		}
 		if srt.NumField() > 0 && len(engine.instr) == 0 {
-			errorf("type %s has no exported fields", rt)
+			errorf("gob: type %s has no exported fields", rt)
 		}
 		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, 0, 0})
 	} else {

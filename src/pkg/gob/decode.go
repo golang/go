@@ -19,7 +19,7 @@ import (
 var (
 	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range")
 	errBadType = os.ErrorString("gob: unknown type id or corrupted data")
-	errRange   = os.ErrorString("gob: internal error: field numbers out of bounds")
+	errRange   = os.ErrorString("gob: bad data: field numbers out of bounds")
 )
 
 // decoderState is the execution state of an instance of the decoder. A new state
@@ -885,7 +885,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 		wire := dec.wireType[wireId]
 		switch {
 		case wire == nil:
-			panic("internal error: can't find ignore op for type " + wireId.string())
+			errorf("gob: bad data: undefined type %s", wireId.string())
 		case wire.ArrayT != nil:
 			elemId := wire.ArrayT.Elem
 			elemOp := dec.decIgnoreOpFor(elemId)
@@ -927,7 +927,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 		}
 	}
 	if op == nil {
-		errorf("ignore can't handle type %s", wireId.string())
+		errorf("gob: bad data: ignore can't handle type %s", wireId.string())
 	}
 	return op
 }
