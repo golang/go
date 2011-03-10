@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 /*
-
 Gofmt formats Go programs.
 
 Without an explicit path, it processes the standard input.  Given a file,
@@ -16,29 +15,22 @@ Usage:
 The flags are:
 
 	-l
-		just list files whose formatting differs from gofmt's; generate no other output
-		unless -w is also set.
+		just list files whose formatting differs from gofmt's;
+		generate no other output unless -w is also set.
 	-r rule
 		apply the rewrite rule to the source before reformatting.
 	-s
 		try to simplify code (after applying the rewrite rule, if any).
 	-w
 		if set, overwrite each input file with its output.
+	-comments=true
+		print comments; if false, all comments are elided from the output.
 	-spaces
 		align with spaces instead of tabs.
 	-tabindent
 		indent with tabs independent of -spaces.
 	-tabwidth=8
 		tab width in spaces.
-
-Debugging flags:
-
-	-trace
-		print parse trace.
-	-ast
-		print AST (before rewrites).
-	-comments=true
-		print comments; if false, all comments are elided from the output.
 
 The rewrite rule specified with the -r flag must be a string of the form:
 

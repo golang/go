@@ -27,12 +27,8 @@ var (
 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
 	simplifyAST = flag.Bool("s", false, "simplify code")
 
-	// debugging support
-	comments = flag.Bool("comments", true, "print comments")
-	trace    = flag.Bool("trace", false, "print parse trace")
-	printAST = flag.Bool("ast", false, "print AST (before rewrites)")
-
 	// layout control
+	comments  = flag.Bool("comments", true, "print comments")
 	tabWidth  = flag.Int("tabwidth", 8, "tab width")
 	tabIndent = flag.Bool("tabindent", true, "indent with tabs independent of -spaces")
 	useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
@@ -66,9 +62,6 @@ func initParserMode() {
 	if *comments {
 		parserMode |= parser.ParseComments
 	}
-	if *trace {
-		parserMode |= parser.Trace
-	}
 }
 
 
@@ -99,10 +92,6 @@ func processFile(f *os.File) os.Error {
 
 	if err != nil {
 		return err
-	}
-
-	if *printAST {
-		ast.Print(file)
 	}
 
 	if rewrite != nil {
