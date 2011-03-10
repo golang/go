@@ -762,6 +762,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 	if c.handshakeComplete {
 		state.NegotiatedProtocol = c.clientProtocol
 		state.CipherSuite = c.cipherSuite
+		state.PeerCertificates = c.peerCertificates
 	}
 
 	return state
@@ -774,15 +775,6 @@ func (c *Conn) OCSPResponse() []byte {
 	defer c.handshakeMutex.Unlock()
 
 	return c.ocspResponse
-}
-
-// PeerCertificates returns the certificate chain that was presented by the
-// other side.
-func (c *Conn) PeerCertificates() []*x509.Certificate {
-	c.handshakeMutex.Lock()
-	defer c.handshakeMutex.Unlock()
-
-	return c.peerCertificates
 }
 
 // VerifyHostname checks that the peer certificate chain is valid for
