@@ -59,13 +59,14 @@ prescriptive style guide.
 With Go we take an unusual
 approach and let the machine
 take care of most formatting issues.
-A program, <code>gofmt</code>, reads a Go program
+The <code>gofmt</code> tool reads a Go program
 and emits the source in a standard style of indentation
 and vertical alignment, retaining and if necessary
 reformatting comments.
 If you want to know how to handle some new layout
 situation, run <code>gofmt</code>; if the answer doesn't
-seem right, fix the program (or file a bug), don't work around it.
+seem right, rearrange your program (or file a bug about <code>gofmt</code>),
+don't work around it.
 </p>
 
 <p>
@@ -94,7 +95,7 @@ type T struct {
 </pre>
 
 <p>
-All code in the libraries has been formatted with <code>gofmt</code>.
+All Go code in the standard packages has been formatted with <code>gofmt</code>.
 </p>
 
 
@@ -304,7 +305,8 @@ not <code>container_vector</code> and not <code>containerVector</code>.
 <p>
 The importer of a package will use the name to refer to its contents
 (the <code>import .</code> notation is intended mostly for tests and other
-unusual situations), so exported names in the package can use that fact
+unusual situations and should be avoided unless necessary),
+so exported names in the package can use that fact
 to avoid stutter.
 For instance, the buffered reader type in the <code>bufio</code> package is called <code>Reader</code>,
 not <code>BufReader</code>, because users see it as <code>bufio.Reader</code>,
@@ -316,8 +318,8 @@ Similarly, the function to make new instances of <code>ring.Ring</code>&mdash;wh
 is the definition of a <em>constructor</em> in Go&mdash;would
 normally be called <code>NewRing</code>, but since
 <code>Ring</code> is the only type exported by the package, and since the
-package is called <code>ring</code>, it's called just <code>New</code>.
-Clients of the package see that as <code>ring.New</code>.
+package is called <code>ring</code>, it's called just <code>New</code>,
+which clients of the package see as <code>ring.New</code>.
 Use the package structure to help you choose good names.
 </p>
 
@@ -330,6 +332,27 @@ If the name represents something intricate or subtle, it's usually better
 to write a helpful doc comment than to attempt to put all the information
 into the name.
 </p>
+
+<h3 id="Getters">Getters</h3>
+
+<p>
+Go doesn't provide automatic support for getters and setters.
+There's nothing wrong with providing getters and setters yourself,
+and it's often appropriate to do so, but it's neither idiomatic nor necessary
+to put <code>Get</code> into the getter's name.  If you have a field called
+<code>owner</code> (lower case, unexported), the getter method should be
+called <code>Owner</code> (upper case, exported), not <code>GetOwner</code>.
+The use of upper-case names for export provides the hook to discriminate
+the field from the method.
+A setter function, if needed, will likely be called <code>SetOwner</code>.
+Both names read well in practice:
+</p>
+<pre>
+owner := obj.Owner()
+if owner != user {
+	obj.SetOwner(user)
+}
+</pre>
 
 <h3 id="interface-names">Interface names</h3>
 
@@ -489,8 +512,8 @@ codeUsing(f)
 </pre>
 
 <p>
-This is a example of a common situation where code must analyze a
-sequence of error possibilities.  The code reads well if the
+This is an example of a common situation where code must guard against a
+sequence of error conditions.  The code reads well if the
 successful flow of control runs down the page, eliminating error cases
 as they arise.  Since error cases tend to end in <code>return</code>
 statements, the resulting code needs no <code>else</code> statements.
@@ -553,8 +576,9 @@ for _, value := range m {  // key is unused
 
 <p>
 For strings, the <code>range</code> does more work for you, breaking out individual
-Unicode characters by parsing the UTF-8 (erroneous encodings consume one byte and produce the
-replacement rune U+FFFD). The loop
+Unicode characters by parsing the UTF-8.
+Erroneous encodings consume one byte and produce the
+replacement rune U+FFFD. The loop
 </p>
 <pre>
 for pos, char := range "日本語" {
@@ -571,8 +595,9 @@ character 語 starts at byte position 6
 </pre>
 
 <p>
-Finally, since Go has no comma operator and <code>++</code> and <code>--</code>
-are statements not expressions, if you want to run multiple variables in a <code>for</code>
+Finally, Go has no comma operator and <code>++</code> and <code>--</code>
+are statements not expressions.
+Thus if you want to run multiple variables in a <code>for</code>
 you should use parallel assignment.
 </p>
 <pre>
@@ -676,7 +701,7 @@ case *int:
 
 <p>
 One of Go's unusual features is that functions and methods
-can return multiple values.  This can be used to
+can return multiple values.  This form can be used to
 improve on a couple of clumsy idioms in C programs: in-band
 error returns (such as <code>-1</code> for <code>EOF</code>)
 and modifying an argument.
@@ -811,7 +836,7 @@ func Contents(filename string) (string, os.Error) {
 </pre>
 
 <p>
-Deferring a function like this has two advantages.  First, it
+Deferring a call to a function such as <code>Close</code> has two advantages.  First, it
 guarantees that you will never forget to close the file, a mistake
 that's easy to make if you later edit the function to add a new return
 path.  Second, it means that the close sits near the open,
@@ -903,8 +928,9 @@ leaving: b
 For programmers accustomed to block-level resource management from
 other languages, <code>defer</code> may seem peculiar, but its most
 interesting and powerful applications come precisely from the fact
-that it's not block-based but function based.  In the section on
-<code>panic</code> and <code>recover</code> we'll see an example.
+that it's not block-based but function-based.  In the section on
+<code>panic</code> and <code>recover</code> we'll see another
+example of its possibilities.
 </p>
 
 <h2 id="data">Data</h2>
@@ -949,7 +975,7 @@ type SyncedBuffer struct {
 
 <p>
 Values of type <code>SyncedBuffer</code> are also ready to use immediately upon allocation
-or just declaration.  In this snippet, both <code>p</code> and <code>v</code> will work
+or just declaration.  In the next snippet, both <code>p</code> and <code>v</code> will work
 correctly without further arrangement.
 </p>
 
@@ -987,7 +1013,6 @@ an expression that creates a
 new instance each time it is evaluated.
 </p>
 
-
 <pre>
 func NewFile(fd int, name string) *File {
     if fd &lt; 0 {
@@ -999,7 +1024,7 @@ func NewFile(fd int, name string) *File {
 </pre>
 
 <p>
-Note that it's perfectly OK to return the address of a local variable;
+Note that, unlike in C, it's perfectly OK to return the address of a local variable;
 the storage associated with the variable survives after the function
 returns.
 In fact, taking the address of a composite literal
@@ -1053,7 +1078,7 @@ is that these three types are, under the covers, references to data structures t
 must be initialized before use.
 A slice, for example, is a three-item descriptor
 containing a pointer to the data (inside an array), the length, and the
-capacity; until those items are initialized, the slice is <code>nil</code>.
+capacity, and until those items are initialized, the slice is <code>nil</code>.
 For slices, maps, and channels,
 <code>make</code> initializes the internal data structure and prepares
 the value for use.
@@ -1273,7 +1298,21 @@ is not present in the map will return the zero value for the type
 of the entries
 in the map.  For instance, if the map contains integers, looking
 up a non-existent key will return <code>0</code>.
+A set can be implemented as a map with value type <code>bool</code>.
+Set the map entry to <code>true</code> to put the value in the set, and then
+test it by simple indexing.
 </p>
+<pre>
+attended := map[string] bool {
+    "Ann": true,
+    "Joe": true,
+    ...
+}
+
+if attended[person] { // will be false if person is not in the map
+    fmt.Println(person, "was at the meeting")
+}
+</pre>
 <p>
 Sometimes you need to distinguish a missing entry from
 a zero value.  Is there an entry for <code>"UTC"</code>
@@ -1298,7 +1337,7 @@ func offset(tz string) int {
     if seconds, ok := timeZone[tz]; ok {
         return seconds
     }
-    log.Println("unknown time zone", tz)
+    log.Println("unknown time zone:", tz)
     return 0
 }
 </pre>
