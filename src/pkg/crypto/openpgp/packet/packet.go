@@ -166,9 +166,9 @@ func readHeader(r io.Reader) (tag packetType, length int64, contents io.Reader, 
 	return
 }
 
-// serialiseHeader writes an OpenPGP packet header to w. See RFC 4880, section
+// serializeHeader writes an OpenPGP packet header to w. See RFC 4880, section
 // 4.2.
-func serialiseHeader(w io.Writer, ptype packetType, length int) (err os.Error) {
+func serializeHeader(w io.Writer, ptype packetType, length int) (err os.Error) {
 	var buf [6]byte
 	var n int
 
@@ -371,7 +371,7 @@ func (cipher CipherFunction) new(key []byte) (block cipher.Block) {
 
 // readMPI reads a big integer from r. The bit length returned is the bit
 // length that was specified in r. This is preserved so that the integer can be
-// reserialised exactly.
+// reserialized exactly.
 func readMPI(r io.Reader) (mpi []byte, bitLength uint16, err os.Error) {
 	var buf [2]byte
 	_, err = readFull(r, buf[0:])
@@ -385,7 +385,7 @@ func readMPI(r io.Reader) (mpi []byte, bitLength uint16, err os.Error) {
 	return
 }
 
-// writeMPI serialises a big integer to r.
+// writeMPI serializes a big integer to r.
 func writeMPI(w io.Writer, bitLength uint16, mpiBytes []byte) (err os.Error) {
 	_, err = w.Write([]byte{byte(bitLength >> 8), byte(bitLength)})
 	if err == nil {

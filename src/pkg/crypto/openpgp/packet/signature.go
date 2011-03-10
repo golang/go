@@ -316,8 +316,8 @@ func subpacketLengthLength(length int) int {
 	return 5
 }
 
-// serialiseSubpacketLength marshals the given length into to.
-func serialiseSubpacketLength(to []byte, length int) int {
+// serializeSubpacketLength marshals the given length into to.
+func serializeSubpacketLength(to []byte, length int) int {
 	if length < 192 {
 		to[0] = byte(length)
 		return 1
@@ -336,7 +336,7 @@ func serialiseSubpacketLength(to []byte, length int) int {
 	return 5
 }
 
-// subpacketsLength returns the serialised length, in bytes, of the given
+// subpacketsLength returns the serialized length, in bytes, of the given
 // subpackets.
 func subpacketsLength(subpackets []outputSubpacket, hashed bool) (length int) {
 	for _, subpacket := range subpackets {
@@ -349,11 +349,11 @@ func subpacketsLength(subpackets []outputSubpacket, hashed bool) (length int) {
 	return
 }
 
-// serialiseSubpackets marshals the given subpackets into to.
-func serialiseSubpackets(to []byte, subpackets []outputSubpacket, hashed bool) {
+// serializeSubpackets marshals the given subpackets into to.
+func serializeSubpackets(to []byte, subpackets []outputSubpacket, hashed bool) {
 	for _, subpacket := range subpackets {
 		if subpacket.hashed == hashed {
-			n := serialiseSubpacketLength(to, len(subpacket.contents)+1)
+			n := serializeSubpacketLength(to, len(subpacket.contents)+1)
 			to[n] = byte(subpacket.subpacketType)
 			to = to[1+n:]
 			n = copy(to, subpacket.contents)
@@ -381,7 +381,7 @@ func (sig *Signature) buildHashSuffix() (err os.Error) {
 	}
 	sig.HashSuffix[4] = byte(hashedSubpacketsLen >> 8)
 	sig.HashSuffix[5] = byte(hashedSubpacketsLen)
-	serialiseSubpackets(sig.HashSuffix[6:l], sig.outSubpackets, true)
+	serializeSubpackets(sig.HashSuffix[6:l], sig.outSubpackets, true)
 	trailer := sig.HashSuffix[l:]
 	trailer[0] = 4
 	trailer[1] = 0xff
@@ -417,7 +417,7 @@ func (sig *Signature) Serialize(w io.Writer) (err os.Error) {
 	length := len(sig.HashSuffix) - 6 /* trailer not included */ +
 		2 /* length of unhashed subpackets */ + unhashedSubpacketsLen +
 		2 /* hash tag */ + 2 /* length of signature MPI */ + len(sig.Signature)
-	err = serialiseHeader(w, packetTypeSignature, length)
+	err = serializeHeader(w, packetTypeSignature, length)
 	if err != nil {
 		return
 	}
@@ -430,7 +430,7 @@ func (sig *Signature) Serialize(w io.Writer) (err os.Error) {
 	unhashedSubpackets := make([]byte, 2+unhashedSubpacketsLen)
 	unhashedSubpackets[0] = byte(unhashedSubpacketsLen >> 8)
 	unhashedSubpackets[1] = byte(unhashedSubpacketsLen)
-	serialiseSubpackets(unhashedSubpackets[2:], sig.outSubpackets, false)
+	serializeSubpackets(unhashedSubpackets[2:], sig.outSubpackets, false)
 
 	_, err = w.Write(unhashedSubpackets)
 	if err != nil {
