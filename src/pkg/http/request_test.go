@@ -2,10 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package http
+package http_test
 
 import (
 	"bytes"
+	"fmt"
+	. "http"
+	"http/httptest"
+	"io"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -141,17 +146,33 @@ func TestMultipartReader(t *testing.T) {
 }
 
 func TestRedirect(t *testing.T) {
-	const (
-		start = "http://google.com/"
-		endRe = "^http://www\\.google\\.[a-z.]+/$"
-	)
-	var end = regexp.MustCompile(endRe)
-	r, url, err := Get(start)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		switch r.URL.Path {
+		case "/":
+			w.Header().Set("Location", "/foo/")
+			w.WriteHeader(StatusSeeOther)
+		case "/foo/":
+			fmt.Fprintf(w, "foo")
+		default:
+			w.WriteHeader(StatusBadRequest)
+		}
+	}))
+	defer ts.Close()
+
+	var end = regexp.MustCompile("/foo/$")
+	r, url, err := Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	r.Body.Close()
 	if r.StatusCode != 200 || !end.MatchString(url) {
-		t.Fatalf("Get(%s) got status %d at %q, want 200 matching %q", start, r.StatusCode, url, endRe)
+		t.Fatalf("Get got status %d at %q, want 200 matching /foo/$", r.StatusCode, url)
 	}
 }
+
+// TODO: stop copy/pasting this around.  move to io/ioutil?
+type nopCloser struct {
+	io.Reader
+}
+
+func (nopCloser) Close() os.Error { return nil }
