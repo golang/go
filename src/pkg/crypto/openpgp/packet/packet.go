@@ -169,7 +169,7 @@ func readHeader(r io.Reader) (tag packetType, length int64, contents io.Reader, 
 // serialiseHeader writes an OpenPGP packet header to w. See RFC 4880, section
 // 4.2.
 func serialiseHeader(w io.Writer, ptype packetType, length int) (err os.Error) {
-	var buf [5]byte
+	var buf [6]byte
 	var n int
 
 	buf[0] = 0x80 | 0x40 | byte(ptype)
@@ -178,16 +178,16 @@ func serialiseHeader(w io.Writer, ptype packetType, length int) (err os.Error) {
 		n = 2
 	} else if length < 8384 {
 		length -= 192
-		buf[1] = byte(length >> 8)
+		buf[1] = 192 + byte(length>>8)
 		buf[2] = byte(length)
 		n = 3
 	} else {
-		buf[0] = 255
-		buf[1] = byte(length >> 24)
-		buf[2] = byte(length >> 16)
-		buf[3] = byte(length >> 8)
-		buf[4] = byte(length)
-		n = 5
+		buf[1] = 255
+		buf[2] = byte(length >> 24)
+		buf[3] = byte(length >> 16)
+		buf[4] = byte(length >> 8)
+		buf[5] = byte(length)
+		n = 6
 	}
 
 	_, err = w.Write(buf[:n])

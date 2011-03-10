@@ -190,3 +190,23 @@ func TestReadHeader(t *testing.T) {
 		}
 	}
 }
+
+func TestSerialiseHeader(t *testing.T) {
+	tag := packetTypePublicKey
+	lengths := []int{0, 1, 2, 64, 192, 193, 8000, 8384, 8385, 10000}
+
+	for _, length := range lengths {
+		buf := bytes.NewBuffer(nil)
+		serialiseHeader(buf, tag, length)
+		tag2, length2, _, err := readHeader(buf)
+		if err != nil {
+			t.Errorf("length %d, err: %s", length, err)
+		}
+		if tag2 != tag {
+			t.Errorf("length %d, tag incorrect (got %d, want %d)", length, tag2, tag)
+		}
+		if int(length2) != length {
+			t.Errorf("length %d, length incorrect (got %d)", length, length2)
+		}
+	}
+}
