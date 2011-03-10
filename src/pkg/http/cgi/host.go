@@ -74,9 +74,13 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		"PATH_INFO=" + pathInfo,
 		"SCRIPT_NAME=" + root,
 		"SCRIPT_FILENAME=" + h.Path,
-		"REMOTE_ADDR=" + rw.RemoteAddr(),
-		"REMOTE_HOST=" + rw.RemoteAddr(),
+		"REMOTE_ADDR=" + req.RemoteAddr,
+		"REMOTE_HOST=" + req.RemoteAddr,
 		"SERVER_PORT=" + port,
+	}
+
+	if req.TLS != nil {
+		env = append(env, "HTTPS=on")
 	}
 
 	if len(req.Cookie) > 0 {

@@ -229,6 +229,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 }
 
 func TestServerTimeouts(t *testing.T) {
+	// TODO(bradfitz): convert this to use httptest.Server
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: 0})
 	if err != nil {
 		t.Fatalf("listen error: %v", err)
@@ -405,4 +406,24 @@ func TestServeHTTP10Close(t *testing.T) {
 	}
 
 	success <- true
+}
+
+func TestSetsRemoteAddr(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "%s", r.RemoteAddr)
+	}))
+	defer ts.Close()
+
+	res, _, err := Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get error: %v", err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("ReadAll error: %v", err)
+	}
+	ip := string(body)
+	if !strings.HasPrefix(ip, "127.0.0.1:") && !strings.HasPrefix(ip, "[::1]:") {
+		t.Fatalf("Expected local addr; got %q", ip)
+	}
 }

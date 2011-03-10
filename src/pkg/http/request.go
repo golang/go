@@ -11,6 +11,7 @@ package http
 
 import (
 	"bufio"
+	"crypto/tls"
 	"container/vector"
 	"fmt"
 	"io"
@@ -137,6 +138,22 @@ type Request struct {
 	// response has multiple trailer lines with the same key, they will be
 	// concatenated, delimited by commas.
 	Trailer Header
+
+	// RemoteAddr allows HTTP servers and other software to record
+	// the network address that sent the request, usually for
+	// logging. This field is not filled in by ReadRequest and
+	// has no defined format. The HTTP server in this package
+	// sets RemoteAddr to an "IP:port" address before invoking a
+	// handler.
+	RemoteAddr string
+
+	// TLS allows HTTP servers and other software to record
+	// information about the TLS connection on which the request
+	// was received. This field is not filled in by ReadRequest.
+	// The HTTP server in this package sets the field for
+	// TLS-enabled connections before invoking a handler;
+	// otherwise it leaves the field nil.
+	TLS *tls.ConnectionState
 }
 
 // ProtoAtLeast returns whether the HTTP protocol used

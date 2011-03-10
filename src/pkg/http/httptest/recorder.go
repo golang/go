@@ -14,12 +14,10 @@ import (
 // ResponseRecorder is an implementation of http.ResponseWriter that
 // records its mutations for later inspection in tests.
 type ResponseRecorder struct {
-	Code           int           // the HTTP response code from WriteHeader
-	HeaderMap      http.Header   // the HTTP response headers
-	Body           *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
-	Flushed        bool
-	FakeRemoteAddr string // the fake RemoteAddr to return, or "" for DefaultRemoteAddr
-	FakeUsingTLS   bool   // whether to return true from the UsingTLS method
+	Code      int           // the HTTP response code from WriteHeader
+	HeaderMap http.Header   // the HTTP response headers
+	Body      *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
+	Flushed   bool
 }
 
 // NewRecorder returns an initialized ResponseRecorder.
@@ -33,20 +31,6 @@ func NewRecorder() *ResponseRecorder {
 // DefaultRemoteAddr is the default remote address to return in RemoteAddr if
 // an explicit DefaultRemoteAddr isn't set on ResponseRecorder.
 const DefaultRemoteAddr = "1.2.3.4"
-
-// RemoteAddr returns the value of rw.FakeRemoteAddr, if set, else
-// returns DefaultRemoteAddr.
-func (rw *ResponseRecorder) RemoteAddr() string {
-	if rw.FakeRemoteAddr != "" {
-		return rw.FakeRemoteAddr
-	}
-	return DefaultRemoteAddr
-}
-
-// UsingTLS returns the fake value in rw.FakeUsingTLS
-func (rw *ResponseRecorder) UsingTLS() bool {
-	return rw.FakeUsingTLS
-}
 
 // Header returns the response headers.
 func (rw *ResponseRecorder) Header() http.Header {

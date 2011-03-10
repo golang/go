@@ -37,6 +37,7 @@ func newRequest(httpreq string) *http.Request {
 	if err != nil {
 		panic("cgi: bogus http request in test: " + httpreq)
 	}
+	req.RemoteAddr = "1.2.3.4"
 	return req
 }
 
