@@ -22,6 +22,7 @@ GOFILES=\
 	debug.go\
 	error.go\
 	extern.go\
+	mem.go\
 	sig.go\
 	softfloat64.go\
 	type.go\
