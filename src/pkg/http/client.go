@@ -20,26 +20,28 @@ import (
 // that uses DefaultTransport.
 // Client is not yet very configurable.
 type Client struct {
-	Transport Transport // if nil, DefaultTransport is used
+	Transport RoundTripper // if nil, DefaultTransport is used
 }
 
 // DefaultClient is the default Client and is used by Get, Head, and Post.
 var DefaultClient = &Client{}
 
-// Transport is an interface representing the ability to execute a
+// RoundTripper is an interface representing the ability to execute a
 // single HTTP transaction, obtaining the Response for a given Request.
-type Transport interface {
-	// Do executes a single HTTP transaction, returning the Response for the
-	// request req.  Do should not attempt to interpret the response.
-	// In particular, Do must return err == nil if it obtained a response,
-	// regardless of the response's HTTP status code.  A non-nil err should
-	// be reserved for failure to obtain a response.  Similarly, Do should
-	// not attempt to handle higher-level protocol details such as redirects,
+type RoundTripper interface {
+	// RoundTrip executes a single HTTP transaction, returning
+	// the Response for the request req.  RoundTrip should not
+	// attempt to interpret the response.  In particular,
+	// RoundTrip must return err == nil if it obtained a response,
+	// regardless of the response's HTTP status code.  A non-nil
+	// err should be reserved for failure to obtain a response.
+	// Similarly, RoundTrip should not attempt to handle
+	// higher-level protocol details such as redirects,
 	// authentication, or cookies.
 	//
-	// Transports may modify the request. The request Headers field is
-	// guaranteed to be initalized.
-	Do(req *Request) (resp *Response, err os.Error)
+	// RoundTrip may modify the request. The request Headers field is
+	// guaranteed to be initialized.
+	RoundTrip(req *Request) (resp *Response, err os.Error)
 }
 
 // Given a string of the form "host", "host:port", or "[ipv6::address]:port",
@@ -100,11 +102,7 @@ func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
 
 
 // send issues an HTTP request.  Caller should close resp.Body when done reading from it.
-//
-// TODO: support persistent connections (multiple requests on a single connection).
-// send() method is nonpublic because, when we refactor the code for persistent
-// connections, it may no longer make sense to have a method with this signature.
-func send(req *Request, t Transport) (resp *Response, err os.Error) {
+func send(req *Request, t RoundTripper) (resp *Response, err os.Error) {
 	if t == nil {
 		t = DefaultTransport
 		if t == nil {
@@ -130,7 +128,7 @@ func send(req *Request, t Transport) (resp *Response, err os.Error) {
 		}
 		req.Header.Set("Authorization", "Basic "+string(encoded))
 	}
-	return t.Do(req)
+	return t.RoundTrip(req)
 }
 
 // True if the specified HTTP status code is one for which the Get utility should

@@ -55,7 +55,7 @@ type recordingTransport struct {
 	req *Request
 }
 
-func (t *recordingTransport) Do(req *Request) (resp *Response, err os.Error) {
+func (t *recordingTransport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 	t.req = req
 	return nil, os.NewError("dummy impl")
 }

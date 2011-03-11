@@ -20,7 +20,7 @@ import (
 // each call to Do and uses HTTP proxies as directed by the
 // $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy)
 // environment variables.
-var DefaultTransport Transport = &transport{}
+var DefaultTransport RoundTripper = &transport{}
 
 // transport implements Tranport for the default case, using TCP
 // connections to either the host or a proxy, serving http or https
@@ -35,7 +35,7 @@ type transport struct {
 	hostConn map[string]*ClientConn
 }
 
-func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
+func (ct *transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 	if req.URL == nil {
 		if req.URL, err = ParseURL(req.RawURL); err != nil {
 			return
