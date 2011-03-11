@@ -1864,10 +1864,10 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type parseSpecFunction func(p *parser, doc *ast.CommentGroup) ast.Spec
+type parseSpecFunction func(p *parser, doc *ast.CommentGroup, iota int) ast.Spec
 
 
-func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"))
 	}
@@ -1894,7 +1894,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 }
 
 
-func parseConstSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+func parseConstSpec(p *parser, doc *ast.CommentGroup, iota int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ConstSpec"))
 	}
@@ -1902,7 +1902,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 	idents := p.parseIdentList()
 	typ := p.tryType()
 	var values []ast.Expr
-	if typ != nil || p.tok == token.ASSIGN {
+	if typ != nil || p.tok == token.ASSIGN || iota == 0 {
 		p.expect(token.ASSIGN)
 		values = p.parseExprList()
 	}
@@ -1919,7 +1919,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 }
 
 
-func parseTypeSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "TypeSpec"))
 	}
@@ -1939,7 +1939,7 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 }
 
 
-func parseVarSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+func parseVarSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "VarSpec"))
 	}
@@ -1976,13 +1976,13 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	if p.tok == token.LPAREN {
 		lparen = p.pos
 		p.next()
-		for p.tok != token.RPAREN && p.tok != token.EOF {
-			list = append(list, f(p, p.leadComment))
+		for iota := 0; p.tok != token.RPAREN && p.tok != token.EOF; iota++ {
+			list = append(list, f(p, p.leadComment, iota))
 		}
 		rparen = p.expect(token.RPAREN)
 		p.expectSemi()
 	} else {
-		list = append(list, f(p, nil))
+		list = append(list, f(p, nil, 0))
 	}
 
 	return &ast.GenDecl{doc, pos, keyword, lparen, list, rparen}

@@ -21,6 +21,7 @@ var illegalInputs = []interface{}{
 	`package p; func f() { if /* should have condition */ {} };`,
 	`package p; func f() { if ; /* should have condition */ {} };`,
 	`package p; func f() { if f(); /* should have condition */ {} };`,
+	`package p; const c; /* should have constant value */`,
 }
 
 
