@@ -41,8 +41,8 @@ func exportReceive(exp *Exporter, t *testing.T, expDone chan bool) {
 		t.Fatal("exportReceive:", err)
 	}
 	for i := 0; i < count; i++ {
-		v := <-ch
-		if closed(ch) {
+		v, ok := <-ch
+		if !ok {
 			if i != closeCount {
 				t.Errorf("exportReceive expected close at %d; got one at %d", closeCount, i)
 			}
@@ -78,8 +78,8 @@ func importReceive(imp *Importer, t *testing.T, done chan bool) {
 		t.Fatal("importReceive:", err)
 	}
 	for i := 0; i < count; i++ {
-		v := <-ch
-		if closed(ch) {
+		v, ok := <-ch
+		if !ok {
 			if i != closeCount {
 				t.Errorf("importReceive expected close at %d; got one at %d", closeCount, i)
 			}
@@ -212,8 +212,8 @@ func TestExportHangup(t *testing.T) {
 	}
 	// Now hang up the channel.  Importer should see it close.
 	exp.Hangup("exportedSend")
-	v = <-ich
-	if !closed(ich) {
+	v, ok := <-ich
+	if ok {
 		t.Fatal("expected channel to be closed; got value", v)
 	}
 }
@@ -242,8 +242,8 @@ func TestImportHangup(t *testing.T) {
 	}
 	// Now hang up the channel.  Exporter should see it close.
 	imp.Hangup("exportedRecv")
-	v = <-ech
-	if !closed(ech) {
+	v, ok := <-ech
+	if ok {
 		t.Fatal("expected channel to be closed; got value", v)
 	}
 }

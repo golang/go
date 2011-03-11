@@ -671,18 +671,11 @@ func (v *ChanValue) Get() uintptr { return *(*uintptr)(v.addr) }
 
 // implemented in ../pkg/runtime/reflect.cgo
 func makechan(typ *runtime.ChanType, size uint32) (ch *byte)
-func chansend(ch, val *byte, pres *bool)
-func chanrecv(ch, val *byte, pres *bool)
-func chanclosed(ch *byte) bool
+func chansend(ch, val *byte, selected *bool)
+func chanrecv(ch, val *byte, selected *bool, ok *bool)
 func chanclose(ch *byte)
 func chanlen(ch *byte) int32
 func chancap(ch *byte) int32
-
-// Closed returns the result of closed(c) on the underlying channel.
-func (v *ChanValue) Closed() bool {
-	ch := *(**byte)(v.addr)
-	return chanclosed(ch)
-}
 
 // Close closes the channel.
 func (v *ChanValue) Close() {
@@ -700,52 +693,61 @@ func (v *ChanValue) Cap() int {
 	return int(chancap(ch))
 }
 
-// internal send; non-blocking if b != nil
-func (v *ChanValue) send(x Value, b *bool) {
+// internal send; non-blocking if selected != nil
+func (v *ChanValue) send(x Value, selected *bool) {
 	t := v.Type().(*ChanType)
 	if t.Dir()&SendDir == 0 {
 		panic("send on recv-only channel")
 	}
 	typesMustMatch(t.Elem(), x.Type())
 	ch := *(**byte)(v.addr)
-	chansend(ch, (*byte)(x.getAddr()), b)
+	chansend(ch, (*byte)(x.getAddr()), selected)
 }
 
-// internal recv; non-blocking if b != nil
-func (v *ChanValue) recv(b *bool) Value {
+// internal recv; non-blocking if selected != nil
+func (v *ChanValue) recv(selected *bool) (Value, bool) {
 	t := v.Type().(*ChanType)
 	if t.Dir()&RecvDir == 0 {
 		panic("recv on send-only channel")
 	}
 	ch := *(**byte)(v.addr)
 	x := MakeZero(t.Elem())
-	chanrecv(ch, (*byte)(x.getAddr()), b)
-	return x
+	var ok bool
+	chanrecv(ch, (*byte)(x.getAddr()), selected, &ok)
+	return x, ok
 }
 
 // Send sends x on the channel v.
 func (v *ChanValue) Send(x Value) { v.send(x, nil) }
 
 // Recv receives and returns a value from the channel v.
-func (v *ChanValue) Recv() Value { return v.recv(nil) }
+// The receive blocks until a value is ready.
+// The boolean value ok is true if the value x corresponds to a send
+// on the channel, false if it is a zero value received because the channel is closed.
+func (v *ChanValue) Recv() (x Value, ok bool) {
+	return v.recv(nil)
+}
 
 // TrySend attempts to sends x on the channel v but will not block.
 // It returns true if the value was sent, false otherwise.
 func (v *ChanValue) TrySend(x Value) bool {
-	var ok bool
-	v.send(x, &ok)
-	return ok
+	var selected bool
+	v.send(x, &selected)
+	return selected
 }
 
 // TryRecv attempts to receive a value from the channel v but will not block.
-// It returns the value if one is received, nil otherwise.
-func (v *ChanValue) TryRecv() Value {
-	var ok bool
-	x := v.recv(&ok)
-	if !ok {
-		return nil
+// If the receive cannot finish without blocking, TryRecv instead returns x == nil.
+// If the receive can finish without blocking, TryRecv returns x != nil.
+// The boolean value ok is true if the value x corresponds to a send
+// on the channel, false if it is a zero value received because the channel is closed.
+func (v *ChanValue) TryRecv() (x Value, ok bool) {
+	var selected bool
+	x, ok = v.recv(&selected)
+	if !selected {
+		return nil, false
 	}
-	return x
+	return x, ok
 }
 
 // MakeChan creates a new channel with the specified type and buffer size.

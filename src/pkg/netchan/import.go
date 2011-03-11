@@ -213,8 +213,8 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size, 
 	if dir == Send {
 		go func() {
 			for i := 0; n == -1 || i < n; i++ {
-				val, closed := nch.recv()
-				if closed {
+				val, ok := nch.recv()
+				if !ok {
 					if err = imp.encode(hdr, payClosed, nil); err != nil {
 						impLog("error encoding client closed message:", err)
 					}

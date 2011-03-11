@@ -35,6 +35,7 @@ func TestInotifyEvents(t *testing.T) {
 	// Receive events on the event channel on a separate goroutine
 	eventstream := watcher.Event
 	var eventsReceived = 0
+	done := make(chan bool)
 	go func() {
 		for event := range eventstream {
 			// Only count relevant events
@@ -45,6 +46,7 @@ func TestInotifyEvents(t *testing.T) {
 				t.Logf("unexpected event received: %s", event)
 			}
 		}
+		done <- true
 	}()
 
 	// Create a file
@@ -64,16 +66,12 @@ func TestInotifyEvents(t *testing.T) {
 	t.Log("calling Close()")
 	watcher.Close()
 	t.Log("waiting for the event channel to become closed...")
-	var i = 0
-	for !closed(eventstream) {
-		if i >= 20 {
-			t.Fatal("event stream was not closed after 1 second, as expected")
-		}
-		t.Log("waiting for 50 ms...")
-		time.Sleep(50e6) // 50 ms
-		i++
+	select {
+	case <-done:
+		t.Log("event channel closed")
+	case <-time.After(1e9):
+		t.Fatal("event stream was not closed after 1 second")
 	}
-	t.Log("event channel closed")
 }
 
 

@@ -35,7 +35,6 @@ func bad(args ...int) {
 	ch := make(chan int)
 	close(ch...)	// ERROR "[.][.][.]"
 	_ = len(args...)	// ERROR "[.][.][.]"
-	_ = closed(ch...)	// ERROR "[.][.][.]"
 	_ = new(int...)	// ERROR "[.][.][.]"
 	n := 10
 	_ = make([]byte, n...)	// ERROR "[.][.][.]"

@@ -306,8 +306,8 @@ func recvValues(multiplex chan<- interface{}, channel interface{}) {
 	c := reflect.NewValue(channel).(*reflect.ChanValue)
 
 	for {
-		v := c.Recv()
-		if c.Closed() {
+		v, ok := c.Recv()
+		if !ok {
 			multiplex <- channelClosed{channel}
 			return
 		}

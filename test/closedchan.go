@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test close(c), closed(c).
+// Test close(c), receive of closed channel.
 //
 // TODO(rsc): Doesn't check behavior of close(c) when there
 // are blocked senders/receivers.
@@ -14,10 +14,11 @@ package main
 type Chan interface {
 	Send(int)
 	Nbsend(int) bool
-	Recv() int
+	Recv() (int)
 	Nbrecv() (int, bool)
+	Recv2() (int, bool)
+	Nbrecv2() (int, bool, bool)
 	Close()
-	Closed() bool
 	Impl() string
 }
 
@@ -52,12 +53,23 @@ func (c XChan) Nbrecv() (int, bool) {
 	panic("nbrecv")
 }
 
-func (c XChan) Close() {
-	close(c)
+func (c XChan) Recv2() (int, bool) {
+	x, ok := <-c
+	return x, ok
 }
 
-func (c XChan) Closed() bool {
-	return closed(c)
+func (c XChan) Nbrecv2() (int, bool, bool) {
+	select {
+	case x, ok := <-c:
+		return x, ok, true
+	default:
+		return 0, false, false
+	}
+	panic("nbrecv2")
+}
+
+func (c XChan) Close() {
+	close(c)
 }
 
 func (c XChan) Impl() string {
@@ -101,12 +113,26 @@ func (c SChan) Nbrecv() (int, bool) {
 	panic("nbrecv")
 }
 
-func (c SChan) Close() {
-	close(c)
+func (c SChan) Recv2() (int, bool) {
+	select {
+	case x, ok := <-c:
+		return x, ok
+	}
+	panic("recv")
 }
 
-func (c SChan) Closed() bool {
-	return closed(c)
+func (c SChan) Nbrecv2() (int, bool, bool) {
+	select {
+	default:
+		return 0, false, false
+	case x, ok := <-c:
+		return x, ok, true
+	}
+	panic("nbrecv")
+}
+
+func (c SChan) Close() {
+	close(c)
 }
 
 func (c SChan) Impl() string {
@@ -156,12 +182,28 @@ func (c SSChan) Nbrecv() (int, bool) {
 	panic("nbrecv")
 }
 
-func (c SSChan) Close() {
-	close(c)
+func (c SSChan) Recv2() (int, bool) {
+	select {
+	case <-dummy:
+	case x, ok := <-c:
+		return x, ok
+	}
+	panic("recv")
 }
 
-func (c SSChan) Closed() bool {
-	return closed(c)
+func (c SSChan) Nbrecv2() (int, bool, bool) {
+	select {
+	case <-dummy:
+	default:
+		return 0, false, false
+	case x, ok := <-c:
+		return x, ok, true
+	}
+	panic("nbrecv")
+}
+
+func (c SSChan) Close() {
+	close(c)
 }
 
 func (c SSChan) Impl() string {
@@ -179,29 +221,23 @@ func shouldPanic(f func()) {
 }
 
 func test1(c Chan) {
-	// not closed until the close signal (a zero value) has been received.
-	if c.Closed() {
-		println("test1: Closed before Recv zero:", c.Impl())
-	}
-
 	for i := 0; i < 3; i++ {
 		// recv a close signal (a zero value)
 		if x := c.Recv(); x != 0 {
-			println("test1: recv on closed got non-zero:", x, c.Impl())
+			println("test1: recv on closed:", x, c.Impl())
+		}
+		if x, ok := c.Recv2(); x != 0 || ok {
+			println("test1: recv2 on closed:", x, ok, c.Impl())
 		}
 
-		// should now be closed.
-		if !c.Closed() {
-			println("test1: not closed after recv zero", c.Impl())
+		// should work with select: received a value without blocking, so selected == true.
+		x, selected := c.Nbrecv()
+		if x != 0 || !selected {
+			println("test1: recv on closed nb:", x, selected, c.Impl())
 		}
-
-		// should work with ,ok: received a value without blocking, so ok == true.
-		x, ok := c.Nbrecv()
-		if !ok {
-			println("test1: recv on closed got not ok", c.Impl())
-		}
-		if x != 0 {
-			println("test1: recv ,ok on closed got non-zero:", x, c.Impl())
+		x, ok, selected := c.Nbrecv2()
+		if x != 0 || ok || !selected {
+			println("test1: recv2 on closed nb:", x, ok, selected, c.Impl())
 		}
 	}
 
@@ -221,11 +257,6 @@ func test1(c Chan) {
 }
 
 func testasync1(c Chan) {
-	// not closed until the close signal (a zero value) has been received.
-	if c.Closed() {
-		println("testasync1: Closed before Recv zero:", c.Impl())
-	}
-
 	// should be able to get the last value via Recv
 	if x := c.Recv(); x != 1 {
 		println("testasync1: Recv did not get 1:", x, c.Impl())
@@ -235,16 +266,28 @@ func testasync1(c Chan) {
 }
 
 func testasync2(c Chan) {
-	// not closed until the close signal (a zero value) has been received.
-	if c.Closed() {
-		println("testasync2: Closed before Recv zero:", c.Impl())
+	// should be able to get the last value via Recv2
+	if x, ok := c.Recv2(); x != 1 || !ok {
+		println("testasync1: Recv did not get 1, true:", x, ok, c.Impl())
 	}
 
+	test1(c)
+}
+
+func testasync3(c Chan) {
 	// should be able to get the last value via Nbrecv
-	if x, ok := c.Nbrecv(); !ok || x != 1 {
-		println("testasync2: Nbrecv did not get 1, true:", x, ok, c.Impl())
+	if x, selected := c.Nbrecv(); x != 1 || !selected {
+		println("testasync2: Nbrecv did not get 1, true:", x, selected, c.Impl())
 	}
 
+	test1(c)
+}
+
+func testasync4(c Chan) {
+	// should be able to get the last value via Nbrecv2
+	if x, ok, selected := c.Nbrecv2(); x != 1 || !ok || !selected {
+		println("testasync2: Nbrecv did not get 1, true, true:", x, ok, selected, c.Impl())
+	}
 	test1(c)
 }
 
@@ -261,15 +304,27 @@ func closedasync() chan int {
 	return c
 }
 
-func main() {
-	test1(XChan(closedsync()))
-	test1(SChan(closedsync()))
-	test1(SSChan(closedsync()))
+var mks = []func(chan int) Chan {
+	func(c chan int) Chan { return XChan(c) },
+	func(c chan int) Chan { return SChan(c) },
+	func(c chan int) Chan { return SSChan(c) },
+}
 
-	testasync1(XChan(closedasync()))
-	testasync1(SChan(closedasync()))
-	testasync1(SSChan(closedasync()))
-	testasync2(XChan(closedasync()))
-	testasync2(SChan(closedasync()))
-	testasync2(SSChan(closedasync()))
+var testcloseds = []func(Chan) {
+	testasync1,
+	testasync2,
+	testasync3,
+	testasync4,
+}
+
+func main() {
+	for _, mk := range mks {
+		test1(mk(closedsync()))
+	}
+	
+	for _, testclosed := range testcloseds {
+		for _, mk := range mks {
+			testclosed(mk(closedasync()))
+		}
+	}
 }
