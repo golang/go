@@ -585,7 +585,6 @@ Hchan*	runtime·makechan_c(Type*, int64);
 void	runtime·chansend(Hchan*, void*, bool*);
 void	runtime·chanrecv(Hchan*, void*, bool*, bool*);
 void	runtime·chanclose(Hchan*);
-bool	runtime·chanclosed(Hchan*);
 int32	runtime·chanlen(Hchan*);
 int32	runtime·chancap(Hchan*);
 

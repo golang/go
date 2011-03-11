@@ -834,7 +834,6 @@ goopnames[] =
 	[OCALL]	= "function call",
 	[OCAP]		= "cap",
 	[OCASE]		= "case",
-	[OCLOSED]	= "closed",
 	[OCLOSE]	= "close",
 	[OCOMPLEX]	= "complex",
 	[OCOM]		= "^",
@@ -1669,6 +1668,9 @@ isselect(Node *n)
 	if(s == n->sym)
 		return 1;
 	s = pkglookup("selectrecv", runtimepkg);
+	if(s == n->sym)
+		return 1;
+	s = pkglookup("selectrecv2", runtimepkg);
 	if(s == n->sym)
 		return 1;
 	s = pkglookup("selectdefault", runtimepkg);

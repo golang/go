@@ -70,20 +70,16 @@ func makechan(typ *byte, size uint32) (ch *byte) {
 	ch = (byte*)runtime·makechan_c(t->elem, size);
 }
 
-func chansend(ch *byte, val *byte, pres *bool) {
-	runtime·chansend((Hchan*)ch, val, pres);
+func chansend(ch *byte, val *byte, selected *bool) {
+	runtime·chansend((Hchan*)ch, val, selected);
 }
 
-func chanrecv(ch *byte, val *byte, pres *bool) {
-	runtime·chanrecv((Hchan*)ch, val, pres, nil);
+func chanrecv(ch *byte, val *byte, selected *bool, received *bool) {
+	runtime·chanrecv((Hchan*)ch, val, selected, received);
 }
 
 func chanclose(ch *byte) {
 	runtime·chanclose((Hchan*)ch);
-}
-
-func chanclosed(ch *byte) (r bool) {
-	r = runtime·chanclosed((Hchan*)ch);
 }
 
 func chanlen(ch *byte) (r int32) {

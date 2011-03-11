@@ -461,23 +461,32 @@ case:
 		}
 		break;
 	}
-|	LCASE expr '=' expr ':'
+|	LCASE expr_or_type_list '=' expr ':'
 	{
+		Node *n;
+
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
 		poptodcl();
 		$$ = nod(OXCASE, N, N);
-		$$->list = list1(nod(OAS, $2, $4));
+		if($2->next == nil)
+			n = nod(OAS, $2->n, $4);
+		else {
+			n = nod(OAS2, N, N);
+			n->list = $2;
+			n->rlist = list1($4);
+		}
+		$$->list = list1(n);
 	}
-|	LCASE name LCOLAS expr ':'
+|	LCASE expr_or_type_list LCOLAS expr ':'
 	{
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
 		poptodcl();
 		$$ = nod(OXCASE, N, N);
-		$$->list = list1(colas(list1($2), list1($4)));
+		$$->list = list1(colas($2, list1($4)));
 	}
 |	LDEFAULT ':'
 	{
