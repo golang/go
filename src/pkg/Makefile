@@ -156,6 +156,7 @@ DIRS=\
 	../cmd/ebnflint\
 	../cmd/godoc\
 	../cmd/gofmt\
+	../cmd/gotype\
 	../cmd/goinstall\
 	../cmd/govet\
 	../cmd/goyacc\
@@ -191,6 +192,7 @@ NOTEST=\
 	../cmd/ebnflint\
 	../cmd/godoc\
 	../cmd/gofmt\
+	../cmd/gotype\
 	../cmd/govet\
 	../cmd/goyacc\
 	../cmd/hgpatch\
