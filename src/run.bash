@@ -81,6 +81,13 @@ gomake clean
 ./test.bash
 ) || exit $?
 
+[ "$GOARCH" == arm ] ||
+[ "$GOHOSTOS" == windows ] ||
+(xcd ../misc/cgo/test
+gomake clean
+gotest
+) || exit $?
+
 (xcd pkg/exp/ogle
 gomake clean
 time gomake ogle
