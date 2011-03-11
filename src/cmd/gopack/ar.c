@@ -430,7 +430,7 @@ xcmd(char *arname, int count, char **files)
 				arcopy(&bar, 0, bp);
 				if (write(f, bp->member, bp->size) < 0)
 					wrerr();
-				if(oflag) {
+				if(oflag && bp->date != 0) {
 					nulldir(&dx);
 					dx.atime = bp->date;
 					dx.mtime = bp->date;
@@ -1022,7 +1022,7 @@ armove(Biobuf *b, Arfile *ap, Armember *bp)
 	for (cp = strchr(bp->hdr.name, 0);		/* blank pad on right */
 		cp < bp->hdr.name+sizeof(bp->hdr.name); cp++)
 			*cp = ' ';
-	sprint(bp->hdr.date, "%-12ld", d->mtime);
+	sprint(bp->hdr.date, "%-12ld", 0);  // was d->mtime but removed for idempotent builds
 	sprint(bp->hdr.uid, "%-6d", 0);
 	sprint(bp->hdr.gid, "%-6d", 0);
 	sprint(bp->hdr.mode, "%-8lo", d->mode);
@@ -1125,7 +1125,7 @@ rl(int fd)
 	len = symdefsize;
 	if(len&01)
 		len++;
-	sprint(a.date, "%-12ld", time(0));
+	sprint(a.date, "%-12ld", 0);  // time(0)
 	sprint(a.uid, "%-6d", 0);
 	sprint(a.gid, "%-6d", 0);
 	sprint(a.mode, "%-8lo", 0644L);
@@ -1162,7 +1162,7 @@ rl(int fd)
 
 	if (gflag) {
 		len = pkgdefsize;
-		sprint(a.date, "%-12ld", time(0));
+		sprint(a.date, "%-12ld", 0);  // time(0)
 		sprint(a.uid, "%-6d", 0);
 		sprint(a.gid, "%-6d", 0);
 		sprint(a.mode, "%-8lo", 0644L);
