@@ -36,6 +36,11 @@ type transport struct {
 }
 
 func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
+	if req.URL == nil {
+		if req.URL, err = ParseURL(req.RawURL); err != nil {
+			return
+		}
+	}
 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
 	}
