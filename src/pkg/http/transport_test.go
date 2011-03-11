@@ -30,9 +30,9 @@ func TestTransportNilURL(t *testing.T) {
 
 	// TODO(bradfitz): test &transport{} and not DefaultTransport
 	// once Transport is exported.
-	res, err := DefaultTransport.Do(req)
+	res, err := DefaultTransport.RoundTrip(req)
 	if err != nil {
-		t.Fatalf("unexpected Do error: %v", err)
+		t.Fatalf("unexpected RoundTrip error: %v", err)
 	}
 	body, err := ioutil.ReadAll(res.Body)
 	if g, e := string(body), "Hi"; g != e {
