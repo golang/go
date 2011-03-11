@@ -7,7 +7,7 @@
 package P1
 
 const (
-	c1         /* ERROR "missing initializer" */
+	c1 = 0
 	c2     int = 0
 	c3, c4 = 0
 )

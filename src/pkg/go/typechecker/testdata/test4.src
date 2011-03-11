@@ -7,5 +7,5 @@
 package P4
 
 const (
-	c0 /* ERROR "missing initializer" */
+	c0 = 0
 )
