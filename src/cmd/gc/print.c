@@ -52,7 +52,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OARRAYBYTESTR:
 	case OCAP:
 	case OCLOSE:
-	case OCLOSED:
 	case OCOPY:
 	case OLEN:
 	case OMAKE:
@@ -405,7 +404,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OAPPEND:
 	case OCAP:
 	case OCLOSE:
-	case OCLOSED:
 	case OLEN:
 	case OCOPY:
 	case OMAKE:

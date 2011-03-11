@@ -403,12 +403,11 @@ walkstmt(Node **np)
 	case OAS:
 	case OAS2:
 	case OAS2DOTTYPE:
-	case OAS2RECVCLOSED:
+	case OAS2RECV:
 	case OAS2FUNC:
 	case OAS2MAPW:
 	case OAS2MAPR:
 	case OCLOSE:
-	case OCLOSED:
 	case OCOPY:
 	case OCALLMETH:
 	case OCALLINTER:
@@ -822,14 +821,13 @@ walkexpr(Node **np, NodeList **init)
 		n = liststmt(concat(concat(list1(r), ll), lpost));
 		goto ret;
 
-	case OAS2RECVCLOSED:
-		// a = <-c; b = closed(c) but atomic
+	case OAS2RECV:
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
-		fn = chanfn("chanrecv3", 2, r->left->type);
+		fn = chanfn("chanrecv2", 2, r->left->type);
 		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
 		n->rlist->n = r;
 		n->op = OAS2FUNC;
@@ -1307,13 +1305,6 @@ walkexpr(Node **np, NodeList **init)
 		fn = syslook("closechan", 1);
 		argtype(fn, n->left->type);
 		n = mkcall1(fn, T, init, n->left);
-		goto ret;
-
-	case OCLOSED:
-		// cannot use chanfn - closechan takes any, not chan any
-		fn = syslook("closedchan", 1);
-		argtype(fn, n->left->type);
-		n = mkcall1(fn, n->type, init, n->left);
 		goto ret;
 
 	case OMAKECHAN:

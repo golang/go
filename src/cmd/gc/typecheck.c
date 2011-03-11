@@ -921,7 +921,6 @@ reswitch:
 		n->type = t;
 		goto ret;
 
-	case OCLOSED:
 	case OCLOSE:
 		if(onearg(n, "%#O", n->op) < 0)
 			goto error;
@@ -934,11 +933,7 @@ reswitch:
 			yyerror("invalid operation: %#N (non-chan type %T)", n, t);
 			goto error;
 		}
-		if(n->op == OCLOSED) {
-			n->type = types[TBOOL];
-			ok |= Erv;
-		} else
-			ok |= Etop;
+		ok |= Etop;
 		goto ret;
 
 	case OAPPEND:
@@ -2377,8 +2372,9 @@ typecheckas2(Node *n)
 			n->op = OAS2MAPR;
 			goto common;
 		case ORECV:
-			yyerror("cannot use multiple-value assignment for non-blocking receive; use select");
-			goto out;
+			n->op = OAS2RECV;
+			n->right = n->rlist->n;
+			goto common;
 		case ODOTTYPE:
 			n->op = OAS2DOTTYPE;
 			r->op = ODOTTYPE2;
