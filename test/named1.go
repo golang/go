@@ -43,10 +43,6 @@ func main() {
 	_, b = m[2] // ERROR "cannot .* bool.*type Bool"
 	m[2] = 1, b // ERROR "cannot use.*type Bool.*as type bool"
 
-	////TODO(rsc): uncomment when this syntax is valid for receive+check closed
-	////	_, b = <-c // ERROR "cannot .* bool.*type Bool"
-	////	_ = b
-
 	var inter interface{}
 	_, b = inter.(Map) // ERROR "cannot .* bool.*type Bool"
 	_ = b
@@ -57,8 +53,9 @@ func main() {
 	_, b = minter.(Map) // ERROR "cannot .* bool.*type Bool"
 	_ = b
 
-	asBool(closed(c)) // ERROR "cannot use.*type bool.*as type Bool"
-	b = closed(c)     // ERROR "cannot use.*type bool.*type Bool"
+	_, bb := <-c
+	asBool(bb) // ERROR "cannot use.*type bool.*as type Bool"
+	_, b = <-c     // ERROR "cannot .* bool.*type Bool"
 	_ = b
 
 	asString(String(slice)) // ERROR "cannot .*type Slice.*type String"

@@ -306,7 +306,7 @@ func (nch *netChan) sender() {
 }
 
 // Receive value from local side for sending to remote side.
-func (nch *netChan) recv() (val reflect.Value, closed bool) {
+func (nch *netChan) recv() (val reflect.Value, ok bool) {
 	if nch.dir != Send {
 		panic("recv on wrong direction of channel")
 	}
@@ -317,7 +317,7 @@ func (nch *netChan) recv() (val reflect.Value, closed bool) {
 		nch.space++
 	}
 	nch.space--
-	return nch.ch.Recv(), nch.ch.Closed()
+	return nch.ch.Recv()
 }
 
 // acked is called when the remote side indicates that

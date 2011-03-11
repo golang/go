@@ -968,28 +968,28 @@ func TestChan(t *testing.T) {
 
 		// Recv
 		c <- 3
-		if i := cv.Recv().(*IntValue).Get(); i != 3 {
-			t.Errorf("native send 3, reflect Recv %d", i)
+		if i, ok := cv.Recv(); i.(*IntValue).Get() != 3 || !ok {
+			t.Errorf("native send 3, reflect Recv %d, %t", i.(*IntValue).Get(), ok)
 		}
 
 		// TryRecv fail
-		val := cv.TryRecv()
-		if val != nil {
-			t.Errorf("TryRecv on empty chan: %s", valueToString(val))
+		val, ok := cv.TryRecv()
+		if val != nil || ok {
+			t.Errorf("TryRecv on empty chan: %s, %t", valueToString(val), ok)
 		}
 
 		// TryRecv success
 		c <- 4
-		val = cv.TryRecv()
+		val, ok = cv.TryRecv()
 		if val == nil {
 			t.Errorf("TryRecv on ready chan got nil")
-		} else if i := val.(*IntValue).Get(); i != 4 {
-			t.Errorf("native send 4, TryRecv %d", i)
+		} else if i := val.(*IntValue).Get(); i != 4 || !ok {
+			t.Errorf("native send 4, TryRecv %d, %t", i, ok)
 		}
 
 		// TrySend fail
 		c <- 100
-		ok := cv.TrySend(NewValue(5))
+		ok = cv.TrySend(NewValue(5))
 		i := <-c
 		if ok {
 			t.Errorf("TrySend on full chan succeeded: value %d", i)
@@ -1008,20 +1008,11 @@ func TestChan(t *testing.T) {
 		// Close
 		c <- 123
 		cv.Close()
-		if cv.Closed() {
-			t.Errorf("closed too soon - 1")
+		if i, ok := cv.Recv(); i.(*IntValue).Get() != 123 || !ok {
+			t.Errorf("send 123 then close; Recv %d, %t", i.(*IntValue).Get(), ok)
 		}
-		if i := cv.Recv().(*IntValue).Get(); i != 123 {
-			t.Errorf("send 123 then close; Recv %d", i)
-		}
-		if cv.Closed() {
-			t.Errorf("closed too soon - 2")
-		}
-		if i := cv.Recv().(*IntValue).Get(); i != 0 {
-			t.Errorf("after close Recv %d", i)
-		}
-		if !cv.Closed() {
-			t.Errorf("not closed")
+		if i, ok := cv.Recv(); i.(*IntValue).Get() != 0 || ok {
+			t.Errorf("after close Recv %d, %t", i.(*IntValue).Get(), ok)
 		}
 	}
 
@@ -1032,7 +1023,7 @@ func TestChan(t *testing.T) {
 	if cv.TrySend(NewValue(7)) {
 		t.Errorf("TrySend on sync chan succeeded")
 	}
-	if cv.TryRecv() != nil {
+	if v, ok := cv.TryRecv(); v != nil || ok {
 		t.Errorf("TryRecv on sync chan succeeded")
 	}
 

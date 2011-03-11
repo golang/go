@@ -181,8 +181,8 @@ func (client *expClient) run() {
 // The header is passed by value to avoid issues of overwriting.
 func (client *expClient) serveRecv(nch *netChan, hdr header, count int64) {
 	for {
-		val, closed := nch.recv()
-		if closed {
+		val, ok := nch.recv()
+		if !ok {
 			if err := client.encode(&hdr, payClosed, nil); err != nil {
 				expLog("error encoding server closed message:", err)
 			}

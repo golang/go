@@ -22,21 +22,18 @@ func main() {
 
 	c <- 0 // ok
 	<-c    // ok
-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
-	//	x, ok := <-c	// ok
-	//	_, _ = x, ok
+	x, ok := <-c	// ok
+	_, _ = x, ok
 
 	cr <- 0 // ERROR "send"
 	<-cr    // ok
-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
-	//	x, ok = <-cr	// ok
-	//	_, _ = x, ok
+	x, ok = <-cr	// ok
+	_, _ = x, ok
 
 	cs <- 0 // ok
 	<-cs    // ERROR "receive"
-	////TODO(rsc): uncomment when this syntax is valid for receive+check closed
-	////	x, ok = <-cs	// ERROR "receive"
-	////	_, _ = x, ok
+	x, ok = <-cs	// ERROR "receive"
+	_, _ = x, ok
 
 	select {
 	case c <- 0: // ok

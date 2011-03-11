@@ -88,11 +88,15 @@ func main() {
 		ch <- 7
 	})
 
-	// receiving (a small number of times) from a closed channel never blocks
+	// receiving from a closed channel never blocks
 	testBlock(never, func() {
 		for i := 0; i < 10; i++ {
 			if <-closedch != 0 {
 				panic("expected zero value when reading from closed channel")
+			}
+			if x, ok := <-closedch; x != 0 || ok {
+				println("closedch:", x, ok)
+				panic("expected 0, false from closed channel")
 			}
 		}
 	})
@@ -191,12 +195,24 @@ func main() {
 		case <-closedch:
 		}
 	})
+	testBlock(never, func() {
+		select {
+		case x := <-closedch:
+			_ = x
+		}
+	})
+	testBlock(never, func() {
+		select {
+		case x, ok := <-closedch:
+			_, _ = x, ok
+		}
+	})
 	testPanic(always, func() {
 		select {
 		case closedch <- 7:
 		}
 	})
-	
+
 	// select should not get confused if it sees itself
 	testBlock(always, func() {
 		c := make(chan int)

@@ -896,8 +896,8 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 		}
 	} else if ch := iter(field); ch != nil {
 		for {
-			e := ch.Recv()
-			if ch.Closed() {
+			e, ok := ch.Recv()
+			if !ok {
 				break
 			}
 			loopBody(st.clone(e))
