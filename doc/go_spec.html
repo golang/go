@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of March 7, 2011 -->
+<!-- subtitle Version of March 11, 2011 -->
 
 <!--
 TODO
@@ -1235,8 +1235,11 @@ receiver are ready.
 </p>
 
 <p>
-A channel may be closed and tested for closure with the built-in functions
-<a href="#Close_and_closed"><code>close</code> and <code>closed</code></a>.
+A channel may be closed with the built-in function
+<a href="#Close"><code>close</code></a>; the
+multi-valued assignment form of the
+<a href="#Receive_operator">receive operator</a>
+tests whether a channel has been closed.
 </p>
 
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
@@ -1496,7 +1499,7 @@ Zero value:
 	nil
 
 Functions:
-	append cap close closed complex copy imag len
+	append cap close complex copy imag len
 	make new panic print println real recover
 </pre>
 
@@ -3029,9 +3032,6 @@ f(&lt;-ch)
 &lt;-strobe  // wait until clock pulse and discard received value
 </pre>
 
-<!--
-    TODO(rsc): Add after a release or two without any x,ok := <-c.
-
 <p>
 A receive expression used in an assignment or initialization of the form
 </p>
@@ -3049,7 +3049,6 @@ the received value was sent on the channel (<code>true</code>)
 or is a <a href="#The_zero_value">zero value</a> returned
 because the channel is closed and empty (<code>false</code>).
 </p>
--->
 
 <p>
 Receiving from a <code>nil</code> channel causes a
@@ -4009,9 +4008,8 @@ iteration values for each entry will be produced at most once.
 
 <li>
 For channels, the iteration values produced are the successive values sent on
-the channel until the channel is closed; it does not produce the zero value sent
-before the channel is closed
-(§<a href="#Close_and_closed"><code>close</code> and <code>closed</code></a>).
+the channel until the channel is closed
+(§<a href="#Close"><code>close</code>).
 </li>
 </ol>
 
@@ -4086,12 +4084,9 @@ cases all referring to communication operations.
 SelectStmt = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" { Statement ";" } .
 CommCase   = "case" ( SendStmt | RecvStmt ) | "default" .
-RecvStmt   = [ Expression ( "=" | ":=" ) ] RecvExpr .
+RecvStmt   = [ Expression [ "," Expression ] ( "=" | ":=" ) ] RecvExpr .
 RecvExpr   = Expression .
 </pre>
-<!-- TODO(rsc):
-RecvStmt =  [ Expression [ "," Expression ] ( "=" | ":=" ) ] RecvExpr .
--->
 
 <p>
 RecvExpr must be a <a href="#Receive_operator">receive operation</a>.
@@ -4122,27 +4117,24 @@ in the "select" statement.
 If multiple cases can proceed, a pseudo-random fair choice is made to decide
 which single communication will execute.
 <p>
-<!-- TODO(rsc): s/variable/& or &s/ -->
-The receive case may declare a new variable using a
+The receive case may declare one or two new variables using a
 <a href="#Short_variable_declarations">short variable declaration</a>.
 </p>
 
 <pre>
-var c, c1, c2 chan int
+var c, c1, c2, c3 chan int
 var i1, i2 int
 select {
 case i1 = &lt;-c1:
 	print("received ", i1, " from c1\n")
 case c2 &lt;- i2:
 	print("sent ", i2, " to c2\n")
-<!-- TODO(rsc): add , c3 to channel list above too
 case i3, ok := &lt;-c3:
 	if ok {
 		print("received ", i3, " from c3\n")
 	} else {
 		print("c3 is closed\n")
 	}
--->
 default:
 	print("no communication\n")
 }
@@ -4401,8 +4393,7 @@ BuiltinCall = identifier "(" [ BuiltinArgs [ "," ] ] ")" .
 BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
 </pre>
 
-<!-- TODO(rsc): s/.and.closed//g -->
-<h3 id="Close_and_closed">Close and closed</h3>
+<h3 id="Close">Close</h3>
 
 <p>
 For a channel <code>c</code>, the built-in function <code>close(c)</code>
@@ -4412,12 +4403,8 @@ After calling <code>close</code>, and after any previously
 sent values have been received, receive operations will return
 the zero value for the channel's type without blocking.
 
-<!-- TODO(rsc): delete next sentence, replace with
-  The multi-valued <a href="#Receive_operator">receive operation</a>
-  returns a received value along with an indication of whether the channel is closed.
--->
-After at least one such zero value has been
-received, <code>closed(c)</code> returns true.
+The multi-valued <a href="#Receive_operator">receive operation</a>
+returns a received value along with an indication of whether the channel is closed.
 </p>
 
 
