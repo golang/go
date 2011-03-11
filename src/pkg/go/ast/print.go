@@ -158,6 +158,7 @@ func (p *printer) print(x reflect.Value) {
 			p.print(key)
 			p.printf(": ")
 			p.print(v.Elem(key))
+			p.printf("\n")
 		}
 		p.indent--
 		p.printf("}")
