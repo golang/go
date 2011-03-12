@@ -78,6 +78,13 @@ struct Sched {
 Sched runtime·sched;
 int32 gomaxprocs;
 
+// An m which is waiting for notewakeup(&m->havenextg).  This may be
+// only be accessed while the scheduler lock is held.  This is used to
+// minimize the number of times we call notewakeup while the scheduler
+// lock is held, since the m will normally move quickly to lock the
+// scheduler itself, producing lock contention.
+static M* mwakeup;
+
 // Scheduling helpers.  Sched must be locked.
 static void gput(G*);	// put/get on ghead/gtail
 static G* gget(void);
@@ -133,6 +140,26 @@ runtime·schedinit(void)
 	m->nomemprof--;
 }
 
+// Lock the scheduler.
+static void
+schedlock(void)
+{
+	runtime·lock(&runtime·sched);
+}
+
+// Unlock the scheduler.
+static void
+schedunlock(void)
+{
+	M *m;
+
+	m = mwakeup;
+	mwakeup = nil;
+	runtime·unlock(&runtime·sched);
+	if(m != nil)
+		runtime·notewakeup(&m->havenextg);
+}
+
 // Called after main·init_function; main·main will be called on return.
 void
 runtime·initdone(void)
@@ -144,9 +171,9 @@ runtime·initdone(void)
 	// If main·init_function started other goroutines,
 	// kick off new ms to handle them, like ready
 	// would have, had it not been pre-dawn.
-	runtime·lock(&runtime·sched);
+	schedlock();
 	matchmg();
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 }
 
 void
@@ -264,9 +291,9 @@ mget(G *g)
 void
 runtime·ready(G *g)
 {
-	runtime·lock(&runtime·sched);
+	schedlock();
 	readylocked(g);
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 }
 
 // Mark g ready to run.  Sched is already locked.
@@ -317,7 +344,9 @@ mnextg(M *m, G *g)
 	m->nextg = g;
 	if(m->waitnextg) {
 		m->waitnextg = 0;
-		runtime·notewakeup(&m->havenextg);
+		if(mwakeup != nil)
+			runtime·notewakeup(&mwakeup->havenextg);
+		mwakeup = m;
 	}
 }
 
@@ -338,7 +367,7 @@ nextgandunlock(void)
 	if(m->nextg != nil) {
 		gp = m->nextg;
 		m->nextg = nil;
-		runtime·unlock(&runtime·sched);
+		schedunlock();
 		return gp;
 	}
 
@@ -356,7 +385,7 @@ nextgandunlock(void)
 				continue;
 			}
 			runtime·sched.mcpu++;		// this m will run gp
-			runtime·unlock(&runtime·sched);
+			schedunlock();
 			return gp;
 		}
 		// Otherwise, wait on global m queue.
@@ -371,7 +400,7 @@ nextgandunlock(void)
 		runtime·sched.waitstop = 0;
 		runtime·notewakeup(&runtime·sched.stopped);
 	}
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 
 	runtime·notesleep(&m->havenextg);
 	if((gp = m->nextg) == nil)
@@ -385,7 +414,7 @@ nextgandunlock(void)
 void
 runtime·stoptheworld(void)
 {
-	runtime·lock(&runtime·sched);
+	schedlock();
 	runtime·gcwaiting = 1;
 	runtime·sched.mcpumax = 1;
 	while(runtime·sched.mcpu > 1) {
@@ -395,11 +424,11 @@ runtime·stoptheworld(void)
 		// so this is okay.
 		runtime·noteclear(&runtime·sched.stopped);
 		runtime·sched.waitstop = 1;
-		runtime·unlock(&runtime·sched);
+		schedunlock();
 		runtime·notesleep(&runtime·sched.stopped);
-		runtime·lock(&runtime·sched);
+		schedlock();
 	}
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 }
 
 // TODO(rsc): Remove. This is only temporary,
@@ -407,11 +436,11 @@ runtime·stoptheworld(void)
 void
 runtime·starttheworld(void)
 {
-	runtime·lock(&runtime·sched);
+	schedlock();
 	runtime·gcwaiting = 0;
 	runtime·sched.mcpumax = runtime·gomaxprocs;
 	matchmg();
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 }
 
 // Called to start an M.
@@ -500,7 +529,7 @@ matchmg(void)
 static void
 schedule(G *gp)
 {
-	runtime·lock(&runtime·sched);
+	schedlock();
 	if(gp != nil) {
 		if(runtime·sched.predawn)
 			runtime·throw("init rescheduling");
@@ -584,7 +613,7 @@ runtime·entersyscall(void)
 	runtime·gosave(&g->sched);
 	if(runtime·sched.predawn)
 		return;
-	runtime·lock(&runtime·sched);
+	schedlock();
 	g->status = Gsyscall;
 	runtime·sched.mcpu--;
 	runtime·sched.msyscall++;
@@ -594,7 +623,7 @@ runtime·entersyscall(void)
 		runtime·sched.waitstop = 0;
 		runtime·notewakeup(&runtime·sched.stopped);
 	}
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 }
 
 // The goroutine g exited its system call.
@@ -607,13 +636,13 @@ runtime·exitsyscall(void)
 	if(runtime·sched.predawn)
 		return;
 
-	runtime·lock(&runtime·sched);
+	schedlock();
 	runtime·sched.msyscall--;
 	runtime·sched.mcpu++;
 	// Fast path - if there's room for this m, we're done.
 	if(runtime·sched.mcpu <= runtime·sched.mcpumax) {
 		g->status = Grunning;
-		runtime·unlock(&runtime·sched);
+		schedunlock();
 		return;
 	}
 	// Tell scheduler to put g back on the run queue:
@@ -621,7 +650,7 @@ runtime·exitsyscall(void)
 	// but keeps the garbage collector from thinking
 	// that g is running right now, which it's not.
 	g->readyonstop = 1;
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 
 	// Slow path - all the cpus are taken.
 	// The scheduler will ready g and put this m to sleep.
@@ -815,7 +844,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	if(siz > 1024)
 		runtime·throw("runtime.newproc: too many args");
 
-	runtime·lock(&runtime·sched);
+	schedlock();
 
 	if((newg = gfget()) != nil){
 		newg->status = Gwaiting;
@@ -848,7 +877,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	newg->goid = runtime·goidgen;
 
 	newprocreadylocked(newg);
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 
 	return newg;
 //printf(" goid=%d\n", newg->goid);
@@ -1156,7 +1185,7 @@ runtime·gomaxprocsfunc(int32 n)
 {
 	int32 ret;
 
-	runtime·lock(&runtime·sched);
+	schedlock();
 	ret = runtime·gomaxprocs;
 	if (n <= 0)
 		n = ret;
@@ -1164,7 +1193,7 @@ runtime·gomaxprocsfunc(int32 n)
 	runtime·sched.mcpumax = n;
 	// handle fewer procs?
 	if(runtime·sched.mcpu > runtime·sched.mcpumax) {
-		runtime·unlock(&runtime·sched);
+		schedunlock();
 		// just give up the cpu.
 		// we'll only get rescheduled once the
 		// number has come down.
@@ -1173,7 +1202,7 @@ runtime·gomaxprocsfunc(int32 n)
 	}
 	// handle more procs
 	matchmg();
-	runtime·unlock(&runtime·sched);
+	schedunlock();
 	return ret;
 }
 
