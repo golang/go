@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"os"
 	"net"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -425,5 +426,27 @@ func TestSetsRemoteAddr(t *testing.T) {
 	ip := string(body)
 	if !strings.HasPrefix(ip, "127.0.0.1:") && !strings.HasPrefix(ip, "[::1]:") {
 		t.Fatalf("Expected local addr; got %q", ip)
+	}
+}
+
+func TestChunkedResponseHeaders(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "intentional gibberish") // we check that this is deleted
+		fmt.Fprintf(w, "I am a chunked response.")
+	}))
+	defer ts.Close()
+
+	res, _, err := Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get error: %v", err)
+	}
+	if g, e := res.ContentLength, int64(-1); g != e {
+		t.Errorf("expected ContentLength of %d; got %d", e, g)
+	}
+	if g, e := res.TransferEncoding, []string{"chunked"}; !reflect.DeepEqual(g, e) {
+		t.Errorf("expected TransferEncoding of %v; got %v", e, g)
+	}
+	if _, haveCL := res.Header["Content-Length"]; haveCL {
+		t.Errorf("Unexpected Content-Length")
 	}
 }

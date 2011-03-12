@@ -224,9 +224,12 @@ func writeSortedHeader(w io.Writer, h Header, exclude map[string]bool) os.Error 
 	sort.SortStrings(keys)
 	for _, k := range keys {
 		for _, v := range h[k] {
-			v = strings.TrimSpace(v)
 			v = strings.Replace(v, "\n", " ", -1)
 			v = strings.Replace(v, "\r", " ", -1)
+			v = strings.TrimSpace(v)
+			if v == "" {
+				continue
+			}
 			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
 				return err
 			}
