@@ -9,3 +9,6 @@ GOFILES=\
 	gotype.go\
 
 include ../../Make.cmd
+
+test:
+	gotest

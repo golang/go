@@ -55,3 +55,5 @@ To verify the output of a pipe:
 
 */
 package documentation
+
+// BUG(gri): At the moment, only single-file scope analysis is performed.

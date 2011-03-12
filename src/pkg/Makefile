@@ -192,7 +192,6 @@ NOTEST=\
 	../cmd/ebnflint\
 	../cmd/godoc\
 	../cmd/gofmt\
-	../cmd/gotype\
 	../cmd/govet\
 	../cmd/goyacc\
 	../cmd/hgpatch\

@@ -30,11 +30,7 @@ var (
 )
 
 
-var (
-	fset       = token.NewFileSet()
-	exitCode   = 0
-	parserMode = parser.DeclarationErrors
-)
+var exitCode = 0
 
 
 func usage() {
@@ -44,33 +40,19 @@ func usage() {
 }
 
 
-func processFlags() {
-	flag.Usage = usage
-	flag.Parse()
-	if *printTrace {
-		parserMode |= parser.Trace
-	}
-}
-
-
 func report(err os.Error) {
 	scanner.PrintError(os.Stderr, err)
 	exitCode = 2
 }
 
 
-// parseFile returns the AST for the given file.
-// The result
-func parseFile(filename string) *ast.File {
+// parse returns the AST for the Go source src.
+// The filename is for error reporting only.
+// The result is nil if there were errors or if
+// the file does not belong to the -p package.
+func parse(fset *token.FileSet, filename string, src []byte) *ast.File {
 	if *verbose {
 		fmt.Println(filename)
-	}
-
-	// get source
-	src, err := ioutil.ReadFile(filename)
-	if err != nil {
-		report(err)
-		return nil
 	}
 
 	// ignore files with different package name
@@ -89,7 +71,11 @@ func parseFile(filename string) *ast.File {
 	}
 
 	// parse entire file
-	file, err := parser.ParseFile(fset, filename, src, parserMode)
+	mode := parser.DeclarationErrors
+	if *printTrace {
+		mode |= parser.Trace
+	}
+	file, err := parser.ParseFile(fset, filename, src, mode)
 	if err != nil {
 		report(err)
 		return nil
@@ -102,33 +88,38 @@ func parseFile(filename string) *ast.File {
 }
 
 
-// BUG(gri): At the moment, only single-file scope analysis is performed.
+func parseStdin(fset *token.FileSet) (files map[string]*ast.File) {
+	files = make(map[string]*ast.File)
+	src, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		report(err)
+		return
+	}
+	const filename = "<standard input>"
+	if file := parse(fset, filename, src); file != nil {
+		files[filename] = file
+	}
+	return
+}
 
-func processPackage(filenames []string) {
-	var files []*ast.File
-	pkgName := ""
+
+func parseFiles(fset *token.FileSet, filenames []string) (files map[string]*ast.File) {
+	files = make(map[string]*ast.File)
 	for _, filename := range filenames {
-		file := parseFile(filename)
-		if file == nil {
-			continue // ignore file
+		src, err := ioutil.ReadFile(filename)
+		if err != nil {
+			report(err)
+			continue
 		}
-		// package names must match
-		// TODO(gri): this check should be moved into a
-		//            function making the package below
-		if pkgName == "" {
-			// first package file
-			pkgName = file.Name.Name
-		} else {
-			if file.Name.Name != pkgName {
-				report(os.NewError(fmt.Sprintf("file %q is in package %q not %q", filename, file.Name.Name, pkgName)))
+		if file := parse(fset, filename, src); file != nil {
+			if files[filename] != nil {
+				report(os.ErrorString(fmt.Sprintf("%q: duplicate file", filename)))
 				continue
 			}
+			files[filename] = file
 		}
-		files = append(files, file)
 	}
-
-	// TODO(gri): make a ast.Package and analyze it
-	_ = files
+	return
 }
 
 
@@ -174,15 +165,31 @@ func processFiles(filenames []string, allFiles bool) {
 			}
 		}
 	}
-	processPackage(filenames[0:i])
+	processPackage(parseFiles(token.NewFileSet(), filenames[0:i]))
+}
+
+
+func processPackage(files map[string]*ast.File) {
+	// TODO(gri) Enable this code once we have ast.NewPackage.
+	/*
+		// make a package (resolve all identifiers)
+		pkg, err := ast.NewPackage(files)
+		if err != nil {
+			report(err)
+			return
+		}
+		// TODO(gri): typecheck package
+		_ = pkg
+	*/
 }
 
 
 func main() {
-	processFlags()
+	flag.Usage = usage
+	flag.Parse()
 
 	if flag.NArg() == 0 {
-		processPackage([]string{os.Stdin.Name()})
+		processPackage(parseStdin(token.NewFileSet()))
 	} else {
 		processFiles(flag.Args(), true)
 	}
