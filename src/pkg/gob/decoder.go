@@ -5,6 +5,7 @@
 package gob
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"os"
@@ -30,7 +31,7 @@ type Decoder struct {
 // NewDecoder returns a new decoder that reads from the io.Reader.
 func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder)
-	dec.r = r
+	dec.r = bufio.NewReader(r)
 	dec.wireType = make(map[typeId]*wireType)
 	dec.decoderCache = make(map[reflect.Type]map[typeId]**decEngine)
 	dec.ignorerCache = make(map[typeId]**decEngine)
