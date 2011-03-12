@@ -215,10 +215,10 @@ func (s *pollServer) Run() {
 			continue
 		}
 		if fd == s.pr.Fd() {
-			// Drain our wakeup pipe.
-			for nn, _ := s.pr.Read(scratch[0:]); nn > 0; {
-				nn, _ = s.pr.Read(scratch[0:])
-			}
+			// Drain our wakeup pipe (we could loop here,
+			// but it's unlikely that there are more than
+			// len(scratch) wakeup calls).
+			s.pr.Read(scratch[0:])
 			// Read from channels
 		Update:
 			for {
