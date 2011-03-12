@@ -78,7 +78,7 @@ struct Sched {
 Sched runtime·sched;
 int32 gomaxprocs;
 
-// An m which is waiting for notewakeup(&m->havenextg).  This may be
+// An m that is waiting for notewakeup(&m->havenextg).  This may be
 // only be accessed while the scheduler lock is held.  This is used to
 // minimize the number of times we call notewakeup while the scheduler
 // lock is held, since the m will normally move quickly to lock the
