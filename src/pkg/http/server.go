@@ -236,7 +236,7 @@ func (w *response) WriteHeader(code int) {
 			hasCL = true
 		} else {
 			log.Printf("http: invalid Content-Length of %q sent", clenStr)
-			w.header.Set("Content-Length", "")
+			w.header.Del("Content-Length")
 		}
 	}
 
@@ -247,7 +247,7 @@ func (w *response) WriteHeader(code int) {
 		// For now just ignore the Content-Length.
 		log.Printf("http: WriteHeader called with both Transfer-Encoding of %q and a Content-Length of %d",
 			te, contentLength)
-		w.header.Set("Content-Length", "")
+		w.header.Del("Content-Length")
 		hasCL = false
 	}
 
@@ -286,7 +286,7 @@ func (w *response) WriteHeader(code int) {
 
 	// Cannot use Content-Length with non-identity Transfer-Encoding.
 	if w.chunking {
-		w.header.Set("Content-Length", "")
+		w.header.Del("Content-Length")
 	}
 	if !w.req.ProtoAtLeast(1, 0) {
 		return
