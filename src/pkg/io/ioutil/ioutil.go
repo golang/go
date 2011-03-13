@@ -90,3 +90,15 @@ func ReadDir(dirname string) ([]*os.FileInfo, os.Error) {
 	sort.Sort(fi)
 	return fi, nil
 }
+
+type nopCloser struct {
+	io.Reader
+}
+
+func (nopCloser) Close() os.Error { return nil }
+
+// NopCloser returns a ReadCloser with a no-op Close method wrapping
+// the provided Reader r.
+func NopCloser(r io.Reader) io.ReadCloser {
+	return nopCloser{r}
+}

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"http"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -67,7 +68,7 @@ func requestFromEnvironment(env map[string]string) (*http.Request, os.Error) {
 			return nil, os.NewError("cgi: bad CONTENT_LENGTH in environment: " + lenstr)
 		}
 		r.ContentLength = clen
-		r.Body = nopCloser{io.LimitReader(os.Stdin, clen)}
+		r.Body = ioutil.NopCloser(io.LimitReader(os.Stdin, clen))
 	}
 
 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
@@ -102,13 +103,6 @@ func requestFromEnvironment(env map[string]string) (*http.Request, os.Error) {
 	}
 	return r, nil
 }
-
-// TODO: move this to ioutil or something.  It's copy/pasted way too often.
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() os.Error { return nil }
 
 // Serve executes the provided Handler on the currently active CGI
 // request, if any. If there's no current CGI environment

@@ -7,9 +7,9 @@ package http
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"os"
 )
-
 
 // One of the copies, say from b to r2, could be avoided by using a more
 // elaborate trick where the other copy is made during Request/Response.Write.
@@ -23,7 +23,7 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err os.Error) {
 	if err = b.Close(); err != nil {
 		return nil, nil, err
 	}
-	return nopCloser{&buf}, nopCloser{bytes.NewBuffer(buf.Bytes())}, nil
+	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
 }
 
 // DumpRequest returns the wire representation of req,

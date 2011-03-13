@@ -6,6 +6,7 @@ package http
 
 import (
 	"bytes"
+	"io/ioutil"
 	"testing"
 )
 
@@ -158,7 +159,7 @@ func TestRequestWrite(t *testing.T) {
 	for i := range reqWriteTests {
 		tt := &reqWriteTests[i]
 		if tt.Body != nil {
-			tt.Req.Body = nopCloser{bytes.NewBuffer(tt.Body)}
+			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
 		}
 		var braw bytes.Buffer
 		err := tt.Req.Write(&braw)
@@ -173,7 +174,7 @@ func TestRequestWrite(t *testing.T) {
 		}
 
 		if tt.Body != nil {
-			tt.Req.Body = nopCloser{bytes.NewBuffer(tt.Body)}
+			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
 		}
 		var praw bytes.Buffer
 		err = tt.Req.WriteProxy(&praw)
