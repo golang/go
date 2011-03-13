@@ -25,7 +25,7 @@ func main() {
 
 	priv, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
-		log.Exitf("failed to generate private key: %s", err)
+		log.Fatalf("failed to generate private key: %s", err)
 		return
 	}
 
@@ -46,13 +46,13 @@ func main() {
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
-		log.Exitf("Failed to create certificate: %s", err)
+		log.Fatalf("Failed to create certificate: %s", err)
 		return
 	}
 
 	certOut, err := os.Open("cert.pem", os.O_WRONLY|os.O_CREAT, 0644)
 	if err != nil {
-		log.Exitf("failed to open cert.pem for writing: %s", err)
+		log.Fatalf("failed to open cert.pem for writing: %s", err)
 		return
 	}
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
