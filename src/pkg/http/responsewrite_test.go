@@ -6,6 +6,7 @@ package http
 
 import (
 	"bytes"
+	"io/ioutil"
 	"testing"
 )
 
@@ -23,7 +24,7 @@ var respWriteTests = []respWriteTest{
 			ProtoMinor:    0,
 			RequestMethod: "GET",
 			Header:        Header{},
-			Body:          nopCloser{bytes.NewBufferString("abcdef")},
+			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
 			ContentLength: 6,
 		},
 
@@ -39,7 +40,7 @@ var respWriteTests = []respWriteTest{
 			ProtoMinor:    0,
 			RequestMethod: "GET",
 			Header:        Header{},
-			Body:          nopCloser{bytes.NewBufferString("abcdef")},
+			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
 			ContentLength: -1,
 		},
 		"HTTP/1.0 200 OK\r\n" +
@@ -54,7 +55,7 @@ var respWriteTests = []respWriteTest{
 			ProtoMinor:       1,
 			RequestMethod:    "GET",
 			Header:           Header{},
-			Body:             nopCloser{bytes.NewBufferString("abcdef")},
+			Body:             ioutil.NopCloser(bytes.NewBufferString("abcdef")),
 			ContentLength:    6,
 			TransferEncoding: []string{"chunked"},
 			Close:            true,

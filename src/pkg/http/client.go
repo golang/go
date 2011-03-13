@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -235,7 +236,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
 	req.ProtoMajor = 1
 	req.ProtoMinor = 1
 	req.Close = true
-	req.Body = nopCloser{body}
+	req.Body = ioutil.NopCloser(body)
 	req.Header = Header{
 		"Content-Type": {bodyType},
 	}
@@ -270,7 +271,7 @@ func (c *Client) PostForm(url string, data map[string]string) (r *Response, err 
 	req.ProtoMinor = 1
 	req.Close = true
 	body := urlencode(data)
-	req.Body = nopCloser{body}
+	req.Body = ioutil.NopCloser(body)
 	req.Header = Header{
 		"Content-Type":   {"application/x-www-form-urlencoded"},
 		"Content-Length": {strconv.Itoa(body.Len())},
@@ -310,9 +311,3 @@ func (c *Client) Head(url string) (r *Response, err os.Error) {
 	}
 	return send(&req, c.Transport)
 }
-
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() os.Error { return nil }

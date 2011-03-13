@@ -19,6 +19,7 @@ import (
 	"hash/crc32"
 	"encoding/binary"
 	"io"
+	"io/ioutil"
 	"os"
 )
 
@@ -109,7 +110,7 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
 	r := io.NewSectionReader(f.zipr, off+f.bodyOffset, size)
 	switch f.Method {
 	case 0: // store (no compression)
-		rc = nopCloser{r}
+		rc = ioutil.NopCloser(r)
 	case 8: // DEFLATE
 		rc = flate.NewReader(r)
 	default:
@@ -146,12 +147,6 @@ func (r *checksumReader) Read(b []byte) (n int, err os.Error) {
 }
 
 func (r *checksumReader) Close() os.Error { return r.rc.Close() }
-
-type nopCloser struct {
-	io.Reader
-}
-
-func (f nopCloser) Close() os.Error { return nil }
 
 func readFileHeader(f *File, r io.Reader) (err os.Error) {
 	defer func() {
