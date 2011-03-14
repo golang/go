@@ -75,10 +75,15 @@ autoexport(Node *n, int ctxt)
 static void
 dumppkg(Pkg *p)
 {
+	char *suffix;
+
 	if(p == nil || p == localpkg || p->exported)
 		return;
 	p->exported = 1;
-	Bprint(bout, "\timport %s \"%Z\"\n", p->name, p->path);
+	suffix = "";
+	if(!p->direct)
+		suffix = " // indirect";
+	Bprint(bout, "\timport %s \"%Z\"%s\n", p->name, p->path, suffix);
 }
 
 static void
@@ -265,7 +270,8 @@ void
 dumpexport(void)
 {
 	NodeList *l;
-	int32 lno;
+	int32 i, lno;
+	Pkg *p;
 
 	lno = lineno;
 
@@ -276,6 +282,11 @@ dumpexport(void)
 	if(safemode)
 		Bprint(bout, " safe");
 	Bprint(bout, "\n");
+
+	for(i=0; i<nelem(phash); i++)
+		for(p=phash[i]; p; p=p->link)
+			if(p->direct)
+				dumppkg(p);
 
 	for(l=exportlist; l; l=l->next) {
 		lineno = l->n->lineno;
