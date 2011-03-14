@@ -4,6 +4,7 @@
 
 #define	EXTERN
 #include	"l.h"
+#include	"../ld/lib.h"
 
 // Software floating point.
 

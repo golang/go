@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include "l.h"
+#include "../ld/lib.h"
 
 static int32 thumboprr(int);
 static int32 thumboprrr(int, int);
