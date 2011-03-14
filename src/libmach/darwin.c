@@ -579,7 +579,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 		if(!isr)
 			thread_resume(thread);
 		rerrstr(buf, sizeof buf);
-		if(strcmp(buf, "send invalid dest") == 0)
+		if(strstr(buf, "send invalid dest") != nil) 
 			werrstr("process exited");
 		else
 			werrstr("thread_get_state: %r");
