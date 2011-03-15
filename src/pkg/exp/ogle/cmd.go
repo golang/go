@@ -160,7 +160,7 @@ func cmdLoad(args []byte) os.Error {
 		} else {
 			fname = parts[0]
 		}
-		tproc, err = proc.ForkExec(fname, parts, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr})
+		tproc, err = proc.StartProcess(fname, parts, &os.ProcAttr{Files: []*os.File{os.Stdin, os.Stdout, os.Stderr}})
 		if err != nil {
 			return err
 		}
