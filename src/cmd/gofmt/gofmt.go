@@ -158,21 +158,16 @@ func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
 
 
 func walkDir(path string) {
-	// start an error handler
-	done := make(chan bool)
 	v := make(fileVisitor)
 	go func() {
-		for err := range v {
-			if err != nil {
-				report(err)
-			}
-		}
-		done <- true
+		filepath.Walk(path, v, v)
+		close(v)
 	}()
-	// walk the tree
-	filepath.Walk(path, v, v)
-	close(v) // terminate error handler loop
-	<-done   // wait for all errors to be reported
+	for err := range v {
+		if err != nil {
+			report(err)
+		}
+	}
 }
 
 
