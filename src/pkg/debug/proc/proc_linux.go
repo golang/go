@@ -1279,25 +1279,31 @@ func Attach(pid int) (Process, os.Error) {
 	return p, nil
 }
 
-// ForkExec forks the current process and execs argv0, stopping the
-// new process after the exec syscall.  See os.ForkExec for additional
+// StartProcess forks the current process and execs argv0, stopping the
+// new process after the exec syscall.  See os.StartProcess for additional
 // details.
-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
+func StartProcess(argv0 string, argv []string, attr *os.ProcAttr) (Process, os.Error) {
+	sysattr := &syscall.ProcAttr{
+		Dir:    attr.Dir,
+		Env:    attr.Env,
+		Ptrace: true,
+	}
 	p := newProcess(-1)
 
 	// Create array of integer (system) fds.
-	intfd := make([]int, len(fd))
-	for i, f := range fd {
+	intfd := make([]int, len(attr.Files))
+	for i, f := range attr.Files {
 		if f == nil {
 			intfd[i] = -1
 		} else {
 			intfd[i] = f.Fd()
 		}
 	}
+	sysattr.Files = intfd
 
 	// Fork from the monitor thread so we get the right tracer pid.
 	err := p.do(func() os.Error {
-		pid, errno := syscall.PtraceForkExec(argv0, argv, envv, dir, intfd)
+		pid, _, errno := syscall.StartProcess(argv0, argv, sysattr)
 		if errno != 0 {
 			return &os.PathError{"fork/exec", argv0, os.Errno(errno)}
 		}

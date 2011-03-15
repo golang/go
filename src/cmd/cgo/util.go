@@ -32,7 +32,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	if err != nil {
 		fatal("%s", err)
 	}
-	p, err := os.StartProcess(cmd, argv, os.Environ(), "", []*os.File{r0, w1, w2})
+	p, err := os.StartProcess(cmd, argv, &os.ProcAttr{Files: []*os.File{r0, w1, w2}})
 	if err != nil {
 		fatal("%s", err)
 	}

@@ -114,21 +114,33 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 	return 0
 }
 
+type ProcAttr struct {
+	Dir   string
+	Env   []string
+	Files []int
+}
+
+var zeroAttributes ProcAttr
 
 // TODO(kardia): Add trace
 //The command and arguments are passed via the Command line parameter.
-func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []int) (pid, handle int, err int) {
-	if len(fd) > 3 {
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err int) {
+	if attr == nil {
+		attr = &zeroAttributes
+	}
+	if len(attr.Files) > 3 {
 		return 0, 0, EWINDOWS
 	}
 
-	//CreateProcess will throw an error if the dir is not set to a valid dir
-	//  thus get the working dir if dir is empty.
-	if len(dir) == 0 {
+	// CreateProcess will throw an error if the dir is not set to a valid dir
+	// thus get the working dir if dir is empty.
+	dir := attr.Dir
+	if dir == "" {
 		if wd, ok := Getwd(); ok == 0 {
 			dir = wd
 		}
 	}
+	fd := attr.Files
 
 	startupInfo := new(StartupInfo)
 	processInfo := new(ProcessInformation)
@@ -180,7 +192,7 @@ func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []i
 		nil,  //ptr to struct lpThreadAttributes
 		true, //bInheritHandles
 		CREATE_UNICODE_ENVIRONMENT, //Flags
-		createEnvBlock(envv),       //env block, NULL uses parent env
+		createEnvBlock(attr.Env),   //env block, NULL uses parent env
 		StringToUTF16Ptr(dir),
 		startupInfo,
 		processInfo)

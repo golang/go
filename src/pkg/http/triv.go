@@ -99,7 +99,8 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(rw, "pipe: %s\n", err)
 		return
 	}
-	p, err := os.StartProcess("/bin/date", []string{"date"}, os.Environ(), "", []*os.File{nil, w, w})
+
+	p, err := os.StartProcess("/bin/date", []string{"date"}, &os.ProcAttr{Files: []*os.File{nil, w, w}})
 	defer r.Close()
 	w.Close()
 	if err != nil {

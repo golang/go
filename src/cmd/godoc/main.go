@@ -83,7 +83,7 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 	if *verbose {
 		log.Printf("executing %v", args)
 	}
-	p, err := os.StartProcess(bin, args, os.Environ(), *goroot, fds)
+	p, err := os.StartProcess(bin, args, &os.ProcAttr{Files: fds, Dir: *goroot})
 	defer r.Close()
 	w.Close()
 	if err != nil {
