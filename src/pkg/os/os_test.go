@@ -409,25 +409,26 @@ func TestRename(t *testing.T) {
 	}
 }
 
-func TestForkExec(t *testing.T) {
-	var cmd, adir, expect string
+func TestStartProcess(t *testing.T) {
+	var cmd, expect string
 	var args []string
 	r, w, err := Pipe()
 	if err != nil {
 		t.Fatalf("Pipe: %v", err)
 	}
+	attr := &ProcAttr{Files: []*File{nil, w, Stderr}}
 	if syscall.OS == "windows" {
 		cmd = Getenv("COMSPEC")
 		args = []string{Getenv("COMSPEC"), "/c cd"}
-		adir = Getenv("SystemRoot")
+		attr.Dir = Getenv("SystemRoot")
 		expect = Getenv("SystemRoot") + "\r\n"
 	} else {
 		cmd = "/bin/pwd"
 		args = []string{"pwd"}
-		adir = "/"
+		attr.Dir = "/"
 		expect = "/\n"
 	}
-	p, err := StartProcess(cmd, args, nil, adir, []*File{nil, w, Stderr})
+	p, err := StartProcess(cmd, args, attr)
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
@@ -751,7 +752,7 @@ func run(t *testing.T, cmd []string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := StartProcess("/bin/hostname", []string{"hostname"}, nil, "/", []*File{nil, w, Stderr})
+	p, err := StartProcess("/bin/hostname", []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
 	if err != nil {
 		t.Fatal(err)
 	}

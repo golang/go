@@ -96,12 +96,15 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, dir *byte, fd []int, pipe int) (pid int, err int) {
+func forkAndExecInChild(argv0 *byte, argv, envv []*byte, dir *byte, attr *ProcAttr, pipe int) (pid int, err int) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
 	var r1, r2, err1 uintptr
 	var nextfd int
 	var i int
+
+	// guard against side effects of shuffling fds below.
+	fd := append([]int(nil), attr.Files...)
 
 	darwin := OS == "darwin"
 
@@ -128,8 +131,16 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 	// Fork succeeded, now in child.
 
 	// Enable tracing if requested.
-	if traceme {
+	if attr.Ptrace {
 		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Session ID
+	if attr.Setsid {
+		_, _, err1 = RawSyscall(SYS_SETSID, 0, 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -220,11 +231,26 @@ childerror:
 	panic("unreached")
 }
 
-func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int) (pid int, err int) {
+
+type ProcAttr struct {
+	Setsid bool     // Create session.
+	Ptrace bool     // Enable tracing.
+	Dir    string   // Current working directory.
+	Env    []string // Environment.
+	Files  []int    // File descriptors.
+}
+
+var zeroAttributes ProcAttr
+
+func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 	var p [2]int
 	var n int
 	var err1 uintptr
 	var wstatus WaitStatus
+
+	if attr == nil {
+		attr = &zeroAttributes
+	}
 
 	p[0] = -1
 	p[1] = -1
@@ -232,14 +258,15 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 	// Convert args to C form.
 	argv0p := StringBytePtr(argv0)
 	argvp := StringArrayPtr(argv)
-	envvp := StringArrayPtr(envv)
-	var dirp *byte
-	if len(dir) > 0 {
-		dirp = StringBytePtr(dir)
-	}
+	envvp := StringArrayPtr(attr.Env)
 
 	if OS == "freebsd" && len(argv[0]) > len(argv0) {
 		argvp[0] = argv0p
+	}
+
+	var dir *byte
+	if attr.Dir != "" {
+		dir = StringBytePtr(attr.Dir)
 	}
 
 	// Acquire the fork lock so that no other threads
@@ -259,7 +286,7 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 	}
 
 	// Kick off child.
-	pid, err = forkAndExecInChild(argv0p, argvp, envvp, traceme, dirp, fd, p[1])
+	pid, err = forkAndExecInChild(argv0p, argvp, envvp, dir, attr, p[1])
 	if err != 0 {
 	error:
 		if p[0] >= 0 {
@@ -297,13 +324,14 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 }
 
 // Combination of fork and exec, careful to be thread safe.
-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
-	return forkExec(argv0, argv, envv, false, dir, fd)
+func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
+	return forkExec(argv0, argv, attr)
 }
 
-// PtraceForkExec is like ForkExec, but starts the child in a traced state.
-func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
-	return forkExec(argv0, argv, envv, true, dir, fd)
+// StartProcess wraps ForkExec for package os.
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err int) {
+	pid, err = forkExec(argv0, argv, attr)
+	return pid, 0, err
 }
 
 // Ordinary exec.
@@ -313,10 +341,4 @@ func Exec(argv0 string, argv []string, envv []string) (err int) {
 		uintptr(unsafe.Pointer(&StringArrayPtr(argv)[0])),
 		uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0])))
 	return int(err1)
-}
-
-// StartProcess wraps ForkExec for package os.
-func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []int) (pid, handle int, err int) {
-	pid, err = forkExec(argv0, argv, envv, false, dir, fd)
-	return pid, 0, err
 }

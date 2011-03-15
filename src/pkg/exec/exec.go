@@ -105,7 +105,7 @@ func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int
 	}
 
 	// Run command.
-	c.Process, err = os.StartProcess(name, argv, envv, dir, fd[0:])
+	c.Process, err = os.StartProcess(name, argv, &os.ProcAttr{Dir: dir, Files: fd[:], Env: envv})
 	if err != nil {
 		goto Error
 	}

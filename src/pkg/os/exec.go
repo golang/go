@@ -21,27 +21,46 @@ func newProcess(pid, handle int) *Process {
 	return p
 }
 
-// StartProcess starts a new process with the program, arguments,
-// and environment specified by name, argv, and envv. The fd array specifies the
-// file descriptors to be set up in the new process: fd[0] will be Unix file
-// descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
-// will cause the child to have no open file descriptor with that index.
-// If dir is not empty, the child chdirs into the directory before execing the program.
-func StartProcess(name string, argv []string, envv []string, dir string, fd []*File) (p *Process, err Error) {
-	if envv == nil {
-		envv = Environ()
+// ProcAttr holds the attributes that will be applied to a new process
+// started by StartProcess.
+type ProcAttr struct {
+	// If Dir is non-empty, the child changes into the directory before
+	// creating the process.
+	Dir string
+	// If Env is non-nil, it gives the environment variables for the
+	// new process in the form returned by Environ.
+	// If it is nil, the result of Environ will be used.
+	Env []string
+	// Files specifies the open files inherited by the new process.  The
+	// first three entries correspond to standard input, standard output, and
+	// standard error.  An implementation may support additional entries,
+	// depending on the underlying operating system.  A nil entry corresponds
+	// to that file being closed when the process starts.
+	Files []*File
+}
+
+// StartProcess starts a new process with the program, arguments and attributes
+// specified by name, argv and attr.
+func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err Error) {
+	sysattr := &syscall.ProcAttr{
+		Dir: attr.Dir,
+		Env: attr.Env,
+	}
+	if sysattr.Env == nil {
+		sysattr.Env = Environ()
 	}
 	// Create array of integer (system) fds.
-	intfd := make([]int, len(fd))
-	for i, f := range fd {
+	intfd := make([]int, len(attr.Files))
+	for i, f := range attr.Files {
 		if f == nil {
 			intfd[i] = -1
 		} else {
 			intfd[i] = f.Fd()
 		}
 	}
+	sysattr.Files = intfd
 
-	pid, h, e := syscall.StartProcess(name, argv, envv, dir, intfd)
+	pid, h, e := syscall.StartProcess(name, argv, sysattr)
 	if e != 0 {
 		return nil, &PathError{"fork/exec", name, Errno(e)}
 	}
