@@ -138,6 +138,7 @@ typedef	struct	Sym	Sym;
 typedef	struct	Node	Node;
 typedef	struct	NodeList	NodeList;
 typedef	struct	Type	Type;
+typedef	struct	Label	Label;
 
 struct	Type
 {
@@ -302,10 +303,13 @@ struct	Sym
 	Pkg*	pkg;
 	char*	name;		// variable name
 	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
+	Label*	label;	// corresponding label (ephemeral)
 	int32	block;		// blocknumber to catch redeclaration
 	int32	lastlineno;	// last declaration for diagnostic
 };
 #define	S	((Sym*)0)
+
+EXTERN	Sym*	dclstack;
 
 struct	Pkg
 {
@@ -619,20 +623,22 @@ struct	Magic
 
 typedef struct	Prog Prog;
 
-typedef	struct	Label Label;
 struct	Label
 {
 	uchar	op;		// OGOTO/OLABEL
+	uchar	used;
 	Sym*	sym;
 	Node*	stmt;
 	Prog*	label;		// pointer to code
 	Prog*	breakpc;	// pointer to code
 	Prog*	continpc;	// pointer to code
 	Label*	link;
+	int32	lineno;
 };
 #define	L	((Label*)0)
 
 EXTERN	Label*	labellist;
+EXTERN	Label*	lastlabel;
 
 /*
  * note this is the runtime representation
@@ -900,6 +906,7 @@ void	allocparams(void);
 void	cgen_as(Node *nl, Node *nr);
 void	cgen_callmeth(Node *n, int proc);
 void	checklabels(void);
+void	clearlabels(void);
 int	dotoffset(Node *n, int *oary, Node **nn);
 void	gen(Node *n);
 void	genlist(NodeList *l);

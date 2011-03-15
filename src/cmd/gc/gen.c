@@ -64,62 +64,83 @@ allocparams(void)
 	lineno = lno;
 }
 
+void
+clearlabels(void)
+{
+	Label *l;
+
+	for(l=labellist; l!=L; l=l->link)
+		l->sym->label = L;
+	
+	labellist = L;
+	lastlabel = L;
+}
+
 static void
-newlab(int op, Sym *s, Node *stmt)
+newlab(int op, Node *nlab, Node *stmt)
 {
 	Label *lab;
+	Sym *s;
+	int32 lno;
+	
+	s = nlab->left->sym;
+	lno = nlab->left->lineno;
 
 	lab = mal(sizeof(*lab));
-	lab->link = labellist;
-	labellist = lab;
+	if(lastlabel == nil)
+		labellist = lab;
+	else
+		lastlabel->link = lab;
+	lastlabel = lab;
 
+	lab->lineno = lno;
 	lab->sym = s;
 	lab->op = op;
 	lab->label = pc;
 	lab->stmt = stmt;
+	if(op == OLABEL) {
+		if(s->label != L) {
+			lineno = lno;
+			yyerror("label %S already defined at %L", s, s->label->lineno);
+		} else
+			s->label = lab;
+	}	
 }
 
 void
 checklabels(void)
 {
-	Label *l, *m;
+	Label *l;
 	Sym *s;
+	int lno;
 
-//	// print the label list
-//	for(l=labellist; l!=L; l=l->link) {
-//		print("lab %O %S\n", l->op, l->sym);
-//	}
-
+	lno = lineno;
+	
+	// resolve goto using syms
 	for(l=labellist; l!=L; l=l->link) {
-	switch(l->op) {
-		case OLABEL:
-			// these are definitions -
+		switch(l->op) {
+		case OGOTO:
 			s = l->sym;
-			for(m=labellist; m!=L; m=m->link) {
-				if(m->sym != s)
-					continue;
-				switch(m->op) {
-				case OLABEL:
-					// these are definitions -
-					// look for redefinitions
-					if(l != m)
-						yyerror("label %S redefined", s);
-					break;
-				case OGOTO:
-					// these are references -
-					// patch to definition
-					patch(m->label, l->label);
-					m->sym = S;	// mark done
-					break;
-				}
+			if(s->label == L) {
+				lineno = l->lineno;
+				yyerror("label %S not defined", s);
+				break;
 			}
+			s->label->used = 1;
+			patch(l->label, s->label->label);
+			break;
 		}
 	}
-
-	// diagnostic for all undefined references
-	for(l=labellist; l!=L; l=l->link)
-		if(l->op == OGOTO && l->sym != S)
-			yyerror("label %S not defined", l->sym);
+	
+	// diagnose unused labels
+	for(l=labellist; l!=L; l=l->link) {
+		if(l->op == OLABEL && !l->used) {
+			lineno = l->lineno;
+			yyerror("label %S defined and not used", l->sym);
+		}
+	}
+	
+	lineno = lno;
 }
 
 /*
@@ -171,7 +192,7 @@ gen(Node *n)
 		// insert no-op so that
 		//	L:; for { }
 		// does not treat L as a label for the loop.
-		if(labellist && labellist->label == p3)
+		if(lastlabel != L && lastlabel->label == p3)
 			gused(N);
 		break;
 
@@ -180,26 +201,27 @@ gen(Node *n)
 		break;
 
 	case OLABEL:
-		newlab(OLABEL, n->left->sym, n->right);
+		newlab(OLABEL, n, n->right);
 		break;
 
 	case OGOTO:
-		newlab(OGOTO, n->left->sym, N);
+		newlab(OGOTO, n, N);
 		gjmp(P);
 		break;
 
 	case OBREAK:
 		if(n->left != N) {
-			for(lab=labellist; lab!=L; lab=lab->link) {
-				if(lab->sym == n->left->sym) {
-					if(lab->breakpc == P)
-						yyerror("invalid break label %S", n->left->sym);
-					gjmp(lab->breakpc);
-					goto donebreak;
-				}
-			}
-			if(lab == L)
+			lab = n->left->sym->label;
+			if(lab == L) {
 				yyerror("break label not defined: %S", n->left->sym);
+				break;
+			}
+			lab->used = 1;
+			if(lab->breakpc == P) {
+				yyerror("invalid break label %S", n->left->sym);
+				break;
+			}
+			gjmp(lab->breakpc);
 			break;
 		}
 		if(breakpc == P) {
@@ -207,30 +229,28 @@ gen(Node *n)
 			break;
 		}
 		gjmp(breakpc);
-	donebreak:
 		break;
 
 	case OCONTINUE:
 		if(n->left != N) {
-			for(lab=labellist; lab!=L; lab=lab->link) {
-				if(lab->sym == n->left->sym) {
-					if(lab->continpc == P)
-						yyerror("invalid continue label %S", n->left->sym);
-					gjmp(lab->continpc);
-					goto donecont;
-				}
-			}
-			if(lab == L)
+			lab = n->left->sym->label;
+			if(lab == L) {
 				yyerror("continue label not defined: %S", n->left->sym);
+				break;
+			}
+			lab->used = 1;
+			if(lab->continpc == P) {
+				yyerror("invalid continue label %S", n->left->sym);
+				break;
+			}
+			gjmp(lab->continpc);
 			break;
 		}
-
 		if(continpc == P) {
 			yyerror("continue is not in a loop");
 			break;
 		}
 		gjmp(continpc);
-	donecont:
 		break;
 
 	case OFOR:
@@ -241,10 +261,11 @@ gen(Node *n)
 		continpc = pc;
 
 		// define break and continue labels
-		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n) {
+		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n) {
 			lab->breakpc = breakpc;
 			lab->continpc = continpc;
-		}
+		} else
+			lab = L;
 
 		gen(n->nincr);				// contin:	incr
 		patch(p1, pc);				// test:
@@ -254,6 +275,10 @@ gen(Node *n)
 		patch(breakpc, pc);			// done:
 		continpc = scontin;
 		breakpc = sbreak;
+		if(lab) {
+			lab->breakpc = P;
+			lab->continpc = P;
+		}
 		break;
 
 	case OIF:
@@ -274,13 +299,17 @@ gen(Node *n)
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
-		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
+		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
 			lab->breakpc = breakpc;
+		else
+			lab = L;
 
 		patch(p1, pc);				// test:
 		genlist(n->nbody);				//		switch(test) body
 		patch(breakpc, pc);			// done:
 		breakpc = sbreak;
+		if(lab != L)
+			lab->breakpc = P;
 		break;
 
 	case OSELECT:
@@ -289,13 +318,17 @@ gen(Node *n)
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
-		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
+		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
 			lab->breakpc = breakpc;
+		else
+			lab = L;
 
 		patch(p1, pc);				// test:
 		genlist(n->nbody);				//		select() body
 		patch(breakpc, pc);			// done:
 		breakpc = sbreak;
+		if(lab != L)
+			lab->breakpc = P;
 		break;
 
 	case OASOP:
