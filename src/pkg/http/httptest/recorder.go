@@ -42,6 +42,9 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, os.Error) {
 	if rw.Body != nil {
 		rw.Body.Write(buf)
 	}
+	if rw.Code == 0 {
+		rw.Code = http.StatusOK
+	}
 	return len(buf), nil
 }
 
