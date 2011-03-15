@@ -11,6 +11,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"encoding/binary"
+	"fmt"
 	"hash"
 	"io"
 	"os"
@@ -237,6 +238,18 @@ func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Er
 	h.Write([]byte(id))
 
 	return pk.VerifySignature(h, sig)
+}
+
+// KeyIdString returns the public key's fingerprint in capital hex
+// (e.g. "6C7EE1B8621CC013").
+func (pk *PublicKey) KeyIdString() string {
+	return fmt.Sprintf("%X", pk.Fingerprint[12:20])
+}
+
+// KeyIdShortString returns the short form of public key's fingerprint
+// in capital hex, as shown by gpg --list-keys (e.g. "621CC013").
+func (pk *PublicKey) KeyIdShortString() string {
+	return fmt.Sprintf("%X", pk.Fingerprint[16:20])
 }
 
 // A parsedMPI is used to store the contents of a big integer, along with the
