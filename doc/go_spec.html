@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of March 11, 2011 -->
+<!-- subtitle Version of March 15, 2011 -->
 
 <!--
 TODO
@@ -1472,6 +1472,7 @@ declarations.
 Labels are declared by <a href="#Labeled_statements">labeled statements</a> and are
 used in the <code>break</code>, <code>continue</code>, and <code>goto</code>
 statements (§<a href="#Break_statements">Break statements</a>, §<a href="#Continue_statements">Continue statements</a>, §<a href="#Goto_statements">Goto statements</a>).
+It is illegal to define a label that is never used.
 In contrast to other identifiers, labels are not block scoped and do
 not conflict with identifiers that are not labels. The scope of a label
 is the body of the function in which it is declared and excludes
@@ -4256,11 +4257,13 @@ terminates
 </p>
 
 <pre>
-L: for i &lt; n {
-	switch i {
-		case 5: break L
+L:
+	for i &lt; n {
+		switch i {
+		case 5:
+			break L
+		}
 	}
-}
 </pre>
 
 <h3 id="Continue_statements">Continue statements</h3>
@@ -4302,8 +4305,8 @@ instance, this example:
 </p>
 
 <pre>
-goto L  // BAD
-v := 3
+	goto L  // BAD
+	v := 3
 L:
 </pre>
 
