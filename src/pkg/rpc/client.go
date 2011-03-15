@@ -148,8 +148,12 @@ func (call *Call) done() {
 
 // NewClient returns a new Client to handle requests to the
 // set of services at the other end of the connection.
+// It adds a buffer to the write side of the connection so
+// the header and payload are sent as a unit.
 func NewClient(conn io.ReadWriteCloser) *Client {
-	return NewClientWithCodec(&gobClientCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)})
+	encBuf := bufio.NewWriter(conn)
+	client := &gobClientCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(encBuf), encBuf}
+	return NewClientWithCodec(client)
 }
 
 // NewClientWithCodec is like NewClient but uses the specified
@@ -164,16 +168,20 @@ func NewClientWithCodec(codec ClientCodec) *Client {
 }
 
 type gobClientCodec struct {
-	rwc io.ReadWriteCloser
-	dec *gob.Decoder
-	enc *gob.Encoder
+	rwc    io.ReadWriteCloser
+	dec    *gob.Decoder
+	enc    *gob.Encoder
+	encBuf *bufio.Writer
 }
 
-func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) os.Error {
-	if err := c.enc.Encode(r); err != nil {
-		return err
+func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) (err os.Error) {
+	if err = c.enc.Encode(r); err != nil {
+		return
 	}
-	return c.enc.Encode(body)
+	if err = c.enc.Encode(body); err != nil {
+		return
+	}
+	return c.encBuf.Flush()
 }
 
 func (c *gobClientCodec) ReadResponseHeader(r *Response) os.Error {

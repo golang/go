@@ -110,6 +110,7 @@
 package rpc
 
 import (
+	"bufio"
 	"gob"
 	"http"
 	"log"
@@ -336,9 +337,10 @@ func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, arg
 }
 
 type gobServerCodec struct {
-	rwc io.ReadWriteCloser
-	dec *gob.Decoder
-	enc *gob.Encoder
+	rwc    io.ReadWriteCloser
+	dec    *gob.Decoder
+	enc    *gob.Encoder
+	encBuf *bufio.Writer
 }
 
 func (c *gobServerCodec) ReadRequestHeader(r *Request) os.Error {
@@ -349,11 +351,14 @@ func (c *gobServerCodec) ReadRequestBody(body interface{}) os.Error {
 	return c.dec.Decode(body)
 }
 
-func (c *gobServerCodec) WriteResponse(r *Response, body interface{}) os.Error {
-	if err := c.enc.Encode(r); err != nil {
-		return err
+func (c *gobServerCodec) WriteResponse(r *Response, body interface{}) (err os.Error) {
+	if err = c.enc.Encode(r); err != nil {
+		return
 	}
-	return c.enc.Encode(body)
+	if err = c.enc.Encode(body); err != nil {
+		return
+	}
+	return c.encBuf.Flush()
 }
 
 func (c *gobServerCodec) Close() os.Error {
@@ -367,7 +372,9 @@ func (c *gobServerCodec) Close() os.Error {
 // ServeConn uses the gob wire format (see package gob) on the
 // connection.  To use an alternate codec, use ServeCodec.
 func (server *Server) ServeConn(conn io.ReadWriteCloser) {
-	server.ServeCodec(&gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)})
+	buf := bufio.NewWriter(conn)
+	srv := &gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(buf), buf}
+	server.ServeCodec(srv)
 }
 
 // ServeCodec is like ServeConn but uses the specified codec to
