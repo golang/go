@@ -22,7 +22,6 @@ dflag(void)
 /*
  * declaration stack & operations
  */
-static	Sym*	dclstack;
 
 static void
 dcopy(Sym *a, Sym *b)

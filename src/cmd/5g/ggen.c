@@ -32,7 +32,7 @@ compile(Node *fn)
 		return;
 
 	// set up domain for labels
-	labellist = L;
+	clearlabels();
 
 	lno = setlineno(fn);
 
