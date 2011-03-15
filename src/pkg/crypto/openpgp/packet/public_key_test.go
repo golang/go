@@ -16,9 +16,11 @@ var pubKeyTests = []struct {
 	creationTime   uint32
 	pubKeyAlgo     PublicKeyAlgorithm
 	keyId          uint64
+	keyIdString    string
+	keyIdShort     string
 }{
-	{rsaPkDataHex, rsaFingerprintHex, 0x4d3c5c10, PubKeyAlgoRSA, 0xa34d7e18c20c31bb},
-	{dsaPkDataHex, dsaFingerprintHex, 0x4d432f89, PubKeyAlgoDSA, 0x8e8fbe54062f19ed},
+	{rsaPkDataHex, rsaFingerprintHex, 0x4d3c5c10, PubKeyAlgoRSA, 0xa34d7e18c20c31bb, "A34D7E18C20C31BB", "C20C31BB"},
+	{dsaPkDataHex, dsaFingerprintHex, 0x4d432f89, PubKeyAlgoDSA, 0x8e8fbe54062f19ed, "8E8FBE54062F19ED", "062F19ED"},
 }
 
 func TestPublicKeyRead(t *testing.T) {
@@ -45,6 +47,12 @@ func TestPublicKeyRead(t *testing.T) {
 		}
 		if pk.KeyId != test.keyId {
 			t.Errorf("#%d: bad keyid got:%x want:%x", i, pk.KeyId, test.keyId)
+		}
+		if g, e := pk.KeyIdString(), test.keyIdString; g != e {
+			t.Errorf("#%d: bad KeyIdString got:%q want:%q", i, g, e)
+		}
+		if g, e := pk.KeyIdShortString(), test.keyIdShort; g != e {
+			t.Errorf("#%d: bad KeyIdShortString got:%q want:%q", i, g, e)
 		}
 	}
 }
