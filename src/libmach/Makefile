@@ -49,7 +49,7 @@ OFILES=\
 	6obj.$O\
 	8obj.$O\
 
-ifneq ($(GOOS),windows)
+ifneq ($(GOHOSTOS),windows)
 OFILES+=\
 	$(shell uname | tr A-Z a-z).$O\
 
