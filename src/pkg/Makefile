@@ -155,6 +155,7 @@ DIRS=\
 	../cmd/cgo\
 	../cmd/ebnflint\
 	../cmd/godoc\
+	../cmd/gofix\
 	../cmd/gofmt\
 	../cmd/gotype\
 	../cmd/goinstall\
