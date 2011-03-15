@@ -267,7 +267,6 @@ func (t *Template) nextItem() []byte {
 	}
 	leadingSpace := i > start
 	// What's left is nothing, newline, delimited string, or plain text
-Switch:
 	switch {
 	case i == len(t.buf):
 		// EOF; nothing to do

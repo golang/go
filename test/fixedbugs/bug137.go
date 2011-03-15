@@ -8,16 +8,21 @@ package main
 
 func main() {
 L1:
-L2:	for i := 0; i < 10; i++ {
-		print(i);
-		break L2;
+L2:
+	for i := 0; i < 10; i++ {
+		print(i)
+		break L2
 	}
 
-L3: ;
-L4:	for i := 0; i < 10; i++ {
-		print(i);
-		break L4;
+L3:
+	;
+L4:
+	for i := 0; i < 10; i++ {
+		print(i)
+		break L4
 	}
+	goto L1
+	goto L3
 }
 
 /*

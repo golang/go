@@ -12,6 +12,8 @@
 
 package net
 
+import "os"
+
 // IP address lengths (bytes).
 const (
 	IPv4len = 4
@@ -39,17 +41,15 @@ type IPMask []byte
 // IPv4 address a.b.c.d.
 func IPv4(a, b, c, d byte) IP {
 	p := make(IP, IPv6len)
-	for i := 0; i < 10; i++ {
-		p[i] = 0
-	}
-	p[10] = 0xff
-	p[11] = 0xff
+	copy(p, v4InV6Prefix)
 	p[12] = a
 	p[13] = b
 	p[14] = c
 	p[15] = d
 	return p
 }
+
+var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
 
 // IPv4Mask returns the IP mask (in 16-byte form) of the
 // IPv4 mask a.b.c.d.
@@ -140,9 +140,24 @@ func (ip IP) DefaultMask() IPMask {
 	return nil // not reached
 }
 
+func allFF(b []byte) bool {
+	for _, c := range b {
+		if c != 0xff {
+			return false
+		}
+	}
+	return true
+}
+
 // Mask returns the result of masking the IP address ip with mask.
 func (ip IP) Mask(mask IPMask) IP {
 	n := len(ip)
+	if len(mask) == 16 && len(ip) == 4 && allFF(mask[:12]) {
+		mask = mask[12:]
+	}
+	if len(mask) == 4 && len(ip) == 16 && bytesEqual(ip[:12], v4InV6Prefix) {
+		ip = ip[12:]
+	}
 	if n != len(mask) {
 		return nil
 	}
@@ -243,6 +258,34 @@ func (ip IP) String() string {
 		s += itox((uint(p[i]) << 8) | uint(p[i+1]))
 	}
 	return s
+}
+
+// Equal returns true if ip and x are the same IP address.
+// An IPv4 address and that same address in IPv6 form are
+// considered to be equal.
+func (ip IP) Equal(x IP) bool {
+	if len(ip) == len(x) {
+		return bytesEqual(ip, x)
+	}
+	if len(ip) == 4 && len(x) == 16 {
+		return bytesEqual(x[0:12], v4InV6Prefix) && bytesEqual(ip, x[12:])
+	}
+	if len(ip) == 16 && len(x) == 4 {
+		return bytesEqual(ip[0:12], v4InV6Prefix) && bytesEqual(ip[12:], x)
+	}
+	return false
+}
+
+func bytesEqual(x, y []byte) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, b := range x {
+		if y[i] != b {
+			return false
+		}
+	}
+	return true
 }
 
 // If mask is a sequence of 1 bits followed by 0 bits,
@@ -351,7 +394,6 @@ func parseIPv6(s string) IP {
 
 	// Loop, parsing hex numbers followed by colon.
 	j := 0
-L:
 	for j < IPv6len {
 		// Hex number.
 		n, i1, ok := xtoi(s, i)
@@ -432,15 +474,66 @@ L:
 	return p
 }
 
+// A SyntaxError represents a malformed text string and the type of string that was expected.
+type SyntaxError struct {
+	Type string
+	Text string
+}
+
+func (e *SyntaxError) String() string {
+	return "invalid " + e.Type + ": " + e.Text
+}
+
+func parseIP(s string) IP {
+	if p := parseIPv4(s); p != nil {
+		return p
+	}
+	if p := parseIPv6(s); p != nil {
+		return p
+	}
+	return nil
+}
+
 // ParseIP parses s as an IP address, returning the result.
 // The string s can be in dotted decimal ("74.125.19.99")
 // or IPv6 ("2001:4860:0:2001::68") form.
 // If s is not a valid textual representation of an IP address,
 // ParseIP returns nil.
 func ParseIP(s string) IP {
-	p := parseIPv4(s)
-	if p != nil {
+	if p := parseIPv4(s); p != nil {
 		return p
 	}
 	return parseIPv6(s)
+}
+
+// ParseCIDR parses s as a CIDR notation IP address and mask,
+// like "192.168.100.1/24" or "2001:DB8::/48".
+func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
+	i := byteIndex(s, '/')
+	if i < 0 {
+		return nil, nil, &SyntaxError{"CIDR address", s}
+	}
+	ipstr, maskstr := s[:i], s[i+1:]
+	ip = ParseIP(ipstr)
+	nn, i, ok := dtoi(maskstr, 0)
+	if ip == nil || !ok || i != len(maskstr) || nn < 0 || nn > 8*len(ip) {
+		return nil, nil, &SyntaxError{"CIDR address", s}
+	}
+	n := uint(nn)
+	if len(ip) == 4 {
+		v4mask := ^uint32(0xffffffff >> n)
+		mask = IPMask(IPv4(byte(v4mask>>24), byte(v4mask>>16), byte(v4mask>>8), byte(v4mask)))
+		return ip, mask, nil
+	}
+	mask = make(IPMask, 16)
+	for i := 0; i < 16; i++ {
+		if n >= 8 {
+			mask[i] = 0xff
+			n -= 8
+			continue
+		}
+		mask[i] = ^byte(0xff >> n)
+		n = 0
+	}
+	return ip, mask, nil
 }

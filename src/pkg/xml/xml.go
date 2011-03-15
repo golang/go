@@ -815,7 +815,6 @@ Input:
 			// Parsers are required to recognize lt, gt, amp, apos, and quot
 			// even if they have not been declared.  That's all we allow.
 			var i int
-		CharLoop:
 			for i = 0; i < len(p.tmp); i++ {
 				var ok bool
 				p.tmp[i], ok = p.getc()
