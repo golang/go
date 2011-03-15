@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// $G $D/$F.go && $L $F.$A
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,12 +7,16 @@
 package main
 
 func f() {
-exit: ;
+exit:
+	;
+	goto exit
 }
 
 
 func main() {
-exit: ; // this should be legal (labels not properly scoped?)
+exit:
+	; // this should be legal (labels not properly scoped?)
+	goto exit
 }
 
 /*
