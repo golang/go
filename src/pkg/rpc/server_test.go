@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -348,4 +349,53 @@ func testSendDeadlock(client *Client) {
 	args := &Args{7, 8}
 	reply := new(Reply)
 	client.Call("Arith.Add", args, reply)
+}
+
+func TestCountMallocs(t *testing.T) {
+	once.Do(startServer)
+	client, err := Dial("tcp", serverAddr)
+	if err != nil {
+		t.Error("error dialing", err)
+	}
+	args := &Args{7, 8}
+	reply := new(Reply)
+	mallocs := 0 - runtime.MemStats.Mallocs
+	const count = 100
+	for i := 0; i < count; i++ {
+		err = client.Call("Arith.Add", args, reply)
+		if err != nil {
+			t.Errorf("Add: expected no error but got string %q", err.String())
+		}
+		if reply.C != args.A+args.B {
+			t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+		}
+	}
+	mallocs += runtime.MemStats.Mallocs
+	fmt.Printf("mallocs per rpc round trip: %d\n", mallocs/count)
+}
+
+func BenchmarkEndToEnd(b *testing.B) {
+	b.StopTimer()
+	once.Do(startServer)
+	client, err := Dial("tcp", serverAddr)
+	if err != nil {
+		fmt.Println("error dialing", err)
+		return
+	}
+
+	// Synchronous calls
+	args := &Args{7, 8}
+	reply := new(Reply)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		err = client.Call("Arith.Add", args, reply)
+		if err != nil {
+			fmt.Printf("Add: expected no error but got string %q", err.String())
+			break
+		}
+		if reply.C != args.A+args.B {
+			fmt.Printf("Add: expected %d got %d", reply.C, args.A+args.B)
+			break
+		}
+	}
 }
