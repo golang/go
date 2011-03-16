@@ -11,7 +11,6 @@ func init() {
 var httpserverTests = []testCase{
 	{
 		Name: "httpserver.0",
-		Fn:   httpserver,
 		In: `package main
 
 import "http"
