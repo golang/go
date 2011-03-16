@@ -5,6 +5,118 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-03-15">2011-03-15</h3>
+
+<pre>
+This week's release introduces a new release tagging scheme. We intend to
+continue with our weekly releases, but have renamed the existing tags from
+"release" to "weekly". The "release" tag will now be applied to one hand-picked
+stable release each month or two.
+
+The revision formerly tagged "release.2011-03-07.1" (now "weekly.2011-03-07.1") has been nominated our first stable release, and has been given the tag "release.r56". As we tag each stable release we will post an announcement to the new golang-announce mailing list:
+  http://groups.google.com/group/golang-announce
+
+You can continue to keep your Go installation updated using "hg update release", but now you should only need to update once we tag a new stable release, which we will announce here. If you wish to stay at the leading edge, you should switch to the weekly tag with "hg update weekly".
+
+
+This weekly release includes significant changes to the language spec and the http, os, and syscall packages. Your code may need to be changed. It also introduces the new gofix tool.
+
+The closed function has been removed from the language. The syntax for channel receives has been changed to return an optional second value, a boolean value indicating whether the channel is closed. This code:
+v := <-ch
+if closed(ch) {
+	// channel is closed
+}
+should now be written as:
+v, ok := <-ch
+if !ok {
+	// channel is closed
+}
+
+It is now illegal to declare unused labels, just as it is illegal to declare unused local variables.
+
+The new gofix tool finds Go programs that use old APIs and rewrites them to use newer ones.  After you update to a new Go release, gofix helps make the necessary changes to your programs. Gofix will handle the http, os, and syscall package changes described below, and we will update the program to keep up with future changes to the libraries.
+
+The Hijack and Flush methods have been removed from the http.ResponseWriter interface and are accessible via the new http.Hijacker and http.Flusher interfaces. The RemoteAddr and UsingTLS methods have been moved from http.ResponseWriter to http.Request. The 
+
+The http.ResponseWriter interface's SetHeader method has been replaced by a Header() method that returns the response's http.Header. Caller code needs to change. This code:
+	rw.SetHeader("Content-Type", "text/plain")
+should now be written as:
+rw.Header().Set("Content-Type", "text/plain")
+The os and syscall packages' StartProcess functions now take their final three arguments as an *os.ProcAttr and *syscall.ProcAttr values, respectively. This code:
+os.StartProcess(bin, args, env, dir, fds)
+should now be written as:
+	os.StartProcess(bin, args, &os.ProcAttr{Files: fds, Dir: dir, Env: env})
+
+The gob package will now encode and decode values of types that implement the gob.GobEncoder and gob.GobDecoder interfaces. This allows types with unexported fields to transmit self-consistent descriptions; one instance is big.Int and big.Rat.
+
+Other changes:
+* 5l, 6l, 8l: reduce binary size about 40% by omitting symbols for type, string, go.string.
+* 5l, 8l: output missing section symbols (thanks Anthony Martin).
+* 6l, 8l: fix gdb crash.
+* Make.cmd: also clean _test* (thanks Gustavo Niemeyer).
+* big: implemented custom Gob(En/De)coder for Int type.
+* build: remove duplicate dependency in Make.cmd (thanks Robert Hencke),
+        run gotest in misc/cgo/test.
+* codereview.py: don't suggest change -d if user is not CL author (thanks Robert Hencke).
+* compress/lzw: benchmark a range of input sizes.
+* crypto/ecdsa: add package.
+* crypto/elliptic: add the N value of each curve.
+* crypto/openpgp: bug fixes and fix misnamed function.
+* crypto/tls: fix compile error (thanks Dave Cheney).
+* doc: Effective Go: some small cleanups,
+        update FAQ. hello, world is now 1.1MB, down from 1.8MB,
+        update codelab wiki to fix template.Execute argument order.
+* flag: visit the flags in sorted order, for nicer messages.
+* fmt: do not export EOF = -1.
+* fmt: make ScanState.Token more general (thanks Roger Peppe).
+* gc: diagnose unused labels,
+        fix handling of return values named _,
+        include all dependencies in export metadata,
+        make unsafe.Pointer its own kind of type, instead of an equivalent to *any.
+* go/ast, go/parser: populate identifier scopes at parse time.
+* go/ast: add FileSet parameter to ast.Print and ast.Fprint.
+* go/parser: first constant in a constant declaration must have a value.
+* gob: efficiency and reliability fixes.
+* gofmt: remove -trace and -ast flags.
+* goinstall: handle $(GOOS) and $(GOARCH) in filenames,
+        handle .c files with gc when cgo isn't used, and
+        handle .s files with gc (thanks Gustavo Niemeyer).
+* gopack: omit time stamps, makes output deterministic.
+* gotype: commandline tool to typecheck go programs.
+* govet: handle '*' in print format strings.
+* hash: new FNV-1a implementation (thanks Pascal S. de Kloe).
+* http/cgi: child support (e.g. Go CGI under Apache).
+* http: adapt Cookie code to follow IETF draft (thanks Petar Maymounkov),
+        add test for fixed HTTP/1.0 keep-alive issue,
+        don't hit external network in client_test.go,
+        fix transport crash when request URL is nil,
+        rename interface Transport to RoundTripper,
+        run tests even with DISABLE_NET_TESTS=1.
+* httptest: default the Recorder status code to 200 on a Write.
+* io/ioutil: clean-up of ReadAll and ReadFile.
+* ioutil: add NopCloser.
+* ld: preserve symbol sizes during data layout.
+* lib9, libmach: Change GOOS references to GOHOSTOS (thanks Evan Shaw).
+* libmach: correct string comparison to revive 6cov on darwin (thanks Dave Cheney).
+* misc/vim: Add indent script for Vim (thanks Ross Light).
+* net, os, syslog: fixes for Solaris support.
+* net: don't loop to drain wakeup pipe.
+* nm: document -S flag.
+* openpgp: add PublicKey KeyId string accessors.
+* rpc: optimizations, add benchmarks and memory profiling,
+        use httptest.Server for tests (thanks Robert Hencke).
+* runtime: reduce lock contention via wakeup on scheduler unlock,
+        scheduler, cgo reorganization,
+        split non-debugging malloc interface out of debug.go into mem.go.
+* spec: clarify return statement rules.
+* strings: add IndexRune tests, ASCII fast path,
+        better benchmark names; add BenchmarkIndex.
+* syscall: implement Mount and Unmount for linux,
+        implement Reboot for linux.
+* time: fix Time.ZoneOffset documentation (thanks Peter Mundy).
+* tls: move PeerCertificates to ConnectionState.
+</pre>
+
 <h3 id="2011-03-07">2011-03-07 (r56)</h3>
 
 <pre>
@@ -135,7 +247,7 @@ Other changes:
 * netchan: allow use of arbitrary connections (thanks Roger Peppe).
 * os: add ENODATA and ENOTCONN (thanks Albert Strasheim).
 * reflect: add a couple of sentences explaining how Methods operate,
-	add a secret method to ArrayOrSliceType to ensure it’s only implemented by arrays and slices,
+	add a secret method to ArrayOrSliceType to ensure it's only implemented by arrays and slices,
 	add pointer word to CommonType (placeholder for future work).
 * runtime-gdb.py: gdb pretty printer for go strings properly handles length.
 * runtime: various bug fixes, more complete stack traces,
@@ -186,7 +298,7 @@ Other changes:
        fix spaces in GOROOT (thanks Christopher Nielsen).
 * bytes: fix bug in buffer.ReadBytes (thanks Evan Shaw).
 * 5g: better int64 code,
-       don’t use MVN instruction.
+       don't use MVN instruction.
 * cgo: don't run cgo when not compiling (thanks Gustavo Niemeyer),
        fix _cgo_run timestamp file order (thanks Gustavo Niemeyer),
        fix handling of signed enumerations (thanks Gustavo Niemeyer),
