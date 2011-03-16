@@ -181,7 +181,7 @@ func (S *Scanner) interpretLineComment(text []byte) {
 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
 				// valid //line filename:line comment;
 				filename := filepath.Clean(string(text[len(prefix):i]))
-				if filename[0] != '/' {
+				if !filepath.IsAbs(filename) {
 					// make filename relative to current directory
 					filename = filepath.Join(S.dir, filename)
 				}

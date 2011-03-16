@@ -7,6 +7,7 @@ package scanner
 import (
 	"go/token"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -443,27 +444,26 @@ func TestSemis(t *testing.T) {
 	}
 }
 
-
 var segments = []struct {
 	srcline  string // a line of source text
 	filename string // filename for current token
 	line     int    // line number for current token
 }{
 	// exactly one token per line since the test consumes one token per segment
-	{"  line1", "dir/TestLineComments", 1},
-	{"\nline2", "dir/TestLineComments", 2},
-	{"\nline3  //line File1.go:100", "dir/TestLineComments", 3}, // bad line comment, ignored
-	{"\nline4", "dir/TestLineComments", 4},
-	{"\n//line File1.go:100\n  line100", "dir/File1.go", 100},
-	{"\n//line File2.go:200\n  line200", "dir/File2.go", 200},
+	{"  line1", filepath.Join("dir", "TestLineComments"), 1},
+	{"\nline2", filepath.Join("dir", "TestLineComments"), 2},
+	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineComments"), 3}, // bad line comment, ignored
+	{"\nline4", filepath.Join("dir", "TestLineComments"), 4},
+	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100},
+	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200},
 	{"\n//line :1\n  line1", "dir", 1},
-	{"\n//line foo:42\n  line42", "dir/foo", 42},
-	{"\n //line foo:42\n  line44", "dir/foo", 44},           // bad line comment, ignored
-	{"\n//line foo 42\n  line46", "dir/foo", 46},            // bad line comment, ignored
-	{"\n//line foo:42 extra text\n  line48", "dir/foo", 48}, // bad line comment, ignored
-	{"\n//line /bar:42\n  line42", "/bar", 42},
-	{"\n//line ./foo:42\n  line42", "dir/foo", 42},
-	{"\n//line a/b/c/File1.go:100\n  line100", "dir/a/b/c/File1.go", 100},
+	{"\n//line foo:42\n  line42", filepath.Join("dir", "foo"), 42},
+	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44},           // bad line comment, ignored
+	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46},            // bad line comment, ignored
+	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48}, // bad line comment, ignored
+	{"\n//line /bar:42\n  line42", string(filepath.Separator) + "bar", 42},
+	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42},
+	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100},
 }
 
 
@@ -477,7 +477,7 @@ func TestLineComments(t *testing.T) {
 
 	// verify scan
 	var S Scanner
-	file := fset.AddFile("dir/TestLineComments", fset.Base(), len(src))
+	file := fset.AddFile(filepath.Join("dir", "TestLineComments"), fset.Base(), len(src))
 	S.Init(file, []byte(src), nil, 0)
 	for _, s := range segments {
 		p, _, lit := S.Scan()
