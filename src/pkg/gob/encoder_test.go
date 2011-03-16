@@ -514,39 +514,3 @@ func TestNestedInterfaces(t *testing.T) {
 		t.Fatalf("final value %d; expected %d", inner.A, 7)
 	}
 }
-
-type Bench struct {
-	A int
-	B float64
-	C string
-	D []byte
-}
-
-func benchmarkEndToEnd(r io.Reader, w io.Writer, b *testing.B) {
-	b.StopTimer()
-	enc := NewEncoder(w)
-	dec := NewDecoder(r)
-	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		if enc.Encode(bench) != nil {
-			panic("encode error")
-		}
-		if dec.Decode(bench) != nil {
-			panic("decode error")
-		}
-	}
-}
-
-func BenchmarkEndToEndPipe(b *testing.B) {
-	r, w, err := os.Pipe()
-	if err != nil {
-		panic("can't get pipe:" + err.String())
-	}
-	benchmarkEndToEnd(r, w, b)
-}
-
-func BenchmarkEndToEndByteBuffer(b *testing.B) {
-	var buf bytes.Buffer
-	benchmarkEndToEnd(&buf, &buf, b)
-}
