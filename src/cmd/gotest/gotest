@@ -164,6 +164,7 @@ importpath=$(gomake -s importpath)
 		echo 'import "./_xtest_"'
 	fi
 	echo 'import "testing"'
+	echo 'import __os__ "os"' # rename in case tested package is called os
 	echo 'import __regexp__ "regexp"' # rename in case tested package is called regexp
 	# test array
 	echo
@@ -185,11 +186,26 @@ importpath=$(gomake -s importpath)
 	done
 	echo '}'
 	# body
-	echo
-	echo 'func main() {'
-	echo '	testing.Main(__regexp__.MatchString, tests)'
-	echo '	testing.RunBenchmarks(__regexp__.MatchString, benchmarks)'
-	echo '}'
+	echo \
+'
+var matchPat string
+var matchRe *__regexp__.Regexp
+
+func matchString(pat, str string) (result bool, err __os__.Error) {
+	if matchRe == nil || matchPat != pat {
+		matchPat = pat
+		matchRe, err = __regexp__.Compile(matchPat)
+		if err != nil {
+			return
+		}
+	}
+	return matchRe.MatchString(str), nil
+}
+
+func main() {
+	testing.Main(matchString, tests)
+	testing.RunBenchmarks(matchString, benchmarks)
+}'
 }>_testmain.go
 
 $GC _testmain.go
