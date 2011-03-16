@@ -204,17 +204,21 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		//           the key and the node size into the decision process
 		useFF := true
 
-		// determine size
+		// determine element size: all bets are off if we don't have
+		// position information for the previous and next token (likely
+		// generated code - simply ignore the size in this case by setting
+		// it to 0)
 		prevSize := size
 		const infinity = 1e6 // larger than any source line
 		size = p.nodeSize(x, infinity)
 		pair, isPair := x.(*ast.KeyValueExpr)
-		if size <= infinity {
+		if size <= infinity && prev.IsValid() && next.IsValid() {
 			// x fits on a single line
 			if isPair {
 				size = p.nodeSize(pair.Key, infinity) // size <= infinity
 			}
 		} else {
+			// size too large or we don't have good layout information
 			size = 0
 		}
 
@@ -244,7 +248,6 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 				// lines are broken using newlines so comments remain aligned
 				// unless forceFF is set or there are multiple expressions on
 				// the same line in which case formfeed is used
-				// broken with a formfeed
 				if p.linebreak(line, linebreakMin, ws, useFF || prevBreak+1 < i) {
 					ws = ignore
 					*multiLine = true
