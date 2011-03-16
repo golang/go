@@ -1148,9 +1148,9 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 		}
 
 	case *ast.CaseClause:
-		if s.Values != nil {
+		if s.List != nil {
 			p.print(token.CASE)
-			p.exprList(s.Pos(), s.Values, 1, blankStart|commaSep, multiLine, s.Colon)
+			p.exprList(s.Pos(), s.List, 1, blankStart|commaSep, multiLine, s.Colon)
 		} else {
 			p.print(token.DEFAULT)
 		}
@@ -1162,16 +1162,6 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 		p.controlClause(false, s.Init, s.Tag, nil)
 		p.block(s.Body, 0)
 		*multiLine = true
-
-	case *ast.TypeCaseClause:
-		if s.Types != nil {
-			p.print(token.CASE)
-			p.exprList(s.Pos(), s.Types, 1, blankStart|commaSep, multiLine, s.Colon)
-		} else {
-			p.print(token.DEFAULT)
-		}
-		p.print(s.Colon, token.COLON)
-		p.stmtList(s.Body, 1, nextIsRBrace)
 
 	case *ast.TypeSwitchStmt:
 		p.print(token.SWITCH)

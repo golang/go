@@ -234,7 +234,7 @@ func Walk(v Visitor, node Node) {
 		}
 
 	case *CaseClause:
-		walkExprList(v, n.Values)
+		walkExprList(v, n.List)
 		walkStmtList(v, n.Body)
 
 	case *SwitchStmt:
@@ -245,12 +245,6 @@ func Walk(v Visitor, node Node) {
 			Walk(v, n.Tag)
 		}
 		Walk(v, n.Body)
-
-	case *TypeCaseClause:
-		for _, x := range n.Types {
-			Walk(v, x)
-		}
-		walkStmtList(v, n.Body)
 
 	case *TypeSwitchStmt:
 		if n.Init != nil {

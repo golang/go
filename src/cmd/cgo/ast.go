@@ -325,26 +325,28 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 		f.walk(n.Results, "expr", visit)
 	case *ast.BranchStmt:
 	case *ast.BlockStmt:
-		f.walk(n.List, "stmt", visit)
+		f.walk(n.List, context, visit)
 	case *ast.IfStmt:
 		f.walk(n.Init, "stmt", visit)
 		f.walk(&n.Cond, "expr", visit)
 		f.walk(n.Body, "stmt", visit)
 		f.walk(n.Else, "stmt", visit)
 	case *ast.CaseClause:
-		f.walk(n.Values, "expr", visit)
+		if context == "typeswitch" {
+			context = "type"
+		} else {
+			context = "expr"
+		}
+		f.walk(n.List, context, visit)
 		f.walk(n.Body, "stmt", visit)
 	case *ast.SwitchStmt:
 		f.walk(n.Init, "stmt", visit)
 		f.walk(&n.Tag, "expr", visit)
-		f.walk(n.Body, "stmt", visit)
-	case *ast.TypeCaseClause:
-		f.walk(n.Types, "type", visit)
-		f.walk(n.Body, "stmt", visit)
+		f.walk(n.Body, "switch", visit)
 	case *ast.TypeSwitchStmt:
 		f.walk(n.Init, "stmt", visit)
 		f.walk(n.Assign, "stmt", visit)
-		f.walk(n.Body, "stmt", visit)
+		f.walk(n.Body, "typeswitch", visit)
 	case *ast.CommClause:
 		f.walk(n.Comm, "stmt", visit)
 		f.walk(n.Body, "stmt", visit)

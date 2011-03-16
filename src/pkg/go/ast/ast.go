@@ -602,12 +602,12 @@ type (
 		Else Stmt // else branch; or nil
 	}
 
-	// A CaseClause represents a case of an expression switch statement.
+	// A CaseClause represents a case of an expression or type switch statement.
 	CaseClause struct {
-		Case   token.Pos // position of "case" or "default" keyword
-		Values []Expr    // nil means default case
-		Colon  token.Pos // position of ":"
-		Body   []Stmt    // statement list; or nil
+		Case  token.Pos // position of "case" or "default" keyword
+		List  []Expr    // list of expressions or types; nil means default case
+		Colon token.Pos // position of ":"
+		Body  []Stmt    // statement list; or nil
 	}
 
 	// A SwitchStmt node represents an expression switch statement.
@@ -618,20 +618,12 @@ type (
 		Body   *BlockStmt // CaseClauses only
 	}
 
-	// A TypeCaseClause represents a case of a type switch statement.
-	TypeCaseClause struct {
-		Case  token.Pos // position of "case" or "default" keyword
-		Types []Expr    // nil means default case
-		Colon token.Pos // position of ":"
-		Body  []Stmt    // statement list; or nil
-	}
-
 	// An TypeSwitchStmt node represents a type switch statement.
 	TypeSwitchStmt struct {
 		Switch token.Pos  // position of "switch" keyword
 		Init   Stmt       // initalization statement; or nil
-		Assign Stmt       // x := y.(type)
-		Body   *BlockStmt // TypeCaseClauses only
+		Assign Stmt       // x := y.(type) or y.(type)
+		Body   *BlockStmt // CaseClauses only
 	}
 
 	// A CommClause node represents a case of a select statement.
@@ -687,7 +679,6 @@ func (s *BlockStmt) Pos() token.Pos      { return s.Lbrace }
 func (s *IfStmt) Pos() token.Pos         { return s.If }
 func (s *CaseClause) Pos() token.Pos     { return s.Case }
 func (s *SwitchStmt) Pos() token.Pos     { return s.Switch }
-func (s *TypeCaseClause) Pos() token.Pos { return s.Case }
 func (s *TypeSwitchStmt) Pos() token.Pos { return s.Switch }
 func (s *CommClause) Pos() token.Pos     { return s.Case }
 func (s *SelectStmt) Pos() token.Pos     { return s.Select }
@@ -734,13 +725,7 @@ func (s *CaseClause) End() token.Pos {
 	}
 	return s.Colon + 1
 }
-func (s *SwitchStmt) End() token.Pos { return s.Body.End() }
-func (s *TypeCaseClause) End() token.Pos {
-	if n := len(s.Body); n > 0 {
-		return s.Body[n-1].End()
-	}
-	return s.Colon + 1
-}
+func (s *SwitchStmt) End() token.Pos     { return s.Body.End() }
 func (s *TypeSwitchStmt) End() token.Pos { return s.Body.End() }
 func (s *CommClause) End() token.Pos {
 	if n := len(s.Body); n > 0 {
@@ -772,7 +757,6 @@ func (s *BlockStmt) stmtNode()      {}
 func (s *IfStmt) stmtNode()         {}
 func (s *CaseClause) stmtNode()     {}
 func (s *SwitchStmt) stmtNode()     {}
-func (s *TypeCaseClause) stmtNode() {}
 func (s *TypeSwitchStmt) stmtNode() {}
 func (s *CommClause) stmtNode()     {}
 func (s *SelectStmt) stmtNode()     {}
