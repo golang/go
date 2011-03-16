@@ -7,6 +7,7 @@
 package packet
 
 import (
+	"big"
 	"crypto/aes"
 	"crypto/cast5"
 	"crypto/cipher"
@@ -385,11 +386,16 @@ func readMPI(r io.Reader) (mpi []byte, bitLength uint16, err os.Error) {
 	return
 }
 
-// writeMPI serializes a big integer to r.
+// writeMPI serializes a big integer to w.
 func writeMPI(w io.Writer, bitLength uint16, mpiBytes []byte) (err os.Error) {
 	_, err = w.Write([]byte{byte(bitLength >> 8), byte(bitLength)})
 	if err == nil {
 		_, err = w.Write(mpiBytes)
 	}
 	return
+}
+
+// writeBig serializes a *big.Int to w.
+func writeBig(w io.Writer, i *big.Int) os.Error {
+	return writeMPI(w, uint16(i.BitLen()), i.Bytes())
 }

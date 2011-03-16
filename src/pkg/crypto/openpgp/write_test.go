@@ -18,7 +18,7 @@ func TestSignDetached(t *testing.T) {
 		t.Error(err)
 	}
 
-	testDetachedSignature(t, kring, out, signedInput, "check")
+	testDetachedSignature(t, kring, out, signedInput, "check", testKey1KeyId)
 }
 
 func TestSignTextDetached(t *testing.T) {
@@ -30,5 +30,17 @@ func TestSignTextDetached(t *testing.T) {
 		t.Error(err)
 	}
 
-	testDetachedSignature(t, kring, out, signedInput, "check")
+	testDetachedSignature(t, kring, out, signedInput, "check", testKey1KeyId)
+}
+
+func TestSignDetachedDSA(t *testing.T) {
+	kring, _ := ReadKeyRing(readerFromHex(dsaTestKeyPrivateHex))
+	out := bytes.NewBuffer(nil)
+	message := bytes.NewBufferString(signedInput)
+	err := DetachSign(out, kring[0], message)
+	if err != nil {
+		t.Error(err)
+	}
+
+	testDetachedSignature(t, kring, out, signedInput, "check", testKey3KeyId)
 }

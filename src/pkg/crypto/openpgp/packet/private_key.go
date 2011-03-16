@@ -8,6 +8,7 @@ import (
 	"big"
 	"bytes"
 	"crypto/cipher"
+	"crypto/dsa"
 	"crypto/openpgp/error"
 	"crypto/openpgp/s2k"
 	"crypto/rsa"
@@ -134,7 +135,16 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) os.Error {
 }
 
 func (pk *PrivateKey) parsePrivateKey(data []byte) (err os.Error) {
-	// TODO(agl): support DSA and ECDSA private keys.
+	switch pk.PublicKey.PubKeyAlgo {
+	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly, PubKeyAlgoRSAEncryptOnly:
+		return pk.parseRSAPrivateKey(data)
+	case PubKeyAlgoDSA:
+		return pk.parseDSAPrivateKey(data)
+	}
+	panic("impossible")
+}
+
+func (pk *PrivateKey) parseRSAPrivateKey(data []byte) (err os.Error) {
 	rsaPub := pk.PublicKey.PublicKey.(*rsa.PublicKey)
 	rsaPriv := new(rsa.PrivateKey)
 	rsaPriv.PublicKey = *rsaPub
@@ -157,6 +167,25 @@ func (pk *PrivateKey) parsePrivateKey(data []byte) (err os.Error) {
 	rsaPriv.P = new(big.Int).SetBytes(p)
 	rsaPriv.Q = new(big.Int).SetBytes(q)
 	pk.PrivateKey = rsaPriv
+	pk.Encrypted = false
+	pk.encryptedData = nil
+
+	return nil
+}
+
+func (pk *PrivateKey) parseDSAPrivateKey(data []byte) (err os.Error) {
+	dsaPub := pk.PublicKey.PublicKey.(*dsa.PublicKey)
+	dsaPriv := new(dsa.PrivateKey)
+	dsaPriv.PublicKey = *dsaPub
+
+	buf := bytes.NewBuffer(data)
+	x, _, err := readMPI(buf)
+	if err != nil {
+		return
+	}
+
+	dsaPriv.X = new(big.Int).SetBytes(x)
+	pk.PrivateKey = dsaPriv
 	pk.Encrypted = false
 	pk.encryptedData = nil
 
