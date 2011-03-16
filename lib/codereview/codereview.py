@@ -779,7 +779,7 @@ def Incoming(ui, repo, opts):
 	_, incoming, _ = findcommonincoming(repo, getremote(ui, repo, opts))
 	return incoming
 
-desc_re = '^(.+: |tag release\.|release\.|fix build)'
+desc_re = '^(.+: |(tag )?(release|weekly)\.|fix build)'
 
 desc_msg = '''Your CL description appears not to use the standard form.
 
