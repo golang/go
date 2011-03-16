@@ -145,14 +145,11 @@ func rewrite(x interface{}, visit func(interface{})) {
 		rewrite(n.Body, visit)
 		rewrite(n.Else, visit)
 	case *ast.CaseClause:
-		rewrite(n.Values, visit)
+		rewrite(n.List, visit)
 		rewrite(n.Body, visit)
 	case *ast.SwitchStmt:
 		rewrite(n.Init, visit)
 		rewrite(&n.Tag, visit)
-		rewrite(n.Body, visit)
-	case *ast.TypeCaseClause:
-		rewrite(n.Types, visit)
 		rewrite(n.Body, visit)
 	case *ast.TypeSwitchStmt:
 		rewrite(n.Init, visit)

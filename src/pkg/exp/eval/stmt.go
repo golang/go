@@ -287,9 +287,6 @@ func (a *stmtCompiler) compile(s ast.Stmt) {
 	case *ast.SwitchStmt:
 		a.compileSwitchStmt(s)
 
-	case *ast.TypeCaseClause:
-		notimpl = true
-
 	case *ast.TypeSwitchStmt:
 		notimpl = true
 
@@ -1012,13 +1009,13 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 			a.diagAt(clause.Pos(), "switch statement must contain case clauses")
 			continue
 		}
-		if clause.Values == nil {
+		if clause.List == nil {
 			if hasDefault {
 				a.diagAt(clause.Pos(), "switch statement contains more than one default case")
 			}
 			hasDefault = true
 		} else {
-			ncases += len(clause.Values)
+			ncases += len(clause.List)
 		}
 	}
 
@@ -1030,7 +1027,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 		if !ok {
 			continue
 		}
-		for _, v := range clause.Values {
+		for _, v := range clause.List {
 			e := condbc.compileExpr(condbc.block, false, v)
 			switch {
 			case e == nil:
@@ -1077,8 +1074,8 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 
 		// Save jump PC's
 		pc := a.nextPC()
-		if clause.Values != nil {
-			for _ = range clause.Values {
+		if clause.List != nil {
+			for _ = range clause.List {
 				casePCs[i] = &pc
 				i++
 			}

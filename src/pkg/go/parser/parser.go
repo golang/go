@@ -1518,29 +1518,6 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 }
 
 
-func (p *parser) parseCaseClause() *ast.CaseClause {
-	if p.trace {
-		defer un(trace(p, "CaseClause"))
-	}
-
-	pos := p.pos
-	var x []ast.Expr
-	if p.tok == token.CASE {
-		p.next()
-		x = p.parseExprList()
-	} else {
-		p.expect(token.DEFAULT)
-	}
-
-	colon := p.expect(token.COLON)
-	p.openScope()
-	body := p.parseStmtList()
-	p.closeScope()
-
-	return &ast.CaseClause{pos, x, colon, body}
-}
-
-
 func (p *parser) parseTypeList() (list []ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "TypeList"))
@@ -1556,16 +1533,20 @@ func (p *parser) parseTypeList() (list []ast.Expr) {
 }
 
 
-func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
+func (p *parser) parseCaseClause(exprSwitch bool) *ast.CaseClause {
 	if p.trace {
-		defer un(trace(p, "TypeCaseClause"))
+		defer un(trace(p, "CaseClause"))
 	}
 
 	pos := p.pos
-	var types []ast.Expr
+	var list []ast.Expr
 	if p.tok == token.CASE {
 		p.next()
-		types = p.parseTypeList()
+		if exprSwitch {
+			list = p.parseExprList()
+		} else {
+			list = p.parseTypeList()
+		}
 	} else {
 		p.expect(token.DEFAULT)
 	}
@@ -1575,7 +1556,7 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 	body := p.parseStmtList()
 	p.closeScope()
 
-	return &ast.TypeCaseClause{pos, types, colon, body}
+	return &ast.CaseClause{pos, list, colon, body}
 }
 
 
@@ -1620,28 +1601,21 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		p.exprLev = prevLev
 	}
 
-	if isExprSwitch(s2) {
-		lbrace := p.expect(token.LBRACE)
-		var list []ast.Stmt
-		for p.tok == token.CASE || p.tok == token.DEFAULT {
-			list = append(list, p.parseCaseClause())
-		}
-		rbrace := p.expect(token.RBRACE)
-		body := &ast.BlockStmt{lbrace, list, rbrace}
-		p.expectSemi()
-		return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body}
-	}
-
-	// type switch
-	// TODO(gri): do all the checks!
+	exprSwitch := isExprSwitch(s2)
 	lbrace := p.expect(token.LBRACE)
 	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
-		list = append(list, p.parseTypeCaseClause())
+		list = append(list, p.parseCaseClause(exprSwitch))
 	}
 	rbrace := p.expect(token.RBRACE)
 	p.expectSemi()
 	body := &ast.BlockStmt{lbrace, list, rbrace}
+
+	if exprSwitch {
+		return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body}
+	}
+	// type switch
+	// TODO(gri): do all the checks!
 	return &ast.TypeSwitchStmt{pos, s1, s2, body}
 }
 
