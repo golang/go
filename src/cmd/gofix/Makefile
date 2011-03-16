@@ -9,6 +9,7 @@ GOFILES=\
 	fix.go\
 	main.go\
 	httpserver.go\
+	procattr.go\
 
 include ../../Make.cmd
 
