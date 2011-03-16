@@ -9,6 +9,8 @@ package ecdsa
 // References:
 //   [NSA]: Suite B implementor's guide to FIPS 186-3,
 //     http://www.nsa.gov/ia/_files/ecdsa.pdf
+//   [SECG]: SECG, SEC1
+//     http://www.secg.org/download/aid-780/sec1-v2.pdf
 
 import (
 	"big"
@@ -61,6 +63,25 @@ func GenerateKey(c *elliptic.Curve, rand io.Reader) (priv *PrivateKey, err os.Er
 	return
 }
 
+// hashToInt converts a hash value to an integer. There is some disagreement
+// about how this is done. [NSA] suggests that this is done in the obvious
+// manner, but [SECG] truncates the hash to the bit-length of the curve order
+// first. We follow [SECG] because that's what OpenSSL does.
+func hashToInt(hash []byte, c *elliptic.Curve) *big.Int {
+	orderBits := c.N.BitLen()
+	orderBytes := (orderBits + 7) / 8
+	if len(hash) > orderBytes {
+		hash = hash[:orderBytes]
+	}
+
+	ret := new(big.Int).SetBytes(hash)
+	excess := orderBytes*8 - orderBits
+	if excess > 0 {
+		ret.Rsh(ret, uint(excess))
+	}
+	return ret
+}
+
 // Sign signs an arbitrary length hash (which should be the result of hashing a
 // larger message) using the private key, priv. It returns the signature as a
 // pair of integers. The security of the private key depends on the entropy of
@@ -86,7 +107,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err os.
 			}
 		}
 
-		e := new(big.Int).SetBytes(hash)
+		e := hashToInt(hash, c)
 		s = new(big.Int).Mul(priv.D, r)
 		s.Add(s, e)
 		s.Mul(s, kInv)
@@ -111,7 +132,7 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	if r.Cmp(c.N) >= 0 || s.Cmp(c.N) >= 0 {
 		return false
 	}
-	e := new(big.Int).SetBytes(hash)
+	e := hashToInt(hash, c)
 	w := new(big.Int).ModInverse(s, c.N)
 
 	u1 := e.Mul(e, w)
