@@ -51,7 +51,7 @@ func httpserver(f *ast.File) bool {
 
 			// Look for w.UsingTLS() and w.Remoteaddr().
 			call, ok := n.(*ast.CallExpr)
-			if !ok || len(call.Args) != 0 {
+			if !ok || (len(call.Args) != 0 && len(call.Args) != 2) {
 				return
 			}
 			sel, ok := call.Fun.(*ast.SelectorExpr)
@@ -100,6 +100,21 @@ func httpserver(f *ast.File) bool {
 				*ptr = &ast.SelectorExpr{
 					X:   ast.NewIdent(req.String()),
 					Sel: ast.NewIdent("RemoteAddr"),
+				}
+				fixed = true
+			case "SetHeader":
+				// replace w.SetHeader with w.Header().Set
+				// or w.Header().Del if second argument is ""
+				sel.X = &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent(w.String()),
+						Sel: ast.NewIdent("Header"),
+					},
+				}
+				sel.Sel = ast.NewIdent("Set")
+				if len(call.Args) == 2 && isEmptyString(call.Args[1]) {
+					sel.Sel = ast.NewIdent("Del")
+					call.Args = call.Args[:1]
 				}
 				fixed = true
 			}

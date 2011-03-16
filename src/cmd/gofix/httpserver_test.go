@@ -16,6 +16,8 @@ var httpserverTests = []testCase{
 import "http"
 
 func f(xyz http.ResponseWriter, abc *http.Request, b string) {
+	xyz.SetHeader("foo", "bar")
+	xyz.SetHeader("baz", "")
 	xyz.Hijack()
 	xyz.Flush()
 	go xyz.Hijack()
@@ -33,6 +35,8 @@ func f(xyz http.ResponseWriter, abc *http.Request, b string) {
 import "http"
 
 func f(xyz http.ResponseWriter, abc *http.Request, b string) {
+	xyz.Header().Set("foo", "bar")
+	xyz.Header().Del("baz")
 	xyz.(http.Hijacker).Hijack()
 	xyz.(http.Flusher).Flush()
 	go xyz.(http.Hijacker).Hijack()
