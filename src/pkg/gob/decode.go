@@ -31,16 +31,27 @@ type decoderState struct {
 	b        *bytes.Buffer
 	fieldnum int // the last field number read.
 	buf      []byte
+	next     *decoderState // for free list
 }
 
 // We pass the bytes.Buffer separately for easier testing of the infrastructure
 // without requiring a full Decoder.
-func newDecodeState(dec *Decoder, buf *bytes.Buffer) *decoderState {
-	d := new(decoderState)
-	d.dec = dec
+func (dec *Decoder) newDecoderState(buf *bytes.Buffer) *decoderState {
+	d := dec.freeList
+	if d == nil {
+		d = new(decoderState)
+		d.dec = dec
+	} else {
+		dec.freeList = d.next
+	}
 	d.b = buf
 	d.buf = make([]byte, uint64Size)
 	return d
+}
+
+func (dec *Decoder) freeDecoderState(d *decoderState) {
+	d.next = dec.freeList
+	dec.freeList = d
 }
 
 func overflow(name string) os.ErrorString {
@@ -445,7 +456,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr)
 		indir = int(ut.decIndir)
 	}
 	p = allocate(ut.base, p, indir)
-	state := newDecodeState(dec, &dec.buf)
+	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = singletonField
 	basep := p
 	delta := int(state.decodeUint())
@@ -458,6 +469,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr)
 		ptr = decIndirect(ptr, instr.indir)
 	}
 	instr.op(instr, state, ptr)
+	dec.freeDecoderState(state)
 	return nil
 }
 
@@ -468,7 +480,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr)
 // from the user's value, not from the innards of an engine.
 func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr, indir int) (err os.Error) {
 	p = allocate(ut.base.(*reflect.StructType), p, indir)
-	state := newDecodeState(dec, &dec.buf)
+	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = -1
 	basep := p
 	for state.b.Len() > 0 {
@@ -492,12 +504,13 @@ func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr,
 		instr.op(instr, state, p)
 		state.fieldnum = fieldnum
 	}
+	dec.freeDecoderState(state)
 	return nil
 }
 
 // ignoreStruct discards the data for a struct with no destination.
 func (dec *Decoder) ignoreStruct(engine *decEngine) (err os.Error) {
-	state := newDecodeState(dec, &dec.buf)
+	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = -1
 	for state.b.Len() > 0 {
 		delta := int(state.decodeUint())
@@ -515,13 +528,14 @@ func (dec *Decoder) ignoreStruct(engine *decEngine) (err os.Error) {
 		instr.op(instr, state, unsafe.Pointer(nil))
 		state.fieldnum = fieldnum
 	}
+	dec.freeDecoderState(state)
 	return nil
 }
 
 // ignoreSingle discards the data for a top-level non-struct value with no
 // destination. It's used when calling Decode with a nil value.
 func (dec *Decoder) ignoreSingle(engine *decEngine) (err os.Error) {
-	state := newDecodeState(dec, &dec.buf)
+	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = singletonField
 	delta := int(state.decodeUint())
 	if delta != 0 {
@@ -529,6 +543,7 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) (err os.Error) {
 	}
 	instr := &engine.instr[singletonField]
 	instr.op(instr, state, unsafe.Pointer(nil))
+	dec.freeDecoderState(state)
 	return nil
 }
 
