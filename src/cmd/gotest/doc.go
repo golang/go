@@ -42,7 +42,7 @@ The resulting binary, called (for amd64) 6.out, has several flags.
 
 Usage:
 	6.out [-test.v] [-test.run pattern] [-test.bench pattern] \
-		[test.memprofile=prof.out] [-test.memprofilerate=1]
+		[-test.memprofile=prof.out] [-test.memprofilerate=1]
 
 The -test.v flag causes the tests to be logged as they run.  The
 -test.run flag causes only those tests whose names match the regular
