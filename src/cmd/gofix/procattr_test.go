@@ -11,7 +11,6 @@ func init() {
 var procattrTests = []testCase{
 	{
 		Name: "procattr.0",
-		Fn:   procattr,
 		In: `package main
 
 import (

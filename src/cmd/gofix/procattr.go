@@ -19,7 +19,7 @@ http://codereview.appspot.com/4253052
 }
 
 func init() {
-	register(httpserverFix)
+	register(procattrFix)
 }
 
 func procattr(f *ast.File) bool {
