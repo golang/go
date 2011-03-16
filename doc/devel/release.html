@@ -13,41 +13,66 @@ continue with our weekly releases, but have renamed the existing tags from
 "release" to "weekly". The "release" tag will now be applied to one hand-picked
 stable release each month or two.
 
-The revision formerly tagged "release.2011-03-07.1" (now "weekly.2011-03-07.1") has been nominated our first stable release, and has been given the tag "release.r56". As we tag each stable release we will post an announcement to the new golang-announce mailing list:
+The revision formerly tagged "release.2011-03-07.1" (now "weekly.2011-03-07.1")
+has been nominated our first stable release, and has been given the tag
+"release.r56". As we tag each stable release we will post an announcement to
+the new golang-announce mailing list:
   http://groups.google.com/group/golang-announce
 
-You can continue to keep your Go installation updated using "hg update release", but now you should only need to update once we tag a new stable release, which we will announce here. If you wish to stay at the leading edge, you should switch to the weekly tag with "hg update weekly".
+You can continue to keep your Go installation updated using "hg update
+release", but now you should only need to update once we tag a new stable
+release, which we will announce here. If you wish to stay at the leading edge,
+you should switch to the weekly tag with "hg update weekly".
 
 
-This weekly release includes significant changes to the language spec and the http, os, and syscall packages. Your code may need to be changed. It also introduces the new gofix tool.
+This weekly release includes significant changes to the language spec and the
+http, os, and syscall packages. Your code may need to be changed. It also
+introduces the new gofix tool.
 
-The closed function has been removed from the language. The syntax for channel receives has been changed to return an optional second value, a boolean value indicating whether the channel is closed. This code:
-v := <-ch
-if closed(ch) {
-	// channel is closed
-}
+The closed function has been removed from the language. The syntax for channel
+receives has been changed to return an optional second value, a boolean value
+indicating whether the channel is closed. This code:
+	v := <-ch
+	if closed(ch) {
+		// channel is closed
+	}
 should now be written as:
-v, ok := <-ch
-if !ok {
-	// channel is closed
-}
+	v, ok := <-ch
+	if !ok {
+		// channel is closed
+	}
 
-It is now illegal to declare unused labels, just as it is illegal to declare unused local variables.
+It is now illegal to declare unused labels, just as it is illegal to declare
+unused local variables.
 
-The new gofix tool finds Go programs that use old APIs and rewrites them to use newer ones.  After you update to a new Go release, gofix helps make the necessary changes to your programs. Gofix will handle the http, os, and syscall package changes described below, and we will update the program to keep up with future changes to the libraries.
+The new gofix tool finds Go programs that use old APIs and rewrites them to use
+newer ones.  After you update to a new Go release, gofix helps make the
+necessary changes to your programs. Gofix will handle the http, os, and syscall
+package changes described below, and we will update the program to keep up with
+future changes to the libraries.
 
-The Hijack and Flush methods have been removed from the http.ResponseWriter interface and are accessible via the new http.Hijacker and http.Flusher interfaces. The RemoteAddr and UsingTLS methods have been moved from http.ResponseWriter to http.Request. The 
+The Hijack and Flush methods have been removed from the http.ResponseWriter
+interface and are accessible via the new http.Hijacker and http.Flusher
+interfaces. The RemoteAddr and UsingTLS methods have been moved from
+http.ResponseWriter to http.Request.
 
-The http.ResponseWriter interface's SetHeader method has been replaced by a Header() method that returns the response's http.Header. Caller code needs to change. This code:
+The http.ResponseWriter interface's SetHeader method has been replaced by a
+Header() method that returns the response's http.Header. Caller code needs to
+change. This code:
 	rw.SetHeader("Content-Type", "text/plain")
 should now be written as:
-rw.Header().Set("Content-Type", "text/plain")
-The os and syscall packages' StartProcess functions now take their final three arguments as an *os.ProcAttr and *syscall.ProcAttr values, respectively. This code:
-os.StartProcess(bin, args, env, dir, fds)
+	rw.Header().Set("Content-Type", "text/plain")
+The os and syscall packages' StartProcess functions now take their final three
+arguments as an *os.ProcAttr and *syscall.ProcAttr values, respectively. This
+code:
+	os.StartProcess(bin, args, env, dir, fds)
 should now be written as:
 	os.StartProcess(bin, args, &os.ProcAttr{Files: fds, Dir: dir, Env: env})
 
-The gob package will now encode and decode values of types that implement the gob.GobEncoder and gob.GobDecoder interfaces. This allows types with unexported fields to transmit self-consistent descriptions; one instance is big.Int and big.Rat.
+The gob package will now encode and decode values of types that implement the
+gob.GobEncoder and gob.GobDecoder interfaces. This allows types with unexported
+fields to transmit self-consistent descriptions; one instance is big.Int and
+big.Rat.
 
 Other changes:
 * 5l, 6l, 8l: reduce binary size about 40% by omitting symbols for type, string, go.string.
