@@ -6,12 +6,10 @@ package gob
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"runtime"
-	"runtime/pprof"
 	"testing"
 )
 
@@ -21,8 +19,6 @@ type Bench struct {
 	C string
 	D []byte
 }
-
-var memprofile = flag.String("memprofile", "", "write the memory profile in Test*Mallocs to the named file")
 
 func benchmarkEndToEnd(r io.Reader, w io.Writer, b *testing.B) {
 	b.StopTimer()
@@ -54,7 +50,6 @@ func BenchmarkEndToEndByteBuffer(b *testing.B) {
 }
 
 func TestCountEncodeMallocs(t *testing.T) {
-	runtime.MemProfileRate = 1
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
@@ -67,21 +62,10 @@ func TestCountEncodeMallocs(t *testing.T) {
 		}
 	}
 	mallocs += runtime.MemStats.Mallocs
-	if *memprofile != "" {
-		if fd, err := os.Open(*memprofile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666); err != nil {
-			t.Errorf("can't open %s: %s", *memprofile, err)
-		} else {
-			if err = pprof.WriteHeapProfile(fd); err != nil {
-				t.Errorf("can't write %s: %s", *memprofile, err)
-			}
-			fd.Close()
-		}
-	}
 	fmt.Printf("mallocs per encode of type Bench: %d\n", mallocs/count)
 }
 
 func TestCountDecodeMallocs(t *testing.T) {
-	runtime.MemProfileRate = 1
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
@@ -102,15 +86,5 @@ func TestCountDecodeMallocs(t *testing.T) {
 		}
 	}
 	mallocs += runtime.MemStats.Mallocs
-	if *memprofile != "" {
-		if fd, err := os.Open(*memprofile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666); err != nil {
-			t.Errorf("can't open %s: %s", *memprofile, err)
-		} else {
-			if err = pprof.WriteHeapProfile(fd); err != nil {
-				t.Errorf("can't write %s: %s", *memprofile, err)
-			}
-			fd.Close()
-		}
-	}
 	fmt.Printf("mallocs per decode of type Bench: %d\n", mallocs/count)
 }

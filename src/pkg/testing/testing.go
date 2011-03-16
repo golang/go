@@ -43,12 +43,17 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"time"
 )
 
-// Report as tests are run; default is silent for success.
-var chatty = flag.Bool("test.v", false, "verbose: print additional output")
-var match = flag.String("test.run", "", "regular expression to select tests to run")
+var (
+	// Report as tests are run; default is silent for success.
+	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
+	match          = flag.String("test.run", "", "regular expression to select tests to run")
+	memProfile     = flag.String("test.memprofile", "", "after execution write the memory profile to the named file")
+	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+)
 
 
 // Insert final newline if needed and tabs after internal newlines.
@@ -138,6 +143,8 @@ func tRunner(t *T, test *InternalTest) {
 // of gotest.
 func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) {
 	flag.Parse()
+
+	before()
 	ok := true
 	if len(tests) == 0 {
 		println("testing: warning: no tests to run")
@@ -170,9 +177,33 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
 			print(t.errors)
 		}
 	}
+	after()
 	if !ok {
 		println("FAIL")
 		os.Exit(1)
 	}
 	println("PASS")
+}
+
+// before runs before all testing.
+func before() {
+	if *memProfileRate > 0 {
+		runtime.MemProfileRate = *memProfileRate
+	}
+}
+
+// after runs after all testing.
+func after() {
+	if *memProfile == "" {
+		return
+	}
+	fd, err := os.Open(*memProfile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "testing: can't open %s: %s", *memProfile, err)
+		return
+	}
+	if err = pprof.WriteHeapProfile(fd); err != nil {
+		fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *memProfile, err)
+	}
+	fd.Close()
 }
