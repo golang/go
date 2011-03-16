@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package bufio
+package bufio_test
 
 import (
+	. "bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -502,9 +503,8 @@ func TestWriteString(t *testing.T) {
 	b.WriteString("7890")                      // easy after flush
 	b.WriteString("abcdefghijklmnopqrstuvwxy") // hard
 	b.WriteString("z")
-	b.Flush()
-	if b.err != nil {
-		t.Error("WriteString", b.err)
+	if err := b.Flush(); err != nil {
+		t.Error("WriteString", err)
 	}
 	s := "01234567890abcdefghijklmnopqrstuvwxyz"
 	if string(buf.Bytes()) != s {
