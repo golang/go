@@ -19,6 +19,7 @@ type Encoder struct {
 	w          []io.Writer             // where to send the data
 	sent       map[reflect.Type]typeId // which types we've already sent
 	countState *encoderState           // stage for writing counts
+	freeList   *encoderState           // list of free encoderStates; avoids reallocation
 	buf        []byte                  // for collecting the output.
 	err        os.Error
 }
@@ -28,7 +29,7 @@ func NewEncoder(w io.Writer) *Encoder {
 	enc := new(Encoder)
 	enc.w = []io.Writer{w}
 	enc.sent = make(map[reflect.Type]typeId)
-	enc.countState = newEncoderState(enc, new(bytes.Buffer))
+	enc.countState = enc.newEncoderState(new(bytes.Buffer))
 	return enc
 }
 
@@ -218,7 +219,7 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 	}
 
 	enc.err = nil
-	state := newEncoderState(enc, new(bytes.Buffer))
+	state := enc.newEncoderState(new(bytes.Buffer))
 
 	enc.sendTypeDescriptor(enc.writer(), state, ut)
 	enc.sendTypeId(state, ut)
@@ -234,5 +235,6 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 		enc.writeMessage(enc.writer(), state.b)
 	}
 
+	enc.freeEncoderState(state)
 	return enc.err
 }

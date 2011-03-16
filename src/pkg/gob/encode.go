@@ -25,10 +25,26 @@ type encoderState struct {
 	sendZero bool                 // encoding an array element or map key/value pair; send zero values
 	fieldnum int                  // the last field number written.
 	buf      [1 + uint64Size]byte // buffer used by the encoder; here to avoid allocation.
+	next     *encoderState        // for free list
 }
 
-func newEncoderState(enc *Encoder, b *bytes.Buffer) *encoderState {
-	return &encoderState{enc: enc, b: b}
+func (enc *Encoder) newEncoderState(b *bytes.Buffer) *encoderState {
+	e := enc.freeList
+	if e == nil {
+		e = new(encoderState)
+		e.enc = enc
+	} else {
+		enc.freeList = e.next
+	}
+	e.sendZero = false
+	e.fieldnum = 0
+	e.b = b
+	return e
+}
+
+func (enc *Encoder) freeEncoderState(e *encoderState) {
+	e.next = enc.freeList
+	enc.freeList = e
 }
 
 // Unsigned integers have a two-state encoding.  If the number is less
@@ -326,7 +342,7 @@ const singletonField = 0
 
 // encodeSingle encodes a single top-level non-struct value.
 func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, basep uintptr) {
-	state := newEncoderState(enc, b)
+	state := enc.newEncoderState(b)
 	state.fieldnum = singletonField
 	// There is no surrounding struct to frame the transmission, so we must
 	// generate data even if the item is zero.  To do this, set sendZero.
@@ -339,11 +355,12 @@ func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, basep uintp
 		}
 	}
 	instr.op(instr, state, p)
+	enc.freeEncoderState(state)
 }
 
 // encodeStruct encodes a single struct value.
 func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, basep uintptr) {
-	state := newEncoderState(enc, b)
+	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	for i := 0; i < len(engine.instr); i++ {
 		instr := &engine.instr[i]
@@ -355,11 +372,12 @@ func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, basep uintp
 		}
 		instr.op(instr, state, p)
 	}
+	enc.freeEncoderState(state)
 }
 
 // encodeArray encodes the array whose 0th element is at p.
 func (enc *Encoder) encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, elemIndir int, length int) {
-	state := newEncoderState(enc, b)
+	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.sendZero = true
 	state.encodeUint(uint64(length))
@@ -375,6 +393,7 @@ func (enc *Encoder) encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid ui
 		op(nil, state, unsafe.Pointer(elemp))
 		p += uintptr(elemWid)
 	}
+	enc.freeEncoderState(state)
 }
 
 // encodeReflectValue is a helper for maps. It encodes the value v.
@@ -392,7 +411,7 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
 // Because map internals are not exposed, we must use reflection rather than
 // addresses.
 func (enc *Encoder) encodeMap(b *bytes.Buffer, mv *reflect.MapValue, keyOp, elemOp encOp, keyIndir, elemIndir int) {
-	state := newEncoderState(enc, b)
+	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.sendZero = true
 	keys := mv.Keys()
@@ -401,6 +420,7 @@ func (enc *Encoder) encodeMap(b *bytes.Buffer, mv *reflect.MapValue, keyOp, elem
 		encodeReflectValue(state, key, keyOp, keyIndir)
 		encodeReflectValue(state, mv.Elem(key), elemOp, elemIndir)
 	}
+	enc.freeEncoderState(state)
 }
 
 // encodeInterface encodes the interface value iv.
@@ -409,7 +429,7 @@ func (enc *Encoder) encodeMap(b *bytes.Buffer, mv *reflect.MapValue, keyOp, elem
 // by the concrete value.  A nil value gets sent as the empty string for the name,
 // followed by no value.
 func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue) {
-	state := newEncoderState(enc, b)
+	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.sendZero = true
 	if iv.IsNil() {
@@ -445,6 +465,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 	if enc.err != nil {
 		error(err)
 	}
+	enc.freeEncoderState(state)
 }
 
 // encGobEncoder encodes a value that implements the GobEncoder interface.
@@ -456,10 +477,11 @@ func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value, index int
 	if err != nil {
 		error(err)
 	}
-	state := newEncoderState(enc, b)
+	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.encodeUint(uint64(len(data)))
 	state.b.Write(data)
+	enc.freeEncoderState(state)
 }
 
 var encOpTable = [...]encOp{
