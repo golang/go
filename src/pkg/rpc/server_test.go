@@ -5,14 +5,12 @@
 package rpc
 
 import (
-	"flag"
 	"fmt"
 	"http/httptest"
 	"log"
 	"net"
 	"os"
 	"runtime"
-	"runtime/pprof"
 	"strings"
 	"sync"
 	"testing"
@@ -24,8 +22,6 @@ var (
 	httpServerAddr            string
 	once, newOnce, httpOnce   sync.Once
 )
-
-var memprofile = flag.String("memprofile", "", "write the memory profile in TestCountMallocs to the named file")
 
 const (
 	second      = 1e9
@@ -356,7 +352,6 @@ func testSendDeadlock(client *Client) {
 }
 
 func TestCountMallocs(t *testing.T) {
-	runtime.MemProfileRate = 1
 	once.Do(startServer)
 	client, err := Dial("tcp", serverAddr)
 	if err != nil {
@@ -365,7 +360,7 @@ func TestCountMallocs(t *testing.T) {
 	args := &Args{7, 8}
 	reply := new(Reply)
 	mallocs := 0 - runtime.MemStats.Mallocs
-	const count = 10000
+	const count = 100
 	for i := 0; i < count; i++ {
 		err = client.Call("Arith.Add", args, reply)
 		if err != nil {
@@ -376,16 +371,6 @@ func TestCountMallocs(t *testing.T) {
 		}
 	}
 	mallocs += runtime.MemStats.Mallocs
-	if *memprofile != "" {
-		if fd, err := os.Open(*memprofile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666); err != nil {
-			t.Errorf("can't open %s: %s", *memprofile, err)
-		} else {
-			if err = pprof.WriteHeapProfile(fd); err != nil {
-				t.Errorf("can't write %s: %s", *memprofile, err)
-			}
-			fd.Close()
-		}
-	}
 	fmt.Printf("mallocs per rpc round trip: %d\n", mallocs/count)
 }
 
