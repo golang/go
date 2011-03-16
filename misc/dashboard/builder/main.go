@@ -64,7 +64,7 @@ var (
 
 var (
 	goroot        string
-	releaseRegexp = regexp.MustCompile(`^release\.[0-9\-.]+`)
+	releaseRegexp = regexp.MustCompile(`^(release|weekly)\.[0-9\-.]+`)
 	benchRequests vector.Vector
 )
 
