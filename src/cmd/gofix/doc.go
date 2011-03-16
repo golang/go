@@ -24,7 +24,7 @@ rewrites are idempotent, so that it is safe to apply gofix to updated
 or partially updated code even without using the -r flag.
 
 Gofix prints the full list of fixes it can apply in its help output;
-to see them, run godoc -?.
+to see them, run gofix -?.
 
 Gofix does not make backup copies of the files that it edits.
 Instead, use a version control system's ``diff'' functionality to inspect
