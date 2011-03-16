@@ -264,6 +264,11 @@ func isName(n ast.Expr, name string) bool {
 	return id.String() == name
 }
 
+func isCall(t ast.Expr, pkg, name string) bool {
+	call, ok := t.(*ast.CallExpr)
+	return ok && isPkgDot(call.Fun, pkg, name)
+}
+
 func refersTo(n ast.Node, x *ast.Ident) bool {
 	id, ok := n.(*ast.Ident)
 	if !ok {

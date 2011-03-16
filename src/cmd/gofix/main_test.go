@@ -6,9 +6,12 @@ package main
 
 import (
 	"bytes"
+	"exec"
 	"go/ast"
 	"go/parser"
 	"go/printer"
+	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -42,6 +45,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out 
 	if s := buf.String(); in != s {
 		t.Errorf("%s: not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
 			desc, desc, in, desc, s)
+		tdiff(t, in, s)
 		return
 	}
 
@@ -75,6 +79,7 @@ func TestRewrite(t *testing.T) {
 
 		if out != tt.Out {
 			t.Errorf("%s: incorrect output.\n--- have\n%s\n--- want\n%s", tt.Name, out, tt.Out)
+			tdiff(t, out, tt.Out)
 			continue
 		}
 
@@ -97,6 +102,50 @@ func TestRewrite(t *testing.T) {
 		if out2 != out {
 			t.Errorf("%s: changed output after second round of fixes.\n--- output after first round\n%s\n--- output after second round\n%s",
 				tt.Name, out, out2)
+			tdiff(t, out, out2)
 		}
 	}
+}
+
+func tdiff(t *testing.T, a, b string) {
+	f1, err := ioutil.TempFile("", "gofix")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer os.Remove(f1.Name())
+	defer f1.Close()
+
+	f2, err := ioutil.TempFile("", "gofix")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer os.Remove(f2.Name())
+	defer f2.Close()
+
+	f1.Write([]byte(a))
+	f2.Write([]byte(b))
+
+	diffcmd, err := exec.LookPath("diff")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	c, err := exec.Run(diffcmd, []string{"diff", f1.Name(), f2.Name()}, nil, "",
+		exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer c.Close()
+
+	data, err := ioutil.ReadAll(c.Stdout)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	t.Error(string(data))
 }

@@ -82,7 +82,7 @@ func main() {
 const (
 	tabWidth    = 8
 	parserMode  = parser.ParseComments
-	printerMode = printer.TabIndent
+	printerMode = printer.TabIndent | printer.UseSpaces
 )
 
 
