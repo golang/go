@@ -8,9 +8,15 @@
 package filepath
 
 import (
+	"bytes"
 	"os"
 	"sort"
 	"strings"
+)
+
+const (
+	SeparatorString     = string(Separator)
+	ListSeparatorString = string(ListSeparator)
 )
 
 // Clean returns the shortest path name equivalent to path
@@ -113,7 +119,7 @@ func ToSlash(path string) string {
 	if Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, string(Separator), "/", -1)
+	return strings.Replace(path, SeparatorString, "/", -1)
 }
 
 // FromSlash returns the result of replacing each slash ('/') character
@@ -122,7 +128,7 @@ func FromSlash(path string) string {
 	if Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, "/", string(Separator), -1)
+	return strings.Replace(path, "/", SeparatorString, -1)
 }
 
 // SplitList splits a list of paths joined by the OS-specific ListSeparator.
@@ -130,7 +136,7 @@ func SplitList(path string) []string {
 	if path == "" {
 		return []string{}
 	}
-	return strings.Split(path, string(ListSeparator), -1)
+	return strings.Split(path, ListSeparatorString, -1)
 }
 
 // Split splits path immediately following the final Separator,
@@ -150,7 +156,7 @@ func Split(path string) (dir, file string) {
 func Join(elem ...string) string {
 	for i, e := range elem {
 		if e != "" {
-			return Clean(strings.Join(elem[i:], string(Separator)))
+			return Clean(strings.Join(elem[i:], SeparatorString))
 		}
 	}
 	return ""
@@ -167,6 +173,62 @@ func Ext(path string) string {
 		}
 	}
 	return ""
+}
+
+// EvalSymlinks returns the path name after the evaluation of any symbolic
+// links.
+// If path is relative it will be evaluated relative to the current directory.
+func EvalSymlinks(path string) (string, os.Error) {
+	const maxIter = 255
+	originalPath := path
+	// consume path by taking each frontmost path element,
+	// expanding it if it's a symlink, and appending it to b
+	var b bytes.Buffer
+	for n := 0; path != ""; n++ {
+		if n > maxIter {
+			return "", os.NewError("EvalSymlinks: too many links in " + originalPath)
+		}
+
+		// find next path component, p
+		i := strings.IndexRune(path, Separator)
+		var p string
+		if i == -1 {
+			p, path = path, ""
+		} else {
+			p, path = path[:i], path[i+1:]
+		}
+
+		if p == "" {
+			if b.Len() == 0 {
+				// must be absolute path
+				b.WriteRune(Separator)
+			}
+			continue
+		}
+
+		fi, err := os.Lstat(b.String() + p)
+		if err != nil {
+			return "", err
+		}
+		if !fi.IsSymlink() {
+			b.WriteString(p)
+			if path != "" {
+				b.WriteRune(Separator)
+			}
+			continue
+		}
+
+		// it's a symlink, put it at the front of path
+		dest, err := os.Readlink(b.String() + p)
+		if err != nil {
+			return "", err
+		}
+		if IsAbs(dest) {
+			b.Reset()
+		}
+		path = dest + SeparatorString + path
+	}
+	return Clean(b.String()), nil
 }
 
 // Visitor methods are invoked for corresponding file tree entries
@@ -267,7 +329,7 @@ func Base(path string) string {
 	}
 	// If empty now, it had only slashes.
 	if path == "" {
-		return string(Separator)
+		return SeparatorString
 	}
 	return path
 }
