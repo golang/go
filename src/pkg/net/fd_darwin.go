@@ -75,7 +75,7 @@ func (p *pollster) DelFD(fd int, mode int) {
 	syscall.Kevent(p.kq, events[0:], events[0:], nil)
 }
 
-func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.Error) {
 	var t *syscall.Timespec
 	for len(p.events) == 0 {
 		if nsec > 0 {
@@ -84,7 +84,11 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 			}
 			*t = syscall.NsecToTimespec(nsec)
 		}
+
+		s.Unlock()
 		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[0:], t)
+		s.Lock()
+
 		if e != 0 {
 			if e == syscall.EINTR {
 				continue
