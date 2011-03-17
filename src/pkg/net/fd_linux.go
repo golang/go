@@ -20,6 +20,7 @@ type pollster struct {
 	epfd int
 
 	// Events we're already waiting for
+	// Must hold pollServer lock
 	events map[int]uint32
 }
 
@@ -38,6 +39,8 @@ func newpollster() (p *pollster, err os.Error) {
 }
 
 func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+	// pollServer is locked.
+
 	var ev syscall.EpollEvent
 	var already bool
 	ev.Fd = int32(fd)
@@ -65,6 +68,8 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 }
 
 func (p *pollster) StopWaiting(fd int, bits uint) {
+	// pollServer is locked.
+
 	events, already := p.events[fd]
 	if !already {
 		print("Epoll unexpected fd=", fd, "\n")
@@ -98,6 +103,8 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
 }
 
 func (p *pollster) DelFD(fd int, mode int) {
+	// pollServer is locked.
+
 	if mode == 'r' {
 		p.StopWaiting(fd, readFlags)
 	} else {
@@ -105,7 +112,9 @@ func (p *pollster) DelFD(fd int, mode int) {
 	}
 }
 
-func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.Error) {
+	s.Unlock()
+
 	// Get an event.
 	var evarray [1]syscall.EpollEvent
 	ev := &evarray[0]
@@ -117,6 +126,9 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	for e == syscall.EAGAIN || e == syscall.EINTR {
 		n, e = syscall.EpollWait(p.epfd, evarray[0:], msec)
 	}
+
+	s.Lock()
+
 	if e != 0 {
 		return -1, 0, os.NewSyscallError("epoll_wait", e)
 	}

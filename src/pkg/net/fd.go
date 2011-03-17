@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rsc): All the prints in this file should go to standard error.
-
 package net
 
 import (
@@ -85,11 +83,12 @@ func (e *InvalidConnError) Timeout() bool   { return false }
 // will the fd be closed.
 
 type pollServer struct {
-	cr, cw   chan *netFD // buffered >= 1
-	pr, pw   *os.File
-	pending  map[int]*netFD
-	poll     *pollster // low-level OS hooks
-	deadline int64     // next deadline (nsec since 1970)
+	cr, cw     chan *netFD // buffered >= 1
+	pr, pw     *os.File
+	poll       *pollster // low-level OS hooks
+	sync.Mutex           // controls pending and deadline
+	pending    map[int]*netFD
+	deadline   int64 // next deadline (nsec since 1970)
 }
 
 func (s *pollServer) AddFD(fd *netFD, mode int) {
@@ -103,10 +102,8 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 		}
 		return
 	}
-	if err := s.poll.AddFD(intfd, mode, false); err != nil {
-		panic("pollServer AddFD " + err.String())
-		return
-	}
+
+	s.Lock()
 
 	var t int64
 	key := intfd << 1
@@ -119,10 +116,26 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 		t = fd.wdeadline
 	}
 	s.pending[key] = fd
+	doWakeup := false
 	if t > 0 && (s.deadline == 0 || t < s.deadline) {
 		s.deadline = t
+		doWakeup = true
+	}
+
+	if err := s.poll.AddFD(intfd, mode, false); err != nil {
+		panic("pollServer AddFD " + err.String())
+	}
+
+	s.Unlock()
+
+	if doWakeup {
+		s.Wakeup()
 	}
 }
+
+var wakeupbuf [1]byte
+
+func (s *pollServer) Wakeup() { s.pw.Write(wakeupbuf[0:]) }
 
 func (s *pollServer) LookupFD(fd int, mode int) *netFD {
 	key := fd << 1
@@ -195,6 +208,8 @@ func (s *pollServer) CheckDeadlines() {
 
 func (s *pollServer) Run() {
 	var scratch [100]byte
+	s.Lock()
+	defer s.Unlock()
 	for {
 		var t = s.deadline
 		if t > 0 {
@@ -204,7 +219,7 @@ func (s *pollServer) Run() {
 				continue
 			}
 		}
-		fd, mode, err := s.poll.WaitFD(t)
+		fd, mode, err := s.poll.WaitFD(s, t)
 		if err != nil {
 			print("pollServer WaitFD: ", err.String(), "\n")
 			return
@@ -219,18 +234,7 @@ func (s *pollServer) Run() {
 			// but it's unlikely that there are more than
 			// len(scratch) wakeup calls).
 			s.pr.Read(scratch[0:])
-			// Read from channels
-		Update:
-			for {
-				select {
-				case fd := <-s.cr:
-					s.AddFD(fd, 'r')
-				case fd := <-s.cw:
-					s.AddFD(fd, 'w')
-				default:
-					break Update
-				}
-			}
+			s.CheckDeadlines()
 		} else {
 			netfd := s.LookupFD(fd, mode)
 			if netfd == nil {
@@ -242,19 +246,13 @@ func (s *pollServer) Run() {
 	}
 }
 
-var wakeupbuf [1]byte
-
-func (s *pollServer) Wakeup() { s.pw.Write(wakeupbuf[0:]) }
-
 func (s *pollServer) WaitRead(fd *netFD) {
-	s.cr <- fd
-	s.Wakeup()
+	s.AddFD(fd, 'r')
 	<-fd.cr
 }
 
 func (s *pollServer) WaitWrite(fd *netFD) {
-	s.cw <- fd
-	s.Wakeup()
+	s.AddFD(fd, 'w')
 	<-fd.cw
 }
 
