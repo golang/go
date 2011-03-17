@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -444,11 +445,13 @@ func TestSemis(t *testing.T) {
 	}
 }
 
-var segments = []struct {
+type segment struct {
 	srcline  string // a line of source text
 	filename string // filename for current token
 	line     int    // line number for current token
-}{
+}
+
+var segments = []segment{
 	// exactly one token per line since the test consumes one token per segment
 	{"  line1", filepath.Join("dir", "TestLineComments"), 1},
 	{"\nline2", filepath.Join("dir", "TestLineComments"), 2},
@@ -466,9 +469,17 @@ var segments = []struct {
 	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100},
 }
 
+var winsegments = []segment{
+	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100},
+}
+
 
 // Verify that comments of the form "//line filename:line" are interpreted correctly.
 func TestLineComments(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		segments = append(segments, winsegments...)
+	}
+
 	// make source
 	var src string
 	for _, e := range segments {
