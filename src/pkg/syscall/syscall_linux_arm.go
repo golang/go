@@ -55,15 +55,15 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
 //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
 //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
-//sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
-//sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+//sysnb	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+//sysnb	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
 //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
-//sys	socket(domain int, typ int, proto int) (fd int, errno int)
-//sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
-//sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+//sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
+//sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+//sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
 //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
-//sys	socketpair(domain int, typ int, flags int, fd *[2]int) (errno int)
+//sysnb	socketpair(domain int, typ int, flags int, fd *[2]int) (errno int)
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
 //sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
 
@@ -72,21 +72,21 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
 //sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
 //sys	Ftruncate(fd int, length int64) (errno int) = SYS_FTRUNCATE64
-//sys	Getegid() (egid int)
-//sys	Geteuid() (euid int)
-//sys	Getgid() (gid int)
-//sys	Getuid() (uid int)
+//sysnb	Getegid() (egid int)
+//sysnb	Geteuid() (euid int)
+//sysnb	Getgid() (gid int)
+//sysnb	Getuid() (uid int)
 //sys	Lchown(path string, uid int, gid int) (errno int)
 //sys	Listen(s int, n int) (errno int)
 //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
 //sys	Setfsgid(gid int) (errno int)
 //sys	Setfsuid(uid int) (errno int)
-//sys	Setgid(gid int) (errno int)
-//sys	Setregid(rgid int, egid int) (errno int)
-//sys	Setresgid(rgid int, egid int, sgid int) (errno int)
-//sys	Setresuid(ruid int, euid int, suid int) (errno int)
-//sys	Setreuid(ruid int, euid int) (errno int)
+//sysnb	Setgid(gid int) (errno int)
+//sysnb	Setregid(rgid int, egid int) (errno int)
+//sysnb	Setresgid(rgid int, egid int, sgid int) (errno int)
+//sysnb	Setresuid(ruid int, euid int, suid int) (errno int)
+//sysnb	Setreuid(ruid int, euid int) (errno int)
 //sys	Shutdown(fd int, how int) (errno int)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, errno int)
 //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
@@ -94,8 +94,8 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64
 
 // Vsyscalls on amd64.
-//sys	Gettimeofday(tv *Timeval) (errno int)
-//sys	Time(t *Time_t) (tt Time_t, errno int)
+//sysnb	Gettimeofday(tv *Timeval) (errno int)
+//sysnb	Time(t *Time_t) (tt Time_t, errno int)
 
 // TODO(kaib): add support for tracing
 func (r *PtraceRegs) PC() uint64 { return 0 }

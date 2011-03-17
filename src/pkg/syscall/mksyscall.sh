@@ -13,6 +13,12 @@
 #	  the (x, y, z int) shorthand is not allowed.
 #	* If the return parameter is an error number, it must be named errno.
 
+# A line beginning with //sysnb is like //sys, except that the
+# goroutine will not be suspended during the execution of the system
+# call.  This must only be used for system calls which can never
+# block, as otherwise the system call could cause all goroutines to
+# hang.
+
 $cmdline = "mksyscall.sh " . join(' ', @ARGV);
 $errors = 0;
 $_32bit = "";
@@ -61,17 +67,18 @@ while(<>) {
 	s/\s+/ /g;
 	s/^\s+//;
 	s/\s+$//;
-	next if !/^\/\/sys /;
+	my $nonblock = /^\/\/sysnb /;
+	next if !/^\/\/sys / && !$nonblock;
 
 	# Line must be of the form
 	#	func Open(path string, mode int, perm int) (fd int, errno int)
 	# Split into name, in params, out params.
-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(SYS_[A-Z0-9_]+))?$/) {
+	if(!/^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(SYS_[A-Z0-9_]+))?$/) {
 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
 		$errors = 1;
 		next;
 	}
-	my ($func, $in, $out, $sysname) = ($1, $2, $3, $4);
+	my ($func, $in, $out, $sysname) = ($2, $3, $4, $5);
 
 	# Split argument lists on comma.
 	my @in = parseparamlist($in);
@@ -119,12 +126,15 @@ while(<>) {
 
 	# Determine which form to use; pad args with zeros.
 	my $asm = "Syscall";
+	if ($nonblock) {
+		$asm = "RawSyscall";
+	}
 	if(@args <= 3) {
 		while(@args < 3) {
 			push @args, "0";
 		}
 	} elsif(@args <= 6) {
-		$asm = "Syscall6";
+		$asm .= "6";
 		while(@args < 6) {
 			push @args, "0";
 		}
