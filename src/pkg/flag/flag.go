@@ -56,7 +56,7 @@
 
 		flag.Bool(...)  // global options
 		flag.Parse()  // parse leading command
-		subcmd := flag.Args(0)
+		subcmd := flag.Arg[0]
 		switch subcmd {
 			// add per-subcommand options
 		}
