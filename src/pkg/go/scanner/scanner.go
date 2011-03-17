@@ -177,7 +177,7 @@ var prefix = []byte("//line ")
 func (S *Scanner) interpretLineComment(text []byte) {
 	if bytes.HasPrefix(text, prefix) {
 		// get filename and line number, if any
-		if i := bytes.Index(text, []byte{':'}); i > 0 {
+		if i := bytes.LastIndex(text, []byte{':'}); i > 0 {
 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
 				// valid //line filename:line comment;
 				filename := filepath.Clean(string(text[len(prefix):i]))
