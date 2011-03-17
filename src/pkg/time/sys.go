@@ -44,11 +44,19 @@ func sleep(t, ns int64) (int64, os.Error) {
 	// TODO(cw): use monotonic-time once it's available
 	end := t + ns
 	for t < end {
-		errno := syscall.Sleep(end - t)
-		if errno != 0 && errno != syscall.EINTR {
-			return 0, os.NewSyscallError("sleep", errno)
+		err := sysSleep(end - t)
+		if err != nil {
+			return 0, err
 		}
 		t = Nanoseconds()
 	}
 	return t, nil
+}
+
+func sysSleep(t int64) os.Error {
+	errno := syscall.Sleep(t)
+	if errno != 0 && errno != syscall.EINTR {
+		return os.NewSyscallError("sleep", errno)
+	}
+	return nil
 }
