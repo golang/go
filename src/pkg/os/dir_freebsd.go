@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	blockSize = 4096 // TODO(r): use statfs
+	blockSize = 4096
 )
 
 func (file *File) Readdirnames(count int) (names []string, err Error) {
@@ -18,7 +18,6 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 	if file.dirinfo == nil {
 		file.dirinfo = new(dirInfo)
 		// The buffer must be at least a block long.
-		// TODO(r): use fstatfs to find fs block size.
 		file.dirinfo.buf = make([]byte, blockSize)
 	}
 	d := file.dirinfo
