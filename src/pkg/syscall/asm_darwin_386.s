@@ -81,3 +81,27 @@ ok1:
 	MOVL	DX, 24(SP)	// r2
 	MOVL	$0, 28(SP)	// errno
 	RET
+
+TEXT	·RawSyscall6(SB),7,$0
+	MOVL	4(SP), AX	// syscall entry
+	// slide args down on top of system call number
+	LEAL		8(SP), SI
+	LEAL		4(SP), DI
+	CLD
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	INT	$0x80
+	JAE	ok2
+	MOVL	$-1, 32(SP)	// r1
+	MOVL	$-1, 36(SP)	// r2
+	MOVL	AX, 40(SP)		// errno
+	RET
+ok2:
+	MOVL	AX, 32(SP)	// r1
+	MOVL	DX, 36(SP)	// r2
+	MOVL	$0, 40(SP)	// errno
+	RET
