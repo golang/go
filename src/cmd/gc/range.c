@@ -203,7 +203,7 @@ walkrange(Node *n)
 		hb = nod(OXXX, N, N);
 		tempname(hb, types[TBOOL]);
 
-		n->ntest = hb;
+		n->ntest = nod(ONE, hb, nodbool(0));
 		a = nod(OAS2RECV, N, N);
 		a->typecheck = 1;
 		a->list = list(list1(hv1), hb);
