@@ -5,9 +5,8 @@
 package time
 
 import (
-	"syscall"
-	"sync"
 	"container/heap"
+	"sync"
 )
 
 // The Timer type represents a single event.
@@ -126,7 +125,7 @@ func sleeper(sleeperId int64) {
 				dt = maxSleepTime
 			}
 			timerMutex.Unlock()
-			syscall.Sleep(dt)
+			sysSleep(dt)
 			timerMutex.Lock()
 			if currentSleeper != sleeperId {
 				// Another sleeper has been started, making this one redundant.
