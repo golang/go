@@ -6,9 +6,7 @@ package gob
 
 import (
 	"bytes"
-	"io"
 	"math"
-	"os"
 	"reflect"
 	"unsafe"
 )
@@ -320,7 +318,7 @@ func encString(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	if len(s) > 0 || state.sendZero {
 		state.update(i)
 		state.encodeUint(uint64(len(s)))
-		io.WriteString(state.b, s)
+		state.b.WriteString(s)
 	}
 }
 
@@ -444,7 +442,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 	}
 	// Send the name.
 	state.encodeUint(uint64(len(name)))
-	_, err := io.WriteString(state.b, name)
+	_, err := state.b.WriteString(name)
 	if err != nil {
 		error(err)
 	}
@@ -456,9 +454,9 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
 	// should be written to b, before the encoded value.
 	enc.pushWriter(b)
 	data := new(bytes.Buffer)
-	err = enc.encode(data, iv.Elem(), ut)
-	if err != nil {
-		error(err)
+	enc.encode(data, iv.Elem(), ut)
+	if enc.err != nil {
+		error(enc.err)
 	}
 	enc.popWriter()
 	enc.writeMessage(b, data)
@@ -685,8 +683,8 @@ func (enc *Encoder) lockAndGetEncEngine(ut *userTypeInfo) *encEngine {
 	return enc.getEncEngine(ut)
 }
 
-func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInfo) (err os.Error) {
-	defer catchError(&err)
+func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInfo) {
+	defer catchError(&enc.err)
 	engine := enc.lockAndGetEncEngine(ut)
 	indir := ut.indir
 	if ut.isGobEncoder {
@@ -700,5 +698,4 @@ func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInf
 	} else {
 		enc.encodeSingle(b, engine, value.UnsafeAddr())
 	}
-	return nil
 }

@@ -228,10 +228,8 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 	}
 
 	// Encode the object.
-	err = enc.encode(state.b, value, ut)
-	if err != nil {
-		enc.setError(err)
-	} else {
+	enc.encode(state.b, value, ut)
+	if enc.err == nil {
 		enc.writeMessage(enc.writer(), state.b)
 	}
 

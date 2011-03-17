@@ -50,7 +50,7 @@ func (dec *Decoder) recvType(id typeId) {
 
 	// Type:
 	wire := new(wireType)
-	dec.err = dec.decodeValue(tWireType, reflect.NewValue(wire))
+	dec.decodeValue(tWireType, reflect.NewValue(wire))
 	if dec.err != nil {
 		return
 	}
@@ -185,7 +185,7 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	dec.err = nil
 	id := dec.decodeTypeSequence(false)
 	if dec.err == nil {
-		dec.err = dec.decodeValue(id, value)
+		dec.decodeValue(id, value)
 	}
 	return dec.err
 }
