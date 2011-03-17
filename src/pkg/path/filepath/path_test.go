@@ -440,6 +440,10 @@ var EvalSymlinksTests = []EvalSymlinksTest{
 }
 
 func TestEvalSymlinks(t *testing.T) {
+	// Symlinks are not supported under windows.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	defer os.RemoveAll("test")
 	for _, d := range EvalSymlinksTestDirs {
 		var err os.Error
