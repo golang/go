@@ -47,9 +47,9 @@ type parser struct {
 	lineComment *ast.CommentGroup // last line comment
 
 	// Next token
-	pos token.Pos   // token position
-	tok token.Token // one token look-ahead
-	lit []byte      // token literal
+	pos  token.Pos   // token position
+	tok  token.Token // one token look-ahead
+	lit_ []byte      // token literal (slice into original source, don't hold on to it)
 
 	// Non-syntactic parser control
 	exprLev int // < 0: in control clause, >= 0: in expression
@@ -92,6 +92,15 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uin
 
 	// for the same reason, set up a label scope
 	p.openLabelScope()
+}
+
+
+func (p *parser) lit() []byte {
+	// make a copy of p.lit_ so that we don't hold on to
+	// a copy of the entire source indirectly in the AST
+	t := make([]byte, len(p.lit_))
+	copy(t, p.lit_)
+	return t
 }
 
 
@@ -235,7 +244,7 @@ func (p *parser) next0() {
 		s := p.tok.String()
 		switch {
 		case p.tok.IsLiteral():
-			p.printTrace(s, string(p.lit))
+			p.printTrace(s, string(p.lit_))
 		case p.tok.IsOperator(), p.tok.IsKeyword():
 			p.printTrace("\"" + s + "\"")
 		default:
@@ -243,7 +252,7 @@ func (p *parser) next0() {
 		}
 	}
 
-	p.pos, p.tok, p.lit = p.scanner.Scan()
+	p.pos, p.tok, p.lit_ = p.scanner.Scan()
 }
 
 // Consume a comment and return it and the line on which it ends.
@@ -251,15 +260,15 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 	// /*-style comments may end on a different line than where they start.
 	// Scan the comment for '\n' chars and adjust endline accordingly.
 	endline = p.file.Line(p.pos)
-	if p.lit[1] == '*' {
-		for _, b := range p.lit {
+	if p.lit_[1] == '*' {
+		for _, b := range p.lit_ {
 			if b == '\n' {
 				endline++
 			}
 		}
 	}
 
-	comment = &ast.Comment{p.pos, p.lit}
+	comment = &ast.Comment{p.pos, p.lit()}
 	p.next0()
 
 	return
@@ -349,12 +358,12 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
 	if pos == p.pos {
 		// the error happened at the current position;
 		// make the error message more specific
-		if p.tok == token.SEMICOLON && p.lit[0] == '\n' {
+		if p.tok == token.SEMICOLON && p.lit_[0] == '\n' {
 			msg += ", found newline"
 		} else {
 			msg += ", found '" + p.tok.String() + "'"
 			if p.tok.IsLiteral() {
-				msg += " " + string(p.lit)
+				msg += " " + string(p.lit_)
 			}
 		}
 	}
@@ -386,7 +395,7 @@ func (p *parser) parseIdent() *ast.Ident {
 	pos := p.pos
 	name := "_"
 	if p.tok == token.IDENT {
-		name = string(p.lit)
+		name = string(p.lit_)
 		p.next()
 	} else {
 		p.expect(token.IDENT) // use expect() error handling
@@ -525,7 +534,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	// optional tag
 	var tag *ast.BasicLit
 	if p.tok == token.STRING {
-		tag = &ast.BasicLit{p.pos, p.tok, p.lit}
+		tag = &ast.BasicLit{p.pos, p.tok, p.lit()}
 		p.next()
 	}
 
@@ -943,7 +952,7 @@ func (p *parser) parseOperand() ast.Expr {
 		return ident
 
 	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
-		x := &ast.BasicLit{p.pos, p.tok, p.lit}
+		x := &ast.BasicLit{p.pos, p.tok, p.lit()}
 		p.next()
 		return x
 
@@ -1857,7 +1866,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 
 	var path *ast.BasicLit
 	if p.tok == token.STRING {
-		path = &ast.BasicLit{p.pos, p.tok, p.lit}
+		path = &ast.BasicLit{p.pos, p.tok, p.lit()}
 		p.next()
 	} else {
 		p.expect(token.STRING) // use expect() error handling
