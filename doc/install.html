@@ -275,7 +275,24 @@ For the full story, consult Go's extensive
 
 <h2 id="releases">Keeping up with releases</h2>
 
-<p>New releases are announced on the <a href="http://groups.google.com/group/golang-nuts">Go Nuts</a> mailing list.
+<p>
+The Go project maintains two stable tags in its Mercurial repository:
+<code>release</code> and <code>weekly</code>.
+The <code>weekly</code> tag is updated about once a week, and should be used by
+those who want to track the project's development.
+The <code>release</code> tag is given, less often, to those weekly releases
+that have proven themselves to be robust.
+</p>
+
+<p>
+Most Go users will want to keep their Go installation at the latest
+<code>release</code> tag.
+New releases are announced on the
+<a href="http://groups.google.com/group/golang-announce">golang-announce</a>
+mailing list.
+</p>
+
+<p>
 To update an existing tree to the latest release, you can run:
 </p>
 
@@ -285,6 +302,10 @@ $ hg pull
 $ hg update release
 $ ./all.bash
 </pre>
+
+<p>
+To use the <code>weekly</code> tag run <code>hg update weekly</code> instead.
+</p>
 
 <h2 id="community">Community resources</h2>
 
