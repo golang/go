@@ -41,11 +41,11 @@ func (dec *Decoder) newDecoderState(buf *bytes.Buffer) *decoderState {
 	if d == nil {
 		d = new(decoderState)
 		d.dec = dec
+		d.buf = make([]byte, uint64Size)
 	} else {
 		dec.freeList = d.next
 	}
 	d.b = buf
-	d.buf = make([]byte, uint64Size)
 	return d
 }
 
@@ -412,7 +412,14 @@ func decString(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	}
 	b := make([]byte, state.decodeUint())
 	state.b.Read(b)
-	*(*string)(p) = string(b)
+	// It would be a shame to do the obvious thing here,
+	//	*(*string)(p) = string(b)
+	// because we've already allocated the storage and this would
+	// allocate again and copy.  So we do this ugly hack, which is even
+	// even more unsafe than it looks as it depends the memory
+	// representation of a string matching the beginning of the memory
+	// representation of a byte slice (a byte slice is longer).
+	*(*string)(p) = *(*string)(unsafe.Pointer(&b))
 }
 
 // ignoreUint8Array skips over the data for a byte slice value with no destination.
