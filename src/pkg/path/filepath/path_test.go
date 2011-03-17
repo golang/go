@@ -414,3 +414,63 @@ func TestIsAbs(t *testing.T) {
 		}
 	}
 }
+
+type EvalSymlinksTest struct {
+	path, dest string
+}
+
+var EvalSymlinksTestDirs = []EvalSymlinksTest{
+	{"test", ""},
+	{"test/dir", ""},
+	{"test/dir/link3", "../../"},
+	{"test/link1", "../test"},
+	{"test/link2", "dir"},
+}
+
+var EvalSymlinksTests = []EvalSymlinksTest{
+	{"test", "test"},
+	{"test/dir", "test/dir"},
+	{"test/dir/../..", "."},
+	{"test/link1", "test"},
+	{"test/link2", "test/dir"},
+	{"test/link1/dir", "test/dir"},
+	{"test/link2/..", "test"},
+	{"test/dir/link3", "."},
+	{"test/link2/link3/test", "test"},
+}
+
+func TestEvalSymlinks(t *testing.T) {
+	defer os.RemoveAll("test")
+	for _, d := range EvalSymlinksTestDirs {
+		var err os.Error
+		if d.dest == "" {
+			err = os.Mkdir(d.path, 0755)
+		} else {
+			err = os.Symlink(d.dest, d.path)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	// relative
+	for _, d := range EvalSymlinksTests {
+		if p, err := filepath.EvalSymlinks(d.path); err != nil {
+			t.Errorf("EvalSymlinks(%v) error: %v", d.path, err)
+		} else if p != d.dest {
+			t.Errorf("EvalSymlinks(%v)=%v, want %v", d.path, p, d.dest)
+		}
+	}
+	// absolute
+	testroot := filepath.Join(os.Getenv("GOROOT"), "src", "pkg", "path", "filepath")
+	for _, d := range EvalSymlinksTests {
+		a := EvalSymlinksTest{
+			filepath.Join(testroot, d.path),
+			filepath.Join(testroot, d.dest),
+		}
+		if p, err := filepath.EvalSymlinks(a.path); err != nil {
+			t.Errorf("EvalSymlinks(%v) error: %v", a.path, err)
+		} else if p != a.dest {
+			t.Errorf("EvalSymlinks(%v)=%v, want %v", a.path, p, a.dest)
+		}
+	}
+}
