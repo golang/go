@@ -266,8 +266,8 @@ func (dir *Directory) lookupLocal(name string) *Directory {
 
 // lookup looks for the *Directory for a given path, relative to dir.
 func (dir *Directory) lookup(path string) *Directory {
-	d := strings.Split(dir.Path, "/", -1)
-	p := strings.Split(path, "/", -1)
+	d := strings.Split(dir.Path, string(filepath.Separator), -1)
+	p := strings.Split(path, string(filepath.Separator), -1)
 	i := 0
 	for i < len(d) {
 		if i >= len(p) || d[i] != p[i] {
@@ -342,8 +342,8 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 		if strings.HasPrefix(d.Path, root.Path) {
 			path = d.Path[len(root.Path):]
 		}
-		// remove trailing '/' if any - path must be relative
-		if len(path) > 0 && path[0] == '/' {
+		// remove trailing separator if any - path must be relative
+		if len(path) > 0 && filepath.IsAbs(path) {
 			path = path[1:]
 		}
 		p.Path = path

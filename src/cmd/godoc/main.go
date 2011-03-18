@@ -222,6 +222,9 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
+	// Clean goroot: normalize path separator.
+	*goroot = filepath.Clean(*goroot)
+
 	// Check usage: either server and no args, or command line and args
 	if (*httpAddr != "") != (flag.NArg() == 0) {
 		usage()
