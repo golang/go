@@ -15,6 +15,10 @@ type pollster struct {
 	kq       int
 	eventbuf [10]syscall.Kevent_t
 	events   []syscall.Kevent_t
+
+	// An event buffer for AddFD/DelFD.
+	// Must hold pollServer lock.
+	kbuf [1]syscall.Kevent_t
 }
 
 func newpollster() (p *pollster, err os.Error) {
@@ -28,14 +32,15 @@ func newpollster() (p *pollster, err os.Error) {
 }
 
 func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+	// pollServer is locked.
+
 	var kmode int
 	if mode == 'r' {
 		kmode = syscall.EVFILT_READ
 	} else {
 		kmode = syscall.EVFILT_WRITE
 	}
-	var events [1]syscall.Kevent_t
-	ev := &events[0]
+	ev := &p.kbuf[0]
 	// EV_ADD - add event to kqueue list
 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
 	//	rather than waiting for real event
@@ -46,7 +51,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 	}
 	syscall.SetKevent(ev, fd, kmode, flags)
 
-	n, e := syscall.Kevent(p.kq, events[0:], events[0:], nil)
+	n, e := syscall.Kevent(p.kq, p.kbuf[0:], p.kbuf[0:], nil)
 	if e != 0 {
 		return os.NewSyscallError("kevent", e)
 	}
@@ -60,19 +65,20 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 }
 
 func (p *pollster) DelFD(fd int, mode int) {
+	// pollServer is locked.
+
 	var kmode int
 	if mode == 'r' {
 		kmode = syscall.EVFILT_READ
 	} else {
 		kmode = syscall.EVFILT_WRITE
 	}
-	var events [1]syscall.Kevent_t
-	ev := &events[0]
+	ev := &p.kbuf[0]
 	// EV_DELETE - delete event from kqueue list
 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
 	//	rather than waiting for real event
 	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE|syscall.EV_RECEIPT)
-	syscall.Kevent(p.kq, events[0:], events[0:], nil)
+	syscall.Kevent(p.kq, p.kbuf[0:], p.kbuf[0:], nil)
 }
 
 func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.Error) {
