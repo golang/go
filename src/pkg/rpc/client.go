@@ -39,8 +39,9 @@ type Call struct {
 // There may be multiple outstanding Calls associated
 // with a single Client.
 type Client struct {
-	mutex    sync.Mutex // protects pending, seq
+	mutex    sync.Mutex // protects pending, seq, request
 	sending  sync.Mutex
+	request  Request
 	seq      uint64
 	codec    ClientCodec
 	pending  map[uint64]*Call
@@ -79,21 +80,21 @@ func (client *Client) send(c *Call) {
 	client.mutex.Unlock()
 
 	// Encode and send the request.
-	request := new(Request)
 	client.sending.Lock()
 	defer client.sending.Unlock()
-	request.Seq = c.seq
-	request.ServiceMethod = c.ServiceMethod
-	if err := client.codec.WriteRequest(request, c.Args); err != nil {
+	client.request.Seq = c.seq
+	client.request.ServiceMethod = c.ServiceMethod
+	if err := client.codec.WriteRequest(&client.request, c.Args); err != nil {
 		panic("rpc: client encode error: " + err.String())
 	}
 }
 
 func (client *Client) input() {
 	var err os.Error
+	var response Response
 	for err == nil {
-		response := new(Response)
-		err = client.codec.ReadResponseHeader(response)
+		response = Response{}
+		err = client.codec.ReadResponseHeader(&response)
 		if err != nil {
 			if err == os.EOF && !client.closing {
 				err = io.ErrUnexpectedEOF
@@ -281,6 +282,6 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 	if client.shutdown {
 		return ErrShutdown
 	}
-	call := <-client.Go(serviceMethod, args, reply, nil).Done
+	call := <-client.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
 	return call.Error
 }
