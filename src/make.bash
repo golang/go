@@ -10,6 +10,17 @@ if [ ! -f env.bash ]; then
 fi
 . ./env.bash
 
+if ld --version 2>&1 | grep 'gold.*2\.20' >/dev/null; then
+	echo 'ERROR: Your system has gold 2.20 installed.'
+	echo 'This version is shipped by Ubuntu even though'
+	echo 'it is known not to work on Ubuntu.'
+	echo 'Binaries built with this linker are likely to fail in mysterious ways.'
+	echo
+	echo 'Run sudo apt-get remove binutils-gold.'
+	echo
+	exit 1
+fi
+
 # Create target directories
 if [ "$GOBIN" = "$GOROOT/bin" ]; then
 	mkdir -p "$GOROOT/bin"
