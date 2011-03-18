@@ -343,7 +343,7 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 			path = d.Path[len(root.Path):]
 		}
 		// remove trailing separator if any - path must be relative
-		if len(path) > 0 && filepath.IsAbs(path) {
+		if len(path) > 0 && path[0] == filepath.Separator {
 			path = path[1:]
 		}
 		p.Path = path
