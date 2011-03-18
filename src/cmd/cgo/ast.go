@@ -180,7 +180,7 @@ func (f *File) saveExport(x interface{}, context string) {
 		return
 	}
 	for _, c := range n.Doc.List {
-		if string(c.Text[0:9]) != "//export " {
+		if !strings.HasPrefix(string(c.Text), "//export ") {
 			continue
 		}
 
