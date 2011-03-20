@@ -289,6 +289,7 @@ func failf(format string, a ...interface{}) {
 	os.Exit(2)
 }
 
+// NFlag returns the number of flags that have been set.
 func NFlag() int { return len(flags.actual) }
 
 // Arg returns the i'th command-line argument.  Arg(0) is the first remaining argument
