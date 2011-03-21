@@ -24,5 +24,6 @@ for i in lib9 libbio libmach cmd pkg \
 	../misc/cgo/life ../misc/cgo/test \
 	../test/bench ../test/garbage
 do
-	gomake -C "$GOROOT/src/$i" clean
+	# Do not use gomake here. It may not be available.
+	$MAKE -C "$GOROOT/src/$i" clean
 done
