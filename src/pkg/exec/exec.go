@@ -75,17 +75,19 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 
 // Run starts the named binary running with
 // arguments argv and environment envv.
+// If the dir argument is not empty, the child changes
+// into the directory before executing the binary.
 // It returns a pointer to a new Cmd representing
 // the command or an error.
 //
-// The parameters stdin, stdout, and stderr
+// The arguments stdin, stdout, and stderr
 // specify how to handle standard input, output, and error.
 // The choices are DevNull (connect to /dev/null),
 // PassThrough (connect to the current process's standard stream),
 // Pipe (connect to an operating system pipe), and
 // MergeWithStdout (only for standard error; use the same
 // file descriptor as was used for standard output).
-// If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
+// If an argument is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
 // of the returned Cmd is the other end of the pipe.
 // Otherwise the field in Cmd is nil.
 func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int) (c *Cmd, err os.Error) {
