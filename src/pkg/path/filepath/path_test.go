@@ -465,7 +465,11 @@ func TestEvalSymlinks(t *testing.T) {
 		}
 	}
 	// absolute
-	testroot := filepath.Join(os.Getenv("GOROOT"), "src", "pkg", "path", "filepath")
+	goroot, err := filepath.EvalSymlinks(os.Getenv("GOROOT"))
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) error: %v", os.Getenv("GOROOT"), err)
+	}
+	testroot := filepath.Join(goroot, "src", "pkg", "path", "filepath")
 	for _, d := range EvalSymlinksTests {
 		a := EvalSymlinksTest{
 			filepath.Join(testroot, d.path),
