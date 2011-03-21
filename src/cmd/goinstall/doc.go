@@ -14,6 +14,7 @@ Usage:
 
 Flags and default settings:
         -a=false          install all previously installed packages
+	-clean=false      clean the package directory before installing
 	-dashboard=true   tally public packages on godashboard.appspot.com
 	-log=true         log installed packages to $GOROOT/goinstall.log for use by -a
 	-u=false          update already-downloaded packages
