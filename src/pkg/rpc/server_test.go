@@ -312,12 +312,12 @@ func (WriteFailCodec) WriteRequest(*Request, interface{}) os.Error {
 }
 
 func (WriteFailCodec) ReadResponseHeader(*Response) os.Error {
-	time.Sleep(60e9)
+	time.Sleep(120e9)
 	panic("unreachable")
 }
 
 func (WriteFailCodec) ReadResponseBody(interface{}) os.Error {
-	time.Sleep(60e9)
+	time.Sleep(120e9)
 	panic("unreachable")
 }
 
