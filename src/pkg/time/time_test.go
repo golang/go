@@ -19,6 +19,18 @@ func init() {
 	os.Setenv("TZ", "America/Los_Angeles")
 }
 
+// We should be in PST/PDT, but if the time zone files are missing we
+// won't be. The purpose of this test is to at least explain why some of
+// the subsequent tests fail.
+func TestZoneData(t *testing.T) {
+	lt := LocalTime()
+	// PST is 8 hours west, PDT is 7 hours west.  We could use the name but it's not unique.
+	if off := lt.ZoneOffset; off != -8*60*60 && off != -7*60*60 {
+		t.Errorf("Unable to find US Pacific time zone data for testing; time zone is %q offset %d", lt.Zone, off)
+		t.Error("Likely problem: the time zone files have not been installed.")
+	}
+}
+
 type TimeTest struct {
 	seconds int64
 	golden  Time
