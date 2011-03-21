@@ -48,6 +48,7 @@ func runCgiTest(t *testing.T, h *Handler, httpreq string, expectedMap map[string
 
 	// Make a map to hold the test map that the CGI returns.
 	m := make(map[string]string)
+	linesRead := 0
 readlines:
 	for {
 		line, err := rw.Body.ReadString('\n')
@@ -57,10 +58,12 @@ readlines:
 		case err != nil:
 			t.Fatalf("unexpected error reading from CGI: %v", err)
 		}
-		line = strings.TrimRight(line, "\r\n")
-		split := strings.Split(line, "=", 2)
+		linesRead++
+		trimmedLine := strings.TrimRight(line, "\r\n")
+		split := strings.Split(trimmedLine, "=", 2)
 		if len(split) != 2 {
-			t.Fatalf("Unexpected %d parts from invalid line: %q", len(split), line)
+			t.Fatalf("Unexpected %d parts from invalid line number %v: %q; existing map=%v",
+				len(split), linesRead, line, m)
 		}
 		m[split[0]] = split[1]
 	}
