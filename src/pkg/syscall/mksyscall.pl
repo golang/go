@@ -19,7 +19,7 @@
 # block, as otherwise the system call could cause all goroutines to
 # hang.
 
-$cmdline = "mksyscall.sh " . join(' ', @ARGV);
+$cmdline = "mksyscall.pl " . join(' ', @ARGV);
 $errors = 0;
 $_32bit = "";
 $nacl = 0;
@@ -37,7 +37,7 @@ if($ARGV[0] eq "-nacl") {
 }
 
 if($ARGV[0] =~ /^-/) {
-	print STDERR "usage: mksyscall.sh [-b32 | -l32] [file ...]\n";
+	print STDERR "usage: mksyscall.pl [-b32 | -l32] [file ...]\n";
 	exit 1;
 }
 

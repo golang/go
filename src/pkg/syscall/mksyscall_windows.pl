@@ -23,7 +23,7 @@
 #	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval==-1] = LoadLibraryA
 #	  and is [failretval==0] by default.
 
-$cmdline = "mksyscall_windows.sh " . join(' ', @ARGV);
+$cmdline = "mksyscall_windows.pl " . join(' ', @ARGV);
 $errors = 0;
 $_32bit = "";
 
@@ -36,7 +36,7 @@ if($ARGV[0] eq "-b32") {
 }
 
 if($ARGV[0] =~ /^-/) {
-	print STDERR "usage: mksyscall_windows.sh [-b32 | -l32] [file ...]\n";
+	print STDERR "usage: mksyscall_windows.pl [-b32 | -l32] [file ...]\n";
 	exit 1;
 }
 
