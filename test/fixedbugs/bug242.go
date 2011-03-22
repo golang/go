@@ -101,13 +101,11 @@ func main() {
 
 	c := make(chan byte, 1)
 	c <- 'C'
-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
 	// 15          16
-	//	*f(), p1 = <-e1(c, 16)
-	*f(), p1 = <-e1(c, 16), true // delete uncommenting above
+	*f(), p1 = <-e1(c, 16)
+	close(c)
 	// 17          18
-	//	*f(), p2 = <-e1(c, 18)
-	*f(), p2, _ = 0, false, e1(c, 18) // delete when uncommenting above
+	*f(), p2 = <-e1(c, 18)
 	a[17] += '0'
 	if !p1 || p2 {
 		println("bad chan check", i, p1, p2)
