@@ -127,7 +127,7 @@ func processFile(filename string, useStdin bool) os.Error {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", filename, buf.String()[1:])
 
 	buf.Reset()
-	_, err = (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(&buf, fset, file)
+	_, err = (&printer.Config{printerMode, tabWidth}).Fprint(&buf, fset, file)
 	if err != nil {
 		return err
 	}
