@@ -1318,9 +1318,9 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	// nodeSize computation must be indendent of particular
 	// style so that we always get the same decision; print
 	// in RawFormat
-	cfg := Config{Mode: RawFormat, nodeSizes: p.nodeSizes}
+	cfg := Config{Mode: RawFormat}
 	var buf bytes.Buffer
-	if _, err := cfg.Fprint(&buf, p.fset, n); err != nil {
+	if _, err := cfg.fprint(&buf, p.fset, n, p.nodeSizes); err != nil {
 		return
 	}
 	if buf.Len() <= maxSize {
