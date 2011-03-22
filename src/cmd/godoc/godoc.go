@@ -65,6 +65,7 @@ var (
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
 	maxResults     = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+	templateDir    = flag.String("templates", "", "directory containing alternate template files")
 
 	// file system mapping
 	fsMap      Mapping // user-defined mapping
@@ -635,6 +636,14 @@ var fmap = template.FormatterMap{
 
 func readTemplate(name string) *template.Template {
 	path := filepath.Join(*goroot, "lib", "godoc", name)
+	if *templateDir != "" {
+		defaultpath := path
+		path = filepath.Join(*templateDir, name)
+		if _, err := os.Stat(path); err != nil {
+			log.Print("readTemplate:", err)
+			path = defaultpath
+		}
+	}
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatalf("ReadFile %s: %v", path, err)
