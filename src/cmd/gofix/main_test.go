@@ -37,7 +37,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out 
 
 	var buf bytes.Buffer
 	buf.Reset()
-	_, err = (&printer.Config{printerMode, tabWidth}).Fprint(&buf, fset, file)
+	_, err = (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(&buf, fset, file)
 	if err != nil {
 		t.Errorf("%s: printing: %v", desc, err)
 		return
@@ -60,7 +60,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out 
 	}
 
 	buf.Reset()
-	_, err = (&printer.Config{printerMode, tabWidth}).Fprint(&buf, fset, file)
+	_, err = (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(&buf, fset, file)
 	if err != nil {
 		t.Errorf("%s: printing: %v", desc, err)
 		return

@@ -94,9 +94,6 @@ type printer struct {
 	// written using writeItem.
 	last token.Position
 
-	// HTML support
-	lastTaggedLine int // last line for which a line tag was written
-
 	// The list of all source comments, in order of appearance.
 	comments        []*ast.CommentGroup // may be nil
 	cindex          int                 // current comment index
@@ -989,8 +986,9 @@ const (
 
 // A Config node controls the output of Fprint.
 type Config struct {
-	Mode     uint // default: 0
-	Tabwidth int  // default: 8
+	Mode      uint             // default: 0
+	Tabwidth  int              // default: 8
+	nodeSizes map[ast.Node]int // memoized node sizes as computed by nodeSize
 }
 
 
@@ -1001,6 +999,12 @@ type Config struct {
 // ast.Decl, ast.Spec, or ast.Stmt.
 //
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) (int, os.Error) {
+	// only if Fprint is called recursively (via nodeSize)
+	// does cfg.nodeSizes exist - set it up otherwise
+	if cfg.nodeSizes == nil {
+		cfg.nodeSizes = make(map[ast.Node]int)
+	}
+
 	// redirect output through a trimmer to eliminate trailing whitespace
 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
 	// formatting information. The tabwriter could provide trimming
