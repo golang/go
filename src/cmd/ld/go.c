@@ -135,6 +135,7 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 		if(debug['u'] && whence != ArchiveObj &&
 		   (p0+6 > p1 || memcmp(p0, " safe\n", 6) != 0)) {
 			fprint(2, "%s: load of unsafe package %s\n", argv0, filename);
+			nerrors++;
 			errorexit();
 		}
 		if(p0 < p1) {
