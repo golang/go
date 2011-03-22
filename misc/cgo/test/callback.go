@@ -29,7 +29,7 @@ func goCallback(p unsafe.Pointer) {
 
 func TestCallback(t *testing.T) {
 	var x = false
-	nestedCall(func(){x = true})
+	nestedCall(func() { x = true })
 	if !x {
 		t.Fatal("nestedCall did not call func")
 	}
@@ -39,7 +39,7 @@ func TestCallbackGC(t *testing.T) {
 	nestedCall(runtime.GC)
 }
 
-func lockedOSThread() bool  // in runtime.c
+func lockedOSThread() bool // in runtime.c
 
 func TestCallbackPanic(t *testing.T) {
 	// Make sure panic during callback unwinds properly.
@@ -58,7 +58,7 @@ func TestCallbackPanic(t *testing.T) {
 			t.Fatal("locked OS thread on exit from TestCallbackPanic")
 		}
 	}()
-	nestedCall(func(){panic("callback panic")})
+	nestedCall(func() { panic("callback panic") })
 	panic("nestedCall returned")
 }
 
@@ -88,7 +88,7 @@ func TestCallbackPanicLocked(t *testing.T) {
 			t.Fatal("lost lock on OS thread after panic")
 		}
 	}()
-	nestedCall(func(){panic("callback panic")})
+	nestedCall(func() { panic("callback panic") })
 	panic("nestedCall returned")
 }
 
@@ -125,7 +125,7 @@ func TestBlocking(t *testing.T) {
 			c <- <-c
 		}
 	}()
-	nestedCall(func(){
+	nestedCall(func() {
 		for i := 0; i < 10; i++ {
 			c <- i
 			if j := <-c; j != i {
