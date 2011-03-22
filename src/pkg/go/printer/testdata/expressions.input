@@ -224,7 +224,7 @@ func _() {
 	_ = struct{ x int }{0}
 	_ = struct{ x, y, z int }{0, 1, 2}
 	_ = struct{ int }{0}
-	_ = struct{ s struct { int } }{struct{ int}{0}}  // compositeLit context not propagated => multiLine result
+	_ = struct{ s struct { int } }{struct{ int}{0} }
 }
 
 
