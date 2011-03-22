@@ -1896,6 +1896,7 @@ sub SvgJavascript {
 // SVGPan
 // http://www.cyberz.org/blog/2009/12/08/svgpan-a-javascript-svg-panzoomdrag-library/
 // Local modification: if(true || ...) below to force panning, never moving.
+// Local modification: add clamping to fix bug in handleMouseWheel.
 
 /**
  *  SVGPan library 1.2
@@ -2038,6 +2039,15 @@ function handleMouseWheel(evt) {
 
 	var z = 1 + delta; // Zoom factor: 0.9/1.1
 
+	// Clamp to reasonable values.
+	// The 0.1 check is important because
+	// a very large scroll can turn into a
+	// negative z, which rotates the image 180 degrees.
+	if(z < 0.1)
+		z = 0.1;
+	if(z > 10.0)
+		z = 10.0;
+		
 	var g = svgDoc.getElementById("viewport");
 
 	var p = getEventPoint(evt);
