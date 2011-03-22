@@ -233,34 +233,13 @@ var (
 	tComplex   = bootstrapType("complex", (*complex128)(nil), 7)
 	tInterface = bootstrapType("interface", (*interface{})(nil), 8)
 	// Reserve some Ids for compatible expansion
-	tReserved7 = bootstrapType("_reserved1", (*struct {
-		r7 int
-	})(nil),
-		9)
-	tReserved6 = bootstrapType("_reserved1", (*struct {
-		r6 int
-	})(nil),
-		10)
-	tReserved5 = bootstrapType("_reserved1", (*struct {
-		r5 int
-	})(nil),
-		11)
-	tReserved4 = bootstrapType("_reserved1", (*struct {
-		r4 int
-	})(nil),
-		12)
-	tReserved3 = bootstrapType("_reserved1", (*struct {
-		r3 int
-	})(nil),
-		13)
-	tReserved2 = bootstrapType("_reserved1", (*struct {
-		r2 int
-	})(nil),
-		14)
-	tReserved1 = bootstrapType("_reserved1", (*struct {
-		r1 int
-	})(nil),
-		15)
+	tReserved7 = bootstrapType("_reserved1", (*struct{ r7 int })(nil), 9)
+	tReserved6 = bootstrapType("_reserved1", (*struct{ r6 int })(nil), 10)
+	tReserved5 = bootstrapType("_reserved1", (*struct{ r5 int })(nil), 11)
+	tReserved4 = bootstrapType("_reserved1", (*struct{ r4 int })(nil), 12)
+	tReserved3 = bootstrapType("_reserved1", (*struct{ r3 int })(nil), 13)
+	tReserved2 = bootstrapType("_reserved1", (*struct{ r2 int })(nil), 14)
+	tReserved1 = bootstrapType("_reserved1", (*struct{ r1 int })(nil), 15)
 )
 
 // Predefined because it's needed by the Decoder
