@@ -108,17 +108,6 @@ func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
 }
 
 
-// Compute the key size of a key:value expression.
-// Returns 0 if the expression doesn't fit onto a single line.
-func (p *printer) keySize(pair *ast.KeyValueExpr) int {
-	if p.nodeSize(pair, infinity) <= infinity {
-		// entire expression fits on one line - return key size
-		return p.nodeSize(pair.Key, infinity)
-	}
-	return 0
-}
-
-
 // Print a list of expressions. If the list spans multiple
 // source lines, the original line breaks are respected between
 // expressions. Sets multiLine to true if the list spans multiple
@@ -1324,11 +1313,21 @@ func (p *printer) genDecl(d *ast.GenDecl, multiLine *bool) {
 // any control chars. Otherwise, the result is > maxSize.
 //
 func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+	// nodeSize invokes the printer, which may invoke nodeSize
+	// recursively. For deep composite literal nests, this can
+	// lead to an exponential algorithm. Remember previous
+	// results to prune the recursion (was issue 1628).
+	if size, found := p.nodeSizes[n]; found {
+		return size
+	}
+
 	size = maxSize + 1 // assume n doesn't fit
+	p.nodeSizes[n] = size
+
 	// nodeSize computation must be indendent of particular
 	// style so that we always get the same decision; print
 	// in RawFormat
-	cfg := Config{Mode: RawFormat}
+	cfg := Config{Mode: RawFormat, nodeSizes: p.nodeSizes}
 	var buf bytes.Buffer
 	if _, err := cfg.Fprint(&buf, p.fset, n); err != nil {
 		return
@@ -1340,6 +1339,7 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 			}
 		}
 		size = buf.Len() // n fits
+		p.nodeSizes[n] = size
 	}
 	return
 }
