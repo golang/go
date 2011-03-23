@@ -22,7 +22,7 @@ import "runtime"
 //       go func() {
 //           // Do something.
 //           wg.Done()
-//       }
+//       }()
 //   }
 //   wg.Wait()
 // 
