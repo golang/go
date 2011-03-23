@@ -9,6 +9,7 @@ package httptest
 import (
 	"fmt"
 	"http"
+	"os"
 	"net"
 )
 
@@ -17,6 +18,21 @@ import (
 type Server struct {
 	URL      string // base URL of form http://ipaddr:port with no trailing slash
 	Listener net.Listener
+}
+
+// historyListener keeps track of all connections that it's ever
+// accepted.
+type historyListener struct {
+	net.Listener
+	history []net.Conn
+}
+
+func (hs *historyListener) Accept() (c net.Conn, err os.Error) {
+	c, err = hs.Listener.Accept()
+	if err == nil {
+		hs.history = append(hs.history, c)
+	}
+	return
 }
 
 // NewServer starts and returns a new Server.
@@ -29,14 +45,26 @@ func NewServer(handler http.Handler) *Server {
 			panic(fmt.Sprintf("httptest: failed to listen on a port: %v", err))
 		}
 	}
-	ts.Listener = l
+	ts.Listener = &historyListener{l, make([]net.Conn, 0)}
 	ts.URL = "http://" + l.Addr().String()
 	server := &http.Server{Handler: handler}
-	go server.Serve(l)
+	go server.Serve(ts.Listener)
 	return ts
 }
 
 // Close shuts down the server.
 func (s *Server) Close() {
 	s.Listener.Close()
+}
+
+// CloseClientConnections closes any currently open HTTP connections
+// to the test Server.
+func (s *Server) CloseClientConnections() {
+	hl, ok := s.Listener.(*historyListener)
+	if !ok {
+		return
+	}
+	for _, conn := range hl.history {
+		conn.Close()
+	}
 }

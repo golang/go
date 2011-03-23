@@ -213,6 +213,7 @@ type ClientConn struct {
 
 	pipe     textproto.Pipeline
 	writeReq func(*Request, io.Writer) os.Error
+	readRes  func(buf *bufio.Reader, method string) (*Response, os.Error)
 }
 
 // NewClientConn returns a new ClientConn reading and writing c.  If r is not
@@ -226,6 +227,7 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 		r:        r,
 		pipereq:  make(map[*Request]uint),
 		writeReq: (*Request).Write,
+		readRes:  ReadResponse,
 	}
 }
 
@@ -363,7 +365,7 @@ func (cc *ClientConn) Read(req *Request) (resp *Response, err os.Error) {
 		}
 	}
 
-	resp, err = ReadResponse(r, req.Method)
+	resp, err = cc.readRes(r, req.Method)
 	cc.lk.Lock()
 	defer cc.lk.Unlock()
 	if err != nil {

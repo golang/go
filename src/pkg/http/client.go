@@ -57,40 +57,6 @@ type readClose struct {
 	io.Closer
 }
 
-// matchNoProxy returns true if requests to addr should not use a proxy,
-// according to the NO_PROXY or no_proxy environment variable.
-func matchNoProxy(addr string) bool {
-	if len(addr) == 0 {
-		return false
-	}
-	no_proxy := os.Getenv("NO_PROXY")
-	if len(no_proxy) == 0 {
-		no_proxy = os.Getenv("no_proxy")
-	}
-	if no_proxy == "*" {
-		return true
-	}
-
-	addr = strings.ToLower(strings.TrimSpace(addr))
-	if hasPort(addr) {
-		addr = addr[:strings.LastIndex(addr, ":")]
-	}
-
-	for _, p := range strings.Split(no_proxy, ",", -1) {
-		p = strings.ToLower(strings.TrimSpace(p))
-		if len(p) == 0 {
-			continue
-		}
-		if hasPort(p) {
-			p = p[:strings.LastIndex(p, ":")]
-		}
-		if addr == p || (p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:])) {
-			return true
-		}
-	}
-	return false
-}
-
 // Do sends an HTTP request and returns an HTTP response, following
 // policy (e.g. redirects, cookies, auth) as configured on the client.
 //
