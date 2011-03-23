@@ -45,6 +45,11 @@ TEXT runtime·munmap(SB),7,$0
 	CALL	runtime·notok(SB)
 	RET
 
+TEXT runtime·setitimer(SB),7,$0
+	MOVL	$83, AX
+	INT	$0x80
+	RET
+
 // void gettime(int64 *sec, int32 *usec)
 TEXT runtime·gettime(SB), 7, $32
 	LEAL	12(SP), AX	// must be non-nil, unused

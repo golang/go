@@ -8,7 +8,7 @@
 		-f -I/home/rsc/pub/linux-2.6/arch/x86/include \
 		-f -I/home/rsc/pub/linux-2.6/include \
 		-f -D_LOOSE_KERNEL_NAMES \
-		-f -D__ARCH_SI_UID_T=__kernel_uid32_t \
+		-f -D__ARCH_SI_UID_T'='__kernel_uid32_t \
 		defs2.c >386/defs.h
 
  * The asm header tricks we have to use for Linux on amd64
@@ -100,6 +100,10 @@ enum {
 	
 	$SEGV_MAPERR = SEGV_MAPERR,
 	$SEGV_ACCERR = SEGV_ACCERR,
+	
+	$ITIMER_REAL = ITIMER_REAL,
+	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
+	$ITIMER_PROF = ITIMER_PROF,
 };
 
 typedef struct _fpreg $Fpreg;
@@ -113,4 +117,4 @@ typedef siginfo_t $Siginfo;
 typedef struct sigaltstack $Sigaltstack;
 typedef struct sigcontext $Sigcontext;
 typedef struct ucontext $Ucontext;
-
+typedef struct itimerval $Itimerval;

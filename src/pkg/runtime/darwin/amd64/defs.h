@@ -89,6 +89,9 @@ enum {
 	BUS_OBJERR = 0x3,
 	SEGV_MAPERR = 0x1,
 	SEGV_ACCERR = 0x2,
+	ITIMER_REAL = 0,
+	ITIMER_VIRTUAL = 0x1,
+	ITIMER_PROF = 0x2,
 };
 
 // Types
@@ -135,19 +138,19 @@ struct StackT {
 	void *ss_sp;
 	uint64 ss_size;
 	int32 ss_flags;
-	byte pad0[4];
+	byte pad_godefs_0[4];
 };
 
 typedef union Sighandler Sighandler;
 union Sighandler {
-	void *__sa_handler;
-	void *__sa_sigaction;
+	uint64 __sa_handler;
+	uint64 __sa_sigaction;
 };
 
 typedef struct Sigaction Sigaction;
 struct Sigaction {
 	Sighandler __sigaction_u;
-	void *sa_tramp;
+	uint64 sa_tramp;
 	uint32 sa_mask;
 	int32 sa_flags;
 };
@@ -172,14 +175,27 @@ struct Siginfo {
 	uint64 __pad[7];
 };
 
+typedef struct Timeval Timeval;
+struct Timeval {
+	int64 tv_sec;
+	int32 tv_usec;
+	byte pad_godefs_0[4];
+};
+
+typedef struct Itimerval Itimerval;
+struct Itimerval {
+	Timeval it_interval;
+	Timeval it_value;
+};
+
 typedef struct FPControl FPControl;
 struct FPControl {
-	byte pad0[2];
+	byte pad_godefs_0[2];
 };
 
 typedef struct FPStatus FPStatus;
 struct FPStatus {
-	byte pad0[2];
+	byte pad_godefs_0[2];
 };
 
 typedef struct RegMMST RegMMST;
@@ -220,7 +236,7 @@ struct Regs {
 
 typedef struct FloatState FloatState;
 struct FloatState {
-	int32 fpu_reserved[2];
+	uint64 fpu_reserved;
 	FPControl fpu_fcw;
 	FPStatus fpu_fsw;
 	uint8 fpu_ftw;
@@ -274,7 +290,7 @@ struct Mcontext {
 	ExceptionState es;
 	Regs ss;
 	FloatState fs;
-	byte pad0[4];
+	byte pad_godefs_0[4];
 };
 
 typedef struct Ucontext Ucontext;
@@ -282,7 +298,7 @@ struct Ucontext {
 	int32 uc_onstack;
 	uint32 uc_sigmask;
 	StackT uc_stack;
-	Ucontext *uc_link;
+	uint64 uc_link;
 	uint64 uc_mcsize;
 	Mcontext *uc_mcontext;
 };

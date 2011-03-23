@@ -65,6 +65,14 @@ TEXT runtime·write(SB),7,$-8
 	SYSCALL
 	RET
 
+TEXT runtime·setitimer(SB), 7, $-8
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVL	$83, AX
+	SYSCALL
+	RET
+
 TEXT runtime·gettime(SB), 7, $32
 	MOVL	$116, AX
 	LEAQ	8(SP), DI

@@ -38,11 +38,19 @@ TEXT runtime·write(SB),7,$0
 	SYSCALL
 	RET
 
+TEXT runtime·setitimer(SB), 7, $0
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVL	$(0x2000000+83), AX	// syscall entry
+	SYSCALL
+	RET
+
 // void gettime(int64 *sec, int32 *usec)
 TEXT runtime·gettime(SB), 7, $32
 	MOVQ	SP, DI	// must be non-nil, unused
 	MOVQ	$0, SI
-	MOVQ	$(0x2000000+116), AX
+	MOVL	$(0x2000000+116), AX
 	SYSCALL
 	MOVQ	sec+0(FP), DI
 	MOVQ	AX, (DI)
