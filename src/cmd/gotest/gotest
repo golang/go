@@ -164,7 +164,7 @@ importpath=$(gomake -s importpath)
 		echo 'import "./_xtest_"'
 	fi
 	echo 'import "testing"'
-	echo 'import __os__ "os"' # rename in case tested package is called os
+	echo 'import __os__     "os"' # rename in case tested package is called os
 	echo 'import __regexp__ "regexp"' # rename in case tested package is called regexp
 	# test array
 	echo
