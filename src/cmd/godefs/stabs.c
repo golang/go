@@ -219,7 +219,7 @@ parsedef(char **pp, char *name)
 	t = emalloc(sizeof *t);
 	switch(*p) {
 	default:
-		fprint(2, "unknown type char %c\n", *p);
+		fprint(2, "unknown type char %c in %s\n", *p, p);
 		*pp = "";
 		return t;
 
@@ -284,6 +284,7 @@ parsedef(char **pp, char *name)
 			return nil;
 		break;
 
+	case 'B':	// volatile
 	case 'k':	// const
 		++*pp;
 		return parsedef(pp, nil);
