@@ -452,3 +452,58 @@ func TestChunkedResponseHeaders(t *testing.T) {
 		t.Errorf("Unexpected Content-Length")
 	}
 }
+
+// Test304Responses verifies that 304s don't declare that they're
+// chunking in their response headers and aren't allowed to produce
+// output.
+func Test304Responses(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusNotModified)
+		_, err := w.Write([]byte("illegal body"))
+		if err != ErrBodyNotAllowed {
+			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
+		}
+	}))
+	defer ts.Close()
+	res, _, err := Get(ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res.TransferEncoding) > 0 {
+		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(body) > 0 {
+		t.Errorf("got unexpected body %q", string(body))
+	}
+}
+
+// TestHeadResponses verifies that responses to HEAD requests don't
+// declare that they're chunking in their response headers and aren't
+// allowed to produce output.
+func TestHeadResponses(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		_, err := w.Write([]byte("Ignored body"))
+		if err != ErrBodyNotAllowed {
+			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
+		}
+	}))
+	defer ts.Close()
+	res, err := Head(ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res.TransferEncoding) > 0 {
+		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(body) > 0 {
+		t.Errorf("got unexpected body %q", string(body))
+	}
+}
