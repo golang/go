@@ -54,6 +54,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 	mc = uc->uc_mcontext;
 	r = &mc->ss;
 
+	if(sig == SIGPROF) {
+		runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
+		return;
+	}
+
 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
 		// Work around Leopard bug that doesn't set FPE_INTDIV.
 		// Look at instruction to see if it is a divide.
@@ -136,31 +141,58 @@ runtime·signalstack(byte *p, int32 n)
 	runtime·sigaltstack(&st, nil);
 }
 
+static void
+sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+{
+	Sigaction sa;
+
+	runtime·memclr((byte*)&sa, sizeof sa);
+	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+	if(restart)
+		sa.sa_flags |= SA_RESTART;
+	sa.sa_mask = ~0ULL;
+	sa.sa_tramp = (uintptr)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
+	runtime·sigaction(i, &sa, nil);
+}
+
 void
 runtime·initsig(int32 queue)
 {
 	int32 i;
-	static Sigaction sa;
+	void *fn;
 
 	runtime·siginit();
 
-	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
-	sa.sa_mask = 0xFFFFFFFFU;
-	sa.sa_tramp = runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
 	for(i = 0; i<NSIG; i++) {
 		if(runtime·sigtab[i].flags) {
 			if((runtime·sigtab[i].flags & SigQueue) != queue)
 				continue;
-			if(runtime·sigtab[i].flags & (SigCatch | SigQueue)) {
-				sa.__sigaction_u.__sa_sigaction = runtime·sighandler;
-			} else {
-				sa.__sigaction_u.__sa_sigaction = runtime·sigignore;
-			}
-			if(runtime·sigtab[i].flags & SigRestart)
-				sa.sa_flags |= SA_RESTART;
+			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
+				fn = runtime·sighandler;
 			else
-				sa.sa_flags &= ~SA_RESTART;
-			runtime·sigaction(i, &sa, nil);
+				fn = runtime·sigignore;
+			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
 		}
 	}
+}
+
+void
+runtime·resetcpuprofiler(int32 hz)
+{
+	Sigaction sa;
+	Itimerval it;
+	
+	runtime·memclr((byte*)&it, sizeof it);
+	if(hz == 0) {
+		runtime·setitimer(ITIMER_PROF, &it, nil);
+		sigaction(SIGPROF, SIG_IGN, true);
+	} else {
+		sigaction(SIGPROF, runtime·sighandler, true);
+		it.it_interval.tv_sec = 0;
+		it.it_interval.tv_usec = 1000000 / hz;
+		it.it_value = it.it_interval;
+		runtime·setitimer(ITIMER_PROF, &it, nil);
+	}
+	m->profilehz = hz;
 }

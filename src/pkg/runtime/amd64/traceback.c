@@ -18,8 +18,8 @@ void runtime·morestack(void);
 // as well as the runtime.Callers function (pcbuf != nil).
 // A little clunky to merge the two but avoids duplicating
 // the code and all its subtlety.
-static int32
-gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
+int32
+runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
 {
 	byte *p;
 	int32 i, n, iter, sawnewstack;
@@ -28,6 +28,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
 	Stktop *stk;
 	Func *f;
 
+	USED(lr0);
 	pc = (uintptr)pc0;
 	lr = 0;
 	fp = nil;
@@ -199,7 +200,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
 void
 runtime·traceback(byte *pc0, byte *sp, byte*, G *g)
 {
-	gentraceback(pc0, sp, g, 0, nil, 100);
+	runtime·gentraceback(pc0, sp, nil, g, 0, nil, 100);
 }
 
 int32
@@ -211,7 +212,7 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
 	sp = (byte*)&skip;
 	pc = runtime·getcallerpc(&skip);
 
-	return gentraceback(pc, sp, g, skip, pcbuf, m);
+	return runtime·gentraceback(pc, sp, nil, g, skip, pcbuf, m);
 }
 
 static uintptr

@@ -70,6 +70,7 @@ struct Sched {
 	int32 msyscall;	// number of ms in system calls
 
 	int32 predawn;	// running initialization, don't run new gs.
+	int32 profilehz;	// cpu profiling rate
 
 	Note	stopped;	// one g can wait here for ms to stop
 	int32 waitstop;	// after setting this flag
@@ -95,9 +96,6 @@ static G* gfget(void);
 static void matchmg(void);	// match ms to gs
 static void readylocked(G*);	// ready, but sched is locked
 static void mnextg(M*, G*);
-
-// Scheduler loop.
-static void scheduler(void);
 
 // The bootstrap sequence is:
 //
@@ -529,6 +527,8 @@ matchmg(void)
 static void
 schedule(G *gp)
 {
+	int32 hz;
+
 	schedlock();
 	if(gp != nil) {
 		if(runtime·sched.predawn)
@@ -574,6 +574,12 @@ schedule(G *gp)
 	gp->status = Grunning;
 	m->curg = gp;
 	gp->m = m;
+	
+	// Check whether the profiler needs to be turned on or off.
+	hz = runtime·sched.profilehz;
+	if(m->profilehz != hz)
+		runtime·resetcpuprofiler(hz);
+
 	if(gp->sched.pc == (byte*)runtime·goexit) {	// kickoff
 		runtime·gogocall(&gp->sched, (void(*)(void))gp->entry);
 	}
@@ -640,7 +646,7 @@ runtime·exitsyscall(void)
 	runtime·sched.msyscall--;
 	runtime·sched.mcpu++;
 	// Fast path - if there's room for this m, we're done.
-	if(runtime·sched.mcpu <= runtime·sched.mcpumax) {
+	if(m->profilehz == runtime·sched.profilehz && runtime·sched.mcpu <= runtime·sched.mcpumax) {
 		g->status = Grunning;
 		schedunlock();
 		return;
@@ -1250,4 +1256,58 @@ void
 runtime·badmcall2(void)  // called from assembly
 {
 	runtime·throw("runtime: mcall function returned");
+}
+
+static struct {
+	Lock;
+	void (*fn)(uintptr*, int32);
+	int32 hz;
+	uintptr pcbuf[100];
+} prof;
+
+void
+runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
+{
+	int32 n;
+	
+	if(prof.fn == nil || prof.hz == 0)
+		return;
+	
+	runtime·lock(&prof);
+	if(prof.fn == nil) {
+		runtime·unlock(&prof);
+		return;
+	}
+	n = runtime·gentraceback(pc, sp, lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf));
+	if(n > 0)
+		prof.fn(prof.pcbuf, n);
+	runtime·unlock(&prof);
+}
+
+void
+runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
+{
+	// Force sane arguments.
+	if(hz < 0)
+		hz = 0;
+	if(hz == 0)
+		fn = nil;
+	if(fn == nil)
+		hz = 0;
+
+	// Stop profiler on this cpu so that it is safe to lock prof.
+	// if a profiling signal came in while we had prof locked,
+	// it would deadlock.
+	runtime·resetcpuprofiler(0);
+
+	runtime·lock(&prof);
+	prof.fn = fn;
+	prof.hz = hz;
+	runtime·unlock(&prof);
+	runtime·lock(&runtime·sched);
+	runtime·sched.profilehz = hz;
+	runtime·unlock(&runtime·sched);
+	
+	if(hz != 0)
+		runtime·resetcpuprofiler(hz);
 }

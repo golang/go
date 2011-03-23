@@ -88,3 +88,11 @@ runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
 	runtime·exit(2);
 	return 0;
 }
+
+void
+runtime·resetcpuprofiler(int32 hz)
+{
+	// TODO: Enable profiling interrupts.
+	
+	m->profilehz = hz;
+}
