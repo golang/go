@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 )
 
@@ -32,6 +33,9 @@ var (
 	tabWidth  = flag.Int("tabwidth", 8, "tab width")
 	tabIndent = flag.Bool("tabindent", true, "indent with tabs independent of -spaces")
 	useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
+
+	// debugging
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
 )
 
 
@@ -172,11 +176,33 @@ func walkDir(path string) {
 
 
 func main() {
+	// call gofmtMain in a separate function
+	// so that it can use defer and have them
+	// run before the exit.
+	gofmtMain()
+	os.Exit(exitCode)
+}
+
+
+func gofmtMain() {
 	flag.Usage = usage
 	flag.Parse()
 	if *tabWidth < 0 {
 		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabWidth)
-		os.Exit(2)
+		exitCode = 2
+		return
+	}
+
+	if *cpuprofile != "" {
+		f, err := os.Open(*cpuprofile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "creating cpu profile: %s\n", err)
+			exitCode = 2
+			return
+		}
+		defer f.Close()
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 
 	initParserMode()
@@ -202,6 +228,4 @@ func main() {
 			walkDir(path)
 		}
 	}
-
-	os.Exit(exitCode)
 }
