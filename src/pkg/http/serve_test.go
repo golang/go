@@ -250,7 +250,9 @@ func TestServerTimeouts(t *testing.T) {
 	url := fmt.Sprintf("http://localhost:%d/", addr.Port)
 
 	// Hit the HTTP server successfully.
-	r, _, err := Get(url)
+	tr := &Transport{DisableKeepAlives: true} // they interfere with this test
+	c := &Client{Transport: tr}
+	r, _, err := c.Get(url)
 	if err != nil {
 		t.Fatalf("http Get #1: %v", err)
 	}
@@ -335,6 +337,7 @@ func TestIdentityResponse(t *testing.T) {
 			t.Errorf("for %s expected len(res.TransferEncoding) of %d; got %d (%v)",
 				url, expected, tl, res.TransferEncoding)
 		}
+		res.Body.Close()
 	}
 
 	// Verify that ErrContentLength is returned
@@ -343,7 +346,6 @@ func TestIdentityResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error with Get of %s: %v", url, err)
 	}
-
 	// Verify that the connection is closed when the declared Content-Length
 	// is larger than what the handler wrote.
 	conn, err := net.Dial("tcp", "", ts.Listener.Addr().String())
