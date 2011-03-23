@@ -58,6 +58,9 @@ enum {
 	BUS_OBJERR = 0x3,
 	SEGV_MAPERR = 0x1,
 	SEGV_ACCERR = 0x2,
+	ITIMER_REAL = 0,
+	ITIMER_VIRTUAL = 0x1,
+	ITIMER_PROF = 0x2,
 };
 
 // Types
@@ -98,7 +101,8 @@ struct Fpstate {
 	uint32 reserved;
 	Fpxreg _fxsr_st[8];
 	Xmmreg _xmm[8];
-	uint32 padding[56];
+	uint32 padding1[44];
+	byte Pad_godefs_0[48];
 };
 
 typedef struct Timespec Timespec;
@@ -175,5 +179,11 @@ struct Ucontext {
 	Sigaltstack uc_stack;
 	Sigcontext uc_mcontext;
 	uint32 uc_sigmask;
+};
+
+typedef struct Itimerval Itimerval;
+struct Itimerval {
+	Timeval it_interval;
+	Timeval it_value;
 };
 #pragma pack off

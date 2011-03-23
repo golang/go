@@ -15,6 +15,8 @@
 // headers for things like ucontext_t, so that happens in
 // a separate file, defs1.c.
 
+#include <asm/posix_types.h>
+#define size_t __kernel_size_t
 #include <asm/signal.h>
 #include <asm/siginfo.h>
 #include <asm/mman.h>
@@ -80,9 +82,14 @@ enum {
 	
 	$SEGV_MAPERR = SEGV_MAPERR,
 	$SEGV_ACCERR = SEGV_ACCERR,
+	
+	$ITIMER_REAL = ITIMER_REAL,
+	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
+	$ITIMER_PROF = ITIMER_PROF,
 };
 
 typedef struct timespec $Timespec;
 typedef struct timeval $Timeval;
 typedef struct sigaction $Sigaction;
 typedef siginfo_t $Siginfo;
+typedef struct itimerval $Itimerval;

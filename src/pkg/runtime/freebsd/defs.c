@@ -86,6 +86,10 @@ enum {
 	
 	$SEGV_MAPERR = SEGV_MAPERR,
 	$SEGV_ACCERR = SEGV_ACCERR,
+	
+	$ITIMER_REAL = ITIMER_REAL,
+	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
+	$ITIMER_PROF = ITIMER_PROF,
 };
 
 typedef struct rtprio	$Rtprio;
@@ -99,3 +103,4 @@ typedef siginfo_t $Siginfo;
 
 typedef mcontext_t $Mcontext;
 typedef ucontext_t $Ucontext;
+typedef struct itimerval $Itimerval;

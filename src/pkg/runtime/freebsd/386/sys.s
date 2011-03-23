@@ -87,6 +87,11 @@ TEXT runtime·munmap(SB),7,$-4
 	CALL	runtime·notok(SB)
 	RET
 
+TEXT runtime·setitimer(SB), 7, $-4
+	MOVL	$83, AX
+	INT	$0x80
+	RET
+
 TEXT runtime·gettime(SB), 7, $32
 	MOVL	$116, AX
 	LEAL	12(SP), BX

@@ -30,6 +30,15 @@ TEXT runtime·write(SB),7,$0
 	INT	$0x80
 	RET
 
+
+TEXT runtime·setitimer(SB),7,$0-24
+	MOVL	$104, AX			// syscall - setitimer
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	MOVL	12(SP), DX
+	INT	$0x80
+	RET
+
 TEXT runtime·gettime(SB), 7, $32
 	MOVL	$78, AX			// syscall - gettimeofday
 	LEAL	8(SP), BX
