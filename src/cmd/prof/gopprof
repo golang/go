@@ -2476,7 +2476,8 @@ sub RemoveUninterestingFrames {
     # Nothing skipped for unknown types
   }
 
-  if ($main::profile_type eq 'cpu') {
+  # Go doesn't have the problem that this heuristic tries to fix.  Disable.
+  if (0 && $main::profile_type eq 'cpu') {
     # If all the second-youngest program counters are the same,
     # this STRONGLY suggests that it is an artifact of measurement,
     # i.e., stack frames pushed by the CPU profiler signal handler.
@@ -2976,7 +2977,7 @@ sub FetchDynamicProfile {
         $url = sprintf("http://$profile_name" . "seconds=%d",
             $main::opt_seconds);
       }
-      $curl_timeout = sprintf("--max-time=%d",
+      $curl_timeout = sprintf("--max-time %d",
                               int($main::opt_seconds * 1.01 + 60));
     } else {
       # For non-CPU profiles, we add a type-extension to
