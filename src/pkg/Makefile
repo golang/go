@@ -184,7 +184,6 @@ NOTEST=\
 	net/dict\
 	rand\
 	runtime/cgo\
-	runtime/pprof\
 	syscall\
 	testing\
 	testing/iotest\

@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sync"
 )
 
 // WriteHeapProfile writes a pprof-formatted heap profile to w.
@@ -104,4 +105,72 @@ func WriteHeapProfile(w io.Writer) os.Error {
 		}
 	}
 	return b.Flush()
+}
+
+var cpu struct {
+	sync.Mutex
+	profiling bool
+	done      chan bool
+}
+
+// StartCPUProfile enables CPU profiling for the current process.
+// While profiling, the profile will be buffered and written to w.
+// StartCPUProfile returns an error if profiling is already enabled.
+func StartCPUProfile(w io.Writer) os.Error {
+	// The runtime routines allow a variable profiling rate,
+	// but in practice operating systems cannot trigger signals
+	// at more than about 500 Hz, and our processing of the
+	// signal is not cheap (mostly getting the stack trace).
+	// 100 Hz is a reasonable choice: it is frequent enough to
+	// produce useful data, rare enough not to bog down the
+	// system, and a nice round number to make it easy to
+	// convert sample counts to seconds.  Instead of requiring
+	// each client to specify the frequency, we hard code it.
+	const hz = 100
+
+	// Avoid queueing behind StopCPUProfile.
+	// Could use TryLock instead if we had it.
+	if cpu.profiling {
+		return fmt.Errorf("cpu profiling already in use")
+	}
+
+	cpu.Lock()
+	defer cpu.Unlock()
+	if cpu.done == nil {
+		cpu.done = make(chan bool)
+	}
+	// Double-check.
+	if cpu.profiling {
+		return fmt.Errorf("cpu profiling already in use")
+	}
+	cpu.profiling = true
+	runtime.SetCPUProfileRate(hz)
+	go profileWriter(w)
+	return nil
+}
+
+func profileWriter(w io.Writer) {
+	for {
+		data := runtime.CPUProfile()
+		if data == nil {
+			break
+		}
+		w.Write(data)
+	}
+	cpu.done <- true
+}
+
+// StopCPUProfile stops the current CPU profile, if any.
+// StopCPUProfile only returns after all the writes for the
+// profile have completed.
+func StopCPUProfile() {
+	cpu.Lock()
+	defer cpu.Unlock()
+
+	if !cpu.profiling {
+		return
+	}
+	cpu.profiling = false
+	runtime.SetCPUProfileRate(0)
+	<-cpu.done
 }
