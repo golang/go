@@ -5,6 +5,8 @@
 #include "runtime.h"
 #include "type.h"
 
+#define	MAXALIGN	7
+
 static	int32	debug	= 0;
 
 typedef	struct	Link	Link;
@@ -95,7 +97,9 @@ Hchan*
 runtime·makechan_c(Type *elem, int64 hint)
 {
 	Hchan *c;
-	int32 i;
+	int32 i, m, n;
+	Link *d, *b, *e;
+	byte *by;
 
 	if(hint < 0 || (int32)hint != hint || hint > ((uintptr)-1) / elem->size)
 		runtime·panicstring("makechan: size out of range");
@@ -105,7 +109,19 @@ runtime·makechan_c(Type *elem, int64 hint)
 		runtime·throw("runtime.makechan: unsupported elem type");
 	}
 
-	c = runtime·mal(sizeof(*c));
+	// calculate rounded sizes of Hchan and Link
+	n = sizeof(*c);
+	while(n & MAXALIGN)
+		n++;
+	m = sizeof(*d) + elem->size - sizeof(d->elem);
+	while(m & MAXALIGN)
+		m++;
+
+	// allocate memory in one call
+	by = runtime·mal(n + hint*m);
+
+	c = (Hchan*)by;
+	by += n;
 	runtime·addfinalizer(c, destroychan, 0);
 
 	c->elemsize = elem->size;
@@ -113,13 +129,13 @@ runtime·makechan_c(Type *elem, int64 hint)
 	c->elemalign = elem->align;
 
 	if(hint > 0) {
-		Link *d, *b, *e;
 
 		// make a circular q
 		b = nil;
 		e = nil;
 		for(i=0; i<hint; i++) {
-			d = runtime·mal(sizeof(*d) + c->elemsize - sizeof(d->elem));
+			d = (Link*)by;
+			by += m;
 			if(e == nil)
 				e = d;
 			d->link = b;
