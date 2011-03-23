@@ -130,6 +130,11 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
 	return
 }
 
+func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errno int) {
+	_, errno = socketcall(_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+	return
+}
+
 func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
 	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
 	return

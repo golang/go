@@ -415,6 +415,13 @@ func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
 	return
 }
 
+func GetsockoptInt(fd, level, opt int) (value, errno int) {
+	var n int32
+	vallen := _Socklen(4)
+	errno = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
+	return int(n), errno
+}
+
 func SetsockoptInt(fd, level, opt int, value int) (errno int) {
 	var n = int32(value)
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
@@ -675,7 +682,6 @@ func Reboot(cmd int) (errno int) {
 // Sendto
 // Recvfrom
 // Socketpair
-// Getsockopt
 
 /*
  * Direct access
