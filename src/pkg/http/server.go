@@ -251,10 +251,9 @@ func (w *response) WriteHeader(code int) {
 		hasCL = false
 	}
 
-	if w.req.Method == "HEAD" {
+	if w.req.Method == "HEAD" || code == StatusNotModified {
 		// do nothing
 	} else if hasCL {
-		w.chunking = false
 		w.contentLength = contentLength
 		w.header.Del("Transfer-Encoding")
 	} else if w.req.ProtoAtLeast(1, 1) {
@@ -270,7 +269,6 @@ func (w *response) WriteHeader(code int) {
 		// encoding and we don't know the Content-Length so
 		// signal EOF by closing connection.
 		w.closeAfterReply = true
-		w.chunking = false                // redundant
 		w.header.Del("Transfer-Encoding") // in case already set
 	}
 
