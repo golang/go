@@ -614,14 +614,17 @@ dostkoff(void)
 				diag("unbalanced PUSH/POP");
 	
 			if(autoffset) {
-				q = p;
+				p->as = AADJSP;
+				p->from.type = D_CONST;
+				p->from.offset = -autoffset;
+				p->spadj = -autoffset;
 				p = appendp(p);
 				p->as = ARET;
-	
-				q->as = AADJSP;
-				q->from.type = D_CONST;
-				q->from.offset = -autoffset;
-				p->spadj = -autoffset;
+				// If there are instructions following
+				// this ARET, they come from a branch
+				// with the same stackframe, so undo
+				// the cleanup.
+				p->spadj = +autoffset;
 			}
 		}
 	}

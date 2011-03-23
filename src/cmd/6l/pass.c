@@ -274,10 +274,10 @@ patch(void)
 		if(HEADTYPE == Hwindows) { 
 			// Windows
 			// Convert
-			//   op   n(GS), reg
+			//   op	  n(GS), reg
 			// to
 			//   MOVL 0x58(GS), reg
-			//   op   n(reg), reg
+			//   op	  n(reg), reg
 			// The purpose of this patch is to fix some accesses
 			// to extern register variables (TLS) on Windows, as
 			// a different method is used to access them.
@@ -674,6 +674,11 @@ dostkoff(void)
 				p->spadj = -autoffset;
 				p = appendp(p);
 				p->as = ARET;
+				// If there are instructions following
+				// this ARET, they come from a branch
+				// with the same stackframe, so undo
+				// the cleanup.
+				p->spadj = +autoffset;
 			}
 		}
 	}

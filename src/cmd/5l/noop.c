@@ -364,14 +364,14 @@ noops(void)
 					p = appendp(p);
 					p->as = ABL;
 					p->scond = C_SCOND_LO;
-	 				p->to.type = D_BRANCH;
+					p->to.type = D_BRANCH;
 					p->to.sym = symmorestack;
 					p->cond = pmorestack;
 	
 					// MOVW.W		R14,$-autosize(SP)
 					p = appendp(p);
 					p->as = AMOVW;
-	 				p->scond |= C_WBIT;
+					p->scond |= C_WBIT;
 					p->from.type = D_REG;
 					p->from.reg = REGLINK;
 					p->to.type = D_OREG;
@@ -413,14 +413,14 @@ noops(void)
 					// BL		runtime.morestack(SB) // modifies LR
 					p = appendp(p);
 					p->as = ABL;
-	 				p->to.type = D_BRANCH;
+					p->to.type = D_BRANCH;
 					p->to.sym = symmorestack;
 					p->cond = pmorestack;
 	
 					// MOVW.W		R14,$-autosize(SP)
 					p = appendp(p);
 					p->as = AMOVW;
-	 				p->scond |= C_WBIT;
+					p->scond |= C_WBIT;
 					p->from.type = D_REG;
 					p->from.reg = REGLINK;
 					p->to.type = D_OREG;
@@ -450,6 +450,8 @@ noops(void)
 					}
 				}
 				if(thumb){
+					diag("thumb not maintained");
+					errorexit();
 					if(cursym->text->mark & LEAF){
 						if(autosize){
 							p->as = AADD;
@@ -481,7 +483,7 @@ noops(void)
 							q->to.type = D_REG;
 							q->to.reg = REGSP;
 							q->link = p->link;
-							p->link = 	q;
+							p->link =	q;
 						}
 						else
 							q = p;
@@ -492,6 +494,8 @@ noops(void)
 					break;
 				}
 				if(foreign) {
+					diag("foreign not maintained");
+					errorexit();
 // if(foreign) print("ABXRET 3 %s\n", cursym->name);
 #define	R	1
 					p->as = AMOVW;
@@ -530,7 +534,9 @@ noops(void)
 					p->from.reg = REGSP;
 					p->to.type = D_REG;
 					p->to.reg = REGPC;
-					// no spadj because it doesn't fall through
+					// If there are instructions following
+					// this ARET, they come from a branch
+					// with the same stackframe, so no spadj.
 				}
 				break;
 	
