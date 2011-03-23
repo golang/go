@@ -577,19 +577,30 @@ newselect(int32 size, Select **selp)
 		runtime·printf("newselect s=%p size=%d\n", sel, size);
 }
 
+// cut in half to give stack a chance to split
+static void selectsend(Select **selp, Hchan *c, void *pc);
+
 // selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
 #pragma textflag 7
 void
 runtime·selectsend(Select *sel, Hchan *c, ...)
 {
-	int32 i, eo;
-	Scase *cas;
-	byte *ae;
-
 	// nil cases do not compete
 	if(c == nil)
 		return;
+	
+	selectsend(&sel, c, runtime·getcallerpc(&sel));
+}
 
+static void
+selectsend(Select **selp, Hchan *c, void *pc)
+{
+	int32 i, eo;
+	Scase *cas;
+	byte *ae;
+	Select *sel;
+	
+	sel = *selp;
 	i = sel->ncase;
 	if(i >= sel->tcase)
 		runtime·throw("selectsend: too many cases");
@@ -597,7 +608,7 @@ runtime·selectsend(Select *sel, Hchan *c, ...)
 	cas = runtime·mal(sizeof *cas + c->elemsize - sizeof(cas->u.elem));
 	sel->scase[i] = cas;
 
-	cas->pc = runtime·getcallerpc(&sel);
+	cas->pc = pc;
 	cas->chan = c;
 
 	eo = runtime·rnd(sizeof(sel), sizeof(c));
@@ -605,7 +616,7 @@ runtime·selectsend(Select *sel, Hchan *c, ...)
 	cas->so = runtime·rnd(eo+c->elemsize, Structrnd);
 	cas->kind = CaseSend;
 
-	ae = (byte*)&sel + eo;
+	ae = (byte*)selp + eo;
 	c->elemalg->copy(c->elemsize, cas->u.elem, ae);
 
 	if(debug)
@@ -613,35 +624,19 @@ runtime·selectsend(Select *sel, Hchan *c, ...)
 			sel, cas->pc, cas->chan, cas->so);
 }
 
+// cut in half to give stack a chance to split
+static void selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool*, int32 so);
+
 // selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
 #pragma textflag 7
 void
 runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
 {
-	int32 i;
-	Scase *cas;
-
 	// nil cases do not compete
 	if(c == nil)
 		return;
 
-	i = sel->ncase;
-	if(i >= sel->tcase)
-		runtime·throw("selectrecv: too many cases");
-	sel->ncase = i+1;
-	cas = runtime·mal(sizeof *cas);
-	sel->scase[i] = cas;
-	cas->pc = runtime·getcallerpc(&sel);
-	cas->chan = c;
-
-	cas->so = (byte*)&selected - (byte*)&sel;
-	cas->kind = CaseRecv;
-	cas->u.recv.elemp = elem;
-	cas->u.recv.receivedp = nil;
-
-	if(debug)
-		runtime·printf("selectrecv s=%p pc=%p chan=%p so=%d\n",
-			sel, cas->pc, cas->chan, cas->so);
+	selectrecv(sel, c, runtime·getcallerpc(&sel), elem, nil, (byte*)&selected - (byte*)&sel);
 }
 
 // selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
@@ -649,12 +644,18 @@ runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
 void
 runtime·selectrecv2(Select *sel, Hchan *c, void *elem, bool *received, bool selected)
 {
-	int32 i;
-	Scase *cas;
-
 	// nil cases do not compete
 	if(c == nil)
 		return;
+
+	selectrecv(sel, c, runtime·getcallerpc(&sel), elem, received, (byte*)&selected - (byte*)&sel);
+}
+
+static void
+selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool *received, int32 so)
+{
+	int32 i;
+	Scase *cas;
 
 	i = sel->ncase;
 	if(i >= sel->tcase)
@@ -662,20 +663,21 @@ runtime·selectrecv2(Select *sel, Hchan *c, void *elem, bool *received, bool sel
 	sel->ncase = i+1;
 	cas = runtime·mal(sizeof *cas);
 	sel->scase[i] = cas;
-	cas->pc = runtime·getcallerpc(&sel);
+	cas->pc = pc;
 	cas->chan = c;
 
-	cas->so = (byte*)&selected - (byte*)&sel;
+	cas->so = so;
 	cas->kind = CaseRecv;
 	cas->u.recv.elemp = elem;
+	cas->u.recv.receivedp = nil;
 	cas->u.recv.receivedp = received;
 
 	if(debug)
-		runtime·printf("selectrecv2 s=%p pc=%p chan=%p so=%d elem=%p recv=%p\n",
-			sel, cas->pc, cas->chan, cas->so, cas->u.recv.elemp, cas->u.recv.receivedp);
+		runtime·printf("selectrecv s=%p pc=%p chan=%p so=%d\n",
+			sel, cas->pc, cas->chan, cas->so);
 }
 
-
+// cut in half to give stack a chance to split
 static void selectdefault(Select*, void*, int32);
 
 // selectdefault(sel *byte) (selected bool);
