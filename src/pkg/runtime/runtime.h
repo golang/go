@@ -225,6 +225,7 @@ struct	M
 	int32	nomemprof;
 	int32	waitnextg;
 	int32	dying;
+	int32	profilehz;
 	Note	havenextg;
 	G*	nextg;
 	M*	alllink;	// on allm
@@ -453,9 +454,13 @@ void	runtime·siginit(void);
 bool	runtime·sigsend(int32 sig);
 void	runtime·gettime(int64*, int32*);
 int32	runtime·callers(int32, uintptr*, int32);
+int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32);
 int64	runtime·nanotime(void);
 void	runtime·dopanic(int32);
 void	runtime·startpanic(void);
+void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp);
+void	runtime·resetcpuprofiler(int32);
+void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32

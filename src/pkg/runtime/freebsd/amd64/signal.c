@@ -62,6 +62,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 	uc = context;
 	r = &uc->uc_mcontext;
 
+	if(sig == SIGPROF) {
+		runtime·sigprof((uint8*)r->mc_rip, (uint8*)r->mc_rsp, nil, gp);
+		return;
+	}
+
 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
@@ -130,32 +135,57 @@ runtime·signalstack(byte *p, int32 n)
 	runtime·sigaltstack(&st, nil);
 }
 
+static void
+sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+{
+	Sigaction sa;
+
+	runtime·memclr((byte*)&sa, sizeof sa);
+	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+	if(restart)
+		sa.sa_flags |= SA_RESTART;
+	sa.sa_mask = ~0ULL;
+	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
+	runtime·sigaction(i, &sa, nil);
+}
+
 void
 runtime·initsig(int32 queue)
 {
-	static Sigaction sa;
+	int32 i;
+	void *fn;
 
 	runtime·siginit();
 
-	int32 i;
-	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
-	sa.sa_mask = ~0x0ull;
-	
-	for(i = 0; i < NSIG; i++) {
+	for(i = 0; i<NSIG; i++) {
 		if(runtime·sigtab[i].flags) {
 			if((runtime·sigtab[i].flags & SigQueue) != queue)
 				continue;
 			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
-				sa.__sigaction_u.__sa_sigaction = (void*) runtime·sigtramp;
+				fn = runtime·sighandler;
 			else
-				sa.__sigaction_u.__sa_sigaction = (void*) runtime·sigignore;
-
-			if(runtime·sigtab[i].flags & SigRestart)
-				sa.sa_flags |= SA_RESTART;
-			else
-				sa.sa_flags &= ~SA_RESTART;
-
-			runtime·sigaction(i, &sa, nil);
+				fn = runtime·sigignore;
+			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
 		}
 	}
+}
+
+void
+runtime·resetcpuprofiler(int32 hz)
+{
+	Sigaction sa;
+	Itimerval it;
+	
+	runtime·memclr((byte*)&it, sizeof it);
+	if(hz == 0) {
+		runtime·setitimer(ITIMER_PROF, &it, nil);
+		sigaction(SIGPROF, SIG_IGN, true);
+	} else {
+		sigaction(SIGPROF, runtime·sighandler, true);
+		it.it_interval.tv_sec = 0;
+		it.it_interval.tv_usec = 1000000 / hz;
+		it.it_value = it.it_interval;
+		runtime·setitimer(ITIMER_PROF, &it, nil);
+	}
+	m->profilehz = hz;
 }

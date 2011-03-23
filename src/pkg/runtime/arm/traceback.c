@@ -15,7 +15,7 @@ void _divu(void);
 void _modu(void);
 
 static int32
-gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
+runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
 {
 	int32 i, n, iter;
 	uintptr pc, lr, tracepc, x;
@@ -189,11 +189,10 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
 	return n;		
 }
 
-
 void
 runtime·traceback(byte *pc0, byte *sp, byte *lr, G *g)
 {
-	gentraceback(pc0, sp, lr, g, 0, nil, 100);
+	runtime·gentraceback(pc0, sp, lr, g, 0, nil, 100);
 }
 
 // func caller(n int) (pc uintptr, file string, line int, ok bool)
@@ -205,5 +204,5 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
 	sp = runtime·getcallersp(&skip);
 	pc = runtime·getcallerpc(&skip);
 
-	return gentraceback(pc, sp, 0, g, skip, pcbuf, m);
+	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m);
 }

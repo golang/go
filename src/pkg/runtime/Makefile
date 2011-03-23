@@ -53,6 +53,7 @@ OFILES=\
 	cgocall.$O\
 	chan.$O\
 	closure.$O\
+	cpuprof.$O\
 	float.$O\
 	complex.$O\
 	hashmap.$O\
