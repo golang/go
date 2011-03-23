@@ -14,7 +14,6 @@
 		case,         
 		chan,
 		close,
-		closed,
 		complex,
 		complex128,
 		complex64,
@@ -95,7 +94,7 @@
 		"Open Strings 1" = "`";
 		"Open Strings 2" = "\"";
 		"Prefix for Functions" = "func";
-		"Prefix for Procedures" = func;
+		"Prefix for Procedures" = "func";
 		"Terminator for Prototypes 1" = ";";
 		"Terminator for Prototypes 2" = "";
 	};
