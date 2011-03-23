@@ -51,8 +51,9 @@ var (
 	// Report as tests are run; default is silent for success.
 	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
 	match          = flag.String("test.run", "", "regular expression to select tests to run")
-	memProfile     = flag.String("test.memprofile", "", "after execution write the memory profile to the named file")
+	memProfile     = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
 	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
 )
 
 
@@ -141,10 +142,16 @@ func tRunner(t *T, test *InternalTest) {
 
 // An internal function but exported because it is cross-package; part of the implementation
 // of gotest.
-func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) {
+func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest, benchmarks []InternalBenchmark) {
 	flag.Parse()
 
 	before()
+	RunTests(matchString, tests)
+	RunBenchmarks(matchString, benchmarks)
+	after()
+}
+
+func RunTests(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) {
 	ok := true
 	if len(tests) == 0 {
 		println("testing: warning: no tests to run")
@@ -177,7 +184,6 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
 			print(t.errors)
 		}
 	}
-	after()
 	if !ok {
 		println("FAIL")
 		os.Exit(1)
@@ -190,20 +196,36 @@ func before() {
 	if *memProfileRate > 0 {
 		runtime.MemProfileRate = *memProfileRate
 	}
+	if *cpuProfile != "" {
+		f, err := os.Open(*cpuProfile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: %s", err)
+			return
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			fmt.Fprintf(os.Stderr, "testing: can't start cpu profile: %s", err)
+			f.Close()
+			return
+		}
+		// Could save f so after can call f.Close; not worth the effort.
+	}
+
 }
 
 // after runs after all testing.
 func after() {
-	if *memProfile == "" {
-		return
+	if *cpuProfile != "" {
+		pprof.StopCPUProfile() // flushes profile to disk
 	}
-	fd, err := os.Open(*memProfile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "testing: can't open %s: %s", *memProfile, err)
-		return
+	if *memProfile != "" {
+		f, err := os.Open(*memProfile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: %s", err)
+			return
+		}
+		if err = pprof.WriteHeapProfile(f); err != nil {
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *memProfile, err)
+		}
+		f.Close()
 	}
-	if err = pprof.WriteHeapProfile(fd); err != nil {
-		fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *memProfile, err)
-	}
-	fd.Close()
 }
