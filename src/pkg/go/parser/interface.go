@@ -69,7 +69,7 @@ func ParseExpr(fset *token.FileSet, filename string, src interface{}) (ast.Expr,
 
 	var p parser
 	p.init(fset, filename, data, 0)
-	x := p.parseExpr()
+	x := p.parseRhs()
 	if p.tok == token.SEMICOLON {
 		p.next() // consume automatically inserted semicolon, if any
 	}
