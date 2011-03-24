@@ -21,6 +21,7 @@ type Encoder struct {
 	countState *encoderState           // stage for writing counts
 	freeList   *encoderState           // list of free encoderStates; avoids reallocation
 	buf        []byte                  // for collecting the output.
+	byteBuf    bytes.Buffer            // buffer for top-level encoderState
 	err        os.Error
 }
 
@@ -219,7 +220,8 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 	}
 
 	enc.err = nil
-	state := enc.newEncoderState(new(bytes.Buffer))
+	enc.byteBuf.Reset()
+	state := enc.newEncoderState(&enc.byteBuf)
 
 	enc.sendTypeDescriptor(enc.writer(), state, ut)
 	enc.sendTypeId(state, ut)
