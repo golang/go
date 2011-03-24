@@ -137,7 +137,9 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	if(restart)
 		sa.sa_flags |= SA_RESTART;
 	sa.sa_mask = ~0ULL;
-	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
+	if (fn == runtime·sighandler)
+		fn = (void*)runtime·sigtramp;
+	sa.__sigaction_u.__sa_sigaction = (void*)fn;
 	runtime·sigaction(i, &sa, nil);
 }
 
@@ -165,7 +167,6 @@ runtime·initsig(int32 queue)
 void
 runtime·resetcpuprofiler(int32 hz)
 {
-	Sigaction sa;
 	Itimerval it;
 	
 	runtime·memclr((byte*)&it, sizeof it);
