@@ -19,6 +19,7 @@
 #include <sys/rtprio.h>
 #include <sys/thr.h>
 #include <sys/_sigset.h>
+#include <sys/unistd.h>
 
 enum {
 	$PROT_NONE = PROT_NONE,
@@ -103,4 +104,5 @@ typedef siginfo_t $Siginfo;
 
 typedef mcontext_t $Mcontext;
 typedef ucontext_t $Ucontext;
+typedef struct timeval $Timeval;
 typedef struct itimerval $Itimerval;
