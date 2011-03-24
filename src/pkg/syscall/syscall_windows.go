@@ -135,7 +135,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
 //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (errno int)
 //sys	CancelIo(s uint32) (errno int)
-//sys	CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, threadSecurity *int16, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (errno int) = CreateProcessW
+//sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (errno int) = CreateProcessW
 //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle uint32, errno int)
 //sys	GetExitCodeProcess(handle uint32, exitcode *uint32) (errno int)
 //sys	GetStartupInfo(startupInfo *StartupInfo) (errno int) = GetStartupInfoW
@@ -160,6 +160,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	LocalFree(hmem uint32) (handle uint32, errno int) [failretval!=0]
 //sys	SetHandleInformation(handle int32, mask uint32, flags uint32) (errno int)
 //sys	FlushFileBuffers(handle int32) (errno int)
+//sys	GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, errno int) = kernel32.GetFullPathNameW
 
 // syscall interface implementation for other packages
 

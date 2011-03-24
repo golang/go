@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	. "os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -409,25 +410,12 @@ func TestRename(t *testing.T) {
 	}
 }
 
-func TestStartProcess(t *testing.T) {
-	var cmd, expect string
-	var args []string
+func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 	r, w, err := Pipe()
 	if err != nil {
 		t.Fatalf("Pipe: %v", err)
 	}
-	attr := &ProcAttr{Files: []*File{nil, w, Stderr}}
-	if syscall.OS == "windows" {
-		cmd = Getenv("COMSPEC")
-		args = []string{Getenv("COMSPEC"), "/c cd"}
-		attr.Dir = Getenv("SystemRoot")
-		expect = Getenv("SystemRoot") + "\r\n"
-	} else {
-		cmd = "/bin/pwd"
-		args = []string{"pwd"}
-		attr.Dir = "/"
-		expect = "/\n"
-	}
+	attr := &ProcAttr{Dir: dir, Files: []*File{nil, w, Stderr}}
 	p, err := StartProcess(cmd, args, attr)
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
@@ -439,10 +427,32 @@ func TestStartProcess(t *testing.T) {
 	io.Copy(&b, r)
 	output := b.String()
 	if output != expect {
-		args[0] = cmd
-		t.Errorf("exec %q returned %q wanted %q", strings.Join(args, " "), output, expect)
+		t.Errorf("exec %q returned %q wanted %q",
+			strings.Join(append([]string{cmd}, args...), " "), output, expect)
 	}
 	p.Wait(0)
+}
+
+func TestStartProcess(t *testing.T) {
+	var dir, cmd, le string
+	var args []string
+	if syscall.OS == "windows" {
+		le = "\r\n"
+		cmd = Getenv("COMSPEC")
+		dir = Getenv("SystemRoot")
+		args = []string{"/c", "cd"}
+	} else {
+		le = "\n"
+		cmd = "/bin/pwd"
+		dir = "/"
+		args = []string{}
+	}
+	cmddir, cmdbase := filepath.Split(cmd)
+	args = append([]string{cmdbase}, args...)
+	// Test absolute executable path.
+	exec(t, dir, cmd, args, dir+le)
+	// Test relative executable path.
+	exec(t, cmddir, cmdbase, args, filepath.Clean(cmddir)+le)
 }
 
 func checkMode(t *testing.T, path string, mode uint32) {

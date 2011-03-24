@@ -118,3 +118,55 @@ func TestAddEnvVar(t *testing.T) {
 		t.Fatal("close:", err)
 	}
 }
+
+var tryargs = []string{
+	`2`,
+	`2 `,
+	"2 \t",
+	`2" "`,
+	`2 ab `,
+	`2 "ab" `,
+	`2 \ `,
+	`2 \\ `,
+	`2 \" `,
+	`2 \`,
+	`2\`,
+	`2"`,
+	`2\"`,
+	`2 "`,
+	`2 \"`,
+	``,
+	`2 ^ `,
+	`2 \^`,
+}
+
+func TestArgs(t *testing.T) {
+	for _, a := range tryargs {
+		argv := []string{
+			"awk",
+			`BEGIN{printf("%s|%s|%s",ARGV[1],ARGV[2],ARGV[3])}`,
+			"/dev/null",
+			a,
+			"EOF",
+		}
+		exe, err := LookPath(argv[0])
+		if err != nil {
+			t.Fatal("run:", err)
+		}
+		cmd, err := Run(exe, argv, nil, "", DevNull, Pipe, DevNull)
+		if err != nil {
+			t.Fatal("run:", err)
+		}
+		buf, err := ioutil.ReadAll(cmd.Stdout)
+		if err != nil {
+			t.Fatal("read:", err)
+		}
+		expect := "/dev/null|" + a + "|EOF"
+		if string(buf) != expect {
+			t.Errorf("read: got %q expect %q", buf, expect)
+		}
+		if err = cmd.Close(); err != nil {
+			t.Fatal("close:", err)
+		}
+	}
+}
