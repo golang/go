@@ -222,6 +222,7 @@ clean.dirs: $(addsuffix .clean, $(DIRS))
 install.dirs: $(addsuffix .install, $(DIRS))
 nuke.dirs: $(addsuffix .nuke, $(DIRS))
 test.dirs: $(addsuffix .test, $(TEST))
+testshort.dirs: $(addsuffix .testshort, $(TEST))
 bench.dirs: $(addsuffix .bench, $(BENCH))
 
 %.clean:
@@ -236,6 +237,9 @@ bench.dirs: $(addsuffix .bench, $(BENCH))
 %.test:
 	+$(MAKE) -C $* test
 
+%.testshort:
+	+$(MAKE) -C $* testshort
+
 %.bench:
 	+$(MAKE) -C $* bench	
 
@@ -244,6 +248,8 @@ clean: clean.dirs
 install: install.dirs
 
 test:	test.dirs
+
+testshort: testshort.dirs
 
 bench:	bench.dirs ../../test/garbage.bench
 

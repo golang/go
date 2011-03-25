@@ -39,7 +39,7 @@ if $rebuild; then
 fi
 
 (xcd pkg
-gomake test
+gomake testshort
 ) || exit $?
 
 (xcd pkg/sync;
@@ -47,7 +47,7 @@ if $rebuild; then
 	gomake clean;
 	time gomake
 fi
-GOMAXPROCS=10 gomake test
+GOMAXPROCS=10 gomake testshort
 ) || exit $?
 
 [ "$GOARCH" == arm ] ||

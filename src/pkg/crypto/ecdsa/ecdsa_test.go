@@ -26,6 +26,9 @@ func testKeyGeneration(t *testing.T, c *elliptic.Curve, tag string) {
 
 func TestKeyGeneration(t *testing.T) {
 	testKeyGeneration(t, elliptic.P224(), "p224")
+	if testing.Short() {
+		return
+	}
 	testKeyGeneration(t, elliptic.P256(), "p256")
 	testKeyGeneration(t, elliptic.P384(), "p384")
 	testKeyGeneration(t, elliptic.P521(), "p521")
@@ -53,6 +56,9 @@ func testSignAndVerify(t *testing.T, c *elliptic.Curve, tag string) {
 
 func TestSignAndVerify(t *testing.T) {
 	testSignAndVerify(t, elliptic.P224(), "p224")
+	if testing.Short() {
+		return
+	}
 	testSignAndVerify(t, elliptic.P256(), "p256")
 	testSignAndVerify(t, elliptic.P384(), "p384")
 	testSignAndVerify(t, elliptic.P521(), "p521")
@@ -213,6 +219,9 @@ func TestVectors(t *testing.T) {
 		s := fromHex(test.s)
 		if Verify(&pub, hashed, r, s) != test.ok {
 			t.Errorf("%d: bad result", i)
+		}
+		if testing.Short() {
+			break
 		}
 	}
 }
