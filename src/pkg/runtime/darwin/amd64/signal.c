@@ -180,7 +180,6 @@ runtime·initsig(int32 queue)
 void
 runtime·resetcpuprofiler(int32 hz)
 {
-	Sigaction sa;
 	Itimerval it;
 	
 	runtime·memclr((byte*)&it, sizeof it);
