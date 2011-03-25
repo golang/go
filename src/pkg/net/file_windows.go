@@ -4,14 +4,22 @@
 
 package net
 
+import (
+	"os"
+	"syscall"
+)
+
 func FileConn(f *os.File) (c Conn, err os.Error) {
-	return nil, os.EWINDOWS
+	// TODO: Implement this
+	return nil, os.NewSyscallError("FileConn", syscall.EWINDOWS)
 }
 
 func FileListener(f *os.File) (l Listener, err os.Error) {
-	return nil, os.EWINDOWS
+	// TODO: Implement this
+	return nil, os.NewSyscallError("FileListener", syscall.EWINDOWS)
 }
 
 func FilePacketConn(f *os.File) (c PacketConn, err os.Error) {
-	return nil, os.EWINDOWS
+	// TODO: Implement this
+	return nil, os.NewSyscallError("FilePacketConn", syscall.EWINDOWS)
 }
