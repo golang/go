@@ -149,6 +149,7 @@ func Sleep(ns int64) (errno int) {
 //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
 //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
 //sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
+//sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errno int)
 //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
 //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
@@ -362,6 +363,13 @@ func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
 	return
 }
 
+func GetsockoptInt(fd, level, opt int) (value, errno int) {
+	var n int32
+	vallen := _Socklen(4)
+	errno = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
+	return int(n), errno
+}
+
 func SetsockoptInt(fd, level, opt int, value int) (errno int) {
 	var n = int32(value)
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
@@ -552,7 +560,6 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
 // TODO: wrap
 //	Acct(name nil-string) (errno int)
 //	Gethostuuid(uuid *byte, timeout *Timespec) (errno int)
-//	Getsockopt(s int, level int, name int, val *byte, vallen *int) (errno int)
 //	Madvise(addr *byte, len int, behav int) (errno int)
 //	Mprotect(addr *byte, len int, prot int) (errno int)
 //	Msync(addr *byte, len int, flags int) (errno int)
