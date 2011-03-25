@@ -178,7 +178,11 @@ func TestBasicOperations(t *testing.T) {
 
 func TestLargeStringWrites(t *testing.T) {
 	var buf Buffer
-	for i := 3; i < 30; i += 3 {
+	limit := 30
+	if testing.Short() {
+		limit = 9
+	}
+	for i := 3; i < limit; i += 3 {
 		s := fillString(t, "TestLargeWrites (1)", &buf, "", 5, data)
 		empty(t, "TestLargeStringWrites (2)", &buf, s, make([]byte, len(data)/i))
 	}
@@ -188,7 +192,11 @@ func TestLargeStringWrites(t *testing.T) {
 
 func TestLargeByteWrites(t *testing.T) {
 	var buf Buffer
-	for i := 3; i < 30; i += 3 {
+	limit := 30
+	if testing.Short() {
+		limit = 9
+	}
+	for i := 3; i < limit; i += 3 {
 		s := fillBytes(t, "TestLargeWrites (1)", &buf, "", 5, bytes)
 		empty(t, "TestLargeByteWrites (2)", &buf, s, make([]byte, len(data)/i))
 	}

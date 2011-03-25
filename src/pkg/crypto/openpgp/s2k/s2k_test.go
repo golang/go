@@ -90,5 +90,8 @@ func TestParse(t *testing.T) {
 		if !bytes.Equal(out, expected) {
 			t.Errorf("%d: output got: %x want: %x", i, out, expected)
 		}
+		if testing.Short() {
+			break
+		}
 	}
 }

@@ -102,16 +102,20 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
 }
 
 func TestRWMutex(t *testing.T) {
-	HammerRWMutex(1, 1, 1000)
-	HammerRWMutex(1, 3, 1000)
-	HammerRWMutex(1, 10, 1000)
-	HammerRWMutex(4, 1, 1000)
-	HammerRWMutex(4, 3, 1000)
-	HammerRWMutex(4, 10, 1000)
-	HammerRWMutex(10, 1, 1000)
-	HammerRWMutex(10, 3, 1000)
-	HammerRWMutex(10, 10, 1000)
-	HammerRWMutex(10, 5, 10000)
+	n := 1000
+	if testing.Short() {
+		n = 5
+	}
+	HammerRWMutex(1, 1, n)
+	HammerRWMutex(1, 3, n)
+	HammerRWMutex(1, 10, n)
+	HammerRWMutex(4, 1, n)
+	HammerRWMutex(4, 3, n)
+	HammerRWMutex(4, 10, n)
+	HammerRWMutex(10, 1, n)
+	HammerRWMutex(10, 3, n)
+	HammerRWMutex(10, 10, n)
+	HammerRWMutex(10, 5, n)
 }
 
 func TestRLocker(t *testing.T) {

@@ -97,7 +97,11 @@ func TestEncryptPKCS1v15(t *testing.T) {
 		return true
 	}
 
-	quick.Check(tryEncryptDecrypt, nil)
+	config := new(quick.Config)
+	if testing.Short() {
+		config.MaxCount = 10
+	}
+	quick.Check(tryEncryptDecrypt, config)
 }
 
 // These test vectors were generated with `openssl rsautl -pkcs -encrypt`

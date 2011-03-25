@@ -15,7 +15,11 @@ import (
 func TestKeyGeneration(t *testing.T) {
 	random := rand.Reader
 
-	priv, err := GenerateKey(random, 1024)
+	size := 1024
+	if testing.Short() {
+		size = 128
+	}
+	priv, err := GenerateKey(random, size)
 	if err != nil {
 		t.Errorf("failed to generate key")
 	}
@@ -98,6 +102,9 @@ func TestDecryptOAEP(t *testing.T) {
 			} else if bytes.Compare(out, message.in) != 0 {
 				t.Errorf("#%d,%d (blind) bad result: %#v (want %#v)", i, j, out, message.in)
 			}
+		}
+		if testing.Short() {
+			break
 		}
 	}
 }

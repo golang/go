@@ -617,7 +617,11 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
 
 func TestCaseConsistency(t *testing.T) {
 	// Make a string of all the runes.
-	a := make([]int, unicode.MaxRune+1)
+	numRunes := unicode.MaxRune + 1
+	if testing.Short() {
+		numRunes = 1000
+	}
+	a := make([]int, numRunes)
 	for i := range a {
 		a[i] = i
 	}
@@ -627,10 +631,10 @@ func TestCaseConsistency(t *testing.T) {
 	lower := ToLower(s)
 
 	// Consistency checks
-	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune+1 {
+	if n := utf8.RuneCountInString(upper); n != numRunes {
 		t.Error("rune count wrong in upper:", n)
 	}
-	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune+1 {
+	if n := utf8.RuneCountInString(lower); n != numRunes {
 		t.Error("rune count wrong in lower:", n)
 	}
 	if !equal("ToUpper(upper)", ToUpper(upper), upper, t) {
