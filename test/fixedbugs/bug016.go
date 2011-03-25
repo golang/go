@@ -8,7 +8,7 @@ package main
 
 func main() {
 	var i int = 100
-	i = i << -3 // ERROR "overflows"
+	i = i << -3 // ERROR "overflows|negative"
 }
 
 /*
