@@ -73,10 +73,10 @@ TEXT runtime·munmap(SB),7,$0
 	SWI	$0
 	RET
 
-TEXT runtime·getitimer(SB),7,$0
+TEXT runtime·setitimer(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
-	MOWW	8(FP), R2
+	MOVW	8(FP), R2
 	MOVW	$SYS_setitimer, R7
 	SWI	$0
 	RET

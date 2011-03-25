@@ -14,7 +14,7 @@ void _mod(void);
 void _divu(void);
 void _modu(void);
 
-static int32
+int32
 runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
 {
 	int32 i, n, iter;

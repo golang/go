@@ -1,4 +1,4 @@
-// godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f -I/usr/local/google/src/linux-2.6.28/include -f-D__KERNEL__ -f-D__ARCH_SI_UID_T=int defs_arm.c
+// godefs -f-I/usr/src/linux-headers-2.6.26-2-versatile/include defs_arm.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 
@@ -58,23 +58,15 @@ enum {
 	BUS_OBJERR = 0x3,
 	SEGV_MAPERR = 0x1,
 	SEGV_ACCERR = 0x2,
+	ITIMER_REAL = 0,
+	ITIMER_PROF = 0x2,
+	ITIMER_VIRTUAL = 0x1,
 };
 
 // Types
 #pragma pack on
 
-typedef struct Sigset Sigset;
-struct Sigset {
-	uint32 sig[2];
-};
-
-typedef struct Sigaction Sigaction;
-struct Sigaction {
-	void *sa_handler;
-	uint32 sa_flags;
-	void *sa_restorer;
-	Sigset sa_mask;
-};
+typedef uint32 Sigset;
 
 typedef struct Timespec Timespec;
 struct Timespec {
@@ -120,9 +112,21 @@ struct Ucontext {
 	Ucontext *uc_link;
 	Sigaltstack uc_stack;
 	Sigcontext uc_mcontext;
-	Sigset uc_sigmask;
-	int32 __unused[30];
+	uint32 uc_sigmask;
+	int32 __unused[31];
 	uint32 uc_regspace[128];
+};
+
+typedef struct Timeval Timeval;
+struct Timeval {
+	int32 tv_sec;
+	int32 tv_usec;
+};
+
+typedef struct Itimerval Itimerval;
+struct Itimerval {
+	Timeval it_interval;
+	Timeval it_value;
 };
 
 typedef struct Siginfo Siginfo;
@@ -131,5 +135,13 @@ struct Siginfo {
 	int32 si_errno;
 	int32 si_code;
 	uint8 _sifields[4];
+};
+
+typedef struct Sigaction Sigaction;
+struct Sigaction {
+	void *sa_handler;
+	uint32 sa_flags;
+	void *sa_restorer;
+	uint32 sa_mask;
 };
 #pragma pack off
