@@ -19,7 +19,7 @@ fi
 # Find most recent known release tag.
 TAG=$(hg tags |
 	sort -rn -k2 |
-	awk -vver=$VERSION '$2 <= ver && $1~/^(release|weekly)\./ {print $1}' |
+	awk -v ver=$VERSION '$2 <= ver && $1~/^(release|weekly)\./ {print $1}' |
 	sed -n 1p)
 
 if [ "$TAG" != "" ]; then
