@@ -366,6 +366,8 @@ asynch:
 		if(selected != nil) {
 			runtime·unlock(c);
 			*selected = false;
+			if(received != nil)
+				*received = false;
 			return;
 		}
 		sg = allocsg(c);
@@ -521,7 +523,7 @@ runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
 // compiler implements
 //
 //	select {
-//	case v = <-c:
+//	case v, ok = <-c:
 //		... foo
 //	default:
 //		... bar
@@ -529,7 +531,7 @@ runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
 //
 // as
 //
-//	if c != nil && selectnbrecv(&v, c) {
+//	if c != nil && selectnbrecv2(&v, &ok, c) {
 //		... foo
 //	} else {
 //		... bar
