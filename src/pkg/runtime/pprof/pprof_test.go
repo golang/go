@@ -15,7 +15,15 @@ import (
 )
 
 func TestCPUProfile(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "darwin":
+		// see Apple Bug Report #9177434 (copied into change description)
+		return
+	case "plan9":
+		// unimplemented
+		return
+	case "windows":
+		// unimplemented
 		return
 	}
 
