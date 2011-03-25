@@ -48,6 +48,13 @@ import (
 )
 
 var (
+	// The short flag requests that tests run more quickly, but its functionality
+	// is provided by test writers themselves.  The testing package is just its
+	// home.  The all.bash installation script sets it to make installation more
+	// efficient, but by default the flag is off so a plain "gotest" will do a
+	// full test of the package.
+	short = flag.Bool("test.short", false, "run smaller test suite to save time")
+
 	// Report as tests are run; default is silent for success.
 	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
 	match          = flag.String("test.run", "", "regular expression to select tests to run")
@@ -55,6 +62,11 @@ var (
 	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
 	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
 )
+
+// Short reports whether the -test.short flag is set.
+func Short() bool {
+	return *short
+}
 
 
 // Insert final newline if needed and tabs after internal newlines.

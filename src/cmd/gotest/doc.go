@@ -66,5 +66,9 @@ the environment variable GOGC=off to disable the garbage collector,
 provided the test can run in the available memory without garbage
 collection.
 
+The -test.short package tells long-running tests to shorten their
+run time. It is off by default but set by all.bash so installations
+of the Go tree can do a sanity check but not spend time running the
+full test suite.
 */
 package documentation

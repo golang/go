@@ -60,6 +60,9 @@ CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* *.cgo[12].*
 test:
 	gotest
 
+testshort:
+	gotest -test.short
+
 bench:
 	gotest -test.bench=. -test.run="Do not run tests"
 

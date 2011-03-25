@@ -24,3 +24,6 @@ syslist.go:
 
 test:
 	gotest
+
+testshort:
+	gotest -test.short
