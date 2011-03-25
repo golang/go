@@ -11,23 +11,23 @@ package main
 var x int
 
 func f() {
-L1: // ERROR "label L1 defined and not used"
+L1: // ERROR "label .*L1.* defined and not used"
 	for {
 	}
-L2: // ERROR "label L2 defined and not used"
+L2: // ERROR "label .*L2.* defined and not used"
 	select {
 	}
-L3: // ERROR "label L3 defined and not used"
+L3: // ERROR "label .*L3.* defined and not used"
 	switch {
 	}
-L4: // ERROR "label L4 defined and not used"
+L4: // ERROR "label .*L4.* defined and not used"
 	if true {
 	}
-L5: // ERROR "label L5 defined and not used"
+L5: // ERROR "label .*L5.* defined and not used"
 	f()
-L6:
+L6: // GCCGO_ERROR "previous"
 	f()
-L6: // ERROR "label L6 already defined at"
+L6: // ERROR "label .*L6.* already defined"
 	f()
 	if x == 20 {
 		goto L6
@@ -49,7 +49,7 @@ L9:
 	switch {
 	case true:
 		break L9
-	defalt: // ERROR "label defalt defined and not used"
+	defalt: // ERROR "label .*defalt.* defined and not used"
 	}
 
 L10:
