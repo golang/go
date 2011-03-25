@@ -5,6 +5,8 @@
 
 eval $(gomake --no-print-directory -f ../src/Make.inc go-env)
 
+export E=
+
 case X"$GOARCH" in
 Xamd64)
 	export A=6
