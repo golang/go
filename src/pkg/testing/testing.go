@@ -186,7 +186,7 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
 		go tRunner(t, &tests[i])
 		<-t.ch
 		ns += time.Nanoseconds()
-		tstr := fmt.Sprintf("(%.1f seconds)", float64(ns)/1e9)
+		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
 		if t.failed {
 			println("--- FAIL:", tests[i].Name, tstr)
 			print(t.errors)

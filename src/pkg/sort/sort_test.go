@@ -74,7 +74,11 @@ func TestSortStrings(t *testing.T) {
 }
 
 func TestSortLarge_Random(t *testing.T) {
-	data := make([]int, 1000000)
+	n := 1000000
+	if testing.Short() {
+		n /= 100
+	}
+	data := make([]int, n)
 	for i := 0; i < len(data); i++ {
 		data[i] = rand.Intn(100)
 	}
@@ -174,6 +178,9 @@ func lg(n int) int {
 
 func TestBentleyMcIlroy(t *testing.T) {
 	sizes := []int{100, 1023, 1024, 1025}
+	if testing.Short() {
+		sizes = []int{100, 127, 128, 129}
+	}
 	dists := []string{"sawtooth", "rand", "stagger", "plateau", "shuffle"}
 	modes := []string{"copy", "reverse", "reverse1", "reverse2", "sort", "dither"}
 	var tmp1, tmp2 [1025]int
