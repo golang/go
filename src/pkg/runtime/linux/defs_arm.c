@@ -4,24 +4,24 @@
 
 /*
  * Input to godefs
-	godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f -I/usr/local/google/src/linux-2.6.28/include -f-D__KERNEL__ -f-D__ARCH_SI_UID_T=int defs_arm.c >arm/defs.h
-
- * Another input file for ARM defs.h
+ * On a Debian Lenny arm linux distribution:
+	godefs -f-I/usr/src/linux-headers-2.6.26-2-versatile/include defs_arm.c
  */
+
+#define __ARCH_SI_UID_T int
 
 #include <asm/signal.h>
 #include <asm/mman.h>
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
 #include <asm/siginfo.h>
+#include <linux/time.h>
 
 /*
 #include <sys/signal.h>
 #include <sys/mman.h>
 #include <ucontext.h>
 */
-
-#include <time.h>
 
 enum {
 	$PROT_NONE = PROT_NONE,
@@ -84,14 +84,19 @@ enum {
 	
 	$SEGV_MAPERR = SEGV_MAPERR & 0xFFFF,
 	$SEGV_ACCERR = SEGV_ACCERR & 0xFFFF,
+
+	$ITIMER_REAL = ITIMER_REAL,
+	$ITIMER_PROF = ITIMER_PROF,
+	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
 };
 
 typedef sigset_t $Sigset;
-typedef struct sigaction $Sigaction;
 typedef struct timespec $Timespec;
 typedef struct sigaltstack $Sigaltstack;
 typedef struct sigcontext $Sigcontext;
 typedef struct ucontext $Ucontext;
+typedef struct timeval $Timeval;
+typedef struct itimerval $Itimerval;
 
 struct xsiginfo {
 	int si_signo;
@@ -101,3 +106,17 @@ struct xsiginfo {
 };
 
 typedef struct xsiginfo $Siginfo;
+
+#undef sa_handler
+#undef sa_flags
+#undef sa_restorer
+#undef sa_mask
+
+struct xsigaction {
+	void (*sa_handler)(void);
+	unsigned long sa_flags;
+	void (*sa_restorer)(void);
+	unsigned int sa_mask;		/* mask last for extensibility */
+};
+
+typedef struct xsigaction $Sigaction;
