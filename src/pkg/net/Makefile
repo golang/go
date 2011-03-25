@@ -24,6 +24,7 @@ GOFILES=\
 GOFILES_freebsd=\
 	newpollserver.go\
 	fd.go\
+	file.go\
 	dnsconfig.go\
 	dnsclient.go\
 	port.go\
@@ -31,6 +32,7 @@ GOFILES_freebsd=\
 GOFILES_darwin=\
 	newpollserver.go\
 	fd.go\
+	file.go\
 	dnsconfig.go\
 	dnsclient.go\
 	port.go\
@@ -38,12 +40,14 @@ GOFILES_darwin=\
 GOFILES_linux=\
 	newpollserver.go\
 	fd.go\
+	file.go\
 	dnsconfig.go\
 	dnsclient.go\
 	port.go\
 
 GOFILES_windows=\
 	resolv_windows.go\
+	file_windows.go\
 
 GOFILES+=$(GOFILES_$(GOOS))
 
