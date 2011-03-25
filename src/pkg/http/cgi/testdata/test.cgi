@@ -30,5 +30,7 @@ foreach my $k (sort keys %$params) {
 }
 
 foreach my $k (sort keys %ENV) {
-  print "env-$k=$ENV{$k}\n";
+  my $clean_env = $ENV{$k};
+  $clean_env =~ s/[\n\r]//g;
+  print "env-$k=$clean_env\n";
 }
