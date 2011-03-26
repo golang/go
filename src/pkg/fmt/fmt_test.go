@@ -442,6 +442,9 @@ func BenchmarkSprintfPrefixedInt(b *testing.B) {
 }
 
 func TestCountMallocs(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	mallocs := 0 - runtime.MemStats.Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("")

@@ -39,9 +39,13 @@ type job struct {
 }
 
 func runTests(t *testing.T, baseName string, tests []test) {
-	for i, test := range tests {
+	delta := 1
+	if testing.Short() {
+		delta = 16
+	}
+	for i := 0; i < len(tests); i += delta {
 		name := fmt.Sprintf("%s[%d]", baseName, i)
-		test.run(t, name)
+		tests[i].run(t, name)
 	}
 }
 

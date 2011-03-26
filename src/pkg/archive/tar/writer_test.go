@@ -150,5 +150,8 @@ testLoop:
 			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
 				i, bytediff(expected, actual))
 		}
+		if testing.Short() { // The second test is expensive.
+			break
+		}
 	}
 }

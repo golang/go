@@ -32,7 +32,11 @@ func diff(m0, m1 image.Image) os.Error {
 
 func TestWriter(t *testing.T) {
 	// The filenames variable is declared in reader_test.go.
-	for _, fn := range filenames {
+	names := filenames
+	if testing.Short() {
+		names = filenamesShort
+	}
+	for _, fn := range names {
 		qfn := "testdata/pngsuite/" + fn + ".png"
 		// Read the image.
 		m0, err := readPng(qfn)

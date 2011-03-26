@@ -156,12 +156,15 @@ var data = []entry{
 
 
 func TestFiles(t *testing.T) {
-	for _, e := range data {
+	for i, e := range data {
 		source := filepath.Join(dataDir, e.source)
 		golden := filepath.Join(dataDir, e.golden)
 		check(t, source, golden, e.mode)
 		// TODO(gri) check that golden is idempotent
-		//check(t, golden, golden, e.mode);
+		//check(t, golden, golden, e.mode)
+		if testing.Short() && i >= 3 {
+			break
+		}
 	}
 }
 

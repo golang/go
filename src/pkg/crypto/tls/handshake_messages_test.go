@@ -34,7 +34,11 @@ func TestMarshalUnmarshal(t *testing.T) {
 	for i, iface := range tests {
 		ty := reflect.NewValue(iface).Type()
 
-		for j := 0; j < 100; j++ {
+		n := 100
+		if testing.Short() {
+			n = 5
+		}
+		for j := 0; j < n; j++ {
 			v, ok := quick.Value(ty, rand)
 			if !ok {
 				t.Errorf("#%d: failed to create value", i)

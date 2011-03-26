@@ -399,7 +399,7 @@ func TestImportFlowControl(t *testing.T) {
 
 func testFlow(sendDone chan bool, ch <-chan int, N int, t *testing.T) {
 	go func() {
-		time.Sleep(1e9)
+		time.Sleep(0.5e9)
 		sendDone <- false
 	}()
 

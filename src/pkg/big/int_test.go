@@ -716,17 +716,24 @@ var composites = []string{
 
 
 func TestProbablyPrime(t *testing.T) {
+	nreps := 20
+	if testing.Short() {
+		nreps = 1
+	}
 	for i, s := range primes {
 		p, _ := new(Int).SetString(s, 10)
-		if !ProbablyPrime(p, 20) {
+		if !ProbablyPrime(p, nreps) {
 			t.Errorf("#%d prime found to be non-prime (%s)", i, s)
 		}
 	}
 
 	for i, s := range composites {
 		c, _ := new(Int).SetString(s, 10)
-		if ProbablyPrime(c, 20) {
+		if ProbablyPrime(c, nreps) {
 			t.Errorf("#%d composite found to be prime (%s)", i, s)
+		}
+		if testing.Short() {
+			break
 		}
 	}
 }
