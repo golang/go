@@ -12,7 +12,7 @@ func init() {
 }
 
 func main() {
-	init()         // ERROR "undefined: init"
+	init()         // ERROR "undefined.*init"
 	runtime.init() // ERROR "unexported.*runtime\.init"
-	var _ = init   // ERROR "undefined: init"
+	var _ = init   // ERROR "undefined.*init"
 }
