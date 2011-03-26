@@ -407,7 +407,7 @@ func (s *structType) string() string { return s.safeString(make(map[typeId]bool)
 func newStructType(name string) *structType {
 	s := &structType{CommonType{Name: name}, nil}
 	// For historical reasons we set the id here rather than init.
-	// Se the comment in newTypeObject for details.
+	// See the comment in newTypeObject for details.
 	setTypeId(s)
 	return s
 }
@@ -545,7 +545,7 @@ func getBaseType(name string, rt reflect.Type) (gobType, os.Error) {
 // getType returns the Gob type describing the given reflect.Type.
 // Should be called only when handling GobEncoders/Decoders,
 // which may be pointers.  All other types are handled through the
-//  base type, never a pointer.
+// base type, never a pointer.
 // typeLock must be held.
 func getType(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.Error) {
 	typ, present := types[rt]
@@ -561,7 +561,7 @@ func getType(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.Error)
 
 func checkId(want, got typeId) {
 	if want != got {
-		fmt.Fprintf(os.Stderr, "checkId: %d should be %d\n", int(want), int(got))
+		fmt.Fprintf(os.Stderr, "checkId: %d should be %d\n", int(got), int(want))
 		panic("bootstrap type wrong id: " + got.name() + " " + got.string() + " not " + want.string())
 	}
 }
