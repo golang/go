@@ -157,6 +157,7 @@ func TestUnmarshal(t *testing.T) {
 }
 
 func TestUnmarshalMarshal(t *testing.T) {
+	initBig()
 	var v interface{}
 	if err := Unmarshal(jsonBig, &v); err != nil {
 		t.Fatalf("Unmarshal: %v", err)

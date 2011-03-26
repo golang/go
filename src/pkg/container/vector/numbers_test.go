@@ -33,6 +33,9 @@ func s(n uint64) string {
 
 
 func TestVectorNums(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	var v Vector
 	c := int(0)
 	runtime.GC()
@@ -51,6 +54,9 @@ func TestVectorNums(t *testing.T) {
 
 
 func TestIntVectorNums(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	var v IntVector
 	c := int(0)
 	runtime.GC()
@@ -69,6 +75,9 @@ func TestIntVectorNums(t *testing.T) {
 
 
 func TestStringVectorNums(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	var v StringVector
 	c := ""
 	runtime.GC()
