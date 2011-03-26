@@ -25,8 +25,8 @@ func main() {
 	var c2 <-chan int
 	var c3 chan int
 	
-	use(c1 == c2)	// ERROR "invalid operation"
-	use(c2 == c1)	// ERROR "invalid operation"
+	use(c1 == c2)	// ERROR "invalid operation|incompatible"
+	use(c2 == c1)	// ERROR "invalid operation|incompatible"
 	use(c1 == c3)
 	use(c2 == c2)
 	use(c3 == c1)
@@ -37,13 +37,13 @@ func main() {
 	var p2 T2
 	var p3 *int
 	
-	use(p1 == p2)	// ERROR "invalid operation"
-	use(p2 == p1)	// ERROR "invalid operation"
+	use(p1 == p2)	// ERROR "invalid operation|incompatible"
+	use(p2 == p1)	// ERROR "invalid operation|incompatible"
 	use(p1 == p3)
 	use(p2 == p2)
 	use(p3 == p1)
 	use(p3 == p2)
 	
 	// Comparison of structs should have a good message
-	use(t3 == t3)	// ERROR "struct"
+	use(t3 == t3)	// ERROR "struct|expected"
 }
