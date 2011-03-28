@@ -46,9 +46,9 @@ package {Pak.Name}
 {.end}
 {.section Textual}
 {.section Complete}
-{Found} TEXTUAL OCCURENCES
+{Found} TEXTUAL OCCURRENCES
 {.or}
-MORE THAN {Found} TEXTUAL OCCURENCES
+MORE THAN {Found} TEXTUAL OCCURRENCES
 {.end}
 
 {.repeated section @}
