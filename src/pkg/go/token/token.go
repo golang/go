@@ -126,10 +126,7 @@ const (
 )
 
 
-// At the moment we have no array literal syntax that lets us describe
-// the index for each element - use a map for now to make sure they are
-// in sync.
-var tokens = map[Token]string{
+var tokens = [...]string{
 	ILLEGAL: "ILLEGAL",
 
 	EOF:     "EOF",
@@ -237,10 +234,14 @@ var tokens = map[Token]string{
 // constant name (e.g. for the token IDENT, the string is "IDENT").
 //
 func (tok Token) String() string {
-	if str, exists := tokens[tok]; exists {
-		return str
+	s := ""
+	if 0 <= tok && tok < Token(len(tokens)) {
+		s = tokens[tok]
 	}
-	return "token(" + strconv.Itoa(int(tok)) + ")"
+	if s == "" {
+		s = "token(" + strconv.Itoa(int(tok)) + ")"
+	}
+	return s
 }
 
 
