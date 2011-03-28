@@ -55,3 +55,8 @@ func AddUint64(val *uint64, delta uint64) (new uint64)
 
 // AddUintptr atomically adds delta to *val and returns the new value.
 func AddUintptr(val *uintptr, delta uintptr) (new uintptr)
+
+// Helper for ARM.  Linker will discard on other systems
+func panic64() {
+	panic("sync/atomic: broken 64-bit atomic operations (buggy QEMU)")
+}
