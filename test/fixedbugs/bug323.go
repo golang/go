@@ -15,6 +15,6 @@ func (t T) Meth2() {}
 func main() {
 	t := &T{}
 	p := P(t)
-	p.Meth()  // ERROR "undefined \(type P"
-	p.Meth2() // ERROR "undefined \(type P"
+	p.Meth()  // ERROR "undefined"
+	p.Meth2() // ERROR "undefined"
 }
