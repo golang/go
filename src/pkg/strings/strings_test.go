@@ -6,10 +6,12 @@ package strings_test
 
 import (
 	"os"
+	"reflect"
 	"strconv"
 	. "strings"
 	"testing"
 	"unicode"
+	"unsafe"
 	"utf8"
 )
 
@@ -429,11 +431,31 @@ func TestMap(t *testing.T) {
 	if m != expect {
 		t.Errorf("drop: expected %q got %q", expect, m)
 	}
+
+	// 6. Identity
+	identity := func(rune int) int {
+		return rune
+	}
+	orig := "Input string that we expect not to be copied."
+	m = Map(identity, orig)
+	if (*reflect.StringHeader)(unsafe.Pointer(&orig)).Data !=
+		(*reflect.StringHeader)(unsafe.Pointer(&m)).Data {
+		t.Error("unexpected copy during identity map")
+	}
 }
 
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
 func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+
+func BenchmarkMapNoChanges(b *testing.B) {
+	identity := func(rune int) int {
+		return rune
+	}
+	for i := 0; i < b.N; i++ {
+		Map(identity, "Some string that won't be modified.")
+	}
+}
 
 func TestSpecialCase(t *testing.T) {
 	lower := "abcçdefgğhıijklmnoöprsştuüvyz"

@@ -312,9 +312,19 @@ func Map(mapping func(rune int) int, s string) string {
 	// fine.  It could also shrink but that falls out naturally.
 	maxbytes := len(s) // length of b
 	nbytes := 0        // number of bytes encoded in b
-	b := make([]byte, maxbytes)
-	for _, c := range s {
+	// The output buffer b is initialized on demand, the first
+	// time a character differs.
+	var b []byte
+
+	for i, c := range s {
 		rune := mapping(c)
+		if b == nil {
+			if rune == c {
+				continue
+			}
+			b = make([]byte, maxbytes)
+			nbytes = copy(b, s[:i])
+		}
 		if rune >= 0 {
 			wid := 1
 			if rune >= utf8.RuneSelf {
@@ -329,6 +339,9 @@ func Map(mapping func(rune int) int, s string) string {
 			}
 			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], rune)
 		}
+	}
+	if b == nil {
+		return s
 	}
 	return string(b[0:nbytes])
 }
