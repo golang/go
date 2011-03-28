@@ -31,7 +31,7 @@ func newpollster() (p *pollster, err os.Error) {
 	return p, nil
 }
 
-func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
 	// pollServer is locked.
 
 	var kmode int
@@ -53,15 +53,15 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 
 	n, e := syscall.Kevent(p.kq, p.kbuf[0:], p.kbuf[0:], nil)
 	if e != 0 {
-		return os.NewSyscallError("kevent", e)
+		return false, os.NewSyscallError("kevent", e)
 	}
 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
-		return os.ErrorString("kqueue phase error")
+		return false, os.ErrorString("kqueue phase error")
 	}
 	if ev.Data != 0 {
-		return os.Errno(int(ev.Data))
+		return false, os.Errno(int(ev.Data))
 	}
-	return nil
+	return false, nil
 }
 
 func (p *pollster) DelFD(fd int, mode int) {
