@@ -47,7 +47,7 @@ func newpollster() (p *pollster, err os.Error) {
 	return p, nil
 }
 
-func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
 	// pollServer is locked.
 
 	var already bool
@@ -69,10 +69,10 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 		op = syscall.EPOLL_CTL_ADD
 	}
 	if e := syscall.EpollCtl(p.epfd, op, fd, &p.ctlEvent); e != 0 {
-		return os.NewSyscallError("epoll_ctl", e)
+		return false, os.NewSyscallError("epoll_ctl", e)
 	}
 	p.events[fd] = p.ctlEvent.Events
-	return nil
+	return false, nil
 }
 
 func (p *pollster) StopWaiting(fd int, bits uint) {

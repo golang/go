@@ -122,8 +122,12 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 		doWakeup = true
 	}
 
-	if err := s.poll.AddFD(intfd, mode, false); err != nil {
+	wake, err := s.poll.AddFD(intfd, mode, false)
+	if err != nil {
 		panic("pollServer AddFD " + err.String())
+	}
+	if wake {
+		doWakeup = true
 	}
 
 	s.Unlock()
