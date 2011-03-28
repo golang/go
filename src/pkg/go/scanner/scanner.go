@@ -538,14 +538,12 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
 }
 
 
-var newline = []byte{'\n'}
-
-// Scan scans the next token and returns the token position pos,
-// the token tok, and the literal text lit corresponding to the
+// Scan scans the next token and returns the token position,
+// the token, and the literal string corresponding to the
 // token. The source end is indicated by token.EOF.
 //
 // If the returned token is token.SEMICOLON, the corresponding
-// literal value is ";" if the semicolon was present in the source,
+// literal string is ";" if the semicolon was present in the source,
 // and "\n" if the semicolon was inserted because of a newline or
 // at EOF.
 //
@@ -560,7 +558,7 @@ var newline = []byte{'\n'}
 // set with Init. Token positions are relative to that file
 // and thus relative to the file set.
 //
-func (S *Scanner) Scan() (token.Pos, token.Token, []byte) {
+func (S *Scanner) Scan() (token.Pos, token.Token, string) {
 scanAgain:
 	S.skipWhitespace()
 
@@ -586,7 +584,7 @@ scanAgain:
 		case -1:
 			if S.insertSemi {
 				S.insertSemi = false // EOF consumed
-				return S.file.Pos(offs), token.SEMICOLON, newline
+				return S.file.Pos(offs), token.SEMICOLON, "\n"
 			}
 			tok = token.EOF
 		case '\n':
@@ -594,7 +592,7 @@ scanAgain:
 			// set in the first place and exited early
 			// from S.skipWhitespace()
 			S.insertSemi = false // newline consumed
-			return S.file.Pos(offs), token.SEMICOLON, newline
+			return S.file.Pos(offs), token.SEMICOLON, "\n"
 		case '"':
 			insertSemi = true
 			tok = token.STRING
@@ -662,7 +660,7 @@ scanAgain:
 					S.offset = offs
 					S.rdOffset = offs + 1
 					S.insertSemi = false // newline consumed
-					return S.file.Pos(offs), token.SEMICOLON, newline
+					return S.file.Pos(offs), token.SEMICOLON, "\n"
 				}
 				S.scanComment()
 				if S.mode&ScanComments == 0 {
@@ -711,5 +709,9 @@ scanAgain:
 	if S.mode&InsertSemis != 0 {
 		S.insertSemi = insertSemi
 	}
-	return S.file.Pos(offs), tok, S.src[offs:S.offset]
+
+	// TODO(gri): The scanner API should change such that the literal string
+	//            is only valid if an actual literal was scanned. This will
+	//            permit a more efficient implementation.
+	return S.file.Pos(offs), tok, string(S.src[offs:S.offset])
 }

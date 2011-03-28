@@ -234,12 +234,11 @@ func TestScan(t *testing.T) {
 	index := 0
 	epos := token.Position{"", 0, 1, 1} // expected position
 	for {
-		pos, tok, litb := s.Scan()
+		pos, tok, lit := s.Scan()
 		e := elt{token.EOF, "", special}
 		if index < len(tokens) {
 			e = tokens[index]
 		}
-		lit := string(litb)
 		if tok == token.EOF {
 			lit = "<EOF>"
 			epos.Line = src_linecount
@@ -257,7 +256,7 @@ func TestScan(t *testing.T) {
 		}
 		epos.Offset += len(lit) + len(whitespace)
 		epos.Line += newlineCount(lit) + whitespace_linecount
-		if tok == token.COMMENT && litb[1] == '/' {
+		if tok == token.COMMENT && lit[1] == '/' {
 			// correct for unaccounted '/n' in //-style comment
 			epos.Offset++
 			epos.Line++
@@ -292,7 +291,7 @@ func checkSemi(t *testing.T, line string, mode uint) {
 			semiPos.Column++
 			pos, tok, lit = S.Scan()
 			if tok == token.SEMICOLON {
-				if string(lit) != semiLit {
+				if lit != semiLit {
 					t.Errorf(`bad literal for %q: got %q, expected %q`, line, lit, semiLit)
 				}
 				checkPos(t, line, pos, semiPos)
@@ -493,7 +492,7 @@ func TestLineComments(t *testing.T) {
 	for _, s := range segments {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)
-		checkPos(t, string(lit), p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
+		checkPos(t, lit, p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
 	}
 
 	if S.ErrorCount != 0 {
@@ -547,10 +546,10 @@ func TestIllegalChars(t *testing.T) {
 	for offs, ch := range src {
 		pos, tok, lit := s.Scan()
 		if poffs := file.Offset(pos); poffs != offs {
-			t.Errorf("bad position for %s: got %d, expected %d", string(lit), poffs, offs)
+			t.Errorf("bad position for %s: got %d, expected %d", lit, poffs, offs)
 		}
-		if tok == token.ILLEGAL && string(lit) != string(ch) {
-			t.Errorf("bad token: got %s, expected %s", string(lit), string(ch))
+		if tok == token.ILLEGAL && lit != string(ch) {
+			t.Errorf("bad token: got %s, expected %s", lit, string(ch))
 		}
 	}
 

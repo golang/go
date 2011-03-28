@@ -66,7 +66,7 @@ type Decl interface {
 // A Comment node represents a single //-style or /*-style comment.
 type Comment struct {
 	Slash token.Pos // position of "/" starting the comment
-	Text  []byte    // comment text (excluding '\n' for //-style comments)
+	Text  string    // comment text (excluding '\n' for //-style comments)
 }
 
 
@@ -199,7 +199,7 @@ type (
 	BasicLit struct {
 		ValuePos token.Pos   // literal position
 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
-		Value    []byte      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
+		Value    string      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
 	}
 
 	// A FuncLit node represents a function literal.

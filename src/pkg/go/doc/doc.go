@@ -66,7 +66,7 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
 	n2 := len(comments.List)
 	list := make([]*ast.Comment, n1+1+n2) // + 1 for separator line
 	copy(list, doc.doc.List)
-	list[n1] = &ast.Comment{token.NoPos, []byte("//")} // separator line
+	list[n1] = &ast.Comment{token.NoPos, "//"} // separator line
 	copy(list[n1+1:], comments.List)
 	doc.doc = &ast.CommentGroup{list}
 }
@@ -105,7 +105,7 @@ func baseTypeName(typ ast.Expr) string {
 		// if the type is not exported, the effect to
 		// a client is as if there were no type name
 		if t.IsExported() {
-			return string(t.Name)
+			return t.Name
 		}
 	case *ast.StarExpr:
 		return baseTypeName(t.X)
@@ -300,9 +300,9 @@ func (doc *docReader) addFile(src *ast.File) {
 	// collect BUG(...) comments
 	for _, c := range src.Comments {
 		text := c.List[0].Text
-		if m := bug_markers.FindIndex(text); m != nil {
+		if m := bug_markers.FindStringIndex(text); m != nil {
 			// found a BUG comment; maybe empty
-			if btxt := text[m[1]:]; bug_content.Match(btxt) {
+			if btxt := text[m[1]:]; bug_content.MatchString(btxt) {
 				// non-empty BUG comment; collect comment without BUG prefix
 				list := copyCommentList(c.List)
 				list[0].Text = text[m[1]:]

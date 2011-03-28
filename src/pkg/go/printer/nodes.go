@@ -363,7 +363,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 
 
 func (p *printer) setLineComment(text string) {
-	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{token.NoPos, []byte(text)}}})
+	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{token.NoPos, text}}})
 }
 
 
@@ -527,7 +527,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 		}
 
 	case *ast.StarExpr:
-		if e.Op.String() == "/" {
+		if e.Op == token.QUO {
 			maxProblem = 5
 		}
 
