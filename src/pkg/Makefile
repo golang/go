@@ -169,7 +169,7 @@ DIRS+=\
 
 endif
 
-NOTEST=\
+NOTEST+=\
 	crypto\
 	crypto/openpgp/error\
 	debug/proc\
@@ -196,7 +196,7 @@ NOTEST=\
 	../cmd/goyacc\
 	../cmd/hgpatch\
 
-NOBENCH=\
+NOBENCH+=\
 	container/vector\
 
 # Disable tests that depend on an external network.

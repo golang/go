@@ -98,6 +98,7 @@ time gomake ogle
 time ./run
 ) || exit $?
 
+[ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
 (xcd ../doc/codelab/wiki
 gomake clean
 gomake

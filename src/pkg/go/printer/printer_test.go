@@ -114,7 +114,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 	// start a timer to produce a time-out signal
 	tc := make(chan int)
 	go func() {
-		time.Sleep(2e9) // plenty of a safety margin, even for very slow machines
+		time.Sleep(10e9) // plenty of a safety margin, even for very slow machines
 		tc <- 0
 	}()
 
