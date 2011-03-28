@@ -39,16 +39,14 @@ func (s *Scope) Lookup(name string) *Object {
 }
 
 
-// Insert attempts to insert a named object into the scope s.
-// If the scope does not contain an object with that name yet,
-// Insert inserts the object and returns it. Otherwise, Insert
-// leaves the scope unchanged and returns the object found in
-// the scope instead.
+// Insert attempts to insert a named object obj into the scope s.
+// If the scope already contains an object alt with the same name,
+// Insert leaves the scope unchanged and returns alt. Otherwise
+// it inserts obj and returns nil."
 //
 func (s *Scope) Insert(obj *Object) (alt *Object) {
 	if alt = s.Objects[obj.Name]; alt == nil {
 		s.Objects[obj.Name] = obj
-		alt = obj
 	}
 	return
 }
@@ -101,6 +99,11 @@ func (obj *Object) Pos() token.Pos {
 				return n.Pos()
 			}
 		}
+	case *ImportSpec:
+		if d.Name != nil && d.Name.Name == name {
+			return d.Name.Pos()
+		}
+		return d.Path.Pos()
 	case *ValueSpec:
 		for _, n := range d.Names {
 			if n.Name == name {

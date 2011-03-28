@@ -165,22 +165,24 @@ func processFiles(filenames []string, allFiles bool) {
 			}
 		}
 	}
-	processPackage(parseFiles(token.NewFileSet(), filenames[0:i]))
+	fset := token.NewFileSet()
+	processPackage(fset, parseFiles(fset, filenames[0:i]))
 }
 
 
-func processPackage(files map[string]*ast.File) {
-	// TODO(gri) Enable this code once we have ast.NewPackage.
-	/*
-		// make a package (resolve all identifiers)
-		pkg, err := ast.NewPackage(files)
-		if err != nil {
-			report(err)
-			return
-		}
-		// TODO(gri): typecheck package
-		_ = pkg
-	*/
+// TODO(gri) Replace this with a fully functioning importer.
+//           For now a dummy importer is set up by gotype_test.go.
+var importer ast.Importer
+
+func processPackage(fset *token.FileSet, files map[string]*ast.File) {
+	// make a package (resolve all identifiers)
+	pkg, err := ast.NewPackage(fset, files, importer, universe)
+	if err != nil {
+		report(err)
+		return
+	}
+	// TODO(gri): typecheck package
+	_ = pkg
 }
 
 
@@ -189,10 +191,74 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() == 0 {
-		processPackage(parseStdin(token.NewFileSet()))
+		fset := token.NewFileSet()
+		processPackage(fset, parseStdin(fset))
 	} else {
 		processFiles(flag.Args(), true)
 	}
 
 	os.Exit(exitCode)
+}
+
+
+// TODO(gri) Move universe and its initialization in to the right package.
+var universe *ast.Scope
+
+func define(kind ast.ObjKind, names ...string) {
+	for _, name := range names {
+		obj := ast.NewObj(kind, name)
+		if universe.Insert(obj) != nil {
+			panic("gotype internal error: incorrect universe scope")
+		}
+	}
+}
+
+
+func init() {
+	universe = ast.NewScope(nil)
+
+	define(ast.Typ,
+		"bool",
+		"byte",
+		"complex64",
+		"complex128",
+		"float32",
+		"float64",
+		"int8",
+		"int16",
+		"int32",
+		"int64",
+		"string",
+		"uint8",
+		"uint16",
+		"uint32",
+		"uint64",
+		"int",
+		"uint",
+		"uintptr",
+	)
+
+	define(ast.Con,
+		"true",
+		"false",
+		"iota",
+		"nil",
+	)
+
+	define(ast.Fun,
+		"append",
+		"cap",
+		"close",
+		"complex",
+		"copy",
+		"imag",
+		"len",
+		"make",
+		"new",
+		"panic",
+		"print",
+		"println",
+		"real",
+		"recover",
+	)
 }
