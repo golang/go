@@ -14,7 +14,7 @@ var Universe *ast.Scope
 
 func def(obj *ast.Object) {
 	alt := Universe.Insert(obj)
-	if alt != obj {
+	if alt != nil {
 		panic("object declared twice")
 	}
 }

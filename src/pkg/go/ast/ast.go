@@ -781,7 +781,7 @@ type (
 	ImportSpec struct {
 		Doc     *CommentGroup // associated documentation; or nil
 		Name    *Ident        // local package name (including "."); or nil
-		Path    *BasicLit     // package path
+		Path    *BasicLit     // import path
 		Comment *CommentGroup // line comments; or nil
 	}
 
@@ -925,8 +925,9 @@ type File struct {
 	Package    token.Pos       // position of "package" keyword
 	Name       *Ident          // package name
 	Decls      []Decl          // top-level declarations; or nil
-	Scope      *Scope          // package scope
-	Unresolved []*Ident        // unresolved global identifiers
+	Scope      *Scope          // package scope (this file only)
+	Imports    []*ImportSpec   // imports in this file
+	Unresolved []*Ident        // unresolved identifiers in this file
 	Comments   []*CommentGroup // list of all comments in the source file
 }
 
@@ -944,9 +945,10 @@ func (f *File) End() token.Pos {
 // collectively building a Go package.
 //
 type Package struct {
-	Name  string           // package name
-	Scope *Scope           // package scope
-	Files map[string]*File // Go source files by filename
+	Name    string            // package name
+	Scope   *Scope            // package scope
+	Imports map[string]*Scope // map of import path -> package scope across all files
+	Files   map[string]*File  // Go source files by filename
 }
 
 

@@ -53,7 +53,7 @@ func CheckPackage(fset *token.FileSet, pkg *ast.Package, importer Importer) os.E
 //
 func CheckFile(fset *token.FileSet, file *ast.File, importer Importer) os.Error {
 	// create a single-file dummy package
-	pkg := &ast.Package{file.Name.Name, nil, map[string]*ast.File{fset.Position(file.Name.NamePos).Filename: file}}
+	pkg := &ast.Package{file.Name.Name, nil, nil, map[string]*ast.File{fset.Position(file.Name.NamePos).Filename: file}}
 	return CheckPackage(fset, pkg, importer)
 }
 
@@ -327,8 +327,8 @@ func (tc *typechecker) checkBlock(body []ast.Stmt, ftype *Type) {
 	if ftype != nil {
 		for _, par := range ftype.Params.Objects {
 			if par.Name != "_" {
-				obj := tc.topScope.Insert(par)
-				assert(obj == par) // ftype has no double declarations
+				alt := tc.topScope.Insert(par)
+				assert(alt == nil) // ftype has no double declarations
 			}
 		}
 	}

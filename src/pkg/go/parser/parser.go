@@ -148,8 +148,7 @@ func (p *parser) declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, i
 			// remember the corresponding declaration for redeclaration
 			// errors and global variable resolution/typechecking phase
 			obj.Decl = decl
-			alt := scope.Insert(obj)
-			if alt != obj && p.mode&DeclarationErrors != 0 {
+			if alt := scope.Insert(obj); alt != nil && p.mode&DeclarationErrors != 0 {
 				prevDecl := ""
 				if pos := alt.Pos(); pos.IsValid() {
 					prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", p.file.Position(pos))
@@ -175,8 +174,9 @@ func (p *parser) shortVarDecl(idents []*ast.Ident) {
 			// and are not global => no need to remember the respective
 			// declaration
 			alt := p.topScope.Insert(obj)
-			if alt == obj {
+			if alt == nil {
 				n++ // new declaration
+				alt = obj
 			}
 			ident.Obj = alt
 		}
@@ -1151,12 +1151,16 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
 		return p.parseLiteralValue(nil)
 	}
 
-	x := p.parseRhs()
-	if keyOk && p.tok == token.COLON {
-		colon := p.pos
-		p.next()
-		x = &ast.KeyValueExpr{x, colon, p.parseElement(false)}
+	x := p.parseExpr(keyOk) // don't resolve if map key
+	if keyOk {
+		if p.tok == token.COLON {
+			colon := p.pos
+			p.next()
+			return &ast.KeyValueExpr{x, colon, p.parseElement(false)}
+		}
+		p.resolve(x) // not a map key
 	}
+
 	return x
 }
 
@@ -2247,5 +2251,5 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	// TODO(gri): store p.imports in AST
-	return &ast.File{doc, pos, ident, decls, p.pkgScope, p.unresolved[0:i], p.comments}
+	return &ast.File{doc, pos, ident, decls, p.pkgScope, p.imports, p.unresolved[0:i], p.comments}
 }

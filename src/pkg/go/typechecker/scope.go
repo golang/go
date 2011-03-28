@@ -33,7 +33,7 @@ func (tc *typechecker) declInScope(scope *ast.Scope, kind ast.ObjKind, name *ast
 	//obj.N = n
 	name.Obj = obj
 	if name.Name != "_" {
-		if alt := scope.Insert(obj); alt != obj {
+		if alt := scope.Insert(obj); alt != nil {
 			tc.Errorf(name.Pos(), "%s already declared at %s", name.Name, tc.fset.Position(alt.Pos()).String())
 		}
 	}
