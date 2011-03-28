@@ -286,7 +286,7 @@ func unindent(block [][]byte) {
 // nor to have trailing spaces at the end of lines.
 // The comment markers have already been removed.
 //
-// Turn each run of multiple \n into </p><p>
+// Turn each run of multiple \n into </p><p>.
 // Turn each run of indented lines into a <pre> block without indent.
 //
 // URLs in the comment text are converted into links; if the URL also appears

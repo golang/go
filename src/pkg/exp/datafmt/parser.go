@@ -22,7 +22,7 @@ type parser struct {
 	file    *token.File
 	pos     token.Pos   // token position
 	tok     token.Token // one token look-ahead
-	lit     []byte      // token literal
+	lit     string      // token literal
 
 	packs map[string]string // PackageName -> ImportPath
 	rules map[string]expr   // RuleName -> Expression
@@ -62,7 +62,7 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'"
 		if p.tok.IsLiteral() {
-			msg += " " + string(p.lit)
+			msg += " " + p.lit
 		}
 	}
 	p.error(pos, msg)
@@ -80,7 +80,7 @@ func (p *parser) expect(tok token.Token) token.Pos {
 
 
 func (p *parser) parseIdentifier() string {
-	name := string(p.lit)
+	name := p.lit
 	p.expect(token.IDENT)
 	return name
 }
@@ -130,7 +130,7 @@ func (p *parser) parseRuleName() (string, bool) {
 func (p *parser) parseString() string {
 	s := ""
 	if p.tok == token.STRING {
-		s, _ = strconv.Unquote(string(p.lit))
+		s, _ = strconv.Unquote(p.lit)
 		// Unquote may fail with an error, but only if the scanner found
 		// an illegal string in the first place. In this case the error
 		// has already been reported.
@@ -181,7 +181,7 @@ func (p *parser) parseField() expr {
 	var fname string
 	switch p.tok {
 	case token.ILLEGAL:
-		if string(p.lit) != "@" {
+		if p.lit != "@" {
 			return nil
 		}
 		fname = "@"

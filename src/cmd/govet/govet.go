@@ -7,7 +7,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -257,7 +256,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 		return
 	}
 	if lit.Kind == token.STRING {
-		if bytes.IndexByte(lit.Value, '%') < 0 {
+		if strings.Index(lit.Value, "%") < 0 {
 			if len(call.Args) > skip+1 {
 				f.Badf(call.Pos(), "no formatting directive in %s call", name)
 			}
@@ -284,11 +283,11 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 // parsePrintfVerb returns the number of bytes and number of arguments
 // consumed by the Printf directive that begins s, including its percent sign
 // and verb.
-func parsePrintfVerb(s []byte) (nbytes, nargs int) {
+func parsePrintfVerb(s string) (nbytes, nargs int) {
 	// There's guaranteed a percent sign.
 	nbytes = 1
 	end := len(s)
-	// There may be flags
+	// There may be flags.
 FlagLoop:
 	for nbytes < end {
 		switch s[nbytes] {
@@ -308,7 +307,7 @@ FlagLoop:
 			}
 		}
 	}
-	// There may be a width
+	// There may be a width.
 	getNum()
 	// If there's a period, there may be a precision.
 	if nbytes < end && s[nbytes] == '.' {
@@ -316,7 +315,7 @@ FlagLoop:
 		getNum()
 	}
 	// Now a verb.
-	c, w := utf8.DecodeRune(s[nbytes:])
+	c, w := utf8.DecodeRuneInString(s[nbytes:])
 	nbytes += w
 	if c != '%' {
 		nargs++
@@ -324,8 +323,6 @@ FlagLoop:
 	return
 }
 
-
-var terminalNewline = []byte(`\n"`) // \n at end of interpreted string
 
 // checkPrint checks a call to an unformatted print routine such as Println.
 // The skip argument records how many arguments to ignore; that is,
@@ -341,7 +338,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 	}
 	arg := args[skip]
 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		if bytes.IndexByte(lit.Value, '%') >= 0 {
+		if strings.Index(lit.Value, "%") >= 0 {
 			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
 		}
 	}
@@ -349,7 +346,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 		// The last item, if a string, should not have a newline.
 		arg = args[len(call.Args)-1]
 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-			if bytes.HasSuffix(lit.Value, terminalNewline) {
+			if strings.HasSuffix(lit.Value, `\n"`) {
 				f.Badf(call.Pos(), "%s call ends with newline", name)
 			}
 		}

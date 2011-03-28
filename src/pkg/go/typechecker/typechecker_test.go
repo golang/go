@@ -78,7 +78,7 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
 			case token.EOF:
 				break loop
 			case token.COMMENT:
-				s := errRx.FindSubmatch(lit)
+				s := errRx.FindStringSubmatch(lit)
 				if len(s) == 2 {
 					list = append(list, &scanner.Error{fset.Position(prev), string(s[1])})
 				}

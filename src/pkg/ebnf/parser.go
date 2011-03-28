@@ -18,7 +18,7 @@ type parser struct {
 	scanner scanner.Scanner
 	pos     token.Pos   // token position
 	tok     token.Token // one token look-ahead
-	lit     []byte      // token literal
+	lit     string      // token literal
 }
 
 
@@ -44,7 +44,7 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'"
 		if p.tok.IsLiteral() {
-			msg += " " + string(p.lit)
+			msg += " " + p.lit
 		}
 	}
 	p.error(pos, msg)
@@ -63,7 +63,7 @@ func (p *parser) expect(tok token.Token) token.Pos {
 
 func (p *parser) parseIdentifier() *Name {
 	pos := p.pos
-	name := string(p.lit)
+	name := p.lit
 	p.expect(token.IDENT)
 	return &Name{pos, name}
 }
@@ -73,7 +73,7 @@ func (p *parser) parseToken() *Token {
 	pos := p.pos
 	value := ""
 	if p.tok == token.STRING {
-		value, _ = strconv.Unquote(string(p.lit))
+		value, _ = strconv.Unquote(p.lit)
 		// Unquote may fail with an error, but only if the scanner found
 		// an illegal string in the first place. In this case the error
 		// has already been reported.

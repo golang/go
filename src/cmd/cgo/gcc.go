@@ -1156,7 +1156,7 @@ func (c *typeConv) Opaque(n int64) ast.Expr {
 func (c *typeConv) intExpr(n int64) ast.Expr {
 	return &ast.BasicLit{
 		Kind:  token.INT,
-		Value: []byte(strconv.Itoa64(n)),
+		Value: strconv.Itoa64(n),
 	}
 }
 

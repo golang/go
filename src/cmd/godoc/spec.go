@@ -27,7 +27,7 @@ type ebnfParser struct {
 	prev    int         // offset of previous token
 	pos     token.Pos   // token position
 	tok     token.Token // one token look-ahead
-	lit     []byte      // token literal
+	lit     string      // token literal
 }
 
 
@@ -63,7 +63,7 @@ func (p *ebnfParser) errorExpected(pos token.Pos, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'"
 		if p.tok.IsLiteral() {
-			msg += " " + string(p.lit)
+			msg += " " + p.lit
 		}
 	}
 	p.Error(p.file.Position(pos), msg)
@@ -81,7 +81,7 @@ func (p *ebnfParser) expect(tok token.Token) token.Pos {
 
 
 func (p *ebnfParser) parseIdentifier(def bool) {
-	name := string(p.lit)
+	name := p.lit
 	p.expect(token.IDENT)
 	if def {
 		fmt.Fprintf(p.out, `<a id="%s">%s</a>`, name, name)
