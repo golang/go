@@ -215,6 +215,8 @@ class IfacePrinter:
 		return 'string'
 
 	def to_string(self):
+		if self.val['data'] == 0:
+			return 0x0
 		try:
 			dtype = iface_dtype(self.val)
 		except:
@@ -308,15 +310,11 @@ class GoroutinesCmd(gdb.Command):
 		for ptr in linked_list(gdb.parse_and_eval("'runtime.allg'"), 'alllink'):
 			if ptr['status'] == 6:	# 'gdead'
 				continue
-			m = ptr['m']
 			s = ' '
-			if m:
-				pc = m['sched']['pc'].cast(vp)
-				sp = m['sched']['sp'].cast(vp)
+			if ptr['m']:
 				s = '*'
-			else:
-				pc = ptr['sched']['pc'].cast(vp)
-				sp = ptr['sched']['sp'].cast(vp)
+                        pc = ptr['sched']['pc'].cast(vp)
+                        sp = ptr['sched']['sp'].cast(vp)
 			blk = gdb.block_for_pc(long((pc)))
 			print s, ptr['goid'], "%8s" % sts[long((ptr['status']))], blk.function
 
@@ -326,7 +324,7 @@ def find_goroutine(goid):
 		if ptr['status'] == 6:	# 'gdead'
 			continue
 		if ptr['goid'] == goid:
-			return [(ptr['m'] or ptr)['sched'][x].cast(vp) for x in 'pc', 'sp']
+			return [ptr['sched'][x].cast(vp) for x in 'pc', 'sp']
 	return None, None
 
 
