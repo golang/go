@@ -127,7 +127,7 @@ func (p *printer) internalError(msg ...interface{}) {
 
 
 // escape escapes string s by bracketing it with tabwriter.Escape.
-// Escapes strings pass through tabwriter unchanged. (Note that
+// Escaped strings pass through tabwriter unchanged. (Note that
 // valid Go programs cannot contain tabwriter.Escape bytes since
 // they do not appear in legal UTF-8 sequences).
 //

@@ -256,7 +256,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 		return
 	}
 	if lit.Kind == token.STRING {
-		if strings.Index(lit.Value, "%") < 0 {
+		if strings.Contains(lit.Value, "%") {
 			if len(call.Args) > skip+1 {
 				f.Badf(call.Pos(), "no formatting directive in %s call", name)
 			}
@@ -338,7 +338,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 	}
 	arg := args[skip]
 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		if strings.Index(lit.Value, "%") >= 0 {
+		if strings.Contains(lit.Value, "%") {
 			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
 		}
 	}
