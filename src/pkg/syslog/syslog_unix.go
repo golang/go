@@ -19,7 +19,7 @@ func unixSyslog() (conn serverConn, err os.Error) {
 	for _, network := range logTypes {
 		for _, path := range logPaths {
 			raddr = path
-			conn, err := net.Dial(network, "", raddr)
+			conn, err := net.Dial(network, raddr)
 			if err != nil {
 				continue
 			} else {

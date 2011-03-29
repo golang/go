@@ -116,7 +116,7 @@ func NewClient(conn io.ReadWriteCloser) *rpc.Client {
 
 // Dial connects to a JSON-RPC server at the specified network address.
 func Dial(network, address string) (*rpc.Client, os.Error) {
-	conn, err := net.Dial(network, "", address)
+	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err
 	}

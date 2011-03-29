@@ -53,7 +53,7 @@ func TestEcho(t *testing.T) {
 	once.Do(startServer)
 
 	// websocket.Dial()
-	client, err := net.Dial("tcp", "", serverAddr)
+	client, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
@@ -84,7 +84,7 @@ func TestEchoDraft75(t *testing.T) {
 	once.Do(startServer)
 
 	// websocket.Dial()
-	client, err := net.Dial("tcp", "", serverAddr)
+	client, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
@@ -114,7 +114,7 @@ func TestEchoDraft75(t *testing.T) {
 func TestWithQuery(t *testing.T) {
 	once.Do(startServer)
 
-	client, err := net.Dial("tcp", "", serverAddr)
+	client, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
@@ -131,7 +131,7 @@ func TestWithQuery(t *testing.T) {
 func TestWithProtocol(t *testing.T) {
 	once.Do(startServer)
 
-	client, err := net.Dial("tcp", "", serverAddr)
+	client, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
@@ -200,7 +200,7 @@ func TestSmallBuffer(t *testing.T) {
 	once.Do(startServer)
 
 	// websocket.Dial()
-	client, err := net.Dial("tcp", "", serverAddr)
+	client, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		t.Fatal("dialing", err)
 	}

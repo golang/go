@@ -286,11 +286,11 @@ func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
 	}
 	// Make the connection.
 	if socket != "" {
-		conn, err = net.Dial("unix", "", socket+":"+displayStr)
+		conn, err = net.Dial("unix", socket+":"+displayStr)
 	} else if host != "" {
-		conn, err = net.Dial(protocol, "", host+":"+strconv.Itoa(6000+displayInt))
+		conn, err = net.Dial(protocol, host+":"+strconv.Itoa(6000+displayInt))
 	} else {
-		conn, err = net.Dial("unix", "", "/tmp/.X11-unix/X"+displayStr)
+		conn, err = net.Dial("unix", "/tmp/.X11-unix/X"+displayStr)
 	}
 	if err != nil {
 		return nil, "", os.NewError("cannot connect to " + display + ": " + err.String())

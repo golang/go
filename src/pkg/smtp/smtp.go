@@ -39,7 +39,7 @@ type Client struct {
 
 // Dial returns a new Client connected to an SMTP server at addr.
 func Dial(addr string) (*Client, os.Error) {
-	conn, err := net.Dial("tcp", "", addr)
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
