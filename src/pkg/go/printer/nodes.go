@@ -515,7 +515,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 		}
 
 	case *ast.StarExpr:
-		if e.Op == token.QUO {
+		if e.Op == token.QUO { // `*/`
 			maxProblem = 5
 		}
 
