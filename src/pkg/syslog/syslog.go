@@ -67,7 +67,7 @@ func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, e
 		conn, err = unixSyslog()
 	} else {
 		var c net.Conn
-		c, err = net.Dial(network, "", raddr)
+		c, err = net.Dial(network, raddr)
 		conn = netConn{c}
 	}
 	return &Writer{priority, prefix, conn}, err

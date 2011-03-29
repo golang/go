@@ -48,7 +48,7 @@ func NewImporter(conn io.ReadWriter) *Importer {
 
 // Import imports a set of channels from the given network and address.
 func Import(network, remoteaddr string) (*Importer, os.Error) {
-	conn, err := net.Dial(network, "", remoteaddr)
+	conn, err := net.Dial(network, remoteaddr)
 	if err != nil {
 		return nil, err
 	}

@@ -195,7 +195,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 		return pc, nil
 	}
 
-	conn, err := net.Dial("tcp", "", cm.addr())
+	conn, err := net.Dial("tcp", cm.addr())
 	if err != nil {
 		return nil, err
 	}
