@@ -9,7 +9,7 @@ TARG=install
 clean:
 	@true
 
-install: install-gotest
+install: install-gotry
 
 install-%: %
 	! test -f "$(GOBIN)"/$* || chmod u+w "$(GOBIN)"/$*
