@@ -36,9 +36,14 @@ The package is built in a special subdirectory so it does not
 interfere with the non-test installation.
 
 Usage:
-	gotest [pkg_test.go ...]
+	gotest [-c] [-x] [testflags...] [pkg_test.go...]
 
-The resulting binary, called (for amd64) 6.out, has several flags.
+The flags specific to gotest include -x, which prints each subcommand
+gotest executes, and -c, which causes gotest to compile the test
+binary but not run it.  The testflags are passed to the test binary
+and are documented below.
+
+The resulting test binary, called (for amd64) 6.out, has several flags.
 
 Usage:
 	6.out [-test.v] [-test.run pattern] [-test.bench pattern] \
@@ -70,5 +75,12 @@ The -test.short package tells long-running tests to shorten their
 run time. It is off by default but set by all.bash so installations
 of the Go tree can do a sanity check but not spend time running the
 full test suite.
+
+For convenience, each -test.X flag of the test binary is also
+available as the flag -X in gotest itself.  For instance, the command
+	gotest -v -test.cpuprofile=prof.out
+will compile the test binary and then run it as
+	6.out -test.v -cpuprofile=prof.out
+
 */
 package documentation
