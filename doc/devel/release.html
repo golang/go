@@ -5,6 +5,89 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-03-28">2011-03-28</h3>
+
+<pre>
+This weekly release includes improved support for testing.
+
+Memory and CPU profiling is now available via the gotest tool. Gotest will
+produce memory and CPU profiling data when invoked with the -test.memprofile
+and -test.cpuprofile flags. Run "godoc gotest" for details.
+
+We have also introduced a way for tests to run quickly when an exhaustive test
+is unnecessary. Gotest’s new -test.short flag in combination with the testing
+package’s new Short function allows you to write tests that can be run in
+normal or "short" mode; short mode is now used by all.bash to reduce
+installation time.
+The Makefiles know about the flag - you can just run "make testshort".
+
+Other changes:
+* .hgignore: Ignore all goinstalled packages (thanks Evan Shaw).
+* build: add all-qemu.bash, handful of arm fixes,
+        add support for SWIG, and add two SWIG examples,
+        diagnose Ubuntu's buggy copy of gold,
+        handle broken awk in version.bash (thanks Dave Cheney),
+        reenable clean.bash without gomake (thanks Gustavo Niemeyer).
+* cgo: fix index-out-of-bounds bug.
+* codereview: permit CLs of the form weekly.DATE
+* crypto/ecdsa: truncate hash values.
+* crypto/openpgp: add DSA signature support.
+* dashboard: remove old python/bash builder, update README.
+* doc: explain release and weekly tags in install.html.
+* exec: document dir option for Run (thanks Gustavo Niemeyer).
+* flag: document Nflag function (thanks Fazlul Shahriar).
+* gc: remove interim ... error which rejects valid code.
+* go/ast: implemented NewPackage,
+        merge CaseClause and TypeCaseClause.
+* go/parser: fix memory leak by making a copy of token literals,
+        resolve identifiers properly.
+* go/printer, gofmt: avoid exponential layout algorithm,
+        gofmt: simplify struct formatting and respect line breaks.
+* go/scanner: to interpret line comments with Windows filenames (thanks Alex Brainman).
+* go/token: use array instead of map for token->string table.
+* gob: optimizations to reduce allocations,
+        use pointers in bootstrapType so interfaces behave properly.
+* gobuilder: recognize CLs of the form weekly.DATE.
+* godefs: handle volatile.
+* godoc: add -template flag to specify custom templates,
+        fix path problem for windows (thanks Yasuhiro Matsumoto).
+* gofix: httpserver - rewrite rw.SetHeader to rw.Header.Set.
+* gofmt: add profiling flag.
+* gopprof: fix bug: do not rotate 180 degrees for large scrolls,
+        update list of memory allocation functions.
+* gotest: fix gofmt issue in generated _testmain.go.
+* http: add NewProxyClientConn,
+        avoid crash when asked for multiple file ranges,
+        don't chunk 304 responses,
+        export Transport, add keep-alive support.
+* ld: return > 0 exit code on unsafe import.
+* misc/bbedit: remove closed keyword (thanks Anthony Starks).
+* misc/emacs: gofmt: don't clobber the current buffer on failure.
+* misc/vim: remove 'closed' as a builtin function.
+* net: add FileConn, FilePacketConn, FileListener (thanks Albert Strasheim),
+        don't force epoll/kqueue to wake up in order to add new events,
+        let OS-specific AddFD routine wake up polling thread,
+        use preallocated buffer for epoll and kqueue/kevent.
+* path/filepath: add EvalSymlinks function,
+        fix TestEvalSymlinks when run under symlinked GOROOT.
+* path: work for windows (thanks Yasuhiro Matsumoto).
+* rpc: increase server_test timeout (thanks Gustavo Niemeyer),
+        optimizations to reduce allocations.
+* runtime: fix darwin/amd64 thread VM footprint (thanks Alexey Borzenkov),
+        fix gdb support for goroutines,
+        more stack split fixes,
+        os-specific types and code for setitimer,
+        update defs.h for freebsd-386 (thanks Devon H. O'Dell).
+* strings: Map: avoid allocation when string is unchanged.
+* syscall: GetsockoptInt (thanks Albert Strasheim),
+        StartProcess fixes for windows (thanks Alex Brainman),
+        permit non-blocking syscalls,
+        rename from .sh to .pl, because these files are in Perl.
+* test: enable tests using v, ok := <-ch syntax (thanks Robert Hencke).
+* time: give a helpful message when we can't set the time zone for testing.
+        isolate syscall reference in sys.go.
+</pre>
+
 <h3 id="2011-03-15">2011-03-15</h3>
 
 <pre>
