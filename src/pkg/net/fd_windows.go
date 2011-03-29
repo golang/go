@@ -253,18 +253,10 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.raddr = raddr
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr) (err os.Error) {
-	if la != nil {
-		e := syscall.Bind(fd.sysfd, la)
-		if e != 0 {
-			return os.Errno(e)
-		}
-	}
-	if ra != nil {
-		e := syscall.Connect(fd.sysfd, ra)
-		if e != 0 {
-			return os.Errno(e)
-		}
+func (fd *netFD) connect(ra syscall.Sockaddr) (err os.Error) {
+	e := syscall.Connect(fd.sysfd, ra)
+	if e != 0 {
+		return os.Errno(e)
 	}
 	return nil
 }
