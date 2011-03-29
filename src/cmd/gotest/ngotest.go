@@ -23,6 +23,7 @@ import (
 
 // Environment for commands.
 var (
+	XGC    []string // 6g -I _test -o _xtest_.6
 	GC     []string // 6g -I _test _testmain.go
 	GL     []string // 6l -L _test _testmain.6
 	GOARCH string
@@ -32,8 +33,14 @@ var (
 	env    = os.Environ()
 )
 
+// These strings are created by getTestNames.
 var (
-	files      = make([]*File, 0, 10)
+	insideFileNames  []string // list of *.go files inside the package.
+	outsideFileNames []string // list of *.go files outside the package (in package foo_test).
+)
+
+var (
+	files      []*File
 	importPath string
 )
 
@@ -72,7 +79,10 @@ func main() {
 	parseFiles()
 	getTestNames()
 	run("gomake", "testpackage-clean")
-	run("gomake", "testpackage", fmt.Sprintf("GOTESTFILES=%s", insideFileNames()))
+	run("gomake", "testpackage", fmt.Sprintf("GOTESTFILES=%s", strings.Join(insideFileNames, " ")))
+	if len(outsideFileNames) > 0 {
+		run(append(XGC, outsideFileNames...)...)
+	}
 	importPath = runWithStdout("gomake", "-s", "importpath")
 	writeTestmainGo()
 	run(GC...)
@@ -149,6 +159,7 @@ func setEnvironment() {
 	if gc == "" {
 		gc = O + "g"
 	}
+	XGC = []string{gc, "-I", "_test", "-o", "_xtest_." + O}
 	GC = []string{gc, "-I", "_test", "_testmain.go"}
 	gl := os.Getenv("GL")
 	if gl == "" {
@@ -185,9 +196,10 @@ func getTestFileNames() {
 func parseFiles() {
 	fileSet := token.NewFileSet()
 	for _, f := range files {
-		file, err := parser.ParseFile(fileSet, f.name, nil, 0)
+		// Report declaration errors so we can abort if the files are incorrect Go.
+		file, err := parser.ParseFile(fileSet, f.name, nil, parser.DeclarationErrors)
 		if err != nil {
-			Fatalf("could not parse %s: %s", f.name, err)
+			Fatalf("parse error: %s", err)
 		}
 		f.astFile = file
 		f.pkg = file.Name.String()
@@ -217,6 +229,11 @@ func getTestNames() {
 			}
 			// TODO: worth checking the signature? Probably not.
 		}
+		if strings.HasSuffix(f.pkg, "_test") {
+			outsideFileNames = append(outsideFileNames, f.name)
+		} else {
+			insideFileNames = append(insideFileNames, f.name)
+		}
 	}
 }
 
@@ -229,19 +246,6 @@ func isTest(name, prefix string) bool {
 	}
 	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
 	return !unicode.IsLower(rune)
-}
-
-// insideFileNames returns the list of files in package foo, not a package foo_test, as a space-separated string.
-func insideFileNames() (result string) {
-	for _, f := range files {
-		if !strings.HasSuffix(f.pkg, "_test") {
-			if len(result) > 0 {
-				result += " "
-			}
-			result += f.name
-		}
-	}
-	return
 }
 
 func run(args ...string) {
@@ -349,6 +353,8 @@ func writeTestmainGo() {
 	// Package and imports.
 	fmt.Fprint(b, "package main\n\n")
 	// Are there tests from a package other than the one we're testing?
+	// We can't just use file names because some of the things we compiled
+	// contain no tests.
 	outsideTests := false
 	insideTests := false
 	for _, f := range files {
