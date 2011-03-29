@@ -40,7 +40,7 @@ func main() {
 	// x = px
 
 	// this assignment unexpectedly compiles and then executes
-	x = px.(Exported)  // ERROR "does not implement"
+	x = px.(Exported)
 
 	// this is a legitimate call, but because of the previous assignment,
 	// it invokes the method private in p!
