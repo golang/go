@@ -20,7 +20,7 @@ func testKeyGeneration(t *testing.T, c *elliptic.Curve, tag string) {
 		return
 	}
 	if !c.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
-		t.Errorf("%s: public key invalid", tag, err)
+		t.Errorf("%s: public key invalid: %s", tag, err)
 	}
 }
 

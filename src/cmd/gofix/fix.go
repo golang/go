@@ -39,7 +39,7 @@ func rewrite(x interface{}, visit func(interface{})) {
 
 	// everything else just recurses
 	default:
-		panic(fmt.Errorf("unexpected type %T in walk", x, visit))
+		panic(fmt.Errorf("unexpected type %T in walk", x))
 
 	case nil:
 
