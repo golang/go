@@ -96,7 +96,7 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
-func forkAndExecInChild(argv0 *byte, argv, envv []*byte, dir *byte, attr *ProcAttr, pipe int) (pid int, err int) {
+func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, pipe int) (pid int, err int) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
 	var r1, r2, err1 uintptr
@@ -141,6 +141,35 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, dir *byte, attr *ProcAt
 	// Session ID
 	if attr.Setsid {
 		_, _, err1 = RawSyscall(SYS_SETSID, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Chroot
+	if chroot != nil {
+		_, _, err1 = RawSyscall(SYS_CHROOT, uintptr(unsafe.Pointer(chroot)), 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// User and groups
+	if attr.Credential != nil {
+		ngroups := uintptr(len(attr.Credential.Groups))
+		groups := uintptr(0)
+		if ngroups > 0 {
+			groups = uintptr(unsafe.Pointer(&attr.Credential.Groups[0]))
+		}
+		_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, groups, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+		_, _, err1 = RawSyscall(SYS_SETGID, uintptr(attr.Credential.Gid), 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+		_, _, err1 = RawSyscall(SYS_SETUID, uintptr(attr.Credential.Uid), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -231,13 +260,20 @@ childerror:
 	panic("unreached")
 }
 
+type Credential struct {
+	Uid    uint32   // User ID.
+	Gid    uint32   // Group ID.
+	Groups []uint32 // Supplementary group IDs.
+}
 
 type ProcAttr struct {
-	Setsid bool     // Create session.
-	Ptrace bool     // Enable tracing.
-	Dir    string   // Current working directory.
-	Env    []string // Environment.
-	Files  []int    // File descriptors.
+	Setsid     bool        // Create session.
+	Ptrace     bool        // Enable tracing.
+	Dir        string      // Current working directory.
+	Env        []string    // Environment.
+	Files      []int       // File descriptors.
+	Chroot     string      // Chroot.
+	Credential *Credential // Credential.
 }
 
 var zeroAttributes ProcAttr
@@ -264,6 +300,10 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 		argvp[0] = argv0p
 	}
 
+	var chroot *byte
+	if attr.Chroot != "" {
+		chroot = StringBytePtr(attr.Chroot)
+	}
 	var dir *byte
 	if attr.Dir != "" {
 		dir = StringBytePtr(attr.Dir)
@@ -286,7 +326,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 	}
 
 	// Kick off child.
-	pid, err = forkAndExecInChild(argv0p, argvp, envvp, dir, attr, p[1])
+	pid, err = forkAndExecInChild(argv0p, argvp, envvp, chroot, dir, attr, p[1])
 	if err != 0 {
 	error:
 		if p[0] >= 0 {
