@@ -160,19 +160,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 	// the first linebreak is always a formfeed since this section must not
 	// depend on any previous formatting
 	prevBreak := -1 // index of last expression that was followed by a linebreak
-	linebreakMin := 1
-	if mode&periodSep != 0 {
-		// Make fragments like
-		//
-		// a.Bar(1,
-		//   2).Foo
-		//
-		// format correctly (a linebreak shouldn't be added before Foo) when
-		// doing period-separated expr lists by setting minimum linebreak to 0
-		// lines for them.
-		linebreakMin = 0
-	}
-	if prev.IsValid() && prev.Line < line && p.linebreak(line, linebreakMin, ws, true) {
+	if prev.IsValid() && prev.Line < line && p.linebreak(line, 0, ws, true) {
 		ws = ignore
 		*multiLine = true
 		prevBreak = 0
@@ -237,7 +225,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 				// lines are broken using newlines so comments remain aligned
 				// unless forceFF is set or there are multiple expressions on
 				// the same line in which case formfeed is used
-				if p.linebreak(line, linebreakMin, ws, useFF || prevBreak+1 < i) {
+				if p.linebreak(line, 0, ws, useFF || prevBreak+1 < i) {
 					ws = ignore
 					*multiLine = true
 					prevBreak = i
