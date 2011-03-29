@@ -165,4 +165,6 @@ bugs/bug322.dir/main.go:32: implicit assignment of unexported field 'x' of lib.T
 BUG: fails incorrectly
 
 =========== bugs/bug324.go
-BUG: errchk: command succeeded unexpectedly
+main.Implementation.private()
+p.Implementation.private()
+BUG: should fail
