@@ -304,6 +304,42 @@ const (
 	KeyUsageDecipherOnly
 )
 
+// RFC 5280, 4.2.1.12  Extended Key Usage
+//
+// anyExtendedKeyUsage OBJECT IDENTIFIER ::= { id-ce-extKeyUsage 0 }
+//
+// id-kp OBJECT IDENTIFIER ::= { id-pkix 3 }
+//
+// id-kp-serverAuth             OBJECT IDENTIFIER ::= { id-kp 1 }
+// id-kp-clientAuth             OBJECT IDENTIFIER ::= { id-kp 2 }
+// id-kp-codeSigning            OBJECT IDENTIFIER ::= { id-kp 3 }
+// id-kp-emailProtection        OBJECT IDENTIFIER ::= { id-kp 4 }
+// id-kp-timeStamping           OBJECT IDENTIFIER ::= { id-kp 8 }
+// id-kp-OCSPSigning            OBJECT IDENTIFIER ::= { id-kp 9 }
+var (
+	oidExtKeyUsageAny             = asn1.ObjectIdentifier{2, 5, 29, 37, 0}
+	oidExtKeyUsageServerAuth      = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1}
+	oidExtKeyUsageClientAuth      = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 2}
+	oidExtKeyUsageCodeSigning     = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 3}
+	oidExtKeyUsageEmailProtection = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 4}
+	oidExtKeyUsageTimeStamping    = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 8}
+	oidExtKeyUsageOCSPSigning     = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 9}
+)
+
+// ExtKeyUsage represents an extended set of actions that are valid for a given key.
+// Each of the ExtKeyUsage* constants define a unique action.
+type ExtKeyUsage int
+
+const (
+	ExtKeyUsageAny ExtKeyUsage = iota
+	ExtKeyUsageServerAuth
+	ExtKeyUsageClientAuth
+	ExtKeyUsageCodeSigning
+	ExtKeyUsageEmailProtection
+	ExtKeyUsageTimeStamping
+	ExtKeyUsageOCSPSigning
+)
+
 // A Certificate represents an X.509 certificate.
 type Certificate struct {
 	Raw                []byte // Raw ASN.1 DER contents.
@@ -319,6 +355,9 @@ type Certificate struct {
 	Subject             Name
 	NotBefore, NotAfter *time.Time // Validity bounds.
 	KeyUsage            KeyUsage
+
+	ExtKeyUsage        []ExtKeyUsage           // Sequence of extended key usages.
+	UnknownExtKeyUsage []asn1.ObjectIdentifier // Encountered extended key usages unknown to this package.
 
 	BasicConstraintsValid bool // if true then the next two fields are valid.
 	IsCA                  bool
@@ -664,6 +703,44 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 					return nil, err
 				}
 				out.AuthorityKeyId = a.Id
+				continue
+
+			case 37:
+				// RFC 5280, 4.2.1.12.  Extended Key Usage
+
+				// id-ce-extKeyUsage OBJECT IDENTIFIER ::= { id-ce 37 }
+				//
+				// ExtKeyUsageSyntax ::= SEQUENCE SIZE (1..MAX) OF KeyPurposeId
+				//
+				// KeyPurposeId ::= OBJECT IDENTIFIER
+
+				var keyUsage []asn1.ObjectIdentifier
+				_, err = asn1.Unmarshal(e.Value, &keyUsage)
+				if err != nil {
+					return nil, err
+				}
+
+				for _, u := range keyUsage {
+					switch {
+					case u.Equal(oidExtKeyUsageAny):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageAny)
+					case u.Equal(oidExtKeyUsageServerAuth):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageServerAuth)
+					case u.Equal(oidExtKeyUsageClientAuth):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageClientAuth)
+					case u.Equal(oidExtKeyUsageCodeSigning):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageCodeSigning)
+					case u.Equal(oidExtKeyUsageEmailProtection):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageEmailProtection)
+					case u.Equal(oidExtKeyUsageTimeStamping):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageTimeStamping)
+					case u.Equal(oidExtKeyUsageOCSPSigning):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageOCSPSigning)
+					default:
+						out.UnknownExtKeyUsage = append(out.UnknownExtKeyUsage, u)
+					}
+				}
+
 				continue
 
 			case 14:
