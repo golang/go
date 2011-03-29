@@ -6,6 +6,9 @@
 
 package main
 
+func x() {
+}
+
 func main() {
 	if {  // ERROR "missing condition"
 	}
