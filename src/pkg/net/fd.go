@@ -274,19 +274,25 @@ func startServer() {
 	pollserver = p
 }
 
-func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
+func newFD(fd, family, proto int, net string) (f *netFD, err os.Error) {
 	onceStartServer.Do(startServer)
 	if e := syscall.SetNonblock(fd, true); e != 0 {
-		return nil, &OpError{"setnonblock", net, laddr, os.Errno(e)}
+		return nil, os.Errno(e)
 	}
 	f = &netFD{
 		sysfd:  fd,
 		family: family,
 		proto:  proto,
 		net:    net,
-		laddr:  laddr,
-		raddr:  raddr,
 	}
+	f.cr = make(chan bool, 1)
+	f.cw = make(chan bool, 1)
+	return f, nil
+}
+
+func (fd *netFD) setAddr(laddr, raddr Addr) {
+	fd.laddr = laddr
+	fd.raddr = raddr
 	var ls, rs string
 	if laddr != nil {
 		ls = laddr.String()
@@ -294,10 +300,31 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err 
 	if raddr != nil {
 		rs = raddr.String()
 	}
-	f.sysfile = os.NewFile(fd, net+":"+ls+"->"+rs)
-	f.cr = make(chan bool, 1)
-	f.cw = make(chan bool, 1)
-	return f, nil
+	fd.sysfile = os.NewFile(fd.sysfd, fd.net+":"+ls+"->"+rs)
+}
+
+func (fd *netFD) connect(la, ra syscall.Sockaddr) (err os.Error) {
+	if la != nil {
+		e := syscall.Bind(fd.sysfd, la)
+		if e != 0 {
+			return os.Errno(e)
+		}
+	}
+	if ra != nil {
+		e := syscall.Connect(fd.sysfd, ra)
+		if e == syscall.EINPROGRESS {
+			var errno int
+			pollserver.WaitWrite(fd)
+			e, errno = syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
+			if errno != 0 {
+				return os.NewSyscallError("getsockopt", errno)
+			}
+		}
+		if e != 0 {
+			return os.Errno(e)
+		}
+	}
+	return nil
 }
 
 // Add a reference to this fd.
@@ -593,10 +620,11 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	if nfd, err = newFD(s, fd.family, fd.proto, fd.net, fd.laddr, toAddr(sa)); err != nil {
+	if nfd, err = newFD(s, fd.family, fd.proto, fd.net); err != nil {
 		syscall.Close(s)
 		return nil, err
 	}
+	nfd.setAddr(fd.laddr, toAddr(sa))
 	return nfd, nil
 }
 

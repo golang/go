@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-func newFileFD(f *os.File) (*netFD, os.Error) {
+func newFileFD(f *os.File) (nfd *netFD, err os.Error) {
 	fd, errno := syscall.Dup(f.Fd())
 	if errno != 0 {
 		return nil, os.NewSyscallError("dup", errno)
@@ -50,7 +50,11 @@ func newFileFD(f *os.File) (*netFD, os.Error) {
 	sa, _ = syscall.Getpeername(fd)
 	raddr := toAddr(sa)
 
-	return newFD(fd, 0, proto, laddr.Network(), laddr, raddr)
+	if nfd, err = newFD(fd, 0, proto, laddr.Network()); err != nil {
+		return nil, err
+	}
+	nfd.setAddr(laddr, raddr)
+	return nfd, nil
 }
 
 // FileConn returns a copy of the network connection corresponding to

@@ -44,33 +44,22 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
 	}
 
-	if la != nil {
-		e = syscall.Bind(s, la)
-		if e != 0 {
-			closesocket(s)
-			return nil, os.Errno(e)
-		}
-	}
-
-	if ra != nil {
-		e = syscall.Connect(s, ra)
-		if e != 0 {
-			closesocket(s)
-			return nil, os.Errno(e)
-		}
-	}
-
-	sa, _ := syscall.Getsockname(s)
-	laddr := toAddr(sa)
-	sa, _ = syscall.Getpeername(s)
-	raddr := toAddr(sa)
-
-	fd, err = newFD(s, f, p, net, laddr, raddr)
-	if err != nil {
+	if fd, err = newFD(s, f, p, net); err != nil {
 		closesocket(s)
 		return nil, err
 	}
 
+	if err = fd.connect(la, ra); err != nil {
+		closesocket(s)
+		return nil, err
+	}
+
+	sa, _ := syscall.Getsockname(fd.sysfd)
+	laddr := toAddr(sa)
+	sa, _ = syscall.Getpeername(fd.sysfd)
+	raddr := toAddr(sa)
+
+	fd.setAddr(laddr, raddr)
 	return fd, nil
 }
 
