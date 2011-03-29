@@ -293,20 +293,10 @@ func Join(a [][]byte, sep []byte) []byte {
 	}
 
 	b := make([]byte, n)
-	bp := 0
-	for i := 0; i < len(a); i++ {
-		s := a[i]
-		for j := 0; j < len(s); j++ {
-			b[bp] = s[j]
-			bp++
-		}
-		if i+1 < len(a) {
-			s = sep
-			for j := 0; j < len(s); j++ {
-				b[bp] = s[j]
-				bp++
-			}
-		}
+	bp := copy(b, a[0])
+	for _, s := range a[1:] {
+		bp += copy(b[bp:], sep)
+		bp += copy(b[bp:], s)
 	}
 	return b
 }
