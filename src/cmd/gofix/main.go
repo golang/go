@@ -124,7 +124,7 @@ func processFile(filename string, useStdin bool) os.Error {
 	if !fixed {
 		return nil
 	}
-	fmt.Fprintf(os.Stderr, "%s: %s\n", filename, buf.String()[1:])
+	fmt.Fprintf(os.Stderr, "%s: fixed %s\n", filename, buf.String()[1:])
 
 	buf.Reset()
 	_, err = (&printer.Config{printerMode, tabWidth}).Fprint(&buf, fset, file)

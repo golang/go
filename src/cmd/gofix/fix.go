@@ -242,7 +242,7 @@ func isPkgDot(t ast.Expr, pkg, name string) bool {
 	if !ok {
 		return false
 	}
-	return isName(sel.X, pkg) && sel.Sel.String() == name
+	return isTopName(sel.X, pkg) && sel.Sel.String() == name
 }
 
 func isPtrPkgDot(t ast.Expr, pkg, name string) bool {
@@ -251,6 +251,14 @@ func isPtrPkgDot(t ast.Expr, pkg, name string) bool {
 		return false
 	}
 	return isPkgDot(ptr.X, pkg, name)
+}
+
+func isTopName(n ast.Expr, name string) bool {
+	id, ok := n.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	return id.Name == name && id.Obj == nil
 }
 
 func isName(n ast.Expr, name string) bool {
@@ -291,9 +299,10 @@ func isEmptyString(n ast.Expr) bool {
 }
 
 func warn(pos token.Pos, msg string, args ...interface{}) {
-	s := ""
 	if pos.IsValid() {
-		s = fmt.Sprintf("%s: ", fset.Position(pos).String())
+		msg = "%s: " + msg
+		arg1 := []interface{}{fset.Position(pos).String()}
+		args = append(arg1, args...)
 	}
-	fmt.Fprintf(os.Stderr, "%s"+msg+"\n", append([]interface{}{s}, args...))
+	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 }
