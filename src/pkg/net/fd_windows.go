@@ -225,29 +225,48 @@ type netFD struct {
 	wio             sync.Mutex
 }
 
-func allocFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD) {
+func allocFD(fd, family, proto int, net string) (f *netFD) {
 	f = &netFD{
 		sysfd:  fd,
 		family: family,
 		proto:  proto,
 		net:    net,
-		laddr:  laddr,
-		raddr:  raddr,
 	}
 	runtime.SetFinalizer(f, (*netFD).Close)
 	return f
 }
 
-func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
+func newFD(fd, family, proto int, net string) (f *netFD, err os.Error) {
 	if initErr != nil {
 		return nil, initErr
 	}
 	onceStartServer.Do(startServer)
 	// Associate our socket with resultsrv.iocp.
 	if _, e := syscall.CreateIoCompletionPort(int32(fd), resultsrv.iocp, 0, 0); e != 0 {
-		return nil, &OpError{"CreateIoCompletionPort", net, laddr, os.Errno(e)}
+		return nil, os.Errno(e)
 	}
-	return allocFD(fd, family, proto, net, laddr, raddr), nil
+	return allocFD(fd, family, proto, net), nil
+}
+
+func (fd *netFD) setAddr(laddr, raddr Addr) {
+	fd.laddr = laddr
+	fd.raddr = raddr
+}
+
+func (fd *netFD) connect(la, ra syscall.Sockaddr) (err os.Error) {
+	if la != nil {
+		e := syscall.Bind(fd.sysfd, la)
+		if e != 0 {
+			return os.Errno(e)
+		}
+	}
+	if ra != nil {
+		e := syscall.Connect(fd.sysfd, ra)
+		if e != 0 {
+			return os.Errno(e)
+		}
+	}
+	return nil
 }
 
 // Add a reference to this fd.
@@ -497,7 +516,9 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	lsa, _ := lrsa.Sockaddr()
 	rsa, _ := rrsa.Sockaddr()
 
-	return allocFD(s, fd.family, fd.proto, fd.net, toAddr(lsa), toAddr(rsa)), nil
+	nfd = allocFD(s, fd.family, fd.proto, fd.net)
+	nfd.setAddr(toAddr(lsa), toAddr(rsa))
+	return nfd, nil
 }
 
 // Not implemeted functions.
