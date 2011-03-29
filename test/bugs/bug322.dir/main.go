@@ -19,8 +19,9 @@ func main() {
 	t.M()
 	t.PM()
 
-	var i1 I = t
-	i1.M()
+	// This is still an error.
+	// var i1 I = t
+	// i1.M()
 	
 	// This combination is illegal because
 	// PM requires a pointer receiver.
@@ -42,6 +43,5 @@ func main() {
 These should not be errors anymore:
 
 bug322.dir/main.go:19: implicit assignment of unexported field 'x' of lib.T in method receiver
-bug322.dir/main.go:22: implicit assignment of unexported field 'x' of lib.T in assignment
-bug322.dir/main.go:31: implicit assignment of unexported field 'x' of lib.T in method receiver
+bug322.dir/main.go:32: implicit assignment of unexported field 'x' of lib.T in method receiver
 */
