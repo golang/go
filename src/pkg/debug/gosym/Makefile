@@ -11,3 +11,9 @@ GOFILES=\
 
 include ../../../Make.pkg
 
+test: make-pclinetest
+
+testshort: make-pclinetest
+
+make-pclinetest:
+	@if [ "`uname`-`uname -m`" = Linux-x86_64 -a $(GOARCH) = amd64 ]; then mkdir -p _test && $(AS) pclinetest.s && $(LD) -E main -o _test/pclinetest pclinetest.$O; fi
