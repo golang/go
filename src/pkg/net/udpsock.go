@@ -34,7 +34,7 @@ func (a *UDPAddr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
-	return joinHostPort(a.IP.String(), itoa(a.Port))
+	return JoinHostPort(a.IP.String(), itoa(a.Port))
 }
 
 func (a *UDPAddr) family() int {

@@ -13,7 +13,6 @@ type hostTest struct {
 	ips  []IP
 }
 
-
 var hosttests = []hostTest{
 	{"odin", []IP{
 		IPv4(127, 0, 0, 2),

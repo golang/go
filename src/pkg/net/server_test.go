@@ -54,13 +54,15 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done 
 }
 
 func connect(t *testing.T, network, addr string, isEmpty bool) {
-	var laddr string
+	var fd Conn
+	var err os.Error
 	if network == "unixgram" {
-		laddr = addr + ".local"
+		fd, err = DialUnix(network, &UnixAddr{addr + ".local", network}, &UnixAddr{addr, network})
+	} else {
+		fd, err = Dial(network, addr)
 	}
-	fd, err := Dial(network, laddr, addr)
 	if err != nil {
-		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, laddr, addr, err)
+		t.Fatalf("net.Dial(%q, %q) = _, %v", network, addr, err)
 	}
 	fd.SetReadTimeout(1e9) // 1s
 

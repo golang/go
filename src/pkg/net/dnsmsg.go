@@ -50,6 +50,7 @@ const (
 	dnsTypeMINFO = 14
 	dnsTypeMX    = 15
 	dnsTypeTXT   = 16
+	dnsTypeAAAA  = 28
 	dnsTypeSRV   = 33
 
 	// valid dnsQuestion.qtype only
@@ -244,8 +245,18 @@ type dnsRR_A struct {
 	A   uint32 "ipv4"
 }
 
-func (rr *dnsRR_A) Header() *dnsRR_Header { return &rr.Hdr }
+func (rr *dnsRR_A) Header() *dnsRR_Header {
+	return &rr.Hdr
+}
 
+type dnsRR_AAAA struct {
+	Hdr  dnsRR_Header
+	AAAA [16]byte "ipv6"
+}
+
+func (rr *dnsRR_AAAA) Header() *dnsRR_Header {
+	return &rr.Hdr
+}
 
 // Packing and unpacking.
 //
@@ -270,6 +281,7 @@ var rr_mk = map[int]func() dnsRR{
 	dnsTypeTXT:   func() dnsRR { return new(dnsRR_TXT) },
 	dnsTypeSRV:   func() dnsRR { return new(dnsRR_SRV) },
 	dnsTypeA:     func() dnsRR { return new(dnsRR_A) },
+	dnsTypeAAAA:  func() dnsRR { return new(dnsRR_AAAA) },
 }
 
 // Pack a domain name s into msg[off:].
@@ -377,7 +389,7 @@ Loop:
 
 // TODO(rsc): Move into generic library?
 // Pack a reflect.StructValue into msg.  Struct members can only be uint16, uint32, string,
-// and other (often anonymous) structs.
+// [n]byte, and other (often anonymous) structs.
 func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
 	for i := 0; i < val.NumField(); i++ {
 		f := val.Type().(*reflect.StructType).Field(i)
@@ -410,6 +422,16 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 				msg[off+3] = byte(i)
 				off += 4
 			}
+		case *reflect.ArrayValue:
+			if fv.Type().(*reflect.ArrayType).Elem().Kind() != reflect.Uint8 {
+				goto BadType
+			}
+			n := fv.Len()
+			if off+n > len(msg) {
+				return len(msg), false
+			}
+			reflect.Copy(reflect.NewValue(msg[off:off+n]).(*reflect.SliceValue), fv)
+			off += n
 		case *reflect.StringValue:
 			// There are multiple string encodings.
 			// The tag distinguishes ordinary strings from domain names.
@@ -478,6 +500,16 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
 				fv.Set(uint64(i))
 				off += 4
 			}
+		case *reflect.ArrayValue:
+			if fv.Type().(*reflect.ArrayType).Elem().Kind() != reflect.Uint8 {
+				goto BadType
+			}
+			n := fv.Len()
+			if off+n > len(msg) {
+				return len(msg), false
+			}
+			reflect.Copy(fv, reflect.NewValue(msg[off:off+n]).(*reflect.SliceValue))
+			off += n
 		case *reflect.StringValue:
 			var s string
 			switch f.Tag {
@@ -515,7 +547,8 @@ func unpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
 
 // Generic struct printer.
 // Doesn't care about the string tag "domain-name",
-// but does look for an "ipv4" tag on uint32 variables,
+// but does look for an "ipv4" tag on uint32 variables
+// and the "ipv6" tag on array variables,
 // printing them as IP addresses.
 func printStructValue(val *reflect.StructValue) string {
 	s := "{"
@@ -533,6 +566,9 @@ func printStructValue(val *reflect.StructValue) string {
 		} else if fv, ok := fval.(*reflect.UintValue); ok && f.Tag == "ipv4" {
 			i := fv.Get()
 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String()
+		} else if fv, ok := fval.(*reflect.ArrayValue); ok && f.Tag == "ipv6" {
+			i := fv.Interface().([]byte)
+			s += IP(i).String()
 		} else {
 			s += fmt.Sprint(fval.Interface())
 		}

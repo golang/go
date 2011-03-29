@@ -167,9 +167,9 @@ func (e *UnknownSocketError) String() string {
 func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
 	switch a := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return joinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
+		return JoinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
 	case *syscall.SockaddrInet6:
-		return joinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
+		return JoinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
 	case *syscall.SockaddrUnix:
 		return a.Name, nil
 	}

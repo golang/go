@@ -50,7 +50,7 @@ func TestRunClient(t *testing.T) {
 
 	testConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
 
-	conn, err := Dial("tcp", "", "127.0.0.1:10443", testConfig)
+	conn, err := Dial("tcp", "127.0.0.1:10443", testConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
