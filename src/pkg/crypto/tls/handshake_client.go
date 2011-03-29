@@ -29,6 +29,7 @@ func (c *Conn) clientHandshake() os.Error {
 		serverName:         c.config.ServerName,
 		supportedCurves:    []uint16{curveP256, curveP384, curveP521},
 		supportedPoints:    []uint8{pointFormatUncompressed},
+		nextProtoNeg:       len(c.config.NextProtos) > 0,
 	}
 
 	t := uint32(c.config.time())
@@ -64,6 +65,11 @@ func (c *Conn) clientHandshake() os.Error {
 
 	if serverHello.compressionMethod != compressionNone {
 		return c.sendAlert(alertUnexpectedMessage)
+	}
+
+	if !hello.nextProtoNeg && serverHello.nextProtoNeg {
+		c.sendAlert(alertHandshakeFailure)
+		return os.ErrorString("server advertised unrequested NPN")
 	}
 
 	suite, suiteId := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
@@ -267,6 +273,17 @@ func (c *Conn) clientHandshake() os.Error {
 	c.out.prepareCipherSpec(clientCipher, clientHash)
 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
 
+	if serverHello.nextProtoNeg {
+		nextProto := new(nextProtoMsg)
+		proto, fallback := mutualProtocol(c.config.NextProtos, serverHello.nextProtos)
+		nextProto.proto = proto
+		c.clientProtocol = proto
+		c.clientProtocolFallback = fallback
+
+		finishedHash.Write(nextProto.marshal())
+		c.writeRecord(recordTypeHandshake, nextProto.marshal())
+	}
+
 	finished := new(finishedMsg)
 	finished.verifyData = finishedHash.clientSum(masterSecret)
 	finishedHash.Write(finished.marshal())
@@ -298,4 +315,20 @@ func (c *Conn) clientHandshake() os.Error {
 	c.handshakeComplete = true
 	c.cipherSuite = suiteId
 	return nil
+}
+
+// mutualProtocol finds the mutual Next Protocol Negotiation protocol given the
+// set of client and server supported protocols. The set of client supported
+// protocols must not be empty. It returns the resulting protocol and flag
+// indicating if the fallback case was reached.
+func mutualProtocol(clientProtos, serverProtos []string) (string, bool) {
+	for _, s := range serverProtos {
+		for _, c := range clientProtos {
+			if s == c {
+				return s, false
+			}
+		}
+	}
+
+	return clientProtos[0], true
 }

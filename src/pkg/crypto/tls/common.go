@@ -93,9 +93,10 @@ const (
 
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
-	HandshakeComplete  bool
-	CipherSuite        uint16
-	NegotiatedProtocol string
+	HandshakeComplete          bool
+	CipherSuite                uint16
+	NegotiatedProtocol         string
+	NegotiatedProtocolIsMutual bool
 
 	// the certificate chain that was presented by the other side
 	PeerCertificates []*x509.Certificate
@@ -124,7 +125,6 @@ type Config struct {
 	RootCAs *CASet
 
 	// NextProtos is a list of supported, application level protocols.
-	// Currently only server-side handling is supported.
 	NextProtos []string
 
 	// ServerName is included in the client's handshake to support virtual

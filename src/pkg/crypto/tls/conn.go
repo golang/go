@@ -35,7 +35,8 @@ type Conn struct {
 	ocspResponse      []byte // stapled OCSP response
 	peerCertificates  []*x509.Certificate
 
-	clientProtocol string
+	clientProtocol         string
+	clientProtocolFallback bool
 
 	// first permanent error
 	errMutex sync.Mutex
@@ -761,6 +762,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 	state.HandshakeComplete = c.handshakeComplete
 	if c.handshakeComplete {
 		state.NegotiatedProtocol = c.clientProtocol
+		state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
 		state.CipherSuite = c.cipherSuite
 		state.PeerCertificates = c.peerCertificates
 	}
