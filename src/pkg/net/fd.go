@@ -303,26 +303,18 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.sysfile = os.NewFile(fd.sysfd, fd.net+":"+ls+"->"+rs)
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr) (err os.Error) {
-	if la != nil {
-		e := syscall.Bind(fd.sysfd, la)
-		if e != 0 {
-			return os.Errno(e)
+func (fd *netFD) connect(ra syscall.Sockaddr) (err os.Error) {
+	e := syscall.Connect(fd.sysfd, ra)
+	if e == syscall.EINPROGRESS {
+		var errno int
+		pollserver.WaitWrite(fd)
+		e, errno = syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
+		if errno != 0 {
+			return os.NewSyscallError("getsockopt", errno)
 		}
 	}
-	if ra != nil {
-		e := syscall.Connect(fd.sysfd, ra)
-		if e == syscall.EINPROGRESS {
-			var errno int
-			pollserver.WaitWrite(fd)
-			e, errno = syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
-			if errno != 0 {
-				return os.NewSyscallError("getsockopt", errno)
-			}
-		}
-		if e != 0 {
-			return os.Errno(e)
-		}
+	if e != 0 {
+		return os.Errno(e)
 	}
 	return nil
 }
