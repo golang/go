@@ -105,7 +105,7 @@ func testFilePacketConnListen(t *testing.T, net, laddr string) {
 }
 
 func testFilePacketConnDial(t *testing.T, net, raddr string) {
-	c, err := Dial(net, "", raddr)
+	c, err := Dial(net, raddr)
 	if err != nil {
 		t.Fatalf("Dial failed: %v", err)
 	}
