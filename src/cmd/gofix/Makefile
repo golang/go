@@ -7,6 +7,7 @@ include ../../Make.inc
 TARG=gofix
 GOFILES=\
 	fix.go\
+	netdial.go\
 	main.go\
 	httpserver.go\
 	procattr.go\
