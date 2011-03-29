@@ -240,7 +240,7 @@ func hostToIP(host string) (ip IP, err os.Error) {
 	addr = ParseIP(host)
 	if addr == nil {
 		// Not an IP address.  Try as a DNS name.
-		_, addrs, err1 := LookupHost(host)
+		addrs, err1 := LookupHost(host)
 		if err1 != nil {
 			err = err1
 			goto Error

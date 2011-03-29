@@ -474,13 +474,13 @@ func parseIPv6(s string) IP {
 	return p
 }
 
-// A SyntaxError represents a malformed text string and the type of string that was expected.
-type SyntaxError struct {
+// A ParseError represents a malformed text string and the type of string that was expected.
+type ParseError struct {
 	Type string
 	Text string
 }
 
-func (e *SyntaxError) String() string {
+func (e *ParseError) String() string {
 	return "invalid " + e.Type + ": " + e.Text
 }
 
@@ -507,33 +507,46 @@ func ParseIP(s string) IP {
 }
 
 // ParseCIDR parses s as a CIDR notation IP address and mask,
-// like "192.168.100.1/24" or "2001:DB8::/48".
+// like "192.168.100.1/24", "2001:DB8::/48", as defined in
+// RFC 4632 and RFC 4291.
 func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
 	i := byteIndex(s, '/')
 	if i < 0 {
-		return nil, nil, &SyntaxError{"CIDR address", s}
+		return nil, nil, &ParseError{"CIDR address", s}
 	}
 	ipstr, maskstr := s[:i], s[i+1:]
-	ip = ParseIP(ipstr)
+	iplen := 4
+	ip = parseIPv4(ipstr)
+	if ip == nil {
+		iplen = 16
+		ip = parseIPv6(ipstr)
+	}
 	nn, i, ok := dtoi(maskstr, 0)
-	if ip == nil || !ok || i != len(maskstr) || nn < 0 || nn > 8*len(ip) {
-		return nil, nil, &SyntaxError{"CIDR address", s}
+	if ip == nil || !ok || i != len(maskstr) || nn < 0 || nn > 8*iplen {
+		return nil, nil, &ParseError{"CIDR address", s}
 	}
 	n := uint(nn)
-	if len(ip) == 4 {
+	if iplen == 4 {
 		v4mask := ^uint32(0xffffffff >> n)
-		mask = IPMask(IPv4(byte(v4mask>>24), byte(v4mask>>16), byte(v4mask>>8), byte(v4mask)))
-		return ip, mask, nil
-	}
-	mask = make(IPMask, 16)
-	for i := 0; i < 16; i++ {
-		if n >= 8 {
-			mask[i] = 0xff
-			n -= 8
-			continue
+		mask = IPv4Mask(byte(v4mask>>24), byte(v4mask>>16), byte(v4mask>>8), byte(v4mask))
+	} else {
+		mask = make(IPMask, 16)
+		for i := 0; i < 16; i++ {
+			if n >= 8 {
+				mask[i] = 0xff
+				n -= 8
+				continue
+			}
+			mask[i] = ^byte(0xff >> n)
+			n = 0
+
 		}
-		mask[i] = ^byte(0xff >> n)
-		n = 0
+	}
+	// address must not have any bits not in mask
+	for i := range ip {
+		if ip[i]&^mask[i] != 0 {
+			return nil, nil, &ParseError{"CIDR address", s}
+		}
 	}
 	return ip, mask, nil
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func testTimeout(t *testing.T, network, addr string, readFrom bool) {
-	fd, err := Dial(network, "", addr)
+	fd, err := Dial(network, addr)
 	if err != nil {
 		t.Errorf("dial %s %s failed: %v", network, addr, err)
 		return

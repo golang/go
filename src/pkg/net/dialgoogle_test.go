@@ -32,7 +32,7 @@ func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
 }
 
 func doDial(t *testing.T, network, addr string) {
-	fd, err := Dial(network, "", addr)
+	fd, err := Dial(network, addr)
 	if err != nil {
 		t.Errorf("Dial(%q, %q, %q) = _, %v", network, "", addr, err)
 		return
@@ -55,6 +55,13 @@ var googleaddrs = []string{
 	"[2001:4860:0:2001::68]:80", // ipv6.google.com; removed if ipv6 flag not set
 }
 
+func TestLookupCNAME(t *testing.T) {
+	cname, err := LookupCNAME("www.google.com")
+	if cname != "www.l.google.com." || err != nil {
+		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "www.l.google.com.", nil`, cname, err)
+	}
+}
+
 func TestDialGoogle(t *testing.T) {
 	// If no ipv6 tunnel, don't try the last address.
 	if !*ipv6 {
@@ -64,14 +71,14 @@ func TestDialGoogle(t *testing.T) {
 	// Insert an actual IP address for google.com
 	// into the table.
 
-	_, addrs, err := LookupHost("www.google.com")
+	addrs, err := LookupIP("www.google.com")
 	if err != nil {
 		t.Fatalf("lookup www.google.com: %v", err)
 	}
 	if len(addrs) == 0 {
 		t.Fatalf("no addresses for www.google.com")
 	}
-	ip := ParseIP(addrs[0]).To4()
+	ip := addrs[0].To4()
 
 	for i, s := range googleaddrs {
 		if strings.Contains(s, "%") {

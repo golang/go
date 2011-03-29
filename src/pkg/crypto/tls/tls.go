@@ -87,8 +87,9 @@ func Listen(network, laddr string, config *Config) (*Listener, os.Error) {
 // Dial interprets a nil configuration as equivalent to
 // the zero configuration; see the documentation of Config
 // for the defaults.
-func Dial(network, laddr, raddr string, config *Config) (*Conn, os.Error) {
-	c, err := net.Dial(network, laddr, raddr)
+func Dial(network, addr string, config *Config) (*Conn, os.Error) {
+	raddr := addr
+	c, err := net.Dial(network, raddr)
 	if err != nil {
 		return nil, err
 	}

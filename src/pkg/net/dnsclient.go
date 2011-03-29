@@ -159,7 +159,7 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs 
 		// all the cfg.servers[i] are IP addresses, which
 		// Dial will use without a DNS lookup.
 		server := cfg.servers[i] + ":53"
-		c, cerr := Dial("udp", "", server)
+		c, cerr := Dial("udp", server)
 		if cerr != nil {
 			err = cerr
 			continue
@@ -178,12 +178,23 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs 
 	return
 }
 
-func convertRR_A(records []dnsRR) []string {
-	addrs := make([]string, len(records))
+func convertRR_A(records []dnsRR) []IP {
+	addrs := make([]IP, len(records))
 	for i := 0; i < len(records); i++ {
 		rr := records[i]
 		a := rr.(*dnsRR_A).A
-		addrs[i] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String()
+		addrs[i] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a))
+	}
+	return addrs
+}
+
+func convertRR_AAAA(records []dnsRR) []IP {
+	addrs := make([]IP, len(records))
+	for i := 0; i < len(records); i++ {
+		rr := records[i]
+		a := make(IP, 16)
+		copy(a, rr.(*dnsRR_AAAA).AAAA[:])
+		addrs[i] = a
 	}
 	return addrs
 }
@@ -294,10 +305,8 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
 	return
 }
 
-// LookupHost looks for name using the local hosts file and DNS resolver.
-// It returns the canonical name for the host and an array of that
-// host's addresses.
-func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+// goLookupHost is the native Go implementation of LookupHost.
+func goLookupHost(name string) (addrs []string, err os.Error) {
 	onceLoadConfig.Do(loadConfig)
 	if dnserr != nil || cfg == nil {
 		err = dnserr
@@ -306,18 +315,69 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 	// Use entries from /etc/hosts if they match.
 	addrs = lookupStaticHost(name)
 	if len(addrs) > 0 {
-		cname = name
+		return
+	}
+	ips, err := goLookupIP(name)
+	if err != nil {
+		return
+	}
+	addrs = make([]string, 0, len(ips))
+	for _, ip := range ips {
+		addrs = append(addrs, ip.String())
+	}
+	return
+}
+
+// goLookupIP is the native Go implementation of LookupIP.
+func goLookupIP(name string) (addrs []IP, err os.Error) {
+	onceLoadConfig.Do(loadConfig)
+	if dnserr != nil || cfg == nil {
+		err = dnserr
 		return
 	}
 	var records []dnsRR
+	var cname string
 	cname, records, err = lookup(name, dnsTypeA)
 	if err != nil {
 		return
 	}
 	addrs = convertRR_A(records)
+	if cname != "" {
+		name = cname
+	}
+	_, records, err = lookup(name, dnsTypeAAAA)
+	if err != nil && len(addrs) > 0 {
+		// Ignore error because A lookup succeeded.
+		err = nil
+	}
+	if err != nil {
+		return
+	}
+	addrs = append(addrs, convertRR_AAAA(records)...)
 	return
 }
 
+// LookupCNAME returns the canonical DNS host for the given name.
+// Callers that do not care about the canonical name can call
+// LookupHost or LookupIP directly; both take care of resolving
+// the canonical name as part of the lookup.
+func LookupCNAME(name string) (cname string, err os.Error) {
+	onceLoadConfig.Do(loadConfig)
+	if dnserr != nil || cfg == nil {
+		err = dnserr
+		return
+	}
+	_, rr, err := lookup(name, dnsTypeCNAME)
+	if err != nil {
+		return
+	}
+	if len(rr) >= 0 {
+		cname = rr[0].(*dnsRR_CNAME).Cname
+	}
+	return
+}
+
+// An SRV represents a single DNS SRV record.
 type SRV struct {
 	Target   string
 	Port     uint16
@@ -344,11 +404,13 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 	return
 }
 
+// An MX represents a single DNS MX record.
 type MX struct {
 	Host string
 	Pref uint16
 }
 
+// LookupMX returns the DNS MX records associated with name.
 func LookupMX(name string) (entries []*MX, err os.Error) {
 	var records []dnsRR
 	_, records, err = lookup(name, dnsTypeMX)

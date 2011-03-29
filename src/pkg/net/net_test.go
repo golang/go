@@ -15,50 +15,49 @@ var runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check f
 
 type DialErrorTest struct {
 	Net     string
-	Laddr   string
 	Raddr   string
 	Pattern string
 }
 
 var dialErrorTests = []DialErrorTest{
 	{
-		"datakit", "", "mh/astro/r70",
+		"datakit", "mh/astro/r70",
 		"dial datakit mh/astro/r70: unknown network datakit",
 	},
 	{
-		"tcp", "", "127.0.0.1:☺",
+		"tcp", "127.0.0.1:☺",
 		"dial tcp 127.0.0.1:☺: unknown port tcp/☺",
 	},
 	{
-		"tcp", "", "no-such-name.google.com.:80",
+		"tcp", "no-such-name.google.com.:80",
 		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no (.*)",
 	},
 	{
-		"tcp", "", "no-such-name.no-such-top-level-domain.:80",
+		"tcp", "no-such-name.no-such-top-level-domain.:80",
 		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.( on .*)?: no (.*)",
 	},
 	{
-		"tcp", "", "no-such-name:80",
+		"tcp", "no-such-name:80",
 		`dial tcp no-such-name:80: lookup no-such-name\.(.*\.)?( on .*)?: no (.*)`,
 	},
 	{
-		"tcp", "", "mh/astro/r70:http",
+		"tcp", "mh/astro/r70:http",
 		"dial tcp mh/astro/r70:http: lookup mh/astro/r70: invalid domain name",
 	},
 	{
-		"unix", "", "/etc/file-not-found",
+		"unix", "/etc/file-not-found",
 		"dial unix /etc/file-not-found: no such file or directory",
 	},
 	{
-		"unix", "", "/etc/",
+		"unix", "/etc/",
 		"dial unix /etc/: (permission denied|socket operation on non-socket|connection refused)",
 	},
 	{
-		"unixpacket", "", "/etc/file-not-found",
+		"unixpacket", "/etc/file-not-found",
 		"dial unixpacket /etc/file-not-found: no such file or directory",
 	},
 	{
-		"unixpacket", "", "/etc/",
+		"unixpacket", "/etc/",
 		"dial unixpacket /etc/: (permission denied|socket operation on non-socket|connection refused)",
 	},
 }
@@ -69,7 +68,7 @@ func TestDialError(t *testing.T) {
 		return
 	}
 	for i, tt := range dialErrorTests {
-		c, e := Dial(tt.Net, tt.Laddr, tt.Raddr)
+		c, e := Dial(tt.Net, tt.Raddr)
 		if c != nil {
 			c.Close()
 		}

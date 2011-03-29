@@ -6,6 +6,7 @@ include ../../Make.inc
 
 TARG=net
 GOFILES=\
+	cgo_stub.go\
 	dial.go\
 	dnsmsg.go\
 	fd_$(GOOS).go\
@@ -13,6 +14,7 @@ GOFILES=\
 	ip.go\
 	ipsock.go\
 	iprawsock.go\
+	lookup.go\
 	net.go\
 	parse.go\
 	pipe.go\

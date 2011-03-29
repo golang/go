@@ -5,30 +5,26 @@
 package net
 
 import (
+	"bytes"
+	"reflect"
 	"testing"
+	"os"
 )
 
-func isEqual(a, b IP) bool {
+func isEqual(a, b []byte) bool {
 	if a == nil && b == nil {
 		return true
 	}
-	if a == nil || b == nil || len(a) != len(b) {
+	if a == nil || b == nil {
 		return false
 	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return bytes.Equal(a, b)
 }
 
-type parseIPTest struct {
+var parseiptests = []struct {
 	in  string
 	out IP
-}
-
-var parseiptests = []parseIPTest{
+}{
 	{"127.0.1.2", IPv4(127, 0, 1, 2)},
 	{"127.0.0.1", IPv4(127, 0, 0, 1)},
 	{"127.0.0.256", nil},
@@ -43,20 +39,17 @@ var parseiptests = []parseIPTest{
 }
 
 func TestParseIP(t *testing.T) {
-	for i := 0; i < len(parseiptests); i++ {
-		tt := parseiptests[i]
+	for _, tt := range parseiptests {
 		if out := ParseIP(tt.in); !isEqual(out, tt.out) {
 			t.Errorf("ParseIP(%#q) = %v, want %v", tt.in, out, tt.out)
 		}
 	}
 }
 
-type ipStringTest struct {
+var ipstringtests = []struct {
 	in  IP
 	out string
-}
-
-var ipstringtests = []ipStringTest{
+}{
 	// cf. RFC 5952 (A Recommendation for IPv6 Address Text Representation)
 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
 		0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
@@ -85,10 +78,67 @@ var ipstringtests = []ipStringTest{
 }
 
 func TestIPString(t *testing.T) {
-	for i := 0; i < len(ipstringtests); i++ {
-		tt := ipstringtests[i]
+	for _, tt := range ipstringtests {
 		if out := tt.in.String(); out != tt.out {
 			t.Errorf("IP.String(%v) = %#q, want %#q", tt.in, out, tt.out)
+		}
+	}
+}
+
+var parsecidrtests = []struct {
+	in   string
+	ip   IP
+	mask IPMask
+	err  os.Error
+}{
+	{"135.104.0.0/32", IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 255), nil},
+	{"0.0.0.0/24", IPv4(0, 0, 0, 0), IPv4Mask(255, 255, 255, 0), nil},
+	{"135.104.0.0/24", IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 0), nil},
+	{"135.104.0.1/32", IPv4(135, 104, 0, 1), IPv4Mask(255, 255, 255, 255), nil},
+	{"135.104.0.1/24", nil, nil, &ParseError{"CIDR address", "135.104.0.1/24"}},
+	{"::1/128", ParseIP("::1"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")), nil},
+	{"abcd:2345::/127", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe")), nil},
+	{"abcd:2345::/65", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:8000::")), nil},
+	{"abcd:2345::/64", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff::")), nil},
+	{"abcd:2345::/63", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:fffe::")), nil},
+	{"abcd:2345::/33", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:8000::")), nil},
+	{"abcd:2345::/32", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff::")), nil},
+	{"abcd:2344::/31", ParseIP("abcd:2344::"), IPMask(ParseIP("ffff:fffe::")), nil},
+	{"abcd:2300::/24", ParseIP("abcd:2300::"), IPMask(ParseIP("ffff:ff00::")), nil},
+	{"abcd:2345::/24", nil, nil, &ParseError{"CIDR address", "abcd:2345::/24"}},
+	{"2001:DB8::/48", ParseIP("2001:DB8::"), IPMask(ParseIP("ffff:ffff:ffff::")), nil},
+}
+
+func TestParseCIDR(t *testing.T) {
+	for _, tt := range parsecidrtests {
+		if ip, mask, err := ParseCIDR(tt.in); !isEqual(ip, tt.ip) || !isEqual(mask, tt.mask) || !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("ParseCIDR(%q) = %v, %v, %v; want %v, %v, %v", tt.in, ip, mask, err, tt.ip, tt.mask, tt.err)
+		}
+	}
+}
+
+var splitjointests = []struct {
+	Host string
+	Port string
+	Join string
+}{
+	{"www.google.com", "80", "www.google.com:80"},
+	{"127.0.0.1", "1234", "127.0.0.1:1234"},
+	{"::1", "80", "[::1]:80"},
+}
+
+func TestSplitHostPort(t *testing.T) {
+	for _, tt := range splitjointests {
+		if host, port, err := SplitHostPort(tt.Join); host != tt.Host || port != tt.Port || err != nil {
+			t.Errorf("SplitHostPort(%q) = %q, %q, %v; want %q, %q, nil", tt.Join, host, port, err, tt.Host, tt.Port)
+		}
+	}
+}
+
+func TestJoinHostPort(t *testing.T) {
+	for _, tt := range splitjointests {
+		if join := JoinHostPort(tt.Host, tt.Port); join != tt.Join {
+			t.Errorf("JoinHostPort(%q, %q) = %q; want %q", tt.Host, tt.Port, join, tt.Join)
 		}
 	}
 }

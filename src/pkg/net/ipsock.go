@@ -170,9 +170,10 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
 	return nil, InvalidAddrError("unexpected socket family")
 }
 
-// Split "host:port" into "host" and "port".
-// Host cannot contain colons unless it is bracketed.
-func splitHostPort(hostport string) (host, port string, err os.Error) {
+// SplitHostPort splits a network address of the form
+// "host:port" or "[host]:port" into host and port.
+// The latter form must be used when host contains a colon.
+func SplitHostPort(hostport string) (host, port string, err os.Error) {
 	// The port starts after the last colon.
 	i := last(hostport, ':')
 	if i < 0 {
@@ -195,9 +196,9 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 	return
 }
 
-// Join "host" and "port" into "host:port".
-// If host contains colons, will join into "[host]:port".
-func joinHostPort(host, port string) string {
+// JoinHostPort combines host and port into a network address
+// of the form "host:port" or, if host contains a colon, "[host]:port".
+func JoinHostPort(host, port string) string {
 	// If host has colons, have to bracket it.
 	if byteIndex(host, ':') >= 0 {
 		return "[" + host + "]:" + port
@@ -207,7 +208,7 @@ func joinHostPort(host, port string) string {
 
 // Convert "host:port" into IP address and port.
 func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
-	host, port, err := splitHostPort(hostport)
+	host, port, err := SplitHostPort(hostport)
 	if err != nil {
 		goto Error
 	}
@@ -218,7 +219,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 		addr = ParseIP(host)
 		if addr == nil {
 			// Not an IP address.  Try as a DNS name.
-			_, addrs, err1 := LookupHost(host)
+			addrs, err1 := LookupHost(host)
 			if err1 != nil {
 				err = err1
 				goto Error

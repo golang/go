@@ -6,9 +6,7 @@ package net
 
 import "os"
 
-// Dial connects to the remote address raddr on the network net.
-// If the string laddr is not empty, it is used as the local address
-// for the connection.
+// Dial connects to the address addr on the network net.
 //
 // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
 // "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
@@ -16,79 +14,56 @@ import "os"
 //
 // For IP networks, addresses have the form host:port.  If host is
 // a literal IPv6 address, it must be enclosed in square brackets.
+// The functions JoinHostPort and SplitHostPort manipulate 
+// addresses in this form.
 //
 // Examples:
-//	Dial("tcp", "", "12.34.56.78:80")
-//	Dial("tcp", "", "google.com:80")
-//	Dial("tcp", "", "[de:ad:be:ef::ca:fe]:80")
-//	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
+//	Dial("tcp", "12.34.56.78:80")
+//	Dial("tcp", "google.com:80")
+//	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
 //
-func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+func Dial(net, addr string) (c Conn, err os.Error) {
+	raddr := addr
+	if raddr == "" {
+		return nil, &OpError{"dial", net, nil, errMissingAddress}
+	}
 	switch net {
 	case "tcp", "tcp4", "tcp6":
-		var la, ra *TCPAddr
-		if laddr != "" {
-			if la, err = ResolveTCPAddr(laddr); err != nil {
-				goto Error
-			}
+		var ra *TCPAddr
+		if ra, err = ResolveTCPAddr(raddr); err != nil {
+			goto Error
 		}
-		if raddr != "" {
-			if ra, err = ResolveTCPAddr(raddr); err != nil {
-				goto Error
-			}
-		}
-		c, err := DialTCP(net, la, ra)
+		c, err := DialTCP(net, nil, ra)
 		if err != nil {
 			return nil, err
 		}
 		return c, nil
 	case "udp", "udp4", "udp6":
-		var la, ra *UDPAddr
-		if laddr != "" {
-			if la, err = ResolveUDPAddr(laddr); err != nil {
-				goto Error
-			}
+		var ra *UDPAddr
+		if ra, err = ResolveUDPAddr(raddr); err != nil {
+			goto Error
 		}
-		if raddr != "" {
-			if ra, err = ResolveUDPAddr(raddr); err != nil {
-				goto Error
-			}
-		}
-		c, err := DialUDP(net, la, ra)
+		c, err := DialUDP(net, nil, ra)
 		if err != nil {
 			return nil, err
 		}
 		return c, nil
 	case "unix", "unixgram", "unixpacket":
-		var la, ra *UnixAddr
-		if raddr != "" {
-			if ra, err = ResolveUnixAddr(net, raddr); err != nil {
-				goto Error
-			}
+		var ra *UnixAddr
+		if ra, err = ResolveUnixAddr(net, raddr); err != nil {
+			goto Error
 		}
-		if laddr != "" {
-			if la, err = ResolveUnixAddr(net, laddr); err != nil {
-				goto Error
-			}
-		}
-		c, err = DialUnix(net, la, ra)
+		c, err = DialUnix(net, nil, ra)
 		if err != nil {
 			return nil, err
 		}
 		return c, nil
 	case "ip", "ip4", "ip6":
-		var la, ra *IPAddr
-		if laddr != "" {
-			if la, err = ResolveIPAddr(laddr); err != nil {
-				goto Error
-			}
+		var ra *IPAddr
+		if ra, err = ResolveIPAddr(raddr); err != nil {
+			goto Error
 		}
-		if raddr != "" {
-			if ra, err = ResolveIPAddr(raddr); err != nil {
-				goto Error
-			}
-		}
-		c, err := DialIP(net, la, ra)
+		c, err := DialIP(net, nil, ra)
 		if err != nil {
 			return nil, err
 		}
