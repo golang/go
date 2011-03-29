@@ -24,13 +24,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
 	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
 	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
 	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
-	for i := len(name) - 1; i >= 0; i-- {
-		if name[i] == '/' {
-			name = name[i+1:]
-			break
-		}
-	}
-	fi.Name = name
+	fi.Name = basename(name)
 	if isSymlink(lstat) && !isSymlink(stat) {
 		fi.FollowedSymlink = true
 	}
