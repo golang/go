@@ -331,7 +331,7 @@ func (s *Scanner) error(msg string) {
 		s.Error(s, msg)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "%s: %s", s.Position, msg)
+	fmt.Fprintf(os.Stderr, "%s: %s\n", s.Position, msg)
 }
 
 
@@ -503,41 +503,32 @@ func (s *Scanner) scanChar() {
 }
 
 
-func (s *Scanner) scanLineComment() {
-	ch := s.next() // read character after "//"
-	for ch != '\n' {
-		if ch < 0 {
-			s.error("comment not terminated")
-			return
+func (s *Scanner) scanComment(ch int) int {
+	// ch == '/' || ch == '*'
+	if ch == '/' {
+		// line comment
+		ch = s.next() // read character after "//"
+		for ch != '\n' && ch >= 0 {
+			ch = s.next()
 		}
-		ch = s.next()
+		return ch
 	}
-}
 
-
-func (s *Scanner) scanGeneralComment() {
-	ch := s.next() // read character after "/*"
+	// general comment
+	ch = s.next() // read character after "/*"
 	for {
 		if ch < 0 {
 			s.error("comment not terminated")
-			return
+			break
 		}
 		ch0 := ch
 		ch = s.next()
 		if ch0 == '*' && ch == '/' {
+			ch = s.next()
 			break
 		}
 	}
-}
-
-
-func (s *Scanner) scanComment(ch int) {
-	// ch == '/' || ch == '*'
-	if ch == '/' {
-		s.scanLineComment()
-		return
-	}
-	s.scanGeneralComment()
+	return ch
 }
 
 
@@ -619,13 +610,11 @@ redo:
 			if (ch == '/' || ch == '*') && s.Mode&ScanComments != 0 {
 				if s.Mode&SkipComments != 0 {
 					s.tokPos = -1 // don't collect token text
-					s.scanComment(ch)
-					ch = s.next()
+					ch = s.scanComment(ch)
 					goto redo
 				}
-				s.scanComment(ch)
+				ch = s.scanComment(ch)
 				tok = Comment
-				ch = s.next()
 			}
 		case '`':
 			if s.Mode&ScanRawStrings != 0 {
