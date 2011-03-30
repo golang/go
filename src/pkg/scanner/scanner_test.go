@@ -77,15 +77,15 @@ type token struct {
 var f100 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 
 var tokenList = []token{
-	{Comment, "// line comments\n"},
-	{Comment, "//\n"},
-	{Comment, "////\n"},
-	{Comment, "// comment\n"},
-	{Comment, "// /* comment */\n"},
-	{Comment, "// // comment //\n"},
-	{Comment, "//" + f100 + "\n"},
+	{Comment, "// line comments"},
+	{Comment, "//"},
+	{Comment, "////"},
+	{Comment, "// comment"},
+	{Comment, "// /* comment */"},
+	{Comment, "// // comment //"},
+	{Comment, "//" + f100},
 
-	{Comment, "// general comments\n"},
+	{Comment, "// general comments"},
 	{Comment, "/**/"},
 	{Comment, "/***/"},
 	{Comment, "/* comment */"},
@@ -94,7 +94,7 @@ var tokenList = []token{
 	{Comment, "/*\n comment\n*/"},
 	{Comment, "/*" + f100 + "*/"},
 
-	{Comment, "// identifiers\n"},
+	{Comment, "// identifiers"},
 	{Ident, "a"},
 	{Ident, "a0"},
 	{Ident, "foobar"},
@@ -116,21 +116,21 @@ var tokenList = []token{
 	{Ident, "bar９８７６"},
 	{Ident, f100},
 
-	{Comment, "// decimal ints\n"},
+	{Comment, "// decimal ints"},
 	{Int, "0"},
 	{Int, "1"},
 	{Int, "9"},
 	{Int, "42"},
 	{Int, "1234567890"},
 
-	{Comment, "// octal ints\n"},
+	{Comment, "// octal ints"},
 	{Int, "00"},
 	{Int, "01"},
 	{Int, "07"},
 	{Int, "042"},
 	{Int, "01234567"},
 
-	{Comment, "// hexadecimal ints\n"},
+	{Comment, "// hexadecimal ints"},
 	{Int, "0x0"},
 	{Int, "0x1"},
 	{Int, "0xf"},
@@ -144,7 +144,7 @@ var tokenList = []token{
 	{Int, "0X123456789abcDEF"},
 	{Int, "0X" + f100},
 
-	{Comment, "// floats\n"},
+	{Comment, "// floats"},
 	{Float, "0."},
 	{Float, "1."},
 	{Float, "42."},
@@ -174,7 +174,7 @@ var tokenList = []token{
 	{Float, "42E+10"},
 	{Float, "01234567890E-10"},
 
-	{Comment, "// chars\n"},
+	{Comment, "// chars"},
 	{Char, `' '`},
 	{Char, `'a'`},
 	{Char, `'本'`},
@@ -195,7 +195,7 @@ var tokenList = []token{
 	{Char, `'\U00000000'`},
 	{Char, `'\U0000ffAB'`},
 
-	{Comment, "// strings\n"},
+	{Comment, "// strings"},
 	{String, `" "`},
 	{String, `"a"`},
 	{String, `"本"`},
@@ -217,13 +217,13 @@ var tokenList = []token{
 	{String, `"\U0000ffAB"`},
 	{String, `"` + f100 + `"`},
 
-	{Comment, "// raw strings\n"},
+	{Comment, "// raw strings"},
 	{String, "``"},
 	{String, "`\\`"},
 	{String, "`" + "\n\n/* foobar */\n\n" + "`"},
 	{String, "`" + f100 + "`"},
 
-	{Comment, "// individual characters\n"},
+	{Comment, "// individual characters"},
 	// NUL character is not allowed
 	{'\x01', "\x01"},
 	{' ' - 1, string(' ' - 1)},
@@ -276,7 +276,7 @@ func countNewlines(s string) int {
 
 
 func testScan(t *testing.T, mode uint) {
-	s := new(Scanner).Init(makeSource(" \t%s\t\n\r"))
+	s := new(Scanner).Init(makeSource(" \t%s\n"))
 	s.Mode = mode
 	tok := s.Scan()
 	line := 1
@@ -287,7 +287,7 @@ func testScan(t *testing.T, mode uint) {
 		}
 		line += countNewlines(k.text) + 1 // each token is on a new line
 	}
-	checkTok(t, s, line, tok, -1, "")
+	checkTok(t, s, line, tok, EOF, "")
 }
 
 
@@ -317,6 +317,10 @@ func TestPosition(t *testing.T) {
 		pos.Line += countNewlines(k.text) + 1 // each token is on a new line
 		s.Scan()
 	}
+	// make sure there were no token-internal errors reported by scanner
+	if s.ErrorCount != 0 {
+		t.Errorf("%d errors", s.ErrorCount)
+	}
 }
 
 
@@ -336,6 +340,9 @@ func TestScanZeroMode(t *testing.T) {
 	if tok != EOF {
 		t.Fatalf("tok = %s, want EOF", TokenString(tok))
 	}
+	if s.ErrorCount != 0 {
+		t.Errorf("%d errors", s.ErrorCount)
+	}
 }
 
 
@@ -349,6 +356,9 @@ func testScanSelectedMode(t *testing.T, mode uint, class int) {
 			t.Fatalf("tok = %s, want %s", TokenString(tok), TokenString(class))
 		}
 		tok = s.Scan()
+	}
+	if s.ErrorCount != 0 {
+		t.Errorf("%d errors", s.ErrorCount)
 	}
 }
 
@@ -367,7 +377,7 @@ func TestScanSelectedMask(t *testing.T) {
 
 
 func TestScanNext(t *testing.T) {
-	s := new(Scanner).Init(bytes.NewBufferString("if a == bcd /* comment */ {\n\ta += c\n}"))
+	s := new(Scanner).Init(bytes.NewBufferString("if a == bcd /* comment */ {\n\ta += c\n} // line comment ending in eof"))
 	checkTok(t, s, 1, s.Scan(), Ident, "if")
 	checkTok(t, s, 1, s.Scan(), Ident, "a")
 	checkTok(t, s, 1, s.Scan(), '=', "=")
@@ -382,6 +392,9 @@ func TestScanNext(t *testing.T) {
 	checkTok(t, s, 2, s.Scan(), Ident, "c")
 	checkTok(t, s, 3, s.Scan(), '}', "}")
 	checkTok(t, s, 3, s.Scan(), -1, "")
+	if s.ErrorCount != 0 {
+		t.Errorf("%d errors", s.ErrorCount)
+	}
 }
 
 
@@ -441,7 +454,6 @@ func TestError(t *testing.T) {
 	testError(t, `"\'"`, "illegal char escape", String)
 	testError(t, `"abc`, "literal not terminated", String)
 	testError(t, "`abc", "literal not terminated", String)
-	testError(t, `//`, "comment not terminated", EOF)
 	testError(t, `/*/`, "comment not terminated", EOF)
 	testError(t, `"abc`+"\x00"+`def"`, "illegal character NUL", String)
 	testError(t, `"abc`+"\xff"+`def"`, "illegal UTF-8 encoding", String)
@@ -493,6 +505,9 @@ func TestPos(t *testing.T) {
 	for i := 10; i > 0; i-- {
 		checkScanPos(t, s, 1, 2, 1, EOF)
 	}
+	if s.ErrorCount != 0 {
+		t.Errorf("%d errors", s.ErrorCount)
+	}
 
 	// corner case: source with only a single character
 	s = new(Scanner).Init(bytes.NewBufferString("本"))
@@ -501,6 +516,9 @@ func TestPos(t *testing.T) {
 	// after EOF position doesn't change
 	for i := 10; i > 0; i-- {
 		checkScanPos(t, s, 3, 1, 2, EOF)
+	}
+	if s.ErrorCount != 0 {
+		t.Errorf("%d errors", s.ErrorCount)
 	}
 
 	// positions after calling Next
@@ -524,6 +542,9 @@ func TestPos(t *testing.T) {
 	for i := 10; i > 0; i-- {
 		checkScanPos(t, s, 22, 4, 1, EOF)
 	}
+	if s.ErrorCount != 0 {
+		t.Errorf("%d errors", s.ErrorCount)
+	}
 
 	// positions after calling Scan
 	s = new(Scanner).Init(bytes.NewBufferString("abc\n本語\n\nx"))
@@ -542,5 +563,8 @@ func TestPos(t *testing.T) {
 	// after EOF position doesn't change
 	for i := 10; i > 0; i-- {
 		checkScanPos(t, s, 13, 4, 2, EOF)
+	}
+	if s.ErrorCount != 0 {
+		t.Errorf("%d errors", s.ErrorCount)
 	}
 }
