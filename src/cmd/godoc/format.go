@@ -309,7 +309,7 @@ func rangeSelection(str string) Selection {
 //
 var startTags = [][]byte{
 	/* 000 */ []byte(``),
-	/* 001 */ []byte(`<span class ="comment">`),
+	/* 001 */ []byte(`<span class="comment">`),
 	/* 010 */ []byte(`<span class="highlight">`),
 	/* 011 */ []byte(`<span class="highlight-comment">`),
 	/* 100 */ []byte(`<span class="selection">`),
