@@ -332,7 +332,7 @@ func (p *parser) next() {
 		var endline int
 
 		if p.file.Line(p.pos) == line {
-			// The comment is on same line as previous token; it
+			// The comment is on same line as the previous token; it
 			// cannot be a lead comment but may be a line comment.
 			comment, endline = p.consumeCommentGroup()
 			if p.file.Line(p.pos) != endline {
@@ -2021,11 +2021,12 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	// at the identifier in the TypeSpec and ends at the end of the innermost
 	// containing block.
 	// (Global identifiers are resolved in a separate phase after parsing.)
-	spec := &ast.TypeSpec{doc, ident, nil, p.lineComment}
+	spec := &ast.TypeSpec{doc, ident, nil, nil}
 	p.declare(spec, p.topScope, ast.Typ, ident)
 
 	spec.Type = p.parseType()
 	p.expectSemi() // call before accessing p.linecomment
+	spec.Comment = p.lineComment
 
 	return spec
 }
