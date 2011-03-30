@@ -5,6 +5,7 @@
 package time_test
 
 import (
+	"fmt"
 	"os"
 	"syscall"
 	"testing"
@@ -132,6 +133,21 @@ func TestAfterStop(t *testing.T) {
 	}
 }
 
+func TestAfterQueuing(t *testing.T) {
+	// This test flakes out on some systems,
+	// so we'll try it a few times before declaring it a failure.
+	const attempts = 3
+	err := os.NewError("!=nil")
+	for i := 0; i < attempts && err != nil; i++ {
+		if err = testAfterQueuing(t); err != nil {
+			t.Logf("attempt %v failed: %v", i, err)
+		}
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 var slots = []int{5, 3, 6, 6, 6, 1, 1, 2, 7, 9, 4, 8, 0}
 
 type afterResult struct {
@@ -143,7 +159,7 @@ func await(slot int, result chan<- afterResult, ac <-chan int64) {
 	result <- afterResult{slot, <-ac}
 }
 
-func TestAfterQueuing(t *testing.T) {
+func testAfterQueuing(t *testing.T) os.Error {
 	const (
 		Delta = 100 * 1e6
 	)
@@ -160,13 +176,14 @@ func TestAfterQueuing(t *testing.T) {
 	for _, slot := range slots {
 		r := <-result
 		if r.slot != slot {
-			t.Fatalf("after queue got slot %d, expected %d", r.slot, slot)
+			return fmt.Errorf("after queue got slot %d, expected %d", r.slot, slot)
 		}
 		ns := r.t - t0
 		target := int64(slot * Delta)
 		slop := int64(Delta) / 4
 		if ns < target-slop || ns > target+slop {
-			t.Fatalf("after queue slot %d arrived at %g, expected [%g,%g]", slot, float64(ns), float64(target-slop), float64(target+slop))
+			return fmt.Errorf("after queue slot %d arrived at %g, expected [%g,%g]", slot, float64(ns), float64(target-slop), float64(target+slop))
 		}
 	}
+	return nil
 }
