@@ -253,8 +253,8 @@ bar`
 	var _ = ``
 	var _ = `foo`
 	var _ =
-	// the next line should not be indented
-`foo
+	// the next line should remain indented
+	`foo
 bar`
 
 	var _ =	// comment
@@ -262,8 +262,8 @@ bar`
 	var _ =	// comment
 	`foo`
 	var _ =	// comment
-	// the next line should not be indented
-`foo
+	// the next line should remain indented
+	`foo
 bar`
 
 	var _ = /* comment */ ``
@@ -276,12 +276,12 @@ bar`
 	var _ =	/* comment */
 	`foo`
 	var _ =	/* comment */
-	// the next line should not be indented
-`foo
+	// the next line should remain indented
+	`foo
 bar`
 
 	var board = []int(
-`...........
+		`...........
 ...........
 ....●●●....
 ....●●●....
@@ -296,8 +296,8 @@ bar`
 
 	var state = S{
 		"foo",
-		// the next line should not be indented
-`...........
+		// the next line should remain indented
+		`...........
 ...........
 ....●●●....
 ....●●●....

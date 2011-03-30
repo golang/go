@@ -12,7 +12,7 @@ import (
 var procattrFix = fix{
 	"procattr",
 	procattr,
-`Adapt calls to os.StartProcess to use new ProcAttr type.
+	`Adapt calls to os.StartProcess to use new ProcAttr type.
 
 http://codereview.appspot.com/4253052
 `,
