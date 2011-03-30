@@ -177,7 +177,7 @@ func setEnvironment() {
 func getTestFileNames() {
 	names := flag.Args()
 	if len(names) == 0 {
-		names = filepath.Glob("*_test.go")
+		names = filepath.Glob("[^.]*_test.go")
 		if len(names) == 0 {
 			Fatalf(`no test files found: no match for "*_test.go"`)
 		}
