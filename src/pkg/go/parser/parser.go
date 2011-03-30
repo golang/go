@@ -2016,15 +2016,16 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	}
 
 	ident := p.parseIdent()
-	typ := p.parseType()
-	p.expectSemi() // call before accessing p.linecomment
 
 	// Go spec: The scope of a type identifier declared inside a function begins
 	// at the identifier in the TypeSpec and ends at the end of the innermost
 	// containing block.
 	// (Global identifiers are resolved in a separate phase after parsing.)
-	spec := &ast.TypeSpec{doc, ident, typ, p.lineComment}
+	spec := &ast.TypeSpec{doc, ident, nil, p.lineComment}
 	p.declare(spec, p.topScope, ast.Typ, ident)
+
+	spec.Type = p.parseType()
+	p.expectSemi() // call before accessing p.linecomment
 
 	return spec
 }
