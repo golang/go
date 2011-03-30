@@ -11,7 +11,7 @@ import (
 var netdialFix = fix{
 	"netdial",
 	netdial,
-`Adapt 3-argument calls of net.Dial to use 2-argument form.
+	`Adapt 3-argument calls of net.Dial to use 2-argument form.
 
 http://codereview.appspot.com/4244055
 `,
@@ -20,7 +20,7 @@ http://codereview.appspot.com/4244055
 var tlsdialFix = fix{
 	"tlsdial",
 	tlsdial,
-`Adapt 4-argument calls of tls.Dial to use 3-argument form.
+	`Adapt 4-argument calls of tls.Dial to use 3-argument form.
 
 http://codereview.appspot.com/4244055
 `,
@@ -29,7 +29,7 @@ http://codereview.appspot.com/4244055
 var netlookupFix = fix{
 	"netlookup",
 	netlookup,
-`Adapt 3-result calls to net.LookupHost to use 2-result form.
+	`Adapt 3-result calls to net.LookupHost to use 2-result form.
 
 http://codereview.appspot.com/4244055
 `,

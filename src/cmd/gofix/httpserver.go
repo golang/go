@@ -12,7 +12,7 @@ import (
 var httpserverFix = fix{
 	"httpserver",
 	httpserver,
-`Adapt http server methods and functions to changes
+	`Adapt http server methods and functions to changes
 made to the http ResponseWriter interface.
 
 http://codereview.appspot.com/4245064  Hijacker
