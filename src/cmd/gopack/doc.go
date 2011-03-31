@@ -12,12 +12,15 @@ It adds a special Go-specific section __.PKGDEF that collects all the
 Go type information from the files in the archive; that section is
 used by the compiler when importing the package during compilation.
 
-Usage: gopack [uvnbailogS][mrxtdpq] archive files ...
+Usage: gopack [uvnbailogS][mrxtdpq][P prefix] archive files ...
 
 The new option 'g' causes gopack to maintain the __.PKGDEF section
 as files are added to the archive.
 
 The new option 'S' forces gopack to mark the archive as safe.
 
+The new option 'P' causes gopack to remove the given prefix
+from file names in the line number information in object files
+that are already stored in or added to the archive.
 */
 package documentation
