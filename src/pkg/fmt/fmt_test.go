@@ -139,7 +139,17 @@ var fmttests = []struct {
 	{"%5s", "abc", "  abc"},
 	{"%2s", "\u263a", " \u263a"},
 	{"%-5s", "abc", "abc  "},
+	{"%-8q", "abc", `"abc"   `},
 	{"%05s", "abc", "00abc"},
+	{"%08q", "abc", `000"abc"`},
+	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
+	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
+	{"%.5s", "日本語日本語", "日本語日本"},
+	{"%.5s", []byte("日本語日本語"), "日本語日本"},
+	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
+	{"%.3q", "日本語日本語", `"\u65e5\u672c\u8a9e"`},
+	{"%.3q", []byte("日本語日本語"), `"\u65e5\u672c\u8a9e"`},
+	{"%10.1q", "日本語日本語", `  "\u65e5"`},
 
 	// integers
 	{"%d", 12345, "12345"},
