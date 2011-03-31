@@ -82,10 +82,14 @@ collection.
 Use -test.run or -test.bench to limit profiling to a particular test
 or benchmark.
 
-The -test.short package tells long-running tests to shorten their run
+The -test.short flag tells long-running tests to shorten their run
 time.  It is off by default but set by all.bash so installations of
 the Go tree can do a sanity check but not spend time running
 exhaustive tests.
+
+The -test.timeout flag sets a timeout for the test in seconds.  If the
+test runs for longer than that, it will panic, dumping a stack trace
+of all existing goroutines.
 
 For convenience, each of these -test.X flags of the test binary is
 also available as the flag -X in gotest itself.  Flags not listed here
