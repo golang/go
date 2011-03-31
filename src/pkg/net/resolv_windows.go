@@ -14,26 +14,51 @@ import (
 var hostentLock sync.Mutex
 var serventLock sync.Mutex
 
-func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+func goLookupHost(name string) (addrs []string, err os.Error) {
+	ips, err := goLookupIP(name)
+	if err != nil {
+		return
+	}
+	addrs = make([]string, 0, len(ips))
+	for _, ip := range ips {
+		addrs = append(addrs, ip.String())
+	}
+	return
+}
+
+func goLookupIP(name string) (addrs []IP, err os.Error) {
 	hostentLock.Lock()
 	defer hostentLock.Unlock()
 	h, e := syscall.GetHostByName(name)
 	if e != 0 {
-		return "", nil, os.NewSyscallError("GetHostByName", e)
+		return nil, os.NewSyscallError("GetHostByName", e)
 	}
-	cname = name
 	switch h.AddrType {
 	case syscall.AF_INET:
 		i := 0
-		addrs = make([]string, 100) // plenty of room to grow
+		addrs = make([]IP, 100) // plenty of room to grow
 		for p := (*[100](*[4]byte))(unsafe.Pointer(h.AddrList)); i < cap(addrs) && p[i] != nil; i++ {
-			addrs[i] = IPv4(p[i][0], p[i][1], p[i][2], p[i][3]).String()
+			addrs[i] = IPv4(p[i][0], p[i][1], p[i][2], p[i][3])
 		}
 		addrs = addrs[0:i]
 	default: // TODO(vcc): Implement non IPv4 address lookups.
-		return "", nil, os.NewSyscallError("LookupHost", syscall.EWINDOWS)
+		return nil, os.NewSyscallError("LookupHost", syscall.EWINDOWS)
 	}
-	return cname, addrs, nil
+	return addrs, nil
+}
+
+func LookupCNAME(name string) (cname string, err os.Error) {
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
+	if int(e) != 0 {
+		return "", os.NewSyscallError("LookupCNAME", int(e))
+	}
+	defer syscall.DnsRecordListFree(r, 1)
+	if r != nil && r.Type == syscall.DNS_TYPE_CNAME {
+		v := (*syscall.DNSPTRData)(unsafe.Pointer(&r.Data[0]))
+		cname = syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]) + "."
+	}
+	return
 }
 
 type SRV struct {
@@ -62,7 +87,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 	return name, addrs, nil
 }
 
-func LookupPort(network, service string) (port int, err os.Error) {
+func goLookupPort(network, service string) (port int, err os.Error) {
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
