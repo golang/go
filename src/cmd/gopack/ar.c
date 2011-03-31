@@ -1672,7 +1672,7 @@ arread_cutprefix(Biobuf *b, Armember *bp)
 				inprefix = nil;
 				o = Boffset(b);
 				if(o < end && rd(b, &p) && p.kind == aName && p.type == UNKNOWN && p.sym == 1 && p.id[0] == '<') {
-					print("skip %lld-%lld\n", offset, o);
+					// print("skip %lld-%lld\n", offset, o);
 					offset = o;
 				}
 			}
