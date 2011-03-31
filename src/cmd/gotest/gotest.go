@@ -7,7 +7,6 @@ package main
 import (
 	"bufio"
 	"exec"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -23,14 +22,16 @@ import (
 
 // Environment for commands.
 var (
-	XGC    []string // 6g -I _test -o _xtest_.6
-	GC     []string // 6g -I _test _testmain.go
-	GL     []string // 6l -L _test _testmain.6
-	GOARCH string
-	GOROOT string
-	GORUN  string
-	O      string
-	env    = os.Environ()
+	XGC       []string // 6g -I _test -o _xtest_.6
+	GC        []string // 6g -I _test _testmain.go
+	GL        []string // 6l -L _test _testmain.6
+	GOARCH    string
+	GOROOT    string
+	GORUN     string
+	O         string
+	args      []string // arguments passed to gotest; also passed to the binary
+	fileNames []string
+	env       = os.Environ()
 )
 
 // These strings are created by getTestNames.
@@ -44,21 +45,10 @@ var (
 	importPath string
 )
 
-// Flags from package "testing" we will forward to 6.out.  See documentation there
-// or by running "godoc gotest" - details are in ./doc.go.
+// Flags for our own purposes. We do our own flag processing.
 var (
-	test_short          bool
-	test_v              bool
-	test_run            string
-	test_memprofile     string
-	test_memprofilerate int
-	test_cpuprofile     string
-)
-
-// Flags for our own purposes
-var (
-	xFlag = flag.Bool("x", false, "print command lines as they are executed")
-	cFlag = flag.Bool("c", false, "compile but do not run the test binary")
+	cFlag bool
+	xFlag bool
 )
 
 // File represents a file that contains tests.
@@ -72,7 +62,7 @@ type File struct {
 }
 
 func main() {
-	flag.Parse()
+	flags()
 	needMakefile()
 	setEnvironment()
 	getTestFileNames()
@@ -87,27 +77,9 @@ func main() {
 	writeTestmainGo()
 	run(GC...)
 	run(GL...)
-	if !*cFlag {
-		runWithTestFlags("./" + O + ".out")
+	if !cFlag {
+		runTestWithArgs("./" + O + ".out")
 	}
-}
-
-// init sets up pairs of flags.  Each pair contains a flag defined as in testing, and one with
-// the "test." prefix missing, for ease of use.
-func init() {
-	flag.BoolVar(&test_short, "test.short", false, "run smaller test suite to save time")
-	flag.BoolVar(&test_v, "test.v", false, "verbose: print additional output")
-	flag.StringVar(&test_run, "test.run", "", "regular expression to select tests to run")
-	flag.StringVar(&test_memprofile, "test.memprofile", "", "write a memory profile to the named file after execution")
-	flag.IntVar(&test_memprofilerate, "test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
-	flag.StringVar(&test_cpuprofile, "test.cpuprofile", "", "write a cpu profile to the named file during execution")
-	// Now the same flags again, but with shorter names that are forwarded.
-	flag.BoolVar(&test_short, "short", false, "passes -test.short to test")
-	flag.BoolVar(&test_v, "v", false, "passes -test.v to test")
-	flag.StringVar(&test_run, "run", "", "passes -test.run to test")
-	flag.StringVar(&test_memprofile, "memprofile", "", "passes -test.memprofile to test")
-	flag.IntVar(&test_memprofilerate, "memprofilerate", 0, "passes -test.memprofilerate to test")
-	flag.StringVar(&test_cpuprofile, "cpuprofile", "", "passes -test.cpuprofile to test")
 }
 
 // needMakefile tests that we have a Makefile in this directory.
@@ -175,7 +147,7 @@ func setEnvironment() {
 // getTestFileNames gets the set of files we're looking at.
 // If gotest has no arguments, it scans the current directory for _test.go files.
 func getTestFileNames() {
-	names := flag.Args()
+	names := fileNames
 	if len(names) == 0 {
 		names = filepath.Glob("[^.]*_test.go")
 		if len(names) == 0 {
@@ -241,8 +213,11 @@ func getTestNames() {
 // It is a Test (say) if there is a character after Test that is not a lower-case letter.
 // We don't want TesticularCancer.
 func isTest(name, prefix string) bool {
-	if !strings.HasPrefix(name, prefix) || len(name) == len(prefix) {
+	if !strings.HasPrefix(name, prefix) {
 		return false
+	}
+	if len(name) == len(prefix) { // "Test" is ok
+		return true
 	}
 	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
 	return !unicode.IsLower(rune)
@@ -264,34 +239,15 @@ func runWithStdout(argv ...string) string {
 	return s
 }
 
-// runWithTestFlags appends any flag settings to the command line before running it.
-func runWithTestFlags(argv ...string) {
-	if test_short {
-		argv = append(argv, "-test.short")
-	}
-
-	if test_v {
-		argv = append(argv, "-test.v")
-	}
-	if test_run != "" {
-		argv = append(argv, fmt.Sprintf("-test.run=%s", test_run))
-	}
-	if test_memprofile != "" {
-		argv = append(argv, fmt.Sprintf("-test.memprofile=%s", test_memprofile))
-	}
-	if test_memprofilerate > 0 {
-		argv = append(argv, fmt.Sprintf("-test.memprofilerate=%d", test_memprofilerate))
-	}
-	if test_cpuprofile != "" {
-		argv = append(argv, fmt.Sprintf("-test.cpuprofile=%s", test_cpuprofile))
-	}
-	doRun(argv, false)
+// runTestWithArgs appends gotest's runs the provided binary with the args passed on the command line.
+func runTestWithArgs(binary string) {
+	doRun(append([]string{binary}, args...), false)
 }
 
 // doRun is the general command runner.  The flag says whether we want to
 // retrieve standard output.
 func doRun(argv []string, returnStdout bool) string {
-	if *xFlag {
+	if xFlag {
 		fmt.Printf("gotest: %s\n", strings.Join(argv, " "))
 	}
 	var err os.Error
