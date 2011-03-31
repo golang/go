@@ -6,6 +6,7 @@ include ../../Make.inc
 
 TARG=gotest
 GOFILES=\
+	flag.go\
 	gotest.go\
 
 include ../../Make.cmd
