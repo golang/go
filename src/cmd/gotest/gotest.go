@@ -250,6 +250,10 @@ func doRun(argv []string, returnStdout bool) string {
 	if xFlag {
 		fmt.Printf("gotest: %s\n", strings.Join(argv, " "))
 	}
+	if runtime.GOOS == "windows" && argv[0] == "gomake" {
+		// gomake is a shell script and it cannot be executed directly on Windows.
+		argv = append([]string{"cmd", "/c", "sh", "-c"}, strings.Join(argv, " "))
+	}
 	var err os.Error
 	argv[0], err = exec.LookPath(argv[0])
 	if err != nil {
