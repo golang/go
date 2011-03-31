@@ -24,6 +24,10 @@ import (
 // environment variables.
 var DefaultTransport RoundTripper = &Transport{}
 
+// DefaultMaxIdleConnsPerHost is the default value of Transport's
+// MaxIdleConnsPerHost.
+const DefaultMaxIdleConnsPerHost = 2
+
 // Transport is an implementation of RoundTripper that supports http,
 // https, and http proxies (for either http or https with CONNECT).
 // Transport can also cache connections for future re-use.
@@ -31,11 +35,17 @@ type Transport struct {
 	lk       sync.Mutex
 	idleConn map[string][]*persistConn
 
-	// TODO: tunables on max cached connections (total, per-server), duration
+	// TODO: tunable on global max cached connections
+	// TODO: tunable on timeout on cached connections
 	// TODO: optional pipelining
 
 	IgnoreEnvironment bool // don't look at environment variables for proxy configuration
 	DisableKeepAlives bool
+
+	// MaxIdleConnsPerHost, if non-zero, controls the maximum idle
+	// (keep-alive) to keep to keep per-host.  If zero,
+	// DefaultMaxIdleConnsPerHost is used.
+	MaxIdleConnsPerHost int
 }
 
 // RoundTrip implements the RoundTripper interface.
@@ -147,7 +157,7 @@ func (cm *connectMethod) proxyAuth() string {
 func (t *Transport) putIdleConn(pconn *persistConn) {
 	t.lk.Lock()
 	defer t.lk.Unlock()
-	if t.DisableKeepAlives {
+	if t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0 {
 		pconn.close()
 		return
 	}
@@ -155,6 +165,14 @@ func (t *Transport) putIdleConn(pconn *persistConn) {
 		return
 	}
 	key := pconn.cacheKey
+	max := t.MaxIdleConnsPerHost
+	if max == 0 {
+		max = DefaultMaxIdleConnsPerHost
+	}
+	if len(t.idleConn[key]) >= max {
+		pconn.close()
+		return
+	}
 	t.idleConn[key] = append(t.idleConn[key], pconn)
 }
 

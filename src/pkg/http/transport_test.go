@@ -164,12 +164,64 @@ func TestTransportIdleCacheKeys(t *testing.T) {
 	}
 
 	if e := "|http|" + ts.Listener.Addr().String(); keys[0] != e {
-		t.Logf("Expected idle cache key %q; got %q", e, keys[0])
+		t.Errorf("Expected idle cache key %q; got %q", e, keys[0])
 	}
 
 	tr.CloseIdleConnections()
 	if e, g := 0, len(tr.IdleConnKeysForTesting()); e != g {
 		t.Errorf("After CloseIdleConnections expected %d idle conn cache keys; got %d", e, g)
+	}
+}
+
+func TestTransportMaxPerHostIdleConns(t *testing.T) {
+	ch := make(chan string)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "%s", <-ch)
+	}))
+	defer ts.Close()
+	maxIdleConns := 2
+	tr := &Transport{DisableKeepAlives: false, MaxIdleConnsPerHost: maxIdleConns}
+	c := &Client{Transport: tr}
+
+	// Start 3 outstanding requests (will hang until we write to
+	// ch)
+	donech := make(chan bool)
+	doReq := func() {
+		c.Get(ts.URL)
+		donech <- true
+	}
+	go doReq()
+	go doReq()
+	go doReq()
+
+	if e, g := 0, len(tr.IdleConnKeysForTesting()); e != g {
+		t.Fatalf("Before writes, expected %d idle conn cache keys; got %d", e, g)
+	}
+
+	ch <- "res1"
+	<-donech
+	keys := tr.IdleConnKeysForTesting()
+	if e, g := 1, len(keys); e != g {
+		t.Fatalf("after first response, expected %d idle conn cache keys; got %d", e, g)
+	}
+	cacheKey := "|http|" + ts.Listener.Addr().String()
+	if keys[0] != cacheKey {
+		t.Fatalf("Expected idle cache key %q; got %q", cacheKey, keys[0])
+	}
+	if e, g := 1, tr.IdleConnCountForTesting(cacheKey); e != g {
+		t.Errorf("after first response, expected %d idle conns; got %d", e, g)
+	}
+
+	ch <- "res2"
+	<-donech
+	if e, g := 2, tr.IdleConnCountForTesting(cacheKey); e != g {
+		t.Errorf("after second response, expected %d idle conns; got %d", e, g)
+	}
+
+	ch <- "res3"
+	<-donech
+	if e, g := maxIdleConns, tr.IdleConnCountForTesting(cacheKey); e != g {
+		t.Errorf("after third response, still expected %d idle conns; got %d", e, g)
 	}
 }
 
