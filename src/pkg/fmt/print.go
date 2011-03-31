@@ -520,12 +520,14 @@ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interf
 }
 
 func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSyntax bool) {
-	v, ok := value.(uintptrGetter)
-	if !ok { // reflect.PtrValue is a uintptrGetter, so failure means it's not a pointer at all.
+	var u uintptr
+	switch value.(type) {
+	case *reflect.ChanValue, *reflect.FuncValue, *reflect.MapValue, *reflect.PtrValue, *reflect.SliceValue, *reflect.UnsafePointerValue:
+		u = value.(uintptrGetter).Get()
+	default:
 		p.badVerb(verb, field)
 		return
 	}
-	u := v.Get()
 	if goSyntax {
 		p.add('(')
 		p.buf.WriteString(reflect.Typeof(field).String())
@@ -534,7 +536,7 @@ func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSynt
 		if u == 0 {
 			p.buf.Write(nilBytes)
 		} else {
-			p.fmt0x64(uint64(v.Get()), true)
+			p.fmt0x64(uint64(u), true)
 		}
 		p.add(')')
 	} else {
@@ -811,7 +813,7 @@ BigSwitch:
 			break
 		}
 		p.fmt0x64(uint64(v), true)
-	case uintptrGetter:
+	case *reflect.ChanValue, *reflect.FuncValue, *reflect.UnsafePointerValue:
 		p.fmtPointer(field, value, verb, goSyntax)
 	default:
 		p.unknownType(f)
