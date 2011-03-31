@@ -28,6 +28,7 @@ var usageMessage = `Usage of %s:
   -memprofilerate=0: passes -test.memprofilerate to test
   -run="": passes -test.run to test
   -short=false: passes -test.short to test
+  -timeout=0: passes -test.timeout to test
   -v=false: passes -test.v to test
 `
 
@@ -60,6 +61,7 @@ var flagDefn = []*flagSpec{
 	&flagSpec{name: "memprofilerate", passToTest: true},
 	&flagSpec{name: "run", passToTest: true},
 	&flagSpec{name: "short", isBool: true, passToTest: true},
+	&flagSpec{name: "timeout", passToTest: true},
 	&flagSpec{name: "v", isBool: true, passToTest: true},
 }
 

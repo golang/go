@@ -61,7 +61,7 @@ test:
 	gotest
 
 testshort:
-	gotest -test.short
+	gotest -test.short -test.timeout=60
 
 bench:
 	gotest -test.bench=. -test.run="Do not run tests"
