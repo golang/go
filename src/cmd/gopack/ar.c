@@ -41,6 +41,7 @@
 #include <libc.h>
 #include <bio.h>
 #include <mach.h>
+#include "../../libmach/obj.h"
 #include <ar.h>
 
 #undef select
@@ -123,6 +124,7 @@ int	gflag;
 int	oflag;
 int	uflag;
 int	vflag;
+int	Pflag;	/* remove leading file prefix */
 int	Sflag;	/* force mark Go package as safe */
 
 int	errors;
@@ -141,6 +143,7 @@ char	poname[ARNAMESIZE+1];		/* name of pivot member */
 char	*file;				/* current file or member being worked on */
 Biobuf	bout;
 Biobuf bar;
+char	*prefix;
 
 void	arcopy(Biobuf*, Arfile*, Armember*);
 int	arcreate(char*);
@@ -149,7 +152,7 @@ void	arinsert(Arfile*, Armember*);
 void	*armalloc(int);
 char *arstrdup(char*);
 void	armove(Biobuf*, Arfile*, Armember*);
-void	arread(Biobuf*, Armember*, int);
+void	arread(Biobuf*, Armember*);
 void	arstream(int, Arfile*);
 int	arwrite(int, Armember*);
 int	bamatch(char*, char*);
@@ -179,6 +182,7 @@ void	trim(char*, char*, int);
 void	usage(void);
 void	wrerr(void);
 void	wrsym(Biobuf*, long, Arsymref*);
+int	arread_cutprefix(Biobuf*, Armember*);
 
 void	rcmd(char*, int, char**);		/* command processing */
 void	dcmd(char*, int, char**);
@@ -220,6 +224,7 @@ main(int argc, char *argv[])
 		case 'v':	vflag = 1;	break;
 		case 'x':	setcom(xcmd);	break;
 		case 'S':	Sflag = 1;  break;
+		case 'P':	Pflag = 1;  break;
 		default:
 			fprint(2, "gopack: bad option `%c'\n", *cp);
 			exits("error");
@@ -235,6 +240,15 @@ main(int argc, char *argv[])
 		argc--;
 		if(argc < 3)
 			usage();
+	}
+	if(Pflag) {
+		if(argc < 4) {
+			fprint(2, "gopack: P flag requires prefix argument\n");
+			usage();
+		}
+		prefix = argv[2];
+		argv++;
+		argc--;
 	}
 	if(comfun == 0) {
 		if(uflag == 0) {
@@ -313,7 +327,16 @@ rcmd(char *arname, int count, char **files)
 			skip(&bar, bp->size);
 			continue;
 		}
-		if (count && !match(count, files)) {
+		/*
+		 * the plan 9 ar treats count == 0 as equivalent
+		 * to listing all the archive's files on the command line:
+		 * it will try to open every file name in the archive
+		 * and copy that file into the archive if it exists.
+		 * for go we disable that behavior, because we use
+		 * r with no files to make changes to the archive itself,
+		 * using the S or P flags.
+		 */
+		if (!match(count, files)) {
 			scanobj(&bar, ap, bp->size);
 			arcopy(&bar, ap, bp);
 			continue;
@@ -972,7 +995,7 @@ phaseerr(int offset)
 void
 usage(void)
 {
-	fprint(2, "usage: gopack [%s][%s] archive files ...\n", opt, man);
+	fprint(2, "usage: gopack [%s][%s][P prefix] archive files ...\n", opt, man);
 	exits("error");
 }
 
@@ -1012,12 +1035,14 @@ armove(Biobuf *b, Arfile *ap, Armember *bp)
 {
 	char *cp;
 	Dir *d;
+	vlong n;
 
 	d = dirfstat(Bfildes(b));
 	if (d == nil) {
 		fprint(2, "gopack: cannot stat %s\n", file);
 		return;
 	}
+
 	trim(file, bp->hdr.name, sizeof(bp->hdr.name));
 	for (cp = strchr(bp->hdr.name, 0);		/* blank pad on right */
 		cp < bp->hdr.name+sizeof(bp->hdr.name); cp++)
@@ -1029,12 +1054,13 @@ armove(Biobuf *b, Arfile *ap, Armember *bp)
 	sprint(bp->hdr.size, "%-10lld", d->length);
 	strncpy(bp->hdr.fmag, ARFMAG, 2);
 	bp->size = d->length;
-	arread(b, bp, bp->size);
-	if (d->length&0x01)
-		d->length++;
+	arread(b, bp);
+	n = bp->size;
+	if (n&1)
+		n++;
 	if (ap) {
 		arinsert(ap, bp);
-		ap->size += d->length+SAR_HDR;
+		ap->size += n+SAR_HDR;
 	}
 	free(d);
 }
@@ -1047,10 +1073,10 @@ arcopy(Biobuf *b, Arfile *ap, Armember *bp)
 {
 	long n;
 
+	arread(b, bp);
 	n = bp->size;
 	if (n & 01)
 		n++;
-	arread(b, bp, n);
 	if (ap) {
 		arinsert(ap, bp);
 		ap->size += n+SAR_HDR;
@@ -1316,7 +1342,8 @@ longt(Armember *bp)
 	Bprint(&bout, "%7ld", bp->size);
 	date = bp->date;
 	cp = ctime(&date);
-	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+24);
+	/* using unix ctime, not plan 9 time, so cp+20 for year, not cp+24 */
+	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+20);
 }
 
 int	m1[] = { 1, ROWN, 'r', '-' };
@@ -1378,17 +1405,29 @@ newmember(void)			/* allocate a member buffer */
 }
 
 void
-arread(Biobuf *b, Armember *bp, int n)	/* read an image into a member buffer */
+arread(Biobuf *b, Armember *bp)	/* read an image into a member buffer */
 {
 	int i;
+	vlong off;
 
-	bp->member = armalloc(n);
-	i = Bread(b, bp->member, n);
+	bp->member = armalloc(bp->size);
+	
+	// If P flag is set, let arread_cutprefix try.
+	// If it succeeds, we're done.  If not, fall back
+	// to a direct copy.
+	off = Boffset(b);
+	if(Pflag && arread_cutprefix(b, bp))
+		return;
+	Bseek(b, off, 0);
+
+	i = Bread(b, bp->member, bp->size);
 	if (i < 0) {
 		free(bp->member);
 		bp->member = 0;
 		rderr();
 	}
+	if(bp->size&1)
+		Bgetc(b);
 }
 
 /*
@@ -1551,3 +1590,109 @@ arstrdup(char *s)
 }
 
 
+/*
+ *	Parts of libmach we're not supposed
+ *	to look at but need for arread_cutprefix.
+ */
+extern int _read5(Biobuf*, Prog*);
+extern int _read6(Biobuf*, Prog*);
+extern int _read8(Biobuf*, Prog*);
+int (*reader[256])(Biobuf*, Prog*) = {
+	[ObjArm] = _read5,
+	[ObjAmd64] = _read6,
+	[Obj386] = _read8,
+};
+
+/*
+ *	copy b into bp->member but rewrite object
+ *	during copy to drop prefix from all file names.
+ *	return 1 if b was recognized as an object file
+ *	and copied successfully, 0 otherwise.
+ */
+int
+arread_cutprefix(Biobuf *b, Armember *bp)
+{
+	vlong offset, o, end;
+	int n, t;
+	int (*rd)(Biobuf*, Prog*);
+	char *w, *inprefix;
+	Prog p;
+	
+	offset = Boffset(b);
+	end = offset + bp->size;
+	t = objtype(b, nil);
+	if(t < 0)
+		return 0;
+	if((rd = reader[t]) == nil)
+		return 0;
+	
+	// copy header
+	w = bp->member;
+	n = Boffset(b) - offset;
+	Bseek(b, -n, 1);
+	if(Bread(b, w, n) != n)
+		return 0;
+	offset += n;
+	w += n;
+	
+	// read object file one pseudo-instruction at a time,
+	// eliding the file name instructions that refer to
+	// the prefix.
+	memset(&p, 0, sizeof p);
+	inprefix = nil;
+	while(Boffset(b) < end && rd(b, &p)) {
+		if(p.kind == aName && p.type == UNKNOWN && p.sym == 1 && p.id[0] == '<') {
+			// part of a file path.
+			// we'll keep continuing (skipping the copy)
+			// around the loop until either we get to a
+			// name piece that should be kept or we see
+			// the whole prefix.
+
+			if(inprefix == nil && prefix[0] == '/' && p.id[1] == '/' && p.id[2] == '\0') {
+				// leading /
+				inprefix = prefix+1;
+			} else if(inprefix != nil) {
+				// handle subsequent elements
+				n = strlen(p.id+1);
+				if(strncmp(p.id+1, inprefix, n) == 0 && (inprefix[n] == '/' || inprefix[n] == '\0')) {
+					inprefix += n;
+					if(inprefix[0] == '/')
+						inprefix++;
+				}
+			}
+			
+			if(inprefix && inprefix[0] == '\0') {
+				// reached end of prefix.
+				// if we another path element follows,
+				// nudge the offset to skip over the prefix we saw.
+				// if not, leave offset alone, to emit the whole name.
+				// additional name elements will not be skipped
+				// because inprefix is now nil and we won't see another
+				// leading / in this name.
+				inprefix = nil;
+				o = Boffset(b);
+				if(o < end && rd(b, &p) && p.kind == aName && p.type == UNKNOWN && p.sym == 1 && p.id[0] == '<') {
+					print("skip %lld-%lld\n", offset, o);
+					offset = o;
+				}
+			}
+		}
+
+		// copy instructions
+		if(!inprefix) {
+			n = Boffset(b) - offset;
+			Bseek(b, -n, 1);
+			if(Bread(b, w, n) != n)
+				return 0;
+			offset += n;
+			w += n;
+		}
+	}
+	bp->size = w - (char*)bp->member;
+	sprint(bp->hdr.size, "%-10lld", (vlong)bp->size);
+	strncpy(bp->hdr.fmag, ARFMAG, 2);
+	Bseek(b, end, 0);
+	if(Boffset(b)&1)
+		Bgetc(b);
+	return 1;
+}
