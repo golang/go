@@ -482,6 +482,10 @@ type DNSSRVData struct {
 	Pad      uint16
 }
 
+type DNSPTRData struct {
+	Host *uint16
+}
+
 type DNSRecord struct {
 	Next     *DNSRecord
 	Name     *uint16
