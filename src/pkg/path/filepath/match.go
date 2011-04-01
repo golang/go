@@ -241,37 +241,40 @@ func Glob(pattern string) (matches []string) {
 }
 
 // glob searches for files matching pattern in the directory dir
-// and appends them to matches.
-func glob(dir, pattern string, matches []string) []string {
+// and appends them to matches. If the directory cannot be
+// opened, it returns the existing matches. New matches are
+// added in lexicographical order.
+func glob(dir, pattern string, matches []string) (m []string) {
+	m = matches
 	fi, err := os.Stat(dir)
 	if err != nil {
-		return nil
+		return
 	}
 	if !fi.IsDirectory() {
-		return matches
+		return
 	}
 	d, err := os.Open(dir, os.O_RDONLY, 0666)
 	if err != nil {
-		return nil
+		return
 	}
 	defer d.Close()
 
 	names, err := d.Readdirnames(-1)
 	if err != nil {
-		return nil
+		return
 	}
 	sort.SortStrings(names)
 
 	for _, n := range names {
 		matched, err := Match(pattern, n)
 		if err != nil {
-			return matches
+			break
 		}
 		if matched {
-			matches = append(matches, Join(dir, n))
+			m = append(m, Join(dir, n))
 		}
 	}
-	return matches
+	return
 }
 
 // hasMeta returns true if path contains any of the magic characters
