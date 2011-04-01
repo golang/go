@@ -1,0 +1,8 @@
+Given a Notepad++ installation at <DIR>:
+
+1. Add the contents of userDefineLang.xml at <DIR>\userDefineLang.xml
+	between <NotepadPlus> ... </NotepadPlus>
+	
+2. Copy go.xml to <DIR>\plugins\APIs
+
+3. Restart Notepad++
