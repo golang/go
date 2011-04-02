@@ -145,6 +145,12 @@ windows_386)
 	mktypes=
 	mkerrors="./mkerrors_windows.sh -f -m32"
 	;;
+plan9_386)
+	mkerrors=
+	mksyscall="./mksyscall.pl -l32 -plan9"
+	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
+	mktypes="godefs -gsyscall -f -m32"
+	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
 	exit 1

@@ -32,6 +32,9 @@ GOFILES_linux=\
 
 GOFILES_windows=\
 	exec_windows.go
+	
+GOFILES_plan9=\
+	exec_plan9.go
 
 OFILES=\
 	asm_$(GOOS)_$(GOARCH).$O\
