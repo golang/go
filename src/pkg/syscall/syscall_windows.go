@@ -175,7 +175,7 @@ func Errstr(errno int) string {
 	b := make([]uint16, 300)
 	n, err := FormatMessage(flags, 0, uint32(errno), 0, b, nil)
 	if err != 0 {
-		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
+		return "error " + itoa(errno) + " (FormatMessage failed with err=" + itoa(err) + ")"
 	}
 	// trim terminating \r and \n
 	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {

@@ -23,6 +23,7 @@ $cmdline = "mksyscall.pl " . join(' ', @ARGV);
 $errors = 0;
 $_32bit = "";
 $nacl = 0;
+$plan9 = 0;
 
 if($ARGV[0] eq "-b32") {
 	$_32bit = "big-endian";
@@ -33,6 +34,10 @@ if($ARGV[0] eq "-b32") {
 }
 if($ARGV[0] eq "-nacl") {
 	$nacl = 1;
+	shift;
+}
+if($ARGV[0] eq "-plan9") {
+	$plan9 = 1;
 	shift;
 }
 
@@ -160,9 +165,13 @@ while(<>) {
 		my $p = $out[$i];
 		my ($name, $type) = parseparam($p);
 		my $reg = "";
-		if($name eq "errno") {
+		if($name eq "errno" && !$plan9) {
 			$reg = "e1";
 			$ret[2] = $reg;
+		} elsif ($name eq "err" && $plan9) {
+			$ret[0] = "r0";			
+			$ret[2] = "e1";
+			next;
 		} else {
 			$reg = sprintf("r%d", $i);
 			$ret[$i] = $reg;
@@ -191,6 +200,13 @@ while(<>) {
 		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
 	}
 	$text .= $body;
+	
+	if ($plan9 && $ret[2] eq "e1") {
+		$text .= "\terr = nil\n";
+		$text .= "\tif int(r0) == -1 {\n";
+		$text .= "\t\t err = NewError(e1)\n";
+		$text .= "\t}\n";
+	}
 
 	$text .= "\treturn\n";
 	$text .= "}\n\n";

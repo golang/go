@@ -17,7 +17,7 @@ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
 func Errstr(errno int) string {
 	if errno < 0 || errno >= int(len(errors)) {
-		return "error " + str(errno)
+		return "error " + itoa(errno)
 	}
 	return errors[errno]
 }
