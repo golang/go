@@ -13,8 +13,8 @@ import "syscall"
 // time is the Unix epoch.
 func Time() (sec int64, nsec int64, err Error) {
 	var tv syscall.Timeval
-	if errno := syscall.Gettimeofday(&tv); errno != 0 {
-		return 0, 0, NewSyscallError("gettimeofday", errno)
+	if e := syscall.Gettimeofday(&tv); iserror(e) {
+		return 0, 0, NewSyscallError("gettimeofday", e)
 	}
 	return int64(tv.Sec), int64(tv.Usec) * 1000, err
 }
