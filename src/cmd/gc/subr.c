@@ -2053,13 +2053,16 @@ Node*
 assignconv(Node *n, Type *t, char *context)
 {
 	int op;
-	Node *r;
+	Node *r, *old;
 	char *why;
 	
 	if(n == N || n->type == T)
 		return n;
 
+	old = n;
+	old->diag++;  // silence errors about n; we'll issue one below
 	defaultlit(&n, t);
+	old->diag--;
 	if(t->etype == TBLANK)
 		return n;
 
