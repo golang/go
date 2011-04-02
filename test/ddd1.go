@@ -15,7 +15,7 @@ var (
 	_ = sum()
 	_ = sum(1.0, 2.0)
 	_ = sum(1.5)      // ERROR "integer"
-	_ = sum("hello")  // ERROR "convert|incompatible"
+	_ = sum("hello")  // ERROR "string.*as type int|incompatible"
 	_ = sum([]int{1}) // ERROR "slice literal.*as type int|incompatible"
 )
 
