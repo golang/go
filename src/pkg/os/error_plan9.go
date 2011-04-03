@@ -35,10 +35,14 @@ var (
 	Ebadarg    = NewError("bad arg in system call")
 	Enotdir    = NewError("not a directory")
 	Enonexist  = NewError("file does not exist")
+	Eexist     = NewError("file already exists")
+	Eio        = NewError("i/o error")
 
 	EINVAL  = Ebadarg
 	ENOTDIR = Enotdir
 	ENOENT  = Enonexist
+	EEXIST  = Eexist
+	EIO     = Eio
 
 	ENAMETOOLONG = NewError("file name too long")
 	ERANGE       = NewError("math result not representable")
