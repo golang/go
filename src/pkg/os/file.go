@@ -61,6 +61,13 @@ const (
 	O_CREATE   int = O_CREAT            // create a new file if none exists.
 )
 
+// Seek whence values.
+const (
+	SEEK_SET int = 0 // seek relative to the origin of the file
+	SEEK_CUR int = 1 // seek relative to the current offset
+	SEEK_END int = 2 // seek relative to the end
+)
+
 type eofError int
 
 func (eofError) String() string { return "EOF" }

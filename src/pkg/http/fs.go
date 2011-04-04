@@ -148,7 +148,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 		} else {
 			w.Header().Set("Content-Type", "application/octet-stream") // generic binary
 		}
-		f.Seek(0, 0) // rewind to output whole file
+		f.Seek(0, os.SEEK_SET) // rewind to output whole file
 	}
 
 	// handle Content-Range header.
@@ -163,7 +163,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 	}
 	if len(ranges) == 1 {
 		ra := ranges[0]
-		if _, err := f.Seek(ra.start, 0); err != nil {
+		if _, err := f.Seek(ra.start, os.SEEK_SET); err != nil {
 			Error(w, err.String(), StatusRequestedRangeNotSatisfiable)
 			return
 		}
