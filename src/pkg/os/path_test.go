@@ -179,3 +179,20 @@ func TestMkdirAllWithSymlink(t *testing.T) {
 		t.Errorf("MkdirAll %q: %s", path, err)
 	}
 }
+
+func TestMkdirAllAtSlash(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		return
+	}
+	RemoveAll("/_go_os_test")
+	err := MkdirAll("/_go_os_test/dir", 0777)
+	if err != nil {
+		pathErr, ok := err.(*PathError)
+		// common for users not to be able to write to /
+		if ok && pathErr.Error == EACCES {
+			return
+		}
+		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)
+	}
+	RemoveAll("/_go_os_test")
+}
