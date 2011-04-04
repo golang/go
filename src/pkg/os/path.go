@@ -33,7 +33,7 @@ func MkdirAll(path string, perm uint32) Error {
 		j--
 	}
 
-	if j > 0 {
+	if j > 1 {
 		// Create parent
 		err = MkdirAll(path[0:j-1], perm)
 		if err != nil {
