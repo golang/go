@@ -1741,7 +1741,7 @@ def DownloadCL(ui, repo, clname):
 	set_status("downloading CL " + clname)
 	cl, err = LoadCL(ui, repo, clname)
 	if err != "":
-		return None, None, "error loading CL %s: %s" % (clname, ExceptionDetail())
+		return None, None, "error loading CL %s: %s" % (clname, err)
 
 	# Grab RSS feed to learn about CL
 	feed = XMLGet(ui, "/rss/issue/" + clname)
@@ -1800,7 +1800,7 @@ def MySend(request_path, payload=None,
 	try:
 		return MySend1(request_path, payload, content_type, timeout, force_auth, **kwargs)
 	except Exception, e:
-		if type(e) == urllib2.HTTPError and e.code == 403:	# forbidden, it happens
+		if type(e) != urllib2.HTTPError or e.code != 500:	# only retry on HTTP 500 error
 			raise
 		print >>sys.stderr, "Loading "+request_path+": "+ExceptionDetail()+"; trying again in 2 seconds."
 		time.sleep(2)
