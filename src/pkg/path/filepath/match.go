@@ -32,7 +32,7 @@ var ErrBadPattern = os.NewError("syntax error in pattern")
 //		lo '-' hi   matches character c for lo <= c <= hi
 //
 // Match requires pattern to match all of name, not just a substring.
-// The only possible error return is when pattern is malformed.
+// The only possible error return occurs when the pattern is malformed.
 //
 func Match(pattern, name string) (matched bool, err os.Error) {
 Pattern:
@@ -211,13 +211,14 @@ func getEsc(chunk string) (r int, nchunk string, err os.Error) {
 // if there is no matching file. The syntax of patterns is the same
 // as in Match. The pattern may describe hierarchical names such as
 // /usr/*/bin/ed (assuming the Separator is '/').
+// The only possible error return occurs when the pattern is malformed.
 //
-func Glob(pattern string) (matches []string) {
+func Glob(pattern string) (matches []string, err os.Error) {
 	if !hasMeta(pattern) {
-		if _, err := os.Stat(pattern); err == nil {
-			return []string{pattern}
+		if _, err = os.Stat(pattern); err != nil {
+			return
 		}
-		return nil
+		return []string{pattern}, nil
 	}
 
 	dir, file := Split(pattern)
@@ -230,21 +231,30 @@ func Glob(pattern string) (matches []string) {
 		dir = dir[0 : len(dir)-1] // chop off trailing separator
 	}
 
-	if hasMeta(dir) {
-		for _, d := range Glob(dir) {
-			matches = glob(d, file, matches)
-		}
-	} else {
+	if !hasMeta(dir) {
 		return glob(dir, file, nil)
 	}
-	return matches
+
+	var m []string
+	m, err = Glob(dir)
+	if err != nil {
+		return
+	}
+	for _, d := range m {
+		matches, err = glob(d, file, matches)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 // glob searches for files matching pattern in the directory dir
 // and appends them to matches. If the directory cannot be
 // opened, it returns the existing matches. New matches are
 // added in lexicographical order.
-func glob(dir, pattern string, matches []string) (m []string) {
+// The only possible error return occurs when the pattern is malformed.
+func glob(dir, pattern string, matches []string) (m []string, e os.Error) {
 	m = matches
 	fi, err := os.Stat(dir)
 	if err != nil {
@@ -268,7 +278,7 @@ func glob(dir, pattern string, matches []string) (m []string) {
 	for _, n := range names {
 		matched, err := Match(pattern, n)
 		if err != nil {
-			break
+			return m, err
 		}
 		if matched {
 			m = append(m, Join(dir, n))
