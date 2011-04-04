@@ -145,11 +145,14 @@ func setEnvironment() {
 }
 
 // getTestFileNames gets the set of files we're looking at.
-// If gotest has no arguments, it scans the current directory for _test.go files.
+// If gotest has no arguments, it scans the current directory for *_test.go files.
 func getTestFileNames() {
 	names := fileNames
 	if len(names) == 0 {
-		names = filepath.Glob("[^.]*_test.go")
+		names, err = filepath.Glob("[^.]*_test.go")
+		if err != nil {
+			Fatalf("Glob pattern error: %s", err)
+		}
 		if len(names) == 0 {
 			Fatalf(`no test files found: no match for "*_test.go"`)
 		}

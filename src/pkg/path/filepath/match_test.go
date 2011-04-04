@@ -6,7 +6,7 @@ package filepath_test
 
 import (
 	"os"
-	"path/filepath"
+	. "path/filepath"
 	"testing"
 	"runtime"
 )
@@ -56,16 +56,16 @@ var matchTests = []MatchTest{
 	{"[\\-x]", "x", true, nil},
 	{"[\\-x]", "-", true, nil},
 	{"[\\-x]", "a", false, nil},
-	{"[]a]", "]", false, filepath.ErrBadPattern},
-	{"[-]", "-", false, filepath.ErrBadPattern},
-	{"[x-]", "x", false, filepath.ErrBadPattern},
-	{"[x-]", "-", false, filepath.ErrBadPattern},
-	{"[x-]", "z", false, filepath.ErrBadPattern},
-	{"[-x]", "x", false, filepath.ErrBadPattern},
-	{"[-x]", "-", false, filepath.ErrBadPattern},
-	{"[-x]", "a", false, filepath.ErrBadPattern},
-	{"\\", "a", false, filepath.ErrBadPattern},
-	{"[a-b-c]", "a", false, filepath.ErrBadPattern},
+	{"[]a]", "]", false, ErrBadPattern},
+	{"[-]", "-", false, ErrBadPattern},
+	{"[x-]", "x", false, ErrBadPattern},
+	{"[x-]", "-", false, ErrBadPattern},
+	{"[x-]", "z", false, ErrBadPattern},
+	{"[-x]", "x", false, ErrBadPattern},
+	{"[-x]", "-", false, ErrBadPattern},
+	{"[-x]", "a", false, ErrBadPattern},
+	{"\\", "a", false, ErrBadPattern},
+	{"[a-b-c]", "a", false, ErrBadPattern},
 	{"*x", "xxx", true, nil},
 }
 
@@ -75,7 +75,7 @@ func TestMatch(t *testing.T) {
 		return
 	}
 	for _, tt := range matchTests {
-		ok, err := filepath.Match(tt.pattern, tt.s)
+		ok, err := Match(tt.pattern, tt.s)
 		if ok != tt.match || err != tt.err {
 			t.Errorf("Match(%#q, %#q) = %v, %v want %v, nil", tt.pattern, tt.s, ok, err, tt.match)
 		}
@@ -84,7 +84,7 @@ func TestMatch(t *testing.T) {
 
 // contains returns true if vector contains the string s.
 func contains(vector []string, s string) bool {
-	s = filepath.ToSlash(s)
+	s = ToSlash(s)
 	for _, elem := range vector {
 		if elem == s {
 			return true
@@ -108,9 +108,20 @@ func TestGlob(t *testing.T) {
 		return
 	}
 	for _, tt := range globTests {
-		matches := filepath.Glob(tt.pattern)
+		matches, err := Glob(tt.pattern)
+		if err != nil {
+			t.Errorf("Glob error for %q: %s", tt.pattern, err)
+			continue
+		}
 		if !contains(matches, tt.result) {
 			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
 		}
+	}
+}
+
+func TestGlobError(t *testing.T) {
+	_, err := Glob("[7]")
+	if err != nil {
+		t.Error("expected error for bad pattern; got none")
 	}
 }
