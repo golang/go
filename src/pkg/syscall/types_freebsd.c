@@ -26,6 +26,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -167,3 +168,23 @@ typedef struct if_data $IfData;
 typedef struct ifa_msghdr $IfaMsghdr;
 typedef struct rt_msghdr $RtMsghdr;
 typedef struct rt_metrics $RtMetrics;
+
+// Berkeley packet filter
+
+enum {
+	$SizeofBpfVersion = sizeof(struct bpf_version),
+	$SizeofBpfStat = sizeof(struct bpf_stat),
+	$SizeofBpfZbuf = sizeof(struct bpf_zbuf),
+	$SizeofBpfProgram = sizeof(struct bpf_program),
+	$SizeofBpfInsn = sizeof(struct bpf_insn),
+	$SizeofBpfHdr = sizeof(struct bpf_hdr),
+	$SizeofBpfZbufHeader = sizeof(struct bpf_zbuf_header),
+};
+
+typedef struct bpf_version $BpfVersion;
+typedef struct bpf_stat $BpfStat;
+typedef struct bpf_zbuf $BpfZbuf;
+typedef struct bpf_program $BpfProgram;
+typedef struct bpf_insn $BpfInsn;
+typedef struct bpf_hdr $BpfHdr;
+typedef struct bpf_zbuf_header $BpfZbufHeader;
