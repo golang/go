@@ -43,6 +43,13 @@ const (
 	SizeofIfaMsghdr        = 0x14
 	SizeofRtMsghdr         = 0x98
 	SizeofRtMetrics        = 0x70
+	SizeofBpfVersion       = 0x4
+	SizeofBpfStat          = 0x8
+	SizeofBpfZbuf          = 0x18
+	SizeofBpfProgram       = 0x10
+	SizeofBpfInsn          = 0x8
+	SizeofBpfHdr           = 0x20
+	SizeofBpfZbufHeader    = 0x20
 )
 
 // Types
@@ -328,4 +335,48 @@ type RtMetrics struct {
 	Pksent   uint64
 	Weight   uint64
 	Filler   [3]uint64
+}
+
+type BpfVersion struct {
+	Major uint16
+	Minor uint16
+}
+
+type BpfStat struct {
+	Recv uint32
+	Drop uint32
+}
+
+type BpfZbuf struct {
+	Bufa   *byte
+	Bufb   *byte
+	Buflen uint64
+}
+
+type BpfProgram struct {
+	Len          uint32
+	Pad_godefs_0 [4]byte
+	Insns        *BpfInsn
+}
+
+type BpfInsn struct {
+	Code uint16
+	Jt   uint8
+	Jf   uint8
+	K    uint32
+}
+
+type BpfHdr struct {
+	Tstamp       Timeval
+	Caplen       uint32
+	Datalen      uint32
+	Hdrlen       uint16
+	Pad_godefs_0 [6]byte
+}
+
+type BpfZbufHeader struct {
+	Kernel_gen uint32
+	Kernel_len uint32
+	User_gen   uint32
+	X_bzh_pad  [5]uint32
 }
