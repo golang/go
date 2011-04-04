@@ -436,11 +436,12 @@ func (pc *persistConn) readLoop() {
 		} else if err != nil {
 			alive = false
 		}
+		hasBody := resp != nil && resp.ContentLength != 0
 		rc.ch <- responseAndError{resp, err}
 
 		// Wait for the just-returned response body to be fully consumed
 		// before we race and peek on the underlying bufio reader.
-		if alive {
+		if alive && hasBody {
 			<-resp.Body.(*bodyEOFSignal).ch
 		}
 	}
@@ -512,7 +513,7 @@ func responseIsKeepAlive(res *Response) bool {
 // the response body with a bodyEOFSignal-wrapped version.
 func readResponseWithEOFSignal(r *bufio.Reader, requestMethod string) (resp *Response, err os.Error) {
 	resp, err = ReadResponse(r, requestMethod)
-	if err == nil {
+	if err == nil && resp.ContentLength != 0 {
 		resp.Body = &bodyEOFSignal{resp.Body, make(chan bool, 1), false}
 	}
 	return

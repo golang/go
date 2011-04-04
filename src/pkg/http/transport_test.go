@@ -261,6 +261,34 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	}
 }
 
+// TestTransportHeadResponses verifies that we deal with Content-Lengths
+// with no bodies properly
+func TestTransportHeadResponses(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method != "HEAD" {
+			panic("expected HEAD; got " + r.Method)
+		}
+		w.Header().Set("Content-Length", "123")
+		w.WriteHeader(200)
+	}))
+	defer ts.Close()
+
+	tr := &Transport{DisableKeepAlives: false}
+	c := &Client{Transport: tr}
+	for i := 0; i < 2; i++ {
+		res, err := c.Head(ts.URL)
+		if err != nil {
+			t.Errorf("error on loop %d: %v", i, err)
+		}
+		if e, g := "123", res.Header.Get("Content-Length"); e != g {
+			t.Errorf("loop %d: expected Content-Length header of %q, got %q", e, g)
+		}
+		if e, g := int64(0), res.ContentLength; e != g {
+			t.Errorf("loop %d: expected res.ContentLength of %v, got %v", e, g)
+		}
+	}
+}
+
 func TestTransportNilURL(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "Hi")
