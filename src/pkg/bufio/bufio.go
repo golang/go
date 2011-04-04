@@ -415,38 +415,27 @@ func (b *Writer) Buffered() int { return b.n }
 // If nn < len(p), it also returns an error explaining
 // why the write is short.
 func (b *Writer) Write(p []byte) (nn int, err os.Error) {
-	if b.err != nil {
-		return 0, b.err
-	}
-	nn = 0
-	for len(p) > 0 {
-		n := b.Available()
-		if n <= 0 {
-			if b.Flush(); b.err != nil {
-				break
-			}
-			n = b.Available()
-		}
-		if b.Buffered() == 0 && len(p) >= len(b.buf) {
+	for len(p) > b.Available() && b.err == nil {
+		var n int
+		if b.Buffered() == 0 {
 			// Large write, empty buffer.
 			// Write directly from p to avoid copy.
 			n, b.err = b.wr.Write(p)
-			nn += n
-			p = p[n:]
-			if b.err != nil {
-				break
-			}
-			continue
+		} else {
+			n = copy(b.buf[b.n:], p)
+			b.n += n
+			b.Flush()
 		}
-		if n > len(p) {
-			n = len(p)
-		}
-		copy(b.buf[b.n:b.n+n], p[0:n])
-		b.n += n
 		nn += n
 		p = p[n:]
 	}
-	return nn, b.err
+	if b.err != nil {
+		return nn, b.err
+	}
+	n := copy(b.buf[b.n:], p)
+	b.n += n
+	nn += n
+	return nn, nil
 }
 
 // WriteByte writes a single byte.
@@ -496,24 +485,21 @@ func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
 // If the count is less than len(s), it also returns an error explaining
 // why the write is short.
 func (b *Writer) WriteString(s string) (int, os.Error) {
+	nn := 0
+	for len(s) > b.Available() && b.err == nil {
+		n := copy(b.buf[b.n:], s)
+		b.n += n
+		nn += n
+		s = s[n:]
+		b.Flush()
+	}
 	if b.err != nil {
-		return 0, b.err
+		return nn, b.err
 	}
-	// Common case, worth making fast.
-	if b.Available() >= len(s) || len(b.buf) >= len(s) && b.Flush() == nil {
-		for i := 0; i < len(s); i++ { // loop over bytes, not runes.
-			b.buf[b.n] = s[i]
-			b.n++
-		}
-		return len(s), nil
-	}
-	for i := 0; i < len(s); i++ { // loop over bytes, not runes.
-		b.WriteByte(s[i])
-		if b.err != nil {
-			return i, b.err
-		}
-	}
-	return len(s), nil
+	n := copy(b.buf[b.n:], s)
+	b.n += n
+	nn += n
+	return nn, nil
 }
 
 // buffered input and output
