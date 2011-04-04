@@ -507,3 +507,30 @@ func TestHeadResponses(t *testing.T) {
 		t.Errorf("got unexpected body %q", string(body))
 	}
 }
+
+func TestTLSServer(t *testing.T) {
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "tls=%v", r.TLS != nil)
+	}))
+	defer ts.Close()
+	if !strings.HasPrefix(ts.URL, "https://") {
+		t.Fatalf("expected test TLS server to start with https://, got %q", ts.URL)
+	}
+	res, _, err := Get(ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if res == nil {
+		t.Fatalf("got nil Response")
+	}
+	if res.Body == nil {
+		t.Fatalf("got nil Response.Body")
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	if e, g := "tls=true", string(body); e != g {
+		t.Errorf("expected body %q; got %q", e, g)
+	}
+}

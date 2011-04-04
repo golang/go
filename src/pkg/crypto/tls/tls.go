@@ -124,7 +124,16 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
 	if err != nil {
 		return
 	}
+	keyPEMBlock, err := ioutil.ReadFile(keyFile)
+	if err != nil {
+		return
+	}
+	return X509KeyPair(certPEMBlock, keyPEMBlock)
+}
 
+// X509KeyPair parses a public/private key pair from a pair of
+// PEM encoded data.
+func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err os.Error) {
 	var certDERBlock *pem.Block
 	for {
 		certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
@@ -138,11 +147,6 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
 
 	if len(cert.Certificate) == 0 {
 		err = os.ErrorString("crypto/tls: failed to parse certificate PEM data")
-		return
-	}
-
-	keyPEMBlock, err := ioutil.ReadFile(keyFile)
-	if err != nil {
 		return
 	}
 
