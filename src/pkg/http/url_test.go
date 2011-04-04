@@ -490,7 +490,7 @@ var escapeTests = []URLEscapeTest{
 	},
 	{
 		" ?&=#+%!<>#\"{}|\\^[]`☺\t",
-		"+%3f%26%3d%23%2b%25!%3c%3e%23%22%7b%7d%7c%5c%5e%5b%5d%60%e2%98%ba%09",
+		"+%3F%26%3D%23%2B%25!%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09",
 		nil,
 	},
 }
@@ -519,7 +519,7 @@ type UserinfoTest struct {
 var userinfoTests = []UserinfoTest{
 	{"user", "password", "user:password"},
 	{"foo:bar", "~!@#$%^&*()_+{}|[]\\-=`:;'\"<>?,./",
-		"foo%3abar:~!%40%23$%25%5e&*()_+%7b%7d%7c%5b%5d%5c-=%60%3a;'%22%3c%3e?,.%2f"},
+		"foo%3Abar:~!%40%23$%25%5E&*()_+%7B%7D%7C%5B%5D%5C-=%60%3A;'%22%3C%3E?,.%2F"},
 }
 
 func TestEscapeUserinfo(t *testing.T) {
