@@ -95,7 +95,7 @@ func (tr *Reader) skipUnread() {
 	nr := tr.nb + tr.pad // number of bytes to skip
 	tr.nb, tr.pad = 0, 0
 	if sr, ok := tr.r.(io.Seeker); ok {
-		if _, err := sr.Seek(nr, 1); err == nil {
+		if _, err := sr.Seek(nr, os.SEEK_CUR); err == nil {
 			return
 		}
 	}

@@ -73,7 +73,7 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, os.Error) {
 		Comment: end.comment,
 	}
 	rs := io.NewSectionReader(r, 0, size)
-	if _, err = rs.Seek(int64(end.directoryOffset), 0); err != nil {
+	if _, err = rs.Seek(int64(end.directoryOffset), os.SEEK_SET); err != nil {
 		return nil, err
 	}
 	buf := bufio.NewReader(rs)
@@ -94,7 +94,7 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
 		if err = readFileHeader(f, r); err != nil {
 			return
 		}
-		if f.bodyOffset, err = r.Seek(0, 1); err != nil {
+		if f.bodyOffset, err = r.Seek(0, os.SEEK_CUR); err != nil {
 			return
 		}
 	}

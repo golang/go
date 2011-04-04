@@ -132,7 +132,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	} else {
 		base = int64(0)
 	}
-	sr.Seek(base, 0)
+	sr.Seek(base, os.SEEK_SET)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		return nil, os.NewError("Invalid PE File Format.")
 	}
 	// get symbol string table
-	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols), 0)
+	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
 	var l uint32
 	if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
 		return nil, err
@@ -149,9 +149,9 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols)); err != nil {
 		return nil, err
 	}
-	sr.Seek(base, 0)
+	sr.Seek(base, os.SEEK_SET)
 	binary.Read(sr, binary.LittleEndian, &f.FileHeader)
-	sr.Seek(int64(f.FileHeader.SizeOfOptionalHeader), 1) //Skip OptionalHeader
+	sr.Seek(int64(f.FileHeader.SizeOfOptionalHeader), os.SEEK_CUR) //Skip OptionalHeader
 	f.Sections = make([]*Section, f.FileHeader.NumberOfSections)
 	for i := 0; i < int(f.FileHeader.NumberOfSections); i++ {
 		sh := new(SectionHeader32)
