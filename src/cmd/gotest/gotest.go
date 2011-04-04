@@ -149,6 +149,7 @@ func setEnvironment() {
 func getTestFileNames() {
 	names := fileNames
 	if len(names) == 0 {
+		var err os.Error
 		names, err = filepath.Glob("[^.]*_test.go")
 		if err != nil {
 			Fatalf("Glob pattern error: %s", err)
