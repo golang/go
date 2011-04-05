@@ -70,6 +70,7 @@ func osopen(f *ast.File) bool {
 func isCreateFlag(flag ast.Expr) bool {
 	foundCreate := false
 	foundTrunc := false
+	foundAppend := false
 	// OR'ing of flags: is O_CREATE on?  + or | would be fine; we just look for os.O_CREATE
 	// and don't worry about the actual opeator.
 	p := flag.Pos()
@@ -85,12 +86,21 @@ func isCreateFlag(flag ast.Expr) bool {
 		if isPkgDot(lhs, "os", "O_TRUNC") {
 			foundTrunc = true
 		}
+		if isPkgDot(lhs, "os", "O_APPEND") {
+			foundAppend = true
+		}
 		if !isBinary {
 			break
 		}
 		flag = expr.X
 	}
-	if foundCreate && !foundTrunc {
+	if !foundCreate {
+		return false
+	}
+	if foundAppend {
+		return false
+	}
+	if !foundTrunc {
 		warn(p, "rewrote os.Open with O_CREATE but not O_TRUNC to os.Create")
 	}
 	return foundCreate

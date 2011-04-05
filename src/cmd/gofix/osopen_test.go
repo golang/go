@@ -27,6 +27,7 @@ func f() {
 	os.Open(a, os.O_CREATE, 0666)
 	os.Open(a, os.O_CREATE|os.O_TRUNC, 0664)
 	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	_ = os.O_CREAT
 }
 `,
@@ -46,6 +47,7 @@ func f() {
 	os.Create(a)
 	os.Create(a)
 	os.Create(a)
+	os.OpenFile(a, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	_ = os.O_CREATE
 }
 `,
