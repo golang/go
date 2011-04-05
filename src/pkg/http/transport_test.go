@@ -85,6 +85,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 				t.Fatalf("error in connectionClose=%v, req #%d, Do: %v", connectionClose, n, err)
 			}
 			body, err := ioutil.ReadAll(res.Body)
+			defer res.Body.Close()
 			if err != nil {
 				t.Fatalf("error in connectionClose=%v, req #%d, ReadAll: %v", connectionClose, n, err)
 			}
@@ -154,9 +155,11 @@ func TestTransportIdleCacheKeys(t *testing.T) {
 		t.Errorf("After CloseIdleConnections expected %d idle conn cache keys; got %d", e, g)
 	}
 
-	if _, _, err := c.Get(ts.URL); err != nil {
+	resp, _, err := c.Get(ts.URL)
+	if err != nil {
 		t.Error(err)
 	}
+	ioutil.ReadAll(resp.Body)
 
 	keys := tr.IdleConnKeysForTesting()
 	if e, g := 1, len(keys); e != g {
@@ -187,7 +190,11 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	// ch)
 	donech := make(chan bool)
 	doReq := func() {
-		c.Get(ts.URL)
+		resp, _, err := c.Get(ts.URL)
+		if err != nil {
+			t.Error(err)
+		}
+		ioutil.ReadAll(resp.Body)
 		donech <- true
 	}
 	go doReq()
