@@ -5,6 +5,59 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-04-04">2011-04-04</h3>
+
+<pre>
+This release includes changes to the net package. Your code will require
+changes if it uses the Dial or LookupHost functions.
+
+The laddr argument has been removed from net.Dial, and the cname return value
+has been removed from net.LookupHost. The new net.LookupCNAME function can be
+used  to find the canonical host for a given name.  You can update your
+networking code with gofix.
+
+The gotest shell script has been replaced by a Go program, making testing
+significantly faster.
+
+Other changes:
+* asn1: extensions needed for parsing Kerberos.
+* bufio: Write and WriteString cleanup (thanks Evan Shaw).
+* bytes, strings: simplify Join (thanks Evan Shaw).
+* crypto/cipher: bad CTR IV length now triggers panic.
+* crypto/tls: extend NPN support to the client,
+	added X509KeyPair function to parse a Certificate from memory.
+* crypto/x509: parse Extended Key Usage extension (thanks Mikkel Krautz).
+* debug/gosym: remove need for gotest to run preparatory commands.
+* fmt: implement precision (length of input) values for %q: %.20q.
+* go/parser: fix scoping for local type declarations (thanks Roger Peppe),
+	package name must not be the blank identifier.
+* go/printer, gofmt: remove special case for multi-line raw strings.
+* gopack: add P flag to remove prefix from filename information.
+* gotest: add -test.timeout option,
+	replace the shell script with the compiled program written in go,
+	execute gomake properly on Windows (thanks Alex Brainman).
+* gotry: move into its own directory, separate from gotest.
+* gotype: support for more tests, added one new test.
+* http: add Transport.MaxIdleConnsPerHost,
+	use upper case hex in URL escaping (thanks Matt Jones).
+* httptest: add NewTLSServer.
+* misc/kate: reorganize, remove closed() (thanks Evan Shaw).
+* misc/notepadplus: support for notepad++ (thanks Anthony Starks).
+* net: implement non-blocking connect (thanks Alexey Borzenkov).
+* os: fix MkdirAll("/thisdoesnotexist") (thanks Albert Strasheim),
+	Plan 9 support (thanks Yuval Pavel Zholkover),
+	add a few missing Plan 9 errors (thanks Andrey Mirtchovski),
+	fix FileInfo.Name returned by Stat (thanks David Forsythe).
+* path/filepath.Glob: add an error return,
+	don't drop known matches on error.
+* path/filepath: add support for Plan 9 (thanks Andrey Mirtchovski).
+* scanner: treat line comments like in Go.
+* syscall: Plan 9 support (thanks Yuval Pavel Zholkover),
+	StartProcess Chroot and Credential (thanks Albert Strasheim),
+	add BPF support for freebsd/386, freebsd/amd64 (thanks Mikio Hara),
+	make [Raw]Syscall6 pass 6th arg on linux/386 (thanks Evan Shaw).
+</pre>
+
 <h3 id="2011-03-28">2011-03-28</h3>
 
 <pre>
