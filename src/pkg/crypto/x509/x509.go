@@ -54,20 +54,21 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 		return
 	}
 
-	key = &rsa.PrivateKey{
-		PublicKey: rsa.PublicKey{
-			E: priv.E,
-			N: new(big.Int).SetBytes(priv.N.Bytes),
-		},
-		D: new(big.Int).SetBytes(priv.D.Bytes),
-		P: new(big.Int).SetBytes(priv.P.Bytes),
-		Q: new(big.Int).SetBytes(priv.Q.Bytes),
+	key = new(rsa.PrivateKey)
+	key.PublicKey = rsa.PublicKey{
+		E: priv.E,
+		N: new(big.Int).SetBytes(priv.N.Bytes),
 	}
+
+	key.D = new(big.Int).SetBytes(priv.D.Bytes)
+	key.P = new(big.Int).SetBytes(priv.P.Bytes)
+	key.Q = new(big.Int).SetBytes(priv.Q.Bytes)
 
 	err = key.Validate()
 	if err != nil {
 		return nil, err
 	}
+
 	return
 }
 
