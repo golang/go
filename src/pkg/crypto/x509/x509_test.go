@@ -11,7 +11,6 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/pem"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -22,7 +21,11 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to parse private key: %s", err)
 	}
-	if !reflect.DeepEqual(priv, rsaPrivateKey) {
+	if priv.PublicKey.N.Cmp(rsaPrivateKey.PublicKey.N) != 0 ||
+		priv.PublicKey.E != rsaPrivateKey.PublicKey.E ||
+		priv.D.Cmp(rsaPrivateKey.D) != 0 ||
+		priv.P.Cmp(rsaPrivateKey.P) != 0 ||
+		priv.Q.Cmp(rsaPrivateKey.Q) != 0 {
 		t.Errorf("got:%+v want:%+v", priv, rsaPrivateKey)
 	}
 }

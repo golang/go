@@ -13,6 +13,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"sync"
 )
 
 var bigZero = big.NewInt(0)
@@ -92,12 +93,16 @@ type PrivateKey struct {
 	PublicKey          // public part.
 	D         *big.Int // private exponent
 	P, Q      *big.Int // prime factors of N
+
+	rwMutex sync.RWMutex // protects the following
+	dP, dQ  *big.Int     // D mod (P-1) (or mod Q-1) 
+	pInv    *big.Int     // p^-1 mod q
 }
 
 // Validate performs basic sanity checks on the key.
 // It returns nil if the key is valid, or else an os.Error describing a problem.
 
-func (priv PrivateKey) Validate() os.Error {
+func (priv *PrivateKey) Validate() os.Error {
 	// Check that p and q are prime. Note that this is just a sanity
 	// check. Since the random witnesses chosen by ProbablyPrime are
 	// deterministic, given the candidate number, it's easy for an attack
@@ -321,6 +326,18 @@ func modInverse(a, n *big.Int) (ia *big.Int, ok bool) {
 	return x, true
 }
 
+// precompute performs some calculations that speed up private key operations
+// in the future.
+func (priv *PrivateKey) precompute() {
+	priv.dP = new(big.Int).Sub(priv.P, bigOne)
+	priv.dP.Mod(priv.D, priv.dP)
+
+	priv.dQ = new(big.Int).Sub(priv.Q, bigOne)
+	priv.dQ.Mod(priv.D, priv.dQ)
+
+	priv.pInv = new(big.Int).ModInverse(priv.P, priv.Q)
+}
+
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
 // random source is given, RSA blinding is used.
 func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.Error) {
@@ -359,7 +376,35 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 		c.Mod(c, priv.N)
 	}
 
-	m = new(big.Int).Exp(c, priv.D, priv.N)
+	priv.rwMutex.RLock()
+
+	if priv.dP == nil && priv.P != nil {
+		priv.rwMutex.RUnlock()
+		priv.rwMutex.Lock()
+		if priv.dP == nil && priv.P != nil {
+			priv.precompute()
+		}
+		priv.rwMutex.Unlock()
+		priv.rwMutex.RLock()
+	}
+
+	if priv.dP == nil {
+		m = new(big.Int).Exp(c, priv.D, priv.N)
+	} else {
+		// We have the precalculated values needed for the CRT.
+		m = new(big.Int).Exp(c, priv.dP, priv.P)
+		m2 := new(big.Int).Exp(c, priv.dQ, priv.Q)
+		m2.Sub(m2, m)
+		if m2.Sign() < 0 {
+			m2.Add(m2, priv.Q)
+		}
+		m2.Mul(m2, priv.pInv)
+		m2.Mod(m2, priv.Q)
+		m2.Mul(m2, priv.P)
+		m.Add(m, m2)
+	}
+
+	priv.rwMutex.RUnlock()
 
 	if ir != nil {
 		// Unblind.
