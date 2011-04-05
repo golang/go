@@ -168,7 +168,7 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
 func Truncate(name string, size int64) Error {
-	f, e := Open(name, O_WRONLY|O_CREATE, 0666)
+	f, e := OpenFile(name, O_WRONLY|O_CREATE, 0666)
 	if e != nil {
 		return e
 	}
