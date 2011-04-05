@@ -424,25 +424,37 @@ func (pc *persistConn) readLoop() {
 
 		rc := <-pc.reqch
 		resp, err := pc.cc.Read(rc.req)
-		if err == nil && !rc.req.Close {
-			pc.t.putIdleConn(pc)
-		}
+
 		if err == ErrPersistEOF {
 			// Succeeded, but we can't send any more
 			// persistent connections on this again.  We
 			// hide this error to upstream callers.
 			alive = false
 			err = nil
-		} else if err != nil {
+		} else if err != nil || rc.req.Close {
 			alive = false
 		}
+
 		hasBody := resp != nil && resp.ContentLength != 0
+		var waitForBodyRead chan bool
+		if alive {
+			if hasBody {
+				waitForBodyRead = make(chan bool)
+				resp.Body.(*bodyEOFSignal).fn = func() {
+					pc.t.putIdleConn(pc)
+					waitForBodyRead <- true
+				}
+			} else {
+				pc.t.putIdleConn(pc)
+			}
+		}
+
 		rc.ch <- responseAndError{resp, err}
 
 		// Wait for the just-returned response body to be fully consumed
 		// before we race and peek on the underlying bufio reader.
-		if alive && hasBody {
-			<-resp.Body.(*bodyEOFSignal).ch
+		if waitForBodyRead != nil {
+			<-waitForBodyRead
 		}
 	}
 }
@@ -514,33 +526,33 @@ func responseIsKeepAlive(res *Response) bool {
 func readResponseWithEOFSignal(r *bufio.Reader, requestMethod string) (resp *Response, err os.Error) {
 	resp, err = ReadResponse(r, requestMethod)
 	if err == nil && resp.ContentLength != 0 {
-		resp.Body = &bodyEOFSignal{resp.Body, make(chan bool, 1), false}
+		resp.Body = &bodyEOFSignal{resp.Body, nil}
 	}
 	return
 }
 
-// bodyEOFSignal wraps a ReadCloser but sends on ch once once
-// the wrapped ReadCloser is fully consumed (including on Close)
+// bodyEOFSignal wraps a ReadCloser but runs fn (if non-nil) at most
+// once, right before the final Read() or Close() call returns, but after
+// EOF has been seen.
 type bodyEOFSignal struct {
 	body io.ReadCloser
-	ch   chan bool
-	done bool
+	fn   func()
 }
 
 func (es *bodyEOFSignal) Read(p []byte) (n int, err os.Error) {
 	n, err = es.body.Read(p)
-	if err == os.EOF && !es.done {
-		es.ch <- true
-		es.done = true
+	if err == os.EOF && es.fn != nil {
+		es.fn()
+		es.fn = nil
 	}
 	return
 }
 
 func (es *bodyEOFSignal) Close() (err os.Error) {
 	err = es.body.Close()
-	if err == nil && !es.done {
-		es.ch <- true
-		es.done = true
+	if err == nil && es.fn != nil {
+		es.fn()
+		es.fn = nil
 	}
 	return
 }
