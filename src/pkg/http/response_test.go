@@ -164,6 +164,28 @@ var respTests = []respTest{
 		"Body here\n",
 	},
 
+	// Chunked response in response to a HEAD request (the "chunked" should
+	// be ignored, as HEAD responses never have bodies)
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n",
+
+		Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.0",
+			ProtoMajor:    1,
+			ProtoMinor:    0,
+			RequestMethod: "HEAD",
+			Header:        Header{},
+			Close:         true,
+			ContentLength: 0,
+		},
+
+		"",
+	},
+
 	// Status line without a Reason-Phrase, but trailing space.
 	// (permitted by RFC 2616)
 	{

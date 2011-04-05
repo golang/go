@@ -296,6 +296,35 @@ func TestTransportHeadResponses(t *testing.T) {
 	}
 }
 
+// TestTransportHeadChunkedResponse verifies that we ignore chunked transfer-encoding
+// on responses to HEAD requests.
+func TestTransportHeadChunkedResponse(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method != "HEAD" {
+			panic("expected HEAD; got " + r.Method)
+		}
+		w.Header().Set("Transfer-Encoding", "chunked") // client should ignore
+		w.Header().Set("x-client-ipport", r.RemoteAddr)
+		w.WriteHeader(200)
+	}))
+	defer ts.Close()
+
+	tr := &Transport{DisableKeepAlives: false}
+	c := &Client{Transport: tr}
+
+	res1, err := c.Head(ts.URL)
+	if err != nil {
+		t.Fatalf("request 1 error: %v", err)
+	}
+	res2, err := c.Head(ts.URL)
+	if err != nil {
+		t.Fatalf("request 2 error: %v", err)
+	}
+	if v1, v2 := res1.Header.Get("x-client-ipport"), res2.Header.Get("x-client-ipport"); v1 != v2 {
+		t.Errorf("ip/ports differed between head requests: %q vs %q", v1, v2)
+	}
+}
+
 func TestTransportNilURL(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "Hi")

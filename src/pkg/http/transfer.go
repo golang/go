@@ -215,7 +215,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 	}
 
 	// Transfer encoding, content length
-	t.TransferEncoding, err = fixTransferEncoding(t.Header)
+	t.TransferEncoding, err = fixTransferEncoding(t.RequestMethod, t.Header)
 	if err != nil {
 		return err
 	}
@@ -289,13 +289,20 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
 
 // Sanitize transfer encoding
-func fixTransferEncoding(header Header) ([]string, os.Error) {
+func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Error) {
 	raw, present := header["Transfer-Encoding"]
 	if !present {
 		return nil, nil
 	}
 
 	header["Transfer-Encoding"] = nil, false
+
+	// Head responses have no bodies, so the transfer encoding
+	// should be ignored.
+	if requestMethod == "HEAD" {
+		return nil, nil
+	}
+
 	encodings := strings.Split(raw[0], ",", -1)
 	te := make([]string, 0, len(encodings))
 	// TODO: Even though we only support "identity" and "chunked"
