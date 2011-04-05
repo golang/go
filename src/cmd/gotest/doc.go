@@ -7,12 +7,13 @@
 Gotest is an automated testing tool for Go packages.
 
 Normally a Go package is compiled without its test files.  Gotest is a
-tool that recompiles the package whose source in the current
-directory, along with any files named *_test.go.  Functions in the
-test source named TestXXX (where XXX is any alphanumeric string not
-starting with a lower case letter) will be run when the binary is
-executed.  Gotest requires that the package have a standard package
-Makefile, one that includes go/src/Make.pkg.
+tool that recompiles the package whose source is in the current
+directory, along with any files whose names match the pattern
+"[^.]*_test.go".  Functions in the test source named TestXXX (where
+XXX is any alphanumeric string not starting with a lower case letter)
+will be run when the binary is executed.  Gotest requires that the
+package have a standard package Makefile, one that includes
+go/src/Make.pkg.
 
 The test functions are run in the order they appear in the source.
 They should have the signature,
@@ -41,7 +42,8 @@ Usage:
 
 The flags specific to gotest are:
 	-c         Compile the test binary but do not run it.
-	-file a.go Use the tests in the source file a.go instead of *_test.go.
+	-file a.go Use only the tests in the source file a.go.
+	           Multiple -file flags may be provided.
 	-x         Print each subcommand gotest executes.
 
 Everything else on the command line is passed to the test binary.
