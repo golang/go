@@ -254,7 +254,8 @@ func doRun(argv []string, returnStdout bool) string {
 	if xFlag {
 		fmt.Printf("gotest: %s\n", strings.Join(argv, " "))
 	}
-	if runtime.GOOS == "windows" && argv[0] == "gomake" {
+	command := argv[0]
+	if runtime.GOOS == "windows" && command == "gomake" {
 		// gomake is a shell script and it cannot be executed directly on Windows.
 		cmd := ""
 		for i, v := range argv {
@@ -266,9 +267,9 @@ func doRun(argv []string, returnStdout bool) string {
 		argv = []string{"cmd", "/c", "sh", "-c", cmd}
 	}
 	var err os.Error
-	argv[0], err = exec.LookPath(argv[0])
+	argv[0], err = exec.LookPath(command)
 	if err != nil {
-		Fatalf("can't find %s: %s", argv[0], err)
+		Fatalf("can't find %s: %s", command, err)
 	}
 	procAttr := &os.ProcAttr{
 		Env: env,
@@ -288,7 +289,7 @@ func doRun(argv []string, returnStdout bool) string {
 	}
 	proc, err := os.StartProcess(argv[0], argv, procAttr)
 	if err != nil {
-		Fatalf("make failed to start: %s", err)
+		Fatalf("%s failed to start: %s", command, err)
 	}
 	if returnStdout {
 		defer r.Close()
@@ -296,7 +297,7 @@ func doRun(argv []string, returnStdout bool) string {
 	}
 	waitMsg, err := proc.Wait(0)
 	if err != nil || waitMsg == nil {
-		Fatalf("%s failed: %s", argv[0], err)
+		Fatalf("%s failed: %s", command, err)
 	}
 	if !waitMsg.Exited() || waitMsg.ExitStatus() != 0 {
 		Fatalf("%q failed: %s", strings.Join(argv, " "), waitMsg)
