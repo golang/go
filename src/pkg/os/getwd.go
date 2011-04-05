@@ -54,7 +54,7 @@ func Getwd() (string, Error) {
 		if len(parent) >= 1024 { // Sanity check
 			return "", ENAMETOOLONG
 		}
-		fd, err := Open(parent, O_RDONLY, 0)
+		fd, err := Open(parent)
 		if err != nil {
 			return "", err
 		}

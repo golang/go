@@ -63,7 +63,7 @@ func (f *file) readLine() (s string, ok bool) {
 }
 
 func open(name string) (*file, os.Error) {
-	fd, err := os.Open(name, os.O_RDONLY, 0)
+	fd, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}

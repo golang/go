@@ -51,14 +51,13 @@ const (
 	O_RDWR     int = syscall.O_RDWR     // open the file read-write.
 	O_APPEND   int = syscall.O_APPEND   // append data to the file when writing.
 	O_ASYNC    int = syscall.O_ASYNC    // generate a signal when I/O is available.
-	O_CREAT    int = syscall.O_CREAT    // create a new file if none exists.
-	O_EXCL     int = syscall.O_EXCL     // used with O_CREAT, file must not exist
+	O_CREATE   int = syscall.O_CREAT    // create a new file if none exists.
+	O_EXCL     int = syscall.O_EXCL     // used with O_CREATE, file must not exist
 	O_NOCTTY   int = syscall.O_NOCTTY   // do not make file the controlling tty.
 	O_NONBLOCK int = syscall.O_NONBLOCK // open in non-blocking mode.
 	O_NDELAY   int = O_NONBLOCK         // synonym for O_NONBLOCK
 	O_SYNC     int = syscall.O_SYNC     // open for synchronous I/O.
 	O_TRUNC    int = syscall.O_TRUNC    // if possible, truncate file when opened.
-	O_CREATE   int = O_CREAT            // create a new file if none exists.
 )
 
 // Seek whence values.
@@ -214,4 +213,21 @@ func (f *File) Chdir() Error {
 		return &PathError{"chdir", f.name, Errno(e)}
 	}
 	return nil
+}
+
+// Open opens the named file for reading.  If successful, methods on
+// the returned file can be used for reading; the associated file
+// descriptor has mode O_RDONLY.
+// It returns the File and an Error, if any.
+func Open(name string) (file *File, err Error) {
+	return OpenFile(name, O_RDONLY, 0)
+}
+
+// Create creates the named file mode 0666 (before umask), truncating
+// it if it already exists.  If successful, methods on the returned
+// File can be used for I/O; the associated file descriptor has mode
+// O_RDWR.
+// It returns the File and an Error, if any.
+func Create(name string) (file *File, err Error) {
+	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }

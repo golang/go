@@ -299,7 +299,7 @@ func main() {
 		file = flag.Arg(0)
 	}
 
-	f, err := os.Open(file, os.O_RDONLY, 0)
+	f, err := os.Open(file)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening %v: %v\n", file, err)
 		os.Exit(1)

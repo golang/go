@@ -39,7 +39,7 @@ type dirInfo struct {
 // The imports map keys are package paths imported by listed Go files,
 // and the values are the Go files importing the respective package paths.
 func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
-	f, err := os.Open(dir, os.O_RDONLY, 0)
+	f, err := os.Open(dir)
 	if err != nil {
 		return nil, err
 	}

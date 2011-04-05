@@ -130,7 +130,7 @@ func isGoFilename(filename string) bool {
 
 
 func processDirectory(dirname string) {
-	f, err := os.Open(dirname, os.O_RDONLY, 0)
+	f, err := os.Open(dirname)
 	if err != nil {
 		report(err)
 		return

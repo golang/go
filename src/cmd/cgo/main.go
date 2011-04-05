@@ -203,7 +203,7 @@ func main() {
 	// Use the beginning of the md5 of the input to disambiguate.
 	h := md5.New()
 	for _, input := range goFiles {
-		f, err := os.Open(input, os.O_RDONLY, 0)
+		f, err := os.Open(input)
 		if err != nil {
 			fatal("%s", err)
 		}

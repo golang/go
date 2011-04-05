@@ -280,7 +280,7 @@ func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
 // a list of sorted directory entries.
 // Copied from io/ioutil to avoid the circular import.
 func readDir(dirname string) ([]*os.FileInfo, os.Error) {
-	f, err := os.Open(dirname, os.O_RDONLY, 0)
+	f, err := os.Open(dirname)
 	if err != nil {
 		return nil, err
 	}

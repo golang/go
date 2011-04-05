@@ -32,7 +32,7 @@ func (r *devReader) Read(b []byte) (n int, err os.Error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.f == nil {
-		f, err := os.Open(r.name, os.O_RDONLY, 0)
+		f, err := os.Open(r.name)
 		if f == nil {
 			return 0, err
 		}

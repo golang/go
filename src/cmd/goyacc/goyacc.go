@@ -1361,7 +1361,7 @@ func openup() {
 
 	foutput = nil
 	if vflag != "" {
-		foutput = create(vflag, 0666)
+		foutput = create(vflag)
 		if foutput == nil {
 			error("can't create file %v", vflag)
 		}
@@ -1371,7 +1371,7 @@ func openup() {
 	if oflag == "" {
 		oflag = "y.go"
 	}
-	ftable = create(oflag, 0666)
+	ftable = create(oflag)
 	if ftable == nil {
 		error("can't create file %v", oflag)
 	}
@@ -3036,7 +3036,7 @@ func write(f *bufio.Writer, b []byte, n int) int {
 }
 
 func open(s string) *bufio.Reader {
-	fi, err := os.Open(s, os.O_RDONLY, 0)
+	fi, err := os.Open(s)
 	if err != nil {
 		error("error opening %v: %v", s, err)
 	}
@@ -3044,12 +3044,12 @@ func open(s string) *bufio.Reader {
 	return bufio.NewReader(fi)
 }
 
-func create(s string, m uint32) *bufio.Writer {
-	fo, err := os.Open(s, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, m)
+func create(s string) *bufio.Writer {
+	fo, err := os.Create(s)
 	if err != nil {
-		error("error opening %v: %v", s, err)
+		error("error creating %v: %v", s, err)
 	}
-	//fmt.Printf("create %v mode %v\n", s, m);
+	//fmt.Printf("create %v mode %v\n", s);
 	return bufio.NewWriter(fo)
 }
 

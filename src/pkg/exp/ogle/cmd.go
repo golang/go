@@ -170,7 +170,7 @@ func cmdLoad(args []byte) os.Error {
 	}
 
 	// Get symbols
-	f, err := os.Open(fname, os.O_RDONLY, 0)
+	f, err := os.Open(fname)
 	if err != nil {
 		tproc.Detach()
 		return err

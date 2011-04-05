@@ -53,7 +53,7 @@ func readAuth(displayStr string) (name, data string, err os.Error) {
 		}
 		fn = home + "/.Xauthority"
 	}
-	r, err := os.Open(fn, os.O_RDONLY, 0444)
+	r, err := os.Open(fn)
 	if err != nil {
 		return
 	}

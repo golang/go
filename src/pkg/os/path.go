@@ -80,7 +80,7 @@ func RemoveAll(path string) Error {
 	}
 
 	// Directory.
-	fd, err := Open(path, O_RDONLY, 0)
+	fd, err := Open(path)
 	if err != nil {
 		return err
 	}

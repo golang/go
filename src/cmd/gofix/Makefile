@@ -9,6 +9,7 @@ GOFILES=\
 	fix.go\
 	netdial.go\
 	main.go\
+	osopen.go\
 	httpserver.go\
 	procattr.go\
 

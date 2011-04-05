@@ -33,7 +33,7 @@ var mimeTypes = map[string]string{
 var mimeLock sync.RWMutex
 
 func loadMimeFile(filename string) {
-	f, err := os.Open(filename, os.O_RDONLY, 0666)
+	f, err := os.Open(filename)
 	if err != nil {
 		return
 	}

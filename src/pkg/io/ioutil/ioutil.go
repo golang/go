@@ -28,7 +28,7 @@ func ReadAll(r io.Reader) ([]byte, os.Error) {
 
 // ReadFile reads the file named by filename and returns the contents.
 func ReadFile(filename string) ([]byte, os.Error) {
-	f, err := os.Open(filename, os.O_RDONLY, 0)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
 // If the file does not exist, WriteFile creates it with permissions perm;
 // otherwise WriteFile truncates it before writing.
 func WriteFile(filename string, data []byte, perm uint32) os.Error {
-	f, err := os.Open(filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, perm)
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 // ReadDir reads the directory named by dirname and returns
 // a list of sorted directory entries.
 func ReadDir(dirname string) ([]*os.FileInfo, os.Error) {
-	f, err := os.Open(dirname, os.O_RDONLY, 0)
+	f, err := os.Open(dirname)
 	if err != nil {
 		return nil, err
 	}

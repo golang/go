@@ -212,7 +212,7 @@ func before() {
 		runtime.MemProfileRate = *memProfileRate
 	}
 	if *cpuProfile != "" {
-		f, err := os.Open(*cpuProfile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+		f, err := os.Create(*cpuProfile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testing: %s", err)
 			return
@@ -233,7 +233,7 @@ func after() {
 		pprof.StopCPUProfile() // flushes profile to disk
 	}
 	if *memProfile != "" {
-		f, err := os.Open(*memProfile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+		f, err := os.Create(*memProfile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testing: %s", err)
 			return

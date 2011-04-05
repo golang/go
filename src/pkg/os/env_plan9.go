@@ -17,7 +17,7 @@ func Getenverror(key string) (value string, err Error) {
 	if len(key) == 0 {
 		return "", EINVAL
 	}
-	f, e := Open("/env/"+key, O_RDONLY, 0)
+	f, e := Open("/env/" + key)
 	if iserror(e) {
 		return "", ENOENV
 	}
@@ -46,7 +46,7 @@ func Setenv(key, value string) Error {
 		return EINVAL
 	}
 
-	f, e := Open("/env/"+key, O_WRONLY|O_CREAT, 0666)
+	f, e := Create("/env/" + key)
 	if iserror(e) {
 		return e
 	}
@@ -66,7 +66,7 @@ func Clearenv() {
 func Environ() []string {
 	env := make([]string, 0, 100)
 
-	f, e := Open("/env", O_RDONLY, 0)
+	f, e := Open("/env")
 	if iserror(e) {
 		panic(e)
 	}

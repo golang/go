@@ -263,7 +263,7 @@ func glob(dir, pattern string, matches []string) (m []string, e os.Error) {
 	if !fi.IsDirectory() {
 		return
 	}
-	d, err := os.Open(dir, os.O_RDONLY, 0666)
+	d, err := os.Open(dir)
 	if err != nil {
 		return
 	}

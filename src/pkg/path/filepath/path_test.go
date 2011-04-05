@@ -249,7 +249,7 @@ func walkTree(n *Node, path string, f func(path string, n *Node)) {
 func makeTree(t *testing.T) {
 	walkTree(tree, tree.name, func(path string, n *Node) {
 		if n.entries == nil {
-			fd, err := os.Open(path, os.O_CREAT, 0660)
+			fd, err := os.Create(path)
 			if err != nil {
 				t.Errorf("makeTree: %v", err)
 			}

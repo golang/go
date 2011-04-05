@@ -87,7 +87,7 @@ func (e *FormatError) String() string {
 
 // Open opens the named file using os.Open and prepares it for use as a PE binary.
 func Open(name string) (*File, os.Error) {
-	f, err := os.Open(name, os.O_RDONLY, 0)
+	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}

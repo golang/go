@@ -8,7 +8,7 @@ package os
 
 
 func Hostname() (name string, err Error) {
-	f, err := Open("#c/sysname", O_RDONLY, 0)
+	f, err := Open("#c/sysname")
 	if err != nil {
 		return "", err
 	}
