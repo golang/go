@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of March 28, 2011 -->
+<!-- subtitle Version of Apr 5, 2011 -->
 
 <!--
 TODO
@@ -4695,7 +4695,7 @@ func protect(g func()) {
 		if x := recover(); x != nil {
 			log.Printf("run time panic: %v", x)
 		}
-	}
+	}()
 	log.Println("start")
 	g()
 }
