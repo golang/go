@@ -35,6 +35,7 @@ DIRS=\
 	crypto/blowfish\
 	crypto/cast5\
 	crypto/cipher\
+	crypto/des\
 	crypto/dsa\
 	crypto/ecdsa\
 	crypto/elliptic\

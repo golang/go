@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors. All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,42 +18,37 @@ func (k KeySizeError) String() string {
 	return "crypto/des: invalid key size " + strconv.Itoa(int(k))
 }
 
-// A DESCipher is an instance of DES encryption.
-type DESCipher struct {
-	key     []byte
+// Cipher is an instance of DES encryption.
+type Cipher struct {
 	subkeys [16]uint64
 }
 
 // NewCipher creates and returns a new Cipher.
-func NewDESCipher(key []byte) (*DESCipher, os.Error) {
-	k := len(key)
-	if k != 8 {
-		return nil, KeySizeError(k)
+func NewCipher(key []byte) (*Cipher, os.Error) {
+	if len(key) != 8 {
+		return nil, KeySizeError(len(key))
 	}
 
-	c := &DESCipher{key, [16]uint64{}}
-	ksGenerateSubkeys(c)
+	c := new(Cipher)
+	c.generateSubkeys(key)
 	return c, nil
 }
 
 // BlockSize returns the DES block size, 8 bytes.
-func (c *DESCipher) BlockSize() int { return BlockSize }
+func (c *Cipher) BlockSize() int { return BlockSize }
 
 // Encrypts the 8-byte buffer src and stores the result in dst.
 // Note that for amounts of data larger than a block,
 // it is not safe to just call Encrypt on successive blocks;
 // instead, use an encryption mode like CBC (see crypto/cipher/cbc.go).
-func (c *DESCipher) Encrypt(dst, src []byte) { encryptBlock(c.subkeys, dst, src) }
+func (c *Cipher) Encrypt(dst, src []byte) { encryptBlock(c.subkeys[:], dst, src) }
 
 // Decrypts the 8-byte buffer src and stores the result in dst.
-func (c *DESCipher) Decrypt(dst, src []byte) { decryptBlock(c.subkeys, dst, src) }
+func (c *Cipher) Decrypt(dst, src []byte) { decryptBlock(c.subkeys[:], dst, src) }
 
 // Reset zeros the key data, so that it will no longer
 // appear in the process's memory.
-func (c *DESCipher) Reset() {
-	for i := 0; i < len(c.key); i++ {
-		c.key[i] = 0
-	}
+func (c *Cipher) Reset() {
 	for i := 0; i < len(c.subkeys); i++ {
 		c.subkeys[i] = 0
 	}
@@ -61,21 +56,19 @@ func (c *DESCipher) Reset() {
 
 // A TripleDESCipher is an instance of TripleDES encryption.
 type TripleDESCipher struct {
-	key                       []byte
-	cipher1, cipher2, cipher3 *DESCipher
+	cipher1, cipher2, cipher3 Cipher
 }
 
 // NewCipher creates and returns a new Cipher.
 func NewTripleDESCipher(key []byte) (*TripleDESCipher, os.Error) {
-	k := len(key)
-	if k != 24 {
-		return nil, KeySizeError(k)
+	if len(key) != 24 {
+		return nil, KeySizeError(len(key))
 	}
 
-	cipher1, _ := NewDESCipher(key[0:8])
-	cipher2, _ := NewDESCipher(key[8:16])
-	cipher3, _ := NewDESCipher(key[16:])
-	c := &TripleDESCipher{key, cipher1, cipher2, cipher3}
+	c := new(TripleDESCipher)
+	c.cipher1.generateSubkeys(key[:8])
+	c.cipher2.generateSubkeys(key[8:16])
+	c.cipher3.generateSubkeys(key[16:])
 	return c, nil
 }
 
@@ -104,9 +97,6 @@ func (c *TripleDESCipher) Decrypt(dst, src []byte) {
 // Reset zeros the key data, so that it will no longer
 // appear in the process's memory.
 func (c *TripleDESCipher) Reset() {
-	for i := 0; i < len(c.key); i++ {
-		c.key[i] = 0
-	}
 	c.cipher1.Reset()
 	c.cipher2.Reset()
 	c.cipher3.Reset()
