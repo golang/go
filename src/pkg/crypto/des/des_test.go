@@ -1,10 +1,11 @@
-// Copyright 2010 The Go Authors. All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package des
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -1263,10 +1264,9 @@ var tableA4Tests = []CryptTest{
 func TestWeakKeys(t *testing.T) {
 	for i, tt := range weakKeyTests {
 		var encrypt = func(in []byte) (out []byte) {
-			c := &DESCipher{tt.key, [16]uint64{}}
-			ksGenerateSubkeys(c)
+			c, _ := NewCipher(tt.key)
 			out = make([]byte, len(in))
-			encryptBlock(c.subkeys, out, in)
+			encryptBlock(c.subkeys[:], out, in)
 			return
 		}
 
@@ -1275,11 +1275,8 @@ func TestWeakKeys(t *testing.T) {
 		result := encrypt(tt.in)
 		result = encrypt(result)
 
-		for j, v := range result {
-			if v != tt.in[j] {
-				t.Errorf("weak key test %d: result[%d] = %#x, want %#x", i, j, v, tt.in[j])
-				break
-			}
+		if !bytes.Equal(result, tt.in) {
+			t.Errorf("#%d: result: %x want: %x", i, result, tt.in)
 		}
 	}
 }
@@ -1288,10 +1285,9 @@ func TestWeakKeys(t *testing.T) {
 func TestSemiWeakKeyPairs(t *testing.T) {
 	for i, tt := range semiWeakKeyTests {
 		var encrypt = func(key, in []byte) (out []byte) {
-			c := &DESCipher{key, [16]uint64{}}
-			ksGenerateSubkeys(c)
+			c, _ := NewCipher(key)
 			out = make([]byte, len(in))
-			encryptBlock(c.subkeys, out, in)
+			encryptBlock(c.subkeys[:], out, in)
 			return
 		}
 
@@ -1301,81 +1297,57 @@ func TestSemiWeakKeyPairs(t *testing.T) {
 		result := encrypt(tt.key, tt.in)
 		result = encrypt(tt.out, result)
 
-		for j, v := range result {
-			if v != tt.in[j] {
-				t.Errorf("semi weak key test %d: result[%d] = %#x, want %#x", i, j, v, tt.in[j])
-				break
-			}
+		if !bytes.Equal(result, tt.in) {
+			t.Errorf("#%d: result: %x want: %x", i, result, tt.in)
 		}
 	}
 }
 
 func TestDESEncryptBlock(t *testing.T) {
 	for i, tt := range encryptDESTests {
-		c := &DESCipher{tt.key, [16]uint64{}}
-		ksGenerateSubkeys(c)
+		c, _ := NewCipher(tt.key)
 		out := make([]byte, len(tt.in))
-		encryptBlock(c.subkeys, out, tt.in)
+		encryptBlock(c.subkeys[:], out, tt.in)
 
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("encryptBlock %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
-				break
-			}
+		if !bytes.Equal(out, tt.out) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tt.out)
 		}
 	}
 }
 
 func TestDESDecryptBlock(t *testing.T) {
 	for i, tt := range encryptDESTests {
-		c := &DESCipher{tt.key, [16]uint64{}}
-		ksGenerateSubkeys(c)
+		c, _ := NewCipher(tt.key)
 		plain := make([]byte, len(tt.in))
-		decryptBlock(c.subkeys, plain, tt.out)
+		decryptBlock(c.subkeys[:], plain, tt.out)
 
-		for j, v := range plain {
-			if v != tt.in[j] {
-				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
-				break
-			}
+		if !bytes.Equal(plain, tt.in) {
+			t.Errorf("#%d: result: %x want: %x", i, plain, tt.in)
 		}
 	}
 }
 
 func TestEncryptTripleDES(t *testing.T) {
 	for i, tt := range encryptTripleDESTests {
-		cipher1, _ := NewDESCipher(tt.key[0:8])
-		cipher2, _ := NewDESCipher(tt.key[8:16])
-		cipher3, _ := NewDESCipher(tt.key[16:])
-		c := &TripleDESCipher{tt.key, cipher1, cipher2, cipher3}
-
+		c, _ := NewTripleDESCipher(tt.key)
 		out := make([]byte, len(tt.in))
 		c.Encrypt(out, tt.in)
 
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("encrypt %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
-				break
-			}
+		if !bytes.Equal(out, tt.out) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tt.out)
 		}
 	}
 }
 
 func TestDecryptTripleDES(t *testing.T) {
 	for i, tt := range encryptTripleDESTests {
-		cipher1, _ := NewDESCipher(tt.key[0:8])
-		cipher2, _ := NewDESCipher(tt.key[8:16])
-		cipher3, _ := NewDESCipher(tt.key[16:])
-		c := &TripleDESCipher{tt.key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tt.key)
 
 		plain := make([]byte, len(tt.in))
 		c.Decrypt(plain, tt.out)
 
-		for j, v := range plain {
-			if v != tt.in[j] {
-				t.Errorf("decrypt %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
-				break
-			}
+		if !bytes.Equal(plain, tt.in) {
+			t.Errorf("#%d: result: %x want: %x", i, plain, tt.in)
 		}
 	}
 }
@@ -1383,20 +1355,13 @@ func TestDecryptTripleDES(t *testing.T) {
 // Defined in Pub 800-20
 func TestVariablePlaintextKnownAnswer(t *testing.T) {
 	for i, tt := range tableA1Tests {
-		cipher1, _ := NewDESCipher(tableA1Key[0:8])
-		cipher2, _ := NewDESCipher(tableA1Key[8:16])
-		cipher3, _ := NewDESCipher(tableA1Key[16:])
-		c := &TripleDESCipher{tableA1Key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tableA1Key)
 
 		out := make([]byte, len(tt.in))
 		c.Encrypt(out, tt.in)
 
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("variable plaintext known answer test %d: out[%d] = %#x, want %#x",
-					i, j, v, tt.out[j])
-				break
-			}
+		if !bytes.Equal(out, tt.out) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tt.out)
 		}
 	}
 }
@@ -1404,20 +1369,13 @@ func TestVariablePlaintextKnownAnswer(t *testing.T) {
 // Defined in Pub 800-20
 func TestVariableCiphertextKnownAnswer(t *testing.T) {
 	for i, tt := range tableA1Tests {
-		cipher1, _ := NewDESCipher(tableA1Key[0:8])
-		cipher2, _ := NewDESCipher(tableA1Key[8:16])
-		cipher3, _ := NewDESCipher(tableA1Key[16:])
-		c := &TripleDESCipher{tableA1Key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tableA1Key)
 
-		out := make([]byte, len(tt.out))
-		c.Decrypt(out, tt.out)
+		plain := make([]byte, len(tt.out))
+		c.Decrypt(plain, tt.out)
 
-		for j, v := range out {
-			if v != tt.in[j] {
-				t.Errorf("variable ciphertext known answer test %d: in[%d] = %#x, want %#x",
-					i, j, v, tt.in[j])
-				break
-			}
+		if !bytes.Equal(plain, tt.in) {
+			t.Errorf("#%d: result: %x want: %x", i, plain, tt.in)
 		}
 	}
 }
@@ -1427,20 +1385,13 @@ func TestVariableCiphertextKnownAnswer(t *testing.T) {
 // 0x01... key produces the original plaintext
 func TestInversePermutationKnownAnswer(t *testing.T) {
 	for i, tt := range tableA1Tests {
-		cipher1, _ := NewDESCipher(tableA1Key[0:8])
-		cipher2, _ := NewDESCipher(tableA1Key[8:16])
-		cipher3, _ := NewDESCipher(tableA1Key[16:])
-		c := &TripleDESCipher{tableA1Key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tableA1Key)
 
-		out := make([]byte, len(tt.in))
-		c.Encrypt(out, tt.out)
+		plain := make([]byte, len(tt.in))
+		c.Encrypt(plain, tt.out)
 
-		for j, v := range out {
-			if v != tt.in[j] {
-				t.Errorf("inverse permutation known answer test %d: in[%d] = %#x, want %#x",
-					i, j, v, tt.in[j])
-				break
-			}
+		if !bytes.Equal(plain, tt.in) {
+			t.Errorf("#%d: result: %x want: %x", i, plain, tt.in)
 		}
 	}
 }
@@ -1450,20 +1401,13 @@ func TestInversePermutationKnownAnswer(t *testing.T) {
 // 0x01... key produces the corresponding ciphertext
 func TestInitialPermutationKnownAnswer(t *testing.T) {
 	for i, tt := range tableA1Tests {
-		cipher1, _ := NewDESCipher(tableA1Key[0:8])
-		cipher2, _ := NewDESCipher(tableA1Key[8:16])
-		cipher3, _ := NewDESCipher(tableA1Key[16:])
-		c := &TripleDESCipher{tableA1Key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tableA1Key)
 
 		out := make([]byte, len(tt.in))
 		c.Decrypt(out, tt.in)
 
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("initial permutation known answer test %d: out[%d] = %#x, want %#x",
-					i, j, v, tt.out[j])
-				break
-			}
+		if !bytes.Equal(out, tt.out) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tt.out)
 		}
 	}
 }
@@ -1471,20 +1415,13 @@ func TestInitialPermutationKnownAnswer(t *testing.T) {
 // Defined in Pub 800-20
 func TestVariableKeyKnownAnswerEncrypt(t *testing.T) {
 	for i, tt := range tableA2Tests {
-		cipher1, _ := NewDESCipher(tt.key[0:8])
-		cipher2, _ := NewDESCipher(tt.key[8:16])
-		cipher3, _ := NewDESCipher(tt.key[16:])
-		c := &TripleDESCipher{tt.key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tt.key)
 
 		out := make([]byte, len(tableA2Plaintext))
 		c.Encrypt(out, tableA2Plaintext)
 
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("variable key known answer encrypt test %d: out[%d] = %#x, want %#x",
-					i, j, v, tt.out[j])
-				break
-			}
+		if !bytes.Equal(out, tt.out) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tt.out)
 		}
 	}
 }
@@ -1492,20 +1429,13 @@ func TestVariableKeyKnownAnswerEncrypt(t *testing.T) {
 // Defined in Pub 800-20
 func TestVariableKeyKnownAnswerDecrypt(t *testing.T) {
 	for i, tt := range tableA2Tests {
-		cipher1, _ := NewDESCipher(tt.key[0:8])
-		cipher2, _ := NewDESCipher(tt.key[8:16])
-		cipher3, _ := NewDESCipher(tt.key[16:])
-		c := &TripleDESCipher{tt.key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tt.key)
 
 		out := make([]byte, len(tt.out))
 		c.Decrypt(out, tt.out)
 
-		for j, v := range out {
-			if v != tableA2Plaintext[j] {
-				t.Errorf("variable key known answer decrypt test %d: out[%d] = %#x, want %#x",
-					i, j, v, tableA2Plaintext[j])
-				break
-			}
+		if !bytes.Equal(out, tableA2Plaintext) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tableA2Plaintext)
 		}
 	}
 }
@@ -1513,20 +1443,13 @@ func TestVariableKeyKnownAnswerDecrypt(t *testing.T) {
 // Defined in Pub 800-20
 func TestPermutationOperationKnownAnswerEncrypt(t *testing.T) {
 	for i, tt := range tableA3Tests {
-		cipher1, _ := NewDESCipher(tt.key[0:8])
-		cipher2, _ := NewDESCipher(tt.key[8:16])
-		cipher3, _ := NewDESCipher(tt.key[16:])
-		c := &TripleDESCipher{tt.key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tt.key)
 
 		out := make([]byte, len(tableA3Plaintext))
 		c.Encrypt(out, tableA3Plaintext)
 
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("permutation operation known answer encrypt test %d: out[%d] = %#x, want %#x",
-					i, j, v, tt.out[j])
-				break
-			}
+		if !bytes.Equal(out, tt.out) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tt.out)
 		}
 	}
 }
@@ -1534,20 +1457,13 @@ func TestPermutationOperationKnownAnswerEncrypt(t *testing.T) {
 // Defined in Pub 800-20
 func TestPermutationOperationKnownAnswerDecrypt(t *testing.T) {
 	for i, tt := range tableA3Tests {
-		cipher1, _ := NewDESCipher(tt.key[0:8])
-		cipher2, _ := NewDESCipher(tt.key[8:16])
-		cipher3, _ := NewDESCipher(tt.key[16:])
-		c := &TripleDESCipher{tt.key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tt.key)
 
 		out := make([]byte, len(tt.out))
 		c.Decrypt(out, tt.out)
 
-		for j, v := range out {
-			if v != tableA3Plaintext[j] {
-				t.Errorf("permutation operation known answer decrypt test %d: out[%d] = %#x, want %#x",
-					i, j, v, tableA3Plaintext[j])
-				break
-			}
+		if !bytes.Equal(out, tableA3Plaintext) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tableA3Plaintext)
 		}
 	}
 }
@@ -1555,20 +1471,13 @@ func TestPermutationOperationKnownAnswerDecrypt(t *testing.T) {
 // Defined in Pub 800-20
 func TestSubstitutionTableKnownAnswerEncrypt(t *testing.T) {
 	for i, tt := range tableA4Tests {
-		cipher1, _ := NewDESCipher(tt.key[0:8])
-		cipher2, _ := NewDESCipher(tt.key[8:16])
-		cipher3, _ := NewDESCipher(tt.key[16:])
-		c := &TripleDESCipher{tt.key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tt.key)
 
 		out := make([]byte, len(tt.in))
 		c.Encrypt(out, tt.in)
 
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("substitution table known answer encrypt test %d: out[%d] = %#x, want %#x",
-					i, j, v, tt.out[j])
-				break
-			}
+		if !bytes.Equal(out, tt.out) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tt.out)
 		}
 	}
 }
@@ -1576,20 +1485,13 @@ func TestSubstitutionTableKnownAnswerEncrypt(t *testing.T) {
 // Defined in Pub 800-20
 func TestSubstitutionTableKnownAnswerDecrypt(t *testing.T) {
 	for i, tt := range tableA4Tests {
-		cipher1, _ := NewDESCipher(tt.key[0:8])
-		cipher2, _ := NewDESCipher(tt.key[8:16])
-		cipher3, _ := NewDESCipher(tt.key[16:])
-		c := &TripleDESCipher{tt.key, cipher1, cipher2, cipher3}
+		c, _ := NewTripleDESCipher(tt.key)
 
 		out := make([]byte, len(tt.out))
 		c.Decrypt(out, tt.out)
 
-		for j, v := range out {
-			if v != tt.in[j] {
-				t.Errorf("substitution table known answer decrypt test %d: out[%d] = %#x, want %#x",
-					i, j, v, tt.in[j])
-				break
-			}
+		if !bytes.Equal(out, tt.in) {
+			t.Errorf("#%d: result: %x want: %x", i, out, tt.in)
 		}
 	}
 }
