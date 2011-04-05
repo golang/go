@@ -120,7 +120,7 @@ func logPackage(pkg string) {
 	if installedPkgs[pkg] {
 		return
 	}
-	fout, err := os.Open(logfile, os.O_WRONLY|os.O_APPEND|os.O_CREAT, 0644)
+	fout, err := os.Create(logfile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", argv0, err)
 		return

@@ -155,7 +155,7 @@ func isTextFile(filename string) bool {
 
 	// the extension is not known; read an initial chunk
 	// of the file and check if it looks like text
-	f, err := os.Open(filename, os.O_RDONLY, 0)
+	f, err := os.Open(filename)
 	if err != nil {
 		return false
 	}

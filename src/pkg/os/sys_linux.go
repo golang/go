@@ -9,7 +9,7 @@ package os
 
 // Hostname returns the host name reported by the kernel.
 func Hostname() (name string, err Error) {
-	f, err := Open("/proc/sys/kernel/hostname", O_RDONLY, 0)
+	f, err := Open("/proc/sys/kernel/hostname")
 	if err != nil {
 		return "", err
 	}

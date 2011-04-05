@@ -48,7 +48,7 @@ func TempFile(dir, prefix string) (f *os.File, err os.Error) {
 	nconflict := 0
 	for i := 0; i < 10000; i++ {
 		name := filepath.Join(dir, prefix+nextSuffix())
-		f, err = os.Open(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 		if pe, ok := err.(*os.PathError); ok && pe.Error == os.EEXIST {
 			if nconflict++; nconflict > 10 {
 				rand = reseed()

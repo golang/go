@@ -93,7 +93,7 @@ func processFile(filename string, useStdin bool) os.Error {
 	if useStdin {
 		f = os.Stdin
 	} else {
-		f, err = os.Open(filename, os.O_RDONLY, 0)
+		f, err = os.Open(filename)
 		if err != nil {
 			return err
 		}

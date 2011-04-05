@@ -51,7 +51,7 @@ func TestInotifyEvents(t *testing.T) {
 
 	// Create a file
 	// This should add at least one event to the inotify event queue
-	_, err = os.Open(testFile, os.O_WRONLY|os.O_CREAT, 0666)
+	_, err = os.OpenFile(testFile, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		t.Fatalf("creating test file failed: %s", err)
 	}

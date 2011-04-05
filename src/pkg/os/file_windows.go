@@ -46,10 +46,12 @@ func openDir(name string) (file *File, err Error) {
 	return f, nil
 }
 
-// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
-// if applicable.  If successful, methods on the returned File can be used for I/O.
+// OpenFile is the generalized open call; most users will use Open
+// or Create instead.  It opens the named file with specified flag
+// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+// methods on the returned File can be used for I/O.
 // It returns the File and an Error, if any.
-func Open(name string, flag int, perm uint32) (file *File, err Error) {
+func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
 	r, e := openDir(name)
 	if e == nil {
@@ -166,7 +168,7 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
 func Truncate(name string, size int64) Error {
-	f, e := Open(name, O_WRONLY|O_CREAT, 0666)
+	f, e := Open(name, O_WRONLY|O_CREATE, 0666)
 	if e != nil {
 		return e
 	}

@@ -28,7 +28,7 @@ func pipeErr(err os.Error) io.Reader {
 }
 
 func readDat(filename string, c chan io.Reader) {
-	f, err := os.Open("testdata/webkit/"+filename, os.O_RDONLY, 0600)
+	f, err := os.Open("testdata/webkit/" + filename)
 	if err != nil {
 		c <- pipeErr(err)
 		return

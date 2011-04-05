@@ -72,7 +72,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 		return
 	}
 
-	f, err := os.Open(name, os.O_RDONLY, 0)
+	f, err := os.Open(name)
 	if err != nil {
 		// TODO expose actual error?
 		NotFound(w, r)
@@ -113,7 +113,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {
 		index := name + filepath.FromSlash(indexPage)
-		ff, err := os.Open(index, os.O_RDONLY, 0)
+		ff, err := os.Open(index)
 		if err == nil {
 			defer ff.Close()
 			dd, err := ff.Stat()

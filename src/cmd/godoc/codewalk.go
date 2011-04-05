@@ -115,7 +115,7 @@ func (st *Codestep) String() string {
 
 // loadCodewalk reads a codewalk from the named XML file.
 func loadCodewalk(file string) (*Codewalk, os.Error) {
-	f, err := os.Open(file, os.O_RDONLY, 0)
+	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}

@@ -21,7 +21,7 @@ var filenames = []string{
 // the given options yields equivalent bytes to the original file.
 func testFile(t *testing.T, fn string, order Order, litWidth int) {
 	// Read the file, as golden output.
-	golden, err := os.Open(fn, os.O_RDONLY, 0400)
+	golden, err := os.Open(fn)
 	if err != nil {
 		t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err)
 		return
@@ -29,7 +29,7 @@ func testFile(t *testing.T, fn string, order Order, litWidth int) {
 	defer golden.Close()
 
 	// Read the file again, and push it through a pipe that compresses at the write end, and decompresses at the read end.
-	raw, err := os.Open(fn, os.O_RDONLY, 0400)
+	raw, err := os.Open(fn)
 	if err != nil {
 		t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err)
 		return

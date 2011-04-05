@@ -49,7 +49,7 @@ func (f *File) hasDataDescriptor() bool {
 
 // OpenReader will open the Zip file specified by name and return a Reader.
 func OpenReader(name string) (*Reader, os.Error) {
-	f, err := os.Open(name, os.O_RDONLY, 0644)
+	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}

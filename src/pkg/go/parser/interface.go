@@ -183,7 +183,7 @@ func ParseFiles(fset *token.FileSet, filenames []string, mode uint) (pkgs map[st
 // error are returned.
 //
 func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, os.Error) {
-	fd, err := os.Open(path, os.O_RDONLY, 0)
+	fd, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}

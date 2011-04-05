@@ -83,7 +83,7 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// write request Body to x.go
-	f, err := os.Open(src, os.O_CREAT|os.O_WRONLY|os.O_TRUNC, 0666)
+	f, err := os.Create(src)
 	if err != nil {
 		error(w, nil, err)
 		return

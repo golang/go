@@ -20,7 +20,7 @@ var filenames = []string{
 // yields equivalent bytes to the original file.
 func testFileLevel(t *testing.T, fn string, level int) {
 	// Read the file, as golden output.
-	golden, err := os.Open(fn, os.O_RDONLY, 0444)
+	golden, err := os.Open(fn)
 	if err != nil {
 		t.Errorf("%s (level=%d): %v", fn, level, err)
 		return
@@ -28,7 +28,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
 	defer golden.Close()
 
 	// Read the file again, and push it through a pipe that compresses at the write end, and decompresses at the read end.
-	raw, err := os.Open(fn, os.O_RDONLY, 0444)
+	raw, err := os.Open(fn)
 	if err != nil {
 		t.Errorf("%s (level=%d): %v", fn, level, err)
 		return

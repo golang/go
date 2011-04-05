@@ -34,7 +34,7 @@ var imageTests = []imageTest{
 }
 
 func decode(filename string) (image.Image, string, os.Error) {
-	f, err := os.Open(filename, os.O_RDONLY, 0400)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, "", err
 	}

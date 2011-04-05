@@ -624,7 +624,7 @@ func pkgName(filename string) string {
 // failed (that is, if the file was not added), it returns file == nil.
 func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *ast.File) {
 	// open file
-	f, err := os.Open(filename, os.O_RDONLY, 0)
+	f, err := os.Open(filename)
 	if err != nil {
 		return
 	}

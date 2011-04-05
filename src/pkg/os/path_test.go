@@ -29,7 +29,7 @@ func TestMkdirAll(t *testing.T) {
 
 	// Make file.
 	fpath := path + "/file"
-	_, err = Open(fpath, O_WRONLY|O_CREAT, 0666)
+	_, err = Create(fpath)
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err)
 	}
@@ -72,7 +72,7 @@ func TestRemoveAll(t *testing.T) {
 	if err := MkdirAll(path, 0777); err != nil {
 		t.Fatalf("MkdirAll %q: %s", path, err)
 	}
-	fd, err := Open(fpath, O_WRONLY|O_CREAT, 0666)
+	fd, err := Create(fpath)
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err)
 	}
@@ -88,12 +88,12 @@ func TestRemoveAll(t *testing.T) {
 	if err = MkdirAll(dpath, 0777); err != nil {
 		t.Fatalf("MkdirAll %q: %s", dpath, err)
 	}
-	fd, err = Open(fpath, O_WRONLY|O_CREAT, 0666)
+	fd, err = Create(fpath)
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err)
 	}
 	fd.Close()
-	fd, err = Open(dpath+"/file", O_WRONLY|O_CREAT, 0666)
+	fd, err = Create(dpath + "/file")
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err)
 	}
@@ -121,7 +121,7 @@ func TestRemoveAll(t *testing.T) {
 		}
 
 		for _, s := range []string{fpath, dpath + "/file1", path + "/zzz"} {
-			fd, err = Open(s, O_WRONLY|O_CREAT, 0666)
+			fd, err = Create(s)
 			if err != nil {
 				t.Fatalf("create %q: %s", s, err)
 			}

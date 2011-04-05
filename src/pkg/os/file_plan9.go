@@ -17,16 +17,18 @@ func epipecheck(file *File, e syscall.Error) {
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "/dev/null"
 
-// Open opens the named file with specified flag (O_RDONLY etc.) and perm.
-// If successful, methods on the returned File can be used for I/O.
+// OpenFile is the generalized open call; most users will use Open
+// or Create instead.  It opens the named file with specified flag
+// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+// methods on the returned File can be used for I/O.
 // It returns the File and an Error, if any.
-func Open(name string, flag int, perm uint32) (file *File, err Error) {
+func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
 	var fd int
 	var e syscall.Error
 
 	syscall.ForkLock.RLock()
-	if flag&O_CREAT == O_CREAT {
-		fd, e = syscall.Create(name, flag & ^O_CREAT, perm)
+	if flag&O_CREATE == O_CREATE {
+		fd, e = syscall.Create(name, flag & ^O_CREATE, perm)
 	} else {
 		fd, e = syscall.Open(name, flag)
 	}

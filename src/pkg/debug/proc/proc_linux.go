@@ -1184,7 +1184,7 @@ func (p *process) attachThread(tid int) (*thread, os.Error) {
 // attachAllThreads attaches to all threads in a process.
 func (p *process) attachAllThreads() os.Error {
 	taskPath := "/proc/" + strconv.Itoa(p.pid) + "/task"
-	taskDir, err := os.Open(taskPath, os.O_RDONLY, 0)
+	taskDir, err := os.Open(taskPath)
 	if err != nil {
 		return err
 	}

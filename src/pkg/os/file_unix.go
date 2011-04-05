@@ -20,10 +20,12 @@ type dirInfo struct {
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "/dev/null"
 
-// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
-// if applicable.  If successful, methods on the returned File can be used for I/O.
+// OpenFile is the generalized open call; most users will use Open
+// or Create instead.  It opens the named file with specified flag
+// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+// methods on the returned File can be used for I/O.
 // It returns the File and an Error, if any.
-func Open(name string, flag int, perm uint32) (file *File, err Error) {
+func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
 	if e != 0 {
 		return nil, &PathError{"open", name, Errno(e)}

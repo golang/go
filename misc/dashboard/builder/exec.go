@@ -49,7 +49,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string, 
 	b := new(bytes.Buffer)
 	var w io.Writer = b
 	if logfile != "" {
-		f, err := os.Open(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		f, err := os.Create(logfile)
 		if err != nil {
 			return
 		}

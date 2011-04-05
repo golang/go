@@ -159,7 +159,7 @@ func getTestFileNames() {
 		}
 	}
 	for _, n := range names {
-		fd, err := os.Open(n, os.O_RDONLY, 0)
+		fd, err := os.Open(n)
 		if err != nil {
 			Fatalf("%s: %s", n, err)
 		}
@@ -313,7 +313,7 @@ func doRun(argv []string, returnStdout bool) string {
 
 // writeTestmainGo generates the test program to be compiled, "./_testmain.go".
 func writeTestmainGo() {
-	f, err := os.Open("_testmain.go", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	f, err := os.Create("_testmain.go")
 	if err != nil {
 		Fatalf("can't create _testmain.go: %s", err)
 	}

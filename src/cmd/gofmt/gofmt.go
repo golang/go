@@ -135,7 +135,7 @@ func processFile(f *os.File) os.Error {
 
 
 func processFileByName(filename string) os.Error {
-	file, err := os.Open(filename, os.O_RDONLY, 0)
+	file, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func gofmtMain() {
 	}
 
 	if *cpuprofile != "" {
-		f, err := os.Open(*cpuprofile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		f, err := os.Create(*cpuprofile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "creating cpu profile: %s\n", err)
 			exitCode = 2

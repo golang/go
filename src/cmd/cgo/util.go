@@ -95,7 +95,7 @@ func isName(s string) bool {
 }
 
 func creat(name string) *os.File {
-	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+	f, err := os.Create(name)
 	if err != nil {
 		fatal("%s", err)
 	}
