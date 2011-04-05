@@ -37,7 +37,7 @@ var one = new(big.Int).SetInt64(1)
 // curve using the procedure given in [NSA] A.2.1.
 func randFieldElement(c *elliptic.Curve, rand io.Reader) (k *big.Int, err os.Error) {
 	b := make([]byte, c.BitSize/8+8)
-	_, err = rand.Read(b)
+	_, err = io.ReadFull(rand, b)
 	if err != nil {
 		return
 	}
