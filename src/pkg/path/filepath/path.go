@@ -231,6 +231,21 @@ func EvalSymlinks(path string) (string, os.Error) {
 	return Clean(b.String()), nil
 }
 
+// Abs returns an absolute representation of path.
+// If the path is not absolute it will be joined with the current
+// working directory to turn it into an absolute path.  The absolute
+// path name for a given file is not guaranteed to be unique.
+func Abs(path string) (string, os.Error) {
+	if IsAbs(path) {
+		return path, nil
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return Join(wd, path), nil
+}
+
 // Visitor methods are invoked for corresponding file tree entries
 // visited by Walk. The parameter path is the full path of f relative
 // to root.
