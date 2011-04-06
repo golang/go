@@ -81,6 +81,13 @@ mkerrors="./mkerrors.sh"
 run="sh"
 
 case "$1" in
+-syscalls)
+	for i in zsyscall*go
+	do
+		sed 1q $i | sed 's;^// ;;' | sh | gofmt >_$i && mv _$i $i
+	done
+	exit 0
+	;;
 -n)
 	run="cat"
 	shift

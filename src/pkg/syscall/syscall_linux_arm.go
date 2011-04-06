@@ -98,6 +98,16 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sysnb	Gettimeofday(tv *Timeval) (errno int)
 //sysnb	Time(t *Time_t) (tt Time_t, errno int)
 
+//sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, errno int)
+
+func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, errno int) {
+	page := uintptr(offset / 4096)
+	if offset != int64(page)*4096 {
+		return 0, EINVAL
+	}
+	return mmap2(addr, length, prot, flags, fd, page)
+}
+
 // TODO(kaib): add support for tracing
 func (r *PtraceRegs) PC() uint64 { return 0 }
 

@@ -56,6 +56,16 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sysnb	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
 
+//sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, errno int)
+
+func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, errno int) {
+	page := uintptr(offset / 4096)
+	if offset != int64(page)*4096 {
+		return 0, EINVAL
+	}
+	return mmap2(addr, length, prot, flags, fd, page)
+}
+
 // Underlying system call writes to newoffset via pointer.
 // Implemented in assembly to avoid allocation.
 func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)

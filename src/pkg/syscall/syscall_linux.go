@@ -797,6 +797,23 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 //sys	read(fd int, p *byte, np int) (n int, errno int)
 //sys	write(fd int, p *byte, np int) (n int, errno int)
 
+// mmap varies by architecutre; see syscall_linux_*.go.
+//sys	munmap(addr uintptr, length uintptr) (errno int)
+
+var mapper = &mmapper{
+	active: make(map[*byte][]byte),
+	mmap:   mmap,
+	munmap: munmap,
+}
+
+func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, errno int) {
+	return mapper.Mmap(fd, offset, length, prot, flags)
+}
+
+func Munmap(b []byte) (errno int) {
+	return mapper.Munmap(b)
+}
+
 /*
  * Unimplemented
  */

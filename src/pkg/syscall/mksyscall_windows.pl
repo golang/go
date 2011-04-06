@@ -119,7 +119,14 @@ while(<>) {
 	$vars .= sprintf "\t%s = getSysProcAddr(%s, \"%s\")\n", $sysvarname, $modvname, $sysname;
 
 	# Go function header.
-	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
+	my $out = join(', ', @out);
+	if($out ne "") {
+		$out = " ($out)";
+	}
+	if($text ne "") {
+		$text .= "\n"
+	}
+	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out;
 
 	# Prepare arguments to Syscall.
 	my @args = ();
@@ -232,6 +239,7 @@ while(<>) {
 				$failexpr = "$name $failcond";
 			}
 		}
+		$failexpr =~ s/(=)([0-9A-Za-z\-+])/\1 \2/;  # gofmt compatible
 		if($name eq "errno") {
 			# Set errno to "last error" only if returned value indicate failure
 			$body .= "\tif $failexpr {\n";
@@ -259,7 +267,7 @@ while(<>) {
 	}
 
 	$text .= "\treturn\n";
-	$text .= "}\n\n";
+	$text .= "}\n";
 }
 
 if($errors) {

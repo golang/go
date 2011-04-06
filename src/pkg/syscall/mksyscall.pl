@@ -143,6 +143,11 @@ while(<>) {
 		while(@args < 6) {
 			push @args, "0";
 		}
+	} elsif(@args <= 9) {
+		$asm .= "9";
+		while(@args < 9) {
+			push @args, "0";
+		}
 	} else {
 		print STDERR "$ARGV:$.: too many arguments to system call\n";
 	}
@@ -204,7 +209,7 @@ while(<>) {
 	if ($plan9 && $ret[2] eq "e1") {
 		$text .= "\terr = nil\n";
 		$text .= "\tif int(r0) == -1 {\n";
-		$text .= "\t\t err = NewError(e1)\n";
+		$text .= "\t\terr = NewError(e1)\n";
 		$text .= "\t}\n";
 	}
 
