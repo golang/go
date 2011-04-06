@@ -231,7 +231,7 @@ bench.dirs: $(addsuffix .bench, $(BENCH))
 
 %.install:
 	+@echo install $*
-	+@$(MAKE) -C $* install >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out)
+	+@$(MAKE) -C $* install >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out; exit 1)
 
 %.nuke:
 	+$(MAKE) -C $* nuke
