@@ -92,19 +92,21 @@ type PublicKey struct {
 type PrivateKey struct {
 	PublicKey          // public part.
 	D         *big.Int // private exponent
-	P, Q      *big.Int // prime factors of N
+	P, Q, R   *big.Int // prime factors of N (R may be nil)
 
-	rwMutex sync.RWMutex // protects the following
-	dP, dQ  *big.Int     // D mod (P-1) (or mod Q-1) 
-	qInv    *big.Int     // q^-1 mod p
+	rwMutex    sync.RWMutex // protects the following
+	dP, dQ, dR *big.Int     // D mod (P-1) (or mod Q-1 etc) 
+	qInv       *big.Int     // q^-1 mod p
+	pq         *big.Int     // P*Q
+	tr         *big.Int     // pq·tr ≡ 1 mod r
 }
 
 // Validate performs basic sanity checks on the key.
 // It returns nil if the key is valid, or else an os.Error describing a problem.
 
 func (priv *PrivateKey) Validate() os.Error {
-	// Check that p and q are prime. Note that this is just a sanity
-	// check. Since the random witnesses chosen by ProbablyPrime are
+	// Check that p, q and, maybe, r are prime. Note that this is just a
+	// sanity check. Since the random witnesses chosen by ProbablyPrime are
 	// deterministic, given the candidate number, it's easy for an attack
 	// to generate composites that pass this test.
 	if !big.ProbablyPrime(priv.P, 20) {
@@ -113,16 +115,26 @@ func (priv *PrivateKey) Validate() os.Error {
 	if !big.ProbablyPrime(priv.Q, 20) {
 		return os.ErrorString("Q is composite")
 	}
+	if priv.R != nil && !big.ProbablyPrime(priv.R, 20) {
+		return os.ErrorString("R is composite")
+	}
 
-	// Check that p*q == n.
+	// Check that p*q*r == n.
 	modulus := new(big.Int).Mul(priv.P, priv.Q)
+	if priv.R != nil {
+		modulus.Mul(modulus, priv.R)
+	}
 	if modulus.Cmp(priv.N) != 0 {
 		return os.ErrorString("invalid modulus")
 	}
-	// Check that e and totient(p, q) are coprime.
+	// Check that e and totient(p, q, r) are coprime.
 	pminus1 := new(big.Int).Sub(priv.P, bigOne)
 	qminus1 := new(big.Int).Sub(priv.Q, bigOne)
 	totient := new(big.Int).Mul(pminus1, qminus1)
+	if priv.R != nil {
+		rminus1 := new(big.Int).Sub(priv.R, bigOne)
+		totient.Mul(totient, rminus1)
+	}
 	e := big.NewInt(int64(priv.E))
 	gcd := new(big.Int)
 	x := new(big.Int)
@@ -131,7 +143,7 @@ func (priv *PrivateKey) Validate() os.Error {
 	if gcd.Cmp(bigOne) != 0 {
 		return os.ErrorString("invalid public exponent E")
 	}
-	// Check that de ≡ 1 (mod totient(p, q))
+	// Check that de ≡ 1 (mod totient(p, q, r))
 	de := new(big.Int).Mul(priv.D, e)
 	de.Mod(de, totient)
 	if de.Cmp(bigOne) != 0 {
@@ -140,7 +152,7 @@ func (priv *PrivateKey) Validate() os.Error {
 	return nil
 }
 
-// GenerateKeyPair generates an RSA keypair of the given bit size.
+// GenerateKey generates an RSA keypair of the given bit size.
 func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 	priv = new(PrivateKey)
 	// Smaller public exponents lead to faster public key
@@ -187,6 +199,77 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 			priv.D.Add(priv.D, totient)
 			priv.P = p
 			priv.Q = q
+			priv.N = n
+
+			break
+		}
+	}
+
+	return
+}
+
+// Generate3PrimeKey generates a 3-prime RSA keypair of the given bit size, as
+// suggested in [1]. Although the public keys are compatible (actually,
+// indistinguishable) from the 2-prime case, the private keys are not. Thus it
+// may not be possible to export 3-prime private keys in certain formats or to
+// subsequently import them into other code.
+//
+// Table 1 in [2] suggests that size should be >= 1024 when using 3 primes.
+//
+// [1] US patent 4405829 (1972, expired)
+// [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+func Generate3PrimeKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+	priv = new(PrivateKey)
+	priv.E = 3
+
+	pminus1 := new(big.Int)
+	qminus1 := new(big.Int)
+	rminus1 := new(big.Int)
+	totient := new(big.Int)
+
+	for {
+		p, err := randomPrime(rand, bits/3)
+		if err != nil {
+			return nil, err
+		}
+
+		todo := bits - p.BitLen()
+		q, err := randomPrime(rand, todo/2)
+		if err != nil {
+			return nil, err
+		}
+
+		todo -= q.BitLen()
+		r, err := randomPrime(rand, todo)
+		if err != nil {
+			return nil, err
+		}
+
+		if p.Cmp(q) == 0 ||
+			q.Cmp(r) == 0 ||
+			r.Cmp(p) == 0 {
+			continue
+		}
+
+		n := new(big.Int).Mul(p, q)
+		n.Mul(n, r)
+		pminus1.Sub(p, bigOne)
+		qminus1.Sub(q, bigOne)
+		rminus1.Sub(r, bigOne)
+		totient.Mul(pminus1, qminus1)
+		totient.Mul(totient, rminus1)
+
+		g := new(big.Int)
+		priv.D = new(big.Int)
+		y := new(big.Int)
+		e := big.NewInt(int64(priv.E))
+		big.GcdInt(g, priv.D, y, e, totient)
+
+		if g.Cmp(bigOne) == 0 {
+			priv.D.Add(priv.D, totient)
+			priv.P = p
+			priv.Q = q
+			priv.R = r
 			priv.N = n
 
 			break
@@ -336,6 +419,14 @@ func (priv *PrivateKey) precompute() {
 	priv.dQ.Mod(priv.D, priv.dQ)
 
 	priv.qInv = new(big.Int).ModInverse(priv.Q, priv.P)
+
+	if priv.R != nil {
+		priv.dR = new(big.Int).Sub(priv.R, bigOne)
+		priv.dR.Mod(priv.D, priv.dR)
+
+		priv.pq = new(big.Int).Mul(priv.P, priv.Q)
+		priv.tr = new(big.Int).ModInverse(priv.pq, priv.R)
+	}
 }
 
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
@@ -402,6 +493,19 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 		m.Mod(m, priv.P)
 		m.Mul(m, priv.Q)
 		m.Add(m, m2)
+
+		if priv.dR != nil {
+			// 3-prime CRT.
+			m2.Exp(c, priv.dR, priv.R)
+			m2.Sub(m2, m)
+			m2.Mul(m2, priv.tr)
+			m2.Mod(m2, priv.R)
+			if m2.Sign() < 0 {
+				m2.Add(m2, priv.R)
+			}
+			m2.Mul(m2, priv.pq)
+			m.Add(m, m2)
+		}
 	}
 
 	priv.rwMutex.RUnlock()
