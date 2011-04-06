@@ -134,21 +134,23 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 	size := d.Size
 	code := StatusOK
 
-	// use extension to find content type.
-	ext := filepath.Ext(name)
-	if ctype := mime.TypeByExtension(ext); ctype != "" {
-		w.Header().Set("Content-Type", ctype)
-	} else {
-		// read first chunk to decide between utf-8 text and binary
-		var buf [1024]byte
-		n, _ := io.ReadFull(f, buf[:])
-		b := buf[:n]
-		if isText(b) {
-			w.Header().Set("Content-Type", "text-plain; charset=utf-8")
-		} else {
-			w.Header().Set("Content-Type", "application/octet-stream") // generic binary
+	// If Content-Type isn't set, use the file's extension to find it.
+	if w.Header().Get("Content-Type") == "" {
+		ctype := mime.TypeByExtension(filepath.Ext(name))
+		if ctype == "" {
+			// read a chunk to decide between utf-8 text and binary
+			var buf [1024]byte
+			n, _ := io.ReadFull(f, buf[:])
+			b := buf[:n]
+			if isText(b) {
+				ctype = "text-plain; charset=utf-8"
+			} else {
+				// generic binary
+				ctype = "application/octet-stream"
+			}
+			f.Seek(0, os.SEEK_SET) // rewind to output whole file
 		}
-		f.Seek(0, os.SEEK_SET) // rewind to output whole file
+		w.Header().Set("Content-Type", ctype)
 	}
 
 	// handle Content-Range header.

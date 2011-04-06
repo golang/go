@@ -85,6 +85,30 @@ func TestServeFile(t *testing.T) {
 	}
 }
 
+func TestServeFileContentType(t *testing.T) {
+	const ctype = "icecream/chocolate"
+	override := false
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if override {
+			w.Header().Set("Content-Type", ctype)
+		}
+		ServeFile(w, r, "testdata/file")
+	}))
+	defer ts.Close()
+	get := func(want string) {
+		resp, _, err := Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if h := resp.Header.Get("Content-Type"); h != want {
+			t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
+		}
+	}
+	get("text-plain; charset=utf-8")
+	override = true
+	get(ctype)
+}
+
 func getBody(t *testing.T, req Request) (*Response, []byte) {
 	r, err := DefaultClient.Do(&req)
 	if err != nil {
