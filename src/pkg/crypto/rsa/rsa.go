@@ -96,7 +96,7 @@ type PrivateKey struct {
 
 	rwMutex sync.RWMutex // protects the following
 	dP, dQ  *big.Int     // D mod (P-1) (or mod Q-1) 
-	pInv    *big.Int     // p^-1 mod q
+	qInv    *big.Int     // q^-1 mod p
 }
 
 // Validate performs basic sanity checks on the key.
@@ -335,7 +335,7 @@ func (priv *PrivateKey) precompute() {
 	priv.dQ = new(big.Int).Sub(priv.Q, bigOne)
 	priv.dQ.Mod(priv.D, priv.dQ)
 
-	priv.pInv = new(big.Int).ModInverse(priv.P, priv.Q)
+	priv.qInv = new(big.Int).ModInverse(priv.Q, priv.P)
 }
 
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
@@ -394,13 +394,13 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 		// We have the precalculated values needed for the CRT.
 		m = new(big.Int).Exp(c, priv.dP, priv.P)
 		m2 := new(big.Int).Exp(c, priv.dQ, priv.Q)
-		m2.Sub(m2, m)
-		if m2.Sign() < 0 {
-			m2.Add(m2, priv.Q)
+		m.Sub(m, m2)
+		if m.Sign() < 0 {
+			m.Add(m, priv.P)
 		}
-		m2.Mul(m2, priv.pInv)
-		m2.Mod(m2, priv.Q)
-		m2.Mul(m2, priv.P)
+		m.Mul(m, priv.qInv)
+		m.Mod(m, priv.P)
+		m.Mul(m, priv.Q)
 		m.Add(m, m2)
 	}
 
