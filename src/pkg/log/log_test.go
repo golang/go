@@ -84,3 +84,36 @@ func TestOutput(t *testing.T) {
 		t.Errorf("log output should match %q is %q", expect, b.String())
 	}
 }
+
+func TestFlagAndPrefixSetting(t *testing.T) {
+	var b bytes.Buffer
+	l := New(&b, "Test:", LstdFlags)
+	f := l.Flags()
+	if f != LstdFlags {
+		t.Errorf("Flags 1: expected %x got %x", LstdFlags, f)
+	}
+	l.SetFlags(f | Lmicroseconds)
+	f = l.Flags()
+	if f != LstdFlags|Lmicroseconds {
+		t.Errorf("Flags 2: expected %x got %x", LstdFlags|Lmicroseconds, f)
+	}
+	p := l.Prefix()
+	if p != "Test:" {
+		t.Errorf(`Prefix: expected "Test:" got %q`, p)
+	}
+	l.SetPrefix("Reality:")
+	p = l.Prefix()
+	if p != "Reality:" {
+		t.Errorf(`Prefix: expected "Reality:" got %q`, p)
+	}
+	// Verify a log message looks right, with our prefix and microseconds present.
+	l.Print("hello")
+	pattern := "^Reality:" + Rdate + " " + Rtime + Rmicroseconds + " hello\n"
+	matched, err := regexp.Match(pattern, b.Bytes())
+	if err != nil {
+		t.Fatalf("pattern %q did not compile: %s", pattern, err)
+	}
+	if !matched {
+		t.Error("message did not match pattern")
+	}
+}
