@@ -6,7 +6,6 @@ include ../../Make.inc
 
 TARG=os
 GOFILES=\
-	dir_$(GOOS).go\
 	error.go\
 	env.go\
 	exec.go\
@@ -19,6 +18,7 @@ GOFILES=\
 	types.go\
 
 GOFILES_freebsd=\
+	dir_unix.go\
 	error_posix.go\
 	env_unix.go\
 	file_posix.go\
@@ -28,6 +28,7 @@ GOFILES_freebsd=\
 	exec_unix.go\
 
 GOFILES_darwin=\
+	dir_unix.go\
 	error_posix.go\
 	env_unix.go\
 	file_posix.go\
@@ -37,6 +38,7 @@ GOFILES_darwin=\
 	exec_unix.go\
 
 GOFILES_linux=\
+	dir_unix.go\
 	error_posix.go\
 	env_unix.go\
 	file_posix.go\
@@ -46,6 +48,7 @@ GOFILES_linux=\
 	exec_unix.go\
 
 GOFILES_windows=\
+	dir_windows.go\
 	error_posix.go\
 	env_windows.go\
 	file_posix.go\
@@ -55,6 +58,7 @@ GOFILES_windows=\
 	exec_windows.go\
 
 GOFILES_plan9=\
+	dir_plan9.go\
 	error_plan9.go\
 	env_plan9.go\
 	file_plan9.go\

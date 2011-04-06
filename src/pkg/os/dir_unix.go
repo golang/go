@@ -6,22 +6,17 @@ package os
 
 import (
 	"syscall"
-	"unsafe"
 )
 
 const (
 	blockSize = 4096
 )
 
-func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
-		if n[i] == 0 {
-			return i
-		}
-	}
-	return len(n)
-}
-
+// Readdirnames reads the contents of the directory associated with file and
+// returns an array of up to count names, in directory order.  Subsequent
+// calls on the same file will yield further names.
+// A negative count means to read until EOF.
+// Readdirnames returns the array and an Error, if any.
 func (file *File) Readdirnames(count int) (names []string, err Error) {
 	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {
@@ -38,31 +33,22 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 	for count != 0 {
 		// Refill the buffer if necessary
 		if d.bufp >= d.nbuf {
+			d.bufp = 0
 			var errno int
-			d.nbuf, errno = syscall.Getdents(file.fd, d.buf)
+			d.nbuf, errno = syscall.ReadDirent(file.fd, d.buf)
 			if errno != 0 {
-				return names, NewSyscallError("getdents", errno)
+				return names, NewSyscallError("readdirent", errno)
 			}
 			if d.nbuf <= 0 {
 				break // EOF
 			}
-			d.bufp = 0
 		}
+
 		// Drain the buffer
-		for count != 0 && d.bufp < d.nbuf {
-			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]))
-			d.bufp += int(dirent.Reclen)
-			if dirent.Ino == 0 { // File absent in directory.
-				continue
-			}
-			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
-			var name = string(bytes[0:clen(bytes[0:])])
-			if name == "." || name == ".." { // Useless names
-				continue
-			}
-			count--
-			names = append(names, name)
-		}
+		var nb, nc int
+		nb, nc, names = syscall.ParseDirent(d.buf[d.bufp:d.nbuf], count, names)
+		d.bufp += nb
+		count -= nc
 	}
 	return names, nil
 }
