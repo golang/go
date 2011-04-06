@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The exec package runs external commands.
+// The exec package runs external commands. It wraps os.StartProcess
+// to make it easier to remap stdin and stdout, connect I/O with pipes,
+// and do other adjustments.
 package exec
+
+// BUG(r): This package should be made even easier to use or merged into os.
 
 import (
 	"os"
