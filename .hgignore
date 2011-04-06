@@ -21,6 +21,8 @@ _cgo_*
 _obj
 _test
 _testmain.go
+build.out
+test.out
 y.tab.[ch]
 doc/htmlgen
 doc/codelab/wiki/*.bin

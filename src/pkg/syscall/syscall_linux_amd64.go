@@ -50,6 +50,7 @@ package syscall
 //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
 //sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
+//sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, errno int)
 
 func Getpagesize() int { return 4096 }
 

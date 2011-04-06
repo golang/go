@@ -196,7 +196,6 @@ const (
 	F_GETLK                     = 0x7
 	F_GETOWN                    = 0x5
 	F_GETPATH                   = 0x32
-	F_GETPROTECTIONCLASS        = 0x3e
 	F_GLOBAL_NOCACHE            = 0x37
 	F_LOG2PHYS                  = 0x31
 	F_MARKDEPENDENCY            = 0x3c
@@ -213,7 +212,6 @@ const (
 	F_SETLK                     = 0x8
 	F_SETLKW                    = 0x9
 	F_SETOWN                    = 0x6
-	F_SETPROTECTIONCLASS        = 0x3f
 	F_SETSIZE                   = 0x2b
 	F_THAW_FS                   = 0x36
 	F_UNLCK                     = 0x2
@@ -461,6 +459,20 @@ const (
 	IP_TOS                      = 0x3
 	IP_TRAFFIC_MGT_BACKGROUND   = 0x41
 	IP_TTL                      = 0x4
+	MAP_ANON                    = 0x1000
+	MAP_COPY                    = 0x2
+	MAP_FILE                    = 0
+	MAP_FIXED                   = 0x10
+	MAP_HASSEMAPHORE            = 0x200
+	MAP_NOCACHE                 = 0x400
+	MAP_NOEXTEND                = 0x100
+	MAP_NORESERVE               = 0x40
+	MAP_PRIVATE                 = 0x2
+	MAP_RENAME                  = 0x20
+	MAP_RESERVED0080            = 0x80
+	MAP_SHARED                  = 0x1
+	MCL_CURRENT                 = 0x1
+	MCL_FUTURE                  = 0x2
 	MSG_CTRUNC                  = 0x20
 	MSG_DONTROUTE               = 0x4
 	MSG_DONTWAIT                = 0x80
@@ -477,6 +489,11 @@ const (
 	MSG_TRUNC                   = 0x10
 	MSG_WAITALL                 = 0x40
 	MSG_WAITSTREAM              = 0x200
+	MS_ASYNC                    = 0x1
+	MS_DEACTIVATE               = 0x8
+	MS_INVALIDATE               = 0x2
+	MS_KILLPAGES                = 0x4
+	MS_SYNC                     = 0x10
 	NAME_MAX                    = 0xff
 	NET_RT_DUMP                 = 0x1
 	NET_RT_DUMP2                = 0x7
@@ -509,6 +526,10 @@ const (
 	O_SYNC                      = 0x80
 	O_TRUNC                     = 0x400
 	O_WRONLY                    = 0x1
+	PROT_EXEC                   = 0x4
+	PROT_NONE                   = 0
+	PROT_READ                   = 0x1
+	PROT_WRITE                  = 0x2
 	RTAX_AUTHOR                 = 0x6
 	RTAX_BRD                    = 0x7
 	RTAX_DST                    = 0
@@ -535,7 +556,6 @@ const (
 	RTF_DYNAMIC                 = 0x10
 	RTF_GATEWAY                 = 0x2
 	RTF_HOST                    = 0x4
-	RTF_IFREF                   = 0x4000000
 	RTF_IFSCOPE                 = 0x1000000
 	RTF_LLINFO                  = 0x400
 	RTF_LOCAL                   = 0x200000
@@ -629,7 +649,6 @@ const (
 	SIOCDIFADDR                 = 0x80206919
 	SIOCDIFPHYADDR              = 0x80206941
 	SIOCDLIFADDR                = 0x8118691f
-	SIOCGDRVSPEC                = 0xc028697b
 	SIOCGETSGCNT                = 0xc014721c
 	SIOCGETVIFCNT               = 0xc014721b
 	SIOCGETVLAN                 = 0xc020697f
@@ -661,10 +680,8 @@ const (
 	SIOCGLOWAT                  = 0x40047303
 	SIOCGPGRP                   = 0x40047309
 	SIOCIFCREATE                = 0xc0206978
-	SIOCIFCREATE2               = 0xc020697a
 	SIOCIFDESTROY               = 0x80206979
 	SIOCRSLVMULTI               = 0xc010693b
-	SIOCSDRVSPEC                = 0x8028697b
 	SIOCSETVLAN                 = 0x8020697e
 	SIOCSHIWAT                  = 0x80047300
 	SIOCSIFADDR                 = 0x8020690c
