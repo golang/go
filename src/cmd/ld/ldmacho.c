@@ -422,6 +422,7 @@ void
 ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 {
 	int i, j, is64;
+	uint64 secaddr;
 	uchar hdr[7*4], *cmdp;
 	uchar tmp[4];
 	uchar *dat;
@@ -754,8 +755,29 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			rp->siz = rel->length;
 			rp->type = 512 + (rel->type<<1) + rel->pcrel;
 			rp->off = rel->addr;
-			
-			rp->add = e->e32(s->p+rp->off);
+
+			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+			if (thechar == '6' && rel->extrn == 0 && rel->type == 1) {
+				// Calculate the addend as the offset into the section.
+				//
+				// The rip-relative offset stored in the object file is encoded
+				// as follows:
+				//    
+				//    movsd	0x00000360(%rip),%xmm0
+				//
+				// To get the absolute address of the value this rip-relative address is pointing
+				// to, we must add the address of the next instruction to it. This is done by
+				// taking the address of the relocation and adding 4 to it (since the rip-relative
+				// offset can at most be 32 bits long).  To calculate the offset into the section the
+				// relocation is referencing, we subtract the vaddr of the start of the referenced
+				// section found in the original object file.
+				//
+				// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
+				secaddr = c->seg.sect[rel->symnum-1].addr;
+				rp->add = e->e32(s->p+rp->off) + rp->off + 4 - secaddr;
+			} else
+				rp->add = e->e32(s->p+rp->off);
+
 			// For i386 Mach-O PC-relative, the addend is written such that
 			// it *is* the PC being subtracted.  Use that to make
 			// it match our version of PC-relative.
