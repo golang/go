@@ -1333,16 +1333,16 @@ def reposetup(ui, repo):
 
 def CheckContributor(ui, repo, user=None):
 	set_status("checking CONTRIBUTORS file")
-	if not user:
-		user = ui.config("ui", "username")
-		if not user:
-			raise util.Abort("[ui] username is not configured in .hgrc")
 	_, userline = FindContributor(ui, repo, user, warn=False)
 	if not userline:
 		raise util.Abort("cannot find %s in CONTRIBUTORS" % (user,))
 	return userline
 
-def FindContributor(ui, repo, user, warn=True):
+def FindContributor(ui, repo, user=None, warn=True):
+	if not user:
+		user = ui.config("ui", "username")
+		if not user:
+			raise util.Abort("[ui] username is not configured in .hgrc")
 	user = user.lower()
 	m = re.match(r".*<(.*)>", user)
 	if m:
