@@ -581,7 +581,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			else
 				s->type = SRODATA;
 		} else {
-			s->type = SDATA;
+			if (strcmp(sect->name, "__bss") == 0)
+				s->type = SBSS;
+			else
+				s->type = SDATA;
 		}
 		if(s->type == STEXT) {
 			if(etextp)
