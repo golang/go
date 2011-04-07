@@ -1463,7 +1463,7 @@ def submit(ui, repo, *pats, **opts):
 	# we're committed. upload final patch, close review, add commit message
 	changeURL = short(node)
 	url = other.url()
-	m = re.match("^https?://([^@/]+@)?([^.]+)\.googlecode\.com/hg/", url)
+	m = re.match("^https?://([^@/]+@)?([^.]+)\.googlecode\.com/hg/?", url)
 	if m:
 		changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(2), changeURL)
 	else:
