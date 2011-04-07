@@ -1787,8 +1787,10 @@ def DownloadCL(ui, repo, clname):
 	email = match.group(1)
 
 	# Print warning if email is not in CONTRIBUTORS file.
-	FindContributor(ui, repo, email)
-	cl.copied_from = email
+	him = FindContributor(ui, repo, email)
+	me = FindContributor(ui, repo, None)
+	if him != me:
+		cl.copied_from = email
 
 	return cl, diffdata, ""
 
