@@ -28,3 +28,5 @@ func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Filter = int16(mode)
 	k.Flags = uint16(flags)
 }
+
+func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) // sic
