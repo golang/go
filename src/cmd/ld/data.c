@@ -749,7 +749,7 @@ dodata(void)
 	}
 
 	for(s = datap; s != nil; s = s->next) {
-		if(s->np > 0 && s->type == SBSS)	// TODO: necessary?
+		if(s->np > 0 && s->type == SBSS && s->file != nil)	// TODO: necessary?
 			s->type = SDATA;
 		if(s->np > s->size)
 			diag("%s: initialize bounds (%lld < %d)",
