@@ -74,35 +74,6 @@ func ReadDirent(fd int, buf []byte) (n int, errno int) {
 	return Getdirentries(fd, buf, new(uintptr))
 }
 
-// ParseDirent parses up to max directory entries in buf,
-// appending the names to names.  It returns the number
-// bytes consumed from buf, the number of entries added
-// to names, and the new names slice.
-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
-	origlen := len(buf)
-	for max != 0 && len(buf) > 0 {
-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
-		if dirent.Reclen == 0 {
-			buf = nil
-			break
-		}
-		buf = buf[dirent.Reclen:]
-		if dirent.Ino == 0 { // File absent in directory.
-			continue
-		}
-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
-		var name = string(bytes[0:dirent.Namlen])
-		if name == "." || name == ".." { // Useless names
-			continue
-		}
-		max--
-		count++
-		names = append(names, name)
-	}
-	return origlen - len(buf), count, names
-}
-
-
 // Wait status is 7 bits at bottom, either 0 (exited),
 // 0x7F (stopped), or a signal number that caused an exit.
 // The 0x80 bit is whether there was a core dump.
