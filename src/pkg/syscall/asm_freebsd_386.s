@@ -61,6 +61,36 @@ ok6:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
+TEXT	·Syscall9(SB),7,$0
+	CALL	runtime·entersyscall(SB)
+	MOVL	4(SP), AX	// syscall entry
+	// slide args down on top of system call number
+	LEAL		8(SP), SI
+	LEAL		4(SP), DI
+	CLD
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	MOVSL
+	INT	$0x80
+	JAE	ok9
+	MOVL	$-1, 44(SP)	// r1
+	MOVL	$-1, 48(SP)	// r2
+	MOVL	AX, 52(SP)		// errno
+	CALL	runtime·exitsyscall(SB)
+	RET
+ok9:
+	MOVL	AX, 44(SP)	// r1
+	MOVL	DX, 48(SP)	// r2
+	MOVL	$0, 52(SP)	// errno
+	CALL	runtime·exitsyscall(SB)
+	RET
+
 TEXT ·RawSyscall(SB),7,$0
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
