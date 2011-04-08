@@ -90,6 +90,7 @@ DIRS=\
 	go/scanner\
 	go/token\
 	go/typechecker\
+	go/types\
 	gob\
 	hash\
 	hash/adler32\

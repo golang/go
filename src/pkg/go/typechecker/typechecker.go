@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// INCOMPLETE PACKAGE.
+// DEPRECATED PACKAGE - SEE go/types INSTEAD.
 // This package implements typechecking of a Go AST.
 // The result of the typecheck is an augmented AST
 // with object and type information for each identifier.
