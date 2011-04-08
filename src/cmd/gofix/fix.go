@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"strconv"
 )
 
 type fix struct {
@@ -30,272 +31,297 @@ func register(f fix) {
 	fixes = append(fixes, f)
 }
 
-// rewrite walks the AST x, calling visit(y) for each node y in the tree but
-// also with a pointer to each ast.Expr, in a bottom-up traversal.
-func rewrite(x interface{}, visit func(interface{})) {
-	switch n := x.(type) {
-	case *ast.Expr:
-		rewrite(*n, visit)
+// walk traverses the AST x, calling visit(y) for each node y in the tree but
+// also with a pointer to each ast.Expr, ast.Stmt, and *ast.BlockStmt,
+// in a bottom-up traversal.
+func walk(x interface{}, visit func(interface{})) {
+	walkBeforeAfter(x, nop, visit)
+}
 
-	// everything else just recurses
+func nop(interface{}) {}
+
+// walkBeforeAfter is like walk but calls before(x) before traversing
+// x's children and after(x) afterward.
+func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+	before(x)
+
+	switch n := x.(type) {
 	default:
-		panic(fmt.Errorf("unexpected type %T in walk", x))
+		panic(fmt.Errorf("unexpected type %T in walkBeforeAfter", x))
 
 	case nil:
 
+	// pointers to interfaces
+	case *ast.Decl:
+		walkBeforeAfter(*n, before, after)
+	case *ast.Expr:
+		walkBeforeAfter(*n, before, after)
+	case *ast.Spec:
+		walkBeforeAfter(*n, before, after)
+	case *ast.Stmt:
+		walkBeforeAfter(*n, before, after)
+
+	// pointers to struct pointers
+	case **ast.BlockStmt:
+		walkBeforeAfter(*n, before, after)
+	case **ast.CallExpr:
+		walkBeforeAfter(*n, before, after)
+	case **ast.FieldList:
+		walkBeforeAfter(*n, before, after)
+	case **ast.FuncType:
+		walkBeforeAfter(*n, before, after)
+
+	// pointers to slices
+	case *[]ast.Stmt:
+		walkBeforeAfter(*n, before, after)
+	case *[]ast.Expr:
+		walkBeforeAfter(*n, before, after)
+	case *[]ast.Decl:
+		walkBeforeAfter(*n, before, after)
+	case *[]ast.Spec:
+		walkBeforeAfter(*n, before, after)
+	case *[]*ast.File:
+		walkBeforeAfter(*n, before, after)
+
 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
 	case *ast.Field:
-		rewrite(&n.Type, visit)
+		walkBeforeAfter(&n.Type, before, after)
 	case *ast.FieldList:
 		for _, field := range n.List {
-			rewrite(field, visit)
+			walkBeforeAfter(field, before, after)
 		}
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.Ellipsis:
 	case *ast.BasicLit:
 	case *ast.FuncLit:
-		rewrite(n.Type, visit)
-		rewrite(n.Body, visit)
+		walkBeforeAfter(&n.Type, before, after)
+		walkBeforeAfter(&n.Body, before, after)
 	case *ast.CompositeLit:
-		rewrite(&n.Type, visit)
-		rewrite(n.Elts, visit)
+		walkBeforeAfter(&n.Type, before, after)
+		walkBeforeAfter(&n.Elts, before, after)
 	case *ast.ParenExpr:
-		rewrite(&n.X, visit)
+		walkBeforeAfter(&n.X, before, after)
 	case *ast.SelectorExpr:
-		rewrite(&n.X, visit)
+		walkBeforeAfter(&n.X, before, after)
 	case *ast.IndexExpr:
-		rewrite(&n.X, visit)
-		rewrite(&n.Index, visit)
+		walkBeforeAfter(&n.X, before, after)
+		walkBeforeAfter(&n.Index, before, after)
 	case *ast.SliceExpr:
-		rewrite(&n.X, visit)
+		walkBeforeAfter(&n.X, before, after)
 		if n.Low != nil {
-			rewrite(&n.Low, visit)
+			walkBeforeAfter(&n.Low, before, after)
 		}
 		if n.High != nil {
-			rewrite(&n.High, visit)
+			walkBeforeAfter(&n.High, before, after)
 		}
 	case *ast.TypeAssertExpr:
-		rewrite(&n.X, visit)
-		rewrite(&n.Type, visit)
+		walkBeforeAfter(&n.X, before, after)
+		walkBeforeAfter(&n.Type, before, after)
 	case *ast.CallExpr:
-		rewrite(&n.Fun, visit)
-		rewrite(n.Args, visit)
+		walkBeforeAfter(&n.Fun, before, after)
+		walkBeforeAfter(&n.Args, before, after)
 	case *ast.StarExpr:
-		rewrite(&n.X, visit)
+		walkBeforeAfter(&n.X, before, after)
 	case *ast.UnaryExpr:
-		rewrite(&n.X, visit)
+		walkBeforeAfter(&n.X, before, after)
 	case *ast.BinaryExpr:
-		rewrite(&n.X, visit)
-		rewrite(&n.Y, visit)
+		walkBeforeAfter(&n.X, before, after)
+		walkBeforeAfter(&n.Y, before, after)
 	case *ast.KeyValueExpr:
-		rewrite(&n.Key, visit)
-		rewrite(&n.Value, visit)
+		walkBeforeAfter(&n.Key, before, after)
+		walkBeforeAfter(&n.Value, before, after)
 
 	case *ast.ArrayType:
-		rewrite(&n.Len, visit)
-		rewrite(&n.Elt, visit)
+		walkBeforeAfter(&n.Len, before, after)
+		walkBeforeAfter(&n.Elt, before, after)
 	case *ast.StructType:
-		rewrite(n.Fields, visit)
+		walkBeforeAfter(&n.Fields, before, after)
 	case *ast.FuncType:
-		rewrite(n.Params, visit)
+		walkBeforeAfter(&n.Params, before, after)
 		if n.Results != nil {
-			rewrite(n.Results, visit)
+			walkBeforeAfter(&n.Results, before, after)
 		}
 	case *ast.InterfaceType:
-		rewrite(n.Methods, visit)
+		walkBeforeAfter(&n.Methods, before, after)
 	case *ast.MapType:
-		rewrite(&n.Key, visit)
-		rewrite(&n.Value, visit)
+		walkBeforeAfter(&n.Key, before, after)
+		walkBeforeAfter(&n.Value, before, after)
 	case *ast.ChanType:
-		rewrite(&n.Value, visit)
+		walkBeforeAfter(&n.Value, before, after)
 
 	case *ast.BadStmt:
 	case *ast.DeclStmt:
-		rewrite(n.Decl, visit)
+		walkBeforeAfter(&n.Decl, before, after)
 	case *ast.EmptyStmt:
 	case *ast.LabeledStmt:
-		rewrite(n.Stmt, visit)
+		walkBeforeAfter(&n.Stmt, before, after)
 	case *ast.ExprStmt:
-		rewrite(&n.X, visit)
+		walkBeforeAfter(&n.X, before, after)
 	case *ast.SendStmt:
-		rewrite(&n.Chan, visit)
-		rewrite(&n.Value, visit)
+		walkBeforeAfter(&n.Chan, before, after)
+		walkBeforeAfter(&n.Value, before, after)
 	case *ast.IncDecStmt:
-		rewrite(&n.X, visit)
+		walkBeforeAfter(&n.X, before, after)
 	case *ast.AssignStmt:
-		rewrite(n.Lhs, visit)
-		if len(n.Lhs) == 2 && len(n.Rhs) == 1 {
-			rewrite(n.Rhs, visit)
-		} else {
-			rewrite(n.Rhs, visit)
-		}
+		walkBeforeAfter(&n.Lhs, before, after)
+		walkBeforeAfter(&n.Rhs, before, after)
 	case *ast.GoStmt:
-		rewrite(n.Call, visit)
+		walkBeforeAfter(&n.Call, before, after)
 	case *ast.DeferStmt:
-		rewrite(n.Call, visit)
+		walkBeforeAfter(&n.Call, before, after)
 	case *ast.ReturnStmt:
-		rewrite(n.Results, visit)
+		walkBeforeAfter(&n.Results, before, after)
 	case *ast.BranchStmt:
 	case *ast.BlockStmt:
-		rewrite(n.List, visit)
+		walkBeforeAfter(&n.List, before, after)
 	case *ast.IfStmt:
-		rewrite(n.Init, visit)
-		rewrite(&n.Cond, visit)
-		rewrite(n.Body, visit)
-		rewrite(n.Else, visit)
+		walkBeforeAfter(&n.Init, before, after)
+		walkBeforeAfter(&n.Cond, before, after)
+		walkBeforeAfter(&n.Body, before, after)
+		walkBeforeAfter(&n.Else, before, after)
 	case *ast.CaseClause:
-		rewrite(n.List, visit)
-		rewrite(n.Body, visit)
+		walkBeforeAfter(&n.List, before, after)
+		walkBeforeAfter(&n.Body, before, after)
 	case *ast.SwitchStmt:
-		rewrite(n.Init, visit)
-		rewrite(&n.Tag, visit)
-		rewrite(n.Body, visit)
+		walkBeforeAfter(&n.Init, before, after)
+		walkBeforeAfter(&n.Tag, before, after)
+		walkBeforeAfter(&n.Body, before, after)
 	case *ast.TypeSwitchStmt:
-		rewrite(n.Init, visit)
-		rewrite(n.Assign, visit)
-		rewrite(n.Body, visit)
+		walkBeforeAfter(&n.Init, before, after)
+		walkBeforeAfter(&n.Assign, before, after)
+		walkBeforeAfter(&n.Body, before, after)
 	case *ast.CommClause:
-		rewrite(n.Comm, visit)
-		rewrite(n.Body, visit)
+		walkBeforeAfter(&n.Comm, before, after)
+		walkBeforeAfter(&n.Body, before, after)
 	case *ast.SelectStmt:
-		rewrite(n.Body, visit)
+		walkBeforeAfter(&n.Body, before, after)
 	case *ast.ForStmt:
-		rewrite(n.Init, visit)
-		rewrite(&n.Cond, visit)
-		rewrite(n.Post, visit)
-		rewrite(n.Body, visit)
+		walkBeforeAfter(&n.Init, before, after)
+		walkBeforeAfter(&n.Cond, before, after)
+		walkBeforeAfter(&n.Post, before, after)
+		walkBeforeAfter(&n.Body, before, after)
 	case *ast.RangeStmt:
-		rewrite(&n.Key, visit)
-		rewrite(&n.Value, visit)
-		rewrite(&n.X, visit)
-		rewrite(n.Body, visit)
+		walkBeforeAfter(&n.Key, before, after)
+		walkBeforeAfter(&n.Value, before, after)
+		walkBeforeAfter(&n.X, before, after)
+		walkBeforeAfter(&n.Body, before, after)
 
 	case *ast.ImportSpec:
 	case *ast.ValueSpec:
-		rewrite(&n.Type, visit)
-		rewrite(n.Values, visit)
+		walkBeforeAfter(&n.Type, before, after)
+		walkBeforeAfter(&n.Values, before, after)
 	case *ast.TypeSpec:
-		rewrite(&n.Type, visit)
+		walkBeforeAfter(&n.Type, before, after)
 
 	case *ast.BadDecl:
 	case *ast.GenDecl:
-		rewrite(n.Specs, visit)
+		walkBeforeAfter(&n.Specs, before, after)
 	case *ast.FuncDecl:
 		if n.Recv != nil {
-			rewrite(n.Recv, visit)
+			walkBeforeAfter(&n.Recv, before, after)
 		}
-		rewrite(n.Type, visit)
+		walkBeforeAfter(&n.Type, before, after)
 		if n.Body != nil {
-			rewrite(n.Body, visit)
+			walkBeforeAfter(&n.Body, before, after)
 		}
 
 	case *ast.File:
-		rewrite(n.Decls, visit)
+		walkBeforeAfter(&n.Decls, before, after)
 
 	case *ast.Package:
-		for _, file := range n.Files {
-			rewrite(file, visit)
-		}
+		walkBeforeAfter(&n.Files, before, after)
 
+	case []*ast.File:
+		for i := range n {
+			walkBeforeAfter(&n[i], before, after)
+		}
 	case []ast.Decl:
-		for _, d := range n {
-			rewrite(d, visit)
+		for i := range n {
+			walkBeforeAfter(&n[i], before, after)
 		}
 	case []ast.Expr:
 		for i := range n {
-			rewrite(&n[i], visit)
+			walkBeforeAfter(&n[i], before, after)
 		}
 	case []ast.Stmt:
-		for _, s := range n {
-			rewrite(s, visit)
+		for i := range n {
+			walkBeforeAfter(&n[i], before, after)
 		}
 	case []ast.Spec:
-		for _, s := range n {
-			rewrite(s, visit)
+		for i := range n {
+			walkBeforeAfter(&n[i], before, after)
 		}
 	}
-	visit(x)
+	after(x)
 }
 
+// imports returns true if f imports path.
 func imports(f *ast.File, path string) bool {
-	for _, decl := range f.Decls {
-		d, ok := decl.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
-		for _, spec := range d.Specs {
-			s, ok := spec.(*ast.ImportSpec)
-			if !ok {
-				continue
-			}
-			if string(s.Path.Value) == `"`+path+`"` {
-				return true
-			}
+	for _, s := range f.Imports {
+		t, err := strconv.Unquote(s.Path.Value)
+		if err == nil && t == path {
+			return true
 		}
 	}
 	return false
 }
 
+// isPkgDot returns true if t is the expression "pkg.name"
+// where pkg is an imported identifier.
 func isPkgDot(t ast.Expr, pkg, name string) bool {
 	sel, ok := t.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	return isTopName(sel.X, pkg) && sel.Sel.String() == name
+	return ok && isTopName(sel.X, pkg) && sel.Sel.String() == name
 }
 
+// isPtrPkgDot returns true if f is the expression "*pkg.name"
+// where pkg is an imported identifier.
 func isPtrPkgDot(t ast.Expr, pkg, name string) bool {
 	ptr, ok := t.(*ast.StarExpr)
-	if !ok {
-		return false
-	}
-	return isPkgDot(ptr.X, pkg, name)
+	return ok && isPkgDot(ptr.X, pkg, name)
 }
 
+// isTopName returns true if n is a top-level unresolved identifier with the given name.
 func isTopName(n ast.Expr, name string) bool {
 	id, ok := n.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	return id.Name == name && id.Obj == nil
+	return ok && id.Name == name && id.Obj == nil
 }
 
+// isName returns true if n is an identifier with the given name.
 func isName(n ast.Expr, name string) bool {
 	id, ok := n.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	return id.String() == name
+	return ok && id.String() == name
 }
 
+// isCall returns true if t is a call to pkg.name.
 func isCall(t ast.Expr, pkg, name string) bool {
 	call, ok := t.(*ast.CallExpr)
 	return ok && isPkgDot(call.Fun, pkg, name)
 }
 
-func refersTo(n ast.Node, x *ast.Ident) bool {
-	id, ok := n.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	return id.String() == x.String()
+// If n is an *ast.Ident, isIdent returns it; otherwise isIdent returns nil.
+func isIdent(n interface{}) *ast.Ident {
+	id, _ := n.(*ast.Ident)
+	return id
 }
 
+// refersTo returns true if n is a reference to the same object as x.
+func refersTo(n ast.Node, x *ast.Ident) bool {
+	id, ok := n.(*ast.Ident)
+	// The test of id.Name == x.Name handles top-level unresolved
+	// identifiers, which all have Obj == nil.
+	return ok && id.Obj == x.Obj && id.Name == x.Name
+}
+
+// isBlank returns true if n is the blank identifier.
 func isBlank(n ast.Expr) bool {
 	return isName(n, "_")
 }
 
+// isEmptyString returns true if n is an empty string literal.
 func isEmptyString(n ast.Expr) bool {
 	lit, ok := n.(*ast.BasicLit)
-	if !ok {
-		return false
-	}
-	if lit.Kind != token.STRING {
-		return false
-	}
-	s := string(lit.Value)
-	return s == `""` || s == "``"
+	return ok && lit.Kind == token.STRING && len(lit.Value) == 2
 }
 
 func warn(pos token.Pos, msg string, args ...interface{}) {
@@ -305,4 +331,92 @@ func warn(pos token.Pos, msg string, args ...interface{}) {
 		args = append(arg1, args...)
 	}
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
+}
+
+// countUses returns the number of uses of the identifier x in scope.
+func countUses(x *ast.Ident, scope []ast.Stmt) int {
+	count := 0
+	ff := func(n interface{}) {
+		if n, ok := n.(ast.Node); ok && refersTo(n, x) {
+			count++
+		}
+	}
+	for _, n := range scope {
+		walk(n, ff)
+	}
+	return count
+}
+
+// rewriteUses replaces all uses of the identifier x and !x in scope
+// with f(x.Pos()) and fnot(x.Pos()).
+func rewriteUses(x *ast.Ident, f, fnot func(token.Pos) ast.Expr, scope []ast.Stmt) {
+	var lastF ast.Expr
+	ff := func(n interface{}) {
+		ptr, ok := n.(*ast.Expr)
+		if !ok {
+			return
+		}
+		nn := *ptr
+
+		// The child node was just walked and possibly replaced.
+		// If it was replaced and this is a negation, replace with fnot(p).
+		not, ok := nn.(*ast.UnaryExpr)
+		if ok && not.Op == token.NOT && not.X == lastF {
+			*ptr = fnot(nn.Pos())
+			return
+		}
+		if refersTo(nn, x) {
+			lastF = f(nn.Pos())
+			*ptr = lastF
+		}
+	}
+	for _, n := range scope {
+		walk(n, ff)
+	}
+}
+
+// assignsTo returns true if any of the code in scope assigns to or takes the address of x.
+func assignsTo(x *ast.Ident, scope []ast.Stmt) bool {
+	assigned := false
+	ff := func(n interface{}) {
+		if assigned {
+			return
+		}
+		switch n := n.(type) {
+		case *ast.UnaryExpr:
+			// use of &x
+			if n.Op == token.AND && refersTo(n.X, x) {
+				assigned = true
+				return
+			}
+		case *ast.AssignStmt:
+			for _, l := range n.Lhs {
+				if refersTo(l, x) {
+					assigned = true
+					return
+				}
+			}
+		}
+	}
+	for _, n := range scope {
+		if assigned {
+			break
+		}
+		walk(n, ff)
+	}
+	return assigned
+}
+
+// newPkgDot returns an ast.Expr referring to "pkg.name" at position pos.
+func newPkgDot(pos token.Pos, pkg, name string) ast.Expr {
+	return &ast.SelectorExpr{
+		X: &ast.Ident{
+			NamePos: pos,
+			Name:    pkg,
+		},
+		Sel: &ast.Ident{
+			NamePos: pos,
+			Name:    name,
+		},
+	}
 }

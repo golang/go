@@ -6,12 +6,10 @@ package main
 
 import (
 	"bytes"
-	"exec"
 	"go/ast"
 	"go/parser"
 	"go/printer"
-	"io/ioutil"
-	"os"
+	"strings"
 	"testing"
 )
 
@@ -28,6 +26,8 @@ func addTestCases(t []testCase) {
 	testCases = append(testCases, t...)
 }
 
+func fnop(*ast.File) bool { return false }
+
 func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out string, fixed, ok bool) {
 	file, err := parser.ParseFile(fset, desc, in, parserMode)
 	if err != nil {
@@ -42,7 +42,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out 
 		t.Errorf("%s: printing: %v", desc, err)
 		return
 	}
-	if s := buf.String(); in != s {
+	if s := buf.String(); in != s && fn != fnop {
 		t.Errorf("%s: not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
 			desc, desc, in, desc, s)
 		tdiff(t, in, s)
@@ -77,8 +77,17 @@ func TestRewrite(t *testing.T) {
 			continue
 		}
 
+		// reformat to get printing right
+		out, _, ok = parseFixPrint(t, fnop, tt.Name, out)
+		if !ok {
+			continue
+		}
+
 		if out != tt.Out {
-			t.Errorf("%s: incorrect output.\n--- have\n%s\n--- want\n%s", tt.Name, out, tt.Out)
+			t.Errorf("%s: incorrect output.\n", tt.Name)
+			if !strings.HasPrefix(tt.Name, "testdata/") {
+				t.Errorf("--- have\n%s\n--- want\n%s", out, tt.Out)
+			}
 			tdiff(t, out, tt.Out)
 			continue
 		}
@@ -108,44 +117,10 @@ func TestRewrite(t *testing.T) {
 }
 
 func tdiff(t *testing.T, a, b string) {
-	f1, err := ioutil.TempFile("", "gofix")
+	data, err := diff([]byte(a), []byte(b))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	defer os.Remove(f1.Name())
-	defer f1.Close()
-
-	f2, err := ioutil.TempFile("", "gofix")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	defer os.Remove(f2.Name())
-	defer f2.Close()
-
-	f1.Write([]byte(a))
-	f2.Write([]byte(b))
-
-	diffcmd, err := exec.LookPath("diff")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	c, err := exec.Run(diffcmd, []string{"diff", f1.Name(), f2.Name()}, nil, "",
-		exec.DevNull, exec.Pipe, exec.MergeWithStdout)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	defer c.Close()
-
-	data, err := ioutil.ReadAll(c.Stdout)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
 	t.Error(string(data))
 }

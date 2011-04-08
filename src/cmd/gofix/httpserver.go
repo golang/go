@@ -41,7 +41,7 @@ func httpserver(f *ast.File) bool {
 		if !ok {
 			continue
 		}
-		rewrite(fn.Body, func(n interface{}) {
+		walk(fn.Body, func(n interface{}) {
 			// Want to replace expression sometimes,
 			// so record pointer to it for updating below.
 			ptr, ok := n.(*ast.Expr)
