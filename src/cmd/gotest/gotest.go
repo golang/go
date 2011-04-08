@@ -240,6 +240,9 @@ func runWithStdout(argv ...string) string {
 	if s[len(s)-1] == '\n' {
 		s = s[:len(s)-1]
 	}
+	if len(s) > 0 && s[len(s)-1] == '\r' { // it is \r\n on Windows.
+		s = s[:len(s)-1]
+	}
 	return s
 }
 
