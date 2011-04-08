@@ -17,29 +17,29 @@ import (
 // For debugging only.
 func valueToString(val Value) string {
 	var str string
-	if val == nil {
-		return "<nil>"
+	if !val.IsValid() {
+		return "<zero Value>"
 	}
 	typ := val.Type()
-	switch val := val.(type) {
-	case *IntValue:
-		return strconv.Itoa64(val.Get())
-	case *UintValue:
-		return strconv.Uitoa64(val.Get())
-	case *FloatValue:
-		return strconv.Ftoa64(float64(val.Get()), 'g', -1)
-	case *ComplexValue:
-		c := val.Get()
-		return strconv.Ftoa64(float64(real(c)), 'g', -1) + "+" + strconv.Ftoa64(float64(imag(c)), 'g', -1) + "i"
-	case *StringValue:
-		return val.Get()
-	case *BoolValue:
-		if val.Get() {
+	switch val.Kind() {
+	case Int, Int8, Int16, Int32, Int64:
+		return strconv.Itoa64(val.Int())
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return strconv.Uitoa64(val.Uint())
+	case Float32, Float64:
+		return strconv.Ftoa64(val.Float(), 'g', -1)
+	case Complex64, Complex128:
+		c := val.Complex()
+		return strconv.Ftoa64(real(c), 'g', -1) + "+" + strconv.Ftoa64(imag(c), 'g', -1) + "i"
+	case String:
+		return val.String()
+	case Bool:
+		if val.Bool() {
 			return "true"
 		} else {
 			return "false"
 		}
-	case *PtrValue:
+	case Ptr:
 		v := val
 		str = typ.String() + "("
 		if v.IsNil() {
@@ -49,7 +49,7 @@ func valueToString(val Value) string {
 		}
 		str += ")"
 		return str
-	case ArrayOrSliceValue:
+	case Array, Slice:
 		v := val
 		str += typ.String()
 		str += "{"
@@ -57,22 +57,22 @@ func valueToString(val Value) string {
 			if i > 0 {
 				str += ", "
 			}
-			str += valueToString(v.Elem(i))
+			str += valueToString(v.Index(i))
 		}
 		str += "}"
 		return str
-	case *MapValue:
-		t := typ.(*MapType)
+	case Map:
+		t := typ
 		str = t.String()
 		str += "{"
 		str += "<can't iterate on maps>"
 		str += "}"
 		return str
-	case *ChanValue:
+	case Chan:
 		str = typ.String()
 		return str
-	case *StructValue:
-		t := typ.(*StructType)
+	case Struct:
+		t := typ
 		v := val
 		str += t.String()
 		str += "{"
@@ -84,11 +84,11 @@ func valueToString(val Value) string {
 		}
 		str += "}"
 		return str
-	case *InterfaceValue:
+	case Interface:
 		return typ.String() + "(" + valueToString(val.Elem()) + ")"
-	case *FuncValue:
+	case Func:
 		v := val
-		return typ.String() + "(" + strconv.Itoa64(int64(v.Get())) + ")"
+		return typ.String() + "(" + strconv.Uitoa64(uint64(v.Pointer())) + ")"
 	default:
 		panic("valueToString: can't print type " + typ.String())
 	}

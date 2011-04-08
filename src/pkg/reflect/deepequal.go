@@ -22,8 +22,8 @@ type visit struct {
 // comparisons that have already been seen, which allows short circuiting on
 // recursive types.
 func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
-	if v1 == nil || v2 == nil {
-		return v1 == v2
+	if !v1.IsValid() || !v2.IsValid() {
+		return v1.IsValid() == v2.IsValid()
 	}
 	if v1.Type() != v2.Type() {
 		return false
@@ -56,57 +56,47 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 	// Remember for later.
 	visited[h] = &visit{addr1, addr2, typ, seen}
 
-	switch v := v1.(type) {
-	case *ArrayValue:
-		arr1 := v
-		arr2 := v2.(*ArrayValue)
-		if arr1.Len() != arr2.Len() {
+	switch v1.Kind() {
+	case Array:
+		if v1.Len() != v2.Len() {
 			return false
 		}
-		for i := 0; i < arr1.Len(); i++ {
-			if !deepValueEqual(arr1.Elem(i), arr2.Elem(i), visited, depth+1) {
+		for i := 0; i < v1.Len(); i++ {
+			if !deepValueEqual(v1.Index(i), v2.Index(i), visited, depth+1) {
 				return false
 			}
 		}
 		return true
-	case *SliceValue:
-		arr1 := v
-		arr2 := v2.(*SliceValue)
-		if arr1.Len() != arr2.Len() {
+	case Slice:
+		if v1.Len() != v2.Len() {
 			return false
 		}
-		for i := 0; i < arr1.Len(); i++ {
-			if !deepValueEqual(arr1.Elem(i), arr2.Elem(i), visited, depth+1) {
+		for i := 0; i < v1.Len(); i++ {
+			if !deepValueEqual(v1.Index(i), v2.Index(i), visited, depth+1) {
 				return false
 			}
 		}
 		return true
-	case *InterfaceValue:
-		i1 := v.Interface()
-		i2 := v2.Interface()
-		if i1 == nil || i2 == nil {
-			return i1 == i2
+	case Interface:
+		if v1.IsNil() || v2.IsNil() {
+			return v1.IsNil() == v2.IsNil()
 		}
-		return deepValueEqual(NewValue(i1), NewValue(i2), visited, depth+1)
-	case *PtrValue:
-		return deepValueEqual(v.Elem(), v2.(*PtrValue).Elem(), visited, depth+1)
-	case *StructValue:
-		struct1 := v
-		struct2 := v2.(*StructValue)
-		for i, n := 0, v.NumField(); i < n; i++ {
-			if !deepValueEqual(struct1.Field(i), struct2.Field(i), visited, depth+1) {
+		return deepValueEqual(v1.Elem(), v2.Elem(), visited, depth+1)
+	case Ptr:
+		return deepValueEqual(v1.Elem(), v2.Elem(), visited, depth+1)
+	case Struct:
+		for i, n := 0, v1.NumField(); i < n; i++ {
+			if !deepValueEqual(v1.Field(i), v2.Field(i), visited, depth+1) {
 				return false
 			}
 		}
 		return true
-	case *MapValue:
-		map1 := v
-		map2 := v2.(*MapValue)
-		if map1.Len() != map2.Len() {
+	case Map:
+		if v1.Len() != v2.Len() {
 			return false
 		}
-		for _, k := range map1.Keys() {
-			if !deepValueEqual(map1.Elem(k), map2.Elem(k), visited, depth+1) {
+		for _, k := range v1.MapKeys() {
+			if !deepValueEqual(v1.MapIndex(k), v2.MapIndex(k), visited, depth+1) {
 				return false
 			}
 		}
