@@ -75,7 +75,6 @@ gomake clean
 ) || exit $?
 
 [ "$GOARCH" == arm ] ||
-[ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/life
 gomake clean
 ./test.bash
