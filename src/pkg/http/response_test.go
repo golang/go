@@ -251,8 +251,8 @@ func TestReadResponse(t *testing.T) {
 }
 
 func diff(t *testing.T, prefix string, have, want interface{}) {
-	hv := reflect.NewValue(have).(*reflect.PtrValue).Elem().(*reflect.StructValue)
-	wv := reflect.NewValue(want).(*reflect.PtrValue).Elem().(*reflect.StructValue)
+	hv := reflect.NewValue(have).Elem()
+	wv := reflect.NewValue(want).Elem()
 	if hv.Type() != wv.Type() {
 		t.Errorf("%s: type mismatch %v vs %v", prefix, hv.Type(), wv.Type())
 	}
@@ -260,7 +260,7 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
 		hf := hv.Field(i).Interface()
 		wf := wv.Field(i).Interface()
 		if !reflect.DeepEqual(hf, wf) {
-			t.Errorf("%s: %s = %v want %v", prefix, hv.Type().(*reflect.StructType).Field(i).Name, hf, wf)
+			t.Errorf("%s: %s = %v want %v", prefix, hv.Type().Field(i).Name, hf, wf)
 		}
 	}
 }

@@ -87,7 +87,7 @@ func (e *UnmarshalTypeError) String() string {
 // led to an unexported (and therefore unwritable) struct field.
 type UnmarshalFieldError struct {
 	Key   string
-	Type  *reflect.StructType
+	Type  reflect.Type
 	Field reflect.StructField
 }
 
@@ -106,7 +106,7 @@ func (e *InvalidUnmarshalError) String() string {
 		return "json: Unmarshal(nil)"
 	}
 
-	if _, ok := e.Type.(*reflect.PtrType); !ok {
+	if e.Type.Kind() != reflect.Ptr {
 		return "json: Unmarshal(non-pointer " + e.Type.String() + ")"
 	}
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
@@ -123,8 +123,9 @@ func (d *decodeState) unmarshal(v interface{}) (err os.Error) {
 	}()
 
 	rv := reflect.NewValue(v)
-	pv, ok := rv.(*reflect.PtrValue)
-	if !ok || pv.IsNil() {
+	pv := rv
+	if pv.Kind() != reflect.Ptr ||
+		pv.IsNil() {
 		return &InvalidUnmarshalError{reflect.Typeof(v)}
 	}
 
@@ -215,7 +216,7 @@ func (d *decodeState) scanWhile(op int) int {
 // value decodes a JSON value from d.data[d.off:] into the value.
 // it updates d.off to point past the decoded value.
 func (d *decodeState) value(v reflect.Value) {
-	if v == nil {
+	if !v.IsValid() {
 		_, rest, err := nextValue(d.data[d.off:], &d.nextscan)
 		if err != nil {
 			d.error(err)
@@ -262,20 +263,21 @@ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, refl
 			_, isUnmarshaler = v.Interface().(Unmarshaler)
 		}
 
-		if iv, ok := v.(*reflect.InterfaceValue); ok && !iv.IsNil() {
+		if iv := v; iv.Kind() == reflect.Interface && !iv.IsNil() {
 			v = iv.Elem()
 			continue
 		}
-		pv, ok := v.(*reflect.PtrValue)
-		if !ok {
+		pv := v
+		if pv.Kind() != reflect.Ptr {
 			break
 		}
-		_, isptrptr := pv.Elem().(*reflect.PtrValue)
-		if !isptrptr && wantptr && !isUnmarshaler {
+
+		if pv.Elem().Kind() != reflect.Ptr &&
+			wantptr && !isUnmarshaler {
 			return nil, pv
 		}
 		if pv.IsNil() {
-			pv.PointTo(reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem()))
+			pv.Set(reflect.Zero(pv.Type().Elem()).Addr())
 		}
 		if isUnmarshaler {
 			// Using v.Interface().(Unmarshaler)
@@ -286,7 +288,7 @@ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, refl
 			// This is an unfortunate consequence of reflect.
 			// An alternative would be to look up the
 			// UnmarshalJSON method and return a FuncValue.
-			return v.Interface().(Unmarshaler), nil
+			return v.Interface().(Unmarshaler), reflect.Value{}
 		}
 		v = pv.Elem()
 	}
@@ -309,22 +311,23 @@ func (d *decodeState) array(v reflect.Value) {
 	v = pv
 
 	// Decoding into nil interface?  Switch to non-reflect code.
-	iv, ok := v.(*reflect.InterfaceValue)
+	iv := v
+	ok := iv.Kind() == reflect.Interface
 	if ok {
 		iv.Set(reflect.NewValue(d.arrayInterface()))
 		return
 	}
 
 	// Check type of target.
-	av, ok := v.(reflect.ArrayOrSliceValue)
-	if !ok {
+	av := v
+	if av.Kind() != reflect.Array && av.Kind() != reflect.Slice {
 		d.saveError(&UnmarshalTypeError{"array", v.Type()})
 		d.off--
 		d.next()
 		return
 	}
 
-	sv, _ := v.(*reflect.SliceValue)
+	sv := v
 
 	i := 0
 	for {
@@ -339,26 +342,26 @@ func (d *decodeState) array(v reflect.Value) {
 		d.scan.undo(op)
 
 		// Get element of array, growing if necessary.
-		if i >= av.Cap() && sv != nil {
+		if i >= av.Cap() && sv.IsValid() {
 			newcap := sv.Cap() + sv.Cap()/2
 			if newcap < 4 {
 				newcap = 4
 			}
-			newv := reflect.MakeSlice(sv.Type().(*reflect.SliceType), sv.Len(), newcap)
+			newv := reflect.MakeSlice(sv.Type(), sv.Len(), newcap)
 			reflect.Copy(newv, sv)
 			sv.Set(newv)
 		}
-		if i >= av.Len() && sv != nil {
+		if i >= av.Len() && sv.IsValid() {
 			// Must be slice; gave up on array during i >= av.Cap().
 			sv.SetLen(i + 1)
 		}
 
 		// Decode into element.
 		if i < av.Len() {
-			d.value(av.Elem(i))
+			d.value(av.Index(i))
 		} else {
 			// Ran out of fixed array: skip.
-			d.value(nil)
+			d.value(reflect.Value{})
 		}
 		i++
 
@@ -372,11 +375,11 @@ func (d *decodeState) array(v reflect.Value) {
 		}
 	}
 	if i < av.Len() {
-		if sv == nil {
+		if !sv.IsValid() {
 			// Array.  Zero the rest.
-			z := reflect.MakeZero(av.Type().(*reflect.ArrayType).Elem())
+			z := reflect.Zero(av.Type().Elem())
 			for ; i < av.Len(); i++ {
-				av.Elem(i).SetValue(z)
+				av.Index(i).Set(z)
 			}
 		} else {
 			sv.SetLen(i)
@@ -405,36 +408,36 @@ func (d *decodeState) object(v reflect.Value) {
 	v = pv
 
 	// Decoding into nil interface?  Switch to non-reflect code.
-	iv, ok := v.(*reflect.InterfaceValue)
-	if ok {
+	iv := v
+	if iv.Kind() == reflect.Interface {
 		iv.Set(reflect.NewValue(d.objectInterface()))
 		return
 	}
 
 	// Check type of target: struct or map[string]T
 	var (
-		mv *reflect.MapValue
-		sv *reflect.StructValue
+		mv reflect.Value
+		sv reflect.Value
 	)
-	switch v := v.(type) {
-	case *reflect.MapValue:
+	switch v.Kind() {
+	case reflect.Map:
 		// map must have string type
-		t := v.Type().(*reflect.MapType)
+		t := v.Type()
 		if t.Key() != reflect.Typeof("") {
 			d.saveError(&UnmarshalTypeError{"object", v.Type()})
 			break
 		}
 		mv = v
 		if mv.IsNil() {
-			mv.SetValue(reflect.MakeMap(t))
+			mv.Set(reflect.MakeMap(t))
 		}
-	case *reflect.StructValue:
+	case reflect.Struct:
 		sv = v
 	default:
 		d.saveError(&UnmarshalTypeError{"object", v.Type()})
 	}
 
-	if mv == nil && sv == nil {
+	if !mv.IsValid() && !sv.IsValid() {
 		d.off--
 		d.next() // skip over { } in input
 		return
@@ -462,12 +465,12 @@ func (d *decodeState) object(v reflect.Value) {
 
 		// Figure out field corresponding to key.
 		var subv reflect.Value
-		if mv != nil {
-			subv = reflect.MakeZero(mv.Type().(*reflect.MapType).Elem())
+		if mv.IsValid() {
+			subv = reflect.Zero(mv.Type().Elem())
 		} else {
 			var f reflect.StructField
 			var ok bool
-			st := sv.Type().(*reflect.StructType)
+			st := sv.Type()
 			// First try for field with that tag.
 			if isValidTag(key) {
 				for i := 0; i < sv.NumField(); i++ {
@@ -510,8 +513,8 @@ func (d *decodeState) object(v reflect.Value) {
 
 		// Write value back to map;
 		// if using struct, subv points into struct already.
-		if mv != nil {
-			mv.SetElem(reflect.NewValue(key), subv)
+		if mv.IsValid() {
+			mv.SetMapIndex(reflect.NewValue(key), subv)
 		}
 
 		// Next token must be , or }.
@@ -552,21 +555,21 @@ func (d *decodeState) literal(v reflect.Value) {
 
 	switch c := item[0]; c {
 	case 'n': // null
-		switch v.(type) {
+		switch v.Kind() {
 		default:
 			d.saveError(&UnmarshalTypeError{"null", v.Type()})
-		case *reflect.InterfaceValue, *reflect.PtrValue, *reflect.MapValue:
-			v.SetValue(nil)
+		case reflect.Interface, reflect.Ptr, reflect.Map:
+			v.Set(reflect.Zero(v.Type()))
 		}
 
 	case 't', 'f': // true, false
 		value := c == 't'
-		switch v := v.(type) {
+		switch v.Kind() {
 		default:
 			d.saveError(&UnmarshalTypeError{"bool", v.Type()})
-		case *reflect.BoolValue:
-			v.Set(value)
-		case *reflect.InterfaceValue:
+		case reflect.Bool:
+			v.SetBool(value)
+		case reflect.Interface:
 			v.Set(reflect.NewValue(value))
 		}
 
@@ -575,10 +578,10 @@ func (d *decodeState) literal(v reflect.Value) {
 		if !ok {
 			d.error(errPhase)
 		}
-		switch v := v.(type) {
+		switch v.Kind() {
 		default:
 			d.saveError(&UnmarshalTypeError{"string", v.Type()})
-		case *reflect.SliceValue:
+		case reflect.Slice:
 			if v.Type() != byteSliceType {
 				d.saveError(&UnmarshalTypeError{"string", v.Type()})
 				break
@@ -589,10 +592,10 @@ func (d *decodeState) literal(v reflect.Value) {
 				d.saveError(err)
 				break
 			}
-			v.Set(reflect.NewValue(b[0:n]).(*reflect.SliceValue))
-		case *reflect.StringValue:
-			v.Set(string(s))
-		case *reflect.InterfaceValue:
+			v.Set(reflect.NewValue(b[0:n]))
+		case reflect.String:
+			v.SetString(string(s))
+		case reflect.Interface:
 			v.Set(reflect.NewValue(string(s)))
 		}
 
@@ -601,10 +604,10 @@ func (d *decodeState) literal(v reflect.Value) {
 			d.error(errPhase)
 		}
 		s := string(item)
-		switch v := v.(type) {
+		switch v.Kind() {
 		default:
 			d.error(&UnmarshalTypeError{"number", v.Type()})
-		case *reflect.InterfaceValue:
+		case reflect.Interface:
 			n, err := strconv.Atof64(s)
 			if err != nil {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
@@ -612,29 +615,29 @@ func (d *decodeState) literal(v reflect.Value) {
 			}
 			v.Set(reflect.NewValue(n))
 
-		case *reflect.IntValue:
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.Atoi64(s)
-			if err != nil || v.Overflow(n) {
+			if err != nil || v.OverflowInt(n) {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
 				break
 			}
-			v.Set(n)
+			v.SetInt(n)
 
-		case *reflect.UintValue:
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 			n, err := strconv.Atoui64(s)
-			if err != nil || v.Overflow(n) {
+			if err != nil || v.OverflowUint(n) {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
 				break
 			}
-			v.Set(n)
+			v.SetUint(n)
 
-		case *reflect.FloatValue:
+		case reflect.Float32, reflect.Float64:
 			n, err := strconv.AtofN(s, v.Type().Bits())
-			if err != nil || v.Overflow(n) {
+			if err != nil || v.OverflowFloat(n) {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
 				break
 			}
-			v.Set(n)
+			v.SetFloat(n)
 		}
 	}
 }

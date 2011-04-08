@@ -133,14 +133,14 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 	case enumeratedType:
 		return tagEnum, false, true
 	}
-	switch t := t.(type) {
-	case *reflect.BoolType:
+	switch t.Kind() {
+	case reflect.Bool:
 		return tagBoolean, false, true
-	case *reflect.IntType:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return tagInteger, false, true
-	case *reflect.StructType:
+	case reflect.Struct:
 		return tagSequence, true, true
-	case *reflect.SliceType:
+	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
 			return tagOctetString, false, true
 		}
@@ -148,7 +148,7 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 			return tagSet, true, true
 		}
 		return tagSequence, true, true
-	case *reflect.StringType:
+	case reflect.String:
 		return tagPrintableString, false, true
 	}
 	return 0, false, false

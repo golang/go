@@ -126,10 +126,10 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // and written to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 	var v reflect.Value
-	switch d := reflect.NewValue(data).(type) {
-	case *reflect.PtrValue:
+	switch d := reflect.NewValue(data); d.Kind() {
+	case reflect.Ptr:
 		v = d.Elem()
-	case *reflect.SliceValue:
+	case reflect.Slice:
 		v = d
 	default:
 		return os.NewError("binary.Read: invalid type " + d.Type().String())
@@ -168,8 +168,8 @@ func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
 }
 
 func TotalSize(v reflect.Value) int {
-	if sv, ok := v.(*reflect.SliceValue); ok {
-		elem := sizeof(v.Type().(*reflect.SliceType).Elem())
+	if sv := v; sv.Kind() == reflect.Slice {
+		elem := sizeof(v.Type().Elem())
 		if elem < 0 {
 			return -1
 		}
@@ -179,15 +179,15 @@ func TotalSize(v reflect.Value) int {
 }
 
 func sizeof(v reflect.Type) int {
-	switch t := v.(type) {
-	case *reflect.ArrayType:
+	switch t := v; t.Kind() {
+	case reflect.Array:
 		n := sizeof(t.Elem())
 		if n < 0 {
 			return -1
 		}
 		return t.Len() * n
 
-	case *reflect.StructType:
+	case reflect.Struct:
 		sum := 0
 		for i, n := 0, t.NumField(); i < n; i++ {
 			s := sizeof(t.Field(i).Type)
@@ -198,7 +198,7 @@ func sizeof(v reflect.Type) int {
 		}
 		return sum
 
-	case *reflect.UintType, *reflect.IntType, *reflect.FloatType, *reflect.ComplexType:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
 		switch t := t.Kind(); t {
 		case reflect.Int, reflect.Uint, reflect.Uintptr:
 			return -1
@@ -279,65 +279,65 @@ func (d *decoder) int64() int64 { return int64(d.uint64()) }
 func (e *encoder) int64(x int64) { e.uint64(uint64(x)) }
 
 func (d *decoder) value(v reflect.Value) {
-	switch v := v.(type) {
-	case *reflect.ArrayValue:
+	switch v.Kind() {
+	case reflect.Array:
 		l := v.Len()
 		for i := 0; i < l; i++ {
-			d.value(v.Elem(i))
+			d.value(v.Index(i))
 		}
-	case *reflect.StructValue:
+	case reflect.Struct:
 		l := v.NumField()
 		for i := 0; i < l; i++ {
 			d.value(v.Field(i))
 		}
 
-	case *reflect.SliceValue:
+	case reflect.Slice:
 		l := v.Len()
 		for i := 0; i < l; i++ {
-			d.value(v.Elem(i))
+			d.value(v.Index(i))
 		}
 
-	case *reflect.IntValue:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		switch v.Type().Kind() {
 		case reflect.Int8:
-			v.Set(int64(d.int8()))
+			v.SetInt(int64(d.int8()))
 		case reflect.Int16:
-			v.Set(int64(d.int16()))
+			v.SetInt(int64(d.int16()))
 		case reflect.Int32:
-			v.Set(int64(d.int32()))
+			v.SetInt(int64(d.int32()))
 		case reflect.Int64:
-			v.Set(d.int64())
+			v.SetInt(d.int64())
 		}
 
-	case *reflect.UintValue:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		switch v.Type().Kind() {
 		case reflect.Uint8:
-			v.Set(uint64(d.uint8()))
+			v.SetUint(uint64(d.uint8()))
 		case reflect.Uint16:
-			v.Set(uint64(d.uint16()))
+			v.SetUint(uint64(d.uint16()))
 		case reflect.Uint32:
-			v.Set(uint64(d.uint32()))
+			v.SetUint(uint64(d.uint32()))
 		case reflect.Uint64:
-			v.Set(d.uint64())
+			v.SetUint(d.uint64())
 		}
 
-	case *reflect.FloatValue:
+	case reflect.Float32, reflect.Float64:
 		switch v.Type().Kind() {
 		case reflect.Float32:
-			v.Set(float64(math.Float32frombits(d.uint32())))
+			v.SetFloat(float64(math.Float32frombits(d.uint32())))
 		case reflect.Float64:
-			v.Set(math.Float64frombits(d.uint64()))
+			v.SetFloat(math.Float64frombits(d.uint64()))
 		}
 
-	case *reflect.ComplexValue:
+	case reflect.Complex64, reflect.Complex128:
 		switch v.Type().Kind() {
 		case reflect.Complex64:
-			v.Set(complex(
+			v.SetComplex(complex(
 				float64(math.Float32frombits(d.uint32())),
 				float64(math.Float32frombits(d.uint32())),
 			))
 		case reflect.Complex128:
-			v.Set(complex(
+			v.SetComplex(complex(
 				math.Float64frombits(d.uint64()),
 				math.Float64frombits(d.uint64()),
 			))
@@ -346,63 +346,63 @@ func (d *decoder) value(v reflect.Value) {
 }
 
 func (e *encoder) value(v reflect.Value) {
-	switch v := v.(type) {
-	case *reflect.ArrayValue:
+	switch v.Kind() {
+	case reflect.Array:
 		l := v.Len()
 		for i := 0; i < l; i++ {
-			e.value(v.Elem(i))
+			e.value(v.Index(i))
 		}
-	case *reflect.StructValue:
+	case reflect.Struct:
 		l := v.NumField()
 		for i := 0; i < l; i++ {
 			e.value(v.Field(i))
 		}
-	case *reflect.SliceValue:
+	case reflect.Slice:
 		l := v.Len()
 		for i := 0; i < l; i++ {
-			e.value(v.Elem(i))
+			e.value(v.Index(i))
 		}
 
-	case *reflect.IntValue:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		switch v.Type().Kind() {
 		case reflect.Int8:
-			e.int8(int8(v.Get()))
+			e.int8(int8(v.Int()))
 		case reflect.Int16:
-			e.int16(int16(v.Get()))
+			e.int16(int16(v.Int()))
 		case reflect.Int32:
-			e.int32(int32(v.Get()))
+			e.int32(int32(v.Int()))
 		case reflect.Int64:
-			e.int64(v.Get())
+			e.int64(v.Int())
 		}
 
-	case *reflect.UintValue:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		switch v.Type().Kind() {
 		case reflect.Uint8:
-			e.uint8(uint8(v.Get()))
+			e.uint8(uint8(v.Uint()))
 		case reflect.Uint16:
-			e.uint16(uint16(v.Get()))
+			e.uint16(uint16(v.Uint()))
 		case reflect.Uint32:
-			e.uint32(uint32(v.Get()))
+			e.uint32(uint32(v.Uint()))
 		case reflect.Uint64:
-			e.uint64(v.Get())
+			e.uint64(v.Uint())
 		}
 
-	case *reflect.FloatValue:
+	case reflect.Float32, reflect.Float64:
 		switch v.Type().Kind() {
 		case reflect.Float32:
-			e.uint32(math.Float32bits(float32(v.Get())))
+			e.uint32(math.Float32bits(float32(v.Float())))
 		case reflect.Float64:
-			e.uint64(math.Float64bits(v.Get()))
+			e.uint64(math.Float64bits(v.Float()))
 		}
 
-	case *reflect.ComplexValue:
+	case reflect.Complex64, reflect.Complex128:
 		switch v.Type().Kind() {
 		case reflect.Complex64:
-			x := v.Get()
+			x := v.Complex()
 			e.uint32(math.Float32bits(float32(real(x))))
 			e.uint32(math.Float32bits(float32(imag(x))))
 		case reflect.Complex128:
-			x := v.Get()
+			x := v.Complex()
 			e.uint64(math.Float64bits(real(x)))
 			e.uint64(math.Float64bits(imag(x)))
 		}

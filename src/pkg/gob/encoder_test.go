@@ -339,7 +339,7 @@ func TestSingletons(t *testing.T) {
 			continue
 		}
 		// Get rid of the pointer in the rhs
-		val := reflect.NewValue(test.out).(*reflect.PtrValue).Elem().Interface()
+		val := reflect.NewValue(test.out).Elem().Interface()
 		if !reflect.DeepEqual(test.in, val) {
 			t.Errorf("decoding singleton: expected %v got %v", test.in, val)
 		}

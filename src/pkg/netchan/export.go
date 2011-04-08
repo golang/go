@@ -221,7 +221,7 @@ func (client *expClient) serveSend(hdr header) {
 		return
 	}
 	// Create a new value for each received item.
-	val := reflect.MakeZero(nch.ch.Type().(*reflect.ChanType).Elem())
+	val := reflect.Zero(nch.ch.Type().Elem())
 	if err := client.decode(val); err != nil {
 		expLog("value decode:", err, "; type ", nch.ch.Type())
 		return
@@ -340,26 +340,26 @@ func (exp *Exporter) Sync(timeout int64) os.Error {
 	return exp.clientSet.sync(timeout)
 }
 
-func checkChan(chT interface{}, dir Dir) (*reflect.ChanValue, os.Error) {
-	chanType, ok := reflect.Typeof(chT).(*reflect.ChanType)
-	if !ok {
-		return nil, os.ErrorString("not a channel")
+func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
+	chanType := reflect.Typeof(chT)
+	if chanType.Kind() != reflect.Chan {
+		return reflect.Value{}, os.ErrorString("not a channel")
 	}
 	if dir != Send && dir != Recv {
-		return nil, os.ErrorString("unknown channel direction")
+		return reflect.Value{}, os.ErrorString("unknown channel direction")
 	}
-	switch chanType.Dir() {
+	switch chanType.ChanDir() {
 	case reflect.BothDir:
 	case reflect.SendDir:
 		if dir != Recv {
-			return nil, os.ErrorString("to import/export with Send, must provide <-chan")
+			return reflect.Value{}, os.ErrorString("to import/export with Send, must provide <-chan")
 		}
 	case reflect.RecvDir:
 		if dir != Send {
-			return nil, os.ErrorString("to import/export with Recv, must provide chan<-")
+			return reflect.Value{}, os.ErrorString("to import/export with Recv, must provide chan<-")
 		}
 	}
-	return reflect.NewValue(chT).(*reflect.ChanValue), nil
+	return reflect.NewValue(chT), nil
 }
 
 // Export exports a channel of a given type and specified direction.  The

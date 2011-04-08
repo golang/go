@@ -236,9 +236,9 @@ type runtimeValues struct {
 // indexes gathered from the remoteTypes recorded in a runtimeValues
 // structure.
 func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
-	outv := reflect.Indirect(reflect.NewValue(out)).(*reflect.StructValue)
-	outt := outv.Type().(*reflect.StructType)
-	runtimev := reflect.Indirect(reflect.NewValue(runtime)).(*reflect.StructValue)
+	outv := reflect.Indirect(reflect.NewValue(out))
+	outt := outv.Type()
+	runtimev := reflect.Indirect(reflect.NewValue(runtime))
 
 	// out contains fields corresponding to each runtime type
 	for i := 0; i < outt.NumField(); i++ {
@@ -260,12 +260,12 @@ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
 		}
 
 		// Fill this field of out
-		outStructv := outv.Field(i).(*reflect.StructValue)
-		outStructt := outStructv.Type().(*reflect.StructType)
+		outStructv := outv.Field(i)
+		outStructt := outStructv.Type()
 		for j := 0; j < outStructt.NumField(); j++ {
-			f := outStructv.Field(j).(*reflect.IntValue)
+			f := outStructv.Field(j)
 			name := outStructt.Field(j).Name
-			f.Set(int64(indexes[name]))
+			f.SetInt(int64(indexes[name]))
 		}
 	}
 }

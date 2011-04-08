@@ -46,34 +46,34 @@ func main() {
 	x.t = add("abc", "def")
 	x.u = 1
 	x.v = 2
-	x.w = 1<<28
-	x.x = 2<<28
+	x.w = 1 << 28
+	x.x = 2 << 28
 	x.y = 0x12345678
 	x.z = x.y
 
 	// check mem and string
 	v := reflect.NewValue(x)
-	i := v.(*reflect.StructValue).Field(0)
-	j := v.(*reflect.StructValue).Field(1)
+	i := v.Field(0)
+	j := v.Field(1)
 	assert(i.Interface() == j.Interface())
 
-	s := v.(*reflect.StructValue).Field(2)
-	t := v.(*reflect.StructValue).Field(3)
+	s := v.Field(2)
+	t := v.Field(3)
 	assert(s.Interface() == t.Interface())
 
 	// make sure different values are different.
 	// make sure whole word is being compared,
 	// not just a single byte.
-	i = v.(*reflect.StructValue).Field(4)
-	j = v.(*reflect.StructValue).Field(5)
+	i = v.Field(4)
+	j = v.Field(5)
 	assert(i.Interface() != j.Interface())
 
-	i = v.(*reflect.StructValue).Field(6)
-	j = v.(*reflect.StructValue).Field(7)
+	i = v.Field(6)
+	j = v.Field(7)
 	assert(i.Interface() != j.Interface())
 
-	i = v.(*reflect.StructValue).Field(8)
-	j = v.(*reflect.StructValue).Field(9)
+	i = v.Field(8)
+	j = v.Field(9)
 	assert(i.Interface() == j.Interface())
 }
 

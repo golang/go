@@ -314,28 +314,28 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 		return marshalObjectIdentifier(out, value.Interface().(ObjectIdentifier))
 	}
 
-	switch v := value.(type) {
-	case *reflect.BoolValue:
-		if v.Get() {
+	switch v := value; v.Kind() {
+	case reflect.Bool:
+		if v.Bool() {
 			return out.WriteByte(255)
 		} else {
 			return out.WriteByte(0)
 		}
-	case *reflect.IntValue:
-		return marshalInt64(out, int64(v.Get()))
-	case *reflect.StructValue:
-		t := v.Type().(*reflect.StructType)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return marshalInt64(out, int64(v.Int()))
+	case reflect.Struct:
+		t := v.Type()
 
 		startingField := 0
 
 		// If the first element of the structure is a non-empty
 		// RawContents, then we don't bother serialising the rest.
 		if t.NumField() > 0 && t.Field(0).Type == rawContentsType {
-			s := v.Field(0).(*reflect.SliceValue)
+			s := v.Field(0)
 			if s.Len() > 0 {
 				bytes := make([]byte, s.Len())
 				for i := 0; i < s.Len(); i++ {
-					bytes[i] = uint8(s.Elem(i).(*reflect.UintValue).Get())
+					bytes[i] = uint8(s.Index(i).Uint())
 				}
 				/* The RawContents will contain the tag and
 				 * length fields but we'll also be writing
@@ -357,12 +357,12 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 			}
 		}
 		return
-	case *reflect.SliceValue:
-		sliceType := v.Type().(*reflect.SliceType)
+	case reflect.Slice:
+		sliceType := v.Type()
 		if sliceType.Elem().Kind() == reflect.Uint8 {
 			bytes := make([]byte, v.Len())
 			for i := 0; i < v.Len(); i++ {
-				bytes[i] = uint8(v.Elem(i).(*reflect.UintValue).Get())
+				bytes[i] = uint8(v.Index(i).Uint())
 			}
 			_, err = out.Write(bytes)
 			return
@@ -372,17 +372,17 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 		for i := 0; i < v.Len(); i++ {
 			var pre *forkableWriter
 			pre, out = out.fork()
-			err = marshalField(pre, v.Elem(i), params)
+			err = marshalField(pre, v.Index(i), params)
 			if err != nil {
 				return
 			}
 		}
 		return
-	case *reflect.StringValue:
+	case reflect.String:
 		if params.stringType == tagIA5String {
-			return marshalIA5String(out, v.Get())
+			return marshalIA5String(out, v.String())
 		} else {
-			return marshalPrintableString(out, v.Get())
+			return marshalPrintableString(out, v.String())
 		}
 		return
 	}
@@ -392,7 +392,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 
 func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) (err os.Error) {
 	// If the field is an interface{} then recurse into it.
-	if v, ok := v.(*reflect.InterfaceValue); ok && v.Type().(*reflect.InterfaceType).NumMethod() == 0 {
+	if v.Kind() == reflect.Interface && v.Type().NumMethod() == 0 {
 		return marshalField(out, v.Elem(), params)
 	}
 
@@ -406,7 +406,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 		return
 	}
 
-	if params.optional && reflect.DeepEqual(v.Interface(), reflect.MakeZero(v.Type()).Interface()) {
+	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
 		return
 	}
 

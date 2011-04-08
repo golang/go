@@ -21,11 +21,12 @@ type FieldFilter func(name string, value reflect.Value) bool
 
 // NotNilFilter returns true for field values that are not nil;
 // it returns false otherwise.
-func NotNilFilter(_ string, value reflect.Value) bool {
-	v, ok := value.(interface {
-		IsNil() bool
-	})
-	return !ok || !v.IsNil()
+func NotNilFilter(_ string, v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return !v.IsNil()
+	}
+	return false
 }
 
 
@@ -147,23 +148,23 @@ func (p *printer) print(x reflect.Value) {
 		return
 	}
 
-	switch v := x.(type) {
-	case *reflect.InterfaceValue:
+	switch v := x; v.Kind() {
+	case reflect.Interface:
 		p.print(v.Elem())
 
-	case *reflect.MapValue:
+	case reflect.Map:
 		p.printf("%s (len = %d) {\n", x.Type().String(), v.Len())
 		p.indent++
-		for _, key := range v.Keys() {
+		for _, key := range v.MapKeys() {
 			p.print(key)
 			p.printf(": ")
-			p.print(v.Elem(key))
+			p.print(v.MapIndex(key))
 			p.printf("\n")
 		}
 		p.indent--
 		p.printf("}")
 
-	case *reflect.PtrValue:
+	case reflect.Ptr:
 		p.printf("*")
 		// type-checked ASTs may contain cycles - use ptrmap
 		// to keep track of objects that have been printed
@@ -176,7 +177,7 @@ func (p *printer) print(x reflect.Value) {
 			p.print(v.Elem())
 		}
 
-	case *reflect.SliceValue:
+	case reflect.Slice:
 		if s, ok := v.Interface().([]byte); ok {
 			p.printf("%#q", s)
 			return
@@ -185,16 +186,16 @@ func (p *printer) print(x reflect.Value) {
 		p.indent++
 		for i, n := 0, v.Len(); i < n; i++ {
 			p.printf("%d: ", i)
-			p.print(v.Elem(i))
+			p.print(v.Index(i))
 			p.printf("\n")
 		}
 		p.indent--
 		p.printf("}")
 
-	case *reflect.StructValue:
+	case reflect.Struct:
 		p.printf("%s {\n", x.Type().String())
 		p.indent++
-		t := v.Type().(*reflect.StructType)
+		t := v.Type()
 		for i, n := 0, t.NumField(); i < n; i++ {
 			name := t.Field(i).Name
 			value := v.Field(i)
