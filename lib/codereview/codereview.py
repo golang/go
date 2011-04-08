@@ -1135,11 +1135,26 @@ def clpatch(ui, repo, clname, **opts):
 	if missing_codereview:
 		return missing_codereview
 
-	cl, patch, err = DownloadCL(ui, repo, clname)
+	cl, vers, patch, err = DownloadCL(ui, repo, clname)
 	if err != "":
 		return err
 	if patch == emptydiff:
 		return "codereview issue %s has no diff" % clname
+
+	if not repo[vers]:
+		return "codereview issue %s is newer than the current repository; hg sync" % clname
+
+	# find current hg version (hg identify)
+	ctx = repo[None]
+	parents = ctx.parents()
+	id = '+'.join([short(p.node()) for p in parents])
+
+	# if version does not match the patch version,
+	# try to update the patch line numbers.
+	if id != vers:
+		patch, err = portPatch(repo, patch, vers, id)
+		if err != "":
+			return "codereview issue %s is out of date: %s" % (clname, err)
 
 	argv = ["hgpatch"]
 	if opts["no_incoming"]:
@@ -1163,6 +1178,67 @@ def clpatch(ui, repo, clname, **opts):
 	cl.Flush(ui, repo)
 	ui.write(cl.PendingText() + "\n")
 
+# portPatch rewrites patch from being a patch against
+# oldver to being a patch against newver.
+def portPatch(repo, patch, oldver, newver):
+	lines = patch.splitlines(True) # True = keep \n
+	delta = None
+	for i in range(len(lines)):
+		line = lines[i]
+		if line.startswith('--- a/'):
+			file = line[6:-1]
+			delta = fileDeltas(repo, file, oldver, newver)
+		if not delta or not line.startswith('@@ '):
+			continue
+		# @@ -x,y +z,w @@ means the patch chunk replaces
+		# the original file's line numbers x up to x+y with the
+		# line numbers z up to z+w in the new file.
+		# Find the delta from x in the original to the same
+		# line in the current version and add that delta to both
+		# x and z.
+		m = re.match('@@ -([0-9]+),([0-9]+) \+([0-9]+),([0-9]+) @@', line)
+		if not m:
+			return None, "error parsing patch line numbers"
+		n1, len1, n2, len2 = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+		d, err = lineDelta(delta, n1, len1)
+		if err != "":
+			return "", err
+		n1 += d
+		n2 += d
+		lines[i] = "@@ -%d,%d +%d,%d @@\n" % (n1, len1, n2, len2)
+		
+	newpatch = ''.join(lines)
+	return newpatch, ""
+
+# fileDelta returns the line number deltas for the given file's
+# changes from oldver to newver.
+# The deltas are a list of (n, len, newdelta) triples that say
+# lines [n, n+len) were modified, and after that range the
+# line numbers are +newdelta from what they were before.
+def fileDeltas(repo, file, oldver, newver):
+	cmd = ["hg", "diff", "--git", "-r", oldver + ":" + newver, "path:" + file]
+	data = RunShell(cmd, silent_ok=True)
+	deltas = []
+	for line in data.splitlines():
+		m = re.match('@@ -([0-9]+),([0-9]+) \+([0-9]+),([0-9]+) @@', line)
+		if not m:
+			continue
+		n1, len1, n2, len2 = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+		deltas.append((n1, len1, n2+len2-(n1+len1)))
+	return deltas
+
+# lineDelta finds the appropriate line number delta to apply to the lines [n, n+len).
+# It returns an error if those lines were rewritten by the patch.
+def lineDelta(deltas, n, len):
+	d = 0
+	for (old, oldlen, newdelta) in deltas:
+		if old >= n+len:
+			break
+		if old+len > n:
+			return 0, "patch and recent changes conflict"
+		d = newdelta
+	return d, ""
+
 def download(ui, repo, clname, **opts):
 	"""download a change from the code review server
 
@@ -1172,7 +1248,7 @@ def download(ui, repo, clname, **opts):
 	if missing_codereview:
 		return missing_codereview
 
-	cl, patch, err = DownloadCL(ui, repo, clname)
+	cl, vers, patch, err = DownloadCL(ui, repo, clname)
 	if err != "":
 		return err
 	ui.write(cl.EditorText() + "\n")
@@ -1741,25 +1817,35 @@ def DownloadCL(ui, repo, clname):
 	set_status("downloading CL " + clname)
 	cl, err = LoadCL(ui, repo, clname)
 	if err != "":
-		return None, None, "error loading CL %s: %s" % (clname, err)
+		return None, None, None, "error loading CL %s: %s" % (clname, err)
 
 	# Grab RSS feed to learn about CL
 	feed = XMLGet(ui, "/rss/issue/" + clname)
 	if feed is None:
-		return None, None, "cannot download CL"
+		return None, None, None, "cannot download CL"
 
 	# Find most recent diff
 	diff = None
 	prefix = 'http://' + server + '/'
-	for link in feed.findall("{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}link"):
-		if link.get('rel') != 'alternate':
+	vers = ""
+	for entry in feed.findall("{http://www.w3.org/2005/Atom}entry"):
+		thisVers = ""
+		for title in entry.findall("{http://www.w3.org/2005/Atom}title"):
+			m = re.search('diff -r ([0-9a-f]+) ', title.text)
+			if m:
+				thisVers = m.group(1)
+		if thisVers == "":
 			continue
-		text = link.get('href')
-		if not text.startswith(prefix) or not text.endswith('.diff'):
-			continue
-		diff = text[len(prefix)-1:]
+		for link in entry.findall("{http://www.w3.org/2005/Atom}link"):
+			if link.get('rel') != 'alternate':
+				continue
+			text = link.get('href')
+			if not text.startswith(prefix) or not text.endswith('.diff'):
+				continue
+			diff = text[len(prefix)-1:]
+			vers = thisVers
 	if diff is None:
-		return None, None, "CL has no diff"
+		return None, None, None, "CL has no diff"
 	diffdata = MySend(diff, force_auth=False)
 
 	# Find author - first entry will be author who created CL.
@@ -1768,7 +1854,7 @@ def DownloadCL(ui, repo, clname):
 		nick = author.text.strip()
 		break
 	if not nick:
-		return None, None, "CL has no author"
+		return None, None, None, "CL has no author"
 
 	# The author is just a nickname: get the real email address.
 	try:
@@ -1778,7 +1864,7 @@ def DownloadCL(ui, repo, clname):
 	except:
 		ui.warn("error looking up %s: %s\n" % (nick, ExceptionDetail()))
 		cl.copied_from = nick+"@needtofix"
-		return cl, diffdata, ""
+		return cl, vers, diffdata, ""
 	match = re.match(r"<b>(.*) \((.*)\)</b>", data)
 	if not match:
 		return None, None, "error looking up %s: cannot parse result %s" % (nick, repr(data))
@@ -1792,7 +1878,7 @@ def DownloadCL(ui, repo, clname):
 	if him != me:
 		cl.copied_from = email
 
-	return cl, diffdata, ""
+	return cl, vers, diffdata, ""
 
 def MySend(request_path, payload=None,
 		content_type="application/octet-stream",
