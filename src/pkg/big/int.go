@@ -337,6 +337,10 @@ func fmtbase(ch int) int {
 // 'x' (hexadecimal).
 //
 func (x *Int) Format(s fmt.State, ch int) {
+	if x == nil {
+		fmt.Fprint(s, "<nil>")
+		return
+	}
 	if x.neg {
 		fmt.Fprint(s, "-")
 	}
