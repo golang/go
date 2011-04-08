@@ -27,7 +27,7 @@ func osopen(f *ast.File) bool {
 	}
 
 	fixed := false
-	rewrite(f, func(n interface{}) {
+	walk(f, func(n interface{}) {
 		// Rename O_CREAT to O_CREATE.
 		if expr, ok := n.(ast.Expr); ok && isPkgDot(expr, "os", "O_CREAT") {
 			expr.(*ast.SelectorExpr).Sel.Name = "O_CREATE"

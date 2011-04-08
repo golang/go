@@ -28,7 +28,7 @@ func procattr(f *ast.File) bool {
 	}
 
 	fixed := false
-	rewrite(f, func(n interface{}) {
+	walk(f, func(n interface{}) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok || len(call.Args) != 5 {
 			return

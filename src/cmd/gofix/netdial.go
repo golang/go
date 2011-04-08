@@ -47,7 +47,7 @@ func netdial(f *ast.File) bool {
 	}
 
 	fixed := false
-	rewrite(f, func(n interface{}) {
+	walk(f, func(n interface{}) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok || !isPkgDot(call.Fun, "net", "Dial") || len(call.Args) != 3 {
 			return
@@ -70,7 +70,7 @@ func tlsdial(f *ast.File) bool {
 	}
 
 	fixed := false
-	rewrite(f, func(n interface{}) {
+	walk(f, func(n interface{}) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok || !isPkgDot(call.Fun, "tls", "Dial") || len(call.Args) != 4 {
 			return
@@ -94,7 +94,7 @@ func netlookup(f *ast.File) bool {
 	}
 
 	fixed := false
-	rewrite(f, func(n interface{}) {
+	walk(f, func(n interface{}) {
 		as, ok := n.(*ast.AssignStmt)
 		if !ok || len(as.Lhs) != 3 || len(as.Rhs) != 1 {
 			return
