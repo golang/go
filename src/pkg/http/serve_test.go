@@ -231,7 +231,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 
 func TestServerTimeouts(t *testing.T) {
 	// TODO(bradfitz): convert this to use httptest.Server
-	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: 0})
+	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen error: %v", err)
 	}
