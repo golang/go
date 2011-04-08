@@ -207,58 +207,46 @@ func testType(t *testing.T, i int, typ Type, want string) {
 
 func TestTypes(t *testing.T) {
 	for i, tt := range typeTests {
-		testType(t, i, NewValue(tt.i).(*StructValue).Field(0).Type(), tt.s)
+		testType(t, i, NewValue(tt.i).Field(0).Type(), tt.s)
 	}
 }
 
 func TestSet(t *testing.T) {
 	for i, tt := range valueTests {
 		v := NewValue(tt.i)
-		switch v := v.(type) {
-		case *IntValue:
-			switch v.Type().Kind() {
-			case Int:
-				v.Set(132)
-			case Int8:
-				v.Set(8)
-			case Int16:
-				v.Set(16)
-			case Int32:
-				v.Set(32)
-			case Int64:
-				v.Set(64)
-			}
-		case *UintValue:
-			switch v.Type().Kind() {
-			case Uint:
-				v.Set(132)
-			case Uint8:
-				v.Set(8)
-			case Uint16:
-				v.Set(16)
-			case Uint32:
-				v.Set(32)
-			case Uint64:
-				v.Set(64)
-			}
-		case *FloatValue:
-			switch v.Type().Kind() {
-			case Float32:
-				v.Set(256.25)
-			case Float64:
-				v.Set(512.125)
-			}
-		case *ComplexValue:
-			switch v.Type().Kind() {
-			case Complex64:
-				v.Set(532.125 + 10i)
-			case Complex128:
-				v.Set(564.25 + 1i)
-			}
-		case *StringValue:
-			v.Set("stringy cheese")
-		case *BoolValue:
-			v.Set(true)
+		switch v.Kind() {
+		case Int:
+			v.SetInt(132)
+		case Int8:
+			v.SetInt(8)
+		case Int16:
+			v.SetInt(16)
+		case Int32:
+			v.SetInt(32)
+		case Int64:
+			v.SetInt(64)
+		case Uint:
+			v.SetUint(132)
+		case Uint8:
+			v.SetUint(8)
+		case Uint16:
+			v.SetUint(16)
+		case Uint32:
+			v.SetUint(32)
+		case Uint64:
+			v.SetUint(64)
+		case Float32:
+			v.SetFloat(256.25)
+		case Float64:
+			v.SetFloat(512.125)
+		case Complex64:
+			v.SetComplex(532.125 + 10i)
+		case Complex128:
+			v.SetComplex(564.25 + 1i)
+		case String:
+			v.SetString("stringy cheese")
+		case Bool:
+			v.SetBool(true)
 		}
 		s := valueToString(v)
 		if s != tt.s {
@@ -270,52 +258,39 @@ func TestSet(t *testing.T) {
 func TestSetValue(t *testing.T) {
 	for i, tt := range valueTests {
 		v := NewValue(tt.i)
-		switch v := v.(type) {
-		case *IntValue:
-			switch v.Type().Kind() {
-			case Int:
-				v.SetValue(NewValue(int(132)))
-			case Int8:
-				v.SetValue(NewValue(int8(8)))
-			case Int16:
-				v.SetValue(NewValue(int16(16)))
-			case Int32:
-				v.SetValue(NewValue(int32(32)))
-			case Int64:
-				v.SetValue(NewValue(int64(64)))
-			}
-		case *UintValue:
-			switch v.Type().Kind() {
-			case Uint:
-				v.SetValue(NewValue(uint(132)))
-			case Uint8:
-				v.SetValue(NewValue(uint8(8)))
-			case Uint16:
-				v.SetValue(NewValue(uint16(16)))
-			case Uint32:
-				v.SetValue(NewValue(uint32(32)))
-			case Uint64:
-				v.SetValue(NewValue(uint64(64)))
-			}
-		case *FloatValue:
-			switch v.Type().Kind() {
-			case Float32:
-				v.SetValue(NewValue(float32(256.25)))
-			case Float64:
-				v.SetValue(NewValue(512.125))
-			}
-		case *ComplexValue:
-			switch v.Type().Kind() {
-			case Complex64:
-				v.SetValue(NewValue(complex64(532.125 + 10i)))
-			case Complex128:
-				v.SetValue(NewValue(complex128(564.25 + 1i)))
-			}
-
-		case *StringValue:
-			v.SetValue(NewValue("stringy cheese"))
-		case *BoolValue:
-			v.SetValue(NewValue(true))
+		switch v.Kind() {
+		case Int:
+			v.Set(NewValue(int(132)))
+		case Int8:
+			v.Set(NewValue(int8(8)))
+		case Int16:
+			v.Set(NewValue(int16(16)))
+		case Int32:
+			v.Set(NewValue(int32(32)))
+		case Int64:
+			v.Set(NewValue(int64(64)))
+		case Uint:
+			v.Set(NewValue(uint(132)))
+		case Uint8:
+			v.Set(NewValue(uint8(8)))
+		case Uint16:
+			v.Set(NewValue(uint16(16)))
+		case Uint32:
+			v.Set(NewValue(uint32(32)))
+		case Uint64:
+			v.Set(NewValue(uint64(64)))
+		case Float32:
+			v.Set(NewValue(float32(256.25)))
+		case Float64:
+			v.Set(NewValue(512.125))
+		case Complex64:
+			v.Set(NewValue(complex64(532.125 + 10i)))
+		case Complex128:
+			v.Set(NewValue(complex128(564.25 + 1i)))
+		case String:
+			v.Set(NewValue("stringy cheese"))
+		case Bool:
+			v.Set(NewValue(true))
 		}
 		s := valueToString(v)
 		if s != tt.s {
@@ -350,7 +325,7 @@ func TestValueToString(t *testing.T) {
 
 func TestArrayElemSet(t *testing.T) {
 	v := NewValue([10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
-	v.(*ArrayValue).Elem(4).(*IntValue).Set(123)
+	v.Index(4).SetInt(123)
 	s := valueToString(v)
 	const want = "[10]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}"
 	if s != want {
@@ -358,7 +333,7 @@ func TestArrayElemSet(t *testing.T) {
 	}
 
 	v = NewValue([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
-	v.(*SliceValue).Elem(4).(*IntValue).Set(123)
+	v.Index(4).SetInt(123)
 	s = valueToString(v)
 	const want1 = "[]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}"
 	if s != want1 {
@@ -371,14 +346,14 @@ func TestPtrPointTo(t *testing.T) {
 	var i int32 = 1234
 	vip := NewValue(&ip)
 	vi := NewValue(i)
-	vip.(*PtrValue).Elem().(*PtrValue).PointTo(vi)
+	vip.Elem().Set(vi.Addr())
 	if *ip != 1234 {
 		t.Errorf("got %d, want 1234", *ip)
 	}
 
 	ip = nil
-	vp := NewValue(ip).(*PtrValue)
-	vp.PointTo(vp.Elem())
+	vp := NewValue(ip)
+	vp.Set(Zero(vp.Type()))
 	if ip != nil {
 		t.Errorf("got non-nil (%p), want nil", ip)
 	}
@@ -388,7 +363,7 @@ func TestPtrSetNil(t *testing.T) {
 	var i int32 = 1234
 	ip := &i
 	vip := NewValue(&ip)
-	vip.(*PtrValue).Elem().(*PtrValue).Set(nil)
+	vip.Elem().Set(Zero(vip.Elem().Type()))
 	if ip != nil {
 		t.Errorf("got non-nil (%d), want nil", *ip)
 	}
@@ -397,7 +372,7 @@ func TestPtrSetNil(t *testing.T) {
 func TestMapSetNil(t *testing.T) {
 	m := make(map[string]int)
 	vm := NewValue(&m)
-	vm.(*PtrValue).Elem().(*MapValue).Set(nil)
+	vm.Elem().Set(Zero(vm.Elem().Type()))
 	if m != nil {
 		t.Errorf("got non-nil (%p), want nil", m)
 	}
@@ -406,16 +381,16 @@ func TestMapSetNil(t *testing.T) {
 
 func TestAll(t *testing.T) {
 	testType(t, 1, Typeof((int8)(0)), "int8")
-	testType(t, 2, Typeof((*int8)(nil)).(*PtrType).Elem(), "int8")
+	testType(t, 2, Typeof((*int8)(nil)).Elem(), "int8")
 
 	typ := Typeof((*struct {
 		c chan *int32
 		d float32
 	})(nil))
 	testType(t, 3, typ, "*struct { c chan *int32; d float32 }")
-	etyp := typ.(*PtrType).Elem()
+	etyp := typ.Elem()
 	testType(t, 4, etyp, "struct { c chan *int32; d float32 }")
-	styp := etyp.(*StructType)
+	styp := etyp
 	f := styp.Field(0)
 	testType(t, 5, f.Type, "chan *int32")
 
@@ -432,22 +407,22 @@ func TestAll(t *testing.T) {
 
 	typ = Typeof([32]int32{})
 	testType(t, 7, typ, "[32]int32")
-	testType(t, 8, typ.(*ArrayType).Elem(), "int32")
+	testType(t, 8, typ.Elem(), "int32")
 
 	typ = Typeof((map[string]*int32)(nil))
 	testType(t, 9, typ, "map[string] *int32")
-	mtyp := typ.(*MapType)
+	mtyp := typ
 	testType(t, 10, mtyp.Key(), "string")
 	testType(t, 11, mtyp.Elem(), "*int32")
 
 	typ = Typeof((chan<- string)(nil))
 	testType(t, 12, typ, "chan<- string")
-	testType(t, 13, typ.(*ChanType).Elem(), "string")
+	testType(t, 13, typ.Elem(), "string")
 
 	// make sure tag strings are not part of element type
 	typ = Typeof(struct {
 		d []uint32 "TAG"
-	}{}).(*StructType).Field(0).Type
+	}{}).Field(0).Type
 	testType(t, 14, typ, "[]uint32")
 }
 
@@ -457,9 +432,9 @@ func TestInterfaceGet(t *testing.T) {
 	}
 	inter.e = 123.456
 	v1 := NewValue(&inter)
-	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0)
+	v2 := v1.Elem().Field(0)
 	assert(t, v2.Type().String(), "interface { }")
-	i2 := v2.(*InterfaceValue).Interface()
+	i2 := v2.Interface()
 	v3 := NewValue(i2)
 	assert(t, v3.Type().String(), "float64")
 }
@@ -470,9 +445,9 @@ func TestInterfaceValue(t *testing.T) {
 	}
 	inter.e = 123.456
 	v1 := NewValue(&inter)
-	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0)
+	v2 := v1.Elem().Field(0)
 	assert(t, v2.Type().String(), "interface { }")
-	v3 := v2.(*InterfaceValue).Elem()
+	v3 := v2.Elem()
 	assert(t, v3.Type().String(), "float64")
 
 	i3 := v2.Interface()
@@ -506,9 +481,9 @@ func TestAppend(t *testing.T) {
 			e0[j] = NewValue(e)
 		}
 		// Convert extra from []int to *SliceValue.
-		e1 := NewValue(test.extra).(*SliceValue)
+		e1 := NewValue(test.extra)
 		// Test Append.
-		a0 := NewValue(test.orig).(*SliceValue)
+		a0 := NewValue(test.orig)
 		have0 := Append(a0, e0...).Interface().([]int)
 		if !DeepEqual(have0, want) {
 			t.Errorf("Append #%d: have %v, want %v", i, have0, want)
@@ -521,7 +496,7 @@ func TestAppend(t *testing.T) {
 			t.Errorf("Append #%d extraLen: have %v, want %v", i, len(test.extra), extraLen)
 		}
 		// Test AppendSlice.
-		a1 := NewValue(test.orig).(*SliceValue)
+		a1 := NewValue(test.orig)
 		have1 := AppendSlice(a1, e1).Interface().([]int)
 		if !DeepEqual(have1, want) {
 			t.Errorf("AppendSlice #%d: have %v, want %v", i, have1, want)
@@ -545,8 +520,8 @@ func TestCopy(t *testing.T) {
 			t.Fatalf("b != c before test")
 		}
 	}
-	aa := NewValue(a).(*SliceValue)
-	ab := NewValue(b).(*SliceValue)
+	aa := NewValue(a)
+	ab := NewValue(b)
 	for tocopy := 1; tocopy <= 7; tocopy++ {
 		aa.SetLen(tocopy)
 		Copy(ab, aa)
@@ -660,7 +635,7 @@ func TestDeepEqual(t *testing.T) {
 func TestTypeof(t *testing.T) {
 	for _, test := range deepEqualTests {
 		v := NewValue(test.a)
-		if v == nil {
+		if !v.IsValid() {
 			continue
 		}
 		typ := Typeof(test.a)
@@ -715,8 +690,8 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
 
 
 func check2ndField(x interface{}, offs uintptr, t *testing.T) {
-	s := NewValue(x).(*StructValue)
-	f := s.Type().(*StructType).Field(1)
+	s := NewValue(x)
+	f := s.Type().Field(1)
 	if f.Offset != offs {
 		t.Error("mismatched offsets in structure alignment:", f.Offset, offs)
 	}
@@ -747,36 +722,22 @@ func TestAlignment(t *testing.T) {
 	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f))-uintptr(unsafe.Pointer(&x1)), t)
 }
 
-type IsNiller interface {
-	IsNil() bool
-}
-
 func Nil(a interface{}, t *testing.T) {
-	n := NewValue(a).(*StructValue).Field(0).(IsNiller)
+	n := NewValue(a).Field(0)
 	if !n.IsNil() {
 		t.Errorf("%v should be nil", a)
 	}
 }
 
 func NotNil(a interface{}, t *testing.T) {
-	n := NewValue(a).(*StructValue).Field(0).(IsNiller)
+	n := NewValue(a).Field(0)
 	if n.IsNil() {
 		t.Errorf("value of type %v should not be nil", NewValue(a).Type().String())
 	}
 }
 
 func TestIsNil(t *testing.T) {
-	// These do not implement IsNil
-	doNotNil := []interface{}{int(0), float32(0), struct{ a int }{}}
-	for _, ts := range doNotNil {
-		ty := Typeof(ts)
-		v := MakeZero(ty)
-		if _, ok := v.(IsNiller); ok {
-			t.Errorf("%s is nilable; should not be", ts)
-		}
-	}
-
-	// These do implement IsNil.
+	// These implement IsNil.
 	// Wrap in extra struct to hide interface type.
 	doNil := []interface{}{
 		struct{ x *int }{},
@@ -787,11 +748,9 @@ func TestIsNil(t *testing.T) {
 		struct{ x []string }{},
 	}
 	for _, ts := range doNil {
-		ty := Typeof(ts).(*StructType).Field(0).Type
-		v := MakeZero(ty)
-		if _, ok := v.(IsNiller); !ok {
-			t.Errorf("%s %T is not nilable; should be", ts, v)
-		}
+		ty := Typeof(ts).Field(0).Type
+		v := Zero(ty)
+		v.IsNil() // panics if not okay to call
 	}
 
 	// Check the implementations
@@ -844,7 +803,7 @@ func TestInterfaceExtraction(t *testing.T) {
 	}
 
 	s.w = os.Stdout
-	v := Indirect(NewValue(&s)).(*StructValue).Field(0).Interface()
+	v := Indirect(NewValue(&s)).Field(0).Interface()
 	if v != s.w.(interface{}) {
 		t.Error("Interface() on interface: ", v, s.w)
 	}
@@ -864,7 +823,7 @@ func TestInterfaceEditing(t *testing.T) {
 
 	// and setting that copy to "bye" should
 	// not change the value stored in i.
-	v.(*StringValue).Set("bye")
+	v.SetString("bye")
 	if i.(string) != "hello" {
 		t.Errorf(`Set("bye") changed i to %s`, i.(string))
 	}
@@ -872,7 +831,7 @@ func TestInterfaceEditing(t *testing.T) {
 	// the same should be true of smaller items.
 	i = 123
 	v = NewValue(i)
-	v.(*IntValue).Set(234)
+	v.SetInt(234)
 	if i.(int) != 123 {
 		t.Errorf("Set(234) changed i to %d", i.(int))
 	}
@@ -880,20 +839,20 @@ func TestInterfaceEditing(t *testing.T) {
 
 func TestNilPtrValueSub(t *testing.T) {
 	var pi *int
-	if pv := NewValue(pi).(*PtrValue); pv.Elem() != nil {
-		t.Error("NewValue((*int)(nil)).(*PtrValue).Elem() != nil")
+	if pv := NewValue(pi); pv.Elem().IsValid() {
+		t.Error("NewValue((*int)(nil)).Elem().IsValid()")
 	}
 }
 
 func TestMap(t *testing.T) {
 	m := map[string]int{"a": 1, "b": 2}
-	mv := NewValue(m).(*MapValue)
+	mv := NewValue(m)
 	if n := mv.Len(); n != len(m) {
 		t.Errorf("Len = %d, want %d", n, len(m))
 	}
-	keys := mv.Keys()
+	keys := mv.MapKeys()
 	i := 0
-	newmap := MakeMap(mv.Type().(*MapType))
+	newmap := MakeMap(mv.Type())
 	for k, v := range m {
 		// Check that returned Keys match keys in range.
 		// These aren't required to be in the same order,
@@ -901,22 +860,22 @@ func TestMap(t *testing.T) {
 		// the test easier.
 		if i >= len(keys) {
 			t.Errorf("Missing key #%d %q", i, k)
-		} else if kv := keys[i].(*StringValue); kv.Get() != k {
-			t.Errorf("Keys[%d] = %q, want %q", i, kv.Get(), k)
+		} else if kv := keys[i]; kv.String() != k {
+			t.Errorf("Keys[%q] = %d, want %d", i, kv.Int(), k)
 		}
 		i++
 
 		// Check that value lookup is correct.
-		vv := mv.Elem(NewValue(k))
-		if vi := vv.(*IntValue).Get(); vi != int64(v) {
+		vv := mv.MapIndex(NewValue(k))
+		if vi := vv.Int(); vi != int64(v) {
 			t.Errorf("Key %q: have value %d, want %d", k, vi, v)
 		}
 
 		// Copy into new map.
-		newmap.SetElem(NewValue(k), NewValue(v))
+		newmap.SetMapIndex(NewValue(k), NewValue(v))
 	}
-	vv := mv.Elem(NewValue("not-present"))
-	if vv != nil {
+	vv := mv.MapIndex(NewValue("not-present"))
+	if vv.IsValid() {
 		t.Errorf("Invalid key: got non-nil value %s", valueToString(vv))
 	}
 
@@ -932,14 +891,14 @@ func TestMap(t *testing.T) {
 		}
 	}
 
-	newmap.SetElem(NewValue("a"), nil)
+	newmap.SetMapIndex(NewValue("a"), Value{})
 	v, ok := newm["a"]
 	if ok {
 		t.Errorf("newm[\"a\"] = %d after delete", v)
 	}
 
-	mv = NewValue(&m).(*PtrValue).Elem().(*MapValue)
-	mv.Set(nil)
+	mv = NewValue(&m).Elem()
+	mv.Set(Zero(mv.Type()))
 	if m != nil {
 		t.Errorf("mv.Set(nil) failed")
 	}
@@ -948,15 +907,15 @@ func TestMap(t *testing.T) {
 func TestChan(t *testing.T) {
 	for loop := 0; loop < 2; loop++ {
 		var c chan int
-		var cv *ChanValue
+		var cv Value
 
 		// check both ways to allocate channels
 		switch loop {
 		case 1:
 			c = make(chan int, 1)
-			cv = NewValue(c).(*ChanValue)
+			cv = NewValue(c)
 		case 0:
-			cv = MakeChan(Typeof(c).(*ChanType), 1)
+			cv = MakeChan(Typeof(c), 1)
 			c = cv.Interface().(chan int)
 		}
 
@@ -968,22 +927,22 @@ func TestChan(t *testing.T) {
 
 		// Recv
 		c <- 3
-		if i, ok := cv.Recv(); i.(*IntValue).Get() != 3 || !ok {
-			t.Errorf("native send 3, reflect Recv %d, %t", i.(*IntValue).Get(), ok)
+		if i, ok := cv.Recv(); i.Int() != 3 || !ok {
+			t.Errorf("native send 3, reflect Recv %d, %t", i.Int(), ok)
 		}
 
 		// TryRecv fail
 		val, ok := cv.TryRecv()
-		if val != nil || ok {
+		if val.IsValid() || ok {
 			t.Errorf("TryRecv on empty chan: %s, %t", valueToString(val), ok)
 		}
 
 		// TryRecv success
 		c <- 4
 		val, ok = cv.TryRecv()
-		if val == nil {
+		if !val.IsValid() {
 			t.Errorf("TryRecv on ready chan got nil")
-		} else if i := val.(*IntValue).Get(); i != 4 || !ok {
+		} else if i := val.Int(); i != 4 || !ok {
 			t.Errorf("native send 4, TryRecv %d, %t", i, ok)
 		}
 
@@ -1008,27 +967,27 @@ func TestChan(t *testing.T) {
 		// Close
 		c <- 123
 		cv.Close()
-		if i, ok := cv.Recv(); i.(*IntValue).Get() != 123 || !ok {
-			t.Errorf("send 123 then close; Recv %d, %t", i.(*IntValue).Get(), ok)
+		if i, ok := cv.Recv(); i.Int() != 123 || !ok {
+			t.Errorf("send 123 then close; Recv %d, %t", i.Int(), ok)
 		}
-		if i, ok := cv.Recv(); i.(*IntValue).Get() != 0 || ok {
-			t.Errorf("after close Recv %d, %t", i.(*IntValue).Get(), ok)
+		if i, ok := cv.Recv(); i.Int() != 0 || ok {
+			t.Errorf("after close Recv %d, %t", i.Int(), ok)
 		}
 	}
 
 	// check creation of unbuffered channel
 	var c chan int
-	cv := MakeChan(Typeof(c).(*ChanType), 0)
+	cv := MakeChan(Typeof(c), 0)
 	c = cv.Interface().(chan int)
 	if cv.TrySend(NewValue(7)) {
 		t.Errorf("TrySend on sync chan succeeded")
 	}
-	if v, ok := cv.TryRecv(); v != nil || ok {
+	if v, ok := cv.TryRecv(); v.IsValid() || ok {
 		t.Errorf("TryRecv on sync chan succeeded")
 	}
 
 	// len/cap
-	cv = MakeChan(Typeof(c).(*ChanType), 10)
+	cv = MakeChan(Typeof(c), 10)
 	c = cv.Interface().(chan int)
 	for i := 0; i < 3; i++ {
 		c <- i
@@ -1046,14 +1005,14 @@ func dummy(b byte, c int, d byte) (i byte, j int, k byte) {
 }
 
 func TestFunc(t *testing.T) {
-	ret := NewValue(dummy).(*FuncValue).Call([]Value{NewValue(byte(10)), NewValue(20), NewValue(byte(30))})
+	ret := NewValue(dummy).Call([]Value{NewValue(byte(10)), NewValue(20), NewValue(byte(30))})
 	if len(ret) != 3 {
 		t.Fatalf("Call returned %d values, want 3", len(ret))
 	}
 
-	i := ret[0].(*UintValue).Get()
-	j := ret[1].(*IntValue).Get()
-	k := ret[2].(*UintValue).Get()
+	i := byte(ret[0].Uint())
+	j := int(ret[1].Int())
+	k := byte(ret[2].Uint())
 	if i != 10 || j != 20 || k != 30 {
 		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k)
 	}
@@ -1068,30 +1027,30 @@ func (p Point) Dist(scale int) int { return p.x*p.x*scale + p.y*p.y*scale }
 func TestMethod(t *testing.T) {
 	// Non-curried method of type.
 	p := Point{3, 4}
-	i := Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].(*IntValue).Get()
+	i := Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Type Method returned %d; want 250", i)
 	}
 
-	i = Typeof(&p).Method(0).Func.Call([]Value{NewValue(&p), NewValue(10)})[0].(*IntValue).Get()
+	i = Typeof(&p).Method(0).Func.Call([]Value{NewValue(&p), NewValue(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Pointer Type Method returned %d; want 250", i)
 	}
 
 	// Curried method of value.
-	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
+	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Value Method returned %d; want 250", i)
 	}
 
 	// Curried method of pointer.
-	i = NewValue(&p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
+	i = NewValue(&p).Method(0).Call([]Value{NewValue(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Value Method returned %d; want 250", i)
 	}
 
 	// Curried method of pointer to value.
-	i = NewValue(p).Addr().Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
+	i = NewValue(p).Addr().Method(0).Call([]Value{NewValue(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Value Method returned %d; want 250", i)
 	}
@@ -1105,8 +1064,8 @@ func TestMethod(t *testing.T) {
 			Dist(int) int
 		}
 	}{p}
-	pv := NewValue(s).(*StructValue).Field(0)
-	i = pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
+	pv := NewValue(s).Field(0)
+	i = pv.Method(0).Call([]Value{NewValue(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Interface Method returned %d; want 250", i)
 	}
@@ -1121,19 +1080,19 @@ func TestInterfaceSet(t *testing.T) {
 			Dist(int) int
 		}
 	}
-	sv := NewValue(&s).(*PtrValue).Elem().(*StructValue)
-	sv.Field(0).(*InterfaceValue).Set(NewValue(p))
+	sv := NewValue(&s).Elem()
+	sv.Field(0).Set(NewValue(p))
 	if q := s.I.(*Point); q != p {
 		t.Errorf("i: have %p want %p", q, p)
 	}
 
-	pv := sv.Field(1).(*InterfaceValue)
+	pv := sv.Field(1)
 	pv.Set(NewValue(p))
 	if q := s.P.(*Point); q != p {
 		t.Errorf("i: have %p want %p", q, p)
 	}
 
-	i := pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
+	i := pv.Method(0).Call([]Value{NewValue(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Interface Method returned %d; want 250", i)
 	}
@@ -1148,7 +1107,7 @@ func TestAnonymousFields(t *testing.T) {
 	var field StructField
 	var ok bool
 	var t1 T1
-	type1 := Typeof(t1).(*StructType)
+	type1 := Typeof(t1)
 	if field, ok = type1.FieldByName("int"); !ok {
 		t.Error("no field 'int'")
 	}
@@ -1232,7 +1191,7 @@ var fieldTests = []FTest{
 
 func TestFieldByIndex(t *testing.T) {
 	for _, test := range fieldTests {
-		s := Typeof(test.s).(*StructType)
+		s := Typeof(test.s)
 		f := s.FieldByIndex(test.index)
 		if f.Name != "" {
 			if test.index != nil {
@@ -1247,8 +1206,8 @@ func TestFieldByIndex(t *testing.T) {
 		}
 
 		if test.value != 0 {
-			v := NewValue(test.s).(*StructValue).FieldByIndex(test.index)
-			if v != nil {
+			v := NewValue(test.s).FieldByIndex(test.index)
+			if v.IsValid() {
 				if x, ok := v.Interface().(int); ok {
 					if x != test.value {
 						t.Errorf("%s%v is %d; want %d", s.Name(), test.index, x, test.value)
@@ -1265,7 +1224,7 @@ func TestFieldByIndex(t *testing.T) {
 
 func TestFieldByName(t *testing.T) {
 	for _, test := range fieldTests {
-		s := Typeof(test.s).(*StructType)
+		s := Typeof(test.s)
 		f, found := s.FieldByName(test.name)
 		if found {
 			if test.index != nil {
@@ -1287,8 +1246,8 @@ func TestFieldByName(t *testing.T) {
 		}
 
 		if test.value != 0 {
-			v := NewValue(test.s).(*StructValue).FieldByName(test.name)
-			if v != nil {
+			v := NewValue(test.s).FieldByName(test.name)
+			if v.IsValid() {
 				if x, ok := v.Interface().(int); ok {
 					if x != test.value {
 						t.Errorf("%s.%s is %d; want %d", s.Name(), test.name, x, test.value)
@@ -1312,10 +1271,10 @@ func TestImportPath(t *testing.T) {
 func TestDotDotDot(t *testing.T) {
 	// Test example from FuncType.DotDotDot documentation.
 	var f func(x int, y ...float64)
-	typ := Typeof(f).(*FuncType)
+	typ := Typeof(f)
 	if typ.NumIn() == 2 && typ.In(0) == Typeof(int(0)) {
-		sl, ok := typ.In(1).(*SliceType)
-		if ok {
+		sl := typ.In(1)
+		if sl.Kind() == Slice {
 			if sl.Elem() == Typeof(0.0) {
 				// ok
 				return
@@ -1346,11 +1305,11 @@ func (*outer) m() {}
 
 func TestNestedMethods(t *testing.T) {
 	typ := Typeof((*outer)(nil))
-	if typ.NumMethod() != 1 || typ.Method(0).Func.Get() != NewValue((*outer).m).(*FuncValue).Get() {
+	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != NewValue((*outer).m).Pointer() {
 		t.Errorf("Wrong method table for outer: (m=%p)", (*outer).m)
 		for i := 0; i < typ.NumMethod(); i++ {
 			m := typ.Method(i)
-			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
+			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
 		}
 	}
 }
@@ -1370,21 +1329,21 @@ func (i *innerInt) m() int {
 
 func TestEmbeddedMethods(t *testing.T) {
 	typ := Typeof((*outerInt)(nil))
-	if typ.NumMethod() != 1 || typ.Method(0).Func.Get() != NewValue((*outerInt).m).(*FuncValue).Get() {
+	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != NewValue((*outerInt).m).Pointer() {
 		t.Errorf("Wrong method table for outerInt: (m=%p)", (*outerInt).m)
 		for i := 0; i < typ.NumMethod(); i++ {
 			m := typ.Method(i)
-			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
+			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
 		}
 	}
 
 	i := &innerInt{3}
-	if v := NewValue(i).Method(0).Call(nil)[0].(*IntValue).Get(); v != 3 {
+	if v := NewValue(i).Method(0).Call(nil)[0].Int(); v != 3 {
 		t.Errorf("i.m() = %d, want 3", v)
 	}
 
 	o := &outerInt{1, innerInt{2}}
-	if v := NewValue(o).Method(0).Call(nil)[0].(*IntValue).Get(); v != 2 {
+	if v := NewValue(o).Method(0).Call(nil)[0].Int(); v != 2 {
 		t.Errorf("i.m() = %d, want 2", v)
 	}
 
@@ -1402,7 +1361,7 @@ func TestPtrTo(t *testing.T) {
 		typ = PtrTo(typ)
 	}
 	for i = 0; i < 100; i++ {
-		typ = typ.(*PtrType).Elem()
+		typ = typ.Elem()
 	}
 	if typ != Typeof(i) {
 		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, Typeof(i))
@@ -1415,11 +1374,11 @@ func TestAddr(t *testing.T) {
 	}
 
 	v := NewValue(&p)
-	v = v.(*PtrValue).Elem()
+	v = v.Elem()
 	v = v.Addr()
-	v = v.(*PtrValue).Elem()
-	v = v.(*StructValue).Field(0)
-	v.(*IntValue).Set(2)
+	v = v.Elem()
+	v = v.Field(0)
+	v.SetInt(2)
 	if p.X != 2 {
 		t.Errorf("Addr.Elem.Set failed to set value")
 	}
@@ -1428,12 +1387,12 @@ func TestAddr(t *testing.T) {
 	// Exercises generation of PtrTypes not present in the binary.
 	v = NewValue(&p)
 	v = v.Addr()
-	v = v.(*PtrValue).Elem()
-	v = v.(*PtrValue).Elem()
+	v = v.Elem()
+	v = v.Elem()
 	v = v.Addr()
-	v = v.(*PtrValue).Elem()
-	v = v.(*StructValue).Field(0)
-	v.(*IntValue).Set(3)
+	v = v.Elem()
+	v = v.Field(0)
+	v.SetInt(3)
 	if p.X != 3 {
 		t.Errorf("Addr.Elem.Set failed to set value")
 	}
@@ -1443,9 +1402,9 @@ func TestAddr(t *testing.T) {
 	v = NewValue(p)
 	v0 := v
 	v = v.Addr()
-	v = v.(*PtrValue).Elem()
-	v = v.(*StructValue).Field(0)
-	v.(*IntValue).Set(4)
+	v = v.Elem()
+	v = v.Field(0)
+	v.SetInt(4)
 	if p.X != 3 { // should be unchanged from last time
 		t.Errorf("somehow value Set changed original p")
 	}
