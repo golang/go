@@ -182,16 +182,16 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
 	if len(buf) < min {
 		return 0, ErrShortBuffer
 	}
-	for n < min {
-		nn, e := r.Read(buf[n:])
-		if nn > 0 {
-			n += nn
-		}
-		if e != nil {
-			if e == os.EOF && n > 0 {
-				e = ErrUnexpectedEOF
-			}
-			return n, e
+	for n < min && err == nil {
+		var nn int
+		nn, err = r.Read(buf[n:])
+		n += nn
+	}
+	if err == os.EOF {
+		if n >= min {
+			err = nil
+		} else if n > 0 {
+			err = ErrUnexpectedEOF
 		}
 	}
 	return

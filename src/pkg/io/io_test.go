@@ -118,27 +118,50 @@ func TestCopynEOF(t *testing.T) {
 
 func TestReadAtLeast(t *testing.T) {
 	var rb bytes.Buffer
+	testReadAtLeast(t, &rb)
+}
+
+// A version of bytes.Buffer that returns n > 0, os.EOF on Read
+// when the input is exhausted.
+type dataAndEOFBuffer struct {
+	bytes.Buffer
+}
+
+func (r *dataAndEOFBuffer) Read(p []byte) (n int, err os.Error) {
+	n, err = r.Buffer.Read(p)
+	if n > 0 && r.Buffer.Len() == 0 && err == nil {
+		err = os.EOF
+	}
+	return
+}
+
+func TestReadAtLeastWithDataAndEOF(t *testing.T) {
+	var rb dataAndEOFBuffer
+	testReadAtLeast(t, &rb)
+}
+
+func testReadAtLeast(t *testing.T, rb ReadWriter) {
 	rb.Write([]byte("0123"))
 	buf := make([]byte, 2)
-	n, err := ReadAtLeast(&rb, buf, 2)
+	n, err := ReadAtLeast(rb, buf, 2)
 	if err != nil {
 		t.Error(err)
 	}
-	n, err = ReadAtLeast(&rb, buf, 4)
+	n, err = ReadAtLeast(rb, buf, 4)
 	if err != ErrShortBuffer {
 		t.Errorf("expected ErrShortBuffer got %v", err)
 	}
 	if n != 0 {
 		t.Errorf("expected to have read 0 bytes, got %v", n)
 	}
-	n, err = ReadAtLeast(&rb, buf, 1)
+	n, err = ReadAtLeast(rb, buf, 1)
 	if err != nil {
 		t.Error(err)
 	}
 	if n != 2 {
 		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
-	n, err = ReadAtLeast(&rb, buf, 2)
+	n, err = ReadAtLeast(rb, buf, 2)
 	if err != os.EOF {
 		t.Errorf("expected EOF, got %v", err)
 	}
@@ -146,7 +169,7 @@ func TestReadAtLeast(t *testing.T) {
 		t.Errorf("expected to have read 0 bytes, got %v", n)
 	}
 	rb.Write([]byte("4"))
-	n, err = ReadAtLeast(&rb, buf, 2)
+	n, err = ReadAtLeast(rb, buf, 2)
 	if err != ErrUnexpectedEOF {
 		t.Errorf("expected ErrUnexpectedEOF, got %v", err)
 	}

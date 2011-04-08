@@ -15,10 +15,8 @@ func (mr *multiReader) Read(p []byte) (n int, err os.Error) {
 		n, err = mr.readers[0].Read(p)
 		if n > 0 || err != os.EOF {
 			if err == os.EOF {
-				// This shouldn't happen.
-				// Well-behaved Readers should never
-				// return non-zero bytes read with an
-				// EOF.  But if so, we clean it.
+				// Don't return EOF yet. There may be more bytes
+				// in the remaining readers.
 				err = nil
 			}
 			return
