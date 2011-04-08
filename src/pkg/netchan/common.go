@@ -73,7 +73,7 @@ type unackedCounter interface {
 
 // A channel and its direction.
 type chanDir struct {
-	ch  *reflect.ChanValue
+	ch  reflect.Value
 	dir Dir
 }
 

@@ -371,7 +371,7 @@ func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}
 		}
 		// The incoming value may be a pointer
 		v := reflect.NewValue(test.in)
-		if p, ok := v.(*reflect.PtrValue); ok {
+		if p := v; p.Kind() == reflect.Ptr {
 			v = p.Elem()
 		}
 		val := v.Interface()
@@ -410,7 +410,7 @@ func TestScanf(t *testing.T) {
 		}
 		// The incoming value may be a pointer
 		v := reflect.NewValue(test.in)
-		if p, ok := v.(*reflect.PtrValue); ok {
+		if p := v; p.Kind() == reflect.Ptr {
 			v = p.Elem()
 		}
 		val := v.Interface()
@@ -486,7 +486,7 @@ func TestInf(t *testing.T) {
 }
 
 func testScanfMulti(name string, t *testing.T) {
-	sliceType := reflect.Typeof(make([]interface{}, 1)).(*reflect.SliceType)
+	sliceType := reflect.Typeof(make([]interface{}, 1))
 	for _, test := range multiTests {
 		var r io.Reader
 		if name == "StringReader" {
@@ -513,8 +513,8 @@ func testScanfMulti(name string, t *testing.T) {
 		// Convert the slice of pointers into a slice of values
 		resultVal := reflect.MakeSlice(sliceType, n, n)
 		for i := 0; i < n; i++ {
-			v := reflect.NewValue(test.in[i]).(*reflect.PtrValue).Elem()
-			resultVal.Elem(i).(*reflect.InterfaceValue).Set(v)
+			v := reflect.NewValue(test.in[i]).Elem()
+			resultVal.Index(i).Set(v)
 		}
 		result := resultVal.Interface()
 		if !reflect.DeepEqual(result, test.out) {

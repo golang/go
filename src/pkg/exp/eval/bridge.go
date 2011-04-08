@@ -34,17 +34,17 @@ func TypeFromNative(t reflect.Type) Type {
 	}
 
 	var et Type
-	switch t := t.(type) {
-	case *reflect.BoolType:
+	switch t.Kind() {
+	case reflect.Bool:
 		et = BoolType
-	case *reflect.FloatType:
+	case reflect.Float32, reflect.Float64:
 		switch t.Kind() {
 		case reflect.Float32:
 			et = Float32Type
 		case reflect.Float64:
 			et = Float64Type
 		}
-	case *reflect.IntType:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		switch t.Kind() {
 		case reflect.Int16:
 			et = Int16Type
@@ -57,7 +57,7 @@ func TypeFromNative(t reflect.Type) Type {
 		case reflect.Int:
 			et = IntType
 		}
-	case *reflect.UintType:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		switch t.Kind() {
 		case reflect.Uint16:
 			et = Uint16Type
@@ -72,16 +72,16 @@ func TypeFromNative(t reflect.Type) Type {
 		case reflect.Uintptr:
 			et = UintptrType
 		}
-	case *reflect.StringType:
+	case reflect.String:
 		et = StringType
-	case *reflect.ArrayType:
+	case reflect.Array:
 		et = NewArrayType(int64(t.Len()), TypeFromNative(t.Elem()))
-	case *reflect.ChanType:
+	case reflect.Chan:
 		log.Panicf("%T not implemented", t)
-	case *reflect.FuncType:
+	case reflect.Func:
 		nin := t.NumIn()
 		// Variadic functions have DotDotDotType at the end
-		variadic := t.DotDotDot()
+		variadic := t.IsVariadic()
 		if variadic {
 			nin--
 		}
@@ -94,15 +94,15 @@ func TypeFromNative(t reflect.Type) Type {
 			out[i] = TypeFromNative(t.Out(i))
 		}
 		et = NewFuncType(in, variadic, out)
-	case *reflect.InterfaceType:
+	case reflect.Interface:
 		log.Panicf("%T not implemented", t)
-	case *reflect.MapType:
+	case reflect.Map:
 		log.Panicf("%T not implemented", t)
-	case *reflect.PtrType:
+	case reflect.Ptr:
 		et = NewPtrType(TypeFromNative(t.Elem()))
-	case *reflect.SliceType:
+	case reflect.Slice:
 		et = NewSliceType(TypeFromNative(t.Elem()))
-	case *reflect.StructType:
+	case reflect.Struct:
 		n := t.NumField()
 		fields := make([]StructField, n)
 		for i := 0; i < n; i++ {
@@ -113,7 +113,7 @@ func TypeFromNative(t reflect.Type) Type {
 			fields[i].Anonymous = sf.Anonymous
 		}
 		et = NewStructType(fields)
-	case *reflect.UnsafePointerType:
+	case reflect.UnsafePointer:
 		log.Panicf("%T not implemented", t)
 	default:
 		log.Panicf("unexpected reflect.Type: %T", t)

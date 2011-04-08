@@ -133,13 +133,13 @@ const (
 // Precompute the reflect type for os.Error.  Can't use os.Error directly
 // because Typeof takes an empty interface value.  This is annoying.
 var unusedError *os.Error
-var typeOfOsError = reflect.Typeof(unusedError).(*reflect.PtrType).Elem()
+var typeOfOsError = reflect.Typeof(unusedError).Elem()
 
 type methodType struct {
 	sync.Mutex // protects counters
 	method     reflect.Method
-	ArgType    *reflect.PtrType
-	ReplyType  *reflect.PtrType
+	ArgType    reflect.Type
+	ReplyType  reflect.Type
 	numCalls   uint
 }
 
@@ -252,13 +252,14 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 			log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
 			continue
 		}
-		argType, ok := mtype.In(1).(*reflect.PtrType)
+		argType := mtype.In(1)
+		ok := argType.Kind() == reflect.Ptr
 		if !ok {
 			log.Println(mname, "arg type not a pointer:", mtype.In(1))
 			continue
 		}
-		replyType, ok := mtype.In(2).(*reflect.PtrType)
-		if !ok {
+		replyType := mtype.In(2)
+		if replyType.Kind() != reflect.Ptr {
 			log.Println(mname, "reply type not a pointer:", mtype.In(2))
 			continue
 		}
@@ -296,9 +297,9 @@ type InvalidRequest struct{}
 
 var invalidRequest = InvalidRequest{}
 
-func _new(t *reflect.PtrType) *reflect.PtrValue {
-	v := reflect.MakeZero(t).(*reflect.PtrValue)
-	v.PointTo(reflect.MakeZero(t.Elem()))
+func _new(t reflect.Type) reflect.Value {
+	v := reflect.Zero(t)
+	v.Set(reflect.Zero(t.Elem()).Addr())
 	return v
 }
 

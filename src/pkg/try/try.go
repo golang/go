@@ -90,13 +90,13 @@ func tryMethod(pkg, firstArg string, method reflect.Method, args []interface{}) 
 // tryFunction sees if fn satisfies the arguments.
 func tryFunction(pkg, name string, fn interface{}, args []interface{}) {
 	defer func() { recover() }()
-	rfn := reflect.NewValue(fn).(*reflect.FuncValue)
-	typ := rfn.Type().(*reflect.FuncType)
+	rfn := reflect.NewValue(fn)
+	typ := rfn.Type()
 	tryOneFunction(pkg, "", name, typ, rfn, args)
 }
 
 // tryOneFunction is the common code for tryMethod and tryFunction.
-func tryOneFunction(pkg, firstArg, name string, typ *reflect.FuncType, rfn *reflect.FuncValue, args []interface{}) {
+func tryOneFunction(pkg, firstArg, name string, typ reflect.Type, rfn reflect.Value, args []interface{}) {
 	// Any results?
 	if typ.NumOut() == 0 {
 		return // Nothing to do.
@@ -166,7 +166,7 @@ func compatible(arg interface{}, typ reflect.Type) bool {
 	}
 	if arg == nil {
 		// nil is OK if the type is an interface.
-		if _, ok := typ.(*reflect.InterfaceType); ok {
+		if typ.Kind() == reflect.Interface {
 			return true
 		}
 	}

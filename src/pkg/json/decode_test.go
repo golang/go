@@ -21,7 +21,7 @@ type tx struct {
 	x int
 }
 
-var txType = reflect.Typeof((*tx)(nil)).(*reflect.PtrType).Elem().(*reflect.StructType)
+var txType = reflect.Typeof((*tx)(nil)).Elem()
 
 // A type that can unmarshal itself.
 
@@ -138,8 +138,8 @@ func TestUnmarshal(t *testing.T) {
 			continue
 		}
 		// v = new(right-type)
-		v := reflect.NewValue(tt.ptr).(*reflect.PtrValue)
-		v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
+		v := reflect.NewValue(tt.ptr)
+		v.Set(reflect.Zero(v.Type().Elem()).Addr())
 		if err := Unmarshal([]byte(in), v.Interface()); !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("#%d: %v want %v", i, err, tt.err)
 			continue

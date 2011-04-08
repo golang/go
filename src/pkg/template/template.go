@@ -621,7 +621,7 @@ func (t *Template) parse() {
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
 func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value {
-	for v != nil {
+	for v.IsValid() {
 		typ := v.Type()
 		if n := v.Type().NumMethod(); n > 0 {
 			for i := 0; i < n; i++ {
@@ -635,23 +635,23 @@ func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value
 				}
 			}
 		}
-		switch av := v.(type) {
-		case *reflect.PtrValue:
+		switch av := v; av.Kind() {
+		case reflect.Ptr:
 			v = av.Elem()
-		case *reflect.InterfaceValue:
+		case reflect.Interface:
 			v = av.Elem()
-		case *reflect.StructValue:
+		case reflect.Struct:
 			if !isExported(name) {
 				t.execError(st, t.linenum, "name not exported: %s in type %s", name, st.data.Type())
 			}
 			return av.FieldByName(name)
-		case *reflect.MapValue:
-			if v := av.Elem(reflect.NewValue(name)); v != nil {
+		case reflect.Map:
+			if v := av.MapIndex(reflect.NewValue(name)); v.IsValid() {
 				return v
 			}
-			return reflect.MakeZero(typ.(*reflect.MapType).Elem())
+			return reflect.Zero(typ.Elem())
 		default:
-			return nil
+			return reflect.Value{}
 		}
 	}
 	return v
@@ -661,8 +661,8 @@ func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value
 // It is forgiving: if the value is not a pointer, it returns it rather than giving
 // an error.  If the pointer is nil, it is returned as is.
 func indirectPtr(v reflect.Value, numLevels int) reflect.Value {
-	for i := numLevels; v != nil && i > 0; i++ {
-		if p, ok := v.(*reflect.PtrValue); ok {
+	for i := numLevels; v.IsValid() && i > 0; i++ {
+		if p := v; p.Kind() == reflect.Ptr {
 			if p.IsNil() {
 				return v
 			}
@@ -677,11 +677,11 @@ func indirectPtr(v reflect.Value, numLevels int) reflect.Value {
 // Walk v through pointers and interfaces, extracting the elements within.
 func indirect(v reflect.Value) reflect.Value {
 loop:
-	for v != nil {
-		switch av := v.(type) {
-		case *reflect.PtrValue:
+	for v.IsValid() {
+		switch av := v; av.Kind() {
+		case reflect.Ptr:
 			v = av.Elem()
-		case *reflect.InterfaceValue:
+		case reflect.Interface:
 			v = av.Elem()
 		default:
 			break loop
@@ -708,8 +708,8 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
 	for _, elem := range strings.Split(s, ".", -1) {
 		// Look up field; data must be a struct or map.
 		data = t.lookup(st, data, elem)
-		if data == nil {
-			return nil
+		if !data.IsValid() {
+			return reflect.Value{}
 		}
 	}
 	return indirectPtr(data, numStars)
@@ -718,21 +718,21 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
 // Is there no data to look at?
 func empty(v reflect.Value) bool {
 	v = indirect(v)
-	if v == nil {
+	if !v.IsValid() {
 		return true
 	}
-	switch v := v.(type) {
-	case *reflect.BoolValue:
-		return v.Get() == false
-	case *reflect.StringValue:
-		return v.Get() == ""
-	case *reflect.StructValue:
+	switch v.Kind() {
+	case reflect.Bool:
+		return v.Bool() == false
+	case reflect.String:
+		return v.String() == ""
+	case reflect.Struct:
 		return false
-	case *reflect.MapValue:
+	case reflect.Map:
 		return false
-	case *reflect.ArrayValue:
+	case reflect.Array:
 		return v.Len() == 0
-	case *reflect.SliceValue:
+	case reflect.Slice:
 		return v.Len() == 0
 	}
 	return false
@@ -741,7 +741,7 @@ func empty(v reflect.Value) bool {
 // Look up a variable or method, up through the parent if necessary.
 func (t *Template) varValue(name string, st *state) reflect.Value {
 	field := t.findVar(st, name)
-	if field == nil {
+	if !field.IsValid() {
 		if st.parent == nil {
 			t.execError(st, t.linenum, "name not found: %s in type %s", name, st.data.Type())
 		}
@@ -812,7 +812,7 @@ func (t *Template) execute(start, end int, st *state) {
 func (t *Template) executeSection(s *sectionElement, st *state) {
 	// Find driver data for this section.  It must be in the current struct.
 	field := t.varValue(s.field, st)
-	if field == nil {
+	if !field.IsValid() {
 		t.execError(st, s.linenum, ".section: cannot find field %s in %s", s.field, st.data.Type())
 	}
 	st = st.clone(field)
@@ -835,29 +835,30 @@ func (t *Template) executeSection(s *sectionElement, st *state) {
 }
 
 // Return the result of calling the Iter method on v, or nil.
-func iter(v reflect.Value) *reflect.ChanValue {
+func iter(v reflect.Value) reflect.Value {
 	for j := 0; j < v.Type().NumMethod(); j++ {
 		mth := v.Type().Method(j)
 		fv := v.Method(j)
-		ft := fv.Type().(*reflect.FuncType)
+		ft := fv.Type()
 		// TODO(rsc): NumIn() should return 0 here, because ft is from a curried FuncValue.
 		if mth.Name != "Iter" || ft.NumIn() != 1 || ft.NumOut() != 1 {
 			continue
 		}
-		ct, ok := ft.Out(0).(*reflect.ChanType)
-		if !ok || ct.Dir()&reflect.RecvDir == 0 {
+		ct := ft.Out(0)
+		if ct.Kind() != reflect.Chan ||
+			ct.ChanDir()&reflect.RecvDir == 0 {
 			continue
 		}
-		return fv.Call(nil)[0].(*reflect.ChanValue)
+		return fv.Call(nil)[0]
 	}
-	return nil
+	return reflect.Value{}
 }
 
 // Execute a .repeated section
 func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	// Find driver data for this section.  It must be in the current struct.
 	field := t.varValue(r.field, st)
-	if field == nil {
+	if !field.IsValid() {
 		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, st.data.Type())
 	}
 	field = indirect(field)
@@ -885,15 +886,15 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 		}
 	}
 
-	if array, ok := field.(reflect.ArrayOrSliceValue); ok {
+	if array := field; array.Kind() == reflect.Array || array.Kind() == reflect.Slice {
 		for j := 0; j < array.Len(); j++ {
-			loopBody(st.clone(array.Elem(j)))
+			loopBody(st.clone(array.Index(j)))
 		}
-	} else if m, ok := field.(*reflect.MapValue); ok {
-		for _, key := range m.Keys() {
-			loopBody(st.clone(m.Elem(key)))
+	} else if m := field; m.Kind() == reflect.Map {
+		for _, key := range m.MapKeys() {
+			loopBody(st.clone(m.MapIndex(key)))
 		}
-	} else if ch := iter(field); ch != nil {
+	} else if ch := iter(field); ch.IsValid() {
 		for {
 			e, ok := ch.Recv()
 			if !ok {

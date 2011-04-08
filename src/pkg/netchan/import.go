@@ -133,7 +133,7 @@ func (imp *Importer) run() {
 		ackHdr.SeqNum = hdr.SeqNum
 		imp.encode(ackHdr, payAck, nil)
 		// Create a new value for each received item.
-		value := reflect.MakeZero(nch.ch.Type().(*reflect.ChanType).Elem())
+		value := reflect.Zero(nch.ch.Type().Elem())
 		if e := imp.decode(value); e != nil {
 			impLog("importer value decode:", e)
 			return

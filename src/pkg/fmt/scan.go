@@ -909,36 +909,36 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		*v = []byte(s.convertString(verb))
 	default:
 		val := reflect.NewValue(v)
-		ptr, ok := val.(*reflect.PtrValue)
-		if !ok {
+		ptr := val
+		if ptr.Kind() != reflect.Ptr {
 			s.errorString("Scan: type not a pointer: " + val.Type().String())
 			return
 		}
-		switch v := ptr.Elem().(type) {
-		case *reflect.BoolValue:
-			v.Set(s.scanBool(verb))
-		case *reflect.IntValue:
-			v.Set(s.scanInt(verb, v.Type().Bits()))
-		case *reflect.UintValue:
-			v.Set(s.scanUint(verb, v.Type().Bits()))
-		case *reflect.StringValue:
-			v.Set(s.convertString(verb))
-		case *reflect.SliceValue:
+		switch v := ptr.Elem(); v.Kind() {
+		case reflect.Bool:
+			v.SetBool(s.scanBool(verb))
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			v.SetInt(s.scanInt(verb, v.Type().Bits()))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			v.SetUint(s.scanUint(verb, v.Type().Bits()))
+		case reflect.String:
+			v.SetString(s.convertString(verb))
+		case reflect.Slice:
 			// For now, can only handle (renamed) []byte.
-			typ := v.Type().(*reflect.SliceType)
+			typ := v.Type()
 			if typ.Elem().Kind() != reflect.Uint8 {
 				goto CantHandle
 			}
 			str := s.convertString(verb)
 			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
 			for i := 0; i < len(str); i++ {
-				v.Elem(i).(*reflect.UintValue).Set(uint64(str[i]))
+				v.Index(i).SetUint(uint64(str[i]))
 			}
-		case *reflect.FloatValue:
+		case reflect.Float32, reflect.Float64:
 			s.skipSpace(false)
-			v.Set(s.convertFloat(s.floatToken(), v.Type().Bits()))
-		case *reflect.ComplexValue:
-			v.Set(s.scanComplex(verb, v.Type().Bits()))
+			v.SetFloat(s.convertFloat(s.floatToken(), v.Type().Bits()))
+		case reflect.Complex64, reflect.Complex128:
+			v.SetComplex(s.scanComplex(verb, v.Type().Bits()))
 		default:
 		CantHandle:
 			s.errorString("Scan: can't handle type: " + val.Type().String())

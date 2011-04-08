@@ -134,16 +134,16 @@ type empty struct {
 }
 
 func newEmptyInterface(e empty) reflect.Value {
-	return reflect.NewValue(e).(*reflect.StructValue).Field(0)
+	return reflect.NewValue(e).Field(0)
 }
 
 func (s Send) send() {
 	// With reflect.ChanValue.Send, we must match the types exactly. So, if
 	// s.Channel is a chan interface{} we convert s.Value to an interface{}
 	// first.
-	c := reflect.NewValue(s.Channel).(*reflect.ChanValue)
+	c := reflect.NewValue(s.Channel)
 	var v reflect.Value
-	if iface, ok := c.Type().(*reflect.ChanType).Elem().(*reflect.InterfaceType); ok && iface.NumMethod() == 0 {
+	if iface := c.Type().Elem(); iface.Kind() == reflect.Interface && iface.NumMethod() == 0 {
 		v = newEmptyInterface(empty{s.Value})
 	} else {
 		v = reflect.NewValue(s.Value)
@@ -162,7 +162,7 @@ func (s Close) getSend() sendAction { return s }
 
 func (s Close) getChannel() interface{} { return s.Channel }
 
-func (s Close) send() { reflect.NewValue(s.Channel).(*reflect.ChanValue).Close() }
+func (s Close) send() { reflect.NewValue(s.Channel).Close() }
 
 // A ReceivedUnexpected error results if no active Events match a value
 // received from a channel.
@@ -278,7 +278,7 @@ func getChannels(events []*Event) ([]interface{}, os.Error) {
 			continue
 		}
 		c := event.action.getChannel()
-		if _, ok := reflect.NewValue(c).(*reflect.ChanValue); !ok {
+		if reflect.NewValue(c).Kind() != reflect.Chan {
 			return nil, SetupError("one of the channel values is not a channel")
 		}
 
@@ -303,7 +303,7 @@ func getChannels(events []*Event) ([]interface{}, os.Error) {
 // channel repeatedly, wrapping them up as either a channelRecv or
 // channelClosed structure, and forwards them to the multiplex channel.
 func recvValues(multiplex chan<- interface{}, channel interface{}) {
-	c := reflect.NewValue(channel).(*reflect.ChanValue)
+	c := reflect.NewValue(channel)
 
 	for {
 		v, ok := c.Recv()

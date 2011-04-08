@@ -53,14 +53,14 @@ const complexSize = 50
 // If the type implements the Generator interface, that will be used.
 // Note: in order to create arbitrary values for structs, all the members must be public.
 func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
-	if m, ok := reflect.MakeZero(t).Interface().(Generator); ok {
+	if m, ok := reflect.Zero(t).Interface().(Generator); ok {
 		return m.Generate(rand, complexSize), true
 	}
 
-	switch concrete := t.(type) {
-	case *reflect.BoolType:
+	switch concrete := t; concrete.Kind() {
+	case reflect.Bool:
 		return reflect.NewValue(rand.Int()&1 == 0), true
-	case *reflect.FloatType, *reflect.IntType, *reflect.UintType, *reflect.ComplexType:
+	case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
 		switch t.Kind() {
 		case reflect.Float32:
 			return reflect.NewValue(randFloat32(rand)), true
@@ -93,56 +93,56 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		case reflect.Uintptr:
 			return reflect.NewValue(uintptr(randInt64(rand))), true
 		}
-	case *reflect.MapType:
+	case reflect.Map:
 		numElems := rand.Intn(complexSize)
 		m := reflect.MakeMap(concrete)
 		for i := 0; i < numElems; i++ {
 			key, ok1 := Value(concrete.Key(), rand)
 			value, ok2 := Value(concrete.Elem(), rand)
 			if !ok1 || !ok2 {
-				return nil, false
+				return reflect.Value{}, false
 			}
-			m.SetElem(key, value)
+			m.SetMapIndex(key, value)
 		}
 		return m, true
-	case *reflect.PtrType:
+	case reflect.Ptr:
 		v, ok := Value(concrete.Elem(), rand)
 		if !ok {
-			return nil, false
+			return reflect.Value{}, false
 		}
-		p := reflect.MakeZero(concrete)
-		p.(*reflect.PtrValue).PointTo(v)
+		p := reflect.Zero(concrete)
+		p.Set(v.Addr())
 		return p, true
-	case *reflect.SliceType:
+	case reflect.Slice:
 		numElems := rand.Intn(complexSize)
 		s := reflect.MakeSlice(concrete, numElems, numElems)
 		for i := 0; i < numElems; i++ {
 			v, ok := Value(concrete.Elem(), rand)
 			if !ok {
-				return nil, false
+				return reflect.Value{}, false
 			}
-			s.Elem(i).SetValue(v)
+			s.Index(i).Set(v)
 		}
 		return s, true
-	case *reflect.StringType:
+	case reflect.String:
 		numChars := rand.Intn(complexSize)
 		codePoints := make([]int, numChars)
 		for i := 0; i < numChars; i++ {
 			codePoints[i] = rand.Intn(0x10ffff)
 		}
 		return reflect.NewValue(string(codePoints)), true
-	case *reflect.StructType:
-		s := reflect.MakeZero(t).(*reflect.StructValue)
+	case reflect.Struct:
+		s := reflect.Zero(t)
 		for i := 0; i < s.NumField(); i++ {
 			v, ok := Value(concrete.Field(i).Type, rand)
 			if !ok {
-				return nil, false
+				return reflect.Value{}, false
 			}
-			s.Field(i).SetValue(v)
+			s.Field(i).Set(v)
 		}
 		return s, true
 	default:
-		return nil, false
+		return reflect.Value{}, false
 	}
 
 	return
@@ -247,7 +247,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
 		err = SetupError("function returns more than one value.")
 		return
 	}
-	if _, ok := fType.Out(0).(*reflect.BoolType); !ok {
+	if fType.Out(0).Kind() != reflect.Bool {
 		err = SetupError("function does not return a bool")
 		return
 	}
@@ -262,7 +262,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
 			return
 		}
 
-		if !f.Call(arguments)[0].(*reflect.BoolValue).Get() {
+		if !f.Call(arguments)[0].Bool() {
 			err = &CheckError{i + 1, toInterfaces(arguments)}
 			return
 		}
@@ -320,7 +320,7 @@ func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
 
 // arbitraryValues writes Values to args such that args contains Values
 // suitable for calling f.
-func arbitraryValues(args []reflect.Value, f *reflect.FuncType, config *Config, rand *rand.Rand) (err os.Error) {
+func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand *rand.Rand) (err os.Error) {
 	if config.Values != nil {
 		config.Values(args, rand)
 		return
@@ -338,12 +338,13 @@ func arbitraryValues(args []reflect.Value, f *reflect.FuncType, config *Config, 
 	return
 }
 
-func functionAndType(f interface{}) (v *reflect.FuncValue, t *reflect.FuncType, ok bool) {
-	v, ok = reflect.NewValue(f).(*reflect.FuncValue)
+func functionAndType(f interface{}) (v reflect.Value, t reflect.Type, ok bool) {
+	v = reflect.NewValue(f)
+	ok = v.Kind() == reflect.Func
 	if !ok {
 		return
 	}
-	t = v.Type().(*reflect.FuncType)
+	t = v.Type()
 	return
 }
 

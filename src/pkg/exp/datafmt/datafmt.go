@@ -408,20 +408,20 @@ func (s *State) error(msg string) {
 //
 
 func typename(typ reflect.Type) string {
-	switch typ.(type) {
-	case *reflect.ArrayType:
+	switch typ.Kind() {
+	case reflect.Array:
 		return "array"
-	case *reflect.SliceType:
+	case reflect.Slice:
 		return "array"
-	case *reflect.ChanType:
+	case reflect.Chan:
 		return "chan"
-	case *reflect.FuncType:
+	case reflect.Func:
 		return "func"
-	case *reflect.InterfaceType:
+	case reflect.Interface:
 		return "interface"
-	case *reflect.MapType:
+	case reflect.Map:
 		return "map"
-	case *reflect.PtrType:
+	case reflect.Ptr:
 		return "ptr"
 	}
 	return typ.String()
@@ -519,38 +519,38 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 
 		case "*":
 			// indirection: operation is type-specific
-			switch v := value.(type) {
-			case *reflect.ArrayValue:
+			switch v := value; v.Kind() {
+			case reflect.Array:
 				if v.Len() <= index {
 					return false
 				}
-				value = v.Elem(index)
+				value = v.Index(index)
 
-			case *reflect.SliceValue:
+			case reflect.Slice:
 				if v.IsNil() || v.Len() <= index {
 					return false
 				}
-				value = v.Elem(index)
+				value = v.Index(index)
 
-			case *reflect.MapValue:
+			case reflect.Map:
 				s.error("reflection support for maps incomplete")
 
-			case *reflect.PtrValue:
+			case reflect.Ptr:
 				if v.IsNil() {
 					return false
 				}
 				value = v.Elem()
 
-			case *reflect.InterfaceValue:
+			case reflect.Interface:
 				if v.IsNil() {
 					return false
 				}
 				value = v.Elem()
 
-			case *reflect.ChanValue:
+			case reflect.Chan:
 				s.error("reflection support for chans incomplete")
 
-			case *reflect.FuncValue:
+			case reflect.Func:
 				s.error("reflection support for funcs incomplete")
 
 			default:
@@ -560,9 +560,9 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		default:
 			// value is value of named field
 			var field reflect.Value
-			if sval, ok := value.(*reflect.StructValue); ok {
+			if sval := value; sval.Kind() == reflect.Struct {
 				field = sval.FieldByName(t.fieldName)
-				if field == nil {
+				if !field.IsValid() {
 					// TODO consider just returning false in this case
 					s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()))
 				}
@@ -672,7 +672,7 @@ func (f Format) Eval(env Environment, args ...interface{}) ([]byte, os.Error) {
 	go func() {
 		for _, v := range args {
 			fld := reflect.NewValue(v)
-			if fld == nil {
+			if !fld.IsValid() {
 				errors <- os.NewError("nil argument")
 				return
 			}

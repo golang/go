@@ -226,8 +226,8 @@ func (p *Process) bootstrap() {
 	p.runtime.G = newManualType(eval.TypeOfNative(rt1G{}), p.Arch)
 
 	// Get addresses of type.*runtime.XType for discrimination.
-	rtv := reflect.Indirect(reflect.NewValue(&p.runtime)).(*reflect.StructValue)
-	rtvt := rtv.Type().(*reflect.StructType)
+	rtv := reflect.Indirect(reflect.NewValue(&p.runtime))
+	rtvt := rtv.Type()
 	for i := 0; i < rtv.NumField(); i++ {
 		n := rtvt.Field(i).Name
 		if n[0] != 'P' || n[1] < 'A' || n[1] > 'Z' {
@@ -237,7 +237,7 @@ func (p *Process) bootstrap() {
 		if sym == nil {
 			continue
 		}
-		rtv.Field(i).(*reflect.UintValue).Set(sym.Value)
+		rtv.Field(i).SetUint(sym.Value)
 	}
 
 	// Get runtime field indexes

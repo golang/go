@@ -288,8 +288,8 @@ var pathTests = []interface{}{
 
 func TestUnmarshalPaths(t *testing.T) {
 	for _, pt := range pathTests {
-		p := reflect.MakeZero(reflect.NewValue(pt).Type()).(*reflect.PtrValue)
-		p.PointTo(reflect.MakeZero(p.Type().(*reflect.PtrType).Elem()))
+		p := reflect.Zero(reflect.NewValue(pt).Type())
+		p.Set(reflect.Zero(p.Type().Elem()).Addr())
 		v := p.Interface()
 		if err := Unmarshal(StringReader(pathTestString), v); err != nil {
 			t.Fatalf("Unmarshal: %s", err)

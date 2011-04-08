@@ -159,7 +159,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 // data item received, and must be a pointer.
 func (dec *Decoder) Decode(e interface{}) os.Error {
 	if e == nil {
-		return dec.DecodeValue(nil)
+		return dec.DecodeValue(reflect.Value{})
 	}
 	value := reflect.NewValue(e)
 	// If e represents a value as opposed to a pointer, the answer won't

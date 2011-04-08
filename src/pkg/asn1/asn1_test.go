@@ -309,9 +309,9 @@ var unmarshalTestData []unmarshalTest = []unmarshalTest{
 
 func TestUnmarshal(t *testing.T) {
 	for i, test := range unmarshalTestData {
-		pv := reflect.MakeZero(reflect.NewValue(test.out).Type())
-		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem())
-		pv.(*reflect.PtrValue).PointTo(zv)
+		pv := reflect.Zero(reflect.NewValue(test.out).Type())
+		zv := reflect.Zero(pv.Type().Elem())
+		pv.Set(zv.Addr())
 		val := pv.Interface()
 		_, err := Unmarshal(test.in, val)
 		if err != nil {
