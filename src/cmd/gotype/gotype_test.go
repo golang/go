@@ -5,26 +5,16 @@
 package main
 
 import (
-	"go/ast"
-	"os"
 	"path/filepath"
 	"runtime"
-	"path"
 	"testing"
 )
-
-
-func testImporter(importPath string) (string, *ast.Scope, os.Error) {
-	_, pkgName := path.Split(importPath) // filename is package name for std library
-	return pkgName, ast.NewScope(nil), nil
-}
 
 
 func runTest(t *testing.T, path, pkg string) {
 	exitCode = 0
 	*pkgName = pkg
 	*recursive = false
-	importer = testImporter
 
 	if pkg == "" {
 		processFiles([]string{path}, true)
@@ -47,9 +37,11 @@ var tests = []struct {
 
 	// directories
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/ast"), "ast"},
+	{filepath.Join(runtime.GOROOT(), "src/pkg/go/doc"), "doc"},
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/token"), "scanner"},
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/scanner"), "scanner"},
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/parser"), "parser"},
+	{filepath.Join(runtime.GOROOT(), "src/pkg/go/types"), "types"},
 }
 
 
