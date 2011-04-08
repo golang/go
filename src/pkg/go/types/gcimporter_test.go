@@ -7,8 +7,8 @@ package types
 import (
 	"exec"
 	"io/ioutil"
-	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -18,15 +18,20 @@ import (
 var gcName, gcPath string // compiler name and path
 
 func init() {
-	// find a compiler
-	for _, char := range []string{"5", "6", "8"} {
-		var err os.Error
-		gcName = char + "g"
-		gcPath, err = exec.LookPath(gcName)
-		if err == nil {
-			return
-		}
+	// determine compiler
+	switch runtime.GOARCH {
+	case "386":
+		gcName = "8g"
+	case "amd64":
+		gcName = "6g"
+	case "arm":
+		gcName = "5g"
+	default:
+		gcName = "unknown-GOARCH-compiler"
+		gcPath = gcName
+		return
 	}
+	gcPath, _ = exec.LookPath(gcName)
 }
 
 
