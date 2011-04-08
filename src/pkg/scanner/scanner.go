@@ -115,7 +115,7 @@ func TokenString(tok int) string {
 	if s, found := tokenString[tok]; found {
 		return s
 	}
-	return fmt.Sprintf("U+%04X", tok)
+	return fmt.Sprintf("%q", string(tok))
 }
 
 
