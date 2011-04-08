@@ -12,6 +12,8 @@ GOFILES=\
 	osopen.go\
 	httpserver.go\
 	procattr.go\
+	reflect.go\
+	typecheck.go\
 
 include ../../Make.cmd
 
