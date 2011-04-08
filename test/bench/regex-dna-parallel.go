@@ -89,7 +89,7 @@ func countMatches(pat string, bytes []byte) int {
 
 func main() {
 	runtime.GOMAXPROCS(4)
-	bytes, err := ioutil.ReadFile("/dev/stdin")
+	bytes, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err)
 		os.Exit(2)
