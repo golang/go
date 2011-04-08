@@ -7,10 +7,10 @@ package imports
 import "io"
 
 import (
-	_	"io"
+	_ "io"
 )
 
-import _	"io"
+import _ "io"
 
 import (
 	"io"
@@ -20,40 +20,40 @@ import (
 
 import (
 	"io"
-	aLongRename	"io"
+	aLongRename "io"
 
-	b	"io"
+	b "io"
 )
 
 import (
 	"unrenamed"
-	renamed	"renameMe"
-	.	"io"
-	_	"io"
+	renamed "renameMe"
+	. "io"
+	_ "io"
 	"io"
-	.	"os"
+	. "os"
 )
 
 // no newlines between consecutive single imports, but
 // respect extra line breaks in the source (at most one empty line)
-import _	"io"
-import _	"io"
-import _	"io"
+import _ "io"
+import _ "io"
+import _ "io"
 
-import _	"os"
-import _	"os"
-import _	"os"
+import _ "os"
+import _ "os"
+import _ "os"
 
 
-import _	"fmt"
-import _	"fmt"
-import _	"fmt"
+import _ "fmt"
+import _ "fmt"
+import _ "fmt"
 
 import "foo"	// a comment
 import "bar"	// a comment
 
 import (
-	_	"foo"
+	_ "foo"
 	// a comment
 	"bar"
 	"foo"	// a comment
@@ -63,17 +63,17 @@ import (
 // comments + renames
 import (
 	"unrenamed"	// a comment
-	renamed		"renameMe"
-	.		"io"		/* a comment */
-	_		"io/ioutil"	// a comment
+	renamed "renameMe"
+	. "io"		/* a comment */
+	_ "io/ioutil"	// a comment
 	"io"		// testing alignment
-	.		"os"
+	. "os"
 	// a comment
 )
 
 // a case that caused problems in the past (comment placement)
 import (
-	.	"fmt"
+	. "fmt"
 	"io"
 	"malloc"	// for the malloc count test only
 	"math"
@@ -81,9 +81,38 @@ import (
 	"testing"
 )
 
+// more import examples
+import (
+	"xxx"
+	"much longer name"	// comment
+	"short name"		// comment
+)
+
+import (
+	_ "xxx"
+	"much longer name"	// comment
+)
+
+import (
+	mymath "math"
+	"/foo/bar/long_package_path"	// a comment
+)
+
+import (
+	"package_a"	// comment
+	"package_b"
+	my_better_c "package_c"	// comment
+	"package_d"		// comment
+	my_e "package_e"	// comment
+
+	"package_a"	// comment
+	"package_bb"
+	"package_ccc"	// comment
+	"package_dddd"	// comment
+)
 
 // at least one empty line between declarations of different kind
-import _	"io"
+import _ "io"
 
 var _ int
 

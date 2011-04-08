@@ -1200,7 +1200,7 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool, multiLine *bool) {
 		p.setComment(s.Doc)
 		if s.Name != nil {
 			p.expr(s.Name, multiLine)
-			p.print(vtab)
+			p.print(blank)
 		}
 		p.expr(s.Path, multiLine)
 		p.setComment(s.Comment)

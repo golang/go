@@ -81,6 +81,35 @@ import (
 	"testing"
 )
 
+// more import examples
+import (
+	"xxx"
+	"much longer name" // comment
+	"short name" // comment
+)
+
+import (
+	_ "xxx"
+	"much longer name" // comment
+)
+
+import (
+	mymath "math"
+	"/foo/bar/long_package_path" // a comment
+)
+
+import (
+	"package_a" // comment
+	"package_b"
+	my_better_c "package_c" // comment
+	"package_d" // comment
+	my_e "package_e" // comment
+
+	"package_a"    // comment
+	"package_bb"
+	"package_ccc"  // comment
+	"package_dddd" // comment
+)
 
 // at least one empty line between declarations of different kind
 import _ "io"
