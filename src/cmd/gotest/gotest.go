@@ -234,14 +234,13 @@ func run(args ...string) {
 // runWithStdout is like run, but returns the text of standard output with the last newline dropped.
 func runWithStdout(argv ...string) string {
 	s := doRun(argv, true)
+	if strings.HasSuffix(s, "\r\n") {
+		s = s[:len(s)-2]
+	} else if strings.HasSuffix(s, "\n") {
+		s = s[:len(s)-1]
+	}
 	if len(s) == 0 {
 		Fatalf("no output from command %s", strings.Join(argv, " "))
-	}
-	if s[len(s)-1] == '\n' {
-		s = s[:len(s)-1]
-	}
-	if len(s) > 0 && s[len(s)-1] == '\r' { // it is \r\n on Windows.
-		s = s[:len(s)-1]
 	}
 	return s
 }
