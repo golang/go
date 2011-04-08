@@ -685,7 +685,7 @@ func (w WaitStatus) Continued() bool { return false }
 
 func (w WaitStatus) StopSignal() int { return -1 }
 
-func (w WaitStatus) Signaled() bool { return true }
+func (w WaitStatus) Signaled() bool { return false }
 
 func (w WaitStatus) TrapCause() int { return -1 }
 
