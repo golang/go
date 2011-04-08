@@ -113,7 +113,6 @@ do
 done
 
 [ "$GOARCH" == arm ] ||
-[ "$GOHOSTOS" == windows ] ||
 (xcd ../test/bench
 ./timing.sh -test
 ) || exit $?
