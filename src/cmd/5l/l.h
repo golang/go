@@ -148,6 +148,7 @@ struct	Sym
 	uchar	foreign;	// called by arm if thumb, by thumb if arm
 	uchar	fnptr;	// used as fn ptr
 	Sym*	hash;	// in hash table
+	Sym*	allsym;	// in all symbol list
 	Sym*	next;	// in text or data list
 	Sym*	sub;	// in SSUB list
 	Sym*	outer;	// container of sub
@@ -265,7 +266,6 @@ enum
 	LEAF		= 1<<2,
 
 	STRINGSZ	= 200,
-	NHASH		= 10007,
 	MINSIZ		= 64,
 	NENT		= 100,
 	MAXIO		= 8192,

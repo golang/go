@@ -989,8 +989,8 @@ lookup_or_diag(char *n)
 {
 	Sym *s;
 
-	s = lookup(n, 0);
-	if (s->size == 0) {
+	s = rlookup(n, 0);
+	if (s == nil || s->size == 0) {
 		diag("dwarf: missing type: %s", n);
 		errorexit();
 	}
@@ -1461,10 +1461,6 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
 	DWDie *dv, *dt;
 
 	if (strncmp(s, "go.string.", 10) == 0)
-		return;
-	if (strncmp(s, "string.", 7) == 0)
-		return;
-	if (strncmp(s, "type._.", 7) == 0)
 		return;
 
 	if (strncmp(s, "type.", 5) == 0 && strcmp(s, "type.*") != 0) {
@@ -2325,7 +2321,7 @@ dwarfemitdebugsections(void)
 {
 	vlong infoe;
 	DWDie* die;
-
+return;
 	// For diagnostic messages.
 	newattr(&dwtypes, DW_AT_name, DW_CLS_STRING, strlen("dwtypes"), "dwtypes");
 

@@ -470,8 +470,8 @@ eof:
 	diag("truncated object file: %s", pn);
 }
 
-Sym*
-lookup(char *symb, int v)
+static Sym*
+_lookup(char *symb, int v, int creat)
 {
 	Sym *s;
 	char *p;
@@ -485,10 +485,12 @@ lookup(char *symb, int v)
 	// not if(h < 0) h = ~h, because gcc 4.3 -O2 miscompiles it.
 	h &= 0xffffff;
 	h %= NHASH;
+	c = symb[0];
 	for(s = hash[h]; s != S; s = s->hash)
-		if(s->version == v)
 		if(memcmp(s->name, symb, l) == 0)
 			return s;
+	if(!creat)
+		return nil;
 
 	s = mal(sizeof(*s));
 	if(debug['v'] > 1)
@@ -508,7 +510,23 @@ lookup(char *symb, int v)
 	s->size = 0;
 	hash[h] = s;
 	nsymbol++;
+	
+	s->allsym = allsym;
+	allsym = s;
 	return s;
+}
+
+Sym*
+lookup(char *name, int v)
+{
+	return _lookup(name, v, 1);
+}
+
+// read-only lookup
+Sym*
+rlookup(char *name, int v)
+{
+	return _lookup(name, v, 0);
 }
 
 void
@@ -1283,11 +1301,9 @@ headtype(char *name)
 void
 undef(void)
 {
-	int i;
 	Sym *s;
 
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash)
+	for(s = allsym; s != S; s = s->allsym)
 		if(s->type == SXREF)
 			diag("%s(%d): not defined", s->name, s->version);
 }

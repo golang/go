@@ -1001,8 +1001,10 @@ int	duint32(Sym *s, int off, uint32 v);
 int	duint64(Sym *s, int off, uint64 v);
 int	duint8(Sym *s, int off, uint8 v);
 int	duintptr(Sym *s, int off, uint64 v);
+int	dsname(Sym *s, int off, char *dat, int ndat);
 void	dumpobj(void);
 void	ieeedtod(uint64 *ieee, double native);
+Sym*	stringsym(char*, int);
 
 /*
  *	print.c
@@ -1237,3 +1239,5 @@ void	patch(Prog*, Prog*);
 void	zfile(Biobuf *b, char *p, int n);
 void	zhist(Biobuf *b, int line, vlong offset);
 void	zname(Biobuf *b, Sym *s, int t);
+void	data(void);
+void	text(void);

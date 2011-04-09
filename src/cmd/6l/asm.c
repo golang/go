@@ -1101,37 +1101,34 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 {
 	Auto *a;
 	Sym *s;
-	int h;
 
-	for(h=0; h<NHASH; h++) {
-		for(s=hash[h]; s!=S; s=s->hash) {
-			if(s->hide)
+	for(s=allsym; s!=S; s=s->allsym) {
+		if(s->hide)
+			continue;
+		switch(s->type&~SSUB) {
+		case SCONST:
+		case SRODATA:
+		case SDATA:
+		case SELFDATA:
+		case SMACHOGOT:
+		case STYPE:
+		case SSTRING:
+		case SGOSTRING:
+		case SWINDOWS:
+			if(!s->reachable)
 				continue;
-			switch(s->type&~SSUB) {
-			case SCONST:
-			case SRODATA:
-			case SDATA:
-			case SELFDATA:
-			case SMACHOGOT:
-			case STYPE:
-			case SSTRING:
-			case SGOSTRING:
-			case SWINDOWS:
-				if(!s->reachable)
-					continue;
-				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
-				continue;
+			put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+			continue;
 
-			case SBSS:
-				if(!s->reachable)
-					continue;
-				put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+		case SBSS:
+			if(!s->reachable)
 				continue;
+			put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+			continue;
 
-			case SFILE:
-				put(nil, s->name, 'f', s->value, 0, s->version, 0);
-				continue;
-			}
+		case SFILE:
+			put(nil, s->name, 'f', s->value, 0, s->version, 0);
+			continue;
 		}
 	}
 

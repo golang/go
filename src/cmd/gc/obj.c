@@ -235,3 +235,57 @@ duintptr(Sym *s, int off, uint64 v)
 {
 	return duintxx(s, off, v, widthptr);
 }
+
+Sym*
+stringsym(char *s, int len)
+{
+	static int gen;
+	Sym *sym;
+	int off, n, m;
+	struct {
+		Strlit lit;
+		char buf[110];
+	} tmp;
+	Pkg *pkg;
+
+	if(len > 100) {
+		// huge strings are made static to avoid long names
+		snprint(namebuf, sizeof(namebuf), ".gostring.%d", ++gen);
+		pkg = localpkg;
+	} else {
+		// small strings get named by their contents,
+		// so that multiple modules using the same string
+		// can share it.
+		tmp.lit.len = len;
+		memmove(tmp.lit.s, s, len);
+		tmp.lit.s[len] = '\0';
+		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp);
+		pkg = gostringpkg;
+	}
+	sym = pkglookup(namebuf, pkg);
+	
+	// SymUniq flag indicates that data is generated already
+	if(sym->flags & SymUniq)
+		return sym;
+	sym->flags |= SymUniq;
+	
+	data();
+	off = 0;
+	
+	// string header
+	off = dsymptr(sym, off, sym, widthptr+4);
+	off = duint32(sym, off, len);
+	
+	// string data
+	for(n=0; n<len; n+=m) {
+		m = 8;
+		if(m > len-n)
+			m = len-n;
+		off = dsname(sym, off, s+n, m);
+	}
+	off = duint8(sym, off, 0);  // terminating NUL for runtime
+	ggloblsym(sym, off, 1);
+	text();
+	
+	return sym;	
+}
