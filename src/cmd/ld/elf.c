@@ -336,7 +336,7 @@ void
 elfdynhash(void)
 {
 	Sym *s, *sy;
-	int i, h, nbucket, b;
+	int i, nbucket, b;
 	uchar *pc;
 	uint32 hc, g;
 	uint32 *chain, *buckets;
@@ -367,26 +367,24 @@ elfdynhash(void)
 	}
 	memset(chain, 0, nsym * sizeof(uint32));
 	memset(buckets, 0, nbucket * sizeof(uint32));
-	for(h = 0; h<NHASH; h++) {
-		for(sy=hash[h]; sy!=S; sy=sy->hash) {
-			if (sy->dynid <= 0)
-				continue;
+	for(sy=allsym; sy!=S; sy=sy->allsym) {
+		if (sy->dynid <= 0)
+			continue;
 
-			hc = 0;
-			name = sy->dynimpname;
-			if(name == nil)
-				name = sy->name;
-			for(pc = (uchar*)name; *pc; pc++) {
-				hc = (hc<<4) + *pc;
-				g = hc & 0xf0000000;
-				hc ^= g >> 24;
-				hc &= ~g;
-			}
-
-			b = hc % nbucket;
-			chain[sy->dynid] = buckets[b];
-			buckets[b] = sy->dynid;
+		hc = 0;
+		name = sy->dynimpname;
+		if(name == nil)
+			name = sy->name;
+		for(pc = (uchar*)name; *pc; pc++) {
+			hc = (hc<<4) + *pc;
+			g = hc & 0xf0000000;
+			hc ^= g >> 24;
+			hc &= ~g;
 		}
+
+		b = hc % nbucket;
+		chain[sy->dynid] = buckets[b];
+		buckets[b] = sy->dynid;
 	}
 
 	adduint32(s, nbucket);

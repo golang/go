@@ -171,12 +171,10 @@ initdynimport(void)
 	Imp *m;
 	Dll *d;
 	Sym *s, *dynamic;
-	int i;
 
 	dr = nil;
 	
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
+	for(s = allsym; s != S; s = s->allsym) {
 		if(!s->reachable || !s->dynimpname || s->dynexport)
 			continue;
 		for(d = dr; d != nil; d = d->next) {
@@ -312,12 +310,10 @@ scmp(const void *p1, const void *p2)
 static void
 initdynexport(void)
 {
-	int i;
 	Sym *s;
 	
 	nexport = 0;
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
+	for(s = allsym; s != S; s = s->allsym) {
 		if(!s->reachable || !s->dynimpname || !s->dynexport)
 			continue;
 		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {

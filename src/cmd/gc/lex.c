@@ -124,9 +124,6 @@ main(int argc, char *argv[])
 	runtimepkg = mkpkg(strlit("runtime"));
 	runtimepkg->name = "runtime";
 
-	stringpkg = mkpkg(strlit("string"));
-	stringpkg->name = "string";
-
 	typepkg = mkpkg(strlit("type"));
 	typepkg->name = "type";
 

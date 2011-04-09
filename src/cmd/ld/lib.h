@@ -56,6 +56,8 @@ enum
 	SDYNIMPORT,
 
 	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
+	
+	NHASH = 100003,
 };
 
 typedef struct Library Library;
@@ -106,6 +108,7 @@ EXTERN	Library*	library;
 EXTERN	int	libraryp;
 EXTERN	int	nlibrary;
 EXTERN	Sym*	hash[NHASH];
+EXTERN	Sym*	allsym;
 EXTERN	Sym*	histfrog[MAXHIST];
 EXTERN	uchar	fnuxi8[8];
 EXTERN	uchar	fnuxi4[4];
@@ -133,6 +136,7 @@ void	asmlc(void);
 void	histtoauto(void);
 void	collapsefrog(Sym *s);
 Sym*	lookup(char *symb, int v);
+Sym*	rlookup(char *symb, int v);
 void	nuxiinit(void);
 int	find1(int32 l, int c);
 int	find2(int32 l, int c);

@@ -139,6 +139,7 @@ struct	Sym
 	int32	plt;
 	int32	got;
 	Sym*	hash;	// in hash table
+	Sym*	allsym;	// in all symbol list
 	Sym*	next;	// in text or data list
 	Sym*	sub;	// in sub list
 	Sym*	outer;	// container of sub
@@ -169,7 +170,6 @@ struct	Optab
 
 enum
 {
-	NHASH		= 10007,
 	MINSIZ		= 4,
 	STRINGSZ	= 200,
 	MINLC		= 1,

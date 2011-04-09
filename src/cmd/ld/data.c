@@ -733,18 +733,16 @@ dodata(void)
 	last = nil;
 	datap = nil;
 
-	for(h=0; h<NHASH; h++) {
-		for(s=hash[h]; s!=S; s=s->hash){
-			if(!s->reachable || s->special)
-				continue;
-			if(STEXT < s->type && s->type < SXREF) {
-				if(last == nil)
-					datap = s;
-				else
-					last->next = s;
-				s->next = nil;
-				last = s;
-			}
+	for(s=allsym; s!=S; s=s->allsym) {
+		if(!s->reachable || s->special)
+			continue;
+		if(STEXT < s->type && s->type < SXREF) {
+			if(last == nil)
+				datap = s;
+			else
+				last->next = s;
+			s->next = nil;
+			last = s;
 		}
 	}
 

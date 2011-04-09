@@ -268,7 +268,7 @@ static Prog *estrdat;
 static int gflag;
 static Prog *savepc;
 
-static void
+void
 data(void)
 {
 	gflag = debug['g'];
@@ -285,7 +285,7 @@ data(void)
 	pc = estrdat;
 }
 
-static void
+void
 text(void)
 {
 	if(!savepc)
@@ -310,6 +310,29 @@ dumpdata(void)
 	pc = estrdat;
 }
 
+int
+dsname(Sym *sym, int off, char *t, int n)
+{
+	Prog *p;
+
+	p = gins(ADATA, N, N);
+	p->from.type = D_OREG;
+	p->from.name = D_EXTERN;
+	p->from.etype = TINT32;
+	p->from.offset = off;
+	p->from.reg = NREG;
+	p->from.sym = sym;
+	
+	p->reg = n;
+	
+	p->to.type = D_SCONST;
+	p->to.name = D_NONE;
+	p->to.reg = NREG;
+	p->to.offset = 0;
+	memmove(p->to.sval, t, n);
+	return off + n;
+}
+
 /*
  * make a refer to the data s, s+len
  * emitting DATA if needed.
@@ -317,76 +340,15 @@ dumpdata(void)
 void
 datastring(char *s, int len, Addr *a)
 {
-	int w;
-	Prog *p;
-	Addr ac, ao;
-	static int gen;
-	struct {
-		Strlit lit;
-		char buf[100];
-	} tmp;
-
-	// string
-	memset(&ao, 0, sizeof(ao));
-	ao.type = D_OREG;
-	ao.name = D_STATIC;
-	ao.etype = TINT32;
-	ao.offset = 0;		// fill in
-	ao.reg = NREG;
-
-	// constant
-	memset(&ac, 0, sizeof(ac));
-	ac.type = D_CONST;
-	ac.name = D_NONE;
-	ac.offset = 0;		// fill in
-	ac.reg = NREG;
-
-	// huge strings are made static to avoid long names.
-	if(len > 100) {
-		snprint(namebuf, sizeof(namebuf), ".string.%d", gen++);
-		ao.sym = lookup(namebuf);
-		ao.name = D_STATIC;
-	} else {
-		if(len > 0 && s[len-1] == '\0')
-			len--;
-		tmp.lit.len = len;
-		memmove(tmp.lit.s, s, len);
-		tmp.lit.s[len] = '\0';
-		len++;
-		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp.lit);
-		ao.sym = pkglookup(namebuf, stringpkg);
-		ao.name = D_EXTERN;
-	}
-	*a = ao;
-
-	// only generate data the first time.
-	if(ao.sym->flags & SymUniq)
-		return;
-	ao.sym->flags |= SymUniq;
-
-	data();
-	for(w=0; w<len; w+=8) {
-		p = pc;
-		gins(ADATA, N, N);
-
-		// DATA s+w, [NSNAME], $"xxx"
-		p->from = ao;
-		p->from.offset = w;
-
-		p->reg = NSNAME;
-		if(w+8 > len)
-			p->reg = len-w;
-
-		p->to = ac;
-		p->to.type = D_SCONST;
-		p->to.offset = len;
-		memmove(p->to.sval, s+w, p->reg);
-	}
-	p = pc;
-	ggloblsym(ao.sym, len, ao.name == D_EXTERN);
-	if(ao.name == D_STATIC)
-		p->from.name = D_STATIC;
-	text();
+	Sym *sym;
+	
+	sym = stringsym(s, len);
+	a->type = D_OREG;
+	a->name = D_EXTERN;
+	a->etype = TINT32;
+	a->offset = widthptr+4;  // skip header
+	a->reg = NREG;
+	a->sym = sym;
 }
 
 /*
@@ -396,77 +358,15 @@ datastring(char *s, int len, Addr *a)
 void
 datagostring(Strlit *sval, Addr *a)
 {
-	Prog *p;
-	Addr ac, ao, ap;
-	int32 wi, wp;
-	static int gen;
-
-	memset(&ac, 0, sizeof(ac));
-	memset(&ao, 0, sizeof(ao));
-	memset(&ap, 0, sizeof(ap));
-
-	// constant
-	ac.type = D_CONST;
-	ac.name = D_NONE;
-	ac.offset = 0;			// fill in
-	ac.reg = NREG;
-
-	// string len+ptr
-	ao.type = D_OREG;
-	ao.name = D_STATIC;		// fill in
-	ao.etype = TINT32;
-	ao.sym = nil;			// fill in
-	ao.reg = NREG;
-
-	// $string len+ptr
-	datastring(sval->s, sval->len, &ap);
-	ap.type = D_CONST;
-	ap.etype = TINT32;
-
-	wi = types[TUINT32]->width;
-	wp = types[tptr]->width;
-
-	if(ap.name == D_STATIC) {
-		// huge strings are made static to avoid long names
-		snprint(namebuf, sizeof(namebuf), ".gostring.%d", ++gen);
-		ao.sym = lookup(namebuf);
-		ao.name = D_STATIC;
-	} else {
-		// small strings get named by their contents,
-		// so that multiple modules using the same string
-		// can share it.
-		snprint(namebuf, sizeof(namebuf), "\"%Z\"", sval);
-		ao.sym = pkglookup(namebuf, gostringpkg);
-		ao.name = D_EXTERN;
-	}
-
-	*a = ao;
-	if(ao.sym->flags & SymUniq)
-		return;
-	ao.sym->flags |= SymUniq;
-
-	data();
-	// DATA gostring, wp, $cstring
-	p = pc;
-	gins(ADATA, N, N);
-	p->from = ao;
-	p->reg = wp;
-	p->to = ap;
-
-	// DATA gostring+wp, wi, $len
-	p = pc;
-	gins(ADATA, N, N);
-	p->from = ao;
-	p->from.offset = wp;
-	p->reg = wi;
-	p->to = ac;
-	p->to.offset = sval->len;
-
-	p = pc;
-	ggloblsym(ao.sym, types[TSTRING]->width, ao.name == D_EXTERN);
-	if(ao.name == D_STATIC)
-		p->from.name = D_STATIC;
-	text();
+	Sym *sym;
+	
+	sym = stringsym(sval->s, sval->len);
+	a->type = D_OREG;
+	a->name = D_EXTERN;
+	a->etype = TINT32;
+	a->offset = 0;  // header
+	a->reg = NREG;
+	a->sym = sym;
 }
 
 void

@@ -658,8 +658,7 @@ deadcode(void)
 	else
 		last->next = nil;
 	
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash)
+	for(s = allsym; s != S; s = s->allsym)
 		if(strncmp(s->name, "weak.", 5) == 0) {
 			s->special = 1;  // do not lay out in data segment
 			s->reachable = 1;
@@ -670,16 +669,14 @@ deadcode(void)
 void
 doweak(void)
 {
-	int i;
 	Sym *s, *t;
 
 	// resolve weak references only if
 	// target symbol will be in binary anyway.
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->hash) {
+	for(s = allsym; s != S; s = s->allsym) {
 		if(strncmp(s->name, "weak.", 5) == 0) {
-			t = lookup(s->name+5, s->version);
-			if(t->type != 0 && t->reachable) {
+			t = rlookup(s->name+5, s->version);
+			if(t && t->type != 0 && t->reachable) {
 				s->value = t->value;
 				s->type = t->type;
 			} else {
