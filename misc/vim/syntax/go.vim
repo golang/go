@@ -181,7 +181,7 @@ if go_highlight_extra_types != 0
   syn match goExtraType /\<bytes\.\(Buffer\)\>/
   syn match goExtraType /\<io\.\(Reader\|Writer\|ReadWriter\|ReadWriteCloser\)\>/
   syn match goExtraType /\<\(os\.Error\)\>/
-  syn match goExtraType /\<reflect\.\w*\(Type\|Value\)\>/
+  syn match goExtraType /\<reflect\.\(Kind\|Type\|Value\)\>/
   syn match goExtraType /\<unsafe\.Pointer\>/
 endif
 
