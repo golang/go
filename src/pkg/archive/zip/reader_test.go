@@ -76,6 +76,12 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		return
 	}
 
+	// bail if file is not zip
+	if err == FormatError {
+		return
+	}
+	defer z.Close()
+
 	// bail here if no Files expected to be tested
 	// (there may actually be files in the zip, but we don't care)
 	if zt.File == nil {
