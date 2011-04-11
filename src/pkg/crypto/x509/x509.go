@@ -90,6 +90,7 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 // These structures reflect the ASN.1 structure of X.509 certificates.:
 
 type certificate struct {
+	Raw                asn1.RawContent
 	TBSCertificate     tbsCertificate
 	SignatureAlgorithm algorithmIdentifier
 	SignatureValue     asn1.BitString
@@ -343,7 +344,8 @@ const (
 
 // A Certificate represents an X.509 certificate.
 type Certificate struct {
-	Raw                []byte // Raw ASN.1 DER contents.
+	Raw                []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
+	RawTBSCertificate  []byte // Certificate part of raw ASN.1 DER content.
 	Signature          []byte
 	SignatureAlgorithm SignatureAlgorithm
 
@@ -434,7 +436,7 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
 		return UnsupportedAlgorithmError{}
 	}
 
-	h.Write(c.Raw)
+	h.Write(c.RawTBSCertificate)
 	digest := h.Sum()
 
 	return rsa.VerifyPKCS1v15(pub, hashType, digest, c.Signature)
@@ -558,7 +560,8 @@ func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.E
 
 func parseCertificate(in *certificate) (*Certificate, os.Error) {
 	out := new(Certificate)
-	out.Raw = in.TBSCertificate.Raw
+	out.Raw = in.Raw
+	out.RawTBSCertificate = in.TBSCertificate.Raw
 
 	out.Signature = in.SignatureValue.RightAlign()
 	out.SignatureAlgorithm =
@@ -996,6 +999,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 	}
 
 	cert, err = asn1.Marshal(certificate{
+		nil,
 		c,
 		algorithmIdentifier{oidSHA1WithRSA},
 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
