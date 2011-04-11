@@ -125,6 +125,28 @@ func int64Length(i int64) (numBytes int) {
 	return
 }
 
+func marshalLength(out *forkableWriter, i int) (err os.Error) {
+	n := lengthLength(i)
+
+	for ; n > 0; n-- {
+		err = out.WriteByte(byte(i >> uint((n-1)*8)))
+		if err != nil {
+			return
+		}
+	}
+
+	return nil
+}
+
+func lengthLength(i int) (numBytes int) {
+	numBytes = 1
+	for i > 255 {
+		numBytes++
+		i >>= 8
+	}
+	return
+}
+
 func marshalTagAndLength(out *forkableWriter, t tagAndLength) (err os.Error) {
 	b := uint8(t.class) << 6
 	if t.isCompound {
@@ -149,12 +171,12 @@ func marshalTagAndLength(out *forkableWriter, t tagAndLength) (err os.Error) {
 	}
 
 	if t.length >= 128 {
-		l := int64Length(int64(t.length))
+		l := lengthLength(t.length)
 		err = out.WriteByte(0x80 | byte(l))
 		if err != nil {
 			return
 		}
-		err = marshalInt64(out, int64(t.length))
+		err = marshalLength(out, t.length)
 		if err != nil {
 			return
 		}
