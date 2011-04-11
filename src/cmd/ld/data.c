@@ -722,7 +722,7 @@ addsize(Sym *s, Sym *t)
 void
 dodata(void)
 {
-	int32 h, t, datsize;
+	int32 t, datsize;
 	Section *sect;
 	Sym *s, *last, **l;
 

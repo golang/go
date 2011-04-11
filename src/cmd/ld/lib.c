@@ -61,6 +61,7 @@ void
 libinit(void)
 {
 	fmtinstall('i', iconv);
+	fmtinstall('Y', Yconv);
 	mywhatsys();	// get goroot, goarch, goos
 	if(strcmp(goarch, thestring) != 0)
 		print("goarch is not known: %s\n", goarch);
@@ -847,7 +848,7 @@ unmal(void *v, uint32 n)
 // Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
 /*
  * Convert raw string to the prefix that will be used in the symbol table.
- * Invalid bytes turn into %xx.  Right now the only bytes that need
+ * Invalid bytes turn into %xx.	 Right now the only bytes that need
  * escaping are %, ., and ", but we escape all control characters too.
  */
 static char*
@@ -1122,7 +1123,7 @@ static Sym *newstack;
 enum
 {
 	HasLinkRegister = (thechar == '5'),
-	CallSize = (!HasLinkRegister)*PtrSize,  // bytes of stack required for a call
+	CallSize = (!HasLinkRegister)*PtrSize,	// bytes of stack required for a call
 };
 
 void
@@ -1148,7 +1149,7 @@ dostkcheck(void)
 	
 	// Check calling contexts.
 	// Some nosplits get called a little further down,
-	// like newproc and deferproc.  We could hard-code
+	// like newproc and deferproc.	We could hard-code
 	// that knowledge but it's more robust to look at
 	// the actual call sites.
 	for(s = textp; s != nil; s = s->next) {
@@ -1306,4 +1307,39 @@ undef(void)
 	for(s = allsym; s != S; s = s->allsym)
 		if(s->type == SXREF)
 			diag("%s(%d): not defined", s->name, s->version);
+}
+
+int
+Yconv(Fmt *fp)
+{
+	Sym *s;
+	Fmt fmt;
+	int i;
+	char *str;
+
+	s = va_arg(fp->args, Sym*);
+	if (s == S) {
+		fmtprint(fp, "<nil>");
+	} else {
+		fmtstrinit(&fmt);
+		fmtprint(&fmt, "%s @0x%08x [%d]", s->name, s->value, s->size);
+		for (i = 0; i < s->size; i++) {
+			if (!(i%8)) fmtprint(&fmt,  "\n\t0x%04x ", i);
+			fmtprint(&fmt, "%02x ", s->p[i]);
+		}
+		fmtprint(&fmt, "\n");
+		for (i = 0; i < s->nr; i++) {
+			fmtprint(&fmt, "\t0x%04x[%x] %d %s[%llx]\n",
+			      s->r[i].off,
+			      s->r[i].siz,
+			      s->r[i].type,
+			      s->r[i].sym->name,
+			      (vlong)s->r[i].add);
+		}
+		str = fmtstrflush(&fmt);
+		fmtstrcpy(fp, str);
+		free(str);
+	}
+
+	return 0;
 }

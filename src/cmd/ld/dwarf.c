@@ -6,7 +6,6 @@
 //   - eliminate DW_CLS_ if not used
 //   - package info in compilation units
 //   - assign global variables and types to their packages
-//   - (upstream) type info for C parts of runtime
 //   - gdb uses c syntax, meaning clumsy quoting is needed for go identifiers. eg
 //     ptype struct '[]uint8' and qualifiers need to be quoted away
 //   - lexical scoping is lost, so gdb gets confused as to which 'main.i' you mean.
@@ -943,14 +942,16 @@ enum {
 static char*
 decodetype_structfieldname(Sym *s, int i)
 {
+	Reloc *r;
+
 	// go.string."foo"  0x28 / 0x40
 	s = decode_reloc_sym(s, CommonSize + PtrSize + 2*4 + i*StructFieldSize);
 	if (s == nil)			// embedded structs have a nil name.
 		return nil;
-	s = decode_reloc_sym(s, 0);	// string."foo"
-	if (s == nil)			// shouldn't happen.
+	r = decode_reloc(s, 0);		// s has a pointer to the string data at offset 0
+	if (r == nil)			// shouldn't happen.
 		return nil;
-	return (char*)s->p;		// the c-string
+	return (char*) r->sym->p + r->add;	// the c-string
 }
 
 static Sym*
@@ -1021,22 +1022,8 @@ defgotype(Sym *gotype)
 	if (die != nil)
 		return die;
 
-	if (0 && debug['v'] > 2) {
-		print("new type: %s @0x%08x [%d]", gotype->name, gotype->value, gotype->size);
-		for (i = 0; i < gotype->size; i++) {
-			if (!(i%8)) print("\n\t%04x ", i);
-			print("%02x ", gotype->p[i]);
-		}
-		print("\n");
-		for (i = 0; i < gotype->nr; i++) {
-			print("\t0x%02x[%x] %d %s[%llx]\n",
-			      gotype->r[i].off,
-			      gotype->r[i].siz,
-			      gotype->r[i].type,
-			      gotype->r[i].sym->name,
-			      (vlong)gotype->r[i].add);
-		}
-	}
+	if (0 && debug['v'] > 2)
+		print("new type: %Y\n", gotype);
 
 	kind = decodetype_kind(gotype);
 	bytesize = decodetype_size(gotype);
@@ -2321,7 +2308,7 @@ dwarfemitdebugsections(void)
 {
 	vlong infoe;
 	DWDie* die;
-return;
+
 	// For diagnostic messages.
 	newattr(&dwtypes, DW_AT_name, DW_CLS_STRING, strlen("dwtypes"), "dwtypes");
 
