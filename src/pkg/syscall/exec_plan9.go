@@ -363,7 +363,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) 
 	p[1] = -1
 
 	// Convert args to C form.
-	argv0p := StringBytePtr(argv[0])
+	argv0p := StringBytePtr(argv0)
 	argvp := StringArrayPtr(argv)
 
 	var chroot *byte
