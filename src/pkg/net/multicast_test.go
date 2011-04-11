@@ -5,12 +5,19 @@
 package net
 
 import (
+	"flag"
 	"runtime"
 	"testing"
 )
 
+var multicast = flag.Bool("multicast", false, "enable multicast tests")
+
 func TestMulticastJoinAndLeave(t *testing.T) {
 	if runtime.GOOS == "windows" {
+		return
+	}
+	if !*multicast {
+		t.Logf("test disabled; use --multicast to enable")
 		return
 	}
 
@@ -40,6 +47,10 @@ func TestMulticastJoinAndLeave(t *testing.T) {
 }
 
 func TestJoinFailureWithIPv6Address(t *testing.T) {
+	if !*multicast {
+		t.Logf("test disabled; use --multicast to enable")
+		return
+	}
 	addr := &UDPAddr{
 		IP:   IPv4zero,
 		Port: 0,
