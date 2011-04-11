@@ -274,3 +274,6 @@ EXTERN	char*	headstring;
 extern	Header	headers[];
 
 int	headtype(char*);
+
+int	Yconv(Fmt*);
+#pragma	varargck	type	"Y"	Sym*
