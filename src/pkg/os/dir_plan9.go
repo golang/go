@@ -8,72 +8,56 @@ import (
 	"syscall"
 )
 
-type dirInfo int
-
-var markDirectory dirInfo = ^0
-
 // Readdir reads the contents of the directory associated with file and
-// returns an array of up to count FileInfo structures, as would be returned
-// by Lstat, in directory order.  Subsequent calls on the same file will yield
-// further FileInfos. A negative count means to read the entire directory.
+// returns an array of up to count FileInfo structures, in directory order. 
+// Subsequent calls on the same file will yield further FileInfos.
+// A negative count means to read until EOF.
 // Readdir returns the array and an Error, if any.
 func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {
-		file.dirinfo = &markDirectory
+		file.dirinfo = new(dirInfo)
 	}
-
+	d := file.dirinfo
 	size := count
 	if size < 0 {
 		size = 100
 	}
-
-	result := make([]FileInfo, 0, size)
-	var buf [syscall.STATMAX]byte
-
-	for {
-		n, e := file.Read(buf[:])
-
-		if e != nil {
+	result := make([]FileInfo, 0, size) // Empty with room to grow.
+	for count != 0 {
+		// Refill the buffer if necessary
+		if d.bufp >= d.nbuf {
+			d.bufp = 0
+			var e Error
+			d.nbuf, e = file.Read(d.buf[:])
+			if e != nil && e != EOF {
+				return nil, &PathError{"readdir", file.name, e}
+			}
 			if e == EOF {
 				break
 			}
-
-			return []FileInfo{}, &PathError{"readdir", file.name, e}
+			if d.nbuf < syscall.STATFIXLEN {
+				return nil, &PathError{"readdir", file.name, Eshortstat}
+			}
 		}
 
-		if n < syscall.STATFIXLEN {
-			return []FileInfo{}, &PathError{"readdir", file.name, Eshortstat}
+		// Get a record from buffer
+		m, _ := gbit16(d.buf[d.bufp:])
+		m += 2
+		if m < syscall.STATFIXLEN {
+			return nil, &PathError{"readdir", file.name, Eshortstat}
 		}
-
-		for i := 0; i < n; {
-			m, _ := gbit16(buf[i:])
-			m += 2
-
-			if m < syscall.STATFIXLEN {
-				return []FileInfo{}, &PathError{"readdir", file.name, Eshortstat}
-			}
-
-			d, e := UnmarshalDir(buf[i : i+int(m)])
-
-			if e != nil {
-				return []FileInfo{}, &PathError{"readdir", file.name, e}
-			}
-
-			var f FileInfo
-			fileInfoFromStat(&f, d)
-
-			result = append(result, f)
-
-			// a negative count means to read until EOF.
-			if count > 0 && len(result) >= count {
-				break
-			}
-
-			i += int(m)
+		dir, e := UnmarshalDir(d.buf[d.bufp : d.bufp+int(m)])
+		if e != nil {
+			return nil, &PathError{"readdir", file.name, e}
 		}
+		var f FileInfo
+		fileInfoFromStat(&f, dir)
+		result = append(result, f)
+
+		d.bufp += int(m)
+		count--
 	}
-
 	return result, nil
 }
 

@@ -45,6 +45,14 @@ var sysdir = func() (sd *sysDir) {
 				"services",
 			},
 		}
+	case "plan9":
+		sd = &sysDir{
+			"/lib/ndb",
+			[]string{
+				"common",
+				"local",
+			},
+		}
 	default:
 		sd = &sysDir{
 			"/etc",
@@ -245,8 +253,11 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
 func TestReaddirnamesOneAtATime(t *testing.T) {
 	// big directory that doesn't change often.
 	dir := "/usr/bin"
-	if syscall.OS == "windows" {
+	switch syscall.OS {
+	case "windows":
 		dir = Getenv("SystemRoot") + "\\system32"
+	case "plan9":
+		dir = "/bin"
 	}
 	file, err := Open(dir)
 	defer file.Close()
@@ -262,6 +273,9 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 		t.Fatalf("open %q failed: %v", dir, err2)
 	}
 	small := smallReaddirnames(file1, len(all)+100, t) // +100 in case we screw up
+	if len(small) < len(all) {
+		t.Fatalf("len(small) is %d, less than %d", len(small), len(all))
+	}
 	for i, n := range all {
 		if small[i] != n {
 			t.Errorf("small read %q mismatch: %v", small[i], n)
