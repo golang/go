@@ -69,9 +69,12 @@ func TestICMP(t *testing.T) {
 		return
 	}
 
-	var laddr *IPAddr
+	var (
+		laddr *IPAddr
+		err   os.Error
+	)
 	if *srchost != "" {
-		laddr, err := ResolveIPAddr(*srchost)
+		laddr, err = ResolveIPAddr(*srchost)
 		if err != nil {
 			t.Fatalf(`net.ResolveIPAddr("%v") = %v, %v`, *srchost, laddr, err)
 		}
