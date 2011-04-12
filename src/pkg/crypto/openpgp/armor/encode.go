@@ -18,9 +18,9 @@ var armorEndOfLineOut = []byte("-----\n")
 // writeSlices writes its arguments to the given Writer.
 func writeSlices(out io.Writer, slices ...[]byte) (err os.Error) {
 	for _, s := range slices {
-		_, err := out.Write(s)
+		_, err = out.Write(s)
 		if err != nil {
-			return
+			return err
 		}
 	}
 	return
