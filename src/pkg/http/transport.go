@@ -6,6 +6,7 @@ package http
 
 import (
 	"bufio"
+	"compress/gzip"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -39,8 +40,9 @@ type Transport struct {
 	// TODO: tunable on timeout on cached connections
 	// TODO: optional pipelining
 
-	IgnoreEnvironment bool // don't look at environment variables for proxy configuration
-	DisableKeepAlives bool
+	IgnoreEnvironment  bool // don't look at environment variables for proxy configuration
+	DisableKeepAlives  bool
+	DisableCompression bool
 
 	// MaxIdleConnsPerHost, if non-zero, controls the maximum idle
 	// (keep-alive) to keep to keep per-host.  If zero,
@@ -474,6 +476,19 @@ func (pc *persistConn) roundTrip(req *Request) (resp *Response, err os.Error) {
 		pc.mutateRequestFunc(req)
 	}
 
+	// Ask for a compressed version if the caller didn't set their
+	// own value for Accept-Encoding. We only attempted to
+	// uncompress the gzip stream if we were the layer that
+	// requested it.
+	requestedGzip := false
+	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" {
+		// Request gzip only, not deflate. Deflate is ambiguous and 
+		// as universally supported anyway.
+		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
+		requestedGzip = true
+		req.Header.Set("Accept-Encoding", "gzip")
+	}
+
 	pc.lk.Lock()
 	pc.numExpectedResponses++
 	pc.lk.Unlock()
@@ -490,6 +505,19 @@ func (pc *persistConn) roundTrip(req *Request) (resp *Response, err os.Error) {
 	pc.lk.Lock()
 	pc.numExpectedResponses--
 	pc.lk.Unlock()
+
+	if re.err == nil && requestedGzip && re.res.Header.Get("Content-Encoding") == "gzip" {
+		re.res.Header.Del("Content-Encoding")
+		re.res.Header.Del("Content-Length")
+		re.res.ContentLength = -1
+		var err os.Error
+		re.res.Body, err = gzip.NewReader(re.res.Body)
+		if err != nil {
+			pc.close()
+			return nil, err
+		}
+	}
+
 	return re.res, re.err
 }
 
