@@ -9,6 +9,13 @@ import (
 	"syscall"
 )
 
+// Auxiliary information if the File describes a directory
+type dirInfo struct {
+	buf  [syscall.STATMAX]byte // buffer for directory I/O
+	nbuf int                   // length of buf; return value from Read
+	bufp int                   // location of next record in buf.
+}
+
 func epipecheck(file *File, e syscall.Error) {
 }
 

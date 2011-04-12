@@ -37,12 +37,15 @@ var (
 	Enonexist  = NewError("file does not exist")
 	Eexist     = NewError("file already exists")
 	Eio        = NewError("i/o error")
+	Eperm      = NewError("permission denied")
 
 	EINVAL  = Ebadarg
 	ENOTDIR = Enotdir
 	ENOENT  = Enonexist
 	EEXIST  = Eexist
 	EIO     = Eio
+	EACCES  = Eperm
+	EISDIR  = syscall.EISDIR
 
 	ENAMETOOLONG = NewError("file name too long")
 	ERANGE       = NewError("math result not representable")
