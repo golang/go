@@ -105,6 +105,7 @@ DIRS=\
 	image\
 	image/jpeg\
 	image/png\
+	image/ycbcr\
 	index/suffixarray\
 	io\
 	io/ioutil\
