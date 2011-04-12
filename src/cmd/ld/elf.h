@@ -946,10 +946,10 @@ typedef Elf64_Shdr ElfShdr;
 typedef Elf64_Phdr ElfPhdr;
 
 void	elfinit(void);
-ElfEhdr	*getElfEhdr();
+ElfEhdr	*getElfEhdr(void);
 ElfShdr	*newElfShstrtab(vlong);
 ElfShdr	*newElfShdr(vlong);
-ElfPhdr	*newElfPhdr();
+ElfPhdr	*newElfPhdr(void);
 uint32	elfwritehdr(void);
 uint32	elfwritephdrs(void);
 uint32	elfwriteshdrs(void);
