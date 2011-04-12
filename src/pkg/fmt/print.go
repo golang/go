@@ -389,6 +389,8 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
 		p.fmt.integer(int64(v), 16, unsigned, ldigits)
 	case 'X':
 		p.fmt.integer(int64(v), 16, unsigned, udigits)
+	case 'U':
+		p.fmtUnicode(int64(v))
 	default:
 		p.badVerb(verb, value)
 	}
