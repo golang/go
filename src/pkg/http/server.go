@@ -180,12 +180,6 @@ func (c *conn) readRequest() (w *response, err os.Error) {
 	w.req = req
 	w.header = make(Header)
 	w.contentLength = -1
-
-	// Expect 100 Continue support
-	if req.expectsContinue() && req.ProtoAtLeast(1, 1) {
-		// Wrap the Body reader with one that replies on the connection
-		req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
-	}
 	return w, nil
 }
 
@@ -446,6 +440,38 @@ func (c *conn) serve() {
 		if err != nil {
 			break
 		}
+
+		// Expect 100 Continue support
+		req := w.req
+		if req.expectsContinue() {
+			if req.ProtoAtLeast(1, 1) {
+				// Wrap the Body reader with one that replies on the connection
+				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
+			}
+			if req.ContentLength == 0 {
+				w.Header().Set("Connection", "close")
+				w.WriteHeader(StatusBadRequest)
+				break
+			}
+			req.Header.Del("Expect")
+		} else if req.Header.Get("Expect") != "" {
+			// TODO(bradfitz): let ServeHTTP handlers handle
+			// requests with non-standard expectation[s]? Seems
+			// theoretical at best, and doesn't fit into the
+			// current ServeHTTP model anyway.  We'd need to
+			// make the ResponseWriter an optional
+			// "ExpectReplier" interface or something.
+			//
+			// For now we'll just obey RFC 2616 14.20 which says
+			// "If a server receives a request containing an
+			// Expect field that includes an expectation-
+			// extension that it does not support, it MUST
+			// respond with a 417 (Expectation Failed) status."
+			w.Header().Set("Connection", "close")
+			w.WriteHeader(StatusExpectationFailed)
+			break
+		}
+
 		// HTTP cannot have multiple simultaneous active requests.[*]
 		// Until the server replies to this request, it can't read another,
 		// so we might as well run the handler in this goroutine.
