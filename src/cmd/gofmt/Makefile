@@ -15,5 +15,5 @@ include ../../Make.cmd
 test: $(TARG)
 	./test.sh
 
-smoketest: $(TARG)
-	(cd testdata; ./test.sh)
+testshort:
+	gotest -test.short

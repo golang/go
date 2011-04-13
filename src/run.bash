@@ -50,15 +50,6 @@ fi
 GOMAXPROCS=10 gomake testshort
 ) || exit $?
 
-[ "$GOARCH" == arm ] ||
-(xcd cmd/gofmt
-if $rebuild; then
-	gomake clean;
-	time gomake
-fi
-time gomake smoketest
-) || exit $?
-
 (xcd cmd/ebnflint
 if $rebuild; then
 	gomake clean;

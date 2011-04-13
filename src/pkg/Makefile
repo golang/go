@@ -194,7 +194,6 @@ NOTEST+=\
 	../cmd/cgo\
 	../cmd/ebnflint\
 	../cmd/godoc\
-	../cmd/gofmt\
 	../cmd/gotest\
 	../cmd/govet\
 	../cmd/goyacc\
