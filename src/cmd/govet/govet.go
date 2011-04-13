@@ -63,6 +63,7 @@ func main() {
 				}
 				name = name[:colon]
 			}
+			name = strings.ToLower(name)
 			if name[len(name)-1] == 'f' {
 				printfList[name] = skip
 			} else {
@@ -205,35 +206,38 @@ func (f *File) checkCallExpr(call *ast.CallExpr) {
 }
 
 // printfList records the formatted-print functions. The value is the location
-// of the format parameter.
+// of the format parameter. Names are lower-cased so the lookup is
+// case insensitive.
 var printfList = map[string]int{
-	"Errorf":  0,
-	"Fatalf":  0,
-	"Fprintf": 1,
-	"Panicf":  0,
-	"Printf":  0,
-	"Sprintf": 0,
+	"errorf":  0,
+	"fatalf":  0,
+	"fprintf": 1,
+	"panicf":  0,
+	"printf":  0,
+	"sprintf": 0,
 }
 
 // printList records the unformatted-print functions. The value is the location
-// of the first parameter to be printed.
+// of the first parameter to be printed.  Names are lower-cased so the lookup is
+// case insensitive.
 var printList = map[string]int{
-	"Error":  0,
-	"Fatal":  0,
-	"Fprint": 1, "Fprintln": 1,
-	"Panic": 0, "Panicln": 0,
-	"Print": 0, "Println": 0,
-	"Sprint": 0, "Sprintln": 0,
+	"error":  0,
+	"fatal":  0,
+	"fprint": 1, "fprintln": 1,
+	"panic": 0, "panicln": 0,
+	"print": 0, "println": 0,
+	"sprint": 0, "sprintln": 0,
 }
 
 // checkCall triggers the print-specific checks if the call invokes a print function.
-func (f *File) checkCall(call *ast.CallExpr, name string) {
+func (f *File) checkCall(call *ast.CallExpr, Name string) {
+	name := strings.ToLower(Name)
 	if skip, ok := printfList[name]; ok {
-		f.checkPrintf(call, name, skip)
+		f.checkPrintf(call, Name, skip)
 		return
 	}
 	if skip, ok := printList[name]; ok {
-		f.checkPrint(call, name, skip)
+		f.checkPrint(call, Name, skip)
 		return
 	}
 }
@@ -362,8 +366,14 @@ func BadFunctionUsedInTests() {
 	fmt.Printf("%s%%%d", "hi", 3)      // right # percents
 	fmt.Printf("%.*d", 3, 3)           // right # percents, with a *
 	fmt.Printf("%.*d", 3, 3, 3)        // wrong # percents, with a *
+	printf("now is the time", "buddy") // no %s
 	Printf("now is the time", "buddy") // no %s
 	f := new(File)
 	f.Warn(0, "%s", "hello", 3)  // % in call to added function
 	f.Warnf(0, "%s", "hello", 3) // wrong # %s in call to added function
+}
+
+// printf is used by the test.
+func printf(format string, args ...interface{}) {
+	panic("don't call - testing only")
 }
