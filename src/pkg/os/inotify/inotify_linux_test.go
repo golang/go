@@ -17,8 +17,8 @@ func TestInotifyEvents(t *testing.T) {
 		t.Fatalf("NewWatcher() failed: %s", err)
 	}
 
-	// Add a watch for "_obj"
-	err = watcher.Watch("_obj")
+	// Add a watch for "_test"
+	err = watcher.Watch("_test")
 	if err != nil {
 		t.Fatalf("Watcher.Watch() failed: %s", err)
 	}
@@ -30,7 +30,7 @@ func TestInotifyEvents(t *testing.T) {
 		}
 	}()
 
-	const testFile string = "_obj/TestInotifyEvents.testfile"
+	const testFile string = "_test/TestInotifyEvents.testfile"
 
 	// Receive events on the event channel on a separate goroutine
 	eventstream := watcher.Event
@@ -90,7 +90,7 @@ func TestInotifyClose(t *testing.T) {
 		t.Fatal("double Close() test failed: second Close() call didn't return")
 	}
 
-	err := watcher.Watch("_obj")
+	err := watcher.Watch("_test")
 	if err == nil {
 		t.Fatal("expected error on Watch() after Close(), got nil")
 	}
