@@ -400,6 +400,10 @@ regsalloc(Node *n, Node *nn)
 void
 regaalloc1(Node *n, Node *nn)
 {
+	if(REGARG < 0) {
+		fatal(n, "regaalloc1 and REGARG<0");
+		return;
+	}
 	nodreg(n, nn, REGARG);
 	reg[REGARG]++;
 	curarg = align(curarg, nn->type, Aarg1, nil);
