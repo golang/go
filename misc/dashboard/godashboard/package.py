@@ -6,7 +6,6 @@
 # It must be run by App Engine.
 
 from google.appengine.api import memcache
-from google.appengine.runtime import DeadlineExceededError
 from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
@@ -14,15 +13,10 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.api import users
 from google.appengine.api import mail
 from google.appengine.api import urlfetch
-import binascii
 import datetime
-import hashlib
-import hmac
 import logging
 import os
 import re
-import struct
-import time
 import urllib2
 import sets
 
@@ -52,6 +46,8 @@ class Project(db.Model):
 re_bitbucket = re.compile(r'^bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+$')
 re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg)$')
 re_github = re.compile(r'^github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+$')
+re_launchpad = re.compile(r'^launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$')
+
 
 def vc_to_web(path):
     if re_bitbucket.match(path):
@@ -65,6 +61,8 @@ def vc_to_web(path):
     elif re_googlecode.match(path):
         check_url = 'http://'+path
         web = 'http://code.google.com/p/' + path[:path.index('.')]
+    elif re_launchpad.match(path):
+        check_url = web = 'https://'+path
     else:
         return False, False
     return web, check_url
@@ -72,7 +70,8 @@ def vc_to_web(path):
 re_bitbucket_web = re.compile(r'bitbucket\.org/([a-z0-9A-Z_.\-]+)/([a-z0-9A-Z_.\-]+)')
 re_googlecode_web = re.compile(r'code.google.com/p/([a-z0-9\-]+)')
 re_github_web = re.compile(r'github\.com/([a-z0-9A-Z_.\-]+)/([a-z0-9A-Z_.\-]+)')
-re_striphttp = re.compile(r'http://(www\.)?')
+re_launchpad_web = re.compile(r'launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?')
+re_striphttp = re.compile(r'https?://(www\.)?')
 
 def web_to_vc(url):
     url = re_striphttp.sub('', url)
@@ -93,6 +92,9 @@ def web_to_vc(url):
                 vcs = 'hg'
         except: pass
         return path + vcs
+    m = re_launchpad_web.match(url)
+    if m:
+        return m.group(0)
     return False
 
 MaxPathLength = 100
@@ -136,7 +138,7 @@ class PackagePage(webapp.RequestHandler):
                 sep = ','
             s += '\n]}\n'
             json = s
-            memcache.set('view-package-json', json, time=CacheTimeoout)
+            memcache.set('view-package-json', json, time=CacheTimeout)
         self.response.out.write(json)
 
     def can_get_url(self, url):
@@ -150,7 +152,8 @@ class PackagePage(webapp.RequestHandler):
     def is_valid_package_path(self, path):
         return (re_bitbucket.match(path) or
             re_googlecode.match(path) or
-            re_github.match(path))
+            re_github.match(path) or
+            re_launchpad.match(path))
 
     def record_pkg(self, path):
         # sanity check string

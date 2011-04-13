@@ -7,7 +7,6 @@
 
 from google.appengine.api import mail
 from google.appengine.api import memcache
-from google.appengine.runtime import DeadlineExceededError
 from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
@@ -219,7 +218,7 @@ class SetHighwater(webapp.RequestHandler):
         q = Commit.all()
         q.order('-__key__')
         recent = q.fetch(N+1)
-        for c in head:
+        for c in recent:
             if c.node == newhw:
                 found = True
                 break
@@ -384,7 +383,6 @@ class Benchmarks(webapp.RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
         self.response.out.write('{"benchmarks": [')
 
-        first = True
         sep = "\n\t"
         for b in bs:
             self.response.out.write('%s"%s"' % (sep, b.name))
