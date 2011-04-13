@@ -27,12 +27,12 @@ var (
 //	tr := tar.NewReader(r)
 //	for {
 //		hdr, err := tr.Next()
-//		if err != nil {
-//			// handle error
-//		}
-//		if hdr == nil {
+//		if err == os.EOF {
 //			// end of tar archive
 //			break
+//		}
+//		if err != nil {
+//			// handle error
 //		}
 //		io.Copy(data, tr)
 //	}
