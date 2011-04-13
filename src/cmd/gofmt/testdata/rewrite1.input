@@ -1,0 +1,8 @@
+package main
+
+type Foo int
+
+func main() {
+	var a Foo
+	println(a)
+}

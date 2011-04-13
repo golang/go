@@ -1,0 +1,8 @@
+package main
+
+type Bar int
+
+func main() {
+	var a Bar
+	println(a)
+}
