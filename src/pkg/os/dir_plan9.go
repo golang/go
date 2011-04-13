@@ -74,7 +74,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 	names = make([]string, len(fi))
 	err = nil
 
-	for i, _ := range fi {
+	for i := range fi {
 		names[i] = fi[i].Name
 	}
 

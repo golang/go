@@ -14,7 +14,7 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	if t.idleConn == nil {
 		return
 	}
-	for key, _ := range t.idleConn {
+	for key := range t.idleConn {
 		keys = append(keys, key)
 	}
 	return

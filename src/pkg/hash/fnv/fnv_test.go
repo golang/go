@@ -154,7 +154,7 @@ func benchmark(b *testing.B, h hash.Hash) {
 	b.ResetTimer()
 	b.SetBytes(testDataSize)
 	data := make([]byte, testDataSize)
-	for i, _ := range data {
+	for i := range data {
 		data[i] = byte(i + 'a')
 	}
 

@@ -52,7 +52,7 @@ func atoi(b []byte) (n uint) {
 }
 
 func cstring(s []byte) string {
-	for i, _ := range s {
+	for i := range s {
 		if s[i] == 0 {
 			return string(s[0:i])
 		}
