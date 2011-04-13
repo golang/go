@@ -534,3 +534,85 @@ func TestTLSServer(t *testing.T) {
 		t.Errorf("expected body %q; got %q", e, g)
 	}
 }
+
+type serverExpectTest struct {
+	contentLength    int    // of request body
+	expectation      string // e.g. "100-continue"
+	readBody         bool   // whether handler should read the body (if false, sends StatusUnauthorized)
+	expectedResponse string // expected substring in first line of http response
+}
+
+var serverExpectTests = []serverExpectTest{
+	// Normal 100-continues, case-insensitive.
+	{100, "100-continue", true, "100 Continue"},
+	{100, "100-cOntInUE", true, "100 Continue"},
+
+	// No 100-continue.
+	{100, "", true, "200 OK"},
+
+	// 100-continue but requesting client to deny us,
+	// so it never eads the body.
+	{100, "100-continue", false, "401 Unauthorized"},
+	// Likewise without 100-continue:
+	{100, "", false, "401 Unauthorized"},
+
+	// Non-standard expectations are failures
+	{0, "a-pony", false, "417 Expectation Failed"},
+
+	// Expect-100 requested but no body
+	{0, "100-continue", true, "400 Bad Request"},
+}
+
+// Tests that the server responds to the "Expect" request header
+// correctly.
+func TestServerExpect(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// Note using r.FormValue("readbody") because for POST
+		// requests that would read from r.Body, which we only
+		// conditionally want to do.
+		if strings.Contains(r.URL.RawPath, "readbody=true") {
+			ioutil.ReadAll(r.Body)
+			w.Write([]byte("Hi"))
+		} else {
+			w.WriteHeader(StatusUnauthorized)
+		}
+	}))
+	defer ts.Close()
+
+	runTest := func(test serverExpectTest) {
+		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			t.Fatalf("Dial: %v", err)
+		}
+		defer conn.Close()
+		sendf := func(format string, args ...interface{}) {
+			_, err := fmt.Fprintf(conn, format, args...)
+			if err != nil {
+				t.Fatalf("Error writing %q: %v", format, err)
+			}
+		}
+		go func() {
+			sendf("POST /?readbody=%v HTTP/1.1\r\n"+
+				"Connection: close\r\n"+
+				"Content-Length: %d\r\n"+
+				"Expect: %s\r\nHost: foo\r\n\r\n",
+				test.readBody, test.contentLength, test.expectation)
+			if test.contentLength > 0 && strings.ToLower(test.expectation) != "100-continue" {
+				body := strings.Repeat("A", test.contentLength)
+				sendf(body)
+			}
+		}()
+		bufr := bufio.NewReader(conn)
+		line, err := bufr.ReadString('\n')
+		if err != nil {
+			t.Fatalf("ReadString: %v", err)
+		}
+		if !strings.Contains(line, test.expectedResponse) {
+			t.Errorf("for test %#v got first line=%q", test, line)
+		}
+	}
+
+	for _, test := range serverExpectTests {
+		runTest(test)
+	}
+}
