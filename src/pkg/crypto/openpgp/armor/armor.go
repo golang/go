@@ -7,10 +7,10 @@
 package armor
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/openpgp/error"
 	"encoding/base64"
-	"encoding/line"
 	"io"
 	"os"
 )
@@ -63,7 +63,7 @@ var armorEndOfLine = []byte("-----")
 // lineReader wraps a line based reader. It watches for the end of an armor
 // block and records the expected CRC value.
 type lineReader struct {
-	in  *line.Reader
+	in  *bufio.Reader
 	buf []byte
 	eof bool
 	crc uint32
@@ -156,7 +156,7 @@ func (r *openpgpReader) Read(p []byte) (n int, err os.Error) {
 // given Reader is not usable after calling this function: an arbitary amount
 // of data may have been read past the end of the block.
 func Decode(in io.Reader) (p *Block, err os.Error) {
-	r := line.NewReader(in, 100)
+	r, _ := bufio.NewReaderSize(in, 100)
 	var line []byte
 	ignoreNext := false
 
