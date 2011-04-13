@@ -25,7 +25,8 @@ var formats []format
 
 // RegisterFormat registers an image format for use by Decode.
 // Name is the name of the format, like "jpeg" or "png".
-// Magic is the magic prefix that identifies the format's encoding.
+// Magic is the magic prefix that identifies the format's encoding. The magic
+// string can contain "?" wildcards that each match any one byte.
 // Decode is the function that decodes the encoded image.
 // DecodeConfig is the function that decodes just its configuration.
 func RegisterFormat(name, magic string, decode func(io.Reader) (Image, os.Error), decodeConfig func(io.Reader) (Config, os.Error)) {
@@ -46,11 +47,24 @@ func asReader(r io.Reader) reader {
 	return bufio.NewReader(r)
 }
 
-// sniff determines the format of r's data.
+// Match returns whether magic matches b. Magic may contain "?" wildcards.
+func match(magic string, b []byte) bool {
+	if len(magic) != len(b) {
+		return false
+	}
+	for i, c := range b {
+		if magic[i] != c && magic[i] != '?' {
+			return false
+		}
+	}
+	return true
+}
+
+// Sniff determines the format of r's data.
 func sniff(r reader) format {
 	for _, f := range formats {
-		s, err := r.Peek(len(f.magic))
-		if err == nil && string(s) == f.magic {
+		b, err := r.Peek(len(f.magic))
+		if err == nil && match(f.magic, b) {
 			return f
 		}
 	}
