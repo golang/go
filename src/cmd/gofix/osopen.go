@@ -71,7 +71,7 @@ func isCreateFlag(flag ast.Expr) bool {
 	foundCreate := false
 	foundTrunc := false
 	// OR'ing of flags: is O_CREATE on?  + or | would be fine; we just look for os.O_CREATE
-	// and don't worry about the actual opeator.
+	// and don't worry about the actual operator.
 	p := flag.Pos()
 	for {
 		lhs := flag
