@@ -47,8 +47,8 @@ Optional flags:
   -external: External package builder mode (will not report Go build
      state to dashboard, issue releases, or run benchmarks)
 
-The key file should be located at $HOME/.gobuilder or, for a builder-specific
-key, $HOME/.gobuilder-$BUILDER (eg, $HOME/.gobuilder-linux-amd64).
+The key file should be located at $HOME/.gobuildkey or, for a builder-specific
+key, $HOME/.gobuildkey-$BUILDER (eg, $HOME/.gobuildkey-linux-amd64).
 
 The build key file is a text file of the format:
 
