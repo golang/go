@@ -233,18 +233,18 @@ bench.dirs: $(addsuffix .bench, $(BENCH))
 
 %.install:
 	+@echo install $*
-	+@$(MAKE) -C $* install >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out; exit 1)
+	+@$(MAKE) -C $* install.clean >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out; exit 1)
 
 %.nuke:
 	+$(MAKE) -C $* nuke
 
 %.test:
 	+@echo test $*
-	+@$(MAKE) -C $* test >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
+	+@$(MAKE) -C $* test.clean >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
 
 %.testshort:
 	+@echo test $*
-	+@$(MAKE) -C $* testshort >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
+	+@$(MAKE) -C $* testshort.clean >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
 
 %.bench:
 	+$(MAKE) -C $* bench	
