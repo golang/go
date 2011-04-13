@@ -1100,7 +1100,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		if(v->type == D_REG) {
 			if(v->reg <= REGEXT && v->reg > exregoffset)
 				return 2;
-			if(v->reg == REGARG)
+			if(v->reg == (uchar)REGARG)
 				return 2;
 		}
 		if(v->type == D_FREG)
@@ -1118,7 +1118,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 
 	case ATEXT:	/* funny */
 		if(v->type == D_REG)
-			if(v->reg == REGARG)
+			if(v->reg == (uchar)REGARG)
 				return 3;
 		return 0;
 	}
