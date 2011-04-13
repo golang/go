@@ -269,7 +269,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 
 	p, _ := GetCurrentProcess()
 	fd := make([]int32, len(attr.Files))
-	for i, _ := range attr.Files {
+	for i := range attr.Files {
 		if attr.Files[i] > 0 {
 			err := DuplicateHandle(p, int32(attr.Files[i]), p, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
 			if err != 0 {

@@ -121,7 +121,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m.ocspStapling = rand.Intn(10) > 5
 	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
 	m.supportedCurves = make([]uint16, rand.Intn(5)+1)
-	for i, _ := range m.supportedCurves {
+	for i := range m.supportedCurves {
 		m.supportedCurves[i] = uint16(rand.Intn(30000))
 	}
 

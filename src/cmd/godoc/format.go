@@ -292,7 +292,7 @@ func rangeSelection(str string) Selection {
 		from, _ := strconv.Atoi(m[1])
 		to, _ := strconv.Atoi(m[2])
 		if from < to {
-			return makeSelection([][]int{[]int{from, to}})
+			return makeSelection([][]int{{from, to}})
 		}
 	}
 	return nil
