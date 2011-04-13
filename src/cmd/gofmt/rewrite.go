@@ -46,6 +46,16 @@ func parseExpr(s string, what string) ast.Expr {
 }
 
 
+// Keep this function for debugging.
+/*
+func dump(msg string, val reflect.Value) {
+	fmt.Printf("%s:\n", msg)
+	ast.Print(fset, val.Interface())
+	fmt.Println()
+}
+*/
+
+
 // rewriteFile applies the rewrite rule 'pattern -> replace' to an entire file.
 func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 	m := make(map[string]reflect.Value)
@@ -82,12 +92,29 @@ func setValue(x, y reflect.Value) {
 }
 
 
+// Values/types for special cases.
+var (
+	objectPtrNil = reflect.NewValue((*ast.Object)(nil))
+
+	identType     = reflect.Typeof((*ast.Ident)(nil))
+	objectPtrType = reflect.Typeof((*ast.Object)(nil))
+	positionType  = reflect.Typeof(token.NoPos)
+)
+
+
 // apply replaces each AST field x in val with f(x), returning val.
 // To avoid extra conversions, f operates on the reflect.Value form.
 func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value {
 	if !val.IsValid() {
 		return reflect.Value{}
 	}
+
+	// *ast.Objects introduce cycles and are likely incorrect after
+	// rewrite; don't follow them but replace with nil instead
+	if val.Type() == objectPtrType {
+		return objectPtrNil
+	}
+
 	switch v := reflect.Indirect(val); v.Kind() {
 	case reflect.Slice:
 		for i := 0; i < v.Len(); i++ {
@@ -105,10 +132,6 @@ func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value
 	}
 	return val
 }
-
-
-var positionType = reflect.Typeof(token.NoPos)
-var identType = reflect.Typeof((*ast.Ident)(nil))
 
 
 func isWildcard(s string) bool {
@@ -148,9 +171,6 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 
 	// Special cases.
 	switch pattern.Type() {
-	case positionType:
-		// token positions don't need to match
-		return true
 	case identType:
 		// For identifiers, only the names need to match
 		// (and none of the other *ast.Object information).
@@ -159,6 +179,9 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		p := pattern.Interface().(*ast.Ident)
 		v := val.Interface().(*ast.Ident)
 		return p == nil && v == nil || p != nil && v != nil && p.Name == v.Name
+	case objectPtrType, positionType:
+		// object pointers and token positions don't need to match
+		return true
 	}
 
 	p := reflect.Indirect(pattern)
@@ -169,7 +192,6 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 
 	switch p.Kind() {
 	case reflect.Slice:
-		v := v
 		if p.Len() != v.Len() {
 			return false
 		}
@@ -181,7 +203,6 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		return true
 
 	case reflect.Struct:
-		v := v
 		if p.NumField() != v.NumField() {
 			return false
 		}
@@ -193,7 +214,6 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		return true
 
 	case reflect.Interface:
-		v := v
 		return match(m, p.Elem(), v.Elem())
 	}
 
@@ -247,12 +267,16 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 
 	case reflect.Ptr:
 		v := reflect.Zero(p.Type())
-		v.Set(subst(m, p.Elem(), pos).Addr())
+		if elem := p.Elem(); elem.IsValid() {
+			v.Set(subst(m, elem, pos).Addr())
+		}
 		return v
 
 	case reflect.Interface:
 		v := reflect.Zero(p.Type())
-		v.Set(subst(m, p.Elem(), pos))
+		if elem := p.Elem(); elem.IsValid() {
+			v.Set(subst(m, elem, pos))
+		}
 		return v
 	}
 
