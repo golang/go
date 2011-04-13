@@ -90,7 +90,7 @@ prog:
 		$2.node = $3;
 		$2.node.dim[0] = 1;
 		if f != 0 {
-			Error("redefinition of %v", $2.name);
+			Errorf("redefinition of %v", $2.name);
 		} else
 		if vflag {
 			fmt.Printf("%v\t%v\n", $2.name, &$2.node);
@@ -106,7 +106,7 @@ prog:
 			}
 		}
 		if i >= Ndim {
-			Error("too many dimensions");
+			Errorf("too many dimensions");
 			i = Ndim-1;
 		}
 		fund[i] = $2;
@@ -116,7 +116,7 @@ prog:
 		$2.node.dim[0] = 1;
 		$2.node.dim[i] = 1;
 		if f != 0 {
-			Error("redefinition of %v", $2.name);
+			Errorf("redefinition of %v", $2.name);
 		} else
 		if vflag {
 			fmt.Printf("%v\t#\n", $2.name);
@@ -175,7 +175,7 @@ expr2:
 
 		for i=1; i<Ndim; i++ {
 			if $3.dim[i] != 0 {
-				Error("exponent has units");
+				Errorf("exponent has units");
 				$$ = $1;
 				break;
 			}
@@ -183,7 +183,7 @@ expr2:
 		if i >= Ndim {
 			i = int($3.vval);
 			if float64(i) != $3.vval {
-				Error("exponent not integral");
+				Errorf("exponent not integral");
 			}
 			xpn(&$$, &$1, i);
 		}
@@ -200,7 +200,7 @@ expr0:
 	VAR
 	{
 		if $1.node.dim[0] == 0 {
-			Error("undefined %v", $1.name);
+			Errorf("undefined %v", $1.name);
 			$$ = one;
 		} else
 			$$ = $1.node;
@@ -284,7 +284,7 @@ numb:
 }
 
 func (UnitsLex) Error(s string) {
-	Error("syntax error, last name: %v", sym)
+	Errorf("syntax error, last name: %v", sym)
 }
 
 func main() {
@@ -391,7 +391,7 @@ func rdigit(c int) bool {
 	return false
 }
 
-func Error(s string, v ...interface{}) {
+func Errorf(s string, v ...interface{}) {
 	fmt.Printf("%v: %v\n\t", lineno, line)
 	fmt.Printf(s, v...)
 	fmt.Printf("\n")
@@ -411,7 +411,7 @@ func add(c, a, b *Node) {
 		d = a.dim[i]
 		c.dim[i] = d
 		if d != b.dim[i] {
-			Error("add must be like units")
+			Errorf("add must be like units")
 		}
 	}
 	c.vval = fadd(a.vval, b.vval)
@@ -425,7 +425,7 @@ func sub(c, a, b *Node) {
 		d = a.dim[i]
 		c.dim[i] = d
 		if d != b.dim[i] {
-			Error("sub must be like units")
+			Errorf("sub must be like units")
 		}
 	}
 	c.vval = fadd(a.vval, -b.vval)
@@ -711,11 +711,11 @@ func fmul(a, b float64) float64 {
 	}
 
 	if l > Maxe {
-		Error("overflow in multiply")
+		Errorf("overflow in multiply")
 		return 1
 	}
 	if l < -Maxe {
-		Error("underflow in multiply")
+		Errorf("underflow in multiply")
 		return 0
 	}
 	return a * b
@@ -728,7 +728,7 @@ func fdiv(a, b float64) float64 {
 
 	if b <= 0 {
 		if b == 0 {
-			Error("division by zero: %v %v", a, b)
+			Errorf("division by zero: %v %v", a, b)
 			return 1
 		}
 		l = math.Log(-b)
@@ -746,11 +746,11 @@ func fdiv(a, b float64) float64 {
 	}
 
 	if l < -Maxe {
-		Error("overflow in divide")
+		Errorf("overflow in divide")
 		return 1
 	}
 	if l > Maxe {
-		Error("underflow in divide")
+		Errorf("underflow in divide")
 		return 0
 	}
 	return a / b

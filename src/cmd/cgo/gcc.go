@@ -79,7 +79,7 @@ NextLine:
 		l = strings.TrimSpace(l[4:])
 		fields := strings.Split(l, ":", 2)
 		if len(fields) != 2 {
-			fatal("%s: bad #cgo line: %s", srcfile, line)
+			fatalf("%s: bad #cgo line: %s", srcfile, line)
 		}
 
 		var k string
@@ -97,17 +97,17 @@ NextLine:
 				continue NextLine
 			}
 		default:
-			fatal("%s: bad #cgo option: %s", srcfile, fields[0])
+			fatalf("%s: bad #cgo option: %s", srcfile, fields[0])
 		}
 
 		if k != "CFLAGS" && k != "LDFLAGS" {
-			fatal("%s: unsupported #cgo option %s", srcfile, k)
+			fatalf("%s: unsupported #cgo option %s", srcfile, k)
 		}
 
 		v := strings.TrimSpace(fields[1])
 		args, err := splitQuoted(v)
 		if err != nil {
-			fatal("%s: bad #cgo option %s: %s", srcfile, k, err.String())
+			fatalf("%s: bad #cgo option %s: %s", srcfile, k, err.String())
 		}
 		if oldv, ok := p.CgoFlags[k]; ok {
 			p.CgoFlags[k] = oldv + " " + v
@@ -317,7 +317,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	b.WriteString("}\n")
 	stderr := p.gccErrors(b.Bytes())
 	if stderr == "" {
-		fatal("gcc produced no output\non input:\n%s", b.Bytes())
+		fatalf("gcc produced no output\non input:\n%s", b.Bytes())
 	}
 
 	names := make([]*Name, len(toSniff))
@@ -383,7 +383,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		error(token.NoPos, "could not determine kind of name for C.%s", n.Go)
 	}
 	if nerrors > 0 {
-		fatal("unresolved names")
+		fatalf("unresolved names")
 	}
 	return needType
 }
@@ -422,7 +422,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	for {
 		e, err := r.Next()
 		if err != nil {
-			fatal("reading DWARF entry: %s", err)
+			fatalf("reading DWARF entry: %s", err)
 		}
 		if e == nil {
 			break
@@ -433,7 +433,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			for {
 				e, err := r.Next()
 				if err != nil {
-					fatal("reading DWARF entry: %s", err)
+					fatalf("reading DWARF entry: %s", err)
 				}
 				if e.Tag == 0 {
 					break
@@ -452,27 +452,27 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			name, _ := e.Val(dwarf.AttrName).(string)
 			typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
 			if name == "" || typOff == 0 {
-				fatal("malformed DWARF TagVariable entry")
+				fatalf("malformed DWARF TagVariable entry")
 			}
 			if !strings.HasPrefix(name, "__cgo__") {
 				break
 			}
 			typ, err := d.Type(typOff)
 			if err != nil {
-				fatal("loading DWARF type: %s", err)
+				fatalf("loading DWARF type: %s", err)
 			}
 			t, ok := typ.(*dwarf.PtrType)
 			if !ok || t == nil {
-				fatal("internal error: %s has non-pointer type", name)
+				fatalf("internal error: %s has non-pointer type", name)
 			}
 			i, err := strconv.Atoi(name[7:])
 			if err != nil {
-				fatal("malformed __cgo__ name: %s", name)
+				fatalf("malformed __cgo__ name: %s", name)
 			}
 			if enums[i] != 0 {
 				t, err := d.Type(enums[i])
 				if err != nil {
-					fatal("loading DWARF type: %s", err)
+					fatalf("loading DWARF type: %s", err)
 				}
 				types[i] = t
 			} else {
@@ -632,14 +632,14 @@ func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
 	if f, err = elf.Open(gccTmp); err != nil {
 		if f, err = macho.Open(gccTmp); err != nil {
 			if f, err = pe.Open(gccTmp); err != nil {
-				fatal("cannot parse gcc output %s as ELF or Mach-O or PE object", gccTmp)
+				fatalf("cannot parse gcc output %s as ELF or Mach-O or PE object", gccTmp)
 			}
 		}
 	}
 
 	d, err := f.DWARF()
 	if err != nil {
-		fatal("cannot load DWARF debug information from %s: %s", gccTmp, err)
+		fatalf("cannot load DWARF debug information from %s: %s", gccTmp, err)
 	}
 	return d
 }
@@ -807,7 +807,7 @@ func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
 func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	if t, ok := c.m[dtype]; ok {
 		if t.Go == nil {
-			fatal("type conversion loop at %s", dtype)
+			fatalf("type conversion loop at %s", dtype)
 		}
 		return t
 	}
@@ -830,11 +830,11 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 
 	switch dt := dtype.(type) {
 	default:
-		fatal("unexpected type: %s", dtype)
+		fatalf("unexpected type: %s", dtype)
 
 	case *dwarf.AddrType:
 		if t.Size != c.ptrSize {
-			fatal("unexpected: %d-byte address type - %s", t.Size, dtype)
+			fatalf("unexpected: %d-byte address type - %s", t.Size, dtype)
 		}
 		t.Go = c.uintptr
 		t.Align = t.Size
@@ -860,7 +860,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 
 	case *dwarf.CharType:
 		if t.Size != 1 {
-			fatal("unexpected: %d-byte char type - %s", t.Size, dtype)
+			fatalf("unexpected: %d-byte char type - %s", t.Size, dtype)
 		}
 		t.Go = c.int8
 		t.Align = 1
@@ -880,7 +880,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		}
 		switch t.Size + int64(signed) {
 		default:
-			fatal("unexpected: %d-byte enum type - %s", t.Size, dtype)
+			fatalf("unexpected: %d-byte enum type - %s", t.Size, dtype)
 		case 1:
 			t.Go = c.uint8
 		case 2:
@@ -902,7 +902,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	case *dwarf.FloatType:
 		switch t.Size {
 		default:
-			fatal("unexpected: %d-byte float type - %s", t.Size, dtype)
+			fatalf("unexpected: %d-byte float type - %s", t.Size, dtype)
 		case 4:
 			t.Go = c.float32
 		case 8:
@@ -915,7 +915,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	case *dwarf.ComplexType:
 		switch t.Size {
 		default:
-			fatal("unexpected: %d-byte complex type - %s", t.Size, dtype)
+			fatalf("unexpected: %d-byte complex type - %s", t.Size, dtype)
 		case 8:
 			t.Go = c.complex64
 		case 16:
@@ -933,11 +933,11 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 
 	case *dwarf.IntType:
 		if dt.BitSize > 0 {
-			fatal("unexpected: %d-bit int type - %s", dt.BitSize, dtype)
+			fatalf("unexpected: %d-bit int type - %s", dt.BitSize, dtype)
 		}
 		switch t.Size {
 		default:
-			fatal("unexpected: %d-byte int type - %s", t.Size, dtype)
+			fatalf("unexpected: %d-byte int type - %s", t.Size, dtype)
 		case 1:
 			t.Go = c.int8
 		case 2:
@@ -1022,18 +1022,18 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 
 	case *dwarf.UcharType:
 		if t.Size != 1 {
-			fatal("unexpected: %d-byte uchar type - %s", t.Size, dtype)
+			fatalf("unexpected: %d-byte uchar type - %s", t.Size, dtype)
 		}
 		t.Go = c.uint8
 		t.Align = 1
 
 	case *dwarf.UintType:
 		if dt.BitSize > 0 {
-			fatal("unexpected: %d-bit uint type - %s", dt.BitSize, dtype)
+			fatalf("unexpected: %d-bit uint type - %s", dt.BitSize, dtype)
 		}
 		switch t.Size {
 		default:
-			fatal("unexpected: %d-byte uint type - %s", t.Size, dtype)
+			fatalf("unexpected: %d-byte uint type - %s", t.Size, dtype)
 		case 1:
 			t.Go = c.uint8
 		case 2:
@@ -1067,7 +1067,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	}
 
 	if t.C.Empty() {
-		fatal("internal error: did not create C name for %s", dtype)
+		fatalf("internal error: did not create C name for %s", dtype)
 	}
 
 	return t
@@ -1229,7 +1229,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 		off = dt.ByteSize
 	}
 	if off != dt.ByteSize {
-		fatal("struct size calculation error")
+		fatalf("struct size calculation error")
 	}
 	buf.WriteString("}")
 	csyntax = buf.String()

@@ -30,7 +30,7 @@ func parse(name string, flags uint) *ast.File {
 			}
 			os.Exit(2)
 		}
-		fatal("parsing %s: %s", name, err)
+		fatalf("parsing %s: %s", name, err)
 	}
 	return ast1
 }

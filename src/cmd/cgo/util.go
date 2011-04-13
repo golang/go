@@ -18,23 +18,23 @@ import (
 func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	cmd, err := exec.LookPath(argv[0])
 	if err != nil {
-		fatal("exec %s: %s", argv[0], err)
+		fatalf("exec %s: %s", argv[0], err)
 	}
 	r0, w0, err := os.Pipe()
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	r1, w1, err := os.Pipe()
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	r2, w2, err := os.Pipe()
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	p, err := os.StartProcess(cmd, argv, &os.ProcAttr{Files: []*os.File{r0, w1, w2}})
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	defer p.Release()
 	r0.Close()
@@ -58,14 +58,14 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 
 	w, err := p.Wait(0)
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	ok = w.Exited() && w.ExitStatus() == 0
 	return
 }
 
 // Die with an error message.
-func fatal(msg string, args ...interface{}) {
+func fatalf(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 	os.Exit(2)
 }
@@ -97,7 +97,7 @@ func isName(s string) bool {
 func creat(name string) *os.File {
 	f, err := os.Create(name)
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	return f
 }

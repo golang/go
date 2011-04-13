@@ -105,7 +105,7 @@ func dynimport(obj string) (syms, imports []string) {
 	if f, err1 = elf.Open(obj); err1 != nil {
 		if f, err2 = pe.Open(obj); err2 != nil {
 			if f, err3 = macho.Open(obj); err3 != nil {
-				fatal("cannot parse %s as ELF (%v) or PE (%v) or Mach-O (%v)", obj, err1, err2, err3)
+				fatalf("cannot parse %s as ELF (%v) or PE (%v) or Mach-O (%v)", obj, err1, err2, err3)
 			}
 			isMacho = true
 		}
@@ -114,7 +114,7 @@ func dynimport(obj string) (syms, imports []string) {
 	var err os.Error
 	syms, err = f.ImportedSymbols()
 	if err != nil {
-		fatal("cannot load dynamic symbols: %v", err)
+		fatalf("cannot load dynamic symbols: %v", err)
 	}
 	if isMacho {
 		// remove leading _ that OS X insists on
@@ -127,7 +127,7 @@ func dynimport(obj string) (syms, imports []string) {
 
 	imports, err = f.ImportedLibraries()
 	if err != nil {
-		fatal("cannot load dynamic imports: %v", err)
+		fatalf("cannot load dynamic imports: %v", err)
 	}
 
 	return

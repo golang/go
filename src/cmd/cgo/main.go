@@ -177,11 +177,11 @@ func main() {
 
 	arch := os.Getenv("GOARCH")
 	if arch == "" {
-		fatal("$GOARCH is not set")
+		fatalf("$GOARCH is not set")
 	}
 	ptrSize := ptrSizeMap[arch]
 	if ptrSize == 0 {
-		fatal("unknown $GOARCH %q", arch)
+		fatalf("unknown $GOARCH %q", arch)
 	}
 
 	// Clear locale variables so gcc emits English errors [sic].
@@ -205,7 +205,7 @@ func main() {
 	for _, input := range goFiles {
 		f, err := os.Open(input)
 		if err != nil {
-			fatal("%s", err)
+			fatalf("%s", err)
 		}
 		io.Copy(h, f)
 		f.Close()

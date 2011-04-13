@@ -382,7 +382,7 @@ outer:
 	for {
 		switch t {
 		default:
-			error("syntax error tok=%v", t-PRIVATE)
+			errorf("syntax error tok=%v", t-PRIVATE)
 
 		case MARK, ENDFILE:
 			break outer
@@ -392,14 +392,14 @@ outer:
 		case START:
 			t = gettok()
 			if t != IDENTIFIER {
-				error("bad %%start construction")
+				errorf("bad %%start construction")
 			}
 			start = chfind(1, tokname)
 
 		case TYPEDEF:
 			t = gettok()
 			if t != TYPENAME {
-				error("bad syntax in %%type")
+				errorf("bad syntax in %%type")
 			}
 			ty = numbval
 			for {
@@ -410,7 +410,7 @@ outer:
 					if t < NTBASE {
 						j = TYPE(toklev[t])
 						if j != 0 && j != ty {
-							error("type redeclaration of token ",
+							errorf("type redeclaration of token ",
 								tokset[t].name)
 						} else {
 							toklev[t] = SETTYPE(toklev[t], ty)
@@ -418,7 +418,7 @@ outer:
 					} else {
 						j = nontrst[t-NTBASE].value
 						if j != 0 && j != ty {
-							error("type redeclaration of nonterminal %v",
+							errorf("type redeclaration of nonterminal %v",
 								nontrst[t-NTBASE].name)
 						} else {
 							nontrst[t-NTBASE].value = ty
@@ -464,18 +464,18 @@ outer:
 				case IDENTIFIER:
 					j = chfind(0, tokname)
 					if j >= NTBASE {
-						error("%v defined earlier as nonterminal", tokname)
+						errorf("%v defined earlier as nonterminal", tokname)
 					}
 					if lev != 0 {
 						if ASSOC(toklev[j]) != 0 {
-							error("redeclaration of precedence of %v", tokname)
+							errorf("redeclaration of precedence of %v", tokname)
 						}
 						toklev[j] = SETASC(toklev[j], lev)
 						toklev[j] = SETPLEV(toklev[j], i)
 					}
 					if ty != 0 {
 						if TYPE(toklev[j]) != 0 {
-							error("redeclaration of type of %v", tokname)
+							errorf("redeclaration of type of %v", tokname)
 						}
 						toklev[j] = SETTYPE(toklev[j], ty)
 					}
@@ -498,7 +498,7 @@ outer:
 	}
 
 	if t == ENDFILE {
-		error("unexpected EOF before %%")
+		errorf("unexpected EOF before %%")
 	}
 
 	// put out non-literal terminals
@@ -533,7 +533,7 @@ outer:
 	curprod := make([]int, RULEINC)
 	t = gettok()
 	if t != IDENTCOLON {
-		error("bad syntax on first rule")
+		errorf("bad syntax on first rule")
 	}
 
 	if start == 0 {
@@ -557,11 +557,11 @@ outer:
 		} else if t == IDENTCOLON {
 			curprod[mem] = chfind(1, tokname)
 			if curprod[mem] < NTBASE {
-				error("token illegal on LHS of grammar rule")
+				errorf("token illegal on LHS of grammar rule")
 			}
 			mem++
 		} else {
-			error("illegal rule: missing semicolon or | ?")
+			errorf("illegal rule: missing semicolon or | ?")
 		}
 
 		// read rule body
@@ -582,11 +582,11 @@ outer:
 			}
 			if t == PREC {
 				if gettok() != IDENTIFIER {
-					error("illegal %%prec syntax")
+					errorf("illegal %%prec syntax")
 				}
 				j = chfind(2, tokname)
 				if j >= NTBASE {
-					error("nonterminal " + nontrst[j-NTBASE].name + " illegal after %%prec")
+					errorf("nonterminal " + nontrst[j-NTBASE].name + " illegal after %%prec")
 				}
 				levprd[nprod] = toklev[j]
 				t = gettok()
@@ -642,7 +642,7 @@ outer:
 			// no explicit action, LHS has value
 			tempty := curprod[1]
 			if tempty < 0 {
-				error("must return a value, since LHS has a type")
+				errorf("must return a value, since LHS has a type")
 			}
 			if tempty >= NTBASE {
 				tempty = nontrst[tempty-NTBASE].value
@@ -650,7 +650,7 @@ outer:
 				tempty = TYPE(toklev[tempty])
 			}
 			if tempty != nontrst[curprod[0]-NTBASE].value {
-				error("default action causes potential type clash")
+				errorf("default action causes potential type clash")
 			}
 			fmt.Fprintf(fcode, "\ncase %v:", nprod)
 			fmt.Fprintf(fcode, "\n\t%sVAL.%v = %sS[%spt-0].%v;",
@@ -773,7 +773,7 @@ func defin(nt int, s string) int {
 			case 'v':
 				val = '\v'
 			default:
-				error("invalid escape %v", s[1:3])
+				errorf("invalid escape %v", s[1:3])
 			}
 		} else if s[2] == 'u' && len(s) == 2+1+4 { // \unnnn sequence
 			val = 0
@@ -788,16 +788,16 @@ func defin(nt int, s string) int {
 				case c >= 'A' && c <= 'F':
 					c -= 'A' - 10
 				default:
-					error("illegal \\unnnn construction")
+					errorf("illegal \\unnnn construction")
 				}
 				val = val*16 + c
 				s = s[1:]
 			}
 			if val == 0 {
-				error("'\\u0000' is illegal")
+				errorf("'\\u0000' is illegal")
 			}
 		} else {
-			error("unknown escape")
+			errorf("unknown escape")
 		}
 	} else {
 		val = extval
@@ -855,7 +855,7 @@ func gettok() int {
 		}
 
 		if c != '>' {
-			error("unterminated < ... > clause")
+			errorf("unterminated < ... > clause")
 		}
 
 		for i = 1; i <= ntypes; i++ {
@@ -881,7 +881,7 @@ func gettok() int {
 		for {
 			c = getrune(finput)
 			if c == '\n' || c == EOF {
-				error("illegal or missing ' or \"")
+				errorf("illegal or missing ' or \"")
 			}
 			if c == '\\' {
 				tokname += string('\\')
@@ -926,7 +926,7 @@ func gettok() int {
 				return resrv[c].value
 			}
 		}
-		error("invalid escape, or illegal reserved word: %v", tokname)
+		errorf("invalid escape, or illegal reserved word: %v", tokname)
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		numbval = c - '0'
@@ -1004,7 +1004,7 @@ func fdtype(t int) int {
 		s = tokset[t].name
 	}
 	if v <= 0 {
-		error("must specify type for %v", s)
+		errorf("must specify type for %v", s)
 	}
 	return v
 }
@@ -1026,7 +1026,7 @@ func chfind(t int, s string) int {
 
 	// cannot find name
 	if t > 1 {
-		error("%v should have been defined earlier", s)
+		errorf("%v should have been defined earlier", s)
 	}
 	return defin(t, s)
 }
@@ -1047,7 +1047,7 @@ out:
 	for {
 		c := getrune(finput)
 		if c == EOF {
-			error("EOF encountered while processing %%union")
+			errorf("EOF encountered while processing %%union")
 		}
 		ftable.WriteRune(c)
 		switch c {
@@ -1097,7 +1097,7 @@ func cpycode() {
 		c = getrune(finput)
 	}
 	lineno = lno
-	error("eof before %%}")
+	errorf("eof before %%}")
 }
 
 //
@@ -1115,11 +1115,11 @@ func skipcom() int {
 			}
 			c = getrune(finput)
 		}
-		error("EOF inside comment")
+		errorf("EOF inside comment")
 		return 0
 	}
 	if c != '*' {
-		error("illegal comment")
+		errorf("illegal comment")
 	}
 
 	nl := 0 // lines skipped
@@ -1196,7 +1196,7 @@ loop:
 			if c == '<' {
 				ungetrune(finput, c)
 				if gettok() != TYPENAME {
-					error("bad syntax on $<ident> clause")
+					errorf("bad syntax on $<ident> clause")
 				}
 				tok = numbval
 				c = getrune(finput)
@@ -1226,13 +1226,13 @@ loop:
 				ungetrune(finput, c)
 				j = j * s
 				if j >= max {
-					error("Illegal use of $%v", j)
+					errorf("Illegal use of $%v", j)
 				}
 			} else if isword(c) || c == '_' || c == '.' {
 				// look for $name
 				ungetrune(finput, c)
 				if gettok() != IDENTIFIER {
-					error("$ must be followed by an identifier")
+					errorf("$ must be followed by an identifier")
 				}
 				tokn := chfind(2, tokname)
 				fnd := -1
@@ -1240,7 +1240,7 @@ loop:
 				if c != '@' {
 					ungetrune(finput, c)
 				} else if gettok() != NUMBER {
-					error("@ must be followed by number")
+					errorf("@ must be followed by number")
 				} else {
 					fnd = numbval
 				}
@@ -1253,7 +1253,7 @@ loop:
 					}
 				}
 				if j >= max {
-					error("$name or $name@number not found")
+					errorf("$name or $name@number not found")
 				}
 			} else {
 				fcode.WriteRune('$')
@@ -1268,7 +1268,7 @@ loop:
 			// put out the proper tag
 			if ntypes != 0 {
 				if j <= 0 && tok < 0 {
-					error("must specify type of $%v", j)
+					errorf("must specify type of $%v", j)
 				}
 				if tok < 0 {
 					tok = fdtype(curprod[j])
@@ -1315,7 +1315,7 @@ loop:
 				fcode.WriteRune(c)
 				c = getrune(finput)
 			}
-			error("EOF inside comment")
+			errorf("EOF inside comment")
 
 		case '\'', '"':
 			// character string or constant
@@ -1333,16 +1333,16 @@ loop:
 					break swt
 				}
 				if c == '\n' {
-					error("newline in string or char const")
+					errorf("newline in string or char const")
 				}
 				fcode.WriteRune(c)
 				c = getrune(finput)
 			}
-			error("EOF in string or character constant")
+			errorf("EOF in string or character constant")
 
 		case EOF:
 			lineno = lno
-			error("action does not terminate")
+			errorf("action does not terminate")
 
 		case '\n':
 			lineno++
@@ -1356,14 +1356,14 @@ func openup() {
 	infile = flag.Arg(0)
 	finput = open(infile)
 	if finput == nil {
-		error("cannot open %v", infile)
+		errorf("cannot open %v", infile)
 	}
 
 	foutput = nil
 	if vflag != "" {
 		foutput = create(vflag)
 		if foutput == nil {
-			error("can't create file %v", vflag)
+			errorf("can't create file %v", vflag)
 		}
 	}
 
@@ -1373,7 +1373,7 @@ func openup() {
 	}
 	ftable = create(oflag)
 	if ftable == nil {
-		error("can't create file %v", oflag)
+		errorf("can't create file %v", oflag)
 	}
 
 }
@@ -1433,7 +1433,7 @@ func cpres() {
 			}
 		}
 		if n == 0 {
-			error("nonterminal %v not defined", nontrst[i].name)
+			errorf("nonterminal %v not defined", nontrst[i].name)
 			continue
 		}
 		pres[i] = make([][]int, n)
@@ -1506,7 +1506,7 @@ more:
 		}
 		if pempty[i] != OK {
 			fatfl = 0
-			error("nonterminal " + nontrst[i].name + " never derives any token string")
+			errorf("nonterminal " + nontrst[i].name + " never derives any token string")
 		}
 	}
 
@@ -1921,11 +1921,11 @@ look:
 	// state is new
 	zznewstate++
 	if nolook != 0 {
-		error("yacc state/nolook error")
+		errorf("yacc state/nolook error")
 	}
 	pstate[nstate+2] = p2
 	if nstate+1 >= NSTATES {
-		error("too many states")
+		errorf("too many states")
 	}
 	if c >= NTBASE {
 		mstates[nstate] = ntstates[c-NTBASE]
@@ -2061,7 +2061,7 @@ nextk:
 		}
 		return off + rr
 	}
-	error("no space in action table")
+	errorf("no space in action table")
 	return 0
 }
 
@@ -2623,7 +2623,7 @@ nextgp:
 			if s > maxa {
 				maxa = s
 				if maxa >= ACTSIZE {
-					error("a array overflow")
+					errorf("a array overflow")
 				}
 			}
 			if amem[s] != 0 {
@@ -2646,7 +2646,7 @@ nextgp:
 		}
 		return
 	}
-	error("cannot place goto %v\n", i)
+	errorf("cannot place goto %v\n", i)
 }
 
 func stin(i int) {
@@ -2705,7 +2705,7 @@ nextn:
 				maxa = s
 			}
 			if amem[s] != 0 && amem[s] != q[r+1] {
-				error("clobber of a array, pos'n %v, by %v", s, q[r+1])
+				errorf("clobber of a array, pos'n %v, by %v", s, q[r+1])
 			}
 			amem[s] = q[r+1]
 		}
@@ -2715,7 +2715,7 @@ nextn:
 		}
 		return
 	}
-	error("Error; failure to place state %v", i)
+	errorf("Error; failure to place state %v", i)
 }
 
 //
@@ -3014,7 +3014,7 @@ func getrune(f *bufio.Reader) int {
 		return EOF
 	}
 	if err != nil {
-		error("read error: %v", err)
+		errorf("read error: %v", err)
 	}
 	//fmt.Printf("rune = %v n=%v\n", string(c), n);
 	return c
@@ -3038,7 +3038,7 @@ func write(f *bufio.Writer, b []byte, n int) int {
 func open(s string) *bufio.Reader {
 	fi, err := os.Open(s)
 	if err != nil {
-		error("error opening %v: %v", s, err)
+		errorf("error opening %v: %v", s, err)
 	}
 	//fmt.Printf("open %v\n", s);
 	return bufio.NewReader(fi)
@@ -3047,7 +3047,7 @@ func open(s string) *bufio.Reader {
 func create(s string) *bufio.Writer {
 	fo, err := os.Create(s)
 	if err != nil {
-		error("error creating %v: %v", s, err)
+		errorf("error creating %v: %v", s, err)
 	}
 	//fmt.Printf("create %v mode %v\n", s);
 	return bufio.NewWriter(fo)
@@ -3056,7 +3056,7 @@ func create(s string) *bufio.Writer {
 //
 // write out error comment
 //
-func error(s string, v ...interface{}) {
+func errorf(s string, v ...interface{}) {
 	nerrors++
 	fmt.Fprintf(stderr, s, v...)
 	fmt.Fprintf(stderr, ": %v:%v\n", infile, lineno)
