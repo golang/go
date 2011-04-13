@@ -136,6 +136,10 @@ type WriterTo interface {
 // At the end of the input stream, ReadAt returns 0, os.EOF.
 // ReadAt may return a non-zero number of bytes with a non-nil err.
 // In particular, a ReadAt that exhausts the input may return n > 0, os.EOF.
+//
+// If ReadAt is reading from an data stream with a seek offset,
+// ReadAt should not affect nor be affected by the underlying
+// seek offset.
 type ReaderAt interface {
 	ReadAt(p []byte, off int64) (n int, err os.Error)
 }
