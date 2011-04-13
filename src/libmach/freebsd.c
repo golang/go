@@ -8,24 +8,28 @@ int
 ctlproc(int pid, char *msg)
 {
 	sysfatal("ctlproc unimplemented in FreeBSD");
+	return -1;
 }
 
 char*
 proctextfile(int pid)
 {
 	sysfatal("proctextfile unimplemented in FreeBSD");
+	return nil;
 }
 
 char*
 procstatus(int pid)
 {
 	sysfatal("procstatus unimplemented in FreeBSD");
+	return nil;
 }
 
 Map*
 attachproc(int pid, Fhdr *fp)
 {
 	sysfatal("attachproc unimplemented in FreeBSD");
+	return nil;
 }
 
 void
@@ -38,4 +42,5 @@ int
 procthreadpids(int pid, int *p, int np)
 {
 	sysfatal("procthreadpids unimplemented in FreeBSD");
+	return -1;
 }
