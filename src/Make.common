@@ -5,6 +5,15 @@
 clean:
 	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
 
+install.clean: install
+	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+
+test.clean: test
+	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+
+testshort.clean: testshort
+	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+
 %.make:
 	$(MAKE) -C $* install
 
