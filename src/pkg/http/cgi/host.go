@@ -15,8 +15,8 @@
 package cgi
 
 import (
+	"bufio"
 	"bytes"
-	"encoding/line"
 	"exec"
 	"fmt"
 	"http"
@@ -142,7 +142,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		go io.Copy(cmd.Stdin, req.Body)
 	}
 
-	linebody := line.NewReader(cmd.Stdout, 1024)
+	linebody, _ := bufio.NewReaderSize(cmd.Stdout, 1024)
 	headers := rw.Header()
 	statusCode := http.StatusOK
 	for {

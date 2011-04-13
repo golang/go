@@ -282,6 +282,33 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 	panic("not reached")
 }
 
+// ReadLine tries to return a single line, not including the end-of-line bytes.
+// If the line was too long for the buffer then isPrefix is set and the
+// beginning of the line is returned. The rest of the line will be returned
+// from future calls. isPrefix will be false when returning the last fragment
+// of the line. The returned buffer is only valid until the next call to
+// ReadLine. ReadLine either returns a non-nil line or it returns an error,
+// never both.
+func (b *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
+	line, err = b.ReadSlice('\n')
+	if err == ErrBufferFull {
+		return line, true, nil
+	}
+
+	if len(line) == 0 {
+		return
+	}
+	err = nil
+
+	if line[len(line)-1] == '\n' {
+		line = line[:len(line)-1]
+	}
+	if len(line) > 0 && line[len(line)-1] == '\r' {
+		line = line[:len(line)-1]
+	}
+	return
+}
+
 // ReadBytes reads until the first occurrence of delim in the input,
 // returning a slice containing the data up to and including the delimiter.
 // If ReadBytes encounters an error before finding a delimiter,
