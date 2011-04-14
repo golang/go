@@ -588,7 +588,7 @@ func TestServerExpect(t *testing.T) {
 		sendf := func(format string, args ...interface{}) {
 			_, err := fmt.Fprintf(conn, format, args...)
 			if err != nil {
-				t.Fatalf("Error writing %q: %v", format, err)
+				t.Fatalf("On test %#v, error writing %q: %v", test, format, err)
 			}
 		}
 		go func() {
@@ -614,5 +614,51 @@ func TestServerExpect(t *testing.T) {
 
 	for _, test := range serverExpectTests {
 		runTest(test)
+	}
+}
+
+func TestServerConsumesRequestBody(t *testing.T) {
+	log := make(chan string, 100)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		log <- "got_request"
+		w.WriteHeader(StatusOK)
+		log <- "wrote_header"
+	}))
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close()
+
+	bufr := bufio.NewReader(conn)
+	gotres := make(chan bool)
+	go func() {
+		line, err := bufr.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		log <- line
+		gotres <- true
+	}()
+
+	size := 1 << 20
+	log <- "writing_request"
+	fmt.Fprintf(conn, "POST / HTTP/1.0\r\nContent-Length: %d\r\n\r\n", size)
+	time.Sleep(25e6) // give server chance to misbehave & speak out of turn
+	log <- "slept_after_req_headers"
+	conn.Write([]byte(strings.Repeat("a", size)))
+
+	<-gotres
+	expected := []string{
+		"writing_request", "got_request",
+		"slept_after_req_headers", "wrote_header",
+		"HTTP/1.0 200 OK\r\n"}
+	for step, e := range expected {
+		if g := <-log; e != g {
+			t.Errorf("on step %d expected %q, got %q", step, e, g)
+		}
 	}
 }

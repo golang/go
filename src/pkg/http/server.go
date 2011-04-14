@@ -141,9 +141,13 @@ func newConn(rwc net.Conn, handler Handler) (c *conn, err os.Error) {
 type expectContinueReader struct {
 	resp       *response
 	readCloser io.ReadCloser
+	closed     bool
 }
 
 func (ecr *expectContinueReader) Read(p []byte) (n int, err os.Error) {
+	if ecr.closed {
+		return 0, os.NewError("http: Read after Close on request Body")
+	}
 	if !ecr.resp.wroteContinue && !ecr.resp.conn.hijacked {
 		ecr.resp.wroteContinue = true
 		io.WriteString(ecr.resp.conn.buf, "HTTP/1.1 100 Continue\r\n\r\n")
@@ -153,6 +157,7 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err os.Error) {
 }
 
 func (ecr *expectContinueReader) Close() os.Error {
+	ecr.closed = true
 	return ecr.readCloser.Close()
 }
 
@@ -196,6 +201,16 @@ func (w *response) WriteHeader(code int) {
 		log.Print("http: multiple response.WriteHeader calls")
 		return
 	}
+
+	// Per RFC 2616, we should consume the request body before
+	// replying, if the handler hasn't already done so.
+	if w.req.ContentLength != 0 {
+		ecr, isExpecter := w.req.Body.(*expectContinueReader)
+		if !isExpecter || ecr.resp.wroteContinue {
+			w.req.Body.Close()
+		}
+	}
+
 	w.wroteHeader = true
 	w.status = code
 	if code == StatusNotModified {
