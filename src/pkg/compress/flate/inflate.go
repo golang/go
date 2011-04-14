@@ -526,6 +526,20 @@ func (f *decompressor) dataBlock() os.Error {
 	return nil
 }
 
+func (f *decompressor) setDict(dict []byte) {
+	if len(dict) > len(f.hist) {
+		// Will only remember the tail.
+		dict = dict[len(dict)-len(f.hist):]
+	}
+
+	f.hp = copy(f.hist[:], dict)
+	if f.hp == len(f.hist) {
+		f.hp = 0
+		f.hfull = true
+	}
+	f.hw = f.hp
+}
+
 func (f *decompressor) moreBits() os.Error {
 	c, err := f.r.ReadByte()
 	if err != nil {
@@ -614,6 +628,19 @@ func (f *decompressor) decompress(r io.Reader, w io.Writer) os.Error {
 // finished reading.
 func NewReader(r io.Reader) io.ReadCloser {
 	var f decompressor
+	pr, pw := io.Pipe()
+	go func() { pw.CloseWithError(f.decompress(r, pw)) }()
+	return pr
+}
+
+// NewReaderDict is like NewReader but initializes the reader
+// with a preset dictionary.  The returned Reader behaves as if
+// the uncompressed data stream started with the given dictionary,
+// which has already been read.  NewReaderDict is typically used
+// to read data compressed by NewWriterDict.
+func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
+	var f decompressor
+	f.setDict(dict)
 	pr, pw := io.Pipe()
 	go func() { pw.CloseWithError(f.decompress(r, pw)) }()
 	return pr
