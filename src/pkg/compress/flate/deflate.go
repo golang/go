@@ -477,6 +477,33 @@ func NewWriter(w io.Writer, level int) *Writer {
 	return &Writer{pw, &d}
 }
 
+// NewWriterDict is like NewWriter but initializes the new
+// Writer with a preset dictionary.  The returned Writer behaves
+// as if the dictionary had been written to it without producing
+// any compressed output.  The compressed data written to w
+// can only be decompressed by a Reader initialized with the
+// same dictionary.
+func NewWriterDict(w io.Writer, level int, dict []byte) *Writer {
+	dw := &dictWriter{w, false}
+	zw := NewWriter(dw, level)
+	zw.Write(dict)
+	zw.Flush()
+	dw.enabled = true
+	return zw
+}
+
+type dictWriter struct {
+	w       io.Writer
+	enabled bool
+}
+
+func (w *dictWriter) Write(b []byte) (n int, err os.Error) {
+	if w.enabled {
+		return w.w.Write(b)
+	}
+	return len(b), nil
+}
+
 // A Writer takes data written to it and writes the compressed
 // form of that data to an underlying writer (see NewWriter).
 type Writer struct {

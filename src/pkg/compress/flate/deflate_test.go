@@ -275,3 +275,49 @@ func TestDeflateInflateString(t *testing.T) {
 	}
 	testToFromWithLevel(t, 1, gold, "2.718281828...")
 }
+
+func TestReaderDict(t *testing.T) {
+	const (
+		dict = "hello world"
+		text = "hello again world"
+	)
+	var b bytes.Buffer
+	w := NewWriter(&b, 5)
+	w.Write([]byte(dict))
+	w.Flush()
+	b.Reset()
+	w.Write([]byte(text))
+	w.Close()
+
+	r := NewReaderDict(&b, []byte(dict))
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "hello again world" {
+		t.Fatalf("read returned %q want %q", string(data), text)
+	}
+}
+
+func TestWriterDict(t *testing.T) {
+	const (
+		dict = "hello world"
+		text = "hello again world"
+	)
+	var b bytes.Buffer
+	w := NewWriter(&b, 5)
+	w.Write([]byte(dict))
+	w.Flush()
+	b.Reset()
+	w.Write([]byte(text))
+	w.Close()
+
+	var b1 bytes.Buffer
+	w = NewWriterDict(&b1, 5, []byte(dict))
+	w.Write([]byte(text))
+	w.Close()
+
+	if !bytes.Equal(b1.Bytes(), b.Bytes()) {
+		t.Fatalf("writer wrote %q want %q", b1.Bytes(), b.Bytes())
+	}
+}
