@@ -37,9 +37,8 @@ THE SOFTWARE.
 int
 p9create(char *path, int mode, ulong perm)
 {
-	int fd, umode, rclose, rdwr;
+	int fd, umode, rclose;
 
-	rdwr = mode&3;
 	rclose = mode&ORCLOSE;
 	mode &= ~ORCLOSE;
 
