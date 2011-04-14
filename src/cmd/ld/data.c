@@ -878,7 +878,7 @@ textaddress(void)
 void
 address(void)
 {
-	Section *s, *text, *data, *rodata, *bss;
+	Section *s, *text, *data, *rodata;
 	Sym *sym, *sub;
 	uvlong va;
 
@@ -913,7 +913,6 @@ address(void)
 	text = segtext.sect;
 	rodata = segtext.sect->next;
 	data = segdata.sect;
-	bss = segdata.sect->next;
 
 	for(sym = datap; sym != nil; sym = sym->next) {
 		cursym = sym;

@@ -660,12 +660,10 @@ nodbool(int b)
 Type*
 aindex(Node *b, Type *t)
 {
-	NodeList *init;
 	Type *r;
 	int bound;
 
 	bound = -1;	// open bound
-	init = nil;
 	typecheck(&b, Erv);
 	if(b != nil) {
 		switch(consttype(b)) {
@@ -1728,17 +1726,13 @@ isideal(Type *t)
 Type*
 methtype(Type *t)
 {
-	int ptr;
-
 	if(t == T)
 		return T;
 
 	// strip away pointer if it's there
-	ptr = 0;
 	if(isptr[t->etype]) {
 		if(t->sym != S)
 			return T;
-		ptr = 1;
 		t = t->type;
 		if(t == T)
 			return T;

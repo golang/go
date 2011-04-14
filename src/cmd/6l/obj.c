@@ -389,7 +389,7 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
 	vlong ipc;
 	Prog *p;
 	int v, o, r, skip, mode;
-	Sym *h[NSYM], *s, *di;
+	Sym *h[NSYM], *s;
 	uint32 sig;
 	char *name, *x;
 	int ntext;
@@ -400,7 +400,6 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
 	lastp = nil;
 	ntext = 0;
 	eof = Boffset(f) + len;
-	di = S;
 	src[0] = 0;
 
 newloop:

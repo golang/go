@@ -319,7 +319,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	char *name;
 	int i, j, rela, is64, n;
 	uchar hdrbuf[64];
-	uchar *p, *dp;
+	uchar *p;
 	ElfHdrBytes *hdr;
 	ElfObj *obj;
 	ElfSect *sect, *rsect;
@@ -561,7 +561,6 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		n = rsect->size/(4+4*is64)/(2+rela);
 		r = mal(n*sizeof r[0]);
 		p = rsect->base;
-		dp = sect->base;
 		for(j=0; j<n; j++) {
 			add = 0;
 			rp = &r[j];

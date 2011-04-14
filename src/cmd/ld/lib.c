@@ -1033,7 +1033,7 @@ mkfwd(void)
 	Prog *p;
 	int i;
 	int32 dwn[LOG], cnt[LOG];
-	Prog *lst[LOG], *last;
+	Prog *lst[LOG];
 
 	for(i=0; i<LOG; i++) {
 		if(i == 0)
@@ -1044,7 +1044,6 @@ mkfwd(void)
 		lst[i] = P;
 	}
 	i = 0;
-	last = nil;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
 			if(p->link == P) {

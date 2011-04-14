@@ -197,7 +197,6 @@ Node*
 walkdef(Node *n)
 {
 	int lno;
-	NodeList *init;
 	Node *e;
 	Type *t;
 	NodeList *l;
@@ -236,7 +235,6 @@ walkdef(Node *n)
 	if(n->type != T || n->sym == S)	// builtin or no name
 		goto ret;
 
-	init = nil;
 	switch(n->op) {
 	default:
 		fatal("walkdef %O", n->op);
@@ -380,14 +378,13 @@ walkstmt(Node **np)
 {
 	NodeList *init;
 	NodeList *ll, *rl;
-	int cl, lno;
+	int cl;
 	Node *n, *f;
 
 	n = *np;
 	if(n == N)
 		return;
 
-	lno = lineno;
 	setlineno(n);
 
 	switch(n->op) {

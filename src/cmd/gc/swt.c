@@ -250,7 +250,7 @@ newlabel(void)
 static void
 casebody(Node *sw, Node *typeswvar)
 {
-	Node *os, *oc, *n, *c, *last;
+	Node *n, *c, *last;
 	Node *def;
 	NodeList *cas, *stat, *l, *lc;
 	Node *go, *br;
@@ -263,8 +263,6 @@ casebody(Node *sw, Node *typeswvar)
 	cas = nil;	// cases
 	stat = nil;	// statements
 	def = N;	// defaults
-	os = N;		// last statement
-	oc = N;		// last case
 	br = nod(OBREAK, N, N);
 
 	for(l=sw->list; l; l=l->next) {
