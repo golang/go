@@ -378,7 +378,7 @@ func writeTestmainGo() {
 		fmt.Fprintf(b, "import %q\n", "./_xtest_")
 	}
 	fmt.Fprintf(b, "import %q\n", "testing")
-	fmt.Fprintf(b, "import __os__     %q\n", "os")     // rename in case tested package is called os
+	fmt.Fprintf(b, "import __os__ %q\n", "os")         // rename in case tested package is called os
 	fmt.Fprintf(b, "import __regexp__ %q\n", "regexp") // rename in case tested package is called regexp
 	fmt.Fprintln(b)                                    // for gofmt
 
@@ -393,7 +393,7 @@ func writeTestmainGo() {
 	fmt.Fprintln(b)
 
 	// Benchmarks.
-	fmt.Fprintln(b, "var benchmarks = []testing.InternalBenchmark{")
+	fmt.Fprintf(b, "var benchmarks = []testing.InternalBenchmark{")
 	for _, f := range files {
 		for _, bm := range f.benchmarks {
 			fmt.Fprintf(b, "\t{\"%s.%s\", %s.%s},\n", f.pkg, bm, notMain(f.pkg), bm)
