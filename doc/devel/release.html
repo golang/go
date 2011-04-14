@@ -5,6 +5,94 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-04-13">2011-04-13</h3>
+
+<pre>
+weekly.2011-04-13
+
+This weekly snapshot includes major changes to the reflect package and the
+os.Open function.  Code that uses reflect or os.Open will require updating,
+which can be done mechanically using the gofix tool.
+
+The reflect package's Type and Value types have changed.  Type is now an
+interface that implements all the possible type methods.  Instead of a type
+switch on a reflect.Type t, switch on t.Kind().  Value is now a struct value
+that implements all the possible value methods.  Instead of a type switch on a
+reflect.Value v, switch on v.Kind().  See the change for the full details:
+        http://code.google.com/p/go/source/detail?r=843855f3c026
+
+The os package's Open function has been replaced by three functions:
+        OpenFile(name, flag, perm) // same as old Open
+        Open(name) // same as old Open(name, O_RDONLY, 0)
+        Create(name) // same as old Open(name, O_RDWR|O_TRUNC|O_CREAT, 0666)
+
+To update your code to use the new APIs, run "gofix path/to/code".  Gofix can’t
+handle all situations perfectly, so read and test the changes it makes before
+committing them.
+
+Other changes:
+* archive/zip: add func OpenReader, type ReadCloser (thanks Dmitry Chestnykh).
+* asn1: Implement correct marshaling of length octets (thanks Luit van Drongelen).
+* big: don't crash when printing nil ints.
+* bufio: add ReadLine, to replace encoding/line.
+* build: make the build faster, quieter.
+* codereview: automatically port old diffs forward,
+        drop Author: line on self-clpatch,
+        recognize code URL without trailing slash.
+* crypto/block: remove deprecated package.
+* crypto/des: new package implementating DES and TDEA (thanks Yasuhiro Matsumoto).
+* crypto/ecdsa, crypto/rsa: use io.ReadFull to read from random source (thanks Dmitry Chestnykh).
+* crypto/rsa: add 3-prime support,
+        add support for precomputing CRT values,
+        flip the CRT code over so that it matches PKCS#1.
+* crypto/x509: expose complete DER data (thanks Mikkel Krautz).
+* doc: new "Functions" codewalk (thanks John DeNero).
+* doc/roadmap: add sections on tools, packages.
+* fmt: allow %U for unsigned integers.
+* gc: fixes and optimizations.
+* go/printer, gofmt: use blank to separate import rename from import path.
+* go/scanner: better TokenString output.
+* go/types: new Go type hierarchy implementation for AST.
+* godashboard: show packages at launchpad.net (thanks Gustavo Niemeyer).
+* gofix: add -diff, various fixes and helpers.
+* gotest: fix a bug in error handling,
+        fixes for [^.]_test file pattern (thanks Peter Mundy),
+        handle \r\n returned by gomake on Windows (thanks Alex Brainman).
+* gotype: use go/types GcImporter.
+* govet: make name-matching for printf etc. case-insensitive.
+* http: allow override of Content-Type for ServeFile,
+        client gzip support,
+        do not listen on 0.0.0.0 during test,
+        flesh out server Expect handling + tests.
+* image/ycbcr: new package.
+* image: allow "?" wildcards when registering image formats.
+* io: fixes for Read with n > 0, os.EOF (thanks Robert Hencke).
+* ld: correct Plan 9 compiler warnings (thanks Lucio De Re),
+        ELF header function declarations (thanks Lucio De Re),
+        fix Mach-O X86_64_RELOC_SIGNED relocations (thanks Mikkel Krautz),
+        fix Mach-O bss bug (thanks Mikkel Krautz),
+        fix dwarf decoding of strings for struct's fieldnames (thanks Luuk van Dijk),
+        fixes and optimizations (25% faster).
+* log: generalize getting and setting flags and prefix.
+* misc/cgo/life: enable build and test on Windows (thanks Alex Brainman).
+* misc/vim: add plugin with Fmt command (thanks Dmitry Chestnykh),
+        update type highlighting for new reflect package.
+* net: disable multicast tests by default (thanks Dave Cheney),
+        sort records returned by LookupMX (thanks Corey Thomasson).
+* openpgp: Fix improper := shadowing (thanks Gustavo Niemeyer).
+* os: rename Open to OpenFile, add new Open, Create,
+        fix Readdir in Plan 9 (thanks Fazlul Shahriar).
+* os/inotify: use _test for test files, not _obj.
+* pkg/path: enable tests on Windows (thanks Alex Brainman).
+* reflect: new Type and Value API.
+* src/pkg/Makefile: trim per-directory make output except on failure.
+* syscall: Add DT_* and MADV_* constants on Linux (thanks Albert Strasheim),
+        add Mmap, Munmap on Linux, FreeBSD, OS X,
+        fix StartProcess in Plan 9 (thanks Fazlul Shahriar),
+        fix Windows Signaled (thanks Alex Brainman).
+* test/bench: enable build and test on Windows (thanks Alex Brainman).
+</pre>
+
 <h3 id="2011-04-04">2011-04-04</h3>
 
 <pre>
