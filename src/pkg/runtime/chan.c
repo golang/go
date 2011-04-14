@@ -9,7 +9,6 @@
 
 static	int32	debug	= 0;
 
-typedef	struct	Link	Link;
 typedef	struct	WaitQ	WaitQ;
 typedef	struct	SudoG	SudoG;
 typedef	struct	Select	Select;
@@ -50,12 +49,6 @@ struct	Hchan
 // Buffer follows Hchan immediately in memory.
 // chanbuf(c, i) is pointer to the i'th slot in the buffer.
 #define chanbuf(c, i) ((byte*)((c)+1)+(uintptr)(c)->elemsize*(i))
-
-struct	Link
-{
-	Link*	link;			// asynch queue circular linked list
-	byte	elem[8];		// asynch queue data element (+ more)
-};
 
 enum
 {

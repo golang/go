@@ -122,10 +122,13 @@ class ChanTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		ptr = self.val['recvdataq']
-		for idx in range(self.val["qcount"]):
-			yield ('[%d]' % idx, ptr['elem'])
-			ptr = ptr['link']
+		# see chan.c chanbuf()
+		et = [x.type for x in self.val['free'].type.target().fields() if x.name == 'elem'][0]
+                ptr = (self.val.address + 1).cast(et.pointer())
+                for i in range(self.val["qcount"]):
+			j = (self.val["recvx"] + i) % self.val["dataqsiz"]
+			yield ('[%d]' % i, (ptr + j).dereference())
+
 
 #
 #  Register all the *Printer classes above.

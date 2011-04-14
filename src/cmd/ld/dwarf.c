@@ -1376,20 +1376,18 @@ synthesizemaptypes(DWDie *die)
 static void
 synthesizechantypes(DWDie *die)
 {
-	DWDie *sudog, *waitq, *link, *hchan,
+	DWDie *sudog, *waitq, *hchan,
 		*dws, *dww, *dwh, *elemtype;
 	DWAttr *a;
-	int elemsize, linksize, sudogsize;
+	int elemsize, sudogsize;
 
 	sudog = defgotype(lookup_or_diag("type.runtime.sudog"));
 	waitq = defgotype(lookup_or_diag("type.runtime.waitq"));
-	link  = defgotype(lookup_or_diag("type.runtime.link"));
 	hchan = defgotype(lookup_or_diag("type.runtime.hchan"));
-	if (sudog == nil || waitq == nil || link == nil || hchan == nil)
+	if (sudog == nil || waitq == nil || hchan == nil)
 		return;
 
 	sudogsize = getattr(sudog, DW_AT_byte_size)->value;
-	linksize = getattr(link, DW_AT_byte_size)->value;
 
 	for (; die != nil; die = die->link) {
 		if (die->abbrev != DW_ABRV_CHANTYPE)
@@ -1422,7 +1420,7 @@ synthesizechantypes(DWDie *die)
 		copychildren(dwh, hchan);
 		substitutetype(dwh, "recvq", dww);
 		substitutetype(dwh, "sendq", dww);
-		substitutetype(dwh, "free", dws);
+		substitutetype(dwh, "free", defptrto(dws));
 		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
 			getattr(hchan, DW_AT_byte_size)->value, NULL);
 
