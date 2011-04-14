@@ -21,6 +21,7 @@ import (
 	"rand"
 	"sync"
 	"time"
+	"sort"
 )
 
 // DNSError represents a DNS lookup error.
@@ -410,18 +411,32 @@ type MX struct {
 	Pref uint16
 }
 
-// LookupMX returns the DNS MX records associated with name.
-func LookupMX(name string) (entries []*MX, err os.Error) {
-	var records []dnsRR
-	_, records, err = lookup(name, dnsTypeMX)
+// byPref implements sort.Interface to sort MX records by preference
+type byPref []*MX
+
+func (s byPref) Len() int { return len(s) }
+
+func (s byPref) Less(i, j int) bool { return s[i].Pref < s[j].Pref }
+
+func (s byPref) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+// LookupMX returns the DNS MX records for the given domain name sorted by preference.
+func LookupMX(name string) (mx []*MX, err os.Error) {
+	_, rr, err := lookup(name, dnsTypeMX)
 	if err != nil {
 		return
 	}
-	entries = make([]*MX, len(records))
-	for i := range records {
-		r := records[i].(*dnsRR_MX)
-		entries[i] = &MX{r.Mx, r.Pref}
+	mx = make([]*MX, len(rr))
+	for i := range rr {
+		r := rr[i].(*dnsRR_MX)
+		mx[i] = &MX{r.Mx, r.Pref}
 	}
+	// Shuffle the records to match RFC 5321 when sorted
+	for i := range mx {
+		j := rand.Intn(i + 1)
+		mx[i], mx[j] = mx[j], mx[i]
+	}
+	sort.Sort(byPref(mx))
 	return
 }
 
