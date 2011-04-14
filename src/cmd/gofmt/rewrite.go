@@ -19,6 +19,7 @@ import (
 
 func initRewrite() {
 	if *rewriteRule == "" {
+		rewrite = nil // disable any previous rewrite
 		return
 	}
 	f := strings.Split(*rewriteRule, "->", -1)
