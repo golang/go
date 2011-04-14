@@ -39,13 +39,17 @@ struct	Hchan
 	bool	closed;
 	uint8	elemalign;
 	Alg*	elemalg;		// interface for element type
-	Link*	senddataq;		// pointer for sender
-	Link*	recvdataq;		// pointer for receiver
+	uint32	sendx;	// send index
+	uint32	recvx;	// receive index
 	WaitQ	recvq;			// list of recv waiters
 	WaitQ	sendq;			// list of send waiters
 	SudoG*	free;			// freelist
 	Lock;
 };
+
+// Buffer follows Hchan immediately in memory.
+// chanbuf(c, i) is pointer to the i'th slot in the buffer.
+#define chanbuf(c, i) ((byte*)((c)+1)+(uintptr)(c)->elemsize*(i))
 
 struct	Link
 {
@@ -97,8 +101,7 @@ Hchan*
 runtime·makechan_c(Type *elem, int64 hint)
 {
 	Hchan *c;
-	int32 i, m, n;
-	Link *d, *b, *e;
+	int32 n;
 	byte *by;
 
 	if(hint < 0 || (int32)hint != hint || hint > ((uintptr)-1) / elem->size)
@@ -109,16 +112,13 @@ runtime·makechan_c(Type *elem, int64 hint)
 		runtime·throw("runtime.makechan: unsupported elem type");
 	}
 
-	// calculate rounded sizes of Hchan and Link
+	// calculate rounded size of Hchan
 	n = sizeof(*c);
 	while(n & MAXALIGN)
 		n++;
-	m = sizeof(*d) + elem->size - sizeof(d->elem);
-	while(m & MAXALIGN)
-		m++;
 
 	// allocate memory in one call
-	by = runtime·mal(n + hint*m);
+	by = runtime·mal(n + hint*elem->size);
 
 	c = (Hchan*)by;
 	by += n;
@@ -127,26 +127,7 @@ runtime·makechan_c(Type *elem, int64 hint)
 	c->elemsize = elem->size;
 	c->elemalg = &runtime·algarray[elem->alg];
 	c->elemalign = elem->align;
-
-	if(hint > 0) {
-
-		// make a circular q
-		b = nil;
-		e = nil;
-		for(i=0; i<hint; i++) {
-			d = (Link*)by;
-			by += m;
-			if(e == nil)
-				e = d;
-			d->link = b;
-			b = d;
-		}
-		e->link = b;
-		c->recvdataq = b;
-		c->senddataq = b;
-		c->qcount = 0;
-		c->dataqsiz = hint;
-	}
+	c->dataqsiz = hint;
 
 	if(debug)
 		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%d; elemalign=%d; dataqsiz=%d\n",
@@ -268,8 +249,9 @@ asynch:
 		goto asynch;
 	}
 	if(ep != nil)
-		c->elemalg->copy(c->elemsize, c->senddataq->elem, ep);
-	c->senddataq = c->senddataq->link;
+		c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
+	if(++c->sendx == c->dataqsiz)
+		c->sendx = 0;
 	c->qcount++;
 
 	sg = dequeue(&c->recvq, c);
@@ -380,9 +362,10 @@ asynch:
 		goto asynch;
 	}
 	if(ep != nil)
-		c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
-	c->elemalg->copy(c->elemsize, c->recvdataq->elem, nil);
-	c->recvdataq = c->recvdataq->link;
+		c->elemalg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
+	c->elemalg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+	if(++c->recvx == c->dataqsiz)
+		c->recvx = 0;
 	c->qcount--;
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
@@ -940,9 +923,10 @@ asyncrecv:
 	if(cas->u.recv.receivedp != nil)
 		*cas->u.recv.receivedp = true;
 	if(cas->u.recv.elemp != nil)
-		c->elemalg->copy(c->elemsize, cas->u.recv.elemp, c->recvdataq->elem);
-	c->elemalg->copy(c->elemsize, c->recvdataq->elem, nil);
-	c->recvdataq = c->recvdataq->link;
+		c->elemalg->copy(c->elemsize, cas->u.recv.elemp, chanbuf(c, c->recvx));
+	c->elemalg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+	if(++c->recvx == c->dataqsiz)
+		c->recvx = 0;
 	c->qcount--;
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
@@ -955,8 +939,9 @@ asyncrecv:
 asyncsend:
 	// can send to buffer
 	if(cas->u.elem != nil)
-		c->elemalg->copy(c->elemsize, c->senddataq->elem, cas->u.elem);
-	c->senddataq = c->senddataq->link;
+		c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), cas->u.elem);
+	if(++c->sendx == c->dataqsiz)
+		c->sendx = 0;
 	c->qcount++;
 	sg = dequeue(&c->recvq, c);
 	if(sg != nil) {
