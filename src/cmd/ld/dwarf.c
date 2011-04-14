@@ -1377,7 +1377,7 @@ static void
 synthesizechantypes(DWDie *die)
 {
 	DWDie *sudog, *waitq, *link, *hchan,
-		*dws, *dww, *dwl, *dwh, *elemtype;
+		*dws, *dww, *dwh, *elemtype;
 	DWAttr *a;
 	int elemsize, linksize, sudogsize;
 
@@ -1416,21 +1416,10 @@ synthesizechantypes(DWDie *die)
 		newattr(dww, DW_AT_byte_size, DW_CLS_CONSTANT,
 			getattr(waitq, DW_AT_byte_size)->value, NULL);
 
-		// link<T>
-		dwl = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
-			mkinternaltypename("link", getattr(elemtype, DW_AT_name)->data, NULL));
-		copychildren(dwl, link);
-		substitutetype(dwl, "link", defptrto(dwl));
-		substitutetype(dwl, "elem", elemtype);
-		newattr(dwl, DW_AT_byte_size, DW_CLS_CONSTANT,
-			linksize + (elemsize > 8 ? elemsize - 8 : 0), NULL);
-
 		// hchan<T>
 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
 			mkinternaltypename("hchan", getattr(elemtype, DW_AT_name)->data, NULL));
 		copychildren(dwh, hchan);
-		substitutetype(dwh, "senddataq", defptrto(dwl));
-		substitutetype(dwh, "recvdataq", defptrto(dwl));
 		substitutetype(dwh, "recvq", dww);
 		substitutetype(dwh, "sendq", dww);
 		substitutetype(dwh, "free", dws);
