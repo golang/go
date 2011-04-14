@@ -581,7 +581,7 @@ loop:
 			diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
 			errorexit();
 		}
-		savedata(s, p);
+		savedata(s, p, pn);
 		unmal(p, sizeof *p);
 		break;
 

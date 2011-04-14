@@ -173,7 +173,7 @@ void	datblk(int32, int32);
 Sym*	datsort(Sym*);
 void	reloc(void);
 void	relocsym(Sym*);
-void	savedata(Sym*, Prog*);
+void	savedata(Sym*, Prog*, char*);
 void	symgrow(Sym*, int32);
 vlong	addstring(Sym*, char*);
 vlong	adduint32(Sym*, uint32);

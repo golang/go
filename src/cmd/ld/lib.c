@@ -438,7 +438,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 		return;
 	}
 	t = smprint("%s %s %s", getgoos(), thestring, getgoversion());
-	if(strcmp(line+10, t) != 0) {
+	if(strcmp(line+10, t) != 0 && !debug['f']) {
 		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
 		free(t);
 		return;
