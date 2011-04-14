@@ -217,6 +217,9 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 
 	conn, err := net.Dial("tcp", cm.addr())
 	if err != nil {
+		if cm.proxyURL != nil {
+			err = fmt.Errorf("http: error connecting to proxy %s: %v", cm.proxyURL, err)
+		}
 		return nil, err
 	}
 
