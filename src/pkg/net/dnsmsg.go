@@ -400,28 +400,24 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 			return len(msg), false
 		case reflect.Struct:
 			off, ok = packStructValue(fv, msg, off)
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-			i := fv.Uint()
-			switch fv.Type().Kind() {
-			default:
-				goto BadType
-			case reflect.Uint16:
-				if off+2 > len(msg) {
-					return len(msg), false
-				}
-				msg[off] = byte(i >> 8)
-				msg[off+1] = byte(i)
-				off += 2
-			case reflect.Uint32:
-				if off+4 > len(msg) {
-					return len(msg), false
-				}
-				msg[off] = byte(i >> 24)
-				msg[off+1] = byte(i >> 16)
-				msg[off+2] = byte(i >> 8)
-				msg[off+3] = byte(i)
-				off += 4
+		case reflect.Uint16:
+			if off+2 > len(msg) {
+				return len(msg), false
 			}
+			i := fv.Uint()
+			msg[off] = byte(i >> 8)
+			msg[off+1] = byte(i)
+			off += 2
+		case reflect.Uint32:
+			if off+4 > len(msg) {
+				return len(msg), false
+			}
+			i := fv.Uint()
+			msg[off] = byte(i >> 24)
+			msg[off+1] = byte(i >> 16)
+			msg[off+2] = byte(i >> 8)
+			msg[off+3] = byte(i)
+			off += 4
 		case reflect.Array:
 			if fv.Type().Elem().Kind() != reflect.Uint8 {
 				goto BadType
@@ -481,25 +477,20 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
 			return len(msg), false
 		case reflect.Struct:
 			off, ok = unpackStructValue(fv, msg, off)
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-			switch fv.Type().Kind() {
-			default:
-				goto BadType
-			case reflect.Uint16:
-				if off+2 > len(msg) {
-					return len(msg), false
-				}
-				i := uint16(msg[off])<<8 | uint16(msg[off+1])
-				fv.SetUint(uint64(i))
-				off += 2
-			case reflect.Uint32:
-				if off+4 > len(msg) {
-					return len(msg), false
-				}
-				i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3])
-				fv.SetUint(uint64(i))
-				off += 4
+		case reflect.Uint16:
+			if off+2 > len(msg) {
+				return len(msg), false
 			}
+			i := uint16(msg[off])<<8 | uint16(msg[off+1])
+			fv.SetUint(uint64(i))
+			off += 2
+		case reflect.Uint32:
+			if off+4 > len(msg) {
+				return len(msg), false
+			}
+			i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3])
+			fv.SetUint(uint64(i))
+			off += 4
 		case reflect.Array:
 			if fv.Type().Elem().Kind() != reflect.Uint8 {
 				goto BadType

@@ -37,41 +37,36 @@ func TypeFromNative(t reflect.Type) Type {
 	switch t.Kind() {
 	case reflect.Bool:
 		et = BoolType
-	case reflect.Float32, reflect.Float64:
-		switch t.Kind() {
-		case reflect.Float32:
-			et = Float32Type
-		case reflect.Float64:
-			et = Float64Type
-		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		switch t.Kind() {
-		case reflect.Int16:
-			et = Int16Type
-		case reflect.Int32:
-			et = Int32Type
-		case reflect.Int64:
-			et = Int64Type
-		case reflect.Int8:
-			et = Int8Type
-		case reflect.Int:
-			et = IntType
-		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		switch t.Kind() {
-		case reflect.Uint16:
-			et = Uint16Type
-		case reflect.Uint32:
-			et = Uint32Type
-		case reflect.Uint64:
-			et = Uint64Type
-		case reflect.Uint8:
-			et = Uint8Type
-		case reflect.Uint:
-			et = UintType
-		case reflect.Uintptr:
-			et = UintptrType
-		}
+
+	case reflect.Float32:
+		et = Float32Type
+	case reflect.Float64:
+		et = Float64Type
+
+	case reflect.Int16:
+		et = Int16Type
+	case reflect.Int32:
+		et = Int32Type
+	case reflect.Int64:
+		et = Int64Type
+	case reflect.Int8:
+		et = Int8Type
+	case reflect.Int:
+		et = IntType
+
+	case reflect.Uint16:
+		et = Uint16Type
+	case reflect.Uint32:
+		et = Uint32Type
+	case reflect.Uint64:
+		et = Uint64Type
+	case reflect.Uint8:
+		et = Uint8Type
+	case reflect.Uint:
+		et = UintType
+	case reflect.Uintptr:
+		et = UintptrType
+
 	case reflect.String:
 		et = StringType
 	case reflect.Array:
