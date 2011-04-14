@@ -63,6 +63,10 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 	repl := reflect.NewValue(replace)
 	var f func(val reflect.Value) reflect.Value // f is recursive
 	f = func(val reflect.Value) reflect.Value {
+		// don't bother if val is invalid to start with
+		if !val.IsValid() {
+			return reflect.Value{}
+		}
 		for k := range m {
 			m[k] = reflect.Value{}, false
 		}
@@ -79,6 +83,10 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 // setValue is a wrapper for x.SetValue(y); it protects
 // the caller from panics if x cannot be changed to y.
 func setValue(x, y reflect.Value) {
+	// don't bother if y is invalid to start with
+	if !y.IsValid() {
+		return
+	}
 	defer func() {
 		if x := recover(); x != nil {
 			if s, ok := x.(string); ok && strings.HasPrefix(s, "type mismatch") {
@@ -95,10 +103,12 @@ func setValue(x, y reflect.Value) {
 // Values/types for special cases.
 var (
 	objectPtrNil = reflect.NewValue((*ast.Object)(nil))
+	scopePtrNil  = reflect.NewValue((*ast.Scope)(nil))
 
 	identType     = reflect.Typeof((*ast.Ident)(nil))
 	objectPtrType = reflect.Typeof((*ast.Object)(nil))
 	positionType  = reflect.Typeof(token.NoPos)
+	scopePtrType  = reflect.Typeof((*ast.Scope)(nil))
 )
 
 
@@ -113,6 +123,12 @@ func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value
 	// rewrite; don't follow them but replace with nil instead
 	if val.Type() == objectPtrType {
 		return objectPtrNil
+	}
+
+	// similarly for scopes: they are likely incorrect after a rewrite;
+	// replace them with nil
+	if val.Type() == scopePtrType {
+		return scopePtrNil
 	}
 
 	switch v := reflect.Indirect(val); v.Kind() {
