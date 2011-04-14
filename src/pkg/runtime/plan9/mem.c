@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "malloc.h"
+#include "os.h"
 
 extern byte end[];
 static byte *bloc = { end };
@@ -52,5 +53,6 @@ runtime·SysMap(void *v, uintptr nbytes)
 void*
 runtime·SysReserve(void *v, uintptr nbytes)
 {
+	USED(v);
 	return runtime·SysAlloc(nbytes);
 }
