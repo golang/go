@@ -145,7 +145,7 @@ func (c *Conn) clientHandshake() os.Error {
 
 	c.peerCertificates = certs
 
-	if serverHello.certStatus {
+	if serverHello.ocspStapling {
 		msg, err = c.readHandshake()
 		if err != nil {
 			return err
