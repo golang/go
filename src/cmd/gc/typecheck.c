@@ -56,7 +56,7 @@ typechecklist(NodeList *l, int top)
 		typecheck(&l->n, top);
 }
 
-static char* typekind[] = {
+static char* _typekind[] = {
 	[TINT]		= "int",
 	[TUINT]		= "uint",
 	[TINT8]		= "int8",
@@ -82,7 +82,21 @@ static char* typekind[] = {
 	[TMAP]		= "map",
 	[TARRAY]	= "array",
 	[TFUNC]		= "func",
+	[TNIL]		= "nil",
+	[TIDEAL]	= "ideal number",
 };
+
+static char*
+typekind(int et)
+{
+	static char buf[50];
+	char *s;
+	
+	if(0 <= et && et < nelem(_typekind) && (s=_typekind[et]) != nil)
+		return s;
+	snprint(buf, sizeof buf, "etype=%d", et);
+	return buf;
+}
 
 /*
  * type check node *np.
@@ -406,7 +420,7 @@ reswitch:
 		}
 		if(!okfor[op][et]) {
 		notokfor:
-			yyerror("invalid operation: %#N (operator %#O not defined on %s)", n, op, typekind[et]);
+			yyerror("invalid operation: %#N (operator %#O not defined on %s)", n, op, typekind(et));
 			goto error;
 		}
 		// okfor allows any array == array;
