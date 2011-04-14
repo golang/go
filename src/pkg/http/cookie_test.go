@@ -21,9 +21,13 @@ var writeSetCookiesTests = []struct {
 		[]*Cookie{
 			&Cookie{Name: "cookie-1", Value: "v$1"},
 			&Cookie{Name: "cookie-2", Value: "two", MaxAge: 3600},
+			&Cookie{Name: "cookie-3", Value: "three", Domain: ".example.com"},
+			&Cookie{Name: "cookie-4", Value: "four", Path: "/restricted/"},
 		},
 		"Set-Cookie: cookie-1=v$1\r\n" +
-			"Set-Cookie: cookie-2=two; Max-Age=3600\r\n",
+			"Set-Cookie: cookie-2=two; Max-Age=3600\r\n" +
+			"Set-Cookie: cookie-3=three; Domain=.example.com\r\n" +
+			"Set-Cookie: cookie-4=four; Path=/restricted/\r\n",
 	},
 }
 
