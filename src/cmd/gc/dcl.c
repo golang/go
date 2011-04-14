@@ -697,12 +697,10 @@ stotype(NodeList *l, int et, Type **t, int funarg)
 	Type *f, *t1, *t2, **t0;
 	Strlit *note;
 	int lno;
-	NodeList *init;
 	Node *n, *left;
 	char *what;
 
 	t0 = t;
-	init = nil;
 	lno = lineno;
 	what = "field";
 	if(et == TINTER)

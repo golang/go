@@ -1193,7 +1193,6 @@ void
 paint1(Reg *r, int bn)
 {
 	Reg *r1;
-	Prog *p;
 	int z;
 	uint32 bb;
 
@@ -1219,7 +1218,6 @@ paint1(Reg *r, int bn)
 	}
 	for(;;) {
 		r->act.b[z] |= bb;
-		p = r->prog;
 
 		if(r->use1.b[z] & bb) {
 			change += CREF * r->loop;

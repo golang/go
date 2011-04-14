@@ -137,7 +137,6 @@ methodfunc(Type *f, Type *receiver)
 static Sig*
 methods(Type *t)
 {
-	int o;
 	Type *f, *mt, *it, *this;
 	Sig *a, *b;
 	Sym *method;
@@ -157,7 +156,6 @@ methods(Type *t)
 	// make list of methods for t,
 	// generating code if necessary.
 	a = nil;
-	o = 0;
 	oldlist = nil;
 	for(f=mt->xmethod; f; f=f->down) {
 		if(f->type->etype != TFUNC)
@@ -240,14 +238,12 @@ static Sig*
 imethods(Type *t)
 {
 	Sig *a, *all, *last;
-	int o;
 	Type *f;
 	Sym *method, *isym;
 	Prog *oldlist;
 
 	all = nil;
 	last = nil;
-	o = 0;
 	oldlist = nil;
 	for(f=t->type; f; f=f->down) {
 		if(f->etype != TFIELD)
