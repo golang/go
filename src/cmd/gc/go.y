@@ -1239,9 +1239,10 @@ fnlitdcl:
 	}
 
 fnliteral:
-	fnlitdcl '{' stmt_list '}'
+	fnlitdcl lbrace stmt_list '}'
 	{
 		$$ = closurebody($3);
+		fixlbrace($2);
 	}
 
 
