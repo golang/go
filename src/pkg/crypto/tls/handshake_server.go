@@ -103,6 +103,9 @@ FindCipherSuite:
 		hello.nextProtoNeg = true
 		hello.nextProtos = config.NextProtos
 	}
+	if clientHello.ocspStapling && len(config.Certificates[0].OCSPStaple) > 0 {
+		hello.ocspStapling = true
+	}
 
 	finishedHash.Write(hello.marshal())
 	c.writeRecord(recordTypeHandshake, hello.marshal())
@@ -115,6 +118,14 @@ FindCipherSuite:
 	certMsg.certificates = config.Certificates[0].Certificate
 	finishedHash.Write(certMsg.marshal())
 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
+
+	if hello.ocspStapling {
+		certStatus := new(certificateStatusMsg)
+		certStatus.statusType = statusTypeOCSP
+		certStatus.response = config.Certificates[0].OCSPStaple
+		finishedHash.Write(certStatus.marshal())
+		c.writeRecord(recordTypeHandshake, certStatus.marshal())
+	}
 
 	keyAgreement := suite.ka()
 

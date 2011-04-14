@@ -178,6 +178,9 @@ func (c *Config) cipherSuites() []uint16 {
 type Certificate struct {
 	Certificate [][]byte
 	PrivateKey  *rsa.PrivateKey
+	// OCSPStaple contains an optional OCSP response which will be served
+	// to clients that request it.
+	OCSPStaple []byte
 }
 
 // A TLS record.
