@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 	"unicode"
 	"utf8"
 )
@@ -51,6 +52,13 @@ var (
 	xFlag bool
 )
 
+// elapsed returns  time elapsed since gotest started.
+func elapsed() float64 {
+	return float64(time.Nanoseconds()-start) / 1e9
+}
+
+var start = time.Nanoseconds()
+
 // File represents a file that contains tests.
 type File struct {
 	name       string
@@ -79,6 +87,9 @@ func main() {
 	run(GL...)
 	if !cFlag {
 		runTestWithArgs("./" + O + ".out")
+	}
+	if xFlag {
+		fmt.Printf("gotest %.2fs: done\n", elapsed())
 	}
 }
 
@@ -119,7 +130,10 @@ func setEnvironment() {
 	// Basic environment.
 	GOROOT = runtime.GOROOT()
 	addEnv("GOROOT", GOROOT)
-	GOARCH = runtime.GOARCH
+	GOARCH = os.Getenv("GOARCH")
+	if GOARCH == "" {
+		GOARCH = runtime.GOARCH
+	}
 	addEnv("GOARCH", GOARCH)
 	O = theChar[GOARCH]
 	if O == "" {
@@ -254,7 +268,12 @@ func runTestWithArgs(binary string) {
 // retrieve standard output.
 func doRun(argv []string, returnStdout bool) string {
 	if xFlag {
-		fmt.Printf("gotest: %s\n", strings.Join(argv, " "))
+		fmt.Printf("gotest %.2fs: %s\n", elapsed(), strings.Join(argv, " "))
+		t := -time.Nanoseconds()
+		defer func() {
+			t += time.Nanoseconds()
+			fmt.Printf(" [+%.2fs]\n", float64(t)/1e9)
+		}()
 	}
 	command := argv[0]
 	if runtime.GOOS == "windows" && command == "gomake" {
