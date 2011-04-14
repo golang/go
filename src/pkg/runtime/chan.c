@@ -121,7 +121,6 @@ runtime·makechan_c(Type *elem, int64 hint)
 	by = runtime·mal(n + hint*elem->size);
 
 	c = (Hchan*)by;
-	by += n;
 	runtime·addfinalizer(c, destroychan, 0);
 
 	c->elemsize = elem->size;
