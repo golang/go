@@ -312,7 +312,7 @@ symgrow(Sym *s, int32 siz)
 }
 
 void
-savedata(Sym *s, Prog *p)
+savedata(Sym *s, Prog *p, char *pn)
 {
 	int32 off, siz, i, fl;
 	uchar *cast;
@@ -321,8 +321,10 @@ savedata(Sym *s, Prog *p)
 
 	off = p->from.offset;
 	siz = p->datasize;
+	if(off < 0 || siz < 0 || off >= 1<<30 || siz >= 100)
+		mangle(pn);
 	symgrow(s, off+siz);
-	
+
 	switch(p->to.type) {
 	default:
 		diag("bad data: %P", p);

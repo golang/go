@@ -356,6 +356,15 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 			return;
 		}
 	}
+	
+	switch(t) {
+	case D_FILE:
+	case D_FILE1:
+	case D_AUTO:
+	case D_PARAM:
+		if(s == S)
+			mangle(pn);
+	}
 
 	u = mal(sizeof(*u));
 	u->link = curauto;
@@ -559,7 +568,7 @@ loop:
 			diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
 			errorexit();
 		}
-		savedata(s, p);
+		savedata(s, p, pn);
 		unmal(p, sizeof *p);
 		goto loop;
 
