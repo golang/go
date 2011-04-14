@@ -60,39 +60,36 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	switch concrete := t; concrete.Kind() {
 	case reflect.Bool:
 		return reflect.NewValue(rand.Int()&1 == 0), true
-	case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
-		switch t.Kind() {
-		case reflect.Float32:
-			return reflect.NewValue(randFloat32(rand)), true
-		case reflect.Float64:
-			return reflect.NewValue(randFloat64(rand)), true
-		case reflect.Complex64:
-			return reflect.NewValue(complex(randFloat32(rand), randFloat32(rand))), true
-		case reflect.Complex128:
-			return reflect.NewValue(complex(randFloat64(rand), randFloat64(rand))), true
-		case reflect.Int16:
-			return reflect.NewValue(int16(randInt64(rand))), true
-		case reflect.Int32:
-			return reflect.NewValue(int32(randInt64(rand))), true
-		case reflect.Int64:
-			return reflect.NewValue(randInt64(rand)), true
-		case reflect.Int8:
-			return reflect.NewValue(int8(randInt64(rand))), true
-		case reflect.Int:
-			return reflect.NewValue(int(randInt64(rand))), true
-		case reflect.Uint16:
-			return reflect.NewValue(uint16(randInt64(rand))), true
-		case reflect.Uint32:
-			return reflect.NewValue(uint32(randInt64(rand))), true
-		case reflect.Uint64:
-			return reflect.NewValue(uint64(randInt64(rand))), true
-		case reflect.Uint8:
-			return reflect.NewValue(uint8(randInt64(rand))), true
-		case reflect.Uint:
-			return reflect.NewValue(uint(randInt64(rand))), true
-		case reflect.Uintptr:
-			return reflect.NewValue(uintptr(randInt64(rand))), true
-		}
+	case reflect.Float32:
+		return reflect.NewValue(randFloat32(rand)), true
+	case reflect.Float64:
+		return reflect.NewValue(randFloat64(rand)), true
+	case reflect.Complex64:
+		return reflect.NewValue(complex(randFloat32(rand), randFloat32(rand))), true
+	case reflect.Complex128:
+		return reflect.NewValue(complex(randFloat64(rand), randFloat64(rand))), true
+	case reflect.Int16:
+		return reflect.NewValue(int16(randInt64(rand))), true
+	case reflect.Int32:
+		return reflect.NewValue(int32(randInt64(rand))), true
+	case reflect.Int64:
+		return reflect.NewValue(randInt64(rand)), true
+	case reflect.Int8:
+		return reflect.NewValue(int8(randInt64(rand))), true
+	case reflect.Int:
+		return reflect.NewValue(int(randInt64(rand))), true
+	case reflect.Uint16:
+		return reflect.NewValue(uint16(randInt64(rand))), true
+	case reflect.Uint32:
+		return reflect.NewValue(uint32(randInt64(rand))), true
+	case reflect.Uint64:
+		return reflect.NewValue(uint64(randInt64(rand))), true
+	case reflect.Uint8:
+		return reflect.NewValue(uint8(randInt64(rand))), true
+	case reflect.Uint:
+		return reflect.NewValue(uint(randInt64(rand))), true
+	case reflect.Uintptr:
+		return reflect.NewValue(uintptr(randInt64(rand))), true
 	case reflect.Map:
 		numElems := rand.Intn(complexSize)
 		m := reflect.MakeMap(concrete)

@@ -467,7 +467,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 	// Deal with the ANY type.
 	if ifaceType := fieldType; ifaceType.Kind() == reflect.Interface && ifaceType.NumMethod() == 0 {
-		ifaceValue := v
 		var t tagAndLength
 		t, offset, err = parseTagAndLength(bytes, offset)
 		if err != nil {
@@ -506,7 +505,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			return
 		}
 		if result != nil {
-			ifaceValue.Set(reflect.NewValue(result))
+			v.Set(reflect.NewValue(result))
 		}
 		return
 	}
@@ -536,9 +535,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 					err = StructuralError{"Zero length explicit tag was not an asn1.Flag"}
 					return
 				}
-
-				flagValue := v
-				flagValue.SetBool(true)
+				v.SetBool(true)
 				return
 			}
 		} else {
@@ -606,23 +603,20 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	switch fieldType {
 	case objectIdentifierType:
 		newSlice, err1 := parseObjectIdentifier(innerBytes)
-		sliceValue := v
-		sliceValue.Set(reflect.MakeSlice(sliceValue.Type(), len(newSlice), len(newSlice)))
+		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))
 		if err1 == nil {
-			reflect.Copy(sliceValue, reflect.NewValue(newSlice))
+			reflect.Copy(v, reflect.NewValue(newSlice))
 		}
 		err = err1
 		return
 	case bitStringType:
-		structValue := v
 		bs, err1 := parseBitString(innerBytes)
 		if err1 == nil {
-			structValue.Set(reflect.NewValue(bs))
+			v.Set(reflect.NewValue(bs))
 		}
 		err = err1
 		return
 	case timeType:
-		ptrValue := v
 		var time *time.Time
 		var err1 os.Error
 		if universalTag == tagUTCTime {
@@ -631,21 +625,19 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			time, err1 = parseGeneralizedTime(innerBytes)
 		}
 		if err1 == nil {
-			ptrValue.Set(reflect.NewValue(time))
+			v.Set(reflect.NewValue(time))
 		}
 		err = err1
 		return
 	case enumeratedType:
 		parsedInt, err1 := parseInt(innerBytes)
-		enumValue := v
 		if err1 == nil {
-			enumValue.SetInt(int64(parsedInt))
+			v.SetInt(int64(parsedInt))
 		}
 		err = err1
 		return
 	case flagType:
-		flagValue := v
-		flagValue.SetBool(true)
+		v.SetBool(true)
 		return
 	}
 	switch val := v; val.Kind() {
