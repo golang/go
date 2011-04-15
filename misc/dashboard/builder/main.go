@@ -185,7 +185,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
 
 	// get goos/goarch from builder string
 	s := strings.Split(builder, "-", 3)
-	if len(s) == 2 {
+	if len(s) >= 2 {
 		b.goos, b.goarch = s[0], s[1]
 	} else {
 		return nil, fmt.Errorf("unsupported builder form: %s", builder)
